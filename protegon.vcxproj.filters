@@ -23,14 +23,32 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="libfreetype-6.dll" />
-    <None Include="libjpeg-9.dll" />
-    <None Include="libpng16-16.dll" />
-    <None Include="libtiff-5.dll" />
-    <None Include="libwebp-7.dll" />
-    <None Include="SDL2.dll" />
-    <None Include="SDL2_image.dll" />
-    <None Include="SDL2_ttf.dll" />
-    <None Include="zlib1.dll" />
+    <None Include="libfreetype-6.dll">
+      <Filter>SDL2</Filter>
+    </None>
+    <None Include="libjpeg-9.dll">
+      <Filter>SDL2</Filter>
+    </None>
+    <None Include="libpng16-16.dll">
+      <Filter>SDL2</Filter>
+    </None>
+    <None Include="libtiff-5.dll">
+      <Filter>SDL2</Filter>
+    </None>
+    <None Include="libwebp-7.dll">
+      <Filter>SDL2</Filter>
+    </None>
+    <None Include="SDL2.dll">
+      <Filter>SDL2</Filter>
+    </None>
+    <None Include="SDL2_image.dll">
+      <Filter>SDL2</Filter>
+    </None>
+    <None Include="SDL2_ttf.dll">
+      <Filter>SDL2</Filter>
+    </None>
+    <None Include="zlib1.dll">
+      <Filter>SDL2</Filter>
+    </None>
   </ItemGroup>
 </Project>
