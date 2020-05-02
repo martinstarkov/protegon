@@ -227,6 +227,7 @@ _pkginfo.txt
 !?*.[Cc]ache/
 
 # Custom
+!/runtime_dlls/*.dll
 *.zip
 *.dll
 
