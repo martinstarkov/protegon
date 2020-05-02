@@ -226,8 +226,9 @@ _pkginfo.txt
 # but keep track of directories ending in .cache
 !?*.[Cc]ache/
 
-# Zip
+# Custom
 *.zip
+*.dll
 
 # Others
 ClientBin/
