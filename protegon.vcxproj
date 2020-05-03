@@ -153,7 +153,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\Game.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\TextureManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="libfreetype-6.dll" />
@@ -165,6 +167,15 @@
     <None Include="SDL2_image.dll" />
     <None Include="SDL2_ttf.dll" />
     <None Include="zlib1.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\common.h" />
+    <ClInclude Include="src\defines.h" />
+    <ClInclude Include="src\Game.h" />
+    <ClInclude Include="src\TextureManager.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="resources\test_tile_1.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
