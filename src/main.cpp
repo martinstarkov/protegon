@@ -8,7 +8,7 @@ int main(int argc, char* args[]) {
 
     game->loop();
 
-    game->quit();
+    game->clean();
 
     return 0;
 }
