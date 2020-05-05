@@ -153,6 +153,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\Player.cpp" />
+    <ClCompile Include="src\Entity.cpp" />
     <ClCompile Include="src\InputHandler.cpp" />
     <ClCompile Include="src\Game.cpp" />
     <ClCompile Include="src\main.cpp" />
@@ -170,11 +172,14 @@
     <None Include="zlib1.dll" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\Player.h" />
+    <ClInclude Include="src\Entity.h" />
     <ClInclude Include="src\InputHandler.h" />
     <ClInclude Include="src\common.h" />
     <ClInclude Include="src\defines.h" />
     <ClInclude Include="src\Game.h" />
     <ClInclude Include="src\TextureManager.h" />
+    <ClInclude Include="src\Vec2D.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="resources\test_tile_1.png" />
