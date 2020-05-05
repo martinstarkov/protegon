@@ -4,11 +4,18 @@ Game* Game::instance = nullptr;
 SDL_Window* Game::window = nullptr;
 SDL_Renderer* Game::renderer = nullptr;
 bool Game::running = false;
+std::vector<Entity*> Game::entities;
 
 Game::Game() {
 	tm = TextureManager::getInstance();
 	ih = InputHandler::getInstance();
 	player = Player::getInstance();
+	Entity* box0 = new Entity(Vec2D(40, 40), Vec2D(120, 200), Vec2D(), Vec2D(), -1);
+	Entity* box1 = new Entity(Vec2D(400, 32), Vec2D(100, 400), Vec2D(), Vec2D(), -1);
+	Entity* box2 = new Entity(Vec2D(32, 100), Vec2D(200, 300), Vec2D(), Vec2D(), -1);
+	//entities.push_back(box0);
+	entities.push_back(box1);
+	//entities.push_back(box2);
 }
 
 void Game::init() {
@@ -37,15 +44,11 @@ void Game::update() {
 void Game::render() {
 	SDL_RenderClear(renderer); // clear screen
 	SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
-	SDL_Rect rect = player->getPosition().Vec2DtoSDLRect(player->getSize());
-	SDL_RenderDrawRect(renderer, &rect);
+	SDL_RenderDrawRect(renderer, &player->getPosition().Vec2DtoSDLRect(player->getSize()));
 	SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-	SDL_RenderDrawRect(renderer, &SDL_Rect({ 512, 512, 32, 32 }));
-	SDL_RenderDrawRect(renderer, &SDL_Rect({ 544, 512, 32, 32 }));
-	SDL_RenderDrawRect(renderer, &SDL_Rect({ 576, 512, 32, 32 }));
-	SDL_RenderDrawRect(renderer, &SDL_Rect({ 480, 512, 32, 32 }));
-	SDL_RenderDrawRect(renderer, &SDL_Rect({ 448, 512, 32, 32 }));
-	SDL_RenderDrawRect(renderer, &SDL_Rect({ 416, 512, 32, 32 }));
+	for (auto entity : entities) {
+		SDL_RenderDrawRect(renderer, &entity->getPosition().Vec2DtoSDLRect(entity->getSize()));
+	}
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 	SDL_RenderPresent(renderer); // display
 }

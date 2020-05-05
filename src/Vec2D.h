@@ -50,7 +50,7 @@ struct Vec2D {
 		return Vec2D(-x, -y);
 	}
 	float magnitude() {
-		return sqrt(x * x + y * y);
+		return sqrtf(x * x + y * y);
 	}
 	bool operator> (Vec2D v) {
 		return magnitude() > v.magnitude();

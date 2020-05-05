@@ -6,6 +6,7 @@ private:
 	static Player* instance;
 	Vec2D maxVel;
 public:
+	bool jumping = false;
 	Player() : Entity{} {
 		init();
 	}

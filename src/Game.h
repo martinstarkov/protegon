@@ -18,6 +18,7 @@ private:
 	void update();
 	void render();
 public:
+	static std::vector<Entity*> entities;
 	Game();
 	static Game* getInstance() {
 		if (!instance) {
