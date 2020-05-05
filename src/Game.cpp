@@ -3,11 +3,13 @@
 Game* Game::instance = nullptr;
 SDL_Window* Game::window = nullptr;
 SDL_Renderer* Game::renderer = nullptr;
-int Game::x = 512;
-int Game::y = 512;
 bool Game::running = false;
 
-Game::Game() {}
+Game::Game() {
+	tm = TextureManager::getInstance();
+	ih = InputHandler::getInstance();
+	player = Player::getInstance();
+}
 
 void Game::init() {
 	if (SDL_Init(SDL_INIT_EVERYTHING) != 0) { // failure
@@ -24,32 +26,43 @@ void Game::init() {
 	} else {
 		std::cout << "SDL window failed to init" << std::endl;
 	}
-	tm = TextureManager::getInstance();
-	ih = InputHandler::getInstance();
 	running = true;
 }
 
 void Game::update() {
 	ih->update();
+	player->update();
 }
 
 void Game::render() {
 	SDL_RenderClear(renderer); // clear screen
-	SDL_Rect dest;
-	dest.w = 32;
-	dest.h = 32;
-	dest.x = x;
-	dest.y = y;
 	SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
-	SDL_RenderDrawRect(renderer, &dest);
+	SDL_Rect rect = player->getPosition().Vec2DtoSDLRect(player->getSize());
+	SDL_RenderDrawRect(renderer, &rect);
+	SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+	SDL_RenderDrawRect(renderer, &SDL_Rect({ 512, 512, 32, 32 }));
+	SDL_RenderDrawRect(renderer, &SDL_Rect({ 544, 512, 32, 32 }));
+	SDL_RenderDrawRect(renderer, &SDL_Rect({ 576, 512, 32, 32 }));
+	SDL_RenderDrawRect(renderer, &SDL_Rect({ 480, 512, 32, 32 }));
+	SDL_RenderDrawRect(renderer, &SDL_Rect({ 448, 512, 32, 32 }));
+	SDL_RenderDrawRect(renderer, &SDL_Rect({ 416, 512, 32, 32 }));
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 	SDL_RenderPresent(renderer); // display
 }
 
 void Game::loop() {
+	const int FPS = 60;
+	const int fDelay = 1000 / FPS;
+	Uint32 fStart;
+	int fTime;
 	while (running) {
+		fStart = SDL_GetTicks();
 		update();
 		render();
+		fTime = SDL_GetTicks() - fStart;
+		if (fDelay > fTime) {
+			SDL_Delay(fDelay - fTime);
+		}
 	}
 }
 

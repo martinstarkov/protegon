@@ -4,6 +4,7 @@
 #include "SDL.h"
 #include "TextureManager.h"
 #include "InputHandler.h"
+#include "Player.h"
 
 class Game {
 private:
@@ -13,10 +14,10 @@ private:
 	static bool running;
 	TextureManager* tm;
 	InputHandler* ih;
+	Player* player;
 	void update();
 	void render();
 public:
-	static int x, y;
 	Game();
 	static Game* getInstance() {
 		if (!instance) {
