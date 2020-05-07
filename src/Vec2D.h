@@ -70,8 +70,14 @@ struct Vec2D {
 	bool operator!= (Vec2D v) {
 		return x != v.x && y != v.y;
 	}
+	Vec2D abs() {
+		return Vec2D(fabs(x), fabs(y));
+	}
 	float dotProduct(Vec2D v) {
 		return x * v.x + y * v.y;
+	}
+	float crossProductArea(Vec2D v) {
+		return x * v.y - y * v.x;
 	}
 	Vec2D unitVector() {
 		if (magnitude() != 0) {
