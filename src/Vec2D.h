@@ -6,6 +6,7 @@
 struct Vec2D {
 	float x, y;
 	Vec2D(float x, float y) : x(x), y(y) {}
+	Vec2D(int x, int y) : x((float)x), y((float)y) {}
 	Vec2D() : x(0), y(0) {}
 	Vec2D operator+ (Vec2D v) {
 		return Vec2D(x + v.x, y + v.y);
@@ -13,11 +14,27 @@ struct Vec2D {
 	Vec2D operator+ (float f) {
 		return Vec2D(x + f, y + f);
 	}
+	Vec2D& operator+= (Vec2D v) {
+		*this = *this + v;
+		return *this;
+	}
+	Vec2D& operator+= (float f) {
+		*this = *this + f;
+		return *this;
+	}
 	Vec2D operator- (Vec2D v) {
 		return Vec2D(x - v.x, y - v.y);
 	}
 	Vec2D operator- (float f) {
 		return Vec2D(x - f, y - f);
+	}
+	Vec2D& operator-= (Vec2D v) {
+		*this = *this - v;
+		return *this;
+	}
+	Vec2D& operator-= (float f) {
+		*this = *this - f;
+		return *this;
 	}
 	Vec2D operator* (Vec2D v) {
 		return Vec2D(x * v.x, y * v.y);
@@ -25,11 +42,27 @@ struct Vec2D {
 	Vec2D operator* (float f) {
 		return Vec2D(x * f, y * f);
 	}
+	Vec2D& operator*= (Vec2D v) {
+		*this = *this * v;
+		return *this;
+	}
+	Vec2D& operator*= (float f) {
+		*this = *this * f;
+		return *this;
+	}
 	Vec2D operator/ (Vec2D v) {
 		return Vec2D(x / v.x, y / v.y);
 	}
 	Vec2D operator/ (float f) {
 		return Vec2D(x / f, y / f);
+	}
+	Vec2D& operator/= (Vec2D v) {
+		*this = *this / v;
+		return *this;
+	}
+	Vec2D& operator/= (float f) {
+		*this = *this / f;
+		return *this;
 	}
 	bool operator== (Vec2D v) {
 		return x == v.x && y == v.y;
