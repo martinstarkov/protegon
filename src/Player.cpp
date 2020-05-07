@@ -3,7 +3,7 @@
 #include <algorithm>
 
 Player* Player::instance = nullptr;
-#define GRAVITY 0.1f//0.01f
+#define GRAVITY 0.2f//0.01f
 #define DRAG 0.25f
 
 void Player::init() {
@@ -15,33 +15,126 @@ void Player::init() {
 	//maxVel = Vec2D(8, 8);//Vec2D(8, 20);
 }
 
-void Player::collisionCheck(Entity* entity) {
-	AABB md = hitbox.minkowskiDifference(entity->getHitbox());
-	if (md.pos.x <= 0 &&
-		md.getMax().x >= 0 &&
-		md.pos.y <= 0 &&
-		md.getMax().y >= 0) {
-		Vec2D pv = Vec2D();
-		Vec2D edge = Vec2D();
-		md.penetrationVector(Vec2D(0, 0), pv, edge); // relative to origin
-		if (edge.y == 1) {
-			jumping = false;
-			velocity.y = 0;
-			acceleration.y = 0;
-		}
-		hitbox.pos -= pv;
+void Player::hitGround() {
+	grounded = true;
+	jumping = false;
+	velocity.y = 0;
+	acceleration.y = 0;
+	std::cout << "Hit the ground!" << std::endl;
+}
+
+void Player::boundaryCheck() {
+	if (hitbox.pos.x < 0) {
+		hitbox.pos.x = 0;
+	}
+	if (hitbox.pos.x + hitbox.size.x > WINDOW_WIDTH) {
+		hitbox.pos.x = WINDOW_WIDTH - hitbox.size.x;
+	}
+	if (hitbox.pos.y < 0) {
+		hitbox.pos.y = 0;
+		velocity.y *= -1;
+		acceleration.y *= -1;
+	}
+	if (hitbox.pos.y + hitbox.size.y > WINDOW_HEIGHT) {
+		hitbox.pos.y = WINDOW_HEIGHT - hitbox.size.y;
+		hitGround();
 	}
 }
 
+bool Player::broadPhaseCheck(AABB bpb, Entity* entity) {
+	if (
+		entity->getHitbox().pos.x + entity->getHitbox().size.x > bpb.pos.x &&
+		entity->getHitbox().pos.x < bpb.pos.x + bpb.size.x &&
+		entity->getHitbox().pos.y + entity->getHitbox().size.y > bpb.pos.y &&
+		entity->getHitbox().pos.y < bpb.pos.y + bpb.size.y
+		) { // entity collides with broadphase box
+		return true;
+	}
+	return false;
+}
+
 void Player::update() {
+
 	Entity::update();
+
 	acceleration.y += GRAVITY;
 	velocity *= (1.0f - DRAG); // drag
 	velocity += acceleration; // movement
-	hitbox.pos += velocity;
+
+	AABB bpb = hitbox.broadphaseBox(hitbox.pos + velocity);
+
+	std::vector<Entity*> potentialColliders;
+
 	for (Entity* entity : Game::entities) {
-		collisionCheck(entity);
+		if (entity != nullptr) {
+			if (broadPhaseCheck(bpb, entity)) {
+				potentialColliders.push_back(entity);
+			}
+		}
 	}
+
+	hitbox.pos.x += velocity.x;
+
+	for (Entity* entity : potentialColliders) {
+		AABB md = hitbox.minkowskiDifference(entity->getHitbox());
+		if (md.pos.x <= 0 &&
+			md.getMax().x >= 0 &&
+			md.pos.y <= 0 &&
+			md.getMax().y >= 0) {
+
+			Vec2D edge;
+			Vec2D pv;
+			md.penetrationVector(Vec2D(), pv, edge);
+
+			hitbox.pos.x -= pv.x;
+
+		}
+
+	}
+
+	hitbox.pos.y += velocity.y;
+
+	std::vector<Vec2D> yCollisions;
+
+	for (Entity* entity : potentialColliders) {
+
+		AABB md = hitbox.minkowskiDifference(entity->getHitbox());
+		if (md.pos.x <= 0 &&
+			md.getMax().x >= 0 &&
+			md.pos.y <= 0 &&
+			md.getMax().y >= 0) {
+
+			Vec2D edge;
+			Vec2D pv;
+			md.penetrationVector(Vec2D(), pv, edge);
+			yCollisions.push_back(pv);
+
+			hitbox.pos.y -= pv.y;
+
+		}
+
+	}
+
+	grounded = false;
+	jumping = true;
+
+	if (velocity.y != 0) {
+		if (yCollisions.size() > 0) {
+			for (auto& pV : yCollisions) {
+				if (pV.y > 0) {
+					hitGround();
+					break;
+				}
+				if (pV.y < 0) {
+					velocity.y *= -1;
+					acceleration.y *= -1;
+				}
+			}
+		}
+	}
+	
+	boundaryCheck();
+
 	//setPosition(getPosition() + getVelocity());
 	////setVelocity(Vec2D(getVelocity().x, getVelocity().y + gravity));
 	//Vec2D normal = Vec2D();
