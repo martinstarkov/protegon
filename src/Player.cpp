@@ -4,7 +4,7 @@
 
 Player* Player::instance = nullptr;
 #define GRAVITY 0.1f//0.01f
-#define DRAG 0.1f
+#define DRAG 0.25f
 
 void Player::init() {
 	hitbox = { Vec2D(128, 128), Vec2D(32, 32) };

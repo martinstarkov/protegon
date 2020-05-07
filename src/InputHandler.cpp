@@ -7,7 +7,7 @@ InputHandler* InputHandler::instance = nullptr;
 InputHandler::InputHandler() {}
 
 #define MOVEMENT_ACCELERATION 1.0f
-#define JUMPING_ACCELERATION 1.7f
+#define JUMPING_ACCELERATION 2.7f
 #define RESET_POSITION Vec2D(232, 128)
 
 void InputHandler::keyStateChange() {
