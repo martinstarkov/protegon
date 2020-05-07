@@ -15,11 +15,13 @@ Game::Game() {
 	Entity* box2 = new Entity(AABB(200, 300, 32, 100));
 	Entity* box3 = new Entity(AABB(264, 300, 32, 100));
 	Entity* box4 = new Entity(AABB(350, 200, 100, 32));
+	Entity* box5 = new Entity(AABB(550, 480, 100, 32));
 	entities.push_back(box0);
 	entities.push_back(box1);
 	entities.push_back(box2);
 	entities.push_back(box3);
 	entities.push_back(box4);
+	entities.push_back(box5);
 }
 
 void Game::init() {
