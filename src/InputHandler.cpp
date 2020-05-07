@@ -4,14 +4,17 @@
 
 InputHandler* InputHandler::instance = nullptr;
 
-InputHandler::InputHandler() {}
+Player* player;
+
+InputHandler::InputHandler() {
+	player = Player::getInstance();
+}
 
 #define MOVEMENT_ACCELERATION 1.0f
-#define JUMPING_ACCELERATION 2.7f
+#define JUMPING_ACCELERATION 3.8f
 #define RESET_POSITION Vec2D(232, 128)
 
 void InputHandler::keyStateChange() {
-	Player* player = Player::getInstance();
 	const Uint8* states = SDL_GetKeyboardState(NULL);
 	if (states[SDL_SCANCODE_A]) {
 		player->setAcceleration(Vec2D(-MOVEMENT_ACCELERATION, player->getAcceleration().y));
@@ -41,6 +44,7 @@ void InputHandler::keyStateChange() {
 
 void InputHandler::update() {
 	SDL_Event event;
+	keyStateChange();
 	while (SDL_PollEvent(&event)) {
 		switch (event.type) {
 			case SDL_QUIT:
@@ -48,7 +52,6 @@ void InputHandler::update() {
 				break;
 			case SDL_KEYDOWN:
 			case SDL_KEYUP:
-				keyStateChange();
 				break;
 			default:
 				break;
