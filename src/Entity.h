@@ -16,6 +16,12 @@ public:
 	Vec2D getAcceleration() {
 		return acceleration;
 	}
+	void setVelocity(Vec2D newVel) {
+		velocity = newVel;
+	}
+	Vec2D getVelocity() {
+		return velocity;
+	}
 	void setPosition(Vec2D newPosition) {
 		hitbox.pos = newPosition;
 	}
