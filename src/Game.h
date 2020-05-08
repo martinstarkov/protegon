@@ -17,8 +17,10 @@ private:
 	Player* player;
 	void update();
 	void render();
+	void instructions();
 public:
 	static std::vector<Entity*> entities;
+	static std::vector<AABB> broadphase;
 	Game();
 	static Game* getInstance() {
 		if (!instance) {

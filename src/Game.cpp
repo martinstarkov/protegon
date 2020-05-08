@@ -5,18 +5,17 @@ SDL_Window* Game::window = nullptr;
 SDL_Renderer* Game::renderer = nullptr;
 bool Game::running = false;
 std::vector<Entity*> Game::entities;
+std::vector<AABB> Game::broadphase;
 
 Game::Game() {
 	tm = TextureManager::getInstance();
 	ih = InputHandler::getInstance();
 	player = Player::getInstance();
-	Entity* box0 = new Entity(AABB(120, 200, 40, 40));
-	Entity* box1 = new Entity(AABB(100, 400, 400, 32));
+	Entity* box1 = new Entity(AABB(100, 400, 400, 64));
 	Entity* box2 = new Entity(AABB(200, 300, 32, 100));
 	Entity* box3 = new Entity(AABB(264, 300, 32, 100));
 	Entity* box4 = new Entity(AABB(350, 200, 100, 32));
 	Entity* box5 = new Entity(AABB(550, 480, 100, 32));
-	entities.push_back(box0);
 	entities.push_back(box1);
 	entities.push_back(box2);
 	entities.push_back(box3);
@@ -40,6 +39,11 @@ void Game::init() {
 		std::cout << "SDL window failed to init" << std::endl;
 	}
 	running = true;
+	instructions();
+}
+
+void Game::instructions() {
+	std::cout << "Press 'r' to reset block position" << std::endl;
 }
 
 void Game::update() {
@@ -49,15 +53,23 @@ void Game::update() {
 
 void Game::render() {
 	SDL_RenderClear(renderer); // clear screen
-	SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 	SDL_SetRenderDrawColor(renderer, 255, 50, 100, 255);
 	SDL_RenderDrawRect(renderer, player->getHitbox().AABBtoRect());
 	SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
 	for (auto entity : entities) {
 		SDL_RenderDrawRect(renderer, entity->getHitbox().AABBtoRect());
 	}
+	SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+	for (auto aabb : broadphase) {
+		//SDL_RenderDrawRect(renderer, aabb.AABBtoRect());
+	}
+	SDL_SetRenderDrawColor(renderer, 0, 255, 255, 255);
+	//SDL_RenderDrawRect(renderer, player->oldHitbox.AABBtoRect());
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 	SDL_RenderPresent(renderer); // display
+	broadphase.clear();
+	SDL_Delay(0);
 }
 
 void Game::loop() {

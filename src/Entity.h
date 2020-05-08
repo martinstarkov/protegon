@@ -7,6 +7,7 @@ class Entity {
 private:
 
 public:
+	AABB oldHitbox;
 	Entity(AABB hitbox, Vec2D vel = {}, Vec2D accel = {}) : hitbox(hitbox), velocity(vel), acceleration(accel) {}
 	Entity(Vec2D vel = {}, Vec2D accel = {}) : velocity(vel), acceleration(accel) {}
 	void update();
