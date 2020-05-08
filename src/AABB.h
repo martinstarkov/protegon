@@ -1,5 +1,6 @@
 #pragma once
 #include "Vec2D.h"
+#include <string>
 
 // Significant help from guide at https://blog.hamaluik.ca/posts/simple-aabb-collision-using-minkowski-difference/
 
@@ -21,21 +22,30 @@ struct AABB {
         Vec2D mSize = size + other.size;
         return AABB(mPos, mSize);
     }
-    void penetrationVector(Vec2D relativePoint, Vec2D& pv, Vec2D& edge) { // find shortest distance from origin to edge of minkowski difference rectangle
-        float minDist = abs(relativePoint.x - pos.x); // left edge
+    void penetrationVector(Vec2D relativePoint, Vec2D& pv, Vec2D& edge, Vec2D vel) { // find shortest distance from origin to edge of minkowski difference rectangle
+        float minThreshold = 0.5f;
+        if (abs(vel.x) <= minThreshold) {
+            vel.x = 1;
+        }
+        float minTime = abs((relativePoint.x - pos.x) / vel.x); // left edge
+        std::string side = "left";
         pv = Vec2D(pos.x, relativePoint.y);
-        if (abs(getMax().x - relativePoint.x) < minDist) { // right edge
-            minDist = abs(getMax().x - relativePoint.x);
+        if (abs((getMax().x - relativePoint.x) / vel.x)  < minTime) { // right edge
+            minTime = abs((getMax().x - relativePoint.x) / vel.x);
+            side = "right";
             pv = Vec2D(getMax().x, relativePoint.y);
         }
-        if (abs(getMax().y - relativePoint.y) < minDist) { // bottom edge
-            minDist = abs(getMax().y - relativePoint.y);
+        if (abs((getMax().y - relativePoint.y) / vel.y) < minTime && abs(vel.y) != 0.2)  { // bottom edge
+            minTime = abs((getMax().y - relativePoint.y) / vel.y);
+            side = "bottom";
             pv = Vec2D(relativePoint.x, getMax().y);
         }
-        if (abs(pos.y - relativePoint.y) < minDist) { // top edge
-            minDist = abs(pos.y - relativePoint.y);
+        if (abs((pos.y - relativePoint.y) / vel.y) < minTime) { // top edge
+            minTime = abs((pos.y - relativePoint.y) / vel.y);
+            side = "top";
             pv = Vec2D(relativePoint.x, pos.y);
         }
+        //std::cout << side << " edge, time: " << minTime << ", vel: " << vel << std::endl;
         edge = pv.unitVector();
     }
     float rayIntersectFraction(Vec2D originA, Vec2D endA, Vec2D originB, Vec2D endB) {
@@ -58,20 +68,34 @@ struct AABB {
         }
         return std::numeric_limits<float>::infinity();
     }
+    float sweepingIntersectFractionX(Vec2D relativePoint, Vec2D relativeMotion) {
+        Vec2D end = relativePoint + relativeMotion;
+        // for each of the AABB's four edges, calculate the minimum fraction of "direction" in order to find where the ray FIRST intersects (if it ever does)
+        float minT = rayIntersectFraction(relativePoint, end, pos, Vec2D(pos.x, getMax().y)); // left edge
+        float x = rayIntersectFraction(relativePoint, end, Vec2D(getMax().x, getMax().y), Vec2D(getMax().x, pos.y)); // right edge
+        return x < minT ? x : minT;
+    }
+    float sweepingIntersectFractionY(Vec2D relativePoint, Vec2D relativeMotion) {
+        Vec2D end = relativePoint + relativeMotion;
+        // for each of the AABB's four edges, calculate the minimum fraction of "direction" in order to find where the ray FIRST intersects (if it ever does)
+        float minT = rayIntersectFraction(relativePoint, end, Vec2D(pos.x, getMax().y), Vec2D(getMax().x, getMax().y)); // bottom edge
+        float x = rayIntersectFraction(relativePoint, end, Vec2D(getMax().x, pos.y), pos); // top edge
+        return x < minT ? x : minT;
+    }
     float sweepingIntersectFraction(Vec2D relativePoint, Vec2D relativeMotion) {
         Vec2D end = relativePoint + relativeMotion;
         // for each of the AABB's four edges, calculate the minimum fraction of "direction" in order to find where the ray FIRST intersects (if it ever does)
-        float minT = rayIntersectFraction(relativePoint, end, Vec2D(pos.x, pos.y), Vec2D(pos.x, getMax().y));
-        float x = rayIntersectFraction(relativePoint, end, Vec2D(pos.x, getMax().y), Vec2D(getMax().x, getMax().y));
+        float minT = rayIntersectFraction(relativePoint, end, pos, Vec2D(pos.x, getMax().y)); // left edge
+        float x = rayIntersectFraction(relativePoint, end, Vec2D(pos.x, getMax().y), Vec2D(getMax().x, getMax().y)); // bottom edge
         if (x < minT) {
             minT = x;
         }
-        x = rayIntersectFraction(relativePoint, end, Vec2D(getMax().x, getMax().y), Vec2D(getMax().x, pos.y));
+        x = rayIntersectFraction(relativePoint, end, Vec2D(getMax().x, getMax().y), Vec2D(getMax().x, pos.y)); // right edge
         if (x < minT) {
             minT = x;
-        }
-        x = rayIntersectFraction(relativePoint, end, Vec2D(getMax().x, pos.y), Vec2D(pos.x, pos.y));
-        if (x < minT) {
+        } 
+        x = rayIntersectFraction(relativePoint, end, Vec2D(getMax().x, pos.y), pos); // top edge
+        if (x < minT) { 
             minT = x;
         }
         return minT; // return the fractional component along the collided ray
