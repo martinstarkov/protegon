@@ -3,11 +3,13 @@
 #include <algorithm>
 
 Player* Player::instance = nullptr;
-#define GRAVITY 0.2f//0.01f
-#define DRAG 0.25f
+#define GRAVITY 0.2f//0.2f
+#define DRAG 0.2f
 
 void Player::init() {
-	hitbox = { Vec2D(128, 128), Vec2D(32, 32) };
+	hitbox = { Vec2D(232, 10), Vec2D(32, 32) };
+	oldHitbox = hitbox;
+	originalPosition = hitbox.pos;
 	velocity = {};
 	acceleration = {};
 	//setSize(Vec2D(32, 32));
@@ -20,7 +22,7 @@ void Player::hitGround() {
 	jumping = false;
 	velocity.y = 0;
 	acceleration.y = 0;
-	std::cout << "Hit the ground!" << std::endl;
+	//std::cout << "Hit the ground!" << std::endl;
 }
 
 void Player::boundaryCheck() {
@@ -32,8 +34,8 @@ void Player::boundaryCheck() {
 	}
 	if (hitbox.pos.y < 0) {
 		hitbox.pos.y = 0;
-		velocity.y *= -1;
-		acceleration.y *= -1;
+		velocity.y *= -1 / 2;
+		acceleration.y *= -1 / 10;
 	}
 	if (hitbox.pos.y + hitbox.size.y > WINDOW_HEIGHT) {
 		hitbox.pos.y = WINDOW_HEIGHT - hitbox.size.y;
@@ -43,17 +45,32 @@ void Player::boundaryCheck() {
 
 bool Player::broadPhaseCheck(AABB bpb, Entity* entity) {
 	if (
-		entity->getHitbox().pos.x + entity->getHitbox().size.x > bpb.pos.x &&
-		entity->getHitbox().pos.x < bpb.pos.x + bpb.size.x &&
-		entity->getHitbox().pos.y + entity->getHitbox().size.y > bpb.pos.y &&
-		entity->getHitbox().pos.y < bpb.pos.y + bpb.size.y
+		entity->getHitbox().pos.x + entity->getHitbox().size.x >= bpb.pos.x &&
+		entity->getHitbox().pos.x <= bpb.pos.x + bpb.size.x &&
+		entity->getHitbox().pos.y + entity->getHitbox().size.y >= bpb.pos.y &&
+		entity->getHitbox().pos.y <= bpb.pos.y + bpb.size.y
 		) { // entity collides with broadphase box
+		//std::cout << "Broadphase collision" << std::endl;
+		return true;
+	}
+	return false;
+}
+
+bool Player::collisionCheck(Entity* entity) {
+	if (
+		entity->getHitbox().pos.x + entity->getHitbox().size.x > hitbox.pos.x &&
+		entity->getHitbox().pos.x < hitbox.pos.x + hitbox.size.x &&
+		entity->getHitbox().pos.y + entity->getHitbox().size.y > hitbox.pos.y &&
+		entity->getHitbox().pos.y < hitbox.pos.y + hitbox.size.y
+		) { // entity collides with player
 		return true;
 	}
 	return false;
 }
 
 void Player::update() {
+
+	oldHitbox = hitbox;
 
 	Entity::update();
 
@@ -62,14 +79,13 @@ void Player::update() {
 	velocity += acceleration; // movement
 
 	AABB bpb = hitbox.broadphaseBox(hitbox.pos + velocity);
+	Game::broadphase.push_back(bpb);
 
 	std::vector<Entity*> potentialColliders;
 
 	for (Entity* entity : Game::entities) {
-		if (entity != nullptr) {
-			if (broadPhaseCheck(bpb, entity)) {
-				potentialColliders.push_back(entity);
-			}
+		if (broadPhaseCheck(bpb, entity)) {
+			potentialColliders.push_back(entity);
 		}
 	}
 
@@ -84,7 +100,7 @@ void Player::update() {
 
 			Vec2D edge;
 			Vec2D pv;
-			md.penetrationVector(Vec2D(), pv, edge);
+			md.penetrationVector(Vec2D(), pv, edge, velocity);
 
 			hitbox.pos.x -= pv.x;
 
@@ -106,7 +122,7 @@ void Player::update() {
 
 			Vec2D edge;
 			Vec2D pv;
-			md.penetrationVector(Vec2D(), pv, edge);
+			md.penetrationVector(Vec2D(), pv, edge, velocity);
 			yCollisions.push_back(pv);
 
 			hitbox.pos.y -= pv.y;
@@ -126,14 +142,16 @@ void Player::update() {
 					break;
 				}
 				if (pV.y < 0) {
-					velocity.y *= -1;
-					acceleration.y *= -1;
+					velocity.y *= -1 / 2;
+					acceleration.y *= -1 / 10;
 				}
 			}
 		}
 	}
 	
 	boundaryCheck();
+
+	//std::cout << "Vel: " << velocity << std::endl;
 
 	//setPosition(getPosition() + getVelocity());
 	////setVelocity(Vec2D(getVelocity().x, getVelocity().y + gravity));

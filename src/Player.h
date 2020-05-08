@@ -7,6 +7,7 @@ private:
 	bool broadPhaseCheck(AABB bpb, Entity* entity);
 	void hitGround();
 public:
+	Vec2D originalPosition;
 	bool jumping = false;
 	bool grounded = false;
 	void boundaryCheck();
@@ -21,6 +22,6 @@ public:
 	}
 	void init();
 	void update();
-	void collisionCheck(Entity* entity);
+	bool collisionCheck(Entity* entity);
 };
 
