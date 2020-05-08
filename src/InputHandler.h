@@ -5,7 +5,7 @@
 class InputHandler {
 private:
 	static InputHandler* instance;
-	void keyStateChange();
+	void keyStateCheck();
 public:
 	InputHandler();
 	static InputHandler* getInstance() {

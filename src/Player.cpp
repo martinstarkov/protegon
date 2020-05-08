@@ -5,11 +5,13 @@
 Player* Player::instance = nullptr;
 #define GRAVITY 0.2f//0.2f
 #define DRAG 0.2f
+#define MOVEMENT_ACCELERATION 1.0f
+#define JUMPING_ACCELERATION 3.8f//3.8f
 
 void Player::init() {
 	hitbox = { Vec2D(232, 10), Vec2D(32, 32) };
 	oldHitbox = hitbox;
-	originalPosition = hitbox.pos;
+	originalPos = hitbox.pos;
 	velocity = {};
 	acceleration = {};
 	//setSize(Vec2D(32, 32));
@@ -23,6 +25,11 @@ void Player::hitGround() {
 	velocity.y = 0;
 	acceleration.y = 0;
 	//std::cout << "Hit the ground!" << std::endl;
+}
+
+void Player::resetPosition() {
+	stop(BOTH);
+	hitbox.pos = originalPos;
 }
 
 void Player::boundaryCheck() {
@@ -40,6 +47,43 @@ void Player::boundaryCheck() {
 	if (hitbox.pos.y + hitbox.size.y > WINDOW_HEIGHT) {
 		hitbox.pos.y = WINDOW_HEIGHT - hitbox.size.y;
 		hitGround();
+	}
+}
+
+void Player::move(Keys key) {
+	switch (key) {
+		case LEFT:
+			acceleration.x = -MOVEMENT_ACCELERATION;
+			break;
+		case RIGHT:
+			acceleration.x = MOVEMENT_ACCELERATION;
+			break;
+		case UP:
+			if (!jumping) {
+				jumping = true;
+				acceleration.y = -JUMPING_ACCELERATION;
+			}
+			break;
+		case DOWN:
+			acceleration.y += MOVEMENT_ACCELERATION / 100; // slightly increase downward acceleration
+			break;
+		default:
+			break;
+	}
+}
+
+void Player::stop(Axis axis) {
+	switch (axis) {
+		case VERTICAL:
+			acceleration.y = 0.0f;
+			break;
+		case HORIZONTAL:
+			acceleration.x = 0.0f;
+			break;
+		case BOTH:
+			acceleration = {};
+		default:
+			break;
 	}
 }
 
