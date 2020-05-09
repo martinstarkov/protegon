@@ -43,11 +43,16 @@ void Game::init() {
 }
 
 void Game::instructions() {
-	std::cout << "Press 'r' to reset block position" << std::endl;
+	std::cout << "'w', 'a', 's', 'd' to move" << std::endl;
+	std::cout << "'r' to reset player position" << std::endl;
 }
 
 void Game::update() {
 	ih->update();
+	for (Entity* entity : entities) {
+		entity->update();
+	}
+	std::cout << std::endl;
 	player->update();
 }
 
