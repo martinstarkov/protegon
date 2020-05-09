@@ -3,14 +3,20 @@
 #include "AABB.h"
 #include <vector>
 
+enum Axis {
+	VERTICAL,
+	HORIZONTAL,
+	BOTH
+};
+
 class Entity {
 private:
 
 public:
-	AABB oldHitbox;
-	Entity(AABB hitbox, Vec2D vel = {}, Vec2D accel = {}) : hitbox(hitbox), velocity(vel), acceleration(accel) {}
-	Entity(Vec2D vel = {}, Vec2D accel = {}) : velocity(vel), acceleration(accel) {}
+	Entity(AABB hitbox, Vec2D vel = {}, Vec2D accel = {}, bool hasGravity = false) : hitbox(hitbox), velocity(vel), acceleration(accel), hasGravity(hasGravity) {}
+	Entity(Vec2D vel = {}, Vec2D accel = {}, bool hasGravity = false) : velocity(vel), acceleration(accel), hasGravity(hasGravity) {}
 	void update();
+	void stop(Axis axis);
 	void setAcceleration(Vec2D newAccel) {
 		acceleration = newAccel;
 	}
@@ -30,11 +36,15 @@ public:
 		return hitbox;
 	}
 protected:
+	void updateMotion();
+	void collisionCheck();
+	void clearColliders();
+	std::vector<Vec2D> yCollisions;
 	AABB hitbox;
 	Vec2D velocity;
 	Vec2D acceleration;
-	//bool checkCollision(Entity* entity);
-	//void resolveCollision(Entity* entity, Vec2D dir);
-	//std::vector<Entity*> broadphaseCheck(Entity* entity);
+	bool hasGravity;
+	bool isColliding(Entity* entity);
+	bool broadphaseCheck(AABB bpb, Entity* entity);
 };
 

@@ -7,25 +7,14 @@ enum Keys {
 	UP,
 	DOWN
 };
-enum Axis {
-	VERTICAL,
-	HORIZONTAL,
-	BOTH
-};
 
 class Player : public Entity {
 private:
 	static Player* instance;
-	bool broadPhaseCheck(AABB bpb, Entity* entity);
-	void hitGround();
 	Vec2D originalPos;
+	void hitGround();
+	void groundCheck();
 public:
-	void resetPosition();
-	bool jumping = false;
-	bool grounded = false;
-	void boundaryCheck();
-	void move(Keys key);
-	void stop(Axis axis);
 	Player() : Entity{} {
 		init();
 	}
@@ -35,8 +24,12 @@ public:
 		}
 		return instance;
 	}
+	bool jumping = false;
+	bool grounded = false;
 	void init();
 	void update();
-	bool collisionCheck(Entity* entity);
+	void resetPosition();
+	void boundaryCheck();
+	void move(Keys key);
 };
 
