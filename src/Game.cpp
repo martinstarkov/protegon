@@ -1,26 +1,42 @@
 #include "Game.h"
+#include "FallingPlatform.h"
+#include "KillBlock.h"
+#include "WinBlock.h"
 
 Game* Game::instance = nullptr;
 SDL_Window* Game::window = nullptr;
 SDL_Renderer* Game::renderer = nullptr;
 bool Game::running = false;
 std::vector<Entity*> Game::entities;
+std::vector<Entity*> Game::entityObjects;
 std::vector<AABB> Game::broadphase;
+Uint32 Game::time;
+Uint32 Game::previousTime;
 
 Game::Game() {
 	tm = TextureManager::getInstance();
 	ih = InputHandler::getInstance();
 	player = Player::getInstance();
-	Entity* box1 = new Entity(AABB(100, 400, 400, 64));
-	Entity* box2 = new Entity(AABB(200, 300, 32, 100));
-	Entity* box3 = new Entity(AABB(264, 300, 32, 100));
-	Entity* box4 = new Entity(AABB(350, 200, 100, 32));
-	Entity* box5 = new Entity(AABB(550, 480, 100, 32));
-	entities.push_back(box1);
-	entities.push_back(box2);
-	entities.push_back(box3);
-	entities.push_back(box4);
-	entities.push_back(box5);
+	entities.push_back(new Entity(AABB(32, 32, 32, 32)));
+	entities.push_back(new Entity(AABB(96, 96, 32, 32)));
+	entities.push_back(new Entity(AABB(160, 160, 32, 32)));
+	entities.push_back(new Entity(AABB(224, 224, 32, 32)));
+	entities.push_back(new Entity(AABB(288, 288, 32, 32)));
+	entities.push_back(new Entity(AABB(352, 224, 32, 32)));
+	entities.push_back(new Entity(AABB(416, 160, 32, 32)));
+	entities.push_back(new Entity(AABB(480, 96, 32, 32)));
+	entities.push_back(new Entity(AABB(544, 32, 32, 32)));
+	entities.push_back(new FallingPlatform(AABB(600, 550, 32, 32), 1));
+	entities.push_back(new FallingPlatform(AABB(650, 460, 32, 32), 0.8f));
+	entities.push_back(new FallingPlatform(AABB(700, 380, 32, 32), 0.5f));
+	entities.push_back(new FallingPlatform(AABB(550, 360, 32, 32), 0.5f));
+	entities.push_back(new FallingPlatform(AABB(150, 400, 350, 32), 5));
+	entities.push_back(new KillBlock(AABB(80, 390, 32, 32)));
+	entities.push_back(new WinBlock(AABB(20, 380, 32, 32)));
+	for (Entity* entity : entities) {
+		entityObjects.push_back(entity);
+	}
+	entities.push_back(player);
 }
 
 void Game::init() {
@@ -44,33 +60,28 @@ void Game::init() {
 
 void Game::instructions() {
 	std::cout << "'w', 'a', 's', 'd' to move" << std::endl;
-	std::cout << "'r' to reset player position" << std::endl;
+	std::cout << "'r' to reset game" << std::endl;
 }
 
 void Game::update() {
+	time = SDL_GetTicks();
 	ih->update();
-	for (Entity* entity : entities) {
+	for (Entity* entity : entityObjects) {
 		entity->update();
 	}
-	std::cout << std::endl;
 	player->update();
+	previousTime = time;
 }
 
 void Game::render() {
 	SDL_RenderClear(renderer); // clear screen
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-	SDL_SetRenderDrawColor(renderer, 255, 50, 100, 255);
+	SDL_SetRenderDrawColor(renderer, player->getColor().r, player->getColor().g, player->getColor().b, player->getColor().a);
 	SDL_RenderDrawRect(renderer, player->getHitbox().AABBtoRect());
-	SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
-	for (auto entity : entities) {
+	for (Entity* entity : entityObjects) {
+		SDL_SetRenderDrawColor(renderer, entity->getColor().r, entity->getColor().g, entity->getColor().b, entity->getColor().a);
 		SDL_RenderDrawRect(renderer, entity->getHitbox().AABBtoRect());
 	}
-	SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-	for (auto aabb : broadphase) {
-		//SDL_RenderDrawRect(renderer, aabb.AABBtoRect());
-	}
-	SDL_SetRenderDrawColor(renderer, 0, 255, 255, 255);
-	//SDL_RenderDrawRect(renderer, player->oldHitbox.AABBtoRect());
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 	SDL_RenderPresent(renderer); // display
 	broadphase.clear();
@@ -78,7 +89,6 @@ void Game::render() {
 }
 
 void Game::loop() {
-	const int FPS = 60;
 	const int fDelay = 1000 / FPS;
 	Uint32 fStart;
 	int fTime;
@@ -90,6 +100,13 @@ void Game::loop() {
 		if (fDelay > fTime) {
 			SDL_Delay(fDelay - fTime);
 		}
+	}
+}
+
+void Game::reset() {
+	std::cout << "Resetting game..." << std::endl;
+	for (Entity* entity : Game::entities) {
+		entity->reset();
 	}
 }
 

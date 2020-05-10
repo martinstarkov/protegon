@@ -4,6 +4,7 @@
 #include "SDL.h"
 #include "TextureManager.h"
 #include "InputHandler.h"
+#include "Entity.h"
 #include "Player.h"
 
 class Game {
@@ -20,7 +21,10 @@ private:
 	void instructions();
 public:
 	static std::vector<Entity*> entities;
+	static std::vector<Entity*> entityObjects;
 	static std::vector<AABB> broadphase;
+	static Uint32 time;
+	static Uint32 previousTime;
 	Game();
 	static Game* getInstance() {
 		if (!instance) {
@@ -36,6 +40,7 @@ public:
 	}
 	void init();
 	void loop();
+	static void reset();
 	void clean();
 	void quit();
 };
