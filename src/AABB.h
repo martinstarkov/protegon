@@ -22,28 +22,48 @@ struct AABB {
         Vec2D mSize = size + other.size;
         return AABB(mPos, mSize);
     }
+    bool colliding(AABB hitbox) {
+        if (
+            pos.x + size.x >= hitbox.pos.x &&
+            pos.x <= hitbox.pos.x + hitbox.size.x &&
+            pos.y + size.y >= hitbox.pos.y &&
+            pos.y <= hitbox.pos.y + hitbox.size.y
+            ) { // AABB collision occured
+            return true;
+        }
+        return false;
+    }
     void penetrationVector(Vec2D relativePoint, Vec2D& pv, Vec2D& edge, Vec2D vel) { // find shortest distance from origin to edge of minkowski difference rectangle
-        float minThreshold = 0.5f;
-        if (abs(vel.x) <= minThreshold) {
-            vel.x = 1;
+        float minTime = std::numeric_limits<float>::infinity();
+        pv = Vec2D();
+        std::string side;
+        if (abs(vel.x) != 0) {
+            if (abs((relativePoint.x - pos.x) / vel.x) < minTime) {
+                minTime = abs((relativePoint.x - pos.x) / vel.x); // left edge
+                pv = Vec2D(pos.x, relativePoint.y);
+                side = "left";
+            }
         }
-        float minTime = abs((relativePoint.x - pos.x) / vel.x); // left edge
-        std::string side = "left";
-        pv = Vec2D(pos.x, relativePoint.y);
-        if (abs((getMax().x - relativePoint.x) / vel.x)  < minTime) { // right edge
-            minTime = abs((getMax().x - relativePoint.x) / vel.x);
-            side = "right";
-            pv = Vec2D(getMax().x, relativePoint.y);
+        if (abs(vel.x) != 0) {
+            if (abs((getMax().x - relativePoint.x) / vel.x)  < minTime) { // right edge
+                minTime = abs((getMax().x - relativePoint.x) / vel.x);
+                pv = Vec2D(getMax().x, relativePoint.y);
+                side = "right";
+            }
         }
-        if (abs((getMax().y - relativePoint.y) / vel.y) < minTime && abs(vel.y) != 0.2)  { // bottom edge
-            minTime = abs((getMax().y - relativePoint.y) / vel.y);
-            side = "bottom";
-            pv = Vec2D(relativePoint.x, getMax().y);
+        if (abs(vel.y) != 0) {
+            if (abs((getMax().y - relativePoint.y) / vel.y) < minTime) { // bottom edge
+                minTime = abs((getMax().y - relativePoint.y) / vel.y);
+                pv = Vec2D(relativePoint.x, getMax().y);
+                side = "bottom";
+            }
         }
-        if (abs((pos.y - relativePoint.y) / vel.y) < minTime) { // top edge
-            minTime = abs((pos.y - relativePoint.y) / vel.y);
-            side = "top";
-            pv = Vec2D(relativePoint.x, pos.y);
+        if (abs(vel.y) != 0) {
+            if (abs((pos.y - relativePoint.y) / vel.y) < minTime) { // top edge
+                minTime = abs((pos.y - relativePoint.y) / vel.y);
+                pv = Vec2D(relativePoint.x, pos.y);
+                side = "top";
+            }
         }
         //std::cout << side << " edge, time: " << minTime << ", vel: " << vel << std::endl;
         edge = pv.unitVector();
@@ -104,19 +124,3 @@ struct AABB {
         return new SDL_Rect{ (int)round(pos.x), (int)round(pos.y), (int)round(size.x), (int)round(size.y) };
     }
 };
-
-//Vec2D relativeVelocity = velocity - entity->getVelocity();
-//float h = md.sweepingIntersectFraction(Vec2D(), relativeVelocity); // raycast relativeVelocity to origin
-//if (h < std::numeric_limits<float>::infinity()) { // intersection occurs
-//	hitbox.pos += velocity * h;
-//	entity->getHitbox().pos += entity->getVelocity() * h;
-//	colliding = true;
-//	// zero the normal component of the velocity
-//	// (project the velocity onto the tangent of the relative velocities, and only keep the projected component, tossing the normal component)
-//	Vec2D tangent = relativeVelocity.unitVector().tangent();
-//	//velocity = tangent * velocity.dotProduct(tangent);
-//	entity->setVelocity(tangent * entity->getVelocity().dotProduct(tangent));
-//} else { // no intersection
-//	//hitbox.pos += velocity;
-//	entity->getHitbox().pos += entity->getVelocity();
-//}
