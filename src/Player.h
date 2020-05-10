@@ -19,7 +19,6 @@ private:
 	void reset();
 	bool win;
 	float jumpingAcceleration;
-	int i = 0;
 public:
 	Player() : Entity{} {
 		init();

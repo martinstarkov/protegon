@@ -24,6 +24,15 @@ void Player::init() {
 }
 
 void Player::update() {
+	if (!alive) {
+		std::cout << "You died. " << std::endl;
+		SDL_Delay(3000);
+		Game::reset();
+	}
+	if (win) {
+		std::cout << "You win. Congratulations!" << std::endl;
+		win = false;
+	}
 	Entity::update();
 }
 
@@ -31,34 +40,12 @@ void Player::resolveCollision() {
 	jumping = true;
 	grounded = false;
 	Entity* entity = collided(Side::ANY);
-	if (win) {
-		if (i % 200 == 0) {
-			g *= -1.0f;
-			jumpingAcceleration *= -1.0f;
-			jumping = false;
-			std::cout << "Yaaaaaaay!" << std::endl;
-			for (Entity* entity : Game::entityObjects) {
-				entity->setAcceleration(Vec2D(1.0f / float(rand() % 19 + (-9)), 1.0f / float(rand() % 19 + (-9))));
-			}
-		}
-		i++;
-	}
 	if (entity) {
 		switch (entity->getId()) {
 			case KILL_TILE_ID:
-				if (!alive && !win) {
-					std::cout << "You died. " << std::endl;
-					SDL_Delay(3000);
-					Game::reset();
-				}
 				alive = false;
 				break;
 			case WIN_TILE_ID:
-				if (win) {
-					if (i == 1) {
-						std::cout << "You win. Congratulations!" << std::endl;
-					}
-				}
 				win = true;
 			default:
 				break;
@@ -102,13 +89,9 @@ void Player::accelerate(Keys key) {
 			acceleration.x = MOVEMENT_ACCELERATION;
 			break;
 		case Keys::UP:
-			if (win) {
+			if (!jumping) {
+				jumping = true;
 				acceleration.y = -jumpingAcceleration;
-			} else {
-				if (!jumping) {
-					jumping = true;
-					acceleration.y = -jumpingAcceleration;
-				}
 			}
 			break;
 		case Keys::DOWN:
@@ -124,5 +107,4 @@ void Player::reset() {
 	win = false;
 	alive = true;
 	jumpingAcceleration = 3.0f;
-	i = 0;
 }
