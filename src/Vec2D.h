@@ -8,6 +8,9 @@ struct Vec2D {
 	Vec2D(float x, float y) : x(x), y(y) {}
 	Vec2D(int x, int y) : x((float)x), y((float)y) {}
 	Vec2D() : x(0), y(0) {}
+	Vec2D infinite() {
+		return Vec2D(std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity());
+	}
 	Vec2D operator+ (Vec2D v) {
 		return Vec2D(x + v.x, y + v.y);
 	}
