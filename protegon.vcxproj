@@ -153,12 +153,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\KillBlock.cpp" />
+    <ClCompile Include="src\FallingPlatform.cpp" />
     <ClCompile Include="src\Player.cpp" />
     <ClCompile Include="src\Entity.cpp" />
     <ClCompile Include="src\InputHandler.cpp" />
     <ClCompile Include="src\Game.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\TextureManager.cpp" />
+    <ClCompile Include="src\WinBlock.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="libfreetype-6.dll" />
@@ -172,6 +175,8 @@
     <None Include="zlib1.dll" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\KillBlock.h" />
+    <ClInclude Include="src\FallingPlatform.h" />
     <ClInclude Include="src\AABB.h" />
     <ClInclude Include="src\Player.h" />
     <ClInclude Include="src\Entity.h" />
@@ -182,6 +187,7 @@
     <ClInclude Include="src\Rectangle.h" />
     <ClInclude Include="src\TextureManager.h" />
     <ClInclude Include="src\Vec2D.h" />
+    <ClInclude Include="src\WinBlock.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="resources\test_tile_1.png" />

@@ -1,97 +1,126 @@
-#include "Player.h"
+﻿#include "Player.h"
 #include "defines.h"
+#include "FallingPlatform.h"
+#include "Game.h"
 
 Player* Player::instance = nullptr;
 
 #define MOVEMENT_ACCELERATION 1.0f
-#define JUMPING_ACCELERATION 3.8f//3.8f
+#define JUMPING_ACCELERATION 3.0f//3.8f
 
 void Player::init() {
-	hitbox = { Vec2D(232, 10), Vec2D(32, 32) };
+	hitbox = { Vec2D(540, WINDOW_HEIGHT - 50 - 32), Vec2D(32, 32) };
+	id = PLAYER_ID;
 	originalPos = hitbox.pos;
 	velocity = {};
 	acceleration = {};
-	hasGravity = true;
+	terminalVelocity = Vec2D(10, 20);
+	originalColor = color = { 120, 0, 120, 255 };
+	alive = true;
+	falling = true;
+	gravity = true;
+	win = false;
 }
 
 void Player::update() {
-	updateMotion();
-	collisionCheck();
-
-	groundCheck();
-	boundaryCheck();
-
-	clearColliders();
+	jumping = true; // assume jumping, if groundCheck passes this will be reverted
+	Entity::update();
 }
 
-void Player::groundCheck() {
-	grounded = false;
+void Player::resolveCollision() {
 	jumping = true;
-	if (velocity.y != 0) {
-		if (yCollisions.size() > 0) {
-			for (auto& pV : yCollisions) {
-				if (pV.y > 0) {
-					hitGround();
-					break;
-				}
-				if (pV.y < 0) {
-					velocity.y *= -1 / 2;
-					acceleration.y *= -1 / 10;
-				}
+	grounded = false;
+	Entity* entity = collided(Side::ANY);
+	static int i = 0;
+	if (win) {
+		if (i % 200 == 0) {
+			g *= -1.0f;
+			jumpingAcceleration *= -1.0f;
+			jumping = false;
+			std::cout << "Yaaaaaaay!" << std::endl;
+			for (Entity* entity : Game::entityObjects) {
+				entity->setAcceleration(Vec2D(1.0f / float(rand() % 19 + (-9)), 1.0f / float(rand() % 19 + (-9))));
 			}
 		}
+		i++;
+	}
+	if (entity) {
+		switch (entity->getId()) {
+			case KILL_TILE_ID:
+				if (!alive && !win) {
+					std::cout << "You died. " << std::endl;
+					SDL_Delay(3000);
+					Game::reset();
+				}
+				alive = false;
+				break;
+			case WIN_TILE_ID:
+				if (win) {
+					if (i == 0) {
+						std::cout << "You win. Congratulations!" << std::endl;
+					}
+				}
+				win = true;
+			default:
+				break;
+		}
+	}
+	entity = collided(Side::BOTTOM);
+	if (entity) {
+		hitGround();
+		switch (entity->getId()) {
+			case FALLING_TILE_ID: {
+				FallingPlatform* platform = (FallingPlatform*)entity;
+				if (platform->alive()) {
+					platform->subtractLifetime(FPS);
+				}
+				break;
+			}
+			default:
+				break;
+		}
+	}
+	if (collided(Side::TOP)) {
+		velocity.y *= -1 / 2;
+		acceleration.y *= -1 / 10;
+	}
+	if (collided(Side::RIGHT) || collided(Side::LEFT)) {
+		velocity.x = 0;
 	}
 }
 
 void Player::hitGround() {
-	grounded = true;
 	jumping = false;
-	velocity.y = 0;
-	acceleration.y = 0;
-	//std::cout << "Hit the ground!" << std::endl;
+	Entity::hitGround();
 }
 
-void Player::resetPosition() {
-	stop(BOTH);
-	hitbox.pos = originalPos;
-}
-
-void Player::boundaryCheck() {
-	if (hitbox.pos.x < 0) {
-		hitbox.pos.x = 0;
-	}
-	if (hitbox.pos.x + hitbox.size.x > WINDOW_WIDTH) {
-		hitbox.pos.x = WINDOW_WIDTH - hitbox.size.x;
-	}
-	if (hitbox.pos.y < 0) {
-		hitbox.pos.y = 0;
-		velocity.y *= -1 / 2;
-		acceleration.y *= -1 / 10;
-	}
-	if (hitbox.pos.y + hitbox.size.y > WINDOW_HEIGHT) {
-		hitbox.pos.y = WINDOW_HEIGHT - hitbox.size.y;
-		hitGround();
-	}
-}
-
-void Player::move(Keys key) {
+void Player::accelerate(Keys key) {
 	switch (key) {
-		case LEFT:
+		case Keys::LEFT:
 			acceleration.x = -MOVEMENT_ACCELERATION;
 			break;
-		case RIGHT:
+		case Keys::RIGHT:
 			acceleration.x = MOVEMENT_ACCELERATION;
 			break;
-		case UP:
-			if (!jumping) {
-				jumping = true;
-				acceleration.y = -JUMPING_ACCELERATION;
+		case Keys::UP:
+			if (win) {
+				acceleration.y = -jumpingAcceleration;
+			} else {
+				if (!jumping) {
+					jumping = true;
+					acceleration.y = -jumpingAcceleration;
+				}
 			}
 			break;
-		case DOWN:
+		case Keys::DOWN:
 			acceleration.y += MOVEMENT_ACCELERATION / 100; // slightly increase downward acceleration
 			break;
 		default:
 			break;
 	}
+}
+
+void Player::reset() {
+	Entity::reset();
+	win = false;
 }

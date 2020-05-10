@@ -1,7 +1,8 @@
 #pragma once
 #include "Entity.h"
+#include "defines.h"
 
-enum Keys {
+enum class Keys {
 	LEFT,
 	RIGHT,
 	UP,
@@ -11,9 +12,13 @@ enum Keys {
 class Player : public Entity {
 private:
 	static Player* instance;
-	Vec2D originalPos;
+	void init();
+	void resolveCollision();
 	void hitGround();
-	void groundCheck();
+	bool alive;
+	void reset();
+	bool win;
+	float jumpingAcceleration = 3.0f;
 public:
 	Player() : Entity{} {
 		init();
@@ -25,11 +30,7 @@ public:
 		return instance;
 	}
 	bool jumping = false;
-	bool grounded = false;
-	void init();
 	void update();
-	void resetPosition();
-	void boundaryCheck();
-	void move(Keys key);
+	void accelerate(Keys key);
 };
 
