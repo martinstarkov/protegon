@@ -13,27 +13,32 @@ InputHandler::InputHandler() {
 void InputHandler::keyStateCheck() {
 	const Uint8* states = SDL_GetKeyboardState(NULL);
 	if (states[SDL_SCANCODE_A]) {
-		player->move(LEFT);
+		player->accelerate(Keys::LEFT);
 	}
 	if (states[SDL_SCANCODE_D]) {
-		player->move(RIGHT);
+		player->accelerate(Keys::RIGHT);
 	}
 	if (states[SDL_SCANCODE_W]) {
-		player->move(UP);
+		player->accelerate(Keys::UP);
 	} 
 	if (states[SDL_SCANCODE_S]) {
-		player->move(DOWN);
+		player->accelerate(Keys::DOWN);
 	}
 	if (!states[SDL_SCANCODE_A] && !states[SDL_SCANCODE_D]) {
-		player->stop(HORIZONTAL);
+		player->stop(Axis::HORIZONTAL);
 	}
 	if (!states[SDL_SCANCODE_W] && !states[SDL_SCANCODE_S]) {
 		// do nothing with gravity, without gravity player->stop(VERTICAL);
 	}
-	if (states[SDL_SCANCODE_R]) {
-		player->resetPosition();
+}
+
+void InputHandler::keyPress(SDL_KeyboardEvent press) {
+	if (press.keysym.scancode == SDL_SCANCODE_R) {
+		Game::reset();
 	}
 }
+
+void InputHandler::keyRelease(SDL_KeyboardEvent release) {}
 
 void InputHandler::update() {
 	SDL_Event event;
@@ -44,7 +49,10 @@ void InputHandler::update() {
 				Game::getInstance()->quit();
 				break;
 			case SDL_KEYDOWN:
+				keyPress(event.key);
+				break;
 			case SDL_KEYUP:
+				keyRelease(event.key);
 				break;
 			default:
 				break;
