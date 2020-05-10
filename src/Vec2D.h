@@ -88,6 +88,9 @@ struct Vec2D {
 		}
 		return Vec2D(0, 0);
 	}
+	Vec2D tangent() {
+		return Vec2D(-y, x);
+	}
 	Vec2D opposite() {
 		return Vec2D(-x, -y);
 	}
