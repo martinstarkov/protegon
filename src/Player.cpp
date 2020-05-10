@@ -14,6 +14,7 @@ void Player::init() {
 	originalPos = hitbox.pos;
 	velocity = {};
 	acceleration = {};
+	jumpingAcceleration = 3.0f;
 	terminalVelocity = Vec2D(10, 20);
 	originalColor = color = { 120, 0, 120, 255 };
 	alive = true;
@@ -23,7 +24,6 @@ void Player::init() {
 }
 
 void Player::update() {
-	jumping = true; // assume jumping, if groundCheck passes this will be reverted
 	Entity::update();
 }
 
@@ -31,7 +31,6 @@ void Player::resolveCollision() {
 	jumping = true;
 	grounded = false;
 	Entity* entity = collided(Side::ANY);
-	static int i = 0;
 	if (win) {
 		if (i % 200 == 0) {
 			g *= -1.0f;
@@ -56,7 +55,7 @@ void Player::resolveCollision() {
 				break;
 			case WIN_TILE_ID:
 				if (win) {
-					if (i == 0) {
+					if (i == 1) {
 						std::cout << "You win. Congratulations!" << std::endl;
 					}
 				}
@@ -123,4 +122,7 @@ void Player::accelerate(Keys key) {
 void Player::reset() {
 	Entity::reset();
 	win = false;
+	alive = true;
+	jumpingAcceleration = 3.0f;
+	i = 0;
 }

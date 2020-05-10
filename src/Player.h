@@ -18,7 +18,8 @@ private:
 	bool alive;
 	void reset();
 	bool win;
-	float jumpingAcceleration = 3.0f;
+	float jumpingAcceleration;
+	int i = 0;
 public:
 	Player() : Entity{} {
 		init();

@@ -164,6 +164,7 @@ void Entity::reset() {
 	acceleration = velocity = {};
 	hitbox.pos = originalPos;
 	gravity = falling;
+	g = 0.2f;
 	color = originalColor;
 }
 

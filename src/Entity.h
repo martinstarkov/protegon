@@ -27,6 +27,7 @@ public:
 			terminalVelocity = termVel;
 		}
 		grounded = false;
+		g = 0.2f;
 	}
 	Entity(Vec2D vel = {}, Vec2D accel = {}) : Entity({}, vel, accel) {}
 	virtual void update();
@@ -86,7 +87,7 @@ protected:
 	Vec2D acceleration;
 	Vec2D originalPos;
 	Vec2D terminalVelocity;
-	float g = 0.2f;
+	float g;
 	bool gravity;
 	bool falling;
 	bool grounded;
