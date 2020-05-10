@@ -18,7 +18,7 @@ void InputHandler::keyStateCheck() {
 	if (states[SDL_SCANCODE_D]) {
 		player->accelerate(Keys::RIGHT);
 	}
-	if (states[SDL_SCANCODE_W]) {
+	if (states[SDL_SCANCODE_W] || states[SDL_SCANCODE_SPACE]) {
 		player->accelerate(Keys::UP);
 	} 
 	if (states[SDL_SCANCODE_S]) {
