@@ -3,21 +3,49 @@
 #include <algorithm>
 #include <limits>
 
-#define GRAVITY 0.2f//0.2f
+#define GRAVITY 0.2f
 #define DRAG 0.2f
 
 void Entity::update() {
 	updateMotion();
 	collisionCheck();
-	clearColliders();
+	boundaryCheck();
 }
 
 void Entity::updateMotion() {
-	if (hasGravity) {
-		acceleration.y += GRAVITY;
+	if (gravity) {
+		acceleration.y += g;
 	}
 	velocity *= (1.0f - DRAG); // drag
 	velocity += acceleration; // movement
+	terminalMotion();
+}
+
+void Entity::terminalMotion() {
+	if (velocity.x > terminalVelocity.x) {
+		velocity.x = terminalVelocity.x;
+	}
+	if (velocity.y > terminalVelocity.y) {
+		velocity.y = terminalVelocity.y;
+	}
+}
+
+void Entity::boundaryCheck() {
+	if (hitbox.pos.x < 0) {
+		hitbox.pos.x = 0;
+	}
+	if (hitbox.pos.x + hitbox.size.x > WINDOW_WIDTH) {
+		hitbox.pos.x = WINDOW_WIDTH - hitbox.size.x;
+	}
+	if (hitbox.pos.y < 0) {
+		hitbox.pos.y = 0;
+		velocity.y *= -1 / 2;
+		acceleration.y *= -1 / 10;
+	}
+	if (hitbox.pos.y + hitbox.size.y > WINDOW_HEIGHT) {
+		hitbox.pos.y = WINDOW_HEIGHT - hitbox.size.y;
+		hitGround();
+	}
 }
 
 void Entity::collisionCheck() {
@@ -28,7 +56,7 @@ void Entity::collisionCheck() {
 
 	for (Entity* entity : Game::entities) {
 		if (entity != this) {
-			if (broadphaseCheck(bpb, entity)) {
+			if (bpb.colliding(entity->getHitbox())) {
 				potentialColliders.push_back(entity);
 			}
 		}
@@ -38,15 +66,15 @@ void Entity::collisionCheck() {
 
 	for (Entity* entity : potentialColliders) {
 		AABB md = hitbox.minkowskiDifference(entity->getHitbox());
-		if (md.pos.x <= 0 &&
-			md.getMax().x >= 0 &&
-			md.pos.y <= 0 &&
-			md.getMax().y >= 0) {
+		if (md.pos.x < 0 &&
+			md.getMax().x > 0 &&
+			md.pos.y < 0 &&
+			md.getMax().y > 0) {
 
 			Vec2D edge;
 			Vec2D pv;
-			std::cout << "p1:" << hitbox.pos << ",p2:" << entity->getHitbox().pos;
 			md.penetrationVector(Vec2D(), pv, edge, velocity);
+			xCollisions.push_back({ entity, pv });
 			hitbox.pos.x -= pv.x;
 		}
 	}
@@ -54,59 +82,106 @@ void Entity::collisionCheck() {
 
 	for (Entity* entity : potentialColliders) {
 		AABB md = hitbox.minkowskiDifference(entity->getHitbox());
-		if (md.pos.x <= 0 &&
-			md.getMax().x >= 0 &&
-			md.pos.y <= 0 &&
-			md.getMax().y >= 0) {
+		if (md.pos.x < 0 &&
+			md.getMax().x > 0 &&
+			md.pos.y < 0 &&
+			md.getMax().y > 0) {
 
 			Vec2D edge;
 			Vec2D pv;
 			md.penetrationVector(Vec2D(), pv, edge, velocity);
-			yCollisions.push_back(pv);
+			yCollisions.push_back({ entity, pv });
 			hitbox.pos.y -= pv.y;
 		}
 	}
+	resolveCollision();
+	clearColliders();
 }
 
 void Entity::clearColliders() {
 	yCollisions.clear();
+	xCollisions.clear();
 }
 
-bool Entity::isColliding(Entity* entity) {
-	if (
-		entity->getHitbox().pos.x + entity->getHitbox().size.x >= hitbox.pos.x &&
-		entity->getHitbox().pos.x <= hitbox.pos.x + hitbox.size.x &&
-		entity->getHitbox().pos.y + entity->getHitbox().size.y >= hitbox.pos.y &&
-		entity->getHitbox().pos.y <= hitbox.pos.y + hitbox.size.y
-		) { // entities collide
-		return true;
+void Entity::resolveCollision() {
+	grounded = false;
+	if (collided(Side::BOTTOM)) {
+		hitGround();
+	} else if (collided(Side::TOP)) {
+		velocity.y *= -1 / 2;
+		acceleration.y *= -1 / 10;
 	}
-	return false;
 }
 
-void Entity::stop(Axis axis) {
-	switch (axis) {
-		case VERTICAL:
-			acceleration.y = 0.0f;
+void Entity::hitGround() {
+	grounded = true;
+	velocity.y = 0;
+	acceleration.y = 0;
+}
+
+Entity* Entity::collided(Side direction) {
+	switch (direction) {
+		case Side::BOTTOM:
+		case Side::TOP:
+			if (yCollisions.size() > 0) {
+				for (auto c : yCollisions) {
+					if (c.second.y > 0 && direction == Side::BOTTOM) {
+						return c.first;
+					}
+					if (c.second.y < 0 && direction == Side::TOP) {
+						return c.first;
+					}
+				}
+			}
 			break;
-		case HORIZONTAL:
-			acceleration.x = 0.0f;
+		case Side::LEFT:
+		case Side::RIGHT:
+			if (xCollisions.size() > 0) {
+				for (auto c : xCollisions) {
+					if (c.second.x > 0 && direction == Side::RIGHT) {
+						return c.first;
+					}
+					if (c.second.x < 0 && direction == Side::LEFT) {
+						return c.first;
+					}
+				}
+			}
 			break;
-		case BOTH:
-			acceleration = {};
+		case Side::ANY:
+			if (yCollisions.size() > 0) {
+				return yCollisions[0].first;
+			}
+			if (xCollisions.size() > 0) {
+				return xCollisions[0].first;
+			}
+		default:
+			break;
+	}
+	return nullptr;
+}
+
+void Entity::reset() {
+	acceleration = velocity = {};
+	hitbox.pos = originalPos;
+	gravity = falling;
+	color = originalColor;
+}
+
+void Entity::accelerate(Axis direction, float movementAccel) {
+	switch (direction) {
+		case Axis::VERTICAL:
+			acceleration.y = movementAccel;
+			break;
+		case Axis::HORIZONTAL:
+			acceleration.x = movementAccel;
+			break;
+		case Axis::BOTH:
+			acceleration = Vec2D(movementAccel, movementAccel);
 		default:
 			break;
 	}
 }
 
-bool Entity::broadphaseCheck(AABB bpb, Entity* entity) {
-	if (
-		entity->getHitbox().pos.x + entity->getHitbox().size.x >= bpb.pos.x &&
-		entity->getHitbox().pos.x <= bpb.pos.x + bpb.size.x &&
-		entity->getHitbox().pos.y + entity->getHitbox().size.y >= bpb.pos.y &&
-		entity->getHitbox().pos.y <= bpb.pos.y + bpb.size.y
-		) { // entity collides with broadphase box
-		return true;
-	}
-	return false;
+void Entity::stop(Axis direction) {
+	accelerate(direction, 0.0f);
 }
