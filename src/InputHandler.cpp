@@ -33,8 +33,17 @@ void InputHandler::keyStateCheck() {
 }
 
 void InputHandler::keyPress(SDL_KeyboardEvent press) {
-	if (press.keysym.scancode == SDL_SCANCODE_R) {
-		Game::reset();
+	switch (press.keysym.scancode) {
+		case SDL_SCANCODE_C:
+			for (Entity* entity : Game::entityObjects) {
+				entity->setAcceleration(Vec2D(1.0f / float(rand() % 19 + (-9)), 1.0f / float(rand() % 19 + (-9))));
+			}
+			break;
+		case SDL_SCANCODE_R:
+			Game::reset();
+			break;
+		default:
+			break;
 	}
 }
 
