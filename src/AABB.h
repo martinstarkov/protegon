@@ -1,6 +1,5 @@
 #pragma once
 #include "Vec2D.h"
-#include <string>
 
 // Significant help from guide at https://blog.hamaluik.ca/posts/simple-aabb-collision-using-minkowski-difference/
 
@@ -36,36 +35,30 @@ struct AABB {
     void penetrationVector(Vec2D relativePoint, Vec2D& pv, Vec2D& edge, Vec2D vel) { // find shortest distance from origin to edge of minkowski difference rectangle
         float minTime = std::numeric_limits<float>::infinity();
         pv = Vec2D();
-        std::string side;
         if (abs(vel.x) != 0) {
             if (abs((relativePoint.x - pos.x) / vel.x) < minTime) {
                 minTime = abs((relativePoint.x - pos.x) / vel.x); // left edge
                 pv = Vec2D(pos.x, relativePoint.y);
-                side = "left";
             }
         }
         if (abs(vel.x) != 0) {
             if (abs((getMax().x - relativePoint.x) / vel.x)  < minTime) { // right edge
                 minTime = abs((getMax().x - relativePoint.x) / vel.x);
                 pv = Vec2D(getMax().x, relativePoint.y);
-                side = "right";
             }
         }
         if (abs(vel.y) != 0) {
             if (abs((getMax().y - relativePoint.y) / vel.y) < minTime) { // bottom edge
                 minTime = abs((getMax().y - relativePoint.y) / vel.y);
                 pv = Vec2D(relativePoint.x, getMax().y);
-                side = "bottom";
             }
         }
         if (abs(vel.y) != 0) {
             if (abs((pos.y - relativePoint.y) / vel.y) < minTime) { // top edge
                 minTime = abs((pos.y - relativePoint.y) / vel.y);
                 pv = Vec2D(relativePoint.x, pos.y);
-                side = "top";
             }
         }
-        //std::cout << side << " edge, time: " << minTime << ", vel: " << vel << std::endl;
         edge = pv.unitVector();
     }
     float rayIntersectFraction(Vec2D originA, Vec2D endA, Vec2D originB, Vec2D endB) {
