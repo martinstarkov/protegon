@@ -25,19 +25,30 @@ void InputHandler::keyStateCheck() {
 		player->accelerate(Keys::DOWN);
 	}
 	if (!states[SDL_SCANCODE_A] && !states[SDL_SCANCODE_D]) {
-		player->stop(Axis::HORIZONTAL);
+		//player->stop(Axis::HORIZONTAL);
 	}
 	if (!states[SDL_SCANCODE_W] && !states[SDL_SCANCODE_S]) {
+		//player->stop(Axis::VERTICAL);
 		// do nothing with gravity, without gravity player->stop(VERTICAL);
+	}
+	if (states[SDL_SCANCODE_X]) {
+		Game::bulletTime = true;
+	}
+	if (!states[SDL_SCANCODE_X]) {
+		if (Game::bulletTime) {
+			player->setVelocity(Vec2D());
+			Game::reset();
+		}
+		Game::bulletTime = false;
 	}
 }
 
 void InputHandler::keyPress(SDL_KeyboardEvent press) {
 	switch (press.keysym.scancode) {
 		case SDL_SCANCODE_C:
-			for (Entity* entity : Game::entityObjects) {
-				entity->setAcceleration(Vec2D(1.0f / float(rand() % 19 + (-9)), 1.0f / float(rand() % 19 + (-9))));
-			}
+			//for (Entity* entity : Game::entityObjects) {
+			//	entity->setAcceleration(Vec2D(1.0f / float(rand() % 19 + (-9)), 1.0f / float(rand() % 19 + (-9))));
+			//}
 			break;
 		case SDL_SCANCODE_R:
 			Game::reset();
