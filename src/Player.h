@@ -19,6 +19,7 @@ private:
 	void reset();
 	bool win;
 	float jumpingAcceleration;
+	float movementAcceleration;
 public:
 	Player() : Entity{} {
 		init();
@@ -28,6 +29,9 @@ public:
 			instance = new Player();
 		}
 		return instance;
+	}
+	void setMovementAcceleration(float newMA) {
+		movementAcceleration = newMA;
 	}
 	bool jumping = false;
 	void update();
