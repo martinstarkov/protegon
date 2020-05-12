@@ -20,11 +20,13 @@ private:
 	void render();
 	void instructions();
 public:
+	static bool bulletTime;
 	static std::vector<Entity*> entities;
 	static std::vector<Entity*> entityObjects;
 	static std::vector<AABB> broadphase;
 	static Uint32 time;
 	static Uint32 previousTime;
+	int cycle;
 	Game();
 	static Game* getInstance() {
 		if (!instance) {

@@ -12,27 +12,53 @@ std::vector<Entity*> Game::entityObjects;
 std::vector<AABB> Game::broadphase;
 Uint32 Game::time;
 Uint32 Game::previousTime;
+bool Game::bulletTime = false;
 
 Game::Game() {
 	tm = TextureManager::getInstance();
 	ih = InputHandler::getInstance();
 	player = Player::getInstance();
-	entities.push_back(new Entity(AABB(32, 32, 32, 32)));
-	entities.push_back(new Entity(AABB(96, 96, 32, 32)));
-	entities.push_back(new Entity(AABB(160, 160, 32, 32)));
-	entities.push_back(new Entity(AABB(224, 224, 32, 32)));
-	entities.push_back(new Entity(AABB(288, 288, 32, 32)));
-	entities.push_back(new Entity(AABB(352, 224, 32, 32)));
-	entities.push_back(new Entity(AABB(416, 160, 32, 32)));
-	entities.push_back(new Entity(AABB(480, 96, 32, 32)));
-	entities.push_back(new Entity(AABB(544, 32, 32, 32)));
-	entities.push_back(new FallingPlatform(AABB(600, 550, 32, 32), 1));
-	entities.push_back(new FallingPlatform(AABB(650, 460, 32, 32), 0.8f));
-	entities.push_back(new FallingPlatform(AABB(700, 380, 32, 32), 0.5f));
-	entities.push_back(new FallingPlatform(AABB(550, 360, 32, 32), 0.5f));
-	entities.push_back(new FallingPlatform(AABB(150, 400, 350, 32), 5));
-	entities.push_back(new KillBlock(AABB(80, 390, 32, 32)));
-	entities.push_back(new WinBlock(AABB(20, 380, 32, 32)));
+	//entities.push_back(new Entity(AABB(100, 520, 32, 32)));
+	//entities.push_back(new Entity(AABB(32, 32, 32, 32)));
+	//entities.push_back(new Entity(AABB(96, 96, 32, 32)));
+	//entities.push_back(new Entity(AABB(160, 160, 32, 32)));
+	//entities.push_back(new Entity(AABB(224, 224, 32, 32)));
+	//entities.push_back(new Entity(AABB(288, 288, 32, 32)));
+	//entities.push_back(new Entity(AABB(352, 224, 32, 32)));
+	//entities.push_back(new Entity(AABB(416, 160, 32, 32)));
+	//entities.push_back(new Entity(AABB(480, 96, 32, 32)));
+	//entities.push_back(new Entity(AABB(544, 32, 32, 32)));
+	//entities.push_back(new Entity(AABB(600, 550, 32, 32)));
+	//entities.push_back(new Entity(AABB(650, 460, 32, 32)));
+	//entities.push_back(new Entity(AABB(700, 380, 32, 32)));
+	//entities.push_back(new Entity(AABB(550, 360, 32, 32)));
+	//entities.push_back(new Entity(AABB(150, 400, 350, 32)));
+	Entity* box = new Entity(AABB(10 + 700, 10, 128, 128));
+	Entity* box1 = new Entity(AABB(10 + 700, 10 + 128, 128, 128));
+	Entity* box2 = new Entity(AABB(10 + 700, 10 + 128 + 128, 128, 128));
+	Entity* box3 = new Entity(AABB(10 + 700, 10 + 128 + 128 + 128, 128, 128));
+	Entity* box4 = new Entity(AABB(10 + 700 - 128, 10 + 128 + 128 + 128, 128, 128));
+	Entity* box5 = new Entity(AABB(10 + 700 - 128 - 128, 10 + 128 + 128 + 128, 128, 128));
+	box->setId(4);
+	box1->setId(3);
+	box2->setId(2);
+	box3->setId(1);
+	box4->setId(-1);
+	box5->setId(-2);
+	entities.push_back(box);
+	entities.push_back(box1);
+	entities.push_back(box2);
+	entities.push_back(box3);
+	entities.push_back(box4);
+	entities.push_back(box5);
+	//Entity* rightBox = new Entity(AABB(230, 550, 32, 32), {}, {}, {}, false, 15, { 0, 120, 0, 255 });
+	//Entity* platform = new Entity(AABB(80, 560, 300, 32), {}, {}, {}, false, 10, { 0, 0, 0, 255 });
+	//Entity* leftBox = new Entity(AABB(26, 550, 32, 32), {}, {}, {}, false, 5, { 120, 0, 0, 255 });
+	//Entity* rock = new Entity(AABB(380, 560, 32, 32), {}, {}, {}, false, 20, { 120, 120, 0, 255 });
+	//entities.push_back(platform);
+	//entities.push_back(rightBox);
+	//entities.push_back(leftBox);
+	//entities.push_back(rock);
 	for (Entity* entity : entities) {
 		entityObjects.push_back(entity);
 	}
@@ -55,6 +81,7 @@ void Game::init() {
 		std::cout << "SDL window failed to init" << std::endl;
 	}
 	running = true;
+	cycle = 0;
 	instructions();
 }
 
@@ -66,15 +93,18 @@ void Game::instructions() {
 void Game::update() {
 	time = SDL_GetTicks();
 	ih->update();
-	for (Entity* entity : entityObjects) {
-		entity->update();
-	}
+	//for (Entity* entity : entityObjects) {
+	//	entity->update();
+	//}
 	player->update();
 	previousTime = time;
 }
 
 void Game::render() {
-	SDL_RenderClear(renderer); // clear screen
+	if (!bulletTime) {
+		SDL_RenderClear(renderer); // clear screen
+	}
+	SDL_RenderClear(renderer);
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 	SDL_SetRenderDrawColor(renderer, player->getColor().r, player->getColor().g, player->getColor().b, player->getColor().a);
 	SDL_RenderDrawRect(renderer, player->getHitbox().AABBtoRect());
@@ -82,10 +112,20 @@ void Game::render() {
 		SDL_SetRenderDrawColor(renderer, entity->getColor().r, entity->getColor().g, entity->getColor().b, entity->getColor().a);
 		SDL_RenderDrawRect(renderer, entity->getHitbox().AABBtoRect());
 	}
+	SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+	Vec2D point = Vec2D(300, 300);
+	SDL_RenderDrawPoint(renderer, int(point.x), int(point.y));
+	//SDL_Rect rect = { b.pos.x + point.x, b.pos.y + point.y, b.size.x, b.size.y };
+	for (AABB b : broadphase) {
+		SDL_RenderDrawRect(renderer, b.AABBtoRect());
+	}
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 	SDL_RenderPresent(renderer); // display
 	broadphase.clear();
-	SDL_Delay(0);
+	if (bulletTime) {
+		SDL_Delay(2000);
+	}
+	SDL_Delay(10);
 }
 
 void Game::loop() {
@@ -97,6 +137,7 @@ void Game::loop() {
 		update();
 		render();
 		fTime = SDL_GetTicks() - fStart;
+		cycle++;
 		if (fDelay > fTime) {
 			SDL_Delay(fDelay - fTime);
 		}
