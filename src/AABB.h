@@ -8,7 +8,19 @@ struct AABB {
     AABB(int x = 0, int y = 0, int w = 0, int h = 0) : pos(x, y), size(w, h) {}
     AABB(Vec2D pos, Vec2D size) : pos(pos), size(size) {}
     Vec2D getMax() {
-        return Vec2D(pos.x + size.x, pos.y + size.y);
+        return pos + size;
+    }
+    float t() {
+        return pos.y;
+    }
+    float b() {
+        return getMax().y;
+    }
+    float r() {
+        return getMax().x;
+    }
+    float l() {
+        return pos.x;
     }
     AABB broadphaseBox(Vec2D newPos) {
         Vec2D p;
