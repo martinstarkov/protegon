@@ -8,8 +8,19 @@ struct Vec2D {
 	Vec2D(float x, float y) : x(x), y(y) {}
 	Vec2D(int x, int y) : x((float)x), y((float)y) {}
 	Vec2D() : x(0), y(0) {}
+	float operator[] (int index) {
+		index = index % 2;
+		switch (index) {
+			case 0: return x;
+			case 1: return y;
+			default: return 0.0f;
+		}
+	}
+	friend Vec2D abs(Vec2D v) {
+		return Vec2D(fabs(v.x), fabs(v.y));
+	}
 	operator bool() const {
-		return x != 0 && y != 0;
+		return x != 0.0f && y != 0.0f;
 	}
 	Vec2D infinite() {
 		return Vec2D(std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity());
@@ -85,11 +96,32 @@ struct Vec2D {
 	float crossProductArea(Vec2D v) {
 		return x * v.y - y * v.x;
 	}
+	Vec2D normalized() {
+		return unitVector();
+	}
 	Vec2D unitVector() {
 		if (magnitude() != 0) {
 			return Vec2D(x / magnitude(), y / magnitude());
 		}
 		return Vec2D(0, 0);
+	}
+	Vec2D identityVector() { // p.s. I started by using a ternary operator here but I think it's unclear code so I wrote it out with if statements
+		Vec2D identity = Vec2D();
+		if (x > 0) {
+			identity.x = 1;
+		} else if (x < 0) {
+			identity.x = -1;
+		} else {
+			identity.x = 0;
+		}
+		if (y > 0) {
+			identity.y = 1;
+		} else if (y < 0) {
+			identity.y = -1;
+		} else {
+			identity.y = 0;
+		}
+		return identity;
 	}
 	Vec2D tangent() {
 		return Vec2D(-y, x);
@@ -99,6 +131,9 @@ struct Vec2D {
 	}
 	float magnitude() {
 		return sqrtf(x * x + y * y);
+	}
+	bool isZero() {
+		return x == 0 && y == 0;
 	}
 	bool operator> (Vec2D v) {
 		return magnitude() > v.magnitude();
