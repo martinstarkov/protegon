@@ -4,6 +4,9 @@
 #include "defines.h"
 #include <vector>
 
+#define DRAG 0.1f
+#define GRAVITY 10.0f
+
 enum class Axis {
 	VERTICAL,
 	HORIZONTAL,
@@ -20,14 +23,15 @@ enum class Side {
 
 class Entity {
 public:
-	Entity(AABB hitbox, Vec2D vel = {}, Vec2D accel = {}, Vec2D termVel = {}, bool falling = false, int id = UNKNOWN_TILE, SDL_Color col = { 0, 0, 255, 255 }) : hitbox(hitbox), velocity(vel), acceleration(accel), originalPos(hitbox.pos), falling(falling), gravity(falling), id(id), color(col), originalColor(col) {
+	Entity(AABB hitbox, Vec2D vel = {}, Vec2D accel = {}, Vec2D termVel = {}, bool falling = false, int id = UNKNOWN_TILE, SDL_Color col = { 0, 0, 255, 255 }) : hitbox(hitbox), oldHitbox(hitbox), velocity(vel), acceleration(accel), originalPos(hitbox.pos), falling(falling), gravity(falling), id(id), color(col), originalColor(col) {
 		if (termVel == Vec2D()) {
 			terminalVelocity = Vec2D().infinite();
 		} else {
 			terminalVelocity = termVel;
 		}
 		grounded = false;
-		g = 0.2f;
+		g = GRAVITY;
+		tempHitbox = hitbox;
 	}
 	Entity(Vec2D vel = {}, Vec2D accel = {}) : Entity({}, vel, accel) {}
 	virtual void update();
@@ -53,8 +57,17 @@ public:
 	AABB getHitbox() {
 		return hitbox;
 	}
+	AABB getOldHitbox() {
+		return oldHitbox;
+	}
+	AABB getTempHitbox() {
+		return tempHitbox;
+	}
 	int getId() {
 		return id;
+	}
+	void setId(int newId) {
+		id = newId;
 	}
 	void setGravity(bool fall) {
 		gravity = fall;
@@ -81,6 +94,8 @@ protected:
 	std::vector<std::pair<Entity*, Vec2D>> yCollisions;
 	std::vector<std::pair<Entity*, Vec2D>> xCollisions;
 	AABB hitbox;
+	AABB oldHitbox;
+	AABB tempHitbox;
 	SDL_Color color;
 	SDL_Color originalColor;
 	Vec2D velocity;
@@ -95,6 +110,12 @@ protected:
 	void boundaryCheck();
 	void terminalMotion();
 	void collisionCheck();
+	AABB broadphaseBox(AABB a, Vec2D vel);
+	int IntersectMovingAABBAABB(AABB a, AABB b, Vec2D va, Vec2D vb, float& tfirst, float& tlast);
+	int TestAABBAABB(AABB a, AABB b);
+	Vec2D lineLine(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4);
+	Vec2D lineRect(float x1, float y1, float x2, float y2, float rx, float ry, float rw, float rh);
+	void staticCheck(Entity* e);
 	virtual void resolveCollision();
 	Entity* collided(Side side);
 	void clearColliders();
