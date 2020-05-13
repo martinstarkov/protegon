@@ -20,6 +20,7 @@ private:
 	bool win;
 	float jumpingAcceleration;
 	float movementAcceleration;
+	int counter = 0;
 public:
 	Player() : Entity{} {
 		init();
