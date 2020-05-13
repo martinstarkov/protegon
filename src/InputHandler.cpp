@@ -25,7 +25,7 @@ void InputHandler::keyStateCheck() {
 		player->accelerate(Keys::DOWN);
 	}
 	if (!states[SDL_SCANCODE_A] && !states[SDL_SCANCODE_D]) {
-		//player->stop(Axis::HORIZONTAL);
+		player->stop(Axis::HORIZONTAL);
 	}
 	if (!states[SDL_SCANCODE_W] && !states[SDL_SCANCODE_S]) {
 		//player->stop(Axis::VERTICAL);
