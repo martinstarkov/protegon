@@ -15,6 +15,7 @@ Uint32 Game::previousTime;
 bool Game::bulletTime = false;
 
 Game::Game() {
+	cycle = 0;
 	tm = TextureManager::getInstance();
 	ih = InputHandler::getInstance();
 	player = Player::getInstance();
@@ -33,19 +34,16 @@ Game::Game() {
 	//entities.push_back(new Entity(AABB(700, 380, 32, 32)));
 	//entities.push_back(new Entity(AABB(550, 360, 32, 32)));
 	//entities.push_back(new Entity(AABB(150, 400, 350, 32)));
-	Entity* box = new Entity(AABB(10 + 700, 10, 128, 128));
-	Entity* box1 = new Entity(AABB(10 + 700, 10 + 128, 128, 128));
+	Entity* box1 = new Entity(AABB(10 + 700 - 1, 10 + 128, 128, 128));
 	Entity* box2 = new Entity(AABB(10 + 700, 10 + 128 + 128, 128, 128));
 	Entity* box3 = new Entity(AABB(10 + 700, 10 + 128 + 128 + 128, 128, 128));
 	Entity* box4 = new Entity(AABB(10 + 700 - 128, 10 + 128 + 128 + 128, 128, 128));
 	Entity* box5 = new Entity(AABB(10 + 700 - 128 - 128, 10 + 128 + 128 + 128, 128, 128));
-	box->setId(4);
-	box1->setId(3);
+	box1->setId(1);
 	box2->setId(2);
-	box3->setId(1);
-	box4->setId(-1);
-	box5->setId(-2);
-	entities.push_back(box);
+	box3->setId(3);
+	box4->setId(-2);
+	box5->setId(-1);
 	entities.push_back(box1);
 	entities.push_back(box2);
 	entities.push_back(box3);
@@ -93,9 +91,9 @@ void Game::instructions() {
 void Game::update() {
 	time = SDL_GetTicks();
 	ih->update();
-	//for (Entity* entity : entityObjects) {
-	//	entity->update();
-	//}
+	for (Entity* entity : entityObjects) {
+		entity->update();
+	}
 	player->update();
 	previousTime = time;
 }
