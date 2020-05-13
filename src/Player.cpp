@@ -9,13 +9,14 @@ Player* Player::instance = nullptr;
 #define JUMPING_ACCELERATION 3.0f//3.8f
 
 void Player::init() {
-	hitbox = { Vec2D(540, WINDOW_HEIGHT - 50 - 32), Vec2D(32, 32) };
+	hitbox = { Vec2D(10 + 700 - 1 - 30, 1), Vec2D(128, 128) };
 	id = PLAYER_ID;
 	originalPos = hitbox.pos;
 	velocity = {};
 	acceleration = {};
-	jumpingAcceleration = 3.0f;
-	terminalVelocity = Vec2D(10, 20);
+	movementAcceleration = 10.0f;//350.0f;//350.0f;
+	jumpingAcceleration = 20.0f;
+	terminalVelocity = Vec2D(1200, 1200);//terminalVelocity = Vec2D(10, 20);
 	originalColor = color = { 120, 0, 120, 255 };
 	alive = true;
 	falling = true;
@@ -34,6 +35,7 @@ void Player::update() {
 		win = false;
 	}
 	Entity::update();
+	//std::cout << "V:" << velocity << ", A:" << acceleration << std::endl;
 }
 
 void Player::resolveCollision() {
@@ -43,10 +45,10 @@ void Player::resolveCollision() {
 	if (entity) {
 		switch (entity->getId()) {
 			case KILL_TILE_ID:
-				alive = false;
+				//alive = false;
 				break;
 			case WIN_TILE_ID:
-				win = true;
+				//win = true;
 			default:
 				break;
 		}
@@ -58,7 +60,7 @@ void Player::resolveCollision() {
 			case FALLING_TILE_ID: {
 				FallingPlatform* platform = (FallingPlatform*)entity;
 				if (platform->alive()) {
-					platform->subtractLifetime(FPS);
+					//platform->subtractLifetime(FPS);
 				}
 				break;
 			}
@@ -83,19 +85,22 @@ void Player::hitGround() {
 void Player::accelerate(Keys key) {
 	switch (key) {
 		case Keys::LEFT:
-			acceleration.x = -MOVEMENT_ACCELERATION;
+			acceleration.x = -movementAcceleration;
 			break;
 		case Keys::RIGHT:
-			acceleration.x = MOVEMENT_ACCELERATION;
+			acceleration.x = movementAcceleration;
 			break;
 		case Keys::UP:
 			if (!jumping) {
+				counter = 0;
 				jumping = true;
 				acceleration.y = -jumpingAcceleration;
+			} else {
+				counter++;
 			}
 			break;
 		case Keys::DOWN:
-			acceleration.y += MOVEMENT_ACCELERATION / 100; // slightly increase downward acceleration
+			velocity.y = jumpingAcceleration * 300;
 			break;
 		default:
 			break;
@@ -106,5 +111,4 @@ void Player::reset() {
 	Entity::reset();
 	win = false;
 	alive = true;
-	jumpingAcceleration = 3.0f;
 }
