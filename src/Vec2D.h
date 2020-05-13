@@ -20,7 +20,7 @@ struct Vec2D {
 		return Vec2D(fabs(v.x), fabs(v.y));
 	}
 	operator bool() const {
-		return x != 0.0f && y != 0.0f;
+		return x != 0 || y != 0;
 	}
 	Vec2D infinite() {
 		return Vec2D(std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity());
