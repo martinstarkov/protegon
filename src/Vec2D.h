@@ -7,20 +7,26 @@ struct Vec2D {
 	float x, y;
 	Vec2D(float x, float y) : x(x), y(y) {}
 	Vec2D(int x, int y) : x((float)x), y((float)y) {}
-	Vec2D() : x(0), y(0) {}
-	float operator[] (int index) {
+	Vec2D() : x(0.0f), y(0.0f) {}
+	float operator[] (int index) const {
 		index = index % 2;
-		switch (index) {
-			case 0: return x;
-			case 1: return y;
-			default: return 0.0f;
+		if (index) {
+			return y;
 		}
+		return x;
+	}
+	float& operator[] (int index) {
+		index = index % 2;
+		if (index) {
+			return y;
+		}
+		return x;
 	}
 	friend Vec2D abs(Vec2D v) {
 		return Vec2D(fabs(v.x), fabs(v.y));
 	}
 	operator bool() const {
-		return x != 0 || y != 0;
+		return x != 0.0f || y != 0.0f;
 	}
 	Vec2D infinite() {
 		return Vec2D(std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity());
@@ -100,31 +106,31 @@ struct Vec2D {
 		return unitVector();
 	}
 	Vec2D unitVector() {
-		if (magnitude() != 0) {
+		if (magnitude() != 0.0f) {
 			return Vec2D(x / magnitude(), y / magnitude());
 		}
-		return Vec2D(0, 0);
+		return Vec2D(0.0f, 0.0f);
 	}
 	Vec2D identityVector() { // p.s. I started by using a ternary operator here but I think it's unclear code so I wrote it out with if statements
 		Vec2D identity = Vec2D();
-		if (x > 0) {
-			identity.x = 1;
-		} else if (x < 0) {
-			identity.x = -1;
+		if (x > 0.0f) {
+			identity.x = 1.0f;
+		} else if (x < 0.0f) {
+			identity.x = -1.0f;
 		} else {
-			identity.x = 0;
+			identity.x = 0.0f;
 		}
-		if (y > 0) {
-			identity.y = 1;
-		} else if (y < 0) {
-			identity.y = -1;
+		if (y > 0.0f) {
+			identity.y = 1.0f;
+		} else if (y < 0.0f) {
+			identity.y = -1.0f;
 		} else {
-			identity.y = 0;
+			identity.y = 0.0f;
 		}
 		return identity;
 	}
 	Vec2D tangent() {
-		return Vec2D(-y, x);
+		return Vec2D(y, -x);
 	}
 	Vec2D opposite() {
 		return Vec2D(-x, -y);
@@ -133,7 +139,10 @@ struct Vec2D {
 		return sqrtf(x * x + y * y);
 	}
 	bool isZero() {
-		return x == 0 && y == 0;
+		return x == 0.0f && y == 0.0f;
+	}
+	bool nonZero() {
+		return x != 0.0f && y != 0.0f;
 	}
 	bool operator> (Vec2D v) {
 		return magnitude() > v.magnitude();
