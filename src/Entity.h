@@ -5,11 +5,11 @@
 #include <vector>
 
 #define DRAG 0.1f
-#define GRAVITY 10.0f
+#define GRAVITY 2.0f
 
 enum class Axis {
-	VERTICAL,
-	HORIZONTAL,
+	HORIZONTAL = 0,
+	VERTICAL = 1,
 	BOTH
 };
 
@@ -106,19 +106,25 @@ protected:
 	bool gravity;
 	bool falling;
 	bool grounded;
+	struct Collider {
+		Entity* e;
+		Vec2D normal, collisionTime;
+		Collider(Entity* e, Vec2D normal, Vec2D collisionTime) : e(e), normal(normal), collisionTime(collisionTime) {}
+	};
+	float sweepAABB(AABB b1, AABB b2, Vec2D v1, Vec2D v2, float& xEntryTime, float& yEntryTime, float& xExitTime, float& yExitTime, float& exit);
+
 	void updateMotion();
 	void boundaryCheck();
 	void terminalMotion();
 	void collisionCheck();
+	bool axisOverlapAABB(AABB a, AABB b, Axis axis);
 	AABB broadphaseBox(AABB a, Vec2D vel);
-	int IntersectMovingAABBAABB(AABB a, AABB b, Vec2D va, Vec2D vb, float& tfirst, float& tlast);
-	int TestAABBAABB(AABB a, AABB b);
-	Vec2D lineLine(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4);
-	Vec2D lineRect(float x1, float y1, float x2, float y2, float rx, float ry, float rw, float rh);
-	void staticCheck(Entity* e);
-	virtual void resolveCollision();
+	bool sweepAABBvsAABB(AABB a, AABB b, Vec2D va, Vec2D vb, float& tfirst, float& tlast);
+	bool overlapAABBvsAABB(AABB a, AABB b);
+	bool equalOverlapAABBvsAABB(AABB a, AABB b);
 	Entity* collided(Side side);
 	void clearColliders();
 	virtual void hitGround();
 private:
+
 };

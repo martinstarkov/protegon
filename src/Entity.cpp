@@ -2,6 +2,11 @@
 #include "Game.h"
 #include <algorithm>
 #include <limits>
+#include <vector>
+#include <map>
+
+#define COLLISION_DELTA 0.1f
+#define EPSILON 0.001f
 
 void Entity::update() {
 	updateMotion();
@@ -10,11 +15,13 @@ void Entity::update() {
 }
 
 void Entity::updateMotion() {
-	if (gravity) {
-		acceleration.y += g; // gravity
-	}
 	velocity *= (1.0f - DRAG); // drag
-	velocity += acceleration;
+	velocity += acceleration; // gravity and movement acceleration
+	gravity = false;
+	if (gravity) {
+		//g = GRAVITY;
+		//velocity.y += g;
+	}
 	terminalMotion();
 }
 
@@ -24,6 +31,13 @@ void Entity::terminalMotion() {
 	}
 	if (velocity.y > terminalVelocity.y) {
 		velocity.y = terminalVelocity.y;
+	}
+	const float threshold = 0.1f;
+	if (abs(velocity.x) < threshold) {
+		velocity.x = 0;
+	}
+	if (abs(velocity.y) < threshold) {
+		velocity.y = 0;
 	}
 }
 
@@ -53,25 +67,34 @@ AABB Entity::broadphaseBox(AABB a, Vec2D vel) {
 	Vec2D bSize = a.size + abs(vel);
 	return AABB(bPos, bSize);
 }
-
-int Entity::TestAABBAABB(AABB a, AABB b) {
+bool Entity::equalOverlapAABBvsAABB(AABB a, AABB b) {
 	// Exit with no intersection if separated along an axis
-	if (a.max()[0] < b.min()[0] || a.min()[0] > b.max()[0]) return 0;
-	if (a.max()[1] < b.min()[1] || a.min()[1] > b.max()[1]) return 0;
+	if (a.max()[0] < b.min()[0] || a.min()[0] > b.max()[0]) return false;
+	if (a.max()[1] < b.min()[1] || a.min()[1] > b.max()[1]) return false;
 	// Overlapping on all axes means AABBs are intersecting
-	return 1;
+	return true;
 }
+bool Entity::overlapAABBvsAABB(AABB a, AABB b) {
+	// Exit with no intersection if separated along an axis
+	if (a.max()[0] <= b.min()[0] || a.min()[0] >= b.max()[0]) return false;
+	if (a.max()[1] <= b.min()[1] || a.min()[1] >= b.max()[1]) return false;
+	// Overlapping on all axes means AABBs are intersecting
+	return true;
+}
+
+bool Entity::axisOverlapAABB(AABB a, AABB b, Axis axis) {
+	if (a.max()[int(axis)] <= b.min()[int(axis)] || a.min()[int(axis)] >= b.max()[int(axis)]) return false;
+	return true;
+}
+
 // Intersect AABBs ‘a’ and ‘b’ moving with constant velocities va and vb.
 // On intersection, return time of first and last contact in tfirst and tlast
-// Intersect AABBs ‘a’ and ‘b’ moving with constant velocities va and vb.
-// On intersection, return time of first and last contact in tfirst and tlast
-int Entity::IntersectMovingAABBAABB(AABB a, AABB b, Vec2D va, Vec2D vb,
-									float& tfirst, float& tlast) {
+bool Entity::sweepAABBvsAABB(AABB a, AABB b, Vec2D va, Vec2D vb, float& tfirst, float& tlast) {
 	// Exit early if ‘a’ and ‘b’ initially overlapping
-	if (TestAABBAABB(a, b)) {
-		tfirst = tlast = 0.0f;
-		return 1;
-	}
+	//if (overlapAABBvsAABB(a, b)) {
+	//	tfirst = tlast = 0.0f;
+	//	return true;
+	//}
 	// Use relative velocity; effectively treating ’a’ as stationary
 	Vec2D v = vb - va;
 	// Initialize times of first and last contact
@@ -80,169 +103,330 @@ int Entity::IntersectMovingAABBAABB(AABB a, AABB b, Vec2D va, Vec2D vb,
 	// For each axis, determine times of first and last contact, if any
 	for (int i = 0; i < 2; i++) {
 		if (v[i] < 0.0f) {
-			if (b.max()[i] < a.min()[i]) return 0; // Nonintersecting and moving apart
-			if (a.max()[i] < b.min()[i]) tfirst = std::max((a.max()[i] - b.min()[i]) / v[i], tfirst);
+			if (b.max()[i] < a.min()[i]) {
+				return false; // Nonintersecting and moving apart
+			}
+			if (a.max()[i] < b.min()[i]) { 
+				tfirst = std::max((a.max()[i] - b.min()[i]) / v[i], tfirst);
+			}
 			if (b.max()[i] > a.min()[i]) tlast = std::min((a.min()[i] - b.max()[i]) / v[i], tlast);
 		}
 		if (v[i] > 0.0f) {
-			if (b.min()[i] > a.max()[i]) return 0; // Nonintersecting and moving apart
-			if (b.max()[i] < a.min()[i]) tfirst = std::max((a.min()[i] - b.max()[i]) / v[i], tfirst);
-			if (a.max()[i] > b.min()[i]) tlast = std::min((a.max()[i] - b.min()[i]) / v[i], tlast);
+			if (b.min()[i] > a.max()[i]) {
+				return false; // Nonintersecting and moving apart
+			}
+			if (b.max()[i] < a.min()[i]) {
+				tfirst = std::max((a.min()[i] - b.max()[i]) / v[i], tfirst);
+			}
+			if (a.max()[i] > b.min()[i]) {
+				tlast = std::min((a.max()[i] - b.min()[i]) / v[i], tlast);
+			}
 		}
 		// No overlap possible if time of first contact occurs after time of last contact
-		if (tfirst > tlast) return 0;
+		if (tfirst > tlast) {
+			return false;
+		}
 	}
-	return 1;
+	return true;
+}
+
+float Entity::sweepAABB(AABB b1, AABB b2, Vec2D v1, Vec2D v2, float& xEntryTime, float& yEntryTime, float& xExitTime, float& yExitTime, float& exit) {
+	float xInvEntry, yInvEntry;
+	float xInvExit, yInvExit;
+	Vec2D rv = v1 - v2;
+	// find the distance between the objects on the near and far sides for both x and y 
+	if (rv.x > 0.0f) {
+		xInvEntry = b2.min().x - b1.max().x;
+		xInvExit = b2.max().x - b1.min().x;
+	} else {
+		xInvEntry = b2.max().x - b1.min().x;
+		xInvExit = b2.min().x - b1.max().x;
+	}
+
+	if (rv.y > 0.0f) {
+		yInvEntry = b2.min().y - b1.max().y;
+		yInvExit = b2.max().y - b1.min().y;
+	} else {
+		yInvEntry = b2.max().y - b1.min().y;
+		yInvExit = b2.min().y - b1.max().y;
+	}
+
+	// find time of collision and time of leaving for each axis (if statement is to prevent divide by zero) 
+	float xEntry, yEntry;
+	float xExit, yExit;
+
+	if (rv.x == 0.0f) {
+		xEntry = -std::numeric_limits<float>::infinity();
+		xExit = std::numeric_limits<float>::infinity();
+	} else {
+		xEntry = xInvEntry / rv.x;
+		xExit = xInvExit / rv.x;
+	}
+
+	if (rv.y == 0.0f) {
+		yEntry = -std::numeric_limits<float>::infinity();
+		yExit = std::numeric_limits<float>::infinity();
+	} else {
+		yEntry = yInvEntry / rv.y;
+		yExit = yInvExit / rv.y;
+	}
+
+
+	if (xEntry > 1.0f) {
+		xEntry = -std::numeric_limits<float>::infinity();
+	}
+	if (yEntry > 1.0f) {
+		yEntry = -std::numeric_limits<float>::infinity();
+	}
+	if (yEntry > 1.0f) yEntry = -FLT_MAX;
+	if (xEntry > 1.0f) xEntry = -FLT_MAX;
+
+	xEntryTime = xEntry;
+	yEntryTime = yEntry;
+	xExitTime = xExit;
+	yExitTime = yExit;
+	// find the earliest/latest times of collision
+	float entryTime = std::max(xEntry, yEntry);
+	float exitTime = std::min(xExit, yExit);
+	 //there was no collision
+	if (entryTime > exitTime) return 1.0f; // This check was correct.
+	if (xEntry < 0.0f && yEntry < 0.0f) return 1.0f;
+	if (xEntry < 0.0f) {
+		// Check that the bounding box started overlapped or not.
+		if (b2.max().x < b1.min().x || b2.min().x > b1.max().x) return 1.0f;
+	}
+	if (yEntry < 0.0f) {
+		// Check that the bounding box started overlapped or not.
+		if (b2.max().y < b1.min().y || b2.min().y > b1.max().y) return 1.0f;
+	}
+
+	// if there was no collision
+	if (entryTime > exitTime || xEntry < 0.0f && yEntry < 0.0f || xEntry > 1.0f || yEntry > 1.0f) {
+		return 1.0f;
+	}
+	exit = exitTime;
+	return entryTime;
+}
+
+template <typename T> static int sgn(T val) {
+	return (T(0) < val) - (val < T(0));
 }
 
 void Entity::collisionCheck() {
+	bool grounded = true;
 	AABB newHitbox = hitbox;
-	std::vector<Entity*> statics;
-	std::vector<float> sweepTimes;
-	for (Entity* e : Game::entities) {
-		if (e != this) {
-			if (TestAABBAABB(broadphaseBox(hitbox, velocity), e->getHitbox())) {
-				float entryTime, exitTime;
-				int collision = IntersectMovingAABBAABB(hitbox, e->getHitbox(), velocity, e->getVelocity(), entryTime, exitTime);
-				sweepTimes.push_back(entryTime);
-				statics.push_back(e);
-				//std::cout << "[" << collision << "]entry:" << entryTime << ",exit:" << exitTime << std::endl;
-				collision = true;
-			}
-		}
-	}
-	auto it = std::min_element(sweepTimes.begin(), sweepTimes.end());
-	float collisionTime = 0.0f;
-	if (it != sweepTimes.end()) {
-		collisionTime = *it;
-	}
-	if (collisionTime) {
-		//std::cout << "Sweep" << std::endl;
-		newHitbox.pos += velocity * collisionTime;
-		velocity = Vec2D();
-		if (!id) {
-			std::cout << collisionTime << std::endl;
-		}
-	} else {
+	color = originalColor;
+	if (id == 0) {
+	//for (Entity* e : Game::entities) {
+	//	if (e != this) {
+	//		if (equalOverlapAABBvsAABB(broadphaseBox(newHitbox, velocity), e->getHitbox())) {
+	//			AABB md = newHitbox.minkowskiDifference(e->getHitbox());
+	//			if (md.pos.x < 0 &&
+	//				md.max().x > 0 &&
+	//				md.pos.y < 0 &&
+	//				md.max().y > 0) {
+	//				Vec2D pv = md.closestPointOnBoundsToPoint();
+	//				if (pv.x) {
+	//					velocity.x = 0;
+	//					newHitbox.pos.x -= pv.x;// + sgn(pv.x) / abs(pv.x) * COLLISION_DELTA;
+	//					//std::cout << "Collided with " << e->getId() << "by X: " << pv.x << std::endl;
+	//				}
+	//			}
+	//		}
+	//	}
+	//}
+	//for (Entity* e : Game::entities) {
+	//	if (e != this) {
+	//		if (equalOverlapAABBvsAABB(broadphaseBox(newHitbox, velocity), e->getHitbox())) {
+	//			AABB md = newHitbox.minkowskiDifference(e->getHitbox());
+	//			if (md.pos.x < 0 &&
+	//				md.max().x > 0 &&
+	//				md.pos.y < 0 &&
+	//				md.max().y > 0) {
+	//				Vec2D pv = md.closestPointOnBoundsToPoint();
+	//				if (pv.y) {
+	//					velocity.y = 0;
+	//					newHitbox.pos.y -= pv.y;// + sgn(pv.y) / abs(pv.y) * COLLISION_DELTA;
+	//					//std::cout << "Collided with " << e->getId() << "by Y: " << pv.y << std::endl;
+	//				}
+	//			}
+	//		}
+	//	}
+	//}
 
-		AABB bpb = broadphaseBox(newHitbox, velocity);
-		//Game::broadphase.push_back(bpb);
-
-		std::vector<Entity*> potentialColliders;
-
-		for (Entity* entity : statics) {
-			if (entity != this) {
-				if (TestAABBAABB(bpb, entity->getHitbox())) {
-					potentialColliders.push_back(entity);
+		std::vector<Entity*> potentialCollisions;
+		for (Entity* e : Game::entities) {
+			if (e != this) {
+				AABB bp = broadphaseBox(newHitbox, velocity);
+				//Game::broadphase.push_back(bp);
+				if (overlapAABBvsAABB(bp, e->getHitbox())) {
+					potentialCollisions.push_back(e);
 				}
 			}
 		}
-
-		newHitbox.pos.x += velocity.x;
-
-		for (Entity* entity : potentialColliders) {
-			AABB md = newHitbox.minkowskiDifference(entity->getHitbox());
-			if (md.pos.x < 0 &&
-				md.max().x > 0 &&
-				md.pos.y < 0 &&
-				md.max().y > 0) {
-
-				Vec2D edge;
-				Vec2D pv;
-				md.penetrationVector(Vec2D(), pv, edge, velocity);
-				xCollisions.push_back({ entity, pv });
-				newHitbox.pos.x -= pv.x;
+		std::map<float, Vec2D> collisionTimes;
+		std::map<float, Vec2D> exits;
+		std::vector<Vec2D> normals;
+		for (Entity* e : potentialCollisions) {
+			e->setColor({ 255, 0, 0, 255 });
+			float xEntryTime = 1.0f;
+			float yEntryTime = 1.0f;
+			float xExitTime = 0.0f;
+			float yExitTime = 0.0f;
+			float exit = 0.0f;
+			float collisionTime = sweepAABB(newHitbox, e->getHitbox(), velocity, e->getVelocity(), xEntryTime, yEntryTime, xExitTime, yExitTime, exit);
+			if (collisionTime < 1.0f) {
+				collisionTimes.insert({ abs(collisionTime), Vec2D(xEntryTime, yEntryTime) });
+				normals.push_back(newHitbox.minkowskiDifference(e->getHitbox()).penetrationNormal());
 			}
 		}
-		newHitbox.pos.y += velocity.y;
+		if (collisionTimes.size() > 0 && normals.size() > 0) {
 
-		for (Entity* entity : potentialColliders) {
-			AABB md = newHitbox.minkowskiDifference(entity->getHitbox());
-			if (md.pos.x < 0 &&
-				md.max().x > 0 &&
-				md.pos.y < 0 &&
-				md.max().y > 0) {
-
-				Vec2D edge;
-				Vec2D pv;
-				md.penetrationVector(Vec2D(), pv, edge, velocity);
-				yCollisions.push_back({ entity, pv });
-				newHitbox.pos.y -= pv.y;
+			// normal detection
+			Vec2D collisionNormal = Vec2D();
+			int empty = 0;
+			for (auto n : normals) {
+				if (n) {
+					//std::cout << n << ",";
+					collisionNormal += n;
+				} else {
+					empty++;
+				}
 			}
+			collisionNormal /= float(int(normals.size()) - empty);
+			//std::cout << " --- avg: " << collisionNormal;
+			bool isIntegerX = abs(collisionNormal.x) == 0.0f || abs(collisionNormal.x) == 1.0f;
+			bool isIntegerY = abs(collisionNormal.y) == 0.0f || abs(collisionNormal.y) == 1.0f;
+			if (!isIntegerX && isIntegerY) {
+				collisionNormal = Vec2D(0.0f, collisionNormal.y);
+			}
+			if (isIntegerX && !isIntegerY) {
+				collisionNormal = Vec2D(collisionNormal.x, 0.0f);
+			}
+			collisionNormal = collisionNormal.identityVector();
+
+			float collisionTime = (*collisionTimes.begin()).first;
+			float dotproduct = 0.0f;
+			if (!collisionNormal.x) {
+				if (velocity.x > 0.0f) {
+					dotproduct = -1.0f;
+				} else if (velocity.x < 0.0f) {
+					dotproduct = 1.0f;
+				}
+			}
+			if (!collisionNormal.y) {
+				if (velocity.y > 0.0f) {
+					dotproduct = -1.0f;
+				} else if (velocity.y < 0.0f) {
+					dotproduct = 1.0f;
+				}
+			}
+			Vec2D tangent = collisionNormal.tangent() * dotproduct;
+			Vec2D newVelocity = tangent * velocity.magnitude() * (1.0f - collisionTime);
+			float xCollisionTime = 1.0f;
+			float yCollisionTime = 1.0f;
+			if (!collisionTime) {
+				std::cout << "[" << velocity << "]";
+				std::vector<float> xRepresentatives, yRepresentatives;
+				for (auto e : collisionTimes) {
+					std::cout << "{" << e.first << ":" << e.second << "}";
+					if (e.first == e.second.x) {
+						if (e.second.x) {
+							xRepresentatives.push_back(e.second.x);
+						} else {
+							xCollisionTime = 0.0f;
+						}
+					}
+					if (e.first == e.second.y) {
+						if (e.second.y) {
+							yRepresentatives.push_back(e.second.y);
+						} else {
+							yCollisionTime = 0.0f;
+						}
+					}
+				}
+				std::cout << std::endl;
+				if (xRepresentatives.size() > 0) {
+					sort(xRepresentatives.begin(), xRepresentatives.end());
+					xCollisionTime = *xRepresentatives.begin();
+				}
+				if (yRepresentatives.size() > 0) {
+					sort(yRepresentatives.begin(), yRepresentatives.end());
+					yCollisionTime = *yRepresentatives.begin();
+				}
+				if (!newVelocity.y && newVelocity.x) {
+					newHitbox.pos.x += velocity.x * xCollisionTime;
+				}
+				if (!newVelocity.x && newVelocity.y) {
+					newHitbox.pos.y += velocity.y * yCollisionTime;
+				}
+				if (!newVelocity.x && !newVelocity.y) {
+				}
+			} else {
+				newHitbox.pos += velocity * collisionTime;
+			}
+			velocity = newVelocity;
+		} else {
+			newHitbox.pos += velocity;
 		}
 	}
-	resolveCollision();
-	clearColliders();
 	hitbox = newHitbox;
 }
 
 void Entity::clearColliders() {
-	yCollisions.clear();
-	xCollisions.clear();
-}
-
-void Entity::resolveCollision() {
-	grounded = false;
-	if (collided(Side::BOTTOM)) {
-		hitGround();
-	} else if (collided(Side::TOP)) {
-		velocity.y *= -1 / 2;
-		acceleration.y *= -1 / 10;
-	}
 }
 
 void Entity::hitGround() {
 	grounded = true;
-	velocity.y = 0;
-	acceleration.y = 0;
 }
 
 Entity* Entity::collided(Side direction) {
-	switch (direction) {
-		case Side::BOTTOM:
-		case Side::TOP:
-			if (yCollisions.size() > 0) {
-				for (auto c : yCollisions) {
-					if (c.second.y > 0 && direction == Side::BOTTOM) {
-						return c.first;
-					}
-					if (c.second.y < 0 && direction == Side::TOP) {
-						return c.first;
-					}
-				}
-			}
-			break;
-		case Side::LEFT:
-		case Side::RIGHT:
-			if (xCollisions.size() > 0) {
-				for (auto c : xCollisions) {
-					if (c.second.x > 0 && direction == Side::RIGHT) {
-						return c.first;
-					}
-					if (c.second.x < 0 && direction == Side::LEFT) {
-						return c.first;
-					}
-				}
-			}
-			break;
-		case Side::ANY:
-			if (yCollisions.size() > 0) {
-				return yCollisions[0].first;
-			}
-			if (xCollisions.size() > 0) {
-				return xCollisions[0].first;
-			}
-		default:
-			break;
-	}
-	return nullptr;
+	//switch (direction) {
+	//	case Side::BOTTOM:
+	//	case Side::TOP:
+	//		if (yCollisions.size() > 0) {
+	//			for (auto c : yCollisions) {
+	//				if (c.second.y > 0 && direction == Side::BOTTOM) {
+	//					return c.first;
+	//				}
+	//				if (c.second.y < 0 && direction == Side::TOP) {
+	//					return c.first;
+	//				}
+	//			}
+	//		}
+	//		break;
+	//	case Side::LEFT:
+	//	case Side::RIGHT:
+	//		if (xCollisions.size() > 0) {
+	//			for (auto c : xCollisions) {
+	//				if (c.second.x > 0 && direction == Side::RIGHT) {
+	//					return c.first;
+	//				}
+	//				if (c.second.x < 0 && direction == Side::LEFT) {
+	//					return c.first;
+	//				}
+	//			}
+	//		}
+	//		break;
+	//	case Side::ANY:
+	//		if (yCollisions.size() > 0) {
+	//			return yCollisions[0].first;
+	//		}
+	//		if (xCollisions.size() > 0) {
+	//			return xCollisions[0].first;
+	//		}
+	//	default:
+	//		break;
+	//}
+	//return nullptr;
+	return 0;
 }
 
 void Entity::reset() {
 	acceleration = velocity = {};
 	hitbox.pos = originalPos;
 	gravity = falling;
-	g = 0.2f;
+	g = GRAVITY;
 	color = originalColor;
 }
 
