@@ -12,23 +12,23 @@ InputHandler::InputHandler() {
 
 void InputHandler::keyStateCheck() {
 	const Uint8* states = SDL_GetKeyboardState(NULL);
-	if (states[SDL_SCANCODE_A]) {
+	if (states[SDL_SCANCODE_A] && !states[SDL_SCANCODE_D]) {
 		player->accelerate(Keys::LEFT);
 	}
-	if (states[SDL_SCANCODE_D]) {
+	if (states[SDL_SCANCODE_D] && !states[SDL_SCANCODE_A]) {
 		player->accelerate(Keys::RIGHT);
 	}
-	if (states[SDL_SCANCODE_W] || states[SDL_SCANCODE_SPACE]) {
+	if ((states[SDL_SCANCODE_W] || states[SDL_SCANCODE_SPACE]) && !states[SDL_SCANCODE_S]) {
 		player->accelerate(Keys::UP);
 	} 
-	if (states[SDL_SCANCODE_S]) {
+	if (states[SDL_SCANCODE_S] && !(states[SDL_SCANCODE_W] || states[SDL_SCANCODE_SPACE])) {
 		player->accelerate(Keys::DOWN);
 	}
-	if (!states[SDL_SCANCODE_A] && !states[SDL_SCANCODE_D]) {
+	if ((!states[SDL_SCANCODE_A] && !states[SDL_SCANCODE_D]) || (states[SDL_SCANCODE_A] && states[SDL_SCANCODE_D])) {
 		player->stop(Axis::HORIZONTAL);
 	}
-	if (!states[SDL_SCANCODE_W] && !states[SDL_SCANCODE_S]) {
-		//player->stop(Axis::VERTICAL);
+	if (!states[SDL_SCANCODE_W] && !states[SDL_SCANCODE_S] || (states[SDL_SCANCODE_W] && states[SDL_SCANCODE_S])) {
+		player->stop(Axis::VERTICAL);
 		// do nothing with gravity, without gravity player->stop(VERTICAL);
 	}
 	if (states[SDL_SCANCODE_X]) {
@@ -52,6 +52,10 @@ void InputHandler::keyPress(SDL_KeyboardEvent press) {
 			break;
 		case SDL_SCANCODE_R:
 			Game::reset();
+			break;
+		case SDL_SCANCODE_T:
+			Game::reset();
+			player->setPosition(Vec2D(10 + 700 - 128 * 4, 1));
 			break;
 		default:
 			break;
