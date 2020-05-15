@@ -19,44 +19,20 @@ Game::Game() {
 	tm = TextureManager::getInstance();
 	ih = InputHandler::getInstance();
 	player = Player::getInstance();
-	//entities.push_back(new Entity(AABB(100, 520, 32, 32)));
-	//entities.push_back(new Entity(AABB(32, 32, 32, 32)));
-	//entities.push_back(new Entity(AABB(96, 96, 32, 32)));
-	//entities.push_back(new Entity(AABB(160, 160, 32, 32)));
-	//entities.push_back(new Entity(AABB(224, 224, 32, 32)));
-	//entities.push_back(new Entity(AABB(288, 288, 32, 32)));
-	//entities.push_back(new Entity(AABB(352, 224, 32, 32)));
-	//entities.push_back(new Entity(AABB(416, 160, 32, 32)));
-	//entities.push_back(new Entity(AABB(480, 96, 32, 32)));
-	//entities.push_back(new Entity(AABB(544, 32, 32, 32)));
-	//entities.push_back(new Entity(AABB(600, 550, 32, 32)));
-	//entities.push_back(new Entity(AABB(650, 460, 32, 32)));
-	//entities.push_back(new Entity(AABB(700, 380, 32, 32)));
-	//entities.push_back(new Entity(AABB(550, 360, 32, 32)));
-	//entities.push_back(new Entity(AABB(150, 400, 350, 32)));
-	Entity* box1 = new Entity(AABB(10 + 700 - 1, 10 + 128, 128, 128));
-	Entity* box2 = new Entity(AABB(10 + 700, 10 + 128 + 128, 128, 128));
-	Entity* box3 = new Entity(AABB(10 + 700, 10 + 128 + 128 + 128, 128, 128));
-	Entity* box4 = new Entity(AABB(10 + 700 - 128, 10 + 128 + 128 + 128, 128, 128));
-	Entity* box5 = new Entity(AABB(10 + 700 - 128 - 128, 10 + 128 + 128 + 128, 128, 128));
-	box1->setId(1);
-	box2->setId(2);
-	box3->setId(3);
-	box4->setId(-2);
-	box5->setId(-1);
-	entities.push_back(box1);
-	entities.push_back(box2);
-	entities.push_back(box3);
-	entities.push_back(box4);
-	entities.push_back(box5);
-	//Entity* rightBox = new Entity(AABB(230, 550, 32, 32), {}, {}, {}, false, 15, { 0, 120, 0, 255 });
-	//Entity* platform = new Entity(AABB(80, 560, 300, 32), {}, {}, {}, false, 10, { 0, 0, 0, 255 });
-	//Entity* leftBox = new Entity(AABB(26, 550, 32, 32), {}, {}, {}, false, 5, { 120, 0, 0, 255 });
-	//Entity* rock = new Entity(AABB(380, 560, 32, 32), {}, {}, {}, false, 20, { 120, 120, 0, 255 });
-	//entities.push_back(platform);
-	//entities.push_back(rightBox);
-	//entities.push_back(leftBox);
-	//entities.push_back(rock);
+	
+	entities.push_back(new Entity(AABB(300, 0, 128, 128)));
+	entities.push_back(new Entity(AABB(300, 128, 128, 128)));
+	entities.push_back(new Entity(AABB(300, 128 * 2, 128, 128)));
+	entities.push_back(new Entity(AABB(300, 128 * 3, 128, 128)));
+	entities.push_back(new Entity(AABB(300, 128 * 4, 128, 128)));
+	entities.push_back(new Entity(AABB(300, 128 * 5, 128, 128)));
+	entities.push_back(new Entity(AABB(128, 400, 128, 128)));
+	entities.push_back(new Entity(AABB(128 * 2, 400, 128, 128)));
+	entities.push_back(new Entity(AABB(128 * 3, 400, 128, 128)));
+	entities.push_back(new Entity(AABB(128 * 4, 400, 128, 128)));
+	entities.push_back(new Entity(AABB(128 * 5, 400, 128, 128)));
+	entities.push_back(new Entity(AABB(128 * 6, 400, 128, 128)));
+	entities.push_back(new Entity(AABB(128 * 7, 400, 128, 128)));
 	for (Entity* entity : entities) {
 		entityObjects.push_back(entity);
 	}
@@ -123,7 +99,7 @@ void Game::render() {
 	if (bulletTime) {
 		SDL_Delay(2000);
 	}
-	SDL_Delay(10);
+	SDL_Delay(0);
 }
 
 void Game::loop() {
