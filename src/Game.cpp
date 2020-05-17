@@ -75,9 +75,6 @@ void Game::update() {
 }
 
 void Game::render() {
-	if (!bulletTime) {
-		SDL_RenderClear(renderer); // clear screen
-	}
 	SDL_RenderClear(renderer);
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 	SDL_SetRenderDrawColor(renderer, player->getColor().r, player->getColor().g, player->getColor().b, player->getColor().a);
