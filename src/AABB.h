@@ -1,6 +1,7 @@
 #pragma once
 #include "Vec2D.h"
 #include <algorithm>
+#include "common.h"
 
 // Significant help from guide at https://blog.hamaluik.ca/posts/simple-aabb-collision-using-minkowski-difference/
 
@@ -22,6 +23,34 @@ struct AABB {
         bSize.x = abs(std::max(max().x, b.max().x) - bPos.x);
         bSize.y = abs(std::max(max().y, b.max().y) - bPos.y);
         return AABB(bPos, bSize);
+    }
+    int matchingCorners(AABB b) {
+        Vec2D localCorners[4] = { max(), Vec2D(min().x, max().y), max(), Vec2D(max().x, min().y) };
+        Vec2D foreignCorners[4] = { b.max(), Vec2D(b.min().x, b.max().y), b.max(), Vec2D(b.max().x, b.min().y) };
+        int matching = 0;
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                if (localCorners[i].intEqual(foreignCorners[j])) {
+                    std::cout << "matching corner: " << localCorners[i] << std::endl;
+                    matching++;
+                }
+            }
+        }
+        return matching;
+    }
+    int matchingCoordinates(AABB b, Axis a) {
+        int axis = int(a);
+        float localCoordinates[2] = { min()[axis], max()[axis] };
+        float foreignCoordinates[2] = { b.min()[axis], b.max()[axis] };
+        int matching = 0;
+        for (int i = 0; i < 2; i++) {
+            for (int j = 0; j < 2; j++) {
+                if (int(localCoordinates[i]) == int(foreignCoordinates[j])) {
+                    matching++;
+                }
+            }
+        }
+        return matching;
     }
     AABB minkowskiDifference(AABB other) {
         Vec2D mPos = pos - other.max();
