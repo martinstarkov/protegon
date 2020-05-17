@@ -5,8 +5,8 @@
 
 Player* Player::instance = nullptr;
 
-#define MOVEMENT_ACCELERATION 1.0f
-#define JUMPING_ACCELERATION 1.0f
+#define MOVEMENT_ACCELERATION 500.0f
+#define JUMPING_ACCELERATION 500.0f
 
 void Player::init() {
 	hitbox = { Vec2D(700, 1), Vec2D(128, 128) };
@@ -16,7 +16,7 @@ void Player::init() {
 	acceleration = {};
 	movementAcceleration = MOVEMENT_ACCELERATION;
 	jumpingAcceleration = JUMPING_ACCELERATION;
-	terminalVelocity = Vec2D(500, 500);//terminalVelocity = Vec2D(10, 20);
+	terminalVelocity = Vec2D(1000, 1000);//terminalVelocity = Vec2D(10, 20);
 	originalColor = color = { 120, 0, 120, 255 };
 	alive = true;
 	falling = true;
@@ -91,7 +91,7 @@ void Player::accelerate(Keys key) {
 			acceleration.x = movementAcceleration;
 			break;
 		case Keys::UP:
-			acceleration.y = -movementAcceleration;
+			acceleration.y = -jumpingAcceleration;
 			//if (!jumping) {
 			//	counter = 0;
 			//	jumping = true;
@@ -100,7 +100,7 @@ void Player::accelerate(Keys key) {
 			//}
 			break;
 		case Keys::DOWN:
-			acceleration.y = movementAcceleration;
+			acceleration.y = jumpingAcceleration;
 			break;
 		default:
 			break;
