@@ -90,6 +90,12 @@ struct Vec2D {
 	bool operator== (Vec2D v) {
 		return x == v.x && y == v.y;
 	}
+	bool operator== (float f) {
+		return x == f && y == f;
+	}
+	bool intEqual(Vec2D v) {
+		return round(x) == round(v.x) && round(y) == round(v.y);
+	}
 	bool operator!= (Vec2D v) {
 		return x != v.x && y != v.y;
 	}
