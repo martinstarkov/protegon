@@ -46,8 +46,9 @@ void InputHandler::keyStateCheck() {
 void InputHandler::keyPress(SDL_KeyboardEvent press) {
 	switch (press.keysym.scancode) {
 		case SDL_SCANCODE_C:
+			SDL_RenderClear(Game::getRenderer());
 			//for (Entity* entity : Game::entityObjects) {
-			//	entity->setAcceleration(Vec2D(1.0f / float(rand() % 19 + (-9)), 1.0f / float(rand() % 19 + (-9))));
+			//	entity->setColor(entity->originalColor);
 			//}
 			break;
 		case SDL_SCANCODE_R:

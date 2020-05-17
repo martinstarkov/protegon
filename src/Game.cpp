@@ -20,19 +20,18 @@ Game::Game() {
 	ih = InputHandler::getInstance();
 	player = Player::getInstance();
 	
-	entities.push_back(new Entity(AABB(300, 0, 128, 128)));
-	entities.push_back(new Entity(AABB(300, 128, 128, 128)));
-	entities.push_back(new Entity(AABB(300, 128 * 2, 128, 128)));
-	entities.push_back(new Entity(AABB(300, 128 * 3, 128, 128)));
-	entities.push_back(new Entity(AABB(300, 128 * 4, 128, 128)));
-	entities.push_back(new Entity(AABB(300, 128 * 5, 128, 128)));
-	entities.push_back(new Entity(AABB(128, 400, 128, 128)));
-	entities.push_back(new Entity(AABB(128 * 2, 400, 128, 128)));
-	entities.push_back(new Entity(AABB(128 * 3, 400, 128, 128)));
-	entities.push_back(new Entity(AABB(128 * 4, 400, 128, 128)));
-	entities.push_back(new Entity(AABB(128 * 5, 400, 128, 128)));
-	entities.push_back(new Entity(AABB(128 * 6, 400, 128, 128)));
-	entities.push_back(new Entity(AABB(128 * 7, 400, 128, 128)));
+	entities.push_back(new Entity(AABB(128, 0, 128, 128)));
+	entities.push_back(new Entity(AABB(128, 128, 128, 128)));
+	entities.push_back(new Entity(AABB(128, 128 * 2, 128, 128)));
+	entities.push_back(new Entity(AABB(128, 128 * 3, 128, 128)));
+	//entities.push_back(new Entity(AABB(128, 128 * 4, 128, 128)));
+	//entities.push_back(new Entity(AABB(128, 128 * 5, 128, 128)));
+	entities.push_back(new Entity(AABB(128 * 2, 128, 128, 128)));
+	entities.push_back(new Entity(AABB(128 * 3, 128, 128, 128)));
+	//entities.push_back(new Entity(AABB(128 * 4, 128, 128, 128)));
+	entities.push_back(new Entity(AABB(128 * 5, 128, 128, 128)));
+	entities.push_back(new Entity(AABB(128 * 6, 128, 128, 128)));
+	entities.push_back(new Entity(AABB(128 * 7, 128, 128, 128)));
 	for (Entity* entity : entities) {
 		entityObjects.push_back(entity);
 	}

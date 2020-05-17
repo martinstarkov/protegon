@@ -5,11 +5,11 @@
 
 Player* Player::instance = nullptr;
 
-#define MOVEMENT_ACCELERATION 500.0f
-#define JUMPING_ACCELERATION 500.0f
+#define MOVEMENT_ACCELERATION 100.0f
+#define JUMPING_ACCELERATION 100.0f
 
 void Player::init() {
-	hitbox = { Vec2D(700, 1), Vec2D(128, 128) };
+	hitbox = { Vec2D(128 * 4, 128 * 4), Vec2D(128, 128) };
 	id = PLAYER_ID;
 	originalPos = hitbox.pos;
 	velocity = {};
