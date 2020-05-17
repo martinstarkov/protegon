@@ -12,7 +12,6 @@
 void Entity::update() {
 	updateMotion();
 	collisionCheck();
-	boundaryCheck();
 }
 
 void Entity::updateMotion() {
@@ -20,16 +19,14 @@ void Entity::updateMotion() {
 	velocity += acceleration; // gravity and movement acceleration
 	gravity = false;
 	if (gravity) {
-		//g = GRAVITY;
-		//velocity.y += g;
+		g = GRAVITY;
+		velocity.y += g;
 	}
 	terminalMotion();
 }
-
 template <typename T> static int sgn(T val) {
 	return (T(0) < val) - (val < T(0));
 }
-
 void Entity::terminalMotion() {
 	if (abs(velocity.x) >= terminalVelocity.x) {
 		velocity.x = terminalVelocity.x * sgn(velocity.x);
@@ -45,31 +42,35 @@ void Entity::terminalMotion() {
 		velocity.y = 0;
 	}
 }
-
-void Entity::boundaryCheck() {
-	if (hitbox.pos.x < 0) {
-		hitbox.pos.x = 0;
+void Entity::boundaryCheck(AABB& hb) {
+	if (hb.pos.x < 0) {
+		hb.pos.x = 0;
 	}
-	if (hitbox.pos.x + hitbox.size.x > WINDOW_WIDTH) {
-		hitbox.pos.x = WINDOW_WIDTH - hitbox.size.x;
+	if (hb.pos.x + hb.size.x > WINDOW_WIDTH) {
+		hb.pos.x = WINDOW_WIDTH - hb.size.x;
 	}
-	if (hitbox.pos.y < 0) {
-		hitbox.pos.y = 0;
+	if (hb.pos.y < 0) {
+		hb.pos.y = 0;
 		//velocity.y *= -1 / 2;
 		//acceleration.y *= -1 / 10;
 	}
-	if (hitbox.pos.y + hitbox.size.y > WINDOW_HEIGHT) {
-		hitbox.pos.y = WINDOW_HEIGHT - hitbox.size.y;
-		hitGround();
+	if (hb.pos.y + hb.size.y > WINDOW_HEIGHT) {
+		hb.pos.y = WINDOW_HEIGHT - hb.size.y;
+		//hitGround();
 	}
 }
-
-
 AABB Entity::broadphaseBox(AABB a, Vec2D vel) {
 	Vec2D bPos;
 	bPos.x = vel.x > 0 ? a.pos.x : a.pos.x + vel.x;
 	bPos.y = vel.y > 0 ? a.pos.y : a.pos.y + vel.y;
 	Vec2D bSize = a.size + abs(vel);
+	return AABB(bPos, bSize);
+}
+AABB Entity::maximumBroadphaseBox(AABB a, Vec2D terminalVelocity) {
+	Vec2D extremeMinimum = a.min() - abs(terminalVelocity);
+	Vec2D extremeMaximum = a.max() + abs(terminalVelocity);
+	Vec2D bPos = extremeMinimum;
+	Vec2D bSize = abs(extremeMaximum - extremeMinimum);
 	return AABB(bPos, bSize);
 }
 bool Entity::equalOverlapAABBvsAABB(AABB a, AABB b) {
@@ -86,7 +87,6 @@ bool Entity::overlapAABBvsAABB(AABB a, AABB b) {
 	// Overlapping on all axes means AABBs are intersecting
 	return true;
 }
-
 bool Entity::axisOverlapAABB(AABB a, AABB b, Axis axis) {
 	if (a.max()[int(axis)] <= b.min()[int(axis)] || a.min()[int(axis)] >= b.max()[int(axis)]) return false;
 	return true;
@@ -146,7 +146,6 @@ bool Entity::sweepAABBvsAABB(AABB a, AABB b, Vec2D va, Vec2D vb, float& tfirst, 
 	}
 	return true;
 }
-
 float Entity::sweepAABB(AABB b1, AABB b2, Vec2D v1, Vec2D v2, float& xEntryTime, float& yEntryTime, float& xExitTime, float& yExitTime, float& exit) {
 	float xInvEntry, yInvEntry;
 	float xInvExit, yInvExit;
@@ -228,64 +227,80 @@ float Entity::sweepAABB(AABB b1, AABB b2, Vec2D v1, Vec2D v2, float& xEntryTime,
 void Entity::collisionCheck() {
 	bool grounded = true;
 	AABB newHitbox = hitbox;
+	Vec2D newVelocity = velocity;
 	color = originalColor;
 	if (id == 0) {
-	//for (Entity* e : Game::entities) {
-	//	if (e != this) {
-	//		if (equalOverlapAABBvsAABB(broadphaseBox(newHitbox, velocity), e->getHitbox())) {
-	//			AABB md = newHitbox.minkowskiDifference(e->getHitbox());
-	//			if (md.pos.x < 0 &&
-	//				md.max().x > 0 &&
-	//				md.pos.y < 0 &&
-	//				md.max().y > 0) {
-	//				Vec2D pv = md.closestPointOnBoundsToPoint();
-	//				if (pv.x) {
-	//					velocity.x = 0;
-	//					newHitbox.pos.x -= pv.x;// + sgn(pv.x) / abs(pv.x) * COLLISION_DELTA;
-	//					//std::cout << "Collided with " << e->getId() << "by X: " << pv.x << std::endl;
-	//				}
-	//			}
-	//		}
-	//	}
-	//}
-	//for (Entity* e : Game::entities) {
-	//	if (e != this) {
-	//		if (equalOverlapAABBvsAABB(broadphaseBox(newHitbox, velocity), e->getHitbox())) {
-	//			AABB md = newHitbox.minkowskiDifference(e->getHitbox());
-	//			if (md.pos.x < 0 &&
-	//				md.max().x > 0 &&
-	//				md.pos.y < 0 &&
-	//				md.max().y > 0) {
-	//				Vec2D pv = md.closestPointOnBoundsToPoint();
-	//				if (pv.y) {
-	//					velocity.y = 0;
-	//					newHitbox.pos.y -= pv.y;// + sgn(pv.y) / abs(pv.y) * COLLISION_DELTA;
-	//					//std::cout << "Collided with " << e->getId() << "by Y: " << pv.y << std::endl;
-	//				}
-	//			}
-	//		}
-	//	}
-	//}
 
 		std::vector<Entity*> potentialColliders;
 		for (Entity* e : Game::entities) {
 			if (e != this) {
-				AABB b = broadphaseBox(newHitbox, velocity);
+				AABB b = maximumBroadphaseBox(newHitbox, terminalVelocity);
 				//Game::broadphase.push_back(b);
 				if (equalOverlapAABBvsAABB(b, e->getHitbox())) {
 					potentialColliders.push_back(e);
 				}
 			}
 		}
+		/* Static collision check here */
+		//for (Entity* e : potentialColliders) {
+		//	if (e != this) {
+		//		if (equalOverlapAABBvsAABB(broadphaseBox(newHitbox, velocity), e->getHitbox())) {
+		//			AABB md = newHitbox.minkowskiDifference(e->getHitbox());
+		//			if (md.pos.x < 0 &&
+		//				md.max().x > 0 &&
+		//				md.pos.y < 0 &&
+		//				md.max().y > 0) {
+		//				Vec2D pv = md.closestPointOnBoundsToPoint();
+		//				if (pv.x) {
+		//					newHitbox.pos.x -= pv.x;// + sgn(pv.x) / abs(pv.x) * COLLISION_DELTA;
+		//					//std::cout << "Collided with " << e->getId() << "by X: " << pv.x << std::endl;
+		//				}
+		//			}
+		//		}
+		//	}
+		//}
+		//for (Entity* e : potentialColliders) {
+		//	if (e != this) {
+		//		if (equalOverlapAABBvsAABB(broadphaseBox(newHitbox, velocity), e->getHitbox())) {
+		//			AABB md = newHitbox.minkowskiDifference(e->getHitbox());
+		//			if (md.pos.x < 0 &&
+		//				md.max().x > 0 &&
+		//				md.pos.y < 0 &&
+		//				md.max().y > 0) {
+		//				Vec2D pv = md.closestPointOnBoundsToPoint();
+		//				if (pv.y) {
+		//					newHitbox.pos.y -= pv.y;// + sgn(pv.y) / abs(pv.y) * COLLISION_DELTA;
+		//					//std::cout << "Collided with " << e->getId() << "by Y: " << pv.y << std::endl;
+		//				}
+		//			}
+		//		}
+		//	}
+		//}
+		//std::cout << "potentialColliders:" << potentialColliders.size() << ",";
 		std::vector<std::tuple<float, Vec2D, Entity*>> firstSweepTimes;
-		for (Entity* e : potentialColliders) {
-			e->setColor({ 255, 0, 0, 255 });
-			float firstSweepTime, xSweepTime, ySweepTime, lastSweepTime;
-			sweepAABBvsAABB(newHitbox, e->getHitbox(), velocity, e->getVelocity(), firstSweepTime, lastSweepTime, xSweepTime, ySweepTime);
-			if (firstSweepTime < 1.0f) {
-				firstSweepTimes.push_back({ firstSweepTime, Vec2D(xSweepTime, ySweepTime), e });
+		std::vector<Vec2D> normals;
+		Vec2D collisionNormal = Vec2D();
+		//std::cout << std::endl;
+		bool individualCorner = false;
+		float firstCollisionTime = 1.0f;
+		if (velocity) {
+			for (Entity* e : potentialColliders) {
+				if (e != this) {
+					AABB b = broadphaseBox(newHitbox, velocity);
+					//Game::broadphase.push_back(b);
+					if (overlapAABBvsAABB(b, e->getHitbox())) {
+						e->setColor({ 255, 0, 0, 255 });
+						float firstSweepTime, xSweepTime, ySweepTime, lastSweepTime;
+						sweepAABBvsAABB(newHitbox, e->getHitbox(), velocity, e->getVelocity(), firstSweepTime, lastSweepTime, xSweepTime, ySweepTime);
+						if (firstSweepTime < 1.0f) {
+							firstSweepTimes.push_back({ firstSweepTime, Vec2D(xSweepTime, ySweepTime), e });
+							normals.push_back(newHitbox.minkowskiDifference(e->getHitbox()).penetrationNormal());
+						}
+					}
+				}
 			}
 		}
+		//std::cout << "potentialFirstSweeps:" << firstSweepTimes.size() << ",";
 		//// normal detection
 		//Vec2D collisionNormal = Vec2D();
 		//int empty = 0;
@@ -309,107 +324,166 @@ void Entity::collisionCheck() {
 		//	collisionNormal = Vec2D(collisionNormal.x, 0.0f);
 		//}
 		//collisionNormal = collisionNormal.identityVector();
-		Vec2D collisionNormal = Vec2D();
-		Vec2D newVelocity = velocity;
-		//std::cout << std::endl;
+		Axis firstAxis = Axis::NEITHER, secondAxis = Axis::NEITHER;
 		if (firstSweepTimes.size() > 0) {
 			sort(firstSweepTimes.begin(), firstSweepTimes.end());
-			auto tuple = *firstSweepTimes.begin();
-			float firstCollisionTime = std::get<0>(tuple);
-			if (firstCollisionTime > 0.0f) { // not currently colliding with a wall
-				std::cout << "First collision,";
-				if (firstCollisionTime == std::get<1>(tuple).x) {// x-axis collides first
-					if (velocity.x > 0) {
-						collisionNormal.x = -1;
-					} else if (velocity.x < 0) {
-						collisionNormal.x = 1;
-					} else {
-						collisionNormal.x = 0;
-					}
-				} else if (firstCollisionTime == std::get<1>(tuple).y) { // y-axis collides first
-					if (velocity.y > 0) {
-						collisionNormal.y = -1;
-					} else if (velocity.y < 0) {
-						collisionNormal.y = 1;
-					} else {
-						collisionNormal.y = 0;
-					}
-				} else {
-					std::cout << "MOVING INTO CORNER COLLISION";
-				}
-			} else { // in continuous collision state
-				//std::cout << "Continous collision,";
-				std::vector<Vec2D> xSweeps, ySweeps;
-				std::vector<Vec2D> normals;
-				for (auto tuple : firstSweepTimes) {
-					Vec2D normal = newHitbox.minkowskiDifference(std::get<2>(tuple)->getHitbox()).penetrationNormal();
-					if (!normal.isZero()) {
-						normals.push_back(normal);
-					}
-				}
-				if (normals.size() > 0) {
-					for (auto n : normals) {
-						collisionNormal += n;
-						//std::cout << n << ",";
-					}
-					collisionNormal /= (float)normals.size();
-					//std::cout << " --- avg: " << collisionNormal;
-					// corner detection
-					bool isIntegerX = abs(collisionNormal.x) == 0.0f || abs(collisionNormal.x) == 1.0f;
-					bool isIntegerY = abs(collisionNormal.y) == 0.0f || abs(collisionNormal.y) == 1.0f;
-					if (!isIntegerX && isIntegerY) {
-						collisionNormal = Vec2D(0.0f, collisionNormal.y);
-					}
-					if (isIntegerX && !isIntegerY) {
-						collisionNormal = Vec2D(collisionNormal.x, 0.0f);
-					}
-					collisionNormal = collisionNormal.identityVector();
-				} else {
-					std::cout << "No normal detected,";
-				}
+			auto t = *firstSweepTimes.begin();
+			firstCollisionTime = std::get<0>(t);
+			Vec2D sweepAxisTime = std::get<1>(t);
+			Entity* collider = std::get<2>(t);
+			if (sweepAxisTime == firstCollisionTime) {
+				firstAxis = Axis::BOTH;
+				secondAxis = Axis::BOTH;
+			} else if (sweepAxisTime.x == firstCollisionTime) {
+				firstAxis = Axis::HORIZONTAL;
+				secondAxis = Axis::VERTICAL;
+				//std::cout << "Sweeping X-Axis first" << std::endl;
+			} else if (sweepAxisTime.y == firstCollisionTime) {
+				firstAxis = Axis::VERTICAL;
+				secondAxis = Axis::HORIZONTAL;
+				//std::cout << "Sweeping Y-Axis first" << std::endl;
 			}
 
-			Axis freeAxis;
+			if (firstCollisionTime) { // first collision, firstCollisionTime != 0
+				if (firstAxis != Axis::BOTH && secondAxis != Axis::BOTH) {
+					AABB interpolatedHitbox = newHitbox;
+					interpolatedHitbox.pos[int(firstAxis)] += newVelocity[int(firstAxis)] * firstCollisionTime;
+					int fm = interpolatedHitbox.matchingCoordinates(collider->getHitbox(), firstAxis);
+					int sm = interpolatedHitbox.matchingCoordinates(collider->getHitbox(), secondAxis);
+					std::cout << "normals: "<< normals.size() <<", axis:  " << int(firstAxis) << ":" << fm << ", axis: " << int(secondAxis) << ":" << sm << std::endl;
+					if (!sm && normals.size() < 3) {
+						std::cout << "Corner" << std::endl;
+					}
+				}
+				//if (normals.size() == 1) { // deal with fake corners
+				//	//std::cout << "Individual corner sweep at " << normals[0] << std::endl;
+				//	// remember to sweep again here, but for now just move regualar
+				//	newHitbox.pos += newVelocity;
+
+				//} else if (normals.size() == 2) { // regular sweep hit
+				//	//std::cout << "Regular first sweep, normals: " << normals.size() << std::endl;
+				//	//std::cout << "Regular first sweep, normals: " << normals[0] << normals[1] << std::endl;
+				//	//newHitbox.pos += velocity * firstCollisionTime;
+				//	//boundaryCheck(newHitbox);
+				//}
+			} else { // continuous collision, firstCollisionTime = 0
+				//std::cout << "Normals on continuous sweep: " << normals.size() << std::endl;
+
+			}
+			//std::cout << "std::get<1>(firstColliderTuple): " << std::get<1>(firstColliderTuple) << std::endl;
+			//if (firstCollisionTime > 0.0f) { // not currently colliding with a wall
+			//	if (std::get<1>(firstColliderTuple).x == firstCollisionTime) {// x-axis collides first
+			//		if (velocity.x > 0) {
+			//			collisionNormal.x = -1;
+			//		} else if (velocity.x < 0) {
+			//			collisionNormal.x = 1;
+			//		} else {
+			//			collisionNormal.x = 0;
+			//		}
+			//	} else if (std::get<1>(firstColliderTuple).y == firstCollisionTime) { // y-axis collides first
+			//		if (velocity.y > 0) {
+			//			collisionNormal.y = -1;
+			//		} else if (velocity.y < 0) {
+			//			collisionNormal.y = 1;
+			//		} else {
+			//			collisionNormal.y = 0;
+			//		}
+			//	}
+			//	//std::cout << "First collision, times: " << std::get<1>(firstColliderTuple) << ", normal: " << cornerNormal << ",";
+			//}
+			if (normals.size() > 0) {
+				int empty = 0;
+				for (auto n : normals) {
+					if (n) {
+						collisionNormal += n;
+					} else {
+						empty++;
+					}
+					//std::cout << n << ",";
+				}
+				collisionNormal /= (float)(int(normals.size()) - empty);
+				//std::cout << " --- avg: " << collisionNormal;
+				// corner detection
+				bool isIntegerX = abs(collisionNormal.x) == 0.0f || abs(collisionNormal.x) == 1.0f;
+				bool isIntegerY = abs(collisionNormal.y) == 0.0f || abs(collisionNormal.y) == 1.0f;
+				if (!isIntegerX && isIntegerY) {
+					collisionNormal = Vec2D(0.0f, collisionNormal.y);
+				}
+				if (isIntegerX && !isIntegerY) {
+					collisionNormal = Vec2D(collisionNormal.x, 0.0f);
+				}
+				collisionNormal = collisionNormal.identityVector();
+				//std::cout << " --- final: " << collisionNormal << std::endl;
+				//std::cout << ", collisionNormal: " << collisionNormal << ",";
+			}
+			if (normals.size() == 1 && collisionNormal.nonZero()) {
+				individualCorner = true;
+			}
+
+			Axis freeAxis, currentAxis;
 			if (!abs(collisionNormal.x)) {
+				currentAxis = Axis::VERTICAL;
 				freeAxis = Axis::HORIZONTAL;
 			} else if (!abs(collisionNormal.y)) {
+				currentAxis = Axis::HORIZONTAL;
 				freeAxis = Axis::VERTICAL;
 			} else {
-				std::cout << "CORNER1" << ",";
 				freeAxis = Axis::NEITHER;
+				currentAxis = Axis::BOTH;
 			}
-			//std::cout << "axis:" << int(freeAxis) << ",";
-
-
-
-			newHitbox.pos += velocity * firstCollisionTime;
+			//std::cout << "velocity: " << velocity << ",";
+			//std::cout << "pos before first sweep:" << newHitbox.pos << ",";
+			if (!individualCorner) {
+				newHitbox.pos += velocity * firstCollisionTime;
+				boundaryCheck(newHitbox);
+			}
+			//std::cout << "pos after first sweep:" << newHitbox.pos << ",";
+			//std::cout << "axis of second sweep:" << int(freeAxis) << ",";
 			Vec2D tangent = collisionNormal.tangent();
 			float dotProduct = velocity.dotProduct(tangent);
-			std::cout << "collisionNormal:" << collisionNormal << "," << "velocity:" << velocity;
+			//std::cout << "collisionNormal:" << collisionNormal << "," << "velocity:" << velocity;
 			if (dotProduct && !collisionNormal.nonZero()) {
 				dotProduct /= abs(dotProduct); // normalize
 			} else { // for corners, keep newVelocity as zero vector
 				dotProduct = 0;
 			}
-			newVelocity = tangent * velocity.magnitude() * dotProduct;//(1.0f - firstCollisionTime) * dotProduct;
 
-			std::cout << "newvel:" << newVelocity << ",";
-
+			//std::cout << "newvel:" << newVelocity << ",";
 
 
+			if (freeAxis != Axis::NEITHER || individualCorner) { // there exists a free axis, i.e. not a corner collision, sweep again
+				if (individualCorner) {
+					//std::cout << "collisionNormal: " << collisionNormal << ",";
+					freeAxis = currentAxis;
+					if (velocity.x) {
+						freeAxis = Axis::HORIZONTAL;
+					}
+					if (velocity.y) {
+						freeAxis = Axis::VERTICAL;
+					}
+					//std::cout << "free axis will be: " << int(freeAxis) << ",";
 
-			if (freeAxis != Axis::NEITHER) { // there exists a free axis, i.e. not a corner collision, sweep again
+				}
+				newVelocity = tangent * velocity.magnitude() * dotProduct;// * (1.0f - firstCollisionTime);
+
+				//std::cout << "newVelocity:" << newVelocity << ",";
 
 				std::vector<std::tuple<float, Vec2D, Entity*>> secondSweepTimes;
 				for (Entity* e : potentialColliders) {
-					e->setColor({ 255, 0, 0, 255 });
-					float secondSweepTime, xSweepTime, ySweepTime, lastSweepTime;
-					sweepAABBvsAABB(newHitbox, e->getHitbox(), newVelocity, e->getVelocity(), secondSweepTime, lastSweepTime, xSweepTime, ySweepTime);
-					if (secondSweepTime < 1.0f && secondSweepTime > 0.0f) {
-						secondSweepTimes.push_back({ secondSweepTime, Vec2D(xSweepTime, ySweepTime), e });
+					if (e != this) {
+						AABB b = broadphaseBox(newHitbox, newVelocity);
+						//Game::broadphase.push_back(b);
+						if (equalOverlapAABBvsAABB(b, e->getHitbox())) {
+							//e->setColor({ 255, 0, 0, 255 });
+							float secondSweepTime, xSweepTime, ySweepTime, lastSweepTime;
+							sweepAABBvsAABB(newHitbox, e->getHitbox(), newVelocity, e->getVelocity(), secondSweepTime, lastSweepTime, xSweepTime, ySweepTime);
+							if (secondSweepTime < 1.0f && secondSweepTime > 0.0f) {
+								secondSweepTimes.push_back({ secondSweepTime, Vec2D(xSweepTime, ySweepTime), e });
+							}
+						}
 					}
 				}
-
+				//std::cout << "potentialSecondSweeps:" << secondSweepTimes.size() << ",";
 				if (secondSweepTimes.size() > 0) {
 					float secondCollisionTime = 1.0f;
 					for (auto t : secondSweepTimes) {
@@ -421,23 +495,52 @@ void Entity::collisionCheck() {
 						}
 						//std::cout << time << ",";
 					}
-					//std::cout << std::endl;
-					newHitbox.pos[int(freeAxis)] += newVelocity[int(freeAxis)] * secondCollisionTime;
-					std::cout << "axis:" << int(freeAxis) << "," << newHitbox.pos[int(freeAxis)] << "+" << newVelocity[int(freeAxis)] << "*" << secondCollisionTime << std::endl;
-					
+					if (individualCorner) {
+						//newHitbox.pos[int(freeAxis)] += velocity[int(freeAxis)];
+						//std::cout << "MOVING FULL 1 LENGTH: " << velocity << std::endl;
+					} else {
+						//std::cout << std::endl;
+						newHitbox.pos[int(freeAxis)] += newVelocity[int(freeAxis)] * secondCollisionTime;
+						//std::cout << "axis:" << int(freeAxis) << "," << newHitbox.pos[int(freeAxis)] << "+" << newVelocity[int(freeAxis)] << "*" << secondCollisionTime << std::endl;
+					}
+					newVelocity[int(freeAxis)] -= newVelocity[int(freeAxis)] * secondCollisionTime;
 				} else {
-					newHitbox.pos[int(freeAxis)] += newVelocity[int(freeAxis)];
-					std::cout << newHitbox.pos[int(freeAxis)] << "+" << newVelocity[int(freeAxis)] << std::endl;
+					if (individualCorner) {
+						//newHitbox.pos[int(freeAxis)] += velocity[int(freeAxis)];
+						//std::cout << "MOVING FULL 2 LENGTH: " << velocity << std::endl;
+					} else {
+						newHitbox.pos[int(freeAxis)] += newVelocity[int(freeAxis)];
+					}
+					newVelocity = Vec2D();
+					//std::cout << newHitbox.pos[int(freeAxis)] << "+" << newVelocity[int(freeAxis)] << std::endl;
 				}
-				newVelocity[int(freeAxis)] = velocity[int(freeAxis)];
 
+
+				boundaryCheck(newHitbox);
+				//newVelocity[int(freeAxis)] = velocity[int(freeAxis)];
+
+			} else {
+				Vec2D movementDirection = velocity.identityVector();
+				if (sgn(collisionNormal.x) != sgn(movementDirection.x)) {
+					newVelocity.x = 0;
+				}
+				if (sgn(collisionNormal.y) != sgn(movementDirection.y)) {
+					newVelocity.y = 0;
+				}
+				newHitbox.pos += newVelocity;
+				//std::cout << "movementDirection: " << movementDirection << "," << "collisionNormal: " << collisionNormal;
+				//std::cout << std::endl;
 			}
-			//std::cout << "d:" << dotProduct << ",";
-			//std::cout << "cn:" << collisionNormal << ",";
 		} else {
-			newHitbox.pos += velocity;
+		newHitbox.pos += velocity;
 		}
-		velocity = newVelocity;
+		//std::cout << "d:" << dotProduct << ",";
+		//std::cout << "cn:" << collisionNormal << ",";
+		//std::cout << std::endl;
+		boundaryCheck(newHitbox);
+		if (!individualCorner) {
+			velocity = newVelocity;
+		}
 		terminalMotion();
 		//std::cout << "v:" << velocity << std::endl;
 		//float firstSweepTime = 1.0f;
