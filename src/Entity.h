@@ -2,25 +2,11 @@
 #include "Vec2D.h"
 #include "AABB.h"
 #include "defines.h"
+#include "common.h"
 #include <vector>
 
 #define DRAG 0.1f
 #define GRAVITY 2.0f
-
-enum class Axis {
-	HORIZONTAL = 0,
-	VERTICAL = 1,
-	BOTH = 2,
-	NEITHER = -1
-};
-
-enum class Side {
-	TOP,
-	BOTTOM,
-	LEFT,
-	RIGHT,
-	ANY
-};
 
 class Entity {
 public:
@@ -90,6 +76,7 @@ public:
 	}
 	virtual void reset();
 	virtual void accelerate(Axis direction, float movementAccel);
+	SDL_Color originalColor;
 protected:
 	int id;
 	std::vector<std::pair<Entity*, Vec2D>> yCollisions;
@@ -98,7 +85,6 @@ protected:
 	AABB oldHitbox;
 	AABB tempHitbox;
 	SDL_Color color;
-	SDL_Color originalColor;
 	Vec2D velocity;
 	Vec2D acceleration;
 	Vec2D originalPos;
@@ -115,10 +101,11 @@ protected:
 	float sweepAABB(AABB b1, AABB b2, Vec2D v1, Vec2D v2, float& xEntryTime, float& yEntryTime, float& xExitTime, float& yExitTime, float& exit);
 
 	void updateMotion();
-	void boundaryCheck();
+	void boundaryCheck(AABB& hb);
 	void terminalMotion();
 	void collisionCheck();
 	bool axisOverlapAABB(AABB a, AABB b, Axis axis);
+	AABB maximumBroadphaseBox(AABB a, Vec2D terminalVelocity);
 	AABB broadphaseBox(AABB a, Vec2D vel);
 	bool sweepAABBvsAABB(AABB a, AABB b, Vec2D va, Vec2D vb, float& tfirst, float& tlast, float& xfirst, float& yfirst);
 	bool overlapAABBvsAABB(AABB a, AABB b);
