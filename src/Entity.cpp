@@ -4,6 +4,7 @@
 #include <limits>
 #include <vector>
 #include <map>
+#include <tuple>
 
 #define COLLISION_DELTA 0.1f
 #define EPSILON 0.001f
@@ -25,12 +26,16 @@ void Entity::updateMotion() {
 	terminalMotion();
 }
 
+template <typename T> static int sgn(T val) {
+	return (T(0) < val) - (val < T(0));
+}
+
 void Entity::terminalMotion() {
-	if (velocity.x > terminalVelocity.x) {
-		velocity.x = terminalVelocity.x;
+	if (abs(velocity.x) >= terminalVelocity.x) {
+		velocity.x = terminalVelocity.x * sgn(velocity.x);
 	}
-	if (velocity.y > terminalVelocity.y) {
-		velocity.y = terminalVelocity.y;
+	if (abs(velocity.y) >= terminalVelocity.y) {
+		velocity.y = terminalVelocity.y * sgn(velocity.y);
 	}
 	const float threshold = 0.1f;
 	if (abs(velocity.x) < threshold) {
@@ -50,8 +55,8 @@ void Entity::boundaryCheck() {
 	}
 	if (hitbox.pos.y < 0) {
 		hitbox.pos.y = 0;
-		velocity.y *= -1 / 2;
-		acceleration.y *= -1 / 10;
+		//velocity.y *= -1 / 2;
+		//acceleration.y *= -1 / 10;
 	}
 	if (hitbox.pos.y + hitbox.size.y > WINDOW_HEIGHT) {
 		hitbox.pos.y = WINDOW_HEIGHT - hitbox.size.y;
@@ -89,16 +94,16 @@ bool Entity::axisOverlapAABB(AABB a, AABB b, Axis axis) {
 
 // Intersect AABBs ‘a’ and ‘b’ moving with constant velocities va and vb.
 // On intersection, return time of first and last contact in tfirst and tlast
-bool Entity::sweepAABBvsAABB(AABB a, AABB b, Vec2D va, Vec2D vb, float& tfirst, float& tlast) {
+bool Entity::sweepAABBvsAABB(AABB a, AABB b, Vec2D va, Vec2D vb, float& tfirst, float& tlast, float& xfirst, float& yfirst) {
 	// Exit early if ‘a’ and ‘b’ initially overlapping
 	//if (overlapAABBvsAABB(a, b)) {
 	//	tfirst = tlast = 0.0f;
 	//	return true;
 	//}
-	// Use relative velocity; effectively treating ’a’ as stationary
+	// Use relative velocity; effectively treating ’b’ as stationary
 	Vec2D v = vb - va;
 	// Initialize times of first and last contact
-	tfirst = 0.0f;
+	tfirst = xfirst = yfirst = 0.0f;
 	tlast = 1.0f;
 	// For each axis, determine times of first and last contact, if any
 	for (int i = 0; i < 2; i++) {
@@ -108,8 +113,15 @@ bool Entity::sweepAABBvsAABB(AABB a, AABB b, Vec2D va, Vec2D vb, float& tfirst, 
 			}
 			if (a.max()[i] < b.min()[i]) { 
 				tfirst = std::max((a.max()[i] - b.min()[i]) / v[i], tfirst);
+				if (i == 0) {
+					xfirst = std::max((a.max()[i] - b.min()[i]) / v[i], xfirst);
+				} else {
+					yfirst = std::max((a.max()[i] - b.min()[i]) / v[i], yfirst);
+				}
 			}
-			if (b.max()[i] > a.min()[i]) tlast = std::min((a.min()[i] - b.max()[i]) / v[i], tlast);
+			if (b.max()[i] > a.min()[i]) {
+				tlast = std::min((a.min()[i] - b.max()[i]) / v[i], tlast);
+			}
 		}
 		if (v[i] > 0.0f) {
 			if (b.min()[i] > a.max()[i]) {
@@ -117,6 +129,11 @@ bool Entity::sweepAABBvsAABB(AABB a, AABB b, Vec2D va, Vec2D vb, float& tfirst, 
 			}
 			if (b.max()[i] < a.min()[i]) {
 				tfirst = std::max((a.min()[i] - b.max()[i]) / v[i], tfirst);
+				if (i == 0) {
+					xfirst = std::max((a.min()[i] - b.max()[i]) / v[i], xfirst);
+				} else {
+					yfirst = std::max((a.min()[i] - b.max()[i]) / v[i], yfirst);
+				}
 			}
 			if (a.max()[i] > b.min()[i]) {
 				tlast = std::min((a.max()[i] - b.min()[i]) / v[i], tlast);
@@ -208,10 +225,6 @@ float Entity::sweepAABB(AABB b1, AABB b2, Vec2D v1, Vec2D v2, float& xEntryTime,
 	return entryTime;
 }
 
-template <typename T> static int sgn(T val) {
-	return (T(0) < val) - (val < T(0));
-}
-
 void Entity::collisionCheck() {
 	bool grounded = true;
 	AABB newHitbox = hitbox;
@@ -254,121 +267,285 @@ void Entity::collisionCheck() {
 	//	}
 	//}
 
-		std::vector<Entity*> potentialCollisions;
+		std::vector<Entity*> potentialColliders;
 		for (Entity* e : Game::entities) {
 			if (e != this) {
-				AABB bp = broadphaseBox(newHitbox, velocity);
-				//Game::broadphase.push_back(bp);
-				if (overlapAABBvsAABB(bp, e->getHitbox())) {
-					potentialCollisions.push_back(e);
+				AABB b = broadphaseBox(newHitbox, velocity);
+				//Game::broadphase.push_back(b);
+				if (equalOverlapAABBvsAABB(b, e->getHitbox())) {
+					potentialColliders.push_back(e);
 				}
 			}
 		}
-		std::map<float, Vec2D> collisionTimes;
-		std::map<float, Vec2D> exits;
-		std::vector<Vec2D> normals;
-		for (Entity* e : potentialCollisions) {
+		std::vector<std::tuple<float, Vec2D, Entity*>> firstSweepTimes;
+		for (Entity* e : potentialColliders) {
 			e->setColor({ 255, 0, 0, 255 });
-			float xEntryTime = 1.0f;
-			float yEntryTime = 1.0f;
-			float xExitTime = 0.0f;
-			float yExitTime = 0.0f;
-			float exit = 0.0f;
-			float collisionTime = sweepAABB(newHitbox, e->getHitbox(), velocity, e->getVelocity(), xEntryTime, yEntryTime, xExitTime, yExitTime, exit);
-			if (collisionTime < 1.0f) {
-				collisionTimes.insert({ abs(collisionTime), Vec2D(xEntryTime, yEntryTime) });
-				normals.push_back(newHitbox.minkowskiDifference(e->getHitbox()).penetrationNormal());
+			float firstSweepTime, xSweepTime, ySweepTime, lastSweepTime;
+			sweepAABBvsAABB(newHitbox, e->getHitbox(), velocity, e->getVelocity(), firstSweepTime, lastSweepTime, xSweepTime, ySweepTime);
+			if (firstSweepTime < 1.0f) {
+				firstSweepTimes.push_back({ firstSweepTime, Vec2D(xSweepTime, ySweepTime), e });
 			}
 		}
-		if (collisionTimes.size() > 0 && normals.size() > 0) {
-
-			// normal detection
-			Vec2D collisionNormal = Vec2D();
-			int empty = 0;
-			for (auto n : normals) {
-				if (n) {
-					//std::cout << n << ",";
-					collisionNormal += n;
+		//// normal detection
+		//Vec2D collisionNormal = Vec2D();
+		//int empty = 0;
+		//for (auto n : normals) {
+		//	if (n) {
+		//		//std::cout << n << ",";
+		//		collisionNormal += n;
+		//	} else {
+		//		empty++;
+		//	}
+		//}
+		//collisionNormal /= float(int(normals.size()) - empty);
+		////std::cout << " --- avg: " << collisionNormal;
+		//// corner detection
+		//bool isIntegerX = abs(collisionNormal.x) == 0.0f || abs(collisionNormal.x) == 1.0f;
+		//bool isIntegerY = abs(collisionNormal.y) == 0.0f || abs(collisionNormal.y) == 1.0f;
+		//if (!isIntegerX && isIntegerY) {
+		//	collisionNormal = Vec2D(0.0f, collisionNormal.y);
+		//}
+		//if (isIntegerX && !isIntegerY) {
+		//	collisionNormal = Vec2D(collisionNormal.x, 0.0f);
+		//}
+		//collisionNormal = collisionNormal.identityVector();
+		Vec2D collisionNormal = Vec2D();
+		Vec2D newVelocity = velocity;
+		//std::cout << std::endl;
+		if (firstSweepTimes.size() > 0) {
+			sort(firstSweepTimes.begin(), firstSweepTimes.end());
+			auto tuple = *firstSweepTimes.begin();
+			float firstCollisionTime = std::get<0>(tuple);
+			if (firstCollisionTime > 0.0f) { // not currently colliding with a wall
+				std::cout << "First collision,";
+				if (firstCollisionTime == std::get<1>(tuple).x) {// x-axis collides first
+					if (velocity.x > 0) {
+						collisionNormal.x = -1;
+					} else if (velocity.x < 0) {
+						collisionNormal.x = 1;
+					} else {
+						collisionNormal.x = 0;
+					}
+				} else if (firstCollisionTime == std::get<1>(tuple).y) { // y-axis collides first
+					if (velocity.y > 0) {
+						collisionNormal.y = -1;
+					} else if (velocity.y < 0) {
+						collisionNormal.y = 1;
+					} else {
+						collisionNormal.y = 0;
+					}
 				} else {
-					empty++;
+					std::cout << "MOVING INTO CORNER COLLISION";
+				}
+			} else { // in continuous collision state
+				//std::cout << "Continous collision,";
+				std::vector<Vec2D> xSweeps, ySweeps;
+				std::vector<Vec2D> normals;
+				for (auto tuple : firstSweepTimes) {
+					Vec2D normal = newHitbox.minkowskiDifference(std::get<2>(tuple)->getHitbox()).penetrationNormal();
+					if (!normal.isZero()) {
+						normals.push_back(normal);
+					}
+				}
+				if (normals.size() > 0) {
+					for (auto n : normals) {
+						collisionNormal += n;
+						//std::cout << n << ",";
+					}
+					collisionNormal /= (float)normals.size();
+					//std::cout << " --- avg: " << collisionNormal;
+					// corner detection
+					bool isIntegerX = abs(collisionNormal.x) == 0.0f || abs(collisionNormal.x) == 1.0f;
+					bool isIntegerY = abs(collisionNormal.y) == 0.0f || abs(collisionNormal.y) == 1.0f;
+					if (!isIntegerX && isIntegerY) {
+						collisionNormal = Vec2D(0.0f, collisionNormal.y);
+					}
+					if (isIntegerX && !isIntegerY) {
+						collisionNormal = Vec2D(collisionNormal.x, 0.0f);
+					}
+					collisionNormal = collisionNormal.identityVector();
+				} else {
+					std::cout << "No normal detected,";
 				}
 			}
-			collisionNormal /= float(int(normals.size()) - empty);
-			//std::cout << " --- avg: " << collisionNormal;
-			bool isIntegerX = abs(collisionNormal.x) == 0.0f || abs(collisionNormal.x) == 1.0f;
-			bool isIntegerY = abs(collisionNormal.y) == 0.0f || abs(collisionNormal.y) == 1.0f;
-			if (!isIntegerX && isIntegerY) {
-				collisionNormal = Vec2D(0.0f, collisionNormal.y);
-			}
-			if (isIntegerX && !isIntegerY) {
-				collisionNormal = Vec2D(collisionNormal.x, 0.0f);
-			}
-			collisionNormal = collisionNormal.identityVector();
 
-			float collisionTime = (*collisionTimes.begin()).first;
-			float dotproduct = 0.0f;
-			if (!collisionNormal.x) {
-				if (velocity.x > 0.0f) {
-					dotproduct = -1.0f;
-				} else if (velocity.x < 0.0f) {
-					dotproduct = 1.0f;
-				}
-			}
-			if (!collisionNormal.y) {
-				if (velocity.y > 0.0f) {
-					dotproduct = -1.0f;
-				} else if (velocity.y < 0.0f) {
-					dotproduct = 1.0f;
-				}
-			}
-			Vec2D tangent = collisionNormal.tangent() * dotproduct;
-			Vec2D newVelocity = tangent * velocity.magnitude() * (1.0f - collisionTime);
-			float xCollisionTime = 1.0f;
-			float yCollisionTime = 1.0f;
-			if (!collisionTime) {
-				std::cout << "[" << velocity << "]";
-				std::vector<float> xRepresentatives, yRepresentatives;
-				for (auto e : collisionTimes) {
-					std::cout << "{" << e.first << ":" << e.second << "}";
-					if (e.first == e.second.x) {
-						if (e.second.x) {
-							xRepresentatives.push_back(e.second.x);
-						} else {
-							xCollisionTime = 0.0f;
-						}
-					}
-					if (e.first == e.second.y) {
-						if (e.second.y) {
-							yRepresentatives.push_back(e.second.y);
-						} else {
-							yCollisionTime = 0.0f;
-						}
-					}
-				}
-				std::cout << std::endl;
-				if (xRepresentatives.size() > 0) {
-					sort(xRepresentatives.begin(), xRepresentatives.end());
-					xCollisionTime = *xRepresentatives.begin();
-				}
-				if (yRepresentatives.size() > 0) {
-					sort(yRepresentatives.begin(), yRepresentatives.end());
-					yCollisionTime = *yRepresentatives.begin();
-				}
-				if (!newVelocity.y && newVelocity.x) {
-					newHitbox.pos.x += velocity.x * xCollisionTime;
-				}
-				if (!newVelocity.x && newVelocity.y) {
-					newHitbox.pos.y += velocity.y * yCollisionTime;
-				}
-				if (!newVelocity.x && !newVelocity.y) {
-				}
+			Axis freeAxis;
+			if (!abs(collisionNormal.x)) {
+				freeAxis = Axis::HORIZONTAL;
+			} else if (!abs(collisionNormal.y)) {
+				freeAxis = Axis::VERTICAL;
 			} else {
-				newHitbox.pos += velocity * collisionTime;
+				std::cout << "CORNER1" << ",";
+				freeAxis = Axis::NEITHER;
 			}
-			velocity = newVelocity;
+			//std::cout << "axis:" << int(freeAxis) << ",";
+
+
+
+			newHitbox.pos += velocity * firstCollisionTime;
+			Vec2D tangent = collisionNormal.tangent();
+			float dotProduct = velocity.dotProduct(tangent);
+			std::cout << "collisionNormal:" << collisionNormal << "," << "velocity:" << velocity;
+			if (dotProduct && !collisionNormal.nonZero()) {
+				dotProduct /= abs(dotProduct); // normalize
+			} else { // for corners, keep newVelocity as zero vector
+				dotProduct = 0;
+			}
+			newVelocity = tangent * velocity.magnitude() * dotProduct;//(1.0f - firstCollisionTime) * dotProduct;
+
+			std::cout << "newvel:" << newVelocity << ",";
+
+
+
+
+			if (freeAxis != Axis::NEITHER) { // there exists a free axis, i.e. not a corner collision, sweep again
+
+				std::vector<std::tuple<float, Vec2D, Entity*>> secondSweepTimes;
+				for (Entity* e : potentialColliders) {
+					e->setColor({ 255, 0, 0, 255 });
+					float secondSweepTime, xSweepTime, ySweepTime, lastSweepTime;
+					sweepAABBvsAABB(newHitbox, e->getHitbox(), newVelocity, e->getVelocity(), secondSweepTime, lastSweepTime, xSweepTime, ySweepTime);
+					if (secondSweepTime < 1.0f && secondSweepTime > 0.0f) {
+						secondSweepTimes.push_back({ secondSweepTime, Vec2D(xSweepTime, ySweepTime), e });
+					}
+				}
+
+				if (secondSweepTimes.size() > 0) {
+					float secondCollisionTime = 1.0f;
+					for (auto t : secondSweepTimes) {
+						float time = std::get<1>(t)[int(freeAxis)];
+						if (std::get<0>(t) == time) {
+							if (time < secondCollisionTime) {
+								secondCollisionTime = time;
+							}
+						}
+						//std::cout << time << ",";
+					}
+					//std::cout << std::endl;
+					newHitbox.pos[int(freeAxis)] += newVelocity[int(freeAxis)] * secondCollisionTime;
+					std::cout << "axis:" << int(freeAxis) << "," << newHitbox.pos[int(freeAxis)] << "+" << newVelocity[int(freeAxis)] << "*" << secondCollisionTime << std::endl;
+					
+				} else {
+					newHitbox.pos[int(freeAxis)] += newVelocity[int(freeAxis)];
+					std::cout << newHitbox.pos[int(freeAxis)] << "+" << newVelocity[int(freeAxis)] << std::endl;
+				}
+				newVelocity[int(freeAxis)] = velocity[int(freeAxis)];
+
+			}
+			//std::cout << "d:" << dotProduct << ",";
+			//std::cout << "cn:" << collisionNormal << ",";
 		} else {
 			newHitbox.pos += velocity;
 		}
+		velocity = newVelocity;
+		terminalMotion();
+		//std::cout << "v:" << velocity << std::endl;
+		//float firstSweepTime = 1.0f;
+		//std::map<float, Vec2D> collisionTimes;
+		//std::map<float, Vec2D> exits;
+		//std::vector<Vec2D> normals;
+		//for (Entity* e : potentialCollisions) {
+		//	e->setColor({ 255, 0, 0, 255 });
+		//	float xEntryTime = 1.0f;
+		//	float yEntryTime = 1.0f;
+		//	float xExitTime = 0.0f;
+		//	float yExitTime = 0.0f;
+		//	float exit = 0.0f;
+		//	float collisionTime = sweepAABB(newHitbox, e->getHitbox(), velocity, e->getVelocity(), xEntryTime, yEntryTime, xExitTime, yExitTime, exit);
+		//	if (collisionTime < 1.0f) {
+		//		collisionTimes.insert({ abs(collisionTime), Vec2D(xEntryTime, yEntryTime) });
+		//		normals.push_back(newHitbox.minkowskiDifference(e->getHitbox()).penetrationNormal());
+		//	}
+		//}
+		//if (collisionTimes.size() > 0 && normals.size() > 0) {
+
+		//	// normal detection
+		//	Vec2D collisionNormal = Vec2D();
+		//	int empty = 0;
+		//	for (auto n : normals) {
+		//		if (n) {
+		//			//std::cout << n << ",";
+		//			collisionNormal += n;
+		//		} else {
+		//			empty++;
+		//		}
+		//	}
+		//	collisionNormal /= float(int(normals.size()) - empty);
+		//	//std::cout << " --- avg: " << collisionNormal;
+		//	bool isIntegerX = abs(collisionNormal.x) == 0.0f || abs(collisionNormal.x) == 1.0f;
+		//	bool isIntegerY = abs(collisionNormal.y) == 0.0f || abs(collisionNormal.y) == 1.0f;
+		//	if (!isIntegerX && isIntegerY) {
+		//		collisionNormal = Vec2D(0.0f, collisionNormal.y);
+		//	}
+		//	if (isIntegerX && !isIntegerY) {
+		//		collisionNormal = Vec2D(collisionNormal.x, 0.0f);
+		//	}
+		//	collisionNormal = collisionNormal.identityVector();
+
+		//	float collisionTime = (*collisionTimes.begin()).first;
+		//	float dotproduct = 0.0f;
+		//	if (!collisionNormal.x) {
+		//		if (velocity.x > 0.0f) {
+		//			dotproduct = -1.0f;
+		//		} else if (velocity.x < 0.0f) {
+		//			dotproduct = 1.0f;
+		//		}
+		//	}
+		//	if (!collisionNormal.y) {
+		//		if (velocity.y > 0.0f) {
+		//			dotproduct = -1.0f;
+		//		} else if (velocity.y < 0.0f) {
+		//			dotproduct = 1.0f;
+		//		}
+		//	}
+		//	Vec2D tangent = collisionNormal.tangent() * dotproduct;
+		//	Vec2D newVelocity = tangent * velocity.magnitude() * (1.0f - collisionTime);
+		//	float xCollisionTime = 1.0f;
+		//	float yCollisionTime = 1.0f;
+		//	if (!collisionTime) {
+		//		std::cout << "[" << velocity << "]";
+		//		std::vector<float> xRepresentatives, yRepresentatives;
+		//		for (auto e : collisionTimes) {
+		//			std::cout << "{" << e.first << ":" << e.second << "}";
+		//			if (e.first == e.second.x) {
+		//				if (e.second.x) {
+		//					xRepresentatives.push_back(e.second.x);
+		//				} else {
+		//					xCollisionTime = 0.0f;
+		//				}
+		//			}
+		//			if (e.first == e.second.y) {
+		//				if (e.second.y) {
+		//					yRepresentatives.push_back(e.second.y);
+		//				} else {
+		//					yCollisionTime = 0.0f;
+		//				}
+		//			}
+		//		}
+		//		std::cout << std::endl;
+		//		if (xRepresentatives.size() > 0) {
+		//			sort(xRepresentatives.begin(), xRepresentatives.end());
+		//			xCollisionTime = *xRepresentatives.begin();
+		//		}
+		//		if (yRepresentatives.size() > 0) {
+		//			sort(yRepresentatives.begin(), yRepresentatives.end());
+		//			yCollisionTime = *yRepresentatives.begin();
+		//		}
+		//		if (!newVelocity.y && newVelocity.x) {
+		//			newHitbox.pos.x += velocity.x * xCollisionTime;
+		//		}
+		//		if (!newVelocity.x && newVelocity.y) {
+		//			newHitbox.pos.y += velocity.y * yCollisionTime;
+		//		}
+		//		if (!newVelocity.x && !newVelocity.y) {
+		//		}
+		//	} else {
+		//		newHitbox.pos += velocity * collisionTime;
+		//	}
+		//	velocity = newVelocity;
+		//} else {
+		//	newHitbox.pos += velocity;
+		//}
 	}
 	hitbox = newHitbox;
 }

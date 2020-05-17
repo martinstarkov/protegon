@@ -10,7 +10,8 @@
 enum class Axis {
 	HORIZONTAL = 0,
 	VERTICAL = 1,
-	BOTH
+	BOTH = 2,
+	NEITHER = -1
 };
 
 enum class Side {
@@ -119,7 +120,7 @@ protected:
 	void collisionCheck();
 	bool axisOverlapAABB(AABB a, AABB b, Axis axis);
 	AABB broadphaseBox(AABB a, Vec2D vel);
-	bool sweepAABBvsAABB(AABB a, AABB b, Vec2D va, Vec2D vb, float& tfirst, float& tlast);
+	bool sweepAABBvsAABB(AABB a, AABB b, Vec2D va, Vec2D vb, float& tfirst, float& tlast, float& xfirst, float& yfirst);
 	bool overlapAABBvsAABB(AABB a, AABB b);
 	bool equalOverlapAABBvsAABB(AABB a, AABB b);
 	Entity* collided(Side side);
