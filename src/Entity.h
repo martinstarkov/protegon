@@ -6,7 +6,7 @@
 #include <vector>
 
 #define DRAG 0.1f
-#define GRAVITY 2.0f
+#define GRAVITY 0.1f
 
 class Entity {
 public:
@@ -101,9 +101,10 @@ protected:
 	float sweepAABB(AABB b1, AABB b2, Vec2D v1, Vec2D v2, float& xEntryTime, float& yEntryTime, float& xExitTime, float& yExitTime, float& exit);
 
 	void updateMotion();
-	void boundaryCheck(AABB& hb);
-	void terminalMotion();
+	void boundaryCheck(AABB& hb, Vec2D& vel);
+	void terminalMotion(Vec2D& vel);
 	void collisionCheck();
+	Vec2D findCollisionNormal(std::vector<Vec2D> normals);
 	bool axisOverlapAABB(AABB a, AABB b, Axis axis);
 	AABB maximumBroadphaseBox(AABB a, Vec2D terminalVelocity);
 	AABB broadphaseBox(AABB a, Vec2D vel);
