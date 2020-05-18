@@ -336,42 +336,40 @@ void Entity::collisionCheck() {
 		}
 	}
 	/* Static collision check here */
-	//for (Entity* e : potentialColliders) {
-	//	if (e != this) {
-	//		if (equalOverlapAABBvsAABB(broadphaseBox(newHitbox, newVelocity), e->getHitbox())) {
-	//			AABB md = newHitbox.minkowskiDifference(e->getHitbox());
-	//			if (md.pos.x < 0 &&
-	//				md.max().x > 0 &&
-	//				md.pos.y < 0 &&
-	//				md.max().y > 0) {
-	//				Vec2D pv = md.closestPointOnBoundsToPoint();
-	//				if (pv.x) {
-	//					newVelocity.x = 0;
-	//					newHitbox.pos.x -= pv.x;// + sgn(pv.x) / abs(pv.x) * COLLISION_DELTA;
-	//					//std::cout << "Collided with " << e->getId() << "by X: " << pv.x << std::endl;
-	//				}
-	//			}
-	//		}
-	//	}
-	//}
-	//for (Entity* e : potentialColliders) {
-	//	if (e != this) {
-	//		if (equalOverlapAABBvsAABB(broadphaseBox(newHitbox, newVelocity), e->getHitbox())) {
-	//			AABB md = newHitbox.minkowskiDifference(e->getHitbox());
-	//			if (md.pos.x < 0 &&
-	//				md.max().x > 0 &&
-	//				md.pos.y < 0 &&
-	//				md.max().y > 0) {
-	//				Vec2D pv = md.closestPointOnBoundsToPoint();
-	//				if (pv.y) {
-	//					newVelocity.y = 0;
-	//					newHitbox.pos.y -= pv.y;// + sgn(pv.y) / abs(pv.y) * COLLISION_DELTA;
-	//					//std::cout << "Collided with " << e->getId() << "by Y: " << pv.y << std::endl;
-	//				}
-	//			}
-	//		}
-	//	}
-	//}
+	for (Entity* e : potentialColliders) {
+		if (e != this) {
+			if (equalOverlapAABBvsAABB(broadphaseBox(newHitbox, newVelocity), e->getHitbox())) {
+				AABB md = newHitbox.minkowskiDifference(e->getHitbox());
+				if (md.pos.x < 0 &&
+					md.max().x > 0 &&
+					md.pos.y < 0 &&
+					md.max().y > 0) {
+					Vec2D pv = md.closestPointOnBoundsToPoint();
+					if (pv.x) {
+						newHitbox.pos.x -= pv.x;// + sgn(pv.x) / abs(pv.x) * COLLISION_DELTA;
+						//std::cout << "Collided with " << e->getId() << "by X: " << pv.x << std::endl;
+					}
+				}
+			}
+		}
+	}
+	for (Entity* e : potentialColliders) {
+		if (e != this) {
+			if (equalOverlapAABBvsAABB(broadphaseBox(newHitbox, newVelocity), e->getHitbox())) {
+				AABB md = newHitbox.minkowskiDifference(e->getHitbox());
+				if (md.pos.x < 0 &&
+					md.max().x > 0 &&
+					md.pos.y < 0 &&
+					md.max().y > 0) {
+					Vec2D pv = md.closestPointOnBoundsToPoint();
+					if (pv.y) {
+						newHitbox.pos.y -= pv.y;// + sgn(pv.y) / abs(pv.y) * COLLISION_DELTA;
+						//std::cout << "Collided with " << e->getId() << "by Y: " << pv.y << std::endl;
+					}
+				}
+			}
+		}
+	}
 
 	if (newVelocity) {
 
