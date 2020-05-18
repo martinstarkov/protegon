@@ -19,19 +19,22 @@ Game::Game() {
 	tm = TextureManager::getInstance();
 	ih = InputHandler::getInstance();
 	player = Player::getInstance();
-	
-	entities.push_back(new Entity(AABB(128, 0, 128, 128)));
-	entities.push_back(new Entity(AABB(128, 128, 128, 128)));
-	entities.push_back(new Entity(AABB(128, 128 * 2, 128, 128)));
-	entities.push_back(new Entity(AABB(128, 128 * 3, 128, 128)));
-	//entities.push_back(new Entity(AABB(128, 128 * 4, 128, 128)));
-	//entities.push_back(new Entity(AABB(128, 128 * 5, 128, 128)));
-	entities.push_back(new Entity(AABB(128 * 2, 128, 128, 128)));
-	entities.push_back(new Entity(AABB(128 * 3, 128, 128, 128)));
-	//entities.push_back(new Entity(AABB(128 * 4, 128, 128, 128)));
-	entities.push_back(new Entity(AABB(128 * 5, 128, 128, 128)));
-	entities.push_back(new Entity(AABB(128 * 6, 128, 128, 128)));
-	entities.push_back(new Entity(AABB(128 * 7, 128, 128, 128)));
+	entities.push_back(new Entity(AABB(32, 32, 32, 32)));
+	entities.push_back(new Entity(AABB(96, 96, 32, 32)));
+	entities.push_back(new Entity(AABB(160, 160, 32, 32)));
+	entities.push_back(new Entity(AABB(224, 224, 32, 32)));
+	entities.push_back(new Entity(AABB(288, 288, 32, 32)));
+	entities.push_back(new Entity(AABB(352, 224, 32, 32)));
+	entities.push_back(new Entity(AABB(416, 160, 32, 32)));
+	entities.push_back(new Entity(AABB(480, 96, 32, 32)));
+	entities.push_back(new Entity(AABB(544, 32, 32, 32)));
+	entities.push_back(new FallingPlatform(AABB(600, 550, 32, 32), 1));
+	entities.push_back(new FallingPlatform(AABB(650, 460, 32, 32), 0.8f));
+	entities.push_back(new FallingPlatform(AABB(700, 380, 32, 32), 0.5f));
+	entities.push_back(new FallingPlatform(AABB(550, 360, 32, 32), 0.5f));
+	entities.push_back(new FallingPlatform(AABB(150, 400, 350, 32), 5));
+	entities.push_back(new KillBlock(AABB(80, 390, 32, 32)));
+	entities.push_back(new WinBlock(AABB(20, 380, 32, 32)));
 	for (Entity* entity : entities) {
 		entityObjects.push_back(entity);
 	}
@@ -83,9 +86,10 @@ void Game::render() {
 		SDL_RenderDrawRect(renderer, entity->getHitbox().AABBtoRect());
 	}
 	SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-	Vec2D point = Vec2D(300, 300);
+	Vec2D point = Vec2D(200, 200);
 	SDL_RenderDrawPoint(renderer, int(point.x), int(point.y));
 	//SDL_Rect rect = { b.pos.x + point.x, b.pos.y + point.y, b.size.x, b.size.y };
+	SDL_SetRenderDrawColor(renderer, 0, 120, 0, 255);
 	for (AABB b : broadphase) {
 		SDL_RenderDrawRect(renderer, b.AABBtoRect());
 	}
