@@ -5,20 +5,22 @@
 
 Player* Player::instance = nullptr;
 
-#define MOVEMENT_ACCELERATION 100.0f
-#define JUMPING_ACCELERATION 100.0f
+#define MOVEMENT_ACCELERATION 1.0f
+#define JUMPING_ACCELERATION 10.0f
 
 void Player::init() {
-	hitbox = { Vec2D(128 * 4, 128 * 4), Vec2D(128, 128) };
+	hitbox = { Vec2D(WINDOW_WIDTH - 300, WINDOW_HEIGHT - 32 - 10), Vec2D(32, 32) };
 	id = PLAYER_ID;
 	originalPos = hitbox.pos;
 	velocity = {};
 	acceleration = {};
 	movementAcceleration = MOVEMENT_ACCELERATION;
 	jumpingAcceleration = JUMPING_ACCELERATION;
-	terminalVelocity = Vec2D(1000, 1000);//terminalVelocity = Vec2D(10, 20);
+	terminalVelocity = Vec2D(4, 25);//terminalVelocity = Vec2D(10, 20);
 	originalColor = color = { 120, 0, 120, 255 };
 	alive = true;
+	grounded = false;
+	jumping = true;
 	falling = true;
 	gravity = true;
 	win = false;
@@ -35,6 +37,7 @@ void Player::update() {
 		win = false;
 	}
 	Entity::update();
+	std::cout << "Jumping: " << jumping << std::endl;
 	//std::cout << "V:" << velocity << ", A:" << acceleration << std::endl;
 }
 
@@ -91,13 +94,12 @@ void Player::accelerate(Keys key) {
 			acceleration.x = movementAcceleration;
 			break;
 		case Keys::UP:
-			acceleration.y = -jumpingAcceleration;
-			//if (!jumping) {
-			//	counter = 0;
-			//	jumping = true;
-			//} else {
-			//	counter++;
-			//}
+			if (!jumping) {
+				jumping = true;
+				acceleration.y = -jumpingAcceleration;
+			} else {
+				acceleration.y = 0;
+			}
 			break;
 		case Keys::DOWN:
 			acceleration.y = jumpingAcceleration;
