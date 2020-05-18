@@ -24,6 +24,10 @@ struct AABB {
         bSize.y = abs(std::max(max().y, b.max().y) - bPos.y);
         return AABB(bPos, bSize);
     }
+    bool colliding(AABB b) {
+        return (min().x <= b.max().x && max().x >= b.min().x) &&
+            (min().y <= b.max().y && max().y >= b.min().y);
+    }
     int matchingCorners(AABB b) {
         Vec2D localCorners[4] = { max(), Vec2D(min().x, max().y), max(), Vec2D(max().x, min().y) };
         Vec2D foreignCorners[4] = { b.max(), Vec2D(b.min().x, b.max().y), b.max(), Vec2D(b.max().x, b.min().y) };
@@ -92,6 +96,24 @@ struct AABB {
         return normal;
     }
 
+    Vec2D penetrationNormal(Vec2D origin, Vec2D relVel) {
+        // check if the minkowski origin has hit any of the rectangle's sides
+        Vec2D normal = Vec2D();
+        if (lineLine(min(), Vec2D(min().x, max().y), Vec2D(), relVel) && origin.x <= min().x) { // left
+            normal.x = 1;
+        }
+        if (lineLine(Vec2D(max().x, min().y), max(), Vec2D(), relVel) && origin.x >= max().x) { // right
+            normal.x = -1;
+        }
+        if (lineLine(min(), Vec2D(max().x, min().y), Vec2D(), relVel) && origin.y <= min().y) { // top
+            normal.y = 1;
+        }
+        if (lineLine(Vec2D(min().x, max().y), max(), Vec2D(), relVel) && origin.y >= max().y) { // bottom
+            normal.y = -1;
+        }
+        return normal;
+    }
+
     // LINE/POINT
     float linePoint(Vec2D v1, Vec2D v2, Vec2D p) {
 
@@ -115,6 +137,26 @@ struct AABB {
         }
         return 0.0f;
     }
+
+    bool lineLine(Vec2D p1, Vec2D p2, Vec2D p3, Vec2D p4) {
+
+        // calculate the direction of the lines
+        float uA = ((p4.x - p3.x) * (p1.y - p3.y) - (p4.y - p3.y) * (p1.x - p3.x)) / ((p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y));
+        float uB = ((p2.x - p1.x) * (p1.y - p3.y) - (p2.y - p1.y) * (p1.x - p3.x)) / ((p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y));
+
+        // if uA and uB are between 0-1, lines are colliding
+        if (uA >= 0 && uA <= 1 && uB >= 0 && uB <= 1) {
+
+            // optionally, draw a circle where the lines meet
+            //float intersectionX = p1.x + (uA * (p2.x - p1.x));
+            //float intersectionY = p1.y + (uA * (p2.y - p1.y));
+
+            return true;
+        }
+        return false;
+    }
+
+
     // LINE/LINE
     bool lineLine(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4) {
 
