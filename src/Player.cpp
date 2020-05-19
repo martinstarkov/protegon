@@ -5,8 +5,8 @@
 
 Player* Player::instance = nullptr;
 
-#define MOVEMENT_ACCELERATION 1000.0f
-#define JUMPING_ACCELERATION 1000.0f
+#define MOVEMENT_ACCELERATION 1.0f
+#define JUMPING_ACCELERATION 1.0f
 
 void Player::init() {
 	hitbox = { Vec2D(128 * 4, 128 * 4), Vec2D(128, 128) };
@@ -16,7 +16,7 @@ void Player::init() {
 	acceleration = {};
 	movementAcceleration = MOVEMENT_ACCELERATION;
 	jumpingAcceleration = JUMPING_ACCELERATION;
-	terminalVelocity = Vec2D(1000, 1000);//terminalVelocity = Vec2D(10, 20);
+	terminalVelocity = Vec2D(5, 5);//terminalVelocity = Vec2D(10, 20);
 	originalColor = color = { 120, 0, 120, 255 };
 	alive = true;
 	grounded = false;
@@ -37,7 +37,6 @@ void Player::update() {
 		win = false;
 	}
 	Entity::update();
-	std::cout << "Jumping: " << jumping << std::endl;
 	//std::cout << "V:" << velocity << ", A:" << acceleration << std::endl;
 }
 
