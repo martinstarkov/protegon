@@ -153,6 +153,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Matrix3D.cpp" />
+    <ClCompile Include="src\Camera.cpp" />
     <ClCompile Include="src\KillBlock.cpp" />
     <ClCompile Include="src\FallingPlatform.cpp" />
     <ClCompile Include="src\Player.cpp" />
@@ -175,6 +177,9 @@
     <None Include="zlib1.dll" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Matrix3D.h" />
+    <ClInclude Include="src\Camera.h" />
+    <ClInclude Include="src\Matrix2D.h" />
     <ClInclude Include="src\KillBlock.h" />
     <ClInclude Include="src\FallingPlatform.h" />
     <ClInclude Include="src\AABB.h" />

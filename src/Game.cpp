@@ -19,6 +19,7 @@ Game::Game() {
 	tm = TextureManager::getInstance();
 	ih = InputHandler::getInstance();
 	player = Player::getInstance();
+	camera = Camera::getInstance();
 	//entities.push_back(new Entity(AABB(32, 32, 32, 32)));
 	//entities.push_back(new Entity(AABB(96, 96, 32, 32)));
 	//entities.push_back(new Entity(AABB(160, 160, 32, 32)));
@@ -95,6 +96,7 @@ void Game::update() {
 		entity->update();
 	}
 	player->update();
+	camera->update();
 	previousTime = time;
 }
 
@@ -102,19 +104,19 @@ void Game::render() {
 	SDL_RenderClear(renderer);
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 	SDL_SetRenderDrawColor(renderer, player->getColor().r, player->getColor().g, player->getColor().b, player->getColor().a);
-	SDL_RenderDrawRect(renderer, player->getHitbox().AABBtoRect());
+	SDL_RenderDrawRect(renderer, (player->getHitbox() + camera->getPosition()).AABBtoRect());
 	for (Entity* entity : entityObjects) {
 		SDL_SetRenderDrawColor(renderer, entity->getColor().r, entity->getColor().g, entity->getColor().b, entity->getColor().a);
-		SDL_RenderDrawRect(renderer, entity->getHitbox().AABBtoRect());
+		SDL_RenderDrawRect(renderer, (entity->getHitbox() + camera->getPosition()).AABBtoRect());
 	}
-	SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-	Vec2D point = Vec2D(200, 200);
-	SDL_RenderDrawPoint(renderer, int(point.x), int(point.y));
+	//SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+	//Vec2D point = Vec2D(200, 200);
+	//SDL_RenderDrawPoint(renderer, int(point.x), int(point.y));
 	//SDL_Rect rect = { b.pos.x + point.x, b.pos.y + point.y, b.size.x, b.size.y };
-	SDL_SetRenderDrawColor(renderer, 0, 120, 0, 255);
-	for (AABB b : broadphase) {
-		SDL_RenderDrawRect(renderer, b.AABBtoRect());
-	}
+	//SDL_SetRenderDrawColor(renderer, 0, 120, 0, 255);
+	//for (AABB b : broadphase) {
+	//	SDL_RenderDrawRect(renderer, b.AABBtoRect());
+	//}
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 	SDL_RenderPresent(renderer); // display
 	broadphase.clear();

@@ -1,17 +1,35 @@
 #include "InputHandler.h"
 #include "Game.h"
 #include "Player.h"
+#include "Camera.h"
 
 InputHandler* InputHandler::instance = nullptr;
 
-Player* player;
+static Player* player;
+static Camera* camera;
 
 InputHandler::InputHandler() {
 	player = Player::getInstance();
+	camera = Camera::getInstance();
 }
 
 void InputHandler::keyStateCheck() {
 	const Uint8* states = SDL_GetKeyboardState(NULL);
+	playerMotion(states);
+	cameraMotion(states);
+	if (states[SDL_SCANCODE_X]) {
+		Game::bulletTime = true;
+	}
+	if (!states[SDL_SCANCODE_X]) {
+		if (Game::bulletTime) {
+			player->setVelocity(Vec2D());
+			Game::reset();
+		}
+		Game::bulletTime = false;
+	}
+}
+
+void InputHandler::playerMotion(const Uint8* states) {
 	if (states[SDL_SCANCODE_A] && !states[SDL_SCANCODE_D]) {
 		player->accelerate(Keys::LEFT);
 	}
@@ -20,7 +38,7 @@ void InputHandler::keyStateCheck() {
 	}
 	if ((states[SDL_SCANCODE_W] || states[SDL_SCANCODE_SPACE]) && !states[SDL_SCANCODE_S]) {
 		player->accelerate(Keys::UP);
-	} 
+	}
 	if (states[SDL_SCANCODE_S] && !(states[SDL_SCANCODE_W] || states[SDL_SCANCODE_SPACE])) {
 		player->accelerate(Keys::DOWN);
 	}
@@ -31,15 +49,20 @@ void InputHandler::keyStateCheck() {
 		player->stop(Axis::VERTICAL);
 		// do nothing with gravity, without gravity player->stop(VERTICAL);
 	}
-	if (states[SDL_SCANCODE_X]) {
-		Game::bulletTime = true;
+}
+
+void InputHandler::cameraMotion(const Uint8* states) {
+	if (states[SDL_SCANCODE_LEFT] && !states[SDL_SCANCODE_RIGHT]) {
+		camera->addPosition(Vec2D(-1.0f, 0.0f));
 	}
-	if (!states[SDL_SCANCODE_X]) {
-		if (Game::bulletTime) {
-			player->setVelocity(Vec2D());
-			Game::reset();
-		}
-		Game::bulletTime = false;
+	if (states[SDL_SCANCODE_RIGHT] && !states[SDL_SCANCODE_LEFT]) {
+		camera->addPosition(Vec2D(1.0f, 0.0f));
+	}
+	if (states[SDL_SCANCODE_UP] && !states[SDL_SCANCODE_DOWN]) {
+		camera->addPosition(Vec2D(0.0f, -1.0f));
+	}
+	if (states[SDL_SCANCODE_DOWN] && !states[SDL_SCANCODE_UP]) {
+		camera->addPosition(Vec2D(0.0f, 1.0f));
 	}
 }
 

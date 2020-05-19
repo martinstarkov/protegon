@@ -6,6 +6,7 @@
 #include "InputHandler.h"
 #include "Entity.h"
 #include "Player.h"
+#include "Camera.h"
 
 class Game {
 private:
@@ -16,6 +17,7 @@ private:
 	TextureManager* tm;
 	InputHandler* ih;
 	Player* player;
+	Camera* camera;
 	void update();
 	void render();
 	void instructions();
