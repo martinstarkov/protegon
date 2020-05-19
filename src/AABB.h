@@ -15,6 +15,20 @@ struct AABB {
     Vec2D max() {
         return pos + size;
     }
+    AABB operator+ (AABB b) {
+        return AABB(pos + b.pos, size);
+    }
+    AABB& operator+= (AABB b) {
+        *this = *this + b;
+        return *this;
+    }
+    AABB operator+ (Vec2D v) {
+        return AABB(pos + v, size);
+    }
+    AABB& operator+= (Vec2D v) {
+        *this = *this + v;
+        return *this;
+    }
     AABB surroundingBox(AABB b) {
         Vec2D bPos;
         bPos.x = std::min(min().x, b.min().x);
@@ -23,6 +37,23 @@ struct AABB {
         bSize.x = abs(std::max(max().x, b.max().x) - bPos.x);
         bSize.y = abs(std::max(max().y, b.max().y) - bPos.y);
         return AABB(bPos, bSize);
+    }
+    Vec2D getPVector() {
+        double minDist = abs(min().x);
+        Vec2D boundsPoint = Vec2D(min().x, 0.0f);
+        if (abs(max().x) < minDist) {
+            minDist = abs(max().x);
+            boundsPoint = Vec2D(max().x, 0.0f);
+        }
+        if (abs(max().y) < minDist) {
+            minDist = abs(max().y);
+            boundsPoint = Vec2D(0.0f, max().y);
+        }
+        if (abs(min().y) < minDist) {
+            minDist = abs(min().y);
+            boundsPoint = Vec2D(0.0f, min().y);
+        }
+        return boundsPoint;
     }
     bool colliding(AABB b) {
         return (min().x <= b.max().x && max().x >= b.min().x) &&
