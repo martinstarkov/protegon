@@ -73,6 +73,10 @@ struct Vec2D {
 		*this = *this * f;
 		return *this;
 	}
+	Vec2D& operator- () {
+		*this = Vec2D(-x, -y);
+		return *this;
+	}
 	Vec2D operator/ (Vec2D v) {
 		return Vec2D(x / v.x, y / v.y);
 	}
