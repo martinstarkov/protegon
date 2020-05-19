@@ -35,7 +35,7 @@ void Entity::terminalMotion(Vec2D& vel) {
 void Entity::updateMotion() {
 	velocity *= (1.0f - DRAG); // drag
 	velocity += acceleration; // gravity and movement acceleration
-	gravity = true;
+	gravity = false;
 	if (gravity) {
 		g = GRAVITY;
 		velocity.y += g;
@@ -335,7 +335,50 @@ void Entity::collisionCheck() {
 			}
 		}
 	}
-	/* Static collision check here */
+
+	newHitbox.pos.x += newVelocity.x;
+	boundaryCheck(newHitbox, newVelocity);
+
+	for (Entity* e : potentialColliders) {
+
+		AABB md = newHitbox.minkowskiDifference(e->getHitbox());
+
+		if (md.min().x <= 0 && 
+			md.max().x >= 0 && 
+			md.min().y <= 0 && 
+			md.max().y >= 0) {
+
+			Vec2D penetrationVector = md.getPVector();
+
+			newHitbox.pos.x -= penetrationVector.x;
+			boundaryCheck(newHitbox, newVelocity);
+
+		}
+
+	}
+
+	newHitbox.pos.y += newVelocity.y;
+	boundaryCheck(newHitbox, newVelocity);
+
+	for (Entity* e : potentialColliders) {
+
+		AABB md = newHitbox.minkowskiDifference(e->getHitbox());
+
+		if (md.min().x <= 0 &&
+			md.max().x >= 0 &&
+			md.min().y <= 0 &&
+			md.max().y >= 0) {
+
+			Vec2D penetrationVector = md.getPVector();
+
+			newHitbox.pos.y -= penetrationVector.y;
+			boundaryCheck(newHitbox, newVelocity);
+
+		}
+
+	}
+
+	/*
 	for (Entity* e : potentialColliders) {
 		if (e != this) {
 			if (equalOverlapAABBvsAABB(broadphaseBox(newHitbox, newVelocity), e->getHitbox())) {
@@ -539,7 +582,7 @@ void Entity::collisionCheck() {
 
 					newHitbox.pos += newVelocity * secondCollisionTime;
 
-					///* Set velocity to keep going */
+					//
 					//Vec2D tangent = collisionNormal.tangent();
 					//float directionSign = newVelocity.dotProduct(tangent);
 					//if (directionSign) {
@@ -566,6 +609,7 @@ void Entity::collisionCheck() {
 		terminalMotion(newVelocity);
 
 	}
+	*/
 	velocity = newVelocity;
 	hitbox = newHitbox;
 
