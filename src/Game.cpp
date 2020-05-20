@@ -48,7 +48,7 @@ Game::Game() {
 	entities.push_back(new Entity(AABB(128 * 6, 128, 128, 128)));
 	entities.push_back(new Entity(AABB(128 * 6, 128 * 2, 128, 128)));
 	entities.push_back(new Entity(AABB(128 * 7, 128 * 3, 128, 128)));
-	entities.push_back(new Entity(AABB(128 * 7, 128 * 4, 128, 128)));
+	//entities.push_back(new Entity(AABB(128 * 7, 128 * 4, 128, 128)));
 	entities.push_back(new Entity(AABB(128 * 7, 128 * 5, 128, 128)));
 	entities.push_back(new Entity(AABB(128 * 6, 128 * 5, 128, 128)));
 	entities.push_back(new Entity(AABB(128 * 5, 128 * 5, 128, 128)));
@@ -112,8 +112,9 @@ void Game::render() {
 	//SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
 	//Vec2D point = Vec2D(200, 200);
 	//SDL_RenderDrawPoint(renderer, int(point.x), int(point.y));
-	//SDL_Rect rect = { b.pos.x + point.x, b.pos.y + point.y, b.size.x, b.size.y };
-	//SDL_SetRenderDrawColor(renderer, 0, 120, 0, 255);
+	SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+	SDL_Rect rect = { camera->getPosition().x, camera->getPosition().y, WORLD_WIDTH * camera->getScale().x, WORLD_HEIGHT * camera->getScale().y };
+	SDL_RenderDrawRect(renderer, &rect);
 	//for (AABB b : broadphase) {
 	//	SDL_RenderDrawRect(renderer, b.AABBtoRect());
 	//}

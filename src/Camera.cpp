@@ -11,7 +11,6 @@ Camera::Camera() {
 	player = Player::getInstance();
 	pos = Vec2D(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2);
 	scale = Vec2D(1.0f, 1.0f);
-	startPan = player->getHitbox().pos;
 }
 
 void Camera::zoomLimit() {
@@ -34,22 +33,23 @@ Vec2D Camera::centerOnPlayer() {
 }
 
 void Camera::boundaryCheck() {
-	//if (offset.x < 0) {
-	//	offset.x = 0;
+	// these work fine
+	if (pos.x * scale.x > 0) {
+		pos.x = 0;
+	}
+	if (pos.y * scale.y > 0) {
+		pos.y = 0;
+	}
+	//// these are broken for zooming
+	//if (pos.x < (WINDOW_WIDTH - WORLD_WIDTH)) {
+	//	pos.x = (WINDOW_WIDTH - WORLD_WIDTH) ;
 	//}
-	//if (offset.x > WORLD_WIDTH - WINDOW_WIDTH) {
-	//	offset.x = WORLD_WIDTH - WINDOW_WIDTH;
-	//}
-	//if (offset.y < 0) {
-	//	offset.y = 0;
-	//}
-	//if (offset.y > WORLD_HEIGHT - WINDOW_HEIGHT) {
-	//	offset.y = WORLD_HEIGHT - WINDOW_HEIGHT;
+	//if (pos.y < (WINDOW_HEIGHT - WORLD_HEIGHT)) {
+	//	pos.y = (WINDOW_HEIGHT - WORLD_HEIGHT) ;
 	//}
 }
 
 void Camera::update() {
 	pos = centerOnPlayer();
-	//pos += Vec2D(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2);
-	//boundaryCheck();
+	boundaryCheck();
 }

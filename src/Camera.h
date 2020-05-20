@@ -25,12 +25,6 @@ public:
 	Vec2D getPosition() {
 		return pos;
 	}
-	Vec2D worldToScreen(Vec2D worldPos) {
-		return (worldPos - pos) * scale;
-	}
-	Vec2D screenToWorld(Vec2D screenPos) {
-		return screenPos / scale + pos;
-	}
 	Vec2D getScale() {
 		return scale;
 	}
@@ -48,6 +42,5 @@ private:
 	static Camera* instance;
 	Vec2D pos;
 	Vec2D scale;
-	Vec2D startPan;
 };
 
