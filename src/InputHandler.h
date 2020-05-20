@@ -19,5 +19,8 @@ public:
 		return instance;
 	}
 	void update();
+	const Uint8* getKeyStates() {
+		return SDL_GetKeyboardState(NULL);
+	}
 };
 

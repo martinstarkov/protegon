@@ -104,10 +104,10 @@ void Game::render() {
 	SDL_RenderClear(renderer);
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 	SDL_SetRenderDrawColor(renderer, player->getColor().r, player->getColor().g, player->getColor().b, player->getColor().a);
-	SDL_RenderDrawRect(renderer, (player->getHitbox() + camera->getPosition()).AABBtoRect());
+	SDL_RenderDrawRect(renderer, ((player->getHitbox() + camera->getPosition()) * camera->getScale()).AABBtoRect());
 	for (Entity* entity : entityObjects) {
 		SDL_SetRenderDrawColor(renderer, entity->getColor().r, entity->getColor().g, entity->getColor().b, entity->getColor().a);
-		SDL_RenderDrawRect(renderer, (entity->getHitbox() + camera->getPosition()).AABBtoRect());
+		SDL_RenderDrawRect(renderer, ((entity->getHitbox() + camera->getPosition()) * camera->getScale()).AABBtoRect());
 	}
 	//SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
 	//Vec2D point = Vec2D(200, 200);

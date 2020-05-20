@@ -53,18 +53,30 @@ void InputHandler::playerMotion(const Uint8* states) {
 
 void InputHandler::cameraMotion(const Uint8* states) {
 	if (states[SDL_SCANCODE_LEFT] && !states[SDL_SCANCODE_RIGHT]) {
-		camera->addPosition(Vec2D(-1.0f, 0.0f));
-	}
-	if (states[SDL_SCANCODE_RIGHT] && !states[SDL_SCANCODE_LEFT]) {
 		camera->addPosition(Vec2D(1.0f, 0.0f));
 	}
-	if (states[SDL_SCANCODE_UP] && !states[SDL_SCANCODE_DOWN]) {
-		camera->addPosition(Vec2D(0.0f, -1.0f));
+	if (states[SDL_SCANCODE_RIGHT] && !states[SDL_SCANCODE_LEFT]) {
+		camera->addPosition(Vec2D(-1.0f, 0.0f));
 	}
-	if (states[SDL_SCANCODE_DOWN] && !states[SDL_SCANCODE_UP]) {
+	if (states[SDL_SCANCODE_UP] && !states[SDL_SCANCODE_DOWN]) {
 		camera->addPosition(Vec2D(0.0f, 1.0f));
 	}
+	if (states[SDL_SCANCODE_DOWN] && !states[SDL_SCANCODE_UP]) {
+		camera->addPosition(Vec2D(0.0f, -1.0f));
+	}
+	if (states[SDL_SCANCODE_Q] && !states[SDL_SCANCODE_E]) {
+		camera->multiplyScale(1.0f + CAMERA_ZOOM_SPEED);
+	}
+	if (states[SDL_SCANCODE_E] && !states[SDL_SCANCODE_Q]) {
+		camera->multiplyScale(1.0f - CAMERA_ZOOM_SPEED);
+	}
 }
+
+//Vec2D InputHandler::getMousePosition() {
+//	int x, y;
+//	SDL_GetMouseState(&x, &y);
+//	return Vec2D(x, y);
+//}
 
 void InputHandler::keyPress(SDL_KeyboardEvent press) {
 	switch (press.keysym.scancode) {
@@ -101,6 +113,12 @@ void InputHandler::update() {
 				break;
 			case SDL_KEYUP:
 				keyRelease(event.key);
+				break;
+			case SDL_MOUSEMOTION:
+				break;
+			case SDL_MOUSEBUTTONDOWN:
+				break;
+			case SDL_MOUSEBUTTONUP:
 				break;
 			default:
 				break;
