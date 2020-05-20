@@ -18,6 +18,9 @@ struct AABB {
     AABB operator+ (AABB b) {
         return AABB(pos + b.pos, size);
     }
+    AABB operator* (Vec2D v) {
+        return AABB(pos * v, size * v);
+    }
     AABB& operator+= (AABB b) {
         *this = *this + b;
         return *this;

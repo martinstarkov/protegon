@@ -157,6 +157,18 @@ struct Vec2D {
 	bool operator> (Vec2D v) {
 		return magnitude() > v.magnitude();
 	}
+	bool operator> (float f) {
+		return x > f || y > f;
+	}
+	bool operator>= (float f) {
+		return x >= f || y >= f;
+	}
+	bool operator< (float f) {
+		return x < f || y < f;
+	}
+	bool operator<= (float f) {
+		return x <= f || y <= f;
+	}
 	bool operator>= (Vec2D v) {
 		return magnitude() >= v.magnitude();
 	}
