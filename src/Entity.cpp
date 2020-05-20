@@ -49,8 +49,8 @@ void Entity::boundaryCheck(AABB& hb, Vec2D& vel) {
 		hb.pos.x = 0;
 		l = true;
 	}
-	if (hb.pos.x + hb.size.x >= WINDOW_WIDTH) {
-		hb.pos.x = WINDOW_WIDTH - hb.size.x;
+	if (hb.pos.x + hb.size.x >= WORLD_WIDTH) {
+		hb.pos.x = WORLD_WIDTH - hb.size.x;
 		r = true;
 	}
 	if (hb.pos.y <= 0) {
@@ -59,8 +59,8 @@ void Entity::boundaryCheck(AABB& hb, Vec2D& vel) {
 		//velocity.y *= -1 / 2;
 		//acceleration.y *= -1 / 10;
 	}
-	if (hb.pos.y + hb.size.y >= WINDOW_HEIGHT) {
-		hb.pos.y = WINDOW_HEIGHT - hb.size.y;
+	if (hb.pos.y + hb.size.y >= WORLD_HEIGHT) {
+		hb.pos.y = WORLD_HEIGHT - hb.size.y;
 		b = true;
 		hitGround();
 	}
