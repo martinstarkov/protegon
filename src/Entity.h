@@ -6,7 +6,7 @@
 #include <vector>
 
 #define DRAG 0.1f
-#define GRAVITY 0.1f
+#define GRAVITY 2.0f
 
 class Entity {
 public:
@@ -79,8 +79,7 @@ public:
 	SDL_Color originalColor;
 protected:
 	int id;
-	std::vector<std::pair<Entity*, Vec2D>> yCollisions;
-	std::vector<std::pair<Entity*, Vec2D>> xCollisions;
+	std::vector<std::pair<Entity*, Vec2D>> colliders;
 	AABB hitbox;
 	AABB oldHitbox;
 	AABB tempHitbox;

@@ -6,17 +6,17 @@
 Player* Player::instance = nullptr;
 
 #define MOVEMENT_ACCELERATION 1.0f
-#define JUMPING_ACCELERATION 1.0f
+#define JUMPING_ACCELERATION 40.0f
 
 void Player::init() {
-	hitbox = { Vec2D(128 * 4, 128 * 4), Vec2D(128, 128) };
+	hitbox = { Vec2D(128 * 4, 128 * 4), Vec2D(32, 32) };
 	id = PLAYER_ID;
 	originalPos = hitbox.pos;
 	velocity = {};
 	acceleration = {};
 	movementAcceleration = MOVEMENT_ACCELERATION;
 	jumpingAcceleration = JUMPING_ACCELERATION;
-	terminalVelocity = Vec2D(5, 5);//terminalVelocity = Vec2D(10, 20);
+	terminalVelocity = Vec2D(5, 60);//terminalVelocity = Vec2D(10, 20);
 	originalColor = color = { 120, 0, 120, 255 };
 	alive = true;
 	grounded = false;
@@ -27,56 +27,70 @@ void Player::init() {
 }
 
 void Player::update() {
+	updateMotion();
+	interactionCheck();
+	clearColliders();
+	collisionCheck();
 	if (!alive) {
 		std::cout << "You died. " << std::endl;
-		SDL_Delay(3000);
+		SDL_Delay(1000);
 		Game::reset();
 	}
 	if (win) {
 		std::cout << "You win. Congratulations!" << std::endl;
 		win = false;
 	}
-	Entity::update();
 	//std::cout << "V:" << velocity << ", A:" << acceleration << std::endl;
+	//std::cout << "Jumping: " << jumping << std::endl;
 }
 
-void Player::resolveCollision() {
-	//jumping = true;
-	//grounded = false;
-	//Entity* entity = collided(Side::ANY);
-	//if (entity) {
-	//	switch (entity->getId()) {
-	//		case KILL_TILE_ID:
-	//			//alive = false;
-	//			break;
-	//		case WIN_TILE_ID:
-	//			//win = true;
-	//		default:
-	//			break;
-	//	}
-	//}
-	//entity = collided(Side::BOTTOM);
-	//if (entity) {
-	//	hitGround();
-	//	switch (entity->getId()) {
-	//		case FALLING_TILE_ID: {
-	//			FallingPlatform* platform = (FallingPlatform*)entity;
-	//			if (platform->alive()) {
-	//				//platform->subtractLifetime(FPS);
-	//			}
-	//			break;
-	//		}
-	//		default:
-	//			break;
-	//	}
-	//}
-	//if (collided(Side::TOP)) {
-	//	velocity.y *= -1 / 2;
-	//	acceleration.y *= -1 / 10;
-	//}
-	//if (collided(Side::RIGHT) || collided(Side::LEFT)) {
-	//	velocity.x = 0;
-	//}
+void Player::interactionCheck() {
+	jumping = true;
+	for (auto collider : colliders) {
+		Entity* e = collider.first;
+		Vec2D normal = collider.second;
+		switch (int(normal.x)) {
+			case int(Side::LEFT):
+
+				break;
+			case int(Side::RIGHT):
+
+				break;
+			default:
+				break;
+		}
+		switch (int(normal.y)) {
+			case int(Side::TOP) :
+				//std::cout << "Hit ground" << std::endl;
+				hitGround();
+				switch (e->getId()) {
+					case KILL_TILE_ID:
+						alive = false;
+						break;
+					case WIN_TILE_ID:
+						win = true;
+						break;
+					case FALLING_TILE_ID: {
+						FallingPlatform* platform = (FallingPlatform*)e;
+						if (platform->alive()) {
+							platform->subtractLifetime(FPS);
+						}
+						break;
+					}
+					default:
+						break;
+				}
+				break;
+			case int(Side::BOTTOM):
+
+				break;
+			default:
+				break;
+		}
+	}
+	if (jumping) {
+		acceleration.y = 0;
+	}
 }
 
 void Player::hitGround() {
@@ -93,12 +107,10 @@ void Player::accelerate(Keys key) {
 			acceleration.x = movementAcceleration;
 			break;
 		case Keys::UP:
-			acceleration.y = -jumpingAcceleration;
-			//if (!jumping) {
-			//	jumping = true;
-			//} else {
-			//	acceleration.y = 0;
-			//}
+			if (!jumping) {
+				jumping = true;
+				acceleration.y = -jumpingAcceleration;
+			}
 			break;
 		case Keys::DOWN:
 			acceleration.y = jumpingAcceleration;

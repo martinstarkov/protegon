@@ -13,7 +13,7 @@ class Player : public Entity {
 private:
 	static Player* instance;
 	void init();
-	void resolveCollision();
+	void interactionCheck();
 	void hitGround();
 	bool alive;
 	void reset();
@@ -34,7 +34,7 @@ public:
 	void setMovementAcceleration(float newMA) {
 		movementAcceleration = newMA;
 	}
-	bool jumping = false;
+	bool jumping = true;
 	void update();
 	void accelerate(Keys key);
 };

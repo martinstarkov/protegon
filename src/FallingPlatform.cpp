@@ -9,6 +9,8 @@ void FallingPlatform::reset() {
 
 void FallingPlatform::update() {
 	Entity::update();
+	//std::cout << "Falling: " << gravity << std::endl;
+	//std::cout << "velocity: " << velocity << std::endl;
 	if (!fallen) {
 		if (lifetime == 0) {
 			fallen = true;
