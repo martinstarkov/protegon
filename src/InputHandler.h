@@ -5,11 +5,11 @@
 class InputHandler {
 private:
 	static InputHandler* instance;
-	void keyStateCheck();
-	void keyPress(SDL_KeyboardEvent press);
-	void keyRelease(SDL_KeyboardEvent release);
-	void playerMotion(const Uint8* states);
-	void cameraMotion(const Uint8* states);
+	static void keyStateCheck();
+	static void keyPress(SDL_KeyboardEvent press);
+	static void keyRelease(SDL_KeyboardEvent release);
+	static void playerMotion(const Uint8* states);
+	static void cameraMotion(const Uint8* states);
 public:
 	InputHandler();
 	static InputHandler* getInstance() {
@@ -18,8 +18,8 @@ public:
 		}
 		return instance;
 	}
-	void update();
-	const Uint8* getKeyStates() {
+	static void update();
+	static const Uint8* getKeyStates() {
 		return SDL_GetKeyboardState(NULL);
 	}
 };
