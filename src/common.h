@@ -8,9 +8,9 @@ enum class Axis {
 };
 
 enum class Side {
-	TOP,
-	BOTTOM,
-	LEFT,
-	RIGHT,
-	ANY
+	TOP = -1,
+	BOTTOM = 1,
+	LEFT = -1,
+	RIGHT = 1,
+	ANY = 0
 };
