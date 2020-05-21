@@ -58,6 +58,36 @@ struct AABB {
         }
         return boundsPoint;
     }
+    Vec2D getPVector(Vec2D vel) { // find shortest distance from origin to edge of minkowski difference rectangle
+        float minTime = std::numeric_limits<float>::infinity();
+        Vec2D pv = Vec2D();
+        Vec2D relativePoint = Vec2D();
+        if (abs(vel.x) != 0) {
+            if (abs((relativePoint.x - pos.x) / vel.x) < minTime) {
+                minTime = abs((relativePoint.x - pos.x) / vel.x); // left edge
+                pv = Vec2D(pos.x, relativePoint.y);
+            }
+        }
+        if (abs(vel.x) != 0) {
+            if (abs((max().x - relativePoint.x) / vel.x) < minTime) { // right edge
+                minTime = abs((max().x - relativePoint.x) / vel.x);
+                pv = Vec2D(max().x, relativePoint.y);
+            }
+        }
+        if (abs(vel.y) != 0) {
+            if (abs((max().y - relativePoint.y) / vel.y) < minTime) { // bottom edge
+                minTime = abs((max().y - relativePoint.y) / vel.y);
+                pv = Vec2D(relativePoint.x, max().y);
+            }
+        }
+        if (abs(vel.y) != 0) {
+            if (abs((pos.y - relativePoint.y) / vel.y) < minTime) { // top edge
+                minTime = abs((pos.y - relativePoint.y) / vel.y);
+                pv = Vec2D(relativePoint.x, pos.y);
+            }
+        }
+        return pv;
+    }
     bool colliding(AABB b) {
         return (min().x <= b.max().x && max().x >= b.min().x) &&
             (min().y <= b.max().y && max().y >= b.min().y);
