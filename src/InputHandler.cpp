@@ -2,6 +2,7 @@
 #include "Game.h"
 #include "Player.h"
 #include "Camera.h"
+#include "LevelController.h"
 
 InputHandler* InputHandler::instance = nullptr;
 
@@ -23,7 +24,7 @@ void InputHandler::keyStateCheck() {
 	if (!states[SDL_SCANCODE_X]) {
 		if (Game::bulletTime) {
 			player->setVelocity(Vec2D());
-			Game::reset();
+			Game::getInstance()->reset();
 		}
 		Game::bulletTime = false;
 	}
@@ -82,15 +83,20 @@ void InputHandler::keyPress(SDL_KeyboardEvent press) {
 	switch (press.keysym.scancode) {
 		case SDL_SCANCODE_C:
 			//SDL_RenderClear(Game::getRenderer());
-			for (Entity* entity : Game::entityObjects) {
+			for (Entity* entity : Game::entities) {
 				entity->setAcceleration(Vec2D(1.0f / float(rand() % 19 + (-9)), 1.0f / float(rand() % 19 + (-9))));
 			}
 			break;
 		case SDL_SCANCODE_R:
-			Game::reset();
+			std::cout << "Resetting game..." << std::endl;
+			if (LevelController::getCurrentLevel()->getId() == 4) {
+				Game::attempts = 1;
+			}
+			LevelController::changeCurrentLevel(-99);
+			Game::getInstance()->reset();
 			break;
 		case SDL_SCANCODE_T:
-			Game::reset();
+			Game::getInstance()->reset();
 			player->setPosition(Vec2D(10 + 700 - 128 * 4, 1));
 			break;
 		default:

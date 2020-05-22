@@ -4,7 +4,7 @@
 
 #define CAMERA_SPEED 5.0f
 #define CAMERA_ZOOM_SPEED 0.1f
-#define ZOOM_BOUNDARY 0.5f
+#define ZOOM_BOUNDARY 0.3f
 
 class Camera {
 public:
@@ -35,6 +35,7 @@ public:
 		scale *= factor;
 		zoomLimit();
 	}
+	void reset();
 private:
 	void zoomLimit();
 	Vec2D centerOnPlayer();

@@ -6,11 +6,11 @@
 #include <vector>
 
 #define DRAG 0.1f
-#define GRAVITY 2.0f
+#define GRAVITY 1.0f
 
 class Entity {
 public:
-	Entity(AABB hitbox, Vec2D vel = {}, Vec2D accel = {}, Vec2D termVel = {}, bool falling = false, int id = UNKNOWN_TILE, SDL_Color col = { 0, 0, 255, 255 }) : hitbox(hitbox), oldHitbox(hitbox), velocity(vel), acceleration(accel), originalPos(hitbox.pos), falling(falling), gravity(falling), id(id), color(col), originalColor(col) {
+	Entity(AABB hitbox, Vec2D vel = {}, Vec2D accel = {}, Vec2D termVel = {}, bool falling = false, int id = UNKNOWN_TILE_ID, SDL_Color col = { 0, 0, 255, 255 }) : hitbox(hitbox), oldHitbox(hitbox), velocity(vel), acceleration(accel), originalPos(hitbox.pos), falling(falling), gravity(falling), id(id), color(col), originalColor(col) {
 		if (termVel == Vec2D()) {
 			terminalVelocity = Vec2D().infinite();
 		} else {

@@ -16,7 +16,6 @@ private:
 	void interactionCheck();
 	void hitGround();
 	bool alive;
-	void reset();
 	bool win;
 	float jumpingAcceleration;
 	float movementAcceleration;
@@ -34,6 +33,7 @@ public:
 	void setMovementAcceleration(float newMA) {
 		movementAcceleration = newMA;
 	}
+	void reset();
 	bool jumping = true;
 	void update();
 	void accelerate(Keys key);

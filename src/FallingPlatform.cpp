@@ -21,7 +21,7 @@ void FallingPlatform::update() {
 		} else {
 			float fraction = float(lifetime) / float(originalLifetime);
 			Uint8 b = Uint8(255.0f * fraction);
-			Uint8 r = Uint8(255.0f * (1.0f - fraction));
+			Uint8 r = Uint8(125.0f * (1.0f - fraction));
 			color = { r, 0, b, 255 };
 		}
 	}

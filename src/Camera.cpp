@@ -13,6 +13,11 @@ Camera::Camera() {
 	scale = Vec2D(1.0f, 1.0f);
 }
 
+void Camera::reset() {
+	pos = Vec2D(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2);
+	//scale = Vec2D(1.0f, 1.0f);
+}
+
 void Camera::zoomLimit() {
 	if (scale.x > 1.0f + ZOOM_BOUNDARY) {
 		scale.x = 1.0f + ZOOM_BOUNDARY;
@@ -34,12 +39,12 @@ Vec2D Camera::centerOnPlayer() {
 
 void Camera::boundaryCheck() {
 	// these work fine
-	if (pos.x * scale.x > 0) {
-		pos.x = 0;
-	}
-	if (pos.y * scale.y > 0) {
-		pos.y = 0;
-	}
+	//if (pos.x * scale.x > 0) {
+	//	pos.x = 0;
+	//}
+	//if (pos.y * scale.y > 0) {
+	//	pos.y = 0;
+	//}
 	//// these are broken for zooming
 	//if (pos.x < (WINDOW_WIDTH - WORLD_WIDTH)) {
 	//	pos.x = (WINDOW_WIDTH - WORLD_WIDTH) ;
