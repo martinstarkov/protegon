@@ -153,55 +153,71 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="GameWorld.cpp" />
-    <ClCompile Include="Level.cpp" />
-    <ClCompile Include="src\Matrix3D.cpp" />
-    <ClCompile Include="src\Camera.cpp" />
-    <ClCompile Include="src\KillBlock.cpp" />
-    <ClCompile Include="src\FallingPlatform.cpp" />
-    <ClCompile Include="src\Player.cpp" />
-    <ClCompile Include="src\Entity.cpp" />
-    <ClCompile Include="src\InputHandler.cpp" />
-    <ClCompile Include="src\Game.cpp" />
-    <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\TextureManager.cpp" />
-    <ClCompile Include="src\WinBlock.cpp" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include="libfreetype-6.dll" />
     <None Include="libjpeg-9.dll" />
     <None Include="libpng16-16.dll" />
     <None Include="libtiff-5.dll" />
     <None Include="libwebp-7.dll" />
+    <None Include="packages.config" />
+    <None Include="resources\levels\level0.json" />
+    <None Include="resources\levels\level1.json" />
+    <None Include="resources\levels\level2.json" />
+    <None Include="resources\levels\level3.json" />
+    <None Include="resources\levels\victory.json" />
     <None Include="SDL2.dll" />
     <None Include="SDL2_image.dll" />
     <None Include="SDL2_ttf.dll" />
     <None Include="zlib1.dll" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="GameWorld.h" />
-    <ClInclude Include="Level.h" />
-    <ClInclude Include="src\Matrix3D.h" />
-    <ClInclude Include="src\Camera.h" />
-    <ClInclude Include="src\Matrix2D.h" />
-    <ClInclude Include="src\KillBlock.h" />
-    <ClInclude Include="src\FallingPlatform.h" />
+    <Image Include="resources\test_tile_1.png" />
+  </ItemGroup>
+  <ItemGroup>
     <ClInclude Include="src\AABB.h" />
-    <ClInclude Include="src\Player.h" />
-    <ClInclude Include="src\Entity.h" />
-    <ClInclude Include="src\InputHandler.h" />
+    <ClInclude Include="src\Camera.h" />
     <ClInclude Include="src\common.h" />
     <ClInclude Include="src\defines.h" />
+    <ClInclude Include="src\Entities.h" />
+    <ClInclude Include="src\Entity.h" />
+    <ClInclude Include="src\FallingPlatform.h" />
     <ClInclude Include="src\Game.h" />
+    <ClInclude Include="src\GameWorld.h" />
+    <ClInclude Include="src\InputHandler.h" />
+    <ClInclude Include="src\KillBlock.h" />
+    <ClInclude Include="src\Level.h" />
+    <ClInclude Include="src\LevelController.h" />
+    <ClInclude Include="src\Matrix2D.h" />
+    <ClInclude Include="src\Matrix3D.h" />
+    <ClInclude Include="src\Player.h" />
     <ClInclude Include="src\Rectangle.h" />
     <ClInclude Include="src\TextureManager.h" />
     <ClInclude Include="src\Vec2D.h" />
     <ClInclude Include="src\WinBlock.h" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="resources\test_tile_1.png" />
+    <ClCompile Include="src\Camera.cpp" />
+    <ClCompile Include="src\Entity.cpp" />
+    <ClCompile Include="src\FallingPlatform.cpp" />
+    <ClCompile Include="src\Game.cpp" />
+    <ClCompile Include="src\GameWorld.cpp" />
+    <ClCompile Include="src\InputHandler.cpp" />
+    <ClCompile Include="src\KillBlock.cpp" />
+    <ClCompile Include="src\Level.cpp" />
+    <ClCompile Include="src\LevelController.cpp" />
+    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\Matrix3D.cpp" />
+    <ClCompile Include="src\Player.cpp" />
+    <ClCompile Include="src\TextureManager.cpp" />
+    <ClCompile Include="src\WinBlock.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="packages\nlohmann.json.3.7.3\build\native\nlohmann.json.targets" Condition="Exists('packages\nlohmann.json.3.7.3\build\native\nlohmann.json.targets')" />
   </ImportGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('packages\nlohmann.json.3.7.3\build\native\nlohmann.json.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\nlohmann.json.3.7.3\build\native\nlohmann.json.targets'))" />
+  </Target>
 </Project>

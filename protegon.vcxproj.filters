@@ -18,47 +18,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\main.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Game.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\TextureManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\InputHandler.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Entity.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Player.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\FallingPlatform.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\KillBlock.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\WinBlock.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Camera.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Matrix3D.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Level.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="GameWorld.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="libfreetype-6.dll">
       <Filter>SDL2</Filter>
     </None>
@@ -86,48 +45,59 @@
     <None Include="zlib1.dll">
       <Filter>SDL2</Filter>
     </None>
+    <None Include="packages.config" />
+    <None Include="resources\levels\level1.json" />
+    <None Include="resources\levels\level3.json" />
+    <None Include="resources\levels\level2.json" />
+    <None Include="resources\levels\victory.json" />
+    <None Include="resources\levels\level0.json" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\Game.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\TextureManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\defines.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\InputHandler.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Entity.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Player.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Vec2D.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Rectangle.h">
+    <Image Include="resources\test_tile_1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\WinBlock.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\AABB.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\Camera.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\defines.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Entities.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Entity.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="src\FallingPlatform.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Game.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\GameWorld.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\InputHandler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\KillBlock.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\WinBlock.h">
+    <ClInclude Include="src\Level.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\Camera.h">
+    <ClInclude Include="src\LevelController.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Matrix2D.h">
@@ -136,16 +106,61 @@
     <ClInclude Include="src\Matrix3D.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Level.h">
+    <ClInclude Include="src\Player.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GameWorld.h">
+    <ClInclude Include="src\Rectangle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\TextureManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Vec2D.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="resources\test_tile_1.png">
-      <Filter>Resource Files</Filter>
-    </Image>
+    <ClCompile Include="src\Camera.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Entity.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\FallingPlatform.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Game.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GameWorld.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\InputHandler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\KillBlock.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Level.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\LevelController.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Matrix3D.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Player.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\TextureManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\WinBlock.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
