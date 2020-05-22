@@ -1,5 +1,6 @@
 #include "Entity.h"
 #include "Game.h"
+#include "LevelController.h"
 #include <algorithm>
 #include <limits>
 #include <vector>
@@ -11,8 +12,13 @@
 
 void Entity::update() {
 	updateMotion();
+	if (id == 0) {
 	collisionCheck();
 	clearColliders();
+	} else {
+		hitbox.pos += velocity;
+		boundaryCheck(hitbox, velocity);
+	}
 }
 
 template <typename T> static int sgn(T val) {
@@ -25,7 +31,7 @@ void Entity::terminalMotion(Vec2D& vel) {
 	if (abs(vel.y) >= terminalVelocity.y) {
 		vel.y = terminalVelocity.y * sgn(vel.y);
 	}
-	const float threshold = 0.00001f;
+	const float threshold = 0.01f;
 	if (abs(vel.x) < threshold) {
 		vel.x = 0;
 	}
@@ -45,12 +51,13 @@ void Entity::updateMotion() {
 void Entity::boundaryCheck(AABB& hb, Vec2D& vel) {
 	Vec2D oldVelocity = vel;
 	bool l = false, r = false, t = false, b = false;
+	Vec2D size = LevelController::getCurrentLevel()->getSize();
 	if (hb.pos.x <= 0) {
 		hb.pos.x = 0;
 		l = true;
 	}
-	if (hb.pos.x + hb.size.x >= WORLD_WIDTH) {
-		hb.pos.x = WORLD_WIDTH - hb.size.x;
+	if (hb.pos.x + hb.size.x >= size.x) {
+		hb.pos.x = size.x - hb.size.x;
 		r = true;
 	}
 	if (hb.pos.y <= 0) {
@@ -59,8 +66,8 @@ void Entity::boundaryCheck(AABB& hb, Vec2D& vel) {
 		//velocity.y *= -1 / 2;
 		//acceleration.y *= -1 / 10;
 	}
-	if (hb.pos.y + hb.size.y >= WORLD_HEIGHT) {
-		hb.pos.y = WORLD_HEIGHT - hb.size.y;
+	if (hb.pos.y + hb.size.y >= size.y) {
+		hb.pos.y = size.y - hb.size.y;
 		b = true;
 		hitGround();
 	}
@@ -320,14 +327,13 @@ void Entity::collisionCheck() {
 
 	boundaryCheck(newHitbox, newVelocity);
 
-	std::vector<Entity*> broadphaseObjects = Game::entities;
+	std::vector<Entity*> broadphaseObjects = LevelController::getCurrentLevel()->drawables;
 
 	std::vector<Entity*> potentialColliders;
 	// Limit collision possibilities
 	for (Entity* e : broadphaseObjects) {
 		if (e != this && e->getId() != 0) { // not player or self
 			AABB b = maximumBroadphaseBox(newHitbox, terminalVelocity);
-			//Game::broadphase.push_back(b);
 			if (overlapAABBvsAABB(b, e->getHitbox())) {
 				//e->setColor({ 255, 120, 0, 255 });
 				potentialColliders.push_back(e);
@@ -403,7 +409,6 @@ void Entity::collisionCheck() {
 		std::vector<Entity*> firstColliders;
 		for (Entity* e : potentialColliders) {
 			AABB b = broadphaseBox(newHitbox, newVelocity);
-			//Game::broadphase.push_back(b);
 			if (overlapAABBvsAABB(b, e->getHitbox())) {
 				e->setColor({ 255, 120, 0, 255 });
 				firstColliders.push_back(e);
@@ -516,7 +521,6 @@ void Entity::collisionCheck() {
 				std::vector<Entity*> secondColliders;
 				for (Entity* e : potentialColliders) {
 					AABB b = broadphaseBox(newHitbox, newVelocity);
-					//Game::broadphase.push_back(b);
 					if (overlapAABBvsAABB(b, e->getHitbox())) {
 						//e->setColor({ 0, 120, 0, 255 });
 						secondColliders.push_back(e);
@@ -655,6 +659,7 @@ void Entity::reset() {
 	gravity = falling;
 	g = GRAVITY;
 	color = originalColor;
+	clearColliders();
 }
 
 void Entity::accelerate(Axis direction, float movementAccel) {

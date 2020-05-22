@@ -2,66 +2,29 @@
 #include "FallingPlatform.h"
 #include "KillBlock.h"
 #include "WinBlock.h"
+#include "GameWorld.h"
 
 Game* Game::instance = nullptr;
 SDL_Window* Game::window = nullptr;
 SDL_Renderer* Game::renderer = nullptr;
 bool Game::running = false;
-std::vector<Entity*> Game::entities;
-std::vector<Entity*> Game::entityObjects;
-std::vector<AABB> Game::broadphase;
-Uint32 Game::time;
-Uint32 Game::previousTime;
 bool Game::bulletTime = false;
+std::vector<Entity*> Game::entities;
+int Game::attempts = 1;
 
 Game::Game() {
 	cycle = 0;
 	TextureManager::getInstance();
 	InputHandler::getInstance();
+	GameWorld::getInstance();
+	LevelController::loadLevel(new Level("./resources/levels/level0.json"));
+	LevelController::loadLevel(new Level("./resources/levels/level1.json"));
+	LevelController::loadLevel(new Level("./resources/levels/level2.json"));
+	LevelController::loadLevel(new Level("./resources/levels/level3.json"));
+	LevelController::loadLevel(new Level("./resources/levels/victory.json"));
 	player = Player::getInstance();
+	player->setPosition(LevelController::getCurrentLevel()->getSpawn());
 	camera = Camera::getInstance();
-	entities.push_back(new Entity(AABB(32, 32, 32, 32)));
-	entities.push_back(new Entity(AABB(96, 96, 32, 32)));
-	entities.push_back(new Entity(AABB(160, 160, 32, 32)));
-	entities.push_back(new Entity(AABB(224, 224, 32, 32)));
-	entities.push_back(new Entity(AABB(288, 288, 32, 32)));
-	entities.push_back(new Entity(AABB(352, 224, 32, 32)));
-	entities.push_back(new Entity(AABB(416, 160, 32, 32)));
-	entities.push_back(new Entity(AABB(480, 96, 32, 32)));
-	entities.push_back(new Entity(AABB(544, 32, 32, 32)));
-	entities.push_back(new FallingPlatform(AABB(600, 550, 32, 32), 1));
-	entities.push_back(new FallingPlatform(AABB(650, 460, 32, 32), 0.8f));
-	entities.push_back(new FallingPlatform(AABB(700, 380, 32, 32), 0.5f));
-	entities.push_back(new FallingPlatform(AABB(550, 360, 32, 32), 0.5f));
-	entities.push_back(new FallingPlatform(AABB(150, 400, 350, 32), 5));
-	entities.push_back(new KillBlock(AABB(80, 390, 32, 32)));
-	entities.push_back(new WinBlock(AABB(20, 380, 32, 32)));
-	//entities.push_back(new Entity(AABB(128, 0, 128, 128)));
-	//entities.push_back(new Entity(AABB(128, 128, 128, 128)));
-	//entities.push_back(new Entity(AABB(128, 128 * 2, 128, 128)));
-	//entities.push_back(new Entity(AABB(128, 128 * 3, 128, 128)));
-	//entities.push_back(new Entity(AABB(128, 128 * 5, 128, 128)));
-	//entities.push_back(new Entity(AABB(128 * 2, 128, 128, 128)));
-	//entities.push_back(new Entity(AABB(128 * 3, 128, 128, 128)));
-	//entities.push_back(new Entity(AABB(128 * 4, 128, 128, 128)));
-	//entities.push_back(new Entity(AABB(128 * 5, 128, 128, 128)));
-	//entities.push_back(new Entity(AABB(128 * 6, 128, 128, 128)));
-	//entities.push_back(new Entity(AABB(128 * 6, 128 * 2, 128, 128)));
-	//entities.push_back(new Entity(AABB(128 * 7, 128 * 3, 128, 128)));
-	////entities.push_back(new Entity(AABB(128 * 7, 128 * 4, 128, 128)));
-	//entities.push_back(new Entity(AABB(128 * 7, 128 * 5, 128, 128)));
-	//entities.push_back(new Entity(AABB(128 * 6, 128 * 5, 128, 128)));
-	//entities.push_back(new Entity(AABB(128 * 5, 128 * 5, 128, 128)));
-	//entities.push_back(new Entity(AABB(128 * 4, 128 * 5, 128, 128)));
-	//entities.push_back(new Entity(AABB(128 * 3, 128 * 5, 128, 128)));
-	//entities.push_back(new Entity(AABB(128 * 2, 128 * 5, 128, 128)));
-	//entities.push_back(new Entity(AABB(0, 128 * 5, 128, 128)));
-	//entities.push_back(new Entity(AABB(0, 128 * 4, 128, 128)));
-	//entities.push_back(new Entity(AABB(0, 128 * 3, 128, 128)));
-	for (Entity* entity : entities) {
-		entityObjects.push_back(entity);
-	}
-	entities.push_back(player);
 }
 
 void Game::init() {
@@ -72,7 +35,7 @@ void Game::init() {
 	if (window) {
 		renderer = SDL_CreateRenderer(window, -1, 0);
 		if (renderer) {
-			std::cout << "SDL window and renderer init successful" << std::endl;
+			//std::cout << "SDL window and renderer init successful" << std::endl;
 		} else {
 			std::cout << "SDL renderer failed to init" << std::endl;
 		}
@@ -85,19 +48,20 @@ void Game::init() {
 }
 
 void Game::instructions() {
-	std::cout << "'w', 'a', 's', 'd' to move" << std::endl;
-	std::cout << "'r' to reset game" << std::endl;
+	std::cout << "(w, a, s, d) -> move" << std::endl;
+	std::cout << "(q) -> zoom in, (e) -> zoom out" << std::endl;
+	std::cout << "(r) -> restart game to tutorial" << std::endl;
 }
 
 void Game::update() {
-	time = SDL_GetTicks();
-	ih->update();
-	for (Entity* entity : entityObjects) {
-		entity->update();
+	std::string title = "attempts: " + std::to_string(attempts) + ", " + LevelController::getCurrentLevel()->getName();
+	SDL_SetWindowTitle(window, title.c_str());
+	InputHandler::update();
+	for (Entity* e : LevelController::getCurrentLevel()->dynamics) {
+		e->update();
 	}
 	player->update();
 	camera->update();
-	previousTime = time;
 }
 
 void Game::render() {
@@ -105,17 +69,16 @@ void Game::render() {
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 	SDL_SetRenderDrawColor(renderer, player->getColor().r, player->getColor().g, player->getColor().b, player->getColor().a);
 	SDL_RenderDrawRect(renderer, ((player->getHitbox() + camera->getPosition()) * camera->getScale()).AABBtoRect());
-	for (Entity* entity : entityObjects) {
-		SDL_SetRenderDrawColor(renderer, entity->getColor().r, entity->getColor().g, entity->getColor().b, entity->getColor().a);
-		SDL_RenderDrawRect(renderer, ((entity->getHitbox() + camera->getPosition()) * camera->getScale()).AABBtoRect());
+	for (Entity* e : entities) {
+		SDL_SetRenderDrawColor(renderer, e->getColor().r, e->getColor().g, e->getColor().b, e->getColor().a);
+		SDL_RenderDrawRect(renderer, ((e->getHitbox() + camera->getPosition()) * camera->getScale()).AABBtoRect());
 	}
-	//SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-	//for (AABB b : broadphase) {
-	//	SDL_RenderDrawRect(renderer, b.AABBtoRect());
-	//}
+	for (Entity* e : LevelController::getCurrentLevel()->drawables) {
+		SDL_SetRenderDrawColor(renderer, e->getColor().r, e->getColor().g, e->getColor().b, e->getColor().a);
+		SDL_RenderDrawRect(renderer, ((e->getHitbox() + camera->getPosition()) * camera->getScale()).AABBtoRect());
+	}
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 	SDL_RenderPresent(renderer); // display
-	broadphase.clear();
 	if (bulletTime) {
 		SDL_Delay(2000);
 	}
@@ -139,10 +102,12 @@ void Game::loop() {
 }
 
 void Game::reset() {
-	std::cout << "Resetting game..." << std::endl;
-	for (Entity* entity : Game::entities) {
+	SDL_RenderClear(renderer);
+	for (Entity* entity : LevelController::getCurrentLevel()->drawables) {
 		entity->reset();
 	}
+	player->reset();
+	camera->reset();
 }
 
 void Game::clean() {

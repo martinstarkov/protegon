@@ -14,21 +14,16 @@ private:
 	static SDL_Window* window;
 	static SDL_Renderer* renderer;
 	static bool running;
-	TextureManager* tm;
-	InputHandler* ih;
 	Player* player;
 	Camera* camera;
 	void update();
 	void render();
 	void instructions();
 public:
-	static bool bulletTime;
 	static std::vector<Entity*> entities;
-	static std::vector<Entity*> entityObjects;
-	static std::vector<AABB> broadphase;
-	static Uint32 time;
-	static Uint32 previousTime;
+	static bool bulletTime;
 	int cycle;
+	static int attempts;
 	Game();
 	static Game* getInstance() {
 		if (!instance) {
@@ -44,7 +39,7 @@ public:
 	}
 	void init();
 	void loop();
-	static void reset();
+	void reset();
 	void clean();
 	void quit();
 };
