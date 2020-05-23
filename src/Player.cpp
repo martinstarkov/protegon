@@ -34,7 +34,6 @@ void Player::update() {
 	interactionCheck();
 	clearColliders();
 	collisionCheck();
-	projectileLifeCheck();
 	if (!alive) {
 		if (LevelController::changeCurrentLevel(-1)) {
 			std::cout << "You died. Back to " << LevelController::getCurrentLevel()->getName() << std::endl;
@@ -80,19 +79,12 @@ void Player::update() {
 
 void Player::projectileLifeCheck() {
 	std::vector<Bullet*> aliveProjectiles;
-	std::vector<Bullet*> deadProjectiles;
-	for (Bullet* b : projectiles) {
-		if (b->alive()) {
-			aliveProjectiles.push_back(b);
-		} else {
-			deadProjectiles.push_back(b);
+	for (auto it = projectiles.begin(); it != projectiles.end(); it++) {
+		if ((*it)->alive()) {
+			aliveProjectiles.push_back(*it);
 		}
 	}
 	projectiles = aliveProjectiles;
-	for (Bullet* b : deadProjectiles) {
-		delete b;
-		b = NULL;
-	}
 }
 
 #define BULLET_LIFE 4.0f // seconds
@@ -101,7 +93,7 @@ void Player::projectileLifeCheck() {
 #define MAX_BULLET_COUNT 10
 
 void Player::shoot() {
-	//std::cout << "Projectiles : " << projectiles.size() << std::endl;
+	static int bullets = 1;
 	if (projectiles.size() < MAX_BULLET_COUNT) {
 		AABB block;
 		Vec2D vel = Vec2D();
@@ -121,6 +113,8 @@ void Player::shoot() {
 		vel.x += velocity.x;
 		Bullet* bullet = new Bullet(block, BULLET_LIFE);
 		bullet->setVelocity(vel);
+		bullet->setId(bullets);
+		bullets++;
 		projectiles.push_back(bullet);
 	}
 }
@@ -205,10 +199,6 @@ void Player::accelerate(Keys key) {
 
 void Player::reset() {
 	Entity::reset();
-	for (Bullet* b : projectiles) {
-		delete b;
-		b = NULL;
-	}
 	projectiles.clear();
 	movementAcceleration = MOVEMENT_ACCELERATION;
 	jumpingAcceleration = JUMPING_ACCELERATION;

@@ -10,7 +10,7 @@
 
 class Entity {
 public:
-	Entity(AABB hitbox, Vec2D vel = {}, Vec2D accel = {}, Vec2D termVel = {}, bool falling = false, int id = UNKNOWN_TILE_ID, SDL_Color col = { 0, 0, 255, 255 }) : hitbox(hitbox), velocity(vel), acceleration(accel), originalPos(hitbox.pos), falling(falling), gravity(falling), id(id), color(col), originalColor(col), g(GRAVITY), grounded(false), direction(Direction::RIGHT) {
+	Entity(AABB hitbox, Vec2D vel = {}, Vec2D accel = {}, Vec2D termVel = {}, bool falling = false, int id = UNKNOWN_TILE_ID, SDL_Color col = { 0, 0, 255, 255 }) : hitbox(hitbox), velocity(vel), acceleration(accel), originalPos(hitbox.pos), falling(falling), gravity(falling), id(id), color(col), originalColor(col), g(GRAVITY), grounded(false), direction(Direction::RIGHT), alive(true) {
 		if (termVel == Vec2D()) {
 			terminalVelocity = Vec2D().infinite();
 		} else {
@@ -76,6 +76,12 @@ public:
 	void setDirection(Direction newDirection) {
 		direction = newDirection;
 	}
+	bool getAlive() {
+		return alive;
+	}
+	void setAlive(bool newState) {
+		alive = newState;
+	}
 	virtual void update();
 	virtual void reset();
 	virtual void accelerate(Axis direction, float movementAccel);
@@ -102,6 +108,7 @@ protected:
 	bool gravity;
 	bool falling;
 	bool grounded;
+	bool alive;
 	AABB hitbox;
 	Vec2D velocity;
 	Vec2D acceleration;

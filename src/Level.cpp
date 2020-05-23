@@ -127,10 +127,25 @@ void Level::deleteObject(Vec2D tilePosition) {
 	if (xIt != data.end()) {
 		auto yIt = (*xIt).second.find((int)tilePosition.y); // column iterator
 		if (yIt != (*xIt).second.end()) {
-			delete (*yIt).second;
-			(*yIt).second = NULL;
-			//data[(int)tilePosition.x].erase(yIt); // entity
+			Entity* e = (*yIt).second; // entity
+			std::cout << "Deleting object " << e->getTilePosition() << std::endl;
 		}
+	}
+}
+
+
+void Level::update() {
+	std::vector<Entity*> dead;
+	for (auto it = drawables.begin(); it != drawables.end(); it++) {
+		if (!(*it)->getAlive()) {
+			dead.push_back(*it);
+		}
+	}
+	for (Entity* d : dead) {
+		drawables.erase(std::remove(drawables.begin(), drawables.end(), d), drawables.end());
+		statics.erase(std::remove(statics.begin(), statics.end(), d), statics.end());
+		dynamics.erase(std::remove(dynamics.begin(), dynamics.end(), d), dynamics.end());
+		interactables.erase(std::remove(interactables.begin(), interactables.end(), d), interactables.end());
 	}
 }
 

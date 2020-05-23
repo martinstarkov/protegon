@@ -34,9 +34,8 @@ void Bullet::interactionCheck() {
 			Level* l = LevelController::getCurrentLevel();
 			switch (e->getId()) {
 				case KILL_TILE_ID:
-					delete e;//l->deleteObject(e->getTilePosition());
-					e = NULL;
 					lifetime = 0;
+					e->setAlive(false);
 					break;
 				case FALLING_TILE_ID: {
 					FallingPlatform* platform = (FallingPlatform*)e;

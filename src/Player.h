@@ -29,13 +29,14 @@ public:
 	bool jumping = true;
 	void update();
 	void accelerate(Keys key);
-public:
-	std::vector<Bullet*> projectiles;
+	std::vector<Bullet*> getProjectiles() {
+		return projectiles;
+	}
+	void projectileLifeCheck();
 private:
 	void init();
 	void interactionCheck();
 	void hitGround();
-	void projectileLifeCheck();
 private:
 	static Player* instance;
 	bool alive;
@@ -43,5 +44,6 @@ private:
 	float jumpingAcceleration;
 	float movementAcceleration;
 	int counter = 0;
+	std::vector<Bullet*> projectiles;
 };
 

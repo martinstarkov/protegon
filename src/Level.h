@@ -33,6 +33,7 @@ public:
 	Entity* getObject(Vec2D tilePosition);
 	void setObject(int id = -1, Vec2D tilePosition = Vec2D(), Vec2D size = Vec2D());
 	void deleteObject(Vec2D tilePosition);
+	void update();
 	void reset();
 public:
 	std::vector<Entity*> statics;

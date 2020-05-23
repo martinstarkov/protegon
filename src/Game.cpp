@@ -66,10 +66,12 @@ void Game::update() {
 		e->update();
 	}
 	player->update();
-	for (Bullet* b : player->projectiles) {
+	player->projectileLifeCheck();
+	for (Bullet* b : player->getProjectiles()) {
 		b->update();
 	}
 	camera->update();
+	LevelController::getCurrentLevel()->update();
 }
 
 void Game::render() {
@@ -77,10 +79,11 @@ void Game::render() {
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 	//SDL_SetRenderDrawColor(renderer, player->getColor().r, player->getColor().g, player->getColor().b, player->getColor().a);
 	TextureManager::draw("player", ((player->getHitbox() + camera->getPosition()) * camera->getScale()), 0.0f, SDL_RendererFlip(player->getDirection()));
-	for (Bullet* e : player->projectiles) {
-		SDL_SetRenderDrawColor(renderer, e->getColor().r, e->getColor().g, e->getColor().b, e->getColor().a);
-		SDL_Rect* rect = &((e->getHitbox() + camera->getPosition()) * camera->getScale()).AABBtoRect();
-		SDL_RenderFillRect(renderer, rect);
+	for (Bullet* b : player->getProjectiles()) {
+		if (b) {
+			SDL_SetRenderDrawColor(renderer, b->getColor().r, b->getColor().g, b->getColor().b, b->getColor().a);
+			SDL_RenderFillRect(renderer, &((b->getHitbox() + camera->getPosition()) * camera->getScale()).AABBtoRect());
+		}
 		//SDL_RenderDrawRect(renderer, rect);
 	}
 	for (Entity* e : entities) {

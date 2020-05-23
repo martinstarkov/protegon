@@ -19,6 +19,7 @@ void Entity::update() {
 	clearColliders();
 	collisionCheck();
 }
+
 void Entity::updateMotion() {
 	velocity *= (1.0f - DRAG); // drag
 	velocity += acceleration; // gravity and movement acceleration
