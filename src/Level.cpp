@@ -3,7 +3,7 @@
 #include <sstream>
 #include "Entities.h"
 
-Level::Level(std::string path) {
+Level::Level(std::string path) : id(-1) {
 	rows = 0; columns = 0; size = Vec2D();
 	std::ifstream file(path);
 	if (file) {
@@ -15,8 +15,8 @@ Level::Level(std::string path) {
 	}
 }
 
-Entity* Level::createEntity(int id, Vec2D size, Vec2D destination) {
-	AABB block = AABB(destination, size);
+Entity* Level::createEntity(int id, Vec2D tilePosition, Vec2D size) {
+	AABB block = AABB(tilePosition * size, size);
 	Entity* e = nullptr;
 	switch (id) {
 		case KILL_TILE_ID:
@@ -40,6 +40,7 @@ Entity* Level::createEntity(int id, Vec2D size, Vec2D destination) {
 	}
 	if (e) {
 		drawables.push_back(e);
+		e->setTilePosition(tilePosition);
 	}
 	return e;
 }
@@ -60,7 +61,7 @@ void Level::readGrid() {
 		for (int row = 0; row < rows; row++) {
 			std::map<int, Entity*> tempColumn;
 			for (int column = 0; column < columns; column++) {
-				Entity* e = createEntity(grid[row][column].get<int>(), tileSize, Vec2D(column, row) * tileSize);
+				Entity* e = createEntity(grid[row][column].get<int>(), Vec2D(column, row), tileSize);
 				if (e) {
 					tempColumn.insert({ column, e });
 				}
@@ -94,13 +95,50 @@ void Level::readJson() {
 	}
 }
 
-Entity* Level::getObject(int x, int y) {
-	auto xIt = data.find(x); // row iterator
+Entity* Level::getObject(Vec2D tilePosition) {
+	auto xIt = data.find((int)tilePosition.x); // row iterator
 	if (xIt != data.end()) {
-		auto yIt = (*xIt).second.find(y); // column iterator
+		auto yIt = (*xIt).second.find((int)tilePosition.y); // column iterator
 		if (yIt != (*xIt).second.end()) {
 			return (*yIt).second; // entity
 		}
 	}
 	return nullptr;
+}
+
+void Level::setObject(int id, Vec2D tilePosition, Vec2D size) {
+	if (!data[(int)tilePosition.x][(int)tilePosition.y]) { // set object
+		if ((int)tilePosition.x <= rows) {
+			if ((int)tilePosition.y <= columns) {
+				Entity* e = createEntity(id, tilePosition, size);
+				if (e) {
+					data[(int)tilePosition.x][(int)tilePosition.y] = e;
+				}
+			}
+		}
+	} else { // replace object
+		deleteObject(tilePosition);
+		setObject(id, tilePosition, size); // call recrusively after data[x][y] has been cleared
+	}
+}
+
+void Level::deleteObject(Vec2D tilePosition) {
+	auto xIt = data.find((int)tilePosition.x); // row iterator
+	if (xIt != data.end()) {
+		auto yIt = (*xIt).second.find((int)tilePosition.y); // column iterator
+		if (yIt != (*xIt).second.end()) {
+			delete (*yIt).second;
+			(*yIt).second = NULL;
+			//data[(int)tilePosition.x].erase(yIt); // entity
+		}
+	}
+}
+
+void Level::reset() {
+	data.clear();
+	statics.clear();
+	dynamics.clear();
+	drawables.clear();
+	interactables.clear();
+	readJson();
 }

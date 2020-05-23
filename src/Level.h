@@ -21,13 +21,19 @@ public:
 	Vec2D getSize() {
 		return size;
 	}
+	Vec2D getTileSize() {
+		return tileSize;
+	}
 	Vec2D getSpawn() {
 		return spawn;
 	}
 	void setSpawn(Vec2D newSpawn) {
 		spawn = newSpawn;
 	}
-	Entity* getObject(int x, int y);
+	Entity* getObject(Vec2D tilePosition);
+	void setObject(int id = -1, Vec2D tilePosition = Vec2D(), Vec2D size = Vec2D());
+	void deleteObject(Vec2D tilePosition);
+	void reset();
 public:
 	std::vector<Entity*> statics;
 	std::vector<Entity*> dynamics;
@@ -36,7 +42,7 @@ public:
 private:
 	void readJson();
 	void readGrid();
-	Entity* createEntity(int id, Vec2D size, Vec2D destination);
+	Entity* createEntity(int id, Vec2D tilePosition, Vec2D size);
 private:
 	json j;
 	std::string name;
