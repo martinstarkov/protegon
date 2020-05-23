@@ -3,8 +3,11 @@
 #include "Player.h"
 #include "Camera.h"
 #include "LevelController.h"
+#include "Entities.h"
 
 InputHandler* InputHandler::instance = nullptr;
+const Uint8* InputHandler::states = nullptr;
+const Uint8* InputHandler::previousStates = nullptr;
 
 static Player* player;
 static Camera* camera;
@@ -15,9 +18,8 @@ InputHandler::InputHandler() {
 }
 
 void InputHandler::keyStateCheck() {
-	const Uint8* states = SDL_GetKeyboardState(NULL);
-	playerMotion(states);
-	cameraMotion(states);
+	playerMotion();
+	cameraMotion();
 	if (states[SDL_SCANCODE_X]) {
 		Game::bulletTime = true;
 	}
@@ -30,7 +32,7 @@ void InputHandler::keyStateCheck() {
 	}
 }
 
-void InputHandler::playerMotion(const Uint8* states) {
+void InputHandler::playerMotion() {
 	if (states[SDL_SCANCODE_A] && !states[SDL_SCANCODE_D]) {
 		player->accelerate(Keys::LEFT);
 	}
@@ -52,7 +54,7 @@ void InputHandler::playerMotion(const Uint8* states) {
 	}
 }
 
-void InputHandler::cameraMotion(const Uint8* states) {
+void InputHandler::cameraMotion() {
 	if (states[SDL_SCANCODE_LEFT] && !states[SDL_SCANCODE_RIGHT]) {
 		camera->addPosition(Vec2D(1.0f, 0.0f));
 	}
@@ -81,13 +83,11 @@ void InputHandler::cameraMotion(const Uint8* states) {
 
 void InputHandler::keyPress(SDL_KeyboardEvent press) {
 	switch (press.keysym.scancode) {
-		case SDL_SCANCODE_C:
-			//SDL_RenderClear(Game::getRenderer());
-			for (Entity* entity : Game::entities) {
-				entity->setAcceleration(Vec2D(1.0f / float(rand() % 19 + (-9)), 1.0f / float(rand() % 19 + (-9))));
-			}
+		case SDL_SCANCODE_C: {
+			player->shoot();
 			break;
-		case SDL_SCANCODE_R:
+		}
+		case SDL_SCANCODE_R: {
 			std::cout << "Resetting game..." << std::endl;
 			if (LevelController::getCurrentLevel()->getId() == 4) {
 				Game::attempts = 1;
@@ -95,10 +95,7 @@ void InputHandler::keyPress(SDL_KeyboardEvent press) {
 			LevelController::changeCurrentLevel(-99);
 			Game::getInstance()->reset();
 			break;
-		case SDL_SCANCODE_T:
-			Game::getInstance()->reset();
-			player->setPosition(Vec2D(10 + 700 - 128 * 4, 1));
-			break;
+		}
 		default:
 			break;
 	}
@@ -108,6 +105,7 @@ void InputHandler::keyRelease(SDL_KeyboardEvent release) {}
 
 void InputHandler::update() {
 	SDL_Event event;
+	states = SDL_GetKeyboardState(NULL);
 	keyStateCheck();
 	while (SDL_PollEvent(&event)) {
 		switch (event.type) {
@@ -130,4 +128,5 @@ void InputHandler::update() {
 				break;
 		}
 	}
+	previousStates = states;
 }

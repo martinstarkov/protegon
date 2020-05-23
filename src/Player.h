@@ -1,6 +1,7 @@
 #pragma once
 #include "Entity.h"
 #include "defines.h"
+#include "Bullet.h"
 
 enum class Keys {
 	LEFT,
@@ -10,16 +11,6 @@ enum class Keys {
 };
 
 class Player : public Entity {
-private:
-	static Player* instance;
-	void init();
-	void interactionCheck();
-	void hitGround();
-	bool alive;
-	bool win;
-	float jumpingAcceleration;
-	float movementAcceleration;
-	int counter = 0;
 public:
 	Player() : Entity{} {
 		init();
@@ -34,8 +25,23 @@ public:
 		movementAcceleration = newMA;
 	}
 	void reset();
+	void shoot();
 	bool jumping = true;
 	void update();
 	void accelerate(Keys key);
+public:
+	std::vector<Bullet*> projectiles;
+private:
+	void init();
+	void interactionCheck();
+	void hitGround();
+	void projectileLifeCheck();
+private:
+	static Player* instance;
+	bool alive;
+	bool win;
+	float jumpingAcceleration;
+	float movementAcceleration;
+	int counter = 0;
 };
 

@@ -3,6 +3,7 @@
 #include "FallingPlatform.h"
 #include "Game.h"
 #include "LevelController.h"
+#include <algorithm>
 
 Player* Player::instance = nullptr;
 
@@ -10,6 +11,7 @@ Player* Player::instance = nullptr;
 #define JUMPING_ACCELERATION 15.0f
 
 void Player::init() {
+	direction = Direction::RIGHT;
 	hitbox = { Vec2D(), Vec2D(32, 32) };
 	id = PLAYER_ID;
 	originalPos = hitbox.pos;
@@ -32,6 +34,7 @@ void Player::update() {
 	interactionCheck();
 	clearColliders();
 	collisionCheck();
+	projectileLifeCheck();
 	if (!alive) {
 		if (LevelController::changeCurrentLevel(-1)) {
 			std::cout << "You died. Back to " << LevelController::getCurrentLevel()->getName() << std::endl;
@@ -72,6 +75,54 @@ void Player::update() {
 	terminalMotion(velocity);
 	//std::cout << "V:" << velocity << ", A:" << acceleration << std::endl;
 	//std::cout << "Jumping: " << jumping << std::endl;
+}
+
+
+void Player::projectileLifeCheck() {
+	std::vector<Bullet*> aliveProjectiles;
+	std::vector<Bullet*> deadProjectiles;
+	for (Bullet* b : projectiles) {
+		if (b->alive()) {
+			aliveProjectiles.push_back(b);
+		} else {
+			deadProjectiles.push_back(b);
+		}
+	}
+	projectiles = aliveProjectiles;
+	for (Bullet* b : deadProjectiles) {
+		delete b;
+		b = NULL;
+	}
+}
+
+#define BULLET_LIFE 4.0f // seconds
+#define BULLET_SPEED 20.0f
+#define BULLET_SIZE Vec2D(10, 10)
+#define MAX_BULLET_COUNT 10
+
+void Player::shoot() {
+	//std::cout << "Projectiles : " << projectiles.size() << std::endl;
+	if (projectiles.size() < MAX_BULLET_COUNT) {
+		AABB block;
+		Vec2D vel = Vec2D();
+		block.size = BULLET_SIZE;
+		switch (direction) {
+			case Direction::LEFT:
+				block.pos = Vec2D(hitbox.min().x, hitbox.min().y + hitbox.size.y / 2 - block.size.y / 2);
+				vel = Vec2D(-BULLET_SPEED, 0.0f);
+				break;
+			case Direction::RIGHT:
+				block.pos = Vec2D(hitbox.max().x, hitbox.min().y + hitbox.size.y / 2 - block.size.y / 2);
+				vel = Vec2D(BULLET_SPEED, 0.0f);
+				break;
+			default:
+				break;
+		}
+		vel.x += velocity.x;
+		Bullet* bullet = new Bullet(block, BULLET_LIFE);
+		bullet->setVelocity(vel);
+		projectiles.push_back(bullet);
+	}
 }
 
 void Player::interactionCheck() {
@@ -131,9 +182,11 @@ void Player::hitGround() {
 void Player::accelerate(Keys key) {
 	switch (key) {
 		case Keys::LEFT:
+			direction = Direction::LEFT;
 			acceleration.x = -movementAcceleration;
 			break;
 		case Keys::RIGHT:
+			direction = Direction::RIGHT;
 			acceleration.x = movementAcceleration;
 			break;
 		case Keys::UP:
@@ -152,6 +205,11 @@ void Player::accelerate(Keys key) {
 
 void Player::reset() {
 	Entity::reset();
+	for (Bullet* b : projectiles) {
+		delete b;
+		b = NULL;
+	}
+	projectiles.clear();
 	movementAcceleration = MOVEMENT_ACCELERATION;
 	jumpingAcceleration = JUMPING_ACCELERATION;
 	win = false;
