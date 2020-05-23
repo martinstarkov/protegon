@@ -10,40 +10,19 @@
 #define COLLISION_DELTA 0.1f
 #define EPSILON 0.001f
 
-void Entity::update() {
-	updateMotion();
-	if (id == 0) {
-	collisionCheck();
-	clearColliders();
-	} else {
-		hitbox.pos += velocity;
-		boundaryCheck(hitbox, velocity);
-	}
-}
-
 template <typename T> static int sgn(T val) {
 	return (T(0) < val) - (val < T(0));
 }
-void Entity::terminalMotion(Vec2D& vel) {
-	if (abs(vel.x) >= terminalVelocity.x) {
-		vel.x = terminalVelocity.x * sgn(vel.x);
-	}
-	if (abs(vel.y) >= terminalVelocity.y) {
-		vel.y = terminalVelocity.y * sgn(vel.y);
-	}
-	const float threshold = 0.01f;
-	if (abs(vel.x) < threshold) {
-		vel.x = 0;
-	}
-	if (abs(velocity.y) < threshold) {
-		vel.y = 0;
-	}
+
+void Entity::update() {
+	updateMotion();
+	clearColliders();
+	collisionCheck();
 }
 void Entity::updateMotion() {
 	velocity *= (1.0f - DRAG); // drag
 	velocity += acceleration; // gravity and movement acceleration
 	if (gravity) {
-		g = GRAVITY;
 		velocity.y += g;
 	}
 	terminalMotion(velocity);
@@ -132,6 +111,22 @@ void Entity::boundaryCheck(AABB& hb, Vec2D& vel) {
 		}
 	}
 }
+void Entity::terminalMotion(Vec2D& vel) {
+	if (abs(vel.x) >= terminalVelocity.x) {
+		vel.x = terminalVelocity.x * sgn(vel.x);
+	}
+	if (abs(vel.y) >= terminalVelocity.y) {
+		vel.y = terminalVelocity.y * sgn(vel.y);
+	}
+	//const float threshold = 0.01f;
+	//if (abs(vel.x) < threshold) {
+	//	vel.x = 0;
+	//}
+	//if (abs(velocity.y) < threshold) {
+	//	vel.y = 0;
+	//}
+}
+
 AABB Entity::broadphaseBox(AABB a, Vec2D vel) {
 	Vec2D bPos;
 	bPos.x = vel.x > 0 ? a.pos.x : a.pos.x + vel.x;
@@ -146,6 +141,7 @@ AABB Entity::maximumBroadphaseBox(AABB a, Vec2D terminalVelocity) {
 	Vec2D bSize = abs(extremeMaximum - extremeMinimum);
 	return AABB(bPos, bSize);
 }
+
 bool Entity::equalOverlapAABBvsAABB(AABB a, AABB b) {
 	// Exit with no intersection if separated along an axis
 	if (a.max()[0] < b.min()[0] || a.min()[0] > b.max()[0]) return false;
@@ -323,7 +319,6 @@ void Entity::collisionCheck() {
 	grounded = false;
 	AABB newHitbox = hitbox;
 	Vec2D newVelocity = velocity;
-	//color = originalColor;
 
 	boundaryCheck(newHitbox, newVelocity);
 
@@ -385,17 +380,15 @@ void Entity::collisionCheck() {
 
 	}
 
-	if (id == 0) { // for player check block interactions
-		for (Entity* e : potentialColliders) {
-			AABB md = newHitbox.minkowskiDifference(e->getHitbox());
+	for (Entity* e : potentialColliders) {
+		AABB md = newHitbox.minkowskiDifference(e->getHitbox());
 
-			if (md.min().x <= 0 &&
-				md.max().x >= 0 &&
-				md.min().y <= 0 &&
-				md.max().y >= 0) {
-				Vec2D normal = md.penetrationNormal(Vec2D(), velocity);
-				colliders.push_back({ e, normal });
-			}
+		if (md.min().x <= 0 &&
+			md.max().x >= 0 &&
+			md.min().y <= 0 &&
+			md.max().y >= 0) {
+			Vec2D normal = md.penetrationNormal(Vec2D(), velocity);
+			colliders.push_back({ e, normal });
 		}
 	}
 	
