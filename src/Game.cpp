@@ -12,22 +12,27 @@ bool Game::bulletTime = false;
 std::vector<Entity*> Game::entities;
 int Game::attempts = 1;
 
-Game::Game() {
-	cycle = 0;
-	TextureManager::getInstance();
-	InputHandler::getInstance();
-	GameWorld::getInstance();
-	LevelController::loadLevel(new Level("./resources/levels/level0.json"));
-	LevelController::loadLevel(new Level("./resources/levels/level1.json"));
-	LevelController::loadLevel(new Level("./resources/levels/level2.json"));
-	LevelController::loadLevel(new Level("./resources/levels/level3.json"));
-	LevelController::loadLevel(new Level("./resources/levels/victory.json"));
-	player = Player::getInstance();
-	player->setPosition(LevelController::getCurrentLevel()->getSpawn());
-	camera = Camera::getInstance();
+void Game::init() {
+	if (initSDL()) {
+		running = true;
+		cycle = 0;
+		TextureManager::getInstance();
+		InputHandler::getInstance();
+		GameWorld::getInstance();
+		LevelController::loadLevel(new Level("./resources/levels/level0.json"));
+		LevelController::loadLevel(new Level("./resources/levels/level1.json"));
+		LevelController::loadLevel(new Level("./resources/levels/level2.json"));
+		LevelController::loadLevel(new Level("./resources/levels/level3.json"));
+		LevelController::loadLevel(new Level("./resources/levels/victory.json"));
+		player = Player::getInstance();
+		player->setPosition(LevelController::getCurrentLevel()->getSpawn());
+		camera = Camera::getInstance();
+		TextureManager::load("player", "./resources/textures/player.png");
+		instructions();
+	}
 }
 
-void Game::init() {
+bool Game::initSDL() {
 	if (SDL_Init(SDL_INIT_EVERYTHING) != 0) { // failure
 		std::cout << "SDL failed to init" << std::endl;
 	}
@@ -36,21 +41,21 @@ void Game::init() {
 		renderer = SDL_CreateRenderer(window, -1, 0);
 		if (renderer) {
 			//std::cout << "SDL window and renderer init successful" << std::endl;
+			return true;
 		} else {
 			std::cout << "SDL renderer failed to init" << std::endl;
 		}
 	} else {
 		std::cout << "SDL window failed to init" << std::endl;
 	}
-	running = true;
-	cycle = 0;
-	instructions();
+	return false;
 }
 
 void Game::instructions() {
 	std::cout << "(w, a, s, d) -> move" << std::endl;
 	std::cout << "(q) -> zoom in, (e) -> zoom out" << std::endl;
 	std::cout << "(r) -> restart game to tutorial" << std::endl;
+	std::cout << "(c) -> shoot" << std::endl;
 }
 
 void Game::update() {
@@ -61,21 +66,30 @@ void Game::update() {
 		e->update();
 	}
 	player->update();
+	for (Bullet* b : player->projectiles) {
+		b->update();
+	}
 	camera->update();
 }
 
 void Game::render() {
 	SDL_RenderClear(renderer);
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-	SDL_SetRenderDrawColor(renderer, player->getColor().r, player->getColor().g, player->getColor().b, player->getColor().a);
-	SDL_RenderDrawRect(renderer, ((player->getHitbox() + camera->getPosition()) * camera->getScale()).AABBtoRect());
+	//SDL_SetRenderDrawColor(renderer, player->getColor().r, player->getColor().g, player->getColor().b, player->getColor().a);
+	TextureManager::draw("player", ((player->getHitbox() + camera->getPosition()) * camera->getScale()), 0.0f, SDL_RendererFlip(player->getDirection()));
+	for (Bullet* e : player->projectiles) {
+		SDL_SetRenderDrawColor(renderer, e->getColor().r, e->getColor().g, e->getColor().b, e->getColor().a);
+		SDL_Rect* rect = &((e->getHitbox() + camera->getPosition()) * camera->getScale()).AABBtoRect();
+		SDL_RenderFillRect(renderer, rect);
+		//SDL_RenderDrawRect(renderer, rect);
+	}
 	for (Entity* e : entities) {
 		SDL_SetRenderDrawColor(renderer, e->getColor().r, e->getColor().g, e->getColor().b, e->getColor().a);
-		SDL_RenderDrawRect(renderer, ((e->getHitbox() + camera->getPosition()) * camera->getScale()).AABBtoRect());
+		SDL_RenderDrawRect(renderer, &((e->getHitbox() + camera->getPosition()) * camera->getScale()).AABBtoRect());
 	}
 	for (Entity* e : LevelController::getCurrentLevel()->drawables) {
 		SDL_SetRenderDrawColor(renderer, e->getColor().r, e->getColor().g, e->getColor().b, e->getColor().a);
-		SDL_RenderDrawRect(renderer, ((e->getHitbox() + camera->getPosition()) * camera->getScale()).AABBtoRect());
+		SDL_RenderDrawRect(renderer, &((e->getHitbox() + camera->getPosition()) * camera->getScale()).AABBtoRect());
 	}
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 	SDL_RenderPresent(renderer); // display
@@ -103,9 +117,7 @@ void Game::loop() {
 
 void Game::reset() {
 	SDL_RenderClear(renderer);
-	for (Entity* entity : LevelController::getCurrentLevel()->drawables) {
-		entity->reset();
-	}
+	LevelController::getCurrentLevel()->reset();
 	player->reset();
 	camera->reset();
 }

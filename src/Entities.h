@@ -5,3 +5,4 @@
 #include "FallingPlatform.h"
 #include "KillBlock.h"
 #include "WinBlock.h"
+#include "Bullet.h"
