@@ -111,6 +111,7 @@ void Player::shoot() {
 				break;
 		}
 		vel.x += velocity.x;
+		vel.y += velocity.y / 30.0f;
 		Bullet* bullet = new Bullet(block, BULLET_LIFE);
 		bullet->setVelocity(vel);
 		bullet->setId(bullets);
