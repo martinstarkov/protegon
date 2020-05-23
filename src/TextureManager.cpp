@@ -23,9 +23,10 @@ void TextureManager::load(std::string id, std::string path) {
 	}
 }
 
-void TextureManager::draw(std::string id, SDL_Rect* source, SDL_Rect* destination, float angle, SDL_RendererFlip flip) {
+void TextureManager::draw(std::string id, AABB box, float angle, SDL_RendererFlip flip) {
 	if (textureMap.find(id) != textureMap.end()) {
-		SDL_RenderCopyEx(Game::getRenderer(), textureMap[id], source, destination, (double)angle, NULL, flip);
+		AABB source(Vec2D(), box.size);
+		SDL_RenderCopyEx(Game::getRenderer(), textureMap[id], &source.AABBtoRect(), &box.AABBtoRect(), (double)angle, NULL, flip);
 	}
 }
 
