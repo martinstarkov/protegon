@@ -170,9 +170,10 @@
     <None Include="zlib1.dll" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="resources\test_tile_1.png" />
+    <Image Include="resources\textures\player.png" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\Bullet.h" />
     <ClInclude Include="src\AABB.h" />
     <ClInclude Include="src\Camera.h" />
     <ClInclude Include="src\common.h" />
@@ -195,6 +196,7 @@
     <ClInclude Include="src\WinBlock.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\Bullet.cpp" />
     <ClCompile Include="src\Camera.cpp" />
     <ClCompile Include="src\Entity.cpp" />
     <ClCompile Include="src\FallingPlatform.cpp" />

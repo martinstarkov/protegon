@@ -10,18 +10,14 @@
 
 class Entity {
 public:
-	Entity(AABB hitbox, Vec2D vel = {}, Vec2D accel = {}, Vec2D termVel = {}, bool falling = false, int id = UNKNOWN_TILE_ID, SDL_Color col = { 0, 0, 255, 255 }) : hitbox(hitbox), oldHitbox(hitbox), velocity(vel), acceleration(accel), originalPos(hitbox.pos), falling(falling), gravity(falling), id(id), color(col), originalColor(col) {
+	Entity(AABB hitbox, Vec2D vel = {}, Vec2D accel = {}, Vec2D termVel = {}, bool falling = false, int id = UNKNOWN_TILE_ID, SDL_Color col = { 0, 0, 255, 255 }) : hitbox(hitbox), velocity(vel), acceleration(accel), originalPos(hitbox.pos), falling(falling), gravity(falling), id(id), color(col), originalColor(col), g(GRAVITY), grounded(false), direction(Direction::RIGHT) {
 		if (termVel == Vec2D()) {
 			terminalVelocity = Vec2D().infinite();
 		} else {
 			terminalVelocity = termVel;
 		}
-		grounded = false;
-		g = GRAVITY;
-		tempHitbox = hitbox;
 	}
 	Entity(Vec2D vel = {}, Vec2D accel = {}) : Entity({}, vel, accel) {}
-	virtual void update();
 	void stop(Axis direction);
 	void setAcceleration(Vec2D newAccel) {
 		acceleration = newAccel;
@@ -44,65 +40,47 @@ public:
 	AABB getHitbox() {
 		return hitbox;
 	}
-	AABB getOldHitbox() {
-		return oldHitbox;
-	}
-	AABB getTempHitbox() {
-		return tempHitbox;
+	void setId(int newId) {
+		id = newId;
 	}
 	int getId() {
 		return id;
 	}
-	void setId(int newId) {
-		id = newId;
-	}
 	void setGravity(bool fall) {
 		gravity = fall;
-	}
-	SDL_Color getColor() {
-		return color;
-	}
-	void setColor(SDL_Color newColor) {
-		color = newColor;
 	}
 	bool getGravity() {
 		return gravity;
 	}
-	bool isGrounded() {
-		return grounded;
+	void setColor(SDL_Color newColor) {
+		color = newColor;
+	}
+	SDL_Color getColor() {
+		return color;
 	}
 	void setGrounded(bool grounding) {
 		grounded = grounding;
 	}
+	bool isGrounded() {
+		return grounded;
+	}
+	Vec2D getTilePosition() {
+		return tilePos;
+	}
+	void setTilePosition(Vec2D newTilePos) {
+		tilePos = newTilePos;
+	}
+	Direction getDirection() {
+		return direction;
+	}
+	void setDirection(Direction newDirection) {
+		direction = newDirection;
+	}
+	virtual void update();
 	virtual void reset();
 	virtual void accelerate(Axis direction, float movementAccel);
-	SDL_Color originalColor;
 protected:
-	int id;
-	std::vector<std::pair<Entity*, Vec2D>> colliders;
-	AABB hitbox;
-	AABB oldHitbox;
-	AABB tempHitbox;
-	SDL_Color color;
-	Vec2D velocity;
-	Vec2D acceleration;
-	Vec2D originalPos;
-	Vec2D terminalVelocity;
-	float g;
-	bool gravity;
-	bool falling;
-	bool grounded;
-	struct Collider {
-		Entity* e;
-		Vec2D normal, collisionTime;
-		Collider(Entity* e, Vec2D normal, Vec2D collisionTime) : e(e), normal(normal), collisionTime(collisionTime) {}
-	};
 	float sweepAABB(AABB b1, AABB b2, Vec2D v1, Vec2D v2, float& xEntryTime, float& yEntryTime, float& xExitTime, float& yExitTime, float& exit);
-
-	void updateMotion();
-	void boundaryCheck(AABB& hb, Vec2D& vel);
-	void terminalMotion(Vec2D& vel);
-	void collisionCheck();
 	Vec2D findCollisionNormal(std::vector<Vec2D> normals);
 	bool axisOverlapAABB(AABB a, AABB b, Axis axis);
 	AABB maximumBroadphaseBox(AABB a, Vec2D terminalVelocity);
@@ -111,8 +89,29 @@ protected:
 	bool overlapAABBvsAABB(AABB a, AABB b);
 	bool equalOverlapAABBvsAABB(AABB a, AABB b);
 	Entity* collided(Side side);
-	void clearColliders();
+
+	virtual void updateMotion();
+	virtual void boundaryCheck(AABB& hb, Vec2D& vel);
+	virtual void terminalMotion(Vec2D& vel);
+	virtual void collisionCheck();
+	virtual void clearColliders();
 	virtual void hitGround();
+protected:
+	int id;
+	float g;
+	bool gravity;
+	bool falling;
+	bool grounded;
+	AABB hitbox;
+	Vec2D velocity;
+	Vec2D acceleration;
+	Vec2D originalPos;
+	Vec2D terminalVelocity;
+	Vec2D tilePos;
+	SDL_Color color;
+	SDL_Color originalColor;
+	Direction direction;
+	std::vector<std::pair<Entity*, Vec2D>> colliders;
 private:
 
 };

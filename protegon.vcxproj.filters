@@ -53,7 +53,7 @@
     <None Include="resources\levels\level0.json" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="resources\test_tile_1.png">
+    <Image Include="resources\textures\player.png">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>
@@ -118,6 +118,9 @@
     <ClInclude Include="src\Vec2D.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\Bullet.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Camera.cpp">
@@ -160,6 +163,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\WinBlock.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Bullet.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -9,22 +9,7 @@
 #include "Camera.h"
 
 class Game {
-private:
-	static Game* instance;
-	static SDL_Window* window;
-	static SDL_Renderer* renderer;
-	static bool running;
-	Player* player;
-	Camera* camera;
-	void update();
-	void render();
-	void instructions();
 public:
-	static std::vector<Entity*> entities;
-	static bool bulletTime;
-	int cycle;
-	static int attempts;
-	Game();
 	static Game* getInstance() {
 		if (!instance) {
 			instance = new Game();
@@ -42,5 +27,22 @@ public:
 	void reset();
 	void clean();
 	void quit();
+public:
+	static std::vector<Entity*> entities;
+	static bool bulletTime;
+	int cycle;
+	static int attempts;
+private:
+	void update();
+	void render();
+	void instructions();
+	bool initSDL();
+private:
+	static Game* instance;
+	static SDL_Window* window;
+	static SDL_Renderer* renderer;
+	static bool running;
+	Player* player;
+	Camera* camera;
 };
 
