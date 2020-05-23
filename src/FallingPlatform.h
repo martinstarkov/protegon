@@ -10,13 +10,17 @@ public:
 		falling = fallen = false;
 		originalLifetime = lifetime = int(life * 1000.0f);
 	}
-	int getLifetime() { // in game ticks (from SDL_GetTicks())
+	// lifetime measured in game ticks (from SDL_GetTicks())
+	int getLifetime() {
 		return lifetime;
 	}
-	void setLifetime(int newLife) { // in game ticks (from SDL_GetTicks())
+	int getOriginalLifetime() {
+		return originalLifetime;
+	}
+	void setLifetime(int newLife) {
 		lifetime = newLife;
 	}
-	void subtractLifetime(int amount) { // in game ticks (from SDL_GetTicks())
+	void subtractLifetime(int amount) { 
 		if (lifetime - amount >= 0) {
 			lifetime -= amount;
 		} else {

@@ -1,16 +1,8 @@
 #include "FallingPlatform.h"
 #include "Player.h"
 
-void FallingPlatform::reset() {
-	Entity::reset();
-	lifetime = originalLifetime;
-	fallen = false;
-}
-
 void FallingPlatform::update() {
 	Entity::update();
-	//std::cout << "Falling: " << gravity << std::endl;
-	//std::cout << "velocity: " << velocity << std::endl;
 	if (!fallen) {
 		if (lifetime == 0) {
 			fallen = true;
@@ -25,4 +17,10 @@ void FallingPlatform::update() {
 			color = { r, 0, b, 255 };
 		}
 	}
+}
+
+void FallingPlatform::reset() {
+	Entity::reset();
+	lifetime = originalLifetime;
+	fallen = false;
 }
