@@ -268,7 +268,7 @@ struct AABB {
         }
         edge = pv.unitVector();
     }
-    SDL_Rect* AABBtoRect() {
-        return new SDL_Rect{ (int)round(pos.x), (int)round(pos.y), (int)round(size.x), (int)round(size.y) };
+    SDL_Rect AABBtoRect() {
+        return { (int)round(pos.x), (int)round(pos.y), (int)round(size.x), (int)round(size.y) };
     }
 };
