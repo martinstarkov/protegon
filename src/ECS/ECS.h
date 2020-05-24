@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <bitset>
 #include <array>
+#include <map>
 
 class Component;
 class Entity;
@@ -21,10 +22,7 @@ template <typename T> inline std::size_t getComponentTypeID() noexcept {
 	return typeID;
 }
 
-constexpr std::size_t maxComponents = 32;
-
-using ComponentBitSet = std::bitset<maxComponents>;
-using ComponentArray = std::array<Component*, maxComponents>;
+using ComponentVector = std::map<std::size_t, std::vector<Component*>>;
 
 class Component {
 public:
@@ -39,54 +37,59 @@ public:
 class Entity {
 public:
 	void update() {
-		for (auto& c : components) c->update();
+		for (auto kv : components) {
+			for (auto c : kv.second) {
+				c->update();
+			}
+		}
 	}
 	void draw() {
-		for (auto& c : components) c->draw();
+		for (auto kv : components) {
+			for (auto c : kv.second) {
+				c->draw();
+			}
+		}
 	}
 	bool isActive() const { return active; }
 	void destroy() { active = false; }
-	template <typename T> bool has() const {
-		return componentBitSet[getComponentTypeID< T >()];
+	template <typename T> int count() {
+		return (int)components[getComponentTypeID<T>()].size();
 	}
-	template <typename T, typename... TArgs> T& add(TArgs&&... mArgs) {
+	template <typename T> bool has(int amount = 1) {
+		if (count<T>() >= amount) {
+			return true;
+		}
+		return false;
+	}
+	template <typename T, typename... TArgs> T* add(TArgs&&... mArgs) {
 		T* c(new T(std::forward<TArgs>(mArgs)...));
 		c->entity = this;
 		c->id = getComponentTypeID<T>();
-		std::unique_ptr<Component> uPtr{ c };
-		components.emplace_back(std::move(uPtr));
-		componentArray[c->id] = c;
-		componentBitSet[c->id] = true;
+		if (has<T>()) {
+			components[c->id].emplace_back(std::move(c));
+		} else {
+			components[c->id] = std::vector<Component*>{ c };
+		}
 		c->init();
-		return *c;
+		return c;
 	}
 
-	template <typename T> T& get(bool createIfNotFound = false) {
-		Component* c = componentArray[getComponentTypeID<T>()];
-		if (createIfNotFound) {
-			if (c) {
-				return *static_cast<T*>(c);
-			} else {
-				return add<T>();
-			}
-		} else {
-			return *static_cast<T*>(c);
-		}
+	template <typename T> T* get(int index = 0) {
+		return static_cast<T*>(components[getComponentTypeID<T>()][index]);
 	}
 	void printComponents() {
-		//std::cout << "Component Type IDs: ";
-		//int i = 0;
-		//for (auto& c : components) {
-		//	std::cout << componentArray[i]->id << ",";
-		//	i++;
-		//}
-		//std::cout << std::endl;
+		std::cout << "Player Type IDs: " << std::endl;
+		for (auto kv : components) {
+			std::cout << typeid(*kv.second[0]).name() << ", Id: ";
+			for (auto c : kv.second) {
+				std::cout << c->id << ",";
+			}
+			std::cout << std::endl;
+		}
 	}
 private:
 	bool active = true;
-	std::vector<std::unique_ptr<Component>> components;
-	ComponentArray componentArray = {};
-	ComponentBitSet componentBitSet;
+	ComponentVector components;
 };
 
 class Manager {

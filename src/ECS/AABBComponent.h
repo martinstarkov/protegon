@@ -14,11 +14,17 @@ public:
 		_rectangle = rectangle;
 	}
 	void init() override {
-		_transformComponent = &entity->get<TransformComponent>(true);
-		_sizeComponent = &entity->get<SizeComponent>(true);
-		if (_rectangle) {
-			_transformComponent->setPosition(_rectangle._position);
-			_sizeComponent->setSize(_rectangle._size);
+		if (entity->count<TransformComponent>() < 2) {
+			_transformComponent = entity->add<TransformComponent>(_rectangle._position);
+		}
+		if (entity->count<SizeComponent>() < 2) {
+			_sizeComponent = entity->add<SizeComponent>(_rectangle._size);
+		}
+		if (entity->count<TransformComponent>() == 2) {
+			_transformComponent = entity->get<TransformComponent>();
+		}
+		if (entity->count<SizeComponent>() == 2) {
+			_sizeComponent = entity->get<SizeComponent>();
 		}
 	}
 	AABB getAABB() {
