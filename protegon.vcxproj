@@ -170,47 +170,30 @@
     <None Include="zlib1.dll" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="resources\textures\enemy.png" />
     <Image Include="resources\textures\player.png" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\Bullet.h" />
     <ClInclude Include="src\AABB.h" />
-    <ClInclude Include="src\Camera.h" />
-    <ClInclude Include="src\common.h" />
-    <ClInclude Include="src\defines.h" />
-    <ClInclude Include="src\Entities.h" />
-    <ClInclude Include="src\Entity.h" />
-    <ClInclude Include="src\FallingPlatform.h" />
+    <ClInclude Include="src\ECS\AABBComponent.h" />
+    <ClInclude Include="src\ECS\ColorComponent.h" />
+    <ClInclude Include="src\ECS\Components.h" />
+    <ClInclude Include="src\ECS\DrawComponent.h" />
+    <ClInclude Include="src\ECS\ECS.h" />
+    <ClInclude Include="src\ECS\HitboxComponent.h" />
+    <ClInclude Include="src\ECS\MotionComponent.h" />
+    <ClInclude Include="src\ECS\PhysicsComponent.h" />
+    <ClInclude Include="src\ECS\SizeComponent.h" />
+    <ClInclude Include="src\ECS\SpriteComponent.h" />
+    <ClInclude Include="src\ECS\TransformComponent.h" />
     <ClInclude Include="src\Game.h" />
-    <ClInclude Include="src\GameWorld.h" />
-    <ClInclude Include="src\InputHandler.h" />
-    <ClInclude Include="src\KillBlock.h" />
-    <ClInclude Include="src\Level.h" />
-    <ClInclude Include="src\LevelController.h" />
-    <ClInclude Include="src\Matrix2D.h" />
-    <ClInclude Include="src\Matrix3D.h" />
-    <ClInclude Include="src\Player.h" />
-    <ClInclude Include="src\Rectangle.h" />
     <ClInclude Include="src\TextureManager.h" />
     <ClInclude Include="src\Vec2D.h" />
-    <ClInclude Include="src\WinBlock.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\Bullet.cpp" />
-    <ClCompile Include="src\Camera.cpp" />
-    <ClCompile Include="src\Entity.cpp" />
-    <ClCompile Include="src\FallingPlatform.cpp" />
     <ClCompile Include="src\Game.cpp" />
-    <ClCompile Include="src\GameWorld.cpp" />
-    <ClCompile Include="src\InputHandler.cpp" />
-    <ClCompile Include="src\KillBlock.cpp" />
-    <ClCompile Include="src\Level.cpp" />
-    <ClCompile Include="src\LevelController.cpp" />
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\Matrix3D.cpp" />
-    <ClCompile Include="src\Player.cpp" />
     <ClCompile Include="src\TextureManager.cpp" />
-    <ClCompile Include="src\WinBlock.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

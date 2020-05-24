@@ -1,35 +1,48 @@
 #include "TextureManager.h"
 #include "Game.h"
+#include <iostream>
 
 TextureManager* TextureManager::instance = nullptr;
-std::map<std::string, SDL_Texture*> TextureManager::textureMap;
+std::map<const char*, SDL_Texture*> TextureManager::textureMap;
 
-void TextureManager::load(std::string id, std::string path) {
-	SDL_Surface* tempSurface = IMG_Load(path.c_str());
+SDL_Texture* TextureManager::load(const char* path) {
+	SDL_Texture* texture = nullptr;
+	SDL_Surface* tempSurface = IMG_Load(path);
 	if (tempSurface == 0) {
 		std::cout << "Failed to IMG_Load path: '" << path << "'" << std::endl;
-		return;
+		return texture;
 	}
-	SDL_Texture* texture = SDL_CreateTextureFromSurface(Game::getRenderer(), tempSurface);
+	texture = SDL_CreateTextureFromSurface(Game::getRenderer(), tempSurface);
 	SDL_FreeSurface(tempSurface);
 	if (texture) {
-		if (textureMap.find(id) == textureMap.end()) { // add texture to map
-			textureMap.insert({ id, texture }); 
+		if (textureMap.find(path) == textureMap.end()) { // add texture to map
+			textureMap.insert({ path, texture }); 
 		} else { // already contains texture, replace
-			textureMap[id] = texture;
+			textureMap[path] = texture;
 		}
 	} else {
 		std::cout << "Failed to SDL_CreateTextureFromSurface with path: '" << path << "'" << std::endl;
 	}
+	return texture;
 }
 
-void TextureManager::draw(std::string id, AABB box, float angle, SDL_RendererFlip flip) {
-	if (textureMap.find(id) != textureMap.end()) {
-		AABB source(Vec2D(), box.size);
-		SDL_RenderCopyEx(Game::getRenderer(), textureMap[id], &source.AABBtoRect(), &box.AABBtoRect(), (double)angle, NULL, flip);
-	}
+void TextureManager::draw(SDL_Texture* texture, SDL_Rect source, SDL_Rect destination) {
+	SDL_RenderCopy(Game::getRenderer(), texture, &source, &destination);
 }
 
-void TextureManager::removeTexture(std::string id) {
-	textureMap.erase(id);
+void TextureManager::draw(SDL_Rect rectangle, SDL_Color color) {
+	SDL_SetRenderDrawColor(Game::getRenderer(), color.r, color.g, color.b, color.a);
+	SDL_RenderDrawRect(Game::getRenderer(), &rectangle);
+	SDL_SetRenderDrawColor(Game::getRenderer(), DEFAULT_RENDER_COLOR.r, DEFAULT_RENDER_COLOR.g, DEFAULT_RENDER_COLOR.b, DEFAULT_RENDER_COLOR.a);
+}
+
+//void TextureManager::draw(std::string id, AABB box, float angle, SDL_RendererFlip flip) {
+//	if (textureMap.find(id) != textureMap.end()) {
+//		AABB source(Vec2D(), box.size);
+//		SDL_RenderCopyEx(Game::getRenderer(), textureMap[id], &source.AABBtoRect(), &box.AABBtoRect(), (double)angle, NULL, flip);
+//	}
+//}
+
+void TextureManager::removeTexture(const char* path) {
+	textureMap.erase(path);
 }

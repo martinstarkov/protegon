@@ -1,12 +1,14 @@
 #pragma once
-#include "common.h"
-#include "defines.h"
+//#include "common.h"
+//#include "defines.h"
 #include "SDL.h"
-#include "TextureManager.h"
-#include "InputHandler.h"
-#include "Entity.h"
-#include "Player.h"
-#include "Camera.h"
+//#include "TextureManager.h"
+//#include "InputHandler.h"
+//#include "Entity.h"
+//#include "Player.h"
+//#include "Camera.h"
+
+#define DEFAULT_RENDER_COLOR SDL_Color{ 0, 0, 0, 255 }
 
 class Game {
 public:
@@ -28,7 +30,7 @@ public:
 	void clean();
 	void quit();
 public:
-	static std::vector<Entity*> entities;
+	//static std::vector<Entity*> entities;
 	static bool bulletTime;
 	int cycle;
 	static int attempts;
@@ -42,7 +44,7 @@ private:
 	static SDL_Window* window;
 	static SDL_Renderer* renderer;
 	static bool running;
-	Player* player;
-	Camera* camera;
+	//Player* player;
+	//Camera* camera;
 };
 

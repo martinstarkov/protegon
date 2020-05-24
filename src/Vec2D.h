@@ -26,7 +26,14 @@ struct Vec2D {
 		return Vec2D(fabs(v.x), fabs(v.y));
 	}
 	operator bool() const {
-		return x != 0.0f || y != 0.0f;
+		return x != 0 || y != 0;
+	}
+
+	bool isZero() {
+		return x == 0.0f && y == 0.0f;
+	}
+	bool nonZero() {
+		return x != 0.0f && y != 0.0f;
 	}
 	Vec2D infinite() {
 		return Vec2D(std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity());
@@ -147,12 +154,6 @@ struct Vec2D {
 	}
 	float magnitude() {
 		return sqrtf(x * x + y * y);
-	}
-	bool isZero() {
-		return x == 0.0f && y == 0.0f;
-	}
-	bool nonZero() {
-		return x != 0.0f && y != 0.0f;
 	}
 	bool operator> (Vec2D v) {
 		return magnitude() > v.magnitude();
