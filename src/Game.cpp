@@ -42,16 +42,25 @@ void Game::init() {
 		//camera = Camera::getInstance();
 		//TextureManager::load("player", "./resources/textures/player.png");
 		//instructions();
-		//player.add<SizeComponent>(Vec2D(32, 32));
-		player.add<AABBComponent>(AABB(0, 0, 64, 64));
-		player.add<SpriteComponent>("./resources/textures/player.png", AABB(0, 0, 16, 16));
-		player.add<DrawComponent>();
+		player.add<TransformComponent>(Vec2D(100, 100));
+		player.printComponents();
+		player.add<SizeComponent>(Vec2D(32, 32));
+		player.printComponents();
+		player.add<AABBComponent>(AABB(0, 0, 64, 64)); // 1 = size, 2 = transform, 4 = aabb
+		player.printComponents();
+		player.add<HitboxComponent>(AABB(0, 0, 32, 32)); // 1 = size, 2 = transform, 3 = hitbox
+		player.printComponents();
+		player.add<SpriteComponent>("./resources/textures/player.png", AABB(0, 0, 16, 16)); // 5 = sprite
+		player.printComponents();
+		player.add<DrawComponent>(); // 6 = draw
+		player.printComponents();
 		//box.add<SizeComponent>(Vec2D(64, 64));
-		//box.add<TransformComponent>(Vec2D(100, 100));
 		//box.add<SpriteComponent>("./resources/textures/enemy.png", AABB(0, 0, 16, 16));
 		//box.add<DrawComponent>();
-		player.add<MotionComponent>(Vec2D(1, 1));
-		player.add<PhysicsComponent>();
+		player.add<MotionComponent>(Vec2D(1, 1)); // 7 = motion
+		player.printComponents();
+		player.add<PhysicsComponent>(); // 8 = physics
+		player.printComponents();
 	}
 }
 
