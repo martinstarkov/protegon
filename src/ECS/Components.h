@@ -5,6 +5,7 @@
 #include "AABBComponent.h"
 #include "HitboxComponent.h"
 #include "MotionComponent.h"
+#include "CollisionComponent.h"
 #include "PhysicsComponent.h"
 #include "ColorComponent.h"
 #include "SpriteComponent.h"

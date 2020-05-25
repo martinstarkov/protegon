@@ -8,36 +8,48 @@ public:
 	DrawComponent() {
 		_aabbComponent = nullptr;
 		_spriteComponent = nullptr;
+		_colorComponent = nullptr;
 	}
 	void init() override {
-		int i = 0;
-		if (!entity->has<AABBComponent>() && entity->has<HitboxComponent>()) {
-			_aabbComponent = entity->get<HitboxComponent>();
-		} else if (entity->count<TransformComponent>() < 2) {
-			i = 1;
-			_aabbComponent = entity->add<AABBComponent>();
-		} else {
+		if (entity->has<AABBComponent>()) {
 			_aabbComponent = entity->get<AABBComponent>();
+		} else if (entity->has<TransformComponent>() || entity->has<SizeComponent>()) {
+			if (entity->has<HitboxComponent>() && entity->count<TransformComponent>() == 1 && entity->count<SizeComponent>() == 1) {
+				_aabbComponent = entity->get<HitboxComponent>();
+			} else {
+				_aabbComponent = entity->add<AABBComponent>();
+			}
 		}
-		if (entity->has<SpriteComponent>()) {
-			_spriteComponent = entity->get<SpriteComponent>();
-			if (!_aabbComponent->getAABB()._size) {
-				entity->get<SizeComponent>(i)->setSize(Vec2D(_spriteComponent->getSource().w, _spriteComponent->getSource().h));
+		if (_aabbComponent) {
+			add(_aabbComponent);
+			if (entity->has<SpriteComponent>()) {
+				_spriteComponent = entity->get<SpriteComponent>();
+				add(_spriteComponent);
+				if (!_aabbComponent->getAABB()._size) {
+					_aabbComponent->get<SizeComponent>()->setSize(Vec2D(_spriteComponent->getSource().w, _spriteComponent->getSource().h));
+				}
+			}
+			if (entity->has<ColorComponent>()) {
+				_colorComponent = entity->get<ColorComponent>();
+				add(_colorComponent);
 			}
 		}
 	}
 	void draw() override {
-		if (_spriteComponent) {
-			TextureManager::draw(_spriteComponent->getTexture(), _spriteComponent->getSource(), _aabbComponent->getRectangle());
-		} else {
-			if (entity->has<ColorComponent>()) {
-				TextureManager::draw(_aabbComponent->getRectangle(), entity->get<ColorComponent>()->getColor());
+		if (_aabbComponent) {
+			if (_spriteComponent) {
+				TextureManager::draw(_spriteComponent->getTexture(), _spriteComponent->getSource(), _aabbComponent->getRectangle());
 			} else {
-				TextureManager::draw(_aabbComponent->getRectangle());
+				if (_colorComponent) {
+					TextureManager::draw(_aabbComponent->getRectangle(), _colorComponent->getColor());
+				} else {
+					TextureManager::draw(_aabbComponent->getRectangle());
+				}
 			}
 		}
 	}
 private:
 	AABBComponent* _aabbComponent;
 	SpriteComponent* _spriteComponent;
+	ColorComponent* _colorComponent;
 };
