@@ -42,25 +42,17 @@ void Game::init() {
 		//camera = Camera::getInstance();
 		//TextureManager::load("player", "./resources/textures/player.png");
 		//instructions();
-		player.add<TransformComponent>(Vec2D(100, 100));
-		player.printComponents();
-		player.add<SizeComponent>(Vec2D(32, 32));
-		player.printComponents();
-		player.add<AABBComponent>(AABB(0, 0, 64, 64)); // 1 = size, 2 = transform, 4 = aabb
-		player.printComponents();
-		player.add<HitboxComponent>(AABB(0, 0, 32, 32)); // 1 = size, 2 = transform, 3 = hitbox
-		player.printComponents();
-		player.add<SpriteComponent>("./resources/textures/player.png", AABB(0, 0, 16, 16)); // 5 = sprite
-		player.printComponents();
-		player.add<DrawComponent>(); // 6 = draw
-		player.printComponents();
+		//player.add<AABBComponent>(AABB(0, 0, 64, 64)); // transform, size
+		player.add<HitboxComponent>(AABB(0, 0, 32, 32)); // aabb -> transform, size
+		box.add<HitboxComponent>();
+		//player.add<SpriteComponent>("./resources/textures/player.png", AABB(0, 0, 16, 16));
+		//box.add<SpriteComponent>("./resources/textures/enemy.png", AABB(0, 0, 32, 32));
+		box.add<DrawComponent>();
+		player.add<DrawComponent>();
 		//box.add<SizeComponent>(Vec2D(64, 64));
-		//box.add<SpriteComponent>("./resources/textures/enemy.png", AABB(0, 0, 16, 16));
 		//box.add<DrawComponent>();
 		player.add<MotionComponent>(Vec2D(1, 1)); // 7 = motion
-		player.printComponents();
 		player.add<PhysicsComponent>(); // 8 = physics
-		player.printComponents();
 	}
 }
 
@@ -93,8 +85,13 @@ void Game::instructions() {
 void Game::update() {
 	manager.refresh();
 	manager.update();
-	//std::cout << player.get<TransformComponent>().getPosition() << std::endl;
-	//std::cout << player.get<SizeComponent>().getSize() << ",";//<< std::endl;
+	std::cout << "Hitboxes: ";
+	for (auto e : manager.getGroup(Groups::hitboxes)) {
+		std::cout << e << ",";
+	}
+	std::cout << std::endl;
+	//std::cout << player.get<AABBComponent>()->getAABB() << ",";//std::endl;
+	//std::cout << player.get<HitboxComponent>()->getAABB() << std::endl;
 	//std::cout << player.get<MotionComponent>().getVelocity() << std::endl;
 	//std::string title = "attempts: " + std::to_string(attempts) + ", " + LevelController::getCurrentLevel()->getName();
 	//SDL_SetWindowTitle(window, title.c_str());

@@ -8,7 +8,7 @@
 //#include "Player.h"
 //#include "Camera.h"
 
-#define DEFAULT_RENDER_COLOR SDL_Color{ 0, 0, 0, 255 }
+#define DEFAULT_RENDER_COLOR SDL_Color{ 255, 255, 255, 255 }
 
 class Game {
 public:
