@@ -94,9 +94,6 @@
     <ClInclude Include="src\ECS\MotionComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\ECS\PhysicsComponent.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\ECS\TransformComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
