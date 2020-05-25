@@ -9,6 +9,9 @@ public:
 		_terminalVelocity = terminalVelocity;
 		_acceleration = acceleration;
 	}
+	void init() override {
+		entity->addGroup(Groups::dynamics);
+	}
 	Vec2D getVelocity() { return _velocity; }
 	void setVelocity(Vec2D velocity) {
 		_velocity = velocity;
