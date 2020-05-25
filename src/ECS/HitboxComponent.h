@@ -5,5 +5,6 @@
 
 class HitboxComponent : public AABBComponent {
 public:
-	HitboxComponent(AABB rectangle) : AABBComponent(rectangle) {}
+	HitboxComponent() : AABBComponent(AABB(), this) {}
+	HitboxComponent(AABB rectangle) : AABBComponent(rectangle, this) {}
 };
