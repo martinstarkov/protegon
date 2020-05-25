@@ -44,15 +44,15 @@ void Game::init() {
 		//instructions();
 		//player.add<AABBComponent>(AABB(0, 0, 64, 64)); // transform, size
 		player.add<HitboxComponent>(AABB(0, 0, 32, 32)); // aabb -> transform, size
-		box.add<HitboxComponent>();
+		box.add<HitboxComponent>(AABB(100, 100, 128, 128));
+		player.add<CollisionComponent>();
 		//player.add<SpriteComponent>("./resources/textures/player.png", AABB(0, 0, 16, 16));
 		//box.add<SpriteComponent>("./resources/textures/enemy.png", AABB(0, 0, 32, 32));
 		box.add<DrawComponent>();
 		player.add<DrawComponent>();
 		//box.add<SizeComponent>(Vec2D(64, 64));
 		//box.add<DrawComponent>();
-		player.add<MotionComponent>(Vec2D(1, 1)); // 7 = motion
-		player.add<PhysicsComponent>(); // 8 = physics
+		player.add<MotionComponent>(Vec2D(2, 1)); // 7 = motion
 	}
 }
 
@@ -86,8 +86,32 @@ void Game::update() {
 	manager.refresh();
 	manager.update();
 	std::cout << "Hitboxes: ";
-	for (auto e : manager.getGroup(Groups::hitboxes)) {
-		std::cout << e << ",";
+	for (auto e : manager.getGroup(Groups::colliders)) {
+
+		e->get<MotionComponent>()->addVelocity(e->get<MotionComponent>()->getAcceleration());
+		for (auto c : e->getComponents<TransformComponent>()) {
+			c->addPosition(e->get<MotionComponent>()->getVelocity());
+		}
+		e->get<CollisionComponent>()->setColliding(false);
+		for (auto h : manager.getGroup(Groups::hitboxes)) {
+			if (e != h) { // do not check with own hitbox
+				if (e->has<MotionComponent>()) { // dynamic entity
+					if (!h->has<MotionComponent>()) { // dynamic-static check
+						Vec2D penetration = e->get<HitboxComponent>()->getAABB().colliding(h->get<HitboxComponent>()->getAABB());
+						e->get<TransformComponent>()->addPosition(-penetration);
+					} else { // dynamic-dynamic
+
+					}
+				} else { // static entity
+					if (!h->has<MotionComponent>()) { // static-static
+						Vec2D penetration = e->get<HitboxComponent>()->getAABB().colliding(h->get<HitboxComponent>()->getAABB());
+						e->get<TransformComponent>()->addPosition(-penetration);
+					} else { // static-dynamic
+
+					}
+				}
+			}
+		}
 	}
 	std::cout << std::endl;
 	//std::cout << player.get<AABBComponent>()->getAABB() << ",";//std::endl;
