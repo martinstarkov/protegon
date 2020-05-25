@@ -176,6 +176,7 @@
   <ItemGroup>
     <ClInclude Include="src\AABB.h" />
     <ClInclude Include="src\ECS\AABBComponent.h" />
+    <ClInclude Include="src\ECS\CollisionComponent.h" />
     <ClInclude Include="src\ECS\ColorComponent.h" />
     <ClInclude Include="src\ECS\Components.h" />
     <ClInclude Include="src\ECS\DrawComponent.h" />
@@ -191,6 +192,7 @@
     <ClInclude Include="src\Vec2D.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\ECS\ECS.cpp" />
     <ClCompile Include="src\Game.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\TextureManager.cpp" />
