@@ -7,8 +7,49 @@ struct AABB {
 	AABB() : _position(Vec2D()), _size(Vec2D()) {}
 	AABB(Vec2D position, Vec2D size) : _position(position), _size(size) {}
 	AABB(float x, float y, float w, float h) : _position(x, y), _size(w, h) {}
+	Vec2D min() {
+		return _position;
+	}
+	Vec2D max() {
+		return _position + _size;
+	}
 	SDL_Rect AABBtoRect() {
 		return { (int)round(_position.x), (int)round(_position.y), (int)round(_size.x), (int)round(_size.y) };
+	}
+	AABB minkowskiDifference(AABB other) {
+	    return AABB(min() - other.max(), _size + other._size);
+	}
+	Vec2D colliding(AABB other, Vec2D velocity = Vec2D()) {
+		if (velocity) { // dynamic collision
+			return Vec2D();
+		} else { // static collision
+			AABB md = minkowskiDifference(other);
+			Vec2D penetration = Vec2D();
+			if (md.min().x <= 0 &&
+				md.max().x >= 0 &&
+				md.min().y <= 0 &&
+				md.max().y >= 0) {
+				penetration = md.getPenetrationVector();
+			}
+			return penetration;
+		}
+	}
+	Vec2D getPenetrationVector() {
+		double minDist = abs(min().x);
+		Vec2D boundsPoint = Vec2D(min().x, 0.0f);
+		if (abs(max().x) < minDist) {
+			minDist = abs(max().x);
+			boundsPoint = Vec2D(max().x, 0.0f);
+		}
+		if (abs(max().y) < minDist) {
+			minDist = abs(max().y);
+			boundsPoint = Vec2D(0.0f, max().y);
+		}
+		if (abs(min().y) < minDist) {
+			minDist = abs(min().y);
+			boundsPoint = Vec2D(0.0f, min().y);
+		}
+		return boundsPoint;
 	}
 	// Operators
 	operator bool() const {
