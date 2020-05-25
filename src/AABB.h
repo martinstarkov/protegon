@@ -14,6 +14,10 @@ struct AABB {
 	operator bool() const {
 		return _position || _size;
 	}
+	friend std::ostream& operator<<(std::ostream& os, const AABB& aabb) {
+		os << '[' << aabb._position << ',' << aabb._size << ']';
+		return os;
+	}
 };
 
 
