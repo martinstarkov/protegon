@@ -33,12 +33,20 @@ public:
 				_colorComponent = entity->get<ColorComponent>();
 				add(_colorComponent);
 			}
+			if (entity->has<DirectionComponent>()) {
+				_directionComponent = entity->get<DirectionComponent>();
+				add(_directionComponent);
+			}
 		}
 	}
 	void draw() override {
 		if (_aabbComponent) {
 			if (_spriteComponent) {
-				TextureManager::draw(_spriteComponent->getTexture(), _spriteComponent->getSource(), _aabbComponent->getRectangle());
+				if (_directionComponent) {
+					TextureManager::draw(_spriteComponent->getTexture(), _spriteComponent->getSource(), _aabbComponent->getRectangle(), _aabbComponent->get<TransformComponent>()->getRotation(), _directionComponent->getDirection());
+				} else {
+					TextureManager::draw(_spriteComponent->getTexture(), _spriteComponent->getSource(), _aabbComponent->getRectangle());
+				}
 			} else {
 				if (_colorComponent) {
 					TextureManager::draw(_aabbComponent->getRectangle(), _colorComponent->getColor());
@@ -52,4 +60,5 @@ private:
 	AABBComponent* _aabbComponent;
 	SpriteComponent* _spriteComponent;
 	ColorComponent* _colorComponent;
+	DirectionComponent* _directionComponent;
 };
