@@ -1,5 +1,6 @@
 #pragma once
 #include "Vec2D.h"
+#include <limits>
 
 struct AABB {
 	Vec2D _position;
@@ -19,22 +20,18 @@ struct AABB {
 	AABB minkowskiDifference(AABB other) {
 	    return AABB(min() - other.max(), _size + other._size);
 	}
-	Vec2D colliding(AABB other, Vec2D velocity = Vec2D()) {
-		if (velocity) { // dynamic collision
-			return Vec2D();
-		} else { // static collision
-			AABB md = minkowskiDifference(other);
-			Vec2D penetration = Vec2D();
-			if (md.min().x <= 0 &&
-				md.max().x >= 0 &&
-				md.min().y <= 0 &&
-				md.max().y >= 0) {
-				penetration = md.getPenetrationVector();
-			}
-			return penetration;
+	Vec2D colliding(AABB other, Vec2D velocity = Vec2D()) { // static collision
+		AABB md = minkowskiDifference(other);
+		Vec2D penetration = Vec2D();
+		if (md.min().x <= 0 &&
+			md.max().x >= 0 &&
+			md.min().y <= 0 &&
+			md.max().y >= 0) {
+			penetration = md.getPVector(velocity);
 		}
+		return penetration;
 	}
-	Vec2D getPenetrationVector() {
+	Vec2D getPenetrationVector(Vec2D velocity = Vec2D()) {
 		double minDist = abs(min().x);
 		Vec2D boundsPoint = Vec2D(min().x, 0.0f);
 		if (abs(max().x) < minDist) {
@@ -50,6 +47,36 @@ struct AABB {
 			boundsPoint = Vec2D(0.0f, min().y);
 		}
 		return boundsPoint;
+	}
+	Vec2D getPVector(Vec2D vel) { // find shortest distance from origin to edge of minkowski difference rectangle
+		float minTime = std::numeric_limits<float>::infinity();
+		Vec2D pv = Vec2D();
+		Vec2D relativePoint = Vec2D();
+		if (abs(vel.x) != 0) {
+			if (abs((relativePoint.x - _position.x) / vel.x) < minTime) {
+				minTime = abs((relativePoint.x - _position.x) / vel.x); // left edge
+				pv = Vec2D(_position.x, relativePoint.y);
+			}
+		}
+		if (abs(vel.x) != 0) {
+			if (abs((max().x - relativePoint.x) / vel.x) < minTime) { // right edge
+				minTime = abs((max().x - relativePoint.x) / vel.x);
+				pv = Vec2D(max().x, relativePoint.y);
+			}
+		}
+		if (abs(vel.y) != 0) {
+			if (abs((max().y - relativePoint.y) / vel.y) < minTime) { // bottom edge
+				minTime = abs((max().y - relativePoint.y) / vel.y);
+				pv = Vec2D(relativePoint.x, max().y);
+			}
+		}
+		if (abs(vel.y) != 0) {
+			if (abs((_position.y - relativePoint.y) / vel.y) < minTime) { // top edge
+				minTime = abs((_position.y - relativePoint.y) / vel.y);
+				pv = Vec2D(relativePoint.x, _position.y);
+			}
+		}
+		return pv;
 	}
 	// Operators
 	operator bool() const {

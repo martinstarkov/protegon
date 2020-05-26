@@ -20,6 +20,8 @@ enum Groups : std::size_t {
 	hitboxes,
 	dynamics,
 	colliders,
+	projectiles,
+	shooters,
 	COUNT
 };
 
