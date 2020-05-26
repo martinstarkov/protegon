@@ -3,13 +3,6 @@
 #include "defines.h"
 #include "Bullet.h"
 
-enum class Keys {
-	LEFT,
-	RIGHT,
-	UP,
-	DOWN
-};
-
 class Player : public Entity {
 public:
 	Player() : Entity{} {
