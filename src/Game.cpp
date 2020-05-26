@@ -4,6 +4,7 @@
 //#include "WinBlock.h"
 //#include "GameWorld.h"
 #include "ECS/Components.h"
+#include "InputHandler.h"
 
 #define FPS 60
 #define WINDOW_TITLE "Protegon"
@@ -23,9 +24,6 @@ int Game::attempts = 1;
 
 Manager manager;
 Entity& player(manager.addEntity());
-Entity& box(manager.addEntity());
-Entity& box2(manager.addEntity());
-Entity& box3(manager.addEntity());
 
 #define DRAG 0.1f
 
@@ -46,23 +44,9 @@ void Game::init() {
 		//camera = Camera::getInstance();
 		//TextureManager::load("player", "./resources/textures/player.png");
 		//instructions();
-		//player.add<AABBComponent>(AABB(0, 0, 64, 64)); // transform, size
-		player.add<HitboxComponent>(AABB(0, 0, 32, 32)); // aabb -> transform, size
-		player.add<MotionComponent>(Vec2D(), Vec2D(10, 10)); // 7 = motion
-		player.add<DirectionComponent>();
-		box.add<HitboxComponent>(AABB(128 * 2, 128 * 2, 128, 128));
-		box2.add<HitboxComponent>(AABB(128 * 2, 128, 128, 128));
-		box3.add<HitboxComponent>(AABB(128, 128 * 2, 128, 128));
-		player.add<CollisionComponent>();
+
+		player.add<MotionComponent>(Vec2D(), Vec2D(10, 10));
 		player.add<SpriteComponent>("./resources/textures/player.png", AABB(0, 0, 16, 16));
-		//box.add<SpriteComponent>("./resources/textures/enemy.png", AABB(0, 0, 32, 32));
-		box.add<DrawComponent>();
-		box2.add<DrawComponent>();
-		box3.add<DrawComponent>();
-		player.add<DrawComponent>();
-		//box.add<SizeComponent>(Vec2D(64, 64));
-		//box.add<DrawComponent>();
-		player.add<KeyboardComponent>(Vec2D(0.5f, 0.5f), std::array<SDL_Scancode, KEYS>{ SDL_SCANCODE_W, SDL_SCANCODE_A, SDL_SCANCODE_S, SDL_SCANCODE_D });
 	}
 }
 
@@ -96,51 +80,53 @@ void Game::update() {
 	InputHandler::update();
 	manager.refresh();
 	manager.update();
-	for (auto s : manager.getGroup(Groups::shooters)) {
-		//Entity& projectile(manager.addEntity());
-	}
-	for (auto e : manager.getGroup(Groups::dynamics)) {
+	//for (auto s : manager.getGroup(Groups::shooters)) {
+	//	//Entity& projectile(manager.addEntity());
+	//}
+	//for (auto e : manager.getGroup(Groups::dynamics)) {
 
-		e->get<MotionComponent>()->addVelocity(e->get<MotionComponent>()->getAcceleration());
-		e->get<MotionComponent>()->setVelocity(e->get<MotionComponent>()->getVelocity() * (1.0f - DRAG));
-		for (auto c : e->getComponents<TransformComponent>()) {
-			c->addPosition(e->get<MotionComponent>()->getVelocity());
-		}
-		e->get<CollisionComponent>()->setColliding(false);
-		for (auto h : manager.getGroup(Groups::hitboxes)) {
-			if (e != h) { // do not check with own hitbox
-				if (e->get<MotionComponent>()->getVelocity()) { // non-zero velocity
-					if (!h->has<MotionComponent>()) { // dynamic-static check
-						Vec2D penetration = e->get<HitboxComponent>()->getAABB().colliding(h->get<HitboxComponent>()->getAABB(), e->get<MotionComponent>()->getVelocity());
-						if (penetration) {
-							//std::cout << "dynamic-static" << std::endl;
-							e->get<TransformComponent>()->addPosition(-penetration);
-							if (penetration.x) { // set x-velocity to 0
-								//e->get<MotionComponent>()->setAcceleration(Vec2D(0.0f, e->get<MotionComponent>()->getAcceleration().y));
-								//e->get<MotionComponent>()->setVelocity(Vec2D(0.0f, e->get<MotionComponent>()->getVelocity().y));
-							}
-							if (penetration.y) { // set y-velocity to 0
-								//e->get<MotionComponent>()->setAcceleration(Vec2D(e->get<MotionComponent>()->getAcceleration().x, 0.0f));
-								//e->get<MotionComponent>()->setVelocity(Vec2D(e->get<MotionComponent>()->getVelocity().x, 0.0f));
-							}
-						}
-					} else { // dynamic-dynamic
-						std::cout << "dynamic-dynamic" << std::endl;
-					}
-				} else { // zero velocity
-					if (!h->has<MotionComponent>()) { // static-static check
-						Vec2D penetration = e->get<HitboxComponent>()->getAABB().colliding(h->get<HitboxComponent>()->getAABB());
-						if (penetration) {
-							std::cout << "static-static" << std::endl;
-							e->get<TransformComponent>()->addPosition(-penetration);
-						}
-					} else { // static-dynamic
-						std::cout << "static-dynamic" << std::endl;
-					}
-				}
-			}
-		}
-	}
+	//	e->get<MotionComponent>()->addVelocity(e->get<MotionComponent>()->getAcceleration());
+	//	e->get<MotionComponent>()->setVelocity(e->get<MotionComponent>()->getVelocity() * (1.0f - DRAG));
+	//	for (auto c : e->getComponents<TransformComponent>()) {
+	//		c->addPosition(e->get<MotionComponent>()->getVelocity());
+	//	}
+	//	e->get<CollisionComponent>()->setColliding(false);
+	//	for (auto h : manager.getGroup(Groups::hitboxes)) {
+	//		if (e != h) { // do not check with own hitbox
+	//			if (e->get<MotionComponent>()->getVelocity()) { // non-zero velocity
+	//				if (!h->has<MotionComponent>()) { // dynamic-static check
+	//					Vec2D penetration = e->get<HitboxComponent>()->getAABB().colliding(h->get<HitboxComponent>()->getAABB(), e->get<MotionComponent>()->getVelocity());
+	//					if (penetration) {
+	//						//std::cout << "dynamic-static" << std::endl;
+	//						e->get<TransformComponent>()->addPosition(-penetration);
+	//						if (penetration.x) { // set x-velocity to 0
+	//							//e->get<MotionComponent>()->setAcceleration(Vec2D(0.0f, e->get<MotionComponent>()->getAcceleration().y));
+	//							//e->get<MotionComponent>()->setVelocity(Vec2D(0.0f, e->get<MotionComponent>()->getVelocity().y));
+	//						}
+	//						if (penetration.y) { // set y-velocity to 0
+	//							//e->get<MotionComponent>()->setAcceleration(Vec2D(e->get<MotionComponent>()->getAcceleration().x, 0.0f));
+	//							//e->get<MotionComponent>()->setVelocity(Vec2D(e->get<MotionComponent>()->getVelocity().x, 0.0f));
+	//						}
+	//					}
+	//				} else { // dynamic-dynamic
+	//					std::cout << "dynamic-dynamic" << std::endl;
+	//				}
+	//			} else { // zero velocity
+	//				if (!h->has<MotionComponent>()) { // static-static check
+	//					Vec2D penetration = e->get<HitboxComponent>()->getAABB().colliding(h->get<HitboxComponent>()->getAABB());
+	//					if (penetration) {
+	//						std::cout << "static-static" << std::endl;
+	//						e->get<TransformComponent>()->addPosition(-penetration);
+	//					}
+	//				} else { // static-dynamic
+	//					std::cout << "static-dynamic" << std::endl;
+	//				}
+	//			}
+	//		}
+	//	}
+	//}
+
+
 	//std::cout << player.get<AABBComponent>()->getAABB() << ",";//std::endl;
 	//std::cout << player.get<HitboxComponent>()->getAABB() << std::endl;
 	//std::cout << player.get<MotionComponent>().getVelocity() << std::endl;
@@ -162,7 +148,8 @@ void Game::render() {
 	SDL_RenderClear(renderer);
 	SDL_SetRenderDrawColor(Game::getRenderer(), DEFAULT_RENDER_COLOR.r, DEFAULT_RENDER_COLOR.g, DEFAULT_RENDER_COLOR.b, DEFAULT_RENDER_COLOR.a);
 	manager.draw();
-	SDL_RenderPresent(renderer); // display
+	SDL_RenderPresent(renderer); 
+	// display
 	////SDL_SetRenderDrawColor(renderer, player->getColor().r, player->getColor().g, player->getColor().b, player->getColor().a);
 	//TextureManager::draw("player", ((player->getHitbox() + camera->getPosition()) * camera->getScale()), 0.0f, SDL_RendererFlip(player->getDirection()));
 	//for (Bullet* b : player->getProjectiles()) {

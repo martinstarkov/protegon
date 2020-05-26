@@ -28,7 +28,6 @@ struct Vec2D {
 	operator bool() const {
 		return x != 0 || y != 0;
 	}
-
 	bool isZero() {
 		return x == 0.0f && y == 0.0f;
 	}

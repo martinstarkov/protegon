@@ -2,6 +2,7 @@
 #include "Components.h"
 #include "SDL.h"
 #include "../TextureManager.h"
+#include "../AABB.h"
 
 class SpriteComponent : public Component {
 public:

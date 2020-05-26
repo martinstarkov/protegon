@@ -185,7 +185,6 @@
     <ClInclude Include="src\ECS\HitboxComponent.h" />
     <ClInclude Include="src\ECS\KeyboardComponent.h" />
     <ClInclude Include="src\ECS\MotionComponent.h" />
-    <ClInclude Include="src\ECS\ShootComponent.h" />
     <ClInclude Include="src\ECS\SizeComponent.h" />
     <ClInclude Include="src\ECS\SpriteComponent.h" />
     <ClInclude Include="src\ECS\TransformComponent.h" />
