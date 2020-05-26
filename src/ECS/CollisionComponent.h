@@ -13,5 +13,4 @@ public:
 	void setColliding(bool colliding) { _colliding = colliding; }
 private:
 	bool _colliding;
-
 };
