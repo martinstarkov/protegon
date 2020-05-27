@@ -12,6 +12,8 @@ class Component;
 class Entity;
 class Manager;
 
+// add component bitsets for each entity and systems so they can check
+
 using ComponentMap = std::map<int, std::vector<Component*>>;
 using Group = std::size_t;
 
