@@ -11,6 +11,7 @@
 class Component;
 class Entity;
 class Manager;
+class ComponentManager;
 
 // add component bitsets for each entity and systems so they can check
 
