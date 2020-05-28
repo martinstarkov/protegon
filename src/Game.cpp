@@ -5,6 +5,7 @@
 //#include "GameWorld.h"
 #include "ECS/Components.h"
 #include "InputHandler.h"
+#include "TextureManager.h"
 
 #define FPS 60
 #define WINDOW_TITLE "Protegon"
@@ -22,8 +23,8 @@ bool Game::bulletTime = false;
 //std::vector<Entity*> Game::entities;
 int Game::attempts = 1;
 
-Manager manager;
-Entity& player(manager.addEntity());
+//Manager manager;
+//Entity& player(manager.addEntity());
 
 #define DRAG 0.1f
 
@@ -33,6 +34,9 @@ void Game::init() {
 		//cycle = 0;
 		TextureManager::getInstance();
 		InputHandler::getInstance();
+
+
+
 		//GameWorld::getInstance();
 		//LevelController::loadLevel(new Level("./resources/levels/level0.json"));
 		//LevelController::loadLevel(new Level("./resources/levels/level1.json"));
@@ -45,8 +49,9 @@ void Game::init() {
 		//TextureManager::load("player", "./resources/textures/player.png");
 		//instructions();
 
-		player.add<MotionComponent>(Vec2D(), Vec2D(10, 10));
-		player.add<SpriteComponent>("./resources/textures/player.png", AABB(0, 0, 16, 16));
+		//player.add<MotionComponent>(Vec2D(), Vec2D(10, 10));
+		//player.add<SpriteComponent>("./resources/textures/player.png", AABB(0, 0, 16, 16));
+
 	}
 }
 
@@ -78,8 +83,8 @@ void Game::instructions() {
 
 void Game::update() {
 	InputHandler::update();
-	manager.refresh();
-	manager.update();
+	//manager.refresh();
+	//manager.update();
 	//for (auto s : manager.getGroup(Groups::shooters)) {
 	//	//Entity& projectile(manager.addEntity());
 	//}
@@ -147,7 +152,7 @@ void Game::update() {
 void Game::render() {
 	SDL_RenderClear(renderer);
 	SDL_SetRenderDrawColor(Game::getRenderer(), DEFAULT_RENDER_COLOR.r, DEFAULT_RENDER_COLOR.g, DEFAULT_RENDER_COLOR.b, DEFAULT_RENDER_COLOR.a);
-	manager.draw();
+	//manager.draw();
 	SDL_RenderPresent(renderer); 
 	// display
 	////SDL_SetRenderDrawColor(renderer, player->getColor().r, player->getColor().g, player->getColor().b, player->getColor().a);

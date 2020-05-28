@@ -177,16 +177,12 @@
     <ClInclude Include="src\AABB.h" />
     <ClInclude Include="src\ECS\AABBComponent.h" />
     <ClInclude Include="src\ECS\CollisionComponent.h" />
-    <ClInclude Include="src\ECS\ColorComponent.h" />
     <ClInclude Include="src\ECS\Components.h" />
     <ClInclude Include="src\ECS\DirectionComponent.h" />
     <ClInclude Include="src\ECS\DrawComponent.h" />
     <ClInclude Include="src\ECS\ECS.h" />
     <ClInclude Include="src\ECS\HitboxComponent.h" />
     <ClInclude Include="src\ECS\KeyboardComponent.h" />
-    <ClInclude Include="src\ECS\MotionComponent.h" />
-    <ClInclude Include="src\ECS\SizeComponent.h" />
-    <ClInclude Include="src\ECS\SpriteComponent.h" />
     <ClInclude Include="src\ECS\TransformComponent.h" />
     <ClInclude Include="src\Game.h" />
     <ClInclude Include="src\InputHandler.h" />
