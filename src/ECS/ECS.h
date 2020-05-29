@@ -13,7 +13,12 @@
 
 
 
+class Manager;
 
+class Manager {
+public:
+private:
+};
 
 
 
