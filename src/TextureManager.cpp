@@ -6,6 +6,10 @@ TextureManager* TextureManager::instance = nullptr;
 std::map<const char*, SDL_Texture*> TextureManager::textureMap;
 
 SDL_Texture* TextureManager::load(const char* path) {
+	auto it = textureMap.find(path);
+	if (it != textureMap.end()) { // exit early if texture exists
+		return (*it).second;
+	}
 	SDL_Texture* texture = nullptr;
 	SDL_Surface* tempSurface = IMG_Load(path);
 	if (tempSurface == 0) {
@@ -15,11 +19,7 @@ SDL_Texture* TextureManager::load(const char* path) {
 	texture = SDL_CreateTextureFromSurface(Game::getRenderer(), tempSurface);
 	SDL_FreeSurface(tempSurface);
 	if (texture) {
-		if (textureMap.find(path) == textureMap.end()) { // add texture to map
-			textureMap.insert({ path, texture }); 
-		} else { // already contains texture, replace
-			textureMap[path] = texture;
-		}
+		textureMap.insert({ path, texture }); 
 	} else {
 		std::cout << "Failed to SDL_CreateTextureFromSurface with path: '" << path << "'" << std::endl;
 	}
