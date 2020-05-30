@@ -1,6 +1,6 @@
 #pragma once
 //
-//#include <iostream>
+#include <iostream>
 //#include <vector>
 //#include <memory>
 //#include <algorithm>
@@ -8,17 +8,85 @@
 //#include <array>
 //#include <map>
 //
+#include "../TextureManager.h"
+
+#include "Components.h"
 
 
-
-
-
+class Component;
 class Manager;
+
+#define ENTITY_COUNT 100
+
+using Entity = std::size_t;
 
 class Manager {
 public:
+	int masks[ENTITY_COUNT];
+	Displacement displacements[ENTITY_COUNT];
+	Velocity velocities[ENTITY_COUNT];
+	Appearance appearances[ENTITY_COUNT];
+	Entity createEntity() {
+		Entity entity;
+		for (entity = 0; entity < ENTITY_COUNT; ++entity) {
+			if (masks[entity] == COMPONENT_NONE) {
+				printf("Entity created: %d\n", entity);
+				return(entity);
+			}
+		}
+
+		printf("Error!  No more entities left!\n");
+		return(ENTITY_COUNT);
+	}
+	void destroyEntity(Entity entity) {
+		printf("Entity destroyed: %d\n", entity);
+		masks[entity] = COMPONENT_NONE;
+	}
+	Entity createTree(float x, float y) {
+		Entity entity = createEntity();
+
+		masks[entity] = COMPONENT_DISPLACEMENT | COMPONENT_APPEARANCE;
+
+		displacements[entity].x = x;
+		displacements[entity].y = y;
+
+		appearances[entity].name = "enemy";
+		appearances[entity].texture = TextureManager::load("./resources/textures/enemy.png");
+
+		return(entity);
+	}
+	Entity createBox(float x, float y, float vx, float vy) {
+		Entity entity = createEntity();
+
+		masks[entity] = COMPONENT_DISPLACEMENT | COMPONENT_VELOCITY | COMPONENT_APPEARANCE;
+
+		displacements[entity].x = x;
+		displacements[entity].y = y;
+
+		velocities[entity].x = vx;
+		velocities[entity].y = vy;
+
+		appearances[entity].name = "player";
+		appearances[entity].texture = TextureManager::load("./resources/textures/player.png");
+
+		return(entity);
+	}
+	Entity createGhost(float x, float y, float vx, float vy) {
+		Entity entity = createEntity();
+
+		masks[entity] = COMPONENT_DISPLACEMENT | COMPONENT_VELOCITY;
+
+		displacements[entity].x = x;
+		displacements[entity].y = y;
+
+		velocities[entity].x = vx;
+		velocities[entity].y = vy;
+
+		return(entity);
+	}
 private:
 };
+
 
 
 
