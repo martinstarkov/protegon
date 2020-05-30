@@ -183,6 +183,7 @@
     <ClInclude Include="src\ECS\ECS.h" />
     <ClInclude Include="src\ECS\HitboxComponent.h" />
     <ClInclude Include="src\ECS\KeyboardComponent.h" />
+    <ClInclude Include="src\ECS\Systems.h" />
     <ClInclude Include="src\ECS\TransformComponent.h" />
     <ClInclude Include="src\Game.h" />
     <ClInclude Include="src\InputHandler.h" />
