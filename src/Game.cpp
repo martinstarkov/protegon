@@ -4,6 +4,8 @@
 //#include "WinBlock.h"
 //#include "GameWorld.h"
 #include "ECS/Components.h"
+#include "ECS/Systems.h"
+#include "ECS/ECS.h"
 #include "InputHandler.h"
 #include "TextureManager.h"
 
@@ -28,6 +30,13 @@ int Game::attempts = 1;
 
 #define DRAG 0.1f
 
+#define MOVEMENT_MASK (COMPONENT_DISPLACEMENT | COMPONENT_VELOCITY)
+#define RENDER_MASK (COMPONENT_DISPLACEMENT | COMPONENT_APPEARANCE)
+
+Manager manager;
+MovementSystem ms(manager, MOVEMENT_MASK);
+RenderSystem rs(manager, RENDER_MASK);
+
 void Game::init() {
 	if (initSDL()) {
 		running = true;
@@ -36,6 +45,12 @@ void Game::init() {
 		InputHandler::getInstance();
 
 
+		Entity tree, box, ghost;
+
+		tree = manager.createTree(20.0f, 20.0f);
+		box = manager.createBox(100.0f, 100.0f, 0.1f, 0.1f);
+		box = manager.createBox(70.0f, 100.0f, 0.3f, 0.0f);
+		ghost = manager.createGhost(150.0f, 150.0f, 0.0f, 0.0f);
 
 		//GameWorld::getInstance();
 		//LevelController::loadLevel(new Level("./resources/levels/level0.json"));
@@ -83,6 +98,7 @@ void Game::instructions() {
 
 void Game::update() {
 	InputHandler::update();
+	ms.update();
 	//manager.refresh();
 	//manager.update();
 	//for (auto s : manager.getGroup(Groups::shooters)) {
@@ -153,6 +169,7 @@ void Game::render() {
 	SDL_RenderClear(renderer);
 	SDL_SetRenderDrawColor(Game::getRenderer(), DEFAULT_RENDER_COLOR.r, DEFAULT_RENDER_COLOR.g, DEFAULT_RENDER_COLOR.b, DEFAULT_RENDER_COLOR.a);
 	//manager.draw();
+	rs.update();
 	SDL_RenderPresent(renderer); 
 	// display
 	////SDL_SetRenderDrawColor(renderer, player->getColor().r, player->getColor().g, player->getColor().b, player->getColor().a);
