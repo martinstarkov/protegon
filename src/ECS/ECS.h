@@ -1,10 +1,10 @@
 #pragma once
 //
 #include <iostream>
-//#include <vector>
+#include <vector>
 //#include <memory>
 //#include <algorithm>
-//#include <bitset>
+#include <bitset>
 //#include <array>
 //#include <map>
 //
@@ -19,33 +19,39 @@ class Manager;
 #define ENTITY_COUNT 100
 
 using Entity = std::size_t;
+using EntityBitset = std::bitset<ENTITY_COUNT>;
+using Entities = std::vector<Entity>*;
+using Signature = int;
+using SignatureEntityPair = std::pair<Signature, Entities>;
+using Signatures = std::vector<SignatureEntityPair>;
 
 class Manager {
 public:
-	int masks[ENTITY_COUNT];
 	Displacement displacements[ENTITY_COUNT];
 	Velocity velocities[ENTITY_COUNT];
 	Appearance appearances[ENTITY_COUNT];
 	Entity createEntity() {
 		Entity entity;
 		for (entity = 0; entity < ENTITY_COUNT; ++entity) {
-			if (masks[entity] == COMPONENT_NONE) {
+			if (!entities[entity]) {
 				printf("Entity created: %d\n", entity);
+				entities[entity] = true;
 				return(entity);
 			}
 		}
-
 		printf("Error!  No more entities left!\n");
 		return(ENTITY_COUNT);
 	}
 	void destroyEntity(Entity entity) {
 		printf("Entity destroyed: %d\n", entity);
-		masks[entity] = COMPONENT_NONE;
+		entities[entity] = false;
 	}
 	Entity createTree(float x, float y) {
 		Entity entity = createEntity();
 
-		masks[entity] = COMPONENT_DISPLACEMENT | COMPONENT_APPEARANCE;
+		Signature signature = COMPONENT_DISPLACEMENT | COMPONENT_APPEARANCE | COMPONENT_COOLNESS;
+		Entities e = getEntities(signature);
+		e->push_back(entity);
 
 		displacements[entity].x = x;
 		displacements[entity].y = y;
@@ -58,7 +64,9 @@ public:
 	Entity createBox(float x, float y, float vx, float vy) {
 		Entity entity = createEntity();
 
-		masks[entity] = COMPONENT_DISPLACEMENT | COMPONENT_VELOCITY | COMPONENT_APPEARANCE;
+		Signature signature = COMPONENT_DISPLACEMENT | COMPONENT_APPEARANCE | COMPONENT_VELOCITY;
+		Entities e = getEntities(signature);
+		e->push_back(entity);
 
 		displacements[entity].x = x;
 		displacements[entity].y = y;
@@ -74,7 +82,9 @@ public:
 	Entity createGhost(float x, float y, float vx, float vy) {
 		Entity entity = createEntity();
 
-		masks[entity] = COMPONENT_DISPLACEMENT | COMPONENT_VELOCITY;
+		Signature signature = COMPONENT_DISPLACEMENT | COMPONENT_VELOCITY;
+		Entities e = getEntities(signature);
+		e->push_back(entity);
 
 		displacements[entity].x = x;
 		displacements[entity].y = y;
@@ -84,7 +94,29 @@ public:
 
 		return(entity);
 	}
+	Entities getEntities(Signature signature) {
+		for (auto it = signatures.begin(); it != signatures.end(); it++) {
+			if ((*it).first == signature) {
+				return (*it).second;
+			}
+		}
+		Entities e = new std::vector<Entity>();
+		std::pair<Signature, Entities> p = { signature, e };
+		signatures.push_back(p);
+		return e;
+	}
+	Signatures matchingSignatures(Signature signature) {
+		Signatures s;
+		for (auto it = signatures.begin(); it != signatures.end(); it++) {
+			if (((*it).first & signature) == signature) {
+				s.push_back(*it);
+			}
+		}
+		return s;
+	}
 private:
+	Signatures signatures;
+	EntityBitset entities;
 };
 
 
