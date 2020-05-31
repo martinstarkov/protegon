@@ -13,7 +13,8 @@ enum Components {
 	COMPONENT_NONE = 0,
 	COMPONENT_DISPLACEMENT = 1 << 0,
 	COMPONENT_VELOCITY = 1 << 1,
-	COMPONENT_APPEARANCE = 1 << 2
+	COMPONENT_APPEARANCE = 1 << 2,
+	COMPONENT_COOLNESS = 1 << 16
 };
 
 struct Displacement : public Component {
