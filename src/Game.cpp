@@ -47,10 +47,11 @@ void Game::init() {
 
 		Entity tree, box, ghost;
 
-		tree = manager.createTree(20.0f, 20.0f);
-		box = manager.createBox(100.0f, 100.0f, 0.1f, 0.1f);
-		box = manager.createBox(70.0f, 100.0f, 0.3f, 0.0f);
-		ghost = manager.createGhost(150.0f, 150.0f, 0.0f, 0.0f);
+		tree = manager.createTree(20.0f, 20.0f); // 0
+		tree = manager.createTree(20.0f, 50.0f); // 1
+		box = manager.createBox(100.0f, 100.0f, 0.1f, 0.1f); // 2
+		box = manager.createBox(70.0f, 100.0f, 0.3f, 0.0f); // 3
+		ghost = manager.createGhost(150.0f, 150.0f, 0.0f, 0.0f); // 4
 
 		//GameWorld::getInstance();
 		//LevelController::loadLevel(new Level("./resources/levels/level0.json"));
