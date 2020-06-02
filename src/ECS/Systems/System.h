@@ -1,31 +1,37 @@
 #pragma once
-#include "BaseSystem.h"
-#include "Entity.h"
-#include "Components.h"
+
 #include <vector>
 #include <tuple>
 #include <cstddef>
 #include <map>
 #include <iostream>
+#include <utility>
+
+#include "./ECS/Entity.h"
+#include "./ECS/Systems/BaseSystem.h"
+#include "./ECS/Components.h"
 
 template <class... Components>
 class System : public BaseSystem {
 protected:
 	using ComponentTuple = std::tuple<std::add_pointer_t<Components>...>;
-	std::vector<ComponentTuple> _components;
+	Entities _entities;
 public:
-	System(Manager* manager) : BaseSystem(manager) {}
 	virtual void onEntityCreated(Entity* entity) override final;
 	virtual void onEntityDestroyed(EntityID entityID) override final;
-private:
-	using EntityIDToIndexMap = std::map<EntityID, std::size_t>;
-	EntityIDToIndexMap _entityIDToIndexMap;
 private:
 	template <std::size_t INDEX, class ComponentType, class... ComponentArgs> 
 	bool processEntityComponent(ComponentID componentID, Component* component, ComponentTuple& tupleToFill);
 	template <std::size_t INDEX> 
 	bool processEntityComponent(ComponentID componentID, Component* component, ComponentTuple& tupleToFill);
 };
+
+//template<size_t I = 0, typename... Tp>
+//void print(std::tuple<Tp...>& t) {
+//	std::cout << typeid(*std::get<I>(t)).name() << " ";
+//	if constexpr (I + 1 != sizeof...(Tp))
+//		print<I + 1>(t);
+//}
 
 template<class... Components>
 void System<Components...>::onEntityCreated(Entity* entity) {
@@ -35,9 +41,7 @@ void System<Components...>::onEntityCreated(Entity* entity) {
 		if (processEntityComponent<0, Components...>(componentPair.first, componentPair.second, componentTuple)) {
 			++matchingComponents;
 			if (matchingComponents == sizeof...(Components)) {
-				_components.emplace_back(std::move(componentTuple));
-				_entityIDToIndexMap.emplace(entity->getID(), _components.size() - 1);
-				std::cout << "Emplacing " << entity->getID() << std::endl; // figure out why emplacing happens twice sometimes
+				_entities.emplace(entity->getID(), entity);
 				break;
 			}
 		}
@@ -46,21 +50,9 @@ void System<Components...>::onEntityCreated(Entity* entity) {
 
 template<class ...Components>
 inline void System<Components...>::onEntityDestroyed(EntityID entityID) {
-	const auto it = _entityIDToIndexMap.find(entityID);
-	if (it != _entityIDToIndexMap.end()) {
-		std::cout << "1" << std::endl;
-		_components[it->second] = std::move(_components.back());
-		std::cout << "2" << std::endl;
-		_components.pop_back();
-		std::cout << "3" << std::endl;
-		Component* movedComponent = std::get<0>(_components[it->second]); // ghost3 doesn't get through this step // debug assert failure
-		std::cout << "4" << std::endl;
-		auto movedTupleIt = _entityIDToIndexMap.find(movedComponent->getEntityID());
-		std::cout << "5" << std::endl;
-		if (movedTupleIt != _entityIDToIndexMap.end()) {
-			std::cout << "Moving" << std::endl;
-			movedTupleIt->second = it->second;
-		}
+	auto it = _entities.find(entityID);
+	if (it != _entities.end()) {
+		_entities.erase(it);
 	}
 }
 
