@@ -1,37 +1,16 @@
 #pragma once
-#include "Components.h"
+#include "Component.h"
 #include "../Vec2D.h"
 
-class MotionComponent : public Component {
-public:
-	MotionComponent(Vec2D velocity = Vec2D(), Vec2D terminalVelocity = Vec2D().infinite(), Vec2D acceleration = Vec2D()) {
-		_velocity = velocity;
-		_terminalVelocity = terminalVelocity;
-		_acceleration = acceleration;
-	}
-	void init() override {
-		entity->addGroup(Groups::dynamics);
-	}
-	Vec2D getVelocity() { return _velocity; }
-	void setVelocity(Vec2D velocity) {
-		_velocity = velocity;
-	}
-	void addVelocity(Vec2D deltaVelocity) {
-		_velocity += deltaVelocity;
-	}
-	Vec2D getTerminalVelocity() { return _terminalVelocity; }
-	void setTerminalVelocity(Vec2D terminalVelocity) {
-		_terminalVelocity = terminalVelocity;
-	}
-	Vec2D getAcceleration() { return _acceleration; }
-	void setAcceleration(Vec2D acceleration) {
-		_acceleration = acceleration;
-	}
-	void addAcceleration(Vec2D deltaAcceleration) {
-		_acceleration += deltaAcceleration;
-	}
-private:
+struct MotionComponent : public Component {
+	static ComponentID ID;
 	Vec2D _velocity;
 	Vec2D _terminalVelocity;
 	Vec2D _acceleration;
+	MotionComponent(EntityID id, Vec2D velocity = Vec2D(), Vec2D acceleration = Vec2D(), Vec2D terminalVelocity = Vec2D().infinite()) : _velocity(velocity), _acceleration(acceleration), _terminalVelocity(terminalVelocity) {
+		ID = createComponentID<MotionComponent>();
+		_entityID = id;
+	}
 };
+
+ComponentID MotionComponent::ID = 0;

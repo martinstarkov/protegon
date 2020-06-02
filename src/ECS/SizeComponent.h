@@ -1,16 +1,14 @@
 #pragma once
-#include "Components.h"
+#include "Component.h"
 #include "../Vec2D.h"
 
-class SizeComponent : public Component {
-public:
-	SizeComponent(Vec2D size = Vec2D()) {
-		_size = size;
-	}
-	Vec2D getSize() { return _size; }
-	void setSize(Vec2D size) {
-		_size = size;
-	}
-private:
+struct SizeComponent : public Component {
+	static ComponentID ID;
 	Vec2D _size;
+	SizeComponent(EntityID id, Vec2D size = Vec2D()) : _size(size) {
+		ID = createComponentID<SizeComponent>();
+		_entityID = id;
+	}
 };
+
+ComponentID SizeComponent::ID = 0;
