@@ -1,6 +1,11 @@
 #pragma once
 
-#include "TransformComponent.h"
-#include "SizeComponent.h"
-#include "SpriteComponent.h"
-#include "MotionComponent.h"
+#include "Components/Component.h"
+
+#include "Components/TransformComponent.h"
+#include "Components/SizeComponent.h"
+#include "Components/SpriteComponent.h"
+#include "Components/MotionComponent.h"
+#include "Components/GravityComponent.h"
+#include "Components/LifetimeComponent.h"
+#include "Components/RenderComponent.h"

@@ -3,7 +3,6 @@
 //#include "Player.h"
 //#include "Camera.h"
 //#include "LevelController.h"
-//#include "Entities.h"
 
 InputHandler* InputHandler::instance = nullptr;
 const Uint8* InputHandler::states = nullptr;
