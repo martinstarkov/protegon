@@ -174,8 +174,8 @@
     <Image Include="resources\textures\player.png" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\ECS\BaseSystem.h" />
-    <ClInclude Include="src\ECS\Component.h" />
+    <ClInclude Include="src\ECS\Systems\BaseSystem.h" />
+    <ClInclude Include="src\ECS\Components\Component.h" />
     <ClInclude Include="src\ECS\Components.h" />
     <ClInclude Include="src\ECS\Entity.h" />
     <ClInclude Include="src\AABB.h" />
@@ -183,17 +183,22 @@
     <ClInclude Include="src\ECS\CollisionComponent.h" />
     <ClInclude Include="src\ECS\DirectionComponent.h" />
     <ClInclude Include="src\ECS\DrawComponent.h" />
+    <ClInclude Include="src\ECS\Components\GravityComponent.h" />
+    <ClInclude Include="src\ECS\Systems\GravitySystem.h" />
+    <ClInclude Include="src\ECS\Components\LifetimeComponent.h" />
+    <ClInclude Include="src\ECS\Systems\LifetimeSystem.h" />
     <ClInclude Include="src\ECS\Manager.h" />
     <ClInclude Include="src\ECS\HitboxComponent.h" />
     <ClInclude Include="src\ECS\KeyboardComponent.h" />
-    <ClInclude Include="src\ECS\MotionComponent.h" />
-    <ClInclude Include="src\ECS\MovementSystem.h" />
-    <ClInclude Include="src\ECS\RenderSystem.h" />
-    <ClInclude Include="src\ECS\SizeComponent.h" />
-    <ClInclude Include="src\ECS\SpriteComponent.h" />
-    <ClInclude Include="src\ECS\System.h" />
+    <ClInclude Include="src\ECS\Components\MotionComponent.h" />
+    <ClInclude Include="src\ECS\Systems\MovementSystem.h" />
+    <ClInclude Include="src\ECS\Components\RenderComponent.h" />
+    <ClInclude Include="src\ECS\Systems\RenderSystem.h" />
+    <ClInclude Include="src\ECS\Components\SizeComponent.h" />
+    <ClInclude Include="src\ECS\Components\SpriteComponent.h" />
+    <ClInclude Include="src\ECS\Systems\System.h" />
     <ClInclude Include="src\ECS\Systems.h" />
-    <ClInclude Include="src\ECS\TransformComponent.h" />
+    <ClInclude Include="src\ECS\Components\TransformComponent.h" />
     <ClInclude Include="src\ECS\Types.h" />
     <ClInclude Include="src\Game.h" />
     <ClInclude Include="src\InputHandler.h" />
