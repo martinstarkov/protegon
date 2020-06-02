@@ -3,9 +3,7 @@
 //#include "KillBlock.h"
 //#include "WinBlock.h"
 //#include "GameWorld.h"
-#include "ECS/Components.h"
-#include "ECS/Systems.h"
-#include "ECS/ECS.h"
+#include "ECS/Manager.h"
 #include "InputHandler.h"
 #include "TextureManager.h"
 
@@ -30,12 +28,25 @@ int Game::attempts = 1;
 
 #define DRAG 0.1f
 
-#define MOVEMENT_MASK (COMPONENT_DISPLACEMENT | COMPONENT_VELOCITY)
-#define RENDER_MASK (COMPONENT_DISPLACEMENT | COMPONENT_APPEARANCE)
+//#define MOVEMENT_MASK (COMPONENT_DISPLACEMENT | COMPONENT_VELOCITY)
+//#define RENDER_MASK (COMPONENT_DISPLACEMENT | COMPONENT_APPEARANCE)
 
 Manager manager;
-MovementSystem ms(manager, MOVEMENT_MASK);
-RenderSystem rs(manager, RENDER_MASK);
+//MovementSystem ms(manager, MOVEMENT_MASK);
+//RenderSystem rs(manager, RENDER_MASK);
+
+Entity* tree1;
+Entity* tree2;
+Entity* tree3;
+Entity* tree4;
+Entity* box1;
+Entity* box2;
+Entity* box3;
+Entity* box4;
+Entity* ghost1;
+Entity* ghost2;
+Entity* ghost3;
+Entity* ghost4;
 
 void Game::init() {
 	if (initSDL()) {
@@ -43,15 +54,29 @@ void Game::init() {
 		//cycle = 0;
 		TextureManager::getInstance();
 		InputHandler::getInstance();
+		manager.init();
+		//Entity tree, box, ghost;
 
+		tree1 = &manager.createTree(40.0f, 40.0f);
+		tree2 = &manager.createTree(40.0f * 2, 40.0f);
+		tree3 = &manager.createTree(40.0f * 3, 40.0f);
+		tree4 = &manager.createTree(40.0f * 4, 40.0f);
 
-		Entity tree, box, ghost;
+		box1 = &manager.createBox(40.0f * 2, 40.0f * 2);
+		box2 = &manager.createBox(40.0f * 2, 40.0f * 3);
+		box3 = &manager.createBox(40.0f * 2, 40.0f * 4);
+		box4 = &manager.createBox(40.0f * 2, 40.0f * 5);
 
-		tree = manager.createTree(20.0f, 20.0f); // 0
-		tree = manager.createTree(20.0f, 50.0f); // 1
-		box = manager.createBox(100.0f, 100.0f, 0.1f, 0.1f); // 2
-		box = manager.createBox(70.0f, 100.0f, 0.3f, 0.0f); // 3
-		ghost = manager.createGhost(150.0f, 150.0f, 0.0f, 0.0f); // 4
+		ghost1 = &manager.createGhost(20.0f, 20.0f);
+		ghost2 = &manager.createGhost(20.0f, 20.0f * 2);
+		ghost3 = &manager.createGhost(20.0f, 20.0f * 3);
+		ghost4 = &manager.createGhost(20.0f, 20.0f * 4);
+
+		//tree = manager.createTree(20.0f, 20.0f); // 0
+		//tree = manager.createTree(20.0f, 50.0f); // 1
+		//box = manager.createBox(100.0f, 100.0f, 0.1f, 0.1f); // 2
+		//box = manager.createBox(70.0f, 100.0f, 0.3f, 0.0f); // 3
+		//ghost = manager.createGhost(150.0f, 150.0f, 0.0f, 0.0f); // 4
 
 		//GameWorld::getInstance();
 		//LevelController::loadLevel(new Level("./resources/levels/level0.json"));
@@ -99,7 +124,31 @@ void Game::instructions() {
 
 void Game::update() {
 	InputHandler::update();
-	ms.update();
+	manager.update();
+	std::cout << "#" << cycle << " : ";
+	manager.getSystem<MovementSystem>()->update();
+	//if (cycle == 200) {
+	//	std::cout << "Deleting trees: " << tree1->getID() << "," << tree2->getID() << "," << tree3->getID() << "," << tree4->getID() << std::endl;
+	//	manager.destroyEntity(tree1->getID());
+	//	manager.destroyEntity(tree2->getID());
+	//	manager.destroyEntity(tree3->getID());
+	//	manager.destroyEntity(tree4->getID());
+	//}
+	//if (cycle == 300) {
+	//	std::cout << "Deleting ghosts: " << ghost1->getID() << "," << ghost2->getID() << "," << ghost3->getID() << "," << ghost4->getID() << std::endl;
+	//	manager.destroyEntity(ghost1->getID());
+	//	manager.destroyEntity(ghost2->getID());
+	//	manager.destroyEntity(ghost3->getID());
+	//	manager.destroyEntity(ghost4->getID());
+	//}
+	//if (cycle == 400) {
+	//	std::cout << "Deleting boxes: " << box1->getID() << "," << box2->getID() << "," << box3->getID() << "," << box4->getID() << std::endl;
+	//	manager.destroyEntity(box1->getID());
+	//	manager.destroyEntity(box2->getID());
+	//	manager.destroyEntity(box3->getID());
+	//	manager.destroyEntity(box4->getID());
+	//}
+	//ms.update();
 	//manager.refresh();
 	//manager.update();
 	//for (auto s : manager.getGroup(Groups::shooters)) {
@@ -169,8 +218,10 @@ void Game::update() {
 void Game::render() {
 	SDL_RenderClear(renderer);
 	SDL_SetRenderDrawColor(Game::getRenderer(), DEFAULT_RENDER_COLOR.r, DEFAULT_RENDER_COLOR.g, DEFAULT_RENDER_COLOR.b, DEFAULT_RENDER_COLOR.a);
+	manager.getSystem<RenderSystem>()->update();
+	std::cout << std::endl;
 	//manager.draw();
-	rs.update();
+	//rs.update();
 	SDL_RenderPresent(renderer); 
 	// display
 	////SDL_SetRenderDrawColor(renderer, player->getColor().r, player->getColor().g, player->getColor().b, player->getColor().a);
