@@ -193,7 +193,6 @@
     <ClInclude Include="src\ECS\SpriteComponent.h" />
     <ClInclude Include="src\ECS\System.h" />
     <ClInclude Include="src\ECS\Systems.h" />
-    <ClInclude Include="src\ECS\SystemTypes.h" />
     <ClInclude Include="src\ECS\TransformComponent.h" />
     <ClInclude Include="src\ECS\Types.h" />
     <ClInclude Include="src\Game.h" />
@@ -202,7 +201,6 @@
     <ClInclude Include="src\Vec2D.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\ECS\Entity.cpp" />
     <ClCompile Include="src\Game.cpp" />
     <ClCompile Include="src\InputHandler.cpp" />
     <ClCompile Include="src\main.cpp" />
