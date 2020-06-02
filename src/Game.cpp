@@ -55,28 +55,23 @@ void Game::init() {
 		TextureManager::getInstance();
 		InputHandler::getInstance();
 		manager.init();
-		//Entity tree, box, ghost;
 
-		tree1 = &manager.createTree(40.0f, 40.0f);
-		tree2 = &manager.createTree(40.0f * 2, 40.0f);
-		tree3 = &manager.createTree(40.0f * 3, 40.0f);
-		tree4 = &manager.createTree(40.0f * 4, 40.0f);
+		tree1 = manager.createEntity()->tree(40.0f, 40.0f);
+		tree2 = manager.createEntity()->tree(40.0f * 2, 40.0f);
+		tree3 = manager.createEntity()->tree(40.0f * 3, 40.0f);
+		tree4 = manager.createEntity()->tree(40.0f * 4, 40.0f);
 
-		box1 = &manager.createBox(40.0f * 2, 40.0f * 2);
-		box2 = &manager.createBox(40.0f * 2, 40.0f * 3);
-		box3 = &manager.createBox(40.0f * 2, 40.0f * 4);
-		box4 = &manager.createBox(40.0f * 2, 40.0f * 5);
+		box1 = manager.createEntity()->box(40.0f * 2, 60.0f * 2);
+		box2 = manager.createEntity()->box(40.0f * 2, 60.0f * 3);
+		box3 = manager.createEntity()->box(40.0f * 2, 60.0f * 4);
+		box4 = manager.createEntity()->box(40.0f * 2, 60.0f * 5);
 
-		ghost1 = &manager.createGhost(20.0f, 20.0f);
-		ghost2 = &manager.createGhost(20.0f, 20.0f * 2);
-		ghost3 = &manager.createGhost(20.0f, 20.0f * 3);
-		ghost4 = &manager.createGhost(20.0f, 20.0f * 4);
+		ghost1 = manager.createEntity()->ghost(20.0f, 20.0f);
+		ghost2 = manager.createEntity()->ghost(20.0f, 20.0f * 2);
+		ghost3 = manager.createEntity()->ghost(20.0f, 20.0f * 3);
+		ghost4 = manager.createEntity()->ghost(20.0f, 20.0f * 4);
 
-		//tree = manager.createTree(20.0f, 20.0f); // 0
-		//tree = manager.createTree(20.0f, 50.0f); // 1
-		//box = manager.createBox(100.0f, 100.0f, 0.1f, 0.1f); // 2
-		//box = manager.createBox(70.0f, 100.0f, 0.3f, 0.0f); // 3
-		//ghost = manager.createGhost(150.0f, 150.0f, 0.0f, 0.0f); // 4
+		manager.refreshSystems();
 
 		//GameWorld::getInstance();
 		//LevelController::loadLevel(new Level("./resources/levels/level0.json"));
@@ -89,9 +84,6 @@ void Game::init() {
 		//camera = Camera::getInstance();
 		//TextureManager::load("player", "./resources/textures/player.png");
 		//instructions();
-
-		//player.add<MotionComponent>(Vec2D(), Vec2D(10, 10));
-		//player.add<SpriteComponent>("./resources/textures/player.png", AABB(0, 0, 16, 16));
 
 	}
 }
@@ -124,24 +116,24 @@ void Game::instructions() {
 
 void Game::update() {
 	InputHandler::update();
-	manager.update();
-	std::cout << "#" << cycle << " : ";
-	manager.getSystem<MovementSystem>()->update();
-	//if (cycle == 200) {
+	std::cout << std::endl;
+	manager.updateSystems();
+	//std::cout << (float)SDL_GetTicks() / 1000.0f << "s : " << std::endl;
+	//if (cycle == 100) {
 	//	std::cout << "Deleting trees: " << tree1->getID() << "," << tree2->getID() << "," << tree3->getID() << "," << tree4->getID() << std::endl;
 	//	manager.destroyEntity(tree1->getID());
 	//	manager.destroyEntity(tree2->getID());
 	//	manager.destroyEntity(tree3->getID());
 	//	manager.destroyEntity(tree4->getID());
 	//}
-	//if (cycle == 300) {
+	//if (cycle == 200) {
 	//	std::cout << "Deleting ghosts: " << ghost1->getID() << "," << ghost2->getID() << "," << ghost3->getID() << "," << ghost4->getID() << std::endl;
 	//	manager.destroyEntity(ghost1->getID());
 	//	manager.destroyEntity(ghost2->getID());
 	//	manager.destroyEntity(ghost3->getID());
 	//	manager.destroyEntity(ghost4->getID());
 	//}
-	//if (cycle == 400) {
+	//if (cycle == 300) {
 	//	std::cout << "Deleting boxes: " << box1->getID() << "," << box2->getID() << "," << box3->getID() << "," << box4->getID() << std::endl;
 	//	manager.destroyEntity(box1->getID());
 	//	manager.destroyEntity(box2->getID());
@@ -219,10 +211,10 @@ void Game::render() {
 	SDL_RenderClear(renderer);
 	SDL_SetRenderDrawColor(Game::getRenderer(), DEFAULT_RENDER_COLOR.r, DEFAULT_RENDER_COLOR.g, DEFAULT_RENDER_COLOR.b, DEFAULT_RENDER_COLOR.a);
 	manager.getSystem<RenderSystem>()->update();
-	std::cout << std::endl;
 	//manager.draw();
 	//rs.update();
-	SDL_RenderPresent(renderer); 
+	SDL_RenderPresent(renderer);
+	manager.refresh();
 	// display
 	////SDL_SetRenderDrawColor(renderer, player->getColor().r, player->getColor().g, player->getColor().b, player->getColor().a);
 	//TextureManager::draw("player", ((player->getHitbox() + camera->getPosition()) * camera->getScale()), 0.0f, SDL_RendererFlip(player->getDirection()));

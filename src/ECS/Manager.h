@@ -1,4 +1,5 @@
 #pragma once
+
 #include <iostream>
 #include <vector>
 #include <memory>
@@ -8,11 +9,16 @@
 #include <map>
 
 #include "Entity.h"
-
 #include "Systems.h"
 
 class Component;
-class BaseSystem;
+
+template<typename K, typename V>
+void print_map(std::map<K, V> const& m) {
+	for (auto const& pair : m) {
+		std::cout << "{" << pair.first << ": " << pair.second << "}\n";
+	}
+}
 
 static EntityID getNewEntityID() {
 	static EntityID lastID = 0U;
@@ -22,12 +28,18 @@ static EntityID getNewEntityID() {
 class Manager {
 private:
 	using SystemID = std::size_t;
-	//using Entities = ;
-	using Components = std::vector<std::vector<Component*>>;
 	using Systems = std::map<SystemID, BaseSystem*>;
-	std::map<EntityID, Entity*> entities;
-	Components components;
+	UniqueEntities entities;
 	Systems systems;
+	void destroyEntity(EntityID entityID) {
+		auto it = entities.find(entityID);
+		if (it != entities.end()) {
+			for (auto& pair : systems) {
+				pair.second->onEntityDestroyed(entityID);
+			}
+			entities.erase(entityID);
+		}
+	}
 public:
 	Manager(const Manager&) = delete;
 	Manager& operator=(const Manager&) = delete;
@@ -38,73 +50,57 @@ public:
 	bool init() {
 		createSystems();
 		for (auto& epair : entities) {
-			for (auto& spair : systems) {
-				spair.second->onEntityCreated(epair.second);
-			}
+			refreshSystems(epair.second.get());
 		}
 		return true;
 	}
-	void update() {
-	}
-	Entity& createEntity() {
+	Entity* createEntity() {
 		EntityID newID = getNewEntityID();
-		std::cout << "Created entity: " << newID << std::endl;
-		Entity* entity = new Entity(newID);
-		entities.insert({ newID, entity });
-		return *entity;
-	}
-	Entity& createTree(float x, float y) {
-		Entity& entity = createEntity();
-		entity.addComponent(new TransformComponent(entity.getID(), Vec2D(x, y)));
-		entity.addComponent(new SizeComponent(entity.getID(), Vec2D(32, 32)));
-		entity.addComponent(new SpriteComponent(entity.getID(), "./resources/textures/enemy.png", AABB(0, 0, 16, 16)));
-		for (auto& pair : systems) {
-			pair.second->onEntityCreated(&entity);
-		}
-		return entity;
-	}
-	Entity& createBox(float x, float y) {
-		Entity& entity = createEntity();
-		entity.addComponent(new TransformComponent(entity.getID(), Vec2D(x, y)));
-		entity.addComponent(new SizeComponent(entity.getID(), Vec2D(16, 16)));
-		entity.addComponent(new MotionComponent(entity.getID(), Vec2D(0.1f, 0.1f)));
-		entity.addComponent(new SpriteComponent(entity.getID(), "./resources/textures/player.png", AABB(0, 0, 16, 16)));
-		for (auto& pair : systems) {
-			pair.second->onEntityCreated(&entity);
-		}
-		return entity;
-	}
-	Entity& createGhost(float x, float y) {
-		Entity& entity = createEntity();
-		entity.addComponent(new TransformComponent(entity.getID(), Vec2D(x, y)));
-		entity.addComponent(new SizeComponent(entity.getID(), Vec2D(16, 16)));
-		entity.addComponent(new MotionComponent(entity.getID(), Vec2D(0.2f, 0.2f)));
-		for (auto& pair : systems) {
-			pair.second->onEntityCreated(&entity);
-		}
-		return entity;
-	}
-	void destroyEntity(EntityID entityID) {
-		auto it = entities.find(entityID);
-		if (it != entities.end()) {
-			std::cout << "Deleting: " << it->first << "," << it->second << std::endl;
-			for (auto& pair : systems) {
-				pair.second->onEntityDestroyed(entityID);
-			}
-			entities.erase(entityID);
-			//delete it->second;
-		}
+		std::unique_ptr<Entity> entity = std::make_unique<Entity>(newID);
+		Entity* temp = entity.get();
+		entities.emplace(newID, std::move(entity));
+		return temp;
 	}
 	void createSystems() {
-		RenderSystem* renderSystem = new RenderSystem(this);
-		SystemID ID1 = typeid(RenderSystem).hash_code();
-		if (systems.find(ID1) == systems.end()) {
-			systems.emplace(ID1, renderSystem);
+		createSystem<RenderSystem>();
+		createSystem<MovementSystem>();
+		createSystem<GravitySystem>();
+		createSystem<LifetimeSystem>();
+	}
+	void updateSystems() {
+		getSystem<GravitySystem>()->update();
+		getSystem<MovementSystem>()->update();
+		getSystem<LifetimeSystem>()->update();
+	}
+	void refreshSystems() {
+		for (auto& epair : entities) {
+			for (auto& spair : systems) {
+				spair.second->onEntityCreated(epair.second.get());
+			}
 		}
-		MovementSystem* movementSystem = new MovementSystem(this);
-		SystemID ID2 = typeid(MovementSystem).hash_code();
-		if (systems.find(ID2) == systems.end()) {
-			systems.emplace(ID2, movementSystem);
+	}
+	void refreshSystems(Entity* entity) {
+		for (auto& pair : systems) {
+			pair.second->onEntityCreated(entity);
+		}
+	}
+	void refresh() {
+		std::vector<Entity*> deletables;
+		for (auto& pair : entities) {
+			if (!pair.second->isAlive()) {
+				deletables.emplace_back(pair.second.get());
+			}
+		}
+		for (Entity* entity : deletables) {
+			destroyEntity(entity->getID());
+		}
+		deletables.clear();
+	}
+	template <typename TSystem> void createSystem() {
+		TSystem* system = new TSystem();
+		SystemID ID = typeid(TSystem).hash_code();
+		if (systems.find(ID) == systems.end()) {
+			systems.emplace(ID, system);
 		}
 	}
 	template <typename TSystem> TSystem* getSystem() {
