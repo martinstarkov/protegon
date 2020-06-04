@@ -1,7 +1,10 @@
 #pragma once
-#include "../Types.h"
-#include "../Components.h"
+
+#include <algorithm>
+
 #include "BaseSystem.h"
+
+#include "../Components.h"
 #include "../Entity.h"
 
 static void printSignature(const Signature& s) {
@@ -14,33 +17,43 @@ static void printSignature(const Signature& s) {
 template <class... Components>
 class System : public BaseSystem {
 public:
-	System() {
+	System() : _manager(nullptr) { // _manager set by setManager method to avoid having to call modified defualt constructor with manager parameter from each system
 		_signature.insert(_signature.end(), { typeid(Components).hash_code()... });
 	}
-	virtual void onEntityChanged(Entity* entity) override final {
-		bool existingEntity = containsEntity(entity->getID());
+	~System() {
+		_manager = nullptr;
+		_entities.clear();
+		_signature.clear();
+	}
+	virtual void setManager(Manager* manager) override final {
+		_manager = manager;
+	}
+	virtual void onEntityChanged(Entity* entity) override final { // entity had a component added / was created
+		bool existingEntity = containsEntity(entity);
 		if (signaturesMatch(entity)) {
-			if (!existingEntity) {
-				std::cout << "Adding entity " << entity->getID() << " to system signature: ";
-				printSignature(_signature);
-				_entities.emplace(entity->getID(), entity);
+			if (!existingEntity) { // entity didn't exist in system
+				//std::cout << "Adding entity " << entity->getID() << " to system signature: ";
+				//printSignature(_signature);
+				_entities.emplace_back(entity);
 			}
 		} else {
-			if (existingEntity) {
-				std::cout << "Removing entity " << entity->getID() << " from system signature: ";
-				printSignature(_signature);
-				_entities.erase(entity->getID());
+			if (existingEntity) { // entity had 'vital' component removed -> remove from system
+				//std::cout << "Removing entity " << entity->getID() << " from system signature: ";
+				//printSignature(_signature);
+				_entities.erase(std::remove(_entities.begin(), _entities.end(), entity), _entities.end());
 			}
 		}
 	}
 	virtual void onEntityDestroyed(EntityID entityID) override final {
-		auto it = _entities.find(entityID);
-		if (it != _entities.end()) {
-			_entities.erase(it);
+		Entity* entity = _manager->getEntity(entityID);
+		assert(entity != nullptr);
+		auto iterator = std::find(_entities.begin(), _entities.end(), entity);
+		if (iterator != _entities.end()) {
+			_entities.erase(iterator);
 		}
 	}
-	virtual bool containsEntity(EntityID entityID) override final {
-		if (_entities.find(entityID) != _entities.end()) {
+	virtual bool containsEntity(Entity* entity) override final {
+		if (std::find(_entities.begin(), _entities.end(), entity) != _entities.end()) {
 			return true;
 		}
 		return false;
@@ -56,7 +69,8 @@ private:
 		return true;
 	}
 protected:
-	Entities _entities;
+	Manager* _manager;
+	std::vector<Entity*> _entities;
 	Signature _signature;
 };
 

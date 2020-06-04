@@ -1,16 +1,15 @@
 #pragma once
+
 #include "System.h"
 
 constexpr float LIFE_CHANGE_PER_FRAME = (1.0f / 60.0f);
 
 class LifetimeSystem : public System<LifetimeComponent> {
-private:
-	using BaseType = System<LifetimeComponent>;
 public:
 	virtual void update() override {
-		std::cout << "Lifetime[" << _entities.size() << "],";
-		for (auto& pair : _entities) {
-			LifetimeComponent* lifetime = pair.second->getComponent<LifetimeComponent>();
+		//std::cout << "Lifetime[" << _entities.size() << "],";
+		for (auto& e : _entities) {
+			LifetimeComponent* lifetime = e->getComponent<LifetimeComponent>();
 			//CollisionComponent* collision = pair.second->getComponent<CollisionComponent>(); // TODO in the future
 			//if (collision->_bottom) { lifetime->_isDying = true; }
 			if (lifetime->_isDying) {
@@ -21,7 +20,7 @@ public:
 				}
 			}
 			if (!lifetime->_lifetime) {
-				pair.second->destroy();
+				e->destroy();
 			}
 		}
 	}
