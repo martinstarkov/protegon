@@ -1,71 +1,52 @@
 #pragma once
 #include "Types.h"
-#include <map>
-#include <iostream>
-#include "Components.h"
+//#include "Components/BaseComponent.h"
+#include <algorithm>
+#include <memory>
 
-class Component;
 class Manager;
+class BaseComponent;
 
 class Entity {
-private:
-	using ComponentMap = std::map<ComponentID, Component*>;
-	EntityID _id;
-	ComponentMap _components;
-	bool _alive = true;
 public:
-	Entity(EntityID id) : _id(id) {}
+	Entity(EntityID id, Manager* manager) : _manager(manager), _id(id) {}
 
-	Entity(const Entity&) = delete;
-	~Entity() = default;
-
-	Entity* tree(float x, float y) {
-		addComponent<TransformComponent>(Vec2D(x, y));
-		addComponent<SizeComponent>(Vec2D(32, 32));
-		addComponent<SpriteComponent>("./resources/textures/enemy.png", AABB(0, 0, 16, 16));
-		addComponent<RenderComponent>();
-		return this;
-	}
-	Entity* box(float x, float y) {
-		addComponent<TransformComponent>(Vec2D(x, y));
-		addComponent<SizeComponent>(Vec2D(16, 16));
-		addComponent<MotionComponent>(Vec2D(0.1f, 0.1f));
-		addComponent<GravityComponent>();
-		addComponent<SpriteComponent>("./resources/textures/player.png", AABB(0, 0, 16, 16));
-		addComponent<RenderComponent>();
-		return this;
-	}
-	Entity* ghost(float x, float y, float lifetime = 10.0f) {
-		addComponent<TransformComponent>(Vec2D(x, y));
-		addComponent<SizeComponent>(Vec2D(16, 16));
-		addComponent<MotionComponent>(Vec2D(0.01f, 0.0f));
-		addComponent<GravityComponent>();
-		addComponent<LifetimeComponent>(lifetime);
-		addComponent<RenderComponent>();
-		return this;
-	}
+	//Entity(const Entity&) = delete;
+	//~Entity() = default;
 
 	void destroy() { _alive = false; }
 	bool isAlive() { return _alive; }
 
+	void refreshManager();
+
 	template <typename TComponent, typename... TArgs> void addComponent(TArgs&&... mArgs) {
-		if (_components.find(TComponent::ID) == _components.end()) {
-			TComponent* p(new TComponent(std::forward<TArgs>(mArgs)...));
-			p->setEntityID(_id);
-			_components.emplace(TComponent::ID, std::move(p));
+		if (_components.find(typeid(TComponent).hash_code()) == _components.end()) {
+			std::unique_ptr<TComponent> component = std::make_unique<TComponent>(std::forward<TArgs>(mArgs)...);
+			component->setEntityID(_id);
+			_signature.emplace_back(component->getComponentID());
+			_components.emplace(component->getComponentID(), std::move(component));
+			refreshManager();
+		} else { // TODO: Possibly multiple components of same type in the future
+
 		}
 	}
 
-	EntityID getID() { return _id; }
+	const EntityID getID() const { return _id; }
 
-	const ComponentMap getComponents() const { return _components;  }
+	const Signature getSignature() const { return _signature; }
 
 	template <typename TComponent> TComponent* getComponent() {
-		auto it = _components.find(TComponent::ID);
+		auto it = _components.find(typeid(TComponent).hash_code());
 		if (it != _components.end()) {
-			return static_cast<TComponent*>(it->second);
+			return static_cast<TComponent*>(it->second.get());
 		}
 		return nullptr;
 	}
+private:
+	Manager* _manager;
+	EntityID _id;
+	using ComponentMap = std::map<ComponentID, std::unique_ptr<BaseComponent>>;
+	ComponentMap _components;
+	Signature _signature;
+	bool _alive = true;
 };
-
