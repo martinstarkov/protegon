@@ -1,7 +1,5 @@
 #pragma once
 
-#include "Components/Component.h"
-
 #include "Components/TransformComponent.h"
 #include "Components/SizeComponent.h"
 #include "Components/SpriteComponent.h"

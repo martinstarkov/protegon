@@ -174,10 +174,11 @@
     <Image Include="resources\textures\player.png" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\ECS\Components\BaseComponent.h" />
+    <ClInclude Include="src\ECS\Entity.h" />
     <ClInclude Include="src\ECS\Systems\BaseSystem.h" />
     <ClInclude Include="src\ECS\Components\Component.h" />
     <ClInclude Include="src\ECS\Components.h" />
-    <ClInclude Include="src\ECS\Entity.h" />
     <ClInclude Include="src\AABB.h" />
     <ClInclude Include="src\ECS\AABBComponent.h" />
     <ClInclude Include="src\ECS\CollisionComponent.h" />
@@ -206,6 +207,8 @@
     <ClInclude Include="src\Vec2D.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\ECS\Entity.cpp" />
+    <ClCompile Include="src\ECS\Manager.cpp" />
     <ClCompile Include="src\Game.cpp" />
     <ClCompile Include="src\InputHandler.cpp" />
     <ClCompile Include="src\main.cpp" />
