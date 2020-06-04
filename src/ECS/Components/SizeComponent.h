@@ -1,13 +1,11 @@
 #pragma once
 #include "Component.h"
-#include "./Vec2D.h"
+#include "../../Vec2D.h"
 
-struct SizeComponent : public Component {
-	static ComponentID ID;
+struct SizeComponent : public Component<SizeComponent> {
 	Vec2D _size;
 	SizeComponent(Vec2D size = Vec2D()) : _size(size) {
-		ID = createComponentID<SizeComponent>();
 	}
 };
 
-ComponentID SizeComponent::ID = 0;
+//ComponentID SizeComponent::ID = 0;

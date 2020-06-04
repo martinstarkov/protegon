@@ -1,16 +1,14 @@
 #pragma once
 #include "Component.h"
 #include "SDL.h"
-#include "./TextureManager.h"
-#include "./AABB.h"
+#include "../../TextureManager.h"
+#include "../../AABB.h"
 
-struct SpriteComponent : public Component {
-	static ComponentID ID;
+struct SpriteComponent : public Component<SpriteComponent> {
 	const char* _path;
 	SDL_Rect _source;
 	SDL_Texture* _texture;
 	SpriteComponent(const char* path = nullptr, AABB spriteRectangle = {}) : _path(path), _source(spriteRectangle.AABBtoRect()) {
-		ID = createComponentID<SpriteComponent>();
 		_texture = TextureManager::load(_path);
 	}
 	virtual ~SpriteComponent() {
@@ -19,4 +17,4 @@ struct SpriteComponent : public Component {
 	}
 };
 
-ComponentID SpriteComponent::ID = 0;
+//ComponentID SpriteComponent::ID = 0;

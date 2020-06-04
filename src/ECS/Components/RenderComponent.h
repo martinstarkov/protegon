@@ -1,12 +1,9 @@
 #pragma once
 #include "Component.h"
-#include "./Vec2D.h"
 
-struct RenderComponent : public Component {
-	static ComponentID ID;
+struct RenderComponent : public Component<RenderComponent> {
 	RenderComponent() {
-		ID = createComponentID<RenderComponent>();
 	}
 };
 
-ComponentID RenderComponent::ID = 0;
+//ComponentID RenderComponent::ID = 0;
