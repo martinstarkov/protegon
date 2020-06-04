@@ -1,6 +1,10 @@
 #pragma once
-#include "Vec2D.h"
+
 #include <limits>
+
+#include "common.h"
+
+#include "Vec2D.h"
 
 struct AABB {
 	Vec2D _position;
