@@ -10,5 +10,8 @@ int main(int argc, char* args[]) {
 
     game->clean();
 
+    delete game;
+    game = nullptr;
+
     return 0;
 }

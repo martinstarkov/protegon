@@ -56,20 +56,20 @@ void Game::init() {
 		InputHandler::getInstance();
 		manager.init();
 
-		tree1 = manager.createEntity()->tree(40.0f, 40.0f);
-		tree2 = manager.createEntity()->tree(40.0f * 2, 40.0f);
-		tree3 = manager.createEntity()->tree(40.0f * 3, 40.0f);
-		tree4 = manager.createEntity()->tree(40.0f * 4, 40.0f);
+		tree1 = manager.createTree(40.0f, 40.0f);
+		tree2 = manager.createTree(40.0f * 2, 40.0f);
+		tree3 = manager.createTree(40.0f * 3, 40.0f);
+		tree4 = manager.createTree(40.0f * 4, 40.0f);
 
-		box1 = manager.createEntity()->box(40.0f * 2, 60.0f * 2);
-		box2 = manager.createEntity()->box(40.0f * 2, 60.0f * 3);
-		box3 = manager.createEntity()->box(40.0f * 2, 60.0f * 4);
-		box4 = manager.createEntity()->box(40.0f * 2, 60.0f * 5);
+		box1 = manager.createBox(40.0f * 2, 60.0f * 2);
+		box2 = manager.createBox(40.0f * 2, 60.0f * 3);
+		box3 = manager.createBox(40.0f * 2, 60.0f * 4);
+		box4 = manager.createBox(40.0f * 2, 60.0f * 5);
 
-		ghost1 = manager.createEntity()->ghost(20.0f, 20.0f);
-		ghost2 = manager.createEntity()->ghost(20.0f, 20.0f * 2);
-		ghost3 = manager.createEntity()->ghost(20.0f, 20.0f * 3);
-		ghost4 = manager.createEntity()->ghost(20.0f, 20.0f * 4);
+		ghost1 = manager.createGhost(20.0f, 20.0f);
+		ghost2 = manager.createGhost(20.0f, 20.0f * 2);
+		ghost3 = manager.createGhost(20.0f, 20.0f * 3);
+		ghost4 = manager.createGhost(20.0f, 20.0f * 4);
 
 		manager.refreshSystems();
 
@@ -116,29 +116,28 @@ void Game::instructions() {
 
 void Game::update() {
 	InputHandler::update();
-	std::cout << std::endl;
+	printf("%.2fs : ", (float)SDL_GetTicks() / 1000.0f);
 	manager.updateSystems();
-	//std::cout << (float)SDL_GetTicks() / 1000.0f << "s : " << std::endl;
-	//if (cycle == 100) {
+	//if (cycle == 100 * 10) {
 	//	std::cout << "Deleting trees: " << tree1->getID() << "," << tree2->getID() << "," << tree3->getID() << "," << tree4->getID() << std::endl;
-	//	manager.destroyEntity(tree1->getID());
-	//	manager.destroyEntity(tree2->getID());
-	//	manager.destroyEntity(tree3->getID());
-	//	manager.destroyEntity(tree4->getID());
+	//	tree1->destroy();
+	//	tree2->destroy();
+	//	tree3->destroy();
+	//	tree4->destroy();
 	//}
-	//if (cycle == 200) {
+	//if (cycle == 200 * 10) {
 	//	std::cout << "Deleting ghosts: " << ghost1->getID() << "," << ghost2->getID() << "," << ghost3->getID() << "," << ghost4->getID() << std::endl;
-	//	manager.destroyEntity(ghost1->getID());
-	//	manager.destroyEntity(ghost2->getID());
-	//	manager.destroyEntity(ghost3->getID());
-	//	manager.destroyEntity(ghost4->getID());
+	//	ghost1->destroy();
+	//	ghost2->destroy();
+	//	ghost3->destroy();
+	//	ghost4->destroy();
 	//}
-	//if (cycle == 300) {
+	//if (cycle == 300 * 10) {
 	//	std::cout << "Deleting boxes: " << box1->getID() << "," << box2->getID() << "," << box3->getID() << "," << box4->getID() << std::endl;
-	//	manager.destroyEntity(box1->getID());
-	//	manager.destroyEntity(box2->getID());
-	//	manager.destroyEntity(box3->getID());
-	//	manager.destroyEntity(box4->getID());
+	//	box1->destroy();
+	//	box2->destroy();
+	//	box3->destroy();
+	//	box4->destroy();
 	//}
 	//ms.update();
 	//manager.refresh();
@@ -205,16 +204,17 @@ void Game::update() {
 	//}
 	//camera->update();
 	//LevelController::getCurrentLevel()->update();
+	manager.refresh();
 }
 
 void Game::render() {
 	SDL_RenderClear(renderer);
 	SDL_SetRenderDrawColor(Game::getRenderer(), DEFAULT_RENDER_COLOR.r, DEFAULT_RENDER_COLOR.g, DEFAULT_RENDER_COLOR.b, DEFAULT_RENDER_COLOR.a);
 	manager.getSystem<RenderSystem>()->update();
+	std::cout << std::endl;
 	//manager.draw();
 	//rs.update();
 	SDL_RenderPresent(renderer);
-	manager.refresh();
 	// display
 	////SDL_SetRenderDrawColor(renderer, player->getColor().r, player->getColor().g, player->getColor().b, player->getColor().a);
 	//TextureManager::draw("player", ((player->getHitbox() + camera->getPosition()) * camera->getScale()), 0.0f, SDL_RendererFlip(player->getDirection()));
@@ -266,6 +266,12 @@ void Game::reset() {
 void Game::clean() {
 	SDL_DestroyWindow(window);
 	SDL_DestroyRenderer(renderer);
+	TextureManager* tmInstance = TextureManager::getInstance();
+	delete tmInstance;
+	tmInstance = nullptr;
+	InputHandler* ihInstance = InputHandler::getInstance();
+	delete ihInstance;
+	ihInstance = nullptr;
 	//Quit SDL subsystems
 	//IMG_Quit();
 	SDL_Quit();

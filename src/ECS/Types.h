@@ -1,10 +1,12 @@
 #pragma once
-#include <cstddef>
+#include <iostream>
+#include <vector>
 #include <map>
+#include <memory>
 
 class Entity;
+
 using EntityID = std::size_t;
-constexpr EntityID INVALID_ENTITY_ID = 0;
 using ComponentID = std::size_t;
+using Signature = std::vector<ComponentID>;
 using Entities = std::map<EntityID, Entity*>;
-using UniqueEntities = std::map<EntityID, std::unique_ptr<Entity>>;

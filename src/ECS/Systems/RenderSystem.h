@@ -1,6 +1,6 @@
 #pragma once
 #include "System.h"
-#include "./TextureManager.h"
+#include "../../TextureManager.h"
 
 class RenderSystem : public System<RenderComponent, TransformComponent, SizeComponent> {
 private:
