@@ -1,8 +1,9 @@
 #pragma once
-#include <iostream>
+
+#include "../common.h"
+
 #include <vector>
 #include <map>
-#include <memory>
 
 class Entity;
 

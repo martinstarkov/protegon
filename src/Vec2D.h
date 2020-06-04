@@ -1,7 +1,10 @@
 #pragma once
-#include  "SDL.h"
-#include <iostream>
+
 #include <math.h>
+
+#include "common.h"
+
+#include "SDL.h"
 
 struct Vec2D {
 	float x, y;

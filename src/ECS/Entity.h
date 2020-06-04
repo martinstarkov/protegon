@@ -1,8 +1,9 @@
 #pragma once
-#include "Types.h"
-//#include "Components/BaseComponent.h"
+
 #include <algorithm>
 #include <memory>
+
+#include "Types.h"
 
 class Manager;
 class BaseComponent;
@@ -10,9 +11,6 @@ class BaseComponent;
 class Entity {
 public:
 	Entity(EntityID id, Manager* manager) : _manager(manager), _id(id) {}
-
-	//Entity(const Entity&) = delete;
-	//~Entity() = default;
 
 	void destroy() { _alive = false; }
 	bool isAlive() { return _alive; }
