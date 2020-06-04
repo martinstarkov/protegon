@@ -1,74 +1,62 @@
 #pragma once
+#include "../Types.h"
+#include "../Components.h"
+#include "BaseSystem.h"
+#include "../Entity.h"
 
-#include <vector>
-#include <tuple>
-#include <cstddef>
-#include <map>
-#include <iostream>
-#include <utility>
-
-#include "./ECS/Entity.h"
-#include "./ECS/Systems/BaseSystem.h"
-#include "./ECS/Components.h"
+static void printSignature(const Signature& s) {
+	for (auto& signature : s) {
+		std::cout << signature << ",";
+	}
+	std::cout << std::endl;
+}
 
 template <class... Components>
 class System : public BaseSystem {
-protected:
-	using ComponentTuple = std::tuple<std::add_pointer_t<Components>...>;
-	Entities _entities;
 public:
-	virtual void onEntityCreated(Entity* entity) override final;
-	virtual void onEntityDestroyed(EntityID entityID) override final;
-private:
-	template <std::size_t INDEX, class ComponentType, class... ComponentArgs> 
-	bool processEntityComponent(ComponentID componentID, Component* component, ComponentTuple& tupleToFill);
-	template <std::size_t INDEX> 
-	bool processEntityComponent(ComponentID componentID, Component* component, ComponentTuple& tupleToFill);
-};
-
-//template<size_t I = 0, typename... Tp>
-//void print(std::tuple<Tp...>& t) {
-//	std::cout << typeid(*std::get<I>(t)).name() << " ";
-//	if constexpr (I + 1 != sizeof...(Tp))
-//		print<I + 1>(t);
-//}
-
-template<class... Components>
-void System<Components...>::onEntityCreated(Entity* entity) {
-	ComponentTuple componentTuple;
-	std::size_t matchingComponents = 0;
-	for (auto& componentPair : entity->getComponents()) {
-		if (processEntityComponent<0, Components...>(componentPair.first, componentPair.second, componentTuple)) {
-			++matchingComponents;
-			if (matchingComponents == sizeof...(Components)) {
+	System() {
+		_signature.insert(_signature.end(), { typeid(Components).hash_code()... });
+	}
+	virtual void onEntityChanged(Entity* entity) override final {
+		bool existingEntity = containsEntity(entity->getID());
+		if (signaturesMatch(entity)) {
+			if (!existingEntity) {
+				std::cout << "Adding entity " << entity->getID() << " to system signature: ";
+				printSignature(_signature);
 				_entities.emplace(entity->getID(), entity);
-				break;
+			}
+		} else {
+			if (existingEntity) {
+				std::cout << "Removing entity " << entity->getID() << " from system signature: ";
+				printSignature(_signature);
+				_entities.erase(entity->getID());
 			}
 		}
 	}
-}
-
-template<class ...Components>
-inline void System<Components...>::onEntityDestroyed(EntityID entityID) {
-	auto it = _entities.find(entityID);
-	if (it != _entities.end()) {
-		_entities.erase(it);
+	virtual void onEntityDestroyed(EntityID entityID) override final {
+		auto it = _entities.find(entityID);
+		if (it != _entities.end()) {
+			_entities.erase(it);
+		}
 	}
-}
-
-template<class... Components>
-template<std::size_t INDEX, class ComponentType, class ...ComponentArgs>
-bool System<Components...>::processEntityComponent(ComponentID componentID, Component* component, ComponentTuple& tupleToFill) {
-	if (ComponentType::ID == componentID) {
-		std::get<INDEX>(tupleToFill) = static_cast<ComponentType*>(component);
+	virtual bool containsEntity(EntityID entityID) override final {
+		if (_entities.find(entityID) != _entities.end()) {
+			return true;
+		}
+		return false;
+	}
+private:
+	bool signaturesMatch(Entity* entity) {
+		for (const auto& componentID : _signature) {
+			const Signature entitySignature = entity->getSignature();
+			if (!std::count(entitySignature.begin(), entitySignature.end(), componentID)) {
+				return false; // if entity signatures do not contain a system signature, they do not match
+			}
+		}
 		return true;
-	} else {
-		return processEntityComponent<INDEX + 1, ComponentArgs...>(componentID, component, tupleToFill);
 	}
-}
+protected:
+	Entities _entities;
+	Signature _signature;
+};
 
-template<class... Components>
-template<std::size_t INDEX>
-bool System<Components...>::processEntityComponent(ComponentID componentID, Component* component, ComponentTuple& tupleToFill) {
-	return false;
-}
