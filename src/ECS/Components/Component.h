@@ -1,9 +1,6 @@
 #pragma once
-#include "BaseComponent.h"
 
-//template <typename T> inline ComponentID createComponentID() {
-//	return static_cast<ComponentID>(typeid(T).hash_code());
-//}
+#include "BaseComponent.h"
 
 #define UNKNOWN_ENTITY_ID -1
 
@@ -14,7 +11,7 @@ public:
 		ID = static_cast<ComponentID>(typeid(ComponentType).hash_code());
 		_entityID = UNKNOWN_ENTITY_ID;
 	}
-	//virtual ~Component() = default;
+	virtual ~Component() = default;
 	virtual ComponentID getComponentID() override final { return ID; }
 	virtual void setEntityID(EntityID entityID) override final { _entityID = entityID; }
 protected:

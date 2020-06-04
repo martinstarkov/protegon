@@ -1,3 +1,4 @@
+
 #include "Game.h"
 //#include "FallingPlatform.h"
 //#include "KillBlock.h"
@@ -15,13 +16,10 @@
 #define WINDOW_HEIGHT 600
 #define WINDOW_FLAGS SDL_WINDOW_SHOWN//SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN
 
-Game* Game::instance = nullptr;
-SDL_Window* Game::window = nullptr;
-SDL_Renderer* Game::renderer = nullptr;
-bool Game::running = false;
-bool Game::bulletTime = false;
-//std::vector<Entity*> Game::entities;
-int Game::attempts = 1;
+std::unique_ptr<Game> Game::_instance = nullptr;
+SDL_Window* Game::_window = nullptr;
+SDL_Renderer* Game::_renderer = nullptr;
+bool Game::_running = false;
 
 //Manager manager;
 //Entity& player(manager.addEntity());
@@ -48,31 +46,51 @@ Entity* ghost2;
 Entity* ghost3;
 Entity* ghost4;
 
+Game& Game::getInstance() {
+	if (!_instance) {
+		_instance = std::make_unique<Game>();
+	}
+	return *_instance;
+}
+
+SDL_Window* Game::getWindow() {
+	return _window;
+}
+SDL_Renderer* Game::getRenderer() {
+	return _renderer;
+}
+
 void Game::init() {
 	if (initSDL()) {
-		running = true;
+		_running = true;
 		//cycle = 0;
 		TextureManager::getInstance();
 		InputHandler::getInstance();
+		AllocationMetrics::printMemoryUsage();
 		manager.init();
+		AllocationMetrics::printMemoryUsage();
 
 		tree1 = manager.createTree(40.0f, 40.0f);
 		tree2 = manager.createTree(40.0f * 2, 40.0f);
 		tree3 = manager.createTree(40.0f * 3, 40.0f);
 		tree4 = manager.createTree(40.0f * 4, 40.0f);
+		AllocationMetrics::printMemoryUsage();
 
 		box1 = manager.createBox(40.0f * 2, 60.0f * 2);
 		box2 = manager.createBox(40.0f * 2, 60.0f * 3);
 		box3 = manager.createBox(40.0f * 2, 60.0f * 4);
 		box4 = manager.createBox(40.0f * 2, 60.0f * 5);
+		AllocationMetrics::printMemoryUsage();
 
 		ghost1 = manager.createGhost(20.0f, 20.0f);
 		ghost2 = manager.createGhost(20.0f, 20.0f * 2);
 		ghost3 = manager.createGhost(20.0f, 20.0f * 3);
 		ghost4 = manager.createGhost(20.0f, 20.0f * 4);
+		AllocationMetrics::printMemoryUsage();
 
 		manager.refreshSystems();
 
+		AllocationMetrics::printMemoryUsage();
 		//GameWorld::getInstance();
 		//LevelController::loadLevel(new Level("./resources/levels/level0.json"));
 		//LevelController::loadLevel(new Level("./resources/levels/level1.json"));
@@ -92,10 +110,10 @@ bool Game::initSDL() {
 	if (SDL_Init(SDL_INIT_EVERYTHING) != 0) { // failure
 		std::cout << "SDL failed to init" << std::endl;
 	}
-	window = SDL_CreateWindow(WINDOW_TITLE, WINDOW_X, WINDOW_Y, WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_FLAGS);
-	if (window) {
-		renderer = SDL_CreateRenderer(window, -1, 0);
-		if (renderer) {
+	_window = SDL_CreateWindow(WINDOW_TITLE, WINDOW_X, WINDOW_Y, WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_FLAGS);
+	if (_window) {
+		_renderer = SDL_CreateRenderer(_window, -1, 0);
+		if (_renderer) {
 			//std::cout << "SDL window and renderer init successful" << std::endl;
 			return true;
 		} else {
@@ -208,13 +226,14 @@ void Game::update() {
 }
 
 void Game::render() {
-	SDL_RenderClear(renderer);
+	SDL_RenderClear(_renderer);
 	SDL_SetRenderDrawColor(Game::getRenderer(), DEFAULT_RENDER_COLOR.r, DEFAULT_RENDER_COLOR.g, DEFAULT_RENDER_COLOR.b, DEFAULT_RENDER_COLOR.a);
-	manager.getSystem<RenderSystem>()->update();
-	std::cout << std::endl;
+	assert(manager.getSystem<RenderSystem>().lock() != nullptr);
+	manager.getSystem<RenderSystem>().lock()->update();
+	//std::cout << std::endl;
 	//manager.draw();
 	//rs.update();
-	SDL_RenderPresent(renderer);
+	SDL_RenderPresent(_renderer);
 	// display
 	////SDL_SetRenderDrawColor(renderer, player->getColor().r, player->getColor().g, player->getColor().b, player->getColor().a);
 	//TextureManager::draw("player", ((player->getHitbox() + camera->getPosition()) * camera->getScale()), 0.0f, SDL_RendererFlip(player->getDirection()));
@@ -244,10 +263,11 @@ void Game::loop() {
 	const int fDelay = 1000 / FPS;
 	Uint32 fStart;
 	int fTime;
-	while (running) {
+	while (_running) {
 		fStart = SDL_GetTicks();
 		update();
 		render();
+		AllocationMetrics::printMemoryUsage();
 		fTime = SDL_GetTicks() - fStart;
 		cycle++;
 		if (fDelay > fTime) {
@@ -256,27 +276,14 @@ void Game::loop() {
 	}
 }
 
-void Game::reset() {
-	SDL_RenderClear(renderer);
-	//LevelController::getCurrentLevel()->reset();
-	//player->reset();
-	//camera->reset();
-}
-
 void Game::clean() {
-	SDL_DestroyWindow(window);
-	SDL_DestroyRenderer(renderer);
-	TextureManager* tmInstance = TextureManager::getInstance();
-	delete tmInstance;
-	tmInstance = nullptr;
-	InputHandler* ihInstance = InputHandler::getInstance();
-	delete ihInstance;
-	ihInstance = nullptr;
+	SDL_DestroyWindow(_window);
+	SDL_DestroyRenderer(_renderer);
 	//Quit SDL subsystems
 	//IMG_Quit();
 	SDL_Quit();
 }
 
 void Game::quit() {
-	running = false;
+	_running = false;
 }

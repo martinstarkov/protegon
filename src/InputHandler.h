@@ -1,16 +1,12 @@
 #pragma once
-#include "SDL.h"
+
 #include "common.h"
+
+#include "SDL.h"
 
 class InputHandler {
 public:
-	InputHandler();
-	static InputHandler* getInstance() {
-		if (!instance) {
-			instance = new InputHandler();
-		}
-		return instance;
-	}
+	static InputHandler& getInstance();
 	static void update();
 	static const Uint8* getKeyStates() {
 		return SDL_GetKeyboardState(NULL);
@@ -22,8 +18,7 @@ private:
 	static void playerMotion();
 	static void cameraMotion();
 private:
-	static InputHandler* instance;
-	static const Uint8* states;
-	static const Uint8* previousStates;
+	static std::unique_ptr<InputHandler> _instance;
+	static const Uint8* _states;
 };
 

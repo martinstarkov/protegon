@@ -1,9 +1,16 @@
+
 #include "TextureManager.h"
 #include "Game.h"
-#include <iostream>
 
-TextureManager* TextureManager::instance = nullptr;
+std::unique_ptr<TextureManager> TextureManager::_instance = nullptr;
 std::map<const char*, SDL_Texture*> TextureManager::textureMap;
+
+TextureManager& TextureManager::getInstance() {
+	if (!_instance) {
+		_instance = std::make_unique<TextureManager>();
+	}
+	return *_instance;
+}
 
 SDL_Texture* TextureManager::load(const char* path) {
 	if (path) {

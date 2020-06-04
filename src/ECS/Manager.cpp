@@ -1,7 +1,14 @@
+
 #include "Manager.h"
-#include "Components.h"
-#include "Systems.h"
-#include "Entity.h"
+
+Entity* Manager::getEntity(EntityID entityID) {
+	auto iterator = _entities.find(entityID);
+	if (iterator != _entities.end()) {
+		return iterator->second.get();
+	}
+	std::cout << "Entity (" << entityID << ") does not exist in Manager (" << this << ")" << std::endl;
+	return nullptr;
+}
 
 Entity* Manager::createEntity() {
 	EntityID id = getNewEntityID();
@@ -42,13 +49,18 @@ Entity* Manager::createGhost(float x, float y, float lifetime) {
 }
 
 void Manager::createSystems() {
-	createSystem<RenderSystem>();
-	createSystem<MovementSystem>();
-	createSystem<GravitySystem>();
-	createSystem<LifetimeSystem>();
+	createSystem<RenderSystem>(); // 124 bytes
+	createSystem<MovementSystem>(); // 120 bytes
+	createSystem<GravitySystem>(); // 120 bytes
+	createSystem<LifetimeSystem>(); // 116 bytes
 }
+
 void Manager::updateSystems() {
-	getSystem<GravitySystem>()->update();
-	getSystem<MovementSystem>()->update();
-	getSystem<LifetimeSystem>()->update();
+	assert(getSystem<GravitySystem>().lock() != nullptr);
+	assert(getSystem<MovementSystem>().lock() != nullptr);
+	assert(getSystem<LifetimeSystem>().lock() != nullptr);
+
+	getSystem<GravitySystem>().lock()->update();
+	getSystem<MovementSystem>().lock()->update();
+	getSystem<LifetimeSystem>().lock()->update();
 }

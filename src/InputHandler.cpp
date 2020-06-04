@@ -1,19 +1,21 @@
+
 #include "InputHandler.h"
 #include "Game.h"
 //#include "Player.h"
 //#include "Camera.h"
 //#include "LevelController.h"
 
-InputHandler* InputHandler::instance = nullptr;
-const Uint8* InputHandler::states = nullptr;
-const Uint8* InputHandler::previousStates = nullptr;
+std::unique_ptr<InputHandler> InputHandler::_instance = nullptr;
+const Uint8* InputHandler::_states = nullptr;
 //
 //static Player* player;
 //static Camera* camera;
 
-InputHandler::InputHandler() {
-	//player = Player::getInstance();
-	//camera = Camera::getInstance();
+InputHandler& InputHandler::getInstance() {
+	if (!_instance) {
+		_instance = std::make_unique<InputHandler>();
+	}
+	return *_instance;
 }
 
 void InputHandler::keyStateCheck() {
@@ -104,12 +106,12 @@ void InputHandler::keyRelease(SDL_KeyboardEvent release) {}
 
 void InputHandler::update() {
 	SDL_Event event;
-	states = SDL_GetKeyboardState(NULL);
+	_states = SDL_GetKeyboardState(NULL);
 	keyStateCheck();
 	while (SDL_PollEvent(&event)) {
 		switch (event.type) {
 			case SDL_QUIT:
-				Game::getInstance()->quit();
+				Game::getInstance().quit();
 				break;
 			case SDL_KEYDOWN:
 				keyPress(event.key);
@@ -127,5 +129,4 @@ void InputHandler::update() {
 				break;
 		}
 	}
-	previousStates = states;
 }
