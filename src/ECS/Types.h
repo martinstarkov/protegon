@@ -7,7 +7,7 @@
 
 class Entity;
 
-using EntityID = std::size_t;
-using ComponentID = std::size_t;
+using EntityID = unsigned int;
+using ComponentID = unsigned int;
 using Signature = std::vector<ComponentID>;
 using Entities = std::map<EntityID, Entity*>;
