@@ -13,7 +13,7 @@ public:
 			SizeComponent* size = e->getComponent<SizeComponent>();
 			SpriteComponent* sprite = e->getComponent<SpriteComponent>();
 			if (sprite) {
-				TextureManager::draw(sprite->_texture, sprite->_source, AABB(transform->_position, size->_size).AABBtoRect());
+				TextureManager::draw(TextureManager::get(sprite->_path), sprite->_source, AABB(transform->_position, size->_size).AABBtoRect());
 			} else {
 				TextureManager::draw(AABB(transform->_position, size->_size).AABBtoRect());
 			}

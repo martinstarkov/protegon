@@ -90,7 +90,7 @@ public:
 		return std::weak_ptr<TSystem>();
 	}
 private:
-	using SystemID = std::size_t;
+	using SystemID = unsigned int;
 	std::map<EntityID, std::unique_ptr<Entity>> _entities;
 	std::map<SystemID, std::shared_ptr<BaseSystem>> _systems;
 	void destroyEntity(EntityID entityID) {

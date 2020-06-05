@@ -66,26 +66,29 @@ void Game::init() {
 		//cycle = 0;
 		TextureManager::getInstance();
 		InputHandler::getInstance();
-		AllocationMetrics::printMemoryUsage();
 		manager.init();
+		LOG_("Manager : ");
 		AllocationMetrics::printMemoryUsage();
 
 		tree1 = manager.createTree(40.0f, 40.0f);
 		tree2 = manager.createTree(40.0f * 2, 40.0f);
 		tree3 = manager.createTree(40.0f * 3, 40.0f);
 		tree4 = manager.createTree(40.0f * 4, 40.0f);
+		LOG_("Trees : ");
 		AllocationMetrics::printMemoryUsage();
 
 		box1 = manager.createBox(40.0f * 2, 60.0f * 2);
 		box2 = manager.createBox(40.0f * 2, 60.0f * 3);
 		box3 = manager.createBox(40.0f * 2, 60.0f * 4);
 		box4 = manager.createBox(40.0f * 2, 60.0f * 5);
+		LOG_("Boxes : ");
 		AllocationMetrics::printMemoryUsage();
 
 		ghost1 = manager.createGhost(20.0f, 20.0f);
 		ghost2 = manager.createGhost(20.0f, 20.0f * 2);
 		ghost3 = manager.createGhost(20.0f, 20.0f * 3);
 		ghost4 = manager.createGhost(20.0f, 20.0f * 4);
+		LOG_("Ghosts : ");
 		AllocationMetrics::printMemoryUsage();
 
 		manager.refreshSystems();

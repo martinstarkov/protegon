@@ -4,6 +4,9 @@
 #include <memory>
 
 #include "Types.h"
+#include "../Vec2D.h"
+#include "Components/TransformComponent.h"
+#include "Components/Component.h"
 
 class Manager;
 class BaseComponent;
@@ -20,9 +23,11 @@ public:
 	template <typename TComponent, typename... TArgs> void addComponent(TArgs&&... mArgs) {
 		if (_components.find(typeid(TComponent).hash_code()) == _components.end()) {
 			std::unique_ptr<TComponent> component = std::make_unique<TComponent>(std::forward<TArgs>(mArgs)...);
-			component->setEntityID(_id);
+			LOG_("(" << sizeof(TransformComponent) << ") Component unique ptr created: "); AllocationMetrics::printMemoryUsage();
 			_signature.emplace_back(component->getComponentID());
+			LOG_("(" << sizeof(component->getComponentID()) << ") _signature emplaced with ID: "); AllocationMetrics::printMemoryUsage();
 			_components.emplace(component->getComponentID(), std::move(component));
+			LOG_("_components emplaced with ptr: "); AllocationMetrics::printMemoryUsage();
 			refreshManager();
 		} else { // TODO: Possibly multiple components of same type in the future
 
@@ -34,9 +39,9 @@ public:
 	const Signature getSignature() const { return _signature; }
 
 	template <typename TComponent> TComponent* getComponent() {
-		auto it = _components.find(typeid(TComponent).hash_code());
-		if (it != _components.end()) {
-			return static_cast<TComponent*>(it->second.get());
+		auto iterator = _components.find(typeid(TComponent).hash_code());
+		if (iterator != _components.end()) {
+			return static_cast<TComponent*>(iterator->second.get());
 		}
 		return nullptr;
 	}

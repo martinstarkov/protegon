@@ -20,10 +20,26 @@ Entity* Manager::createEntity() {
 
 Entity* Manager::createTree(float x, float y) {
 	Entity* entity = createEntity();
+	LOG_("Tree created : ");
+	AllocationMetrics::printMemoryUsage();
 	entity->addComponent<TransformComponent>(Vec2D(x, y));
+	LOG_("(" << sizeof(TransformComponent));
+	LOG_(") TransformComponent added : ");
+	AllocationMetrics::printMemoryUsage();
 	entity->addComponent<SizeComponent>(Vec2D(32, 32));
+	LOG_("(" << sizeof(SizeComponent));
+	LOG_(") SizeComponent added : ");
+	AllocationMetrics::printMemoryUsage();
 	entity->addComponent<SpriteComponent>("./resources/textures/enemy.png", AABB(0, 0, 16, 16));
+	LOG_("(" << sizeof(SpriteComponent));
+	LOG_(") SpriteComponent added : ");
+	AllocationMetrics::printMemoryUsage();
 	entity->addComponent<RenderComponent>();
+	LOG_("(" << sizeof(RenderComponent));
+	LOG_(") RenderComponent added : ");
+	AllocationMetrics::printMemoryUsage();
+	LOG_("Tree components added : ");
+	AllocationMetrics::printMemoryUsage();
 	return entity;
 }
 Entity* Manager::createBox(float x, float y) {
