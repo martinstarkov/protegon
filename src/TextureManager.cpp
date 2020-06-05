@@ -3,7 +3,7 @@
 #include "Game.h"
 
 std::unique_ptr<TextureManager> TextureManager::_instance = nullptr;
-std::map<const char*, SDL_Texture*> TextureManager::textureMap;
+std::map<const char*, SDL_Texture*> TextureManager::_textureMap;
 
 TextureManager& TextureManager::getInstance() {
 	if (!_instance) {
@@ -14,9 +14,9 @@ TextureManager& TextureManager::getInstance() {
 
 SDL_Texture* TextureManager::load(const char* path) {
 	if (path) {
-		auto it = textureMap.find(path);
-		if (it != textureMap.end()) { // exit early if texture exists
-			return (*it).second;
+		auto iterator = _textureMap.find(path);
+		if (iterator != _textureMap.end()) { // exit early if texture exists
+			return iterator->second;
 		}
 		SDL_Texture* texture = nullptr;
 		SDL_Surface* tempSurface = IMG_Load(path);
@@ -27,7 +27,7 @@ SDL_Texture* TextureManager::load(const char* path) {
 		texture = SDL_CreateTextureFromSurface(Game::getRenderer(), tempSurface);
 		SDL_FreeSurface(tempSurface);
 		if (texture) {
-			textureMap.insert({ path, texture }); 
+			_textureMap.emplace(path, texture); 
 		} else {
 			std::cout << "Failed to SDL_CreateTextureFromSurface with path: '" << path << "'" << std::endl;
 		}
@@ -35,6 +35,14 @@ SDL_Texture* TextureManager::load(const char* path) {
 	} else {
 		return nullptr;
 	}
+}
+
+SDL_Texture* TextureManager::get(const char* path) {
+	auto iterator = _textureMap.find(path);
+	if (iterator != _textureMap.end()) { // exit early if texture exists
+		return iterator->second;
+	}
+	return nullptr;
 }
 
 void TextureManager::draw(SDL_Texture* texture, SDL_Rect source, SDL_Rect destination) {
@@ -57,6 +65,6 @@ void TextureManager::draw(SDL_Texture* texture, SDL_Rect source, SDL_Rect destin
 
 void TextureManager::removeTexture(const char* path) {
 	if (path) {
-		textureMap.erase(path);
+		_textureMap.erase(path);
 	}
 }
