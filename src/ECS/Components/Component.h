@@ -2,19 +2,13 @@
 
 #include "BaseComponent.h"
 
-#define UNKNOWN_ENTITY_ID -1
-
 template <class ComponentType>
 class Component : public BaseComponent {
 public:
 	Component() {
-		ID = static_cast<ComponentID>(typeid(ComponentType).hash_code());
-		_entityID = UNKNOWN_ENTITY_ID;
+		_id = static_cast<ComponentID>(typeid(ComponentType).hash_code());
 	}
-	virtual ~Component() = default;
-	virtual ComponentID getComponentID() override final { return ID; }
-	virtual void setEntityID(EntityID entityID) override final { _entityID = entityID; }
+	virtual ComponentID getComponentID() override final { return _id; }
 protected:
-	ComponentID ID;
-	EntityID _entityID;
+	ComponentID _id;
 };
