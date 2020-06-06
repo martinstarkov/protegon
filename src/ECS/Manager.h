@@ -10,6 +10,7 @@
 #include <utility>
 #include <memory>
 #include <tuple>
+#include <type_traits>
 
 #include "Types.h"
 #include "../Vec2D.h"
@@ -19,18 +20,6 @@
 #include "Systems.h"
 #include "Components.h"
 
-template<typename K, typename V>
-static void print_map(std::map<K, V> const& m) {
-	for (auto const& pair : m) {
-		std::cout << "{" << pair.first << ": " << pair.second << "}\n";
-	}
-}
-
-static EntityID getNewEntityID() {
-	static EntityID lastID = 0U;
-	return lastID++;
-}
-
 class Manager {
 public:
 	Manager(const Manager&) = delete;
@@ -39,69 +28,61 @@ public:
 	Manager& operator=(Manager&&) = default; // was delete
 	Manager() {}
 	~Manager() {}
-	bool init() {
-		createSystems();
-		return true;
+	template<class TFunctor, typename... Ts> auto create(Ts&&... args) {
+		return TFunctor::call(*this, std::forward<Ts>(args)...);
 	}
-	Entity* getEntity(EntityID entityID);
-	Entity* createEntity();
-	Entity* createTree(float x, float y);
-	Entity* createBox(float x, float y);
-	Entity* createGhost(float x, float y, float lifetime = 2.0f);
-	void createSystems();
-	void updateSystems();
-	void refreshSystems(Entity* entity) {
-		for (auto& spair : _systems) {
-			spair.second->onEntityChanged(entity);
-		}
-	}
-	void refreshSystems() {
-		for (auto& epair : _entities) {
-			refreshSystems(epair.second.get());
-		}
-	}
-	void refresh() {
-		std::vector<Entity*> deletables;
-		for (auto& pair : _entities) {
-			if (!pair.second->isAlive()) {
-				deletables.emplace_back(pair.second.get());
-			}
-		}
-		for (Entity* entity : deletables) {
-			destroyEntity(entity->getID());
-		}
-		deletables.clear();
-	}
-	template <typename TSystem> void createSystem() {
-		SystemID ID = typeid(TSystem).hash_code();
-		if (_systems.find(ID) == _systems.end()) {
-			std::shared_ptr<TSystem> system = std::make_shared<TSystem>();
-			system->setManager(this);
-			_systems.emplace(ID, std::move(system));
-		} else {
-			std::cout << "System with hash code (" << ID << ") already exists in Manager (" << this << ")" << std::endl;
-		}
-	}
-	template <typename TSystem> std::weak_ptr<TSystem> getSystem() {
+	template <typename TSystem> TSystem* getSystem() {
 		auto iterator = _systems.find(typeid(TSystem).hash_code());
 		if (iterator != _systems.end()) {
-			return std::static_pointer_cast<TSystem>(iterator->second);
+			return static_cast<TSystem*>(iterator->second.get());
 		}
-		return std::weak_ptr<TSystem>();
+		return nullptr;
 	}
+	template <typename TSystem> void createSystem(TSystem& system) {
+		SystemID id = typeid(TSystem).hash_code();
+		if (_systems.find(id) == _systems.end()) {
+			std::unique_ptr<TSystem> uPtr = std::make_unique<TSystem>(std::move(system));
+			const char* name = typeid(TSystem).name();
+			uPtr->setManager(this);
+			//LOG_("Created " << name << " (" << uPtr.get() << ") in Manager (" << this << "): "); AllocationMetrics::printMemoryUsage();
+			_systems.emplace(id, std::move(uPtr));
+			//LOG_("Emplaced " << name << " in Manager systems: "); AllocationMetrics::printMemoryUsage();
+		} else {
+			LOG("System with hash code (" << id << ") already exists in Manager (" << this << ")");
+		}
+	}
+	template <typename ...Ts> void swallow(Ts&&... args) {} // wrapper allows calling methods on template pack with void return
+
+	struct SystemFactory {
+		template <typename ...Ts> static void call(Manager& manager, Ts&&... args) {
+			manager.swallow((manager.createSystem(args), 0)...);
+		}
+	};
+	struct EntityFactory {
+		template <typename ...Ts> static Entity* call(Manager& manager, Ts&&... args) {
+			Entity* entity = manager.createEntity();
+			manager.swallow((entity->addComponent(args), 0)...);
+			manager.refreshSystems(entity);
+			return entity;
+		}
+	};
+
+	bool init();
+	void updateSystems();
+	void refreshSystems(Entity* entity);
+	void refreshSystems();
+	void refresh();
+
+	Entity* getEntity(EntityID entityID);
+
+	Entity* createTree(float x, float y);
+	Entity* createBox(float x, float y);
+	Entity* createGhost(float x, float y, float lifetime = 7.0f);
 private:
 	using SystemID = unsigned int;
 	std::map<EntityID, std::unique_ptr<Entity>> _entities;
-	std::map<SystemID, std::shared_ptr<BaseSystem>> _systems;
-	void destroyEntity(EntityID entityID) {
-		auto it = _entities.find(entityID);
-		if (it != _entities.end()) {
-			for (auto& pair : _systems) {
-				pair.second->onEntityDestroyed(entityID);
-			}
-			_entities.erase(entityID);
-		} else {
-			std::cout << "Entity (" << entityID << ") cannot be destroyed as it is not found in Manager (" << this << ")" << std::endl;
-		}
-	}
+	std::map<SystemID, std::unique_ptr<BaseSystem>> _systems;
+private:
+	Entity* createEntity();
+	void destroyEntity(EntityID entityID);
 };

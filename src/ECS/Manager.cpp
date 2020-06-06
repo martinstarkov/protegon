@@ -1,6 +1,11 @@
 
 #include "Manager.h"
 
+bool Manager::init() {
+	create<SystemFactory>(RenderSystem(), MovementSystem(), GravitySystem(), LifetimeSystem());
+	return true;
+}
+
 Entity* Manager::getEntity(EntityID entityID) {
 	auto iterator = _entities.find(entityID);
 	if (iterator != _entities.end()) {
@@ -8,6 +13,11 @@ Entity* Manager::getEntity(EntityID entityID) {
 	}
 	std::cout << "Entity (" << entityID << ") does not exist in Manager (" << this << ")" << std::endl;
 	return nullptr;
+}
+
+static EntityID getNewEntityID() {
+	static EntityID lastID = 0U;
+	return lastID++;
 }
 
 Entity* Manager::createEntity() {
@@ -18,65 +28,63 @@ Entity* Manager::createEntity() {
 	return temp;
 }
 
+void Manager::destroyEntity(EntityID entityID) {
+	auto it = _entities.find(entityID);
+	if (it != _entities.end()) {
+		for (auto& pair : _systems) {
+			pair.second->onEntityDestroyed(entityID);
+		}
+		_entities.erase(entityID);
+	} else {
+		std::cout << "Entity (" << entityID << ") cannot be destroyed as it is not found in Manager (" << this << ")" << std::endl;
+	}
+}
+
 Entity* Manager::createTree(float x, float y) {
-	Entity* entity = createEntity();
-	LOG_("Tree created : ");
-	AllocationMetrics::printMemoryUsage();
-	entity->addComponent<TransformComponent>(Vec2D(x, y));
-	LOG_("(" << sizeof(TransformComponent));
-	LOG_(") TransformComponent added : ");
-	AllocationMetrics::printMemoryUsage();
-	entity->addComponent<SizeComponent>(Vec2D(32, 32));
-	LOG_("(" << sizeof(SizeComponent));
-	LOG_(") SizeComponent added : ");
-	AllocationMetrics::printMemoryUsage();
-	entity->addComponent<SpriteComponent>("./resources/textures/enemy.png", AABB(0, 0, 16, 16));
-	LOG_("(" << sizeof(SpriteComponent));
-	LOG_(") SpriteComponent added : ");
-	AllocationMetrics::printMemoryUsage();
-	entity->addComponent<RenderComponent>();
-	LOG_("(" << sizeof(RenderComponent));
-	LOG_(") RenderComponent added : ");
-	AllocationMetrics::printMemoryUsage();
-	LOG_("Tree components added : ");
-	AllocationMetrics::printMemoryUsage();
+	Entity* entity = create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(32, 32)), SpriteComponent("./resources/textures/enemy.png", AABB(0, 0, 16, 16)), RenderComponent());
 	return entity;
 }
 Entity* Manager::createBox(float x, float y) {
-	Entity* entity = createEntity();
-	entity->addComponent<TransformComponent>(Vec2D(x, y));
-	entity->addComponent<SizeComponent>(Vec2D(16, 16));
-	entity->addComponent<MotionComponent>(Vec2D(0.1f, 0.1f));
-	entity->addComponent<GravityComponent>();
-	entity->addComponent<SpriteComponent>("./resources/textures/player.png", AABB(0, 0, 16, 16));
-	entity->addComponent<RenderComponent>();
+	Entity* entity = create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(16, 16)), MotionComponent(Vec2D(0.1f, 0.1f)), GravityComponent(), SpriteComponent("./resources/textures/player.png", AABB(0, 0, 16, 16)), RenderComponent());
 	return entity;
 }
-
 Entity* Manager::createGhost(float x, float y, float lifetime) {
-	Entity* entity = createEntity();
-	entity->addComponent<TransformComponent>(Vec2D(x, y));
-	entity->addComponent<SizeComponent>(Vec2D(16, 16));
-	entity->addComponent<MotionComponent>(Vec2D(0.01f, 0.0f));
-	entity->addComponent<GravityComponent>();
-	entity->addComponent<LifetimeComponent>(lifetime);
-	entity->addComponent<RenderComponent>();
+	Entity* entity = create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(16, 16)), MotionComponent(Vec2D(0.01f, 0.0f)), GravityComponent(), LifetimeComponent(lifetime), RenderComponent());
 	return entity;
-}
-
-void Manager::createSystems() {
-	createSystem<RenderSystem>(); // 124 bytes
-	createSystem<MovementSystem>(); // 120 bytes
-	createSystem<GravitySystem>(); // 120 bytes
-	createSystem<LifetimeSystem>(); // 116 bytes
 }
 
 void Manager::updateSystems() {
-	assert(getSystem<GravitySystem>().lock() != nullptr);
-	assert(getSystem<MovementSystem>().lock() != nullptr);
-	assert(getSystem<LifetimeSystem>().lock() != nullptr);
+	assert(getSystem<GravitySystem>() != nullptr);
+	assert(getSystem<MovementSystem>() != nullptr);
+	assert(getSystem<LifetimeSystem>() != nullptr);
 
-	getSystem<GravitySystem>().lock()->update();
-	getSystem<MovementSystem>().lock()->update();
-	getSystem<LifetimeSystem>().lock()->update();
+	getSystem<GravitySystem>()->update();
+	getSystem<MovementSystem>()->update();
+	getSystem<LifetimeSystem>()->update();
+	refresh();
+}
+
+void Manager::refreshSystems(Entity* entity) {
+	for (auto& spair : _systems) {
+		spair.second->onEntityChanged(entity);
+	}
+}
+
+void Manager::refreshSystems() {
+	for (auto& epair : _entities) {
+		refreshSystems(epair.second.get());
+	}
+}
+
+void Manager::refresh() {
+	std::vector<Entity*> deletables;
+	for (auto& pair : _entities) {
+		if (!pair.second->isAlive()) {
+			deletables.emplace_back(pair.second.get());
+		}
+	}
+	for (Entity* entity : deletables) {
+		destroyEntity(entity->getID());
+	}
+	deletables.clear();
 }

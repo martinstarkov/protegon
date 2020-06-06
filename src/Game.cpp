@@ -70,30 +70,22 @@ void Game::init() {
 		LOG_("Manager : ");
 		AllocationMetrics::printMemoryUsage();
 
-		tree1 = manager.createTree(40.0f, 40.0f);
-		tree2 = manager.createTree(40.0f * 2, 40.0f);
-		tree3 = manager.createTree(40.0f * 3, 40.0f);
-		tree4 = manager.createTree(40.0f * 4, 40.0f);
-		LOG_("Trees : ");
-		AllocationMetrics::printMemoryUsage();
+		tree1 = manager.createTree(30, 30);
+		tree2 = manager.createTree(30, 30 * 3);
+		tree3 = manager.createTree(30, 30 * 5);
+		tree4 = manager.createTree(30, 30 * 7);
 
-		box1 = manager.createBox(40.0f * 2, 60.0f * 2);
-		box2 = manager.createBox(40.0f * 2, 60.0f * 3);
-		box3 = manager.createBox(40.0f * 2, 60.0f * 4);
-		box4 = manager.createBox(40.0f * 2, 60.0f * 5);
-		LOG_("Boxes : ");
-		AllocationMetrics::printMemoryUsage();
+		box1 = manager.createBox(30 * 2, 30);
+		box2 = manager.createBox(30 * 4, 30);
+		box3 = manager.createBox(30 * 6, 30);
+		box4 = manager.createBox(30 * 8, 30);
 
-		ghost1 = manager.createGhost(20.0f, 20.0f);
-		ghost2 = manager.createGhost(20.0f, 20.0f * 2);
-		ghost3 = manager.createGhost(20.0f, 20.0f * 3);
-		ghost4 = manager.createGhost(20.0f, 20.0f * 4);
-		LOG_("Ghosts : ");
-		AllocationMetrics::printMemoryUsage();
+		ghost1 = manager.createGhost(80, 80);
+		ghost2 = manager.createGhost(80 * 2, 80 * 2);
+		ghost3 = manager.createGhost(80 * 3, 80 * 3);
+		ghost4 = manager.createGhost(80 * 4, 80 * 4);
 
 		manager.refreshSystems();
-
-		AllocationMetrics::printMemoryUsage();
 		//GameWorld::getInstance();
 		//LevelController::loadLevel(new Level("./resources/levels/level0.json"));
 		//LevelController::loadLevel(new Level("./resources/levels/level1.json"));
@@ -105,7 +97,6 @@ void Game::init() {
 		//camera = Camera::getInstance();
 		//TextureManager::load("player", "./resources/textures/player.png");
 		//instructions();
-
 	}
 }
 
@@ -137,37 +128,10 @@ void Game::instructions() {
 
 void Game::update() {
 	InputHandler::update();
-	printf("%.2fs : ", (float)SDL_GetTicks() / 1000.0f);
+	//printf("%.2fs : ", (float)SDL_GetTicks() / 1000.0f);
 	manager.updateSystems();
-	//if (cycle == 100 * 10) {
-	//	std::cout << "Deleting trees: " << tree1->getID() << "," << tree2->getID() << "," << tree3->getID() << "," << tree4->getID() << std::endl;
-	//	tree1->destroy();
-	//	tree2->destroy();
-	//	tree3->destroy();
-	//	tree4->destroy();
-	//}
-	//if (cycle == 200 * 10) {
-	//	std::cout << "Deleting ghosts: " << ghost1->getID() << "," << ghost2->getID() << "," << ghost3->getID() << "," << ghost4->getID() << std::endl;
-	//	ghost1->destroy();
-	//	ghost2->destroy();
-	//	ghost3->destroy();
-	//	ghost4->destroy();
-	//}
-	//if (cycle == 300 * 10) {
-	//	std::cout << "Deleting boxes: " << box1->getID() << "," << box2->getID() << "," << box3->getID() << "," << box4->getID() << std::endl;
-	//	box1->destroy();
-	//	box2->destroy();
-	//	box3->destroy();
-	//	box4->destroy();
-	//}
-	//ms.update();
-	//manager.refresh();
-	//manager.update();
-	//for (auto s : manager.getGroup(Groups::shooters)) {
-	//	//Entity& projectile(manager.addEntity());
-	//}
-	//for (auto e : manager.getGroup(Groups::dynamics)) {
 
+	//for (auto e : manager.getGroup(Groups::dynamics)) {
 	//	e->get<MotionComponent>()->addVelocity(e->get<MotionComponent>()->getAcceleration());
 	//	e->get<MotionComponent>()->setVelocity(e->get<MotionComponent>()->getVelocity() * (1.0f - DRAG));
 	//	for (auto c : e->getComponents<TransformComponent>()) {
@@ -208,8 +172,6 @@ void Game::update() {
 	//		}
 	//	}
 	//}
-
-
 	//std::cout << player.get<AABBComponent>()->getAABB() << ",";//std::endl;
 	//std::cout << player.get<HitboxComponent>()->getAABB() << std::endl;
 	//std::cout << player.get<MotionComponent>().getVelocity() << std::endl;
@@ -225,41 +187,17 @@ void Game::update() {
 	//}
 	//camera->update();
 	//LevelController::getCurrentLevel()->update();
-	manager.refresh();
 }
 
 void Game::render() {
 	SDL_RenderClear(_renderer);
+
 	SDL_SetRenderDrawColor(Game::getRenderer(), DEFAULT_RENDER_COLOR.r, DEFAULT_RENDER_COLOR.g, DEFAULT_RENDER_COLOR.b, DEFAULT_RENDER_COLOR.a);
-	assert(manager.getSystem<RenderSystem>().lock() != nullptr);
-	manager.getSystem<RenderSystem>().lock()->update();
-	//std::cout << std::endl;
-	//manager.draw();
-	//rs.update();
+
+	assert(manager.getSystem<RenderSystem>() != nullptr);
+	manager.getSystem<RenderSystem>()->update();
+
 	SDL_RenderPresent(_renderer);
-	// display
-	////SDL_SetRenderDrawColor(renderer, player->getColor().r, player->getColor().g, player->getColor().b, player->getColor().a);
-	//TextureManager::draw("player", ((player->getHitbox() + camera->getPosition()) * camera->getScale()), 0.0f, SDL_RendererFlip(player->getDirection()));
-	//for (Bullet* b : player->getProjectiles()) {
-	//	if (b) {
-	//		SDL_SetRenderDrawColor(renderer, b->getColor().r, b->getColor().g, b->getColor().b, b->getColor().a);
-	//		SDL_RenderFillRect(renderer, &((b->getHitbox() + camera->getPosition()) * camera->getScale()).AABBtoRect());
-	//	}
-	//	//SDL_RenderDrawRect(renderer, rect);
-	//}
-	//for (Entity* e : entities) {
-	//	SDL_SetRenderDrawColor(renderer, e->getColor().r, e->getColor().g, e->getColor().b, e->getColor().a);
-	//	SDL_RenderDrawRect(renderer, &((e->getHitbox() + camera->getPosition()) * camera->getScale()).AABBtoRect());
-	//}
-	//for (Entity* e : LevelController::getCurrentLevel()->drawables) {
-	//	SDL_SetRenderDrawColor(renderer, e->getColor().r, e->getColor().g, e->getColor().b, e->getColor().a);
-	//	SDL_RenderDrawRect(renderer, &((e->getHitbox() + camera->getPosition()) * camera->getScale()).AABBtoRect());
-	//}
-	//SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-	//if (bulletTime) {
-	//	SDL_Delay(2000);
-	//}
-	//SDL_Delay(0);
 }
 
 void Game::loop() {
@@ -270,7 +208,6 @@ void Game::loop() {
 		fStart = SDL_GetTicks();
 		update();
 		render();
-		AllocationMetrics::printMemoryUsage();
 		fTime = SDL_GetTicks() - fStart;
 		cycle++;
 		if (fDelay > fTime) {
@@ -283,7 +220,7 @@ void Game::clean() {
 	SDL_DestroyWindow(_window);
 	SDL_DestroyRenderer(_renderer);
 	//Quit SDL subsystems
-	//IMG_Quit();
+	IMG_Quit();
 	SDL_Quit();
 }
 
