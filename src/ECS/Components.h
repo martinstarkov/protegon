@@ -7,3 +7,4 @@
 #include "Components/GravityComponent.h"
 #include "Components/LifetimeComponent.h"
 #include "Components/RenderComponent.h"
+#include "Components/AnimationComponent.h"

@@ -74,6 +74,9 @@ struct Vec2D {
 	Vec2D operator* (float f) {
 		return Vec2D(x * f, y * f);
 	}
+	Vec2D operator* (unsigned int i) {
+		return Vec2D(x * i, y * i);
+	}
 	Vec2D& operator*= (Vec2D v) {
 		*this = *this * v;
 		return *this;

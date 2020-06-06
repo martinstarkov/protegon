@@ -36,7 +36,7 @@ SDL_Texture* TextureManager::load(std::string path) {
 	return nullptr;
 }
 
-SDL_Texture* TextureManager::getTexture(std::string path) {
+SDL_Texture* TextureManager::getTexture(const std::string& path) {
 	auto iterator = _textureMap.find(path);
 	if (iterator != _textureMap.end()) { // exit early if texture exists
 		return iterator->second;
