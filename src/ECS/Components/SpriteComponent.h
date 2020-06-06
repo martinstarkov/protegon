@@ -9,8 +9,9 @@
 struct SpriteComponent : public Component<SpriteComponent> {
 	const char* _path;
 	SDL_Rect _source;
+	SDL_Texture* _texture;
 	SpriteComponent(const char* path = nullptr, AABB spriteRectangle = {}) : _path(path), _source(spriteRectangle.AABBtoRect()) {
-		TextureManager::load(_path);
+		_texture = TextureManager::load(_path);
 	}
 	virtual ~SpriteComponent() override {
 		TextureManager::removeTexture(_path);
