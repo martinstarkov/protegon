@@ -2,17 +2,14 @@
 #include "Manager.h"
 
 bool Manager::init() {
-	create<SystemFactory>(RenderSystem(), MovementSystem(), GravitySystem(), LifetimeSystem());
+	create<SystemFactory>(RenderSystem(), MovementSystem(), GravitySystem(), LifetimeSystem(), AnimationSystem());
 	return true;
 }
 
-Entity* Manager::getEntity(EntityID entityID) {
+Entity& Manager::getEntity(EntityID entityID) {
 	auto iterator = _entities.find(entityID);
-	if (iterator != _entities.end()) {
-		return iterator->second.get();
-	}
-	std::cout << "Entity (" << entityID << ") does not exist in Manager (" << this << ")" << std::endl;
-	return nullptr;
+	assert(iterator != _entities.end() && "Must return valid reference to entityID");
+	return *iterator->second; // reference to entity unique ptr
 }
 
 static EntityID getNewEntityID() {
@@ -20,12 +17,12 @@ static EntityID getNewEntityID() {
 	return lastID++;
 }
 
-Entity* Manager::createEntity() {
+Entity& Manager::createEntity() {
 	EntityID id = getNewEntityID();
-	std::unique_ptr<Entity> entity = std::make_unique<Entity>(id, this);
-	Entity* temp = entity.get();
-	_entities.emplace(id, std::move(entity));
-	return temp;
+	std::unique_ptr<Entity> uPtr = std::make_unique<Entity>(id, this);
+	Entity& ref = *uPtr;
+	_entities.emplace(id, std::move(uPtr));
+	return ref;
 }
 
 void Manager::destroyEntity(EntityID entityID) {
@@ -36,21 +33,18 @@ void Manager::destroyEntity(EntityID entityID) {
 		}
 		_entities.erase(entityID);
 	} else {
-		std::cout << "Entity (" << entityID << ") cannot be destroyed as it is not found in Manager (" << this << ")" << std::endl;
+		LOG("Entity (" << entityID << ") cannot be destroyed as it is not found in Manager (" << this << ")");
 	}
 }
 
-Entity* Manager::createTree(float x, float y) {
-	Entity* entity = create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(32, 32)), SpriteComponent("./resources/textures/enemy.png", AABB(0, 0, 16, 16)), RenderComponent());
-	return entity;
+EntityID Manager::createTree(float x, float y) {
+	return create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(32, 32)), SpriteComponent("./resources/textures/enemy.png", Vec2D(16, 16)), RenderComponent());
 }
-Entity* Manager::createBox(float x, float y) {
-	Entity* entity = create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(16, 16)), MotionComponent(Vec2D(0.1f, 0.1f)), GravityComponent(), SpriteComponent("./resources/textures/player.png", AABB(0, 0, 16, 16)), RenderComponent());
-	return entity;
+EntityID Manager::createBox(float x, float y) {
+	return create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(50, 50)), SpriteComponent("./resources/textures/player_anim.png", Vec2D(16, 16), 8), AnimationComponent(0.08f), RenderComponent());
 }
-Entity* Manager::createGhost(float x, float y, float lifetime) {
-	Entity* entity = create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(16, 16)), MotionComponent(Vec2D(0.01f, 0.0f)), GravityComponent(), LifetimeComponent(lifetime), RenderComponent());
-	return entity;
+EntityID Manager::createGhost(float x, float y, float lifetime) {
+	return create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(16, 16)), MotionComponent(Vec2D(0.1f, 0.0f)), RenderComponent());
 }
 
 void Manager::updateSystems() {
@@ -58,25 +52,26 @@ void Manager::updateSystems() {
 	assert(getSystem<MovementSystem>() != nullptr);
 	assert(getSystem<LifetimeSystem>() != nullptr);
 
+	getSystem<AnimationSystem>()->update();
 	getSystem<GravitySystem>()->update();
 	getSystem<MovementSystem>()->update();
 	getSystem<LifetimeSystem>()->update();
 	refresh();
 }
 
-void Manager::refreshSystems(Entity* entity) {
-	for (auto& spair : _systems) {
-		spair.second->onEntityChanged(entity);
+void Manager::refreshSystems(const EntityID entityID) {
+	for (auto& pair : _systems) {
+		pair.second->onEntityChanged(entityID);
 	}
 }
 
 void Manager::refreshSystems() {
-	for (auto& epair : _entities) {
-		refreshSystems(epair.second.get());
+	for (auto& pair : _entities) {
+		refreshSystems(pair.first);
 	}
 }
 
-void Manager::refresh() {
+void Manager::refresh() { // REWORK
 	std::vector<Entity*> deletables;
 	for (auto& pair : _entities) {
 		if (!pair.second->isAlive()) {

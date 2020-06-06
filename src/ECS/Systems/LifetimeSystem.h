@@ -2,25 +2,24 @@
 
 #include "System.h"
 
-constexpr float LIFE_CHANGE_PER_FRAME = (1.0f / 60.0f);
-
 class LifetimeSystem : public System<LifetimeComponent> {
 public:
 	virtual void update() override {
 		//std::cout << "Lifetime[" << _entities.size() << "],";
-		for (auto& e : _entities) {
-			LifetimeComponent* lifetime = e->getComponent<LifetimeComponent>();
+		for (auto& entityID : _entities) {
+			Entity& e = getEntity(entityID);
+			LifetimeComponent* lifetime = e.getComponent<LifetimeComponent>();
 			//CollisionComponent* collision = pair.second->getComponent<CollisionComponent>(); // TODO in the future
 			//if (collision->_bottom) { lifetime->_isDying = true; }
 			if (lifetime->_isDying) {
-				if (lifetime->_lifetime - LIFE_CHANGE_PER_FRAME >= 0) {
-					lifetime->_lifetime -= LIFE_CHANGE_PER_FRAME;
+				if (lifetime->_lifetime - SECOND_CHANGE_PER_FRAME >= 0) {
+					lifetime->_lifetime -= SECOND_CHANGE_PER_FRAME;
 				} else {
 					lifetime->_lifetime = 0.0f;
 				}
 			}
 			if (!lifetime->_lifetime) {
-				e->destroy();
+				e.destroy();
 			}
 		}
 	}

@@ -5,8 +5,8 @@
 
 #include "Types.h"
 #include "../Vec2D.h"
-#include "Components/TransformComponent.h"
 #include "Components/Component.h"
+#include "Components.h"
 
 class Manager;
 class BaseComponent;
@@ -14,37 +14,70 @@ class BaseComponent;
 class Entity {
 public:
 	Entity(EntityID id, Manager* manager) : _manager(manager), _id(id) {}
-
 	void destroy() { _alive = false; }
 	bool isAlive() { return _alive; }
 	const EntityID getID() const { return _id; }
 	const Signature getSignature() const { return _signature; }
 
-	void refreshManager(); // wrapper so that Manager.h can be included in .cpp
+	// wrappers so that Manager.h can be included in .cpp
+	void refreshManager(); 
 
-	template <typename TComponent> void addComponent(TComponent& component) { // make sure to call manager.refreshSystems(Entity*) after this function, wherever it is used
-		if (_components.find(component.getComponentID()) == _components.end()) {
-			std::unique_ptr<TComponent> uPtr = std::make_unique<TComponent>(std::move(component));
-			const char* name = typeid(TComponent).name();
-			LOG_("(" << sizeof(TComponent) << ") Created " << name << ": "); AllocationMetrics::printMemoryUsage();
-			_signature.emplace_back(uPtr->getComponentID());
-			LOG_("(" << sizeof(uPtr->getComponentID()) << ") Emplaced " << name << " into entity signatures: "); AllocationMetrics::printMemoryUsage();
-			_components.emplace(uPtr->getComponentID(), std::move(uPtr));
-			LOG_("Emplaced " << name << " into entity components: "); AllocationMetrics::printMemoryUsage();
-		} else { // TODO: Possibly multiple components of same type in the future
-
-		}
+	template <typename ...Ts> void addComponents(Ts&&... args) {
+		swallow((addEntityComponent(args), 0)...);
+		refreshManager();
 	}
+
+	template <typename ...Ts> void removeComponents() {
+		swallow((removeEntityComponent<Ts>(), 0)...);
+		refreshManager();
+	}
+
 	template <typename TComponent> TComponent* getComponent() {
 		auto iterator = _components.find(typeid(TComponent).hash_code());
 		if (iterator != _components.end()) {
-			return static_cast<TComponent*>(iterator->second.get());
+			return static_cast<TComponent*>(iterator->second.get()); // if these raw pointers get me in trouble with system methods calling deleted objects I swear to god...
 		}
 		return nullptr;
 	}
+private:
+	template <typename TComponent> void addEntityComponent(TComponent& component) { // make sure to call manager.refreshSystems(Entity*) after this function, wherever it is used
+		if (_components.find(component.getComponentID()) == _components.end()) {
+			std::unique_ptr<TComponent> uPtr = std::make_unique<TComponent>(std::move(component));
+			const char* name = typeid(TComponent).name();
+			LOG_("(" << sizeof(TComponent) + sizeof(uPtr->getComponentID()) << ") Added " << name << " and emplaced into " << _id << " components: ");
+			_signature.emplace_back(uPtr->getComponentID());
+			_components.emplace(uPtr->getComponentID(), std::move(uPtr));
+			AllocationMetrics::printMemoryUsage();
+		} else { // Currently just overrides the component
+			// TODO: Possibly multiple components of same type in the future
+			std::unique_ptr<TComponent> uPtr = std::make_unique<TComponent>(std::move(component));
+			_components[uPtr->getComponentID()] = std::move(uPtr);
+			AllocationMetrics::printMemoryUsage();
+		}
+	}
+	template <typename TComponent> void removeEntityComponent() {
+		ComponentID id = typeid(TComponent).hash_code();
+		auto iterator = _components.find(id);
+		if (iterator != _components.end()) {
+			const char* name = typeid(TComponent).name();
+			LOG_("(" << sizeof(TComponent) + sizeof(id) << ") Removed " << name << " and erased from " << _id << " components: ");
+			resetRelatedComponents<TComponent>(id);
+			_components.erase(iterator);
+			_signature.erase(std::remove(_signature.begin(), _signature.end(), id), _signature.end());
+			AllocationMetrics::printMemoryUsage();
+		}
 
-	// TODO add "add" function to entity, with component factory which allows adding many components at once to an already created entity
-
+	}
+	template <typename TComponent> void resetRelatedComponents(ComponentID id) {
+		// // Uncomment to reset sprite to original animation state when animation
+		if (id == typeid(AnimationComponent).hash_code()) {
+			SpriteComponent* sprite = getComponent<SpriteComponent>();
+			if (sprite) {
+				AnimationComponent* animation = getComponent<AnimationComponent>();
+				sprite->_source.x = sprite->_source.w * (animation->_state % sprite->_sprites);
+			}
+		}
+	}
 private:
 	Manager* _manager;
 	EntityID _id;

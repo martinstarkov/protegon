@@ -51,38 +51,36 @@ public:
 			LOG("System with hash code (" << id << ") already exists in Manager (" << this << ")");
 		}
 	}
-	template <typename ...Ts> void swallow(Ts&&... args) {} // wrapper allows calling methods on template pack with void return
 
 	struct SystemFactory {
 		template <typename ...Ts> static void call(Manager& manager, Ts&&... args) {
-			manager.swallow((manager.createSystem(args), 0)...);
+			swallow((manager.createSystem(args), 0)...);
 		}
 	};
 	struct EntityFactory {
-		template <typename ...Ts> static Entity* call(Manager& manager, Ts&&... args) {
-			Entity* entity = manager.createEntity();
-			manager.swallow((entity->addComponent(args), 0)...);
-			manager.refreshSystems(entity);
-			return entity;
+		template <typename ...Ts> static EntityID call(Manager& manager, Ts&&... args) {
+			Entity& entity = manager.createEntity();
+			entity.addComponents(std::forward<Ts>(args)...);
+			return entity.getID();
 		}
 	};
 
 	bool init();
 	void updateSystems();
-	void refreshSystems(Entity* entity);
+	void refreshSystems(const EntityID entity);
 	void refreshSystems();
 	void refresh();
 
-	Entity* getEntity(EntityID entityID);
+	Entity& getEntity(EntityID entityID);
 
-	Entity* createTree(float x, float y);
-	Entity* createBox(float x, float y);
-	Entity* createGhost(float x, float y, float lifetime = 7.0f);
+	EntityID createTree(float x, float y);
+	EntityID createBox(float x, float y);
+	EntityID createGhost(float x, float y, float lifetime = 7.0f);
 private:
 	using SystemID = unsigned int;
 	std::map<EntityID, std::unique_ptr<Entity>> _entities;
 	std::map<SystemID, std::unique_ptr<BaseSystem>> _systems;
 private:
-	Entity* createEntity();
+	Entity& createEntity();
 	void destroyEntity(EntityID entityID);
 };
