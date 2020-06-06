@@ -17,27 +17,24 @@ public:
 
 	void destroy() { _alive = false; }
 	bool isAlive() { return _alive; }
+	const EntityID getID() const { return _id; }
+	const Signature getSignature() const { return _signature; }
 
-	void refreshManager();
+	void refreshManager(); // wrapper so that Manager.h can be included in .cpp
 
-	template <typename TComponent, typename... TArgs> void addComponent(TArgs&&... mArgs) {
-		if (_components.find(typeid(TComponent).hash_code()) == _components.end()) {
-			std::unique_ptr<TComponent> component = std::make_unique<TComponent>(std::forward<TArgs>(mArgs)...);
-			LOG_("(" << sizeof(TransformComponent) << ") Component unique ptr created: "); AllocationMetrics::printMemoryUsage();
-			_signature.emplace_back(component->getComponentID());
-			LOG_("(" << sizeof(component->getComponentID()) << ") _signature emplaced with ID: "); AllocationMetrics::printMemoryUsage();
-			_components.emplace(component->getComponentID(), std::move(component));
-			LOG_("_components emplaced with ptr: "); AllocationMetrics::printMemoryUsage();
-			refreshManager();
+	template <typename TComponent> void addComponent(TComponent& component) { // make sure to call manager.refreshSystems(Entity*) after this function, wherever it is used
+		if (_components.find(component.getComponentID()) == _components.end()) {
+			std::unique_ptr<TComponent> uPtr = std::make_unique<TComponent>(std::move(component));
+			const char* name = typeid(TComponent).name();
+			LOG_("(" << sizeof(TComponent) << ") Created " << name << ": "); AllocationMetrics::printMemoryUsage();
+			_signature.emplace_back(uPtr->getComponentID());
+			LOG_("(" << sizeof(uPtr->getComponentID()) << ") Emplaced " << name << " into entity signatures: "); AllocationMetrics::printMemoryUsage();
+			_components.emplace(uPtr->getComponentID(), std::move(uPtr));
+			LOG_("Emplaced " << name << " into entity components: "); AllocationMetrics::printMemoryUsage();
 		} else { // TODO: Possibly multiple components of same type in the future
 
 		}
 	}
-
-	const EntityID getID() const { return _id; }
-
-	const Signature getSignature() const { return _signature; }
-
 	template <typename TComponent> TComponent* getComponent() {
 		auto iterator = _components.find(typeid(TComponent).hash_code());
 		if (iterator != _components.end()) {
@@ -45,6 +42,9 @@ public:
 		}
 		return nullptr;
 	}
+
+	// TODO add "add" function to entity, with component factory which allows adding many components at once to an already created entity
+
 private:
 	Manager* _manager;
 	EntityID _id;
