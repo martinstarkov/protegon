@@ -8,7 +8,6 @@
 #include "InputHandler.h"
 #include "TextureManager.h"
 
-#define FPS 60
 #define WINDOW_TITLE "Protegon"
 #define WINDOW_X SDL_WINDOWPOS_CENTERED
 #define WINDOW_Y SDL_WINDOWPOS_CENTERED
@@ -33,18 +32,18 @@ Manager manager;
 //MovementSystem ms(manager, MOVEMENT_MASK);
 //RenderSystem rs(manager, RENDER_MASK);
 
-Entity* tree1;
-Entity* tree2;
-Entity* tree3;
-Entity* tree4;
-Entity* box1;
-Entity* box2;
-Entity* box3;
-Entity* box4;
-Entity* ghost1;
-Entity* ghost2;
-Entity* ghost3;
-Entity* ghost4;
+EntityID tree1;
+EntityID tree2;
+EntityID tree3;
+EntityID tree4;
+EntityID box1;
+EntityID box2;
+EntityID box3;
+EntityID box4;
+EntityID ghost1;
+EntityID ghost2;
+EntityID ghost3;
+EntityID ghost4;
 
 Game& Game::getInstance() {
 	if (!_instance) {
@@ -75,10 +74,8 @@ void Game::init() {
 		tree3 = manager.createTree(30, 30 * 5);
 		tree4 = manager.createTree(30, 30 * 7);
 
-		box1 = manager.createBox(30 * 2, 30);
-		box2 = manager.createBox(30 * 4, 30);
-		box3 = manager.createBox(30 * 6, 30);
-		box4 = manager.createBox(30 * 8, 30);
+		box1 = manager.createBox(30 * 2 * 2, 30);
+		box4 = manager.createBox(30 * 10, 30);
 
 		ghost1 = manager.createGhost(80, 80);
 		ghost2 = manager.createGhost(80 * 2, 80 * 2);
@@ -131,6 +128,15 @@ void Game::update() {
 	//printf("%.2fs : ", (float)SDL_GetTicks() / 1000.0f);
 	manager.updateSystems();
 
+	if (cycle == 200) {
+		manager.getEntity(box4).removeComponents<AnimationComponent>();
+	}
+
+	if (cycle == 400) {
+		manager.getEntity(box4).addComponents(AnimationComponent(0.2f));
+	}
+
+	//AllocationMetrics::printMemoryUsage();
 	//for (auto e : manager.getGroup(Groups::dynamics)) {
 	//	e->get<MotionComponent>()->addVelocity(e->get<MotionComponent>()->getAcceleration());
 	//	e->get<MotionComponent>()->setVelocity(e->get<MotionComponent>()->getVelocity() * (1.0f - DRAG));
