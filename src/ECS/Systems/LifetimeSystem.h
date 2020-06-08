@@ -5,7 +5,7 @@
 class LifetimeSystem : public System<LifetimeComponent> {
 public:
 	virtual void update() override {
-		//std::cout << "Lifetime[" << _entities.size() << "],";
+		//LOG_("Lifetime[" << _entities.size() << "],");
 		for (auto& entityID : _entities) {
 			Entity& e = getEntity(entityID);
 			LifetimeComponent* lifetime = e.getComponent<LifetimeComponent>();

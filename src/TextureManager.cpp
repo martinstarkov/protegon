@@ -21,7 +21,7 @@ SDL_Texture* TextureManager::load(std::string path) {
 		SDL_Texture* texture = nullptr;
 		SDL_Surface* tempSurface = IMG_Load(path.c_str());
 		if (tempSurface == 0) {
-			std::cout << "Failed to IMG_Load path: '" << path << "'" << std::endl;
+			LOG("Failed to IMG_Load path: '" << path << "'");
 			return texture;
 		}
 		texture = SDL_CreateTextureFromSurface(Game::getRenderer(), tempSurface);
@@ -29,7 +29,7 @@ SDL_Texture* TextureManager::load(std::string path) {
 		if (texture) {
 			_textureMap.emplace(path, texture);
 		} else {
-			std::cout << "Failed to SDL_CreateTextureFromSurface with path: '" << path << "'" << std::endl;
+			LOG("Failed to SDL_CreateTextureFromSurface with path: '" << path << "'");
 		}
 		return texture;
 	}

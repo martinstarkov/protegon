@@ -5,7 +5,7 @@
 class MovementSystem : public System<TransformComponent, MotionComponent> {
 public:
 	virtual void update() override {
-		//std::cout << "Moving[" << _entities.size() << "],";
+		//LOG_("Moving[" << _entities.size() << "],");
 		for (auto& entityID : _entities) {
 			Entity& e = getEntity(entityID);
 			TransformComponent* transform = e.getComponent<TransformComponent>();

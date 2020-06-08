@@ -7,7 +7,7 @@
 class RenderSystem : public System<RenderComponent, TransformComponent, SizeComponent> {
 public:
 	virtual void update() override {
-		//std::cout << "Rendering[" << _entities.size() << "],";
+		//LOG_("Rendering[" << _entities.size() << "],");
 		for (auto& entityID : _entities) {
 			Entity& e = getEntity(entityID);
 			TransformComponent* transform = e.getComponent<TransformComponent>();

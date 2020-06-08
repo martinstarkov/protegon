@@ -7,7 +7,7 @@
 class AnimationSystem : public System<AnimationComponent, SpriteComponent> {
 public:
 	virtual void update() override {
-		//std::cout << "Animating[" << _entities.size() << "],";
+		//LOG_("Animating[" << _entities.size() << "],");
 		for (auto& entityID : _entities) {
 			Entity& e = getEntity(entityID);
 			AnimationComponent* animation = e.getComponent<AnimationComponent>();

@@ -1,5 +1,4 @@
 #include "AllocationMetrics.h"
-#include <iostream>
 
 void* operator new(std::size_t size) {
 	AllocationMetrics::allocation(size);
@@ -27,5 +26,5 @@ void AllocationMetrics::deallocation(const std::size_t& size) {
 }
 
 void AllocationMetrics::printMemoryUsage() {
-	std::cout << "Memory Usage: " << currentUsage() << " bytes" << std::endl;
+	LOG("Memory Usage: " << currentUsage() << " bytes");
 }

@@ -8,9 +8,9 @@
 
 static void printSignature(const Signature& s) {
 	for (auto& signature : s) {
-		std::cout << signature << ",";
+		LOG_(signature << ",");
 	}
-	std::cout << std::endl;
+	LOG("");
 }
 
 template <class... Components>
@@ -29,13 +29,13 @@ public:
 		bool existingEntity = containsEntity(entityID);
 		if (signaturesMatch(entityID)) {
 			if (!existingEntity) { // entity didn't exist in system
-				//std::cout << "Adding entity " << entity->getID() << " to system signature: ";
+				//LOG_("Adding entity " << entity->getID() << " to system signature: ");
 				//printSignature(_signature);
 				_entities.emplace_back(entityID);
 			}
 		} else {
 			if (existingEntity) { // entity had 'vital' component removed -> remove from system
-				//std::cout << "Removing entity " << entity->getID() << " from system signature: ";
+				//LOG_("Removing entity " << entity->getID() << " from system signature: ");
 				//printSignature(_signature);
 				_entities.erase(std::remove(_entities.begin(), _entities.end(), entityID), _entities.end());
 			}
