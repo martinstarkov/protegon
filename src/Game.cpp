@@ -1,9 +1,5 @@
 
 #include "Game.h"
-//#include "FallingPlatform.h"
-//#include "KillBlock.h"
-//#include "WinBlock.h"
-//#include "GameWorld.h"
 #include "ECS/Manager.h"
 #include "InputHandler.h"
 #include "TextureManager.h"
@@ -13,24 +9,14 @@
 #define WINDOW_Y SDL_WINDOWPOS_CENTERED
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
-#define WINDOW_FLAGS SDL_WINDOW_SHOWN//SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN
+#define WINDOW_FLAGS SDL_WINDOW_SHOWN //SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN
 
 std::unique_ptr<Game> Game::_instance = nullptr;
 SDL_Window* Game::_window = nullptr;
 SDL_Renderer* Game::_renderer = nullptr;
 bool Game::_running = false;
 
-//Manager manager;
-//Entity& player(manager.addEntity());
-
-#define DRAG 0.1f
-
-//#define MOVEMENT_MASK (COMPONENT_DISPLACEMENT | COMPONENT_VELOCITY)
-//#define RENDER_MASK (COMPONENT_DISPLACEMENT | COMPONENT_APPEARANCE)
-
 Manager manager;
-//MovementSystem ms(manager, MOVEMENT_MASK);
-//RenderSystem rs(manager, RENDER_MASK);
 
 EntityID tree1;
 EntityID tree2;
@@ -62,7 +48,6 @@ SDL_Renderer* Game::getRenderer() {
 void Game::init() {
 	if (initSDL()) {
 		_running = true;
-		//cycle = 0;
 		TextureManager::getInstance();
 		InputHandler::getInstance();
 		manager.init();
@@ -99,19 +84,19 @@ void Game::init() {
 
 bool Game::initSDL() {
 	if (SDL_Init(SDL_INIT_EVERYTHING) != 0) { // failure
-		std::cout << "SDL failed to init" << std::endl;
+		LOG("SDL failed to init");
 	}
 	_window = SDL_CreateWindow(WINDOW_TITLE, WINDOW_X, WINDOW_Y, WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_FLAGS);
 	if (_window) {
 		_renderer = SDL_CreateRenderer(_window, -1, 0);
 		if (_renderer) {
-			//std::cout << "SDL window and renderer init successful" << std::endl;
+			//LOG("SDL window and renderer init successful");
 			return true;
 		} else {
-			std::cout << "SDL renderer failed to init" << std::endl;
+			LOG("SDL renderer failed to init");
 		}
 	} else {
-		std::cout << "SDL window failed to init" << std::endl;
+		LOG("SDL window failed to init");
 	}
 	return false;
 }
@@ -125,74 +110,8 @@ void Game::instructions() {
 
 void Game::update() {
 	InputHandler::update();
-	//printf("%.2fs : ", (float)SDL_GetTicks() / 1000.0f);
+
 	manager.updateSystems();
-
-	if (cycle == 200) {
-		manager.getEntity(box4).removeComponents<AnimationComponent>();
-	}
-
-	if (cycle == 400) {
-		manager.getEntity(box4).addComponents(AnimationComponent(0.2f));
-	}
-
-	//AllocationMetrics::printMemoryUsage();
-	//for (auto e : manager.getGroup(Groups::dynamics)) {
-	//	e->get<MotionComponent>()->addVelocity(e->get<MotionComponent>()->getAcceleration());
-	//	e->get<MotionComponent>()->setVelocity(e->get<MotionComponent>()->getVelocity() * (1.0f - DRAG));
-	//	for (auto c : e->getComponents<TransformComponent>()) {
-	//		c->addPosition(e->get<MotionComponent>()->getVelocity());
-	//	}
-	//	e->get<CollisionComponent>()->setColliding(false);
-	//	for (auto h : manager.getGroup(Groups::hitboxes)) {
-	//		if (e != h) { // do not check with own hitbox
-	//			if (e->get<MotionComponent>()->getVelocity()) { // non-zero velocity
-	//				if (!h->has<MotionComponent>()) { // dynamic-static check
-	//					Vec2D penetration = e->get<HitboxComponent>()->getAABB().colliding(h->get<HitboxComponent>()->getAABB(), e->get<MotionComponent>()->getVelocity());
-	//					if (penetration) {
-	//						//std::cout << "dynamic-static" << std::endl;
-	//						e->get<TransformComponent>()->addPosition(-penetration);
-	//						if (penetration.x) { // set x-velocity to 0
-	//							//e->get<MotionComponent>()->setAcceleration(Vec2D(0.0f, e->get<MotionComponent>()->getAcceleration().y));
-	//							//e->get<MotionComponent>()->setVelocity(Vec2D(0.0f, e->get<MotionComponent>()->getVelocity().y));
-	//						}
-	//						if (penetration.y) { // set y-velocity to 0
-	//							//e->get<MotionComponent>()->setAcceleration(Vec2D(e->get<MotionComponent>()->getAcceleration().x, 0.0f));
-	//							//e->get<MotionComponent>()->setVelocity(Vec2D(e->get<MotionComponent>()->getVelocity().x, 0.0f));
-	//						}
-	//					}
-	//				} else { // dynamic-dynamic
-	//					std::cout << "dynamic-dynamic" << std::endl;
-	//				}
-	//			} else { // zero velocity
-	//				if (!h->has<MotionComponent>()) { // static-static check
-	//					Vec2D penetration = e->get<HitboxComponent>()->getAABB().colliding(h->get<HitboxComponent>()->getAABB());
-	//					if (penetration) {
-	//						std::cout << "static-static" << std::endl;
-	//						e->get<TransformComponent>()->addPosition(-penetration);
-	//					}
-	//				} else { // static-dynamic
-	//					std::cout << "static-dynamic" << std::endl;
-	//				}
-	//			}
-	//		}
-	//	}
-	//}
-	//std::cout << player.get<AABBComponent>()->getAABB() << ",";//std::endl;
-	//std::cout << player.get<HitboxComponent>()->getAABB() << std::endl;
-	//std::cout << player.get<MotionComponent>().getVelocity() << std::endl;
-	//std::string title = "attempts: " + std::to_string(attempts) + ", " + LevelController::getCurrentLevel()->getName();
-	//SDL_SetWindowTitle(window, title.c_str());
-	//for (Entity* e : LevelController::getCurrentLevel()->dynamics) {
-	//	e->update();
-	//}
-	//player->update();
-	//player->projectileLifeCheck();
-	//for (Bullet* b : player->getProjectiles()) {
-	//	b->update();
-	//}
-	//camera->update();
-	//LevelController::getCurrentLevel()->update();
 }
 
 void Game::render() {
