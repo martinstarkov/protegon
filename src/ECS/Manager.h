@@ -32,24 +32,21 @@ public:
 		return TFunctor::call(*this, std::forward<Ts>(args)...);
 	}
 	template <typename TSystem> TSystem* getSystem() {
-		auto iterator = _systems.find(typeid(TSystem).hash_code());
+		auto iterator = _systems.find(static_cast<SystemID>(typeid(TSystem).hash_code()));
 		if (iterator != _systems.end()) {
 			return static_cast<TSystem*>(iterator->second.get());
 		}
 		return nullptr;
 	}
 	template <typename TSystem> void createSystem(TSystem& system) {
-		SystemID id = typeid(TSystem).hash_code();
-		if (_systems.find(id) == _systems.end()) {
-			std::unique_ptr<TSystem> uPtr = std::make_unique<TSystem>(std::move(system));
-			const char* name = typeid(TSystem).name();
-			uPtr->setManager(this);
-			//LOG_("Created " << name << " (" << uPtr.get() << ") in Manager (" << this << "): "); AllocationMetrics::printMemoryUsage();
-			_systems.emplace(id, std::move(uPtr));
-			//LOG_("Emplaced " << name << " in Manager systems: "); AllocationMetrics::printMemoryUsage();
-		} else {
-			LOG("System with hash code (" << id << ") already exists in Manager (" << this << ")");
-		}
+		SystemID id = static_cast<SystemID>(typeid(TSystem).hash_code());
+		assert(_systems.find(id) == _systems.end());
+		std::unique_ptr<TSystem> uPtr = std::make_unique<TSystem>(std::move(system));
+		const char* name = typeid(TSystem).name();
+		uPtr->setManager(this);
+		//LOG_("Created " << name << " (" << uPtr.get() << ") in Manager (" << this << "): "); AllocationMetrics::printMemoryUsage();
+		_systems.emplace(id, std::move(uPtr));
+		//LOG_("Emplaced " << name << " in Manager systems: "); AllocationMetrics::printMemoryUsage();
 	}
 
 	struct SystemFactory {
