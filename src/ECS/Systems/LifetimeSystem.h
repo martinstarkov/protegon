@@ -19,7 +19,12 @@ public:
 				}
 			}
 			if (!lifetime->_lifetime) {
-				e.destroy();
+				StateComponent* s = e.getComponent<StateComponent>();
+				if (s) {
+					s->_sm.setState<DeadState>();
+				} else {
+					e.destroy();
+				}
 			}
 		}
 	}

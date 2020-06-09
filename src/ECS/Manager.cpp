@@ -38,13 +38,17 @@ void Manager::destroyEntity(EntityID entityID) {
 }
 
 EntityID Manager::createTree(float x, float y) {
-	return create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(32, 32)), SpriteComponent("./resources/textures/enemy.png", Vec2D(16, 16)), RenderComponent());
+	EntityID entityID = create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(32, 32)), SpriteComponent("./resources/textures/enemy.png", Vec2D(16, 16)), RenderComponent());
+	return entityID;
 }
 EntityID Manager::createBox(float x, float y) {
-	return create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(50, 50)), SpriteComponent("./resources/textures/player_anim.png", Vec2D(16, 16), 8), AnimationComponent(0.08f), RenderComponent());
+	EntityID entityID = create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(50, 50)), SpriteComponent("./resources/textures/player_anim.png", Vec2D(16, 16), 8), AnimationComponent(0.08f), MotionComponent(Vec2D(0.1f, 0.1f)), LifetimeComponent(5.0f), RenderComponent());
+	getEntity(entityID).addComponents(StateComponent(getEntity(entityID)));
+	return entityID;
 }
 EntityID Manager::createGhost(float x, float y, float lifetime) {
-	return create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(16, 16)), MotionComponent(Vec2D(0.1f, 0.0f)), RenderComponent());
+	EntityID entityID = create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(16, 16)), MotionComponent(Vec2D(0.1f, 0.0f)), LifetimeComponent(5.0f), RenderComponent());
+	return entityID;
 }
 
 void Manager::updateSystems() {
