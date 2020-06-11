@@ -3,5 +3,5 @@
 #include "States.h"
 
 StateMachine::StateMachine(Entity& entity) : _entity(entity) {
-	create<StateFactory>(DeadState());
+	create<StateFactory>(AliveState(), DeadState());
 }

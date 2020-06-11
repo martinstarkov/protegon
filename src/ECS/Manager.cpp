@@ -2,7 +2,7 @@
 #include "Manager.h"
 
 bool Manager::init() {
-	create<SystemFactory>(RenderSystem(), MovementSystem(), GravitySystem(), LifetimeSystem(), AnimationSystem());
+	create<SystemFactory>(RenderSystem(), MovementSystem(), GravitySystem(), LifetimeSystem(), AnimationSystem(), DeadStateSystem(), CollisionSystem());
 	return true;
 }
 
@@ -39,12 +39,14 @@ EntityID Manager::createTree(float x, float y) {
 	return entityID;
 }
 EntityID Manager::createBox(float x, float y) {
-	EntityID entityID = create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(50, 50)), SpriteComponent("./resources/textures/player_anim.png", Vec2D(16, 16), 8), AnimationComponent(0.08f), MotionComponent(Vec2D(0.1f, 0.1f)), LifetimeComponent(5.0f), RenderComponent());
-	getEntity(entityID).addComponents(StateComponent(getEntity(entityID)));
+	EntityID entityID = create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(50, 50)), SpriteComponent("./resources/textures/player_anim.png", Vec2D(16, 16), 8), AnimationComponent(0.08f), MotionComponent(Vec2D(0.1f, 0.1f)), RenderComponent(), CollisionComponent());
+	Entity& entity = getEntity(entityID);
+	entity.addComponents(StateComponent(entity));
+	entity.getComponent<StateComponent>()->_sm.setState<AliveState>();
 	return entityID;
 }
 EntityID Manager::createGhost(float x, float y, float lifetime) {
-	EntityID entityID = create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(16, 16)), MotionComponent(Vec2D(0.1f, 0.0f)), LifetimeComponent(5.0f), RenderComponent());
+	EntityID entityID = create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(32, 32)), MotionComponent(Vec2D(0.2f, 0.0f)), CollisionComponent(), RenderComponent());
 	return entityID;
 }
 
@@ -52,7 +54,10 @@ void Manager::updateSystems() {
 	getSystem<AnimationSystem>()->update();
 	getSystem<GravitySystem>()->update();
 	getSystem<MovementSystem>()->update();
+	getSystem<CollisionSystem>()->update();
 	getSystem<LifetimeSystem>()->update();
+	refresh();
+	getSystem<DeadStateSystem>()->update();
 	refresh();
 }
 

@@ -42,6 +42,11 @@ public:
 			LOG("new state to: " << _currentState);
 		}
 	}
+	template <typename TState> TState& getState() {
+		StateID stateID = static_cast<StateID>(typeid(TState).hash_code());
+		assert(_states.find(stateID) != _states.end());
+		return static_cast<TState&>(*_states[stateID]);
+	}
 private:
 	std::map<StateID, std::unique_ptr<BaseState>> _states;
 	Entity& _entity;
