@@ -18,22 +18,19 @@ public:
 	bool isAlive() { return _alive; }
 	const EntityID getID() const { return _id; }
 	const Signature getSignature() const { return _signature; }
-
-	// wrappers so that Manager.h can be included in .cpp
-	void refreshManager(); 
-
+	void refreshManager(); // wrapper so that Manager.h can be included in .cpp
+public:
 	template <typename ...Ts> void addComponents(Ts&&... args) {
 		swallow((addEntityComponent(args), 0)...);
 		refreshManager();
 	}
-
 	template <typename ...Ts> void removeComponents() {
 		swallow((removeEntityComponent<Ts>(), 0)...);
 		refreshManager();
 	}
-
 	template <typename TComponent> TComponent* getComponent() {
 		auto iterator = _components.find(typeid(TComponent).hash_code());
+		// Consider adding assertion here
 		if (iterator != _components.end()) {
 			return static_cast<TComponent*>(iterator->second.get()); // if these raw pointers get me in trouble with system methods calling deleted objects I swear to god...
 		}
@@ -58,14 +55,13 @@ private:
 	template <typename TComponent> void removeEntityComponent() {
 		ComponentID id = typeid(TComponent).hash_code();
 		auto iterator = _components.find(id);
-		if (iterator != _components.end()) {
-			const char* name = typeid(TComponent).name();
-			LOG_("(" << sizeof(TComponent) + sizeof(id) << ") Removed " << name << " and erased from " << _id << " components: ");
-			resetRelatedComponents<TComponent>(id);
-			_components.erase(iterator);
-			_signature.erase(std::remove(_signature.begin(), _signature.end(), id), _signature.end());
-			AllocationMetrics::printMemoryUsage();
-		}
+		assert(iterator != _components.end() && "Attempting to remove non-existent component from entity");
+		const char* name = typeid(TComponent).name();
+		LOG_("(" << sizeof(TComponent) + sizeof(id) << ") Removed " << name << " and erased from " << _id << " components: ");
+		resetRelatedComponents<TComponent>(id);
+		_components.erase(iterator);
+		_signature.erase(std::remove(_signature.begin(), _signature.end(), id), _signature.end());
+		AllocationMetrics::printMemoryUsage();
 
 	}
 	template <typename TComponent> void resetRelatedComponents(ComponentID id) {
@@ -79,9 +75,9 @@ private:
 		}
 	}
 private:
+	using ComponentMap = std::map<ComponentID, std::unique_ptr<BaseComponent>>;
 	Manager* _manager;
 	EntityID _id;
-	using ComponentMap = std::map<ComponentID, std::unique_ptr<BaseComponent>>;
 	ComponentMap _components;
 	Signature _signature;
 	bool _alive = true;

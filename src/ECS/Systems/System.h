@@ -45,6 +45,10 @@ public:
 	virtual void onEntityDestroyed(EntityID entityID) override final {
 		_entities.erase(std::remove(_entities.begin(), _entities.end(), entityID), _entities.end());
 	}
+protected:
+	Manager* _manager;
+	std::vector<EntityID> _entities;
+	Signature _signature;
 private:
 	bool containsEntity(EntityID entityID) {
 		if (std::find(_entities.begin(), _entities.end(), entityID) != _entities.end()) {
@@ -61,9 +65,5 @@ private:
 		}
 		return true;
 	}
-protected:
-	Manager* _manager;
-	std::vector<EntityID> _entities;
-	Signature _signature;
 };
 

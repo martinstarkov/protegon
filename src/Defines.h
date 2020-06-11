@@ -1,4 +1,14 @@
 #pragma once
 
+
+#define WINDOW_TITLE "Protegon"
+#define WINDOW_X SDL_WINDOWPOS_CENTERED
+#define WINDOW_Y SDL_WINDOWPOS_CENTERED
+#define WINDOW_W 800
+#define WINDOW_H 600
+#define WINDOW_FLAGS SDL_WINDOW_SHOWN //SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN
+
 constexpr unsigned int FPS = 60;
 constexpr float SECOND_CHANGE_PER_FRAME = (1.0f / (float)FPS);
+
+#define DEFAULT_RENDER_COLOR SDL_Color{ 255, 255, 255, 255 }

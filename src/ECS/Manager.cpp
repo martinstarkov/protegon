@@ -26,15 +26,12 @@ Entity& Manager::createEntity() {
 }
 
 void Manager::destroyEntity(EntityID entityID) {
-	auto it = _entities.find(entityID);
-	if (it != _entities.end()) {
-		for (auto& pair : _systems) {
-			pair.second->onEntityDestroyed(entityID);
-		}
-		_entities.erase(entityID);
-	} else {
-		LOG("Entity (" << entityID << ") cannot be destroyed as it is not found in Manager (" << this << ")");
+	auto iterator = _entities.find(entityID);
+	assert(iterator != _entities.end() && "Attempting to destroy non-existent entity");
+	for (auto& pair : _systems) {
+		pair.second->onEntityDestroyed(entityID);
 	}
+	_entities.erase(entityID);
 }
 
 EntityID Manager::createTree(float x, float y) {
@@ -52,10 +49,6 @@ EntityID Manager::createGhost(float x, float y, float lifetime) {
 }
 
 void Manager::updateSystems() {
-	assert(getSystem<GravitySystem>() != nullptr);
-	assert(getSystem<MovementSystem>() != nullptr);
-	assert(getSystem<LifetimeSystem>() != nullptr);
-
 	getSystem<AnimationSystem>()->update();
 	getSystem<GravitySystem>()->update();
 	getSystem<MovementSystem>()->update();

@@ -13,41 +13,30 @@ TextureManager& TextureManager::getInstance() {
 }
 
 SDL_Texture* TextureManager::load(std::string path) {
-	if (path != "") {
-		auto iterator = _textureMap.find(path);
-		if (iterator != _textureMap.end()) { // return if texture exists
-			return iterator->second;
-		}
-		SDL_Texture* texture = nullptr;
-		SDL_Surface* tempSurface = IMG_Load(path.c_str());
-		if (tempSurface == 0) {
-			LOG("Failed to IMG_Load path: '" << path << "'");
-			return texture;
-		}
-		texture = SDL_CreateTextureFromSurface(Game::getRenderer(), tempSurface);
-		SDL_FreeSurface(tempSurface);
-		if (texture) {
-			_textureMap.emplace(path, texture);
-		} else {
-			LOG("Failed to SDL_CreateTextureFromSurface with path: '" << path << "'");
-		}
-		return texture;
+	assert(path != "" && "Cannot load empty path");
+	auto iterator = _textureMap.find(path);
+	if (iterator != _textureMap.end()) { // don't create if texture already exists in map
+		return iterator->second;
 	}
-	return nullptr;
+	SDL_Texture* texture = nullptr;
+	SDL_Surface* tempSurface = IMG_Load(path.c_str());
+	assert(tempSurface != 0 && "Failed to load image into surface");
+	texture = SDL_CreateTextureFromSurface(Game::getRenderer(), tempSurface);
+	SDL_FreeSurface(tempSurface);
+	assert(texture != nullptr && "Failed to create texture from surface");
+	_textureMap.emplace(path, texture);
+	return texture;
 }
 
 SDL_Texture* TextureManager::getTexture(const std::string& path) {
 	auto iterator = _textureMap.find(path);
-	if (iterator != _textureMap.end()) { // exit early if texture exists
-		return iterator->second;
-	}
-	return nullptr;
+	assert(iterator != _textureMap.end() && "Attempting to retrieve unloaded texture");
+	return iterator->second;
 }
 
 void TextureManager::draw(SDL_Texture* texture, SDL_Rect source, SDL_Rect destination) {
-	if (texture) {
-		SDL_RenderCopy(Game::getRenderer(), texture, &source, &destination);
-	}
+	assert(texture != nullptr && "Attempting to draw null texture");
+	SDL_RenderCopy(Game::getRenderer(), texture, &source, &destination);
 }
 
 void TextureManager::draw(SDL_Rect rectangle, SDL_Color color) {
@@ -57,13 +46,11 @@ void TextureManager::draw(SDL_Rect rectangle, SDL_Color color) {
 }
 
 void TextureManager::draw(SDL_Texture* texture, SDL_Rect source, SDL_Rect destination, float angle, SDL_RendererFlip flip) {
-	if (texture) {
-		SDL_RenderCopyEx(Game::getRenderer(), texture, &source, &destination, (double)angle, NULL, flip);
-	}
+	assert(texture != nullptr && "Attempting to draw null texture");
+	SDL_RenderCopyEx(Game::getRenderer(), texture, &source, &destination, (double)angle, NULL, flip);
 }
 
 void TextureManager::removeTexture(std::string path) {
-	if (path != "") {
-		_textureMap.erase(path);
-	}
+	assert(path != "" && "Attempting to remove non-existent texture");
+	_textureMap.erase(path);
 }

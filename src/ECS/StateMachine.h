@@ -11,14 +11,16 @@ class Entity;
 class StateMachine {
 public:
 	StateMachine(Entity& entity);
-	template<class TFunctor, typename... Ts> auto create(Ts&&... args) {
-		return TFunctor::call(*this, std::forward<Ts>(args)...);
-	}
+public:
 	struct StateFactory {
 		template <typename ...Ts> static void call(StateMachine& stateMachine, Ts&&... args) {
 			swallow((stateMachine.createState(args), 0)...);
 		}
 	};
+public:
+	template<class TFunctor, typename... Ts> auto create(Ts&&... args) {
+		return TFunctor::call(*this, std::forward<Ts>(args)...);
+	}
 	template <class TState> void createState(TState& state) {
 		StateID id = static_cast<StateID>(typeid(TState).hash_code());
 		assert(_states.find(id) == _states.end());
