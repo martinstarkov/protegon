@@ -36,6 +36,13 @@ public:
 		}
 		return nullptr;
 	}
+	template <typename Signature> void addSignature() {
+		_signature.emplace_back(static_cast<ComponentID>(typeid(Signature).hash_code()));
+	}
+	template <typename Signature> void removeSignature() {
+		ComponentID id = static_cast<ComponentID>(typeid(Signature).hash_code());
+		_signature.erase(std::remove(_signature.begin(), _signature.end(), id), _signature.end());
+	}
 private:
 	template <typename TComponent> void addEntityComponent(TComponent& component) { // make sure to call manager.refreshSystems(Entity*) after this function, wherever it is used
 		if (_components.find(component.getComponentID()) == _components.end()) {
