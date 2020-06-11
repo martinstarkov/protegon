@@ -5,3 +5,5 @@
 #include "Systems/GravitySystem.h"
 #include "Systems/LifetimeSystem.h"
 #include "Systems/AnimationSystem.h"
+#include "Systems/DeadStateSystem.h"
+#include "Systems/CollisionSystem.h"
