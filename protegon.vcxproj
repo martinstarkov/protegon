@@ -172,11 +172,14 @@
   <ItemGroup>
     <Image Include="resources\textures\enemy.png" />
     <Image Include="resources\textures\player.png" />
+    <Image Include="resources\textures\player_anim.png" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\ECS\Components\CollisionComponent.h" />
     <ClInclude Include="src\ECS\Components\StateComponent.h" />
     <ClInclude Include="src\ECS\StateMachine.h" />
     <ClInclude Include="src\ECS\States.h" />
+    <ClInclude Include="src\ECS\States\AliveState.h" />
     <ClInclude Include="src\ECS\States\BaseState.h" />
     <ClInclude Include="src\ECS\States\DeadState.h" />
     <ClInclude Include="src\AllocationMetrics.h" />
@@ -197,6 +200,8 @@
     <ClInclude Include="src\ECS\DirectionComponent.h" />
     <ClInclude Include="src\ECS\DrawComponent.h" />
     <ClInclude Include="src\ECS\Components\GravityComponent.h" />
+    <ClInclude Include="src\ECS\Systems\CollisionSystem.h" />
+    <ClInclude Include="src\ECS\Systems\DeadStateSystem.h" />
     <ClInclude Include="src\ECS\Systems\GravitySystem.h" />
     <ClInclude Include="src\ECS\Components\LifetimeComponent.h" />
     <ClInclude Include="src\ECS\Systems\LifetimeSystem.h" />
