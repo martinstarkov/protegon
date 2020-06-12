@@ -9,6 +9,7 @@ public:
 	int _countdown;
 	virtual void enter(Entity& entity) override final {
 		entity.addSignature<DeadState>();
+		// This needs to be refactored
 		SpriteComponent* sprite = entity.getComponent<SpriteComponent>();
 		if (sprite) {
 			sprite->_texture = TextureManager::load("./resources/textures/enemy.png");
