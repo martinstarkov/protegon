@@ -9,6 +9,8 @@ SDL_Window* Game::_window = nullptr;
 SDL_Renderer* Game::_renderer = nullptr;
 bool Game::_running = false;
 
+SDL_Event event;
+
 Manager manager;
 
 EntityID tree1;
@@ -55,6 +57,9 @@ void Game::init() {
 	box1 = manager.createBox(30 * 2 * 2, 30);
 	box4 = manager.createBox(30 * 10, 30);
 
+	manager.getEntity(box1).addComponents(DragComponent(0.1f), LifetimeComponent(5.0f), PlayerController(Vec2D(1, 1)));
+	manager.getEntity(box4).addComponents(DragComponent(0.01f), LifetimeComponent(8.0f), PlayerController(Vec2D(0.5f, 0.5f)));
+
 	ghost1 = manager.createGhost(80, 80);
 	ghost2 = manager.createGhost(80 * 2, 80 * 2);
 	ghost3 = manager.createGhost(80 * 3, 80 * 3);
@@ -79,8 +84,7 @@ void Game::instructions() {
 }
 
 void Game::update() {
-	InputHandler::update();
-
+	InputHandler::update(event);
 	manager.updateSystems();
 }
 

@@ -5,7 +5,6 @@
 #include "BaseSystem.h"
 
 #include "../Components.h"
-#include "../States.h"
 
 static void printSignature(const Signature& s) {
 	for (auto& signature : s) {
