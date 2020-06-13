@@ -12,8 +12,7 @@ InputHandler& InputHandler::getInstance() {
 }
 
 
-void InputHandler::update() {
-	SDL_Event event;
+void InputHandler::update(SDL_Event& event) {
 	while (SDL_PollEvent(&event)) {
 		switch (event.type) {
 			case SDL_QUIT:

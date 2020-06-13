@@ -19,12 +19,10 @@ public:
 				}
 			}
 			if (!lifetime->_lifetime) {
-				StateComponent* s = e.getComponent<StateComponent>();
-				if (s) {
-					s->_sm.setState<DeadState>();
-				} else {
-					e.destroy();
+				if (!e.getComponent<InputComponent>()) {
+					e.addComponents(InputComponent());
 				}
+				//e.destroy();
 			}
 		}
 	}
