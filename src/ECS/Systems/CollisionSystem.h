@@ -34,21 +34,21 @@ public:
 						transform->_position -= penetration;
 						if (penetration.x) {
 							LOG("X COLLISION");
-							if (motion) {
-								motion->_velocity = Vec2D();
-							}
-							if (otherMotion) {
-								otherMotion->_velocity = Vec2D();
-							}
+							//if (motion) {
+							//	motion->_velocity = Vec2D();
+							//}
+							//if (otherMotion) {
+							//	otherMotion->_velocity = Vec2D();
+							//}
 						}
 						if (penetration.y) {
 							LOG("Y COLLISION");
-							if (motion) {
-								motion->_velocity = Vec2D();
-							}
-							if (otherMotion) {
-								otherMotion->_velocity = Vec2D();
-							}
+							//if (motion) {
+							//	motion->_velocity = Vec2D();
+							//}
+							//if (otherMotion) {
+							//	otherMotion->_velocity = Vec2D();
+							//}
 						}
 
 					}
