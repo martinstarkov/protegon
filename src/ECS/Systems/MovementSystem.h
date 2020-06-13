@@ -10,7 +10,6 @@ public:
 			Entity& e = getEntity(entityID);
 			TransformComponent* transform = e.getComponent<TransformComponent>();
 			MotionComponent* motion = e.getComponent<MotionComponent>();
-			motion->_velocity += motion->_acceleration;
 			transform->_position += motion->_velocity;
 		}
 	}
