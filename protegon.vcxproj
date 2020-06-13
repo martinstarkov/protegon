@@ -176,20 +176,16 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\ECS\Components\CollisionComponent.h" />
-    <ClInclude Include="src\ECS\Components\StateComponent.h" />
-    <ClInclude Include="src\ECS\StateMachine.h" />
-    <ClInclude Include="src\ECS\States.h" />
-    <ClInclude Include="src\ECS\States\AliveState.h" />
-    <ClInclude Include="src\ECS\States\BaseState.h" />
-    <ClInclude Include="src\ECS\States\DeadState.h" />
     <ClInclude Include="src\AllocationMetrics.h" />
     <ClInclude Include="src\common.h" />
     <ClInclude Include="src\Debug.h" />
     <ClInclude Include="src\Defines.h" />
     <ClInclude Include="src\ECS\Components\AnimationComponent.h" />
     <ClInclude Include="src\ECS\Components\BaseComponent.h" />
+    <ClInclude Include="src\ECS\Components\DragComponent.h" />
+    <ClInclude Include="src\ECS\Components\InputComponent.h" />
+    <ClInclude Include="src\ECS\Components\PlayerController.h" />
     <ClInclude Include="src\ECS\Entity.h" />
-    <ClInclude Include="src\ECS\States\State.h" />
     <ClInclude Include="src\ECS\Systems\AnimationSystem.h" />
     <ClInclude Include="src\ECS\Systems\BaseSystem.h" />
     <ClInclude Include="src\ECS\Components\Component.h" />
@@ -201,7 +197,7 @@
     <ClInclude Include="src\ECS\DrawComponent.h" />
     <ClInclude Include="src\ECS\Components\GravityComponent.h" />
     <ClInclude Include="src\ECS\Systems\CollisionSystem.h" />
-    <ClInclude Include="src\ECS\Systems\DeadStateSystem.h" />
+    <ClInclude Include="src\ECS\Systems\DragSystem.h" />
     <ClInclude Include="src\ECS\Systems\GravitySystem.h" />
     <ClInclude Include="src\ECS\Components\LifetimeComponent.h" />
     <ClInclude Include="src\ECS\Systems\LifetimeSystem.h" />
@@ -211,12 +207,14 @@
     <ClInclude Include="src\ECS\Components\MotionComponent.h" />
     <ClInclude Include="src\ECS\Systems\MovementSystem.h" />
     <ClInclude Include="src\ECS\Components\RenderComponent.h" />
+    <ClInclude Include="src\ECS\Systems\InputSystem.h" />
     <ClInclude Include="src\ECS\Systems\RenderSystem.h" />
     <ClInclude Include="src\ECS\Components\SizeComponent.h" />
     <ClInclude Include="src\ECS\Components\SpriteComponent.h" />
     <ClInclude Include="src\ECS\Systems\System.h" />
     <ClInclude Include="src\ECS\Systems.h" />
     <ClInclude Include="src\ECS\Components\TransformComponent.h" />
+    <ClInclude Include="src\ECS\Systems\MotionSystem.h" />
     <ClInclude Include="src\ECS\Types.h" />
     <ClInclude Include="src\Game.h" />
     <ClInclude Include="src\InputHandler.h" />
@@ -228,7 +226,6 @@
     <ClCompile Include="src\AllocationMetrics.cpp" />
     <ClCompile Include="src\ECS\Entity.cpp" />
     <ClCompile Include="src\ECS\Manager.cpp" />
-    <ClCompile Include="src\ECS\StateMachine.cpp" />
     <ClCompile Include="src\Game.cpp" />
     <ClCompile Include="src\InputHandler.cpp" />
     <ClCompile Include="src\main.cpp" />
