@@ -33,7 +33,6 @@ public:
 						otherCollider->_colliding = true;
 						transform->_position -= penetration;
 						if (penetration.x) {
-							LOG("X COLLISION");
 							//if (motion) {
 							//	motion->_velocity = Vec2D();
 							//}
@@ -42,7 +41,6 @@ public:
 							//}
 						}
 						if (penetration.y) {
-							LOG("Y COLLISION");
 							//if (motion) {
 							//	motion->_velocity = Vec2D();
 							//}

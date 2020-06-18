@@ -19,19 +19,15 @@ public:
 			MotionComponent* motion = e.getComponent<MotionComponent>();
 			if (motion) {
 				if (s[SDL_SCANCODE_W] && !s[SDL_SCANCODE_S]) {
-					LOG("W");
 					motion->_velocity.y += -player->_speed.y;
 				}
 				if (s[SDL_SCANCODE_S] && !s[SDL_SCANCODE_W]) {
-					LOG("S");
 					motion->_velocity.y += player->_speed.y;
 				}
 				if (s[SDL_SCANCODE_A] && !s[SDL_SCANCODE_D]) {
-					LOG("A");
 					motion->_velocity.x += -player->_speed.x;
 				}
 				if (s[SDL_SCANCODE_D] && !s[SDL_SCANCODE_A]) {
-					LOG("D");
 					motion->_velocity.x += player->_speed.x;
 				}
 			}
