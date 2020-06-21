@@ -1,0 +1,7 @@
+// TODO
+
+// State machine to which you can add states and check states from and act in different systems accordingly (more complex component? with methods?)
+
+// Animations with state system
+
+// Collision system rework

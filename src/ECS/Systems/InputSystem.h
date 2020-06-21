@@ -4,6 +4,8 @@
 
 #include "SDL.h"
 
+// TODO: Add key specificity to InputComponent
+
 class InputSystem : public System<InputComponent> {
 public:
 	virtual void update() override {

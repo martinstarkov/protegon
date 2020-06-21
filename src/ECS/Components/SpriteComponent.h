@@ -6,6 +6,8 @@
 #include "../../TextureManager.h"
 #include "../../AABB.h"
 
+// Turn sprite component into sprite sheet that feeds into AnimationSystem and create custom systems for different states (MovementStateSystem, etc)
+
 struct SpriteComponent : public Component<SpriteComponent> {
 	const char* _path;
 	SDL_Rect _source;
