@@ -1,0 +1,5 @@
+#pragma once
+
+#include "States/IdleState.h"
+#include "States/WalkState.h"
+#include "States/RunState.h"
