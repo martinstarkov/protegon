@@ -2,7 +2,7 @@
 #include "Manager.h"
 
 bool Manager::init() {
-	create<SystemFactory>(RenderSystem(), MovementSystem(), GravitySystem(), LifetimeSystem(), AnimationSystem(), CollisionSystem(), MotionSystem(), InputSystem(), DragSystem());
+	create<SystemFactory>(RenderSystem(), MovementSystem(), GravitySystem(), LifetimeSystem(), AnimationSystem(), CollisionSystem(), MotionSystem(), InputSystem(), DragSystem(), StateMachineSystem());
 	return true;
 }
 
@@ -39,7 +39,7 @@ EntityID Manager::createTree(float x, float y) {
 	return entityID;
 }
 EntityID Manager::createBox(float x, float y) {
-	EntityID entityID = create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(50, 50)), SpriteComponent("./resources/textures/player_anim.png", Vec2D(16, 16), 8), AnimationComponent(0.08f), MotionComponent(Vec2D(0.1f, 0.1f), {}, Vec2D(5, 5)), RenderComponent(), CollisionComponent());
+	EntityID entityID = create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(50, 50)), SpriteComponent("./resources/textures/player_anim.png", Vec2D(16, 16)), AnimationComponent(0.08f), MotionComponent(Vec2D(0.1f, 0.1f), {}, Vec2D(5, 5)), RenderComponent(), CollisionComponent());
 	return entityID;
 }
 EntityID Manager::createGhost(float x, float y, float lifetime) {
@@ -56,6 +56,7 @@ void Manager::updateSystems() {
 	getSystem<MovementSystem>()->update();
 	getSystem<CollisionSystem>()->update();
 	getSystem<LifetimeSystem>()->update();
+	getSystem<StateMachineSystem>()->update();
 	refresh();
 }
 

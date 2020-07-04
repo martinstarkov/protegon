@@ -9,3 +9,4 @@
 #include "Systems/InputSystem.h"
 #include "Systems/MotionSystem.h"
 #include "Systems/DragSystem.h"
+#include "Systems/StateMachineSystem.h"
