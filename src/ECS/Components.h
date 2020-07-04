@@ -12,3 +12,4 @@
 #include "Components/PlayerController.h"
 #include "Components/InputComponent.h"
 #include "Components/DragComponent.h"
+#include "Components/StateMachineComponent.h"
