@@ -1,5 +1,11 @@
 // TODO
 
+// Animations now have a component called SpriteSheetComponent which stores an AnimationID and its matching start position, size, and count.
+// NEXT: Make a State class which stores the CURRENT STATE which corresponds to the state, make it so many of these state components can be added and IDed specifically.
+// NEXT: AnimationState will inherit from the State class and store the current animation frame based on the CURRENT STATE
+// NEXT: AnimationSystem will read from the AnimationState and the StateMachine the number and ID (respectively), which should be fetched from the SpriteSheetComponent
+// Set the AnimationState to the next number only when the StateMachine determines that
+
 // State machine to which you can add states and check states from and act in different systems accordingly (more complex component? with methods?)
 
 // Animations with state system
