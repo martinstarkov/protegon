@@ -2,7 +2,7 @@
 
 #include "State.h"
 
-#define RUN_THRESHOLD 1000
+#define RUN_THRESHOLD 30
 
 class WalkState : public State<WalkState> {
 public:
