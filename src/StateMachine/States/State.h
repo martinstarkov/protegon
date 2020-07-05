@@ -1,15 +1,12 @@
 #pragma once
 
 #include "BaseState.h"
+#include <typeinfo>
 
-#include "../StateMachine.h"
-
-class BaseStateMachine;
-
-template <typename StateType>
+template <class StateType>
 class State : public BaseState {
 public:
-	State() {
+	State() : _sm(nullptr) {
 		_id = static_cast<StateID>(typeid(StateType).hash_code());
 	}
 	virtual void setParentStateMachine(BaseStateMachine* parentStateMachine) override final {
