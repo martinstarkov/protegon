@@ -3,8 +3,14 @@
 #include "StateMachine.h"
 
 class WalkStateMachine : public StateMachine<WalkStateMachine> {
-	virtual void init() override final {
-		setCurrentState(new IdleState(this));
+public:
+	WalkStateMachine() {
+		setCurrentState(new IdleState());
 	}
 };
-class JumpStateMachine : public StateMachine<JumpStateMachine> {};
+class JumpStateMachine : public StateMachine<JumpStateMachine> {
+public:
+	JumpStateMachine() {
+		setCurrentState(new GroundedState());
+	}
+};
