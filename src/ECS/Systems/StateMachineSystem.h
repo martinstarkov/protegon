@@ -2,7 +2,7 @@
 
 #include "System.h"
 
-#include "../../StateMachine/StateMachine.h"
+#include "../../StateMachine/StateMachines.h"
 
 class StateMachineSystem : public System<StateMachineComponent> {
 public:
