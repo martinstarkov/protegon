@@ -2,6 +2,8 @@
 
 #include "../Types.h"
 
+class BaseStateMachine;
+
 class BaseState {
 public:
 	virtual void onEnter() = 0;

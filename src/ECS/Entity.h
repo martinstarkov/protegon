@@ -77,7 +77,7 @@ private:
 			SpriteComponent* sprite = getComponent<SpriteComponent>();
 			if (sprite) {
 				AnimationComponent* animation = getComponent<AnimationComponent>();
-				sprite->_source.x = sprite->_source.w * (animation->_state % sprite->_sprites);
+				//sprite->_source.x = sprite->_source.w * (animation->_state % sprite->_sprites);
 			}
 		}
 	}

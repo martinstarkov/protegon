@@ -57,7 +57,7 @@ void Game::init() {
 	box1 = manager.createBox(30 * 2 * 2, 30);
 	box4 = manager.createBox(30 * 10, 30);
 
-	manager.getEntity(box1).addComponents(DragComponent(0.1f), LifetimeComponent(5.0f), PlayerController(Vec2D(1, 1)));
+	manager.getEntity(box1).addComponents(DragComponent(0.1f), LifetimeComponent(5.0f), PlayerController(Vec2D(1, 1)), StateMachineComponent(new WalkStateMachine(), new JumpStateMachine()));
 	manager.getEntity(box4).addComponents(DragComponent(0.01f), LifetimeComponent(8.0f));
 
 	ghost1 = manager.createGhost(80, 80);

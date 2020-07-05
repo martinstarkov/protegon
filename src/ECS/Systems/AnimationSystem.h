@@ -14,7 +14,7 @@ public:
 			Entity& e = getEntity(entityID);
 			AnimationComponent* animation = e.getComponent<AnimationComponent>();
 			SpriteComponent* sprite = e.getComponent<SpriteComponent>();
-			if (sprite->_sprites > 1) {
+			/*if (sprite->_sprites > 1) {
 				unsigned int totalTimer = animation->_counter % (animation->_framesBetween * sprite->_sprites);
 				unsigned int stageProgress = totalTimer % animation->_framesBetween;
 				if (stageProgress == 0) {
@@ -22,7 +22,7 @@ public:
 					sprite->_source.x = sprite->_source.w * stageProgress;
 				}
 				animation->_counter++;
-			}
+			}*/
 		}
 	}
 };
