@@ -28,7 +28,10 @@ public:
 							sm->_stateMachines[0]->setCurrentState(new WalkState());
 						}
 					}
-					if (s[SDL_SCANCODE_W] && !s[SDL_SCANCODE_S]) {
+					if (s[SDL_SCANCODE_W] && !s[SDL_SCANCODE_S]) { // jump
+						if (sm) {
+							sm->_stateMachines[1]->setCurrentState(new JumpState());
+						}
 						motion->_velocity.y += -player->_speed.y;
 					}
 					if (s[SDL_SCANCODE_S] && !s[SDL_SCANCODE_W]) {

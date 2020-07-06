@@ -175,6 +175,7 @@
     <Image Include="resources\textures\player_anim.png" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\StateMachine\States\JumpState.h" />
     <ClInclude Include="src\StateMachine\States\GroundedState.h" />
     <ClInclude Include="src\ECS\Components\CollisionComponent.h" />
     <ClInclude Include="src\AllocationMetrics.h" />
@@ -238,6 +239,7 @@
     <ClInclude Include="src\Vec2D.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\StateMachine\States\JumpState.cpp" />
     <ClCompile Include="src\StateMachine\States\GroundedState.cpp" />
     <ClCompile Include="src\AllocationMetrics.cpp" />
     <ClCompile Include="src\ECS\Entity.cpp" />

@@ -4,3 +4,4 @@
 #include "States/WalkState.h"
 #include "States/RunState.h"
 #include "States/GroundedState.h"
+#include "States/JumpState.h"
