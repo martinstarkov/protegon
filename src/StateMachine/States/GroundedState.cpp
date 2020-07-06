@@ -7,4 +7,5 @@ void GroundedState::onExit() {
 }
 
 void GroundedState::update() {
+	LOG_(" , Grounded, ");
 }

@@ -21,10 +21,7 @@ public:
 				}
 			}
 			if (!lifetime->_lifetime) {
-				if (!e.getComponent<InputComponent>()) {
-					e.addComponents(InputComponent());
-				}
-				//e.destroy();
+				e.destroy();
 			}
 		}
 	}
