@@ -5,12 +5,12 @@
 class WalkStateMachine : public StateMachine<WalkStateMachine> {
 public:
 	WalkStateMachine() {
-		setCurrentState(new IdleState());
+		initState(std::make_unique<IdleState>());
 	}
 };
 class JumpStateMachine : public StateMachine<JumpStateMachine> {
 public:
 	JumpStateMachine() {
-		setCurrentState(new GroundedState());
+		initState(std::make_unique<GroundedState>());
 	}
 };
