@@ -9,6 +9,9 @@ public:
 	State() : _sm(nullptr) {
 		_id = static_cast<StateID>(typeid(StateType).hash_code());
 	}
+	virtual void onExit() override {}
+	virtual void onEntry() override {}
+	virtual void update() override {}
 	virtual void setParentStateMachine(BaseStateMachine* parentStateMachine) override final {
 		_sm = parentStateMachine;
 	}
