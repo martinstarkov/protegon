@@ -1,11 +1,2 @@
 #include "GroundedState.h"
-
-void GroundedState::onEnter() {
-}
-
-void GroundedState::onExit() {
-}
-
-void GroundedState::update() {
-	LOG_(" , Grounded, ");
-}
+#include "StateCommon.h"
