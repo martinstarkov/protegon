@@ -1,6 +1,5 @@
 #pragma once
 
-
 #define WINDOW_TITLE "Protegon"
 #define WINDOW_X SDL_WINDOWPOS_CENTERED
 #define WINDOW_Y SDL_WINDOWPOS_CENTERED
