@@ -6,10 +6,8 @@ void* operator new(std::size_t size) {
 }
 
 void operator delete(void* memory, std::size_t size) {
-	if (memory) {
-		AllocationMetrics::deallocation(size);
-		free(memory);
-	}
+	AllocationMetrics::deallocation(size);
+	free(memory);
 }
 
 std::uint32_t AllocationMetrics::_totalAllocated = 0;
@@ -29,4 +27,8 @@ void AllocationMetrics::deallocation(const std::size_t& size) {
 
 void AllocationMetrics::printMemoryUsage() {
 	LOG("Memory Usage: " << currentUsage() << " bytes");
+}
+
+void AllocationMetrics::printMemoryBreakdown() {
+	LOG("Allocated: " << _totalAllocated << " | Deallocated: " << _totalFreed);
 }
