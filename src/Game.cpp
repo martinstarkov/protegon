@@ -85,7 +85,27 @@ void Game::instructions() {
 
 void Game::update() {
 	InputHandler::update(event);
+	static int cycle = 0;
+	/*if (cycle == 300) {
+		LOG("SERIALIZING ANIMATION COMPONENT");
+		std::remove("animation.txt");
+		std::ofstream out("animation.txt");
+		manager.getEntity(box1).getComponent<AnimationComponent>()->serialize(out);
+		std::cout << *manager.getEntity(box1).getComponent<AnimationComponent>() << std::endl;
+		manager.getEntity(box1).removeComponents<AnimationComponent>();
+		out.close();
+	}*/
+	if (cycle == 300) {
+		LOG("DESERIALIZING ANIMATION COMPONENT");
+		std::ifstream in("animation.txt");
+		manager.getEntity(box1).addComponents(AnimationComponent::deserialize(in));
+		std::cout << *manager.getEntity(box1).getComponent<AnimationComponent>() << std::endl;
+		in.close();
+	}
+	cycle++;
 	manager.updateSystems();
+
+	AllocationMetrics::printMemoryUsage();
 }
 
 void Game::render() {

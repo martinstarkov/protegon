@@ -175,6 +175,7 @@
     <Image Include="resources\textures\player_anim.png" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\Serialization.h" />
     <ClInclude Include="src\StateMachine\States\JumpState.h" />
     <ClInclude Include="src\StateMachine\States\GroundedState.h" />
     <ClInclude Include="src\ECS\Components\CollisionComponent.h" />
