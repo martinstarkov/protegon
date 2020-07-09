@@ -36,6 +36,8 @@ public:
 			_previousStateID = _currentState->getStateID();
 			_currentState->onExit();
 			initState(std::move(state));
+		} else {
+			state.reset();
 		}
 	}
 private:
