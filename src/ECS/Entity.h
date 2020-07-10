@@ -45,9 +45,9 @@ public:
 	}
 private:
 	template <typename TComponent> void addEntityComponent(TComponent& component) { // make sure to call manager.refreshSystems(Entity*) after this function, wherever it is used
+		const char* name = typeid(TComponent).name(); 
 		if (_components.find(component.getComponentID()) == _components.end()) {
 			std::unique_ptr<TComponent> uPtr = std::make_unique<TComponent>(std::move(component));
-			const char* name = typeid(TComponent).name();
 			LOG_("(" << sizeof(TComponent) + sizeof(uPtr->getComponentID()) << ") Added " << name << " and emplaced into " << _id << " components: ");
 			_signature.emplace_back(uPtr->getComponentID());
 			_components.emplace(uPtr->getComponentID(), std::move(uPtr));
@@ -55,6 +55,7 @@ private:
 		} else { // Currently just overrides the component
 			// TODO: Possibly multiple components of same type in the future
 			std::unique_ptr<TComponent> uPtr = std::make_unique<TComponent>(std::move(component));
+			LOG_("(" << sizeof(TComponent) + sizeof(uPtr->getComponentID()) << ") Replaced " << name << " and emplaced into " << _id << " components: ");
 			_components[uPtr->getComponentID()] = std::move(uPtr);
 			AllocationMetrics::printMemoryUsage();
 		}

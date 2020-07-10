@@ -2,6 +2,8 @@
 
 #include "../common.h"
 
+#include "../Serialization.h"
+
 #include <vector>
 #include <map>
 

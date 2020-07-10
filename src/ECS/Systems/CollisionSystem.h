@@ -14,7 +14,7 @@ public:
 			SizeComponent* size = e.getComponent<SizeComponent>();
 			MotionComponent* motion = e.getComponent<MotionComponent>();
 			for (auto& otherID : _entities) {
-				if (entityID != otherID) {
+				if (entityID != otherID) { // FIX LATER: For some reason the red tree blocks don't collide with each other. Issue here?
 					Entity& o = getEntity(otherID);
 					TransformComponent* otherTransform = o.getComponent<TransformComponent>();
 					SizeComponent* otherSize = o.getComponent<SizeComponent>();
