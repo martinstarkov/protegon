@@ -1,2 +1,0 @@
-./resources/textures/player_anim2.png
-(16,16)

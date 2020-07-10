@@ -256,6 +256,9 @@
     <ClInclude Include="src\Serialization.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\SingleHeaderLibraries\json.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Game.cpp">
