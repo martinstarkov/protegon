@@ -36,7 +36,7 @@ public:
 			_previousStateID = _currentState->getStateID();
 			_currentState->onExit();
 			initState(std::move(state));
-		} else {
+		} else { // delete state pointer if unused
 			state.reset();
 		}
 	}

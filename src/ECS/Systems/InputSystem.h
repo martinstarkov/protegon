@@ -25,7 +25,7 @@ public:
 				if (walkStateID == typeid(IdleState).hash_code() || walkStateID == typeid(WalkState).hash_code()) {
 					player->_speed.x = player->_originalSpeed.x;
 				} else if (walkStateID == typeid(RunState).hash_code()) {
-					player->_speed.x *= 1.8f;
+					player->_speed.x = player->_originalSpeed.x * 2.0f;
 				}
 			}
 			MotionComponent* motion = e.getComponent<MotionComponent>();
@@ -34,7 +34,7 @@ public:
 				if (s[SDL_SCANCODE_W] || s[SDL_SCANCODE_A] || s[SDL_SCANCODE_S] || s[SDL_SCANCODE_D]) {
 					if (s[SDL_SCANCODE_W] && !s[SDL_SCANCODE_S]) { // jump
 						if (sm) {
-							sm->_stateMachines[1]->setCurrentState(std::make_unique<JumpState>());
+							sm->_stateMachines[1]->setCurrentState(std::move(std::make_unique<JumpState>()));
 						}
 						motion->_velocity.y += -player->_speed.y;
 					}
@@ -45,7 +45,7 @@ public:
 						motion->_velocity.x += -player->_speed.x;
 						if (sm) {
 							if (!sm->_stateMachines[0]->isState(typeid(RunState).hash_code())) {
-								sm->_stateMachines[0]->setCurrentState(std::make_unique<WalkState>());
+								sm->_stateMachines[0]->setCurrentState(std::move(std::make_unique<WalkState>()));
 							}
 						}
 					}
@@ -53,16 +53,18 @@ public:
 						motion->_velocity.x += player->_speed.x;
 						if (sm) {
 							if (!sm->_stateMachines[0]->isState(typeid(RunState).hash_code())) {
-								sm->_stateMachines[0]->setCurrentState(std::make_unique<WalkState>());
+								sm->_stateMachines[0]->setCurrentState(std::move(std::make_unique<WalkState>()));
 							}
 						}
 					}
 					if (s[SDL_SCANCODE_A] && s[SDL_SCANCODE_D]) {
-						sm->_stateMachines[0]->setCurrentState(std::make_unique<IdleState>());
+						if (sm) {
+							sm->_stateMachines[0]->setCurrentState(std::move(std::make_unique<IdleState>()));
+						}
 					}
 				} else { // player stops
 					if (sm) {
-						sm->_stateMachines[0]->setCurrentState(std::make_unique<IdleState>());
+						sm->_stateMachines[0]->setCurrentState(std::move(std::make_unique<IdleState>()));
 					}
 				}
 			}
