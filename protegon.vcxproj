@@ -173,6 +173,7 @@
     <Image Include="resources\textures\enemy.png" />
     <Image Include="resources\textures\player.png" />
     <Image Include="resources\textures\player_anim.png" />
+    <Image Include="resources\textures\player_anim2.png" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Serialization.h" />
@@ -241,15 +242,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\StateMachine\States\JumpState.cpp" />
-    <ClCompile Include="src\StateMachine\States\GroundedState.cpp" />
     <ClCompile Include="src\AllocationMetrics.cpp" />
     <ClCompile Include="src\ECS\Entity.cpp" />
     <ClCompile Include="src\ECS\Manager.cpp" />
     <ClCompile Include="src\Game.cpp" />
     <ClCompile Include="src\InputHandler.cpp" />
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\StateMachine\States\IdleState.cpp" />
-    <ClCompile Include="src\StateMachine\States\RunState.cpp" />
     <ClCompile Include="src\StateMachine\States\WalkState.cpp" />
     <ClCompile Include="src\TextureManager.cpp" />
   </ItemGroup>

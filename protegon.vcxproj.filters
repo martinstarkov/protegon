@@ -62,6 +62,9 @@
     <Image Include="resources\textures\player_anim.png">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="resources\textures\player_anim2.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Game.h">
@@ -276,16 +279,7 @@
     <ClCompile Include="src\AllocationMetrics.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\StateMachine\States\IdleState.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\StateMachine\States\RunState.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\StateMachine\States\WalkState.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\StateMachine\States\GroundedState.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\StateMachine\States\JumpState.cpp">

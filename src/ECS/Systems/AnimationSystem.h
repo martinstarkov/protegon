@@ -36,12 +36,15 @@ public:
 			if (jumpStateMachine->stateChangeOccured()) {
 				animation->_counter = 0;
 			}
-			unsigned int totalTimer = animation->_counter % (animation->_framesBetween * animation->_sprites);
-			unsigned int stageProgress = totalTimer % animation->_framesBetween;
+			unsigned int totalTimer = animation->_counter % (animation->_cyclesPerFrame * animation->_sprites);
+			unsigned int stageProgress = totalTimer % animation->_cyclesPerFrame;
 			if (stageProgress == 0) {
-				stageProgress = totalTimer / animation->_framesBetween;
+				stageProgress = totalTimer / animation->_cyclesPerFrame;
 				animationTile.x = (float)stageProgress;
 				sprite->_source.x = sprite->_source.w * (int)animationTile.x;
+			}
+			if (totalTimer == 0) { // reset counter so it doesn't grow infinitely
+				animation->_counter = 0;
 			}
 			animation->_counter++;
 
