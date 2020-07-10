@@ -11,6 +11,30 @@ struct Vec2D {
 	Vec2D(float x, float y) : x(x), y(y) {}
 	Vec2D(int x, int y) : x((float)x), y((float)y) {}
 	Vec2D() : x(0.0f), y(0.0f) {}
+	Vec2D(std::string vstr) {
+		std::size_t delimeter = vstr.find(","); // return index of delimeter
+		assert(delimeter != std::string::npos && "Vec2D string constructor must contain comma delimeter");
+		assert(vstr[0] == '(' && "Vec2D string constructor must start with opening parenthesis");
+		assert(vstr[vstr.length() - 1] == ')' && "Vec2D string constructor must end with closing parenthesis");
+		x = std::stof(vstr.substr(1, delimeter - 1)); // from first non parenthesis element to everything before comma
+		y = std::stof(vstr.substr(delimeter + 1, vstr.size() - 2)); // everything after comma to before closing parenthesis
+	}
+	friend std::istream& operator>>(std::istream& in, Vec2D& v) {
+		std::string temp;
+		in >> temp;
+		v = Vec2D(temp);
+		return in;
+	}
+	friend std::ostream& operator<<(std::ostream& out, const Vec2D& v) {
+		out << '(' << v.x << ',' << v.y << ')';
+		return out;
+	}
+	friend Vec2D abs(Vec2D v) {
+		return Vec2D(fabs(v.x), fabs(v.y));
+	}
+	SDL_Rect Vec2DtoSDLRect(Vec2D v2) {
+		return { (int)round(x), (int)round(y), (int)round(v2.x), (int)round(v2.y) };
+	}
 	float operator[] (int index) const {
 		index = index % 2;
 		if (index) {
@@ -24,9 +48,6 @@ struct Vec2D {
 			return y;
 		}
 		return x;
-	}
-	friend Vec2D abs(Vec2D v) {
-		return Vec2D(fabs(v.x), fabs(v.y));
 	}
 	operator bool() const {
 		return x != 0 || y != 0;
@@ -183,12 +204,5 @@ struct Vec2D {
 	}
 	bool operator<= (Vec2D v) {
 		return magnitude() <= v.magnitude();
-	}
-	SDL_Rect Vec2DtoSDLRect(Vec2D v2) {
-		return { (int)round(x), (int)round(y), (int)round(v2.x), (int)round(v2.y) };
-	}
-	friend std::ostream& operator<<(std::ostream& os, const Vec2D& v) {
-		os << '(' << v.x << ',' << v.y << ')';
-		return os;
 	}
 };
