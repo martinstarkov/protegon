@@ -57,7 +57,7 @@ void Game::init() {
 	box1 = manager.createBox(30 * 2 * 2, 30);
 	box4 = manager.createBox(30 * 10, 30);
 
-	manager.getEntity(box1).addComponents(DragComponent(0.1f), InputComponent(), PlayerController(Vec2D(0.5f, 0.5f)), StateMachineComponent(new WalkStateMachine(), new JumpStateMachine()));
+	manager.getEntity(box1).addComponents(DragComponent(0.1f), InputComponent(), PlayerController(Vec2D(0.2f, 0.2f)), StateMachineComponent(new WalkStateMachine(), new JumpStateMachine()));
 	manager.getEntity(box4).addComponents(DragComponent(0.01f), LifetimeComponent(8.0f));
 
 	ghost1 = manager.createGhost(80, 80);
@@ -86,26 +86,17 @@ void Game::instructions() {
 void Game::update() {
 	InputHandler::update(event);
 	static int cycle = 0;
-	/*if (cycle == 300) {
-		LOG("SERIALIZING ANIMATION COMPONENT");
-		std::remove("animation.txt");
-		std::ofstream out("animation.txt");
-		manager.getEntity(box1).getComponent<AnimationComponent>()->serialize(out);
-		std::cout << *manager.getEntity(box1).getComponent<AnimationComponent>() << std::endl;
-		manager.getEntity(box1).removeComponents<AnimationComponent>();
-		out.close();
-	}*/
 	if (cycle == 300) {
-		LOG("DESERIALIZING ANIMATION COMPONENT");
-		std::ifstream in("animation.txt");
-		manager.getEntity(box1).addComponents(AnimationComponent::deserialize(in));
-		std::cout << *manager.getEntity(box1).getComponent<AnimationComponent>() << std::endl;
-		in.close();
+		AnimationComponent* animation = manager.getEntity(box1).getComponent<AnimationComponent>();
+		reserialize(animation, &AnimationComponent::serialize, "resources/animation.txt");
+	}
+	if (cycle == 200) {
+		SpriteComponent sprite;
+		deserialize(sprite, &SpriteComponent::deserialize, "resources/sprite.txt");
+		manager.getEntity(box1).addComponents(sprite);
 	}
 	cycle++;
 	manager.updateSystems();
-
-	AllocationMetrics::printMemoryUsage();
 }
 
 void Game::render() {
