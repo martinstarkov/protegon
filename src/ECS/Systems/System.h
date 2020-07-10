@@ -32,29 +32,28 @@ public:
 			if (!existingEntity) { // entity didn't exist in system
 				//LOG_("Adding entity " << entity->getID() << " to system signature: ");
 				//printSignature(_signature);
-				_entities.emplace_back(entityID);
+				_entities.emplace(entityID);
 			}
 		} else {
 			if (existingEntity) { // entity had 'vital' component removed -> remove from system
 				//LOG_("Removing entity " << entity->getID() << " from system signature: ");
 				//printSignature(_signature);
-				_entities.erase(std::remove(_entities.begin(), _entities.end(), entityID), _entities.end());
+				onEntityDestroyed(entityID);
 			}
 		}
 	}
 	virtual void onEntityDestroyed(EntityID entityID) override final {
-		_entities.erase(std::remove(_entities.begin(), _entities.end(), entityID), _entities.end());
+		_entities.erase(entityID);
 	}
 protected:
 	Manager* _manager;
-	std::vector<EntityID> _entities;
+	std::set<EntityID> _entities;
 	Signature _signature;
 private:
 	bool containsEntity(EntityID entityID) {
-		if (std::find(_entities.begin(), _entities.end(), entityID) != _entities.end()) {
-			return true;
-		}
-		return false;
+		std::size_t count = _entities.count(entityID);
+		assert((count == 0 || count == 1) && "_entities cannot contain more than one unique entityID");
+		return count == 1;
 	}
 	bool signaturesMatch(EntityID entityID) {
 		for (const auto& componentID : _signature) {

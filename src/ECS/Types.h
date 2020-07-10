@@ -5,6 +5,7 @@
 #include "../Serialization.h"
 
 #include <vector>
+#include <set>
 #include <map>
 
 template <typename ...Ts> void swallow(Ts&&... args) {} // wrapper allows calling methods on template pack with void return
