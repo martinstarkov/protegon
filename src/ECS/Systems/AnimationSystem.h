@@ -42,6 +42,7 @@ public:
 				stageProgress = totalTimer / animation->_cyclesPerFrame;
 				animationTile.x = (float)stageProgress;
 				sprite->_source.x = sprite->_source.w * (int)animationTile.x;
+				animation->_state = (int)animationTile.x;
 			}
 			if (totalTimer == 0) { // reset counter so it doesn't grow infinitely
 				animation->_counter = 0;
