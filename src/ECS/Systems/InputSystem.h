@@ -18,6 +18,15 @@ public:
 	void keyStateCheck(Entity& e) {
 		PlayerController* player = e.getComponent<PlayerController>();
 		if (player) {
+			if (s[SDL_SCANCODE_Q]) {
+				e.addComponents(Serialization::deserialize<SpriteComponent>("resources/sprite1.json"));
+			}
+			if (s[SDL_SCANCODE_E]) {
+				e.addComponents(Serialization::deserialize<SpriteComponent>("resources/sprite2.json"));
+			}
+			if (s[SDL_SCANCODE_C]) {
+				e.removeComponents<SpriteComponent>();
+			}
 			StateMachineComponent* sm = e.getComponent<StateMachineComponent>();
 			if (sm) {
 				BaseStateMachine* walkStateMachine = sm->_stateMachines[0];
