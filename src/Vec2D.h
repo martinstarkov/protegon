@@ -206,3 +206,16 @@ struct Vec2D {
 		return magnitude() <= v.magnitude();
 	}
 };
+
+// json serialization
+inline void to_json(nlohmann::json& j, const Vec2D& o) {
+	j["x"] = o.x;
+	j["y"] = o.y;
+}
+
+inline void from_json(const nlohmann::json& j, Vec2D& o) {
+	o = Vec2D(
+		j.at("x").get<float>(),
+		j.at("y").get<float>()
+	);
+}
