@@ -3,37 +3,37 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <functional>
+#include <nlohmann/json.hpp>
 
-#define SERIALIZATION_SEPARATOR ":"
-#define SERIALIZATION_OPEN "{"
-#define SERIALIZATION_CLOSE "}"
+using json = nlohmann::json;
 
-template <typename T>
-static void serialize(T* obj, std::ostream& (T::*serializeFunction)(std::ostream& out), const char* path) {
-	std::ofstream out(path);
-	assert(out.good() && "Cannot serialize file with invalid path");
-	assert(obj && "Cannot call serialize() method on nullptr");
-	(obj->*serializeFunction)(out);
-	out.close();
-}
-
-template <typename T>
-static void reserialize(T* obj, std::ostream& (T::*serializeFunction)(std::ostream& out), const char* path) {
-	std::remove(path);
-	serialize(obj, serializeFunction, path);
-}
-
-template <typename T>
-static T deserialize(T (*deserializeFunction)(std::istream& in), const char* path) {
-	std::ifstream in(path);
-	assert(in.good() && "Cannot deserialize file with invalid path");
-	T t(deserializeFunction(in));
-	in.close();
-	return t;
-}
-
-template <typename T>
-static void deserialize(T& obj, T(*deserializeFunction)(std::istream& in), const char* path) {
-	obj = deserialize(deserializeFunction, path);
-}
+class Serialization {
+public:
+	template <typename T>
+	static void serialize(std::string path, T& obj) {
+		std::ofstream out(path);
+		json j = obj;
+		out << j;
+		out.close();
+	}
+	template <typename T>
+	static void reserialize(std::string path, T& obj) {
+		std::remove(path.c_str());
+		serialize(path, obj);
+	}
+	template <typename T>
+	static void deserialize(std::string path, T& obj) {
+		std::ifstream in(path);
+		json j;
+		in >> j;
+		// write tests
+		obj = j.get<T>();
+		in.close();
+	}
+	template <typename T>
+	static T deserialize(std::string path) {
+		T t;
+		deserialize(path, t);
+		return t;
+	}
+};
