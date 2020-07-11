@@ -1,1 +1,1 @@
-{"_path":"./resources/textures/player_anim2.png","_spriteSize":{"x":16.0,"y":16.0}}
+{"struct SpriteComponent":{"_path":"./resources/textures/player_anim2.png","_spriteSize":{"x":16.0,"y":16.0}}}

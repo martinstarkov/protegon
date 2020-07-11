@@ -24,6 +24,15 @@ public:
 			if (s[SDL_SCANCODE_E]) {
 				e.addComponents(Serialization::deserialize<SpriteComponent>("resources/sprite2.json"));
 			}
+			if (s[SDL_SCANCODE_R]) {
+				Serialization::reserialize("resources/animation.json", *e.getComponent<AnimationComponent>());
+			}
+			if (s[SDL_SCANCODE_T]) {
+				Serialization::reserialize("resources/sprite1.json", *e.getComponent<SpriteComponent>());
+			}
+			if (s[SDL_SCANCODE_Y]) {
+				Serialization::reserialize("resources/sprite2.json", *e.getComponent<SpriteComponent>());
+			}
 			if (s[SDL_SCANCODE_C]) {
 				e.removeComponents<SpriteComponent>();
 			}

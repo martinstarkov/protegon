@@ -12,7 +12,8 @@ public:
 	template <typename T>
 	static void serialize(std::string path, T& obj) {
 		std::ofstream out(path);
-		json j = obj;
+		json j;
+		j[typeid(obj).name()] = obj;
 		out << j;
 		out.close();
 	}
@@ -27,7 +28,7 @@ public:
 		json j;
 		in >> j;
 		// write tests
-		obj = j.get<T>();
+		obj = j[typeid(obj).name()].get<T>();
 		in.close();
 	}
 	template <typename T>
