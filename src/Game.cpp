@@ -1,4 +1,3 @@
-
 #include "Game.h"
 #include "ECS/Manager.h"
 #include "InputHandler.h"
@@ -14,17 +13,9 @@ SDL_Event event;
 Manager manager;
 
 EntityID tree1;
-EntityID tree2;
-EntityID tree3;
-EntityID tree4;
 EntityID box1;
-EntityID box2;
-EntityID box3;
 EntityID box4;
 EntityID ghost1;
-EntityID ghost2;
-EntityID ghost3;
-EntityID ghost4;
 
 Game& Game::getInstance() {
 	if (!_instance) {
@@ -46,13 +37,8 @@ void Game::init() {
 	TextureManager::getInstance();
 	InputHandler::getInstance();
 	manager.init();
-	LOG_("Manager : ");
-	AllocationMetrics::printMemoryUsage();
 
 	tree1 = manager.createTree(30, 30);
-	tree2 = manager.createTree(30, 30 * 3);
-	tree3 = manager.createTree(30, 30 * 5);
-	tree4 = manager.createTree(30, 30 * 7);
 
 	box1 = manager.createBox(30 * 2 * 2, 30);
 	box4 = manager.createBox(30 * 10, 30);
@@ -61,9 +47,6 @@ void Game::init() {
 	manager.getEntity(box4).addComponents(DragComponent(0.01f), LifetimeComponent(8.0f));
 
 	ghost1 = manager.createGhost(80, 80);
-	ghost2 = manager.createGhost(80 * 2, 80 * 2);
-	ghost3 = manager.createGhost(80 * 3, 80 * 3);
-	ghost4 = manager.createGhost(80 * 4, 80 * 4);
 
 	manager.refreshSystems();
 }
@@ -87,7 +70,7 @@ void Game::update() {
 	InputHandler::update(event);
 	static int cycle = 0;
 	if (cycle == 300) {
-		SpriteComponent* sprite = manager.getEntity(box1).getComponent<SpriteComponent>();
+		//SpriteComponent* sprite = manager.getEntity(box1).getComponent<SpriteComponent>();
 		//Serialization::reserialize(animation, &AnimationComponent::serialize, "resources/animation.txt");
 		//Serialization::reserialize("resources/sprite1.json", *sprite);
 		//manager.getEntity(box1).removeComponents<SpriteComponent>();
@@ -101,11 +84,8 @@ void Game::update() {
 
 void Game::render() {
 	SDL_RenderClear(_renderer);
-
 	SDL_SetRenderDrawColor(getRenderer(), DEFAULT_RENDER_COLOR.r, DEFAULT_RENDER_COLOR.g, DEFAULT_RENDER_COLOR.b, DEFAULT_RENDER_COLOR.a);
-
 	manager.getSystem<RenderSystem>()->update();
-
 	SDL_RenderPresent(_renderer);
 }
 
@@ -118,7 +98,6 @@ void Game::loop() {
 		update();
 		render();
 		fTime = SDL_GetTicks() - fStart;
-		_cycle++;
 		if (fDelay > fTime) {
 			SDL_Delay(fDelay - fTime);
 		}
