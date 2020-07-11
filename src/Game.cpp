@@ -87,13 +87,13 @@ void Game::update() {
 	InputHandler::update(event);
 	static int cycle = 0;
 	if (cycle == 300) {
-		AnimationComponent* animation = manager.getEntity(box1).getComponent<AnimationComponent>();
-		reserialize(animation, &AnimationComponent::serialize, "resources/animation.txt");
+		SpriteComponent* sprite = manager.getEntity(box1).getComponent<SpriteComponent>();
+		//Serialization::reserialize(animation, &AnimationComponent::serialize, "resources/animation.txt");
+		//Serialization::reserialize("resources/sprite1.json", *sprite);
+		//manager.getEntity(box1).removeComponents<SpriteComponent>();
 	}
-	if (cycle == 200) {
-		SpriteComponent sprite;
-		deserialize(sprite, &SpriteComponent::deserialize, "resources/sprite.txt");
-		manager.getEntity(box1).addComponents(sprite);
+	if (cycle == 600) {
+		//manager.getEntity(box1).addComponents(Serialization::deserialize<SpriteComponent>("resources/sprite2.json"));
 	}
 	cycle++;
 	manager.updateSystems();

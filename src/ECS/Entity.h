@@ -48,39 +48,36 @@ private:
 		const char* name = typeid(TComponent).name(); 
 		if (_components.find(component.getComponentID()) == _components.end()) {
 			std::unique_ptr<TComponent> uPtr = std::make_unique<TComponent>(std::move(component));
-			LOG_("(" << sizeof(TComponent) + sizeof(uPtr->getComponentID()) << ") Added " << name << " and emplaced into " << _id << " components: ");
+			LOG("Added " << name << "(" << sizeof(TComponent) + sizeof(uPtr->getComponentID()) << ") to Entity[" << _id << "]");
 			_signature.emplace_back(uPtr->getComponentID());
 			_components.emplace(uPtr->getComponentID(), std::move(uPtr));
-			AllocationMetrics::printMemoryUsage();
 		} else { // Currently just overrides the component
 			// TODO: Possibly multiple components of same type in the future
 			std::unique_ptr<TComponent> uPtr = std::make_unique<TComponent>(std::move(component));
-			LOG_("(" << sizeof(TComponent) + sizeof(uPtr->getComponentID()) << ") Replaced " << name << " and emplaced into " << _id << " components: ");
+			LOG("Replaced " << name << "(" << sizeof(TComponent) + sizeof(uPtr->getComponentID()) << ") in Entity[" << _id << "]");
 			_components[uPtr->getComponentID()] = std::move(uPtr);
-			AllocationMetrics::printMemoryUsage();
 		}
 	}
 	template <typename TComponent> void removeEntityComponent() {
 		ComponentID id = typeid(TComponent).hash_code();
 		auto iterator = _components.find(id);
-		assert(iterator != _components.end() && "Attempting to remove non-existent component from entity");
-		const char* name = typeid(TComponent).name();
-		LOG_("(" << sizeof(TComponent) + sizeof(id) << ") Removed " << name << " and erased from " << _id << " components: ");
-		resetRelatedComponents<TComponent>(id);
-		_components.erase(iterator);
-		_signature.erase(std::remove(_signature.begin(), _signature.end(), id), _signature.end());
-		AllocationMetrics::printMemoryUsage();
-
+		if (iterator != _components.end()) {
+			const char* name = typeid(TComponent).name();
+			LOG("Removed " << name << "(" << sizeof(TComponent) + sizeof(id) << ") from Entity[" << _id << "]");
+			resetRelatedComponents<TComponent>(id);
+			_components.erase(iterator);
+			_signature.erase(std::remove(_signature.begin(), _signature.end(), id), _signature.end());
+		}
 	}
 	template <typename TComponent> void resetRelatedComponents(ComponentID id) {
-		// // Uncomment to reset sprite to original animation state when animation
-		if (id == typeid(AnimationComponent).hash_code()) {
-			SpriteComponent* sprite = getComponent<SpriteComponent>();
-			if (sprite) {
-				AnimationComponent* animation = getComponent<AnimationComponent>();
-				//sprite->_source.x = sprite->_source.w * (animation->_state % sprite->_sprites);
-			}
-		}
+		// // Reset sprite to original animation state when animation component is removed
+		//if (id == typeid(AnimationComponent).hash_code()) {
+		//	SpriteComponent* sprite = getComponent<SpriteComponent>();
+		//	if (sprite) {
+		//		AnimationComponent* animation = getComponent<AnimationComponent>();
+		//		//sprite->_source.x = sprite->_source.w * (animation->_state % sprite->_sprites);
+		//	}
+		//}
 	}
 private:
 	using ComponentMap = std::map<ComponentID, std::unique_ptr<BaseComponent>>;
