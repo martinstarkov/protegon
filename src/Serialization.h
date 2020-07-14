@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <iomanip> // used for pretty printing
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
@@ -14,7 +15,7 @@ public:
 		std::ofstream out(path);
 		json j;
 		j[typeid(obj).name()] = obj;
-		out << j;
+		out << std::setw(4) << j; // overloaded setw for pretty printing, number is amount of spaces to indent
 		out.close();
 	}
 	template <typename T>
