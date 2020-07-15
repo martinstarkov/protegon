@@ -1,7 +1,7 @@
 {
     "struct AnimationComponent": {
-        "_animationDelay": 0.10000000149011612,
-        "_sprites": 8,
-        "_state": 3
+        "animationDelay": 0.1,
+        "sprites": 8,
+        "state": 1
     }
 }

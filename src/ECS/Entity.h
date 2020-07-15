@@ -13,13 +13,13 @@ class BaseComponent;
 
 class Entity {
 public:
-	Entity(EntityID id, Manager* manager) : _manager(manager), _id(id) {}
+	Entity(EntityID id, Manager* manager) : _manager(manager), _id(id), _alive(true) {}
 	void destroy() { _alive = false; }
 	bool isAlive() { return _alive; }
 	const EntityID getID() const { return _id; }
 	const Signature getSignature() const { return _signature; }
 	void refreshManager(); // wrapper so that Manager.h can be included in .cpp
-public:
+
 	template <typename ...Ts> void addComponents(Ts&&... args) {
 		swallow((addEntityComponent(args), 0)...);
 		refreshManager();
@@ -70,20 +70,21 @@ private:
 		}
 	}
 	template <typename TComponent> void resetRelatedComponents(ComponentID id) {
-		// // Reset sprite to original animation state when animation component is removed
-		//if (id == typeid(AnimationComponent).hash_code()) {
-		//	SpriteComponent* sprite = getComponent<SpriteComponent>();
-		//	if (sprite) {
-		//		AnimationComponent* animation = getComponent<AnimationComponent>();
-		//		//sprite->_source.x = sprite->_source.w * (animation->_state % sprite->_sprites);
-		//	}
-		//}
+		// Reset sprite to original animation state when animation component is removed
+		/*
+		if (id == typeid(AnimationComponent).hash_code()) {
+			SpriteComponent* sprite = getComponent<SpriteComponent>();
+			if (sprite) {
+				AnimationComponent* animation = getComponent<AnimationComponent>();
+				//sprite->_source.x = sprite->_source.w * (animation->_state % sprite->_sprites);
+			}
+		}
+		*/
 	}
 private:
-	using ComponentMap = std::map<ComponentID, std::unique_ptr<BaseComponent>>;
 	Manager* _manager;
 	EntityID _id;
 	ComponentMap _components;
 	Signature _signature;
-	bool _alive = true;
+	bool _alive;
 };

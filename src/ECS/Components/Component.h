@@ -9,6 +9,6 @@ public:
 		_id = static_cast<ComponentID>(typeid(ComponentType).hash_code());
 	}
 	virtual ComponentID getComponentID() override final { return _id; }
-protected:
+private:
 	ComponentID _id;
 };
