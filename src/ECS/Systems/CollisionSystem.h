@@ -7,13 +7,12 @@
 class CollisionSystem : public System<TransformComponent, SizeComponent, CollisionComponent> {
 public:
 	virtual void update() override {
-		//LOG_("Colliders[" << _entities.size() << "],");
-		for (auto& entityID : _entities) {
+		for (auto& entityID : entities) {
 			Entity& e = getEntity(entityID);
 			TransformComponent* transform = e.getComponent<TransformComponent>();
 			SizeComponent* size = e.getComponent<SizeComponent>();
 			MotionComponent* motion = e.getComponent<MotionComponent>();
-			for (auto& otherID : _entities) {
+			for (auto& otherID : entities) {
 				if (entityID != otherID) { // FIX LATER: For some reason the red tree blocks don't collide with each other. Issue here?
 					Entity& o = getEntity(otherID);
 					TransformComponent* otherTransform = o.getComponent<TransformComponent>();
@@ -21,33 +20,33 @@ public:
 					MotionComponent* otherMotion = o.getComponent<MotionComponent>();
 					Vec2D relVel = Vec2D();
 					if (motion && otherMotion) {
-						relVel = otherMotion->_velocity - motion->_velocity;
+						relVel = otherMotion->velocity - motion->velocity;
 					} else if (motion) {
-						relVel = motion->_velocity;
+						relVel = motion->velocity;
 					} else if (otherMotion) {
-						relVel = otherMotion->_velocity;
+						relVel = otherMotion->velocity;
 					}
-					Vec2D penetration = AABB(transform->_position, size->_size).colliding(AABB(AABB(otherTransform->_position, otherSize->_size)), relVel);
+					Vec2D penetration = AABB(transform->position, size->size).colliding(AABB(AABB(otherTransform->position, otherSize->size)), relVel);
 					if (penetration) {
 						CollisionComponent* collider = e.getComponent<CollisionComponent>();
 						CollisionComponent* otherCollider = o.getComponent<CollisionComponent>();
-						collider->_colliding = true;
-						otherCollider->_colliding = true;
-						transform->_position -= penetration;
+						collider->colliding = true;
+						otherCollider->colliding = true;
+						transform->position -= penetration;
 						if (penetration.x) {
 							//if (motion) {
-							//	motion->_velocity = Vec2D();
+							//	motion->velocity = Vec2D();
 							//}
 							//if (otherMotion) {
-							//	otherMotion->_velocity = Vec2D();
+							//	otherMotion->velocity = Vec2D();
 							//}
 						}
 						if (penetration.y) {
 							//if (motion) {
-							//	motion->_velocity = Vec2D();
+							//	motion->velocity = Vec2D();
 							//}
 							//if (otherMotion) {
-							//	otherMotion->_velocity = Vec2D();
+							//	otherMotion->velocity = Vec2D();
 							//}
 						}
 

@@ -5,12 +5,11 @@
 class GravitySystem : public System<MotionComponent, GravityComponent> {
 public:
 	virtual void update() override {
-		//LOG_("Gravity[" << _entities.size() << "],");
-		for (auto& entityID : _entities) {
+		for (auto& entityID : entities) {
 			Entity& e = getEntity(entityID);
 			MotionComponent* motion = e.getComponent<MotionComponent>();
 			GravityComponent* gravity = e.getComponent<GravityComponent>();
-			motion->_velocity += gravity->_direction * gravity->_g;
+			motion->velocity += gravity->direction * gravity->g;
 		}
 	}
 };

@@ -5,12 +5,11 @@
 class MovementSystem : public System<TransformComponent, MotionComponent> {
 public:
 	virtual void update() override {
-		//LOG_("Moving[" << _entities.size() << "],");
-		for (auto& entityID : _entities) {
+		for (auto& entityID : entities) {
 			Entity& e = getEntity(entityID);
 			TransformComponent* transform = e.getComponent<TransformComponent>();
 			MotionComponent* motion = e.getComponent<MotionComponent>();
-			transform->_position += motion->_velocity;
+			transform->position += motion->velocity;
 		}
 	}
 };

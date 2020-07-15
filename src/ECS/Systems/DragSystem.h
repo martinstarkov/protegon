@@ -5,11 +5,11 @@
 class DragSystem : public System<DragComponent, MotionComponent> {
 public:
 	virtual void update() override {
-		for (auto& entityID : _entities) {
+		for (auto& entityID : entities) {
 			Entity& e = getEntity(entityID);
 			MotionComponent* motion = e.getComponent<MotionComponent>();
 			DragComponent* drag = e.getComponent<DragComponent>();
-			motion->_velocity *= (Vec2D(1.0f, 1.0f) - drag->_drag);
+			motion->velocity *= (Vec2D(1.0, 1.0) - drag->drag);
 		}
 	}
 };

@@ -9,14 +9,13 @@
 class AnimationSystem : public System<AnimationComponent, SpriteComponent, StateMachineComponent> {
 public:
 	virtual void update() override {
-		//LOG_("Animating[" << _entities.size() << "],");
-		for (auto& entityID : _entities) {
+		for (auto& entityID : entities) {
 			Entity& e = getEntity(entityID);
 			AnimationComponent* animation = e.getComponent<AnimationComponent>();
 			SpriteComponent* sprite = e.getComponent<SpriteComponent>();
 			StateMachineComponent* sm = e.getComponent<StateMachineComponent>();
-			BaseStateMachine* walkStateMachine = sm->_stateMachines[0];
-			BaseStateMachine* jumpStateMachine = sm->_stateMachines[1];
+			BaseStateMachine* walkStateMachine = sm->stateMachines[0];
+			BaseStateMachine* jumpStateMachine = sm->stateMachines[1];
 			StateID walkStateID = walkStateMachine->getCurrentState()->getStateID();
 			StateID jumpStateID = jumpStateMachine->getCurrentState()->getStateID();
 			static Vec2D animationTile = Vec2D();
@@ -28,29 +27,29 @@ public:
 				animationTile.y = 2;
 			}
 			if (walkStateMachine->stateChangeOccured()) {
-				animation->_counter = 0;
+				animation->counter = 0;
 			}
 			if (jumpStateID == typeid(JumpState).hash_code()) {
 				animationTile.y = 3;
 			}
 			if (jumpStateMachine->stateChangeOccured()) {
-				animation->_counter = 0;
+				animation->counter = 0;
 			}
-			unsigned int totalTimer = animation->_counter % (animation->_cyclesPerFrame * animation->_sprites);
-			unsigned int stageProgress = totalTimer % animation->_cyclesPerFrame;
+			unsigned int totalTimer = animation->counter % (animation->cyclesPerFrame * animation->sprites);
+			unsigned int stageProgress = totalTimer % animation->cyclesPerFrame;
 			if (stageProgress == 0) {
-				stageProgress = totalTimer / animation->_cyclesPerFrame;
-				animationTile.x = (float)stageProgress;
-				sprite->_source.x = sprite->_source.w * (int)animationTile.x;
-				animation->_state = (int)animationTile.x;
+				stageProgress = totalTimer / animation->cyclesPerFrame;
+				animationTile.x = static_cast<double>(stageProgress);
+				sprite->source.x = static_cast<int>(sprite->source.w * animationTile.x);
+				animation->state = static_cast<int>(animationTile.x);
 			}
 			if (totalTimer == 0) { // reset counter so it doesn't grow infinitely
-				animation->_counter = 0;
+				animation->counter = 0;
 			}
-			animation->_counter++;
+			animation->counter++;
 
-			sprite->_source.y = sprite->_source.h * (int)animationTile.y;
-			//LOG_(" [" << animation->_counter << "," << totalTimer << "] ");
+			sprite->source.y = static_cast<int>(sprite->source.h * animationTile.y);
+			//LOG_(" [" << animation->counter << "," << totalTimer << "] ");
 		}
 	}
 };

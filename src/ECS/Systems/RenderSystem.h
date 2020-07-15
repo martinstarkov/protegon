@@ -7,16 +7,15 @@
 class RenderSystem : public System<RenderComponent, TransformComponent, SizeComponent> {
 public:
 	virtual void update() override {
-		//LOG_("Rendering[" << _entities.size() << "],");
-		for (auto& entityID : _entities) {
+		for (auto& entityID : entities) {
 			Entity& e = getEntity(entityID);
 			TransformComponent* transform = e.getComponent<TransformComponent>();
 			SizeComponent* size = e.getComponent<SizeComponent>();
 			SpriteComponent* sprite = e.getComponent<SpriteComponent>();
 			if (sprite) {
-				TextureManager::draw(sprite->_texture, sprite->_source, AABB(transform->_position, size->_size).AABBtoRect());
+				TextureManager::draw(sprite->texture, sprite->source, AABB(transform->position, size->size).AABBtoRect());
 			} else {
-				TextureManager::draw(AABB(transform->_position, size->_size).AABBtoRect());
+				TextureManager::draw(AABB(transform->position, size->size).AABBtoRect());
 			}
 		}
 	}
