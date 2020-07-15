@@ -256,7 +256,7 @@
     <ClInclude Include="src\Serialization.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\SingleHeaderLibraries\json.hpp">
+    <ClInclude Include="src\Utilities.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

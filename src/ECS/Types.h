@@ -8,8 +8,10 @@
 #include <set>
 #include <map>
 
-template <typename ...Ts> void swallow(Ts&&... args) {} // wrapper allows calling methods on template pack with void return
+class BaseComponent;
 
 using EntityID = unsigned int;
 using ComponentID = unsigned int;
+using SystemID = unsigned int;
 using Signature = std::vector<ComponentID>;
+using ComponentMap = std::map<ComponentID, std::unique_ptr<BaseComponent>>;

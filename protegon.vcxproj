@@ -177,7 +177,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Serialization.h" />
-    <ClInclude Include="src\SingleHeaderLibraries\json.hpp" />
     <ClInclude Include="src\StateMachine\States\JumpState.h" />
     <ClInclude Include="src\StateMachine\States\GroundedState.h" />
     <ClInclude Include="src\ECS\Components\CollisionComponent.h" />
@@ -239,6 +238,7 @@
     <ClInclude Include="src\StateMachine\States\WalkState.h" />
     <ClInclude Include="src\StateMachine\Types.h" />
     <ClInclude Include="src\TextureManager.h" />
+    <ClInclude Include="src\Utilities.h" />
     <ClInclude Include="src\Vec2D.h" />
   </ItemGroup>
   <ItemGroup>
