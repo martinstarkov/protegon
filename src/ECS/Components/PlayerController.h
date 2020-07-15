@@ -7,7 +7,7 @@
 // CONSIDER: Move speed elsewhere?
 
 struct PlayerController : public Component<PlayerController> {
-	Vec2D _speed;
-	Vec2D _originalSpeed;
-	PlayerController(Vec2D speed = Vec2D()) : _speed(speed), _originalSpeed(_speed) {}
+	Vec2D speed;
+	Vec2D originalSpeed;
+	PlayerController(Vec2D speed = Vec2D()) : speed(speed), originalSpeed(speed) {}
 };

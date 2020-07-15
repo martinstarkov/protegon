@@ -3,5 +3,5 @@
 #include "Component.h"
 
 struct RenderComponent : public Component<RenderComponent> {
-	RenderComponent() {}
+	RenderComponent() = default;
 };

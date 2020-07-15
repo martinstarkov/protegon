@@ -9,20 +9,20 @@
 // Turn sprite component into sprite sheet that feeds into AnimationSystem and create custom systems for different states (MovementStateSystem, etc)
 
 struct SpriteComponent : public Component<SpriteComponent> {
-	std::string _path;
-	SDL_Rect _source;
-	SDL_Texture* _texture;
-	Vec2D _spriteSize;
-	SpriteComponent() : _path(), _source(), _texture(nullptr), _spriteSize() {}
-	SpriteComponent(std::string path, Vec2D spriteSize) : _path(path), _spriteSize(spriteSize) {
-		_source = AABB(Vec2D(), _spriteSize).AABBtoRect();
-		_texture = TextureManager::load(_path);
+	std::string path;
+	SDL_Rect source;
+	SDL_Texture* texture;
+	Vec2D spriteSize;
+	SpriteComponent() : path(), source(), texture(nullptr), spriteSize() {}
+	SpriteComponent(std::string path, Vec2D spriteSize) : path(path), spriteSize(spriteSize) {
+		source = AABB(Vec2D(), spriteSize).AABBtoRect();
+		texture = TextureManager::load(path);
 	}
 	friend std::ostream& operator<<(std::ostream& out, const SpriteComponent& obj) {
 		out << "{" << std::endl;
-		out << "_path: " << obj._path << ";" << std::endl;
-		out << "_source: " << "{" << obj._source.x << "," << obj._source.y << "," << obj._source.w << "," << obj._source.h << "}" << ";" << std::endl;
-		out << "_texture: " << obj._texture << ";" << std::endl;
+		out << "path: " << obj.path << ";" << std::endl;
+		out << "source: " << "{" << obj.source.x << "," << obj.source.y << "," << obj.source.w << "," << obj.source.h << "}" << ";" << std::endl;
+		out << "texture: " << obj.texture << ";" << std::endl;
 		out << "}" << std::endl;
 		return out;
 	}
@@ -35,13 +35,13 @@ struct SpriteComponent : public Component<SpriteComponent> {
 
 // json serialization
 inline void to_json(nlohmann::json& j, const SpriteComponent& o) {
-	j["_path"] = o._path;
-	j["_spriteSize"] = o._spriteSize;
+	j["path"] = o.path;
+	j["spriteSize"] = o.spriteSize;
 }
 
 inline void from_json(const nlohmann::json& j, SpriteComponent& o) {
 	o = SpriteComponent(
-		j.at("_path").get<std::string>(), 
-		j.at("_spriteSize").get<Vec2D>()
+		j.at("path").get<std::string>(), 
+		j.at("spriteSize").get<Vec2D>()
 	);
 }
