@@ -7,17 +7,19 @@
 #include "SDL.h"
 
 struct Vec2D {
-	float x, y;
-	Vec2D(float x, float y) : x(x), y(y) {}
-	Vec2D(int x, int y) : x((float)x), y((float)y) {}
-	Vec2D() : x(0.0f), y(0.0f) {}
+	double x, y;
+	Vec2D(double x, double y) : x(x), y(y) {}
+	Vec2D(int x, int y) : x(static_cast<double>(x)), y(static_cast<double>(y)) {}
+	Vec2D(double both) : x(both), y(both) {}
+	Vec2D(int both) : x(static_cast<double>(both)), y(static_cast<double>(both)) {}
+	Vec2D() : x(0.0), y(0.0) {}
 	Vec2D(std::string vstr) {
 		std::size_t delimeter = vstr.find(","); // return index of delimeter
 		assert(delimeter != std::string::npos && "Vec2D string constructor must contain comma delimeter");
 		assert(vstr[0] == '(' && "Vec2D string constructor must start with opening parenthesis");
 		assert(vstr[vstr.length() - 1] == ')' && "Vec2D string constructor must end with closing parenthesis");
-		x = std::stof(vstr.substr(1, delimeter - 1)); // from first non parenthesis element to everything before comma
-		y = std::stof(vstr.substr(delimeter + 1, vstr.size() - 2)); // everything after comma to before closing parenthesis
+		x = std::stod(vstr.substr(1, delimeter - 1)); // from first non parenthesis element to everything before comma
+		y = std::stod(vstr.substr(delimeter + 1, vstr.size() - 2)); // everything after comma to before closing parenthesis
 	}
 	friend std::istream& operator>>(std::istream& in, Vec2D& v) {
 		std::string temp;
@@ -30,70 +32,80 @@ struct Vec2D {
 		return out;
 	}
 	friend Vec2D abs(Vec2D v) {
-		return Vec2D(fabs(v.x), fabs(v.y));
+		return Vec2D(std::abs(v.x), std::abs(v.y));
 	}
-	SDL_Rect Vec2DtoSDLRect(Vec2D v2) {
-		return { (int)round(x), (int)round(y), (int)round(v2.x), (int)round(v2.y) };
+	friend Vec2D abs(Vec2D& v) {
+		v.x = std::abs(v.x);
+		v.y = std::abs(v.y);
 	}
-	float operator[] (int index) const {
-		index = index % 2;
-		if (index) {
+	SDL_Rect Vec2DtoSDLRect(Vec2D v) {
+		return { static_cast<int>(round(x)), static_cast<int>(round(y)), static_cast<int>(round(v.x)), static_cast<int>(round(v.y)) };
+	}
+	double operator[] (int index) const {
+		index = index % 2; // make sure index is in range
+		if (index == 0) {
+			return x;
+		} else if (index == 1) {
 			return y;
 		}
-		return x;
+		return -1.0;
 	}
-	float& operator[] (int index) {
-		index = index % 2;
-		if (index) {
+	double& operator[] (int index) {
+		index = index % 2; // make sure index is in range
+		if (index == 1) {
 			return y;
+		} else {
+			return x;
 		}
-		return x;
 	}
 	operator bool() const {
-		return x != 0 || y != 0;
+		return x != 0.0 || y != 0.0;
 	}
 	bool isZero() {
-		return x == 0.0f && y == 0.0f;
+		return x == 0.0 && y == 0.0;
 	}
 	bool nonZero() {
-		return x != 0.0f && y != 0.0f;
+		return x != 0.0 && y != 0.0;
 	}
 	Vec2D infinite() {
-		return Vec2D(std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity());
+		return Vec2D(std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity());
 	}
 	Vec2D operator+ (Vec2D v) {
 		return Vec2D(x + v.x, y + v.y);
 	}
-	Vec2D operator+ (float f) {
+	Vec2D operator+ (double f) {
 		return Vec2D(x + f, y + f);
 	}
 	Vec2D& operator+= (Vec2D v) {
 		*this = *this + v;
 		return *this;
 	}
-	Vec2D& operator+= (float f) {
+	Vec2D& operator+= (double f) {
 		*this = *this + f;
 		return *this;
 	}
 	Vec2D operator- (Vec2D v) {
 		return Vec2D(x - v.x, y - v.y);
 	}
-	Vec2D operator- (float f) {
+	Vec2D operator- (double f) {
 		return Vec2D(x - f, y - f);
 	}
 	Vec2D& operator-= (Vec2D v) {
 		*this = *this - v;
 		return *this;
 	}
-	Vec2D& operator-= (float f) {
+	Vec2D& operator-= (double f) {
 		*this = *this - f;
 		return *this;
 	}
 	Vec2D operator* (Vec2D v) {
 		return Vec2D(x * v.x, y * v.y);
 	}
-	Vec2D operator* (float f) {
+	Vec2D operator* (double f) {
 		return Vec2D(x * f, y * f);
+	}
+	Vec2D operator* (int i) {
+		return Vec2D(x * i, y * i);
 	}
 	Vec2D operator* (unsigned int i) {
 		return Vec2D(x * i, y * i);
@@ -102,7 +114,7 @@ struct Vec2D {
 		*this = *this * v;
 		return *this;
 	}
-	Vec2D& operator*= (float f) {
+	Vec2D& operator*= (double f) {
 		*this = *this * f;
 		return *this;
 	}
@@ -113,21 +125,21 @@ struct Vec2D {
 	Vec2D operator/ (Vec2D v) {
 		return Vec2D(x / v.x, y / v.y);
 	}
-	Vec2D operator/ (float f) {
+	Vec2D operator/ (double f) {
 		return Vec2D(x / f, y / f);
 	}
 	Vec2D& operator/= (Vec2D v) {
 		*this = *this / v;
 		return *this;
 	}
-	Vec2D& operator/= (float f) {
+	Vec2D& operator/= (double f) {
 		*this = *this / f;
 		return *this;
 	}
 	bool operator== (Vec2D v) {
 		return x == v.x && y == v.y;
 	}
-	bool operator== (float f) {
+	bool operator== (double f) {
 		return x == f && y == f;
 	}
 	bool intEqual(Vec2D v) {
@@ -139,37 +151,25 @@ struct Vec2D {
 	Vec2D abs() {
 		return Vec2D(fabs(x), fabs(y));
 	}
-	float dotProduct(Vec2D v) {
+	double dotProduct(Vec2D v) {
 		return x * v.x + y * v.y;
 	}
-	float crossProductArea(Vec2D v) {
+	double crossProductArea(Vec2D v) {
 		return x * v.y - y * v.x;
 	}
 	Vec2D normalized() {
 		return unitVector();
 	}
 	Vec2D unitVector() {
-		if (magnitude() != 0.0f) {
+		if (magnitude() != 0.0) {
 			return Vec2D(x / magnitude(), y / magnitude());
 		}
-		return Vec2D(0.0f, 0.0f);
+		return Vec2D();
 	}
-	Vec2D identityVector() { // p.s. I started by using a ternary operator here but I think it's unclear code so I wrote it out with if statements
+	Vec2D identityVector() {
 		Vec2D identity = Vec2D();
-		if (x > 0.0f) {
-			identity.x = 1.0f;
-		} else if (x < 0.0f) {
-			identity.x = -1.0f;
-		} else {
-			identity.x = 0.0f;
-		}
-		if (y > 0.0f) {
-			identity.y = 1.0f;
-		} else if (y < 0.0f) {
-			identity.y = -1.0f;
-		} else {
-			identity.y = 0.0f;
-		}
+		identity.x = x > 0.0 ? 1.0 : x == 0.0 ? 0.0 : -1.0;
+		identity.y = y > 0.0 ? 1.0 : y == 0.0 ? 0.0 : -1.0;
 		return identity;
 	}
 	Vec2D tangent() {
@@ -178,22 +178,22 @@ struct Vec2D {
 	Vec2D opposite() {
 		return Vec2D(-x, -y);
 	}
-	float magnitude() {
-		return sqrtf(x * x + y * y);
+	double magnitude() {
+		return sqrt(x * x + y * y);
 	}
 	bool operator> (Vec2D v) {
 		return magnitude() > v.magnitude();
 	}
-	bool operator> (float f) {
+	bool operator> (double f) {
 		return x > f || y > f;
 	}
-	bool operator>= (float f) {
+	bool operator>= (double f) {
 		return x >= f || y >= f;
 	}
-	bool operator< (float f) {
+	bool operator< (double f) {
 		return x < f || y < f;
 	}
-	bool operator<= (float f) {
+	bool operator<= (double f) {
 		return x <= f || y <= f;
 	}
 	bool operator>= (Vec2D v) {
@@ -215,7 +215,7 @@ inline void to_json(nlohmann::json& j, const Vec2D& o) {
 
 inline void from_json(const nlohmann::json& j, Vec2D& o) {
 	o = Vec2D(
-		j.at("x").get<float>(),
-		j.at("y").get<float>()
+		j.at("x").get<double>(),
+		j.at("y").get<double>()
 	);
 }

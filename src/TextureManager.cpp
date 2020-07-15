@@ -1,4 +1,3 @@
-
 #include "TextureManager.h"
 #include "Game.h"
 
@@ -20,10 +19,10 @@ SDL_Texture* TextureManager::load(std::string path) {
 	}
 	SDL_Texture* texture = nullptr;
 	SDL_Surface* tempSurface = IMG_Load(path.c_str());
-	assert(tempSurface != 0 && "Failed to load image into surface");
+	assert(tempSurface && "Failed to load image into surface");
 	texture = SDL_CreateTextureFromSurface(Game::getRenderer(), tempSurface);
 	SDL_FreeSurface(tempSurface);
-	assert(texture != nullptr && "Failed to create texture from surface");
+	assert(texture && "Failed to create texture from surface");
 	_textureMap.emplace(path, texture);
 	return texture;
 }
@@ -35,7 +34,7 @@ SDL_Texture* TextureManager::getTexture(const std::string& path) {
 }
 
 void TextureManager::draw(SDL_Texture* texture, SDL_Rect source, SDL_Rect destination) {
-	assert(texture != nullptr && "Attempting to draw null texture");
+	assert(texture && "Attempting to draw null texture");
 	SDL_RenderCopy(Game::getRenderer(), texture, &source, &destination);
 }
 
@@ -45,9 +44,9 @@ void TextureManager::draw(SDL_Rect rectangle, SDL_Color color) {
 	SDL_SetRenderDrawColor(Game::getRenderer(), DEFAULT_RENDER_COLOR.r, DEFAULT_RENDER_COLOR.g, DEFAULT_RENDER_COLOR.b, DEFAULT_RENDER_COLOR.a);
 }
 
-void TextureManager::draw(SDL_Texture* texture, SDL_Rect source, SDL_Rect destination, float angle, SDL_RendererFlip flip) {
-	assert(texture != nullptr && "Attempting to draw null texture");
-	SDL_RenderCopyEx(Game::getRenderer(), texture, &source, &destination, (double)angle, NULL, flip);
+void TextureManager::draw(SDL_Texture* texture, SDL_Rect source, SDL_Rect destination, double angle, SDL_RendererFlip flip) {
+	assert(texture && "Attempting to draw null texture");
+	SDL_RenderCopyEx(Game::getRenderer(), texture, &source, &destination, angle, NULL, flip);
 }
 
 void TextureManager::removeTexture(std::string path) {

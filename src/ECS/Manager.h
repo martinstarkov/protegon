@@ -24,10 +24,10 @@ public:
 	void refreshSystems();
 	void refresh();
 	Entity& getEntity(EntityID entityID);
-	EntityID createTree(float x, float y);
-	EntityID createBox(float x, float y);
-	EntityID createGhost(float x, float y, float lifetime = 7.0f);
-public:
+	EntityID createTree(double x, double y);
+	EntityID createBox(double x, double y);
+	EntityID createGhost(double x, double y, double lifetime = 7.0);
+
 	struct SystemFactory {
 		template <typename ...Ts> static void call(Manager& manager, Ts&&... args) {
 			swallow((manager.createSystem(args), 0)...);
@@ -40,7 +40,7 @@ public:
 			return entity.getID();
 		}
 	};
-public:
+
 	template<class TFunctor, typename... Ts> auto create(Ts&&... args) {
 		return TFunctor::call(*this, std::forward<Ts>(args)...);
 	}
@@ -60,8 +60,6 @@ public:
 private:
 	Entity& createEntity();
 	void destroyEntity(EntityID entityID);
-private:
-	using SystemID = unsigned int;
 	std::map<EntityID, std::unique_ptr<Entity>> _entities;
 	std::map<SystemID, std::unique_ptr<BaseSystem>> _systems;
 };

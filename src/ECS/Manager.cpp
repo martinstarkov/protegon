@@ -1,4 +1,3 @@
-
 #include "Manager.h"
 
 bool Manager::init() {
@@ -13,7 +12,7 @@ Entity& Manager::getEntity(EntityID entityID) {
 }
 
 static EntityID getNewEntityID() {
-	static EntityID lastID = 0U;
+	static EntityID lastID = 0;
 	return lastID++;
 }
 
@@ -34,16 +33,16 @@ void Manager::destroyEntity(EntityID entityID) {
 	_entities.erase(entityID);
 }
 
-EntityID Manager::createTree(float x, float y) {
+EntityID Manager::createTree(double x, double y) {
 	EntityID entityID = create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(32, 32)), SpriteComponent("./resources/textures/enemy.png", Vec2D(16, 16)), RenderComponent(), CollisionComponent());
 	return entityID;
 }
-EntityID Manager::createBox(float x, float y) {
-	EntityID entityID = create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(50, 50)), AnimationComponent(8), MotionComponent(Vec2D(0.1f, 0.1f), {}, Vec2D(10, 10)), RenderComponent(), CollisionComponent());
+EntityID Manager::createBox(double x, double y) {
+	EntityID entityID = create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(50, 50)), AnimationComponent(8), MotionComponent(Vec2D(0.1, 0.1), {}, Vec2D(10, 10)), RenderComponent(), CollisionComponent());
 	return entityID;
 }
-EntityID Manager::createGhost(float x, float y, float lifetime) {
-	EntityID entityID = create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(32, 32)), MotionComponent(Vec2D(0.2f, 0.0f)), CollisionComponent(), RenderComponent());
+EntityID Manager::createGhost(double x, double y, double lifetime) {
+	EntityID entityID = create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(32, 32)), MotionComponent(Vec2D(0.2, 0.0)), CollisionComponent(), RenderComponent());
 	return entityID;
 }
 

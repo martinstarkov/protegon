@@ -43,8 +43,8 @@ void Game::init() {
 	box1 = manager.createBox(30 * 2 * 2, 30);
 	box4 = manager.createBox(30 * 10, 30);
 
-	manager.getEntity(box1).addComponents(DragComponent(0.1f), InputComponent(), PlayerController(Vec2D(0.2f, 0.2f)), StateMachineComponent(new WalkStateMachine(), new JumpStateMachine()));
-	manager.getEntity(box4).addComponents(DragComponent(0.01f), LifetimeComponent(8.0f));
+	manager.getEntity(box1).addComponents(DragComponent(0.1), InputComponent(), PlayerController(Vec2D(0.2, 0.2)), StateMachineComponent(new WalkStateMachine(), new JumpStateMachine()));
+	manager.getEntity(box4).addComponents(DragComponent(0.01), LifetimeComponent(8));
 
 	ghost1 = manager.createGhost(80, 80);
 
@@ -90,9 +90,9 @@ void Game::render() {
 }
 
 void Game::loop() {
-	const int fDelay = 1000 / FPS;
+	const Uint32 fDelay = 1000 / FPS;
 	Uint32 fStart;
-	int fTime;
+	Uint32 fTime;
 	while (_running) {
 		fStart = SDL_GetTicks();
 		update();
