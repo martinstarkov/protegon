@@ -3,8 +3,10 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <iomanip> // used for pretty printing
+#include <iomanip> // pretty JSON printing
 #include <nlohmann/json.hpp>
+
+#include "Utilities.h"
 
 using json = nlohmann::json;
 
@@ -19,9 +21,19 @@ public:
 		out.close();
 	}
 	template <typename T>
+	static void serialize(std::string path, T* obj) {
+		assert(obj && "Cannot serialize nullptr object");
+		serialize(path, *obj);
+	}
+	template <typename T>
 	static void reserialize(std::string path, T& obj) {
 		std::remove(path.c_str());
 		serialize(path, obj);
+	}
+	template <typename T>
+	static void reserialize(std::string path, T* obj) {
+		assert(obj && "Cannot reserialize nullptr object");
+		reserialize(path, *obj);
 	}
 	template <typename T>
 	static void deserialize(std::string path, T& obj) {
@@ -31,6 +43,11 @@ public:
 		// write tests
 		obj = j[typeid(obj).name()].get<T>();
 		in.close();
+	}
+	template <typename T>
+	static void deserialize(std::string path, T* obj) {
+		assert(obj && "Cannot deserialize to a nullptr");
+		reserialize(path, *obj);
 	}
 	template <typename T>
 	static T deserialize(std::string path) {
