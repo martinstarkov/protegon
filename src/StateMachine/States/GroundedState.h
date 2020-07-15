@@ -2,7 +2,4 @@
 
 #include "State.h"
 
-class GroundedState : public State<GroundedState> {
-public:
-
-};
+class GroundedState : public State<GroundedState> {};
