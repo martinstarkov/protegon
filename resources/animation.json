@@ -2,6 +2,6 @@
     "struct AnimationComponent": {
         "animationDelay": 0.1,
         "sprites": 8,
-        "state": 1
+        "state": 3
     }
 }

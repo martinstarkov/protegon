@@ -242,6 +242,8 @@
     <ClInclude Include="src\Vec2D.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\ECS\Components\MotionComponent.cpp" />
+    <ClCompile Include="src\StateMachine\States\GroundedState.cpp" />
     <ClCompile Include="src\StateMachine\States\IdleState.cpp" />
     <ClCompile Include="src\StateMachine\States\JumpState.cpp" />
     <ClCompile Include="src\AllocationMetrics.cpp" />
@@ -250,6 +252,7 @@
     <ClCompile Include="src\Game.cpp" />
     <ClCompile Include="src\InputHandler.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\StateMachine\States\RunState.cpp" />
     <ClCompile Include="src\StateMachine\States\WalkState.cpp" />
     <ClCompile Include="src\TextureManager.cpp" />
   </ItemGroup>
