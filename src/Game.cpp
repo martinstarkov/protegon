@@ -14,8 +14,7 @@ Manager manager;
 
 EntityID tree1;
 EntityID box1;
-EntityID box4;
-EntityID ghost1;
+EntityID player;
 
 Game& Game::getInstance() {
 	if (!_instance) {
@@ -38,15 +37,9 @@ void Game::init() {
 	InputHandler::getInstance();
 	manager.init();
 
-	tree1 = manager.createTree(30, 30);
-
-	box1 = manager.createBox(30 * 2 * 2, 30);
-	box4 = manager.createBox(30 * 10, 30);
-
-	manager.getEntity(box1).addComponents(DragComponent(0.1), InputComponent(), PlayerController(Vec2D(0.2, 0.2)), StateMachineComponent(new WalkStateMachine(), new JumpStateMachine()));
-	manager.getEntity(box4).addComponents(DragComponent(0.01), LifetimeComponent(8));
-
-	ghost1 = manager.createGhost(80, 80);
+	tree1 = manager.createTree(Vec2D(30));
+	box1 = manager.createBox(Vec2D(30 * 2 * 2, 30));
+	player = manager.createPlayer(Vec2D(30 * 10, 30));
 
 	manager.refreshSystems();
 }
@@ -70,13 +63,13 @@ void Game::update() {
 	InputHandler::update(event);
 	static int cycle = 0;
 	if (cycle == 300) {
-		//SpriteComponent* sprite = manager.getEntity(box1).getComponent<SpriteComponent>();
+		//SpriteComponent* sprite = manager.getEntity(player).getComponent<SpriteComponent>();
 		//Serialization::reserialize(animation, &AnimationComponent::serialize, "resources/animation.txt");
 		//Serialization::reserialize("resources/sprite1.json", *sprite);
-		//manager.getEntity(box1).removeComponents<SpriteComponent>();
+		//manager.getEntity(player).removeComponents<SpriteComponent>();
 	}
 	if (cycle == 600) {
-		//manager.getEntity(box1).addComponents(Serialization::deserialize<SpriteComponent>("resources/sprite2.json"));
+		//manager.getEntity(player).addComponents(Serialization::deserialize<SpriteComponent>("resources/sprite2.json"));
 	}
 	cycle++;
 	manager.updateSystems();

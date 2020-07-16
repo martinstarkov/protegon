@@ -24,9 +24,9 @@ public:
 	void refreshSystems();
 	void refresh();
 	Entity& getEntity(EntityID entityID);
-	EntityID createTree(double x, double y);
-	EntityID createBox(double x, double y);
-	EntityID createGhost(double x, double y, double lifetime = 7.0);
+	EntityID createTree(Vec2D position);
+	EntityID createBox(Vec2D position);
+	EntityID createPlayer(Vec2D position);
 
 	struct SystemFactory {
 		template <typename ...Ts> static void call(Manager& manager, Ts&&... args) {

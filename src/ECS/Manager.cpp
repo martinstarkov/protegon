@@ -33,16 +33,29 @@ void Manager::destroyEntity(EntityID entityID) {
 	_entities.erase(entityID);
 }
 
-EntityID Manager::createTree(double x, double y) {
-	EntityID entityID = create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(32, 32)), SpriteComponent("./resources/textures/enemy.png", Vec2D(16, 16)), RenderComponent(), CollisionComponent());
+EntityID Manager::createTree(Vec2D position) {
+	EntityID entityID = create<EntityFactory>(TransformComponent(position), SizeComponent(Vec2D(64)), SpriteComponent("./resources/textures/tree.png", Vec2D(16)), RenderComponent(), CollisionComponent());
 	return entityID;
 }
-EntityID Manager::createBox(double x, double y) {
-	EntityID entityID = create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(50, 50)), AnimationComponent(8), MotionComponent(Vec2D(0.1, 0.1), {}, Vec2D(10, 10)), RenderComponent(), CollisionComponent());
+EntityID Manager::createBox(Vec2D position) {
+	EntityID entityID = create<EntityFactory>(TransformComponent(position), SizeComponent(Vec2D(32)), SpriteComponent("./resources/textures/box.png", Vec2D(16)), MotionComponent(Vec2D(0.5), {}, Vec2D(3.0)), DragComponent(UNIVERSAL_DRAG), RenderComponent(), CollisionComponent());
 	return entityID;
 }
-EntityID Manager::createGhost(double x, double y, double lifetime) {
-	EntityID entityID = create<EntityFactory>(TransformComponent(Vec2D(x, y)), SizeComponent(Vec2D(32, 32)), MotionComponent(Vec2D(0.2, 0.0)), CollisionComponent(), RenderComponent());
+EntityID Manager::createPlayer(Vec2D position) {
+	EntityID entityID = create<EntityFactory>(TransformComponent(position), SizeComponent(Vec2D(50, 50)), SpriteComponent("./resources/textures/player_anim.png", Vec2D(16)), AnimationComponent(8), RenderComponent(), CollisionComponent());
+	Entity& entity = getEntity(entityID);
+	StateMachineComponent sm;
+	std::unique_ptr<WalkStateMachine> wsm = std::make_unique<WalkStateMachine>();
+	wsm->init("idle", &entity);
+
+	std::unique_ptr<JumpStateMachine> jsm = std::make_unique<JumpStateMachine>();
+	jsm->init("grounded", &entity);
+
+	sm.stateMachines.emplace("walkStateMachine", std::move(wsm));
+	sm.stateMachines.emplace("jumpStateMachine", std::move(jsm));
+	sm.setNames();
+	entity.addComponents(MotionComponent(), DragComponent(UNIVERSAL_DRAG), InputComponent(), PlayerController(Vec2D(1.0, 1.0)), std::move(sm));
+	entity.addComponents();
 	return entityID;
 }
 
