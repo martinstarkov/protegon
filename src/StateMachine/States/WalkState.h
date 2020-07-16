@@ -2,10 +2,9 @@
 
 #include "State.h"
 
-#define RUN_THRESHOLD 30
-
 class WalkState : public State<WalkState> {
 public:
-	virtual void update() override;
+	virtual void onEntry() override final;
+	virtual void update() override final;
 };
 
