@@ -34,10 +34,6 @@ struct Vec2D {
 	friend Vec2D abs(Vec2D v) {
 		return Vec2D(std::abs(v.x), std::abs(v.y));
 	}
-	friend Vec2D abs(Vec2D& v) {
-		v.x = std::abs(v.x);
-		v.y = std::abs(v.y);
-	}
 	SDL_Rect Vec2DtoSDLRect(Vec2D v) {
 		return { static_cast<int>(round(x)), static_cast<int>(round(y)), static_cast<int>(round(v.x)), static_cast<int>(round(v.y)) };
 	}
@@ -98,21 +94,22 @@ struct Vec2D {
 		*this = *this - f;
 		return *this;
 	}
-	Vec2D operator* (Vec2D v) {
+	Vec2D operator* (const Vec2D& v) const {
 		return Vec2D(x * v.x, y * v.y);
+	}
+	Vec2D& operator* (const Vec2D& v) {
+		this->x *= v.x;
+		this->y *= v.y;
+		return *this;
 	}
 	Vec2D operator* (double f) {
 		return Vec2D(x * f, y * f);
 	}
-	Vec2D operator* (int i) {
-		return Vec2D(x * i, y * i);
-	}
 	Vec2D operator* (unsigned int i) {
 		return Vec2D(x * i, y * i);
 	}
-	Vec2D& operator*= (Vec2D v) {
-		*this = *this * v;
-		return *this;
+	Vec2D& operator*= (const Vec2D& v) {
+		return (*this * v);
 	}
 	Vec2D& operator*= (double f) {
 		*this = *this * f;
