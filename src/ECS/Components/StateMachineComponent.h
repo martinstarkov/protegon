@@ -6,6 +6,7 @@
 
 struct StateMachineComponent : public Component<StateMachineComponent> {
 	StateMachineMap stateMachines;
+	// TODO: Fix how the StateMachineMap is initialized and remove the need for a separate setNames function
 	StateMachineComponent() {
 	}
 	void setNames() {

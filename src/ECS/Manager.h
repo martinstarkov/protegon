@@ -12,6 +12,10 @@
 #include "Systems.h"
 #include "Components.h"
 
+// TODO: Big overhaul of the system and entity factories, put the addComponent functions here instead of the entity, pass them an EntityID
+// Consider storing components in manager under EntityIDs as opposed to in Entity object
+// This will eliminate the need for entity pointers, change all parent relationships in components and states to pass a Manager reference and an EntityID instead of an entity pointer)
+
 class Manager {
 public:
 	Manager() = default;
