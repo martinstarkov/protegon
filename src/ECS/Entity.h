@@ -19,7 +19,13 @@ public:
 	const EntityID getID() const { return _id; }
 	const Signature getSignature() const { return _signature; }
 	void refreshManager(); // wrapper so that Manager.h can be included in .cpp
-
+	void listComponents() {
+		LOG("Entity " << _id << ": {");
+		for (auto& pair : _components) {
+			LOG(pair.second->getComponentName());
+		}
+		LOG("}");
+	}
 	template <typename ...Ts> void addComponents(Ts&&... args) {
 		swallow((addEntityComponent(args), 0)...);
 		refreshManager();
@@ -45,25 +51,27 @@ public:
 	}
 private:
 	template <typename TComponent> void addEntityComponent(TComponent& component) { // make sure to call manager.refreshSystems(Entity*) after this function, wherever it is used
-		const char* name = typeid(TComponent).name(); 
+		const char* name = typeid(TComponent).name();
+		std::unique_ptr<TComponent> uPtr = std::make_unique<TComponent>(std::move(component));
+		uPtr->setParentEntity(this);
+		uPtr->init();
 		if (_components.find(component.getComponentID()) == _components.end()) {
-			std::unique_ptr<TComponent> uPtr = std::make_unique<TComponent>(std::move(component));
-			LOG("Added " << name << "(" << sizeof(TComponent) + sizeof(uPtr->getComponentID()) << ") to Entity[" << _id << "]");
+			//LOG_("Added ");
 			_signature.emplace_back(uPtr->getComponentID());
 			_components.emplace(uPtr->getComponentID(), std::move(uPtr));
 		} else { // Currently just overrides the component
 			// TODO: Possibly multiple components of same type in the future
-			std::unique_ptr<TComponent> uPtr = std::make_unique<TComponent>(std::move(component));
-			LOG("Replaced " << name << "(" << sizeof(TComponent) + sizeof(uPtr->getComponentID()) << ") in Entity[" << _id << "]");
+			//LOG_("Replaced ");
 			_components[uPtr->getComponentID()] = std::move(uPtr);
 		}
+		//LOG(<< name << "(" << sizeof(TComponent) + sizeof(uPtr->getComponentID()) << ") -> Entity[" << _id << "]");
 	}
 	template <typename TComponent> void removeEntityComponent() {
 		ComponentID id = typeid(TComponent).hash_code();
 		auto iterator = _components.find(id);
 		if (iterator != _components.end()) {
 			const char* name = typeid(TComponent).name();
-			LOG("Removed " << name << "(" << sizeof(TComponent) + sizeof(id) << ") from Entity[" << _id << "]");
+			//LOG("Removed " << name << "(" << sizeof(TComponent) + sizeof(id) << ") from Entity[" << _id << "]");
 			resetRelatedComponents<TComponent>(id);
 			_components.erase(iterator);
 			_signature.erase(std::remove(_signature.begin(), _signature.end(), id), _signature.end());
