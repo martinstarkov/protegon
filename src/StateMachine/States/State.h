@@ -1,25 +1,29 @@
 #pragma once
 
 #include "BaseState.h"
-#include <typeinfo>
 
 template <class StateType>
 class State : public BaseState {
 public:
-	State() : _parentStateMachine(nullptr) {
-		_id = static_cast<StateID>(typeid(StateType).hash_code());
-	}
+	State() : parentStateMachine(nullptr), parentEntity(nullptr), _name(typeid(StateType).name()) {}
 	virtual void onExit() override {}
 	virtual void onEntry() override {}
 	virtual void update() override {}
-	virtual void setParentStateMachine(BaseStateMachine* parentStateMachine) override final {
-		_parentStateMachine = parentStateMachine;
+	virtual void setName(StateName name) override final {
+		_name = name;
 	}
-	virtual BaseStateMachine* getParentStateMachine() override final {
-		return _parentStateMachine;
+	virtual StateName getName() override final {
+		return _name;
 	}
-	virtual StateID getStateID() override final { return _id; }
+	virtual void setParentEntity(Entity* newParentEntity) override final {
+		parentEntity = newParentEntity;
+	}
+	virtual void setParentStateMachine(BaseStateMachine* newParentStateMachine) override final {
+		parentStateMachine = newParentStateMachine;
+	}
+protected:
+	Entity* parentEntity;
+	BaseStateMachine* parentStateMachine;
 private:
-	StateID _id;
-	BaseStateMachine* _parentStateMachine;
+	StateName _name;
 };

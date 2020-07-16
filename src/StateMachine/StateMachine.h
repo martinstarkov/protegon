@@ -8,41 +8,45 @@
 template <typename StateMachineType>
 class StateMachine : public BaseStateMachine {
 public:
-	StateMachine() : _currentState(nullptr), _previousStateID(0) {
-		_id = static_cast<StateMachineID>(typeid(StateMachineType).hash_code());
+	StateMachine() : _currentState(UNKNOWN_STATE), _previousState(UNKNOWN_STATE), _name(typeid(StateMachineType).name()) {}
+	virtual void init(StateName initialState, Entity* _parentEntity) override final {
+		for (const auto& pair : states) {
+			pair.second->setName(pair.first);
+			pair.second->setParentStateMachine(this);
+			assert(_parentEntity && "_parentEntity cannot be nullptr");
+			pair.second->setParentEntity(_parentEntity);
+		}
+		_currentState = initialState;
+		_previousState = _currentState;
 	}
-	virtual void update() override {
-		assert(_currentState && "Undefined starting state");
-		_previousStateID = _currentState->getStateID();
-		_currentState->update();
+	virtual void update() override final {
+		assert(states.find(_currentState) != states.end() && "Undefined starting state");
+		states[_currentState]->update();
 	}
-	virtual StateMachineID getStateMachineID() override final { return _id; }
-	virtual BaseState* getCurrentState() override final { return _currentState.get(); }
-	virtual StateID getCurrentStateID() override final { return _currentState->getStateID(); }
-	virtual bool stateChangeOccured() override final {
-		return _previousStateID != _currentState->getStateID();
+	virtual StateMachineName getName() override final {
+		return _name;
 	}
-	virtual bool isState(StateID state) override final {
-		return state == _currentState->getStateID();
+	virtual void setName(StateMachineName name) override final {
+		_name = name;
 	}
-	virtual void initState(std::unique_ptr<BaseState> state) override final {
-		_currentState = std::move(state);
-		_currentState->setParentStateMachine(this);
-		_currentState->onEntry();
+	virtual BaseState* getCurrentState() override final {
+		return states[_currentState].get();
 	}
-	virtual void setCurrentState(std::unique_ptr<BaseState> state) override final {
-		assert(_currentState && "Undefined starting state");
-		if (!isState(state->getStateID())) { // state change
-			_previousStateID = _currentState->getStateID();
-			_currentState->onExit();
-			initState(std::move(state));
-		} else { // delete state pointer if unused
-			state.reset();
+	virtual void setCurrentState(StateName state) override final {
+		if (state != _currentState) {
+			_previousState = _currentState;
+			_currentState = state;
+			states[_previousState]->onExit();
+			states[_currentState]->onEntry();
 		}
 	}
+	virtual bool inState(StateName name) override final {
+		return _currentState == name;
+	}
+protected:
+	StateMap states;
 private:
-	std::unique_ptr<BaseState> _currentState;
-	StateID _previousStateID;
-	StateMachineID _id;
+	StateMachineName _name;
+	StateName _currentState;
+	StateName _previousState;
 };
-

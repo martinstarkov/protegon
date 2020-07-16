@@ -3,15 +3,15 @@
 #include "Types.h"
 
 class BaseState;
+class Entity;
 
 class BaseStateMachine {
 public:
+	virtual void init(StateName initialState, Entity* _parentEntity) = 0;
 	virtual void update() = 0;
-	virtual StateMachineID getStateMachineID() = 0;
+	virtual StateMachineName getName() = 0;
+	virtual void setName(StateMachineName name) = 0;
 	virtual BaseState* getCurrentState() = 0;
-	virtual StateID getCurrentStateID() = 0;
-	virtual bool isState(StateID state) = 0;
-	virtual bool stateChangeOccured() = 0;
-	virtual void initState(std::unique_ptr<BaseState> state) = 0;
-	virtual void setCurrentState(std::unique_ptr<BaseState> state) = 0;
+	virtual void setCurrentState(StateName state) = 0;
+	virtual bool inState(StateName name) = 0;
 };
