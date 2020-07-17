@@ -11,6 +11,8 @@
 // TODO: In addEntityComponent the Component init() method should be called only after all components have been initialized (if more than one component is being created)
 // If only one component is being created, init() will be called on that one, if multiple, they will be created first, then init will be called on them all
 
+// TODO: Replace entity with a handle
+
 class Manager;
 class BaseComponent;
 
