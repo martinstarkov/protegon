@@ -33,23 +33,6 @@ public:
 						collider->colliding = true;
 						otherCollider->colliding = true;
 						transform->position -= penetration;
-						if (penetration.x) {
-							//if (motion) {
-							//	motion->velocity = Vec2D();
-							//}
-							//if (otherMotion) {
-							//	otherMotion->velocity = Vec2D();
-							//}
-						}
-						if (penetration.y) {
-							//if (motion) {
-							//	motion->velocity = Vec2D();
-							//}
-							//if (otherMotion) {
-							//	otherMotion->velocity = Vec2D();
-							//}
-						}
-
 					}
 				}
 			}

@@ -82,7 +82,6 @@ struct AABB {
 		}
 		return pv;
 	}
-	// Operators
 	operator bool() const {
 		return position || size;
 	}

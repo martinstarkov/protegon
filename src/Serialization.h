@@ -3,7 +3,8 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <iomanip> // pretty JSON printing
+#include <iomanip>
+
 #include <nlohmann/json.hpp>
 
 #include "Utilities.h"
