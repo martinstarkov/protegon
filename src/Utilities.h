@@ -22,14 +22,16 @@ namespace Util {
 	void swallow(Ts&&... args) {} 
 
 	// Used for deleting entities using sets of indexes
-	template <typename Container>
-	void eraseFrom(const std::set<int>& eraseThese, Container& fromThis) {
+	template <typename Set, typename Container>
+	void eraseFrom(const Set& eraseThese, Container& fromThis) {
 		int iteratorOffset = 0;
 		for (auto& index : eraseThese) {
-			auto it = fromThis.begin();
+			auto it = std::begin(fromThis);
 			std::advance(it, index - iteratorOffset);
-			fromThis.erase(it);
-			iteratorOffset++;
+			if (it != std::end(fromThis)) {
+				fromThis.erase(it);
+				iteratorOffset++;
+			}
 		}
 	}
 
