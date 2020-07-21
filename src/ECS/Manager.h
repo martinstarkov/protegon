@@ -10,7 +10,7 @@
 #include "Systems/BaseSystem.h"
 #include "Components/BaseComponent.h"
 
-// TODO: Big overhaul of the system and entity factories, put the addComponent functions here instead of the entity, pass them an EntityID
+// TODO: Big overhaul of the system and entity factories
 // Consider storing components in manager under EntityIDs as opposed to in Entity object
 // This will eliminate the need for entity pointers, change all parent relationships in components and states to pass a Manager reference and an EntityID instead of an entity pointer)
 
@@ -25,25 +25,35 @@ public:
 	~Manager() = default;
 	Manager(const Manager&) = delete;
 	Manager(Manager&&) = delete;
+
 	void init();
 	void update();
+	void render();
+
 	void entityChanged(EntityID id);
 	void entityDestroyed(EntityID id);
 	void refresh();
 	void refreshDeleted();
+
 	EntityID createEntity();
 	void destroyEntity(EntityID entityID);
 	bool hasEntity(EntityID entityID);
+
 	EntityID createTree(Vec2D position);
 	EntityID createBox(Vec2D position);
 	EntityID createPlayer(Vec2D position);
+
 	template <typename ...Cs>
 	void addComponents(EntityID id, Cs&&... components) {
 		auto it = _entities.find(id);
 		if (it != _entities.end()) {
 			Util::swallow((addComponent(id, components), 0)...);
-			for (auto& cs : it->second->components) {
-				cs.second->init();
+			Signature added;
+			added.insert(added.end(), { typeid(Cs).hash_code()... });
+			for (const ComponentID& cId : added) {
+				auto cIt = it->second->components.find(cId);
+				assert(cIt != it->second->components.end() && "Cannot call init() on components which were unsuccesfully added to entity");
+				cIt->second->init();
 			}
 			entityChanged(id);
 		}
@@ -73,17 +83,7 @@ public:
 	bool hasComponent(EntityID id) {
 		return getComponent<C>(id) != nullptr;
 	}
-	bool hasComponent(EntityID id, ComponentID cId) {
-		auto it = _entities.find(id);
-		if (it != _entities.end()) {
-			ComponentMap& components = it->second->components;
-			auto cIt = components.find(cId);
-			if (cIt != components.end()) {
-				return true;
-			}
-		}
-		return false;
-	}
+	bool hasComponent(EntityID id, ComponentID cId);
 	template <typename ...Ss>
 	void createSystems(Ss&&... systems) {
 		Util::swallow((createSystem(systems), 0)...);
