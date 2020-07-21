@@ -2,6 +2,8 @@
 
 #include "System.h"
 
+struct InputComponent;
+
 #include "SDL.h"
 
 // TODO: Add key specificity to InputComponent

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "BaseSystem.h"
-#include "../ComponentDeclarations.h"
 
 class Manager;
 
