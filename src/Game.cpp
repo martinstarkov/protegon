@@ -1,7 +1,6 @@
 #include "Game.h"
 #include "ECS/Manager.h"
 #include "ECS/EntityHandle.h"
-#include "ECS/Systems/RenderSystem.h"
 #include "InputHandler.h"
 #include "TextureManager.h"
 
@@ -64,10 +63,6 @@ void Game::instructions() {
 void Game::update() {
 	InputHandler::update(event);
 	static int cycle = 0;
-	if (cycle == 300) {
-	}
-	if (cycle == 600) {
-	}
 	cycle++;
 	manager.update();
 }
@@ -75,7 +70,7 @@ void Game::update() {
 void Game::render() {
 	SDL_RenderClear(_renderer);
 	SDL_SetRenderDrawColor(getRenderer(), DEFAULT_RENDER_COLOR.r, DEFAULT_RENDER_COLOR.g, DEFAULT_RENDER_COLOR.b, DEFAULT_RENDER_COLOR.a);
-	manager.getSystem<RenderSystem>()->update();
+	manager.render();
 	SDL_RenderPresent(_renderer);
 }
 
@@ -88,7 +83,7 @@ void Game::loop() {
 		update();
 		render();
 		fTime = SDL_GetTicks() - fStart;
-		if (fDelay > fTime) {
+		if (fDelay > fTime) { // cap frame time at an FPS
 			SDL_Delay(fDelay - fTime);
 		}
 	}
@@ -97,7 +92,7 @@ void Game::loop() {
 void Game::clean() {
 	SDL_DestroyWindow(_window);
 	SDL_DestroyRenderer(_renderer);
-	//Quit SDL subsystems
+	// Quit SDL subsystems
 	IMG_Quit();
 	SDL_Quit();
 }
