@@ -7,7 +7,10 @@ class BaseState;
 
 class BaseStateMachine {
 public:
-	virtual void init(StateName initialState, EntityHandle handle) = 0;
+	BaseStateMachine() = default;
+	BaseStateMachine(const BaseStateMachine&) = delete;
+	BaseStateMachine(BaseStateMachine&&) = delete;
+	virtual void init(EntityHandle handle) = 0;
 	virtual void update() = 0;
 	virtual StateMachineName getName() = 0;
 	virtual void setName(StateMachineName name) = 0;

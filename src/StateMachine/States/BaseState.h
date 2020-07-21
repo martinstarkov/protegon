@@ -7,6 +7,9 @@ class BaseStateMachine;
 
 class BaseState {
 public:
+	BaseState() = default;
+	BaseState(const BaseState&) = delete;
+	BaseState(BaseState&&) = delete;
 	virtual void onEntry() = 0;
 	virtual void onExit() = 0;
 	virtual void update() = 0;
