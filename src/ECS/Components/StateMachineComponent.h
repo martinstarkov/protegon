@@ -7,10 +7,10 @@
 struct StateMachineComponent : public Component<StateMachineComponent> {
 	StateMachineMap stateMachines;
 	// TODO: Fix how the StateMachineMap is initialized and remove the need for a separate setNames function
-	StateMachineComponent() {}
-	void setNames() {
-		for (const auto& pair : stateMachines) {
+	StateMachineComponent(std::map<StateMachineName, BaseStateMachine*>&& stateMachines) {
+		for (auto& pair : stateMachines) {
 			pair.second->setName(pair.first);
+			this->stateMachines.emplace(pair.first, std::move(pair.second));
 		}
 	}
 };
