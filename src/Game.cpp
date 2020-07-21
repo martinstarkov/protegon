@@ -1,5 +1,7 @@
 #include "Game.h"
 #include "ECS/Manager.h"
+#include "ECS/EntityHandle.h"
+#include "ECS/Systems/RenderSystem.h"
 #include "InputHandler.h"
 #include "TextureManager.h"
 
@@ -12,9 +14,9 @@ SDL_Event event;
 
 Manager manager;
 
-EntityID tree1;
-EntityID box1;
-EntityID player;
+EntityHandle tree1;
+EntityHandle box1;
+EntityHandle player;
 
 Game& Game::getInstance() {
 	if (!_instance) {
@@ -37,11 +39,11 @@ void Game::init() {
 	InputHandler::getInstance();
 	manager.init();
 
-	tree1 = manager.createTree(Vec2D(30));
-	box1 = manager.createBox(Vec2D(30 * 2 * 2, 30));
-	player = manager.createPlayer(Vec2D(30 * 10, 30));
+	tree1 = EntityHandle(manager.createTree(Vec2D(30)), &manager);
+	box1 = EntityHandle(manager.createBox(Vec2D(30 * 2 * 2, 30)), &manager);
+	player = EntityHandle(manager.createPlayer(Vec2D(30 * 10, 30)), &manager);
 
-	manager.refreshSystems();
+	manager.refresh();
 }
 
 void Game::initSDL(const char* title, int x, int y, int w, int h, Uint32 flags) {
@@ -63,16 +65,11 @@ void Game::update() {
 	InputHandler::update(event);
 	static int cycle = 0;
 	if (cycle == 300) {
-		//SpriteComponent* sprite = manager.getEntity(player).getComponent<SpriteComponent>();
-		//Serialization::reserialize(animation, &AnimationComponent::serialize, "resources/animation.txt");
-		//Serialization::reserialize("resources/sprite1.json", *sprite);
-		//manager.getEntity(player).removeComponents<SpriteComponent>();
 	}
 	if (cycle == 600) {
-		//manager.getEntity(player).addComponents(Serialization::deserialize<SpriteComponent>("resources/sprite2.json"));
 	}
 	cycle++;
-	manager.updateSystems();
+	manager.update();
 }
 
 void Game::render() {

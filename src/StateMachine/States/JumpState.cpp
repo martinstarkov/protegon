@@ -1,8 +1,9 @@
 #include "JumpState.h"
-#include "StateCommon.h"
+
+#include "../../ECS/Components/MotionComponent.h"
 
 void JumpState::update() {
-	MotionComponent* motion = parentEntity->getComponent<MotionComponent>();
+	MotionComponent* motion = entity.getComponent<MotionComponent>();
 	if (motion->acceleration.y >= 0.0) {
 		parentStateMachine->setCurrentState("grounded");
 	}

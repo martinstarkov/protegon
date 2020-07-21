@@ -7,8 +7,7 @@
 struct StateMachineComponent : public Component<StateMachineComponent> {
 	StateMachineMap stateMachines;
 	// TODO: Fix how the StateMachineMap is initialized and remove the need for a separate setNames function
-	StateMachineComponent() {
-	}
+	StateMachineComponent() {}
 	void setNames() {
 		for (const auto& pair : stateMachines) {
 			pair.second->setName(pair.first);

@@ -6,22 +6,5 @@
 
 class LifetimeSystem : public System<LifetimeComponent> {
 public:
-	virtual void update() override {
-		for (auto& entityID : entities) {
-			Entity& e = getEntity(entityID);
-			LifetimeComponent* lifetime = e.getComponent<LifetimeComponent>();
-			//CollisionComponent* collision = pair.second->getComponent<CollisionComponent>(); // TODO in the future
-			//if (collision->bottom) { lifetime->isDying = true; }
-			if (lifetime->isDying) {
-				if (lifetime->lifetime - SECOND_CHANGE_PER_FRAME >= 0.0) {
-					lifetime->lifetime -= SECOND_CHANGE_PER_FRAME;
-				} else {
-					lifetime->lifetime = 0.0;
-				}
-			}
-			if (!lifetime->lifetime) {
-				e.destroy();
-			}
-		}
-	}
+	virtual void update() override final;
 };

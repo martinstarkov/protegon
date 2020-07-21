@@ -3,18 +3,17 @@
 #include <assert.h>
 
 #include "BaseStateMachine.h"
-#include "States.h"
+#include "States/BaseState.h"
 
 template <typename StateMachineType>
 class StateMachine : public BaseStateMachine {
 public:
 	StateMachine() : _currentState(UNKNOWN_STATE), _previousState(UNKNOWN_STATE), _name(typeid(StateMachineType).name()) {}
-	virtual void init(StateName initialState, Entity* _parentEntity) override final {
+	virtual void init(StateName initialState, EntityHandle handle) override final {
 		for (const auto& pair : states) {
 			pair.second->setName(pair.first);
 			pair.second->setParentStateMachine(this);
-			assert(_parentEntity && "_parentEntity cannot be nullptr");
-			pair.second->setParentEntity(_parentEntity);
+			pair.second->setHandle(handle);
 		}
 		_currentState = initialState;
 		_previousState = _currentState;
