@@ -1,8 +1,11 @@
 #include "MotionComponent.h"
 
-#include <sstream>
+#include "../EntityHandle.h"
 
-#include "../Entity.h"
+#include "DragComponent.h"
+#include "PlayerController.h"
+
+#include <sstream>
 
 #define TERMINAL_VELOCITY_PRECISION 2 // significant figures
 
@@ -21,8 +24,8 @@ double findTerminalVelocity(double x, double b, double c) {
 }
 
 void MotionComponent::init() {
-	DragComponent* drag = parentEntity->getComponent<DragComponent>();
-	PlayerController* controller = parentEntity->getComponent<PlayerController>();
+	DragComponent* drag = entity.getComponent<DragComponent>();
+	PlayerController* controller = entity.getComponent<PlayerController>();
 	if (drag && controller) {
 		if (drag->drag.x == drag->drag.y && controller->speed.x == controller->speed.y) {
 			double tV = findTerminalVelocity(0.0, 1.0 - drag->drag.x, controller->speed.x);

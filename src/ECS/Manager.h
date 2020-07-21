@@ -7,14 +7,17 @@
 #include "Types.h"
 #include "../Vec2D.h"
 
-#include "Entity.h"
 #include "Systems/BaseSystem.h"
-#include "Systems.h"
-#include "Components.h"
+#include "Components/BaseComponent.h"
 
 // TODO: Big overhaul of the system and entity factories, put the addComponent functions here instead of the entity, pass them an EntityID
 // Consider storing components in manager under EntityIDs as opposed to in Entity object
 // This will eliminate the need for entity pointers, change all parent relationships in components and states to pass a Manager reference and an EntityID instead of an entity pointer)
+
+struct Entity {
+	ComponentMap components;
+	bool alive = true;
+};
 
 class Manager {
 public:
@@ -22,48 +25,119 @@ public:
 	~Manager() = default;
 	Manager(const Manager&) = delete;
 	Manager(Manager&&) = delete;
-	bool init();
-	void updateSystems();
-	void refreshSystems(const EntityID entity);
-	void refreshSystems();
+	void init();
+	void update();
+	void entityChanged(EntityID id);
+	void entityDestroyed(EntityID id);
 	void refresh();
-	Entity& getEntity(EntityID entityID);
+	void refreshDeleted();
+	EntityID createEntity();
+	void destroyEntity(EntityID entityID);
+	bool hasEntity(EntityID entityID);
 	EntityID createTree(Vec2D position);
 	EntityID createBox(Vec2D position);
 	EntityID createPlayer(Vec2D position);
-
-	struct SystemFactory {
-		template <typename ...Ts> static void call(Manager& manager, Ts&&... args) {
-			swallow((manager.createSystem(args), 0)...);
+	template <typename ...Cs>
+	void addComponents(EntityID id, Cs&&... components) {
+		auto it = _entities.find(id);
+		if (it != _entities.end()) {
+			Util::swallow((addComponent(id, components), 0)...);
+			for (auto& cs : it->second->components) {
+				cs.second->init();
+			}
+			entityChanged(id);
 		}
-	};
-	struct EntityFactory {
-		template <typename ...Ts> static EntityID call(Manager& manager, Ts&&... args) {
-			Entity& entity = manager.createEntity();
-			entity.addComponents(std::forward<Ts>(args)...);
-			return entity.getID();
+	}
+	template <typename ...Cs>
+	void removeComponents(EntityID id) {
+		auto it = _entities.find(id);
+		if (it != _entities.end()) {
+			Util::swallow((removeComponent<Cs>(id), 0)...);
+			entityChanged(id);
 		}
-	};
-
-	template<class TFunctor, typename... Ts> auto create(Ts&&... args) {
-		return TFunctor::call(*this, std::forward<Ts>(args)...);
 	}
-	template <typename TSystem> TSystem* getSystem() {
-		auto iterator = _systems.find(static_cast<SystemID>(typeid(TSystem).hash_code()));
-		assert(iterator != _systems.end() && "Attempting to get non-existent system");
-		return static_cast<TSystem*>(iterator->second.get());
+	template <typename C>
+	C* getComponent(EntityID id) {
+		auto it = _entities.find(id);
+		if (it != _entities.end()) {
+			ComponentID cId = static_cast<ComponentID>(typeid(C).hash_code());
+			ComponentMap& components = it->second->components;
+			auto cIt = components.find(cId);
+			if (cIt != components.end()) {
+				return static_cast<C*>(cIt->second.get());
+			}
+		}
+		return nullptr;
 	}
-	template <typename TSystem> void createSystem(TSystem& system) {
-		SystemID id = static_cast<SystemID>(typeid(TSystem).hash_code());
-		assert(_systems.find(id) == _systems.end());
-		std::unique_ptr<TSystem> uPtr = std::make_unique<TSystem>(std::move(system));
-		const char* name = typeid(TSystem).name();
-		uPtr->setManager(this);
-		_systems.emplace(id, std::move(uPtr));
+	template <typename C>
+	bool hasComponent(EntityID id) {
+		return getComponent<C>(id) != nullptr;
+	}
+	bool hasComponent(EntityID id, ComponentID cId) {
+		auto it = _entities.find(id);
+		if (it != _entities.end()) {
+			ComponentMap& components = it->second->components;
+			auto cIt = components.find(cId);
+			if (cIt != components.end()) {
+				return true;
+			}
+		}
+		return false;
+	}
+	template <typename ...Ss>
+	void createSystems(Ss&&... systems) {
+		Util::swallow((createSystem(systems), 0)...);
+	}
+	template <typename S>
+	S* getSystem() {
+		SystemID sId = static_cast<SystemID>(typeid(S).hash_code());
+		auto it = _systems.find(sId);
+		if (it != _systems.end()) {
+			return static_cast<S*>(it->second.get());
+		}
+		return nullptr;
 	}
 private:
-	Entity& createEntity();
-	void destroyEntity(EntityID entityID);
+	template <typename C>
+	void addComponent(EntityID id, C& component) {
+		auto it = _entities.find(id);
+		if (it != _entities.end()) {
+			ComponentID cId = static_cast<ComponentID>(typeid(C).hash_code());
+			std::unique_ptr<C> uPtr = std::make_unique<C>(std::move(component));
+			uPtr->setHandle(id, this);
+			ComponentMap& components = it->second->components;
+			if (components.find(cId) == components.end()) { // Add new component
+				components.emplace(cId, std::move(uPtr));
+				LOG_("Added");
+			} else { // Replace old component
+				// TODO: Possibly in the future include support for multiple components of the same type
+				components[cId] = std::move(uPtr);
+				LOG_("Replaced");
+			}
+		}
+		LOG(" " << typeid(C).name() << " (" << sizeof(C) << ") -> Entity [" << id << "]");
+	}
+	template <typename C>
+	void removeComponent(EntityID id) {
+		auto it = _entities.find(id);
+		if (it != _entities.end()) {
+			ComponentID cId = static_cast<ComponentID>(typeid(C).hash_code());
+			ComponentMap& components = it->second->components;
+			auto cIt = components.find(cId);
+			if (cIt != components.end()) {
+				components.erase(cIt);
+				LOG("Removed " << typeid(C).name() << " (" << sizeof(C) << ") from Entity [" << id << "]");
+			}
+		}
+	}
+	template <typename S>
+	void createSystem(S& system) {
+		SystemID sId = static_cast<SystemID>(typeid(S).hash_code());
+		assert(_systems.find(sId) == _systems.end());
+		std::unique_ptr<S> uPtr = std::make_unique<S>(std::move(system));
+		uPtr->setManager(this);
+		_systems.emplace(sId, std::move(uPtr));
+	}
 	std::map<EntityID, std::unique_ptr<Entity>> _entities;
 	std::map<SystemID, std::unique_ptr<BaseSystem>> _systems;
 };

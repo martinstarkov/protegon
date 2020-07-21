@@ -2,6 +2,8 @@
 
 #include "BaseComponent.h"
 
+#include "../EntityHandle.h"
+
 template <class ComponentType>
 class Component : public BaseComponent {
 public:
@@ -9,17 +11,12 @@ public:
 	// Each Component implementation will have a constructor that takes in the above mentioned information and passes it to the Component() constructor
 	// Consider how this is effected by the construction of components in addComponents, they will each require a manager reference and an entity
 	// Better ways of accomplishing the above? Pass all entity tied components a manager reference afterward somehow?
-	Component() {
-		_id = static_cast<ComponentID>(typeid(ComponentType).hash_code());
-	}
+	Component() {}
 	virtual void init() override {}
-	virtual void setParentEntity(Entity* newParentEntity) override final {
-		parentEntity = newParentEntity;
+	virtual void setHandle(EntityID id, Manager* manager) override final {
+		entity = EntityHandle(id, manager);
 	}
-	virtual ComponentID getComponentID() override final { return _id; }
-	virtual ComponentName getComponentName() override final { return typeid(ComponentType).name(); }
+	virtual ComponentName getName() override final { return typeid(ComponentType).name(); }
 protected:
-	Entity* parentEntity;
-private:
-	ComponentID _id;
+	EntityHandle entity;
 };

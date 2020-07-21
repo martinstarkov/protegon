@@ -176,6 +176,17 @@
     <Image Include="resources\textures\player_anim2.png" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\ECS\ComponentDeclarations.h" />
+    <ClInclude Include="src\ECS\Systems\AnimationSystem.h" />
+    <ClInclude Include="src\ECS\Systems\CollisionSystem.h" />
+    <ClInclude Include="src\ECS\Systems\DragSystem.h" />
+    <ClInclude Include="src\ECS\Systems\GravitySystem.h" />
+    <ClInclude Include="src\ECS\Systems\InputSystem.h" />
+    <ClInclude Include="src\ECS\Systems\LifetimeSystem.h" />
+    <ClInclude Include="src\ECS\Systems\MotionSystem.h" />
+    <ClInclude Include="src\ECS\Systems\MovementSystem.h" />
+    <ClInclude Include="src\ECS\Systems\RenderSystem.h" />
+    <ClInclude Include="src\ECS\Systems\StateMachineSystem.h" />
     <ClInclude Include="src\Serialization.h" />
     <ClInclude Include="src\StateMachine\States\JumpState.h" />
     <ClInclude Include="src\StateMachine\States\GroundedState.h" />
@@ -191,8 +202,7 @@
     <ClInclude Include="src\ECS\Components\PlayerController.h" />
     <ClInclude Include="src\ECS\Components\SpriteSheetComponent.h" />
     <ClInclude Include="src\ECS\Components\StateMachineComponent.h" />
-    <ClInclude Include="src\ECS\Entity.h" />
-    <ClInclude Include="src\ECS\Systems\AnimationSystem.h" />
+    <ClInclude Include="src\ECS\EntityHandle.h" />
     <ClInclude Include="src\ECS\Systems\BaseSystem.h" />
     <ClInclude Include="src\ECS\Components\Component.h" />
     <ClInclude Include="src\ECS\Components.h" />
@@ -202,26 +212,17 @@
     <ClInclude Include="src\ECS\DirectionComponent.h" />
     <ClInclude Include="src\ECS\DrawComponent.h" />
     <ClInclude Include="src\ECS\Components\GravityComponent.h" />
-    <ClInclude Include="src\ECS\Systems\CollisionSystem.h" />
-    <ClInclude Include="src\ECS\Systems\DragSystem.h" />
-    <ClInclude Include="src\ECS\Systems\GravitySystem.h" />
     <ClInclude Include="src\ECS\Components\LifetimeComponent.h" />
-    <ClInclude Include="src\ECS\Systems\LifetimeSystem.h" />
     <ClInclude Include="src\ECS\Manager.h" />
     <ClInclude Include="src\ECS\HitboxComponent.h" />
     <ClInclude Include="src\ECS\KeyboardComponent.h" />
     <ClInclude Include="src\ECS\Components\MotionComponent.h" />
-    <ClInclude Include="src\ECS\Systems\MovementSystem.h" />
     <ClInclude Include="src\ECS\Components\RenderComponent.h" />
-    <ClInclude Include="src\ECS\Systems\InputSystem.h" />
-    <ClInclude Include="src\ECS\Systems\RenderSystem.h" />
     <ClInclude Include="src\ECS\Components\SizeComponent.h" />
     <ClInclude Include="src\ECS\Components\SpriteComponent.h" />
-    <ClInclude Include="src\ECS\Systems\StateMachineSystem.h" />
     <ClInclude Include="src\ECS\Systems\System.h" />
     <ClInclude Include="src\ECS\Systems.h" />
     <ClInclude Include="src\ECS\Components\TransformComponent.h" />
-    <ClInclude Include="src\ECS\Systems\MotionSystem.h" />
     <ClInclude Include="src\ECS\Types.h" />
     <ClInclude Include="src\Game.h" />
     <ClInclude Include="src\InputHandler.h" />
@@ -243,11 +244,20 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\ECS\Components\MotionComponent.cpp" />
+    <ClCompile Include="src\ECS\Systems\AnimationSystem.cpp" />
+    <ClCompile Include="src\ECS\Systems\CollisionSystem.cpp" />
+    <ClCompile Include="src\ECS\Systems\DragSystem.cpp" />
+    <ClCompile Include="src\ECS\Systems\GravitySystem.cpp" />
+    <ClCompile Include="src\ECS\Systems\InputSystem.cpp" />
+    <ClCompile Include="src\ECS\Systems\LifetimeSystem.cpp" />
+    <ClCompile Include="src\ECS\Systems\MotionSystem.cpp" />
+    <ClCompile Include="src\ECS\Systems\MovementSystem.cpp" />
+    <ClCompile Include="src\ECS\Systems\RenderSystem.cpp" />
+    <ClCompile Include="src\ECS\Systems\StateMachineSystem.cpp" />
     <ClCompile Include="src\StateMachine\States\GroundedState.cpp" />
     <ClCompile Include="src\StateMachine\States\IdleState.cpp" />
     <ClCompile Include="src\StateMachine\States\JumpState.cpp" />
     <ClCompile Include="src\AllocationMetrics.cpp" />
-    <ClCompile Include="src\ECS\Entity.cpp" />
     <ClCompile Include="src\ECS\Manager.cpp" />
     <ClCompile Include="src\Game.cpp" />
     <ClCompile Include="src\InputHandler.cpp" />

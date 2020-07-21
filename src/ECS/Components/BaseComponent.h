@@ -2,13 +2,12 @@
 
 #include "../Types.h"
 
-class Entity;
+class Manager;
 
 class BaseComponent {
 public:
 	virtual void init() = 0;
+	virtual void setHandle(EntityID id, Manager* manager) = 0;
+	virtual ComponentName getName() = 0;
 	virtual ~BaseComponent() = default;
-	virtual void setParentEntity(Entity* parentEntity) = 0;
-	virtual ComponentID getComponentID() = 0;
-	virtual ComponentName getComponentName() = 0;
 };

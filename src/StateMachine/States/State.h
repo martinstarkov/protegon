@@ -1,11 +1,15 @@
 #pragma once
 
+#include "StateCommon.h"
+
 #include "BaseState.h"
+#include "../BaseStateMachine.h"
+#include "../../ECS/EntityHandle.h"
 
 template <class StateType>
 class State : public BaseState {
 public:
-	State() : parentStateMachine(nullptr), parentEntity(nullptr), _name(typeid(StateType).name()) {}
+	State() : parentStateMachine(nullptr), _name(typeid(StateType).name()) {}
 	virtual void onExit() override {}
 	virtual void onEntry() override {}
 	virtual void update() override {}
@@ -15,14 +19,14 @@ public:
 	virtual StateName getName() override final {
 		return _name;
 	}
-	virtual void setParentEntity(Entity* newParentEntity) override final {
-		parentEntity = newParentEntity;
+	virtual void setHandle(EntityHandle handle) override final {
+		entity = handle;
 	}
 	virtual void setParentStateMachine(BaseStateMachine* newParentStateMachine) override final {
 		parentStateMachine = newParentStateMachine;
 	}
 protected:
-	Entity* parentEntity;
+	EntityHandle entity;
 	BaseStateMachine* parentStateMachine;
 private:
 	StateName _name;
