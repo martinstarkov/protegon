@@ -1,25 +1,30 @@
 #include "MotionComponent.h"
 
+#include <sstream>
+
 #include "../EntityHandle.h"
 
 #include "DragComponent.h"
 #include "PlayerController.h"
 
-#include <sstream>
+// IMPORTANT: Make sure to use maxSpeed for acceleration if calculating terminalVelocity when speed be higher than initially set
 
 #define TERMINAL_VELOCITY_PRECISION 2 // significant figures
 
-double findTerminalVelocity(double x, double b, double c) {
-	static double previous = x;
-	double y = (x + c) * b;
+// function that uses recursion to see what velocity will converge to given certain drag and acceleration
+static double findTerminalVelocity(double initialVelocity, double drag, double acceleration) {
+	// store previous velocity for precision comparison to know when to exit recursion
+	static double previous = initialVelocity;
+	double velocity = (initialVelocity + acceleration) * drag;
 	std::stringstream one, two;
-	one << std::fixed << std::setprecision(TERMINAL_VELOCITY_PRECISION) << y;
+	// limit the precision so the recursion doesn't take too long
+	one << std::fixed << std::setprecision(TERMINAL_VELOCITY_PRECISION) << velocity;
 	two << std::fixed << std::setprecision(TERMINAL_VELOCITY_PRECISION) << previous;
 	if (one.str() != two.str()) {
-		previous = y;
-		return findTerminalVelocity(y, b, c);
+		previous = velocity;
+		return findTerminalVelocity(velocity, drag, acceleration);
 	} else {
-		return y;
+		return velocity;
 	}
 }
 

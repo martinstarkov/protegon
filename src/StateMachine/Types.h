@@ -3,6 +3,7 @@
 #include "../common.h"
 
 #define UNKNOWN_STATE "unknown state"
+#define UNKNOWN_STATE_MACHINE "unknown state machine"
 
 class BaseStateMachine;
 class BaseState;
