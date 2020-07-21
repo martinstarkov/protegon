@@ -1,13 +1,13 @@
 #pragma once
 
 #include "Types.h"
+#include "../ECS/EntityHandle.h"
 
 class BaseState;
-class Entity;
 
 class BaseStateMachine {
 public:
-	virtual void init(StateName initialState, Entity* _parentEntity) = 0;
+	virtual void init(StateName initialState, EntityHandle handle) = 0;
 	virtual void update() = 0;
 	virtual StateMachineName getName() = 0;
 	virtual void setName(StateMachineName name) = 0;

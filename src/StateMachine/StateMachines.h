@@ -1,6 +1,7 @@
 #pragma once
 
 #include "StateMachine.h"
+#include "States.h"
 
 class WalkStateMachine : public StateMachine<WalkStateMachine> {
 public:
