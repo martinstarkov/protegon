@@ -10,3 +10,4 @@
 #include "Systems/MotionSystem.h"
 #include "Systems/DragSystem.h"
 #include "Systems/StateMachineSystem.h"
+#include "Systems/DirectionSystem.h"

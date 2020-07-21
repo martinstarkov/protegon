@@ -13,3 +13,4 @@
 #include "Components/InputComponent.h"
 #include "Components/DragComponent.h"
 #include "Components/StateMachineComponent.h"
+#include "Components/DirectionComponent.h"

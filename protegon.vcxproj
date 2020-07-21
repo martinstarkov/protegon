@@ -176,6 +176,8 @@
     <Image Include="resources\textures\player_anim2.png" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\ECS\Systems\DirectionSystem.h" />
+    <ClInclude Include="src\ECS\Components\DirectionComponent.h" />
     <ClInclude Include="src\ECS\Systems\AnimationSystem.h" />
     <ClInclude Include="src\ECS\Systems\CollisionSystem.h" />
     <ClInclude Include="src\ECS\Systems\DragSystem.h" />
@@ -242,6 +244,7 @@
     <ClInclude Include="src\Vec2D.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\ECS\Systems\DirectionSystem.cpp" />
     <ClCompile Include="src\ECS\Components\MotionComponent.cpp" />
     <ClCompile Include="src\ECS\Systems\AnimationSystem.cpp" />
     <ClCompile Include="src\ECS\Systems\CollisionSystem.cpp" />
@@ -253,6 +256,8 @@
     <ClCompile Include="src\ECS\Systems\MovementSystem.cpp" />
     <ClCompile Include="src\ECS\Systems\RenderSystem.cpp" />
     <ClCompile Include="src\ECS\Systems\StateMachineSystem.cpp" />
+    <ClCompile Include="src\StateMachine\StateMachine.cpp" />
+    <ClCompile Include="src\StateMachine\StateMachines.cpp" />
     <ClCompile Include="src\StateMachine\States\GroundedState.cpp" />
     <ClCompile Include="src\StateMachine\States\IdleState.cpp" />
     <ClCompile Include="src\StateMachine\States\JumpState.cpp" />
