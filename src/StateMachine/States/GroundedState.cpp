@@ -1,6 +1,6 @@
 #include "GroundedState.h"
 
-#include "../../ECS/Components/MotionComponent.h"
+#include "StateCommon.h"
 
 void GroundedState::update() {
 	MotionComponent* motion = entity.getComponent<MotionComponent>();

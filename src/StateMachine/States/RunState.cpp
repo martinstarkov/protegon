@@ -1,8 +1,6 @@
 #include "RunState.h"
 
-#include "../../ECS/Components/MotionComponent.h"
-#include "../../ECS/Components/SpriteComponent.h"
-#include "../../ECS/Components/AnimationComponent.h"
+#include "StateCommon.h"
 
 void RunState::onEntry() {
 	SpriteComponent* sprite = entity.getComponent<SpriteComponent>();

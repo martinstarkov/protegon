@@ -1,6 +1,6 @@
 #include "JumpState.h"
 
-#include "../../ECS/Components/MotionComponent.h"
+#include "StateCommon.h"
 
 void JumpState::update() {
 	MotionComponent* motion = entity.getComponent<MotionComponent>();
