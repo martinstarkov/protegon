@@ -1,6 +1,6 @@
 #include "Manager.h"
 
-#include "EntityHandle.h"
+#include "Entity.h"
 #include "Systems.h"
 #include "Components.h"
 #include "../StateMachine/StateMachines.h"
@@ -33,7 +33,7 @@ static EntityID getNewEntityID() {
 
 EntityID Manager::createEntity() {
 	EntityID id = getNewEntityID();
-	std::unique_ptr<Entity> uPtr = std::make_unique<Entity>();
+	std::unique_ptr<EntityData> uPtr = std::make_unique<EntityData>();
 	_entities.emplace(id, std::move(uPtr));
 	return id;
 }
@@ -48,7 +48,7 @@ void Manager::destroyEntity(EntityID id) {
 
 EntityID Manager::createTree(Vec2D position) {
 	EntityID id = createEntity();
-	EntityHandle handle = EntityHandle(id, this);
+	Entity handle = Entity(id, this);
 	handle.addComponents(
 		TransformComponent(position), 
 		SizeComponent(Vec2D(64)), 
@@ -60,7 +60,7 @@ EntityID Manager::createTree(Vec2D position) {
 }
 EntityID Manager::createBox(Vec2D position) {
 	EntityID id = createEntity();
-	EntityHandle handle = EntityHandle(id, this);
+	Entity handle = Entity(id, this);
 	handle.addComponents(
 		TransformComponent(position), 
 		SizeComponent(Vec2D(32)), 
@@ -75,7 +75,7 @@ EntityID Manager::createBox(Vec2D position) {
 }
 EntityID Manager::createPlayer(Vec2D position) {
 	EntityID id = createEntity();
-	EntityHandle handle = EntityHandle(id, this);
+	Entity handle = Entity(id, this);
 	handle.addComponents(
 		MotionComponent(),
 		DragComponent(UNIVERSAL_DRAG),
@@ -121,6 +121,10 @@ bool Manager::hasComponent(EntityID id, ComponentID cId) {
 		}
 	}
 	return false;
+}
+
+void Manager::setComponentHandle(BaseComponent* component, EntityID id) {
+	component->setHandle(Entity(id, this));
 }
 
 void Manager::entityChanged(EntityID id) {

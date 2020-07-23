@@ -7,14 +7,14 @@
 #include "Types.h"
 #include "../Vec2D.h"
 
-#include "Systems/BaseSystem.h"
 #include "Components/BaseComponent.h"
+#include "Systems/BaseSystem.h"
 
 // TODO: Big overhaul of the system and entity factories
 // Consider storing components in manager under EntityIDs as opposed to in Entity object
 // This will eliminate the need for entity pointers, change all parent relationships in components and states to pass a Manager reference and an EntityID instead of an entity pointer)
 
-struct Entity {
+struct EntityData {
 	ComponentMap components;
 	bool alive = true;
 };
@@ -53,7 +53,7 @@ public:
 			for (const ComponentID& cId : added) {
 				auto cIt = it->second->components.find(cId);
 				assert(cIt != it->second->components.end() && "Cannot call init() on components which were unsuccesfully added to entity");
-				cIt->second->init();
+				//cIt->second->init();
 			}
 			entityChanged(id);
 		}
@@ -98,13 +98,14 @@ public:
 		return nullptr;
 	}
 private:
+	void setComponentHandle(BaseComponent* component, EntityID id);
 	template <typename C>
 	void addComponent(EntityID id, C& component) {
 		auto it = _entities.find(id);
 		if (it != _entities.end()) {
 			ComponentID cId = static_cast<ComponentID>(typeid(C).hash_code());
 			std::unique_ptr<C> uPtr = std::make_unique<C>(std::move(component));
-			uPtr->setHandle(id, this);
+			setComponentHandle(uPtr.get(), id);
 			ComponentMap& components = it->second->components;
 			if (components.find(cId) == components.end()) { // Add new component
 				components.emplace(cId, std::move(uPtr));
@@ -138,6 +139,6 @@ private:
 		uPtr->setManager(this);
 		_systems.emplace(sId, std::move(uPtr));
 	}
-	std::map<EntityID, std::unique_ptr<Entity>> _entities;
+	std::map<EntityID, std::unique_ptr<EntityData>> _entities;
 	std::map<SystemID, std::unique_ptr<BaseSystem>> _systems;
 };

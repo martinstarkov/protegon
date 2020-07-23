@@ -2,21 +2,22 @@
 
 #include "BaseComponent.h"
 
-#include "../EntityHandle.h"
+#include "../Entity.h"
 
-template <class ComponentType>
+template <class T>
 class Component : public BaseComponent {
 public:
 	// TODO: This constructor should be taking in the [parent entity] / [parent manager + entityID] reference
 	// Each Component implementation will have a constructor that takes in the above mentioned information and passes it to the Component() constructor
 	// Consider how this is effected by the construction of components in addComponents, they will each require a manager reference and an entity
-	// Better ways of accomplishing the above? Pass all entity tied components a manager reference afterward somehow?
-	Component() {}
+	Component() = default;
 	virtual void init() override {}
-	virtual void setHandle(EntityID id, Manager* manager) override final {
-		entity = EntityHandle(id, manager);
+	virtual void setHandle(Entity handle) override final {
+		entity = handle;
 	}
-	virtual ComponentName getName() override final { return typeid(ComponentType).name(); }
+	virtual ComponentName getName() override final {
+		return typeid(T).name();
+	}
 protected:
-	EntityHandle entity;
+	Entity entity;
 };
