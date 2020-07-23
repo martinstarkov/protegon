@@ -23,6 +23,7 @@ struct SpriteComponent : public Component<SpriteComponent> {
 		out << "path: " << obj.path << ";" << std::endl;
 		out << "source: " << "{" << obj.source.x << "," << obj.source.y << "," << obj.source.w << "," << obj.source.h << "}" << ";" << std::endl;
 		out << "texture: " << obj.texture << ";" << std::endl;
+		out << "spriteSize: " << obj.spriteSize << ";" << std::endl;
 		out << "}" << std::endl;
 		return out;
 	}
