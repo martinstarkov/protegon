@@ -4,10 +4,10 @@
 
 class WalkStateMachine : public StateMachine {
 public:
-	WalkStateMachine(StateName initialState, Entity handle);
+	WalkStateMachine(StateName initialState);
 };
 
 class JumpStateMachine : public StateMachine {
 public:
-	JumpStateMachine(StateName initialState, Entity handle);
+	JumpStateMachine(StateName initialState);
 };

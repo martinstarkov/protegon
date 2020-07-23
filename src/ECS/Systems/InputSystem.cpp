@@ -8,7 +8,7 @@ void InputSystem::update() {
 	s = SDL_GetKeyboardState(NULL);
 	for (auto& id : entities) {
 		Entity e = Entity(id, manager);
-		if (s[SDL_SCANCODE_E]) {
+		/*if (s[SDL_SCANCODE_E]) {
 			e.addComponents(Serialization::deserialize<SpriteComponent>("resources/sprite1.json"));
 		}
 		if (s[SDL_SCANCODE_Q]) {
@@ -19,7 +19,7 @@ void InputSystem::update() {
 		}
 		if (s[SDL_SCANCODE_C]) {
 			e.removeComponents<SpriteComponent>();
-		}
+		}*/
 		PlayerController* player = e.getComponent<PlayerController>();
 		if (player) {
 			MotionComponent* motion = e.getComponent<MotionComponent>();

@@ -13,4 +13,9 @@ struct StateMachineComponent : public Component<StateMachineComponent> {
 			this->stateMachines.emplace(pair.first, std::move(pair.second));
 		}
 	}
+	virtual void init() override final {
+		for (auto& pair : stateMachines) {
+			pair.second->init(entity);
+		}
+	}
 };

@@ -8,6 +8,7 @@ void StateMachine::init(Entity handle) {
 		pair.second->setParentStateMachine(this);
 		pair.second->setHandle(handle);
 	}
+	states[_currentState]->onEntry();
 }
 
 void StateMachine::update() {
