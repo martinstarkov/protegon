@@ -36,5 +36,6 @@ void MotionComponent::init() {
 		} else {
 			terminalVelocity = Vec2D(findTerminalVelocity(0.0, 1.0 - drag->drag.x, controller->speed.x), findTerminalVelocity(0.0, 1.0 - drag->drag.y, controller->speed.y));
 		}
+		//LOG("Calculated terminal velocity of " << entity.getID() << " : " << terminalVelocity);
 	}
 }

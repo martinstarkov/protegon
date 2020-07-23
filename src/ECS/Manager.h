@@ -53,7 +53,7 @@ public:
 			for (const ComponentID& cId : added) {
 				auto cIt = it->second->components.find(cId);
 				assert(cIt != it->second->components.end() && "Cannot call init() on components which were unsuccesfully added to entity");
-				//cIt->second->init();
+				cIt->second->init();
 			}
 			entityChanged(id);
 		}

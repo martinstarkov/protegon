@@ -1,7 +1,5 @@
 #pragma once
 
-#include <assert.h>
-
 #include "BaseStateMachine.h"
 #include "States/BaseState.h"
 
