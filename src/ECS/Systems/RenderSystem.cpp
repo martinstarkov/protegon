@@ -14,7 +14,9 @@ void RenderSystem::update() {
 		if (sprite) {
 			SDL_RendererFlip flip = SDL_FLIP_NONE;
 			if (direction) {
-				flip = static_cast<SDL_RendererFlip>(direction->xDirection | direction->yDirection);
+				if (direction->direction == Direction::LEFT) {
+					flip = SDL_FLIP_HORIZONTAL;
+				}
 			}
 			TextureManager::draw(sprite->texture, sprite->source, AABB(transform->position, size->size).AABBtoRect(), 0.0, flip);
 		} else {

@@ -7,15 +7,19 @@ void DirectionSystem::update() {
 		Entity e = Entity(id, manager);
 		MotionComponent* motion = e.getComponent<MotionComponent>();
 		DirectionComponent* direction = e.getComponent<DirectionComponent>();
-		if (motion->velocity.x < 0.0) {
-			direction->xDirection = SDL_FLIP_HORIZONTAL;
-		} else if (motion->velocity.x >= 0.0) {
-			direction->xDirection = SDL_FLIP_NONE;
+		direction->previousDirection = direction->direction;
+		if (motion->velocity.y == 0.0 && motion->velocity.x == 0.0) {
+			direction->direction = Direction::DOWN;
 		}
 		if (motion->velocity.y < 0.0) {
-			direction->yDirection = SDL_FLIP_VERTICAL;
-		} else if (motion->velocity.y >= 0.0) {
-			direction->yDirection = SDL_FLIP_NONE;
+			direction->direction = Direction::UP;
+		} else if (motion->velocity.y > 0.0) {
+			direction->direction = Direction::DOWN;
+		}
+		if (motion->velocity.x < 0.0) {
+			direction->direction = Direction::LEFT;
+		} else if (motion->velocity.x > 0.0) {
+			direction->direction = Direction::RIGHT;
 		}
 	}
 }

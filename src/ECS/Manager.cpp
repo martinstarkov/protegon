@@ -80,22 +80,22 @@ EntityID Manager::createPlayer(Vec2D position) {
 		MotionComponent(),
 		DragComponent(UNIVERSAL_DRAG),
 		InputComponent(),
-		PlayerController(Vec2D(1.0, 1.0)),
-		StateMachineComponent({ {"walkStateMachine", new WalkStateMachine("idle", handle)},{"jumpStateMachine", new JumpStateMachine("grounded", handle)} }),
+		PlayerController(Vec2D(1.0)),
+		AnimationComponent(),
+		StateMachineComponent({ {"walkStateMachine", new WalkStateMachine("idle")},{"jumpStateMachine", new JumpStateMachine("grounded")} }),
 		TransformComponent(position),
-		SizeComponent(Vec2D(50, 50)), 
-		SpriteComponent("./resources/textures/player_anim.png", Vec2D(16)), 
-		AnimationComponent(8), 
+		SizeComponent(Vec2D(30, 51)),
+		SpriteComponent("./resources/textures/player_test2.png", Vec2D(30, 51)),
+		SpriteSheetComponent(),
+		DirectionComponent(),
 		RenderComponent(), 
-		CollisionComponent(),
-		DirectionComponent()
+		CollisionComponent()
 	);
 	return id;
 }
 
 void Manager::update() {
 	getSystem<InputSystem>()->update();
-	getSystem<AnimationSystem>()->update();
 	getSystem<GravitySystem>()->update();
 	getSystem<MotionSystem>()->update();
 	getSystem<DragSystem>()->update();
@@ -108,6 +108,7 @@ void Manager::update() {
 }
 
 void Manager::render() {
+	getSystem<AnimationSystem>()->update();
 	getSystem<RenderSystem>()->update();
 }
 

@@ -268,6 +268,9 @@
     <ClInclude Include="src\ECS\Systems\SystemCommon.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\Direction.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Game.cpp">
@@ -343,6 +346,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\ECS\Systems\DirectionSystem.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ECS\Components\SpriteSheetComponent.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
