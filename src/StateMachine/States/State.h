@@ -4,7 +4,7 @@
 
 #include "BaseState.h"
 #include "../BaseStateMachine.h"
-#include "../../ECS/EntityHandle.h"
+#include "../../ECS/Entity.h"
 
 template <class StateType>
 class State : public BaseState {
@@ -19,14 +19,14 @@ public:
 	virtual StateName getName() override final {
 		return _name;
 	}
-	virtual void setHandle(EntityHandle handle) override final {
+	virtual void setHandle(Entity handle) override final {
 		entity = handle;
 	}
 	virtual void setParentStateMachine(BaseStateMachine* newParentStateMachine) override final {
 		parentStateMachine = newParentStateMachine;
 	}
 protected:
-	EntityHandle entity;
+	Entity entity;
 	BaseStateMachine* parentStateMachine;
 private:
 	StateName _name;

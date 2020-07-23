@@ -1,6 +1,6 @@
 #include "Game.h"
 #include "ECS/Manager.h"
-#include "ECS/EntityHandle.h"
+#include "ECS/Entity.h"
 #include "InputHandler.h"
 #include "TextureManager.h"
 
@@ -13,9 +13,9 @@ SDL_Event event;
 
 Manager manager;
 
-EntityHandle tree1;
-EntityHandle box1;
-EntityHandle player;
+Entity tree1;
+Entity box1;
+Entity player;
 
 Game& Game::getInstance() {
 	if (!_instance) {
@@ -38,9 +38,9 @@ void Game::init() {
 	InputHandler::getInstance();
 	manager.init();
 
-	tree1 = EntityHandle(manager.createTree(Vec2D(30)), &manager);
-	box1 = EntityHandle(manager.createBox(Vec2D(30 * 2 * 2, 30)), &manager);
-	player = EntityHandle(manager.createPlayer(Vec2D(30 * 10, 30)), &manager);
+	tree1 = Entity(manager.createTree(Vec2D(30)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(30 * 2 * 2, 30)), &manager);
+	player = Entity(manager.createPlayer(Vec2D(30 * 10, 30)), &manager);
 
 	manager.refresh();
 }

@@ -2,7 +2,7 @@
 
 StateMachine::StateMachine(StateName initialState) : _currentState(initialState), _previousState(initialState), _name(UNKNOWN_STATE_MACHINE) {}
 
-void StateMachine::init(EntityHandle handle) {
+void StateMachine::init(Entity handle) {
 	for (const auto& pair : states) {
 		pair.second->setName(pair.first);
 		pair.second->setParentStateMachine(this);

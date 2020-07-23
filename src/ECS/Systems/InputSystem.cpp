@@ -1,16 +1,13 @@
 #include "InputSystem.h"
 
-#include "../Components/PlayerController.h"
-#include "../Components/MotionComponent.h"
-#include "../Components/SpriteComponent.h"
-#include "../Components/AnimationComponent.h"
+#include "SystemCommon.h"
 
 #include "SDL.h"
 
 void InputSystem::update() {
 	s = SDL_GetKeyboardState(NULL);
 	for (auto& id : entities) {
-		EntityHandle e = EntityHandle(id, manager);
+		Entity e = Entity(id, manager);
 		if (s[SDL_SCANCODE_E]) {
 			e.addComponents(Serialization::deserialize<SpriteComponent>("resources/sprite1.json"));
 		}

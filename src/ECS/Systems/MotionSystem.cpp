@@ -1,12 +1,12 @@
 #include "MotionSystem.h"
 
-#include "../Components/MotionComponent.h"
+#include "SystemCommon.h"
 
 #define MOTION_STOP 0.1
 
 void MotionSystem::update() {
 	for (auto& id : entities) {
-		EntityHandle e = EntityHandle(id, manager);
+		Entity e = Entity(id, manager);
 		MotionComponent* motion = e.getComponent<MotionComponent>();
 		motion->velocity += motion->acceleration;
 		if (abs(motion->velocity.x) > motion->terminalVelocity.x) {

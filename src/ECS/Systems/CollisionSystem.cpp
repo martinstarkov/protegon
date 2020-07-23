@@ -1,20 +1,18 @@
 #include "CollisionSystem.h"
 
-#include "../Components/TransformComponent.h"
-#include "../Components/SizeComponent.h"
-#include "../Components/MotionComponent.h"
-#include "../Components/CollisionComponent.h"
+#include "SystemCommon.h"
+
 #include "../../AABB.h"
 
 void CollisionSystem::update() {
 	for (auto& id : entities) {
-		EntityHandle e = EntityHandle(id, manager);
+		Entity e = Entity(id, manager);
 		TransformComponent* transform = e.getComponent<TransformComponent>();
 		SizeComponent* size = e.getComponent<SizeComponent>();
 		MotionComponent* motion = e.getComponent<MotionComponent>();
 		for (auto& oId : entities) {
 			if (id != oId) { // FIX LATER: For some reason the red tree blocks don't collide with each other. Issue here?
-				EntityHandle o = EntityHandle(oId, manager);
+				Entity o = Entity(oId, manager);
 				TransformComponent* otherTransform = o.getComponent<TransformComponent>();
 				SizeComponent* otherSize = o.getComponent<SizeComponent>();
 				MotionComponent* otherMotion = o.getComponent<MotionComponent>();

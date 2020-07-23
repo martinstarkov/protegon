@@ -1,10 +1,10 @@
 #include "LifetimeSystem.h"
 
-#include "../Components/LifetimeComponent.h"
+#include "SystemCommon.h"
 
 void LifetimeSystem::update() {
 	for (auto& id : entities) {
-		EntityHandle e = EntityHandle(id, manager);
+		Entity e = Entity(id, manager);
 		LifetimeComponent* lifetime = e.getComponent<LifetimeComponent>();
 		//CollisionComponent* collision = pair.second->getComponent<CollisionComponent>(); // TODO in the future
 		//if (collision->bottom) { lifetime->isDying = true; }

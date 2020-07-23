@@ -2,10 +2,10 @@
 
 #include "Manager.h"
 
-class EntityHandle {
+class Entity {
 public:
-	EntityHandle() : _id(UINT_MAX), _manager(nullptr) {}
-	EntityHandle(EntityID id, Manager* manager) : _id(id), _manager(manager) {}
+	Entity() : _id(UINT_MAX), _manager(nullptr) {}
+	Entity(EntityID id, Manager* manager) : _id(id), _manager(manager) {}
 	template <typename C>
 	void addComponent(C& component) {
 		assert(_manager);

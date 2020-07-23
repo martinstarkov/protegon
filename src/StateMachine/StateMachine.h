@@ -15,7 +15,7 @@ public:
 	virtual void setCurrentState(StateName state) override final;
 	virtual bool inState(StateName name) override final;
 protected:
-	virtual void init(EntityHandle handle) override final;
+	virtual void init(Entity handle) override final;
 	StateMap states;
 private:
 	StateMachineName _name;

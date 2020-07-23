@@ -2,8 +2,6 @@
 
 #include <sstream>
 
-#include "../EntityHandle.h"
-
 #include "DragComponent.h"
 #include "PlayerController.h"
 

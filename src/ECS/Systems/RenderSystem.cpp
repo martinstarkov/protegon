@@ -1,15 +1,12 @@
 #include "RenderSystem.h"
 
-#include "../Components/TransformComponent.h"
-#include "../Components/SizeComponent.h"
-#include "../Components/SpriteComponent.h"
-#include "../Components/DirectionComponent.h"
+#include "SystemCommon.h"
 
 #include "../../TextureManager.h"
 
 void RenderSystem::update() {
 	for (auto& id : entities) {
-		EntityHandle e = EntityHandle(id, manager);
+		Entity e = Entity(id, manager);
 		TransformComponent* transform = e.getComponent<TransformComponent>();
 		SizeComponent* size = e.getComponent<SizeComponent>();
 		SpriteComponent* sprite = e.getComponent<SpriteComponent>();

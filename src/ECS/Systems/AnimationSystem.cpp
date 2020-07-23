@@ -1,13 +1,12 @@
 #include "AnimationSystem.h"
 
-#include "../Components/AnimationComponent.h"
-#include "../Components/SpriteComponent.h"
+#include "SystemCommon.h"
 
 #include "SDL.h"
 
 void AnimationSystem::update() {
 	for (auto& id : entities) {
-		EntityHandle e = EntityHandle(id, manager);
+		Entity e = Entity(id, manager);
 		AnimationComponent* animation = e.getComponent<AnimationComponent>();
 		SpriteComponent* sprite = e.getComponent<SpriteComponent>();
 		unsigned int totalTimer = animation->counter % (animation->cyclesPerFrame * animation->sprites);

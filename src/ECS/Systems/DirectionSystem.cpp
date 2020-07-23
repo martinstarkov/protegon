@@ -1,11 +1,10 @@
 #include "DirectionSystem.h"
 
-#include "../Components/DirectionComponent.h"
-#include "../Components/MotionComponent.h"
+#include "SystemCommon.h"
 
 void DirectionSystem::update() {
 	for (auto& id : entities) {
-		EntityHandle e = EntityHandle(id, manager);
+		Entity e = Entity(id, manager);
 		MotionComponent* motion = e.getComponent<MotionComponent>();
 		DirectionComponent* direction = e.getComponent<DirectionComponent>();
 		if (motion->velocity.x < 0.0) {
