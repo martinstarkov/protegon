@@ -15,16 +15,6 @@ struct AnimationComponent : public Component<AnimationComponent> {
 		counter = cyclesPerFrame * frame;
 		name = "";
 	}
-	friend std::ostream& operator<<(std::ostream& out, const AnimationComponent& obj) {
-		out << "{" << std::endl;
-		out << "sprites: " << obj.sprites << ";" << std::endl;
-		out << "animationDelay: " << obj.animationDelay << ";" << std::endl;
-		out << "frame: " << obj.frame << ";" << std::endl;
-		out << "cyclesPerFrame: " << obj.cyclesPerFrame << ";" << std::endl;
-		out << "counter: " << obj.counter << ";" << std::endl;
-		out << "}" << std::endl;
-		return out;
-	}
 };
 
 // json serialization

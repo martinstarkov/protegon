@@ -18,15 +18,6 @@ struct SpriteComponent : public Component<SpriteComponent> {
 		source = AABB(Vec2D(), spriteSize).AABBtoRect();
 		texture = TextureManager::load(path);
 	}
-	friend std::ostream& operator<<(std::ostream& out, const SpriteComponent& obj) {
-		out << "{" << std::endl;
-		out << "path: " << obj.path << ";" << std::endl;
-		out << "source: " << "{" << obj.source.x << "," << obj.source.y << "," << obj.source.w << "," << obj.source.h << "}" << ";" << std::endl;
-		out << "texture: " << obj.texture << ";" << std::endl;
-		out << "spriteSize: " << obj.spriteSize << ";" << std::endl;
-		out << "}" << std::endl;
-		return out;
-	}
 	virtual ~SpriteComponent() override {
 		// don't necessarily remove texture if other textures are using it
 		// TODO: Rethink texture removal after spriteComponent is destroyed

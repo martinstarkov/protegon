@@ -17,7 +17,7 @@ void AnimationSystem::update() {
 			sprite->source.y = static_cast<int>(sprite->source.h * spriteInfo.start.y);
 			animation->sprites = spriteInfo.count;
 			animation->counter = static_cast<int>(animation->cyclesPerFrame * spriteInfo.start.x);
-			LOG("animation: sprites = " << animation->sprites << "; counter = " << animation->counter << "; start = " << spriteInfo.start);
+			//LOG("animation: sprites = " << animation->sprites << "; counter = " << animation->counter << "; start = " << spriteInfo.start);
 		}
 		unsigned int totalTimer = animation->counter % (animation->cyclesPerFrame * animation->sprites);
 		if (totalTimer % animation->cyclesPerFrame == 0) {

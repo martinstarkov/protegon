@@ -27,15 +27,17 @@ static double findTerminalVelocity(double initialVelocity, double drag, double a
 }
 
 void MotionComponent::init() {
-	DragComponent* drag = entity.getComponent<DragComponent>();
-	PlayerController* controller = entity.getComponent<PlayerController>();
-	if (drag && controller) {
-		if (drag->drag.x == drag->drag.y && controller->speed.x == controller->speed.y) {
-			double tV = findTerminalVelocity(0.0, 1.0 - drag->drag.x, controller->speed.x);
-			terminalVelocity = Vec2D(tV, tV);
-		} else {
-			terminalVelocity = Vec2D(findTerminalVelocity(0.0, 1.0 - drag->drag.x, controller->speed.x), findTerminalVelocity(0.0, 1.0 - drag->drag.y, controller->speed.y));
+	if (terminalVelocity == Vec2D().infinite()) { // terminal velocity not set
+		DragComponent* drag = entity.getComponent<DragComponent>();
+		PlayerController* controller = entity.getComponent<PlayerController>();
+		if (drag && controller) {
+			if (drag->drag.x == drag->drag.y && controller->speed.x == controller->speed.y) {
+				double tV = findTerminalVelocity(0.0, 1.0 - drag->drag.x, controller->speed.x);
+				terminalVelocity = Vec2D(tV, tV);
+			} else {
+				terminalVelocity = Vec2D(findTerminalVelocity(0.0, 1.0 - drag->drag.x, controller->speed.x), findTerminalVelocity(0.0, 1.0 - drag->drag.y, controller->speed.y));
+			}
+			//LOG("Calculated terminal velocity of " << entity.getID() << " : " << terminalVelocity);
 		}
-		//LOG("Calculated terminal velocity of " << entity.getID() << " : " << terminalVelocity);
 	}
 }
