@@ -12,7 +12,7 @@ void AnimationSystem::update() {
 		SpriteSheetComponent* ss = e.getComponent<SpriteSheetComponent>();
 		DirectionComponent* direction = e.getComponent<DirectionComponent>();
 		//LOG("Direction: " << (int)direction->direction);
-		if ((animation->name != "" && animation->counter == -1) || direction->direction != direction->previousDirection) {
+		if (animation->name != "" && (animation->counter == -1 || direction->direction != direction->previousDirection)) {
 			SpriteInformation spriteInfo = ss->getSpriteInformation(animation->name, direction->direction);
 			sprite->source.y = static_cast<int>(sprite->source.h * spriteInfo.start.y);
 			animation->sprites = spriteInfo.count;

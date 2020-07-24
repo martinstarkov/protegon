@@ -247,6 +247,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\ECS\Components\SpriteSheetComponent.cpp" />
+    <ClCompile Include="src\ECS\Entity.cpp" />
     <ClCompile Include="src\ECS\Systems\DirectionSystem.cpp" />
     <ClCompile Include="src\ECS\Components\MotionComponent.cpp" />
     <ClCompile Include="src\ECS\Systems\AnimationSystem.cpp" />
