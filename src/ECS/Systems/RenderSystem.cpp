@@ -18,9 +18,15 @@ void RenderSystem::update() {
 					flip = SDL_FLIP_HORIZONTAL;
 				}
 			}
-			TextureManager::draw(sprite->texture, sprite->source, AABB(transform->position, size->size).AABBtoRect(), 0.0, flip);
+			if (size) {
+				TextureManager::draw(sprite->texture, sprite->source, AABB(transform->position, size->size).AABBtoRect(), 0.0, flip);
+			} else {
+				TextureManager::draw(sprite->texture, sprite->source, AABB(transform->position, Vec2D(sprite->source.w, sprite->source.h)).AABBtoRect(), 0.0, flip);
+			}
 		} else {
-			TextureManager::draw(AABB(transform->position, size->size).AABBtoRect());
+			if (size) {
+				TextureManager::draw(AABB(transform->position, size->size).AABBtoRect());
+			}
 		}
 	}
 }

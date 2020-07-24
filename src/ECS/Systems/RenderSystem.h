@@ -4,9 +4,8 @@
 
 struct RenderComponent;
 struct TransformComponent;
-struct SizeComponent;
 
-class RenderSystem : public System<RenderComponent, TransformComponent, SizeComponent> {
+class RenderSystem : public System<RenderComponent, TransformComponent> {
 public:
 	virtual void update() override final;
 };
