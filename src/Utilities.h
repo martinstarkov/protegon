@@ -58,7 +58,7 @@ namespace Util {
 	struct is_pointer<T*> { static const bool value = true; };
 
 	// Truncate to specific amount of significant figures
-	static double truncate(double value, int digits) {
+	inline double truncate(double value, int digits) {
 		std::stringstream stream;
 		stream << std::fixed << std::setprecision(digits) << value;
 		return std::stod(stream.str());
@@ -66,13 +66,13 @@ namespace Util {
 
 	// Find the sign of a numeric value
 	template <typename T>
-	static int sgn(T val) {
+	inline int sgn(T val) {
 		return (T(0) < val) - (val < T(0));
 	}
 
 	// Call functions on variadic templates
 	template <typename ...Ts>
-	static void swallow(Ts&&... args) {}
+	inline void swallow(Ts&&... args) {}
 
 	//// Delete a set of indexes from a vector or set
 	//template <typename T, typename S>

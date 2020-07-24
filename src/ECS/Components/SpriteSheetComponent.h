@@ -19,11 +19,9 @@ using DirectionMap = std::map<Direction, SpriteInformation>;
 using AnimationMap = std::map<AnimationName, DirectionMap>;
 
 struct SpriteSheetComponent : public Component<SpriteSheetComponent> {
-	std::string path;
     AnimationMap animations;
 	// TODO: Make a spritesheet component which includes multiple animations
-	SpriteSheetComponent(AnimationMap&& animations) : animations(animations) {}
-	SpriteSheetComponent(std::string path = "") : path(path) {
+	SpriteSheetComponent() {
         // read path file and emplace into animations as below
         // TEMPORARY: Only supports the player_anim.png
 		// place SpriteInformation struct into _animations maps
@@ -64,7 +62,7 @@ inline void to_json(nlohmann::json& j, const SpriteSheetComponent& o) {
 }
 
 inline void from_json(const nlohmann::json& j, SpriteSheetComponent& o) {
-	o = SpriteSheetComponent(
-		static_cast<AnimationMap>(j.at("animations").get<AnimationMap>()) // might fail
-	);
+	//o = SpriteSheetComponent(
+	//	static_cast<AnimationMap>(j.at("animations").get<AnimationMap>()) // might fail
+	//);
 }

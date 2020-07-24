@@ -1,0 +1,14 @@
+{
+    "box": {
+        "components": {
+            "struct RenderComponent": null,
+            "struct SpriteComponent": {
+                "path": "./resources/textures/box.png",
+                "spriteSize": {
+                    "x": 32.0,
+                    "y": 32.0
+                }
+            }
+        }
+    }
+}
