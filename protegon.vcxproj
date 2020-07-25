@@ -248,30 +248,13 @@
   <ItemGroup>
     <ClCompile Include="src\ECS\Components\SpriteSheetComponent.cpp" />
     <ClCompile Include="src\ECS\Entity.cpp" />
-    <ClCompile Include="src\ECS\Systems\DirectionSystem.cpp" />
     <ClCompile Include="src\ECS\Components\MotionComponent.cpp" />
-    <ClCompile Include="src\ECS\Systems\AnimationSystem.cpp" />
-    <ClCompile Include="src\ECS\Systems\CollisionSystem.cpp" />
-    <ClCompile Include="src\ECS\Systems\DragSystem.cpp" />
-    <ClCompile Include="src\ECS\Systems\GravitySystem.cpp" />
-    <ClCompile Include="src\ECS\Systems\InputSystem.cpp" />
-    <ClCompile Include="src\ECS\Systems\LifetimeSystem.cpp" />
-    <ClCompile Include="src\ECS\Systems\MotionSystem.cpp" />
-    <ClCompile Include="src\ECS\Systems\MovementSystem.cpp" />
-    <ClCompile Include="src\ECS\Systems\RenderSystem.cpp" />
-    <ClCompile Include="src\ECS\Systems\StateMachineSystem.cpp" />
-    <ClCompile Include="src\StateMachine\StateMachine.cpp" />
     <ClCompile Include="src\StateMachine\StateMachines.cpp" />
-    <ClCompile Include="src\StateMachine\States\GroundedState.cpp" />
-    <ClCompile Include="src\StateMachine\States\IdleState.cpp" />
-    <ClCompile Include="src\StateMachine\States\JumpState.cpp" />
     <ClCompile Include="src\AllocationMetrics.cpp" />
     <ClCompile Include="src\ECS\Manager.cpp" />
     <ClCompile Include="src\Game.cpp" />
     <ClCompile Include="src\InputHandler.cpp" />
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\StateMachine\States\RunState.cpp" />
-    <ClCompile Include="src\StateMachine\States\WalkState.cpp" />
     <ClCompile Include="src\TextureManager.cpp" />
   </ItemGroup>
   <ItemGroup>

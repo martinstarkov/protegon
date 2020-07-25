@@ -4,15 +4,19 @@
 
 #include "../../StateMachine/StateMachines.h"
 
-using RawStateMachineMap = std::map<StateMachineName, BaseStateMachine*>;
-
 struct StateMachineComponent : public Component<StateMachineComponent> {
 	StateMachineMap stateMachines;
 	// TODO: Fix how the StateMachineMap is initialized and remove the need for a separate setNames function
 	StateMachineComponent(RawStateMachineMap&& stateMachines) {
+		// CHECK FOR MEMORY LEAKS
 		for (auto& pair : stateMachines) {
 			pair.second->setName(pair.first);
 			this->stateMachines.emplace(pair.first, std::move(pair.second));
+		}
+	}
+	StateMachineComponent(const StateMachineComponent& copy) {
+		for (auto& pair : copy.stateMachines) {
+			stateMachines.emplace(pair.first, pair.second->uniqueClone());
 		}
 	}
 	virtual void init() override final {

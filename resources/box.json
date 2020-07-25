@@ -2,6 +2,29 @@
     "box": {
         "components": {
             "struct RenderComponent": null,
+            "struct CollisionComponent": {
+                "colliding": false
+            },
+            "struct SizeComponent": {
+                "size": {
+                    "x": 32.0,
+                    "y": 32.0
+                }
+            },
+            "struct MotionComponent": {
+                "velocity": {
+                    "x": 1.0,
+                    "y": 1.0
+                },
+                "terminalVelocity": {
+                    "x": 1.0,
+                    "y": 1.0
+                },
+                "acceleration": {
+                    "x": 0.0,
+                    "y": 0.0
+                }
+            },
             "struct SpriteComponent": {
                 "path": "./resources/textures/box.png",
                 "spriteSize": {
