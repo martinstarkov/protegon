@@ -5,11 +5,20 @@
 #include "BaseState.h"
 #include "../BaseStateMachine.h"
 #include "../../ECS/Entity.h"
+#include "../../ECS/Components.h"
+#include "StateCommon.h"
 
-template <class StateType>
+template <typename T>
 class State : public BaseState {
 public:
-	State() : parentStateMachine(nullptr), _name(typeid(StateType).name()) {}
+	State() : parentStateMachine(nullptr), _name(typeid(T).name()) {}
+	virtual ~State() = default;
+	virtual BaseState* clone() const override final {
+		return new T(static_cast<const T&>(*this));
+	}
+	virtual std::unique_ptr<BaseState> uniqueClone() const override final {
+		return std::make_unique<T>(static_cast<const T&>(*this));
+	}
 	virtual void onExit() override {}
 	virtual void onEntry() override {}
 	virtual void update() override {}
