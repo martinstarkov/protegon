@@ -4,10 +4,12 @@
 
 class Entity {
 public:
-	Entity() : _id(UINT_MAX), _manager(nullptr) {}
-	Entity(EntityID id, Manager* manager) : _id(id), _manager(manager) {}
+	Entity();
+	Entity(Manager* manager); // for serialization
+	Entity(EntityID id, Manager* manager);
+	Entity(const Entity&) = default;
 	template <typename C>
-	void addComponent(C& component) {
+	void addComponent(C&& component) {
 		assert(_manager);
 		_manager->addComponents(_id, std::forward<C>(component));
 	}
@@ -27,6 +29,11 @@ public:
 		_manager->removeComponents<Cs...>(_id);
 	}
 	template <typename C>
+	C* getComponent() const {
+		assert(_manager);
+		return _manager->getComponent<C>(_id);
+	}
+	template <typename C>
 	C* getComponent() {
 		assert(_manager);
 		return _manager->getComponent<C>(_id);
@@ -36,18 +43,18 @@ public:
 		assert(_manager);
 		return _manager->hasComponent<C>(_id);
 	}
-	bool hasComponent(ComponentID cId) {
-		assert(_manager);
-		return _manager->hasComponent(_id, cId);
-	}
-	void destroy() {
-		assert(_manager);
-		_manager->destroyEntity(_id);
-	}
-	EntityID getID() {
-		return _id;
-	}
+	bool hasComponent(ComponentID cId);
+	void destroy();
+	EntityID getID();
+	const EntityID getID() const;
+	void setID(EntityID id);
+	Manager* getManager();
 private:
 	Manager* _manager;
 	EntityID _id;
 };
+
+namespace Serializer {
+	void serialize(nlohmann::json& j, const Entity& o);
+	void deserialize(const nlohmann::json& j, Entity& o);
+}

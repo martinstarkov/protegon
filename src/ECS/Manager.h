@@ -14,7 +14,14 @@
 // Consider storing components in manager under EntityIDs as opposed to in Entity object
 // This will eliminate the need for entity pointers, change all parent relationships in components and states to pass a Manager reference and an EntityID instead of an entity pointer)
 
-struct EntityData {
+class EntityData {
+public:
+	EntityData() = default;
+	~EntityData() = default;
+	EntityData(EntityData&& rvalue) = default;
+	EntityData(const EntityData& copy);
+	EntityData& operator=(EntityData&& rvalue) = default;
+	EntityData& operator=(EntityData const& other);
 	ComponentMap components;
 	bool alive = true;
 };
@@ -97,10 +104,13 @@ public:
 		}
 		return nullptr;
 	}
+	EntitySet getEntities(EntitySet exclude);
 private:
+	EntityData* getEntityData(EntityID id);
+	void copyEntityData(EntityID to, EntityID from);
 	void setComponentHandle(BaseComponent* component, EntityID id);
 	template <typename C>
-	void addComponent(EntityID id, C& component) {
+	void addComponent(EntityID id, C& component, bool copy = false) {
 		auto it = _entities.find(id);
 		if (it != _entities.end()) {
 			ComponentID cId = static_cast<ComponentID>(typeid(C).hash_code());
@@ -109,14 +119,14 @@ private:
 			ComponentMap& components = it->second->components;
 			if (components.find(cId) == components.end()) { // Add new component
 				components.emplace(cId, std::move(uPtr));
-				LOG_("Added");
+				//LOG_("Added");
 			} else { // Replace old component
 				// TODO: Possibly in the future include support for multiple components of the same type
 				components[cId] = std::move(uPtr);
-				LOG_("Replaced");
+				//LOG_("Replaced");
 			}
 		}
-		LOG(" " << typeid(C).name() << " (" << sizeof(C) << ") -> Entity [" << id << "]");
+		//LOG(" " << typeid(C).name() << " (" << sizeof(C) << ") -> Entity [" << id << "]");
 	}
 	template <typename C>
 	void removeComponent(EntityID id) {
@@ -127,14 +137,14 @@ private:
 			auto cIt = components.find(cId);
 			if (cIt != components.end()) {
 				components.erase(cIt);
-				LOG("Removed " << typeid(C).name() << " (" << sizeof(C) << ") from Entity [" << id << "]");
+				//LOG("Removed " << typeid(C).name() << " (" << sizeof(C) << ") from Entity [" << id << "]");
 			}
 		}
 	}
 	template <typename S>
 	void createSystem(S& system) {
 		SystemID sId = static_cast<SystemID>(typeid(S).hash_code());
-		assert(_systems.find(sId) == _systems.end());
+		assert(_systems.find(sId) == _systems.end() && "Cannot create a system twice in one manager");
 		std::unique_ptr<S> uPtr = std::make_unique<S>(std::move(system));
 		uPtr->setManager(this);
 		_systems.emplace(sId, std::move(uPtr));

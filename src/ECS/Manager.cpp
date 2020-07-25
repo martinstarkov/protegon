@@ -6,6 +6,19 @@
 #include "../StateMachine/StateMachines.h"
 #include "../StateMachine/States.h"
 
+EntityData::EntityData(const EntityData& copy) {
+	*this = copy;
+}
+
+EntityData& EntityData::operator=(EntityData const& other) {
+	assert(&other && "Cannot copy deleted EntityData");
+	alive = other.alive;
+	for (auto& pair : other.components) {
+		components.emplace(pair.first, pair.second->uniqueClone());
+	}
+	return *this;
+}
+
 void Manager::init() {
 	createSystems(
 		RenderSystem(),
@@ -22,8 +35,14 @@ void Manager::init() {
 	);
 }
 
-bool Manager::hasEntity(EntityID id) {
-	return _entities.find(id) != _entities.end();
+EntitySet Manager::getEntities(EntitySet exclude) {
+	EntitySet set;
+	for (auto& pair : _entities) {
+		if (exclude.find(pair.first) == exclude.end()) {
+			set.insert(pair.first);
+		}
+	}
+	return set;
 }
 
 static EntityID getNewEntityID() {
@@ -33,8 +52,7 @@ static EntityID getNewEntityID() {
 
 EntityID Manager::createEntity() {
 	EntityID id = getNewEntityID();
-	std::unique_ptr<EntityData> uPtr = std::make_unique<EntityData>();
-	_entities.emplace(id, std::move(uPtr));
+	_entities.emplace(id, std::make_unique<EntityData>());
 	return id;
 }
 
@@ -46,32 +64,65 @@ void Manager::destroyEntity(EntityID id) {
 	// refresh systems later
 }
 
+EntityData* Manager::getEntityData(EntityID id) {
+	auto it = _entities.find(id);
+	if (it != _entities.end()) {
+		return it->second.get();
+	}
+	return nullptr;
+}
+
+void Manager::copyEntityData(EntityID to, EntityID from) {
+	// replace if statement with assert later
+	if (hasEntity(to) && hasEntity(from)) {
+		*getEntityData(to) = *getEntityData(from);
+	} else {
+		LOG("Cannot copy EntityData from " << from << " to " << to << " as both entities do not exist");
+	}
+}
+
+bool Manager::hasEntity(EntityID id) {
+	return _entities.find(id) != _entities.end();
+}
+
 EntityID Manager::createTree(Vec2D position) {
 	EntityID id = createEntity();
 	Entity handle = Entity(id, this);
 	handle.addComponents(
-		TransformComponent(position), 
-		SizeComponent(Vec2D(64)), 
+		TransformComponent(position),
+		SizeComponent(Vec2D(64)),
 		SpriteComponent("./resources/textures/tree.png", Vec2D(16)), 
-		RenderComponent(), 
+		RenderComponent(),
 		CollisionComponent()
 	);
 	return id;
 }
+
 EntityID Manager::createBox(Vec2D position) {
-	EntityID id = createEntity();
-	Entity handle = Entity(id, this);
-	handle.addComponents(
-		TransformComponent(position), 
-		SizeComponent(Vec2D(32)), 
-		SpriteComponent("./resources/textures/box.png", Vec2D(16)), 
-		MotionComponent(Vec2D(0.5), {}, Vec2D(3.0)), 
-		DragComponent(UNIVERSAL_DRAG), 
-		RenderComponent(), 
-		LifetimeComponent(5.0),
-		CollisionComponent()
-	);
-	return id;
+	static bool init = true;
+	static EntityID jId;
+	static Entity jsonHandle;
+	if (init) {
+		init = false;
+		jId = createEntity();
+		jsonHandle = Entity(jId, this);
+		std::ifstream in("resources/box.json");
+		json j;
+		in >> j;
+		Serializer::deserialize(j["box"], jsonHandle);
+		in.close();
+	}
+	if (hasEntity(jId)) {
+		EntityID id = createEntity();
+		copyEntityData(id, jId);
+		addComponents(id, TransformComponent(position));
+		refresh();
+		return id;
+	} else {
+		init = true;
+		LOG("Could not create Box Entity using deserialization");
+		return UINT_MAX;
+	}
 }
 EntityID Manager::createPlayer(Vec2D position) {
 	EntityID id = createEntity();
@@ -82,7 +133,8 @@ EntityID Manager::createPlayer(Vec2D position) {
 		InputComponent(),
 		PlayerController(Vec2D(1.0)),
 		AnimationComponent(),
-		StateMachineComponent({ {"walkStateMachine", new WalkStateMachine("idle")},{"jumpStateMachine", new JumpStateMachine("grounded")} }),
+		StateMachineComponent({ {"walkStateMachine", new WalkStateMachine("idle")},
+							  {"jumpStateMachine", new JumpStateMachine("grounded")} }),
 		TransformComponent(position),
 		SizeComponent(Vec2D(30, 51)),
 		SpriteComponent("./resources/textures/player_test2.png", Vec2D(30, 51)),
@@ -146,7 +198,9 @@ void Manager::refresh() {
 	}
 }
 
-void Manager::refreshDeleted() { // REWORK
+void Manager::refreshDeleted() {
+	// TODO: Somehow free up empty EntityIDs 
+	// Possible solution: upgrade EntityID to unsigned long long it and change all function EntityID parameters to take refernces instead of copying
 	int iteratorOffset = 0;
 	for (auto it = _entities.begin(); it != _entities.end(); ) {
 		if (!it->second->alive) {
