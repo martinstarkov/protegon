@@ -2,9 +2,11 @@
 
 #include <iomanip> // setprecision
 #include <sstream> // string streams for limiting precision / significant figures
+#include <map>
+#include <vector>
+#include <set>
 
 namespace Util {
-
 	// https://stackoverflow.com/a/29634934 Credit to Jarod42
 	namespace detail {
 		// To allow ADL with custom begin/end
@@ -87,56 +89,49 @@ namespace Util {
 	//	}
 	//}
 
-	//template <typename T>
-	//static std::ostream& printIterable(std::ostream& os, const T& iterable) {
-	//	os << "[ ";
-	//	for (auto it = std::begin(iterable); it != std::end(iterable); ++it) {
-	//		if (is_iterable<decltype(*it)>::value) {
-	//			printIterable(os, *it);
-	//		} else {
-	//			os << *it << " ";
-	//		}
-	//	}
-	//	os << "]";
-	//	return os;
-	//}
+	template <typename T>
+	static std::ostream& printIterable(std::ostream& os, const T& iterable) {
+		os << "[ ";
+		for (auto it = std::begin(iterable); it != std::end(iterable); ++it) {
+			if (is_iterable<decltype(*it)>::value) {
+				printIterable(os, *it);
+			} else {
+				os << *it << " ";
+			}
+		}
+		os << "]";
+		return os;
+	}
 
-	//template <typename K, typename V>
-	//static std::ostream& printMap(std::ostream& os, const std::map<K, V>& map) {
-	//	os << "{ " << std::endl;
-	//	bool isIterable = is_iterable<V>::value;
-	//	bool isMap = is_mappish<V>{};
-	//	bool isString = std::is_same<V, std::string>::value;
-	//	for (auto& pair : map) {
-	//		os << "[ " << pair.first << ", ";
-	//		if (isIterable && !isString) {
-	//			if (isMap) {
-	//				printMap(os, pair.second);
-	//			} else {
-	//				Util::printIterable(os, pair.second);
-	//			}
-	//		} else {
-	//			os << pair.second;
-	//		}
-	//		os << " ]" << std::endl;
-	//	}
-	//	os << "}";
-	//	return os;
-	//}
+	template <typename K, typename V>
+	static std::ostream& printMap(std::ostream& os, const std::map<K, V>& map) {
+		os << "{ " << std::endl;
+		bool isIterable = is_iterable<V>::value;
+		bool isMap = is_mappish<V>{};
+		bool isString = std::is_same<V, std::string>::value;
+		bool isPointer = is_pointer<V>::value;
+		for (auto& pair : map) {
+			os << "[ " << pair.first << ", ";
+			os << pair.second;
+			os << " ]" << std::endl;
+		}
+		os << "}";
+		return os;
+	}
 
 }
 
-//template <typename T>
-//std::ostream& operator<< (std::ostream& os, const std::vector<T>& vector) {
-//	return Util::printIterable(os, vector);
-//}
-//
-//template <typename T>
-//std::ostream& operator<< (std::ostream& os, const std::set<T>& set) {
-//	return Util::printIterable(os, set);
-//}
-//
-//template <typename V, typename K>
-//std::ostream& operator<< (std::ostream& os, const std::map<K, V>& map) {
-//	return Util::printMap(os, map);
-//}
+template <typename T>
+std::ostream& operator<< (std::ostream& os, const std::vector<T>& vector) {
+	return Util::printIterable(os, vector);
+}
+
+template <typename T>
+std::ostream& operator<< (std::ostream& os, const std::set<T>& set) {
+	return Util::printIterable(os, set);
+}
+
+template <typename V, typename K>
+std::ostream& operator<< (std::ostream& os, const std::map<K, V>& map) {
+	return Util::printMap(os, map);
+}

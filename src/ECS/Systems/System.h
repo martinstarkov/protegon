@@ -2,6 +2,9 @@
 
 #include "BaseSystem.h"
 
+#include "../Entity.h"
+#include "../Components.h"
+
 class Manager;
 
 template <class... Cs>

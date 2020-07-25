@@ -65,6 +65,7 @@ void Game::update() {
 	static int cycle = 0;
 	cycle++;
 	manager.update();
+	AllocationMetrics::printMemoryUsage();
 }
 
 void Game::render() {

@@ -18,7 +18,7 @@ public:
 			if (s[SDL_SCANCODE_Q]) {
 				e.addComponents(Serialization::deserialize<SpriteComponent>("resources/sprite2.json"));
 			}*/
-			if (e.getID() == 2) {
+			//if (e.getID() == 2) { // replace ID check with unique tag check later
 				if (s[SDL_SCANCODE_P]) {
 					Vec2D pos = e.getComponent<TransformComponent>()->position + Vec2D(50.0, 0.0);
 					manager->createBox(pos);
@@ -41,12 +41,12 @@ public:
 				//}
 
 				if (s[SDL_SCANCODE_C]) {
-					for (auto& rId : manager->getEntities({ 2 })) {
+					for (auto& rId : manager->getEntities({ 3 })) { // replace 3 with e.getID() when tag check is complete
 						Entity handle(rId, manager);
 						handle.destroy();
 					}
 				}
-			}
+			//}
 			PlayerController* player = e.getComponent<PlayerController>();
 			if (player) {
 				MotionComponent* motion = e.getComponent<MotionComponent>();

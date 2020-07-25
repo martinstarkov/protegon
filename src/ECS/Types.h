@@ -8,10 +8,11 @@
 #include <set>
 #include <map>
 #include <string>
+#include <memory>
 
 class BaseComponent;
 
-using EntityID = std::size_t;
+using EntityID = std::size_t; // possibly upgrade to unsigned long int later
 using ComponentID = std::size_t;
 using SystemID = std::size_t;
 using AnimationName = std::string;
