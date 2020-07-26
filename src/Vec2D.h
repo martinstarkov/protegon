@@ -6,6 +6,11 @@
 
 #include "SDL.h"
 
+// TODO: Inline every operator overload which should have LHS and RHS,
+// Member operators should be LHS = this, such as +=
+// Take const references everywhere
+// Take LHS operator by copy for + and such
+
 struct Vec2D {
 	double x, y;
 	Vec2D(double x, double y) : x(x), y(y) {}
