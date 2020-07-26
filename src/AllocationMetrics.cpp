@@ -1,11 +1,20 @@
 #include "AllocationMetrics.h"
 
+#include "Logger.h"
+
 void* operator new(std::size_t size) {
 	AllocationMetrics::allocation(size);
 	return malloc(size);
 }
-
+void* operator new[](std::size_t size) {
+	AllocationMetrics::allocation(size);
+	return malloc(size);
+}
 void operator delete(void* memory, std::size_t size) {
+	AllocationMetrics::deallocation(size);
+	free(memory);
+}
+void  operator delete[](void* memory, std::size_t size) {
 	AllocationMetrics::deallocation(size);
 	free(memory);
 }
