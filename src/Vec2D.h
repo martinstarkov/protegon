@@ -1,223 +1,370 @@
 #pragma once
 
-#include <math.h>
+#include <cmath>
 
-#include "common.h"
+#include "AllocationMetrics.h"
+#include "Serialization.h"
 
-#include "SDL.h"
-
-// TODO: Inline every operator overload which should have LHS and RHS,
-// Member operators should be LHS = this, such as +=
-// Take const references everywhere
-// Take LHS operator by copy for + and such
+constexpr const char leftDelimeter = '(';
+constexpr const char centerDelimeter = '(';
+constexpr const char rightDelimeter = ')';
 
 struct Vec2D {
 	double x, y;
+	// Zero construction
+	Vec2D() : x(0.0), y(0.0) {}
+	// Regular construction
 	Vec2D(double x, double y) : x(x), y(y) {}
 	Vec2D(int x, int y) : x(static_cast<double>(x)), y(static_cast<double>(y)) {}
+	// Dual construction
 	Vec2D(double both) : x(both), y(both) {}
 	Vec2D(int both) : x(static_cast<double>(both)), y(static_cast<double>(both)) {}
-	Vec2D() : x(0.0), y(0.0) {}
-	Vec2D(std::string vstr) {
-		std::size_t delimeter = vstr.find(","); // return index of delimeter
-		assert(delimeter != std::string::npos && "Vec2D string constructor must contain comma delimeter");
-		assert(vstr[0] == '(' && "Vec2D string constructor must start with opening parenthesis");
-		assert(vstr[vstr.length() - 1] == ')' && "Vec2D string constructor must end with closing parenthesis");
-		x = std::stod(vstr.substr(1, delimeter - 1)); // from first non parenthesis element to everything before comma
-		y = std::stod(vstr.substr(delimeter + 1, vstr.size() - 2)); // everything after comma to before closing parenthesis
+	// String construction
+	Vec2D(std::string s) {
+		std::size_t delimeter = s.find(centerDelimeter); // return index of centerDelimeter
+		assert(s[0] == leftDelimeter && "Vec2D string constructor must start with leftDelimeter");
+		assert(delimeter != std::string::npos && "Vec2D string constructor must contain centerDelimeter");
+		assert(s[s.length() - 1] == rightDelimeter && "Vec2D string constructor must end with rightDelimeter");
+		x = std::stod(s.substr(1, delimeter - 1)); // from after leftDelimeter to before centerDelimeter
+		y = std::stod(s.substr(delimeter + 1, s.size() - 2)); // from after centerDelimeter to after rightDelimeter
 	}
-	friend std::istream& operator>>(std::istream& in, Vec2D& v) {
-		std::string temp;
-		in >> temp;
-		v = Vec2D(temp);
-		return in;
-	}
-	friend std::ostream& operator<<(std::ostream& out, const Vec2D& v) {
-		out << '(' << v.x << ',' << v.y << ')';
-		return out;
-	}
-	friend Vec2D abs(Vec2D v) {
-		return Vec2D(std::abs(v.x), std::abs(v.y));
-	}
-	SDL_Rect Vec2DtoSDLRect(Vec2D v) {
-		return { static_cast<int>(round(x)), static_cast<int>(round(y)), static_cast<int>(round(v.x)), static_cast<int>(round(v.y)) };
-	}
-	double operator[] (int index) const {
-		index = index % 2; // make sure index is in range
-		if (index == 0) {
-			return x;
-		} else if (index == 1) {
-			return y;
-		}
-		return -1.0;
-	}
-	double& operator[] (int index) {
-		index = index % 2; // make sure index is in range
-		if (index == 1) {
-			return y;
-		} else {
-			return x;
-		}
-	}
+	// Return true if either vector component is not equal to 0
 	operator bool() const {
-		return x != 0.0 || y != 0.0;
+		return x && y;
+	}
+	operator bool() {
+		return const_cast<const Vec2D*>(this);
+	}
+	// Return true if both vector components equal 0
+	bool operator !() const {
+		return !*this;
+	}
+	bool operator !() {
+		return !*const_cast<const Vec2D*>(this);
+	}
+	bool isZero() const {
+		return !(*this);
 	}
 	bool isZero() {
-		return x == 0.0 && y == 0.0;
+		return !*const_cast<const Vec2D*>(this);
 	}
-	bool nonZero() {
-		return x != 0.0 && y != 0.0;
-	}
-	Vec2D infinite() {
+	// Return a vector with numeric_limit::infinity() set for both components
+	Vec2D infinite() const {
 		return Vec2D(std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity());
 	}
-	Vec2D operator+ (Vec2D v) {
-		return Vec2D(x + v.x, y + v.y);
+	Vec2D infinite() {
+		return const_cast<const Vec2D*>(this)->infinite();
 	}
-	Vec2D operator+ (double f) {
-		return Vec2D(x + f, y + f);
+	// Stream operators
+	friend std::ostream& operator<<(std::ostream& os, const Vec2D& obj) {
+		os << leftDelimeter << obj.x << centerDelimeter << obj.y << rightDelimeter;
+		return os;
 	}
-	Vec2D& operator+= (Vec2D v) {
-		*this = *this + v;
-		return *this;
+	friend std::istream& operator>>(std::istream& is, Vec2D& obj) {
+		std::string temp;
+		is >> temp;
+		obj = Vec2D(temp);
+		if (obj) {
+			is.setstate(std::ios::failbit);
+		}
+		return is;
 	}
-	Vec2D& operator+= (double f) {
-		*this = *this + f;
-		return *this;
+	// Both vector components rounded to the closest integeral
+	friend Vec2D round(const Vec2D& obj) {
+		return Vec2D(round(obj.x), round(obj.y));
 	}
-	Vec2D operator- (Vec2D v) {
-		return Vec2D(x - v.x, y - v.y);
+	// Return a reference to the vector with lower magnitude, or first vector if equal
+	friend Vec2D& min(Vec2D& v1, Vec2D& v2) {
+		if (v1 <= v2) {
+			return v1;
+		} else {
+			return v2;
+		}
 	}
-	Vec2D operator- (double f) {
-		return Vec2D(x - f, y - f);
+	// Return a reference to the vector with higher magnitude, or first vector if equal
+	friend Vec2D& max(Vec2D& v1, Vec2D& v2) {
+		if (v1 >= v2) {
+			return v1;
+		} else {
+			return v2;
+		}
 	}
-	Vec2D& operator-= (Vec2D v) {
-		*this = *this - v;
-		return *this;
+	// Absolute value of both vector components
+	friend Vec2D abs(const Vec2D& obj) {
+		return Vec2D(std::abs(obj.x), std::abs(obj.y));
 	}
-	Vec2D& operator-= (double f) {
-		*this = *this - f;
-		return *this;
+	Vec2D absolute() const {
+		return abs(*this);
 	}
-	Vec2D operator* (const Vec2D& v) const {
-		return Vec2D(x * v.x, y * v.y);
+	Vec2D absolute() {
+		return const_cast<const Vec2D*>(this)->absolute();
 	}
-	Vec2D& operator* (const Vec2D& v) {
-		this->x *= v.x;
-		this->y *= v.y;
-		return *this;
+	// 2D vector projection (dot product)
+	double dotProduct(const Vec2D& other) const {
+		return x * other.x + y * other.y;
 	}
-	Vec2D operator* (double f) {
-		return Vec2D(x * f, y * f);
+	double dotProduct(const Vec2D& other) {
+		return const_cast<const Vec2D*>(this)->dotProduct(other);
 	}
-	Vec2D operator* (unsigned int i) {
-		return Vec2D(x * i, y * i);
+	// Area of cross product between x and y components
+	double crossProduct(const Vec2D& other) const {
+		return x * other.y - y * other.x;
 	}
-	Vec2D& operator*= (const Vec2D& v) {
-		return (*this * v);
+	double crossProduct(const Vec2D& other) {
+		return const_cast<const Vec2D*>(this)->crossProduct(other);
 	}
-	Vec2D& operator*= (double f) {
-		*this = *this * f;
-		return *this;
+	// Unit vector
+	Vec2D unit() const {
+		Vec2D obj;
+		if (magnitude()) { // avoid division by zero error
+			return obj / magnitude();
+		}
+		return obj;
 	}
-	Vec2D& operator- () {
-		*this = Vec2D(-x, -y);
-		return *this;
+	Vec2D unit() {
+		return const_cast<const Vec2D*>(this)->unit();
 	}
-	Vec2D operator/ (Vec2D v) {
-		return Vec2D(x / v.x, y / v.y);
-	}
-	Vec2D operator/ (double f) {
-		return Vec2D(x / f, y / f);
-	}
-	Vec2D& operator/= (Vec2D v) {
-		*this = *this / v;
-		return *this;
-	}
-	Vec2D& operator/= (double f) {
-		*this = *this / f;
-		return *this;
-	}
-	bool operator== (Vec2D v) {
-		return x == v.x && y == v.y;
-	}
-	bool operator== (double f) {
-		return x == f && y == f;
-	}
-	bool intEqual(Vec2D v) {
-		return round(x) == round(v.x) && round(y) == round(v.y);
-	}
-	bool operator!= (Vec2D v) {
-		return x != v.x && y != v.y;
-	}
-	Vec2D abs() {
-		return Vec2D(fabs(x), fabs(y));
-	}
-	double dotProduct(Vec2D v) {
-		return x * v.x + y * v.y;
-	}
-	double crossProductArea(Vec2D v) {
-		return x * v.y - y * v.x;
+	Vec2D normalized() const {
+		return unit();
 	}
 	Vec2D normalized() {
-		return unitVector();
+		return unit();
 	}
-	Vec2D unitVector() {
-		if (magnitude() != 0.0) {
-			return Vec2D(x / magnitude(), y / magnitude());
-		}
-		return Vec2D();
+	// Identity vector
+	Vec2D identity() const { 
+		Vec2D obj;
+		obj.x = x > 0.0 ? 1.0 : x < 0.0 ? -1.0 : 0.0;
+		obj.y = y > 0.0 ? 1.0 : y < 0.0 ? -1.0 : 0.0;
+		return obj;
 	}
-	Vec2D identityVector() {
-		Vec2D identity = Vec2D();
-		identity.x = x > 0.0 ? 1.0 : x == 0.0 ? 0.0 : -1.0;
-		identity.y = y > 0.0 ? 1.0 : y == 0.0 ? 0.0 : -1.0;
-		return identity;
+	Vec2D identity() {
+		return const_cast<const Vec2D*>(this)->identity();
 	}
-	Vec2D tangent() {
+	// Tangent to direction vector (y, -x)
+	Vec2D tangent() const { 
 		return Vec2D(y, -x);
 	}
-	Vec2D opposite() {
+	Vec2D tangent() {
+		return const_cast<const Vec2D*>(this)->tangent();
+	}
+	// Flipped signs for both vector components
+	Vec2D opposite() const { 
 		return Vec2D(-x, -y);
 	}
-	double magnitude() {
+	Vec2D opposite() {
+		return const_cast<const Vec2D*>(this)->opposite();
+	}
+	// Return the magnitude of a vector
+	double magnitude() const {
 		return sqrt(x * x + y * y);
 	}
-	bool operator> (Vec2D v) {
-		return magnitude() > v.magnitude();
+	double magnitude() {
+		return const_cast<const Vec2D*>(this)->magnitude();
 	}
-	bool operator> (double f) {
-		return x > f || y > f;
+	// Increment/Decrement operators
+	Vec2D& operator++() {
+		++x;
+		++y;
+		return *this;
 	}
-	bool operator>= (double f) {
-		return x >= f || y >= f;
+	Vec2D operator++(int) {
+		Vec2D tmp(*this);
+		operator++();
+		return tmp;
 	}
-	bool operator< (double f) {
-		return x < f || y < f;
+	Vec2D& operator--() {
+		--x;
+		--y;
+		return *this;
 	}
-	bool operator<= (double f) {
-		return x <= f || y <= f;
+	Vec2D operator--(int) {
+		Vec2D tmp(*this);
+		operator--();
+		return tmp;
 	}
-	bool operator>= (Vec2D v) {
-		return magnitude() >= v.magnitude();
+	// Unary arithmetic operators
+	Vec2D& operator+=(const Vec2D& rhs) {
+		x += rhs.x;
+		y += rhs.y;
+		return *this;
 	}
-	bool operator< (Vec2D v) {
-		return magnitude() < v.magnitude();
+	Vec2D& operator-=(const Vec2D& rhs) {
+		x -= rhs.x;
+		y -= rhs.y;
+		return *this;
 	}
-	bool operator<= (Vec2D v) {
-		return magnitude() <= v.magnitude();
+	Vec2D& operator*=(const Vec2D& rhs) {
+		x *= rhs.x;
+		y *= rhs.y;
+		return *this;
+	}
+	Vec2D& operator/=(const Vec2D& rhs) {
+		x /= rhs.x;
+		y /= rhs.y;
+		return *this;
+	}
+	Vec2D& operator+=(const double& rhs) {
+		x += rhs;
+		y += rhs;
+		return *this;
+	}
+	Vec2D& operator-=(const double& rhs) {
+		x -= rhs;
+		y -= rhs;
+		return *this;
+	}
+	Vec2D& operator*=(const double& rhs) {
+		x *= rhs;
+		y *= rhs;
+		return *this;
+	}
+	Vec2D& operator/=(const double& rhs) {
+		x /= rhs;
+		y /= rhs;
+		return *this;
+	}
+	// Array subscript operators
+	double& operator[](std::size_t idx) {
+		assert(idx <= 1 && "Vec2D [] subscript out of range");
+		return idx == 0 ? x : y;
+	}
+	double operator[](std::size_t idx) const {
+		assert(idx <= 1 && "Vec2D [] subscript out of range");
+		return idx == 0 ? x : y;
 	}
 };
 
-// json serialization
+// Comparison operators
+
+inline bool operator==(const Vec2D& lhs, const Vec2D& rhs) { return lhs.x == rhs.x && lhs.y == rhs.y; }
+inline bool operator!=(const Vec2D& lhs, const Vec2D& rhs) { return !operator==(lhs, rhs); }
+inline bool operator<(const Vec2D& lhs, const Vec2D& rhs) { return lhs.magnitude() < rhs.magnitude(); }
+inline bool operator>(const Vec2D& lhs, const Vec2D& rhs) { return operator<(rhs, lhs); }
+inline bool operator<=(const Vec2D& lhs, const Vec2D& rhs) { return !operator>(lhs, rhs); }
+inline bool operator>=(const Vec2D& lhs, const Vec2D& rhs) { return !operator<(lhs, rhs); }
+inline bool operator==(const Vec2D& lhs, const double& rhs) { return lhs.x == rhs && lhs.y == rhs; }
+inline bool operator!=(const Vec2D& lhs, const double& rhs) { return !operator==(lhs, rhs); }
+inline bool operator<(const Vec2D& lhs, const double& rhs) { return lhs.x < rhs && lhs.y < rhs; }
+inline bool operator>(const Vec2D& lhs, const double& rhs) { return operator<(rhs, lhs); }
+inline bool operator<=(const Vec2D& lhs, const double& rhs) { return !operator>(lhs, rhs); }
+inline bool operator>=(const Vec2D& lhs, const double& rhs) { return !operator<(lhs, rhs); }
+inline bool operator==(const double& lhs, const Vec2D& rhs) { return operator==(rhs, lhs); }
+inline bool operator!=(const double& lhs, const Vec2D& rhs) { return operator!=(rhs, lhs); }
+inline bool operator<(const double& lhs, const Vec2D& rhs) { return rhs.x > lhs && rhs.y > lhs; }
+inline bool operator>(const double& lhs, const Vec2D& rhs) { return operator<(rhs, lhs); }
+inline bool operator<=(const double& lhs, const Vec2D& rhs) { return !operator>(rhs, lhs); }
+inline bool operator>=(const double& lhs, const Vec2D& rhs) { return !operator<(rhs, lhs); }
+
+// Binary arithmetic operators
+
+inline Vec2D operator+(Vec2D lhs, const Vec2D& rhs) {
+	lhs += rhs;
+	return lhs;
+}
+inline Vec2D operator+(Vec2D lhs, Vec2D& rhs) {
+	lhs += rhs;
+	return lhs;
+}
+inline Vec2D operator-(Vec2D lhs, const Vec2D& rhs) {
+	lhs -= rhs;
+	return lhs;
+}
+inline Vec2D operator-(Vec2D lhs, Vec2D& rhs) {
+	lhs -= rhs;
+	return lhs;
+}
+inline Vec2D operator*(Vec2D lhs, const Vec2D& rhs) {
+	lhs *= rhs;
+	return lhs;
+}
+inline Vec2D operator*(Vec2D lhs, Vec2D& rhs) {
+	lhs *= rhs;
+	return lhs;
+}
+inline Vec2D operator/(Vec2D lhs, const Vec2D& rhs) {
+	lhs /= rhs;
+	return lhs;
+}
+inline Vec2D operator/(Vec2D lhs, Vec2D& rhs) {
+	lhs /= rhs;
+	return lhs;
+}
+inline Vec2D operator+(Vec2D lhs, const double& rhs) {
+	lhs += rhs;
+	return lhs;
+}
+inline Vec2D operator+(Vec2D lhs, double& rhs) {
+	lhs += rhs;
+	return lhs;
+}
+inline Vec2D operator-(Vec2D lhs, const double& rhs) {
+	lhs -= rhs;
+	return lhs;
+}
+inline Vec2D operator-(Vec2D lhs, double& rhs) {
+	lhs -= rhs;
+	return lhs;
+}
+inline Vec2D operator*(Vec2D lhs, const double& rhs) {
+	lhs *= rhs;
+	return lhs;
+}
+inline Vec2D operator*(Vec2D lhs, double& rhs) {
+	lhs *= rhs;
+	return lhs;
+}
+inline Vec2D operator/(Vec2D lhs, const double& rhs) {
+	lhs /= rhs;
+	return lhs;
+}
+inline Vec2D operator/(Vec2D lhs, double& rhs) {
+	lhs /= rhs;
+	return lhs;
+}
+inline Vec2D operator+(const double& lhs, Vec2D& rhs) {
+	rhs += lhs;
+	return rhs;
+}
+inline Vec2D operator+(double& lhs, Vec2D& rhs) {
+	rhs += lhs;
+	return rhs;
+}
+inline Vec2D operator-(const double& lhs, Vec2D& rhs) {
+	rhs -= lhs;
+	return rhs;
+}
+inline Vec2D operator-(double& lhs, Vec2D& rhs) {
+	rhs -= lhs;
+	return rhs;
+}
+inline Vec2D operator*(const double& lhs, Vec2D& rhs) {
+	rhs *= lhs;
+	return rhs;
+}
+inline Vec2D operator*(double& lhs, Vec2D& rhs) {
+	rhs *= lhs;
+	return rhs;
+}
+inline Vec2D operator/(const double& lhs, Vec2D& rhs) {
+	rhs /= lhs;
+	return rhs;
+}
+inline Vec2D operator/(double& lhs, Vec2D& rhs) {
+	rhs /= lhs;
+	return rhs;
+}
+
+// Json serialization
+
 inline void to_json(nlohmann::json& j, const Vec2D& o) {
 	j["x"] = o.x;
 	j["y"] = o.y;
 }
-
 inline void from_json(const nlohmann::json& j, Vec2D& o) {
-	o = Vec2D(
-		j.at("x").get<double>(),
-		j.at("y").get<double>()
-	);
+	if (j.find("x") != j.end()) {
+		o.x = j.at("x").get<double>();
+	}
+	if (j.find("y") != j.end()) {
+		o.y = j.at("y").get<double>();
+	}
 }
