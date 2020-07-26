@@ -21,13 +21,13 @@ public:
 					}
 				}
 				if (size) {
-					TextureManager::draw(sprite->texture, sprite->source, AABB(transform->position, size->size).AABBtoRect(), 0.0, flip);
+					TextureManager::draw(sprite->texture, sprite->source, Util::RectFromVec(transform->position, size->size), 0.0, flip);
 				} else {
-					TextureManager::draw(sprite->texture, sprite->source, AABB(transform->position, Vec2D(sprite->source.w, sprite->source.h)).AABBtoRect(), 0.0, flip);
+					TextureManager::draw(sprite->texture, sprite->source, Util::RectFromVec(transform->position, Vec2D(sprite->source.w, sprite->source.h)), 0.0, flip);
 				}
 			} else {
 				if (size) {
-					TextureManager::draw(AABB(transform->position, size->size).AABBtoRect());
+					TextureManager::draw(Util::RectFromVec(transform->position, size->size));
 				}
 			}
 		}

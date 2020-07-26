@@ -5,6 +5,13 @@
 #include <map>
 #include <vector>
 #include <set>
+#include <cmath>
+#include <cassert>
+
+#include "AllocationMetrics.h"
+
+struct Vec2D;
+struct SDL_Rect;
 
 namespace Util {
 	// https://stackoverflow.com/a/29634934 Credit to Jarod42
@@ -60,11 +67,7 @@ namespace Util {
 	struct is_pointer<T*> { static const bool value = true; };
 
 	// Truncate to specific amount of significant figures
-	inline double truncate(double value, int digits) {
-		std::stringstream stream;
-		stream << std::fixed << std::setprecision(digits) << value;
-		return std::stod(stream.str());
-	}
+	double truncate(double value, int digits);
 
 	// Find the sign of a numeric value
 	template <typename T>
@@ -76,18 +79,21 @@ namespace Util {
 	template <typename ...Ts>
 	inline void swallow(Ts&&... args) {}
 
-	//// Delete a set of indexes from a vector or set
-	//template <typename T, typename S>
-	//static void eraseSetFromSet(const std::set<T>& eraseThis, std::set<S>& fromThis) {
-	//	static_assert(std::is_arithmetic<T>::value, "Cannot erase non-numeric indexes from a set");
-	//	std::size_t iteratorOffset = 0;
-	//	for (auto& index : eraseThis) {
-	//		auto it = std::begin(fromThis);
-	//		std::advance(it, index - iteratorOffset);
-	//		fromThis.erase(it);
-	//		iteratorOffset++;
-	//	}
-	//}
+	// Return an SDL_Rect from position and size vectors
+	SDL_Rect RectFromVec(const Vec2D& position, const Vec2D& size);
+
+	// Delete a set of indexes from a vector or set
+	template <typename T, typename S>
+	static void eraseSetFromSet(const std::set<T>& eraseThis, std::set<S>& fromThis) {
+		static_assert(std::is_arithmetic<T>::value, "Cannot erase non-numeric indexes from a set");
+		std::size_t iteratorOffset = 0;
+		for (auto& index : eraseThis) {
+			auto it = std::begin(fromThis);
+			std::advance(it, index - iteratorOffset);
+			fromThis.erase(it);
+			iteratorOffset++;
+		}
+	}
 
 	template <typename T>
 	static std::ostream& printIterable(std::ostream& os, const T& iterable) {
@@ -120,6 +126,8 @@ namespace Util {
 	}
 
 }
+
+// Operator overloading
 
 template <typename T>
 std::ostream& operator<< (std::ostream& os, const std::vector<T>& vector) {

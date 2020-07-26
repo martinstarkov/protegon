@@ -4,6 +4,7 @@
 
 #include "../Entity.h"
 #include "../Components.h"
+#include "../../Utilities.h"
 
 class Manager;
 
