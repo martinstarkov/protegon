@@ -16,6 +16,10 @@ struct Vec2D {
 	// Regular construction
 	Vec2D(double x, double y) : x(x), y(y) {}
 	Vec2D(int x, int y) : x(static_cast<double>(x)), y(static_cast<double>(y)) {}
+	Vec2D(const Vec2D& copy) {
+		x = copy.x;
+		y = copy.y;
+	}
 	// Dual construction
 	Vec2D(double both) : x(both), y(both) {}
 	Vec2D(int both) : x(static_cast<double>(both)), y(static_cast<double>(both)) {}
@@ -32,16 +36,7 @@ struct Vec2D {
 	operator bool() const {
 		return x && y;
 	}
-	operator bool() {
-		return const_cast<const Vec2D*>(this);
-	}
 	// Return true if both vector components equal 0
-	bool operator !() const {
-		return !*this;
-	}
-	bool operator !() {
-		return !*const_cast<const Vec2D*>(this);
-	}
 	bool isZero() const {
 		return !(*this);
 	}
