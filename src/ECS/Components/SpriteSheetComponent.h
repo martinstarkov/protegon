@@ -13,7 +13,24 @@
 struct SpriteInformation {
 	Vec2D start;
 	std::size_t count;
+	SpriteInformation(Vec2D start = Vec2D(), std::size_t count = 1) : start(start), count(count) {}
 };
+
+// json serialization
+inline void to_json(nlohmann::json& j, const SpriteInformation& o) {
+	j["start"] = o.start;
+	j["count"] = o.count;
+}
+
+inline void from_json(const nlohmann::json& j, SpriteInformation& o) {
+	o = SpriteInformation();
+	if (j.find("start") != j.end()) {
+		o.start = j.at("start").get<Vec2D>();
+	}
+	if (j.find("count") != j.end()) {
+		j.at("count").get<std::size_t>();
+	}
+}
 
 using DirectionMap = std::map<Direction, SpriteInformation>;
 using AnimationMap = std::map<AnimationName, DirectionMap>;
@@ -38,31 +55,12 @@ struct SpriteSheetComponent : public Component<SpriteSheetComponent> {
 	virtual ~SpriteSheetComponent() override {}
 };
 
-// json serialization
-
-inline void to_json(nlohmann::json& j, const SpriteInformation& o) {
-	j["start"] = o.start;
-	j["count"] = o.count;
-}
-
-inline void from_json(const nlohmann::json& j, SpriteInformation& o) {
-	o = SpriteInformation{
-		j.at("start").get<Vec2D>(),
-		j.at("count").get<std::size_t>(),
-	};
-}
-
 inline void to_json(nlohmann::json& j, const SpriteSheetComponent& o) {
-	//json map;
-	//for (auto& pair : o.animations) {
-	//	map[pair.first] = pair.second;
-	//}
-	//j["animations"] = map;
-	j["animations"] = o.animations;
+	//j["animations"] = o.animations;
 }
 
 inline void from_json(const nlohmann::json& j, SpriteSheetComponent& o) {
-	//o = SpriteSheetComponent(
-	//	static_cast<AnimationMap>(j.at("animations").get<AnimationMap>()) // might fail
-	//);
+	/*if (j.find("animations") != j.end()) {
+		o.animations = j.at("animations").get<AnimationMap>();
+	}*/
 }

@@ -15,8 +15,10 @@ inline void to_json(nlohmann::json& j, const LifetimeComponent& o) {
 }
 
 inline void from_json(const nlohmann::json& j, LifetimeComponent& o) {
-	o = LifetimeComponent(
-		j.at("lifetime").get<double>(),
-		j.at("isDying").get<bool>()
-	);
+	if (j.find("lifetime") != j.end()) {
+		o.lifetime = j.at("lifetime").get<double>();
+	}
+	if (j.find("isDying") != j.end()) {
+		o.isDying = j.at("isDying").get<bool>();
+	}
 }

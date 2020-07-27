@@ -7,7 +7,12 @@
 struct DirectionComponent : public Component<DirectionComponent> {
 	Direction direction;
 	Direction previousDirection;
-	DirectionComponent(Direction direction = Direction::DOWN) : direction(direction), previousDirection(direction) {}
+	DirectionComponent(Direction direction = Direction::DOWN) : direction(direction) {
+		init();
+	}
+	void init() {
+		previousDirection = direction;
+	}
 };
 
 // json serialization
@@ -16,7 +21,8 @@ inline void to_json(nlohmann::json& j, const DirectionComponent& o) {
 }
 
 inline void from_json(const nlohmann::json& j, DirectionComponent& o) {
-	o = DirectionComponent(
-		j.at("direction").get<Direction>()
-	);
+	if (j.find("direction") != j.end()) {
+		o.direction = j.at("direction").get<Direction>();
+	}
+	o.init();
 }

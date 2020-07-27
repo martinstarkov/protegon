@@ -14,6 +14,5 @@ inline void to_json(nlohmann::json& j, const InputComponent& o) {
 }
 
 inline void from_json(const nlohmann::json& j, InputComponent& o) {
-	o = InputComponent();
 	// TODO: j.at("keys").get<Keys>() into constructor
 }

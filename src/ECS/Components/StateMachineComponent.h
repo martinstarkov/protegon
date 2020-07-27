@@ -25,17 +25,21 @@ struct StateMachineComponent : public Component<StateMachineComponent> {
 		}
 	}
 };
+
 // TODO: Pointer serialization / Don't use pointer container for initialization, i.e. allocate stateMachines inside constructor
 //inline void to_json(nlohmann::json& j, const StateMachineComponent& o) {
+//	/*
 //	json map;
 //	for (auto& pair : o.stateMachines) {
 //		map[pair.first] = pair.second.get();
 //	}
 //	j["stateMachines"] = map;
+//	*/
 //}
-//
+
 //inline void from_json(const nlohmann::json& j, StateMachineComponent& o) {
-//	o = StateMachineComponent(
-//		static_cast<RawStateMachineMap>(j.at("start").get<RawStateMachineMap>())
-//	);
+//	o = StateMachineComponent();
+//	/*if (j.find("stateMachines") != j.end()) {
+//		o.stateMachines = j.at("stateMachines").get<StateMachineMap>();
+//	}*/
 //}

@@ -12,6 +12,5 @@ inline void to_json(nlohmann::json& j, const RenderComponent& o) {
 }
 
 inline void from_json(const nlohmann::json& j, RenderComponent& o) {
-	o = RenderComponent();
 	// j.at("variable").get<type>()
 }
