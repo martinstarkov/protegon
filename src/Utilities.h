@@ -69,11 +69,20 @@ namespace Util {
 	// Truncate to specific amount of significant figures
 	double truncate(double value, int digits);
 
-	// Find the sign of a numeric value
+	// Find the sign of a numeric type
 	template <typename T>
 	inline int sgn(T val) {
+		static_assert(std::is_arithmetic<T>::value, "sgn can only accept numeric types");
 		return (T(0) < val) - (val < T(0));
 	}
+
+	template<class T>
+	constexpr const T& clamp(const T& v, const T& lo, const T& hi) {
+		static_assert(std::is_arithmetic<T>::value, "clamp can only accept numeric types");
+		assert(!(hi < lo));
+		return (v < lo) ? lo : (hi < v) ? hi : v;
+	}
+
 
 	// Call functions on variadic templates
 	template <typename ...Ts>
