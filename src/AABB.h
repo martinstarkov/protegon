@@ -1,27 +1,26 @@
 #pragma once
 
-#include <limits>
-
 #include "common.h"
 
 #include "Vec2D.h"
 
-struct AABB {
+#include "Shape.h"
+
+struct AABB : Shape<AABB> {
 	Vec2D position;
 	Vec2D size;
 	AABB() : position(Vec2D()), size(Vec2D()) {}
 	AABB(Vec2D position, Vec2D size) : position(position), size(size) {}
 	AABB(double x, double y, double w, double h) : position(x, y), size(w, h) {}
-	Vec2D min() {
+	// Top left
+	inline Vec2D min() {
 		return position;
 	}
-	Vec2D max() {
+	// Bottom right
+	inline Vec2D max() {
 		return position + size;
 	}
-	SDL_Rect AABBtoRect() {
-		return { static_cast<int>(round(position.x)), static_cast<int>(round(position.y)), static_cast<int>(round(size.x)), static_cast<int>(round(size.y)) };
-	}
-	AABB minkowskiDifference(AABB other) {
+	AABB minkowskiDifference(AABB& other) {
 	    return AABB(min() - other.max(), size + other.size);
 	}
 	Vec2D colliding(AABB other, Vec2D velocity = Vec2D()) { // static collision
@@ -90,3 +89,16 @@ struct AABB {
 		return os;
 	}
 };
+
+inline void to_json(nlohmann::json& j, const AABB& o) {
+	j["position"] = o.position;
+	j["size"] = o.size;
+}
+inline void from_json(const nlohmann::json& j, AABB& o) {
+	if (j.find("position") != j.end()) {
+		o.position = j.at("position").get<Vec2D>();
+	}
+	if (j.find("size") != j.end()) {
+		o.size = j.at("size").get<Vec2D>();
+	}
+}
