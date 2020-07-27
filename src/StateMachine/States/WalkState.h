@@ -12,10 +12,12 @@ public:
 		}
 	}
 	virtual void update() override final {
-		MotionComponent* motion = entity.getComponent<MotionComponent>();
-		if (abs(motion->velocity) >= motion->terminalVelocity * RUN_START_FRACTION) {
+		RigidBodyComponent* rb = entity.getComponent<RigidBodyComponent>();
+		assert(rb && "Cannot update given state without RigidBodyComponent");
+		RigidBody& rigidBody = rb->rigidBody;
+		if (abs(rigidBody.velocity) >= rigidBody.terminalVelocity * RUN_START_FRACTION) {
 			//parentStateMachine->setCurrentState("run");
-		} else if (!(abs(motion->velocity) > IDLE_START_VELOCITY)) {
+		} else if (!(abs(rigidBody.velocity) > IDLE_START_VELOCITY)) {
 			parentStateMachine->setCurrentState("idle");
 		}
 	}

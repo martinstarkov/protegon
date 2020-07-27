@@ -10,7 +10,8 @@ public:
 		for (auto& id : entities) {
 			Entity e = Entity(id, manager);
 			LifetimeComponent* lifetime = e.getComponent<LifetimeComponent>();
-			//CollisionComponent* collision = pair.second->getComponent<CollisionComponent>(); // TODO in the future
+			// TODO: In the future, for falling platforms, decrease lifetime if there is a bottom collision
+			//CollisionComponent* collision = pair.second->getComponent<CollisionComponent>();
 			//if (collision->bottom) { lifetime->isDying = true; }
 			if (lifetime->isDying) {
 				if (lifetime->lifetime - SECOND_CHANGE_PER_FRAME >= 0.0) {

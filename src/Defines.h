@@ -1,5 +1,10 @@
 #pragma once
 
+#include <limits>
+
+// general
+constexpr double INFINITE = std::numeric_limits<double>::infinity();
+
 // window
 
 #define WINDOW_TITLE "Protegon"

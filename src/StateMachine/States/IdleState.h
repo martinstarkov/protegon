@@ -11,8 +11,10 @@ class IdleState : public State<IdleState> {
 		}
 	}
 	virtual void update() override final {
-		MotionComponent* motion = entity.getComponent<MotionComponent>();
-		if (abs(motion->velocity) >= IDLE_START_VELOCITY) {
+		RigidBodyComponent* rb = entity.getComponent<RigidBodyComponent>();
+		assert(rb && "Cannot update given state without RigidBodyComponent");
+		RigidBody& rigidBody = rb->rigidBody;
+		if (abs(rigidBody.velocity) >= IDLE_START_VELOCITY) {
 			parentStateMachine->setCurrentState("walk");
 		}
 	}

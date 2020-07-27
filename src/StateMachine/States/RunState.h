@@ -11,10 +11,12 @@ class RunState : public State<RunState> {
 		}
 	}
 	virtual void update() override final {
-		MotionComponent* motion = entity.getComponent<MotionComponent>();
-		if (!(abs(motion->velocity) > IDLE_START_VELOCITY)) {
+		RigidBodyComponent* rb = entity.getComponent<RigidBodyComponent>();
+		assert(rb && "Cannot update given state without RigidBodyComponent");
+		RigidBody& rigidBody = rb->rigidBody;
+		if (!(abs(rigidBody.velocity) > IDLE_START_VELOCITY)) {
 			parentStateMachine->setCurrentState("idle");
-		} else if (!(abs(motion->velocity) >= motion->terminalVelocity * RUN_START_FRACTION)) {
+		} else if (!(abs(rigidBody.velocity) >= rigidBody.terminalVelocity * RUN_START_FRACTION)) {
 			parentStateMachine->setCurrentState("walk");
 		}
 	}

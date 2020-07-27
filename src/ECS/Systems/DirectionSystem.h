@@ -2,26 +2,29 @@
 
 #include "System.h"
 
-class DirectionSystem : public System<DirectionComponent, MotionComponent> {
+#define IDLE_DIRECTION Direction::DOWN
+
+class DirectionSystem : public System<DirectionComponent, RigidBodyComponent> {
 public:
 	virtual void update() override final {
 		for (auto& id : entities) {
 			Entity e = Entity(id, manager);
-			MotionComponent* motion = e.getComponent<MotionComponent>();
-			DirectionComponent* direction = e.getComponent<DirectionComponent>();
-			direction->previousDirection = direction->direction;
-			if (motion->velocity.y == 0.0 && motion->velocity.x == 0.0) {
-				direction->direction = Direction::DOWN;
+			DirectionComponent& dc = *e.getComponent<DirectionComponent>();
+			RigidBody& rigidBody = e.getComponent<RigidBodyComponent>()->rigidBody;
+			Direction& direction = dc.direction;
+			dc.previousDirection = direction;
+			if (rigidBody.velocity.isZero()) {
+				direction = IDLE_DIRECTION;
 			}
-			if (motion->velocity.y < 0.0) {
-				direction->direction = Direction::UP;
-			} else if (motion->velocity.y > 0.0) {
-				direction->direction = Direction::DOWN;
+			if (rigidBody.velocity.y < 0.0) {
+				direction = Direction::UP;
+			} else if (rigidBody.velocity.y > 0.0) {
+				direction = Direction::DOWN;
 			}
-			if (motion->velocity.x < 0.0) {
-				direction->direction = Direction::LEFT;
-			} else if (motion->velocity.x > 0.0) {
-				direction->direction = Direction::RIGHT;
+			if (rigidBody.velocity.x > 0.0) {
+				direction = Direction::RIGHT;
+			} else if (rigidBody.velocity.x < 0.0) {
+				direction = Direction::LEFT;
 			}
 		}
 	}

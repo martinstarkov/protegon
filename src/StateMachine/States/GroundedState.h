@@ -4,8 +4,10 @@
 
 class GroundedState : public State<GroundedState> {
 	virtual void update() override final {
-		MotionComponent* motion = entity.getComponent<MotionComponent>();
-		if (motion->acceleration.y < 0.0) {
+		RigidBodyComponent* rb = entity.getComponent<RigidBodyComponent>();
+		assert(rb && "Cannot update given state without RigidBodyComponent");
+		RigidBody& rigidBody = rb->rigidBody;
+		if (rigidBody.acceleration.y < 0.0) { // upward
 			parentStateMachine->setCurrentState("jumped");
 		}
 	}

@@ -50,6 +50,8 @@ namespace Serializer {
 			json jsonComponent = j.at(key);
 			C component = jsonComponent.get<C>();
 			o.addComponent(component);
+		} else {
+			//LOG("Could not find " << key << " in components json field for EntityID " << o.getID());
 		}
 	}
 
@@ -60,7 +62,12 @@ namespace Serializer {
 
 	template <typename ...Cs>
 	void deserialize(Entity& o, const nlohmann::json& j) {
-		Util::swallow((deserializeComponent<Cs>(o, j["components"]), 0)...);
+		if (j.find("components") != j.end()) {
+			Util::swallow((deserializeComponent<Cs>(o, j["components"]), 0)...);
+		} else {
+			// Assert not necessary but good to have while developing
+			assert(false && "Attempting to deserialize Entity without ""components"" json field");
+		}
 	}
 
 	void serialize(nlohmann::json& j, const Entity& o) {
@@ -69,14 +76,11 @@ namespace Serializer {
 			AnimationComponent,
 			CollisionComponent,
 			DirectionComponent,
-			DragComponent,
-			GravityComponent,
 			InputComponent,
 			LifetimeComponent,
-			MotionComponent,
 			PlayerController,
 			RenderComponent,
-			SizeComponent,
+			RigidBodyComponent,
 			SpriteComponent,
 			SpriteSheetComponent,
 			TransformComponent
@@ -90,14 +94,11 @@ namespace Serializer {
 			AnimationComponent,
 			CollisionComponent,
 			DirectionComponent,
-			DragComponent,
-			GravityComponent,
 			InputComponent,
 			LifetimeComponent,
-			MotionComponent,
 			PlayerController,
 			RenderComponent,
-			SizeComponent,
+			RigidBodyComponent,
 			SpriteComponent,
 			SpriteSheetComponent,
 			TransformComponent
