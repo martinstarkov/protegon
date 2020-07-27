@@ -2,11 +2,10 @@
 
 #include <cmath>
 
-#include "AllocationMetrics.h"
-#include "Serialization.h"
+#include "common.h"
 
 constexpr const char leftDelimeter = '(';
-constexpr const char centerDelimeter = '(';
+constexpr const char centerDelimeter = ',';
 constexpr const char rightDelimeter = ')';
 
 struct Vec2D {
@@ -43,6 +42,13 @@ struct Vec2D {
 	bool isZero() {
 		return !*const_cast<const Vec2D*>(this);
 	}
+	// Return true if both vector components equal numeric limits infinity
+	bool isInfinite() const {
+		return x == INFINITE && y == INFINITE;
+	}
+	bool isInfinite() {
+		return const_cast<const Vec2D*>(this)->isInfinite();
+	}
 	// Return a vector with numeric_limit::infinity() set for both components
 	Vec2D infinite() const {
 		return Vec2D(std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity());
@@ -59,9 +65,6 @@ struct Vec2D {
 		std::string temp;
 		is >> temp;
 		obj = Vec2D(temp);
-		if (obj) {
-			is.setstate(std::ios::failbit);
-		}
 		return is;
 	}
 	// Both vector components rounded to the closest integeral
@@ -126,7 +129,7 @@ struct Vec2D {
 		return unit();
 	}
 	// Identity vector
-	Vec2D identity() const { 
+	Vec2D identity() const {
 		Vec2D obj;
 		obj.x = x > 0.0 ? 1.0 : x < 0.0 ? -1.0 : 0.0;
 		obj.y = y > 0.0 ? 1.0 : y < 0.0 ? -1.0 : 0.0;
@@ -136,26 +139,35 @@ struct Vec2D {
 		return const_cast<const Vec2D*>(this)->identity();
 	}
 	// Tangent to direction vector (y, -x)
-	Vec2D tangent() const { 
+	Vec2D tangent() const {
 		return Vec2D(y, -x);
 	}
 	Vec2D tangent() {
 		return const_cast<const Vec2D*>(this)->tangent();
 	}
 	// Flipped signs for both vector components
-	Vec2D opposite() const { 
+	Vec2D opposite() const {
 		return Vec2D(-x, -y);
 	}
 	Vec2D opposite() {
 		return const_cast<const Vec2D*>(this)->opposite();
 	}
+	// Return the magnitude squared of a vector
+	double magnitudeSquared() const {
+		return x * x + y * y;
+	}
+	double magnitudeSquared() {
+		return const_cast<const Vec2D*>(this)->magnitudeSquared();
+	}
 	// Return the magnitude of a vector
 	double magnitude() const {
-		return sqrt(x * x + y * y);
+		return sqrt(magnitudeSquared());
 	}
 	double magnitude() {
 		return const_cast<const Vec2D*>(this)->magnitude();
 	}
+
+	Vec2D operator -() { return Vec2D(-x, -y); }
 	// Increment/Decrement operators
 	Vec2D& operator++() {
 		++x;

@@ -11,6 +11,7 @@
 #include "AllocationMetrics.h"
 
 struct Vec2D;
+struct AABB;
 struct SDL_Rect;
 
 namespace Util {
@@ -90,6 +91,9 @@ namespace Util {
 
 	// Return an SDL_Rect from position and size vectors
 	SDL_Rect RectFromVec(const Vec2D& position, const Vec2D& size);
+
+	// Return an SDL_Rect from AABB
+	SDL_Rect RectFromAABB(const AABB& aabb);
 
 	// Delete a set of indexes from a vector or set
 	template <typename T, typename S>
