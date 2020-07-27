@@ -22,20 +22,17 @@ EntityData& EntityData::operator=(EntityData const& other) {
 void Manager::init() {
 	createSystems(
 		RenderSystem(),
-		MovementSystem(),
-		GravitySystem(),
+		PhysicsSystem(),
 		LifetimeSystem(),
 		AnimationSystem(),
 		CollisionSystem(),
-		MotionSystem(),
 		InputSystem(),
-		DragSystem(),
 		StateMachineSystem(),
 		DirectionSystem()
 	);
 }
 
-EntitySet Manager::getEntities(EntitySet exclude) {
+EntitySet Manager::getEntities(EntitySet&& exclude) {
 	EntitySet set;
 	for (auto& pair : _entities) {
 		if (exclude.find(pair.first) == exclude.end()) {
@@ -61,7 +58,7 @@ void Manager::destroyEntity(EntityID id) {
 	if (it != _entities.end()) {
 		it->second->alive = false;
 	}
-	// refresh systems later
+	// refreshes systems later
 }
 
 EntityData* Manager::getEntityData(EntityID id) {
@@ -83,19 +80,6 @@ void Manager::copyEntityData(EntityID to, EntityID from) {
 
 bool Manager::hasEntity(EntityID id) {
 	return _entities.find(id) != _entities.end();
-}
-
-EntityID Manager::createTree(Vec2D position) {
-	EntityID id = createEntity();
-	Entity handle = Entity(id, this);
-	handle.addComponents(
-		TransformComponent(position),
-		SizeComponent(Vec2D(64)),
-		SpriteComponent("./resources/textures/tree.png", Vec2D(16)), 
-		RenderComponent(),
-		CollisionComponent()
-	);
-	return id;
 }
 
 EntityID Manager::createBox(Vec2D position) {
@@ -127,35 +111,32 @@ EntityID Manager::createBox(Vec2D position) {
 EntityID Manager::createPlayer(Vec2D position) {
 	EntityID id = createEntity();
 	Entity handle = Entity(id, this);
+	Vec2D playerAcceleration = Vec2D(1.0);
 	handle.addComponents(
-		MotionComponent(),
-		DragComponent(UNIVERSAL_DRAG),
-		InputComponent(),
-		PlayerController(Vec2D(1.0)),
-		AnimationComponent(),
-		StateMachineComponent({ {"walkStateMachine", new WalkStateMachine("idle")},
-							  {"jumpStateMachine", new JumpStateMachine("grounded")} }),
 		TransformComponent(position),
-		SizeComponent(Vec2D(30, 51)),
+		InputComponent(),
+		PlayerController(playerAcceleration),
+		RigidBodyComponent(RigidBody(Vec2D(UNIVERSAL_DRAG), Vec2D(GRAVITY), ELASTIC, 1.0, playerAcceleration)),
+		CollisionComponent(Vec2D(30, 51)),
 		SpriteComponent("./resources/textures/player_test2.png", Vec2D(30, 51)),
 		SpriteSheetComponent(),
+		StateMachineComponent({ { "walkStateMachine", new WalkStateMachine("idle") },
+							  { "jumpStateMachine", new JumpStateMachine("grounded") } 
+							  }),
 		DirectionComponent(),
-		RenderComponent(), 
-		CollisionComponent()
+		AnimationComponent(),
+		RenderComponent()
 	);
 	return id;
 }
 
 void Manager::update() {
 	getSystem<InputSystem>()->update();
-	getSystem<GravitySystem>()->update();
-	getSystem<MotionSystem>()->update();
-	getSystem<DragSystem>()->update();
-	getSystem<MovementSystem>()->update();
+	getSystem<PhysicsSystem>()->update();
 	getSystem<CollisionSystem>()->update();
-	getSystem<LifetimeSystem>()->update();
-	getSystem<DirectionSystem>()->update();
 	getSystem<StateMachineSystem>()->update();
+	getSystem<DirectionSystem>()->update();
+	getSystem<LifetimeSystem>()->update();
 	refreshDeleted();
 }
 
@@ -181,12 +162,14 @@ void Manager::setComponentHandle(BaseComponent* component, EntityID id) {
 }
 
 void Manager::entityChanged(EntityID id) {
+	// Could be optimized by only calling systems that have that entity
 	for (auto& pair : _systems) {
 		pair.second->onEntityChanged(id);
 	}
 }
 
 void Manager::entityDestroyed(EntityID id) {
+	// Could be optimized by only calling systems that have that entity
 	for (auto& pair : _systems) {
 		pair.second->onEntityDestroyed(id);
 	}

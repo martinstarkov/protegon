@@ -46,7 +46,7 @@ public:
 	void destroyEntity(EntityID entityID);
 	bool hasEntity(EntityID entityID);
 
-	EntityID createTree(Vec2D position);
+	// Move specific Entity creation to a EntityFactory class and return EntityHandles
 	EntityID createBox(Vec2D position);
 	EntityID createPlayer(Vec2D position);
 
@@ -99,12 +99,10 @@ public:
 	S* getSystem() {
 		SystemID sId = static_cast<SystemID>(typeid(S).hash_code());
 		auto it = _systems.find(sId);
-		if (it != _systems.end()) {
-			return static_cast<S*>(it->second.get());
-		}
-		return nullptr;
+		assert(it != _systems.end() && "Attempting to call getSystem() on a non-existent System -> nullptr");
+		return static_cast<S*>(it->second.get());
 	}
-	EntitySet getEntities(EntitySet exclude);
+	EntitySet getEntities(EntitySet&& exclude);
 private:
 	EntityData* getEntityData(EntityID id);
 	void copyEntityData(EntityID to, EntityID from);
