@@ -1,12 +1,11 @@
 #pragma once
 
-#include "StateCommon.h"
+#include "StateDefines.h"
 
 #include "BaseState.h"
 #include "../BaseStateMachine.h"
 #include "../../ECS/Entity.h"
 #include "../../ECS/Components.h"
-#include "StateCommon.h"
 
 template <typename T>
 class State : public BaseState {

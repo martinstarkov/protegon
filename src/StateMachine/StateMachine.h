@@ -54,8 +54,6 @@ protected:
 			pair.second->setParentStateMachine(this);
 			pair.second->setHandle(handle);
 		}
-		LOG(states);
-		LOG(_currentState);
 		states[_currentState]->onEntry();
 	}
 	StateMap states;

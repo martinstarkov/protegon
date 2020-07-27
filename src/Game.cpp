@@ -13,7 +13,6 @@ SDL_Event event;
 
 Manager manager;
 
-Entity tree1;
 Entity box1;
 Entity player;
 
@@ -38,7 +37,6 @@ void Game::init() {
 	InputHandler::getInstance();
 	manager.init();
 
-	tree1 = Entity(manager.createTree(Vec2D(30)), &manager);
 	box1 = Entity(manager.createBox(Vec2D(30 * 2 * 2, 30)), &manager);
 	player = Entity(manager.createPlayer(Vec2D(30 * 10, 30)), &manager);
 
@@ -65,7 +63,7 @@ void Game::update() {
 	static int cycle = 0;
 	cycle++;
 	manager.update();
-	AllocationMetrics::printMemoryUsage();
+	//AllocationMetrics::printMemoryUsage();
 }
 
 void Game::render() {
