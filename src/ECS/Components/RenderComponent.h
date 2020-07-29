@@ -2,8 +2,11 @@
 
 #include "Component.h"
 
+#include "SDL.h"
+
 struct RenderComponent : public Component<RenderComponent> {
-	RenderComponent() = default;
+	SDL_Color color;
+	RenderComponent(SDL_Color color = { 0, 0, 0, 255 }) : color(color) {}
 };
 
 // json serialization

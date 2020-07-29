@@ -9,6 +9,7 @@ public:
 	virtual void update() override final {
 		for (auto& id : entities) {
 			Entity e = Entity(id, manager);
+			RenderComponent* render = e.getComponent<RenderComponent>();
 			TransformComponent* transform = e.getComponent<TransformComponent>();
 			SpriteComponent* sprite = e.getComponent<SpriteComponent>();
 			CollisionComponent* collider = e.getComponent<CollisionComponent>();
@@ -22,7 +23,7 @@ public:
 				}
 				if (collider) {
 					//TextureManager::draw(sprite->texture, sprite->source, Util::RectFromVec(transform->position, collider->collider.size), 0.0, flip);
-					TextureManager::draw(Util::RectFromVec(transform->position, collider->collider.size));
+					TextureManager::draw(Util::RectFromVec(transform->position, collider->collider.size), render->color);
 				} else {
 					TextureManager::draw(sprite->texture, sprite->source, Util::RectFromVec(transform->position, Vec2D(sprite->source.w, sprite->source.h)), 0.0, flip);
 				}
