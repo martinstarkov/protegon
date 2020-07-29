@@ -25,7 +25,9 @@ public:
 			RigidBody& rigidBody = e.getComponent<RigidBodyComponent>()->rigidBody;
 			Vec2D& position = e.getComponent<TransformComponent>()->position;
 			AABB& collider = e.getComponent<CollisionComponent>()->collider;
+			RenderComponent* render = e.getComponent<RenderComponent>();
 			// keep collider synced with transform
+			bool colliding = false;
 			collider.position = Vec2D(position);
 			for (auto& oId : entities) {
 				if (oId != id) {
@@ -37,6 +39,7 @@ public:
 					otherCollider.position = Vec2D(otherPosition);
 					CollisionManifold<AABB, AABB> m = CollisionManifold<AABB, AABB>(rigidBody, otherRigidBody, collider, otherCollider);
 					if (AABBvsAABB(m.sA, m.sB)) {
+						colliding = true;
 						//AABBvsAABB(m);
 						//LOG("Normal: " << m.normal << ", penetration: " << m.penetration);
 						//resolveCollision(m);
@@ -49,6 +52,15 @@ public:
 					if (e.hasComponent<PlayerController>()) {
 						//LOG("vel: " << rigidBody.velocity << ", tvel: " << rigidBody.terminalVelocity << ", drag: " << rigidBody.drag << ", accel: " << rigidBody.acceleration << ", gravity: " << rigidBody.gravity);
 					}
+				}
+			}
+			if (colliding) {
+				if (render) {
+					render->color = { 255, 0, 0, 255 };
+				}
+			} else {
+				if (render) {
+					render->color = { 0, 0, 0, 255 };
 				}
 			}
 		}
