@@ -68,7 +68,7 @@ void Game::update() {
 
 void Game::render() {
 	SDL_RenderClear(_renderer);
-	SDL_SetRenderDrawColor(getRenderer(), DEFAULT_RENDER_COLOR.r, DEFAULT_RENDER_COLOR.g, DEFAULT_RENDER_COLOR.b, DEFAULT_RENDER_COLOR.a);
+	TextureManager::setDrawColor(DEFAULT_RENDER_COLOR);
 	manager.render();
 	SDL_RenderPresent(_renderer);
 }

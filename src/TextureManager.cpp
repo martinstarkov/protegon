@@ -33,15 +33,14 @@ SDL_Texture* TextureManager::getTexture(const std::string& path) {
 	return iterator->second;
 }
 
-void TextureManager::draw(SDL_Texture* texture, SDL_Rect source, SDL_Rect destination) {
-	assert(texture && "Attempting to draw null texture");
-	SDL_RenderCopy(Game::getRenderer(), texture, &source, &destination);
+void TextureManager::setDrawColor(SDL_Color color) {
+	SDL_SetRenderDrawColor(Game::getRenderer(), color.r, color.g, color.b, color.a);
 }
 
 void TextureManager::draw(SDL_Rect rectangle, SDL_Color color) {
-	SDL_SetRenderDrawColor(Game::getRenderer(), color.r, color.g, color.b, color.a);
+	setDrawColor(color);
 	SDL_RenderDrawRect(Game::getRenderer(), &rectangle);
-	SDL_SetRenderDrawColor(Game::getRenderer(), DEFAULT_RENDER_COLOR.r, DEFAULT_RENDER_COLOR.g, DEFAULT_RENDER_COLOR.b, DEFAULT_RENDER_COLOR.a);
+	setDrawColor(DEFAULT_RENDER_COLOR);
 }
 
 void TextureManager::draw(SDL_Texture* texture, SDL_Rect source, SDL_Rect destination, double angle, SDL_RendererFlip flip) {
