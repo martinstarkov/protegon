@@ -4,6 +4,8 @@
 
 #include "../../RigidBody.h"
 
+// TODO: Add init() method to RigidBodyComponent, put rigidBody.init() inside it and do o.init() outside deserialize if statement
+
 struct RigidBodyComponent : public Component<RigidBodyComponent> {
 	RigidBody rigidBody;
 	RigidBodyComponent(RigidBody rigidBody = RigidBody()) : rigidBody(rigidBody) {}
