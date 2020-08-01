@@ -4,6 +4,8 @@
 
 #include "SDL.h"
 
+// TODO: Add color serialization
+
 struct RenderComponent : public Component<RenderComponent> {
 	SDL_Color color;
 	RenderComponent(SDL_Color color = { 0, 0, 0, 255 }) : color(color) {}
