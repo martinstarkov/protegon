@@ -2,6 +2,8 @@
 
 #include "Components.h"
 
+// TODO: Refactor serialize and deserialize functions to cycle through EntityData components lists
+
 Entity::Entity() : _id(UINT_MAX), _manager(nullptr) {}
 Entity::Entity(Manager* manager) : _id(UINT_MAX), _manager(manager) {}
 Entity::Entity(EntityID id, Manager* manager) : _id(id), _manager(manager) {}
