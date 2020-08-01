@@ -10,6 +10,9 @@
 #include "Components/BaseComponent.h"
 #include "Systems/BaseSystem.h"
 
+// TODO: Move specific Entity creation to a EntityFactory class and return EntityHandles
+// TODO: Store components (in EntityData) and entities (in Manager) as structs instead of pointers 
+
 // TODO: Big overhaul of the system and entity factories
 // Consider storing components in manager under EntityIDs as opposed to in Entity object
 // This will eliminate the need for entity pointers, change all parent relationships in components and states to pass a Manager reference and an EntityID instead of an entity pointer)
@@ -46,7 +49,6 @@ public:
 	void destroyEntity(EntityID entityID);
 	bool hasEntity(EntityID entityID);
 
-	// Move specific Entity creation to a EntityFactory class and return EntityHandles
 	EntityID createBox(Vec2D position);
 	EntityID createPlayer(Vec2D position);
 
@@ -55,6 +57,7 @@ public:
 		auto it = _entities.find(id);
 		if (it != _entities.end()) {
 			Util::swallow((addComponent(id, components), 0)...);
+                        // TODO: Better way of initializing components after addition?
 			Signature added;
 			added.insert(added.end(), { typeid(Cs).hash_code()... });
 			for (const ComponentID& cId : added) {
