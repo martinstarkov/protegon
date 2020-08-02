@@ -3,7 +3,8 @@
 #include <limits>
 
 // general
-constexpr double INFINITE = std::numeric_limits<double>::infinity();
+// TODO: Figure out how to serialize numeric_limits
+constexpr double INFINITE = DBL_MAX; //std::numeric_limits<double>::infinity();
 
 // window
 
@@ -16,7 +17,7 @@ constexpr double INFINITE = std::numeric_limits<double>::infinity();
 
 // framerate
 
-constexpr unsigned int FPS = 60;
+constexpr std::size_t FPS = 60;
 constexpr double SECOND_CHANGE_PER_FRAME = 1.0 / FPS;
 
 // rendering

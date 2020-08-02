@@ -116,7 +116,7 @@ EntityID Manager::createPlayer(Vec2D position) {
 		TransformComponent(position),
 		InputComponent(),
 		PlayerController(playerAcceleration),
-		RigidBodyComponent(RigidBody(Vec2D(UNIVERSAL_DRAG), Vec2D(GRAVITY), ELASTIC, 1.0, playerAcceleration)),
+		RigidBodyComponent(RigidBody(Vec2D(UNIVERSAL_DRAG), Vec2D(GRAVITY), ELASTIC, INFINITE, playerAcceleration)),
 		CollisionComponent(Vec2D(30, 51)),
 		SpriteComponent("./resources/textures/player_test2.png", Vec2D(30, 51)),
 		SpriteSheetComponent(),

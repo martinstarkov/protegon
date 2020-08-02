@@ -15,6 +15,7 @@ struct Vec2D {
 	// Regular construction
 	Vec2D(double x, double y) : x(x), y(y) {}
 	Vec2D(int x, int y) : x(static_cast<double>(x)), y(static_cast<double>(y)) {}
+	// Copy construction
 	Vec2D(const Vec2D& copy) {
 		x = copy.x;
 		y = copy.y;
@@ -51,7 +52,7 @@ struct Vec2D {
 	}
 	// Return a vector with numeric_limit::infinity() set for both components
 	Vec2D infinite() const {
-		return Vec2D(std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity());
+		return Vec2D(INFINITE);
 	}
 	Vec2D infinite() {
 		return const_cast<const Vec2D*>(this)->infinite();

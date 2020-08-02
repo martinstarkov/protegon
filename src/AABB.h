@@ -52,7 +52,7 @@ struct AABB : Shape<AABB> {
 		return boundsPoint;
 	}
 	Vec2D getPVector(Vec2D vel) { // find shortest distance from origin to edge of minkowski difference rectangle
-		double minTime = std::numeric_limits<double>::infinity();
+		double minTime = INFINITE;
 		Vec2D pv = Vec2D();
 		Vec2D relativePoint = Vec2D();
 		if (abs(vel.x) != 0.0) {
