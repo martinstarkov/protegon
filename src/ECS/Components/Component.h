@@ -16,7 +16,10 @@ public:
 	virtual std::unique_ptr<BaseComponent> uniqueClone() const override final {
 		return std::make_unique<T>(static_cast<const T&>(*this));
 	}
-	virtual void init() override {}
+	virtual void serialize(nlohmann::json& j) override final {
+		j[getName()] = static_cast<T&>(*this);
+	}
+	virtual void setup() override {}
 	virtual void setHandle(Entity handle) override final {
 		entity = handle;
 	}

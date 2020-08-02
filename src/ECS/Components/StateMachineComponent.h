@@ -4,9 +4,11 @@
 
 #include "../../StateMachine/StateMachines.h"
 
+// TODO: Fix how the StateMachineMap is initialized and remove the need for a separate setNames function
+
 struct StateMachineComponent : public Component<StateMachineComponent> {
 	StateMachineMap stateMachines;
-	// TODO: Fix how the StateMachineMap is initialized and remove the need for a separate setNames function
+	StateMachineComponent() = default;
 	StateMachineComponent(RawStateMachineMap&& stateMachines) {
 		// CHECK FOR MEMORY LEAKS
 		for (auto& pair : stateMachines) {
@@ -19,7 +21,7 @@ struct StateMachineComponent : public Component<StateMachineComponent> {
 			stateMachines.emplace(pair.first, pair.second->uniqueClone());
 		}
 	}
-	virtual void init() override final {
+	virtual void setup() override final {
 		for (auto& pair : stateMachines) {
 			pair.second->init(entity);
 		}
@@ -27,7 +29,7 @@ struct StateMachineComponent : public Component<StateMachineComponent> {
 };
 
 // TODO: Pointer serialization / Don't use pointer container for initialization, i.e. allocate stateMachines inside constructor
-//inline void to_json(nlohmann::json& j, const StateMachineComponent& o) {
+inline void to_json(nlohmann::json& j, const StateMachineComponent& o) {
 //	/*
 //	json map;
 //	for (auto& pair : o.stateMachines) {
@@ -35,11 +37,11 @@ struct StateMachineComponent : public Component<StateMachineComponent> {
 //	}
 //	j["stateMachines"] = map;
 //	*/
-//}
+}
 
-//inline void from_json(const nlohmann::json& j, StateMachineComponent& o) {
+inline void from_json(const nlohmann::json& j, StateMachineComponent& o) {
 //	o = StateMachineComponent();
 //	/*if (j.find("stateMachines") != j.end()) {
 //		o.stateMachines = j.at("stateMachines").get<StateMachineMap>();
 //	}*/
-//}
+}

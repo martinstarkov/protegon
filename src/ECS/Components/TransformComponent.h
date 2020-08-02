@@ -12,7 +12,6 @@ struct TransformComponent : public Component<TransformComponent> {
 	TransformComponent(Vec2D position = Vec2D(), double scale = 1.0, double rotation = 0.0) : position(position), rotation(rotation), scale(scale) {
 		init();
 	}
-
 	void init() {
 		originalPosition = position;
 	}

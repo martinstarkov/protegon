@@ -4,12 +4,16 @@
 
 #include "../../Vec2D.h"
 
-// TODO: Possible maxSpeed?
-// CONSIDER: Move speed elsewhere?
+// TODO: Possibly add a maxAcceleration? (for terminalVelocity calculation)
+// CONSIDER: Move inputAcceleration / maxAcceleration into another component?
 
 struct PlayerController : public Component<PlayerController> {
 	Vec2D inputAcceleration;
-	PlayerController(Vec2D inputAcceleration = Vec2D()) : inputAcceleration(inputAcceleration) {}
+	PlayerController(Vec2D inputAcceleration = Vec2D()) : inputAcceleration(inputAcceleration) {
+		init();
+	}
+	// might be useful later
+	void init() {}
 };
 
 // json serialization
@@ -21,4 +25,5 @@ inline void from_json(const nlohmann::json& j, PlayerController& o) {
 	if (j.find("inputAcceleration") != j.end()) {
 		o.inputAcceleration = j.at("inputAcceleration").get<Vec2D>();
 	}
+	o.init();
 }

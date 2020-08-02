@@ -1,6 +1,6 @@
 #include "RigidBody.h"
 
-constexpr const int TERMINAL_VELOCITY_PRECISION = 2; // significant figures
+constexpr const int TERMINAL_VELOCITY_PRECISION = 2; // significant figures of precision before stopping terminal velocity recursive calculation
 
 // function that uses recursion to see what velocity will converge to given certain drag and acceleration
 static Vec2D findTerminalVelocity(Vec2D drag, Vec2D maxAcceleration, Vec2D initialVelocity = Vec2D(0.0)) {
@@ -19,11 +19,17 @@ static Vec2D findTerminalVelocity(Vec2D drag, Vec2D maxAcceleration, Vec2D initi
 	}
 }
 
-void RigidBody::computeTerminalVelocity() {
-	if (!drag.isZero() && !maximumAcceleration.isZero() && !maximumAcceleration.isInfinite()) { // terminal velocity not set
-		terminalVelocity = findTerminalVelocity(Vec2D(1.0) - drag, maximumAcceleration);
-		LOG("Calculated terminal velocity of " << terminalVelocity);
+void RigidBody::init() {
+	if (mass == 0.0) {
+		inverseMass = 0.0;
 	} else {
-		terminalVelocity = Vec2D(INFINITE);
+		inverseMass = 1.0 / mass;
+	}
+	computeTerminalVelocity();
+}
+
+void RigidBody::computeTerminalVelocity() {
+	if (terminalVelocity.isInfinite() && !drag.isZero() && !maximumAcceleration.isZero() && !maximumAcceleration.isInfinite()) { // terminal velocity not set
+		terminalVelocity = findTerminalVelocity(Vec2D(1.0) - drag, maximumAcceleration);
 	}
 }

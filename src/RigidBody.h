@@ -21,17 +21,10 @@ struct RigidBody {
 	double mass;
 	double inverseMass;
 	double restitution;
-	RigidBody(Vec2D drag = Vec2D(DRAGLESS), Vec2D gravity = Vec2D(GRAVITY), double restitution = ELASTIC, double mass = IMMOVABLE, Vec2D maximumAcceleration = Vec2D(INFINITE)) : drag(drag), gravity(gravity), restitution(restitution), mass(mass) {
+	RigidBody(Vec2D drag = Vec2D(DRAGLESS), Vec2D gravity = Vec2D(GRAVITY), double restitution = ELASTIC, double mass = IMMOVABLE, Vec2D maximumAcceleration = Vec2D(INFINITE)) : drag(drag), gravity(gravity), restitution(restitution), mass(mass), maximumAcceleration(maximumAcceleration), terminalVelocity(Vec2D(INFINITE)) {
 		init();
 	}
-	void init() {
-		if (mass == 0.0) {
-			inverseMass = 0.0;
-		} else {
-			inverseMass = 1.0 / mass;
-		}
-		computeTerminalVelocity();
-	}
+	void init();
 	void computeTerminalVelocity();
 };
 
