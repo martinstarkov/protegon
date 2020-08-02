@@ -5,12 +5,10 @@
 #include "../../AABB.h"
 #include "../../Circle.h"
 
-// TODO: Figure out what data belongs here
-
 struct CollisionComponent : public Component<CollisionComponent> {
 	AABB collider;
 	CollisionComponent(AABB collider = AABB()) : collider(collider) {}
-	CollisionComponent(Vec2D size) : collider(AABB({}, size)) {}
+	CollisionComponent(Vec2D size) : collider({}, size) {}
 };
 
 // json serialization

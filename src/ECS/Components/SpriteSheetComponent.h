@@ -8,8 +8,6 @@
 #include "../../Direction.h"
 #include "../../Vec2D.h"
 
-// Turn sprite component into sprite sheet that feeds into AnimationSystem and create custom systems for different states (MovementStateSystem, etc)
-
 struct SpriteInformation {
 	Vec2D start;
 	std::size_t count;
@@ -32,12 +30,8 @@ inline void from_json(const nlohmann::json& j, SpriteInformation& o) {
 	}
 }
 
-using DirectionMap = std::map<Direction, SpriteInformation>;
-using AnimationMap = std::map<AnimationName, DirectionMap>;
-
 struct SpriteSheetComponent : public Component<SpriteSheetComponent> {
     AnimationMap animations;
-	// TODO: Make a spritesheet component which includes multiple animations
 	SpriteSheetComponent() {
         // read path file and emplace into animations as below
         // TEMPORARY: Only supports the player_anim.png

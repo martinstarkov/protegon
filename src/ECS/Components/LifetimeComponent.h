@@ -3,8 +3,8 @@
 #include "Component.h"
 
 struct LifetimeComponent : public Component<LifetimeComponent> {
-	double lifetime;
-	bool isDying;
+	double lifetime; // seconds
+	bool isDying; // lose lifetime every frame
 	LifetimeComponent(double lifetime = 1.0, bool isDying = true) : lifetime(lifetime), isDying(isDying) {}
 };
 

@@ -7,8 +7,6 @@
 #include "../../Vec2D.h"
 #include "../../AABB.h"
 
-// Turn sprite component into sprite sheet that feeds into AnimationSystem and create custom systems for different states (MovementStateSystem, etc)
-
 struct SpriteComponent : public Component<SpriteComponent> {
 	std::string path;
 	SDL_Rect source;

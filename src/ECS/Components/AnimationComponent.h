@@ -3,13 +3,12 @@
 #include "Component.h"
 
 struct AnimationComponent : public Component<AnimationComponent> {
-	AnimationName name;
-	int sprites;
-	double animationDelay;
-	int frame;
+	AnimationName name; // name of current animation
+	int sprites; // amount of sprites in current animation
+	double animationDelay; // second delay between animation frames
+	int frame; // frame of animation
 	int cyclesPerFrame;
 	int counter;
-	// Animation delay in seconds
 	AnimationComponent(int sprites = 1, double animationDelay = 0.1, int frame = 0) : sprites(sprites), animationDelay(animationDelay), frame(frame), name("") {
 		init();
 	}
