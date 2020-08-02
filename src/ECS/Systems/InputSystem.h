@@ -37,6 +37,9 @@ public:
 					}
 					manager->refreshDeleted();
 				}
+				if (s[SDL_SCANCODE_H]) {
+					Serialization::serialize("resources/player.json", e);
+				}
 			}
 		}
 	}

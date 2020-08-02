@@ -49,12 +49,19 @@ public:
 	const EntityID getID() const;
 	void setID(EntityID id);
 	Manager* getManager();
+	Manager* getManager() const;
 private:
 	Manager* _manager;
 	EntityID _id;
 };
 
+inline void to_json(nlohmann::json& j, const Entity& o) {
+	j["_id"] = o.getID();
+	for (auto& pair : o.getManager()->getEntityData(o.getID())->components) {
+		pair.second->serialize(j);
+	}
+}
+
 namespace Serializer {
-	void serialize(nlohmann::json& j, const Entity& o);
 	void deserialize(const nlohmann::json& j, Entity& o);
 }
