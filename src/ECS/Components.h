@@ -1,6 +1,6 @@
 #pragma once
 
-// Don't forget to also add your new Component type to the Entity.cpp de/serialize functions
+// TEMPORARY: Don't forget to also add your new Component type to the Entity.cpp deserialize function
 
 #include "Components/TransformComponent.h"
 #include "Components/SpriteComponent.h"

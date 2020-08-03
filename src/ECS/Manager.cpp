@@ -108,16 +108,18 @@ EntityID Manager::createBox(Vec2D position) {
 		return UINT_MAX;
 	}
 }
+
 EntityID Manager::createPlayer(Vec2D position) {
 	EntityID id = createEntity();
 	Entity handle = Entity(id, this);
-	Vec2D playerAcceleration = Vec2D(1.0);
+	Vec2D playerAcceleration = Vec2D(150.0, 150.0);
+	Vec2D gravity = Vec2D(0.0, 100.0);
 	handle.addComponents(
 		TransformComponent(position),
 		InputComponent(),
 		PlayerController(playerAcceleration),
-		RigidBodyComponent(RigidBody(Vec2D(UNIVERSAL_DRAG), Vec2D(GRAVITY), ELASTIC, INFINITE, playerAcceleration)),
-		CollisionComponent(Vec2D(30, 51)),
+		RigidBodyComponent(RigidBody(Vec2D(UNIVERSAL_DRAG), gravity, ELASTIC, INFINITE, abs(playerAcceleration) + abs(gravity))),
+		CollisionComponent(Vec2D(40, 51)),
 		SpriteComponent("./resources/textures/player_test2.png", Vec2D(30, 51)),
 		SpriteSheetComponent(),
 		StateMachineComponent({ { "walkStateMachine", new WalkStateMachine("idle") },

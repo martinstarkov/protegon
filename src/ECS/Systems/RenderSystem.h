@@ -22,8 +22,8 @@ public:
 					}
 				}
 				if (collider) {
-					TextureManager::draw(sprite->texture, sprite->source, Util::RectFromVec(transform->position, collider->collider.size), 0.0, flip);
-					//TextureManager::draw(Util::RectFromVec(transform->position, collider->collider.size), render->color);
+					//TextureManager::draw(sprite->texture, sprite->source, Util::RectFromVec(transform->position, collider->collider.size), 0.0, flip);
+					TextureManager::draw(Util::RectFromVec(transform->position, collider->collider.size), render->color);
 				} else {
 					TextureManager::draw(sprite->texture, sprite->source, Util::RectFromVec(transform->position, Vec2D(sprite->source.w, sprite->source.h)), 0.0, flip);
 				}

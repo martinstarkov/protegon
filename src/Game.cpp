@@ -7,6 +7,9 @@
 std::unique_ptr<Game> Game::_instance = nullptr;
 SDL_Window* Game::_window = nullptr;
 SDL_Renderer* Game::_renderer = nullptr;
+std::vector<AABB> Game::aabbs;
+std::vector<std::pair<Vec2D, Vec2D>> Game::lines;
+std::vector<Vec2D> Game::points;
 bool Game::_running = false;
 
 SDL_Event event;
@@ -37,7 +40,29 @@ void Game::init() {
 	InputHandler::getInstance();
 	manager.init();
 
-	box1 = Entity(manager.createBox(Vec2D(30 * 2 * 2, 30)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(32 * 4, 32 * 4)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(32 * 4, 32 * 5)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(32 * 4, 32 * 6)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(32 * 5, 32 * 6)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(32 * 6, 32 * 6)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(32 * 7, 32 * 6)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(32 * 8, 32 * 6)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(32 * 9, 32 * 6)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(32 * 10, 32 * 6)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(32 * 11, 32 * 6)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(32 * 12, 32 * 6)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(32 * 13, 32 * 6)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(32 * 14, 32 * 6)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(32 * 15, 32 * 6)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(32 * 16, 32 * 6)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(32 * 17, 32 * 6)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(32 * 17, 32 * 5)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(32 * 17, 32 * 4)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(32 * 17, 32 * 3)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(32 * 16, 32 * 3)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(32 * 15, 32 * 3)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(32 * 14, 32 * 3)), &manager);
+	box1 = Entity(manager.createBox(Vec2D(32 * 13, 32 * 3)), &manager);
 	player = Entity(manager.createPlayer(Vec2D(30 * 10, 30)), &manager);
 
 	manager.refresh();
@@ -67,10 +92,26 @@ void Game::update() {
 }
 
 void Game::render() {
+	SDL_Delay(1000);
 	SDL_RenderClear(_renderer);
 	TextureManager::setDrawColor(DEFAULT_RENDER_COLOR);
 	manager.render();
+	for (auto& box : Game::aabbs) {
+		TextureManager::draw(Util::RectFromAABB(box), { 0, 0, 255, 255 });
+	}
+	TextureManager::setDrawColor({ 255, 0, 255, 255 });
+	for (auto& line : Game::lines) {
+		SDL_RenderDrawLine(_renderer, line.first.x, line.first.y, line.second.x, line.second.y);
+	}
+	TextureManager::setDrawColor({ 255, 0, 0, 255 });
+	for (auto& point : Game::points) {
+		SDL_RenderDrawPoint(_renderer, point.x, point.y);
+	}
+	TextureManager::setDrawColor(DEFAULT_RENDER_COLOR);
 	SDL_RenderPresent(_renderer);
+	aabbs.clear();
+	lines.clear();
+	points.clear();
 }
 
 void Game::loop() {
