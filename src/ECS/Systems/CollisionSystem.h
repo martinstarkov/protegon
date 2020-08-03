@@ -2,19 +2,30 @@
 
 #include "System.h"
 
+#include "../../Game.h"
+
 #include <algorithm>
 
 // TODO: Redo entire collision system
 
-template <typename T, typename S>
-struct CollisionManifold {
-	RigidBody& rbA;
-	RigidBody& rbB;
-	T& sA;
-	S& sB;
-	double penetration;
+struct CollisionInformation {
 	Vec2D normal;
-	CollisionManifold(RigidBody& rbA, RigidBody& rbB, T& sA, S& sB) : rbA(rbA), rbB(rbB), sA(sA), sB(sB), penetration(0.0), normal() {}
+	Vec2D point;
+	double nearHitTime;
+	CollisionInformation() : nearHitTime(0.0) {}
+};
+
+template <typename T>
+struct DynamicObject {
+	RigidBody& rigidBody;
+	const T& shape;
+	DynamicObject(RigidBody& rigidBody, T& shape) : shape(shape), rigidBody(rigidBody) {}
+};
+
+struct Collision {
+	CollisionInformation collision;
+	Entity contactEntity;
+	AABB* collider;
 };
 
 class CollisionSystem : public System<TransformComponent, RigidBodyComponent, CollisionComponent> {
@@ -22,99 +33,143 @@ public:
 	virtual void update() override final {
 		for (auto& id : entities) {
 			Entity e = Entity(id, manager);
+			Vec2D& position = e.getComponent<TransformComponent>()->position;
+			AABB& collider = e.getComponent<CollisionComponent>()->collider;
+			collider.position = Vec2D(position);
+		}
+		for (auto& id : entities) {
+			Entity e = Entity(id, manager);
 			RigidBody& rigidBody = e.getComponent<RigidBodyComponent>()->rigidBody;
 			Vec2D& position = e.getComponent<TransformComponent>()->position;
 			AABB& collider = e.getComponent<CollisionComponent>()->collider;
 			RenderComponent* render = e.getComponent<RenderComponent>();
-			// keep collider synced with transform
-			bool colliding = false;
-			collider.position = Vec2D(position);
-			for (auto& oId : entities) {
-				if (oId != id) {
-					Entity o = Entity(oId, manager);
-					RigidBody& otherRigidBody = o.getComponent<RigidBodyComponent>()->rigidBody;
-					Vec2D& otherPosition = o.getComponent<TransformComponent>()->position;
-					AABB& otherCollider = o.getComponent<CollisionComponent>()->collider;
-					// keep collider synced with transform
-					otherCollider.position = Vec2D(otherPosition);
-					CollisionManifold<AABB, AABB> m = CollisionManifold<AABB, AABB>(rigidBody, otherRigidBody, collider, otherCollider);
-					if (AABBvsAABB(m.sA, m.sB)) {
-						colliding = true;
-						//AABBvsAABB(m);
-						//LOG("Normal: " << m.normal << ", penetration: " << m.penetration);
-						//resolveCollision(m);
-						//correctPositions(m);
-						//// update transform positions to match collider
-						//otherPosition = otherCollider.position;
-						//position = collider.position;
-						////LOG("Collision occured");
-					}
-					if (e.hasComponent<PlayerController>()) {
-						//LOG("vel: " << rigidBody.velocity << ", tvel: " << rigidBody.terminalVelocity << ", drag: " << rigidBody.drag << ", accel: " << rigidBody.acceleration << ", gravity: " << rigidBody.gravity);
+			PlayerController* player = e.getComponent<PlayerController>();
+			if (player) {
+				// Sort collisions in order of distance
+				CollisionInformation collision;
+				std::vector<std::pair<AABB, double>> z;
+				// Work out collision point, add it to vector along with rect ID
+				for (auto& oId : entities) {
+					if (oId != id) {
+						Entity o = Entity(oId, manager);
+						AABB& otherCollider = o.getComponent<CollisionComponent>()->collider;
+						if (DynamicAABBvsAABB(DynamicObject<AABB>{ rigidBody, collider }, otherCollider, collision)) {
+							z.push_back({ otherCollider, collision.nearHitTime });
+						}
 					}
 				}
-			}
-			if (colliding) {
-				if (render) {
-					render->color = { 255, 0, 0, 255 };
+				// Do the sort
+				std::sort(z.begin(), z.end(), [](const std::pair<AABB, double>& a, const std::pair<AABB, double>& b) {
+					return a.second < b.second;
+				});
+
+				// Now resolve the collision in correct order 
+				for (auto j : z) {
+					LOG("Collision time: " << j.second);
+					if (ResolveDynamicAABBvsAABB(DynamicObject<AABB>{ rigidBody, collider }, j.first, collision)) {
+						// TODO: This only resolves the first collision in both directions, then ignores x and goes through wall
+					}
 				}
-			} else {
-				if (render) {
-					render->color = { 0, 0, 0, 255 };
-				}
+
+				// UPdate the player rectangles position, with its modified velocity
+				position += rigidBody.velocity;
 			}
 		}
 	}
-	bool AABBvsAABB(AABB& a, AABB& b) {
-		// Exit with no intersection if found separated along an axis
-		if (a.max().x < b.min().x || a.min().x > b.max().x) return false;
-		if (a.max().y < b.min().y || a.min().y > b.max().y) return false;
-		// No separating axis found, therefor there is at least one overlapping axis
+	bool PointvsAABB(const Vec2D& point, const AABB& a) {
+		return (point.x >= a.position.x && 
+				point.y >= a.position.y &&
+				point.x < a.position.x + a.size.x &&
+				point.y < a.position.y + a.size.y);
+	}
+	bool AABBvsAABB(const AABB& a, const AABB& b) {
+		if (a.position.x + a.size.x < b.position.x || a.position.x > b.position.x + b.size.x) return false;
+		if (a.position.y + a.size.y < b.position.y || a.position.y > b.position.y + b.size.y) return false;
 		return true;
 	}
-	bool AABBvsAABB(CollisionManifold<AABB, AABB>& m) {
-		// Setup a couple pointers to each object
-		AABB& A = m.sA;
-		AABB& B = m.sB;
-		// Vector from A to B
-		Vec2D n = B.position - A.position;
-		// Calculate overlap on x axis
-		double xOverlap = A.size.x / 2.0 + B.size.x / 2.0 - abs(n.x);
-		// SAT test on x axis
-		if (xOverlap > 0.0) {
-			// Calculate overlap on y axis
-			double yOverlap = A.size.y / 2.0 + B.size.y / 2.0 - abs(n.y);
-			// SAT test on y axis
-			if (yOverlap > 0.0) {
-				// Find out which axis is axis of least penetration
-				if (xOverlap > yOverlap) {
-					// Point towards B knowing that n points from A to B
-					if (n.x < 0.0) {
-						m.normal = Vec2D(-1.0, 0.0);
-					} else {
-						m.normal = Vec2D(1.0, 0.0);
-						m.penetration = xOverlap;
-						return true;
-					}
-				} else {
-					// Point toward B knowing that n points from A to B
-					if (n.y < 0.0) {
-						m.normal = Vec2D(0.0, -1.0);
-					} else {
-						m.normal = Vec2D(0.0, 1.0);
-						m.penetration = yOverlap;
-						return true;
-					}
-				}
-			}
+	bool RayvsAABB(const Ray2D& ray, const AABB& target, CollisionInformation& collision) {
+		//Game::lines.push_back({ ray.origin, ray.origin + ray.direction });
+		collision.normal = { 0,0 };
+		collision.point = { 0,0 };
+		collision.nearHitTime = 0.0;
+		// Cache division
+		Vec2D invdir = 1.0 / ray.direction;
+
+		// Calculate intersections with rectangle bounding axes
+		Vec2D t_near = (target.position - ray.origin) * invdir;
+		Vec2D t_far = (target.position + target.size - ray.origin) * invdir;
+
+		if (std::isnan(t_far.y) || std::isnan(t_far.x)) return false;
+		if (std::isnan(t_near.y) || std::isnan(t_near.x)) return false;
+
+		// Sort distances
+		if (t_near.x > t_far.x) std::swap(t_near.x, t_far.x);
+		if (t_near.y > t_far.y) std::swap(t_near.y, t_far.y);
+
+		// Early rejection		
+		if (t_near.x > t_far.y || t_near.y > t_far.x) return false;
+
+		// Closest 'time' will be the first contact
+		collision.nearHitTime = std::max(t_near.x, t_near.y);
+
+		// Furthest 'time' is contact on opposite side of target
+		double t_hit_far = std::min(t_far.x, t_far.y);
+
+		// Reject if ray direction is pointing away from object
+		if (t_hit_far < 0)
+			return false;
+
+		// Contact point of collision from parametric line equation
+		collision.point = ray.origin + collision.nearHitTime * ray.direction;
+
+		if (t_near.x > t_near.y)
+			if (invdir.x < 0)
+				collision.normal = { 1, 0 };
+			else
+				collision.normal = { -1, 0 };
+		else if (t_near.x < t_near.y)
+			if (invdir.y < 0)
+				collision.normal = { 0, 1 };
+			else
+				collision.normal = { 0, -1 };
+
+		// Note if t_near == t_far, collision is principly in a diagonal
+		// so pointless to resolve. By returning a CN={0,0} even though its
+		// considered a hit, the resolver wont change anything.
+		return true;
+	}
+	bool DynamicAABBvsAABB(const DynamicObject<AABB>& dynamicA, const AABB& staticB, CollisionInformation& collision) {
+		// Check if dynamic rectangle is actually moving - we assume rectangles are NOT in collision to start
+		if (dynamicA.rigidBody.velocity.isZero()) return false;
+
+		// Expand target rectangle by source dimensions
+		AABB expanded = staticB.expandedBy(dynamicA.shape);
+		//Game::aabbs.push_back(expanded);
+
+		if (RayvsAABB(Ray2D(dynamicA.shape.position + dynamicA.shape.size / 2.0, dynamicA.rigidBody.velocity), expanded, collision)) {
+			Game::points.push_back(collision.point);
+			return (collision.nearHitTime >= 0.0 && collision.nearHitTime < 1.0);
+		} else {
+			return false;
+		}
+	}
+	bool ResolveDynamicAABBvsAABB(const DynamicObject<AABB>& dynamicA, const AABB& staticB, CollisionInformation& collision) {
+		collision.nearHitTime = 0.0;
+		collision.normal = { 0, 0 };
+		collision.point = { 0, 0 };
+		if (DynamicAABBvsAABB(dynamicA, staticB, collision)) {
+			LOG("Adding " << collision.normal * abs(dynamicA.rigidBody.velocity) * (1.0 - collision.nearHitTime) << " to velocity: " << dynamicA.rigidBody.velocity);
+			dynamicA.rigidBody.velocity += collision.normal * abs(dynamicA.rigidBody.velocity) * (1.0 - collision.nearHitTime);
+			return true;
 		}
 		return false;
 	}
 	bool CirclevsCircle(Circle a, Circle b) {
 		double r = a.radius + b.radius;
 		r *= r;
-		return r < (a.position.x + b.position.x)* (a.position.x + b.position.x) + (a.position.y + b.position.y) * (a.position.y + b.position.y);
+		return r < (a.position + b.position).magnitudeSquared();
 	}
+	/*
 	bool CirclevsCircle(CollisionManifold<Circle, Circle>& m) {
 		// Setup a couple pointers to each object
 		Circle& A = m.sA;
@@ -203,40 +258,8 @@ public:
 
 		return true;
 	}
-	template <typename T, typename S>
-	void resolveCollision(CollisionManifold<T, S>& m) {
-		RigidBody& A = m.rbA;
-		RigidBody& B = m.rbB;
-		// Calculate relative velocity
-		Vec2D rv = B.velocity - A.velocity;
-
-		// Calculate relative velocity in terms of the normal direction
-		double velAlongNormal = rv.dotProduct(m.normal);
-
-		// Do not resolve if velocities are separating
-		if (velAlongNormal > 0.0) {
-			return;
-		}
-
-		// Calculate restitution
-		double e = std::min(A.restitution, B.restitution);
-
-			// Calculate impulse scalar
-		double j = -(1 + e) * velAlongNormal;
-		j /= A.inverseMass + B.inverseMass;
-
-		// Apply impulse
-		Vec2D impulse = j * m.normal;
-		A.velocity -= A.inverseMass * impulse;
-		B.velocity += B.inverseMass * impulse;
-	}
-	template <typename T, typename S>
-	void correctPositions(CollisionManifold<T, S>& m) {
-		Vec2D n = m.sB.position - m.sA.position;
-		const double percent = 0.2; // usually 20% to 80%
-		const double slop = 0.01; // usually 0.01 to 0.1
-		Vec2D correction = std::max(m.penetration - slop, 0.0) / (m.rbA.inverseMass + m.rbB.inverseMass) * percent * n;
-		m.sA.position -= m.rbA.inverseMass * correction;
-		m.sB.position += m.rbB.inverseMass * correction;
+	*/
+	AABB minkowskiDifference(const AABB& a, const AABB& b) {
+		return AABB(a.position - b.position + b.size, a.size + b.size);
 	}
 };
