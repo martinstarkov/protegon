@@ -176,6 +176,7 @@
     <Image Include="resources\textures\player_anim2.png" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\Ray2D.h" />
     <ClInclude Include="src\ECS\Systems\DirectionSystem.h" />
     <ClInclude Include="src\ECS\Systems\PhysicsSystem.h" />
     <ClInclude Include="src\RigidBody.h" />

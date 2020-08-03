@@ -262,6 +262,9 @@
     <ClInclude Include="src\Shape.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\Ray2D.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Game.cpp">
