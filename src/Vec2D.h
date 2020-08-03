@@ -34,14 +34,21 @@ struct Vec2D {
 	}
 	// Return true if either vector component is not equal to 0
 	operator bool() const {
-		return x && y;
+		return x || y;
 	}
 	// Return true if both vector components equal 0
 	bool isZero() const {
-		return !(*this);
+		return !x && !y;
 	}
 	bool isZero() {
-		return !*const_cast<const Vec2D*>(this);
+		return const_cast<const Vec2D*>(this)->isZero();
+	}
+	// Return true if either vector component equals 0
+	bool hasZero() const {
+		return !x || !y;
+	}
+	bool hasZero() {
+		return const_cast<const Vec2D*>(this)->hasZero();
 	}
 	// Return true if both vector components equal numeric limits infinity
 	bool isInfinite() const {
@@ -301,15 +308,7 @@ inline Vec2D operator+(Vec2D lhs, const double& rhs) {
 	lhs += rhs;
 	return lhs;
 }
-inline Vec2D operator+(Vec2D lhs, double& rhs) {
-	lhs += rhs;
-	return lhs;
-}
 inline Vec2D operator-(Vec2D lhs, const double& rhs) {
-	lhs -= rhs;
-	return lhs;
-}
-inline Vec2D operator-(Vec2D lhs, double& rhs) {
 	lhs -= rhs;
 	return lhs;
 }
@@ -317,23 +316,23 @@ inline Vec2D operator*(Vec2D lhs, const double& rhs) {
 	lhs *= rhs;
 	return lhs;
 }
-inline Vec2D operator*(Vec2D lhs, double& rhs) {
-	lhs *= rhs;
-	return lhs;
-}
 inline Vec2D operator/(Vec2D lhs, const double& rhs) {
 	lhs /= rhs;
 	return lhs;
 }
-inline Vec2D operator/(Vec2D lhs, double& rhs) {
-	lhs /= rhs;
-	return lhs;
+inline Vec2D operator+(const double& lhs, const Vec2D& rhs) {
+	return Vec2D(rhs + lhs);
+}
+inline Vec2D operator-(const double& lhs, const Vec2D& rhs) {
+	return Vec2D(rhs - lhs);
+}
+inline Vec2D operator*(const double& lhs, const Vec2D& rhs) {
+	return Vec2D(rhs * lhs);
+}
+inline Vec2D operator/(const double& lhs, const Vec2D& rhs) {
+	return Vec2D(lhs) / rhs;
 }
 inline Vec2D operator+(const double& lhs, Vec2D& rhs) {
-	rhs += lhs;
-	return rhs;
-}
-inline Vec2D operator+(double& lhs, Vec2D& rhs) {
 	rhs += lhs;
 	return rhs;
 }
@@ -341,23 +340,11 @@ inline Vec2D operator-(const double& lhs, Vec2D& rhs) {
 	rhs -= lhs;
 	return rhs;
 }
-inline Vec2D operator-(double& lhs, Vec2D& rhs) {
-	rhs -= lhs;
-	return rhs;
-}
 inline Vec2D operator*(const double& lhs, Vec2D& rhs) {
 	rhs *= lhs;
 	return rhs;
 }
-inline Vec2D operator*(double& lhs, Vec2D& rhs) {
-	rhs *= lhs;
-	return rhs;
-}
 inline Vec2D operator/(const double& lhs, Vec2D& rhs) {
-	rhs /= lhs;
-	return rhs;
-}
-inline Vec2D operator/(double& lhs, Vec2D& rhs) {
 	rhs /= lhs;
 	return rhs;
 }
