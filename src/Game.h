@@ -6,11 +6,13 @@
 
 #include "SDL.h"
 
+#include <tuple>
+
 class Game {
 public:
-	static std::vector<AABB> aabbs;
-	static std::vector<std::pair<Vec2D, Vec2D>> lines;
-	static std::vector<Vec2D> points;
+	static std::vector<std::pair<AABB, SDL_Color>> aabbs;
+	static std::vector<std::tuple<Vec2D, Vec2D, SDL_Color>> lines;
+	static std::vector<std::pair<Vec2D, SDL_Color>> points;
 	static Game& getInstance();
 	static SDL_Window* getWindow();
 	static SDL_Renderer* getRenderer();

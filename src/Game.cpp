@@ -7,9 +7,9 @@
 std::unique_ptr<Game> Game::_instance = nullptr;
 SDL_Window* Game::_window = nullptr;
 SDL_Renderer* Game::_renderer = nullptr;
-std::vector<AABB> Game::aabbs;
-std::vector<std::pair<Vec2D, Vec2D>> Game::lines;
-std::vector<Vec2D> Game::points;
+std::vector<std::pair<AABB, SDL_Color>> Game::aabbs;
+std::vector<std::tuple<Vec2D, Vec2D, SDL_Color>> Game::lines;
+std::vector<std::pair<Vec2D, SDL_Color>> Game::points;
 bool Game::_running = false;
 
 SDL_Event event;
@@ -91,23 +91,36 @@ void Game::update() {
 	//AllocationMetrics::printMemoryUsage();
 }
 
+static bool equal(SDL_Color o, SDL_Color p) {
+	return o.a == p.a && o.b == p.b && o.g == p.g && o.r == p.r;
+}
+
 void Game::render() {
-	SDL_Delay(1000);
+	//SDL_Delay(1000);
 	SDL_RenderClear(_renderer);
 	TextureManager::setDrawColor(DEFAULT_RENDER_COLOR);
 	manager.render();
-	for (auto& box : Game::aabbs) {
-		TextureManager::draw(Util::RectFromAABB(box), { 0, 0, 255, 255 });
-	}
-	TextureManager::setDrawColor({ 255, 0, 255, 255 });
-	for (auto& line : Game::lines) {
-		SDL_RenderDrawLine(_renderer, line.first.x, line.first.y, line.second.x, line.second.y);
-	}
-	TextureManager::setDrawColor({ 255, 0, 0, 255 });
 	for (auto& point : Game::points) {
-		SDL_RenderDrawPoint(_renderer, point.x, point.y);
+		SDL_Color color = point.second;
+		if (equal(color, DEFAULT_RENDER_COLOR)) {
+			color = { 255, 0, 0, 255 };
+		}
+		TextureManager::drawPoint(point.first, color);
 	}
-	TextureManager::setDrawColor(DEFAULT_RENDER_COLOR);
+	for (auto& line : Game::lines) {
+		SDL_Color color = std::get<2>(line);
+		if (equal(color, DEFAULT_RENDER_COLOR)) {
+			color = { 255, 0, 255, 255 };
+		}
+		TextureManager::drawLine(std::get<0>(line), std::get<1>(line), color);
+	}
+	for (auto& box : Game::aabbs) {
+		SDL_Color color = box.second;
+		if (equal(color, DEFAULT_RENDER_COLOR)) {
+			color = { 0, 0, 255, 255 };
+		}
+		TextureManager::drawRectangle(box.first, color);
+	}
 	SDL_RenderPresent(_renderer);
 	aabbs.clear();
 	lines.clear();
