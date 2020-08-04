@@ -9,8 +9,8 @@ public:
 	virtual void update() override final {
 		for (auto& id : entities) {
 			Entity e = Entity(id, manager);
-			RenderComponent* render = e.getComponent<RenderComponent>();
-			TransformComponent* transform = e.getComponent<TransformComponent>();
+			SDL_Color& color = e.getComponent<RenderComponent>()->color;
+			Vec2D& position = e.getComponent<TransformComponent>()->position;
 			SpriteComponent* sprite = e.getComponent<SpriteComponent>();
 			CollisionComponent* collider = e.getComponent<CollisionComponent>();
 			DirectionComponent* direction = e.getComponent<DirectionComponent>();
@@ -23,13 +23,13 @@ public:
 				}
 				if (collider) {
 					//TextureManager::draw(sprite->texture, sprite->source, Util::RectFromVec(transform->position, collider->collider.size), 0.0, flip);
-					TextureManager::draw(Util::RectFromVec(transform->position, collider->collider.size), render->color);
+					TextureManager::drawRectangle(position, collider->collider.size, color);
 				} else {
-					TextureManager::draw(sprite->texture, sprite->source, Util::RectFromVec(transform->position, Vec2D(sprite->source.w, sprite->source.h)), 0.0, flip);
+					TextureManager::drawRectangle(sprite->texture, sprite->source, Util::RectFromPoints(position.x, position.y, sprite->source.w, sprite->source.h), 0.0, flip);
 				}
 			} else {
 				if (collider) {
-					TextureManager::draw(Util::RectFromVec(transform->position, collider->collider.size));
+					TextureManager::drawRectangle(position, collider->collider.size, color);
 				}
 			}
 		}
