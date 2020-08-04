@@ -8,73 +8,120 @@
 
 // TODO: Redo entire collision system
 
-struct CollisionInformation {
-	Vec2D normal;
+struct CollisionManifold {
 	Vec2D point;
-	double nearHitTime;
-	CollisionInformation() : nearHitTime(0.0) {}
-};
-
-template <typename T>
-struct DynamicObject {
-	RigidBody& rigidBody;
-	const T& shape;
-	DynamicObject(RigidBody& rigidBody, T& shape) : shape(shape), rigidBody(rigidBody) {}
+	Vec2D normal;
+	double time = 0.0;
 };
 
 struct Collision {
-	CollisionInformation collision;
-	Entity contactEntity;
-	AABB* collider;
+	Entity entity;
+	CollisionManifold manifold;
 };
+
+#define DC SDL_Color{ 0, 0, 0, 255 }
 
 class CollisionSystem : public System<TransformComponent, RigidBodyComponent, CollisionComponent> {
 public:
 	virtual void update() override final {
 		for (auto& id : entities) {
-			Entity e = Entity(id, manager);
-			Vec2D& position = e.getComponent<TransformComponent>()->position;
-			AABB& collider = e.getComponent<CollisionComponent>()->collider;
-			collider.position = Vec2D(position);
+			manager->getComponent<CollisionComponent>(id)->collider.position = manager->getComponent<TransformComponent>(id)->position;
+			RenderComponent* render = manager->getComponent<RenderComponent>(id);
+			if (render) {
+				render->color = { 0, 0, 0, 255 };
+			}
 		}
 		for (auto& id : entities) {
 			Entity e = Entity(id, manager);
-			RigidBody& rigidBody = e.getComponent<RigidBodyComponent>()->rigidBody;
-			Vec2D& position = e.getComponent<TransformComponent>()->position;
-			AABB& collider = e.getComponent<CollisionComponent>()->collider;
-			RenderComponent* render = e.getComponent<RenderComponent>();
-			PlayerController* player = e.getComponent<PlayerController>();
-			if (player) {
-				// Sort collisions in order of distance
-				CollisionInformation collision;
-				std::vector<std::pair<AABB, double>> z;
-				// Work out collision point, add it to vector along with rect ID
+			if (e.hasComponent<PlayerController>()) {
+				TransformComponent& transform = *e.getComponent<TransformComponent>();
+				RigidBody& rigidBody = e.getComponent<RigidBodyComponent>()->rigidBody;
+				AABB& collider = e.getComponent<CollisionComponent>()->collider;
+				std::vector<Collision> collisions;
+				EntitySet broadphaseEntities;
+				AABB broadphase = getSweptBroadphaseBox(rigidBody.velocity, collider);
+				Game::aabbs.push_back({ broadphase, { 255, 0, 0, 255 } });
 				for (auto& oId : entities) {
-					if (oId != id) {
-						Entity o = Entity(oId, manager);
-						AABB& otherCollider = o.getComponent<CollisionComponent>()->collider;
-						if (DynamicAABBvsAABB(DynamicObject<AABB>{ rigidBody, collider }, otherCollider, collision)) {
-							z.push_back({ otherCollider, collision.nearHitTime });
+					if (oId == id) continue;
+					if (AABBvsAABB(broadphase, manager->getComponent<CollisionComponent>(oId)->collider)) {
+						broadphaseEntities.insert(oId);
+					}
+				}
+				Collision info;
+				for (auto& oId : broadphaseEntities) {
+					AABB& otherCollider = manager->getComponent<CollisionComponent>(oId)->collider;
+					if (DynamicRectVsRect(&rigidBody, &collider, otherCollider, info.manifold)) {
+						info.entity = Entity(oId, manager);
+						collisions.push_back(info);
+					}
+				}
+				// Sort collision sweep times
+				std::sort(collisions.begin(), collisions.end(), [](const Collision& a, const Collision& b) {
+					return a.manifold.time < b.manifold.time;
+				});
+				if (collisions.size() > 0) {
+					Vec2D oldVelocity = rigidBody.velocity;
+					for (auto& collision : collisions) {
+						AABB& otherCollider = collision.entity.getComponent<CollisionComponent>()->collider;
+						RenderComponent* render = collision.entity.getComponent<RenderComponent>();
+						if (ResolveDynamicRectVsRect(&rigidBody, &collider, &otherCollider)) {
+							if (render) {
+								render->color = { 255, 0, 255, 255 };
+							}
+						} else {
+							if (render) {
+								render->color = { 255, 0, 0, 255 };
+							}
+						}
+					}
+					if (rigidBody.velocity != oldVelocity) { // velocity changed, complete a second sweep
+						collisions.clear();
+						for (auto& oId : broadphaseEntities) {
+							AABB& otherCollider = manager->getComponent<CollisionComponent>(oId)->collider;
+							if (DynamicRectVsRect(&rigidBody, &collider, otherCollider, info.manifold)) {
+								info.entity = Entity(oId, manager);
+								collisions.push_back(info);
+							}
+						}
+						if (collisions.size() > 0) {
+							// Sort second collision sweep times
+							std::sort(collisions.begin(), collisions.end(), [](const Collision& a, const Collision& b) {
+								return a.manifold.time < b.manifold.time;
+							});
+							for (auto& collision : collisions) {
+								AABB& otherCollider = collision.entity.getComponent<CollisionComponent>()->collider;
+								RenderComponent* render = collision.entity.getComponent<RenderComponent>();
+								if (ResolveDynamicRectVsRect(&rigidBody, &collider, &otherCollider)) {
+									if (render) {
+										render->color = { 255, 0, 255, 255 };
+									}
+								} else {
+									if (render) {
+										render->color = { 255, 0, 0, 255 };
+									}
+								}
+							}
 						}
 					}
 				}
-				// Do the sort
-				std::sort(z.begin(), z.end(), [](const std::pair<AABB, double>& a, const std::pair<AABB, double>& b) {
-					return a.second < b.second;
-				});
-
-				// Now resolve the collision in correct order 
-				for (auto j : z) {
-					LOG("Collision time: " << j.second);
-					if (ResolveDynamicAABBvsAABB(DynamicObject<AABB>{ rigidBody, collider }, j.first, collision)) {
-						// TODO: This only resolves the first collision in both directions, then ignores x and goes through wall
-					}
+				collider.position += rigidBody.velocity;
+				transform.position = collider.position;
+				/*
+				if (SDL_GetKeyboardState(NULL)[SDL_SCANCODE_Q]) {
+				} else {
+					Game::aabbs.push_back({ collider, { 0, 0, 255, 255 } });
 				}
-
-				// UPdate the player rectangles position, with its modified velocity
-				position += rigidBody.velocity;
+				*/
 			}
 		}
+	}
+	AABB getSweptBroadphaseBox(const Vec2D& velocity, const AABB& b) {
+		AABB broadphasebox;
+		broadphasebox.position.x = velocity.x > 0 ? b.position.x : b.position.x + velocity.x;
+		broadphasebox.position.y = velocity.y > 0 ? b.position.y : b.position.y + velocity.y;
+		broadphasebox.size.x = velocity.x > 0 ? velocity.x + b.size.x : b.size.x - velocity.x;
+		broadphasebox.size.y = velocity.y > 0 ? velocity.y + b.size.y : b.size.y - velocity.y;
+		return broadphasebox;
 	}
 	bool PointvsAABB(const Vec2D& point, const AABB& a) {
 		return (point.x >= a.position.x && 
@@ -87,17 +134,15 @@ public:
 		if (a.position.y + a.size.y < b.position.y || a.position.y > b.position.y + b.size.y) return false;
 		return true;
 	}
-	bool RayvsAABB(const Ray2D& ray, const AABB& target, CollisionInformation& collision) {
-		//Game::lines.push_back({ ray.origin, ray.origin + ray.direction });
+	bool RayVsRect(const Vec2D& ray_origin, const Vec2D& ray_dir, const AABB* target, CollisionManifold& collision) {
 		collision.normal = { 0,0 };
 		collision.point = { 0,0 };
-		collision.nearHitTime = 0.0;
-		// Cache division
-		Vec2D invdir = 1.0 / ray.direction;
 
+		// Cache division
+		Vec2D invdir = 1 / ray_dir;
 		// Calculate intersections with rectangle bounding axes
-		Vec2D t_near = (target.position - ray.origin) * invdir;
-		Vec2D t_far = (target.position + target.size - ray.origin) * invdir;
+		Vec2D t_near = (target->position - ray_origin) * invdir;
+		Vec2D t_far = (target->position + target->size - ray_origin) * invdir;
 
 		if (std::isnan(t_far.y) || std::isnan(t_far.x)) return false;
 		if (std::isnan(t_near.y) || std::isnan(t_near.x)) return false;
@@ -110,7 +155,7 @@ public:
 		if (t_near.x > t_far.y || t_near.y > t_far.x) return false;
 
 		// Closest 'time' will be the first contact
-		collision.nearHitTime = std::max(t_near.x, t_near.y);
+		collision.time = std::max(t_near.x, t_near.y);
 
 		// Furthest 'time' is contact on opposite side of target
 		double t_hit_far = std::min(t_far.x, t_far.y);
@@ -120,7 +165,7 @@ public:
 			return false;
 
 		// Contact point of collision from parametric line equation
-		collision.point = ray.origin + collision.nearHitTime * ray.direction;
+		collision.point = ray_origin + collision.time * ray_dir;
 
 		if (t_near.x > t_near.y)
 			if (invdir.x < 0)
@@ -138,30 +183,30 @@ public:
 		// considered a hit, the resolver wont change anything.
 		return true;
 	}
-	bool DynamicAABBvsAABB(const DynamicObject<AABB>& dynamicA, const AABB& staticB, CollisionInformation& collision) {
+	bool DynamicRectVsRect(const RigidBody* v_dynamic, const AABB* r_dynamic, const AABB& r_static,
+						   CollisionManifold& collision) {
 		// Check if dynamic rectangle is actually moving - we assume rectangles are NOT in collision to start
-		if (dynamicA.rigidBody.velocity.isZero()) return false;
+		if (v_dynamic->velocity.isZero()) return false;
 
 		// Expand target rectangle by source dimensions
-		AABB expanded = staticB.expandedBy(dynamicA.shape);
-		//Game::aabbs.push_back(expanded);
+		AABB expanded_target;
+		expanded_target.position = r_static.position - r_dynamic->size / 2.0;
+		expanded_target.size = r_static.size + r_dynamic->size;
+		//Game::aabbs.push_back(expanded_target);
 
-		if (RayvsAABB(Ray2D(dynamicA.shape.position + dynamicA.shape.size / 2.0, dynamicA.rigidBody.velocity), expanded, collision)) {
-			Game::points.push_back(collision.point);
-			return (collision.nearHitTime >= 0.0 && collision.nearHitTime < 1.0);
+		if (RayVsRect(r_dynamic->center(), v_dynamic->velocity, &expanded_target, collision)) {
+			return collision.time >= 0.0 && collision.time < 1.0;
 		} else {
 			return false;
 		}
 	}
-	bool ResolveDynamicAABBvsAABB(const DynamicObject<AABB>& dynamicA, const AABB& staticB, CollisionInformation& collision) {
-		collision.nearHitTime = 0.0;
-		collision.normal = { 0, 0 };
-		collision.point = { 0, 0 };
-		if (DynamicAABBvsAABB(dynamicA, staticB, collision)) {
-			LOG("Adding " << collision.normal * abs(dynamicA.rigidBody.velocity) * (1.0 - collision.nearHitTime) << " to velocity: " << dynamicA.rigidBody.velocity);
-			dynamicA.rigidBody.velocity += collision.normal * abs(dynamicA.rigidBody.velocity) * (1.0 - collision.nearHitTime);
+	bool ResolveDynamicRectVsRect(RigidBody* v_dynamic, const AABB* r_dynamic, AABB* r_static) {
+		CollisionManifold collision;
+		if (DynamicRectVsRect(v_dynamic, r_dynamic, *r_static, collision)) {
+			v_dynamic->velocity += collision.normal * abs(v_dynamic->velocity) * (1.0 - collision.time);
 			return true;
 		}
+
 		return false;
 	}
 	bool CirclevsCircle(Circle a, Circle b) {
