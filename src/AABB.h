@@ -16,6 +16,12 @@ struct AABB : Shape<AABB> {
 	AABB expandedBy(const AABB& other) const {
 		return AABB(position - other.size / 2.0, size + other.size);
 	}
+	Vec2D center() {
+		return position + size / 2.0;
+	}
+	Vec2D center() const {
+		return position + size / 2.0;
+	}
 	operator bool() const {
 		return position || size;
 	}
