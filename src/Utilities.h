@@ -89,6 +89,9 @@ namespace Util {
 	template <typename ...Ts>
 	inline void swallow(Ts&&... args) {}
 
+	// Return an SDL_Rect from double points
+	SDL_Rect RectFromPoints(double x1, double y1, double x2, double y2);
+
 	// Return an SDL_Rect from position and size vectors
 	SDL_Rect RectFromVec(const Vec2D& position, const Vec2D& size);
 

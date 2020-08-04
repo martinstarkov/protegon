@@ -11,6 +11,10 @@ namespace Util {
 		return std::stod(stream.str());
 	}
 
+	SDL_Rect RectFromPoints(double x1, double y1, double x2, double y2) {
+		return SDL_Rect{ static_cast<int>(round(x1)), static_cast<int>(round(y1)), static_cast<int>(round(x2)), static_cast<int>(round(y2)) };
+	}
+
 	SDL_Rect RectFromVec(const Vec2D& position, const Vec2D& size) {
 		return SDL_Rect{ static_cast<int>(round(position.x)), static_cast<int>(round(position.y)), static_cast<int>(round(size.x)), static_cast<int>(round(size.y)) };
 	}
