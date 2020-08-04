@@ -23,8 +23,8 @@ public:
 				if (transform) {
 					// create block
 					if (s[SDL_SCANCODE_B]) {
-						Vec2D pos = transform->position + Vec2D(40.0, 0.0);
-						manager->createBox(pos);
+						//Vec2D pos = transform->position + Vec2D(40.0, 0.0);
+						//manager->createBox(pos);
 					}
 					if (s[SDL_SCANCODE_R]) {
 						transform->position = transform->originalPosition;
@@ -38,7 +38,7 @@ public:
 					manager->refreshDeleted();
 				}
 				if (s[SDL_SCANCODE_H]) {
-					Serialization::serialize("resources/player.json", e);
+					//Serialization::serialize("resources/player.json", e);
 				}
 			}
 		}
