@@ -32,6 +32,14 @@ struct Vec2D {
 		x = std::stod(s.substr(1, delimeter - 1)); // from after leftDelimeter to before centerDelimeter
 		y = std::stod(s.substr(delimeter + 1, s.size() - 2)); // from after centerDelimeter to after rightDelimeter
 	}
+	// Return maximum component of vector
+	friend const double& min(const Vec2D& v) {
+		return std::min(v.x, v.y);
+	}
+	// Return minimum component of vector
+	friend const double& max(const Vec2D& v) {
+		return std::min(v.x, v.y);
+	}
 	// Return true if either vector component is not equal to 0
 	operator bool() const {
 		return x || y;
@@ -345,6 +353,50 @@ inline Vec2D operator*(const double& lhs, Vec2D& rhs) {
 	return rhs;
 }
 inline Vec2D operator/(const double& lhs, Vec2D& rhs) {
+	rhs /= lhs;
+	return rhs;
+}
+inline Vec2D operator+(Vec2D lhs, const int& rhs) {
+	lhs += rhs;
+	return lhs;
+}
+inline Vec2D operator-(Vec2D lhs, const int& rhs) {
+	lhs -= rhs;
+	return lhs;
+}
+inline Vec2D operator*(Vec2D lhs, const int& rhs) {
+	lhs *= rhs;
+	return lhs;
+}
+inline Vec2D operator/(Vec2D lhs, const int& rhs) {
+	lhs /= rhs;
+	return lhs;
+}
+inline Vec2D operator+(const int& lhs, const Vec2D& rhs) {
+	return Vec2D(rhs + lhs);
+}
+inline Vec2D operator-(const int& lhs, const Vec2D& rhs) {
+	return Vec2D(rhs - lhs);
+}
+inline Vec2D operator*(const int& lhs, const Vec2D& rhs) {
+	return Vec2D(rhs * lhs);
+}
+inline Vec2D operator/(const int& lhs, const Vec2D& rhs) {
+	return Vec2D(lhs) / rhs;
+}
+inline Vec2D operator+(const int& lhs, Vec2D& rhs) {
+	rhs += lhs;
+	return rhs;
+}
+inline Vec2D operator-(const int& lhs, Vec2D& rhs) {
+	rhs -= lhs;
+	return rhs;
+}
+inline Vec2D operator*(const int& lhs, Vec2D& rhs) {
+	rhs *= lhs;
+	return rhs;
+}
+inline Vec2D operator/(const int& lhs, Vec2D& rhs) {
 	rhs /= lhs;
 	return rhs;
 }
