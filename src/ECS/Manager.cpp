@@ -112,7 +112,7 @@ EntityID Manager::createBox(Vec2D position) {
 EntityID Manager::createPlayer(Vec2D position) {
 	EntityID id = createEntity();
 	Entity handle = Entity(id, this);
-	Vec2D playerAcceleration = Vec2D(150.0, 150.0);
+	Vec2D playerAcceleration = Vec2D(10);
 	Vec2D gravity = Vec2D(0.0, 100.0);
 	handle.addComponents(
 		TransformComponent(position),
@@ -148,15 +148,11 @@ void Manager::render() {
 }
 
 bool Manager::hasComponent(EntityID id, ComponentID cId) {
+	// Possibly assert the below if statement, id must exist
 	auto it = _entities.find(id);
-	if (it != _entities.end()) {
-		ComponentMap& components = it->second->components;
-		auto cIt = components.find(cId);
-		if (cIt != components.end()) {
-			return true;
-		}
-	}
-	return false;
+	assert(it != _entities.end() && "Cannot run hasComponent on nonexistent EntityID");
+	ComponentMap& components = it->second->components;
+	return components.find(cId) != components.end();
 }
 
 void Manager::setComponentHandle(BaseComponent* component, EntityID id) {

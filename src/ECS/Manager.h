@@ -79,19 +79,18 @@ public:
 	template <typename C>
 	C* getComponent(EntityID id) {
 		auto it = _entities.find(id);
-		if (it != _entities.end()) {
-			ComponentID cId = static_cast<ComponentID>(typeid(C).hash_code());
-			ComponentMap& components = it->second->components;
-			auto cIt = components.find(cId);
-			if (cIt != components.end()) {
-				return static_cast<C*>(cIt->second.get());
-			}
+		assert(it != _entities.end() && "Cannot run getComponent on nonexistent EntityID");
+		ComponentID cId = static_cast<ComponentID>(typeid(C).hash_code());
+		ComponentMap& components = it->second->components;
+		auto cIt = components.find(cId);
+		if (cIt != components.end()) {
+			return static_cast<C*>(cIt->second.get());
 		}
 		return nullptr;
 	}
 	template <typename C>
 	bool hasComponent(EntityID id) {
-		return getComponent<C>(id) != nullptr;
+		return hasComponent(id, static_cast<ComponentID>(typeid(C).hash_code()));
 	}
 	bool hasComponent(EntityID id, ComponentID cId);
 	template <typename ...Ss>
