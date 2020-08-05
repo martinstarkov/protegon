@@ -46,18 +46,22 @@ public:
 	// player pressing motions keys
 	void physicsInputs(Entity& e, RigidBody& rigidBody, PlayerController& player) {
 		rigidBody.acceleration = Vec2D();
-		if (s[SDL_SCANCODE_A] && s[SDL_SCANCODE_D] || !s[SDL_SCANCODE_A] && !s[SDL_SCANCODE_D]) { // both horizontal keys pressed or neither -> stop
+		if ((s[SDL_SCANCODE_A] && s[SDL_SCANCODE_D]) || (!s[SDL_SCANCODE_A] && !s[SDL_SCANCODE_D])) { // both horizontal keys pressed or neither -> stop
 			rigidBody.velocity.x = 0.0;
 		} else if (s[SDL_SCANCODE_A] && !s[SDL_SCANCODE_D]) { // left
 			rigidBody.velocity.x = -player.inputAcceleration.x;
 		} else if (s[SDL_SCANCODE_D] && !s[SDL_SCANCODE_A]) { // right
 			rigidBody.velocity.x = player.inputAcceleration.x;
 		}
-		if (s[SDL_SCANCODE_W] && s[SDL_SCANCODE_S] || !s[SDL_SCANCODE_W] && !s[SDL_SCANCODE_S]) { // both vertical keys pressed or neither -> stop (change for gravity)
+		if ((s[SDL_SCANCODE_W] && s[SDL_SCANCODE_S]) || (!s[SDL_SCANCODE_W] && !s[SDL_SCANCODE_S])) { // both vertical keys pressed or neither -> stop (change for gravity)
 			rigidBody.velocity.y = 0.0;
 		} else if (s[SDL_SCANCODE_W] && !s[SDL_SCANCODE_S]) { // up
 			rigidBody.velocity.y = -player.inputAcceleration.y;
 		} else if (s[SDL_SCANCODE_S] && !s[SDL_SCANCODE_W]) { // down
+			rigidBody.velocity.y = player.inputAcceleration.y;
+		}
+		if (s[SDL_SCANCODE_J]) {
+			rigidBody.velocity.x = -player.inputAcceleration.x;
 			rigidBody.velocity.y = player.inputAcceleration.y;
 		}
 	}
