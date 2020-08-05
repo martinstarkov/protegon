@@ -130,8 +130,9 @@ struct Vec2D {
 	// Unit vector
 	Vec2D unit() const {
 		Vec2D obj;
-		if (magnitude()) { // avoid division by zero error
-			return obj / magnitude();
+		double mag = magnitude();
+		if (mag) { // avoid division by zero error
+			return obj / mag;
 		}
 		return obj;
 	}

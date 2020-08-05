@@ -40,13 +40,13 @@ void TextureManager::setDrawColor(SDL_Color color) {
 void TextureManager::drawPoint(Vec2D point, SDL_Color color) {
 	setDrawColor(color);
 	SDL_RenderDrawPoint(Game::getRenderer(), static_cast<int>(round(point.x)), static_cast<int>(round(point.y)));
-	setDrawColor(DEFAULT_RENDER_COLOR);
+	setDrawColor(RENDER_COLOR);
 }
 
 void TextureManager::drawLine(Vec2D origin, Vec2D destination, SDL_Color color) {
 	setDrawColor(color);
 	SDL_RenderDrawLine(Game::getRenderer(), static_cast<int>(round(origin.x)), static_cast<int>(round(origin.y)), static_cast<int>(round(destination.x)), static_cast<int>(round(destination.y)));
-	setDrawColor(DEFAULT_RENDER_COLOR);
+	setDrawColor(RENDER_COLOR);
 }
 
 void TextureManager::drawLine(Ray2D ray, SDL_Color color) {
@@ -56,7 +56,7 @@ void TextureManager::drawLine(Ray2D ray, SDL_Color color) {
 void TextureManager::drawRectangle(SDL_Rect rectangle, SDL_Color color) {
 	setDrawColor(color);
 	SDL_RenderDrawRect(Game::getRenderer(), &rectangle);
-	setDrawColor(DEFAULT_RENDER_COLOR);
+	setDrawColor(RENDER_COLOR);
 }
 
 void TextureManager::drawRectangle(Vec2D position, Vec2D size, SDL_Color color) {
