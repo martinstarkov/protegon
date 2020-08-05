@@ -16,9 +16,6 @@ SDL_Event event;
 
 Manager manager;
 
-Entity box1;
-Entity player;
-
 Game& Game::getInstance() {
 	if (!_instance) {
 		_instance = std::make_unique<Game>();
@@ -40,31 +37,39 @@ void Game::init() {
 	InputHandler::getInstance();
 	manager.init();
 
-	box1 = Entity(manager.createBox(Vec2D(32 * 4, 32 * 4)), &manager);
-	box1 = Entity(manager.createBox(Vec2D(32 * 4, 32 * 5)), &manager);
-	box1 = Entity(manager.createBox(Vec2D(32 * 4, 32 * 6)), &manager);
-	box1 = Entity(manager.createBox(Vec2D(32 * 5, 32 * 6)), &manager);
-	box1 = Entity(manager.createBox(Vec2D(32 * 6, 32 * 6)), &manager);
-	box1 = Entity(manager.createBox(Vec2D(32 * 7, 32 * 6)), &manager);
-	box1 = Entity(manager.createBox(Vec2D(32 * 8, 32 * 6)), &manager);
-	box1 = Entity(manager.createBox(Vec2D(32 * 9, 32 * 6)), &manager);
-	box1 = Entity(manager.createBox(Vec2D(32 * 10, 32 * 6)), &manager);
-	box1 = Entity(manager.createBox(Vec2D(32 * 11, 32 * 6)), &manager);
-	box1 = Entity(manager.createBox(Vec2D(32 * 12, 32 * 6)), &manager);
-	box1 = Entity(manager.createBox(Vec2D(32 * 13, 32 * 6)), &manager);
-	box1 = Entity(manager.createBox(Vec2D(32 * 14, 32 * 6)), &manager);
-	box1 = Entity(manager.createBox(Vec2D(32 * 15, 32 * 6)), &manager);
-	box1 = Entity(manager.createBox(Vec2D(32 * 16, 32 * 6)), &manager);
-	box1 = Entity(manager.createBox(Vec2D(32 * 17, 32 * 6)), &manager);
-	box1 = Entity(manager.createBox(Vec2D(32 * 17, 32 * 5)), &manager);
-	box1 = Entity(manager.createBox(Vec2D(32 * 17, 32 * 4)), &manager);
-	box1 = Entity(manager.createBox(Vec2D(32 * 17, 32 * 3)), &manager);
-	box1 = Entity(manager.createBox(Vec2D(32 * 16, 32 * 3)), &manager);
-	box1 = Entity(manager.createBox(Vec2D(32 * 15, 32 * 3)), &manager);
-	box1 = Entity(manager.createBox(Vec2D(32 * 14, 32 * 3)), &manager);
-	box1 = Entity(manager.createBox(Vec2D(32 * 13, 32 * 3)), &manager);
-	player = Entity(manager.createPlayer(Vec2D(30 * 10, 30)), &manager);
+	std::vector<std::vector<int>> boxes = {
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+		{1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1},
+		{1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 1},
+		{1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1},
+		{1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1},
+		{1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1},
+		{1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1},
+		{1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1},
+		{1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1},
+		{1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1},
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+	};
 
+	for (int i = 0; i < boxes.size(); ++i) {
+		for (int j = 0; j < boxes[i].size(); ++j) {
+			if (boxes[i][j]) {
+				Vec2D pos = { 32 * j, 32 * i };
+				switch (boxes[i][j]) {
+					case 1:
+						manager.createBox(pos);
+						break;
+					case 2:
+						manager.createPlayer(pos);
+						break;
+					default:
+						break;
+				}
+			}
+		}
+	}
 	manager.refresh();
 }
 
@@ -96,30 +101,17 @@ static bool equal(SDL_Color o, SDL_Color p) {
 }
 
 void Game::render() {
-	//SDL_Delay(1000);
 	SDL_RenderClear(_renderer);
-	TextureManager::setDrawColor(DEFAULT_RENDER_COLOR);
+	TextureManager::setDrawColor(RENDER_COLOR);
 	manager.render();
 	for (auto& point : Game::points) {
-		SDL_Color color = point.second;
-		if (equal(color, DEFAULT_RENDER_COLOR)) {
-			color = { 255, 0, 0, 255 };
-		}
-		TextureManager::drawPoint(point.first, color);
+		TextureManager::drawPoint(point.first, point.second);
 	}
 	for (auto& line : Game::lines) {
-		SDL_Color color = std::get<2>(line);
-		if (equal(color, DEFAULT_RENDER_COLOR)) {
-			color = { 255, 0, 255, 255 };
-		}
-		TextureManager::drawLine(std::get<0>(line), std::get<1>(line), color);
+		TextureManager::drawLine(std::get<0>(line), std::get<1>(line), std::get<2>(line));
 	}
 	for (auto& box : Game::aabbs) {
-		SDL_Color color = box.second;
-		if (equal(color, DEFAULT_RENDER_COLOR)) {
-			color = { 0, 0, 255, 255 };
-		}
-		TextureManager::drawRectangle(box.first, color);
+		TextureManager::drawRectangle(box.first, box.second);
 	}
 	SDL_RenderPresent(_renderer);
 	aabbs.clear();
@@ -135,6 +127,7 @@ void Game::loop() {
 		fStart = SDL_GetTicks();
 		update();
 		render();
+		//SDL_Delay(100);
 		fTime = SDL_GetTicks() - fStart;
 		if (fDelay > fTime) { // cap frame time at an FPS
 			SDL_Delay(fDelay - fTime);
