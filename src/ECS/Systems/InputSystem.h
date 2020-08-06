@@ -20,14 +20,20 @@ public:
 				if (rb) {
 					physicsInputs(e, rb->rigidBody, *pc);
 				}
-				if (transform) {
-					// create block
-					if (s[SDL_SCANCODE_B]) {
-						//Vec2D pos = transform->position + Vec2D(40.0, 0.0);
-						//manager->createBox(pos);
+				if (s[SDL_SCANCODE_R]) {
+					for (auto& id : manager->getEntities()) {
+						TransformComponent* t = manager->getComponent<TransformComponent>(id);
+						if (t) {
+							t->position = t->originalPosition;
+						}
 					}
-					if (s[SDL_SCANCODE_R]) {
-						transform->position = transform->originalPosition;
+				}
+				if (s[SDL_SCANCODE_B]) {
+					for (auto& id : manager->getEntities()) {
+						RigidBodyComponent* r = manager->getComponent<RigidBodyComponent>(id);
+						if (r) {
+							r->rigidBody.velocity = Vec2D(rand() % 20 - 10, rand() % 20 - 10);
+						}
 					}
 				}
 				// clear all entities except player
@@ -58,10 +64,6 @@ public:
 		} else if (s[SDL_SCANCODE_W] && !s[SDL_SCANCODE_S]) { // up
 			rigidBody.velocity.y = -player.inputAcceleration.y;
 		} else if (s[SDL_SCANCODE_S] && !s[SDL_SCANCODE_W]) { // down
-			rigidBody.velocity.y = player.inputAcceleration.y;
-		}
-		if (s[SDL_SCANCODE_J]) {
-			rigidBody.velocity.x = -player.inputAcceleration.x;
 			rigidBody.velocity.y = player.inputAcceleration.y;
 		}
 	}
