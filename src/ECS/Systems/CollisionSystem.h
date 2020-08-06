@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <vector>
 
-// TODO: Redo entire collision system
+// TODO: Use relative velocities for two dynamic blocks
 
 struct CollisionManifold {
 	Vec2D point;
@@ -35,6 +35,34 @@ static void sortTimes(std::vector<Collision>& collisions) {
 	});
 }
 
+// Function which takes consecutive identical collision times such as [0.5: (0, -1), 0.5: (-1, 0)] and combines the normals into one time [0.5: (-1, -1)]
+static void combineTimes(std::vector<Collision>& collisions) {
+	size_t size = collisions.size();
+	if (size > 1) {
+		std::vector<Collision> newCollisions;
+		for (size_t i = 0; i < size; ++i) {
+			static bool ignore = false;
+			if (!ignore) {
+				if (collisions[i].manifold.time == collisions[(i + 1) % size].manifold.time) {
+					if (collisions[i].manifold.normal.hasZero() && collisions[(i + 1) % size].manifold.normal.hasZero()) {
+						if (abs(collisions[i].manifold.normal.x) != abs(collisions[(i + 1) % size].manifold.normal.x)) {
+							Collision col = collisions[i];
+							col.manifold.normal += collisions[(i + 1) % size].manifold.normal;
+							newCollisions.push_back(col);
+							ignore = true;
+							continue;
+						}
+					}
+				}
+				newCollisions.push_back(collisions[i]);
+			} else {
+				ignore = false;
+			}
+		}
+		collisions = newCollisions;
+	}
+}
+
 static void printCollisions(const std::vector<Collision>& collisions) {
 	LOG_("Collisions: ");
 	for (auto& collision : collisions) {
@@ -43,7 +71,7 @@ static void printCollisions(const std::vector<Collision>& collisions) {
 	LOG("");
 }
 
-class CollisionSystem : public System<TransformComponent, RigidBodyComponent, CollisionComponent> {
+class CollisionSystem : public System<TransformComponent, CollisionComponent> {
 public:
 	virtual void update() override final {
 		static int counter = 0;
@@ -51,7 +79,7 @@ public:
 		for (auto& id : entities) {
 			Entity e = Entity(id, manager);
 			e.getComponent<CollisionComponent>()->collider.position = e.getComponent<TransformComponent>()->position;
-			RenderComponent* render = e.getComponent<RenderComponent>();
+			/*RenderComponent* render = e.getComponent<RenderComponent>();
 			if (!e.hasComponent<PlayerController>()) {
 				if (render) {
 					render->color = BLACK;
@@ -60,18 +88,19 @@ public:
 				if (render) {
 					render->color = BLUE;
 				}
-			}
+			}*/
 		}
 		for (auto& id : entities) {
 			Entity e = Entity(id, manager);
-			if (e.hasComponent<PlayerController>()) {
+			RigidBodyComponent* rbc = e.getComponent<RigidBodyComponent>();
+			if (rbc) {
 				TransformComponent& transform = *e.getComponent<TransformComponent>();
-				RigidBody& rigidBody = e.getComponent<RigidBodyComponent>()->rigidBody;
+				RigidBody& rigidBody = rbc->rigidBody;
 				AABB& collider = e.getComponent<CollisionComponent>()->collider;
 				std::vector<Collision> collisions;
 				EntitySet broadphaseEntities;
 				AABB broadphase = getSweptBroadphaseBox(rigidBody.velocity, collider);
-				Game::aabbs.push_back({ broadphase, { 255, 0, 0, 255 } });
+				//Game::aabbs.push_back({ broadphase, { 255, 0, 0, 255 } });
 				// broad phase static check
 				for (auto& oId : entities) {
 					if (oId == id) continue;
@@ -93,19 +122,23 @@ public:
 					}
 				}
 				sortTimes(collisions);
-				printCollisions(collisions);
+				//combineTimes(collisions);
+				//printCollisions(collisions);
 				// narrow phase dynamic resolution
 				if (collisions.size() > 0) {
 					Vec2D oldVelocity = rigidBody.velocity;
 					for (auto& collision : collisions) {
 						AABB& otherCollider = collision.entity.getComponent<CollisionComponent>()->collider;
-						ResolveDynamicAABBvsAABB(&rigidBody, &collider, &otherCollider, collision.entity.getComponent<RenderComponent>()->color);
+						ResolveDynamicAABBvsAABB(&rigidBody, &collider, &otherCollider, collision.entity.getComponent<RenderComponent>()->color, collision.manifold);
 					}
 					AABB futureCollider = collider;
+					AABB firstCollider = collider;
 					futureCollider.position += oldVelocity;
-					Game::aabbs.push_back({ futureCollider, RED });
-					Game::lines.push_back({ collider.center(), collider.center() + oldVelocity, RED });
-					Game::lines.push_back({ collider.center(), collider.center() + rigidBody.velocity, GREEN });
+					firstCollider.position += rigidBody.velocity;
+					//Game::aabbs.push_back({ futureCollider, RED });
+					//LOG("Vel: " << oldVelocity << ", new Vel: " << rigidBody.velocity);
+					//Game::lines.push_back({ collider.center(), collider.center() + oldVelocity, RED });
+					//Game::lines.push_back({ collider.center(), collider.center() + rigidBody.velocity, ORANGE });
 					// velocity changed, complete a second sweep
 					if (rigidBody.velocity != oldVelocity) {
 						collisions.clear();
@@ -122,18 +155,18 @@ public:
 							sortTimes(collisions);
 							for (auto& collision : collisions) {
 								AABB& otherCollider = collision.entity.getComponent<CollisionComponent>()->collider;
-								ResolveDynamicAABBvsAABB(&rigidBody, &collider, &otherCollider, collision.entity.getComponent<RenderComponent>()->color);
+								ResolveDynamicAABBvsAABB(&rigidBody, &collider, &otherCollider, collision.entity.getComponent<RenderComponent>()->color, collision.manifold);
 							}
 						}
 					}
 				}
 				collider.position += rigidBody.velocity;
-				//transform.position = collider.position;
-				if (SDL_GetKeyboardState(NULL)[SDL_SCANCODE_SPACE] && counter % 6 == 0) {
+				transform.position = collider.position;
+				/*if (SDL_GetKeyboardState(NULL)[SDL_SCANCODE_SPACE] && counter % 6 == 0) {
 					transform.position = collider.position;
 				} else {
 					Game::aabbs.push_back({ collider, GREEN });
-				}
+				}*/
 			}
 		}
 		++counter;
@@ -228,9 +261,10 @@ public:
 			return false;
 		}
 	}
-	bool ResolveDynamicAABBvsAABB(RigidBody* v_dynamic, const AABB* r_dynamic, AABB* r_static, SDL_Color& targetColor) {
-		CollisionManifold collision;
-		if (DynamicAABBvsAABB(v_dynamic, r_dynamic, *r_static, collision, targetColor)) {
+	bool ResolveDynamicAABBvsAABB(RigidBody* v_dynamic, const AABB* r_dynamic, AABB* r_static, SDL_Color& targetColor, CollisionManifold collision) {
+		CollisionManifold repeatCheck;
+		if (DynamicAABBvsAABB(v_dynamic, r_dynamic, *r_static, repeatCheck, targetColor)) {
+			//LOG("v:" << v_dynamic->velocity << "+=" << collision.normal << "*abs(" << v_dynamic->velocity << ")*(" << (1.0 - collision.time) << ")");
 			v_dynamic->velocity += collision.normal * abs(v_dynamic->velocity) * (1.0 - collision.time);
 			/*Game::lines.push_back({ collision.point, collision.point + collision.normal * 10, PURPLE });
 			AABB expanded_target;
