@@ -112,8 +112,8 @@ EntityID Manager::createBox(Vec2D position) {
 EntityID Manager::createPlayer(Vec2D position) {
 	EntityID id = createEntity();
 	Entity handle = Entity(id, this);
-	Vec2D playerAcceleration = Vec2D(32 * 4);
-	Vec2D gravity = Vec2D(0.0, 100.0);
+	Vec2D playerAcceleration = Vec2D(8, 20);
+	Vec2D gravity = Vec2D(0.0, 10.0);
 	handle.addComponents(
 		TransformComponent(position),
 		InputComponent(),

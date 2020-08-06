@@ -104,7 +104,7 @@ public:
 		assert(it != _systems.end() && "Attempting to call getSystem() on a non-existent System -> nullptr");
 		return static_cast<S*>(it->second.get());
 	}
-	EntitySet getEntities(EntitySet&& exclude);
+	EntitySet getEntities(EntitySet&& exclude = {});
 	EntityData* getEntityData(EntityID id);
 private:
 	void copyEntityData(EntityID to, EntityID from);

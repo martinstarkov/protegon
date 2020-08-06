@@ -11,6 +11,8 @@ public:
 			RigidBody& rigidBody = e.getComponent<RigidBodyComponent>()->rigidBody;
 			// gravity
 			//rigidBody.acceleration += rigidBody.gravity;
+			// gravity
+			rigidBody.velocity += rigidBody.gravity;
 			// motion
 			//rigidBody.velocity += rigidBody.acceleration;
 			// drag
