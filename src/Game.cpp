@@ -61,7 +61,7 @@ void Game::init() {
 				switch (boxes[i][j]) {
 					case 1: {
 						Entity b = Entity(manager.createBox(pos), &manager);
-						RigidBody rb = RigidBody(Vec2D(0.01), Vec2D(0.0, 0.2));
+						RigidBody rb = RigidBody(Vec2D(0.01), Vec2D(0.0, 0.1));
 						b.addComponent(RigidBodyComponent(rb));
 						break;
 					}
@@ -77,6 +77,7 @@ void Game::init() {
 			}
 		}
 	}
+	//manager.createBox(Vec2D(144, 100));
 	manager.refresh();
 }
 

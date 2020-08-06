@@ -32,7 +32,7 @@ public:
 					for (auto& id : manager->getEntities()) {
 						RigidBodyComponent* r = manager->getComponent<RigidBodyComponent>(id);
 						if (r) {
-							r->rigidBody.velocity = Vec2D(rand() % 20 - 10, rand() % 20 - 10);
+							r->rigidBody.velocity = Vec2D(rand() % 40 - 20, rand() % 40 - 20);
 						}
 					}
 				}
