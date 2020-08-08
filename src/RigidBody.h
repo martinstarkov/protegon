@@ -5,11 +5,13 @@
 #include "common.h"
 #include "Vec2D.h"
 
-constexpr double IMMOVABLE = 0.0; // mass
-constexpr double GRAVITY = 0.0; // pixels per frame
-constexpr double MASSLESS = 0.0; // massless
-constexpr double ELASTIC = 1.0; // perfectly elastic collision restitution
-constexpr double DRAGLESS = 0.0; // drag
+constexpr const double IMMOVABLE = 0.0; // mass
+constexpr const double MASSLESS = 0.0; // massless
+constexpr const double ELASTIC = 1.0; // perfectly elastic collision restitution
+
+#define UNIVERSAL_DRAG DRAGLESS + 0.15
+#define GRAVITY Vec2D(0.0, 0.0) // pixels per frame
+#define DRAGLESS Vec2D(0.0, 0.0) // drag
 
 struct RigidBody {
 	Vec2D velocity;
@@ -21,7 +23,7 @@ struct RigidBody {
 	double mass;
 	double inverseMass;
 	double restitution;
-	RigidBody(Vec2D drag = Vec2D(DRAGLESS), Vec2D gravity = Vec2D(GRAVITY), double restitution = ELASTIC, double mass = IMMOVABLE, Vec2D maximumAcceleration = Vec2D(INFINITE)) : drag(drag), gravity(gravity), restitution(restitution), mass(mass), maximumAcceleration(maximumAcceleration), terminalVelocity(Vec2D(INFINITE)) {
+	RigidBody(Vec2D drag = DRAGLESS, Vec2D gravity = GRAVITY, double restitution = ELASTIC, double mass = IMMOVABLE, Vec2D maximumAcceleration = Vec2D(INFINITE)) : drag(drag), gravity(gravity), restitution(restitution), mass(mass), maximumAcceleration(maximumAcceleration), terminalVelocity(Vec2D(INFINITE)) {
 		init();
 	}
 	void init();

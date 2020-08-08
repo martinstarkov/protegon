@@ -4,9 +4,9 @@
 
 #include "common.h"
 
-constexpr const char leftDelimeter = '(';
-constexpr const char centerDelimeter = ',';
-constexpr const char rightDelimeter = ')';
+constexpr const char LEFT_DELIMETER = '(';
+constexpr const char CENTER_DELIMETER = ',';
+constexpr const char RIGHT_DELIMETER = ')';
 
 struct Vec2D {
 	double x, y;
@@ -25,12 +25,23 @@ struct Vec2D {
 	Vec2D(int both) : x(static_cast<double>(both)), y(static_cast<double>(both)) {}
 	// String construction
 	Vec2D(std::string s) {
-		std::size_t delimeter = s.find(centerDelimeter); // return index of centerDelimeter
-		assert(s[0] == leftDelimeter && "Vec2D string constructor must start with leftDelimeter");
-		assert(delimeter != std::string::npos && "Vec2D string constructor must contain centerDelimeter");
-		assert(s[s.length() - 1] == rightDelimeter && "Vec2D string constructor must end with rightDelimeter");
+		std::size_t delimeter = s.find(CENTER_DELIMETER); // return index of centerDelimeter
+		assert(s[0] == LEFT_DELIMETER && "Vec2D string constructor must start with LEFT_DELIMETER");
+		assert(delimeter != std::string::npos && "Vec2D string constructor must contain CENTER_DELIMETER");
+		assert(s[s.length() - 1] == RIGHT_DELIMETER && "Vec2D string constructor must end with RIGHT_DELIMETER");
 		x = std::stod(s.substr(1, delimeter - 1)); // from after leftDelimeter to before centerDelimeter
 		y = std::stod(s.substr(delimeter + 1, s.size() - 2)); // from after centerDelimeter to after rightDelimeter
+	}
+	// Stream operators
+	friend std::ostream& operator<<(std::ostream& os, const Vec2D& obj) {
+		os << LEFT_DELIMETER << obj.x << CENTER_DELIMETER << obj.y << RIGHT_DELIMETER;
+		return os;
+	}
+	friend std::istream& operator>>(std::istream& is, Vec2D& obj) {
+		std::string temp;
+		is >> temp;
+		obj = Vec2D(temp);
+		return is;
 	}
 	// Return maximum component of vector
 	friend const double& min(const Vec2D& v) {
@@ -71,17 +82,6 @@ struct Vec2D {
 	}
 	Vec2D infinite() {
 		return const_cast<const Vec2D*>(this)->infinite();
-	}
-	// Stream operators
-	friend std::ostream& operator<<(std::ostream& os, const Vec2D& obj) {
-		os << leftDelimeter << obj.x << centerDelimeter << obj.y << rightDelimeter;
-		return os;
-	}
-	friend std::istream& operator>>(std::istream& is, Vec2D& obj) {
-		std::string temp;
-		is >> temp;
-		obj = Vec2D(temp);
-		return is;
 	}
 	// Both vector components rounded to the closest integeral
 	friend Vec2D round(const Vec2D& obj) {

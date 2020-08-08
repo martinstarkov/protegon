@@ -11,7 +11,7 @@ struct RigidBodyComponent : public Component<RigidBodyComponent> {
 	}
 	void init() {
 		rigidBody.init();
-		LOG("Calculated terminal velocity for " << entity.getID() << " : " << rigidBody.terminalVelocity);
+		//LOG("Calculated terminal velocity for " << entity.getID() << " : " << rigidBody.terminalVelocity);
 	}
 };
 

@@ -51,4 +51,3 @@ constexpr double SECOND_CHANGE_PER_FRAME = 1.0 / FPS;
 
 // motion
 #define LOWEST_VELOCITY 0.1 // velocity below this value is set to 0
-#define UNIVERSAL_DRAG 0.15

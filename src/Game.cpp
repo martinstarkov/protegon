@@ -54,14 +54,14 @@ void Game::init() {
 		{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3}
 	};
 
-	for (int i = 0; i < boxes.size(); ++i) {
-		for (int j = 0; j < boxes[i].size(); ++j) {
+	for (size_t i = 0; i < boxes.size(); ++i) {
+		for (size_t j = 0; j < boxes[i].size(); ++j) {
 			if (boxes[i][j]) {
-				Vec2D pos = { 32 * j, 32 * i };
+				Vec2D pos = { static_cast<double>(32 * j), static_cast<double>(32 * i) };
 				switch (boxes[i][j]) {
 					case 1: {
 						Entity b = Entity(manager.createBox(pos), &manager);
-						RigidBody rb = RigidBody(Vec2D(0.01), Vec2D(0.0, 0.1));
+						RigidBody rb = RigidBody(UNIVERSAL_DRAG, GRAVITY);
 						b.addComponent(RigidBodyComponent(rb));
 						break;
 					}
