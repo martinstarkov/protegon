@@ -8,9 +8,8 @@ class StateMachineSystem : public System<StateMachineComponent> {
 public:
 	virtual void update() override final {
 		for (auto& id : entities) {
-			Entity e = Entity(id, manager);
-			StateMachineComponent* sm = e.getComponent<StateMachineComponent>();
-			for (const auto& pair : sm->stateMachines) {
+			auto [stateMachineComponent] = getComponents(id);
+			for (const auto& pair : stateMachineComponent.stateMachines) {
 				pair.second->update();
 			}
 		}

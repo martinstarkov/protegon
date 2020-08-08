@@ -6,31 +6,34 @@ class PhysicsSystem : public System<TransformComponent, RigidBodyComponent> {
 public:
 	virtual void update() override final {
 		for (auto& id : entities) {
-			Entity e = Entity(id, manager);
-			Vec2D& position = e.getComponent<TransformComponent>()->position;
-			RigidBody& rigidBody = e.getComponent<RigidBodyComponent>()->rigidBody;
+			auto [transform, rigidBodyC] = getComponents(id);
+			Vec2D& position = transform.position;
+			RigidBody& rigidBody = rigidBodyC.rigidBody;
+			Vec2D& velocity = rigidBody.velocity;
+			Vec2D& terminalVelocity = rigidBody.terminalVelocity;
+			Vec2D& acceleration = rigidBody.acceleration;
 			// gravity
-			//rigidBody.acceleration += rigidBody.gravity;
-			// gravity
-			rigidBody.velocity += rigidBody.gravity;
+			acceleration += rigidBody.gravity;
 			// motion
-			//rigidBody.velocity += rigidBody.acceleration;
+			velocity += acceleration;
 			// drag
-			//rigidBody.velocity *= (Vec2D(1.0) - rigidBody.drag);
+			velocity *= (Vec2D(1.0) - rigidBody.drag);
 			// terminal motion
-			/*if (abs(rigidBody.velocity.x) > rigidBody.terminalVelocity.x) {
-				rigidBody.velocity.x = Util::sgn(rigidBody.velocity.x) * rigidBody.terminalVelocity.x;
-			} else if (abs(rigidBody.velocity.x) < LOWEST_VELOCITY) {
-				rigidBody.velocity.x = 0.0;
+			if (abs(velocity.x) > terminalVelocity.x) {
+				velocity.x = Util::sgn(velocity.x) * terminalVelocity.x;
+			} else if (abs(velocity.x) < LOWEST_VELOCITY) {
+				velocity.x = 0.0;
 			}
-			if (abs(rigidBody.velocity.y) > rigidBody.terminalVelocity.y) {
-				rigidBody.velocity.y = Util::sgn(rigidBody.velocity.y) * rigidBody.terminalVelocity.y;
-			} else if (abs(rigidBody.velocity.y) < LOWEST_VELOCITY) {
-				rigidBody.velocity.y = 0.0;
-			}*/
-			if (e.hasComponent<PlayerController>()) {
-				//LOG("vel: " << rigidBody.velocity << ", tvel: " << rigidBody.terminalVelocity << ", drag: " << rigidBody.drag << ", accel: " << rigidBody.acceleration << ", gravity: " << rigidBody.gravity);
+			if (abs(velocity.y) > terminalVelocity.y) {
+				velocity.y = Util::sgn(velocity.y) * terminalVelocity.y;
+			} else if (abs(velocity.y) < LOWEST_VELOCITY) {
+				velocity.y = 0.0;
 			}
+			/*
+			if (manager->hasComponent<PlayerController>(id)) {
+				LOG("vel: " << rigidBody.velocity << ", tvel: " << rigidBody.terminalVelocity << ", drag: " << rigidBody.drag << ", accel: " << rigidBody.acceleration << ", gravity: " << rigidBody.gravity);
+			}
+			*/
 		}
 	}
 };
