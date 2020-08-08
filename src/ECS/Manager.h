@@ -3,6 +3,7 @@
 #include <map>
 #include <vector>
 #include <memory>
+#include <tuple>
 
 #include "Types.h"
 #include "../Vec2D.h"
@@ -88,6 +89,16 @@ public:
 		}
 		return nullptr;
 	}
+	// Return a tuple of components in the specified order
+	// Used for structured bindings inside systems
+	template <typename ...Cs>
+	std::tuple<Cs*...> getComponents(EntityID id) {
+		return std::forward_as_tuple(getComponent<Cs>(id)...);
+	}
+	template <typename ...Cs>
+	std::tuple<Cs&...> getComponentReferences(EntityID id) {
+		return std::forward_as_tuple(getComponentReference<Cs>(id)...);
+	}
 	template <typename C>
 	bool hasComponent(EntityID id) {
 		return hasComponent(id, static_cast<ComponentID>(typeid(C).hash_code()));
@@ -148,6 +159,16 @@ private:
 		std::unique_ptr<S> uPtr = std::make_unique<S>(std::move(system));
 		uPtr->setManager(this);
 		_systems.emplace(sId, std::move(uPtr));
+	}
+	template <typename C>
+	C& getComponentReference(EntityID id) {
+		auto it = _entities.find(id);
+		assert(it != _entities.end() && "Cannot run getComponent on nonexistent EntityID");
+		ComponentID cId = static_cast<ComponentID>(typeid(C).hash_code());
+		ComponentMap& components = it->second->components;
+		auto cIt = components.find(cId);
+		assert(cIt != components.end() && "Cannot return reference to nonexistent component");
+		return static_cast<C&>(*cIt->second);
 	}
 	std::map<EntityID, std::unique_ptr<EntityData>> _entities;
 	std::map<SystemID, std::unique_ptr<BaseSystem>> _systems;
