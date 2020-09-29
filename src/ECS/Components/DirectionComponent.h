@@ -2,9 +2,9 @@
 
 #include "Component.h"
 
-#include "../../Direction.h"
+#include <Direction.h>
 
-struct DirectionComponent : public Component<DirectionComponent> {
+struct DirectionComponent {
 	Direction direction;
 	Direction previousDirection;
 	DirectionComponent(Direction direction = Direction::DOWN) : direction(direction) {

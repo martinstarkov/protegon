@@ -2,7 +2,9 @@
 
 #include "Component.h"
 
-struct AnimationComponent : public Component<AnimationComponent> {
+using AnimationName = std::string;
+
+struct AnimationComponent {
 	AnimationName name; // name of current animation
 	int sprites; // amount of sprites in current animation
 	double animationDelay; // second delay between animation frames

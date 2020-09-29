@@ -4,11 +4,10 @@
 
 // TODO: Make it clearer how this system acts as a component (health vs bullet lifetime vs block lifetime)
 
-class LifetimeSystem : public System<LifetimeComponent> {
+class LifetimeSystem : public ecs::System<LifetimeComponent> {
 public:
-	virtual void update() override final {
-		for (auto& id : entities) {
-			auto [life] = getComponents(id);
+	virtual void Update() override final {
+		for (auto& [entity, life] : entities) {
 			// TODO: In the future, for falling platforms, decrease lifetime if there is a bottom collision
 			//CollisionComponent* collision = pair.second->getComponent<CollisionComponent>();
 			//if (collision->bottom) { lifetime->isDying = true; }
@@ -20,7 +19,7 @@ public:
 				}
 			}
 			if (!life.lifetime) {
-				manager->destroyEntity(id);
+				entity.Destroy();
 			}
 		}
 	}

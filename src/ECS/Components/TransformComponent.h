@@ -2,9 +2,9 @@
 
 #include "Component.h"
 
-#include "../../Vec2D.h"
+#include <Vec2D.h>
 
-struct TransformComponent : public Component<TransformComponent> {
+struct TransformComponent {
 	Vec2D position;
 	Vec2D originalPosition;
 	//double scale;
@@ -14,6 +14,9 @@ struct TransformComponent : public Component<TransformComponent> {
 	}*/
 	TransformComponent(Vec2D position = Vec2D()) : position(position) {
 		init();
+	}
+	void ResetPosition() {
+		position = originalPosition;
 	}
 	void init() {
 		originalPosition = position;

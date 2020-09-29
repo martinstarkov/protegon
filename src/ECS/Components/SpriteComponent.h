@@ -2,12 +2,12 @@
 
 #include "Component.h"
 
-#include "SDL.h"
-#include "../../TextureManager.h"
-#include "../../Vec2D.h"
-#include "../../AABB.h"
+#include <SDL.h>
+#include <TextureManager.h>
+#include <Vec2D.h>
+#include <AABB.h>
 
-struct SpriteComponent : public Component<SpriteComponent> {
+struct SpriteComponent {
 	std::string path;
 	SDL_Rect source;
 	SDL_Texture* texture;
@@ -20,7 +20,7 @@ struct SpriteComponent : public Component<SpriteComponent> {
 		source = Util::RectFromVec(Vec2D(), spriteSize);
 		texture = TextureManager::load(path);
 	}
-	virtual ~SpriteComponent() override {
+	~SpriteComponent() {
 		// TODO: Rethink texture removal after spriteComponent is destroyed
 		// Don't necessarily remove texture if other textures are using it, but if none are, remove it
 		// TextureManager::removeTexture(_path); 

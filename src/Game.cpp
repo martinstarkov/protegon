@@ -1,7 +1,9 @@
 #include "Game.h"
-#include "ECS/Manager.h"
-#include "ECS/Entity.h"
-#include "ECS/Components.h"
+
+#include <ECS/ECS.h>
+#include <ECS/Components.h>
+#include <ECS/Systems.h>
+
 #include "InputHandler.h"
 #include "TextureManager.h"
 
@@ -15,7 +17,33 @@ bool Game::_running = false;
 
 SDL_Event event;
 
-Manager manager;
+ecs::Manager manager;
+
+ecs::Entity CreateBox(Vec2D position, ecs::Manager& manager) {
+	auto entity = manager.CreateEntity();
+	entity.AddComponent<RenderComponent>();
+	entity.AddComponent<CollisionComponent>(position, Vec2D{ 32, 32 });
+	entity.AddComponent<SpriteComponent>("./resources/textures/box.png", Vec2D{ 32, 32 });
+	entity.AddComponent<TransformComponent>(position);
+	return entity;
+}
+
+ecs::Entity CreatePlayer(Vec2D position, ecs::Manager& manager) {
+	auto entity = manager.CreateEntity();
+	Vec2D playerAcceleration = Vec2D(8, 20);
+	entity.AddComponent<TransformComponent>(position);
+	entity.AddComponent<InputComponent>();
+	entity.AddComponent<PlayerController>(playerAcceleration);
+	entity.AddComponent<RigidBodyComponent>(RigidBody(UNIVERSAL_DRAG, GRAVITY, ELASTIC, INFINITE, abs(playerAcceleration) + abs(GRAVITY)));
+	entity.AddComponent<CollisionComponent>(position, Vec2D{ 30, 51 });
+	entity.AddComponent<SpriteComponent>("./resources/textures/player_test2.png", Vec2D(30, 51));
+	entity.AddComponent<SpriteSheetComponent>();
+	//entity.AddComponent<StateMachineComponent>(entity, RawStateMachineMap{ { "walkStateMachine", new WalkStateMachine("idle") }, { "jumpStateMachine", new JumpStateMachine("grounded") }});
+	entity.AddComponent<DirectionComponent>();
+	entity.AddComponent<AnimationComponent>();
+	entity.AddComponent<RenderComponent>();
+	return entity;
+}
 
 Game& Game::getInstance() {
 	if (!_instance) {
@@ -36,7 +64,14 @@ void Game::init() {
 	_running = true;
 	TextureManager::getInstance();
 	InputHandler::getInstance();
-	manager.init();
+	manager.AddSystem<RenderSystem>();
+	manager.AddSystem<PhysicsSystem>();
+	manager.AddSystem<LifetimeSystem>();
+	manager.AddSystem<AnimationSystem>();
+	manager.AddSystem<CollisionSystem>();
+	manager.AddSystem<InputSystem>();
+	//manager.AddSystem<StateMachineSystem>();
+	manager.AddSystem<DirectionSystem>();
 
 	std::vector<std::vector<int>> boxes = {
 		{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
@@ -60,16 +95,16 @@ void Game::init() {
 				Vec2D pos = { static_cast<double>(32 * j), static_cast<double>(32 * i) };
 				switch (boxes[i][j]) {
 					case 1: {
-						Entity b = Entity(manager.createBox(pos), &manager);
+						ecs::Entity b = CreateBox(pos, manager);
 						RigidBody rb = RigidBody(UNIVERSAL_DRAG, GRAVITY);
-						b.addComponent(RigidBodyComponent(rb));
+						b.AddComponent<RigidBodyComponent>(rb);
 						break;
 					}
 					case 2:
-						manager.createPlayer(pos);
+						CreatePlayer(pos, manager);
 						break;
 					case 3:
-						manager.createBox(pos);
+						CreateBox(pos, manager);
 						break;
 					default:
 						break;
@@ -77,8 +112,6 @@ void Game::init() {
 			}
 		}
 	}
-	//manager.createBox(Vec2D(144, 100));
-	manager.refresh();
 }
 
 void Game::initSDL(const char* title, int x, int y, int w, int h, Uint32 flags) {
@@ -100,7 +133,12 @@ void Game::update() {
 	InputHandler::update(event);
 	static int cycle = 0;
 	cycle++;
-	manager.update();
+	manager.Update<InputSystem>();
+	manager.Update<PhysicsSystem>();
+	manager.Update<CollisionSystem>();
+	//manager.Update<StateMachineSystem>();
+	manager.Update<DirectionSystem>();
+	manager.Update<LifetimeSystem>();
 	//AllocationMetrics::printMemoryUsage();
 }
 
@@ -111,7 +149,8 @@ static bool equal(SDL_Color o, SDL_Color p) {
 void Game::render() {
 	SDL_RenderClear(_renderer);
 	TextureManager::setDrawColor(RENDER_COLOR);
-	manager.render();
+	manager.Update<AnimationSystem>();
+	manager.Update<RenderSystem>();
 	for (auto& point : Game::points) {
 		TextureManager::drawPoint(point.first, point.second);
 	}

@@ -2,15 +2,14 @@
 
 #include "System.h"
 
-#include "SDL.h"
+#include <SDL.h>
 
 // TODO: Take StateComponent (somehow) and set current SpriteComponent sprite equal to the corresponding spritesheet image
 
-class AnimationSystem : public System<AnimationComponent, SpriteComponent, SpriteSheetComponent, DirectionComponent> {
+class AnimationSystem : public ecs::System<AnimationComponent, SpriteComponent, SpriteSheetComponent, DirectionComponent> {
 public:
-	virtual void update() override final {
-		for (auto& id : entities) {
-			auto [anim, sprite, spriteSheet, dir] = getComponents(id);
+	virtual void Update() override final {
+		for (auto [entity, anim, sprite, spriteSheet, dir] : entities) {
 			//LOG("Direction: " << (int)direction->direction);
 			if (anim.name != "" && (anim.counter == -1 || dir.direction != dir.previousDirection)) {
 				SpriteInformation spriteInfo = spriteSheet.getSpriteInformation(anim.name, dir.direction);

@@ -2,22 +2,16 @@
 
 #include "Component.h"
 
-#include "../../AABB.h"
-#include "../../Circle.h"
+#include <AABB.h>
+#include <Circle.h>
 
 // TODO: Consider holding a pointer to the TransformComponent here instead of an AABB somehow?
 // CONSIDERATIONS ^: How can you default construct a CollisionComponent? For serialization..
 
-struct CollisionComponent : public Component<CollisionComponent> {
+struct CollisionComponent {
 	AABB collider;
 	CollisionComponent(AABB collider = AABB()) : collider(collider) {}
-	CollisionComponent(Vec2D size) : collider({}, size) {}
-	virtual void setup() override final {
-		TransformComponent* transform = entity.getComponent<TransformComponent>();
-		if (transform) {
-			collider.position = transform->position;
-		}
-	}
+	CollisionComponent(Vec2D position, Vec2D size) : collider(position, size) {}
 };
 
 // json serialization

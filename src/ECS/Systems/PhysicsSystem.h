@@ -2,11 +2,10 @@
 
 #include "System.h"
 
-class PhysicsSystem : public System<TransformComponent, RigidBodyComponent> {
+class PhysicsSystem : public ecs::System<TransformComponent, RigidBodyComponent> {
 public:
-	virtual void update() override final {
-		for (auto& id : entities) {
-			auto [transform, rigidBodyC] = getComponents(id);
+	virtual void Update() override final {
+		for (auto& [entity, transform, rigidBodyC] : entities) {
 			Vec2D& position = transform.position;
 			RigidBody& rigidBody = rigidBodyC.rigidBody;
 			Vec2D& velocity = rigidBody.velocity;

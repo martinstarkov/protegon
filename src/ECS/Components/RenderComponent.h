@@ -2,11 +2,11 @@
 
 #include "Component.h"
 
-#include "SDL.h"
+#include <SDL.h>
 
 // TODO: Add color serialization
 
-struct RenderComponent : public Component<RenderComponent> {
+struct RenderComponent {
 	SDL_Color color;
 	RenderComponent(SDL_Color color = { 0, 0, 0, 0 }) : color(color) {}
 };

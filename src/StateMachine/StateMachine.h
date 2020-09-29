@@ -48,7 +48,7 @@ public:
 		return _currentState == name;
 	}
 protected:
-	virtual void init(Entity handle) override final {
+	virtual void init(ecs::Entity handle) override final {
 		for (const auto& pair : states) {
 			pair.second->setName(pair.first);
 			pair.second->setParentStateMachine(this);

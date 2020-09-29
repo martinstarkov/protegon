@@ -2,7 +2,7 @@
 
 #include "Component.h"
 
-struct LifetimeComponent : public Component<LifetimeComponent> {
+struct LifetimeComponent {
 	double lifetime; // seconds
 	bool isDying; // lose lifetime every frame
 	LifetimeComponent(double lifetime = 1.0, bool isDying = true) : lifetime(lifetime), isDying(isDying) {}

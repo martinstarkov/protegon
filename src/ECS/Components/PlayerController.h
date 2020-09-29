@@ -2,12 +2,12 @@
 
 #include "Component.h"
 
-#include "../../Vec2D.h"
+#include <Vec2D.h>
 
 // TODO: Possibly add a maxAcceleration? (for terminalVelocity calculation)
 // CONSIDER: Move inputAcceleration / maxAcceleration into another component?
 
-struct PlayerController : public Component<PlayerController> {
+struct PlayerController {
 	Vec2D inputAcceleration;
 	PlayerController(Vec2D inputAcceleration = Vec2D()) : inputAcceleration(inputAcceleration) {
 		init();

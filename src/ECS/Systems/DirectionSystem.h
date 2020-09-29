@@ -4,11 +4,10 @@
 
 #define IDLE_DIRECTION Direction::DOWN
 
-class DirectionSystem : public System<DirectionComponent, RigidBodyComponent> {
+class DirectionSystem : public ecs::System<DirectionComponent, RigidBodyComponent> {
 public:
-	virtual void update() override final {
-		for (auto& id : entities) {
-			auto [dir, rigidBodyC] = getComponents(id);
+	virtual void Update() override final {
+		for (auto [entity, dir, rigidBodyC] : entities) {
 			Direction& direction = dir.direction;
 			RigidBody& rigidBody = rigidBodyC.rigidBody;
 			dir.previousDirection = direction;

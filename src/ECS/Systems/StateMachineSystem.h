@@ -1,17 +1,17 @@
-#pragma once
+// TODO: Fix state machine system.
 
-#include "System.h"
-
-#include "../../StateMachine/StateMachines.h"
-
-class StateMachineSystem : public System<StateMachineComponent> {
-public:
-	virtual void update() override final {
-		for (auto& id : entities) {
-			auto [stateMachineComponent] = getComponents(id);
-			for (const auto& pair : stateMachineComponent.stateMachines) {
-				pair.second->update();
-			}
-		}
-	}
-};
+//#pragma once
+//#include "System.h"
+//
+//#include <StateMachine/StateMachines.h>
+//
+//class StateMachineSystem : public ecs::System<StateMachineComponent> {
+//public:
+//	virtual void Update() override final {
+//		for (auto& [entity, sm] : entities) {
+//			for (const auto& pair : sm.stateMachines) {
+//				pair.second->update();
+//			}
+//		}
+//	}
+//};

@@ -2,9 +2,9 @@
 
 #include "Component.h"
 
-#include "../../RigidBody.h"
+#include <RigidBody.h>
 
-struct RigidBodyComponent : public Component<RigidBodyComponent> {
+struct RigidBodyComponent {
 	RigidBody rigidBody;
 	RigidBodyComponent(RigidBody rigidBody = RigidBody()) : rigidBody(rigidBody) {
 		init();

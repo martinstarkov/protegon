@@ -90,7 +90,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)SDL\SDL2\include;$(SolutionDir)SDL\SDL2_image\include;$(SolutionDir)SDL\SDL2_ttf\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)SDL\SDL2\include;$(SolutionDir)SDL\SDL2_image\include;$(SolutionDir)SDL\SDL2_ttf\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -109,6 +109,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -125,7 +126,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)SDL\SDL2\include;$(SolutionDir)SDL\SDL2_image\include;$(SolutionDir)SDL\SDL2_ttf\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)SDL\SDL2\include;$(SolutionDir)SDL\SDL2_image\include;$(SolutionDir)SDL\SDL2_ttf\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -148,6 +149,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -180,6 +182,7 @@
     <Image Include="resources\textures\player_anim2.png" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\ECS\ECS.h" />
     <ClInclude Include="src\Ray2D.h" />
     <ClInclude Include="src\ECS\Systems\DirectionSystem.h" />
     <ClInclude Include="src\ECS\Systems\PhysicsSystem.h" />
@@ -197,6 +200,7 @@
     <ClInclude Include="src\ECS\Systems\SystemCommon.h" />
     <ClInclude Include="src\Serialization.h" />
     <ClInclude Include="src\Shape.h" />
+    <ClInclude Include="src\SingleHeaderLibraries\json.hpp" />
     <ClInclude Include="src\StateMachine\States\JumpState.h" />
     <ClInclude Include="src\StateMachine\States\GroundedState.h" />
     <ClInclude Include="src\ECS\Components\CollisionComponent.h" />
@@ -205,13 +209,10 @@
     <ClInclude Include="src\Debug.h" />
     <ClInclude Include="src\Defines.h" />
     <ClInclude Include="src\ECS\Components\AnimationComponent.h" />
-    <ClInclude Include="src\ECS\Components\BaseComponent.h" />
     <ClInclude Include="src\ECS\Components\InputComponent.h" />
     <ClInclude Include="src\ECS\Components\PlayerController.h" />
     <ClInclude Include="src\ECS\Components\SpriteSheetComponent.h" />
     <ClInclude Include="src\ECS\Components\StateMachineComponent.h" />
-    <ClInclude Include="src\ECS\Entity.h" />
-    <ClInclude Include="src\ECS\Systems\BaseSystem.h" />
     <ClInclude Include="src\ECS\Components\Component.h" />
     <ClInclude Include="src\ECS\Components.h" />
     <ClInclude Include="src\AABB.h" />
@@ -220,7 +221,6 @@
     <ClInclude Include="src\ECS\DirectionComponent.h" />
     <ClInclude Include="src\ECS\DrawComponent.h" />
     <ClInclude Include="src\ECS\Components\LifetimeComponent.h" />
-    <ClInclude Include="src\ECS\Manager.h" />
     <ClInclude Include="src\ECS\HitboxComponent.h" />
     <ClInclude Include="src\ECS\KeyboardComponent.h" />
     <ClInclude Include="src\ECS\Components\RenderComponent.h" />
@@ -228,7 +228,6 @@
     <ClInclude Include="src\ECS\Systems\System.h" />
     <ClInclude Include="src\ECS\Systems.h" />
     <ClInclude Include="src\ECS\Components\TransformComponent.h" />
-    <ClInclude Include="src\ECS\Types.h" />
     <ClInclude Include="src\Game.h" />
     <ClInclude Include="src\InputHandler.h" />
     <ClInclude Include="src\Logger.h" />
@@ -248,12 +247,9 @@
     <ClInclude Include="src\Vec2D.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\ECS\Components\StateMachineComponent.cpp" />
     <ClCompile Include="src\RigidBody.cpp" />
-    <ClCompile Include="src\ECS\Components\SpriteSheetComponent.cpp" />
-    <ClCompile Include="src\ECS\Entity.cpp" />
-    <ClCompile Include="src\StateMachine\StateMachines.cpp" />
     <ClCompile Include="src\AllocationMetrics.cpp" />
-    <ClCompile Include="src\ECS\Manager.cpp" />
     <ClCompile Include="src\Game.cpp" />
     <ClCompile Include="src\InputHandler.cpp" />
     <ClCompile Include="src\main.cpp" />

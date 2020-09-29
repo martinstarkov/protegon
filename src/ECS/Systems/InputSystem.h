@@ -2,50 +2,50 @@
 
 #include "System.h"
 
-#include "SDL.h"
+#include <SDL.h>
 
 // TODO: Add key specificity to InputComponent
 
-class InputSystem : public System<InputComponent> {
+class InputSystem : public ecs::System<InputComponent> {
 public:
-	virtual void update() override final {
+	virtual void Update() override final {
 		s = SDL_GetKeyboardState(NULL);
-		for (auto& id : entities) {
-			Entity e = Entity(id, manager);
-			auto [input] = getComponents(id);
-			auto playerController = e.getComponent<PlayerController>();
-			if (playerController) {
-				auto rigidBodyC = e.getComponent<RigidBodyComponent>();
+		for (auto [entity, input] : entities) {
+			if (entity.HasComponent<PlayerController>()) {
+				auto& playerController = entity.GetComponent<PlayerController>();
 				// Technically player could be without a RigidBodyComponent ;)
-				if (rigidBodyC) {
-					physicsInputs(e, rigidBodyC->rigidBody, *playerController);
+				if (entity.HasComponent<RigidBodyComponent>()) {
+					auto& rigidBodyC = entity.GetComponent<RigidBodyComponent>();
+					physicsInputs(entity, rigidBodyC.rigidBody, playerController);
 				}
+				auto all_entities = GetManager().GetEntities();
 				if (s[SDL_SCANCODE_R]) {
-					for (auto& id : manager->getEntities()) {
-						auto [oTransform, oRigidBodyC] = getComponents<TransformComponent, RigidBodyComponent>(id);
-						if (oTransform) {
-							oTransform->position = oTransform->originalPosition;
+					for (auto& entity2 : all_entities) {
+						if (entity2.HasComponent<TransformComponent>()) {
+							entity2.GetComponent<TransformComponent>().ResetPosition();
 						}
-						if (oRigidBodyC) {
-							oRigidBodyC->rigidBody.velocity = Vec2D();
-							oRigidBodyC->rigidBody.acceleration = Vec2D();
+						if (entity2.HasComponent<RigidBodyComponent>()) {
+							auto& rc = entity2.GetComponent<RigidBodyComponent>();
+							rc.rigidBody.velocity = Vec2D{};
+							rc.rigidBody.acceleration = Vec2D{};
 						}
 					}
 				}
 				if (s[SDL_SCANCODE_B]) {
-					for (auto& id : manager->getEntities()) {
-						auto [oRigidBodyC] = getComponents<RigidBodyComponent>(id);
-						if (oRigidBodyC) {
-							oRigidBodyC->rigidBody.velocity = Vec2D(rand() % 40 - 20, rand() % 40 - 20);
+					for (auto& entity2 : all_entities) {
+						if (entity2.HasComponent<RigidBodyComponent>()) {
+							auto& rc = entity2.GetComponent<RigidBodyComponent>();
+							rc.rigidBody.velocity = Vec2D(rand() % 40 - 20, rand() % 40 - 20);
 						}
 					}
 				}
 				// clear all entities except player
 				if (s[SDL_SCANCODE_C]) {
-					for (auto& rId : manager->getEntities({ id })) {
-						manager->destroyEntity(rId);
+					for (auto& entity2 : all_entities) {
+						if (entity2 != entity) {
+							entity2.Destroy();
+						}
 					}
-					manager->refreshDeleted();
 				}
 				if (s[SDL_SCANCODE_H]) {
 					//Serialization::serialize("resources/player.json", e);
@@ -54,8 +54,8 @@ public:
 		}
 	}
 	// player pressing motions keys
-	void physicsInputs(Entity entity, RigidBody& rigidBody, PlayerController& player) {
-		rigidBody.acceleration = Vec2D();
+	void physicsInputs(ecs::Entity entity, RigidBody& rigidBody, PlayerController& player) {
+		rigidBody.acceleration = Vec2D{};
 		if ((s[SDL_SCANCODE_A] && s[SDL_SCANCODE_D]) || (!s[SDL_SCANCODE_A] && !s[SDL_SCANCODE_D])) { // both horizontal keys pressed or neither -> stop
 			rigidBody.acceleration.x = 0.0;
 		} else if (s[SDL_SCANCODE_A] && !s[SDL_SCANCODE_D]) { // left

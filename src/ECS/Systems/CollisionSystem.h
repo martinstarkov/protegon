@@ -2,8 +2,8 @@
 
 #include "System.h"
 
-#include "../../Game.h"
-#include "../../AABB.h"
+#include <Game.h>
+#include <AABB.h>
 
 #include <algorithm>
 #include <vector>
@@ -13,6 +13,7 @@
 // TODO: Optimize performance (reduce checks, reduce copying, improve broadphase, add dynamic tree or sort and sweep algorithm?)
 // TODO: Revisit structured binding names
 // BUG: Fix static clipping through left corner walls
+// BUG / TODO: Fix wall glitch at very fast speeds
 
 struct CollisionManifold {
 	Vec2D point;
@@ -25,7 +26,7 @@ struct CollisionManifold {
 };
 
 struct Collision {
-	EntityID id;
+	ecs::Entity id;
 	CollisionManifold manifold;
 };
 
@@ -83,52 +84,49 @@ static void printCollisions(const std::vector<Collision>& collisions) {
 	LOG("");
 }
 
-class CollisionSystem : public System<TransformComponent, CollisionComponent> {
+class CollisionSystem : public ecs::System<TransformComponent, CollisionComponent> {
 public:
-	virtual void update() override final {
+	virtual void Update() override final {
 		static int counter = 0;
 		// sync collider positions to transform positions
-		for (auto& id : entities) {
-			auto [transformComponent, collisionComponent, renderComponent, playerController] = getComponents<TransformComponent, CollisionComponent, RenderComponent, PlayerController>(id);
-			collisionComponent->collider.position = transformComponent->position;
+		for (auto [entity, transform, collision] : entities) {
+			collision.collider.position = transform.position;
 			// Color reset
-			if (!playerController) {
-				if (renderComponent) {
-					renderComponent->color = BLACK;
+			if (!entity.HasComponent<PlayerController>()) {
+				if (entity.HasComponent<RenderComponent>()) {
+					entity.GetComponent<RenderComponent>().color = BLACK;
 				}
 			} else {
-				if (renderComponent) {
-					renderComponent->color = BLUE;
+				if (entity.HasComponent<RenderComponent>()) {
+					entity.GetComponent<RenderComponent>().color = BLUE;
 				}
 			}
 			
 		}
-		std::vector<EntityID> staticCheck;
-		for (auto& id : entities) {
-			auto [transform, collisionComponent, rigidBodyC] = getComponents<TransformComponent, CollisionComponent, RigidBodyComponent>(id);
-			if (rigidBodyC) {
-				RigidBody& rigidBody = rigidBodyC->rigidBody;
-				AABB& collider = collisionComponent->collider;
+		std::vector<ecs::Entity> staticCheck;
+		for (auto [entity, transform, collision] : entities) {
+			if (entity.HasComponent<RigidBodyComponent>()) {
+				RigidBody& rigidBody = entity.GetComponent<RigidBodyComponent>().rigidBody;
+				AABB& collider = collision.collider;
 				std::vector<Collision> collisions;
-				EntitySet broadphaseEntities;
+				std::vector<ecs::Entity> broadphaseEntities;
 				AABB broadphase = getSweptBroadphaseBox(rigidBody.velocity, collider);
 				//Game::aabbs.push_back({ broadphase, { 255, 0, 0, 255 } });
 				// broad phase static check
-				for (auto& oId : entities) {
-					if (oId == id) continue;
-					auto oCollisionComponent = manager->getComponent<CollisionComponent>(oId);
-					AABB oCollider = oCollisionComponent->collider;
-					if (AABBvsAABB(broadphase, oCollider)) {
-						broadphaseEntities.insert(oId);
+				for (auto [entity2, transform2, collision2] : entities) {
+					if (entity2 != entity) {
+						AABB oCollider = collision2.collider;
+						if (AABBvsAABB(broadphase, oCollider)) {
+							broadphaseEntities.emplace_back(entity2);
+						}
 					}
 				}
 				Collision info;
 				// narrow phase dynamic check
-				for (auto& oId : broadphaseEntities) {
-					auto oCollisionComponent = manager->getComponent<CollisionComponent>(oId);
-					AABB& oCollider = oCollisionComponent->collider;
+				for (auto& entity2 : broadphaseEntities) {
+					AABB& oCollider = entity2.GetComponent<CollisionComponent>().collider;
 					if (DynamicAABBvsAABB(&rigidBody, &collider, oCollider, info.manifold)) {
-						info.id = oId;
+						info.id = entity2;
 						collisions.push_back(info);
 					}
 				}
@@ -139,8 +137,7 @@ public:
 				if (collisions.size() > 0) {
 					Vec2D oldVelocity = rigidBody.velocity;
 					for (auto& c : collisions) {
-						auto oCollisionComponent = manager->getComponent<CollisionComponent>(c.id);
-						AABB& oCollider = oCollisionComponent->collider;
+						AABB& oCollider = c.id.GetComponent<CollisionComponent>().collider;
 						ResolveDynamicAABBvsAABB(&rigidBody, &collider, &oCollider, c.manifold);
 					}
 					/*AABB futureCollider = collider;
@@ -156,11 +153,10 @@ public:
 					if (rigidBody.velocity.x != oldVelocity.x || rigidBody.velocity.y != oldVelocity.y) {
 						collisions.clear();
 						// second narrow phase dynamic check
-						for (auto& oId : broadphaseEntities) {
-							auto oCollisionComponent = manager->getComponent<CollisionComponent>(oId);
-							AABB& oCollider = oCollisionComponent->collider;
+						for (auto& entity2 : broadphaseEntities) {
+							AABB& oCollider = entity2.GetComponent<CollisionComponent>().collider;
 							if (DynamicAABBvsAABB(&rigidBody, &collider, oCollider, info.manifold)) {
-								info.id = oId;
+								info.id = entity2;
 								collisions.push_back(info);
 							}
 						}
@@ -168,17 +164,16 @@ public:
 						if (collisions.size() > 0) {
 							sortTimes(collisions);
 							for (auto& c : collisions) {
-								auto oCollisionComponent = manager->getComponent<CollisionComponent>(c.id);
-								AABB& oCollider = oCollisionComponent->collider;
+								AABB& oCollider = c.id.GetComponent<CollisionComponent>().collider;
 								ResolveDynamicAABBvsAABB(&rigidBody, &collider, &oCollider, c.manifold);
 							}
 						}
 					}
 				}
 				collider.position += rigidBody.velocity;
-				if (transform->position != collider.position) {
-					transform->position = collider.position;
-					staticCheck.push_back(id);
+				if (transform.position != collider.position) {
+					transform.position = collider.position;
+					staticCheck.push_back(entity);
 				}
 				/*if (SDL_GetKeyboardState(NULL)[SDL_SCANCODE_SPACE] && counter % 6 == 0) {
 					transform->position = collider.position;
@@ -188,21 +183,19 @@ public:
 			}
 		}
 		// Static collision resolution
-		for (auto& id : staticCheck) {
-			auto [transform, collisionComponent] = getComponents(id);
+		for (auto& entity : staticCheck) {
+			auto [transform, collisionComponent] = entity.GetComponents<TransformComponent, CollisionComponent>();
 			AABB& collider = collisionComponent.collider;
-			for (auto& oId : entities) {
-				if (oId == id) continue;
-				auto oCollisionComponent = manager->getComponent<CollisionComponent>(oId);
-				AABB& oCollider = oCollisionComponent->collider;
+			for (auto [entity2, transform2, collision2] : entities) {
+				if (entity2 == entity) continue;
+				AABB& oCollider = collision2.collider;
 				if (AABBvsAABB(collider, oCollider)) {
 					Vec2D collisionDepth = intersectAABB(collider, oCollider);
 					if (!collisionDepth.isZero()) {
 						collider.position -= collisionDepth;
 						transform.position = collider.position;
-						auto renderComponent = manager->getComponent<RenderComponent>(id);
-						if (renderComponent) {
-							renderComponent->color = RED;
+						if (entity.HasComponent<RenderComponent>()) {
+							entity.GetComponent<RenderComponent>().color = RED;
 						}
 					}
 				}
