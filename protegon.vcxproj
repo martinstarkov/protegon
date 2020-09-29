@@ -183,6 +183,16 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\ECS\ECS.h" />
+    <ClInclude Include="src\engine\Color.h" />
+    <ClInclude Include="src\engine\Engine.h" />
+    <ClInclude Include="src\engine\Flip.h" />
+    <ClInclude Include="src\engine\Game.h" />
+    <ClInclude Include="src\engine\InputHandler.h" />
+    <ClInclude Include="src\engine\Math.h" />
+    <ClInclude Include="src\engine\SDL_includes.h" />
+    <ClInclude Include="src\engine\TextureManager.h" />
+    <ClInclude Include="src\engine\Utility.h" />
+    <ClInclude Include="src\engine\Vector2.h" />
     <ClInclude Include="src\Ray2D.h" />
     <ClInclude Include="src\ECS\Systems\DirectionSystem.h" />
     <ClInclude Include="src\ECS\Systems\PhysicsSystem.h" />
@@ -248,6 +258,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\ECS\Components\StateMachineComponent.cpp" />
+    <ClCompile Include="src\engine\Game.cpp" />
+    <ClCompile Include="src\engine\InputHandler.cpp" />
+    <ClCompile Include="src\engine\TextureManager.cpp" />
     <ClCompile Include="src\RigidBody.cpp" />
     <ClCompile Include="src\AllocationMetrics.cpp" />
     <ClCompile Include="src\Game.cpp" />
