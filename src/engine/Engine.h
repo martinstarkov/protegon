@@ -15,4 +15,8 @@
 
 #include "TextureManager.h"
 #include "InputHandler.h"
-#include "Game.h"
+#include <engine/core/Game.h>
+
+#include <ECS/ECS.h>
+#include <ECS/Components.h>
+#include <ECS/Systems.h>

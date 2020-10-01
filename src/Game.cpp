@@ -73,45 +73,6 @@ void Game::init() {
 	//manager.AddSystem<StateMachineSystem>();
 	manager.AddSystem<DirectionSystem>();
 
-	std::vector<std::vector<int>> boxes = {
-		{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
-		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
-		{3, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
-		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 3},
-		{3, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 3},
-		{3, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 3},
-		{3, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 3},
-		{3, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 3},
-		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 3},
-		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 3},
-		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 3},
-		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 3},
-		{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3}
-	};
-
-	for (size_t i = 0; i < boxes.size(); ++i) {
-		for (size_t j = 0; j < boxes[i].size(); ++j) {
-			if (boxes[i][j]) {
-				Vec2D pos = { static_cast<double>(32 * j), static_cast<double>(32 * i) };
-				switch (boxes[i][j]) {
-					case 1: {
-						ecs::Entity b = CreateBox(pos, manager);
-						RigidBody rb = RigidBody(UNIVERSAL_DRAG, GRAVITY);
-						b.AddComponent<RigidBodyComponent>(rb);
-						break;
-					}
-					case 2:
-						CreatePlayer(pos, manager);
-						break;
-					case 3:
-						CreateBox(pos, manager);
-						break;
-					default:
-						break;
-				}
-			}
-		}
-	}
 }
 
 void Game::initSDL(const char* title, int x, int y, int w, int h, Uint32 flags) {
@@ -131,15 +92,6 @@ void Game::instructions() {
 
 void Game::update() {
 	InputHandler::update(event);
-	static int cycle = 0;
-	cycle++;
-	manager.Update<InputSystem>();
-	manager.Update<PhysicsSystem>();
-	manager.Update<CollisionSystem>();
-	//manager.Update<StateMachineSystem>();
-	manager.Update<DirectionSystem>();
-	manager.Update<LifetimeSystem>();
-	//AllocationMetrics::printMemoryUsage();
 }
 
 static bool equal(SDL_Color o, SDL_Color p) {
