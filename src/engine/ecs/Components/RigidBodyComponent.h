@@ -2,7 +2,7 @@
 
 #include "Component.h"
 
-#include <RigidBody.h>
+#include <engine/physics/RigidBody.h>
 
 struct RigidBodyComponent {
 	RigidBody rigidBody;

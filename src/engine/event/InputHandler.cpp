@@ -2,13 +2,13 @@
 
 #include <cassert>
 
-#include "Game.h"
+#include <engine/core/Engine.h>
 
 namespace engine {
 
 // Unit: Seconds
 #define MOUSE_HOLD_TIME 0.25
-#define MOUSE_HOLD_CYCLES static_cast<std::uint64_t>(MOUSE_HOLD_TIME * Game::FPS())
+#define MOUSE_HOLD_CYCLES static_cast<std::uint64_t>(MOUSE_HOLD_TIME * Engine::FPS())
 
 InputHandler::MouseState InputHandler::left_mouse{ MouseState::RELEASED };
 InputHandler::MouseState InputHandler::right_mouse{ MouseState::RELEASED };
@@ -23,7 +23,7 @@ void InputHandler::Update() {
 	while (SDL_PollEvent(&e)) {
 		switch (e.type) {
 			case SDL_QUIT:
-				Game::Quit();
+				Engine::Quit();
 				break;
 			default:
 				break;

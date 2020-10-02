@@ -1,4 +1,4 @@
 #pragma once
 
-#include <ECS/ECS.h>
-#include <ECS/Components.h>
+#include <engine/ecs/ECS.h>
+#include <engine/ecs/Components.h>

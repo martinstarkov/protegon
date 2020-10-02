@@ -8,8 +8,6 @@
 #include <cmath>
 #include <cassert>
 
-#include "AllocationMetrics.h"
-
 struct Vec2D;
 struct AABB;
 struct SDL_Rect;

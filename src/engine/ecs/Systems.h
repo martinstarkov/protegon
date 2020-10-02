@@ -1,10 +1,10 @@
 #pragma once
 
-#include <ECS/Systems/InputSystem.h>
-#include <ECS/Systems/PhysicsSystem.h>
-#include <ECS/Systems/CollisionSystem.h>
-#include <ECS/Systems/LifetimeSystem.h>
-#include <ECS/Systems/StateMachineSystem.h>
-#include <ECS/Systems/DirectionSystem.h>
-#include <ECS/Systems/AnimationSystem.h>
-#include <ECS/Systems/RenderSystem.h>
+#include <engine/ecs/systems/InputSystem.h>
+#include <engine/ecs/systems/PhysicsSystem.h>
+#include <engine/ecs/systems/CollisionSystem.h>
+#include <engine/ecs/systems/LifetimeSystem.h>
+#include <engine/ecs/systems/StateMachineSystem.h>
+#include <engine/ecs/systems/DirectionSystem.h>
+#include <engine/ecs/systems/AnimationSystem.h>
+#include <engine/ecs/systems/RenderSystem.h>

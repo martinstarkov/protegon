@@ -1,8 +1,12 @@
 #pragma once
 
 #include <cmath>
-
-#include "common.h"
+#include <iostream>
+#include <cassert>
+#include <string>
+#include <algorithm>
+#include <limits>
+#include <nlohmann\json.hpp>
 
 constexpr const char LEFT_DELIMETER = '(';
 constexpr const char CENTER_DELIMETER = ',';
@@ -71,14 +75,14 @@ struct Vec2D {
 	}
 	// Return true if both vector components equal numeric limits infinity
 	bool isInfinite() const {
-		return x == INFINITE && y == INFINITE;
+		return x == std::numeric_limits<double>::infinity() && y == std::numeric_limits<double>::infinity();
 	}
 	bool isInfinite() {
 		return const_cast<const Vec2D*>(this)->isInfinite();
 	}
 	// Return a vector with numeric_limit::infinity() set for both components
 	Vec2D infinite() const {
-		return Vec2D(INFINITE);
+		return Vec2D(std::numeric_limits<double>::infinity());
 	}
 	Vec2D infinite() {
 		return const_cast<const Vec2D*>(this)->infinite();

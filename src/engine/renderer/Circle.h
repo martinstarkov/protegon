@@ -1,10 +1,8 @@
 #pragma once
 
-#include "common.h"
+#include <Vec2D.h>
 
-#include "Vec2D.h"
-
-#include "Shape.h"
+#include <engine/renderer/Shape.h>
 
 struct Circle : Shape<Circle> {
 	Circle() : position(), radius(0.0) {}

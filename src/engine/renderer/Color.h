@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-#include "SDL_includes.h"
+#include <SDL.h>
 
 namespace engine {
 

@@ -1,8 +1,8 @@
 #include "Utilities.h"
 
-#include "Vec2D.h"
-#include "AABB.h"
-#include "SDL.h"
+#include <Vec2D.h>
+#include <engine/renderer/AABB.h>
+#include <SDL.h>
 
 namespace Util {
 	double truncate(double value, int digits) {

@@ -7,9 +7,9 @@
 
 #include <nlohmann/json.hpp>
 
-#include "Utilities.h"
+#include <Utilities.h>
 
-#include "SDL.h"
+#include <SDL.h>
 
 using json = nlohmann::json;
 

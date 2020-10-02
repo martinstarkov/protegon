@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SDL_includes.h"
+#include <SDL.h>
 
 enum class Flip {
     NONE = SDL_FLIP_NONE,

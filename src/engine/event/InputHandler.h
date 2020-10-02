@@ -2,8 +2,8 @@
 
 #include <iostream>
 
-#include "SDL_includes.h"
-#include "Vector2.h"
+#include <SDL.h>
+#include <engine/utils/Vector2.h>
 
 namespace engine {
 

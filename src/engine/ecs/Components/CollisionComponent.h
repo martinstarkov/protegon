@@ -2,8 +2,8 @@
 
 #include "Component.h"
 
-#include <AABB.h>
-#include <Circle.h>
+#include <engine/renderer/AABB.h>
+#include <engine/renderer/Circle.h>
 
 // TODO: Consider holding a pointer to the TransformComponent here instead of an AABB somehow?
 // CONSIDERATIONS ^: How can you default construct a CollisionComponent? For serialization..

@@ -2,8 +2,7 @@
 
 #include "System.h"
 
-#include <Game.h>
-#include <AABB.h>
+#include <engine/renderer/AABB.h>
 
 #include <algorithm>
 #include <vector>
@@ -94,11 +93,11 @@ public:
 			// Color reset
 			if (!entity.HasComponent<PlayerController>()) {
 				if (entity.HasComponent<RenderComponent>()) {
-					entity.GetComponent<RenderComponent>().color = BLACK;
+					entity.GetComponent<RenderComponent>().color = engine::BLACK;
 				}
 			} else {
 				if (entity.HasComponent<RenderComponent>()) {
-					entity.GetComponent<RenderComponent>().color = BLUE;
+					entity.GetComponent<RenderComponent>().color = engine::BLUE;
 				}
 			}
 			
@@ -195,7 +194,7 @@ public:
 						collider.position -= collisionDepth;
 						transform.position = collider.position;
 						if (entity.HasComponent<RenderComponent>()) {
-							entity.GetComponent<RenderComponent>().color = RED;
+							entity.GetComponent<RenderComponent>().color = engine::RED;
 						}
 					}
 				}

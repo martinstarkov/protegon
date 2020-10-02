@@ -1,11 +1,9 @@
 #pragma once
 
-#include "common.h"
-
 #include "Vec2D.h"
-#include "Ray2D.h"
 
-#include "Shape.h"
+#include <engine/renderer/Ray2D.h>
+#include <engine/renderer/Shape.h>
 
 struct AABB : Shape<AABB> {
 	Vec2D position;

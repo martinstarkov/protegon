@@ -3,9 +3,10 @@
 #include "Component.h"
 
 #include <SDL.h>
-#include <TextureManager.h>
+#include <engine/renderer/TextureManager.h>
 #include <Vec2D.h>
-#include <AABB.h>
+#include <engine/renderer/AABB.h>
+#include <Utilities.h>
 
 struct SpriteComponent {
 	std::string path;
@@ -18,7 +19,7 @@ struct SpriteComponent {
 	}
 	void init() {
 		source = Util::RectFromVec(Vec2D(), spriteSize);
-		texture = TextureManager::load(path);
+		texture = &engine::TextureManager::Load(path, path);
 	}
 	~SpriteComponent() {
 		// TODO: Rethink texture removal after spriteComponent is destroyed
