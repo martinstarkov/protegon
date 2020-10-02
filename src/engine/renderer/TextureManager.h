@@ -3,9 +3,9 @@
 #include <string>
 #include <map>
 
-#include "Color.h"
-#include "Vector2.h"
-#include "Flip.h"
+#include <engine/utils/Vector2.h>
+#include <engine/renderer/Color.h>
+#include <engine/renderer/Flip.h>
 
 namespace engine {
 
@@ -16,8 +16,9 @@ namespace engine {
 
 class TextureManager {
 public:
-	static SDL_Texture& Load(const std::string& key, const std::string& path);
+	static SDL_Texture& Load(std::string& key, const std::string& path);
 
+	static Color GetDefaultRendererColor();
 	static void SetDrawColor(Color color);
 
 	static void DrawPoint(V2_int point, Color color = DEFAULT_RENDER_COLOR);
