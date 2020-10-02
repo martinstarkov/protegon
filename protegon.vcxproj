@@ -182,11 +182,10 @@
     <Image Include="resources\textures\player_anim2.png" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\engine\core\Engine.h" />
     <ClInclude Include="src\engine\ecs\ECS.h" />
     <ClInclude Include="src\engine\renderer\Color.h" />
-    <ClInclude Include="src\engine\Engine.h" />
     <ClInclude Include="src\engine\renderer\Flip.h" />
-    <ClInclude Include="src\engine\core\Game.h" />
     <ClInclude Include="src\engine\event\InputHandler.h" />
     <ClInclude Include="src\engine\utils\Math.h" />
     <ClInclude Include="src\engine\renderer\TextureManager.h" />
@@ -195,7 +194,7 @@
     <ClInclude Include="src\engine\renderer\Ray2D.h" />
     <ClInclude Include="src\engine\ecs\Systems\DirectionSystem.h" />
     <ClInclude Include="src\engine\ecs\Systems\PhysicsSystem.h" />
-    <ClInclude Include="src\RigidBody.h" />
+    <ClInclude Include="src\engine\physics\RigidBody.h" />
     <ClInclude Include="src\engine\renderer\Circle.h" />
     <ClInclude Include="src\Direction.h" />
     <ClInclude Include="src\engine\ecs\Components\RigidBodyComponent.h" />
@@ -214,8 +213,7 @@
     <ClInclude Include="src\StateMachine\States\GroundedState.h" />
     <ClInclude Include="src\engine\ecs\Components\CollisionComponent.h" />
     <ClInclude Include="src\engine\utils\AllocationMetrics.h" />
-    <ClInclude Include="src\common.h" />
-    <ClInclude Include="src\Debug.h" />
+    <ClInclude Include="src\engine\utils\Debug.h" />
     <ClInclude Include="src\Defines.h" />
     <ClInclude Include="src\engine\ecs\Components\AnimationComponent.h" />
     <ClInclude Include="src\engine\ecs\Components\InputComponent.h" />
@@ -237,8 +235,6 @@
     <ClInclude Include="src\engine\ecs\Systems\System.h" />
     <ClInclude Include="src\engine\ecs\Systems.h" />
     <ClInclude Include="src\engine\ecs\Components\TransformComponent.h" />
-    <ClInclude Include="src\Game.h" />
-    <ClInclude Include="src\InputHandler.h" />
     <ClInclude Include="src\engine\utils\Logger.h" />
     <ClInclude Include="src\StateMachine\BaseStateMachine.h" />
     <ClInclude Include="src\StateMachine\StateMachine.h" />
@@ -251,21 +247,17 @@
     <ClInclude Include="src\StateMachine\States\StateDefines.h" />
     <ClInclude Include="src\StateMachine\States\WalkState.h" />
     <ClInclude Include="src\StateMachine\Types.h" />
-    <ClInclude Include="src\TextureManager.h" />
     <ClInclude Include="src\Utilities.h" />
     <ClInclude Include="src\Vec2D.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\engine\core\Engine.cpp" />
     <ClCompile Include="src\engine\ecs\Components\StateMachineComponent.cpp" />
-    <ClCompile Include="src\engine\core\Game.cpp" />
     <ClCompile Include="src\engine\event\InputHandler.cpp" />
     <ClCompile Include="src\engine\renderer\TextureManager.cpp" />
-    <ClCompile Include="src\RigidBody.cpp" />
+    <ClCompile Include="src\engine\physics\RigidBody.cpp" />
     <ClCompile Include="src\engine\utils\AllocationMetrics.cpp" />
-    <ClCompile Include="src\Game.cpp" />
-    <ClCompile Include="src\InputHandler.cpp" />
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\TextureManager.cpp" />
     <ClCompile Include="src\Utilities.cpp" />
   </ItemGroup>
   <ItemGroup>
