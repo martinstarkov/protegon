@@ -31,7 +31,7 @@ public:
 		for (std::size_t i = 0; i < boxes.size(); ++i) {
 			for (std::size_t j = 0; j < boxes[i].size(); ++j) {
 				if (boxes[i][j]) {
-					Vec2D pos = { static_cast<double>(32 * j), static_cast<double>(32 * i) };
+					Vec2D pos = { 32.0 * j, 32.0 * i };
 					switch (boxes[i][j]) {
 						case 1:
 						{

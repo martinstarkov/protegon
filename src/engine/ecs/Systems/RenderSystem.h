@@ -21,14 +21,14 @@ public:
 					auto& collisionComponent = entity.GetComponent<CollisionComponent>();
 					//TextureManager::drawRectangle(sprite->texture, sprite->source, Util::RectFromVec(transform.position, collisionComponent->collider.size), 0.0, flip);
 					// Draw colliders for debug purposes
-					engine::TextureManager::DrawRectangle(V2_int{ transform.position.x, transform.position.y }, V2_int{ collisionComponent.collider.size.x, collisionComponent.collider.size.y }, renderComponent.color);
+					engine::TextureManager::DrawRectangle(transform.position, collisionComponent.collider.size, renderComponent.color);
 				} else {
-					engine::TextureManager::DrawRectangle(sprite.path, V2_int{ sprite.source.x, sprite.source.y }, V2_int{ sprite.source.w, sprite.source.h }, V2_int{ transform.position.x, transform.position.y }, V2_int{ sprite.source.w, sprite.source.h }, flip, 0);
+					engine::TextureManager::DrawRectangle(sprite.path, { sprite.source.x, sprite.source.y }, { sprite.source.w, sprite.source.h }, transform.position, { sprite.source.w, sprite.source.h }, flip, 0);
 				}
 			} else {
 				if (entity.HasComponent<CollisionComponent>()) {
 					auto& collisionComponent = entity.GetComponent<CollisionComponent>();
-					engine::TextureManager::DrawRectangle({ transform.position.x, transform.position.y }, { collisionComponent.collider.size.x, collisionComponent.collider.size.y }, renderComponent.color);
+					engine::TextureManager::DrawRectangle(transform.position, collisionComponent.collider.size, renderComponent.color);
 				}
 			}
 		}
