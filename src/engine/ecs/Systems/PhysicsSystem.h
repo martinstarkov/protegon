@@ -19,12 +19,12 @@ public:
 			velocity *= (Vec2D(1.0) - rigidBody.drag);
 			// terminal motion
 			if (abs(velocity.x) > terminalVelocity.x) {
-				velocity.x = Util::sgn(velocity.x) * terminalVelocity.x;
+				velocity.x = engine::math::sgn(velocity.x) * terminalVelocity.x;
 			} else if (abs(velocity.x) < LOWEST_VELOCITY) {
 				velocity.x = 0.0;
 			}
 			if (abs(velocity.y) > terminalVelocity.y) {
-				velocity.y = Util::sgn(velocity.y) * terminalVelocity.y;
+				velocity.y = engine::math::sgn(velocity.y) * terminalVelocity.y;
 			} else if (abs(velocity.y) < LOWEST_VELOCITY) {
 				velocity.y = 0.0;
 			}

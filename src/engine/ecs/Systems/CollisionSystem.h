@@ -231,10 +231,10 @@ public:
 		}
 
 		if (px < py) {
-		  double sx = Util::sgn(dx);
+		  double sx = engine::math::sgn(dx);
 		  penetration.x = px * sx;
 		} else {
-		  double sy = Util::sgn(dy);
+		  double sy = engine::math::sgn(dy);
 		  penetration.y = py * sy;
 		}
 		return penetration;

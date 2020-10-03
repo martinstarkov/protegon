@@ -1,15 +1,17 @@
 #pragma once
 
-#include "Vector2.h"
 #include <cmath>
+#include <type_traits>
 
 namespace engine {
 
 namespace math {
 
+// Find the sign of a numeric type
 template <typename T>
-inline T Distance(const Vector2<T>& lhs, const Vector2<T>& rhs) {
-	return static_cast<T>(std::sqrt((lhs.x - rhs.x) * (lhs.x - rhs.x) + (lhs.y - rhs.y) * (lhs.y - rhs.y)));
+inline int sgn(T val) {
+	static_assert(std::is_arithmetic<T>::value, "sgn can only accept numeric types");
+	return (T(0) < val) - (val < T(0));
 }
 
 } // namespace math

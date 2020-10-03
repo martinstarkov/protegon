@@ -10,7 +10,7 @@
 namespace engine {
 
 // Default color of renderer window
-#define DEFAULT_RENDERER_COLOR BLACK
+#define DEFAULT_RENDERER_COLOR WHITE
 // Default color of renderer objects
 #define DEFAULT_RENDER_COLOR BLACK
 
