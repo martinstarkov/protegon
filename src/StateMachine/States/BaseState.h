@@ -2,7 +2,8 @@
 
 #include "../Types.h"
 
-class Entity;
+#include <ECS/ECS.h>
+
 class BaseStateMachine;
 
 class BaseState {
@@ -14,7 +15,7 @@ public:
 	virtual void update() = 0;
 	virtual StateName getName() = 0;
 	virtual void setName(StateName name) = 0;
-	virtual void setHandle(Entity handle) = 0;
+	virtual void setHandle(ecs::Entity handle) = 0;
 	virtual void setParentStateMachine(BaseStateMachine* parentStateMachine) = 0;
 };
 
