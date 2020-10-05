@@ -5,6 +5,7 @@
 #include <engine/ecs/ECS.h>
 #include <engine/ecs/Components.h>
 #include <engine/ecs/Systems.h>
+#include <Defines.h>
 
 namespace engine {
 
@@ -21,8 +22,6 @@ constexpr int WINDOW_Y = CENTERED;
 constexpr int WINDOW_WIDTH = 600;
 // Default window height
 constexpr int WINDOW_HEIGHT = 480;
-// Default frame rate
-constexpr int FRAME_RATE = 60;
 
 } // namespace internal
 
@@ -35,11 +34,10 @@ public:
 	virtual void Render() {}
 	// Default values defined in engine
 	template <typename T>
-	static void Start(const char* title = internal::WINDOW_TITLE, int width = internal::WINDOW_WIDTH, int height = internal::WINDOW_HEIGHT, int frame_rate = internal::FRAME_RATE, int x = internal::WINDOW_X, int y = internal::WINDOW_Y, std::uint32_t window_flags = 0, std::uint32_t renderer_flags = 0) {
+	static void Start(const char* title = internal::WINDOW_TITLE, int width = internal::WINDOW_WIDTH, int height = internal::WINDOW_HEIGHT, int x = internal::WINDOW_X, int y = internal::WINDOW_Y, std::uint32_t window_flags = 0, std::uint32_t renderer_flags = 0) {
 		window_title_ = title;
 		window_width_ = width;
 		window_height_ = height;
-		frame_rate_ = frame_rate;
 		window_x_ = x;
 		window_y_ = x;
 		InitSDL(window_flags, renderer_flags);
@@ -52,7 +50,6 @@ public:
 	static SDL_Renderer& GetRenderer();
 	static int ScreenWidth();
 	static int ScreenHeight();
-	static int FPS();
 protected:
 	ecs::Manager manager;
 private:
@@ -67,7 +64,7 @@ private:
 	static void Clean();
 	template <typename T>
 	static void Loop() {
-		const std::uint32_t delay = 1000 / frame_rate_;
+		const std::uint32_t delay = 1000 / FPS;
 		std::uint32_t start;
 		std::uint32_t time;
 		auto& ref = *GetInstance<T>();
@@ -97,7 +94,6 @@ private:
 	static int window_height_;
 	static int window_x_;
 	static int window_y_;
-	static int frame_rate_;
 	static const char* window_title_;
 };
 

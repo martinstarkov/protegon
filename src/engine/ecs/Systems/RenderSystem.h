@@ -19,9 +19,9 @@ public:
 				}
 				if (entity.HasComponent<CollisionComponent>()) {
 					auto& cc = entity.GetComponent<CollisionComponent>();
-					//TextureManager::drawRectangle(sprite->texture, sprite->source, Util::RectFromVec(transform.position, collisionComponent->collider.size), 0.0, flip);
-					// Draw colliders for debug purposes
-					engine::TextureManager::DrawRectangle(transform.position, cc.collider.size, render_component.color);
+					engine::TextureManager::DrawRectangle(sprite.path, { sprite.source.x, sprite.source.y }, { sprite.source.w, sprite.source.h }, transform.position, cc.collider.size, flip, 0);
+					// Draw only collider boxes (without sprite) for debug purposes.
+					//engine::TextureManager::DrawRectangle(transform.position, cc.collider.size, render_component.color);
 				} else {
 					engine::TextureManager::DrawRectangle(sprite.path, { sprite.source.x, sprite.source.y }, { sprite.source.w, sprite.source.h }, transform.position, { sprite.source.w, sprite.source.h }, flip, 0);
 				}
