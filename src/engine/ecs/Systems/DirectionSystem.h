@@ -7,21 +7,21 @@
 class DirectionSystem : public ecs::System<DirectionComponent, RigidBodyComponent> {
 public:
 	virtual void Update() override final {
-		for (auto [entity, dir, rigidBodyC] : entities) {
-			Direction& direction = dir.direction;
-			RigidBody& rigidBody = rigidBodyC.rigidBody;
-			dir.previousDirection = direction;
-			if (rigidBody.velocity.isZero()) {
+		for (auto [entity, dir, rigid_body] : entities) {
+			auto& direction = dir.direction;
+			auto& rb = rigid_body.rigid_body;
+			dir.previous_direction = direction;
+			if (rb.velocity.IsZero()) {
 				direction = IDLE_DIRECTION;
 			}
-			if (rigidBody.velocity.y < 0.0) {
+			if (rb.velocity.y < 0.0) {
 				direction = Direction::UP;
-			} else if (rigidBody.velocity.y > 0.0) {
+			} else if (rb.velocity.y > 0.0) {
 				direction = Direction::DOWN;
 			}
-			if (rigidBody.velocity.x > 0.0) {
+			if (rb.velocity.x > 0.0) {
 				direction = Direction::RIGHT;
-			} else if (rigidBody.velocity.x < 0.0) {
+			} else if (rb.velocity.x < 0.0) {
 				direction = Direction::LEFT;
 			}
 		}

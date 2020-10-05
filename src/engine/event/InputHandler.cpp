@@ -4,11 +4,13 @@
 
 #include <engine/core/Engine.h>
 
+#include <Defines.h>
+
 namespace engine {
 
 // Unit: Seconds
 #define MOUSE_HOLD_TIME 0.25
-#define MOUSE_HOLD_CYCLES static_cast<std::uint64_t>(MOUSE_HOLD_TIME * Engine::FPS())
+#define MOUSE_HOLD_CYCLES static_cast<std::uint64_t>(MOUSE_HOLD_TIME * FPS)
 
 InputHandler::MouseState InputHandler::left_mouse{ MouseState::RELEASED };
 InputHandler::MouseState InputHandler::right_mouse{ MouseState::RELEASED };

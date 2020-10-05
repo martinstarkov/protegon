@@ -5,28 +5,24 @@
 class PhysicsSystem : public ecs::System<TransformComponent, RigidBodyComponent> {
 public:
 	virtual void Update() override final {
-		for (auto& [entity, transform, rigidBodyC] : entities) {
-			Vec2D& position = transform.position;
-			RigidBody& rigidBody = rigidBodyC.rigidBody;
-			Vec2D& velocity = rigidBody.velocity;
-			Vec2D& terminalVelocity = rigidBody.terminalVelocity;
-			Vec2D& acceleration = rigidBody.acceleration;
+		for (auto& [entity, transform, rigid_body] : entities) {
+			auto& rb = rigid_body.rigid_body;
 			// gravity
-			acceleration += rigidBody.gravity;
+			rb.acceleration += rb.gravity;
 			// motion
-			velocity += acceleration;
+			rb.velocity += rb.acceleration;
 			// drag
-			velocity *= (Vec2D(1.0) - rigidBody.drag);
+			rb.velocity *= V2_double{ 1.0, 1.0 } - rb.drag;
 			// terminal motion
-			if (abs(velocity.x) > terminalVelocity.x) {
-				velocity.x = engine::math::sgn(velocity.x) * terminalVelocity.x;
-			} else if (abs(velocity.x) < LOWEST_VELOCITY) {
-				velocity.x = 0.0;
+			if (abs(rb.velocity.x) > rb.terminal_velocity.x) {
+				rb.velocity.x = engine::math::sgn(rb.velocity.x) * rb.terminal_velocity.x;
+			} else if (abs(rb.velocity.x) < LOWEST_VELOCITY) {
+				rb.velocity.x = 0;
 			}
-			if (abs(velocity.y) > terminalVelocity.y) {
-				velocity.y = engine::math::sgn(velocity.y) * terminalVelocity.y;
-			} else if (abs(velocity.y) < LOWEST_VELOCITY) {
-				velocity.y = 0.0;
+			if (abs(rb.velocity.y) > rb.terminal_velocity.y) {
+				rb.velocity.y = engine::math::sgn(rb.velocity.y) * rb.terminal_velocity.y;
+			} else if (abs(rb.velocity.y) < LOWEST_VELOCITY) {
+				rb.velocity.y = 0;
 			}
 			/*
 			if (manager->hasComponent<PlayerController>(id)) {

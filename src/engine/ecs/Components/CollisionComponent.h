@@ -10,8 +10,8 @@
 
 struct CollisionComponent {
 	AABB collider;
-	CollisionComponent(AABB collider = AABB()) : collider(collider) {}
-	CollisionComponent(Vec2D position, Vec2D size) : collider(position, size) {}
+	CollisionComponent(AABB collider = {}) : collider{ collider } {}
+	CollisionComponent(V2_double position, V2_double size) : collider{ position, size } {}
 };
 
 // json serialization
@@ -22,7 +22,7 @@ inline void to_json(nlohmann::json& j, const CollisionComponent& o) {
 inline void from_json(const nlohmann::json& j, CollisionComponent& o) {
 	if (j.find("collider") != j.end()) {
 		if (j.find("collider")->find("size") != j.find("collider")->end()) {
-			o.collider.size = j.at("collider").at("size").get<Vec2D>();
+			o.collider.size = j.at("collider").at("size").get<V2_double>();
 		}
 	}
 }

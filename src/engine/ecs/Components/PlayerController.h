@@ -2,28 +2,28 @@
 
 #include "Component.h"
 
-#include <Vec2D.h>
+#include <engine/utils/Vector2.h>
 
 // TODO: Possibly add a maxAcceleration? (for terminalVelocity calculation)
 // CONSIDER: Move inputAcceleration / maxAcceleration into another component?
 
 struct PlayerController {
-	Vec2D inputAcceleration;
-	PlayerController(Vec2D inputAcceleration = Vec2D()) : inputAcceleration(inputAcceleration) {
-		init();
+	V2_double input_acceleration;
+	PlayerController(V2_double input_acceleration = {}) : input_acceleration{ input_acceleration } {
+		Init();
 	}
 	// might be useful later
-	void init() {}
+	void Init() {}
 };
 
 // json serialization
 inline void to_json(nlohmann::json& j, const PlayerController& o) {
-	j["inputAcceleration"] = o.inputAcceleration;
+	j["input_acceleration"] = o.input_acceleration;
 }
 
 inline void from_json(const nlohmann::json& j, PlayerController& o) {
-	if (j.find("inputAcceleration") != j.end()) {
-		o.inputAcceleration = j.at("inputAcceleration").get<Vec2D>();
+	if (j.find("input_acceleration") != j.end()) {
+		o.input_acceleration = j.at("input_acceleration").get<V2_double>();
 	}
-	o.init();
+	o.Init();
 }

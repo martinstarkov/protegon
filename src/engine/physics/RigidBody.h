@@ -2,40 +2,40 @@
 
 #include <limits>
 
-//#include <engine/utils/Vector2.h>
-#include <Vec2D.h>
+#include <engine/utils/Vector2.h>
 
 constexpr double IMMOVABLE = 0.0; // mass
 constexpr double MASSLESS = 0.0; // massless
 constexpr double ELASTIC = 1.0; // perfectly elastic collision restitution
+constexpr double INFINITE_MASS = std::numeric_limits<double>::infinity();
 
 #define UNIVERSAL_DRAG DRAGLESS + 0.15
-#define GRAVITY Vec2D(0.0, 0.0) // pixels per frame
-#define DRAGLESS Vec2D(0.0, 0.0) // drag
+#define GRAVITY V2_double{ 0, 0 } // pixels per frame
+#define DRAGLESS V2_double{ 0, 0 } // drag
 
 struct RigidBody {
-	Vec2D velocity;
-	Vec2D terminalVelocity;
-	Vec2D acceleration;
-	Vec2D maximumAcceleration;
-	Vec2D drag;
-	Vec2D gravity;
+	V2_double velocity;
+	V2_double terminal_velocity;
+	V2_double acceleration;
+	V2_double maximum_acceleration;
+	V2_double drag;
+	V2_double gravity;
 	double mass;
-	double inverseMass;
+	double inverse_mass;
 	double restitution;
-	RigidBody(Vec2D drag = DRAGLESS, Vec2D gravity = GRAVITY, double restitution = ELASTIC, double mass = IMMOVABLE, Vec2D maximumAcceleration = Vec2D(std::numeric_limits<double>::infinity())) : drag(drag), gravity(gravity), restitution(restitution), mass(mass), maximumAcceleration(maximumAcceleration), terminalVelocity(Vec2D(std::numeric_limits<double>::infinity())) {
-		init();
+	RigidBody(V2_double drag = DRAGLESS, V2_double gravity = GRAVITY, double restitution = ELASTIC, double mass = IMMOVABLE, V2_double maximum_acceleration = { std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity() }) : drag{ drag }, gravity{ gravity }, restitution{ restitution }, mass{ mass }, maximum_acceleration{ maximum_acceleration }, terminal_velocity{ std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity() } {
+		Init();
 	}
-	void init();
-	void computeTerminalVelocity();
+	void Init();
+	void ComputeTerminalVelocity();
 };
 
 // json serialization
 inline void to_json(nlohmann::json& j, const RigidBody& o) {
 	j["velocity"] = o.velocity;
-	j["terminalVelocity"] = o.terminalVelocity;
+	j["terminal_velocity"] = o.terminal_velocity;
 	j["acceleration"] = o.acceleration;
-	j["maximumAcceleration"] = o.maximumAcceleration;
+	j["maximum_acceleration"] = o.maximum_acceleration;
 	j["drag"] = o.drag;
 	j["gravity"] = o.gravity;
 	j["mass"] = o.mass;
@@ -44,22 +44,22 @@ inline void to_json(nlohmann::json& j, const RigidBody& o) {
 
 inline void from_json(const nlohmann::json& j, RigidBody& o) {
 	if (j.find("velocity") != j.end()) {
-		o.velocity = j.at("velocity").get<Vec2D>();
+		o.velocity = j.at("velocity").get<V2_double>();
 	}
-	if (j.find("terminalVelocity") != j.end()) {
-		o.terminalVelocity = j.at("terminalVelocity").get<Vec2D>();
+	if (j.find("terminal_velocity") != j.end()) {
+		o.terminal_velocity = j.at("terminal_velocity").get<V2_double>();
 	}
 	if (j.find("acceleration") != j.end()) {
-		o.acceleration = j.at("acceleration").get<Vec2D>();
+		o.acceleration = j.at("acceleration").get<V2_double>();
 	}
-	if (j.find("maximumAcceleration") != j.end()) {
-		o.maximumAcceleration = j.at("maximumAcceleration").get<Vec2D>();
+	if (j.find("maximum_acceleration") != j.end()) {
+		o.maximum_acceleration = j.at("maximum_acceleration").get<V2_double>();
 	}
 	if (j.find("drag") != j.end()) {
-		o.drag = j.at("drag").get<Vec2D>();
+		o.drag = j.at("drag").get<V2_double>();
 	}
 	if (j.find("gravity") != j.end()) {
-		o.gravity = j.at("gravity").get<Vec2D>();
+		o.gravity = j.at("gravity").get<V2_double>();
 	}
 	if (j.find("mass") != j.end()) {
 		o.mass = j.at("mass").get<double>();
@@ -67,5 +67,5 @@ inline void from_json(const nlohmann::json& j, RigidBody& o) {
 	if (j.find("restitution") != j.end()) {
 		o.restitution = j.at("restitution").get<double>();
 	}
-	o.init();
+	o.Init();
 }

@@ -4,21 +4,19 @@
 
 #include <SDL.h>
 #include <engine/renderer/TextureManager.h>
-#include <Vec2D.h>
 #include <engine/renderer/AABB.h>
-#include <Utilities.h>
 
 struct SpriteComponent {
 	std::string path;
-	SDL_Rect source;
+	AABB source;
 	SDL_Texture* texture;
-	Vec2D spriteSize;
-	SpriteComponent() : path(), source(), texture(nullptr), spriteSize() {}
-	SpriteComponent(std::string path, Vec2D spriteSize) : path(path), spriteSize(spriteSize) {
-		init();
+	V2_double sprite_size;
+	SpriteComponent() : path{}, source{}, texture{ nullptr }, sprite_size{} {}
+	SpriteComponent(std::string path, V2_double sprite_size) : path{ path }, sprite_size{ sprite_size } {
+		Init();
 	}
-	void init() {
-		source = Util::RectFromVec(Vec2D(), spriteSize);
+	void Init() {
+		source = AABB{ {}, sprite_size };
 		texture = &engine::TextureManager::Load(path, path);
 	}
 	~SpriteComponent() {
@@ -31,15 +29,15 @@ struct SpriteComponent {
 // json serialization
 inline void to_json(nlohmann::json& j, const SpriteComponent& o) {
 	j["path"] = o.path;
-	j["spriteSize"] = o.spriteSize;
+	j["sprite_size"] = o.sprite_size;
 }
 
 inline void from_json(const nlohmann::json& j, SpriteComponent& o) {
 	if (j.find("path") != j.end()) {
 		o.path = j.at("path").get<std::string>();
 	}
-	if (j.find("spriteSize") != j.end()) {
-		o.spriteSize = j.at("spriteSize").get<Vec2D>();
+	if (j.find("sprite_size") != j.end()) {
+		o.sprite_size = j.at("sprite_size").get<V2_double>();
 	}
-	o.init();
+	o.Init();
 }

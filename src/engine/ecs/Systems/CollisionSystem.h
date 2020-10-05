@@ -15,8 +15,8 @@
 // BUG / TODO: Fix wall glitch at very fast speeds
 
 struct CollisionManifold {
-	Vec2D point;
-	Vec2D normal;
+	V2_double point;
+	V2_double normal;
 	double time = 0.0;
 	friend std::ostream& operator<<(std::ostream& os, const CollisionManifold& obj) {
 		os << "point: " << obj.point << ", normal: " << obj.normal << ", time: " << obj.time;
@@ -29,18 +29,18 @@ struct Collision {
 	CollisionManifold manifold;
 };
 
-static void sortTimes(std::vector<Collision>& collisions) {
+static void SortTimes(std::vector<Collision>& collisions) {
 	// Sort collision sweep times
 	std::sort(collisions.begin(), collisions.end(), [](const Collision& a, const Collision& b) {
 		if (a.manifold.time != b.manifold.time) {
 			return a.manifold.time < b.manifold.time;
 		} else {
-			return a.manifold.normal.magnitudeSquared() < b.manifold.normal.magnitudeSquared();
+			return a.manifold.normal.MagnitudeSquared() < b.manifold.normal.MagnitudeSquared();
 		}
 	});
 }
 
-static void sortDepths(std::vector<double>& depths) {
+static void SortDepths(std::vector<double>& depths) {
 	// Sort collision depths
 	std::sort(depths.begin(), depths.end(), [](const double& a, const double& b) {
 		return a > b;
@@ -48,7 +48,7 @@ static void sortDepths(std::vector<double>& depths) {
 }
 
 // Function which takes consecutive identical collision times such as [0.5: (0, -1), 0.5: (-1, 0)] and combines the normals into one time [0.5: (-1, -1)]
-static void combineTimes(std::vector<Collision>& collisions) {
+static void CombineTimes(std::vector<Collision>& collisions) {
 	size_t size = collisions.size();
 	if (size > 1) {
 		std::vector<Collision> newCollisions;
@@ -56,7 +56,7 @@ static void combineTimes(std::vector<Collision>& collisions) {
 			static bool ignore = false;
 			if (!ignore) {
 				if (collisions[i].manifold.time == collisions[(i + 1) % size].manifold.time) {
-					if (collisions[i].manifold.normal.hasZero() && collisions[(i + 1) % size].manifold.normal.hasZero()) {
+					if (collisions[i].manifold.normal.HasZero() && collisions[(i + 1) % size].manifold.normal.HasZero()) {
 						if (abs(collisions[i].manifold.normal.x) != abs(collisions[(i + 1) % size].manifold.normal.x)) {
 							Collision col = collisions[i];
 							col.manifold.normal += collisions[(i + 1) % size].manifold.normal;
@@ -105,17 +105,17 @@ public:
 		std::vector<ecs::Entity> staticCheck;
 		for (auto [entity, transform, collision] : entities) {
 			if (entity.HasComponent<RigidBodyComponent>()) {
-				RigidBody& rigidBody = entity.GetComponent<RigidBodyComponent>().rigidBody;
-				AABB& collider = collision.collider;
+				auto& rb = entity.GetComponent<RigidBodyComponent>().rigid_body;
+				auto& collider = collision.collider;
 				std::vector<Collision> collisions;
 				std::vector<ecs::Entity> broadphaseEntities;
-				AABB broadphase = getSweptBroadphaseBox(rigidBody.velocity, collider);
+				auto broadphase = GetSweptBroadphaseBox(rb.velocity, collider);
 				//Game::aabbs.push_back({ broadphase, { 255, 0, 0, 255 } });
 				// broad phase static check
 				for (auto [entity2, transform2, collision2] : entities) {
 					if (entity2 != entity) {
 						AABB oCollider = collision2.collider;
-						if (AABBvsAABB(broadphase, oCollider)) {
+						if (AABBVsAABB(broadphase, oCollider)) {
 							broadphaseEntities.emplace_back(entity2);
 						}
 					}
@@ -124,20 +124,20 @@ public:
 				// narrow phase dynamic check
 				for (auto& entity2 : broadphaseEntities) {
 					AABB& oCollider = entity2.GetComponent<CollisionComponent>().collider;
-					if (DynamicAABBvsAABB(&rigidBody, &collider, oCollider, info.manifold)) {
+					if (DynamicAABBVsAABB(&rb, &collider, oCollider, info.manifold)) {
 						info.id = entity2;
 						collisions.push_back(info);
 					}
 				}
-				sortTimes(collisions);
+				SortTimes(collisions);
 				//combineTimes(collisions);
 				//printCollisions(collisions);
 				// narrow phase dynamic resolution
 				if (collisions.size() > 0) {
-					Vec2D oldVelocity = rigidBody.velocity;
+					auto old_velocity = rb.velocity;
 					for (auto& c : collisions) {
-						AABB& oCollider = c.id.GetComponent<CollisionComponent>().collider;
-						ResolveDynamicAABBvsAABB(&rigidBody, &collider, &oCollider, c.manifold);
+						auto& oCollider = c.id.GetComponent<CollisionComponent>().collider;
+						ResolveDynamicAABBVsAABB(&rb, &collider, &oCollider, c.manifold);
 					}
 					/*AABB futureCollider = collider;
 					AABB firstCollider = collider;
@@ -149,27 +149,27 @@ public:
 					Game::lines.push_back({ collider.center(), collider.center() + rigidBody.velocity, ORANGE });
 					*/
 					// velocity changed, complete a second sweep
-					if (rigidBody.velocity.x != oldVelocity.x || rigidBody.velocity.y != oldVelocity.y) {
+					if (rb.velocity.x != old_velocity.x || rb.velocity.y != old_velocity.y) {
 						collisions.clear();
 						// second narrow phase dynamic check
 						for (auto& entity2 : broadphaseEntities) {
-							AABB& oCollider = entity2.GetComponent<CollisionComponent>().collider;
-							if (DynamicAABBvsAABB(&rigidBody, &collider, oCollider, info.manifold)) {
+							auto& oCollider = entity2.GetComponent<CollisionComponent>().collider;
+							if (DynamicAABBVsAABB(&rb, &collider, oCollider, info.manifold)) {
 								info.id = entity2;
 								collisions.push_back(info);
 							}
 						}
 						// second narrow phase dynamic resolution
 						if (collisions.size() > 0) {
-							sortTimes(collisions);
+							SortTimes(collisions);
 							for (auto& c : collisions) {
-								AABB& oCollider = c.id.GetComponent<CollisionComponent>().collider;
-								ResolveDynamicAABBvsAABB(&rigidBody, &collider, &oCollider, c.manifold);
+								auto& oCollider = c.id.GetComponent<CollisionComponent>().collider;
+								ResolveDynamicAABBVsAABB(&rb, &collider, &oCollider, c.manifold);
 							}
 						}
 					}
 				}
-				collider.position += rigidBody.velocity;
+				collider.position += rb.velocity;
 				if (transform.position != collider.position) {
 					transform.position = collider.position;
 					staticCheck.push_back(entity);
@@ -184,13 +184,13 @@ public:
 		// Static collision resolution
 		for (auto& entity : staticCheck) {
 			auto [transform, collisionComponent] = entity.GetComponents<TransformComponent, CollisionComponent>();
-			AABB& collider = collisionComponent.collider;
+			auto& collider = collisionComponent.collider;
 			for (auto [entity2, transform2, collision2] : entities) {
 				if (entity2 == entity) continue;
-				AABB& oCollider = collision2.collider;
-				if (AABBvsAABB(collider, oCollider)) {
-					Vec2D collisionDepth = intersectAABB(collider, oCollider);
-					if (!collisionDepth.isZero()) {
+				auto& oCollider = collision2.collider;
+				if (AABBVsAABB(collider, oCollider)) {
+					auto collisionDepth = IntersectAABB(collider, oCollider);
+					if (!collisionDepth.IsZero()) {
 						collider.position -= collisionDepth;
 						transform.position = collider.position;
 						if (entity.HasComponent<RenderComponent>()) {
@@ -202,22 +202,23 @@ public:
 		}
 		++counter;
 	}
-	AABB getSweptBroadphaseBox(const Vec2D& velocity, const AABB& b) {
+	AABB GetSweptBroadphaseBox(const V2_double& velocity, const AABB& b) {
+		using namespace engine::math;
 		AABB broadphasebox;
-		broadphasebox.position.x = velocity.x > 0 ? b.position.x : b.position.x + velocity.x;
-		broadphasebox.position.y = velocity.y > 0 ? b.position.y : b.position.y + velocity.y;
-		broadphasebox.size.x = velocity.x > 0 ? velocity.x + b.size.x : b.size.x - velocity.x;
-		broadphasebox.size.y = velocity.y > 0 ? velocity.y + b.size.y : b.size.y - velocity.y;
+		broadphasebox.position.x = velocity.x > 0 ? b.position.x : RoundCast<int>(b.position.x + velocity.x);
+		broadphasebox.position.y = velocity.y > 0 ? b.position.y : RoundCast<int>(b.position.y + velocity.y);
+		broadphasebox.size.x = velocity.x > 0 ? RoundCast<int>(velocity.x + b.size.x) : RoundCast<int>(b.size.x - velocity.x);
+		broadphasebox.size.y = velocity.y > 0 ? RoundCast<int>(velocity.y + b.size.y) : RoundCast<int>(b.size.y - velocity.y);
 		return broadphasebox;
 	}
-	bool PointvsAABB(const Vec2D& point, const AABB& a) {
+	bool PointVsAABB(const V2_double& point, const AABB& a) {
 		return (point.x >= a.position.x && 
 				point.y >= a.position.y &&
 				point.x < a.position.x + a.size.x &&
 				point.y < a.position.y + a.size.y);
 	}
-	Vec2D intersectAABB(AABB otherBox, AABB box) {
-		Vec2D penetration;
+	V2_double IntersectAABB(AABB otherBox, AABB box) {
+		V2_double penetration;
 		double dx = box.position.x - otherBox.position.x;
 		double px = (box.size.x / 2 + otherBox.size.x / 2) - abs(dx);
 		if (px <= 0) {
@@ -240,19 +241,19 @@ public:
 		return penetration;
 	}
 
-	bool AABBvsAABB(const AABB& a, const AABB& b) {
+	bool AABBVsAABB(const AABB& a, const AABB& b) {
 		if (a.position.x + a.size.x <= b.position.x || a.position.x >= b.position.x + b.size.x) return false;
 		if (a.position.y + a.size.y <= b.position.y || a.position.y >= b.position.y + b.size.y) return false;
 		return true;
 	}
-	bool RayvsAABB(const Vec2D& ray_origin, const Vec2D& ray_dir, const AABB* target, CollisionManifold& collision) {
+	bool RayVsAABB(const V2_double& ray_origin, const V2_double& ray_dir, const AABB* target, CollisionManifold& collision) {
 		collision.normal = { 0,0 };
 		collision.point = { 0,0 };
 		// Cache division
-		Vec2D invdir = 1 / ray_dir;
+		auto invdir = 1.0 / ray_dir;
 		// Calculate intersections with rectangle bounding axes
-		Vec2D t_near = (target->position - ray_origin) * invdir;
-		Vec2D t_far = (target->position + target->size - ray_origin) * invdir;
+		auto t_near = (target->position - ray_origin) * invdir;
+		auto t_far = (target->position + target->size - ray_origin) * invdir;
 		if (std::isnan(t_far.y) || std::isnan(t_far.x)) return false;
 		if (std::isnan(t_near.y) || std::isnan(t_near.x)) return false;
 		// Sort distances
@@ -290,7 +291,7 @@ public:
 		} else if (t_near.x == t_near.y && t_far.x == t_far.y) {
 			// diagonal collision, set normal to opposite of velocity
 			//LOG();
-			collision.normal = ray_dir.identity().opposite();
+			collision.normal = ray_dir.Identity().Opposite();
 		}
 		// Note if t_near == t_far, collision is principly in a diagonal
 		// so pointless to resolve. By returning a CN={0,0} even though its
@@ -298,10 +299,10 @@ public:
 		//targetColor = BLUE;
 		return true;
 	}
-	bool DynamicAABBvsAABB(const RigidBody* v_dynamic, const AABB* r_dynamic, const AABB& r_static,
+	bool DynamicAABBVsAABB(const RigidBody* v_dynamic, const AABB* r_dynamic, const AABB& r_static,
 						   CollisionManifold& collision) {
 		// Check if dynamic rectangle is actually moving - we assume rectangles are NOT in collision to start
-		if (v_dynamic->velocity.isZero()) return false;
+		if (v_dynamic->velocity.IsZero()) return false;
 
 		// Expand target rectangle by source dimensions
 		AABB expanded_target;
@@ -309,15 +310,15 @@ public:
 		expanded_target.size = r_static.size + r_dynamic->size;
 		//Game::aabbs.push_back({ expanded_target, SILVER });
 
-		if (RayvsAABB(r_dynamic->center(), v_dynamic->velocity, &expanded_target, collision)) {
+		if (RayVsAABB(r_dynamic->Center(), v_dynamic->velocity, &expanded_target, collision)) {
 			return collision.time >= 0.0 && collision.time < 1.0;
 		} else {
 			return false;
 		}
 	}
-	bool ResolveDynamicAABBvsAABB(RigidBody* v_dynamic, const AABB* r_dynamic, AABB* r_static, CollisionManifold collision) {
+	bool ResolveDynamicAABBVsAABB(RigidBody* v_dynamic, const AABB* r_dynamic, AABB* r_static, CollisionManifold collision) {
 		CollisionManifold repeatCheck;
-		if (DynamicAABBvsAABB(v_dynamic, r_dynamic, *r_static, repeatCheck)) {
+		if (DynamicAABBVsAABB(v_dynamic, r_dynamic, *r_static, repeatCheck)) {
 			//LOG("v:" << v_dynamic->velocity << "+=" << collision.normal << "*abs(" << v_dynamic->velocity << ")*(" << (1.0 - collision.time) << ")");
 			v_dynamic->velocity += collision.normal * abs(v_dynamic->velocity) * (1.0 - collision.time);
 			/*Game::lines.push_back({ collision.point, collision.point + collision.normal * 10, PURPLE });
@@ -329,10 +330,10 @@ public:
 		}
 		return false;
 	}
-	bool CirclevsCircle(Circle a, Circle b) {
+	bool CircleVsCircle(Circle a, Circle b) {
 		double r = a.radius + b.radius;
 		r *= r;
-		return r < (a.position + b.position).magnitudeSquared();
+		return r < (a.position + b.position).MagnitudeSquared();
 	}
 	/*
 	bool CirclevsCircle(CollisionManifold<Circle, Circle>& m) {
@@ -341,7 +342,7 @@ public:
 		Circle& B = m.sB;
 
 		// Vector from A to B
-		Vec2D n = B.position - A.position;
+		V2_double n = B.position - A.position;
 
 		double r = A.radius + B.radius;
 		r *= r;
@@ -363,7 +364,7 @@ public:
 		} else { // Circles are in the same position
 			// Choose random (but consistent) values
 			m.penetration = A.radius;
-			m.normal = Vec2D(1.0, 0.0);
+			m.normal = V2_double{ 1.0, 0.0 };
 			return true;
 		}
 	}
@@ -372,9 +373,9 @@ public:
 		AABB& A = m.sA;
 		Circle& B = m.sB;
 		// Vector from A to B
-		Vec2D n = B.position - A.position;
+		V2_double n = B.position - A.position;
 		// Closest point on A to center of B
-		Vec2D closest = n;
+		V2_double closest = n;
 		// Clamp point to edges of the AABB
 		closest.x = Util::clamp(-A.size.x / 2.0, A.size.x / 2.0, closest.x);
 		closest.y = Util::clamp(-A.size.y / 2.0, A.size.y / 2, closest.y);
@@ -401,7 +402,7 @@ public:
 			}
 		}
 
-		Vec2D normal = n - closest;
+		V2_double normal = n - closest;
 		double d = normal.magnitudeSquared();
 		double r = B.radius;
 		// Early out of the radius is shorter than distance to closest point and
@@ -424,7 +425,7 @@ public:
 		return true;
 	}
 	*/
-	AABB minkowskiDifference(const AABB& a, const AABB& b) {
+	AABB MinkowskiDifference(const AABB& a, const AABB& b) {
 		return AABB(a.position - b.position + b.size, a.size + b.size);
 	}
 };

@@ -1,7 +1,6 @@
 #include "Engine.h"
 
 #include <cassert>
-#include <Vec2D.h>
 #include <SDL_image.h>
 #include <engine/renderer/TextureManager.h>
 #include <engine/event/InputHandler.h>
@@ -17,14 +16,12 @@ int Engine::window_width_{ -1 };
 int Engine::window_height_{ -1 };
 int Engine::window_x_{ -1 };
 int Engine::window_y_{ -1 };
-int Engine::frame_rate_{ -1 };
 const char* Engine::window_title_{ "" };
 
 SDL_Window& Engine::GetWindow() { assert(window_ != nullptr); return *window_; }
 SDL_Renderer& Engine::GetRenderer() { assert(renderer_ != nullptr); return *renderer_; }
 int Engine::ScreenWidth() { return window_width_; }
 int Engine::ScreenHeight() { return window_height_; }
-int Engine::FPS() { return frame_rate_; }
 
 void Engine::InputUpdate() {
 	engine::InputHandler::Update();

@@ -8,12 +8,8 @@
 #include <cmath>
 #include <cassert>
 
-struct Vec2D;
-struct AABB;
-struct SDL_Rect;
-
 namespace Util {
-	// https://stackoverflow.com/a/29634934 Credit to Jarod42
+	// source: https://stackoverflow.com/a/29634934
 	namespace detail {
 		// To allow ADL with custom begin/end
 		using std::begin;
@@ -31,7 +27,7 @@ namespace Util {
 		template <typename T>
 		std::false_type is_iterable_impl(...);
 
-		// https://stackoverflow.com/a/35293958 // Credit to Jonathan Wakely
+		// source: https://stackoverflow.com/a/35293958
 		// Needed for some older versions of GCC
 		template<typename...>
 		struct voider { using type = void; };
@@ -79,15 +75,6 @@ namespace Util {
 	// Call functions on variadic templates
 	template <typename ...Ts>
 	inline void swallow(Ts&&... args) {}
-
-	// Return an SDL_Rect from double points
-	SDL_Rect RectFromPoints(double x1, double y1, double x2, double y2);
-
-	// Return an SDL_Rect from position and size vectors
-	SDL_Rect RectFromVec(const Vec2D& position, const Vec2D& size);
-
-	// Return an SDL_Rect from AABB
-	SDL_Rect RectFromAABB(const AABB& aabb);
 
 	// Delete a set of indexes from a vector or set
 	template <typename T, typename S>

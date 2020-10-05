@@ -8,7 +8,7 @@
 
 struct RenderComponent {
 	engine::Color color;
-	RenderComponent(engine::Color color = { 0, 0, 0, 0 }) : color(color) {}
+	RenderComponent(engine::Color color = { 0, 0, 0, 0 }) : color{ color } {}
 };
 
 //// json serialization

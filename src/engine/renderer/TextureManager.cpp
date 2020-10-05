@@ -23,7 +23,7 @@ SDL_Texture& TextureManager::Load(std::string& key, const std::string& path) {
 	texture = SDL_CreateTextureFromSurface(&Engine::GetRenderer(), temp_surface);
 	SDL_FreeSurface(temp_surface);
 	assert(texture != nullptr && "Failed to create texture from surface");
-	texture_map.emplace(std::move(key), texture);
+	texture_map.emplace(key, texture);
 	return *texture;
 }
 

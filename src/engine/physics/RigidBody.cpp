@@ -5,33 +5,33 @@
 constexpr const int TERMINAL_VELOCITY_PRECISION = 2; // significant figures of precision before stopping terminal velocity recursive calculation
 
 // function that uses recursion to see what velocity will converge to given certain drag and acceleration
-static Vec2D findTerminalVelocity(Vec2D drag, Vec2D maxAcceleration, Vec2D initialVelocity = Vec2D(0.0)) {
+static V2_double FindTerminalVelocity(V2_double drag, V2_double max_acceleration, V2_double initial_velocity = {}) {
 	// store previous velocity for precision comparison to know when to exit recursion
-	static Vec2D previousVelocity = initialVelocity;
-	Vec2D velocity = (initialVelocity + maxAcceleration) * drag;
+	static auto previous_velocity = initial_velocity;
+	auto velocity = (initial_velocity + max_acceleration) * drag;
 	std::stringstream ss1, ss2;
 	// limit the precision so the recursion doesn't take too long
 	ss1 << std::fixed << std::setprecision(TERMINAL_VELOCITY_PRECISION) << velocity.x;
-	ss2 << std::fixed << std::setprecision(TERMINAL_VELOCITY_PRECISION) << previousVelocity.x;
+	ss2 << std::fixed << std::setprecision(TERMINAL_VELOCITY_PRECISION) << previous_velocity.x;
 	if (ss1.str() != ss2.str()) {
-		previousVelocity = velocity;
-		return findTerminalVelocity(drag, maxAcceleration, velocity);
+		previous_velocity = velocity;
+		return FindTerminalVelocity(drag, max_acceleration, velocity);
 	} else {
 		return velocity;
 	}
 }
 
-void RigidBody::init() {
+void RigidBody::Init() {
 	if (mass == 0.0) {
-		inverseMass = 0.0;
+		inverse_mass = 0.0;
 	} else {
-		inverseMass = 1.0 / mass;
+		inverse_mass = 1.0 / mass;
 	}
-	computeTerminalVelocity();
+	ComputeTerminalVelocity();
 }
 
-void RigidBody::computeTerminalVelocity() {
-	if (terminalVelocity.isInfinite() && !drag.isZero() && !maximumAcceleration.isZero() && !maximumAcceleration.isInfinite()) { // terminal velocity not set
-		terminalVelocity = findTerminalVelocity(Vec2D(1.0) - drag, maximumAcceleration);
+void RigidBody::ComputeTerminalVelocity() {
+	if (terminal_velocity.IsInfinite() && !drag.IsZero() && !maximum_acceleration.IsZero() && !maximum_acceleration.IsInfinite()) { // terminal velocity not set
+		terminal_velocity = FindTerminalVelocity(V2_double{ 1.0, 1.0 } - drag, maximum_acceleration);
 	}
 }

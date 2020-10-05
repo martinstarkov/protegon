@@ -11,7 +11,7 @@ public:
 			// TODO: In the future, for falling platforms, decrease lifetime if there is a bottom collision
 			//CollisionComponent* collision = pair.second->getComponent<CollisionComponent>();
 			//if (collision->bottom) { lifetime->isDying = true; }
-			if (life.isDying) {
+			if (life.is_dying) {
 				if (life.lifetime - SECOND_CHANGE_PER_FRAME >= 0.0) {
 					life.lifetime -= SECOND_CHANGE_PER_FRAME;
 				} else {
