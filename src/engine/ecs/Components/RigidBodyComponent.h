@@ -6,11 +6,11 @@
 
 struct RigidBodyComponent {
 	RigidBody rigidBody;
-	RigidBodyComponent(RigidBody rigidBody = RigidBody()) : rigidBody(rigidBody) {
-		init();
+	RigidBodyComponent(RigidBody rigid_body = {}) : rigidBody{ rigid_body } {
+		Init();
 	}
-	void init() {
-		rigidBody.init();
+	void Init() {
+		rigidBody.Init();
 		//LOG("Calculated terminal velocity for " << entity.getID() << " : " << rigidBody.terminalVelocity);
 	}
 };
@@ -24,5 +24,5 @@ inline void from_json(const nlohmann::json& j, RigidBodyComponent& o) {
 	if (j.find("rigidBody") != j.end()) {
 		o.rigidBody = j.at("rigidBody").get<RigidBody>();
 	}
-	o.init();
+	o.Init();
 }

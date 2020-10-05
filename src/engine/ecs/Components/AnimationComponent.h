@@ -12,10 +12,10 @@ struct AnimationComponent {
 	int frame; // frame of animation
 	int cyclesPerFrame;
 	int counter;
-	AnimationComponent(int sprites = 1, double animationDelay = 0.1, int frame = 0) : sprites(sprites), animationDelay(animationDelay), frame(frame), name("") {
-		init();
+	AnimationComponent(int sprites = 1, double animation_delay = 0.1, int frame = 0) : sprites{ sprites }, animationDelay{ animation_delay }, frame{ frame }, name{ "" } {
+		Init();
 	}
-	void init() {
+	void Init() {
 		cyclesPerFrame = static_cast<int>(round(FPS * animationDelay));
 		counter = cyclesPerFrame * frame;
 	}
@@ -38,5 +38,5 @@ inline void from_json(const nlohmann::json& j, AnimationComponent& o) {
 	if (j.find("frame") != j.end()) {
 		o.frame = j.at("frame").get<int>();
 	}
-	o.init();
+	o.Init();
 }

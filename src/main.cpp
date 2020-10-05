@@ -36,7 +36,7 @@ public:
 						case 1:
 						{
 							ecs::Entity b = CreateBox(pos, manager);
-							RigidBody rb = RigidBody(UNIVERSAL_DRAG, GRAVITY);
+							auto rb = RigidBody{ UNIVERSAL_DRAG, GRAVITY };
 							b.AddComponent<RigidBodyComponent>(rb);
 							break;
 						}
@@ -84,9 +84,9 @@ public:
 		entity.AddComponent<TransformComponent>(position);
 		entity.AddComponent<InputComponent>();
 		entity.AddComponent<PlayerController>(playerAcceleration);
-		entity.AddComponent<RigidBodyComponent>(RigidBody(UNIVERSAL_DRAG, GRAVITY, ELASTIC, INFINITE, abs(playerAcceleration) + abs(GRAVITY)));
+		entity.AddComponent<RigidBodyComponent>(RigidBody{ UNIVERSAL_DRAG, GRAVITY, ELASTIC, INFINITE, abs(playerAcceleration) + abs(GRAVITY) });
 		entity.AddComponent<CollisionComponent>(position, Vec2D{ 30, 51 });
-		entity.AddComponent<SpriteComponent>("./resources/textures/player_test2.png", Vec2D(30, 51));
+		entity.AddComponent<SpriteComponent>("./resources/textures/player_test2.png", Vec2D{ 30, 51 });
 		entity.AddComponent<SpriteSheetComponent>();
 		//entity.AddComponent<StateMachineComponent>(entity, RawStateMachineMap{ { "walkStateMachine", new WalkStateMachine("idle") }, { "jumpStateMachine", new JumpStateMachine("grounded") }});
 		entity.AddComponent<DirectionComponent>();

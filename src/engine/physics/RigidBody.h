@@ -10,8 +10,8 @@ constexpr double MASSLESS = 0.0; // massless
 constexpr double ELASTIC = 1.0; // perfectly elastic collision restitution
 
 #define UNIVERSAL_DRAG DRAGLESS + 0.15
-#define GRAVITY Vec2D(0.0, 0.0) // pixels per frame
-#define DRAGLESS Vec2D(0.0, 0.0) // drag
+#define GRAVITY Vec2D{ 0, 0 } // pixels per frame
+#define DRAGLESS Vec2D{ 0, 0 } // drag
 
 struct RigidBody {
 	Vec2D velocity;
@@ -23,11 +23,11 @@ struct RigidBody {
 	double mass;
 	double inverseMass;
 	double restitution;
-	RigidBody(Vec2D drag = DRAGLESS, Vec2D gravity = GRAVITY, double restitution = ELASTIC, double mass = IMMOVABLE, Vec2D maximumAcceleration = Vec2D(std::numeric_limits<double>::infinity())) : drag(drag), gravity(gravity), restitution(restitution), mass(mass), maximumAcceleration(maximumAcceleration), terminalVelocity(Vec2D(std::numeric_limits<double>::infinity())) {
-		init();
+	RigidBody(Vec2D drag = DRAGLESS, Vec2D gravity = GRAVITY, double restitution = ELASTIC, double mass = IMMOVABLE, Vec2D maximumAcceleration = { std::numeric_limits<double>::infinity() }) : drag{ drag }, gravity{ gravity }, restitution{ restitution }, mass{ mass }, maximumAcceleration{ maximumAcceleration }, terminalVelocity{ { std::numeric_limits<double>::infinity() } } {
+		Init();
 	}
-	void init();
-	void computeTerminalVelocity();
+	void Init();
+	void ComputeTerminalVelocity();
 };
 
 // json serialization
@@ -67,5 +67,5 @@ inline void from_json(const nlohmann::json& j, RigidBody& o) {
 	if (j.find("restitution") != j.end()) {
 		o.restitution = j.at("restitution").get<double>();
 	}
-	o.init();
+	o.Init();
 }

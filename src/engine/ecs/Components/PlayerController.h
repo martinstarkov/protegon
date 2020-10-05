@@ -9,11 +9,11 @@
 
 struct PlayerController {
 	Vec2D inputAcceleration;
-	PlayerController(Vec2D inputAcceleration = Vec2D()) : inputAcceleration(inputAcceleration) {
-		init();
+	PlayerController(Vec2D input_acceleration = {}) : inputAcceleration{ input_acceleration } {
+		Init();
 	}
 	// might be useful later
-	void init() {}
+	void Init() {}
 };
 
 // json serialization
@@ -25,5 +25,5 @@ inline void from_json(const nlohmann::json& j, PlayerController& o) {
 	if (j.find("inputAcceleration") != j.end()) {
 		o.inputAcceleration = j.at("inputAcceleration").get<Vec2D>();
 	}
-	o.init();
+	o.Init();
 }

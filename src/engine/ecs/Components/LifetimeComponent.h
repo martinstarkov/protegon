@@ -5,7 +5,7 @@
 struct LifetimeComponent {
 	double lifetime; // seconds
 	bool isDying; // lose lifetime every frame
-	LifetimeComponent(double lifetime = 1.0, bool isDying = true) : lifetime(lifetime), isDying(isDying) {}
+	LifetimeComponent(double lifetime = 1.0, bool is_dying = true) : lifetime{ lifetime }, isDying{ is_dying } {}
 };
 
 // json serialization

@@ -10,8 +10,8 @@
 
 struct CollisionComponent {
 	AABB collider;
-	CollisionComponent(AABB collider = AABB()) : collider(collider) {}
-	CollisionComponent(Vec2D position, Vec2D size) : collider(position, size) {}
+	CollisionComponent(AABB collider = {}) : collider{ collider } {}
+	CollisionComponent(Vec2D position, Vec2D size) : collider{ position, size } {}
 };
 
 // json serialization

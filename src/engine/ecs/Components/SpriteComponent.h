@@ -13,11 +13,11 @@ struct SpriteComponent {
 	SDL_Rect source;
 	SDL_Texture* texture;
 	Vec2D spriteSize;
-	SpriteComponent() : path(), source(), texture(nullptr), spriteSize() {}
-	SpriteComponent(std::string path, Vec2D spriteSize) : path(path), spriteSize(spriteSize) {
-		init();
+	SpriteComponent() : path{}, source{}, texture{ nullptr }, spriteSize{} {}
+	SpriteComponent(std::string path, Vec2D sprite_size) : path{ path }, spriteSize{ sprite_size } {
+		Init();
 	}
-	void init() {
+	void Init() {
 		source = Util::RectFromVec(Vec2D(), spriteSize);
 		texture = &engine::TextureManager::Load(path, path);
 	}
@@ -41,5 +41,5 @@ inline void from_json(const nlohmann::json& j, SpriteComponent& o) {
 	if (j.find("spriteSize") != j.end()) {
 		o.spriteSize = j.at("spriteSize").get<Vec2D>();
 	}
-	o.init();
+	o.Init();
 }
