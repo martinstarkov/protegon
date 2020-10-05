@@ -1,10 +1,10 @@
 #pragma once
 
-#include "Vec2D.h"
+#include <engine/utils/Vector2.h>
 
 struct Ray2D {
-	Vec2D origin;
-	Vec2D direction;
+	V2_double origin;
+	V2_double direction;
 	Ray2D() = default;
-	Ray2D(Vec2D origin, Vec2D direction) : origin(origin), direction(direction) {}
+	Ray2D(V2_double origin, V2_double direction) : origin{ origin }, direction{ direction } {}
 };

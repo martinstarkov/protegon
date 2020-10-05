@@ -67,9 +67,6 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\Vec2D.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\ECS\AABBComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>

@@ -5,10 +5,10 @@
 constexpr const int TERMINAL_VELOCITY_PRECISION = 2; // significant figures of precision before stopping terminal velocity recursive calculation
 
 // function that uses recursion to see what velocity will converge to given certain drag and acceleration
-static Vec2D FindTerminalVelocity(Vec2D drag, Vec2D maxAcceleration, Vec2D initialVelocity = Vec2D(0.0)) {
+static V2_double FindTerminalVelocity(V2_double drag, V2_double maxAcceleration, V2_double initialVelocity = {}) {
 	// store previous velocity for precision comparison to know when to exit recursion
-	static Vec2D previousVelocity = initialVelocity;
-	Vec2D velocity = (initialVelocity + maxAcceleration) * drag;
+	static auto previousVelocity = initialVelocity;
+	auto velocity = (initialVelocity + maxAcceleration) * drag;
 	std::stringstream ss1, ss2;
 	// limit the precision so the recursion doesn't take too long
 	ss1 << std::fixed << std::setprecision(TERMINAL_VELOCITY_PRECISION) << velocity.x;
@@ -31,7 +31,7 @@ void RigidBody::Init() {
 }
 
 void RigidBody::ComputeTerminalVelocity() {
-	if (terminalVelocity.isInfinite() && !drag.isZero() && !maximumAcceleration.isZero() && !maximumAcceleration.isInfinite()) { // terminal velocity not set
-		terminalVelocity = FindTerminalVelocity(Vec2D(1.0) - drag, maximumAcceleration);
+	if (terminalVelocity.IsInfinite() && !drag.IsZero() && !maximumAcceleration.IsZero() && !maximumAcceleration.IsInfinite()) { // terminal velocity not set
+		terminalVelocity = FindTerminalVelocity(V2_double{ 1.0, 1.0 } - drag, maximumAcceleration);
 	}
 }

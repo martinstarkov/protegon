@@ -6,12 +6,13 @@
 #include <string>
 
 #include <Direction.h>
-#include <Vec2D.h>
+
+#include <engine/utils/Vector2.h>
 
 struct SpriteInformation {
-	Vec2D start;
+	V2_double start;
 	std::size_t count;
-	SpriteInformation(Vec2D start = Vec2D(), std::size_t count = 1) : start{ start }, count{ count } {}
+	SpriteInformation(V2_double start = {}, std::size_t count = 1) : start{ start }, count{ count } {}
 };
 
 // json serialization
@@ -23,7 +24,7 @@ inline void to_json(nlohmann::json& j, const SpriteInformation& o) {
 inline void from_json(const nlohmann::json& j, SpriteInformation& o) {
 	o = SpriteInformation();
 	if (j.find("start") != j.end()) {
-		o.start = j.at("start").get<Vec2D>();
+		o.start = j.at("start").get<V2_double>();
 	}
 	if (j.find("count") != j.end()) {
 		j.at("count").get<std::size_t>();
@@ -37,12 +38,12 @@ struct SpriteSheetComponent {
         // TEMPORARY: Only supports the player_anim.png
 		// place SpriteInformation struct into _animations maps
 		animations.insert({ "idle", {
-			{ Direction::DOWN, SpriteInformation{ Vec2D{ 0, 0 }, 5 } }
+			{ Direction::DOWN, SpriteInformation{ V2_double{ 0, 0 }, 5 } }
 		} });
 		animations.insert({ "walk", {
-			{ Direction::UP, SpriteInformation{ Vec2D{ 0, 1 }, 9 } },
-			{ Direction::RIGHT, SpriteInformation{ Vec2D{ 0, 2 }, 9 } },
-			{ Direction::DOWN, SpriteInformation{ Vec2D{ 0, 3 }, 9 } }
+			{ Direction::UP, SpriteInformation{ V2_double{ 0, 1 }, 9 } },
+			{ Direction::RIGHT, SpriteInformation{ V2_double{ 0, 2 }, 9 } },
+			{ Direction::DOWN, SpriteInformation{ V2_double{ 0, 3 }, 9 } }
 		} });
 	}
 	SpriteInformation GetSpriteInformation(const std::string& name, Direction direction) {

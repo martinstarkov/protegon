@@ -11,7 +11,7 @@ public:
 			auto& direction = dir.direction;
 			auto& rb = rigid_body.rigidBody;
 			dir.previousDirection = direction;
-			if (rb.velocity.isZero()) {
+			if (rb.velocity.IsZero()) {
 				direction = IDLE_DIRECTION;
 			}
 			if (rb.velocity.y < 0.0) {

@@ -13,7 +13,7 @@ public:
 			// motion
 			rb.velocity += rb.acceleration;
 			// drag
-			rb.velocity *= (Vec2D(1.0) - rb.drag);
+			rb.velocity *= V2_double{ 1.0, 1.0 } - rb.drag;
 			// terminal motion
 			if (abs(rb.velocity.x) > terminal_velocity.x) {
 				rb.velocity.x = engine::math::sgn(rb.velocity.x) * terminal_velocity.x;

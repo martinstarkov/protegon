@@ -1,23 +1,23 @@
 #pragma once
 
-#include "Vec2D.h"
-
 #include <engine/renderer/Ray2D.h>
 #include <engine/renderer/Shape.h>
 
+#include <engine/utils/Vector2.h>
+
 struct AABB : Shape<AABB> {
-	Vec2D position;
-	Vec2D size;
-	AABB() : position(Vec2D()), size(Vec2D()) {}
-	AABB(Vec2D position, Vec2D size) : position(position), size(size) {}
-	AABB(double x, double y, double w, double h) : position(x, y), size(w, h) {}
-	AABB expandedBy(const AABB& other) const {
-		return AABB(position - other.size / 2.0, size + other.size);
+	V2_double position;
+	V2_double size;
+	AABB() : position{}, size{} {}
+	AABB(V2_double position, V2_double size) : position{ position }, size{ size } {}
+	AABB(int x, int y, int w, int h) : position{ x, y }, size{ w, h } {}
+	AABB ExpandedBy(const AABB& other) const {
+		return { position - other.size / 2, size + other.size };
 	}
-	Vec2D center() {
+	V2_double Center() {
 		return position + size / 2.0;
 	}
-	Vec2D center() const {
+	V2_double Center() const {
 		return position + size / 2.0;
 	}
 	operator bool() const {
@@ -35,9 +35,9 @@ inline void to_json(nlohmann::json& j, const AABB& o) {
 }
 inline void from_json(const nlohmann::json& j, AABB& o) {
 	if (j.find("position") != j.end()) {
-		o.position = j.at("position").get<Vec2D>();
+		o.position = j.at("position").get<V2_double>();
 	}
 	if (j.find("size") != j.end()) {
-		o.size = j.at("size").get<Vec2D>();
+		o.size = j.at("size").get<V2_double>();
 	}
 }

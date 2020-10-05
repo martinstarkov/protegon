@@ -1,7 +1,6 @@
 #include "Engine.h"
 
 #include <cassert>
-#include <Vec2D.h>
 #include <SDL_image.h>
 #include <engine/renderer/TextureManager.h>
 #include <engine/event/InputHandler.h>

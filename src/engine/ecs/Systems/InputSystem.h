@@ -35,7 +35,7 @@ public:
 					for (auto& entity2 : all_entities) {
 						if (entity2.HasComponent<RigidBodyComponent>()) {
 							auto& rb = entity2.GetComponent<RigidBodyComponent>();
-							rb.rigidBody.velocity = Vec2D{ rand() % 40 - 20, rand() % 40 - 20 };
+							rb.rigidBody.velocity = V2_double::Random(-20, 20, -20, 20);
 						}
 					}
 				}
