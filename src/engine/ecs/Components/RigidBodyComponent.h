@@ -5,24 +5,24 @@
 #include <engine/physics/RigidBody.h>
 
 struct RigidBodyComponent {
-	RigidBody rigidBody;
-	RigidBodyComponent(RigidBody rigid_body = {}) : rigidBody{ rigid_body } {
+	RigidBody rigid_body;
+	RigidBodyComponent(RigidBody rigid_body = {}) : rigid_body{ rigid_body } {
 		Init();
 	}
 	void Init() {
-		rigidBody.Init();
+		rigid_body.Init();
 		//LOG("Calculated terminal velocity for " << entity.getID() << " : " << rigidBody.terminalVelocity);
 	}
 };
 
 // json serialization
 inline void to_json(nlohmann::json& j, const RigidBodyComponent& o) {
-	j["rigidBody"] = o.rigidBody;
+	j["rigid_body"] = o.rigid_body;
 }
 
 inline void from_json(const nlohmann::json& j, RigidBodyComponent& o) {
-	if (j.find("rigidBody") != j.end()) {
-		o.rigidBody = j.at("rigidBody").get<RigidBody>();
+	if (j.find("rigid_body") != j.end()) {
+		o.rigid_body = j.at("rigid_body").get<RigidBody>();
 	}
 	o.Init();
 }

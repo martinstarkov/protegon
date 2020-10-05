@@ -105,11 +105,11 @@ public:
 		std::vector<ecs::Entity> staticCheck;
 		for (auto [entity, transform, collision] : entities) {
 			if (entity.HasComponent<RigidBodyComponent>()) {
-				auto& rigidBody = entity.GetComponent<RigidBodyComponent>().rigidBody;
+				auto& rb = entity.GetComponent<RigidBodyComponent>().rigid_body;
 				auto& collider = collision.collider;
 				std::vector<Collision> collisions;
 				std::vector<ecs::Entity> broadphaseEntities;
-				auto broadphase = GetSweptBroadphaseBox(rigidBody.velocity, collider);
+				auto broadphase = GetSweptBroadphaseBox(rb.velocity, collider);
 				//Game::aabbs.push_back({ broadphase, { 255, 0, 0, 255 } });
 				// broad phase static check
 				for (auto [entity2, transform2, collision2] : entities) {
@@ -124,7 +124,7 @@ public:
 				// narrow phase dynamic check
 				for (auto& entity2 : broadphaseEntities) {
 					AABB& oCollider = entity2.GetComponent<CollisionComponent>().collider;
-					if (DynamicAABBVsAABB(&rigidBody, &collider, oCollider, info.manifold)) {
+					if (DynamicAABBVsAABB(&rb, &collider, oCollider, info.manifold)) {
 						info.id = entity2;
 						collisions.push_back(info);
 					}
@@ -134,10 +134,10 @@ public:
 				//printCollisions(collisions);
 				// narrow phase dynamic resolution
 				if (collisions.size() > 0) {
-					auto oldVelocity = rigidBody.velocity;
+					auto old_velocity = rb.velocity;
 					for (auto& c : collisions) {
 						auto& oCollider = c.id.GetComponent<CollisionComponent>().collider;
-						ResolveDynamicAABBVsAABB(&rigidBody, &collider, &oCollider, c.manifold);
+						ResolveDynamicAABBVsAABB(&rb, &collider, &oCollider, c.manifold);
 					}
 					/*AABB futureCollider = collider;
 					AABB firstCollider = collider;
@@ -149,12 +149,12 @@ public:
 					Game::lines.push_back({ collider.center(), collider.center() + rigidBody.velocity, ORANGE });
 					*/
 					// velocity changed, complete a second sweep
-					if (rigidBody.velocity.x != oldVelocity.x || rigidBody.velocity.y != oldVelocity.y) {
+					if (rb.velocity.x != old_velocity.x || rb.velocity.y != old_velocity.y) {
 						collisions.clear();
 						// second narrow phase dynamic check
 						for (auto& entity2 : broadphaseEntities) {
 							auto& oCollider = entity2.GetComponent<CollisionComponent>().collider;
-							if (DynamicAABBVsAABB(&rigidBody, &collider, oCollider, info.manifold)) {
+							if (DynamicAABBVsAABB(&rb, &collider, oCollider, info.manifold)) {
 								info.id = entity2;
 								collisions.push_back(info);
 							}
@@ -164,12 +164,12 @@ public:
 							SortTimes(collisions);
 							for (auto& c : collisions) {
 								auto& oCollider = c.id.GetComponent<CollisionComponent>().collider;
-								ResolveDynamicAABBVsAABB(&rigidBody, &collider, &oCollider, c.manifold);
+								ResolveDynamicAABBVsAABB(&rb, &collider, &oCollider, c.manifold);
 							}
 						}
 					}
 				}
-				collider.position += rigidBody.velocity;
+				collider.position += rb.velocity;
 				if (transform.position != collider.position) {
 					transform.position = collider.position;
 					staticCheck.push_back(entity);

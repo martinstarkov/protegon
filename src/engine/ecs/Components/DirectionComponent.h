@@ -6,12 +6,12 @@
 
 struct DirectionComponent {
 	Direction direction;
-	Direction previousDirection;
-	DirectionComponent(Direction direction = Direction::DOWN) : direction(direction) {
-		init();
+	Direction previous_direction;
+	DirectionComponent(Direction direction = Direction::DOWN) : direction{ direction } {
+		Init();
 	}
-	void init() {
-		previousDirection = direction;
+	void Init() {
+		previous_direction = direction;
 	}
 };
 
@@ -24,5 +24,5 @@ inline void from_json(const nlohmann::json& j, DirectionComponent& o) {
 	if (j.find("direction") != j.end()) {
 		o.direction = j.at("direction").get<Direction>();
 	}
-	o.init();
+	o.Init();
 }

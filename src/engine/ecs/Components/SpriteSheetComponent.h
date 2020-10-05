@@ -47,19 +47,19 @@ struct SpriteSheetComponent {
 		} });
 	}
 	SpriteInformation GetSpriteInformation(const std::string& name, Direction direction) {
-		auto aIt = animations.find(name); // animation iterator
-		assert(aIt != animations.end() && "AnimationName not found in AnimationComponent");
+		auto animation_it = animations.find(name); // animation iterator
+		assert(animation_it != animations.end() && "Animation name not found in animation component");
 		if (direction == Direction::LEFT) { // ignore SDL flipped direction
 			direction = Direction::RIGHT;
 		}
-		assert(aIt->second.size() > 0 && "Cannot fetch spriteInformation for size 0 spriteSheetMap");
-		auto dIt = aIt->second.find(direction); // direction iterator
-		if (dIt != aIt->second.end()) {
-			return dIt->second; // SpriteInformation
+		assert(animation_it->second.size() > 0 && "Cannot fetch sprite information for size 0 sprite sheet map");
+		auto direction_it = animation_it->second.find(direction); // direction iterator
+		if (direction_it != animation_it->second.end()) {
+			return direction_it->second; // SpriteInformation
 		} else {
 			// return the first DirectionMap entry if specified direction is not found
 			// CONSIDER: Somehow improve this in the future?
-			return aIt->second.begin()->second;
+			return animation_it->second.begin()->second;
 		}
 	}
 	~SpriteSheetComponent() {}

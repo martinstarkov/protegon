@@ -35,9 +35,9 @@ public:
 					switch (boxes[i][j]) {
 						case 1:
 						{
-							auto b = CreateBox(pos, manager);
+							auto box = CreateBox(pos, manager);
 							auto rb = RigidBody{ UNIVERSAL_DRAG, GRAVITY };
-							b.AddComponent<RigidBodyComponent>(rb);
+							box.AddComponent<RigidBodyComponent>(rb);
 							break;
 						}
 						case 2:
@@ -80,11 +80,11 @@ public:
 
 	ecs::Entity CreatePlayer(V2_double position, ecs::Manager& manager) {
 		auto entity = manager.CreateEntity();
-		V2_double playerAcceleration = { 8, 20 };
+		V2_double player_acceleration = { 8, 20 };
 		entity.AddComponent<TransformComponent>(position);
 		entity.AddComponent<InputComponent>();
-		entity.AddComponent<PlayerController>(playerAcceleration);
-		entity.AddComponent<RigidBodyComponent>(RigidBody{ UNIVERSAL_DRAG, GRAVITY, ELASTIC, INFINITE, abs(playerAcceleration) + abs(GRAVITY) });
+		entity.AddComponent<PlayerController>(player_acceleration);
+		entity.AddComponent<RigidBodyComponent>(RigidBody{ UNIVERSAL_DRAG, GRAVITY, ELASTIC, INFINITE_MASS, abs(player_acceleration) + abs(GRAVITY) });
 		entity.AddComponent<CollisionComponent>(position, V2_double{ 30, 51 });
 		entity.AddComponent<SpriteComponent>("./resources/textures/player_test2.png", V2_double{ 30, 51 });
 		entity.AddComponent<SpriteSheetComponent>();

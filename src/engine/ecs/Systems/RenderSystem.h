@@ -12,8 +12,8 @@ public:
 				auto& sprite = entity.GetComponent<SpriteComponent>();
 				auto flip = Flip::NONE;
 				if (entity.HasComponent<DirectionComponent>()) {
-					auto& dir = entity.GetComponent<DirectionComponent>();
-					if (dir.direction == Direction::LEFT) {
+					auto& direction = entity.GetComponent<DirectionComponent>().direction;
+					if (direction == Direction::LEFT) {
 						flip = Flip::HORIZONTAL;
 					}
 				}

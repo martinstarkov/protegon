@@ -11,7 +11,7 @@ public:
 	virtual void Update() override final {
 		for (auto [entity, anim, sprite, sprite_sheet, dir] : entities) {
 			//LOG("Direction: " << (int)direction->direction);
-			if (anim.name != "" && (anim.counter == -1 || dir.direction != dir.previousDirection)) {
+			if (anim.name != "" && (anim.counter == -1 || dir.direction != dir.previous_direction)) {
 				SpriteInformation sprite_info = sprite_sheet.GetSpriteInformation(anim.name, dir.direction);
 				sprite.source.position.y = static_cast<int>(sprite.source.size.y * sprite_info.start.y);
 				anim.sprites = sprite_info.count;

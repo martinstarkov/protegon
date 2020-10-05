@@ -9,8 +9,8 @@ public:
 	virtual void Update() override final {
 		for (auto [entity, dir, rigid_body] : entities) {
 			auto& direction = dir.direction;
-			auto& rb = rigid_body.rigidBody;
-			dir.previousDirection = direction;
+			auto& rb = rigid_body.rigid_body;
+			dir.previous_direction = direction;
 			if (rb.velocity.IsZero()) {
 				direction = IDLE_DIRECTION;
 			}
