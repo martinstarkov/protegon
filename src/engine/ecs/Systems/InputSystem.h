@@ -12,11 +12,11 @@ public:
 		s = SDL_GetKeyboardState(NULL);
 		for (auto [entity, input] : entities) {
 			if (entity.HasComponent<PlayerController>()) {
-				auto& playerController = entity.GetComponent<PlayerController>();
+				auto& player = entity.GetComponent<PlayerController>();
 				// Technically player could be without a RigidBodyComponent ;)
 				if (entity.HasComponent<RigidBodyComponent>()) {
-					auto& rigidBodyC = entity.GetComponent<RigidBodyComponent>();
-					physicsInputs(entity, rigidBodyC.rigidBody, playerController);
+					auto& rigid_body = entity.GetComponent<RigidBodyComponent>();
+					PhysicsInputs(entity, rigid_body.rigidBody, player);
 				}
 				auto all_entities = GetManager().GetEntities();
 				if (s[SDL_SCANCODE_R]) {
@@ -25,17 +25,17 @@ public:
 							entity2.GetComponent<TransformComponent>().ResetPosition();
 						}
 						if (entity2.HasComponent<RigidBodyComponent>()) {
-							auto& rc = entity2.GetComponent<RigidBodyComponent>();
-							rc.rigidBody.velocity = Vec2D{};
-							rc.rigidBody.acceleration = Vec2D{};
+							auto& rb = entity2.GetComponent<RigidBodyComponent>();
+							rb.rigidBody.velocity = {};
+							rb.rigidBody.acceleration = {};
 						}
 					}
 				}
 				if (s[SDL_SCANCODE_B]) {
 					for (auto& entity2 : all_entities) {
 						if (entity2.HasComponent<RigidBodyComponent>()) {
-							auto& rc = entity2.GetComponent<RigidBodyComponent>();
-							rc.rigidBody.velocity = Vec2D(rand() % 40 - 20, rand() % 40 - 20);
+							auto& rb = entity2.GetComponent<RigidBodyComponent>();
+							rb.rigidBody.velocity = Vec2D{ rand() % 40 - 20, rand() % 40 - 20 };
 						}
 					}
 				}
@@ -54,17 +54,17 @@ public:
 		}
 	}
 	// player pressing motions keys
-	void physicsInputs(ecs::Entity entity, RigidBody& rigidBody, PlayerController& player) {
-		rigidBody.acceleration = Vec2D{};
+	void PhysicsInputs(ecs::Entity entity, RigidBody& rigidBody, PlayerController& player) {
+		rigidBody.acceleration = {};
 		if ((s[SDL_SCANCODE_A] && s[SDL_SCANCODE_D]) || (!s[SDL_SCANCODE_A] && !s[SDL_SCANCODE_D])) { // both horizontal keys pressed or neither -> stop
-			rigidBody.acceleration.x = 0.0;
+			rigidBody.acceleration.x = 0;
 		} else if (s[SDL_SCANCODE_A] && !s[SDL_SCANCODE_D]) { // left
 			rigidBody.acceleration.x = -player.inputAcceleration.x;
 		} else if (s[SDL_SCANCODE_D] && !s[SDL_SCANCODE_A]) { // right
 			rigidBody.acceleration.x = player.inputAcceleration.x;
 		}
 		if ((s[SDL_SCANCODE_W] && s[SDL_SCANCODE_S]) || (!s[SDL_SCANCODE_W] && !s[SDL_SCANCODE_S])) { // both vertical keys pressed or neither -> stop (change for gravity)
-			rigidBody.acceleration.y = 0.0;
+			rigidBody.acceleration.y = 0;
 		} else if (s[SDL_SCANCODE_W] && !s[SDL_SCANCODE_S]) { // up
 			rigidBody.acceleration.y = -player.inputAcceleration.y;
 		} else if (s[SDL_SCANCODE_S] && !s[SDL_SCANCODE_W]) { // down

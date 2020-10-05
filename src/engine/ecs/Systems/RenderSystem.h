@@ -7,7 +7,7 @@
 class RenderSystem : public ecs::System<RenderComponent, TransformComponent> {
 public:
 	virtual void Update() override final {
-		for (auto& [entity, renderComponent, transform] : entities) {
+		for (auto& [entity, render_component, transform] : entities) {
 			if (entity.HasComponent<SpriteComponent>()) {
 				auto& sprite = entity.GetComponent<SpriteComponent>();
 				auto flip = Flip::NONE;
@@ -18,17 +18,17 @@ public:
 					}
 				}
 				if (entity.HasComponent<CollisionComponent>()) {
-					auto& collisionComponent = entity.GetComponent<CollisionComponent>();
+					auto& cc = entity.GetComponent<CollisionComponent>();
 					//TextureManager::drawRectangle(sprite->texture, sprite->source, Util::RectFromVec(transform.position, collisionComponent->collider.size), 0.0, flip);
 					// Draw colliders for debug purposes
-					engine::TextureManager::DrawRectangle(transform.position, collisionComponent.collider.size, renderComponent.color);
+					engine::TextureManager::DrawRectangle(transform.position, cc.collider.size, render_component.color);
 				} else {
 					engine::TextureManager::DrawRectangle(sprite.path, { sprite.source.x, sprite.source.y }, { sprite.source.w, sprite.source.h }, transform.position, { sprite.source.w, sprite.source.h }, flip, 0);
 				}
 			} else {
 				if (entity.HasComponent<CollisionComponent>()) {
-					auto& collisionComponent = entity.GetComponent<CollisionComponent>();
-					engine::TextureManager::DrawRectangle(transform.position, collisionComponent.collider.size, renderComponent.color);
+					auto& cc = entity.GetComponent<CollisionComponent>();
+					engine::TextureManager::DrawRectangle(transform.position, cc.collider.size, render_component.color);
 				}
 			}
 		}

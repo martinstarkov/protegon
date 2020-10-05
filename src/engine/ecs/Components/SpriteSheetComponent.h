@@ -11,7 +11,7 @@
 struct SpriteInformation {
 	Vec2D start;
 	std::size_t count;
-	SpriteInformation(Vec2D start = Vec2D(), std::size_t count = 1) : start(start), count(count) {}
+	SpriteInformation(Vec2D start = Vec2D(), std::size_t count = 1) : start{ start }, count{ count } {}
 };
 
 // json serialization
@@ -37,15 +37,15 @@ struct SpriteSheetComponent {
         // TEMPORARY: Only supports the player_anim.png
 		// place SpriteInformation struct into _animations maps
 		animations.insert({ "idle", {
-			{ Direction::DOWN, SpriteInformation{ Vec2D(0, 0), 5 } }
+			{ Direction::DOWN, SpriteInformation{ Vec2D{ 0, 0 }, 5 } }
 		} });
 		animations.insert({ "walk", {
-			{ Direction::UP, SpriteInformation{ Vec2D(0, 1), 9 } },
-			{ Direction::RIGHT, SpriteInformation{ Vec2D(0, 2), 9 } },
-			{ Direction::DOWN, SpriteInformation{ Vec2D(0, 3), 9 } }
+			{ Direction::UP, SpriteInformation{ Vec2D{ 0, 1 }, 9 } },
+			{ Direction::RIGHT, SpriteInformation{ Vec2D{ 0, 2 }, 9 } },
+			{ Direction::DOWN, SpriteInformation{ Vec2D{ 0, 3 }, 9 } }
 		} });
 	}
-	SpriteInformation getSpriteInformation(const std::string& name, Direction direction) {
+	SpriteInformation GetSpriteInformation(const std::string& name, Direction direction) {
 		auto aIt = animations.find(name); // animation iterator
 		assert(aIt != animations.end() && "AnimationName not found in AnimationComponent");
 		if (direction == Direction::LEFT) { // ignore SDL flipped direction
