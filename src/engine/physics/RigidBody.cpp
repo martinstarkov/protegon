@@ -5,7 +5,7 @@
 constexpr const int TERMINAL_VELOCITY_PRECISION = 2; // significant figures of precision before stopping terminal velocity recursive calculation
 
 // function that uses recursion to see what velocity will converge to given certain drag and acceleration
-static V2_double FindTerminalVelocity(V2_double drag, V2_double max_acceleration, V2_double initial_velocity = {}) {
+static V2_double FindTerminalVelocity(V2_double drag, V2_double max_acceleration, V2_double initial_velocity = { 0.0, 0.0 }) {
 	// store previous velocity for precision comparison to know when to exit recursion
 	static auto previous_velocity = initial_velocity;
 	auto velocity = (initial_velocity + max_acceleration) * drag;

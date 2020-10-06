@@ -7,7 +7,7 @@
 struct TransformComponent {
 	V2_double position;
 	V2_double original_position;
-	TransformComponent(V2_double position = {}) : position{ position } {
+	TransformComponent(V2_double position = { 0.0, 0.0 }) : position{ position } {
 		Init();
 	}
 	void ResetPosition() {

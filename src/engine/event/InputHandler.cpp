@@ -18,7 +18,7 @@ InputHandler::MouseState InputHandler::middle_mouse{ MouseState::RELEASED };
 std::uint64_t InputHandler::left_mouse_pressed_time{ 0 };
 std::uint64_t InputHandler::right_mouse_pressed_time{ 0 };
 std::uint64_t InputHandler::middle_mouse_pressed_time{ 0 };
-V2_int InputHandler::mouse_position{};
+V2_int InputHandler::mouse_position{ 0, 0 };
 
 void InputHandler::Update() {
 	SDL_Event e;
