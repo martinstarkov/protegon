@@ -909,6 +909,7 @@ inline void Manager::Update() {
 	SystemId system_id = internal::GetSystemId<T>();
 	assert(IsValidSystem(system_id) && "Cannot update a system which does not exist in manager");
 	auto& system = systems_[system_id];
+	assert(system && "Invalid system pointer, check system creation");
 	if (system->GetCacheRefreshRequired()) {
 		system->ResetCache();
 	}
