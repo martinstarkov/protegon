@@ -90,6 +90,14 @@ template <typename T, typename S, is_number<T, S> = 0>
 inline T RoundCast(S value) {
 	return static_cast<T>(std::round(value));
 }
+template <typename T, is_number<T> = 0>
+inline T Round(T value) {
+	return static_cast<T>(std::round(value));
+}
+template <typename T, is_number<T> = 0>
+inline T Floor(T value) {
+	return static_cast<T>(std::floor(value));
+}
 
 // Find the sign of a numeric type
 template <typename T>
