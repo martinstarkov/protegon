@@ -8,7 +8,16 @@
 
 struct RenderComponent {
 	engine::Color color;
-	RenderComponent(engine::Color color = { 0, 0, 0, 0 }) : color{ color } {}
+	engine::Color original_color;
+	RenderComponent(engine::Color color = { 0, 0, 0, 0 }) : color{ color } {
+		Init();
+	}
+	void Init() {
+		original_color = color;
+	}
+	void ResetColor() {
+		color = original_color;
+	}
 };
 
 //// json serialization
@@ -20,4 +29,5 @@ struct RenderComponent {
 //	if (j.find("color") != j.end()) {
 //		j.at("color").get<SDL_Color>();
 //	}
+//  o.Init();
 //}

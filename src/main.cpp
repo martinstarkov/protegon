@@ -28,6 +28,22 @@ public:
 		{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3}
 		};
 
+		/*std::vector<std::vector<int>> boxes = {
+		{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
+		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
+		{3, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
+		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
+		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
+		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
+		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
+		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
+		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
+		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
+		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
+		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
+		{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3}
+		};*/
+
 		for (std::size_t i = 0; i < boxes.size(); ++i) {
 			for (std::size_t j = 0; j < boxes[i].size(); ++j) {
 				if (boxes[i][j]) {
@@ -44,8 +60,10 @@ public:
 							CreatePlayer(pos, manager);
 							break;
 						case 3:
-							CreateBox(pos, manager);
+						{
+							auto box = CreateBox(pos, manager);
 							break;
+						}
 						default:
 							break;
 					}
@@ -80,13 +98,13 @@ public:
 
 	ecs::Entity CreatePlayer(V2_double position, ecs::Manager& manager) {
 		auto entity = manager.CreateEntity();
-		V2_double player_acceleration = { 8, 20 };
+		V2_double player_acceleration = { 20, 40 };
 		entity.AddComponent<TransformComponent>(position);
 		entity.AddComponent<InputComponent>();
 		entity.AddComponent<PlayerController>(player_acceleration);
-		entity.AddComponent<RigidBodyComponent>(RigidBody{ UNIVERSAL_DRAG, GRAVITY, ELASTIC, INFINITE_MASS, abs(player_acceleration) + abs(GRAVITY) });
-		entity.AddComponent<CollisionComponent>(position, V2_double{ 30, 51 });
-		entity.AddComponent<SpriteComponent>("./resources/textures/player_test2.png", V2_double{ 30, 51 });
+		entity.AddComponent<RigidBodyComponent>(RigidBody{ UNIVERSAL_DRAG, V2_double{ 0, 0.8 }, ELASTIC, INFINITE_MASS, abs(player_acceleration) + abs(GRAVITY) });
+		entity.AddComponent<CollisionComponent>(position, V2_double{ 32, 64 });
+		entity.AddComponent<SpriteComponent>("./resources/textures/player_test2.png", V2_double{ 32, 64 });
 		entity.AddComponent<SpriteSheetComponent>();
 		//entity.AddComponent<StateMachineComponent>(entity, RawStateMachineMap{ { "walkStateMachine", new WalkStateMachine("idle") }, { "jumpStateMachine", new JumpStateMachine("grounded") }});
 		entity.AddComponent<DirectionComponent>();

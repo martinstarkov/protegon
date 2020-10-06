@@ -11,12 +11,12 @@ struct SpriteComponent {
 	AABB source;
 	SDL_Texture* texture;
 	V2_double sprite_size;
-	SpriteComponent() : path{}, source{}, texture{ nullptr }, sprite_size{} {}
+	SpriteComponent() : path{}, source{}, texture{ nullptr }, sprite_size{ 0.0, 0.0 } {}
 	SpriteComponent(std::string path, V2_double sprite_size) : path{ path }, sprite_size{ sprite_size } {
 		Init();
 	}
 	void Init() {
-		source = AABB{ {}, sprite_size };
+		source = AABB{ { 0.0, 0.0 }, sprite_size };
 		texture = &engine::TextureManager::Load(path, path);
 	}
 	~SpriteComponent() {

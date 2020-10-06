@@ -12,7 +12,7 @@
 struct SpriteInformation {
 	V2_double start;
 	std::size_t count;
-	SpriteInformation(V2_double start = {}, std::size_t count = 1) : start{ start }, count{ count } {}
+	SpriteInformation(V2_double start = { 0.0, 0.0 }, std::size_t count = 1) : start{ start }, count{ count } {}
 };
 
 // json serialization

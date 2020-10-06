@@ -170,8 +170,8 @@ struct Vector2 {
 	Vector2& operator/=(S number) {
 		// Prevents division by zero.
 		if (number) {
-			x = x / number;
-			y = y / number;
+			x /= number;
+			y /= number;
 		} else {
 			*this = Infinite();
 		}
