@@ -187,6 +187,8 @@
     <ClInclude Include="src\engine\renderer\Color.h" />
     <ClInclude Include="src\engine\renderer\Flip.h" />
     <ClInclude Include="src\engine\event\InputHandler.h" />
+    <ClInclude Include="src\engine\renderer\Renderer.h" />
+    <ClInclude Include="src\engine\renderer\Window.h" />
     <ClInclude Include="src\engine\utils\Math.h" />
     <ClInclude Include="src\engine\renderer\TextureManager.h" />
     <ClInclude Include="src\engine\utils\Utility.h" />
