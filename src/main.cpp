@@ -3,14 +3,14 @@
 class MyGame : public engine::Engine {
 public:
 	void Init() {
-		manager.AddSystem<RenderSystem>();
-		manager.AddSystem<PhysicsSystem>();
-		manager.AddSystem<LifetimeSystem>();
-		manager.AddSystem<AnimationSystem>();
-		manager.AddSystem<CollisionSystem>();
-		manager.AddSystem<InputSystem>();
-		//manager.AddSystem<StateMachineSystem>();
-		manager.AddSystem<DirectionSystem>();
+		ecs.AddSystem<RenderSystem>();
+		ecs.AddSystem<PhysicsSystem>();
+		ecs.AddSystem<LifetimeSystem>();
+		ecs.AddSystem<AnimationSystem>();
+		ecs.AddSystem<CollisionSystem>();
+		ecs.AddSystem<InputSystem>();
+		//ecs.AddSystem<StateMachineSystem>();
+		ecs.AddSystem<DirectionSystem>();
 
 		std::vector<std::vector<int>> boxes = {
 		{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
@@ -51,17 +51,17 @@ public:
 					switch (boxes[i][j]) {
 						case 1:
 						{
-							auto box = CreateBox(pos, manager);
+							auto box = CreateBox(pos, ecs);
 							auto rb = RigidBody{ UNIVERSAL_DRAG, GRAVITY };
 							box.AddComponent<RigidBodyComponent>(rb);
 							break;
 						}
 						case 2:
-							CreatePlayer(pos, manager);
+							CreatePlayer(pos, ecs);
 							break;
 						case 3:
 						{
-							auto box = CreateBox(pos, manager);
+							auto box = CreateBox(pos, ecs);
 							break;
 						}
 						default:
@@ -73,18 +73,18 @@ public:
 
 	}
     void Update() {
-		manager.Update<InputSystem>();
-		manager.Update<PhysicsSystem>();
-		manager.Update<CollisionSystem>();
-		//manager.Update<StateMachineSystem>();
-		manager.Update<DirectionSystem>();
-		manager.Update<LifetimeSystem>();
+		ecs.Update<InputSystem>();
+		ecs.Update<PhysicsSystem>();
+		ecs.Update<CollisionSystem>();
+		//ecs.Update<StateMachineSystem>();
+		ecs.Update<DirectionSystem>();
+		ecs.Update<LifetimeSystem>();
 		//AllocationMetrics::printMemoryUsage();
     }
 
 	void Render() {
-		manager.Update<AnimationSystem>();
-		manager.Update<RenderSystem>();
+		ecs.Update<AnimationSystem>();
+		ecs.Update<RenderSystem>();
 	}
 
 	ecs::Entity CreateBox(V2_double position, ecs::Manager& manager) {
@@ -116,7 +116,7 @@ public:
 
 int main(int argc, char* args[]) { // sdl main override
 
-	engine::Engine::Start<MyGame>();
+	engine::Engine::Start<MyGame>("Protegon");
 
     return 0;
 }
