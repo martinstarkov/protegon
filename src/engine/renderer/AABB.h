@@ -56,6 +56,22 @@ struct AABB : Shape<AABB> {
 	}
 };
 
+namespace engine {
+
+namespace math {
+
+// Determine if a point lies inside an AABB.
+inline bool PointVsAABB(const V2_double& point, const AABB& a) {
+	return (point.x >= a.position.x &&
+			point.y >= a.position.y &&
+			point.x < a.position.x + a.size.x &&
+			point.y < a.position.y + a.size.y);
+}
+
+} // namespace math
+
+} // namespace engine
+
 inline void to_json(nlohmann::json& j, const AABB& o) {
 	j["position"] = o.position;
 	j["size"] = o.size;

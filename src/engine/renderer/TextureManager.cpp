@@ -53,6 +53,13 @@ void TextureManager::DrawLine(V2_int origin, V2_int destination, Color color) {
 	SetDrawColor(DEFAULT_RENDERER_COLOR);
 }
 
+void TextureManager::DrawSolidRectangle(V2_int position, V2_int size, Color color) {
+	SetDrawColor(color);
+	SDL_Rect rect{ position.x, position.y, size.x, size.y };
+	SDL_RenderFillRect(&Engine::GetRenderer(), &rect);
+	SetDrawColor(DEFAULT_RENDERER_COLOR);
+}
+
 void TextureManager::DrawRectangle(V2_int position, V2_int size, Color color) {
 	SetDrawColor(color);
 	SDL_Rect rect{ position.x, position.y, size.x, size.y };
