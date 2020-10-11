@@ -8,3 +8,4 @@
 #include <engine/ecs/systems/DirectionSystem.h>
 #include <engine/ecs/systems/AnimationSystem.h>
 #include <engine/ecs/systems/RenderSystem.h>
+#include <engine/ecs/systems/UISystem.h>
