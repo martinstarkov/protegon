@@ -177,12 +177,57 @@ struct Vector2 {
 		}
 		return *this;
 	}
+
+	// Binary arithmetic operations (one type Vector + other type Vector).
+
+	// BIG TODO: Figure out casted subtraction and addition
+
+	/*template <typename A, typename B, typename P = engine::math::promote<A, B>>
+	friend inline Vector2<P> operator-(const Vector2<A>& a, const Vector2<B>& b) {
+		return Vector2<P>{ a.x - b.x, a.x - b.x };
+	}*/
+
+	// Binary arithmetic operations (same type Vector + same type Vector).
+
+	friend inline Vector2 operator+(Vector2 a, const Vector2& b) {
+		a += b;
+		return a;
+	}
+	friend inline Vector2 operator-(Vector2 a, const Vector2& b) {
+		a -= b;
+		return a;
+	}
+	friend inline Vector2 operator*(Vector2 a, const Vector2& b) {
+		a *= b;
+		return a;
+	}
+	friend inline Vector2 operator/(Vector2 a, const Vector2& b) {
+		a /= b;
+		return a;
+	}
 };
 
 // Common type aliases
 using V2_int = Vector2<int>;
 using V2_double = Vector2<double>;
 using V2_float = Vector2<float>;
+
+// source: https://stackoverflow.com/a/12919377
+template< typename T >
+struct check {
+	static const bool value = false;
+};
+
+template <typename T>
+struct check <Vector2<T>> {
+	static const bool value = true;
+};
+
+template <typename T>
+using is_vector = std::enable_if_t<check<T>::value, int>;
+
+template <typename T>
+using is_not_vector = std::enable_if_t<!check<T>::value, int>;
 
 // Comparison operators (Vector vs Vector).
 
@@ -226,69 +271,51 @@ inline bool operator<=(A a, const Vector2<B>& b) { return !operator>(b, a); }
 template <typename A, typename B, engine::math::is_number<A> = 0>
 inline bool operator>=(A a, const Vector2<B>& b) { return !operator<(b, a); }
 
-// Binary arithmetic operations (Vector + Vector).
-
-template <typename T>
-inline Vector2<T> operator+(Vector2<T> a, const Vector2<T>& b) {
-	a += b;
-	return a;
-}
-template <typename T>
-inline Vector2<T> operator-(Vector2<T> a, const Vector2<T>& b) {
-	a -= b;
-	return a;
-}
-template <typename T>
-inline Vector2<T> operator*(Vector2<T> a, const Vector2<T>& b) {
-	a *= b;
-	return a;
-}
-template <typename T>
-inline Vector2<T> operator/(Vector2<T> a, const Vector2<T>& b) {
-	a /= b;
-	return a;
-}
-
 // Binary arithmetic operations (Vector + Other).
 
-template <typename A, typename B, engine::math::is_number<B> = 0>
-inline Vector2<A> operator+(Vector2<A> a, B b) {
-	a += b;
-	return a;
+template <typename T>
+inline V2_double operator/(const Vector2<T>& a, double b) {
+	return { a.x / b, a.y / b };
 }
-template <typename A, typename B, engine::math::is_number<B> = 0>
-inline Vector2<A> operator+(B b, Vector2<A> a) {
-	a += b;
-	return a;
+template <typename T>
+inline V2_double operator/(double b, Vector2<T> a) {
+	return { b / a.x, b / a.y };
 }
-template <typename A, typename B, engine::math::is_number<B> = 0>
-inline Vector2<A> operator-(Vector2<A> a, B b) {
-	a -= b;
-	return a;
+template <typename T, typename P = engine::math::promote<T, float>>
+inline Vector2<P> operator/(const Vector2<T>& a, float b) {
+	return { static_cast<P>(a.x) / static_cast<P>(b), static_cast<P>(a.y) / static_cast<P>(b) };
 }
-template <typename A, typename B, engine::math::is_number<B> = 0>
-inline Vector2<A> operator-(B b, Vector2<A> a) {
-	(-a) += b;
-	return a;
+template <typename T, typename P = engine::math::promote<T, float>>
+inline Vector2<P> operator/(float b, const Vector2<T>& a) {
+	return { static_cast<P>(b) / static_cast<P>(a.x), static_cast<P>(b) / static_cast<P>(a.y) };
 }
-template <typename A, typename B, engine::math::is_number<B> = 0>
-inline Vector2<A> operator/(Vector2<A> a, B b) {
-	a /= b;
-	return a;
-}
-template <typename A, typename B, engine::math::is_number<B> = 0>
-inline Vector2<A> operator/(B b, Vector2<A> a) {
-	a.x = b / a.x; 
-	a.y = b / a.y;
-	return a;
-}
-template <typename A, typename B, engine::math::is_number<B> = 0>
-inline Vector2<A> operator*(Vector2<A> a, B b) {
+template <typename T>
+inline Vector2<T> operator*(Vector2<T> a, double b) {
 	a *= b;
 	return a;
 }
-template <typename A, typename B, engine::math::is_number<B> = 0>
-inline Vector2<A> operator*(B b, Vector2<A> a) {
+template <typename T>
+inline Vector2<T> operator*(double b, Vector2<T> a) {
+	a *= b;
+	return a;
+}
+template <typename T>
+inline Vector2<T> operator*(Vector2<T> a, float b) {
+	a *= b;
+	return a;
+}
+template <typename T>
+inline Vector2<T> operator*(float b, Vector2<T> a) {
+	a *= b;
+	return a;
+}
+template <typename T>
+inline Vector2<T> operator*(Vector2<T> a, int b) {
+	a *= b;
+	return a;
+}
+template <typename T>
+inline Vector2<T> operator*(int b, Vector2<T> a) {
 	a *= b;
 	return a;
 }
@@ -299,17 +326,17 @@ template <typename T>
 inline Vector2<T> abs(const Vector2<T>& obj) {
 	return { std::abs(obj.x), std::abs(obj.y) };
 }
-// Return the distance between two vectors
+// Return the distance between two vectors.
 template <typename T, typename S>
 inline double Distance(const Vector2<T>& a, const Vector2<S>& b) {
 	return static_cast<double>(std::sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y)));
 }
-// Return maximum component of vector
+// Return maximum component of vector.
 template <typename T>
 inline T& Min(const Vector2<T>& vector) {
 	return std::min(vector.x, vector.y);
 }
-// Return minimum component of vector
+// Return minimum component of vector.
 template <typename T>
 inline T& Max(const Vector2<T>& vector) {
 	return std::min(vector.x, vector.y);

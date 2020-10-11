@@ -78,7 +78,7 @@ public:
 			}
 		}
 
-		engine::UI::AddButton(ui_manager, { 40, 40 }, { 40, 40 }, engine::UIElement("Button1", engine::BLUE));
+		engine::UI::AddButton(ui_manager, { 40, 40 }, { 80, 40 }, engine::UIElement("Button1", engine::BLUE));
 
 	}
 
