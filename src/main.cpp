@@ -57,8 +57,10 @@ public:
 							break;
 						}
 						case 2:
-							CreatePlayer(pos, ecs);
+						{
+							auto player = CreatePlayer(pos, ecs);
 							break;
+						}
 						case 3:
 						{
 							auto box = CreateBox(pos, ecs);
@@ -98,7 +100,7 @@ public:
 
 	ecs::Entity CreatePlayer(V2_double position, ecs::Manager& manager) {
 		auto entity = manager.CreateEntity();
-		V2_double player_acceleration = { 20, 40 };
+		V2_double player_acceleration = { 2, 4 };
 		entity.AddComponent<TransformComponent>(position);
 		entity.AddComponent<InputComponent>();
 		entity.AddComponent<PlayerController>(player_acceleration);
