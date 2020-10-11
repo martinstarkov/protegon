@@ -14,3 +14,5 @@
 #include <engine/ecs/components/StateMachineComponent.h>
 #include <engine/ecs/components/DirectionComponent.h>
 #include <engine/ecs/components/SpriteSheetComponent.h>
+#include <engine/ecs/components/UIComponent.h>
+#include <engine/ecs/components/SizeComponent.h>
