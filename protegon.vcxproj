@@ -184,11 +184,16 @@
   <ItemGroup>
     <ClInclude Include="src\engine\core\Engine.h" />
     <ClInclude Include="src\engine\core\Includes.h" />
+    <ClInclude Include="src\engine\ecs\components\SizeComponent.h" />
     <ClInclude Include="src\engine\ecs\ECS.h" />
+    <ClInclude Include="src\engine\ecs\systems\UISystem.h" />
     <ClInclude Include="src\engine\renderer\Color.h" />
     <ClInclude Include="src\engine\renderer\Flip.h" />
     <ClInclude Include="src\engine\event\InputHandler.h" />
     <ClInclude Include="src\engine\renderer\Renderer.h" />
+    <ClInclude Include="src\engine\ui\UI.h" />
+    <ClInclude Include="src\engine\ecs\components\UIComponent.h" />
+    <ClInclude Include="src\engine\ui\UIElement.h" />
     <ClInclude Include="src\engine\renderer\Window.h" />
     <ClInclude Include="src\engine\utils\Math.h" />
     <ClInclude Include="src\engine\renderer\TextureManager.h" />

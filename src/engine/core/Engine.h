@@ -57,6 +57,7 @@ public:
 	static int ScreenHeight() { return window_size_.y; }
 protected:
 	ecs::Manager ecs;
+	ecs::Manager ui_manager;
 private:
 	static Engine* instance_;
 	template <typename T>

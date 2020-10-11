@@ -9,3 +9,4 @@
 
 #include <engine/event/InputHandler.h>
 #include <engine/renderer/TextureManager.h>
+#include <engine/ui/UI.h>

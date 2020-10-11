@@ -11,6 +11,9 @@ public:
 		ecs.AddSystem<InputSystem>();
 		//ecs.AddSystem<StateMachineSystem>();
 		ecs.AddSystem<DirectionSystem>();
+		ui_manager.AddSystem<RenderSystem>();
+		ui_manager.AddSystem<UIListener>();
+		ui_manager.AddSystem<UIRenderer>();
 
 		std::vector<std::vector<int>> boxes = {
 		{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
@@ -28,7 +31,8 @@ public:
 		{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3}
 		};
 
-		/*std::vector<std::vector<int>> boxes = {
+		/*
+		std::vector<std::vector<int>> boxes = {
 		{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
 		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
 		{3, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
@@ -42,7 +46,8 @@ public:
 		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
 		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
 		{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3}
-		};*/
+		};
+		*/
 
 		for (std::size_t i = 0; i < boxes.size(); ++i) {
 			for (std::size_t j = 0; j < boxes[i].size(); ++j) {
@@ -73,9 +78,13 @@ public:
 			}
 		}
 
+		engine::UI::AddButton(ui_manager, { 40, 40 }, { 40, 40 }, engine::UIElement("Button1", engine::BLUE));
+
 	}
+
     void Update() {
 		ecs.Update<InputSystem>();
+		ui_manager.Update<UIListener>();
 		ecs.Update<PhysicsSystem>();
 		ecs.Update<CollisionSystem>();
 		//ecs.Update<StateMachineSystem>();
@@ -87,6 +96,7 @@ public:
 	void Render() {
 		ecs.Update<AnimationSystem>();
 		ecs.Update<RenderSystem>();
+		ui_manager.Update<UIRenderer>();
 	}
 
 	ecs::Entity CreateBox(V2_double position, ecs::Manager& manager) {
