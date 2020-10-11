@@ -183,6 +183,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\engine\core\Engine.h" />
+    <ClInclude Include="src\engine\core\Includes.h" />
     <ClInclude Include="src\engine\ecs\ECS.h" />
     <ClInclude Include="src\engine\renderer\Color.h" />
     <ClInclude Include="src\engine\renderer\Flip.h" />

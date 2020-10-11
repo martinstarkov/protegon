@@ -2,12 +2,7 @@
 
 #include <cstdint>
 
-#include <engine/ecs/ECS.h>
-#include <engine/ecs/Components.h>
-#include <engine/ecs/Systems.h>
-
-#include <engine/renderer/Window.h>
-#include <engine/renderer/Renderer.h>
+#include <engine/core/Includes.h>
 
 #include <Defines.h>
 
@@ -35,6 +30,7 @@ public:
 	virtual void Update() {}
 	virtual void Render() {}
 	// Default values defined in engine
+	
 	template <typename T>
 	static void Start(const char* title = internal::WINDOW_TITLE, int width = internal::WINDOW_WIDTH, int height = internal::WINDOW_HEIGHT, int x = internal::WINDOW_X, int y = internal::WINDOW_Y, std::uint32_t window_flags = 0, std::uint32_t renderer_flags = 0) {
 		window_size_ = { width, height };
