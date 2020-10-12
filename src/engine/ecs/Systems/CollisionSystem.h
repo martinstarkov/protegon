@@ -192,13 +192,6 @@ public:
 		broadphase_box.size.y = velocity.y > 0.0 ? velocity.y + b.size.y : b.size.y - velocity.y;
 		return broadphase_box;
 	}
-	// Determine if a point lies inside an AABB
-	bool PointVsAABB(const V2_double& point, const AABB& a) {
-		return (point.x >= a.position.x &&
-				point.y >= a.position.y &&
-				point.x < a.position.x + a.size.x &&
-				point.y < a.position.y + a.size.y);
-	}
 	// Find the penetration of one AABB into another AABB
 	V2_double IntersectAABB(const AABB& other_box, const AABB& box) {
 		V2_double penetration;

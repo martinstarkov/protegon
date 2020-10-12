@@ -3,14 +3,17 @@
 class MyGame : public engine::Engine {
 public:
 	void Init() {
-		manager.AddSystem<RenderSystem>();
-		manager.AddSystem<PhysicsSystem>();
-		manager.AddSystem<LifetimeSystem>();
-		manager.AddSystem<AnimationSystem>();
-		manager.AddSystem<CollisionSystem>();
-		manager.AddSystem<InputSystem>();
-		//manager.AddSystem<StateMachineSystem>();
-		manager.AddSystem<DirectionSystem>();
+		ecs.AddSystem<RenderSystem>();
+		ecs.AddSystem<PhysicsSystem>();
+		ecs.AddSystem<LifetimeSystem>();
+		ecs.AddSystem<AnimationSystem>();
+		ecs.AddSystem<CollisionSystem>();
+		ecs.AddSystem<InputSystem>();
+		//ecs.AddSystem<StateMachineSystem>();
+		ecs.AddSystem<DirectionSystem>();
+		ui_manager.AddSystem<RenderSystem>();
+		ui_manager.AddSystem<UIListener>();
+		ui_manager.AddSystem<UIRenderer>();
 
 		std::vector<std::vector<int>> boxes = {
 		{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
@@ -28,7 +31,8 @@ public:
 		{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3}
 		};
 
-		/*std::vector<std::vector<int>> boxes = {
+		/*
+		std::vector<std::vector<int>> boxes = {
 		{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
 		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
 		{3, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
@@ -42,7 +46,8 @@ public:
 		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
 		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
 		{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3}
-		};*/
+		};
+		*/
 
 		for (std::size_t i = 0; i < boxes.size(); ++i) {
 			for (std::size_t j = 0; j < boxes[i].size(); ++j) {
@@ -51,17 +56,19 @@ public:
 					switch (boxes[i][j]) {
 						case 1:
 						{
-							auto box = CreateBox(pos, manager);
+							auto box = CreateBox(pos, ecs);
 							auto rb = RigidBody{ UNIVERSAL_DRAG, GRAVITY };
 							box.AddComponent<RigidBodyComponent>(rb);
 							break;
 						}
 						case 2:
-							CreatePlayer(pos, manager);
+						{
+							auto player = CreatePlayer(pos, ecs);
 							break;
+						}
 						case 3:
 						{
-							auto box = CreateBox(pos, manager);
+							auto box = CreateBox(pos, ecs);
 							break;
 						}
 						default:
@@ -71,20 +78,25 @@ public:
 			}
 		}
 
+		engine::UI::AddButton(ui_manager, ecs, { 40, 40 }, { 120, 40 }, engine::UIElement("Randomize Color", 15, "resources/fonts/oswald_regular.ttf", engine::BLUE, engine::SILVER));
+
 	}
+
     void Update() {
-		manager.Update<InputSystem>();
-		manager.Update<PhysicsSystem>();
-		manager.Update<CollisionSystem>();
-		//manager.Update<StateMachineSystem>();
-		manager.Update<DirectionSystem>();
-		manager.Update<LifetimeSystem>();
+		ecs.Update<InputSystem>();
+		ui_manager.Update<UIListener>();
+		ecs.Update<PhysicsSystem>();
+		ecs.Update<CollisionSystem>();
+		//ecs.Update<StateMachineSystem>();
+		ecs.Update<DirectionSystem>();
+		ecs.Update<LifetimeSystem>();
 		//AllocationMetrics::printMemoryUsage();
     }
 
 	void Render() {
-		manager.Update<AnimationSystem>();
-		manager.Update<RenderSystem>();
+		ecs.Update<AnimationSystem>();
+		ecs.Update<RenderSystem>();
+		ui_manager.Update<UIRenderer>();
 	}
 
 	ecs::Entity CreateBox(V2_double position, ecs::Manager& manager) {
@@ -98,7 +110,7 @@ public:
 
 	ecs::Entity CreatePlayer(V2_double position, ecs::Manager& manager) {
 		auto entity = manager.CreateEntity();
-		V2_double player_acceleration = { 20, 40 };
+		V2_double player_acceleration = { 2, 4 };
 		entity.AddComponent<TransformComponent>(position);
 		entity.AddComponent<InputComponent>();
 		entity.AddComponent<PlayerController>(player_acceleration);
@@ -116,7 +128,7 @@ public:
 
 int main(int argc, char* args[]) { // sdl main override
 
-	engine::Engine::Start<MyGame>();
+	engine::Engine::Start<MyGame>("Protegon");
 
     return 0;
 }

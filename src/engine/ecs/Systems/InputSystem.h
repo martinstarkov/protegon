@@ -2,14 +2,14 @@
 
 #include "System.h"
 
-#include <SDL.h>
+#include <engine/event/InputHandler.h>
 
 // TODO: Add key specificity to InputComponent
 
 class InputSystem : public ecs::System<InputComponent> {
 public:
 	virtual void Update() override final {
-		s = SDL_GetKeyboardState(NULL);
+		using namespace engine;
 		for (auto [entity, input] : entities) {
 			if (entity.HasComponent<PlayerController>()) {
 				auto& player = entity.GetComponent<PlayerController>();
@@ -19,7 +19,7 @@ public:
 					PhysicsInputs(entity, rigid_body, player);
 				}
 				auto all_entities = GetManager().GetEntities();
-				if (s[SDL_SCANCODE_R]) {
+				if (InputHandler::KeyPressed(Key::R)) {
 					for (auto& entity2 : all_entities) {
 						if (entity2.HasComponent<TransformComponent>()) {
 							entity2.GetComponent<TransformComponent>().ResetPosition();
@@ -31,7 +31,7 @@ public:
 						}
 					}
 				}
-				if (s[SDL_SCANCODE_B]) {
+				if (InputHandler::KeyPressed(Key::B)) {
 					for (auto& entity2 : all_entities) {
 						if (entity2.HasComponent<RigidBodyComponent>()) {
 							auto& rb = entity2.GetComponent<RigidBodyComponent>().rigid_body;
@@ -40,42 +40,33 @@ public:
 					}
 				}
 				// clear all entities except player
-				if (s[SDL_SCANCODE_C]) {
+				if (InputHandler::KeyPressed(Key::C)) {
 					for (auto& entity2 : all_entities) {
 						if (entity2 != entity) {
 							entity2.Destroy();
 						}
 					}
 				}
-				if (s[SDL_SCANCODE_H]) {
-					SDL_Delay(400);
-					//Serialization::serialize("resources/player.json", e);
-				}
-				if (s[SDL_SCANCODE_J]) {
-					SDL_Delay(3000);
-					//Serialization::serialize("resources/player.json", e);
-				}
 			}
 		}
 	}
 	// player pressing motions keys
 	void PhysicsInputs(ecs::Entity entity, RigidBody& rigidBody, PlayerController& player) {
+		using namespace engine;
 		rigidBody.acceleration = { 0.0, 0.0 };
-		if ((s[SDL_SCANCODE_A] && s[SDL_SCANCODE_D]) || (!s[SDL_SCANCODE_A] && !s[SDL_SCANCODE_D])) { // both horizontal keys pressed or neither -> stop
+		if ((InputHandler::KeyPressed(Key::A) && InputHandler::KeyPressed(Key::D)) || (InputHandler::KeyReleased(Key::A) && InputHandler::KeyReleased(Key::D))) { // both horizontal keys pressed or neither -> stop
 			rigidBody.acceleration.x = 0.0;
-		} else if (s[SDL_SCANCODE_A] && !s[SDL_SCANCODE_D]) { // left
+		} else if (InputHandler::KeyPressed(Key::A) && InputHandler::KeyReleased(Key::D)) { // left
 			rigidBody.acceleration.x = -player.input_acceleration.x;
-		} else if (s[SDL_SCANCODE_D] && !s[SDL_SCANCODE_A]) { // right
+		} else if (InputHandler::KeyPressed(Key::D) && InputHandler::KeyReleased(Key::A)) { // right
 			rigidBody.acceleration.x = player.input_acceleration.x;
 		}
-		if ((s[SDL_SCANCODE_W] && s[SDL_SCANCODE_S]) || (!s[SDL_SCANCODE_W] && !s[SDL_SCANCODE_S])) { // both vertical keys pressed or neither -> stop (change for gravity)
+		if ((InputHandler::KeyPressed(Key::W) && InputHandler::KeyPressed(Key::S)) || (InputHandler::KeyReleased(Key::W) && InputHandler::KeyReleased(Key::S))) { // both vertical keys pressed or neither -> stop (change for gravity)
 			rigidBody.acceleration.y = 0.0;
-		} else if (s[SDL_SCANCODE_W] && !s[SDL_SCANCODE_S]) { // up
+		} else if (InputHandler::KeyPressed(Key::W) && InputHandler::KeyReleased(Key::S)) { // up
 			rigidBody.acceleration.y = -player.input_acceleration.y;
-		} else if (s[SDL_SCANCODE_S] && !s[SDL_SCANCODE_W]) { // down
+		} else if (InputHandler::KeyPressed(Key::S) && InputHandler::KeyReleased(Key::W)) { // down
 			rigidBody.acceleration.y = player.input_acceleration.y;
 		}
 	}
-private:
-	const Uint8* s = nullptr;
 };

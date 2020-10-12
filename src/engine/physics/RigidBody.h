@@ -9,9 +9,9 @@ constexpr double MASSLESS = 0.0; // massless
 constexpr double ELASTIC = 1.0; // perfectly elastic collision restitution
 constexpr double INFINITE_MASS = std::numeric_limits<double>::infinity();
 
-#define UNIVERSAL_DRAG DRAGLESS + 0.15
 #define GRAVITY V2_double{ 0, 0 } // pixels per frame
 #define DRAGLESS V2_double{ 0, 0 } // drag
+#define UNIVERSAL_DRAG DRAGLESS + V2_double{ 0.15, 0.15 }
 
 struct RigidBody {
 	V2_double velocity;

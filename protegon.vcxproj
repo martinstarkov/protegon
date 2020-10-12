@@ -183,10 +183,19 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\engine\core\Engine.h" />
+    <ClInclude Include="src\engine\core\Includes.h" />
+    <ClInclude Include="src\engine\ecs\components\SizeComponent.h" />
     <ClInclude Include="src\engine\ecs\ECS.h" />
+    <ClInclude Include="src\engine\ecs\systems\UISystem.h" />
     <ClInclude Include="src\engine\renderer\Color.h" />
     <ClInclude Include="src\engine\renderer\Flip.h" />
     <ClInclude Include="src\engine\event\InputHandler.h" />
+    <ClInclude Include="src\engine\renderer\FontManager.h" />
+    <ClInclude Include="src\engine\renderer\Renderer.h" />
+    <ClInclude Include="src\engine\ui\UI.h" />
+    <ClInclude Include="src\engine\ecs\components\UIComponent.h" />
+    <ClInclude Include="src\engine\ui\UIElement.h" />
+    <ClInclude Include="src\engine\renderer\Window.h" />
     <ClInclude Include="src\engine\utils\Math.h" />
     <ClInclude Include="src\engine\renderer\TextureManager.h" />
     <ClInclude Include="src\engine\utils\Utility.h" />
@@ -253,6 +262,7 @@
     <ClCompile Include="src\engine\core\Engine.cpp" />
     <ClCompile Include="src\engine\ecs\components\StateMachineComponent.cpp" />
     <ClCompile Include="src\engine\event\InputHandler.cpp" />
+    <ClCompile Include="src\engine\renderer\FontManager.cpp" />
     <ClCompile Include="src\engine\renderer\TextureManager.cpp" />
     <ClCompile Include="src\engine\physics\RigidBody.cpp" />
     <ClCompile Include="src\engine\utils\AllocationMetrics.cpp" />

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include <map>
+#include <unordered_map>
 
 #include <engine/utils/Vector2.h>
 #include <engine/renderer/Color.h>
@@ -23,6 +23,7 @@ public:
 
 	static void DrawPoint(V2_int point, Color color = DEFAULT_RENDER_COLOR);
 	static void DrawLine(V2_int origin, V2_int destination, Color color = DEFAULT_RENDER_COLOR);
+	static void DrawSolidRectangle(V2_int position, V2_int size, Color color = DEFAULT_RENDER_COLOR);
 	static void DrawRectangle(V2_int position, V2_int size, Color color = DEFAULT_RENDER_COLOR);
 	static void DrawRectangle(const std::string& key, V2_int src_position, V2_int src_size, V2_int dest_position, V2_int dest_size, Flip flip, double angle, V2_int center_of_rotation);
 	static void DrawRectangle(const std::string& key, V2_int src_position, V2_int src_size, V2_int dest_position, V2_int dest_size, Flip flip = Flip::NONE, double angle = 0.0);
@@ -32,7 +33,7 @@ public:
 	static void RemoveTexture(const std::string& key);
 private:
 	static SDL_Texture& GetTexture(const std::string& key);
-	static std::map<std::string, SDL_Texture*> texture_map;
+	static std::unordered_map<std::string, SDL_Texture*> texture_map_;
 };
 
 } // namespace engine

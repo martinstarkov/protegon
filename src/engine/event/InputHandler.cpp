@@ -12,6 +12,7 @@ namespace engine {
 #define MOUSE_HOLD_TIME 0.25
 #define MOUSE_HOLD_CYCLES static_cast<std::uint64_t>(MOUSE_HOLD_TIME * FPS)
 
+const std::uint8_t* InputHandler::key_states = nullptr;
 InputHandler::MouseState InputHandler::left_mouse{ MouseState::RELEASED };
 InputHandler::MouseState InputHandler::right_mouse{ MouseState::RELEASED };
 InputHandler::MouseState InputHandler::middle_mouse{ MouseState::RELEASED };
@@ -32,6 +33,25 @@ void InputHandler::Update() {
 		}
 	}
 	UpdateMouse();
+	UpdateKeyboard();
+}
+
+void InputHandler::UpdateKeyboard() {
+	key_states = SDL_GetKeyboardState(NULL);
+}
+
+bool InputHandler::KeyPressed(Key key) {
+	assert(key_states != nullptr && "Could not find keyboard state");
+	// TODO: Write tests to make sure key is valid
+	//assert((std::is_convertible_v<decltype(key), SDL_Scancode>) && "Could not interpret key to SDL_Scancode");
+	return key_states[static_cast<SDL_Scancode>(key)];
+}
+
+bool InputHandler::KeyReleased(Key key) {
+	assert(key_states != nullptr && "Could not find keyboard state");
+	// TODO: Write tests to make sure key is valid
+	//assert((std::is_convertible_v<decltype(key), SDL_Scancode>) && "Could not interpret key to SDL_Scancode");
+	return !key_states[static_cast<SDL_Scancode>(key)];
 }
 
 void InputHandler::UpdateMouse() {
@@ -102,7 +122,7 @@ std::uint64_t InputHandler::GetMouseHoldCycles(MouseButton button) {
 	}
 }
 
-bool InputHandler::HeldFor(MouseButton button, std::uint64_t cycles) {
+bool InputHandler::MouseHeldFor(MouseButton button, std::uint64_t cycles) {
 	return GetMouseHoldCycles(button) > cycles;
 }
 
