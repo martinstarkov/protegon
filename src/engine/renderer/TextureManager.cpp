@@ -8,22 +8,21 @@
 
 namespace engine {
 
-std::map<std::string, SDL_Texture*> TextureManager::texture_map;
+std::unordered_map<std::string, SDL_Texture*> TextureManager::texture_map_;
 
 SDL_Texture& TextureManager::Load(std::string& key, const std::string& path) {
 	assert(path != "" && "Cannot load empty path");
 	assert(key != "" && "Cannot load invalid key");
-	auto it = texture_map.find(key);
-	if (it != std::end(texture_map)) { // don't create if texture already exists in map
+	auto it = texture_map_.find(key);
+	if (it != std::end(texture_map_)) { // don't create if texture already exists in map
 		return *it->second;
 	}
-	SDL_Texture* texture = nullptr;
 	SDL_Surface* temp_surface = IMG_Load(path.c_str());
 	assert(temp_surface != nullptr && "Failed to load image into surface");
-	texture = SDL_CreateTextureFromSurface(&Engine::GetRenderer(), temp_surface);
+	SDL_Texture* texture = SDL_CreateTextureFromSurface(&Engine::GetRenderer(), temp_surface);
 	SDL_FreeSurface(temp_surface);
 	assert(texture != nullptr && "Failed to create texture from surface");
-	texture_map.emplace(key, texture);
+	texture_map_.emplace(key, texture);
 	return *texture;
 }
 
@@ -32,8 +31,8 @@ Color TextureManager::GetDefaultRendererColor() {
 }
 
 SDL_Texture& TextureManager::GetTexture(const std::string& key) {
-	auto it = texture_map.find(key);
-	assert(it != std::end(texture_map) && "Key does not exist in texture map");
+	auto it = texture_map_.find(key);
+	assert(it != std::end(texture_map_) && "Key does not exist in texture map");
 	return *it->second;
 }
 
@@ -131,18 +130,18 @@ void TextureManager::DrawCircle(V2_int center, int radius, Color color) {
 }
 
 void TextureManager::Clean() {
-	for (auto& pair : texture_map) {
+	for (auto& pair : texture_map_) {
 		SDL_DestroyTexture(pair.second);
 	}
-	texture_map.clear();
+	texture_map_.clear();
 }
 
 
 void TextureManager::RemoveTexture(const std::string& key) {
-	auto it = texture_map.find(key);
-	if (it != std::end(texture_map)) {
+	auto it = texture_map_.find(key);
+	if (it != std::end(texture_map_)) {
 		SDL_DestroyTexture(it->second);
-		texture_map.erase(it);
+		texture_map_.erase(it);
 	}
 }
 

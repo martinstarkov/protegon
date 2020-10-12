@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include <map>
+#include <unordered_map>
 
 #include <engine/utils/Vector2.h>
 #include <engine/renderer/Color.h>
@@ -33,7 +33,7 @@ public:
 	static void RemoveTexture(const std::string& key);
 private:
 	static SDL_Texture& GetTexture(const std::string& key);
-	static std::map<std::string, SDL_Texture*> texture_map;
+	static std::unordered_map<std::string, SDL_Texture*> texture_map_;
 };
 
 } // namespace engine
