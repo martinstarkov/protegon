@@ -1,6 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <iostream>
+
+#include <engine/utils/Math.h>
 
 #include <SDL.h>
 
@@ -9,10 +12,20 @@ namespace engine {
 struct Color {
 	Color() = default;
 	Color(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a) : r(r), g(g), b(b), a(a) {}
-	std::uint8_t r = 0, g = 0, b = 0, a = 0;
+	static Color RandomSolid() {
+		return Color{ static_cast<std::uint8_t>(engine::math::GetRandomValue<int>(0, 255)), static_cast<std::uint8_t>(engine::math::GetRandomValue<int>(0, 255)), static_cast<std::uint8_t>(engine::math::GetRandomValue<int>(0, 255)), 255 };
+	}
+	static Color Random() {
+		return Color{ static_cast<std::uint8_t>(engine::math::GetRandomValue<int>(0, 255)), static_cast<std::uint8_t>(engine::math::GetRandomValue<int>(0, 255)), static_cast<std::uint8_t>(engine::math::GetRandomValue<int>(0, 255)), static_cast<std::uint8_t>(engine::math::GetRandomValue<int>(0, 255)) };
+	}
 	operator SDL_Color() const {
 		return SDL_Color{ r, g, b, a };
 	}
+	friend std::ostream& operator<<(std::ostream& os, Color& color) {
+		os << '[' << unsigned(color.r) << ',' << unsigned(color.g) << ',' << unsigned(color.b) << ',' << unsigned(color.a) << ']';
+		return os;
+	}
+	std::uint8_t r = 0, g = 0, b = 0, a = 0;
 };
 
 inline bool operator==(const Color& lhs, const Color& rhs) {
