@@ -5,6 +5,7 @@
 #include <engine/ui/UIElement.h>
 
 struct UIComponent {
-	UIComponent(engine::UIElement element) : element{ std::move(element) } {}
+	UIComponent(engine::UIElement element, ecs::Manager* manager = nullptr) : element{ std::move(element) }, manager{ manager } {}
 	engine::UIElement element;
+	ecs::Manager* manager;
 };
