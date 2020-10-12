@@ -78,7 +78,7 @@ public:
 			}
 		}
 
-		engine::UI::AddButton(ui_manager, ecs, { 40, 40 }, { 120, 40 }, engine::UIElement("Randomize Color", 15, "resources/fonts/oswald_regular.ttf", engine::BLUE, engine::SILVER));
+		engine::UI::AddButton(ui_manager, ecs, { 40, 40 }, { 120, 40 }, engine::UIElement("Moominize", 15, "resources/fonts/oswald_regular.ttf", engine::BLUE, engine::SILVER));
 
 	}
 
@@ -103,7 +103,7 @@ public:
 		auto entity = manager.CreateEntity();
 		entity.AddComponent<RenderComponent>();
 		entity.AddComponent<CollisionComponent>(position, V2_double{ 32, 32 });
-		entity.AddComponent<SpriteComponent>("./resources/textures/box.png", V2_double{ 32, 32 });
+		entity.AddComponent<SpriteComponent>("./resources/textures/box.png", V2_int{ 32, 32 });
 		entity.AddComponent<TransformComponent>(position);
 		return entity;
 	}
@@ -116,7 +116,7 @@ public:
 		entity.AddComponent<PlayerController>(player_acceleration);
 		entity.AddComponent<RigidBodyComponent>(RigidBody{ UNIVERSAL_DRAG, V2_double{ 0, 0.8 }, ELASTIC, INFINITE_MASS, abs(player_acceleration) + abs(GRAVITY) });
 		entity.AddComponent<CollisionComponent>(position, V2_double{ 32, 64 });
-		entity.AddComponent<SpriteComponent>("./resources/textures/player_test2.png", V2_double{ 32, 64 });
+		entity.AddComponent<SpriteComponent>("./resources/textures/player_test2.png", V2_int{ 30, 51 });
 		entity.AddComponent<SpriteSheetComponent>();
 		//entity.AddComponent<StateMachineComponent>(entity, RawStateMachineMap{ { "walkStateMachine", new WalkStateMachine("idle") }, { "jumpStateMachine", new JumpStateMachine("grounded") }});
 		entity.AddComponent<DirectionComponent>();

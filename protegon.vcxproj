@@ -177,6 +177,7 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="resources\textures\enemy.png" />
+    <Image Include="resources\textures\moomin.png" />
     <Image Include="resources\textures\player.png" />
     <Image Include="resources\textures\player_anim.png" />
     <Image Include="resources\textures\player_anim2.png" />

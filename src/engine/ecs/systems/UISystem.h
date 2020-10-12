@@ -23,9 +23,9 @@ public:
 				auto color_entities = ui.manager->GetComponentTuple<RenderComponent>();
 				for (auto [entity2, render_component2] : color_entities) {
 					render_component2.original_color = Color::RandomSolid();
+					entity2.AddComponent<SpriteComponent>("./resources/textures/moomin.png", V2_int{ 119, 140 });
 					//LOG("Setting color of " << entity2.GetId() << " to " << render_component2.color);
 				}
-
 			} else if (InputHandler::MouseReleased(MouseButton::LEFT) && ui.element.interacting) {
 				ui.element.interacting = false;
 				ui.element.mouse_offset = {};
