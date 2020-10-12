@@ -190,6 +190,7 @@
     <ClInclude Include="src\engine\renderer\Color.h" />
     <ClInclude Include="src\engine\renderer\Flip.h" />
     <ClInclude Include="src\engine\event\InputHandler.h" />
+    <ClInclude Include="src\engine\renderer\FontManager.h" />
     <ClInclude Include="src\engine\renderer\Renderer.h" />
     <ClInclude Include="src\engine\ui\UI.h" />
     <ClInclude Include="src\engine\ecs\components\UIComponent.h" />
@@ -261,6 +262,7 @@
     <ClCompile Include="src\engine\core\Engine.cpp" />
     <ClCompile Include="src\engine\ecs\components\StateMachineComponent.cpp" />
     <ClCompile Include="src\engine\event\InputHandler.cpp" />
+    <ClCompile Include="src\engine\renderer\FontManager.cpp" />
     <ClCompile Include="src\engine\renderer\TextureManager.cpp" />
     <ClCompile Include="src\engine\physics\RigidBody.cpp" />
     <ClCompile Include="src\engine\utils\AllocationMetrics.cpp" />
