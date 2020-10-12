@@ -4,6 +4,7 @@
 
 #include <engine/event/InputHandler.h>
 #include <engine/renderer/TextureManager.h>
+#include <engine/renderer/FontManager.h>
 
 #include <engine/renderer/AABB.h>
 #include <engine/utils/Vector2.h>
@@ -15,21 +16,24 @@ public:
 		for (auto [entity, ui, transform, size, render_component] : entities) {
 			auto surface = AABB{ transform.position, size.size };
 			V2_double mouse_position = InputHandler::GetMousePosition();
-			if (math::PointVsAABB(mouse_position, surface) && InputHandler::MousePressed(MouseButton::LEFT)) {
+			if (!ui.element.interacting && InputHandler::MousePressed(MouseButton::LEFT) && math::PointVsAABB(mouse_position, surface)) {
 				ui.element.interacting = true;
+				ui.element.mouse_offset = mouse_position - transform.position;
+				render_component.color = engine::GREEN;
+				auto color_entities = ui.manager->GetComponentTuple<RenderComponent>();
+				for (auto [entity2, render_component2] : color_entities) {
+					render_component2.original_color = Color::RandomSolid();
+					//LOG("Setting color of " << entity2.GetId() << " to " << render_component2.color);
+				}
+
 			} else if (InputHandler::MouseReleased(MouseButton::LEFT) && ui.element.interacting) {
 				ui.element.interacting = false;
+				ui.element.mouse_offset = {};
 			}
-			if (ui.element.interacting) {
-				if (InputHandler::MouseHeld(MouseButton::LEFT)) {
-					transform.position = mouse_position - ui.element.mouse_offset;
-					render_component.color = engine::GREEN;
-				} else if (InputHandler::MousePressed(MouseButton::LEFT)) {
-					render_component.color = engine::ORANGE;
-					ui.element.mouse_offset = mouse_position - transform.position;
-				}
+			if (ui.element.interacting && InputHandler::MousePressed(MouseButton::LEFT)) {
+				transform.position = mouse_position - ui.element.mouse_offset;
 			} else {
-				render_component.color = ui.element.color;
+				render_component.color = ui.element.background_color;
 			}
 		}
 	}
@@ -41,6 +45,9 @@ public:
 		using namespace engine;
 		for (auto [entity, ui, transform, size, render_component] : entities) {
 			TextureManager::DrawSolidRectangle(transform.position, size.size, render_component.color);
+			if (ui.element.font_text != "") {
+				FontManager::Draw(ui.element.font_text, transform.position, size.size);
+			}
 		}
 	}
 };
