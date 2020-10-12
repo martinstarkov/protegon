@@ -2,9 +2,11 @@
 
 #include <SDL.h>
 #include <SDL_image.h>
+#include <SDL_ttf.h>
 
 #include <cassert>
 
+#include <engine/renderer/FontManager.h>
 #include <engine/renderer/TextureManager.h>
 #include <engine/event/InputHandler.h>
 
@@ -28,8 +30,12 @@ void Engine::InitSDL(std::uint32_t window_flags, std::uint32_t renderer_flags) {
 		if (window_) {
 			renderer_ = SDL_CreateRenderer(window_, -1, renderer_flags);
 			if (renderer_) {
-				// SDL fully initialized
-				return;
+				if (TTF_Init() == 0) { // True type fonts.
+					// SDL fully initialized.
+					return;
+				} else {
+					assert(!"SDL failed to initialize true type fonts");
+				}
 			} else {
 				assert(!"SDL failed to create renderer");
 			}
@@ -43,9 +49,11 @@ void Engine::InitSDL(std::uint32_t window_flags, std::uint32_t renderer_flags) {
 
 void Engine::Clean() {
 	engine::TextureManager::Clean();
+	engine::FontManager::Clean();
 	window_.Destroy();
 	renderer_.Destroy();
 	// Quit SDL subsystems
+	TTF_Quit();
 	IMG_Quit();
 	SDL_Quit();
 }
