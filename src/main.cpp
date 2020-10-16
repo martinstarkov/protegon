@@ -78,7 +78,9 @@ public:
 			}
 		}
 
-		engine::UI::AddButton(ui_manager, ecs, { 40, 40 }, { 120, 40 }, engine::UIElement("Moominize", 15, "resources/fonts/oswald_regular.ttf", engine::BLUE, engine::SILVER));
+		engine::UI::AddButton(ui_manager, ecs, { 40, 40 }, { 120, 40 }, engine::UIElement("Randomize Color", 15, "resources/fonts/oswald_regular.ttf", engine::BLUE, engine::SILVER));
+
+		engine::UI::AddButton(ui_manager, ecs, { 400, 120 }, { 80, 60 }, engine::UIElement("Other button", 30, "resources/fonts/oswald_regular.ttf", engine::YELLOW, engine::BLACK));
 
 	}
 
