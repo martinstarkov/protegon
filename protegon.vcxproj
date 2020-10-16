@@ -188,6 +188,7 @@
     <ClInclude Include="src\engine\ecs\components\SizeComponent.h" />
     <ClInclude Include="src\engine\ecs\ECS.h" />
     <ClInclude Include="src\engine\ecs\systems\UISystem.h" />
+    <ClInclude Include="src\engine\event\Event.h" />
     <ClInclude Include="src\engine\renderer\Color.h" />
     <ClInclude Include="src\engine\renderer\Flip.h" />
     <ClInclude Include="src\engine\event\InputHandler.h" />
