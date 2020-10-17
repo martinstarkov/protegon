@@ -78,9 +78,32 @@ public:
 			}
 		}
 
-		engine::UI::AddButton(ui_manager, ecs, { 40, 40 }, { 120, 40 }, engine::UIElement("Randomize Color", 15, "resources/fonts/oswald_regular.ttf", engine::BLUE, engine::SILVER));
+		struct RandomizeEvent {
+			RandomizeEvent(ecs::Manager& manager) {
+				auto color_entities = manager.GetComponentTuple<RenderComponent>();
+				for (auto [entity2, render_component2] : color_entities) {
+					render_component2.original_color = engine::BLUE;
+					//entity2.AddComponent<SpriteComponent>("./resources/textures/moomin.png", V2_int{ 119, 140 });
+					//LOG("Setting color of " << entity2.GetId() << " to " << render_component2.color);
+				}
+			}
+		};
 
-		engine::UI::AddButton(ui_manager, ecs, { 400, 120 }, { 80, 60 }, engine::UIElement("Other button", 30, "resources/fonts/oswald_regular.ttf", engine::YELLOW, engine::BLACK));
+		struct Randomize2Event {
+			Randomize2Event(ecs::Manager& manager) {
+				auto color_entities = manager.GetComponentTuple<RenderComponent>();
+				for (auto [entity2, render_component2] : color_entities) {
+					render_component2.original_color = engine::RED;
+					//entity2.AddComponent<SpriteComponent>("./resources/textures/moomin.png", V2_int{ 119, 140 });
+					//LOG("Setting color of " << entity2.GetId() << " to " << render_component2.color);
+				}
+			}
+		};
+
+		engine::UI::AddButton<Randomize2Event, ecs::Manager>(ui_manager, ecs, { 400, 120 }, { 80, 60 }, engine::UIElement("RED Color", 30, "resources/fonts/oswald_regular.ttf", engine::YELLOW, engine::BLACK));
+
+		engine::UI::AddButton<RandomizeEvent, ecs::Manager>(ui_manager, ecs, { 40, 40 }, { 120, 40 }, engine::UIElement("BLUE Color", 15, "resources/fonts/oswald_regular.ttf", engine::BLUE, engine::SILVER));
+
 
 	}
 

@@ -1,12 +1,10 @@
 #pragma once
 
-class BaseEvent {
-	//virtual void Invoke() = 0;
-};
+namespace engine {
 
 class Event {
 public:
-
-protected:
-
+	virtual void Invoke() = 0;
 };
+
+} // namespace engine
