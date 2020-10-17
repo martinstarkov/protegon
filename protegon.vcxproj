@@ -183,12 +183,15 @@
     <Image Include="resources\textures\player_anim2.png" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\engine\event\EventHandler.h" />
     <ClInclude Include="src\engine\core\Engine.h" />
     <ClInclude Include="src\engine\core\Includes.h" />
     <ClInclude Include="src\engine\ecs\components\SizeComponent.h" />
     <ClInclude Include="src\engine\ecs\ECS.h" />
     <ClInclude Include="src\engine\ecs\systems\UISystem.h" />
     <ClInclude Include="src\engine\event\Event.h" />
+    <ClInclude Include="src\engine\event\Events.h" />
+    <ClInclude Include="src\engine\event\events\RandomizeEvent.h" />
     <ClInclude Include="src\engine\renderer\Color.h" />
     <ClInclude Include="src\engine\renderer\Flip.h" />
     <ClInclude Include="src\engine\event\InputHandler.h" />
@@ -261,8 +264,10 @@
     <ClInclude Include="src\Utilities.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\engine\event\EventHandler.cpp" />
     <ClCompile Include="src\engine\core\Engine.cpp" />
     <ClCompile Include="src\engine\ecs\components\StateMachineComponent.cpp" />
+    <ClCompile Include="src\engine\event\events\RandomizeEvent.cpp" />
     <ClCompile Include="src\engine\event\InputHandler.cpp" />
     <ClCompile Include="src\engine\renderer\FontManager.cpp" />
     <ClCompile Include="src\engine\renderer\TextureManager.cpp" />
