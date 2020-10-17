@@ -7,6 +7,7 @@
 #include <deque> // fast pop_front for free entity list
 #include <iostream> // std::err for exception handling
 #include <tuple> // tuples for storing different types of components in cached entity vectors
+#include <functional> // std::hash for hashing
 
 namespace ecs {
 
@@ -730,8 +731,8 @@ public:
 
 	// Entity comparison operators, the duplication allows avoiding implicit conversion of ecs::null into an entity
 
-	friend inline bool operator==(const Entity& lhs, const Entity& rhs) {
-		return lhs.manager_ == rhs.manager_ && lhs.id_ == rhs.id_ && lhs.version_ == rhs.version_;
+	inline bool operator==(const Entity& other) const {
+		return manager_ == other.manager_ && id_ == other.id_ && version_ == other.version_;
 	}
 	friend inline bool operator==(const Entity& lhs, const EntityId& rhs) {
 		return lhs.id_ == rhs;
@@ -753,6 +754,12 @@ private:
 	EntityVersion version_;
 	Manager* manager_;
 	bool loop_entity_;
+};
+
+struct EntityComparator {
+	bool operator()(const Entity& a, const Entity& b) const {
+		return a.GetId() < b.GetId();
+	}
 };
 
 inline Entity Manager::CreateEntity() {
@@ -934,3 +941,24 @@ inline void System<Cs...>::ResetCache() {
 }
 
 } // namespace ecs
+
+namespace std {
+
+// Custom hashing function for ecs::Entity class allows for use of unordered maps with entities as keys
+template <>
+struct hash<ecs::Entity> {
+	std::size_t operator()(const ecs::Entity& k) const {
+		using std::size_t;
+		using std::hash;
+
+		// Compute individual hash values for first,
+		// second and third and combine them using XOR
+		// and bit shifting:
+
+		return ((hash<ecs::EntityId>()(k.GetId())
+				 ^ (hash<ecs::EntityVersion>()(k.GetVersion()) << 1)) >> 1)
+			^ (hash<ecs::Manager*>()(k.GetManager()) << 1);
+	}
+};
+
+} // namespace std
