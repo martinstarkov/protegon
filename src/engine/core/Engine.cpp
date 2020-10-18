@@ -20,8 +20,12 @@ V2_int Engine::window_size_{ 0, 0 };
 V2_int Engine::window_position_{ 0, 0 };
 const char* Engine::window_title_{ "" };
 
-void Engine::InputUpdate() {
+void Engine::InputHandlerUpdate() {
 	engine::InputHandler::Update();
+}
+
+void Engine::ResetWindowColor() {
+	engine::TextureManager::SetDrawColor(engine::TextureManager::GetDefaultRendererColor());
 }
 
 void Engine::InitSDL(std::uint32_t window_flags, std::uint32_t renderer_flags) {

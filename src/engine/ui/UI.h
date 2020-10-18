@@ -11,8 +11,10 @@ namespace engine {
 
 class UI {
 public:
+	template <typename T>
 	static ecs::Entity AddButton(ecs::Manager& ui_manager, ecs::Manager& manager, V2_int position, V2_int size, UIElement button_info) {
 		auto button = ui_manager.CreateEntity();
+		EventHandler::Register<T>(button);
 		button.AddComponent<UIComponent>(button_info, &manager);
 		button.AddComponent<TransformComponent>(position);
 		button.AddComponent<SizeComponent>(size);

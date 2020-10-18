@@ -1,10 +1,18 @@
 #pragma once
 
 #include <cstdint>
-
-#include <engine/core/Includes.h>
+#include <cassert>
 
 #include <Defines.h>
+
+#include <engine/ecs/ECS.h>
+
+#include <engine/renderer/Window.h>
+#include <engine/renderer/Renderer.h>
+
+#include <engine/utils/Vector2.h>
+
+#include <engine/renderer/TextureManager.h>
 
 namespace engine {
 
@@ -68,7 +76,8 @@ private:
 		return *static_cast<T*>(instance_);
 	}
 	static void InitSDL(std::uint32_t window_flags, std::uint32_t renderer_flags);
-	static void InputUpdate();
+	static void InputHandlerUpdate();
+	static void ResetWindowColor();
 	static void Clean();
 	template <typename T>
 	static void Loop(T& engine) {
@@ -77,10 +86,10 @@ private:
 		std::uint32_t time;
 		while (running_) {
 			start = SDL_GetTicks();
-			InputUpdate();
+			InputHandlerUpdate();
 			engine.Update();
 			renderer_.Clear();
-			TextureManager::SetDrawColor(TextureManager::GetDefaultRendererColor());
+			ResetWindowColor();
 			// Render everything here.
 			engine.Render();
 			renderer_.Present();

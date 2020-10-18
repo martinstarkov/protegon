@@ -1,4 +1,5 @@
 #include <engine/core/Engine.h>
+#include <engine/core/Includes.h>
 
 class MyGame : public engine::Engine {
 public:
@@ -78,7 +79,32 @@ public:
 			}
 		}
 
-		engine::UI::AddButton(ui_manager, ecs, { 40, 40 }, { 120, 40 }, engine::UIElement("Randomize Color", 15, "resources/fonts/oswald_regular.ttf", engine::BLUE, engine::SILVER));
+		struct RandomizeEvent {
+			static void Invoke(ecs::Manager& manager) {
+				auto color_entities = manager.GetComponentTuple<RenderComponent>();
+				for (auto [entity2, render_component2] : color_entities) {
+					render_component2.original_color = engine::BLUE;
+					//entity2.AddComponent<SpriteComponent>("./resources/textures/moomin.png", V2_int{ 119, 140 });
+					//LOG("Setting color of " << entity2.GetId() << " to " << render_component2.color);
+				}
+			}
+		};
+
+		struct Randomize2Event {
+			static void Invoke(ecs::Manager& manager) {
+				auto color_entities = manager.GetComponentTuple<RenderComponent>();
+				for (auto [entity2, render_component2] : color_entities) {
+					render_component2.original_color = engine::RED;
+					//entity2.AddComponent<SpriteComponent>("./resources/textures/moomin.png", V2_int{ 119, 140 });
+					//LOG("Setting color of " << entity2.GetId() << " to " << render_component2.color);
+				}
+			}
+		};
+
+		engine::UI::AddButton<Randomize2Event>(ui_manager, ecs, { 400, 120 }, { 80, 60 }, engine::UIElement("RED Color", 30, "resources/fonts/oswald_regular.ttf", engine::RED, engine::SILVER));
+
+		engine::UI::AddButton<RandomizeEvent>(ui_manager, ecs, { 40, 40 }, { 120, 40 }, engine::UIElement("BLUE Color", 15, "resources/fonts/oswald_regular.ttf", engine::BLUE, engine::SILVER));
+
 
 	}
 
@@ -103,7 +129,7 @@ public:
 		auto entity = manager.CreateEntity();
 		entity.AddComponent<RenderComponent>();
 		entity.AddComponent<CollisionComponent>(position, V2_double{ 32, 32 });
-		entity.AddComponent<SpriteComponent>("./resources/textures/box.png", V2_double{ 32, 32 });
+		entity.AddComponent<SpriteComponent>("./resources/textures/box.png", V2_int{ 32, 32 });
 		entity.AddComponent<TransformComponent>(position);
 		return entity;
 	}
@@ -116,7 +142,7 @@ public:
 		entity.AddComponent<PlayerController>(player_acceleration);
 		entity.AddComponent<RigidBodyComponent>(RigidBody{ UNIVERSAL_DRAG, V2_double{ 0, 0.8 }, ELASTIC, INFINITE_MASS, abs(player_acceleration) + abs(GRAVITY) });
 		entity.AddComponent<CollisionComponent>(position, V2_double{ 32, 64 });
-		entity.AddComponent<SpriteComponent>("./resources/textures/player_test2.png", V2_double{ 32, 64 });
+		entity.AddComponent<SpriteComponent>("./resources/textures/player_test2.png", V2_int{ 30, 51 });
 		entity.AddComponent<SpriteSheetComponent>();
 		//entity.AddComponent<StateMachineComponent>(entity, RawStateMachineMap{ { "walkStateMachine", new WalkStateMachine("idle") }, { "jumpStateMachine", new JumpStateMachine("grounded") }});
 		entity.AddComponent<DirectionComponent>();

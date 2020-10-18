@@ -11,9 +11,9 @@ public:
 			auto& direction = dir.direction;
 			auto& rb = rigid_body.rigid_body;
 			dir.previous_direction = direction;
-			if (rb.velocity.IsZero()) {
+			/*if (rb.velocity.IsZero()) {
 				direction = IDLE_DIRECTION;
-			}
+			}*/
 			if (rb.velocity.y < 0.0) {
 				direction = Direction::UP;
 			} else if (rb.velocity.y > 0.0) {
