@@ -21,7 +21,7 @@ public:
 				ui.element.interacting = true;
 				ui.element.mouse_offset = mouse_position - transform.position;
 				render_component.color = engine::GREEN;
-				EventHandler::Invoke(entity, *ui.manager);
+				EventHandler::Invoke(entity, entity, *ui.manager, GetManager());
 			} else if (InputHandler::MouseReleased(MouseButton::LEFT) && ui.element.interacting) {
 				ui.element.interacting = false;
 				ui.element.mouse_offset = {};

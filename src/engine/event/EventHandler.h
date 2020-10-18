@@ -5,6 +5,7 @@
 #include <cassert>
 #include <memory>
 #include <type_traits>
+#include <functional>
 
 #include <engine/ecs/ECS.h>
 
@@ -55,6 +56,22 @@ constexpr EventFunction EventCast() {
 	return nullptr;
 }
 
+// source: https://stackoverflow.com/a/8645270
+template <typename ...TArgs>
+constexpr std::size_t Arity(void (*)(TArgs...)) {
+	return sizeof...(TArgs);
+}
+
+template <typename T, std::enable_if_t<has_static_invoke<T>, int> = 0>
+constexpr std::size_t EventArgumentCount() {
+	return Arity(&T::Invoke);
+}
+
+template <typename T, std::enable_if_t<!has_invoke<T> || std::is_member_function_pointer_v<decltype(has_invoke_helper(std::declval<T>(), 0))>, int> = 0>
+constexpr std::size_t EventArgumentCount() {
+	return 0;
+}
+
 } // namespace detail
 
 class EventHandler {
@@ -74,7 +91,7 @@ public:
 		if (event_it == std::end(events)) {
 			auto function_pointer = detail::EventCast<T>();
 			assert(function_pointer != nullptr && "Could not create valid event invoke function pointer");
-			events.emplace(event_id, function_pointer);
+			events.emplace(event_id, std::pair<std::size_t, detail::EventFunction>(detail::EventArgumentCount<T>(), function_pointer));
 		}
 	}
 	template <typename ...TArgs>
@@ -84,14 +101,15 @@ public:
 		for (auto event_id : caller_it->second) {
 			auto it = events.find(event_id);
 			assert(it != std::end(events) && "Could not find valid event invoke function pointer");
-			auto function_pointer = reinterpret_cast<void (*)(TArgs &&...)>(it->second);
+			assert(it->second.first == sizeof...(TArgs) && "Event invoke call argument count does not match the event's invoke function");
+			auto function_pointer = reinterpret_cast<void (*)(TArgs &&...)>(it->second.second);
 			assert(function_pointer != nullptr && "Could not create valid event invoke function pointer");
 			function_pointer(std::forward<TArgs>(args)...);
 		}
 	}
 private:
 	static std::unordered_map<ecs::Entity, std::vector<detail::EventId>> callers;
-	static std::unordered_map<detail::EventId, detail::EventFunction> events;
+	static std::unordered_map<detail::EventId, std::pair<std::size_t, detail::EventFunction>> events;
 };
 
 } // namespace engine
