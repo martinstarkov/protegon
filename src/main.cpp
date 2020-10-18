@@ -1,4 +1,5 @@
 #include <engine/core/Engine.h>
+#include <engine/core/Includes.h>
 
 class MyGame : public engine::Engine {
 public:
@@ -79,7 +80,7 @@ public:
 		}
 
 		struct RandomizeEvent {
-			RandomizeEvent(ecs::Manager& manager) {
+			static void Invoke(ecs::Manager& manager) {
 				auto color_entities = manager.GetComponentTuple<RenderComponent>();
 				for (auto [entity2, render_component2] : color_entities) {
 					render_component2.original_color = engine::BLUE;
@@ -90,7 +91,7 @@ public:
 		};
 
 		struct Randomize2Event {
-			Randomize2Event(ecs::Manager& manager) {
+			static void Invoke(ecs::Manager& manager) {
 				auto color_entities = manager.GetComponentTuple<RenderComponent>();
 				for (auto [entity2, render_component2] : color_entities) {
 					render_component2.original_color = engine::RED;
@@ -100,9 +101,9 @@ public:
 			}
 		};
 
-		engine::UI::AddButton<Randomize2Event, ecs::Manager>(ui_manager, ecs, { 400, 120 }, { 80, 60 }, engine::UIElement("RED Color", 30, "resources/fonts/oswald_regular.ttf", engine::YELLOW, engine::BLACK));
+		engine::UI::AddButton<Randomize2Event>(ui_manager, ecs, { 400, 120 }, { 80, 60 }, engine::UIElement("RED Color", 30, "resources/fonts/oswald_regular.ttf", engine::RED, engine::SILVER));
 
-		engine::UI::AddButton<RandomizeEvent, ecs::Manager>(ui_manager, ecs, { 40, 40 }, { 120, 40 }, engine::UIElement("BLUE Color", 15, "resources/fonts/oswald_regular.ttf", engine::BLUE, engine::SILVER));
+		engine::UI::AddButton<RandomizeEvent>(ui_manager, ecs, { 40, 40 }, { 120, 40 }, engine::UIElement("BLUE Color", 15, "resources/fonts/oswald_regular.ttf", engine::BLUE, engine::SILVER));
 
 
 	}

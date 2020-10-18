@@ -21,7 +21,6 @@ public:
 				ui.element.interacting = true;
 				ui.element.mouse_offset = mouse_position - transform.position;
 				render_component.color = engine::GREEN;
-				LOG("Invoking in System: " << &ui);
 				EventHandler::Invoke(entity, *ui.manager);
 			} else if (InputHandler::MouseReleased(MouseButton::LEFT) && ui.element.interacting) {
 				ui.element.interacting = false;
