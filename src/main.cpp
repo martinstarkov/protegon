@@ -1,6 +1,8 @@
 #include <engine/core/Engine.h>
 #include <engine/core/Includes.h>
 
+#include <memory>
+
 ecs::Entity CreateBox(V2_double position, ecs::Manager& manager) {
 	auto entity = manager.CreateEntity();
 	entity.AddComponent<RenderComponent>();
@@ -85,43 +87,43 @@ struct GameStartEvent {
 		}
 		invoker.Destroy();
 
-		engine::UI::AddButton<RandomizeColorEvent>(ui_manager, manager, { 40, 40 }, { 120, 40 }, engine::UIElement("Randomize Color", 15, "resources/fonts/oswald_regular.ttf", engine::BLUE, engine::SILVER));
+		engine::UI::AddButton<RandomizeColorEvent>(ui_manager, { 40, 40 }, { 120, 40 }, engine::UIElement("Randomize Color", 15, "resources/fonts/oswald_regular.ttf", engine::BLUE, engine::SILVER, engine::GOLD, engine::RED, &manager));
 	}
 };
 
 class MyGame : public engine::Engine {
 public:
 	void Init() {
-		ecs.AddSystem<RenderSystem>();
-		ecs.AddSystem<PhysicsSystem>();
-		ecs.AddSystem<LifetimeSystem>();
-		ecs.AddSystem<AnimationSystem>();
-		ecs.AddSystem<CollisionSystem>();
-		ecs.AddSystem<InputSystem>();
-		//ecs.AddSystem<StateMachineSystem>();
-		ecs.AddSystem<DirectionSystem>();
+		manager.AddSystem<RenderSystem>();
+		manager.AddSystem<PhysicsSystem>();
+		manager.AddSystem<LifetimeSystem>();
+		manager.AddSystem<AnimationSystem>();
+		manager.AddSystem<CollisionSystem>();
+		manager.AddSystem<InputSystem>();
+		//manager.AddSystem<StateMachineSystem>();
+		manager.AddSystem<DirectionSystem>();
 		ui_manager.AddSystem<RenderSystem>();
 		ui_manager.AddSystem<UIListener>();
 		ui_manager.AddSystem<UIRenderer>();
 
-		engine::UI::AddButton<GameStartEvent>(ui_manager, ecs, { ScreenWidth() / 2 - 40, ScreenHeight() / 2 - 30 }, { 80, 60 }, engine::UIElement("Play", 30, "resources/fonts/oswald_regular.ttf", engine::RED, engine::SILVER));
+		engine::UI::AddButton<GameStartEvent>(ui_manager, { ScreenWidth() / 2 - 40, ScreenHeight() / 2 - 30 }, { 80, 60 }, engine::UIElement("Play", 30, "resources/fonts/oswald_regular.ttf", engine::RED, engine::SILVER, engine::GOLD, engine::RED, &manager));
 
 	}
 
     void Update() {
-		ecs.Update<InputSystem>();
+		manager.Update<InputSystem>();
 		ui_manager.Update<UIListener>();
-		ecs.Update<PhysicsSystem>();
-		ecs.Update<CollisionSystem>();
-		//ecs.Update<StateMachineSystem>();
-		ecs.Update<DirectionSystem>();
-		ecs.Update<LifetimeSystem>();
+		manager.Update<PhysicsSystem>();
+		manager.Update<CollisionSystem>();
+		//manager.Update<StateMachineSystem>();
+		manager.Update<DirectionSystem>();
+		manager.Update<LifetimeSystem>();
 		//AllocationMetrics::printMemoryUsage();
     }
 
 	void Render() {
-		ecs.Update<AnimationSystem>();
-		ecs.Update<RenderSystem>();
+		manager.Update<AnimationSystem>();
+		manager.Update<RenderSystem>();
 		ui_manager.Update<UIRenderer>();
 	}
 };
