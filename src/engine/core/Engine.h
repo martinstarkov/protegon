@@ -66,6 +66,7 @@ public:
 protected:
 	ecs::Manager manager;
 	ecs::Manager ui_manager;
+	ecs::Manager event_manager;
 private:
 	static Engine* instance_;
 	template <typename T>

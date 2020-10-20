@@ -19,18 +19,6 @@ public:
 					PhysicsInputs(entity, rigid_body, player);
 				}
 				auto all_entities = GetManager().GetEntities();
-				if (InputHandler::KeyPressed(Key::R)) {
-					for (auto& entity2 : all_entities) {
-						if (entity2.HasComponent<TransformComponent>()) {
-							entity2.GetComponent<TransformComponent>().ResetPosition();
-						}
-						if (entity2.HasComponent<RigidBodyComponent>()) {
-							auto& rb = entity2.GetComponent<RigidBodyComponent>().rigid_body;
-							rb.velocity = { 0.0, 0.0 };
-							rb.acceleration = { 0.0, 0.0 };
-						}
-					}
-				}
 				if (InputHandler::KeyPressed(Key::B)) {
 					for (auto& entity2 : all_entities) {
 						if (entity2.HasComponent<RigidBodyComponent>()) {
