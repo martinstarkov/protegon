@@ -77,7 +77,7 @@ constexpr std::size_t EventArgumentCount() {
 class EventHandler {
 public:
 	template <typename T>
-	static void Register(ecs::Entity entity) {
+	static void Register(const ecs::Entity& entity) {
 		static_assert(detail::has_static_invoke<T>, "Cannot register event which does not implement a static method with the name 'Invoke'");
 		//static_assert("Cannot register event which does not implement a static method with the name 'Invoke'");
 		auto event_id = detail::GetEventId<T>();
@@ -94,18 +94,23 @@ public:
 			events.emplace(event_id, std::pair<std::size_t, detail::EventFunction>(detail::EventArgumentCount<T>(), function_pointer));
 		}
 	}
+	// TODO: Figure out how to pass arguments as value instead of only by reference.
+	// TODO: Fix this up in-general, at the moment the force to have a static Invoke method makes the argument list not work with pass-by-value (copy) parameters.
 	template <typename ...TArgs>
-	static void Invoke(ecs::Entity entity, TArgs&&... args) {
+	static void Invoke(const ecs::Entity& entity, TArgs&... args) {
 		auto caller_it = callers.find(entity);
 		assert(caller_it != std::end(callers) && "Could not invoke event on entity which has not registered such an event");
 		for (auto event_id : caller_it->second) {
 			auto it = events.find(event_id);
 			assert(it != std::end(events) && "Could not find valid event invoke function pointer");
 			assert(it->second.first == sizeof...(TArgs) && "Event invoke call argument count does not match the event's invoke function");
-			auto function_pointer = reinterpret_cast<void (*)(TArgs &&...)>(it->second.second);
+			auto function_pointer = reinterpret_cast<void (*)(TArgs&...)>(it->second.second);
 			assert(function_pointer != nullptr && "Could not create valid event invoke function pointer");
-			function_pointer(std::forward<TArgs>(args)...);
+			function_pointer(args...);
 		}
+	}
+	static void Remove(const ecs::Entity& entity) {
+		callers.erase(entity);
 	}
 private:
 	static std::unordered_map<ecs::Entity, std::vector<detail::EventId>> callers;
