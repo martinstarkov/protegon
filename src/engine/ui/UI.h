@@ -7,19 +7,27 @@
 
 #include <engine/utils/Vector2.h>
 
+#include <engine/core/Engine.h>
+
 namespace engine {
 
 class UI {
 public:
 	template <typename T>
-	static ecs::Entity AddButton(ecs::Manager& ui_manager, V2_int position, V2_int size, UIElement button_info) {
-		auto button = ui_manager.CreateEntity();
-		EventHandler::Register<T>(button);
-		button.AddComponent<UIComponent>(button_info);
-		button.AddComponent<TransformComponent>(position);
-		button.AddComponent<SizeComponent>(size);
-		button.AddComponent<RenderComponent>();
-		return button;
+	static ecs::Entity AddInteractable(ecs::Manager* ui_manager, V2_int position, V2_int size, UIElement* element) {
+		auto ui_entity = AddStatic(ui_manager, position, size, element);
+		auto& ui = ui_entity.GetComponent<UIComponent>();
+		ui.AddEvent<T>();
+		return ui_entity;
+	}
+	static ecs::Entity AddStatic(ecs::Manager* ui_manager, V2_int position, V2_int size, UIElement* element) {
+		assert(ui_manager != nullptr && "Invalid ui_manager pointer");
+		auto ui_entity = ui_manager->CreateEntity();
+		ui_entity.AddComponent<UIComponent>(element, ui_entity);
+		ui_entity.AddComponent<TransformComponent>(position);
+		ui_entity.AddComponent<SizeComponent>(size);
+		ui_entity.AddComponent<RenderComponent>();
+		return ui_entity;
 	}
 private:
 

@@ -21,17 +21,15 @@ public:
 			bool hovering = math::PointVsAABB(mouse_position, surface);
 			if (hovering) {
 				if (InputHandler::MouseReleased(MouseButton::LEFT)) {
-					ui.element.interacting = false;
-					ui.element.mouse_offset = {};
-					render_component.color = ui.element.hover_color;
-				} else if (!ui.element.interacting && InputHandler::MousePressed(MouseButton::LEFT)) {
-					ui.element.interacting = true;
-					ui.element.mouse_offset = mouse_position - transform.position;
-					render_component.color = ui.element.active_color;
-					EventHandler::Invoke(entity, entity, *ui.element.manager, GetManager());
+					ui->Hover();
+				} else if (!ui->IsActive() && InputHandler::MousePressed(MouseButton::LEFT)) {
+					ui->Activate(mouse_position - transform.position);
+					if (ui->HasInvoke()) {
+						EventHandler::Invoke(entity, entity);
+					}
 				}
 			} else {
-				render_component.color = ui.element.background_color;
+				ui->ResetBackgroundColor();
 			}
 			/*if (ui.element.interacting && InputHandler::MousePressed(MouseButton::LEFT)) {
 				transform.position = mouse_position - ui.element.mouse_offset;
@@ -47,9 +45,9 @@ public:
 	virtual void Update() override final {
 		using namespace engine;
 		for (auto [entity, ui, transform, size, render_component] : entities) {
-			TextureManager::DrawSolidRectangle(transform.position, size.size, render_component.color);
-			if (ui.element.font_text != "") {
-				FontManager::Draw(ui.element.font_text, transform.position, size.size);
+			TextureManager::DrawSolidRectangle(transform.position, size.size, ui->GetBackgroundColor());
+			if (ui->HasText()) {
+				FontManager::Draw(ui->GetText(), transform.position, size.size);
 			}
 		}
 	}
