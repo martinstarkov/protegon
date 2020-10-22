@@ -201,6 +201,7 @@
     <ClInclude Include="src\engine\ecs\components\UIComponent.h" />
     <ClInclude Include="src\engine\ui\UIElement.h" />
     <ClInclude Include="src\engine\renderer\Window.h" />
+    <ClInclude Include="src\engine\utils\Direction.h" />
     <ClInclude Include="src\engine\utils\Math.h" />
     <ClInclude Include="src\engine\renderer\TextureManager.h" />
     <ClInclude Include="src\engine\utils\Utility.h" />
@@ -210,7 +211,6 @@
     <ClInclude Include="src\engine\ecs\systems\PhysicsSystem.h" />
     <ClInclude Include="src\engine\physics\RigidBody.h" />
     <ClInclude Include="src\engine\renderer\Circle.h" />
-    <ClInclude Include="src\Direction.h" />
     <ClInclude Include="src\engine\ecs\components\RigidBodyComponent.h" />
     <ClInclude Include="src\engine\ecs\components\DirectionComponent.h" />
     <ClInclude Include="src\engine\ecs\systems\AnimationSystem.h" />
@@ -220,15 +220,14 @@
     <ClInclude Include="src\engine\ecs\systems\RenderSystem.h" />
     <ClInclude Include="src\engine\ecs\systems\StateMachineSystem.h" />
     <ClInclude Include="src\ECS\Systems\SystemCommon.h" />
-    <ClInclude Include="src\Serialization.h" />
     <ClInclude Include="src\engine\renderer\Shape.h" />
-    <ClInclude Include="src\SingleHeaderLibraries\json.hpp" />
+    <ClInclude Include="src\libraries\json.hpp" />
     <ClInclude Include="src\StateMachine\States\JumpState.h" />
     <ClInclude Include="src\StateMachine\States\GroundedState.h" />
     <ClInclude Include="src\engine\ecs\components\CollisionComponent.h" />
     <ClInclude Include="src\engine\utils\AllocationMetrics.h" />
     <ClInclude Include="src\engine\utils\Debug.h" />
-    <ClInclude Include="src\Defines.h" />
+    <ClInclude Include="src\engine\utils\Defines.h" />
     <ClInclude Include="src\engine\ecs\components\AnimationComponent.h" />
     <ClInclude Include="src\engine\ecs\components\InputComponent.h" />
     <ClInclude Include="src\engine\ecs\components\PlayerController.h" />
@@ -261,7 +260,6 @@
     <ClInclude Include="src\StateMachine\States\StateDefines.h" />
     <ClInclude Include="src\StateMachine\States\WalkState.h" />
     <ClInclude Include="src\StateMachine\Types.h" />
-    <ClInclude Include="src\Utilities.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\engine\event\EventHandler.cpp" />
@@ -274,7 +272,6 @@
     <ClCompile Include="src\engine\physics\RigidBody.cpp" />
     <ClCompile Include="src\engine\utils\AllocationMetrics.cpp" />
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\Utilities.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="Todo.txt" />

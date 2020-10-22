@@ -1,7 +1,8 @@
 #pragma once
 
 #include "Component.h"
-#include <Defines.h>
+
+#include <engine/utils/Defines.h>
 #include <engine/utils/Math.h>
 
 using AnimationName = std::string;

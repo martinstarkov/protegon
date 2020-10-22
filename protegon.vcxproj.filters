@@ -88,9 +88,6 @@
     <ClInclude Include="src\ECS\DirectionComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\Defines.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\StateMachine\States\BaseState.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -127,16 +124,7 @@
     <ClInclude Include="src\StateMachine\States\JumpState.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\Serialization.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Utilities.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\ECS\Systems\SystemCommon.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Direction.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\StateMachine\States\StateDefines.h">
@@ -307,12 +295,15 @@
     <ClInclude Include="src\engine\ecs\components\UIComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\engine\utils\Direction.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\engine\utils\Defines.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Utilities.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\engine\event\InputHandler.cpp">

@@ -5,7 +5,7 @@
 #include <map>
 #include <string>
 
-#include <Direction.h>
+#include <engine/utils/Direction.h>
 
 #include <engine/utils/Vector2.h>
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdlib> // std::size_t
 #include <vector> // dynamic storage container for components / entities
 #include <array> // fixed size container for component id caching during processes which call HasComponent and GetComponent
 #include <cassert> // debug assertions

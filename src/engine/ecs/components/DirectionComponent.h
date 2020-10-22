@@ -2,7 +2,7 @@
 
 #include "Component.h"
 
-#include <Direction.h>
+#include <engine/utils/Direction.h>
 
 struct DirectionComponent {
 	Direction direction;
