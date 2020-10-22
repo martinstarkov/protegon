@@ -2,6 +2,8 @@
 
 #include "System.h"
 
+#include <engine/utils/Direction.h>
+
 #define IDLE_DIRECTION Direction::DOWN
 
 class DirectionSystem : public ecs::System<DirectionComponent, RigidBodyComponent> {

@@ -126,7 +126,7 @@ public:
 						if (ResolveDynamicAABBVsAABB(rb.velocity, collider, target_collider, collision.manifold)) {
 							// ... objects which were used to resolve the collision, not necessarily all touching objects.
 						}
-						// TODO: Limit collision coloring to only objects which touch the player.
+						// TODO: Limit collision coloring to only objects which touch the player. Do this by choosing the collisions with time = 0 (touching).
 						collision.entity.GetComponent<RenderComponent>().color = engine::RED;
 					}
 
