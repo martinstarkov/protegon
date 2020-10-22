@@ -23,6 +23,7 @@ struct Vector2 {
 	Vector2(Vector2&& vector) = default;
 	Vector2& operator=(const Vector2& vector) = default;
 	Vector2& operator=(Vector2&& vector) = default;
+	~Vector2() = default;
 	// Implicit conversion to integer vector
 	operator Vector2<int>() {
 		return { engine::math::RoundCast<int>(x), engine::math::RoundCast<int>(y) };
@@ -273,21 +274,23 @@ inline bool operator>=(A a, const Vector2<B>& b) { return !operator<(b, a); }
 
 // Binary arithmetic operations (Vector + Other).
 
-template <typename T>
-inline V2_double operator/(const Vector2<T>& a, double b) {
+inline V2_double operator/(const V2_double& a, double b) {
 	return { a.x / b, a.y / b };
 }
-template <typename T>
-inline V2_double operator/(double b, Vector2<T> a) {
+inline V2_double operator/(double b, V2_double a) {
 	return { b / a.x, b / a.y };
 }
-template <typename T, typename P = engine::math::promote<T, float>>
-inline Vector2<P> operator/(const Vector2<T>& a, float b) {
-	return { static_cast<P>(a.x) / static_cast<P>(b), static_cast<P>(a.y) / static_cast<P>(b) };
+inline V2_double operator/(const V2_int& a, double b) {
+	return { static_cast<double>(a.x) / b, static_cast<double>(a.y) / b };
 }
-template <typename T, typename P = engine::math::promote<T, float>>
-inline Vector2<P> operator/(float b, const Vector2<T>& a) {
-	return { static_cast<P>(b) / static_cast<P>(a.x), static_cast<P>(b) / static_cast<P>(a.y) };
+inline V2_double operator/(double b, V2_int a) {
+	return { b / static_cast<double>(a.x), b / static_cast<double>(a.y) };
+}
+inline V2_int operator/(const V2_int& a, int b) {
+	return { a.x / b, a.y / b };
+}
+inline V2_int operator/(int b, V2_int a) {
+	return { b / a.x, b / a.y };
 }
 template <typename T>
 inline Vector2<T> operator*(Vector2<T> a, double b) {

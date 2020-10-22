@@ -11,7 +11,8 @@ namespace engine {
 
 struct Color {
 	Color() = default;
-	Color(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a) : r(r), g(g), b(b), a(a) {}
+	Color(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a) : r{ r }, g{ g }, b{ b }, a{ a } {}
+	~Color() = default;
 	static Color RandomSolid() {
 		return Color{ static_cast<std::uint8_t>(engine::math::GetRandomValue<int>(0, 255)), static_cast<std::uint8_t>(engine::math::GetRandomValue<int>(0, 255)), static_cast<std::uint8_t>(engine::math::GetRandomValue<int>(0, 255)), 255 };
 	}
@@ -36,8 +37,8 @@ inline bool operator!=(const Color& lhs, const Color& rhs) {
 	return !(lhs == rhs);
 }
 
-
-#define COLORLESS Color{ 0, 0, 0, 0 }
+#define TRANSPARENT Color{ 0, 0, 0, 0 }
+#define COLORLESS TRANSPARENT
 #define WHITE Color{ 255, 255, 255, 255 }
 #define BLACK Color{ 0, 0, 0, 255 }
 #define RED Color{ 255, 0, 0, 255 }

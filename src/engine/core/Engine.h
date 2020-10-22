@@ -64,8 +64,9 @@ public:
 	static int ScreenWidth() { return window_size_.x; }
 	static int ScreenHeight() { return window_size_.y; }
 protected:
-	ecs::Manager ecs;
+	ecs::Manager manager;
 	ecs::Manager ui_manager;
+	ecs::Manager event_manager;
 private:
 	static Engine* instance_;
 	template <typename T>
