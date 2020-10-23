@@ -1,2 +1,2 @@
-# protegon
-Sandbox 2D platformer game utilizing SDL2 development library
+# Protegon
+Sandbox 2D Game Engine utilizing SDL2 development library.
