@@ -1,0 +1,9 @@
+{
+    "struct SpriteComponent": {
+        "path": "./resources/textures/player_anim.png",
+        "spriteSize": {
+            "x": 16.0,
+            "y": 16.0
+        }
+    }
+}
