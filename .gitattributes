@@ -1,6 +1,6 @@
 * text=auto
 
-Engine/libraries -linguist-detectable=false
+Engine/libraries/* -linguist-detectable
 
 ###### Git
 .gitattributes text
