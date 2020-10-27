@@ -1,5 +1,7 @@
 * text=auto
 
+*.h linguist-detectable=false
+
 ###### Git
 .gitattributes text
 .gitignore text
