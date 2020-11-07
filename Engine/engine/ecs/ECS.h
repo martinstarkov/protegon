@@ -262,7 +262,7 @@ private:
 	// Add an indexing table entry of the component's offset from the beginning of the component pool, indexed by entity id.
 	void AddComponentOffset(const EntityId id, const Offset component_offset) {
 		if (id >= component_offsets_.size()) { // if the entity id exceeds the indexing table's size, expand the indexing table
-			const std::size_t new_size = id + 1;
+			const std::size_t new_size = static_cast<std::size_t>(id) + 1;
 			component_offsets_.resize(new_size, INVALID_OFFSET);
 		}
 		component_offsets_[id] = component_offset;
@@ -459,7 +459,8 @@ private:
 	// Add entity id to deletion list but do not invalidate any handles.
 	void DestroyEntity(const EntityId id, const EntityVersion version, bool loop_entity) {
 		if (IsAlive(id, version)) {
-			for (std::size_t i = 0; i < pools_.size(); ++i) {
+			auto pool_count = static_cast<ComponentId>(pools_.size());
+			for (ComponentId i = 0; i < pool_count; ++i) {
 				auto& pool = GetPool(i);
 				if (pool.IsValid()) {
 					pool.RemoveComponentAddress(id);

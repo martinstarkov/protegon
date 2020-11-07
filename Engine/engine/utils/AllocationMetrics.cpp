@@ -423,10 +423,10 @@ void TrackDumpBlocks() {
     printf("Current Memory Blocks\n");
     printf("=====================\n");
     printf("\n");
-    for (size_t i = 0; i < numBlocks; i++) {
+    for (int i = 0; i < numBlocks; i++) {
         BlockHeader* pBlockHeader = ppBlockHeader[i];
         char const* typeName = pBlockHeader->GetTypeName();
-        size_t size = pBlockHeader->GetRequestedSize();
+        int size = pBlockHeader->GetRequestedSize();
         char const* fileName = pBlockHeader->GetFilename();
         int lineNum = pBlockHeader->GetLineNum();
         printf("*** #%-6d %5d bytes %-50s\n", i, size, typeName);
