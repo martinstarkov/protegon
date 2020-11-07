@@ -490,7 +490,10 @@ private:
 		// Check if an entity has each component and if so, populate the component locations array.
 		for (std::size_t i = 0; i < component_ids.size(); ++i) {
 			void* component_location = GetComponentLocation(id, component_ids[i]);
-			if (!component_location) return; // Component does not exist, do not add entity / components to tuple, return.
+			if (component_location == nullptr) {
+				// Component does not exist, do not add entity / components to tuple, return.
+				return;
+			}
 			component_locations[i] = component_location;
 		}
 		// Expand and format the component locations array into a tuple and add it to the vector of tuples.
@@ -499,7 +502,7 @@ private:
 	// Retrieve a reference to the component pool that matches the component id, expand is necessary.
 	internal::ComponentPool& GetPool(const ComponentId component_id) const {
 		if (component_id >= pools_.size()) { // Expand pool vector if component id cannot be used (sparse vector).
-			std::size_t new_size = component_id + 1;
+			std::size_t new_size = static_cast<std::size_t>(component_id) + 1;
 			pools_.resize(new_size); // Resize calls null component pool constructor.
 		}
 		return pools_[component_id];

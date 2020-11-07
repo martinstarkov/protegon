@@ -73,18 +73,26 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(ProjectDir)libraries\sdl\include;$(ProjectDir)libraries\sdl_image\include;$(ProjectDir)libraries\sdl_ttf\include;$(IncludePath)</IncludePath>
+    <OutDir>$(SolutionDir)$(Configuration)\$(PlatformTarget)\libraries\</OutDir>
+    <IntDir>$(ProjectDir)bin\$(Configuration)\$(PlatformTarget)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>$(ProjectDir)libraries\sdl\include;$(ProjectDir)libraries\sdl_image\include;$(ProjectDir)libraries\sdl_ttf\include;$(IncludePath)</IncludePath>
+    <OutDir>$(SolutionDir)$(Configuration)\$(PlatformTarget)\libraries\</OutDir>
+    <IntDir>$(ProjectDir)bin\$(Configuration)\$(PlatformTarget)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(ProjectDir)libraries\sdl\include;$(ProjectDir)libraries\sdl_image\include;$(ProjectDir)libraries\sdl_ttf\include;$(IncludePath)</IncludePath>
+    <OutDir>$(SolutionDir)$(Configuration)\$(PlatformTarget)\libraries\</OutDir>
+    <IntDir>$(ProjectDir)bin\$(Configuration)\$(PlatformTarget)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>$(ProjectDir)libraries\sdl\include;$(ProjectDir)libraries\sdl_image\include;$(ProjectDir)libraries\sdl_ttf\include;$(IncludePath)</IncludePath>
+    <OutDir>$(SolutionDir)$(Configuration)\$(PlatformTarget)\libraries\</OutDir>
+    <IntDir>$(ProjectDir)bin\$(Configuration)\$(PlatformTarget)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -93,16 +101,28 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)engine;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)libraries\SDL2_ttf\include;$(SolutionDir)libraries\SDL2_image\include;$(SolutionDir)libraries\SDL2\include;$(ProjectDir)engine</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalDependencies>SDL2.lib;SDL2_ttf.lib;SDL2_image.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)libraries\sdl\lib\$(PlatformShortName);$(ProjectDir)libraries\sdl_image\lib\$(PlatformShortName);$(ProjectDir)libraries\sdl_ttf\lib\$(PlatformShortName);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>SDL2.lib;SDL2main.lib;SDL2_ttf.lib;SDL2_image.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)libraries\SDL2\lib\x86;$(SolutionDir)libraries\SDL2_image\lib\x86;$(SolutionDir)libraries\SDL2_ttf\lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <SubSystem>Console</SubSystem>
     </Lib>
+    <PostBuildEvent>
+      <Command>xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\x86\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\x86\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\x86\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\x86\*.lib" "$(OutDir)"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\x86\*.lib" "$(OutDir)"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\x86\*.lib" "$(OutDir)"
+xcopy /d /y "$(SolutionDir)libraries\SDL2\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -113,7 +133,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)engine;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)libraries\SDL2_ttf\include;$(SolutionDir)libraries\SDL2_image\include;$(SolutionDir)libraries\SDL2\include;$(ProjectDir)engine</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -122,9 +142,20 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalDependencies>SDL2.lib;SDL2_ttf.lib;SDL2_image.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)libraries\sdl\lib\$(PlatformShortName);$(ProjectDir)libraries\sdl_image\lib\$(PlatformShortName);$(ProjectDir)libraries\sdl_ttf\lib\$(PlatformShortName);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>SDL2.lib;SDL2main.lib;SDL2_ttf.lib;SDL2_image.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)libraries\SDL2\lib\x86;$(SolutionDir)libraries\SDL2_image\lib\x86;$(SolutionDir)libraries\SDL2_ttf\lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
+    <PostBuildEvent>
+      <Command>xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\x86\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\x86\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\x86\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\x86\*.lib" "$(OutDir)"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\x86\*.lib" "$(OutDir)"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\x86\*.lib" "$(OutDir)"
+xcopy /d /y "$(SolutionDir)libraries\SDL2\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -133,16 +164,28 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)engine;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)libraries\SDL2_ttf\include;$(SolutionDir)libraries\SDL2_image\include;$(SolutionDir)libraries\SDL2\include;$(ProjectDir)engine</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalDependencies>SDL2.lib;SDL2_ttf.lib;SDL2_image.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)libraries\sdl\lib\$(PlatformShortName);$(ProjectDir)libraries\sdl_image\lib\$(PlatformShortName);$(ProjectDir)libraries\sdl_ttf\lib\$(PlatformShortName);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>SDL2.lib;SDL2main.lib;SDL2_ttf.lib;SDL2_image.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)libraries\SDL2\lib\x64;$(SolutionDir)libraries\SDL2_image\lib\x86;$(SolutionDir)libraries\SDL2_ttf\lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <SubSystem>Console</SubSystem>
     </Lib>
+    <PostBuildEvent>
+      <Command>xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\x64\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\x64\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\x64\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\x64\*.lib" "$(OutDir)"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\x64\*.lib" "$(OutDir)"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\x64\*.lib" "$(OutDir)"
+xcopy /d /y "$(SolutionDir)libraries\SDL2\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -153,7 +196,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)engine;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)libraries\SDL2_ttf\include;$(SolutionDir)libraries\SDL2_image\include;$(SolutionDir)libraries\SDL2\include;$(ProjectDir)engine</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -162,9 +205,20 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalDependencies>SDL2.lib;SDL2_ttf.lib;SDL2_image.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)libraries\sdl\lib\$(PlatformShortName);$(ProjectDir)libraries\sdl_image\lib\$(PlatformShortName);$(ProjectDir)libraries\sdl_ttf\lib\$(PlatformShortName);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>SDL2.lib;SDL2main.lib;SDL2_ttf.lib;SDL2_image.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)libraries\SDL2\lib\x64;$(SolutionDir)libraries\SDL2_image\lib\x86;$(SolutionDir)libraries\SDL2_ttf\lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
+    <PostBuildEvent>
+      <Command>xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\x64\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\x64\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\x64\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\x64\*.lib" "$(OutDir)"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\x64\*.lib" "$(OutDir)"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\x64\*.lib" "$(OutDir)"
+xcopy /d /y "$(SolutionDir)libraries\SDL2\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="engine\core\Engine.cpp" />

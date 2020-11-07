@@ -45,7 +45,8 @@ struct RandomizeColorEvent {
 		for (auto [entity2, render_component2] : color_entities) {
 			render_component2.original_color = engine::Color::RandomSolid();
 		}
-		influence_manager.RemoveSystem<PhysicsSystem>();
+		// Hi
+		//influence_manager.RemoveSystem<PhysicsSystem>();
 	}
 };
 
