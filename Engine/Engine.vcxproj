@@ -295,7 +295,16 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClInclude Include="engine\statemachine\states\StateDefines.h" />
     <ClInclude Include="engine\statemachine\states\WalkState.h" />
     <ClInclude Include="engine\statemachine\Types.h" />
+    <ClInclude Include="engine\ui\components\ActiveColorComponent.h" />
+    <ClInclude Include="engine\ui\components\BackgroundColorComponent.h" />
+    <ClInclude Include="engine\ui\components\EventComponent.h" />
+    <ClInclude Include="engine\ui\components\HoverColorComponent.h" />
+    <ClInclude Include="engine\ui\components\InfluenceComponent.h" />
+    <ClInclude Include="engine\ui\components\MouseOffsetComponent.h" />
+    <ClInclude Include="engine\ui\components\StateComponent.h" />
+    <ClInclude Include="engine\ui\components\TextComponent.h" />
     <ClInclude Include="engine\ui\UI.h" />
+    <ClInclude Include="engine\ui\UIComponents.h" />
     <ClInclude Include="engine\ui\UIElement.h" />
     <ClInclude Include="engine\utils\AllocationMetrics.h" />
     <ClInclude Include="engine\utils\Debug.h" />
