@@ -45,7 +45,9 @@ public:
 		window_position_ = { x, y };
 		window_title_ = title;
 		running_ = true;
+		LOG("Initializing SDL...");
 		InitSDL(window_flags, renderer_flags);
+		LOG("All SDL components fully initialized");
 		auto& engine = GetInstance<T>();
 		engine.Init();
 		Loop<T>(engine);

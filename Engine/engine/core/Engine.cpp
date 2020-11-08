@@ -29,12 +29,16 @@ void Engine::ResetWindowColor() {
 }
 
 void Engine::InitSDL(std::uint32_t window_flags, std::uint32_t renderer_flags) {
-	if (SDL_Init(SDL_INIT_EVERYTHING) == 0) {
+	if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_EVENTS | SDL_INIT_TIMER | SDL_INIT_VIDEO) == 0) {
+		LOG("Initialized SDL successfully");
 		window_ = SDL_CreateWindow(window_title_, window_position_.x, window_position_.y, window_size_.x, window_size_.y, window_flags);
 		if (window_) {
+			LOG("Initialized window successfully");
 			renderer_ = SDL_CreateRenderer(window_, -1, renderer_flags);
 			if (renderer_) {
+				LOG("Initialized renderer successfully");
 				if (TTF_Init() == 0) { // True type fonts.
+					LOG("Initialized true type fonts successfully");
 					// SDL fully initialized.
 					return;
 				} else {
