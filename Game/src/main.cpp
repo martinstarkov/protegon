@@ -40,13 +40,13 @@ ecs::Entity CreatePlayer(V2_double position, ecs::Manager& manager) {
 
 struct RandomizeColorEvent {
 	static void Invoke(ecs::Entity& invoker) {
-		auto& influence_manager = *invoker.GetComponent<UIComponent>()->GetInfluenceManager();
-		auto color_entities = influence_manager.GetComponentTuple<RenderComponent>();
-		for (auto [entity2, render_component2] : color_entities) {
-			render_component2.original_color = engine::Color::RandomSolid();
+		if (invoker.HasComponent<InfluenceComponent>()) {
+			auto& manager = invoker.GetComponent<InfluenceComponent>().manager;
+			auto color_entities = manager.GetComponentTuple<RenderComponent>();
+			for (auto [entity2, render_component2] : color_entities) {
+				render_component2.original_color = engine::Color::RandomSolid();
+			}
 		}
-		// Hi
-		//influence_manager.RemoveSystem<PhysicsSystem>();
 	}
 };
 
@@ -100,10 +100,10 @@ struct GameStartEvent {
 					}
 				}
 			}
-
-			auto button = new engine::UIButton("Randomize Color", 15, "resources/fonts/oswald_regular.ttf", engine::BLUE, engine::SILVER, engine::GOLD, engine::RED, &influence_manager);
-
-			engine::UI::AddInteractable<RandomizeColorEvent>(invoker.GetManager(), { 40, 40 }, { 120, 40 }, button);
+			auto button = engine::UI::AddButton<RandomizeColorEvent>(*invoker.GetManager(), influence_manager, { 40, 40 }, { 120, 40 }, engine::SILVER);
+			button.AddComponent<HoverColorComponent>(engine::GOLD);
+			button.AddComponent<ActiveColorComponent>(engine::RED);
+			button.AddComponent<TextComponent>("Randomize Color", engine::BLUE, 15, "resources/fonts/oswald_regular.ttf");
 		}
 	}
 };
@@ -148,6 +148,7 @@ struct TitleScreenEvent {
 class MyGame : public engine::Engine {
 public:
 	void Init() {
+		LOG("Initializing game systems...");
 		manager.AddSystem<RenderSystem>();
 		manager.AddSystem<PhysicsSystem>();
 		manager.AddSystem<LifetimeSystem>();
@@ -159,6 +160,8 @@ public:
 		ui_manager.AddSystem<RenderSystem>();
 		ui_manager.AddSystem<UIListener>();
 		ui_manager.AddSystem<UIRenderer>();
+		ui_manager.AddSystem<UIButtonListener>();
+		ui_manager.AddSystem<UIButtonRenderer>();
 
 		title_screen = event_manager.CreateEntity();
 		engine::EventHandler::Register<TitleScreenEvent>(title_screen);
@@ -169,6 +172,7 @@ public:
 		engine::EventHandler::Invoke(title_screen, manager, ui_manager);
 		title.open = true;
 		pause.open = false;
+		LOG("Initialized all game system successfully");
 	}
 
     void Update() {
@@ -176,6 +180,7 @@ public:
 		manager.Update<InputSystem>();
 		if (!pause.open) {
 			ui_manager.Update<UIListener>();
+			ui_manager.Update<UIButtonListener>();
 			if (manager.HasSystem<PhysicsSystem>()) {
 				manager.Update<PhysicsSystem>();
 			}
@@ -190,7 +195,6 @@ public:
 			engine::EventHandler::Invoke(title_screen, manager, ui_manager);
 			title.open = true;
 			pause.open = false;
-			//MemTrack::TrackListMemoryUsage();
 		} else if (title.open) {
 			if (ui_manager.GetEntitiesWith<TitleScreenComponent>().size() == 0) {
 				title.open = false;
@@ -199,7 +203,6 @@ public:
 		if (engine::InputHandler::KeyPressed(Key::ESCAPE) && pause.toggleable && !title.open) {
 			pause.toggleable = false;
 			engine::EventHandler::Invoke(pause_screen, pause_screen, manager, ui_manager);
-			//MemTrack::TrackListMemoryUsage();
 		} else if (engine::InputHandler::KeyReleased(Key::ESCAPE)) {
 			if (!pause.toggleable) {
 				pause.release_time += 1;
@@ -218,6 +221,7 @@ public:
 		}
 		manager.Update<RenderSystem>();
 		ui_manager.Update<UIRenderer>();
+		ui_manager.Update<UIButtonRenderer>();
 	}
 private:
 	ecs::Entity title_screen;
@@ -226,6 +230,7 @@ private:
 
 int main(int argc, char* args[]) { // sdl main override
 
+	LOG("Starting Protegon");
 	engine::Engine::Start<MyGame>("Protegon");
 
     return 0;
