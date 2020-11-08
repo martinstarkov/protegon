@@ -601,9 +601,15 @@ private:
 			// Destroy the previous component.
 			destructor(component_location);
 		}
+
 		assert(component_location != nullptr && "Could not add component address");
+		// Pass constructor arguments to component constructor.
+		// If error, matching valid constructor does not exist.
 		new(component_location) T(std::forward<TArgs>(args)...);
-		if (new_component) { // Small design decision: Don't trigger ComponentChange event when a component is replaced, as this does not invalidate any references so system caches don't have to be refreshed.
+
+		if (new_component) { 
+			// Small design decision: Don't trigger ComponentChange event when a component is replaced.
+			// As this does not invalidate any references, system caches don't have to be refreshed.
 			ComponentChange(id, component_id, loop_entity);
 		}
 		return *static_cast<T*>(component_location);

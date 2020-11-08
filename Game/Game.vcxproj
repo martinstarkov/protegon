@@ -101,7 +101,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)Engine;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Engine</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -111,8 +111,7 @@
       <ProgramDatabaseFile>$(OutDir)libraries\$(TargetName).pdb</ProgramDatabaseFile>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /e /i /h "$(ProjectDir)resources" "$(OutDir)resources"
-set PATH=$(OutDir)libraries;%PATH%</Command>
+      <Command>xcopy /e /i /h /Y "$(ProjectDir)resources" "$(OutDir)resources"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -124,6 +123,7 @@ set PATH=$(OutDir)libraries;%PATH%</Command>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)Engine</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -135,8 +135,7 @@ set PATH=$(OutDir)libraries;%PATH%</Command>
       <ProgramDatabaseFile>$(OutDir)libraries\$(TargetName).pdb</ProgramDatabaseFile>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /e /i /h "$(ProjectDir)resources" "$(OutDir)resources"
-set PATH=$(OutDir)libraries;%PATH%</Command>
+      <Command>xcopy /e /i /h /Y "$(ProjectDir)resources" "$(OutDir)resources"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -146,7 +145,7 @@ set PATH=$(OutDir)libraries;%PATH%</Command>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)Engine;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Engine</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -156,8 +155,7 @@ set PATH=$(OutDir)libraries;%PATH%</Command>
       <ProgramDatabaseFile>$(OutDir)libraries\$(TargetName).pdb</ProgramDatabaseFile>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /e /i /h "$(ProjectDir)resources" "$(OutDir)resources"
-set PATH=$(OutDir)libraries;%PATH%</Command>
+      <Command>xcopy /e /i /h /Y "$(ProjectDir)resources" "$(OutDir)resources"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -169,6 +167,7 @@ set PATH=$(OutDir)libraries;%PATH%</Command>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)Engine</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -180,8 +179,7 @@ set PATH=$(OutDir)libraries;%PATH%</Command>
       <AdditionalDependencies>Engine.lib;SDL2.lib;SDL2main.lib;SDL2_image.lib;SDL2_ttf.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /e /i /h "$(ProjectDir)resources" "$(OutDir)resources"
-set PATH=$(OutDir)libraries;%PATH%</Command>
+      <Command>xcopy /e /i /h /Y "$(ProjectDir)resources" "$(OutDir)resources"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
