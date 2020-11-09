@@ -21,14 +21,14 @@ ecs::Entity CreateBox(V2_double position, ecs::Manager& manager) {
 	return entity;
 }
 
-ecs::Entity CreatePlayer(V2_double position, ecs::Manager& manager) {
+ecs::Entity CreatePlayer(V2_double position, V2_double size, ecs::Manager& manager) {
 	auto entity = manager.CreateEntity();
 	V2_double player_acceleration = { 2, 4 };
 	entity.AddComponent<TransformComponent>(position);
 	entity.AddComponent<InputComponent>();
 	entity.AddComponent<PlayerController>(player_acceleration);
 	entity.AddComponent<RigidBodyComponent>(RigidBody{ UNIVERSAL_DRAG, V2_double{ 0, 0.8 }, ELASTIC, INFINITE_MASS, abs(player_acceleration) + abs(GRAVITY) });
-	entity.AddComponent<CollisionComponent>(position, V2_double{ 32, 64 });
+	entity.AddComponent<CollisionComponent>(position, size);
 	entity.AddComponent<SpriteComponent>("./resources/textures/player_test2.png", V2_int{ 30, 51 });
 	entity.AddComponent<SpriteSheetComponent>();
 	//entity.AddComponent<StateMachineComponent>(entity, RawStateMachineMap{ { "walkStateMachine", new WalkStateMachine("idle") }, { "jumpStateMachine", new JumpStateMachine("grounded") }});
@@ -37,6 +37,18 @@ ecs::Entity CreatePlayer(V2_double position, ecs::Manager& manager) {
 	entity.AddComponent<RenderComponent>();
 	return entity;
 }
+
+class MitosisSystem : public ecs::System<PlayerController, TransformComponent, CollisionComponent, RigidBodyComponent> {
+	virtual void Update() override final {
+		for (auto [entity, player, transform, collider, rigid_body] : entities) {
+			if (engine::InputHandler::KeyDown(Key::M)) {
+				CreatePlayer({ transform.position.x, transform.position.y - 1 }, { collider.collider.size.x, collider.collider.size.y / 2 }, GetManager());
+				CreatePlayer({ transform.position.x, transform.position.y + collider.collider.size.y - 1 }, { collider.collider.size.x, collider.collider.size.y / 2 }, GetManager());
+				entity.Destroy();
+			}
+		}
+	}
+};
 
 struct RandomizeColorEvent {
 	static void Invoke(ecs::Entity& invoker) {
@@ -86,7 +98,7 @@ struct GameStartEvent {
 							}
 							case 2:
 							{
-								auto player = CreatePlayer(pos, influence_manager);
+								auto player = CreatePlayer(pos, V2_double{ 32, 64 }, influence_manager);
 								break;
 							}
 							case 3:
@@ -157,6 +169,7 @@ public:
 		manager.AddSystem<InputSystem>();
 		//manager.AddSystem<StateMachineSystem>();
 		manager.AddSystem<DirectionSystem>();
+		manager.AddSystem<MitosisSystem>();
 		ui_manager.AddSystem<RenderSystem>();
 		ui_manager.AddSystem<UIListener>();
 		ui_manager.AddSystem<UIRenderer>();
@@ -172,7 +185,7 @@ public:
 		engine::EventHandler::Invoke(title_screen, manager, ui_manager);
 		title.open = true;
 		pause.open = false;
-		LOG("Initialized all game system successfully");
+		LOG("Initialized all game systems successfully");
 	}
 
     void Update() {
@@ -188,6 +201,7 @@ public:
 			//manager.Update<StateMachineSystem>();
 			manager.Update<DirectionSystem>();
 			manager.Update<LifetimeSystem>();
+			manager.Update<MitosisSystem>();
 		}
 		//AllocationMetrics::printMemoryUsage();
 		auto& title = title_screen.GetComponent<TitleScreenComponent>();
