@@ -28,6 +28,10 @@ void Engine::ResetWindowColor() {
 	engine::TextureManager::SetDrawColor(engine::TextureManager::GetDefaultRendererColor());
 }
 
+void Engine::InitInternals() {
+	engine::InputHandler::Init();
+}
+
 void Engine::InitSDL(std::uint32_t window_flags, std::uint32_t renderer_flags) {
 	if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_EVENTS | SDL_INIT_TIMER | SDL_INIT_VIDEO) == 0) {
 		LOG("Initialized SDL successfully");

@@ -48,11 +48,13 @@ public:
 		LOG("Initializing SDL...");
 		InitSDL(window_flags, renderer_flags);
 		LOG("All SDL components fully initialized");
+		InitInternals();
 		auto& engine = GetInstance<T>();
 		engine.Init();
 		Loop<T>(engine);
 		Clean();
 	}
+	static void InitInternals();
 	static void Quit() { running_ = false; }
 	static Window& GetWindow() {
 		assert(window_ && "Cannot return uninitialized window");

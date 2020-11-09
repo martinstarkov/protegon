@@ -1,6 +1,7 @@
 #include "InputHandler.h"
 
 #include <cassert>
+#include <algorithm>
 
 #include <SDL.h>
 
@@ -10,18 +11,25 @@
 
 namespace engine {
 
-// Unit: Seconds
-#define MOUSE_HOLD_TIME 0.25
-#define MOUSE_HOLD_CYCLES static_cast<std::uint64_t>(MOUSE_HOLD_TIME * FPS)
+constexpr double MOUSE_HOLD_TIME = 0.25; // seconds
+constexpr std::uint64_t MOUSE_HOLD_CYCLES = static_cast<std::uint64_t>(MOUSE_HOLD_TIME * FPS); // cycles
 
-const std::uint8_t* InputHandler::key_states = nullptr;
-InputHandler::MouseState InputHandler::left_mouse{ MouseState::RELEASED };
-InputHandler::MouseState InputHandler::right_mouse{ MouseState::RELEASED };
-InputHandler::MouseState InputHandler::middle_mouse{ MouseState::RELEASED };
-std::uint64_t InputHandler::left_mouse_pressed_time{ 0 };
-std::uint64_t InputHandler::right_mouse_pressed_time{ 0 };
-std::uint64_t InputHandler::middle_mouse_pressed_time{ 0 };
-V2_int InputHandler::mouse_position{ 0, 0 };
+std::array<std::uint8_t, KEYS> InputHandler::key_states_;
+std::array<std::uint8_t, KEYS> InputHandler::previous_key_states_;
+InputHandler::MouseState InputHandler::left_mouse_{ MouseState::RELEASED };
+InputHandler::MouseState InputHandler::right_mouse_{ MouseState::RELEASED };
+InputHandler::MouseState InputHandler::middle_mouse_{ MouseState::RELEASED };
+std::uint64_t InputHandler::left_mouse_pressed_time_{ 0 };
+std::uint64_t InputHandler::right_mouse_pressed_time_{ 0 };
+std::uint64_t InputHandler::middle_mouse_pressed_time_{ 0 };
+V2_int InputHandler::mouse_position_{ 0, 0 };
+
+void InputHandler::Init() {
+	const std::uint8_t* state = SDL_GetKeyboardState(NULL);
+	std::copy(state, state + KEYS, std::begin(key_states_));
+	std::copy(std::begin(key_states_), std::end(key_states_), std::begin(previous_key_states_));
+	LOG("Initialized input handler");
+}
 
 void InputHandler::Update() {
 	SDL_Event e;
@@ -39,61 +47,67 @@ void InputHandler::Update() {
 }
 
 void InputHandler::UpdateKeyboard() {
-	key_states = SDL_GetKeyboardState(NULL);
+	std::copy(std::begin(key_states_), std::end(key_states_), std::begin(previous_key_states_));
+	const std::uint8_t* state = SDL_GetKeyboardState(NULL);
+	std::copy(state, state + KEYS, std::begin(key_states_));
 }
 
 bool InputHandler::KeyPressed(Key key) {
-	assert(key_states != nullptr && "Could not find keyboard state");
-	// TODO: Write tests to make sure key is valid
-	//assert((std::is_convertible_v<decltype(key), SDL_Scancode>) && "Could not interpret key to SDL_Scancode");
-	return key_states[static_cast<SDL_Scancode>(key)];
+	assert(key_states_.size() > 0 && "Could not find keyboard state");
+	return key_states_[static_cast<SDL_Scancode>(key)];
 }
 
 bool InputHandler::KeyReleased(Key key) {
-	assert(key_states != nullptr && "Could not find keyboard state");
-	// TODO: Write tests to make sure key is valid
-	//assert((std::is_convertible_v<decltype(key), SDL_Scancode>) && "Could not interpret key to SDL_Scancode");
-	return !key_states[static_cast<SDL_Scancode>(key)];
+	assert(key_states_.size() > 0 && "Could not find keyboard state");
+	return !key_states_[static_cast<SDL_Scancode>(key)];
+}
+
+bool InputHandler::KeyDown(Key key) {
+	return KeyPressed(key) && !previous_key_states_[static_cast<SDL_Scancode>(key)];
+}
+
+bool InputHandler::KeyUp(Key key) {
+	return KeyReleased(key) && previous_key_states_[static_cast<SDL_Scancode>(key)];
 }
 
 void InputHandler::UpdateMouse() {
-	auto flags = SDL_GetMouseState(&mouse_position.x, &mouse_position.y);
+	auto flags = SDL_GetMouseState(&mouse_position_.x, &mouse_position_.y);
 	if (flags) {
 		if (flags & SDL_BUTTON_LMASK) {
-			MouseButtonPressed(left_mouse, left_mouse_pressed_time);
+			MouseButtonPressed(left_mouse_, left_mouse_pressed_time_);
 		} else {
-			MouseButtonReleased(left_mouse, left_mouse_pressed_time);
+			MouseButtonReleased(left_mouse_, left_mouse_pressed_time_);
 		}
 		if (flags & SDL_BUTTON_RMASK) {
-			MouseButtonPressed(right_mouse, right_mouse_pressed_time);
+			MouseButtonPressed(right_mouse_, right_mouse_pressed_time_);
 		} else {
-			MouseButtonReleased(right_mouse, right_mouse_pressed_time);
+			MouseButtonReleased(right_mouse_, right_mouse_pressed_time_);
 		}
 		if (flags & SDL_BUTTON_MMASK) {
-			MouseButtonPressed(middle_mouse, middle_mouse_pressed_time);
+			MouseButtonPressed(middle_mouse_, middle_mouse_pressed_time_);
 		} else {
-			MouseButtonReleased(middle_mouse, middle_mouse_pressed_time);
+			MouseButtonReleased(middle_mouse_, middle_mouse_pressed_time_);
 		}
 	} else {
-		MouseButtonReleased(left_mouse, left_mouse_pressed_time);
-		MouseButtonReleased(right_mouse, right_mouse_pressed_time);
-		MouseButtonReleased(middle_mouse, middle_mouse_pressed_time);
+		MouseButtonReleased(left_mouse_, left_mouse_pressed_time_);
+		MouseButtonReleased(right_mouse_, right_mouse_pressed_time_);
+		MouseButtonReleased(middle_mouse_, middle_mouse_pressed_time_);
 	}
 }
 
 V2_int InputHandler::GetMousePosition() {
-	SDL_GetMouseState(&mouse_position.x, &mouse_position.y);
-	return mouse_position;
+	SDL_GetMouseState(&mouse_position_.x, &mouse_position_.y);
+	return mouse_position_;
 }
 
 InputHandler::MouseState InputHandler::GetMouseState(MouseButton button) {
 	switch (button) {
 		case MouseButton::LEFT:
-			return left_mouse;
+			return left_mouse_;
 		case MouseButton::RIGHT:
-			return right_mouse;
+			return right_mouse_;
 		case MouseButton::MIDDLE:
-			return middle_mouse;
+			return middle_mouse_;
 		default:
 			return MouseState::RELEASED;
 	}
@@ -114,11 +128,11 @@ bool InputHandler::MouseReleased(MouseButton button) {
 std::uint64_t InputHandler::GetMouseHoldCycles(MouseButton button) {
 	switch (button) {
 		case MouseButton::LEFT:
-			return left_mouse_pressed_time;
+			return left_mouse_pressed_time_;
 		case MouseButton::RIGHT:
-			return right_mouse_pressed_time;
+			return right_mouse_pressed_time_;
 		case MouseButton::MIDDLE:
-			return middle_mouse_pressed_time;
+			return middle_mouse_pressed_time_;
 		default:
 			return 0;
 	}

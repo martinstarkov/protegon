@@ -1,11 +1,18 @@
 #pragma once
 
 #include <iostream>
+#include <array>
+#include <cstdlib>
 
 #include "utils/Vector2.h"
 #include "event/Keys.h"
 
+// TODO: Write tests to make sure key is valid when calling KeyDown(), etc
+// something like: assert((std::is_convertible_v<decltype(key), SDL_Scancode>) && "Could not interpret key to SDL_Scancode");
+
 namespace engine {
+
+constexpr std::size_t KEYS = 512;
 
 enum class MouseButton {
 	LEFT,
@@ -15,6 +22,7 @@ enum class MouseButton {
 
 class InputHandler {
 public:
+	static void Init();
 	static void Update();
 	static V2_int GetMousePosition();
 	static bool MousePressed(MouseButton button);
@@ -24,6 +32,8 @@ public:
 
 	static bool KeyPressed(Key key);
 	static bool KeyReleased(Key key);
+	static bool KeyDown(Key key);
+	static bool KeyUp(Key key);
 private:
 	enum class MouseState {
 		RELEASED,
@@ -41,14 +51,15 @@ private:
 	static void MouseButtonReleased(MouseState& mouse_button_state, std::uint64_t& mouse_button_pressed_time);
 	static void MouseButtonPressed(MouseState& mouse_button_state, std::uint64_t& mouse_button_pressed_time);
 	// Pressed time (in cycles) used for mouse hold check
-	static std::uint64_t left_mouse_pressed_time;
-	static std::uint64_t right_mouse_pressed_time;
-	static std::uint64_t middle_mouse_pressed_time;
-	static MouseState left_mouse;
-	static MouseState right_mouse;
-	static MouseState middle_mouse;
-	static V2_int mouse_position;
-	static const std::uint8_t* key_states;
+	static std::uint64_t left_mouse_pressed_time_;
+	static std::uint64_t right_mouse_pressed_time_;
+	static std::uint64_t middle_mouse_pressed_time_;
+	static MouseState left_mouse_;
+	static MouseState right_mouse_;
+	static MouseState middle_mouse_;
+	static V2_int mouse_position_;
+	static std::array<std::uint8_t, KEYS> key_states_;
+	static std::array<std::uint8_t, KEYS> previous_key_states_;
 	friend std::ostream& operator<<(std::ostream& os, const MouseState& state);
 };
 
