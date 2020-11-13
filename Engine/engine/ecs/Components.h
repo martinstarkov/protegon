@@ -14,3 +14,4 @@
 #include "ecs/components/SpriteSheetComponent.h"
 #include "ecs/components/UIComponent.h"
 #include "ecs/components/SizeComponent.h"
+#include "ecs/components/CameraComponent.h"

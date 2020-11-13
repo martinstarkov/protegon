@@ -16,7 +16,7 @@ ecs::Entity CreateBox(V2_double position, ecs::Manager& manager) {
 	auto entity = manager.CreateEntity();
 	entity.AddComponent<RenderComponent>();
 	entity.AddComponent<CollisionComponent>(position, V2_double{ 32, 32 });
-	entity.AddComponent<SpriteComponent>("./resources/textures/box.png", V2_int{ 32, 32 });
+	//entity.AddComponent<SpriteComponent>("./resources/textures/box.png", V2_int{ 32, 32 });
 	entity.AddComponent<TransformComponent>(position);
 	return entity;
 }
@@ -29,12 +29,13 @@ ecs::Entity CreatePlayer(V2_double position, V2_double size, ecs::Manager& manag
 	entity.AddComponent<PlayerController>(player_acceleration);
 	entity.AddComponent<RigidBodyComponent>(RigidBody{ UNIVERSAL_DRAG, V2_double{ 0, 0.8 }, ELASTIC, INFINITE_MASS, abs(player_acceleration) + abs(GRAVITY) });
 	entity.AddComponent<CollisionComponent>(position, size);
-	entity.AddComponent<SpriteComponent>("./resources/textures/player_test2.png", V2_int{ 30, 51 });
+	//entity.AddComponent<SpriteComponent>("./resources/textures/player_test2.png", V2_int{ 30, 51 });
 	entity.AddComponent<SpriteSheetComponent>();
 	//entity.AddComponent<StateMachineComponent>(entity, RawStateMachineMap{ { "walkStateMachine", new WalkStateMachine("idle") }, { "jumpStateMachine", new JumpStateMachine("grounded") }});
 	entity.AddComponent<DirectionComponent>();
 	entity.AddComponent<AnimationComponent>();
 	entity.AddComponent<RenderComponent>();
+	entity.AddComponent<CameraComponent>(engine::Camera{}, true);
 	return entity;
 }
 
@@ -54,9 +55,22 @@ struct RandomizeColorEvent {
 	static void Invoke(ecs::Entity& invoker) {
 		if (invoker.HasComponent<InfluenceComponent>()) {
 			auto& manager = invoker.GetComponent<InfluenceComponent>().manager;
-			auto color_entities = manager.GetComponentTuple<RenderComponent>();
+			/*auto color_entities = manager.GetComponentTuple<RenderComponent>();
 			for (auto [entity2, render_component2] : color_entities) {
 				render_component2.original_color = engine::Color::RandomSolid();
+			}*/
+			auto camera_entities = manager.GetComponentTuple<CameraComponent>();
+			for (auto [entity, camera] : camera_entities) {
+				camera.primary = false;
+			}
+			auto entities = manager.GetComponentTuple<RenderComponent>();
+			auto count = entities.size();
+			auto random_index = engine::math::GetRandomValue<std::size_t>(0, count - 1);
+			for (std::size_t i = 0; i < count; ++i) {
+				if (i == random_index) {
+					auto [entity, render] = entities[i];
+					entity.AddComponent<CameraComponent>(engine::Camera{}, true);
+				}
 			}
 		}
 	}
@@ -161,28 +175,29 @@ class MyGame : public engine::Engine {
 public:
 	void Init() {
 		LOG("Initializing game systems...");
-		manager.AddSystem<RenderSystem>();
-		manager.AddSystem<PhysicsSystem>();
-		manager.AddSystem<LifetimeSystem>();
-		manager.AddSystem<AnimationSystem>();
-		manager.AddSystem<CollisionSystem>();
-		manager.AddSystem<InputSystem>();
-		//manager.AddSystem<StateMachineSystem>();
-		manager.AddSystem<DirectionSystem>();
-		manager.AddSystem<MitosisSystem>();
-		ui_manager.AddSystem<RenderSystem>();
-		ui_manager.AddSystem<UIListener>();
-		ui_manager.AddSystem<UIRenderer>();
-		ui_manager.AddSystem<UIButtonListener>();
-		ui_manager.AddSystem<UIButtonRenderer>();
+		scene.manager.AddSystem<RenderSystem>(&scene);
+		scene.manager.AddSystem<PhysicsSystem>();
+		scene.manager.AddSystem<LifetimeSystem>();
+		scene.manager.AddSystem<AnimationSystem>();
+		scene.manager.AddSystem<CollisionSystem>();
+		scene.manager.AddSystem<InputSystem>();
+		//scene.manager.AddSystem<StateMachineSystem>();
+		scene.manager.AddSystem<DirectionSystem>();
+		scene.manager.AddSystem<MitosisSystem>();
+		scene.manager.AddSystem<CameraSystem>(&scene);
+		scene.ui_manager.AddSystem<RenderSystem>();
+		scene.ui_manager.AddSystem<UIListener>();
+		scene.ui_manager.AddSystem<UIRenderer>();
+		scene.ui_manager.AddSystem<UIButtonListener>();
+		scene.ui_manager.AddSystem<UIButtonRenderer>();
 
-		title_screen = event_manager.CreateEntity();
+		title_screen = scene.event_manager.CreateEntity();
 		engine::EventHandler::Register<TitleScreenEvent>(title_screen);
 		auto& title = title_screen.AddComponent<TitleScreenComponent>();
-		pause_screen = event_manager.CreateEntity();
+		pause_screen = scene.event_manager.CreateEntity();
 		engine::EventHandler::Register<PauseScreenEvent>(pause_screen);
 		auto& pause = pause_screen.AddComponent<PauseScreenComponent>();
-		engine::EventHandler::Invoke(title_screen, manager, ui_manager);
+		engine::EventHandler::Invoke(title_screen, scene.manager, scene.ui_manager);
 		title.open = true;
 		pause.open = false;
 		LOG("Initialized all game systems successfully");
@@ -190,33 +205,34 @@ public:
 
     void Update() {
 		auto& pause = pause_screen.GetComponent<PauseScreenComponent>();
-		manager.Update<InputSystem>();
+		scene.manager.Update<InputSystem>();
 		if (!pause.open) {
-			ui_manager.Update<UIListener>();
-			ui_manager.Update<UIButtonListener>();
-			if (manager.HasSystem<PhysicsSystem>()) {
-				manager.Update<PhysicsSystem>();
+			scene.ui_manager.Update<UIListener>();
+			scene.ui_manager.Update<UIButtonListener>();
+			if (scene.manager.HasSystem<PhysicsSystem>()) {
+				scene.manager.Update<PhysicsSystem>();
 			}
-			manager.Update<CollisionSystem>();
-			//manager.Update<StateMachineSystem>();
-			manager.Update<DirectionSystem>();
-			manager.Update<LifetimeSystem>();
-			manager.Update<MitosisSystem>();
+			scene.manager.Update<CollisionSystem>();
+			//scene.manager.Update<StateMachineSystem>();
+			scene.manager.Update<DirectionSystem>();
+			scene.manager.Update<LifetimeSystem>();
+			scene.manager.Update<MitosisSystem>();
+			scene.manager.Update<CameraSystem>();
 		}
 		//AllocationMetrics::printMemoryUsage();
 		auto& title = title_screen.GetComponent<TitleScreenComponent>();
 		if (engine::InputHandler::KeyPressed(Key::R)) {
-			engine::EventHandler::Invoke(title_screen, manager, ui_manager);
+			engine::EventHandler::Invoke(title_screen, scene.manager, scene.ui_manager);
 			title.open = true;
 			pause.open = false;
 		} else if (title.open) {
-			if (ui_manager.GetEntitiesWith<TitleScreenComponent>().size() == 0) {
+			if (scene.ui_manager.GetEntitiesWith<TitleScreenComponent>().size() == 0) {
 				title.open = false;
 			}
 		}
 		if (engine::InputHandler::KeyPressed(Key::ESCAPE) && pause.toggleable && !title.open) {
 			pause.toggleable = false;
-			engine::EventHandler::Invoke(pause_screen, pause_screen, manager, ui_manager);
+			engine::EventHandler::Invoke(pause_screen, pause_screen, scene.manager, scene.ui_manager);
 		} else if (engine::InputHandler::KeyReleased(Key::ESCAPE)) {
 			if (!pause.toggleable) {
 				pause.release_time += 1;
@@ -226,16 +242,24 @@ public:
 				pause.release_time = 0;
 			}
 		}
+		auto players = scene.manager.GetComponentTuple<PlayerController, TransformComponent>();
+		for (auto [entity, player, transform] : players) {
+			if (engine::InputHandler::KeyPressed(Key::RIGHT) && engine::InputHandler::KeyReleased(Key::LEFT)) {
+				transform.rotation += 1;
+			} else if (engine::InputHandler::KeyPressed(Key::LEFT) && engine::InputHandler::KeyReleased(Key::RIGHT)) {
+				transform.rotation -= 1;
+			}
+		}
     }
 
 	void Render() {
 		auto& pause = pause_screen.GetComponent<PauseScreenComponent>();
 		if (!pause.open) {
-			manager.Update<AnimationSystem>();
+			scene.manager.Update<AnimationSystem>();
 		}
-		manager.Update<RenderSystem>();
-		ui_manager.Update<UIRenderer>();
-		ui_manager.Update<UIButtonRenderer>();
+		scene.manager.Update<RenderSystem>();
+		scene.ui_manager.Update<UIRenderer>();
+		scene.ui_manager.Update<UIButtonRenderer>();
 	}
 private:
 	ecs::Entity title_screen;
