@@ -314,6 +314,7 @@ public:
 	virtual void ResetCache() = 0;
 	virtual bool GetCacheRefreshRequired() const = 0;
 	virtual void SetCacheRefreshRequired(bool required) = 0;
+	virtual void SetComponentDependencies() = 0;
 	virtual ~BaseSystem() {}
 };
 
@@ -371,8 +372,9 @@ public:
 	// Remove an entity from the manager.
 	void DestroyEntity(Entity entity);
 	// Add a system to the manager, it is exists it will be replaced.
-	template <typename T>
-	void AddSystem();
+	// Arguments are optional and are passed into system constructor.
+	template <typename T, typename ...TArgs>
+	void AddSystem(TArgs... args);
 	// Remove a system from the manager.
 	template <typename T>
 	void RemoveSystem();
@@ -489,7 +491,7 @@ private:
 		std::array<void*, COMPONENT_COUNT> component_locations;
 		// Check if an entity has each component and if so, populate the component locations array.
 		for (std::size_t i = 0; i < component_ids.size(); ++i) {
-			void* component_location = GetComponentLocation(id, component_ids[i]);
+			auto component_location = GetComponentLocation(id, component_ids[i]);
 			if (component_location == nullptr) {
 				// Component does not exist, do not add entity / components to tuple, return.
 				return;
@@ -547,7 +549,12 @@ private:
 	}
 	// GetComponent without passing a component id.
 	template <typename T>
-	T& GetComponent(const EntityId id) const {
+	T& GetComponent(const EntityId id) {
+		return GetComponent<T>(id, internal::GetComponentId<T>());
+	}
+	// Const version of the above.
+	template <typename T>
+	const T& GetComponent(const EntityId id) const {
 		return GetComponent<T>(id, internal::GetComponentId<T>());
 	}
 	// GetComponents without passing a component id.
@@ -670,9 +677,6 @@ private:
 template <typename ...Cs>
 class System : public BaseSystem {
 public:
-	System() : manager_{ nullptr }, cache_refresh_required_{ false } {
-		(AddComponentDependency<Cs>(), ...);
-	}
 	friend class Manager;
 protected:
 	// A vector of tuples where the first tuple element is a copy of an entity handle and the rest are references to that entity's components as determined by the system's required components.
@@ -710,19 +714,22 @@ private:
 	virtual bool DependsOn(ComponentId component_id) const override final {
 		return component_id < component_bitset_.size() && component_bitset_[component_id];
 	}
+	void SetComponentDependencies() override final {
+		(AddComponentDependency<Cs>(), ...);
+	}
 	// Add a template argument into a dynamic component bitset so system dependency on a component can be checked.
 	template <typename C>
 	void AddComponentDependency() {
 		ComponentId component_id = internal::GetComponentId<C>();
 		if (component_id >= component_bitset_.size()) {
-			component_bitset_.resize(component_id + 1, false);
+			component_bitset_.resize(static_cast<std::size_t>(component_id) + 1, false);
 		}
 		component_bitset_[component_id] = true;
 	}
 	// A dynamic bitset of components which the system requires
 	std::vector<bool> component_bitset_;
-	Manager* manager_;
-	bool cache_refresh_required_;
+	Manager* manager_ = nullptr;
+	bool cache_refresh_required_ = false;
 };
 
 // ECS Entity Handle
@@ -788,14 +795,14 @@ public:
 	}
 	// Check if the entity has a component.
 	template <typename T>
-	bool HasComponent() {
+	bool HasComponent() const {
 		assert(IsValid() && "Cannot check if null entity has a component");
 		assert(IsAlive() && "Cannot check if dead entity has a component");
 		return manager_->HasComponent<T>(id_);
 	}
 	// Check if the entity has all the given components.
 	template <typename ...Ts>
-	bool HasComponents() {
+	bool HasComponents() const {
 		assert(IsValid() && "Cannot check if null entity has components");
 		assert(IsAlive() && "Cannot check if dead entity has components");
 		return manager_->HasComponents<Ts...>(id_);
@@ -804,6 +811,14 @@ public:
 	// Will throw if retrieving a nonexistent component (surround with HasComponent if uncertain).
 	template <typename T>
 	T& GetComponent() {
+		assert(IsValid() && "Cannot get component from null entity");
+		assert(IsAlive() && "Cannot get component from dead entity");
+		return manager_->GetComponent<T>(id_);
+	}
+	// Returns a const reference to a component.
+	// Will throw if retrieving a nonexistent component (surround with HasComponent if uncertain).
+	template <typename T>
+	const T& GetComponent() const {
 		assert(IsValid() && "Cannot get component from null entity");
 		assert(IsAlive() && "Cannot get component from dead entity");
 		return manager_->GetComponent<T>(id_);
@@ -843,6 +858,11 @@ public:
 	friend inline bool operator!=(const Entity& lhs, const EntityId& rhs) {
 		return !(lhs == rhs);
 	}
+	// Bool operator returns true if entity is alive and valid.
+	operator bool() const { 
+		return IsAlive() && IsValid(); 
+	}
+
 private:
 	EntityId id_;
 	EntityVersion version_;
@@ -1015,16 +1035,20 @@ inline void Manager::ComponentChange(const EntityId id, const ComponentId compon
 		}
 	}
 }
-template <typename T>
-inline void Manager::AddSystem() {
+template <typename T, typename ...TArgs>
+inline void Manager::AddSystem(TArgs... args) {
+	// TODO: Add tests to check args match system constructor args.
 	static_assert(std::is_base_of_v<BaseSystem, T>, "Cannot add a system to the manager which does not derive from ecs::System");
 	SystemId system_id = internal::GetSystemId<T>();
 	if (system_id >= systems_.size()) {
-		systems_.resize(system_id + 1);
+		systems_.resize(static_cast<std::size_t>(system_id) + 1);
 	}
 	RemoveSystem<T>();
 	auto& system = systems_[system_id];
-	system = std::make_unique<T>();
+	// If you're getting an error relating to no '=' conversion being deleted or no conversion possible,
+	// check that your system inherits from ecs::System AND make sure you have the 'public' keyword in front of it.
+	system = std::make_unique<T>(std::forward<TArgs>(args)...);
+	system->SetComponentDependencies();
 	system->Init(this);
 }
 template <typename T>
