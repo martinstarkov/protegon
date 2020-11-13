@@ -9,3 +9,4 @@
 #include "ecs/systems/AnimationSystem.h"
 #include "ecs/systems/RenderSystem.h"
 #include "ecs/systems/UISystem.h"
+#include "ecs/systems/CameraSystem.h"

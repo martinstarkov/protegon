@@ -66,6 +66,18 @@ void TextureManager::DrawRectangle(V2_int position, V2_int size, Color color) {
 	SetDrawColor(DEFAULT_RENDERER_COLOR);
 }
 
+void TextureManager::DrawRectangle(V2_int position, V2_int size, double rotation, V2_double* center_of_rotation, Color color) {
+	SetDrawColor(color);
+	SDL_Rect dest_rect{ position.x, position.y, size.x, size.y };
+	SDL_Texture* texture = SDL_CreateTexture(&Engine::GetRenderer(), SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STATIC, size.x, size.y);
+	if (center_of_rotation) {
+		SDL_Point center{ static_cast<int>(center_of_rotation->x), static_cast<int>(center_of_rotation->y) };
+		SDL_RenderCopyEx(&Engine::GetRenderer(), texture, NULL, &dest_rect, rotation, &center, SDL_FLIP_NONE);
+	} else {
+		SDL_RenderCopyEx(&Engine::GetRenderer(), texture, NULL, &dest_rect, rotation, NULL, SDL_FLIP_NONE);
+	}
+}
+
 void TextureManager::DrawRectangle(const std::string& key, V2_int src_position, V2_int src_size, V2_int dest_position, V2_int dest_size, Flip flip, double angle, V2_int center_of_rotation) {
 	SDL_Rect src_rect{ src_position.x, src_position.y, src_size.x, src_size.y };
 	SDL_Rect dest_rect{ dest_position.x, dest_position.y, dest_size.x, dest_size.y };
