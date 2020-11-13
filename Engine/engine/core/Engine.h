@@ -3,13 +3,14 @@
 #include <cstdint>
 #include <cassert>
 
-#include "utils/Defines.h"
+#include "core/Scene.h"
 
 #include "ecs/ECS.h"
 
 #include "renderer/Window.h"
 #include "renderer/Renderer.h"
 
+#include "utils/Defines.h"
 #include "utils/Vector2.h"
 
 #include "renderer/TextureManager.h"
@@ -68,9 +69,7 @@ public:
 	static int ScreenWidth() { return window_size_.x; }
 	static int ScreenHeight() { return window_size_.y; }
 protected:
-	ecs::Manager manager;
-	ecs::Manager ui_manager;
-	ecs::Manager event_manager;
+	Scene scene;
 private:
 	static Engine* instance_;
 	template <typename T>

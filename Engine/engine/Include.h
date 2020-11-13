@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/Engine.h"
+#include "core/Scene.h"
 
 #include "ecs/ECS.h"
 #include "ecs/Components.h"

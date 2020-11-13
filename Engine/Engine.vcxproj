@@ -222,11 +222,13 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="engine\core\Engine.cpp" />
+    <ClCompile Include="engine\core\Scene.cpp" />
     <ClCompile Include="engine\ecs\components\StateMachineComponent.cpp" />
     <ClCompile Include="engine\event\EventHandler.cpp" />
     <ClCompile Include="engine\event\events\RandomizeEvent.cpp" />
     <ClCompile Include="engine\event\InputHandler.cpp" />
     <ClCompile Include="engine\physics\RigidBody.cpp" />
+    <ClCompile Include="engine\renderer\Camera.cpp" />
     <ClCompile Include="engine\renderer\Color.cpp" />
     <ClCompile Include="engine\renderer\FontManager.cpp" />
     <ClCompile Include="engine\renderer\Renderer.cpp" />
@@ -237,8 +239,10 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="engine\core\Engine.h" />
+    <ClInclude Include="engine\core\Scene.h" />
     <ClInclude Include="engine\ecs\Components.h" />
     <ClInclude Include="engine\ecs\components\AnimationComponent.h" />
+    <ClInclude Include="engine\ecs\components\CameraComponent.h" />
     <ClInclude Include="engine\ecs\components\CollisionComponent.h" />
     <ClInclude Include="engine\ecs\components\Component.h" />
     <ClInclude Include="engine\ecs\components\DirectionComponent.h" />
@@ -256,6 +260,7 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClInclude Include="engine\ecs\ECS.h" />
     <ClInclude Include="engine\ecs\Systems.h" />
     <ClInclude Include="engine\ecs\systems\AnimationSystem.h" />
+    <ClInclude Include="engine\ecs\systems\CameraSystem.h" />
     <ClInclude Include="engine\ecs\systems\CollisionSystem.h" />
     <ClInclude Include="engine\ecs\systems\DirectionSystem.h" />
     <ClInclude Include="engine\ecs\systems\InputSystem.h" />
@@ -273,6 +278,7 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClInclude Include="engine\Include.h" />
     <ClInclude Include="engine\physics\RigidBody.h" />
     <ClInclude Include="engine\renderer\AABB.h" />
+    <ClInclude Include="engine\renderer\Camera.h" />
     <ClInclude Include="engine\renderer\Circle.h" />
     <ClInclude Include="engine\renderer\Color.h" />
     <ClInclude Include="engine\renderer\Flip.h" />
