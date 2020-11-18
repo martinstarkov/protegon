@@ -797,14 +797,14 @@ public:
 	template <typename T>
 	bool HasComponent() const {
 		assert(IsValid() && "Cannot check if null entity has a component");
-		assert(IsAlive() && "Cannot check if dead entity has a component");
+		//assert(IsAlive() && "Cannot check if dead entity has a component");
 		return manager_->HasComponent<T>(id_);
 	}
 	// Check if the entity has all the given components.
 	template <typename ...Ts>
 	bool HasComponents() const {
 		assert(IsValid() && "Cannot check if null entity has components");
-		assert(IsAlive() && "Cannot check if dead entity has components");
+		//assert(IsAlive() && "Cannot check if dead entity has components");
 		return manager_->HasComponents<Ts...>(id_);
 	}
 	// Returns a reference to a component.
