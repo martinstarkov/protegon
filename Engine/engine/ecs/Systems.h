@@ -10,3 +10,4 @@
 #include "ecs/systems/RenderSystem.h"
 #include "ecs/systems/UISystem.h"
 #include "ecs/systems/CameraSystem.h"
+#include "ecs/systems/GraphSystem.h"
