@@ -7,6 +7,7 @@
 #include "renderer/Color.h"
 #include "renderer/Flip.h"
 #include "renderer/Texture.h"
+#include "renderer/Renderer.h"
 
 namespace engine {
 
@@ -27,9 +28,12 @@ public:
 	static void DrawSolidRectangle(V2_int position, V2_int size, Color color = DEFAULT_RENDER_COLOR);
 	static void DrawRectangle(V2_int position, V2_int size, Color color = DEFAULT_RENDER_COLOR);
 	static void DrawRectangle(V2_int position, V2_int size, double rotation, V2_double* center_of_rotation = nullptr, Color color = DEFAULT_RENDER_COLOR);
-	static void DrawRectangle(const std::string& key, V2_int src_position, V2_int src_size, V2_int dest_position, V2_int dest_size, Flip flip, double angle, V2_int center_of_rotation);
-	static void DrawRectangle(const std::string& key, V2_int src_position, V2_int src_size, V2_int dest_position, V2_int dest_size, Flip flip = Flip::NONE, double angle = 0.0);
+	static void DrawRectangle(const std::string& key, V2_int src_position, V2_int src_size, V2_int dest_position, V2_int dest_size, Flip flip = Flip::NONE, V2_double* center_of_rotation = nullptr, double angle = 0.0);
 	static void DrawCircle(V2_int center, int radius, Color color = DEFAULT_RENDER_COLOR);
+
+	static void SetDrawColor(Renderer renderer, Color color);
+	static void DrawPoint(Renderer renderer, V2_int point, Color color = DEFAULT_RENDER_COLOR);
+	static void DrawLine(Renderer renderer, V2_int origin, V2_int destination, Color color = DEFAULT_RENDER_COLOR);
 
 	static void Clean();
 	static void RemoveTexture(const std::string& key);
