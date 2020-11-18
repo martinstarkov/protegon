@@ -9,8 +9,8 @@ public:
 	virtual void Update() override final {
 		for (auto [entity, anim, sprite, sprite_sheet, dir] : entities) {
 			//LOG("Direction: " << (int)direction->direction);
-			if (anim.name != "" && (anim.counter == -1 || dir.direction != dir.previous_direction)) {
-				SpriteInformation sprite_info = sprite_sheet.GetSpriteInformation(anim.name, dir.direction);
+			if (anim.name != "" && (anim.counter == -1 || (dir.x_direction != dir.x_previous_direction || dir.y_direction != dir.y_previous_direction))) {
+				SpriteInformation sprite_info = sprite_sheet.GetSpriteInformation(anim.name, dir.x_direction);
 				sprite.source.position.y = static_cast<int>(sprite.source.size.y * sprite_info.start.y);
 				anim.sprites = sprite_info.count;
 				anim.counter = static_cast<int>(anim.cycles_per_frame * sprite_info.start.x);
