@@ -4,9 +4,8 @@
 
 namespace engine {
 
-Camera& Scene::GetCamera() const {
-	assert(active_camera_ != nullptr && "Scene must contain camera");
-	return *active_camera_;
+Camera* Scene::GetCamera() const {
+	return active_camera_;
 }
 
 void Scene::SetCamera(Camera& camera) {

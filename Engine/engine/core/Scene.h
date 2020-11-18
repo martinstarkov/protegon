@@ -11,7 +11,7 @@ public:
 	Scene() = default;
 	Scene(const Scene&) = delete;
 	Scene(Scene&&) = delete;
-	Camera& GetCamera() const;
+	Camera* GetCamera() const;
 	void SetCamera(Camera& camera);
 	ecs::Manager manager;
 	ecs::Manager ui_manager;
