@@ -17,6 +17,12 @@ class UIButtonListener : public ecs::System<TransformComponent, SizeComponent, B
 public:
 	virtual void Update() override final {
 		for (auto [entity, transform, size, background, state] : entities) {
+			if (entity.HasComponent<EventComponent>() &&
+				engine::InputHandler::KeyDown(Key::SPACEBAR) &&
+				entity.HasComponent<TextComponent>() &&
+				entity.GetComponent<TextComponent>().content == "Play") {
+				engine::EventHandler::Invoke(entity, entity);
+			}
 			auto surface = AABB{ transform.position, size.size };
 			V2_double mouse_position = engine::InputHandler::GetMousePosition();
 			bool hovering = engine::math::PointVsAABB(mouse_position, surface);
