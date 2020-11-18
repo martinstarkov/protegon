@@ -227,6 +227,7 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClCompile Include="engine\event\EventHandler.cpp" />
     <ClCompile Include="engine\event\events\RandomizeEvent.cpp" />
     <ClCompile Include="engine\event\InputHandler.cpp" />
+    <ClCompile Include="engine\parsing\ImageProcessor.cpp" />
     <ClCompile Include="engine\physics\RigidBody.cpp" />
     <ClCompile Include="engine\renderer\Camera.cpp" />
     <ClCompile Include="engine\renderer\Color.cpp" />
@@ -263,6 +264,7 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClInclude Include="engine\ecs\systems\CameraSystem.h" />
     <ClInclude Include="engine\ecs\systems\CollisionSystem.h" />
     <ClInclude Include="engine\ecs\systems\DirectionSystem.h" />
+    <ClInclude Include="engine\ecs\systems\GraphSystem.h" />
     <ClInclude Include="engine\ecs\systems\InputSystem.h" />
     <ClInclude Include="engine\ecs\systems\LifetimeSystem.h" />
     <ClInclude Include="engine\ecs\systems\PhysicsSystem.h" />
@@ -276,6 +278,7 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClInclude Include="engine\event\InputHandler.h" />
     <ClInclude Include="engine\event\Keys.h" />
     <ClInclude Include="engine\Include.h" />
+    <ClInclude Include="engine\parsing\ImageProcessor.h" />
     <ClInclude Include="engine\physics\RigidBody.h" />
     <ClInclude Include="engine\renderer\AABB.h" />
     <ClInclude Include="engine\renderer\Camera.h" />

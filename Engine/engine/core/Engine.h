@@ -68,6 +68,7 @@ public:
 	static V2_int ScreenSize() { return window_size_; }
 	static int ScreenWidth() { return window_size_.x; }
 	static int ScreenHeight() { return window_size_.y; }
+	static std::pair<Window, Renderer> GenerateWindow(const char* window_title, V2_int window_position, V2_int window_size, std::uint32_t window_flags = 0, std::uint32_t renderer_flags = 0);
 protected:
 	Scene scene;
 private:
@@ -105,6 +106,8 @@ private:
 			}
 		}
 	}
+	static int sdl_init;
+	static int ttf_init;
 	static Window window_;
 	static Renderer renderer_;
 	static bool running_;
