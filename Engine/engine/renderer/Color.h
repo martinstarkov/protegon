@@ -13,11 +13,13 @@ struct Color {
 	Color() = default;
 	~Color() = default;
 	Color(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a);
+	Color(std::uint32_t color);
 	static Color RandomSolid();
 	static Color Random();
 	operator SDL_Color() const;
-	friend std::ostream& operator<<(std::ostream& os, Color& color);
+	friend std::ostream& operator<<(std::ostream& os, const Color& color);
 	std::uint8_t r = 0, g = 0, b = 0, a = 0;
+	bool IsTransparent() const { return a == 0; };
 };
 
 inline bool operator==(const Color& lhs, const Color& rhs) {
