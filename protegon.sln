@@ -7,6 +7,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Engine", "Engine\Engine.vcx
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Game", "Game\Game.vcxproj", "{3FEAD1E0-0E12-4488-82CB-B7747915CB6B}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Bayes", "Bayes\Bayes.vcxproj", "{146797A1-65B6-4BF4-AADE-EE62BC4BC5DD}"
+	ProjectSection(ProjectDependencies) = postProject
+		{63C15E8D-10C2-435B-B70F-1E51463580B2} = {63C15E8D-10C2-435B-B70F-1E51463580B2}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -31,6 +36,14 @@ Global
 		{3FEAD1E0-0E12-4488-82CB-B7747915CB6B}.Release|x64.Build.0 = Release|x64
 		{3FEAD1E0-0E12-4488-82CB-B7747915CB6B}.Release|x86.ActiveCfg = Release|Win32
 		{3FEAD1E0-0E12-4488-82CB-B7747915CB6B}.Release|x86.Build.0 = Release|Win32
+		{146797A1-65B6-4BF4-AADE-EE62BC4BC5DD}.Debug|x64.ActiveCfg = Debug|x64
+		{146797A1-65B6-4BF4-AADE-EE62BC4BC5DD}.Debug|x64.Build.0 = Debug|x64
+		{146797A1-65B6-4BF4-AADE-EE62BC4BC5DD}.Debug|x86.ActiveCfg = Debug|Win32
+		{146797A1-65B6-4BF4-AADE-EE62BC4BC5DD}.Debug|x86.Build.0 = Debug|Win32
+		{146797A1-65B6-4BF4-AADE-EE62BC4BC5DD}.Release|x64.ActiveCfg = Release|x64
+		{146797A1-65B6-4BF4-AADE-EE62BC4BC5DD}.Release|x64.Build.0 = Release|x64
+		{146797A1-65B6-4BF4-AADE-EE62BC4BC5DD}.Release|x86.ActiveCfg = Release|Win32
+		{146797A1-65B6-4BF4-AADE-EE62BC4BC5DD}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
