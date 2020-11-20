@@ -73,25 +73,25 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(ProjectDir)libraries\sdl\include;$(ProjectDir)libraries\sdl_image\include;$(ProjectDir)libraries\sdl_ttf\include;$(IncludePath)</IncludePath>
-    <OutDir>$(SolutionDir)$(Configuration)\$(PlatformTarget)\libraries\</OutDir>
+    <OutDir>$(SolutionDir)$(Configuration)\libraries\$(PlatformTarget)\</OutDir>
     <IntDir>$(ProjectDir)bin\$(Configuration)\$(PlatformTarget)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>$(ProjectDir)libraries\sdl\include;$(ProjectDir)libraries\sdl_image\include;$(ProjectDir)libraries\sdl_ttf\include;$(IncludePath)</IncludePath>
-    <OutDir>$(SolutionDir)$(Configuration)\$(PlatformTarget)\libraries\</OutDir>
+    <OutDir>$(SolutionDir)$(Configuration)\libraries\$(PlatformTarget)\</OutDir>
     <IntDir>$(ProjectDir)bin\$(Configuration)\$(PlatformTarget)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(ProjectDir)libraries\sdl\include;$(ProjectDir)libraries\sdl_image\include;$(ProjectDir)libraries\sdl_ttf\include;$(IncludePath)</IncludePath>
-    <OutDir>$(SolutionDir)$(Configuration)\$(PlatformTarget)\libraries\</OutDir>
+    <OutDir>$(SolutionDir)$(Configuration)\libraries\$(PlatformTarget)\</OutDir>
     <IntDir>$(ProjectDir)bin\$(Configuration)\$(PlatformTarget)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>$(ProjectDir)libraries\sdl\include;$(ProjectDir)libraries\sdl_image\include;$(ProjectDir)libraries\sdl_ttf\include;$(IncludePath)</IncludePath>
-    <OutDir>$(SolutionDir)$(Configuration)\$(PlatformTarget)\libraries\</OutDir>
+    <OutDir>$(SolutionDir)$(Configuration)\libraries\$(PlatformTarget)\</OutDir>
     <IntDir>$(ProjectDir)bin\$(Configuration)\$(PlatformTarget)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -108,20 +108,26 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalDependencies>SDL2.lib;SDL2main.lib;SDL2_ttf.lib;SDL2_image.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>SDL2.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)libraries\SDL2\lib\x86;$(SolutionDir)libraries\SDL2_image\lib\x86;$(SolutionDir)libraries\SDL2_ttf\lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
     </Lib>
     <PostBuildEvent>
-      <Command>xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\x86\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
-xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\x86\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
-xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\x86\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
-xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\x86\*.lib" "$(OutDir)"
-xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\x86\*.lib" "$(OutDir)"
-xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\x86\*.lib" "$(OutDir)"
-xcopy /d /y "$(SolutionDir)libraries\SDL2\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"
-xcopy /d /y "$(SolutionDir)libraries\SDL2_image\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"
-xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"</Command>
+      <Command>xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\$(PlatformTarget)\*.lib" "$(OutDir)"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\$(PlatformTarget)\*.lib" "$(OutDir)"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\x64\*.lib" "$(OutDir)"
+xcopy /d /y "$(SolutionDir)libraries\SDL2\licenses\*" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\licenses\*" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2\licenses\*" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\licenses\*" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\licenses\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -142,19 +148,25 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalDependencies>SDL2.lib;SDL2main.lib;SDL2_ttf.lib;SDL2_image.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>SDL2.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)libraries\SDL2\lib\x86;$(SolutionDir)libraries\SDL2_image\lib\x86;$(SolutionDir)libraries\SDL2_ttf\lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
     <PostBuildEvent>
-      <Command>xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\x86\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
-xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\x86\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
-xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\x86\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
-xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\x86\*.lib" "$(OutDir)"
-xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\x86\*.lib" "$(OutDir)"
-xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\x86\*.lib" "$(OutDir)"
-xcopy /d /y "$(SolutionDir)libraries\SDL2\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"
-xcopy /d /y "$(SolutionDir)libraries\SDL2_image\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"
-xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"</Command>
+      <Command>xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\$(PlatformTarget)\*.lib" "$(OutDir)"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\$(PlatformTarget)\*.lib" "$(OutDir)"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\x64\*.lib" "$(OutDir)"
+xcopy /d /y "$(SolutionDir)libraries\SDL2\licenses\*" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\licenses\*" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2\licenses\*" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\licenses\*" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\licenses\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -171,20 +183,26 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalDependencies>SDL2.lib;SDL2main.lib;SDL2_ttf.lib;SDL2_image.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>SDL2.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)libraries\SDL2\lib\x64;$(SolutionDir)libraries\SDL2_image\lib\x86;$(SolutionDir)libraries\SDL2_ttf\lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
     </Lib>
     <PostBuildEvent>
-      <Command>xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\x64\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
-xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\x64\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
-xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\x64\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
-xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\x64\*.lib" "$(OutDir)"
-xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\x64\*.lib" "$(OutDir)"
+      <Command>xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\$(PlatformTarget)\*.lib" "$(OutDir)"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\$(PlatformTarget)\*.lib" "$(OutDir)"
 xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\x64\*.lib" "$(OutDir)"
-xcopy /d /y "$(SolutionDir)libraries\SDL2\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"
-xcopy /d /y "$(SolutionDir)libraries\SDL2_image\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"
-xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"</Command>
+xcopy /d /y "$(SolutionDir)libraries\SDL2\licenses\*" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\licenses\*" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2\licenses\*" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\licenses\*" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\licenses\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -205,19 +223,25 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalDependencies>SDL2.lib;SDL2main.lib;SDL2_ttf.lib;SDL2_image.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>SDL2.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)libraries\SDL2\lib\x64;$(SolutionDir)libraries\SDL2_image\lib\x86;$(SolutionDir)libraries\SDL2_ttf\lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
     <PostBuildEvent>
-      <Command>xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\x64\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
-xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\x64\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
-xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\x64\*.dll" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\"
-xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\x64\*.lib" "$(OutDir)"
-xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\x64\*.lib" "$(OutDir)"
+      <Command>xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\$(PlatformTarget)\*.dll" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2\lib\$(PlatformTarget)\*.lib" "$(OutDir)"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\lib\$(PlatformTarget)\*.lib" "$(OutDir)"
 xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\lib\x64\*.lib" "$(OutDir)"
-xcopy /d /y "$(SolutionDir)libraries\SDL2\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"
-xcopy /d /y "$(SolutionDir)libraries\SDL2_image\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"
-xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Configuration)\$(PlatformTarget)\licenses\"</Command>
+xcopy /d /y "$(SolutionDir)libraries\SDL2\licenses\*" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\licenses\*" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Configuration)\Game\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2\licenses\*" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_image\licenses\*" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\licenses\"
+xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Configuration)\Bayes\$(PlatformTarget)\licenses\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
