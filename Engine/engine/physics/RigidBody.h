@@ -22,8 +22,8 @@ struct RigidBody {
 	V2_double gravity;
 	double mass;
 	double inverse_mass;
-	double restitution;
-	RigidBody(V2_double drag = DRAGLESS, V2_double gravity = GRAVITY, double restitution = ELASTIC, double mass = IMMOVABLE, V2_double maximum_acceleration = { std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity() }) : drag{ drag }, gravity{ gravity }, restitution{ restitution }, mass{ mass }, maximum_acceleration{ maximum_acceleration }, terminal_velocity{ std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity() } {
+	double restitution = 1.0;
+	RigidBody(V2_double drag = DRAGLESS, V2_double gravity = GRAVITY, double mass = IMMOVABLE, V2_double maximum_acceleration = { std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity() }) : drag{ drag }, gravity{ gravity }, restitution{ restitution }, mass{ mass }, maximum_acceleration{ maximum_acceleration }, terminal_velocity{ std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity() } {
 		Init();
 	}
 	void Init();

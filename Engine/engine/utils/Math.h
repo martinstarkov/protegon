@@ -4,6 +4,8 @@
 #include <type_traits>
 #include <random>
 
+#define M_PI 3.14159265358979323846  /* pi */
+
 namespace internal {
 
 // source: https://stackoverflow.com/a/2450157
@@ -47,6 +49,14 @@ Integer GetRandomValue(Integer min_range, Integer max_range) {
 	std::mt19937 rng(rd());
 	std::uniform_int_distribution<Integer> distribution(min_range, max_range);
 	return distribution(rng);
+}
+
+static double DegreeToRadian(double degrees) {
+	return degrees * M_PI / 180.0;
+}
+
+static double RadianToDegree(double radian) {
+	return radian * 180.0 / M_PI;
 }
 
 // different type => figure out common type
