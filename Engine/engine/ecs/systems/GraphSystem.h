@@ -9,16 +9,17 @@
 
 constexpr int AXIS_OFFSET = 50;
 
-class GraphSystem : public ecs::System<TransformComponent, PlayerController> {
+class GraphSystem : public ecs::System<TransformComponent, PlayerController, RigidBodyComponent> {
 public:
 	GraphSystem(engine::Renderer renderer, V2_int graph) : renderer{ renderer }, graph_size{ graph.x - AXIS_OFFSET, graph.y } {
 		points.resize(graph_size.x);
 	}
 	virtual void Update() override final {
 		renderer.Clear();
-		for (auto [entity, transform, player] : entities) {
+		for (auto [entity, transform, player, rb] : entities) {
 			points.pop_front();
-			points.push_back(transform.rotation);
+			//points.push_back(transform.rotation);
+			points.push_back(rb.rigid_body.acceleration.y / 20);
 		}
 		for (int i = 0; i < graph_size.x; ++i) {
 			assert(i < points.size() && "Cannot draw point outside range");
