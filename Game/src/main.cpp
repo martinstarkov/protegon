@@ -5,6 +5,8 @@
 #include "factory/Factories.h"
 #include "systems/Systems.h"
 
+#include <cmath>
+
 class MyGame : public engine::Engine {
 public:
 	void Init() {
@@ -45,10 +47,32 @@ public:
     void Update() {
 		auto& pause = pause_screen.GetComponent<PauseScreenComponent>();
 		scene.manager.Update<InputSystem>();
+		static int counter = 0;
 		if (!pause.open) {
 			scene.ui_manager.Update<UIListener>();
 			scene.ui_manager.Update<UIButtonListener>();
 			if (scene.manager.HasSystem<PhysicsSystem>()) {
+
+				auto random_int = engine::math::GetRandomValue<double>(-1, 1);
+				auto players = scene.manager.GetComponentTuple<PlayerController, TransformComponent, RigidBodyComponent, StateVectorComponent, EDFComponent>();
+				for (auto [entity, player, transform, rb, state_vector, edf] : players) {
+					//transform.rotation += random_int;
+					transform.rotation = std::fmod(transform.rotation, 360.0);
+					if (counter % 1 == 0) {
+						// engine::math::GetRandomValue<double>(5)
+						if (engine::InputHandler::KeyPressed(Key::SPACE)) {
+							rb.rigid_body.acceleration.y -= edf.thrust_force * abs(std::cos(engine::math::DegreeToRadian(transform.rotation))) / rb.rigid_body.mass;
+							rb.rigid_body.acceleration.x += edf.thrust_force * std::sin(engine::math::DegreeToRadian(transform.rotation)) / rb.rigid_body.mass;
+						}
+					}
+					if (engine::InputHandler::KeyPressed(Key::RIGHT) && engine::InputHandler::KeyReleased(Key::LEFT)) {
+						transform.rotation += 0.1;
+					} else if (engine::InputHandler::KeyPressed(Key::LEFT) && engine::InputHandler::KeyReleased(Key::RIGHT)) {
+						transform.rotation -= 0.1;
+					}
+					LOG(transform.rotation);
+				}
+
 				scene.manager.Update<PhysicsSystem>();
 			}
 			scene.manager.Update<CollisionSystem>();
@@ -81,22 +105,6 @@ public:
 				pause.release_time = 0;
 			}
 		}
-		static int counter = 0;
-		auto random_int = engine::math::GetRandomValue<double>(-1, 1);
-		auto players = scene.manager.GetComponentTuple<PlayerController, TransformComponent, RigidBodyComponent>();
-		for (auto [entity, player, transform, rb] : players) {
-			transform.rotation += random_int;
-			if (counter % 3 == 0) {
-				rb.rigid_body.velocity.y -= engine::math::GetRandomValue<double>(0, 5);
-				rb.rigid_body.velocity.x -= engine::math::GetRandomValue<double>(-1, 1);
-			}
-			if (engine::InputHandler::KeyPressed(Key::RIGHT) && engine::InputHandler::KeyReleased(Key::LEFT)) {
-				transform.rotation += 1;
-			} else if (engine::InputHandler::KeyPressed(Key::LEFT) && engine::InputHandler::KeyReleased(Key::RIGHT)) {
-				transform.rotation -= 1;
-			}
-			LOG(transform.rotation);
-		}
 		++counter;
     }
 
@@ -118,7 +126,7 @@ private:
 int main(int argc, char* args[]) { // sdl main override
 
 	LOG("Starting Protegon");
-	engine::Engine::Start<MyGame>("Protegon");
+	engine::Engine::Start<MyGame>("Protegon", 1200, 900);
 
     return 0;
 }
