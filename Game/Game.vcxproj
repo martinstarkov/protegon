@@ -74,25 +74,25 @@
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(IncludePath)</IncludePath>
     <IntDir>$(ProjectDir)bin\$(Configuration)\$(PlatformTarget)\</IntDir>
-    <OutDir>$(SolutionDir)$(Configuration)\$(PlatformTarget)\</OutDir>
+    <OutDir>$(SolutionDir)$(Configuration)\$(ProjectName)\$(PlatformTarget)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>$(SolutionDir)Engine;$(IncludePath)</IncludePath>
     <IntDir>$(ProjectDir)bin\$(Configuration)\$(PlatformTarget)\</IntDir>
-    <OutDir>$(SolutionDir)$(Configuration)\$(PlatformTarget)\</OutDir>
+    <OutDir>$(SolutionDir)$(Configuration)\$(ProjectName)\$(PlatformTarget)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(IncludePath)</IncludePath>
     <IntDir>$(ProjectDir)bin\$(Configuration)\$(PlatformTarget)\</IntDir>
-    <OutDir>$(SolutionDir)$(Configuration)\$(PlatformTarget)\</OutDir>
+    <OutDir>$(SolutionDir)$(Configuration)\$(ProjectName)\$(PlatformTarget)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>$(SolutionDir)Engine;$(IncludePath)</IncludePath>
     <IntDir>$(ProjectDir)bin\$(Configuration)\$(PlatformTarget)\</IntDir>
-    <OutDir>$(SolutionDir)$(Configuration)\$(PlatformTarget)\</OutDir>
+    <OutDir>$(SolutionDir)$(Configuration)\$(ProjectName)\$(PlatformTarget)\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -106,7 +106,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir)libraries\</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)$(Configuration)\libraries\$(PlatformTarget)\</AdditionalLibraryDirectories>
       <AdditionalDependencies>Engine.lib;SDL2.lib;SDL2main.lib;SDL2_image.lib;SDL2_ttf.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ProgramDatabaseFile>$(OutDir)libraries\$(TargetName).pdb</ProgramDatabaseFile>
     </Link>
@@ -130,7 +130,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir)libraries\</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)$(Configuration)\libraries\$(PlatformTarget)\</AdditionalLibraryDirectories>
       <AdditionalDependencies>Engine.lib;SDL2.lib;SDL2main.lib;SDL2_image.lib;SDL2_ttf.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ProgramDatabaseFile>$(OutDir)libraries\$(TargetName).pdb</ProgramDatabaseFile>
     </Link>
@@ -150,7 +150,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(OutDir)libraries\</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)$(Configuration)\libraries\$(PlatformTarget)\</AdditionalLibraryDirectories>
       <AdditionalDependencies>Engine.lib;SDL2.lib;SDL2main.lib;SDL2_image.lib;SDL2_ttf.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ProgramDatabaseFile>$(OutDir)libraries\$(TargetName).pdb</ProgramDatabaseFile>
     </Link>
@@ -175,7 +175,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(OutDir)libraries\$(TargetName).pdb</ProgramDatabaseFile>
-      <AdditionalLibraryDirectories>$(OutDir)libraries\</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)$(Configuration)\libraries\$(PlatformTarget)\</AdditionalLibraryDirectories>
       <AdditionalDependencies>Engine.lib;SDL2.lib;SDL2main.lib;SDL2_image.lib;SDL2_ttf.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
@@ -218,7 +218,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\components\Components.h" />
+    <ClInclude Include="src\components\EDFComponent.h" />
     <ClInclude Include="src\components\PauseComponent.h" />
+    <ClInclude Include="src\components\StateVectorComponent.h" />
     <ClInclude Include="src\components\TitleScreenComponent.h" />
     <ClInclude Include="src\event\Events.h" />
     <ClInclude Include="src\event\GameStartEvent.h" />
