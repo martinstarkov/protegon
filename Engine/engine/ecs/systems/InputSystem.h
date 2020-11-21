@@ -16,7 +16,7 @@ public:
 				// Technically player could be without a RigidBodyComponent ;)
 				if (entity.HasComponent<RigidBodyComponent>()) {
 					auto& rigid_body = entity.GetComponent<RigidBodyComponent>().rigid_body;
-					//PhysicsInputs(entity, rigid_body, player);
+					PhysicsInputs(entity, rigid_body, player);
 				}
 				auto all_entities = GetManager().GetEntities();
 				if (InputHandler::KeyPressed(Key::B)) {
@@ -41,16 +41,16 @@ public:
 	// player pressing motions keys
 	void PhysicsInputs(ecs::Entity entity, RigidBody& rigidBody, PlayerController& player) {
 		using namespace engine;
-		//rigidBody.acceleration = { 0.0, 0.0 };
+		rigidBody.acceleration = { 0.0, 0.0 };
 		if ((InputHandler::KeyPressed(Key::A) && InputHandler::KeyPressed(Key::D)) || (InputHandler::KeyReleased(Key::A) && InputHandler::KeyReleased(Key::D))) { // both horizontal keys pressed or neither -> stop
-			//rigidBody.acceleration.x = 0.0;
+			rigidBody.acceleration.x = 0.0;
 		} else if (InputHandler::KeyPressed(Key::A) && InputHandler::KeyReleased(Key::D)) { // left
 			rigidBody.acceleration.x = -player.input_acceleration.x;
 		} else if (InputHandler::KeyPressed(Key::D) && InputHandler::KeyReleased(Key::A)) { // right
 			rigidBody.acceleration.x = player.input_acceleration.x;
 		}
 		if ((InputHandler::KeyPressed(Key::W) && InputHandler::KeyPressed(Key::S)) || (InputHandler::KeyReleased(Key::W) && InputHandler::KeyReleased(Key::S))) { // both vertical keys pressed or neither -> stop (change for gravity)
-			//rigidBody.acceleration.y = 0.0;
+			rigidBody.acceleration.y = 0.0;
 		} else if (InputHandler::KeyPressed(Key::W) && InputHandler::KeyReleased(Key::S)) { // up
 			rigidBody.acceleration.y = -player.input_acceleration.y;
 		} else if (InputHandler::KeyPressed(Key::S) && InputHandler::KeyReleased(Key::W)) { // down
