@@ -218,9 +218,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\components\Components.h" />
-    <ClInclude Include="src\components\EDFComponent.h" />
     <ClInclude Include="src\components\PauseComponent.h" />
-    <ClInclude Include="src\components\StateVectorComponent.h" />
     <ClInclude Include="src\components\TitleScreenComponent.h" />
     <ClInclude Include="src\event\Events.h" />
     <ClInclude Include="src\event\GameStartEvent.h" />

@@ -12,9 +12,7 @@ public:
 	void Init() {
 
 		engine::ImageProcessor::GetImages("resources/textures/test_shape.png");
-		V2_int graph_size = { 400, 400 };
-		auto [graph_window, graph_renderer] = GenerateWindow("Graph", { 50, 50 }, graph_size);
-		scene.manager.AddSystem<GraphSystem>(graph_renderer, graph_size);
+
 		LOG("Initializing game systems...");
 		scene.manager.AddSystem<RenderSystem>(&scene);
 		scene.manager.AddSystem<PhysicsSystem>();
@@ -24,7 +22,6 @@ public:
 		scene.manager.AddSystem<InputSystem>();
 		//scene.manager.AddSystem<StateMachineSystem>();
 		scene.manager.AddSystem<DirectionSystem>();
-		scene.manager.AddSystem<MitosisSystem>();
 		scene.manager.AddSystem<CameraSystem>(&scene);
 		scene.ui_manager.AddSystem<RenderSystem>();
 		scene.ui_manager.AddSystem<UIListener>();
@@ -52,34 +49,12 @@ public:
 			scene.ui_manager.Update<UIListener>();
 			scene.ui_manager.Update<UIButtonListener>();
 			if (scene.manager.HasSystem<PhysicsSystem>()) {
-
-				auto random_int = engine::math::GetRandomValue<double>(-1, 1);
-				auto players = scene.manager.GetComponentTuple<PlayerController, TransformComponent, RigidBodyComponent, StateVectorComponent, EDFComponent>();
-				for (auto [entity, player, transform, rb, state_vector, edf] : players) {
-					//transform.rotation += random_int;
-					transform.rotation = std::fmod(transform.rotation, 360.0);
-					if (counter % 1 == 0) {
-						// engine::math::GetRandomValue<double>(5)
-						if (engine::InputHandler::KeyPressed(Key::SPACE)) {
-							rb.rigid_body.acceleration.y -= edf.thrust_force * abs(std::cos(engine::math::DegreeToRadian(transform.rotation))) / rb.rigid_body.mass;
-							rb.rigid_body.acceleration.x += edf.thrust_force * std::sin(engine::math::DegreeToRadian(transform.rotation)) / rb.rigid_body.mass;
-						}
-					}
-					if (engine::InputHandler::KeyPressed(Key::RIGHT) && engine::InputHandler::KeyReleased(Key::LEFT)) {
-						transform.rotation += 0.1;
-					} else if (engine::InputHandler::KeyPressed(Key::LEFT) && engine::InputHandler::KeyReleased(Key::RIGHT)) {
-						transform.rotation -= 0.1;
-					}
-					LOG(transform.rotation);
-				}
-
 				scene.manager.Update<PhysicsSystem>();
 			}
 			scene.manager.Update<CollisionSystem>();
 			//scene.manager.Update<StateMachineSystem>();
 			scene.manager.Update<DirectionSystem>();
 			scene.manager.Update<LifetimeSystem>();
-			scene.manager.Update<MitosisSystem>();
 			scene.manager.Update<CameraSystem>();
 		}
 		//AllocationMetrics::printMemoryUsage();
@@ -113,7 +88,6 @@ public:
 		if (!pause.open) {
 			scene.manager.Update<AnimationSystem>();
 		}
-		scene.manager.Update<GraphSystem>();
 		scene.manager.Update<RenderSystem>();
 		scene.ui_manager.Update<UIRenderer>();
 		scene.ui_manager.Update<UIButtonRenderer>();
