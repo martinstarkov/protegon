@@ -4,9 +4,12 @@
 #include <SDL.h>
 
 #include <cstdint>
+#include <algorithm>
+#include <iterator>
 
 namespace engine {
 
+// Convert an SDL surface coordinate to a 4 byte integer value containg the RGBA32 color of the pixel.
 static std::uint32_t GetSurfacePixelColor(SDL_Surface* image, V2_int position) {
 	// Source: http://sdl.beuc.net/sdl.wiki/Pixel_Access
 	auto bpp = image->format->BytesPerPixel;
@@ -41,42 +44,68 @@ Image::Image(const char* path) {
 		// handle error
 		assert(false && "Failed to retrieve image data");
 	}
-	SDL_Surface* image = SDL_ConvertSurfaceFormat(temp_image, SDL_PIXELFORMAT_RGBA8888, 0);
+	SDL_Surface* image = SDL_ConvertSurfaceFormat(temp_image, SDL_PIXELFORMAT_RGBA32, 0);
 	SDL_FreeSurface(temp_image);
 	assert(image != nullptr && "Failed to convert image to RGBA format");
-	size.x = image->w;
-	size.y = image->h;
-	pixels.resize(static_cast<std::size_t>(size.x) * static_cast<std::size_t>(size.y), Color{});
-	for (auto j = 0; j < size.y; ++j) {
-		for (auto i = 0; i < size.x; ++i) {
+	size_.x = image->w;
+	size_.y = image->h;
+	pixels_.resize(static_cast<std::size_t>(size_.x) * static_cast<std::size_t>(size_.y), Color{});
+	for (auto j = 0; j < size_.y; ++j) {
+		for (auto i = 0; i < size_.x; ++i) {
 			SetPixel({ i, j }, GetSurfacePixelColor(image, { i, j }));
 		}
 	}
 	SDL_FreeSurface(image);
 }
 
+Image::Image(std::vector<Color> pixels, V2_int size) : pixels_{ std::move(pixels) }, size_{ size } {}
+
 Color Image::GetPixel(V2_int position) const { 
-	auto index = position.y * size.x + position.x;
-	assert(pixels.size() > 0 && position.x < size.x && position.y < size.y&& index < pixels.size() && "Pixel out of range of image size");
-	return pixels[index];
+	auto index = position.y * size_.x + position.x;
+	assert(pixels_.size() > 0 && position.x < size_.x && position.y < size_.y && index < pixels_.size() && "Pixel out of range of image size");
+	return pixels_[index];
 }
 
-V2_int Image::GetSize() const { return size; }
+V2_int Image::GetSize() const { return size_; }
+
+Image Image::GetSubImage(V2_int top_left, V2_int bottom_right) const {
+	std::vector<Color> sub_pixels;
+	// Add { 1, 1 } since taking difference omits one row and column of pixels.
+	V2_int sub_image_size = bottom_right - top_left + V2_int{ 1, 1 };
+	auto sub_pixels_size = sub_image_size.x * sub_image_size.y;
+	sub_pixels.reserve(sub_pixels_size);
+	// Find indexes of first and last points to cut down on loop time.
+	auto first_index = top_left.y * size_.x + top_left.x;
+	auto last_index = bottom_right.y * size_.x + bottom_right.x;
+	assert(first_index >= 0 && first_index < pixels_.size() && "Top left coordinate out of range of image pixels");
+	assert(last_index >= 0 && last_index < pixels_.size() && "Top right coordinate out of range of image pixels");
+	for (auto i = first_index; i < last_index + 1; ++i) {
+		auto mod_index = i % size_.x;
+		if (mod_index >= top_left.x && mod_index <= bottom_right.x) {
+			sub_pixels.push_back(pixels_[i]);
+		}
+	}
+	return Image{ std::move(sub_pixels), sub_image_size };
+}
 
 void Image::SetPixel(V2_int position, const Color& color) {
-	auto index = position.y * size.x + position.x;
-	assert(pixels.size() > 0 && position.x < size.x && position.y < size.y&& index < pixels.size() && "Pixel out of range of image size");
-	pixels[index] = color;
+	auto index = position.y * size_.x + position.x;
+	assert(pixels_.size() > 0 && position.x < size_.x && position.y < size_.y && index < pixels_.size() && "Pixel out of range of image size");
+	pixels_[index] = color;
 }
 
 std::ostream& operator<<(std::ostream& os, Image& image) {
-	for (auto i = 0; i < image.pixels.size(); ++i) {
+	for (auto i = 0; i < image.pixels_.size(); ++i) {
 		// Add newline every time the vector loops over the size.x length.
-		if (i % image.size.x == 0) {
+		if (i % image.size_.x == 0 && i) {
 			os << std::endl;
 		}
-		const auto& color = image.pixels[i];
-		os << color;
+		const auto& color = image.pixels_[i];
+		if (!color.IsTransparent()) {
+			os << "#";
+		} else {
+			os << " ";
+		}
 	}
 	return os;
 }
@@ -84,8 +113,37 @@ std::ostream& operator<<(std::ostream& os, Image& image) {
 std::vector<std::pair<Image, V2_int>> ImageProcessor::GetImages(const char* image_path) {
 	V2_int size, position;
 	auto full_image = Image{ image_path };
-	//LOG(full_image);
-	return {};
+	LOG("-----------------------------------");
+	LOG(full_image);
+	LOG("-----------------------------------");
+	auto [top_left, bottom_right] = GetCorners(full_image);
+	auto sub_image = full_image.GetSubImage(top_left, bottom_right);
+	LOG("-----------------------------------");
+	LOG(sub_image);
+	LOG("-----------------------------------");
+	return { { sub_image, top_left } };
+}
+
+std::pair<V2_int, V2_int> ImageProcessor::GetCorners(const Image& image) {
+	auto size = image.GetSize();
+	// Min and max are initially the extremes, so all pixels will be considered initially.
+	V2_int min{ size };
+	V2_int max{ 0, 0 };
+	// Cycles through each pixel and finds the min and max x and y coordinates that aren't transparent.
+	for (auto i = 0; i < image.pixels_.size(); ++i) {
+		const auto& color = image.pixels_[i];
+		if (!color.IsTransparent()) {
+			// Coordinates of the pixel.
+			int x = i % size.x;
+			int y = static_cast<int>(std::round(i / size.x));
+			// Find min and max (top left corner of the image and bottom right).
+			min.x = std::min(min.x, x);
+			min.y = std::min(min.y, y);
+			max.x = std::max(max.x, x);
+			max.y = std::max(max.y, y);
+		}
+	}
+	return { min, max };
 }
 
 } // namespace engine
