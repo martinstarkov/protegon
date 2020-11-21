@@ -110,32 +110,60 @@ std::ostream& operator<<(std::ostream& os, Image& image) {
 	return os;
 }
 
-std::vector<std::pair<Image, V2_int>> ImageProcessor::GetImages(const char* image_path) {
-	V2_int size, position;
+std::vector<std::pair<Image, V2_int>> ImageProcessor::GetDisconnectedImages(const char* image_path) {
+	std::vector<std::pair<Image, V2_int>> images;
 	auto full_image = Image{ image_path };
 	LOG("-----------------------------------");
 	LOG(full_image);
 	LOG("-----------------------------------");
 	auto [top_left, bottom_right] = GetCorners(full_image);
-	auto sub_image = full_image.GetSubImage(top_left, bottom_right);
-	LOG("-----------------------------------");
-	LOG(sub_image);
-	LOG("-----------------------------------");
-	return { { sub_image, top_left } };
+	auto outer_sub_image = full_image.GetSubImage(top_left, bottom_right);
+	V2_int min{ outer_sub_image.size_ };
+	V2_int max{ 0, 0 };
+	for (auto column = 0; column < outer_sub_image.size_.x; ++column) {
+		// Search for transparent rows.
+		auto transparent_pixels = 0;
+		for (auto row = 0; row < outer_sub_image.size_.y; ++row) {
+			const auto& color = outer_sub_image.GetPixel({ column, row });
+			// If any pixel in the row is not transparent, break.
+			if (!color.IsTransparent()) {
+				min.y = std::min(min.y, row);
+				max.y = std::max(max.y, row);
+				min.x = std::min(min.x, column);
+				max.x = std::max(max.x, column);
+			} else {
+				++transparent_pixels;
+			}
+		}
+		if (transparent_pixels == outer_sub_image.size_.y || column == outer_sub_image.size_.x - 1) {
+			if (min.x != outer_sub_image.size_.x) {
+				// Column was transparent and previous column wasn't.
+				LOG(min << " -> " << max);
+				auto sub_image = outer_sub_image.GetSubImage(min, max);
+				LOG("-----------------------------------");
+				LOG(sub_image);
+				LOG("-----------------------------------");
+			}
+			// Reset local pixel min / max.
+			min = outer_sub_image.size_;
+			max = { 0, 0 };
+		}
+	}
+	
+	return {};
 }
 
 std::pair<V2_int, V2_int> ImageProcessor::GetCorners(const Image& image) {
-	auto size = image.GetSize();
 	// Min and max are initially the extremes, so all pixels will be considered initially.
-	V2_int min{ size };
+	V2_int min{ image.size_ };
 	V2_int max{ 0, 0 };
 	// Cycles through each pixel and finds the min and max x and y coordinates that aren't transparent.
 	for (auto i = 0; i < image.pixels_.size(); ++i) {
 		const auto& color = image.pixels_[i];
 		if (!color.IsTransparent()) {
 			// Coordinates of the pixel.
-			int x = i % size.x;
-			int y = static_cast<int>(std::round(i / size.x));
+			int x = i % image.size_.x;
+			int y = static_cast<int>(std::round(i / image.size_.x));
 			// Find min and max (top left corner of the image and bottom right).
 			min.x = std::min(min.x, x);
 			min.y = std::min(min.y, y);

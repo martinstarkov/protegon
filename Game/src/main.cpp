@@ -11,7 +11,7 @@ class MyGame : public engine::Engine {
 public:
 	void Init() {
 
-		engine::ImageProcessor::GetImages("resources/textures/test_shape.png");
+		engine::ImageProcessor::GetDisconnectedImages("resources/textures/test_shape_2.png");
 
 		LOG("Initializing game systems...");
 		scene.manager.AddSystem<RenderSystem>(&scene);

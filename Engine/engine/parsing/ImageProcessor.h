@@ -38,8 +38,8 @@ private:
 
 class ImageProcessor {
 public:
-	// Returns a vector of images and their positions within the outer image.
-	static std::vector<std::pair<Image, V2_int>> GetImages(const char* image_path); 
+	// Returns a vector of transparent column disconnected images and their positions within the outer image.
+	static std::vector<std::pair<Image, V2_int>> GetDisconnectedImages(const char* image_path);
 private:
 	// Return the coordinates of the top left and bottom right most non-transparent corner pixels in an image.
 	// I.e. Remove all transparent pixels from around an image and this function will return { { 0, 0 }, { size.x, size.y } }.
