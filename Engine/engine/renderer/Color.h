@@ -14,6 +14,10 @@ struct Color {
 	~Color() = default;
 	Color(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a);
 	Color(std::uint32_t color);
+	Color(const Color& copy) = default;
+	Color(Color&& move) = default;
+	Color& operator=(const Color& copy) = default;
+	Color& operator=(Color&& move) = default;
 	static Color RandomSolid();
 	static Color Random();
 	operator SDL_Color() const;
