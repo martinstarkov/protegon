@@ -65,6 +65,10 @@ struct Vector2 {
 	inline bool HasInfinity() const {
 		return std::isinf(x) || std::isinf(y);
 	}
+	// Return a vector with both components rounded to the nearest integer.
+	inline Vector2<int> Round() const {
+		return Vector2<int>{ static_cast<int>(std::round(x)), static_cast<int>(std::round(y)) };
+	}
 	// Return a vector with numeric_limit::infinity() set for both components
 	static Vector2 Infinite() {
 		return Vector2{ std::numeric_limits<T>::infinity(), std::numeric_limits<T>::infinity() };
