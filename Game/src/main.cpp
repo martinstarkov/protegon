@@ -9,9 +9,11 @@
 
 class MyGame : public engine::Engine {
 public:
+	std::vector<engine::Image> images;
 	void Init() {
 
-		engine::ImageProcessor::GetDisconnectedImages("resources/textures/test_shape_2.png");
+		images = engine::ImageProcessor::GetDisconnectedImages("resources/textures/gabe-idle-run_2.png");
+		images = engine::ImageProcessor::CenterOnHitbox(images);
 
 		LOG("Initializing game systems...");
 		scene.manager.AddSystem<RenderSystem>(&scene);
@@ -80,13 +82,25 @@ public:
 				pause.release_time = 0;
 			}
 		}
+		auto players = scene.manager.GetComponentTuple<PlayerController, SpriteComponent, CollisionComponent>();
+		static auto index = 0;
+		for (auto [entity, player, sprite, collider] : players) {
+			if (counter % 10 == 0) {
+				++index;
+				index %= images.size();
+			}
+			const auto& image = images[index];
+			sprite.source.position = image.GetPosition();
+			sprite.source.size = image.GetSize();
+			collider.collider.size = image.GetSize() * 5;
+		}
 		++counter;
     }
 
 	void Render() {
 		auto& pause = pause_screen.GetComponent<PauseScreenComponent>();
 		if (!pause.open) {
-			scene.manager.Update<AnimationSystem>();
+			//scene.manager.Update<AnimationSystem>();
 		}
 		scene.manager.Update<RenderSystem>();
 		scene.ui_manager.Update<UIRenderer>();

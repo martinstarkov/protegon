@@ -9,8 +9,8 @@ ecs::Entity CreatePlayer(V2_double position, V2_double size, ecs::Manager& manag
 	entity.AddComponent<InputComponent>();
 	entity.AddComponent<PlayerController>(player_acceleration);
 	entity.AddComponent<RigidBodyComponent>(RigidBody{ UNIVERSAL_DRAG, GRAVITY, 5, abs(player_acceleration) + abs(GRAVITY) });
-	entity.AddComponent<CollisionComponent>(position, size);
-	//entity.AddComponent<SpriteComponent>("./resources/textures/hopper.png", V2_int{ 20 * 2, 23 * 2 });
+	entity.AddComponent<CollisionComponent>(position, V2_int{ 15, 21 } * 5);
+	entity.AddComponent<SpriteComponent>("./resources/textures/gabe-idle-run_2.png", V2_int{ 168, 24 });
 	entity.AddComponent<SpriteSheetComponent>();
 	//entity.AddComponent<StateMachineComponent>(entity, RawStateMachineMap{ { "walkStateMachine", new WalkStateMachine("idle") }, { "jumpStateMachine", new JumpStateMachine("grounded") }});
 	entity.AddComponent<DirectionComponent>();
