@@ -51,7 +51,7 @@ struct GameStartEvent {
 								}
 								case 2:
 								{
-									auto player = CreatePlayer(pos, V2_int{ 20 * 5, 23 * 5 }, influence_manager);
+									auto player = CreateHopper(pos, V2_int{ 20 * 5, 23 * 5 }, influence_manager);
 									break;
 								}
 								case 3:
@@ -65,10 +65,6 @@ struct GameStartEvent {
 						}
 					}
 				}
-				/*auto button = engine::UI::AddButton<RandomizeColorEvent>(*invoker.GetManager(), influence_manager, { 40, 40 }, { 120, 40 }, engine::SILVER);
-				button.AddComponent<HoverColorComponent>(engine::GOLD);
-				button.AddComponent<ActiveColorComponent>(engine::RED);
-				button.AddComponent<TextComponent>("Randomize Color", engine::BLUE, 15, "resources/fonts/oswald_regular.ttf");*/
 			}
 		}
 	}

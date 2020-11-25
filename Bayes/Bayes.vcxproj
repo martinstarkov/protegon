@@ -190,12 +190,11 @@
     <ClInclude Include="src\event\Events.h" />
     <ClInclude Include="src\event\GameStartEvent.h" />
     <ClInclude Include="src\event\PauseEvent.h" />
-    <ClInclude Include="src\event\RandomizeColorEvent.h" />
     <ClInclude Include="src\event\TitleScreenEvent.h" />
     <ClInclude Include="src\factory\CreateBox.h" />
-    <ClInclude Include="src\factory\CreatePlayer.h" />
+    <ClInclude Include="src\factory\CreateHopper.h" />
     <ClInclude Include="src\factory\Factories.h" />
-    <ClInclude Include="src\systems\MitosisSystem.h" />
+    <ClInclude Include="src\systems\HopperPhysicsSystem.h" />
     <ClInclude Include="src\systems\Systems.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

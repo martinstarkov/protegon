@@ -16,15 +16,10 @@ public:
 		scene.manager.AddSystem<GraphSystem>(graph_renderer, graph_size);
 		LOG("Initializing game systems...");
 		scene.manager.AddSystem<RenderSystem>(&scene);
-		scene.manager.AddSystem<PhysicsSystem>();
-		scene.manager.AddSystem<LifetimeSystem>();
-		scene.manager.AddSystem<AnimationSystem>();
+		scene.manager.AddSystem<HopperPhysicsSystem>();
 		scene.manager.AddSystem<CollisionSystem>();
-		scene.manager.AddSystem<InputSystem>();
 		//scene.manager.AddSystem<StateMachineSystem>();
 		scene.manager.AddSystem<DirectionSystem>();
-		scene.manager.AddSystem<MitosisSystem>();
-		scene.manager.AddSystem<CameraSystem>(&scene);
 		scene.ui_manager.AddSystem<RenderSystem>();
 		scene.ui_manager.AddSystem<UIListener>();
 		scene.ui_manager.AddSystem<UIRenderer>();
@@ -45,12 +40,11 @@ public:
 
     void Update() {
 		auto& pause = pause_screen.GetComponent<PauseScreenComponent>();
-		scene.manager.Update<InputSystem>();
 		static int counter = 0;
 		if (!pause.open) {
 			scene.ui_manager.Update<UIListener>();
 			scene.ui_manager.Update<UIButtonListener>();
-			if (scene.manager.HasSystem<PhysicsSystem>()) {
+			if (scene.manager.HasSystem<HopperPhysicsSystem>()) {
 
 				auto random_int = engine::math::GetRandomValue<double>(-1, 1);
 				auto players = scene.manager.GetComponentTuple<PlayerController, TransformComponent, RigidBodyComponent, StateVectorComponent, EDFComponent>();
@@ -72,16 +66,11 @@ public:
 					LOG(transform.rotation);
 				}
 
-				scene.manager.Update<PhysicsSystem>();
+				scene.manager.Update<HopperPhysicsSystem>();
 			}
 			scene.manager.Update<CollisionSystem>();
-			//scene.manager.Update<StateMachineSystem>();
 			scene.manager.Update<DirectionSystem>();
-			scene.manager.Update<LifetimeSystem>();
-			scene.manager.Update<MitosisSystem>();
-			scene.manager.Update<CameraSystem>();
 		}
-		//AllocationMetrics::printMemoryUsage();
 		auto& title = title_screen.GetComponent<TitleScreenComponent>();
 		if (engine::InputHandler::KeyPressed(Key::R)) {
 			engine::EventHandler::Invoke(title_screen, scene.manager, scene.ui_manager);
@@ -109,9 +98,6 @@ public:
 
 	void Render() {
 		auto& pause = pause_screen.GetComponent<PauseScreenComponent>();
-		if (!pause.open) {
-			scene.manager.Update<AnimationSystem>();
-		}
 		scene.manager.Update<GraphSystem>();
 		scene.manager.Update<RenderSystem>();
 		scene.ui_manager.Update<UIRenderer>();
