@@ -258,10 +258,12 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClCompile Include="engine\renderer\Color.cpp" />
     <ClCompile Include="engine\renderer\FontManager.cpp" />
     <ClCompile Include="engine\renderer\Renderer.cpp" />
+    <ClCompile Include="engine\renderer\SpriteMap.cpp" />
+    <ClCompile Include="engine\renderer\Texture.cpp" />
     <ClCompile Include="engine\renderer\TextureManager.cpp" />
     <ClCompile Include="engine\renderer\Window.cpp" />
     <ClCompile Include="engine\utils\AllocationMetrics.cpp" />
-    <ClCompile Include="engine\renderer\Texture.cpp" />
+    <ClCompile Include="engine\utils\Hasher.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="engine\core\Engine.h" />
@@ -305,7 +307,7 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClInclude Include="engine\Include.h" />
     <ClInclude Include="engine\parsing\Image.h" />
     <ClInclude Include="engine\parsing\ImageProcessor.h" />
-    <ClInclude Include="engine\renderer\SpriteSheet.h" />
+    <ClInclude Include="engine\renderer\SpriteMap.h" />
     <ClInclude Include="engine\physics\RigidBody.h" />
     <ClInclude Include="engine\renderer\AABB.h" />
     <ClInclude Include="engine\renderer\Animation.h" />
@@ -317,6 +319,7 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClInclude Include="engine\renderer\Ray2D.h" />
     <ClInclude Include="engine\renderer\Renderer.h" />
     <ClInclude Include="engine\renderer\Shape.h" />
+    <ClInclude Include="engine\renderer\Texture.h" />
     <ClInclude Include="engine\renderer\TextureManager.h" />
     <ClInclude Include="engine\renderer\Window.h" />
     <ClInclude Include="engine\statemachine\BaseStateMachine.h" />
@@ -342,17 +345,16 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClInclude Include="engine\ui\components\TextComponent.h" />
     <ClInclude Include="engine\ui\UI.h" />
     <ClInclude Include="engine\ui\UIComponents.h" />
-    <ClInclude Include="engine\ui\UIElement.h" />
     <ClInclude Include="engine\utils\AllocationMetrics.h" />
     <ClInclude Include="engine\utils\Debug.h" />
     <ClInclude Include="engine\utils\Defines.h" />
     <ClInclude Include="engine\utils\Direction.h" />
+    <ClInclude Include="engine\utils\Hasher.h" />
     <ClInclude Include="engine\utils\Logger.h" />
     <ClInclude Include="engine\utils\Math.h" />
     <ClInclude Include="engine\utils\Side.h" />
     <ClInclude Include="engine\utils\Utility.h" />
     <ClInclude Include="engine\utils\Vector2.h" />
-    <ClInclude Include="engine\renderer\Texture.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="dlls\libfreetype-6.dll" />

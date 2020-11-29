@@ -100,8 +100,5 @@
     <ClInclude Include="src\systems\Systems.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\systems\MitosisSystem.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>
