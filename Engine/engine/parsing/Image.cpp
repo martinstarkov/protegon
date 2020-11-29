@@ -6,69 +6,93 @@
 #include <cstdint>
 #include <cassert>
 
-namespace engine {
+namespace internal {
 
 // Convert an SDL surface coordinate to a 4 byte integer value containg the RGBA32 color of the pixel.
 static std::uint32_t GetSurfacePixelColor(SDL_Surface* image, V2_int position) {
 	// Source: http://sdl.beuc.net/sdl.wiki/Pixel_Access
-	auto bpp = image->format->BytesPerPixel;
-	// Here p is the address to the pixel we want to retrieve.
-	std::uint8_t* p = static_cast<std::uint8_t*>(image->pixels) + static_cast<std::size_t>(position.y) * static_cast<std::size_t>(image->pitch) + static_cast<std::size_t>(position.x) * static_cast<std::size_t>(bpp);
-	switch (bpp) {
+	auto bytes_per_pixel = image->format->BytesPerPixel;
+	auto row = position.y * image->pitch;
+	auto column = position.x * bytes_per_pixel;
+	auto index = static_cast<std::size_t>(row) + static_cast<std::size_t>(column);
+	auto pixel_address = static_cast<std::uint8_t*>(image->pixels) + index;
+	switch (bytes_per_pixel) {
 		case 1:
-			return *p;
+			return *pixel_address;
 			break;
 		case 2:
-			return *(Uint16*)p;
+			return *(std::uint16_t*)pixel_address;
 			break;
 		case 3:
 			if (SDL_BYTEORDER == SDL_BIG_ENDIAN)
-				return p[0] << 16 | p[1] << 8 | p[2];
+				return pixel_address[0] << 16 | pixel_address[1] << 8 | pixel_address[2];
 			else
-				return p[0] | p[1] << 8 | p[2] << 16;
+				return pixel_address[0] | pixel_address[1] << 8 | pixel_address[2] << 16;
 			break;
 		case 4:
-			return *(Uint32*)p;
+			return *(std::uint32_t*)pixel_address;
 			break;
 		default:
 			return 0; // Shouldn't happen, but avoids warnings.
 	}
 }
 
+} // namespace internal
+
+namespace engine {
+
 Image::Image(const char* path) {
 	// TODO: Add support for formats other than PNG.
-	SDL_Surface* temp_image = IMG_Load(path);
-	if (!temp_image) {
+	SDL_Surface* temp_surface = IMG_Load(path);
+	if (!temp_surface) {
 		printf("IMG_Load: %s\n", IMG_GetError());
-		// handle error
 		assert(false && "Failed to retrieve image data");
 	}
-	SDL_Surface* image = SDL_ConvertSurfaceFormat(temp_image, SDL_PIXELFORMAT_RGBA32, 0);
-	SDL_FreeSurface(temp_image);
-	assert(image != nullptr && "Failed to convert image to RGBA format");
-	size_.x = image->w;
-	size_.y = image->h;
+	SDL_Surface* surface = SDL_ConvertSurfaceFormat(temp_surface, SDL_PIXELFORMAT_RGBA32, 0);
+	if (!surface) {
+		printf("IMG_Load: %s\n", IMG_GetError());
+		assert(false && "Failed to convert surface data format");
+	}
+	SDL_FreeSurface(temp_surface);
+	assert(surface != nullptr && "Failed to convert image to RGBA format");
+	size_.x = surface->w;
+	size_.y = surface->h;
 	pixels_.resize(static_cast<std::size_t>(size_.x) * static_cast<std::size_t>(size_.y), Color{});
 	for (auto j = 0; j < size_.y; ++j) {
 		for (auto i = 0; i < size_.x; ++i) {
-			SetPixel({ i, j }, GetSurfacePixelColor(image, { i, j }));
+			SetPixel({ i, j }, internal::GetSurfacePixelColor(surface, { i, j }));
 		}
 	}
-	SDL_FreeSurface(image);
+	SDL_FreeSurface(surface);
 }
 
-Image::Image(std::vector<Color> pixels, V2_int size, V2_int relative_position) : pixels_{ std::move(pixels) }, size_{ size }, original_size_{ size }, position_{ relative_position } {}
+Image::Image(std::vector<Color> pixels, V2_int size, V2_int relative_position) : 
+	pixels_{ std::move(pixels) }, 
+	size_{ size }, 
+	original_size_{ size }, 
+	position_{ relative_position } {}
 
 Color Image::GetPixel(V2_int position) const {
 	auto index = position.y * size_.x + position.x;
-	assert(pixels_.size() > 0 && position.x < size_.x&& position.y < size_.y&& index < pixels_.size() && "Pixel out of range of image size");
+	assert(pixels_.size() > 0 && 
+		position.x < size_.x && 
+		position.y < size_.y && 
+		index < pixels_.size() && 
+		"Pixel out of range of image size");
 	return pixels_[index];
 }
 
-V2_int Image::GetSize() const { return size_; }
-V2_int Image::GetOriginalSize() const { return original_size_; }
+V2_int Image::GetSize() const {
+	return size_; 
+}
 
-V2_int Image::GetPosition() const { return position_; }
+V2_int Image::GetOriginalSize() const {
+	return original_size_;
+}
+
+V2_int Image::GetPosition() const {
+	return position_;
+}
 
 Image Image::GetSubImage(V2_int top_left, V2_int bottom_right) const {
 	std::vector<Color> sub_pixels;
@@ -79,8 +103,12 @@ Image Image::GetSubImage(V2_int top_left, V2_int bottom_right) const {
 	// Find indexes of first and last points to cut down on loop time.
 	auto first_index = top_left.y * size_.x + top_left.x;
 	auto last_index = bottom_right.y * size_.x + bottom_right.x;
-	assert(first_index >= 0 && first_index < pixels_.size() && "Top left coordinate out of range of image pixels");
-	assert(last_index >= 0 && last_index < pixels_.size() && "Top right coordinate out of range of image pixels");
+	assert(first_index >= 0 && 
+		first_index < pixels_.size() && 
+		"Top left coordinate out of range of image pixels");
+	assert(last_index >= 0 && 
+		last_index < pixels_.size() && 
+		"Top right coordinate out of range of image pixels");
 	for (auto i = first_index; i < last_index + 1; ++i) {
 		auto mod_index = i % size_.x;
 		if (mod_index >= top_left.x && mod_index <= bottom_right.x) {
@@ -93,7 +121,7 @@ Image Image::GetSubImage(V2_int top_left, V2_int bottom_right) const {
 void Image::AddSide(Side side, Color color) {
 	if (side.IsHorizontal()) {
 		// Offset relative to the beginning of the pixels vector.
-		int offset;
+		int offset = 0;
 		if (side.IsLeft()) {
 			// Offset relative position.
 			position_.x -= 1;
@@ -105,7 +133,8 @@ void Image::AddSide(Side side, Color color) {
 		for (auto i = 0; i < size_.y; ++i) {
 			// E.g. pixels_.begin() + 1 * (size.x + 1) + 0
 			// Will add a pixel in the beginning of the second row.
-			pixels_.insert(pixels_.begin() + i * (size_.x + 1) + offset, color);
+			auto index = i * (size_.x + 1) + offset;
+			pixels_.insert(pixels_.begin() + static_cast<std::size_t>(index), color);
 		}
 		// Increment size.
 		size_.x += 1;
@@ -131,7 +160,11 @@ void Image::AddSide(Side side, Color color) {
 
 void Image::SetPixel(V2_int position, const Color& color) {
 	auto index = position.y * size_.x + position.x;
-	assert(pixels_.size() > 0 && position.x < size_.x&& position.y < size_.y&& index < pixels_.size() && "Pixel out of range of image size");
+	assert(pixels_.size() > 0 && 
+		position.x < size_.x && 
+		position.y < size_.y && 
+		index < pixels_.size() &&
+		"Pixel out of range of image size");
 	pixels_[index] = color;
 }
 
