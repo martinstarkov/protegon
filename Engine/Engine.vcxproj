@@ -305,8 +305,10 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClInclude Include="engine\Include.h" />
     <ClInclude Include="engine\parsing\Image.h" />
     <ClInclude Include="engine\parsing\ImageProcessor.h" />
+    <ClInclude Include="engine\renderer\SpriteSheet.h" />
     <ClInclude Include="engine\physics\RigidBody.h" />
     <ClInclude Include="engine\renderer\AABB.h" />
+    <ClInclude Include="engine\renderer\Animation.h" />
     <ClInclude Include="engine\renderer\Camera.h" />
     <ClInclude Include="engine\renderer\Circle.h" />
     <ClInclude Include="engine\renderer\Color.h" />

@@ -21,24 +21,26 @@ namespace internal {
 
 #define CENTERED 0x2FFF0000u|0 // SDL_WINDOWPOS_CENTERED
 
-// Default window title
+// Default window title.
 constexpr const char* WINDOW_TITLE = "Unknown Title";
-// Default window position centered
+// Default window position centered.
 constexpr int WINDOW_X = CENTERED;
 constexpr int WINDOW_Y = CENTERED;
-// Default window width
+// Default window width.
 constexpr int WINDOW_WIDTH = 600;
-// Default window height
+// Default window height.
 constexpr int WINDOW_HEIGHT = 480;
 
 } // namespace internal
 
 class Engine {
 public:
+	// Function which is called upon starting the engine.
 	virtual void Init() {}
+	// Function which is called each frame of the engine loop.
 	virtual void Update() {}
+	// Called after the update function, each frame of the engine loop.
 	virtual void Render() {}
-	// Default values defined in engine
 	
 	template <typename T>
 	static void Start(const char* title = internal::WINDOW_TITLE, int width = internal::WINDOW_WIDTH, int height = internal::WINDOW_HEIGHT, int x = internal::WINDOW_X, int y = internal::WINDOW_Y, std::uint32_t window_flags = 0, std::uint32_t renderer_flags = 0) {
@@ -55,24 +57,24 @@ public:
 		Loop<T>(engine);
 		Clean();
 	}
-	static void InitInternals();
-	static void Quit() { running_ = false; }
-	static Window& GetWindow() {
-		assert(window_ && "Cannot return uninitialized window");
-		return window_;
-	}
-	static Renderer& GetRenderer() {
-		assert(renderer_ && "Cannot return uninitialized renderer");
-		return renderer_;
-	}
-	static V2_int ScreenSize() { return window_size_; }
-	static int ScreenWidth() { return window_size_.x; }
-	static int ScreenHeight() { return window_size_.y; }
+	static void Quit();
+	static Window& GetWindow();
+	static Renderer& GetRenderer();
+	static V2_int ScreenSize();
+	static int ScreenWidth();
+	static int ScreenHeight();
 	static std::pair<Window, Renderer> GenerateWindow(const char* window_title, V2_int window_position, V2_int window_size, std::uint32_t window_flags = 0, std::uint32_t renderer_flags = 0);
 protected:
 	Scene scene;
 private:
-	static Engine* instance_;
+	static void InitInternals();
+	static void InitSDL(std::uint32_t window_flags, std::uint32_t renderer_flags);
+	static void InputHandlerUpdate();
+	static void ResetWindowColor();
+	static void Clean();
+	static void Delay(std::uint32_t milliseconds);
+	static std::uint32_t GetTicks();
+	// Singleton.
 	template <typename T>
 	static T& GetInstance() {
 		if (!instance_) {
@@ -80,12 +82,7 @@ private:
 		}
 		return *static_cast<T*>(instance_);
 	}
-	static void InitSDL(std::uint32_t window_flags, std::uint32_t renderer_flags);
-	static void InputHandlerUpdate();
-	static void ResetWindowColor();
-	static void Clean();
-	static std::uint32_t GetTicks();
-	static void Delay(std::uint32_t milliseconds);
+	// Main game loop.
 	template <typename T>
 	static void Loop(T& engine) {
 		const std::uint32_t delay = 1000 / FPS;
@@ -106,6 +103,7 @@ private:
 			}
 		}
 	}
+	static Engine* instance_;
 	static int sdl_init;
 	static int ttf_init;
 	static Window window_;

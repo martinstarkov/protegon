@@ -22,6 +22,32 @@ int Engine::sdl_init{ 1 };
 int Engine::ttf_init{ 1 };
 const char* Engine::window_title_{ "" };
 
+void Engine::Quit() { 
+	running_ = false;
+}
+
+Window& Engine::GetWindow() {
+	assert(window_ && "Cannot return uninitialized window");
+	return window_;
+}
+
+Renderer& Engine::GetRenderer() {
+	assert(renderer_ && "Cannot return uninitialized renderer");
+	return renderer_;
+}
+
+V2_int Engine::ScreenSize() {
+	return window_size_;
+}
+
+int Engine::ScreenWidth() {
+	return window_size_.x;
+}
+
+int Engine::ScreenHeight() {
+	return window_size_.y;
+}
+
 void Engine::InputHandlerUpdate() {
 	engine::InputHandler::Update();
 }
