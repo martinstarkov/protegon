@@ -55,13 +55,15 @@ public:
 				size = sprite.current_sprite.size;
 				if (scene) {
 					auto camera = scene->GetCamera();
-					auto texture_pos = position - (hitbox_offset - flip_scaling) * sprite.scale;
-					if (camera) {
+					if (camera) {  
 						// TRAIN OF THOUGHT: PERHAPS CENTERING OF CAMERA NOT WORKING DUE TO THIS POSITION NOT BEING ADDED TO THE TEXTURE DRAWING OR SOMETHING???
+						// TODO: Fix camera not centering on the character (slightly offset).
+						// This is likely due to sprite.scale causing the offset to not be the desired one.
 						position += camera->offset;
 						position *= camera->scale;
 						size *= camera->scale;
 					}
+					auto texture_pos = position - (hitbox_offset - flip_scaling) * sprite.scale;
 					engine::TextureManager::DrawRectangle(
 						sprite.sprite_map.path,
 						sprite.current_sprite.position,
