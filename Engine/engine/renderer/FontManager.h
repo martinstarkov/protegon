@@ -1,7 +1,7 @@
 #pragma once
 
-#include <string>
-#include <unordered_map>
+#include <unordered_map> // std::unordered_map
+#include <cstdlib> // std::size_t
 
 #include "renderer/Color.h"
 #include "renderer/Texture.h"
@@ -11,13 +11,13 @@ namespace engine {
 
 class FontManager {
 public:
-	static Texture Load(std::string& text, const Color& color, const int size, const char* path);
-	static void Draw(const std::string& text, V2_int position, V2_int size);
-	static void RemoveFont(const std::string& key);
+	static void Load(const char* text, const Color& color, const int size, const char* font_path);
+	static void Draw(const char* text, V2_int position, V2_int size);
 	static void Clean();
 private:
-	static Texture GetFont(const std::string& key);
-	static std::unordered_map<std::string, Texture> font_map_;
+	static void RemoveFont(const char* font_key);
+	static Texture GetFont(const char* font_key);
+	static std::unordered_map<std::size_t, Texture> font_map_;
 };
 
 } // namespace engine

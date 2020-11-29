@@ -1,107 +1,115 @@
 #include "TextureManager.h"
 
-#include <cassert>
+#include <cassert> // assert
 
 #include <SDL_image.h>
+
+#include "renderer/Texture.h"
+#include "utils/Hasher.h"
 
 #include "core/Engine.h"
 
 namespace engine {
 
-std::unordered_map<std::string, Texture> TextureManager::texture_map_;
+std::unordered_map<std::size_t, Texture> TextureManager::texture_map_;
 
-Texture TextureManager::Load(std::string& key, const std::string& path) {
-	assert(path != "" && "Cannot load empty path");
-	assert(key != "" && "Cannot load invalid key");
+void TextureManager::Load(const char* texture_key, const char* texture_path) {
+	assert(texture_path != "" && "Cannot load empty texture path");
+	assert(texture_key != "" && "Cannot load invalid texture key");
+	auto key = Hasher::HashCString(texture_key);
 	auto it = texture_map_.find(key);
-	if (it != std::end(texture_map_)) { // don't create if texture already exists in map
-		return it->second;
+	// Only add texture if it doesn't already exists in map.
+	// TODO: Add better checks for texture not already existing (SDL_Texture pointer comparison).
+	if (it == std::end(texture_map_)) { 
+		SDL_Surface* temp_surface = IMG_Load(texture_path);
+		if (!temp_surface) {
+			printf("IMG_Load: %s\n", IMG_GetError());
+			assert(!"Failed to load image into surface");
+		}
+		SDL_Texture* texture = SDL_CreateTextureFromSurface(Engine::GetRenderer(), temp_surface);
+		SDL_FreeSurface(temp_surface);
+		assert(texture != nullptr && "Failed to create texture from surface");
+		texture_map_.emplace(key, texture);
 	}
-	SDL_Surface* temp_surface = IMG_Load(path.c_str());
-	assert(temp_surface != nullptr && "Failed to load image into surface");
-	SDL_Texture* texture = SDL_CreateTextureFromSurface(&Engine::GetRenderer(), temp_surface);
-	SDL_FreeSurface(temp_surface);
-	assert(texture != nullptr && "Failed to create texture from surface");
-	texture_map_.emplace(key, texture);
-	return texture;
 }
 
 Color TextureManager::GetDefaultRendererColor() {
 	return DEFAULT_RENDERER_COLOR;
 }
 
-Texture TextureManager::GetTexture(const std::string& key) {
+Texture TextureManager::GetTexture(const char* texture_key) {
+	auto key = Hasher::HashCString(texture_key);
 	auto it = texture_map_.find(key);
 	assert(it != std::end(texture_map_) && "Key does not exist in texture map");
 	return it->second;
 }
 
 void TextureManager::SetDrawColor(Color color) {
-	SDL_SetRenderDrawColor(&Engine::GetRenderer(), color.r, color.g, color.b, color.a);
+	SDL_SetRenderDrawColor(Engine::GetRenderer(), color.r, color.g, color.b, color.a);
 }
 
 void TextureManager::SetDrawColor(Renderer renderer, Color color) {
-	SDL_SetRenderDrawColor(&renderer, color.r, color.g, color.b, color.a);
+	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
 }
 
 void TextureManager::DrawPoint(V2_int point, Color color) {
 	SetDrawColor(color);
-	SDL_RenderDrawPoint(&Engine::GetRenderer(), point.x, point.y);
+	SDL_RenderDrawPoint(Engine::GetRenderer(), point.x, point.y);
 	SetDrawColor(DEFAULT_RENDERER_COLOR);
 }
 
 void TextureManager::DrawPoint(Renderer renderer, V2_int point, Color color) {
 	SetDrawColor(renderer, color);
-	SDL_RenderDrawPoint(&renderer, point.x, point.y);
+	SDL_RenderDrawPoint(renderer, point.x, point.y);
 	SetDrawColor(renderer, DEFAULT_RENDERER_COLOR);
 }
 
 void TextureManager::DrawLine(V2_int origin, V2_int destination, Color color) {
 	SetDrawColor(color);
-	SDL_RenderDrawLine(&Engine::GetRenderer(), origin.x, origin.y, destination.x, destination.y);
+	SDL_RenderDrawLine(Engine::GetRenderer(), origin.x, origin.y, destination.x, destination.y);
 	SetDrawColor(DEFAULT_RENDERER_COLOR);
 }
 
 void TextureManager::DrawLine(Renderer renderer, V2_int origin, V2_int destination, Color color) {
 	SetDrawColor(renderer, color);
-	SDL_RenderDrawLine(&renderer, origin.x, origin.y, destination.x, destination.y);
+	SDL_RenderDrawLine(renderer, origin.x, origin.y, destination.x, destination.y);
 	SetDrawColor(renderer, DEFAULT_RENDERER_COLOR);
 }
 
 void TextureManager::DrawSolidRectangle(V2_int position, V2_int size, Color color) {
 	SetDrawColor(color);
 	SDL_Rect rect{ position.x, position.y, size.x, size.y };
-	SDL_RenderFillRect(&Engine::GetRenderer(), &rect);
+	SDL_RenderFillRect(Engine::GetRenderer(), &rect);
 	SetDrawColor(DEFAULT_RENDERER_COLOR);
 }
 
 void TextureManager::DrawRectangle(V2_int position, V2_int size, Color color) {
 	SetDrawColor(color);
 	SDL_Rect rect{ position.x, position.y, size.x, size.y };
-	SDL_RenderDrawRect(&Engine::GetRenderer(), &rect);
+	SDL_RenderDrawRect(Engine::GetRenderer(), &rect);
 	SetDrawColor(DEFAULT_RENDERER_COLOR);
 }
 
 void TextureManager::DrawRectangle(V2_int position, V2_int size, double rotation, V2_double* center_of_rotation, Color color) {
 	SetDrawColor(color);
 	SDL_Rect dest_rect{ position.x, position.y, size.x, size.y };
-	SDL_Texture* texture = SDL_CreateTexture(&Engine::GetRenderer(), SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STATIC, size.x, size.y);
+	SDL_Texture* texture = SDL_CreateTexture(Engine::GetRenderer(), SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STATIC, size.x, size.y);
 	if (center_of_rotation) {
 		SDL_Point center{ static_cast<int>(center_of_rotation->x), static_cast<int>(center_of_rotation->y) };
-		SDL_RenderCopyEx(&Engine::GetRenderer(), texture, NULL, &dest_rect, rotation, &center, SDL_FLIP_NONE);
+		SDL_RenderCopyEx(Engine::GetRenderer(), texture, NULL, &dest_rect, rotation, &center, SDL_FLIP_NONE);
 	} else {
-		SDL_RenderCopyEx(&Engine::GetRenderer(), texture, NULL, &dest_rect, rotation, NULL, SDL_FLIP_NONE);
+		SDL_RenderCopyEx(Engine::GetRenderer(), texture, NULL, &dest_rect, rotation, NULL, SDL_FLIP_NONE);
 	}
 }
 
-void TextureManager::DrawRectangle(const std::string& key, V2_int src_position, V2_int src_size, V2_int dest_position, V2_int dest_size, Flip flip, V2_double* center_of_rotation, double angle) {
+void TextureManager::DrawRectangle(const char* texture_key, V2_int src_position, V2_int src_size, V2_int dest_position, V2_int dest_size, Flip flip, V2_double* center_of_rotation, double angle) {
 	SDL_Rect src_rect{ src_position.x, src_position.y, src_size.x, src_size.y };
 	SDL_Rect dest_rect{ dest_position.x, dest_position.y, dest_size.x, dest_size.y };
 	if (center_of_rotation) {
 		SDL_Point center{ static_cast<int>(center_of_rotation->x), static_cast<int>(center_of_rotation->y) };
-		SDL_RenderCopyEx(&Engine::GetRenderer(), &GetTexture(key), &src_rect, &dest_rect, angle, &center, static_cast<SDL_RendererFlip>(flip));
+		SDL_RenderCopyEx(Engine::GetRenderer(), GetTexture(texture_key), &src_rect, &dest_rect, angle, &center, static_cast<SDL_RendererFlip>(flip));
 	} else {
-		SDL_RenderCopyEx(&Engine::GetRenderer(), &GetTexture(key), &src_rect, &dest_rect, angle, NULL, static_cast<SDL_RendererFlip>(flip));
+		SDL_RenderCopyEx(Engine::GetRenderer(), GetTexture(texture_key), &src_rect, &dest_rect, angle, NULL, static_cast<SDL_RendererFlip>(flip));
 	}
 }
 
@@ -162,8 +170,8 @@ void TextureManager::Clean() {
 	texture_map_.clear();
 }
 
-
-void TextureManager::RemoveTexture(const std::string& key) {
+void TextureManager::RemoveTexture(const char* texture_key) {
+	auto key = Hasher::HashCString(texture_key);
 	auto it = texture_map_.find(key);
 	if (it != std::end(texture_map_)) {
 		SDL_DestroyTexture(it->second);

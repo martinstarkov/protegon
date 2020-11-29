@@ -1,12 +1,10 @@
 #pragma once
 
-#include <string>
-#include <unordered_map>
+#include <unordered_map> // std::unordered_map
 
 #include "utils/Vector2.h"
 #include "renderer/Color.h"
 #include "renderer/Flip.h"
-#include "renderer/Texture.h"
 #include "renderer/Renderer.h"
 
 namespace engine {
@@ -16,9 +14,12 @@ namespace engine {
 // Default color of renderer objects
 #define DEFAULT_RENDER_COLOR BLACK
 
+struct Texture;
+
 class TextureManager {
+private:
 public:
-	static Texture Load(std::string& key, const std::string& path);
+	static void Load(const char* texture_key, const char* texture_path);
 
 	static Color GetDefaultRendererColor();
 	static void SetDrawColor(Color color);
@@ -28,18 +29,19 @@ public:
 	static void DrawSolidRectangle(V2_int position, V2_int size, Color color = DEFAULT_RENDER_COLOR);
 	static void DrawRectangle(V2_int position, V2_int size, Color color = DEFAULT_RENDER_COLOR);
 	static void DrawRectangle(V2_int position, V2_int size, double rotation, V2_double* center_of_rotation = nullptr, Color color = DEFAULT_RENDER_COLOR);
-	static void DrawRectangle(const std::string& key, V2_int src_position, V2_int src_size, V2_int dest_position, V2_int dest_size, Flip flip = Flip::NONE, V2_double* center_of_rotation = nullptr, double angle = 0.0);
+	static void DrawRectangle(const char* texture_key, V2_int src_position, V2_int src_size, V2_int dest_position, V2_int dest_size, Flip flip = Flip::NONE, V2_double* center_of_rotation = nullptr, double angle = 0.0);
 	static void DrawCircle(V2_int center, int radius, Color color = DEFAULT_RENDER_COLOR);
 
 	static void SetDrawColor(Renderer renderer, Color color);
 	static void DrawPoint(Renderer renderer, V2_int point, Color color = DEFAULT_RENDER_COLOR);
 	static void DrawLine(Renderer renderer, V2_int origin, V2_int destination, Color color = DEFAULT_RENDER_COLOR);
 
+	friend class Image;
 	static void Clean();
-	static void RemoveTexture(const std::string& key);
 private:
-	static Texture GetTexture(const std::string& key);
-	static std::unordered_map<std::string, Texture> texture_map_;
+	static void RemoveTexture(const char* texture_key);
+	static Texture GetTexture(const char* texture_key);
+	static std::unordered_map<std::size_t, Texture> texture_map_;
 };
 
 } // namespace engine
