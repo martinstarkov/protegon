@@ -12,9 +12,6 @@ public:
 	std::vector<engine::Image> images;
 	void Init() {
 
-		images = engine::ImageProcessor::GetDisconnectedImages("resources/textures/gabe-idle-run_2.png");
-		images = engine::ImageProcessor::CenterOnHitbox(images);
-
 		LOG("Initializing game systems...");
 		scene.manager.AddSystem<RenderSystem>(&scene);
 		scene.manager.AddSystem<PhysicsSystem>();
@@ -26,10 +23,9 @@ public:
 		scene.manager.AddSystem<DirectionSystem>();
 		scene.manager.AddSystem<CameraSystem>(&scene);
 		scene.ui_manager.AddSystem<RenderSystem>();
-		scene.ui_manager.AddSystem<UIListener>();
-		scene.ui_manager.AddSystem<UIRenderer>();
 		scene.ui_manager.AddSystem<UIButtonListener>();
 		scene.ui_manager.AddSystem<UIButtonRenderer>();
+		scene.ui_manager.AddSystem<UITextRenderer>();
 
 		title_screen = scene.event_manager.CreateEntity();
 		engine::EventHandler::Register<TitleScreenEvent>(title_screen);
@@ -46,9 +42,7 @@ public:
     void Update() {
 		auto& pause = pause_screen.GetComponent<PauseScreenComponent>();
 		scene.manager.Update<InputSystem>();
-		static int counter = 0;
 		if (!pause.open) {
-			scene.ui_manager.Update<UIListener>();
 			scene.ui_manager.Update<UIButtonListener>();
 			if (scene.manager.HasSystem<PhysicsSystem>()) {
 				scene.manager.Update<PhysicsSystem>();
@@ -82,29 +76,16 @@ public:
 				pause.release_time = 0;
 			}
 		}
-		auto players = scene.manager.GetComponentTuple<PlayerController, SpriteComponent, CollisionComponent>();
-		static auto index = 0;
-		for (auto [entity, player, sprite, collider] : players) {
-			if (counter % 10 == 0) {
-				++index;
-				index %= images.size();
-			}
-			const auto& image = images[index];
-			sprite.source.position = image.GetPosition();
-			sprite.source.size = image.GetSize();
-			collider.collider.size = image.GetSize() * 5;
-		}
-		++counter;
     }
 
 	void Render() {
 		auto& pause = pause_screen.GetComponent<PauseScreenComponent>();
 		if (!pause.open) {
-			//scene.manager.Update<AnimationSystem>();
+			scene.manager.Update<AnimationSystem>();
 		}
 		scene.manager.Update<RenderSystem>();
-		scene.ui_manager.Update<UIRenderer>();
 		scene.ui_manager.Update<UIButtonRenderer>();
+		scene.ui_manager.Update<UITextRenderer>();
 	}
 private:
 	ecs::Entity title_screen;

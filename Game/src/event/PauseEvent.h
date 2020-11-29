@@ -11,11 +11,13 @@ struct PauseScreenEvent {
 			ui_manager.DestroyEntitiesWith<PauseScreenComponent>();
 		} else {
 			pause.open = true;
-			auto pause_text = new engine::UITextBox("Paused", 30, "resources/fonts/oswald_regular.ttf", engine::WHITE, engine::BLACK);
-			V2_int sb1 = { 200, 100 };
-			V2_int pb1 = engine::Engine::ScreenSize() / 2 - sb1 / 2;
-			auto b1 = engine::UI::AddStatic(&ui_manager, pb1, sb1, pause_text);
-			b1.AddComponent<PauseScreenComponent>();
+
+			V2_int pause_size = { 200, 100 };
+			V2_int pause_pos = engine::Engine::ScreenSize() / 2 - pause_size / 2;
+			auto pause_button = engine::UI::AddText(ui_manager, pause_pos, pause_size, engine::BLACK);
+			pause_button.AddComponent<TextComponent>("Paused", engine::WHITE, 30, "resources/fonts/oswald_regular.ttf");
+			pause_button.AddComponent<PauseScreenComponent>();
+
 		}
 	}
 };
