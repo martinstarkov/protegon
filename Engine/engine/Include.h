@@ -11,6 +11,7 @@
 #include "renderer/Renderer.h"
 #include "renderer/TextureManager.h"
 #include "renderer/FontManager.h"
+#include "renderer/SpriteMap.h"
 
 #include "parsing/ImageProcessor.h"
 

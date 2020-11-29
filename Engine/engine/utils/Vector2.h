@@ -28,7 +28,8 @@ struct Vector2 {
 	operator Vector2<int>() {
 		return { engine::math::RoundCast<int>(x), engine::math::RoundCast<int>(y) };
 	}
-	// Implicit conversion to double vector
+	// Implicit conversion to double vector.
+	// TODO: Figure out how to make this work without ruining all +/- operators
 	operator Vector2<double>() {
 		return { static_cast<double>(x), static_cast<double>(y) };
 	}

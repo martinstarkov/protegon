@@ -19,11 +19,11 @@ public:
 				direction = IDLE_DIRECTION;
 			}*/
 			// Flip Y-direction if moving up.
-			/*if (rb.velocity.y < 0.0) {
+			if (rb.velocity.y < 0.0) {
 				y_direction = Direction::UP;
 			} else if (rb.velocity.y > 0.0) {
 				y_direction = Direction::DOWN;
-			}*/
+			}
 			// Flip X-direction if moving left.
 			if (rb.velocity.x > 0.0) {
 				x_direction = Direction::RIGHT;
