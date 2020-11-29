@@ -4,21 +4,21 @@
 
 #include "renderer/TextureManager.h"
 #include "renderer/AABB.h"
+#include "renderer/SpriteMap.h"
 
 struct SpriteComponent {
-	const char* path;
-	AABB source;
-	V2_int sprite_size;
-	SpriteComponent() : path{ nullptr }, source{}, sprite_size{ 0, 0 } {}
-	SpriteComponent(const char* path, V2_int sprite_size) : path{ path }, sprite_size{ sprite_size } {
+	engine::SpriteMap sprite_map;
+	AABB current_sprite{};
+	V2_double scale;
+	SpriteComponent() = delete;
+	SpriteComponent(const char* path, V2_double scale = { 1.0, 1.0 }) : 
+		sprite_map{ path }, 
+		scale{ scale } {
 		Init();
 	}
-	void Init() {
-		source = AABB{ { 0.0, 0.0 }, sprite_size };
-		engine::TextureManager::Load(path, path);
-	}
+	void Init() {}
 	~SpriteComponent() = default;
-	// TODO: Rethink texture removal after spriteComponent is destroyed.
+	// TODO: Rethink texture removal after SpriteComponent is destroyed.
 	// Don't necessarily remove texture if other textures are using it, but if none are, remove it.
-	// TextureManager::removeTexture(_path);
+	// TextureManager::RemoveTexture(path);
 };
