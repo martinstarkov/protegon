@@ -1,4 +1,8 @@
 //#pragma once
+
+// TODO: Complete rework.
+
+
 //
 //#include "Component.h"
 //

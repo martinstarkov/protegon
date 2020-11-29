@@ -8,6 +8,8 @@
 #include "utils/Direction.h"
 #include "utils/Vector2.h"
 
+// TODO: Complete rework, lol.
+
 struct SpriteInformation {
 	V2_double start;
 	int count;
