@@ -19,7 +19,7 @@ public:
 		scene.manager.AddSystem<AnimationSystem>();
 		scene.manager.AddSystem<CollisionSystem>();
 		scene.manager.AddSystem<InputSystem>();
-		//scene.manager.AddSystem<StateMachineSystem>();
+		scene.manager.AddSystem<StateMachineSystem>();
 		scene.manager.AddSystem<DirectionSystem>();
 		scene.manager.AddSystem<CameraSystem>(&scene);
 		scene.ui_manager.AddSystem<RenderSystem>();
@@ -48,7 +48,7 @@ public:
 				scene.manager.Update<PhysicsSystem>();
 			}
 			scene.manager.Update<CollisionSystem>();
-			//scene.manager.Update<StateMachineSystem>();
+			scene.manager.Update<StateMachineSystem>();
 			scene.manager.Update<DirectionSystem>();
 			scene.manager.Update<LifetimeSystem>();
 			scene.manager.Update<CameraSystem>();
@@ -95,7 +95,7 @@ private:
 int main(int argc, char* args[]) { // sdl main override
 
 	LOG("Starting Protegon");
-	engine::Engine::Start<MyGame>("Protegon", 1200, 900);
+	engine::Engine::Start<MyGame>("Protegon", 1000, 600);
 
     return 0;
 }
