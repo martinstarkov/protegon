@@ -24,6 +24,7 @@ public:
 		}
 		if (primary_entity) {
 			auto camera = scene->GetCamera();
+			assert(camera != nullptr && "Scene camera undefined");
 			// Update scale first.
 			if (engine::InputHandler::KeyPressed(Key::Q) && engine::InputHandler::KeyReleased(Key::E)) {
 				camera->scale *= (V2_double{ 1.0, 1.0 } + ZOOM_SPEED);
