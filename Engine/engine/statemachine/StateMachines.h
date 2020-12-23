@@ -1,22 +1,23 @@
 #pragma once
 
 #include "StateMachine.h"
-
 #include "States.h"
 
-class WalkStateMachine : public StateMachine<WalkStateMachine> {
+class WalkStateMachine : public engine::StateMachine {
 public:
-	WalkStateMachine(StateName initialState) : StateMachine(initialState) {
-		states.emplace("idle", std::make_unique<IdleState>());
-		states.emplace("walk", std::make_unique<WalkState>());
-		states.emplace("run", std::make_unique<RunState>());
+	WalkStateMachine(ecs::Entity entity) {
+		AddState("idle", std::make_shared<IdleState>());
+		AddState("walk", std::make_shared<WalkState>());
+		AddState("run", std::make_shared<RunState>());
+		Init(entity);
 	}
 };
 
-class JumpStateMachine : public StateMachine<JumpStateMachine> {
+class JumpStateMachine : public engine::StateMachine {
 public:
-	JumpStateMachine(StateName initialState) : StateMachine(initialState) {
-		states.emplace("grounded", std::make_unique<GroundedState>());
-		states.emplace("jumped", std::make_unique<JumpState>());
+	JumpStateMachine(ecs::Entity entity) {
+		AddState("grounded", std::make_shared<GroundedState>());
+		AddState("jump", std::make_shared<JumpState>());
+		Init(entity);
 	}
 };

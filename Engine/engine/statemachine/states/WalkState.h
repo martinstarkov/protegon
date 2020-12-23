@@ -2,26 +2,25 @@
 
 #include "State.h"
 
-class WalkState : public State<WalkState> {
+#include "IdleState.h"
+#include "RunState.h"
+
+class WalkState : public engine::State {
 public:
-	virtual void onEntry() override final {
-		if (entity.HasComponent<AnimationComponent>()) {
-			auto& animation = entity.GetComponent<AnimationComponent>();
-			animation.name = getName();
+	virtual void OnEntry() override final {
+		if (parent_entity.HasComponent<AnimationComponent>()) {
+			auto& animation = parent_entity.GetComponent<AnimationComponent>();
+			animation.current_animation = "walk";
 			animation.counter = -1;
 		}
 	}
-	virtual void update() override final {
-		if (entity.HasComponent<RigidBodyComponent>()) {
-			auto& rb = entity.GetComponent<RigidBodyComponent>();
-			auto& rigidBody = rb.rigidBody;
-			if (abs(rigidBody.velocity) >= rigidBody.terminalVelocity * RUN_START_FRACTION) {
-				//parentStateMachine->setCurrentState("run");
-			} else if (!(abs(rigidBody.velocity) > IDLE_START_VELOCITY)) {
-				parentStateMachine->setCurrentState("idle");
-			}
-		} else {
-			assert(false && "Cannot update given state without RigidBodyComponent");
+	virtual void Update() override final {
+		assert(parent_entity.HasComponent<RigidBodyComponent>() && "Cannot update given state without RigidBodyComponent");
+		auto& rigid_body = parent_entity.GetComponent<RigidBodyComponent>().rigid_body;
+		if (abs(rigid_body.velocity.x) >= rigid_body.terminal_velocity.x * RUN_START_FRACTION) {
+			parent_state_machine->SetState("run");
+		} else if (abs(rigid_body.velocity.x) <= IDLE_START_VELOCITY) {
+			parent_state_machine->SetState("idle");
 		}
 	}
 };
