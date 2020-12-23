@@ -332,9 +332,7 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClInclude Include="engine\statemachine\states\JumpState.h" />
     <ClInclude Include="engine\statemachine\states\RunState.h" />
     <ClInclude Include="engine\statemachine\states\State.h" />
-    <ClInclude Include="engine\statemachine\states\StateDefines.h" />
     <ClInclude Include="engine\statemachine\states\WalkState.h" />
-    <ClInclude Include="engine\statemachine\Types.h" />
     <ClInclude Include="engine\ui\components\ActiveColorComponent.h" />
     <ClInclude Include="engine\ui\components\BackgroundColorComponent.h" />
     <ClInclude Include="engine\ui\components\EventComponent.h" />
