@@ -2,16 +2,12 @@
 
 #include "State.h"
 
-class GroundedState : public State<GroundedState> {
-	virtual void update() override final {
-		if (entity.HasComponent<RigidBodyComponent>()) {
-			auto& rb = entity.GetComponent<RigidBodyComponent>();
-			auto& rigidBody = rb.rigidBody;
-			if (rigidBody.acceleration.y < 0.0) { // upward
-				parentStateMachine->setCurrentState("jumped");
-			}
-		} else {
-			assert(false && "Cannot update given state without RigidBodyComponent");
+class GroundedState : public engine::State {
+	virtual void Update() override final {
+		assert(parent_entity.HasComponent<RigidBodyComponent>() && "Cannot update given state without RigidBodyComponent");
+		auto& rigid_body = parent_entity.GetComponent<RigidBodyComponent>().rigid_body;
+		if (rigid_body.acceleration.y < 0.0) { // Vertical movement upward.
+			parent_state_machine->SetState("jump");
 		}
 	}
 };

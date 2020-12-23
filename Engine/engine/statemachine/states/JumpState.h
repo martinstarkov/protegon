@@ -2,18 +2,14 @@
 
 #include "State.h"
 
-class JumpState : public State<JumpState> {
+class JumpState : public engine::State {
 public:
-	virtual void update() override final {
-		if (entity.HasComponent<RigidBodyComponent>()) {
-			auto& rb = entity.GetComponent<RigidBodyComponent>();
-			auto& rigidBody = rb.rigidBody;
-			// TODO: Change to check for collision instead of acceleration
-			if (rigidBody.acceleration.y >= 0.0) {
-				parentStateMachine->setCurrentState("grounded");
-			}
-		} else {
-			assert(false && "Cannot update given state without RigidBodyComponent");
+	virtual void Update() override final {
+		assert(parent_entity.HasComponent<RigidBodyComponent>() && "Cannot update given state without RigidBodyComponent");
+		auto& rigid_body = parent_entity.GetComponent<RigidBodyComponent>().rigid_body;
+		// TODO: Change to check for collision instead of acceleration.
+		if (rigid_body.acceleration.y >= 0.0) {
+			parent_state_machine->SetState("grounded");
 		}
 	}
 };
