@@ -27,11 +27,11 @@ std::uint32_t AllocationMetrics::CurrentUsage() {
 }
 
 void AllocationMetrics::Allocation(const std::size_t& size) {
-	_totalAllocated += size;
+	_totalAllocated += static_cast<std::uint32_t>(size);
 }
 
 void AllocationMetrics::Deallocation(const std::size_t& size) {
-	_totalFreed += size;
+	_totalFreed += static_cast<std::uint32_t>(size);
 }
 
 void AllocationMetrics::PrintMemoryUsage() {
