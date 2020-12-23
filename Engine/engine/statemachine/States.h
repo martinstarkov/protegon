@@ -1,7 +1,7 @@
 #pragma once
 
-#include "States/IdleState.h"
-#include "States/WalkState.h"
-#include "States/RunState.h"
-#include "States/GroundedState.h"
-#include "States/JumpState.h"
+#include "states/IdleState.h"
+#include "states/WalkState.h"
+#include "states/RunState.h"
+#include "states/GroundedState.h"
+#include "states/JumpState.h"
