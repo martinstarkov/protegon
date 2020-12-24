@@ -3,6 +3,7 @@
 #include <cmath>
 #include <type_traits>
 #include <random>
+#include <limits> // std::numeric_limits
 
 #define M_PI 3.14159265358979323846  /* pi */
 
@@ -35,6 +36,12 @@ template<typename T> struct identity { typedef T type; };
 namespace engine {
 
 namespace math {
+
+// TODO: Add tests for T being valid integer / supported for numeric limits.
+template <typename T>
+T Infinity() {
+	return std::numeric_limits<T>::infinity();
+}
 
 template <typename Floating, std::enable_if_t<std::is_floating_point<Floating>::value, int> = 0>
 Floating GetRandomValue(Floating min_range, Floating max_range) {
