@@ -14,7 +14,9 @@ public:
 
 		LOG("Initializing game systems...");
 		scene.manager.AddSystem<RenderSystem>(&scene);
+		scene.manager.AddSystem<HitboxRenderSystem>(&scene);
 		scene.manager.AddSystem<PhysicsSystem>();
+		scene.manager.AddSystem<TargetSystem>();
 		scene.manager.AddSystem<LifetimeSystem>();
 		scene.manager.AddSystem<AnimationSystem>();
 		scene.manager.AddSystem<CollisionSystem>();
@@ -46,6 +48,7 @@ public:
 			scene.ui_manager.Update<UIButtonListener>();
 			if (scene.manager.HasSystem<PhysicsSystem>()) {
 				scene.manager.Update<PhysicsSystem>();
+				scene.manager.Update<TargetSystem>();
 			}
 			scene.manager.Update<CollisionSystem>();
 			scene.manager.Update<StateMachineSystem>();
@@ -84,6 +87,7 @@ public:
 			scene.manager.Update<AnimationSystem>();
 		}
 		scene.manager.Update<RenderSystem>();
+		scene.manager.Update<HitboxRenderSystem>();
 		engine::TextureManager::DrawPoint(engine::Engine::ScreenSize() / 2, engine::RED);
 		scene.ui_manager.Update<UIButtonRenderer>();
 		scene.ui_manager.Update<UITextRenderer>();
