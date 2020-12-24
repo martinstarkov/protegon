@@ -292,6 +292,7 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClInclude Include="engine\ecs\systems\CollisionSystem.h" />
     <ClInclude Include="engine\ecs\systems\DirectionSystem.h" />
     <ClInclude Include="engine\ecs\systems\GraphSystem.h" />
+    <ClInclude Include="engine\ecs\systems\HitboxRenderSystem.h" />
     <ClInclude Include="engine\ecs\systems\InputSystem.h" />
     <ClInclude Include="engine\ecs\systems\LifetimeSystem.h" />
     <ClInclude Include="engine\ecs\systems\PhysicsSystem.h" />

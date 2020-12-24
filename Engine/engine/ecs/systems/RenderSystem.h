@@ -70,19 +70,8 @@ public:
 					flip,
 					transform.center_of_rotation,
 					transform.rotation);
-				engine::TextureManager::DrawRectangle(
-					position,
-					collider_size,
-					render.color);
 			}
 		}
-		for (auto rectangle : DebugDisplay::rectangles()) {
-			engine::TextureManager::DrawRectangle(
-				rectangle.first.position,
-				rectangle.first.size,
-				rectangle.second);
-		}
-		DebugDisplay::rectangles().clear();
 	}
 private:
 	engine::Scene* scene = nullptr;
