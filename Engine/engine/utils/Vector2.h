@@ -90,12 +90,16 @@ struct Vector2 {
 	}
 	// Unit vector
 	inline Vector2<double> Unit() const {
-		Vector2<double> vector;
+		Vector2<double> vector = *this;
 		auto m = Magnitude();
 		if (m) { // avoid division by zero error for zero vectors
 			return vector / m;
 		}
 		return vector;
+	}
+	// Returns a normalized vector (unit vector)
+	inline Vector2<double> Normalized() const {
+		return Unit();
 	}
 	// Identity vector
 	inline Vector2<int> Identity() const {
