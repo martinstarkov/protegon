@@ -84,6 +84,7 @@ public:
 			scene.manager.Update<AnimationSystem>();
 		}
 		scene.manager.Update<RenderSystem>();
+		engine::TextureManager::DrawPoint(engine::Engine::ScreenSize() / 2, engine::RED);
 		scene.ui_manager.Update<UIButtonRenderer>();
 		scene.ui_manager.Update<UITextRenderer>();
 	}

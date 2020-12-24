@@ -11,9 +11,10 @@ struct SpriteComponent {
 	AABB current_sprite{};
 	V2_double scale;
 	SpriteComponent() = delete;
-	SpriteComponent(const char* path, V2_double scale = { 1.0, 1.0 }) : 
+	SpriteComponent(const char* path, V2_double scale = { 1.0, 1.0 }, V2_double size = { 0.0, 0.0 }) :
 		sprite_map{ path }, 
 		scale{ scale } {
+		current_sprite.size = size;
 		Init();
 	}
 	void Init() {}

@@ -6,7 +6,7 @@
 
 #include "event/InputHandler.h"
 
-#define SCALE_BOUNDARY V2_double{ 0.3, 0.3 } // +/- this much max to the scale when zooming
+#define SCALE_BOUNDARY V2_double{ 0.5, 0.5 } // +/- this much max to the scale when zooming
 #define ZOOM_SPEED V2_double{ 0.01, 0.01 } // +/- this much max to the scale when zooming
 
 class CameraSystem : public ecs::System<TransformComponent, CameraComponent> {
@@ -42,12 +42,7 @@ public:
 			if (primary_entity.HasComponent<CollisionComponent>()) {
 				size = primary_entity.GetComponent<CollisionComponent>().collider.size;
 			}
-			if (primary_entity.HasComponent<SpriteComponent>()) {
-				auto& sprite = primary_entity.GetComponent<SpriteComponent>();
-				size = sprite.current_sprite.size;
-				sprite_scale = sprite.scale;
-			}
-			camera->Center(primary_entity.GetComponent<TransformComponent>().position, size * sprite_scale);
+			camera->Center(primary_entity.GetComponent<TransformComponent>().position, size);
 		}
 	}
 private:
