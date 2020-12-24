@@ -7,6 +7,9 @@
 #include "ecs/Components.h"
 #include "ecs/Systems.h"
 
+#include "statemachine/StateMachine.h"
+#include "statemachine/states/State.h"
+
 #include "renderer/Window.h"
 #include "renderer/Renderer.h"
 #include "renderer/TextureManager.h"
