@@ -151,11 +151,14 @@ public:
 						if (collision.manifold.time == 0 && !collision.manifold.normal.IsZero()) {
 							// TODO: Limit collision coloring to only objects which touch the player. Do this by choosing the collisions with time = 0 (touching).
 							collision.entity.GetComponent<RenderComponent>().color = engine::RED;
+							auto& rigid_body = entity.GetComponent<RigidBodyComponent>().rigid_body;
 							if (collision.manifold.normal.y != 0) {
-								entity.GetComponent<RigidBodyComponent>().rigid_body.acceleration.y = 0;
+								rigid_body.acceleration.y = 0;
+								//rb.velocity.x *= 1.0 - rb.drag.x;
 							}
 							if (collision.manifold.normal.x != 0) {
-								entity.GetComponent<RigidBodyComponent>().rigid_body.acceleration.x = 0;
+								rigid_body.acceleration.x = 0;
+								//rb.velocity.y *= 1.0 - rb.drag.y;
 							}
 						}
 					}

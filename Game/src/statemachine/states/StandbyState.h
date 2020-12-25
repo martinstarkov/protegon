@@ -51,10 +51,10 @@ class StandbyState : public engine::State {
 					render.color = engine::ORANGE;
 				}
 				DebugDisplay::circles().emplace_back(tower_transform.position + tower_collider.collider.size / 2.0, tower.range, engine::ORANGE);
-				LOG("Player out of range");
+				//LOG("Player out of range");
 			}
 		} else {
-			LOG("Tower ran out of projectiles");
+			//LOG("Tower ran out of projectiles");
 			parent_state_machine->SetState("disabled");
 		}
 	}

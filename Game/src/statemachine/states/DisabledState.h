@@ -22,7 +22,7 @@ class DisabledState : public engine::State {
 		if (tower.projectiles > 0) {
 			parent_state_machine->SetState("standby");
 		} else {
-			LOG("Out of projectiles");
+			//LOG("Out of projectiles");
 		}
 	}
 };
