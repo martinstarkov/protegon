@@ -338,6 +338,9 @@
     <ClInclude Include="engine\ecs\systems\HitboxRenderSystem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="engine\ecs\components\TagComponent.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="dlls\libfreetype-6.dll" />

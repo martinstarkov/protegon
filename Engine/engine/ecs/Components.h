@@ -15,3 +15,4 @@
 #include "ecs/components/UIComponent.h"
 #include "ecs/components/SizeComponent.h"
 #include "ecs/components/CameraComponent.h"
+#include "ecs/components/TagComponent.h"

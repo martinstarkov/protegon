@@ -2,7 +2,7 @@
 
 #include "System.h"
 
-#include <algorithm> // std::sort
+#include <algorithm> // std::sort, std::find
 #include <vector> // std::vector
 
 #include "renderer/AABB.h"
@@ -27,13 +27,28 @@ struct Collision {
 
 // Sort times in order of lowest time first, if times are equal prioritize diagonal collisions first.
 static void SortTimes(std::vector<Collision>& collisions) {
-	std::sort(collisions.begin(), collisions.end(), [](const Collision& a, const Collision& b) {
-		if (a.manifold.time != b.manifold.time) {
-			return a.manifold.time < b.manifold.time;
-		} else {
-			return a.manifold.normal.MagnitudeSquared() < b.manifold.normal.MagnitudeSquared();
+	if (collisions.size() > 1) {
+		std::sort(collisions.begin(), collisions.end(), [](const Collision& a, const Collision& b) {
+			if (a.manifold.time != b.manifold.time) {
+				return a.manifold.time < b.manifold.time;
+			} else {
+				return a.manifold.normal.MagnitudeSquared() < b.manifold.normal.MagnitudeSquared();
+			}
+		});
+	}
+}
+
+template <typename T>
+static bool HasExcludedTag(const ecs::Entity& entity, const std::vector<T>& tags) {
+	if (tags.size() > 0 && entity.HasComponent<TagComponent>()) {
+		const auto id = entity.GetComponent<TagComponent>().id;
+		for (const auto tag : tags) {
+			if (id == tag) {
+				return true;
+			}
 		}
-	});
+	}
+	return false;
 }
 
 // Function which takes consecutive identical collision times such as [0.5: (0, -1), 0.5: (-1, 0)] and combines the normals into one time [0.5: (-1, -1)].
@@ -92,10 +107,17 @@ public:
 				broadphase_entities.reserve(entities.size()); // Reserve maximum possible capacity of collisions.
 				auto broadphase = GetBroadphaseBox(rb.velocity, collider);
 				for (auto [entity2, transform2, collision2] : entities) {
-					if (entity != entity2) { // Do not check against self.
-						if (AABBVsAABB(broadphase, collision2.collider)) {
-							broadphase_entities.emplace_back(entity2);
-						}
+					bool skip = false;
+					// Do not check against self.
+					if (entity == entity2) {
+						skip = true;
+					// Do not check against excluded entity tags.
+					} else if (HasExcludedTag(entity, collision2.ignored_tag_types) || HasExcludedTag(entity2, collision_component.ignored_tag_types)) {
+						skip = true;
+					}
+					// If none of the above skip conditions are met, proceed with collision check.
+					if (!skip && AABBVsAABB(broadphase, collision2.collider)) {
+						broadphase_entities.emplace_back(entity2);
 					}
 				}
 				// Vector of entities which collided with the swept path of the collider
@@ -176,14 +198,20 @@ public:
 			auto& collider = collision_component.collider;
 			// Check if there is currently an overlap with any other collider.
 			for (auto [entity2, transform2, collision2] : entities) {
-				if (entity != entity2) { // Do not check against self.
-					auto& oCollider = collision2.collider;
-					if (AABBVsAABB(collider, oCollider)) {
-						auto collision_depth = IntersectAABB(collider, oCollider);
-						if (!collision_depth.IsZero()) { // Static collision occured.
-							// Resolve static collision.
-							collider.position -= collision_depth;
-						}
+				bool skip = false;
+				// Do not check against self.
+				if (entity == entity2) {
+					skip = true;
+				// Do not check against excluded entity tags.
+				} else if (HasExcludedTag(entity, collision2.ignored_tag_types) || HasExcludedTag(entity2, collision_component.ignored_tag_types)) {
+					skip = true;
+				}
+				auto& oCollider = collision2.collider;
+				if (!skip && AABBVsAABB(collider, oCollider)) {
+					auto collision_depth = IntersectAABB(collider, oCollider);
+					if (!collision_depth.IsZero()) { // Static collision occured.
+						// Resolve static collision.
+						collider.position -= collision_depth;
 					}
 				}
 			}

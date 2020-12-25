@@ -283,6 +283,7 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClInclude Include="engine\ecs\components\SpriteComponent.h" />
     <ClInclude Include="engine\ecs\components\SpriteSheetComponent.h" />
     <ClInclude Include="engine\ecs\components\StateMachineComponent.h" />
+    <ClInclude Include="engine\ecs\components\TagComponent.h" />
     <ClInclude Include="engine\ecs\components\TransformComponent.h" />
     <ClInclude Include="engine\ecs\components\UIComponent.h" />
     <ClInclude Include="engine\ecs\ECS.h" />
