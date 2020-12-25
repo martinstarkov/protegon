@@ -5,7 +5,7 @@
 ecs::Entity CreatePlayer(V2_double position, V2_int size, ecs::Manager& manager) {
 	auto entity = manager.CreateEntity();
 	V2_double player_acceleration = { 2, 2 };
-	auto scale = V2_double{ 2 * 2.133, 4 * 1.524 };
+	auto scale = V2_double{ 2 * 2.133, 3 * 1.524 };
 	entity.AddComponent<TransformComponent>(position);
 	entity.AddComponent<InputComponent>();
 	entity.AddComponent<PlayerController>(player_acceleration);
@@ -16,7 +16,8 @@ ecs::Entity CreatePlayer(V2_double position, V2_int size, ecs::Manager& manager)
 	sm.AddStateMachine<WalkStateMachine>("walk_state_machine", entity);
 	entity.AddComponent<DirectionComponent>();
 	V2_int collider_size = V2_double{ 15, 21 } * scale;
-	entity.AddComponent<CollisionComponent>(position, collider_size);
+	auto& collider = entity.AddComponent<CollisionComponent>(position, collider_size);
+	collider.ignored_tag_types.emplace_back(69);
 	auto& sprite = entity.AddComponent<SpriteComponent>("./resources/textures/sprite_test.png", scale);
 	sprite.sprite_map.AddAnimation("idle", engine::Animation{ { 0, 0 }, { 24, 24 }, V2_int{ 5, 3 }, 1, 0 });
 	sprite.sprite_map.AddAnimation("walk", engine::Animation{ { 0, 0 }, { 24, 24 }, V2_int{ 5, 3 }, 7, 0 });

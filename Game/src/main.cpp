@@ -88,7 +88,6 @@ public:
 		}
 		scene.manager.Update<RenderSystem>();
 		scene.manager.Update<HitboxRenderSystem>();
-		engine::TextureManager::DrawPoint(engine::Engine::ScreenSize() / 2, engine::RED);
 		scene.ui_manager.Update<UIButtonRenderer>();
 		scene.ui_manager.Update<UITextRenderer>();
 	}

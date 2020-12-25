@@ -4,20 +4,28 @@
 
 #include "components/TargetComponent.h"
 
-ecs::Entity CreateBullet(V2_double position, V2_double target_position, ecs::Manager& manager) {
+ecs::Entity CreateBullet(V2_double position, ecs::Entity target, ecs::Manager& manager) {
 	//position.y -= 40;
 	auto bullet = manager.CreateEntity();
-	auto speed = 3;
-	auto& target = bullet.AddComponent<TargetComponent>(target_position, speed);
+	auto speed = 0.3;
+	assert(target.HasComponent<TransformComponent>() && "Target must have TransformComponent");
+	assert(target.HasComponent<CollisionComponent>() && "Target must have CollisionComponent");
+	auto& target_position = target.GetComponent<TransformComponent>().position;
+	auto& target_collider = target.GetComponent<CollisionComponent>().collider;
+	auto& target_component = bullet.AddComponent<TargetComponent>(target, target_position, speed);
 	auto scale = V2_double{ 3, 3 };
-	auto& transform = bullet.AddComponent<TransformComponent>(position);
 	auto sprite_size = V2_double{ 5, 5 };
 	V2_int collider_size = sprite_size * scale;
-	bullet.AddComponent<CollisionComponent>(position, collider_size);
 	auto& rb = bullet.AddComponent<RigidBodyComponent>(RigidBody{ DRAGLESS, GRAVITY });
-	rb.rigid_body.acceleration = (target.target_position - transform.position).Normalized() * target.approach_speed;
+	rb.rigid_body.acceleration = (target_position + target_collider.size / 2.0 - position).Normalized() * target_component.approach_speed;
+	// For position of bullet, offset it by its size so it is centered.
+	// Note: this must be done after acceleration is set, if it is set here.
+	position -= collider_size / 2.0;
+	auto& transform = bullet.AddComponent<TransformComponent>(position);
+	auto& collider = bullet.AddComponent<CollisionComponent>(position, collider_size);
 	auto& sprite = bullet.AddComponent<SpriteComponent>("./resources/textures/bullet.png", scale, sprite_size);
 	bullet.AddComponent<RenderComponent>();
-	bullet.AddComponent<LifetimeComponent>(5);
+	bullet.AddComponent<TagComponent>(69);
+	bullet.AddComponent<LifetimeComponent>(3);
 	return bullet;
 }
