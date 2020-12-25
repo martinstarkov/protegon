@@ -11,7 +11,8 @@ struct GameStartEvent {
 			if (invoker.HasComponent<InfluenceComponent>()) {
 				auto& influence_manager = invoker.GetComponent<InfluenceComponent>().manager;
 				influence_manager.Clear();
-				invoker.GetManager()->DestroyEntitiesWith<TitleScreenComponent, BackgroundColorComponent>();
+				auto& ui_manager = *invoker.GetManager();
+				ui_manager.DestroyEntitiesWith<TitleScreenComponent, BackgroundColorComponent>();
 				std::vector<std::vector<int>> boxes = {
 				{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
 				{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
@@ -70,6 +71,12 @@ struct GameStartEvent {
 						}
 					}
 				}
+
+				V2_int health_size = { 200, 100 };
+				V2_int health_pos = { 30, 30 };
+				auto health_indicator = engine::UI::AddText(ui_manager, health_pos, health_size, engine::BLACK);
+				health_indicator.AddComponent<TextComponent>("Health: ", engine::WHITE, 30, "resources/fonts/oswald_regular.ttf");
+
 			}
 		}
 	}
