@@ -4,38 +4,34 @@
 #include <type_traits>
 #include <random>
 #include <limits> // std::numeric_limits
-
-#define M_PI 3.14159265358979323846  /* pi */
+#include <iomanip> // std::setprecision for truncating
+#include <sstream> // std::stringstream for truncating
 
 namespace internal {
 
-// source: https://stackoverflow.com/a/2450157
-// typedef either to A or B, depending on what integer is passed.
-template<int, typename A, typename B>
-struct cond;
-
-#define CCASE(N, typed) \
-  template<typename A, typename B> \
-  struct cond<N, A, B> { \
-    typedef typed type; \
-  }
-
-CCASE(1, A); CCASE(2, B);
-CCASE(3, int); CCASE(4, unsigned int);
-CCASE(5, long); CCASE(6, unsigned long);
-CCASE(7, float); CCASE(8, double);
-CCASE(9, long double);
-
-#undef CCASE
-
-// for a better syntax...
-template<typename T> struct identity { typedef T type; };
-
-}
+} // namespace internal
 
 namespace engine {
 
 namespace math {
+
+template<typename T>
+T const PI = std::acos(-T(1));
+
+// Truncate to specific amount of significant figures
+inline double Truncate(double value, int digits) {
+	std::stringstream stream;
+	stream << std::fixed << std::setprecision(digits) << value;
+	return std::stod(stream.str());
+}
+
+// Clamp value within a range.
+template <typename T>
+constexpr const T& Clamp(const T& v, const T& lo, const T& hi) {
+	static_assert(std::is_arithmetic<T>::value, "clamp can only accept numeric types");
+	assert(!(hi < lo));
+	return (v < lo) ? lo : (hi < v) ? hi : v;
+}
 
 // TODO: Add tests for T being valid integer / supported for numeric limits.
 template <typename T>
@@ -59,46 +55,12 @@ Integer GetRandomValue(Integer min_range, Integer max_range) {
 }
 
 static double DegreeToRadian(double degrees) {
-	return degrees * M_PI / 180.0;
+	return degrees * PI<double> / 180.0;
 }
 
 static double RadianToDegree(double radian) {
-	return radian * 180.0 / M_PI;
+	return radian * 180.0 / PI<double>;
 }
-
-// different type => figure out common type
-template<typename A, typename B>
-struct promote {
-private:
-	static A a;
-	static B b;
-
-	// in case A or B is a promoted arithmetic type, the template
-	// will make it less preferred than the nontemplates below
-	template<typename T>
-	static internal::identity<char[1]>::type& check(A, T);
-	template<typename T>
-	static internal::identity<char[2]>::type& check(B, T);
-
-	// "promoted arithmetic types"
-	static internal::identity<char[3]>::type& check(int, int);
-	static internal::identity<char[4]>::type& check(unsigned int, int);
-	static internal::identity<char[5]>::type& check(long, int);
-	static internal::identity<char[6]>::type& check(unsigned long, int);
-	static internal::identity<char[7]>::type& check(float, int);
-	static internal::identity<char[8]>::type& check(double, int);
-	static internal::identity<char[9]>::type& check(long double, int);
-
-public:
-	typedef typename internal::cond<sizeof check(0 ? a : b, 0), A, B>::type
-		type;
-};
-
-// same type => finished
-template<typename A>
-struct promote<A, A> {
-	typedef A type;
-};
 
 template <typename ...Ts>
 using is_number = std::enable_if_t<(std::is_arithmetic_v<Ts> && ...), int>;
@@ -118,8 +80,8 @@ inline T Floor(T value) {
 
 // Find the sign of a numeric type
 template <typename T>
-inline int sgn(T val) {
-	static_assert(std::is_arithmetic<T>::value, "sgn can only accept numeric types");
+inline int Sign(T val) {
+	static_assert(std::is_arithmetic<T>::value, "Sign function can only accept numeric types");
 	return (T(0) < val) - (val < T(0));
 }
 
