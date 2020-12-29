@@ -16,12 +16,12 @@ public:
 
 			// Terminal motion.
 			if (abs(rb.velocity.x) > rb.terminal_velocity.x) {
-				rb.velocity.x = engine::math::sgn(rb.velocity.x) * rb.terminal_velocity.x;
+				rb.velocity.x = engine::math::Sign(rb.velocity.x) * rb.terminal_velocity.x;
 			} else if (abs(rb.velocity.x) < LOWEST_VELOCITY) {
 				rb.velocity.x = 0.0;
 			}
 			if (abs(rb.velocity.y) > rb.terminal_velocity.y) {
-				rb.velocity.y = engine::math::sgn(rb.velocity.y) * rb.terminal_velocity.y;
+				rb.velocity.y = engine::math::Sign(rb.velocity.y) * rb.terminal_velocity.y;
 			} else if (abs(rb.velocity.y) < LOWEST_VELOCITY) {
 				rb.velocity.y = 0.0;
 			}

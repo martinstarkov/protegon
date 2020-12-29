@@ -103,7 +103,7 @@ struct Vector2 {
 	}
 	// Identity vector
 	inline Vector2<int> Identity() const {
-		return { engine::math::sgn(x), engine::math::sgn(y) };
+		return { engine::math::Sign(x), engine::math::Sign(y) };
 	}
 	// Tangent to direction vector (y, -x)
 	inline Vector2 Tangent() const {
@@ -191,8 +191,7 @@ struct Vector2 {
 	// Binary arithmetic operations (one type Vector + other type Vector).
 
 	// BIG TODO: Figure out casted subtraction and addition
-
-	/*template <typename A, typename B, typename P = engine::math::promote<A, B>>
+	/*
 	friend inline Vector2<P> operator-(const Vector2<A>& a, const Vector2<B>& b) {
 		return Vector2<P>{ a.x - b.x, a.x - b.x };
 	}*/

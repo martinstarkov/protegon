@@ -9,6 +9,8 @@
 #include "renderer/FontManager.h"
 #include "renderer/AABB.h"
 
+#include "physics/collision/static/PointvsAABB.h"
+
 #include "utils/Vector2.h"
 
 #include "ui/UIComponents.h"
@@ -25,7 +27,7 @@ public:
 			}
 			auto surface = AABB{ transform.position, size.size };
 			auto mouse_position = engine::InputHandler::GetMousePosition();
-			bool hovering = engine::math::PointVsAABB(mouse_position, surface);
+			bool hovering = engine::collision::PointvsAABB(mouse_position, surface);
 			if (hovering) {
 				if (engine::InputHandler::MouseReleased(engine::MouseButton::LEFT)) {
 					state.state = UIInteractionState::HOVER;
