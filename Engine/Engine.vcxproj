@@ -249,7 +249,6 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClCompile Include="engine\core\Scene.cpp" />
     <ClCompile Include="engine\ecs\components\StateMachineComponent.cpp" />
     <ClCompile Include="engine\event\EventHandler.cpp" />
-    <ClCompile Include="engine\event\events\RandomizeEvent.cpp" />
     <ClCompile Include="engine\event\InputHandler.cpp" />
     <ClCompile Include="engine\parsing\Image.cpp" />
     <ClCompile Include="engine\parsing\ImageProcessor.cpp" />
@@ -303,12 +302,18 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClInclude Include="engine\ecs\systems\UISystem.h" />
     <ClInclude Include="engine\event\EventHandler.h" />
     <ClInclude Include="engine\event\Events.h" />
-    <ClInclude Include="engine\event\events\RandomizeEvent.h" />
     <ClInclude Include="engine\event\InputHandler.h" />
     <ClInclude Include="engine\event\Keys.h" />
     <ClInclude Include="engine\Include.h" />
     <ClInclude Include="engine\parsing\Image.h" />
     <ClInclude Include="engine\parsing\ImageProcessor.h" />
+    <ClInclude Include="engine\physics\collision\CollisionManifold.h" />
+    <ClInclude Include="engine\physics\collision\dynamic\DynamicAABBvsAABB.h" />
+    <ClInclude Include="engine\physics\collision\static\AABBvsAABB.h" />
+    <ClInclude Include="engine\physics\collision\static\CirclevsAABB.h" />
+    <ClInclude Include="engine\physics\collision\static\CirclevsCircle.h" />
+    <ClInclude Include="engine\physics\collision\static\LinevsAABB.h" />
+    <ClInclude Include="engine\physics\collision\static\PointvsAABB.h" />
     <ClInclude Include="engine\renderer\SpriteMap.h" />
     <ClInclude Include="engine\physics\RigidBody.h" />
     <ClInclude Include="engine\renderer\AABB.h" />

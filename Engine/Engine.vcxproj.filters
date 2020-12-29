@@ -21,9 +21,6 @@
     <ClCompile Include="engine\ecs\components\StateMachineComponent.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="engine\event\events\RandomizeEvent.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="engine\event\EventHandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -159,9 +156,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\ecs\Systems.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\event\events\RandomizeEvent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\event\EventHandler.h">
@@ -339,6 +333,27 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\ecs\components\TagComponent.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\physics\collision\static\LinevsAABB.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\physics\collision\static\PointvsAABB.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\physics\collision\static\AABBvsAABB.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\physics\collision\static\CirclevsCircle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\physics\collision\static\CirclevsAABB.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\physics\collision\dynamic\DynamicAABBvsAABB.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\physics\collision\CollisionManifold.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
