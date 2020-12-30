@@ -8,7 +8,7 @@ class DisabledState : public engine::State {
 	virtual void OnEntry() override final {
 		if (parent_entity.HasComponent<RenderComponent>()) {
 			auto& render = parent_entity.GetComponent<RenderComponent>();
-			render.color = engine::RED;
+			render.color = engine::BLACK;
 		}
 	}
 	virtual void Update() override final {
@@ -18,7 +18,7 @@ class DisabledState : public engine::State {
 		auto& tower_transform = parent_entity.GetComponent<TransformComponent>();
 		auto& tower = parent_entity.GetComponent<TowerComponent>();
 		auto& tower_collider = parent_entity.GetComponent<CollisionComponent>();
-		DebugDisplay::circles().emplace_back(tower_transform.position + tower_collider.collider.size / 2.0, tower.range, engine::RED);
+		DebugDisplay::circles().emplace_back(tower_transform.position + tower_collider.collider.size / 2.0, tower.range, engine::BLACK);
 		if (tower.projectiles > 0) {
 			parent_state_machine->SetState("standby");
 		} else {

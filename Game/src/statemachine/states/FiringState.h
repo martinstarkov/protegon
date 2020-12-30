@@ -10,7 +10,7 @@ class FiringState : public engine::State {
 	virtual void OnEntry() override final {
 		if (parent_entity.HasComponent<RenderComponent>()) {
 			auto& render = parent_entity.GetComponent<RenderComponent>();
-			render.color = engine::BLACK;
+			render.color = engine::DARK_RED;
 		}
 		assert(parent_entity.HasComponent<TowerComponent>() && "Cannot update firing state without TowerComponent");
 		assert(parent_entity.HasComponent<TransformComponent>() && "Cannot update firing state without TransformComponent");
@@ -33,6 +33,6 @@ class FiringState : public engine::State {
 		auto& tower = parent_entity.GetComponent<TowerComponent>();
 		auto& transform = parent_entity.GetComponent<TransformComponent>();
 		auto& tower_collider = parent_entity.GetComponent<CollisionComponent>();
-		DebugDisplay::circles().emplace_back(transform.position + tower_collider.collider.size / 2.0, tower.range, engine::BLACK);
+		DebugDisplay::circles().emplace_back(transform.position + tower_collider.collider.size / 2.0, tower.range, engine::DARK_RED);
 	}
 };

@@ -43,7 +43,7 @@ public:
 					// Do not check against self.
 					if (entity == entity2) {
 						skip = true;
-					// Do not check against excluded entity tags.
+					// Do not check against excluded entity tags (both of the first and second entity, i.e. check both excluded tag lists).
 					} else if (HasExcludedTag(entity, collision2.ignored_tag_types) || HasExcludedTag(entity2, collision_component.ignored_tag_types)) {
 						skip = true;
 					}

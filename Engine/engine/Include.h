@@ -18,6 +18,8 @@
 
 #include "parsing/ImageProcessor.h"
 
+#include "physics/collision/CollisionFunctions.h"
+
 #include "event/InputHandler.h"
 #include "event/EventHandler.h"
 #include "event/Events.h"

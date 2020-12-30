@@ -18,7 +18,6 @@ ecs::Entity CreateBullet(V2_double position, ecs::Entity target, ecs::Manager& m
 	V2_int collider_size = sprite_size * scale;
 	auto& rb = bullet.AddComponent<RigidBodyComponent>(RigidBody{ { 0.05, 0.05 }, GRAVITY });
 	rb.rigid_body.velocity = (target_position + target_collider.size / 2.0 - position).Normalized() * target_component.approach_speed;
-	LOG(rb.rigid_body.acceleration);
 	// For position of bullet, offset it by its size so it is centered.
 	// Note: this must be done after acceleration is set, if it is set here.
 	position -= collider_size / 2.0;
@@ -28,6 +27,6 @@ ecs::Entity CreateBullet(V2_double position, ecs::Entity target, ecs::Manager& m
 	auto& sprite = bullet.AddComponent<SpriteComponent>("./resources/textures/bullet.png", scale, sprite_size);
 	bullet.AddComponent<RenderComponent>();
 	bullet.AddComponent<TagComponent>(69);
-	bullet.AddComponent<LifetimeComponent>(3);
+	bullet.AddComponent<LifetimeComponent>(2);
 	return bullet;
 }

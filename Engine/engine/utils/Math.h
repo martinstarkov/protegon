@@ -28,7 +28,7 @@ inline double Truncate(double value, int digits) {
 // Clamp value within a range.
 template <typename T>
 constexpr const T& Clamp(const T& v, const T& lo, const T& hi) {
-	static_assert(std::is_arithmetic<T>::value, "clamp can only accept numeric types");
+	static_assert(std::is_arithmetic<T>::value, "Clamp can only accept numeric types");
 	assert(!(hi < lo));
 	return (v < lo) ? lo : (hi < v) ? hi : v;
 }
