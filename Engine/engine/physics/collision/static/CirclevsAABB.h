@@ -11,11 +11,11 @@ namespace collision {
 
 // Static rectangle and circle collision detection.
 bool AABBvsCircle(const AABB& A, const Circle& B, CollisionManifold& out_collision) {
-	// Vector from A to B
+	// Vector from A to B.
 	V2_double n = B.position - A.Center();
-	// Closest point on A to center of B
+	// Closest point on A to center of B.
 	V2_double closest = n;
-	// Clamp point to edges of the AABB
+	// Clamp point to edges of the AABB.
 	closest.x = engine::math::Clamp(closest.x, -A.size.x / 2.0, A.size.x / 2.0);
 	closest.y = engine::math::Clamp(closest.y, -A.size.y / 2.0, A.size.y / 2.0);
 	bool inside = false;
