@@ -5,8 +5,14 @@
 #include "components/TitleScreenComponent.h"
 #include "factory/Factories.h"
 
+engine::Color colors[8] =
+{
+	engine::RED, engine::YELLOW, engine::BLUE, engine::GREEN,
+	engine::DARK_GREEN, engine::DARK_BLUE, engine::PURPLE, engine::BLACK
+};
+
 struct GameStartEvent {
-	static void Invoke(ecs::Entity& invoker) {
+	static void Invoke(ecs::Entity& invoker, engine::Scene& scene) {
 		if (invoker.IsAlive()) {
 			if (invoker.HasComponent<InfluenceComponent>()) {
 				auto& influence_manager = invoker.GetComponent<InfluenceComponent>().manager;
@@ -45,24 +51,24 @@ struct GameStartEvent {
 							switch (boxes[i][j]) {
 								case 1:
 								{
-									auto box = CreateBox(pos, influence_manager);
-									auto rb = RigidBody{ UNIVERSAL_DRAG, GRAVITY };
-									box.AddComponent<RigidBodyComponent>(rb);
+									//auto box = CreateBox(pos, influence_manager);
+									//auto rb = RigidBody{ UNIVERSAL_DRAG, GRAVITY };
+									//box.AddComponent<RigidBodyComponent>(rb);
 									break;
 								}
 								case 2:
 								{
-									auto player = CreatePlayer(pos, V2_int{ 20 * 5, 23 * 5 }, influence_manager);
+									auto player = CreatePlayer(pos, V2_int{ 20 * 5, 23 * 5 }, influence_manager, scene);
 									break;
 								}
 								case 3:
 								{
-									auto box = CreateBox(pos, influence_manager);
+									auto box = CreateBox(pos, { 32, 32 }, influence_manager);
 									break;
 								}
 								case 4:
 								{
-									auto sentry = CreateSentry(pos, influence_manager);
+									//auto sentry = CreateSentry(pos, influence_manager);
 									break;
 								}
 								default:
@@ -74,8 +80,10 @@ struct GameStartEvent {
 
 				V2_int health_size = { 200, 100 };
 				V2_int health_pos = { 30, 30 };
-				auto health_indicator = engine::UI::AddText(ui_manager, health_pos, health_size, engine::BLACK);
-				health_indicator.AddComponent<TextComponent>("Health: ", engine::WHITE, 30, "resources/fonts/oswald_regular.ttf");
+				//auto health_indicator = engine::UI::AddText(ui_manager, health_pos, health_size, engine::BLACK);
+				//health_indicator.AddComponent<TextComponent>("Health: ", engine::WHITE, 30, "resources/fonts/oswald_regular.ttf");
+
+
 
 			}
 		}

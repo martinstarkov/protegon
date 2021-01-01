@@ -17,13 +17,16 @@
 
 class UIButtonListener : public ecs::System<TransformComponent, SizeComponent, BackgroundColorComponent, StateComponent> {
 public:
+	UIButtonListener() = default;
+	UIButtonListener(engine::Scene* scene) : scene{ scene } {}
 	virtual void Update() override final {
 		for (auto [entity, transform, size, background, state] : entities) {
 			if (entity.HasComponent<EventComponent>() &&
 				engine::InputHandler::KeyDown(Key::SPACEBAR) &&
 				entity.HasComponent<TextComponent>() &&
 				entity.GetComponent<TextComponent>().content == "Play") {
-				engine::EventHandler::Invoke(entity, entity);
+				assert(scene != nullptr && "Scene not given to UIButtonListener");
+				engine::EventHandler::Invoke(entity, entity, *scene);
 			}
 			auto surface = AABB{ transform.position, size.size };
 			auto mouse_position = engine::InputHandler::GetMousePosition();
@@ -45,7 +48,8 @@ public:
 						background.color = entity.GetComponent<ActiveColorComponent>().color;
 					}
 					if (entity.HasComponent<EventComponent>()) {
-						engine::EventHandler::Invoke(entity, entity);
+						assert(scene != nullptr && "Scene not given to UIButtonListener");
+						engine::EventHandler::Invoke(entity, entity, *scene);
 					}
 				}
 			} else {
@@ -54,6 +58,8 @@ public:
 			}
 		}
 	}
+private:
+	engine::Scene* scene = nullptr;
 };
 
 class UIButtonRenderer : public ecs::System<TransformComponent, SizeComponent, BackgroundColorComponent, StateComponent, RenderComponent> {
