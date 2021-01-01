@@ -2,6 +2,7 @@
 
 #include "core/Engine.h"
 #include "core/Scene.h"
+#include "core/Level.h"
 
 #include "ecs/ECS.h"
 #include "ecs/Components.h"
@@ -26,3 +27,10 @@
 
 #include "ui/UI.h"
 #include "ui/UIComponents.h"
+
+#include "utils/Vector2.h"
+#include "utils/Math.h"
+#include "utils/RNG.h"
+#include "utils/Hasher.h"
+#include "utils/Logger.h"
+#include "utils/Defines.h"
