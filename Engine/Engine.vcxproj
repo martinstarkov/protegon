@@ -246,6 +246,7 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="engine\core\Engine.cpp" />
+    <ClCompile Include="engine\core\Level.cpp" />
     <ClCompile Include="engine\core\Scene.cpp" />
     <ClCompile Include="engine\ecs\components\StateMachineComponent.cpp" />
     <ClCompile Include="engine\event\EventHandler.cpp" />
@@ -266,6 +267,7 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="engine\core\Engine.h" />
+    <ClInclude Include="engine\core\Level.h" />
     <ClInclude Include="engine\core\Scene.h" />
     <ClInclude Include="engine\ecs\Components.h" />
     <ClInclude Include="engine\ecs\components\AnimationComponent.h" />
@@ -358,6 +360,7 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClInclude Include="engine\utils\Hasher.h" />
     <ClInclude Include="engine\utils\Logger.h" />
     <ClInclude Include="engine\utils\Math.h" />
+    <ClInclude Include="engine\utils\RNG.h" />
     <ClInclude Include="engine\utils\Side.h" />
     <ClInclude Include="engine\utils\Utility.h" />
     <ClInclude Include="engine\utils\Vector2.h" />

@@ -69,6 +69,9 @@
     <ClCompile Include="engine\renderer\SpriteMap.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="engine\core\Level.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="engine\core\Engine.h">
@@ -357,6 +360,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\physics\collision\CollisionFunctions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\utils\RNG.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\core\Level.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
