@@ -23,7 +23,7 @@ public:
 				auto camera = scene->GetCamera();
 				if (camera) {
 					size *= camera->scale;
-					position += camera->offset;
+					position -= camera->offset;
 					position *= camera->scale;
 				}
 				engine::TextureManager::DrawRectangle(
@@ -37,21 +37,21 @@ public:
 			if (camera) {
 				for (auto [aabb, color] : DebugDisplay::rectangles()) {
 					engine::TextureManager::DrawRectangle(
-						(aabb.position + camera->offset) * camera->scale,
+						(aabb.position - camera->offset) * camera->scale,
 						aabb.size * camera->scale,
 						color);
 				}
 				DebugDisplay::rectangles().clear();
 				for (auto [origin, destination, color] : DebugDisplay::lines()) {
 					engine::TextureManager::DrawLine(
-						(origin + camera->offset) * camera->scale,
-						(destination + camera->offset) * camera->scale,
+						(origin - camera->offset) * camera->scale,
+						(destination - camera->offset) * camera->scale,
 						color);
 				}
 				DebugDisplay::lines().clear();
 				for (auto [center, radius, color] : DebugDisplay::circles()) {
 					engine::TextureManager::DrawCircle(
-						(center + camera->offset) * camera->scale,
+						(center - camera->offset) * camera->scale,
 						engine::math::RoundCast<int>(radius * camera->scale.x),
 						color);
 				}
