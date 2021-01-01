@@ -10,6 +10,7 @@
 class MyGame : public engine::Engine {
 public:
 	std::vector<engine::Image> images;
+	V2_int tile_size = { 32, 32 };
 	void Init() {
 
 		LOG("Initializing game systems...");
@@ -25,9 +26,11 @@ public:
 		scene.manager.AddSystem<DirectionSystem>();
 		scene.manager.AddSystem<CameraSystem>(&scene);
 		scene.ui_manager.AddSystem<RenderSystem>();
-		scene.ui_manager.AddSystem<UIButtonListener>();
+		scene.ui_manager.AddSystem<UIButtonListener>(&scene);
 		scene.ui_manager.AddSystem<UIButtonRenderer>();
 		scene.ui_manager.AddSystem<UITextRenderer>();
+
+		//LOG("Sectors: " << Engine::ScreenSize() / tile_size);
 
 		title_screen = scene.event_manager.CreateEntity();
 		engine::EventHandler::Register<TitleScreenEvent>(title_screen);
@@ -38,6 +41,7 @@ public:
 		engine::EventHandler::Invoke(title_screen, scene.manager, scene.ui_manager);
 		title.open = true;
 		pause.open = false;
+		screen.SetSize(engine::Engine::ScreenSize() / tile_size);
 		LOG("Initialized all game systems successfully");
 	}
 
@@ -80,18 +84,59 @@ public:
 			}
 		}
     }
-
 	void Render() {
 		auto& pause = pause_screen.GetComponent<PauseScreenComponent>();
 		if (!pause.open) {
 			scene.manager.Update<AnimationSystem>();
 		}
+
+
+		auto sectors = screen.GetSize();
+		V2_int sector = { 0, 0 };
+		for (sector.x = 0; sector.x < sectors.x; ++sector.x) {
+			for (sector.y = 0; sector.y < sectors.y; ++sector.y) {
+				auto& entity = screen.GetEntity(sector);
+				if (entity.IsAlive()) {
+					entity.IsValid();
+				}
+				auto b = 1;
+				b += 1;
+			}
+		}
+		auto camera = scene.GetCamera();
+		if (camera) {
+			LOG(camera->offset);
+		}
+		//auto camera = scene.GetCamera();
+		//if (camera) {
+		//	V2_int sector = { 0, 0 };
+		//	engine::RNG rng;
+		//	auto sectors = screen.GetSize();
+		//	LOG("Generating world");
+		//	for (sector.x = 0; sector.x < sectors.x; ++sector.x) {
+		//		for (sector.y = 0; sector.y < sectors.y; ++sector.y) {
+		//			V2_int world_sector = -static_cast<V2_int>(camera->offset) + sector;
+		//			auto seed = (world_sector.x & 0xFFFF) << 16 | (world_sector.y & 0xFFFF);
+		//			//auto seed = world_sector.x + world_sector.y * sectors.x;
+		//			rng.SetSeed(seed);
+		//			bool draw_box = (rng.RandomInt(0, 40) == 1);
+		//			if (draw_box) {
+		//				auto diameter = rng.RandomDouble(100.0, 400.0);
+		//				auto color = colors[rng.RandomInt(0, 8)];
+		//				auto coordinate = sector * tile_size;// - static_cast<V2_int>(camera->offset);
+		//				//auto box = CreateBox(coordinate, tile_size, scene.manager);
+		//				engine::TextureManager::DrawCircle(coordinate, (int)diameter / (tile_size.x / 2), color);
+		//			}
+		//		}
+		//	}
+		//}
 		scene.manager.Update<RenderSystem>();
 		scene.manager.Update<HitboxRenderSystem>();
 		scene.ui_manager.Update<UIButtonRenderer>();
 		scene.ui_manager.Update<UITextRenderer>();
 	}
 private:
+	engine::Level screen{ scene.manager };
 	ecs::Entity title_screen;
 	ecs::Entity pause_screen;
 };

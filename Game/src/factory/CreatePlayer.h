@@ -2,9 +2,9 @@
 
 #include <engine/Include.h>
 
-ecs::Entity CreatePlayer(V2_double position, V2_int size, ecs::Manager& manager) {
+ecs::Entity CreatePlayer(V2_double position, V2_int size, ecs::Manager& manager, engine::Scene& scene) {
 	auto entity = manager.CreateEntity();
-	V2_double player_acceleration = { 2, 2 };
+	V2_double player_acceleration = { 1, 1 };
 	auto scale = V2_double{ 2 * 2.133, 3 * 1.524 };
 	entity.AddComponent<TransformComponent>(position);
 	entity.AddComponent<InputComponent>();
@@ -34,6 +34,7 @@ ecs::Entity CreatePlayer(V2_double position, V2_int size, ecs::Manager& manager)
 	entity.AddComponent<AnimationComponent>("blonde_walking_left", 0.1);*/
 	
 	entity.AddComponent<RenderComponent>();
-	entity.AddComponent<CameraComponent>(engine::Camera{}, true);
+	auto& cc = entity.AddComponent<CameraComponent>(engine::Camera{}, true);
+	scene.SetCamera(cc.camera);
 	return entity;
 }
