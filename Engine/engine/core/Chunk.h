@@ -6,6 +6,8 @@
 #include "ecs/ECS.h" // ecs::Entity, ecs::Manager
 #include "renderer/AABB.h"
 
+// TODO: Move to procedural folder.
+
 namespace engine {
 
 class BaseChunk {
@@ -15,14 +17,15 @@ public:
 	virtual const AABB& GetInfo() const = 0;
 	virtual void Unload() = 0;
 	virtual void Init(AABB chunk_info, V2_int tile_size, ecs::Manager* manager) = 0;
-	virtual void Generate() = 0;
+	virtual void Generate(int seed) = 0;
 	virtual bool MatchesPotentialChunk(const AABB& potential_chunk, const V2_int& tile_size, const ecs::Manager* manager) const = 0;
+	virtual ~BaseChunk() = default;
 };
 
 class Chunk : public BaseChunk {
 public:
 	Chunk() = default;
-	~Chunk();
+	virtual ~Chunk() override;
 	virtual void Init(AABB chunk_info, V2_int tile_size, ecs::Manager* manager) override final;
 	virtual ecs::Entity GetEntity(V2_int relative_coordinate) const override final;
 	virtual ecs::Entity& GetEntity(V2_int relative_coordinate) override final;
