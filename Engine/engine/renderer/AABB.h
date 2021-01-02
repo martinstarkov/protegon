@@ -37,4 +37,7 @@ struct AABB : Shape<AABB> {
 		os << '[' << obj.position << ',' << obj.size << ']';
 		return os;
 	}
+	friend bool operator==(const AABB& A, const AABB& B) {
+		return A.position == B.position && A.size == B.size;
+	}
 };

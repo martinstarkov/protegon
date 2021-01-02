@@ -2,7 +2,7 @@
 
 #include "core/Engine.h"
 #include "core/Scene.h"
-#include "core/Level.h"
+#include "core/Chunk.h"
 
 #include "ecs/ECS.h"
 #include "ecs/Components.h"

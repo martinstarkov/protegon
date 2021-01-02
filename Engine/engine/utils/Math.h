@@ -77,6 +77,10 @@ template <typename T, is_number<T> = 0>
 inline T Floor(T value) {
 	return static_cast<T>(std::floor(value));
 }
+template <typename T, is_number<T> = 0>
+inline T Ceil(T value) {
+	return static_cast<T>(std::ceil(value));
+}
 
 // Find the sign of a numeric type
 template <typename T>

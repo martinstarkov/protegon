@@ -68,7 +68,11 @@ struct Vector2 {
 	}
 	// Return a vector with both components rounded to the nearest integer.
 	inline Vector2<int> Round() const {
-		return Vector2<int>{ static_cast<int>(std::round(x)), static_cast<int>(std::round(y)) };
+		return Vector2<int>{ static_cast<int>(engine::math::Round(x)), static_cast<int>(engine::math::Round(y)) };
+	}
+	// Return a vector with both components floored to the nearest integer.
+	inline Vector2<int> Floor() const {
+		return Vector2<int>{ static_cast<int>(engine::math::Floor(x)), static_cast<int>(engine::math::Floor(y)) };
 	}
 	// Return a vector with numeric_limit::infinity() set for both components
 	static Vector2 Infinite() {
@@ -237,6 +241,13 @@ using is_vector = std::enable_if_t<check<T>::value, int>;
 
 template <typename T>
 using is_not_vector = std::enable_if_t<!check<T>::value, int>;
+
+inline V2_int Max(const V2_int& a, const V2_int& b) {
+	return { std::max(a.x, b.x), std::max(a.y, b.y) };
+}
+inline V2_int Min(const V2_int& a, const V2_int& b) {
+	return { std::min(a.x, b.x), std::min(a.y, b.y) };
+}
 
 // Comparison operators (Vector vs Vector).
 
