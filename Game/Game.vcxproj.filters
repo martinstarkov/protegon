@@ -127,5 +127,11 @@
     <ClInclude Include="src\statemachine\states\StandbyState.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\procedural\Chunks.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\procedural\chunks\BoxChunk.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

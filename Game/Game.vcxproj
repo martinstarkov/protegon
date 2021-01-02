@@ -232,6 +232,8 @@
     <ClInclude Include="src\factory\CreatePlayer.h" />
     <ClInclude Include="src\factory\CreateSentry.h" />
     <ClInclude Include="src\factory\Factories.h" />
+    <ClInclude Include="src\procedural\chunks\BoxChunk.h" />
+    <ClInclude Include="src\procedural\Chunks.h" />
     <ClInclude Include="src\statemachine\FiringStateMachine.h" />
     <ClInclude Include="src\statemachine\states\FiringState.h" />
     <ClInclude Include="src\statemachine\states\DisabledState.h" />
