@@ -69,7 +69,7 @@
     <ClCompile Include="engine\renderer\SpriteMap.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="engine\core\Level.cpp">
+    <ClCompile Include="engine\core\Chunk.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -365,7 +365,7 @@
     <ClInclude Include="engine\utils\RNG.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="engine\core\Level.h">
+    <ClInclude Include="engine\core\Chunk.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
