@@ -77,7 +77,7 @@ public:
 			scene.manager.Update<LifetimeSystem>();
 			scene.manager.Update<CameraSystem>();
 		}
-		//AllocationMetrics::printMemoryUsage();
+		AllocationMetrics::PrintMemoryUsage();
 		auto& title = title_screen.GetComponent<TitleScreenComponent>();
 		if (engine::InputHandler::KeyPressed(Key::R)) {
 			engine::EventHandler::Invoke(title_screen, scene.manager, scene.ui_manager);
@@ -169,7 +169,7 @@ public:
 
 					auto chunk = new BoxChunk();
 					chunk->Init(n, tile_size, &scene.manager);
-					chunk->Generate();
+					chunk->Generate(1);
 
 					chunks.push_back(chunk);
 				}

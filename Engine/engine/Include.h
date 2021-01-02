@@ -34,3 +34,4 @@
 #include "utils/Hasher.h"
 #include "utils/Logger.h"
 #include "utils/Defines.h"
+#include "utils/AllocationMetrics.h"

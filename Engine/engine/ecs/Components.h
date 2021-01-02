@@ -1,5 +1,7 @@
 #pragma once
 
+// TODO: Go over all components and make sure destructors are done properly (no memory leaks).
+
 #include "ecs/components/TransformComponent.h"
 #include "ecs/components/SpriteComponent.h"
 #include "ecs/components/LifetimeComponent.h"
