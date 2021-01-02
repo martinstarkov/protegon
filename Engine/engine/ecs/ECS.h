@@ -434,6 +434,8 @@ public:
 	// Remove a component from an entity.
 	template <typename T>
 	void RemoveComponent(Entity entity);
+	// Remove all components from an entity.
+	void RemoveComponents(Entity entity);
 	// Remove multiple components from an entity.
 	template <typename ...Ts>
 	void RemoveComponents(Entity entity);
@@ -461,15 +463,7 @@ private:
 	// Add entity id to deletion list but do not invalidate any handles.
 	void DestroyEntity(const EntityId id, const EntityVersion version, bool loop_entity) {
 		if (IsAlive(id, version)) {
-			auto pool_count = static_cast<ComponentId>(pools_.size());
-			for (ComponentId i = 0; i < pool_count; ++i) {
-				auto& pool = GetPool(i);
-				if (pool.IsValid()) {
-					pool.RemoveComponentAddress(id);
-					// Pool index in pools_ vector is the corresponding component's id.
-					ComponentChange(id, i, loop_entity);
-				}
-			}
+			RemoveComponents(id, loop_entity);
 			// Increment entity version, this will invalidate all entity handles with the previous version
 			assert(id < entities_.size() && "Could not increment dead entity id");
 			++entities_[id].version;
@@ -561,6 +555,18 @@ private:
 	template <typename ...Ts>
 	std::tuple<Ts&...> GetComponents(const EntityId id) const {
 		return std::forward_as_tuple<Ts&...>(GetComponent<Ts>(id)...);
+	}
+	// RemoveComponents for all components implementation.
+	void RemoveComponents(const EntityId id, bool loop_entity) {
+		auto pool_count = static_cast<ComponentId>(pools_.size());
+		for (ComponentId i = 0; i < pool_count; ++i) {
+			auto& pool = GetPool(i);
+			if (pool.IsValid()) {
+				pool.RemoveComponentAddress(id);
+				// Pool index i in pools_ vector is the corresponding component's id.
+				ComponentChange(id, i, loop_entity);
+			}
+		}
 	}
 	// RemoveComponents implementation.
 	template <typename ...Ts>
@@ -786,6 +792,12 @@ public:
 		assert(IsAlive() && "Cannot remove component from dead entity");
 		return manager_->RemoveComponent<T>(id_, loop_entity_);
 	}
+	// Remove all components from the entity.
+	void RemoveComponents() {
+		assert(IsValid() && "Cannot remove all components from null entity");
+		assert(IsAlive() && "Cannot remove all components from dead entity");
+		return manager_->RemoveComponents(id_, loop_entity_);
+	}
 	// Remove multiple components from the entity.
 	template <typename ...Ts>
 	void RemoveComponents() {
@@ -995,6 +1007,10 @@ template <typename T>
 inline void Manager::RemoveComponent(Entity entity) {
 	assert(IsAlive(entity.id_, entity.version_) && "Cannot remove component from dead entity");
 	RemoveComponent<T>(entity.id_, entity.loop_entity_);
+}
+inline void Manager::RemoveComponents(Entity entity) {
+	assert(IsAlive(entity.id_, entity.version_) && "Cannot remove all components from dead entity");
+	RemoveComponents(entity.id_, entity.loop_entity_);
 }
 template <typename ...Ts>
 inline void Manager::RemoveComponents(Entity entity) {
