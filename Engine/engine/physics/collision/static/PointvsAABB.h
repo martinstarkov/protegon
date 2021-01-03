@@ -8,7 +8,7 @@ namespace engine {
 namespace collision {
 
 // Determine if a point lies inside an AABB.
-inline bool PointvsAABB(const V2_double& point, const AABB& A) {
+static bool PointvsAABB(const V2_double& point, const AABB& A) {
 	return (point.x >= A.position.x &&
 			point.y >= A.position.y &&
 			point.x < A.position.x + A.size.x &&

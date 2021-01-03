@@ -11,7 +11,7 @@ namespace engine {
 namespace collision {
 
 // Determine the time at which a dynamic AABB would collide with a static AABB.
-bool DynamicAABBvsAABB(const V2_double& velocity, const AABB& dynamic_object, const AABB& static_target, CollisionManifold& collision) {
+static bool DynamicAABBvsAABB(const V2_double& velocity, const AABB& dynamic_object, const AABB& static_target, CollisionManifold& collision) {
 
 	// Check if dynamic object has a non-zero velocity. It cannot collide if it is not moving.
 	if (velocity.IsZero()) {
@@ -30,7 +30,7 @@ bool DynamicAABBvsAABB(const V2_double& velocity, const AABB& dynamic_object, co
 }
 
 // Modify the velocity of a dynamic AABB so it does not collide with a static AABB.
-bool ResolveDynamicAABBvsAABB(V2_double& velocity, const AABB& dynamic_object, const AABB& static_target, const CollisionManifold& collision) {
+static bool ResolveDynamicAABBvsAABB(V2_double& velocity, const AABB& dynamic_object, const AABB& static_target, const CollisionManifold& collision) {
 	CollisionManifold repeat_check;
 	// Repeat check is needed due to the fact that if multiple collisions are found, resolving the velocity for the nearest one may invalidate the previously thought collisions.
 	if (DynamicAABBvsAABB(velocity, dynamic_object, static_target, repeat_check)) {

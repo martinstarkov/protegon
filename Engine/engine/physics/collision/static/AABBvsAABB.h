@@ -9,7 +9,7 @@ namespace engine {
 namespace collision {
 
 // Check if two AABBs overlap.
-bool AABBvsAABB(const AABB& A, const AABB& B) {
+static bool AABBvsAABB(const AABB& A, const AABB& B) {
 	// If any side of the aabb it outside the other aabb, there cannot be an overlap.
 	if (A.position.x + A.size.x <= B.position.x || A.position.x >= B.position.x + B.size.x) return false;
 	if (A.position.y + A.size.y <= B.position.y || A.position.y >= B.position.y + B.size.y) return false;
@@ -17,7 +17,7 @@ bool AABBvsAABB(const AABB& A, const AABB& B) {
 }
 
 // Find the penetration vector of one AABB into another AABB.
-V2_double IntersectionAABBvsAABB(const AABB& A, const AABB& B) {
+static V2_double IntersectionAABBvsAABB(const AABB& A, const AABB& B) {
 	V2_double penetration;
 	double dx = B.position.x - A.position.x;
 	auto a_center = B.size / 2.0;

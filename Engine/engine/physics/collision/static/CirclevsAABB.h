@@ -10,7 +10,7 @@ namespace engine {
 namespace collision {
 
 // Static rectangle and circle collision detection.
-bool AABBvsCircle(const AABB& A, const Circle& B, CollisionManifold& out_collision) {
+static bool AABBvsCircle(const AABB& A, const Circle& B, CollisionManifold& out_collision) {
 	// Vector from A to B.
 	V2_double n = B.position - A.Center();
 	// Closest point on A to center of B.

@@ -9,7 +9,7 @@ namespace engine {
 namespace collision {
 
 // Check if a line collides with an AABB.
-bool LinevsAABB(const V2_double& ray_origin, const V2_double& ray_dir, const AABB& target, CollisionManifold& out_collision) {
+static bool LinevsAABB(const V2_double& ray_origin, const V2_double& ray_dir, const AABB& target, CollisionManifold& out_collision) {
 
 	// Initial condition: reset collision information.
 	out_collision.normal = { 0.0, 0.0 };

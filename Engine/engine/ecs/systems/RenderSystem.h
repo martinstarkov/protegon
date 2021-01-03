@@ -6,6 +6,8 @@
 
 #include "core/Scene.h"
 
+#include "physics/collision/CollisionFunctions.h"
+
 class RenderSystem : public ecs::System<RenderComponent, TransformComponent, SpriteComponent> {
 public:
 	RenderSystem() = default;

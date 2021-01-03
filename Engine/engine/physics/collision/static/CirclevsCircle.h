@@ -9,14 +9,14 @@ namespace engine {
 namespace collision {
 
 // Static collision check between two circles.
-bool CirclevsCircle(const Circle& A, const Circle& B) {
+static bool CirclevsCircle(const Circle& A, const Circle& B) {
 	double r = A.radius + B.radius;
 	r *= r;
 	return r < (A.position + B.position).MagnitudeSquared();
 }
 
 // Static collision check between two circles with collision information.
-bool IntersectionCirclevsCircle(const Circle& A, const Circle& B, CollisionManifold& out_collision) {
+static bool IntersectionCirclevsCircle(const Circle& A, const Circle& B, CollisionManifold& out_collision) {
 	// Vector from A to B
 	V2_double n = B.position - A.position;
 
