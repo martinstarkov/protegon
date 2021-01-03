@@ -95,6 +95,9 @@ public:
 			V2_int tile_size = { 32, 32 };
 			V2_double lowest = (camera->offset / chunk_size).Floor();
 			V2_double highest = ((camera->offset + static_cast<V2_double>(engine::Engine::ScreenSize())) / chunk_size).Floor();
+			// Optional: Expand loaded chunk region.
+			/*lowest += -1;
+			highest += 1;*/
 			std::vector<AABB> potential_chunks;
 			assert(lowest.x < highest.x && "Left grid edge cannot be above right grid edge");
 			assert(lowest.y < highest.y && "Top grid edge cannot be below top grid edge");
@@ -168,7 +171,7 @@ public:
 				if (!Contains(chunks, n)) {
 
 					auto chunk = new BoxChunk();
-					chunk->Init(n, tile_size, &scene.manager);
+					chunk->Init(n, tile_size, &scene);
 					chunk->Generate(1);
 
 					chunks.push_back(chunk);
@@ -204,12 +207,12 @@ public:
 				LOG("-------");*/
 			}
 		} else {
-		for (auto c : chunks) {
-			delete c;
-			c = nullptr;
-		}
-		chunks.clear();
-}
+			for (auto c : chunks) {
+				delete c;
+				c = nullptr;
+			}
+			chunks.clear();
+        }
 		if (engine::InputHandler::KeyPressed(Key::ESCAPE) && pause.toggleable && !title.open) {
 			pause.toggleable = false;
 			engine::EventHandler::Invoke(pause_screen, pause_screen, scene.manager, scene.ui_manager);
@@ -227,6 +230,9 @@ public:
 		auto& pause = pause_screen.GetComponent<PauseScreenComponent>();
 		if (!pause.open) {
 			scene.manager.Update<AnimationSystem>();
+		}
+		for (auto& c : chunks) {
+			c->manager.Update<RenderSystem>();
 		}
 		scene.manager.Update<RenderSystem>();
 		scene.manager.Update<HitboxRenderSystem>();

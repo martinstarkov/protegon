@@ -4,22 +4,24 @@
 
 #include "ecs/Components.h"
 
+#include "ecs/systems/RenderSystem.h"
+
 namespace engine {
 
-Chunk::~Chunk() {
-	Unload();
-}
-
-void Chunk::Init(AABB chunk_info, V2_int tile_size, ecs::Manager* manager) {
+void Chunk::Init(AABB chunk_info, V2_int tile_size, Scene* scene) {
+	manager.AddSystem<RenderSystem>(scene);
 	info = chunk_info;
 	this->tile_size = tile_size;
 	tile_count.x = static_cast<int>(info.size.x) / tile_size.x;
 	tile_count.y = static_cast<int>(info.size.y) / tile_size.y;
-	this->manager = manager;
-	assert(this->manager != nullptr && "Cannot initialize chunk with null manager");
 	auto count = tile_count.x * tile_count.y;
 	// Generate new empty grid.
-	grid.resize(static_cast<std::size_t>(count), ecs::null);
+	if (grid.size() != count) {
+		grid.resize(count, ecs::null);
+		for (size_t i = 0; i < count; i++) {
+			grid[i] = manager.CreateEntity();
+		}
+	}
 }
 
 ecs::Entity Chunk::GetEntity(V2_int relative_coordinate) const {
@@ -35,14 +37,7 @@ const AABB& Chunk::GetInfo() const {
 }
 
 void Chunk::Unload() {
-	auto count = tile_count.x * tile_count.y;
-	for (auto i = 0; i < count; ++i) {
-		grid[i].Destroy();
-	}
-}
-
-bool Chunk::MatchesPotentialChunk(const AABB& potential_chunk, const V2_int& tile_size, const ecs::Manager* manager) const {
-	return potential_chunk == info && tile_size == this->tile_size && manager == this->manager;
+	manager.DestroyEntities();
 }
 
 std::size_t Chunk::GetIndex(V2_int relative_coordinate) const {

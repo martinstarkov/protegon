@@ -5,6 +5,7 @@
 #include "utils/Vector2.h"
 #include "ecs/ECS.h" // ecs::Entity, ecs::Manager
 #include "renderer/AABB.h"
+#include "core/Scene.h"
 
 // TODO: Move to procedural folder.
 
@@ -16,28 +17,24 @@ public:
 	virtual ecs::Entity& GetEntity(V2_int relative_coordinate) = 0;
 	virtual const AABB& GetInfo() const = 0;
 	virtual void Unload() = 0;
-	virtual void Init(AABB chunk_info, V2_int tile_size, ecs::Manager* manager) = 0;
+	virtual void Init(AABB chunk_info, V2_int tile_size, Scene* scene) = 0;
 	virtual void Generate(int seed) = 0;
-	virtual bool MatchesPotentialChunk(const AABB& potential_chunk, const V2_int& tile_size, const ecs::Manager* manager) const = 0;
 	virtual ~BaseChunk() = default;
 };
 
 class Chunk : public BaseChunk {
 public:
-	Chunk() = default;
-	virtual ~Chunk() override;
-	virtual void Init(AABB chunk_info, V2_int tile_size, ecs::Manager* manager) override final;
+	virtual ~Chunk() = default;
+	virtual void Init(AABB chunk_info, V2_int tile_size, Scene* scene) override final;
 	virtual ecs::Entity GetEntity(V2_int relative_coordinate) const override final;
 	virtual ecs::Entity& GetEntity(V2_int relative_coordinate) override final;
 	virtual const AABB& GetInfo() const override final;
 	// Destroys all grid entities.
 	virtual void Unload() override final;
 	friend bool operator==(const Chunk& a, const Chunk& b);
-	// Used for comparing a potential chunk with current existing chunk. This allows for quickly culling chunks that are loaded already.
-	virtual bool MatchesPotentialChunk(const AABB& potential_chunk, const V2_int& tile_size, const ecs::Manager* manager) const override final;
+	ecs::Manager manager;
 protected:
 	std::size_t GetIndex(V2_int relative_coordinate) const;
-	ecs::Manager* manager{ nullptr };
 	V2_int tile_size{};
 	V2_int tile_count{};
 	AABB info{};
