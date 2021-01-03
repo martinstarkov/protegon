@@ -74,6 +74,10 @@ struct Vector2 {
 	inline Vector2<int> Floor() const {
 		return Vector2<int>{ static_cast<int>(engine::math::Floor(x)), static_cast<int>(engine::math::Floor(y)) };
 	}
+	// Return a vector with both components ceiled to the nearest integer.
+	inline Vector2<int> Ceil() const {
+		return Vector2<int>{ static_cast<int>(engine::math::Ceil(x)), static_cast<int>(engine::math::Ceil(y)) };
+	}
 	// Return a vector with numeric_limit::infinity() set for both components
 	static Vector2 Infinite() {
 		return Vector2{ std::numeric_limits<T>::infinity(), std::numeric_limits<T>::infinity() };

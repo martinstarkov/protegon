@@ -8,9 +8,11 @@ namespace engine {
 class RNG {
 public:
 	double RandomDouble(double min, double max) {
+		assert(max > min && "Range must contain at least one double inside it");
 		return ((double)Lehmer32() / (double)(0x7FFFFFFF)) * (max - min) + min;
 	}
 	int RandomInt(int min, int max) {
+		assert(max > min && "Range must have at least one integer inside it");
 		return (Lehmer32() % (max - min)) + min;
 	}
 	void SetSeed(std::uint32_t new_seed) {
