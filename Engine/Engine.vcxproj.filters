@@ -368,6 +368,9 @@
     <ClInclude Include="engine\core\Chunk.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="engine\utils\Timer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="dlls\libfreetype-6.dll" />

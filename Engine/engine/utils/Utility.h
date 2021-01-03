@@ -2,9 +2,11 @@
 
 #include <iostream> // std::cout for logging
 
-#define LOG(x) { std::cout << x << std::endl; }
-#define LOG_(x) { std::cout << x; }
+#include "Logger.h"
+#include "Timer.h"
 
 namespace engine {
+
+
 
 } // namespace engine

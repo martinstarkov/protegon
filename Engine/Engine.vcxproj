@@ -362,6 +362,7 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClInclude Include="engine\utils\Math.h" />
     <ClInclude Include="engine\utils\RNG.h" />
     <ClInclude Include="engine\utils\Side.h" />
+    <ClInclude Include="engine\utils\Timer.h" />
     <ClInclude Include="engine\utils\Utility.h" />
     <ClInclude Include="engine\utils\Vector2.h" />
   </ItemGroup>
