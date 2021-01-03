@@ -49,6 +49,7 @@ public:
 			return a == b;
 		}
 	};
+	// TODO: Move chunks vector elsewhere.
 	std::vector<engine::Chunk*> chunks;
 	bool Contains(std::vector<engine::Chunk*> vector, AABB value) {
 		for (auto& v : vector) {
@@ -62,6 +63,8 @@ public:
 		}
 		return false;
 	}
+	int octave = 5;
+	double bias = 2.0;
     void Update() {
 		auto& pause = pause_screen.GetComponent<PauseScreenComponent>();
 		scene.manager.Update<InputSystem>();
@@ -77,7 +80,7 @@ public:
 			scene.manager.Update<LifetimeSystem>();
 			scene.manager.Update<CameraSystem>();
 		}
-		AllocationMetrics::PrintMemoryUsage();
+		//AllocationMetrics::PrintMemoryUsage();
 		auto& title = title_screen.GetComponent<TitleScreenComponent>();
 		if (engine::InputHandler::KeyPressed(Key::R)) {
 			engine::EventHandler::Invoke(title_screen, scene.manager, scene.ui_manager);
@@ -88,6 +91,23 @@ public:
 				title.open = false;
 			}
 		}
+
+		if (engine::InputHandler::KeyDown(Key::X))
+			octave++;
+
+		if (engine::InputHandler::KeyDown(Key::F))
+			bias += 0.2;
+
+		if (engine::InputHandler::KeyDown(Key::G))
+			bias -= 0.2;
+
+		if (bias < 0.2f)
+			bias = 0.2f;
+
+		if (octave == 6)
+			octave = 1;
+
+		// TODO: Massive cleanup...
 
 		auto camera = scene.GetCamera();
 		if (camera && !title.open) {
@@ -119,6 +139,8 @@ public:
 
 			std::vector<AABB> new_chunks;
 			std::vector<AABB> removed_chunks;
+
+			// TODO: Fix this mess.
 
 			for (auto& p : potential_chunks) {
 
@@ -172,7 +194,7 @@ public:
 
 					auto chunk = new BoxChunk();
 					chunk->Init(n, tile_size, &scene);
-					chunk->Generate(1);
+					chunk->Generate(1, octave, bias);
 
 					chunks.push_back(chunk);
 				}
@@ -231,6 +253,7 @@ public:
 		if (!pause.open) {
 			scene.manager.Update<AnimationSystem>();
 		}
+		// TODO: Consider a more automatic way of doing this?
 		for (auto& c : chunks) {
 			c->manager.Update<RenderSystem>();
 		}

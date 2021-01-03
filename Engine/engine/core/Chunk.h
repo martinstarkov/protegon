@@ -18,7 +18,7 @@ public:
 	virtual const AABB& GetInfo() const = 0;
 	virtual void Unload() = 0;
 	virtual void Init(AABB chunk_info, V2_int tile_size, Scene* scene) = 0;
-	virtual void Generate(int seed) = 0;
+	virtual void Generate(int seed, int octave, double bias) = 0;
 	virtual ~BaseChunk() = default;
 };
 
