@@ -7,11 +7,20 @@ namespace engine {
 
 class PerlinNoise {
 public:
-	PerlinNoise(V2_int output_size, RNG& rng) : size{ output_size } {
-		auto count = output_size.x * output_size.y;
+	PerlinNoise(V2_int output_size, RNG& rng, V2_int grid_coordinate, int seed) : size{ output_size } {
+		auto count = size.x * size.y;
 		seed2D.resize(count);
 		noise2D.resize(count);
-		for (int i = 0; i < count; i++) seed2D[i] = rng.RandomDouble(0, 1);
+
+		// Seed the noise.
+		for (int x = 0; x < size.x; ++x) {
+			for (int y = 0; y < size.y; ++y) {
+				auto tile_position = grid_coordinate + V2_int{ x, y };
+				auto tile_seed = (tile_position.x & 0xFFFF) << 16 | (tile_position.y & 0xFFFF);
+				rng.SetSeed(tile_seed * seed);
+				seed2D[y * size.x + x] = rng.RandomDouble(0, 1);
+			}
+		}
 
 		/*fNoiseSeed1D = new double[nOutputSize];
 		fPerlinNoise1D = new double[nOutputSize];
@@ -40,13 +49,13 @@ public:
 
 	void Generate2D(int octaves = 1, double bias = 2.0) {
 		// Used 1D Perlin Noise
-		for (int x = 0; x < size.x; x++)
-			for (int y = 0; y < size.y; y++) {
+		for (int x = 0; x < size.x; ++x) {
+			for (int y = 0; y < size.y; ++y) {
 				double noise = 0.0;
 				double scale_accumulator = 0.0;
 				double scale = 1.0;
 
-				for (int o = 0; o < octaves; o++) {
+				for (int o = 0; o < octaves; ++o) {
 					// TODO: Fix pitch.
 					int pitch = size.x >> o;
 					assert(size.x >= std::pow(2, o) && "Octive power must be below power of maximum size");
@@ -67,6 +76,7 @@ public:
 				// Scale to seed range
 				noise2D[y * size.x + x] = noise / scale_accumulator;
 			}
+		}
 
 	}
 	double GetNoise2D(V2_int coordinate) {
@@ -83,4 +93,4 @@ private:
 	std::vector<double> seed2D;
 };
 
-}
+} // namespace engine

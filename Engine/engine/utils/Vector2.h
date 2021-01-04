@@ -24,16 +24,16 @@ struct Vector2 {
 	Vector2& operator=(const Vector2& vector) = default;
 	Vector2& operator=(Vector2&& vector) = default;
 	~Vector2() = default;
-	// Implicit conversion to integer vector
+	// Implicit conversion to integer vector.
 	operator Vector2<int>() {
-		return { engine::math::RoundCast<int>(x), engine::math::RoundCast<int>(y) };
+		return { static_cast<int>(engine::math::Ceil(x)), static_cast<int>(engine::math::Ceil(y)) };
 	}
 	// Implicit conversion to double vector.
-	// TODO: Figure out how to make this work without ruining all +/- operators
+	// TODO: Figure out how to make this work without ruining all +/- operators.
 	operator Vector2<double>() {
 		return { static_cast<double>(x), static_cast<double>(y) };
 	}
-	// Implicit conversion to float vector
+	// Implicit conversion to float vector.
 	operator Vector2<float>() {
 		return { static_cast<float>(x), static_cast<float>(y) };
 	}

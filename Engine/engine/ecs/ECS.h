@@ -455,6 +455,8 @@ public:
 	bool HasComponents(const Entity entity) const;
 	// Returns whether an entity is alive.
 	bool IsAlive(const Entity entity) const;
+	// Return the manager's unique id. Can be useful for comparison purposes.
+	ManagerId GetId() const { return id_; }
 private:
 	// Internally used method implementations.
 

@@ -95,10 +95,10 @@ public:
 		if (engine::InputHandler::KeyDown(Key::X))
 			octave++;
 
-		if (engine::InputHandler::KeyDown(Key::F))
+		if (engine::InputHandler::KeyPressed(Key::F))
 			bias += 0.2;
 
-		if (engine::InputHandler::KeyDown(Key::G))
+		if (engine::InputHandler::KeyPressed(Key::G))
 			bias -= 0.2;
 
 		if (bias < 0.2f)
@@ -111,31 +111,27 @@ public:
 
 		auto camera = scene.GetCamera();
 		if (camera && !title.open) {
-			V2_double chunk_size = { 512, 512 };
+			V2_double chunk_size = V2_double{ 512, 512 };
 			V2_int tile_size = { 32, 32 };
 			V2_double lowest = (camera->offset / chunk_size).Floor();
-			V2_double highest = ((camera->offset + static_cast<V2_double>(engine::Engine::ScreenSize())) / chunk_size).Floor();
+			V2_double highest = ((camera->offset + static_cast<V2_double>(engine::Engine::ScreenSize()) / camera->scale) / chunk_size).Floor();
 			// Optional: Expand loaded chunk region.
 			/*lowest += -1;
 			highest += 1;*/
 			std::vector<AABB> potential_chunks;
-			assert(lowest.x < highest.x && "Left grid edge cannot be above right grid edge");
-			assert(lowest.y < highest.y && "Top grid edge cannot be below top grid edge");
+			assert(lowest.x <= highest.x && "Left grid edge cannot be above right grid edge");
+			assert(lowest.y <= highest.y && "Top grid edge cannot be below top grid edge");
 			for (auto i = lowest.x; i != highest.x + 1; ++i) {
 				for (auto j = lowest.y; j != highest.y + 1; ++j) {
 					V2_double grid_loc = { i, j };
 					auto pos = chunk_size * grid_loc;
 					auto potential_chunk = AABB{ pos, chunk_size };
 					potential_chunks.push_back(potential_chunk);
+					DebugDisplay::rectangles().emplace_back(potential_chunk, engine::ORANGE);
 				}
 			}
-			AABB broadphase_chunk = { lowest * chunk_size, (highest - lowest + V2_double{ 1, 1}).Absolute() * chunk_size };
-
-			for (auto& p : potential_chunks) {
-				DebugDisplay::rectangles().emplace_back(p, engine::ORANGE);
-			}
-
-			DebugDisplay::rectangles().emplace_back(broadphase_chunk, engine::DARK_GREEN);
+			/*AABB broadphase_chunk = { lowest * chunk_size, (highest - lowest + V2_double{ 1, 1}).Absolute() * chunk_size };
+			DebugDisplay::rectangles().emplace_back(broadphase_chunk, engine::DARK_GREEN);*/
 
 			std::vector<AABB> new_chunks;
 			std::vector<AABB> removed_chunks;
@@ -194,40 +190,16 @@ public:
 
 					auto chunk = new BoxChunk();
 					chunk->Init(n, tile_size, &scene);
+					engine::Timer timer;
+					timer.Start();
 					chunk->Generate(1, octave, bias);
+					//LOG("Generate: " << timer.ElapsedMilliseconds());
 
 					chunks.push_back(chunk);
 				}
 
 			}
-
-
-
-			if (removed_chunks.size() > 0) {
-				/*LOG_("Removed chunks (" << removed_chunks.size() << "): ");
-				for (auto& r : removed_chunks) {
-					LOG_(r.position << ", ");
-				}
-				LOG("");*/
-			}
-
-			if (new_chunks.size() > 0) {
-				/*LOG_("New chunks (" << new_chunks.size() << "): ");
-				for (auto& n : new_chunks) {
-					LOG_(n.position << ", ");
-				}
-				LOG("");*/
-			}
-
-			if (new_chunks.size() > 0 || removed_chunks.size() > 0) {
-
-				/*LOG_("Chunks (" << chunks.size() << "): ");
-				for (auto& c : chunks) {
-					LOG_(c->GetInfo().position << ", ");
-				}
-				LOG("");
-				LOG("-------");*/
-			}
+			//LOG("Chunks: " << chunks.size());
 		} else {
 			for (auto c : chunks) {
 				delete c;
@@ -235,6 +207,7 @@ public:
 			}
 			chunks.clear();
         }
+		//LOG("Octave: " << octave << ", bias: " << bias);
 		if (engine::InputHandler::KeyPressed(Key::ESCAPE) && pause.toggleable && !title.open) {
 			pause.toggleable = false;
 			engine::EventHandler::Invoke(pause_screen, pause_screen, scene.manager, scene.ui_manager);
