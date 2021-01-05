@@ -6,6 +6,7 @@
 #include "ecs/ECS.h" // ecs::Entity, ecs::Manager
 #include "renderer/AABB.h"
 #include "core/Scene.h"
+#include "utils/PerlinNoise.h"
 
 // TODO: Move to procedural folder.
 
@@ -33,6 +34,7 @@ public:
 	virtual void Unload() override final;
 	friend bool operator==(const Chunk& a, const Chunk& b);
 	ecs::Manager manager;
+	PerlinNoise perlin;
 protected:
 	std::size_t GetIndex(V2_int relative_coordinate) const;
 	V2_int tile_size{};

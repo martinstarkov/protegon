@@ -32,6 +32,7 @@
 #include "utils/Math.h"
 #include "utils/RNG.h"
 #include "utils/PerlinNoise.h"
+#include "utils/PerlinNoise2.hpp"
 #include "utils/Hasher.h"
 #include "utils/Logger.h"
 #include "utils/Timer.h"

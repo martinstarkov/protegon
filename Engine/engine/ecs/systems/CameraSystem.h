@@ -6,8 +6,8 @@
 
 #include "event/InputHandler.h"
 
-#define SCALE_BOUNDARY V2_double{ 0.5, 0.5 } // +/- this much max to the scale when zooming
-#define ZOOM_SPEED V2_double{ 0.01, 0.01 } // +/- this much max to the scale when zooming
+#define SCALE_BOUNDARY V2_double{ 5, 5 } // +/- this much max to the scale when zooming
+#define ZOOM_SPEED V2_double{ 0.05, 0.05 } // +/- this much max to the scale when zooming
 
 class CameraSystem : public ecs::System<TransformComponent, CameraComponent> {
 public:

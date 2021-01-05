@@ -138,6 +138,8 @@ public:
 
 			// TODO: Fix this mess.
 
+
+
 			for (auto& p : potential_chunks) {
 
 				bool new_chunk = true;
@@ -196,6 +198,17 @@ public:
 					//LOG("Generate: " << timer.ElapsedMilliseconds());
 
 					chunks.push_back(chunk);
+				}
+
+			}
+
+			auto players = scene.manager.GetComponentTuple<PlayerController, TransformComponent>();
+			for (auto c : chunks) {
+
+				for (auto [entity, player, transform] : players) {
+					if (engine::collision::PointvsAABB(transform.position, c->GetInfo())) {
+						//c->perlin.PrintNoise(c->perlin.noise2D);
+					}
 				}
 
 			}
