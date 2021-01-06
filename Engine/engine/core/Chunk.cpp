@@ -5,16 +5,16 @@
 #include "ecs/Components.h"
 
 #include "ecs/systems/RenderSystem.h"
+#include "ecs/systems/HitboxRenderSystem.h"
 
 namespace engine {
 
 void Chunk::Init(AABB chunk_info, V2_int tile_size, Scene* scene) {
 	manager.AddSystem<RenderSystem>(scene);
+	manager.AddSystem<HitboxRenderSystem>(scene);
 	info = chunk_info;
 	this->tile_size = tile_size;
-	tile_count.x = static_cast<int>(info.size.x) / tile_size.x;
-	tile_count.y = static_cast<int>(info.size.y) / tile_size.y;
-	auto count = tile_count.x * tile_count.y;
+	auto count = info.size.x * info.size.y;
 	// Generate new empty grid.
 	if (grid.size() != count) {
 		grid.resize(count, ecs::null);
@@ -41,9 +41,9 @@ void Chunk::Unload() {
 }
 
 std::size_t Chunk::GetIndex(V2_int relative_coordinate) const {
-	assert(relative_coordinate.x < tile_count.x && "X coordinate out of range of chunk grid");
-	assert(relative_coordinate.y < tile_count.y && "Y coordinate out of range of chunk grid");
-	auto index = relative_coordinate.x + relative_coordinate.y * static_cast<int>(tile_count.x);
+	assert(relative_coordinate.x < info.size.x && "X coordinate out of range of chunk grid");
+	assert(relative_coordinate.y < info.size.y && "Y coordinate out of range of chunk grid");
+	auto index = relative_coordinate.x + relative_coordinate.y * static_cast<int>(info.size.x);
 	assert(index < grid.size() && "Index out of range of chunk grid");
 	return index;
 }

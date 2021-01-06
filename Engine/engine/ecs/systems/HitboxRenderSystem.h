@@ -19,14 +19,15 @@ public:
 			} else if (entity.HasComponent<CollisionComponent>()) {
 				size = entity.GetComponent<CollisionComponent>().collider.size;
 			}
-			if (scene) {
+			// TODO: Temporarily exclude player hitboxes.
+			if (scene && !entity.HasComponent<PlayerController>()) {
 				auto camera = scene->GetCamera();
 				if (camera) {
 					size *= camera->scale;
 					position -= camera->offset;
 					position *= camera->scale;
 				}
-				engine::TextureManager::DrawRectangle(
+				engine::TextureManager::DrawSolidRectangle(
 					position,
 					size,
 					render.color);
