@@ -63,8 +63,8 @@ public:
 		}
 		return false;
 	}
-	int octave = 5;
-	double bias = 2.0;
+	int octave = 8;
+	double bias = 8.0;
     void Update() {
 		auto& pause = pause_screen.GetComponent<PauseScreenComponent>();
 		scene.manager.Update<InputSystem>();
@@ -95,24 +95,30 @@ public:
 		if (engine::InputHandler::KeyDown(Key::X))
 			octave++;
 
-		if (engine::InputHandler::KeyPressed(Key::F))
+		if (engine::InputHandler::KeyDown(Key::C))
+			octave--;
+
+		if (engine::InputHandler::KeyDown(Key::F))
 			bias += 0.2;
 
-		if (engine::InputHandler::KeyPressed(Key::G))
+		if (engine::InputHandler::KeyDown(Key::G))
 			bias -= 0.2;
 
-		if (bias < 0.2f)
-			bias = 0.2f;
+		if (bias < 0.2)
+			bias = 0.2;
 
-		if (octave == 6)
+		if (octave < 1)
 			octave = 1;
+
+		LOG("octave: " << octave);
 
 		// TODO: Massive cleanup...
 
 		auto camera = scene.GetCamera();
 		if (camera && !title.open) {
-			V2_double chunk_size = V2_double{ 512, 512 };
-			V2_int tile_size = { 32, 32 };
+			V2_double tiles_per_chunk = V2_double{ 16, 16 };
+			V2_double tile_size = { 32, 32 };
+			V2_double chunk_size = tiles_per_chunk * tile_size;
 			V2_double lowest = (camera->offset / chunk_size).Floor();
 			V2_double highest = ((camera->offset + static_cast<V2_double>(engine::Engine::ScreenSize()) / camera->scale) / chunk_size).Floor();
 			// Optional: Expand loaded chunk region.
@@ -125,9 +131,9 @@ public:
 				for (auto j = lowest.y; j != highest.y + 1; ++j) {
 					V2_double grid_loc = { i, j };
 					auto pos = chunk_size * grid_loc;
-					auto potential_chunk = AABB{ pos, chunk_size };
+					auto potential_chunk = AABB{ pos, tiles_per_chunk };
 					potential_chunks.push_back(potential_chunk);
-					DebugDisplay::rectangles().emplace_back(potential_chunk, engine::ORANGE);
+					//DebugDisplay::rectangles().emplace_back(AABB{ pos, chunk_size }, engine::ORANGE);
 				}
 			}
 			/*AABB broadphase_chunk = { lowest * chunk_size, (highest - lowest + V2_double{ 1, 1}).Absolute() * chunk_size };
@@ -137,8 +143,6 @@ public:
 			std::vector<AABB> removed_chunks;
 
 			// TODO: Fix this mess.
-
-
 
 			for (auto& p : potential_chunks) {
 
@@ -207,7 +211,9 @@ public:
 
 				for (auto [entity, player, transform] : players) {
 					if (engine::collision::PointvsAABB(transform.position, c->GetInfo())) {
-						//c->perlin.PrintNoise(c->perlin.noise2D);
+						if (engine::InputHandler::KeyPressed(Key::P)) {
+							c->perlin.PrintNoise(c->perlin.fPerlinNoise2D);
+						}
 					}
 				}
 
@@ -242,6 +248,7 @@ public:
 		// TODO: Consider a more automatic way of doing this?
 		for (auto& c : chunks) {
 			c->manager.Update<RenderSystem>();
+			c->manager.Update<HitboxRenderSystem>();
 		}
 		scene.manager.Update<RenderSystem>();
 		scene.manager.Update<HitboxRenderSystem>();
