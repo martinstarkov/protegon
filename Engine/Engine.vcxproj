@@ -264,6 +264,7 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClCompile Include="engine\renderer\Window.cpp" />
     <ClCompile Include="engine\utils\AllocationMetrics.cpp" />
     <ClCompile Include="engine\utils\Hasher.cpp" />
+    <ClCompile Include="engine\utils\SimplexNoise.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="engine\core\Engine.h" />
@@ -364,6 +365,7 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClInclude Include="engine\utils\PerlinNoise2.hpp" />
     <ClInclude Include="engine\utils\RNG.h" />
     <ClInclude Include="engine\utils\Side.h" />
+    <ClInclude Include="engine\utils\SimplexNoise.h" />
     <ClInclude Include="engine\utils\Timer.h" />
     <ClInclude Include="engine\utils\Utility.h" />
     <ClInclude Include="engine\utils\Vector2.h" />
