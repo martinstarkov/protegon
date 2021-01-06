@@ -5,7 +5,7 @@
 ecs::Entity CreatePlayer(V2_double position, V2_int size, ecs::Manager& manager, engine::Scene& scene) {
 	auto entity = manager.CreateEntity();
 	V2_double player_acceleration = { 1, 1 };
-	player_acceleration *= 1;
+	player_acceleration *= 4;
 	auto scale = V2_double{ 2 * 2.133, 3 * 1.524 };
 	entity.AddComponent<TransformComponent>(position);
 	entity.AddComponent<InputComponent>();
