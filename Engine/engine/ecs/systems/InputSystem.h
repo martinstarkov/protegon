@@ -19,22 +19,22 @@ public:
 					PhysicsInputs(entity, rigid_body, player);
 				}
 				auto all_entities = GetManager().GetEntities();
-				if (InputHandler::KeyPressed(Key::B)) {
+				/*if (InputHandler::KeyPressed(Key::B)) {
 					for (auto& entity2 : all_entities) {
 						if (entity2.HasComponent<RigidBodyComponent>()) {
 							auto& rb = entity2.GetComponent<RigidBodyComponent>().rigid_body;
 							rb.velocity = V2_double::Random(-20.0, 20.0, -20.0, 20.0);
 						}
 					}
-				}
+				}*/
 				// clear all entities except player
-				if (InputHandler::KeyPressed(Key::C)) {
+				/*if (InputHandler::KeyPressed(Key::C)) {
 					for (auto& entity2 : all_entities) {
 						if (entity2 != entity) {
 							entity2.Destroy();
 						}
 					}
-				}
+				}*/
 			}
 		}
 	}
