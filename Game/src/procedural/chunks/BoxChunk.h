@@ -9,6 +9,88 @@ public:
 	virtual void Generate(int seed, int octave, double bias) override final {
 
 
+		auto tiles = 2;
+
+		float amplitude = 1;
+		float maxPossibleNoiseVal = 0;
+		float amplitudeMult = 0.5f;//0.35;
+		unsigned numLayers = octave;//5;
+
+		for (unsigned l = 0; l < octave; ++l) {
+			maxPossibleNoiseVal += amplitude;
+			amplitude *= amplitudeMult;
+		}
+
+		//LOG("maxPossibleNoiseVal: " << maxPossibleNoiseVal);
+
+		engine::ValueNoise noise(256, seed);
+
+		unsigned imageWidth = 16;
+		unsigned imageHeight = 16;
+
+		auto overall = info.position / static_cast<V2_double>(tile_size) / info.size;
+
+		float* noiseMap = new float[imageWidth * imageHeight]{ 0 };
+
+		// FRACTAL NOISE
+		float frequency = 0.05f;//0.02f;
+		float frequencyMult = bias;//1.8;
+		float maxNoiseVal = 0;
+		for (unsigned j = 0; j < imageHeight; ++j) {
+			for (unsigned i = 0; i < imageWidth; ++i) {
+				engine::Vec2f pNoise = engine::Vec2f(overall.x * imageWidth + i, overall.y * imageHeight + j) * frequency;
+				amplitude = 1;
+				for (unsigned l = 0; l < numLayers; ++l) {
+					//LOG("pNoise: " << pNoise.x << "," << pNoise.y);
+					auto fractal_noise = noise.eval(pNoise);
+					auto value = fractal_noise * amplitude;
+					if (std::isnan(value) && l > 10) value = 0;
+					bool assertion = value >= 0;
+					if (!assertion) {
+						LOG("fractal_noise: " << value << ", pNoise: (" << pNoise.x << "," << pNoise.y << "), octave: " << l << ", amplitude: " << amplitude);
+					}
+					assert(assertion && "fractal_noise must be above or equal to 0");
+					noiseMap[j * imageWidth + i] += value;
+					pNoise *= frequencyMult;
+					amplitude *= amplitudeMult;
+				}
+				if (noiseMap[j * imageWidth + i] > maxNoiseVal) maxNoiseVal = noiseMap[j * imageWidth + i];
+			}
+		}
+		//for (unsigned i = 0; i < imageWidth * imageHeight; ++i) noiseMap[i] /= maxNoiseVal;
+		for (unsigned i = 0; i < imageWidth * imageHeight; ++i) {
+			assert(noiseMap[i] >= 0 && "Noise must be above or equal to 0");
+			noiseMap[i] = noiseMap[i] / maxPossibleNoiseVal;
+			assert(noiseMap[i] >= 0 && "Noise divided by something which made it negative");
+		}
+
+		for (unsigned j = 0; j < imageHeight; ++j) {
+			for (unsigned i = 0; i < imageWidth; ++i) {
+				// generate a float in the range [0:1]
+				//auto noise = static_cast<unsigned char>(engine::math::Clamp(noiseMap[j * imageWidth + i] * 255, 0.0f, 255.0f));
+				auto noise = noiseMap[j * imageWidth + i];
+				int pixel = engine::math::Clamp(noise * 3.0f, 0.0f, 3.0f);
+				//engine::TextureManager::DrawPoint(, engine::Color(a, 0, 0, 255));
+				auto tile = V2_int{ (int)i, (int)j };
+				auto index = i + j * info.size.x;
+				V2_double tile_position = tile * tile_size;
+				V2_double absolute_tile_position = tile_position + info.position;
+				auto& entity = GetEntity(tile);
+				entity = CreateBox(entity, absolute_tile_position, tile_size, "./resources/textures/tree.png");
+				auto& color = entity.GetComponent<RenderComponent>().color;
+				//color.r = noise;
+				switch (pixel) {
+					case 0: { color = engine::GOLD; break; }
+					case 1: { color = engine::ORANGE; break; }
+					case 2: { color = engine::RED; break; }
+					case 3: { color = engine::DARK_RED; break; }
+					default: { LOG("Noise: " << noise << ", Pixel: " << pixel); assert(!"Noise value out of range"); break; }
+				}
+			}
+		}
+
+		delete[] noiseMap;
+
 
 
 

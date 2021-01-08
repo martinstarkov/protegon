@@ -94,16 +94,16 @@ public:
 			}
 		}
 
-		if (engine::InputHandler::KeyPressed(Key::X))
+		if (engine::InputHandler::KeyDown(Key::X))
 			octave++;
 
-		if (engine::InputHandler::KeyPressed(Key::C))
+		if (engine::InputHandler::KeyDown(Key::C))
 			octave--;
 
-		if (engine::InputHandler::KeyPressed(Key::F))
+		if (engine::InputHandler::KeyDown(Key::F))
 			bias += 0.2;
 
-		if (engine::InputHandler::KeyPressed(Key::G))
+		if (engine::InputHandler::KeyDown(Key::G))
 			bias -= 0.2;
 
 		if (bias < 0.2)
@@ -112,8 +112,10 @@ public:
 		if (octave < 1)
 			octave = 1;
 
-		//LOG("octave: " << octave << ", bias: " << bias);
-
+		static int cn = 0;
+		if (cn % 10 == 0)
+			LOG("octave: " << octave << ", bias: " << bias);
+		cn++;
 		// TODO: Massive cleanup...
 
 		auto camera = scene.GetCamera();
@@ -215,7 +217,7 @@ public:
 				for (auto [entity, player, transform] : players) {
 					if (engine::collision::PointvsAABB(transform.position, c->GetInfo())) {
 						if (engine::InputHandler::KeyPressed(Key::P)) {
-							c->perlin.PrintNoise(c->perlin.fPerlinNoise2D);
+							//c->perlin.PrintNoise(c->perlin.fPerlinNoise2D);
 						}
 					}
 				}
@@ -262,65 +264,6 @@ public:
 		scene.ui_manager.Update<UIButtonRenderer>();
 		scene.ui_manager.Update<UITextRenderer>();
 
-
-
-		static int cn = 0;
-
-
-		if (cn > 0) {
-			auto tiles = 2;
-			for (size_t seedy = 0; seedy < 100; seedy++) {
-				for (size_t overall = 0; overall < tiles; overall++) {
-
-					unsigned imageWidth = 16;
-					unsigned imageHeight = 16;
-					float* noiseMap = new float[imageWidth * imageHeight]{ 0 };
-
-					// FRACTAL NOISE
-					engine::ValueNoise noise(256, seedy);
-					float frequency = 0.05f;//0.02f;
-					float frequencyMult = bias;//1.8;
-					float amplitudeMult = 0.5f;//0.35;
-					unsigned numLayers = octave;//5;
-					float maxNoiseVal = 0;
-					for (unsigned j = 0; j < imageHeight; ++j) {
-						for (unsigned i = 0; i < imageWidth; ++i) {
-							engine::Vec2f pNoise = engine::Vec2f(overall * imageWidth + i, j) * frequency;
-							float amplitude = 1;
-							for (unsigned l = 0; l < numLayers; ++l) {
-								noiseMap[j * imageWidth + i] += noise.eval(pNoise) * amplitude;
-								pNoise *= frequencyMult;
-								amplitude *= amplitudeMult;
-							}
-							if (noiseMap[j * imageWidth + i] > maxNoiseVal) maxNoiseVal = noiseMap[j * imageWidth + i];
-						}
-					}
-					for (unsigned i = 0; i < imageWidth * imageHeight; ++i) noiseMap[i] /= maxNoiseVal;
-
-					for (unsigned j = 0; j < imageHeight; ++j) {
-						for (unsigned i = 0; i < imageWidth; ++i) {
-							// generate a float in the range [0:1]
-							auto a = static_cast<unsigned char>(noiseMap[j * imageWidth + i] * 255);
-							//engine::TextureManager::DrawPoint(, engine::Color(a, 0, 0, 255));
-							auto size = V2_int{ 32, 32 };
-							engine::TextureManager::DrawSolidRectangle({ static_cast<int>(overall * imageWidth * size.x + i * size.x), static_cast<int>(j * size.y) }, size, engine::Color(a, 0, 0, 255));
-						}
-					}
-
-					delete[] noiseMap;
-
-
-				}
-				GetRenderer().Present();
-				Delay(3500);
-			}
-			
-
-
-
-		}
-
-		cn++;
 
 
 
