@@ -184,18 +184,19 @@
   <ItemGroup>
     <ClInclude Include="src\components\Components.h" />
     <ClInclude Include="src\components\EDFComponent.h" />
+    <ClInclude Include="src\components\HopperComponent.h" />
     <ClInclude Include="src\components\PauseComponent.h" />
     <ClInclude Include="src\components\StateVectorComponent.h" />
     <ClInclude Include="src\components\TitleScreenComponent.h" />
-    <ClInclude Include="src\event\Events.h" />
-    <ClInclude Include="src\event\GameStartEvent.h" />
-    <ClInclude Include="src\event\PauseEvent.h" />
-    <ClInclude Include="src\event\TitleScreenEvent.h" />
     <ClInclude Include="src\factory\CreateBox.h" />
     <ClInclude Include="src\factory\CreateHopper.h" />
+    <ClInclude Include="src\factory\CreateWorld.h" />
     <ClInclude Include="src\factory\Factories.h" />
+    <ClInclude Include="src\systems\HopperCollisionSystem.h" />
     <ClInclude Include="src\systems\HopperPhysicsSystem.h" />
+    <ClInclude Include="src\systems\HopperRenderSystem.h" />
     <ClInclude Include="src\systems\Systems.h" />
+    <ClInclude Include="src\systems\WorldRenderSystem.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

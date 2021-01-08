@@ -35,18 +35,6 @@
     <ClInclude Include="src\components\TitleScreenComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\event\Events.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\event\GameStartEvent.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\event\PauseEvent.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\event\TitleScreenEvent.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\factory\CreateBox.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -60,6 +48,21 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\factory\CreateHopper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\systems\HopperRenderSystem.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\systems\WorldRenderSystem.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\factory\CreateWorld.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\systems\HopperCollisionSystem.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\components\HopperComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
