@@ -64,6 +64,7 @@ public:
 	static int ScreenWidth();
 	static int ScreenHeight();
 	static std::pair<Window, Renderer> GenerateWindow(const char* window_title, V2_int window_position, V2_int window_size, std::uint32_t window_flags = 0, std::uint32_t renderer_flags = 0);
+	static void Delay(std::uint32_t milliseconds);
 protected:
 	Scene scene;
 private:
@@ -72,7 +73,6 @@ private:
 	static void InputHandlerUpdate();
 	static void ResetWindowColor();
 	static void Clean();
-	static void Delay(std::uint32_t milliseconds);
 	static std::uint32_t GetTicks();
 	// Singleton.
 	template <typename T>

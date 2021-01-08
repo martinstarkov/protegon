@@ -7,8 +7,216 @@
 #include <random>
 #include <algorithm>
 #include <numeric>
+#include <cstdio> 
+#include <random> 
+#include <functional> 
+#include <iostream> 
+#include <vector> 
+#include <fstream> 
 
 namespace engine {
+
+template<typename T>
+class Vec2 {
+public:
+	Vec2() : x(T(0)), y(T(0)) {}
+	Vec2(T xx, T yy) : x(xx), y(yy) {}
+	Vec2 operator * (const T& r) const { return Vec2(x * r, y * r); }
+	Vec2& operator *= (const T& r) { x *= r, y *= r; return *this; }
+	T x, y;
+};
+
+typedef Vec2<float> Vec2f;
+
+template<typename T = float>
+inline T lerp(const T& lo, const T& hi, const T& t) {
+	return lo * (1 - t) + hi * t;
+}
+
+
+inline
+float smoothstep(const float& t) {
+	return t * t * (3 - 2 * t);
+}
+
+class ValueNoise {
+public:
+	ValueNoise(unsigned size, unsigned seed = 2016) : kMaxTableSize{ size }, kMaxTableSizeMask{ kMaxTableSize - 1 }
+	{
+		std::mt19937 gen(seed);
+		std::uniform_real_distribution<float> distrFloat;
+		auto randFloat = std::bind(distrFloat, gen);
+		r.resize(kMaxTableSize, 0);
+		permutationTable.resize(kMaxTableSize * 2, 0);
+		// create an array of random values and initialize permutation table
+		for (unsigned k = 0; k < kMaxTableSize; ++k) {
+			r[k] = randFloat();
+			permutationTable[k] = k;
+		}
+
+		// shuffle values of the permutation table
+		std::uniform_int_distribution<unsigned> distrUInt;
+		auto randUInt = std::bind(distrUInt, gen);
+		for (unsigned k = 0; k < kMaxTableSize; ++k) {
+			unsigned i = randUInt() & kMaxTableSizeMask;
+			std::swap(permutationTable[k], permutationTable[i]);
+			permutationTable[k + kMaxTableSize] = permutationTable[k];
+		}
+	}
+
+	float eval(Vec2f& p) {
+		int xi = std::floor(p.x);
+		int yi = std::floor(p.y);
+
+		float tx = p.x - xi;
+		float ty = p.y - yi;
+
+		int rx0 = xi & kMaxTableSizeMask;
+		int rx1 = (rx0 + 1) & kMaxTableSizeMask;
+		int ry0 = yi & kMaxTableSizeMask;
+		int ry1 = (ry0 + 1) & kMaxTableSizeMask;
+
+		// random values at the corners of the cell using permutation table
+		const float& c00 = r[permutationTable[permutationTable[rx0] + ry0]];
+		const float& c10 = r[permutationTable[permutationTable[rx1] + ry0]];
+		const float& c01 = r[permutationTable[permutationTable[rx0] + ry1]];
+		const float& c11 = r[permutationTable[permutationTable[rx1] + ry1]];
+
+		// remapping of tx and ty using the Smoothstep function 
+		float sx = smoothstep(tx);
+		float sy = smoothstep(ty);
+
+		// linearly interpolate values along the x axis
+		float nx0 = lerp(c00, c10, sx);
+		float nx1 = lerp(c01, c11, sx);
+
+		// linearly interpolate the nx0/nx1 along they y axis
+		return lerp(nx0, nx1, sy);
+	}
+	unsigned int kMaxTableSize;// = 256 * 2;
+	unsigned int kMaxTableSizeMask;// = kMaxTableSize - 1;
+	std::vector<float> r; // size: kMaxTableSize
+	std::vector<unsigned int> permutationTable; // kMaxTableSize * 2
+};
+
+
+
+
+
+class CustomNoise {
+public:
+	CustomNoise(float frequency = 1.0f,
+				 float amplitude = 1.0f,
+				 float lacunarity = 2.0f,
+				 float persistence = 0.5f, int seed = 1) :
+
+		mFrequency(frequency),
+		mAmplitude(amplitude),
+		mLacunarity(lacunarity),
+		mPersistence(persistence) {
+		perm = CalculatePermutation(seed);
+		grad = CalculateGradients(seed);
+	}
+	std::vector<int> perm;
+	std::vector<V2_double> grad;
+
+
+
+	/*float noise(float x, float y) {
+		RNG rng;
+		auto tile_seed = ((int)x & 0xFFFF) << 16 | ((int)y & 0xFFFF);
+		rng.SetSeed(tile_seed);
+		return rng.RandomDouble(0.0, 1.0);
+	}*/
+	float Drop(float t) {
+		t = abs(t);
+		return 1.0f - t * t * t * (t * (t * 6 - 15) + 10);
+	}
+
+	float Q(float u, float v) {
+		return Drop(u) * Drop(v);
+	}
+	std::vector<int> CalculatePermutation(int seed = 1) {
+		std::vector<int> p;
+		p.resize(256);
+
+		// Fill p with values from 0 to 255
+		std::iota(p.begin(), p.end(), 0);
+
+		// Initialize a random engine with seed
+		std::default_random_engine engine(seed);
+
+		// Suffle  using the above random engine
+		std::shuffle(p.begin(), p.end(), engine);
+
+		// Duplicate the permutation vector
+		p.insert(p.end(), p.begin(), p.end());
+		return p;
+	}
+
+	std::vector<V2_double> CalculateGradients(int seed = 1) {
+		std::vector<V2_double> grad;
+		grad.resize(256);
+		RNG rng;
+		rng.SetSeed(seed);
+		for (auto i = 0; i < grad.size(); i++) {
+			V2_double gradient;
+
+			do {
+				gradient = V2_double((float)(rng.RandomDouble(0.0, 1.0) * 2 - 1), (float)(rng.RandomDouble(0.0, 1.0) * 2 - 1));
+			} while (gradient.MagnitudeSquared() >= 1);
+
+			gradient.Normalized();
+
+			grad[i] = gradient;
+		}
+		return grad;
+	}
+
+	float noise(float x, float y) {
+		auto cell = V2_double(engine::math::Floor(x), engine::math::Floor(y));
+
+		auto total = 0.0f;
+
+		auto corners = std::array<V2_double, 4>{ V2_double(0, 0), V2_double(0, 1), V2_double(1, 0), V2_double(1, 1) };
+
+		for (auto n : corners) {
+			auto ij = cell + n;
+			auto uv = V2_double(x - ij.x, y - ij.x);
+
+			auto index = perm[(int)ij.x % perm.size()];
+			index = perm[(index + (int)ij.x) % perm.size()];
+
+			auto gradi = grad[index % grad.size()];
+
+			total += Q(uv.x, uv.x) * gradi.DotProduct(uv);
+		}
+
+		return (std::max(std::min(total, 1.0f), -1.0f) + 1.0f) / 2.0f;
+	}
+
+	float fractal(size_t octaves, float x, float y) {
+		float output = 0.f;
+		float denom = 0.f;
+		float frequency = mFrequency;
+		float amplitude = mAmplitude;
+		for (size_t i = 0; i < octaves; i++) {
+			output += (amplitude * noise(x * frequency, y * frequency));
+			denom += amplitude;
+
+			frequency *= mLacunarity;
+			amplitude *= mPersistence;
+		}
+
+		return (output / denom);
+	}
+private:
+	// Parameters of Fractional Brownian Motion (fBm) : sum of N "octaves" of noise
+	float mFrequency;   ///< Frequency ("width") of the first octave of noise (default to 1.0)
+	float mAmplitude;   ///< Amplitude ("height") of the first octave of noise (default to 1.0)
+	float mLacunarity;  ///< Lacunarity specifies the frequency multiplier between successive octaves (default to 2.0).
+	float mPersistence; ///< Persistence is the loss of amplitude between successive octaves (usually 1/lacunarity)
+};
 
 class PerlinNoise {
 public:

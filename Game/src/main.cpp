@@ -7,6 +7,8 @@
 
 #include <cmath>
 #include <set>
+#include <windows.h>
+#define _USE_MATH_DEFINES
 
 class MyGame : public engine::Engine {
 public:
@@ -63,8 +65,8 @@ public:
 		}
 		return false;
 	}
-	int octave = 8;
-	double bias = 8.0;
+	int octave = 5;
+	double bias = 2.0;
     void Update() {
 		auto& pause = pause_screen.GetComponent<PauseScreenComponent>();
 		scene.manager.Update<InputSystem>();
@@ -92,16 +94,16 @@ public:
 			}
 		}
 
-		if (engine::InputHandler::KeyDown(Key::X))
+		if (engine::InputHandler::KeyPressed(Key::X))
 			octave++;
 
-		if (engine::InputHandler::KeyDown(Key::C))
+		if (engine::InputHandler::KeyPressed(Key::C))
 			octave--;
 
-		if (engine::InputHandler::KeyDown(Key::F))
+		if (engine::InputHandler::KeyPressed(Key::F))
 			bias += 0.2;
 
-		if (engine::InputHandler::KeyDown(Key::G))
+		if (engine::InputHandler::KeyPressed(Key::G))
 			bias -= 0.2;
 
 		if (bias < 0.2)
@@ -110,7 +112,7 @@ public:
 		if (octave < 1)
 			octave = 1;
 
-		LOG("octave: " << octave);
+		//LOG("octave: " << octave << ", bias: " << bias);
 
 		// TODO: Massive cleanup...
 
@@ -125,6 +127,7 @@ public:
 			/*lowest += -1;
 			highest += 1;*/
 			std::vector<AABB> potential_chunks;
+			
 			assert(lowest.x <= highest.x && "Left grid edge cannot be above right grid edge");
 			assert(lowest.y <= highest.y && "Top grid edge cannot be below top grid edge");
 			for (auto i = lowest.x; i != highest.x + 1; ++i) {
@@ -244,6 +247,10 @@ public:
 		auto& pause = pause_screen.GetComponent<PauseScreenComponent>();
 		if (!pause.open) {
 			scene.manager.Update<AnimationSystem>();
+
+
+
+
 		}
 		// TODO: Consider a more automatic way of doing this?
 		for (auto& c : chunks) {
@@ -254,6 +261,70 @@ public:
 		scene.manager.Update<HitboxRenderSystem>();
 		scene.ui_manager.Update<UIButtonRenderer>();
 		scene.ui_manager.Update<UITextRenderer>();
+
+
+
+		static int cn = 0;
+
+
+		if (cn > 0) {
+			auto tiles = 2;
+			for (size_t seedy = 0; seedy < 100; seedy++) {
+				for (size_t overall = 0; overall < tiles; overall++) {
+
+					unsigned imageWidth = 16;
+					unsigned imageHeight = 16;
+					float* noiseMap = new float[imageWidth * imageHeight]{ 0 };
+
+					// FRACTAL NOISE
+					engine::ValueNoise noise(256, seedy);
+					float frequency = 0.05f;//0.02f;
+					float frequencyMult = bias;//1.8;
+					float amplitudeMult = 0.5f;//0.35;
+					unsigned numLayers = octave;//5;
+					float maxNoiseVal = 0;
+					for (unsigned j = 0; j < imageHeight; ++j) {
+						for (unsigned i = 0; i < imageWidth; ++i) {
+							engine::Vec2f pNoise = engine::Vec2f(overall * imageWidth + i, j) * frequency;
+							float amplitude = 1;
+							for (unsigned l = 0; l < numLayers; ++l) {
+								noiseMap[j * imageWidth + i] += noise.eval(pNoise) * amplitude;
+								pNoise *= frequencyMult;
+								amplitude *= amplitudeMult;
+							}
+							if (noiseMap[j * imageWidth + i] > maxNoiseVal) maxNoiseVal = noiseMap[j * imageWidth + i];
+						}
+					}
+					for (unsigned i = 0; i < imageWidth * imageHeight; ++i) noiseMap[i] /= maxNoiseVal;
+
+					for (unsigned j = 0; j < imageHeight; ++j) {
+						for (unsigned i = 0; i < imageWidth; ++i) {
+							// generate a float in the range [0:1]
+							auto a = static_cast<unsigned char>(noiseMap[j * imageWidth + i] * 255);
+							//engine::TextureManager::DrawPoint(, engine::Color(a, 0, 0, 255));
+							auto size = V2_int{ 32, 32 };
+							engine::TextureManager::DrawSolidRectangle({ static_cast<int>(overall * imageWidth * size.x + i * size.x), static_cast<int>(j * size.y) }, size, engine::Color(a, 0, 0, 255));
+						}
+					}
+
+					delete[] noiseMap;
+
+
+				}
+				GetRenderer().Present();
+				Delay(3500);
+			}
+			
+
+
+
+		}
+
+		cn++;
+
+
+
+
 	}
 private:
 	ecs::Entity title_screen;
@@ -263,7 +334,7 @@ private:
 int main(int argc, char* args[]) { // sdl main override
 
 	LOG("Starting Protegon");
-	engine::Engine::Start<MyGame>("Protegon", 1000, 600);
+	engine::Engine::Start<MyGame>("Protegon", 512 * 2, 600);
 
     return 0;
 }

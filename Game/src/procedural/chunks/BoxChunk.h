@@ -7,40 +7,55 @@
 class BoxChunk : public engine::Chunk {
 public:
 	virtual void Generate(int seed, int octave, double bias) override final {
-		float scale = 400.f;
-		float offset_x = 5.9f;
-		float offset_y = 5.1f;
-		float offset_z = 0.05f;
-		float lacunarity = 1.99f;
-		float persistance = 0.5f;
 
-		/*SimplexNoise simplex(float frequency = 1.0f,
-							 float amplitude = 1.0f,
-							 float lacunarity = 2.0f,
-							 float persistence = 0.5f);*/
-		const SimplexNoise simplex(0.1f / scale, 0.5f, lacunarity, persistance);
-		for (auto x = 0; x < info.size.x; ++x) {
-			for (auto y = 0; y < info.size.y; ++y) {
-				auto tile = V2_int{ x, y };
-				int index = x + y * info.size.x;
-				auto& entity = GetEntity(tile);
-				V2_double tile_position = tile * tile_size;
-				V2_double absolute_tile_position = tile_position + info.position;
-				auto tile_seed = ((int)absolute_tile_position.x & 0xFFFF) << 16 | ((int)absolute_tile_position.y & 0xFFFF);
-				//auto noise = rng.RandomDouble(0.0, 1.0);
-				auto noise = (simplex.fractal(octave, absolute_tile_position.x, absolute_tile_position.y) + 1.0f) / 2.0f;
-				int pixel = (int)(noise * 3.0f);
-				entity = CreateBox(entity, absolute_tile_position, tile_size, "./resources/textures/tree.png");
-				auto& color = entity.GetComponent<RenderComponent>().color;
-				switch (pixel) {
-					case 0: { color = engine::GOLD; break; }
-					case 1: { color = engine::ORANGE; break; }
-					case 2: { color = engine::RED; break; }
-					case 3: { color = engine::DARK_RED; break; }
-					default: { LOG("Noise: " << noise << ", Pixel: " << pixel); assert(!"Noise value out of range"); break; }
-				}
-			}
-		}
+
+
+
+
+
+
+
+
+		////WORKING VERSION
+		//float scale = 400.f;
+		//float offset_x = 5.9f;
+		//float offset_y = 5.1f;
+		//float offset_z = 0.05f;
+		//float lacunarity = 1.99f;
+		//float persistance = 0.5f;
+
+		////SimplexNoise simplex(float frequency = 1.0f,
+		////					 float amplitude = 1.0f,
+		////					 float lacunarity = 2.0f,
+		////					 float persistence = 0.5f);
+		//auto seed_cord = info.position / static_cast<V2_double>(tile_size);
+		//auto chunk_seed = ((int)seed_cord.x & 0xFFFF) << 16 | ((int)seed_cord.y & 0xFFFF);
+
+
+		//engine::CustomNoise simplex(0.1f / scale, 0.5f, lacunarity, persistance, 1);
+
+		//for (auto x = 0; x < info.size.x; ++x) {
+		//	for (auto y = 0; y < info.size.y; ++y) {
+		//		auto tile = V2_int{ x, y };
+		//		int index = x + y * info.size.x;
+		//		V2_double tile_position = tile * tile_size;
+		//		V2_double absolute_tile_position = tile_position + info.position;
+		//		auto tile_seed = ((int)absolute_tile_position.x & 0xFFFF) << 16 | ((int)absolute_tile_position.y & 0xFFFF);
+		//		//auto noise = rng.RandomDouble(0.0, 1.0);
+		//		auto noise = simplex.fractal(octave, absolute_tile_position.x, absolute_tile_position.y);
+		//		int pixel = (int)(noise * 3.0f);
+		//		auto& entity = GetEntity(tile);
+		//		entity = CreateBox(entity, absolute_tile_position, tile_size, "./resources/textures/tree.png");
+		//		auto& color = entity.GetComponent<RenderComponent>().color;
+		//		switch (pixel) {
+		//			case 0: { color = engine::GOLD; break; }
+		//			case 1: { color = engine::ORANGE; break; }
+		//			case 2: { color = engine::RED; break; }
+		//			case 3: { color = engine::DARK_RED; break; }
+		//			default: { LOG("Noise: " << noise << ", Pixel: " << pixel); assert(!"Noise value out of range"); break; }
+		//		}
+		//	}
+		//}
 
 
 

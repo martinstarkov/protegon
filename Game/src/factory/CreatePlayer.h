@@ -7,6 +7,7 @@ ecs::Entity CreatePlayer(V2_double position, V2_int size, ecs::Manager& manager,
 	V2_double player_acceleration = { 1, 1 };
 	player_acceleration *= 4;
 	auto scale = V2_double{ 2 * 2.133, 3 * 1.524 };
+	position = { 0, 0 };
 	entity.AddComponent<TransformComponent>(position);
 	entity.AddComponent<InputComponent>();
 	entity.AddComponent<PlayerController>(player_acceleration);

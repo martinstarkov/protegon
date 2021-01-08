@@ -437,10 +437,6 @@ float SimplexNoise::fractal(size_t octaves, float x, float y) const {
     float denom  = 0.f;
     float frequency = mFrequency;
     float amplitude = mAmplitude;
-    engine::RNG rng;
-    auto tile_seed = ((int)x & 0xFFFF) << 16 | ((int)y & 0xFFFF);
-    rng.SetSeed(tile_seed);
-
     for (size_t i = 0; i < octaves; i++) {
         output += (amplitude * noise(x * frequency, y * frequency));
         denom += amplitude;
@@ -449,7 +445,7 @@ float SimplexNoise::fractal(size_t octaves, float x, float y) const {
         amplitude *= mPersistence;
     }
 
-    return (output / denom);
+    return ((output / denom) + 1.0f) / 2.0f;
 }
 
 /**
