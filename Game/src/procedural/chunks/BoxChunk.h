@@ -67,9 +67,9 @@ public:
 		for (unsigned j = 0; j < imageHeight; ++j) {
 			for (unsigned i = 0; i < imageWidth; ++i) {
 				// generate a float in the range [0:1]
-				//auto noise = static_cast<unsigned char>(engine::math::Clamp(noiseMap[j * imageWidth + i] * 255, 0.0f, 255.0f));
-				auto noise = noiseMap[j * imageWidth + i];
-				int pixel = engine::math::Clamp(noise * 3.0f, 0.0f, 3.0f);
+				auto noise = static_cast<unsigned char>(engine::math::Clamp(noiseMap[j * imageWidth + i] * 255, 0.0f, 255.0f));
+				//auto noise = noiseMap[j * imageWidth + i];
+				//int pixel = engine::math::Clamp(noise * 3.0f, 0.0f, 3.0f);
 				//engine::TextureManager::DrawPoint(, engine::Color(a, 0, 0, 255));
 				auto tile = V2_int{ (int)i, (int)j };
 				auto index = i + j * info.size.x;
@@ -78,14 +78,14 @@ public:
 				auto& entity = GetEntity(tile);
 				entity = CreateBox(entity, absolute_tile_position, tile_size, "./resources/textures/tree.png");
 				auto& color = entity.GetComponent<RenderComponent>().color;
-				//color.r = noise;
-				switch (pixel) {
+				color.r = noise;
+				/*switch (pixel) {
 					case 0: { color = engine::GOLD; break; }
 					case 1: { color = engine::ORANGE; break; }
 					case 2: { color = engine::RED; break; }
 					case 3: { color = engine::DARK_RED; break; }
 					default: { LOG("Noise: " << noise << ", Pixel: " << pixel); assert(!"Noise value out of range"); break; }
-				}
+				}*/
 			}
 		}
 
