@@ -26,13 +26,7 @@
     <ClInclude Include="src\components\EDFComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\components\PauseComponent.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\components\StateVectorComponent.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\components\TitleScreenComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\factory\CreateBox.h">

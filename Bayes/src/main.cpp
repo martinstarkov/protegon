@@ -23,34 +23,60 @@ public:
 
 		LOG("Initialized all game systems successfully");
 	}
-
+	void Reset() {
+		scene.manager.Clear();
+		CreateWorld(scene.manager);
+		LOG("RESETTING SIMULATION");
+		LOG("RESETTING SIMULATION");
+		LOG("RESETTING SIMULATION");
+		LOG("RESETTING SIMULATION");
+		LOG("RESETTING SIMULATION");
+	}
     void Update() {
 		static int counter = 0;
-		if (scene.manager.HasSystem<HopperPhysicsSystem>()) {
+		if (engine::InputHandler::KeyDown(Key::R)) {
+			Reset();
+		} else {
+			if (scene.manager.HasSystem<HopperPhysicsSystem>()) {
 
-			auto random_int = engine::math::GetRandomValue<double>(-1, 1);
-			auto players = scene.manager.GetComponentTuple<PlayerController, TransformComponent, RigidBodyComponent, StateVectorComponent, EDFComponent, HopperComponent>();
-			for (auto [entity, player, transform, rb, state_vector, edf, hopper] : players) {
-				//transform.rotation += random_int;
-				if (counter % 1 == 0) {
-					// engine::math::GetRandomValue<double>(5)
+				auto random_int = engine::math::GetRandomValue<double>(-1, 1);
+				auto players = scene.manager.GetComponentTuple<PlayerController, TransformComponent, RigidBodyComponent, StateVectorComponent, EDFComponent, HopperComponent>();
+				for (auto [entity, player, transform, rigid, state_vector, edf, hopper] : players) {
+					//transform.rotation += random_int;
+					auto& rb = rigid.rigid_body;
+					if (engine::InputHandler::KeyDown(Key::UP)) {
+						edf.thrust_percent += 0.01;
+					} else if (engine::InputHandler::KeyDown(Key::DOWN)) {
+						edf.thrust_percent -= 0.01;
+					}
 					if (engine::InputHandler::KeyPressed(Key::SPACE)) {
-						rb.rigid_body.acceleration.y -= edf.thrust_force * abs(std::cos(engine::math::DegreeToRadian(transform.rotation))) / rb.rigid_body.mass;
-						rb.rigid_body.acceleration.x += edf.thrust_force * std::sin(engine::math::DegreeToRadian(transform.rotation)) / rb.rigid_body.mass;
+						edf.thrust_ramp_up += edf.thrust_ramp_up_speed;
+						edf.Power();
+					} else {
+						edf.Deactivate();
+					}
+					rb.acceleration.y -= edf.thrust_force * abs(std::cos(engine::math::DegreeToRadian(transform.rotation))) / rb.mass;
+					rb.acceleration.x += edf.thrust_force * std::sin(engine::math::DegreeToRadian(transform.rotation)) / rb.mass;
+					double disturbance_torque = 0;
+					double control_torque = 0;
+					auto proportional_gain = 0.9;
+					if (engine::InputHandler::KeyPressed(Key::RIGHT)) {
+						disturbance_torque = 3;
+					} else if (engine::InputHandler::KeyPressed(Key::LEFT)) {
+						disturbance_torque = -3;
+					}
+					control_torque = edf.GetTorque(-proportional_gain * transform.rotation);
+					hopper.theta_dd = (disturbance_torque + control_torque) / hopper.inertia * 0.005;
+					LOG("rot:"<< transform.rotation << ",thrust_f:" << edf.thrust_force << ",theta_dd:"<< hopper.theta_dd << ",control_tq:" << control_torque << ",disturb_torque:" << disturbance_torque);
+					if (std::abs(transform.rotation) > 180) {
+						Reset();
 					}
 				}
-				double torque = 0;
-				if (engine::InputHandler::KeyPressed(Key::RIGHT)) {
-					torque = 3;
-				} else if (engine::InputHandler::KeyPressed(Key::LEFT)) {
-					torque = -3;
-				}
-				hopper.theta_dd = torque / hopper.inertia * 0.005;
-			}
 
-			scene.manager.Update<HopperPhysicsSystem>();
+				scene.manager.Update<HopperPhysicsSystem>();
+			}
+			scene.manager.Update<HopperCollisionSystem>();
 		}
-		scene.manager.Update<HopperCollisionSystem>();
     }
 
 	void Render() {
