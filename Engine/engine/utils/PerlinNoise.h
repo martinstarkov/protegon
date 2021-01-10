@@ -65,8 +65,8 @@ public:
 	}
 
 	float eval(Vec2f& p) {
-		int xi = std::floor(p.x);
-		int yi = std::floor(p.y);
+		int xi = (int)std::floor(p.x);
+		int yi = (int)std::floor(p.y);
 
 		float tx = p.x - xi;
 		float ty = p.y - yi;
@@ -189,7 +189,7 @@ public:
 
 			auto gradi = grad[index % grad.size()];
 
-			total += Q(uv.x, uv.x) * gradi.DotProduct(uv);
+			total += Q((float)uv.x, (float)uv.x) * (float)gradi.DotProduct(uv);
 		}
 
 		return (std::max(std::min(total, 1.0f), -1.0f) + 1.0f) / 2.0f;

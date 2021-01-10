@@ -5,11 +5,6 @@
 #include "factory/Factories.h"
 #include "systems/Systems.h"
 
-#include <cmath>
-#include <set>
-#include <windows.h>
-#define _USE_MATH_DEFINES
-
 class MyGame : public engine::Engine {
 public:
 	std::vector<engine::Image> images;
@@ -123,8 +118,8 @@ public:
 			V2_double tiles_per_chunk = V2_double{ 16, 16 };
 			V2_double tile_size = { 32, 32 };
 			V2_double chunk_size = tiles_per_chunk * tile_size;
-			V2_double lowest = (camera->offset / chunk_size).Floor();
-			V2_double highest = ((camera->offset + static_cast<V2_double>(engine::Engine::ScreenSize()) / camera->scale) / chunk_size).Floor();
+			V2_double lowest = Floor(camera->offset / chunk_size);
+			V2_double highest = Floor((camera->offset + static_cast<V2_double>(engine::Engine::ScreenSize()) / camera->scale) / chunk_size);
 			// Optional: Expand loaded chunk region.
 			/*lowest += -1;
 			highest += 1;*/

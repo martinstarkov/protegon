@@ -11,7 +11,7 @@ ecs::Entity CreatePlayer(V2_double position, V2_int size, ecs::Manager& manager,
 	entity.AddComponent<TransformComponent>(position);
 	entity.AddComponent<InputComponent>();
 	entity.AddComponent<PlayerController>(player_acceleration);
-	entity.AddComponent<RigidBodyComponent>(RigidBody{ UNIVERSAL_DRAG, GRAVITY, 5, abs(player_acceleration) + abs(GRAVITY) });
+	entity.AddComponent<RigidBodyComponent>(RigidBody{ UNIVERSAL_DRAG, GRAVITY, 5, Abs(player_acceleration) + Abs(GRAVITY) });
 	
 	entity.AddComponent<SpriteSheetComponent>();
 	auto& sm = entity.AddComponent<StateMachineComponent>();

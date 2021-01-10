@@ -16,7 +16,7 @@ public:
 		float amplitudeMult = 0.5f;//0.35;
 		unsigned numLayers = octave;//5;
 
-		for (unsigned l = 0; l < octave; ++l) {
+		for (unsigned l = 0; l < numLayers; ++l) {
 			maxPossibleNoiseVal += amplitude;
 			amplitude *= amplitudeMult;
 		}
@@ -34,11 +34,11 @@ public:
 
 		// FRACTAL NOISE
 		float frequency = 0.05f;//0.02f;
-		float frequencyMult = bias;//1.8;
+		float frequencyMult = (float)bias;//1.8;
 		float maxNoiseVal = 0;
 		for (unsigned j = 0; j < imageHeight; ++j) {
 			for (unsigned i = 0; i < imageWidth; ++i) {
-				engine::Vec2f pNoise = engine::Vec2f(overall.x * imageWidth + i, overall.y * imageHeight + j) * frequency;
+				engine::Vec2f pNoise = engine::Vec2f((float)overall.x * imageWidth + i, (float)overall.y * imageHeight + j) * frequency;
 				amplitude = 1;
 				for (unsigned l = 0; l < numLayers; ++l) {
 					//LOG("pNoise: " << pNoise.x << "," << pNoise.y);
