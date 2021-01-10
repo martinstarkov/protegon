@@ -11,6 +11,8 @@ static constexpr char VECTOR2_LEFT_DELIMETER = '(';
 static constexpr char VECTOR2_CENTER_DELIMETER = ',';
 static constexpr char VECTOR2_RIGHT_DELIMETER = ')';
 
+// std::enable_if_t<std::is_arithmetic_v<std::remove_reference_t<Type >>>
+
 template <typename T, engine::math::is_number<T> = 0>
 struct Vector2 {
 	T x = 0, y = 0;
@@ -56,7 +58,7 @@ struct Vector2 {
 	}
 	// Return true if either vector component equals 0
 	inline bool HasZero() const {
-		return !x || !y;
+		return !(x && y);
 	}
 	// Return true if both vector components equal numeric limits infinity
 	inline bool IsInfinite() const {
