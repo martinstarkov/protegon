@@ -66,6 +66,8 @@ public:
 		auto& pause = pause_screen.GetComponent<PauseScreenComponent>();
 		scene.manager.Update<InputSystem>();
 		if (!pause.open) {
+			//engine::Timer timer9;
+			//timer9.Start();
 			scene.ui_manager.Update<UIButtonListener>();
 			if (scene.manager.HasSystem<PhysicsSystem>()) {
 				scene.manager.Update<PhysicsSystem>();
@@ -76,6 +78,7 @@ public:
 			scene.manager.Update<DirectionSystem>();
 			scene.manager.Update<LifetimeSystem>();
 			scene.manager.Update<CameraSystem>();
+			//LOG("All systems: " << timer9.ElapsedMilliseconds());
 		}
 		//AllocationMetrics::PrintMemoryUsage();
 		auto& title = title_screen.GetComponent<TitleScreenComponent>();
@@ -109,10 +112,12 @@ public:
 
 		static int cn = 0;
 		if (cn % 10 == 0)
-			LOG("octave: " << octave << ", bias: " << bias);
+			;
+			//LOG("octave: " << octave << ", bias: " << bias);
 		cn++;
 		// TODO: Massive cleanup...
-
+		engine::Timer timer0;
+		timer0.Start();
 		auto camera = scene.GetCamera();
 		if (camera && !title.open) {
 			V2_double tiles_per_chunk = V2_double{ 16, 16 };
@@ -226,6 +231,10 @@ public:
 			}
 			chunks.clear();
         }
+		auto time = timer0.ElapsedMilliseconds();
+		if (time > 1) {
+			LOG("Chunks took: " << time);
+		}
 		//LOG("Octave: " << octave << ", bias: " << bias);
 		if (engine::InputHandler::KeyPressed(Key::ESCAPE) && pause.toggleable && !title.open) {
 			pause.toggleable = false;
@@ -241,6 +250,8 @@ public:
 		}
     }
 	void Render() {
+		//engine::Timer timer0;
+		//timer0.Start();
 		auto& pause = pause_screen.GetComponent<PauseScreenComponent>();
 		if (!pause.open) {
 			scene.manager.Update<AnimationSystem>();
@@ -249,13 +260,24 @@ public:
 
 
 		}
+		//LOG("Animations: " << timer0.ElapsedMilliseconds());
 		// TODO: Consider a more automatic way of doing this?
 		for (auto& c : chunks) {
 			c->manager.Update<RenderSystem>();
+		}
+		engine::Timer timer;
+		timer.Start();
+		for (auto& c : chunks) {
 			c->manager.Update<HitboxRenderSystem>();
+		}
+		//LOG("Rendered " << 256 * chunks.size() << " hitboxes");
+		auto time = timer.ElapsedMilliseconds();
+		if (time > 10) {
+			LOG("Hitbox rendering took: " << time);
 		}
 		scene.manager.Update<RenderSystem>();
 		scene.manager.Update<HitboxRenderSystem>();
+
 		scene.ui_manager.Update<UIButtonRenderer>();
 		scene.ui_manager.Update<UITextRenderer>();
 
