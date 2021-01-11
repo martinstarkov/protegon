@@ -1,6 +1,7 @@
 #include "Color.h"
 
 #include <SDL.h>
+#include <random>
 
 namespace engine {
 
@@ -10,11 +11,17 @@ Color::Color(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a) : r
 Color::Color(std::uint32_t color) : r{ (color >> (8 * 0)) & 0xff }, g{ (color >> (8 * 1)) & 0xff }, b{ (color >> (8 * 2)) & 0xff }, a{ (color >> (8 * 3)) & 0xff } {}
 
 Color Color::RandomSolid() {
-	return Color{ static_cast<std::uint8_t>(engine::math::GetRandomValue<int>(0, 255)), static_cast<std::uint8_t>(engine::math::GetRandomValue<int>(0, 255)), static_cast<std::uint8_t>(engine::math::GetRandomValue<int>(0, 255)), 255 };
+	std::minstd_rand gen(std::random_device{}());
+	std::uniform_int_distribution<int> dist(0, 255);
+	// TODO: Test this.
+	return Color{ static_cast<std::uint8_t>(dist(gen)), static_cast<std::uint8_t>(dist(gen)), static_cast<std::uint8_t>(dist(gen)), 255 };
 }
 
 Color Color::Random() {
-	return Color{ static_cast<std::uint8_t>(engine::math::GetRandomValue<int>(0, 255)), static_cast<std::uint8_t>(engine::math::GetRandomValue<int>(0, 255)), static_cast<std::uint8_t>(engine::math::GetRandomValue<int>(0, 255)), static_cast<std::uint8_t>(engine::math::GetRandomValue<int>(0, 255)) };
+	std::minstd_rand gen(std::random_device{}());
+	std::uniform_int_distribution<int> dist(0, 255);
+	// TODO: Test this.
+	return Color{ static_cast<std::uint8_t>(dist(gen)), static_cast<std::uint8_t>(dist(gen)), static_cast<std::uint8_t>(dist(gen)), static_cast<std::uint8_t>(dist(gen)) };
 }
 
 Color::operator SDL_Color() const {
