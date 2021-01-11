@@ -15,8 +15,6 @@
 // it is a good way to distribute utility functions and macros.
 #include "utils/Utility.h"
 
-// TODO: Improve square root (std::sqrt) and (std::round) speeds.
-
 // Hidden vector related implementations.
 namespace internal {
 
@@ -32,46 +30,54 @@ template <typename From, typename To>
 using convertible = std::enable_if_t<std::is_convertible_v<From, To>, bool>;
 
 // Helper function for returning the sign of a number.
+// Used for finding the identity version of a vector.
 template <typename T>
 static int Sign(T value) {
     return (T(0) < value) - (value < T(0));
 }
 
-// With template modification to https://stackoverflow.com/a/30308919, thanks for FastFloor / FastCeil functions.
+// With template modifications to https://stackoverflow.com/a/30308919.
 
+// Faster alternative to std::floor for floating point numbers.
 template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
-int FastFloor(T x) {
+static int FastFloor(T x) {
     return (int)x - (x < (int)x);
 }
 
+// If called on integer types, return the value.
 template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
-T FastFloor(T x) {
+static T FastFloor(T x) {
     return x;
 }
 
+// Faster alternative to std::ceil for floating point numbers.
 template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
-int FastCeil(T x) {
+static int FastCeil(T x) {
     return (int)x + (x > (int) x);
 }
 
+// If called on integer types, return the value.
 template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
-T FastCeil(T x) {
+static T FastCeil(T x) {
     return x;
 }
 
+// Faster alternative to std::abs.
+// Not to be confused with workout plans.
 template <typename T, internal::is_number<T> = true>
-T FastAbs(T x) {
+static T FastAbs(T x) {
     return (x >= 0) ? x : -x;
 }
 
-// TODO: Find faster alternative to std::round.
+// Currently the same as std::round. Possible to change in the future if necessary.
 template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
-T FastRound(T x) {
+static T FastRound(T x) {
     return std::round(x);
 }
 
+// If called on integer types, return the value.
 template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
-T FastRound(T x) {
+static T FastRound(T x) {
     return x;
 }
 
@@ -242,7 +248,10 @@ struct Vector2 {
 
     // Implicit conversion from this vector to other arithmetic types which are less wide.
 
-    operator Vector2<int>() const { return Vector2<int>{ static_cast<int>(internal::FastCeil(x)), static_cast<int>(internal::FastCeil(y)) }; }
+    operator Vector2<int>() const { 
+        // FastCeil used to prevent rounding lines appearing on the screen.
+        return Vector2<int>{ static_cast<int>(x), static_cast<int>(y) };
+    }
     operator Vector2<double>() const { return Vector2<double>{ static_cast<double>(x), static_cast<double>(y) }; }
     operator Vector2<float>() const { return Vector2<float>{ static_cast<float>(x), static_cast<float>(y) }; }
     operator Vector2<unsigned int>() const { return Vector2<unsigned int>{ static_cast<unsigned int>(x), static_cast<unsigned int>(y) }; }
