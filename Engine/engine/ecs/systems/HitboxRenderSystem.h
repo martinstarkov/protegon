@@ -33,7 +33,7 @@ public:
 					render.color);
 			}
 		}
-		if (scene) {
+		/*if (scene) {
 			auto camera = scene->GetCamera();
 			if (camera) {
 				for (auto [aabb, color] : DebugDisplay::rectangles()) {
@@ -58,7 +58,7 @@ public:
 				}
 				DebugDisplay::circles().clear();
 			}
-		}
+		}*/
 	}
 private:
 	engine::Scene* scene = nullptr;

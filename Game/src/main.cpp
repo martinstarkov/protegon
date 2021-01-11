@@ -110,11 +110,11 @@ public:
 		if (octave < 1)
 			octave = 1;
 
-		static int cn = 0;
-		if (cn % 10 == 0)
-			;
-			//LOG("octave: " << octave << ", bias: " << bias);
-		cn++;
+		//static int cn = 0;
+		//if (cn % 10 == 0)
+		//	;
+		//	//LOG("octave: " << octave << ", bias: " << bias);
+		//cn++;
 		// TODO: Massive cleanup...
 		engine::Timer timer0;
 		timer0.Start();
@@ -204,6 +204,7 @@ public:
 					engine::Timer timer;
 					timer.Start();
 					chunk->Generate(1, octave, bias);
+					chunk->new_chunk = true;
 					//LOG("Generate: " << timer.ElapsedMilliseconds());
 
 					chunks.push_back(chunk);
@@ -233,7 +234,7 @@ public:
         }
 		auto time = timer0.ElapsedMilliseconds();
 		if (time > 1) {
-			LOG("Chunks took: " << time);
+			//LOG("Chunks took: " << time);
 		}
 		//LOG("Octave: " << octave << ", bias: " << bias);
 		if (engine::InputHandler::KeyPressed(Key::ESCAPE) && pause.toggleable && !title.open) {
@@ -262,18 +263,21 @@ public:
 		}
 		//LOG("Animations: " << timer0.ElapsedMilliseconds());
 		// TODO: Consider a more automatic way of doing this?
-		for (auto& c : chunks) {
-			c->manager.Update<RenderSystem>();
-		}
 		engine::Timer timer;
 		timer.Start();
 		for (auto& c : chunks) {
-			c->manager.Update<HitboxRenderSystem>();
+			if (c->new_chunk) {
+				c->Update();
+				c->new_chunk = false;
+			}
+			c->Render();
+			//c->manager.Update<HitboxRenderSystem>();
+			//c->manager.Update<RenderSystem>();
 		}
 		//LOG("Rendered " << 256 * chunks.size() << " hitboxes");
 		auto time = timer.ElapsedMilliseconds();
-		if (time > 10) {
-			LOG("Hitbox rendering took: " << time);
+		if (true) {
+			LOG("Rendering " << 256 * chunks.size() << " tiles took " << time << " milliseconds");
 		}
 		scene.manager.Update<RenderSystem>();
 		scene.manager.Update<HitboxRenderSystem>();
