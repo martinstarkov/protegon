@@ -26,32 +26,10 @@ inline double Truncate(double value, int digits) {
 }
 
 // Clamp value within a range.
-template <typename T>
-constexpr const T& Clamp(const T& value, const T& low, const T& high) {
-	static_assert(std::is_arithmetic<T>::value, "Clamp can only accept numeric types");
+template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
+constexpr T Clamp(T value, T low, T high) {
 	assert(!(high < low));
 	return (value < low) ? low : (high < value) ? high : value;
-}
-
-// TODO: Add tests for T being valid integer / supported for numeric limits.
-template <typename T>
-T Infinity() {
-	return std::numeric_limits<T>::infinity();
-}
-
-template <typename Floating, std::enable_if_t<std::is_floating_point<Floating>::value, int> = 0>
-Floating GetRandomValue(Floating min_range, Floating max_range) {
-	std::random_device rd;
-	std::mt19937 rng(rd());
-	std::uniform_real_distribution<Floating> distribution(min_range, max_range);
-	return distribution(rng);
-}
-template <typename Integer, std::enable_if_t<std::is_integral<Integer>::value, int> = 0>
-Integer GetRandomValue(Integer min_range, Integer max_range) {
-	std::random_device rd;
-	std::mt19937 rng(rd());
-	std::uniform_int_distribution<Integer> distribution(min_range, max_range);
-	return distribution(rng);
 }
 
 static double DegreeToRadian(double degrees) {
@@ -62,31 +40,54 @@ static double RadianToDegree(double radian) {
 	return radian * 180.0 / PI<double>;
 }
 
-template <typename ...Ts>
-using is_number = std::enable_if_t<(std::is_arithmetic_v<Ts> && ...), int>;
-
-template <typename T, typename S, is_number<T, S> = 0>
-inline T RoundCast(S value) {
-	return static_cast<T>(std::round(value));
-}
-template <typename T, is_number<T> = 0>
-inline T Round(T value) {
-	return static_cast<T>(std::round(value));
-}
-template <typename T, is_number<T> = 0>
-inline T Floor(T value) {
-	return static_cast<T>(std::floor(value));
-}
-template <typename T, is_number<T> = 0>
-inline T Ceil(T value) {
-	return static_cast<T>(std::ceil(value));
-}
-
-// Find the sign of a numeric type
 template <typename T>
-inline int Sign(T val) {
-	static_assert(std::is_arithmetic<T>::value, "Sign function can only accept numeric types");
-	return (T(0) < val) - (val < T(0));
+static int Sign(T value) {
+    return (T(0) < value) - (value < T(0));
+}
+
+// With template modifications to https://stackoverflow.com/a/30308919.
+
+// Faster alternative to std::floor for floating point numbers.
+template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+static int FastFloor(T x) {
+    return (int)x - (x < (int)x);
+}
+
+// If called on integer types, return the value.
+template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
+static T FastFloor(T x) {
+    return x;
+}
+
+// Faster alternative to std::ceil for floating point numbers.
+template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+static int FastCeil(T x) {
+    return (int)x + (x > (int)x);
+}
+
+// If called on integer types, return the value.
+template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
+static T FastCeil(T x) {
+    return x;
+}
+
+// Faster alternative to std::abs.
+// Not to be confused with workout plans.
+template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
+static T FastAbs(T x) {
+    return (x >= 0) ? x : -x;
+}
+
+// Currently the same as std::round. Possible to change in the future if necessary.
+template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+static T FastRound(T x) {
+    return std::round(x);
+}
+
+// If called on integer types, return the value.
+template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
+static T FastRound(T x) {
+    return x;
 }
 
 } // namespace math
