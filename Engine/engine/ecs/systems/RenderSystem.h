@@ -21,7 +21,7 @@ public:
 				V2_double size = sprite.current_sprite.size;
 				if (camera) {
 					AABB aabb{ position - camera->offset, size };
-					AABB view{ { 0, 0 }, static_cast<V2_double>(engine::Engine::ScreenSize()) / camera->scale };
+					AABB view{ { 0, 0 }, engine::Engine::ScreenSize() / camera->scale };
 					// Cull objects outside of view.
 					if (!engine::collision::AABBvsAABB(aabb, view)) {
 						continue;

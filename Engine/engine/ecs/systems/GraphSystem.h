@@ -28,8 +28,8 @@ public:
 			auto point = V2_int{ static_cast<int>(x), static_cast<int>(y) };
 			engine::TextureManager::DrawPoint(renderer, point, engine::RED);
 		}
-		engine::TextureManager::DrawLine(renderer, { AXIS_OFFSET, graph_size.y / 2 }, { AXIS_OFFSET + graph_size.x, graph_size.y / 2 });
-		engine::TextureManager::DrawLine(renderer, { AXIS_OFFSET, 0 }, { AXIS_OFFSET, graph_size.y });
+		engine::TextureManager::DrawLine(renderer, V2_int{ AXIS_OFFSET, graph_size.y / 2 }, V2_int{ AXIS_OFFSET + graph_size.x, graph_size.y / 2 });
+		engine::TextureManager::DrawLine(renderer, V2_int{ AXIS_OFFSET, 0 }, V2_int{ AXIS_OFFSET, graph_size.y });
 		engine::TextureManager::SetDrawColor(renderer, engine::TextureManager::GetDefaultRendererColor());
 		renderer.Present();
 	}

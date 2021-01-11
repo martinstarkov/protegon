@@ -27,8 +27,8 @@ public:
 		for (auto [entity, transform, collision_component] : entities) {
 			auto& collider = collision_component.collider;
 			// Round the position to the nearest whole number, this ensures collision detection is precise and prevents tunneling. Very important.
-			collider.position.x = engine::math::RoundCast<double>(transform.position.x);
-			collider.position.y = engine::math::RoundCast<double>(transform.position.y);
+			collider.position.x = engine::math::FastRound(transform.position.x);
+			collider.position.y = engine::math::FastRound(transform.position.y);
 			
 			// Do not check static entities against other entities but the other way around.
 			if (entity.HasComponent<RigidBodyComponent>()) {

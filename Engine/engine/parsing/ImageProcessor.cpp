@@ -116,7 +116,7 @@ std::pair<V2_int, V2_int> ImageProcessor::GetCorners(const Image& image) {
 		if (!color.IsTransparent()) {
 			// Coordinates of the pixel.
 			int x = i % image.size_.x;
-			int y = static_cast<int>(std::round(i / image.size_.x));
+			int y = static_cast<int>(engine::math::FastRound(i / image.size_.x));
 			// Find min and max (top left corner of the image and bottom right).
 			min.x = std::min(min.x, x);
 			min.y = std::min(min.y, y);

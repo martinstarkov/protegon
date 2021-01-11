@@ -53,7 +53,7 @@ public:
 				for (auto [center, radius, color] : DebugDisplay::circles()) {
 					engine::TextureManager::DrawCircle(
 						(center - camera->offset) * camera->scale,
-						engine::math::RoundCast<int>(radius * camera->scale.x),
+						static_cast<int>(engine::math::FastRound(radius * camera->scale.x)),
 						color);
 				}
 				DebugDisplay::circles().clear();

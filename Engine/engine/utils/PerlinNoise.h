@@ -174,7 +174,7 @@ public:
 	}
 
 	float noise(float x, float y) {
-		auto cell = V2_double(engine::math::Floor(x), engine::math::Floor(y));
+		auto cell = V2_double{ engine::math::FastFloor(x), engine::math::FastFloor(y) };
 
 		auto total = 0.0f;
 
