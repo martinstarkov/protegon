@@ -266,13 +266,13 @@ public:
 		engine::Timer timer;
 		timer.Start();
 		for (auto& c : chunks) {
-			if (c->new_chunk) {
+			/*if (c->new_chunk) {
 				c->Update();
 				c->new_chunk = false;
 			}
-			c->Render();
-			//c->manager.Update<HitboxRenderSystem>();
-			//c->manager.Update<RenderSystem>();
+			c->Render();*/
+			c->manager.Update<HitboxRenderSystem>();
+			c->manager.Update<RenderSystem>();
 		}
 		//LOG("Rendered " << 256 * chunks.size() << " hitboxes");
 		auto time = timer.ElapsedMilliseconds();
@@ -298,7 +298,7 @@ private:
 int main(int argc, char* args[]) { // sdl main override
 
 	LOG("Starting Protegon");
-	engine::Engine::Start<MyGame>("Protegon", 512 * 2, 600);
+	engine::Engine::Start<MyGame>("Protegon", 512 * 2, 600, 60);
 
     return 0;
 }

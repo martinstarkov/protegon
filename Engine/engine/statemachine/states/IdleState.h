@@ -2,9 +2,7 @@
 
 #include "State.h"
 
-#include "utils/Defines.h"
-
-#define IDLE_START_VELOCITY 5 * LOWEST_VELOCITY // idle starts when velocity is less than or equal to this value
+#define IDLE_START_VELOCITY 0.5 // idle starts when velocity is less than or equal to this value
 
 class IdleState : public engine::State {
 	virtual void OnEntry() override final {

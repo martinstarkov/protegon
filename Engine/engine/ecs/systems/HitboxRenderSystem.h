@@ -23,7 +23,7 @@ public:
 			if (scene && !entity.HasComponent<PlayerController>()) {
 				auto camera = scene->GetCamera();
 				if (camera) {
-					size *= camera->scale;
+					size = Ceil(size * camera->scale);
 					position -= camera->offset;
 					position *= camera->scale;
 				}

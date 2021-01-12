@@ -1,8 +1,7 @@
 #pragma once
 
-#include <cmath>
-#include <type_traits>
-#include <random>
+#include <cmath> // std::round
+#include <type_traits> // std::enable_if_t, std::is_arithmetic_v, std::is_floating_point_v
 #include <limits> // std::numeric_limits
 #include <iomanip> // std::setprecision for truncating
 #include <sstream> // std::stringstream for truncating
@@ -49,45 +48,45 @@ static int Sign(T value) {
 
 // Faster alternative to std::floor for floating point numbers.
 template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
-static int FastFloor(T x) {
-    return (int)x - (x < (int)x);
+static int FastFloor(T value) {
+    return (int)value - (value < (int)value);
 }
 
 // If called on integer types, return the value.
 template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
-static T FastFloor(T x) {
-    return x;
+static T FastFloor(T value) {
+    return value;
 }
 
 // Faster alternative to std::ceil for floating point numbers.
 template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
-static int FastCeil(T x) {
-    return (int)x + (x > (int)x);
+static int FastCeil(T value) {
+    return (int)value + (value > (int)value);
 }
 
 // If called on integer types, return the value.
 template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
-static T FastCeil(T x) {
-    return x;
+static T FastCeil(T value) {
+    return value;
 }
 
 // Faster alternative to std::abs.
 // Not to be confused with workout plans.
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
-static T FastAbs(T x) {
-    return (x >= 0) ? x : -x;
+static T FastAbs(T value) {
+    return (value >= 0) ? value : -value;
 }
 
 // Currently the same as std::round. Possible to change in the future if necessary.
 template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
-static T FastRound(T x) {
-    return std::round(x);
+static T FastRound(T value) {
+    return std::round(value);
 }
 
 // If called on integer types, return the value.
 template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
-static T FastRound(T x) {
-    return x;
+static T FastRound(T value) {
+    return value;
 }
 
 } // namespace math

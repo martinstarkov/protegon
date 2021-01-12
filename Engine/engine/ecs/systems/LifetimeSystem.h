@@ -12,8 +12,8 @@ public:
 			//CollisionComponent* collision = pair.second->getComponent<CollisionComponent>();
 			//if (collision->bottom) { lifetime->isDying = true; }
 			if (life.is_dying) {
-				if (life.lifetime - SECOND_CHANGE_PER_FRAME >= 0.0) {
-					life.lifetime -= SECOND_CHANGE_PER_FRAME;
+				if (life.lifetime - engine::Engine::InverseFPS() >= 0.0) {
+					life.lifetime -= engine::Engine::InverseFPS();
 				} else {
 					life.lifetime = 0.0;
 				}

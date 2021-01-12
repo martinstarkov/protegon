@@ -1,6 +1,7 @@
 #pragma once
 
-#include <memory>
+#include <cstdlib> // std::size_t
+#include <cstdint> // std::uint32_t
 
 class AllocationMetrics {
 public:
@@ -9,6 +10,6 @@ public:
 	static void Deallocation(const std::size_t& size);
 	static void PrintMemoryUsage();
 private:
-	static std::uint32_t _totalAllocated;
-	static std::uint32_t _totalFreed;
+	static std::uint32_t total_allocated_;
+	static std::uint32_t total_freed_;
 };

@@ -243,14 +243,12 @@ struct Vector2 {
     }
 
     // Explicit conversion from this vector to other arithmetic type vectors.
-    template <typename U, internal::is_number<U> = true, internal::convertible<T, U> = true>
-    explicit operator Vector2<U>() const { return Vector2<U>{ static_cast<U>(x), static_cast<U>(y) }; }
+    /*template <typename U, internal::is_number<U> = true, internal::convertible<T, U> = true>
+    explicit operator Vector2<U>() const { return Vector2<U>{ static_cast<U>(x), static_cast<U>(y) }; }*/
 
     // Implicit conversion from this vector to other arithmetic types which are less wide.
 
-    operator Vector2<int>() const { 
-        // FastCeil used to prevent rounding lines appearing on the screen.
-        return Vector2<int>{ static_cast<int>(x), static_cast<int>(y) };
+    operator Vector2<int>() const { return Vector2<int>{ static_cast<int>(x), static_cast<int>(y) };
     }
     operator Vector2<double>() const { return Vector2<double>{ static_cast<double>(x), static_cast<double>(y) }; }
     operator Vector2<float>() const { return Vector2<float>{ static_cast<float>(x), static_cast<float>(y) }; }

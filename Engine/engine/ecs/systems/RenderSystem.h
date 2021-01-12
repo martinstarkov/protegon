@@ -61,7 +61,7 @@ public:
 				if (camera) {
 					sprite_position -= camera->offset;
 					sprite_position *= camera->scale;
-					size *= camera->scale;
+					size = Ceil(size * camera->scale);
 					position -= camera->offset;
 					position *= camera->scale;
 				}
@@ -71,7 +71,7 @@ public:
 					sprite.current_sprite.position,
 					sprite.current_sprite.size,
 					sprite_position,
-					size * sprite.scale,
+					Ceil(size * sprite.scale),
 					flip,
 					transform.center_of_rotation,
 					transform.rotation);

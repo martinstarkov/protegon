@@ -7,12 +7,9 @@
 
 #include "core/Engine.h"
 
-#include "utils/Defines.h"
-
 namespace engine {
 
 constexpr double MOUSE_HOLD_TIME = 0.25; // seconds
-constexpr std::uint64_t MOUSE_HOLD_CYCLES = static_cast<std::uint64_t>(MOUSE_HOLD_TIME * FPS); // cycles
 
 std::array<std::uint8_t, KEYS> InputHandler::key_states_;
 std::array<std::uint8_t, KEYS> InputHandler::previous_key_states_;
@@ -149,7 +146,8 @@ void InputHandler::MouseButtonReleased(MouseState& mouse_button_state, std::uint
 
 void InputHandler::MouseButtonPressed(MouseState& mouse_button_state, std::uint64_t& mouse_button_pressed_time) {
 	mouse_button_state = MouseState::PRESSED;
-	if (mouse_button_pressed_time > MOUSE_HOLD_CYCLES) {
+	// How many frames the mouse has been pressed down for.
+	if (mouse_button_pressed_time > static_cast<std::uint64_t>(MOUSE_HOLD_TIME * static_cast<double>(Engine::FPS()))) {
 		mouse_button_state = MouseState::HELD;
 	}
 	++mouse_button_pressed_time;

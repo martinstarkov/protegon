@@ -3,7 +3,7 @@
 #include "Component.h"
 
 #include "utils/Math.h"
-#include "utils/Defines.h"
+#include "core/Engine.h"
 
 struct AnimationComponent {
 	std::string current_animation;
@@ -18,7 +18,7 @@ struct AnimationComponent {
 		Init();
 	}
 	void Init() {
-		cycles_per_frame = static_cast<int>(engine::math::FastRound(FPS * animation_delay));
+		cycles_per_frame = static_cast<int>(engine::math::FastRound(static_cast<double>(engine::Engine::FPS()) * animation_delay));
 		counter = cycles_per_frame * frame;
 	}
 };

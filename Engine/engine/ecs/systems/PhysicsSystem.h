@@ -2,6 +2,8 @@
 
 #include "System.h"
 
+#define LOWEST_VELOCITY 0.1
+
 class PhysicsSystem : public ecs::System<TransformComponent, RigidBodyComponent> {
 public:
 	virtual void Update() override final {
