@@ -245,9 +245,6 @@
     <ClInclude Include="engine\utils\Debug.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="engine\utils\Defines.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="engine\utils\Direction.h">
       <Filter>Header Files</Filter>
     </ClInclude>

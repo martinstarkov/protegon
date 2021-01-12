@@ -13,39 +13,37 @@
 namespace engine {
 
 Engine* Engine::instance_{ nullptr };
-Window Engine::window_{ nullptr };
-Renderer Engine::renderer_{ nullptr };
-bool Engine::running_{ false };
-V2_int Engine::window_size_{ 0, 0 };
-V2_int Engine::window_position_{ 0, 0 };
-int Engine::sdl_init{ 1 };
-int Engine::ttf_init{ 1 };
-const char* Engine::window_title_{ "" };
 
 void Engine::Quit() { 
-	running_ = false;
+	auto& engine = GetInstance();
+	engine.running_ = false;
 }
 
 Window& Engine::GetWindow() {
-	assert(window_ && "Cannot return uninitialized window");
-	return window_;
+	auto& engine = GetInstance();
+	assert(engine.window_ && "Cannot return uninitialized window");
+	return engine.window_;
 }
 
 Renderer& Engine::GetRenderer() {
-	assert(renderer_ && "Cannot return uninitialized renderer");
-	return renderer_;
+	auto& engine = GetInstance();
+	assert(engine.renderer_ && "Cannot return uninitialized renderer");
+	return engine.renderer_;
 }
 
 V2_int Engine::ScreenSize() {
-	return window_size_;
+	auto& engine = GetInstance();
+	return engine.window_size_;
 }
 
 int Engine::ScreenWidth() {
-	return window_size_.x;
+	auto& engine = GetInstance();
+	return engine.window_size_.x;
 }
 
 int Engine::ScreenHeight() {
-	return window_size_.y;
+	auto& engine = GetInstance();
+	return engine.window_size_.y;
 }
 
 void Engine::InputHandlerUpdate() {
@@ -61,7 +59,8 @@ void Engine::InitInternals() {
 }
 
 std::pair<Window, Renderer> Engine::GenerateWindow(const char* window_title, V2_int window_position, V2_int window_size, std::uint32_t window_flags, std::uint32_t renderer_flags) {
-	assert(sdl_init == 0 && "Cannot generate window before initializing SDL");
+	auto& engine = GetInstance();
+	assert(engine.sdl_init_ == 0 && "Cannot generate window before initializing SDL");
 	auto window = SDL_CreateWindow(window_title, window_position.x, window_position.y, window_size.x, window_size.y, window_flags);
 	if (window) {
 		LOG("Initialized window successfully");
@@ -80,14 +79,14 @@ std::pair<Window, Renderer> Engine::GenerateWindow(const char* window_title, V2_
 }
 
 void Engine::InitSDL(std::uint32_t window_flags, std::uint32_t renderer_flags) {
-	sdl_init = SDL_Init(SDL_INIT_AUDIO | SDL_INIT_EVENTS | SDL_INIT_TIMER | SDL_INIT_VIDEO);
-	if (sdl_init == 0) {
+	sdl_init_ = SDL_Init(SDL_INIT_AUDIO | SDL_INIT_EVENTS | SDL_INIT_TIMER | SDL_INIT_VIDEO);
+	if (sdl_init_ == 0) {
 		LOG("Initialized SDL successfully");
 		auto [window, renderer] = GenerateWindow(window_title_, window_position_, window_size_, window_flags, renderer_flags);
 		window_ = window;
 		renderer_ = renderer;
-		ttf_init = TTF_Init();
-		if (ttf_init == 0) { // True type fonts.
+		ttf_init_ = TTF_Init();
+		if (ttf_init_ == 0) { // True type fonts.
 			LOG("Initialized true type fonts successfully");
 			// SDL fully initialized.
 			return;
@@ -116,6 +115,16 @@ std::uint32_t Engine::GetTicks() {
 
 void Engine::Delay(std::uint32_t milliseconds) {
 	SDL_Delay(milliseconds);
+}
+
+std::size_t Engine::FPS() {
+	auto& engine = GetInstance();
+	return engine.fps_;
+}
+
+double Engine::InverseFPS() {
+	auto& engine = GetInstance();
+	return engine.inverse_fps_;
 }
 
 } // namespace engine

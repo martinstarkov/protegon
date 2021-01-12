@@ -39,7 +39,7 @@ public:
 		} else {
 			if (scene.manager.HasSystem<HopperPhysicsSystem>()) {
 
-				auto random_int = engine::math::GetRandomValue<double>(-1, 1);
+				//auto random_int = engine::math::GetRandomValue<double>(-1, 1);
 				auto players = scene.manager.GetComponentTuple<PlayerController, TransformComponent, RigidBodyComponent, StateVectorComponent, EDFComponent, HopperComponent>();
 				for (auto [entity, player, transform, rigid, state_vector, edf, hopper] : players) {
 					//transform.rotation += random_int;

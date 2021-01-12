@@ -356,7 +356,6 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClInclude Include="engine\ui\UIComponents.h" />
     <ClInclude Include="engine\utils\AllocationMetrics.h" />
     <ClInclude Include="engine\utils\Debug.h" />
-    <ClInclude Include="engine\utils\Defines.h" />
     <ClInclude Include="engine\utils\Direction.h" />
     <ClInclude Include="engine\utils\Hasher.h" />
     <ClInclude Include="engine\utils\Logger.h" />

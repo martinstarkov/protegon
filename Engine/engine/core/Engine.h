@@ -1,7 +1,8 @@
 #pragma once
 
-#include <cstdint>
-#include <cassert>
+#include <cstdlib> // std::size_t
+#include <cstdint> // std::int32_t, etc
+#include <cassert> // assert
 
 #include "core/Scene.h"
 
@@ -10,7 +11,6 @@
 #include "renderer/Window.h"
 #include "renderer/Renderer.h"
 
-#include "utils/Defines.h"
 #include "utils/Vector2.h"
 
 #include "renderer/TextureManager.h"
@@ -30,6 +30,8 @@ constexpr int WINDOW_Y = CENTERED;
 constexpr int WINDOW_WIDTH = 600;
 // Default window height.
 constexpr int WINDOW_HEIGHT = 480;
+// Default FPS.
+constexpr std::size_t FPS = 60;
 
 } // namespace internal
 
@@ -41,21 +43,24 @@ public:
 	virtual void Update() {}
 	// Called after the update function, each frame of the engine loop.
 	virtual void Render() {}
-	
+
 	template <typename T>
-	static void Start(const char* title = internal::WINDOW_TITLE, int width = internal::WINDOW_WIDTH, int height = internal::WINDOW_HEIGHT, int x = internal::WINDOW_X, int y = internal::WINDOW_Y, std::uint32_t window_flags = 0, std::uint32_t renderer_flags = 0) {
-		window_size_ = { width, height };
-		window_position_ = { x, y };
-		window_title_ = title;
-		running_ = true;
+	static void Start(const char* title = internal::WINDOW_TITLE, int width = internal::WINDOW_WIDTH, int height = internal::WINDOW_HEIGHT, std::size_t fps = internal::FPS, int x = internal::WINDOW_X, int y = internal::WINDOW_Y, std::uint32_t window_flags = 0, std::uint32_t renderer_flags = 0) {
+		instance_ = new T{};
+		auto& engine = GetInstance();
+		engine.window_size_ = { width, height };
+		engine.window_position_ = { x, y };
+		engine.fps_ = fps;
+		engine.inverse_fps_ = 1.0 / static_cast<double>(engine.fps_);
+		engine.window_title_ = title;
+		engine.running_ = true;
 		LOG("Initializing SDL...");
-		InitSDL(window_flags, renderer_flags);
+		engine.InitSDL(window_flags, renderer_flags);
 		LOG("All SDL components fully initialized");
-		InitInternals();
-		auto& engine = GetInstance<T>();
+		engine.InitInternals();
 		engine.Init();
-		Loop<T>(engine);
-		Clean();
+		engine.Loop();
+		engine.Clean();
 	}
 	static void Quit();
 	static Window& GetWindow();
@@ -65,37 +70,34 @@ public:
 	static int ScreenHeight();
 	static std::pair<Window, Renderer> GenerateWindow(const char* window_title, V2_int window_position, V2_int window_size, std::uint32_t window_flags = 0, std::uint32_t renderer_flags = 0);
 	static void Delay(std::uint32_t milliseconds);
+	static std::size_t FPS();
+	static double InverseFPS();
 protected:
 	Scene scene;
 private:
-	static void InitInternals();
-	static void InitSDL(std::uint32_t window_flags, std::uint32_t renderer_flags);
-	static void InputHandlerUpdate();
-	static void ResetWindowColor();
-	static void Clean();
-	static std::uint32_t GetTicks();
-	// Singleton.
-	template <typename T>
-	static T& GetInstance() {
-		if (!instance_) {
-			instance_ = new T{};
-		}
-		return *static_cast<T*>(instance_);
+	static Engine& GetInstance() {
+		assert(instance_ != nullptr && "Engine instance not created yet");
+		return *instance_;
 	}
+	void InitInternals();
+	void InitSDL(std::uint32_t window_flags, std::uint32_t renderer_flags);
+	void InputHandlerUpdate();
+	void ResetWindowColor();
+	void Clean();
+	std::uint32_t GetTicks();
 	// Main game loop.
-	template <typename T>
-	static void Loop(T& engine) {
-		const std::uint32_t delay = 1000 / FPS;
+	void Loop() {
+		const std::uint32_t delay = static_cast<std::uint32_t>(1000.0 * inverse_fps_);
 		std::uint32_t start;
 		std::uint32_t time;
 		while (running_) {
 			start = GetTicks();
 			InputHandlerUpdate();
-			engine.Update();
+			Update();
 			renderer_.Clear();
 			ResetWindowColor();
 			// Render everything here.
-			engine.Render();
+			Render();
 			renderer_.Present();
 			time = GetTicks() - start;
 			if (delay > time) { // cap frame time at an FPS
@@ -104,14 +106,16 @@ private:
 		}
 	}
 	static Engine* instance_;
-	static int sdl_init;
-	static int ttf_init;
-	static Window window_;
-	static Renderer renderer_;
-	static bool running_;
-	static V2_int window_size_;
-	static V2_int window_position_;
-	static const char* window_title_;
+	Window window_{ nullptr };
+	Renderer renderer_{ nullptr };
+	bool running_{ false };
+	V2_int window_size_{ 0, 0 };
+	V2_int window_position_{ 0, 0 };
+	int sdl_init_{ 1 };
+	int ttf_init_{ 1 };
+	const char* window_title_{ "" };
+	std::size_t fps_{ 0 };
+	double inverse_fps_{ 0.0 };
 };
 
 } // namespace engine
