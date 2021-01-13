@@ -14,6 +14,7 @@
 // Since the vector class is so universally included, 
 // it is a good way to distribute utility functions and macros.
 #include "utils/Utility.h"
+#include "utils/Math.h"
 
 // Hidden vector related implementations.
 namespace internal {
@@ -28,58 +29,6 @@ using is_number = std::enable_if_t<std::is_arithmetic_v<T>, bool>;
 // Returns whether or not a type is convertible to another type (double to int, int to float, etc).
 template <typename From, typename To>
 using convertible = std::enable_if_t<std::is_convertible_v<From, To>, bool>;
-
-// Helper function for returning the sign of a number.
-// Used for finding the identity version of a vector.
-template <typename T>
-static int Sign(T value) {
-    return (T(0) < value) - (value < T(0));
-}
-
-// With template modifications to https://stackoverflow.com/a/30308919.
-
-// Faster alternative to std::floor for floating point numbers.
-template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
-static int FastFloor(T x) {
-    return (int)x - (x < (int)x);
-}
-
-// If called on integer types, return the value.
-template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
-static T FastFloor(T x) {
-    return x;
-}
-
-// Faster alternative to std::ceil for floating point numbers.
-template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
-static int FastCeil(T x) {
-    return (int)x + (x > (int) x);
-}
-
-// If called on integer types, return the value.
-template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
-static T FastCeil(T x) {
-    return x;
-}
-
-// Faster alternative to std::abs.
-// Not to be confused with workout plans.
-template <typename T, internal::is_number<T> = true>
-static T FastAbs(T x) {
-    return (x >= 0) ? x : -x;
-}
-
-// Currently the same as std::round. Possible to change in the future if necessary.
-template <typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
-static T FastRound(T x) {
-    return std::round(x);
-}
-
-// If called on integer types, return the value.
-template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
-static T FastRound(T x) {
-    return x;
-}
 
 // Vector stream output / input delimeters, allow for consistent serialization / deserialization.
 
@@ -254,16 +203,11 @@ struct Vector2 {
     operator Vector2<float>() const { return Vector2<float>{ static_cast<float>(x), static_cast<float>(y) }; }
     operator Vector2<unsigned int>() const { return Vector2<unsigned int>{ static_cast<unsigned int>(x), static_cast<unsigned int>(y) }; }
 
-    // Return true if either vector component is not equal to 0.
-    inline operator bool() const {
-        return x || y;
-    }
-
     // Vector specific utility functions start here.
 
     // Return true if both vector components equal 0.
     inline bool IsZero() const {
-        return !(*this);
+        return !x && !y;
     }
     // Return true if either vector component equals 0.
     inline bool HasZero() const {
@@ -339,7 +283,7 @@ struct Vector2 {
     }
     // Return identity vector, both components must be 0, 1 or -1.
     inline Vector2 Identity() const {
-        return { internal::Sign(x), internal::Sign(y) };
+        return { engine::math::Sign(x), engine::math::Sign(y) };
     }
     // Return tangent vector, (x, y) -> (y, -x).
     inline Vector2 Tangent() const {
@@ -385,18 +329,16 @@ std::istream& operator>>(std::istream& is, Vector2<T>& obj) {
 
 // Comparison operators.
 
-template <typename T, typename U>
+template <typename T, typename U, typename S = typename std::common_type<T, U>::type>
 inline bool operator==(const Vector2<T>& lhs, const Vector2<U>& rhs) {
-    using S = typename std::common_type<T, U>::type;
     return static_cast<S>(lhs.x) == static_cast<S>(rhs.x) && static_cast<S>(lhs.y) == static_cast<S>(rhs.y);
 }
 template <typename T, typename U>
 inline bool operator!=(const Vector2<T>& lhs, const Vector2<U>& rhs) {
     return !operator==(lhs, rhs);
 }
-template <typename T, typename U, internal::is_number<U> = true>
+template <typename T, typename U, internal::is_number<U> = true, typename S = typename std::common_type<T, U>::type>
 inline bool operator==(const Vector2<T>& lhs, U rhs) {
-    using S = typename std::common_type<T, U>::type;
     return static_cast<S>(lhs.x) == static_cast<S>(rhs) && static_cast<S>(lhs.y) == static_cast<S>(rhs);
 }
 template <typename T, typename U, internal::is_number<U> = true>
@@ -513,7 +455,7 @@ Vector2<S> operator/(const Vector2<T>& lhs, U rhs) {
 // Return the absolute value of both vectors components.
 template <typename T>
 inline Vector2<T> Abs(const Vector2<T>& vector) {
-    return { internal::FastAbs(vector.x), internal::FastAbs(vector.y) };
+    return { engine::math::FastAbs(vector.x), engine::math::FastAbs(vector.y) };
 }
 // Return the distance squared between two vectors.
 template <typename T, typename U, typename S = typename std::common_type<T, U>::type>
@@ -541,7 +483,7 @@ inline T& Max(Vector2<T>& vector) {
 template <typename T>
 inline Vector2<T> Round(const Vector2<T>& vector) {
     if constexpr (std::is_floating_point_v<T>) {
-        return { internal::FastRound(vector.x), internal::FastRound(vector.y) };
+        return { engine::math::FastRound(vector.x), engine::math::FastRound(vector.y) };
     }
     return vector;
 }
@@ -549,7 +491,7 @@ inline Vector2<T> Round(const Vector2<T>& vector) {
 template <typename T>
 inline Vector2<T> Ceil(const Vector2<T>& vector) {
     if constexpr (std::is_floating_point_v<T>) {
-        return { internal::FastCeil(vector.x), internal::FastCeil(vector.y) };
+        return { engine::math::FastCeil(vector.x), engine::math::FastCeil(vector.y) };
     }
     return vector;
 }
@@ -557,7 +499,7 @@ inline Vector2<T> Ceil(const Vector2<T>& vector) {
 template <typename T>
 inline Vector2<T> Floor(const Vector2<T>& vector) {
     if constexpr (std::is_floating_point_v<T>) {
-        return { internal::FastFloor(vector.x), internal::FastFloor(vector.y) };
+        return { engine::math::FastFloor(vector.x), engine::math::FastFloor(vector.y) };
     }
     return vector;
 }

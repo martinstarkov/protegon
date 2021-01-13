@@ -30,9 +30,6 @@ struct AABB : Shape<AABB> {
 		broadphase_box.size.y = velocity.y > 0.0 ? velocity.y + size.y : size.y - velocity.y;
 		return broadphase_box;
 	}
-	operator bool() const {
-		return position || size;
-	}
 	friend std::ostream& operator<<(std::ostream& os, const AABB& obj) {
 		os << '[' << obj.position << ',' << obj.size << ']';
 		return os;
