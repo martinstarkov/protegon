@@ -10,30 +10,30 @@ public:
 		for (auto& [entity, render, transform, collider] : entities) {
 			if (!entity.HasComponent<PlayerController>()) {
 				engine::TextureManager::DrawRectangle(
-					transform.position,
-					collider.collider.size,
+					Ceil(transform.position),
+					Ceil(collider.collider.size),
 					render.color);
 			}
 		}
 
 		for (auto [aabb, color] : DebugDisplay::rectangles()) {
 			engine::TextureManager::DrawRectangle(
-				aabb.position,
-				aabb.size,
+				Ceil(aabb.position),
+				Ceil(aabb.size),
 				color);
 		}
 		DebugDisplay::rectangles().clear();
 		for (auto [origin, destination, color] : DebugDisplay::lines()) {
 			engine::TextureManager::DrawLine(
-				origin,
-				destination,
+				Ceil(origin),
+				Ceil(destination),
 				color);
 		}
 		DebugDisplay::lines().clear();
 		for (auto [center, radius, color] : DebugDisplay::circles()) {
 			engine::TextureManager::DrawCircle(
-				center,
-				radius,
+				Ceil(center),
+				static_cast<int>(radius),
 				color);
 		}
 		DebugDisplay::circles().clear();

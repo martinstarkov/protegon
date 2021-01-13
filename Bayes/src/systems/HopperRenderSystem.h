@@ -8,7 +8,7 @@ public:
 	HopperRenderSystem(engine::Scene* scene) : scene{ scene } {}
 	virtual void Update() override final {
 		for (auto& [player, entity, render, transform, collision] : entities) {
-			engine::TextureManager::DrawRectangle(transform.position, collision.collider.size, transform.rotation, transform.center_of_rotation, render.color);
+			engine::TextureManager::DrawRectangle(Ceil(transform.position), Ceil(collision.collider.size), transform.rotation, transform.center_of_rotation, render.color);
 		}
 	}
 private:

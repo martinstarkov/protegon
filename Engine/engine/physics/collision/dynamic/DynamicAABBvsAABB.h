@@ -34,7 +34,7 @@ static bool ResolveDynamicAABBvsAABB(V2_double& velocity, const AABB& dynamic_ob
 	CollisionManifold repeat_check;
 	// Repeat check is needed due to the fact that if multiple collisions are found, resolving the velocity for the nearest one may invalidate the previously thought collisions.
 	if (DynamicAABBvsAABB(velocity, dynamic_object, static_target, repeat_check)) {
-		velocity += collision.normal * abs(velocity) * (1.0 - collision.time);
+		velocity += collision.normal * Abs(velocity) * (1.0 - collision.time);
 		return true;
 	}
 	return false;
