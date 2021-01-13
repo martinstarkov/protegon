@@ -45,9 +45,9 @@ public:
 					//transform.rotation += random_int;
 					auto& rb = rigid.rigid_body;
 					if (engine::InputHandler::KeyDown(Key::UP)) {
-						edf.thrust_percent += 0.01;
+						edf.thrust_percent += 0.2;
 					} else if (engine::InputHandler::KeyDown(Key::DOWN)) {
-						edf.thrust_percent -= 0.01;
+						edf.thrust_percent -= 0.2;
 					}
 					if (engine::InputHandler::KeyPressed(Key::SPACE)) {
 						edf.thrust_ramp_up += edf.thrust_ramp_up_speed;
