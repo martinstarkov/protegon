@@ -20,6 +20,7 @@ public:
 				V2_double position = transform.position;
 				V2_double size = sprite.current_sprite.size;
 				if (camera) {
+					// TODO: Check that this works. (camera->scale not included).
 					AABB aabb{ position - camera->offset, size };
 					AABB view{ { 0, 0 }, engine::Engine::ScreenSize() / camera->scale };
 					// Cull objects outside of view.

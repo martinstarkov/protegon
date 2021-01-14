@@ -33,6 +33,19 @@ void TextureManager::Load(const char* texture_key, const char* texture_path) {
 	}
 }
 
+Texture TextureManager::CreateTexture(const Renderer& renderer, PixelFormat format, TextureAccess texture_access, const V2_int& size) {
+	return SDL_CreateTexture(renderer, static_cast<std::uint32_t>(format), static_cast<int>(texture_access), size.x, size.y);
+}
+
+std::uint32_t* TextureManager::GetTexturePixel(void* pixels, const V2_int& position, int pitch) {
+	// Source: http://sdl.beuc.net/sdl.wiki/Pixel_Access
+	auto row = position.y * pitch;
+	auto column = position.x * sizeof(std::uint32_t);
+	auto index = static_cast<std::size_t>(row) + static_cast<std::size_t>(column);
+	auto pixel_address = static_cast<std::uint8_t*>(pixels) + index;
+	return (std::uint32_t*)pixel_address;
+}
+
 Color TextureManager::GetDefaultRendererColor() {
 	return DEFAULT_RENDERER_COLOR;
 }
