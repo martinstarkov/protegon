@@ -8,8 +8,10 @@
 class MyGame : public engine::Engine {
 public:
 	std::vector<engine::Image> images;
-	V2_int tiles_per_chunk = { 16, 16 };
-	V2_int tile_size = { 32, 32 };
+	//V2_int tiles_per_chunk = { 16, 16 };
+	//V2_int tile_size = { 32, 32 };
+	V2_int tiles_per_chunk = { 8, 8 };
+	V2_int tile_size = { 64, 64 };
 	void Init() {
 
 		LOG("Initializing game systems...");
@@ -41,6 +43,7 @@ public:
 		title.open = true;
 		pause.open = false;
 		LOG("Initialized all game systems successfully");
+		
 	}
 	struct cmp {
 		bool operator() (AABB a, AABB b) const {
@@ -63,7 +66,9 @@ public:
 	}
 	int octave = 5;
 	double bias = 2.0;
+	engine::Chunk* player_chunk = nullptr;
     void Update() {
+		auto players = scene.manager.GetComponentTuple<TransformComponent, CollisionComponent, PlayerController>();
 		auto& pause = pause_screen.GetComponent<PauseScreenComponent>();
 		scene.manager.Update<InputSystem>();
 		if (!pause.open) {
@@ -75,6 +80,12 @@ public:
 				scene.manager.Update<TargetSystem>();
 			}
 			scene.manager.Update<CollisionSystem>();
+			if (player_chunk != nullptr) {
+				auto [entity, transform, collision, player] = players[0];
+				auto chunk_entities = player_chunk->manager.GetComponentTuple<TransformComponent, CollisionComponent>();
+				chunk_entities.emplace_back(entity, transform, collision);
+				//CollisionRoutine(chunk_entities);
+			}
 			scene.manager.Update<StateMachineSystem>();
 			scene.manager.Update<DirectionSystem>();
 			scene.manager.Update<LifetimeSystem>();
@@ -136,7 +147,9 @@ public:
 			auto it = chunks.begin();
 			while (it != chunks.end()) {
 				auto chunk = (*it);
-				if (!chunk || !engine::collision::AABBvsAABB(chunk->GetInfo(), camera_box)) {
+				auto chunk_box = chunk->GetInfo();
+				chunk_box.size *= tile_size;
+				if (!chunk || !engine::collision::AABBvsAABB(chunk_box, camera_box)) {
 					delete chunk;
 					it = chunks.erase(it);
 				} else {
@@ -168,6 +181,18 @@ public:
 						chunk->Generate(1, octave, bias);
 						chunk->new_chunk = true;
 						chunks.push_back(chunk);
+					}
+				}
+			}
+			for (auto c : chunks) {
+				if (c) {
+				auto chunk_box = c->GetInfo();
+				chunk_box.size *= tile_size;
+				// Check if chunk is player chunk.
+					for (auto [entity, transform, collision, player] : players) {
+						if (engine::collision::AABBvsAABB(collision.collider, chunk_box)) {
+							player_chunk = c;
+						}
 					}
 				}
 			}
@@ -214,14 +239,20 @@ public:
 		// TODO: Consider a more automatic way of doing this?
 		engine::Timer timer;
 		timer.Start();
-		for (auto& c : chunks) {
-			if (c->new_chunk) {
-				c->Update();
-				c->new_chunk = false;
+		auto camera = scene.GetCamera();
+		if (camera) {
+			for (auto& c : chunks) {
+				if (c->new_chunk) {
+					c->Update();
+					c->new_chunk = false;
+				}
+				auto chunk_box = c->GetInfo();
+				chunk_box.size *= tile_size;
+				c->Render();
+				engine::TextureManager::DrawRectangle((chunk_box.position - camera->offset) * camera->scale, Ceil(chunk_box.size * camera->scale), engine::PURPLE);
+				/*c->manager.Update<HitboxRenderSystem>();
+				c->manager.Update<RenderSystem>();*/
 			}
-			c->Render();
-			/*c->manager.Update<HitboxRenderSystem>();
-			c->manager.Update<RenderSystem>();*/
 		}
 		//LOG("Rendered " << 256 * chunks.size() << " hitboxes");
 		auto time = timer.ElapsedMilliseconds();

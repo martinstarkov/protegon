@@ -19,6 +19,7 @@ ecs::Entity CreatePlayer(V2_double position, V2_int size, ecs::Manager& manager,
 	entity.AddComponent<DirectionComponent>();
 	V2_int collider_size = V2_double{ 15, 21 } * scale;
 	auto& collider = entity.AddComponent<CollisionComponent>(position, collider_size);
+	collider.ignored_tag_types.emplace_back(130);
 	collider.ignored_tag_types.emplace_back(69);
 	auto& sprite = entity.AddComponent<SpriteComponent>("./resources/textures/sprite_test.png", scale);
 	sprite.sprite_map.AddAnimation("idle", engine::Animation{ { 0, 0 }, { 24, 24 }, V2_int{ 5, 3 }, 1, 0 });

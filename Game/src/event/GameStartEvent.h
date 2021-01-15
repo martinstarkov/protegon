@@ -67,7 +67,7 @@ struct GameStartEvent {
 								}
 								case 3:
 								{
-									//auto box = CreateBox(pos, { 32, 32 }, influence_manager);
+									auto box = CreateBox(influence_manager, pos, { 32, 32 }, "");
 									break;
 								}
 								case 4:

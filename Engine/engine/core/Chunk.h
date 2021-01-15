@@ -40,7 +40,6 @@ public:
 	virtual void Unload() override final;
 	friend bool operator==(const Chunk& a, const Chunk& b);
 	ecs::Manager manager;
-	PerlinNoise perlin;
 	bool new_chunk = true;
 protected:
 	Scene* scene = nullptr;
