@@ -6,6 +6,7 @@
 #include "utils/Vector2.h"
 #include "renderer/Color.h"
 #include "renderer/Flip.h"
+#include "renderer/AABB.h"
 #include "renderer/Renderer.h"
 
 namespace engine {
@@ -34,8 +35,10 @@ public:
 
 	static Texture CreateTexture(const Renderer& renderer, PixelFormat format, TextureAccess texture_access, const V2_int& size);
 
+	static void RenderTexture(const Renderer& renderer, const Texture& texture, const AABB* source = nullptr, const AABB* destination = nullptr);
+
 	// Return the location of a 4 byte integer value containg the RGBA32 color of the pixel on an SDL_Surface or SDL_Texture.
-	static std::uint32_t* GetTexturePixel(void* pixels, const V2_int& position, int pitch);
+	static std::uint32_t& GetTexturePixel(void* pixels, const V2_int& position, int pitch);
 
 	static Color GetDefaultRendererColor();
 	static void SetDrawColor(Color color);
