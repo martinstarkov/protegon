@@ -75,8 +75,8 @@ public:
 				auto index = i + j * info.size.x;
 				V2_double tile_position = tile * tile_size;
 				V2_double absolute_tile_position = tile_position + info.position;
-				//auto& entity = GetEntity(tile);
-				auto entity = CreateBox(manager, absolute_tile_position, tile_size, "./resources/textures/tree.png");
+				auto& entity = GetEntity(tile);
+				CreateBox(entity, absolute_tile_position, tile_size, "./resources/textures/tree.png");
 				auto& color = entity.GetComponent<RenderComponent>().color;
 				color.r = noise;
 				/*switch (pixel) {

@@ -8,6 +8,7 @@
 class MyGame : public engine::Engine {
 public:
 	std::vector<engine::Image> images;
+	V2_int tiles_per_chunk = { 16, 16 };
 	V2_int tile_size = { 32, 32 };
 	void Init() {
 
@@ -120,118 +121,66 @@ public:
 		timer0.Start();
 		auto camera = scene.GetCamera();
 		if (camera && !title.open) {
-			V2_double tiles_per_chunk = V2_double{ 16, 16 };
-			V2_double tile_size = { 32, 32 };
 			V2_double chunk_size = tiles_per_chunk * tile_size;
 			V2_double lowest = Floor(camera->offset / chunk_size);
 			V2_double highest = Floor((camera->offset + static_cast<V2_double>(engine::Engine::ScreenSize()) / camera->scale) / chunk_size);
-			// Optional: Expand loaded chunk region.
-			/*lowest += -1;
-			highest += 1;*/
-			std::vector<AABB> potential_chunks;
-			
 			assert(lowest.x <= highest.x && "Left grid edge cannot be above right grid edge");
 			assert(lowest.y <= highest.y && "Top grid edge cannot be below top grid edge");
-			for (auto i = lowest.x; i != highest.x + 1; ++i) {
-				for (auto j = lowest.y; j != highest.y + 1; ++j) {
-					V2_double grid_loc = { i, j };
-					auto pos = chunk_size * grid_loc;
-					auto potential_chunk = AABB{ pos, tiles_per_chunk };
-					potential_chunks.push_back(potential_chunk);
-					//DebugDisplay::rectangles().emplace_back(AABB{ pos, chunk_size }, engine::ORANGE);
-				}
-			}
-			/*AABB broadphase_chunk = { lowest * chunk_size, (highest - lowest + V2_double{ 1, 1}).Absolute() * chunk_size };
-			DebugDisplay::rectangles().emplace_back(broadphase_chunk, engine::DARK_GREEN);*/
+			// Optional: Expand loaded chunk region.
+			//lowest += -1;
+			//highest += 1;
+			//std::vector<AABB> potential_chunks;
+			auto camera_box = AABB{ lowest * chunk_size, Abs(highest - lowest + V2_double{ 1, 1 }) * chunk_size };
 
-			std::vector<AABB> new_chunks;
-			std::vector<AABB> removed_chunks;
-
-			// TODO: Fix this mess.
-
-			for (auto& p : potential_chunks) {
-
-				bool new_chunk = true;
-
-				for (auto& c : chunks) {
-
-					if (p == c->GetInfo()) {
-						new_chunk = false;
-					}
-
-				}
-
-				if (new_chunk) {
-					new_chunks.push_back(p);
-				}
-
-			}
-
-			for (auto& c : chunks) {
-
-				bool removed_chunk = true;
-
-				for (auto& p : potential_chunks) {
-
-					if (p == c->GetInfo()) {
-						removed_chunk = false;
-					}
-
-				}
-
-				if (removed_chunk) {
-					removed_chunks.push_back(c->GetInfo());
-				}
-
-			}
-
+			// Remove old chunks that have gone out of range of camera.
 			auto it = chunks.begin();
 			while (it != chunks.end()) {
-				if (Contains(removed_chunks, (*it)->GetInfo())) {
-					delete (*it);
+				auto chunk = (*it);
+				if (!chunk || !engine::collision::AABBvsAABB(chunk->GetInfo(), camera_box)) {
+					delete chunk;
 					it = chunks.erase(it);
 				} else {
 					++it;
 				}
 			}
 
-			for (auto n : new_chunks) {
-
-				if (!Contains(chunks, n)) {
-
-					auto chunk = new BoxChunk();
-					chunk->Init(n, tile_size, &scene);
-					engine::Timer timer;
-					timer.Start();
-					chunk->Generate(1, octave, bias);
-					chunk->new_chunk = true;
-					//LOG("Generate: " << timer.ElapsedMilliseconds());
-
-					chunks.push_back(chunk);
-				}
-
-			}
-
-			auto players = scene.manager.GetComponentTuple<PlayerController, TransformComponent>();
-			for (auto c : chunks) {
-
-				for (auto [entity, player, transform] : players) {
-					if (engine::collision::PointvsAABB(transform.position, c->GetInfo())) {
-						if (engine::InputHandler::KeyPressed(Key::P)) {
-							//c->perlin.PrintNoise(c->perlin.fPerlinNoise2D);
+			// Go through all new chunks.
+			for (auto i = lowest.x; i != highest.x + 1; ++i) {
+				for (auto j = lowest.y; j != highest.y + 1; ++j) {
+					// AABB corresponding to the potentially new chunk.
+					auto potential_chunk = AABB{ chunk_size * V2_double{ i, j }, tiles_per_chunk };
+					bool new_chunk = true;
+					for (auto c : chunks) {
+						if (c) {
+							// Check if chunk exists already, if so, skip it.
+							if (c->GetInfo() == potential_chunk) {
+								c->new_chunk = false;
+								new_chunk = false;
+								break;
+							}
 						}
 					}
+					if (new_chunk) {
+						auto chunk = new BoxChunk();
+						chunk->Init(potential_chunk, tile_size, &scene);
+						engine::Timer timer;
+						timer.Start();
+						chunk->Generate(1, octave, bias);
+						chunk->new_chunk = true;
+						chunks.push_back(chunk);
+					}
 				}
-
 			}
 			//LOG("Chunks: " << chunks.size());
 		} else {
 			for (auto c : chunks) {
-				delete c;
-				c = nullptr;
+				if (c) {
+					delete c;
+					c = nullptr;
+				}
 			}
 			chunks.clear();
-        }
+		}
 		auto time = timer0.ElapsedMilliseconds();
 		if (time > 1) {
 			//LOG("Chunks took: " << time);
@@ -266,13 +215,13 @@ public:
 		engine::Timer timer;
 		timer.Start();
 		for (auto& c : chunks) {
-			/*if (c->new_chunk) {
+			if (c->new_chunk) {
 				c->Update();
 				c->new_chunk = false;
 			}
-			c->Render();*/
-			c->manager.Update<HitboxRenderSystem>();
-			c->manager.Update<RenderSystem>();
+			c->Render();
+			/*c->manager.Update<HitboxRenderSystem>();
+			c->manager.Update<RenderSystem>();*/
 		}
 		//LOG("Rendered " << 256 * chunks.size() << " hitboxes");
 		auto time = timer.ElapsedMilliseconds();
