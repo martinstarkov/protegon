@@ -503,3 +503,9 @@ inline Vector2<T> Floor(const Vector2<T>& vector) {
     }
     return vector;
 }
+// TODO: Write tests for clamp.
+// Clamp both vectors value within a vector range.
+template <typename T>
+inline Vector2<T> Clamp(const Vector2<T>& value, const Vector2<T>& low, const Vector2<T>& high) {
+    return { engine::math::Clamp(value.x, low.x, high.x), engine::math::Clamp(value.y, low.y, high.y) };
+}
