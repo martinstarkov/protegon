@@ -14,7 +14,7 @@ namespace engine {
 
 namespace math {
 
-template<typename T>
+template<typename T, std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
 T const PI = std::acos(-T(1));
 
 // Truncate to specific amount of significant figures
@@ -39,9 +39,9 @@ static double RadianToDegree(double radian) {
 	return radian * 180.0 / PI<double>;
 }
 
-template <typename T>
-static int Sign(T value) {
-    return (T(0) < value) - (value < T(0));
+template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
+static T Sign(T value) {
+    return static_cast<T>((T(0) < value) - (value < T(0)));
 }
 
 // With template modifications to https://stackoverflow.com/a/30308919.
