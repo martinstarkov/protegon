@@ -17,15 +17,16 @@ struct RigidBody {
 	V2_double velocity;
 	V2_double terminal_velocity;
 	V2_double acceleration;
-	V2_double maximum_acceleration;
+	V2_double player_acceleration;
 	V2_double drag;
 	V2_double gravity;
 	double mass;
 	double inverse_mass;
 	double restitution = 1.0;
-	RigidBody(V2_double drag = DRAGLESS, V2_double gravity = GRAVITY, double mass = IMMOVABLE, V2_double maximum_acceleration = { std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity() }) : drag{ drag }, gravity{ gravity }, restitution{ restitution }, mass{ mass }, maximum_acceleration{ maximum_acceleration }, terminal_velocity{ std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity() } {
+	RigidBody(V2_double drag = DRAGLESS, V2_double gravity = GRAVITY, double mass = IMMOVABLE, V2_double player_acceleration = { 1.0, 1.0 }) : drag{ drag }, gravity{ gravity }, restitution{ restitution }, mass{ mass }, player_acceleration{ player_acceleration }, terminal_velocity{ std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity() } {
 		Init();
 	}
+	V2_double GetMaximumAcceleration() const;
 	void Init();
 	void ComputeTerminalVelocity();
 };

@@ -2,7 +2,7 @@
 
 #include "System.h"
 
-#define LOWEST_VELOCITY 0.1
+#define LOWEST_VELOCITY 1
 
 class PhysicsSystem : public ecs::System<TransformComponent, RigidBodyComponent> {
 public:
@@ -17,14 +17,14 @@ public:
 			rb.velocity *= V2_double{ 1.0, 1.0 } - rb.drag;
 
 			// Terminal motion.
-			if (abs(rb.velocity.x) > rb.terminal_velocity.x) {
+			if (std::abs(rb.velocity.x) > rb.terminal_velocity.x) {
 				rb.velocity.x = engine::math::Sign(rb.velocity.x) * rb.terminal_velocity.x;
-			} else if (abs(rb.velocity.x) < LOWEST_VELOCITY) {
+			} else if (std::abs(rb.velocity.x) < LOWEST_VELOCITY) {
 				rb.velocity.x = 0.0;
 			}
-			if (abs(rb.velocity.y) > rb.terminal_velocity.y) {
+			if (std::abs(rb.velocity.y) > rb.terminal_velocity.y) {
 				rb.velocity.y = engine::math::Sign(rb.velocity.y) * rb.terminal_velocity.y;
-			} else if (abs(rb.velocity.y) < LOWEST_VELOCITY) {
+			} else if (std::abs(rb.velocity.y) < LOWEST_VELOCITY) {
 				rb.velocity.y = 0.0;
 			}
 		}

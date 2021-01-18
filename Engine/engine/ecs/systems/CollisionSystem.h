@@ -11,7 +11,6 @@
 // TODO: Figure out relative velocities for two dynamic blocks.
 // TODO: Figure out how to resolve out all static collision in one frame.
 
-
 struct Collision {
 	ecs::Entity entity;
 	CollisionManifold manifold;
@@ -43,8 +42,8 @@ static void CollisionRoutine(std::vector<T>& entities) {
 	// Swept collision detection and resolution routine.
 	for (auto [entity, transform, collision_component] : entities) {
 		auto& collider = collision_component.collider;
-		// Round the position to the nearest whole number, this ensures collision detection is precise and prevents tunneling. Very important.
-		collider.position = Round(transform.position);
+		// Round/Floor the position to the nearest whole number, this ensures collision detection is precise and prevents tunneling. Very important.
+		collider.position = Floor(transform.position);
 
 		// Do not check static entities against other entities but the other way around.
 		if (entity.HasComponent<RigidBodyComponent>()) {

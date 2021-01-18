@@ -42,7 +42,7 @@ public:
 				} else if (engine::InputHandler::MousePressed(engine::MouseButton::LEFT) && state.state != UIInteractionState::ACTIVE) {
 					state.state = UIInteractionState::ACTIVE;
 					if (entity.HasComponent<MouseOffsetComponent>()) {
-						entity.GetComponent<MouseOffsetComponent>().offset = static_cast<V2_double>(mouse_position) - transform.position;
+						entity.GetComponent<MouseOffsetComponent>().offset = mouse_position - transform.position;
 					}
 					if (entity.HasComponent<ActiveColorComponent>()) {
 						background.color = entity.GetComponent<ActiveColorComponent>().color;

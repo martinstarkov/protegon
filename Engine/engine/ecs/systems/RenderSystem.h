@@ -62,7 +62,7 @@ public:
 				if (camera) {
 					sprite_position -= camera->offset;
 					sprite_position *= camera->scale;
-					size = Ceil(size * camera->scale);
+					size = size * camera->scale;
 					position -= camera->offset;
 					position *= camera->scale;
 				}

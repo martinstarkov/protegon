@@ -14,32 +14,32 @@ public:
 		for (auto& [entity, render, transform] : entities) {
 			V2_double position = transform.position;
 			V2_double size;
-			if (entity.HasComponent<SizeComponent>()) {
-				size = entity.GetComponent<SizeComponent>().size;
-			} else if (entity.HasComponent<CollisionComponent>()) {
+			if (entity.HasComponent<CollisionComponent>()) {
 				size = entity.GetComponent<CollisionComponent>().collider.size;
+			} else if (entity.HasComponent<SizeComponent>()) {
+				size = entity.GetComponent<SizeComponent>().size;
 			}
-			// TODO: Temporarily exclude player hitboxes.
+			// TEMPORARY: Exclude player hitbox.
 			if (scene && !entity.HasComponent<PlayerController>()) {
 				auto camera = scene->GetCamera();
 				if (camera) {
-					size = Ceil(size * camera->scale);
+					size *= camera->scale;
 					position -= camera->offset;
 					position *= camera->scale;
 				}
 				engine::TextureManager::DrawSolidRectangle(
 					position,
-					size,
+					Ceil(size),
 					render.color);
 			}
 		}
-		/*if (scene) {
+		if (scene) {
 			auto camera = scene->GetCamera();
 			if (camera) {
 				for (auto [aabb, color] : DebugDisplay::rectangles()) {
 					engine::TextureManager::DrawRectangle(
 						(aabb.position - camera->offset) * camera->scale,
-						aabb.size * camera->scale,
+						Ceil(aabb.size * camera->scale),
 						color);
 				}
 				DebugDisplay::rectangles().clear();
@@ -58,7 +58,7 @@ public:
 				}
 				DebugDisplay::circles().clear();
 			}
-		}*/
+		}
 	}
 private:
 	engine::Scene* scene = nullptr;
