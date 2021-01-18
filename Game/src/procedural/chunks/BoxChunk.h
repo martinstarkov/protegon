@@ -72,7 +72,6 @@ public:
 				//auto noise = noiseMap[j * imageWidth + i];
 				//engine::TextureManager::DrawPoint(, engine::Color(a, 0, 0, 255));
 				auto tile = V2_int{ (int)i, (int)j };
-				auto index = i + j * info.size.x;
 				V2_double tile_position = tile * tile_size;
 				V2_double absolute_tile_position = tile_position + info.position;
 				auto& entity = GetEntity(tile);
@@ -86,16 +85,26 @@ public:
 						entity.AddComponent<TagComponent>(130);
 						break; 
 					}
-					case 1: { color = engine::ORANGE;
+					case 1: { 
+						color = engine::ORANGE;
 						entity.AddComponent<TagComponent>(130);
-						break; }
-					case 2: { color = engine::RED; break; }
-					case 3: { color = engine::DARK_RED; break; }
+						break; 
+					}
+					case 2: {
+						color = engine::RED;
+						break; 
+					}
+					case 3: {
+						color = engine::DARK_RED; 
+						break; 
+					}
 					default: {
 						LOG("Noise: " << noise << ", Pixel: " << pixel);
-						assert(!"Noise value out of range"); break; 
+						assert(!"Noise value out of range"); 
+						break; 
 					}
 				}
+				entity.GetComponent<RenderComponent>().original_color = color;
 			}
 		}
 

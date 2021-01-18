@@ -16,6 +16,14 @@ struct GameStartEvent {
 	static void Invoke(ecs::Entity& invoker, engine::Scene& scene) {
 		if (invoker.IsAlive()) {
 			if (invoker.HasComponent<InfluenceComponent>()) {
+				for (auto c : scene.chunks) {
+					if (c) {
+						delete c;
+						c = nullptr;
+					}
+				}
+				scene.chunks.clear();
+				scene.player_chunks.clear();
 				auto& influence_manager = invoker.GetComponent<InfluenceComponent>().manager;
 				influence_manager.Clear();
 				auto& ui_manager = *invoker.GetManager();
@@ -67,7 +75,7 @@ struct GameStartEvent {
 								}
 								case 3:
 								{
-									auto box = CreateBox(influence_manager, pos, { 32, 32 }, "");
+									//auto box = CreateBox(influence_manager, pos, { 32, 32 }, "");
 									break;
 								}
 								case 4:
