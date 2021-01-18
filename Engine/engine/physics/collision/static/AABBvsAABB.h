@@ -17,29 +17,38 @@ static bool AABBvsAABB(const AABB& A, const AABB& B) {
 }
 
 // Find the penetration vector of one AABB into another AABB.
+// A is the box you want the penetration to be for.
+// B is the box with which you are overlapping.
 static V2_double IntersectionAABBvsAABB(const AABB& A, const AABB& B) {
-	V2_double penetration;
-	double dx = B.position.x - A.position.x;
-	auto a_center = B.size / 2.0;
-	auto b_center = A.size / 2.0;
-	double px = (a_center.x + b_center.x) - std::abs(dx);
-	if (px <= 0.0) {
+	V2_double penetration = { 0.0, 0.0 };
+	const auto dx = B.position.x - A.position.x;
+	const auto A_half = A.size / 2.0;
+	const auto B_half = B.size / 2.0;
+	const auto px = (B_half.x + A_half.x) - math::FastAbs(dx);
+	if (px <= 0) {
 		return penetration;
 	}
-	double dy = B.position.y - A.position.y;
-	double py = (a_center.y + b_center.y) - std::abs(dy);
-	if (py <= 0.0) {
+	const auto dy = B.position.y - A.position.y;
+	const auto py = (B_half.y + A_half.y) - math::FastAbs(dy);
+	if (py <= 0) {
 		return penetration;
 	}
 	if (px < py) {
-		double sx = engine::math::Sign(dx);
+		const auto sx = math::Sign(dx);
 		penetration.x = px * sx;
+		//normal.x = sx;
+		//pos.x = A.position.x + (A_half.x * sx);
+		//pos.y = B.position.y;
 	} else {
-		double sy = engine::math::Sign(dy);
+		const auto sy = math::Sign(dy);
 		penetration.y = py * sy;
+		//normal.y = sy;
+		//pos.x = B.position.x;
+		//pos.y = A.position.y + (A_half.y * sy);
 	}
 	return penetration;
 }
+
 
 } // namespace collision
 
