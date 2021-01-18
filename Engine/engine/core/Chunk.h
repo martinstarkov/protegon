@@ -5,14 +5,14 @@
 #include "utils/Vector2.h"
 #include "ecs/ECS.h" // ecs::Entity, ecs::Manager
 #include "renderer/AABB.h"
-#include "core/Scene.h"
 #include "utils/PerlinNoise.h"
-
 #include "renderer/Texture.h"
 
 // TODO: Move to procedural folder.
 
 namespace engine {
+
+class Scene;
 
 class BaseChunk {
 public:
