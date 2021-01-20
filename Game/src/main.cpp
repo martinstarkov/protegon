@@ -12,7 +12,6 @@ public:
 	V2_int tile_size = { 32, 32 };
 	//V2_int tiles_per_chunk = { 8, 8 };
 	//V2_int tile_size = { 64, 64 };
-	int reset = 0;
 	void Init() {
 
 		LOG("Initializing game systems...");
@@ -52,7 +51,7 @@ public:
 		scene.ui_manager.Update<UIButtonListener>();
 		scene.manager.Update<PhysicsSystem>();
 		scene.manager.Update<TargetSystem>();
-		if (scene.player_chunks.size() > 0 && players.size() > 0) {
+		/*if (scene.player_chunks.size() > 0 && players.size() > 0) {
 			std::vector<std::tuple<ecs::Entity, TransformComponent&, CollisionComponent&>> chunk_entities;
 			chunk_entities.reserve(tiles_per_chunk.x * tiles_per_chunk.y * scene.player_chunks.size() + players.size());
 			for (auto chunk : scene.player_chunks) {
@@ -65,6 +64,14 @@ public:
 			CollisionRoutine(chunk_entities);
 		} else {
 			scene.manager.Update<CollisionSystem>();
+		}*/
+		auto entities = scene.manager.GetComponentTuple<TransformComponent, CollisionComponent>();
+		for (auto [entity, transform, collider] : entities) {
+			for (auto [entity2, transform2, collider2] : entities) {
+				if (entity != entity2) {
+
+				}
+			}
 		}
 
 		scene.manager.Update<StateMachineSystem>();
@@ -73,17 +80,7 @@ public:
 		scene.manager.Update<CameraSystem>();
 		//AllocationMetrics::PrintMemoryUsage();
 		auto& title = title_screen.GetComponent<TitleScreenComponent>();
-		auto players_2 = scene.manager.GetEntitiesWith<PlayerController, RigidBodyComponent>();
-		if (players_2.size() > 0 && engine::InputHandler::KeyPressed(Key::UP)) {
-			players_2[0].GetComponent<RigidBodyComponent>().rigid_body.gravity.y -= 0.1;
-			players_2[0].GetComponent<RigidBodyComponent>().rigid_body.ComputeTerminalVelocity();
-		}
-		if (players_2.size() > 0 && engine::InputHandler::KeyPressed(Key::DOWN)) {
-			players_2[0].GetComponent<RigidBodyComponent>().rigid_body.gravity.y += 0.1;
-			players_2[0].GetComponent<RigidBodyComponent>().rigid_body.ComputeTerminalVelocity();
-		}
-		if (engine::InputHandler::KeyDown(Key::R) || (players_2.size() > 0 && players_2[0].GetComponent<RigidBodyComponent>().rigid_body.acceleration.y == 0)) {
-			++reset;
+		if (engine::InputHandler::KeyDown(Key::R)) {
 			engine::EventHandler::Invoke(title_screen, scene.manager, scene.ui_manager);
 			title.open = true;
 		} else if (title.open) {
@@ -174,7 +171,7 @@ public:
 						chunk->Init(potential_chunk, tile_size, &scene);
 						engine::Timer timer;
 						timer.Start();
-						chunk->Generate(reset, octave, bias);
+						chunk->Generate(0, octave, bias);
 						chunk->new_chunk = true;
 						scene.chunks.push_back(chunk);
 						if (player_chunk) {
