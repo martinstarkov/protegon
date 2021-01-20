@@ -97,10 +97,10 @@ struct Vector2 {
         operator--();
         return tmp;
     }
-    Vector2& operator-() {
+    /*Vector2& operator-() {
         x *= -1; y *= -1;
         return *this;
-    }
+    }*/
     Vector2 operator-() const {
         return { -x, -y };
     }
@@ -266,17 +266,24 @@ struct Vector2 {
     inline S CrossProduct(const Vector2<U>& other) const {
         return static_cast<S>(x) * static_cast<S>(other.y) - static_cast<S>(y) * static_cast<S>(other.x);
     }
+
+    template <typename U, typename S = typename std::common_type<T, U>::type>
+    inline Vector2<S> CrossProduct(U value) {
+        return { static_cast<S>(value) * static_cast<S>(y), -static_cast<S>(value) * static_cast<S>(x) };
+    }
+
     // Return a unit vector (normalized).
     inline auto Unit() const {
         // Cache magnitude calculation.
         auto m = Magnitude();
         // Avoid division by zero error for zero magnitude vectors.
-        if (m) {
+        if (m > DBL_EPSILON) {
             return *this / m;
         }
         using U = decltype(*this / m);
         return static_cast<U>(*this);
     }
+
     // Return normalized (unit) vector.
     inline auto Normalized() const {
         return Unit();
@@ -508,4 +515,9 @@ inline Vector2<T> Floor(const Vector2<T>& vector) {
 template <typename T>
 inline Vector2<T> Clamp(const Vector2<T>& value, const Vector2<T>& low, const Vector2<T>& high) {
     return { engine::math::Clamp(value.x, low.x, high.x), engine::math::Clamp(value.y, low.y, high.y) };
+}
+
+template <typename T, typename U, typename S = typename std::common_type<T, U>::type>
+inline Vector2<S> CrossProduct(U value, const Vector2<T>& vector) {
+    return { -static_cast<S>(value) * static_cast<S>(vector.y), static_cast<S>(value) * static_cast<S>(vector.x) };
 }
