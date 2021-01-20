@@ -5,6 +5,7 @@
 #include <limits> // std::numeric_limits
 #include <iomanip> // std::setprecision for truncating
 #include <sstream> // std::stringstream for truncating
+#include <random> // std::minstd_rand, std::uniform_real_distribution, std::uniform_int_distribution
 
 namespace internal {
 
@@ -14,8 +15,23 @@ namespace engine {
 
 namespace math {
 
-template<typename T, std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
+template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
 T const PI = std::acos(-T(1));
+
+// Return a random number in the given ranges.
+template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
+static T Random(T min = T{ 0 }, T max = T{ 1 }) {
+    assert(min < max && "Minimum random value must be less than maximum random value");
+    std::minstd_rand gen(std::random_device{}());
+    // Vary distribution type based on template parameter type.
+    if constexpr (std::is_floating_point_v<T>) {
+        std::uniform_real_distribution<T> dist(min, max);
+        return dist(gen);
+    } else if constexpr (std::is_integral_v<T>) {
+        std::uniform_int_distribution<T> dist(min, max);
+        return dist(gen);
+    }
+}
 
 // Truncate to specific amount of significant figures
 inline double Truncate(double value, int digits) {
