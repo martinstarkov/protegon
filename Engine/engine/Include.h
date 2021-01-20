@@ -19,7 +19,7 @@
 
 #include "parsing/ImageProcessor.h"
 
-#include "physics/collision/CollisionFunctions.h"
+#include "physics/Physics.h"
 
 #include "event/InputHandler.h"
 #include "event/EventHandler.h"

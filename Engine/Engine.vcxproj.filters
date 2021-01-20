@@ -75,6 +75,21 @@
     <ClCompile Include="engine\utils\SimplexNoise.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="engine\physics\Body.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\physics\Manifold.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\physics\Collision.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\physics\Circle.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\physics\Polygon.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="engine\core\Engine.h">
@@ -179,9 +194,6 @@
     <ClInclude Include="engine\renderer\AABB.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="engine\renderer\Circle.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="engine\renderer\Color.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -195,9 +207,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\renderer\Renderer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\renderer\Shape.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\renderer\TextureManager.h">
@@ -378,6 +387,30 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\utils\SimplexNoise.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\physics\Body.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\physics\Shape.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\physics\Physics.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\physics\Circle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\physics\Manifold.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\physics\Polygon.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\utils\Matrix.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\physics\Collision.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

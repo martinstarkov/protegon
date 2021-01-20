@@ -16,10 +16,10 @@ bool Texture::Lock(void** out_pixels, int* out_pitch, AABB* lock_area) {
 	SDL_Rect* lock_rect = NULL;
 	SDL_Rect rect;
 	if (lock_area != nullptr) {
-		rect.x = lock_area->position.x;
-		rect.y = lock_area->position.y;
-		rect.w = lock_area->size.x;
-		rect.h = lock_area->size.y;
+		rect.x = static_cast<int>(engine::math::FastCeil(lock_area->position.x));
+		rect.y = static_cast<int>(engine::math::FastCeil(lock_area->position.y));
+		rect.w = static_cast<int>(engine::math::FastCeil(lock_area->size.x));
+		rect.h = static_cast<int>(engine::math::FastCeil(lock_area->size.y));
 		lock_rect = &rect;
 	}
 	if (SDL_LockTexture(texture, lock_rect, out_pixels, out_pitch) < 0) {

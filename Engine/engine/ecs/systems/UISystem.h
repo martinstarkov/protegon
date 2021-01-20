@@ -32,14 +32,14 @@ public:
 			auto mouse_position = engine::InputHandler::GetMousePosition();
 			bool hovering = engine::collision::PointvsAABB(mouse_position, surface);
 			if (hovering) {
-				if (engine::InputHandler::MouseReleased(engine::MouseButton::LEFT)) {
+				if (engine::InputHandler::MouseReleased(MouseButton::LEFT)) {
 					state.state = UIInteractionState::HOVER;
 					if (entity.HasComponent<HoverColorComponent>()) {
 						background.color = entity.GetComponent<HoverColorComponent>().color;
 					} else {
 						background.color = background.original_color;
 					}
-				} else if (engine::InputHandler::MousePressed(engine::MouseButton::LEFT) && state.state != UIInteractionState::ACTIVE) {
+				} else if (engine::InputHandler::MousePressed(MouseButton::LEFT) && state.state != UIInteractionState::ACTIVE) {
 					state.state = UIInteractionState::ACTIVE;
 					if (entity.HasComponent<MouseOffsetComponent>()) {
 						entity.GetComponent<MouseOffsetComponent>().offset = mouse_position - transform.position;

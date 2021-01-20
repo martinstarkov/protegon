@@ -2,11 +2,9 @@
 
 #include <ostream> // std::ostream
 
-#include "renderer/Shape.h"
-
 #include "utils/Vector2.h"
 
-struct AABB : Shape<AABB> {
+struct AABB {
 	V2_double position;
 	V2_double size;
 	AABB() : position{ 0.0, 0.0 }, size{ 0.0, 0.0 } {}

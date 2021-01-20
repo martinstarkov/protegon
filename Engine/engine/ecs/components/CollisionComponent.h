@@ -3,7 +3,6 @@
 #include "Component.h"
 
 #include "renderer/AABB.h"
-#include "renderer/Circle.h"
 
 #include <vector> // std::vector
 

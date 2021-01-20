@@ -27,6 +27,7 @@ V2_double RigidBody::GetMaximumAcceleration() const {
 }
 
 void RigidBody::Init() {
+	// This defines 0 mass to be equivalent to infinite mass. 
 	if (mass == 0.0) {
 		inverse_mass = 0.0;
 	} else {

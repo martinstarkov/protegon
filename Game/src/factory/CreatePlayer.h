@@ -8,11 +8,11 @@ ecs::Entity CreatePlayer(V2_double position, V2_int size, ecs::Manager& manager,
 	auto scale = V2_double{ 3, 3 };
 	position = { 0, 0 };
 	auto gravity = GRAVITY;
-	gravity.y += 3;
+	//gravity.y += 3;
 	entity.AddComponent<TransformComponent>(position);
 	entity.AddComponent<InputComponent>();
 	entity.AddComponent<PlayerController>(player_acceleration);
-	entity.AddComponent<RigidBodyComponent>(RigidBody{ UNIVERSAL_DRAG, gravity, 5, player_acceleration });
+	entity.AddComponent<RigidBodyComponent>(RigidBody{ UNIVERSAL_DRAG, gravity, 1, 0.8, player_acceleration });
 	
 	entity.AddComponent<SpriteSheetComponent>();
 	auto& sm = entity.AddComponent<StateMachineComponent>();

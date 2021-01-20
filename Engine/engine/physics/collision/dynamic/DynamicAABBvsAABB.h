@@ -3,7 +3,6 @@
 #include "renderer/AABB.h"
 
 #include "physics/collision/CollisionManifold.h"
-
 #include "physics/collision/static/LinevsAABB.h"
 
 namespace engine {
