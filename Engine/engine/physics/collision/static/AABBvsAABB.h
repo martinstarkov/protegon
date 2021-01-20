@@ -49,6 +49,52 @@ static V2_double IntersectionAABBvsAABB(const AABB& A, const AABB& B) {
 	return penetration;
 }
 
+static bool AABBvsAABB(const AABB& A, const AABB& B, CollisionManifold& out_collision) {
+	// Vector from A to B.
+	auto n = B.position - A.position;
+
+	// Calculate half extents along x axis for each object
+	auto a_extent = A.size.x / 2.0;
+	auto b_extent = B.size.x / 2.0;
+
+	// Calculate overlap on x axis
+	auto x_overlap = a_extent + b_extent - std::abs(n.x);
+
+	// SAT test on x axis
+	if (x_overlap > 0) {
+		// Calculate half extents along x axis for each object
+		auto a_extent = A.size.y / 2.0;
+		auto b_extent = B.size.y / 2.0;
+
+		// Calculate overlap on y axis
+		auto y_overlap = a_extent + b_extent - std::abs(n.y);
+
+		// SAT test on y axis
+		if (y_overlap > 0) {
+			// Find out which axis is axis of least penetration
+			if (x_overlap > y_overlap) {
+				// Point towards B knowing that n points from A to B
+				if (n.x < 0) {
+					out_collision.normal = { -1, 0 };
+				} else {
+					out_collision.normal = { 0, 0 };
+					out_collision.depth = x_overlap;
+					return true;
+				}
+			} else {
+				// Point toward B knowing that n points from A to B
+				if (n.y < 0) {
+					out_collision.normal = { 0, -1 };
+				} else {
+					out_collision.normal = { 0, 1 };
+					out_collision.depth = y_overlap;
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
 
 } // namespace collision
 
