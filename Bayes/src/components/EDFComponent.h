@@ -22,6 +22,6 @@ struct EDFComponent {
 		thrust_percent = 1.0;
 	}
 	double GetTorque(double angle) {
-		return std::sin(engine::math::DegreeToRadian(angle)) * thrust_force * com_tvc;
+		return std::sin(angle) * thrust_force * com_tvc;
 	}
 };

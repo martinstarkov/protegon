@@ -4,84 +4,165 @@
 #include "factory/Factories.h"
 #include "systems/Systems.h"
 
+// https://gamedevelopment.tutsplus.com/tutorials/how-to-create-a-custom-2d-physics-engine-oriented-rigid-bodies--gamedev-8032
+
 #include <cmath>
 
 class Hopper : public engine::Engine {
 public:
 	void Init() {
-
-		/*V2_int graph_size = { 400, 400 };
-		auto [graph_window, graph_renderer] = GenerateWindow("Graph", { 50, 50 }, graph_size);
-		scene.manager.AddSystem<GraphSystem>(graph_renderer, graph_size);*/
 		LOG("Initializing hopper systems...");
-		scene.manager.AddSystem<HopperRenderSystem>(&scene);
 		scene.manager.AddSystem<WorldRenderSystem>(&scene);
-		scene.manager.AddSystem<HopperPhysicsSystem>();
-		scene.manager.AddSystem<HopperCollisionSystem>();
+		scene.manager.AddSystem<CameraSystem>(&scene);
 
-		CreateWorld(scene.manager);
+		CreateWorld(scene.manager, scene);
+
+		auto hopper = scene.manager.GetEntitiesWith<PlayerController, RigidBodyComponent>()[0];
+		auto rb = hopper.GetComponent<RigidBodyComponent>();
+		original_vertices = *rb.body->shape->GetVertices();
+		original_rotation = rb.body->shape->GetRotationMatrix();
+		original_position = rb.body->position;
 
 		LOG("Initialized all game systems successfully");
+		// Green inner box (gives some depth perception).
+		inner_box = { V2_double{ 0,0 }, Engine::ScreenSize() };
+		// If hopper leaves this box, reset the simulation.
+		outer_box = { V2_double{ 0,0 } - distance, Engine::ScreenSize() + V2_double{ distance.x * 2.0, distance.y } };
 	}
+
 	void Reset() {
 		scene.manager.Clear();
-		CreateWorld(scene.manager);
-		LOG("RESETTING SIMULATION");
-		LOG("RESETTING SIMULATION");
-		LOG("RESETTING SIMULATION");
-		LOG("RESETTING SIMULATION");
-		LOG("RESETTING SIMULATION");
+		CreateWorld(scene.manager, scene);
+		LOG("RESETTING SIMULATION!");
 	}
+
+	// How far out of the inner box the outer box is.
+	V2_double distance = { 1000, 500 };
+	std::vector<V2_double> original_vertices;
+	V2_double original_position;
+	Matrix<double, 2, 2> original_rotation;
+	AABB inner_box;
+	AABB outer_box;
+	std::vector<Manifold> contacts;
+
     void Update() {
+
 		static int counter = 0;
-		if (engine::InputHandler::KeyDown(Key::R)) {
-			Reset();
-		} else {
-			if (scene.manager.HasSystem<HopperPhysicsSystem>()) {
 
-				//auto random_int = engine::math::GetRandomValue<double>(-1, 1);
-				auto players = scene.manager.GetComponentTuple<PlayerController, TransformComponent, RigidBodyComponent, StateVectorComponent, EDFComponent, HopperComponent>();
-				for (auto [entity, player, transform, rigid, state_vector, edf, hopper] : players) {
-					//transform.rotation += random_int;
-					auto& rb = rigid.rigid_body;
-					if (engine::InputHandler::KeyDown(Key::UP)) {
-						edf.thrust_percent += 0.2;
-					} else if (engine::InputHandler::KeyDown(Key::DOWN)) {
-						edf.thrust_percent -= 0.2;
-					}
-					if (engine::InputHandler::KeyPressed(Key::SPACE)) {
-						edf.thrust_ramp_up += edf.thrust_ramp_up_speed;
-						edf.Power();
-					} else {
-						edf.Deactivate();
-					}
-					rb.acceleration.y -= edf.thrust_force * abs(std::cos(engine::math::DegreeToRadian(transform.rotation))) / rb.mass;
-					rb.acceleration.x += edf.thrust_force * std::sin(engine::math::DegreeToRadian(transform.rotation)) / rb.mass;
-					double disturbance_torque = 0;
-					double control_torque = 0;
-					auto proportional_gain = 0.9;
-					if (engine::InputHandler::KeyPressed(Key::RIGHT)) {
-						disturbance_torque = 3;
-					} else if (engine::InputHandler::KeyPressed(Key::LEFT)) {
-						disturbance_torque = -3;
-					}
-					control_torque = edf.GetTorque(-proportional_gain * transform.rotation);
-					hopper.theta_dd = (disturbance_torque + control_torque) / hopper.inertia * 0.005;
-					LOG("rot:"<< transform.rotation << ",thrust_f:" << edf.thrust_force << ",theta_dd:"<< hopper.theta_dd << ",control_tq:" << control_torque << ",disturb_torque:" << disturbance_torque);
-					if (std::abs(transform.rotation) > 180) {
-						Reset();
-					}
-				}
+		auto hopper = scene.manager.GetEntitiesWith<PlayerController, RigidBodyComponent>()[0];
+		auto hb = hopper.GetComponent<RigidBodyComponent>().body;
 
-				scene.manager.Update<HopperPhysicsSystem>();
+		// Gravitational acceleration of Hopper (m/s^2).
+		auto gravity = V2_double{ 0, 9.81 };
+		// Hopper properties.
+		hb->mass = 5.0;
+		hb->inertia = 0.08;
+
+		auto players = scene.manager.GetComponentTuple<PlayerController, RigidBodyComponent>();
+		
+		// Thrust of EDF (N).
+		auto thrust = 50.0;
+		if (engine::InputHandler::KeyPressed(Key::SPACE)) {
+			for (auto [entity, player, rb] : players) {
+				// Apply varying thrust based on orientation.
+				rb.body->force.y += -thrust * abs(std::cos(rb.body->orientation));
+				rb.body->force.x += thrust * std::sin(rb.body->orientation);
 			}
-			scene.manager.Update<HopperCollisionSystem>();
 		}
+		
+		// Disturbance torque (N*m)
+		auto torque = 0.0005;
+		if (engine::InputHandler::KeyPressed(Key::RIGHT)) {
+			for (auto [entity, player, rb] : players) {
+				rb.body->torque += torque;
+			}
+		} else if (engine::InputHandler::KeyPressed(Key::LEFT)) {
+			for (auto [entity, player, rb] : players) {
+				rb.body->torque -= torque;
+			}
+		}
+
+
+		/*
+
+
+		for (auto [entity, player, rb] : players) {
+			
+			// *Add control here*
+
+			// Add forces to the net force.
+			rb.force += 0; // Blah blah blah
+
+			// Add forces to the net force.
+			rb.torque += 0;// Blah blah blah
+		}
+
+		*/
+
+
+		// Physics.
+		for (auto [entity, player, rb] : players) {
+			auto& b = *rb.body;
+
+			// Add linear accelerations to velocity.
+			b.velocity += b.force / b.mass + gravity;
+			// Add angular accelerations to angular velocity.
+			b.angular_velocity += b.torque / b.inertia;
+			
+			// Update linear quantities.
+			b.position += b.velocity;
+			b.orientation += b.angular_velocity;
+			rb.body->SetOrientation(b.orientation); // Orientation must be updated like this as it uses a rotation matrix.
+
+			// Reset net values of torque and force.
+			b.torque = 0;
+			b.force = {};
+		}
+
+		// Collision handling.
+		contacts.clear();
+		auto entities = scene.manager.GetComponentTuple<RigidBodyComponent>();
+		for (auto [A_entity, A_rb] : entities) {
+			Body* A = A_rb.body;
+			for (auto [B_entity, B_rb] : entities) {
+				Body* B = B_rb.body;
+				if (A_entity == B_entity)
+					continue;
+				Manifold m(A, B);
+				m.Solve();
+				if (m.contact_count) {
+					if (m.A->name == 69) {
+						m.A->position -= m.normal * m.penetration;
+						// Reset velocity and angular velocity when collision occurs.
+						m.A->velocity = {};
+						m.A->angular_velocity = 0;
+						// Reset orientation when Hopper collides with ground.
+						m.A->SetOrientation(0);
+					}
+					contacts.emplace_back(m);
+				}
+			}
+		}
+
+		// Reset when R is pressed / Hopper leaves outer boundaries / Hopper flips 180 degrees.
+		if (engine::InputHandler::KeyPressed(Key::R) || !engine::collision::AABBvsAABB(outer_box, AABB{ hb->position, hopper.GetComponent<SizeComponent>().size }) || std::abs(hb->orientation) > engine::math::PI<double>) {
+			Reset();
+		}
+
+		// Draw additional elements to screen.
+		DebugDisplay::rectangles().emplace_back(inner_box, engine::DARK_GREEN);
+		DebugDisplay::rectangles().emplace_back(outer_box, engine::DARK_RED);
+		// Original Hopper position.
+		DebugDisplay::polygons().emplace_back(original_position, original_vertices, original_rotation, engine::GREEN);
+		// Line from Hopper's current position to original position.
+		DebugDisplay::lines().emplace_back(hb->position, original_position, engine::ORANGE);
+
+		// Keep camera centered on Hopper.
+		scene.manager.Update<CameraSystem>();
     }
 
 	void Render() {
-		//scene.manager.Update<GraphSystem>();
-		scene.manager.Update<HopperRenderSystem>();
+		// Draw environment and Hopper to the screen.
 		scene.manager.Update<WorldRenderSystem>();
 	}
 private:

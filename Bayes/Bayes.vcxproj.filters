@@ -29,22 +29,13 @@
     <ClInclude Include="src\components\StateVectorComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\factory\CreateBox.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\factory\Factories.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\systems\Systems.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\systems\HopperPhysicsSystem.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\factory\CreateHopper.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\systems\HopperRenderSystem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\systems\WorldRenderSystem.h">
@@ -53,10 +44,10 @@
     <ClInclude Include="src\factory\CreateWorld.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\systems\HopperCollisionSystem.h">
+    <ClInclude Include="src\components\HopperComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\components\HopperComponent.h">
+    <ClInclude Include="src\factory\CreateBox.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
