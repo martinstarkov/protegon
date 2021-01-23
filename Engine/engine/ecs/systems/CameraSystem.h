@@ -7,16 +7,16 @@
 #include "event/InputHandler.h"
 
 #define SCALE_BOUNDARY V2_double{ 5, 5 } // +/- this much max to the scale when zooming
-#define ZOOM_SPEED V2_double{ 0.4, 0.4 } // +/- this much max to the scale when zooming
+#define ZOOM_SPEED V2_double{ 0.1, 0.1 } // +/- this much max to the scale when zooming
 
-class CameraSystem : public ecs::System<TransformComponent, CameraComponent> {
+class CameraSystem : public ecs::System<CameraComponent> {
 public:
 	CameraSystem(engine::Scene* scene) : scene{ scene } {}
 	virtual void Update() override final {
 		assert(scene != nullptr && "Cannot update camera system without a valid scene");
 		// Set last found primary camera as the active camera.
 		ecs::Entity primary_entity = ecs::null;
-		for (auto [entity, transform, camera] : entities) {
+		for (auto [entity, camera] : entities) {
 			if (camera.primary) {
 				scene->SetCamera(camera.camera);
 				primary_entity = entity;
@@ -42,7 +42,14 @@ public:
 			if (primary_entity.HasComponent<CollisionComponent>()) {
 				size = primary_entity.GetComponent<CollisionComponent>().collider.size;
 			}
-			camera->Center(primary_entity.GetComponent<TransformComponent>().position, size);
+			V2_double pos{};
+			if (primary_entity.HasComponent<TransformComponent>()) {
+				pos = primary_entity.GetComponent<TransformComponent>().position;
+			}
+			if (primary_entity.HasComponent<RigidBodyComponent>()) {
+				pos = primary_entity.GetComponent<RigidBodyComponent>().body->position;
+			}
+			camera->Center(pos, size);
 		}
 	}
 private:
