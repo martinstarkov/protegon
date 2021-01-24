@@ -51,7 +51,7 @@ public:
 		scene.ui_manager.Update<UIButtonListener>();
 		scene.manager.Update<PhysicsSystem>();
 		scene.manager.Update<TargetSystem>();
-		/*if (scene.player_chunks.size() > 0 && players.size() > 0) {
+		if (scene.player_chunks.size() > 0 && players.size() > 0) {
 			std::vector<std::tuple<ecs::Entity, TransformComponent&, CollisionComponent&>> chunk_entities;
 			chunk_entities.reserve(tiles_per_chunk.x * tiles_per_chunk.y * scene.player_chunks.size() + players.size());
 			for (auto chunk : scene.player_chunks) {
@@ -64,7 +64,7 @@ public:
 			CollisionRoutine(chunk_entities);
 		} else {
 			scene.manager.Update<CollisionSystem>();
-		}*/
+		}
 		auto entities = scene.manager.GetComponentTuple<TransformComponent, CollisionComponent>();
 		for (auto [entity, transform, collider] : entities) {
 			for (auto [entity2, transform2, collider2] : entities) {

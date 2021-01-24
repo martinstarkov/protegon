@@ -4,7 +4,7 @@
 
 ecs::Entity CreatePlayer(V2_double position, V2_int size, ecs::Manager& manager, engine::Scene& scene) {
 	auto entity = manager.CreateEntity();
-	V2_double player_acceleration = { 3, 0 };
+	V2_double player_acceleration = { 3, 3 };
 	auto scale = V2_double{ 3, 3 };
 	position = { 0, 0 };
 	auto gravity = GRAVITY;

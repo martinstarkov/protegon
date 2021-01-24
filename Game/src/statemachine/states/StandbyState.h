@@ -21,12 +21,12 @@ class StandbyState : public engine::State {
 		auto manager = parent_entity.GetManager();
 		assert(manager != nullptr && "Firing entity state parent manager does not exist");
 		auto players = manager->GetComponentTuple<TransformComponent, PlayerController, CollisionComponent>();
-		auto range_circle = Circle{ tower_transform.position + tower_collider.collider.size / 2.0, tower.range };
+		auto circle_position = tower_transform.position + tower_collider.collider.size / 2.0;
 		ecs::Entity closest_player = ecs::null;
 		auto highest_penetration = 0.0;
 		for (auto [entity, transform, player, collider] : players) {
 			CollisionManifold collision;
-			if (engine::collision::AABBvsCircle(collider.collider, range_circle, collision)) {
+			if (engine::collision::AABBvsCircle(collider.collider, circle_position, tower.range, collision)) {
 				if (std::abs(collision.depth) > highest_penetration) {
 					closest_player = entity;
 					highest_penetration = collision.depth;
