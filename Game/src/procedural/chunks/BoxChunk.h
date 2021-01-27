@@ -75,27 +75,27 @@ public:
 				V2_double tile_position = tile * tile_size;
 				V2_double absolute_tile_position = tile_position + info.position;
 				auto& entity = GetEntity(tile);
-				CreateBox(entity, absolute_tile_position, tile_size, "./resources/textures/tree.png");
-				auto& color = entity.GetComponent<RenderComponent>().color;
+				CreateBox(entity, absolute_tile_position, tile_size, "./resources/textures/tree.png", engine::RED);
+				auto& color = entity.AddComponent<RenderComponent>().color;
 				//color.r = noise;
-				int pixel = (int)engine::math::Clamp(raw_noise * 3.0f, 0.0f, 3.0f);
+				int pixel = (int)engine::math::Clamp(raw_noise * 4.0f, 0.0f, 3.0f);
 				switch (pixel) {
 					case 0: { 
 						color = engine::GOLD;
-						entity.AddComponent<TagComponent>(130);
 						break; 
 					}
 					case 1: { 
 						color = engine::ORANGE;
-						entity.AddComponent<TagComponent>(130);
 						break; 
 					}
 					case 2: {
 						color = engine::RED;
+						entity.AddComponent<CollisionComponent>(absolute_tile_position, tile_size);
 						break; 
 					}
 					case 3: {
-						color = engine::DARK_RED; 
+						color = engine::PURPLE;
+						entity.AddComponent<CollisionComponent>(absolute_tile_position, tile_size);
 						break; 
 					}
 					default: {

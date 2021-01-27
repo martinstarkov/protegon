@@ -1,12 +1,12 @@
 #pragma once
 
-#include "utils/Matrix.h"
+#include <vector>
+#include <cstdint>
 
+#include "utils/math/Matrix.h"
 #include "renderer/Color.h"
 
 #include "Body.h"
-
-#include <vector>
 
 class Polygon;
 class Circle;
@@ -30,6 +30,7 @@ public:
 	virtual void Draw(engine::Color color = engine::BLACK) const = 0;
 	virtual ShapeType GetType() const = 0;
 	virtual double GetRadius() const { return 0; };
+	virtual void SetRadius(double new_radius) {};
 	virtual const std::vector<V2_double>* GetVertices() const { return nullptr; };
 	virtual Matrix<double, 2, 2> GetRotationMatrix() const { return {}; };
 	Body* body = nullptr;

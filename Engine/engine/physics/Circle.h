@@ -1,8 +1,5 @@
 #pragma once
 
-#include "utils/Vector2.h"
-#include "utils/Math.h"
-
 #include "Shape.h"
 
 class Circle : public Shape {
@@ -12,6 +9,7 @@ public:
     virtual void CollisionCheck(Manifold* manifold, Circle* circle_shape) override final;
     virtual void CollisionCheck(Manifold* manifold, Polygon* polygon_shape) override final;
     virtual double GetRadius() const override final;
+    virtual void SetRadius(double new_radius) override final;
     virtual Shape* Clone() const override final;
     virtual void Initialize() override final;
     virtual void ComputeMass(double density) override final;
