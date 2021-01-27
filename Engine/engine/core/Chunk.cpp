@@ -1,6 +1,6 @@
 #include "Chunk.h"
 
-#include "utils/RNG.h"
+#include "utils/math/RNG.h"
 
 #include "ecs/Components.h"
 #include "core/Scene.h"
@@ -64,7 +64,7 @@ void Chunk::Render() {
 		position -= camera->offset;
 		position *= camera->scale;
 	}
-	SDL_Rect dest_rect{ math::FastCeil(position.x), math::FastCeil(position.y), math::FastCeil(size.x), math::FastCeil(size.y) };
+	SDL_Rect dest_rect{ math::Ceil(position.x), math::Ceil(position.y), math::Ceil(size.x), math::Ceil(size.y) };
 	SDL_RenderCopy(Engine::GetRenderer(), chunk, NULL, &dest_rect);
 }
 
@@ -94,14 +94,15 @@ void Chunk::Update() {
 			auto tile = V2_int{ i, j };
 			auto tile_position = tile * tile_size;
 			auto& entity = GetEntity(tile);
+			auto color = TextureManager::GetDefaultRendererColor();
 			if (entity.HasComponent<RenderComponent>()) {
-				auto& color = entity.GetComponent<RenderComponent>().color;
-				for (auto row = 0; row < tile_size.y; ++row) {
-					for (auto col = 0; col < tile_size.x; ++col) {
-						auto pos = tile_position + V2_int{ col, row };
-						auto pixel = internal::GetSurfacePixelColor(pitch, pixels, pos);
-						*pixel = (0xFF000000 | (color.r << 16) | (color.g << 8) | color.b);
-					}
+				color = entity.GetComponent<RenderComponent>().color;
+			}
+			for (auto row = 0; row < tile_size.y; ++row) {
+				for (auto col = 0; col < tile_size.x; ++col) {
+					auto pos = tile_position + V2_int{ col, row };
+					auto pixel = internal::GetSurfacePixelColor(pitch, pixels, pos);
+					*pixel = (0xFF000000 | (color.r << 16) | (color.g << 8) | color.b);
 				}
 			}
 		}

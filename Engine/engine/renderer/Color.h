@@ -26,6 +26,11 @@ struct Color {
 	bool IsTransparent() const { return a == 0; };
 };
 
+template <typename U>
+inline Color Lerp(const Color& color_1, const Color& color_2, U amount) {
+	return { engine::math::Lerp<std::uint8_t>(color_1.r, color_2.r, amount), engine::math::Lerp<std::uint8_t>(color_1.g, color_2.g, amount), engine::math::Lerp<std::uint8_t>(color_1.b, color_2.b, amount), engine::math::Lerp<std::uint8_t>(color_1.a, color_2.a, amount) };
+}
+
 inline bool operator==(const Color& lhs, const Color& rhs) {
 	return lhs.r == rhs.r && lhs.g == rhs.g && lhs.b == rhs.b && lhs.a == rhs.a;
 }

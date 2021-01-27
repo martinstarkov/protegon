@@ -45,7 +45,7 @@ std::vector<Image> ImageProcessor::GetDisconnectedImages(const char* image_path)
 	}
 	return std::move(images);
 }
-
+/*
 std::vector<Image>& ImageProcessor::CenterOnHitbox(std::vector<Image>& images, V2_int hitbox_size, Side side) {
 	V2_int size = hitbox_size;
 	V2_int largest_size;
@@ -56,14 +56,14 @@ std::vector<Image>& ImageProcessor::CenterOnHitbox(std::vector<Image>& images, V
 	if (size.IsZero()) {
 		size = largest_size;
 	}
-	/*
-	* // TODO: In the future make it so the hitbox selection is smart based on the side you select.
-	 else if (side.IsVertical()) {
-		size.y = largest_size.y;
-	} else if (side.IsHorizontal()) {
-		size.x = largest_size.x;
-	}
-	*/
+	
+	// TODO: In the future make it so the hitbox selection is smart based on the side you select.
+	// else if (side.IsVertical()) {
+	//	size.y = largest_size.y;
+	//} else if (side.IsHorizontal()) {
+	//	size.x = largest_size.x;
+	//}
+	
 	//LOG("Hitbox size: " << size);
 	for (auto& image : images) {
 		V2_int difference = size - image.size_;
@@ -105,7 +105,7 @@ std::vector<Image>& ImageProcessor::CenterOnHitbox(std::vector<Image>& images, V
 	}
 	return images;
 }
-
+*/
 std::pair<V2_int, V2_int> ImageProcessor::GetCorners(const Image& image) {
 	// Min and max are initially the extremes, so all pixels will be considered initially.
 	V2_int min{ image.size_ };
@@ -116,7 +116,7 @@ std::pair<V2_int, V2_int> ImageProcessor::GetCorners(const Image& image) {
 		if (!color.IsTransparent()) {
 			// Coordinates of the pixel.
 			int x = i % image.size_.x;
-			int y = static_cast<int>(engine::math::FastRound(i / image.size_.x));
+			int y = engine::math::Round(i / image.size_.x);
 			// Find min and max (top left corner of the image and bottom right).
 			min.x = std::min(min.x, x);
 			min.y = std::min(min.y, y);

@@ -15,6 +15,10 @@ void Circle::CollisionCheck(Manifold* manifold, Polygon* polygon_shape) {
 double Circle::GetRadius() const {
     return radius;
 }
+void Circle::SetRadius(double new_radius) {
+    radius = new_radius;
+}
+
 Shape* Circle::Clone() const {
     return new Circle(radius);
 }
@@ -33,7 +37,7 @@ void Circle::ComputeMass(double density) {
 void Circle::Draw(engine::Color color) const {
     color = engine::RED;
     // Move elsewhere later.
-    engine::TextureManager::DrawCircle(body->position, static_cast<int>(engine::math::FastRound(radius)), color);
+    engine::TextureManager::DrawCircle(body->position, engine::math::Round(radius), color);
 }
 
 ShapeType Circle::GetType() const {

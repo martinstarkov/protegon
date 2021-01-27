@@ -117,7 +117,7 @@ Image Image::GetSubImage(V2_int top_left, V2_int bottom_right) const {
 	}
 	return Image{ std::move(sub_pixels), sub_image_size, top_left };
 }
-
+/*
 void Image::AddSide(Side side, Color color) {
 	if (side.IsHorizontal()) {
 		// Offset relative to the beginning of the pixels vector.
@@ -157,7 +157,7 @@ void Image::AddSide(Side side, Color color) {
 		size_.y += 1;
 	}
 }
-
+*/
 void Image::SetPixel(V2_int position, const Color& color) {
 	auto index = position.y * size_.x + position.x;
 	assert(pixels_.size() > 0 && 

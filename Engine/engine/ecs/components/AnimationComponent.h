@@ -18,7 +18,7 @@ struct AnimationComponent {
 		Init();
 	}
 	void Init() {
-		cycles_per_frame = static_cast<int>(engine::math::FastRound(static_cast<double>(engine::Engine::FPS()) * animation_delay));
+		cycles_per_frame = engine::math::Round(static_cast<double>(engine::Engine::FPS()) * animation_delay);
 		counter = cycles_per_frame * frame;
 	}
 };
