@@ -36,9 +36,6 @@
     <ClCompile Include="engine\renderer\TextureManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="engine\utils\AllocationMetrics.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="engine\renderer\Window.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -63,16 +60,10 @@
     <ClCompile Include="engine\renderer\Texture.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="engine\utils\Hasher.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="engine\renderer\SpriteMap.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="engine\core\Chunk.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\utils\SimplexNoise.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="engine\physics\Body.cpp">
@@ -88,6 +79,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="engine\physics\Polygon.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\utils\debug\AllocationMetrics.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\utils\math\Hasher.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -203,9 +200,6 @@
     <ClInclude Include="engine\renderer\FontManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="engine\renderer\Ray2D.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="engine\renderer\Renderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -248,25 +242,7 @@
     <ClInclude Include="engine\ui\UI.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="engine\utils\AllocationMetrics.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\utils\Debug.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="engine\utils\Direction.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\utils\Logger.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\utils\Math.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\utils\Utility.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\utils\Vector2.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\Include.h">
@@ -323,16 +299,10 @@
     <ClInclude Include="engine\parsing\Image.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="engine\utils\Side.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="engine\renderer\Animation.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\renderer\Texture.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\utils\Hasher.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\renderer\SpriteMap.h">
@@ -371,22 +341,10 @@
     <ClInclude Include="engine\physics\collision\CollisionFunctions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="engine\utils\RNG.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="engine\core\Chunk.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\utils\Timer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\utils\PerlinNoise.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\utils\PerlinNoise2.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\utils\SimplexNoise.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\physics\Body.h">
@@ -407,10 +365,49 @@
     <ClInclude Include="engine\physics\Polygon.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="engine\utils\Matrix.h">
+    <ClInclude Include="engine\physics\Collision.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="engine\physics\Collision.h">
+    <ClInclude Include="engine\utils\debug\AllocationMetrics.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\utils\debug\Logger.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\utils\math\Hasher.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\utils\math\Vector2.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\utils\math\Matrix.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\utils\math\PerlinNoise.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\utils\math\RNG.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\utils\TypeTraits.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\utils\math\MathFunctions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\utils\Debug.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\utils\Math.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\renderer\particles\ParticleManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\renderer\particles\Particle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\ecs\components\ParticleComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

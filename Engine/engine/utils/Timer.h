@@ -1,17 +1,18 @@
 #pragma once
 
-#include <chrono>
-#include <cstdint>
+#include <chrono> // std::chrono
+#include <cstdint> // std::int64_t
 
 namespace engine {
 
 // Monotonic clock to prevent time variations if system time is changed.
-// With modifications from: https://gist.github.com/mcleary/b0bf4fa88830ff7c882d
+// With modifications to: https://gist.github.com/mcleary/b0bf4fa88830ff7c882d
 
 class Timer {
 public:
-	Timer() {}
+    Timer() = default;
 	~Timer() = default;
+    // This works if wanting to restart an active timer.
     void Start() {
         start_time_ = std::chrono::steady_clock::now();
         running_ = true;
