@@ -5,7 +5,7 @@
 #include <SDL_image.h>
 
 #include "renderer/Texture.h"
-#include "utils/Hasher.h"
+#include "utils/math/Hasher.h"
 
 #include "core/Engine.h"
 
@@ -48,23 +48,23 @@ void TextureManager::RenderTexture(const Renderer& renderer, const Texture& text
 	SDL_Rect src_rect;
 	SDL_Rect dest_rect;
 	if (source) {
-		src_rect.x = engine::math::FastCeil(source->position.x);
-		src_rect.y = engine::math::FastCeil(source->position.y);
-		src_rect.w = engine::math::FastCeil(source->size.x);
-		src_rect.h = engine::math::FastCeil(source->size.y);
+		src_rect.x = math::Ceil(source->position.x);
+		src_rect.y = math::Ceil(source->position.y);
+		src_rect.w = math::Ceil(source->size.x);
+		src_rect.h = math::Ceil(source->size.y);
 		src = &src_rect;
 	}
 	if (destination) {
-		dest_rect.x = engine::math::FastCeil(destination->position.x);
-		dest_rect.y = engine::math::FastCeil(destination->position.y);
-		dest_rect.w = engine::math::FastCeil(destination->size.x);
-		dest_rect.h = engine::math::FastCeil(destination->size.y);
+		dest_rect.x = math::Ceil(destination->position.x);
+		dest_rect.y = math::Ceil(destination->position.y);
+		dest_rect.w = math::Ceil(destination->size.x);
+		dest_rect.h = math::Ceil(destination->size.y);
 		dest = &dest_rect;
 	}
 	SDL_RenderCopy(renderer, texture, src, dest);
 }
 
-std::uint32_t& TextureManager::GetTexturePixel(void* pixels, const V2_int& position, int pitch) {
+std::uint32_t& TextureManager::GetTexturePixel(void* pixels, const V2_int& position, const int pitch) {
 	// Source: http://sdl.beuc.net/sdl.wiki/Pixel_Access
 	//int bpp = surface->format->BytesPerPixel;
 	int bpp = sizeof(std::uint32_t);
@@ -84,71 +84,53 @@ Texture TextureManager::GetTexture(const char* texture_key) {
 	return it->second;
 }
 
-void TextureManager::SetDrawColor(Color color) {
+void TextureManager::SetDrawColor(const Color& color) {
 	SDL_SetRenderDrawColor(Engine::GetRenderer(), color.r, color.g, color.b, color.a);
 }
 
-void TextureManager::SetDrawColor(Renderer renderer, Color color) {
+void TextureManager::SetDrawColor(const Renderer& renderer, const Color& color) {
 	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
 }
 
-void TextureManager::DrawPoint(V2_int point, Color color) {
+void TextureManager::DrawPoint(const V2_int& point, const Color& color) {
 	SetDrawColor(color);
 	SDL_RenderDrawPoint(Engine::GetRenderer(), point.x, point.y);
 	SetDrawColor(DEFAULT_RENDERER_COLOR);
 }
-//void TextureManager::DrawPoint(V2_double point, Color color) {
-//	DrawPoint(static_cast<V2_int>(Ceil(point)), color);
-//}
 
-void TextureManager::DrawPoint(Renderer renderer, V2_int point, Color color) {
+void TextureManager::DrawPoint(const Renderer& renderer, const V2_int& point, const Color& color) {
 	SetDrawColor(renderer, color);
 	SDL_RenderDrawPoint(renderer, point.x, point.y);
 	SetDrawColor(renderer, DEFAULT_RENDERER_COLOR);
 }
-//void TextureManager::DrawPoint(Renderer renderer, V2_double point, Color color) {
-//	DrawPoint(renderer, static_cast<V2_int>(Ceil(point)), color);
-//}
 
-void TextureManager::DrawLine(V2_int origin, V2_int destination, Color color) {
+void TextureManager::DrawLine(const V2_int& origin, const V2_int& destination, const Color& color) {
 	SetDrawColor(color);
 	SDL_RenderDrawLine(Engine::GetRenderer(), origin.x, origin.y, destination.x, destination.y);
 	SetDrawColor(DEFAULT_RENDERER_COLOR);
 }
-//void TextureManager::DrawLine(V2_double origin, V2_double destination, Color color) {
-//	DrawLine(static_cast<V2_int>(Ceil(origin)), static_cast<V2_int>(Ceil(destination)), color);
-//}
 
-void TextureManager::DrawLine(Renderer renderer, V2_int origin, V2_int destination, Color color) {
+void TextureManager::DrawLine(const Renderer& renderer, const V2_int& origin, const V2_int& destination, const Color& color) {
 	SetDrawColor(renderer, color);
 	SDL_RenderDrawLine(renderer, origin.x, origin.y, destination.x, destination.y);
 	SetDrawColor(renderer, DEFAULT_RENDERER_COLOR);
 }
-//void TextureManager::DrawLine(Renderer renderer, V2_double origin, V2_double destination, Color color) {
-//	DrawLine(renderer, static_cast<V2_int>(Ceil(origin)), static_cast<V2_int>(Ceil(destination)), color);
-//}
 
-void TextureManager::DrawSolidRectangle(V2_int position, V2_int size, Color color) {
+void TextureManager::DrawSolidRectangle(const V2_int& position, const V2_int& size, const Color& color) {
 	SetDrawColor(color);
 	SDL_Rect rect{ position.x, position.y, size.x, size.y };
 	SDL_RenderFillRect(Engine::GetRenderer(), &rect);
 	SetDrawColor(DEFAULT_RENDERER_COLOR);
 }
-//void TextureManager::DrawSolidRectangle(V2_double position, V2_double size, Color color) {
-//	DrawSolidRectangle(static_cast<V2_int>(Ceil(position)), static_cast<V2_int>(Ceil(size)), color);
-//}
 
-void TextureManager::DrawRectangle(V2_int position, V2_int size, Color color) {
+void TextureManager::DrawRectangle(const V2_int& position, const V2_int& size, const Color& color) {
 	SetDrawColor(color);
 	SDL_Rect rect{ position.x, position.y, size.x, size.y };
 	SDL_RenderDrawRect(Engine::GetRenderer(), &rect);
 	SetDrawColor(DEFAULT_RENDERER_COLOR);
 }
-//void TextureManager::DrawRectangle(V2_double position, V2_double size, Color color) {
-//	DrawRectangle(static_cast<V2_int>(Ceil(position)), static_cast<V2_int>(Ceil(size)), color);
-//}
 
-void TextureManager::DrawRectangle(V2_int position, V2_int size, double rotation, V2_double* center_of_rotation, Color color) {
+void TextureManager::DrawRectangle(const V2_int& position, const V2_int& size, const double rotation, const Color& color, V2_double* center_of_rotation) {
 	SetDrawColor(color);
 	SDL_Rect dest_rect{ position.x, position.y, size.x, size.y };
 	SDL_Texture* texture = SDL_CreateTexture(Engine::GetRenderer(), SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STATIC, size.x, size.y);
@@ -159,11 +141,8 @@ void TextureManager::DrawRectangle(V2_int position, V2_int size, double rotation
 		SDL_RenderCopyEx(Engine::GetRenderer(), texture, NULL, &dest_rect, rotation, NULL, SDL_FLIP_NONE);
 	}
 }
-//void TextureManager::DrawRectangle(V2_double position, V2_double size, double rotation, V2_double* center_of_rotation, Color color) {
-//	DrawRectangle(static_cast<V2_int>(Ceil(position)), static_cast<V2_int>(Ceil(size)), rotation, center_of_rotation, color);
-//}
 
-void TextureManager::DrawRectangle(const char* texture_key, V2_int src_position, V2_int src_size, V2_int dest_position, V2_int dest_size, Flip flip, V2_double* center_of_rotation, double angle) {
+void TextureManager::DrawRectangle(const char* texture_key, const V2_int& src_position, const V2_int& src_size, const V2_int& dest_position, const V2_int& dest_size, Flip flip, V2_double* center_of_rotation, double angle) {
 	SDL_Rect src_rect{ src_position.x, src_position.y, src_size.x, src_size.y };
 	SDL_Rect dest_rect{ dest_position.x, dest_position.y, dest_size.x, dest_size.y };
 	if (center_of_rotation) {
@@ -173,11 +152,8 @@ void TextureManager::DrawRectangle(const char* texture_key, V2_int src_position,
 		SDL_RenderCopyEx(Engine::GetRenderer(), GetTexture(texture_key), &src_rect, &dest_rect, angle, NULL, static_cast<SDL_RendererFlip>(flip));
 	}
 }
-//void TextureManager::DrawRectangle(const char* texture_key, V2_double src_position, V2_double src_size, V2_double dest_position, V2_double dest_size, Flip flip, V2_double* center_of_rotation, double angle) {
-//	DrawRectangle(texture_key, static_cast<V2_int>(Ceil(src_position)), static_cast<V2_int>(Ceil(src_size)), static_cast<V2_int>(Ceil(dest_position)), static_cast<V2_int>(Ceil(dest_size)), flip, center_of_rotation, angle);
-//}
 
-void TextureManager::DrawCircle(V2_int center, int radius, Color color) {
+void TextureManager::DrawCircle(const V2_int& center, const int radius, const Color& color) {
 	V2_int position{ radius, 0 };
     // Printing the initial point on the axes  
     // after translation 
@@ -226,9 +202,16 @@ void TextureManager::DrawCircle(V2_int center, int radius, Color color) {
         }
     }
 }
-//void TextureManager::DrawCircle(V2_double center, int radius, Color color) {
-//	DrawCircle(static_cast<V2_int>(Ceil(center)), radius, color);
-//}
+
+void TextureManager::DrawSolidCircle(const V2_int& center, const int radius, const Color& color) {
+	for (auto y = -radius; y <= radius; ++y) {
+		for (auto x = -radius; x <= radius; ++x) {
+			if (x * x + y * y <= radius * radius) {
+				DrawPoint({ center.x + x, center.y + y }, color);
+			}
+		}
+	}
+}
 
 void TextureManager::Clean() {
 	for (auto& pair : texture_map_) {
