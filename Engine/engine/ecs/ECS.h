@@ -37,6 +37,11 @@ SOFTWARE.
 #include <functional> // std::hash for hashing
 #include <type_traits> // std::is_base_of_v for system type checks
 
+// TODO: Check that GetDeadEntityCount and GetEntityCount functions work as intended.
+// TODO: Check that RemoveComponents functions work as intended.
+// TODO: Update documentation with GetDeadEntityCount, GetEntityCount, RemoveComponents.
+// TODO: Check that documentation is fully up to date.
+
 namespace ecs {
 
 using EntityId = std::uint32_t;
@@ -394,6 +399,8 @@ public:
 	void ForEach(T&& function);
 	// Return the number of entities which are currently alive in the manager.
 	std::size_t GetEntityCount();
+	// Return the number of entities which are currently not alive in the manager.
+	std::size_t GetDeadEntityCount();
 	// Retrieve a vector of handles to each entity in the manager.
 	std::vector<Entity> GetEntities();
 	// Retrieve a vector of handles to each entity in the manager which has all of the given components.
@@ -908,6 +915,9 @@ inline void Manager::DestroyEntity(Entity entity) {
 	DestroyEntity(entity.id_, entity.version_, entity.loop_entity_);
 }
 inline std::size_t Manager::GetEntityCount() {
+	return entity_count_ - GetDeadEntityCount();
+	/*
+	// TODO: Remove after checking the above works.
 	std::size_t entities = 0;
 	for (EntityId id = internal::first_valid_entity_id; id <= entity_count_; ++id) {
 		auto& entity_data = entities_[id];
@@ -916,6 +926,10 @@ inline std::size_t Manager::GetEntityCount() {
 		}
 	}
 	return entities;
+	*/
+}
+inline std::size_t Manager::GetDeadEntityCount() {
+	return free_entity_ids.size();
 }
 inline std::vector<Entity> Manager::GetEntities() {
 	return GetEntitiesWith<>();
