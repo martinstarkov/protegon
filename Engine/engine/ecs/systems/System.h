@@ -5,7 +5,7 @@
 #include "ecs/ECS.h"
 #include "ecs/Components.h"
 
-#include "utils/Matrix.h"
+#include "utils/math/Matrix.h"
 
 #include "renderer/Color.h"
 

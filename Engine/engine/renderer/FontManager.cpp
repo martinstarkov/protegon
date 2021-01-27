@@ -5,7 +5,7 @@
 #include <cassert> // assert
 
 #include "core/Engine.h"
-#include "utils/Hasher.h"
+#include "utils/math/Hasher.h"
 
 namespace engine {
 
@@ -36,7 +36,7 @@ Texture FontManager::GetFont(const char* font_key) {
 	return it->second;
 }
 
-void FontManager::Draw(const char* text, V2_int position, V2_int size) {
+void FontManager::Draw(const char* text, const V2_int& position, const V2_int& size) {
 	SDL_Rect rect{ position.x, position.y, size.x, size.y };
 	SDL_RenderCopy(Engine::GetRenderer(), GetFont(text), NULL, &rect);
 }

@@ -4,7 +4,7 @@
 #include <array>
 #include <cstdlib>
 
-#include "utils/Vector2.h"
+#include "utils/math/Vector2.h"
 #include "event/Keys.h"
 
 // TODO: Write tests to make sure key is valid when calling KeyDown(), etc

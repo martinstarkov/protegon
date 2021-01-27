@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utils/Vector2.h"
+#include "utils/math/Vector2.h"
 
 class Shape;
 

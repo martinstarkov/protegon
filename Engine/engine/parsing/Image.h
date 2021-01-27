@@ -1,7 +1,6 @@
 #pragma once
 
-#include "utils/Vector2.h"
-#include "utils/Side.h"
+#include "utils/math/Vector2.h"
 
 #include "renderer/Color.h"
 
@@ -30,7 +29,7 @@ public:
 	// Obligatory comment on imageception.
 	Image GetSubImage(V2_int top_left, V2_int bottom_right) const;
 	// Add row / column of pixels of the given color to the pixels array.
-	void AddSide(Side side, Color color = TRANSPARENT);
+	//void AddSide(Side side, Color color = TRANSPARENT);
 	// Prints image out in the console.
 	// Non-transparent pixels are hashtags while transparent ones as spaces.
 	friend std::ostream& operator<<(std::ostream& os, Image& image);

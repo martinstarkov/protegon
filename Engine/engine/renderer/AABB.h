@@ -2,12 +2,12 @@
 
 #include <ostream> // std::ostream
 
-#include "utils/Vector2.h"
+#include "utils/math/Vector2.h"
 
 struct AABB {
-	V2_double position;
-	V2_double size;
-	AABB() : position{ 0.0, 0.0 }, size{ 0.0, 0.0 } {}
+	V2_double position{ 0.0, 0.0 };
+	V2_double size{ 0.0, 0.0 };
+	AABB() = default;
 	AABB(V2_double position, V2_double size) : position{ position }, size{ size } {}
 	AABB(int x, int y, int w, int h) : position{ x, y }, size{ w, h } {}
 	AABB ExpandedBy(const AABB& other) const {

@@ -5,14 +5,14 @@
 
 #include "renderer/Color.h"
 #include "renderer/Texture.h"
-#include "utils/Vector2.h"
+#include "utils/math/Vector2.h"
 
 namespace engine {
 
 class FontManager {
 public:
 	static void Load(const char* text, const Color& color, const int size, const char* font_path);
-	static void Draw(const char* text, V2_int position, V2_int size);
+	static void Draw(const char* text, const V2_int& position, const V2_int& size);
 	static void Clean();
 private:
 	static void RemoveFont(const char* font_key);

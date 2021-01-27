@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utils/Vector2.h"
+#include "utils/math/Vector2.h"
 #include "renderer/AABB.h"
 
 namespace engine {
@@ -19,12 +19,12 @@ static V2_double IntersectionPointvsAABB(const V2_double& point, const AABB& A) 
 	V2_double penetration = { 0.0, 0.0 };
 	const auto dx = point.x - A.position.x;
 	const auto half = A.size / 2.0;
-	const auto px = half.x - math::FastAbs(dx);
+	const auto px = half.x - math::Abs(dx);
 	if (px <= 0) {
 		return penetration;
 	}
 	const auto dy = point.y - A.position.y;
-	const auto py = half.y - math::FastAbs(dy);
+	const auto py = half.y - math::Abs(dy);
 	if (py <= 0) {
 		return penetration;
 	}

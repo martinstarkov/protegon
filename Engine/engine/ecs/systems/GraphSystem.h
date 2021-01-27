@@ -2,7 +2,7 @@
 
 #include "System.h"
 
-#include "utils/Vector2.h"
+#include "utils/math/Vector2.h"
 #include "renderer/Renderer.h"
 #include "renderer/TextureManager.h"
 #include <deque>
@@ -28,8 +28,8 @@ public:
 			auto point = V2_int{ static_cast<int>(x), static_cast<int>(y) };
 			engine::TextureManager::DrawPoint(renderer, point, engine::RED);
 		}
-		engine::TextureManager::DrawLine(renderer, V2_int{ AXIS_OFFSET, graph_size.y / 2 }, V2_int{ AXIS_OFFSET + graph_size.x, graph_size.y / 2 });
-		engine::TextureManager::DrawLine(renderer, V2_int{ AXIS_OFFSET, 0 }, V2_int{ AXIS_OFFSET, graph_size.y });
+		engine::TextureManager::DrawLine(renderer, V2_int{ AXIS_OFFSET, graph_size.y / 2 }, V2_int{ AXIS_OFFSET + graph_size.x, graph_size.y / 2 }, engine::BLACK);
+		engine::TextureManager::DrawLine(renderer, V2_int{ AXIS_OFFSET, 0 }, V2_int{ AXIS_OFFSET, graph_size.y }, engine::BLACK);
 		engine::TextureManager::SetDrawColor(renderer, engine::TextureManager::GetDefaultRendererColor());
 		renderer.Present();
 	}

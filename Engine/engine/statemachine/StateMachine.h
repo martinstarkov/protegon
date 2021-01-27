@@ -8,7 +8,7 @@
 #include "BaseStateMachine.h"
 #include "states/BaseState.h"
 
-#include "utils/Hasher.h"
+#include "utils/math/Hasher.h"
 
 namespace engine {
 
