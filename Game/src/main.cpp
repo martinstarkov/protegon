@@ -5,6 +5,32 @@
 #include "factory/Factories.h"
 #include "systems/Systems.h"
 
+engine::Particle test_particle{ {}, {}, {}, 0, engine::ORANGE, engine::GREY, 10, 0, 0, 0.5 };
+engine::ParticleManager particles{ 1000 };
+
+void mine(ecs::Entity& entity, Collision& collision) {
+	auto& c = collision.entity.GetComponent<CollisionComponent>();
+	test_particle.position = c.collider.Center();
+	V2_double scale = { 3.0, 3.0 };
+	test_particle.velocity = scale * V2_double{ -1, 0 };
+	particles.Emit(test_particle);
+	test_particle.velocity = scale * V2_double{ -1, -1 };
+	particles.Emit(test_particle);
+	test_particle.velocity = scale * V2_double{ 0, -1 };
+	particles.Emit(test_particle);
+	test_particle.velocity = scale * V2_double{ 1, 0 };
+	particles.Emit(test_particle);
+	test_particle.velocity = scale * V2_double{ 1, 1 };
+	particles.Emit(test_particle);
+	test_particle.velocity = scale * V2_double{ 0, 1 };
+	particles.Emit(test_particle);
+	test_particle.velocity = scale * V2_double{ -1, 1 };
+	particles.Emit(test_particle);
+	test_particle.velocity = scale * V2_double{ 1, -1 };
+	particles.Emit(test_particle);
+	collision.entity.Destroy();
+}
+
 class MyGame : public engine::Engine {
 public:
 	std::vector<engine::Image> images;
@@ -39,7 +65,6 @@ public:
 		engine::EventHandler::Invoke(title_screen, scene.manager, scene.ui_manager);
 		title.open = true;
 		LOG("Initialized all game systems successfully");
-		
 	}
 
 	int octave = 5;
@@ -52,27 +77,23 @@ public:
 		scene.manager.Update<PhysicsSystem>();
 		scene.manager.Update<TargetSystem>();
 		if (scene.player_chunks.size() > 0 && players.size() > 0) {
+			std::vector<std::tuple<ecs::Entity, TransformComponent&, CollisionComponent&>> player_entities;
+			player_entities.reserve(players.size());
+			for (auto [entity, transform, collider, player] : players) {
+				player_entities.emplace_back(entity, transform, collider);
+			}
 			std::vector<std::tuple<ecs::Entity, TransformComponent&, CollisionComponent&>> chunk_entities;
-			chunk_entities.reserve(tiles_per_chunk.x * tiles_per_chunk.y * scene.player_chunks.size() + players.size());
+			chunk_entities.reserve(scene.player_chunks.size() * tiles_per_chunk.x * tiles_per_chunk.y);
 			for (auto chunk : scene.player_chunks) {
 				auto entities = chunk->manager.GetComponentTuple<TransformComponent, CollisionComponent>();
 				chunk_entities.insert(chunk_entities.end(), entities.begin(), entities.end());
 			}
-			for (auto [entity, transform, collider, player] : players) {
-				chunk_entities.emplace_back(entity, transform, collider);
-			}
-			CollisionRoutine(chunk_entities);
+			CollisionRoutine(player_entities, chunk_entities, &mine);
 		} else {
 			scene.manager.Update<CollisionSystem>();
 		}
-		auto entities = scene.manager.GetComponentTuple<TransformComponent, CollisionComponent>();
-		for (auto [entity, transform, collider] : entities) {
-			for (auto [entity2, transform2, collider2] : entities) {
-				if (entity != entity2) {
 
-				}
-			}
-		}
+		//AllocationMetrics::PrintMemoryUsage();
 
 		scene.manager.Update<StateMachineSystem>();
 		scene.manager.Update<DirectionSystem>();
@@ -83,6 +104,7 @@ public:
 		if (engine::InputHandler::KeyDown(Key::R)) {
 			engine::EventHandler::Invoke(title_screen, scene.manager, scene.ui_manager);
 			title.open = true;
+			particles.Reset();
 		} else if (title.open) {
 			if (scene.ui_manager.GetEntitiesWith<TitleScreenComponent>().size() == 0) {
 				title.open = false;
@@ -117,7 +139,7 @@ public:
 
 			//LOG("Player lowest: " << player_lowest << ", Player highest: " << player_highest << ", Players: " << players.size());
 
-			// Extend chunk range.
+			// Extend loaded player chunk range by this amount to each side.
 			auto additional_chunk_range = 1;
 			player_lowest += -additional_chunk_range;
 			player_highest += additional_chunk_range;
@@ -190,6 +212,7 @@ public:
 			}
 			scene.chunks.clear();
 		}
+		particles.Update();
 		//LOG("Octave: " << octave << ", bias: " << bias);
     }
 	void Render() {
@@ -198,13 +221,13 @@ public:
 		if (camera) {
 			// TODO: Consider a better way of doing this?
 			for (auto& c : scene.chunks) {
-				if (c->new_chunk) {
+				if (c->new_chunk || c->manager.GetDeadEntityCount() > 0) {
 					c->Update();
 					c->new_chunk = false;
 				}
-				auto chunk_box = c->GetInfo();
-				chunk_box.size *= tile_size;
 				c->Render();
+				//auto chunk_box = c->GetInfo();
+				//chunk_box.size *= tile_size;
 				//engine::TextureManager::DrawRectangle((chunk_box.position - camera->offset) * camera->scale, Ceil(chunk_box.size * camera->scale), engine::PURPLE);
 			}
 		}
@@ -213,6 +236,9 @@ public:
 
 		scene.ui_manager.Update<UIButtonRenderer>();
 		scene.ui_manager.Update<UITextRenderer>();
+		if (camera) {
+			particles.Render(*camera);
+		}
 	}
 private:
 	ecs::Entity title_screen;
