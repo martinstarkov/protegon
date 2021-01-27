@@ -11,24 +11,13 @@
 #include <cstdlib> // std::size_t
 #include <cassert> // assert
 
-// Since the vector class is so universally included, 
-// it is a good way to distribute utility functions and macros.
-#include "utils/Utility.h"
-#include "utils/Math.h"
+#include "utils/math/MathFunctions.h"
+
+// TODO: Write tests for clamp.
+// TODO: Write tests for lerp.
 
 // Hidden vector related implementations.
 namespace internal {
-
-// Custom template helpers.
-
-// Returns template qualifier of whether or not the type is a integer / float point number.
-// This includes bool, char, char8_t, char16_t, char32_t, wchar_t, short, int, long, long long, float, double, and long double.
-template <typename T>
-using is_number = std::enable_if_t<std::is_arithmetic_v<T>, bool>;
-
-// Returns whether or not a type is convertible to another type (double to int, int to float, etc).
-template <typename From, typename To>
-using convertible = std::enable_if_t<std::is_convertible_v<From, To>, bool>;
 
 // Vector stream output / input delimeters, allow for consistent serialization / deserialization.
 
@@ -38,18 +27,18 @@ static constexpr const char VECTOR_RIGHT_DELIMETER = ')';
 
 } // namespace internal
 
-template <class T, internal::is_number<T> = true>
+template <class T, engine::type_traits::is_number<T> = true>
 struct Vector2 {
 
     // Zero construction by default.
 
-    T x = 0;
-    T y = 0;
+    T x{ 0 };
+    T y{ 0 };
 
     Vector2() = default;
     ~Vector2() = default;
     // Allow construction from two different types, cast to the vector type.
-    template <typename U, typename V, internal::is_number<U> = true, internal::is_number<V> = true>
+    template <typename U, typename V, engine::type_traits::is_number<U> = true, engine::type_traits::is_number<V> = true>
     Vector2(U x, V y) : x{ static_cast<T>(x) }, y{ static_cast<T>(y) } {}
 
     // Constructing vector from string used for deserializing vectors.
@@ -107,25 +96,25 @@ struct Vector2 {
 
     // Arithmetic operators between vectors.
 
-    template <typename U, internal::convertible<U, T> = true>
+    template <typename U, engine::type_traits::convertible<U, T> = true>
     Vector2& operator+=(const Vector2<U>& rhs) {
         x += static_cast<T>(rhs.x);
         y += static_cast<T>(rhs.y);
         return *this;
     }
-    template <typename U, internal::convertible<U, T> = true>
+    template <typename U, engine::type_traits::convertible<U, T> = true>
     Vector2& operator-=(const Vector2<U>& rhs) {
         x -= static_cast<T>(rhs.x);
         y -= static_cast<T>(rhs.y);
         return *this;
     }
-    template <typename U, internal::convertible<U, T> = true>
+    template <typename U, engine::type_traits::convertible<U, T> = true>
     Vector2& operator*=(const Vector2<U>& rhs) {
         x *= static_cast<T>(rhs.x);
         y *= static_cast<T>(rhs.y);
         return *this;
     }
-    template <typename U, internal::convertible<U, T> = true>
+    template <typename U, engine::type_traits::convertible<U, T> = true>
     Vector2& operator/=(const Vector2<U>& rhs) {
         if (rhs.x) {
             x /= static_cast<T>(rhs.x);
@@ -142,25 +131,25 @@ struct Vector2 {
 
     // Arithmetic operators with basic types.
 
-    template <typename U, internal::is_number<U> = true, internal::convertible<U, T> = true>
+    template <typename U, engine::type_traits::is_number<U> = true, engine::type_traits::convertible<U, T> = true>
     Vector2& operator+=(U rhs) {
         x += static_cast<T>(rhs);
         y += static_cast<T>(rhs);
         return *this;
     }
-    template <typename U, internal::is_number<U> = true, internal::convertible<U, T> = true>
+    template <typename U, engine::type_traits::is_number<U> = true, engine::type_traits::convertible<U, T> = true>
     Vector2& operator-=(U rhs) {
         x -= static_cast<T>(rhs);
         y -= static_cast<T>(rhs);
         return *this;
     }
-    template <typename U, internal::is_number<U> = true, internal::convertible<U, T> = true>
+    template <typename U, engine::type_traits::is_number<U> = true, engine::type_traits::convertible<U, T> = true>
     Vector2& operator*=(U rhs) {
         x *= static_cast<T>(rhs);
         y *= static_cast<T>(rhs);
         return *this;
     }
-    template <typename U, internal::is_number<U> = true, internal::convertible<U, T> = true>
+    template <typename U, engine::type_traits::is_number<U> = true, engine::type_traits::convertible<U, T> = true>
     Vector2& operator/=(U rhs) {
         if (rhs) {
             x /= static_cast<T>(rhs);
@@ -192,7 +181,7 @@ struct Vector2 {
     }
 
     // Explicit conversion from this vector to other arithmetic type vectors.
-    /*template <typename U, internal::is_number<U> = true, internal::convertible<T, U> = true>
+    /*template <typename U, engine::type_traits::is_number<U> = true, engine::type_traits::convertible<T, U> = true>
     explicit operator Vector2<U>() const { return Vector2<U>{ static_cast<U>(x), static_cast<U>(y) }; }*/
 
     // Implicit conversion from this vector to other arithmetic types which are less wide.
@@ -245,6 +234,7 @@ struct Vector2 {
         std::minstd_rand gen(std::random_device{}());
         // Vary distribution type based on template parameter type.
         if constexpr (std::is_floating_point_v<T>) {
+            // TODO: Possible to combine these using different seed?
             std::uniform_real_distribution<T> dist_x(min_x, max_x);
             std::uniform_real_distribution<T> dist_y(min_y, max_y);
             return { dist_x(gen), dist_y(gen) };
@@ -344,19 +334,19 @@ template <typename T, typename U>
 inline bool operator!=(const Vector2<T>& lhs, const Vector2<U>& rhs) {
     return !operator==(lhs, rhs);
 }
-template <typename T, typename U, internal::is_number<U> = true, typename S = typename std::common_type<T, U>::type>
+template <typename T, typename U, engine::type_traits::is_number<U> = true, typename S = typename std::common_type<T, U>::type>
 inline bool operator==(const Vector2<T>& lhs, U rhs) {
     return static_cast<S>(lhs.x) == static_cast<S>(rhs) && static_cast<S>(lhs.y) == static_cast<S>(rhs);
 }
-template <typename T, typename U, internal::is_number<U> = true>
+template <typename T, typename U, engine::type_traits::is_number<U> = true>
 inline bool operator!=(const Vector2<T>& lhs, U rhs) {
     return !operator==(lhs, rhs);
 }
-template <typename T, typename U, internal::is_number<U> = true>
+template <typename T, typename U, engine::type_traits::is_number<U> = true>
 inline bool operator==(U lhs, const Vector2<T>& rhs) {
     return operator==(rhs, lhs);
 }
-template <typename T, typename U, internal::is_number<U> = true>
+template <typename T, typename U, engine::type_traits::is_number<U> = true>
 inline bool operator!=(U lhs, const Vector2<T>& rhs) {
     return !operator==(rhs, lhs);
 }
@@ -404,19 +394,19 @@ Vector2<S> operator/(const Vector2<T>& lhs, const Vector2<U>& rhs) {
 
 // Binary arithmetic operators with a basic type.
 
-template <typename T, typename U, internal::is_number<T> = true>
+template <typename T, typename U, engine::type_traits::is_number<T> = true>
 Vector2<typename std::common_type<T, U>::type> operator+(T lhs, const Vector2<U>& rhs) {
     return { lhs + rhs.x, lhs + rhs.y };
 }
-template <typename T, typename U, internal::is_number<T> = true>
+template <typename T, typename U, engine::type_traits::is_number<T> = true>
 Vector2<typename std::common_type<T, U>::type> operator-(T lhs, const Vector2<U>& rhs) {
     return { lhs - rhs.x, lhs - rhs.y };
 }
-template <typename T, typename U, internal::is_number<T> = true>
+template <typename T, typename U, engine::type_traits::is_number<T> = true>
 Vector2<typename std::common_type<T, U>::type> operator*(T lhs, const Vector2<U>& rhs) {
     return { lhs * rhs.x, lhs * rhs.y };
 }
-template <typename T, typename U, internal::is_number<T> = true, typename S = typename std::common_type<T, U>::type>
+template <typename T, typename U, engine::type_traits::is_number<T> = true, typename S = typename std::common_type<T, U>::type>
 Vector2<S> operator/(T lhs, const Vector2<U>& rhs) {
     Vector2<S> vector;
     if (rhs.x) {
@@ -432,19 +422,19 @@ Vector2<S> operator/(T lhs, const Vector2<U>& rhs) {
     return vector;
 }
 
-template <typename T, typename U, internal::is_number<U> = true>
+template <typename T, typename U, engine::type_traits::is_number<U> = true>
 Vector2<typename std::common_type<T, U>::type> operator+(const Vector2<T>& lhs, U rhs) {
     return { lhs.x + rhs, lhs.y + rhs };
 }
-template <typename T, typename U, internal::is_number<U> = true>
+template <typename T, typename U, engine::type_traits::is_number<U> = true>
 Vector2<typename std::common_type<T, U>::type> operator-(const Vector2<T>& lhs, U rhs) {
     return { lhs.x - rhs, lhs.y - rhs };
 }
-template <typename T, typename U, internal::is_number<U> = true>
+template <typename T, typename U, engine::type_traits::is_number<U> = true>
 Vector2<typename std::common_type<T, U>::type> operator*(const Vector2<T>& lhs, U rhs) {
     return { lhs.x * rhs, lhs.y * rhs };
 }
-template <typename T, typename U, internal::is_number<U> = true, typename S = typename std::common_type<T, U>::type>
+template <typename T, typename U, engine::type_traits::is_number<U> = true, typename S = typename std::common_type<T, U>::type>
 Vector2<S> operator/(const Vector2<T>& lhs, U rhs) {
     Vector2<S> vector;
     if (rhs) {
@@ -462,7 +452,7 @@ Vector2<S> operator/(const Vector2<T>& lhs, U rhs) {
 // Return the absolute value of both vectors components.
 template <typename T>
 inline Vector2<T> Abs(const Vector2<T>& vector) {
-    return { engine::math::FastAbs(vector.x), engine::math::FastAbs(vector.y) };
+    return { engine::math::Abs(vector.x), engine::math::Abs(vector.y) };
 }
 // Return the distance squared between two vectors.
 template <typename T, typename U, typename S = typename std::common_type<T, U>::type>
@@ -472,9 +462,9 @@ inline S DistanceSquared(const Vector2<T>& lhs, const Vector2<U>& rhs) {
     return x * x + y * y;
 }
 // Return the distance between two vectors.
-template <typename T, typename U>
-inline double Distance(const Vector2<T>& lhs, const Vector2<U>& rhs) {
-    return std::sqrt(static_cast<double>(DistanceSquared(lhs, rhs)));
+template <typename T, typename U, typename S = typename std::common_type<T, U>::type>
+inline S Distance(const Vector2<T>& lhs, const Vector2<U>& rhs) {
+    return engine::math::Sqrt<S>(DistanceSquared(lhs, rhs));
 }
 // Return minimum component of vector. (reference)
 template <typename T>
@@ -490,7 +480,7 @@ inline T& Max(Vector2<T>& vector) {
 template <typename T>
 inline Vector2<T> Round(const Vector2<T>& vector) {
     if constexpr (std::is_floating_point_v<T>) {
-        return { engine::math::FastRound(vector.x), engine::math::FastRound(vector.y) };
+        return { engine::math::Round(vector.x), engine::math::Round(vector.y) };
     }
     return vector;
 }
@@ -498,7 +488,7 @@ inline Vector2<T> Round(const Vector2<T>& vector) {
 template <typename T>
 inline Vector2<T> Ceil(const Vector2<T>& vector) {
     if constexpr (std::is_floating_point_v<T>) {
-        return { engine::math::FastCeil(vector.x), engine::math::FastCeil(vector.y) };
+        return { engine::math::Ceil(vector.x), engine::math::Ceil(vector.y) };
     }
     return vector;
 }
@@ -506,11 +496,11 @@ inline Vector2<T> Ceil(const Vector2<T>& vector) {
 template <typename T>
 inline Vector2<T> Floor(const Vector2<T>& vector) {
     if constexpr (std::is_floating_point_v<T>) {
-        return { engine::math::FastFloor(vector.x), engine::math::FastFloor(vector.y) };
+        return { engine::math::Floor(vector.x), engine::math::Floor(vector.y) };
     }
     return vector;
 }
-// TODO: Write tests for clamp.
+
 // Clamp both vectors value within a vector range.
 template <typename T>
 inline Vector2<T> Clamp(const Vector2<T>& value, const Vector2<T>& low, const Vector2<T>& high) {
@@ -521,3 +511,10 @@ template <typename T, typename U, typename S = typename std::common_type<T, U>::
 inline Vector2<S> CrossProduct(U value, const Vector2<T>& vector) {
     return { -static_cast<S>(value) * static_cast<S>(vector.y), static_cast<S>(value) * static_cast<S>(vector.x) };
 }
+
+// Linearly interpolates both vector components by the given value.
+template <typename T, typename U>
+inline Vector2<U> Lerp(const Vector2<T>& a, const Vector2<T>& b, U amount) {
+    return { engine::math::Lerp(a.x, b.x, amount), engine::math::Lerp(a.y, b.y, amount) };
+}
+
