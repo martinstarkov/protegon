@@ -3,7 +3,7 @@
 #include <unordered_map> // std::unordered_map
 #include <cstdint> // std::uint32_t
 
-#include "utils/math/Vector2.h"
+#include "math/Vector2.h"
 #include "renderer/Color.h"
 #include "renderer/Flip.h"
 #include "renderer/AABB.h"

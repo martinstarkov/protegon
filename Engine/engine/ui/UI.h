@@ -5,7 +5,7 @@
 
 #include "UIComponents.h"
 
-#include "utils/math/Vector2.h"
+#include "math/Vector2.h"
 
 #include "core/Engine.h"
 

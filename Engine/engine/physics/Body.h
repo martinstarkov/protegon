@@ -1,10 +1,11 @@
 #pragma once
 
-#include "utils/math/Vector2.h"
+#include "math/Vector2.h"
 
 class Shape;
 
 struct Body {
+    Body() = delete;
     Body(Shape* shape, const V2_double& position);
     ~Body();
     void ApplyForce(const V2_double& applied_force);

@@ -2,7 +2,7 @@
 
 #include <ostream> // std::ostream
 
-#include "utils/math/Vector2.h"
+#include "math/Vector2.h"
 
 struct CollisionManifold {
 	CollisionManifold() = default;

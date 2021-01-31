@@ -30,8 +30,14 @@
 #include "ui/UI.h"
 #include "ui/UIComponents.h"
 
-#include "utils/Math.h"
-#include "utils/Debug.h"
+#include "math/Functions.h"
+#include "math/Hasher.h"
+#include "math/Matrix.h"
+#include "math/Vector2.h"
+#include "math/PerlinNoise.h"
+#include "math/RNG.h"
+
+#include "debug/Debug.h"
 #include "utils/Timer.h"
 #include "utils/Direction.h"
 #include "utils/TypeTraits.h"

@@ -11,7 +11,7 @@
 #include <cstdlib> // std::size_t
 #include <cassert> // assert
 
-#include "utils/math/MathFunctions.h"
+#include "math/Functions.h"
 
 // TODO: Write tests for clamp.
 // TODO: Write tests for lerp.

@@ -6,7 +6,7 @@
 #include <string>
 
 #include "utils/Direction.h"
-#include "utils/math/Vector2.h"
+#include "math/Vector2.h"
 
 // TODO: Complete rework, lol.
 

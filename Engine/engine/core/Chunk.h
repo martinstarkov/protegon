@@ -2,7 +2,7 @@
 
 #include <vector> // std::vector
 #include <cstdlib> // std::size_t
-#include "utils/Math.h"
+#include "math/Vector2.h"
 #include "ecs/ECS.h" // ecs::Entity, ecs::Manager
 #include "renderer/AABB.h"
 #include "renderer/Texture.h"

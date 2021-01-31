@@ -11,7 +11,7 @@
 
 #include "physics/collision/static/PointvsAABB.h"
 
-#include "utils/math/Vector2.h"
+#include "math/Vector2.h"
 
 #include "ui/UIComponents.h"
 

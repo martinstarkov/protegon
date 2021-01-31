@@ -267,8 +267,8 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClCompile Include="engine\renderer\Texture.cpp" />
     <ClCompile Include="engine\renderer\TextureManager.cpp" />
     <ClCompile Include="engine\renderer\Window.cpp" />
-    <ClCompile Include="engine\utils\debug\AllocationMetrics.cpp" />
-    <ClCompile Include="engine\utils\math\Hasher.cpp" />
+    <ClCompile Include="engine\debug\AllocationMetrics.cpp" />
+    <ClCompile Include="engine\math\Hasher.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="engine\core\Engine.h" />
@@ -365,19 +365,18 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClInclude Include="engine\ui\components\TextComponent.h" />
     <ClInclude Include="engine\ui\UI.h" />
     <ClInclude Include="engine\ui\UIComponents.h" />
-    <ClInclude Include="engine\utils\debug\AllocationMetrics.h" />
-    <ClInclude Include="engine\utils\Debug.h" />
+    <ClInclude Include="engine\debug\AllocationMetrics.h" />
+    <ClInclude Include="engine\debug\Debug.h" />
     <ClInclude Include="engine\utils\Direction.h" />
-    <ClInclude Include="engine\utils\math\Hasher.h" />
-    <ClInclude Include="engine\utils\debug\Logger.h" />
-    <ClInclude Include="engine\utils\Math.h" />
-    <ClInclude Include="engine\utils\math\MathFunctions.h" />
-    <ClInclude Include="engine\utils\math\Matrix.h" />
-    <ClInclude Include="engine\utils\math\PerlinNoise.h" />
-    <ClInclude Include="engine\utils\math\RNG.h" />
+    <ClInclude Include="engine\math\Hasher.h" />
+    <ClInclude Include="engine\debug\Logger.h" />
+    <ClInclude Include="engine\math\Functions.h" />
+    <ClInclude Include="engine\math\Matrix.h" />
+    <ClInclude Include="engine\math\PerlinNoise.h" />
+    <ClInclude Include="engine\math\RNG.h" />
     <ClInclude Include="engine\utils\TypeTraits.h" />
     <ClInclude Include="engine\utils\Timer.h" />
-    <ClInclude Include="engine\utils\math\Vector2.h" />
+    <ClInclude Include="engine\math\Vector2.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="dlls\libfreetype-6.dll" />

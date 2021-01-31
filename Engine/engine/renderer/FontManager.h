@@ -5,7 +5,7 @@
 
 #include "renderer/Color.h"
 #include "renderer/Texture.h"
-#include "utils/math/Vector2.h"
+#include "math/Vector2.h"
 
 namespace engine {
 

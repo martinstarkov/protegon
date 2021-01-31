@@ -3,7 +3,7 @@
 #include <vector>
 #include <cstdint>
 
-#include "utils/math/Matrix.h"
+#include "math/Matrix.h"
 #include "renderer/Color.h"
 
 #include "Body.h"

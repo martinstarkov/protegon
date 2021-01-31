@@ -2,7 +2,7 @@
 
 #include "Component.h"
 
-#include "utils/Math.h"
+#include "math/Functions.h"
 #include "core/Engine.h"
 
 struct AnimationComponent {

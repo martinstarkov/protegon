@@ -2,7 +2,7 @@
 
 #include "System.h"
 
-#include "utils/math/Vector2.h"
+#include "math/Vector2.h"
 #include "renderer/Renderer.h"
 #include "renderer/TextureManager.h"
 #include <deque>

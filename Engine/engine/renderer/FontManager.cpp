@@ -5,7 +5,7 @@
 #include <cassert> // assert
 
 #include "core/Engine.h"
-#include "utils/math/Hasher.h"
+#include "math/Hasher.h"
 
 namespace engine {
 

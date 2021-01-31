@@ -4,7 +4,7 @@
 
 #include "renderer/Texture.h"
 #include "renderer/TextureManager.h"
-#include "utils/math/Hasher.h"
+#include "math/Hasher.h"
 
 namespace engine {
 

@@ -1,6 +1,6 @@
 #include "Chunk.h"
 
-#include "utils/math/RNG.h"
+#include "math/RNG.h"
 
 #include "ecs/Components.h"
 #include "core/Scene.h"
@@ -29,6 +29,7 @@ void Chunk::Init(AABB chunk_info, V2_int tile_size, Scene* scene) {
 			grid[i] = manager.CreateEntity();
 		}
 	}
+	manager.AddSystem<TileRenderSystem>(scene);
 }
 
 ecs::Entity Chunk::GetEntity(V2_int relative_coordinate) const {

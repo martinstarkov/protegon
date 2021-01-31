@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <type_traits> // std::enable_if_t, std::common_type, etc.
 
-#include "utils/math/Vector2.h"
+#include "math/Vector2.h"
 
 namespace engine {
 

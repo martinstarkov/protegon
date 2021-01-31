@@ -2,7 +2,7 @@
 
 #include <limits>
 
-#include "utils/math/Vector2.h"
+#include "math/Vector2.h"
 
 constexpr double IMMOVABLE = 0.0; // mass
 constexpr double MASSLESS = 0.0; // massless

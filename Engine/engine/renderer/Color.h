@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <iostream>
 
-#include "utils/Math.h"
+#include "math/Functions.h"
 
 struct SDL_Color;
 

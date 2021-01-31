@@ -2,7 +2,7 @@
 
 #include "Component.h"
 
-#include "utils/math/Vector2.h"
+#include "math/Vector2.h"
 
 // TODO: Possibly add a maxAcceleration? (for terminalVelocity calculation)
 // CONSIDER: Move inputAcceleration / maxAcceleration into another component?

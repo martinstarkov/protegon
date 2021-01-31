@@ -5,7 +5,7 @@
 #include <SDL_image.h>
 
 #include "renderer/Texture.h"
-#include "utils/math/Hasher.h"
+#include "math/Hasher.h"
 
 #include "core/Engine.h"
 

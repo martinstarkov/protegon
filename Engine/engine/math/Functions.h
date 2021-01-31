@@ -19,6 +19,15 @@ namespace math {
 template <typename T, type_traits::is_number<T> = true>
 T const PI = std::acos(-T(1));
 
+template <typename T, type_traits::is_number<T> = true>
+constexpr T Infinity() {
+    if constexpr (std::is_floating_point_v<T>) {
+        return std::numeric_limits<T>::infinity();
+    } else if constexpr (std::is_integral_v<T>) {
+        return std::numeric_limits<T>::max();
+    }
+}
+
 // Return a random number in the given range.
 template <typename T, type_traits::is_number<T> = true>
 static T Random(T min = T{ 0 }, T max = T{ 1 }) {
