@@ -6,9 +6,31 @@
 
 #include "core/Scene.h"
 
+
+class TileRenderSystem : public ecs::System<RenderComponent, TransformComponent, CollisionComponent> {
+public:
+	TileRenderSystem() = delete;
+	TileRenderSystem(engine::Scene* scene) : scene{ scene } {}
+	virtual void Update() override final {
+		if (scene) {
+			auto camera = scene->GetCamera();
+			if (camera) {
+				for (auto& [entity, render, transform, collider] : entities) {
+					engine::TextureManager::DrawSolidRectangle(
+						(transform.position - camera->offset) * camera->scale,
+						Ceil(collider.collider.size * camera->scale),
+						render.color);
+				}
+			}
+		}
+	}
+private:
+	engine::Scene* scene = nullptr;
+};
+
 class HitboxRenderSystem : public ecs::System<RenderComponent, TransformComponent> {
 public:
-	HitboxRenderSystem() = default;
+	HitboxRenderSystem() = delete;
 	HitboxRenderSystem(engine::Scene* scene) : scene{ scene } {}
 	virtual void Update() override final {
 		for (auto& [entity, render, transform] : entities) {
