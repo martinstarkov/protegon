@@ -60,34 +60,15 @@ constexpr EntityId null = 0;
 
 namespace internal {
 
-// First valid entity for internal for-loops
+// First valid entity for internal for-loops.
 constexpr EntityId first_valid_entity_id = null + 1;
 
-// Invalid version
+// Invalid version.
 constexpr EntityVersion null_version = 0;
-// Invalid manager id
+// Invalid manager id.
 constexpr ManagerId null_manager_id = -1;
-// Indicates a nonexistent component in a pool
+// Indicates a nonexistent component in a pool.
 constexpr Offset INVALID_OFFSET = -1;
-
-// Important design decision: Component ids shared among all created managers, i.e. struct Position has id '3' in all manager instances, as opposed to the order in which a component is first added to each manager.
-static ComponentId component_counter{ 0 };
-// Similarly to component ids, system ids are shared for all managers.
-static SystemId system_counter{ 0 };
-
-// Create / retrieve a unique id for each component class.
-template <typename T>
-static ComponentId GetComponentId() {
-	static ComponentId id = component_counter++;
-	return id;
-}
-
-// Create / retrieve a unique id for each system class.
-template <typename T>
-static SystemId GetSystemId() {
-	static SystemId id = system_counter++;
-	return id;
-}
 
 // Store component destructor pointers for freeing pool memory.
 template <typename T>
@@ -553,12 +534,12 @@ private:
 	// GetComponent without passing a component id.
 	template <typename T>
 	T& GetComponent(const EntityId id) {
-		return GetComponent<T>(id, internal::GetComponentId<T>());
+		return GetComponent<T>(id, GetComponentId<T>());
 	}
 	// Const version of the above.
 	template <typename T>
 	const T& GetComponent(const EntityId id) const {
-		return GetComponent<T>(id, internal::GetComponentId<T>());
+		return GetComponent<T>(id, GetComponentId<T>());
 	}
 	// GetComponents without passing a component id.
 	template <typename ...Ts>
@@ -590,7 +571,7 @@ private:
 	// HasComponent without passing a component id. 
 	template <typename T>
 	bool HasComponent(const EntityId id) const {
-		return HasComponent(id, internal::GetComponentId<T>());
+		return HasComponent(id, GetComponentId<T>());
 	}
 	// HasComponents without passing component ids.
 	template <typename ...Ts>
@@ -610,7 +591,7 @@ private:
 	template <typename T, typename ...TArgs>
 	T& AddComponent(const EntityId id, bool loop_entity, TArgs&&... args) {
 		assert(IsValidEntity(id) && "Cannot add component to invalid entity");
-		auto component_id = internal::GetComponentId<T>();
+		auto component_id = GetComponentId<T>();
 		void* component_location = nullptr;
 		auto& component_pool = AddPool<T>(component_id);
 		component_location = component_pool.GetComponentAddress(id);
@@ -647,7 +628,7 @@ private:
 	template <typename T>
 	void RemoveComponent(const EntityId id, bool loop_entity) {
 		assert(IsValidEntity(id) && "Cannot remove component from invalid entity");
-		auto component_id = internal::GetComponentId<T>();
+		auto component_id = GetComponentId<T>();
 		if (HasComponent(id, component_id)) {
 			auto& pool = GetPool(component_id);
 			pool.RemoveComponentAddress(id);
@@ -661,6 +642,18 @@ private:
 			assert(capacity != 0 && "Capacity is 0, cannot double size of entities_ vector");
 			entities_.resize(capacity);
 		}
+	}
+	// Create / retrieve a unique id for each component class.
+	template <typename T>
+	static ComponentId GetComponentId() {
+		static ComponentId id = ComponentCount()++;
+		return id;
+	}
+	// Create / retrieve a unique id for each system class.
+	template <typename T>
+	static SystemId GetSystemId() {
+		static SystemId id = SystemCount()++;
+		return id;
 	}
 	// Total entity count (dead / invalid and alive).
 	EntityId entity_count_{ 0 };
@@ -676,6 +669,10 @@ private:
 	std::vector<std::unique_ptr<BaseSystem>> systems_;
 	// Used for generating unique manager ids.
 	static ManagerId& ManagerCount() { static ManagerId id{ internal::null_manager_id }; return id; }
+	// Important design decision: Component ids shared among all created managers, i.e. struct Position has id '3' in all manager instances, as opposed to the order in which a component is first added to each manager.
+	static ComponentId& ComponentCount() { static ComponentId id{ 0 }; return id; }
+	// Similarly to component ids, system ids are shared for all managers.
+	static SystemId& SystemCount() { static SystemId id{ 0 }; return id; }
 
 };
 
@@ -735,7 +732,7 @@ private:
 	// Add a template argument into a dynamic component bitset so system dependency on a component can be checked.
 	template <typename C>
 	void AddComponentDependency() {
-		ComponentId component_id = internal::GetComponentId<C>();
+		ComponentId component_id = Manager::GetComponentId<C>();
 		if (component_id >= component_bitset_.size()) {
 			component_bitset_.resize(static_cast<std::size_t>(component_id) + 1, false);
 		}
@@ -939,7 +936,7 @@ inline std::vector<Entity> Manager::GetEntitiesWith() {
 	std::vector<Entity> entities;
 	entities.reserve(entity_count_);
 	// Store all the component ids in an array so they don't have to be fetched in every loop cycle.
-	std::array<ComponentId, sizeof...(Ts)> component_ids = { internal::GetComponentId<Ts>()... };
+	std::array<ComponentId, sizeof...(Ts)> component_ids = { GetComponentId<Ts>()... };
 	// Cycle through all manager entities.
 	for (EntityId id = internal::first_valid_entity_id; id <= entity_count_; ++id) {
 		auto& entity_data = entities_[id];
@@ -956,7 +953,7 @@ inline std::vector<Entity> Manager::GetEntitiesWithout() {
 	std::vector<Entity> entities;
 	entities.reserve(entity_count_);
 	// Store all the component ids in an array so they don't have to be fetched in every loop cycle.
-	std::array<ComponentId, sizeof...(Ts)> component_ids = { internal::GetComponentId<Ts>()... };
+	std::array<ComponentId, sizeof...(Ts)> component_ids = { GetComponentId<Ts>()... };
 	// Cycle through all manager entities.
 	for (EntityId id = internal::first_valid_entity_id; id <= entity_count_; ++id) {
 		auto& entity_data = entities_[id];
@@ -974,7 +971,7 @@ inline std::vector<std::tuple<Entity, Ts&...>> Manager::GetComponentTuple() {
 	vector_of_tuples.reserve(entity_count_);
 	constexpr std::size_t COMPONENT_COUNT = sizeof...(Ts);
 	// Store all the component ids in an array so they don't have to be fetched in every loop cycle.
-	std::array<ComponentId, COMPONENT_COUNT> component_ids = { internal::GetComponentId<Ts>()... };
+	std::array<ComponentId, COMPONENT_COUNT> component_ids = { GetComponentId<Ts>()... };
 	// Cycle through all manager entities.
 	for (EntityId id = internal::first_valid_entity_id; id <= entity_count_; ++id) {
 		assert(id < entities_.size() && "Entity id out of range");
@@ -1036,17 +1033,17 @@ inline void Manager::RemoveComponents(Entity entity) {
 template <typename T>
 inline T& Manager::GetComponent(Entity entity) const {
 	assert(IsAlive(entity.id_, entity.version_) && "Cannot get component from dead entity");
-	return GetComponent<T>(entity.id_, internal::GetComponentId<T>());
+	return GetComponent<T>(entity.id_, GetComponentId<T>());
 }
 template <typename ...Ts>
 inline std::tuple<Ts&...> Manager::GetComponents(Entity entity) const {
 	assert(IsAlive(entity.id_, entity.version_) && "Cannot get components from dead entity");
-	return std::forward_as_tuple<Ts&...>(GetComponent<Ts>(entity.id_, internal::GetComponentId<Ts>())...);
+	return std::forward_as_tuple<Ts&...>(GetComponent<Ts>(entity.id_, GetComponentId<Ts>())...);
 }
 template <typename T>
 inline bool Manager::HasComponent(Entity entity) const {
 	assert(IsAlive(entity.id_, entity.version_) && "Cannot check if dead entity has a component");
-	return HasComponent(entity.id_, internal::GetComponentId<T>());
+	return HasComponent(entity.id_, GetComponentId<T>());
 }
 template <typename ...Ts>
 inline bool Manager::HasComponents(Entity entity) const {
@@ -1071,7 +1068,7 @@ template <typename T, typename ...TArgs>
 inline void Manager::AddSystem(TArgs... args) {
 	// TODO: Add tests to check args match system constructor args.
 	static_assert(std::is_base_of_v<BaseSystem, T>, "Cannot add a system to the manager which does not derive from ecs::System");
-	SystemId system_id = internal::GetSystemId<T>();
+	SystemId system_id = GetSystemId<T>();
 	if (system_id >= systems_.size()) {
 		systems_.resize(static_cast<std::size_t>(system_id) + 1);
 	}
@@ -1085,12 +1082,12 @@ inline void Manager::AddSystem(TArgs... args) {
 }
 template <typename T>
 inline bool Manager::HasSystem() {
-	return std::is_base_of_v<BaseSystem, T> && IsValidSystem(internal::GetSystemId<T>());
+	return std::is_base_of_v<BaseSystem, T> && IsValidSystem(GetSystemId<T>());
 }
 template <typename T>
 inline void Manager::RemoveSystem() {
 	if (HasSystem<T>()) {
-		SystemId system_id = internal::GetSystemId<T>();
+		SystemId system_id = GetSystemId<T>();
 		auto& system = systems_[system_id];
 		// Call system destructor and set the system's unique pointer to nullptr.
 		system.reset();
@@ -1100,7 +1097,7 @@ inline void Manager::RemoveSystem() {
 template <typename T>
 inline void Manager::Update() {
 	static_assert(std::is_base_of_v<BaseSystem, T>, "Cannot update a system which does not derive from ecs::System");
-	SystemId system_id = internal::GetSystemId<T>();
+	SystemId system_id = GetSystemId<T>();
 	assert(IsValidSystem(system_id) && "Cannot update a system which does not exist in manager");
 	auto& system = systems_[system_id];
 	assert(system && system.get() != nullptr && "Invalid system pointer, check system creation");
