@@ -26,6 +26,8 @@ public:
 			Circle circle(properties.start_radius);
 			auto body = new Body(&circle, properties.position);
 			body->velocity = properties.velocity;
+			body->force = properties.acceleration;
+			body->angular_velocity = properties.angular_velocity;
 			body->SetOrientation(properties.rotation);
 			entity.AddComponent<RigidBodyComponent>(body);
 		}
@@ -33,8 +35,10 @@ public:
 	virtual void Update() {
 		auto particles = particle_pool_.GetComponentTuple<ParticleComponent, LifetimeComponent, RigidBodyComponent, RenderComponent>();
 		for (auto [entity, particle, life, rb, render] : particles) {
+			// Assume 1-to-1 ratio between force and acceleration for point-like particles.
+			rb.body->velocity += rb.body->force;
 			rb.body->position += rb.body->velocity;
-			rb.body->orientation += 0.01;
+			rb.body->orientation += rb.body->angular_velocity;
 			rb.body->SetOrientation(rb.body->orientation);
 			auto percentage_life_left = (1.0 - life.lifetime / life.original_lifetime);
 			assert(percentage_life_left >= 0.0 && percentage_life_left <= 1.0);

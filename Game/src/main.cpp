@@ -5,6 +5,8 @@
 #include "factory/Factories.h"
 #include "systems/Systems.h"
 
+using namespace engine;
+
 engine::Particle test_particle{ {}, {}, {}, 0, engine::ORANGE, engine::GREY, 10, 0, 0, 0.5 };
 engine::ParticleManager particles{ 1000 };
 
@@ -71,11 +73,17 @@ public:
 	double bias = 2.0;
 
     void Update() {
+		Timer timer0;
+		timer0.Start();
 		auto players = scene.manager.GetComponentTuple<TransformComponent, CollisionComponent, PlayerController>();
 		scene.manager.Update<InputSystem>();
 		scene.ui_manager.Update<UIButtonListener>();
 		scene.manager.Update<PhysicsSystem>();
 		scene.manager.Update<TargetSystem>();
+		if (timer0.ElapsedMilliseconds() > 1)
+		LOG("timer0: " << timer0.ElapsedMilliseconds());
+		Timer timer1;
+		timer1.Start();
 		if (scene.player_chunks.size() > 0 && players.size() > 0) {
 			std::vector<std::tuple<ecs::Entity, TransformComponent&, CollisionComponent&>> player_entities;
 			player_entities.reserve(players.size());
@@ -93,8 +101,12 @@ public:
 			scene.manager.Update<CollisionSystem>();
 		}
 
+		if (timer1.ElapsedMilliseconds() > 1)
+		LOG("timer1: " << timer1.ElapsedMilliseconds());
 		//AllocationMetrics::PrintMemoryUsage();
 
+		Timer timer2;
+		timer2.Start();
 		scene.manager.Update<StateMachineSystem>();
 		scene.manager.Update<DirectionSystem>();
 		//scene.manager.Update<LifetimeSystem>();
@@ -110,7 +122,10 @@ public:
 				title.open = false;
 			}
 		}
-
+		if (timer2.ElapsedMilliseconds() > 1)
+		LOG("timer2: " << timer2.ElapsedMilliseconds());
+		Timer timer3;
+		timer3.Start();
 		auto camera = scene.GetCamera();
 		if (camera && !title.open && players.size() > 0) {
 
@@ -212,33 +227,63 @@ public:
 			}
 			scene.chunks.clear();
 		}
+		if (timer3.ElapsedMilliseconds() > 1)
+		LOG("timer3: " << timer3.ElapsedMilliseconds());
+
+		Timer timer4;
+		timer4.Start();
 		particles.Update();
+		if (timer4.ElapsedMilliseconds() > 1)
+		LOG("timer4: " << timer4.ElapsedMilliseconds());
 		//LOG("Octave: " << octave << ", bias: " << bias);
     }
 	void Render() {
+		Timer timer5;
+		timer5.Start();
 		scene.manager.Update<AnimationSystem>();
+		if (timer5.ElapsedMilliseconds() > 1)
+		LOG("timer5: " << timer5.ElapsedMilliseconds());
+		Timer timer6;
+		timer6.Start();
 		auto camera = scene.GetCamera();
 		if (camera) {
 			// TODO: Consider a better way of doing this?
 			for (auto& c : scene.chunks) {
+				c->manager.Update<TileRenderSystem>();
+				/*Timer timer65;
+				timer65.Start();
 				if (c->new_chunk || c->manager.GetDeadEntityCount() > 0) {
 					c->Update();
 					c->new_chunk = false;
 				}
 				c->Render();
+				if (timer65.ElapsedMilliseconds() > 1) {
+				LOG("timer6.5: " << timer65.ElapsedMilliseconds());
+				LOG("chunk: " << c->GetInfo().position);
+				}*/
 				//auto chunk_box = c->GetInfo();
 				//chunk_box.size *= tile_size;
 				//engine::TextureManager::DrawRectangle((chunk_box.position - camera->offset) * camera->scale, Ceil(chunk_box.size * camera->scale), engine::PURPLE);
 			}
 		}
+		if (timer6.ElapsedMilliseconds() > 1)
+		LOG("timer6: " << timer6.ElapsedMilliseconds());
+		Timer timer7;
+		timer7.Start();
 		scene.manager.Update<RenderSystem>();
 		scene.manager.Update<HitboxRenderSystem>();
+		if (timer7.ElapsedMilliseconds() > 1)
+		LOG("timer7: " << timer7.ElapsedMilliseconds());
 
+		Timer timer8;
+		timer8.Start();
 		scene.ui_manager.Update<UIButtonRenderer>();
 		scene.ui_manager.Update<UITextRenderer>();
 		if (camera) {
 			particles.Render(*camera);
 		}
+		//if (timer8.ElapsedMilliseconds() > 1)
+		//LOG("timer8: " << timer8.ElapsedMilliseconds());
 	}
 private:
 	ecs::Entity title_screen;

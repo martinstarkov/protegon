@@ -27,5 +27,6 @@ void Body::SetStatic() {
 
 void Body::SetOrientation(double radians) {
 	orientation = radians;
+    assert(shape != nullptr && "Body shape cannot be nullptr");
 	shape->SetOrientation(radians);
 }
