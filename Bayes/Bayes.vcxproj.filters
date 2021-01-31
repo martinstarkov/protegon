@@ -23,12 +23,6 @@
     <ClInclude Include="src\components\Components.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\components\EDFComponent.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\components\StateVectorComponent.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\factory\Factories.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -44,10 +38,10 @@
     <ClInclude Include="src\factory\CreateWorld.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\components\HopperComponent.h">
+    <ClInclude Include="src\factory\CreateBox.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\factory\CreateBox.h">
+    <ClInclude Include="src\components\HopperComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

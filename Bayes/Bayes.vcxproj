@@ -183,9 +183,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\components\Components.h" />
-    <ClInclude Include="src\components\EDFComponent.h" />
     <ClInclude Include="src\components\HopperComponent.h" />
-    <ClInclude Include="src\components\StateVectorComponent.h" />
     <ClInclude Include="src\factory\CreateBox.h" />
     <ClInclude Include="src\factory\CreateHopper.h" />
     <ClInclude Include="src\factory\CreateWorld.h" />

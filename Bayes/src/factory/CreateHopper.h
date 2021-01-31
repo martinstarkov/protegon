@@ -25,5 +25,6 @@ ecs::Entity CreateHopper(V2_double position, ecs::Manager& manager, engine::Scen
 	auto camera_zoom = V2_double{ 0.5, 0.5 };
 	auto& cc = entity.AddComponent<CameraComponent>(engine::Camera{ camera_zoom }, true);
 	scene.SetCamera(cc.camera);
+	entity.AddComponent<HopperComponent>();
 	return entity;
 }

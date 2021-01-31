@@ -67,15 +67,13 @@ constexpr T Clamp(T value, T low, T high) {
 }
 
 // Convert degrees to radians.
-template <typename T, type_traits::is_number<T> = true>
-inline T DegreesToRadians(T degrees) {
-	return static_cast<T>(static_cast<double>(degrees) * (PI<double> / 180.0));
+inline double DegreesToRadians(double degrees) {
+	return degrees * PI<double> / 180.0;
 }
 
 // Convert radians to degrees.
-template <typename T, type_traits::is_number<T> = true>
-inline T RadiansToDegrees(T radians) {
-	return static_cast<T>(static_cast<double>(radians) * (180.0 / PI<double>));
+inline double RadiansToDegrees(double degrees) {
+    return degrees * 180.0 / PI<double>;
 }
 
 // Signum function.
