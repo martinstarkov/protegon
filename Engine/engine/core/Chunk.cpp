@@ -21,7 +21,7 @@ void Chunk::Init(AABB chunk_info, V2_int tile_size, Scene* scene) {
 	info = chunk_info;
 	this->tile_size = tile_size;
 	auto count = info.size.x * info.size.y;
-	chunk.texture = SDL_CreateTexture(Engine::GetRenderer(), SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, static_cast<int>(info.size.x) * tile_size.x, static_cast<int>(info.size.y) * tile_size.y);
+	//chunk.texture = SDL_CreateTexture(Engine::GetRenderer(), SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, static_cast<int>(info.size.x) * tile_size.x, static_cast<int>(info.size.y) * tile_size.y);
 	// Generate new empty grid.
 	if (grid.size() != count) {
 		grid.resize((std::size_t)count, ecs::null);

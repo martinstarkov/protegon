@@ -67,6 +67,7 @@ public:
 		engine::EventHandler::Invoke(title_screen, scene.manager, scene.ui_manager);
 		title.open = true;
 		LOG("Initialized all game systems successfully");
+
 	}
 
 	int octave = 5;
@@ -270,7 +271,7 @@ public:
 		LOG("timer6: " << timer6.ElapsedMilliseconds());
 		Timer timer7;
 		timer7.Start();
-		//scene.manager.Update<RenderSystem>();
+		scene.manager.Update<RenderSystem>();
 		scene.manager.Update<HitboxRenderSystem>();
 		if (timer7.ElapsedMilliseconds() > 1)
 		LOG("timer7: " << timer7.ElapsedMilliseconds());
