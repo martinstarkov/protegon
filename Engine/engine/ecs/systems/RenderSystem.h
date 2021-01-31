@@ -10,7 +10,6 @@
 
 class RenderSystem : public ecs::System<RenderComponent, TransformComponent, SpriteComponent> {
 public:
-	RenderSystem() = default;
 	RenderSystem(engine::Scene* scene) : scene{ scene } {}
 	virtual void Update() override final {
 		int counter = 0;

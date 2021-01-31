@@ -54,7 +54,7 @@ public:
 		scene.manager.AddSystem<StateMachineSystem>();
 		scene.manager.AddSystem<DirectionSystem>();
 		scene.manager.AddSystem<CameraSystem>(&scene);
-		scene.ui_manager.AddSystem<RenderSystem>();
+		scene.ui_manager.AddSystem<RenderSystem>(&scene);
 		scene.ui_manager.AddSystem<UIButtonListener>(&scene);
 		scene.ui_manager.AddSystem<UIButtonRenderer>();
 		scene.ui_manager.AddSystem<UITextRenderer>();
@@ -270,7 +270,7 @@ public:
 		LOG("timer6: " << timer6.ElapsedMilliseconds());
 		Timer timer7;
 		timer7.Start();
-		scene.manager.Update<RenderSystem>();
+		//scene.manager.Update<RenderSystem>();
 		scene.manager.Update<HitboxRenderSystem>();
 		if (timer7.ElapsedMilliseconds() > 1)
 		LOG("timer7: " << timer7.ElapsedMilliseconds());

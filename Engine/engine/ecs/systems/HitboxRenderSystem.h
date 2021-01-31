@@ -9,7 +9,6 @@
 
 class TileRenderSystem : public ecs::System<RenderComponent, TransformComponent, CollisionComponent> {
 public:
-	TileRenderSystem() = delete;
 	TileRenderSystem(engine::Scene* scene) : scene{ scene } {}
 	virtual void Update() override final {
 		if (scene) {
@@ -30,7 +29,6 @@ private:
 
 class HitboxRenderSystem : public ecs::System<RenderComponent, TransformComponent> {
 public:
-	HitboxRenderSystem() = delete;
 	HitboxRenderSystem(engine::Scene* scene) : scene{ scene } {}
 	virtual void Update() override final {
 		for (auto& [entity, render, transform] : entities) {
