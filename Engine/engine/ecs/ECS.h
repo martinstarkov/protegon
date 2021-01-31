@@ -35,12 +35,14 @@ SOFTWARE.
 #include <iostream> // std::err for exception handling
 #include <tuple> // tuples for storing different types of components in cached entity vectors
 #include <functional> // std::hash for hashing
-#include <type_traits> // std::is_base_of_v for system type checks
+#include <type_traits> // std::is_base_of_v, std::enable_if, etc
 
 // TODO: Check that GetDeadEntityCount and GetEntityCount functions work as intended.
 // TODO: Check that RemoveComponents functions work as intended.
 // TODO: Update documentation with GetDeadEntityCount, GetEntityCount, RemoveComponents.
 // TODO: Check that documentation is fully up to date.
+// TODO: Write tests for is_constructible.
+// TODO: Write tests for ForEach.
 
 namespace ecs {
 
@@ -75,8 +77,13 @@ template <typename T>
 static void DestroyComponent(void* component_address) {
 	static_cast<T*>(component_address)->~T();
 }
-// Destructor pointer alias
+// Destructor pointer alias.
 using Destructor = void (*)(void*);
+
+// Useful type traits.
+
+template <typename Class, typename ...Arguments>
+using is_constructible = std::enable_if_t<std::is_constructible_v<Class, Arguments...>, bool>;
 
 // Object which allows for contiguous storage of components of a single type (with runtime addition!).
 class ComponentPool {
@@ -590,6 +597,8 @@ private:
 	// AddComponent implementation.
 	template <typename T, typename ...TArgs>
 	T& AddComponent(const EntityId id, bool loop_entity, TArgs&&... args) {
+		static_assert(std::is_constructible_v<T, TArgs...>, "Cannot add component with given constructor argument list");
+		static_assert(std::is_destructible_v<T>, "Cannot add component without valid destructor");
 		assert(IsValidEntity(id) && "Cannot add component to invalid entity");
 		auto component_id = GetComponentId<T>();
 		void* component_location = nullptr;
@@ -620,6 +629,8 @@ private:
 	// ReplaceComponent implementation.
 	template <typename T, typename ...TArgs>
 	T& ReplaceComponent(const EntityId id, TArgs&&... args) {
+		static_assert(std::is_constructible_v<T, TArgs...>, "Cannot replace component with given constructor argument list");
+		static_assert(std::is_destructible_v<T>, "Cannot replace component without valid destructor");
 		assert(IsValidEntity(id) && "Cannot replace component of an invalid entity");
 		assert(HasComponent<T>(id) && "Cannot replace a nonexistent component");
 		return AddComponent<T>(id, false, std::forward<TArgs>(args)...);
@@ -780,6 +791,8 @@ public:
 	// Add a component to the entity, returns a reference to the new component.
 	template <typename T, typename ...TArgs>
 	T& AddComponent(TArgs&&... constructor_args) {
+		static_assert(std::is_constructible_v<T, TArgs...>, "Cannot add component with given constructor argument list");
+		static_assert(std::is_destructible_v<T>, "Cannot add component without valid destructor");
 		assert(IsValid() && "Cannot add component to null entity");
 		assert(IsAlive() && "Cannot add component to dead entity");
 		return manager_->AddComponent<T>(id_, loop_entity_, std::forward<TArgs>(constructor_args)...);
@@ -787,6 +800,8 @@ public:
 	// Replace a component of the entity, returns a reference to the new component.
 	template <typename T, typename ...TArgs>
 	T& ReplaceComponent(TArgs&&... constructor_args) {
+		static_assert(std::is_constructible_v<T, TArgs...>, "Cannot replace component with given constructor argument list");
+		static_assert(std::is_destructible_v<T>, "Cannot replace component without valid destructor");
 		assert(IsValid() && "Cannot replace component of null entity");
 		assert(IsAlive() && "Cannot replace component of dead entity");
 		return manager_->ReplaceComponent<T>(id_, std::forward<TArgs>(constructor_args)...);
@@ -1068,6 +1083,7 @@ template <typename T, typename ...TArgs>
 inline void Manager::AddSystem(TArgs... args) {
 	// TODO: Add tests to check args match system constructor args.
 	static_assert(std::is_base_of_v<BaseSystem, T>, "Cannot add a system to the manager which does not derive from ecs::System");
+	static_assert(std::is_constructible_v<T, TArgs...>, "Cannot construct system with given constructor argument list");
 	SystemId system_id = GetSystemId<T>();
 	if (system_id >= systems_.size()) {
 		systems_.resize(static_cast<std::size_t>(system_id) + 1);
