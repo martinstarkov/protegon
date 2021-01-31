@@ -37,13 +37,17 @@ public:
 	}
 
 	// How far out of the inner box the outer box is.
-	V2_double distance = { 1000, 500 };
+	V2_double distance = { 3000, 2000 };
 	std::vector<V2_double> original_vertices;
 	V2_double original_position;
 	Matrix<double, 2, 2> original_rotation;
 	AABB inner_box;
 	AABB outer_box;
 	std::vector<Manifold> contacts;
+
+	engine::Particle air_particle{ {}, {}, {}, 0, engine::SILVER, engine::WHITE, 4, 1, 0, 0.3 };
+	engine::ParticleManager particles{ 1000 };
+	int particles_per_frame = 20;
 
     void Update() {
 
@@ -55,13 +59,13 @@ public:
 		// Gravitational acceleration of Hopper (m/s^2).
 		auto gravity = V2_double{ 0, 9.81 };
 		// Hopper properties.
-		hb->mass = 5.0;
+		hb->mass = 7.0;
 		hb->inertia = 0.08;
 
 		auto players = scene.manager.GetComponentTuple<PlayerController, RigidBodyComponent>();
 		
 		// Thrust of EDF (N).
-		auto thrust = 50.0;
+		auto thrust = 81.0;
 		if (engine::InputHandler::KeyPressed(Key::SPACE)) {
 			for (auto [entity, player, rb] : players) {
 				// Apply varying thrust based on orientation.
@@ -71,7 +75,7 @@ public:
 		}
 		
 		// Disturbance torque (N*m)
-		auto torque = 0.0005;
+		auto torque = 0.0001;
 		if (engine::InputHandler::KeyPressed(Key::RIGHT)) {
 			for (auto [entity, player, rb] : players) {
 				rb.body->torque += torque;
@@ -104,6 +108,10 @@ public:
 		for (auto [entity, player, rb] : players) {
 			auto& b = *rb.body;
 
+
+
+
+
 			// Add linear accelerations to velocity.
 			b.velocity += b.force / b.mass + gravity;
 			// Add angular accelerations to angular velocity.
@@ -113,6 +121,30 @@ public:
 			b.position += b.velocity;
 			b.orientation += b.angular_velocity;
 			rb.body->SetOrientation(b.orientation); // Orientation must be updated like this as it uses a rotation matrix.
+
+
+
+
+			if (engine::InputHandler::KeyPressed(Key::SPACE)) {
+				// Air particles out the back.
+				auto highest_y = -engine::math::Infinity<double>();
+				for (const auto& vertex : *rb.body->shape->GetVertices()) {
+					highest_y = std::max(highest_y, vertex.y);
+				}
+				air_particle.position = { rb.body->position.x, rb.body->position.y + highest_y - air_particle.velocity.y };
+				//air_particle.position = rb.body->position;
+				V2_double scale = { 0.1, 1.0 };
+				for (auto i = 0; i < particles_per_frame; ++i) {
+					air_particle.velocity = scale * V2_double{ -rb.body->velocity.x, 1.0 };
+					air_particle.velocity += V2_double::Random(-4.0, 4.0, 0.0, 5.0);
+					air_particle.acceleration = rb.body->force / rb.body->mass + gravity;
+					if (rb.body->velocity.y < 0)
+						particles.Emit(air_particle);
+				}
+			}
+
+
+
 
 			// Reset net values of torque and force.
 			b.torque = 0;
@@ -159,11 +191,17 @@ public:
 
 		// Keep camera centered on Hopper.
 		scene.manager.Update<CameraSystem>();
+
+		particles.Update();
     }
 
 	void Render() {
 		// Draw environment and Hopper to the screen.
 		scene.manager.Update<WorldRenderSystem>();
+		auto camera = scene.GetCamera();
+		if (camera) {
+			particles.Render(*camera);
+		}
 	}
 private:
 };

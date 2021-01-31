@@ -48,7 +48,7 @@ public:
 			for (auto [center, radius, color] : DebugDisplay::circles()) {
 				engine::TextureManager::DrawCircle(
 					Ceil((center - offset) * scale),
-					static_cast<int>(engine::math::FastRound(radius * scale.x)),
+					engine::math::Round(radius * scale.x),
 					color);
 			}
 			DebugDisplay::circles().clear();

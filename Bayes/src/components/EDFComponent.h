@@ -1,5 +1,7 @@
 #pragma once
 
+#include <engine/Include.h>
+
 struct EDFComponent {
 	EDFComponent(double max_thrust_force) : max_thrust_force{ max_thrust_force } {}
 	double thrust_force = 0.0;
