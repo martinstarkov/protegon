@@ -57,15 +57,9 @@ std::size_t Chunk::GetIndex(V2_int relative_coordinate) const {
 }
 
 void Chunk::Render() {
-	auto position = info.position;
-	auto size = info.size * tile_size;
-	auto camera = scene->GetCamera();
-	if (camera) {
-		size *= camera->scale;
-		position -= camera->offset;
-		position *= camera->scale;
-	}
-	SDL_Rect dest_rect{ math::Ceil(position.x), math::Ceil(position.y), math::Ceil(size.x), math::Ceil(size.y) };
+	auto position = scene->WorldToScreen(info.position);
+	auto size = scene->Scale(info.size * tile_size);
+	SDL_Rect dest_rect{ position.x, position.y, size.x, size.y };
 	SDL_RenderCopy(Engine::GetRenderer(), chunk, NULL, &dest_rect);
 }
 

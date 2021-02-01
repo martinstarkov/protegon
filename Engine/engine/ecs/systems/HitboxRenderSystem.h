@@ -6,20 +6,16 @@
 
 #include "core/Scene.h"
 
-
 class TileRenderSystem : public ecs::System<RenderComponent, TransformComponent, CollisionComponent> {
 public:
 	TileRenderSystem(engine::Scene* scene) : scene{ scene } {}
 	virtual void Update() override final {
 		if (scene) {
-			auto camera = scene->GetCamera();
-			if (camera) {
-				for (auto& [entity, render, transform, collider] : entities) {
-					engine::TextureManager::DrawSolidRectangle(
-						(transform.position - camera->offset) * camera->scale,
-						Ceil(collider.collider.size * camera->scale),
-						render.color);
-				}
+			for (auto& [entity, render, transform, collider] : entities) {
+				engine::TextureManager::DrawSolidRectangle(
+					scene->WorldToScreen(transform.position),
+					scene->Scale(collider.collider.size),
+					render.color);
 			}
 		}
 	}
@@ -41,43 +37,34 @@ public:
 			}
 			// TEMPORARY: Exclude player hitbox.
 			if (scene && !entity.HasComponent<PlayerController>()) {
-				auto camera = scene->GetCamera();
-				if (camera) {
-					size *= camera->scale;
-					position -= camera->offset;
-					position *= camera->scale;
-				}
 				engine::TextureManager::DrawSolidRectangle(
-					position,
-					Ceil(size),
+					scene->WorldToScreen(position),
+					scene->Scale(size),
 					render.color);
 			}
 		}
 		if (scene) {
-			auto camera = scene->GetCamera();
-			if (camera) {
-				for (auto [aabb, color] : DebugDisplay::rectangles()) {
-					engine::TextureManager::DrawRectangle(
-						(aabb.position - camera->offset) * camera->scale,
-						Ceil(aabb.size * camera->scale),
-						color);
-				}
-				DebugDisplay::rectangles().clear();
-				for (auto [origin, destination, color] : DebugDisplay::lines()) {
-					engine::TextureManager::DrawLine(
-						(origin - camera->offset) * camera->scale,
-						(destination - camera->offset) * camera->scale,
-						color);
-				}
-				DebugDisplay::lines().clear();
-				for (auto [center, radius, color] : DebugDisplay::circles()) {
-					engine::TextureManager::DrawCircle(
-						(center - camera->offset) * camera->scale,
-						engine::math::Round(radius * camera->scale.x),
-						color);
-				}
-				DebugDisplay::circles().clear();
+			for (auto [aabb, color] : DebugDisplay::rectangles()) {
+				engine::TextureManager::DrawRectangle(
+					scene->WorldToScreen(aabb.position),
+					scene->Scale(aabb.size),
+					color);
 			}
+			DebugDisplay::rectangles().clear();
+			for (auto [origin, destination, color] : DebugDisplay::lines()) {
+				engine::TextureManager::DrawLine(
+					scene->WorldToScreen(origin),
+					scene->Scale(destination),
+					color);
+			}
+			DebugDisplay::lines().clear();
+			for (auto [center, radius, color] : DebugDisplay::circles()) {
+				engine::TextureManager::DrawCircle(
+					scene->WorldToScreen(center),
+					scene->ScaleX(radius),
+					color);
+			}
+			DebugDisplay::circles().clear();
 		}
 	}
 private:

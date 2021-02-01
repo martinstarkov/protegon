@@ -14,19 +14,10 @@ public:
 	virtual void Update() override final {
 		int counter = 0;
 		if (scene) {
-			auto camera = scene->GetCamera();
 			for (auto& [entity, render, transform, sprite] : entities) {
 				V2_double position = transform.position;
 				V2_double size = sprite.current_sprite.size;
-				if (camera) {
-					// TODO: Check that this works. (camera->scale not included).
-					AABB aabb{ position - camera->offset, size };
-					AABB view{ { 0, 0 }, engine::Engine::ScreenSize() / camera->scale };
-					// Cull objects outside of view.
-					if (!engine::collision::AABBvsAABB(aabb, view)) {
-						continue;
-					}
-				}
+				// TODO: Cull objects out of view.
 				V2_double hitbox_offset{};
 				if (entity.HasComponent<AnimationComponent>()) {
 					auto& animation = entity.GetComponent<AnimationComponent>();
@@ -58,20 +49,13 @@ public:
 					}
 				}
 				auto sprite_position = position - (hitbox_offset - flip_scaling) * sprite.scale;
-				if (camera) {
-					sprite_position -= camera->offset;
-					sprite_position *= camera->scale;
-					size = size * camera->scale;
-					position -= camera->offset;
-					position *= camera->scale;
-				}
 				++counter;
 				engine::TextureManager::DrawRectangle(
 					sprite.sprite_map.path,
 					sprite.current_sprite.position,
 					sprite.current_sprite.size,
-					sprite_position,
-					Ceil(size * sprite.scale),
+					scene->WorldToScreen(sprite_position),
+					scene->Scale(size * sprite.scale),
 					flip,
 					transform.center_of_rotation,
 					transform.rotation);

@@ -280,9 +280,7 @@ public:
 		timer8.Start();
 		scene.ui_manager.Update<UIButtonRenderer>();
 		scene.ui_manager.Update<UITextRenderer>();
-		if (camera) {
-			particles.Render(*camera);
-		}
+		particles.Render(scene);
 		//if (timer8.ElapsedMilliseconds() > 1)
 		//LOG("timer8: " << timer8.ElapsedMilliseconds());
 	}

@@ -16,7 +16,7 @@ struct RandomizeColorEvent {
 			}
 			auto entities = manager.GetComponentTuple<RenderComponent>();
 			auto count = entities.size();
-			auto random_index = engine::math::GetRandomValue<std::size_t>(0, count - 1);
+			auto random_index = engine::math::Random<std::size_t>(0, count - 1);
 			for (std::size_t i = 0; i < count; ++i) {
 				if (i == random_index) {
 					auto [entity, render] = entities[i];

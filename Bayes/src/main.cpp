@@ -172,10 +172,7 @@ public:
 	void Render() {
 		// Draw environment and Hopper to the screen.
 		scene.manager.Update<WorldRenderSystem>();
-		auto camera = scene.GetCamera();
-		if (camera) {
-			particles.Render(*camera);
-		}
+		particles.Render(scene);
 	}
 private:
 };

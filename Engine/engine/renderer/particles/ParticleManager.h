@@ -5,6 +5,7 @@
 #include "ecs/ECS.h"
 #include "ecs/systems/LifetimeSystem.h"
 #include "physics/Physics.h"
+#include "core/Scene.h"
 
 namespace engine {
 
@@ -49,10 +50,10 @@ public:
 		particle_pool_.Update<LifetimeSystem>();
 	}
 	// TODO: Instead of passing camera, make function to convert world coordinates to screen coordinates.
-	virtual void Render(const engine::Camera& camera) {
+	virtual void Render(const engine::Scene& scene) {
 		auto particles = particle_pool_.GetComponentTuple<RigidBodyComponent, RenderComponent>();
 		for (auto [entity, rb, render] : particles) {
-			TextureManager::DrawSolidCircle((rb.body->position - camera.offset) * camera.scale, math::Round(rb.body->shape->GetRadius() * camera.scale.x), render.color);
+			TextureManager::DrawSolidCircle(scene.WorldToScreen(rb.body->position), scene.ScaleX(rb.body->shape->GetRadius()), render.color);
 		}
 	}
 private:
