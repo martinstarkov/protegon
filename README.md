@@ -1,2 +1,2 @@
 # protegon
-Sandbox 2D platformer game utilizing SDL2 development library
+2D game engine made without the use of any external libraries other than SDL2 for drawing pixels to a screen.
