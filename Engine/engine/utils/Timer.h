@@ -21,21 +21,25 @@ public:
         stop_time_ = std::chrono::steady_clock::now();
         running_ = false;
     }
-    std::int64_t ElapsedMilliseconds() {
+    template <typename Type = std::int64_t>
+    Type ElapsedMilliseconds() {
+        return ElapsedTime<Type, std::chrono::milliseconds::period>().count();
+    }
+    template <typename Type = double>
+    Type ElapsedSeconds() {
+        return ElapsedTime<Type, std::chrono::seconds::period>().count();
+    }
+private:
+    template <typename Type, typename Ratio>
+    std::chrono::duration<Type, Ratio> ElapsedTime() {
         std::chrono::time_point<std::chrono::steady_clock> end_time;
-
         if (running_) {
             end_time = std::chrono::steady_clock::now();
         } else {
             end_time = stop_time_;
         }
-
-        return std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time_).count();
+        return std::chrono::duration_cast<std::chrono::duration<Type, Ratio>>(end_time - start_time_);
     }
-    double ElapsedSeconds() {
-        return ElapsedMilliseconds() / 1000.0;
-    }
-private:
     std::chrono::time_point<std::chrono::steady_clock> start_time_;
     std::chrono::time_point<std::chrono::steady_clock> stop_time_;
     bool running_ = false;
