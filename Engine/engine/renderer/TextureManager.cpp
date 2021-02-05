@@ -4,7 +4,6 @@
 
 #include <SDL_image.h>
 
-#include "renderer/Texture.h"
 #include "math/Hasher.h"
 
 #include "core/Engine.h"
@@ -21,25 +20,16 @@ void TextureManager::Load(const char* texture_key, const char* texture_path) {
 	// Only add texture if it doesn't already exists in map.
 	// TODO: Add better checks for texture not already existing (SDL_Texture pointer comparison).
 	if (it == std::end(texture_map_)) { 
-		SDL_Surface* temp_surface = IMG_Load(texture_path);
-		if (!temp_surface) {
+		auto temp_surface = IMG_Load(texture_path);
+		if (temp_surface == nullptr) {
 			printf("IMG_Load: %s\n", IMG_GetError());
 			assert(!"Failed to load image into surface");
 		}
-		SDL_Texture* texture = SDL_CreateTextureFromSurface(Engine::GetRenderer(), temp_surface);
+		auto texture = Texture{ Engine::GetRenderer(), temp_surface };
 		SDL_FreeSurface(temp_surface);
-		assert(texture != nullptr && "Failed to create texture from surface");
+		assert(texture.IsValid() && "Failed to create texture from surface");
 		texture_map_.emplace(key, texture);
 	}
-}
-
-Texture TextureManager::CreateTexture(const Renderer& renderer, PixelFormat format, TextureAccess texture_access, const V2_int& size) {
-	auto texture = SDL_CreateTexture(renderer, static_cast<std::uint32_t>(format), static_cast<int>(texture_access), size.x, size.y);
-	if (!texture) {
-		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't set create texture: %s\n", SDL_GetError());
-		assert(!"Failed to create texture");
-	}
-	return Texture{ texture };
 }
 
 void TextureManager::RenderTexture(const Renderer& renderer, const Texture& texture, const AABB* source, const AABB* destination) {
@@ -64,13 +54,22 @@ void TextureManager::RenderTexture(const Renderer& renderer, const Texture& text
 	SDL_RenderCopy(renderer, texture, src, dest);
 }
 
-std::uint32_t& TextureManager::GetTexturePixel(void* pixels, const V2_int& position, const int pitch) {
+std::uint32_t& TextureManager::GetTexturePixel(void* pixels, const int pitch, const V2_int& position) {
 	// Source: http://sdl.beuc.net/sdl.wiki/Pixel_Access
 	//int bpp = surface->format->BytesPerPixel;
 	int bpp = sizeof(std::uint32_t);
 	/* Here p is the address to the pixel we want to retrieve */
-	Uint8* p = (Uint8*)pixels + position.y * pitch + position.x * bpp;
-	return *(Uint32*)p;
+	auto p = (std::uint8_t*)pixels + position.y * pitch + position.x * bpp;
+	return *(std::uint32_t*)p;
+}
+// Convert an SDL surface coordinate to a 4 byte integer value containg the RGBA32 color of the pixel.
+static std::uint32_t* GetSurfacePixelColor(int pitch, void* pixels, V2_int position) {
+	// Source: http://sdl.beuc.net/sdl.wiki/Pixel_Access
+	auto row = position.y * pitch;
+	auto column = position.x * sizeof(std::uint32_t);
+	auto index = static_cast<std::size_t>(row) + static_cast<std::size_t>(column);
+	auto pixel_address = static_cast<std::uint8_t*>(pixels) + index;
+	return (std::uint32_t*)pixel_address;
 }
 
 Color TextureManager::GetDefaultRendererColor() {
@@ -133,7 +132,7 @@ void TextureManager::DrawRectangle(const V2_int& position, const V2_int& size, c
 void TextureManager::DrawRectangle(const V2_int& position, const V2_int& size, const double rotation, const Color& color, V2_double* center_of_rotation) {
 	SetDrawColor(color);
 	SDL_Rect dest_rect{ position.x, position.y, size.x, size.y };
-	SDL_Texture* texture = SDL_CreateTexture(Engine::GetRenderer(), SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STATIC, size.x, size.y);
+	auto texture = Texture{ Engine::GetRenderer(), PixelFormat::RGBA8888, TextureAccess::STATIC, size };
 	if (center_of_rotation) {
 		SDL_Point center{ static_cast<int>(center_of_rotation->x), static_cast<int>(center_of_rotation->y) };
 		SDL_RenderCopyEx(Engine::GetRenderer(), texture, NULL, &dest_rect, rotation, &center, SDL_FLIP_NONE);
@@ -215,7 +214,7 @@ void TextureManager::DrawSolidCircle(const V2_int& center, const int radius, con
 
 void TextureManager::Clean() {
 	for (auto& pair : texture_map_) {
-		SDL_DestroyTexture(pair.second);
+		pair.second.Destroy();
 	}
 	texture_map_.clear();
 }
@@ -224,7 +223,7 @@ void TextureManager::RemoveTexture(const char* texture_key) {
 	auto key = Hasher::HashCString(texture_key);
 	auto it = texture_map_.find(key);
 	if (it != std::end(texture_map_)) {
-		SDL_DestroyTexture(it->second);
+		it->second.Destroy();
 		texture_map_.erase(it);
 	}
 }

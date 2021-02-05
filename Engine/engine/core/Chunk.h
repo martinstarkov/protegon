@@ -15,11 +15,11 @@ class Scene;
 
 class BaseChunk {
 public:
-	virtual ecs::Entity GetEntity(V2_int relative_coordinate) const = 0;
-	virtual ecs::Entity& GetEntity(V2_int relative_coordinate) = 0;
+	virtual const ecs::Entity& GetEntity(const V2_int& relative_coordinate) const = 0;
+	virtual ecs::Entity& GetEntity(const V2_int& relative_coordinate) = 0;
 	virtual const AABB& GetInfo() const = 0;
 	virtual void Unload() = 0;
-	virtual void Init(AABB chunk_info, V2_int tile_size, Scene* scene) = 0;
+	virtual void Init(const AABB& chunk_info, const V2_int& tile_size, Scene* scene) = 0;
 	virtual void Generate(int seed, int octave, double bias) = 0;
 	virtual void Update() = 0;
 	virtual void Render() = 0;
@@ -29,9 +29,9 @@ public:
 class Chunk : public BaseChunk {
 public:
 	virtual ~Chunk() override;
-	virtual void Init(AABB chunk_info, V2_int tile_size, Scene* scene) override final;
-	virtual ecs::Entity GetEntity(V2_int relative_coordinate) const override final;
-	virtual ecs::Entity& GetEntity(V2_int relative_coordinate) override final;
+	virtual void Init(const AABB& chunk_info, const V2_int& tile_size, Scene* scene) override final;
+	virtual const ecs::Entity& GetEntity(const V2_int& relative_coordinate) const override final;
+	virtual ecs::Entity& GetEntity(const V2_int& relative_coordinate) override final;
 	virtual const AABB& GetInfo() const override final;
 	virtual void Update() override final;
 	virtual void Render() override final;
@@ -43,7 +43,7 @@ public:
 protected:
 	Scene* scene = nullptr;
 	Texture chunk = nullptr;
-	std::size_t GetIndex(V2_int relative_coordinate) const;
+	std::size_t GetIndex(const V2_int& relative_coordinate) const;
 	V2_int tile_size{};
 	V2_int tile_count{};
 	AABB info{};

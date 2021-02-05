@@ -1,21 +1,37 @@
 #pragma once
 
 struct SDL_Texture;
+struct SDL_Surface;
 
-struct AABB;
+#include "renderer/AABB.h"
+#include "renderer/Renderer.h"
 
 namespace engine {
+
+enum class TextureAccess : int {
+	STATIC = 0, // SDL_TEXTUREACCESS_STATIC = 0
+	STREAMING = 1, // SDL_TEXTUREACCESS_STREAMING = 1
+	TARGET = 2 // SDL_TEXTUREACCESS_TARGET = 2
+};
+
+enum class PixelFormat : std::uint32_t {
+	ARGB8888 = 372645892, // SDL_PIXELFORMAT_ARGB8888 = 372645892
+	RGBA8888 = 373694468 // SDL_PIXELFORMAT_RGBA8888 = 373694468
+};
 
 struct Texture {
 	Texture() = default;
 	Texture(SDL_Texture* texture);
+	Texture(const Renderer& renderer, PixelFormat format, TextureAccess texture_access, const V2_int& size);
+	Texture(const Renderer& renderer, SDL_Surface* surface);
 	SDL_Texture* operator=(SDL_Texture* texture);
 	operator SDL_Texture* () const;
-	operator bool() const;
+	SDL_Texture* operator&() const;
+	bool IsValid() const;
 	bool Lock(void** out_pixels, int* out_pitch, AABB* lock_area = nullptr);
 	void Unlock();
+	void Destroy();
 	void Clear();
-	SDL_Texture* operator&() const;
 	SDL_Texture* texture = nullptr;
 };
 

@@ -22,16 +22,16 @@ public:
         running_ = false;
     }
     template <typename Type = std::int64_t>
-    Type ElapsedMilliseconds() {
+    Type ElapsedMilliseconds() const {
         return ElapsedTime<Type, std::chrono::milliseconds::period>().count();
     }
     template <typename Type = double>
-    Type ElapsedSeconds() {
+    Type ElapsedSeconds() const {
         return ElapsedTime<Type, std::chrono::seconds::period>().count();
     }
 private:
     template <typename Type, typename Ratio>
-    std::chrono::duration<Type, Ratio> ElapsedTime() {
+    std::chrono::duration<Type, Ratio> ElapsedTime() const {
         std::chrono::time_point<std::chrono::steady_clock> end_time;
         if (running_) {
             end_time = std::chrono::steady_clock::now();

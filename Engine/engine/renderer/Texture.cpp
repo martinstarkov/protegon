@@ -2,15 +2,26 @@
 
 #include <SDL.h>
 
-#include "renderer/AABB.h"
 #include "renderer/Color.h"
 
 namespace engine {
 
 Texture::Texture(SDL_Texture* texture) : texture{ texture } {}
+Texture::Texture(const Renderer& renderer, PixelFormat format, TextureAccess texture_access, const V2_int& size) : texture{ SDL_CreateTexture(renderer, static_cast<std::uint32_t>(format), static_cast<int>(texture_access), size.x, size.y) } {
+	if (!IsValid()) {
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create texture: %s\n", SDL_GetError());
+		assert(!true);
+	}
+}
+Texture::Texture(const Renderer& renderer, SDL_Surface* surface) : texture{ SDL_CreateTextureFromSurface(renderer, surface) } {
+	if (!IsValid()) {
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create texture: %s\n", SDL_GetError());
+		assert(!true);
+	}
+}
 SDL_Texture* Texture::operator=(SDL_Texture* texture) { this->texture = texture; return this->texture; }
 Texture::operator SDL_Texture* () const { return texture; }
-Texture::operator bool() const { return texture != nullptr; }
+bool Texture::IsValid() const { return texture != nullptr; }
 SDL_Texture* Texture::operator&() const { return texture; }
 bool Texture::Lock(void** out_pixels, int* out_pitch, AABB* lock_area) {
 	SDL_Rect* lock_rect = NULL;
@@ -31,6 +42,10 @@ bool Texture::Lock(void** out_pixels, int* out_pitch, AABB* lock_area) {
 
 void Texture::Unlock() {
 	SDL_UnlockTexture(texture);
+}
+
+void Texture::Destroy() {
+	SDL_DestroyTexture(texture);
 }
 
 void Texture::Clear() {

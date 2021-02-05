@@ -4,6 +4,7 @@
 #include <SDL_ttf.h>
 #include <cassert> // assert
 
+#include "renderer/TextureManager.h"
 #include "core/Engine.h"
 #include "math/Hasher.h"
 
@@ -17,11 +18,11 @@ void FontManager::Load(const char* text, const Color& color, const int size, con
 	auto key = Hasher::HashCString(text);
 	auto it = font_map_.find(key);
 	if (it == std::end(font_map_)) { // Only create font if it doesn't already exist in map.
-		TTF_Font* font = TTF_OpenFont(font_path, size);
+		auto font = TTF_OpenFont(font_path, size);
 		assert(font != nullptr && "Failed to load true type font");
-		SDL_Surface* temp_surface = TTF_RenderText_Solid(font, text, color);
+		auto temp_surface = TTF_RenderText_Solid(font, text, color);
 		assert(temp_surface != nullptr && "Failed to load font text into surface");
-		SDL_Texture* texture = SDL_CreateTextureFromSurface(Engine::GetRenderer(), temp_surface);
+		auto texture = Texture{ Engine::GetRenderer(), temp_surface };
 		SDL_FreeSurface(temp_surface);
 		assert(texture != nullptr && "Failed to create font texture from surface");
 		font_map_.emplace(key, texture);
@@ -37,22 +38,22 @@ Texture FontManager::GetFont(const char* font_key) {
 }
 
 void FontManager::Draw(const char* text, const V2_int& position, const V2_int& size) {
-	SDL_Rect rect{ position.x, position.y, size.x, size.y };
-	SDL_RenderCopy(Engine::GetRenderer(), GetFont(text), NULL, &rect);
+	AABB rect{ position.x, position.y, size.x, size.y };
+	TextureManager::RenderTexture(Engine::GetRenderer(), GetFont(text), NULL, &rect);
 }
 
 void FontManager::RemoveFont(const char* font_key) {
 	auto key = Hasher::HashCString(font_key);
 	auto it = font_map_.find(key);
 	if (it != std::end(font_map_)) {
-		SDL_DestroyTexture(it->second);
+		it->second.Destroy();
 		font_map_.erase(it);
 	}
 }
 
 void FontManager::Clean() {
 	for (auto& pair : font_map_) {
-		SDL_DestroyTexture(pair.second);
+		pair.second.Destroy();
 	}
 	font_map_.clear();
 }

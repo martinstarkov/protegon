@@ -7,8 +7,8 @@
 
 using namespace engine;
 
-engine::Particle test_particle{ {}, {}, {}, 0, engine::ORANGE, engine::GREY, 10, 0, 0, 0.5 };
-engine::ParticleManager particles{ 1000 };
+engine::Particle test_particle{ {}, {}, {}, 0, engine::ORANGE, engine::GREY, 10, 0, 0, 0.3 };
+engine::ParticleManager particles{ 400 };
 
 void mine(ecs::Entity& entity, Collision& collision) {
 	auto& c = collision.entity.GetComponent<CollisionComponent>();

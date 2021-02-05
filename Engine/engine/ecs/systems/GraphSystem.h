@@ -11,7 +11,7 @@ constexpr int AXIS_OFFSET = 50;
 
 class GraphSystem : public ecs::System<TransformComponent, PlayerController, RigidBodyComponent> {
 public:
-	GraphSystem(engine::Renderer renderer, V2_int graph) : renderer{ renderer }, graph_size{ graph.x - AXIS_OFFSET, graph.y } {
+	GraphSystem(const engine::Renderer& renderer, const V2_int& graph) : renderer{ renderer }, graph_size{ graph.x - AXIS_OFFSET, graph.y } {
 		points.resize(graph_size.x);
 	}
 	virtual void Update() override final {

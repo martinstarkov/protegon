@@ -7,9 +7,6 @@
 #include "math/Vector2.h"
 #include "event/Keys.h"
 
-// TODO: Write tests to make sure key is valid when calling KeyDown(), etc
-// something like: assert((std::is_convertible_v<decltype(key), SDL_Scancode>) && "Could not interpret key to SDL_Scancode");
-
 enum class MouseButton {
 	LEFT,
 	RIGHT,

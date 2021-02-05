@@ -19,30 +19,30 @@ int Engine::GetScreenWidth() { return GetInstance().window_size_.x; }
 int Engine::GetScreenHeight() { return GetInstance().window_size_.y; }
 std::size_t Engine::GetFPS() { return GetInstance().fps_; }
 double Engine::GetInverseFPS() { return GetInstance().inverse_fps_; }
-std::int64_t Engine::GetTimeSinceStart() { return timer_.ElapsedMilliseconds(); }
+std::int64_t Engine::GetTimeSinceStart() const { return timer_.ElapsedMilliseconds(); }
 void Engine::Delay(std::int64_t milliseconds) { SDL_Delay(static_cast<std::uint32_t>(milliseconds)); }
 void Engine::Quit() { GetInstance().running_ = false; }
 
 Window& Engine::GetWindow() {
 	auto& engine = GetInstance();
-	assert(engine.window_ && "Cannot return uninitialized window");
+	assert(engine.window_.IsValid() && "Cannot return uninitialized window");
 	return engine.window_;
 }
 
 Renderer& Engine::GetRenderer() {
 	auto& engine = GetInstance();
-	assert(engine.renderer_ && "Cannot return uninitialized renderer");
+	assert(engine.renderer_.IsValid() && "Cannot return uninitialized renderer");
 	return engine.renderer_;
 }
 
-std::pair<Window, Renderer> Engine::GenerateWindow(const char* window_title, const V2_int& window_position, const V2_int& window_size, std::uint32_t window_flags, std::uint32_t renderer_flags) {
+std::pair<Window, Renderer> Engine::GenerateWindow(const char* title, const V2_int& position, const V2_int& size, std::uint32_t window_flags, std::uint32_t renderer_flags) {
 	auto& engine = GetInstance();
 	assert(engine.sdl_init_ == 0 && "Cannot generate window before initializing SDL");
-	auto window = SDL_CreateWindow(window_title, window_position.x, window_position.y, window_size.x, window_size.y, window_flags);
-	if (window) {
+	auto window = Window{ title, position, size, window_flags };
+	if (window.IsValid()) {
 		LOG("Created window successfully");
-		auto renderer = SDL_CreateRenderer(window, -1, renderer_flags);
-		if (renderer) {
+		auto renderer = Renderer{ window, -1, renderer_flags };
+		if (renderer.IsValid()) {
 			LOG("Created renderer successfully");
 			return { window, renderer };
 		}
@@ -50,6 +50,11 @@ std::pair<Window, Renderer> Engine::GenerateWindow(const char* window_title, con
 	}
 	assert(!"SDL failed to create window");
 	return {};
+}
+
+Engine& Engine::GetInstance() {
+	assert(instance_ != nullptr && "Engine instance could not be created properly");
+	return *instance_;
 }
 
 void Engine::InitSDL(std::uint32_t window_flags, std::uint32_t renderer_flags) {

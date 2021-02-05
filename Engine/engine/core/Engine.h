@@ -16,8 +16,6 @@
 
 #include "utils/Timer.h"
 
-#include "renderer/TextureManager.h"
-
 namespace engine {
 
 namespace internal {
@@ -78,16 +76,13 @@ public:
 protected:
 	Scene scene;
 private:
-	static Engine& GetInstance() {
-		assert(instance_ != nullptr && "Engine instance could not be created properly");
-		return *instance_;
-	}
+	static Engine& GetInstance();
 	// Initialize SDL and its sub systems.
 	void InitSDL(std::uint32_t window_flags, std::uint32_t renderer_flags);
 	void Loop();
 	void Clean();
 	// Unit: milliseconds.
-	std::int64_t GetTimeSinceStart();
+	std::int64_t GetTimeSinceStart() const;
 	
 	// Class variables.
 
