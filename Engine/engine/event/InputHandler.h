@@ -18,11 +18,10 @@ enum class MouseButton {
 
 namespace engine {
 
-constexpr std::size_t KEYS = 512;
+constexpr std::size_t KEY_COUNT = 512;
 
 class InputHandler {
 public:
-	static void Init();
 	static void Update();
 	static V2_int GetMousePosition();
 	static bool MousePressed(MouseButton button);
@@ -58,8 +57,8 @@ private:
 	static MouseState right_mouse_;
 	static MouseState middle_mouse_;
 	static V2_int mouse_position_;
-	static std::array<std::uint8_t, KEYS> key_states_;
-	static std::array<std::uint8_t, KEYS> previous_key_states_;
+	static std::array<std::uint8_t, KEY_COUNT> key_states_;
+	static std::array<std::uint8_t, KEY_COUNT> previous_key_states_;
 	friend std::ostream& operator<<(std::ostream& os, const MouseState& state);
 };
 

@@ -33,7 +33,7 @@ void mine(ecs::Entity& entity, Collision& collision) {
 	collision.entity.Destroy();
 }
 
-class MyGame : public engine::Engine {
+class Game : public engine::Engine {
 public:
 	std::vector<engine::Image> images;
 	V2_int tiles_per_chunk = { 16, 16 };
@@ -59,7 +59,7 @@ public:
 		scene.ui_manager.AddSystem<UIButtonRenderer>();
 		scene.ui_manager.AddSystem<UITextRenderer>();
 
-		//LOG("Sectors: " << Engine::ScreenSize() / tile_size);
+		//LOG("Sectors: " << Engine::GetScreenSize() / tile_size);
 
 		title_screen = scene.event_manager.CreateEntity();
 		engine::EventHandler::Register<TitleScreenEvent>(title_screen);
@@ -132,7 +132,7 @@ public:
 
 			V2_double chunk_size = tiles_per_chunk * tile_size;
 			V2_double lowest = Floor(camera->offset / chunk_size);
-			V2_double highest = Ceil((camera->offset + static_cast<V2_double>(engine::Engine::ScreenSize()) / camera->scale) / chunk_size);
+			V2_double highest = Ceil((camera->offset + static_cast<V2_double>(engine::Engine::GetScreenSize()) / camera->scale) / chunk_size);
 			// Optional: Expand loaded chunk region.
 			//lowest += -1;
 			//highest += 1;
@@ -246,26 +246,9 @@ public:
 		LOG("timer5: " << timer5.ElapsedMilliseconds());
 		Timer timer6;
 		timer6.Start();
-		auto camera = scene.GetCamera();
-		if (camera) {
-			// TODO: Consider a better way of doing this?
-			for (auto& c : scene.chunks) {
-				c->manager.Update<TileRenderSystem>();
-				/*Timer timer65;
-				timer65.Start();
-				if (c->new_chunk || c->manager.GetDeadEntityCount() > 0) {
-					c->Update();
-					c->new_chunk = false;
-				}
-				c->Render();
-				if (timer65.ElapsedMilliseconds() > 1) {
-				LOG("timer6.5: " << timer65.ElapsedMilliseconds());
-				LOG("chunk: " << c->GetInfo().position);
-				}*/
-				//auto chunk_box = c->GetInfo();
-				//chunk_box.size *= tile_size;
-				//engine::TextureManager::DrawRectangle((chunk_box.position - camera->offset) * camera->scale, Ceil(chunk_box.size * camera->scale), engine::PURPLE);
-			}
+		// TODO: Consider a better way of doing this?
+		for (auto& c : scene.chunks) {
+			c->manager.Update<TileRenderSystem>();
 		}
 		if (timer6.ElapsedMilliseconds() > 1)
 		LOG("timer6: " << timer6.ElapsedMilliseconds());
@@ -290,8 +273,7 @@ private:
 
 int main(int argc, char* args[]) { // sdl main override
 
-	LOG("Starting Protegon");
-	engine::Engine::Start<MyGame>("Protegon", 512 * 2, 600, 60);
+	Engine::Start<Game>("Protegon", 512 * 2, 600, 60);
 
     return 0;
 }

@@ -13,8 +13,8 @@ public:
 			//if (collision->bottom) { lifetime->isDying = true; }
 			if (entity.IsAlive()) {
 				if (life.is_dying) {
-					if (life.lifetime - engine::Engine::InverseFPS() >= 0.0) {
-						life.lifetime -= engine::Engine::InverseFPS();
+					if (life.lifetime - engine::Engine::GetInverseFPS() >= 0.0) {
+						life.lifetime -= engine::Engine::GetInverseFPS();
 					} else {
 						life.lifetime = 0.0;
 					}

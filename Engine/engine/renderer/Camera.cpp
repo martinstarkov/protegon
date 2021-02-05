@@ -24,7 +24,7 @@ void Camera::LimitScale(V2_double max_scale) {
 }
 
 void Camera::Center(V2_double point, V2_double size) {
-	offset = point + size / 2.0 - engine::Engine::ScreenSize() / 2.0 / scale;
+	offset = point + size / 2.0 - engine::Engine::GetScreenSize() / 2.0 / scale;
 }
 
 } // namespace engine

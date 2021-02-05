@@ -12,8 +12,8 @@ namespace engine {
 
 constexpr double MOUSE_HOLD_TIME = 0.25; // seconds
 
-std::array<std::uint8_t, KEYS> InputHandler::key_states_;
-std::array<std::uint8_t, KEYS> InputHandler::previous_key_states_;
+std::array<std::uint8_t, KEY_COUNT> InputHandler::key_states_;
+std::array<std::uint8_t, KEY_COUNT> InputHandler::previous_key_states_;
 InputHandler::MouseState InputHandler::left_mouse_{ MouseState::RELEASED };
 InputHandler::MouseState InputHandler::right_mouse_{ MouseState::RELEASED };
 InputHandler::MouseState InputHandler::middle_mouse_{ MouseState::RELEASED };
@@ -21,13 +21,6 @@ std::uint64_t InputHandler::left_mouse_pressed_time_{ 0 };
 std::uint64_t InputHandler::right_mouse_pressed_time_{ 0 };
 std::uint64_t InputHandler::middle_mouse_pressed_time_{ 0 };
 V2_int InputHandler::mouse_position_{ 0, 0 };
-
-void InputHandler::Init() {
-	const std::uint8_t* state = SDL_GetKeyboardState(NULL);
-	std::copy(state, state + KEYS, std::begin(key_states_));
-	std::copy(std::begin(key_states_), std::end(key_states_), std::begin(previous_key_states_));
-	LOG("Initialized input handler");
-}
 
 void InputHandler::Update() {
 	SDL_Event e;
@@ -47,7 +40,7 @@ void InputHandler::Update() {
 void InputHandler::UpdateKeyboard() {
 	std::copy(std::begin(key_states_), std::end(key_states_), std::begin(previous_key_states_));
 	const std::uint8_t* state = SDL_GetKeyboardState(NULL);
-	std::copy(state, state + KEYS, std::begin(key_states_));
+	std::copy(state, state + KEY_COUNT, std::begin(key_states_));
 }
 
 bool InputHandler::KeyPressed(Key key) {
@@ -148,7 +141,7 @@ void InputHandler::MouseButtonReleased(MouseState& mouse_button_state, std::uint
 void InputHandler::MouseButtonPressed(MouseState& mouse_button_state, std::uint64_t& mouse_button_pressed_time) {
 	mouse_button_state = MouseState::PRESSED;
 	// How many frames the mouse has been pressed down for.
-	if (mouse_button_pressed_time > static_cast<std::uint64_t>(MOUSE_HOLD_TIME * static_cast<double>(Engine::FPS()))) {
+	if (mouse_button_pressed_time > static_cast<std::uint64_t>(MOUSE_HOLD_TIME * static_cast<double>(Engine::GetFPS()))) {
 		mouse_button_state = MouseState::HELD;
 	}
 	++mouse_button_pressed_time;

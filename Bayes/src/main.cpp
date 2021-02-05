@@ -26,9 +26,9 @@ public:
 
 		LOG("Initialized all game systems successfully");
 		// Green inner box (gives some depth perception).
-		inner_box = { V2_double{ 0,0 }, Engine::ScreenSize() };
+		inner_box = { V2_double{ 0,0 }, Engine::GetScreenSize() };
 		// If hopper leaves this box, reset the simulation.
-		outer_box = { V2_double{ 0,0 } - distance, Engine::ScreenSize() + V2_double{ distance.x * 2.0, distance.y } };
+		outer_box = { V2_double{ 0,0 } - distance, Engine::GetScreenSize() + V2_double{ distance.x * 2.0, distance.y } };
 	}
 
 	void Reset() {

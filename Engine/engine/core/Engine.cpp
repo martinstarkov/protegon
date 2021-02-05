@@ -14,10 +14,14 @@ namespace engine {
 
 Engine* Engine::instance_{ nullptr };
 
-void Engine::Quit() { 
-	auto& engine = GetInstance();
-	engine.running_ = false;
-}
+V2_int Engine::GetScreenSize() { return GetInstance().window_size_; }
+int Engine::GetScreenWidth() { return GetInstance().window_size_.x; }
+int Engine::GetScreenHeight() { return GetInstance().window_size_.y; }
+std::size_t Engine::GetFPS() { return GetInstance().fps_; }
+double Engine::GetInverseFPS() { return GetInstance().inverse_fps_; }
+std::int64_t Engine::GetTimeSinceStart() { return timer_.ElapsedMilliseconds(); }
+void Engine::Delay(std::int64_t milliseconds) { SDL_Delay(static_cast<std::uint32_t>(milliseconds)); }
+void Engine::Quit() { GetInstance().running_ = false; }
 
 Window& Engine::GetWindow() {
 	auto& engine = GetInstance();
@@ -31,100 +35,78 @@ Renderer& Engine::GetRenderer() {
 	return engine.renderer_;
 }
 
-V2_int Engine::ScreenSize() {
-	auto& engine = GetInstance();
-	return engine.window_size_;
-}
-
-int Engine::ScreenWidth() {
-	auto& engine = GetInstance();
-	return engine.window_size_.x;
-}
-
-int Engine::ScreenHeight() {
-	auto& engine = GetInstance();
-	return engine.window_size_.y;
-}
-
-void Engine::InputHandlerUpdate() {
-	engine::InputHandler::Update();
-}
-
-void Engine::ResetWindowColor() {
-	engine::TextureManager::SetDrawColor(engine::TextureManager::GetDefaultRendererColor());
-}
-
-void Engine::InitInternals() {
-	engine::InputHandler::Init();
-}
-
-std::pair<Window, Renderer> Engine::GenerateWindow(const char* window_title, V2_int window_position, V2_int window_size, std::uint32_t window_flags, std::uint32_t renderer_flags) {
+std::pair<Window, Renderer> Engine::GenerateWindow(const char* window_title, const V2_int& window_position, const V2_int& window_size, std::uint32_t window_flags, std::uint32_t renderer_flags) {
 	auto& engine = GetInstance();
 	assert(engine.sdl_init_ == 0 && "Cannot generate window before initializing SDL");
 	auto window = SDL_CreateWindow(window_title, window_position.x, window_position.y, window_size.x, window_size.y, window_flags);
 	if (window) {
-		LOG("Initialized window successfully");
+		LOG("Created window successfully");
 		auto renderer = SDL_CreateRenderer(window, -1, renderer_flags);
 		if (renderer) {
-			LOG("Initialized renderer successfully");
+			LOG("Created renderer successfully");
 			return { window, renderer };
-		} else {
-			assert(!"SDL failed to create renderer");
 		}
-	} else {
-		assert(!"SDL failed to create window");
+		assert(!"SDL failed to create renderer");
 	}
-	assert(false && "Cannot return null window and renderer");
+	assert(!"SDL failed to create window");
 	return {};
 }
 
 void Engine::InitSDL(std::uint32_t window_flags, std::uint32_t renderer_flags) {
+	LOG("Initializing SDL...");
 	sdl_init_ = SDL_Init(SDL_INIT_AUDIO | SDL_INIT_EVENTS | SDL_INIT_TIMER | SDL_INIT_VIDEO);
 	if (sdl_init_ == 0) {
 		LOG("Initialized SDL successfully");
 		auto [window, renderer] = GenerateWindow(window_title_, window_position_, window_size_, window_flags, renderer_flags);
 		window_ = window;
 		renderer_ = renderer;
+		LOG("Initializing TTF...");
 		ttf_init_ = TTF_Init();
-		if (ttf_init_ == 0) { // True type fonts.
-			LOG("Initialized true type fonts successfully");
-			// SDL fully initialized.
+		if (ttf_init_ == 0) {
+			LOG("Initialized TTF successfully");
+			LOG("All SDL components fully initialized");
 			return;
-		} else {
-			assert(!"SDL failed to initialize true type fonts");
 		}
-	} else {
-		assert(!"SDL failed to initialize");
+		assert(!"Failed to initialize true type fonts for SDL");
+	}
+	assert(!"SDL failed to initialize");
+}
+
+void Engine::Loop() {
+	// Expected time between frames running at a certain FPS.
+	const std::int64_t frame_delay = static_cast<std::int64_t>(1000.0 * inverse_fps_);
+	while (running_) {
+		auto loop_start = timer_.ElapsedMilliseconds();
+		InputHandler::Update();
+
+		// Update everything here.
+		Update();
+
+		renderer_.Clear();
+		TextureManager::SetDrawColor(TextureManager::GetDefaultRendererColor()); // Reset renderer color.
+		
+		// Render everything here.
+		Render();
+
+		renderer_.Present();
+
+		// Cap frame rate at whatever fps_ was set to.
+		auto loop_time = timer_.ElapsedMilliseconds() - loop_start;
+		if (loop_time < frame_delay) {
+			Delay(frame_delay - loop_time);
+		}
 	}
 }
 
 void Engine::Clean() {
-	engine::TextureManager::Clean();
-	engine::FontManager::Clean();
+	TextureManager::Clean();
+	FontManager::Clean();
 	window_.Destroy();
 	renderer_.Destroy();
-	// Quit SDL subsystems
+	// Quit SDL subsystems.
 	TTF_Quit();
 	IMG_Quit();
 	SDL_Quit();
-}
-
-std::uint32_t Engine::GetTicks() {
-	return SDL_GetTicks();
-}
-
-void Engine::Delay(std::uint32_t milliseconds) {
-	SDL_Delay(milliseconds);
-}
-
-std::size_t Engine::FPS() {
-	auto& engine = GetInstance();
-	return engine.fps_;
-}
-
-double Engine::InverseFPS() {
-	auto& engine = GetInstance();
-	return engine.inverse_fps_;
 }
 
 } // namespace engine
