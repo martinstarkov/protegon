@@ -62,15 +62,6 @@ std::uint32_t& TextureManager::GetTexturePixel(void* pixels, const int pitch, co
 	auto p = (std::uint8_t*)pixels + position.y * pitch + position.x * bpp;
 	return *(std::uint32_t*)p;
 }
-// Convert an SDL surface coordinate to a 4 byte integer value containg the RGBA32 color of the pixel.
-static std::uint32_t* GetSurfacePixelColor(int pitch, void* pixels, V2_int position) {
-	// Source: http://sdl.beuc.net/sdl.wiki/Pixel_Access
-	auto row = position.y * pitch;
-	auto column = position.x * sizeof(std::uint32_t);
-	auto index = static_cast<std::size_t>(row) + static_cast<std::size_t>(column);
-	auto pixel_address = static_cast<std::uint8_t*>(pixels) + index;
-	return (std::uint32_t*)pixel_address;
-}
 
 Color TextureManager::GetDefaultRendererColor() {
 	return DEFAULT_RENDERER_COLOR;
