@@ -325,7 +325,7 @@ public:
 		systems_.~vector();
 		free_entity_ids.~deque();
 	}
-	// Destroy all entities in the manager.
+	// Clear the manager, this will destroy all entities and components in the memory of the manager.
 	void Clear() {
 		entity_count_ = 0;
 		// Keep the first 'null' entity.
@@ -398,9 +398,9 @@ public:
 	template <typename ...Ts>
 	std::vector<Entity> GetEntitiesWithout();
 	// Destroy all entities in the manager.
-	void DestroyEntities() {
-		Clear();
-	}
+	// Note: this will not clear the memory used by the components of destroyed entities.
+	// Use Clear() if you wish to free up the memory associated with those components.
+	void DestroyEntities();
 	// Destroy entities which have all of the given components.
 	template <typename ...Ts>
 	void DestroyEntitiesWith() {
@@ -758,9 +758,9 @@ private:
 // ECS Entity Handle
 class Entity {
 public:
-	// Null entity construction
+	// Default construction to null entity.
 	Entity(EntityId id = null) : id_{ id }, version_{ internal::null_version }, manager_{ nullptr }, loop_entity_{ false } {}
-	// Entity construction within the manager
+	// Entity construction within the manager.
 	Entity(EntityId id, EntityVersion version, Manager* manager, bool loop_entity = false) : id_{ id }, version_{ version }, manager_{ manager }, loop_entity_{ loop_entity } {}
 	~Entity() = default;
 	Entity(const Entity&) = default;
@@ -1067,6 +1067,12 @@ inline bool Manager::HasComponents(Entity entity) const {
 }
 inline bool Manager::IsAlive(Entity entity) const {
 	return IsAlive(entity.id_, entity.version_);
+}
+inline void Manager::DestroyEntities() {
+	auto entities = GetEntities();
+	for (auto& entity : entities) {
+		entity.Destroy();
+	}
 }
 inline void Manager::ComponentChange(const EntityId id, const ComponentId component_id, bool loop_entity) {
 	for (auto& system : systems_) {
