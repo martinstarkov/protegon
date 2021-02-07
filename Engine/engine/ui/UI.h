@@ -3,6 +3,9 @@
 #include "ecs/ECS.h"
 #include "ecs/Components.h"
 
+#include "statemachine/StateMachineComponent.h"
+#include "statemachine/StateMachines.h"
+
 #include "UIComponents.h"
 #include "UISystem.h"
 
@@ -19,7 +22,8 @@ public:
 		auto entity = ui_manager.CreateEntity();
 		engine::EventHandler::Register<T>(entity);
 		entity.AddComponent<EventComponent>(scene);
-		entity.AddComponent<StateComponent>();
+		auto& sm = entity.AddComponent<StateMachineComponent>();
+		sm.AddStateMachine<ButtonStateMachine>("button", entity);
 		entity.AddComponent<TransformComponent>(position);
 		entity.AddComponent<SizeComponent>(size);
 		entity.AddComponent<BackgroundColorComponent>(background_color);

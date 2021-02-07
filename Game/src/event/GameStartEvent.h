@@ -11,10 +11,11 @@ struct GameStartEvent {
 		if (invoker.IsAlive()) {
 			assert(invoker.HasComponent<EventComponent>());
 			auto& event = invoker.GetComponent<EventComponent>();
-			event.scene.chunks.clear();
-			event.scene.player_chunks.clear();
-			event.scene.manager.Clear();
-			event.scene.ui_manager.DestroyEntitiesWith<TitleScreenComponent, BackgroundColorComponent>();
+			auto& scene = event.scene;
+			scene.chunks.clear();
+			scene.player_chunks.clear();
+			scene.manager.Clear();
+			scene.ui_manager.Clear();
 			/*auto titles = scene.event_manager.GetComponentTuple<TitleScreenComponent>();
 			auto [entity, title] = titles[0];
 			title.open = false;*/
@@ -57,7 +58,7 @@ struct GameStartEvent {
 							}
 							case 2:
 							{
-								auto player = CreatePlayer(pos, V2_int{ 20 * 5, 23 * 5 }, event.scene.manager, event.scene);
+								auto player = CreatePlayer(pos, V2_int{ 20 * 5, 23 * 5 }, scene.manager, scene);
 								break;
 							}
 							case 3:

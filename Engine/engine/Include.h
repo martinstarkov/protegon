@@ -9,7 +9,10 @@
 #include "ecs/Systems.h"
 
 #include "statemachine/StateMachine.h"
-#include "statemachine/states/State.h"
+#include "statemachine/State.h"
+#include "statemachine/States.h"
+#include "statemachine/StateMachineSystem.h"
+#include "statemachine/StateMachineComponent.h"
 
 #include "renderer/Window.h"
 #include "renderer/Renderer.h"
@@ -28,6 +31,8 @@
 #include "renderer/particles/ParticleManager.h"
 
 #include "ui/UI.h"
+#include "ui/UIComponents.h"
+#include "ui/UISystem.h"
 
 #include "math/Functions.h"
 #include "math/Hasher.h"

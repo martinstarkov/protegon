@@ -55,9 +55,8 @@ public:
 		scene.manager.AddSystem<DirectionSystem>();
 		scene.manager.AddSystem<CameraSystem>(&scene);
 		scene.ui_manager.AddSystem<RenderSystem>(&scene);
-		scene.ui_manager.AddSystem<UIButtonListener>();
-		scene.ui_manager.AddSystem<UIButtonRenderer>();
-		scene.ui_manager.AddSystem<UITextRenderer>();
+		scene.ui_manager.AddSystem<StateMachineSystem>();
+		scene.ui_manager.AddSystem<UIRenderer>();
 
 		//LOG("Sectors: " << Engine::GetScreenSize() / tile_size);
 
@@ -79,7 +78,12 @@ public:
 		timer0.Start();
 		auto players = scene.manager.GetComponentTuple<TransformComponent, CollisionComponent, PlayerController>();
 		scene.manager.Update<InputSystem>();
-		scene.ui_manager.Update<UIButtonListener>();
+		auto& title = title_screen.GetComponent<TitleScreenComponent>();
+		if (engine::InputHandler::KeyDown(Key::R)) {
+			engine::EventHandler::Invoke(title_screen);
+			title.open = true;
+			particles.Reset();
+		}
 		scene.manager.Update<PhysicsSystem>();
 		scene.manager.Update<TargetSystem>();
 		//if (timer0.ElapsedMilliseconds() > 1)
@@ -110,25 +114,22 @@ public:
 		Timer timer2;
 		timer2.Start();
 		scene.manager.Update<StateMachineSystem>();
+		scene.ui_manager.Update<StateMachineSystem>();
 		scene.manager.Update<DirectionSystem>();
 		//scene.manager.Update<LifetimeSystem>();
 		scene.manager.Update<CameraSystem>();
 		//AllocationMetrics::PrintMemoryUsage();
-		auto& title = title_screen.GetComponent<TitleScreenComponent>();
-		if (engine::InputHandler::KeyDown(Key::R)) {
-			engine::EventHandler::Invoke(title_screen);
-			title.open = true;
-			particles.Reset();
-		} else if (title.open) {
-			if (scene.ui_manager.GetEntitiesWith<TitleScreenComponent>().size() == 0) {
-				title.open = false;
-			}
+
+		auto& title_ = title_screen.GetComponent<TitleScreenComponent>();
+		if (title_.open && scene.ui_manager.GetEntitiesWith<TitleScreenComponent>().size() == 0) {
+			title_.open = false;
 		}
 		//if (timer2.ElapsedMilliseconds() > 1)
 		//LOG("timer2: " << timer2.ElapsedMilliseconds());
 		Timer timer3;
 		timer3.Start();
 		auto camera = scene.GetCamera();
+		players = scene.manager.GetComponentTuple<TransformComponent, CollisionComponent, PlayerController>();
 		if (camera && !title.open && players.size() > 0) {
 
 			V2_double chunk_size = tiles_per_chunk * tile_size;
@@ -256,8 +257,7 @@ public:
 
 		Timer timer8;
 		timer8.Start();
-		scene.ui_manager.Update<UIButtonRenderer>();
-		scene.ui_manager.Update<UITextRenderer>();
+		scene.ui_manager.Update<UIRenderer>();
 		particles.Render(scene);
 		//if (timer8.ElapsedMilliseconds() > 1)
 		//LOG("timer8: " << timer8.ElapsedMilliseconds());

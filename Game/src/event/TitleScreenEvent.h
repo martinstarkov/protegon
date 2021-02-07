@@ -17,6 +17,7 @@ struct TitleScreenEvent {
 			auto play_button = engine::UI::AddButton<GameStartEvent>(event.scene.ui_manager, event.scene, play_pos, play_size, engine::BLACK);
 			play_button.AddComponent<HoverColorComponent>(engine::GREY);
 			play_button.AddComponent<ActiveColorComponent>(engine::GOLD);
+			play_button.AddComponent<FocusedColorComponent>(engine::SILVER);
 			play_button.AddComponent<TextComponent>("Play", engine::WHITE, 30, "resources/fonts/oswald_regular.ttf");
 			play_button.AddComponent<TitleScreenComponent>();
 
