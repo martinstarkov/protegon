@@ -55,7 +55,7 @@ public:
 		scene.manager.AddSystem<DirectionSystem>();
 		scene.manager.AddSystem<CameraSystem>(&scene);
 		scene.ui_manager.AddSystem<RenderSystem>(&scene);
-		scene.ui_manager.AddSystem<UIButtonListener>(&scene);
+		scene.ui_manager.AddSystem<UIButtonListener>();
 		scene.ui_manager.AddSystem<UIButtonRenderer>();
 		scene.ui_manager.AddSystem<UITextRenderer>();
 
@@ -64,7 +64,8 @@ public:
 		title_screen = scene.event_manager.CreateEntity();
 		engine::EventHandler::Register<TitleScreenEvent>(title_screen);
 		auto& title = title_screen.AddComponent<TitleScreenComponent>();
-		engine::EventHandler::Invoke(title_screen, scene.manager, scene.ui_manager);
+		title_screen.AddComponent<EventComponent>(scene);
+		engine::EventHandler::Invoke(title_screen);
 		title.open = true;
 		LOG("Initialized all game systems successfully");
 
@@ -81,8 +82,8 @@ public:
 		scene.ui_manager.Update<UIButtonListener>();
 		scene.manager.Update<PhysicsSystem>();
 		scene.manager.Update<TargetSystem>();
-		if (timer0.ElapsedMilliseconds() > 1)
-		LOG("timer0: " << timer0.ElapsedMilliseconds());
+		//if (timer0.ElapsedMilliseconds() > 1)
+		//LOG("timer0: " << timer0.ElapsedMilliseconds());
 		Timer timer1;
 		timer1.Start();
 		if (scene.player_chunks.size() > 0 && players.size() > 0) {
@@ -102,8 +103,8 @@ public:
 			scene.manager.Update<CollisionSystem>();
 		}
 
-		if (timer1.ElapsedMilliseconds() > 1)
-		LOG("timer1: " << timer1.ElapsedMilliseconds());
+		//if (timer1.ElapsedMilliseconds() > 1)
+		//LOG("timer1: " << timer1.ElapsedMilliseconds());
 		//AllocationMetrics::PrintMemoryUsage();
 
 		Timer timer2;
@@ -115,7 +116,7 @@ public:
 		//AllocationMetrics::PrintMemoryUsage();
 		auto& title = title_screen.GetComponent<TitleScreenComponent>();
 		if (engine::InputHandler::KeyDown(Key::R)) {
-			engine::EventHandler::Invoke(title_screen, scene.manager, scene.ui_manager);
+			engine::EventHandler::Invoke(title_screen);
 			title.open = true;
 			particles.Reset();
 		} else if (title.open) {
@@ -123,8 +124,8 @@ public:
 				title.open = false;
 			}
 		}
-		if (timer2.ElapsedMilliseconds() > 1)
-		LOG("timer2: " << timer2.ElapsedMilliseconds());
+		//if (timer2.ElapsedMilliseconds() > 1)
+		//LOG("timer2: " << timer2.ElapsedMilliseconds());
 		Timer timer3;
 		timer3.Start();
 		auto camera = scene.GetCamera();
@@ -211,7 +212,7 @@ public:
 						timer.Start();
 						chunk->Generate(0, octave, bias);
 						chunk->new_chunk = true;
-						scene.chunks.push_back(chunk);
+						scene.chunks.emplace_back(chunk);
 						if (player_chunk) {
 							scene.player_chunks.emplace_back(chunk);
 						}
@@ -220,44 +221,38 @@ public:
 			}
 			//LOG("Chunks: " << chunks.size());
 		} else {
-			for (auto c : scene.chunks) {
-				if (c) {
-					delete c;
-					c = nullptr;
-				}
-			}
 			scene.chunks.clear();
 		}
-		if (timer3.ElapsedMilliseconds() > 1)
-		LOG("timer3: " << timer3.ElapsedMilliseconds());
+		//if (timer3.ElapsedMilliseconds() > 1)
+		//LOG("timer3: " << timer3.ElapsedMilliseconds());
 
 		Timer timer4;
 		timer4.Start();
 		particles.Update();
-		if (timer4.ElapsedMilliseconds() > 1)
-		LOG("timer4: " << timer4.ElapsedMilliseconds());
+		//if (timer4.ElapsedMilliseconds() > 1)
+		//LOG("timer4: " << timer4.ElapsedMilliseconds());
 		//LOG("Octave: " << octave << ", bias: " << bias);
     }
 	void Render() {
 		Timer timer5;
 		timer5.Start();
 		scene.manager.Update<AnimationSystem>();
-		if (timer5.ElapsedMilliseconds() > 1)
-		LOG("timer5: " << timer5.ElapsedMilliseconds());
+		//if (timer5.ElapsedMilliseconds() > 1)
+		//LOG("timer5: " << timer5.ElapsedMilliseconds());
 		Timer timer6;
 		timer6.Start();
 		// TODO: Consider a better way of doing this?
 		for (auto& c : scene.chunks) {
 			c->manager.Update<TileRenderSystem>();
 		}
-		if (timer6.ElapsedMilliseconds() > 1)
-		LOG("timer6: " << timer6.ElapsedMilliseconds());
+		//if (timer6.ElapsedMilliseconds() > 1)
+		//LOG("timer6: " << timer6.ElapsedMilliseconds());
 		Timer timer7;
 		timer7.Start();
 		scene.manager.Update<RenderSystem>();
 		scene.manager.Update<HitboxRenderSystem>();
-		if (timer7.ElapsedMilliseconds() > 1)
-		LOG("timer7: " << timer7.ElapsedMilliseconds());
+		//if (timer7.ElapsedMilliseconds() > 1)
+		//LOG("timer7: " << timer7.ElapsedMilliseconds());
 
 		Timer timer8;
 		timer8.Start();

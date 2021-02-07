@@ -1,60 +1,32 @@
 #pragma once
 
-#include <cstdint>
-#include <unordered_map>
-#include <cassert>
-#include <memory>
-#include <type_traits>
-#include <functional>
+#include <cstdint> // std::uint32_t
+#include <unordered_map> // std::unordered_map
+#include <cassert> // assert
+#include <vector> // std::vector
 
+#include "utils/TypeTraits.h"
 #include "ecs/ECS.h"
+
+// TODO: Write tests for invoke function argument count.
 
 namespace engine {
 
-namespace detail {
+namespace internal {
 
-using EventId = std::uint32_t;
+using EventFunction = void (*)(ecs::Entity&);
 
-static EventId event_counter{ 0 };
-
-// Create / retrieve a unique id for each event class.
-template <typename T>
-static EventId GetEventId() {
-	static EventId id = event_counter++;
-	return id;
-}
-
-template <typename T, typename ...TArgs>
-static void EventCall(TArgs&&... args) {
-	T{ args... };
-}
-
-using EventFunction = void (*)();
-
-template <typename T>
-constexpr auto has_invoke_helper(const T&, int)
--> decltype(&T::Invoke, &T::Invoke);
-
-template <typename T>
-constexpr void* has_invoke_helper(const T&, long) {
-	return nullptr;
-}
-
-template <typename T>
-bool constexpr has_invoke = !std::is_same<decltype(has_invoke_helper(std::declval<T>(), 0)), void*>::value;
-
-template <typename T>
-bool constexpr has_static_invoke = has_invoke<T> && !std::is_member_function_pointer_v<decltype(has_invoke_helper(std::declval<T>(), 0))>;
-
-template <typename T, std::enable_if_t<has_static_invoke<T>, int> = 0>
+template <typename T, type_traits::has_static_invoke_e<T> = true>
 constexpr EventFunction EventCast() {
-	return static_cast<EventFunction>(static_cast<void*>(&T::Invoke));
+	return &T::Invoke;
 }
 
-template <typename T, std::enable_if_t<!has_invoke<T> || std::is_member_function_pointer_v<decltype(has_invoke_helper(std::declval<T>(), 0))>, int> = 0>
+template <typename T, typename Function>
 constexpr EventFunction EventCast() {
 	return nullptr;
 }
+
+/*
 
 // source: https://stackoverflow.com/a/8645270
 template <typename ...TArgs>
@@ -62,59 +34,65 @@ constexpr std::size_t Arity(void (*)(TArgs...)) {
 	return sizeof...(TArgs);
 }
 
-template <typename T, std::enable_if_t<has_static_invoke<T>, int> = 0>
+template <typename T, typename Function, type_traits::has_static_function_e<T, Function> = true>
 constexpr std::size_t EventArgumentCount() {
-	return Arity(&T::Invoke);
+	return Arity(&T::Function);
 }
 
-template <typename T, std::enable_if_t<!has_invoke<T> || std::is_member_function_pointer_v<decltype(has_invoke_helper(std::declval<T>(), 0))>, int> = 0>
+template <typename T, typename Function>
 constexpr std::size_t EventArgumentCount() {
 	return 0;
 }
+*/
 
-} // namespace detail
+} // namespace internal
 
 class EventHandler {
 public:
+	// Register an event class which implements an Invoke function taking an entity as an argument.
 	template <typename T>
 	static void Register(const ecs::Entity& entity) {
-		static_assert(detail::has_static_invoke<T>, "Cannot register event which does not implement a static method with the name 'Invoke'");
-		//static_assert("Cannot register event which does not implement a static method with the name 'Invoke'");
-		auto event_id = detail::GetEventId<T>();
-		auto caller_it = callers.find(entity);
-		if (caller_it == std::end(callers)) {
-			callers.emplace(std::move(entity), std::move(std::vector<detail::EventId>{ event_id }));
+		static_assert(type_traits::has_static_invoke<T>, "Cannot register event which does not implement a static method with the name 'Invoke'");
+		auto event_id = GetEventId<T>();
+		auto caller_it = callers_.find(entity);
+		if (caller_it == std::end(callers_)) {
+			callers_.emplace(std::move(entity), std::move(std::vector<EventId>{ event_id }));
 		} else {
 			caller_it->second.emplace_back(event_id);
 		}
-		auto event_it = events.find(event_id);
-		if (event_it == std::end(events)) {
-			auto function_pointer = detail::EventCast<T>();
-			assert(function_pointer != nullptr && "Could not create valid event invoke function pointer");
-			events.emplace(event_id, std::pair<std::size_t, detail::EventFunction>(detail::EventArgumentCount<T>(), function_pointer));
+		auto event_it = events_.find(event_id);
+		if (event_it == std::end(events_)) {
+			//static_assert(std::is_convertible_v<&T::Invoke, EventFunction>, "Could not register invoke function which does not take in a const ecs::Entity& as the only argument");
+			auto invoke_function = internal::EventCast<T>();
+			assert(invoke_function != nullptr && "Could not create valid event invoke function pointer");
+			events_.emplace(event_id, invoke_function);
 		}
 	}
-	// TODO: Figure out how to pass arguments as value instead of only by reference.
-	// TODO: Fix this up in-general, at the moment the force to have a static Invoke method makes the argument list not work with pass-by-value (copy) parameters.
-	template <typename ...TArgs>
-	static void Invoke(const ecs::Entity& entity, TArgs&... args) {
-		auto caller_it = callers.find(entity);
-		assert(caller_it != std::end(callers) && "Could not invoke event on entity which has not registered such an event");
+	// Invoke all events registered under a given entity.
+	static void Invoke(ecs::Entity& entity) {
+		auto caller_it = callers_.find(entity);
+		assert(caller_it != std::end(callers_) && "Could not invoke event on entity which has not registered such an event");
 		for (auto event_id : caller_it->second) {
-			auto it = events.find(event_id);
-			assert(it != std::end(events) && "Could not find valid event invoke function pointer");
-			assert(it->second.first == sizeof...(TArgs) && "Event invoke call argument count does not match the event's invoke function");
-			auto function_pointer = reinterpret_cast<void (*)(TArgs&...)>(it->second.second);
-			assert(function_pointer != nullptr && "Could not create valid event invoke function pointer");
-			function_pointer(args...);
+			auto it = events_.find(event_id);
+			assert(it != std::end(events_) && "Could not find valid event invoke function pointer");
+			auto invoke_function = it->second;
+			assert(invoke_function != nullptr && "Could not create valid event invoke function pointer");
+			invoke_function(entity);
 		}
 	}
 	static void Remove(const ecs::Entity& entity) {
-		callers.erase(entity);
+		callers_.erase(entity);
 	}
 private:
-	static std::unordered_map<ecs::Entity, std::vector<detail::EventId>> callers;
-	static std::unordered_map<detail::EventId, std::pair<std::size_t, detail::EventFunction>> events;
+	using EventId = std::uint32_t;
+	template <typename T>
+	static EventId GetEventId() {
+		static EventId id = EventTypeCount()++;
+		return id;
+	}
+	static EventId& EventTypeCount() { static EventId id{ 0 }; return id; }
+	static std::unordered_map<ecs::Entity, std::vector<EventId>> callers_;
+	static std::unordered_map<EventId, internal::EventFunction> events_;
 };
 
 } // namespace engine

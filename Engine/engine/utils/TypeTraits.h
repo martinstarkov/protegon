@@ -27,6 +27,24 @@ using is_floating_point = std::enable_if_t<std::is_floating_point_v<T>, bool>;
 template <typename From, typename To>
 using convertible = std::enable_if_t<std::is_convertible_v<From, To>, bool>;
 
+template <typename T>
+constexpr auto has_invoke_helper(const T&, int)
+-> decltype(&T::Invoke, &T::Invoke);
+
+template <typename T>
+constexpr void* has_invoke_helper(const T&, long) {
+	return nullptr;
+}
+
+template <typename T>
+bool constexpr has_invoke = !std::is_same<decltype(has_invoke_helper(std::declval<T>(), 0)), void*>::value;
+
+template <typename T>
+bool constexpr has_static_invoke = has_invoke<T> && !std::is_member_function_pointer_v<decltype(has_invoke_helper(std::declval<T>(), 0))>;
+
+template <typename T>
+using has_static_invoke_e = std::enable_if_t<has_static_invoke<T>, bool>;
+
 } // namespace type_traits
 
 } // namespace engine

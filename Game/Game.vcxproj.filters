@@ -94,9 +94,6 @@
     <ClInclude Include="src\factory\CreatePlayer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\event\RandomizeColorEvent.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\systems\Systems.h">
       <Filter>Header Files</Filter>
     </ClInclude>

@@ -134,9 +134,6 @@
     <ClInclude Include="engine\ecs\components\TransformComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="engine\ecs\components\UIComponent.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="engine\ecs\systems\AnimationSystem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -159,12 +156,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\ecs\systems\StateMachineSystem.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\ecs\systems\System.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\ecs\systems\UISystem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\ecs\Components.h">
@@ -405,6 +396,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\debug\Debug.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\ui\UISystem.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\ui\components\UIComponent.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\ecs\System.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

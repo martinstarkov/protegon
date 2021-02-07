@@ -225,7 +225,6 @@
     <ClInclude Include="src\event\Events.h" />
     <ClInclude Include="src\event\GameStartEvent.h" />
     <ClInclude Include="src\event\PauseEvent.h" />
-    <ClInclude Include="src\event\RandomizeColorEvent.h" />
     <ClInclude Include="src\event\TitleScreenEvent.h" />
     <ClInclude Include="src\factory\CreateBox.h" />
     <ClInclude Include="src\factory\CreateBullet.h" />

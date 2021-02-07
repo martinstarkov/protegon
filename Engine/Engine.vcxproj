@@ -292,7 +292,7 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClInclude Include="engine\ecs\components\StateMachineComponent.h" />
     <ClInclude Include="engine\ecs\components\TagComponent.h" />
     <ClInclude Include="engine\ecs\components\TransformComponent.h" />
-    <ClInclude Include="engine\ecs\components\UIComponent.h" />
+    <ClInclude Include="engine\ui\components\UIComponent.h" />
     <ClInclude Include="engine\ecs\ECS.h" />
     <ClInclude Include="engine\ecs\Systems.h" />
     <ClInclude Include="engine\ecs\systems\AnimationSystem.h" />
@@ -306,8 +306,8 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClInclude Include="engine\ecs\systems\PhysicsSystem.h" />
     <ClInclude Include="engine\ecs\systems\RenderSystem.h" />
     <ClInclude Include="engine\ecs\systems\StateMachineSystem.h" />
-    <ClInclude Include="engine\ecs\systems\System.h" />
-    <ClInclude Include="engine\ecs\systems\UISystem.h" />
+    <ClInclude Include="engine\ecs\System.h" />
+    <ClInclude Include="engine\ui\UISystem.h" />
     <ClInclude Include="engine\event\EventHandler.h" />
     <ClInclude Include="engine\event\Events.h" />
     <ClInclude Include="engine\event\InputHandler.h" />
