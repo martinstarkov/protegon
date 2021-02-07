@@ -5,8 +5,8 @@
 #include <unordered_map> // std::unordered_map
 #include <string> // std::string // TEMPORARY
 
-#include "BaseStateMachine.h"
-#include "states/BaseState.h"
+#include "statemachine/BaseStateMachine.h"
+#include "statemachine/BaseState.h"
 
 #include "math/Hasher.h"
 
@@ -16,12 +16,16 @@ class StateMachine : public BaseStateMachine {
 public:
 	StateMachine() = default;
 	virtual ~StateMachine() = default;
-	virtual void Init(ecs::Entity parent_entity) override final {
+	virtual void Init(const ecs::Entity& parent_entity, const char* starting_state = "") override final {
 		for (const auto& pair : states_) {
 			pair.second->SetParentStateMachine(this);
 			pair.second->SetParentEntity(parent_entity);
 		}
-		current_state_->OnEntry();
+		if (starting_state != "") {
+			SetState(starting_state);
+		} else if (current_state_ != nullptr) {
+			current_state_->OnEntry();
+		}
 	}
 	virtual void SetState(const char* name) override final {
 		auto key = Hasher::HashCString(name);
@@ -39,7 +43,7 @@ public:
 	}
 	// Called once per update cycle, update's the state machine's current state.
 	virtual void Update() override final {
-		assert(current_state_ != nullptr && "Current state undefined");
+		assert(current_state_ != nullptr && "Current state undefined, make sure you call Init() on the StateMachine after constructing it");
 		current_state_->Update();
 	}
 	// TEMPORARY : Hacked together way of debugging current state.
@@ -64,7 +68,7 @@ protected:
 			current_state_ = state;
 			previous_state_ = current_state_;
 		}
-		states_.emplace(key, std::move(state));
+		states_.emplace(key, state);
 		state_names_.emplace(key, name);
 	}
 private:

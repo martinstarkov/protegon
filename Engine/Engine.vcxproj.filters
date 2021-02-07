@@ -18,9 +18,6 @@
     <ClCompile Include="engine\core\Engine.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="engine\ecs\components\StateMachineComponent.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="engine\event\EventHandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -128,9 +125,6 @@
     <ClInclude Include="engine\ecs\components\SpriteSheetComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="engine\ecs\components\StateMachineComponent.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="engine\ecs\components\TransformComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -153,9 +147,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\ecs\systems\RenderSystem.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\ecs\systems\StateMachineSystem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\ecs\Components.h">
@@ -200,24 +191,6 @@
     <ClInclude Include="engine\renderer\Window.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="engine\statemachine\states\GroundedState.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\statemachine\states\IdleState.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\statemachine\states\JumpState.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\statemachine\states\RunState.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\statemachine\states\State.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\statemachine\states\WalkState.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="engine\statemachine\BaseStateMachine.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -257,16 +230,10 @@
     <ClInclude Include="engine\ui\components\HoverColorComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="engine\ui\components\StateComponent.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="engine\ui\components\EventComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\ui\components\MouseOffsetComponent.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\ui\components\InfluenceComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\renderer\Camera.h">
@@ -297,9 +264,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\renderer\SpriteMap.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\statemachine\states\BaseState.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\ecs\systems\HitboxRenderSystem.h">
@@ -405,6 +369,48 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\ecs\System.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\statemachine\StateMachineComponent.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\statemachine\StateMachineSystem.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\statemachine\states\movement\GroundedState.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\statemachine\states\movement\IdleState.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\statemachine\states\movement\JumpState.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\statemachine\states\movement\RunState.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\statemachine\states\movement\WalkState.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\statemachine\State.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\statemachine\BaseState.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\statemachine\states\button\DefaultButtonState.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\statemachine\states\button\ActiveButtonState.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\statemachine\states\button\FocusedButtonState.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\statemachine\states\button\HoverButtonState.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\ui\components\FocusedColorComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

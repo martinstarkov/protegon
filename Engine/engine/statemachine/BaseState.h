@@ -11,7 +11,7 @@ public:
 	virtual void OnEntry() = 0;
 	virtual void OnExit() = 0;
 	virtual void Update() = 0;
-	virtual void SetParentEntity(ecs::Entity entity) = 0;
+	virtual void SetParentEntity(const ecs::Entity& entity) = 0;
 	virtual void SetParentStateMachine(BaseStateMachine* state_machine) = 0;
 };
 

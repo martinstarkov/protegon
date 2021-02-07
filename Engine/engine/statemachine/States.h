@@ -1,7 +1,12 @@
 #pragma once
 
-#include "states/IdleState.h"
-#include "states/WalkState.h"
-#include "states/RunState.h"
-#include "states/GroundedState.h"
-#include "states/JumpState.h"
+#include "states/movement/IdleState.h"
+#include "states/movement/WalkState.h"
+#include "states/movement/RunState.h"
+#include "states/movement/GroundedState.h"
+#include "states/movement/JumpState.h"
+
+#include "states/button/DefaultButtonState.h"
+#include "states/button/HoverButtonState.h"
+#include "states/button/FocusedButtonState.h"
+#include "states/button/ActiveButtonState.h"

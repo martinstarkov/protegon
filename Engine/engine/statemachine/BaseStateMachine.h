@@ -1,7 +1,8 @@
 #pragma once
 
-#include "ecs/ECS.h"
 #include <memory> // std::shared_ptr
+
+#include "ecs/ECS.h"
 
 namespace engine {
 
@@ -9,7 +10,7 @@ class BaseState;
 
 class BaseStateMachine {
 public:
-	virtual void Init(ecs::Entity parent_entity) = 0;
+	virtual void Init(const ecs::Entity& parent_entity, const char* starting_state) = 0;
 	virtual void SetState(const char* name) = 0;
 	// TEMPORARY
 	virtual std::string GetState() = 0;

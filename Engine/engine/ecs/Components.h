@@ -11,7 +11,6 @@
 #include "ecs/components/PlayerController.h"
 #include "ecs/components/InputComponent.h"
 #include "ecs/components/RigidBodyComponent.h"
-#include "ecs/components/StateMachineComponent.h"
 #include "ecs/components/DirectionComponent.h"
 #include "ecs/components/SpriteSheetComponent.h"
 #include "ecs/components/SizeComponent.h"
