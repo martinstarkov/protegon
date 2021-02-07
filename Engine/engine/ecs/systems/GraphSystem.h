@@ -1,6 +1,6 @@
 #pragma once
 
-#include "System.h"
+#include "ecs/System.h"
 
 #include "math/Vector2.h"
 #include "renderer/Renderer.h"

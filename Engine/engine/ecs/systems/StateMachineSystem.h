@@ -1,6 +1,6 @@
 #pragma once
 
-#include "System.h"
+#include "ecs/System.h"
 
 class StateMachineSystem : public ecs::System<StateMachineComponent> {
 public:

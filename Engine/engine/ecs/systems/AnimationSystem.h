@@ -1,6 +1,6 @@
 #pragma once
 
-#include "System.h"
+#include "ecs/System.h"
 
 // TODO: Take StateComponent (somehow) and set current SpriteComponent sprite equal to the corresponding spritesheet image
 

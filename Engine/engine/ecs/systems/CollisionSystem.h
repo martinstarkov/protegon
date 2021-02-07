@@ -1,6 +1,6 @@
 #pragma once
 
-#include "System.h"
+#include "ecs/System.h"
 
 #include <algorithm> // std::sort, std::find
 #include <vector> // std::vector

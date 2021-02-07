@@ -1,6 +1,6 @@
 #pragma once
 
-#include "System.h"
+#include "ecs/System.h"
 
 // TODO: Make it clearer how this system acts as a component (health vs bullet lifetime vs block lifetime)
 
