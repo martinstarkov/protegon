@@ -4,7 +4,8 @@
 
 #include "Chunk.h"
 
-#include <vector>
+#include <vector> // std::vector
+#include <memory> // std::shared_ptr
 
 #include "renderer/Camera.h"
 
@@ -15,7 +16,7 @@ public:
 	Scene() = default;
 	Scene(const Scene&) = delete;
 	Scene(Scene&&) = delete;
-	Camera* GetCamera() const;
+	const std::shared_ptr<Camera> GetCamera() const;
 	void SetCamera(Camera& camera);
 	ecs::Manager manager;
 	ecs::Manager ui_manager;
@@ -46,7 +47,7 @@ public:
 		return engine::math::Ceil<int>(value * active_camera_->scale.y);
 	}
 private:
-	Camera* active_camera_ = nullptr;
+	std::shared_ptr<Camera> active_camera_ = nullptr;
 };
 
 } // namespace engine

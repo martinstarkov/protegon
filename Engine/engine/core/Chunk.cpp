@@ -13,7 +13,7 @@
 namespace engine {
 
 Chunk::~Chunk() {
-	manager.DestroyEntities();
+	manager.Clear();
 	chunk.Destroy();
 }
 
