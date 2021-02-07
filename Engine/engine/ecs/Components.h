@@ -14,7 +14,6 @@
 #include "ecs/components/StateMachineComponent.h"
 #include "ecs/components/DirectionComponent.h"
 #include "ecs/components/SpriteSheetComponent.h"
-#include "ecs/components/UIComponent.h"
 #include "ecs/components/SizeComponent.h"
 #include "ecs/components/CameraComponent.h"
 #include "ecs/components/TagComponent.h"

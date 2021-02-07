@@ -1,5 +1,6 @@
 #pragma once
 
+#include "components/UIComponent.h"
 #include "components/ActiveColorComponent.h"
 #include "components/BackgroundColorComponent.h"
 #include "components/EventComponent.h"

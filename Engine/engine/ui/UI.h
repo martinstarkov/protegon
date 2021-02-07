@@ -4,6 +4,7 @@
 #include "ecs/Components.h"
 
 #include "UIComponents.h"
+#include "UISystem.h"
 
 #include "math/Vector2.h"
 
@@ -14,11 +15,10 @@ namespace engine {
 class UI {
 public:
 	template <typename T>
-	static ecs::Entity AddButton(ecs::Manager& ui_manager, ecs::Manager& influence_manager, V2_int position, V2_int size, const Color& background_color) {
+	static ecs::Entity AddButton(ecs::Manager& ui_manager, Scene& scene, const V2_int& position, const V2_int& size, const Color& background_color) {
 		auto entity = ui_manager.CreateEntity();
 		engine::EventHandler::Register<T>(entity);
-		entity.AddComponent<EventComponent>();
-		entity.AddComponent<InfluenceComponent>(influence_manager);
+		entity.AddComponent<EventComponent>(scene);
 		entity.AddComponent<StateComponent>();
 		entity.AddComponent<TransformComponent>(position);
 		entity.AddComponent<SizeComponent>(size);
@@ -26,7 +26,7 @@ public:
 		entity.AddComponent<RenderComponent>();
 		return entity;
 	}
-	static ecs::Entity AddText(ecs::Manager& ui_manager, V2_int position, V2_int size, const Color& background_color) {
+	static ecs::Entity AddText(ecs::Manager& ui_manager, const V2_int& position, const V2_int& size, const Color& background_color) {
 		auto entity = ui_manager.CreateEntity();
 		entity.AddComponent<TransformComponent>(position);
 		entity.AddComponent<SizeComponent>(size);

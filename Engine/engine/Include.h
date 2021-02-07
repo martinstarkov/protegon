@@ -28,7 +28,6 @@
 #include "renderer/particles/ParticleManager.h"
 
 #include "ui/UI.h"
-#include "ui/UIComponents.h"
 
 #include "math/Functions.h"
 #include "math/Hasher.h"

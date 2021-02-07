@@ -1,6 +1,6 @@
 #pragma once
 
-#include "System.h"
+#include "ecs/System.h"
 
 #include "event/InputHandler.h"
 #include "event/EventHandler.h"
@@ -14,20 +14,14 @@
 #include "math/Vector2.h"
 
 #include "ui/UIComponents.h"
+#include "ecs/components/TransformComponent.h"
+#include "ecs/components/SizeComponent.h"
+#include "ecs/components/RenderComponent.h"
 
-class UIButtonListener : public ecs::System<TransformComponent, SizeComponent, BackgroundColorComponent, StateComponent> {
+class UIButtonListener : public ecs::System<TransformComponent, SizeComponent, BackgroundColorComponent, StateComponent, EventComponent> {
 public:
-	UIButtonListener() = default;
-	UIButtonListener(engine::Scene* scene) : scene{ scene } {}
 	virtual void Update() override final {
-		for (auto [entity, transform, size, background, state] : entities) {
-			if (entity.HasComponent<EventComponent>() &&
-				engine::InputHandler::KeyDown(Key::SPACEBAR) &&
-				entity.HasComponent<TextComponent>() &&
-				entity.GetComponent<TextComponent>().content == "Play") {
-				assert(scene != nullptr && "Scene not given to UIButtonListener");
-				engine::EventHandler::Invoke(entity, entity, *scene);
-			}
+		for (auto [entity, transform, size, background, state, event] : entities) {
 			auto surface = AABB{ transform.position, size.size };
 			auto mouse_position = engine::InputHandler::GetMousePosition();
 			bool hovering = engine::collision::PointvsAABB(mouse_position, surface);
@@ -47,10 +41,7 @@ public:
 					if (entity.HasComponent<ActiveColorComponent>()) {
 						background.color = entity.GetComponent<ActiveColorComponent>().color;
 					}
-					if (entity.HasComponent<EventComponent>()) {
-						assert(scene != nullptr && "Scene not given to UIButtonListener");
-						engine::EventHandler::Invoke(entity, entity, *scene);
-					}
+					engine::EventHandler::Invoke(entity);
 				}
 			} else {
 				state.state = UIInteractionState::NONE;
@@ -58,8 +49,6 @@ public:
 			}
 		}
 	}
-private:
-	engine::Scene* scene = nullptr;
 };
 
 class UIButtonRenderer : public ecs::System<TransformComponent, SizeComponent, BackgroundColorComponent, StateComponent, RenderComponent> {
