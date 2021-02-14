@@ -10,6 +10,7 @@
 
 class Hopper : public engine::Engine {
 public:
+	double dt = 0.0;
 	void Init() {
 		LOG("Initializing hopper systems...");
 		scene.manager.AddSystem<WorldRenderSystem>(&scene);
@@ -29,6 +30,7 @@ public:
 		inner_box = { V2_double{ 0,0 }, Engine::GetScreenSize() };
 		// If hopper leaves this box, reset the simulation.
 		outer_box = { V2_double{ 0,0 } - distance, Engine::GetScreenSize() + V2_double{ distance.x * 2.0, distance.y } };
+		dt = GetInverseFPS();
 	}
 
 	void Reset() {
@@ -87,13 +89,13 @@ public:
 		// Physics.
 
 		// Add linear accelerations to velocity.
-		b.velocity += (b.force / b.mass + gravity) / 60.0;
+		b.velocity += (b.force / b.mass + gravity) * dt;
 		// Add angular accelerations to angular velocity.
-		b.angular_velocity += (b.torque / b.inertia) / 60.0;
+		b.angular_velocity += (b.torque / b.inertia) * dt;
 			
 		// Update linear quantities.
-		b.position += b.velocity / 60.0;
-		b.orientation += b.angular_velocity / 60.0;
+		b.position += b.velocity * dt;
+		b.orientation += b.angular_velocity * dt;
 		b.SetOrientation(b.orientation); // Orientation must be updated like this as it uses a rotation matrix.
 
 
