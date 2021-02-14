@@ -89,7 +89,7 @@ public:
 		// Physics.
 
 		// Add linear accelerations to velocity.
-		b.velocity += (b.force / b.mass + gravity) * dt;
+		b.velocity += 0.5 * (b.force / b.mass + gravity) * dt * dt;
 		// Add angular accelerations to angular velocity.
 		b.angular_velocity += (b.torque / b.inertia) * dt;
 			
