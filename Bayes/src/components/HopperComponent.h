@@ -7,10 +7,6 @@ struct HopperComponent {
     double k_gains[2][6] = { 
        - 0.0000, - 0.0000,    2.8284,    5.6668,    0.0000,    0.0000,
          2.6458,   2.0472,  - 0.0000,  - 0.0000,  - 7.3992,  - 0.9556 };
-    /*double k_gains[2][6] = {
-       0.0000, - 0.0000    ,4.0000    ,6.7823   , 0.0000    ,0.0000,
-    0.2646 ,   0.2143 ,   0.0000 ,- 0.0000, - 0.8142 ,- 0.1526
-    };*/
     double sv[6][1] = { 0,0,0,0,0,0 };
 
     double thrust = 0;
@@ -33,10 +29,16 @@ struct HopperComponent {
         auto control_vector = ComputeControlVector();
         thrust = engine::math::Clamp(-control_vector.x, 0.0, max_thrust);
         // Clamped between +-15 degrees. == 0.261799 radians
-
         control_angle = engine::math::Clamp(control_vector.y, -0.261799, 0.261799);
         control_torque = ComputeControlTorque(control_angle);
-        LOG("orientation: " << b.orientation << ", ang_vel: " << b.angular_velocity << ", control_angle: " << control_angle << ", control_torque: " << control_torque << ", std::sin(control_angle): " << std::sin(control_angle) << ", thrust: " << thrust << ", com_to_tvc: " << com_to_tvc);
+        //LOG("orientation: " << b.orientation << ", ang_vel: " << b.angular_velocity << ", control_angle: " << control_angle << ", control_torque: " << control_torque << ", std::sin(control_angle): " << std::sin(control_angle) << ", thrust: " << thrust << ", com_to_tvc: " << com_to_tvc << ", force: " << b.force);
+        //LOG("orientation: " << b.orientation);
+        //LOG("ang_vel: " << b.angular_velocity);
+        //LOG("control_angle: " << control_angle);
+
+        //LOG("position:" << b.position.x - original_position.x << ", velocity:" << b.velocity.x << ", thrust:" << thrust << ", control_ang:" << control_angle);
+        LOG("orientation:" << -b.orientation << ", ang_vel:" << -b.angular_velocity << ", thrust:" << thrust << ", control_ang:" << control_angle);
+
 
         thrust_vector = thrust * V2_double{ std::sin(control_angle), std::cos(control_angle) };
 

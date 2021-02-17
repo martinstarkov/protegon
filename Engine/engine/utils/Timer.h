@@ -45,4 +45,4 @@ private:
     bool running_ = false;
 };
 
-}
+} // namespace engine

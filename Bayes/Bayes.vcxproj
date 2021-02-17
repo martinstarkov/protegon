@@ -188,6 +188,7 @@
     <ClInclude Include="src\factory\CreateHopper.h" />
     <ClInclude Include="src\factory\CreateWorld.h" />
     <ClInclude Include="src\factory\Factories.h" />
+    <ClInclude Include="src\systems\HopperCameraSystem.h" />
     <ClInclude Include="src\systems\Systems.h" />
     <ClInclude Include="src\systems\WorldRenderSystem.h" />
   </ItemGroup>

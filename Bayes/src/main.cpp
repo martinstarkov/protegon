@@ -10,11 +10,11 @@
 
 class Hopper : public engine::Engine {
 public:
-	double dt = 0.0;
+	double dt = 1.0 / 60.0;
 	void Init() {
 		LOG("Initializing hopper systems...");
 		scene.manager.AddSystem<WorldRenderSystem>(&scene);
-		scene.manager.AddSystem<CameraSystem>(&scene);
+		scene.manager.AddSystem<HopperCameraSystem>(&scene);
 
 		CreateWorld(scene.manager, scene);
 
@@ -30,7 +30,6 @@ public:
 		inner_box = { V2_double{ 0,0 }, Engine::GetScreenSize() };
 		// If hopper leaves this box, reset the simulation.
 		outer_box = { V2_double{ 0,0 } - distance, Engine::GetScreenSize() + V2_double{ distance.x * 2.0, distance.y } };
-		dt = GetInverseFPS();
 	}
 
 	void Reset() {
@@ -73,11 +72,27 @@ public:
 		//}
 		
 		// Disturbance torque (N*m)
-		auto torque = 3.0;
-		if (engine::InputHandler::KeyPressed(Key::RIGHT)) {
+		auto torque = 2.0;
+		if (engine::InputHandler::KeyPressed(Key::E)) {
 			b.torque += torque;
-		} else if (engine::InputHandler::KeyPressed(Key::LEFT)) {
+		} else if (engine::InputHandler::KeyPressed(Key::Q)) {
 			b.torque -= torque;
+		}
+
+		// Vertical disturbance force
+		auto vertical_disturbance_force = 500.0;
+		if (engine::InputHandler::KeyPressed(Key::S)) {
+			b.force.y += vertical_disturbance_force;
+		} else if (engine::InputHandler::KeyPressed(Key::W)) {
+			b.force.y -= vertical_disturbance_force;
+		}
+
+		// Vertical disturbance force
+		auto horizontal_disturbance_force = 500.0;
+		if (engine::InputHandler::KeyPressed(Key::D)) {
+			b.force.x += horizontal_disturbance_force;
+		} else if (engine::InputHandler::KeyPressed(Key::A)) {
+			b.force.x -= horizontal_disturbance_force;
 		}
 
 		// Control
@@ -89,33 +104,38 @@ public:
 		// Physics.
 
 		// Add linear accelerations to velocity.
-		b.velocity += 0.5 * (b.force / b.mass + gravity) * dt * dt;
+		b.velocity += (b.force / b.mass + gravity) * dt;//0.5 * (b.force / b.mass + gravity) * dt * dt;
 		// Add angular accelerations to angular velocity.
 		b.angular_velocity += (b.torque / b.inertia) * dt;
 			
 		// Update linear quantities.
 		b.position += b.velocity * dt;
 		b.orientation += b.angular_velocity * dt;
+		if (b.orientation >= 2.0 * engine::math::PI<double>) {
+			b.orientation = 0.0;
+		} else if (b.orientation <= -2.0 * engine::math::PI<double>) {
+			b.orientation = -0.0;
+		}
 		b.SetOrientation(b.orientation); // Orientation must be updated like this as it uses a rotation matrix.
 
 
 
 
 		// Air particles out the back.
-		auto highest_y = -engine::math::Infinity<double>();
-		for (const auto& vertex : *b.shape->GetVertices()) {
-			highest_y = std::max(highest_y, vertex.y);
-		}
-		air_particle.position = { b.position.x, b.position.y + highest_y - air_particle.velocity.y };
-		//air_particle.position = rb.body->position;
-		V2_double scale = { 0.1, 1.0 };
-		for (auto i = 0; i < particles_per_frame; ++i) {
-			air_particle.velocity = scale * V2_double{ -b.velocity.x, 1.0 };
-			air_particle.velocity += V2_double::Random(-4.0, 4.0, 0.0, 5.0);
-			air_particle.acceleration = b.force / b.mass + gravity;
-			if (b.velocity.y < 0)
-				particles.Emit(air_particle);
-		}
+		//auto highest_y = -engine::math::Infinity<double>();
+		//for (const auto& vertex : *b.shape->GetVertices()) {
+		//	highest_y = std::max(highest_y, vertex.y);
+		//}
+		//air_particle.position = { b.position.x, b.position.y + highest_y - air_particle.velocity.y };
+		////air_particle.position = rb.body->position;
+		//V2_double scale = { 0.1, 1.0 };
+		//for (auto i = 0; i < particles_per_frame; ++i) {
+		//	air_particle.velocity = scale * V2_double{ -b.velocity.x, 1.0 };
+		//	air_particle.velocity += V2_double::Random(-4.0, 4.0, 0.0, 5.0);
+		//	air_particle.acceleration = b.force / b.mass + gravity;
+		//	if (b.velocity.y < 0)
+		//		particles.Emit(air_particle);
+		//}
 
 
 
@@ -156,7 +176,8 @@ public:
 		{
 			Reset();
 		}
-
+		// TODO: Add thrust visualization.
+		//DebugDisplay::lines().emplace_back();
 		// Draw additional elements to screen.
 		DebugDisplay::rectangles().emplace_back(inner_box, engine::DARK_GREEN);
 		DebugDisplay::rectangles().emplace_back(outer_box, engine::DARK_RED);
@@ -166,7 +187,7 @@ public:
 		DebugDisplay::lines().emplace_back(b.position, original_position, engine::ORANGE);
 
 		// Keep camera centered on Hopper.
-		scene.manager.Update<CameraSystem>();
+		scene.manager.Update<HopperCameraSystem>();
 
 		particles.Update();
     }
@@ -182,7 +203,7 @@ private:
 int main(int argc, char* args[]) { // sdl main override
 
 	LOG("Starting Hopper Simulation");
-	engine::Engine::Start<Hopper>("Hopper Simulation", 1000, 600);
+	engine::Engine::Start<Hopper>("Hopper Simulation", 1000, 600, 60);
 
     return 0;
 }
