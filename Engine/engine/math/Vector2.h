@@ -267,11 +267,10 @@ struct Vector2 {
         // Cache magnitude calculation.
         auto m = Magnitude();
         // Avoid division by zero error for zero magnitude vectors.
-        if (m > DBL_EPSILON) {
+        if (m > 0) {
             return *this / m;
         }
-        using U = decltype(*this / m);
-        return static_cast<U>(*this);
+        return Vector2<T>{};
     }
 
     // Return normalized (unit) vector.
