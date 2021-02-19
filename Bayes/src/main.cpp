@@ -10,7 +10,7 @@
 
 class Hopper : public engine::Engine {
 public:
-	double dt = 1.0 / 60.0;
+	double dt = 1.0 / 20.0;
 	void Init() {
 		LOG("Initializing hopper systems...");
 		scene.manager.AddSystem<WorldRenderSystem>(&scene);
@@ -72,7 +72,7 @@ public:
 		//}
 		
 		// Disturbance torque (N*m)
-		auto torque = 2.0;
+		auto torque = 1.0;
 		if (engine::InputHandler::KeyPressed(Key::E)) {
 			b.torque += torque;
 		} else if (engine::InputHandler::KeyPressed(Key::Q)) {
@@ -80,7 +80,7 @@ public:
 		}
 
 		// Vertical disturbance force
-		auto vertical_disturbance_force = 500.0;
+		auto vertical_disturbance_force = 180.0;
 		if (engine::InputHandler::KeyPressed(Key::S)) {
 			b.force.y += vertical_disturbance_force;
 		} else if (engine::InputHandler::KeyPressed(Key::W)) {
@@ -88,7 +88,7 @@ public:
 		}
 
 		// Vertical disturbance force
-		auto horizontal_disturbance_force = 500.0;
+		auto horizontal_disturbance_force = 50.0;
 		if (engine::InputHandler::KeyPressed(Key::D)) {
 			b.force.x += horizontal_disturbance_force;
 		} else if (engine::InputHandler::KeyPressed(Key::A)) {
@@ -102,12 +102,18 @@ public:
 		//LOG(b.position << " vs. og." << original_position);
 		
 		// Physics.
-
+		// Area is wrong, 0.4 is 10x higher than 20cm x 20cm.
+		b.force += -b.velocity.Unit() * 0.5 * 0.4 * b.velocity.MagnitudeSquared() * 0.5 * 1.22;
+		b.torque += -engine::math::Sign(b.angular_velocity) * 0.5 * 0.4 * b.angular_velocity * b.angular_velocity * 0.5 * 1.22;
+		LOG(b.torque);
+		LOG(b.angular_velocity);
 		// Add linear accelerations to velocity.
 		b.velocity += (b.force / b.mass + gravity) * dt;//0.5 * (b.force / b.mass + gravity) * dt * dt;
 		// Add angular accelerations to angular velocity.
 		b.angular_velocity += (b.torque / b.inertia) * dt;
-			
+		if (b.angular_velocity > 1000000) {
+			b.angular_velocity = 0;
+		}
 		// Update linear quantities.
 		b.position += b.velocity * dt;
 		b.orientation += b.angular_velocity * dt;
@@ -145,7 +151,7 @@ public:
 		b.force = {};
 
 		// Collision handling.
-		contacts.clear();
+		/*contacts.clear();
 		auto entities = scene.manager.GetComponentTuple<RigidBodyComponent>();
 		for (auto [A_entity, A_rb] : entities) {
 			Body* A = A_rb.body;
@@ -167,7 +173,7 @@ public:
 					contacts.emplace_back(m);
 				}
 			}
-		}
+		}*/
 
 		// Reset when R is pressed / Hopper leaves outer boundaries / Hopper flips 180 degrees.
 		if (engine::InputHandler::KeyPressed(Key::R)
@@ -176,8 +182,9 @@ public:
 		{
 			Reset();
 		}
-		// TODO: Add thrust visualization.
-		//DebugDisplay::lines().emplace_back();
+		DebugDisplay::lines().emplace_back(b.position, b.position + hopper.thrust * V2_double{ std::sin(-b.orientation + hopper.control_angle), std::cos(-b.orientation + hopper.control_angle) }, engine::DARK_RED);
+		DebugDisplay::lines().emplace_back(b.position, b.position + hopper.thrust * V2_double{ -std::sin(-b.orientation + hopper.control_angle), 0 }, engine::RED);
+		DebugDisplay::lines().emplace_back(b.position, b.position + hopper.thrust * V2_double{ 0, -std::cos(-b.orientation + hopper.control_angle) }, engine::RED);
 		// Draw additional elements to screen.
 		DebugDisplay::rectangles().emplace_back(inner_box, engine::DARK_GREEN);
 		DebugDisplay::rectangles().emplace_back(outer_box, engine::DARK_RED);
@@ -189,13 +196,13 @@ public:
 		// Keep camera centered on Hopper.
 		scene.manager.Update<HopperCameraSystem>();
 
-		particles.Update();
+		//particles.Update();
     }
 
 	void Render() {
 		// Draw environment and Hopper to the screen.
 		scene.manager.Update<WorldRenderSystem>();
-		particles.Render(scene);
+		//particles.Render(scene);
 	}
 private:
 };

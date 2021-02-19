@@ -4,9 +4,12 @@
 
 struct HopperComponent {
     HopperComponent() = default;
+    // Decent gains:
+    //double k_gains[2][6] = { 0, 0, 4, 6.782, 0, 0, 0.265, 0.214, 0, 0, -0.814, -0.153 };
     double k_gains[2][6] = { 
-       - 0.0000, - 0.0000,    2.8284,    5.6668,    0.0000,    0.0000,
-         2.6458,   2.0472,  - 0.0000,  - 0.0000,  - 7.3992,  - 0.9556 };
+    0, 0, 4, 6.782, 0, 0,
+    0.231, 0.206, 0, 0, -0.841, -0.16
+    };
     double sv[6][1] = { 0,0,0,0,0,0 };
 
     double thrust = 0;
@@ -30,7 +33,7 @@ struct HopperComponent {
         thrust = engine::math::Clamp(-control_vector.x, 0.0, max_thrust);
         // Clamped between +-15 degrees. == 0.261799 radians
         control_angle = engine::math::Clamp(control_vector.y, -0.261799, 0.261799);
-        control_torque = ComputeControlTorque(control_angle);
+        control_torque = std::sin(control_angle) * thrust * com_to_tvc;
         //LOG("orientation: " << b.orientation << ", ang_vel: " << b.angular_velocity << ", control_angle: " << control_angle << ", control_torque: " << control_torque << ", std::sin(control_angle): " << std::sin(control_angle) << ", thrust: " << thrust << ", com_to_tvc: " << com_to_tvc << ", force: " << b.force);
         //LOG("orientation: " << b.orientation);
         //LOG("ang_vel: " << b.angular_velocity);
@@ -40,16 +43,11 @@ struct HopperComponent {
         LOG("orientation:" << -b.orientation << ", ang_vel:" << -b.angular_velocity << ", thrust:" << thrust << ", control_ang:" << control_angle);
 
 
-        thrust_vector = thrust * V2_double{ std::sin(control_angle), std::cos(control_angle) };
+        thrust_vector = thrust * V2_double{ std::sin(b.orientation + control_angle), -std::cos(b.orientation + control_angle) };
 
-        b.force.x += thrust_vector.x * std::sin(b.orientation);
-        b.force.y += -thrust_vector.y * std::cos(b.orientation);
+        b.force += thrust_vector;
         //LOG("Control torque: " << control_torque << ", torque: " << b.torque);
         b.torque += control_torque;
-    } 
-    // control_angle in radians.
-    double ComputeControlTorque(double control_angle) {
-        return std::sin(control_angle) * thrust * com_to_tvc;
     }
 
     int rowFirst = 2;
