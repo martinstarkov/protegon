@@ -89,7 +89,7 @@ public:
 			particles.Reset();
 		}
 		scene.manager.UpdateSystem<PhysicsSystem>();
-		scene.manager.UpdateSystem<TargetSystem>();
+		scene.manager.UpdateSystem<TargetSystem>(true);
 		//if (timer0.ElapsedMilliseconds() > 1)
 		//LOG("timer0: " << timer0.ElapsedMilliseconds());
 		Timer timer1;
@@ -108,8 +108,9 @@ public:
 				chunk_entities.insert(chunk_entities.end(), entities.begin(), entities.end());
 			}
 			CollisionRoutine(player_entities, chunk_entities, &mine);
+			scene.manager.Refresh();
 		} else {
-			scene.manager.UpdateSystem<CollisionSystem>();
+			scene.manager.UpdateSystem<CollisionSystem>(true);
 		}
 
 		//if (timer1.ElapsedMilliseconds() > 1)
@@ -118,8 +119,8 @@ public:
 
 		Timer timer2;
 		timer2.Start();
-		scene.manager.UpdateSystem<StateMachineSystem>();
-		scene.ui_manager.UpdateSystem<StateMachineSystem>();
+		scene.manager.UpdateSystem<StateMachineSystem>(true);
+		scene.ui_manager.UpdateSystem<StateMachineSystem>(true);
 		scene.manager.UpdateSystem<DirectionSystem>();
 		//scene.manager.UpdateSystem<LifetimeSystem>();
 		scene.manager.UpdateSystem<CameraSystem>();

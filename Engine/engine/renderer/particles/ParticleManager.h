@@ -50,7 +50,7 @@ public:
 			rb.body->shape->SetRadius(radius);
 			render.color = Lerp(particle.properties.start_color, particle.properties.end_color, percentage_life_left);
 		}
-		particle_pool_.UpdateSystem<LifetimeSystem>();
+		particle_pool_.UpdateSystem<LifetimeSystem>(true);
 	}
 	// TODO: Instead of passing camera, make function to convert world coordinates to screen coordinates.
 	virtual void Render(const engine::Scene& scene) {
