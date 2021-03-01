@@ -13,7 +13,7 @@
 namespace engine {
 
 Chunk::~Chunk() {
-	manager.Clear();
+	manager.~Manager();
 	chunk.Destroy();
 }
 
@@ -30,7 +30,8 @@ void Chunk::Init(const AABB& chunk_info, const V2_int& tile_size, Scene* scene) 
 			grid[i] = manager.CreateEntity();
 		}
 	}
-	manager.AddSystem<TileRenderSystem>(scene);
+	manager.Refresh();
+	manager.AddSystem<TileRenderSystem>();
 }
 
 const ecs::Entity& Chunk::GetEntity(const V2_int& relative_coordinate) const {
@@ -46,7 +47,7 @@ const AABB& Chunk::GetInfo() const {
 }
 
 void Chunk::Unload() {
-	manager.DestroyEntities();
+	manager.Clear();
 }
 
 std::size_t Chunk::GetIndex(const V2_int& relative_coordinate) const {

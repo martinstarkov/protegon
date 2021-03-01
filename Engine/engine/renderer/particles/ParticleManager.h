@@ -18,6 +18,9 @@ public:
 	void Reset() {
 		particle_pool_.Clear();
 	}
+	void Refresh() {
+		particle_pool_.Refresh();
+	}
 	virtual void Emit(const Particle& properties) {
 		if (particle_pool_.GetEntityCount() < max_particles_) {
 			auto entity = particle_pool_.CreateEntity();
@@ -47,7 +50,7 @@ public:
 			rb.body->shape->SetRadius(radius);
 			render.color = Lerp(particle.properties.start_color, particle.properties.end_color, percentage_life_left);
 		}
-		particle_pool_.Update<LifetimeSystem>();
+		particle_pool_.UpdateSystem<LifetimeSystem>();
 	}
 	// TODO: Instead of passing camera, make function to convert world coordinates to screen coordinates.
 	virtual void Render(const engine::Scene& scene) {

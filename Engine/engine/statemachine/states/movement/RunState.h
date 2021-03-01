@@ -19,9 +19,10 @@ class RunState : public engine::State {
 		auto& rigid_body = parent_entity.GetComponent<RigidBodyComponent>().rigid_body;
 		if (abs(rigid_body.velocity.x) < rigid_body.terminal_velocity.x * RUN_START_FRACTION) {
 			parent_state_machine->SetState("walk");
-		}
-		if (abs(rigid_body.velocity.x) <= IDLE_START_VELOCITY) {
+			return;
+		} else if (abs(rigid_body.velocity.x) <= IDLE_START_VELOCITY) {
 			parent_state_machine->SetState("idle");
+			return;
 		}
 	}
 };

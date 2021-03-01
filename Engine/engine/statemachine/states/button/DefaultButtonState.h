@@ -17,12 +17,14 @@ class DefaultButtonState : public engine::State {
 		auto surface = AABB{ transform.position, size };
 		auto mouse_position = engine::InputHandler::GetMousePosition();
 		auto hovering = engine::collision::PointvsAABB(mouse_position, surface);
-		if (hovering && engine::InputHandler::MouseReleased(MouseButton::LEFT)) {
-			parent_state_machine->SetState("hover");
-		}
+
 		if (parent_entity.HasComponent<BackgroundColorComponent>()) {
 			auto& background = parent_entity.GetComponent<BackgroundColorComponent>();
 			background.color = background.original_color;
+		}
+		if (hovering && engine::InputHandler::MouseReleased(MouseButton::LEFT)) {
+			parent_state_machine->SetState("hover");
+			return;
 		}
 	}
 };

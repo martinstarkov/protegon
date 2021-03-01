@@ -4,6 +4,8 @@
 
 namespace engine {
 
+Scene* Scene::instance_{ nullptr };
+
 const std::shared_ptr<Camera> Scene::GetCamera() const {
 	return active_camera_;
 }

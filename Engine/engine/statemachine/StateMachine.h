@@ -23,6 +23,7 @@ public:
 		}
 		if (starting_state != "") {
 			SetState(starting_state);
+			return;
 		} else if (current_state_ != nullptr) {
 			current_state_->OnEntry();
 		}

@@ -21,6 +21,7 @@ class DisabledState : public engine::State {
 		DebugDisplay::circles().emplace_back(tower_transform.position + tower_collider.collider.size / 2.0, tower.range, engine::BLACK);
 		if (tower.projectiles > 0) {
 			parent_state_machine->SetState("standby");
+			return;
 		} else {
 			//LOG("Out of projectiles");
 		}

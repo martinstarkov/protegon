@@ -16,6 +16,15 @@ public:
 	Scene() = default;
 	Scene(const Scene&) = delete;
 	Scene(Scene&&) = delete;
+
+	static Scene& Get() {
+		if (instance_ == nullptr) {
+			instance_ = new Scene();
+		}
+		assert(instance_ != nullptr);
+		return *instance_;
+	}
+
 	const std::shared_ptr<Camera> GetCamera() const;
 	void SetCamera(Camera& camera);
 	ecs::Manager manager;
@@ -47,6 +56,7 @@ public:
 		return engine::math::Ceil<int>(value * active_camera_->scale.y);
 	}
 private:
+	static Scene* instance_;
 	std::shared_ptr<Camera> active_camera_ = nullptr;
 };
 

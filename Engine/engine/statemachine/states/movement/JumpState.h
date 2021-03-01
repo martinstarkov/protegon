@@ -10,6 +10,7 @@ public:
 		// TODO: Change to check for collision instead of acceleration.
 		if (rigid_body.acceleration.y >= 0.0) {
 			parent_state_machine->SetState("grounded");
+			return;
 		}
 	}
 };

@@ -24,20 +24,23 @@ class FocusedButtonState : public engine::State {
 		auto surface = AABB{ transform.position, size };
 		auto mouse_position = engine::InputHandler::GetMousePosition();
 		auto hovering = engine::collision::PointvsAABB(mouse_position, surface);
-		if (hovering) {
-			if (engine::InputHandler::MouseReleased(MouseButton::LEFT)) {
-				parent_state_machine->SetState("active");
-			}
-		} else {
-			parent_state_machine->SetState("default");
-		}
-		if (parent_entity.IsAlive() && parent_entity.HasComponent<BackgroundColorComponent>()) {
+
+		if (parent_entity.HasComponent<BackgroundColorComponent>()) {
 			auto& background = parent_entity.GetComponent<BackgroundColorComponent>();
 			if (parent_entity.HasComponent<FocusedColorComponent>()) {
 				background.color = parent_entity.GetComponent<FocusedColorComponent>().color;
 			} else {
 				background.color = background.original_color;
 			}
+		}
+		if (hovering) {
+			if (engine::InputHandler::MouseReleased(MouseButton::LEFT)) {
+				parent_state_machine->SetState("active");
+				return;
+			}
+		} else {
+			parent_state_machine->SetState("default");
+			return;
 		}
 	}
 };

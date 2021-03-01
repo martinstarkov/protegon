@@ -15,13 +15,7 @@ class HoverButtonState : public engine::State {
 		auto surface = AABB{ transform.position, size };
 		auto mouse_position = engine::InputHandler::GetMousePosition();
 		auto hovering = engine::collision::PointvsAABB(mouse_position, surface);
-		if (hovering) {
-			if (engine::InputHandler::MousePressed(MouseButton::LEFT) || engine::InputHandler::MouseHeld(MouseButton::LEFT) || engine::InputHandler::MouseHeldFor(MouseButton::LEFT, 1)) {
-				parent_state_machine->SetState("focused");
-			}
-		} else {
-			parent_state_machine->SetState("default");
-		}
+
 		if (parent_entity.HasComponent<BackgroundColorComponent>()) {
 			auto& background = parent_entity.GetComponent<BackgroundColorComponent>();
 			if (parent_entity.HasComponent<HoverColorComponent>()) {
@@ -29,6 +23,15 @@ class HoverButtonState : public engine::State {
 			} else {
 				background.color = background.original_color;
 			}
+		}
+		if (hovering) {
+			if (engine::InputHandler::MousePressed(MouseButton::LEFT) || engine::InputHandler::MouseHeld(MouseButton::LEFT) || engine::InputHandler::MouseHeldFor(MouseButton::LEFT, 1)) {
+				parent_state_machine->SetState("focused");
+				return;
+			}
+		} else {
+			parent_state_machine->SetState("default");
+			return;
 		}
 	}
 };

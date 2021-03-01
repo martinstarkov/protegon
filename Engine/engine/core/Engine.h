@@ -73,8 +73,6 @@ public:
 	static int GetScreenHeight();
 	static std::size_t GetFPS();
 	static double GetInverseFPS();
-protected:
-	Scene scene;
 private:
 	static Engine& GetInstance();
 	// Initialize SDL and its sub systems.

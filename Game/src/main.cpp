@@ -30,7 +30,9 @@ void mine(ecs::Entity& entity, Collision& collision) {
 	particles.Emit(test_particle);
 	test_particle.velocity = scale * V2_double{ 1, -1 };
 	particles.Emit(test_particle);
+	particles.Refresh();
 	collision.entity.Destroy();
+	collision.entity.GetManager().Refresh();
 }
 
 class Game : public engine::Engine {
@@ -41,10 +43,10 @@ public:
 	//V2_int tiles_per_chunk = { 8, 8 };
 	//V2_int tile_size = { 64, 64 };
 	void Init() {
-
+		auto& scene = Scene::Get();
 		LOG("Initializing game systems...");
-		scene.manager.AddSystem<RenderSystem>(&scene);
-		scene.manager.AddSystem<HitboxRenderSystem>(&scene);
+		scene.manager.AddSystem<RenderSystem>();
+		scene.manager.AddSystem<HitboxRenderSystem>();
 		scene.manager.AddSystem<PhysicsSystem>();
 		scene.manager.AddSystem<TargetSystem>();
 		scene.manager.AddSystem<LifetimeSystem>();
@@ -53,14 +55,15 @@ public:
 		scene.manager.AddSystem<InputSystem>();
 		scene.manager.AddSystem<StateMachineSystem>();
 		scene.manager.AddSystem<DirectionSystem>();
-		scene.manager.AddSystem<CameraSystem>(&scene);
-		scene.ui_manager.AddSystem<RenderSystem>(&scene);
+		scene.manager.AddSystem<CameraSystem>();
+		scene.ui_manager.AddSystem<RenderSystem>();
 		scene.ui_manager.AddSystem<StateMachineSystem>();
 		scene.ui_manager.AddSystem<UIRenderer>();
 
 		//LOG("Sectors: " << Engine::GetScreenSize() / tile_size);
 
 		title_screen = scene.event_manager.CreateEntity();
+		scene.event_manager.Refresh();
 		engine::EventHandler::Register<TitleScreenEvent>(title_screen);
 		auto& title = title_screen.AddComponent<TitleScreenComponent>();
 		title_screen.AddComponent<EventComponent>(scene);
@@ -74,18 +77,19 @@ public:
 	double bias = 2.0;
 
     void Update() {
+		auto& scene = Scene::Get();
 		Timer timer0;
 		timer0.Start();
 		auto players = scene.manager.GetComponentTuple<TransformComponent, CollisionComponent, PlayerController>();
-		scene.manager.Update<InputSystem>();
+		scene.manager.UpdateSystem<InputSystem>();
 		auto& title = title_screen.GetComponent<TitleScreenComponent>();
 		if (engine::InputHandler::KeyDown(Key::R)) {
 			engine::EventHandler::Invoke(title_screen);
 			title.open = true;
 			particles.Reset();
 		}
-		scene.manager.Update<PhysicsSystem>();
-		scene.manager.Update<TargetSystem>();
+		scene.manager.UpdateSystem<PhysicsSystem>();
+		scene.manager.UpdateSystem<TargetSystem>();
 		//if (timer0.ElapsedMilliseconds() > 1)
 		//LOG("timer0: " << timer0.ElapsedMilliseconds());
 		Timer timer1;
@@ -93,7 +97,8 @@ public:
 		if (scene.player_chunks.size() > 0 && players.size() > 0) {
 			std::vector<std::tuple<ecs::Entity, TransformComponent&, CollisionComponent&>> player_entities;
 			player_entities.reserve(players.size());
-			for (auto [entity, transform, collider, player] : players) {
+			auto play = scene.manager.GetComponentTuple<TransformComponent, CollisionComponent, PlayerController>();
+			for (auto [entity, transform, collider, player] : play) {
 				player_entities.emplace_back(entity, transform, collider);
 			}
 			std::vector<std::tuple<ecs::Entity, TransformComponent&, CollisionComponent&>> chunk_entities;
@@ -104,7 +109,7 @@ public:
 			}
 			CollisionRoutine(player_entities, chunk_entities, &mine);
 		} else {
-			scene.manager.Update<CollisionSystem>();
+			scene.manager.UpdateSystem<CollisionSystem>();
 		}
 
 		//if (timer1.ElapsedMilliseconds() > 1)
@@ -113,11 +118,11 @@ public:
 
 		Timer timer2;
 		timer2.Start();
-		scene.manager.Update<StateMachineSystem>();
-		scene.ui_manager.Update<StateMachineSystem>();
-		scene.manager.Update<DirectionSystem>();
-		//scene.manager.Update<LifetimeSystem>();
-		scene.manager.Update<CameraSystem>();
+		scene.manager.UpdateSystem<StateMachineSystem>();
+		scene.ui_manager.UpdateSystem<StateMachineSystem>();
+		scene.manager.UpdateSystem<DirectionSystem>();
+		//scene.manager.UpdateSystem<LifetimeSystem>();
+		scene.manager.UpdateSystem<CameraSystem>();
 		//AllocationMetrics::PrintMemoryUsage();
 
 		auto& title_ = title_screen.GetComponent<TitleScreenComponent>();
@@ -235,29 +240,30 @@ public:
 		//LOG("Octave: " << octave << ", bias: " << bias);
     }
 	void Render() {
+		auto& scene = Scene::Get();
 		Timer timer5;
 		timer5.Start();
-		scene.manager.Update<AnimationSystem>();
+		scene.manager.UpdateSystem<AnimationSystem>();
 		//if (timer5.ElapsedMilliseconds() > 1)
 		//LOG("timer5: " << timer5.ElapsedMilliseconds());
 		Timer timer6;
 		timer6.Start();
 		// TODO: Consider a better way of doing this?
 		for (auto& c : scene.chunks) {
-			c->manager.Update<TileRenderSystem>();
+			c->manager.UpdateSystem<TileRenderSystem>();
 		}
 		//if (timer6.ElapsedMilliseconds() > 1)
 		//LOG("timer6: " << timer6.ElapsedMilliseconds());
 		Timer timer7;
 		timer7.Start();
-		scene.manager.Update<RenderSystem>();
-		scene.manager.Update<HitboxRenderSystem>();
+		scene.manager.UpdateSystem<RenderSystem>();
+		scene.manager.UpdateSystem<HitboxRenderSystem>();
 		//if (timer7.ElapsedMilliseconds() > 1)
 		//LOG("timer7: " << timer7.ElapsedMilliseconds());
 
 		Timer timer8;
 		timer8.Start();
-		scene.ui_manager.Update<UIRenderer>();
+		scene.ui_manager.UpdateSystem<UIRenderer>();
 		particles.Render(scene);
 		//if (timer8.ElapsedMilliseconds() > 1)
 		//LOG("timer8: " << timer8.ElapsedMilliseconds());

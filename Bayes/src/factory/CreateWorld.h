@@ -12,4 +12,5 @@ static void CreateWorld(ecs::Manager& manager, engine::Scene& scene) {
 	auto left_box = CreateBox(V2_double{ 0,32 }, V2_double{ 32, 600 - 32 - 32 }, manager);
 	auto right_box = CreateBox(V2_double{ 1000-32, 32 }, V2_double{ 32, 600 - 32 - 32 }, manager);
 	*/
+	manager.Refresh();
 }
