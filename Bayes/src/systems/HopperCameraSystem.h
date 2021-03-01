@@ -7,19 +7,18 @@
 
 class HopperCameraSystem : public ecs::System<CameraComponent> {
 public:
-	HopperCameraSystem(engine::Scene* scene) : scene{ scene } {}
 	virtual void Update() override final {
-		assert(scene != nullptr && "Cannot update camera system without a valid scene");
+		auto& scene = engine::Scene::Get();
 		// Set last found primary camera as the active camera.
 		ecs::Entity primary_entity = ecs::null;
 		for (auto [entity, camera] : entities) {
 			if (camera.primary) {
-				scene->SetCamera(camera.camera);
+				scene.SetCamera(camera.camera);
 				primary_entity = entity;
 			}
 		}
-		if (primary_entity) {
-			auto camera = scene->GetCamera();
+		if (primary_entity != ecs::null) {
+			auto camera = scene.GetCamera();
 			assert(camera != nullptr && "Scene camera undefined");
 			// Then update offset.
 			V2_double size{};
@@ -43,6 +42,4 @@ public:
 			camera->Center(pos, size);
 		}
 	}
-private:
-	engine::Scene* scene = nullptr;
 };

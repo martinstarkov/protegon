@@ -12,9 +12,10 @@ class Hopper : public engine::Engine {
 public:
 	double dt = 1.0 / 20.0;
 	void Init() {
+		auto& scene = engine::Scene::Get();
 		LOG("Initializing hopper systems...");
-		scene.manager.AddSystem<WorldRenderSystem>(&scene);
-		scene.manager.AddSystem<HopperCameraSystem>(&scene);
+		scene.manager.AddSystem<WorldRenderSystem>();
+		scene.manager.AddSystem<HopperCameraSystem>();
 
 		CreateWorld(scene.manager, scene);
 
@@ -33,6 +34,7 @@ public:
 	}
 
 	void Reset() {
+		auto& scene = engine::Scene::Get();
 		scene.manager.Clear();
 		CreateWorld(scene.manager, scene);
 		LOG("RESETTING SIMULATION!");
@@ -52,7 +54,7 @@ public:
 	int particles_per_frame = 20;
 
     void Update() {
-
+		auto& scene = engine::Scene::Get();
 		static int counter = 0;
 
 		auto [entity, p, rb, hopper, size] = scene.manager.GetComponentTuple<PlayerController, RigidBodyComponent, HopperComponent, SizeComponent>()[0];
@@ -194,14 +196,15 @@ public:
 		DebugDisplay::lines().emplace_back(b.position, original_position, engine::ORANGE);
 
 		// Keep camera centered on Hopper.
-		scene.manager.Update<HopperCameraSystem>();
+		scene.manager.UpdateSystem<HopperCameraSystem>();
 
 		//particles.Update();
     }
 
 	void Render() {
+		auto& scene = engine::Scene::Get();
 		// Draw environment and Hopper to the screen.
-		scene.manager.Update<WorldRenderSystem>();
+		scene.manager.UpdateSystem<WorldRenderSystem>();
 		//particles.Render(scene);
 	}
 private:
