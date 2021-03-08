@@ -19,7 +19,7 @@ public:
 
 		CreateWorld(scene.manager, scene);
 
-		auto [entity, p, rb, hopper, size] = scene.manager.GetComponentTuple<PlayerController, RigidBodyComponent, HopperComponent, SizeComponent>()[0];
+		auto [entity, p, rb, hopper, size] = scene.manager.GetEntityComponents<PlayerController, RigidBodyComponent, HopperComponent, SizeComponent>()[0];
 		assert(rb.body != nullptr);
 		auto& b = *rb.body;
 		original_vertices = *b.shape->GetVertices();
@@ -57,7 +57,7 @@ public:
 		auto& scene = engine::Scene::Get();
 		static int counter = 0;
 
-		auto [entity, p, rb, hopper, size] = scene.manager.GetComponentTuple<PlayerController, RigidBodyComponent, HopperComponent, SizeComponent>()[0];
+		auto [entity, p, rb, hopper, size] = scene.manager.GetEntityComponents<PlayerController, RigidBodyComponent, HopperComponent, SizeComponent>()[0];
 		assert(rb.body != nullptr);
 		auto& b = *rb.body;
 
@@ -154,7 +154,7 @@ public:
 
 		// Collision handling.
 		/*contacts.clear();
-		auto entities = scene.manager.GetComponentTuple<RigidBodyComponent>();
+		auto entities = scene.manager.GetEntityComponents<RigidBodyComponent>();
 		for (auto [A_entity, A_rb] : entities) {
 			Body* A = A_rb.body;
 			for (auto [B_entity, B_rb] : entities) {

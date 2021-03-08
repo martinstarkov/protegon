@@ -10,6 +10,7 @@
 
 // TODO: Figure out relative velocities for two dynamic blocks.
 // TODO: Figure out how to resolve out all static collision in one frame.
+// TODO: Fix entity destruction.
 
 struct Collision {
 	Collision() = default;
@@ -44,9 +45,10 @@ static void CollisionRoutine(std::vector<T>& entities1, std::vector<T>& entities
 	// Vector containing entities which have changed positions during the current cycle.
 	std::vector<std::tuple<std::vector<ecs::Entity>, ecs::Entity, TransformComponent&, RigidBodyComponent&, CollisionComponent&>> static_check;
 	static_check.reserve(entities1.size()); // Reserve maximum possible capacity of moving entities.
+	ecs::Manager* manager{ nullptr };
 	// Swept collision detection and resolution routine.
 	for (auto [entity, transform, collision_component] : entities1) {
-		if (entity.IsAlive()) {
+		manager = &entity.GetManager();
 			auto& collider = collision_component.collider;
 			// Round/Floor the position to the nearest whole number, this ensures collision detection is precise and prevents tunneling. Very important.
 			collider.position = Floor(transform.position);
@@ -124,13 +126,11 @@ static void CollisionRoutine(std::vector<T>& entities1, std::vector<T>& entities
 						collisions.clear();
 						// Second sweep (narrow phase) collision detection.
 						for (auto& entity2 : broadphase_entities) {
-							if (entity2.IsAlive()) {
 								auto& target_collider = entity2.GetComponent<CollisionComponent>().collider;
 								if (engine::collision::DynamicAABBvsAABB(rb.velocity, collider, target_collider, info.manifold)) {
 									info.entity = entity2;
 									collisions.emplace_back(info);
 								}
-							}
 						}
 						if (collisions.size() > 0) {
 
@@ -151,16 +151,13 @@ static void CollisionRoutine(std::vector<T>& entities1, std::vector<T>& entities
 					static_check.emplace_back(broadphase_entities, entity, transform, rigid_body, collision_component);
 				}
 			}
-		}
 	}
 	// Static collision detection for objects which have moved due to sweeps (dynamic AABBs).
 	// Important note: The static check mostly prevents objects from preferring to stay inside each other if both are dynamic (altough this still occurs in circumstances where the resolution would result in another static collision).
 	for (auto [broadphase_entities, entity, transform, rigid_body, collision_component] : static_check) {
-		if (entity.IsAlive()) {
 			auto& collider = collision_component.collider;
 			// Check if there is currently an overlap with any other collider.
 			for (auto& entity2 : broadphase_entities) {
-				if (entity2.IsAlive()) {
 					auto& transform2 = entity2.GetComponent<TransformComponent>();
 					auto& collision2 = entity2.GetComponent<CollisionComponent>();
 					bool skip = false;
@@ -183,11 +180,12 @@ static void CollisionRoutine(std::vector<T>& entities1, std::vector<T>& entities
 							}
 						}
 					}
-				}
 			}
 			// Keep transform position updated.
 			transform.position = collider.position;
-		}
+	}
+	if (manager != nullptr) {
+		manager->Refresh();
 	}
 }
 

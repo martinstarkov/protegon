@@ -18,5 +18,6 @@ public:
 				pair.second->Update();
 			}*/
 		}
+		GetManager().Refresh();
 	}
 };

@@ -20,7 +20,7 @@ class StandbyState : public engine::State {
 		auto& tower_transform = parent_entity.GetComponent<TransformComponent>();
 		auto manager = &parent_entity.GetManager();
 		assert(manager != nullptr && "Firing entity state parent manager does not exist");
-		auto players = manager->GetComponentTuple<TransformComponent, PlayerController, CollisionComponent>();
+		auto players = manager->GetEntityComponents<TransformComponent, PlayerController, CollisionComponent>();
 		auto circle_position = tower_transform.position + tower_collider.collider.size / 2.0;
 		ecs::Entity closest_player = ecs::null;
 		auto highest_penetration = 0.0;

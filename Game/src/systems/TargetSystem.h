@@ -12,5 +12,6 @@ public:
 			//DebugDisplay::lines().emplace_back(target.target_position, transform.position, engine::RED);
 			//rb.velocity = (target.target_position - transform.position).Normalized() * target.approach_speed;
 		}
+		GetManager().Refresh();
 	}
 };

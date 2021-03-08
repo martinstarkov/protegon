@@ -30,9 +30,7 @@ void mine(ecs::Entity& entity, Collision& collision) {
 	particles.Emit(test_particle);
 	test_particle.velocity = scale * V2_double{ 1, -1 };
 	particles.Emit(test_particle);
-	particles.Refresh();
 	collision.entity.Destroy();
-	collision.entity.GetManager().Refresh();
 }
 
 class Game : public engine::Engine {
@@ -80,7 +78,7 @@ public:
 		auto& scene = Scene::Get();
 		Timer timer0;
 		timer0.Start();
-		auto players = scene.manager.GetComponentTuple<TransformComponent, CollisionComponent, PlayerController>();
+		auto players = scene.manager.GetEntityComponents<TransformComponent, CollisionComponent, PlayerController>();
 		scene.manager.UpdateSystem<InputSystem>();
 		auto& title = title_screen.GetComponent<TitleScreenComponent>();
 		if (engine::InputHandler::KeyDown(Key::R)) {
@@ -89,7 +87,7 @@ public:
 			particles.Reset();
 		}
 		scene.manager.UpdateSystem<PhysicsSystem>();
-		scene.manager.UpdateSystem<TargetSystem>(true);
+		scene.manager.UpdateSystem<TargetSystem>();
 		//if (timer0.ElapsedMilliseconds() > 1)
 		//LOG("timer0: " << timer0.ElapsedMilliseconds());
 		Timer timer1;
@@ -97,20 +95,20 @@ public:
 		if (scene.player_chunks.size() > 0 && players.size() > 0) {
 			std::vector<std::tuple<ecs::Entity, TransformComponent&, CollisionComponent&>> player_entities;
 			player_entities.reserve(players.size());
-			auto play = scene.manager.GetComponentTuple<TransformComponent, CollisionComponent, PlayerController>();
+			auto play = scene.manager.GetEntityComponents<TransformComponent, CollisionComponent, PlayerController>();
 			for (auto [entity, transform, collider, player] : play) {
 				player_entities.emplace_back(entity, transform, collider);
 			}
 			std::vector<std::tuple<ecs::Entity, TransformComponent&, CollisionComponent&>> chunk_entities;
 			chunk_entities.reserve(scene.player_chunks.size() * tiles_per_chunk.x * tiles_per_chunk.y);
 			for (auto chunk : scene.player_chunks) {
-				auto entities = chunk->manager.GetComponentTuple<TransformComponent, CollisionComponent>();
+				auto entities = chunk->manager.GetEntityComponents<TransformComponent, CollisionComponent>();
 				chunk_entities.insert(chunk_entities.end(), entities.begin(), entities.end());
 			}
 			CollisionRoutine(player_entities, chunk_entities, &mine);
 			scene.manager.Refresh();
 		} else {
-			scene.manager.UpdateSystem<CollisionSystem>(true);
+			scene.manager.UpdateSystem<CollisionSystem>();
 		}
 
 		//if (timer1.ElapsedMilliseconds() > 1)
@@ -119,8 +117,8 @@ public:
 
 		Timer timer2;
 		timer2.Start();
-		scene.manager.UpdateSystem<StateMachineSystem>(true);
-		scene.ui_manager.UpdateSystem<StateMachineSystem>(true);
+		scene.manager.UpdateSystem<StateMachineSystem>();
+		scene.ui_manager.UpdateSystem<StateMachineSystem>();
 		scene.manager.UpdateSystem<DirectionSystem>();
 		//scene.manager.UpdateSystem<LifetimeSystem>();
 		scene.manager.UpdateSystem<CameraSystem>();
@@ -135,7 +133,7 @@ public:
 		Timer timer3;
 		timer3.Start();
 		auto camera = scene.GetCamera();
-		players = scene.manager.GetComponentTuple<TransformComponent, CollisionComponent, PlayerController>();
+		players = scene.manager.GetEntityComponents<TransformComponent, CollisionComponent, PlayerController>();
 		if (camera && !title.open && players.size() > 0) {
 
 			V2_double chunk_size = tiles_per_chunk * tile_size;

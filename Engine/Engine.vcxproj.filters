@@ -413,12 +413,6 @@
     <ClInclude Include="engine\ui\components\FocusedColorComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="engine\ecs\ECSImplementation.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\ecs\ECSOld.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="dlls\libfreetype-6.dll" />

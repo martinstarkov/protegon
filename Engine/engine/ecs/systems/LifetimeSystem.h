@@ -22,5 +22,6 @@ public:
 				entity.Destroy();
 			}
 		}
+		GetManager().Refresh();
 	}
 };

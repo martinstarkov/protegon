@@ -37,7 +37,7 @@ public:
 		}
 	}
 	virtual void Update() {
-		auto particles = particle_pool_.GetComponentTuple<ParticleComponent, LifetimeComponent, RigidBodyComponent, RenderComponent>();
+		auto particles = particle_pool_.GetEntityComponents<ParticleComponent, LifetimeComponent, RigidBodyComponent, RenderComponent>();
 		for (auto [entity, particle, life, rb, render] : particles) {
 			// Assume 1-to-1 ratio between force and acceleration for point-like particles.
 			rb.body->velocity += rb.body->force;
@@ -50,11 +50,11 @@ public:
 			rb.body->shape->SetRadius(radius);
 			render.color = Lerp(particle.properties.start_color, particle.properties.end_color, percentage_life_left);
 		}
-		particle_pool_.UpdateSystem<LifetimeSystem>(true);
+		particle_pool_.UpdateSystem<LifetimeSystem>();
 	}
 	// TODO: Instead of passing camera, make function to convert world coordinates to screen coordinates.
 	virtual void Render(const engine::Scene& scene) {
-		auto particles = particle_pool_.GetComponentTuple<RigidBodyComponent, RenderComponent>();
+		auto particles = particle_pool_.GetEntityComponents<RigidBodyComponent, RenderComponent>();
 		for (auto [entity, rb, render] : particles) {
 			TextureManager::DrawSolidCircle(scene.WorldToScreen(rb.body->position), scene.ScaleX(rb.body->shape->GetRadius()), render.color);
 		}

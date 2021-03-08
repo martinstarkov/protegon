@@ -17,7 +17,7 @@ struct GameStartEvent {
 		scene.chunks.clear();
 		scene.player_chunks.clear();
 
-		/*auto titles = scene.event_manager.GetComponentTuple<TitleScreenComponent>();
+		/*auto titles = scene.event_manager.GetEntityComponents<TitleScreenComponent>();
 		auto [entity, title] = titles[0];
 		title.open = false;*/
 		std::vector<std::vector<int>> boxes = {
