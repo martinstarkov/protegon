@@ -45,10 +45,8 @@ static void CollisionRoutine(std::vector<T>& entities1, std::vector<T>& entities
 	// Vector containing entities which have changed positions during the current cycle.
 	std::vector<std::tuple<std::vector<ecs::Entity>, ecs::Entity, TransformComponent&, RigidBodyComponent&, CollisionComponent&>> static_check;
 	static_check.reserve(entities1.size()); // Reserve maximum possible capacity of moving entities.
-	ecs::Manager* manager{ nullptr };
 	// Swept collision detection and resolution routine.
 	for (auto [entity, transform, collision_component] : entities1) {
-		manager = &entity.GetManager();
 			auto& collider = collision_component.collider;
 			// Round/Floor the position to the nearest whole number, this ensures collision detection is precise and prevents tunneling. Very important.
 			collider.position = Floor(transform.position);
@@ -184,15 +182,13 @@ static void CollisionRoutine(std::vector<T>& entities1, std::vector<T>& entities
 			// Keep transform position updated.
 			transform.position = collider.position;
 	}
-	if (manager != nullptr) {
-		manager->Refresh();
-	}
 }
 
 class CollisionSystem : public ecs::System<TransformComponent, CollisionComponent> {
 public:
 	virtual void Update() override final {
 		CollisionRoutine(entities, entities);
+		GetManager().Refresh();
 	}
 private:
 };

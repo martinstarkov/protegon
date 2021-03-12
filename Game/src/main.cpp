@@ -107,6 +107,9 @@ public:
 			}
 			CollisionRoutine(player_entities, chunk_entities, &mine);
 			scene.manager.Refresh();
+			for (auto chunk : scene.player_chunks) {
+				chunk->manager.Refresh();
+			}
 		} else {
 			scene.manager.UpdateSystem<CollisionSystem>();
 		}

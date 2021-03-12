@@ -608,6 +608,7 @@ public:
 
 	Manager(Manager&& obj) noexcept :
 		next_entity_{ obj.next_entity_ },
+		refresh_required_{ obj.refresh_required_ },
 		entities_{ std::exchange(obj.entities_, {}) },
 		refresh_{ std::exchange(obj.refresh_, {}) },
 		versions_{ std::exchange(obj.versions_, {}) },
@@ -623,6 +624,7 @@ public:
 		DestroyPools();
 		// Move manager into current manager.
 		next_entity_ = obj.next_entity_;
+		refresh_required_ = obj.refresh_required_;
 		entities_ = std::exchange(obj.entities_, {});
 		refresh_ = std::exchange(obj.refresh_, {});
 		versions_ = std::exchange(obj.versions_, {});
@@ -641,6 +643,7 @@ public:
 	*/
 	bool operator==(const Manager& other) const {
 		return next_entity_ == other.next_entity_
+			&& refresh_required_ == other.refresh_required_
 			&& entities_ == other.entities_
 			&& versions_ == other.versions_
 			&& free_entities_ == other.free_entities_
@@ -680,6 +683,7 @@ public:
 		clone.next_entity_ = next_entity_;
 		clone.entities_ = entities_;
 		clone.refresh_ = refresh_;
+		clone.refresh_required_ = refresh_required_;
 		clone.versions_ = versions_;
 		clone.free_entities_ = free_entities_;
 		clone.pools_.reserve(pools_.size());
@@ -709,6 +713,7 @@ public:
 	// Systems are not removed but caches are flagged for reset.
 	void Clear() {
 		next_entity_ = 0;
+		refresh_required_ = false;
 
 		entities_.clear();
 		refresh_.clear();
@@ -731,51 +736,54 @@ public:
 	// ones that have been marked for destruction.
 	// Activates created entities (can be used in systems).
 	void Refresh() {
-		assert(entities_.size() == versions_.size());
-		assert(entities_.size() == refresh_.size());
-		assert(next_entity_ <= entities_.size());
-		internal::Id alive{ 0 };
-		internal::Id dead{ 0 };
-		for (internal::Id entity{ 0 }; entity < next_entity_; ++entity) {
-			// Entity was marked for refresh.
-			if (refresh_[entity]) {
-				refresh_[entity] = false;
-				if (entities_[entity]) { // Marked for deletion.
-					RemoveComponents(entity);
-					entities_[entity] = false;
-					++versions_[entity];
-					free_entities_.emplace_back(entity);
-					++dead;
-				} else { // Marked for 'creation'.
-					entities_[entity] = true;
-					++alive;
+		if (refresh_required_) {
+			refresh_required_ = false;
+			assert(entities_.size() == versions_.size());
+			assert(entities_.size() == refresh_.size());
+			assert(next_entity_ <= entities_.size());
+			internal::Id alive{ 0 };
+			internal::Id dead{ 0 };
+			for (internal::Id entity{ 0 }; entity < next_entity_; ++entity) {
+				// Entity was marked for refresh.
+				if (refresh_[entity]) {
+					refresh_[entity] = false;
+					if (entities_[entity]) { // Marked for deletion.
+						RemoveComponents(entity);
+						entities_[entity] = false;
+						++versions_[entity];
+						free_entities_.emplace_back(entity);
+						++dead;
+					} else { // Marked for 'creation'.
+						entities_[entity] = true;
+						++alive;
+					}
 				}
 			}
+			if (alive > 0) {
+				// If even a single entity was created, all caches become
+				// invalid as that entity could have had components added to it. 
+				// Since Refresh() call cannot be guaranteed after one cycle, 
+				// caches would otherwise miss some entities.
+				for (auto system : systems_) {
+					if (system) {
+						system->FlagForReset();
+					}
+				}
+			} else if (dead > 0) {
+				// If entities were only destroyed during refresh,
+				// flag systems which don't depend on components 
+				// (i.e. systems which cache all manager entities).
+				for (auto system : systems_) {
+					if (system) {
+						system->FlagIfDependsOnNone();
+					}
+				}
+			}
+			assert(alive >= 0 && dead >= 0);
+			// Update entity count with net change.
+			count_ += alive - dead;
+			assert(count_ >= 0);
 		}
-		if (alive > 0) {
-			// If even a single entity was created, all caches become
-			// invalid as that entity could have had components added to it. 
-			// Since Refresh() call cannot be guaranteed after one cycle, 
-			// caches would otherwise miss some entities.
-			for (auto system : systems_) {
-				if (system) {
-					system->FlagForReset();
-				}
-			}
-		} else if (dead > 0) {
-			// If entities were only destroyed during refresh,
-			// flag systems which don't depend on components 
-			// (i.e. systems which cache all manager entities).
-			for (auto system : systems_) {
-				if (system) {
-					system->FlagIfDependsOnNone();
-				}
-			}
-		}
-		assert(alive >= 0 && dead >= 0);
-		// Update entity count with net change.
-		count_ += alive - dead;
-		assert(count_ >= 0);
 	}
 
 	/*
@@ -795,6 +803,7 @@ public:
 	// Resets all capacities to 0.
 	void Reset() {
 		next_entity_ = 0;
+		refresh_required_ = 0;
 
 		entities_.clear();
 		refresh_.clear();
@@ -985,6 +994,7 @@ private:
 		if (versions_[entity] == version) {
 			if (!refresh_[entity] || entities_[entity]) {
 				refresh_[entity] = true;
+				refresh_required_ = true;
 			} else {
 				// Edge case where entity is created and marked 
 				// for deletion before a Refresh() has been called.
@@ -1317,6 +1327,9 @@ private:
 	// Stores the current alive entity count (purely for retrieval).
 	internal::Id count_{ 0 };
 
+	// Stores whether or not a refresh is required in the manager.
+	bool refresh_required_{ false };
+
 	// Vector index corresponds to the entity's id.
 	// Element corresponds to whether or not the entity 
 	// is currently alive.
@@ -1625,6 +1638,7 @@ inline Entity Manager::CreateEntity() {
 	assert(!refresh_[entity] && "Cannot create new entity from refresh marked entity");
 	// Mark entity for refresh.
 	refresh_[entity] = true;
+	refresh_required_ = true;
 	return Entity{ entity, ++versions_[entity], this };
 }
 
@@ -1726,6 +1740,7 @@ inline void Manager::DestroyEntities() {
 			refresh_[entity] = true;
 		}
 	}
+	refresh_required_ = true;
 }
 
 template <typename ...TComponents>
@@ -1753,6 +1768,7 @@ inline void Manager::DestroyEntitiesWith() {
 					}
 				}
 			}
+			refresh_required_ = true;
 		}
 	} else {
 		DestroyEntities();
@@ -1787,6 +1803,7 @@ inline void Manager::DestroyEntitiesWithout() {
 					}
 				}
 			}
+			refresh_required_ = true;
 		}
 	} else {
 		DestroyEntities();
