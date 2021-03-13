@@ -15,27 +15,6 @@
 
 namespace engine {
 
-template<typename T>
-class Vec2 {
-public:
-	Vec2() : x(T(0)), y(T(0)) {}
-	Vec2(T xx, T yy) : x(xx), y(yy) {}
-	Vec2 operator * (const T& r) const { return Vec2(x * r, y * r); }
-	Vec2& operator *= (const T& r) { x *= r, y *= r; return *this; }
-	T x, y;
-};
-
-typedef Vec2<float> Vec2f;
-
-template<typename T = float>
-inline T lerp(const T& lo, const T& hi, const T& t) {
-	return lo * (1 - t) + hi * t;
-}
-
-inline float smoothstep(const float& t) {
-	return t * t * (3 - 2 * t);
-}
-
 class ValueNoise {
 public:
 	ValueNoise(unsigned size, unsigned seed = 2021) : kMaxTableSize{ size }, kMaxTableSizeMask{ kMaxTableSize - 1 } {
@@ -58,9 +37,9 @@ public:
 			permutationTable[k + kMaxTableSize] = permutationTable[k];
 		}
 	}
-	float eval(Vec2f& p) {
-		int xi = (int)std::floor(p.x);
-		int yi = (int)std::floor(p.y);
+	float Evaluate(const V2_float& p) {
+		int xi = math::Floor(p.x);
+		int yi = math::Floor(p.y);
 
 		float tx = p.x - xi;
 		float ty = p.y - yi;
@@ -77,15 +56,64 @@ public:
 		const float& c11 = r[permutationTable[permutationTable[rx1] + ry1]];
 
 		// remapping of tx and ty using the Smoothstep function 
-		float sx = smoothstep(tx);
-		float sy = smoothstep(ty);
+		float sx = math::SmoothStep(tx);
+		float sy = math::SmoothStep(ty);
 
 		// linearly interpolate values along the x axis
-		float nx0 = lerp(c00, c10, sx);
-		float nx1 = lerp(c01, c11, sx);
+		float nx0 = math::Lerp(c00, c10, sx);
+		float nx1 = math::Lerp(c01, c11, sx);
 
 		// linearly interpolate the nx0/nx1 along they y axis
-		return lerp(nx0, nx1, sy);
+		return math::Lerp(nx0, nx1, sy);
+	}
+	std::vector<float> GenerateNoiseMap(const V2_double& position, const V2_int& size, std::uint32_t octave, float bias) {
+
+		float amplitude = 1;
+		float maxPossibleNoiseVal = 0;
+		float amplitudeMult = 0.5f;//0.35;
+		unsigned numLayers = octave;//5;
+
+		for (unsigned l = 0; l < numLayers; ++l) {
+			maxPossibleNoiseVal += amplitude;
+			amplitude *= amplitudeMult;
+		}
+
+		std::vector<float> noiseMap;
+		noiseMap.resize(size.x * size.y, 0.0f);
+
+		// FRACTAL NOISE
+		float frequency = 0.05f;//0.02f;
+		float frequencyMult = bias;//1.8;
+		float maxNoiseVal = 0;
+		for (int j = 0; j < size.y; ++j) {
+			for (int i = 0; i < size.x; ++i) {
+				V2_float pNoise{ position.x * size.x + i, position.y * size.y + j };
+				pNoise *= frequency;
+				amplitude = 1;
+				for (unsigned l = 0; l < numLayers; ++l) {
+					//LOG("pNoise: " << pNoise.x << "," << pNoise.y);
+					auto fractal_noise = Evaluate(pNoise);
+					auto value = fractal_noise * amplitude;
+					if (std::isnan(value) && l > 10) value = 0;
+					bool assertion = value >= 0;
+					if (!assertion) {
+						LOG("fractal_noise: " << value << ", pNoise: (" << pNoise.x << "," << pNoise.y << "), octave: " << l << ", amplitude: " << amplitude);
+					}
+					assert(assertion && "fractal_noise must be above or equal to 0");
+					noiseMap[j * size.x + i] += value;
+					pNoise *= frequencyMult;
+					amplitude *= amplitudeMult;
+				}
+				if (noiseMap[j * size.y + i] > maxNoiseVal) maxNoiseVal = noiseMap[j * size.x + i];
+			}
+		}
+		//for (unsigned i = 0; i < imageWidth * imageHeight; ++i) noiseMap[i] /= maxNoiseVal;
+		for (int i = 0; i < size.x * size.y; ++i) {
+			assert(noiseMap[i] >= 0 && "Noise must be above or equal to 0");
+			noiseMap[i] = noiseMap[i] / maxPossibleNoiseVal;
+			assert(noiseMap[i] >= 0 && "Noise divided by something which made it negative");
+		}
+		return noiseMap;
 	}
 	unsigned int kMaxTableSize;// = 256 * 2;
 	unsigned int kMaxTableSizeMask;// = kMaxTableSize - 1;
