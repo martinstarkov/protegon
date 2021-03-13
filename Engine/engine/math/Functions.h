@@ -145,6 +145,11 @@ inline U Lerp(T a, T b, U amount) {
     return static_cast<U>(a) + amount * static_cast<U>(b - a);
 }
 
+template <typename T, type_traits::is_number<T> = true>
+inline T SmoothStep(const T& value) {
+    return value * value * ((T)3 - (T)2 * value);
+}
+
 } // namespace math
 
 } // namespace engine
