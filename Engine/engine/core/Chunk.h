@@ -33,7 +33,7 @@ public:
 	virtual const ecs::Entity& GetEntity(const V2_int& relative_coordinate) const override final;
 	virtual ecs::Entity& GetEntity(const V2_int& relative_coordinate) override final;
 	virtual const AABB& GetInfo() const override final;
-	virtual void Update() override final;
+	virtual void Update() override final {}
 	virtual void Render() override final;
 	// Destroys all grid entities.
 	virtual void Unload() override final;

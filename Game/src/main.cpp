@@ -58,8 +58,6 @@ public:
 		scene.ui_manager.AddSystem<StateMachineSystem>();
 		scene.ui_manager.AddSystem<UIRenderer>();
 
-		//LOG("Sectors: " << Engine::GetScreenSize() / tile_size);
-
 		title_screen = scene.event_manager.CreateEntity();
 		scene.event_manager.Refresh();
 		engine::EventHandler::Register<TitleScreenEvent>(title_screen);
@@ -68,7 +66,6 @@ public:
 		engine::EventHandler::Invoke(title_screen);
 		title.open = true;
 		LOG("Initialized all game systems successfully");
-
 	}
 
 	int octave = 5;
@@ -76,8 +73,6 @@ public:
 
     void Update() {
 		auto& scene = Scene::Get();
-		Timer timer0;
-		timer0.Start();
 		auto players = scene.manager.GetEntityComponents<TransformComponent, CollisionComponent, PlayerController>();
 		scene.manager.UpdateSystem<InputSystem>();
 		auto& title = title_screen.GetComponent<TitleScreenComponent>();
@@ -88,10 +83,7 @@ public:
 		}
 		scene.manager.UpdateSystem<PhysicsSystem>();
 		scene.manager.UpdateSystem<TargetSystem>();
-		//if (timer0.ElapsedMilliseconds() > 1)
-		//LOG("timer0: " << timer0.ElapsedMilliseconds());
-		Timer timer1;
-		timer1.Start();
+
 		if (scene.player_chunks.size() > 0 && players.size() > 0) {
 			std::vector<std::tuple<ecs::Entity, TransformComponent&, CollisionComponent&>> player_entities;
 			player_entities.reserve(players.size());
@@ -114,27 +106,16 @@ public:
 			scene.manager.UpdateSystem<CollisionSystem>();
 		}
 
-		//if (timer1.ElapsedMilliseconds() > 1)
-		//LOG("timer1: " << timer1.ElapsedMilliseconds());
-		//AllocationMetrics::PrintMemoryUsage();
-
-		Timer timer2;
-		timer2.Start();
 		scene.manager.UpdateSystem<StateMachineSystem>();
 		scene.ui_manager.UpdateSystem<StateMachineSystem>();
 		scene.manager.UpdateSystem<DirectionSystem>();
-		//scene.manager.UpdateSystem<LifetimeSystem>();
 		scene.manager.UpdateSystem<CameraSystem>();
-		//AllocationMetrics::PrintMemoryUsage();
 
 		auto& title_ = title_screen.GetComponent<TitleScreenComponent>();
 		if (title_.open && scene.ui_manager.GetEntitiesWith<TitleScreenComponent>().size() == 0) {
 			title_.open = false;
 		}
-		//if (timer2.ElapsedMilliseconds() > 1)
-		//LOG("timer2: " << timer2.ElapsedMilliseconds());
-		Timer timer3;
-		timer3.Start();
+
 		auto camera = scene.GetCamera();
 		players = scene.manager.GetEntityComponents<TransformComponent, CollisionComponent, PlayerController>();
 		if (camera && !title.open && players.size() > 0) {
@@ -227,48 +208,27 @@ public:
 					}
 				}
 			}
-			//LOG("Chunks: " << chunks.size());
 		} else {
 			scene.chunks.clear();
 		}
-		//if (timer3.ElapsedMilliseconds() > 1)
-		//LOG("timer3: " << timer3.ElapsedMilliseconds());
 
-		Timer timer4;
-		timer4.Start();
 		particles.Update();
-		//if (timer4.ElapsedMilliseconds() > 1)
-		//LOG("timer4: " << timer4.ElapsedMilliseconds());
-		//LOG("Octave: " << octave << ", bias: " << bias);
     }
 	void Render() {
 		auto& scene = Scene::Get();
-		Timer timer5;
-		timer5.Start();
+
 		scene.manager.UpdateSystem<AnimationSystem>();
-		//if (timer5.ElapsedMilliseconds() > 1)
-		//LOG("timer5: " << timer5.ElapsedMilliseconds());
-		Timer timer6;
-		timer6.Start();
+
 		// TODO: Consider a better way of doing this?
 		for (auto& c : scene.chunks) {
 			c->manager.UpdateSystem<TileRenderSystem>();
 		}
-		//if (timer6.ElapsedMilliseconds() > 1)
-		//LOG("timer6: " << timer6.ElapsedMilliseconds());
-		Timer timer7;
-		timer7.Start();
+
 		scene.manager.UpdateSystem<RenderSystem>();
 		scene.manager.UpdateSystem<HitboxRenderSystem>();
-		//if (timer7.ElapsedMilliseconds() > 1)
-		//LOG("timer7: " << timer7.ElapsedMilliseconds());
 
-		Timer timer8;
-		timer8.Start();
 		scene.ui_manager.UpdateSystem<UIRenderer>();
 		particles.Render(scene);
-		//if (timer8.ElapsedMilliseconds() > 1)
-		//LOG("timer8: " << timer8.ElapsedMilliseconds());
 	}
 private:
 	ecs::Entity title_screen;
