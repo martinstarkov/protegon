@@ -4,18 +4,27 @@
 #include <float.h>
 #include <random>
 #include <cassert>
+#include <limits>
 
 namespace engine {
 
 class RNG {
 public:
-	double RandomDouble(double min, double max) {
+	template <typename T,
+		type_traits::is_floating_point<T> = true,
+		type_traits::convertible<T, double> = true
+	>
+	T Random(T min = 0.0, T max = 1.0) {
 		assert(max > min && "Range must contain at least one double inside it");
 		//std::uniform_real_distribution<double> dist(min, max);
 		//return dist(gen);
-		return ((double)Lehmer32() / (double)(UINT32_MAX)) * (max - min) + min;
+		return ((T)Lehmer32() / (T)(std::numeric_limits<std::uint32_t>::max())) * (max - min) + min;
 	}
-	int RandomInt(int min, int max) {
+	template <typename T, 
+		type_traits::is_integral<T> = true,
+		type_traits::convertible<T, int> = true
+	>
+	T Random(T min = 0, T max = 1) {
 		assert(max > min && "Range must have at least one integer inside it");
 		/*std::uniform_int_distribution<int> dist(min, max);
 		return dist(gen);*/
@@ -30,14 +39,14 @@ private:
 
 	// Lehmer32 generator found in OLC's procedural universe generator:
 	// https://github.com/OneLoneCoder/olcPixelGameEngine/blob/master/Videos/OneLoneCoder_PGE_ProcGen_Universe.cpp
-	std::uint32_t seed32 = 0;
-	uint32_t Lehmer32() {
+	std::uint32_t seed32{ 0 };
+	std::uint32_t Lehmer32() {
 		seed32 += 0xe120fc15;
-		uint64_t tmp;
-		tmp = (uint64_t)seed32 * 0x4a39b70d;
-		uint32_t m1 = (uint32_t)((tmp >> 32) ^ tmp);
-		tmp = (uint64_t)m1 * 0x12fad5c9;
-		uint32_t m2 = (uint32_t)((tmp >> 32) ^ tmp);
+		std::uint64_t tmp;
+		tmp = (std::uint64_t)seed32 * 0x4a39b70d;
+		std::uint32_t m1 = (std::uint32_t)((tmp >> 32) ^ tmp);
+		tmp = (std::uint64_t)m1 * 0x12fad5c9;
+		std::uint32_t m2 = (std::uint32_t)((tmp >> 32) ^ tmp);
 		return m2;
 	}
 	/*
