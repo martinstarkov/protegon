@@ -297,6 +297,11 @@ struct Vector2 {
     inline double Magnitude() const {
         return std::sqrt(MagnitudeSquared());
     }
+    template <typename S = T,
+        engine::type_traits::is_floating_point<S> = true>
+    Vector2<T> Fraction() const {
+        return *this - Floor(*this);
+    }
 };
 
 // Common vector aliases.
@@ -448,20 +453,27 @@ Vector2<S> operator/(const Vector2<T>& lhs, U rhs) {
 
 // Special functions.
 
-// Return the absolute value of both vectors components.
-template <typename T>
-inline Vector2<T> Abs(const Vector2<T>& vector) {
-    return { engine::math::Abs(vector.x), engine::math::Abs(vector.y) };
+// Cross product function between a number and a vector.
+template <typename T, typename U, 
+    typename S = typename std::common_type<T, U>::type>
+inline Vector2<S> CrossProduct(U value, const Vector2<T>& vector) {
+    return { 
+        -static_cast<S>(value) * static_cast<S>(vector.y), 
+        static_cast<S>(value) * static_cast<S>(vector.x) 
+    };
 }
+
 // Return the distance squared between two vectors.
-template <typename T, typename U, typename S = typename std::common_type<T, U>::type>
+template <typename T, typename U, 
+    typename S = typename std::common_type<T, U>::type>
 inline S DistanceSquared(const Vector2<T>& lhs, const Vector2<U>& rhs) {
     S x = lhs.x - rhs.x;
     S y = lhs.y - rhs.y;
     return x * x + y * y;
 }
 // Return the distance between two vectors.
-template <typename T, typename U, typename S = typename std::common_type<T, U>::type>
+template <typename T, typename U, 
+    typename S = typename std::common_type<T, U>::type>
 inline S Distance(const Vector2<T>& lhs, const Vector2<U>& rhs) {
     return engine::math::Sqrt<S>(DistanceSquared(lhs, rhs));
 }
@@ -475,45 +487,64 @@ template <typename T>
 inline T& Max(Vector2<T>& vector) {
     return (vector.x < vector.y) ? vector.y : vector.x;
 }
-// Return both vector components rounded to the closest integer.
+
+// Return the absolute value of both vectors components.
 template <typename T>
-inline Vector2<T> Round(const Vector2<T>& vector) {
-    if constexpr (std::is_floating_point_v<T>) {
-        return { engine::math::Round(vector.x), engine::math::Round(vector.y) };
-    }
-    return vector;
+inline Vector2<T> Abs(const Vector2<T>& vector) {
+    return {
+        engine::math::Abs(vector.x),
+        engine::math::Abs(vector.y)
+    };
+}
+// Return both vector components rounded to the closest integer.
+template <typename T = int, typename S>
+inline Vector2<T> Round(const Vector2<S>& vector) {
+    return {
+        engine::math::Round<T>(vector.x),
+        engine::math::Round<T>(vector.y)
+    };
 }
 // Return both vector components ceiled to the closest integer.
-template <typename T>
-inline Vector2<T> Ceil(const Vector2<T>& vector) {
-    if constexpr (std::is_floating_point_v<T>) {
-        return { engine::math::Ceil(vector.x), engine::math::Ceil(vector.y) };
-    }
-    return vector;
+template <typename T = int, typename S>
+inline Vector2<T> Ceil(const Vector2<S>& vector) {
+    return {
+        engine::math::Ceil<T>(vector.x),
+        engine::math::Ceil<T>(vector.y) 
+    };
 }
 // Return both vector components floored to the closest integer.
-template <typename T>
-inline Vector2<T> Floor(const Vector2<T>& vector) {
-    if constexpr (std::is_floating_point_v<T>) {
-        return { engine::math::Floor(vector.x), engine::math::Floor(vector.y) };
-    }
-    return vector;
+template <typename T = int, typename S>
+inline Vector2<T> Floor(const Vector2<S>& vector) {
+    return { 
+        engine::math::Floor<T>(vector.x), 
+        engine::math::Floor<T>(vector.y) 
+    };
 }
 
 // Clamp both vectors value within a vector range.
 template <typename T>
 inline Vector2<T> Clamp(const Vector2<T>& value, const Vector2<T>& low, const Vector2<T>& high) {
-    return { engine::math::Clamp(value.x, low.x, high.x), engine::math::Clamp(value.y, low.y, high.y) };
-}
-
-template <typename T, typename U, typename S = typename std::common_type<T, U>::type>
-inline Vector2<S> CrossProduct(U value, const Vector2<T>& vector) {
-    return { -static_cast<S>(value) * static_cast<S>(vector.y), static_cast<S>(value) * static_cast<S>(vector.x) };
+    return { 
+        engine::math::Clamp(value.x, low.x, high.x), 
+        engine::math::Clamp(value.y, low.y, high.y) 
+    };
 }
 
 // Linearly interpolates both vector components by the given value.
 template <typename T, typename U>
 inline Vector2<U> Lerp(const Vector2<T>& a, const Vector2<T>& b, U amount) {
-    return { engine::math::Lerp(a.x, b.x, amount), engine::math::Lerp(a.y, b.y, amount) };
+    return { 
+        engine::math::Lerp(a.x, b.x, amount), 
+        engine::math::Lerp(a.y, b.y, amount) 
+    };
+}
+
+// Return both vector components ceiled to the closest integer.
+template <typename T>
+inline Vector2<T> SmoothStep(const Vector2<T>& vector) {
+    return {
+        engine::math::SmoothStep(vector.x),
+        engine::math::SmoothStep(vector.y) 
+    };
 }
 
