@@ -57,7 +57,10 @@ public:
 		auto& scene = Scene::Get();
 		auto particles = particle_pool_.GetEntityComponents<RigidBodyComponent, RenderComponent>();
 		for (auto [entity, rb, render] : particles) {
-			TextureManager::DrawSolidCircle(scene.WorldToScreen(rb.body->position), scene.ScaleX(rb.body->shape->GetRadius()), render.color);
+			//TextureManager::DrawSolidCircle(scene.WorldToScreen(rb.body->position), scene.ScaleX(rb.body->shape->GetRadius()), render.color);
+			auto radius{ rb.body->shape->GetRadius() };
+			V2_double half_size{ radius, radius };
+			TextureManager::DrawSolidRectangle(scene.WorldToScreen(rb.body->position - half_size), scene.Scale(half_size * 2), render.color);
 		}
 	}
 private:
