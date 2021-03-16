@@ -14,7 +14,7 @@ public:
 	virtual void Update() override final {
 		auto& scene = engine::Scene::Get();
 		// Set last found primary camera as the active camera.
-		ecs::Entity primary_entity = ecs::null;
+		ecs::Entity primary_entity{ ecs::null };
 		for (auto [entity, camera] : entities) {
 			if (camera.primary) {
 				scene.SetCamera(camera.camera);
@@ -26,14 +26,14 @@ public:
 			assert(camera != nullptr && "Scene camera undefined");
 			// Update scale first.
 			if (engine::InputHandler::KeyPressed(Key::Q) && engine::InputHandler::KeyReleased(Key::E)) {
-				camera->scale *= (V2_double{ 1.0, 1.0 } + ZOOM_SPEED);
-				camera->LimitScale(SCALE_BOUNDARY);
+				camera->scale += ZOOM_SPEED * camera->scale;
+				camera->ClampScale(SCALE_BOUNDARY);
 			} else if (engine::InputHandler::KeyPressed(Key::E) && engine::InputHandler::KeyReleased(Key::Q)) {
-				camera->scale *= (V2_double{ 1.0, 1.0 } - ZOOM_SPEED);
-				camera->LimitScale(SCALE_BOUNDARY);
+				camera->scale -= ZOOM_SPEED * camera->scale;
+				camera->ClampScale(SCALE_BOUNDARY);
 			}
 			// Then update offset.
-			V2_double size{}; 
+			V2_double size; 
 			V2_double sprite_scale{ 1.0, 1.0 }; 
 			if (primary_entity.HasComponent<SizeComponent>()) {
 				size = primary_entity.GetComponent<SizeComponent>().size;

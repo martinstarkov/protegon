@@ -8,22 +8,11 @@
 
 namespace engine {
 
-void Camera::LimitScale(V2_double max_scale) {
-	if (scale.x > 1.0f + max_scale.x) {
-		scale.x = 1.0f + max_scale.x;
-	}
-	if (scale.y > 1.0f + max_scale.y) {
-		scale.y = 1.0f + max_scale.y;
-	}
-	if (scale.x < 1.0f - max_scale.x) {
-		scale.x = 1.0f - max_scale.x;
-	}
-	if (scale.y < 1.0f - max_scale.y) {
-		scale.y = 1.0f - max_scale.y;
-	}
+void Camera::ClampScale(const V2_double& max_scale) {
+	Clamp(scale, scale - max_scale, scale + max_scale);
 }
 
-void Camera::Center(V2_double point, V2_double size) {
+void Camera::Center(const V2_double& point, const V2_double& size) {
 	offset = point + size / 2.0 - engine::Engine::GetScreenSize() / 2.0 / scale;
 }
 

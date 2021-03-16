@@ -25,7 +25,7 @@ public:
 		return *instance_;
 	}
 
-	const std::shared_ptr<Camera> GetCamera() const;
+	Camera* GetCamera();
 	void SetCamera(Camera& camera);
 	ecs::Manager manager;
 	ecs::Manager ui_manager;
@@ -57,7 +57,7 @@ public:
 	}
 private:
 	static Scene* instance_;
-	std::shared_ptr<Camera> active_camera_ = nullptr;
+	Camera* active_camera_{ nullptr };
 };
 
 } // namespace engine

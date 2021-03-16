@@ -9,7 +9,7 @@ public:
 	virtual void Generate(int seed, int octave, double bias) override final {
 		engine::ValueNoise noise(256, seed);
 
-		auto position{ (info.position / static_cast<V2_double>(tile_size)) / info.size };
+		auto position{ (info.position / static_cast<V2_double>(tile_size)) };
 
 		auto noiseMap{ std::move(noise.GenerateNoiseMap(position, info.size, octave, static_cast<float>(bias))) };
 
