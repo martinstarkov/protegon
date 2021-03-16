@@ -17,54 +17,47 @@ namespace engine {
 
 class ValueNoise {
 public:
-	ValueNoise(unsigned size, unsigned seed = 2021) : kMaxTableSize{ size }, kMaxTableSizeMask{ kMaxTableSize - 1 } {
-		std::mt19937 gen(seed);
-		std::uniform_real_distribution<float> distrFloat;
-		auto randFloat = std::bind(distrFloat, gen);
-		r.resize(kMaxTableSize, 0);
-		permutationTable.resize(kMaxTableSize * 2, 0);
+	ValueNoise(unsigned size, unsigned seed = 2021) : 
+		size_{ size }, 
+		size_mask_{ size_ - 1 } {
+		RNG<float> flt_rng{ seed };
+		RNG<std::uint32_t> uint_rng{ seed };
+		r.resize(size_, 0);
+		permutation_table_.resize(size_ * 2, 0);
 		// create an array of random values and initialize permutation table
-		for (unsigned k = 0; k < kMaxTableSize; ++k) {
-			r[k] = randFloat();
-			permutationTable[k] = k;
+		for (unsigned k = 0; k < size_; ++k) {
+			r[k] = flt_rng();
+			permutation_table_[k] = k;
 		}
-		// shuffle values of the permutation table
-		std::uniform_int_distribution<unsigned> distrUInt;
-		auto randUInt = std::bind(distrUInt, gen);
-		for (unsigned k = 0; k < kMaxTableSize; ++k) {
-			unsigned i = randUInt() & kMaxTableSizeMask;
-			std::swap(permutationTable[k], permutationTable[i]);
-			permutationTable[k + kMaxTableSize] = permutationTable[k];
+		for (unsigned k = 0; k < size_; ++k) {
+			unsigned i = uint_rng() & size_mask_;
+			std::swap(permutation_table_[k], permutation_table_[i]);
+			permutation_table_[k + size_] = permutation_table_[k];
 		}
 	}
 	float Evaluate(const V2_float& p) {
-		int xi = math::Floor(p.x);
-		int yi = math::Floor(p.y);
+		auto i = Floor(p);
 
-		float tx = p.x - xi;
-		float ty = p.y - yi;
-
-		int rx0 = xi & kMaxTableSizeMask;
-		int rx1 = (rx0 + 1) & kMaxTableSizeMask;
-		int ry0 = yi & kMaxTableSizeMask;
-		int ry1 = (ry0 + 1) & kMaxTableSizeMask;
+		auto rx0 = i.x & size_mask_;
+		auto rx1 = (rx0 + 1) & size_mask_;
+		auto ry0 = i.y & size_mask_;
+		auto ry1 = (ry0 + 1) & size_mask_;
 
 		// random values at the corners of the cell using permutation table
-		const float& c00 = r[permutationTable[permutationTable[rx0] + ry0]];
-		const float& c10 = r[permutationTable[permutationTable[rx1] + ry0]];
-		const float& c01 = r[permutationTable[permutationTable[rx0] + ry1]];
-		const float& c11 = r[permutationTable[permutationTable[rx1] + ry1]];
+		const auto& c00 = r[permutation_table_[permutation_table_[rx0] + ry0]];
+		const auto& c10 = r[permutation_table_[permutation_table_[rx1] + ry0]];
+		const auto& c01 = r[permutation_table_[permutation_table_[rx0] + ry1]];
+		const auto& c11 = r[permutation_table_[permutation_table_[rx1] + ry1]];
 
-		// remapping of tx and ty using the Smoothstep function 
-		float sx = math::SmoothStep(tx);
-		float sy = math::SmoothStep(ty);
+		// remapping of coordinate fraction using the Smoothstep function 
+		auto s = SmoothStep(p - i);
 
 		// linearly interpolate values along the x axis
-		float nx0 = math::Lerp(c00, c10, sx);
-		float nx1 = math::Lerp(c01, c11, sx);
+		auto nx0 = math::Lerp(c00, c10, s.x);
+		auto nx1 = math::Lerp(c01, c11, s.x);
 
 		// linearly interpolate the nx0/nx1 along they y axis
-		return math::Lerp(nx0, nx1, sy);
+		return math::Lerp(nx0, nx1, s.y);
 	}
 	std::vector<float> GenerateNoiseMap(const V2_double& position, const V2_int& size, std::uint32_t octave, float bias) {
 
@@ -115,10 +108,10 @@ public:
 		}
 		return noiseMap;
 	}
-	unsigned int kMaxTableSize;// = 256 * 2;
-	unsigned int kMaxTableSizeMask;// = kMaxTableSize - 1;
-	std::vector<float> r; // size: kMaxTableSize
-	std::vector<unsigned int> permutationTable; // kMaxTableSize * 2
+	unsigned int size_;// = 256 * 2;
+	unsigned int size_mask_;// = size_ - 1;
+	std::vector<float> r; // size: size_
+	std::vector<unsigned int> permutation_table_; // size_ * 2
 };
 
 } // namespace engine
