@@ -8,7 +8,7 @@
 using namespace engine;
 
 engine::Particle test_particle{ {}, {}, {}, 0, engine::ORANGE, engine::GREY, 10, 0, 0, 0.3 };
-engine::ParticleManager particles{ 400 };
+engine::ParticleManager particles{ 300 };
 
 void mine(ecs::Entity& entity, Collision& collision) {
 	auto& c = collision.entity.GetComponent<CollisionComponent>();
@@ -135,8 +135,8 @@ public:
 			V2_double player_highest = -V2_double::Infinite();
 			// Find all the chunks which contain the player.
 			for (auto [entity, transform, collision, player] : players) {
-				auto min_chunk_pos = Floor(transform.position / chunk_size);
-				auto max_chunk_pos = Floor((transform.position + collision.collider.size) / chunk_size);
+				auto min_chunk_pos = Floor<double>(transform.position / chunk_size);
+				auto max_chunk_pos = Floor<double>((transform.position + collision.collider.size) / chunk_size);
 				player_lowest.x = std::min(player_lowest.x, min_chunk_pos.x);
 				player_lowest.y = std::min(player_lowest.y, min_chunk_pos.y);
 				player_highest.x = std::max(player_highest.x, max_chunk_pos.x);
@@ -228,7 +228,7 @@ public:
 		scene.manager.UpdateSystem<HitboxRenderSystem>();
 
 		scene.ui_manager.UpdateSystem<UIRenderer>();
-		particles.Render(scene);
+		particles.Render();
 	}
 private:
 	ecs::Entity title_screen;

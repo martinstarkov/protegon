@@ -24,6 +24,7 @@ void Chunk::Init(const AABB& chunk_info, const V2_int& tile_size, Scene* scene) 
 	auto count = info.size.x * info.size.y;
 	// Generate new empty grid.
 	if (grid.size() != count) {
+		manager.Reserve((std::size_t)count);
 		grid.resize((std::size_t)count, ecs::null);
 		for (size_t i = 0; i < count; i++) {
 			grid[i] = manager.CreateEntity();

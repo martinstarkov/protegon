@@ -12,6 +12,7 @@ namespace engine {
 class ParticleManager {
 public:
 	ParticleManager(std::size_t max_particles) : max_particles_{ max_particles } {
+		particle_pool_.Reserve(max_particles_);
 		particle_pool_.AddSystem<LifetimeSystem>();
 	}
 	~ParticleManager() = default;
@@ -52,15 +53,15 @@ public:
 		}
 		particle_pool_.UpdateSystem<LifetimeSystem>();
 	}
-	// TODO: Instead of passing camera, make function to convert world coordinates to screen coordinates.
-	virtual void Render(const engine::Scene& scene) {
+	virtual void Render() {
+		auto& scene = Scene::Get();
 		auto particles = particle_pool_.GetEntityComponents<RigidBodyComponent, RenderComponent>();
 		for (auto [entity, rb, render] : particles) {
 			TextureManager::DrawSolidCircle(scene.WorldToScreen(rb.body->position), scene.ScaleX(rb.body->shape->GetRadius()), render.color);
 		}
 	}
 private:
-	std::size_t max_particles_ = 10;
+	std::size_t max_particles_{ 10 };
 	ecs::Manager particle_pool_;
 };
 
