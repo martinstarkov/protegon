@@ -11,8 +11,9 @@
 
 struct CollisionComponent {
 	AABB collider;
-	CollisionComponent(AABB collider = {}) : collider{ collider } {}
-	CollisionComponent(V2_double position, V2_double size) : collider{ position, size } {}
+	CollisionComponent() = default;
+	CollisionComponent(const AABB& collider) : collider{ collider } {}
+	CollisionComponent(const V2_double& position, const V2_double& size) : collider{ position, size } {}
 	// List of strings (corresponding to tag components) which should be ignored by the collision system for this entity.
 	std::vector<int> ignored_tag_types;
 };

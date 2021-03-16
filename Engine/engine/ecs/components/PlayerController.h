@@ -9,7 +9,9 @@
 
 struct PlayerController {
 	V2_double input_acceleration;
-	PlayerController(V2_double input_acceleration = { 0.0, 0.0 }) : input_acceleration{ input_acceleration } {
+	PlayerController() = default;
+	PlayerController(const V2_double& input_acceleration) : 
+		input_acceleration{ input_acceleration } {
 		Init();
 	}
 	// might be useful later

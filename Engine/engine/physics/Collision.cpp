@@ -165,7 +165,7 @@ static double FindAxisLeastPenetration(std::uint32_t* faceIndex, Polygon* A, Pol
     return bestDistance;
 }
 
-static std::int32_t Clip(V2_double n, double c, V2_double* face) {
+static std::int32_t Clip(const V2_double& n, double c, V2_double* face) {
     std::uint32_t sp = 0;
     V2_double out[2] = {
       face[0],

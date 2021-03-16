@@ -11,22 +11,22 @@
 class RenderSystem : public ecs::System<RenderComponent, TransformComponent, SpriteComponent> {
 public:
 	virtual void Update() override final {
-		int counter = 0;
-		auto& scene = engine::Scene::Get();
+		int counter{ 0 };
+		auto& scene{ engine::Scene::Get() };
 		for (auto& [entity, render, transform, sprite] : entities) {
-			V2_double position = transform.position;
-			V2_double size = sprite.current_sprite.size;
+			V2_double position{ transform.position };
+			V2_double size{sprite.current_sprite.size };
 			// TODO: Cull objects out of view.
-			V2_double hitbox_offset{};
+			V2_double hitbox_offset;
 			if (entity.HasComponent<AnimationComponent>()) {
-				auto& animation = entity.GetComponent<AnimationComponent>();
+				auto& animation{ entity.GetComponent<AnimationComponent>() };
 				hitbox_offset = sprite.sprite_map.GetAnimation(animation.current_animation).hitbox_offset;
 			}
 			assert(!size.IsZero() && "Cannot render sprite without (collision or size) component");
 			auto flip = Flip::NONE;
 			V2_double flip_scaling{};
 			if (entity.HasComponent<DirectionComponent>()) {
-				auto& dir = entity.GetComponent<DirectionComponent>();
+				auto& dir{ entity.GetComponent<DirectionComponent>() };
 				if (dir.x_direction == Direction::LEFT) {
 					flip = Flip::HORIZONTAL;
 					if (static_cast<int>(size.x) % 2 == 1) {
@@ -47,7 +47,7 @@ public:
 					flip_scaling.y = 0;
 				}
 			}
-			auto sprite_position = position - (hitbox_offset - flip_scaling) * sprite.scale;
+			auto sprite_position{ position - (hitbox_offset - flip_scaling) * sprite.scale };
 			++counter;
 			engine::TextureManager::DrawRectangle(
 				sprite.sprite_map.path,

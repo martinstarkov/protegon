@@ -66,13 +66,13 @@ Image::Image(const char* path) {
 	SDL_FreeSurface(surface);
 }
 
-Image::Image(std::vector<Color> pixels, V2_int size, V2_int relative_position) : 
-	pixels_{ std::move(pixels) }, 
+Image::Image(const std::vector<Color>& pixels, const V2_int& size, const V2_int& relative_position) : 
+	pixels_{ pixels }, 
 	size_{ size }, 
 	original_size_{ size }, 
 	position_{ relative_position } {}
 
-Color Image::GetPixel(V2_int position) const {
+Color Image::GetPixel(const V2_int& position) const {
 	auto index = position.y * size_.x + position.x;
 	assert(pixels_.size() > 0 && 
 		position.x < size_.x && 
@@ -94,7 +94,7 @@ V2_int Image::GetPosition() const {
 	return position_;
 }
 
-Image Image::GetSubImage(V2_int top_left, V2_int bottom_right) const {
+Image Image::GetSubImage(const V2_int& top_left, const V2_int& bottom_right) const {
 	std::vector<Color> sub_pixels;
 	// Add { 1, 1 } since taking difference omits one row and column of pixels.
 	V2_int sub_image_size = bottom_right - top_left + V2_int{ 1, 1 };
@@ -158,7 +158,7 @@ void Image::AddSide(Side side, Color color) {
 	}
 }
 */
-void Image::SetPixel(V2_int position, const Color& color) {
+void Image::SetPixel(const V2_int& position, const Color& color) {
 	auto index = position.y * size_.x + position.x;
 	assert(pixels_.size() > 0 && 
 		position.x < size_.x && 

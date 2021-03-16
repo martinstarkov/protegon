@@ -22,7 +22,6 @@ public:
 	virtual void Init(const AABB& chunk_info, const V2_int& tile_size, Scene* scene) = 0;
 	virtual void Generate(int seed, int octave, double bias) = 0;
 	virtual void Update() = 0;
-	virtual void Render() = 0;
 	virtual ~BaseChunk() = default;
 };
 
@@ -34,19 +33,17 @@ public:
 	virtual ecs::Entity& GetEntity(const V2_int& relative_coordinate) override final;
 	virtual const AABB& GetInfo() const override final;
 	virtual void Update() override final {}
-	virtual void Render() override final;
 	// Destroys all grid entities.
 	virtual void Unload() override final;
 	friend bool operator==(const Chunk& a, const Chunk& b);
 	ecs::Manager manager;
-	bool new_chunk = true;
+	bool new_chunk{ true };
 protected:
-	Scene* scene = nullptr;
-	Texture chunk = nullptr;
+	Scene* scene{ nullptr };
 	std::size_t GetIndex(const V2_int& relative_coordinate) const;
-	V2_int tile_size{};
-	V2_int tile_count{};
-	AABB info{};
+	V2_int tile_size;
+	V2_int tile_count;
+	AABB info;
 	std::vector<ecs::Entity> grid;
 };
 

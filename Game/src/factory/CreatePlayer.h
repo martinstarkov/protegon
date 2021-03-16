@@ -2,7 +2,8 @@
 
 #include <engine/Include.h>
 
-ecs::Entity CreatePlayer(V2_double position, V2_int size, ecs::Manager& manager, engine::Scene& scene) {
+ecs::Entity CreatePlayer(V2_double position, const V2_int& size, ecs::Manager& manager) {
+	auto& scene = engine::Scene::Get();
 	auto entity = manager.CreateEntity();
 	V2_double player_acceleration = { 3, 3 };
 	auto scale = V2_double{ 3, 3 };

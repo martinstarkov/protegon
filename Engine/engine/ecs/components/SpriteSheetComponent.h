@@ -12,8 +12,8 @@
 
 struct SpriteInformation {
 	V2_double start;
-	int count;
-	SpriteInformation(V2_double start = { 0.0, 0.0 }, int count = 1) : start{ start }, count{ count } {}
+	int count{ 1 };
+	SpriteInformation(const V2_double& start, int count = 1) : start{ start }, count{ count } {}
 };
 
 struct SpriteSheetComponent {

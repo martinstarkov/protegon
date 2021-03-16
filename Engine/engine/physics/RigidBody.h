@@ -22,7 +22,7 @@ struct RigidBody {
 	V2_double gravity;
 	double mass;
 	double inverse_mass;
-	double restitution = 1.0;
+	double restitution{ 1.0 };
 	RigidBody(V2_double drag = DRAGLESS, V2_double gravity = GRAVITY, double mass = IMMOVABLE, double restitution = 1.0, V2_double player_acceleration = { 1.0, 1.0 }) : drag{ drag }, gravity{ gravity }, restitution{ restitution }, mass{ mass }, player_acceleration{ player_acceleration }, terminal_velocity{ std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity() } {
 		Init();
 	}

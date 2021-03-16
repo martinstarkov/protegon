@@ -5,10 +5,10 @@
 #include "math/Vector2.h"
 
 struct AABB {
-	V2_double position{ 0.0, 0.0 };
-	V2_double size{ 0.0, 0.0 };
+	V2_double position;
+	V2_double size;
 	AABB() = default;
-	AABB(V2_double position, V2_double size) : position{ position }, size{ size } {}
+	AABB(const V2_double& position, const V2_double& size) : position{ position }, size{ size } {}
 	AABB(int x, int y, int w, int h) : position{ x, y }, size{ w, h } {}
 	AABB ExpandedBy(const AABB& other) const {
 		return { position - other.size / 2.0, size + other.size };

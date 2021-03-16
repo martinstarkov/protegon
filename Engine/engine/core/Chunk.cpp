@@ -14,7 +14,6 @@ namespace engine {
 
 Chunk::~Chunk() {
 	manager.~Manager();
-	chunk.Destroy();
 }
 
 void Chunk::Init(const AABB& chunk_info, const V2_int& tile_size, Scene* scene) {
@@ -56,13 +55,6 @@ std::size_t Chunk::GetIndex(const V2_int& relative_coordinate) const {
 	auto index = relative_coordinate.x + relative_coordinate.y * static_cast<int>(info.size.x);
 	assert(index < grid.size() && "Index out of range of chunk grid");
 	return index;
-}
-
-void Chunk::Render() {
-	auto position = scene->WorldToScreen(info.position);
-	auto size = scene->Scale(info.size * tile_size);
-	AABB rect{ position, size };
-	TextureManager::RenderTexture(Engine::GetRenderer(), chunk, NULL, &rect);
 }
 
 } // namespace engine

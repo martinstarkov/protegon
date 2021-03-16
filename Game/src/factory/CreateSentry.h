@@ -4,9 +4,9 @@
 
 #include "statemachine/FiringStateMachine.h"
 
-ecs::Entity CreateSentry(V2_double position, ecs::Manager& manager) {
-	auto entity = manager.CreateEntity();
-	auto scale = V2_double{ 1, 1 };
+ecs::Entity CreateSentry(const V2_double& position, ecs::Manager& manager) {
+	auto entity{ manager.CreateEntity() };
+	V2_double scale{ 1, 1 };
 	entity.AddComponent<TransformComponent>(position);
 	auto& sm = entity.AddComponent<StateMachineComponent>();
 	sm.AddStateMachine<FiringStateMachine>("firing_state_machine", entity);

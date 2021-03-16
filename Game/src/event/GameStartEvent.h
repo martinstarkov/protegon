@@ -59,7 +59,7 @@ struct GameStartEvent {
 						}
 						case 2:
 						{
-							auto player = CreatePlayer(pos, V2_int{ 20 * 5, 23 * 5 }, scene.manager, scene);
+							auto player = CreatePlayer(pos, V2_int{ 20 * 5, 23 * 5 }, scene.manager);
 							break;
 						}
 						case 3:

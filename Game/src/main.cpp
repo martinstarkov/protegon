@@ -7,7 +7,7 @@
 
 using namespace engine;
 
-engine::Particle test_particle{ {}, {}, {}, 0, engine::ORANGE, engine::GREY, 10, 0, 0, 0.3 };
+engine::Particle test_particle{ {}, {}, {}, 0, engine::ORANGE, engine::GREY, 10, 0, 0, 0.15 };
 engine::ParticleManager particles{ 300 };
 
 void mine(ecs::Entity& entity, Collision& collision) {
