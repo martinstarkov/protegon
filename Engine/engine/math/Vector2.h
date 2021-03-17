@@ -539,7 +539,7 @@ inline Vector2<U> Lerp(const Vector2<T>& a, const Vector2<T>& b, U amount) {
     };
 }
 
-// Return both vector components ceiled to the closest integer.
+// Return both vector components smooth stepped.
 template <typename T>
 inline Vector2<T> SmoothStep(const Vector2<T>& vector) {
     return {
