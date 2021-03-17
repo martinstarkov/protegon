@@ -6,6 +6,7 @@
 #include "ecs/ECS.h" // ecs::Entity, ecs::Manager
 #include "renderer/AABB.h"
 #include "renderer/Texture.h"
+#include "math/Noise.h"
 
 // TODO: Move to procedural folder.
 
@@ -20,7 +21,7 @@ public:
 	virtual const AABB& GetInfo() const = 0;
 	virtual void Unload() = 0;
 	virtual void Init(const AABB& chunk_info, const V2_int& tile_size, Scene* scene) = 0;
-	virtual void Generate(int seed, int octave, double bias) = 0;
+	virtual void Generate(ValueNoise<float>& noise2) = 0;
 	virtual void Update() = 0;
 	virtual ~BaseChunk() = default;
 };

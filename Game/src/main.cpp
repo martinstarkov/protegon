@@ -38,8 +38,6 @@ public:
 	std::vector<engine::Image> images;
 	V2_int tiles_per_chunk = { 16, 16 };
 	V2_int tile_size = { 32, 32 };
-	//V2_int tiles_per_chunk = { 8, 8 };
-	//V2_int tile_size = { 64, 64 };
 	void Init() {
 		auto& scene = Scene::Get();
 		LOG("Initializing game systems...");
@@ -68,8 +66,7 @@ public:
 		LOG("Initialized all game systems successfully");
 	}
 
-	int octave = 5;
-	double bias = 2.0;
+	engine::ValueNoise<float> noise{ static_cast<V2_int>(tiles_per_chunk) };
 
     void Update() {
 		auto& scene = Scene::Get();
@@ -169,6 +166,7 @@ public:
 				}
 			}
 
+
 			scene.player_chunks.clear();
 			// Go through all new chunks.
 			for (auto i = lowest.x; i != highest.x; ++i) {
@@ -199,7 +197,7 @@ public:
 						chunk->Init(potential_chunk, tile_size, &scene);
 						engine::Timer timer;
 						timer.Start();
-						chunk->Generate(0, octave, bias);
+						chunk->Generate(noise);
 						chunk->new_chunk = true;
 						scene.chunks.emplace_back(chunk);
 						if (player_chunk) {
