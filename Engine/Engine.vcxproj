@@ -374,7 +374,7 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClInclude Include="engine\debug\Logger.h" />
     <ClInclude Include="engine\math\Functions.h" />
     <ClInclude Include="engine\math\Matrix.h" />
-    <ClInclude Include="engine\math\PerlinNoise.h" />
+    <ClInclude Include="engine\math\Noise.h" />
     <ClInclude Include="engine\math\RNG.h" />
     <ClInclude Include="engine\utils\TypeTraits.h" />
     <ClInclude Include="engine\utils\Timer.h" />

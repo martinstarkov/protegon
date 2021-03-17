@@ -341,9 +341,6 @@
     <ClInclude Include="engine\math\Matrix.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="engine\math\PerlinNoise.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="engine\math\RNG.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -411,6 +408,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\ui\components\FocusedColorComponent.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\math\Noise.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

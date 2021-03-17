@@ -38,7 +38,7 @@
 #include "math/Hasher.h"
 #include "math/Matrix.h"
 #include "math/Vector2.h"
-#include "math/PerlinNoise.h"
+#include "math/Noise.h"
 #include "math/RNG.h"
 
 #include "debug/Debug.h"
