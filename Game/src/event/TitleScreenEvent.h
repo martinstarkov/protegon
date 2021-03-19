@@ -7,7 +7,9 @@
 struct TitleScreenEvent {
 	static void Invoke(ecs::Entity& invoker) {
 		auto& scene = engine::Scene::Get();
-		scene.manager.Clear();
+		
+		scene.world->Clear();
+
 		V2_int play_size = { 200, 100 };
 		V2_int play_pos = engine::Engine::GetScreenSize() / 2 - play_size / 2;
 		auto play_button = engine::UI::AddButton<GameStartEvent>(scene.ui_manager, scene, play_pos, play_size, engine::BLACK);

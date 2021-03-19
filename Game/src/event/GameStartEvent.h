@@ -10,12 +10,11 @@ struct GameStartEvent {
 	static void Invoke(ecs::Entity& invoker) {
 		auto& scene = engine::Scene::Get();
 
-		scene.manager.DestroyEntities();
-		scene.ui_manager.DestroyEntities();
-		scene.manager.Refresh();
+		auto& world = *scene.world;
 
-		scene.chunks.clear();
-		scene.player_chunks.clear();
+		scene.ui_manager.DestroyEntities();
+
+		world.Clear();
 
 		/*auto titles = scene.event_manager.GetEntityComponents<TitleScreenComponent>();
 		auto [entity, title] = titles[0];
@@ -59,7 +58,7 @@ struct GameStartEvent {
 						}
 						case 2:
 						{
-							auto player = CreatePlayer(pos, V2_int{ 20 * 5, 23 * 5 }, scene.manager);
+							scene.world->SetPlayer(CreatePlayer(pos, V2_int{ 20 * 5, 23 * 5 }, world.GetManager()));
 							break;
 						}
 						case 3:
@@ -86,6 +85,6 @@ struct GameStartEvent {
 		V2_int health_pos = { 30, 30 };
 		//auto health_indicator = engine::UI::AddText(ui_manager, health_pos, health_size, engine::BLACK);
 		//health_indicator.AddComponent<TextComponent>("Health: ", engine::WHITE, 30, "resources/fonts/oswald_regular.ttf");
-		scene.manager.Refresh();
+		world.GetManager().Refresh();
 	}
 };

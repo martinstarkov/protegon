@@ -1,3 +1,3 @@
 #pragma once
 
-#include "chunks/BoxChunk.h"
+#include "procedural/chunks/BoxChunk.h"

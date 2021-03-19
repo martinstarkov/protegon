@@ -183,6 +183,7 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\core\SurfaceWorld.cpp" />
     <ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -222,6 +223,7 @@
     <ClInclude Include="src\components\TargetComponent.h" />
     <ClInclude Include="src\components\TitleScreenComponent.h" />
     <ClInclude Include="src\components\TowerComponent.h" />
+    <ClInclude Include="src\core\SurfaceWorld.h" />
     <ClInclude Include="src\event\Events.h" />
     <ClInclude Include="src\event\GameStartEvent.h" />
     <ClInclude Include="src\event\PauseEvent.h" />
