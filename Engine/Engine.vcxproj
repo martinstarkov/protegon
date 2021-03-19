@@ -246,7 +246,8 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="engine\core\Engine.cpp" />
-    <ClCompile Include="engine\core\Chunk.cpp" />
+    <ClCompile Include="engine\core\World.cpp" />
+    <ClCompile Include="engine\procedural\Chunk.cpp" />
     <ClCompile Include="engine\core\Scene.cpp" />
     <ClCompile Include="engine\event\EventHandler.cpp" />
     <ClCompile Include="engine\event\InputHandler.cpp" />
@@ -258,9 +259,11 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClCompile Include="engine\physics\Manifold.cpp" />
     <ClCompile Include="engine\physics\Polygon.cpp" />
     <ClCompile Include="engine\physics\RigidBody.cpp" />
+    <ClCompile Include="engine\procedural\ChunkManager.cpp" />
     <ClCompile Include="engine\renderer\Camera.cpp" />
     <ClCompile Include="engine\renderer\Color.cpp" />
     <ClCompile Include="engine\renderer\FontManager.cpp" />
+    <ClCompile Include="engine\renderer\particles\ParticleManager.cpp" />
     <ClCompile Include="engine\renderer\Renderer.cpp" />
     <ClCompile Include="engine\renderer\SpriteMap.cpp" />
     <ClCompile Include="engine\renderer\Texture.cpp" />
@@ -271,7 +274,8 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="engine\core\Engine.h" />
-    <ClInclude Include="engine\core\Chunk.h" />
+    <ClInclude Include="engine\core\World.h" />
+    <ClInclude Include="engine\procedural\Chunk.h" />
     <ClInclude Include="engine\core\Scene.h" />
     <ClInclude Include="engine\ecs\Components.h" />
     <ClInclude Include="engine\ecs\components\AnimationComponent.h" />
@@ -288,6 +292,7 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClInclude Include="engine\ecs\components\SizeComponent.h" />
     <ClInclude Include="engine\ecs\components\SpriteComponent.h" />
     <ClInclude Include="engine\ecs\components\SpriteSheetComponent.h" />
+    <ClInclude Include="engine\procedural\ChunkManager.h" />
     <ClInclude Include="engine\statemachine\StateMachineComponent.h" />
     <ClInclude Include="engine\ecs\components\TagComponent.h" />
     <ClInclude Include="engine\ecs\components\TransformComponent.h" />
@@ -323,7 +328,6 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
     <ClInclude Include="engine\physics\Circle.h" />
     <ClInclude Include="engine\physics\Collision.h" />
     <ClInclude Include="engine\physics\collision\CollisionFunctions.h" />
-    <ClInclude Include="engine\physics\collision\CollisionManifold.h" />
     <ClInclude Include="engine\physics\collision\dynamic\DynamicAABBvsAABB.h" />
     <ClInclude Include="engine\physics\collision\static\AABBvsAABB.h" />
     <ClInclude Include="engine\physics\collision\static\CirclevsAABB.h" />
