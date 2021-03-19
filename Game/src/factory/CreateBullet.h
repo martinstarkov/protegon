@@ -4,7 +4,7 @@
 
 #include "components/TargetComponent.h"
 
-ecs::Entity CreateBullet(V2_double position, ecs::Entity& target, ecs::Manager& manager) {
+inline ecs::Entity CreateBullet(V2_double position, ecs::Entity& target, ecs::Manager& manager) {
 	//position.y -= 40;
 	auto bullet = manager.CreateEntity();
 	auto speed = 30;
