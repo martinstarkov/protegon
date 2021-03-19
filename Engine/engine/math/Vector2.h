@@ -12,6 +12,7 @@
 #include <cassert> // assert
 
 #include "math/Functions.h"
+#include "math/RNG.h"
 
 // TODO: Write tests for clamp.
 // TODO: Write tests for lerp.
@@ -21,9 +22,9 @@ namespace internal {
 
 // Vector stream output / input delimeters, allow for consistent serialization / deserialization.
 
-static constexpr const char VECTOR_LEFT_DELIMETER = '(';
-static constexpr const char VECTOR_CENTER_DELIMETER = ',';
-static constexpr const char VECTOR_RIGHT_DELIMETER = ')';
+static constexpr const char VECTOR_LEFT_DELIMETER{ '(' };
+static constexpr const char VECTOR_CENTER_DELIMETER{ ',' };
+static constexpr const char VECTOR_RIGHT_DELIMETER{ ')' };
 
 } // namespace internal
 
@@ -225,26 +226,30 @@ struct Vector2 {
     // Return a vector with numeric_limit::infinity() set for both components
     static Vector2 Infinite() {
         static_assert(std::is_floating_point_v<T>, "Cannot create infinite vector for integer type. Must use floating points.");
-        return Vector2{ std::numeric_limits<T>::infinity(), std::numeric_limits<T>::infinity() };
+        return {
+            std::numeric_limits<T>::infinity(),
+            std::numeric_limits<T>::infinity()
+        };
+    }
+
+    // Return a vector with numeric_limit::infinity() set for both components
+    static Vector2 Maximum() {
+        return { 
+            std::numeric_limits<T>::max(),
+            std::numeric_limits<T>::max()
+        };
     }
     // Return a vector with both components randomized in the given ranges.
     static Vector2 Random(T min_x = 0.0, T max_x = 1.0, T min_y = 0.0, T max_y = 1.0) {
         assert(min_x < max_x && "Minimum random value must be less than maximum random value");
         assert(min_y < max_y && "Minimum random value must be less than maximum random value");
-        std::minstd_rand gen(std::random_device{}());
+        engine::RNG<T> rng_x{ min_x, max_x };
+        engine::RNG<T> rng_y{ min_y, max_y };
         // Vary distribution type based on template parameter type.
-        if constexpr (std::is_floating_point_v<T>) {
-            // TODO: Possible to combine these using different seed?
-            std::uniform_real_distribution<T> dist_x(min_x, max_x);
-            std::uniform_real_distribution<T> dist_y(min_y, max_y);
-            return { dist_x(gen), dist_y(gen) };
-        } else if constexpr (std::is_integral_v<T>) {
-            std::uniform_int_distribution<T> dist_x(min_x, max_x);
-            std::uniform_int_distribution<T> dist_y(min_y, max_y);
-            return { dist_x(gen), dist_y(gen) };
-        }
-        assert(!"Incorrect type to random vector function");
-        return {};
+        return {
+            rng_x(),
+            rng_y()
+        };
     }
     // Return 2D vector projection (dot product).
     template <typename U, typename S = typename std::common_type<T, U>::type>
