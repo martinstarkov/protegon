@@ -5,6 +5,7 @@
 #include <algorithm> // std::sort, std::find
 #include <vector> // std::vector
 
+#include "physics/Collision.h"
 #include "physics/collision/dynamic/DynamicAABBvsAABB.h"
 #include "physics/collision/static/AABBvsAABB.h"
 
@@ -12,15 +13,6 @@
 // TODO: Figure out how to resolve out all static collision in one frame.
 // TODO: Fix entity destruction.
 
-struct Collision {
-	Collision() = default;
-	// For creating a collision where manifold is unimportant (static collisions).
-	Collision(const ecs::Entity& entity) : entity{ entity } {}
-
-	Collision(const ecs::Entity& entity, const CollisionManifold& manifold) : entity{ entity }, manifold{ manifold } {}
-	ecs::Entity entity;
-	CollisionManifold manifold;
-};
 // Sort times in order of lowest time first, if times are equal prioritize diagonal collisions first.
 static void SortTimes(std::vector<Collision>& collisions) {
 	if (collisions.size() > 1) {
@@ -34,8 +26,14 @@ static void SortTimes(std::vector<Collision>& collisions) {
 	}
 }
 
-template <typename T>
-static void CollisionRoutine(std::vector<T>& entities1, std::vector<T>& entities2, void(*function_)(ecs::Entity&, Collision&) = nullptr) {
+class empty {
+public:
+	inline void EmptyFunction(ecs::Entity& e, Collision& c) {}
+};
+
+template <typename S = void, typename T>
+static std::vector<std::pair<ecs::Entity, Collision>> CollisionRoutine(std::vector<T>& entities1, std::vector<T>& entities2) {
+	std::vector<std::pair<ecs::Entity, Collision>> final_collisions;
 	// Color reset.
 	for (auto [entity, transform, collision] : entities2) {
 		if (entity.HasComponent<RenderComponent>()) {
@@ -99,8 +97,8 @@ static void CollisionRoutine(std::vector<T>& entities1, std::vector<T>& entities
 						}
 						if (collision.manifold.time == 0 && !collision.manifold.normal.IsZero()) {
 							// Call custom function for collision
-							if (function_) {
-								function_(entity, collision);
+							if constexpr (!std::is_same_v<S, void>) {
+								final_collisions.emplace_back(entity, collision);
 							} else {
 								if (collision.entity.HasComponent<RenderComponent>()) {
 									collision.entity.GetComponent<RenderComponent>().color = engine::RED;
@@ -169,9 +167,9 @@ static void CollisionRoutine(std::vector<T>& entities1, std::vector<T>& entities
 						V2_double normal = { 0.0, 0.0 };
 						auto collision_depth = engine::collision::IntersectionAABBvsAABB(collider, oCollider, normal);
 						if (!collision_depth.IsZero()) { // Static collision occured.
-							if (function_) {
-								auto collision = Collision{ entity2, CollisionManifold(normal) };
-								function_(entity, collision);
+							if constexpr (!std::is_same_v<S, void>) {
+								auto collision = Collision{ entity2, CollisionManifold{ normal } };
+								final_collisions.emplace_back(entity, collision);
 							} else {
 								// Resolve static collision.
 								collider.position -= collision_depth;
@@ -182,6 +180,7 @@ static void CollisionRoutine(std::vector<T>& entities1, std::vector<T>& entities
 			// Keep transform position updated.
 			transform.position = collider.position;
 	}
+	return final_collisions;
 }
 
 class CollisionSystem : public ecs::System<TransformComponent, CollisionComponent> {
