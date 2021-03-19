@@ -52,7 +52,7 @@ public:
 	* @param persistence Increase of amplitudes per layer (multiplier).
 	* @return 2D noise map of values.
 	*/
-	std::vector<T> GenerateNoiseMap(const Vector2<T>& relative_position, std::size_t octaves, T frequency, T lacunarity, T persistence) {
+	std::vector<T> GenerateNoiseMap(const Vector2<T>& relative_position, std::size_t octaves, T frequency, T lacunarity, T persistence) const {
 		
 		// Initialize noise map.
 		std::vector<T> noise_map;
@@ -94,12 +94,12 @@ public:
 private:
 
 	// Noise interpolation routine. Linear for now.
-	T Interpolate(T a, T b, T amount) {
+	T Interpolate(T a, T b, T amount) const {
 		return math::Lerp(a, b, amount);
 	}
 
 	// Returns the smooth noise value at a given point.
-	T Noise(const Vector2<T>& point) {
+	T Noise(const Vector2<T>& point) const {
 		V2_int integer{ Floor(point) };
 
 		auto rx0{ integer.x & length_mask_ };
