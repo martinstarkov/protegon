@@ -1,7 +1,7 @@
 #pragma once
 
 #include "physics/Circle.h"
-#include "physics/collision/CollisionManifold.h"
+#include "physics/Collision.h"
 
 //namespace engine {
 //

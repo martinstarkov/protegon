@@ -2,7 +2,7 @@
 
 #include "renderer/AABB.h"
 
-#include "physics/collision/CollisionManifold.h"
+#include "physics/Collision.h"
 #include "physics/Circle.h"
 
 namespace engine {

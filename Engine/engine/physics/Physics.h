@@ -6,5 +6,5 @@
 #include "Polygon.h"
 #include "Manifold.h"
 #include "collision/CollisionFunctions.h"
-#include "collision/CollisionManifold.h" // TEMPORARY.
+#include "Collision.h"
 #include "RigidBody.h" // TEMPORARY.
