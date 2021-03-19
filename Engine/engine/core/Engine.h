@@ -4,8 +4,6 @@
 #include <cstdint> // std::int32_t, etc
 #include <cassert> // assert
 
-#include "core/Scene.h"
-
 #include "ecs/ECS.h"
 
 #include "renderer/Window.h"

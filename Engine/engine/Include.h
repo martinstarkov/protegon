@@ -2,7 +2,7 @@
 
 #include "core/Engine.h"
 #include "core/Scene.h"
-#include "core/Chunk.h"
+#include "core/World.h"
 
 #include "ecs/ECS.h"
 #include "ecs/Components.h"
@@ -21,6 +21,9 @@
 #include "renderer/SpriteMap.h"
 
 #include "parsing/ImageProcessor.h"
+
+#include "procedural/Chunk.h"
+#include "procedural/ChunkManager.h"
 
 #include "physics/Physics.h"
 

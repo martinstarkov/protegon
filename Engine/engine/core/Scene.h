@@ -2,11 +2,10 @@
 
 #include "ecs/ECS.h"
 
-#include "Chunk.h"
-
 #include <vector> // std::vector
 #include <memory> // std::shared_ptr
 
+#include "core/World.h"
 #include "renderer/Camera.h"
 
 namespace engine {
@@ -27,12 +26,9 @@ public:
 
 	Camera* GetCamera();
 	void SetCamera(Camera& camera);
-	ecs::Manager manager;
 	ecs::Manager ui_manager;
 	ecs::Manager event_manager;
-	// TODO: Move chunks vector elsewhere.
-	std::vector<Chunk*> chunks;
-	std::vector<Chunk*> player_chunks;
+	BaseWorld* world{ nullptr };
 	// Convert coordinates from world reference frame to screen reference frame.
 	V2_int WorldToScreen(const V2_double& world_coordinate) const {
 		assert(active_camera_ != nullptr && "Scene camera has not been set");
