@@ -21,8 +21,11 @@ enum class PixelFormat : std::uint32_t {
 
 struct Texture {
 	Texture() = default;
+	// Note that textures have internal heap allocated
+	// memory which must be freed by calling Destroy().
+	~Texture();
 	Texture(SDL_Texture* texture);
-	Texture(const Renderer& renderer, PixelFormat format, TextureAccess texture_access, const V2_int& size);
+	Texture(const Renderer& renderer, const V2_int& size, PixelFormat format, TextureAccess texture_access);
 	Texture(const Renderer& renderer, SDL_Surface* surface);
 	SDL_Texture* operator=(SDL_Texture* texture);
 	operator SDL_Texture* () const;

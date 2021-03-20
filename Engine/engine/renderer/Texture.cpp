@@ -6,8 +6,9 @@
 
 namespace engine {
 
+Texture::~Texture() {}
 Texture::Texture(SDL_Texture* texture) : texture{ texture } {}
-Texture::Texture(const Renderer& renderer, PixelFormat format, TextureAccess texture_access, const V2_int& size) : texture{ SDL_CreateTexture(renderer, static_cast<std::uint32_t>(format), static_cast<int>(texture_access), size.x, size.y) } {
+Texture::Texture(const Renderer& renderer, const V2_int& size, PixelFormat format, TextureAccess texture_access) : texture{ SDL_CreateTexture(renderer, static_cast<std::uint32_t>(format), static_cast<int>(texture_access), size.x, size.y) } {
 	if (!IsValid()) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create texture: %s\n", SDL_GetError());
 		assert(!true);

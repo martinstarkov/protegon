@@ -20,6 +20,8 @@ private:
 public:
 	static void Load(const char* texture_key, const char* texture_path);
 
+	static Texture GetTexture(const char* texture_key);
+
 	static void RenderTexture(const Renderer& renderer, const Texture& texture, const AABB* source = nullptr, const AABB* destination = nullptr);
 
 	// Return the location of a 4 byte integer value containg the RGBA32 color of the pixel on an SDL_Surface or SDL_Texture.
@@ -45,7 +47,6 @@ public:
 	static void Clean();
 private:
 	static void RemoveTexture(const char* texture_key);
-	static Texture GetTexture(const char* texture_key);
 	static std::unordered_map<std::size_t, Texture> texture_map_;
 };
 

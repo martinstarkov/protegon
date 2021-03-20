@@ -1,6 +1,7 @@
 #include "TextureManager.h"
 
 #include <cassert> // assert
+#include <cstdint> // assert
 
 #include <SDL_image.h>
 
@@ -30,6 +31,13 @@ void TextureManager::Load(const char* texture_key, const char* texture_path) {
 		assert(texture.IsValid() && "Failed to create texture from surface");
 		texture_map_.emplace(key, texture);
 	}
+}
+
+Texture TextureManager::GetTexture(const char* texture_key) {
+	auto key{ Hasher::HashCString(texture_key) };
+	auto it{ texture_map_.find(key) };
+	assert(it != texture_map_.end() && "Could not find texture from texture manager");
+	return it->second;
 }
 
 void TextureManager::RenderTexture(const Renderer& renderer, const Texture& texture, const AABB* source, const AABB* destination) {
@@ -65,13 +73,6 @@ std::uint32_t& TextureManager::GetTexturePixel(void* pixels, const int pitch, co
 
 Color TextureManager::GetDefaultRendererColor() {
 	return DEFAULT_RENDERER_COLOR;
-}
-
-Texture TextureManager::GetTexture(const char* texture_key) {
-	auto key{ Hasher::HashCString(texture_key) };
-	auto it{ texture_map_.find(key) };
-	assert(it != std::end(texture_map_) && "Key does not exist in texture map");
-	return it->second;
 }
 
 void TextureManager::SetDrawColor(const Color& color) {
@@ -123,13 +124,14 @@ void TextureManager::DrawRectangle(const V2_int& position, const V2_int& size, c
 void TextureManager::DrawRectangle(const V2_int& position, const V2_int& size, const double rotation, const Color& color, V2_double* center_of_rotation) {
 	SetDrawColor(color);
 	SDL_Rect dest_rect{ position.x, position.y, size.x, size.y };
-	Texture texture{ Engine::GetRenderer(), PixelFormat::RGBA8888, TextureAccess::STATIC, size };
+	Texture texture{ Engine::GetRenderer(), size, PixelFormat::RGBA8888, TextureAccess::STATIC };
 	if (center_of_rotation) {
 		SDL_Point center{ static_cast<int>(center_of_rotation->x), static_cast<int>(center_of_rotation->y) };
 		SDL_RenderCopyEx(Engine::GetRenderer(), texture, NULL, &dest_rect, rotation, &center, SDL_FLIP_NONE);
 	} else {
 		SDL_RenderCopyEx(Engine::GetRenderer(), texture, NULL, &dest_rect, rotation, NULL, SDL_FLIP_NONE);
 	}
+	texture.Destroy();
 }
 
 void TextureManager::DrawRectangle(const char* texture_key, const V2_int& src_position, const V2_int& src_size, const V2_int& dest_position, const V2_int& dest_size, Flip flip, V2_double* center_of_rotation, double angle) {
