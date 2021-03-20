@@ -32,7 +32,7 @@ struct Texture {
 	void Unlock();
 	void Destroy();
 	void Clear();
-	SDL_Texture* texture = nullptr;
+	SDL_Texture* texture{ nullptr };
 };
 
 } // namespace engine

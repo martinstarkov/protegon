@@ -29,8 +29,8 @@ public:
 		}
 	}
 	virtual void SetState(const char* name) override final {
-		auto key = Hasher::HashCString(name);
-		auto it = states_.find(key);
+		auto key{ Hasher::HashCString(name) };
+		auto it{ states_.find(key) };
 		assert(it != states_.end() && "Cannot SetState to nonexistent state");
 		// Check that state change isn't to the same state as is currently active.
 		if (it->second != current_state_) {
@@ -49,20 +49,20 @@ public:
 	}
 	// TEMPORARY : Hacked together way of debugging current state.
 	virtual std::string GetState() {
-		std::size_t current_key = 0;
+		std::size_t current_key{ 0 };
 		for (const auto& pair : states_) {
 			if (current_state_ == pair.second) {
 				current_key = pair.first;
 			}
 		}
-		auto it = state_names_.find(current_key);
+		auto it{ state_names_.find(current_key) };
 		assert(it != state_names_.end() && "No current state found");
 		return it->second;
 	}
 protected:
 	virtual void AddState(const char* name, std::shared_ptr<BaseState> state) override final {
 		// TODO: In the future replace hasher with integer serialized ids.
-		auto key = Hasher::HashCString(name);
+		auto key{ Hasher::HashCString(name) };
 		assert(states_.find(key) == states_.end() && "Cannot add duplicate state into state machine");
 		// Set first state as default initial / previous state.
 		if (states_.size() == 0) {
@@ -76,8 +76,8 @@ private:
 	std::unordered_map<std::size_t, std::shared_ptr<BaseState>> states_;
 	// TEMPORARY
 	std::unordered_map<std::size_t, std::string> state_names_;
-	std::shared_ptr<BaseState> current_state_ = nullptr;
-	std::shared_ptr<BaseState> previous_state_ = nullptr;
+	std::shared_ptr<BaseState> current_state_{ nullptr };
+	std::shared_ptr<BaseState> previous_state_{ nullptr };
 };
 
 } // namespace engine

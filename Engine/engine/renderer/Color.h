@@ -22,7 +22,10 @@ struct Color {
 	static Color Random();
 	operator SDL_Color() const;
 	friend std::ostream& operator<<(std::ostream& os, const Color& color);
-	std::uint8_t r = 0, g = 0, b = 0, a = 0;
+	std::uint8_t r{ 0 };
+	std::uint8_t g{ 0 };
+	std::uint8_t b{ 0 };
+	std::uint8_t a{ 0 };
 	bool IsTransparent() const { return a == 0; };
 };
 

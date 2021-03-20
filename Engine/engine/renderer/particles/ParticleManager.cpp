@@ -13,12 +13,12 @@ ParticleManager::ParticleManager(std::size_t max_particles) : max_particles_{ ma
 
 void ParticleManager::Emit(const Particle& properties) {
 	if (particle_pool_.GetEntityCount() < max_particles_) {
-		auto entity = particle_pool_.CreateEntity();
+		auto entity{ particle_pool_.CreateEntity() };
 		entity.AddComponent<ParticleComponent>(properties);
 		entity.AddComponent<LifetimeComponent>(properties.lifetime);
 		entity.AddComponent<RenderComponent>(properties.start_color);
 		Circle circle(properties.start_radius);
-		auto body = new Body(&circle, properties.position);
+		auto body{ new Body(&circle, properties.position) };
 		body->velocity = properties.velocity;
 		body->force = properties.acceleration;
 		body->angular_velocity = properties.angular_velocity;
@@ -28,16 +28,16 @@ void ParticleManager::Emit(const Particle& properties) {
 }
 
 void ParticleManager::Update() {
-	auto particles = particle_pool_.GetEntityComponents<ParticleComponent, LifetimeComponent, RigidBodyComponent, RenderComponent>();
+	auto particles{ particle_pool_.GetEntityComponents<ParticleComponent, LifetimeComponent, RigidBodyComponent, RenderComponent>() };
 	for (auto [entity, particle, life, rb, render] : particles) {
 		// Assume 1-to-1 ratio between force and acceleration for point-like particles.
 		rb.body->velocity += rb.body->force;
 		rb.body->position += rb.body->velocity;
 		rb.body->orientation += rb.body->angular_velocity;
 		rb.body->SetOrientation(rb.body->orientation);
-		auto percentage_life_left = (1.0 - life.lifetime / life.original_lifetime);
+		auto percentage_life_left{ 1.0 - life.lifetime / life.original_lifetime };
 		assert(percentage_life_left >= 0.0 && percentage_life_left <= 1.0);
-		auto radius = math::Lerp(particle.properties.start_radius, particle.properties.end_radius, percentage_life_left);
+		auto radius{ math::Lerp(particle.properties.start_radius, particle.properties.end_radius, percentage_life_left) };
 		rb.body->shape->SetRadius(radius);
 		render.color = Lerp(particle.properties.start_color, particle.properties.end_color, percentage_life_left);
 	}
@@ -45,8 +45,8 @@ void ParticleManager::Update() {
 }
 
 void ParticleManager::Render() {
-	auto& scene = Scene::Get();
-	auto particles = particle_pool_.GetEntityComponents<RigidBodyComponent, RenderComponent>();
+	auto& scene{ Scene::Get() };
+	auto particles{ particle_pool_.GetEntityComponents<RigidBodyComponent, RenderComponent>() };
 	for (auto [entity, rb, render] : particles) {
 		//TextureManager::DrawSolidCircle(scene.WorldToScreen(rb.body->position), scene.ScaleX(rb.body->shape->GetRadius()), render.color);
 		auto radius{ rb.body->shape->GetRadius() };

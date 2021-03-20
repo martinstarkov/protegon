@@ -17,7 +17,7 @@ struct Window {
 	bool IsValid() const;
 	SDL_Window* operator&() const;
 	void Destroy();
-	SDL_Window* window = nullptr;
+	SDL_Window* window{ nullptr };
 };
 
 } // namespace engine

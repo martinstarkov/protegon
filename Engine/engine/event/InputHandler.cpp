@@ -10,7 +10,7 @@
 
 namespace engine {
 
-constexpr double MOUSE_HOLD_TIME = 0.25; // seconds
+constexpr double MOUSE_HOLD_TIME{ 0.25 }; // seconds
 
 std::array<std::uint8_t, KEY_COUNT> InputHandler::key_states_;
 std::array<std::uint8_t, KEY_COUNT> InputHandler::previous_key_states_;
@@ -39,7 +39,7 @@ void InputHandler::Update() {
 
 void InputHandler::UpdateKeyboard() {
 	std::copy(std::begin(key_states_), std::end(key_states_), std::begin(previous_key_states_));
-	const std::uint8_t* state = SDL_GetKeyboardState(NULL);
+	const std::uint8_t* state{ SDL_GetKeyboardState(NULL) };
 	std::copy(state, state + KEY_COUNT, std::begin(key_states_));
 }
 
@@ -62,7 +62,7 @@ bool InputHandler::KeyUp(Key key) {
 }
 
 void InputHandler::UpdateMouse() {
-	auto flags = SDL_GetMouseState(&mouse_position_.x, &mouse_position_.y);
+	auto flags{ SDL_GetMouseState(&mouse_position_.x, &mouse_position_.y) };
 	if (flags) {
 		if (flags & SDL_BUTTON_LMASK) {
 			MouseButtonPressed(left_mouse_, left_mouse_pressed_time_);

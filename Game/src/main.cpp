@@ -12,11 +12,11 @@ class Game : public engine::Engine {
 public:
 	std::vector<engine::Image> images;
 	void Init() {
-		auto& scene = Scene::Get();
+		auto& scene{ Scene::Get() };
 
 		scene.world = new SurfaceWorld();
-		auto& world = *scene.world;
-		auto& world_manager = world.GetManager();
+		auto& world{ *scene.world };
+		auto& world_manager{ world.GetManager() };
 
 		LOG("Initializing game systems...");
 		world_manager.AddSystem<RenderSystem>();
@@ -38,7 +38,7 @@ public:
 		title_screen = scene.event_manager.CreateEntity();
 		scene.event_manager.Refresh();
 		engine::EventHandler::Register<TitleScreenEvent>(title_screen);
-		auto& title = title_screen.AddComponent<TitleScreenComponent>();
+		auto& title{ title_screen.AddComponent<TitleScreenComponent>() };
 		title_screen.AddComponent<EventComponent>(scene);
 		engine::EventHandler::Invoke(title_screen);
 		title.open = true;
@@ -46,12 +46,12 @@ public:
 	}
 
     void Update() {
-		auto& scene = Scene::Get();
-		auto& world = *scene.world;
-		auto& world_manager = world.GetManager();
+		auto& scene{ Scene::Get() };
+		auto& world{ *scene.world };
+		auto& world_manager{ world.GetManager() };
 
 		world_manager.UpdateSystem<InputSystem>();
-		auto& title = title_screen.GetComponent<TitleScreenComponent>();
+		auto& title{ title_screen.GetComponent<TitleScreenComponent>() };
 		if (engine::InputHandler::KeyDown(Key::R)) {
 			engine::EventHandler::Invoke(title_screen);
 			title.open = true;
@@ -65,12 +65,12 @@ public:
 		world_manager.UpdateSystem<DirectionSystem>();
 		world_manager.UpdateSystem<CameraSystem>();
 
-		auto& title_ = title_screen.GetComponent<TitleScreenComponent>();
+		auto& title_{ title_screen.GetComponent<TitleScreenComponent>() };
 		if (title_.open && scene.ui_manager.GetEntitiesWith<TitleScreenComponent>().size() == 0) {
 			title_.open = false;
 		}
 
-		auto camera = scene.GetCamera();
+		auto camera{ scene.GetCamera() };
 		if (camera && !title.open) {
 			world.Update();
 		} else {
@@ -79,9 +79,9 @@ public:
 
     }
 	void Render() {
-		auto& scene = Scene::Get();
-		auto& world = *scene.world;
-		auto& world_manager = world.GetManager();
+		auto& scene{ Scene::Get() };
+		auto& world{ *scene.world };
+		auto& world_manager{ world.GetManager() };
 
 		world_manager.UpdateSystem<AnimationSystem>();
 

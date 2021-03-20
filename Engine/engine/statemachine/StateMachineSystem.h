@@ -8,8 +8,8 @@ class StateMachineSystem : public ecs::System<StateMachineComponent> {
 public:
 	virtual void Update() override final {
 		for (auto& [entity, sm] : entities) {
-			auto end = sm.state_machines.end();
-			auto it = sm.state_machines.begin();
+			auto end{ sm.state_machines.end() };
+			auto it{ sm.state_machines.begin() };
 			while (it != end) {
 				it->second->Update();
 				++it;

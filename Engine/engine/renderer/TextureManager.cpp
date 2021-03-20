@@ -15,17 +15,17 @@ std::unordered_map<std::size_t, Texture> TextureManager::texture_map_;
 void TextureManager::Load(const char* texture_key, const char* texture_path) {
 	assert(texture_path != "" && "Cannot load empty texture path");
 	assert(texture_key != "" && "Cannot load invalid texture key");
-	auto key = Hasher::HashCString(texture_key);
-	auto it = texture_map_.find(key);
+	auto key{ Hasher::HashCString(texture_key) };
+	auto it{ texture_map_.find(key) };
 	// Only add texture if it doesn't already exists in map.
 	// TODO: Add better checks for texture not already existing (SDL_Texture pointer comparison).
 	if (it == std::end(texture_map_)) { 
-		auto temp_surface = IMG_Load(texture_path);
+		auto temp_surface{ IMG_Load(texture_path) };
 		if (temp_surface == nullptr) {
 			printf("IMG_Load: %s\n", IMG_GetError());
 			assert(!"Failed to load image into surface");
 		}
-		auto texture = Texture{ Engine::GetRenderer(), temp_surface };
+		Texture texture{ Engine::GetRenderer(), temp_surface };
 		SDL_FreeSurface(temp_surface);
 		assert(texture.IsValid() && "Failed to create texture from surface");
 		texture_map_.emplace(key, texture);
@@ -33,8 +33,8 @@ void TextureManager::Load(const char* texture_key, const char* texture_path) {
 }
 
 void TextureManager::RenderTexture(const Renderer& renderer, const Texture& texture, const AABB* source, const AABB* destination) {
-	SDL_Rect* src = NULL;
-	SDL_Rect* dest = NULL;
+	SDL_Rect* src{ NULL };
+	SDL_Rect* dest{ NULL };
 	SDL_Rect src_rect;
 	SDL_Rect dest_rect;
 	if (source) {
@@ -57,9 +57,9 @@ void TextureManager::RenderTexture(const Renderer& renderer, const Texture& text
 std::uint32_t& TextureManager::GetTexturePixel(void* pixels, const int pitch, const V2_int& position) {
 	// Source: http://sdl.beuc.net/sdl.wiki/Pixel_Access
 	//int bpp = surface->format->BytesPerPixel;
-	int bpp = sizeof(std::uint32_t);
+	int bpp{ sizeof(std::uint32_t) };
 	/* Here p is the address to the pixel we want to retrieve */
-	auto p = (std::uint8_t*)pixels + position.y * pitch + position.x * bpp;
+	auto p{ (std::uint8_t*)pixels + position.y * pitch + position.x * bpp };
 	return *(std::uint32_t*)p;
 }
 
@@ -68,8 +68,8 @@ Color TextureManager::GetDefaultRendererColor() {
 }
 
 Texture TextureManager::GetTexture(const char* texture_key) {
-	auto key = Hasher::HashCString(texture_key);
-	auto it = texture_map_.find(key);
+	auto key{ Hasher::HashCString(texture_key) };
+	auto it{ texture_map_.find(key) };
 	assert(it != std::end(texture_map_) && "Key does not exist in texture map");
 	return it->second;
 }
@@ -123,7 +123,7 @@ void TextureManager::DrawRectangle(const V2_int& position, const V2_int& size, c
 void TextureManager::DrawRectangle(const V2_int& position, const V2_int& size, const double rotation, const Color& color, V2_double* center_of_rotation) {
 	SetDrawColor(color);
 	SDL_Rect dest_rect{ position.x, position.y, size.x, size.y };
-	auto texture = Texture{ Engine::GetRenderer(), PixelFormat::RGBA8888, TextureAccess::STATIC, size };
+	Texture texture{ Engine::GetRenderer(), PixelFormat::RGBA8888, TextureAccess::STATIC, size };
 	if (center_of_rotation) {
 		SDL_Point center{ static_cast<int>(center_of_rotation->x), static_cast<int>(center_of_rotation->y) };
 		SDL_RenderCopyEx(Engine::GetRenderer(), texture, NULL, &dest_rect, rotation, &center, SDL_FLIP_NONE);
@@ -157,7 +157,7 @@ void TextureManager::DrawCircle(const V2_int& center, const int radius, const Co
     }
 
     // Initialising the value of P 
-    int P = 1 - radius;
+	int P{ 1 - radius };
     while (position.x > position.y) {
 		position.y++;
 
@@ -194,8 +194,8 @@ void TextureManager::DrawCircle(const V2_int& center, const int radius, const Co
 }
 
 void TextureManager::DrawSolidCircle(const V2_int& center, const int radius, const Color& color) {
-	for (auto y = -radius; y <= radius; ++y) {
-		for (auto x = -radius; x <= radius; ++x) {
+	for (auto y{ -radius }; y <= radius; ++y) {
+		for (auto x{ -radius }; x <= radius; ++x) {
 			if (x * x + y * y <= radius * radius) {
 				DrawPoint({ center.x + x, center.y + y }, color);
 			}
@@ -211,8 +211,8 @@ void TextureManager::Clean() {
 }
 
 void TextureManager::RemoveTexture(const char* texture_key) {
-	auto key = Hasher::HashCString(texture_key);
-	auto it = texture_map_.find(key);
+	auto key{ Hasher::HashCString(texture_key) };
+	auto it{ texture_map_.find(key) };
 	if (it != std::end(texture_map_)) {
 		it->second.Destroy();
 		texture_map_.erase(it);

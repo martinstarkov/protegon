@@ -15,7 +15,7 @@ enum class MouseButton {
 
 namespace engine {
 
-constexpr std::size_t KEY_COUNT = 512;
+constexpr std::size_t KEY_COUNT{ 512 };
 
 class InputHandler {
 public:

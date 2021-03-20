@@ -12,7 +12,7 @@ struct StateMachineComponent {
 	StateMachineComponent() = default;
 	template <typename T>
 	void AddStateMachine(const char* name, const ecs::Entity& parent_entity) {
-		auto key = engine::Hasher::HashCString(name);
+		auto key{ engine::Hasher::HashCString(name) };
 		state_machines.emplace(key, std::make_shared<T>(parent_entity));
 	}
 };

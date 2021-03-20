@@ -8,9 +8,8 @@
 
 struct GameStartEvent {
 	static void Invoke(ecs::Entity& invoker) {
-		auto& scene = engine::Scene::Get();
-
-		auto& world = *scene.world;
+		auto& scene{ engine::Scene::Get() };
+		auto& world{ *scene.world };
 
 		scene.ui_manager.DestroyEntities();
 
@@ -19,7 +18,7 @@ struct GameStartEvent {
 		/*auto titles = scene.event_manager.GetEntityComponents<TitleScreenComponent>();
 		auto [entity, title] = titles[0];
 		title.open = false;*/
-		std::vector<std::vector<int>> boxes = {
+		std::vector<std::vector<int>> boxes{
 		{0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
 		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
 		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
@@ -44,10 +43,10 @@ struct GameStartEvent {
 		{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
 		};
 
-		for (std::size_t i = 0; i < boxes.size(); ++i) {
-			for (std::size_t j = 0; j < boxes[i].size(); ++j) {
+		for (std::size_t i{ 0 }; i < boxes.size(); ++i) {
+			for (std::size_t j{ 0 }; j < boxes[i].size(); ++j) {
 				if (boxes[i][j]) {
-					auto pos = V2_double{ 32.0 * j, 32.0 * i };
+					V2_double pos{ 32.0 * j, 32.0 * i };
 					switch (boxes[i][j]) {
 						case 1:
 						{
@@ -81,8 +80,8 @@ struct GameStartEvent {
 				}
 			}
 		}
-		V2_int health_size = { 200, 100 };
-		V2_int health_pos = { 30, 30 };
+		V2_int health_size{ 200, 100 };
+		V2_int health_pos{ 30, 30 };
 		//auto health_indicator = engine::UI::AddText(ui_manager, health_pos, health_size, engine::BLACK);
 		//health_indicator.AddComponent<TextComponent>("Health: ", engine::WHITE, 30, "resources/fonts/oswald_regular.ttf");
 		world.GetManager().Refresh();

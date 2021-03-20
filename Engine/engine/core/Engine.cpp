@@ -24,24 +24,24 @@ void Engine::Delay(std::int64_t milliseconds) { SDL_Delay(static_cast<std::uint3
 void Engine::Quit() { GetInstance().running_ = false; }
 
 Window& Engine::GetWindow() {
-	auto& engine = GetInstance();
+	auto& engine{ GetInstance() };
 	assert(engine.window_.IsValid() && "Cannot return uninitialized window");
 	return engine.window_;
 }
 
 Renderer& Engine::GetRenderer() {
-	auto& engine = GetInstance();
+	auto& engine{ GetInstance() };
 	assert(engine.renderer_.IsValid() && "Cannot return uninitialized renderer");
 	return engine.renderer_;
 }
 
 std::pair<Window, Renderer> Engine::GenerateWindow(const char* title, const V2_int& position, const V2_int& size, std::uint32_t window_flags, std::uint32_t renderer_flags) {
-	auto& engine = GetInstance();
+	auto& engine{ GetInstance() };
 	assert(engine.sdl_init_ == 0 && "Cannot generate window before initializing SDL");
-	auto window = Window{ title, position, size, window_flags };
+	Window window{ title, position, size, window_flags };
 	if (window.IsValid()) {
 		LOG("Created window successfully");
-		auto renderer = Renderer{ window, -1, renderer_flags };
+		Renderer renderer{ window, -1, renderer_flags };
 		if (renderer.IsValid()) {
 			LOG("Created renderer successfully");
 			return { window, renderer };
@@ -79,9 +79,9 @@ void Engine::InitSDL(std::uint32_t window_flags, std::uint32_t renderer_flags) {
 
 void Engine::Loop() {
 	// Expected time between frames running at a certain FPS.
-	const std::int64_t frame_delay = static_cast<std::int64_t>(1000.0 * inverse_fps_);
+	const std::int64_t frame_delay{ static_cast<std::int64_t>(1000.0 * inverse_fps_) };
 	while (running_) {
-		auto loop_start = timer_.ElapsedMilliseconds();
+		auto loop_start{ timer_.ElapsedMilliseconds() };
 		InputHandler::Update();
 
 		// Update everything here.

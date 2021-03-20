@@ -24,7 +24,7 @@ Texture::operator SDL_Texture* () const { return texture; }
 bool Texture::IsValid() const { return texture != nullptr; }
 SDL_Texture* Texture::operator&() const { return texture; }
 bool Texture::Lock(void** out_pixels, int* out_pitch, AABB* lock_area) {
-	SDL_Rect* lock_rect = NULL;
+	SDL_Rect* lock_rect{ NULL };
 	SDL_Rect rect;
 	if (lock_area != nullptr) {
 		rect.x = math::Ceil(lock_area->position.x);
@@ -54,9 +54,9 @@ void Texture::Clear() {
 	Lock(&pixels, &pitch);
 	int w, h;
 	SDL_QueryTexture(texture, NULL, NULL, &w, &h);
-	for (auto y = 0; y < h; ++y) {
-		auto dst = (std::uint32_t*)((std::uint8_t*)pixels + y * pitch);
-		for (auto x = 0; x < w; ++x) {
+	for (auto y{ 0 }; y < h; ++y) {
+		auto dst{ (std::uint32_t*)((std::uint8_t*)pixels + y * pitch) };
+		for (auto x{ 0 }; x < w; ++x) {
 			*dst++ = (0xFF000000 | (0 << 16) | (0 << 8) | 0); // Set texture to black.
 		}
 	}

@@ -19,10 +19,10 @@ class UI {
 public:
 	template <typename T>
 	static ecs::Entity AddButton(ecs::Manager& ui_manager, Scene& scene, const V2_int& position, const V2_int& size, const Color& background_color) {
-		auto entity = ui_manager.CreateEntity();
+		auto entity{ ui_manager.CreateEntity() };
 		engine::EventHandler::Register<T>(entity);
 		entity.AddComponent<EventComponent>(scene);
-		auto& sm = entity.AddComponent<StateMachineComponent>();
+		auto& sm{ entity.AddComponent<StateMachineComponent>() };
 		sm.AddStateMachine<ButtonStateMachine>("button", entity);
 		entity.AddComponent<TransformComponent>(position);
 		entity.AddComponent<SizeComponent>(size);
@@ -31,7 +31,7 @@ public:
 		return entity;
 	}
 	static ecs::Entity AddText(ecs::Manager& ui_manager, const V2_int& position, const V2_int& size, const Color& background_color) {
-		auto entity = ui_manager.CreateEntity();
+		auto entity{ ui_manager.CreateEntity() };
 		entity.AddComponent<TransformComponent>(position);
 		entity.AddComponent<SizeComponent>(size);
 		entity.AddComponent<BackgroundColorComponent>(background_color);

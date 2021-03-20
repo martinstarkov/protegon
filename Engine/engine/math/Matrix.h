@@ -23,9 +23,9 @@ using is_matrix = std::enable_if_t<INPUT_ROWS == CONDITION_ROWS && INPUT_COLUMNS
 
 namespace internal {
 
-static constexpr const char MATRIX_LEFT_DELIMETER = '(';
-static constexpr const char MATRIX_CENTER_DELIMETER = ',';
-static constexpr const char MATRIX_RIGHT_DELIMETER = ')';
+static constexpr const char MATRIX_LEFT_DELIMETER{ '(' };
+static constexpr const char MATRIX_CENTER_DELIMETER{ ',' };
+static constexpr const char MATRIX_RIGHT_DELIMETER{ ')' };
 
 } // namespace internal
 
@@ -39,23 +39,23 @@ struct Matrix {
 		matrix[1][1] = m_11;
 	}
 	Matrix() {
-		for (auto i = 0; i < ROWS; ++i) {
-			for (auto j = 0; j < COLUMNS; ++j) {
+		for (auto i{ 0 }; i < ROWS; ++i) {
+			for (auto j{ 0 }; j < COLUMNS; ++j) {
 				this->matrix[i][j] = T{ 0 };
 			}
 		}
 	}
 	Matrix(T matrix[ROWS][COLUMNS]) {
-		for (auto i = 0; i < ROWS; ++i) {
-			for (auto j = 0; j < COLUMNS; ++j) {
+		for (auto i{ 0 }; i < ROWS; ++i) {
+			for (auto j{ 0 }; j < COLUMNS; ++j) {
 				this->matrix[i][j] = matrix[i][j];
 			}
 		}
 	}
 	template <engine::type_traits::is_matrix<ROWS, COLUMNS, 2, 2> = true>
 	void SetRotationMatrix(double radians) {
-		auto c = std::cos(radians);
-		auto s = std::sin(radians);
+		auto c{ std::cos(radians) };
+		auto s{ std::sin(radians) };
 
 		matrix[0][0] = c; 
 		matrix[0][1] = -s;
@@ -74,9 +74,9 @@ struct Matrix {
 template <typename T, std::size_t ROWS, std::size_t COLUMNS>
 std::ostream& operator<<(std::ostream& os, const Matrix<T, ROWS, COLUMNS>& obj) {
 	os << internal::MATRIX_LEFT_DELIMETER << " ";
-	for (auto i = 0; i < ROWS; ++i) {
+	for (auto i{ 0 }; i < ROWS; ++i) {
 		os << internal::MATRIX_LEFT_DELIMETER;
-		for (auto j = 0; j < COLUMNS; ++j) {
+		for (auto j{ 0 }; j < COLUMNS; ++j) {
 			os << obj.matrix[i][j];
 			if (j != COLUMNS) {
 				os << ",";

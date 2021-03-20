@@ -46,7 +46,7 @@ public:
 		// Timer started before construction of engine object as that may take some time.
 		timer.Start();
 		instance_ = new T{};
-		auto& engine = GetInstance();
+		auto& engine{ GetInstance() };
 		engine.timer_ = timer;
 		engine.window_size_ = { width, height };
 		engine.window_position_ = { x, y };

@@ -24,7 +24,7 @@ public:
 		for (auto [entity, transform, size, background, render] : entities) {
 			engine::TextureManager::DrawSolidRectangle(transform.position, size.size, background.color);
 			if (entity.HasComponent<TextComponent>()) {
-				auto& text = entity.GetComponent<TextComponent>();
+				auto& text{ entity.GetComponent<TextComponent>() };
 				engine::FontManager::Draw(text.content, transform.position, size.size);
 			}
 		}

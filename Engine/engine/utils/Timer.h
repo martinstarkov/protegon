@@ -42,7 +42,7 @@ private:
     }
     std::chrono::time_point<std::chrono::steady_clock> start_time_;
     std::chrono::time_point<std::chrono::steady_clock> stop_time_;
-    bool running_ = false;
+    bool running_{ false };
 };
 
 } // namespace engine

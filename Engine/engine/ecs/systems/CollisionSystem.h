@@ -12,6 +12,8 @@
 // TODO: Figure out relative velocities for two dynamic blocks.
 // TODO: Figure out how to resolve out all static collision in one frame.
 // TODO: Fix entity destruction.
+// TODO: Instead of returning list of collided objects make the collision call a
+// function on the collided entity right away (this gives for e.g. smoother mining).
 
 // Sort times in order of lowest time first, if times are equal prioritize diagonal collisions first.
 static void SortTimes(std::vector<Collision>& collisions) {
@@ -91,7 +93,7 @@ static std::vector<std::pair<ecs::Entity, Collision>> CollisionRoutine(std::vect
 
 					// First sweep (narrow phase) collision resolution.
 					for (auto& collision : collisions) {
-						auto& target_collider = collision.entity.GetComponent<CollisionComponent>().collider;
+						auto& target_collider{ collision.entity.GetComponent<CollisionComponent>().collider };
 						if (engine::collision::ResolveDynamicAABBvsAABB(rb.velocity, collider, target_collider, collision.manifold)) {
 							// ... objects which were used to resolve the collision, not necessarily all touching objects.
 						}
@@ -103,7 +105,7 @@ static std::vector<std::pair<ecs::Entity, Collision>> CollisionRoutine(std::vect
 								if (collision.entity.HasComponent<RenderComponent>()) {
 									collision.entity.GetComponent<RenderComponent>().color = engine::RED;
 								}
-								auto& rigid_body = entity.GetComponent<RigidBodyComponent>().rigid_body;
+								auto& rigid_body{ entity.GetComponent<RigidBodyComponent>().rigid_body };
 								if (collision.manifold.normal.y != 0) {
 									rigid_body.acceleration.y = 0;
 									//rb.velocity.x *= 1.0 - rb.drag.x;
@@ -122,7 +124,7 @@ static std::vector<std::pair<ecs::Entity, Collision>> CollisionRoutine(std::vect
 						collisions.clear();
 						// Second sweep (narrow phase) collision detection.
 						for (auto& entity2 : broadphase_entities) {
-								auto& target_collider = entity2.GetComponent<CollisionComponent>().collider;
+							auto& target_collider{ entity2.GetComponent<CollisionComponent>().collider };
 								if (engine::collision::DynamicAABBvsAABB(rb.velocity, collider, target_collider, info.manifold)) {
 									info.entity = entity2;
 									collisions.emplace_back(info);
@@ -151,24 +153,24 @@ static std::vector<std::pair<ecs::Entity, Collision>> CollisionRoutine(std::vect
 	// Static collision detection for objects which have moved due to sweeps (dynamic AABBs).
 	// Important note: The static check mostly prevents objects from preferring to stay inside each other if both are dynamic (altough this still occurs in circumstances where the resolution would result in another static collision).
 	for (auto [broadphase_entities, entity, transform, rigid_body, collision_component] : static_check) {
-			auto& collider = collision_component.collider;
+		auto& collider{ collision_component.collider };
 			// Check if there is currently an overlap with any other collider.
 			for (auto& entity2 : broadphase_entities) {
-					auto& transform2 = entity2.GetComponent<TransformComponent>();
-					auto& collision2 = entity2.GetComponent<CollisionComponent>();
-					bool skip = false;
+					auto& transform2{ entity2.GetComponent<TransformComponent>() };
+					auto& collision2{ entity2.GetComponent<CollisionComponent>() };
+					bool skip{ false };
 					// Do not check against self.
 					// Do not check against excluded entity tags.
 					if (entity == entity2 || HasExcludedTag(entity, collision2.ignored_tag_types) || HasExcludedTag(entity2, collision_component.ignored_tag_types)) {
 						skip = true;
 					}
-					auto& oCollider = collision2.collider;
+					auto& oCollider{ collision2.collider };
 					if (!skip && engine::collision::AABBvsAABB(collider, oCollider)) {
-						V2_double normal = { 0.0, 0.0 };
-						auto collision_depth = engine::collision::IntersectionAABBvsAABB(collider, oCollider, normal);
+						V2_double normal;
+						auto collision_depth{ engine::collision::IntersectionAABBvsAABB(collider, oCollider, normal) };
 						if (!collision_depth.IsZero()) { // Static collision occured.
 							if constexpr (!std::is_same_v<S, void>) {
-								auto collision = Collision{ entity2, CollisionManifold{ normal } };
+								Collision collision{ entity2, CollisionManifold{ normal } };
 								final_collisions.emplace_back(entity, collision);
 							} else {
 								// Resolve static collision.

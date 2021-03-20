@@ -18,7 +18,7 @@ struct Renderer {
 	void Clear();
 	void Present();
 	void Destroy();
-	SDL_Renderer* renderer = nullptr;
+	SDL_Renderer* renderer{ nullptr };
 };
 
 } // namespace engine
