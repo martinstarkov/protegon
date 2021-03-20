@@ -22,7 +22,7 @@ public:
 	void Render();
 	void Reset();
 private:
-	Particle test_particle{ {}, {}, {}, 0, engine::ORANGE, engine::GREY, 10, 0, 0, 0.15 };
+	Particle test_particle{ {}, {}, {}, engine::ORANGE, engine::GREY, 10, 0, 0, 0, 0.15 };
 	ParticleManager particles{ 300 };
 
 	void mine(ecs::Entity& entity, Collision& collision);
