@@ -78,6 +78,7 @@ public:
 		}
 
     }
+
 	void Render() {
 		auto& scene{ Scene::Get() };
 		auto& world{ *scene.world };

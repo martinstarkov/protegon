@@ -19,6 +19,8 @@ public:
 	virtual const AABB& GetInfo() const = 0;
 	virtual void Unload() = 0;
 	virtual void Init(const AABB& chunk_info, const V2_int& tile_size) = 0;
+	virtual void InitBackground(const ValueNoise<float>& noise) = 0;
+	virtual void RenderBackground() = 0;
 	virtual void Generate(const ValueNoise<float>& noise) = 0;
 	virtual void SetNewChunk(bool state) = 0;
 	virtual ecs::Manager& GetManager() = 0;
@@ -34,7 +36,8 @@ public:
 	// Destroys all grid entities.
 	virtual void Unload() override final;
 	virtual void Init(const AABB& chunk_info, const V2_int& tile_size) override final;
-	virtual void Update() override final {}
+	virtual void InitBackground(const ValueNoise<float>& noise) override {}
+	virtual void Update() override {}
 	virtual void SetNewChunk(bool state) override final {
 		new_chunk_ = state;
 	}
@@ -42,11 +45,17 @@ public:
 		return manager_;
 	}
 	friend bool operator==(const Chunk& a, const Chunk& b);
+	virtual void RenderBackground() override final;
 protected:
+	Texture background_texture_;
 	ecs::Manager manager_;
 	std::size_t GetIndex(const V2_int& relative_coordinate) const;
 	V2_int tile_size_;
 	V2_int tile_count_;
+	// info_.position is the top left pixel where the chunk starts.
+	// info_.position / tile_size is the tile position
+	// info_.position / info_.size is the chunk's chunk coordinate (e.g. (0, 1)).
+	// info_.size is the number of tiles inside a chunk.
 	AABB info_;
 	std::vector<ecs::Entity> grid_;
 	bool new_chunk_{ true };

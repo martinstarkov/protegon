@@ -16,6 +16,7 @@
 
 #include "renderer/Window.h"
 #include "renderer/Renderer.h"
+#include "renderer/Texture.h"
 #include "renderer/TextureManager.h"
 #include "renderer/FontManager.h"
 #include "renderer/SpriteMap.h"

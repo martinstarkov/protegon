@@ -156,6 +156,7 @@ void ChunkManager::Update() {
 			if (new_chunk) {
 				auto chunk = world.MakeChunk();
 				chunk->Init(potential_chunk, tile_size_);
+				chunk->InitBackground(noise);
 				chunk->Generate(noise);
 				chunk->SetNewChunk(true);
 				world_chunks_.emplace_back(chunk);
@@ -175,8 +176,13 @@ void ChunkManager::Reset() {
 }
 
 void ChunkManager::Render() {
+
+	for (auto chunk : world_chunks_) {
+		chunk->RenderBackground();
+	}
+
 	// TODO: Consider a better way of doing this?
-	for (auto& chunk : world_chunks_) {
+	for (auto chunk : world_chunks_) {
 		chunk->GetManager().UpdateSystem<TileRenderSystem>();
 	}
 	particles.Render();

@@ -6,12 +6,23 @@ namespace engine {
 
 Chunk::~Chunk() {
 	manager_.~Manager();
+	background_texture_.Destroy();
+}
+
+void Chunk::RenderBackground() {
+	auto& scene{ Scene::Get() };
+	AABB destination{
+		scene.WorldToScreen(info_.position),
+		scene.Scale(info_.size * tile_size_)
+	};
+	TextureManager::RenderTexture(Engine::GetRenderer(), background_texture_, nullptr, &destination);
 }
 
 void Chunk::Init(const AABB& chunk_info, const V2_int& tile_size) {
 	info_ = chunk_info;
-	this->tile_size_ = tile_size;
-	auto count = info_.size.x * info_.size.y;
+	tile_size_ = tile_size;
+	auto count{ info_.size.x * info_.size.y };
+
 	// Generate new empty grid.
 	if (grid_.size() != count) {
 		manager_.Reserve((std::size_t)count);
