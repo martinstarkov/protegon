@@ -7,7 +7,8 @@
 enum class TileType {
 	NONE,
 	T_IRON,
-	T_SILVER
+	T_SILVER,
+	T_COBALT
 };
 
 struct Tile {
@@ -29,8 +30,6 @@ inline TileType SelectTile(float probability, const std::vector<Tile>& tiles) {
 class BoxChunk : public engine::Chunk {
 public:
 	virtual void InitBackground(const engine::ValueNoise<float>& noise) override final {
-		engine::Timer timer;
-		timer.Start();
 		background_texture_ = engine::Texture{ engine::Engine::GetRenderer(), info_.size, engine::PixelFormat::ARGB8888, engine::TextureAccess::STREAMING };
 
 		void* pixels{ nullptr };
@@ -83,7 +82,6 @@ public:
 
 		background_texture_.Unlock();
 
-		LOG("InitBoxChunkBackground: " << timer.ElapsedSeconds());
 	}
 	virtual void Generate(const engine::ValueNoise<float>& noise) override final {
 
@@ -96,7 +94,7 @@ public:
 
 		auto noise_map{ std::move(noise.GenerateNoiseMap(relative_position, octaves, frequency, lacunarity, persistence)) };
 
-		std::vector<Tile> tiles{ { TileType::T_SILVER, 0.1f }, { TileType::T_IRON, 0.15f } };
+		std::vector<Tile> tiles{ { TileType::T_COBALT, 0.08f }, { TileType::T_SILVER, 0.1f }, { TileType::T_IRON, 0.15f } };
 
 		for (std::size_t y{ 0 }; y < info_.size.y; ++y) {
 			std::size_t index{ y * static_cast<std::size_t>(info_.size.x) };
@@ -117,6 +115,7 @@ public:
 						color = { 69,24,4, 255 };
 						entity.AddComponent<CollisionComponent>(absolute_position, tile_size_);
 						entity.GetComponent<RenderComponent>().original_color = color;
+						entity.AddComponent<MaterialComponent>(Material::M_IRON);
 						break;
 					}
 					case TileType::T_SILVER: {
@@ -125,6 +124,17 @@ public:
 						color = { 240,231,231, 255 };
 						entity.AddComponent<CollisionComponent>(absolute_position, tile_size_);
 						entity.GetComponent<RenderComponent>().original_color = color;
+						entity.AddComponent<MaterialComponent>(Material::M_SILVER);
+						break;
+					}
+					case TileType::T_COBALT:
+					{
+						CreateBox(entity, absolute_position, tile_size_, "./resources/textures/tree.png", {});
+						auto& color{ entity.AddComponent<RenderComponent>().color };
+						color = { 15,0,171, 255 };
+						entity.AddComponent<CollisionComponent>(absolute_position, tile_size_);
+						entity.GetComponent<RenderComponent>().original_color = color;
+						entity.AddComponent<MaterialComponent>(Material::M_COBALT);
 						break;
 					}
 					default:
