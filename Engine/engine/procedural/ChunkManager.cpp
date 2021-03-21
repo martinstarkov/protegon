@@ -9,11 +9,17 @@
 
 #include "ecs/components/TransformComponent.h"
 #include "ecs/components/CollisionComponent.h"
+#include "inventory/Inventory.h"
 
 #include "ecs/systems/HitboxRenderSystem.h"
 #include "ecs/systems/CollisionSystem.h"
 
 namespace engine {
+
+ChunkManager::ChunkManager(const V2_int& tile_size, const V2_int& tiles_per_chunk) :
+	tile_size_{ tile_size },
+	tiles_per_chunk_{ tiles_per_chunk },
+	noise{ tiles_per_chunk, 2000 } {}
 
 void ChunkManager::mine(ecs::Entity& entity, Collision& collision) {
 	auto& c = collision.entity.GetComponent<CollisionComponent>();
@@ -35,6 +41,12 @@ void ChunkManager::mine(ecs::Entity& entity, Collision& collision) {
 	particles.Emit(test_particle);
 	test_particle.velocity = scale * V2_double{ 1, -1 };
 	particles.Emit(test_particle);
+	if (entity.HasComponent<InventoryComponent>()) {
+		auto& inventory{ entity.GetComponent<InventoryComponent>() };
+		auto& material{ collision.entity.GetComponent<MaterialComponent>() };
+		inventory.AddTile(material.type);
+		//LOG("Inventory: (" << inventory.GetTileSlot(Material::M_IRON).count << ", " << inventory.GetTileSlot(Material::M_IRON).texture_key << "), (" << inventory.GetTileSlot(Material::M_SILVER).count << ", " << inventory.GetTileSlot(Material::M_SILVER).texture_key << ")");
+	}
 	collision.entity.Destroy();
 }
 

@@ -13,10 +13,7 @@ namespace engine {
 
 class ChunkManager {
 public:
-	ChunkManager(const V2_int& tile_size, const V2_int& tiles_per_chunk) :
-		tile_size_{ tile_size },
-		tiles_per_chunk_{ tiles_per_chunk },
-		noise{ tiles_per_chunk } {}
+	ChunkManager(const V2_int& tile_size, const V2_int& tiles_per_chunk);
 	void Update();
 	void Clear();
 	void Render();

@@ -42,7 +42,7 @@ void FontManager::Draw(const char* text, const V2_int& position, const V2_int& s
 	TextureManager::RenderTexture(Engine::GetRenderer(), GetFont(text), NULL, &rect);
 }
 
-void FontManager::RemoveFont(const char* font_key) {
+void FontManager::Unload(const char* font_key) {
 	auto key{ Hasher::HashCString(font_key) };
 	auto it{ font_map_.find(key) };
 	if (it != std::end(font_map_)) {
