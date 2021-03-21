@@ -6,12 +6,11 @@
 #include "systems/Systems.h"
 #include "core/SurfaceWorld.h"
 
-using namespace engine;
-
 class Game : public engine::Engine {
 public:
 	std::vector<engine::Image> images;
 	void Init() {
+		using namespace engine;
 		auto& scene{ Scene::Get() };
 
 		scene.world = new SurfaceWorld();
@@ -46,6 +45,7 @@ public:
 	}
 
     void Update() {
+		using namespace engine;
 		auto& scene{ Scene::Get() };
 		auto& world{ *scene.world };
 		auto& world_manager{ world.GetManager() };
@@ -80,6 +80,7 @@ public:
     }
 
 	void Render() {
+		using namespace engine;
 		auto& scene{ Scene::Get() };
 		auto& world{ *scene.world };
 		auto& world_manager{ world.GetManager() };
@@ -99,7 +100,7 @@ private:
 
 int main(int argc, char* args[]) { // sdl main override
 
-	Engine::Start<Game>("Protegon", 512 * 2, 600, 60);
+	engine::Engine::Start<Game>("Protegon", 512 * 2, 600, 60);
 
     return 0;
 }

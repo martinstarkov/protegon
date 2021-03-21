@@ -71,6 +71,8 @@ void ChunkManager::Update() {
 		for (auto chunk : player_chunks_) {
 			chunk->GetManager().Refresh();
 		}
+	} else {
+		player.GetManager().UpdateSystem<CollisionSystem>();
 	}
 
 
@@ -176,11 +178,9 @@ void ChunkManager::Reset() {
 }
 
 void ChunkManager::Render() {
-
 	for (auto chunk : world_chunks_) {
 		chunk->RenderBackground();
 	}
-
 	// TODO: Consider a better way of doing this?
 	for (auto chunk : world_chunks_) {
 		chunk->GetManager().UpdateSystem<TileRenderSystem>();

@@ -5,7 +5,6 @@
 namespace engine {
 
 Chunk::~Chunk() {
-	manager_.~Manager();
 	background_texture_.Destroy();
 }
 
