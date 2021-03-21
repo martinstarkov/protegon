@@ -38,6 +38,8 @@
 #include "ui/UIComponents.h"
 #include "ui/UISystem.h"
 
+#include "inventory/Inventory.h"
+
 #include "math/Functions.h"
 #include "math/Hasher.h"
 #include "math/Matrix.h"

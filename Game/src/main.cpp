@@ -29,6 +29,7 @@ public:
 		world_manager.AddSystem<StateMachineSystem>();
 		world_manager.AddSystem<DirectionSystem>();
 		world_manager.AddSystem<CameraSystem>();
+		world_manager.AddSystem<InventorySystem>();
 		scene.ui_manager.AddSystem<RenderSystem>();
 		scene.ui_manager.AddSystem<StateMachineSystem>();
 		scene.ui_manager.AddSystem<UIRenderer>();
@@ -93,6 +94,8 @@ public:
 		world_manager.UpdateSystem<HitboxRenderSystem>();
 
 		scene.ui_manager.UpdateSystem<UIRenderer>();
+
+		world_manager.UpdateSystem<InventorySystem>();
 	}
 private:
 	ecs::Entity title_screen;

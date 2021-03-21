@@ -275,6 +275,11 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
   <ItemGroup>
     <ClInclude Include="engine\core\Engine.h" />
     <ClInclude Include="engine\core\World.h" />
+    <ClInclude Include="engine\inventory\Inventory.h" />
+    <ClInclude Include="engine\inventory\InventoryComponent.h" />
+    <ClInclude Include="engine\inventory\InventorySystem.h" />
+    <ClInclude Include="engine\inventory\Material.h" />
+    <ClInclude Include="engine\inventory\MaterialComponent.h" />
     <ClInclude Include="engine\procedural\Chunk.h" />
     <ClInclude Include="engine\core\Scene.h" />
     <ClInclude Include="engine\ecs\Components.h" />

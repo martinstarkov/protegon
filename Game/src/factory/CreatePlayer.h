@@ -13,7 +13,15 @@ inline ecs::Entity CreatePlayer(V2_double position, const V2_int& size, ecs::Man
 	entity.AddComponent<InputComponent>();
 	entity.AddComponent<PlayerController>(player_acceleration);
 	entity.AddComponent<RigidBodyComponent>(RigidBody{ UNIVERSAL_DRAG, gravity, 1, 0.8, player_acceleration });
-	
+
+	auto& inventory{ entity.AddComponent<InventoryComponent>() };
+	engine::TextureManager::Load("iron_inventory", "resources/textures/iron.png");
+	engine::TextureManager::Load("silver_inventory", "resources/textures/silver.png");
+	engine::TextureManager::Load("cobalt_inventory", "resources/textures/cobalt.png");
+	inventory.tiles.emplace(Material::M_IRON, TileSlot{ "iron_inventory", 0 });
+	inventory.tiles.emplace(Material::M_SILVER, TileSlot{ "silver_inventory", 0 });
+	inventory.tiles.emplace(Material::M_COBALT, TileSlot{ "cobalt_inventory", 0 });
+
 	entity.AddComponent<SpriteSheetComponent>();
 	auto& sm{ entity.AddComponent<StateMachineComponent>() };
 	sm.AddStateMachine<WalkStateMachine>("walk_state_machine", entity);
