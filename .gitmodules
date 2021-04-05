@@ -1,0 +1,3 @@
+[submodule "protegon/vendor/SDL"]
+	path = protegon/vendor/SDL
+	url = https://github.com/libsdl-org/SDL.git
