@@ -78,9 +78,6 @@
     <ClCompile Include="engine\math\Hasher.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="engine\debug\AllocationMetrics.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="engine\procedural\Chunk.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -354,15 +351,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\math\Functions.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\debug\AllocationMetrics.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\debug\Logger.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\debug\Debug.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\ui\UISystem.h">

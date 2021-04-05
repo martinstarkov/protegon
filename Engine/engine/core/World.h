@@ -13,7 +13,7 @@ public:
 	virtual void SetPlayer(const ecs::Entity& new_player) = 0;
 	virtual ecs::Entity& GetPlayer() = 0;
 	virtual ecs::Manager& GetManager() = 0;
-	virtual Chunk* MakeChunk() = 0;
+	virtual Chunk* MakeChunk() { return nullptr; }
 };
 
 template <typename T>
