@@ -247,6 +247,7 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
   <ItemGroup>
     <ClCompile Include="engine\core\Engine.cpp" />
     <ClCompile Include="engine\core\World.cpp" />
+    <ClCompile Include="engine\debugging\AllocationMetrics.cpp" />
     <ClCompile Include="engine\procedural\Chunk.cpp" />
     <ClCompile Include="engine\core\Scene.cpp" />
     <ClCompile Include="engine\event\EventHandler.cpp" />
@@ -275,6 +276,9 @@ xcopy /d /y "$(SolutionDir)libraries\SDL2_ttf\licenses\*" "$(SolutionDir)$(Confi
   <ItemGroup>
     <ClInclude Include="engine\core\Engine.h" />
     <ClInclude Include="engine\core\World.h" />
+    <ClInclude Include="engine\debugging\AllocationMetrics.h" />
+    <ClInclude Include="engine\debugging\Debug.h" />
+    <ClInclude Include="engine\debugging\Logger.h" />
     <ClInclude Include="engine\inventory\Inventory.h" />
     <ClInclude Include="engine\inventory\InventoryComponent.h" />
     <ClInclude Include="engine\inventory\InventorySystem.h" />

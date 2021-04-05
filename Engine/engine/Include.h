@@ -47,7 +47,7 @@
 #include "math/Noise.h"
 #include "math/RNG.h"
 
-#include "debug/Debug.h"
+#include "debugging/Debug.h"
 #include "utils/Timer.h"
 #include "utils/Direction.h"
 #include "utils/TypeTraits.h"

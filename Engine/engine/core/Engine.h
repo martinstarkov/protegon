@@ -9,7 +9,7 @@
 #include "renderer/Window.h"
 #include "renderer/Renderer.h"
 
-#include "debug/Debug.h"
+#include "debugging/Debug.h"
 #include "math/Vector2.h"
 
 #include "utils/Timer.h"

@@ -93,6 +93,9 @@
     <ClCompile Include="engine\renderer\particles\ParticleManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="engine\debugging\AllocationMetrics.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="engine\core\Engine.h">
@@ -438,6 +441,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\inventory\InventorySystem.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\debugging\AllocationMetrics.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\debugging\Debug.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\debugging\Logger.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
