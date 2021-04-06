@@ -104,6 +104,13 @@
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)vendor\SDL2\lib\$(PlatformTarget)\;$(ProjectDir)vendor\SDL2_image\lib\$(PlatformTarget)\;$(ProjectDir)vendor\SDL2_ttf\lib\$(PlatformTarget)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
+    <PostBuildEvent>
+      <Command>xcopy /y /d /q "$(ProjectDir)vendor\SDL2\lib\$(PlatformTarget)\*.dll" "$(OutDir)"
+xcopy /y /d /q "$(ProjectDir)vendor\SDL2_image\lib\$(PlatformTarget)\*.dll" "$(OutDir)"
+xcopy /y /d /q "$(ProjectDir)vendor\SDL2_ttf\lib\$(PlatformTarget)\*.dll" "$(OutDir)"
+xcopy /y /d /q "$(ProjectDir)vendor\SDL2_image\licenses\*" "$(OutDir)licenses\"
+xcopy /y /d /q "$(ProjectDir)vendor\SDL2_ttf\licenses\*" "$(OutDir)licenses\"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -131,6 +138,13 @@
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)vendor\SDL2\lib\$(PlatformTarget)\;$(ProjectDir)vendor\SDL2_image\lib\$(PlatformTarget)\;$(ProjectDir)vendor\SDL2_ttf\lib\$(PlatformTarget)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
+    <PostBuildEvent>
+      <Command>xcopy /y /d /q "$(ProjectDir)vendor\SDL2\lib\$(PlatformTarget)\*.dll" "$(OutDir)"
+xcopy /y /d /q "$(ProjectDir)vendor\SDL2_image\lib\$(PlatformTarget)\*.dll" "$(OutDir)"
+xcopy /y /d /q "$(ProjectDir)vendor\SDL2_ttf\lib\$(PlatformTarget)\*.dll" "$(OutDir)"
+xcopy /y /d /q "$(ProjectDir)vendor\SDL2_image\licenses\*" "$(OutDir)licenses\"
+xcopy /y /d /q "$(ProjectDir)vendor\SDL2_ttf\licenses\*" "$(OutDir)licenses\"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -154,6 +168,13 @@
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)vendor\SDL2\lib\$(PlatformTarget)\;$(ProjectDir)vendor\SDL2_image\lib\$(PlatformTarget)\;$(ProjectDir)vendor\SDL2_ttf\lib\$(PlatformTarget)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
+    <PostBuildEvent>
+      <Command>xcopy /y /d /q "$(ProjectDir)vendor\SDL2\lib\$(PlatformTarget)\*.dll" "$(OutDir)"
+xcopy /y /d /q "$(ProjectDir)vendor\SDL2_image\lib\$(PlatformTarget)\*.dll" "$(OutDir)"
+xcopy /y /d /q "$(ProjectDir)vendor\SDL2_ttf\lib\$(PlatformTarget)\*.dll" "$(OutDir)"
+xcopy /y /d /q "$(ProjectDir)vendor\SDL2_image\licenses\*" "$(OutDir)licenses\"
+xcopy /y /d /q "$(ProjectDir)vendor\SDL2_ttf\licenses\*" "$(OutDir)licenses\"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -181,12 +202,20 @@
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)vendor\SDL2\lib\$(PlatformTarget)\;$(ProjectDir)vendor\SDL2_image\lib\$(PlatformTarget)\;$(ProjectDir)vendor\SDL2_ttf\lib\$(PlatformTarget)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
+    <PostBuildEvent>
+      <Command>xcopy /y /d /q "$(ProjectDir)vendor\SDL2\lib\$(PlatformTarget)\*.dll" "$(OutDir)"
+xcopy /y /d /q "$(ProjectDir)vendor\SDL2_image\lib\$(PlatformTarget)\*.dll" "$(OutDir)"
+xcopy /y /d /q "$(ProjectDir)vendor\SDL2_ttf\lib\$(PlatformTarget)\*.dll" "$(OutDir)"
+xcopy /y /d /q "$(ProjectDir)vendor\SDL2_image\licenses\*" "$(OutDir)licenses\"
+xcopy /y /d /q "$(ProjectDir)vendor\SDL2_ttf\licenses\*" "$(OutDir)licenses\"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\Engine.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Engine.h" />
+    <ClInclude Include="src\Test.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
