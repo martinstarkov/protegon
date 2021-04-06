@@ -27,13 +27,13 @@ void Manifold::Initialize(const V2_double& gravity, double dt) {
     sf = std::sqrt(A->static_friction * A->static_friction);
     df = std::sqrt(A->dynamic_friction * A->dynamic_friction);
 
-    for (std::uint32_t i = 0; i < contact_count; ++i) {
+    for (std::uint32_t i{ 0 }; i < contact_count; ++i) {
         // Calculate radii from COM to contact
-        auto ra = contacts[i] - A->position;
-        auto rb = contacts[i] - B->position;
+        auto ra{ contacts[i] - A->position };
+        auto rb{ contacts[i] - B->position };
 
-        auto rv = B->velocity + CrossProduct(B->angular_velocity, rb) -
-            A->velocity - CrossProduct(A->angular_velocity, ra);
+        auto rv{ B->velocity + CrossProduct(B->angular_velocity, rb) -
+            A->velocity - CrossProduct(A->angular_velocity, ra) };
 
 
         // Determine if we should perform a resting collision or not
