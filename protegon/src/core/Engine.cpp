@@ -104,8 +104,8 @@ void Engine::Loop() {
 }
 
 void Engine::Clean() {
-	TextureManager::Clean();
-	FontManager::Clean();
+	//TextureManager::Clean();
+	//FontManager::Clean();
 	window_.Destroy();
 	renderer_.Destroy();
 	// Quit SDL subsystems.

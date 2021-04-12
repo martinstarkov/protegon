@@ -19,15 +19,15 @@ namespace engine {
 namespace internal {
 
 // Default window title.
-constexpr const char* WINDOW_TITLE = "Unspecified Window Title";
+constexpr const char* WINDOW_TITLE{ "Unspecified Window Title" };
 // Default window position centered.
-constexpr int CENTERED = 0x2FFF0000u | 0; // Equivalent to SDL_WINDOWPOS_CENTERED.
+constexpr int CENTERED{ 0x2FFF0000u | 0 }; // Equivalent to SDL_WINDOWPOS_CENTERED.
 // Default window width.
-constexpr int WINDOW_WIDTH = 600;
+constexpr int WINDOW_WIDTH{ 600 };
 // Default window height.
-constexpr int WINDOW_HEIGHT = 480;
+constexpr int WINDOW_HEIGHT{ 480 };
 // Default FPS.
-constexpr std::size_t FPS = 60;
+constexpr std::size_t FPS{ 60 };
 
 } // namespace internal
 

@@ -9,8 +9,8 @@ struct Particle {
 	V2_double position;
 	V2_double velocity;
 	V2_double acceleration;
-	Color start_color{ engine::WHITE };
-	Color end_color{ engine::BLACK };
+	Color start_color{ colors::WHITE };
+	Color end_color{ colors::BLACK };
 	double start_radius{ 0.0 };
 	double end_radius{ 5.0 };
 	double rotation{ 0.0 };
