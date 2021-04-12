@@ -28,12 +28,8 @@
     <ClCompile Include="src\math\Hasher.cpp" />
     <ClCompile Include="src\parsing\Image.cpp" />
     <ClCompile Include="src\parsing\ImageProcessor.cpp" />
-    <ClCompile Include="src\physics\Body.cpp" />
-    <ClCompile Include="src\physics\Circle.cpp" />
-    <ClCompile Include="src\physics\Collision.cpp" />
+    <ClCompile Include="src\physics\collision\Collision.cpp" />
     <ClCompile Include="src\physics\Manifold.cpp" />
-    <ClCompile Include="src\physics\Polygon.cpp" />
-    <ClCompile Include="src\physics\RigidBody.cpp" />
     <ClCompile Include="src\procedural\Chunk.cpp" />
     <ClCompile Include="src\procedural\ChunkManager.cpp" />
     <ClCompile Include="src\renderer\Camera.cpp" />
@@ -47,6 +43,8 @@
     <ClCompile Include="src\renderer\Window.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\ecs\components\ShapeComponent.h" />
+    <ClInclude Include="src\physics\shapes\AABB.h" />
     <ClInclude Include="src\core\Engine.h" />
     <ClInclude Include="src\core\Scene.h" />
     <ClInclude Include="src\core\World.h" />
@@ -63,7 +61,7 @@
     <ClInclude Include="src\ecs\components\LifetimeComponent.h" />
     <ClInclude Include="src\ecs\components\ParticleComponent.h" />
     <ClInclude Include="src\ecs\components\PlayerController.h" />
-    <ClInclude Include="src\ecs\components\RenderComponent.h" />
+    <ClInclude Include="src\ecs\components\ColorComponent.h" />
     <ClInclude Include="src\ecs\components\RigidBodyComponent.h" />
     <ClInclude Include="src\ecs\components\SizeComponent.h" />
     <ClInclude Include="src\ecs\components\SpriteComponent.h" />
@@ -100,10 +98,8 @@
     <ClInclude Include="src\math\Vector2.h" />
     <ClInclude Include="src\parsing\Image.h" />
     <ClInclude Include="src\parsing\ImageProcessor.h" />
-    <ClInclude Include="src\physics\Body.h" />
-    <ClInclude Include="src\physics\Circle.h" />
-    <ClInclude Include="src\physics\Collision.h" />
-    <ClInclude Include="src\physics\collision\CollisionFunctions.h" />
+    <ClInclude Include="src\physics\shapes\Circle.h" />
+    <ClInclude Include="src\physics\collision\Collision.h" />
     <ClInclude Include="src\physics\collision\dynamic\DynamicAABBvsAABB.h" />
     <ClInclude Include="src\physics\collision\static\AABBvsAABB.h" />
     <ClInclude Include="src\physics\collision\static\CirclevsAABB.h" />
@@ -112,9 +108,9 @@
     <ClInclude Include="src\physics\collision\static\PointvsAABB.h" />
     <ClInclude Include="src\physics\Manifold.h" />
     <ClInclude Include="src\physics\Physics.h" />
-    <ClInclude Include="src\physics\Polygon.h" />
     <ClInclude Include="src\physics\RigidBody.h" />
-    <ClInclude Include="src\physics\Shape.h" />
+    <ClInclude Include="src\physics\shapes\Shape.h" />
+    <ClInclude Include="src\physics\Transform.h" />
     <ClInclude Include="src\procedural\Chunk.h" />
     <ClInclude Include="src\procedural\ChunkManager.h" />
     <ClInclude Include="src\protegon.h" />
@@ -150,7 +146,6 @@
     <ClInclude Include="src\statemachine\states\movement\WalkState.h" />
     <ClInclude Include="src\ui\components\ActiveColorComponent.h" />
     <ClInclude Include="src\ui\components\BackgroundColorComponent.h" />
-    <ClInclude Include="src\ui\components\EventComponent.h" />
     <ClInclude Include="src\ui\components\FocusedColorComponent.h" />
     <ClInclude Include="src\ui\components\HoverColorComponent.h" />
     <ClInclude Include="src\ui\components\MouseOffsetComponent.h" />
