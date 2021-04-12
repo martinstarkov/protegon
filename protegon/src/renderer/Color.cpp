@@ -33,4 +33,8 @@ std::ostream& operator<<(std::ostream & os, const Color& color) {
 	return os;
 }
 
+bool Color::IsTransparent() const { 
+	return a == 0; 
+};
+
 } // namespace engine

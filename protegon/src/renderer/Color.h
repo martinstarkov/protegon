@@ -26,7 +26,7 @@ struct Color {
 	std::uint8_t g{ 0 };
 	std::uint8_t b{ 0 };
 	std::uint8_t a{ 0 };
-	bool IsTransparent() const { return a == 0; };
+	bool IsTransparent() const;
 };
 
 template <typename U>
@@ -42,26 +42,30 @@ inline bool operator!=(const Color& lhs, const Color& rhs) {
 	return !(lhs == rhs);
 }
 
-#define TRANSPARENT Color{ 0, 0, 0, 0 }
-#define COLORLESS TRANSPARENT
-#define WHITE Color{ 255, 255, 255, 255 }
-#define BLACK Color{ 0, 0, 0, 255 }
-#define RED Color{ 255, 0, 0, 255 }
-#define DARK_RED Color{ 128, 0, 0, 255 }
-#define ORANGE Color{ 255, 165, 0, 255 }
-#define YELLOW Color{ 255, 255, 0, 255 }
-#define GOLD Color{ 255, 215, 0, 255 }
-#define GREEN Color{ 0, 128, 0, 255 }
-#define LIME Color{ 0, 255, 0, 255 }
-#define DARK_GREEN Color{ 0, 100, 0, 255 }
-#define BLUE Color{ 0, 0, 255, 255 }
-#define DARK_BLUE Color{ 0, 0, 128, 255 }
-#define CYAN Color{ 0, 255, 255, 255 }
-#define TEAL Color{ 0, 128, 128, 255 }
-#define MAGENTA Color{ 255, 0, 255, 255 }
-#define PURPLE Color{ 128, 0, 128, 255 }
-#define PINK Color{ 255, 192, 203, 255 }
-#define GREY Color{ 128, 128, 128, 255 }
-#define SILVER Color{ 192, 192, 192, 255 }
+namespace colors {
+
+inline const Color TRANSPARENT{ 0, 0, 0, 0 };
+inline const Color COLORLESS{ TRANSPARENT };
+inline const Color WHITE{ 255, 255, 255, 255 };
+inline const Color BLACK{ 0, 0, 0, 255 };
+inline const Color RED{ 255, 0, 0, 255 };
+inline const Color DARK_RED{ 128, 0, 0, 255 };
+inline const Color ORANGE{ 255, 165, 0, 255 };
+inline const Color YELLOW{ 255, 255, 0, 255 };
+inline const Color GOLD{ 255, 215, 0, 255 };
+inline const Color GREEN{ 0, 128, 0, 255 };
+inline const Color LIME{ 0, 255, 0, 255 };
+inline const Color DARK_GREEN{ 0, 100, 0, 255 };
+inline const Color BLUE{ 0, 0, 255, 255 };
+inline const Color DARK_BLUE{ 0, 0, 128, 255 };
+inline const Color CYAN{ 0, 255, 255, 255 };
+inline const Color TEAL{ 0, 128, 128, 255 };
+inline const Color MAGENTA{ 255, 0, 255, 255 };
+inline const Color PURPLE{ 128, 0, 128, 255 };
+inline const Color PINK{ 255, 192, 203, 255 };
+inline const Color GREY{ 128, 128, 128, 255 };
+inline const Color SILVER{ 192, 192, 192, 255 };
+
+} // namespace colors
 
 } // namespace engine
