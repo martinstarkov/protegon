@@ -21,6 +21,9 @@ public:
         stop_time_ = std::chrono::steady_clock::now();
         running_ = false;
     }
+    bool IsRunning() const {
+        return running_;
+    }
     template <typename Type = std::int64_t>
     Type ElapsedMilliseconds() const {
         return ElapsedTime<Type, std::chrono::milliseconds::period>().count();

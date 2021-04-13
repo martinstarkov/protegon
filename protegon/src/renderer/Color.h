@@ -18,6 +18,7 @@ struct Color {
 	Color(Color&& move) = default;
 	Color& operator=(const Color& copy) = default;
 	Color& operator=(Color&& move) = default;
+	std::uint32_t ToUint32() const;
 	static Color RandomSolid();
 	static Color Random();
 	operator SDL_Color() const;
@@ -30,8 +31,8 @@ struct Color {
 };
 
 template <typename U>
-inline Color Lerp(const Color& color_1, const Color& color_2, U amount) {
-	return { engine::math::Lerp<std::uint8_t>(color_1.r, color_2.r, amount), engine::math::Lerp<std::uint8_t>(color_1.g, color_2.g, amount), engine::math::Lerp<std::uint8_t>(color_1.b, color_2.b, amount), engine::math::Lerp<std::uint8_t>(color_1.a, color_2.a, amount) };
+inline Color Lerp(const Color& A, const Color& B, U amount) {
+	return { engine::math::Lerp<std::uint8_t>(A.r, B.r, amount), engine::math::Lerp<std::uint8_t>(A.g, B.g, amount), engine::math::Lerp<std::uint8_t>(A.b, B.b, amount), engine::math::Lerp<std::uint8_t>(A.a, B.a, amount) };
 }
 
 inline bool operator==(const Color& lhs, const Color& rhs) {

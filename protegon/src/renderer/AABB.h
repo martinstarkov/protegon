@@ -28,11 +28,4 @@
 //		broadphase_box.size.y = velocity.y > 0.0 ? velocity.y + size.y : size.y - velocity.y;
 //		return broadphase_box;
 //	}
-//	friend std::ostream& operator<<(std::ostream& os, const AABB& obj) {
-//		os << '[' << obj.position << ',' << obj.size << ']';
-//		return os;
-//	}
-//	friend bool operator==(const AABB& A, const AABB& B) {
-//		return A.position == B.position && A.size == B.size;
-//	}
 //};

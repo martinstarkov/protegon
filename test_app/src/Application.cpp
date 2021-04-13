@@ -16,6 +16,7 @@ public:
 		return obj;
 	}
 	void Init() {
+
 		m = manager.CreateEntity();
 		auto circles = 5;
 		auto aabbs = 5;

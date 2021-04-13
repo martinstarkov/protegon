@@ -15,7 +15,6 @@
 #include "ecs/components/CollisionComponent.h"
 #include "ecs/components/PlayerController.h"
 #include "ecs/components/InputComponent.h"
-#include "ecs/components/DirectionComponent.h"
 #include "ecs/components/SpriteSheetComponent.h"
 #include "ecs/components/SizeComponent.h"
 #include "ecs/components/CameraComponent.h"

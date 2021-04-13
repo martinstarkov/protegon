@@ -1,27 +1,38 @@
 #include "Color.h"
 
 #include <SDL.h>
-#include <random>
+
+#include "math/RNG.h"
 
 namespace engine {
 
 Color::Color(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a) : r{ r }, g{ g }, b{ b }, a{ a } {}
 
 // Source: https://stackoverflow.com/questions/51004638/how-to-get-uint8-t-data-of-uint32-t
-Color::Color(std::uint32_t color) : r{ (color >> (8 * 0)) & 0xff }, g{ (color >> (8 * 1)) & 0xff }, b{ (color >> (8 * 2)) & 0xff }, a{ (color >> (8 * 3)) & 0xff } {}
+Color::Color(std::uint32_t color) : r{ color & 255 }, g{ (color >> 8) & 255 }, b{ (color >> 16) & 0xff }, a{ (color >> 24) & 255 } {}
+
+std::uint32_t Color::ToUint32() const {
+	return r + (g << 8) + (b << 16) + (a << 24);
+}
 
 Color Color::RandomSolid() {
-	std::minstd_rand gen{ std::random_device{}() };
-	std::uniform_int_distribution<int> dist(0, 255);
-	// TODO: Test this.
-	return Color{ static_cast<std::uint8_t>(dist(gen)), static_cast<std::uint8_t>(dist(gen)), static_cast<std::uint8_t>(dist(gen)), 255 };
+	RNG<std::uint16_t> rng{ 0, 255 };
+	return Color{ 
+		static_cast<std::uint8_t>(rng()), 
+		static_cast<std::uint8_t>(rng()),
+		static_cast<std::uint8_t>(rng()),
+		255 
+	};
 }
 
 Color Color::Random() {
-	std::minstd_rand gen{ std::random_device{}() };
-	std::uniform_int_distribution<int> dist(0, 255);
-	// TODO: Test this.
-	return Color{ static_cast<std::uint8_t>(dist(gen)), static_cast<std::uint8_t>(dist(gen)), static_cast<std::uint8_t>(dist(gen)), static_cast<std::uint8_t>(dist(gen)) };
+	RNG<std::uint16_t> rng{ 0, 255 };
+	return Color{
+		static_cast<std::uint8_t>(rng()),
+		static_cast<std::uint8_t>(rng()),
+		static_cast<std::uint8_t>(rng()),
+		static_cast<std::uint8_t>(rng())
+	};
 }
 
 Color::operator SDL_Color() const {

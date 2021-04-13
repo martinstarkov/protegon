@@ -24,7 +24,7 @@ public:
 	RNG(T min, T max) : dist{ min, max } {}
 	// Seed and range constructor.
 	RNG(std::uint32_t seed, T min, T max) : gen{ seed }, dist{ min, max } {}
-	
+
 	T operator()() {
 		return dist(gen);
 	}

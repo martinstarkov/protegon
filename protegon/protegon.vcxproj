@@ -37,7 +37,7 @@
     <ClCompile Include="src\renderer\FontManager.cpp" />
     <ClCompile Include="src\renderer\particles\ParticleManager.cpp" />
     <ClCompile Include="src\renderer\Renderer.cpp" />
-    <ClCompile Include="src\renderer\SpriteMap.cpp" />
+    <ClCompile Include="src\renderer\sprites\SpriteMap.cpp" />
     <ClCompile Include="src\renderer\Texture.cpp" />
     <ClCompile Include="src\renderer\TextureManager.cpp" />
     <ClCompile Include="src\renderer\Window.cpp" />
@@ -56,7 +56,6 @@
     <ClInclude Include="src\ecs\components\CameraComponent.h" />
     <ClInclude Include="src\ecs\components\CollisionComponent.h" />
     <ClInclude Include="src\ecs\components\Component.h" />
-    <ClInclude Include="src\ecs\components\DirectionComponent.h" />
     <ClInclude Include="src\ecs\components\InputComponent.h" />
     <ClInclude Include="src\ecs\components\LifetimeComponent.h" />
     <ClInclude Include="src\ecs\components\ParticleComponent.h" />
@@ -123,7 +122,7 @@
     <ClInclude Include="src\renderer\particles\Particle.h" />
     <ClInclude Include="src\renderer\particles\ParticleManager.h" />
     <ClInclude Include="src\renderer\Renderer.h" />
-    <ClInclude Include="src\renderer\SpriteMap.h" />
+    <ClInclude Include="src\renderer\sprites\SpriteMap.h" />
     <ClInclude Include="src\renderer\Texture.h" />
     <ClInclude Include="src\renderer\TextureManager.h" />
     <ClInclude Include="src\renderer\Window.h" />
@@ -144,16 +143,6 @@
     <ClInclude Include="src\statemachine\states\movement\JumpState.h" />
     <ClInclude Include="src\statemachine\states\movement\RunState.h" />
     <ClInclude Include="src\statemachine\states\movement\WalkState.h" />
-    <ClInclude Include="src\ui\components\ActiveColorComponent.h" />
-    <ClInclude Include="src\ui\components\BackgroundColorComponent.h" />
-    <ClInclude Include="src\ui\components\FocusedColorComponent.h" />
-    <ClInclude Include="src\ui\components\HoverColorComponent.h" />
-    <ClInclude Include="src\ui\components\MouseOffsetComponent.h" />
-    <ClInclude Include="src\ui\components\TextComponent.h" />
-    <ClInclude Include="src\ui\components\UIComponent.h" />
-    <ClInclude Include="src\ui\UI.h" />
-    <ClInclude Include="src\ui\UIComponents.h" />
-    <ClInclude Include="src\ui\UISystem.h" />
     <ClInclude Include="src\utils\Direction.h" />
     <ClInclude Include="src\utils\Timer.h" />
     <ClInclude Include="src\utils\TypeTraits.h" />

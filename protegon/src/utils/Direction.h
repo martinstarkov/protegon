@@ -1,5 +1,7 @@
 #pragma once
 
+namespace engine {
+
 enum class Direction {
 	RIGHT = 1,
 	LEFT = 2,
@@ -7,3 +9,5 @@ enum class Direction {
 	DOWN = 4,
 	COUNT
 };
+
+} // namespace engine

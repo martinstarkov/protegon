@@ -17,8 +17,10 @@
 #include "renderer/Window.h"
 #include "renderer/Renderer.h"
 #include "renderer/Texture.h"
+#include "renderer/Color.h"
 #include "renderer/TextureManager.h"
 #include "renderer/FontManager.h"
+
 //#include "renderer/SpriteMap.h"
 
 //#include "parsing/ImageProcessor.h"
@@ -36,9 +38,6 @@
 
 //#include "renderer/particles/ParticleManager.h"
 
-//#include "ui/UI.h"
-//#include "ui/UIComponents.h"
-//#include "ui/UISystem.h"
 
 #include "inventory/Inventory.h"
 
@@ -50,6 +49,7 @@
 #include "math/RNG.h"
 
 #include "debugging/Debug.h"
+
 #include "utils/Timer.h"
 #include "utils/Direction.h"
 #include "utils/TypeTraits.h"

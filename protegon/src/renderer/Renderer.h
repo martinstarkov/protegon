@@ -16,6 +16,7 @@ struct Renderer {
 	SDL_Renderer* operator&() const;
 	bool IsValid() const;
 	void Clear();
+	// Display renderer objects to screen.
 	void Present();
 	void Destroy();
 	SDL_Renderer* renderer{ nullptr };
