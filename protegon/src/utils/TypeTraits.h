@@ -30,6 +30,9 @@ using convertible = std::enable_if_t<std::is_convertible_v<From, To>, bool>;
 template <typename Base, typename Derived>
 using is_base_of = std::enable_if_t<std::is_base_of_v<Base, Derived>, bool>;
 
+template <typename T>
+using is_default_constructible = std::enable_if_t<std::is_default_constructible_v<T>, bool>;
+
 template <typename Type, typename ...Types>
 using are_type = std::enable_if_t<std::conjunction_v<Type, Types...>, bool>;
 
