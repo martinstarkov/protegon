@@ -11,7 +11,23 @@
 
 namespace engine {
 
-//std::unordered_map<std::size_t, Texture> TextureManager::texture_map_;
+std::unordered_map<std::size_t, Texture> TextureManager::texture_map_;
+
+std::uint32_t& TextureManager::GetTexturePixel(void* pixels, const int pitch, const V2_int& position) {
+	// Source: http://sdl.beuc.net/sdl.wiki/Pixel_Access
+	//int bpp = surface->format->BytesPerPixel;
+	int bpp{ sizeof(std::uint32_t) };
+	/* Here p is the address to the pixel we want to retrieve */
+	auto p{ (std::uint8_t*)pixels + position.y * pitch + position.x * bpp };
+	return *(std::uint32_t*)p;
+}
+
+void TextureManager::Clear() {
+	for (auto& pair : texture_map_) {
+		pair.second.Destroy();
+	}
+	texture_map_.clear();
+}
 
 //void TextureManager::Load(const char* texture_key, const char* texture_path) {
 //	assert(texture_path != "" && "Cannot load empty texture path");
@@ -62,64 +78,56 @@ namespace engine {
 //	SDL_RenderCopy(renderer, texture, src, dest);
 //}
 
-std::uint32_t& TextureManager::GetTexturePixel(void* pixels, const int pitch, const V2_int& position) {
-	// Source: http://sdl.beuc.net/sdl.wiki/Pixel_Access
-	//int bpp = surface->format->BytesPerPixel;
-	int bpp{ sizeof(std::uint32_t) };
-	/* Here p is the address to the pixel we want to retrieve */
-	auto p{ (std::uint8_t*)pixels + position.y * pitch + position.x * bpp };
-	return *(std::uint32_t*)p;
-}
 
-Color TextureManager::GetDefaultRendererColor() {
-	return DEFAULT_COLOR;
-}
+//Color TextureManager::GetDefaultRendererColor() {
+//	return DEFAULT_COLOR;
+//}
 
-void TextureManager::SetDrawColor(const Color& color) {
-	SDL_SetRenderDrawColor(Engine::GetRenderer(), color.r, color.g, color.b, color.a);
-}
+//void TextureManager::SetDrawColor(const Color& color) {
+//	SDL_SetRenderDrawColor(Engine::GetDisplay().second, color.r, color.g, color.b, color.a);
+//}
 
-void TextureManager::SetDrawColor(const Renderer& renderer, const Color& color) {
-	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-}
+//void TextureManager::SetDrawColor(const Renderer& renderer, const Color& color) {
+//	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+//}
 
-void TextureManager::DrawPoint(const V2_int& point, const Color& color) {
-	SetDrawColor(color);
-	SDL_RenderDrawPoint(Engine::GetRenderer(), point.x, point.y);
-	SetDrawColor(DEFAULT_COLOR);
-}
+//void TextureManager::DrawPoint(const V2_int& point, const Color& color) {
+//	SetDrawColor(color);
+//	SDL_RenderDrawPoint(Engine::GetDisplay().second, point.x, point.y);
+//	SetDrawColor(DEFAULT_COLOR);
+//}
 
-void TextureManager::DrawPoint(const Renderer& renderer, const V2_int& point, const Color& color) {
-	SetDrawColor(renderer, color);
-	SDL_RenderDrawPoint(renderer, point.x, point.y);
-	SetDrawColor(renderer, DEFAULT_COLOR);
-}
+//void TextureManager::DrawPoint(const Renderer& renderer, const V2_int& point, const Color& color) {
+//	SetDrawColor(renderer, color);
+//	SDL_RenderDrawPoint(renderer, point.x, point.y);
+//	SetDrawColor(renderer, DEFAULT_COLOR);
+//}
 
-void TextureManager::DrawLine(const V2_int& origin, const V2_int& destination, const Color& color) {
-	SetDrawColor(color);
-	SDL_RenderDrawLine(Engine::GetRenderer(), origin.x, origin.y, destination.x, destination.y);
-	SetDrawColor(DEFAULT_COLOR);
-}
+//void TextureManager::DrawLine(const V2_int& origin, const V2_int& destination, const Color& color) {
+//	SetDrawColor(color);
+//	SDL_RenderDrawLine(Engine::GetDisplay().second, origin.x, origin.y, destination.x, destination.y);
+//	SetDrawColor(DEFAULT_COLOR);
+//}
 
-void TextureManager::DrawLine(const Renderer& renderer, const V2_int& origin, const V2_int& destination, const Color& color) {
-	SetDrawColor(renderer, color);
-	SDL_RenderDrawLine(renderer, origin.x, origin.y, destination.x, destination.y);
-	SetDrawColor(renderer, DEFAULT_COLOR);
-}
+//void TextureManager::DrawLine(const Renderer& renderer, const V2_int& origin, const V2_int& destination, const Color& color) {
+//	SetDrawColor(renderer, color);
+//	SDL_RenderDrawLine(renderer, origin.x, origin.y, destination.x, destination.y);
+//	SetDrawColor(renderer, DEFAULT_COLOR);
+//}
 
-void TextureManager::DrawSolidRectangle(const V2_int& position, const V2_int& size, const Color& color) {
-	SetDrawColor(color);
-	SDL_Rect rect{ position.x, position.y, size.x, size.y };
-	SDL_RenderFillRect(Engine::GetRenderer(), &rect);
-	SetDrawColor(DEFAULT_COLOR);
-}
+//void TextureManager::DrawSolidRectangle(const V2_int& position, const V2_int& size, const Color& color) {
+//	SetDrawColor(color);
+//	SDL_Rect rect{ position.x, position.y, size.x, size.y };
+//	SDL_RenderFillRect(Engine::GetDisplay().second, &rect);
+//	SetDrawColor(DEFAULT_COLOR);
+//}
 
-void TextureManager::DrawRectangle(const V2_int& position, const V2_int& size, const Color& color) {
-	SetDrawColor(color);
-	SDL_Rect rect{ position.x, position.y, size.x, size.y };
-	SDL_RenderDrawRect(Engine::GetRenderer(), &rect);
-	SetDrawColor(DEFAULT_COLOR);
-}
+//void TextureManager::DrawRectangle(const V2_int& position, const V2_int& size, const Color& color) {
+//	SetDrawColor(color);
+//	SDL_Rect rect{ position.x, position.y, size.x, size.y };
+//	SDL_RenderDrawRect(Engine::GetDisplay().second, &rect);
+//	SetDrawColor(DEFAULT_COLOR);
+//}
 
 //void TextureManager::DrawRectangle(const V2_int& position, const V2_int& size, const double rotation, const Color& color, V2_double* center_of_rotation) {
 //	SetDrawColor(color);
@@ -145,73 +153,66 @@ void TextureManager::DrawRectangle(const V2_int& position, const V2_int& size, c
 //	}
 //}
 
-void TextureManager::DrawCircle(const V2_int& center, const double radius, const Color& color) {
-	int r{ engine::math::Round(radius) };
-	V2_int position{ r, 0 };
-    // Printing the initial point on the axes
-    // after translation 
-	DrawPoint(center + position, color);
-    // When radius is zero only a single 
-    // point will be printed 
-    if (radius > 0) {
-		DrawPoint(V2_int{ position.x + center.x, -position.y + center.y }, color);
-		DrawPoint(V2_int{ position.y + center.x, position.x + center.y }, color);
-		DrawPoint(V2_int{ -position.y + center.x, position.x + center.y }, color);
-    }
+//void TextureManager::DrawCircle(const V2_int& center, const double radius, const Color& color) {
+//	int r{ engine::math::Round(radius) };
+//	V2_int position{ r, 0 };
+//    // Printing the initial point on the axes
+//    // after translation 
+//	DrawPoint(center + position, color);
+//    // When radius is zero only a single 
+//    // point will be printed 
+//    if (radius > 0) {
+//		DrawPoint(V2_int{ position.x + center.x, -position.y + center.y }, color);
+//		DrawPoint(V2_int{ position.y + center.x, position.x + center.y }, color);
+//		DrawPoint(V2_int{ -position.y + center.x, position.x + center.y }, color);
+//    }
+//
+//    // Initialising the value of P 
+//	int P{ 1 - r };
+//    while (position.x > position.y) {
+//		position.y++;
+//
+//        // Mid-point is inside or on the perimeter 
+//        if (P <= 0)
+//            P = P + 2 * position.y + 1;
+//
+//        // Mid-point is outside the perimeter 
+//        else {
+//			position.x--;
+//            P = P + 2 * position.y - 2 * position.x + 1;
+//        }
+//
+//        // All the perimeter points have already been printed 
+//        if (position.x < position.y)
+//            break;
+//
+//        // Printing the generated point and its reflection 
+//        // in the other octants after translation 
+//		DrawPoint(V2_int{ position.x + center.x, position.y + center.y }, color);
+//		DrawPoint(V2_int{ -position.x + center.x, position.y + center.y }, color);
+//		DrawPoint(V2_int{ position.x + center.x, -position.y + center.y }, color);
+//		DrawPoint(V2_int{ -position.x + center.x, -position.y + center.y }, color);
+//
+//        // If the generated point is on the line x = y then  
+//        // the perimeter points have alreadposition.y been printed 
+//        if (position.x != position.y) {
+//			DrawPoint(V2_int{ position.y + center.x, position.x + center.y }, color);
+//			DrawPoint(V2_int{ -position.y + center.x, position.x + center.y }, color);
+//			DrawPoint(V2_int{ position.y + center.x, -position.x + center.y }, color);
+//			DrawPoint(V2_int{ -position.y + center.x, -position.x + center.y }, color);
+//        }
+//    }
+//}
 
-    // Initialising the value of P 
-	int P{ 1 - r };
-    while (position.x > position.y) {
-		position.y++;
-
-        // Mid-point is inside or on the perimeter 
-        if (P <= 0)
-            P = P + 2 * position.y + 1;
-
-        // Mid-point is outside the perimeter 
-        else {
-			position.x--;
-            P = P + 2 * position.y - 2 * position.x + 1;
-        }
-
-        // All the perimeter points have already been printed 
-        if (position.x < position.y)
-            break;
-
-        // Printing the generated point and its reflection 
-        // in the other octants after translation 
-		DrawPoint(V2_int{ position.x + center.x, position.y + center.y }, color);
-		DrawPoint(V2_int{ -position.x + center.x, position.y + center.y }, color);
-		DrawPoint(V2_int{ position.x + center.x, -position.y + center.y }, color);
-		DrawPoint(V2_int{ -position.x + center.x, -position.y + center.y }, color);
-
-        // If the generated point is on the line x = y then  
-        // the perimeter points have alreadposition.y been printed 
-        if (position.x != position.y) {
-			DrawPoint(V2_int{ position.y + center.x, position.x + center.y }, color);
-			DrawPoint(V2_int{ -position.y + center.x, position.x + center.y }, color);
-			DrawPoint(V2_int{ position.y + center.x, -position.x + center.y }, color);
-			DrawPoint(V2_int{ -position.y + center.x, -position.x + center.y }, color);
-        }
-    }
-}
-
-void TextureManager::DrawSolidCircle(const V2_int& center, const double radius, const Color& color) {
-	int r{ engine::math::Round(radius) };
-	for (auto y{ -r }; y <= r; ++y) {
-		for (auto x{ -r }; x <= r; ++x) {
-			if (x * x + y * y <= r * r) {
-				DrawPoint({ center.x + x, center.y + y }, color);
-			}
-		}
-	}
-}
-
-//void TextureManager::Clean() {
-//	for (auto& pair : texture_map_) {
-//		pair.second.Destroy();
+//void TextureManager::DrawSolidCircle(const V2_int& center, const double radius, const Color& color) {
+//	int r{ engine::math::Round(radius) };
+//	for (auto y{ -r }; y <= r; ++y) {
+//		for (auto x{ -r }; x <= r; ++x) {
+//			if (x * x + y * y <= r * r) {
+//				DrawPoint({ center.x + x, center.y + y }, color);
+//			}
+//		}
 //	}
-//	texture_map_.clear();
 //}
 
 //void TextureManager::RemoveTexture(const char* texture_key) {
