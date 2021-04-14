@@ -22,13 +22,10 @@ enum class PixelFormat : std::uint32_t {
 	RGBA8888 = 373694468 // SDL_PIXELFORMAT_RGBA8888 = 373694468
 };
 
+// Textures must be freed using Destroy().
 class Texture {
 public:
 	Texture() = default;
-	// Note that textures have internal heap allocated
-	// memory which must be freed by calling Destroy().
-	~Texture();
-	Texture(SDL_Texture* texture);
 	Texture(const Renderer& renderer, const V2_int& size, PixelFormat format, TextureAccess texture_access);
 	Texture(const Renderer& renderer, const Surface& surface);
 	SDL_Texture* operator=(SDL_Texture* texture);
@@ -44,7 +41,10 @@ public:
 	// Sets all texture pixels to black.
 	void Clear();
 private:
-	SDL_Texture* texture{ nullptr };
+
+	Texture(SDL_Texture* texture);
+
+	SDL_Texture* texture_{ nullptr };
 };
 
 } // namespace engine

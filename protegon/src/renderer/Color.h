@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <iostream>
 
-#include "math/Functions.h"
+#include "math/Math.h"
 
 struct SDL_Color;
 
@@ -11,24 +11,30 @@ namespace engine {
 
 class Color {
 public:
-	std::uint8_t r{ 0 };
-	std::uint8_t g{ 0 };
-	std::uint8_t b{ 0 };
-	std::uint8_t a{ 0 };
+	static Color RandomSolid();
+	static Color Random();
+
 	Color() = default;
 	~Color() = default;
 	Color(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a);
 	Color(std::uint32_t color);
 	Color(const Color& copy) = default;
 	Color(Color&& move) = default;
+
 	Color& operator=(const Color& copy) = default;
 	Color& operator=(Color&& move) = default;
-	std::uint32_t ToUint32() const;
-	static Color RandomSolid();
-	static Color Random();
-	operator SDL_Color() const;
 	friend std::ostream& operator<<(std::ostream& os, const Color& color);
+	operator SDL_Color() const;
+	
+	std::uint32_t ToUint32() const;
 	bool IsTransparent() const;
+
+	std::uint8_t r{ 0 };
+	std::uint8_t g{ 0 };
+	std::uint8_t b{ 0 };
+	std::uint8_t a{ 0 };
+private:
+	Color(const SDL_Color& color);
 };
 
 template <typename U>
@@ -46,10 +52,12 @@ inline bool operator!=(const Color& lhs, const Color& rhs) {
 
 namespace colors {
 
+inline const Color BLACK{ 0, 0, 0, 255 };
+inline const Color WHITE{ 255, 255, 255, 255 };
+inline const Color DEFAULT_DRAW_COLOR{ BLACK };
+inline const Color DEFAULT_BACKGROUND_COLOR{ WHITE };
 inline const Color TRANSPARENT{ 0, 0, 0, 0 };
 inline const Color COLORLESS{ TRANSPARENT };
-inline const Color WHITE{ 255, 255, 255, 255 };
-inline const Color BLACK{ 0, 0, 0, 255 };
 inline const Color RED{ 255, 0, 0, 255 };
 inline const Color DARK_RED{ 128, 0, 0, 255 };
 inline const Color ORANGE{ 255, 165, 0, 255 };
