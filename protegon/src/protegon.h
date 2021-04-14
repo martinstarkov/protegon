@@ -44,7 +44,7 @@
 
 #include "inventory/Inventory.h"
 
-#include "math/Functions.h"
+#include "math/Math.h"
 #include "math/Hasher.h"
 #include "math/Matrix.h"
 #include "math/Vector2.h"

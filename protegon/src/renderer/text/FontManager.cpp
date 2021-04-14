@@ -27,7 +27,7 @@ void FontManager::Unload(const char* name) {
 
 Font FontManager::GetFont(std::size_t font_key) {
 	auto it{ font_map_.find(font_key) };
-	assert(it != std::end(font_map_) && "Could not find font in font manger");
+	assert(it != std::end(font_map_) && "Could not find font in font manager");
 	return it->second;
 }
 

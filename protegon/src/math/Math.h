@@ -16,6 +16,8 @@ namespace engine {
 
 namespace math {
 
+// Definition of PI
+// @tparam T - Precision of PI (type: int, float, double, etc).
 template <typename T, 
     type_traits::is_number<T> = true>
 inline T const PI{ std::acos(-T(1)) };

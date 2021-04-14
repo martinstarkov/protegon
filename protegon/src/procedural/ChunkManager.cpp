@@ -1,6 +1,6 @@
 //#include "ChunkManager.h"
 //
-//#include "math/Functions.h"
+//#include "math/Math.h"
 //#include "physics/collision/static/AABBvsAABB.h"
 //#include "core/Engine.h"
 //#include "core/Scene.h"

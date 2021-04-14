@@ -8,8 +8,10 @@
 
 namespace engine {
 
+// TODO: FIX!
+
 SpriteMap::SpriteMap(const char* path) : path{ path } {
-	TextureManager::Load(path, path);
+	//TextureManager::Load(path, path);
 }
 
 void SpriteMap::AddAnimation(const char* name, const Animation& animation) {

@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "math/RNG.h"
-#include "math/Functions.h"
+#include "math/Math.h"
 #include "math/Vector2.h"
 #include "utils/TypeTraits.h"
 

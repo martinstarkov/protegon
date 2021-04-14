@@ -22,8 +22,10 @@ public:
 	// Destroys all fonts and clears internal font storage.
 	static void Clear();
 private:
-	static Font GetFont(std::size_t font_key);
 	friend class Text;
+
+	static Font GetFont(std::size_t font_key);
+
 	// Font object storage.
 	static std::unordered_map<std::size_t, Font> font_map_;
 };

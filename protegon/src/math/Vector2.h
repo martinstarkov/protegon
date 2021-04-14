@@ -11,7 +11,7 @@
 #include <cstdlib> // std::size_t
 #include <cassert> // assert
 
-#include "math/Functions.h"
+#include "math/Math.h"
 #include "math/RNG.h"
 
 // TODO: Write tests for clamp.
