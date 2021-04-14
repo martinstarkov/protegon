@@ -13,7 +13,8 @@ void Camera::ClampScale(const V2_double& max_scale) {
 }
 
 void Camera::Center(const V2_double& point, const V2_double& size) {
-	offset = point + size / 2.0 - engine::Engine::GetScreenSize() / 2.0 / scale;
+	auto window_size{ Engine::GetDisplay().first.GetSize() };
+	offset = point + size / 2.0 - window_size / 2.0 / scale;
 }
 
 } // namespace engine

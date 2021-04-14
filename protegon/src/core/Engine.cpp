@@ -6,6 +6,7 @@
 
 #include <cassert>
 
+#include "renderer/Color.h"
 #include "renderer/text/FontManager.h"
 #include "renderer/TextureManager.h"
 #include "event/InputHandler.h"
@@ -14,43 +15,77 @@ namespace engine {
 
 Engine* Engine::instance_{ nullptr };
 
-V2_int Engine::GetScreenSize() { return GetInstance().window_size_; }
-int Engine::GetScreenWidth() { return GetInstance().window_size_.x; }
-int Engine::GetScreenHeight() { return GetInstance().window_size_.y; }
-std::size_t Engine::GetFPS() { return GetInstance().fps_; }
-double Engine::GetInverseFPS() { return GetInstance().inverse_fps_; }
-std::int64_t Engine::GetTimeSinceStart() const { return timer_.ElapsedMilliseconds(); }
-void Engine::Delay(std::int64_t milliseconds) { SDL_Delay(static_cast<std::uint32_t>(milliseconds)); }
-void Engine::Quit() { GetInstance().running_ = false; }
-
-Window& Engine::GetWindow() {
-	auto& engine{ GetInstance() };
-	assert(engine.window_.IsValid() && "Cannot return uninitialized window");
-	return engine.window_;
+std::int64_t Engine::GetTimeSinceStart() const {
+	return timer_.ElapsedMilliseconds();
 }
 
-Renderer& Engine::GetRenderer() {
-	auto& engine{ GetInstance() };
-	assert(engine.renderer_.IsValid() && "Cannot return uninitialized renderer");
-	return engine.renderer_;
+void Engine::Delay(std::int64_t milliseconds) {
+	SDL_Delay(static_cast<std::uint32_t>(milliseconds));
 }
 
-Renderer& Engine::GetRenderer(std::size_t index) {
-	auto& engine{ GetInstance() };
-	assert(engine.renderer_.IsValid() && "Cannot return uninitialized renderer");
-	return engine.renderer_;
+void Engine::Quit() {
+	LOG("Primary window closed. Exiting program...");
+	GetInstance().running_ = false;
 }
 
-std::pair<Window, Renderer> Engine::GenerateWindow(const char* title, const V2_int& position, const V2_int& size, std::uint32_t window_flags, std::uint32_t renderer_flags) {
+Display Engine::GetDisplay(std::size_t display_index) {
 	auto& engine{ GetInstance() };
-	assert(engine.sdl_init_ == 0 && "Cannot generate window before initializing SDL");
-	Window window{ title, position, size, window_flags };
+	if (display_index == 0) {
+		display_index = engine.primary_display_index_;
+	}
+	auto it{ engine.display_map_.find(display_index) };
+	assert(it != engine.display_map_.end() && "Cannot retrieve display with the given display index");
+	assert(it->second.first.IsValid() && "Cannot retrieve display with destroyed window");
+	assert(it->second.second.IsValid() && "Cannot retrieve display with destroyed renderer");
+	return it->second;
+}
+
+void Engine::Quit(const Window& window) {
+	auto& engine{ GetInstance() };
+	for (auto it{ engine.display_map_.begin() }; it != engine.display_map_.end();) {
+		if (it->second.first.window_ == window) {
+			it->second.second.Destroy(); // Destroy renderer.
+			it->second.first.Destroy(); // Destroy window.
+			if (it->first == engine.primary_display_index_) {
+				Quit();
+				break;
+			} else {
+				engine.display_map_.erase(it++); // Erase display from engine.
+			}
+		} else {
+			++it;
+		}
+	}
+}
+
+std::size_t Engine::GetPrimaryDisplayIndex() {
+	return GetInstance().primary_display_index_;
+}
+
+Display Engine::CreateDisplay(const char* window_title,
+							  const V2_int& window_position,
+							  const V2_int& window_size,
+							  std::uint32_t window_flags, 
+							  std::uint32_t renderer_flags) {
+	auto& engine{ GetInstance() };
+	assert(engine.init_ && "Cannot generate window before initializing SDL components");
+	auto display_index{ ++engine.next_display_index_ };
+	Window window{ 
+		window_title, 
+		window_position, 
+		window_size, 
+		display_index, 
+		window_flags 
+	};
 	if (window.IsValid()) {
-		LOG("Created window successfully");
+		// Display index is stored into the Renderer via the Window object (in Renderer constructor).
 		Renderer renderer{ window, -1, renderer_flags };
 		if (renderer.IsValid()) {
-			LOG("Created renderer successfully");
-			return { window, renderer };
+			auto pair{ 
+				engine.display_map_.emplace(display_index, Display{ window, renderer }) 
+			};
+			assert(pair.second && "Could not emplace window-renderer display pair into engine");
+			return pair.first->second;
 		}
 		assert(!"SDL failed to create renderer");
 	}
@@ -58,51 +93,112 @@ std::pair<Window, Renderer> Engine::GenerateWindow(const char* title, const V2_i
 	return {};
 }
 
+void Engine::DestroyDisplay(const Window& window) {
+	auto& engine{ GetInstance() };
+	engine.display_map_.erase(window.GetDisplayIndex());
+}
+
+void Engine::DestroyDisplay(const Renderer& renderer) {
+	auto& engine{ GetInstance() };
+	engine.display_map_.erase(renderer.GetDisplayIndex());
+}
+
+void Engine::DestroyDisplay(std::size_t display_index) {
+	auto& engine{ GetInstance() };
+	if (display_index == 0) {
+		display_index = engine.primary_display_index_;
+	}
+	engine.display_map_.erase(display_index);
+}
+
+void Engine::SetDefaultDisplay(const Window& window) {
+	auto& engine{ GetInstance() };
+	engine.primary_display_index_ = window.GetDisplayIndex();
+}
+
+void Engine::SetDefaultDisplay(const Renderer& renderer) {
+	auto& engine{ GetInstance() };
+	engine.primary_display_index_ = renderer.GetDisplayIndex();
+}
+
+void Engine::SetDefaultDisplay(std::size_t display_index) {
+	auto& engine{ GetInstance() };
+	if (display_index == 0) {
+		display_index = engine.primary_display_index_;
+	}
+	engine.primary_display_index_ = display_index;
+}
+
 Engine& Engine::GetInstance() {
 	assert(instance_ != nullptr && "Engine instance could not be created properly");
 	return *instance_;
 }
 
-void Engine::InitSDL(std::uint32_t window_flags, std::uint32_t renderer_flags) {
-	LOG("Initializing SDL...");
-	sdl_init_ = SDL_Init(SDL_INIT_AUDIO | SDL_INIT_EVENTS | SDL_INIT_TIMER | SDL_INIT_VIDEO);
-	if (sdl_init_ == 0) {
-		LOG("Initialized SDL successfully");
-		auto [window, renderer] = GenerateWindow(window_title_, window_position_, window_size_, window_flags, renderer_flags);
-		window_ = window;
-		renderer_ = renderer;
-		LOG("Initializing TTF...");
-		ttf_init_ = TTF_Init();
-		if (ttf_init_ == 0) {
-			LOG("Initialized TTF successfully");
-			LOG("All SDL components fully initialized");
-			return;
-		}
-		assert(!"Failed to initialize true type fonts for SDL");
+void Engine::InitSDLComponents() {
+	assert(!init_ && "Cannot initialize SDL components more than one time");
+	auto sdl_init{ SDL_Init(SDL_INIT_AUDIO |
+							SDL_INIT_EVENTS |
+							SDL_INIT_TIMER |
+							SDL_INIT_VIDEO) };
+	if (sdl_init != 0) {
+		std::cerr << "SDL_Init: " << SDL_GetError() << std::endl;
+		exit(2);
 	}
-	assert(!"SDL failed to initialize");
+	auto img_flags{
+		IMG_INIT_PNG |
+		IMG_INIT_JPG
+	};
+	auto img_init{ IMG_Init(img_flags) };
+	if ((img_init & img_flags) != img_flags) {
+		std::cerr << "IMG_Init: Failed to init required png and jpg support!" << std::endl;
+		std::cerr << "IMG_Init: " << IMG_GetError() << std::endl;
+		exit(3);
+	}
+	auto ttf_init{ TTF_Init() };
+	if (ttf_init == -1) {
+		std::cerr << "TTF_Init: " << TTF_GetError() << std::endl;
+		exit(4);
+	}
+	init_ = true;
+	//LOG("Successfully initialized all SDL components!");
 }
 
 void Engine::Loop() {
 	// Expected time between frames running at a certain FPS.
-	const std::int64_t frame_delay{ static_cast<std::int64_t>(1000.0 * inverse_fps_) };
+	const std::int64_t frame_delay{ math::Round<std::int64_t>(1000.0 / GetFPS()) };
 	while (running_) {
 		auto loop_start{ timer_.ElapsedMilliseconds() };
+
 		InputHandler::Update();
+
+		if (!running_) break;
 
 		// Update everything here.
 		Update();
 
-		renderer_.Clear();
-		TextureManager::SetDrawColor(TextureManager::GetDefaultRendererColor()); // Reset renderer color.
-		
+		if (!running_) break;
+
+		for (auto& display : display_map_) {
+			display.second.second.SetDrawColor(colors::DEFAULT_BACKGROUND_COLOR);
+		}
+
+		for (auto& display : display_map_) {
+			display.second.second.Clear();
+		}
+
+		for (auto& display : display_map_) {
+			display.second.second.SetDrawColor(colors::DEFAULT_DRAW_COLOR);
+		}
+
 		// Render everything here.
 		Render();
 
-		renderer_.Present();
+		for (auto& display : display_map_) {
+			display.second.second.Present();
+		}
 
 		// Cap frame rate at whatever fps_ was set to.
-		auto loop_time = timer_.ElapsedMilliseconds() - loop_start;
+		auto loop_time{ timer_.ElapsedMilliseconds() - loop_start };
 		if (loop_time < frame_delay) {
 			Delay(frame_delay - loop_time);
 		}
@@ -110,14 +206,23 @@ void Engine::Loop() {
 }
 
 void Engine::Clean() {
-	//TextureManager::Clean();
-	//FontManager::Clean();
-	window_.Destroy();
-	renderer_.Destroy();
+	TextureManager::Clear();
+	FontManager::Clear();
+
+	for (auto& pair : display_map_) {
+		pair.second.second.Destroy(); // Destroy renderer.
+		pair.second.first.Destroy(); // Destroy window.
+	}
+	display_map_.clear();
+
+	primary_display_index_ = 0;
+	next_display_index_ = 0;
+
 	// Quit SDL subsystems.
 	TTF_Quit();
 	IMG_Quit();
 	SDL_Quit();
+	init_ = false;
 }
 
 } // namespace engine

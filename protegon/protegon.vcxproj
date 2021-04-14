@@ -94,7 +94,7 @@
     <ClInclude Include="src\inventory\InventorySystem.h" />
     <ClInclude Include="src\inventory\Material.h" />
     <ClInclude Include="src\inventory\MaterialComponent.h" />
-    <ClInclude Include="src\math\Functions.h" />
+    <ClInclude Include="src\math\Math.h" />
     <ClInclude Include="src\math\Hasher.h" />
     <ClInclude Include="src\math\Matrix.h" />
     <ClInclude Include="src\math\Noise.h" />

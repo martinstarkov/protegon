@@ -3,6 +3,7 @@
 #include <cstdlib> // std::size_t
 #include <cstdint> // std::int32_t, etc
 #include <cassert> // assert
+#include <tuple> // std::pair
 
 #include "ecs/ECS.h"
 
@@ -13,21 +14,18 @@
 #include "math/Vector2.h"
 
 #include "utils/Timer.h"
+#include "utils/TypeTraits.h"
 
 namespace engine {
 
+// first - Window object.
+// second - Associated Renderer object.
+using Display = std::pair<Window, Renderer>;
+
 namespace internal {
 
-// Default window title.
-constexpr const char* WINDOW_TITLE{ "Unspecified Window Title" };
-// Default window position centered.
-constexpr int CENTERED{ 0x2FFF0000u | 0 }; // Equivalent to SDL_WINDOWPOS_CENTERED.
-// Default window width.
-constexpr int WINDOW_WIDTH{ 600 };
-// Default window height.
-constexpr int WINDOW_HEIGHT{ 480 };
-// Default FPS.
-constexpr std::size_t FPS{ 60 };
+// Definition for a screen position that is centered on the user's monitor.
+inline const V2_int CENTERED{ 0x2FFF0000u | 0, 0x2FFF0000u | 0 }; // Equivalent to SDL_WINDOWPOS_CENTERED in X and Y.
 
 } // namespace internal
 
@@ -40,66 +38,100 @@ public:
 	// Function which is called after the Update function, each frame of the engine loop.
 	virtual void Render() {}
 
-	template <typename T>
-	static void Start(const char* title = internal::WINDOW_TITLE, int width = internal::WINDOW_WIDTH, int height = internal::WINDOW_HEIGHT, std::size_t fps = internal::FPS, int x = internal::CENTERED, int y = internal::CENTERED, std::uint32_t window_flags = 0, std::uint32_t renderer_flags = 0) {
-		Timer timer;
-		// Timer started before construction of engine object as that may take some time.
-		timer.Start();
-		instance_ = new T{};
+	// Maximum frames per second of the engine loop.
+	// Optional: Cast to desired type.
+	template <typename T = double,
+		type_traits::is_number<T> = true>
+	static T GetFPS() {
 		auto& engine{ GetInstance() };
-		engine.timer_ = timer;
-		engine.window_size_ = { width, height };
-		engine.window_position_ = { x, y };
-		engine.fps_ = fps;
-		// Can be useful to cache this as it is often used for conversions.
-		engine.inverse_fps_ = 1.0 / static_cast<double>(engine.fps_);
-		engine.window_title_ = title;
+		return static_cast<T>(engine.fps_);
+	}
+
+	// Start the engine application.
+	// Creates the primary window and renderer.
+	template <typename T,
+		type_traits::is_base_of<Engine, T> = true,
+		type_traits::is_default_constructible<T> = true>
+	static void Start(const char* window_title, 
+					  const V2_int& window_size, 
+					  std::size_t frames_per_second, 
+					  const V2_int& window_position = internal::CENTERED, 
+					  std::uint32_t window_flags = 0, 
+					  std::uint32_t renderer_flags = 0) {
+		// Create an instance of the derived engine implementation.
+		instance_ = new T{};
+
+		auto& engine{ GetInstance() };
+		// Start the application timer.
+		engine.timer_.Start();
+		engine.InitSDLComponents();
+		// Create the primary window and renderer (display).
+		auto display{ CreateDisplay(window_title, window_position, window_size, window_flags, renderer_flags) };
+		// Set display index to match that of the primary window.
+		engine.primary_display_index_ = display.first.GetDisplayIndex();
+
+		engine.fps_ = frames_per_second;
 		engine.running_ = true;
-		engine.InitSDL(window_flags, renderer_flags);
+		
 		engine.Init();
 		engine.Loop();
 		engine.Clean();
 	}
-	static std::pair<Window, Renderer> GenerateWindow(const char* window_title, const V2_int& window_position, const V2_int& window_size, std::uint32_t window_flags = 0, std::uint32_t renderer_flags = 0);
-	static void Delay(std::int64_t milliseconds);
+	// Returns a display std::pair (first=Window, second=Renderer).
+	// Displays are indexed based on order of creation.
+	// I.e. initial display has index 0, second created display has index 1, etc.
+	static Display CreateDisplay(const char* window_title, 
+								 const V2_int& window_position, 
+								 const V2_int& window_size, 
+								 std::uint32_t window_flags = 0, 
+								 std::uint32_t renderer_flags = 0);
+
+	static Display GetDisplay(std::size_t display_index = 0);
+
+	static void SetDefaultDisplay(std::size_t display_index = 0);
+	static void SetDefaultDisplay(const Window& window);
+	static void SetDefaultDisplay(const Renderer& renderer);
+
+	static void DestroyDisplay(std::size_t display_index = 0);
+	static void DestroyDisplay(const Window& window);
+	static void DestroyDisplay(const Renderer& renderer);
+
 	static void Quit();
 
-	static Window& GetWindow();
-	static Renderer& GetRenderer();
-	static Renderer& GetRenderer(std::size_t index);
-	static V2_int GetScreenSize();
-	static int GetScreenWidth();
-	static int GetScreenHeight();
-	static std::size_t GetFPS();
-	static double GetInverseFPS();
+	static void Delay(std::int64_t milliseconds);
 private:
+	friend class InputHandler;
+	friend class Renderer;
+	static Engine* instance_;
 	static Engine& GetInstance();
-	// Initialize SDL and its sub systems.
-	void InitSDL(std::uint32_t window_flags, std::uint32_t renderer_flags);
+	static void Quit(const Window& window);
+	static std::size_t GetPrimaryDisplayIndex();
+
+	void InitSDLComponents();
 	void Loop();
 	void Clean();
+
 	// Unit: milliseconds.
 	std::int64_t GetTimeSinceStart() const;
 	
 	// Class variables.
 
-	static Engine* instance_;
-	Window window_{ nullptr };
-	Renderer renderer_{ nullptr };
+	// Key: display_index associated with a given Display.
+	// Value: Display object (std::pair containing Window and Renderer respectively).
+	std::unordered_map<std::size_t, Display> display_map_;
+	// First valid display is 1 (pre-incremented).
+	std::size_t next_display_index_{ 0 };
+	// Default display index is the index of the display that is considered the primary one.
+	std::size_t primary_display_index_{ 0 };
+
+	std::size_t fps_{ 60 };
 	bool running_{ false };
+	
 	// Application run timer.
 	Timer timer_;
-	V2_int window_size_{ internal::WINDOW_WIDTH, internal::WINDOW_HEIGHT };
-	V2_int window_position_{ internal::CENTERED, internal::CENTERED };
-	// SDL initialization status, used if multiple windows are created.
-	// 0 == initialized succesfully, 1 == not initialized.
-	int sdl_init_{ 1 };
-	// True type font initialization status, used if multiple windows are created.
-	// 0 == initialized succesfully, 1 == not initialized.
-	int ttf_init_{ 1 };
-	const char* window_title_{ internal::WINDOW_TITLE };
-	std::size_t fps_{ internal::FPS };
-	double inverse_fps_{ 1.0 / static_cast<double>(internal::FPS) };
+	
+	// SDL subsystems' status, true if all initialized successfully, false otherwise.
+	bool init_{ false };
 };
 
 } // namespace engine
