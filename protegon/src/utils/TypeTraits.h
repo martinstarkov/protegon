@@ -30,6 +30,9 @@ using convertible = std::enable_if_t<std::is_convertible_v<From, To>, bool>;
 template <typename Base, typename Derived>
 using is_base_of = std::enable_if_t<std::is_base_of_v<Base, Derived>, bool>;
 
+template <typename Type, typename ...Types>
+using are_type = std::enable_if_t<std::conjunction_v<Type, Types...>, bool>;
+
 template <typename T>
 constexpr auto has_invoke_helper(const T&, int)
 -> decltype(&T::Invoke, &T::Invoke);
