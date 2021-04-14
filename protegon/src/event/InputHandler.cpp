@@ -25,6 +25,16 @@ void InputHandler::Update() {
 	SDL_Event e;
 	while (SDL_PollEvent(&e)) {
 		switch (e.type) {
+			case SDL_WINDOWEVENT: {
+				switch (e.window.event) {
+					case SDL_WINDOWEVENT_CLOSE:
+						Engine::Quit(SDL_GetWindowFromID(e.window.windowID));
+						break;
+					default:
+						break;
+				}
+				break;
+			}
 			case SDL_QUIT:
 				Engine::Quit();
 				break;
@@ -140,7 +150,7 @@ void InputHandler::MouseButtonReleased(MouseState& mouse_button_state, std::uint
 void InputHandler::MouseButtonPressed(MouseState& mouse_button_state, std::uint64_t& mouse_button_pressed_time) {
 	mouse_button_state = MouseState::PRESSED;
 	// How many frames the mouse has been pressed down for.
-	if (mouse_button_pressed_time > static_cast<std::uint64_t>(MOUSE_HOLD_TIME * static_cast<double>(Engine::GetFPS()))) {
+	if (mouse_button_pressed_time > math::Round<std::uint64_t>(MOUSE_HOLD_TIME * Engine::GetFPS())) {
 		mouse_button_state = MouseState::HELD;
 	}
 	++mouse_button_pressed_time;

@@ -7,6 +7,8 @@
 #include "math/Vector2.h"
 #include "event/Keys.h"
 
+// TODO: Make mouse update only be within the window you are looking in.
+
 enum class MouseButton {
 	LEFT,
 	RIGHT,
