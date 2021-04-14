@@ -34,7 +34,7 @@ template <typename T>
 using is_default_constructible = std::enable_if_t<std::is_default_constructible_v<T>, bool>;
 
 template <typename Type, typename ...Types>
-using are_type = std::enable_if_t<std::conjunction_v<Type, Types...>, bool>;
+using are_type = std::enable_if_t<std::conjunction_v<std::is_same<Type, Types>...>, bool>;
 
 template <typename T>
 constexpr auto has_invoke_helper(const T&, int)

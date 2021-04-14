@@ -45,8 +45,9 @@ public:
 	// These are combined into one style and text is renderer in that style.
 	template <typename ...Style,
 		type_traits::are_type<FontStyle, Style...> = true>
-		void SetStyles(Style... styles) {
+	void SetStyles(Style... styles) {
 		style_ = (static_cast<int>(styles) | ...);
+		RefreshTexture();
 	}
 
 	void SetSolidRenderMode();

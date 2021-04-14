@@ -25,6 +25,9 @@ void InputHandler::Update() {
 	SDL_Event e;
 	while (SDL_PollEvent(&e)) {
 		switch (e.type) {
+			case SDL_QUIT:
+				Engine::Quit();
+				break;
 			case SDL_WINDOWEVENT: {
 				switch (e.window.event) {
 					case SDL_WINDOWEVENT_CLOSE:
@@ -35,9 +38,6 @@ void InputHandler::Update() {
 				}
 				break;
 			}
-			case SDL_QUIT:
-				Engine::Quit();
-				break;
 			default:
 				break;
 		}

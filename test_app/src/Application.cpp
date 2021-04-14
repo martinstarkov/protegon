@@ -20,7 +20,7 @@ public:
 	void Init() {
 		timer.Start();
 		FontManager::Load("pixel-50", "resources/fonts/retro_gaming.ttf", 50);
-		t = { "Hello World!", colors::BLACK, "pixel-50", { 50, 50 }, { 100, 50 } };
+		t = { "Hello World!", colors::BLACK, "pixel-50", { 50 + 200, 50 }, { 100, 50 } };
 		m = manager.CreateEntity();
 		auto circles{ 5 };
 		auto aabbs{ 5 };
@@ -42,6 +42,7 @@ public:
 		m.AddComponent<ColorComponent>(colors::BLUE);
 		m.AddComponent<ShapeComponent>(mouse_box);
 		manager.Refresh();
+		t.SetStyles(FontStyle::BOLD, FontStyle::UNDERLINE, FontStyle::STRIKETHROUGH, FontStyle::ITALIC);
 	}
 	void Update() {
 
@@ -88,7 +89,7 @@ public:
 			t.SetArea({ 300, 100 });
 			t.SetShadedRenderMode(colors::YELLOW);
 		} else if (timer.ElapsedSeconds() > 10) {
-			t.SetPosition({ 50, 50 + 100 });
+			t.SetPosition({ 50 + 200, 50 + 100 });
 			t.SetColor(colors::RED);
 			t.SetBlendedRenderMode();
 		} else if (timer.ElapsedSeconds() > 5) {

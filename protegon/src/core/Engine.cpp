@@ -24,7 +24,6 @@ void Engine::Delay(std::int64_t milliseconds) {
 }
 
 void Engine::Quit() {
-	LOG("Primary window closed. Exiting program...");
 	GetInstance().running_ = false;
 }
 
@@ -203,6 +202,7 @@ void Engine::Loop() {
 			Delay(frame_delay - loop_time);
 		}
 	}
+	LOG("Primary window closed. Exiting program...");
 }
 
 void Engine::Clean() {
