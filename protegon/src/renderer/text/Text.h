@@ -2,18 +2,21 @@
 
 #include <string>
 
+#include "core/Engine.h"
+
 #include "math/Vector2.h"
+
+#include "utils/TypeTraits.h"
 
 #include "renderer/Color.h"
 #include "renderer/Texture.h"
 #include "renderer/Renderer.h"
-
+#include "renderer/text/Font.h"
 #include "renderer/text/FontStyle.h"
-
-#include "core/Engine.h"
 
 namespace engine {
 
+// Text must be freed using Destroy().
 class Text {
 public:
 	Text() = default;
@@ -22,30 +25,56 @@ public:
 		 const char* font_name,
 		 const V2_double& position,
 		 const V2_double& area,
-		 FontStyle style = FontStyle::NORMAL,
-		 RenderMode mode = RenderMode::SOLID,
-		 const Renderer& renderer = Engine::GetRenderer());
-	void Draw() const;
-	void SetRenderer(const Renderer& new_renderer);
+		 std::size_t display_index = 0);
+	Text& operator=(Text&& obj) noexcept;
+	// TODO: Add ability to copy text.
+
+	void Destroy();
+
+	void SetDisplay(const Window& window);
+	void SetDisplay(const Renderer& renderer);
+	void SetDisplay(std::size_t display_index = 0);
+
 	void SetContent(const char* new_content);
 	void SetColor(const Color& new_color);
 	void SetFont(const char* new_font_name);
-	void SetShaded(const Color& shading_background_color);
 	void SetPosition(const V2_double& new_position);
 	void SetArea(const V2_double& new_area);
-	void SetStyle(const FontStyle new_style);
+
+	// Function accepts any number of FontStyle enum values (UNDERLINED, BOLD, etc).
+	// These are combined into one style and text is renderer in that style.
+	template <typename ...Style,
+		type_traits::are_type<FontStyle, Style...> = true>
+		void SetStyles(Style... styles) {
+		style_ = (static_cast<int>(styles) | ...);
+	}
+
+	void SetSolidRenderMode();
+	void SetShadedRenderMode(const Color& shading_background_color);
+	void SetBlendedRenderMode();
+	
+	const char* GetContent() const;
+	const char* GetFont() const;
+	Color GetColor() const;
+	Texture GetTexture() const;
+	V2_double GetPosition() const;
+	V2_double GetArea() const;
 private:
+
 	void RefreshTexture();
-	Renderer renderer;
-	std::string content;
-	Color color;
-	std::size_t font_key{ 0 };
-	V2_double position;
-	V2_double area;
-	FontStyle style{ FontStyle::NORMAL };
-	Texture texture;
-	RenderMode mode{ RenderMode::SOLID };
-	Color shading_background_color;
+
+	int style_{ static_cast<int>(FontStyle::NORMAL) };
+	RenderMode mode_{ RenderMode::SOLID };
+	Color shading_background_color_;
+	Texture texture_;
+
+	const char* content_;
+	Color color_;
+	const char* font_name_;
+	std::size_t font_key_{ 0 };
+	V2_double position_;
+	V2_double area_;
+	std::size_t display_index_{ 0 };
 };
 
 } // namespace engine
