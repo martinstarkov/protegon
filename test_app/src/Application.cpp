@@ -5,6 +5,7 @@ using namespace engine;
 class Test : public Engine {
 public:
 	Test() = default;
+	Text t;
 	AABB mouse_box{ { 30, 30 } };
 	Circle mouse_circle{ 30 };
 	template <typename T>
@@ -15,8 +16,11 @@ public:
 		obj.AddComponent<ShapeComponent>(shape);
 		return obj;
 	}
+	Timer timer;
 	void Init() {
-
+		timer.Start();
+		FontManager::Load("pixel-50", "resources/fonts/retro_gaming.ttf", 50);
+		t = { "Hello World!", colors::BLACK, "pixel-50", { 50, 50 }, { 100, 50 } };
 		m = manager.CreateEntity();
 		auto circles = 5;
 		auto aabbs = 5;
@@ -61,6 +65,18 @@ public:
 			}
 		}
 		LOG("");*/
+		if (timer.ElapsedSeconds() > 15) {
+			t.SetContent("Color, size, even shading");
+			t.SetColor(colors::BLUE);
+			t.SetArea({ 300, 100 });
+			t.SetShaded(colors::YELLOW);
+		} else if (timer.ElapsedSeconds() > 10) {
+			t.SetPosition({ 50, 50 + 100 });
+			t.SetColor(colors::RED);
+		} else if (timer.ElapsedSeconds() > 5) {
+			t.SetContent("I can change dynamically!");
+			t.SetArea({ 200, 100 });
+		}
 	}
 	void Render() {
 		auto entities{ manager.GetEntityComponents<TransformComponent, ShapeComponent, ColorComponent>() };
@@ -79,6 +95,7 @@ public:
 				);
 			}
 		}
+		t.Draw();
 	}
 	bool circle{ true };
 	ecs::Entity m;

@@ -3,27 +3,47 @@
 #include <SDL.h>
 
 #include "renderer/Color.h"
+#include "renderer/Surface.h"
+#include "renderer/Renderer.h"
 
 namespace engine {
 
 Texture::~Texture() {}
+
 Texture::Texture(SDL_Texture* texture) : texture{ texture } {}
+
 Texture::Texture(const Renderer& renderer, const V2_int& size, PixelFormat format, TextureAccess texture_access) : texture{ SDL_CreateTexture(renderer, static_cast<std::uint32_t>(format), static_cast<int>(texture_access), size.x, size.y) } {
 	if (!IsValid()) {
-		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create texture: %s\n", SDL_GetError());
+		SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to create texture: %s\n", SDL_GetError());
 		assert(!true);
 	}
 }
-Texture::Texture(const Renderer& renderer, SDL_Surface* surface) : texture{ SDL_CreateTextureFromSurface(renderer, surface) } {
+
+Texture::Texture(const Renderer& renderer, const Surface& surface) {
+	assert(surface.IsValid() && "Cannot create texture from invalid surface");
+	texture = SDL_CreateTextureFromSurface(renderer, surface);
 	if (!IsValid()) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create texture: %s\n", SDL_GetError());
 		assert(!true);
 	}
 }
-SDL_Texture* Texture::operator=(SDL_Texture* texture) { this->texture = texture; return this->texture; }
-Texture::operator SDL_Texture* () const { return texture; }
-bool Texture::IsValid() const { return texture != nullptr; }
-SDL_Texture* Texture::operator&() const { return texture; }
+
+SDL_Texture* Texture::operator=(SDL_Texture* texture) {
+	this->texture = texture;
+	return this->texture;
+}
+
+Texture::operator SDL_Texture* () const {
+	return texture;
+}
+
+bool Texture::IsValid() const {
+	return texture != nullptr;
+}
+
+SDL_Texture* Texture::operator&() const {
+	return texture;
+}
 
 bool Texture::Lock(void** out_pixels, int* out_pitch, V2_int lock_position, V2_int lock_size) {
 	SDL_Rect* lock_rect{ NULL };

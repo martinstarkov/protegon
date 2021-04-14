@@ -5,10 +5,9 @@
 
 #include "math/Vector2.h"
 #include "renderer/Color.h"
-#include "renderer/Flip.h"
-#include "renderer/AABB.h"
 #include "renderer/Renderer.h"
 #include "renderer/Texture.h"
+#include "renderer/sprites/Flip.h"
 
 namespace engine {
 

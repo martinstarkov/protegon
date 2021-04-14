@@ -8,15 +8,16 @@ struct SDL_Window;
 
 namespace engine {
 
-struct Window {
+class Window {
+public:
 	Window() = default;
 	Window(SDL_Window* window);
 	Window(const char* title, const V2_int& position, const V2_int& size, std::uint32_t flags = 0);
-	SDL_Window* operator=(SDL_Window* window);
 	operator SDL_Window* () const;
 	bool IsValid() const;
 	SDL_Window* operator&() const;
 	void Destroy();
+private:
 	SDL_Window* window{ nullptr };
 };
 
