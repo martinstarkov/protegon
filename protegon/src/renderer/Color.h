@@ -9,7 +9,12 @@ struct SDL_Color;
 
 namespace engine {
 
-struct Color {
+class Color {
+public:
+	std::uint8_t r{ 0 };
+	std::uint8_t g{ 0 };
+	std::uint8_t b{ 0 };
+	std::uint8_t a{ 0 };
 	Color() = default;
 	~Color() = default;
 	Color(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a);
@@ -23,10 +28,6 @@ struct Color {
 	static Color Random();
 	operator SDL_Color() const;
 	friend std::ostream& operator<<(std::ostream& os, const Color& color);
-	std::uint8_t r{ 0 };
-	std::uint8_t g{ 0 };
-	std::uint8_t b{ 0 };
-	std::uint8_t a{ 0 };
 	bool IsTransparent() const;
 };
 

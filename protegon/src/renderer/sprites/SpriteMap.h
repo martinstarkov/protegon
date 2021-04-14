@@ -2,7 +2,7 @@
 
 #include <unordered_map> // std::unordered_map
 
-#include "renderer/Animation.h"
+#include "renderer/sprites/Animation.h"
 
 namespace engine {
 

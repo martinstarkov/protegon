@@ -6,7 +6,7 @@
 
 #include <cassert>
 
-#include "renderer/FontManager.h"
+#include "renderer/text/FontManager.h"
 #include "renderer/TextureManager.h"
 #include "event/InputHandler.h"
 
@@ -30,6 +30,12 @@ Window& Engine::GetWindow() {
 }
 
 Renderer& Engine::GetRenderer() {
+	auto& engine{ GetInstance() };
+	assert(engine.renderer_.IsValid() && "Cannot return uninitialized renderer");
+	return engine.renderer_;
+}
+
+Renderer& Engine::GetRenderer(std::size_t index) {
 	auto& engine{ GetInstance() };
 	assert(engine.renderer_.IsValid() && "Cannot return uninitialized renderer");
 	return engine.renderer_;

@@ -66,6 +66,7 @@ public:
 
 	static Window& GetWindow();
 	static Renderer& GetRenderer();
+	static Renderer& GetRenderer(std::size_t index);
 	static V2_int GetScreenSize();
 	static int GetScreenWidth();
 	static int GetScreenHeight();

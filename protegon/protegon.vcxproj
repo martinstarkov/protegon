@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\core\Camera.cpp" />
     <ClCompile Include="src\core\Engine.cpp" />
     <ClCompile Include="src\core\Scene.cpp" />
     <ClCompile Include="src\core\World.cpp" />
@@ -32,18 +33,22 @@
     <ClCompile Include="src\physics\Manifold.cpp" />
     <ClCompile Include="src\procedural\Chunk.cpp" />
     <ClCompile Include="src\procedural\ChunkManager.cpp" />
-    <ClCompile Include="src\renderer\Camera.cpp" />
     <ClCompile Include="src\renderer\Color.cpp" />
-    <ClCompile Include="src\renderer\FontManager.cpp" />
     <ClCompile Include="src\renderer\particles\ParticleManager.cpp" />
     <ClCompile Include="src\renderer\Renderer.cpp" />
     <ClCompile Include="src\renderer\sprites\SpriteMap.cpp" />
+    <ClCompile Include="src\renderer\Surface.cpp" />
     <ClCompile Include="src\renderer\Texture.cpp" />
     <ClCompile Include="src\renderer\TextureManager.cpp" />
+    <ClCompile Include="src\renderer\text\Font.cpp" />
+    <ClCompile Include="src\renderer\text\FontManager.cpp" />
+    <ClCompile Include="src\renderer\text\Text.cpp" />
     <ClCompile Include="src\renderer\Window.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\core\Camera.h" />
     <ClInclude Include="src\ecs\components\ShapeComponent.h" />
+    <ClInclude Include="src\physics\collision\AABB.h" />
     <ClInclude Include="src\physics\shapes\AABB.h" />
     <ClInclude Include="src\core\Engine.h" />
     <ClInclude Include="src\core\Scene.h" />
@@ -115,16 +120,21 @@
     <ClInclude Include="src\protegon.h" />
     <ClInclude Include="src\renderer\AABB.h" />
     <ClInclude Include="src\renderer\Animation.h" />
-    <ClInclude Include="src\renderer\Camera.h" />
     <ClInclude Include="src\renderer\Color.h" />
     <ClInclude Include="src\renderer\Flip.h" />
-    <ClInclude Include="src\renderer\FontManager.h" />
     <ClInclude Include="src\renderer\particles\Particle.h" />
     <ClInclude Include="src\renderer\particles\ParticleManager.h" />
     <ClInclude Include="src\renderer\Renderer.h" />
+    <ClInclude Include="src\renderer\sprites\Animation.h" />
+    <ClInclude Include="src\renderer\sprites\Flip.h" />
     <ClInclude Include="src\renderer\sprites\SpriteMap.h" />
+    <ClInclude Include="src\renderer\Surface.h" />
     <ClInclude Include="src\renderer\Texture.h" />
     <ClInclude Include="src\renderer\TextureManager.h" />
+    <ClInclude Include="src\renderer\text\Font.h" />
+    <ClInclude Include="src\renderer\text\FontManager.h" />
+    <ClInclude Include="src\renderer\text\FontStyle.h" />
+    <ClInclude Include="src\renderer\text\Text.h" />
     <ClInclude Include="src\renderer\Window.h" />
     <ClInclude Include="src\statemachine\BaseState.h" />
     <ClInclude Include="src\statemachine\BaseStateMachine.h" />

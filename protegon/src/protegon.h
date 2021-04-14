@@ -8,20 +8,26 @@
 #include "ecs/Components.h"
 #include "ecs/Systems.h"
 
+#include "renderer/Color.h"
+#include "renderer/Renderer.h"
+#include "renderer/Window.h"
+#include "renderer/Surface.h"
+//#include "renderer/particles/Particle.h"
+//#include "renderer/particles/ParticleManager.h"
+#include "renderer/sprites/Animation.h"
+#include "renderer/sprites/Flip.h"
+#include "renderer/sprites/SpriteMap.h"
+#include "renderer/Texture.h"
+#include "renderer/TextureManager.h"
+#include "renderer/text/Font.h"
+#include "renderer/text/FontManager.h"
+#include "renderer/text/Text.h"
+
 //#include "statemachine/StateMachine.h"
 //#include "statemachine/State.h"
 //#include "statemachine/States.h"
 //#include "statemachine/StateMachineSystem.h"
 //#include "statemachine/StateMachineComponent.h"
-
-#include "renderer/Window.h"
-#include "renderer/Renderer.h"
-#include "renderer/Texture.h"
-#include "renderer/Color.h"
-#include "renderer/TextureManager.h"
-#include "renderer/FontManager.h"
-
-//#include "renderer/SpriteMap.h"
 
 //#include "parsing/ImageProcessor.h"
 //
@@ -35,9 +41,6 @@
 #include "event/InputHandler.h"
 #include "event/EventHandler.h"
 #include "event/Events.h"
-
-//#include "renderer/particles/ParticleManager.h"
-
 
 #include "inventory/Inventory.h"
 

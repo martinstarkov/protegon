@@ -2,7 +2,7 @@
 
 #include "Component.h"
 
-#include "renderer/Camera.h"
+#include "core/Camera.h"
 
 #include "core/Engine.h"
 
