@@ -6,11 +6,12 @@ project(protegon)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-# Add FindSDL2.cmake files to cmake module path.
+# Add package find files to cmake module path.
 
 set(SDL2_CMAKE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/sdl2")
 set(PROTEGON_CMAKE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/protegon")
-list(APPEND CMAKE_MODULE_PATH ${SDL2_CMAKE_PATH} ${PROTEGON_CMAKE_PATH})
+list(APPEND CMAKE_MODULE_PATH ${SDL2_CMAKE_PATH})
+list(APPEND CMAKE_MODULE_PATH ${PROTEGON_CMAKE_PATH})
 
 add_subdirectory(protegon)
 
