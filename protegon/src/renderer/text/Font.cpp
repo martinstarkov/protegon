@@ -3,6 +3,7 @@
 #include <SDL_ttf.h>
 
 #include <cassert>
+#include <iostream>
 
 namespace engine {
 
@@ -10,7 +11,7 @@ Font::Font(TTF_Font* font) : font_{ font } {}
 
 Font::Font(const char* file, std::uint32_t ptsize, std::uint32_t index) : font_{ TTF_OpenFontIndex(file, ptsize, index) } {
 	if (!IsValid()) {
-		SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to create font: %s\n", TTF_GetError());
+		std::cout << "Failed to create font: " << TTF_GetError() << std::endl;
 		assert(!true);
 	}
 }
