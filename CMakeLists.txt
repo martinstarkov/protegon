@@ -8,17 +8,31 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Add package find files to cmake module path.
 
-set(SDL2_CMAKE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/sdl2")
-set(PROTEGON_CMAKE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/protegon")
-list(APPEND CMAKE_MODULE_PATH ${SDL2_CMAKE_PATH})
-list(APPEND CMAKE_MODULE_PATH ${PROTEGON_CMAKE_PATH})
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 add_subdirectory(protegon)
 
+# Macro for easily adding protegon library to targets.
+
+macro(add_protegon_to TARGET_NAME)
+  target_link_libraries(${PROJECT_NAME} protegon)
+  # Commands for copying dlls to executable directory on Windows.
+  if(WIN32)
+      get_property(PROTEGON_EXTERNAL_DLLS_TEMP GLOBAL PROPERTY PROTEGON_EXTERNAL_DLLS)
+      foreach(item IN LISTS PROTEGON_EXTERNAL_DLLS_TEMP)
+          add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
+              COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${item}" $<TARGET_FILE_DIR:${TARGET_NAME}>
+          )
+      endforeach()
+      message(STATUS "Added post build commands to copy SDL dlls to ${TARGET_NAME}")
+  endif()
+  message(STATUS "Added protegon library to ${TARGET_NAME}")
+endmacro()
+
 # Add option to include test application.
 
-option(INCLUDE_PROTEGON_TEST_APP "INCLUDE_PROTEGON_TEST_APP" OFF)
+option(CREATE_PROTEGON_TEST_APP "CREATE_PROTEGON_TEST_APP" OFF)
 
-if(INCLUDE_PROTEGON_TEST_APP)
+if(CREATE_PROTEGON_TEST_APP)
     add_subdirectory(test_app)
 endif()

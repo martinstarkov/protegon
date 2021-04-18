@@ -27,7 +27,8 @@ add_executable(
 
 file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/resources/" DESTINATION ${PROJECT_BINARY_DIR}/resources)
 
-# Add protegon engine to the executable.
+# Add protegon engine to the target executable.
+# IMPORTANT NOTE: If using this file as a template for your project, 
+# make sure add_subdirectory(<protegon_root_dir>) has been called before.
 
-find_package(PROTEGON REQUIRED)
 add_protegon_to(${PROJECT_NAME})

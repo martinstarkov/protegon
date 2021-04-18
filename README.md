@@ -1,10 +1,20 @@
 # protegon
-2D game engine made without the use of any external libraries other than SDL2 for drawing pixels to a screen.
+2D game engine built on top of SDL2.
 
-The engine code is located in the ```Engine/engine/``` folder
+# Usage in CMake
 
-The folder called ```Bayes``` contains a Hopper simulation built with the engine.
+Add the following lines in your ```CMakeLists.txt``` after creating your target:
 
-The folder called ```Game``` contains a test game application built with the engine.
+```cmake
+add_subdirectory(<protegon_repository_directory>)
+add_protegon_to(<target_name>)
+```
+- ```<protegon_repository_directory>``` corresponds to the directory where this repository resides (cloned or submodule).
+- ```<target_name>``` corresponds to the name of your desired cmake target.
 
-Both of these will later be moved outside of this GitHub repository.
+That's it!
+
+Enjoy the features the engine has to offer!
+
+
+PS. Might add feature documentation at some point in the future.
