@@ -4,6 +4,7 @@
 #include <cstdint> // std::int32_t, etc
 #include <cassert> // assert
 #include <tuple> // std::pair
+#include <unordered_map> // std::unordered_map
 
 #include "ecs/ECS.h"
 

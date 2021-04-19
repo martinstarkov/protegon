@@ -633,6 +633,7 @@ public:
 		free_entities_ = std::exchange(obj.free_entities_, {});
 		// Reset state of other manager.
 		obj.next_entity_ = 0;
+		return *this;
 	}
 
 	/*
