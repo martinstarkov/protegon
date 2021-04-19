@@ -8,6 +8,7 @@ namespace engine {
 class Surface {
 public:
 	Surface() = default;
+	Surface(const char* file_path);
 	
 	operator SDL_Surface* () const;
 	SDL_Surface* operator&() const;

@@ -18,6 +18,7 @@ public:
 	}
 	Timer timer;
 	void Init() {
+		TextureManager::Load("acorn", "resources/sprites/acorn.png");
 		timer.Start();
 		FontManager::Load("pixel-50", "resources/fonts/retro_gaming.ttf", 50);
 		t = { "Hello World!", colors::BLACK, "pixel-50", { 50 + 200, 50 }, { 100, 50 } };
@@ -114,6 +115,10 @@ public:
 				);
 			}
 		}
+		Renderer::DrawTexture("acorn",
+							  { 200, 200 },
+							  { 30, 30 },
+							  {}, {}, nullptr, 20, Flip::HORIZONTAL);
 		Renderer::DrawText(t);
 		Renderer::DrawSolidCircle({ 50, 50 }, 50, colors::RED, 1);
 		Renderer::DrawCircle({ 50 + 50, 50 }, 50, colors::BLUE, 1);

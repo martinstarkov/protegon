@@ -2,29 +2,27 @@
 
 #include <unordered_map> // std::unordered_map
 #include <cstdint> // std::uint32_t
+#include <cstdlib> // std::size_t
 
-#include "math/Vector2.h"
-#include "renderer/Color.h"
-#include "renderer/Renderer.h"
 #include "renderer/Texture.h"
-#include "renderer/sprites/Flip.h"
 
 namespace engine {
-
-// Default color of renderer window
-inline const Color DEFAULT_COLOR{ colors::WHITE };
 
 class TextureManager {
 private:
 public:
-	//static void Load(const char* texture_key, const char* texture_path);
+	static void Load(const char* texture_key,
+					 const char* texture_path,
+					 std::size_t display_index = 0);
 
-	//static Texture GetTexture(const char* texture_key);
+	static Texture GetTexture(const char* texture_key);
 
 	//static void RenderTexture(const Renderer& renderer, const Texture& texture, const AABB* source = nullptr, const AABB* destination = nullptr);
 
 	// Return the location of a 4 byte integer value containg the RGBA32 color of the pixel on an SDL_Surface or SDL_Texture.
-	static std::uint32_t& GetTexturePixel(void* pixels, const int pitch, const V2_int& position);
+	static std::uint32_t& GetTexturePixel(void* pixels, 
+										  const int pitch, 
+										  const V2_int& position);
 
 	//static Color GetDefaultRendererColor();
 	//static void SetDrawColor(const Color& color);

@@ -2,10 +2,19 @@
 
 #include <SDL.h>
 #include <SDL_ttf.h>
+#include <SDL_image.h>
+#include <iostream>
 
 namespace engine {
 
 Surface::Surface(SDL_Surface* surface) : surface_{ surface } {}
+
+Surface::Surface(const char* file_path) : surface_{ IMG_Load(file_path) } {
+	if (!IsValid()) {
+		std::cerr << "Failed to create surface from image: " << IMG_GetError() << std::endl;
+		abort();
+	}
+}
 
 Surface::operator SDL_Surface* () const {
 	return surface_;

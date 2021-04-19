@@ -13,6 +13,28 @@ namespace engine {
 
 std::unordered_map<std::size_t, Texture> TextureManager::texture_map_;
 
+void TextureManager::Load(const char* texture_key, const char* texture_path, std::size_t display_index) {
+	assert(texture_path != "" && "Cannot load empty texture path");
+	assert(texture_key != "" && "Cannot load invalid texture key");
+	auto key{ Hasher::HashCString(texture_key) };
+	auto it{ texture_map_.find(key) };
+	if (it == std::end(texture_map_)) { 
+		Surface temp_surface{ texture_path };
+		Texture texture{ Engine::GetDisplay(display_index).second, temp_surface };
+		temp_surface.Destroy();
+		texture_map_.emplace(key, texture);
+	} else {
+		std::cerr << "Warning: Attempting to load texture which already exists in TextureManager" << std::endl;
+	}
+}
+
+Texture TextureManager::GetTexture(const char* texture_key) {
+	auto key{ Hasher::HashCString(texture_key) };
+	auto it{ texture_map_.find(key) };
+	assert(it != std::end(texture_map_) && "Cannot retrieve texture key which does not exist in TextureManager");
+	return it->second;
+}
+
 std::uint32_t& TextureManager::GetTexturePixel(void* pixels, const int pitch, const V2_int& position) {
 	// Source: http://sdl.beuc.net/sdl.wiki/Pixel_Access
 	//int bpp = surface->format->BytesPerPixel;

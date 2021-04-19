@@ -9,10 +9,9 @@ namespace engine {
 Texture::Texture(SDL_Texture* texture) : texture_{ texture } {}
 
 Texture::Texture(const Renderer& renderer, const V2_int& size, PixelFormat format, TextureAccess texture_access) : texture_{ SDL_CreateTexture(renderer, static_cast<std::uint32_t>(format), static_cast<int>(texture_access), size.x, size.y) } {
-	assert(renderer.IsValid() && "Cannot create texture from invalid renderer");
 	if (!IsValid()) {
-		SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to create texture: %s\n", SDL_GetError());
-		assert(!true);
+		std::cout << "Failed to create texture: " << SDL_GetError() << std::endl;
+		abort();
 	}
 }
 
