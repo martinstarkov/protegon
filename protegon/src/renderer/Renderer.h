@@ -6,6 +6,7 @@
 #include "renderer/Window.h"
 #include "renderer/Texture.h"
 #include "renderer/Color.h"
+#include "renderer/sprites/Flip.h"
 
 #include "math/Vector2.h"
 
@@ -28,6 +29,23 @@ public:
 							const V2_int& size,
 							const V2_int source_position = {},
 							const V2_int source_size = {},
+							std::size_t display_index = 0);
+
+	static void DrawTexture(const char* texture_key,
+							const V2_int& position,
+							const V2_int& size,
+							const V2_int source_position = {},
+							const V2_int source_size = {},
+							std::size_t display_index = 0);
+
+	static void DrawTexture(const char* texture_key,
+							const V2_int& position,
+							const V2_int& size,
+							const V2_int source_position = {},
+							const V2_int source_size = {},
+							const V2_int* center_of_rotation = nullptr,
+							const double angle = 0.0,
+							Flip flip = Flip::NONE,
 							std::size_t display_index = 0);
 
 	static void DrawText(const Text& text,

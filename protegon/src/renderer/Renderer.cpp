@@ -5,6 +5,7 @@
 
 #include "core/Engine.h"
 
+#include "renderer/TextureManager.h"
 #include "renderer/text/Text.h"
 #include "math/Math.h"
 
@@ -21,12 +22,66 @@ void Renderer::DrawTexture(const Texture& texture,
 	assert(texture.IsValid() && "Cannot draw texture that has been uninitialized or destroyed");
 	SDL_Rect* source{ NULL };
 	SDL_Rect source_rectangle;
-	if (!source_position.IsZero() && !source_size.IsZero()) {
+	if (!source_size.IsZero()) {
 		source_rectangle = { source_position.x, source_position.y, source_size.x, source_size.y };
 		source = &source_rectangle;
 	}
 	SDL_Rect destination{ position.x, position.y, size.x, size.y };
 	SDL_RenderCopy(renderer, texture, source, &destination);
+}
+
+void Renderer::DrawTexture(const char* texture_key,
+						   const V2_int& position,
+						   const V2_int& size,
+						   const V2_int source_position,
+						   const V2_int source_size,
+						   std::size_t display_index) {
+	auto texture{ TextureManager::GetTexture(texture_key) };
+	assert(texture.IsValid() && "Cannot draw texture that has been uninitialized or destroyed");
+	DrawTexture(texture, position, size, source_position, source_size, display_index);
+}
+
+void Renderer::DrawTexture(const char* texture_key, 
+						   const V2_int& position, 
+						   const V2_int& size, 
+						   const V2_int source_position, 
+						   const V2_int source_size,
+						   const V2_int* center_of_rotation, 
+						   const double angle,
+						   Flip flip,
+						   std::size_t display_index) {
+	auto renderer{ Engine::GetDisplay(display_index).second };
+	assert(renderer.IsValid() && "Cannot draw texture with destroyed or uninitialized renderer");
+	auto texture{ TextureManager::GetTexture(texture_key) };
+	assert(texture.IsValid() && "Cannot draw texture that has been uninitialized or destroyed");
+	SDL_Rect* source{ NULL };
+	SDL_Rect source_rectangle;
+	if (!source_position.IsZero() && !source_size.IsZero()) {
+		source_rectangle = { source_position.x, source_position.y, source_size.x, source_size.y };
+		source = &source_rectangle;
+	}
+	SDL_Rect destination{ position.x, position.y, size.x, size.y };
+	if (center_of_rotation != nullptr) {
+		SDL_Point center{ center_of_rotation->x, center_of_rotation->y };
+		SDL_RenderCopyEx(renderer, 
+						 texture, 
+						 source, 
+						 &destination, 
+						 angle, 
+						 &center, 
+						 static_cast<SDL_RendererFlip>(static_cast<int>(flip))
+		);
+	} else {
+		SDL_RenderCopyEx(renderer,
+						 texture,
+						 source, 
+						 &destination, 
+						 angle, 
+						 NULL, 
+						 static_cast<SDL_RendererFlip>(static_cast<int>(flip))
+		);
+	}
+
 }
 
 void Renderer::DrawText(const Text& text, 
