@@ -4,13 +4,15 @@
 
 #include "math/Hasher.h"
 
+#include "debugging/Debug.h"
+
 namespace engine {
 
 std::unordered_map<std::size_t, Font> FontManager::font_map_;
 
 void FontManager::Load(const char* name, const char* file, std::uint32_t ptsize) {
 	assert(name != "" && "Cannot load font with invalid key");
-	// TODO: Add test for validity of file path.
+	assert(FileExists(file) && "Cannot load font with non-existent file path");
 	assert(file != "" && "Cannot load font from empty file path");
 	auto key{ Hasher::HashCString(name) };
 	auto it{ font_map_.find(key) };
