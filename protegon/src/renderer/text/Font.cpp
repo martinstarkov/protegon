@@ -5,14 +5,16 @@
 #include <cassert>
 #include <iostream>
 
+#include "debugging/Debug.h"
+
 namespace engine {
 
 Font::Font(TTF_Font* font) : font_{ font } {}
 
 Font::Font(const char* file, std::uint32_t ptsize, std::uint32_t index) : font_{ TTF_OpenFontIndex(file, ptsize, index) } {
 	if (!IsValid()) {
-		std::cout << "Failed to create font: " << TTF_GetError() << std::endl;
-		assert(!true);
+		PrintLine("Failed to create font: ", TTF_GetError());
+		abort();
 	}
 }
 

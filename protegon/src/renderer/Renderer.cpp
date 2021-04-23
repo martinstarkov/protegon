@@ -8,6 +8,7 @@
 #include "renderer/TextureManager.h"
 #include "renderer/text/Text.h"
 #include "math/Math.h"
+#include "debugging/Debug.h"
 
 namespace engine {
 
@@ -226,8 +227,8 @@ Renderer::Renderer(const Window& window, int renderer_index, std::uint32_t flags
 	renderer_{ SDL_CreateRenderer(window, renderer_index, flags) },
 	display_index_{ window.GetDisplayIndex() } {
 	if (!IsValid()) {
-		SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to create renderer: %s\n", SDL_GetError());
-		assert(!true);
+		PrintLine("Failed to create renderer: ", SDL_GetError());
+		abort();
 	}
 }
 

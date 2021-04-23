@@ -4,13 +4,15 @@
 
 #include "renderer/Renderer.h"
 
+#include "debugging/Debug.h"
+
 namespace engine {
 
 Texture::Texture(SDL_Texture* texture) : texture_{ texture } {}
 
 Texture::Texture(const Renderer& renderer, const V2_int& size, PixelFormat format, TextureAccess texture_access) : texture_{ SDL_CreateTexture(renderer, static_cast<std::uint32_t>(format), static_cast<int>(texture_access), size.x, size.y) } {
 	if (!IsValid()) {
-		std::cout << "Failed to create texture: " << SDL_GetError() << std::endl;
+		PrintLine("Failed to create texture: ", SDL_GetError());
 		abort();
 	}
 }

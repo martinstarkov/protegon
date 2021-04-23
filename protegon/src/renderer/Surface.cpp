@@ -5,13 +5,15 @@
 #include <SDL_image.h>
 #include <iostream>
 
+#include "debugging/Debug.h"
+
 namespace engine {
 
 Surface::Surface(SDL_Surface* surface) : surface_{ surface } {}
 
 Surface::Surface(const char* file_path) : surface_{ IMG_Load(file_path) } {
 	if (!IsValid()) {
-		std::cerr << "Failed to create surface from image: " << IMG_GetError() << std::endl;
+		PrintLine("Failed to create surface from image: ", IMG_GetError());
 		abort();
 	}
 }

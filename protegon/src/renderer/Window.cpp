@@ -2,6 +2,8 @@
 
 #include <SDL.h>
 
+#include "debugging/Debug.h"
+
 namespace engine {
 
 Window::Window(SDL_Window* window) : window_{ window } {}
@@ -10,8 +12,8 @@ Window::Window(const char* title, const V2_int& position, const V2_int& size, st
 	window_{ SDL_CreateWindow(title, position.x, position.y, size.x, size.y, flags) },
 	display_index_{ display_index } {
 	if (!IsValid()) {
-		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create window: %s\n", SDL_GetError());
-		assert(!true);
+		PrintLine("Failed to create window: ", SDL_GetError());
+		abort();
 	}
 }
 
