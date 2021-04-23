@@ -91,10 +91,6 @@ struct Vector2 {
         operator--();
         return tmp;
     }
-    /*Vector2& operator-() {
-        x *= -1; y *= -1;
-        return *this;
-    }*/
     Vector2 operator-() const {
         return { -x, -y };
     }
@@ -236,11 +232,18 @@ struct Vector2 {
         };
     }
 
-    // Return a vector with numeric_limit::infinity() set for both components
+    // Return a vector with std::numeric_limits<T>::max() set for both components
     static Vector2 Maximum() {
         return { 
             std::numeric_limits<T>::max(),
             std::numeric_limits<T>::max()
+        };
+    }
+    // Return a vector with std::numeric_limits<T>::min() set for both components
+    static Vector2 Minimum() {
+        return {
+            std::numeric_limits<T>::min(),
+            std::numeric_limits<T>::min()
         };
     }
     // Return a vector with both components randomized in the given ranges.
@@ -274,7 +277,7 @@ struct Vector2 {
     // Return a unit vector (normalized).
     inline auto Unit() const {
         // Cache magnitude calculation.
-        auto m = Magnitude();
+        auto m{ Magnitude<T>() };
         // Avoid division by zero error for zero magnitude vectors.
         if (m > 0) {
             return *this / m;
@@ -303,8 +306,10 @@ struct Vector2 {
         return x * x + y * y;
     }
     // Return magnitude, sqrt(x * x + y * y).
-    inline double Magnitude() const {
-        return std::sqrt(MagnitudeSquared());
+    template <typename T = double, 
+        engine::type_traits::is_number<T> = true>
+    inline T Magnitude() const {
+        return static_cast<T>(std::sqrt(MagnitudeSquared()));
     }
     template <typename S = T,
         engine::type_traits::is_floating_point<S> = true>
@@ -460,6 +465,8 @@ Vector2<S> operator/(const Vector2<T>& lhs, U rhs) {
     return vector;
 }
 
+namespace engine {
+
 // Special functions.
 
 // Cross product function between a number and a vector.
@@ -557,3 +564,4 @@ inline Vector2<T> SmoothStep(const Vector2<T>& vector) {
     };
 }
 
+} // namespace engine

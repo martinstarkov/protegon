@@ -37,6 +37,13 @@ public:
 						 AABB{ V2_int::Random(5, 30, 5, 30) });
 		}
 
+
+		CreateStatic(manager, { 300, 300 },
+					 AABB{ { 200, 30 } });
+		CreateStatic(manager, { 300 - 30, 300 - 200 },
+					 AABB{ { 30, 200 } });
+
+
 		// Mouse
 		m.AddComponent<RigidBodyComponent>();
 		m.AddComponent<TransformComponent>();
@@ -46,7 +53,6 @@ public:
 		t.SetStyles(FontStyle::BOLD, FontStyle::UNDERLINE, FontStyle::STRIKETHROUGH, FontStyle::ITALIC);
 	}
 	void Update() {
-
 		auto [m_t, m_s] = m.GetComponents<TransformComponent, ShapeComponent>();
 
 		m_t.transform.position = InputHandler::GetMousePosition();
@@ -72,9 +78,11 @@ public:
 													m_s.shape, 
 													shape.shape) 
 				};
+				Print(manifold.penetration);
 				m_t.transform.position -= manifold.penetration;
 			}
 		}
+		PrintLine();
 
 		/*for (const auto& manifold : manifolds) {
 			if (!manifold.normal.IsZero()) {
