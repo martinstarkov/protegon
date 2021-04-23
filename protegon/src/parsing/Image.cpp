@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <cassert>
 
+#include "renderer/TextureManager.h"
+
 namespace internal {
 
 // Convert an SDL surface coordinate to a 4 byte integer value containg the RGBA32 color of the pixel.
@@ -41,30 +43,31 @@ static std::uint32_t GetSurfacePixelColor(SDL_Surface* image, V2_int position) {
 
 namespace engine {
 
-Image::Image(const char* path) {
-	// TODO: Add support for formats other than PNG.
-	SDL_Surface* temp_surface = IMG_Load(path);
-	if (!temp_surface) {
-		printf("IMG_Load: %s\n", IMG_GetError());
-		assert(false && "Failed to retrieve image data");
-	}
-	SDL_Surface* surface = SDL_ConvertSurfaceFormat(temp_surface, SDL_PIXELFORMAT_RGBA32, 0);
-	if (!surface) {
-		printf("IMG_Load: %s\n", IMG_GetError());
-		assert(false && "Failed to convert surface data format");
-	}
-	SDL_FreeSurface(temp_surface);
-	assert(surface != nullptr && "Failed to convert image to RGBA format");
-	size_.x = surface->w;
-	size_.y = surface->h;
-	pixels_.resize(static_cast<std::size_t>(size_.x) * static_cast<std::size_t>(size_.y), Color{});
-	for (auto j = 0; j < size_.y; ++j) {
-		for (auto i = 0; i < size_.x; ++i) {
-			SetPixel({ i, j }, internal::GetSurfacePixelColor(surface, { i, j }));
-		}
-	}
-	SDL_FreeSurface(surface);
-}
+// TODO: FIX! Make sure SetPixel is uncommented.
+//Image::Image(const char* path) {
+//	// TODO: Add support for formats other than PNG.
+//	SDL_Surface* temp_surface = IMG_Load(path);
+//	if (!temp_surface) {
+//		printf("IMG_Load: %s\n", IMG_GetError());
+//		assert(false && "Failed to retrieve image data");
+//	}
+//	SDL_Surface* surface = SDL_ConvertSurfaceFormat(temp_surface, SDL_PIXELFORMAT_RGBA32, 0);
+//	if (!surface) {
+//		printf("IMG_Load: %s\n", IMG_GetError());
+//		assert(false && "Failed to convert surface data format");
+//	}
+//	SDL_FreeSurface(temp_surface);
+//	assert(surface != nullptr && "Failed to convert image to RGBA format");
+//	size_.x = surface->w;
+//	size_.y = surface->h;
+//	pixels_.resize(static_cast<std::size_t>(size_.x) * static_cast<std::size_t>(size_.y), Color{});
+//	for (auto j = 0; j < size_.y; ++j) {
+//		for (auto i = 0; i < size_.x; ++i) {
+//			//SetPixel({ i, j }, engine::TextureManager::GetTexturePixel(surface, { i, j }));
+//		}
+//	}
+//	SDL_FreeSurface(surface);
+//}
 
 Image::Image(const std::vector<Color>& pixels, const V2_int& size, const V2_int& relative_position) : 
 	pixels_{ pixels }, 

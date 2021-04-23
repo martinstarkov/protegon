@@ -1,6 +1,7 @@
 #pragma once
 
 #include <type_traits> // std::enable_if_t, std::is_arithmetic_v, std::is_floating_point_v, etc.
+#include <utility> // std::forward
 
 namespace engine {
 
@@ -49,10 +50,26 @@ template <typename T>
 bool constexpr has_invoke = !std::is_same<decltype(has_invoke_helper(std::declval<T>(), 0)), void*>::value;
 
 template <typename T>
-bool constexpr has_static_invoke = has_invoke<T> && !std::is_member_function_pointer_v<decltype(has_invoke_helper(std::declval<T>(), 0))>;
+bool constexpr has_static_invoke{ has_invoke<T> && !std::is_member_function_pointer_v<decltype(has_invoke_helper(std::declval<T>(), 0))> };
 
 template <typename T>
 using has_static_invoke_e = std::enable_if_t<has_static_invoke<T>, bool>;
+
+// Source: https://stackoverflow.com/a/49026811
+template<typename Stream, typename Type, typename = void>
+struct is_stream_writable : std::false_type {};
+
+template<typename Stream, typename Type>
+struct is_stream_writable<Stream, Type, std::void_t<decltype(std::declval<Stream&>() << std::declval<Type>()) >> : std::true_type {};
+
+template <typename Stream, typename Type>
+bool constexpr is_stream_writable_v{ is_to_stream_writable<Stream, Type>::value };
+
+template <typename Stream, typename Type>
+using is_stream_writable_e = std::enable_if_t<is_stream_writable_v<Stream, Type>, bool>;
+
+template <typename Stream, typename ...Types>
+using are_stream_writable_e = std::enable_if_t<std::conjunction_v<is_stream_writable<Stream, Types>...>, bool>;
 
 } // namespace type_traits
 

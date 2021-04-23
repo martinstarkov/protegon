@@ -1,5 +1,5 @@
-//#pragma once
-//
+#pragma once
+
 //#include "ecs/systems/InputSystem.h"
 //#include "ecs/systems/PhysicsSystem.h"
 //#include "ecs/systems/CollisionSystem.h"
