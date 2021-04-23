@@ -202,7 +202,7 @@ void Engine::Loop() {
 			Delay(frame_delay - loop_time);
 		}
 	}
-	LOG("Primary window closed. Exiting program...");
+	Print("Primary window closed. Exiting program...");
 }
 
 void Engine::Clean() {
