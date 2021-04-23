@@ -84,7 +84,7 @@ public:
 		}
 		LOG("");*/
 
-		PrintLine(t.GetContent(), " ", t.GetColor(), " ", t.GetArea());
+		//PrintLine(t.GetContent(), " ", t.GetColor(), " ", t.GetArea());
 
 		if (timer.ElapsedSeconds() > 15) {
 			t.SetContent("Color, size, even shading");
