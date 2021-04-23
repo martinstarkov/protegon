@@ -16,7 +16,7 @@ namespace internal {
 
 using EventFunction = void (*)(ecs::Entity&);
 
-template <typename T, type_traits::has_static_invoke_e<T> = true>
+template <typename T, engine::type_traits::has_static_invoke_e<T> = true>
 constexpr EventFunction EventCast() {
 	return &T::Invoke;
 }

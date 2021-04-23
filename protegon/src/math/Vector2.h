@@ -17,6 +17,8 @@
 // TODO: Write tests for clamp.
 // TODO: Write tests for lerp.
 
+namespace engine {
+
 // Hidden vector related implementations.
 namespace internal {
 
@@ -27,6 +29,8 @@ static constexpr const char VECTOR_CENTER_DELIMETER{ ',' };
 static constexpr const char VECTOR_RIGHT_DELIMETER{ ')' };
 
 } // namespace internal
+
+} // namespace engine
 
 template <class T, engine::type_traits::is_number<T> = true>
 struct Vector2 {
@@ -45,10 +49,10 @@ struct Vector2 {
     // Constructing vector from string used for deserializing vectors.
     // Important: we assume that the string has already been filtered down to just the vector characters (no whitespace around).
     Vector2(const std::string& s) {
-        assert(s.at(0) == internal::VECTOR_LEFT_DELIMETER && "Vector2 construction string must start with VECTOR_LEFT_DELIMETER, check for possible whitespace");
-        assert(s.at(s.size() - 1) == internal::VECTOR_RIGHT_DELIMETER && "Vector2 construction string must end with VECTOR_RIGHT_DELIMETER, check for possible whitespace");
+        assert(s.at(0) == engine::internal::VECTOR_LEFT_DELIMETER && "Vector2 construction string must start with VECTOR_LEFT_DELIMETER, check for possible whitespace");
+        assert(s.at(s.size() - 1) == engine::internal::VECTOR_RIGHT_DELIMETER && "Vector2 construction string must end with VECTOR_RIGHT_DELIMETER, check for possible whitespace");
         // Find the index of the center delimeter from the string.
-        auto center_delimeter = s.find(internal::VECTOR_CENTER_DELIMETER);
+        auto center_delimeter = s.find(engine::internal::VECTOR_CENTER_DELIMETER);
         assert(center_delimeter != std::string::npos && "Vector2 construction string must contain VECTOR_CENTER_DELIMETER");
         assert(s.find('\n') == std::string::npos && "Vector2 construction string cannot contain any newlines");
         assert(s.find(' ') == std::string::npos && "Vector2 construction string cannot contain any whitespace");
@@ -320,7 +324,7 @@ using V2_float = Vector2<float>;
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const Vector2<T>& obj) {
-    os << internal::VECTOR_LEFT_DELIMETER << obj.x << internal::VECTOR_CENTER_DELIMETER << obj.y << internal::VECTOR_RIGHT_DELIMETER;
+    os << engine::internal::VECTOR_LEFT_DELIMETER << obj.x << engine::internal::VECTOR_CENTER_DELIMETER << obj.y << engine::internal::VECTOR_RIGHT_DELIMETER;
     return os;
 }
 template <typename T>

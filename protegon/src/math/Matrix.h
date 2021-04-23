@@ -19,8 +19,6 @@ using is_matrix = std::enable_if_t<INPUT_ROWS == CONDITION_ROWS && INPUT_COLUMNS
 
 } // namespace type_traits
 
-} // namespace engine
-
 namespace internal {
 
 static constexpr const char MATRIX_LEFT_DELIMETER{ '(' };
@@ -28,6 +26,8 @@ static constexpr const char MATRIX_CENTER_DELIMETER{ ',' };
 static constexpr const char MATRIX_RIGHT_DELIMETER{ ')' };
 
 } // namespace internal
+
+} // namespace engine
 
 template <typename T, std::size_t ROWS, std::size_t COLUMNS, engine::type_traits::is_number<T> = true>
 struct Matrix {
@@ -73,21 +73,21 @@ struct Matrix {
 
 template <typename T, std::size_t ROWS, std::size_t COLUMNS>
 std::ostream& operator<<(std::ostream& os, const Matrix<T, ROWS, COLUMNS>& obj) {
-	os << internal::MATRIX_LEFT_DELIMETER << " ";
+	os << engine::internal::MATRIX_LEFT_DELIMETER << " ";
 	for (auto i{ 0 }; i < ROWS; ++i) {
-		os << internal::MATRIX_LEFT_DELIMETER;
+		os << engine::internal::MATRIX_LEFT_DELIMETER;
 		for (auto j{ 0 }; j < COLUMNS; ++j) {
 			os << obj.matrix[i][j];
 			if (j != COLUMNS) {
 				os << ",";
 			}
 		}
-		os << internal::MATRIX_RIGHT_DELIMETER;
+		os << engine::internal::MATRIX_RIGHT_DELIMETER;
 		if (i != ROWS) {
 			os << ",";
 		}
 	}
-	os << " " << internal::MATRIX_RIGHT_DELIMETER;
+	os << " " << engine::internal::MATRIX_RIGHT_DELIMETER;
 	return os;
 }
 
