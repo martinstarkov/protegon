@@ -47,6 +47,8 @@ class Entity;
 class NullEntity;
 template <typename ...TComponents>
 class System;
+template <typename ...TComponents>
+class UESystem;
 class Manager;
 
 namespace internal {
@@ -105,7 +107,10 @@ template < template <typename...> class base, typename derived>
 using is_base_of_template = typename is_base_of_template_impl<base, derived>::type;
 
 template <typename TSystem>
-inline constexpr bool is_system_v{ is_base_of_template<System, TSystem>::value };
+inline constexpr bool is_system_v{ 
+	is_base_of_template<System, TSystem>::value || 
+	is_base_of_template<UESystem, TSystem>::value
+};
 
 template <typename TSystem>
 using is_valid_system = std::enable_if_t<is_system_v<TSystem>, bool>;
@@ -128,13 +133,13 @@ public:
 private:
 	friend class Manager;
 	virtual void SetManager(Manager* manager) = 0;
-	virtual void SetComponentDependencies() = 0;
-	virtual void FlagIfDependsOnNone() = 0;
 	virtual BaseSystem* Clone() const = 0;
-	virtual void ResetCacheIfFlagged() = 0;
-	virtual void FlagIfDependsOn(const ecs::internal::Id component) = 0;
-	virtual void FlagForReset() = 0;
 	virtual std::size_t Hash() const = 0;
+	virtual void SetComponentDependencies() {}
+	virtual void FlagIfDependsOn(const ecs::internal::Id component) {}
+	virtual void FlagIfDependsOnNone() {}
+	virtual void FlagForReset() {}
+	virtual void ResetCacheIfFlagged() {}
 };
 
 /*
@@ -452,7 +457,7 @@ template <typename TComponent,
 * Example:
 * struct MySystem : public System<Transform, RigidBody>;
 * 'entities' can be used inside the system's methods like so:
-* auto [auto entity, transform, rigid_body] = entities[0];
+* auto [entity, transform, rigid_body] = entities[0];
 * or using a loop:
 * for (auto [entity, transform, rigid_body] : entities)
 *	... use handle / component references here ...
@@ -583,6 +588,95 @@ private:
 
 	// Flag for when the cache becomes invalid and must be reset.
 	bool reset_required_{ false };
+};
+
+/*
+* Template class for ECS unique entity systems.
+* @tparam TRequiredComponents Types of components required by the entity in the system.
+* Each system has access to a protected GetEntityAndComponents() function.
+* Example:
+* struct MySingleEntitySystem : public UESystem<Transform, RigidBody>;
+* GetEntityAndComponents() can be called inside the system's methods like so:
+* auto [entity, transform, rigid_body] = GetEntityAndComponents();
+* If a system-required component is removed from the unique entity,
+* the GetEntityAndComponents() function will trigger an assertion.
+*/
+template <typename ...TRequiredComponents>
+class UESystem : public ecs::internal::BaseSystem {
+public:
+	UESystem() = default;
+	virtual ~UESystem() = default;
+
+protected:
+
+	// Function called by manager's UpdateSystem() method.
+	// Override this for customizeable system logic.
+	virtual void Update() override {}
+
+	/*
+	* Retrieves the parent manager of the system.
+	* @return Reference to the manager the system is a part of.
+	*/
+	Manager& GetManager() {
+		assert(manager_ != nullptr && "Cannot retrieve manager for uninitialized system");
+		return *manager_;
+	}
+
+	/*
+	* Function used for retrieving unique entity and components tied to the unique system.
+	* @return Tuple where the first element is a copy of an entity handle 
+	* and the remaining elements are references to that entity's components 
+	* as determined by the system's required components.
+	*/
+	std::tuple<Entity, TRequiredComponents&...> GetEntityAndComponents();
+private:
+	// Manager requires private access for processing and manipulating systems.
+	friend class ecs::Manager;
+
+	/*
+	* Generates a hash number using system members.
+	* Useful for identifying if two systems are identical.
+	* @return Hash code for the system.
+	*/
+	virtual std::size_t Hash() const override final {
+		// Hashing combination algorithm from:
+		// https://stackoverflow.com/a/17017281
+		std::size_t h = 17;
+		h = h * 31 + std::hash<Manager*>()(manager_);
+		return h;
+	}
+
+	/*
+	* Creates a duplicate (copy) system with
+	* all the same component dependencies.
+	* Cache reset is automatically queued as
+	* an entity cache does not exist yet.
+	* @return Pointer to a new identical system.
+	*/
+	virtual ecs::internal::BaseSystem* Clone() const override final {
+		return new UESystem<TRequiredComponents...>(manager_);
+	}
+
+	// Constructor for creating an identical system (when cloning).
+	UESystem(Manager* manager) :
+		manager_{ manager } {
+	}
+
+	/*
+	* Initializes the internal pointer to the
+	* parent manager of the system.
+	* This function is always called internally
+	* when creating a system inside the manager.
+	* @param manager Pointer to the parent manager of the system.
+	*/
+	virtual void SetManager(Manager* manager) override final {
+		assert(manager != nullptr && "Cannot set system manager to nullptr");
+		manager_ = manager;
+	}
+
+	// Pointer to the parent manager of the system.
+	// Set internally in the manager AddSystem() function.
+	Manager* manager_{ nullptr };
 };
 
 // Entity and component storage class for the ECS.
@@ -853,6 +947,15 @@ public:
 	template <typename ...TComponents>
 	std::vector<Entity> GetEntitiesWithout();
 
+	/*
+	* Retrieves the only entity with the given component types.
+	* If more than one entity has the given components, an assertion is called.
+	* @tparam TComponents Component types required for the returned entity.
+	* @return A handle to the only matching entity.
+	*/
+	template <typename ...TComponents>
+	Entity GetUniqueEntityWith();
+
 	// Marks every single entity in the manager for destruction.
 	// Requires a Refresh() call to destroy entities and their components.
 	void DestroyEntities();
@@ -874,13 +977,32 @@ public:
 	void DestroyEntitiesWithout();
 
 	/*
+	* Marks the unique entity with the given component types for destruction.
+	* If more than one entity has the given components, an assertion is called.
+	* Requires a Refresh() call to destroy the entity and its components.
+	* @tparam TComponents Component types required for marking the entity.
+	*/
+	template <typename ...TComponents>
+	void DestroyUniqueEntityWith();
+
+	/*
 	* Fetches a vector of tuples where the first element
 	* is an entity and the rest are the requested components.
 	* Only retrieves entities which have each component.
 	* @return Vector of tuples of entity handles and components.
 	*/
 	template <typename ...TComponents>
-	std::vector<std::tuple<Entity, TComponents&...>> GetEntityComponents();
+	std::vector<std::tuple<Entity, TComponents&...>> GetEntitiesAndComponents();
+
+	/*
+	* Fetches a tuple where the first element
+	* is an entity and the rest are the requested components.
+	* Only retrieves one unqiue entity with the matching components.
+	* If more than one matching entity exists, an assertion is called.
+	* @return Tuples with entity handle and given components.
+	*/
+	template <typename ...TComponents>
+	std::tuple<Entity, TComponents&...> GetUniqueEntityAndComponents();
 
 	/*
 	* @return The number of entities currently alive in the manager.
@@ -1111,6 +1233,12 @@ private:
 		}
 	}
 
+	// Implementation of the GetUniqueEntityWith function without error handling.
+	// This exists so unique entity systems can call a different assertion than
+	// simply calling this function on the manager.
+	template <typename ...TComponents>
+	std::pair<std::size_t, Entity> GetUniqueEntityWithImpl();
+
 	/*
 	* Retrieves a const reference to the specified component type.
 	* If entity does not have component, debug assertion is called.
@@ -1318,6 +1446,10 @@ private:
 	// Systems require access to entity component access functions.
 	template <typename ...T>
 	friend class System;
+
+	// UESystems require access to entity component access functions.
+	template <typename ...T>
+	friend class UESystem;
 
 	// Stores the next valid entity id.
 	// This will be incremented if no free id is found.
@@ -1729,6 +1861,46 @@ inline std::vector<Entity> Manager::GetEntitiesWithout() {
 	}
 }
 
+template <typename ...TComponents>
+inline Entity Manager::GetUniqueEntityWith() {
+	static_assert(sizeof...(TComponents) > 0,
+				  "Cannot get unique entity with no specified components");
+	auto [matching_entities, entity] = GetUniqueEntityWithImpl<TComponents...>();
+	assert(entity != ecs::null && "Could not find valid unique entity in manager");
+	assert(matching_entities > 0 && "Could not find unique entity with matching component types in manager");
+	assert(matching_entities == 1 && "Cannot get unique entity when multiple entities have the matching component types - entity must be unique");
+	return entity;
+}
+
+template <typename ...TComponents>
+inline std::pair<std::size_t, Entity> Manager::GetUniqueEntityWithImpl() {
+	Entity entity{ ecs::null };
+	// Cache component pools.
+	auto pools = std::make_tuple(GetPool<TComponents>(GetComponentId<TComponents>())...);
+	bool manager_has_components = {
+		((std::get<ecs::internal::Pool<TComponents>*>(pools) != nullptr) && ...)
+	};
+	std::size_t matching_entities{ 0 };
+	if (manager_has_components) {
+		// Cycle through all manager entities.
+		for (ecs::internal::Id entity_id{ 0 }; entity_id < next_entity_; ++entity_id) {
+			// If entity is alive, check for components.
+			if (entities_[entity_id]) {
+				bool has_components = {
+					(std::get<ecs::internal::Pool<TComponents>*>(pools)->Has(entity_id) && ...)
+				};
+				if (has_components) {
+					if (matching_entities == 0) {
+						entity = { entity_id, versions_[entity_id], this };
+					}
+					++matching_entities;
+				}
+			}
+		}
+	}
+	return { matching_entities, entity };
+}
+
 inline void Manager::DestroyEntities() {
 	assert(entities_.size() == refresh_.size());
 	assert(next_entity_ <= entities_.size());
@@ -1810,9 +1982,41 @@ inline void Manager::DestroyEntitiesWithout() {
 }
 
 template <typename ...TComponents>
-inline std::vector<std::tuple<Entity, TComponents&...>> Manager::GetEntityComponents() {
+inline void Manager::DestroyUniqueEntityWith() {
 	static_assert(sizeof...(TComponents) > 0,
-				  "Cannot get entity components without at least one specified component type");
+				  "Cannot destroy unique entity with no specified components");
+	// Cache component pools.
+	auto pools = std::make_tuple(GetPool<TComponents>(GetComponentId<TComponents>())...);
+	bool manager_has_components = {
+		((std::get<ecs::internal::Pool<TComponents>*>(pools) != nullptr) && ...)
+	};
+	assert(manager_has_components &&
+		   "Cannot destroy unique entity when manager doesn't contain at least one entity with requested component types");
+	std::size_t matching_entities{ 0 };
+	// Cycle through all manager entities.
+	for (ecs::internal::Id entity_id{ 0 }; entity_id < next_entity_; ++entity_id) {
+		// If entity is alive, check for components.
+		if (entities_[entity_id]) {
+			bool has_components = {
+				(std::get<ecs::internal::Pool<TComponents>*>(pools)->Has(entity_id) && ...)
+			};
+			if (has_components) {
+				if (matching_entities == 0) {
+					refresh_[entity] = true;
+				}
+				++matching_entities;
+			}
+		}
+	}
+	refresh_required_ = true;
+	assert(matching_entities > 0 && "Cannot find unique entity for destruction with the given component types");
+	assert(matching_entities == 1 && "Cannot find unique entity for destruction when multiple entities have the matching component types - entity must be unique");
+}
+
+template <typename ...TComponents>
+inline std::vector<std::tuple<Entity, TComponents&...>> Manager::GetEntitiesAndComponents() {
+	static_assert(sizeof...(TComponents) > 0,
+				  "Cannot get entities and components without at least one specified component type");
 	std::vector<std::tuple<Entity, TComponents&...>> vector_of_tuples;
 	if (count_ > 0) {
 		auto pools = std::make_tuple(GetPool<TComponents>(GetComponentId<TComponents>())...);
@@ -1840,6 +2044,17 @@ inline std::vector<std::tuple<Entity, TComponents&...>> Manager::GetEntityCompon
 	return vector_of_tuples;
 }
 
+template <typename ...TComponents>
+inline std::tuple<Entity, TComponents&...> Manager::GetUniqueEntityAndComponents() {
+	static_assert(sizeof...(TComponents) > 0,
+				  "Cannot get unique entity and components when no components have been specified");
+	auto [matching_entities, entity] = GetUniqueEntityWithImpl<TComponents...>();
+	assert(entity != ecs::null && "Could not find valid unique entity and components in the manager");
+	assert(matching_entities > 0 && "Could not find unique entity and components with matching component types in manager");
+	assert(matching_entities == 1 && "Cannot get unique entity and components when multiple entities have the matching component types - entity must be unique");
+	return std::forward_as_tuple(entity, entity.GetComponent<TComponents>()...);
+}
+
 template <typename ...TRequiredComponents>
 inline void System<TRequiredComponents...>::SetComponentDependencies() {
 	std::array<ecs::internal::Id, sizeof...(TRequiredComponents)> components{ Manager::GetComponentId<TRequiredComponents>()... };
@@ -1861,9 +2076,20 @@ template <typename ...TRequiredComponents>
 inline void System<TRequiredComponents...>::ResetCacheIfFlagged() {
 	if (reset_required_) {
 		// Fetch new entities vector of tuples from the manager.
-		entities = manager_->GetEntityComponents<TRequiredComponents...>();
+		entities = manager_->GetEntitiesAndComponents<TRequiredComponents...>();
 		reset_required_ = false;
 	}
+}
+
+template<typename ...TRequiredComponents>
+inline std::tuple<Entity, TRequiredComponents&...> UESystem<TRequiredComponents...>::GetEntityAndComponents() {
+	static_assert(sizeof...(TRequiredComponents) > 0,
+				  "Unique system cannot get unique entity with no specified components");
+	auto [matching_entities, entity] = GetManager().GetUniqueEntityWithImpl<TRequiredComponents...>();
+	assert(entity != ecs::null && "Unique system could not find valid unique entity from the manager");
+	assert(matching_entities > 0 && "Unique system could not find unique entity with matching components from the manager");
+	assert(matching_entities == 1 && "Unique system found more than one entity matching the required components - please ensure only one entity with these components exists or switch to using regular systems");
+	return std::forward_as_tuple(entity, entity.GetComponent<TRequiredComponents>()...);
 }
 
 } // namespace ecs

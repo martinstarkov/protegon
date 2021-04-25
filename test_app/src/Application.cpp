@@ -36,15 +36,20 @@ public:
 						 V2_int::Random(0, window_size.x, 0, window_size.y), 
 						 AABB{ V2_int::Random(5, 30, 5, 30) });
 		}
-
+		manager.AddSystem<engine::CameraSystem>();
+		engine::CameraSystem::ZOOM_IN_KEY = Key::G;
+		engine::CameraSystem::ZOOM_OUT_KEY = Key::H;
 
 		CreateStatic(manager, { 300, 300 },
 					 AABB{ { 200, 30 } });
 		CreateStatic(manager, { 300 - 30, 300 - 200 },
 					 AABB{ { 30, 200 } });
 
+		manager.AddSystem<InputSystem>();
 
 		// Mouse
+		m.AddComponent<CameraComponent>(true);
+		m.AddComponent<InputComponent>();
 		m.AddComponent<RigidBodyComponent>();
 		m.AddComponent<TransformComponent>();
 		m.AddComponent<ColorComponent>(colors::BLUE);
@@ -53,36 +58,40 @@ public:
 		t.SetStyles(FontStyle::BOLD, FontStyle::UNDERLINE, FontStyle::STRIKETHROUGH, FontStyle::ITALIC);
 	}
 	void Update() {
-		auto [m_t, m_s] = m.GetComponents<TransformComponent, ShapeComponent>();
+		manager.UpdateSystem<InputSystem>();
+		auto [mouse, transform, shape, rigid_body] = manager.GetUniqueEntityAndComponents<TransformComponent, ShapeComponent, RigidBodyComponent>();
 
-		m_t.transform.position = InputHandler::GetMousePosition();
+		rigid_body.body.velocity += rigid_body.body.acceleration;
+		transform.transform.position += rigid_body.body.velocity;
 
-		if (m_s.shape->GetType() == ShapeType::AABB) {
-			m_t.transform.position -= m_s.shape->CastTo<AABB>().size / 2.0;
-		}
+		/*transform.transform.position = InputHandler::GetMousePosition();
+
+		if (shape.shape->GetType() == ShapeType::AABB) {
+			transform.transform.position -= shape.shape->CastTo<AABB>().size / 2.0;
+		}*/
 
 		if (InputHandler::KeyDown(Key::R)) {
-			if (m_s.shape->GetType() == ShapeType::CIRCLE) {
-				m.AddComponent<ShapeComponent>(mouse_box);
-			} else if (m_s.shape->GetType() == ShapeType::AABB) {
-				m.AddComponent<ShapeComponent>(mouse_circle);
+			if (shape.shape->GetType() == ShapeType::CIRCLE) {
+				mouse.AddComponent<ShapeComponent>(mouse_box);
+			} else if (shape.shape->GetType() == ShapeType::AABB) {
+				mouse.AddComponent<ShapeComponent>(mouse_circle);
 			}
 		}
 
-		auto entities{ manager.GetEntityComponents<TransformComponent, ShapeComponent>() };
+		auto entities{ manager.GetEntitiesAndComponents<TransformComponent, ShapeComponent>() };
 		std::vector<Manifold> manifolds;
-		for (auto [entity, transform, shape] : entities) {
-			if (entity != m) {
-				auto manifold{ StaticCollisionCheck(m_t.transform, 
-													transform.transform, 
-													m_s.shape, 
-													shape.shape) 
+		for (auto [entity2, transform2, shape2] : entities) {
+			if (entity2 != mouse) {
+				auto manifold{ StaticCollisionCheck(transform.transform, 
+													transform2.transform, 
+													shape.shape, 
+													shape2.shape) 
 				};
-				Print(manifold.penetration);
-				m_t.transform.position -= manifold.penetration;
+				//Print(manifold.penetration);
+				transform.transform.position -= manifold.penetration;
 			}
 		}
-		PrintLine();
+		//PrintLine();
 
 		/*for (const auto& manifold : manifolds) {
 			if (!manifold.normal.IsZero()) {
@@ -109,7 +118,7 @@ public:
 		}
 	}
 	void Render() {
-		auto entities{ manager.GetEntityComponents<TransformComponent, ShapeComponent, ColorComponent>() };
+		auto entities{ manager.GetEntitiesAndComponents<TransformComponent, ShapeComponent, ColorComponent>() };
 		for (auto [entity, transform, shape, color] : entities) {
 			if (shape.shape->GetType() == ShapeType::CIRCLE) {
 				Renderer::DrawCircle(
