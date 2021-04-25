@@ -1,57 +1,51 @@
-//#pragma once
-//
-//#include "ecs/System.h"
-//
-//#include "core/Scene.h"
-//
-//#include "event/InputHandler.h"
-//
-//#define SCALE_BOUNDARY V2_double{ 5, 5 } // +/- this much max to the scale when zooming
-//#define ZOOM_SPEED V2_double{ 0.1, 0.1 } // +/- this much max to the scale when zooming
-//
-//class CameraSystem : public ecs::System<CameraComponent> {
-//public:
-//	virtual void Update() override final {
-//		auto& scene = engine::Scene::Get();
-//		// Set last found primary camera as the active camera.
-//		ecs::Entity primary_entity{ ecs::null };
-//		for (auto [entity, camera] : entities) {
-//			if (camera.primary) {
-//				scene.SetCamera(camera.camera);
-//				primary_entity = entity;
-//			}
-//		}
-//		if (primary_entity != ecs::null) {
-//			auto camera = scene.GetCamera();
-//			assert(camera != nullptr && "Scene camera undefined");
-//			// Update scale first.
-//			if (engine::InputHandler::KeyPressed(Key::Q) && engine::InputHandler::KeyReleased(Key::E)) {
-//				camera->scale += ZOOM_SPEED * camera->scale;
-//				camera->ClampScale(SCALE_BOUNDARY);
-//			} else if (engine::InputHandler::KeyPressed(Key::E) && engine::InputHandler::KeyReleased(Key::Q)) {
-//				camera->scale -= ZOOM_SPEED * camera->scale;
-//				camera->ClampScale(SCALE_BOUNDARY);
-//			}
-//			// Then update offset.
-//			V2_double size; 
-//			V2_double sprite_scale{ 1.0, 1.0 }; 
-//			if (primary_entity.HasComponent<SizeComponent>()) {
-//				size = primary_entity.GetComponent<SizeComponent>().size;
-//			}
-//			if (primary_entity.HasComponent<CollisionComponent>()) {
-//				size = primary_entity.GetComponent<CollisionComponent>().collider.size;
-//			}
-//			V2_double pos{};
-//			if (primary_entity.HasComponent<TransformComponent>()) {
-//				pos = primary_entity.GetComponent<TransformComponent>().position;
-//			}
-//			if (primary_entity.HasComponent<RigidBodyComponent>()) {
-//				auto body = primary_entity.GetComponent<RigidBodyComponent>().body;
-//				if (body != nullptr) {
-//					pos = body->position;
-//				}
-//			}
-//			camera->Center(pos, size);
-//		}
-//	}
-//};
+#pragma once
+
+#include "ecs/ECS.h"
+#include "ecs/components/TransformComponent.h"
+#include "ecs/components/CameraComponent.h"
+#include "ecs/components/ShapeComponent.h"
+
+#include "event/InputHandler.h"
+
+namespace engine {
+
+class CameraSystem : public ecs::System<TransformComponent, CameraComponent> {
+public:
+	static inline Key ZOOM_IN_KEY{ Key::Q };
+	static inline Key ZOOM_OUT_KEY{ Key::E };
+	virtual void Update() override final {
+		// Set last found primary camera as the active camera.
+		ecs::Entity primary_entity{ ecs::null };
+		CameraComponent* primary_camera{ nullptr };
+		TransformComponent* primary_transform{ nullptr };
+		for (auto [entity, transform, camera] : entities) {
+			if (camera.primary) {
+				primary_entity = entity;
+				primary_transform = &transform;
+				primary_camera = &camera;
+			}
+		}
+		if (primary_entity != ecs::null && 
+			primary_camera != nullptr &&
+			primary_transform != nullptr) {
+			auto& camera{ primary_camera->camera };
+			// Update camera zoom.
+			if (engine::InputHandler::KeyPressed(ZOOM_IN_KEY) && engine::InputHandler::KeyReleased(ZOOM_OUT_KEY)) {
+				camera.scale += camera.zoom_speed * camera.scale;
+				camera.ClampToBound();
+			} else if (engine::InputHandler::KeyPressed(ZOOM_OUT_KEY) && engine::InputHandler::KeyReleased(ZOOM_IN_KEY)) {
+				camera.scale -= camera.zoom_speed * camera.scale;
+				camera.ClampToBound();
+			}
+			// Find size of camera's target object if relevant.
+			V2_double size; 
+			if (primary_entity.HasComponent<ShapeComponent>()) {
+				auto& shape{ primary_entity.GetComponent<ShapeComponent>() };
+				size = shape.GetSize();
+			}
+			camera.CenterOn(primary_transform->transform.position, size, primary_camera->display_index);
+		}
+	}
+};
+
+}
