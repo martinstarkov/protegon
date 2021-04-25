@@ -69,9 +69,9 @@ private:
 	Color shading_background_color_;
 	Texture texture_;
 
-	const char* content_;
+	const char* content_{ "" };
 	Color color_;
-	const char* font_name_;
+	const char* font_name_{ "" };
 	std::size_t font_key_{ 0 };
 	V2_double position_;
 	V2_double area_;
