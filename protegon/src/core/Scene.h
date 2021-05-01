@@ -1,7 +1,33 @@
-//#pragma once
-//
-//#include "ecs/ECS.h"
-//
+#pragma once
+
+#include "ecs/ECS.h"
+
+namespace engine {
+
+class Scene {
+public:
+	Scene() = delete;
+	virtual ~Scene() = default;
+	virtual void Enter() = 0;
+	virtual void Update() = 0;
+	virtual void Render() = 0;
+	virtual void Exit() = 0;
+	ecs::Manager manager;
+protected:
+	void SetDisplayIndex(std::size_t new_display_index) {
+		display_index = new_display_index;
+	}
+	std::size_t GetDisplayIndex() const {
+		return display_index;
+	}
+private:
+	friend class SceneManager;
+	std::size_t display_index{ 0 };
+	bool entered_{ false };
+};
+
+} // namespace engine
+
 //#include <vector> // std::vector
 //#include <memory> // std::shared_ptr
 //
