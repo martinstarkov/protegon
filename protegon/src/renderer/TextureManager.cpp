@@ -26,7 +26,7 @@ void TextureManager::Load(const char* texture_key, const char* texture_path, std
 		temp_surface.Destroy();
 		texture_map_.emplace(key, texture);
 	} else {
-		std::cerr << "Warning: Attempting to load texture which already exists in TextureManager" << std::endl;
+		PrintLine("Warning: Cannot load texture key which already exists in the TextureManager");
 	}
 }
 

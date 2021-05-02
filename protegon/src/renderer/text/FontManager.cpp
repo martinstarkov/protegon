@@ -19,6 +19,8 @@ void FontManager::Load(const char* name, const char* file, std::uint32_t ptsize)
 	if (it == std::end(font_map_)) { // Only load font if it doesn't already exist in font manager.
 		Font font{ file, ptsize };
 		font_map_.emplace(key, font);
+	} else {
+		PrintLine("Warning: Cannot load font key which already exists in the FontManager");
 	}
 }
 
