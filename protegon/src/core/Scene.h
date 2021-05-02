@@ -2,27 +2,26 @@
 
 #include "ecs/ECS.h"
 
+#include "core/Engine.h"
+
 namespace engine {
 
 class Scene {
 public:
-	Scene() = delete;
 	virtual ~Scene() = default;
-	virtual void Enter() = 0;
-	virtual void Update() = 0;
-	virtual void Render() = 0;
-	virtual void Exit() = 0;
+	virtual void Enter() {}
+	virtual void Update() {}
+	virtual void Render() {}
+	virtual void Exit() {}
+	Display GetDisplay() const;
+	V2_int GetWindowSize() const;
 	ecs::Manager manager;
 protected:
-	void SetDisplayIndex(std::size_t new_display_index) {
-		display_index = new_display_index;
-	}
-	std::size_t GetDisplayIndex() const {
-		return display_index;
-	}
+	void SetDisplayIndex(std::size_t new_display_index);
+	std::size_t GetDisplayIndex() const;
 private:
 	friend class SceneManager;
-	std::size_t display_index{ 0 };
+	std::size_t display_index_{ 0 };
 	bool entered_{ false };
 };
 

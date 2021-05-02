@@ -2,22 +2,23 @@
 
 using namespace engine;
 
-class Test : public Engine {
+template <typename T>
+ecs::Entity CreateStatic(ecs::Manager& manager, const V2_double& position, const T& shape) {
+	auto obj{ manager.CreateEntity() };
+	obj.AddComponent<TransformComponent>(Transform{ position });
+	obj.AddComponent<ColorComponent>(colors::RED);
+	obj.AddComponent<ShapeComponent>(shape);
+	return obj;
+}
+
+class Test : public Scene {
 public:
 	Test() = default;
 	Text t;
 	AABB mouse_box{ { 30, 30 } };
 	Circle mouse_circle{ 30 };
-	template <typename T>
-	ecs::Entity CreateStatic(ecs::Manager& manager, const V2_double& position, const T& shape) {
-		auto obj{ manager.CreateEntity() };
-		obj.AddComponent<TransformComponent>(Transform{ position });
-		obj.AddComponent<ColorComponent>(colors::RED);
-		obj.AddComponent<ShapeComponent>(shape);
-		return obj;
-	}
 	Timer timer;
-	void Init() {
+	void Enter() {
 		TextureManager::Load("acorn", "resources/sprites/acorn.png");
 		timer.Start();
 		FontManager::Load("pixel-50", "resources/fonts/retro_gaming.ttf", 50);
@@ -148,13 +149,110 @@ public:
 		Renderer::DrawPoint({ 50 + 50 + 50 + 76, 50 + 50 + 50 }, colors::PURPLE, 1);
 		Renderer::DrawLine({ 50 + 50 + 50 + 50, 50 + 50 + 50 + 50 }, { 50 + 50 + 50, 50 + 50 + 50 }, colors::CYAN, 1);
 	}
+	void Exit() {
+		PrintLine("Exiting test scene");
+	}
+	~Test() {
+		PrintLine("Unloading test scene");
+	}
 	ecs::Entity m;
 	ecs::Manager manager;
 };
 
+class Other : public Scene {
+public:
+	AABB mouse_box{ { 30, 30 } };
+	Circle mouse_circle{ 30 };
+	void Enter() {
+		auto circles = 50;
+		auto window_size = GetWindowSize();
+		for (auto c{ 0 }; c < circles; ++c) {
+			CreateStatic(manager,
+						 V2_int::Random(0, window_size.x, 0, window_size.y),
+						 Circle{ engine::math::Random<double>(5, 30) });
+		}
+		auto mouse = manager.CreateEntity();
+		mouse.AddComponent<TransformComponent>();
+		mouse.AddComponent<PlayerController>();
+		mouse.AddComponent<ColorComponent>(Color{ colors::PINK });
+		mouse.AddComponent<ShapeComponent>(mouse_circle);
+		manager.Refresh();
+	}
+	void Update() {
+		auto [mouse, transform, shape, rigid_body] = manager.GetUniqueEntityAndComponents<TransformComponent, ShapeComponent, PlayerController>();
+
+		transform.transform.position = InputHandler::GetMousePosition();
+
+		if (shape.shape->GetType() == ShapeType::AABB) {
+			transform.transform.position -= shape.shape->CastTo<AABB>().size / 2.0;
+		}
+
+		if (InputHandler::KeyDown(Key::R)) {
+			if (shape.shape->GetType() == ShapeType::CIRCLE) {
+				mouse.AddComponent<ShapeComponent>(mouse_box);
+			} else if (shape.shape->GetType() == ShapeType::AABB) {
+				mouse.AddComponent<ShapeComponent>(mouse_circle);
+			}
+		}
+	}
+	void Render() {
+		auto entities{ manager.GetEntitiesAndComponents<TransformComponent, ShapeComponent, ColorComponent>() };
+		for (auto [entity, transform, shape, color] : entities) {
+			if (shape.shape->GetType() == ShapeType::CIRCLE) {
+				Renderer::DrawCircle(
+					transform.transform.position,
+					shape.shape->CastTo<Circle>().radius,
+					color.color
+				);
+			} else if (shape.shape->GetType() == ShapeType::AABB) {
+				Renderer::DrawRectangle(
+					transform.transform.position,
+					shape.shape->CastTo<AABB>().size,
+					color.color
+				);
+			}
+		}
+	}
+	void Exit() {
+		PrintLine("Exiting other scene");
+	}
+	~Other() {
+		PrintLine("Unloading other scene");
+	}
+};
+
+class Application : public Engine {
+public:
+	void Init() {
+		engine::SceneManager::LoadScene<Test>("test_scene");
+		engine::SceneManager::LoadScene<Other>("other_scene");
+		engine::SceneManager::SetActiveScene("test_scene");
+	}
+	void Update() {
+		engine::SceneManager::EnterActiveScenes();
+		engine::SceneManager::UpdateActiveScenes();
+		if (engine::InputHandler::KeyDown(Key::O)) {
+			engine::SceneManager::SetActiveScene("other_scene");
+		} else if (engine::InputHandler::KeyDown(Key::T)) {
+			engine::SceneManager::SetActiveScene("test_scene");
+		}
+		if (engine::InputHandler::KeyDown(Key::U)) {
+			engine::SceneManager::UnloadScene("test_scene");
+		}
+
+		if (engine::InputHandler::KeyDown(Key::L)) {
+			engine::SceneManager::LoadScene<Test>("test_scene");
+		}
+	}
+	void Render() {
+		engine::SceneManager::RenderActiveScenes();
+		engine::SceneManager::UnloadQueuedScenes();
+	}
+};
+
 int main(int c, char** v) {
 
-	Engine::Start<Test>("Squirhell", { 800, 600 }, 60);
+	Engine::Start<Application>("Squirhell", { 800, 600 }, 60);
 
 	return 0;
 }

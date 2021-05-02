@@ -2,7 +2,8 @@
 
 #include "core/Engine.h"
 #include "core/Scene.h"
-#include "core/World.h"
+#include "core/SceneManager.h"
+//#include "core/World.h"
 
 #include "ecs/ECS.h"
 #include "ecs/Components.h"
