@@ -63,7 +63,7 @@
 //					bool skip = false;
 //					// Do not check against self.
 //					// Do not check against excluded entity tags (both of the first and second entity, i.e. check both excluded tag lists).
-//					if (entity == entity2 || HasExcludedTag(entity, collision2.ignored_tag_types) || HasExcludedTag(entity2, collision_component.ignored_tag_types)) {
+//					if (entity == entity2 || engine::HasExcludedTag(entity, collision2.ignored_tag_types) || engine::HasExcludedTag(entity2, collision_component.ignored_tag_types)) {
 //						skip = true;
 //					}
 //					// If none of the above skip conditions are met, proceed with collision check.
@@ -161,7 +161,7 @@
 //					bool skip{ false };
 //					// Do not check against self.
 //					// Do not check against excluded entity tags.
-//					if (entity == entity2 || HasExcludedTag(entity, collision2.ignored_tag_types) || HasExcludedTag(entity2, collision_component.ignored_tag_types)) {
+//					if (entity == entity2 || engine::HasExcludedTag(entity, collision2.ignored_tag_types) || engine::HasExcludedTag(entity2, collision_component.ignored_tag_types)) {
 //						skip = true;
 //					}
 //					auto& oCollider{ collision2.collider };
