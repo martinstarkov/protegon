@@ -48,7 +48,7 @@ public:
 		return static_cast<T>(it->second);
 	}
 	// Sets the scene to active for the given display_index.
-	static void SetActiveScene(const char* scene_key, std::size_t display_index = 0);
+	static void EnterScene(const char* scene_key, std::size_t display_index = 0);
 	// Flags a scene to be unloaded after the game loop cycle.
 	static void UnloadScene(const char* scene_key);
 

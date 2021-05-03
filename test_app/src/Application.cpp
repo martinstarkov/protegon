@@ -223,18 +223,18 @@ public:
 
 class Application : public Engine {
 public:
+	Display display;
 	void Init() {
 		engine::SceneManager::LoadScene<Test>("test_scene");
 		engine::SceneManager::LoadScene<Other>("other_scene");
-		engine::SceneManager::SetActiveScene("test_scene");
+		engine::SceneManager::EnterScene("test_scene");
 	}
 	void Update() {
-		engine::SceneManager::EnterActiveScenes();
 		engine::SceneManager::UpdateActiveScenes();
 		if (engine::InputHandler::KeyDown(Key::O)) {
-			engine::SceneManager::SetActiveScene("other_scene");
+			engine::SceneManager::EnterScene("other_scene");
 		} else if (engine::InputHandler::KeyDown(Key::T)) {
-			engine::SceneManager::SetActiveScene("test_scene");
+			//engine::SceneManager::EnterScene("test_scene", EnterArguments{ }, InitArguments{ });
 		}
 		if (engine::InputHandler::KeyDown(Key::U)) {
 			engine::SceneManager::UnloadScene("test_scene");

@@ -8,7 +8,7 @@ std::unordered_set<std::size_t> SceneManager::queued_unload_scenes_;
 std::unordered_map<std::size_t, Scene*> SceneManager::loaded_scenes_;
 std::unordered_map<std::size_t, std::size_t> SceneManager::display_scenes_;
 
-void SceneManager::SetActiveScene(const char* scene_key, std::size_t display_index) {
+void SceneManager::EnterScene(const char* scene_key, std::size_t display_index) {
 	auto key{ Hasher::HashCString(scene_key) };
 	auto display_it{ display_scenes_.find(display_index) };
 	bool replacing{ display_it != display_scenes_.end() };
@@ -21,6 +21,10 @@ void SceneManager::SetActiveScene(const char* scene_key, std::size_t display_ind
 	assert(scene != nullptr &&
 		   "Cannot set active scene to invalid scene pointer");
 	scene->SetDisplayIndex(display_index);
+	if (!scene->entered_) {
+		scene->Enter();
+		scene->entered_ = true;
+	}
 	if (replacing) {
 		// Exit old scene.
 		auto old_scene{ GetScene(display_it->second) };
