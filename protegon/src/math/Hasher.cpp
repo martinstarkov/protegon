@@ -2,6 +2,7 @@
 
 #include <functional> // std::hash
 #include <string> // std::string_view
+#include <cstring> // std::strlen
 
 namespace engine {
 
