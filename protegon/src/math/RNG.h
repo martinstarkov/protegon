@@ -1,94 +1,60 @@
 #pragma once
 
-#include <cstdint>
-#include <random>
+#include <cstdint> // std::uint32_t, etc
+#include <random> // std::minstd_rand, std::mt19937, std::uniform_int_distribution, etc
 
 #include "utils/TypeTraits.h"
 
 namespace engine {
 
-// TODO: Write tests for E randon number engines.
+// TODO: Write tests for all randon number engines.
 
 /*
+* Define RNG object by giving it a type to generate from
+* and a range or seed for the distribution. 
+* Upper and lower bounds of RNG range are respectively:
+* [a, b) for real numbers, [a, b] for integers, [] = included, () = excluded.
+* Use operator() on the RNG object to obtain new random numbers.
 * @tparam T Type of number to generate
-* @tparam E Type of engine to use (std::minstd_rand [default], std::mt19937, etc)
+* @tparam E Type of rng engine to use (std::minstd_rand [default], std::mt19937, etc)
 */
 template <typename T, typename E = std::minstd_rand,
 	type_traits::is_number<T> = true>
 class RNG {
 public:
+	// Default constructor makes distribution range 0 to 1.
 	RNG() = default;
 	// Seed only constructor.
-	RNG(std::uint32_t seed) : gen{ seed } {}
+	RNG(std::uint32_t seed) : generator{ seed } {}
 	// Range only constructor.
-	RNG(T min, T max) : dist{ min, max } {}
+	RNG(T min, T max) : distribution{ min, max } {}
 	// Seed and range constructor.
-	RNG(std::uint32_t seed, T min, T max) : gen{ seed }, dist{ min, max } {}
+	RNG(std::uint32_t seed, T min, T max) : gen{ seed }, distribution{ min, max } {}
 
 	T operator()() {
-		return dist(gen);
+		return distribution(generator);
 	}
 
 	void SetSeed(std::uint32_t new_seed) {
-		gen.seed(new_seed);
-		//seed32 = new_seed;
+		generator.seed(new_seed);
 	}
 private:
-	template <typename T>
-	using uniform_distribution =
+	// Template which picks correct uniform distribution
+	// generator based on the provided type.
+	template <typename V>
+	using uniform_distribution = 
 		typename std::conditional<
-		std::is_floating_point<T>::value,
-		std::uniform_real_distribution<T>,
+		std::is_floating_point<V>::value, 
+		std::uniform_real_distribution<V>,
 		typename std::conditional<
-		std::is_integral<T>::value,
-		std::uniform_int_distribution<T>,
-		void
-		>::type
-		>::type;
-	E gen{ std::random_device{}() };
-	uniform_distribution<T> dist;
-
-	/*
-	// Lehmer32 generator found in OLC's procedural universe generator:
-	// https://github.com/OneLoneCoder/olcPixelGameEngine/blob/master/Videos/OneLoneCoder_PGE_ProcGen_Universe.cpp
-	template <typename T,
-		type_traits::is_floating_point<T> = true,
-		type_traits::convertible<T, double> = true
-	>
-	T Random(T min = 0.0, T max = 1.0) {
-		assert(max > min && "Range must contain at least one double inside it");
-		//std::uniform_real_distribution<double> dist(min, max);
-		//return dist(gen);
-		return ((T)Lehmer32() / (T)(std::numeric_limits<std::uint32_t>::max())) * (max - min) + min;
-	}
-	template <typename T, 
-		type_traits::is_integral<T> = true,
-		type_traits::convertible<T, int> = true
-	>
-	T Random(T min = 0, T max = 1) {
-		assert(max > min && "Range must have at least one integer inside it");
-		//std::uniform_int_distribution<int> dist(min, max);
-		//return dist(gen);
-		return (Lehmer32() % (max - min)) + min;
-	}
-	std::uint32_t seed32{ 0 };
-	std::uint32_t Lehmer32() {
-		seed32 += 0xe120fc15;
-		std::uint64_t tmp;
-		tmp = (std::uint64_t)seed32 * 0x4a39b70d;
-		std::uint32_t m1 = (std::uint32_t)((tmp >> 32) ^ tmp);
-		tmp = (std::uint64_t)m1 * 0x12fad5c9;
-		std::uint32_t m2 = (std::uint32_t)((tmp >> 32) ^ tmp);
-		return m2;
-	}
-	std::uint64_t seed64 = 0;
-	// Lehmer64 generator found in Daniel Lemire's blog post:
-	// https://lemire.me/blog/2019/03/19/the-fastest-conventional-random-number-generator-that-can-pass-big-crush/
-	std::uint64_t Lehmer64() {
-		seed64 *= 0xda942042e4dd58b5;
-		return seed64 >> 64;
-	}
-	*/
+		std::is_integral<V>::value, 
+		std::uniform_int_distribution<V>, 
+		void>::type>::type;
+	// Internal random number generator.
+	E generator{ std::random_device{}() };
+	// Define internal distribution.
+	// Range 0 to 1 by default.
+	uniform_distribution<T> distribution{ 0, 1 };
 };
 
 } // namespace engine
