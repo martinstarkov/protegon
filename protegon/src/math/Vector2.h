@@ -32,7 +32,12 @@ static constexpr const char VECTOR_RIGHT_DELIMETER{ ')' };
 
 } // namespace engine
 
-template <class T, engine::type_traits::is_number<T> = true>
+/*
+* @tparam T Type contained in vector.
+*/
+template <typename T, 
+    engine::type_traits::is_number<T> = true
+>
 struct Vector2 {
 
     // Zero construction by default.
@@ -41,9 +46,14 @@ struct Vector2 {
     T y{ 0 };
 
     Vector2() = default;
+
     ~Vector2() = default;
+    
     // Allow construction from two different types, cast to the vector type.
-    template <typename U, typename V, engine::type_traits::is_number<U> = true, engine::type_traits::is_number<V> = true>
+    template <typename U, typename V, 
+        engine::type_traits::is_number<U> = true, 
+        engine::type_traits::is_number<V> = true
+    >
     Vector2(U x, V y) : x{ static_cast<T>(x) }, y{ static_cast<T>(y) } {}
 
     // Constructing vector from string used for deserializing vectors.
@@ -77,45 +87,60 @@ struct Vector2 {
         ++x; ++y;
         return *this;
     }
+
     Vector2 operator++(int) {
         Vector2 tmp(*this);
         operator++();
         return tmp;
     }
+
     Vector2& operator--() {
         --x; --y;
         return *this;
     }
+
     Vector2 operator--(int) {
         Vector2 tmp(*this);
         operator--();
         return tmp;
     }
+
     Vector2 operator-() const {
         return { -x, -y };
     }
 
     // Arithmetic operators between vectors.
 
-    template <typename U, engine::type_traits::convertible<U, T> = true>
+    template <typename U,
+        engine::type_traits::convertible<U, T> = true
+    >
     Vector2& operator+=(const Vector2<U>& rhs) {
         x += static_cast<T>(rhs.x);
         y += static_cast<T>(rhs.y);
         return *this;
     }
-    template <typename U, engine::type_traits::convertible<U, T> = true>
+
+    template <typename U, 
+        engine::type_traits::convertible<U, T> = true
+    >
     Vector2& operator-=(const Vector2<U>& rhs) {
         x -= static_cast<T>(rhs.x);
         y -= static_cast<T>(rhs.y);
         return *this;
     }
-    template <typename U, engine::type_traits::convertible<U, T> = true>
+
+    template <typename U, 
+        engine::type_traits::convertible<U, T> = true
+    >
     Vector2& operator*=(const Vector2<U>& rhs) {
         x *= static_cast<T>(rhs.x);
         y *= static_cast<T>(rhs.y);
         return *this;
     }
-    template <typename U, engine::type_traits::convertible<U, T> = true>
+
+    template <typename U, 
+        engine::type_traits::convertible<U, T> = true
+    >
     Vector2& operator/=(const Vector2<U>& rhs) {
         if (rhs.x) {
             x /= static_cast<T>(rhs.x);
@@ -132,25 +157,40 @@ struct Vector2 {
 
     // Arithmetic operators with basic types.
 
-    template <typename U, engine::type_traits::is_number<U> = true, engine::type_traits::convertible<U, T> = true>
+    template <typename U,
+        engine::type_traits::is_number<U> = true,
+        engine::type_traits::convertible<U, T> = true
+    >
     Vector2& operator+=(U rhs) {
         x += static_cast<T>(rhs);
         y += static_cast<T>(rhs);
         return *this;
     }
-    template <typename U, engine::type_traits::is_number<U> = true, engine::type_traits::convertible<U, T> = true>
+
+    template <typename U, 
+        engine::type_traits::is_number<U> = true, 
+        engine::type_traits::convertible<U, T> = true
+    >
     Vector2& operator-=(U rhs) {
         x -= static_cast<T>(rhs);
         y -= static_cast<T>(rhs);
         return *this;
     }
-    template <typename U, engine::type_traits::is_number<U> = true, engine::type_traits::convertible<U, T> = true>
+
+    template <typename U,
+        engine::type_traits::is_number<U> = true,
+        engine::type_traits::convertible<U, T> = true
+    >
     Vector2& operator*=(U rhs) {
         x *= static_cast<T>(rhs);
         y *= static_cast<T>(rhs);
         return *this;
     }
-    template <typename U, engine::type_traits::is_number<U> = true, engine::type_traits::convertible<U, T> = true>
+
+    template <typename U,
+        engine::type_traits::is_number<U> = true,
+        engine::type_traits::convertible<U, T> = true
+    >
     Vector2& operator/=(U rhs) {
         if (rhs) {
             x /= static_cast<T>(rhs);
@@ -160,6 +200,14 @@ struct Vector2 {
             y = std::numeric_limits<T>::infinity();
         }
         return *this;
+    }
+
+    // Modulo operator on both components for number type vectors.
+    Vector2 operator%(const int rhs) const {
+        return {
+            x % rhs,
+            y % rhs
+        };
     }
 
     // Accessor operators.
