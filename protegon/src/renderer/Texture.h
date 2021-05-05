@@ -4,6 +4,7 @@
 
 #include "renderer/Color.h"
 #include "renderer/Surface.h"
+#include "renderer/sprites/PixelFormat.h"
 
 struct SDL_Texture;
 
@@ -12,21 +13,19 @@ namespace engine {
 class Renderer;
 
 enum class TextureAccess : int {
+	// changes rarely, not lockable
 	STATIC = 0, // SDL_TEXTUREACCESS_STATIC = 0
+	// changes frequently, lockable
 	STREAMING = 1, // SDL_TEXTUREACCESS_STREAMING = 1
+	// can be used as a render target
 	TARGET = 2 // SDL_TEXTUREACCESS_TARGET = 2
-};
-
-enum class PixelFormat : std::uint32_t {
-	ARGB8888 = 372645892, // SDL_PIXELFORMAT_ARGB8888 = 372645892
-	RGBA8888 = 373694468 // SDL_PIXELFORMAT_RGBA8888 = 373694468
 };
 
 // Textures must be freed using Destroy().
 class Texture {
 public:
 	Texture() = default;
-	Texture(const Renderer& renderer, const V2_int& size, PixelFormat format, TextureAccess texture_access);
+	Texture(const Renderer& renderer, const V2_int& size, PixelFormat pixel_format = PixelFormat::RGBA8888, TextureAccess texture_access = TextureAccess::STREAMING);
 	Texture(const Renderer& renderer, const Surface& surface);
 	SDL_Texture* operator=(SDL_Texture* texture);
 	operator SDL_Texture* () const;
@@ -37,9 +36,9 @@ public:
 	void Unlock();
 	void Destroy();
 	// Sets all texture pixels to a specific color.
-	void SetColor(const Color& color);
+	void SetColor(const Color& color, PixelFormat pixel_format = PixelFormat::RGBA8888);
 	// Sets all texture pixels to black.
-	void Clear();
+	void Clear(PixelFormat pixel_format = PixelFormat::RGBA8888);
 private:
 
 	Texture(SDL_Texture* texture);

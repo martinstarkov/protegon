@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include "math/Math.h"
+#include "renderer/sprites/PixelFormat.h"
 
 struct SDL_Color;
 
@@ -11,22 +12,42 @@ namespace engine {
 
 class Color {
 public:
+	// Generates a color with random RGB values and alpha of 255.
 	static Color RandomSolid();
+	// Generates a color with random RGBA values.
 	static Color Random();
 
+	// Default construct color to black.
 	Color() = default;
+
 	~Color() = default;
+	
+	// Construct color from individual RGBA8888 pixel format values.
 	Color(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a);
-	Color(std::uint32_t color);
+
+	// Construct color from a combined RGBA8888 pixel format integer.
+	Color(std::uint32_t RGBA8888);
+
 	Color(const Color& copy) = default;
 	Color(Color&& move) = default;
-
 	Color& operator=(const Color& copy) = default;
 	Color& operator=(Color&& move) = default;
+
 	friend std::ostream& operator<<(std::ostream& os, const Color& color);
+
+	// Implicit conversion to SDL_Color, for internal use.
 	operator SDL_Color() const;
 	
-	std::uint32_t ToUint32() const;
+	/*
+	* Converts color to a given pixel format integer
+	* @param pixel_format The format according to which pixels are converted to an integer.
+	* @return The color converted to the given pixel format, 0 if invalid pixel format.
+	*/
+	std::uint32_t ToUint32(PixelFormat pixel_format = PixelFormat::RGBA8888) const;
+
+	/*
+	* @return True if alpha value of color is 0, false otherwise.
+	*/
 	bool IsTransparent() const;
 
 	std::uint8_t r{ 0 };
@@ -34,6 +55,7 @@ public:
 	std::uint8_t b{ 0 };
 	std::uint8_t a{ 0 };
 private:
+	// Construction from SDL_Color, for internal use.
 	Color(const SDL_Color& color);
 };
 

@@ -10,7 +10,7 @@ namespace engine {
 
 Texture::Texture(SDL_Texture* texture) : texture_{ texture } {}
 
-Texture::Texture(const Renderer& renderer, const V2_int& size, PixelFormat format, TextureAccess texture_access) : texture_{ SDL_CreateTexture(renderer, static_cast<std::uint32_t>(format), static_cast<int>(texture_access), size.x, size.y) } {
+Texture::Texture(const Renderer& renderer, const V2_int& size, PixelFormat pixel_format, TextureAccess texture_access) : texture_{ SDL_CreateTexture(renderer, static_cast<std::uint32_t>(pixel_format), static_cast<int>(texture_access), size.x, size.y) } {
 	if (!IsValid()) {
 		PrintLine("Failed to create texture: ", SDL_GetError());
 		abort();
@@ -67,26 +67,26 @@ void Texture::Destroy() {
 	texture_ = nullptr;
 }
 
-void Texture::SetColor(const Color& color) {
+void Texture::SetColor(const Color& color, PixelFormat pixel_format) {
 	void* pixels{ nullptr };
 	int pitch{ 0 };
 	Lock(&pixels, &pitch);
 	int width{ 0 };
 	int height{ 0 };
 	SDL_QueryTexture(texture_, NULL, NULL, &width, &height);
-	auto color_uint32_t{ color.ToUint32() };
+	auto pixel_color{ color.ToUint32(pixel_format) };
 	for (auto y{ 0 }; y < height; ++y) {
 		auto dst{ (std::uint32_t*)((std::uint8_t*)pixels + y * pitch) };
 		for (auto x{ 0 }; x < width; ++x) {
 			// Set all texture pixels to black.
-			*dst++ = color_uint32_t;
+			*dst++ = pixel_color;
 		}
 	}
 	Unlock();
 }
 
-void Texture::Clear() {
-	SetColor(colors::BLACK);
+void Texture::Clear(PixelFormat pixel_format) {
+	SetColor(colors::BLACK, pixel_format);
 }
 
 } // namespace engine
