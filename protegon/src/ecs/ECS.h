@@ -94,8 +94,11 @@ using is_valid_component = std::enable_if_t<
 template <typename T, typename ...TArgs>
 using is_constructible = std::enable_if_t<std::is_constructible_v<T, TArgs...>, bool>;
 
-template <typename ...TArgs>
-using is_valid_unique_system = std::enable_if_t<(sizeof...(TArgs) > 0), bool>;
+template <typename ...TComponents>
+inline constexpr bool is_valid_unique_system_v{ (sizeof...(TComponents) > 0) };
+
+template <typename ...TComponents>
+using is_valid_unique_system = std::enable_if_t<is_valid_unique_system_v<TComponents...>, bool>;
 
 // Source: https://stackoverflow.com/a/34672753/4384023
 template <template <typename...> class base, typename derived>
@@ -496,7 +499,7 @@ protected:
 	std::vector<std::tuple<Entity, TRequiredComponents&...>> entities;
 private:
 	// Manager requires private access for processing and manipulating systems.
-	friend class ecs::Manager;
+	friend class Manager;
 
 	/*
 	* Generates a hash number using system members.
@@ -634,7 +637,7 @@ protected:
 	std::tuple<Entity, TRequiredComponents&...> GetEntityAndComponents();
 private:
 	// Manager requires private access for processing and manipulating systems.
-	friend class ecs::Manager;
+	friend class Manager;
 
 	/*
 	* Generates a hash number using system members.
@@ -1447,11 +1450,11 @@ private:
 	friend class Entity;
 
 	// Systems require access to entity component access functions.
-	template <typename ...T>
+	template <typename ...TRequiredComponents>
 	friend class System;
 
 	// UESystems require access to entity component access functions.
-	template <typename ...T>
+	template <typename ...TRequiredComponents>
 	friend class UESystem;
 
 	// Stores the next valid entity id.
@@ -2084,11 +2087,12 @@ inline void System<TRequiredComponents...>::ResetCacheIfFlagged() {
 	}
 }
 
-template <typename ...TRequiredComponents>
+template<typename ...TRequiredComponents>
 inline std::tuple<Entity, TRequiredComponents&...> UESystem<TRequiredComponents...>::GetEntityAndComponents() {
-	static_assert(sizeof...(TRequiredComponents) > 0,
+	static_assert(ecs::internal::type_traits::is_valid_unique_system_v<TRequiredComponents...>,
 				  "Unique system cannot get unique entity with no specified components");
-	auto [matching_entities, entity] = GetManager().GetUniqueEntityWithImpl<TRequiredComponents...>();
+	auto& manager{ GetManager() };
+	auto [matching_entities, entity] = manager.GetUniqueEntityWithImpl<TRequiredComponents...>();
 	assert(entity != ecs::null && "Unique system could not find valid unique entity from the manager");
 	assert(matching_entities > 0 && "Unique system could not find unique entity with matching components from the manager");
 	assert(matching_entities == 1 && "Unique system found more than one entity matching the required components - please ensure only one entity with these components exists or switch to using regular systems");
