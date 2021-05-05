@@ -94,6 +94,9 @@ using is_valid_component = std::enable_if_t<
 template <typename T, typename ...TArgs>
 using is_constructible = std::enable_if_t<std::is_constructible_v<T, TArgs...>, bool>;
 
+template <typename ...TArgs>
+using is_valid_unique_system = std::enable_if_t<(sizeof...(TArgs) > 0), bool>;
+
 // Source: https://stackoverflow.com/a/34672753/4384023
 template <template <typename...> class base, typename derived>
 struct is_base_of_template_impl {
