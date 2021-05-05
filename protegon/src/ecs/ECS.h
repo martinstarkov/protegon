@@ -134,8 +134,8 @@ public:
 	virtual ~BaseSystem() = default;
 	virtual void Update() = 0;
 private:
-	friend class Manager;
-	virtual void SetManager(Manager* manager) = 0;
+	friend class ecs::Manager;
+	virtual void SetManager(ecs::Manager* manager) = 0;
 	virtual BaseSystem* Clone() const = 0;
 	virtual std::size_t Hash() const = 0;
 	virtual void SetComponentDependencies() {}
@@ -2084,7 +2084,7 @@ inline void System<TRequiredComponents...>::ResetCacheIfFlagged() {
 	}
 }
 
-template<typename ...TRequiredComponents>
+template <typename ...TRequiredComponents>
 inline std::tuple<Entity, TRequiredComponents&...> UESystem<TRequiredComponents...>::GetEntityAndComponents() {
 	static_assert(sizeof...(TRequiredComponents) > 0,
 				  "Unique system cannot get unique entity with no specified components");

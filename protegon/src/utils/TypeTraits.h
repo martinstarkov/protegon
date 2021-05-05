@@ -63,7 +63,7 @@ template<typename Stream, typename Type>
 struct is_stream_writable<Stream, Type, std::void_t<decltype(std::declval<Stream&>() << std::declval<Type>()) >> : std::true_type {};
 
 template <typename Stream, typename Type>
-bool constexpr is_stream_writable_v{ is_to_stream_writable<Stream, Type>::value };
+bool constexpr is_stream_writable_v{ is_stream_writable<Stream, Type>::value };
 
 template <typename Stream, typename Type>
 using is_stream_writable_e = std::enable_if_t<is_stream_writable_v<Stream, Type>, bool>;
