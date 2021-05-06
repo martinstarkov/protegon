@@ -2092,11 +2092,11 @@ inline std::tuple<Entity, TRequiredComponents&...> UESystem<TRequiredComponents.
 	static_assert(ecs::internal::type_traits::is_valid_unique_system_v<TRequiredComponents...>,
 				  "Unique system cannot get unique entity with no specified components");
 	auto& manager{ GetManager() };
-	auto [matching_entities, entity] = manager.GetUniqueEntityWithImpl<TRequiredComponents...>();
+	auto [matching_entities, entity] = manager.template GetUniqueEntityWithImpl<TRequiredComponents...>();
 	assert(entity != ecs::null && "Unique system could not find valid unique entity from the manager");
 	assert(matching_entities > 0 && "Unique system could not find unique entity with matching components from the manager");
 	assert(matching_entities == 1 && "Unique system found more than one entity matching the required components - please ensure only one entity with these components exists or switch to using regular systems");
-	return std::forward_as_tuple(entity, entity.GetComponent<TRequiredComponents>()...);
+	return std::forward_as_tuple(entity, entity.template GetComponent<TRequiredComponents>()...);
 }
 
 } // namespace ecs

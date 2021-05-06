@@ -59,12 +59,16 @@ bool Texture::Lock(void** out_pixels, int* out_pitch, V2_int lock_position, V2_i
 }
 
 void Texture::Unlock() {
-	SDL_UnlockTexture(texture_);
+	if (texture_ != nullptr) {
+		SDL_UnlockTexture(texture_);
+	}
 }
 
 void Texture::Destroy() {
-	SDL_DestroyTexture(texture_);
-	texture_ = nullptr;
+	if (texture_ != nullptr) {
+		SDL_DestroyTexture(texture_);
+		texture_ = nullptr;
+	}
 }
 
 void Texture::SetColor(const Color& color, PixelFormat pixel_format) {
