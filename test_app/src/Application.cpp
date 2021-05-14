@@ -2,6 +2,14 @@
 
 using namespace engine;
 
+class TestSystem : public ecs::UESystem<ColorComponent, ShapeComponent, TransformComponent, RigidBodyComponent, CameraComponent, TagComponent> {
+public:
+	void Update() {
+		auto [entity, c, s, t, r, cc, tag] = GetEntityAndComponents();
+		PrintLine("Hello");
+	}
+};
+
 template <typename T>
 ecs::Entity CreateStatic(ecs::Manager& manager, const V2_double& position, const T& shape) {
 	auto obj{ manager.CreateEntity() };
@@ -38,6 +46,7 @@ public:
 						 AABB{ V2_int::Random(5, 30, 5, 30) });
 		}
 		manager.AddSystem<engine::CameraSystem>();
+		manager.AddSystem<TestSystem>();
 		engine::CameraSystem::ZOOM_IN_KEY = Key::G;
 		engine::CameraSystem::ZOOM_OUT_KEY = Key::H;
 
@@ -60,6 +69,7 @@ public:
 	}
 	void Update() {
 		manager.UpdateSystem<InputSystem>();
+		manager.UpdateSystem<TestSystem>();
 		auto [mouse, transform, shape, rigid_body] = manager.GetUniqueEntityAndComponents<TransformComponent, ShapeComponent, RigidBodyComponent>();
 
 		rigid_body.body.velocity += rigid_body.body.acceleration;
@@ -69,6 +79,28 @@ public:
 
 		if (shape.shape->GetType() == ShapeType::AABB) {
 			transform.transform.position -= shape.shape->CastTo<AABB>().size / 2.0;
+		}*/
+
+		if (InputHandler::MouseDown(MouseButton::LEFT)) {
+			PrintLine("Clicked left");
+		}
+
+		if (InputHandler::MouseUp(MouseButton::LEFT)) {
+			PrintLine("Let go of left");
+		}
+
+
+		/*if (InputHandler::KeyPressed(Key::X)) {
+			PrintLine("Pressing X");
+		}
+		if (InputHandler::KeyDown(Key::C)) {
+			PrintLine("Down C");
+		}
+		if (!InputHandler::KeyReleased(Key::V)) {
+			PrintLine("Not releasing V");
+		}
+		if (InputHandler::KeyUp(Key::B)) {
+			PrintLine("Lifted B");
 		}*/
 
 		if (InputHandler::KeyDown(Key::R)) {
@@ -173,13 +205,13 @@ public:
 		}
 		auto mouse = manager.CreateEntity();
 		mouse.AddComponent<TransformComponent>();
-		mouse.AddComponent<PlayerController>();
+		mouse.AddComponent<PlayerComponent>();
 		mouse.AddComponent<ColorComponent>(Color{ colors::PINK });
 		mouse.AddComponent<ShapeComponent>(mouse_circle);
 		manager.Refresh();
 	}
 	void Update() {
-		auto [mouse, transform, shape, rigid_body] = manager.GetUniqueEntityAndComponents<TransformComponent, ShapeComponent, PlayerController>();
+		auto [mouse, transform, shape, rigid_body] = manager.GetUniqueEntityAndComponents<TransformComponent, ShapeComponent, PlayerComponent>();
 
 		transform.transform.position = InputHandler::GetMousePosition();
 

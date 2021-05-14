@@ -101,16 +101,16 @@ template <typename ...TComponents>
 using is_valid_unique_system = std::enable_if_t<is_valid_unique_system_v<TComponents...>, bool>;
 
 // Source: https://stackoverflow.com/a/34672753/4384023
-template <template <typename...> class base, typename derived>
+template < template <typename...> class Base, typename Derived>
 struct is_base_of_template_impl {
 	template<typename... Ts>
-	static constexpr std::true_type  test(const base<Ts...>*);
+	static constexpr std::true_type  test(const Base<Ts...>*);
 	static constexpr std::false_type test(...);
-	using type = decltype(test(std::declval<derived*>()));
+	using type = decltype(test(std::declval<Derived*>()));
 };
 
-template < template <typename...> class base, typename derived>
-using is_base_of_template = typename is_base_of_template_impl<base, derived>::type;
+template < template <typename...> class Base, typename Derived>
+using is_base_of_template = typename is_base_of_template_impl<Base, Derived>::type;
 
 template <typename TSystem>
 inline constexpr bool is_system_v{ 
@@ -120,6 +120,15 @@ inline constexpr bool is_system_v{
 
 template <typename TSystem>
 using is_valid_system = std::enable_if_t<is_system_v<TSystem>, bool>;
+
+template <typename TSystem>
+inline constexpr bool is_unique_system_v{
+	is_base_of_template<UESystem, TSystem>::value
+};
+
+template <typename TSystem>
+using is_unique_system = std::enable_if_t<is_unique_system_v<TSystem>, bool>;
+
 
 } // namespace type_traits
 
@@ -146,6 +155,7 @@ private:
 	virtual void FlagIfDependsOnNone() {}
 	virtual void FlagForReset() {}
 	virtual void ResetCacheIfFlagged() {}
+	virtual bool HasUniqueEntity() { return false; }
 };
 
 /*
@@ -469,6 +479,9 @@ template <typename TComponent,
 *	... use handle / component references here ...
 * If a system-required component is removed from an entity,
 * that entity will be removed from 'entities' before the next update call.
+* If you see a compile time error of the form
+* ['type cast': conversion from 'derived *' to 'const ecs::System<...> *' exists, but is inaccessible]
+* you have forgotten to add public to your system inheritence.
 */
 template <typename ...TRequiredComponents>
 class System : public ecs::internal::BaseSystem {
@@ -606,13 +619,15 @@ private:
 * auto [entity, transform, rigid_body] = GetEntityAndComponents();
 * If a system-required component is removed from the unique entity,
 * the GetEntityAndComponents() function will trigger an assertion.
+* If you see a compile time error of the form
+* ['type cast': conversion from 'derived *' to 'const ecs::UESystem<...> *' exists, but is inaccessible]
+* you have forgotten to add public to your system inheritence.
 */
 template <typename ...TRequiredComponents>
 class UESystem : public ecs::internal::BaseSystem {
 public:
 	UESystem() = default;
 	virtual ~UESystem() = default;
-
 protected:
 
 	// Function called by manager's UpdateSystem() method.
@@ -639,6 +654,9 @@ private:
 	// Manager requires private access for processing and manipulating systems.
 	friend class Manager;
 
+	virtual bool HasUniqueEntity() {
+		return GetManager().UniqueEntityExists<TRequiredComponents...>();
+	};
 	/*
 	* Generates a hash number using system members.
 	* Useful for identifying if two systems are identical.
@@ -1080,6 +1098,8 @@ public:
 	}
 
 private:
+	template <typename ...TComponents>
+	bool UniqueEntityExists();
 	// Destroys and deallocates all the component pools.
 	void DestroyPools() {
 		for (auto pool : pools_) {
@@ -1211,13 +1231,20 @@ private:
 	// Separated to decrease compiler errors and ease debugging.
 	template <typename TSystem>
 	void UpdateSystemImpl() {
-		auto system_id = GetSystemId<TSystem>();
-		auto system = GetSystem<TSystem>(system_id);
-		// Resets system cache if it has been 
-		// flagged for reset previously.
-		system->TSystem::ResetCacheIfFlagged();
-		// Call Update() function of system.
-		system->TSystem::Update();
+		auto system_id{ GetSystemId<TSystem>() };
+		auto system{ GetSystem<TSystem>(system_id) };
+		if constexpr (internal::type_traits::is_unique_system_v<TSystem>) {
+			// Only call update on unique entity system if such entity exists.
+			if (system->TSystem::HasUniqueEntity()) {
+				system->TSystem::Update();
+			}
+		} else {
+			// Resets system cache if it has been 
+			// flagged for reset previously.
+			system->TSystem::ResetCacheIfFlagged();
+			// Call Update() function of system.
+			system->TSystem::Update();
+		}
 	}
 
 	/*
@@ -1876,6 +1903,31 @@ inline Entity Manager::GetUniqueEntityWith() {
 	assert(matching_entities > 0 && "Could not find unique entity with matching component types in manager");
 	assert(matching_entities == 1 && "Cannot get unique entity when multiple entities have the matching component types - entity must be unique");
 	return entity;
+}
+
+template <typename ...TComponents>
+inline bool Manager::UniqueEntityExists() {
+	// Cache component pools.
+	auto pools = std::make_tuple(GetPool<TComponents>(GetComponentId<TComponents>())...);
+	bool manager_has_components = {
+		((std::get<ecs::internal::Pool<TComponents>*>(pools) != nullptr) && ...)
+	};
+	if (manager_has_components) {
+		// Cycle through all manager entities.
+		for (ecs::internal::Id entity_id{ 0 }; entity_id < next_entity_; ++entity_id) {
+			// If entity is alive, check for components.
+			if (entities_[entity_id]) {
+				bool has_components = {
+					(std::get<ecs::internal::Pool<TComponents>*>(pools)->Has(entity_id) && ...)
+				};
+				// If unique entity with components exists, return true.
+				if (has_components) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
 }
 
 template <typename ...TComponents>
