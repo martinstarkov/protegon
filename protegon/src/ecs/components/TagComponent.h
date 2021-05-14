@@ -1,6 +1,6 @@
 #pragma once
 
-#include <vector> // std::vector
+#include <unordered_set> // std::unordered_set
 
 #include "ecs/ECS.h"
 
@@ -27,7 +27,7 @@ inline bool operator==(const char* lhs, const TagComponent& rhs) {
 * @return True if tag list contains the entity tag component id, false otherwise.
 */
 template <typename T>
-static bool HasExcludedTag(const ecs::Entity& entity, const std::vector<T>& tags) {
+static bool HasExcludedTag(const ecs::Entity& entity, const std::unordered_set<T>& tags) {
 	if (tags.size() > 0 && entity.HasComponent<TagComponent>()) {
 		const auto id{ entity.GetComponent<TagComponent>().id };
 		for (const auto tag : tags) {
