@@ -66,6 +66,7 @@ public:
 		// Start the application timer.
 		engine.timer_.Start();
 		engine.InitSDLComponents();
+		engine.InitInternals();
 		// Create the primary window and renderer (display).
 		auto display{ CreateDisplay(window_title, window_position, window_size, window_flags, renderer_flags) };
 		// Set display index to match that of the primary window.
@@ -109,6 +110,7 @@ private:
 	static std::size_t GetPrimaryDisplayIndex();
 
 	void InitSDLComponents();
+	void InitInternals();
 	void Loop();
 	void Clean();
 

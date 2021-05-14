@@ -162,6 +162,10 @@ void Engine::InitSDLComponents() {
 	//LOG("Successfully initialized all SDL components!");
 }
 
+void Engine::InitInternals() {
+	InputHandler::Init();
+}
+
 void Engine::Loop() {
 	// Expected time between frames running at a certain FPS.
 	const std::int64_t frame_delay{ math::Round<std::int64_t>(1000.0 / GetFPS()) };

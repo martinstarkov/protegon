@@ -1,5 +1,14 @@
 #pragma once
+
 #include <cstdlib>
+
+namespace engine {
+
+enum class MouseButton : std::size_t {
+	LEFT,
+	RIGHT,
+	MIDDLE
+};
 
 enum class Key : std::size_t {
 	K_0 = 39,//SDL_SCANCODE_0,
@@ -156,3 +165,5 @@ enum class Key : std::size_t {
 	Y = 28,//SDL_SCANCODE_Y,
 	Z = 29,//SDL_SCANCODE_Z
 };
+
+} // namespace engine

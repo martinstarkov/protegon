@@ -24,6 +24,10 @@ public:
     bool IsRunning() const {
         return running_;
     }
+    void Reset() {
+        stop_time_ = start_time_;
+        running_ = false;
+    }
     template <typename Type = std::int64_t>
     Type ElapsedMilliseconds() const {
         return ElapsedTime<Type, std::chrono::milliseconds::period>().count();

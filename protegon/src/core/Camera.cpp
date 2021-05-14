@@ -2,10 +2,6 @@
 
 #include "core/Engine.h"
 
-#include "ecs/components/SpriteComponent.h"
-#include "ecs/components/CollisionComponent.h"
-#include "ecs/components/TransformComponent.h"
-
 namespace engine {
 
 void Camera::ClampToBound() {
