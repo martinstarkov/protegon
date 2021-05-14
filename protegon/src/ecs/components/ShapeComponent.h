@@ -5,7 +5,7 @@
 #include "physics/shapes/Circle.h"
 #include "utils/TypeTraits.h"
 
-// TODO: Consider switching to smart pointer here.
+// TODO: Consider switching to smart pointers here.
 
 namespace engine {
 
