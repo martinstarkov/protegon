@@ -415,7 +415,8 @@ template <typename TComponent,
 				// Double the capacity.
 				capacity_ = new_size * 2;
 				assert(block_ != nullptr && "Pool memory must be allocated before reallocation");
-				block_ = static_cast<TComponent*>(std::realloc(block_, capacity_ * sizeof(TComponent)));
+				auto new_block{ static_cast<TComponent*>(std::realloc(block_, capacity_ * sizeof(TComponent))) };
+				block_ = new_block;
 			}
 		}
 

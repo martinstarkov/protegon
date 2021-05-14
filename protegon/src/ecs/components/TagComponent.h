@@ -9,8 +9,8 @@
 namespace engine {
 
 struct TagComponent {
-	TagComponent(int id) : id{ id } {}
-	int id;
+	TagComponent(std::size_t id) : id{ id } {}
+	std::size_t id{ 0 };
 };
 
 // Comparison between tag id and const char* tag.
