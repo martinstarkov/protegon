@@ -19,7 +19,6 @@
 
 namespace engine {
 
-// Hidden vector related implementations.
 namespace internal {
 
 // Vector stream output / input delimeters, allow for consistent serialization / deserialization.

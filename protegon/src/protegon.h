@@ -43,7 +43,7 @@
 #include "event/EventHandler.h"
 #include "event/Events.h"
 
-#include "inventory/Inventory.h"
+//#include "inventory/Inventory.h"
 
 #include "math/Math.h"
 #include "math/Hasher.h"
