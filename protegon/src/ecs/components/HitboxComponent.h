@@ -25,7 +25,7 @@ struct HitboxComponent {
 	// Unresolved collisions are kept in the vector onto the next frame.
 	std::vector<std::pair<ecs::Entity, engine::Manifold>> collisions;
 	// Tag component ids to be ignored by the entity when checking for collisions.
-	std::unordered_set<int> ignored_tags;
+	std::unordered_set<std::size_t> ignored_tags;
 	// Collision resolution function to be called for each collision.
 	// Nullptr by default. This means no custom resolution is applied.
 	CollisionFunction resolution_function{ nullptr };
