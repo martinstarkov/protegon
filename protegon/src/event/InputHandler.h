@@ -92,7 +92,7 @@ private:
 	bool right_was_pressed_{ false };
 	bool middle_was_pressed_{ false };
 	
-	std::array<std::uint8_t, KEY_COUNT> previous_key_states_;
+	std::array<std::uint8_t, KEY_COUNT> previous_key_states_{};
 };
 
 } // namespace engine

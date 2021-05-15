@@ -2,14 +2,6 @@
 
 using namespace engine;
 
-class TestSystem : public ecs::UESystem<ColorComponent, ShapeComponent, TransformComponent, RigidBodyComponent, CameraComponent, TagComponent> {
-public:
-	void Update() {
-		auto [entity, c, s, t, r, cc, tag] = GetEntityAndComponents();
-		PrintLine("Hello");
-	}
-};
-
 template <typename T>
 ecs::Entity CreateStatic(ecs::Manager& manager, const V2_double& position, const T& shape) {
 	auto obj{ manager.CreateEntity() };
@@ -46,14 +38,14 @@ public:
 						 AABB{ V2_int::Random(5, 30, 5, 30) });
 		}
 		manager.AddSystem<engine::CameraSystem>();
-		manager.AddSystem<TestSystem>();
 		engine::CameraSystem::ZOOM_IN_KEY = Key::G;
 		engine::CameraSystem::ZOOM_OUT_KEY = Key::H;
 
 		CreateStatic(manager, { 300, 300 },
 					 AABB{ { 200, 30 } });
-		CreateStatic(manager, { 300 - 30, 300 - 200 },
+		auto s = CreateStatic(manager, { 300 - 30, 300 - 200 },
 					 AABB{ { 30, 200 } });
+		s.AddComponent<TagComponent>(69);
 
 		manager.AddSystem<InputSystem>();
 
@@ -69,8 +61,18 @@ public:
 	}
 	void Update() {
 		manager.UpdateSystem<InputSystem>();
-		manager.UpdateSystem<TestSystem>();
-		auto [mouse, transform, shape, rigid_body] = manager.GetUniqueEntityAndComponents<TransformComponent, ShapeComponent, RigidBodyComponent>();
+		auto [mouse, transform, shape, rigid_body, input] = manager.GetUniqueEntityAndComponents<TransformComponent, ShapeComponent, RigidBodyComponent, InputComponent>();
+
+		if (InputHandler::KeyDown(Key::V)) {
+			auto mouse_position{ InputHandler::GetMousePosition() };
+			auto new_mouse{ manager.CopyEntity<TransformComponent, ShapeComponent, RigidBodyComponent>(mouse) };
+			manager.Refresh();
+			assert(new_mouse.HasComponent<TransformComponent>());
+			assert(new_mouse.HasComponent<ShapeComponent>());
+			assert(new_mouse.HasComponent<RigidBodyComponent>());
+			new_mouse.AddComponent<ColorComponent>().color = colors::GREEN;
+			new_mouse.GetComponent<TransformComponent>().transform.position = mouse_position;
+		}
 
 		rigid_body.body.velocity += rigid_body.body.acceleration;
 		transform.transform.position += rigid_body.body.velocity;

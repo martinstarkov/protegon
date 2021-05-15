@@ -7,7 +7,7 @@
 #include "physics/Manifold.h"
 
 // TODO: Reconsider offset application.
-// TODO: Don't store collision in a vector???
+// TODO: Don't store collisions in a vector???
 
 namespace engine {
 
