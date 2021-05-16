@@ -62,7 +62,7 @@ public:
 	void Update() {
 		manager.UpdateSystem<InputSystem>();
 		auto [mouse, transform, shape, rigid_body, input] = manager.GetUniqueEntityAndComponents<TransformComponent, ShapeComponent, RigidBodyComponent, InputComponent>();
-
+		
 		if (InputHandler::KeyDown(Key::V)) {
 			auto mouse_position{ InputHandler::GetMousePosition() };
 			auto new_mouse{ manager.CopyEntity<TransformComponent, ShapeComponent, RigidBodyComponent>(mouse) };

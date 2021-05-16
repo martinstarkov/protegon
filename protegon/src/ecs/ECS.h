@@ -24,10 +24,6 @@ SOFTWARE.
 
 */
 
-// TODO:
-// Manager copy entity
-// Manager HasMatchingComponents
-
 #pragma once
 
 #include <cstdlib> // std::size_t, std::malloc, std::realloc, std::free
@@ -1242,9 +1238,17 @@ private:
 	/*
 	* @return True if both entities have all the same components, false otherwise.
 	*/
-	bool HaveMatchingComponents(const internal::Id entity1, const internal::Version version1,
-								const internal::Id entity2, const internal::Version version2) {
-
+	bool HaveMatchingComponents(const internal::Id entity1, const internal::Id entity2) {
+		for (auto pool : pools_) {
+			if (pool != nullptr) {
+				bool has1{ pool->VirtualHas(entity1) };
+				bool has2{ pool->VirtualHas(entity2) };
+				if ((has1 || has2) && (!has1 || !has2)) {
+					return false;
+				}
+			}
+		}
+		return true;
 	}
 
 	/*
@@ -1902,10 +1906,12 @@ inline bool Entity::IsIdenticalTo(const Entity& entity) const {
 			entity == ecs::null
 		) ||
 		(
-			*this != ecs::null && entity != ecs::null &&
+			*this != ecs::null && 
+			entity != ecs::null &&
 			manager_ == entity.manager_ &&
 			manager_ != nullptr &&
-			manager_->HaveMatchingComponents(entity_, version_, entity.entity_, entity.version_)
+			entity_ != entity.entity_ &&
+			manager_->HaveMatchingComponents(entity_, entity.entity_)
 		);
 }
 
