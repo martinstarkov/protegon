@@ -82,15 +82,9 @@ public:
 		if (shape.shape->GetType() == ShapeType::AABB) {
 			transform.transform.position -= shape.shape->CastTo<AABB>().size / 2.0;
 		}*/
-
-		if (InputHandler::MouseDown(MouseButton::LEFT)) {
-			PrintLine("Clicked left");
+		if (InputHandler::MouseHeld(Mouse::LEFT, seconds{ 3 })) {
+			PrintLine("Held left for 3 seconds");
 		}
-
-		if (InputHandler::MouseUp(MouseButton::LEFT)) {
-			PrintLine("Let go of left");
-		}
-
 
 		/*if (InputHandler::KeyPressed(Key::X)) {
 			PrintLine("Pressing X");
@@ -137,17 +131,16 @@ public:
 		LOG("");*/
 
 		//PrintLine(t.GetContent(), " ", t.GetColor(), " ", t.GetArea());
-
-		if (timer.ElapsedSeconds() > 15) {
+		if (timer.Elapsed<seconds>() > seconds{ 15 }) {
 			t.SetContent("Color, size, even shading");
 			t.SetColor(colors::BLUE);
 			t.SetArea({ 300, 100 });
 			t.SetShadedRenderMode(colors::YELLOW);
-		} else if (timer.ElapsedSeconds() > 10) {
+		} else if (timer.Elapsed<seconds>() > seconds{ 10 }) {
 			t.SetPosition({ 50 + 200, 50 + 100 });
 			t.SetColor(colors::RED);
 			t.SetBlendedRenderMode();
-		} else if (timer.ElapsedSeconds() > 5) {
+		} else if (timer.Elapsed<seconds>() > seconds{ 5 }) {
 			t.SetContent("I can change dynamically!");
 			t.SetArea({ 200, 100 });
 		}

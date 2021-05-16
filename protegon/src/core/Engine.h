@@ -5,6 +5,7 @@
 #include <cassert> // assert
 #include <tuple> // std::pair
 #include <unordered_map> // std::unordered_map
+#include <ratio> // std::ratio
 
 #include "ecs/ECS.h"
 
@@ -39,23 +40,14 @@ public:
 	// Function which is called after the Update function, each frame of the engine loop.
 	virtual void Render() {}
 
-	// Maximum frames per second of the engine loop.
-	// Optional: Cast to desired type.
-	template <typename T = double,
-		type_traits::is_number<T> = true>
-	static T GetFPS() {
-		auto& engine{ GetInstance() };
-		return static_cast<T>(engine.fps_);
-	}
-
 	// Start the engine application.
 	// Creates the primary window and renderer.
 	template <typename T,
 		type_traits::is_base_of<Engine, T> = true,
 		type_traits::is_default_constructible<T> = true>
 	static void Start(const char* window_title, 
-					  const V2_int& window_size, 
-					  std::size_t frames_per_second, 
+					  const V2_int& window_size,
+					  std::size_t fps,
 					  const V2_int& window_position = internal::CENTERED, 
 					  std::uint32_t window_flags = 0, 
 					  std::uint32_t renderer_flags = 0) {
@@ -72,7 +64,7 @@ public:
 		// Set display index to match that of the primary window.
 		engine.primary_display_index_ = display.first.GetDisplayIndex();
 
-		engine.fps_ = frames_per_second;
+		engine.fps_ = fps;
 		engine.running_ = true;
 		
 		engine.Init();
@@ -100,7 +92,7 @@ public:
 
 	static void Quit();
 
-	static void Delay(std::int64_t milliseconds);
+	static void Delay(milliseconds time);
 private:
 	friend class InputHandler;
 	friend class Renderer;
@@ -114,8 +106,15 @@ private:
 	void Loop();
 	void Clean();
 
-	// Unit: milliseconds.
-	std::int64_t GetTimeSinceStart() const;
+	/*
+	* @tparam Duration Unit of time to return value in.
+	* @return Time since start of program in provided units.
+	*/
+	template <typename Duration, 
+		type_traits::is_duration_e<Duration> = true>
+	Duration GetTimeSinceStart() const {
+		return timer_.Elapsed<Duration>();
+	}
 	
 	// Class variables.
 
@@ -126,8 +125,8 @@ private:
 	std::size_t next_display_index_{ 0 };
 	// Default display index is the index of the display that is considered the primary one.
 	std::size_t primary_display_index_{ 0 };
-
-	std::size_t fps_{ 60 };
+	
+	std::size_t fps_{ 0 };
 	bool running_{ false };
 	
 	// Application run timer.

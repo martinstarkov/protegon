@@ -36,7 +36,7 @@
 //			}
 //		}
 //		if (hovering) {
-//			if (engine::InputHandler::MouseReleased(MouseButton::LEFT)) {
+//			if (engine::InputHandler::MouseReleased(Mouse::LEFT)) {
 //				parent_state_machine->SetState("active");
 //				return;
 //			}

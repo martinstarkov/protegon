@@ -27,7 +27,7 @@
 //			}
 //		}
 //		if (hovering) {
-//			if (engine::InputHandler::MousePressed(MouseButton::LEFT) || engine::InputHandler::MouseHeld(MouseButton::LEFT) || engine::InputHandler::MouseHeldFor(MouseButton::LEFT, 1)) {
+//			if (engine::InputHandler::MousePressed(Mouse::LEFT) || engine::InputHandler::MouseHeld(Mouse::LEFT) || engine::InputHandler::MouseHeld(Mouse::LEFT, 1000)) {
 //				parent_state_machine->SetState("focused");
 //				return;
 //			}

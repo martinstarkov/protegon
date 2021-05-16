@@ -24,7 +24,7 @@
 //			auto& background = parent_entity.GetComponent<BackgroundColorComponent>();
 //			background.color = background.original_color;
 //		}
-//		if (hovering && engine::InputHandler::MouseReleased(MouseButton::LEFT)) {
+//		if (hovering && engine::InputHandler::MouseReleased(Mouse::LEFT)) {
 //			parent_state_machine->SetState("hover");
 //			return;
 //		}

@@ -15,7 +15,7 @@ class ActiveButtonState : public engine::State {
 		engine::EventHandler::Invoke(parent_entity);
 	}
 	virtual void Update() override final {
-		if (timer.ElapsedSeconds() > BUTTON_ACTIVE_TIME) {
+		if (timer.Elapsed<seconds>() > seconds{ BUTTON_ACTIVE_TIME }) {
 			assert(parent_entity.HasComponent<TransformComponent>() && "Cannot update button without TransformComponent");
 			assert(parent_entity.HasComponent<SizeComponent>() && "Cannot update button without SizeComponent");
 			auto& transform = parent_entity.GetComponent<TransformComponent>();
@@ -33,7 +33,7 @@ class ActiveButtonState : public engine::State {
 				}
 			}
 			if (hovering) {
-				if (engine::InputHandler::MousePressed(MouseButton::LEFT)) {
+				if (engine::InputHandler::MousePressed(Mouse::LEFT)) {
 					parent_state_machine->SetState("focused");
 					return;
 				} else {

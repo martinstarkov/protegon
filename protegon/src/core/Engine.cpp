@@ -15,12 +15,8 @@ namespace engine {
 
 Engine* Engine::instance_{ nullptr };
 
-std::int64_t Engine::GetTimeSinceStart() const {
-	return timer_.ElapsedMilliseconds();
-}
-
-void Engine::Delay(std::int64_t milliseconds) {
-	SDL_Delay(static_cast<std::uint32_t>(milliseconds));
+void Engine::Delay(milliseconds time) {
+	SDL_Delay(static_cast<std::uint32_t>(time.count()));
 }
 
 void Engine::Quit() {
@@ -168,9 +164,9 @@ void Engine::InitInternals() {
 
 void Engine::Loop() {
 	// Expected time between frames running at a certain FPS.
-	const std::int64_t frame_delay{ math::Round<std::int64_t>(1000.0 / GetFPS()) };
+	const milliseconds frame_delay{ math::Round<std::int64_t>(1000.0 / fps_) };
 	while (running_) {
-		auto loop_start{ timer_.ElapsedMilliseconds() };
+		auto loop_start{ timer_.Elapsed<milliseconds>() };
 
 		InputHandler::Update();
 
@@ -201,7 +197,7 @@ void Engine::Loop() {
 		}
 
 		// Cap frame rate at whatever fps_ was set to.
-		auto loop_time{ timer_.ElapsedMilliseconds() - loop_start };
+		auto loop_time{ timer_.Elapsed<milliseconds>() - loop_start };
 		if (loop_time < frame_delay) {
 			Delay(frame_delay - loop_time);
 		}
