@@ -37,6 +37,18 @@ using is_default_constructible = std::enable_if_t<std::is_default_constructible_
 template <typename Type, typename ...Types>
 using are_type = std::enable_if_t<std::conjunction_v<std::is_same<Type, Types>...>, bool>;
 
+// Source: https://stackoverflow.com/a/34672753/4384023
+template <template <typename...> class Base, typename Derived>
+struct is_base_of_template_impl {
+	template<typename... Ts>
+	static constexpr std::true_type  test(const Base<Ts...>*);
+	static constexpr std::false_type test(...);
+	using type = decltype(test(std::declval<Derived*>()));
+};
+
+template <template <typename...> class Base, typename Derived>
+using is_base_of_template = typename is_base_of_template_impl<Base, Derived>::type;
+
 template <typename T>
 constexpr auto has_invoke_helper(const T&, int)
 -> decltype(&T::Invoke, &T::Invoke);
@@ -47,7 +59,7 @@ constexpr void* has_invoke_helper(const T&, long) {
 }
 
 template <typename T>
-bool constexpr has_invoke = !std::is_same<decltype(has_invoke_helper(std::declval<T>(), 0)), void*>::value;
+bool constexpr has_invoke{ !std::is_same<decltype(has_invoke_helper(std::declval<T>(), 0)), void*>::value };
 
 template <typename T>
 bool constexpr has_static_invoke{ has_invoke<T> && !std::is_member_function_pointer_v<decltype(has_invoke_helper(std::declval<T>(), 0))> };
