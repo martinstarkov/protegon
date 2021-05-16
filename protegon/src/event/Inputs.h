@@ -4,10 +4,10 @@
 
 namespace engine {
 
-enum class MouseButton : std::size_t {
-	LEFT,
-	RIGHT,
-	MIDDLE
+enum class Mouse : std::size_t {
+	LEFT = 1,//SDL_BUTTON_LEFT = 1,
+	MIDDLE = 2,//SDL_BUTTON_MIDDLE = 2,
+	RIGHT = 3//SDL_BUTTON_RIGHT = 3
 };
 
 enum class Key : std::size_t {
@@ -163,7 +163,7 @@ enum class Key : std::size_t {
 	WINDOWS = 231,//SDL_SCANCODE_RGUI,
 	X = 27,//SDL_SCANCODE_X,
 	Y = 28,//SDL_SCANCODE_Y,
-	Z = 29,//SDL_SCANCODE_Z
+	Z = 29//SDL_SCANCODE_Z
 };
 
 } // namespace engine
