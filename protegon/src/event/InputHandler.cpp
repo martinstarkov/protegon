@@ -6,28 +6,17 @@
 #include <SDL.h>
 
 #include "core/Engine.h"
+#include "core/Window.h"
 
 namespace engine {
 
-InputHandler* InputHandler::instance_{ nullptr };
-
-void InputHandler::Init() {
-	assert(instance_ == nullptr && "Cannot initialize input handler more than once");
-	instance_ = new InputHandler{};
-}
-
-InputHandler& InputHandler::GetInstance() {
-	assert(instance_ != nullptr && "Input handler has not been initialized properly");
-	return *instance_;
-}
-
 void InputHandler::Update() {
-	static auto& instance{ GetInstance() };
+	auto& instance{ GetInstance() };
 	instance.UpdateKeyStates();
 	instance.UpdateMouseState(Mouse::LEFT);
 	instance.UpdateMouseState(Mouse::RIGHT);
 	instance.UpdateMouseState(Mouse::MIDDLE);
-	static SDL_Event event;
+	SDL_Event event;
 	while (SDL_PollEvent(&event)) {
 		switch (event.type) {
 			case SDL_MOUSEBUTTONDOWN: {
@@ -47,13 +36,10 @@ void InputHandler::Update() {
 				break;
 			}
 			case SDL_WINDOWEVENT: {
-				switch (event.window.event) {
-					case SDL_WINDOWEVENT_CLOSE:
-						Engine::Quit(SDL_GetWindowFromID(event.window.windowID));
-						break;
+				/*switch (event.window.event) {
 					default:
 						break;
-				}
+				}*/
 				break;
 			}
 			default:
@@ -63,7 +49,7 @@ void InputHandler::Update() {
 }
 
 void InputHandler::UpdateKeyStates() {
-	static const auto key_states{ SDL_GetKeyboardState(NULL) };
+	const auto key_states{ SDL_GetKeyboardState(NULL) };
 	// Copy current key states to previous key states.
 	std::copy(key_states, key_states + KEY_COUNT, std::begin(previous_key_states_));
 }
@@ -93,7 +79,7 @@ std::pair<InputHandler::MouseState*, Timer*> InputHandler::GetMouseStateAndTimer
 }
 
 V2_int InputHandler::GetMousePosition() {
-	static auto& instance{ GetInstance() };
+	auto& instance{ GetInstance() };
 	// Grab latest mouse events from queue.
 	SDL_PumpEvents();
 	// Update mouse position.
@@ -102,7 +88,7 @@ V2_int InputHandler::GetMousePosition() {
 }
 
 InputHandler::MouseState InputHandler::GetMouseState(Mouse button) {
-	static auto& instance{ GetInstance() };
+	auto& instance{ GetInstance() };
 	auto [state, timer] = instance.GetMouseStateAndTimer(button);
 	return *state;
 }
@@ -126,7 +112,7 @@ bool InputHandler::MouseUp(Mouse button) {
 }
 
 bool InputHandler::KeyPressed(Key key) {
-	static const auto key_states{ SDL_GetKeyboardState(NULL) };
+	const auto key_states{ SDL_GetKeyboardState(NULL) };
 	auto key_number{ static_cast<std::size_t>(key) };
 	assert(key_number < KEY_COUNT && "Could not find key in input handler key states");
 	return key_states[key_number];
@@ -137,12 +123,12 @@ bool InputHandler::KeyReleased(Key key) {
 }
 
 bool InputHandler::KeyDown(Key key) {
-	static auto& instance{ GetInstance() };
+	auto& instance{ GetInstance() };
 	return KeyPressed(key) && !instance.previous_key_states_[static_cast<std::size_t>(key)];
 }
 
 bool InputHandler::KeyUp(Key key) {
-	static auto& instance{ GetInstance() };
+	auto& instance{ GetInstance() };
 	return KeyReleased(key) && instance.previous_key_states_[static_cast<std::size_t>(key)];
 }
 

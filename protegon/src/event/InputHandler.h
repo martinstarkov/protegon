@@ -6,16 +6,13 @@
 #include <tuple> // std::pair
 
 #include "event/Inputs.h"
-
 #include "math/Vector2.h"
-
 #include "utils/Timer.h"
+#include "utils/Singleton.h"
 
 namespace engine {
 
-class Engine;
-
-class InputHandler {
+class InputHandler : public Singleton<InputHandler> {
 public:
 	/*
 	* @return The x and y positions of the mouse relative to the top left of the focused window.
@@ -70,6 +67,8 @@ public:
 	*/
 	static bool KeyUp(Key key);
 private:
+	friend class Engine;
+
 	enum class MouseState {
 		DOWN,
 		PRESSED,
@@ -79,13 +78,6 @@ private:
 
 	// Number of keys stored in the SDL key states array. For creating previous key states array.
 	static constexpr std::size_t KEY_COUNT{ 512 };
-
-	friend class Engine;
-
-	static void Init();
-	static InputHandler* instance_;
-	static InputHandler& GetInstance();
-
 	static void Update();
 
 	void UpdateKeyStates();
@@ -105,7 +97,6 @@ private:
 	static MouseState GetMouseState(Mouse button);
 
 	V2_int mouse_position_;
-
 
 	MouseState left_mouse_{ MouseState::RELEASED };
 	MouseState right_mouse_{ MouseState::RELEASED };
