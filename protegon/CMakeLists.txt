@@ -3,9 +3,11 @@ project(protegon)
 # Obtain access to SDL2 libraries and includes.
 
 set(SDL2MAIN_LIBRARY FALSE)
-set(SDL2_PATH "${CMAKE_CURRENT_SOURCE_DIR}/vendor/SDL2" CACHE BOOL "" FORCE)
-set(SDL2_IMAGE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/vendor/SDL2_image" CACHE BOOL "" FORCE)
-set(SDL2_TTF_PATH "${CMAKE_CURRENT_SOURCE_DIR}/vendor/SDL2_ttf" CACHE BOOL "" FORCE)
+if (WIN32)
+    set(SDL2_PATH "${CMAKE_CURRENT_SOURCE_DIR}/vendor/SDL2" CACHE BOOL "" FORCE)
+    set(SDL2_IMAGE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/vendor/SDL2_image" CACHE BOOL "" FORCE)
+    set(SDL2_TTF_PATH "${CMAKE_CURRENT_SOURCE_DIR}/vendor/SDL2_ttf" CACHE BOOL "" FORCE)
+endif()
 
 find_package(SDL2 REQUIRED)
 find_package(SDL2_image REQUIRED)

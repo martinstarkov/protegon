@@ -31,8 +31,8 @@ endmacro()
 
 # Add option to include test application.
 
-option(CREATE_PROTEGON_TEST_APP "CREATE_PROTEGON_TEST_APP" OFF)
+option(TEST_APP "TEST_APP" OFF)
 
-if(CREATE_PROTEGON_TEST_APP)
+if(TEST_APP)
     add_subdirectory(test_app)
 endif()
