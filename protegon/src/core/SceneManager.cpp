@@ -20,7 +20,6 @@ void SceneManager::EnterScene(const char* scene_key, std::size_t display_index) 
 	auto scene{ scene_it->second };
 	assert(scene != nullptr &&
 		   "Cannot set active scene to invalid scene pointer");
-	scene->SetDisplayIndex(display_index);
 	if (!scene->entered_) {
 		scene->Enter();
 		scene->entered_ = true;

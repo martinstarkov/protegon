@@ -5,8 +5,7 @@
 
 #include <cassert>
 
-#include "core/Engine.h"
-
+#include "renderer/Renderer.h"
 #include "renderer/TextureManager.h"
 #include "renderer/text/Font.h"
 #include "renderer/text/FontManager.h"
@@ -51,18 +50,6 @@ void Text::Destroy() {
 	texture_.Destroy();
 }
 
-void Text::SetDisplay(const Window& window) {
-	display_index_ = window.GetDisplayIndex();
-}
-
-void Text::SetDisplay(const Renderer& renderer) {
-	display_index_ = renderer.GetDisplayIndex();
-}
-
-void Text::SetDisplay(std::size_t display_index) {
-	display_index_ = display_index;
-}
-
 void Text::RefreshTexture() {
 	Font font{ FontManager::GetFont(font_key_) };
 	TTF_SetFontStyle(font, style_);
@@ -84,7 +71,7 @@ void Text::RefreshTexture() {
 	assert(temp_surface.IsValid() && "Failed to load text onto surface");
 	// Destroy old texture.
 	texture_.Destroy();
-	texture_ = { Engine::GetDisplay(display_index_).second, temp_surface };
+	texture_ = Renderer::CreateTexture(temp_surface);
 	TTF_SetFontStyle(font, static_cast<int>(FontStyle::NORMAL));
 	temp_surface.Destroy();
 }

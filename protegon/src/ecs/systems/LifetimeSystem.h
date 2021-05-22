@@ -4,10 +4,10 @@
 
 #include "ecs/components/LifetimeComponent.h"
 
-#include "core/Engine.h"
-
-// TODO: Make it clearer how this system acts as a component (health vs bullet lifetime vs block lifetime)
-
+//#include "core/Engine.h"
+//
+//// TODO: Make it clearer how this system acts as a component (health vs bullet lifetime vs block lifetime)
+//
 //namespace engine {
 //
 //class LifetimeSystem : public ecs::System<LifetimeComponent> {

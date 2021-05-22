@@ -2,8 +2,6 @@
 
 #include "ecs/ECS.h"
 
-#include "core/Engine.h"
-
 namespace engine {
 
 class Scene {
@@ -13,15 +11,9 @@ public:
 	virtual void Update() {}
 	virtual void Render() {}
 	virtual void Exit() {}
-	Display GetDisplay() const;
-	V2_int GetWindowSize() const;
 	ecs::Manager manager;
-protected:
-	void SetDisplayIndex(std::size_t new_display_index);
-	std::size_t GetDisplayIndex() const;
 private:
 	friend class SceneManager;
-	std::size_t display_index_{ 0 };
 	bool entered_{ false };
 };
 

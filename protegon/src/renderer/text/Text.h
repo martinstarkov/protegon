@@ -8,10 +8,9 @@
 
 #include "utils/TypeTraits.h"
 
-#include "renderer/Color.h"
 #include "renderer/Texture.h"
-#include "renderer/Renderer.h"
-#include "renderer/text/Font.h"
+#include "renderer/Color.h"
+#include "renderer/RenderMode.h"
 #include "renderer/text/FontStyle.h"
 
 namespace engine {
@@ -30,10 +29,6 @@ public:
 	// TODO: Add ability to copy text.
 
 	void Destroy();
-
-	void SetDisplay(const Window& window);
-	void SetDisplay(const Renderer& renderer);
-	void SetDisplay(std::size_t display_index = 0);
 
 	void SetContent(const char* new_content);
 	void SetColor(const Color& new_color);

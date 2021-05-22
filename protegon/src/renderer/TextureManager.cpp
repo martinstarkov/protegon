@@ -5,9 +5,7 @@
 #include <SDL_image.h>
 
 #include "math/Hasher.h"
-
-#include "core/Engine.h"
-
+#include "renderer/Renderer.h"
 #include "debugging/Debug.h"
 
 namespace engine {
@@ -22,7 +20,7 @@ void TextureManager::Load(const char* texture_key, const char* texture_path, std
 	auto it{ texture_map_.find(key) };
 	if (it == std::end(texture_map_)) { 
 		Surface temp_surface{ texture_path };
-		Texture texture{ Engine::GetDisplay(display_index).second, temp_surface };
+		Texture texture{ Renderer::CreateTexture(temp_surface) };
 		temp_surface.Destroy();
 		texture_map_.emplace(key, texture);
 	} else {
