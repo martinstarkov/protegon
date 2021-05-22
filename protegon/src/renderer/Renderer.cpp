@@ -3,11 +3,9 @@
 #include <SDL.h>
 #include <cassert>
 
-#include "core/Engine.h"
-
+#include "core/Window.h"
+#include "renderer/Surface.h"
 #include "renderer/TextureManager.h"
-#include "renderer/text/Text.h"
-#include "math/Math.h"
 #include "debugging/Debug.h"
 
 namespace engine {
@@ -16,9 +14,8 @@ void Renderer::DrawTexture(const Texture& texture,
 						   const V2_int& position, 
 						   const V2_int& size, 
 						   const V2_int source_position, 
-						   const V2_int source_size, 
-						   std::size_t display_index) {
-	auto renderer{ Engine::GetDisplay(display_index).second };
+						   const V2_int source_size) {
+	auto& renderer{ GetInstance() };
 	assert(renderer.IsValid() && "Cannot draw texture with destroyed or uninitialized renderer");
 	assert(texture.IsValid() && "Cannot draw texture that has been uninitialized or destroyed");
 	SDL_Rect* source{ NULL };
@@ -35,11 +32,10 @@ void Renderer::DrawTexture(const char* texture_key,
 						   const V2_int& position,
 						   const V2_int& size,
 						   const V2_int source_position,
-						   const V2_int source_size,
-						   std::size_t display_index) {
+						   const V2_int source_size) {
 	auto texture{ TextureManager::GetTexture(texture_key) };
 	assert(texture.IsValid() && "Cannot draw texture that has been uninitialized or destroyed");
-	DrawTexture(texture, position, size, source_position, source_size, display_index);
+	DrawTexture(texture, position, size, source_position, source_size);
 }
 
 void Renderer::DrawTexture(const char* texture_key, 
@@ -49,9 +45,8 @@ void Renderer::DrawTexture(const char* texture_key,
 						   const V2_int source_size,
 						   const V2_int* center_of_rotation, 
 						   const double angle,
-						   Flip flip,
-						   std::size_t display_index) {
-	auto renderer{ Engine::GetDisplay(display_index).second };
+						   Flip flip) {
+	auto& renderer{ GetInstance() };
 	assert(renderer.IsValid() && "Cannot draw texture with destroyed or uninitialized renderer");
 	auto texture{ TextureManager::GetTexture(texture_key) };
 	assert(texture.IsValid() && "Cannot draw texture that has been uninitialized or destroyed");
@@ -85,9 +80,8 @@ void Renderer::DrawTexture(const char* texture_key,
 
 }
 
-void Renderer::DrawText(const Text& text, 
-						std::size_t display_index) {
-	auto renderer{ Engine::GetDisplay(display_index).second };
+void Renderer::DrawText(const Text& text) {
+	auto& renderer{ GetInstance() };
 	assert(renderer.IsValid() && "Cannot draw text with destroyed or uninitialized renderer");
 	assert(text.GetTexture().IsValid() && "Cannot draw text that has been uninitialized or destroyed");
 	const V2_int position{ text.GetPosition() };
@@ -97,35 +91,31 @@ void Renderer::DrawText(const Text& text,
 }
 
 void Renderer::DrawPoint(const V2_int& point, 
-						 const Color& color,
-						 std::size_t display_index) {
-	auto renderer{ Engine::GetDisplay(display_index).second };
+						 const Color& color) {
+	auto& renderer{ GetInstance() };
 	assert(renderer.IsValid() && "Cannot draw point with destroyed or uninitialized renderer");
-	renderer.SetDrawColor(color);
+	SetDrawColor(color);
 	SDL_RenderDrawPoint(renderer, point.x, point.y);
-	renderer.SetDrawColor();
+	SetDrawColor();
 }
 
 void Renderer::DrawLine(const V2_int& origin, 
 						const V2_int& destination, 
-						const Color& color,
-						std::size_t display_index) {
-	auto renderer{ Engine::GetDisplay(display_index).second };
+						const Color& color) {
+	auto& renderer{ GetInstance() };
 	assert(renderer.IsValid() && "Cannot draw line with destroyed or uninitialized renderer");
-	renderer.SetDrawColor(color);
+	SetDrawColor(color);
 	SDL_RenderDrawLine(renderer, origin.x, origin.y, destination.x, destination.y);
-	renderer.SetDrawColor();
+	SetDrawColor();
 }
 
 void Renderer::DrawCircle(const V2_int& center, 
 						  const double radius, 
-						  const Color& color,
-						  std::size_t display_index) {
-	auto renderer{ Engine::GetDisplay(display_index).second };
+						  const Color& color) {
+	auto& renderer{ GetInstance() };
 	assert(renderer.IsValid() && "Cannot draw circle with destroyed or uninitialized renderer");
-	renderer.SetDrawColor(color);
-
-	int r{ engine::math::Round(radius) };
+	SetDrawColor(color);
+	int r{ math::Round(radius) };
 	V2_int position{ r, 0 };
 	// Printing the initial point on the axes
 	// after translation 
@@ -173,16 +163,15 @@ void Renderer::DrawCircle(const V2_int& center,
 			SDL_RenderDrawPoint(renderer, -position.y + center.x, -position.x + center.y);
 		}
 	}
-	renderer.SetDrawColor();
+	SetDrawColor();
 }
 
 void Renderer::DrawSolidCircle(const V2_int& center,
 							   const double radius,
-							   const Color& color, 
-							   std::size_t display_index) {
-	auto renderer{ Engine::GetDisplay(display_index).second };
+							   const Color& color) {
+	auto& renderer{ GetInstance() };
 	assert(renderer.IsValid() && "Cannot draw solid circle with destroyed or uninitialized renderer");
-	renderer.SetDrawColor(color);
+	SetDrawColor(color);
 	int r{ math::Round(radius) };
 	int r_squared{ r * r };
 	for (auto y{ -r }; y <= r; ++y) {
@@ -194,42 +183,45 @@ void Renderer::DrawSolidCircle(const V2_int& center,
 			}
 		}
 	}
-	renderer.SetDrawColor();
+	SetDrawColor();
 }
 
 void Renderer::DrawRectangle(const V2_int& position,
-				   const V2_int& size,
-				   const Color& color,
-				   std::size_t display_index) {
-	auto renderer{ Engine::GetDisplay(display_index).second };
+							 const V2_int& size,
+							 const Color& color) {
+	auto& renderer{ GetInstance() };
 	assert(renderer.IsValid() && "Cannot draw rectangle with destroyed or uninitialized renderer");
-	renderer.SetDrawColor(color);
+	SetDrawColor(color);
 	SDL_Rect rect{ position.x, position.y, size.x, size.y };
 	SDL_RenderDrawRect(renderer, &rect);
-	renderer.SetDrawColor();
+	SetDrawColor();
 }
 
 void Renderer::DrawSolidRectangle(const V2_int& position,
-						const V2_int& size,
-						const Color& color,
-						std::size_t display_index) {
-	auto renderer{ Engine::GetDisplay(display_index).second };
+								  const V2_int& size,
+								  const Color& color) {
+	auto& renderer{ GetInstance() };
 	assert(renderer.IsValid() && "Cannot draw solid rectangle with destroyed or uninitialized renderer");
-	renderer.SetDrawColor(color);
+	SetDrawColor(color);
 	SDL_Rect rect{ position.x, position.y, size.x, size.y };
 	SDL_RenderFillRect(renderer, &rect);
-	renderer.SetDrawColor();
+	SetDrawColor();
 }
 
-Renderer::Renderer(SDL_Renderer* renderer) : renderer_{ renderer } {}
+Texture Renderer::CreateTexture(const Surface& surface) {
+	return { GetInstance(), surface };
+}
 
-Renderer::Renderer(const Window& window, int renderer_index, std::uint32_t flags) : 
-	renderer_{ SDL_CreateRenderer(window, renderer_index, flags) },
-	display_index_{ window.GetDisplayIndex() } {
-	if (!IsValid()) {
+Renderer& Renderer::Init(const Window& window,
+						 int renderer_index, 
+						 std::uint32_t flags) {
+	auto& renderer{ GetInstance() };
+	renderer.renderer_ = SDL_CreateRenderer(window, renderer_index, flags);
+	if (!renderer.IsValid()) {
 		PrintLine("Failed to create renderer: ", SDL_GetError());
 		abort();
 	}
+	return renderer;
 }
 
 Renderer::operator SDL_Renderer*() const {
@@ -245,24 +237,21 @@ bool Renderer::IsValid() const {
 }
 
 void Renderer::Clear() {
-	SDL_RenderClear(renderer_);
+	SDL_RenderClear(GetInstance());
 }
 
-void Renderer::Present() const {
-	SDL_RenderPresent(renderer_);
+void Renderer::Present() {
+	SDL_RenderPresent(GetInstance());
 }
 
 void Renderer::Destroy() {
-	SDL_DestroyRenderer(renderer_);
-	renderer_ = nullptr;
-}
-
-std::size_t Renderer::GetDisplayIndex() const {
-	return display_index_;
+	auto& renderer{ GetInstance() };
+	SDL_DestroyRenderer(renderer);
+	renderer.renderer_ = nullptr;
 }
 
 void Renderer::SetDrawColor(const Color& color) {
-	SDL_SetRenderDrawColor(renderer_, color.r, color.g, color.b, color.a);
+	SDL_SetRenderDrawColor(GetInstance(), color.r, color.g, color.b, color.a);
 }
 
 } // namespace engine
