@@ -10,6 +10,7 @@ struct SDL_Texture;
 
 namespace engine {
 
+class Text;
 class Renderer;
 
 enum class TextureAccess : int {
@@ -21,25 +22,36 @@ enum class TextureAccess : int {
 	TARGET = 2 // SDL_TEXTUREACCESS_TARGET = 2
 };
 
-// Textures must be freed using Destroy().
 class Texture {
 public:
 	Texture() = default;
+	~Texture() = default;
+	Texture(const Texture& copy) = default;
+	Texture(Texture&& move) = default;
+	Texture& operator=(const Texture& copy) = default;
+	Texture& operator=(Texture&& move) = default;
+
+	// Locks texture to enable access to it.
+	bool Lock(void** out_pixels, int* out_pitch, V2_int lock_position = {}, V2_int lock_size = {});
+	// Unlocks texture after access.
+	void Unlock();
+	// Sets all texture pixels to a specific color.
+	void SetColor(const Color& color, PixelFormat pixel_format = PixelFormat::RGBA8888);
+private:
+	friend class TextureManager;
+	friend class Text;
+	friend class Renderer;
+
 	Texture(const Renderer& renderer, const V2_int& size, PixelFormat pixel_format = PixelFormat::RGBA8888, TextureAccess texture_access = TextureAccess::STREAMING);
 	Texture(const Renderer& renderer, const Surface& surface);
+
 	SDL_Texture* operator=(SDL_Texture* texture);
 	operator SDL_Texture* () const;
 	SDL_Texture* operator&() const;
+
 	bool IsValid() const;
-	// Locks texture to enable writing to it.
-	bool Lock(void** out_pixels, int* out_pitch, V2_int lock_position = {}, V2_int lock_size = {});
-	void Unlock();
+
 	void Destroy();
-	// Sets all texture pixels to a specific color.
-	void SetColor(const Color& color, PixelFormat pixel_format = PixelFormat::RGBA8888);
-	// Sets all texture pixels to black.
-	void Clear(PixelFormat pixel_format = PixelFormat::RGBA8888);
-private:
 
 	Texture(SDL_Texture* texture);
 

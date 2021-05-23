@@ -11,6 +11,7 @@ public:
 	Circle() = delete;
 	Circle(const double radius) : radius{ radius } {}
 	virtual ShapeType GetType() const override final { return ShapeType::CIRCLE; }
+	virtual Shape* Clone() const override final { return new Circle(radius); }
 	double radius{ 0 };
 	friend bool operator==(const Circle& A, const Circle& B) {
 		return A.radius == B.radius;

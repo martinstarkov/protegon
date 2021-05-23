@@ -3,51 +3,44 @@
 #include <SDL.h>
 #include <SDL_ttf.h>
 
-#include <cassert>
-
+#include "math/Hasher.h"
 #include "renderer/Renderer.h"
-#include "renderer/TextureManager.h"
-#include "renderer/text/Font.h"
 #include "renderer/text/FontManager.h"
 
-#include "math/Hasher.h"
-
 namespace engine {
+
+Text::~Text() {
+	texture_.Destroy();
+}
 
 Text::Text(const char* content,
 		   const Color& color,
 		   const char* font_name,
 		   const V2_double& position,
-		   const V2_double& area,
-		   std::size_t display_index) :
+		   const V2_double& area) :
 	content_{ content },
 	color_{ color },
 	font_name_{ font_name },
 	font_key_{ Hasher::HashCString(font_name_) },
 	position_{ position },
-	area_{ area },
-	display_index_{ display_index } {
+	area_{ area } {
 	RefreshTexture();
 }
 
 Text& Text::operator=(Text&& obj) noexcept {
-	Destroy();
 	style_ = obj.style_;
 	mode_ = obj.mode_;
 	shading_background_color_ = std::move(obj.shading_background_color_);
-	texture_ = std::exchange(obj.texture_, nullptr);
+	texture_.Destroy();
+	texture_ = obj.texture_;
+	obj.texture_ = nullptr;
 	content_ = std::move(obj.content_);
 	color_ = std::move(obj.color_);
 	font_name_ = std::move(obj.font_name_);
 	font_key_ = std::move(obj.font_key_);
 	position_ = std::move(obj.position_);
 	area_ = std::move(obj.area_);
-	display_index_ = obj.display_index_;
 	return *this;
-}
-
-void Text::Destroy() {
-	texture_.Destroy();
 }
 
 void Text::RefreshTexture() {
@@ -55,17 +48,17 @@ void Text::RefreshTexture() {
 	TTF_SetFontStyle(font, style_);
 	Surface temp_surface;
 	switch (mode_) {
-		case RenderMode::SOLID:
+		case FontRenderMode::SOLID:
 			temp_surface = TTF_RenderText_Solid(font, content_, color_);
 			break;
-		case RenderMode::SHADED:
+		case FontRenderMode::SHADED:
 			temp_surface = TTF_RenderText_Shaded(font, content_, color_, shading_background_color_);
 			break;
-		case RenderMode::BLENDED:
+		case FontRenderMode::BLENDED:
 			temp_surface = TTF_RenderText_Blended(font, content_, color_);
 			break;
 		default:
-			assert(!"Unrecognized render mode when creating surfaace for text texture");
+			assert(!"Unrecognized render mode when creating surface for text texture");
 			break;
 	}
 	assert(temp_surface.IsValid() && "Failed to load text onto surface");
@@ -88,23 +81,25 @@ void Text::SetColor(const Color& new_color) {
 
 void Text::SetFont(const char* new_font_name) {
 	font_key_ = Hasher::HashCString(new_font_name);
+	assert(FontManager::HasFont(font_key_) &&
+		   "Cannot set text font which has not been loaded into FontManager");
 	RefreshTexture();
 }
 
 
 void Text::SetSolidRenderMode() {
-	mode_ = RenderMode::SOLID;
+	mode_ = FontRenderMode::SOLID;
 	RefreshTexture();
 }
 
 void Text::SetShadedRenderMode(const Color& shading_background_color) {
 	shading_background_color_ = shading_background_color;
-	mode_ = RenderMode::SHADED;
+	mode_ = FontRenderMode::SHADED;
 	RefreshTexture();
 }
 
 void Text::SetBlendedRenderMode() {
-	mode_ = RenderMode::BLENDED;
+	mode_ = FontRenderMode::BLENDED;
 	RefreshTexture();
 }
 
@@ -128,16 +123,16 @@ const char* Text::GetFont() const {
 	return font_name_;
 }
 
-Texture Text::GetTexture() const {
-	return texture_;
-}
-
 V2_double Text::GetPosition() const {
 	return position_;
 }
 
 V2_double Text::GetArea() const {
 	return area_;
+}
+
+Texture Text::GetTexture() const {
+	return texture_;
 }
 
 } // namespace engine

@@ -24,6 +24,8 @@ public:
 private:
 	friend class Text;
 
+	static bool HasFont(std::size_t font_key);
+
 	static Font GetFont(std::size_t font_key);
 
 	// Font object storage.

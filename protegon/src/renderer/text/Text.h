@@ -1,42 +1,38 @@
 #pragma once
 
-#include <string>
-
-#include "core/Engine.h"
-
 #include "math/Vector2.h"
-
-#include "utils/TypeTraits.h"
-
 #include "renderer/Texture.h"
 #include "renderer/Color.h"
-#include "renderer/RenderMode.h"
+#include "renderer/text/FontRenderMode.h"
 #include "renderer/text/FontStyle.h"
+#include "utils/TypeTraits.h"
 
 namespace engine {
 
-// Text must be freed using Destroy().
 class Text {
 public:
 	Text() = default;
+	~Text();
+	// Construct text.
 	Text(const char* content,
 		 const Color& color,
 		 const char* font_name,
 		 const V2_double& position,
-		 const V2_double& area,
-		 std::size_t display_index = 0);
+		 const V2_double& area);
 	Text& operator=(Text&& obj) noexcept;
-	// TODO: Add ability to copy text.
 
-	void Destroy();
-
+	// Set text content.
 	void SetContent(const char* new_content);
+	// Set text color.
 	void SetColor(const Color& new_color);
+	// Set text font to a font that has been loaded into FontManager.
 	void SetFont(const char* new_font_name);
+	// Set top left position of text.
 	void SetPosition(const V2_double& new_position);
+	// Set area to which text is stretched.
 	void SetArea(const V2_double& new_area);
 
-	// Function accepts any number of FontStyle enum values (UNDERLINED, BOLD, etc).
+	// Accepts any number of FontStyle enum values (UNDERLINED, BOLD, etc).
 	// These are combined into one style and text is renderer in that style.
 	template <typename ...Style,
 		type_traits::are_type<FontStyle, Style...> = true>
@@ -52,15 +48,16 @@ public:
 	const char* GetContent() const;
 	const char* GetFont() const;
 	Color GetColor() const;
-	Texture GetTexture() const;
 	V2_double GetPosition() const;
 	V2_double GetArea() const;
 private:
+	friend class Renderer;
 
+	Texture GetTexture() const;
 	void RefreshTexture();
 
 	int style_{ static_cast<int>(FontStyle::NORMAL) };
-	RenderMode mode_{ RenderMode::SOLID };
+	FontRenderMode mode_{ FontRenderMode::SOLID };
 	Color shading_background_color_;
 	Texture texture_;
 
@@ -70,7 +67,6 @@ private:
 	std::size_t font_key_{ 0 };
 	V2_double position_;
 	V2_double area_;
-	std::size_t display_index_{ 0 };
 };
 
 } // namespace engine

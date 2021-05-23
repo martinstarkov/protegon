@@ -4,7 +4,7 @@
 // In some cases with improved performance over standard library alternatives, e.g. ceil and floor.
 
 #include <cassert> // assert
-#include <cmath> // std::round, std::sqrt
+#include <cmath> // std::round, std::sqrt, etc
 #include <limits> // std::numeric_limits
 #include <iomanip> // std::setprecision for truncating
 #include <sstream> // std::stringstream for truncating
@@ -161,12 +161,11 @@ inline T Sqrt(U value) {
 // Linearly interpolate between two values by a given amount.
 // Allows for casting to specific type.
 template <typename S, typename T, typename U, 
+    type_traits::is_number<S> = true,
     type_traits::is_number<T> = true, 
-    type_traits::is_number<S> = true, 
     type_traits::is_floating_point<U> = true>
-inline S Lerp(T a, T b, U amount) {
-    // TODO: Write some tests for this?
-    return static_cast<S>(static_cast<U>(a) + amount * static_cast<U>(b - a));
+inline S Lerp(T a, T b, U t) {
+    return static_cast<S>(static_cast<U>(a) + t * static_cast<U>(b - a));
 }
 
 // Linearly interpolate between two values by a given amount.

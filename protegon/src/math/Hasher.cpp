@@ -6,8 +6,8 @@
 
 namespace engine {
 
-std::size_t Hasher::HashCString(const char* s) {
-	return std::hash<std::string_view>()(std::string_view(s, std::strlen(s)));
+std::size_t Hasher::HashCString(const char* c_string) {
+	return std::hash<std::string_view>()(std::string_view(c_string, std::strlen(c_string)));
 }
 
 } // namespace engine

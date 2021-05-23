@@ -1,26 +1,28 @@
 #include "AllocationMetrics.h"
 
-#include <iostream> // std::cout
+#include "debugging/Logger.h"
 
 void* operator new(std::size_t size) {
-	AllocationMetrics::Allocation(size);
-	return malloc(size);
+	engine::AllocationMetrics::Allocation(size);
+	return std::malloc(size);
 }
 
 void* operator new[](std::size_t size) {
-	AllocationMetrics::Allocation(size);
-	return malloc(size);
+	engine::AllocationMetrics::Allocation(size);
+	return std::malloc(size);
 }
 
 void operator delete(void* memory, std::size_t size) {
-	AllocationMetrics::Deallocation(size);
-	free(memory);
+	engine::AllocationMetrics::Deallocation(size);
+	std::free(memory);
 }
 
 void  operator delete[](void* memory, std::size_t size) {
-	AllocationMetrics::Deallocation(size);
-	free(memory);
+	engine::AllocationMetrics::Deallocation(size);
+	std::free(memory);
 }
+
+namespace engine {
 
 std::uint32_t AllocationMetrics::total_allocated_{ 0 };
 std::uint32_t AllocationMetrics::total_freed_{ 0 };
@@ -38,5 +40,7 @@ void AllocationMetrics::Deallocation(const std::size_t& size) {
 }
 
 void AllocationMetrics::PrintMemoryUsage() {
-	std::cout << "Memory usage: " << CurrentUsage() << " bytes" << std::endl;
+	PrintLine("Memory usage: ", CurrentUsage(), " bytes");
 }
+
+} // namespace engine

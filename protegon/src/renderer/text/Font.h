@@ -4,8 +4,6 @@
 
 #include "utils/TypeTraits.h"
 
-#include "renderer/text/FontStyle.h"
-
 struct _TTF_Font;
 using TTF_Font = _TTF_Font;
 
@@ -14,16 +12,17 @@ namespace engine {
 // Fonts must be freed using Destroy().
 class Font {
 public:
-	Font() = default;
-	
+	Font() = delete;
+private:
+	friend class FontManager;
+	friend class Text;
+
 	operator TTF_Font* () const;
 	TTF_Font* operator&() const;
-	
+
 	std::int32_t GetMaxPixelHeight() const;
 	bool IsValid() const;
 	void Destroy();
-private:
-	friend class FontManager;
 
 	Font(TTF_Font* font);
 	/*

@@ -29,6 +29,11 @@ void FontManager::Unload(const char* name) {
 	font_map_.erase(key);
 }
 
+bool FontManager::HasFont(std::size_t font_key) {
+	auto it{ font_map_.find(font_key) };
+	return it != std::end(font_map_);
+}
+
 Font FontManager::GetFont(std::size_t font_key) {
 	auto it{ font_map_.find(font_key) };
 	assert(it != std::end(font_map_) && "Could not find font in font manager");

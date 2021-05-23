@@ -1,17 +1,13 @@
 TODO:
 - Consider switching to smart pointers in ShapeComponent.h.
 - Eventually move logging into class which can print to console and log to file.
+- Add ability to copy text.
 
 Camera
 Engine
 Scene
 SceneManager
-Window
 World
-AllocationMetrics
-FileManagement
-Debug
-Logger
 AnimationComponent
 CameraComponent
 HitboxComponent
@@ -62,13 +58,11 @@ LinevsAABB
 PointvsAABB
 Chunk
 ChunkManager
-Renderer
 Surface
 Texture
 TextureManager
 Font
 FontManager
-Text
 Animation
 PixelFormat
 SpriteMap
@@ -97,6 +91,7 @@ Protegon
 
 
 
+
 DONE:
 
 Singleton
@@ -113,3 +108,10 @@ FontStyle
 Hasher
 Color
 Colors
+Debug
+Logger
+AllocationMetrics
+FileManagement
+Window
+Renderer
+Text

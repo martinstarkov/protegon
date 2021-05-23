@@ -6,6 +6,7 @@
 
 #include "core/Window.h"
 #include "renderer/Renderer.h"
+#include "renderer/Colors.h"
 #include "event/InputHandler.h"
 
 namespace engine {

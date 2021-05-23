@@ -89,8 +89,4 @@ void Texture::SetColor(const Color& color, PixelFormat pixel_format) {
 	Unlock();
 }
 
-void Texture::Clear(PixelFormat pixel_format) {
-	SetColor(colors::BLACK, pixel_format);
-}
-
 } // namespace engine
