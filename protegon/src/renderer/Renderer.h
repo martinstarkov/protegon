@@ -3,10 +3,10 @@
 #include <cstdint> // std::uint32_t
 #include <cstdlib> // std::size_t
 
-#include "renderer/Texture.h"
 #include "math/Vector2.h"
+#include "renderer/Texture.h"
 #include "renderer/Color.h"
-#include "renderer/text/Text.h"
+#include "renderer/Colors.h"
 #include "renderer/sprites/Flip.h"
 #include "utils/Singleton.h"
 
@@ -16,21 +16,18 @@ namespace engine {
 
 class Window;
 class Surface;
+class Text;
 
 class Renderer : public Singleton<Renderer> {
 public:
-	static void DrawTexture(const Texture& texture,
-							const V2_int& position,
-							const V2_int& size,
-							const V2_int source_position = {},
-							const V2_int source_size = {});
-
+	// Draws a texture to the screen.
 	static void DrawTexture(const char* texture_key,
 							const V2_int& position,
 							const V2_int& size,
 							const V2_int source_position = {},
 							const V2_int source_size = {});
 
+	// Draws a texture to the screen. Allows for rotation and flip.
 	static void DrawTexture(const char* texture_key,
 							const V2_int& position,
 							const V2_int& size,
@@ -40,55 +37,87 @@ public:
 							const double angle = 0.0,
 							Flip flip = Flip::NONE);
 
+	// Draws text to the screen.
 	static void DrawText(const Text& text);
 
+	// Draws a point on the screen.
 	static void DrawPoint(const V2_int& point,
 						  const Color& color = colors::DEFAULT_DRAW_COLOR);
 
+	// Draws line to the screen.
 	static void DrawLine(const V2_int& origin,
 						 const V2_int& destination,
 						 const Color& color = colors::DEFAULT_DRAW_COLOR);
 
 
+	// Draws hollow circle to the screen.
 	static void DrawCircle(const V2_int& center,
 						   const double radius,
 						   const Color& color = colors::DEFAULT_DRAW_COLOR);
 
+	// Draws filled circle to the screen.
 	static void DrawSolidCircle(const V2_int& center,
 								const double radius,
 								const Color& color = colors::DEFAULT_DRAW_COLOR);
 
+	// Draws hollow rectangle to the screen.
 	static void DrawRectangle(const V2_int& position, 
 							  const V2_int& size, 
 							  const Color& color = colors::DEFAULT_DRAW_COLOR);
 	
+	// Draws filled rectangle to the screen.
 	static void DrawSolidRectangle(const V2_int& position, 
 								   const V2_int& size, 
 								   const Color& color = colors::DEFAULT_DRAW_COLOR);
 
+	// Sets the screen draw color.
 	static void SetDrawColor(const Color& color = colors::DEFAULT_DRAW_COLOR);
-
-	static Texture CreateTexture(const Surface& surface);
 	
+	// Clears the screen.
 	static void Clear();
 	// Display renderer objects to screen.
 	static void Present();
-
-	Renderer() = default;
-
-	operator SDL_Renderer* () const;
-	SDL_Renderer* operator&() const;
-	
-	bool IsValid() const;
 private:
 	friend class Engine;
+	friend class TextureManager;
+	friend class Texture;
+	friend class Text;
+	friend class Singleton<Renderer>;
 
-	// Renderers must be freed using Destroy().
+	// Draws texture object to the screen.
+	static void DrawTexture(const Texture& texture,
+							const V2_int& position,
+							const V2_int& size,
+							const V2_int source_position = {},
+							const V2_int source_size = {});
+
+	// Creates texture from surface.
+	static Texture CreateTexture(const Surface& surface);
+
+	/*
+	* Initializes the singleton renderer instance.
+	* @param renderer_index Index of renderering driver, -1 for first matching flags
+	* @paramm flags Renderer driver flags.
+	* @return Renderer singleton instance.
+	*/
 	static Renderer& Init(const Window& window, 
 						  int renderer_index = -1, 
 						  std::uint32_t flags = 0);
+
+	// Frees memory used by SDL_Renderer.
 	static void Destroy();
-	
+
+	Renderer() = default;
+
+	// Conversions to SDL_Renderer for internal functions.
+
+	operator SDL_Renderer* () const;
+	SDL_Renderer* operator&() const;
+
+	/*
+	* @return True if SDL_Renderer is not nullptr, false otherwise.
+	*/
+	bool IsValid() const;
 	
 	SDL_Renderer* renderer_{ nullptr };
 };

@@ -28,10 +28,9 @@ bool Window::IsValid() const {
 }
 
 V2_int Window::GetSize() {
-	int width{ 0 };
-	int height{ 0 };
-	SDL_GetWindowSize(GetInstance(), &width, &height);
-	return { width, height };
+	V2_int size;
+	SDL_GetWindowSize(GetInstance(), &size.x, &size.y);
+	return size;
 }
 
 void Window::SetSize(const V2_int& new_size) {
@@ -39,10 +38,9 @@ void Window::SetSize(const V2_int& new_size) {
 }
 
 V2_int Window::GetOriginPosition() {
-	int x{ 0 };
-	int y{ 0 };
-	SDL_GetWindowPosition(GetInstance(), &x, &y);
-	return { x, y };
+	V2_int origin;
+	SDL_GetWindowPosition(GetInstance(), &origin.x, &origin.y);
+	return origin;
 }
 
 void Window::SetOriginPosition(const V2_int& new_origin) {

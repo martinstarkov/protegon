@@ -4,6 +4,7 @@
 #include <cassert>
 
 #include "core/Window.h"
+#include "renderer/text/Text.h"
 #include "renderer/Surface.h"
 #include "renderer/TextureManager.h"
 #include "debugging/Debug.h"
