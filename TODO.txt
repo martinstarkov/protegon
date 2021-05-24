@@ -2,12 +2,8 @@ TODO:
 - Consider switching to smart pointers in ShapeComponent.h.
 - Eventually move logging into class which can print to console and log to file.
 - Add ability to copy text.
+- Add better documentation to Engine class.
 
-Camera
-Engine
-Scene
-SceneManager
-World
 AnimationComponent
 CameraComponent
 HitboxComponent
@@ -17,6 +13,8 @@ ParticleComponent
 SpriteComponent
 SpriteSheetComponent
 TagComponent
+Components
+
 RenderSystem
 CameraSystem
 AnimationSystem
@@ -27,47 +25,40 @@ HitboxRenderSystem
 InputSystem
 LifetimeSystem
 PhysicsSystem
-Components
-ECS
 Systems
-Events
-Inputs
-EventHandler
-InputHandler
-Math
-Matrix
-Noise
-RNG
-Vector2
-Image
-ImageProcessor
-Manifold
-Physics
-RigidBody
-Transform
-AABB
-Circle
-Shape
-AABB
-Collision
+
 DynamicAABBvsAABB
 AABBvsAABB
 CirclevsAABB
 CirclevsCircle
 LinevsAABB
 PointvsAABB
-Chunk
-ChunkManager
-Surface
-Texture
-TextureManager
-Font
-FontManager
+
+RNG
+EventHandler
+Camera
+SceneManager
+Scene
+Noise
+Math
+Matrix
+Manifold
+Physics
+Collision
+Events
 Animation
-PixelFormat
 SpriteMap
 Particle
 ParticleManager
+World
+Image
+ImageProcessor
+Chunk
+ChunkManager
+Vector2
+TypeTraits
+ECS
+
 BaseState
 BaseStateMachine
 StateMachine
@@ -85,7 +76,7 @@ IdleState
 JumpState
 RunState
 WalkState
-TypeTraits
+
 Protegon
 
 
@@ -115,3 +106,17 @@ FileManagement
 Window
 Renderer
 Text
+Circle
+Shape
+AABB
+Transform
+RigidBody
+Font
+FontManager
+Surface
+Texture
+TextureManager
+PixelFormat
+Inputs
+InputHandler
+Engine
