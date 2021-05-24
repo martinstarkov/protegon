@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cstdint>
-#include <vector>
+#include <cstdint> // std::uint32_t, etc
+#include <vector> // std::vector
 
 #include "math/RNG.h"
 #include "math/Math.h"
@@ -11,10 +11,10 @@
 namespace engine {
 
 /*
-* @tparam T Type of floating point noise values to generate.
+* @tparam T Type of floating point noise values to generate. Float by default.
 */
 template <typename T = float, 
-	type_traits::is_floating_point<T> = true>
+	type_traits::is_floating_point_e<T> = true>
 class ValueNoise {
 public:
 	/*
@@ -43,6 +43,9 @@ public:
 			permutation_table_[k + length_] = permutation_table_[k];
 		}
 	}
+
+	~ValueNoise() = default;
+
 	/* 
 	* Generates a 2D noise map for points relative to a coordinate.
 	* @param relative_position Point relative to which the map is generated.

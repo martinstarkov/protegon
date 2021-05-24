@@ -7,8 +7,6 @@
 
 namespace engine {
 
-// TODO: Write tests for all randon number engines.
-
 /*
 * Define RNG object by giving it a type to generate from
 * and a range or seed for the distribution. 
@@ -19,7 +17,7 @@ namespace engine {
 * @tparam E Type of rng engine to use (std::minstd_rand [default], std::mt19937, etc)
 */
 template <typename T, typename E = std::minstd_rand,
-	type_traits::is_number<T> = true>
+	type_traits::is_number_e<T> = true>
 class RNG {
 public:
 	// Default constructor makes distribution range 0 to 1.
@@ -31,10 +29,12 @@ public:
 	// Seed and range constructor.
 	RNG(std::uint32_t seed, T min, T max) : gen{ seed }, distribution{ min, max } {}
 
+	// Generate a new random number.
 	T operator()() {
 		return distribution(generator);
 	}
 
+	// Change seed of random number generator.
 	void SetSeed(std::uint32_t new_seed) {
 		generator.seed(new_seed);
 	}

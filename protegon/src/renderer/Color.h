@@ -18,7 +18,7 @@ public:
 	static Color Random();
 
 	template <typename T, 
-		type_traits::is_floating_point<T> = true>
+		type_traits::is_floating_point_e<T> = true>
 	static Color Lerp(const Color& a, const Color& b, T t) {
 		return {
 			math::Lerp<std::uint8_t>(a.r, b.r, t), 

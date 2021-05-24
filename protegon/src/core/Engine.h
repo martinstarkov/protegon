@@ -27,7 +27,7 @@ class Engine : public Singleton<Engine> {
 public:
 	// Entering engine execution loop.
 	template <typename TInitialScene,
-		type_traits::is_base_of<Scene, TInitialScene> = true>
+		type_traits::is_base_of_e<Scene, TInitialScene> = true>
 	static void Start(const char* scene_key,
 					  const char* window_title,
 					  const V2_int& window_size, 

@@ -16,7 +16,7 @@ public:
 	virtual ShapeType GetType() const = 0;
 	virtual Shape* Clone() const = 0;
 	template <typename T,
-		type_traits::is_base_of<Shape, T> = true>
+		type_traits::is_base_of_e<Shape, T> = true>
 	T& CastTo() {
 		return *static_cast<T*>(this);
 	}

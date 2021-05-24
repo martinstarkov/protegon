@@ -5,18 +5,17 @@
 #include <cassert> // assert
 #include <vector> // std::vector
 
-#include "utils/TypeTraits.h"
 #include "ecs/ECS.h"
-
-// TODO: Write tests for invoke function argument count.
+#include "utils/TypeTraits.h"
 
 namespace engine {
 
 namespace internal {
 
-using EventFunction = void (*)(ecs::Entity&);
+using EventFunction = void (*)(ecs::Entity& invoker);
 
-template <typename T, engine::type_traits::has_static_invoke_e<T> = true>
+template <typename T, 
+	type_traits::has_static_invoke_e<T> = true>
 constexpr EventFunction EventCast() {
 	return &T::Invoke;
 }
@@ -25,25 +24,6 @@ template <typename T, typename Function>
 constexpr EventFunction EventCast() {
 	return nullptr;
 }
-
-/*
-
-// source: https://stackoverflow.com/a/8645270
-template <typename ...TArgs>
-constexpr std::size_t Arity(void (*)(TArgs...)) {
-	return sizeof...(TArgs);
-}
-
-template <typename T, typename Function, type_traits::has_static_function_e<T, Function> = true>
-constexpr std::size_t EventArgumentCount() {
-	return Arity(&T::Function);
-}
-
-template <typename T, typename Function>
-constexpr std::size_t EventArgumentCount() {
-	return 0;
-}
-*/
 
 } // namespace internal
 
