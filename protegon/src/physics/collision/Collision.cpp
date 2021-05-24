@@ -1,29 +1,28 @@
 #include "Collision.h"
 
-#include <cmath>
-#include <algorithm>
+#include <cassert> // assert
 
+#include "physics/shapes/Shape.h"
 #include "physics/shapes/Circle.h"
 #include "physics/shapes/AABB.h"
 
-// TODO: TEMPORARY.
-#include "debugging/Logger.h"
-
 namespace engine {
 
-inline Manifold StaticCirclevsCircle(const Transform& A, const Transform& B, Shape* const A_s, Shape* const B_s) {
-	assert(A_s != nullptr && "Cannot generate manifold for destroyed shape");
-	assert(B_s != nullptr && "Cannot generate manifold for destroyed shape");
+inline Manifold StaticCirclevsCircle(const Transform& A, 
+                                     const Transform& B, 
+                                     Shape* const a, 
+                                     Shape* const b) {
+	assert(a != nullptr && "Cannot generate manifold for destroyed shape");
+	assert(b != nullptr && "Cannot generate manifold for destroyed shape");
 	
     Manifold manifold;
 
-    Circle* a{ static_cast<Circle*>(A_s) };
-	Circle* b{ static_cast<Circle*>(B_s) };
+    Circle* circle{ static_cast<Circle*>(a) };
+	Circle* circle2{ static_cast<Circle*>(b) };
 
     auto normal{ B.position - A.position };
-
     auto distance_squared{ normal.MagnitudeSquared() };
-    auto sum_radius{ a->radius + b->radius };
+    auto sum_radius{ circle->radius + circle2->radius };
 
     // Collision did not occur.
     if (distance_squared >= sum_radius * sum_radius) {
@@ -35,10 +34,10 @@ inline Manifold StaticCirclevsCircle(const Transform& A, const Transform& B, Sha
 
     V2_double contact_point;
 
-    
-    if (distance == 0.0) { // Bias toward selecting A for exact overlap edge case.
+    // Bias toward selecting A for exact overlap edge case.
+    if (distance == 0.0) { 
         manifold.normal = { 1, 0 };
-        manifold.penetration = a->radius * manifold.normal;
+        manifold.penetration = circle->radius * manifold.normal;
         contact_point = A.position;
     } else {
         // Normalise collision vector.
@@ -46,44 +45,42 @@ inline Manifold StaticCirclevsCircle(const Transform& A, const Transform& B, Sha
         // Find the amount by which circles overlap.
         manifold.penetration = (sum_radius - distance) * manifold.normal;
         // Find point of collision from A.
-        contact_point = manifold.normal * a->radius + A.position;
+        contact_point = manifold.normal * circle->radius + A.position;
     }
 
     manifold.contact_point = contact_point;
     return manifold;
 }
 
-inline Manifold StaticAABBvsAABB(const Transform& A, const Transform& B, Shape* const A_s, Shape* const B_s) {
-    assert(A_s != nullptr && "Cannot generate manifold for destroyed shape");
-    assert(B_s != nullptr && "Cannot generate manifold for destroyed shape");
+inline Manifold StaticAABBvsAABB(const Transform& A,
+                                 const Transform& B,
+                                 Shape* const a,
+                                 Shape* const b) {
+    assert(a != nullptr && "Cannot generate manifold for destroyed shape");
+    assert(b != nullptr && "Cannot generate manifold for destroyed shape");
 
     Manifold manifold;
 
-    AABB* a{ static_cast<AABB*>(A_s) };
-    AABB* b{ static_cast<AABB*>(B_s) };
+    AABB* aabb{ static_cast<AABB*>(a) };
+    AABB* aabb2{ static_cast<AABB*>(b) };
 
-    auto a_center{ A.position + a->size / 2.0 };
-    auto b_center{ B.position + b->size / 2.0 };
-    
+    auto a_center{ A.position + aabb->size / 2.0 };
+    auto b_center{ B.position + aabb2->size / 2.0 };
     auto distance{ b_center - a_center };
-
-    auto half{ a->size / 2.0 };
-
-    auto penetration{ b->size / 2.0 + half - Abs(distance) };
-
-    //LOG("D: " << distance << ", P: " << penetration);
+    auto half{ aabb->size / 2.0 };
+    auto penetration{ aabb2->size / 2.0 + half - Abs(distance) };
 
     if (penetration.x <= 0 || penetration.y <= 0) {
         return manifold;
     }
 
     if (penetration.x < penetration.y) {
-        auto sign{ engine::math::Sign(distance.x) };
+        auto sign{ math::Sign(distance.x) };
         manifold.normal.x = sign;
         manifold.penetration = penetration * manifold.normal;
         manifold.contact_point = { a_center.x + half.x * sign, a_center.y };
     } else {
-        auto sign{ engine::math::Sign(distance.y) };
+        auto sign{ math::Sign(distance.y) };
         manifold.normal.y = sign;
         manifold.penetration = penetration * manifold.normal;
         manifold.contact_point = { a_center.x, a_center.y + half.y * sign };
@@ -91,67 +88,67 @@ inline Manifold StaticAABBvsAABB(const Transform& A, const Transform& B, Shape* 
     return manifold;
 }
 
-inline Manifold StaticAABBvsCircle(const Transform& A, const Transform& B, Shape* const A_s, Shape* const B_s) {
-    assert(A_s != nullptr && "Cannot generate manifold for destroyed shape");
-    assert(B_s != nullptr && "Cannot generate manifold for destroyed shape");
+inline Manifold StaticAABBvsCircle(const Transform& A, 
+                                   const Transform& B, 
+                                   Shape* const a, 
+                                   Shape* const b) {
+    assert(a != nullptr && "Cannot generate manifold for destroyed shape");
+    assert(b != nullptr && "Cannot generate manifold for destroyed shape");
 
     Manifold manifold;
 
-    AABB* a{ static_cast<AABB*>(A_s) };
-    Circle* b{ static_cast<Circle*>(B_s) };
+    AABB* aabb{ static_cast<AABB*>(a) };
+    Circle* circle{ static_cast<Circle*>(b) };
 
     auto center{ B.position };
-    auto aabb_half_extents{ a->size / 2.0 };
+    auto aabb_half_extents{ aabb->size / 2.0 };
     auto aabb_center{ A.position + aabb_half_extents };
     auto difference{ center - aabb_center };
-    auto og_diff{ difference };
+    auto original_difference{ difference };
     auto clamped{ Clamp(difference, -aabb_half_extents, aabb_half_extents) };
     auto closest{ aabb_center + clamped };
     difference = closest - center;
 
-    bool inside{ og_diff == clamped };
+    bool inside{ original_difference == clamped };
 
-    //bool collision{ difference.MagnitudeSquared() < b->radius * b->radius };
-    if (difference.MagnitudeSquared() <= b->radius * b->radius) {
-        manifold.normal = -difference.Identity();//CollisionDirection(difference);
-        auto penetration{ b->radius * Abs(difference.Normalized()) - Abs(difference) };
+    if (difference.MagnitudeSquared() <= circle->radius * circle->radius) {
+        manifold.normal = -difference.Identity();
+        auto penetration{ circle->radius * Abs(difference.Normalized()) - Abs(difference) };
         manifold.penetration = Abs(penetration) * manifold.normal;
         manifold.contact_point = closest;
         if (inside) {
             manifold.normal = {};
             manifold.contact_point = B.position;
-            if (og_diff.x >= 0) {
+            if (original_difference.x >= 0) {
                 manifold.normal.x = 1;
             } else {
                 manifold.normal.x = -1;
             }
-            if (og_diff.y >= 0) {
+            if (original_difference.y >= 0) {
                 manifold.normal.y = 1;
             } else {
                 manifold.normal.y = -1;
             }
 
-            auto diff{ aabb_half_extents - Abs(og_diff) };
+            auto penetration{ aabb_half_extents - Abs(original_difference) };
 
-            if (diff.x > diff.y) {
+            if (penetration.x > penetration.y) {
                 manifold.normal.x = 0;
             } else {
                 manifold.normal.y = 0;
             }
 
-            manifold.penetration = (diff + b->radius) * manifold.normal;
-
-            //LOG(manifold.normal);
-            //LOG(p);
-            //manifold.penetration = (closest - B.position) * manifold.normal;
-            //LOG(manifold.penetration);
+            manifold.penetration = (penetration + circle->radius) * manifold.normal;
         }
     }
     return manifold;
 }
 
-inline Manifold StaticCirclevsAABB(const Transform& A, const Transform& B, Shape* const A_s, Shape* const B_s) {
-    Manifold manifold{ StaticAABBvsCircle(B, A, B_s, A_s) };
+inline Manifold StaticCirclevsAABB(const Transform& A, 
+                                   const Transform& B, 
+                                   Shape* const a, 
+                                   Shape* const b) {
+    Manifold manifold{ StaticAABBvsCircle(B, A, b, a) };
     manifold.normal *= -1;
     manifold.penetration *= -1;
     return manifold;
@@ -161,6 +158,11 @@ CollisionCallback StaticCollisionDispatch[static_cast<int>(ShapeType::COUNT)][st
     { StaticCirclevsCircle, StaticCirclevsAABB },
     { StaticAABBvsCircle, StaticAABBvsAABB }
 };
+
+} // namespace engine
+
+
+
 
 //void CircleVsPolygon(Manifold* m, Body* a, Body* b) {
 //    Circle* A = reinterpret_cast<Circle*>(a->shape);
@@ -467,5 +469,3 @@ CollisionCallback StaticCollisionDispatch[static_cast<int>(ShapeType::COUNT)][st
 //
 //    m->contact_count = cp;
 //}
-
-} // namespace engine
