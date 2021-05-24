@@ -1,24 +1,25 @@
 #include "Surface.h"
 
 #include <SDL.h>
-#include <SDL_ttf.h>
 #include <SDL_image.h>
-#include <iostream>
 
 #include "debugging/Debug.h"
 
 namespace engine {
 
+namespace internal {
+
 Surface::Surface(SDL_Surface* surface) : surface_{ surface } {}
 
-Surface::Surface(const char* file_path) : surface_{ IMG_Load(file_path) } {
+Surface::Surface(const char* img_file_path) : 
+	surface_{ IMG_Load(img_file_path) } {
 	if (!IsValid()) {
 		PrintLine("Failed to create surface from image: ", IMG_GetError());
 		abort();
 	}
 }
 
-Surface::operator SDL_Surface* () const {
+Surface::operator SDL_Surface*() const {
 	return surface_;
 }
 
@@ -34,5 +35,7 @@ void Surface::Destroy() {
 	SDL_FreeSurface(surface_);
 	surface_ = nullptr;
 }
+
+} // namespace internal
 
 } // namespace engine

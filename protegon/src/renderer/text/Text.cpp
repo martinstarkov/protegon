@@ -46,7 +46,7 @@ Text& Text::operator=(Text&& obj) noexcept {
 void Text::RefreshTexture() {
 	Font font{ FontManager::GetFont(font_key_) };
 	TTF_SetFontStyle(font, style_);
-	Surface temp_surface;
+	internal::Surface temp_surface;
 	switch (mode_) {
 		case FontRenderMode::SOLID:
 			temp_surface = TTF_RenderText_Solid(font, content_, color_);

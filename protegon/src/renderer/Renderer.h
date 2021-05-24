@@ -15,7 +15,7 @@ struct SDL_Renderer;
 namespace engine {
 
 class Window;
-class Surface;
+class internal::Surface;
 class Text;
 
 class Renderer : public Singleton<Renderer> {
@@ -92,7 +92,7 @@ private:
 							const V2_int source_size = {});
 
 	// Creates texture from surface.
-	static Texture CreateTexture(const Surface& surface);
+	static Texture CreateTexture(const internal::Surface& surface);
 
 	/*
 	* Initializes the singleton renderer instance.

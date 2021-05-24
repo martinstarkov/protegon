@@ -1,5 +1,7 @@
 #pragma once
 
+#include "utils/TypeTraits.h"
+
 namespace engine {
 
 enum class ShapeType {
@@ -15,7 +17,7 @@ public:
 	virtual Shape* Clone() const = 0;
 	template <typename T,
 		type_traits::is_base_of<Shape, T> = true>
-		T& CastTo() {
+	T& CastTo() {
 		return *static_cast<T*>(this);
 	}
 };

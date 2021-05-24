@@ -4,8 +4,12 @@
 #include <ratio> // std::milli, etc
 #include <cstdint> // std::int64_t
 
+#include "debugging/Logger.h"
+
 namespace engine {
 
+using hours = std::chrono::hours;
+using minutes = std::chrono::minutes;
 using seconds = std::chrono::seconds;
 using milliseconds = std::chrono::milliseconds;
 using microseconds = std::chrono::microseconds;
@@ -32,25 +36,46 @@ using is_duration_e = std::enable_if_t<is_duration_v<T>, bool>;
 
 class Timer {
 public:
+
     Timer() = default;
 	~Timer() = default;
-    // This works if wanting to restart an active timer.
+
+    /*
+    * Start the timer. Acts as a reset.
+    */
     void Start() {
         start_time_ = std::chrono::steady_clock::now();
         running_ = true;
     }
+
+    /*
+    * Stop the timer.
+    */
     void Stop() {
         stop_time_ = std::chrono::steady_clock::now();
         running_ = false;
     }
+
+    /*
+    * @return True if timer is running, false otherwise.
+    */
     bool IsRunning() const {
         return running_;
     }
+
+    /*
+    * Reset timer to zero elapsed time.
+    */
     void Reset() {
         stop_time_ = start_time_;
         running_ = false;
     }
-    template <typename Duration, 
+
+    /*
+    * @tparam Duration The unit of time. Default: milliseconds.
+    * @return Elapsed duration of time since timer start.
+    */
+    template <typename Duration = milliseconds, 
         type_traits::is_duration_e<Duration> = true>
     Duration Elapsed() const {
         std::chrono::time_point<std::chrono::steady_clock> end_time;
@@ -61,7 +86,19 @@ public:
         }
         return std::chrono::duration_cast<Duration>(end_time - start_time_);
     }
+
+    /*
+    * Prints the timer's elapsed time in console. No newline is added.
+    * @tparam Duration The unit of time. Default: milliseconds.
+    */
+    template <typename Duration = milliseconds,
+        type_traits::is_duration_e<Duration> = true>
+    void PrintElapsed() const {
+        Print(Elapsed<Duration>().count());
+    }
+
 private:
+    
     std::chrono::time_point<std::chrono::steady_clock> start_time_;
     std::chrono::time_point<std::chrono::steady_clock> stop_time_;
     bool running_{ false };

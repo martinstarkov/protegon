@@ -209,7 +209,7 @@ void Renderer::DrawSolidRectangle(const V2_int& position,
 	SetDrawColor();
 }
 
-Texture Renderer::CreateTexture(const Surface& surface) {
+Texture Renderer::CreateTexture(const internal::Surface& surface) {
 	return { GetInstance(), surface };
 }
 

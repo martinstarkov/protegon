@@ -1,7 +1,5 @@
 #include "TextureManager.h"
 
-#include <cassert> // assert
-
 #include <SDL_image.h>
 
 #include "math/Hasher.h"
@@ -10,54 +8,65 @@
 
 namespace engine {
 
-std::unordered_map<std::size_t, Texture> TextureManager::texture_map_;
-
-void TextureManager::Load(const char* texture_key, const char* texture_path, std::size_t display_index) {
+void TextureManager::Load(const char* texture_key, 
+						  const char* texture_path) {
 	assert(texture_path != "" && "Cannot load empty texture path");
 	assert(FileExists(texture_path) && "Cannot load texture with non-existent file path");
 	assert(texture_key != "" && "Cannot load invalid texture key");
+	auto& instance{ GetInstance() };
 	auto key{ Hasher::HashCString(texture_key) };
-	auto it{ texture_map_.find(key) };
-	if (it == std::end(texture_map_)) { 
-		Surface temp_surface{ texture_path };
+	auto it{ instance.texture_map_.find(key) };
+	if (it == std::end(instance.texture_map_)) {
+		internal::Surface temp_surface{ texture_path };
 		Texture texture{ Renderer::CreateTexture(temp_surface) };
 		temp_surface.Destroy();
-		texture_map_.emplace(key, texture);
+		instance.texture_map_.emplace(key, texture);
 	} else {
 		PrintLine("Warning: Cannot load texture key which already exists in the TextureManager");
 	}
 }
 
-Texture TextureManager::GetTexture(const char* texture_key) {
+void TextureManager::Unload(const char* texture_key) {
+	auto& instance{ GetInstance() };
 	auto key{ Hasher::HashCString(texture_key) };
-	auto it{ texture_map_.find(key) };
-	assert(it != std::end(texture_map_) && "Cannot retrieve texture key which does not exist in TextureManager");
+	auto it{ instance.texture_map_.find(key) };
+	if (it != std::end(instance.texture_map_)) {
+		it->second.Destroy();
+		instance.texture_map_.erase(it);
+	}
+}
+
+Texture TextureManager::GetTexture(const char* texture_key) {
+	auto& instance{ GetInstance() };
+	auto key{ Hasher::HashCString(texture_key) };
+	auto it{ instance.texture_map_.find(key) };
+	assert(it != std::end(instance.texture_map_) && 
+		   "Cannot retrieve texture key which does not exist in TextureManager");
 	return it->second;
 }
 
-std::uint32_t& TextureManager::GetTexturePixel(void* pixels, const int pitch, const V2_int& position) {
-	// Source: http://sdl.beuc.net/sdl.wiki/Pixel_Access
-	//int bpp = surface->format->BytesPerPixel;
-	int bpp{ sizeof(std::uint32_t) };
-	/* Here p is the address to the pixel we want to retrieve */
-	auto p{ (std::uint8_t*)pixels + position.y * pitch + position.x * bpp };
-	return *(std::uint32_t*)p;
+std::uint32_t& TextureManager::GetTexturePixel(void* pixels,
+											   const int pitch,
+											   const V2_int& position, 
+											   PixelFormat format) {
+	// Bytes per pixel.
+	int bytes_per_pixel{ 
+		SDL_BYTESPERPIXEL(static_cast<SDL_PixelFormatEnum>(format)) 
+	};
+	assert(bytes_per_pixel == 4 && 
+		   "Invalid bytes per pixel for texture pixel access");
+	std::uint32_t* pixel{ 
+		(std::uint32_t*)pixels + position.y * pitch + position.x * bytes_per_pixel 
+	};
+	return *pixel;
 }
 
-void TextureManager::Clear() {
-	for (auto& pair : texture_map_) {
+void TextureManager::Destroy() {
+	auto& instance{ GetInstance() };
+	for (auto& pair : instance.texture_map_) {
 		pair.second.Destroy();
 	}
-	texture_map_.clear();
-}
-
-void TextureManager::Remove(const char* texture_key) {
-	auto key{ Hasher::HashCString(texture_key) };
-	auto it{ texture_map_.find(key) };
-	if (it != std::end(texture_map_)) {
-		it->second.Destroy();
-		texture_map_.erase(it);
-	}
+	instance.texture_map_.clear();
 }
 
 } // namespace engine

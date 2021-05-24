@@ -50,6 +50,18 @@ public:
 
 	friend std::ostream& operator<<(std::ostream& os, const Color& color);
 
+	friend bool operator==(const Color& lhs, const Color& rhs) {
+		return
+			lhs.r == rhs.r &&
+			lhs.g == rhs.g &&
+			lhs.b == rhs.b &&
+			lhs.a == rhs.a;
+	}
+
+	friend bool operator!=(const Color& lhs, const Color& rhs) {
+		return !(lhs == rhs);
+	}
+
 	// Implicit conversion to SDL_Color, for internal use.
 	operator SDL_Color() const;
 	
@@ -74,17 +86,5 @@ private:
 	// Construction from SDL_Color, for internal use.
 	Color(const SDL_Color& color);
 };
-
-inline bool operator==(const Color& lhs, const Color& rhs) {
-	return 
-		lhs.r == rhs.r && 
-		lhs.g == rhs.g && 
-		lhs.b == rhs.b && 
-		lhs.a == rhs.a;
-}
-
-inline bool operator!=(const Color& lhs, const Color& rhs) {
-	return !(lhs == rhs);
-}
 
 } // namespace engine

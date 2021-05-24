@@ -1,18 +1,19 @@
 #include "InputHandler.h"
 
-#include <cassert>
-#include <algorithm>
-
 #include <SDL.h>
 
+#include <algorithm> // std::copy
+
 #include "core/Engine.h"
-#include "core/Window.h"
+#include "debugging/Debug.h"
 
 namespace engine {
 
 void InputHandler::Update() {
 	auto& instance{ GetInstance() };
+	// Update previous key states.
 	instance.UpdateKeyStates();
+	// Update mouse states.
 	instance.UpdateMouseState(Mouse::LEFT);
 	instance.UpdateMouseState(Mouse::RIGHT);
 	instance.UpdateMouseState(Mouse::MIDDLE);
@@ -36,6 +37,7 @@ void InputHandler::Update() {
 				break;
 			}
 			case SDL_WINDOWEVENT: {
+				// Possible window events here in the future.
 				/*switch (event.window.event) {
 					default:
 						break;

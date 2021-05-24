@@ -42,3 +42,13 @@
 //} // namespace collision
 //
 //} // namespace engine
+
+
+//	AABB GetBroadphaseBox(const V2_double& velocity) const {
+//		AABB broadphase_box;
+//		broadphase_box.position.x = velocity.x > 0.0 ? position.x : position.x + velocity.x;
+//		broadphase_box.position.y = velocity.y > 0.0 ? position.y : position.y + velocity.y;
+//		broadphase_box.size.x = velocity.x > 0.0 ? velocity.x + size.x : size.x - velocity.x;
+//		broadphase_box.size.y = velocity.y > 0.0 ? velocity.y + size.y : size.y - velocity.y;
+//		return broadphase_box;
+//	}
