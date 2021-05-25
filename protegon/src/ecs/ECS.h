@@ -1622,10 +1622,9 @@ public:
 
 	// This constructor is not intended for use by users of the ECS library.
 	// It must remain public in order to allow internal vector emplace construction.
-	Entity(
-		const internal::Id entity,
-		const internal::Version version,
-		Manager* manager) :
+	Entity(const internal::Id entity,
+		   const internal::Version version,
+		   Manager* manager) :
 		entity_{ entity },
 		version_{ version },
 		manager_{ manager } {
@@ -1782,7 +1781,7 @@ public:
 	* @tparam TComponents Types of components to remove.
 	*/
 	template <typename ...TComponents>
-	void RemoveComponents() const {
+	void RemoveComponents() {
 		assert(IsAlive() && "Cannot remove components from dead or null entity");
 		manager_->RemoveComponents<TComponents...>(entity_);
 	}
@@ -1802,7 +1801,7 @@ public:
 			manager_->DestroyEntity(entity_, version_);
 		}
 	}
-private:
+
 	/*
 	* Checks if an entity handle is valid.
 	* @return True if entity is alive, false otherwise.
@@ -1810,6 +1809,7 @@ private:
 	bool IsAlive() const {
 		return manager_ != nullptr && manager_->IsAlive(entity_, version_);
 	}
+private:
 
 	/*
 	* Ids are numbers by which entities are identified in the manager.
