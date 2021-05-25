@@ -10,6 +10,7 @@
 #include "renderer/TextureManager.h"
 #include "renderer/text/FontManager.h"
 #include "event/InputHandler.h"
+#include "event/EventHandler.h"
 
 namespace engine {
 
@@ -19,6 +20,7 @@ void Engine::Delay(milliseconds duration) {
 
 void Engine::Update() {
 	InputHandler::Update();
+	EventHandler::Update();
 	
 	if (!running_) return;
 
