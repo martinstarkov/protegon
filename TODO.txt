@@ -3,8 +3,10 @@ TODO:
 - Eventually move logging into class which can print to console and log to file.
 - Add ability to copy text.
 - Add better documentation to Engine class.
+- Add better documentation to EventHandler class.
 - Write tests for RNG class template parameters being random number engines.
 - Consider adding Polygon shape to collision system.
+- Go over all components and make sure destructors are done properly (no memory leaks).
 
 WIP files:
 
@@ -17,6 +19,7 @@ ParticleComponent
 SpriteComponent
 SpriteSheetComponent
 TagComponent
+StateMachineComponent
 Components
 
 RenderSystem
@@ -29,6 +32,7 @@ HitboxRenderSystem
 InputSystem
 LifetimeSystem
 PhysicsSystem
+StateMachineSystem
 Systems
 
 DynamicAABBvsAABB
@@ -38,20 +42,19 @@ CirclevsCircle
 LinevsAABB
 PointvsAABB
 
-Camera
-SceneManager
-Scene
-Animation
-SpriteMap
 Particle
 ParticleManager
-EventHandler
-World
+SceneManager
+Scene
+Camera
+Animation
+SpriteMap
+Vector2
 Image
 ImageProcessor
 Chunk
 ChunkManager
-Vector2
+World
 ECS
 
 BaseState
@@ -59,9 +62,7 @@ BaseStateMachine
 StateMachine
 State
 States
-StateMachineComponent
 StateMachiens
-StateMachineSystem
 ActiveButtonState
 DefaultButtonState
 FocusedButtonState
@@ -122,3 +123,4 @@ Matrix
 Manifold
 Collision
 TypeTraits
+EventHandler
