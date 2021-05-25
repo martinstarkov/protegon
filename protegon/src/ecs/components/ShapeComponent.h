@@ -12,7 +12,7 @@ namespace engine {
 struct ShapeComponent {
 	ShapeComponent() = delete;
 	template <typename T,
-		type_traits::is_base_of<Shape, T> = true>
+		type_traits::is_base_of_e<Shape, T> = true>
 	ShapeComponent(const T& shape) : shape{ new T(shape) } {}
 	ShapeComponent(const ShapeComponent& copy) noexcept : shape{ copy.shape->Clone() } {}
 	ShapeComponent(ShapeComponent&& move) noexcept : shape{ std::exchange(move.shape, nullptr) } {}

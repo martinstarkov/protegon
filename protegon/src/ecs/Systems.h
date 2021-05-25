@@ -1,9 +1,7 @@
 #pragma once
 
-
-
-#include "ecs/systems/CameraSystem.h"
-#include "ecs/systems/InputSystem.h"
+//#include "ecs/systems/CameraSystem.h"
+//#include "ecs/systems/InputSystem.h"
 //#include "ecs/systems/PhysicsSystem.h"
 //#include "ecs/systems/CollisionSystem.h"
 //#include "ecs/systems/LifetimeSystem.h"
