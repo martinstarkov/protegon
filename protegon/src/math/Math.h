@@ -161,7 +161,7 @@ inline S Lerp(T a, T b, U t) {
 template <typename U, typename T, 
     type_traits::is_number_e<T> = true,
     type_traits::is_floating_point_e<U> = true>
-inline U Lerp(T a, T b, U amount) {
+inline U Lerp(T a, T b, U t) {
     return static_cast<U>(a) + t * static_cast<U>(b - a);
 }
 

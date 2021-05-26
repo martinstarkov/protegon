@@ -52,8 +52,8 @@
 #include "renderer/Surface.h" // TEMPORARY?
 #include "renderer/Texture.h" // TEMPORARY?
 #include "renderer/TextureManager.h"
-//#include "renderer/particles/Particle.h"
-//#include "renderer/particles/ParticleManager.h"
+#include "renderer/particles/Particle.h"
+#include "renderer/particles/ParticleManager.h"
 //#include "renderer/sprites/Animation.h"
 #include "renderer/sprites/Flip.h"
 #include "renderer/sprites/PixelFormat.h"
@@ -68,6 +68,7 @@
 //#include "statemachine/StateMachine.h"
 // MORE?
 
+#include "utils/Countdown.h"
 #include "utils/Direction.h"
 #include "utils/Singleton.h"
 #include "utils/Timer.h"

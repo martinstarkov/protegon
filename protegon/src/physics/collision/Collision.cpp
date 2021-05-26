@@ -68,7 +68,7 @@ inline Manifold StaticAABBvsAABB(const Transform& A,
     auto b_center{ B.position + aabb2->size / 2.0 };
     auto distance{ b_center - a_center };
     auto half{ aabb->size / 2.0 };
-    auto penetration{ aabb2->size / 2.0 + half - Abs(distance) };
+    auto penetration{ aabb2->size / 2.0 + half - math::Abs(distance) };
 
     if (penetration.x <= 0 || penetration.y <= 0) {
         return manifold;
@@ -105,7 +105,7 @@ inline Manifold StaticAABBvsCircle(const Transform& A,
     auto aabb_center{ A.position + aabb_half_extents };
     auto difference{ center - aabb_center };
     auto original_difference{ difference };
-    auto clamped{ Clamp(difference, -aabb_half_extents, aabb_half_extents) };
+    auto clamped{ math::Clamp(difference, -aabb_half_extents, aabb_half_extents) };
     auto closest{ aabb_center + clamped };
     difference = closest - center;
 
@@ -113,8 +113,8 @@ inline Manifold StaticAABBvsCircle(const Transform& A,
 
     if (difference.MagnitudeSquared() <= circle->radius * circle->radius) {
         manifold.normal = -difference.Identity();
-        auto penetration{ circle->radius * Abs(difference.Normalized()) - Abs(difference) };
-        manifold.penetration = Abs(penetration) * manifold.normal;
+        auto penetration{ circle->radius * math::Abs(difference.Normalized()) - math::Abs(difference) };
+        manifold.penetration = math::Abs(penetration) * manifold.normal;
         manifold.contact_point = closest;
         if (inside) {
             manifold.normal = {};
@@ -130,7 +130,7 @@ inline Manifold StaticAABBvsCircle(const Transform& A,
                 manifold.normal.y = -1;
             }
 
-            auto penetration{ aabb_half_extents - Abs(original_difference) };
+            auto penetration{ aabb_half_extents - math::Abs(original_difference) };
 
             if (penetration.x > penetration.y) {
                 manifold.normal.x = 0;

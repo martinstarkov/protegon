@@ -17,17 +17,6 @@ public:
 	// Generates a color with random RGBA values.
 	static Color Random();
 
-	template <typename T, 
-		type_traits::is_floating_point_e<T> = true>
-	static Color Lerp(const Color& a, const Color& b, T t) {
-		return {
-			math::Lerp<std::uint8_t>(a.r, b.r, t), 
-			math::Lerp<std::uint8_t>(a.g, b.g, t), 
-			math::Lerp<std::uint8_t>(a.b, b.b, t), 
-			math::Lerp<std::uint8_t>(a.a, b.a, t) 
-		};
-	}
-
 	// Default construct color to black.
 	Color() = default;
 
@@ -88,5 +77,20 @@ private:
 	// Construction from SDL_Color, for internal use.
 	Color(const SDL_Color& color);
 };
+
+namespace math {
+
+template <typename T,
+	type_traits::is_floating_point_e<T> = true>
+inline Color Lerp(const Color& a, const Color& b, T t) {
+	return {
+		math::Lerp<std::uint8_t>(a.r, b.r, t),
+		math::Lerp<std::uint8_t>(a.g, b.g, t),
+		math::Lerp<std::uint8_t>(a.b, b.b, t),
+		math::Lerp<std::uint8_t>(a.a, b.a, t)
+	};
+}
+
+} // namespace math
 
 } // namespace engine

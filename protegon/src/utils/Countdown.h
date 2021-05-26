@@ -29,7 +29,7 @@ public:
 	}
 
 	bool Finished() const {
-		return Remaining<time>() > time{ 0 };
+		return Remaining<time>() <= time{ 0 };
 	}
 
 	template <typename T = double, 
@@ -45,6 +45,12 @@ public:
 		return percentage;
 	}
 
+	template <typename T = double,
+		type_traits::is_floating_point_e<T> = true>
+	T ElapsedPercentage() const {
+		return static_cast<T>(1) - RemainingPercentage<T>();
+	}
+
 	template <typename Duration = milliseconds,
 		type_traits::is_duration_e<Duration> = true>
 	Duration Elapsed() const {
@@ -54,9 +60,9 @@ public:
 	template <typename Duration = milliseconds,
 		type_traits::is_duration_e<Duration> = true>
 	Duration Remaining() const {
-		time difference{ cutoff_ - timer_.Elapsed<time>() };
-		if (difference > time{ 0 }) {
-			return std::chrono::duration_cast<Duration>(difference);
+		time remaining{ cutoff_ - timer_.Elapsed<time>() };
+		if (remaining > time{ 0 }) {
+			return std::chrono::duration_cast<Duration>(remaining);
 		}
 		return Duration{ 0 };
 	}
@@ -71,12 +77,6 @@ public:
 		type_traits::is_duration_e<Duration> = true>
 	void PrintRemaining() const {
 		Print(Remaining<Duration>());
-	}
-
-	template <typename Duration = milliseconds,
-		type_traits::is_duration_e<Duration> = true>
-	void Add(Duration time) {
-		cutoff_ += time;
 	}
 
 	template <typename Duration = milliseconds,

@@ -96,7 +96,6 @@ public:
     void PrintElapsed() const {
         Print(Elapsed<Duration>().count());
     }
-
 private:
     
     std::chrono::time_point<std::chrono::steady_clock> start_time_;
