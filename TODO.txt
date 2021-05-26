@@ -14,7 +14,6 @@ AnimationComponent
 CameraComponent
 HitboxComponent
 InputComponent
-LifetimeComponent
 ParticleComponent
 SpriteComponent
 SpriteSheetComponent
@@ -88,6 +87,7 @@ TransformComponent
 ColorComponent
 PlayerComponent
 RigidBodyComponent
+LifetimeComponent
 ShapeComponent
 Flip
 FontRenderMode
@@ -124,3 +124,4 @@ Manifold
 Collision
 TypeTraits
 EventHandler
+Countdown
