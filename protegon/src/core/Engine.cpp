@@ -62,7 +62,7 @@ void Engine::Loop() {
 
 		auto loop_time{ application_timer_.Elapsed<time>() - loop_start };
 
-		time difference{ loop_time - frame_time_ };
+		time difference{ frame_time_ - loop_time };
 
 		if (difference > time{ 0 }) {
 			Delay(std::chrono::duration_cast<milliseconds>(difference));
