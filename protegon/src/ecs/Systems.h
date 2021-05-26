@@ -4,7 +4,7 @@
 //#include "ecs/systems/InputSystem.h"
 //#include "ecs/systems/PhysicsSystem.h"
 //#include "ecs/systems/CollisionSystem.h"
-//#include "ecs/systems/LifetimeSystem.h"
+#include "ecs/systems/LifetimeSystem.h"
 //#include "ecs/systems/DirectionSystem.h"
 //#include "ecs/systems/AnimationSystem.h"
 //#include "ecs/systems/RenderSystem.h"
