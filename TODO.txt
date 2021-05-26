@@ -7,6 +7,7 @@ TODO:
 - Write tests for RNG class template parameters being random number engines.
 - Consider adding Polygon shape to collision system.
 - Go over all components and make sure destructors are done properly (no memory leaks).
+- Improve ParticleManager contiguous memory storage.
 
 WIP files:
 

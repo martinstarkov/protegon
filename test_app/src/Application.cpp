@@ -18,6 +18,7 @@ public:
 	AABB mouse_box{ { 30, 30 } };
 	Circle mouse_circle{ 30 };
 	Timer timer;
+	ParticleManager particle_manager_{ 1000 };
 	void Enter() {
 		TextureManager::Load("acorn", "resources/sprites/acorn.png");
 		timer.Start();
@@ -58,7 +59,10 @@ public:
 		m.AddComponent<ColorComponent>(colors::BLUE);
 		m.AddComponent<ShapeComponent>(mouse_box);
 		manager.Refresh();
+
 		t.SetStyles(FontStyle::BOLD, FontStyle::UNDERLINE, FontStyle::STRIKETHROUGH, FontStyle::ITALIC);
+
+		particle_manager_.Init({ milliseconds{ 1000 }, new Circle(5), new Circle(30), colors::BLACK, colors::PINK });
 	}
 	void Update() {
 		//manager.UpdateSystem<InputSystem>();
@@ -75,30 +79,23 @@ public:
 			new_mouse.GetComponent<TransformComponent>().transform.position = mouse_position;
 		}
 
+		if (InputHandler::KeyPressed(Key::P)) {
+			ParticleProperties properties;
+			properties.transform = { Window::GetSize() / 2 };
+			for (auto i = 0; i < 10; ++i) {
+				properties.body.velocity = V2_double::Random(-5, 5, -5, 5);
+				particle_manager_.Emit(properties);
+			}
+		}
+
 		rigid_body.body.velocity += rigid_body.body.acceleration;
 		transform.transform.position += rigid_body.body.velocity;
 
-		/*transform.transform.position = InputHandler::GetMousePosition();
+		particle_manager_.Update();
 
-		if (shape.shape->GetType() == ShapeType::AABB) {
-			transform.transform.position -= shape.shape->CastTo<AABB>().size / 2.0;
-		}*/
 		if (InputHandler::MouseHeld(Mouse::LEFT, seconds{ 3 })) {
 			PrintLine("Held left for 3 seconds");
 		}
-
-		/*if (InputHandler::KeyPressed(Key::X)) {
-			PrintLine("Pressing X");
-		}
-		if (InputHandler::KeyDown(Key::C)) {
-			PrintLine("Down C");
-		}
-		if (!InputHandler::KeyReleased(Key::V)) {
-			PrintLine("Not releasing V");
-		}
-		if (InputHandler::KeyUp(Key::B)) {
-			PrintLine("Lifted B");
-		}*/
 
 		if (InputHandler::KeyDown(Key::R)) {
 			if (shape.shape->GetType() == ShapeType::CIRCLE) {
@@ -176,6 +173,7 @@ public:
 		Renderer::DrawPoint({ 50 + 50 + 50 + 73, 50 + 50 + 50 }, colors::PURPLE);
 		Renderer::DrawPoint({ 50 + 50 + 50 + 76, 50 + 50 + 50 }, colors::PURPLE);
 		Renderer::DrawLine({ 50 + 50 + 50 + 50, 50 + 50 + 50 + 50 }, { 50 + 50 + 50, 50 + 50 + 50 }, colors::CYAN);
+		particle_manager_.Render();
 	}
 	void Exit() {
 		PrintLine("Exiting test scene");
@@ -208,6 +206,7 @@ public:
 		manager.Refresh();
 	}
 	void Update() {
+
 		auto [mouse, transform, shape, rigid_body] = manager.GetUniqueEntityAndComponents<TransformComponent, ShapeComponent, PlayerComponent>();
 
 		transform.transform.position = InputHandler::GetMousePosition();

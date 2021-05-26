@@ -1,21 +1,26 @@
-//#pragma once
-//
-//#include "math/Vector2.h"
-//#include "renderer/Color.h"
-//
-//namespace engine {
-//
-//struct Particle {
-//	V2_double position;
-//	V2_double velocity;
-//	V2_double acceleration;
-//	Color start_color{ colors::WHITE };
-//	Color end_color{ colors::BLACK };
-//	double start_radius{ 0.0 };
-//	double end_radius{ 5.0 };
-//	double rotation{ 0.0 };
-//	double angular_velocity{ 0.0 };
-//	double lifetime{ 1.0 };
-//};
-//
-//}
+#pragma once
+
+#include "physics/Transform.h"
+#include "physics/RigidBody.h"
+#include "physics/shapes/Shape.h"
+#include "physics/shapes/AABB.h"
+#include "physics/shapes/Circle.h"
+#include "renderer/Color.h"
+#include "utils/Countdown.h"
+
+namespace engine {
+
+struct Particle {
+	Countdown lifetime;
+	Shape* begin_shape{ nullptr };
+	Shape* end_shape{ nullptr };
+	Color begin_color;
+	Color end_color;
+};
+
+struct ParticleProperties {
+	Transform transform;
+	RigidBody body;
+};
+
+} // namespace engine
