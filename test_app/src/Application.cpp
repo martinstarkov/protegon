@@ -18,7 +18,7 @@ public:
 	AABB mouse_box{ { 30, 30 } };
 	Circle mouse_circle{ 30 };
 	Timer timer;
-	ParticleManager particle_manager_{ 1000 };
+	ParticleManager<Circle> particle_manager_{ 1000 };
 	void Enter() {
 		TextureManager::Load("acorn", "resources/sprites/acorn.png");
 		timer.Start();
@@ -62,9 +62,16 @@ public:
 
 		t.SetStyles(FontStyle::BOLD, FontStyle::UNDERLINE, FontStyle::STRIKETHROUGH, FontStyle::ITALIC);
 
-		particle_manager_.Init({ milliseconds{ 1000 }, new Circle(5), new Circle(30), colors::BLACK, colors::PINK });
+		particle_manager_.SetLifetime(milliseconds{ 1000 });
+		particle_manager_.SetAppearance({ 5, 30, colors::BLACK, colors::PINK });
+		PrintLine(sizeof(ParticleAppearance<AABB>));
+		PrintLine(sizeof(ParticleAppearance<Circle>));
+		PrintLine(sizeof(ParticleLifetime));
+		PrintLine(sizeof(ParticleProperties));
+		AllocationMetrics::PrintMemoryUsage();
 	}
 	void Update() {
+		AllocationMetrics::PrintMemoryUsage();
 		//manager.UpdateSystem<InputSystem>();
 		auto [mouse, transform, shape, rigid_body, player] = manager.GetUniqueEntityAndComponents<TransformComponent, ShapeComponent, RigidBodyComponent, PlayerComponent>();
 		
