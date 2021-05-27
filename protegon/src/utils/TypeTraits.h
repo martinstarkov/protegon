@@ -59,6 +59,10 @@ using is_floating_point_e = std::enable_if_t<std::is_floating_point_v<Type>, boo
 template <typename From, typename To>
 using is_convertible_e = std::enable_if_t<std::is_convertible_v<From, To>, bool>;
 
+// Template qualifier of whether or not the Types are the same.
+template <typename Type1, typename Type2>
+using is_same_as_e = std::enable_if_t<std::is_same_v<Type1, Type2>, bool>;
+
 // Template qualifier of whether or not the Derived inherits from Base.
 template <typename Base, typename Derived>
 using is_base_of_e = std::enable_if_t<std::is_base_of_v<Base, Derived>, bool>;
