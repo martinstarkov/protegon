@@ -4,10 +4,12 @@ TODO:
 - Add ability to copy text.
 - Add better documentation to Engine class.
 - Add better documentation to EventHandler class.
+- Add better documentation to Particle class.
+- Add better documentation to ParticleManager class.
 - Write tests for RNG class template parameters being random number engines.
 - Consider adding Polygon shape to collision system.
 - Go over all components and make sure destructors are done properly (no memory leaks).
-- Improve ParticleManager contiguous memory storage.
+- Test all static collision utility functions.
 
 WIP files:
 
@@ -36,19 +38,12 @@ StateMachineSystem
 Systems
 
 DynamicAABBvsAABB
-AABBvsAABB
-CirclevsAABB
-CirclevsCircle
-LinevsAABB
-PointvsAABB
 
-Particle
-ParticleManager
+Animation
+SpriteMap
 SceneManager
 Scene
 Camera
-Animation
-SpriteMap
 Vector2
 Image
 ImageProcessor
@@ -126,3 +121,10 @@ Collision
 TypeTraits
 EventHandler
 Countdown
+Particle
+ParticleManager
+AABBvsAABB
+CirclevsAABB
+CirclevsCircle
+LinevsAABB
+PointvsAABB
