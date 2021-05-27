@@ -7,7 +7,7 @@ namespace engine {
 
 class Circle : public Shape {
 public:
-	Circle() = delete;
+	Circle() = default;
 	Circle(const double radius) : radius{ radius } {}
 	virtual ShapeType GetType() const override final {
 		return ShapeType::CIRCLE;
