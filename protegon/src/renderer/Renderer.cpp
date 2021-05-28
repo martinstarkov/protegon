@@ -213,6 +213,12 @@ Texture Renderer::CreateTexture(const internal::Surface& surface) {
 	return { GetInstance(), surface };
 }
 
+Texture Renderer::CreateTexture(const V2_int& size,
+								 PixelFormat format,
+								 TextureAccess texture_access) {
+	return { GetInstance(), size, format, texture_access };
+}
+
 Renderer& Renderer::Init(const Window& window,
 						 int renderer_index, 
 						 std::uint32_t flags) {

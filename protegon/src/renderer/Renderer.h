@@ -15,8 +15,13 @@ struct SDL_Renderer;
 namespace engine {
 
 class Window;
-class internal::Surface;
 class Text;
+
+namespace internal {
+
+class Surface;
+
+} // namespace internal
 
 class Renderer : public Singleton<Renderer> {
 public:
@@ -77,13 +82,7 @@ public:
 	static void Clear();
 	// Display renderer objects to screen.
 	static void Present();
-private:
-	friend class Engine;
-	friend class TextureManager;
-	friend class Texture;
-	friend class Text;
-	friend class Singleton<Renderer>;
-
+	
 	// Draws texture object to the screen.
 	static void DrawTexture(const Texture& texture,
 							const V2_int& position,
@@ -91,8 +90,26 @@ private:
 							const V2_int source_position = {},
 							const V2_int source_size = {});
 
+	// Use the below functions with caution.
+	// Remember to always free the Texture object using the Destroy method.
+
 	// Creates texture from surface.
+	// Texture must be freed using Destroy.
 	static Texture CreateTexture(const internal::Surface& surface);
+	
+	// Creates texture with given size and pixel format.
+	// Texture access should be chosen based on texture access frequency.
+	// Texture must be freed using Destroy.
+	static Texture CreateTexture(const V2_int& size,
+								 PixelFormat format = PixelFormat::RGBA8888,
+								 TextureAccess texture_access = TextureAccess::STREAMING);
+
+private:
+	friend class Engine;
+	friend class TextureManager;
+	friend class Texture;
+	friend class Text;
+	friend class Singleton<Renderer>;
 
 	/*
 	* Initializes the singleton renderer instance.

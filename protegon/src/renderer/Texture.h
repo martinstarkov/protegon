@@ -22,6 +22,7 @@ enum class TextureAccess : int {
 	TARGET = 2 // SDL_TEXTUREACCESS_TARGET = 2
 };
 
+// Make sure to free memory used by internal pointer using Destroy().
 class Texture {
 public:
 	Texture() = default;
@@ -43,12 +44,15 @@ public:
 	// Sets all texture pixels to a specific color.
 	void SetColor(const Color& color, 
 				  PixelFormat format = PixelFormat::RGBA8888);
+
+	// Frees memory used by internal texture pointer.
+	void Destroy();
 private:
 	friend class TextureManager;
 	friend class Text;
 	friend class Renderer;
 
-	// Creates texture with a given pixel format.
+	// Creates texture with a given size and pixel format.
 	Texture(const Renderer& renderer, 
 			const V2_int& size, 
 			PixelFormat format = PixelFormat::RGBA8888, 
@@ -66,11 +70,6 @@ private:
 	* @return True if SDL_Texture if not nullptr, false otherwise.
 	*/
 	bool IsValid() const;
-
-	/*
-	* Frees memory used by SDL_Texture.
-	*/
-	void Destroy();
 
 	Texture(SDL_Texture* texture);
 
