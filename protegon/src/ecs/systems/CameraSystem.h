@@ -43,7 +43,7 @@ public:
 				auto& shape{ primary_entity.GetComponent<ShapeComponent>() };
 				size = shape.GetSize();
 			}
-			camera.CenterOn(primary_transform->transform.position, size, primary_camera->display_index);
+			camera.CenterOn(primary_transform->transform.position, size);
 		}
 	}
 };

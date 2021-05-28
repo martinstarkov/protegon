@@ -254,7 +254,7 @@ public:
 	* @param entity_from Entity id from which to copy a component.
 	* @param entity_to Entity id to component will be copied.
 	*/
-	virtual void VirtualCopy(const Id entity_from, const Id entity_to) {
+	virtual void VirtualCopy(const Id entity_from, const Id entity_to) override final {
 		Copy(entity_from, entity_to);
 	}
 
@@ -544,11 +544,11 @@ protected:
 	* Retrieves the parent manager of the system.
 	* @return Reference to the manager the system is a part of.
 	*/
-	const ecs::Manager& GetManager() const {
+	const ecs::Manager& GetManager() const override final {
 		assert(manager_ != nullptr && "Cannot retrieve manager for uninitialized system");
 		return *manager_;
 	}
-	ecs::Manager& GetManager() {
+	ecs::Manager& GetManager() override final {
 		return const_cast<ecs::Manager&>(static_cast<const BaseSystem&>(*this).GetManager());
 	}
 
