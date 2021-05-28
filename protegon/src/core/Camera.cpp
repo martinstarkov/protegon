@@ -4,13 +4,20 @@
 
 namespace engine {
 
+Camera::Camera(const V2_double& scale,
+			   V2_double zoom_speed,
+			   V2_double scale_bound) :
+	scale{ scale },
+	zoom_speed{ zoom_speed },
+	scale_bound{ scale_bound } 
+{}
+
 void Camera::ClampToBound() {
 	scale = math::Clamp(scale, scale - scale_bound, scale + scale_bound);
 }
 
-void Camera::CenterOn(const V2_double& point, const V2_double& size, std::size_t display_index) {
-	auto display_size{ Window::GetSize() };
-	offset = point + size / 2.0 - display_size / 2.0 / scale;
+void Camera::CenterOn(const V2_double& point, const V2_double& size) {
+	position = point + size / 2.0 - (Window::GetSize() / 2.0) / scale;
 }
 
 } // namespace engine
