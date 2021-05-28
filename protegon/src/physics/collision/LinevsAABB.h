@@ -2,6 +2,7 @@
 
 #include <algorithm> // std::swap
 #include <cmath> // std::isnan
+#include <tuple> // std::pair
 
 #include "math/Vector2.h"
 #include "physics/shapes/AABB.h"
@@ -12,10 +13,10 @@ namespace engine {
 namespace math {
 
 // Return collision manifold between line and an AABB.
-inline Manifold IntersectionLinevsAABB(const V2_double& line_origin, 
-									   const V2_double& line_direction, 
-									   const AABB& shape,
-									   const V2_double& position) {
+inline std::pair<double, Manifold> IntersectionLinevsAABB(const V2_double& line_origin, 
+														  const V2_double& line_direction, 
+														  const AABB& shape,
+														  const V2_double& position) {
 
 	Manifold manifold;
 
@@ -28,10 +29,10 @@ inline Manifold IntersectionLinevsAABB(const V2_double& line_origin,
 
 	// Discard 0 / 0 divisions.
 	if (std::isnan(t_far.y) || std::isnan(t_far.x)) {
-		return manifold;
+		return { 1.0, manifold };
 	}
 	if (std::isnan(t_near.y) || std::isnan(t_near.x)) {
-		return manifold;
+		return { 1.0, manifold };
 	}
 
 	// Sort axis collision times so t_near contains the shorter time.
@@ -43,7 +44,7 @@ inline Manifold IntersectionLinevsAABB(const V2_double& line_origin,
 	}
 
 	// Early rejection.
-	if (t_near.x > t_far.y || t_near.y > t_far.x) return manifold;
+	if (t_near.x > t_far.y || t_near.y > t_far.x) return { 1.0, manifold };
 
 	// Closest time will be the first contact.
 	auto t_hit_near{ std::max(t_near.x, t_near.y) };
@@ -53,7 +54,7 @@ inline Manifold IntersectionLinevsAABB(const V2_double& line_origin,
 
 	// Reject if furthest time is negative, meaning the object is travelling away from the target.
 	if (t_hit_far < 0.0) {
-		return manifold;
+		return { 1.0, manifold };
 	}
 
 	// Contact point of collision from parametric line equation.
@@ -82,7 +83,7 @@ inline Manifold IntersectionLinevsAABB(const V2_double& line_origin,
 	manifold.penetration = line_direction * (t_hit_far - t_hit_near) * manifold.normal;
 
 	// Raycast collision occurred.
-	return manifold;
+	return { t_hit_near, manifold };
 }
 
 // Check if a line collides with an AABB.
@@ -90,7 +91,7 @@ inline bool LinevsAABB(const V2_double& line_origin,
 					   const V2_double& line_direction,
 					   const AABB& shape,
 					   const V2_double& position) {
-	return !IntersectionLinevsAABB(line_origin, line_direction, shape, position).normal.IsZero();
+	return !IntersectionLinevsAABB(line_origin, line_direction, shape, position).second.normal.IsZero();
 }
 
 } // namespace math
