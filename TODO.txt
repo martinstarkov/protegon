@@ -11,18 +11,12 @@ TODO:
 - Go over all components and make sure destructors are done properly (no memory leaks).
 - Test all static collision utility functions.
 - Test dynamic collision utility functions.
+- Add enum tests for Texture.cpp GetPixelFormat and GetTextureAccess static_casts.
+- Reconsider HitboxComponent offset positioning (top left for AABBs vs center for circles).
+- Consider if SceneManager requires an option to create scenes with arguments (non-default construction).
 
 WIP files:
 
-AnimationComponent
-CameraComponent
-HitboxComponent
-InputComponent
-ParticleComponent
-SpriteComponent
-SpriteSheetComponent
-TagComponent
-StateMachineComponent
 Components
 
 RenderSystem
@@ -39,16 +33,12 @@ StateMachineSystem
 Systems
 
 SceneManager
-Scene
-Vector2
-Image
-ImageProcessor
 Chunk
 ChunkManager
 World
-ECS
 
 BaseState
+StateMachineComponent
 BaseStateMachine
 StateMachine
 State
@@ -69,15 +59,24 @@ Protegon
 
 Working well:
 
-Singleton
-Direction
-Timer
+ECS
 TransformComponent
 ColorComponent
-PlayerComponent
 RigidBodyComponent
 LifetimeComponent
 ShapeComponent
+SpriteComponent
+HitboxComponent
+TagComponent
+EventHandler
+InputHandler
+FontManager
+TextureManager
+ParticleManager
+Singleton
+Direction
+Timer
+Tags
 Flip
 FontRenderMode
 FontStyle
@@ -97,13 +96,10 @@ AABB
 Transform
 RigidBody
 Font
-FontManager
 Surface
 Texture
-TextureManager
 PixelFormat
 Inputs
-InputHandler
 Engine
 RNG
 Noise
@@ -112,10 +108,8 @@ Matrix
 Manifold
 Collision
 TypeTraits
-EventHandler
 Countdown
 Particle
-ParticleManager
 AABBvsAABB
 CirclevsAABB
 CirclevsCircle
@@ -125,3 +119,5 @@ DynamicAABBvsAABB
 Animation
 AnimationMap
 Camera
+Vector2
+Scene
