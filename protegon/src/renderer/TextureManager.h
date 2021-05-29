@@ -27,6 +27,12 @@ public:
 										  const int pitch,
 										  const V2_int& position,
 										  PixelFormat format);
+
+	/*
+	* @param texture_key Unique identifying key associated with the texture.
+	* @return Reference to a const texture object with the given key.
+	*/
+	static const Texture& GetTexture(const char* texture_key);
 private:
 	friend class Engine;
 	friend class Renderer;
@@ -38,13 +44,6 @@ private:
 	* Destroys all textures in the manager and clears the texture map.
 	*/
 	static void Destroy();
-
-	/*
-	* @param texture_key Unique identifying name associated with the texture.
-	* @return The texture object with the given name.
-	*
-	*/
-	static Texture GetTexture(const char* texture_key);
 	
 	// Texture storage container.
 	std::unordered_map<std::size_t, Texture> texture_map_;

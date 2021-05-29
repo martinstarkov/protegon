@@ -2,7 +2,6 @@
 
 #include "math/Vector2.h"
 #include "renderer/Color.h"
-#include "renderer/Surface.h"
 #include "renderer/sprites/PixelFormat.h"
 
 struct SDL_Texture;
@@ -12,6 +11,12 @@ namespace engine {
 class Text;
 class Renderer;
 class TextureManager;
+
+namespace internal {
+
+class Surface;
+
+} // namespace internal
 
 enum class TextureAccess : int {
 	// Changes rarely, not lockable.
@@ -45,8 +50,19 @@ public:
 	void SetColor(const Color& color, 
 				  PixelFormat format = PixelFormat::RGBA8888);
 
+	V2_int GetSize() const;
+
+	TextureAccess GetTextureAccess() const;
+
+	PixelFormat GetPixelFormat() const;
+
 	// Frees memory used by internal texture pointer.
 	void Destroy();
+
+	/*
+	* @return True if texture is not nullptr, false otherwise.
+	*/
+	bool IsValid() const;
 private:
 	friend class TextureManager;
 	friend class Text;
@@ -65,11 +81,6 @@ private:
 	SDL_Texture* operator=(SDL_Texture* texture);
 	operator SDL_Texture* () const;
 	SDL_Texture* operator&() const;
-
-	/*
-	* @return True if SDL_Texture if not nullptr, false otherwise.
-	*/
-	bool IsValid() const;
 
 	Texture(SDL_Texture* texture);
 

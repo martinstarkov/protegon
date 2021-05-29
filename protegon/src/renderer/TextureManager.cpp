@@ -36,10 +36,10 @@ void TextureManager::Unload(const char* texture_key) {
 	}
 }
 
-Texture TextureManager::GetTexture(const char* texture_key) {
-	auto& instance{ GetInstance() };
-	auto key{ Hasher::HashCString(texture_key) };
-	auto it{ instance.texture_map_.find(key) };
+const Texture& TextureManager::GetTexture(const char* texture_key) {
+	const auto& instance{ GetInstance() };
+	const auto key{ Hasher::HashCString(texture_key) };
+	const auto it{ instance.texture_map_.find(key) };
 	assert(it != std::end(instance.texture_map_) && 
 		   "Cannot retrieve texture key which does not exist in TextureManager");
 	return it->second;
@@ -50,7 +50,7 @@ std::uint32_t& TextureManager::GetTexturePixel(void* pixels,
 											   const V2_int& position, 
 											   PixelFormat format) {
 	// Bytes per pixel.
-	int bytes_per_pixel{ 
+	const int bytes_per_pixel{ 
 		SDL_BYTESPERPIXEL(static_cast<SDL_PixelFormatEnum>(format)) 
 	};
 	assert(bytes_per_pixel == 4 && 

@@ -4,6 +4,7 @@
 
 #include "debugging/Debug.h"
 #include "renderer/Renderer.h"
+#include "renderer/Surface.h"
 
 namespace engine {
 
@@ -99,6 +100,36 @@ void Texture::SetColor(const Color& color,
 		}
 	}
 	Unlock();
+}
+
+V2_int Texture::GetSize() const {
+	V2_int size;
+	auto output{ SDL_QueryTexture(texture_,
+								  NULL, NULL,
+								  &size.x, &size.y)
+	};
+	assert(output == 0 && "Cannot query invalid texture for size");
+	return size;
+}
+
+TextureAccess Texture::GetTextureAccess() const {
+	int access{ 0 };
+	auto output{ SDL_QueryTexture(texture_,
+								  NULL, &access,
+								  NULL, NULL)
+	};
+	assert(output == 0 && "Cannot query invalid texture for texture access");
+	return static_cast<TextureAccess>(access);
+}
+
+PixelFormat Texture::GetPixelFormat() const {
+	std::uint32_t format{ 0 };
+	auto output{ SDL_QueryTexture(texture_,
+								  &format, NULL,
+								  NULL, NULL)
+	};
+	assert(output == 0 && "Cannot query invalid texture for pixel format");
+	return static_cast<PixelFormat>(format);
 }
 
 } // namespace engine
