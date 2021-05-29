@@ -34,6 +34,46 @@ template <typename T,
     engine::type_traits::is_number_e<T> = true>
 struct Vector2 {
 
+    // Return a vector with numeric_limit::infinity() set for both components
+    static Vector2 Infinite() {
+        static_assert(std::is_floating_point_v<T>,
+                      "Cannot create infinite vector for integer type. Must use floating points.");
+        return {
+            std::numeric_limits<T>::infinity(),
+            std::numeric_limits<T>::infinity()
+        };
+    }
+
+    // Return a vector with std::numeric_limits<T>::max() set for both components
+    static Vector2 Maximum() {
+        return {
+            std::numeric_limits<T>::max(),
+            std::numeric_limits<T>::max()
+        };
+    }
+
+    // Return a vector with std::numeric_limits<T>::min() set for both components
+    static Vector2 Minimum() {
+        return {
+            std::numeric_limits<T>::min(),
+            std::numeric_limits<T>::min()
+        };
+    }
+    // Return a vector with both components randomized in the given ranges.
+    static Vector2 Random(T min_x = 0.0, T max_x = 1.0, T min_y = 0.0, T max_y = 1.0) {
+        assert(min_x < max_x
+               && "Minimum random value must be less than maximum random value");
+        assert(min_y < max_y
+               && "Minimum random value must be less than maximum random value");
+        engine::RNG<T> rng_x{ min_x, max_x };
+        engine::RNG<T> rng_y{ min_y, max_y };
+        // Vary distribution type based on template parameter type.
+        return {
+            rng_x(),
+            rng_y()
+        };
+    }
+
     T x{ 0 };
     T y{ 0 };
 
@@ -48,56 +88,35 @@ struct Vector2 {
         engine::type_traits::is_number_e<V> = true>
     Vector2(U x, V y) : x{ static_cast<T>(x) }, y{ static_cast<T>(y) } {}
 
-    // Constructing vector from string used for deserializing vectors.
-    // Important: we assume that the string has already been filtered down to just the vector characters (no whitespace around).
-    Vector2(const std::string& s) {
-        assert(s.at(0) == engine::internal::VECTOR_LEFT_DELIMETER && 
-               "Vector2 construction string must start with VECTOR_LEFT_DELIMETER, check for possible whitespace");
-        assert(s.at(s.size() - 1) == engine::internal::VECTOR_RIGHT_DELIMETER && 
-               "Vector2 construction string must end with VECTOR_RIGHT_DELIMETER, check for possible whitespace");
-        // Find the index of the center delimeter from the string.
-        auto center_delimeter = s.find(engine::internal::VECTOR_CENTER_DELIMETER);
-        assert(center_delimeter != std::string::npos && 
-               "Vector2 construction string must contain VECTOR_CENTER_DELIMETER");
-        assert(s.find('\n') == std::string::npos && 
-               "Vector2 construction string cannot contain any newlines");
-        assert(s.find(' ') == std::string::npos && 
-               "Vector2 construction string cannot contain any whitespace");
-        // Find the substring from after the left delimeter to right before the center delimeter.
-        // Then turn into double and cast to the appropriate type.
-        x = static_cast<T>(std::stod(std::move(s.substr(1, center_delimeter - 1))));
-        // Find the substring from after the center delimeter until the end of the string, excluding the right delimeter.
-        // Then turn into double and cast to the appropriate type.
-        y = static_cast<T>(std::stod(std::move(s.substr(center_delimeter + 1, s.size() - 2))));
-    }
-
     // Copy / assignment construction.
 
-    Vector2(const Vector2& vector) = default;
-    Vector2(Vector2&& vector) = default;
-    Vector2& operator=(const Vector2& rhs) = default;
-    Vector2& operator=(Vector2&& rhs) = default;
+    Vector2(const Vector2& copy) = default;
+    Vector2(Vector2&& move) = default;
+    Vector2& operator=(const Vector2& copy) = default;
+    Vector2& operator=(Vector2&& move) = default;
 
     // Unary increment / decrement / minus operators.
 
     Vector2& operator++() {
-        ++x; ++y;
+        ++x; 
+        ++y;
         return *this;
     }
 
     Vector2 operator++(int) {
-        Vector2 tmp(*this);
+        Vector2 tmp{ *this };
         operator++();
         return tmp;
     }
 
     Vector2& operator--() {
-        --x; --y;
+        --x;
+        --y;
         return *this;
     }
 
     Vector2 operator--(int) {
-        Vector2 tmp(*this);
+        Vector2 tmp{ *this };
         operator--();
         return tmp;
     }
@@ -261,12 +280,20 @@ struct Vector2 {
         };
     }
 
+    operator Vector2<std::size_t>() const {
+        return Vector2<std::size_t>{
+            static_cast<std::size_t>(x),
+                static_cast<std::size_t>(y)
+        };
+    }
+
     // Vector specific utility functions start here.
 
     // Return true if both vector components equal 0.
     inline bool IsZero() const {
         return !x && !y;
     }
+
     // Return true if either vector component equals 0.
     inline bool HasZero() const {
         return !x || !y;
@@ -286,6 +313,7 @@ struct Vector2 {
         }
         return false;
     }
+
     // Return true if either vector component equals numeric limits infinity.
     inline bool HasInfinity() const {
         if constexpr (std::is_floating_point_v<T>) {
@@ -295,44 +323,7 @@ struct Vector2 {
         }
         return false;
     }
-    // Return a vector with numeric_limit::infinity() set for both components
-    static Vector2 Infinite() {
-        static_assert(std::is_floating_point_v<T>, 
-                      "Cannot create infinite vector for integer type. Must use floating points.");
-        return {
-            std::numeric_limits<T>::infinity(),
-            std::numeric_limits<T>::infinity()
-        };
-    }
 
-    // Return a vector with std::numeric_limits<T>::max() set for both components
-    static Vector2 Maximum() {
-        return { 
-            std::numeric_limits<T>::max(),
-            std::numeric_limits<T>::max()
-        };
-    }
-    // Return a vector with std::numeric_limits<T>::min() set for both components
-    static Vector2 Minimum() {
-        return {
-            std::numeric_limits<T>::min(),
-            std::numeric_limits<T>::min()
-        };
-    }
-    // Return a vector with both components randomized in the given ranges.
-    static Vector2 Random(T min_x = 0.0, T max_x = 1.0, T min_y = 0.0, T max_y = 1.0) {
-        assert(min_x < max_x 
-               && "Minimum random value must be less than maximum random value");
-        assert(min_y < max_y 
-               && "Minimum random value must be less than maximum random value");
-        engine::RNG<T> rng_x{ min_x, max_x };
-        engine::RNG<T> rng_y{ min_y, max_y };
-        // Vary distribution type based on template parameter type.
-        return {
-            rng_x(),
-            rng_y()
-        };
-    }
     // Return 2D vector projection (dot product).
     template <typename U, 
         typename S = typename std::common_type<T, U>::type>
@@ -399,13 +390,13 @@ struct Vector2 {
     template <typename T = double, 
         engine::type_traits::is_number_e<T> = true>
     inline T Magnitude() const {
-        return static_cast<T>(std::sqrt(MagnitudeSquared()));
+        return static_cast<T>(engine::math::Sqrt(MagnitudeSquared()));
     }
 
     template <typename S = T,
         engine::type_traits::is_floating_point_e<S> = true>
     Vector2<T> Fraction() const {
-        return *this - Floor(*this);
+        return *this - engine::math::Floor(*this);
     }
 };
 
@@ -502,20 +493,17 @@ inline bool operator>=(const Vector2<T>& lhs, const Vector2<T>& rhs) {
 // Binary arithmetic operators between two vectors.
 
 template <typename T, typename U>
-Vector2<typename std::common_type<T, U>::type> operator+(const Vector2<T>& lhs, 
-                                                         const Vector2<U>& rhs) {
+Vector2<typename std::common_type<T, U>::type> operator+(const Vector2<T>& lhs, const Vector2<U>& rhs) {
     return { lhs.x + rhs.x, lhs.y + rhs.y };
 }
 
 template <typename T, typename U>
-Vector2<typename std::common_type<T, U>::type> operator-(const Vector2<T>& lhs, 
-                                                         const Vector2<U>& rhs) {
+Vector2<typename std::common_type<T, U>::type> operator-(const Vector2<T>& lhs, const Vector2<U>& rhs) {
     return { lhs.x - rhs.x, lhs.y - rhs.y };
 }
 
 template <typename T, typename U>
-Vector2<typename std::common_type<T, U>::type> operator*(const Vector2<T>& lhs, 
-                                                         const Vector2<U>& rhs) {
+Vector2<typename std::common_type<T, U>::type> operator*(const Vector2<T>& lhs, const Vector2<U>& rhs) {
     return { lhs.x * rhs.x, lhs.y * rhs.y };
 }
 
@@ -627,8 +615,8 @@ inline Vector2<S> CrossProduct(U value, const Vector2<T>& vector) {
 template <typename T, typename U, 
     typename S = typename std::common_type<T, U>::type>
 inline S DistanceSquared(const Vector2<T>& lhs, const Vector2<U>& rhs) {
-    S x = lhs.x - rhs.x;
-    S y = lhs.y - rhs.y;
+    S x{ lhs.x - rhs.x };
+    S y{ lhs.y - rhs.y };
     return x * x + y * y;
 }
 
@@ -636,7 +624,7 @@ inline S DistanceSquared(const Vector2<T>& lhs, const Vector2<U>& rhs) {
 template <typename T, typename U, 
     typename S = typename std::common_type<T, U>::type>
 inline S Distance(const Vector2<T>& lhs, const Vector2<U>& rhs) {
-    return engine::math::Sqrt<S>(DistanceSquared(lhs, rhs));
+    return Sqrt<S>(DistanceSquared(lhs, rhs));
 }
 
 // Return minimum component of vector. (reference)
@@ -654,8 +642,8 @@ inline T& Max(Vector2<T>& vector) {
 template <typename T>
 inline Vector2<T> Abs(const Vector2<T>& vector) {
     return {
-        engine::math::Abs(vector.x),
-        engine::math::Abs(vector.y)
+        Abs(vector.x),
+        Abs(vector.y)
     };
 }
 
@@ -663,8 +651,8 @@ inline Vector2<T> Abs(const Vector2<T>& vector) {
 template <typename T = int, typename S>
 inline Vector2<T> Round(const Vector2<S>& vector) {
     return {
-        engine::math::Round<T>(vector.x),
-        engine::math::Round<T>(vector.y)
+        Round<T>(vector.x),
+        Round<T>(vector.y)
     };
 }
 
@@ -672,8 +660,8 @@ inline Vector2<T> Round(const Vector2<S>& vector) {
 template <typename T = int, typename S>
 inline Vector2<T> Ceil(const Vector2<S>& vector) {
     return {
-        engine::math::Ceil<T>(vector.x),
-        engine::math::Ceil<T>(vector.y) 
+        Ceil<T>(vector.x),
+        Ceil<T>(vector.y) 
     };
 }
 
@@ -681,8 +669,8 @@ inline Vector2<T> Ceil(const Vector2<S>& vector) {
 template <typename T = int, typename S>
 inline Vector2<T> Floor(const Vector2<S>& vector) {
     return { 
-        engine::math::Floor<T>(vector.x), 
-        engine::math::Floor<T>(vector.y) 
+        Floor<T>(vector.x), 
+        Floor<T>(vector.y) 
     };
 }
 
@@ -692,8 +680,8 @@ inline Vector2<T> Clamp(const Vector2<T>& value,
                         const Vector2<T>& low, 
                         const Vector2<T>& high) {
     return { 
-        engine::math::Clamp(value.x, low.x, high.x), 
-        engine::math::Clamp(value.y, low.y, high.y) 
+        Clamp(value.x, low.x, high.x), 
+        Clamp(value.y, low.y, high.y) 
     };
 }
 
@@ -703,8 +691,8 @@ inline Vector2<U> Lerp(const Vector2<T>& a,
                        const Vector2<T>& b, 
                        U amount) {
     return { 
-        engine::math::Lerp(a.x, b.x, amount), 
-        engine::math::Lerp(a.y, b.y, amount) 
+        Lerp(a.x, b.x, amount), 
+        Lerp(a.y, b.y, amount) 
     };
 }
 
@@ -712,8 +700,8 @@ inline Vector2<U> Lerp(const Vector2<T>& a,
 template <typename T>
 inline Vector2<T> SmoothStep(const Vector2<T>& vector) {
     return {
-        engine::math::SmoothStep(vector.x),
-        engine::math::SmoothStep(vector.y) 
+        SmoothStep(vector.x),
+        SmoothStep(vector.y)
     };
 }
 
