@@ -20,16 +20,15 @@ WIP files:
 Components
 
 RenderSystem
-CameraSystem
 AnimationSystem
 CollisionSystem
 DirectionSystem
-GraphSystem
 HitboxRenderSystem
 InputSystem
 LifetimeSystem
 PhysicsSystem
 StateMachineSystem
+CameraSystem
 Systems
 
 SceneManager
@@ -55,7 +54,6 @@ RunState
 WalkState
 
 Protegon
-
 
 Working well:
 
