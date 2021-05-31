@@ -1,5 +1,6 @@
-# protegon
-2D game engine built on top of SDL2.
+# Protegon
+
+2D game engine built on top of SDL2, SDL2_ttf, and SDL2_image.
 
 # Usage in CMake
 
@@ -17,4 +18,4 @@ That's it!
 Enjoy the features the engine has to offer!
 
 
-PS. Might add feature documentation at some point in the future.
+PS. Might add feature documentation here at some point in the future.
