@@ -5,15 +5,22 @@
 #include "core/Scene.h"
 #include "core/SceneManager.h"
 #include "core/Window.h"
-//#include "core/World.h"
+#include "core/ECS.h"
 
 #include "debugging/AllocationMetrics.h"
 #include "debugging/FileManagement.h"
 #include "debugging/Logger.h"
 
-#include "ecs/Components.h"
-#include "ecs/ECS.h"
-#include "ecs/Systems.h"
+#include "components/TransformComponent.h"
+#include "components/RigidBodyComponent.h"
+#include "components/ColorComponent.h"
+#include "components/ShapeComponent.h"
+#include "components/LifetimeComponent.h"
+#include "components/SpriteComponent.h"
+#include "components/CameraComponent.h"
+#include "components/HitboxComponent.h"
+#include "components/TagComponent.h"
+#include "components/Tags.h"
 
 #include "event/EventHandler.h"
 #include "event/InputHandler.h"
@@ -25,9 +32,6 @@
 #include "math/Noise.h"
 #include "math/RNG.h"
 #include "math/Vector2.h"
-
-//#include "parsing/Image.h"
-//#include "parsing/ImageProcessor.h"
 
 #include "physics/Manifold.h"
 #include "physics/RigidBody.h"
@@ -42,9 +46,6 @@
 #include "physics/shapes/AABB.h"
 #include "physics/shapes/Circle.h"
 #include "physics/shapes/Shape.h"
-
-#include "procedural/Chunk.h"
-#include "procedural/ChunkManager.h"
 
 #include "renderer/Color.h"
 #include "renderer/Colors.h"
@@ -63,10 +64,6 @@
 #include "renderer/text/FontRenderMode.h"
 #include "renderer/text/FontStyle.h"
 #include "renderer/text/Text.h"
-
-//#include "statemachine/State.h"
-//#include "statemachine/StateMachine.h"
-// MORE?
 
 #include "utils/Countdown.h"
 #include "utils/Direction.h"
