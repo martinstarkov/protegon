@@ -8,13 +8,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Add include directories to project.
 
+set(SRC_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/src")
+
 include_directories(
-    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    SRC_DIRECTORY
 )
 
 # Find all cpp files in the src directory of the project.
 
-file(GLOB_RECURSE FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+file(GLOB_RECURSE FILES "${SRC_DIRECTORY}/*.cpp")
 
 # Create executable from all source files.
 
