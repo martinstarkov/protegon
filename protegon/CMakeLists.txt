@@ -53,17 +53,26 @@ add_library(
     ${PROTEGON_FILES}
 )
 
-# Keep original filter structure.
-
-foreach(source IN ITEMS ${PROTEGON_FILES})
-    get_filename_component(source_path "${source}" PATH)
-    string(REPLACE "/" "\\" source_path_msvc "${source_path}")
-    source_group("${source_path_msvc}" FILES "${source}")
-endforeach()
-
-# Find all SDL dlls required for engine to run.
-
 if (WIN32)
+
+    # Keep original filter structure in MSVC.
+
+    file(
+        GLOB_RECURSE _source_list 
+        LIST_DIRECTORIES false
+        RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${SRC_DIRECTORY}/*.cpp"
+        "${SRC_DIRECTORY}/*.h"
+    )
+
+    foreach(_source IN ITEMS ${_source_list})
+        get_filename_component(_source_path "${_source}" PATH)
+        string(REPLACE "/" "\\" _source_path_msvc "${_source_path}")
+        source_group("${_source_path_msvc}" FILES "${_source}")
+    endforeach()
+
+    # Find all SDL dlls required for engine to run.
+
     get_filename_component(SDL2_DLL_DIRECTORY ${SDL2_LIBRARIES} DIRECTORY)
     get_filename_component(SDL2_IMAGE_DLL_DIRECTORY ${SDL2_IMAGE_LIBRARIES} DIRECTORY)
     get_filename_component(SDL2_TTF_DLL_DIRECTORY ${SDL2_TTF_LIBRARIES} DIRECTORY)
@@ -79,6 +88,7 @@ if (WIN32)
     # Set global variable for external SDL dll copying.
 
     set_property(GLOBAL PROPERTY PROTEGON_EXTERNAL_DLLS "${EXTERNAL_DLLS}")
+
 endif()
 
 # Define target includes.
