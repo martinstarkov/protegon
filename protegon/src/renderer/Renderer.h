@@ -12,16 +12,11 @@
 
 struct SDL_Renderer;
 
-namespace engine {
+namespace ptgn {
 
 class Window;
 class Text;
-
-namespace internal {
-
 class Surface;
-
-} // namespace internal
 
 class Renderer : public Singleton<Renderer> {
 public:
@@ -95,7 +90,7 @@ public:
 
 	// Creates texture from surface.
 	// Texture must be freed using Destroy.
-	static Texture CreateTexture(const internal::Surface& surface);
+	static Texture CreateTexture(const Surface& surface);
 	
 	// Creates texture with given size and pixel format.
 	// Texture access should be chosen based on texture access frequency.
@@ -139,4 +134,4 @@ private:
 	SDL_Renderer* renderer_{ nullptr };
 };
 
-} // namespace engine
+} // namespace ptgn

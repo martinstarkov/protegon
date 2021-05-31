@@ -10,7 +10,7 @@
 #include "math/Math.h"
 #include "renderer/Renderer.h"
 
-namespace engine {
+namespace ptgn {
 
 template <typename TShape, 
 	type_traits::is_base_of_e<Shape, TShape> = true>
@@ -105,4 +105,4 @@ protected:
 	std::vector<ParticleLifetime> particles_;
 };
 
-} // namespace engine
+} // namespace ptgn

@@ -3,7 +3,7 @@
 #include <cstdlib> // std::size_t, std::malloc, std::free
 #include <cstdint> // std::uint32_t
 
-namespace engine {
+namespace ptgn {
 
 class AllocationMetrics {
 public:
@@ -23,4 +23,4 @@ private:
 	static std::uint32_t total_freed_;
 };
 
-} // namespace engine
+} // namespace ptgn

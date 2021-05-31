@@ -7,7 +7,7 @@
 
 struct SDL_Window;
 
-namespace engine {
+namespace ptgn {
 
 class Window : public Singleton<Window> {
 public:
@@ -92,4 +92,4 @@ private:
 	SDL_Window* window_{ nullptr };
 };
 
-} // namespace engine
+} // namespace ptgn

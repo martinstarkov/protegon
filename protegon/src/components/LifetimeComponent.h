@@ -2,7 +2,7 @@
 
 #include "utils/Countdown.h"
 
-namespace engine {
+namespace ptgn {
 
 struct LifetimeComponent {
 	LifetimeComponent() = default;
@@ -15,4 +15,4 @@ struct LifetimeComponent {
 	Countdown countdown;
 };
 
-} // namespace engine
+} // namespace ptgn

@@ -7,7 +7,7 @@
 #include "renderer/Texture.h"
 #include "utils/Singleton.h"
 
-namespace engine {
+namespace ptgn {
 
 class TextureManager : public Singleton<TextureManager> {
 public:
@@ -49,4 +49,4 @@ private:
 	std::unordered_map<std::size_t, Texture> texture_map_;
 };
 
-} // namespace engine
+} // namespace ptgn

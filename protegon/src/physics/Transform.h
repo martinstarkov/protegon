@@ -2,7 +2,7 @@
 
 #include "math/Vector2.h"
 
-namespace engine {
+namespace ptgn {
 
 struct Transform {
 	Transform() = default;
@@ -16,4 +16,4 @@ struct Transform {
 	double rotation{ 0 };
 };
 
-} // namespace engine
+} // namespace ptgn

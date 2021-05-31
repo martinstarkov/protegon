@@ -12,7 +12,7 @@
 
 #include "utils/TypeTraits.h"
 
-namespace engine {
+namespace ptgn {
 
 namespace math {
 
@@ -173,4 +173,4 @@ inline T SmoothStep(const T& value) {
 
 } // namespace math
 
-} // namespace engine
+} // namespace ptgn

@@ -6,17 +6,12 @@
 
 struct SDL_Texture;
 
-namespace engine {
+namespace ptgn {
 
 class Text;
 class Renderer;
 class TextureManager;
-
-namespace internal {
-
 class Surface;
-
-} // namespace internal
 
 enum class TextureAccess : int {
 	// Changes rarely, not lockable.
@@ -76,7 +71,7 @@ private:
 
 	// Creates texture from surface.
 	Texture(const Renderer& renderer, 
-			const internal::Surface& surface);
+			const Surface& surface);
 
 	SDL_Texture* operator=(SDL_Texture* texture);
 	operator SDL_Texture* () const;
@@ -87,4 +82,4 @@ private:
 	SDL_Texture* texture_{ nullptr };
 };
 
-} // namespace engine
+} // namespace ptgn

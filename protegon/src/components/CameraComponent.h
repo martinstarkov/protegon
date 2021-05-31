@@ -2,7 +2,7 @@
 
 #include "core/Camera.h"
 
-namespace engine {
+namespace ptgn {
 
 struct CameraComponent {
 	CameraComponent() = default;
@@ -14,4 +14,4 @@ struct CameraComponent {
 	bool primary{ false };
 };
 
-} // namespace engine
+} // namespace ptgn

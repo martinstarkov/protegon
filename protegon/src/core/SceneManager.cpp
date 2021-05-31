@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-namespace engine {
+namespace ptgn {
 
 void SceneManager::EnterScene(const char* scene_key) {
 	auto& instance{ GetInstance() };
@@ -63,4 +63,4 @@ SceneManager::~SceneManager() {
 	}
 }
 
-}
+} // namespace ptgn

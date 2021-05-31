@@ -6,7 +6,7 @@
 #include "renderer/text/Font.h"
 #include "utils/Singleton.h"
 
-namespace engine {
+namespace ptgn {
 
 class FontManager : public Singleton<FontManager> {
 public:
@@ -48,4 +48,4 @@ private:
 	std::unordered_map<std::size_t, Font> font_map_;
 };
 
-} // namespace engine
+} // namespace ptgn

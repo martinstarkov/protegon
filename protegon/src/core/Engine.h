@@ -8,7 +8,7 @@
 #include "utils/Timer.h"
 #include "utils/TypeTraits.h"
 
-namespace engine {
+namespace ptgn {
 
 namespace internal {
 
@@ -96,7 +96,7 @@ private:
 	Timer application_timer_;
 };
 
-} // namespace engine
+} // namespace ptgn
 
 //#include <cstdlib> // std::size_t
 //#include <cstdint> // std::int32_t, etc
@@ -105,7 +105,7 @@ private:
 //#include <unordered_map> // std::unordered_map
 //#include <ratio> // std::ratio
 //
-//#include "ecs/ECS.h"
+//#include "core/ECS.h"
 //
 //#include "core/Window.h"
 //#include "renderer/Renderer.h"
@@ -116,7 +116,7 @@ private:
 //#include "utils/Timer.h"
 //#include "utils/TypeTraits.h"
 //
-//namespace engine {
+//namespace ptgn {
 //
 //// first - Window object.
 //// second - Associated Renderer object.
@@ -234,4 +234,4 @@ private:
 //	bool init_{ false };
 //};
 //
-//} // namespace engine
+//} // namespace ptgn

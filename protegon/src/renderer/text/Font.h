@@ -5,7 +5,7 @@
 struct _TTF_Font;
 using TTF_Font = _TTF_Font;
 
-namespace engine {
+namespace ptgn {
 
 class Font {
 public:
@@ -46,5 +46,5 @@ private:
 	TTF_Font* font_{ nullptr };
 };
 
-} // namespace engine
+} // namespace ptgn
 

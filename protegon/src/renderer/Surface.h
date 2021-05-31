@@ -2,19 +2,17 @@
 
 struct SDL_Surface;
 
-namespace engine {
+namespace ptgn {
 
 class Text;
 class Texture;
 class TextureManager;
 
-namespace internal {
-
 class Surface {
 private:
-	friend class engine::Text;
-	friend class engine::Texture;
-	friend class engine::TextureManager;
+	friend class Text;
+	friend class Texture;
+	friend class TextureManager;
 
 	Surface() = default;
 
@@ -41,6 +39,4 @@ private:
 	SDL_Surface* surface_{ nullptr };
 };
 
-} // namespace internal
-
-} // namespace engine
+} // namespace ptgn

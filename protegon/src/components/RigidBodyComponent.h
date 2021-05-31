@@ -2,7 +2,7 @@
 
 #include "physics/RigidBody.h"
 
-namespace engine {
+namespace ptgn {
 
 struct RigidBodyComponent {
 	RigidBodyComponent() = default;
@@ -10,4 +10,4 @@ struct RigidBodyComponent {
 	RigidBody body;
 };
 
-} // namespace engine
+} // namespace ptgn

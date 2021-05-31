@@ -3,7 +3,7 @@
 #include <type_traits> // std::enable_if_t, std::is_arithmetic_v, std::is_floating_point_v, etc.
 #include <utility> // std::forward
 
-namespace engine {
+namespace ptgn {
 
 namespace type_traits {
 
@@ -116,4 +116,4 @@ using are_stream_writable_e = std::enable_if_t<std::conjunction_v<internal::is_s
 
 } // namespace type_traits
 
-} // namespace engine
+} // namespace ptgn

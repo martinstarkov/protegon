@@ -13,7 +13,7 @@
 #include "math/RNG.h"
 #include "utils/TypeTraits.h"
 
-namespace engine {
+namespace ptgn {
 
 namespace internal {
 
@@ -25,13 +25,13 @@ static constexpr const char VECTOR_RIGHT_DELIMETER{ ')' };
 
 } // namespace internal
 
-} // namespace engine
+} // namespace ptgn
 
 /*
 * @tparam T Type contained in vector.
 */
 template <typename T, 
-    engine::type_traits::is_number_e<T> = true>
+    ptgn::type_traits::is_number_e<T> = true>
 struct Vector2 {
 
     // Return a vector with numeric_limit::infinity() set for both components
@@ -65,8 +65,8 @@ struct Vector2 {
                && "Minimum random value must be less than maximum random value");
         assert(min_y < max_y
                && "Minimum random value must be less than maximum random value");
-        engine::RNG<T> rng_x{ min_x, max_x };
-        engine::RNG<T> rng_y{ min_y, max_y };
+        ptgn::RNG<T> rng_x{ min_x, max_x };
+        ptgn::RNG<T> rng_y{ min_y, max_y };
         // Vary distribution type based on template parameter type.
         return {
             rng_x(),
@@ -84,8 +84,8 @@ struct Vector2 {
     
     // Allow construction from two different types, cast to the vector type.
     template <typename U, typename V, 
-        engine::type_traits::is_number_e<U> = true,
-        engine::type_traits::is_number_e<V> = true>
+        ptgn::type_traits::is_number_e<U> = true,
+        ptgn::type_traits::is_number_e<V> = true>
     Vector2(U x, V y) : x{ static_cast<T>(x) }, y{ static_cast<T>(y) } {}
 
     // Copy / assignment construction.
@@ -128,7 +128,7 @@ struct Vector2 {
     // Arithmetic operators between vectors.
 
     template <typename U,
-        engine::type_traits::is_convertible_e<U, T> = true>
+        ptgn::type_traits::is_convertible_e<U, T> = true>
     Vector2& operator+=(const Vector2<U>& rhs) {
         x += static_cast<T>(rhs.x);
         y += static_cast<T>(rhs.y);
@@ -136,7 +136,7 @@ struct Vector2 {
     }
 
     template <typename U, 
-        engine::type_traits::is_convertible_e<U, T> = true>
+        ptgn::type_traits::is_convertible_e<U, T> = true>
     Vector2& operator-=(const Vector2<U>& rhs) {
         x -= static_cast<T>(rhs.x);
         y -= static_cast<T>(rhs.y);
@@ -144,7 +144,7 @@ struct Vector2 {
     }
 
     template <typename U, 
-        engine::type_traits::is_convertible_e<U, T> = true>
+        ptgn::type_traits::is_convertible_e<U, T> = true>
     Vector2& operator*=(const Vector2<U>& rhs) {
         x *= static_cast<T>(rhs.x);
         y *= static_cast<T>(rhs.y);
@@ -152,7 +152,7 @@ struct Vector2 {
     }
 
     template <typename U, 
-        engine::type_traits::is_convertible_e<U, T> = true>
+        ptgn::type_traits::is_convertible_e<U, T> = true>
     Vector2& operator/=(const Vector2<U>& rhs) {
         if (rhs.x) {
             x /= static_cast<T>(rhs.x);
@@ -170,8 +170,8 @@ struct Vector2 {
     // Arithmetic operators with basic types.
 
     template <typename U,
-        engine::type_traits::is_number_e<U> = true,
-        engine::type_traits::is_convertible_e<U, T> = true>
+        ptgn::type_traits::is_number_e<U> = true,
+        ptgn::type_traits::is_convertible_e<U, T> = true>
     Vector2& operator+=(U rhs) {
         x += static_cast<T>(rhs);
         y += static_cast<T>(rhs);
@@ -179,8 +179,8 @@ struct Vector2 {
     }
 
     template <typename U, 
-        engine::type_traits::is_number_e<U> = true, 
-        engine::type_traits::is_convertible_e<U, T> = true>
+        ptgn::type_traits::is_number_e<U> = true,
+        ptgn::type_traits::is_convertible_e<U, T> = true>
     Vector2& operator-=(U rhs) {
         x -= static_cast<T>(rhs);
         y -= static_cast<T>(rhs);
@@ -188,8 +188,8 @@ struct Vector2 {
     }
 
     template <typename U,
-        engine::type_traits::is_number_e<U> = true,
-        engine::type_traits::is_convertible_e<U, T> = true>
+        ptgn::type_traits::is_number_e<U> = true,
+        ptgn::type_traits::is_convertible_e<U, T> = true>
     Vector2& operator*=(U rhs) {
         x *= static_cast<T>(rhs);
         y *= static_cast<T>(rhs);
@@ -197,8 +197,8 @@ struct Vector2 {
     }
 
     template <typename U,
-        engine::type_traits::is_number_e<U> = true,
-        engine::type_traits::is_convertible_e<U, T> = true>
+        ptgn::type_traits::is_number_e<U> = true,
+        ptgn::type_traits::is_convertible_e<U, T> = true>
     Vector2& operator/=(U rhs) {
         if (rhs) {
             x /= static_cast<T>(rhs);
@@ -240,8 +240,8 @@ struct Vector2 {
     // Explicit conversion from this vector to other arithmetic type vectors.
     /*
     template <typename U, 
-        engine::type_traits::is_number_e<U> = true, 
-        engine::type_traits::convertible<T, U> = true>
+        ptgn::type_traits::is_number_e<U> = true, 
+        ptgn::type_traits::convertible<T, U> = true>
     explicit operator Vector2<U>() const {
         return Vector2<U>{
             static_cast<U>(x), 
@@ -368,7 +368,7 @@ struct Vector2 {
 
     // Return identity vector, both components must be 0, 1 or -1.
     inline Vector2 Identity() const {
-        return { engine::math::Sign(x), engine::math::Sign(y) };
+        return { ptgn::math::Sign(x), ptgn::math::Sign(y) };
     }
 
     // Return tangent vector, (x, y) -> (y, -x).
@@ -388,15 +388,15 @@ struct Vector2 {
 
     // Return magnitude, sqrt(x * x + y * y).
     template <typename T = double, 
-        engine::type_traits::is_number_e<T> = true>
+        ptgn::type_traits::is_number_e<T> = true>
     inline T Magnitude() const {
-        return static_cast<T>(engine::math::Sqrt(MagnitudeSquared()));
+        return static_cast<T>(ptgn::math::Sqrt(MagnitudeSquared()));
     }
 
     template <typename S = T,
-        engine::type_traits::is_floating_point_e<S> = true>
+        ptgn::type_traits::is_floating_point_e<S> = true>
     Vector2<T> Fraction() const {
-        return *this - engine::math::Floor(*this);
+        return *this - ptgn::math::Floor(*this);
     }
 };
 
@@ -411,9 +411,9 @@ using V2_float = Vector2<float>;
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const Vector2<T>& obj) {
-    os << engine::internal::VECTOR_LEFT_DELIMETER;
-    os << obj.x << engine::internal::VECTOR_CENTER_DELIMETER;
-    os << obj.y << engine::internal::VECTOR_RIGHT_DELIMETER;
+    os << ptgn::internal::VECTOR_LEFT_DELIMETER;
+    os << obj.x << ptgn::internal::VECTOR_CENTER_DELIMETER;
+    os << obj.y << v::internal::VECTOR_RIGHT_DELIMETER;
     return os;
 }
 
@@ -443,26 +443,26 @@ inline bool operator!=(const Vector2<T>& lhs, const Vector2<U>& rhs) {
 
 template <typename T, typename U, 
     typename S = typename std::common_type<T, U>::type,
-    engine::type_traits::is_number_e<U> = true>
+    ptgn::type_traits::is_number_e<U> = true>
 inline bool operator==(const Vector2<T>& lhs, U rhs) {
     return static_cast<S>(lhs.x) == static_cast<S>(rhs) && 
         static_cast<S>(lhs.y) == static_cast<S>(rhs);
 }
 
 template <typename T, typename U, 
-    engine::type_traits::is_number_e<U> = true>
+    ptgn::type_traits::is_number_e<U> = true>
 inline bool operator!=(const Vector2<T>& lhs, U rhs) {
     return !operator==(lhs, rhs);
 }
 
 template <typename T, typename U, 
-    engine::type_traits::is_number_e<U> = true>
+    ptgn::type_traits::is_number_e<U> = true>
 inline bool operator==(U lhs, const Vector2<T>& rhs) {
     return operator==(rhs, lhs);
 }
 
 template <typename T, typename U, 
-    engine::type_traits::is_number_e<U> = true>
+    ptgn::type_traits::is_number_e<U> = true>
 inline bool operator!=(U lhs, const Vector2<T>& rhs) {
     return !operator==(rhs, lhs);
 }
@@ -527,25 +527,25 @@ Vector2<S> operator/(const Vector2<T>& lhs, const Vector2<U>& rhs) {
 // Binary arithmetic operators with a basic type.
 
 template <typename T, typename U,
-    engine::type_traits::is_number_e<T> = true>
+    ptgn::type_traits::is_number_e<T> = true>
 Vector2<typename std::common_type<T, U>::type> operator+(T lhs, const Vector2<U>& rhs) {
     return { lhs + rhs.x, lhs + rhs.y };
 }
 
 template <typename T, typename U,
-    engine::type_traits::is_number_e<T> = true>
+    ptgn::type_traits::is_number_e<T> = true>
 Vector2<typename std::common_type<T, U>::type> operator-(T lhs, const Vector2<U>& rhs) {
     return { lhs - rhs.x, lhs - rhs.y };
 }
 
 template <typename T, typename U,
-    engine::type_traits::is_number_e<T> = true>
+    ptgn::type_traits::is_number_e<T> = true>
 Vector2<typename std::common_type<T, U>::type> operator*(T lhs, const Vector2<U>& rhs) {
     return { lhs * rhs.x, lhs * rhs.y };
 }
 
 template <typename T, typename U,
-    engine::type_traits::is_number_e<T> = true,
+    ptgn::type_traits::is_number_e<T> = true,
     typename S = typename std::common_type<T, U>::type>
 Vector2<S> operator/(T lhs, const Vector2<U>& rhs) {
     Vector2<S> vector;
@@ -563,25 +563,25 @@ Vector2<S> operator/(T lhs, const Vector2<U>& rhs) {
 }
 
 template <typename T, typename U,
-    engine::type_traits::is_number_e<U> = true>
+    ptgn::type_traits::is_number_e<U> = true>
 Vector2<typename std::common_type<T, U>::type> operator+(const Vector2<T>& lhs, U rhs) {
     return { lhs.x + rhs, lhs.y + rhs };
 }
 
 template <typename T, typename U,
-    engine::type_traits::is_number_e<U> = true>
+    ptgn::type_traits::is_number_e<U> = true>
 Vector2<typename std::common_type<T, U>::type> operator-(const Vector2<T>& lhs, U rhs) {
     return { lhs.x - rhs, lhs.y - rhs };
 }
 
 template <typename T, typename U,
-    engine::type_traits::is_number_e<U> = true>
+    ptgn::type_traits::is_number_e<U> = true>
 Vector2<typename std::common_type<T, U>::type> operator*(const Vector2<T>& lhs, U rhs) {
     return { lhs.x * rhs, lhs.y * rhs };
 }
 
 template <typename T, typename U,
-    engine::type_traits::is_number_e<U> = true,
+    ptgn::type_traits::is_number_e<U> = true,
     typename S = typename std::common_type<T, U>::type>
 Vector2<S> operator/(const Vector2<T>& lhs, U rhs) {
     Vector2<S> vector;
@@ -595,7 +595,7 @@ Vector2<S> operator/(const Vector2<T>& lhs, U rhs) {
     return vector;
 }
 
-namespace engine {
+namespace ptgn {
 
 namespace math {
 
@@ -707,4 +707,4 @@ inline Vector2<T> SmoothStep(const Vector2<T>& vector) {
 
 } // namespace math
 
-} // namespace engine
+} // namespace ptgn

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "ecs/ECS.h"
+#include "core/ECS.h"
 
-namespace engine {
+namespace ptgn {
 
 class Scene {
 public:
@@ -17,7 +17,7 @@ private:
 	bool entered_{ false };
 };
 
-} // namespace engine
+} // namespace ptgn
 
 /*
 // Convert coordinates from world reference frame to screen reference frame.
@@ -36,10 +36,10 @@ V2_int Scale(const V2_double& size) const {
 }
 int ScaleX(double value) const {
 	assert(active_camera_ != nullptr && "Scene camera has not been set");
-	return engine::math::Ceil<int>(value * active_camera_->scale.x);
+	return ptgn::math::Ceil<int>(value * active_camera_->scale.x);
 }
 int ScaleY(double value) const {
 	assert(active_camera_ != nullptr && "Scene camera has not been set");
-	return engine::math::Ceil<int>(value * active_camera_->scale.y);
+	return ptgn::math::Ceil<int>(value * active_camera_->scale.y);
 }
 */

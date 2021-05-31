@@ -2,7 +2,7 @@
 
 #include <cstdlib> // std::size_t
 
-namespace engine {
+namespace ptgn {
 
 enum class Mouse : std::size_t {
 	LEFT = 1,				// SDL_BUTTON_LEFT
@@ -182,4 +182,4 @@ enum class Key : std::size_t {
 	SLEEP = 282				// SDL_SCANCODE_SLEEP
 };
 
-} // namespace engine
+} // namespace ptgn

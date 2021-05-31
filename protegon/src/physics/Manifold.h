@@ -2,7 +2,7 @@
 
 #include "math/Vector2.h"
 
-namespace engine {
+namespace ptgn {
 
 struct Manifold {
     Manifold() = default;
@@ -14,4 +14,4 @@ struct Manifold {
     V2_double penetration;
 };
 
-} // namespace engine
+} // namespace ptgn

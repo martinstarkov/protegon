@@ -9,7 +9,7 @@
 #include "renderer/TextureManager.h"
 #include "debugging/Debug.h"
 
-namespace engine {
+namespace ptgn {
 
 void Renderer::DrawTexture(const Texture& texture, 
 						   const V2_int& position, 
@@ -209,7 +209,7 @@ void Renderer::DrawSolidRectangle(const V2_int& position,
 	SetDrawColor();
 }
 
-Texture Renderer::CreateTexture(const internal::Surface& surface) {
+Texture Renderer::CreateTexture(const Surface& surface) {
 	return { GetInstance(), surface };
 }
 
@@ -261,4 +261,4 @@ void Renderer::SetDrawColor(const Color& color) {
 	SDL_SetRenderDrawColor(GetInstance(), color.r, color.g, color.b, color.a);
 }
 
-} // namespace engine
+} // namespace ptgn

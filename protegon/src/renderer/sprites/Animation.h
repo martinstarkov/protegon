@@ -4,7 +4,7 @@
 
 #include "math/Vector2.h"
 
-namespace engine {
+namespace ptgn {
 
 struct Animation {
 	Animation() = default;
@@ -22,4 +22,4 @@ struct Animation {
 	std::size_t spacing{ 0 };
 };
 
-} // namespace engine
+} // namespace ptgn

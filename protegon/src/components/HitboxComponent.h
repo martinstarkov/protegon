@@ -3,21 +3,21 @@
 #include <cstdlib> // std::size_t
 #include <unordered_set> // std::unordered_set
 
-#include "ecs/ECS.h"
+#include "core/ECS.h"
 #include "math/Vector2.h"
 #include "physics/Manifold.h"
 
-namespace engine {
+namespace ptgn {
 
 struct HitboxComponent {
 
-	using CollisionFunction = void(*)(ecs::Entity& target, const engine::Manifold& manifold);
+	using CollisionFunction = void(*)(ecs::Entity& target, const Manifold& manifold);
 
 	HitboxComponent() = default;
 	HitboxComponent(const V2_int& offset) : offset{ offset } {}
 
 	// Resolves a collision if the resolution_function is defined.
-	void Resolve(ecs::Entity& target, const engine::Manifold& manifold);
+	void Resolve(ecs::Entity& target, const Manifold& manifold);
 
 	/*
 	* @return True if hitbox should collide with entity based on its TagComponent, false otherwise.
@@ -37,4 +37,4 @@ struct HitboxComponent {
 	CollisionFunction resolution_function{ nullptr };
 };
 
-} // namespace engine
+} // namespace ptgn

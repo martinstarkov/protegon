@@ -1,6 +1,6 @@
 #pragma once
 
-namespace engine {
+namespace ptgn {
 
 enum class Direction {
 	RIGHT = 1,
@@ -10,4 +10,4 @@ enum class Direction {
 	COUNT
 };
 
-} // namespace engine
+} // namespace ptgn

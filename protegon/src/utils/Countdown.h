@@ -2,7 +2,7 @@
 
 #include "utils/Timer.h"
 
-namespace engine {
+namespace ptgn {
 
 class Countdown {
 public:
@@ -97,4 +97,4 @@ private:
 	Timer timer_;
 };
 
-} // namespace engine
+} // namespace ptgn

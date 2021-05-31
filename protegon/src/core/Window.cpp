@@ -4,7 +4,7 @@
 
 #include "debugging/Debug.h"
 
-namespace engine {
+namespace ptgn {
 
 Window& Window::Init(const char* title,
 					 const V2_int& position,
@@ -73,4 +73,4 @@ void Window::Destroy() {
 	window.window_ = nullptr;
 }
 
-} // namespace engine
+} // namespace ptgn

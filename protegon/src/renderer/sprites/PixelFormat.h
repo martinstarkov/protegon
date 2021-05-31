@@ -2,7 +2,7 @@
 
 #include <cstdint> // std::uint32_t
 
-namespace engine {
+namespace ptgn {
 
 enum class PixelFormat : std::uint32_t {
 	ARGB8888 = 372645892, // SDL_PIXELFORMAT_ARGB8888 = 372645892
@@ -11,4 +11,4 @@ enum class PixelFormat : std::uint32_t {
 	BGRA8888 = 377888772  // SDL_PIXELFORMAT_ABGR8888 = 377888772
 };
 
-} // namespace engine
+} // namespace ptgn

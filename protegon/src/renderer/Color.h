@@ -8,7 +8,7 @@
 
 struct SDL_Color;
 
-namespace engine {
+namespace ptgn {
 
 class Color {
 public:
@@ -93,4 +93,4 @@ inline Color Lerp(const Color& a, const Color& b, T t) {
 
 } // namespace math
 
-} // namespace engine
+} // namespace ptgn

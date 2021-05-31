@@ -3,26 +3,26 @@
 #include "debugging/Logger.h"
 
 void* operator new(std::size_t size) {
-	engine::AllocationMetrics::Allocation(size);
+	ptgn::AllocationMetrics::Allocation(size);
 	return std::malloc(size);
 }
 
 void* operator new[](std::size_t size) {
-	engine::AllocationMetrics::Allocation(size);
+	ptgn::AllocationMetrics::Allocation(size);
 	return std::malloc(size);
 }
 
 void operator delete(void* memory, std::size_t size) {
-	engine::AllocationMetrics::Deallocation(size);
+	ptgn::AllocationMetrics::Deallocation(size);
 	std::free(memory);
 }
 
 void  operator delete[](void* memory, std::size_t size) {
-	engine::AllocationMetrics::Deallocation(size);
+	ptgn::AllocationMetrics::Deallocation(size);
 	std::free(memory);
 }
 
-namespace engine {
+namespace ptgn {
 
 std::uint32_t AllocationMetrics::total_allocated_{ 0 };
 std::uint32_t AllocationMetrics::total_freed_{ 0 };
@@ -43,4 +43,4 @@ void AllocationMetrics::PrintMemoryUsage() {
 	PrintLine("Memory usage: ", CurrentUsage(), " bytes");
 }
 
-} // namespace engine
+} // namespace ptgn

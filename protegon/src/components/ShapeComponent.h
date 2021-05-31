@@ -8,7 +8,7 @@
 #include "physics/shapes/Circle.h"
 #include "utils/TypeTraits.h"
 
-namespace engine {
+namespace ptgn {
 
 struct ShapeComponent {
 	ShapeComponent() = delete;
@@ -71,4 +71,4 @@ struct ShapeComponent {
 	Shape* shape{ nullptr };
 };
 
-} // namespace engine
+} // namespace ptgn

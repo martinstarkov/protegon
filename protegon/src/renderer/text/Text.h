@@ -7,7 +7,7 @@
 #include "renderer/text/FontStyle.h"
 #include "utils/TypeTraits.h"
 
-namespace engine {
+namespace ptgn {
 
 class Text {
 public:
@@ -69,4 +69,4 @@ private:
 	V2_double area_;
 };
 
-} // namespace engine
+} // namespace ptgn

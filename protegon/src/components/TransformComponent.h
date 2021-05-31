@@ -2,7 +2,7 @@
 
 #include "physics/Transform.h"
 
-namespace engine {
+namespace ptgn {
 
 struct TransformComponent {
 	TransformComponent() = default;
@@ -10,4 +10,4 @@ struct TransformComponent {
 	Transform transform;
 };
 
-} // namespace engine
+} // namespace ptgn

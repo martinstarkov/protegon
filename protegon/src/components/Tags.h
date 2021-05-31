@@ -1,6 +1,6 @@
 #pragma once
 
-namespace engine {
+namespace ptgn {
 
 // Acts as a tag implying the entity is used for player-based systems.
 struct PlayerComponent {
@@ -12,4 +12,4 @@ struct InputComponent {
 	InputComponent() = default;
 };
 
-} // namespace engine
+} // namespace ptgn

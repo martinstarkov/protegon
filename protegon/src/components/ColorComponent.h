@@ -3,7 +3,7 @@
 #include "renderer/Color.h"
 #include "renderer/Colors.h"
 
-namespace engine {
+namespace ptgn {
 
 struct ColorComponent {
 	ColorComponent() = default;
@@ -11,4 +11,4 @@ struct ColorComponent {
 	Color color;
 };
 
-} // namespace engine
+} // namespace ptgn

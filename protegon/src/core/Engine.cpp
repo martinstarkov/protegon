@@ -12,7 +12,7 @@
 #include "event/InputHandler.h"
 #include "event/EventHandler.h"
 
-namespace engine {
+namespace ptgn {
 
 void Engine::Delay(milliseconds duration) {
 	SDL_Delay(static_cast<std::uint32_t>(duration.count()));
@@ -135,4 +135,4 @@ void Engine::Quit() {
 	GetInstance().running_ = false;
 }
 
-} // namespace engine
+} // namespace ptgn

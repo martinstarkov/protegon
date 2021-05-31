@@ -6,7 +6,7 @@
 
 #include "debugging/Logger.h"
 
-namespace engine {
+namespace ptgn {
 
 using hours = std::chrono::hours;
 using minutes = std::chrono::minutes;
@@ -103,4 +103,4 @@ private:
     bool running_{ false };
 };
 
-} // namespace engine
+} // namespace ptgn

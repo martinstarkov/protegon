@@ -7,7 +7,7 @@
 #include "math/Vector2.h"
 #include "utils/TypeTraits.h"
 
-namespace engine {
+namespace ptgn {
 
 namespace type_traits {
 
@@ -101,4 +101,4 @@ Vector2<S> operator*(Matrix<T, 2, 2> m, const Vector2<U>& v) {
 	return { m.matrix[0][0] * v.x + m.matrix[0][1] * v.y, m.matrix[1][0] * v.x + m.matrix[1][1] * v.y };
 }
 
-} // namespace engine
+} // namespace ptgn

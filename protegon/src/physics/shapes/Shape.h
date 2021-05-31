@@ -2,7 +2,7 @@
 
 #include "utils/TypeTraits.h"
 
-namespace engine {
+namespace ptgn {
 
 enum class ShapeType {
 	CIRCLE,
@@ -22,4 +22,4 @@ public:
 	}
 };
 
-} // namespace engine
+} // namespace ptgn

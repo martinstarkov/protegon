@@ -8,7 +8,7 @@
 #include "math/Vector2.h"
 #include "utils/TypeTraits.h"
 
-namespace engine {
+namespace ptgn {
 
 /*
 * @tparam T Type of floating point noise values to generate. Float by default.
@@ -134,4 +134,4 @@ private:
 	std::vector<std::size_t> permutation_table_;
 };
 
-} // namespace engine
+} // namespace ptgn

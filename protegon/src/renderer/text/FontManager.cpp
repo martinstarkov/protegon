@@ -3,7 +3,7 @@
 #include "debugging/Debug.h"
 #include "math/Hasher.h"
 
-namespace engine {
+namespace ptgn {
 
 void FontManager::Load(const char* name, const char* file, std::uint32_t ptsize) {
 	assert(name != "" && "Cannot load font with invalid key");
@@ -47,4 +47,4 @@ void FontManager::Destroy() {
 	instance.font_map_.clear();
 }
 
-} // namespace engine
+} // namespace ptgn

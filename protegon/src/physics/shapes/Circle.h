@@ -3,7 +3,7 @@
 #include "math/Vector2.h"
 #include "physics/shapes/Shape.h"
 
-namespace engine {
+namespace ptgn {
 
 class Circle : public Shape {
 public:
@@ -21,4 +21,4 @@ public:
 	double radius{ 0 };
 };
 
-} // namespace engine
+} // namespace ptgn

@@ -10,7 +10,7 @@
 #include "utils/Timer.h"
 #include "utils/Singleton.h"
 
-namespace engine {
+namespace ptgn {
 
 class InputHandler : public Singleton<InputHandler> {
 public:
@@ -134,4 +134,4 @@ private:
 	std::array<std::uint8_t, KEY_COUNT> previous_key_states_{};
 };
 
-} // namespace engine
+} // namespace ptgn

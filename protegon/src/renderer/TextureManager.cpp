@@ -4,9 +4,10 @@
 
 #include "math/Hasher.h"
 #include "renderer/Renderer.h"
+#include "renderer/Surface.h"
 #include "debugging/Debug.h"
 
-namespace engine {
+namespace ptgn {
 
 void TextureManager::Load(const char* texture_key, 
 						  const char* texture_path) {
@@ -17,7 +18,7 @@ void TextureManager::Load(const char* texture_key,
 	auto key{ Hasher::HashCString(texture_key) };
 	auto it{ instance.texture_map_.find(key) };
 	if (it == std::end(instance.texture_map_)) {
-		internal::Surface temp_surface{ texture_path };
+		Surface temp_surface{ texture_path };
 		Texture texture{ Renderer::CreateTexture(temp_surface) };
 		temp_surface.Destroy();
 		instance.texture_map_.emplace(key, texture);
@@ -69,4 +70,4 @@ void TextureManager::Destroy() {
 	instance.texture_map_.clear();
 }
 
-} // namespace engine
+} // namespace ptgn

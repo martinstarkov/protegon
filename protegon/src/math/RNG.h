@@ -5,7 +5,7 @@
 
 #include "utils/TypeTraits.h"
 
-namespace engine {
+namespace ptgn {
 
 /*
 * Define RNG object by giving it a type to generate from
@@ -57,4 +57,4 @@ private:
 	uniform_distribution<T> distribution{ 0, 1 };
 };
 
-} // namespace engine
+} // namespace ptgn

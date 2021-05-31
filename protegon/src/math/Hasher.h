@@ -2,7 +2,7 @@
 
 #include <cstdlib> // std::size_t
 
-namespace engine {
+namespace ptgn {
 
 class Hasher {
 public:
@@ -14,4 +14,4 @@ public:
 	static std::size_t HashCString(const char* c_string);
 };
 
-} // namespace engine
+} // namespace ptgn

@@ -7,7 +7,7 @@
 #include "core/Engine.h"
 #include "debugging/Debug.h"
 
-namespace engine {
+namespace ptgn {
 
 void InputHandler::Update() {
 	auto& instance{ GetInstance() };
@@ -134,4 +134,4 @@ bool InputHandler::KeyUp(Key key) {
 	return KeyReleased(key) && instance.previous_key_states_[static_cast<std::size_t>(key)];
 }
 
-} // namespace engine
+} // namespace ptgn

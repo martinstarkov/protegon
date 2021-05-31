@@ -1,5 +1,5 @@
 #include "Scene.h"
 
-namespace engine {
+namespace ptgn {
 
-} // namespace engine
+} // namespace ptgn

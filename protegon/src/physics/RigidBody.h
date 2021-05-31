@@ -2,7 +2,7 @@
 
 #include "math/Vector2.h"
 
-namespace engine {
+namespace ptgn {
 
 struct RigidBody {
 	RigidBody() = default;
@@ -31,4 +31,4 @@ struct RigidBody {
 	double angular_acceleration{ 0 };
 };
 
-} // namespace engine
+} // namespace ptgn

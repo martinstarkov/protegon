@@ -2,7 +2,7 @@
 
 #include <algorithm> // std::remove_if
 
-namespace engine {
+namespace ptgn {
 
 void EventHandler::Invoke(ecs::Entity& invoker) {
 	auto& instance{ GetInstance() };
@@ -42,4 +42,4 @@ EventHandler::EventId& EventHandler::EventTypeCount() {
 	return id;
 }
 
-} // namespace engine
+} // namespace ptgn

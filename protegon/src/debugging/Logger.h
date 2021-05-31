@@ -5,7 +5,7 @@
 
 #include "utils/TypeTraits.h"
 
-namespace engine {
+namespace ptgn {
 
 // Print desired items to the console. If a newline is desired, use PrintLine() instead.
 template <typename ...TArgs,
@@ -22,4 +22,4 @@ inline void PrintLine(TArgs&&... items) {
 	std::cout << std::endl;
 }
 
-} // namespace engine
+} // namespace ptgn

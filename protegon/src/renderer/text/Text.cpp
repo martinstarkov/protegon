@@ -5,9 +5,10 @@
 
 #include "math/Hasher.h"
 #include "renderer/Renderer.h"
+#include "renderer/Surface.h"
 #include "renderer/text/FontManager.h"
 
-namespace engine {
+namespace ptgn {
 
 Text::~Text() {
 	texture_.Destroy();
@@ -46,7 +47,7 @@ Text& Text::operator=(Text&& obj) noexcept {
 void Text::RefreshTexture() {
 	Font font{ FontManager::GetFont(font_key_) };
 	TTF_SetFontStyle(font, style_);
-	internal::Surface temp_surface;
+	Surface temp_surface;
 	switch (mode_) {
 		case FontRenderMode::SOLID:
 			temp_surface = TTF_RenderText_Solid(font, content_, color_);
@@ -135,4 +136,4 @@ Texture Text::GetTexture() const {
 	return texture_;
 }
 
-} // namespace engine
+} // namespace ptgn

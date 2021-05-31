@@ -1,6 +1,6 @@
 #pragma once
 
-namespace engine {
+namespace ptgn {
 
 enum class FontRenderMode : int {
 	SOLID,
@@ -8,4 +8,4 @@ enum class FontRenderMode : int {
 	BLENDED
 };
 
-} // namespace engine
+} // namespace ptgn

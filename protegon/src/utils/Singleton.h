@@ -1,6 +1,6 @@
 #pragma once
 
-namespace engine {
+namespace ptgn {
 
 template <typename T>
 class Singleton {
@@ -15,4 +15,4 @@ public:
     void operator=(Singleton const&) = delete;
 };
 
-} // namespace engine
+} // namespace ptgn

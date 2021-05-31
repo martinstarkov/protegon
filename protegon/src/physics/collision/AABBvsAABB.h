@@ -4,7 +4,7 @@
 #include "physics/Manifold.h"
 #include "physics/shapes/AABB.h"
 
-namespace engine {
+namespace ptgn {
 
 namespace math {
 
@@ -57,4 +57,4 @@ inline Manifold IntersectionAABBvsAABB(const AABB& shapeA,
 
 } // namespace math
 
-} // namespace engine
+} // namespace ptgn

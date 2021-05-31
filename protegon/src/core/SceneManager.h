@@ -9,7 +9,7 @@
 #include "utils/Singleton.h"
 #include "utils/TypeTraits.h"
 
-namespace engine {
+namespace ptgn {
 
 class SceneManager : public Singleton<SceneManager> {
 private:
@@ -18,7 +18,7 @@ public:
 	// This allocates the scene and associated memory,
 	// but does not set it as active.
 	template <typename T,
-		engine::type_traits::is_base_of_e<Scene, T> = true>
+		type_traits::is_base_of_e<Scene, T> = true>
 	static T& LoadScene(const char* scene_key) {
 		static_assert(std::is_default_constructible_v<T>,
 					  "Cannot add scene to scene manager which is not default constructible");
@@ -37,7 +37,7 @@ public:
 
 	// Retrieves and casts the active scene to a given type.
 	template <typename T,
-		engine::type_traits::is_base_of_e<Scene, T> = true>
+		type_traits::is_base_of_e<Scene, T> = true>
 	static T& GetScene(const char* scene_key) {
 		auto& instance{ GetInstance() };
 		auto key{ Hasher::HashCString(scene_key) };
@@ -114,4 +114,4 @@ private:
 	std::unordered_set<std::size_t> active_scenes_;
 };
 
-} // namespace engine
+} // namespace ptgn

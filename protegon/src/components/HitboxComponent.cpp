@@ -1,10 +1,10 @@
 #include "HitboxComponent.h"
 
-#include "ecs/components/TagComponent.h"
+#include "components/TagComponent.h"
 
-namespace engine {
+namespace ptgn {
 
-void HitboxComponent::Resolve(ecs::Entity& target, const engine::Manifold& manifold) {
+void HitboxComponent::Resolve(ecs::Entity& target, const Manifold& manifold) {
 	if (resolution_function != nullptr) {
 		resolution_function(target, manifold);
 	}
@@ -22,4 +22,4 @@ bool HitboxComponent::CanCollideWith(const ecs::Entity& entity) {
 	return true;
 }
 
-} // namespace engine
+} // namespace ptgn

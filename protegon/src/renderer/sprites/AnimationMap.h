@@ -4,7 +4,7 @@
 
 #include "renderer/sprites/Animation.h"
 
-namespace engine {
+namespace ptgn {
 
 class AnimationMap {
 public:
@@ -18,4 +18,4 @@ private:
 	const char* texture_key_{ nullptr };
 };
 
-} // namespace engine
+} // namespace ptgn

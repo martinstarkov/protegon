@@ -6,7 +6,7 @@
 #include "physics/collision/Collision.h"
 #include "physics/collision/LinevsAABB.h"
 
-namespace engine {
+namespace ptgn {
 
 namespace math {
 
@@ -70,4 +70,4 @@ static std::pair<double, Manifold> ResolveDynamicAABBvsAABB(const AABB& dynamic_
 
 } // namespace math
 
-} // namespace engine
+} // namespace ptgn

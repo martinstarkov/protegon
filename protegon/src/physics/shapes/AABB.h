@@ -3,7 +3,7 @@
 #include "math/Vector2.h"
 #include "physics/shapes/Shape.h"
 
-namespace engine {
+namespace ptgn {
 
 class AABB : public Shape {
 public:
@@ -21,4 +21,4 @@ public:
 	V2_double size;
 };
 
-} // namespace engine
+} // namespace ptgn

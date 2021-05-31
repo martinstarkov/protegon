@@ -2,7 +2,7 @@
 
 #include "math/Vector2.h"
 
-namespace engine {
+namespace ptgn {
 
 struct Camera {
 	Camera() = default;
@@ -19,4 +19,4 @@ struct Camera {
 	V2_double scale_bound{ 5.0, 5.0 };
 };
 
-} // namespace engine
+} // namespace ptgn

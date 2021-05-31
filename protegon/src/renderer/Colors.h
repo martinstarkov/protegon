@@ -2,7 +2,7 @@
 
 #include "renderer/Color.h"
 
-namespace engine {
+namespace ptgn {
 
 namespace colors {
 
@@ -32,4 +32,4 @@ inline const Color SILVER{ 192, 192, 192, 255 };
 
 } // namespace colors
 
-} // namespace engine
+} // namespace ptgn

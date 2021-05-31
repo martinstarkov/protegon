@@ -1,6 +1,6 @@
 #pragma once 
 
-namespace engine {
+namespace ptgn {
 
 class Flip {
 public:
@@ -18,4 +18,4 @@ private:
     int direction{ NONE };
 };
 
-} // namespace engine
+} // namespace ptgn

@@ -2,7 +2,7 @@
 
 #include "math/Vector2.h"
 
-namespace engine {
+namespace ptgn {
 
 struct SpriteComponent {
 	SpriteComponent() = delete;
@@ -19,4 +19,4 @@ struct SpriteComponent {
 	V2_double size;
 };
 
-} // namespace engine
+} // namespace ptgn

@@ -4,7 +4,7 @@
 #include "physics/Manifold.h"
 #include "physics/shapes/Shape.h"
 
-namespace engine {
+namespace ptgn {
 
 using CollisionCallback = Manifold (*)(const Transform& A, 
 									   const Transform& B, 
@@ -20,4 +20,4 @@ inline Manifold StaticCollisionCheck(const Transform& A,
 	return StaticCollisionDispatch[static_cast<int>(a->GetType())][static_cast<int>(b->GetType())](A, B, a, b);
 }
 
-} // namespace engine
+} // namespace ptgn

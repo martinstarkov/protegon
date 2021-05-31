@@ -5,11 +5,11 @@
 #include <cassert> // assert
 #include <vector> // std::vector
 
-#include "ecs/ECS.h"
+#include "core/ECS.h"
 #include "utils/TypeTraits.h"
 #include "utils/Singleton.h"
 
-namespace engine {
+namespace ptgn {
 
 namespace internal {
 
@@ -85,4 +85,4 @@ private:
 	std::unordered_map<EventId, internal::EventFunction> events_;
 };
 
-} // namespace engine
+} // namespace ptgn

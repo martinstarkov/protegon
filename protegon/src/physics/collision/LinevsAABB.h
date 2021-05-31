@@ -8,7 +8,7 @@
 #include "physics/shapes/AABB.h"
 #include "physics/Manifold.h"
 
-namespace engine {
+namespace ptgn {
 
 namespace math {
 
@@ -96,4 +96,4 @@ inline bool LinevsAABB(const V2_double& line_origin,
 
 } // namespace math
 
-} // namespace engine
+} // namespace ptgn

@@ -3,7 +3,7 @@
 #include "renderer/TextureManager.h"
 #include "math/Hasher.h"
 
-namespace engine {
+namespace ptgn {
 
 AnimationMap::AnimationMap(const char* sprite_sheet_path) : texture_key_{ sprite_sheet_path } {
 	TextureManager::Load(texture_key_, sprite_sheet_path);
@@ -28,4 +28,4 @@ const Animation& AnimationMap::Get(const char* animation_key) {
 	return it->second;
 }
 
-} // namespace engine
+} // namespace ptgn

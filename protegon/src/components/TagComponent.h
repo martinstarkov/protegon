@@ -1,9 +1,9 @@
 #pragma once
 
-#include "ecs/ECS.h"
+#include "core/ECS.h"
 #include "math/Hasher.h"
 
-namespace engine {
+namespace ptgn {
 
 struct TagComponent {
 	TagComponent() = delete;
@@ -28,4 +28,4 @@ struct TagComponent {
 	}
 };
 
-} // namespace engine
+} // namespace ptgn

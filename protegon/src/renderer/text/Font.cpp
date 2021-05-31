@@ -4,7 +4,7 @@
 
 #include "debugging/Debug.h"
 
-namespace engine {
+namespace ptgn {
 
 Font::Font(TTF_Font* font) : font_{ font } {}
 
@@ -39,4 +39,4 @@ void Font::Destroy() {
 	font_ = nullptr;
 }
 
-} // namespace engine
+} // namespace ptgn

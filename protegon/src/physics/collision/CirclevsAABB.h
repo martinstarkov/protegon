@@ -5,7 +5,7 @@
 #include "physics/shapes/AABB.h"
 #include "physics/shapes/Circle.h"
 
-namespace engine {
+namespace ptgn {
 
 namespace math {
 
@@ -76,4 +76,4 @@ inline bool CirclevsAABB(const Circle& shapeA,
 
 } // namespace math
 
-} // namespace engine
+} // namespace ptgn

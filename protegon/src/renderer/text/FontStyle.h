@@ -1,6 +1,6 @@
 #pragma once
 
-namespace engine {
+namespace ptgn {
 
 enum class FontStyle : int {
 	NORMAL = 0, // TTF_STYLE_NORMAL = 0
@@ -10,4 +10,4 @@ enum class FontStyle : int {
 	STRIKETHROUGH = 8 // TTF_STYLE_STRIKETHROUGH = 8
 };
 
-} // namespace engine
+} // namespace ptgn

@@ -5,9 +5,7 @@
 
 #include "debugging/Debug.h"
 
-namespace engine {
-
-namespace internal {
+namespace ptgn {
 
 Surface::Surface(SDL_Surface* surface) : surface_{ surface } {}
 
@@ -36,6 +34,4 @@ void Surface::Destroy() {
 	surface_ = nullptr;
 }
 
-} // namespace internal
-
-} // namespace engine
+} // namespace ptgn

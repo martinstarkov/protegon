@@ -9,7 +9,7 @@
 #include "utils/Countdown.h"
 #include "utils/TypeTraits.h"
 
-namespace engine {
+namespace ptgn {
 
 using ParticleLifetime = Countdown;
 
@@ -27,4 +27,4 @@ struct ParticleProperties {
 	RigidBody body;
 };
 
-} // namespace engine
+} // namespace ptgn

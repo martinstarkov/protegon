@@ -6,7 +6,7 @@
 
 #include "math/RNG.h"
 
-namespace engine {
+namespace ptgn {
 
 Color Color::RandomSolid() {
 	RNG<std::uint16_t> rng{ 0, 255 };
@@ -113,4 +113,4 @@ bool Color::IsTransparent() const {
 	return a == 0; 
 };
 
-} // namespace engine
+} // namespace ptgn

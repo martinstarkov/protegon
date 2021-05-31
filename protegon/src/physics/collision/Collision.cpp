@@ -6,7 +6,7 @@
 #include "physics/shapes/Circle.h"
 #include "physics/shapes/AABB.h"
 
-namespace engine {
+namespace ptgn {
 
 inline Manifold StaticCirclevsCircle(const Transform& A, 
                                      const Transform& B, 
@@ -159,7 +159,7 @@ CollisionCallback StaticCollisionDispatch[static_cast<int>(ShapeType::COUNT)][st
     { StaticAABBvsCircle, StaticAABBvsAABB }
 };
 
-} // namespace engine
+} // namespace ptgn
 
 
 

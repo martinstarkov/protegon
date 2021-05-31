@@ -6,7 +6,7 @@
 #include "renderer/Renderer.h"
 #include "renderer/Surface.h"
 
-namespace engine {
+namespace ptgn {
 
 Texture::Texture(SDL_Texture* texture) : texture_{ texture } {}
 
@@ -27,7 +27,7 @@ Texture::Texture(const Renderer& renderer,
 }
 
 Texture::Texture(const Renderer& renderer, 
-				 const internal::Surface& surface) {
+				 const Surface& surface) {
 	assert(renderer.IsValid() && "Cannot create texture from invalid renderer");
 	assert(surface.IsValid() && "Cannot create texture from invalid surface");
 	texture_ = SDL_CreateTextureFromSurface(renderer, surface);
@@ -132,4 +132,4 @@ PixelFormat Texture::GetPixelFormat() const {
 	return static_cast<PixelFormat>(format);
 }
 
-} // namespace engine
+} // namespace ptgn

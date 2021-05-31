@@ -2,6 +2,14 @@
 
 using namespace ptgn;
 
+class IntroScene : public Scene {
+public:
+    void Enter() {}
+    void Update() {}
+    void Render() {}
+    void Exit() {}
+};
+
 void TestMath() {
 	PrintLine("Running math tests...");
 

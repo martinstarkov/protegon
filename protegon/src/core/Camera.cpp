@@ -2,7 +2,7 @@
 
 #include "core/Window.h"
 
-namespace engine {
+namespace ptgn {
 
 Camera::Camera(const V2_double& scale,
 			   V2_double zoom_speed,
@@ -20,4 +20,4 @@ void Camera::CenterOn(const V2_double& point, const V2_double& size) {
 	position = point + size / 2.0 - (Window::GetSize() / 2.0) / scale;
 }
 
-} // namespace engine
+} // namespace ptgn
