@@ -9,7 +9,7 @@ void EventHandler::Invoke(ecs::Entity& invoker) {
 	auto caller_it{ instance.callers_.find(invoker) };
 	assert(caller_it != std::end(instance.callers_) &&
 		   "Could not invoke event on entity which has not registered such an event");
-	for (auto event_id : caller_it->second) {
+	for (const auto event_id : caller_it->second) {
 		auto event_it{ instance.events_.find(event_id) };
 		assert(event_it != std::end(instance.events_) &&
 			   "Could not find valid event invoke function pointer");

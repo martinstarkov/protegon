@@ -1,4 +1,4 @@
-#include "Renderer.h"
+#include "ScreenRenderer.h"
 
 #include <SDL.h>
 #include <cassert>
@@ -11,7 +11,7 @@
 
 namespace ptgn {
 
-void Renderer::DrawTexture(const Texture& texture, 
+void ScreenRenderer::DrawTexture(const Texture& texture, 
 						   const V2_int& position, 
 						   const V2_int& size, 
 						   const V2_int source_position, 
@@ -29,7 +29,7 @@ void Renderer::DrawTexture(const Texture& texture,
 	SDL_RenderCopy(renderer, texture, source, &destination);
 }
 
-void Renderer::DrawTexture(const char* texture_key,
+void ScreenRenderer::DrawTexture(const char* texture_key,
 						   const V2_int& position,
 						   const V2_int& size,
 						   const V2_int source_position,
@@ -39,7 +39,7 @@ void Renderer::DrawTexture(const char* texture_key,
 	DrawTexture(texture, position, size, source_position, source_size);
 }
 
-void Renderer::DrawTexture(const char* texture_key, 
+void ScreenRenderer::DrawTexture(const char* texture_key, 
 						   const V2_int& position, 
 						   const V2_int& size, 
 						   const V2_int source_position, 
@@ -81,7 +81,7 @@ void Renderer::DrawTexture(const char* texture_key,
 
 }
 
-void Renderer::DrawText(const Text& text) {
+void ScreenRenderer::DrawText(const Text& text) {
 	auto& renderer{ GetInstance() };
 	assert(renderer.IsValid() && "Cannot draw text with destroyed or uninitialized renderer");
 	assert(text.GetTexture().IsValid() && "Cannot draw text that has been uninitialized or destroyed");
@@ -91,8 +91,7 @@ void Renderer::DrawText(const Text& text) {
 	SDL_RenderCopy(renderer, text.GetTexture(), NULL, &destination);
 }
 
-void Renderer::DrawPoint(const V2_int& point, 
-						 const Color& color) {
+void ScreenRenderer::DrawPoint(const V2_int& point, const Color& color) {
 	auto& renderer{ GetInstance() };
 	assert(renderer.IsValid() && "Cannot draw point with destroyed or uninitialized renderer");
 	SetDrawColor(color);
@@ -100,7 +99,7 @@ void Renderer::DrawPoint(const V2_int& point,
 	SetDrawColor();
 }
 
-void Renderer::DrawLine(const V2_int& origin, 
+void ScreenRenderer::DrawLine(const V2_int& origin, 
 						const V2_int& destination, 
 						const Color& color) {
 	auto& renderer{ GetInstance() };
@@ -110,7 +109,7 @@ void Renderer::DrawLine(const V2_int& origin,
 	SetDrawColor();
 }
 
-void Renderer::DrawCircle(const V2_int& center, 
+void ScreenRenderer::DrawCircle(const V2_int& center, 
 						  const double radius, 
 						  const Color& color) {
 	auto& renderer{ GetInstance() };
@@ -167,7 +166,7 @@ void Renderer::DrawCircle(const V2_int& center,
 	SetDrawColor();
 }
 
-void Renderer::DrawSolidCircle(const V2_int& center,
+void ScreenRenderer::DrawSolidCircle(const V2_int& center,
 							   const double radius,
 							   const Color& color) {
 	auto& renderer{ GetInstance() };
@@ -187,7 +186,7 @@ void Renderer::DrawSolidCircle(const V2_int& center,
 	SetDrawColor();
 }
 
-void Renderer::DrawRectangle(const V2_int& position,
+void ScreenRenderer::DrawRectangle(const V2_int& position,
 							 const V2_int& size,
 							 const Color& color) {
 	auto& renderer{ GetInstance() };
@@ -198,7 +197,7 @@ void Renderer::DrawRectangle(const V2_int& position,
 	SetDrawColor();
 }
 
-void Renderer::DrawSolidRectangle(const V2_int& position,
+void ScreenRenderer::DrawSolidRectangle(const V2_int& position,
 								  const V2_int& size,
 								  const Color& color) {
 	auto& renderer{ GetInstance() };
@@ -209,17 +208,17 @@ void Renderer::DrawSolidRectangle(const V2_int& position,
 	SetDrawColor();
 }
 
-Texture Renderer::CreateTexture(const Surface& surface) {
+Texture ScreenRenderer::CreateTexture(const Surface& surface) {
 	return { GetInstance(), surface };
 }
 
-Texture Renderer::CreateTexture(const V2_int& size,
+Texture ScreenRenderer::CreateTexture(const V2_int& size,
 								 PixelFormat format,
 								 TextureAccess texture_access) {
 	return { GetInstance(), size, format, texture_access };
 }
 
-Renderer& Renderer::Init(const Window& window,
+ScreenRenderer& ScreenRenderer::Init(const Window& window,
 						 int renderer_index, 
 						 std::uint32_t flags) {
 	auto& renderer{ GetInstance() };
@@ -231,33 +230,33 @@ Renderer& Renderer::Init(const Window& window,
 	return renderer;
 }
 
-Renderer::operator SDL_Renderer*() const {
+ScreenRenderer::operator SDL_Renderer*() const {
 	return renderer_;
 }
 
-SDL_Renderer* Renderer::operator&() const {
+SDL_Renderer* ScreenRenderer::operator&() const {
 	return renderer_;
 }
 
-bool Renderer::IsValid() const {
+bool ScreenRenderer::IsValid() const {
 	return renderer_ != nullptr;
 }
 
-void Renderer::Clear() {
+void ScreenRenderer::Clear() {
 	SDL_RenderClear(GetInstance());
 }
 
-void Renderer::Present() {
+void ScreenRenderer::Present() {
 	SDL_RenderPresent(GetInstance());
 }
 
-void Renderer::Destroy() {
+void ScreenRenderer::Destroy() {
 	auto& renderer{ GetInstance() };
 	SDL_DestroyRenderer(renderer);
 	renderer.renderer_ = nullptr;
 }
 
-void Renderer::SetDrawColor(const Color& color) {
+void ScreenRenderer::SetDrawColor(const Color& color) {
 	SDL_SetRenderDrawColor(GetInstance(), color.r, color.g, color.b, color.a);
 }
 

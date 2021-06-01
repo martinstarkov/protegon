@@ -18,7 +18,7 @@ class Window;
 class Text;
 class Surface;
 
-class Renderer : public Singleton<Renderer> {
+class ScreenRenderer : public Singleton<ScreenRenderer> {
 public:
 	// Draws a texture to the screen.
 	static void DrawTexture(const char* texture_key,
@@ -41,8 +41,7 @@ public:
 	static void DrawText(const Text& text);
 
 	// Draws a point on the screen.
-	static void DrawPoint(const V2_int& point,
-						  const Color& color = colors::DEFAULT_DRAW_COLOR);
+	static void DrawPoint(const V2_int& point, const Color& color = colors::DEFAULT_DRAW_COLOR);
 
 	// Draws line to the screen.
 	static void DrawLine(const V2_int& origin,
@@ -104,22 +103,22 @@ private:
 	friend class TextureManager;
 	friend class Texture;
 	friend class Text;
-	friend class Singleton<Renderer>;
+	friend class Singleton<ScreenRenderer>;
 
 	/*
 	* Initializes the singleton renderer instance.
 	* @param renderer_index Index of renderering driver, -1 for first matching flags
-	* @paramm flags Renderer driver flags.
-	* @return Renderer singleton instance.
+	* @paramm flags ScreenRenderer driver flags.
+	* @return ScreenRenderer singleton instance.
 	*/
-	static Renderer& Init(const Window& window, 
-						  int renderer_index = -1, 
-						  std::uint32_t flags = 0);
+	static ScreenRenderer& Init(const Window& window, 
+								int renderer_index = -1, 
+								std::uint32_t flags = 0);
 
 	// Frees memory used by SDL_Renderer.
 	static void Destroy();
 
-	Renderer() = default;
+	ScreenRenderer() = default;
 
 	// Conversions to SDL_Renderer for internal functions.
 

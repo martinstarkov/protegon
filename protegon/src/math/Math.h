@@ -3,18 +3,31 @@
 // This header filer contains standard math functions that are used frequently.
 // In some cases with improved performance over standard library alternatives, e.g. ceil and floor.
 
+#include <cstdlib> // std::size_t
 #include <cassert> // assert
 #include <cmath> // std::round, std::sqrt, etc
 #include <limits> // std::numeric_limits
 #include <iomanip> // std::setprecision for truncating
 #include <sstream> // std::stringstream for truncating
 #include <random> // std::minstd_rand, std::uniform_real_distribution, std::uniform_int_distribution
+#include <functional> // std::hash
+#include <string> // std::string_view
+#include <cstring> // std::strlen
 
 #include "utils/TypeTraits.h"
 
 namespace ptgn {
 
 namespace math {
+
+/*
+* Hash a string into a number.
+* @param c_string The string to hash.
+* @return Unique positive integer corresponding to the string.
+*/
+inline std::size_t Hash(const char* c_string) {
+    return std::hash<std::string_view>()(std::string_view(c_string, std::strlen(c_string)));
+}
 
 // Definition of PI
 // @tparam T - Precision of PI (type: int, float, double, etc).

@@ -6,6 +6,8 @@
 
 namespace ptgn {
 
+namespace math {
+
 using CollisionCallback = Manifold (*)(const Transform& A, 
 									   const Transform& B, 
 									   Shape* const a, 
@@ -19,5 +21,7 @@ inline Manifold StaticCollisionCheck(const Transform& A,
 									 Shape* const b) {
 	return StaticCollisionDispatch[static_cast<int>(a->GetType())][static_cast<int>(b->GetType())](A, B, a, b);
 }
+
+} // namespace math
 
 } // namespace ptgn

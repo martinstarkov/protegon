@@ -6,6 +6,7 @@ namespace ptgn {
 
 struct RigidBodyComponent {
 	RigidBodyComponent() = default;
+	~RigidBodyComponent() = default;
 	RigidBodyComponent(const RigidBody& body) : body{ body } {}
 	RigidBody body;
 };

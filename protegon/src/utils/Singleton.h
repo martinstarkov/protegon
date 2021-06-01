@@ -2,6 +2,7 @@
 
 namespace ptgn {
 
+// Generic singleton class for inheritence use.
 template <typename T>
 class Singleton {
 public:

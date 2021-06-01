@@ -5,7 +5,7 @@
 #include <unordered_set> // std::unordered_set
 
 #include "core/Scene.h"
-#include "math/Hasher.h"
+#include "math/Math.h"
 #include "utils/Singleton.h"
 #include "utils/TypeTraits.h"
 
@@ -24,7 +24,7 @@ public:
 					  "Cannot add scene to scene manager which is not default constructible");
 		auto& instance{ GetInstance() };
 		auto scene{ new T{} };
-		auto key{ Hasher::HashCString(scene_key) };
+		const auto key{ math::Hash(scene_key) };
 		auto it{ instance.loaded_scenes_.find(key) };
 		if (it != instance.loaded_scenes_.end()) {
 			delete it->second;
@@ -40,7 +40,7 @@ public:
 		type_traits::is_base_of_e<Scene, T> = true>
 	static T& GetScene(const char* scene_key) {
 		auto& instance{ GetInstance() };
-		auto key{ Hasher::HashCString(scene_key) };
+		const auto key{ math::Hash(scene_key) };
 		auto scene{ instance.GetScene(scene_key) };
 		assert(scene != nullptr &&
 			   "Cannot retrieve scene which does not exist in scene manager");

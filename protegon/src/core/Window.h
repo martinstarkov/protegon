@@ -58,7 +58,7 @@ public:
 
 private:
 	friend class Engine;
-	friend class Renderer;
+	friend class ScreenRenderer;
 	friend class Singleton<Window>;
 
 	/*

@@ -23,12 +23,16 @@ public:
 
 	// Set text content.
 	void SetContent(const char* new_content);
+
 	// Set text color.
 	void SetColor(const Color& new_color);
+
 	// Set text font to a font that has been loaded into FontManager.
 	void SetFont(const char* new_font_name);
+
 	// Set top left position of text.
 	void SetPosition(const V2_double& new_position);
+
 	// Set area to which text is stretched.
 	void SetArea(const V2_double& new_area);
 
@@ -42,18 +46,25 @@ public:
 	}
 
 	void SetSolidRenderMode();
+
 	void SetShadedRenderMode(const Color& shading_background_color);
+
 	void SetBlendedRenderMode();
 	
 	const char* GetContent() const;
+
 	const char* GetFont() const;
+
 	Color GetColor() const;
+
 	V2_double GetPosition() const;
+
 	V2_double GetArea() const;
 private:
-	friend class Renderer;
+	friend class ScreenRenderer;
 
 	Texture GetTexture() const;
+
 	void RefreshTexture();
 
 	int style_{ static_cast<int>(FontStyle::NORMAL) };

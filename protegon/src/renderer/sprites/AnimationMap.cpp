@@ -1,7 +1,7 @@
 #include "AnimationMap.h"
 
 #include "renderer/TextureManager.h"
-#include "math/Hasher.h"
+#include "math/Math.h"
 
 namespace ptgn {
 
@@ -14,7 +14,7 @@ AnimationMap::~AnimationMap() {
 }
 
 void AnimationMap::Add(const char* animation_key, const Animation& animation) {
-	auto key{ Hasher::HashCString(animation_key) };
+	const auto key{ math::Hash(animation_key) };
 	auto it{ animations_.find(key) };
 	assert(it != std::end(animations_) && 
 		   "Cannot add existing animation to sprite map");
@@ -22,7 +22,7 @@ void AnimationMap::Add(const char* animation_key, const Animation& animation) {
 }
 
 const Animation& AnimationMap::Get(const char* animation_key) {
-	auto key{ Hasher::HashCString(animation_key) };
+	const auto key{ math::Hash(animation_key) };
 	auto it{ animations_.find(key) };
 	assert(it != std::end(animations_) && "Animation not found in sprite map");
 	return it->second;

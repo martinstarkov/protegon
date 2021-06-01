@@ -6,6 +6,7 @@ namespace ptgn {
 
 struct TransformComponent {
 	TransformComponent() = default;
+	~TransformComponent() = default;
 	TransformComponent(const Transform& transform) : transform{ transform } {}
 	Transform transform;
 };

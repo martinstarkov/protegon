@@ -8,7 +8,7 @@
 #include "renderer/particles/Particle.h"
 #include "utils/TypeTraits.h"
 #include "math/Math.h"
-#include "renderer/Renderer.h"
+#include "renderer/ScreenRenderer.h"
 
 namespace ptgn {
 
@@ -82,12 +82,12 @@ public:
 					auto size{
 						math::Lerp(appearance_.shape_begin.size, appearance_.shape_end.size, percentage_life_elapsed)
 					};
-					Renderer::DrawRectangle(properties.transform.position, size, color);
+					ScreenRenderer::DrawRectangle(properties.transform.position, size, color);
 				} else if constexpr (std::is_same_v<TShape, Circle>) {
 					auto radius{
 						math::Lerp(appearance_.shape_begin.radius, appearance_.shape_end.radius, percentage_life_elapsed)
 					};
-					Renderer::DrawCircle(properties_[i].transform.position, radius, color);
+					ScreenRenderer::DrawCircle(properties_[i].transform.position, radius, color);
 				} else {
 					static_assert(
 						false, 
@@ -99,9 +99,13 @@ public:
 	}
 protected:
 	std::size_t max_particles_{ 0 };
+
 	std::size_t active_particles_{ 0 };
+
 	ParticleAppearance<TShape> appearance_;
+
 	std::vector<ParticleProperties> properties_;
+
 	std::vector<ParticleLifetime> particles_;
 };
 

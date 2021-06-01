@@ -36,7 +36,7 @@ public:
 		static_assert(type_traits::has_static_invoke<TEvent>, 
 					  "Cannot register event which does not implement a static 'Invoke' function");
 		auto& instance{ GetInstance() };
-		auto event_id{ GetEventId<TEvent>() };
+		const auto event_id{ GetEventId<TEvent>() };
 		auto caller_it{ instance.callers_.find(invoker) };
 		if (caller_it == std::end(instance.callers_)) {
 			// First time caller.

@@ -3,14 +3,14 @@
 #include <SDL.h>
 
 #include "debugging/Debug.h"
-#include "renderer/Renderer.h"
+#include "renderer/ScreenRenderer.h"
 #include "renderer/Surface.h"
 
 namespace ptgn {
 
 Texture::Texture(SDL_Texture* texture) : texture_{ texture } {}
 
-Texture::Texture(const Renderer& renderer, 
+Texture::Texture(const ScreenRenderer& renderer, 
 				 const V2_int& size, 
 				 PixelFormat format, 
 				 TextureAccess texture_access) {
@@ -26,8 +26,7 @@ Texture::Texture(const Renderer& renderer,
 	}
 }
 
-Texture::Texture(const Renderer& renderer, 
-				 const Surface& surface) {
+Texture::Texture(const ScreenRenderer& renderer, const Surface& surface) {
 	assert(renderer.IsValid() && "Cannot create texture from invalid renderer");
 	assert(surface.IsValid() && "Cannot create texture from invalid surface");
 	texture_ = SDL_CreateTextureFromSurface(renderer, surface);
@@ -84,8 +83,7 @@ void Texture::Destroy() {
 	}
 }
 
-void Texture::SetColor(const Color& color, 
-					   PixelFormat format) {
+void Texture::SetColor(const Color& color, PixelFormat format) {
 	void* pixels{ nullptr };
 	int pitch{ 0 };
 	Lock(&pixels, &pitch);

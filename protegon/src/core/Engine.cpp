@@ -5,7 +5,7 @@
 #include <SDL_ttf.h>
 
 #include "core/Window.h"
-#include "renderer/Renderer.h"
+#include "renderer/ScreenRenderer.h"
 #include "renderer/Colors.h"
 #include "renderer/TextureManager.h"
 #include "renderer/text/FontManager.h"
@@ -28,20 +28,20 @@ void Engine::Update() {
 	
 	if (!running_) return;
 	
-	Renderer::SetDrawColor(colors::DEFAULT_BACKGROUND_COLOR);
+	ScreenRenderer::SetDrawColor(colors::DEFAULT_BACKGROUND_COLOR);
 	
-	Renderer::Clear();
+	ScreenRenderer::Clear();
 
-	Renderer::SetDrawColor(colors::DEFAULT_DRAW_COLOR);
+	ScreenRenderer::SetDrawColor(colors::DEFAULT_DRAW_COLOR);
 	
 	SceneManager::RenderActiveScenes();
 
-	Renderer::Present();
+	ScreenRenderer::Present();
 }
 
 void Engine::Destroy() {
 	// Destroy all engine subsystems.
-	Renderer::Destroy();
+	ScreenRenderer::Destroy();
 	Window::Destroy();
 	FontManager::Destroy();
 	TextureManager::Destroy();
@@ -93,10 +93,7 @@ void Engine::InitSDLComponents() {
 		std::cerr << "SDL_Init: " << SDL_GetError() << std::endl;
 		abort();
 	}
-	auto img_flags{
-		IMG_INIT_PNG |
-		IMG_INIT_JPG
-	};
+	auto img_flags{ IMG_INIT_PNG | IMG_INIT_JPG	};
 	auto img_init{ IMG_Init(img_flags) };
 	if ((img_init & img_flags) != img_flags) {
 		std::cerr << "IMG_Init: Failed to init required png and jpg support!" << std::endl;
@@ -124,10 +121,7 @@ void Engine::CreateDisplay(const char* window_title,
 							   window_flags) 
 	};
 	assert(window.IsValid() && "SDL failed to create window");
-	auto& renderer{ Renderer::Init(window, 
-								   -1, 
-								   renderer_flags)
-	};
+	auto& renderer{ ScreenRenderer::Init(window, -1, renderer_flags) };
 	assert(renderer.IsValid() && "SDL failed to create renderer");
 }
 

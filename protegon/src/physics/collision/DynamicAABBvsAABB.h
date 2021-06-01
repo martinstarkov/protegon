@@ -12,7 +12,7 @@ namespace math {
 
 // Determine the time at which a dynamic AABB would collide with a static AABB.
 // Pair contains collision time.
-static std::pair<double, Manifold> DynamicAABBvsAABB(const AABB& dynamic_shape,
+inline std::pair<double, Manifold> DynamicAABBvsAABB(const AABB& dynamic_shape,
 													 const V2_double& dynamic_position,
 													 const V2_double& dynamic_velocity,
 													 const AABB& static_shape,
@@ -50,7 +50,7 @@ static std::pair<double, Manifold> DynamicAABBvsAABB(const AABB& dynamic_shape,
 }
 
 // Modify the velocity of a dynamic AABB so it does not collide with a static AABB.
-static std::pair<double, Manifold> ResolveDynamicAABBvsAABB(const AABB& dynamic_shape,
+inline std::pair<double, Manifold> ResolveDynamicAABBvsAABB(const AABB& dynamic_shape,
 															const V2_double& dynamic_position,
 															V2_double& dynamic_velocity,
 															const AABB& static_shape,

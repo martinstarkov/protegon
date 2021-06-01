@@ -9,7 +9,7 @@ struct SDL_Texture;
 namespace ptgn {
 
 class Text;
-class Renderer;
+class ScreenRenderer;
 class TextureManager;
 class Surface;
 
@@ -42,8 +42,7 @@ public:
 	void Unlock();
 	
 	// Sets all texture pixels to a specific color.
-	void SetColor(const Color& color, 
-				  PixelFormat format = PixelFormat::RGBA8888);
+	void SetColor(const Color& color, PixelFormat format = PixelFormat::RGBA8888);
 
 	V2_int GetSize() const;
 
@@ -61,17 +60,16 @@ public:
 private:
 	friend class TextureManager;
 	friend class Text;
-	friend class Renderer;
+	friend class ScreenRenderer;
 
 	// Creates texture with a given size and pixel format.
-	Texture(const Renderer& renderer, 
+	Texture(const ScreenRenderer& renderer, 
 			const V2_int& size, 
 			PixelFormat format = PixelFormat::RGBA8888, 
 			TextureAccess texture_access = TextureAccess::STREAMING);
 
 	// Creates texture from surface.
-	Texture(const Renderer& renderer, 
-			const Surface& surface);
+	Texture(const ScreenRenderer& renderer, const Surface& surface);
 
 	SDL_Texture* operator=(SDL_Texture* texture);
 	operator SDL_Texture* () const;

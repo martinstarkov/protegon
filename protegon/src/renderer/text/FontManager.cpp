@@ -1,7 +1,7 @@
 #include "FontManager.h"
 
 #include "debugging/Debug.h"
-#include "math/Hasher.h"
+#include "math/Math.h"
 
 namespace ptgn {
 
@@ -10,7 +10,7 @@ void FontManager::Load(const char* name, const char* file, std::uint32_t ptsize)
 	assert(FileExists(file) && "Cannot load font with non-existent file path");
 	assert(file != "" && "Cannot load font from empty file path");
 	auto& instance{ GetInstance() };
-	auto key{ Hasher::HashCString(name) };
+	const auto key{ math::Hash(name) };
 	auto it{ instance.font_map_.find(key) };
 	if (it == std::end(instance.font_map_)) { // Only load font if it doesn't already exist in font manager.
 		Font font{ file, ptsize };
@@ -22,7 +22,7 @@ void FontManager::Load(const char* name, const char* file, std::uint32_t ptsize)
 
 void FontManager::Unload(const char* name) {
 	auto& instance{ GetInstance() };
-	auto key{ Hasher::HashCString(name) };
+	const auto key{ math::Hash(name) };
 	instance.font_map_.erase(key);
 }
 

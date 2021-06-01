@@ -8,17 +8,19 @@
 
 namespace ptgn {
 
-inline Manifold StaticCirclevsCircle(const Transform& A, 
-                                     const Transform& B, 
-                                     Shape* const a, 
+namespace math {
+
+inline Manifold StaticCirclevsCircle(const Transform& A,
+                                     const Transform& B,
+                                     Shape* const a,
                                      Shape* const b) {
-	assert(a != nullptr && "Cannot generate manifold for destroyed shape");
-	assert(b != nullptr && "Cannot generate manifold for destroyed shape");
-	
+    assert(a != nullptr && "Cannot generate manifold for destroyed shape");
+    assert(b != nullptr && "Cannot generate manifold for destroyed shape");
+
     Manifold manifold;
 
     Circle* circle{ static_cast<Circle*>(a) };
-	Circle* circle2{ static_cast<Circle*>(b) };
+    Circle* circle2{ static_cast<Circle*>(b) };
 
     auto normal{ B.position - A.position };
     auto distance_squared{ normal.MagnitudeSquared() };
@@ -35,7 +37,7 @@ inline Manifold StaticCirclevsCircle(const Transform& A,
     V2_double contact_point;
 
     // Bias toward selecting A for exact overlap edge case.
-    if (distance == 0.0) { 
+    if (distance == 0.0) {
         manifold.normal = { 1, 0 };
         manifold.penetration = circle->radius * manifold.normal;
         contact_point = A.position;
@@ -88,9 +90,9 @@ inline Manifold StaticAABBvsAABB(const Transform& A,
     return manifold;
 }
 
-inline Manifold StaticAABBvsCircle(const Transform& A, 
-                                   const Transform& B, 
-                                   Shape* const a, 
+inline Manifold StaticAABBvsCircle(const Transform& A,
+                                   const Transform& B,
+                                   Shape* const a,
                                    Shape* const b) {
     assert(a != nullptr && "Cannot generate manifold for destroyed shape");
     assert(b != nullptr && "Cannot generate manifold for destroyed shape");
@@ -144,9 +146,9 @@ inline Manifold StaticAABBvsCircle(const Transform& A,
     return manifold;
 }
 
-inline Manifold StaticCirclevsAABB(const Transform& A, 
-                                   const Transform& B, 
-                                   Shape* const a, 
+inline Manifold StaticCirclevsAABB(const Transform& A,
+                                   const Transform& B,
+                                   Shape* const a,
                                    Shape* const b) {
     Manifold manifold{ StaticAABBvsCircle(B, A, b, a) };
     manifold.normal *= -1;
@@ -158,6 +160,8 @@ CollisionCallback StaticCollisionDispatch[static_cast<int>(ShapeType::COUNT)][st
     { StaticCirclevsCircle, StaticCirclevsAABB },
     { StaticAABBvsCircle, StaticAABBvsAABB }
 };
+
+} // namespace math
 
 } // namespace ptgn
 

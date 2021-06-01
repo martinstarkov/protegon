@@ -8,7 +8,7 @@ struct CameraComponent {
 	CameraComponent() = default;
 	CameraComponent(const Camera& camera,
 					bool primary = false) : 
-		camera{ camera }, 
+		camera{ camera },
 		primary{ primary } {}
 	Camera camera;
 	bool primary{ false };

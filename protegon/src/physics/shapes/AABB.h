@@ -8,6 +8,7 @@ namespace ptgn {
 class AABB : public Shape {
 public:
 	AABB() = default;
+	~AABB() = default;
 	AABB(const V2_double& size) : size{ size } {}
 	virtual ShapeType GetType() const override final {
 		return ShapeType::AABB;

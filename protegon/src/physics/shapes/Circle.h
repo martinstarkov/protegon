@@ -8,6 +8,7 @@ namespace ptgn {
 class Circle : public Shape {
 public:
 	Circle() = default;
+	~Circle() = default;
 	Circle(const double radius) : radius{ radius } {}
 	virtual ShapeType GetType() const override final {
 		return ShapeType::CIRCLE;

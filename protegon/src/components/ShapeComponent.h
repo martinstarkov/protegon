@@ -13,6 +13,10 @@ namespace ptgn {
 struct ShapeComponent {
 	ShapeComponent() = delete;
 
+	~ShapeComponent() {
+		delete shape;
+	}
+
 	ShapeComponent(Shape* shape) noexcept {
 		assert(shape != nullptr &&
 			   "Cannot clone ShapeComponent from null shape");
@@ -36,10 +40,6 @@ struct ShapeComponent {
 		delete shape;
 		shape = std::exchange(move.shape, nullptr);
 	}
-	
-	~ShapeComponent() {
-		delete shape;
-	}
 
 	/*
 	* @return AABB: { width, height }, Circle: { diameter, diameter }
@@ -58,14 +58,6 @@ struct ShapeComponent {
 			}
 		}
 		return {};
-	}
-
-	Shape* operator->() {
-		return shape;
-	}
-
-	const Shape* operator->() const {
-		return shape;
 	}
 
 	Shape* shape{ nullptr };

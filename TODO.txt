@@ -14,6 +14,7 @@ TODO:
 - Add enum tests for Texture.cpp GetPixelFormat and GetTextureAccess static_casts.
 - Reconsider HitboxComponent offset positioning (top left for AABBs vs center for circles).
 - Consider if SceneManager requires an option to create scenes with arguments (non-default construction).
+- Test Countdown class IncreaseRemaining and DecreaseRemaining functions.
 
 WIP files:
 

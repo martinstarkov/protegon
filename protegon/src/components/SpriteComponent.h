@@ -6,6 +6,7 @@ namespace ptgn {
 
 struct SpriteComponent {
 	SpriteComponent() = delete;
+	~SpriteComponent() = default;
 	SpriteComponent(const char* texture_path,
 					V2_double size,
 					V2_double scale = { 1.0, 1.0 }) :
@@ -13,10 +14,9 @@ struct SpriteComponent {
 		size{ size },
 		scale{ scale } {
 	}
-	~SpriteComponent() = default;
 	const char* texture_path{ nullptr };
-	V2_double scale;
 	V2_double size;
+	V2_double scale;
 };
 
 } // namespace ptgn

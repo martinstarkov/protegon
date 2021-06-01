@@ -1,12 +1,10 @@
 #include "SceneManager.h"
 
-#include <algorithm>
-
 namespace ptgn {
 
 void SceneManager::EnterScene(const char* scene_key) {
 	auto& instance{ GetInstance() };
-	auto key{ Hasher::HashCString(scene_key) };
+	const auto key{ math::Hash(scene_key) };
 	auto active_it{ instance.active_scenes_.find(key) };
 	bool replacing{ active_it != instance.active_scenes_.end() };
 	// Exit early if active scene is the scene to be replaced.
@@ -33,12 +31,12 @@ void SceneManager::EnterScene(const char* scene_key) {
 
 void SceneManager::UnloadScene(const char* scene_key) {
 	auto& instance{ GetInstance() };
-	instance.queued_unload_scenes_.emplace(Hasher::HashCString(scene_key));
+	instance.queued_unload_scenes_.emplace(math::Hash(scene_key));
 }
 
 void SceneManager::UnloadQueuedScenes() {
 	auto& instance{ GetInstance() };
-	for (auto scene_key : instance.queued_unload_scenes_) {
+	for (const auto scene_key : instance.queued_unload_scenes_) {
 		// Remove scene key from display map.
 		for (auto it{ instance.active_scenes_.begin() }; it != instance.active_scenes_.end(); ) {
 			if (*it == scene_key) {

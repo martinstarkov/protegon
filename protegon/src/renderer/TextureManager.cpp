@@ -2,8 +2,8 @@
 
 #include <SDL_image.h>
 
-#include "math/Hasher.h"
-#include "renderer/Renderer.h"
+#include "math/Math.h"
+#include "renderer/ScreenRenderer.h"
 #include "renderer/Surface.h"
 #include "debugging/Debug.h"
 
@@ -15,11 +15,11 @@ void TextureManager::Load(const char* texture_key,
 	assert(FileExists(texture_path) && "Cannot load texture with non-existent file path");
 	assert(texture_key != "" && "Cannot load invalid texture key");
 	auto& instance{ GetInstance() };
-	auto key{ Hasher::HashCString(texture_key) };
+	const auto key{ math::Hash(texture_key) };
 	auto it{ instance.texture_map_.find(key) };
 	if (it == std::end(instance.texture_map_)) {
 		Surface temp_surface{ texture_path };
-		Texture texture{ Renderer::CreateTexture(temp_surface) };
+		Texture texture{ ScreenRenderer::CreateTexture(temp_surface) };
 		temp_surface.Destroy();
 		instance.texture_map_.emplace(key, texture);
 	} else {
@@ -29,7 +29,7 @@ void TextureManager::Load(const char* texture_key,
 
 void TextureManager::Unload(const char* texture_key) {
 	auto& instance{ GetInstance() };
-	auto key{ Hasher::HashCString(texture_key) };
+	const auto key{ math::Hash(texture_key) };
 	auto it{ instance.texture_map_.find(key) };
 	if (it != std::end(instance.texture_map_)) {
 		it->second.Destroy();
@@ -39,7 +39,7 @@ void TextureManager::Unload(const char* texture_key) {
 
 const Texture& TextureManager::GetTexture(const char* texture_key) {
 	const auto& instance{ GetInstance() };
-	const auto key{ Hasher::HashCString(texture_key) };
+	const auto key{ math::Hash(texture_key) };
 	const auto it{ instance.texture_map_.find(key) };
 	assert(it != std::end(instance.texture_map_) && 
 		   "Cannot retrieve texture key which does not exist in TextureManager");

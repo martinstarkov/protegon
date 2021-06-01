@@ -3,16 +3,12 @@
 #include <SDL.h>
 #include <SDL_ttf.h>
 
-#include "math/Hasher.h"
-#include "renderer/Renderer.h"
+#include "math/Math.h"
+#include "renderer/ScreenRenderer.h"
 #include "renderer/Surface.h"
 #include "renderer/text/FontManager.h"
 
 namespace ptgn {
-
-Text::~Text() {
-	texture_.Destroy();
-}
 
 Text::Text(const char* content,
 		   const Color& color,
@@ -22,10 +18,14 @@ Text::Text(const char* content,
 	content_{ content },
 	color_{ color },
 	font_name_{ font_name },
-	font_key_{ Hasher::HashCString(font_name_) },
+	font_key_{ math::Hash(font_name_) },
 	position_{ position },
 	area_{ area } {
 	RefreshTexture();
+}
+
+Text::~Text() {
+	texture_.Destroy();
 }
 
 Text& Text::operator=(Text&& obj) noexcept {
@@ -65,7 +65,7 @@ void Text::RefreshTexture() {
 	assert(temp_surface.IsValid() && "Failed to load text onto surface");
 	// Destroy old texture.
 	texture_.Destroy();
-	texture_ = Renderer::CreateTexture(temp_surface);
+	texture_ = ScreenRenderer::CreateTexture(temp_surface);
 	TTF_SetFontStyle(font, static_cast<int>(FontStyle::NORMAL));
 	temp_surface.Destroy();
 }
@@ -81,7 +81,7 @@ void Text::SetColor(const Color& new_color) {
 }
 
 void Text::SetFont(const char* new_font_name) {
-	font_key_ = Hasher::HashCString(new_font_name);
+	font_key_ = math::Hash(new_font_name);
 	assert(FontManager::HasFont(font_key_) &&
 		   "Cannot set text font which has not been loaded into FontManager");
 	RefreshTexture();

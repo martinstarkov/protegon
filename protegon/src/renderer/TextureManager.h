@@ -35,7 +35,7 @@ public:
 	static const Texture& GetTexture(const char* texture_key);
 private:
 	friend class Engine;
-	friend class Renderer;
+	friend class ScreenRenderer;
 	friend class Singleton<TextureManager>;
 
 	TextureManager() = default;

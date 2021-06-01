@@ -14,6 +14,7 @@ struct HitboxComponent {
 	using CollisionFunction = void(*)(ecs::Entity& target, const Manifold& manifold);
 
 	HitboxComponent() = default;
+	~HitboxComponent() = default;
 	HitboxComponent(const V2_int& offset) : offset{ offset } {}
 
 	// Resolves a collision if the resolution_function is defined.

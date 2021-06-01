@@ -2,7 +2,7 @@
 
 #include <SDL.h>
 
-#include <cassert>
+#include <cassert> // assert
 
 #include "math/RNG.h"
 
