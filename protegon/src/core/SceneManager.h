@@ -15,7 +15,7 @@ namespace ptgn {
 class SceneManager : public Singleton<SceneManager> {
 private:
 public:
-	// Load a scene into the scene manager. Allows for constructor arguments.
+	// Load a scene into the scene manager via default construction.
 	// This constructs the scene but does not set it as active.
 	template <typename T, 
 		type_traits::is_default_constructible_e<T> = true,
@@ -26,7 +26,8 @@ public:
 		instance.LoadSceneImpl(scene_key, new_scene);
 		return *new_scene;
 	}
-	// Load a scene into the scene manager. Allows for constructor arguments.
+	// Load a scene into the scene manager. 
+	// Allows for scene constructor arguments to be passed.
 	// This constructs the scene but does not set it as active.
 	template <typename TScene, typename ...TArgs,
 		type_traits::is_base_of_e<Scene, TScene> = true>
@@ -39,13 +40,6 @@ public:
 		return *new_scene;
 	}
 
-	// May return nullptr if no active scene is set.
-	template <typename TScene,
-		type_traits::is_base_of_e<Scene, TScene> = true>
-	static TScene* GetActiveScene() {
-		return static_cast<TScene*>(GetInstance().active_scene_);
-	}
-
 	// Sets the scene to active.
 	static void SetActiveScene(const char* scene_key);
 	
@@ -55,17 +49,30 @@ private:
 	friend class Engine;
 	friend class Singleton<SceneManager>;
 
+	// May return nullptr if no active scene is set.
+	template <typename TScene,
+		type_traits::is_base_of_e<Scene, TScene> = true>
+	static TScene* GetActiveScene() {
+		return static_cast<TScene*>(GetInstance().active_scene_);
+	}
+
+	// Implementation of LoadScene.
 	void LoadSceneImpl(const char* scene_key, Scene* scene);
 
-	// Retrieves the given scene.
+	// Retrieves the scene with the given key, nullptr if no such scene exists.
 	Scene* GetScene(std::size_t key);
 
+	// Implementation of UpdateActiveScene, done to avoid typing "instance." in front of every term.
 	void UpdateActiveSceneImpl();
 
+	// Transitions to the previously queued scene (sets it as active).
+	// Then updates the currently active scene.
 	static void UpdateActiveScene();
 
+	// Renders the currently active scene.
 	static void RenderActiveScene();
 
+	// Unloads any scenes that have been flagged for unloading during the frame.
 	static void UnloadQueuedScenes();
 
 	SceneManager() = default;
@@ -74,7 +81,10 @@ private:
 	// Element: scene_key
 	std::unordered_set<std::size_t> unload_scenes_;
 
+	// Scene which will be set as active after the current cycle.
 	Scene* queued_scene_{ nullptr };
+	
+	// Currently active scene.
 	Scene* active_scene_{ nullptr };
 
 	// Key: scene_key
