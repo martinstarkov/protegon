@@ -42,7 +42,7 @@ public:
 		assert(!instance.init_ && "Cannot start engine before the engine loop has stopped");
 		instance.InitSDLComponents();
 		CreateDisplay(window_title, window_position, window_size, window_flags, renderer_flags);
-		SceneManager::LoadScene<TInitialScene>(scene_key);
+		SceneManager::AddScene<TInitialScene>(scene_key);
 		SceneManager::SetActiveScene(scene_key);
 		instance.Loop();
 		instance.Destroy();

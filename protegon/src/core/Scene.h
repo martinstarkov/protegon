@@ -8,6 +8,7 @@ namespace ptgn {
 class Scene {
 public:
 	virtual ~Scene() = default;
+	virtual void Init() {}
 	virtual void Enter() {}
 	virtual void Update() {}
 	virtual void Render() {}
@@ -16,7 +17,7 @@ public:
 	Camera camera;
 private:
 	friend class SceneManager;
-	bool entered_{ false };
+	bool init_{ false };
 };
 
 } // namespace ptgn

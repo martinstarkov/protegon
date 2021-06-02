@@ -21,7 +21,6 @@ public:
 
         if (InputHandler::KeyDown(Key::ESCAPE)) {
             SceneManager::SetActiveScene("intro_scene");
-            SceneManager::UnloadScene("third_scene");
         }
     }
     void Render() {
@@ -32,8 +31,10 @@ public:
 
 class OtherScene : public Scene {
 public:
+    void Init() {
+        SceneManager::AddScene<ThirdScene>("third_scene", 100);
+    }
     void Enter() {
-        SceneManager::LoadScene<ThirdScene>("third_scene", 100);
         PrintLine("Entering other scene");
     }
     void Update() {
@@ -53,8 +54,10 @@ public:
 
 class IntroScene : public Scene {
 public:
+    void Init() {
+        SceneManager::AddScene<OtherScene>("other_scene");
+    }
     void Enter() {
-        SceneManager::LoadScene<OtherScene>("other_scene");
         PrintLine("Entering intro scene");
     }
     void Update() {

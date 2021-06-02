@@ -16,28 +16,32 @@ void SceneManager::SetActiveScene(const char* scene_key) {
 	instance.queued_scene_ = scene;
 }
 
-void SceneManager::UnloadScene(const char* scene_key) {
+void SceneManager::DestroyScene(const char* scene_key) {
 	auto& instance{ GetInstance() };
 	const auto key{ math::Hash(scene_key) };
 	auto scene{ instance.GetScene(key) };
 	// Check if unloaded scene matches currently queued scene.
-	bool unloading_queued_scene{
+	bool destroying_queued_scene{
 		instance.queued_scene_ == scene
 	};
 	// Check if unloaded scene matches currently active scene.
-	bool unloading_active_scene{
+	bool destroying_active_scene{
 		instance.queued_scene_ == nullptr &&
 		instance.active_scene_ == scene 
 	};
-	assert(unloading_active_scene == false &&
+	assert(destroying_active_scene == false &&
 		   "Cannot unload currently active scene if a new scene has not been queued first");
-	assert(unloading_queued_scene == false &&
+	assert(destroying_queued_scene == false &&
 		   "Cannot unload currently queued scene");
 	// Add scene key to set which is unloaded after the end of each frame.
-	instance.unload_scenes_.emplace(key);
+	instance.destroy_scenes_.emplace(key);
 }
 
-void SceneManager::LoadSceneImpl(const char* scene_key, Scene* scene) {
+bool SceneManager::HasScene(const char* scene_key) {
+	return GetInstance().GetScene(math::Hash(scene_key)) != nullptr;
+}
+
+void SceneManager::AddSceneImpl(const char* scene_key, Scene* scene) {
 	const auto key{ math::Hash(scene_key) };
 	auto existing_scene{ GetScene(key) };
 	// Check that scene key does not exist in the SceneManager already.
@@ -64,11 +68,13 @@ void SceneManager::UpdateActiveSceneImpl() {
 			// Exist previously active scene.
 			active_scene_->Exit();
 		}
-		if (!queued_scene_->entered_) {
-			// Enter the newly active scene once.
-			queued_scene_->Enter();
-			queued_scene_->entered_ = true;
+		if (!queued_scene_->init_) {
+			// Init the newly active scene once.
+			queued_scene_->Init();
+			queued_scene_->init_ = true;
 		}
+		// Enter the newly active scene each time a change occurs.
+		queued_scene_->Enter();
 		// As queued_scene_ is not nullptr, changing active_scene_ maintains the in_scene condition as true.
 		active_scene_ = queued_scene_;
 	}
@@ -93,9 +99,9 @@ void SceneManager::RenderActiveScene() {
 	}
 }
 
-void SceneManager::UnloadQueuedScenes() {
+void SceneManager::DestroyQueuedScenes() {
 	auto& instance{ GetInstance() };
-	for (const auto scene_key : instance.unload_scenes_) {
+	for (const auto scene_key : instance.destroy_scenes_) {
 		// Remove loaded scene.
 		auto it{ instance.scenes_.find(scene_key) };
 		if (it != instance.scenes_.end()) {
@@ -115,7 +121,7 @@ void SceneManager::UnloadQueuedScenes() {
 		}
 	}
 	// Clear flagged scene list.
-	instance.unload_scenes_.clear();
+	instance.destroy_scenes_.clear();
 }
 
 SceneManager::~SceneManager() {

@@ -20,23 +20,24 @@ public:
 	template <typename T, 
 		type_traits::is_default_constructible_e<T> = true,
 		type_traits::is_base_of_e<Scene, T> = true>
-	static T& LoadScene(const char* scene_key) {
+	static T& AddScene(const char* scene_key) {
 		auto new_scene{ new T{} };
 		auto& instance{ GetInstance() };
-		instance.LoadSceneImpl(scene_key, new_scene);
+		instance.AddSceneImpl(scene_key, new_scene);
 		return *new_scene;
 	}
+
 	// Load a scene into the scene manager. 
 	// Allows for scene constructor arguments to be passed.
 	// This constructs the scene but does not set it as active.
 	template <typename TScene, typename ...TArgs,
 		type_traits::is_base_of_e<Scene, TScene> = true>
-	static TScene& LoadScene(const char* scene_key, TArgs&&... constructor_args) {
+	static TScene& AddScene(const char* scene_key, TArgs&&... constructor_args) {
 		static_assert(std::is_constructible_v<TScene, TArgs...>,
 					  "Cannot load and construct the scene from passed arguments");
 		auto new_scene{ new TScene(std::forward<TArgs>(constructor_args)...) };
 		auto& instance{ GetInstance() };
-		instance.LoadSceneImpl(scene_key, new_scene);
+		instance.AddSceneImpl(scene_key, new_scene);
 		return *new_scene;
 	}
 
@@ -44,7 +45,10 @@ public:
 	static void SetActiveScene(const char* scene_key);
 	
 	// Flags a scene to be unloaded after the game loop cycle.
-	static void UnloadScene(const char* scene_key);
+	static void DestroyScene(const char* scene_key);
+
+	// Returns true if the manager has the key loaded as a scene, false otherwise.
+	static bool HasScene(const char* scene_key);
 private:
 	friend class Engine;
 	friend class Singleton<SceneManager>;
@@ -57,7 +61,7 @@ private:
 	}
 
 	// Implementation of LoadScene.
-	void LoadSceneImpl(const char* scene_key, Scene* scene);
+	void AddSceneImpl(const char* scene_key, Scene* scene);
 
 	// Retrieves the scene with the given key, nullptr if no such scene exists.
 	Scene* GetScene(std::size_t key);
@@ -73,13 +77,14 @@ private:
 	static void RenderActiveScene();
 
 	// Unloads any scenes that have been flagged for unloading during the frame.
-	static void UnloadQueuedScenes();
+	static void DestroyQueuedScenes();
 
 	SceneManager() = default;
 	~SceneManager();
 
+	// A list of scenes to be destroyed at the end of the frame.
 	// Element: scene_key
-	std::unordered_set<std::size_t> unload_scenes_;
+	std::unordered_set<std::size_t> destroy_scenes_;
 
 	// Scene which will be set as active after the current cycle.
 	Scene* queued_scene_{ nullptr };
@@ -87,6 +92,7 @@ private:
 	// Currently active scene.
 	Scene* active_scene_{ nullptr };
 
+	// A map of currently loaded scenes (note that only one is active at a time).
 	// Key: scene_key
 	// Value: scene pointer
 	std::unordered_map<std::size_t, Scene*> scenes_;
