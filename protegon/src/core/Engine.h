@@ -26,15 +26,15 @@ class Scene;
 class Engine : public Singleton<Engine> {
 public:
 	// Entering engine execution loop.
-	template <typename TInitialScene,
+	template <typename TInitialScene, 
 		type_traits::is_base_of_e<Scene, TInitialScene> = true>
-	static void Start(const char* scene_key,
-					  const char* window_title,
-					  const V2_int& window_size, 
-					  std::size_t fps,
-					  const V2_int& window_position = internal::CENTERED,
-					  std::uint32_t window_flags = 0,
-					  std::uint32_t renderer_flags = 0) {
+		static void Start(const char* scene_key,
+						  const char* window_title,
+						  const V2_int& window_size,
+						  std::size_t fps,
+						  const V2_int& window_position = internal::CENTERED,
+						  std::uint32_t window_flags = 0,
+						  std::uint32_t renderer_flags = 0) {
 		auto& instance{ GetInstance() };
 		instance.application_timer_.Start();
 		instance.running_ = true;
@@ -43,7 +43,7 @@ public:
 		instance.InitSDLComponents();
 		CreateDisplay(window_title, window_position, window_size, window_flags, renderer_flags);
 		SceneManager::LoadScene<TInitialScene>(scene_key);
-		SceneManager::EnterScene(scene_key);
+		SceneManager::SetActiveScene(scene_key);
 		instance.Loop();
 		instance.Destroy();
 	}

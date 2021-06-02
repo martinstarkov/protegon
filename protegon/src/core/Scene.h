@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/Camera.h"
 #include "core/ECS.h"
 
 namespace ptgn {
@@ -12,6 +13,7 @@ public:
 	virtual void Render() {}
 	virtual void Exit() {}
 	ecs::Manager manager;
+	Camera camera;
 private:
 	friend class SceneManager;
 	bool entered_{ false };

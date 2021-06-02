@@ -24,7 +24,7 @@ void Engine::Update() {
 	
 	if (!running_) return;
 
-	SceneManager::UpdateActiveScenes();
+	SceneManager::UpdateActiveScene();
 	
 	if (!running_) return;
 	
@@ -34,9 +34,11 @@ void Engine::Update() {
 
 	ScreenRenderer::SetDrawColor(colors::DEFAULT_DRAW_COLOR);
 	
-	SceneManager::RenderActiveScenes();
+	SceneManager::RenderActiveScene();
 
 	ScreenRenderer::Present();
+
+	SceneManager::UnloadQueuedScenes();
 }
 
 void Engine::Destroy() {
