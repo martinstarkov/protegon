@@ -1,133 +1,140 @@
 #include "SceneManager.h"
 
+#include <cassert>
+#include <algorithm> // std::swap
+
 namespace ptgn {
 
 void SceneManager::SetActiveScene(const char* scene_key) {
-	auto& instance{ GetInstance() };
-	const auto key{ math::Hash(scene_key) };
-	auto it{ instance.scenes_.find(key) };
-	bool scene_exists{ it != instance.scenes_.end() };
-	assert(scene_exists &&
-		   "Cannot enter scene which has not been loaded into SceneManager");
-	auto scene{ it->second };
-	assert(scene != nullptr &&
-		   "Cannot set active scene to destroyed scene pointer");
-	// Queue requested scene for next cycle.
-	instance.queued_scene_ = scene;
-}
-
-void SceneManager::DestroyScene(const char* scene_key) {
-	auto& instance{ GetInstance() };
-	const auto key{ math::Hash(scene_key) };
-	auto scene{ instance.GetScene(key) };
-	// Check if unloaded scene matches currently queued scene.
-	bool destroying_queued_scene{
-		instance.queued_scene_ == scene
-	};
-	// Check if unloaded scene matches currently active scene.
-	bool destroying_active_scene{
-		instance.queued_scene_ == nullptr &&
-		instance.active_scene_ == scene 
-	};
-	assert(destroying_active_scene == false &&
-		   "Cannot unload currently active scene if a new scene has not been queued first");
-	assert(destroying_queued_scene == false &&
-		   "Cannot unload currently queued scene");
-	// Add scene key to set which is unloaded after the end of each frame.
-	instance.destroy_scenes_.emplace(key);
+	GetInstance().SetActiveSceneImpl(math::Hash(scene_key));
 }
 
 bool SceneManager::HasScene(const char* scene_key) {
-	return GetInstance().GetScene(math::Hash(scene_key)) != nullptr;
+	auto& instance{ GetInstance() };
+	return instance.GetSceneImpl(math::Hash(scene_key)) != std::end(instance.scenes_);
 }
 
-void SceneManager::AddSceneImpl(const char* scene_key, Scene* scene) {
-	const auto key{ math::Hash(scene_key) };
-	auto existing_scene{ GetScene(key) };
-	// Check that scene key does not exist in the SceneManager already.
-	assert(existing_scene == nullptr &&
-		   "Cannot load scene with key which already exists in SceneManager");
-	scenes_.emplace(key, scene);
+void SceneManager::UnloadScene(const char* scene_key) {
+	GetInstance().UnloadSceneImpl(math::Hash(scene_key));
 }
 
-Scene* SceneManager::GetScene(std::size_t key) {
-	auto it{ scenes_.find(key) };
-	Scene* scene{ nullptr };
-	if (it != scenes_.end()) {
-		scene = it->second;
-	}
-	return scene;
+void SceneManager::LoadSceneImpl(std::size_t scene_key, Scene* scene) {
+	assert(GetSceneImpl(scene_key) == std::end(scenes_) &&
+		   "Cannot load a scene which already exists in SceneManager");
+	scene->id_ = scene_key;
+	scenes_.emplace_back(scene);
 }
 
-void SceneManager::UpdateActiveSceneImpl() {
-	// Check if a scene is currently active.
-	bool in_scene{ active_scene_ != nullptr };
-	// Check if a scene was queued to be set during this cycle.
-	if (queued_scene_ != nullptr) {
-		if (in_scene) {
-			// Exist previously active scene.
-			active_scene_->Exit();
+std::vector<Scene*>::iterator SceneManager::GetSceneImpl(std::size_t scene_key) {
+	for (auto it{ scenes_.begin() }; it != std::end(scenes_); ++it) {
+		if ((*it)->id_ == scene_key) {
+			return it;
 		}
-		if (!queued_scene_->init_) {
-			// Init the newly active scene once.
-			queued_scene_->Init();
-			queued_scene_->init_ = true;
-		}
-		// Enter the newly active scene each time a change occurs.
-		queued_scene_->Enter();
-		// As queued_scene_ is not nullptr, changing active_scene_ maintains the in_scene condition as true.
-		active_scene_ = queued_scene_;
 	}
-	// Reset queued scene for following cycles.
-	queued_scene_ = nullptr;
-	if (in_scene) {
-		// Update the currently active scene.
-		active_scene_->Update();
+	return std::end(scenes_);
+}
+
+void SceneManager::SetActiveSceneImpl(std::size_t scene_key) {
+	auto scene_it{ GetSceneImpl(scene_key) };
+	assert(scene_it != std::end(scenes_) &&
+		   "Cannot set active scene which has not been loaded into SceneManager");
+	auto active_scene_it{ scenes_.begin() };
+	// Only update previous scene to the first inactivated scene in a frame.
+	// This makes multiple SetActiveScene calls only cause the first scene
+	// to be renderered again.
+	if (previous_scene_ == nullptr && scenes_.size() > 1) {
+		previous_scene_ = *active_scene_it;
+	}
+	// Swap the contents of the scene iterator to the front of the vector.
+	std::swap(*scene_it, *active_scene_it);
+}
+
+void SceneManager::UnloadSceneImpl(std::size_t scene_key) {
+	for (auto scene : scenes_) {
+		if (scene->id_ == scene_key) {
+			scene->destroy_ = true;
+			return;
+		}
 	}
 }
 
 void SceneManager::UpdateActiveScene() {
 	auto& instance{ GetInstance() };
-	instance.UpdateActiveSceneImpl();
+	auto& scenes{ instance.scenes_ };
+	auto active_scene{ scenes.front() };
+	assert(active_scene != nullptr &&
+		   "Cannot update active scene if it has been deleted");
+	bool previous_scene{ instance.previous_scene_ != nullptr };
+	// Check if there was a scene previously.
+	if (previous_scene) {
+		// If there was, exit it.
+		instance.previous_scene_->Exit();
+		// If that scene happened to be marked for deletion, delete it now.
+		if (instance.previous_scene_->destroy_) {
+			// Delete it and clear its instance in the scenes_ vector.
+			auto it{ instance.GetSceneImpl(instance.previous_scene_->id_) };
+			delete instance.previous_scene_;
+			*it = nullptr;
+			instance.scenes_.erase(it);
+		}
+	}
+	// If there was a previous scene or this is the first scene added to the scene manager.
+	if (previous_scene || instance.scenes_.size() == 1) {
+		// Initialize scenes once.
+		if (!active_scene->init_) {
+			active_scene->Init();
+			active_scene->init_ = true;
+		}
+		// Enter scene each time a previous scene was set.
+		active_scene->Enter();
+	}
+	// Reset previous scene to nullptr after each update cycle.
+	instance.previous_scene_ = nullptr;
+	// Update active scene for this cycle.
+	active_scene->Update();
 }
 
 void SceneManager::RenderActiveScene() {
 	auto& instance{ GetInstance() };
-	if (instance.active_scene_ != nullptr) {
-		// Render the currently active scene.
-		instance.active_scene_->Render();
+	auto& scenes{ instance.scenes_ };
+	auto previous_scene{ instance.previous_scene_ };
+	if (previous_scene != nullptr) {
+		previous_scene->Render();
+	} else {
+		auto active_scene{ scenes.front() };
+		assert(active_scene != nullptr &&
+			   "Cannot update active scene if it has been deleted");
+		active_scene->Render();
 	}
 }
 
-void SceneManager::DestroyQueuedScenes() {
+void SceneManager::UnloadFlaggedScenes() {
 	auto& instance{ GetInstance() };
-	for (const auto scene_key : instance.destroy_scenes_) {
-		// Remove loaded scene.
-		auto it{ instance.scenes_.find(scene_key) };
-		if (it != instance.scenes_.end()) {
-			auto scene{ it->second };
-			// Check if the scene requested to be unloaded is the active or queued one.
-			// Make sure to set them to nullptr if this is the case.
-			if (instance.active_scene_ == scene) {
-				instance.active_scene_ = nullptr;
+	auto& scenes{ instance.scenes_ };
+	// Cannot unload active scene (first element).
+	if (scenes.size() > 1) {
+		// Start from first non-active scene.
+		auto it{ ++std::begin(scenes) };
+		while (it != std::end(scenes)) {
+			auto scene{ *it };
+			assert(scene != nullptr);
+			// If scene if flagged for destruction and is not previous scene (unloaded separately in UpdateActiveSceneImpl).
+			if (scene->destroy_ && scene != instance.previous_scene_) {
+				// Destroy scene and remove it from scene vector.
+				delete scene;
+				*it = nullptr;
+				it = scenes.erase(it);
+			} else {
+				++it;
 			}
-			if (instance.queued_scene_ == scene) {
-				instance.queued_scene_ = nullptr;
-			}
-			// Destroy the flagged scene.
-			delete scene;
-			// Erase the flagged scene from the SceneManager.
-			instance.scenes_.erase(it);
 		}
 	}
-	// Clear flagged scene list.
-	instance.destroy_scenes_.clear();
 }
 
 SceneManager::~SceneManager() {
-	// Destroy all loaded scenes.
-	for (auto [key, scene] : scenes_) {
+	for (auto& scene : scenes_) {
 		delete scene;
+		scene = nullptr;
 	}
 }
 

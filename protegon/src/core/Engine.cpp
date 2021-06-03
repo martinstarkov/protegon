@@ -38,7 +38,7 @@ void Engine::Update() {
 
 	ScreenRenderer::Present();
 
-	SceneManager::DestroyQueuedScenes();
+	SceneManager::UnloadFlaggedScenes();
 }
 
 void Engine::Destroy() {

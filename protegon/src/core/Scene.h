@@ -17,7 +17,10 @@ public:
 	Camera camera;
 private:
 	friend class SceneManager;
+	// Flags for use in SceneManager.
 	bool init_{ false };
+	bool destroy_{ false };
+	std::size_t id_{ 0 };
 };
 
 } // namespace ptgn

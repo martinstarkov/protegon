@@ -21,18 +21,21 @@ public:
 
         if (InputHandler::KeyDown(Key::ESCAPE)) {
             SceneManager::SetActiveScene("intro_scene");
+            SceneManager::UnloadScene("other_scene");
         }
     }
     void Render() {
         ScreenRenderer::DrawCircle({ 300, 300 }, size, colors::BLACK);
     }
-    void Exit() {}
+    void Exit() {
+        std::cout << "exiting third" << std::endl;
+    }
 };
 
 class OtherScene : public Scene {
 public:
     void Init() {
-        SceneManager::AddScene<ThirdScene>("third_scene", 100);
+        SceneManager::LoadScene<ThirdScene>("third_scene", 100);
     }
     void Enter() {
         PrintLine("Entering other scene");
@@ -49,13 +52,15 @@ public:
     void Render() {
         ScreenRenderer::DrawSolidCircle({ 300, 300 }, 50, colors::BLUE);
     }
-    void Exit() {}
+    void Exit() {
+        std::cout << "exiting other" << std::endl;
+    }
 };
 
 class IntroScene : public Scene {
 public:
     void Init() {
-        SceneManager::AddScene<OtherScene>("other_scene");
+        SceneManager::LoadScene<OtherScene>("other_scene");
     }
     void Enter() {
         PrintLine("Entering intro scene");
@@ -72,7 +77,9 @@ public:
     void Render() {
         ScreenRenderer::DrawSolidRectangle({ 300, 300 }, { 50, 50 }, colors::RED);
     }
-    void Exit() {}
+    void Exit() {
+        std::cout << "exiting intro" << std::endl;
+    }
 };
 
 void TestMath() {
