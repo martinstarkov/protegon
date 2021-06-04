@@ -12,15 +12,11 @@ namespace ptgn {
 
 Text::Text(const char* content,
 		   const Color& color,
-		   const char* font_name,
-		   const V2_double& position,
-		   const V2_double& area) :
+		   const char* font_name) :
 	content_{ content },
 	color_{ color },
 	font_name_{ font_name },
-	font_key_{ math::Hash(font_name_) },
-	position_{ position },
-	area_{ area } {
+	font_key_{ math::Hash(font_name_) } {
 	RefreshTexture();
 }
 
@@ -39,8 +35,6 @@ Text& Text::operator=(Text&& obj) noexcept {
 	color_ = std::move(obj.color_);
 	font_name_ = std::move(obj.font_name_);
 	font_key_ = std::move(obj.font_key_);
-	position_ = std::move(obj.position_);
-	area_ = std::move(obj.area_);
 	return *this;
 }
 
@@ -104,14 +98,6 @@ void Text::SetBlendedRenderMode() {
 	RefreshTexture();
 }
 
-void Text::SetPosition(const V2_double& new_position) {
-	position_ = new_position;
-}
-
-void Text::SetArea(const V2_double& new_area) {
-	area_ = new_area;
-}
-
 const char* Text::GetContent() const {
 	return content_;
 }
@@ -122,14 +108,6 @@ Color Text::GetColor() const {
 
 const char* Text::GetFont() const {
 	return font_name_;
-}
-
-V2_double Text::GetPosition() const {
-	return position_;
-}
-
-V2_double Text::GetArea() const {
-	return area_;
 }
 
 Texture Text::GetTexture() const {

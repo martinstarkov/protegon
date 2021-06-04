@@ -1,6 +1,5 @@
 #pragma once
 
-#include "math/Vector2.h"
 #include "renderer/Texture.h"
 #include "renderer/Color.h"
 #include "renderer/text/FontRenderMode.h"
@@ -16,9 +15,7 @@ public:
 	// Construct text.
 	Text(const char* content,
 		 const Color& color,
-		 const char* font_name,
-		 const V2_double& position,
-		 const V2_double& area);
+		 const char* font_name);
 	Text& operator=(Text&& obj) noexcept;
 
 	// Set text content.
@@ -29,12 +26,6 @@ public:
 
 	// Set text font to a font that has been loaded into FontManager.
 	void SetFont(const char* new_font_name);
-
-	// Set top left position of text.
-	void SetPosition(const V2_double& new_position);
-
-	// Set area to which text is stretched.
-	void SetArea(const V2_double& new_area);
 
 	// Accepts any number of FontStyle enum values (UNDERLINED, BOLD, etc).
 	// These are combined into one style and text is renderer in that style.
@@ -56,10 +47,6 @@ public:
 	const char* GetFont() const;
 
 	Color GetColor() const;
-
-	V2_double GetPosition() const;
-
-	V2_double GetArea() const;
 private:
 	friend class ScreenRenderer;
 
@@ -76,8 +63,6 @@ private:
 	Color color_;
 	const char* font_name_{ "" };
 	std::size_t font_key_{ 0 };
-	V2_double position_;
-	V2_double area_;
 };
 
 } // namespace ptgn

@@ -31,14 +31,16 @@ public:
 	static void DrawTexture(const char* texture_key,
 							const V2_int& position,
 							const V2_int& size,
-							const V2_int source_position = {},
-							const V2_int source_size = {},
+							const V2_int source_position,
+							const V2_int source_size,
 							const V2_int* center_of_rotation = nullptr,
 							const double angle = 0.0,
 							Flip flip = Flip::NONE);
 
 	// Draws text to the screen.
-	static void DrawText(const Text& text);
+	static void DrawText(const Text& text,
+						 const V2_int& position,
+						 const V2_int& size);
 
 	// Draws a point on the screen.
 	static void DrawPoint(const V2_int& point, const Color& color = colors::DEFAULT_DRAW_COLOR);

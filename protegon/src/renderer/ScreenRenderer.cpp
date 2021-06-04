@@ -81,12 +81,12 @@ void ScreenRenderer::DrawTexture(const char* texture_key,
 
 }
 
-void ScreenRenderer::DrawText(const Text& text) {
+void ScreenRenderer::DrawText(const Text& text,
+							  const V2_int& position,
+							  const V2_int& size) {
 	auto& renderer{ GetInstance() };
 	assert(renderer.IsValid() && "Cannot draw text with destroyed or uninitialized renderer");
 	assert(text.GetTexture().IsValid() && "Cannot draw text that has been uninitialized or destroyed");
-	const V2_int position{ text.GetPosition() };
-	const V2_int size{ text.GetArea() };
 	SDL_Rect destination{ position.x, position.y, size.x, size.y };
 	SDL_RenderCopy(renderer, text.GetTexture(), NULL, &destination);
 }
