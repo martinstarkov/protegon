@@ -60,7 +60,29 @@ public:
 class IntroScene : public Scene {
 public:
     void Init() {
+        
         SceneManager::LoadScene<OtherScene>("other_scene");
+            
+        auto entity = manager.CreateEntity();
+        entity.AddComponent<int>(5);
+        entity.AddComponent<float>(4.0f);
+        entity.AddComponent<double>(3.0);
+        
+        auto length = 100;
+        for (size_t i = 0; i < length; i++) {
+            auto copy = manager.CopyEntity(entity);
+            assert(copy.HasComponent<int>());
+            assert(copy.HasComponent<float>());
+            assert(copy.HasComponent<double>());
+        }
+
+        for (size_t i = 0; i < 5; i++) {
+            auto new_entity = manager.CreateEntity();
+            new_entity.AddComponent<std::size_t>(30);
+        }
+
+        manager.Refresh();
+
     }
     void Enter() {
         PrintLine("Entering intro scene");
