@@ -58,6 +58,57 @@ void SceneManager::UnloadSceneImpl(std::size_t scene_key) {
 	}
 }
 
+void SceneManager::RenderActiveScene() {
+	auto& instance{ GetInstance() };
+	auto& scenes{ instance.scenes_ };
+	auto previous_scene{ instance.previous_scene_ };
+	if (previous_scene != nullptr) {
+		previous_scene->Render();
+	} else {
+		auto active_scene{ scenes.front() };
+		assert(active_scene != nullptr &&
+			   "Cannot update active scene if it has been deleted");
+		active_scene->Render();
+	}
+}
+
+Scene& SceneManager::GetActiveScene() {
+	auto& instance{ GetInstance() };
+	auto& scenes{ instance.scenes_ };
+	auto previous_scene{ instance.previous_scene_ };
+	if (previous_scene != nullptr) {
+		return *previous_scene;
+	} else {
+		auto active_scene{ scenes.front() };
+		assert(active_scene != nullptr &&
+			   "Cannot retrieve active scene if it has been deleted");
+		return *active_scene;
+	}
+}
+
+void SceneManager::UnloadFlaggedScenes() {
+	auto& instance{ GetInstance() };
+	auto& scenes{ instance.scenes_ };
+	// Cannot unload active scene (first element).
+	if (scenes.size() > 1) {
+		// Start from first non-active scene.
+		auto it{ ++std::begin(scenes) };
+		while (it != std::end(scenes)) {
+			auto scene{ *it };
+			assert(scene != nullptr);
+			// If scene if flagged for destruction and is not previous scene (unloaded separately in UpdateActiveSceneImpl).
+			if (scene->destroy_ && scene != instance.previous_scene_) {
+				// Destroy scene and remove it from scene vector.
+				delete scene;
+				*it = nullptr;
+				it = scenes.erase(it);
+			} else {
+				++it;
+			}
+		}
+	}
+}
+
 void SceneManager::UpdateActiveScene() {
 	auto& instance{ GetInstance() };
 	auto& scenes{ instance.scenes_ };
@@ -92,43 +143,6 @@ void SceneManager::UpdateActiveScene() {
 	instance.previous_scene_ = nullptr;
 	// Update active scene for this cycle.
 	active_scene->Update();
-}
-
-void SceneManager::RenderActiveScene() {
-	auto& instance{ GetInstance() };
-	auto& scenes{ instance.scenes_ };
-	auto previous_scene{ instance.previous_scene_ };
-	if (previous_scene != nullptr) {
-		previous_scene->Render();
-	} else {
-		auto active_scene{ scenes.front() };
-		assert(active_scene != nullptr &&
-			   "Cannot update active scene if it has been deleted");
-		active_scene->Render();
-	}
-}
-
-void SceneManager::UnloadFlaggedScenes() {
-	auto& instance{ GetInstance() };
-	auto& scenes{ instance.scenes_ };
-	// Cannot unload active scene (first element).
-	if (scenes.size() > 1) {
-		// Start from first non-active scene.
-		auto it{ ++std::begin(scenes) };
-		while (it != std::end(scenes)) {
-			auto scene{ *it };
-			assert(scene != nullptr);
-			// If scene if flagged for destruction and is not previous scene (unloaded separately in UpdateActiveSceneImpl).
-			if (scene->destroy_ && scene != instance.previous_scene_) {
-				// Destroy scene and remove it from scene vector.
-				delete scene;
-				*it = nullptr;
-				it = scenes.erase(it);
-			} else {
-				++it;
-			}
-		}
-	}
 }
 
 SceneManager::~SceneManager() {

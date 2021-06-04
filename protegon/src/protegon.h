@@ -48,6 +48,7 @@
 #include "renderer/Color.h"
 #include "renderer/Colors.h"
 #include "renderer/ScreenRenderer.h"
+#include "renderer/WorldRenderer.h"
 //#include "renderer/Surface.h"
 #include "renderer/Texture.h"
 #include "renderer/TextureManager.h"

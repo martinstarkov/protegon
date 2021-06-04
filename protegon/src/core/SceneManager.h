@@ -34,11 +34,13 @@ public:
 	static void UnloadScene(const char* scene_key);
 private:
 	friend class Engine;
+	friend class WorldRenderer;
 	friend class Singleton<SceneManager>;
 
-	static void UpdateActiveScene();
+	static Scene& GetActiveScene();
 	static void RenderActiveScene();
 	static void UnloadFlaggedScenes();
+	static void UpdateActiveScene();
 
 	std::vector<Scene*>::iterator GetSceneImpl(std::size_t);
 	void LoadSceneImpl(std::size_t scene_key, Scene* scene);
