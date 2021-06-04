@@ -25,7 +25,7 @@ public:
         }
     }
     void Render() {
-        ScreenRenderer::DrawCircle({ 300, 300 }, size, colors::BLACK);
+        WorldRenderer::DrawCircle({ 300, 300 }, size, colors::BLACK);
     }
     void Exit() {
         std::cout << "exiting third" << std::endl;
@@ -50,7 +50,7 @@ public:
         }
     }
     void Render() {
-        ScreenRenderer::DrawSolidCircle({ 300, 300 }, 50, colors::BLUE);
+        WorldRenderer::DrawSolidCircle({ 300, 300 }, 50, colors::BLUE);
     }
     void Exit() {
         std::cout << "exiting other" << std::endl;
@@ -59,27 +59,18 @@ public:
 
 class IntroScene : public Scene {
 public:
+    ecs::Entity player;
     void Init() {
         
         SceneManager::LoadScene<OtherScene>("other_scene");
-            
-        auto entity = manager.CreateEntity();
-        entity.AddComponent<int>(5);
-        entity.AddComponent<float>(4.0f);
-        entity.AddComponent<double>(3.0);
-        
-        auto length = 100;
-        for (size_t i = 0; i < length; i++) {
-            auto copy = manager.CopyEntity(entity);
-            assert(copy.HasComponent<int>());
-            assert(copy.HasComponent<float>());
-            assert(copy.HasComponent<double>());
-        }
 
-        for (size_t i = 0; i < 5; i++) {
-            auto new_entity = manager.CreateEntity();
-            new_entity.AddComponent<std::size_t>(30);
-        }
+        player = manager.CreateEntity();
+        player.AddComponent<InputComponent>();
+        auto& transform = player.AddComponent<TransformComponent>().transform;
+        transform.position = { 300, 300 };
+        player.AddComponent<RigidBodyComponent>();
+        player.AddComponent<ColorComponent>().color = colors::RED;
+        player.AddComponent<ShapeComponent>(AABB{ { 30, 30 } });
 
         manager.Refresh();
 
@@ -88,6 +79,27 @@ public:
         PrintLine("Entering intro scene");
     }
     void Update() {
+        auto [transform, color, shape, rigid_body] = player.GetComponents<TransformComponent, ColorComponent, ShapeComponent, RigidBodyComponent>();
+        V2_double speed{ 4, 4 };
+        bool w{ InputHandler::KeyPressed(Key::W) };
+        bool a{ InputHandler::KeyPressed(Key::A) };
+        bool s{ InputHandler::KeyPressed(Key::S) };
+        bool d{ InputHandler::KeyPressed(Key::D) };
+        if (a && !d) {
+            rigid_body.body.velocity.x = -speed.x;
+        } else if (!a && d) {
+            rigid_body.body.velocity.x = speed.x;
+        } else {
+            rigid_body.body.velocity.x = 0;
+        }
+        if (w && !s) {
+            rigid_body.body.velocity.y = -speed.y;
+        } else if (!w && s) {        
+            rigid_body.body.velocity.y = speed.y;
+        } else {                     
+            rigid_body.body.velocity.y = 0;
+        }
+
         if (InputHandler::KeyDown(Key::K_1)) {
             SceneManager::SetActiveScene("intro_scene");
         } else if (InputHandler::KeyDown(Key::K_2)) {
@@ -95,9 +107,27 @@ public:
         } else if (InputHandler::KeyDown(Key::K_3)) {
             SceneManager::SetActiveScene("third_scene");
         }
+        
+        rigid_body.body.velocity *= 0.99;
+        transform.transform.position += rigid_body.body.velocity;
+        
+        if (InputHandler::KeyPressed(Key::Q)) {
+            camera.scale -= camera.zoom_speed;
+            camera.ClampToBound();
+        }
+        if (InputHandler::KeyPressed(Key::E)) {
+            camera.scale += camera.zoom_speed;
+            camera.ClampToBound();
+        }
+        if (InputHandler::KeyPressed(Key::SPACE)) {
+            camera.CenterOn(transform.transform.position, shape.GetSize());
+        }
     }
     void Render() {
-        ScreenRenderer::DrawSolidRectangle({ 300, 300 }, { 50, 50 }, colors::RED);
+        auto [transform, color, shape] = player.GetComponents<TransformComponent, ColorComponent, ShapeComponent>();
+        WorldRenderer::DrawSolidRectangle(transform.transform.position, shape.GetSize(), color.color);
+        WorldRenderer::DrawSolidRectangle({ 400, 400 }, { 60, 60 }, colors::BLUE);
+        WorldRenderer::DrawSolidRectangle({ 200, 300 }, { 60, 90 }, colors::BLACK);
     }
     void Exit() {
         std::cout << "exiting intro" << std::endl;
