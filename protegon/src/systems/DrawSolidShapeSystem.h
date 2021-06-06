@@ -19,11 +19,11 @@ struct DrawSolidShapeSystem {
 		if (entity.HasComponent<ColorComponent>()) {
 			color = entity.GetComponent<ColorComponent>().color;
 		}
-		if (type == engine::ShapeType::AABB) {
+		if (type == ShapeType::AABB) {
 			Renderer::DrawRectangle(transform.transform.position,
 									shape.shape->CastTo<AABB>().size,
 									color);
-		} else if (type == engine::ShapeType::CIRCLE) {
+		} else if (type == ShapeType::CIRCLE) {
 			Renderer::DrawCircle(transform.transform.position,
 								 shape.shape->CastTo<Circle>().radius,
 								 color);
