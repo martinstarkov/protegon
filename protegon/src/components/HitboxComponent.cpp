@@ -4,10 +4,12 @@
 
 namespace ptgn {
 
-void HitboxComponent::Resolve(ecs::Entity& target, const Manifold& manifold) {
+bool HitboxComponent::Resolve(ecs::Entity& target, const Manifold& manifold) {
 	if (resolution_function != nullptr) {
 		resolution_function(target, manifold);
+		return true;
 	}
+	return false;
 }
 
 bool HitboxComponent::CanCollideWith(const ecs::Entity& entity) {

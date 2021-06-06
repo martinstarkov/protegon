@@ -8,6 +8,12 @@ struct Manifold {
     Manifold() = default;
     ~Manifold() = default;
 
+    // Returns true if a collision is registered in the manifold.
+    // This means the collision normal vector is non-zero.
+    bool CollisionOccured() const {
+        return !normal.IsZero();
+    }
+
     // Points of contact during collision.
     V2_double contact_point;
 

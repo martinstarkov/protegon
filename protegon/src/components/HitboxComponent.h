@@ -18,7 +18,7 @@ struct HitboxComponent {
 	HitboxComponent(const V2_int& offset) : offset{ offset } {}
 
 	// Resolves a collision if the resolution_function is defined.
-	void Resolve(ecs::Entity& target, const Manifold& manifold);
+	bool Resolve(ecs::Entity& target, const Manifold& manifold);
 
 	/*
 	* @return True if hitbox should collide with entity based on its TagComponent, false otherwise.

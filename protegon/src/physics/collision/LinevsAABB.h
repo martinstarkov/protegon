@@ -91,7 +91,7 @@ inline bool LinevsAABB(const V2_double& line_origin,
 					   const V2_double& line_direction,
 					   const AABB& shape,
 					   const V2_double& position) {
-	return !IntersectionLinevsAABB(line_origin, line_direction, shape, position).second.normal.IsZero();
+	return IntersectionLinevsAABB(line_origin, line_direction, shape, position).second.CollisionOccured();
 }
 
 } // namespace math

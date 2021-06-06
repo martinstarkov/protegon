@@ -39,7 +39,7 @@ inline std::pair<double, Manifold> DynamicAABBvsAABB(const AABB& dynamic_shape,
 
 	manifold = m;
 
-	if (!manifold.normal.IsZero() && nearest_time >= 0.0 && nearest_time < 1.0) {
+	if (manifold.CollisionOccured() && nearest_time >= 0.0 && nearest_time < 1.0) {
 		return { nearest_time, manifold };
 	} else {
 		manifold.normal = {};
@@ -61,7 +61,7 @@ inline std::pair<double, Manifold> ResolveDynamicAABBvsAABB(const AABB& dynamic_
 											  static_shape,
 											  static_position);
 	// Repeat check is needed due to the fact that if multiple collisions are found, resolving the velocityforthe nearest one may invalidate the previously thought collisions.
-	if (!manifold.normal.IsZero()) {
+	if (manifold.CollisionOccured()) {
 		dynamic_velocity += manifold.normal * math::Abs(dynamic_velocity) * (1.0 - nearest_time);
 		return { nearest_time, manifold };
 	}

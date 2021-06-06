@@ -14,4 +14,10 @@ struct InputComponent {
 	~InputComponent() = default;
 };
 
+// Acts as a tag implying the entity is used for rendering-based systems.
+struct RenderComponent {
+	RenderComponent() = default;
+	~RenderComponent() = default;
+};
+
 } // namespace ptgn

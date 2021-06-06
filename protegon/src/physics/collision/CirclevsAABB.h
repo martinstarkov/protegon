@@ -71,7 +71,7 @@ inline bool CirclevsAABB(const Circle& shapeA,
 						 const V2_double& positionA,
 						 const AABB& shapeB,
 						 const V2_double& positionB) {
-	return !IntersectionCirclevsAABB(shapeA, positionA, shapeB, positionB).normal.IsZero();
+	return IntersectionCirclevsAABB(shapeA, positionA, shapeB, positionB).CollisionOccured();
 }
 
 } // namespace math
