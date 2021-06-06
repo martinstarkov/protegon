@@ -7,6 +7,7 @@ namespace ptgn {
 class Countdown {
 public:
 	Countdown() = default;
+	~Countdown() = default;
 
 	template <typename Duration,
 		type_traits::is_duration_e<Duration> = true>

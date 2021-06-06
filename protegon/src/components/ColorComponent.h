@@ -7,6 +7,7 @@ namespace ptgn {
 
 struct ColorComponent {
 	ColorComponent() = default;
+	~ColorComponent() = default;
 	ColorComponent(const Color& color) : color{ color } {}
 	Color color;
 };

@@ -19,7 +19,6 @@ public:
 
 	// Default construct color to black.
 	Color() = default;
-
 	~Color() = default;
 	
 	// Construct color from individual RGBA8888 pixel format values.

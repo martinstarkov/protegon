@@ -17,6 +17,8 @@ public:
 	template <typename TScene, typename ...TArgs,
 		type_traits::is_base_of_e<Scene, TScene> = true>
 	static void LoadScene(const char* scene_key, TArgs&&... args) {
+		static_assert(std::is_constructible_v<TScene, TArgs...>,
+					  "Cannot construct scene from passed arguments");
 		GetInstance().LoadSceneImpl(math::Hash(scene_key), new TScene(std::forward<TArgs>(args)...));
 	}
 

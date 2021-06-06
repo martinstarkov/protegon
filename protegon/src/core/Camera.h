@@ -6,6 +6,7 @@ namespace ptgn {
 
 struct Camera {
 	Camera() = default;
+	~Camera() = default;
 	Camera(const V2_double& scale,
 		   V2_double zoom_speed = { 0.1, 0.1 },
 		   V2_double min_scale = { 0.1, 0.1 },
