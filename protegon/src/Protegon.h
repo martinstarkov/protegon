@@ -64,7 +64,7 @@
 #include "renderer/text/FontStyle.h"
 #include "renderer/text/Text.h"
 
-#include "systems/DrawSolidShapeSystem.h"
+#include "systems/DrawShapeSystem.h"
 #include "systems/StaticCollisionSystem.h"
 #include "systems/MovementSystem.h"
 #include "systems/LifetimeSystem.h"
