@@ -413,7 +413,7 @@ template <typename T>
 std::ostream& operator<<(std::ostream& os, const Vector2<T>& obj) {
     os << ptgn::internal::VECTOR_LEFT_DELIMETER;
     os << obj.x << ptgn::internal::VECTOR_CENTER_DELIMETER;
-    os << obj.y << v::internal::VECTOR_RIGHT_DELIMETER;
+    os << obj.y << ptgn::internal::VECTOR_RIGHT_DELIMETER;
     return os;
 }
 
