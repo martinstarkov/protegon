@@ -67,6 +67,7 @@
 #include "systems/DrawSolidShapeSystem.h"
 #include "systems/StaticCollisionSystem.h"
 #include "systems/MovementSystem.h"
+#include "systems/LifetimeSystem.h"
 
 #include "utils/Countdown.h"
 #include "utils/Direction.h"
