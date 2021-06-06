@@ -14,7 +14,10 @@ public:
 		return ShapeType::CIRCLE;
 	}
 	virtual Shape* Clone() const override final {
-		return new Circle(radius);
+		return new Circle{ radius };
+	}
+	virtual V2_double GetCenter(const V2_double& position) const {
+		return position;
 	}
 	friend bool operator==(const Circle& A, const Circle& B) {
 		return A.radius == B.radius;

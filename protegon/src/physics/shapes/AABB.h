@@ -14,7 +14,10 @@ public:
 		return ShapeType::AABB;
 	}
 	virtual Shape* Clone() const override final {
-		return new AABB(size);
+		return new AABB{ size };
+	}
+	virtual V2_double GetCenter(const V2_double& position) const {
+		return position + size / 2.0;
 	}
 	friend bool operator==(const AABB& A, const AABB& B) {
 		return A.size == B.size;
