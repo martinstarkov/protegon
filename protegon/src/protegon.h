@@ -64,6 +64,9 @@
 #include "renderer/text/FontStyle.h"
 #include "renderer/text/Text.h"
 
+#include "systems/DrawSolidShapeSystem.h"
+#include "systems/StaticCollisionSystem.h"
+
 #include "utils/Countdown.h"
 #include "utils/Direction.h"
 #include "utils/Singleton.h"
