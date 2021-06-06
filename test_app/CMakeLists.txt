@@ -10,20 +10,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(SRC_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
-include_directories(
-    SRC_DIRECTORY
-)
+include_directories(SRC_DIRECTORY)
 
-# Find all cpp files in the src directory of the project.
+# Find all source and header files in the src directory of the project.
 
-file(GLOB_RECURSE FILES "${SRC_DIRECTORY}/*.cpp")
+file(GLOB_RECURSE SRC_FILES CONFIGURE_DEPENDS LIST_DIRECTORIES false 
+    "${SRC_DIRECTORY}/*.h" "${SRC_DIRECTORY}/*.cpp")
 
 # Create executable from all source files.
 
-add_executable(
-    ${PROJECT_NAME}
-    ${FILES}
-)
+add_executable(${PROJECT_NAME} ${SRC_FILES})
 
 # Copy resource files over to binary directory.
 

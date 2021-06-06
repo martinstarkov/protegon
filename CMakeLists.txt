@@ -5,6 +5,7 @@ project(protegon)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # Add package find files to cmake module path.
 
@@ -21,8 +22,7 @@ macro(add_protegon_to TARGET_NAME)
       get_property(PROTEGON_EXTERNAL_DLLS_TEMP GLOBAL PROPERTY PROTEGON_EXTERNAL_DLLS)
       foreach(item IN LISTS PROTEGON_EXTERNAL_DLLS_TEMP)
           add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-              COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${item}" $<TARGET_FILE_DIR:${TARGET_NAME}>
-          )
+              COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${item}" $<TARGET_FILE_DIR:${TARGET_NAME}>)
       endforeach()
       message(STATUS "Added post build commands to copy SDL dlls to ${TARGET_NAME}")
   endif()

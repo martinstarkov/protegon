@@ -14,6 +14,8 @@ find_package(SDL2 REQUIRED)
 find_package(SDL2_image REQUIRED)
 find_package(SDL2_ttf REQUIRED)
 
+# Notify user if SDL include directories were not found.
+
 if ("${SDL2_INCLUDE_DIRS}" STREQUAL "")
     message(FATAL_ERROR "Could not find SDL2 library")
 endif()
@@ -30,45 +32,28 @@ endif()
 
 set(SRC_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
-file(
-    GLOB_RECURSE
-    PROTEGON_FILES
-    "${SRC_DIRECTORY}/*.h"
-    "${SRC_DIRECTORY}/*.cpp"
-)
+file(GLOB_RECURSE PROTEGON_FILES CONFIGURE_DEPENDS LIST_DIRECTORIES false 
+    "${SRC_DIRECTORY}/*.h" "${SRC_DIRECTORY}/*.cpp")
 
+# Add include directories
 
-include_directories(
-    ${SRC_DIRECTORY}
-    ${SDL2_INCLUDE_DIRS}
-    ${SDL2_IMAGE_INCLUDE_DIRS}
-    ${SDL2_TTF_INCLUDE_DIRS}
-)
+include_directories(${SRC_DIRECTORY}
+                    ${SDL2_INCLUDE_DIRS}
+                    ${SDL2_IMAGE_INCLUDE_DIRS}
+                    ${SDL2_TTF_INCLUDE_DIRS})
 
 # Create static library.
 
-add_library(
-    ${PROJECT_NAME}
-    STATIC
-    ${PROTEGON_FILES}
-)
+add_library(${PROJECT_NAME} STATIC ${PROTEGON_FILES})
 
 if (WIN32)
+    # Keep original folder structure for MSVC.
 
-    # Keep original filter structure in MSVC.
-
-    file(
-        GLOB_RECURSE _source_list 
-        LIST_DIRECTORIES false
-        RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
-        "${SRC_DIRECTORY}/*.cpp"
-        "${SRC_DIRECTORY}/*.h"
-    )
-
-    foreach(_source IN ITEMS ${_source_list})
+    foreach(_source IN ITEMS ${PROTEGON_FILES})
         get_filename_component(_source_path "${_source}" PATH)
-        string(REPLACE "/" "\\" _source_path_msvc "${_source_path}")
-        source_group("${_source_path_msvc}" FILES "${_source}")
+        file(RELATIVE_PATH _source_path_rel "${SRC_DIRECTORY}" "${_source_path}")
+        string(REPLACE "/" "\\" _group_path "${_source_path_rel}")
+        source_group("${_group_path}" FILES "${_source}")
     endforeach()
 
     # Find all SDL dlls required for engine to run.
@@ -77,13 +62,10 @@ if (WIN32)
     get_filename_component(SDL2_IMAGE_DLL_DIRECTORY ${SDL2_IMAGE_LIBRARIES} DIRECTORY)
     get_filename_component(SDL2_TTF_DLL_DIRECTORY ${SDL2_TTF_LIBRARIES} DIRECTORY)
     
-    file(
-        GLOB_RECURSE
-        EXTERNAL_DLLS
+    file(GLOB_RECURSE EXTERNAL_DLLS CONFIGURE_DEPENDS
         "${SDL2_DLL_DIRECTORY}/*.dll"
         "${SDL2_IMAGE_DLL_DIRECTORY}/*.dll"
-        "${SDL2_TTF_DLL_DIRECTORY}/*.dll"
-    )
+        "${SDL2_TTF_DLL_DIRECTORY}/*.dll")
 
     # Set global variable for external SDL dll copying.
 
@@ -93,18 +75,12 @@ endif()
 
 # Define target includes.
 
-target_include_directories(
-    ${PROJECT_NAME}
-    INTERFACE
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/"
-)
+target_include_directories(${PROJECT_NAME} INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/src/")
 
 # Define target linking.
 
-target_link_libraries(
-    ${PROJECT_NAME}
-    PRIVATE
-    ${SDL2_LIBRARIES}
-    ${SDL2_IMAGE_LIBRARIES}
-    ${SDL2_TTF_LIBRARIES}
-)
+target_link_libraries(${PROJECT_NAME} 
+                      PRIVATE 
+                      ${SDL2_LIBRARIES}
+                      ${SDL2_IMAGE_LIBRARIES}
+                      ${SDL2_TTF_LIBRARIES})
