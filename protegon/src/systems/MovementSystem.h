@@ -6,7 +6,6 @@
 
 namespace ptgn {
 
-template <typename Renderer>
 struct MovementSystem {
 	void operator()(ecs::Entity entity,
 					TransformComponent& transform,
