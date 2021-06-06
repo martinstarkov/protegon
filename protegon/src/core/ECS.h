@@ -1438,23 +1438,24 @@ inline void Manager::ForEachEntityWith(T function) {
 		   "Last entity must be within entity vector range");
 	auto pools{
 			std::make_tuple(GetPool<TComponents>(GetComponentId<TComponents>())...) };
+	// Check that none of the requested component pools are null.
 	bool manager_has_components{
 		((std::get<internal::Pool<TComponents>*>(pools) != nullptr) && ...) };
-	assert(manager_has_components &&
-		   "Cannot loop through entities with components that have never been added to the Manager");
-	// Cycle through all manager entities.
-	for (internal::Id entity{ 0 }; entity < next_entity_; ++entity) {
-		// If entity is alive, call lambda on it.
-		if (entities_[entity]) {
-			bool has_components{
-				(std::get<internal::Pool<TComponents>*>(pools)->internal::Pool<TComponents>::Has(entity) && ...) };
-			if (has_components) {
-				function(
-					Entity{ entity, versions_[entity], this },
-					(*std::get<internal::Pool<TComponents>*>(pools)->Get(entity))...
-				);
-			}
+	if (manager_has_components) {
+		// Cycle through all manager entities.
+		for (internal::Id entity{ 0 }; entity < next_entity_; ++entity) {
+			// If entity is alive, call lambda on it.
+			if (entities_[entity]) {
+				bool has_components{
+					(std::get<internal::Pool<TComponents>*>(pools)->internal::Pool<TComponents>::Has(entity) && ...) };
+				if (has_components) {
+					function(
+						Entity{ entity, versions_[entity], this },
+						(*std::get<internal::Pool<TComponents>*>(pools)->Get(entity))...
+					);
+				}
 			
+			}
 		}
 	}
 }
@@ -1467,6 +1468,7 @@ inline void Manager::ForEachEntityWithout(T function) {
 		   "Last entity must be within entity vector range");
 	auto pools{
 			std::make_tuple(GetPool<TComponents>(GetComponentId<TComponents>())...) };
+	// Check that none of the requested component pools are null.
 	bool manager_has_components{
 		((std::get<internal::Pool<TComponents>*>(pools) != nullptr) && ...) };
 	if (manager_has_components) {
