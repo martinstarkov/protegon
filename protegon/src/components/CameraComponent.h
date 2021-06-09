@@ -7,10 +7,8 @@ namespace ptgn {
 struct CameraComponent {
 	CameraComponent() = default;
 	~CameraComponent() = default;
-	CameraComponent(const Camera& camera,
-					bool primary = false) : 
-		camera{ camera },
-		primary{ primary } {}
+	CameraComponent(const Camera& camera, bool primary = false) : 
+		camera{ camera }, primary{ primary } {}
 	Camera camera;
 	bool primary{ false };
 };

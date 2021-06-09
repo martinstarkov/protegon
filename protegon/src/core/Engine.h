@@ -28,13 +28,13 @@ public:
 	// Entering engine execution loop.
 	template <typename TInitialScene, 
 		type_traits::is_base_of_e<Scene, TInitialScene> = true>
-		static void Start(const char* scene_key,
-						  const char* window_title,
-						  const V2_int& window_size,
-						  std::size_t fps,
-						  const V2_int& window_position = internal::CENTERED,
-						  std::uint32_t window_flags = 0,
-						  std::uint32_t renderer_flags = 0) {
+	static void Start(const char* scene_key,
+					  const char* window_title,
+					  const V2_int& window_size,
+					  std::size_t fps,
+					  const V2_int& window_position = internal::CENTERED,
+					  std::uint32_t window_flags = 0,
+					  std::uint32_t renderer_flags = 0) {
 		auto& instance{ GetInstance() };
 		instance.application_timer_.Start();
 		instance.running_ = true;
@@ -86,12 +86,16 @@ private:
 
 	// Frame rate (per second).
 	std::size_t fps_{ 0 };
+
 	// Length of a single frame in time units.
 	time frame_time_{ 0 };
+
 	// Used for running the engine loop.
 	bool running_{ false };
+
 	// Stores state of engine initialization to prevent secondary Start calls.
 	bool init_{ false };
+
 	// Timer for checking time since application start.
 	Timer application_timer_;
 };

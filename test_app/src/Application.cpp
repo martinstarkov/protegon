@@ -36,6 +36,8 @@ class OtherScene : public Scene {
 public:
     void Init() {
         SceneManager::LoadScene<ThirdScene>("third_scene", 100);
+        V2_double hello{ 3.0, 5.0 };
+        V2_int test = hello;
     }
     void Enter() {
         PrintLine("Entering other scene");

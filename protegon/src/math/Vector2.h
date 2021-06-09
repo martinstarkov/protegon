@@ -30,48 +30,35 @@ static constexpr const char VECTOR_RIGHT_DELIMETER{ ')' };
 /*
 * @tparam T Type contained in vector.
 */
-template <typename T, 
+template <typename T,
     ptgn::type_traits::is_number_e<T> = true>
 struct Vector2 {
-
     // Return a vector with numeric_limit::infinity() set for both components
     static Vector2 Infinite() {
         static_assert(std::is_floating_point_v<T>,
                       "Cannot create infinite vector for integer type. Must use floating points.");
-        return {
-            std::numeric_limits<T>::infinity(),
-            std::numeric_limits<T>::infinity()
-        };
+        return { std::numeric_limits<T>::infinity(), std::numeric_limits<T>::infinity() };
     }
 
     // Return a vector with std::numeric_limits<T>::max() set for both components
     static Vector2 Maximum() {
-        return {
-            std::numeric_limits<T>::max(),
-            std::numeric_limits<T>::max()
-        };
+        return { std::numeric_limits<T>::max(), std::numeric_limits<T>::max() };
     }
 
     // Return a vector with std::numeric_limits<T>::min() set for both components
     static Vector2 Minimum() {
-        return {
-            std::numeric_limits<T>::min(),
-            std::numeric_limits<T>::min()
-        };
+        return { std::numeric_limits<T>::min(), std::numeric_limits<T>::min() };
     }
     // Return a vector with both components randomized in the given ranges.
     static Vector2 Random(T min_x = 0.0, T max_x = 1.0, T min_y = 0.0, T max_y = 1.0) {
-        assert(min_x < max_x
-               && "Minimum random value must be less than maximum random value");
-        assert(min_y < max_y
-               && "Minimum random value must be less than maximum random value");
+        assert(min_x < max_x &&
+               "Minimum random value must be less than maximum random value");
+        assert(min_y < max_y &&
+               "Minimum random value must be less than maximum random value");
         ptgn::RNG<T> rng_x{ min_x, max_x };
         ptgn::RNG<T> rng_y{ min_y, max_y };
         // Vary distribution type based on template parameter type.
-        return {
-            rng_x(),
-            rng_y()
-        };
+        return { rng_x(), rng_y() };
     }
 
     T x{ 0 };
@@ -212,10 +199,7 @@ struct Vector2 {
 
     // Modulo operator on both components for number type vectors.
     Vector2 operator%(const int rhs) const {
-        return {
-            x % rhs,
-            y % rhs
-        };
+        return { x % rhs, y % rhs };
     }
 
     // Accessor operators.
@@ -223,17 +207,13 @@ struct Vector2 {
     // Access vector elements by index, 0 for x, 1 for y. (reference)
     T& operator[](std::size_t idx) {
         assert(idx < 2 && "Vector2 subscript out of range");
-        if (idx == 0) {
-            return x;
-        }
+        if (idx == 0) return x;
         return y; // idx == 1
     }
     // Access vector elements by index, 0 for x, 1 for y. (constant)
     T operator[](std::size_t idx) const {
         assert(idx < 2 && "Vector2 subscript out of range");
-        if (idx == 0) {
-            return x;
-        }
+        if (idx == 0) return x;
         return y; // idx == 1
     }
 
@@ -250,41 +230,12 @@ struct Vector2 {
     }
     */
 
-    // Implicit conversion from this vector to other arithmetic types which are less wide.
+    // Implicit conversion from this vector to other arithmetic type vectors.
 
-    operator Vector2<int>() const {
-        return Vector2<int>{
-            static_cast<int>(x),
-            static_cast<int>(y)
-        };
-    }
-
-    operator Vector2<double>() const {
-        return Vector2<double>{
-            static_cast<double>(x),
-            static_cast<double>(y)
-        };
-    }
-
-    operator Vector2<float>() const {
-        return Vector2<float>{
-            static_cast<float>(x),
-            static_cast<float>(y) 
-        };
-    }
-
-    operator Vector2<unsigned int>() const {
-        return Vector2<unsigned int>{
-            static_cast<unsigned int>(x),
-            static_cast<unsigned int>(y) 
-        };
-    }
-
-    operator Vector2<std::size_t>() const {
-        return Vector2<std::size_t>{
-            static_cast<std::size_t>(x),
-                static_cast<std::size_t>(y)
-        };
+    template <typename U,
+        ptgn::type_traits::is_number_e<U> = true>
+    operator Vector2<U>() const {
+        return Vector2<U>{ static_cast<U>(x), static_cast<U>(y) };
     }
 
     // Vector specific utility functions start here.
@@ -346,7 +297,7 @@ struct Vector2 {
     inline Vector2<S> CrossProduct(U value) {
         return { 
             static_cast<S>(value) * static_cast<S>(y),
-            -static_cast<S>(value) * static_cast<S>(x)
+           -static_cast<S>(value) * static_cast<S>(x)
         };
     }
 
@@ -387,10 +338,10 @@ struct Vector2 {
     }
 
     // Return magnitude, sqrt(x * x + y * y).
-    template <typename T = double, 
-        ptgn::type_traits::is_number_e<T> = true>
-    inline T Magnitude() const {
-        return static_cast<T>(ptgn::math::Sqrt(MagnitudeSquared()));
+    template <typename U = double, 
+        ptgn::type_traits::is_number_e<U> = true>
+    inline U Magnitude() const {
+        return static_cast<U>(ptgn::math::Sqrt(MagnitudeSquared()));
     }
 
     template <typename S = T,
@@ -417,22 +368,13 @@ std::ostream& operator<<(std::ostream& os, const Vector2<T>& obj) {
     return os;
 }
 
-template <typename T>
-std::istream& operator>>(std::istream& is, Vector2<T>& obj) {
-    std::string tmp;
-    // Pass istream into string.
-    is >> tmp;
-    // Construct object from string.
-    obj = std::move(Vector2<T>{ tmp });
-    return is;
-}
-
 // Comparison operators.
 
 template <typename T, typename U, 
     typename S = typename std::common_type<T, U>::type>
 inline bool operator==(const Vector2<T>& lhs, const Vector2<U>& rhs) {
-    return static_cast<S>(lhs.x) == static_cast<S>(rhs.x) &&
+    return
+        static_cast<S>(lhs.x) == static_cast<S>(rhs.x) &&
         static_cast<S>(lhs.y) == static_cast<S>(rhs.y);
 }
 
@@ -445,7 +387,8 @@ template <typename T, typename U,
     typename S = typename std::common_type<T, U>::type,
     ptgn::type_traits::is_number_e<U> = true>
 inline bool operator==(const Vector2<T>& lhs, U rhs) {
-    return static_cast<S>(lhs.x) == static_cast<S>(rhs) && 
+    return 
+        static_cast<S>(lhs.x) == static_cast<S>(rhs) && 
         static_cast<S>(lhs.y) == static_cast<S>(rhs);
 }
 
@@ -606,7 +549,7 @@ template <typename T, typename U,
     typename S = typename std::common_type<T, U>::type>
 inline Vector2<S> CrossProduct(U value, const Vector2<T>& vector) {
     return { 
-        -static_cast<S>(value) * static_cast<S>(vector.y), 
+       -static_cast<S>(value) * static_cast<S>(vector.y), 
         static_cast<S>(value) * static_cast<S>(vector.x) 
     };
 }
@@ -632,6 +575,7 @@ template <typename T>
 inline T& Min(Vector2<T>& vector) {
     return (vector.y < vector.x) ? vector.y : vector.x;
 }
+
 // Return maximum component of vector. (reference)
 template <typename T>
 inline T& Max(Vector2<T>& vector) {
@@ -641,68 +585,43 @@ inline T& Max(Vector2<T>& vector) {
 // Return the absolute value of both vectors components.
 template <typename T>
 inline Vector2<T> Abs(const Vector2<T>& vector) {
-    return {
-        Abs(vector.x),
-        Abs(vector.y)
-    };
+    return { Abs(vector.x), Abs(vector.y) };
 }
 
 // Return both vector components rounded to the closest integer.
 template <typename T = int, typename S>
 inline Vector2<T> Round(const Vector2<S>& vector) {
-    return {
-        Round<T>(vector.x),
-        Round<T>(vector.y)
-    };
+    return { Round<T>(vector.x), Round<T>(vector.y) };
 }
 
 // Return both vector components ceiled to the closest integer.
 template <typename T = int, typename S>
 inline Vector2<T> Ceil(const Vector2<S>& vector) {
-    return {
-        Ceil<T>(vector.x),
-        Ceil<T>(vector.y) 
-    };
+    return { Ceil<T>(vector.x), Ceil<T>(vector.y) };
 }
 
 // Return both vector components floored to the closest integer.
 template <typename T = int, typename S>
 inline Vector2<T> Floor(const Vector2<S>& vector) {
-    return { 
-        Floor<T>(vector.x), 
-        Floor<T>(vector.y) 
-    };
+    return { Floor<T>(vector.x), Floor<T>(vector.y) };
 }
 
 // Clamp both vectors value within a vector range.
 template <typename T>
-inline Vector2<T> Clamp(const Vector2<T>& value, 
-                        const Vector2<T>& low, 
-                        const Vector2<T>& high) {
-    return { 
-        Clamp(value.x, low.x, high.x), 
-        Clamp(value.y, low.y, high.y) 
-    };
+inline Vector2<T> Clamp(const Vector2<T>& value, const Vector2<T>& low, const Vector2<T>& high) {
+    return { Clamp(value.x, low.x, high.x), Clamp(value.y, low.y, high.y) };
 }
 
 // Linearly interpolates both vector components by the given value.
 template <typename T, typename U>
-inline Vector2<U> Lerp(const Vector2<T>& a, 
-                       const Vector2<T>& b, 
-                       U amount) {
-    return { 
-        Lerp(a.x, b.x, amount), 
-        Lerp(a.y, b.y, amount) 
-    };
+inline Vector2<U> Lerp(const Vector2<T>& a, const Vector2<T>& b, U amount) {
+    return { Lerp(a.x, b.x, amount), Lerp(a.y, b.y, amount) };
 }
 
 // Return both vector components smooth stepped.
 template <typename T>
 inline Vector2<T> SmoothStep(const Vector2<T>& vector) {
-    return {
-        SmoothStep(vector.x),
-        SmoothStep(vector.y)
-    };
+    return { SmoothStep(vector.x), SmoothStep(vector.y) };
 }
 
 } // namespace math
