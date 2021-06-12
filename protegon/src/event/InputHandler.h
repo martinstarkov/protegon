@@ -21,6 +21,11 @@ public:
 	static V2_int GetMousePosition();
 
 	/*
+	* @return The x and y positions of the mouse relative to the active world camera.
+	*/
+	static V2_int GetMouseWorldPosition();
+
+	/*
 	* @return True if mouse button is pressed, false otherwise.
 	*/
 	static bool MousePressed(Mouse button);

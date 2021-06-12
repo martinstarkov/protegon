@@ -5,6 +5,7 @@
 #include <algorithm> // std::copy
 
 #include "core/Engine.h"
+#include "renderer/WorldRenderer.h"
 #include "debugging/Debug.h"
 
 namespace ptgn {
@@ -87,6 +88,10 @@ V2_int InputHandler::GetMousePosition() {
 	// Update mouse position.
 	SDL_GetMouseState(&instance.mouse_position_.x, &instance.mouse_position_.y);
 	return instance.mouse_position_;
+}
+
+V2_int InputHandler::GetMouseWorldPosition() {
+	return WorldRenderer::ScreenToWorld(GetMousePosition());
 }
 
 InputHandler::MouseState InputHandler::GetMouseState(Mouse button) {
