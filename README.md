@@ -7,7 +7,7 @@
 Add the following lines in your ```CMakeLists.txt``` after creating your target:
 
 ```cmake
-add_subdirectory(<protegon_repository_directory>)
+add_subdirectory(<protegon_repository_directory> binary_dir)
 add_protegon_to(<target_name>)
 ```
 - ```<protegon_repository_directory>``` corresponds to the directory where this repository resides (cloned or submodule).
