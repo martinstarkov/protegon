@@ -5,6 +5,7 @@
 #include <SDL_ttf.h>
 
 #include "core/Window.h"
+#include "debugging/DebugRenderer.h"
 #include "renderer/ScreenRenderer.h"
 #include "renderer/Colors.h"
 #include "renderer/TextureManager.h"
@@ -35,6 +36,9 @@ void Engine::Update() {
 	ScreenRenderer::SetDrawColor(colors::DEFAULT_DRAW_COLOR);
 	
 	SceneManager::RenderActiveScene();
+
+	DebugRenderer<WorldRenderer>::Render();
+	DebugRenderer<ScreenRenderer>::Render();
 
 	ScreenRenderer::Present();
 
