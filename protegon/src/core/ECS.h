@@ -626,8 +626,8 @@ public:
 	}
 
 	/*
-	* Reserve additional memory for manager entities.
-	* @param capacity Desired capacity of the manager.
+	* Reserve additional entity capacity for manager.
+	* @param capacity Desired entity capacity of the manager.
 	* If smaller than current capacity, nothing happens.
 	*/
 	void Reserve(const std::size_t capacity) {
