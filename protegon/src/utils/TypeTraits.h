@@ -75,6 +75,10 @@ using is_default_constructible_e = std::enable_if_t<std::is_default_constructibl
 template <typename Type, typename ...TArgs>
 using is_constructible_e = std::enable_if_t<std::is_constructible_v<Type, TArgs...>, bool>;
 
+// Template qualifier of whether or not Type is the same as one or more of Types.
+template <typename Type, typename ...Types>
+using is_one_of_e = std::enable_if_t<(std::is_same_v<Type, Types> || ...), bool>;
+
 // True if Derived derives from a template Base, false otherwise.
 template <template <typename...> class Base, typename Derived>
 bool constexpr is_base_of_template_v{
