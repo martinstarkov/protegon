@@ -201,6 +201,9 @@ struct Vector2 {
     Vector2 operator%(const int rhs) const {
         return { x % rhs, y % rhs };
     }
+    Vector2 operator%(const Vector2<int>& rhs) const {
+        return { x % rhs.x, y % rhs.y };
+    }
 
     // Accessor operators.
 
@@ -580,6 +583,19 @@ inline T& Min(Vector2<T>& vector) {
 template <typename T>
 inline T& Max(Vector2<T>& vector) {
     return (vector.x < vector.y) ? vector.y : vector.x;
+}
+
+
+// Return a vector composed of the minimum components of two vectors.
+template <typename T>
+inline Vector2<T> Min(const Vector2<T>& a, const Vector2<T>& b) {
+    return { std::min(a.x, b.x), std::min(a.y, b.y) };
+}
+
+// Return a vector composed of the maximum components of two vectors.
+template <typename T>
+inline Vector2<T> Max(const Vector2<T>& a, const Vector2<T>& b) {
+    return { std::max(a.x, b.x), std::max(a.y, b.y) };
 }
 
 // Return the absolute value of both vectors components.
