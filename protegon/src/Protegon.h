@@ -10,6 +10,7 @@
 #include "debugging/AllocationMetrics.h"
 #include "debugging/FileManagement.h"
 #include "debugging/Logger.h"
+#include "debugging/DebugRenderer.h"
 
 #include "components/CameraComponent.h"
 #include "components/ColorComponent.h"
@@ -74,3 +75,6 @@
 #include "utils/Singleton.h"
 #include "utils/Timer.h"
 #include "utils/TypeTraits.h"
+
+#include "world/Chunk.h"
+#include "world/ChunkManager.h"
