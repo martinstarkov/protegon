@@ -1,6 +1,6 @@
 #pragma once
 
-#include <vector> // std::vector
+#include <unordered_map> // std::unordered_map
 
 #include "core/ECS.h"
 #include "math/Vector2.h"
@@ -13,29 +13,19 @@ public:
 	ChunkManager() = delete;
 	~ChunkManager();
 	ChunkManager(const V2_int& tiles_per_chunk, const V2_int& tile_size);
-	void SetRenderRadius(const V2_int& chunk_radius);
-	void SetUpdateRadius(const V2_int& chunk_radius);
-	void CenterOn(const V2_int& position, const V2_int& chunk_radius);
+	void CenterOn(const V2_int& position, const V2_int& view_distance);
 	void Update();
 	void Render();
 private:
 
-	V2_int render_size_;
-	V2_int update_size_;
-
-	V2_int active_position_;
-	V2_int active_size_;
-
-	V2_int previous_position_;
-	V2_int previous_size_;
-
 	V2_int tiles_per_chunk_;
 	V2_int tile_size_;
-	V2_int chunk_size_;
+	V2_double chunk_size_;
 
-	std::vector<Chunk*> loaded_chunks_;
-	std::vector<Chunk*> update_chunks_;
-	std::vector<Chunk*> render_chunks_;
+	V2_int coordinate_;
+	V2_int size_;
+
+	std::unordered_map<V2_int, Chunk*> loaded_chunks_;
 };
 
 } // namespace ptgn

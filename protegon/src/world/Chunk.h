@@ -10,15 +10,14 @@ namespace ptgn {
 class Chunk {
 public:
 	virtual ~Chunk() = default;
-	virtual void Create(const V2_int& position, const V2_int& tiles, const V2_int& tile_size) {}
+	virtual void Create(const V2_int& coordinate, const V2_int& tiles, const V2_int& tile_size) {}
 	virtual void Render() {}
 	friend bool operator==(const Chunk& a, const Chunk& b) {
-		return a.position_ == b.position_;
+		return a.coordinate_ == b.coordinate_;
 	}
+	V2_int coordinate_;
 protected:
 	ecs::Manager manager_;
-	// Position of the chunk in world space.
-	V2_int position_;
 private:
 	friend class ChunkManager;
 	bool flagged_{ false };
