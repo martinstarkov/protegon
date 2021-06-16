@@ -15,7 +15,7 @@
 
 namespace ptgn {
 
-void Engine::Delay(milliseconds duration) {
+void Engine::DelayImpl(milliseconds duration) {
 	SDL_Delay(static_cast<std::uint32_t>(duration.count()));
 }
 
@@ -41,6 +41,9 @@ void Engine::Update() {
 	DebugRenderer<ScreenRenderer>::Render();
 
 	ScreenRenderer::Present();
+
+	DebugRenderer<WorldRenderer>::ResolveQueuedDelays();
+	DebugRenderer<ScreenRenderer>::ResolveQueuedDelays();
 
 	SceneManager::UnloadFlaggedScenes();
 }

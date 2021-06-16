@@ -48,8 +48,12 @@ public:
 		instance.Destroy();
 	}
 
-	// Pauses engine code execution for the given amount of milliseconds.
-	static void Delay(milliseconds duration);
+	// Pauses engine code execution for the given amount of time.
+	template <typename Duration = milliseconds,
+		type_traits::is_duration_e<Duration> = true>
+	static void Delay(Duration duration) {
+		DelayImpl(duration);
+	}
 
 	// Exits the engine loop and frees memory used by engine.
 	static void Quit();
@@ -58,6 +62,9 @@ private:
 
 	// Defines granularity of time units used in frame rate control.
 	using time = nanoseconds;
+
+	// Implements Delay function to abstract SDL delay function.
+	static void DelayImpl(milliseconds duration);
 	
 	// Sets engine frame rate and caches inverse fps.
 	static void SetFPS(std::size_t fps);
