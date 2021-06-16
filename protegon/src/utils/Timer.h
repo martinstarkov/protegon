@@ -88,13 +88,13 @@ public:
     }
 
     /*
-    * Prints the timer's elapsed time in console. No newline is added.
+    * Prints the timer's elapsed time in console.
     * @tparam Duration The unit of time. Default: milliseconds.
     */
     template <typename Duration = milliseconds,
         type_traits::is_duration_e<Duration> = true>
     void PrintElapsed() const {
-        Print(Elapsed<Duration>().count());
+        PrintLine("Elapsed: ", Elapsed<Duration>().count());
     }
 private:
     
