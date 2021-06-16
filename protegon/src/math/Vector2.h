@@ -643,3 +643,21 @@ inline Vector2<T> SmoothStep(const Vector2<T>& vector) {
 } // namespace math
 
 } // namespace ptgn
+
+namespace std {
+
+// Custom hashing function for Vector class.
+// This allows for use of unordered maps and sets with vectors as keys.
+template <typename T>
+struct hash<Vector2<T>> {
+    std::size_t operator()(const Vector2<T>& k) const {
+        // Hashing combination algorithm from:
+        // https://stackoverflow.com/a/17017281
+        std::size_t hash{ 17 };
+        hash = hash * 31 + std::hash<T>()(k.x);
+        hash = hash * 31 + std::hash<T>()(k.y);
+        return hash;
+    }
+};
+
+} // namespace std
