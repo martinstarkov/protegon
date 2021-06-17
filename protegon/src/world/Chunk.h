@@ -5,20 +5,28 @@
 #include "core/ECS.h"
 #include "math/Vector2.h"
 
+
 namespace ptgn {
+
+class ChunkManager;
 
 class Chunk {
 public:
 	virtual ~Chunk() = default;
-	virtual void Create(const V2_int& coordinate, const V2_int& tiles, const V2_int& tile_size) {}
+	virtual void Create() {}
 	virtual void Render() {}
 	friend bool operator==(const Chunk& a, const Chunk& b) {
 		return a.coordinate_ == b.coordinate_;
 	}
-	V2_int coordinate_;
 protected:
+	V2_int coordinate_;
 	ecs::Manager manager_;
+	ChunkManager* parent_{ nullptr };
 private:
+	void Init(ChunkManager* parent, const V2_int& coordinate) {
+		parent_ = parent;
+		coordinate_ = coordinate;
+	}
 	friend class ChunkManager;
 	bool flagged_{ false };
 };
@@ -26,7 +34,7 @@ private:
 class BasicChunk : public Chunk {
 public:
 	virtual ~BasicChunk() = default;
-	virtual void Create(const V2_int& position, const V2_int& tiles, const V2_int& tile_size) override final;
+	virtual void Create() override final;
 	virtual void Render() override final;
 };
 
