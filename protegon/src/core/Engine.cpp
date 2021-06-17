@@ -12,6 +12,7 @@
 #include "renderer/text/FontManager.h"
 #include "event/InputHandler.h"
 #include "event/EventHandler.h"
+#include "world/LevelManager.h"
 
 namespace ptgn {
 
@@ -54,6 +55,7 @@ void Engine::Destroy() {
 	Window::Destroy();
 	FontManager::Destroy();
 	TextureManager::Destroy();
+	LevelManager::Destroy();
 	// Quit SDL subsystems.
 	TTF_Quit();
 	IMG_Quit();
