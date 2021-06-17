@@ -4,7 +4,7 @@
 #include <ostream> // std::ostream
 
 #include "math/Math.h"
-#include "renderer/sprites/PixelFormat.h"
+#include "renderer/PixelFormat.h"
 
 struct SDL_Color;
 
@@ -24,12 +24,12 @@ public:
 	// Construct color from individual RGBA8888 pixel format values.
 	Color(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a);
 
-	/* 
+	/*
 	* Construct color from a pixel format integer.
-	* @param color Integer from which to retrieve red, green, blue, and alpha values.
-	* @param format The pixel format for conversion (order and size of colors).
+	* @param pixel Integer from which to retrieve red, green, blue, and alpha values.
+	* @param format The format which the pixel follows.
 	*/
-	Color(std::uint32_t color, PixelFormat format = PixelFormat::RGBA8888);
+	Color(std::uint32_t pixel, PixelFormat format);
 
 	Color(const Color& copy) = default;
 	Color(Color&& move) = default;
@@ -55,10 +55,10 @@ public:
 	
 	/*
 	* Converts color to a given pixel format integer
-	* @param pixel_format The format according to which pixels are converted to an integer.
+	* @param format The format according to which pixels are converted to an integer.
 	* @return The color converted to the given pixel format, 0 if invalid pixel format.
 	*/
-	std::uint32_t ToUint32(PixelFormat pixel_format = PixelFormat::RGBA8888) const;
+	std::uint32_t ToUint32(PixelFormat format) const;
 
 	/*
 	* @return True if alpha value of color is 0, false otherwise.

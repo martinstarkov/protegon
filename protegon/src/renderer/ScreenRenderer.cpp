@@ -213,8 +213,8 @@ Texture ScreenRenderer::CreateTexture(const Surface& surface) {
 }
 
 Texture ScreenRenderer::CreateTexture(const V2_int& size,
-								 PixelFormat format,
-								 TextureAccess texture_access) {
+									  std::uint32_t format,
+									  TextureAccess texture_access) {
 	return { GetInstance(), size, format, texture_access };
 }
 

@@ -1,7 +1,6 @@
 #include "Color.h"
 
 #include <SDL.h>
-
 #include <cassert> // assert
 
 #include "math/RNG.h"
@@ -14,7 +13,7 @@ Color Color::RandomSolid() {
 		static_cast<std::uint8_t>(rng()), 
 		static_cast<std::uint8_t>(rng()),
 		static_cast<std::uint8_t>(rng()),
-		255 
+		255
 	};
 }
 
@@ -36,42 +35,8 @@ Color::Color(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a) :
 	r{ r }, g{ g }, b{ b }, a{ a } 
 {}
 
-Color::Color(std::uint32_t color, PixelFormat format) {
-	assert(
-		format == PixelFormat::ABGR8888 ||
-		format == PixelFormat::ARGB8888 ||
-		format == PixelFormat::BGRA8888 ||
-		format == PixelFormat::RGBA8888 &&
-		"Pixel format for constructing color must be 8-bit based format"
-	);
-	switch (format) {
-		case PixelFormat::RGBA8888:
-			r = color & 255;
-			g = (color >> 8) & 255;
-			b = (color >> 16) & 255;
-			a = (color >> 24) & 255;
-			break;
-		case PixelFormat::ABGR8888:
-			a = color & 255;
-			b = (color >> 8) & 255;
-			g = (color >> 16) & 255;
-			r = (color >> 24) & 255;
-			break;
-		case PixelFormat::ARGB8888:
-			a = color & 255;
-			r = (color >> 8) & 255;
-			g = (color >> 16) & 255;
-			b = (color >> 24) & 255;
-			break;
-		case PixelFormat::BGRA8888:
-			b = color & 255;
-			g = (color >> 8) & 255;
-			r = (color >> 16) & 255;
-			a = (color >> 24) & 255;
-			break;
-		default:
-			break;
-	}
+Color::Color(std::uint32_t pixel, PixelFormat format) {
+	SDL_GetRGBA(pixel, format, &r, &g, &b, &a);
 }
 
 Color::operator SDL_Color() const {
@@ -87,26 +52,7 @@ std::ostream& operator<<(std::ostream& os, const Color& color) {
 }
 
 std::uint32_t Color::ToUint32(PixelFormat format) const {
-	assert(
-		format == PixelFormat::ABGR8888 ||
-		format == PixelFormat::ARGB8888 ||
-		format == PixelFormat::BGRA8888 ||
-		format == PixelFormat::RGBA8888 &&
-		"Pixel format for using this function must be 8-bit based format"
-	);
-	switch (format) {
-		case PixelFormat::RGBA8888:
-			return r + (g << 8) + (b << 16) + (a << 24);
-		case PixelFormat::ABGR8888:
-			return a + (b << 8) + (g << 16) + (r << 24);
-		case PixelFormat::ARGB8888:
-			return a + (r << 8) + (g << 16) + (b << 24);
-		case PixelFormat::BGRA8888:
-			return b + (g << 8) + (r << 16) + (a << 24);
-		default:
-			return 0;
-	}
-	return 0;
+	return SDL_MapRGBA(format, r, g, b, a);
 }
 
 bool Color::IsTransparent() const { 

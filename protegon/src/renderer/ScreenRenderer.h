@@ -7,7 +7,7 @@
 #include "renderer/Texture.h"
 #include "renderer/Color.h"
 #include "renderer/Colors.h"
-#include "renderer/sprites/Flip.h"
+#include "renderer/sprite/Flip.h"
 #include "utils/Singleton.h"
 
 struct SDL_Renderer;
@@ -97,7 +97,7 @@ public:
 	// Texture access should be chosen based on texture access frequency.
 	// Texture must be freed using Destroy.
 	static Texture CreateTexture(const V2_int& size,
-								 PixelFormat format = PixelFormat::RGBA8888,
+								 std::uint32_t format,
 								 TextureAccess texture_access = TextureAccess::STREAMING);
 
 private:
