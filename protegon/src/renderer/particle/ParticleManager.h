@@ -5,7 +5,7 @@
 #include <vector> // std::vector
 #include <algorithm> // std::fill
 
-#include "renderer/particles/Particle.h"
+#include "renderer/particle/Particle.h"
 #include "utils/TypeTraits.h"
 #include "math/Math.h"
 #include "renderer/ScreenRenderer.h"

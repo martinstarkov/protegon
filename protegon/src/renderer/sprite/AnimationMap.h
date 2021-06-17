@@ -2,7 +2,7 @@
 
 #include <unordered_map> // std::unordered_map
 
-#include "renderer/sprites/Animation.h"
+#include "renderer/sprite/Animation.h"
 
 namespace ptgn {
 
