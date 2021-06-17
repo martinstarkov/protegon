@@ -22,15 +22,10 @@ public:
 	// Remove texture from TextureManager.
 	static void Unload(const char* texture_key);
 
-	// Return the location of a 4 byte integer value containg the RGBA32 color of the pixel on an SDL_Surface or SDL_Texture.
-	static std::uint32_t& GetTexturePixel(void* pixels,
-										  const int pitch,
-										  const V2_int& position,
-										  PixelFormat format);
-
 	/*
 	* @param texture_key Unique identifying key associated with the texture.
 	* @return Reference to a const texture object with the given key.
+	* If TextureManager does not contain the requested texture, assertion is called.
 	*/
 	static const Texture& GetTexture(const char* texture_key);
 private:

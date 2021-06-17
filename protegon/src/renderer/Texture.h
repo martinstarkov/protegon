@@ -2,7 +2,7 @@
 
 #include "math/Vector2.h"
 #include "renderer/Color.h"
-#include "renderer/sprites/PixelFormat.h"
+#include "renderer/PixelFormat.h"
 
 struct SDL_Texture;
 
@@ -16,8 +16,10 @@ class Surface;
 enum class TextureAccess : int {
 	// Changes rarely, not lockable.
 	STATIC = 0, // SDL_TEXTUREACCESS_STATIC = 0
+	
 	// Changes frequently, lockable.
 	STREAMING = 1, // SDL_TEXTUREACCESS_STREAMING = 1
+
 	// Can be used as a render target.
 	TARGET = 2 // SDL_TEXTUREACCESS_TARGET = 2
 };
@@ -33,8 +35,8 @@ public:
 	Texture& operator=(Texture&& move) = default;
 
 	// Locks texture to enable access to it.
-	bool Lock(void** out_pixels, 
-			  int* out_pitch, 
+	void Lock(void** out_pixels,
+			  int* out_pitch,
 			  V2_int lock_position = {}, 
 			  V2_int lock_size = {});
 	
@@ -42,13 +44,23 @@ public:
 	void Unlock();
 	
 	// Sets all texture pixels to a specific color.
-	void SetColor(const Color& color, PixelFormat format = PixelFormat::RGBA8888);
+	void SetColor(const Color& color, PixelFormat format);
 
 	V2_int GetSize() const;
 
 	TextureAccess GetTextureAccess() const;
 
-	PixelFormat GetPixelFormat() const;
+	std::uint32_t Texture::GetPixelFormat() const;
+	PixelFormat AllocatePixelFormat(std::uint32_t format) const;
+	void FreePixelFormat(PixelFormat format) const;
+
+	int SlowGetBytesPerPixel() const;
+
+	// Return the location of a 4 byte integer value containg the RGBA32 color of the pixel.
+	std::uint32_t* GetPixel(void* pixels,
+							int pitch,
+							const V2_int& position,
+							int bytes_per_pixel);
 
 	// Frees memory used by internal texture pointer.
 	void Destroy();
@@ -65,7 +77,7 @@ private:
 	// Creates texture with a given size and pixel format.
 	Texture(const ScreenRenderer& renderer, 
 			const V2_int& size, 
-			PixelFormat format = PixelFormat::RGBA8888, 
+			std::uint32_t format, 
 			TextureAccess texture_access = TextureAccess::STREAMING);
 
 	// Creates texture from surface.

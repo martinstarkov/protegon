@@ -46,22 +46,6 @@ const Texture& TextureManager::GetTexture(const char* texture_key) {
 	return it->second;
 }
 
-std::uint32_t& TextureManager::GetTexturePixel(void* pixels,
-											   const int pitch,
-											   const V2_int& position, 
-											   PixelFormat format) {
-	// Bytes per pixel.
-	const int bytes_per_pixel{ 
-		SDL_BYTESPERPIXEL(static_cast<SDL_PixelFormatEnum>(format)) 
-	};
-	assert(bytes_per_pixel == 4 && 
-		   "Invalid bytes per pixel for texture pixel access");
-	std::uint32_t* pixel{ 
-		(std::uint32_t*)pixels + position.y * pitch + position.x * bytes_per_pixel 
-	};
-	return *pixel;
-}
-
 void TextureManager::Destroy() {
 	auto& instance{ GetInstance() };
 	for (auto& pair : instance.texture_map_) {

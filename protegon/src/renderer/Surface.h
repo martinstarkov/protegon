@@ -1,5 +1,10 @@
 #pragma once
 
+#include <cstdint> // std::uint8_t
+
+#include "math/Vector2.h"
+#include "renderer/PixelFormat.h"
+
 struct SDL_Surface;
 
 namespace ptgn {
@@ -9,7 +14,16 @@ class Texture;
 class TextureManager;
 
 class Surface {
+public:
+	const std::uint32_t* GetPixel(const V2_int& position) const;
+	std::uint32_t* GetPixel(const V2_int& position);
+	void* const GetPixels() const;
+	int GetPitch() const;
+	V2_int GetSize() const;
+	std::uint8_t GetBytesPerPixel() const;
+	PixelFormat GetPixelFormat() const;
 private:
+	friend class Level;
 	friend class Text;
 	friend class Texture;
 	friend class TextureManager;

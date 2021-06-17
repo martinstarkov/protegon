@@ -12,11 +12,11 @@ Texture::Texture(SDL_Texture* texture) : texture_{ texture } {}
 
 Texture::Texture(const ScreenRenderer& renderer, 
 				 const V2_int& size, 
-				 PixelFormat format, 
+				 std::uint32_t format,
 				 TextureAccess texture_access) {
 	assert(renderer.IsValid() && "Cannot create texture from invalid renderer");
 	texture_ = SDL_CreateTexture(renderer,
-								 static_cast<std::uint32_t>(format),
+								 format,
 								 static_cast<int>(texture_access),
 								 size.x,
 								 size.y);
@@ -53,7 +53,7 @@ SDL_Texture* Texture::operator&() const {
 	return texture_;
 }
 
-bool Texture::Lock(void** out_pixels, 
+void Texture::Lock(void** out_pixels, 
 				   int* out_pitch, 
 				   V2_int lock_position, 
 				   V2_int lock_size) {
@@ -63,11 +63,11 @@ bool Texture::Lock(void** out_pixels,
 		rect = { lock_position.x, lock_position.y, lock_size.x, lock_size.y };
 		lock_rect = &rect;
 	}
+	assert(IsValid() && "Cannot lock invalid texture");
 	if (SDL_LockTexture(texture_, lock_rect, out_pixels, out_pitch) < 0) {
-		PrintLine("Couldn't lock texture: ", SDL_GetError());
-		return false;
+		PrintLine("Could not lock texture, ensure texture access is streaming: ", SDL_GetError());
+		abort();
 	}
-	return true;
 }
 
 void Texture::Unlock() {
@@ -104,8 +104,7 @@ V2_int Texture::GetSize() const {
 	V2_int size;
 	auto output{ SDL_QueryTexture(texture_,
 								  NULL, NULL,
-								  &size.x, &size.y)
-	};
+								  &size.x, &size.y) };
 	assert(output == 0 && "Cannot query invalid texture for size");
 	return size;
 }
@@ -114,20 +113,56 @@ TextureAccess Texture::GetTextureAccess() const {
 	int access{ 0 };
 	auto output{ SDL_QueryTexture(texture_,
 								  NULL, &access,
-								  NULL, NULL)
-	};
+								  NULL, NULL) };
 	assert(output == 0 && "Cannot query invalid texture for texture access");
 	return static_cast<TextureAccess>(access);
 }
 
-PixelFormat Texture::GetPixelFormat() const {
+std::uint32_t Texture::GetPixelFormat() const {
 	std::uint32_t format{ 0 };
 	auto output{ SDL_QueryTexture(texture_,
 								  &format, NULL,
-								  NULL, NULL)
-	};
+								  NULL, NULL) };
 	assert(output == 0 && "Cannot query invalid texture for pixel format");
-	return static_cast<PixelFormat>(format);
+	return format;
+}
+
+PixelFormat Texture::AllocatePixelFormat(std::uint32_t format) const {
+	return SDL_AllocFormat(format);
+}
+
+void Texture::FreePixelFormat(PixelFormat format) const {
+	SDL_FreeFormat(format);
+}
+
+int Texture::SlowGetBytesPerPixel() const {
+	PixelFormat format = AllocatePixelFormat(GetPixelFormat());
+	int bytes_per_pixel = format.format_->BytesPerPixel;
+	FreePixelFormat(format);
+	return bytes_per_pixel;
+}
+
+std::uint32_t* Texture::GetPixel(void* pixels,
+								 int pitch,
+								 const V2_int& position,
+								 int bytes_per_pixel) {
+	assert(position.x < GetSize().x &&
+		   "Cannot retrieve texture pixel for x position greater than texture width");
+	assert(position.x >= 0 &&
+		   "Cannot retrieve texture pixel for x position smaller than 0");
+	assert(position.y < GetSize().y &&
+		   "Cannot retrieve texture pixel for y position greater than texture height");
+	assert(position.y >= 0 &&
+		   "Cannot retrieve texture pixel for y position smaller than 0");
+	assert(bytes_per_pixel == 1 ||
+		   bytes_per_pixel == 2 ||
+		   bytes_per_pixel == 4 &&
+		   "Invalid bytes per pixel for texture pixel retrieval");
+	std::uint8_t* p =
+		(std::uint8_t*)pixels +
+		position.y * pitch +
+		position.x * bytes_per_pixel;
+	return (std::uint32_t*)p;
 }
 
 } // namespace ptgn
