@@ -7,9 +7,6 @@ namespace ptgn {
 
 class WorldRenderer {
 public:
-	// Retrieve the currently active camera object.
-	static Camera& GetActiveCamera();
-
 	// Convert coordinate from world reference frame to screen reference frame.
 	static V2_int WorldToScreen(const V2_double& world_coordinate);
 
@@ -73,34 +70,12 @@ public:
 								   const V2_double& size, 
 								   const Color& color = colors::DEFAULT_DRAW_COLOR);
 
-	// Sets the screen draw color.
-	static void SetDrawColor(const Color& color = colors::DEFAULT_DRAW_COLOR);
-	
-	// Clears the screen.
-	static void Clear();
-	// Display renderer objects to screen.
-	static void Present();
-	
 	// Draws texture object to the screen.
 	static void DrawTexture(const Texture& texture,
 							const V2_double& position,
 							const V2_double& size,
 							const V2_int source_position = {},
 							const V2_int source_size = {});
-
-	// Use the below functions with caution.
-	// Remember to always free the Texture object using the Destroy method.
-
-	// Creates texture from surface.
-	// Texture must be freed using Destroy.
-	static Texture CreateTexture(const Surface& surface);
-	
-	// Creates texture with given size and pixel format.
-	// Texture access should be chosen based on texture access frequency.
-	// Texture must be freed using Destroy.
-	static Texture CreateTexture(const V2_int& size,
-								 PixelFormat format = PixelFormat::RGBA8888,
-								 TextureAccess texture_access = TextureAccess::STREAMING);
 private:
 	// Convert coordinate from world reference frame to screen reference frame.
 	static V2_int WorldToScreen(const V2_double& world_coordinate, const Camera& active_camera);

@@ -34,9 +34,10 @@ public:
 	static bool HasScene(const char* scene_key);
 
 	static void UnloadScene(const char* scene_key);
+
+	static Camera& GetActiveCamera();
 private:
 	friend class Engine;
-	friend class WorldRenderer;
 	friend class Singleton<SceneManager>;
 
 	static Scene& GetActiveScene();

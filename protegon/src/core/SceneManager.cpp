@@ -18,6 +18,10 @@ void SceneManager::UnloadScene(const char* scene_key) {
 	GetInstance().UnloadSceneImpl(math::Hash(scene_key));
 }
 
+Camera& SceneManager::GetActiveCamera() {
+	return GetActiveScene().camera;
+}
+
 void SceneManager::LoadSceneImpl(std::size_t scene_key, Scene* scene) {
 	assert(GetSceneImpl(scene_key) == std::end(scenes_) &&
 		   "Cannot load a scene which already exists in SceneManager");
