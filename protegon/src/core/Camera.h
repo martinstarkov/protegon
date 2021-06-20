@@ -27,8 +27,11 @@ struct Camera {
 
 	// Zoom camera in by the set zoom speed.
 	void ZoomIn();
+	void ZoomIn(const V2_double& amount);
+
 	// Zoom camera out by the set zoom speed.
 	void ZoomOut();
+	void ZoomOut(const V2_double& amount);
 
 	V2_double position;
 	V2_double scale{ 1.0, 1.0 };

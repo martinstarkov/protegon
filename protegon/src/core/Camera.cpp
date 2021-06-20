@@ -18,8 +18,18 @@ Camera::Camera(const V2_double& scale,
 	max_scale{ max_scale }
 {}
 
+void Camera::ZoomIn(const V2_double& amount) {
+	scale += amount;
+	ClampToBound();
+}
+
 void Camera::ZoomIn() {
 	scale += zoom_speed;
+	ClampToBound();
+}
+
+void Camera::ZoomOut(const V2_double& amount) {
+	scale -= amount;
 	ClampToBound();
 }
 
