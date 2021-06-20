@@ -142,10 +142,10 @@ int Texture::SlowGetBytesPerPixel() const {
 	return bytes_per_pixel;
 }
 
-std::uint32_t* Texture::GetPixel(void* pixels,
-								 int pitch,
-								 const V2_int& position,
-								 int bytes_per_pixel) {
+const std::uint32_t& Texture::GetPixel(void* pixels,
+									   int pitch,
+									   const V2_int& position,
+									   int bytes_per_pixel) const {
 	assert(position.x < GetSize().x &&
 		   "Cannot retrieve texture pixel for x position greater than texture width");
 	assert(position.x >= 0 &&
@@ -154,15 +154,38 @@ std::uint32_t* Texture::GetPixel(void* pixels,
 		   "Cannot retrieve texture pixel for y position greater than texture height");
 	assert(position.y >= 0 &&
 		   "Cannot retrieve texture pixel for y position smaller than 0");
+	/* Here p is the address to the pixel we want to retrieve */
+	std::uint8_t* p = (std::uint8_t*)pixels + position.y * pitch + position.x * bytes_per_pixel;
+	switch (bytes_per_pixel) {
+		case 1:
+			return *p;
+			break;
+		case 2:
+			return *(std::uint16_t*)p;
+			break;
+		case 3:
+			if (SDL_BYTEORDER == SDL_BIG_ENDIAN)
+				return p[0] << 16 | p[1] << 8 | p[2];
+			else
+				return p[0] | p[1] << 8 | p[2] << 16;
+			break;
+		case 4:
+			return *(std::uint32_t*)p;
+			break;
+	}
 	assert(bytes_per_pixel == 1 ||
 		   bytes_per_pixel == 2 ||
+		   bytes_per_pixel == 3 ||
 		   bytes_per_pixel == 4 &&
 		   "Invalid bytes per pixel for texture pixel retrieval");
-	std::uint8_t* p =
-		(std::uint8_t*)pixels +
-		position.y * pitch +
-		position.x * bytes_per_pixel;
-	return (std::uint32_t*)p;
+	return *p;
+}
+
+std::uint32_t& Texture::GetPixel(void* pixels,
+								 int pitch,
+								 const V2_int& position,
+								 int bytes_per_pixel) {
+	return const_cast<std::uint32_t&>(static_cast<const Texture&>(*this).GetPixel(pixels, pitch, position, bytes_per_pixel));
 }
 
 } // namespace ptgn

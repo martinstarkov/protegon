@@ -50,14 +50,22 @@ public:
 
 	TextureAccess GetTextureAccess() const;
 
-	std::uint32_t Texture::GetPixelFormat() const;
+	std::uint32_t GetPixelFormat() const;
+
 	PixelFormat AllocatePixelFormat(std::uint32_t format) const;
+
 	void FreePixelFormat(PixelFormat format) const;
 
 	int SlowGetBytesPerPixel() const;
 
-	// Return the location of a 4 byte integer value containg the RGBA32 color of the pixel.
-	std::uint32_t* GetPixel(void* pixels,
+	// Returns the pixel data at a given position on a texture.
+	const std::uint32_t& GetPixel(void* pixels,
+								  int pitch,
+								  const V2_int& position,
+								  int bytes_per_pixel) const;
+
+	// Returns a reference to the pixel data at a given position on a texture.
+	std::uint32_t& GetPixel(void* pixels,
 							int pitch,
 							const V2_int& position,
 							int bytes_per_pixel);

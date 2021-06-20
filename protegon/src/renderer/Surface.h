@@ -15,12 +15,20 @@ class TextureManager;
 
 class Surface {
 public:
-	const std::uint32_t* GetPixel(const V2_int& position) const;
-	std::uint32_t* GetPixel(const V2_int& position);
+	// Returns the pixel data at a given position on a surface.
+	const std::uint32_t& GetPixel(const V2_int& position) const;
+
+	// Returns a reference to the pixel data at a given position on a surface.
+	std::uint32_t& GetPixel(const V2_int& position);
+
 	void* const GetPixels() const;
+
 	int GetPitch() const;
+
 	V2_int GetSize() const;
+
 	std::uint8_t GetBytesPerPixel() const;
+
 	PixelFormat GetPixelFormat() const;
 private:
 	friend class Level;
