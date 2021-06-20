@@ -31,10 +31,6 @@ Color::Color(const SDL_Color& color) :
 	r{ color.r }, g{ color.g }, b{ color.b }, a{ color.a } 
 {}
 
-Color::Color(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a) : 
-	r{ r }, g{ g }, b{ b }, a{ a } 
-{}
-
 Color::Color(std::uint32_t pixel, PixelFormat format) {
 	SDL_GetRGBA(pixel, format, &r, &g, &b, &a);
 }

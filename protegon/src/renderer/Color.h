@@ -17,12 +17,35 @@ public:
 	// Generates a color with random RGBA values.
 	static Color Random();
 
+	/*
+	* Converts color to a 32-bit pixel format.
+	* @return The color converted into a 32-bit integer.
+	*/
+	static constexpr std::uint32_t AsUint32(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a) {
+		return r + (g << 8) + (b << 16) + (a << 24);
+	}
+
+	/*
+	* Converts 32-bit pixel data to color.
+	* @return The color.
+	*/
+	static constexpr Color FromUint32(std::uint32_t rgba) {
+		Color color;
+		color.r = (rgba >> 0) & 255;
+		color.g = (rgba >> 8) & 255;
+		color.b = (rgba >> 16) & 255;
+		color.a = (rgba >> 24) & 255;
+		return color;
+	}
+
 	// Default construct color to black.
 	Color() = default;
 	~Color() = default;
 	
 	// Construct color from individual RGBA8888 pixel format values.
-	Color(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a);
+	constexpr Color(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a) :
+		r{ r }, g{ g }, b{ b }, a{ a }
+	{}
 
 	/*
 	* Construct color from a pixel format integer.
@@ -59,6 +82,14 @@ public:
 	* @return The color converted to the given pixel format, 0 if invalid pixel format.
 	*/
 	std::uint32_t ToUint32(PixelFormat format) const;
+
+	/*
+	* Converts color to a 32-bit pixel format
+	* @return The color converted into a 32-bit integer.
+	*/
+	constexpr std::uint32_t ToUint32() const {
+		return AsUint32(r, g, b, a);
+	}
 
 	/*
 	* @return True if alpha value of color is 0, false otherwise.
