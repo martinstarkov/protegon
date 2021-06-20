@@ -831,7 +831,7 @@ private:
 		* If you ended up here and want to find out which
 		* entity triggered this assertion, follow the call stack.
 		*/
-		assert(component_address != nullptr && "Cannot get component which entity does not have");
+		assert(component_address != nullptr && "Cannot get a component which an entity does not have");
 		return *component_address;
 	}
 
