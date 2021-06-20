@@ -1,13 +1,13 @@
 #include "ChunkManager.h"
 
-#include "physics/collision/AABBvsAABB.h"
-
-// TODO: Remove
-#include "debugging/Debug.h"
-#include "event/InputHandler.h"
-
 #include <unordered_set>
 #include <algorithm>
+
+#include "components/TransformComponent.h"
+#include "components/HitboxComponent.h"
+#include "components/ShapeComponent.h"
+#include "physics/collision/AABBvsAABB.h"
+#include "physics/collision/Collision.h"
 
 namespace ptgn {
 
@@ -30,61 +30,95 @@ ChunkManager::~ChunkManager() {
 	}
 }
 
-void ChunkManager::Update() {
-	Timer timer;
-	timer.Start();
-	
-	auto coordinate = math::Floor(position_ / chunk_size_ - load_size_ / 2);
-	bool chunk_change = false;
-	AABB boundary{ load_size_ };
-	AABB chunk_boundary{ { 1, 1 } };
-	int erased = 0;
-
-	for (auto it = std::begin(loaded_chunks_); it != std::end(loaded_chunks_);) {
-		if (!math::AABBvsAABB(boundary, coordinate, chunk_boundary, it->first)) {
-			// Range check here in future?
-			++erased;
-			delete it->second;
-			it = loaded_chunks_.erase(it); // previously this was something like m_map.erase(it++);
-		} else {
-			++it;
-		}
-	}
-	int added = 0;
-	for (auto i = coordinate.x; i < coordinate.x + load_size_.x; ++i) {
-		for (auto j = coordinate.y; j < coordinate.y + load_size_.y; ++j) {
-			V2_int potential_coordinate{ i, j };
-			auto it = loaded_chunks_.find(potential_coordinate);
-			if (it == std::end(loaded_chunks_)) {
-				++added;
-				auto chunk = new BasicChunk();
-				chunk->Init(this, potential_coordinate);
-				chunk->Create();
-				loaded_chunks_.emplace(potential_coordinate, chunk);
-			}
-		}
-	}
-
-	if (erased > 0 || added > 0) {
-		//PrintLine("Erased: ", erased, ", added: ", added);
-		chunk_change = true;
-	}
-
-	//DebugRenderer<WorldRenderer>::DrawRectangle(coordinate_ * chunk_size_, size_ * chunk_size_, colors::ORANGE);
-
-	if (chunk_change) {
-		//PrintLine(timer.Elapsed<milliseconds>().count());
-	}
-}
-
 void ChunkManager::CenterOn(const V2_double& position) {
 	position_ = position;
 }
 
+std::vector<Chunk*> ChunkManager::GetChunksBetween(V2_double position1,
+												   V2_double position2) {
+	std::vector<Chunk*> chunks;
+	auto coordinate1 = math::Floor(position1 / chunk_size_);
+	auto coordinate2 = math::Floor(position2 / chunk_size_);
+	// Ensure that coordinate2 is the bigger coordinate.
+	if (coordinate2.x < coordinate1.x) {
+		std::swap(coordinate2.x, coordinate1.x);
+	}
+	if (coordinate2.y < coordinate1.y) {
+		std::swap(coordinate2.y, coordinate1.y);
+	}
+	coordinate1 -= 1;
+	coordinate2 += 1;
+	// Only one chunk exists
+	//if (coordinate1 == coordinate2) {
+	//	auto it = loaded_chunks_.find(coordinate1);
+	//	// Add chunk to vector if it exists in the loaded chunks.
+	//	if (it != std::end(loaded_chunks_)) {
+	//		chunks.emplace_back(it->second);
+	//	}
+	//} else {
+		auto coordinate_extent = coordinate2 - coordinate1 + V2_int{ 1, 1 };
+		auto chunk_count = coordinate_extent.x * coordinate_extent.y;
+		assert(chunk_count > 1 &&
+			   "Math mistake in retrieving chunks between two separate chunk coordinates");
+		chunks.reserve(chunk_count);
+		for (auto i = coordinate1.x; i < coordinate2.x + 1; ++i) {
+			for (auto j = coordinate1.y; j < coordinate2.y + 1; ++j) {
+				auto it = loaded_chunks_.find(V2_int{ i, j });
+				// Add chunk to vector if it exists in the loaded chunks.
+				if (it != std::end(loaded_chunks_)) {
+					chunks.emplace_back(it->second);
+				}
+			}
+		}
+	//}
+	return chunks;
+}
+
+void ChunkManager::ResolveCollisionsWith(ecs::Entity& entity) {
+	auto& transform = entity.GetComponent<ptgn::TransformComponent>();
+	auto& hitbox = entity.GetComponent<ptgn::HitboxComponent>();
+	auto& shape = entity.GetComponent<ptgn::ShapeComponent>();
+	auto center = shape.shape->GetCenter(transform.transform.position);
+	auto size = shape.GetSize();
+	auto top_left = center - size / 2.0;
+	auto bottom_right = center + size / 2.0;
+	auto chunks = GetChunksBetween(top_left, bottom_right);
+	for (auto chunk : chunks) {
+		chunk->GetManager().ForEachEntityWith<ptgn::TransformComponent, ptgn::HitboxComponent, ptgn::ShapeComponent>(
+			[&](ecs::Entity entity2,
+				ptgn::TransformComponent& transform2,
+				ptgn::HitboxComponent& hitbox2,
+				ptgn::ShapeComponent& shape2) {
+			ResolveCollision(entity, entity2, transform, transform2, hitbox, hitbox2, shape, shape2);
+		});
+	}
+}
+
+void ChunkManager::Update() {
+	for (auto [coordinate, chunk] : loaded_chunks_) {
+		if (chunk->update_) {
+			chunk->Update();
+		}
+	}
+}
+
 void ChunkManager::Render() {
 	for (auto [coordinate, chunk] : loaded_chunks_) {
-		chunk->Render();
+		if (chunk->render_) {
+			chunk->Render();
+		}
 	}
+}
+
+const Chunk& ChunkManager::GetChunk(const V2_int& coordinate) const {
+	auto it = loaded_chunks_.find(coordinate);
+	assert(it != std::end(loaded_chunks_) &&
+		   "Cannot GetChunk whose coordinate does not exist in the ChunkManager");
+	return *it->second;
+}
+
+Chunk& ChunkManager::GetChunk(const V2_int& coordinate) {
+	return const_cast<Chunk&>(static_cast<const ChunkManager&>(*this).GetChunk(coordinate));
 }
 
 V2_int ChunkManager::GetTileSize() const {
