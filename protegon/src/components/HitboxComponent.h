@@ -11,14 +11,14 @@ namespace ptgn {
 
 struct HitboxComponent {
 
-	using CollisionFunction = void(*)(ecs::Entity& target, const Manifold& manifold);
+	using CollisionFunction = void(*)(ecs::Entity& entity, ecs::Entity& collision_entity, const Manifold& manifold);
 
 	HitboxComponent() = default;
 	~HitboxComponent() = default;
 	HitboxComponent(const V2_int& offset) : offset{ offset } {}
 
 	// Resolves a collision if the resolution_function is defined.
-	bool Resolve(ecs::Entity& target, const Manifold& manifold);
+	bool Resolve(ecs::Entity& entity, ecs::Entity& collision_entity, const Manifold& manifold);
 
 	/*
 	* @return True if hitbox should collide with entity based on its TagComponent, false otherwise.
