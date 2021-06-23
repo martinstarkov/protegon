@@ -60,7 +60,7 @@ function(add_protegon_to TARGET)
             add_custom_command(TARGET ${TARGET} POST_BUILD COMMAND "${CMAKE_COMMAND}"
                                -E copy_if_different "${item}" $<TARGET_FILE_DIR:${TARGET}>)
         endforeach()
-        message(STATUS "Added post build commands to copy SDL dlls to ${TARGET}")
+        message(STATUS "Added post build commands to copy SDL dlls for ${TARGET}")
     endif()
 endfunction()
 
