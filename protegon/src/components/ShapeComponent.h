@@ -41,25 +41,6 @@ struct ShapeComponent {
 		shape = std::exchange(move.shape, nullptr);
 	}
 
-	/*
-	* @return AABB: { width, height }, Circle: { diameter, diameter }
-	*/
-	V2_double GetSize() const {
-		switch (shape->GetType()) {
-			case ShapeType::AABB: {
-				return shape->CastTo<AABB>().size;
-			}
-			case ShapeType::CIRCLE: {
-				auto diameter{ 2 * shape->CastTo<Circle>().radius };
-				return { diameter, diameter };
-			}
-			default: {
-				return {};
-			}
-		}
-		return {};
-	}
-
 	Shape* shape{ nullptr };
 };
 

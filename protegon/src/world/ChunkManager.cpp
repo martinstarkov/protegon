@@ -79,7 +79,7 @@ void ChunkManager::ResolveCollisionsWith(ecs::Entity& entity) {
 	auto& hitbox = entity.GetComponent<ptgn::HitboxComponent>();
 	auto& shape = entity.GetComponent<ptgn::ShapeComponent>();
 	auto center = shape.shape->GetCenter(transform.transform.position);
-	auto size = shape.GetSize();
+	auto size = shape.shape->GetSize();
 	auto top_left = center - size / 2.0;
 	auto bottom_right = center + size / 2.0;
 	auto chunks = GetChunksBetween(top_left, bottom_right);
