@@ -7,7 +7,7 @@
 
 namespace ptgn {
 
-const std::uint32_t& Surface::GetPixel(const V2_int& position) const {
+std::uint32_t Surface::GetPixelData(const V2_int& position) const {
 	assert(position.x < surface_->w &&
 		   "Cannot retrieve surface pixel for x position greater than surface width");
 	assert(position.x >= 0 &&
@@ -16,40 +16,29 @@ const std::uint32_t& Surface::GetPixel(const V2_int& position) const {
 		   "Cannot retrieve surface pixel for y position greater than surface height");
 	assert(position.y >= 0 &&
 		   "Cannot retrieve surface pixel for y position smaller than 0");
-	int bytes_per_pixel = surface_->format->BytesPerPixel;
-	/* Here p is the address to the pixel we want to retrieve */
-	std::uint8_t* p = (std::uint8_t*)surface_->pixels + position.y * surface_->pitch + position.x * bytes_per_pixel;
+	int bytes_per_pixel{ surface_->format->BytesPerPixel };
+	std::uint8_t* pixel{ static_cast<std::uint8_t*>(surface_->pixels) + position.y * surface_->pitch + position.x * bytes_per_pixel };
 	switch (bytes_per_pixel) {
 		case 1:
-			return *p;
-			break;
+			return *pixel;
 		case 2:
-			return *(std::uint16_t*)p;
-			break;
+			return *static_cast<std::uint16_t*>(static_cast<void*>(pixel));
 		case 3:
-			if (SDL_BYTEORDER == SDL_BIG_ENDIAN)
-				return p[0] << 16 | p[1] << 8 | p[2];
-			else
-				return p[0] | p[1] << 8 | p[2] << 16;
-			break;
+			if (SDL_BYTEORDER == SDL_BIG_ENDIAN) {
+				return pixel[0] << 16 | pixel[1] << 8 | pixel[2];
+			} else {
+				return pixel[0] | pixel[1] << 8 | pixel[2] << 16;
+			}
 		case 4:
-			return *(std::uint32_t*)p;
-			break;
+			return *static_cast<std::uint32_t*>(static_cast<void*>(pixel));
+		default:
+			// Error
+			return 0;
 	}
-	assert(bytes_per_pixel == 1 ||
-		   bytes_per_pixel == 2 ||
-		   bytes_per_pixel == 3 ||
-		   bytes_per_pixel == 4 &&
-		   "Invalid bytes per pixel for surface pixel retrieval");
-	return *p;
 }
 
-std::uint32_t& Surface::GetPixel(const V2_int& position) {
-	return const_cast<std::uint32_t&>(static_cast<const Surface&>(*this).GetPixel(position));
-}
-
-void* const Surface::GetPixels() const {
-	return surface_->pixels;
+Color Surface::GetPixel(const V2_int& position) const {
+	return { GetPixelData(position), surface_->format };
 }
 
 int Surface::GetPitch() const {

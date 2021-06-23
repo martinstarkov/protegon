@@ -13,7 +13,11 @@ private:
 	friend class Surface;
 	friend class Texture;
 	friend class Color;
+
 	PixelFormat(SDL_PixelFormat* format);
+
+	// Frees memory used by format pointer.
+	void Destroy();
 
 	operator SDL_PixelFormat* () const;
 	SDL_PixelFormat* operator&() const;

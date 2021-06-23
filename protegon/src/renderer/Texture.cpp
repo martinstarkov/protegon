@@ -132,20 +132,20 @@ PixelFormat Texture::AllocatePixelFormat(std::uint32_t format) const {
 }
 
 void Texture::FreePixelFormat(PixelFormat format) const {
-	SDL_FreeFormat(format);
+	format.Destroy();
 }
 
 int Texture::SlowGetBytesPerPixel() const {
-	PixelFormat format = AllocatePixelFormat(GetPixelFormat());
-	int bytes_per_pixel = format.format_->BytesPerPixel;
+	PixelFormat format{ AllocatePixelFormat(GetPixelFormat()) };
+	int bytes_per_pixel{ format.format_->BytesPerPixel };
 	FreePixelFormat(format);
 	return bytes_per_pixel;
 }
 
-const std::uint32_t& Texture::GetPixel(void* pixels,
-									   int pitch,
-									   const V2_int& position,
-									   int bytes_per_pixel) const {
+std::uint32_t Texture::GetPixelData(const V2_int& position,
+									void* pixels,
+									int pitch,
+									PixelFormat format) const {
 	assert(position.x < GetSize().x &&
 		   "Cannot retrieve texture pixel for x position greater than texture width");
 	assert(position.x >= 0 &&
@@ -154,38 +154,32 @@ const std::uint32_t& Texture::GetPixel(void* pixels,
 		   "Cannot retrieve texture pixel for y position greater than texture height");
 	assert(position.y >= 0 &&
 		   "Cannot retrieve texture pixel for y position smaller than 0");
-	/* Here p is the address to the pixel we want to retrieve */
-	std::uint8_t* p = (std::uint8_t*)pixels + position.y * pitch + position.x * bytes_per_pixel;
+	int bytes_per_pixel{ format.format_->BytesPerPixel };
+	std::uint8_t* pixel{ static_cast<std::uint8_t*>(pixels) + position.y * pitch + position.x * bytes_per_pixel };
 	switch (bytes_per_pixel) {
 		case 1:
-			return *p;
-			break;
+			return *pixel;
 		case 2:
-			return *(std::uint16_t*)p;
-			break;
+			return *static_cast<std::uint16_t*>(static_cast<void*>(pixel));
 		case 3:
-			if (SDL_BYTEORDER == SDL_BIG_ENDIAN)
-				return p[0] << 16 | p[1] << 8 | p[2];
-			else
-				return p[0] | p[1] << 8 | p[2] << 16;
-			break;
+			if (SDL_BYTEORDER == SDL_BIG_ENDIAN) {
+				return pixel[0] << 16 | pixel[1] << 8 | pixel[2];
+			} else {
+				return pixel[0] | pixel[1] << 8 | pixel[2] << 16;
+			}
 		case 4:
-			return *(std::uint32_t*)p;
-			break;
+			return *static_cast<std::uint32_t*>(static_cast<void*>(pixel));
+		default:
+			// Error
+			return 0;
 	}
-	assert(bytes_per_pixel == 1 ||
-		   bytes_per_pixel == 2 ||
-		   bytes_per_pixel == 3 ||
-		   bytes_per_pixel == 4 &&
-		   "Invalid bytes per pixel for texture pixel retrieval");
-	return *p;
 }
 
-std::uint32_t& Texture::GetPixel(void* pixels,
-								 int pitch,
-								 const V2_int& position,
-								 int bytes_per_pixel) {
-	return const_cast<std::uint32_t&>(static_cast<const Texture&>(*this).GetPixel(pixels, pitch, position, bytes_per_pixel));
+Color Texture::GetPixel(const V2_int& position,
+						void* pixels,
+						int pitch,
+						PixelFormat format) const {
+	return { GetPixelData(position, pixels, pitch, format), format };
 }
 
 } // namespace ptgn

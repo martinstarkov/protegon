@@ -4,6 +4,7 @@
 
 #include "math/Vector2.h"
 #include "renderer/PixelFormat.h"
+#include "renderer/Color.h"
 
 struct SDL_Surface;
 
@@ -15,13 +16,8 @@ class TextureManager;
 
 class Surface {
 public:
-	// Returns the pixel data at a given position on a surface.
-	const std::uint32_t& GetPixel(const V2_int& position) const;
-
-	// Returns a reference to the pixel data at a given position on a surface.
-	std::uint32_t& GetPixel(const V2_int& position);
-
-	void* const GetPixels() const;
+	// Returns the color data at a given position on a surface.
+	Color GetPixel(const V2_int& position) const;
 
 	int GetPitch() const;
 
@@ -35,6 +31,8 @@ private:
 	friend class Text;
 	friend class Texture;
 	friend class TextureManager;
+
+	std::uint32_t GetPixelData(const V2_int& position) const;
 
 	Surface() = default;
 

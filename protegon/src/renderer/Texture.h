@@ -58,17 +58,11 @@ public:
 
 	int SlowGetBytesPerPixel() const;
 
-	// Returns the pixel data at a given position on a texture.
-	const std::uint32_t& GetPixel(void* pixels,
-								  int pitch,
-								  const V2_int& position,
-								  int bytes_per_pixel) const;
-
-	// Returns a reference to the pixel data at a given position on a texture.
-	std::uint32_t& GetPixel(void* pixels,
-							int pitch,
-							const V2_int& position,
-							int bytes_per_pixel);
+	// Returns the color data at a given position on a texture.
+	Color GetPixel(const V2_int& position,
+				   void* pixels,
+				   int pitch,
+				   PixelFormat format) const;
 
 	// Frees memory used by internal texture pointer.
 	void Destroy();
@@ -81,6 +75,11 @@ private:
 	friend class TextureManager;
 	friend class Text;
 	friend class ScreenRenderer;
+
+	std::uint32_t GetPixelData(const V2_int& position,
+							   void* pixels,
+							   int pitch,
+							   PixelFormat format) const;
 
 	// Creates texture with a given size and pixel format.
 	Texture(const ScreenRenderer& renderer, 
