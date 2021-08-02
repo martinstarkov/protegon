@@ -12,8 +12,3 @@ add_protegon_to(<target_name>)
 ```
 - ```<protegon_repository_directory>``` directory where this repository resides (cloned or submodule).
 - ```<target_name>``` name of your desired cmake target.
-
-That's it!
-
-
-PS. Might add feature documentation here at some point in the future.
