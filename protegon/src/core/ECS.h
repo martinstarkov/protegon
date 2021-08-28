@@ -78,7 +78,7 @@ using Offset = std::uint32_t;
 // Represents an invalid version number.
 inline constexpr Version null_version{ 0 };
 
-/*
+/* 
 * Offset of 0 is considered invalid.
 * In each access case 1 is subtracted so that the 0th offset is still used.
 * This acts as a null offset to fill the sparse array.
@@ -91,7 +91,7 @@ inline constexpr Offset invalid_offset{ 0 };
 */
 template <template <typename, typename> typename H, typename S, typename T,
 	std::enable_if_t<std::is_convertible_v<S, std::size_t>, bool> = true>
-	inline std::size_t HashContainer(const H<S, T>& container) {
+inline std::size_t HashContainer(const H<S, T>& container) {
 	std::size_t hash{ container.size() };
 	for (auto value : container) {
 		hash ^= static_cast<std::size_t>(value) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
@@ -120,10 +120,10 @@ public:
 */
 template <typename TComponent>
 class Pool : public PoolInterface {
-	static_assert(std::is_move_constructible_v<TComponent>,
-				  "Component must be move constructible to create a pool for it");
-	static_assert(std::is_destructible_v<TComponent>,
-				  "Component must be destructible to create a pool for it");
+static_assert(std::is_move_constructible_v<TComponent>,
+				"Component must be move constructible to create a pool for it");
+static_assert(std::is_destructible_v<TComponent>,
+				"Component must be destructible to create a pool for it");
 public:
 	Pool() {
 		/*
@@ -556,7 +556,7 @@ public:
 		return clone;
 	}
 
-	/*
+	/* 
 	* Clears entity cache and reset component pools to empty ones.
 	* Keeps entity capacity unchanged.
 	* Systems are not removed but caches are flagged for reset.
@@ -576,7 +576,7 @@ public:
 			}
 		}
 	}
-
+	
 	/*
 	* Cycles through all entities and destroys ones that have been marked for destruction.
 	* Activates created entities (can be used in systems).
@@ -707,7 +707,7 @@ private:
 			delete pool;
 		}
 	}
-
+	
 	/*
 	* Resize vector of entities, refresh flags, and versions.
 	* If smaller than current size, nothing happens.
@@ -740,9 +740,9 @@ private:
 				refresh_required_ = true;
 			} else {
 				/*
-				* Edge case where entity is created and marked
+				* Edge case where entity is created and marked 
 				* for deletion before a Refresh() has been called.
-				* In this case, destroy and invalidate the entity
+				* In this case, destroy and invalidate the entity 
 				* without a Refresh() call. This is equivalent to
 				* an entity which never 'officially' existed in the manager.
 				*/
@@ -762,7 +762,7 @@ private:
 	* @return True if entity is alive, false otherwise.
 	*/
 	bool IsAlive(const internal::Id entity, const internal::Version version) const {
-		return
+		return 
 			entity < versions_.size() &&
 			versions_[entity] == version &&
 			entity < entities_.size() &&
@@ -821,7 +821,7 @@ private:
 		assert(pool != nullptr && "Cannot retrieve component which has not been added to manager");
 		const auto component_address{ pool->Get(entity) };
 		/*
-		* Debug tip:
+		* Debug tip: 
 		* If you ended up here and want to find out which
 		* entity triggered this assertion, follow the call stack.
 		*/
@@ -996,13 +996,13 @@ private:
 
 	// Stores whether or not a refresh is required in the manager.
 	bool refresh_required_{ false };
-
+	
 	/*
 	* Vector index corresponds to the entity's id.
 	* Element corresponds to whether or not the entity is currently alive.
 	*/
 	std::vector<bool> entities_;
-
+	
 	/*
 	* Vector index corresponds to the entity's id.
 	* Element corresponds to a flag for refreshing the entity.
@@ -1015,7 +1015,7 @@ private:
 
 	/*
 	* Vector index corresponds to the component's unique id.
-	* If a component has not been added to a manager entity,
+	* If a component has not been added to a manager entity, 
 	* its corresponding pool pointer will be nullptr.
 	* Mutable because GetPool() is called in const and non-const
 	* methods and returns a pointer to a given pool.
@@ -1159,7 +1159,7 @@ public:
 	*/
 	template <typename TComponent>
 	bool HasComponent() const {
-		return
+		return 
 			IsAlive() &&
 			manager_->HasComponent<TComponent>(entity_, manager_->GetComponentId<TComponent>());
 	}
@@ -1207,7 +1207,7 @@ public:
 
 	/*
 	* Marks the entity for destruction.
-	* Note that the entity will remain alive and valid
+	* Note that the entity will remain alive and valid 
 	* until Refresh() is called on its parent manager.
 	* If entity is already marked for deletion, nothing happens.
 	*/
@@ -1292,7 +1292,7 @@ inline bool operator!=(const Entity& entity, const NullEntity& null_entity) {
 
 /*
 * Null entity.
-* Allows for comparing invalid / uninitialized
+* Allows for comparing invalid / uninitialized 
 * entities with valid manager created entities.
 */
 inline constexpr NullEntity null{};
@@ -1309,11 +1309,11 @@ inline internal::Id internal::Pool<TComponent>::GetComponentId() const {
 }
 
 inline bool Entity::IsIdenticalTo(const Entity& entity) const {
-	return
+	return 
 		*this == entity ||
 		(*this == ecs::null &&
 		 entity == ecs::null) ||
-		(*this != ecs::null &&
+		(*this != ecs::null && 
 		 entity != ecs::null &&
 		 manager_ == entity.manager_ &&
 		 manager_ != nullptr &&
@@ -1356,11 +1356,11 @@ inline Entity Manager::CopyEntity(const Entity& entity) {
 		static_assert(std::conjunction_v<std::is_copy_constructible<TComponents>...>,
 					  "Cannot copy entity with a component that is not copy constructible");
 		// Copy only specific components.
-		auto pools{
+		auto pools{ 
 			std::make_tuple(GetPool<TComponents>(GetComponentId<TComponents>())...) };
 		bool manager_has_components{
 			((std::get<internal::Pool<TComponents>*>(pools) != nullptr) && ...) };
-		assert(manager_has_components &&
+		assert(manager_has_components && 
 			   "Cannot copy entity with a component that is not even in the manager");
 		bool has_components{
 			(std::get<internal::Pool<TComponents>*>(pools)->internal::Pool<TComponents>::Has(from) && ...) };
@@ -1448,7 +1448,7 @@ inline void Manager::ForEachEntityWith(T function) {
 						(*std::get<internal::Pool<TComponents>*>(pools)->Get(entity))...
 					);
 				}
-
+			
 			}
 		}
 	}
