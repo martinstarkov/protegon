@@ -1,3 +1,27 @@
+Feature list:
+- ECS
+- Serialization
+- Physics Engine
+    - Forces, Torques
+    - Fluid Simulation
+- Collision Detection
+    - Static, Dynamic, Swept
+- State Machine System
+- Event System
+- Frame Limit System
+- Audio Manager
+- Texture Manager
+- Font Manager
+- Scene System
+- Camera System
+- Input Handler
+- User Interface System
+- Animation System
+- World Generation Tools
+    - Perlin Noise
+    - Chunk System
+- Utility (vectors, math, timers, etc)
+
 TODO:
 - Consider switching to smart pointers in ShapeComponent.h.
 - Eventually move logging into class which can print to console and log to file.
