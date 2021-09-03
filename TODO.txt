@@ -1,26 +1,103 @@
-Feature list:
+Figured out features:
 - ECS
+- Input Handler
+
+Working features but may revisit:
+- Frame Limit System
+- Scene System
+- Camera System
+- Texture Manager
+- Text Manager
+- Font Manager
+
+WIP features with clear implementation:
 - Serialization
+- Audio Manager
+- User Interface System
+- Animation System
+- Utility (vectors, math, timers, etc)
+- Tilemap System
+
+WIP features with uncertain implementation:
 - Physics Engine
     - Forces, Torques
     - Fluid Simulation
-- Collision Detection
-    - Static, Dynamic, Swept
+    - Collision Detection
+        - Static, Dynamic, Swept
+- Particle System
 - State Machine System
-- Event System
-- Frame Limit System
-- Audio Manager
-- Texture Manager
-- Font Manager
-- Scene System
-- Camera System
-- Input Handler
-- User Interface System
-- Animation System
-- World Generation Tools
+- Event System (observer / subject)
+- World Generation Tools 
     - Perlin Noise
     - Chunk System
-- Utility (vectors, math, timers, etc)
+- Cutscene Support
+
+Interface classes:
+- UIElement
+- Observer
+- Subject
+- StateMachine
+- State
+- Circle
+- Rectangle
+- Collision
+- Vector2
+- Key
+- Mouse
+- Color
+- Timer
+- Countdown
+
+ptgn::
+    ui::
+        Load(std::string name, UIElement element);
+        Unload(std::string name);
+    draw::
+        UI(std::string name);
+        Texture(std::string name);
+        Rectangle(Vector2 center, Rectangle rectangle, Color color);
+        Circle(Vector2 center, Circle circle, Color color);
+        Line(Vector2 origin, Vector2 destination, Color color);
+        Point(Vector2 point, Color color);
+    texture::
+        Load(std::string name, std::string path);
+        Unload(std::string name);
+    sound::
+        Load(std::string name, std::string path);
+        Play(std::string name);
+    scene::
+        Load(std::string name, Scene scene);
+        Start(std::string name);
+        Active();
+    camera::
+        Active();
+    text::
+        Load(std::string name, std::string text, std::string font);
+        Unload(std::string name);
+    font::
+        Load(std::string name, std::string path);
+        Unload(std::string name);
+    animation::
+        Load(std::string name, std::string spritemap_path);
+        Unload(std::string name);
+    input::
+        KeyPressed(Key key);
+        KeyReleased(Key key);
+        KeyDown(Key key);
+        KeyUp(Key key);
+        MousePressed(Mouse button);
+        MouseReleased(Mouse button);
+        MouseDown(Mouse button);
+        MouseUp(Mouse button);
+        MouseHeld(Mouse button);
+        MouseScreenPosition();
+        MouseWorldPosition();
+    collision::
+
+    math::
+        Cos(double x);
+        Sin(double x);
+        PI<T>();
 
 TODO:
 - Consider switching to smart pointers in ShapeComponent.h.
