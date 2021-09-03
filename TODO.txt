@@ -1,6 +1,6 @@
 Figured out features:
 - ECS
-- Input Handler
+- TypeTraits
 
 Working features but may revisit:
 - Frame Limit System
@@ -8,6 +8,7 @@ Working features but may revisit:
 - Camera System
 - Texture Manager
 - Text Manager
+- Input Handler
 - Font Manager
 
 WIP features with clear implementation:
@@ -30,25 +31,40 @@ WIP features with uncertain implementation:
 - World Generation Tools 
     - Perlin Noise
     - Chunk System
+    - Level System
 - Cutscene Support
 
-Interface classes:
+Classes:
 - UIElement
 - Observer
 - Subject
+- Singleton
 - StateMachine
 - State
 - Circle
 - Rectangle
-- Collision
+- Camera
+- Scene
+- Collision / Manifold
 - Vector2
+- RNG
 - Key
+- Animation
+- Text
+- Font
 - Mouse
 - Color
+- PixelFormat
 - Timer
 - Countdown
+- Direction
+- Chunk
+- Level
+- Tilemap
 
 ptgn::
+    window::
+        Create(std::string name, Vector2 size, int flags);
     ui::
         Load(std::string name, UIElement element);
         Unload(std::string name);
@@ -95,6 +111,9 @@ ptgn::
     collision::
 
     math::
+        Random();
+        Min();
+        Max();
         Cos(double x);
         Sin(double x);
         PI<T>();
