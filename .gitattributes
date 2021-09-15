@@ -1,6 +1,6 @@
 * text=auto
 
-protegon/vendor/* -linguist-detectable
+vendor/* -linguist-detectable
 
 ###### Git
 .gitattributes text
