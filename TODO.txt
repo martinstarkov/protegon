@@ -64,50 +64,50 @@ Classes:
 
 ptgn::
     window::
-        Create(std::string name, Vector2 size, int flags);
+        Create(std::string name, Vector2 size, int flags, WindowManager);
     ui::
-        Load(std::string name, UIElement element);
-        Unload(std::string name);
+        Load(std::string name, UIElement element, UIManager);
+        Unload(std::string name, UIManager);
     draw::
-        UI(std::string name);
-        Texture(std::string name);
-        Rectangle(Vector2 center, Rectangle rectangle, Color color);
-        Circle(Vector2 center, Circle circle, Color color);
-        Line(Vector2 origin, Vector2 destination, Color color);
-        Point(Vector2 point, Color color);
+        UI(std::string name, Renderer);
+        Texture(std::string name, Renderer);
+        Rectangle(Vector2 center, Rectangle rectangle, Color color, Renderer);
+        Circle(Vector2 center, Circle circle, Color color, Renderer);
+        Line(Vector2 origin, Vector2 destination, Color color, Renderer);
+        Point(Vector2 point, Color color, Renderer);
     texture::
-        Load(std::string name, std::string path);
-        Unload(std::string name);
+        Load(std::string name, std::string path, TextureManager);
+        Unload(std::string name, TextureManager);
     sound::
-        Load(std::string name, std::string path);
-        Play(std::string name);
+        Load(std::string name, std::string path, SoundManager);
+        Play(std::string name, SoundManager);
     scene::
-        Load(std::string name, Scene scene);
-        Start(std::string name);
+        Load(std::string name, Scene scene, SceneManager);
+        Start(std::string name, SceneManager);
         Active();
     camera::
-        Active();
+        Active(SceneManager);
     text::
-        Load(std::string name, std::string text, std::string font);
-        Unload(std::string name);
+        Load(std::string name, std::string text, std::string font, TextManager);
+        Unload(std::string name, TextManager);
     font::
-        Load(std::string name, std::string path);
-        Unload(std::string name);
+        Load(std::string name, std::string path, FontManager);
+        Unload(std::string name, FontManager);
     animation::
-        Load(std::string name, std::string spritemap_path);
-        Unload(std::string name);
+        Load(std::string name, std::string spritemap_path, AnimationManager);
+        Unload(std::string name, AnimationManager);
     input::
-        KeyPressed(Key key);
-        KeyReleased(Key key);
-        KeyDown(Key key);
-        KeyUp(Key key);
-        MousePressed(Mouse button);
-        MouseReleased(Mouse button);
-        MouseDown(Mouse button);
-        MouseUp(Mouse button);
-        MouseHeld(Mouse button);
-        MouseScreenPosition();
-        MouseWorldPosition();
+        KeyPressed(Key key, InputHandler);
+        KeyReleased(Key key, InputHandler);
+        KeyDown(Key key, InputHandler);
+        KeyUp(Key key, InputHandler);
+        MousePressed(Mouse button, InputHandler);
+        MouseReleased(Mouse button, InputHandler);
+        MouseDown(Mouse button, InputHandler);
+        MouseUp(Mouse button, InputHandler);
+        MouseHeld(Mouse button, InputHandler);
+        MouseScreenPosition(InputHandler);
+        MouseWorldPosition(InputHandler);
     collision::
 
     math::
