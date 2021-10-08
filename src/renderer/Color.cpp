@@ -1,7 +1,8 @@
 #include "Color.h"
 
-#include <SDL.h>
 #include <cassert> // assert
+
+#include <SDL.h>
 
 #include "math/RNG.h"
 

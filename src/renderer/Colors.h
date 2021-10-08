@@ -8,8 +8,8 @@ namespace colors {
 
 inline constexpr Color BLACK{ 0, 0, 0, 255 };
 inline constexpr Color WHITE{ 255, 255, 255, 255 };
-inline constexpr Color DEFAULT_DRAW_COLOR{ BLACK };
-inline constexpr Color DEFAULT_BACKGROUND_COLOR{ WHITE };
+inline constexpr Color DEFAULT{ BLACK };
+inline constexpr Color DEFAULT_BACKGROUND{ WHITE };
 inline constexpr Color TRANSPARENT{ 0, 0, 0, 0 };
 inline constexpr Color COLORLESS{ TRANSPARENT };
 inline constexpr Color RED{ 255, 0, 0, 255 };
