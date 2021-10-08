@@ -1,23 +1,17 @@
 #pragma once
 
-#include "ecs/ECS.h"
+#include "core/ECS.h"
+#include "components/LifetimeComponent.h"
 
-#include "ecs/components/LifetimeComponent.h"
+namespace ptgn {
 
-#include "core/Engine.h"
-
-namespace engine {
-
-class LifetimeSystem : public ecs::System<LifetimeComponent> {
-public:
-	virtual void Update() override final {
-		for (auto& [entity, life] : entities) {
-			if (life.countdown.Finished()) {
-				entity.Destroy();
-			}
+struct LifetimeSystem {
+	void operator()(ecs::Entity entity, LifetimeComponent& lifetime) {
+		if (lifetime.countdown.Finished()) {
+			entity.Destroy();
 		}
-		GetManager().Refresh();
 	}
 };
 
-} // namespace engine
+
+} // namespace ptgn
