@@ -8,7 +8,7 @@ namespace ptgn {
 namespace type_traits {
 
 // Internal type trait implementations and helpers.
-namespace internal {
+namespace impl {
 
 // Checks whether or not T has a function called Invoke.
 template <typename T>
@@ -36,7 +36,7 @@ struct is_stream_writable : std::false_type {};
 template<typename Stream, typename Type>
 struct is_stream_writable<Stream, Type, std::void_t<decltype(std::declval<Stream&>() << std::declval<Type>()) >> : std::true_type {};
 
-} // namespace internal
+} // namespace impl
 
 // Custom template helpers.
 
@@ -82,7 +82,7 @@ using is_one_of_e = std::enable_if_t<(std::is_same_v<Type, Types> || ...), bool>
 // True if Derived derives from a template Base, false otherwise.
 template <template <typename...> class Base, typename Derived>
 bool constexpr is_base_of_template_v{
-	internal::is_base_of_template<Base, Derived>::value
+	impl::is_base_of_template<Base, Derived>::value
 };
 
 // Template qualifier of whether or not Dervied derives from a template Base.
@@ -96,14 +96,14 @@ using are_type_e = std::enable_if_t<std::conjunction_v<std::is_same<Type, Types>
 // True if Type has a function named Invoke, false otherwise.
 template <typename Type>
 bool constexpr has_invoke_v{
-	!std::is_same<decltype(internal::has_invoke_helper(std::declval<Type>(), 0)), void*>::value
+	!std::is_same<decltype(impl::has_invoke_helper(std::declval<Type>(), 0)), void*>::value
 };
 
 // True if Type has a static function named Invoke, false otherwise.
 template <typename Type>
 bool constexpr has_static_invoke_v{
 	has_invoke_v<Type> && 
-	!std::is_member_function_pointer_v<decltype(internal::has_invoke_helper(std::declval<Type>(), 0))>
+	!std::is_member_function_pointer_v<decltype(impl::has_invoke_helper(std::declval<Type>(), 0))>
 };
 
 // Template qualifier of whether or not Type has a static function named Invoke.
@@ -112,7 +112,7 @@ using has_static_invoke_e = std::enable_if_t<has_static_invoke_v<Type>, bool>;
 
 // True if Type is writeable to the stream, false otherwise.
 template <typename Stream, typename Type>
-bool constexpr is_stream_writable_v{ internal::is_stream_writable<Stream, Type>::value };
+bool constexpr is_stream_writable_v{ impl::is_stream_writable<Stream, Type>::value };
 
 // Template qualifier of whether or not the Type is writeable to the stream.
 template <typename Stream, typename Type>
@@ -120,7 +120,7 @@ using is_stream_writable_e = std::enable_if_t<is_stream_writable_v<Stream, Type>
 
 // Template qualifier of whether or not Types are all writeable to the stream.
 template <typename Stream, typename ...Types>
-using are_stream_writable_e = std::enable_if_t<std::conjunction_v<internal::is_stream_writable<Stream, Types>...>, bool>;
+using are_stream_writable_e = std::enable_if_t<std::conjunction_v<impl::is_stream_writable<Stream, Types>...>, bool>;
 
 } // namespace type_traits
 
