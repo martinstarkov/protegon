@@ -65,7 +65,7 @@ struct Vector2 {
     T y{ 0 };
 
     // Zero construction by default.
-    Vector2() = default;
+    constexpr Vector2() = default;
 
     ~Vector2() = default;
     
@@ -73,7 +73,7 @@ struct Vector2 {
     template <typename U, typename V, 
         ptgn::type_traits::is_number_e<U> = true,
         ptgn::type_traits::is_number_e<V> = true>
-    Vector2(U x, V y) : x{ static_cast<T>(x) }, y{ static_cast<T>(y) } {}
+    constexpr Vector2(U x, V y) : x{ static_cast<T>(x) }, y{ static_cast<T>(y) } {}
 
     // Copy / assignment construction.
 
