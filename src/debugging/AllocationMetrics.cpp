@@ -3,26 +3,28 @@
 #include "debugging/Logger.h"
 
 void* operator new(std::size_t size) {
-	ptgn::AllocationMetrics::Allocation(size);
+	ptgn::debug::AllocationMetrics::Allocation(size);
 	return std::malloc(size);
 }
 
 void* operator new[](std::size_t size) {
-	ptgn::AllocationMetrics::Allocation(size);
+	ptgn::debug::AllocationMetrics::Allocation(size);
 	return std::malloc(size);
 }
 
 void operator delete(void* memory, std::size_t size) {
-	ptgn::AllocationMetrics::Deallocation(size);
+	ptgn::debug::AllocationMetrics::Deallocation(size);
 	std::free(memory);
 }
 
 void  operator delete[](void* memory, std::size_t size) {
-	ptgn::AllocationMetrics::Deallocation(size);
+	ptgn::debug::AllocationMetrics::Deallocation(size);
 	std::free(memory);
 }
 
 namespace ptgn {
+
+namespace debug {
 
 std::uint32_t AllocationMetrics::total_allocated_{ 0 };
 std::uint32_t AllocationMetrics::total_freed_{ 0 };
@@ -42,5 +44,7 @@ void AllocationMetrics::Deallocation(const std::size_t& size) {
 void AllocationMetrics::PrintMemoryUsage() {
 	PrintLine("Memory usage: ", CurrentUsage(), " bytes");
 }
+
+} // namespace debug
 
 } // namespace ptgn

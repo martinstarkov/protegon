@@ -7,6 +7,8 @@
 
 namespace ptgn {
 
+namespace debug {
+
 // Print desired items to the console. If a newline is desired, use PrintLine() instead.
 template <typename ...TArgs,
 	type_traits::are_stream_writable_e<std::ostream, TArgs...> = true>
@@ -21,5 +23,7 @@ inline void PrintLine(TArgs&&... items) {
 	Print(std::forward<TArgs>(items)...);
 	std::cout << std::endl;
 }
+
+} // namespace debug
 
 } // namespace ptgn

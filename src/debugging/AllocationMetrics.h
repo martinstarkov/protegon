@@ -5,6 +5,8 @@
 
 namespace ptgn {
 
+namespace debug {
+
 class AllocationMetrics {
 public:
 	/*
@@ -22,5 +24,7 @@ private:
 	static std::uint32_t total_allocated_;
 	static std::uint32_t total_freed_;
 };
+
+} // namespace debug
 
 } // namespace ptgn
