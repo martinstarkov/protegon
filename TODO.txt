@@ -63,39 +63,30 @@ Classes:
 - Tilemap
 
 ptgn::
-    window::
-        Create(std::string name, Vector2 size, int flags, WindowManager);
     ui::
         Load(std::string name, UIElement element, UIManager);
         Unload(std::string name, UIManager);
-    draw::
-        UI(std::string name, Renderer);
-        Texture(std::string name, Renderer);
-        Rectangle(Vector2 center, Rectangle rectangle, Color color, Renderer);
-        Circle(Vector2 center, Circle circle, Color color, Renderer);
-        Line(Vector2 origin, Vector2 destination, Color color, Renderer);
-        Point(Vector2 point, Color color, Renderer);
-    texture::
-        Load(std::string name, std::string path, TextureManager);
-        Unload(std::string name, TextureManager);
-    sound::
-        Load(std::string name, std::string path, SoundManager);
-        Play(std::string name, SoundManager);
-    scene::
-        Load(std::string name, Scene scene, SceneManager);
-        Start(std::string name, SceneManager);
-        Active();
-    camera::
-        Active(SceneManager);
     text::
         Load(std::string name, std::string text, std::string font, TextManager);
         Unload(std::string name, TextManager);
     font::
         Load(std::string name, std::string path, FontManager);
         Unload(std::string name, FontManager);
+    sound::
+        Load(std::string name, std::string path, SoundManager);
+        Play(std::string name, SoundManager);
     animation::
         Load(std::string name, std::string spritemap_path, AnimationManager);
         Unload(std::string name, AnimationManager);
+    draw::
+        UI(std::string name, Renderer);
+        Text(std::string name, Renderer);
+    scene::
+        Load(std::string name, Scene scene, SceneManager);
+        Start(std::string name, SceneManager);
+        Active();
+    camera::
+        Active(SceneManager);
     input::
         KeyPressed(Key key, InputHandler);
         KeyReleased(Key key, InputHandler);
@@ -119,6 +110,9 @@ ptgn::
         PI<T>();
 
 TODO:
+- Move Vector2 into ptgn namespace
+
+
 - Consider switching to smart pointers in ShapeComponent.h.
 - Eventually move logging into class which can print to console and log to file.
 - Add ability to copy text.
