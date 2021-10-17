@@ -25,8 +25,7 @@ public:
                          const V2_int& position,
                          const V2_int& size,
                          const V2_int& source_position = {},
-                         const V2_int& source_size = {},
-                         const interfaces::TextureManager& texture_manager = services::GetTextureManager()) const = 0;
+                         const V2_int& source_size = {}) const = 0;
     virtual void DrawTexture(const char* texture_key,
                          const V2_int& position,
                          const V2_int& size,
@@ -34,16 +33,13 @@ public:
                          const V2_int& source_size,
                          const V2_int* center_of_rotation,
                          const double angle,
-                         Flip flip = Flip::NONE,
-                         const interfaces::TextureManager& texture_manager = services::GetTextureManager()) const = 0;
+                         Flip flip = Flip::NONE) const = 0;
     virtual void DrawText(const char* text_key,
                       const V2_int& position,
-                      const V2_int& size,
-                      const interfaces::TextManager& text_manager = services::GetTextManager()) const = 0;
+                      const V2_int& size) const = 0;
     virtual void DrawUI(const char* ui_key,
                     const V2_int& position,
-                    const V2_int& size,
-                    const interfaces::UIManager& ui_manager = services::GetUIManager()) const = 0;
+                    const V2_int& size) const = 0;
     virtual void DrawPoint(const V2_int& point,
                        const Color& color) const = 0;
     virtual void DrawLine(const V2_int& origin,
@@ -67,6 +63,8 @@ public:
 
 namespace impl {
 
+class SDLTextureManager;
+
 class SDLRenderer : public interfaces::Renderer {
 public:
 	SDLRenderer(SDL_Window* sdl_window, int index, std::uint32_t flags);
@@ -78,8 +76,7 @@ public:
                          const V2_int& position,
                          const V2_int& size,
                          const V2_int& source_position = {},
-                         const V2_int& source_size = {},
-                         const interfaces::TextureManager& texture_manager = services::GetTextureManager()) const override;
+                         const V2_int& source_size = {}) const override;
     virtual void DrawTexture(const char* texture_key,
                          const V2_int& position,
                          const V2_int& size,
@@ -87,16 +84,13 @@ public:
                          const V2_int& source_size,
                          const V2_int* center_of_rotation = nullptr,
                          const double angle = 0.0,
-                         Flip flip = Flip::NONE,
-                         const interfaces::TextureManager& texture_manager = services::GetTextureManager()) const override;
+                         Flip flip = Flip::NONE) const override;
     virtual void DrawText(const char* text_key,
                       const V2_int& position,
-                      const V2_int& size,
-                         const interfaces::TextManager& text_manager = services::GetTextManager()) const override;
+                      const V2_int& size) const override;
     virtual void DrawUI(const char* ui_key,
                     const V2_int& position,
-                    const V2_int& size,
-                    const interfaces::UIManager& ui_manager = services::GetUIManager()) const override;
+                    const V2_int& size) const override;
     virtual void DrawPoint(const V2_int& point,
                        const Color& color = colors::DEFAULT) const override;
     virtual void DrawLine(const V2_int& origin,
@@ -115,6 +109,7 @@ public:
                                 const V2_int& size,
                                 const Color& color = colors::DEFAULT) const override;
 private:
+    friend class SDLTextureManager;
 	SDL_Renderer* renderer_{ nullptr };
 };
 

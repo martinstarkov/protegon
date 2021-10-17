@@ -1,6 +1,11 @@
 #include "Draw.h"
 
+// TODO: Implement Texture, Text, and UI drawing functions
+
 #include "renderer/Renderer.h"
+#include "texture/TextureManager.h"
+#include "text/TextManager.h"
+#include "ui/UIManager.h"
 
 namespace ptgn {
 

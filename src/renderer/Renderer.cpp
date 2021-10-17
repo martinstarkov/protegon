@@ -6,6 +6,7 @@
 
 #include "math/Math.h"
 #include "window/WindowManager.h"
+#include "texture/TextureManager.h"
 
 namespace ptgn {
 
@@ -44,19 +45,19 @@ void SDLRenderer::DrawTexture(const char* texture_key,
 						  const V2_int& position,
 						  const V2_int& size,
 						  const V2_int& source_position,
-						  const V2_int& source_size,
-						  const interfaces::TextureManager& texture_manager) const {
+						  const V2_int& source_size) const {
 	assert(renderer_ != nullptr && "Cannot draw texture with non-existent sdl renderer");
-	// assert(texture != nullptr && "Cannot draw non-existent texture");
-	// // TODO: Get texture from texture key and texture manager.
-	// SDL_Rect* source{ NULL };
-	// SDL_Rect source_rectangle;
-	// if (!source_size.IsZero()) {
-	// 	source_rectangle = { source_position.x, source_position.y, source_size.x, source_size.y };
-	// 	source = &source_rectangle;
-	// }
-	// SDL_Rect destination{ position.x, position.y, size.x, size.y };
-	// SDL_RenderCopy(renderer_, texture, source, &destination);
+	auto& sdl_texture_manager{ impl::GetSDLTextureManager() };
+	auto texture{ sdl_texture_manager.GetTexture(texture_key) };
+	assert(texture != nullptr && "Cannot draw texture which is not loaded in the sdl texture manager");
+	SDL_Rect* source{ NULL };
+	SDL_Rect source_rectangle;
+	if (!source_size.IsZero()) {
+		source_rectangle = { source_position.x, source_position.y, source_size.x, source_size.y };
+		source = &source_rectangle;
+	}
+	SDL_Rect destination{ position.x, position.y, size.x, size.y };
+	SDL_RenderCopy(renderer_, texture.get(), source, &destination);
 }
 
 // Draws a texture to the screen. Allows for rotation and flip.
@@ -67,8 +68,7 @@ void SDLRenderer::DrawTexture(const char* texture_key,
 						  const V2_int& source_size,
 						  const V2_int* center_of_rotation,
 						  const double angle,
-						  Flip flip,
-						  const interfaces::TextureManager& texture_manager) const {
+						  Flip flip) const {
 	assert(renderer_ != nullptr && "Cannot draw texture with non-existent sdl renderer");
 	// // TODO: Get texture from texture key and texture manager.
 	// auto texture{ TextureManager::GetTexture(texture_key) };
@@ -105,8 +105,7 @@ void SDLRenderer::DrawTexture(const char* texture_key,
 // Draws text to the screen.
 void SDLRenderer::DrawText(const char* text_key,
 		    		   const V2_int& position,
-		    		   const V2_int& size,
-					   const interfaces::TextManager& text_manager) const {
+		    		   const V2_int& size) const {
 	assert(renderer_ != nullptr && "Cannot draw text with non-existent sdl renderer");
 	// // TODO: Get text from text key and text manager.
 	// auto& text{  }
@@ -118,8 +117,7 @@ void SDLRenderer::DrawText(const char* text_key,
 // Draws a user interface element.
 void SDLRenderer::DrawUI(const char* ui_key,
 		 			 const V2_int& position,
-		 			 const V2_int& size,
-					 const interfaces::UIManager& ui_manager) const {
+		 			 const V2_int& size) const {
 	assert(renderer_ != nullptr && "Cannot draw ui with non-existent sdl renderer");
 	// TODO: Implement ui manager fetch for ui element and call its draw function here.
 }
