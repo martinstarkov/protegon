@@ -7,6 +7,8 @@
 
 namespace ptgn {
 
+namespace math {
+
 /*
 * Define RNG object by giving it a type to generate from
 * and a range or seed for the distribution. 
@@ -56,5 +58,7 @@ private:
 	// Range 0 to 1 by default.
 	uniform_distribution<T> distribution{ 0, 1 };
 };
+
+} // namespace math
 
 } // namespace ptgn

@@ -9,7 +9,7 @@
 namespace ptgn {
 
 Color Color::RandomSolid() {
-	RNG<std::uint16_t> rng{ 0, 255 };
+	math::RNG<std::uint16_t> rng{ 0, 255 };
 	return Color{ 
 		static_cast<std::uint8_t>(rng()), 
 		static_cast<std::uint8_t>(rng()),
@@ -19,7 +19,7 @@ Color Color::RandomSolid() {
 }
 
 Color Color::Random() {
-	RNG<std::uint16_t> rng{ 0, 255 };
+	math::RNG<std::uint16_t> rng{ 0, 255 };
 	return Color{
 		static_cast<std::uint8_t>(rng()),
 		static_cast<std::uint8_t>(rng()),
