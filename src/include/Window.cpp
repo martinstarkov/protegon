@@ -7,6 +7,16 @@ namespace ptgn {
 
 namespace window {
 
+void Create(const char* title, const V2_int& size, const V2_int& position, int flags) {
+	auto& window_manager{ services::GetWindowManager() };
+	window_manager.CreateWindow(title, size, position, flags);
+}
+
+void Destroy() {
+	auto& window_manager{ services::GetWindowManager() };
+	window_manager.DestroyWindow();
+}
+
 void Present() {
 	auto& renderer{ services::GetRenderer() };
 	renderer.Present();
@@ -21,16 +31,6 @@ void SetColor(const Color& color) {
 	auto& renderer{ services::GetRenderer() };
 	renderer.SetDrawColor(color);
 	renderer.Clear();
-}
-
-void Create(const char* title, const V2_int& size, const V2_int& position, int flags) {
-	auto& window_manager{ services::GetWindowManager() };
-	window_manager.CreateWindow(title, size, position, flags);
-}
-
-void Destroy() {
-	auto& window_manager{ services::GetWindowManager() };
-	window_manager.DestroyWindow();
 }
 
 V2_int GetSize() {

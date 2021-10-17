@@ -8,15 +8,6 @@ namespace ptgn {
 
 namespace window {
 
-// Presents the drawn objects to the screen. Must be called once drawing is done.
-void Present();
-
-// Clear the drawn objects from the screen.
-void Clear();
-
-// Sets the background color of the window.
-void SetColor(const Color& color);
-
 /*
 Creates a single application window with a given title, pixel size, and flags.
 If a window exists, its title, size, and flags will be modified.
@@ -25,6 +16,18 @@ void Create(const char* title, const V2_int& size, const V2_int& position = CENT
 
 // Closes the currently active application window.
 void Destroy();
+
+// Presents the drawn objects to the screen. Must be called once drawing is done.
+void Present();
+
+// Clear the drawn objects from the screen.
+void Clear();
+
+/*
+* Sets the background color of the window.
+* Note that this will also clear the screen.
+*/
+void SetColor(const Color& color);
 
 /*
 * @return Size of the application window.
