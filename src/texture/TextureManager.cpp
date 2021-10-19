@@ -36,7 +36,7 @@ void SDLTextureManager::LoadTexture(const char* texture_key, const char* texture
 			debug::PrintLine("Failed to load texture into sdl texture manager: ", SDL_GetError());
 		}
 	} else {
-		debug::PrintLine("Warning: Cannot load texture key which already exists in the TextureManager");
+		debug::PrintLine("Warning: Cannot load texture key which already exists in the sdl texture manager");
 	}
 }
 
