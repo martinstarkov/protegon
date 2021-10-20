@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdint> // std::size_t
+#include <cstddef> // std::size_t
 #include <unordered_map> // std::unordered_map
 #include <memory> // std::shared_ptr
 
