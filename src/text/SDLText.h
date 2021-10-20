@@ -1,22 +1,21 @@
 #pragma once
 
-#include "renderer/Texture.h"
-#include "renderer/Color.h"
-#include "renderer/text/FontRenderMode.h"
-#include "renderer/text/FontStyle.h"
+#include "text/FontRenderMode.h"
+#include "text/FontStyle.h"
+#include "renderer/Colors.h"
 #include "utils/TypeTraits.h"
+
+class SDL_Texture;
 
 namespace ptgn {
 
-class Text {
+namespace impl {
+
+class SDLText {
 public:
-	Text() = default;
-	~Text();
-	// Construct text.
-	Text(const char* content,
-		 const Color& color,
-		 const char* font_name);
-	Text& operator=(Text&& obj) noexcept;
+	SDLText() = delete;
+	~SDLText();
+	SDLText(const char* content, const char* font_key, const Color& color = colors::BLACK);
 
 	// Set text content.
 	void SetContent(const char* new_content);
@@ -25,7 +24,7 @@ public:
 	void SetColor(const Color& new_color);
 
 	// Set text font to a font that has been loaded into FontManager.
-	void SetFont(const char* new_font_name);
+	void SetFont(const char* new_font_key);
 
 	// Accepts any number of FontStyle enum values (UNDERLINED, BOLD, etc).
 	// These are combined into one style and text is renderer in that style.
@@ -38,31 +37,21 @@ public:
 
 	void SetSolidRenderMode();
 
-	void SetShadedRenderMode(const Color& shading_background_color);
+	void SetShadedRenderMode(const Color& background_shading);
 
 	void SetBlendedRenderMode();
-	
-	const char* GetContent() const;
-
-	const char* GetFont() const;
-
-	Color GetColor() const;
 private:
-	friend class ScreenRenderer;
-
-	Texture GetTexture() const;
-
 	void RefreshTexture();
 
+	std::size_t font_key_;
+	std::size_t texture_key_;
 	int style_{ static_cast<int>(FontStyle::NORMAL) };
+	const char* content_{ "Default SDL Text" };
+	Color color_{ colors::BLACK };
+	Color background_shading_{ colors::WHITE };
 	FontRenderMode mode_{ FontRenderMode::SOLID };
-	Color shading_background_color_;
-	Texture texture_;
-
-	const char* content_{ "" };
-	Color color_;
-	const char* font_name_{ "" };
-	std::size_t font_key_{ 0 };
 };
+
+} // namespace impl
 
 } // namespace ptgn
