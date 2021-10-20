@@ -13,12 +13,6 @@ namespace ptgn {
 
 namespace impl {
 
-SDLTextureManager::~SDLTextureManager() {
-	for (auto& [key, texture] : texture_map_) {
-		SDL_DestroyTexture(texture.get());
-	}
-}
-
 void SDLTextureManager::LoadTexture(const char* texture_key, const char* texture_path) {
 	assert(texture_path != "" && "Cannot load empty texture path into sdl texture manager");
 	assert(debug::FileExists(texture_path) && "Cannot load texture with non-existent file path into sdl texture manager");
@@ -43,6 +37,20 @@ void SDLTextureManager::LoadTexture(const char* texture_key, const char* texture
 void SDLTextureManager::UnloadTexture(const char* texture_key) {
 	const auto key{ math::Hash(texture_key) }; 
 	texture_map_.erase(key);
+}
+
+bool SDLTextureManager::HasTexture(const char* texture_key) {
+	const auto key{ math::Hash(texture_key) };
+	auto it{ texture_map_.find(key) };
+	return it != std::end(texture_map_);
+}
+
+void SDLTextureManager::ResetTexture(const char* texture_key, SDL_Texture* shared_texture) {
+	const auto key{ math::Hash(texture_key) };
+	auto it{ texture_map_.find(key) };
+	if (it != std::end(texture_map_)) {
+		it->second.reset(shared_texture);
+	}
 }
 
 std::shared_ptr<SDL_Texture> SDLTextureManager::GetTexture(const char* texture_key) {
