@@ -18,10 +18,11 @@ public:
 	* @param point_size - Point size (based on 72 DPI). This translates to pixel height.
 	* @param index - Font face index, fhe first face is 0.
 	*/
-    virtual void LoadFont(const char* font_key, const char* font_path, std::uint32_t point_size, std::uint32_t index = 0) = 0;
-    virtual void UnloadFont(const char* font_key) = 0;
+    virtual void LoadFont(const std::size_t font_key, const char* font_path, std::uint32_t point_size, std::uint32_t index = 0) = 0;
+    virtual void UnloadFont(const std::size_t font_key) = 0;
+    virtual bool HasFont(const std::size_t font_key) const = 0;
     // Return 0 if font key does not exist in the font manager.
-    virtual std::int32_t GetHeight(const char* font_key) const = 0;
+    virtual std::int32_t GetHeight(const std::size_t font_key) const = 0;
 };
 
 } // namespace interface
@@ -32,11 +33,11 @@ class SDLFontManager : public interfaces::FontManager {
 public:
     SDLFontManager() = default;
     ~SDLFontManager() = default;
-    virtual void LoadFont(const char* font_key, const char* font_path, std::uint32_t point_size, std::uint32_t index = 0) override;
-    virtual void UnloadFont(const char* font_key) override;
-    virtual std::int32_t GetHeight(const char* font_key) const override;
-private:
-    std::shared_ptr<TTF_Font> GetFont(const char* font_key);
+    virtual void LoadFont(const std::size_t font_key, const char* font_path, std::uint32_t point_size, std::uint32_t index = 0) override;
+    virtual void UnloadFont(const std::size_t font_key) override;
+    virtual bool HasFont(const std::size_t font_key) const override;
+    virtual std::int32_t GetHeight(const std::size_t font_key) const override;
+    std::shared_ptr<TTF_Font> GetFont(const std::size_t font_key);
 	std::unordered_map<std::size_t, std::shared_ptr<TTF_Font>> font_map_;
 };
 

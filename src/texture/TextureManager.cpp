@@ -13,49 +13,46 @@ namespace ptgn {
 
 namespace impl {
 
-void SDLTextureManager::LoadTexture(const char* texture_key, const char* texture_path) {
+void SDLTextureManager::LoadTexture(const std::size_t texture_key, const char* texture_path) {
 	assert(texture_path != "" && "Cannot load empty texture path into sdl texture manager");
 	assert(debug::FileExists(texture_path) && "Cannot load texture with non-existent file path into sdl texture manager");
-	const auto key{ math::Hash(texture_key) };
-	auto it{ texture_map_.find(key) };
-	if (it == std::end(texture_map_)) {
-		auto temp_surface{ IMG_Load( texture_path ) };
-		if (temp_surface != nullptr) {
-			auto& sdl_renderer{ GetSDLRenderer() };
-			auto texture{ SDL_CreateTextureFromSurface(sdl_renderer.renderer_, temp_surface) };
-			auto shared_texture{ std::shared_ptr<SDL_Texture>(texture, SDL_DestroyTexture) };
-			texture_map_.emplace(key, shared_texture);
-			SDL_FreeSurface(temp_surface);
-		} else {
-			debug::PrintLine("Failed to load texture into sdl texture manager: ", SDL_GetError());
-		}
+	auto temp_surface{ IMG_Load( texture_path ) };
+	if (temp_surface != nullptr) {
+		auto texture{ CreateTextureFromSurface(temp_surface) };
+		SetTexture(texture_key, texture);
 	} else {
-		debug::PrintLine("Warning: Cannot load texture key which already exists in the sdl texture manager");
+		debug::PrintLine("Failed to load texture into sdl texture manager: ", SDL_GetError());
 	}
+	SDL_FreeSurface(temp_surface);
 }
 
-void SDLTextureManager::UnloadTexture(const char* texture_key) {
-	const auto key{ math::Hash(texture_key) }; 
-	texture_map_.erase(key);
+void SDLTextureManager::UnloadTexture(const std::size_t texture_key) {
+	texture_map_.erase(texture_key);
 }
 
-bool SDLTextureManager::HasTexture(const char* texture_key) {
-	const auto key{ math::Hash(texture_key) };
-	auto it{ texture_map_.find(key) };
-	return it != std::end(texture_map_);
+SDL_Texture* SDLTextureManager::CreateTextureFromSurface(SDL_Surface* surface) {
+	auto& sdl_renderer{ GetSDLRenderer() };
+	auto texture{ SDL_CreateTextureFromSurface(sdl_renderer.renderer_, surface) };
+	return texture;
 }
 
-void SDLTextureManager::ResetTexture(const char* texture_key, SDL_Texture* shared_texture) {
-	const auto key{ math::Hash(texture_key) };
-	auto it{ texture_map_.find(key) };
+bool SDLTextureManager::HasTexture(const std::size_t texture_key) const {
+	auto it{ texture_map_.find(texture_key) };
+	return it != std::end(texture_map_) && it->second != nullptr;
+}
+
+void SDLTextureManager::SetTexture(const std::size_t texture_key, SDL_Texture* texture) {
+	auto it{ texture_map_.find(texture_key) };
 	if (it != std::end(texture_map_)) {
-		it->second.reset(shared_texture);
+		it->second.reset(texture);
+	} else {
+		auto shared_texture{ std::shared_ptr<SDL_Texture>(texture, SDL_DestroyTexture) };
+		texture_map_.emplace(texture_key, shared_texture);
 	}
 }
 
-std::shared_ptr<SDL_Texture> SDLTextureManager::GetTexture(const char* texture_key) {
-	const auto key{ math::Hash(texture_key) };
-	auto it{ texture_map_.find(key) };
+std::shared_ptr<SDL_Texture> SDLTextureManager::GetTexture(const std::size_t texture_key) {
+	auto it{ texture_map_.find(texture_key) };
 	if (it != std::end(texture_map_)) {
 		return it->second;
 	}

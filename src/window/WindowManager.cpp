@@ -4,6 +4,8 @@
 
 #include <SDL.h>
 
+#include "debugging/Debug.h"
+
 namespace ptgn {
 
 namespace impl {
@@ -22,7 +24,7 @@ void SDLWindowManager::CreateWindow(const char* title, const V2_int& size, const
 	if (window_ == nullptr) {
 		window_ = SDL_CreateWindow(title, position.x, position.y, size.x, size.y, flags);
 		if (window_ == nullptr) {
-			// Failed to create window: SDL_GetError()
+			debug::PrintLine("Failed to create window: ", SDL_GetError());
 			abort();
 		}
 	} else {

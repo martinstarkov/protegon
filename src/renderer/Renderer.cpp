@@ -7,6 +7,7 @@
 #include "math/Math.h"
 #include "window/WindowManager.h"
 #include "texture/TextureManager.h"
+#include "debugging/Debug.h"
 
 namespace ptgn {
 
@@ -16,7 +17,7 @@ SDLRenderer::SDLRenderer(SDL_Window* window, int index, std::uint32_t flags) {
 	assert(window != nullptr && "Cannot create SDLRenderer from non-existent window");
 	renderer_ = SDL_CreateRenderer(window, 0, 0);
 	if (renderer_ == nullptr) {
-		// Failed to create renderer: SDL_GetError()
+		debug::PrintLine("Failed to create renderer: ", SDL_GetError());
 		abort();
 	}
 }
@@ -48,7 +49,7 @@ void SDLRenderer::DrawTexture(const char* texture_key,
 						  const V2_int& source_size) const {
 	assert(renderer_ != nullptr && "Cannot draw texture with non-existent sdl renderer");
 	auto& sdl_texture_manager{ impl::GetSDLTextureManager() };
-	auto texture{ sdl_texture_manager.GetTexture(texture_key) };
+	auto texture{ sdl_texture_manager.GetTexture(math::Hash(texture_key)) };
 	assert(texture != nullptr && "Cannot draw texture which is not loaded in the sdl texture manager");
 	SDL_Rect* source{ NULL };
 	SDL_Rect source_rectangle;

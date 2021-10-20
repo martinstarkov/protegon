@@ -24,7 +24,6 @@ public:
     ~DefaultAnimationManager();
     virtual void LoadAnimation(const char* animation_key, const char* animation_path) override;
     virtual void UnloadAnimation(const char* animation_key) override;
-private:
     //std::shared_ptr<SDL_Animation> GetAnimation(const char* animation_key);
 	std::unordered_map<std::size_t, void*> animation_map_;
 };
