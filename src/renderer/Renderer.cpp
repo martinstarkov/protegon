@@ -7,13 +7,16 @@
 #include "math/Math.h"
 #include "window/WindowManager.h"
 #include "texture/TextureManager.h"
+#include "text/TextManager.h"
 #include "debugging/Debug.h"
+#include "core/SDLManager.h"
 
 namespace ptgn {
 
 namespace impl {
 
 SDLRenderer::SDLRenderer(SDL_Window* window, int index, std::uint32_t flags) {
+	GetSDLManager();
 	assert(window != nullptr && "Cannot create SDLRenderer from non-existent window");
 	renderer_ = SDL_CreateRenderer(window, 0, 0);
 	if (renderer_ == nullptr) {
@@ -58,7 +61,7 @@ void SDLRenderer::DrawTexture(const char* texture_key,
 		source = &source_rectangle;
 	}
 	SDL_Rect destination{ position.x, position.y, size.x, size.y };
-	SDL_RenderCopy(renderer_, texture.get(), source, &destination);
+	SDL_RenderCopy(renderer_, texture, source, &destination);
 }
 
 // Draws a texture to the screen. Allows for rotation and flip.
@@ -108,11 +111,14 @@ void SDLRenderer::DrawText(const char* text_key,
 		    		   const V2_int& position,
 		    		   const V2_int& size) const {
 	assert(renderer_ != nullptr && "Cannot draw text with non-existent sdl renderer");
-	// // TODO: Get text from text key and text manager.
-	// auto& text{  }
-	// assert(text.GetTexture() != nullptr && "Cannot draw non-existent text");
-	// SDL_Rect destination{ position.x, position.y, size.x, size.y };
-	// SDL_RenderCopy(renderer_, text.GetTexture(), NULL, &destination);
+	auto& text_manager{ services::GetTextManager() };
+	const auto key{ math::Hash(text_key) };
+	assert(text_manager.HasText(key) && "Cannot draw text which has not been loaded into the text manager");
+	auto& sdl_texture_manager{ impl::GetSDLTextureManager() };
+	auto texture{ sdl_texture_manager.GetTexture(key) };
+	assert(texture != nullptr && "Cannot draw non-existent text texture");
+	SDL_Rect destination{ position.x, position.y, size.x, size.y };
+	SDL_RenderCopy(renderer_, texture, NULL, &destination);
 }
 
 // Draws a user interface element.

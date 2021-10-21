@@ -6,10 +6,19 @@
 
 #include "debugging/Debug.h"
 #include "math/Math.h"
+#include "core/SDLManager.h"
 
 namespace ptgn {
 
 namespace impl {
+
+void SDLFontDeleter::operator()(TTF_Font* font) {
+	TTF_CloseFont(font);
+}
+
+SDLFontManager::SDLFontManager() {
+	GetSDLManager();
+}
 
 void SDLFontManager::LoadFont(const std::size_t font_key, const char* font_path, std::uint32_t point_size, std::uint32_t index) {
 	assert(font_path != "" && "Cannot load empty font path into sdl font manager");
@@ -18,8 +27,7 @@ void SDLFontManager::LoadFont(const std::size_t font_key, const char* font_path,
 	if (it == std::end(font_map_)) {
 		auto font{ TTF_OpenFontIndex(font_path, point_size, index) };
 		if (font != nullptr) {
-			auto shared_font{ std::shared_ptr<TTF_Font>(font, TTF_CloseFont) };
-			font_map_.emplace(font_key, shared_font);
+			font_map_.emplace(font_key, font);
 		} else {
 			debug::PrintLine("Failed to load font into sdl font manager: ", TTF_GetError());
 		}
@@ -37,7 +45,7 @@ bool SDLFontManager::HasFont(const std::size_t font_key) const {
 	return it != std::end(font_map_) && it->second != nullptr;
 }
 
-std::int32_t SDLFontManager::GetHeight(const std::size_t font_key) const {
+std::int32_t SDLFontManager::GetFontHeight(const std::size_t font_key) const {
 	auto it{ font_map_.find(font_key) };
 	if (it != std::end(font_map_)) {
 		assert(it->second != nullptr && "Cannot get font height of non-existent font");
@@ -46,10 +54,10 @@ std::int32_t SDLFontManager::GetHeight(const std::size_t font_key) const {
 	return 0;
 }
 
-std::shared_ptr<TTF_Font> SDLFontManager::GetFont(const std::size_t font_key) {
+TTF_Font* SDLFontManager::GetFont(const std::size_t font_key) {
 	auto it{ font_map_.find(font_key) };
 	if (it != std::end(font_map_)) {
-		return it->second;
+		return it->second.get();
 	}
 	return nullptr;
 }

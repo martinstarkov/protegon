@@ -2,6 +2,8 @@
 
 #include <cassert> // assert
 
+#include <SDL.h>
+#include <SDL_image.h>
 #include <SDL_ttf.h>
 
 #include "debugging/Debug.h"
@@ -9,10 +11,15 @@
 #include "renderer/Renderer.h"
 #include "texture/TextureManager.h"
 #include "text/FontManager.h"
+#include "core/SDLManager.h"
 
 namespace ptgn {
 
 namespace impl {
+
+SDLTextManager::SDLTextManager() {
+	GetSDLManager();
+}
 
 SDLTextManager::~SDLTextManager() {
 	auto& sdl_texture_manager{ GetSDLTextureManager() };
@@ -21,10 +28,12 @@ SDLTextManager::~SDLTextManager() {
 	}
 }
 
-void SDLTextManager::LoadText(const std::size_t text_key, const char* content, const std::size_t font_key, const Color& color) {
+void SDLTextManager::LoadText(const std::size_t text_key, const std::size_t font_key, const char* text_content, const Color& text_color) {
 	auto it{ text_map_.find(text_key) };
 	if (it == std::end(text_map_)) {
-		text_map_.emplace(text_key, content, font_key, color);
+		SDLText text{ font_key, text_content, text_color };
+		text_map_.emplace(text_key, text);
+		RefreshText(text_key, text);
 	} else {
 		debug::PrintLine("Warning: Cannot load text key which already exists in the default text manager");
 	}
@@ -37,6 +46,10 @@ void SDLTextManager::UnloadText(const std::size_t text_key) {
 		sdl_texture_manager.UnloadTexture(text_key);
 		text_map_.erase(it);
 	}
+}
+
+bool SDLTextManager::HasText(const std::size_t text_key) const {
+	return text_map_.find(text_key) != std::end(text_map_);
 }
 
 void SDLTextManager::SetTextContent(const std::size_t text_key, const char* new_content) {
@@ -71,17 +84,17 @@ void SDLTextManager::SetTextFont(const std::size_t text_key, const std::size_t n
 void SDLTextManager::RefreshText(const std::size_t text_key, const SDLText& text) {
 	auto& sdl_font_manager{ GetSDLFontManager() };
 	auto font{ sdl_font_manager.GetFont(text.font_key_) };
-	TTF_SetFontStyle(font.get(), text.style_);
+	TTF_SetFontStyle(font, text.style_);
 	SDL_Surface* temp_surface{ nullptr };
 	switch (text.mode_) {
 		case FontRenderMode::SOLID:
-			temp_surface = TTF_RenderText_Solid(font.get(), text.content_, text.color_);
+			temp_surface = TTF_RenderText_Solid(font, text.content_, text.color_);
 			break;
 		case FontRenderMode::SHADED:
-			temp_surface = TTF_RenderText_Shaded(font.get(), text.content_, text.color_, text.background_shading_);
+			temp_surface = TTF_RenderText_Shaded(font, text.content_, text.color_, text.background_shading_);
 			break;
 		case FontRenderMode::BLENDED:
-			temp_surface = TTF_RenderText_Blended(font.get(), text.content_, text.color_);
+			temp_surface = TTF_RenderText_Blended(font, text.content_, text.color_);
 			break;
 		default:
 			assert(!"Unrecognized render mode when creating surface for sdl text texture");
@@ -90,8 +103,9 @@ void SDLTextManager::RefreshText(const std::size_t text_key, const SDLText& text
 	assert(temp_surface != nullptr && "Failed to load sdl text onto sdl surface");
 	// Destroy old texture.
 	auto& sdl_texture_manager{ GetSDLTextureManager() };
-	sdl_texture_manager.SetTexture(text_key, sdl_texture_manager.CreateTextureFromSurface(temp_surface));
-	TTF_SetFontStyle(font.get(), static_cast<int>(FontStyle::NORMAL));
+	auto texture{ sdl_texture_manager.CreateTextureFromSurface(temp_surface) };
+	sdl_texture_manager.SetTexture(text_key, texture);
+	TTF_SetFontStyle(font, static_cast<int>(FontStyle::NORMAL));
 	SDL_FreeSurface(temp_surface);
 }
 

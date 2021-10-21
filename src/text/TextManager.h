@@ -14,15 +14,16 @@ namespace interfaces {
 
 class TextManager {
 public:
-    virtual void LoadText(const std::size_t text_key, const char* content, const std::size_t font_key, const Color& color) = 0;
+    virtual void LoadText(const std::size_t text_key, const std::size_t font_key, const char* text_content, const Color& text_color) = 0;
     virtual void UnloadText(const std::size_t text_key) = 0;
+    virtual bool HasText(const std::size_t text_key) const = 0;
     // Set text content.
 	virtual void SetTextContent(const std::size_t text_key, const char* new_content) = 0;
 
 	// Set text color.
 	virtual void SetTextColor(const std::size_t text_key, const Color& new_color) = 0;
 
-	// Set text font to a font that has been loaded into FontManager.
+	// Set text font to a font that has been loaded into the font manager.
 	virtual void SetTextFont(const std::size_t text_key, const std::size_t new_font_key) = 0;
 };
 
@@ -33,13 +34,13 @@ namespace impl {
 struct SDLText {
 	SDLText() = delete;
 	~SDLText() = default;
-	SDLText(const char* content, const std::size_t font_key, const Color& color = colors::BLACK) :
-        content_{ content },
+	SDLText(const std::size_t font_key, const char* content, const Color& color) :
         font_key_{ font_key },
+        content_{ content },
         color_{ color } {}
-	const char* content_{ "Default SDL Text" };
     std::size_t font_key_;
-	Color color_{ colors::BLACK };
+	const char* content_;
+	Color color_;
 	int style_{ static_cast<int>(FontStyle::NORMAL) };
 	Color background_shading_{ colors::WHITE };
 	FontRenderMode mode_{ FontRenderMode::SOLID };
@@ -47,10 +48,11 @@ struct SDLText {
 
 class SDLTextManager : public interfaces::TextManager {
 public:
-    SDLTextManager() = default;
+    SDLTextManager();
     ~SDLTextManager();
-    virtual void LoadText(const std::size_t text_key, const char* content, const std::size_t font_key, const Color& color) override;
+    virtual void LoadText(const std::size_t text_key, const std::size_t font_key, const char* text_content, const Color& text_color) override;
     virtual void UnloadText(const std::size_t text_key) override;
+	virtual bool HasText(const std::size_t text_key) const override;
 	virtual void SetTextContent(const std::size_t text_key, const char* new_content) override;
 	virtual void SetTextColor(const std::size_t text_key, const Color& new_color) override;
 	virtual void SetTextFont(const std::size_t text_key, const std::size_t new_font_key) override;
