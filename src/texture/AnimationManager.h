@@ -2,7 +2,7 @@
 
 #include <cstddef> // std::size_t
 #include <unordered_map> // std::unordered_map
-#include <memory> // std::shared_ptr
+#include <memory> // std::unqiue_ptr
 
 namespace ptgn {
 
@@ -24,7 +24,6 @@ public:
     ~DefaultAnimationManager();
     virtual void LoadAnimation(const char* animation_key, const char* animation_path) override;
     virtual void UnloadAnimation(const char* animation_key) override;
-    //std::shared_ptr<SDL_Animation> GetAnimation(const char* animation_key);
 	std::unordered_map<std::size_t, void*> animation_map_;
 };
 

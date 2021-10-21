@@ -41,15 +41,6 @@ void DefaultAnimationManager::UnloadAnimation(const char* animation_key) {
 	animation_map_.erase(key);
 }
 
-// std::shared_ptr<SDL_Animation> DefaultAnimationManager::GetAnimation(const char* animation_key) {
-// 	const auto key{ math::Hash(animation_key) };
-// 	auto it{ animation_map_.find(key) };
-// 	if (it != std::end(animation_map_)) {
-// 		return it->second;
-// 	}
-// 	return nullptr;
-// }
-
 DefaultAnimationManager& GetDefaultAnimationManager() {
 	static DefaultAnimationManager default_animation_manager;
 	return default_animation_manager;

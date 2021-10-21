@@ -20,7 +20,7 @@ namespace impl {
 
 class DefaultUIManager : public interfaces::UIManager {
 public:
-    DefaultUIManager() = default;
+    DefaultUIManager();
     ~DefaultUIManager();
     virtual void LoadUI(const char* ui_key, const char* ui_path) override;
     virtual void UnloadUI(const char* ui_key) override;

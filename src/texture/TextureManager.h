@@ -2,10 +2,10 @@
 
 #include <cstddef> // std::size_t
 #include <unordered_map> // std::unordered_map
-#include <memory> // std::shared_ptr
+#include <memory> // std::unique_ptr
 
-class SDL_Texture;
-class SDL_Surface;
+struct SDL_Texture;
+struct SDL_Surface;
 
 namespace ptgn {
 
@@ -22,17 +22,21 @@ public:
 
 namespace impl {
 
+struct SDLTextureDeleter {
+    void operator()(SDL_Texture* texture);
+};
+
 class SDLTextureManager : public interfaces::TextureManager {
 public:
-    SDLTextureManager() = default;
+    SDLTextureManager();
     ~SDLTextureManager() = default;
     virtual void LoadTexture(const std::size_t texture_key, const char* texture_path) override;
     virtual void UnloadTexture(const std::size_t texture_key) override;
     virtual bool HasTexture(const std::size_t texture_key) const override;
-    SDL_Texture* CreateTextureFromSurface(SDL_Surface* surface);
+    SDL_Texture* CreateTextureFromSurface(SDL_Surface* surface) const;
     void SetTexture(const std::size_t texture_key, SDL_Texture* texture);
-    std::shared_ptr<SDL_Texture> GetTexture(const std::size_t texture_key);
-	std::unordered_map<std::size_t, std::shared_ptr<SDL_Texture>> texture_map_;
+    SDL_Texture* GetTexture(const std::size_t texture_key);
+	std::unordered_map<std::size_t, std::unique_ptr<SDL_Texture, SDLTextureDeleter>> texture_map_;
 };
 
 SDLTextureManager& GetSDLTextureManager();
