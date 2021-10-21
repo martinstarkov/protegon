@@ -5,10 +5,15 @@
 #include "debugging/Debug.h"
 #include "math/Math.h"
 #include "renderer/Renderer.h"
+#include "core/SDLManager.h"
 
 namespace ptgn {
 
 namespace impl {
+
+DefaultUIManager::DefaultUIManager() {
+	GetSDLManager();
+}
 
 DefaultUIManager::~DefaultUIManager() {
 	for (auto& [key, ui] : ui_map_) {

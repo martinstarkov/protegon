@@ -2,7 +2,7 @@
 
 #include <cstddef> // std::size_t
 #include <unordered_map> // std::unordered_map
-#include <memory> // std::shared_ptr
+#include <memory> // std::unique_ptr
 
 namespace ptgn {
 
@@ -22,13 +22,12 @@ namespace impl {
 
 class SDLSoundManager : public interfaces::SoundManager {
 public:
-    SDLSoundManager() = default;
+    SDLSoundManager();
     ~SDLSoundManager();
     virtual void LoadSound(const char* sound_key, const char* sound_path) override;
     virtual void UnloadSound(const char* sound_key) override;
 private:
     // friend class SDLRenderer;
-    // std::shared_ptr<SDL_Sound> GetSound(const char* sound_key);
 	std::unordered_map<std::size_t, void*> sound_map_;
 };
 

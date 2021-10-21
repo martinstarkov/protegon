@@ -8,10 +8,19 @@
 #include "debugging/Debug.h"
 #include "math/Math.h"
 #include "renderer/Renderer.h"
+#include "core/SDLManager.h"
 
 namespace ptgn {
 
 namespace impl {
+
+void SDLTextureDeleter::operator()(SDL_Texture* texture) {
+	SDL_DestroyTexture(texture);
+}
+
+SDLTextureManager::SDLTextureManager() {
+	GetSDLManager();
+}
 
 void SDLTextureManager::LoadTexture(const std::size_t texture_key, const char* texture_path) {
 	assert(texture_path != "" && "Cannot load empty texture path into sdl texture manager");
@@ -30,7 +39,7 @@ void SDLTextureManager::UnloadTexture(const std::size_t texture_key) {
 	texture_map_.erase(texture_key);
 }
 
-SDL_Texture* SDLTextureManager::CreateTextureFromSurface(SDL_Surface* surface) {
+SDL_Texture* SDLTextureManager::CreateTextureFromSurface(SDL_Surface* surface) const {
 	auto& sdl_renderer{ GetSDLRenderer() };
 	auto texture{ SDL_CreateTextureFromSurface(sdl_renderer.renderer_, surface) };
 	return texture;
@@ -44,17 +53,18 @@ bool SDLTextureManager::HasTexture(const std::size_t texture_key) const {
 void SDLTextureManager::SetTexture(const std::size_t texture_key, SDL_Texture* texture) {
 	auto it{ texture_map_.find(texture_key) };
 	if (it != std::end(texture_map_)) {
-		it->second.reset(texture);
+		if (it->second.get() != texture) {
+			it->second.reset(texture);
+		}
 	} else {
-		auto shared_texture{ std::shared_ptr<SDL_Texture>(texture, SDL_DestroyTexture) };
-		texture_map_.emplace(texture_key, shared_texture);
+		texture_map_.emplace(texture_key, texture);
 	}
 }
 
-std::shared_ptr<SDL_Texture> SDLTextureManager::GetTexture(const std::size_t texture_key) {
+SDL_Texture* SDLTextureManager::GetTexture(const std::size_t texture_key) {
 	auto it{ texture_map_.find(texture_key) };
 	if (it != std::end(texture_map_)) {
-		return it->second;
+		return it->second.get();
 	}
 	return nullptr;
 }

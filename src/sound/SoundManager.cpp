@@ -5,10 +5,15 @@
 #include "debugging/Debug.h"
 #include "math/Math.h"
 #include "renderer/Renderer.h"
+#include "core/SDLManager.h"
 
 namespace ptgn {
 
 namespace impl {
+
+SDLSoundManager::SDLSoundManager() {
+	GetSDLManager();
+}
 
 SDLSoundManager::~SDLSoundManager() {
 	for (auto& [key, sound] : sound_map_) {
@@ -41,15 +46,6 @@ void SDLSoundManager::UnloadSound(const char* sound_key) {
 	const auto key{ math::Hash(sound_key) }; 
 	sound_map_.erase(key);
 }
-
-// std::shared_ptr<SDL_Sound> SDLSoundManager::GetSound(const char* sound_key) {
-// 	const auto key{ math::Hash(sound_key) };
-// 	auto it{ sound_map_.find(key) };
-// 	if (it != std::end(sound_map_)) {
-// 		return it->second;
-// 	}
-// 	return nullptr;
-// }
 
 SDLSoundManager& GetSDLSoundManager() {
 	static SDLSoundManager default_sound_manager;

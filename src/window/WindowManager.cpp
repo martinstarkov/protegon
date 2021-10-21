@@ -5,15 +5,16 @@
 #include <SDL.h>
 
 #include "debugging/Debug.h"
+#include "core/SDLManager.h"
 
 namespace ptgn {
 
 namespace impl {
 
 SDLWindowManager::SDLWindowManager() {
-	if (window_ == nullptr) {
-		CreateWindow("Default Title", { 800, 600 }, window::CENTERED, 0);
-	}
+	GetSDLManager();
+	assert(window_ == nullptr && "Window cannot be created before sdl window manager");
+	CreateWindow("Default Title", { 800, 600 }, window::CENTERED, 0);
 }
 
 SDLWindowManager::~SDLWindowManager() {
