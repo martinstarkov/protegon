@@ -29,9 +29,6 @@ WIP features with uncertain implementation:
 
 Classes:
 - UIElement
-- Observer
-- Subject
-- Singleton
 - StateMachine
 - State
 - Circle
@@ -39,18 +36,9 @@ Classes:
 - Camera
 - Scene
 - Collision / Manifold
-- Vector2
-- RNG
-- Key
 - Animation
-- Text
-- Font
 - Mouse
-- Color
 - PixelFormat
-- Timer
-- Countdown
-- Direction
 - Chunk
 - Level
 - Tilemap
