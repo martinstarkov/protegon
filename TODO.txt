@@ -1,15 +1,8 @@
-Figured out features:
-- ECS
-- TypeTraits
-
 Working features but may revisit:
 - Frame Limit System
 - Scene System
 - Camera System
-- Texture Manager
-- Text Manager
 - Input Handler
-- Font Manager
 
 WIP features with clear implementation:
 - Serialization
@@ -66,12 +59,6 @@ ptgn::
     ui::
         Load(std::string name, UIElement element, UIManager);
         Unload(std::string name, UIManager);
-    text::
-        Load(std::string name, std::string text, std::string font, TextManager);
-        Unload(std::string name, TextManager);
-    font::
-        Load(std::string name, std::string path, FontManager);
-        Unload(std::string name, FontManager);
     sound::
         Load(std::string name, std::string path, SoundManager);
         Play(std::string name, SoundManager);
@@ -80,7 +67,6 @@ ptgn::
         Unload(std::string name, AnimationManager);
     draw::
         UI(std::string name, Renderer);
-        Text(std::string name, Renderer);
     scene::
         Load(std::string name, Scene scene, SceneManager);
         Start(std::string name, SceneManager);
