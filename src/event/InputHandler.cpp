@@ -5,7 +5,7 @@
 
 #include <SDL.h>
 
-#include "renderer/WorldRenderer.h"
+#include "renderer/Renderer.h"
 #include "debugging/Debug.h"
 #include "window/WindowManager.h"
 
@@ -94,9 +94,9 @@ V2_int SDLInputHandler::GetMouseScreenPosition() const {
 	return mouse_position;
 }
 
-V2_int SDLInputHandler::GetMouseWorldPosition() const {
-	return WorldRenderer::ScreenToWorld(GetMouseScreenPosition());
-}
+//V2_int SDLInputHandler::GetMouseWorldPosition() const {
+	//return WorldRenderer::ScreenToWorld(GetMouseScreenPosition());
+//}
 
 MouseState SDLInputHandler::GetMouseState(Mouse button) const {
 	switch (button) {

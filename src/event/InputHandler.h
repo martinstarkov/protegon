@@ -16,7 +16,7 @@ namespace interfaces {
 class InputHandler {
 public:
 	virtual V2_int GetMouseScreenPosition() const = 0;
-	virtual V2_int GetMouseWorldPosition() const = 0;
+	//virtual V2_int GetMouseWorldPosition() const = 0;
 	virtual bool MousePressed(Mouse button) const = 0;
 	virtual bool MouseReleased(Mouse button) const = 0;
 	virtual bool MouseDown(Mouse button) const = 0;
@@ -46,7 +46,7 @@ public:
 	virtual void Update() override;
 
 	virtual V2_int GetMouseScreenPosition() const override;
-	virtual V2_int GetMouseWorldPosition() const override;
+	//virtual V2_int GetMouseWorldPosition() const override;
 
 	virtual bool MousePressed(Mouse button) const override;
 	virtual bool MouseReleased(Mouse button) const override;
