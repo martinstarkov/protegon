@@ -1,5 +1,6 @@
 #pragma once
 
+#include "math/Vector2.h"
 #include "utils/TypeTraits.h"
 
 namespace ptgn {

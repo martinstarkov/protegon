@@ -1,6 +1,5 @@
 #pragma once
 
-#include "math/Vector2.h"
 #include "physics/shapes/Shape.h"
 
 namespace ptgn {
