@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2021 | Martin Starkov | https://github.com/martinstarkov
+Copyright (c) 2022 | Martin Starkov | https://github.com/martinstarkov
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -38,6 +38,8 @@ SOFTWARE.
 #include <memory> // std::allocator
 #include <type_traits> // std::enable_if_t, std::is_destructible_v, std::is_base_of_v, etc
 #include <cassert> // assert
+
+namespace ptgn {
 
 namespace ecs {
 
@@ -1483,19 +1485,21 @@ inline void Manager::ForEachEntityWithout(T function) {
 
 } // namespace ecs
 
+} // namespace ptgn
+
 namespace std {
 
 // Custom hashing function for ecs::Entity class.
 // This allows for use of unordered maps and sets with entities as keys.
 template <>
-struct hash<ecs::Entity> {
-	std::size_t operator()(const ecs::Entity& k) const {
+struct hash<ptgn::ecs::Entity> {
+	std::size_t operator()(const ptgn::ecs::Entity& k) const {
 		// Hashing combination algorithm from:
 		// https://stackoverflow.com/a/17017281
 		std::size_t hash{ 17 };
-		hash = hash * 31 + std::hash<ecs::Manager*>()(k.manager_);
-		hash = hash * 31 + std::hash<ecs::internal::Id>()(k.entity_);
-		hash = hash * 31 + std::hash<ecs::internal::Version>()(k.version_);
+		hash = hash * 31 + std::hash<ptgn::ecs::Manager*>()(k.manager_);
+		hash = hash * 31 + std::hash<ptgn::ecs::internal::Id>()(k.entity_);
+		hash = hash * 31 + std::hash<ptgn::ecs::internal::Version>()(k.version_);
 		return hash;
 	}
 };
