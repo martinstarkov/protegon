@@ -84,18 +84,18 @@ void SolidCircle(const V2_int& center,
 	renderer.DrawSolidCircle(center, radius, color);
 }
 
-void Rectangle(const V2_int& center,
+void Rectangle(const V2_int& top_left,
 				const V2_int& size,
 				const Color& color) {
 	auto& renderer{ services::GetRenderer() };
-	renderer.DrawRectangle(center, size, color);
+	renderer.DrawRectangle(top_left, size, color);
 }
 
-void SolidRectangle(const V2_int& center,
+void SolidRectangle(const V2_int& top_left,
 					const V2_int& size,
 					const Color& color) {
 	auto& renderer{ services::GetRenderer() };
-	renderer.DrawSolidRectangle(center, size, color);
+	renderer.DrawSolidRectangle(top_left, size, color);
 }
 
 } // namespace draw

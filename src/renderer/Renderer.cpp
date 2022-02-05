@@ -215,22 +215,22 @@ void SDLRenderer::DrawSolidCircle(const V2_int& center,
 }
 
 // Draws hollow rectangle to the screen.
-void SDLRenderer::DrawRectangle(const V2_int& center,
+void SDLRenderer::DrawRectangle(const V2_int& top_left,
 			   				const V2_int& size,
 			   				const Color& color) const {
 	assert(renderer_ != nullptr && "Cannot draw rectangle with non-existent sdl renderer");
 	SetDrawColor(color);
-	SDL_Rect rect{ center.x - size.x / 2, center.y - size.y / 2, size.x, size.y };
+	SDL_Rect rect{ top_left.x, top_left.y, size.x, size.y };
 	SDL_RenderDrawRect(renderer_, &rect);
 }
 
 // Draws filled rectangle to the screen.
-void SDLRenderer::DrawSolidRectangle(const V2_int& center,
+void SDLRenderer::DrawSolidRectangle(const V2_int& top_left,
 								 const V2_int& size,
 								 const Color& color) const {
 	assert(renderer_ != nullptr && "Cannot draw solid rectangle with non-existent sdl renderer");
 	SetDrawColor(color);
-	SDL_Rect rect{ center.x - size.x / 2, center.y - size.y / 2, size.x, size.y };
+	SDL_Rect rect{ top_left.x, top_left.y, size.x, size.y };
 	SDL_RenderFillRect(renderer_, &rect);
 }
 

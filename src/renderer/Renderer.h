@@ -102,10 +102,10 @@ public:
     virtual void DrawSolidCircle(const V2_int& center,
                              const double radius,
                              const Color& color = colors::DEFAULT) const override;
-    virtual void DrawRectangle(const V2_int& center,
+    virtual void DrawRectangle(const V2_int& top_left,
                            const V2_int& size,
                            const Color& color = colors::DEFAULT) const override;
-    virtual void DrawSolidRectangle(const V2_int& center,
+    virtual void DrawSolidRectangle(const V2_int& top_left,
                                 const V2_int& size,
                                 const Color& color = colors::DEFAULT) const override;
 private:
