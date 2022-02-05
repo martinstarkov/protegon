@@ -316,7 +316,7 @@ struct Vector2 {
     }
 
     // Return normalized (unit) vector.
-    inline auto Normalized() const {
+    inline auto Normalize() const {
         return Unit();
     }
 
@@ -333,6 +333,11 @@ struct Vector2 {
     // Flip signs of both vector components, (x, y) -> (-x, -y).
     inline Vector2 Opposite() const {
         return -(*this);
+    }
+
+    // Flip places of both vector components, (x, y) -> (y, x).
+    inline Vector2 Flip() const {
+        return { y, x };
     }
 
     // Return magnitude squared, x * x + y * y.
