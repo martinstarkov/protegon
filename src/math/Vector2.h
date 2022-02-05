@@ -418,7 +418,7 @@ inline bool operator!=(U lhs, const Vector2<T>& rhs) {
     return !operator==(rhs, lhs);
 }
 
-/*
+
 // Possibly include these comparisons in the future.
 template <typename T>
 inline bool operator< (const Vector2<T>& lhs, const Vector2<T>& rhs) { 
@@ -439,7 +439,7 @@ template <typename T>
 inline bool operator>=(const Vector2<T>& lhs, const Vector2<T>& rhs) {
     return !operator< (lhs, rhs);
 }
-*/
+
 
 // Binary arithmetic operators between two vectors.
 
