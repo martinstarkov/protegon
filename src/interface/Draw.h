@@ -8,6 +8,18 @@ namespace ptgn {
 
 namespace draw {
 
+// Presents the drawn objects to the screen. Must be called once drawing is done.
+void Present();
+
+// Clear the drawn objects from the screen.
+void Clear();
+
+/*
+* Sets the background color of the window.
+* Note that this will also clear the screen.
+*/
+void SetColor(const Color& color);
+
 // Draws a texture to the screen.
 void Texture(const char* texture_key,
 			const V2_int& position,

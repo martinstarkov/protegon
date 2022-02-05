@@ -1,15 +1,26 @@
 #include "Draw.h"
 
-// TODO: Implement Texture, Text, and UI drawing functions
-
 #include "renderer/Renderer.h"
-#include "texture/TextureManager.h"
-#include "text/TextManager.h"
-#include "ui/UIManager.h"
 
 namespace ptgn {
 
 namespace draw {
+	
+void Present() {
+	auto& renderer{ services::GetRenderer() };
+	renderer.Present();
+}
+
+void Clear() {
+	auto& renderer{ services::GetRenderer() };
+	renderer.Clear();
+}
+
+void SetColor(const Color& color) {
+	auto& renderer{ services::GetRenderer() };
+	renderer.SetDrawColor(color);
+	renderer.Clear();
+}
 
 void Texture(const char* texture_key,
 			 const V2_int& position,

@@ -2,7 +2,6 @@
 
 #include "math/Vector2.h"
 #include "utils/Defines.h"
-#include "renderer/Color.h"
 
 namespace ptgn {
 
@@ -17,17 +16,8 @@ void Create(const char* title, const V2_int& size, const V2_int& position = CENT
 // Closes the currently active application window.
 void Destroy();
 
-// Presents the drawn objects to the screen. Must be called once drawing is done.
-void Present();
-
-// Clear the drawn objects from the screen.
-void Clear();
-
-/*
-* Sets the background color of the window.
-* Note that this will also clear the screen.
-*/
-void SetColor(const Color& color);
+// Check if a window is currently open.
+bool Exists();
 
 /*
 * @return Size of the application window.
@@ -64,15 +54,15 @@ void SetTitle(const char* new_title);
 
 /*
 * Makes the application window full screen.
-* @param on True for fullscreen, false for windowed.
+* @param state True for fullscreen, false for windowed.
 */
-void SetFullscreen(bool on);
+void SetFullscreen(bool state);
 
 /*
 * Makes the application window resizeable.
-* @param on True for resizeable, false for fixed size.
+* @param state True for resizeable, false for fixed size.
 */
-void SetResizeable(bool on);
+void SetResizeable(bool state);
 
 } // namespace window
 

@@ -9,6 +9,8 @@
 #include "debugging/Debug.h"
 #include "window/WindowManager.h"
 
+// TODO: Fix GetMouseAbsolutePosition function
+
 namespace ptgn {
 
 namespace impl {
@@ -94,9 +96,10 @@ V2_int SDLInputHandler::GetMouseScreenPosition() const {
 	return mouse_position;
 }
 
-//V2_int SDLInputHandler::GetMouseWorldPosition() const {
+V2_int SDLInputHandler::GetMouseAbsolutePosition() const {
 	//return WorldRenderer::ScreenToWorld(GetMouseScreenPosition());
-//}
+	return {};
+}
 
 MouseState SDLInputHandler::GetMouseState(Mouse button) const {
 	switch (button) {

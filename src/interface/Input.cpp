@@ -15,12 +15,12 @@ V2_int GetMouseScreenPosition() {
     auto& input_handler{ services::GetInputHandler() };
     return input_handler.GetMouseScreenPosition();
 }
-/*
-V2_int GetMouseWorldPosition() {
+
+V2_int GetMouseAbsolutePosition() {
     auto& input_handler{ services::GetInputHandler() };
-    return input_handler.GetMouseWorldPosition();
+    return input_handler.GetMouseAbsolutePosition();
 }
-*/
+
 bool MousePressed(Mouse button) {
     auto& input_handler{ services::GetInputHandler() };
     return input_handler.MousePressed(button);

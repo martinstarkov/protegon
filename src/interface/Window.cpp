@@ -1,7 +1,6 @@
 #include "Window.h"
 
 #include "window/WindowManager.h"
-#include "renderer/Renderer.h"
 
 namespace ptgn {
 
@@ -17,20 +16,9 @@ void Destroy() {
 	window_manager.DestroyWindow();
 }
 
-void Present() {
-	auto& renderer{ services::GetRenderer() };
-	renderer.Present();
-}
-
-void Clear() {
-	auto& renderer{ services::GetRenderer() };
-	renderer.Clear();
-}
-
-void SetColor(const Color& color) {
-	auto& renderer{ services::GetRenderer() };
-	renderer.SetDrawColor(color);
-	renderer.Clear();
+bool Exists() {
+	auto& window_manager{ services::GetWindowManager() };
+	return window_manager.WindowExists();
 }
 
 V2_int GetSize() {
@@ -63,14 +51,14 @@ void SetTitle(const char* new_title) {
 	window_manager.SetWindowTitle(new_title);
 }
 
-void SetFullscreen(bool on) {
+void SetFullscreen(bool state) {
 	auto& window_manager{ services::GetWindowManager() };
-	window_manager.SetWindowFullscreen(on);
+	window_manager.SetWindowFullscreen(state);
 }
 
-void SetResizeable(bool on) {
+void SetResizeable(bool state) {
 	auto& window_manager{ services::GetWindowManager() };
-	window_manager.SetWindowResizeable(on);
+	window_manager.SetWindowResizeable(state);
 }
 
 } // namespace window

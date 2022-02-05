@@ -7,8 +7,8 @@ namespace ptgn {
 namespace font {
 
 /* Load a font into the font manager.
-* @param font_point_size - Point size (based on 72 DPI). This translates to pixel height.
-* @param font_face_index - Font face index, the first face is 0.
+* @param font_point_size Point size (based on 72 DPI). This translates to pixel height.
+* @param font_face_index Font face index, the first face is 0.
 */
 void Load(const char* font_key, const char* font_path, std::uint32_t font_point_size, std::uint32_t font_face_index = 0);
 

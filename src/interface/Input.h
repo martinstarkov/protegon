@@ -3,8 +3,6 @@
 #include "math/Vector2.h"
 #include "event/Inputs.h"
 
-// TODO: Fix GetMouseWorldPosition function.
-
 namespace ptgn {
 
 namespace input {
@@ -18,9 +16,9 @@ void Update();
 V2_int GetMouseScreenPosition();
 
 /*
-* @return The x and y positions of the mouse relative to the active world camera.
+* @return The x and y positions of the mouse relative to the absolute coordinate system (ignoring camera offest).
 */
-//V2_int GetMouseWorldPosition();
+V2_int GetMouseAbsolutePosition();
 
 /*
 * @return True if mouse button is pressed, false otherwise.
