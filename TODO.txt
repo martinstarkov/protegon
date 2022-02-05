@@ -61,27 +61,10 @@ ptgn::
         Active();
     camera::
         Active(SceneManager);
-    input::
-        KeyPressed(Key key, InputHandler);
-        KeyReleased(Key key, InputHandler);
-        KeyDown(Key key, InputHandler);
-        KeyUp(Key key, InputHandler);
-        MousePressed(Mouse button, InputHandler);
-        MouseReleased(Mouse button, InputHandler);
-        MouseDown(Mouse button, InputHandler);
-        MouseUp(Mouse button, InputHandler);
-        MouseHeld(Mouse button, InputHandler);
-        MouseScreenPosition(InputHandler);
-        MouseWorldPosition(InputHandler);
     collision::
 
     math::
         Random();
-        Min();
-        Max();
-        Cos(double x);
-        Sin(double x);
-        PI<T>();
 
 TODO:
 - Move Vector2 into ptgn namespace
