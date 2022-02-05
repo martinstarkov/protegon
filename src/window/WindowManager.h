@@ -15,6 +15,7 @@ class WindowManager {
 public:
 	virtual void CreateWindow(const char* title, const V2_int& size, const V2_int& position, std::uint32_t flags = 0) = 0;
 	virtual void DestroyWindow() = 0;
+	virtual bool WindowExists() const = 0;
 	virtual V2_int GetWindowSize() const = 0;
 	virtual V2_int GetWindowOriginPosition() const = 0;
 	virtual const char* GetWindowTitle() const = 0;
@@ -35,6 +36,7 @@ public:
     ~SDLWindowManager();
 	virtual void CreateWindow(const char* title, const V2_int& size, const V2_int& position = window::CENTERED, std::uint32_t flags = 0) override;
 	virtual void DestroyWindow() override;
+	virtual bool WindowExists() const override;
 	virtual V2_int GetWindowSize() const override;
 	virtual V2_int GetWindowOriginPosition() const override;
 	virtual const char* GetWindowTitle() const override;

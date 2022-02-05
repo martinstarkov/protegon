@@ -39,6 +39,10 @@ void SDLWindowManager::DestroyWindow() {
 	window_ = nullptr;
 }
 
+bool SDLWindowManager::WindowExists() const {
+	return window_ != nullptr;
+}
+
 V2_int SDLWindowManager::GetWindowSize() const {
 	V2_int size;
 	assert(window_ != nullptr && "Cannot get size of non-existent sdl window");
