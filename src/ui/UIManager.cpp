@@ -3,7 +3,7 @@
 #include <cassert> // assert
 
 #include "debugging/Debug.h"
-#include "math/Math.h"
+#include "math/Hash.h"
 #include "renderer/Renderer.h"
 #include "core/SDLManager.h"
 

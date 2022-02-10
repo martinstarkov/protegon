@@ -61,7 +61,7 @@ void SDLTextureManager::SetTexture(const std::size_t texture_key, SDL_Texture* t
 	}
 }
 
-SDL_Texture* SDLTextureManager::GetTexture(const std::size_t texture_key) {
+SDL_Texture* SDLTextureManager::GetTexture(const std::size_t texture_key) const {
 	auto it{ texture_map_.find(texture_key) };
 	if (it != std::end(texture_map_)) {
 		return it->second.get();

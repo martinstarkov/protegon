@@ -38,10 +38,16 @@ SDLManager::SDLManager() {
 			debug::PrintLine("TTF_Init: ", TTF_GetError());
 			abort();
 		}
+		if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) == -1) {
+			debug::PrintLine("Mix_OpenAudio: ", Mix_GetError());
+			abort();
+		}
 	}
 }
 
 SDLManager::~SDLManager() {
+	Mix_CloseAudio();
+	Mix_Quit();
 	TTF_Quit();
 	IMG_Quit();
 	SDL_Quit();
