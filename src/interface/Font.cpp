@@ -1,7 +1,7 @@
 #include "Font.h"
 
 #include "text/FontManager.h"
-#include "math/Math.h"
+#include "math/Hash.h"
 
 namespace ptgn {
 

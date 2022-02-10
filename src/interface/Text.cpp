@@ -1,7 +1,7 @@
 #include "Text.h"
 
 #include "text/TextManager.h"
-#include "math/Math.h"
+#include "math/Hash.h"
 
 namespace ptgn {
 

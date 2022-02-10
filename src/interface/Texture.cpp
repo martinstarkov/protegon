@@ -1,7 +1,7 @@
 #include "Texture.h"
 
 #include "texture/TextureManager.h"
-#include "math/Math.h"
+#include "math/Hash.h"
 
 namespace ptgn {
 
@@ -15,6 +15,11 @@ void Load(const char* texture_key, const char* texture_path) {
 void Unload(const char* texture_key) {
 	auto& texture_manager{ services::GetTextureManager() };
 	texture_manager.UnloadTexture(math::Hash(texture_key));
+}
+
+bool Exists(const char* texture_key) {
+	const auto& texture_manager{ services::GetTextureManager() };
+	return texture_manager.HasTexture(math::Hash(texture_key));
 }
 
 } // namespace texture

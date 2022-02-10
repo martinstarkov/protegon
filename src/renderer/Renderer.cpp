@@ -4,7 +4,7 @@
 
 #include <SDL.h>
 
-#include "math/Math.h"
+#include "math/Hash.h"
 #include "window/WindowManager.h"
 #include "texture/TextureManager.h"
 #include "text/TextManager.h"
@@ -235,7 +235,7 @@ void SDLRenderer::DrawSolidRectangle(const V2_int& top_left,
 }
 
 SDLRenderer& GetSDLRenderer() {
-	static SDLRenderer sdl_renderer{ GetSDLWindowManager().window_, -1, 0 };
+	static SDLRenderer sdl_renderer{ GetSDLWindowManager().GetWindow(), -1, 0};
 	return sdl_renderer;
 }
 
