@@ -71,7 +71,8 @@ public:
 	    // Comparison units handled by chrono.
 	    return held_time > time;
 	}
-
+	
+private:
 	// Number of keys stored in the SDL key states array. For creating previous key states array.
 	static const std::size_t KEY_COUNT{ 512 };
 

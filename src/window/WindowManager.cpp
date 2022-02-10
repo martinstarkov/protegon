@@ -39,6 +39,11 @@ void SDLWindowManager::DestroyWindow() {
 	window_ = nullptr;
 }
 
+SDL_Window* SDLWindowManager::GetWindow() {
+	assert(window_ != nullptr && "Cannot retrieve non-existent window");
+	return window_;
+}
+
 bool SDLWindowManager::WindowExists() const {
 	return window_ != nullptr;
 }

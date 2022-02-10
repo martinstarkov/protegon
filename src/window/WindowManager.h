@@ -45,6 +45,9 @@ public:
 	virtual void SetWindowTitle(const char* new_title) override;
 	virtual void SetWindowFullscreen(bool on) override;
 	virtual void SetWindowResizeable(bool on) override;
+	// TODO: Figure out how to make this private while working with Renderer.cpp.
+	SDL_Window* GetWindow();
+private:
 	SDL_Window* window_{ nullptr };
 };
 
