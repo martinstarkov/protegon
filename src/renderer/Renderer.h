@@ -73,44 +73,45 @@ public:
     virtual void Clear() override;
     virtual void SetDrawColor(const Color& color) const override;
     virtual void DrawTexture(const char* texture_key,
-                         const V2_int& position,
-                         const V2_int& size,
-                         const V2_int& source_position = {},
-                         const V2_int& source_size = {}) const override;
+                             const V2_int& position,
+                             const V2_int& size,
+                             const V2_int& source_position = {},
+                             const V2_int& source_size = {}) const override;
     virtual void DrawTexture(const char* texture_key,
-                         const V2_int& position,
-                         const V2_int& size,
-                         const V2_int& source_position,
-                         const V2_int& source_size,
-                         const V2_int* center_of_rotation = nullptr,
-                         const double angle = 0.0,
-                         Flip flip = Flip::NONE) const override;
+                             const V2_int& position,
+                             const V2_int& size,
+                             const V2_int& source_position,
+                             const V2_int& source_size,
+                             const V2_int* center_of_rotation = nullptr,
+                             const double angle = 0.0,
+                             Flip flip = Flip::NONE) const override;
     virtual void DrawText(const char* text_key,
-                      const V2_int& position,
-                      const V2_int& size) const override;
+                          const V2_int& position,
+                          const V2_int& size) const override;
     virtual void DrawUI(const char* ui_key,
-                    const V2_int& position,
-                    const V2_int& size) const override;
+                        const V2_int& position,
+                        const V2_int& size) const override;
     virtual void DrawPoint(const V2_int& point,
-                       const Color& color = colors::DEFAULT) const override;
-    virtual void DrawLine(const V2_int& origin,
-                      const V2_int& destination,
-                      const Color& color = colors::DEFAULT) const override;
-    virtual void DrawCircle(const V2_int& center,
-                        const double radius,
-                        const Color& color = colors::DEFAULT) const override;
-    virtual void DrawSolidCircle(const V2_int& center,
-                             const double radius,
-                             const Color& color = colors::DEFAULT) const override;
-    virtual void DrawRectangle(const V2_int& top_left,
-                           const V2_int& size,
                            const Color& color = colors::DEFAULT) const override;
+    virtual void DrawLine(const V2_int& origin,
+                          const V2_int& destination,
+                          const Color& color = colors::DEFAULT) const override;
+    virtual void DrawCircle(const V2_int& center,
+                            const double radius,
+                            const Color& color = colors::DEFAULT) const override;
+    virtual void DrawSolidCircle(const V2_int& center,
+                                 const double radius,
+                                 const Color& color = colors::DEFAULT) const override;
+    virtual void DrawRectangle(const V2_int& top_left,
+                               const V2_int& size,
+                               const Color& color = colors::DEFAULT) const override;
     virtual void DrawSolidRectangle(const V2_int& top_left,
-                                const V2_int& size,
-                                const Color& color = colors::DEFAULT) const override;
-private:
+                                    const V2_int& size,
+                                    const Color& color = colors::DEFAULT) const override;
+    // TODO: Figure out how to make this private.
     friend class SDLTextureManager;
 	SDL_Renderer* renderer_{ nullptr };
+private:
 };
 
 SDLRenderer& GetSDLRenderer();
