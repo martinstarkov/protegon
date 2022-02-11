@@ -13,6 +13,7 @@ private:
 	friend class Surface;
 	friend class Texture;
 	friend class Color;
+	friend class TileMap;
 
 	PixelFormat(SDL_PixelFormat* format);
 
