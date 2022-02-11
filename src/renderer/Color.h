@@ -25,19 +25,6 @@ public:
 		return r + (g << 8) + (b << 16) + (a << 24);
 	}
 
-	/*
-	* Converts 32-bit pixel data to color.
-	* @return The color.
-	*/
-	static constexpr Color FromUint32(std::uint32_t rgba) {
-		Color color;
-		color.r = (rgba >> 0) & 255;
-		color.g = (rgba >> 8) & 255;
-		color.b = (rgba >> 16) & 255;
-		color.a = (rgba >> 24) & 255;
-		return color;
-	}
-
 	// Default construct color to black.
 	Color() = default;
 	~Color() = default;
