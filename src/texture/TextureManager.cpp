@@ -6,7 +6,6 @@
 #include <SDL_image.h>
 
 #include "debugging/Debug.h"
-#include "math/Math.h"
 #include "renderer/Renderer.h"
 #include "core/SDLManager.h"
 
@@ -30,7 +29,7 @@ void SDLTextureManager::LoadTexture(const std::size_t texture_key, const char* t
 		auto texture{ CreateTextureFromSurface(temp_surface) };
 		SetTexture(texture_key, texture);
 	} else {
-		debug::PrintLine("Failed to load texture into sdl texture manager: ", SDL_GetError());
+		debug::PrintLine("Failed to load texture into sdl texture manager: ", IMG_GetError());
 	}
 	SDL_FreeSurface(temp_surface);
 }
