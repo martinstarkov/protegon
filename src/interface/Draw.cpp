@@ -5,6 +5,43 @@
 namespace ptgn {
 
 namespace draw {
+
+namespace internal {
+
+DrawCallback DrawDispatch[static_cast<int>(ptgn::internal::physics::ShapeType::COUNT)][2] = {
+	{ DrawShapeCircle, DrawShapeSolidCircle },
+	{ DrawShapeAABB,   DrawShapeSolidAABB }
+};
+
+void DrawShapeSolidAABB(const component::Shape& shape, const component::Transform& transform, const Color& color) {
+	auto& aabb = shape.instance->CastTo<physics::AABB>();
+	draw::SolidRectangle(transform.position, aabb.size, color);
+}
+
+void DrawShapeSolidCircle(const component::Shape& shape, const component::Transform& transform, const Color& color) {
+	auto& circle = shape.instance->CastTo<physics::Circle>();
+	draw::SolidCircle(transform.position, circle.radius, color);
+}
+
+void DrawShapeAABB(const component::Shape& shape, const component::Transform& transform, const Color& color) {
+	auto& aabb = shape.instance->CastTo<physics::AABB>();
+	draw::Rectangle(transform.position, aabb.size, color);
+}
+
+void DrawShapeCircle(const component::Shape& shape, const component::Transform& transform, const Color& color) {
+	auto& circle = shape.instance->CastTo<physics::Circle>();
+	draw::Circle(transform.position, circle.radius, color);
+}
+
+} // namespace internal
+
+void Shape(const component::Shape& shape, const component::Transform& transform, const Color& color) {
+	return internal::DrawDispatch[static_cast<int>(shape.instance->GetType())][0](shape, transform, color);
+}
+
+void SolidShape(const component::Shape& shape, const component::Transform& transform, const Color& color) {
+	return internal::DrawDispatch[static_cast<int>(shape.instance->GetType())][1](shape, transform, color);
+}
 	
 void Present() {
 	auto& renderer{ services::GetRenderer() };

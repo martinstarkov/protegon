@@ -3,10 +3,34 @@
 #include "math/Vector2.h"
 #include "texture/Flip.h"
 #include "renderer/Colors.h"
+#include "components/Transform.h"
+#include "components/Shape.h"
 
 namespace ptgn {
 
 namespace draw {
+
+namespace internal {
+
+using DrawCallback = void(*)(const component::Shape& shape, const component::Transform& transform, const Color& color);
+
+extern DrawCallback DrawDispatch[static_cast<int>(ptgn::internal::physics::ShapeType::COUNT)][2];
+
+void DrawShapeSolidAABB(const component::Shape& shape, const component::Transform& transform, const Color& color);
+
+void DrawShapeSolidCircle(const component::Shape& shape, const component::Transform& transform, const Color& color);
+
+void DrawShapeAABB(const component::Shape& shape, const component::Transform& transform, const Color& color);
+
+void DrawShapeCircle(const component::Shape& shape, const component::Transform& transform, const Color& color);
+
+} // namespace internal
+
+// Draws a hollow shape object to the screen (wrapper around draw::Rectangle, draw::Circle, etc).
+void Shape(const component::Shape& shape, const component::Transform& transform, const Color& color = colors::DEFAULT);
+
+// Draws a solid shape object to the screen (wrapper around draw::Rectangle, draw::Circle, etc).
+void SolidShape(const component::Shape& shape, const component::Transform& transform, const Color& color = colors::DEFAULT);
 
 // Presents the drawn objects to the screen. Must be called once drawing is done.
 void Present();
