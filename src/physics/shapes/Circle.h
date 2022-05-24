@@ -1,22 +1,26 @@
 #pragma once
 
+#include <memory> // std::unique_ptr, std::make_unique
+
 #include "physics/shapes/Shape.h"
 
 namespace ptgn {
 
-class Circle : public Shape {
+namespace physics {
+
+class Circle : public internal::physics::Shape {
 public:
 	Circle() = default;
 	~Circle() = default;
 	
 	Circle(const double radius) : radius{ radius } {}
 	
-	virtual ShapeType GetType() const override final {
-		return ShapeType::CIRCLE;
+	virtual internal::physics::ShapeType GetType() const override final {
+		return internal::physics::ShapeType::CIRCLE;
 	}
 	
-	virtual Shape* Clone() const override final {
-		return new Circle{ radius };
+	virtual std::unique_ptr<Shape> Clone() const override final {
+		return std::make_unique<Circle>(radius);
 	}
 	
 	virtual V2_double GetCenter(const V2_double& position) const override final {
@@ -35,5 +39,7 @@ public:
 	
 	double radius{ 0 };
 };
+
+} // namespace physics
 
 } // namespace ptgn

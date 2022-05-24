@@ -1,22 +1,26 @@
 #pragma once
 
+#include <memory> // std::unique_ptr, std::make_unique
+
 #include "physics/shapes/Shape.h"
 
 namespace ptgn {
 
-class AABB : public Shape {
+namespace physics {
+
+class AABB : public internal::physics::Shape {
 public:
 	AABB() = default;
 	~AABB() = default;
 	
 	AABB(const V2_double& size) : size{ size } {}
 	
-	virtual ShapeType GetType() const override final {
-		return ShapeType::AABB;
+	virtual internal::physics::ShapeType GetType() const override final {
+		return internal::physics::ShapeType::AABB;
 	}
 	
-	virtual Shape* Clone() const override final {
-		return new AABB{ size };
+	virtual std::unique_ptr<Shape> Clone() const override final {
+		return std::make_unique<AABB>(size);
 	}
 	
 	virtual V2_double GetCenter(const V2_double& position) const override final {
@@ -34,5 +38,7 @@ public:
 
 	V2_double size;
 };
+
+} // namespace physics
 
 } // namespace ptgn

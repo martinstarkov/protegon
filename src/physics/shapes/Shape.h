@@ -5,6 +5,10 @@
 
 namespace ptgn {
 
+namespace internal {
+
+namespace physics {
+
 enum class ShapeType {
 	CIRCLE,
 	AABB,
@@ -19,7 +23,7 @@ public:
 	virtual ShapeType GetType() const = 0;
 
 	// Clone shape (allocates heap memory).
-	virtual Shape* Clone() const = 0;
+	virtual std::unique_ptr<Shape> Clone() const = 0;
 	
 	// Returns the center position of the shape given its position.
 	virtual V2_double GetCenter(const V2_double& position) const = 0;
@@ -30,11 +34,14 @@ public:
 	virtual V2_double GetSize() const = 0;
 	
 	// Cast shape to a specific type.
-	template <typename T,
-		type_traits::is_base_of_e<Shape, T> = true>
+	template <typename T, type_traits::is_base_of_e<Shape, T> = true>
 	T& CastTo() {
 		return *static_cast<T*>(this);
 	}
 };
+
+} // namespace physics
+
+} // namespace internal
 
 } // namespace ptgn
