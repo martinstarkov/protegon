@@ -316,8 +316,12 @@ struct Vector2 {
     }
 
     // Return normalized (unit) vector.
-    inline auto Normalize() const {
+    inline Vector2<T> Normalize() const {
         return Unit();
+        /*
+        T r = 1 / Magnitude();
+        return Vector2<T>{ x * r, y * r };
+        */
     }
 
     // Return identity vector, both components must be 0, 1 or -1.
