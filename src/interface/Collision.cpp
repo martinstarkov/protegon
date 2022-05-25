@@ -19,57 +19,155 @@ Manifold StaticAABBvsAABB(const component::Transform& A,
 						  const component::Shape& b) {
 	assert(a.instance != nullptr && "Cannot generate manifold for non-existent shape");
 	assert(b.instance != nullptr && "Cannot generate manifold for non-existent shape");
-
-	physics::AABB aabb{ a.instance->CastTo<physics::AABB>() };
-	physics::AABB aabb2{ b.instance->CastTo<physics::AABB>() };
+	
+	physics::AABB aabb_A{ a.instance->CastTo<physics::AABB>() };
+	physics::AABB aabb_B{ b.instance->CastTo<physics::AABB>() };
 
 	// Use center positions.
-	const auto half_1{ aabb.size / 2.0 };
-	const auto half_2{ aabb2.size / 2.0 };
+	const auto half_A{ aabb_A.size / 2.0 };
+	const auto half_B{ aabb_B.size / 2.0 };
 
-	auto top_left_1{ A.position };
-	auto top_left_2{ B.position };
+	auto top_left_A{ A.position };
+	auto top_left_B{ B.position };
 
-	top_left_1 += half_1;
-	top_left_2 += half_2;
+	top_left_A += half_A;
+	top_left_B += half_B;
 
-	const auto dx{ top_left_2.x - top_left_1.x };
-	const auto px{ (half_2.x + half_1.x) - math::Abs(dx) };
+	const auto depth_x{ top_left_B.x - top_left_A.x };
+	const auto penetration_x{ (half_B.x + half_A.x) - math::Abs(depth_x) };
 
 	Manifold manifold;
 
-	if (px <= 0) {
+	if (penetration_x <= 0) {
 		return manifold;
 	}
-	const auto dy{ top_left_2.y - top_left_1.y };
-	const auto py{ (half_2.y + half_1.y) - math::Abs(dy) };
-	if (py <= 0) {
+
+	const auto depth_y{ top_left_B.y - top_left_A.y };
+	const auto penetration_y{ (half_B.y + half_A.y) - math::Abs(depth_y) };
+
+	if (penetration_y <= 0) {
 		return manifold;
 	}
-	if (px < py) {
-		const auto sx{ math::Sign(dx) };
-		manifold.penetration.x = px * sx;
-		manifold.normal.x = sx;
-		manifold.contact_point.x = top_left_1.x + (half_1.x * sx);
-		manifold.contact_point.y = top_left_2.y;
+
+	if (penetration_x < penetration_y) {
+		const auto sign_x{ math::Sign(depth_x) };
+		manifold.penetration.x = penetration_x * sign_x;
+		manifold.normal.x = sign_x;
+		manifold.contact_point.x = top_left_A.x + (half_A.x * sign_x);
+		manifold.contact_point.y = top_left_B.y;
 	} else {
-		const auto sy{ math::Sign(dy) };
-		manifold.penetration.y = py * sy;
-		manifold.normal.y = sy;
-		manifold.contact_point.x = top_left_2.x;
-		manifold.contact_point.y = top_left_1.y + (half_1.y * sy);
+		const auto sign_y{ math::Sign(depth_y) };
+		manifold.penetration.y = penetration_y * sign_y;
+		manifold.normal.y = sign_y;
+		manifold.contact_point.x = top_left_B.x;
+		manifold.contact_point.y = top_left_A.y + (half_A.y * sign_y);
 	}
+
 	return manifold;
 }
 
-// TODO: Fill.
-Manifold StaticCirclevsCircle(const component::Transform& A, const component::Transform& B, const component::Shape& a, const component::Shape& b) {
-	return {};
+Manifold StaticCirclevsCircle(const component::Transform& A,
+							  const component::Transform& B,
+							  const component::Shape& a,
+							  const component::Shape& b) {
+	assert(a.instance != nullptr && "Cannot generate manifold for destroyed shape");
+	assert(b.instance != nullptr && "Cannot generate manifold for destroyed shape");
+
+	Manifold manifold;
+
+	physics::Circle circle_A{ a.instance->CastTo<physics::Circle>() };
+	physics::Circle circle_B{ b.instance->CastTo<physics::Circle>() };
+
+	auto normal{ B.position - A.position };
+	auto distance_squared{ normal.MagnitudeSquared() };
+	auto sum_radius{ circle_A.radius + circle_B.radius };
+
+	// Collision did not occur.
+	if (distance_squared >= sum_radius * sum_radius) {
+		return manifold;
+	}
+
+	// Cache division.
+	auto distance{ std::sqrt(distance_squared) };
+
+	V2_double contact_point;
+
+	// Bias toward selecting A for exact overlap edge case.
+	if (distance == 0.0) {
+		manifold.normal = { 1, 0 };
+		manifold.penetration = circle_A.radius * manifold.normal;
+		contact_point = A.position;
+	} else {
+		// Normalise collision vector.
+		manifold.normal = normal / distance;
+		// Find the amount by which circles overlap.
+		manifold.penetration = (sum_radius - distance) * manifold.normal;
+		// Find point of collision from A.
+		contact_point = manifold.normal * circle_A.radius + A.position;
+	}
+
+	manifold.contact_point = contact_point;
+	return manifold;
 }
 
-// TODO: Fill.
-Manifold StaticAABBvsCircle(const component::Transform& A, const component::Transform& B, const component::Shape& a, const component::Shape& b) {
-	return {};
+Manifold StaticAABBvsCircle(const component::Transform& A,
+							const component::Transform& B,
+							const component::Shape& a,
+							const component::Shape& b) {
+	assert(a.instance != nullptr && "Cannot generate manifold for destroyed shape");
+	assert(b.instance != nullptr && "Cannot generate manifold for destroyed shape");
+
+	physics::AABB aabb{ a.instance->CastTo<physics::AABB>() };
+	physics::Circle circle{ b.instance->CastTo<physics::Circle>() };
+
+	Manifold manifold;
+
+	auto center{ B.position };
+	auto aabb_half_extents{ aabb.size / 2.0 };
+	auto aabb_center{ A.position + aabb_half_extents };
+	auto difference{ center - aabb_center };
+	auto original_difference{ difference };
+	auto clamped{ math::Clamp(difference, -aabb_half_extents, aabb_half_extents) };
+	auto closest{ aabb_center + clamped };
+
+	difference = closest - center;
+	bool inside{ original_difference == clamped };
+
+	if (difference.MagnitudeSquared() <= circle.radius * circle.radius) {
+
+		manifold.normal = -difference.Identity();
+		auto penetration{ circle.radius * math::Abs(difference.Normalize()) - math::Abs(difference) };
+		manifold.penetration = math::Abs(penetration) * manifold.normal;
+		manifold.contact_point = closest;
+
+		if (inside) {
+
+			manifold.normal = {};
+			manifold.contact_point = B.position;
+
+			if (original_difference.x >= 0) {
+				manifold.normal.x = 1;
+			} else {
+				manifold.normal.x = -1;
+			}
+			if (original_difference.y >= 0) {
+				manifold.normal.y = 1;
+			} else {
+				manifold.normal.y = -1;
+			}
+
+			auto penetration{ aabb_half_extents - math::Abs(original_difference) };
+
+			if (penetration.x > penetration.y) {
+				manifold.normal.x = 0;
+			} else {
+				manifold.normal.y = 0;
+			}
+
+			manifold.penetration = (penetration + circle.radius) * manifold.normal;
+		}
+	}
+	return manifold;
 }
 
 Manifold StaticCirclevsAABB(const component::Transform& A,
@@ -109,7 +207,7 @@ void Update(ecs::Manager& manager) {
 					if (entityA.HasComponent<component::RigidBody>()) {
 						auto& rigid_bodyA = entityA.GetComponent<component::RigidBody>();
 						auto normal_flip = manifold.normal.Flip();
-						rigid_bodyA.velocity = rigid_bodyA.velocity.DotProduct(normal_flip) * normal_flip;
+						//rigid_bodyA.velocity = rigid_bodyA.velocity.DotProduct(normal_flip) * normal_flip;
 						transformA.position -= manifold.penetration;
 					};
 				}
