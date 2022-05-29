@@ -31,8 +31,7 @@ public:
 	
 	// Construct color from individual RGBA8888 pixel format values.
 	constexpr Color(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a) :
-		r{ r }, g{ g }, b{ b }, a{ a }
-	{}
+		r{ r }, g{ g }, b{ b }, a{ a } {}
 
 	/*
 	* Construct color from a pixel format integer.
@@ -45,6 +44,9 @@ public:
 	Color(Color&& move) = default;
 	Color& operator=(const Color& copy) = default;
 	Color& operator=(Color&& move) = default;
+
+	// Implicit conversion to SDL_Color, for internal use.
+	operator SDL_Color() const;
 
 	friend std::ostream& operator<<(std::ostream& os, const Color& color);
 
@@ -59,9 +61,6 @@ public:
 	friend bool operator!=(const Color& lhs, const Color& rhs) {
 		return !(lhs == rhs);
 	}
-
-	// Implicit conversion to SDL_Color, for internal use.
-	operator SDL_Color() const;
 	
 	/*
 	* Converts color to a given pixel format integer
