@@ -91,12 +91,12 @@ void SolidCircle(const V2_int& center,
 				const Color& color = colors::DEFAULT);
 
 // Draws hollow rectangle to the screen.
-void Rectangle(const V2_int& center,
+void Rectangle(const V2_int& top_left,
 				const V2_int& size,
 				const Color& color = colors::DEFAULT);
 
 // Draws filled rectangle to the screen.
-void SolidRectangle(const V2_int& center,
+void SolidRectangle(const V2_int& top_left,
 					const V2_int& size,
 					const Color& color = colors::DEFAULT);
 

@@ -84,6 +84,7 @@ void SDLTextManager::SetTextFont(const std::size_t text_key, const std::size_t n
 void SDLTextManager::RefreshText(const std::size_t text_key, const SDLText& text) {
 	auto& sdl_font_manager{ GetSDLFontManager() };
 	auto font{ sdl_font_manager.GetFont(text.font_key_) };
+	assert(font != nullptr && "Cannot refresh text for font which is not loaded in the FontManager");
 	TTF_SetFontStyle(font, text.style_);
 	SDL_Surface* temp_surface{ nullptr };
 	switch (text.mode_) {

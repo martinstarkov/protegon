@@ -226,10 +226,7 @@ struct Vector2 {
         ptgn::type_traits::is_number_e<U> = true, 
         ptgn::type_traits::convertible<T, U> = true>
     explicit operator Vector2<U>() const {
-        return Vector2<U>{
-            static_cast<U>(x), 
-            static_cast<U>(y)
-        }; 
+        return Vector2<U>{ static_cast<U>(x), static_cast<U>(y) }; 
     }
     */
 
