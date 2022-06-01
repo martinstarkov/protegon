@@ -36,6 +36,11 @@ const char* GetTitle() {
 	return window_manager.GetWindowTitle();
 }
 
+Color GetColor() {
+	auto& window_manager{ services::GetWindowManager() };
+	return window_manager.GetWindowColor();
+}
+
 void SetSize(const V2_int& new_size) {
 	auto& window_manager{ services::GetWindowManager() };
 	window_manager.SetWindowSize(new_size);
@@ -59,6 +64,11 @@ void SetFullscreen(bool state) {
 void SetResizeable(bool state) {
 	auto& window_manager{ services::GetWindowManager() };
 	window_manager.SetWindowResizeable(state);
+}
+
+void SetColor(const Color& color) {
+	auto& window_manager{ services::GetWindowManager() };
+	window_manager.SetWindowColor(color);
 }
 
 } // namespace window

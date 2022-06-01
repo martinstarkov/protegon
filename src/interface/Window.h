@@ -2,6 +2,7 @@
 
 #include "math/Vector2.h"
 #include "utils/Defines.h"
+#include "renderer/Colors.h"
 
 namespace ptgn {
 
@@ -9,7 +10,7 @@ namespace window {
 
 /*
 Creates a single application window with a given title, pixel size, and flags.
-If a window exists, its title, size, and flags will be modified.
+If a window has already been created, its title and size will be updated.
 */
 void Create(const char* title, const V2_int& size, const V2_int& position = CENTERED, int flags = 0);
 
@@ -33,6 +34,11 @@ V2_int GetOriginPosition();
 * @return Title of the application window.
 */
 const char* GetTitle();
+
+/*
+* @return Background color of the window.
+*/
+Color GetColor();
 
 /*
 * Changes the size of the application window.
@@ -63,6 +69,12 @@ void SetFullscreen(bool state);
 * @param state True for resizeable, false for fixed size.
 */
 void SetResizeable(bool state);
+
+/*
+* Sets the background color of the window.
+* @param color The color to which the window background will be set.
+*/
+void SetColor(const Color& color = color::WHITE);
 
 } // namespace window
 

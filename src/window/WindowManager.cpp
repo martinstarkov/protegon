@@ -77,6 +77,10 @@ const char* SDLWindowManager::GetWindowTitle() const {
 	return SDL_GetWindowTitle(window_);
 }
 
+Color SDLWindowManager::GetWindowColor() const {
+	return window_color;
+}
+
 void SDLWindowManager::SetWindowTitle(const char* new_title) {
 	assert(window_ != nullptr && "Cannot set title of non-existent sdl window");
 	return SDL_SetWindowTitle(window_, new_title);
@@ -90,6 +94,10 @@ void SDLWindowManager::SetWindowFullscreen(bool on) {
 void SDLWindowManager::SetWindowResizeable(bool on) {
 	assert(window_ != nullptr && "Cannot set non-existent sdl window to resizeable");
 	SDL_SetWindowResizable(window_, static_cast<SDL_bool>(on));
+}
+
+void SDLWindowManager::SetWindowColor(const Color& new_color) {
+	window_color = new_color;
 }
 
 SDLWindowManager& GetSDLWindowManager() {
