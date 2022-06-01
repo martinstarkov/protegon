@@ -17,20 +17,22 @@ struct Tag {
 	// Comparison between tag id and const char* tag.
 	// These use the hasher internally.
 
-	friend bool operator==(const Tag& lhs, const char* rhs) {
-		return lhs.id == math::Hash(rhs);
+	bool operator==(const char* rhs) const {
+		return id == math::Hash(rhs);
 	}
-	friend bool operator==(const char* lhs, const Tag& rhs) {
-		return rhs == lhs;
-	}
-	friend bool operator!=(const Tag& lhs, const char* rhs) {
-		return !(lhs == rhs);
-	}
-	friend bool operator!=(const char* lhs, const Tag& rhs) {
-		return !(rhs == lhs);
+	bool operator!=(const char* rhs) const {
+		return !operator==(rhs);
 	}
 };
 
 } // namespace component
 
 } // namespace ptgn
+
+bool operator==(const char* lhs, const ptgn::component::Tag& rhs) {
+	return rhs == lhs;
+}
+
+bool operator!=(const char* lhs, const ptgn::component::Tag& rhs) {
+	return !(rhs == lhs);
+}

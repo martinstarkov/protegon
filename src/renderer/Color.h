@@ -48,18 +48,16 @@ public:
 	// Implicit conversion to SDL_Color, for internal use.
 	operator SDL_Color() const;
 
-	friend std::ostream& operator<<(std::ostream& os, const Color& color);
-
-	friend bool operator==(const Color& lhs, const Color& rhs) {
+	bool operator==(const Color& rhs) const {
 		return
-			lhs.r == rhs.r &&
-			lhs.g == rhs.g &&
-			lhs.b == rhs.b &&
-			lhs.a == rhs.a;
+			r == rhs.r &&
+			g == rhs.g &&
+			b == rhs.b &&
+			a == rhs.a;
 	}
 
-	friend bool operator!=(const Color& lhs, const Color& rhs) {
-		return !(lhs == rhs);
+	bool operator!=(const Color& rhs) const {
+		return !operator==(rhs);
 	}
 	
 	/*
@@ -109,4 +107,21 @@ inline Color Lerp(const Color& a, const Color& b, T t) {
 
 } // namespace math
 
+namespace component {
+
+struct Color : public ptgn::Color {
+	using ptgn::Color::Color;
+	Color(const ptgn::Color& color) : ptgn::Color{ color } {}
+};
+
+} // namespace component
+
 } // namespace ptgn
+
+inline std::ostream& operator<<(std::ostream& os, const ptgn::Color& color) {
+	os << '[' << static_cast<std::uint32_t>(color.r);
+	os << ',' << static_cast<std::uint32_t>(color.g);
+	os << ',' << static_cast<std::uint32_t>(color.b);
+	os << ',' << static_cast<std::uint32_t>(color.a) << ']';
+	return os;
+}

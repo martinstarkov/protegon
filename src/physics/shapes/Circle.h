@@ -33,8 +33,12 @@ public:
 		return { diameter, diameter };
 	}
 	
-	friend bool operator==(const Circle& A, const Circle& B) {
-		return A.radius == B.radius;
+	bool operator==(const Circle& B) const {
+		return radius == B.radius;
+	}
+
+	bool operator!=(const Circle& B) const {
+		return !operator==(B);
 	}
 	
 	double radius{ 0 };

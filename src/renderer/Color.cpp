@@ -40,14 +40,6 @@ Color::operator SDL_Color() const {
 	return SDL_Color{ r, g, b, a };
 }
 
-std::ostream& operator<<(std::ostream& os, const Color& color) {
-	os << '[' << static_cast<std::uint32_t>(color.r);
-	os << ',' << static_cast<std::uint32_t>(color.g);
-	os << ',' << static_cast<std::uint32_t>(color.b);
-	os << ',' << static_cast<std::uint32_t>(color.a) << ']';
-	return os;
-}
-
 std::uint32_t Color::ToUint32(PixelFormat format) const {
 	return SDL_MapRGBA(format, r, g, b, a);
 }
