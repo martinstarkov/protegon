@@ -55,8 +55,8 @@ struct Vector2 {
                "Minimum random value must be less than maximum random value");
         assert(min_y < max_y &&
                "Minimum random value must be less than maximum random value");
-        ptgn::RNG<T> rng_x{ min_x, max_x };
-        ptgn::RNG<T> rng_y{ min_y, max_y };
+        ptgn::math::RNG<T> rng_x{ min_x, max_x };
+        ptgn::math::RNG<T> rng_y{ min_y, max_y };
         // Vary distribution type based on template parameter type.
         return { rng_x(), rng_y() };
     }
