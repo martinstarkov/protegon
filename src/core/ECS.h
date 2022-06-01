@@ -39,8 +39,6 @@ SOFTWARE.
 #include <type_traits> // std::enable_if_t, std::is_destructible_v, std::is_base_of_v, etc
 #include <cassert> // assert
 
-namespace ptgn {
-
 namespace ecs {
 
 // Forward declarations for user-accessible types.
@@ -1480,21 +1478,19 @@ inline void Manager::ForEachEntityWithout(T function) {
 
 } // namespace ecs
 
-} // namespace ptgn
-
 namespace std {
 
 // Custom hashing function for ecs::Entity class.
 // This allows for use of unordered maps and sets with entities as keys.
 template <>
-struct hash<ptgn::ecs::Entity> {
-	std::size_t operator()(const ptgn::ecs::Entity& k) const {
+struct hash<ecs::Entity> {
+	std::size_t operator()(const ecs::Entity& k) const {
 		// Hashing combination algorithm from:
 		// https://stackoverflow.com/a/17017281
 		std::size_t hash{ 17 };
-		hash = hash * 31 + std::hash<ptgn::ecs::Manager*>()(k.manager_);
-		hash = hash * 31 + std::hash<ptgn::ecs::internal::Id>()(k.entity_);
-		hash = hash * 31 + std::hash<ptgn::ecs::internal::Version>()(k.version_);
+		hash = hash * 31 + std::hash<ecs::Manager*>()(k.manager_);
+		hash = hash * 31 + std::hash<ecs::internal::Id>()(k.entity_);
+		hash = hash * 31 + std::hash<ecs::internal::Version>()(k.version_);
 		return hash;
 	}
 };
@@ -1503,10 +1499,10 @@ struct hash<ptgn::ecs::Entity> {
 
 // Entity comparison with null entity.
 
-inline bool operator==(const ptgn::ecs::Entity& entity, const ptgn::ecs::internal::NullEntity& null_entity) {
+inline bool operator==(const ecs::Entity& entity, const ecs::internal::NullEntity& null_entity) {
 	return null_entity == entity;
 }
 
-inline bool operator!=(const ptgn::ecs::Entity& entity, const ptgn::ecs::internal::NullEntity& null_entity) {
+inline bool operator!=(const ecs::Entity& entity, const ecs::internal::NullEntity& null_entity) {
 	return !(null_entity == entity);
 }
