@@ -1,4 +1,7 @@
 #include "Collision.h"
+#include "renderer/Colors.h"
+
+#include "debugging/Debug.h"
 
 namespace ptgn {
 
@@ -20,8 +23,8 @@ Manifold StaticAABBvsAABB(const component::Transform& A,
 	assert(a.instance != nullptr && "Cannot generate manifold for non-existent shape");
 	assert(b.instance != nullptr && "Cannot generate manifold for non-existent shape");
 	
-	physics::AABB aabb_A{ a.instance->CastTo<physics::AABB>() };
-	physics::AABB aabb_B{ b.instance->CastTo<physics::AABB>() };
+	physics::Rectangle aabb_A{ a.instance->CastTo<physics::Rectangle>() };
+	physics::Rectangle aabb_B{ b.instance->CastTo<physics::Rectangle>() };
 
 	// Use center positions.
 	const auto half_A{ aabb_A.size / 2.0 };
@@ -117,7 +120,7 @@ Manifold StaticAABBvsCircle(const component::Transform& A,
 	assert(a.instance != nullptr && "Cannot generate manifold for destroyed shape");
 	assert(b.instance != nullptr && "Cannot generate manifold for destroyed shape");
 
-	physics::AABB aabb{ a.instance->CastTo<physics::AABB>() };
+	physics::Rectangle aabb{ a.instance->CastTo<physics::Rectangle>() };
 	physics::Circle circle{ b.instance->CastTo<physics::Circle>() };
 
 	Manifold manifold;
@@ -195,7 +198,137 @@ void Clear(ecs::Manager& manager) {
 	});
 }
 
-void Update(ecs::Manager& manager) {
+void Update(ecs::Manager& manager, double dt) {
+
+	// Vector containing entities which have changed positions during the current cycle.
+	std::vector<std::tuple<ecs::Entity, component::Transform&, component::Shape&>> static_check;
+	// Swept collision detection and resolution routine.
+	manager.ForEachEntityWith<component::Transform, component::Shape>([&](auto& entity, auto& transform, auto& shape) {
+
+		// Round the position to the nearest whole number, this ensures collision detection is precise and prevents tunneling. Very important.
+		auto position = transform.position;//math::Round(transform.position);
+		auto size = shape.instance->GetSize();
+
+		// Do not check static entities against other entities but the other way around.
+		if (entity.HasComponent<component::RigidBody>()) {
+			auto& rb = entity.GetComponent<component::RigidBody>(); // Passed later to static check.
+			// Vector of entities which the entity could potentially have collided with during its path.
+			/*
+			std::vector<ecs::Entity> broadphase_entities;
+			auto [broadphase_position, broadphase_size] = GetBroadphaseBox(rb.velocity, position, size);
+			manager.ForEachEntityWith<component::Transform, component::Shape>([&](auto& entity2, auto& transform2, auto& shape2) {
+				if (entity != entity2) {
+					if (AABBVsAABB(broadphase_position, broadphase_size, transform2.position, shape2.instance->GetSize())) {
+						broadphase_entities.emplace_back(entity2);
+					}
+				}
+			});
+			*/
+			// Vector of entities which collided with the swept path of the collider
+			std::vector<Collision> collisions;
+			// Temporary object used inside each loop for passing by reference.
+			Collision info;
+			// Second sweep (narrow phase) collision detection.
+			manager.ForEachEntityWith<component::Transform, component::Shape>([&](auto& entity2, auto& target_transform, auto& target_shape) {
+				if (entity != entity2) {
+					V2_double target_velocity;
+					if (entity2.HasComponent<component::RigidBody>()) {
+						target_velocity = entity2.GetComponent<component::RigidBody>().velocity;
+					}
+					auto relative_velocity = rb.velocity - target_velocity;
+					if (DynamicAABBVsAABB(dt, relative_velocity, position, size, target_transform.position, target_shape.instance->GetSize(), info.manifold)) {
+						info.entity = entity2;
+						collisions.emplace_back(info);
+					}
+				}
+			});
+
+			SortTimes(collisions);
+
+			// A swept collision occurred.
+			if (collisions.size() > 0) {
+
+				// Store old velocity to see if it changes and complete second sweep.
+				auto old_velocity = rb.velocity;
+
+				// First sweep (narrow phase) collision resolution.
+				for (auto& collision : collisions) {
+					auto& target_transform = collision.entity.GetComponent<component::Transform>();
+					auto& target_shape = collision.entity.GetComponent<component::Shape>();
+					V2_double target_velocity;
+					if (collision.entity.HasComponent<component::RigidBody>()) {
+						target_velocity = collision.entity.GetComponent<component::RigidBody>().velocity;
+					}
+					auto relative_velocity = rb.velocity - target_velocity;
+					if (ResolveDynamicAABBVsAABB(dt, relative_velocity, rb.velocity, position, size, target_transform.position, target_shape.instance->GetSize(), collision.manifold)) {
+						// ... objects which were used to resolve the collision, not necessarily all touching objects.
+					}
+					// TODO: Limit collision coloring to only objects which touch the player.
+					collision.entity.GetComponent<component::Color>() = color::RED;
+				}
+
+				// Velocity changed, complete a second sweep to ensure both axes have been swept.
+				/*
+				if (rb.velocity.x != old_velocity.x || rb.velocity.y != old_velocity.y) {
+					// Clear first sweep collisions.
+					collisions.clear();
+					// Second sweep (narrow phase) collision detection.
+					manager.ForEachEntityWith<component::Transform, component::Shape>([&](auto& entity2, auto& target_transform, auto& target_shape) {
+						if (entity != entity2) {
+							V2_double target_velocity;
+							if (entity2.HasComponent<component::RigidBody>()) {
+								target_velocity = entity2.GetComponent<component::RigidBody>().velocity;
+							}
+							auto relative_velocity = rb.velocity - target_velocity;
+							if (DynamicAABBVsAABB(dt, relative_velocity, position, size, target_transform.position, target_shape.instance->GetSize(), info.manifold)) {
+								info.entity = entity2;
+								collisions.emplace_back(info);
+							}
+						}
+					});
+					if (collisions.size() > 0) {
+
+						SortTimes(collisions);
+						// Second sweep (narrow phase) collision resolution.
+						for (auto& collision : collisions) {
+							auto& target_transform = collision.entity.GetComponent<component::Transform>();
+							auto& target_shape = collision.entity.GetComponent<component::Shape>();
+							V2_double target_velocity;
+							if (collision.entity.HasComponent<component::RigidBody>()) {
+								target_velocity = collision.entity.GetComponent<component::RigidBody>().velocity;
+							}
+							auto relative_velocity = rb.velocity - target_velocity;
+							ResolveDynamicAABBVsAABB(dt, relative_velocity, rb.velocity, position, size, target_transform.position, target_shape.instance->GetSize(), collision.manifold);
+						}
+					}
+				}*/
+			}
+			// Update collider position with resolved velocity.
+			position += rb.velocity * dt;
+			// If position has changed, update it and add entity to static collision check list.
+			if (transform.position != position) {
+				transform.position = position;
+				static_check.emplace_back(entity, transform, shape);
+			}
+		}
+	});
+	// Static collision detection for objects which have moved due to sweeps (dynamic AABBs).
+	// Important note: The static check mostly prevents objects from preferring to stay inside each other if both are dynamic (altough this still occurs in circumstances where the resolution would result in another static collision).
+	//for (auto [entity, transform, shape] : static_check) {
+	//	// Check if there is currently an overlap with any other collider.
+	//	manager.ForEachEntityWith<component::Transform, component::Shape>([&](auto& entity2, auto& transform2, auto& shape2) {
+	//		if (entity != entity2) { // Do not check against self.
+	//			if (AABBVsAABB(transform.position, shape.instance->GetSize(), transform2.position, shape2.instance->GetSize())) {
+	//				auto collision_depth = IntersectAABB(transform.position, shape.instance->GetSize(), transform2.position, shape2.instance->GetSize());
+	//				if (!collision_depth.IsZero()) { // Static collision occured.
+	//					// Resolve static collision.
+	//					transform.position -= collision_depth;
+	//				}
+	//			}
+	//		}
+	//	});
+	//}
+
 	manager.ForEachEntityWith<component::Collider, component::Transform, component::Shape>([&](ecs::Entity& entityA, component::Collider& colliderA, component::Transform& transformA, component::Shape& shapeA) {
 		manager.ForEachEntityWith<component::Collider, component::Transform, component::Shape>([&](ecs::Entity& entityB, component::Collider& colliderB, component::Transform& transformB, component::Shape& shapeB) {
 			if (colliderA.collideable && colliderB.collideable && entityA != entityB) {
@@ -203,13 +336,25 @@ void Update(ecs::Manager& manager) {
 				if (manifold.CollisionOccured()) {
 					colliderA.manifolds.emplace_back(manifold);
 					colliderB.manifolds.emplace_back(manifold);
+					//rigid_bodyA.velocity = rigid_bodyA.velocity.DotProduct(normal_flip) * normal_flip;
+					transformA.position -= manifold.penetration;
 					// TODO: Move this out, into some resolve function with templates possibly? Component for resolving collisions?
-					if (entityA.HasComponent<component::RigidBody>()) {
+					/*if (entityA.HasComponent<component::RigidBody>()) {
 						auto& rigid_bodyA = entityA.GetComponent<component::RigidBody>();
 						auto normal_flip = manifold.normal.Flip();
-						//rigid_bodyA.velocity = rigid_bodyA.velocity.DotProduct(normal_flip) * normal_flip;
-						transformA.position -= manifold.penetration;
-					};
+					};*/
+				}
+			}
+		});
+	});
+
+
+
+	manager.ForEachEntityWith<component::Transform, component::Shape>([&](ecs::Entity& entity1, component::Transform& transform1, component::Shape& shape1) {
+		manager.ForEachEntityWith<component::Transform, component::Shape>([&](ecs::Entity& entity2, component::Transform& transform2, component::Shape& shape2) {
+			if (entity1 != entity2) {
+				if (AABBVsAABB(transform1.position, shape1.instance->GetSize(), transform2.position, shape2.instance->GetSize())) {
+					debug::PrintLine("Collision system failed");
 				}
 			}
 		});
@@ -226,8 +371,8 @@ bool AABBvsAABB(const component::Transform& A,
 				const component::Shape& b) {
 	assert(a.instance != nullptr && "Cannot generate manifold for non-existent shape");
 	assert(b.instance != nullptr && "Cannot generate manifold for non-existent shape");
-	physics::AABB aabb{ a.instance->CastTo<physics::AABB>() };
-	physics::AABB aabb2{ b.instance->CastTo<physics::AABB>() };
+	physics::Rectangle aabb{ a.instance->CastTo<physics::Rectangle>() };
+	physics::Rectangle aabb2{ b.instance->CastTo<physics::Rectangle>() };
 	// If any side of the aabb it outside the other aabb, there cannot be an overlap.
 	if (A.position.x + aabb.size.x <= B.position.x || A.position.x >= B.position.x + aabb2.size.x) return false;
 	if (A.position.y + aabb.size.y <= B.position.y || A.position.y >= B.position.y + aabb2.size.y) return false;
