@@ -3,8 +3,8 @@
 #include "math/Vector2.h"
 #include "texture/Flip.h"
 #include "renderer/Colors.h"
-#include "components/Transform.h"
-#include "components/Shape.h"
+#include "core/Transform.h"
+#include "physics/Shape.h"
 
 namespace ptgn {
 
@@ -27,10 +27,10 @@ void DrawShapeCircle(const component::Shape& shape, const component::Transform& 
 } // namespace internal
 
 // Draws a hollow shape object to the screen (wrapper around draw::Rectangle, draw::Circle, etc).
-void Shape(const component::Shape& shape, const component::Transform& transform, const Color& color = colors::DEFAULT);
+void Shape(const component::Shape& shape, const component::Transform& transform, const Color& color = color::DEFAULT);
 
 // Draws a solid shape object to the screen (wrapper around draw::Rectangle, draw::Circle, etc).
-void SolidShape(const component::Shape& shape, const component::Transform& transform, const Color& color = colors::DEFAULT);
+void SolidShape(const component::Shape& shape, const component::Transform& transform, const Color& color = color::DEFAULT);
 
 // Presents the drawn objects to the screen. Must be called once drawing is done.
 void Present();
@@ -73,32 +73,32 @@ void UI(const char* ui_key,
 
 // Draws a point on the screen.
 void Point(const V2_int& point,
-			const Color& color = colors::DEFAULT);
+			const Color& color = color::DEFAULT);
 
 // Draws line to the screen.
 void Line(const V2_int& origin,
 		const V2_int& destination,
-		const Color& color = colors::DEFAULT);
+		const Color& color = color::DEFAULT);
 
 // Draws hollow circle to the screen.
 void Circle(const V2_int& center,
 			const double radius,
-			const Color& color = colors::DEFAULT);
+			const Color& color = color::DEFAULT);
 
 // Draws filled circle to the screen.
 void SolidCircle(const V2_int& center,
 				const double radius,
-				const Color& color = colors::DEFAULT);
+				const Color& color = color::DEFAULT);
 
 // Draws hollow rectangle to the screen.
 void Rectangle(const V2_int& top_left,
 				const V2_int& size,
-				const Color& color = colors::DEFAULT);
+				const Color& color = color::DEFAULT);
 
 // Draws filled rectangle to the screen.
 void SolidRectangle(const V2_int& top_left,
 					const V2_int& size,
-					const Color& color = colors::DEFAULT);
+					const Color& color = color::DEFAULT);
 
 } // namespace draw
 

@@ -14,7 +14,7 @@ DrawCallback DrawDispatch[static_cast<int>(ptgn::internal::physics::ShapeType::C
 };
 
 void DrawShapeSolidAABB(const component::Shape& shape, const component::Transform& transform, const Color& color) {
-	auto& aabb = shape.instance->CastTo<physics::AABB>();
+	auto& aabb = shape.instance->CastTo<physics::Rectangle>();
 	draw::SolidRectangle(transform.position, aabb.size, color);
 }
 
@@ -24,7 +24,7 @@ void DrawShapeSolidCircle(const component::Shape& shape, const component::Transf
 }
 
 void DrawShapeAABB(const component::Shape& shape, const component::Transform& transform, const Color& color) {
-	auto& aabb = shape.instance->CastTo<physics::AABB>();
+	auto& aabb = shape.instance->CastTo<physics::Rectangle>();
 	draw::Rectangle(transform.position, aabb.size, color);
 }
 

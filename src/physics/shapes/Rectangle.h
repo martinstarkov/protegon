@@ -8,19 +8,19 @@ namespace ptgn {
 
 namespace physics {
 
-class AABB : public internal::physics::Shape {
+class Rectangle : public internal::physics::Shape {
 public:
-	AABB() = default;
-	~AABB() = default;
+	Rectangle() = default;
+	~Rectangle() = default;
 	
-	AABB(const V2_double& size) : size{ size } {}
+	Rectangle(const V2_double& size) : size{ size } {}
 	
 	virtual internal::physics::ShapeType GetType() const override final {
 		return internal::physics::ShapeType::AABB;
 	}
 	
 	virtual std::unique_ptr<Shape> Clone() const override final {
-		return std::make_unique<AABB>(size);
+		return std::make_unique<Rectangle>(size);
 	}
 	
 	virtual V2_double GetCenter(const V2_double& position) const override final {
@@ -32,8 +32,12 @@ public:
 		return size;
 	}
 
-	friend bool operator==(const AABB& A, const AABB& B) {
-		return A.size == B.size;
+	bool operator==(const Rectangle& B) const {
+		return size == B.size;
+	}
+
+	bool operator!=(const Rectangle& B) const {
+		return !operator==(B);
 	}
 
 	V2_double size;
