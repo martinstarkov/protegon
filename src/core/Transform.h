@@ -22,6 +22,11 @@ struct Transform {
 	double rotation{ 0 };
 };
 
+struct OriginalTransform : public Transform {
+	using Transform::Transform;
+	OriginalTransform(const Transform& transform) : Transform{ transform } {}
+};
+
 } // namespace component
 
 } // namespace ptgn

@@ -5,7 +5,7 @@
 #include <memory> // std::unique_ptr, std::make_unique
 
 #include "physics/shapes/Shape.h"
-#include "physics/shapes/AABB.h"
+#include "physics/shapes/Rectangle.h"
 #include "physics/shapes/Circle.h"
 #include "utils/TypeTraits.h"
 

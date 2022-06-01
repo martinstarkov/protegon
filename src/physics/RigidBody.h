@@ -4,15 +4,15 @@
 
 namespace ptgn {
 
-namespace component {
+namespace physics {
 
 struct RigidBody {
 	RigidBody() = default;
 	~RigidBody() = default;
-	RigidBody(const RigidBody & copy) = default;
-	RigidBody(RigidBody && move) = default;
-	RigidBody& operator=(const RigidBody & copy) = default;
-	RigidBody& operator=(RigidBody && move) = default;
+	RigidBody(const RigidBody& copy) = default;
+	RigidBody(RigidBody&& move) = default;
+	RigidBody& operator=(const RigidBody& copy) = default;
+	RigidBody& operator=(RigidBody&& move) = default;
 
 	RigidBody(const V2_double& velocity) : velocity{ velocity } {}
 	RigidBody(const V2_double& velocity, const V2_double& acceleration) : 
@@ -32,6 +32,15 @@ struct RigidBody {
 	double angular_acceleration{ 0 };
 };
 
-} // namespace component
+} // namespace physics
+
+namespace component {
+
+struct RigidBody : public physics::RigidBody {
+	using physics::RigidBody::RigidBody;
+	RigidBody(const physics::RigidBody& rigid_body) : physics::RigidBody{ rigid_body } {}
+};
+
+} // namespace component 
 
 } // namespace ptgn
