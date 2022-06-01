@@ -42,7 +42,7 @@ struct SDLText {
 	const char* content_;
 	Color color_;
 	int style_{ static_cast<int>(FontStyle::NORMAL) };
-	Color background_shading_{ colors::WHITE };
+	Color background_shading_{ color::WHITE };
 	FontRenderMode mode_{ FontRenderMode::SOLID };
 };
 

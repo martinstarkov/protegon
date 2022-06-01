@@ -4,7 +4,7 @@
 
 namespace ptgn {
 
-namespace colors {
+namespace color {
 
 inline constexpr Color BLACK{ 0, 0, 0, 255 };
 inline constexpr Color WHITE{ 255, 255, 255, 255 };
@@ -31,6 +31,6 @@ inline constexpr Color GREY{ 128, 128, 128, 255 };
 inline constexpr Color LIGHT_GREY{ 83, 83, 83, 255 };
 inline constexpr Color SILVER{ 192, 192, 192, 255 };
 
-} // namespace colors
+} // namespace color
 
 } // namespace ptgn

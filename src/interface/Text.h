@@ -7,7 +7,7 @@ namespace ptgn {
 namespace text {
 
 // Load text into text manager. Font key must exist in the font manager
-void Load(const char* text_key, const char* font_key, const char* text_content, const Color& text_color = colors::BLACK);
+void Load(const char* text_key, const char* font_key, const char* text_content, const Color& text_color = color::BLACK);
 
 // Unload text from text manager.
 void Unload(const char* text_key);
