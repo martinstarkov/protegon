@@ -12,14 +12,19 @@
 #include "core/Transform.h"
 #include "physics/RigidBody.h"
 
+#include "debugging/Debug.h" // TODO: TEMPORARY
+
 namespace ptgn {
 
 namespace collision {
 
 struct CollisionManifold {
+    CollisionManifold() = default;
+    CollisionManifold(const V2_double& point, const V2_double& normal, double time) : point{ point }, normal{ normal }, time{ time } {}
     V2_double point;
     V2_double normal;
     double time = 0.0;
+    int intersection = 0;
 };
 
 struct Collision {
@@ -183,7 +188,410 @@ inline bool ResolveDynamicAABBVsAABB(double dt, const V2_double& relative_veloci
     }
     return false;
 }
+/*
+std::pair<CollisionManifold, V2_double> CircleVsAABB(const V2_double& rectangle_position, const V2_double& rectangle_size, const V2_double& start, const V2_double& end, double radius) {
+    const auto L = rectangle_position.x;
+    const auto T = rectangle_position.y;
+    const auto R = rectangle_position.x + rectangle_size.x;
+    const auto B = rectangle_position.y + rectangle_size.y;
 
+    // If the bounding box around the start and end points (+radius on all
+    // sides) does not intersect with the rectangle, definitely not an
+    // intersection
+    if ((std::max(start.x, end.x) + radius < L) ||
+        (std::min(start.x, end.x) - radius > R) ||
+        (std::max(start.y, end.y) + radius < T) ||
+        (std::min(start.y, end.y) - radius > B)) {
+        debug::PrintLine("Exiting 1");
+        return {};
+    }
+
+    const auto dx = end.x - start.x;
+    const auto dy = end.y - start.y;
+    const auto invdx = (dx == 0.0 ? 0.0 : 1.0 / dx);
+    const auto invdy = (dy == 0.0 ? 0.0 : 1.0 / dy);
+    V2_double corner = V2_double::Maximum();
+
+    // Calculate intersection times with each side's plane
+    // Check each side's quadrant for single-side intersection
+    // Calculate Corner
+
+    // Left Side
+    // Does the circle go from the left side to the right side of the rectangle's left?
+    if (start.x - radius < L && end.x + radius > L) {
+        auto ltime = ((L - radius) - start.x) * invdx;
+        if (ltime >= 0.0 && ltime <= 1.0) {
+            auto ly = dy * ltime + start.y;
+            // Does the collisions point lie on the left side?
+            if (ly >= T && ly <= B) {
+                // circle center: { dx * ltime + start.x, ly }
+                return { CollisionManifold({ L, ly }, { -1, 0 }, ltime), { dx * ltime + start.x, ly } };
+            }
+        }
+        corner.x = L;
+    }
+
+    // Right Side
+    // Does the circle go from the right side to the left side of the rectangle's right?
+    if (start.x + radius > R && end.x - radius < R) {
+        auto rtime = (start.x - (R + radius)) * -invdx;
+        if (rtime >= 0.0 && rtime <= 1.0) {
+            auto ry = dy * rtime + start.y;
+            // Does the collisions point lie on the right side?
+            if (ry >= T && ry <= B) {
+                // circle center: { dx * rtime + start.x, ry }
+                return { CollisionManifold({ R, ry }, { 1, 0 }, rtime), { dx * rtime + start.x, ry } };
+            }
+        }
+        corner.x = R;
+    }
+
+    // Top Side
+    // Does the circle go from the top side to the bottom side of the rectangle's top?
+    if (start.y - radius < T && end.y + radius > T) {
+        auto ttime = ((T - radius) - start.y) * invdy;
+        if (ttime >= 0.0 && ttime <= 1.0) {
+            auto tx = dx * ttime + start.x;
+            // Does the collisions point lie on the top side?
+            if (tx >= L && tx <= R) {
+                // circle center: { tx, dy * ttime + start.y }
+                return { CollisionManifold({ tx, T }, { 0, -1 }, ttime), { tx, dy * ttime + start.y } };
+            }
+        }
+        corner.y = T;
+    }
+
+    // Bottom Side
+    // Does the circle go from the bottom side to the top side of the rectangle's bottom?
+    if (start.y + radius > B && end.y - radius < B) {
+        auto btime = (start.y - (B + radius)) * -invdy;
+        if (btime >= 0.0 && btime <= 1.0) {
+            auto bx = dx * btime + start.x;
+            // Does the collisions point lie on the bottom side?
+            if (bx >= L && bx <= R) {
+                // circle center: { bx, dy * btime + start.y }
+                return { CollisionManifold({ bx, B }, { 0, 1 }, btime), { bx, dy * btime + start.y } };
+            }
+        }
+        corner.y = B;
+    }
+
+    // No intersection at all!
+    if (corner.x == V2_double::Maximum().x && corner.y == V2_double::Maximum().y) {
+        debug::PrintLine("Exiting 2");
+        return {};
+    }
+
+    // Account for the times where we don't pass over a side but we do hit it's corner
+    if (corner.x != V2_double::Maximum().x && corner.y == V2_double::Maximum().y) {
+        corner.y = (dy > 0.0 ? B : T);
+    }
+    if (corner.y != V2_double::Maximum().y && corner.x == V2_double::Maximum().x) {
+        corner.x = (dx > 0.0 ? R : L);
+    }
+
+    // Solve the triangle between the start, corner, and intersection point.
+     //
+     //           +-----------T-----------+
+     //           |                       |
+     //          L|                       |R
+     //           |                       |
+     //           C-----------B-----------+
+     //          / \
+     //         /   \r     _.-E
+     //        /     \ _.-'
+     //       /    _.-I
+     //      / _.-'
+     //     S-'
+     //
+     // S = start of circle's path
+     // E = end of circle's path
+     // LTRB = sides of the rectangle
+     // I = {ix, iY} = point at which the circle intersects with the rectangle
+     // C = corner of intersection (and collision point)
+     // C=>I (r) = {nx, ny} = radius and intersection normal
+     // S=>C = cornerdist
+     // S=>I = intersectionDistance
+     // S=>E = lineLength
+     // <S = innerAngle
+     // <I = angle1
+     // <C = angle2
+     //
+
+    double inverseRadius = 1.0 / radius;
+    double lineLength = std::sqrt(dx * dx + dy * dy);
+    double cornerdx = corner.x - start.x;
+    double cornerdy = corner.y - start.y;
+    double cornerDistance = std::sqrt(cornerdx * cornerdx + cornerdy * cornerdy);
+    double innerAngle = std::acos((cornerdx * dx + cornerdy * dy) / (lineLength * cornerDistance));
+
+    // If the circle is too close, no intersection.
+    if (cornerDistance < radius) {
+        debug::PrintLine("Exiting 3");
+        return {};
+    }
+
+    // If inner angle is zero, it's going to hit the corner straight on.
+    if (innerAngle == 0.0) {
+        double time = (double)((cornerDistance - radius) / lineLength);
+
+        // If time is outside the boundaries, return null. This algorithm can
+        // return a negative time which indicates a previous intersection, and
+        // can also return a time > 1.0 which can predict a corner intersection.
+        if (time > 1.0 || time < 0.0) {
+            debug::PrintLine("Exiting 4");
+            return {};
+        }
+
+        auto ix = time * dx + start.x;
+        auto iy = time * dy + start.y;
+        auto nx = (double)(cornerdx / cornerDistance);
+        auto ny = (double)(cornerdy / cornerDistance);
+
+        // circle center: { ix, iy }
+        return { CollisionManifold({ corner.x, corner.y }, { nx, ny }, time), { ix, iy } };
+    }
+
+    double innerAngleSin = std::sin(innerAngle);
+    double angle1Sin = innerAngleSin * cornerDistance * inverseRadius;
+
+    // The angle is too large, there cannot be an intersection
+    if (std::abs(angle1Sin) > 1.0) {
+        debug::PrintLine("Exiting 5: ", innerAngleSin, ",", cornerDistance, ",", inverseRadius);
+        return {};
+    }
+
+    double angle1 = math::PI<double> - std::asin(angle1Sin);
+    double angle2 = math::PI<double> - innerAngle - angle1;
+    double intersectionDistance = radius * std::sin(angle2) / innerAngleSin;
+
+    // Solve for time
+    double time = (double)(intersectionDistance / lineLength);
+
+    // If time is outside the boundaries, return null. This algorithm can
+    // return a negative time which indicates a previous intersection, and
+    // can also return a time > 1.0f which can predict a corner intersection.
+    if (time > 1.0 || time < 0.0) {
+        debug::PrintLine("Exiting 6");
+        return {};
+    }
+
+    // Solve the intersection and normal
+    double ix = time * dx + start.x;
+    double iy = time * dy + start.y;
+    double nx = (double)((ix - corner.x) * inverseRadius);
+    double ny = (double)((iy - corner.y) * inverseRadius);
+
+    // circle center: { ix, iy }
+    return { CollisionManifold({ corner.x, corner.y }, { nx, ny }, time), { ix, iy } };
+}
+*/
+
+void IntersectsVertex(int32_t i0, int32_t i1, V2_double const& K,
+                      double q0, double q1, double q2, CollisionManifold& result) {
+    result.intersection = +1;
+    result.time = (q0 - std::sqrt(q1)) / q2;
+    result.point[i0] = K[i0];
+    result.point[i1] = K[i1];
+}
+
+void IntersectsEdge(int32_t i0, int32_t i1, V2_double const& K0, V2_double const& C,
+                    double radius, V2_double const& V, CollisionManifold& result) {
+    result.intersection = +1;
+    result.time = (K0[i0] + radius - C[i0]) / V[i0];
+    result.point[i0] = K0[i0];
+    result.point[i1] = C[i1] + result.time * V[i1];
+}
+
+
+void InteriorOverlap(V2_double const& C, CollisionManifold& result) {
+    result.intersection = -1;
+    result.time = (double)0;
+    result.point = C;
+}
+
+void EdgeOverlap(int32_t i0, int32_t i1, V2_double const& K, V2_double const& C,
+                 V2_double const& delta, double radius, CollisionManifold& result) {
+    result.intersection = (delta[i0] < radius ? -1 : 1);
+    result.time = (double)0;
+    result.point[i0] = K[i0];
+    result.point[i1] = C[i1];
+}
+
+void VertexOverlap(V2_double const& K0, V2_double const& delta,
+                   double radius, CollisionManifold& result) {
+    double sqrDistance = delta[0] * delta[0] + delta[1] * delta[1];
+    double sqrRadius = radius * radius;
+    result.intersection = (sqrDistance < sqrRadius ? -1 : 1);
+    result.time = (double)0;
+    result.point = K0;
+}
+
+void VertexSeparated(V2_double const& K0, V2_double const& delta0,
+                     V2_double const& V, double radius, CollisionManifold& result) {
+    double q0 = -V.DotProduct(delta0);
+    if (q0 > (double)0) {
+        double dotVPerpD0 = V.DotProduct(delta0.Tangent());
+        double q2 = V.DotProduct(V);
+        double q1 = radius * radius * q2 - dotVPerpD0 * dotVPerpD0;
+        if (q1 >= (double)0) {
+            IntersectsVertex(0, 1, K0, q0, q1, q2, result);
+        }
+    }
+}
+
+void EdgeUnbounded(int32_t i0, int32_t i1, V2_double const& K0, V2_double const& C,
+                   double radius, V2_double const& delta0, V2_double const& V, CollisionManifold& result) {
+    if (V[i0] < (double)0) {
+        double dotVPerpD0 = V[i0] * delta0[i1] - V[i1] * delta0[i0];
+        if (radius * V[i1] + dotVPerpD0 >= (double)0) {
+            V2_double K1, delta1;
+            K1[i0] = K0[i0];
+            K1[i1] = -K0[i1];
+            delta1[i0] = C[i0] - K1[i0];
+            delta1[i1] = C[i1] - K1[i1];
+            double dotVPerpD1 = V[i0] * delta1[i1] - V[i1] * delta1[i0];
+            if (radius * V[i1] + dotVPerpD1 <= (double)0) {
+                IntersectsEdge(i0, i1, K0, C, radius, V, result);
+            } else {
+                double q2 = V.DotProduct(V);
+                double q1 = radius * radius * q2 - dotVPerpD1 * dotVPerpD1;
+                if (q1 >= (double)0) {
+                    double q0 = -(V[i0] * delta1[i0] + V[i1] * delta1[i1]);
+                    IntersectsVertex(i0, i1, K1, q0, q1, q2, result);
+                }
+            }
+        } else {
+            double q2 = V.DotProduct(V);
+            double q1 = radius * radius * q2 - dotVPerpD0 * dotVPerpD0;
+            if (q1 >= (double)0) {
+                double q0 = -(V[i0] * delta0[i0] + V[i1] * delta0[i1]);
+                IntersectsVertex(i0, i1, K0, q0, q1, q2, result);
+            }
+        }
+    }
+}
+
+void VertexUnbounded(V2_double const& K0, V2_double const& C, double radius,
+                     V2_double const& delta0, V2_double const& V, CollisionManifold& result) {
+    if (V[0] < (double)0 && V[1] < (double)0) {
+        double dotVPerpD0 = V.DotProduct(delta0.Tangent());
+        if (radius * V[0] - dotVPerpD0 <= (double)0) {
+            if (-radius * V[1] - dotVPerpD0 >= (double)0) {
+                double q2 = V.DotProduct(V);
+                double q1 = radius * radius * q2 - dotVPerpD0 * dotVPerpD0;
+                double q0 = -V.DotProduct(delta0);
+                IntersectsVertex(0, 1, K0, q0, q1, q2, result);
+            } else {
+                V2_double K1{ K0[0], -K0[1] };
+                V2_double delta1 = C - K1;
+                double dotVPerpD1 = V.DotProduct(delta1.Tangent());
+                if (-radius * V[1] - dotVPerpD1 >= (double)0) {
+                    IntersectsEdge(0, 1, K0, C, radius, V, result);
+                } else {
+                    double q2 = V.DotProduct(V);
+                    double q1 = radius * radius * q2 - dotVPerpD1 * dotVPerpD1;
+                    if (q1 >= (double)0) {
+                        double q0 = -V.DotProduct(delta1);
+                        IntersectsVertex(0, 1, K1, q0, q1, q2, result);
+                    }
+                }
+            }
+        } else {
+            V2_double K2{ -K0[0], K0[1] };
+            V2_double delta2 = C - K2;
+            double dotVPerpD2 = V.DotProduct(delta2.Tangent());
+            if (radius * V[0] - dotVPerpD2 <= (double)0) {
+                IntersectsEdge(1, 0, K0, C, radius, V, result);
+            } else {
+                double q2 = V.DotProduct(V);
+                double q1 = radius * radius * q2 - dotVPerpD2 * dotVPerpD2;
+                if (q1 >= (double)0) {
+                    double q0 = -V.DotProduct(delta2);
+                    IntersectsVertex(1, 0, K2, q0, q1, q2, result);
+                }
+            }
+        }
+    }
+}
+void DoQuery(V2_double const& K, V2_double const& C,
+             double radius, V2_double const& V, CollisionManifold& result) {
+    V2_double delta = C - K;
+    if (delta[1] <= radius) {
+        if (delta[0] <= radius) {
+            if (delta[1] <= (double)0) {
+                if (delta[0] <= (double)0) {
+                    InteriorOverlap(C, result);
+                } else {
+                    EdgeOverlap(0, 1, K, C, delta, radius, result);
+                }
+            } else {
+                if (delta[0] <= (double)0) {
+                    EdgeOverlap(1, 0, K, C, delta, radius, result);
+                } else {
+                    if (delta.DotProduct(delta) <= radius * radius) {
+                        VertexOverlap(K, delta, radius, result);
+                    } else {
+                        VertexSeparated(K, delta, V, radius, result);
+                    }
+                }
+
+            }
+        } else {
+            EdgeUnbounded(0, 1, K, C, radius, delta, V, result);
+        }
+    } else {
+        if (delta[0] <= radius) {
+            EdgeUnbounded(1, 0, K, C, radius, delta, V, result);
+        } else {
+            VertexUnbounded(K, C, radius, delta, V, result);
+        }
+    }
+}
+
+CollisionManifold CircleVsAABB(const V2_double& box_position, const V2_double& box_size, V2_double const& boxVelocity,
+                    const V2_double& circle_center, double circle_radius, V2_double const& circleVelocity) {
+    CollisionManifold result{};
+
+    // Translate the circle and box so that the box center becomes
+    // the origin.  Compute the velocity of the circle relative to
+    // the box.
+
+    auto box_min = box_position;
+    auto box_max = box_position + box_size;
+
+    V2_double boxCenter = (box_max + box_min) * (double)0.5;
+    V2_double extent = (box_max - box_min) * (double)0.5;
+    V2_double C = circle_center - boxCenter;
+    V2_double V = circleVelocity - boxVelocity;
+
+    // Change signs on components, if necessary, to transform C to the
+    // first quadrant.  Adjust the velocity accordingly.
+    std::array<double, 2> sign = { (double)0, (double)0 };
+    for (int32_t i = 0; i < 2; ++i) {
+        if (C[i] >= (double)0) {
+            sign[i] = (double)1;
+        } else {
+            C[i] = -C[i];
+            V[i] = -V[i];
+            sign[i] = (double)-1;
+        }
+    }
+
+    DoQuery(extent, C, circle_radius, V, result);
+
+    if (result.intersection != 0) {
+        // Translate back to the original coordinate system.
+        for (int32_t i = 0; i < 2; ++i) {
+            if (sign[i] < (double)0) {
+                result.point[i] = -result.point[i];
+            }
+        }
+
+        result.point += boxCenter;
+    }
+    return result;
+}
 
 namespace internal {
 
