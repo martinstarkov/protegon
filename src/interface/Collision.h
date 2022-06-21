@@ -147,7 +147,8 @@ inline bool RayVsAABB(const V2_double& ray_origin, const V2_double& ray_dir, con
         }
     } else if (t_near.x == t_near.y && t_far.x == t_far.y) { // Both axes collide at the same time.
         // Diagonal collision, set normal to opposite of direction of movement.
-        out_collision.normal = ray_dir.Identity().Opposite();
+        // TODO: This may be important to fix corner collisions in the future.
+        //out_collision.normal = ray_dir.Identity().Opposite();
     }
 
     // Raycast collision occurred.
@@ -549,7 +550,7 @@ void DoQuery(V2_double const& K, V2_double const& C,
     }
 }
 
-CollisionManifold CircleVsAABB(const V2_double& box_position, const V2_double& box_size, V2_double const& boxVelocity,
+CollisionManifold CircleVsAABB(double dt, const V2_double& box_position, const V2_double& box_size, V2_double const& boxVelocity,
                     const V2_double& circle_center, double circle_radius, V2_double const& circleVelocity) {
     CollisionManifold result{};
 
@@ -578,7 +579,7 @@ CollisionManifold CircleVsAABB(const V2_double& box_position, const V2_double& b
         }
     }
 
-    DoQuery(extent, C, circle_radius, V, result);
+    DoQuery(extent, C, circle_radius, V * dt, result);
 
     if (result.intersection != 0) {
         // Translate back to the original coordinate system.
@@ -589,6 +590,8 @@ CollisionManifold CircleVsAABB(const V2_double& box_position, const V2_double& b
         }
 
         result.point += boxCenter;
+
+        result.normal = (result.point - circle_center).Unit().Opposite();
     }
     return result;
 }
