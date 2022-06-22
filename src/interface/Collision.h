@@ -561,10 +561,10 @@ CollisionManifold CircleVsAABB(double dt, const V2_double& box_position, const V
     auto box_min = box_position;
     auto box_max = box_position + box_size;
 
-    V2_double boxCenter = (box_max + box_min) * (double)0.5;
-    V2_double extent = (box_max - box_min) * (double)0.5;
+    V2_double extent = box_size / 2;
+    V2_double boxCenter = box_position + extent;
     V2_double C = circle_center - boxCenter;
-    V2_double V = circleVelocity - boxVelocity;
+    V2_double V = (circleVelocity - boxVelocity) * dt;
 
     // Change signs on components, if necessary, to transform C to the
     // first quadrant.  Adjust the velocity accordingly.
@@ -579,7 +579,7 @@ CollisionManifold CircleVsAABB(double dt, const V2_double& box_position, const V
         }
     }
 
-    DoQuery(extent, C, circle_radius, V * dt, result);
+    DoQuery(extent, C, circle_radius, V, result);
 
     if (result.intersection != 0) {
         // Translate back to the original coordinate system.
