@@ -24,6 +24,7 @@ struct CollisionManifold {
     V2_double point;
     V2_double normal;
     double time = 0.0;
+    double distance = 0.0;
     int intersection = 0;
 };
 
@@ -145,10 +146,10 @@ inline bool RayVsAABB(const V2_double& ray_origin, const V2_double& ray_dir, con
         } else {
             out_collision.normal = { 0.0, -1.0 };
         }
-    } else if (t_near.x == t_near.y && t_far.x == t_far.y) { // Both axes collide at the same time.
+    } else if (t_near.x == t_near.y) { // Both axes collide at the same time.
         // Diagonal collision, set normal to opposite of direction of movement.
         // TODO: This may be important to fix corner collisions in the future.
-        //out_collision.normal = ray_dir.Identity().Opposite();
+        out_collision.normal = ray_dir.Identity().Opposite();
     }
 
     // Raycast collision occurred.
@@ -195,7 +196,6 @@ std::pair<CollisionManifold, V2_double> CircleVsAABB(const V2_double& rectangle_
     const auto T = rectangle_position.y;
     const auto R = rectangle_position.x + rectangle_size.x;
     const auto B = rectangle_position.y + rectangle_size.y;
-
     // If the bounding box around the start and end points (+radius on all
     // sides) does not intersect with the rectangle, definitely not an
     // intersection
@@ -206,17 +206,14 @@ std::pair<CollisionManifold, V2_double> CircleVsAABB(const V2_double& rectangle_
         debug::PrintLine("Exiting 1");
         return {};
     }
-
     const auto dx = end.x - start.x;
     const auto dy = end.y - start.y;
     const auto invdx = (dx == 0.0 ? 0.0 : 1.0 / dx);
     const auto invdy = (dy == 0.0 ? 0.0 : 1.0 / dy);
     V2_double corner = V2_double::Maximum();
-
     // Calculate intersection times with each side's plane
     // Check each side's quadrant for single-side intersection
     // Calculate Corner
-
     // Left Side
     // Does the circle go from the left side to the right side of the rectangle's left?
     if (start.x - radius < L && end.x + radius > L) {
@@ -231,7 +228,6 @@ std::pair<CollisionManifold, V2_double> CircleVsAABB(const V2_double& rectangle_
         }
         corner.x = L;
     }
-
     // Right Side
     // Does the circle go from the right side to the left side of the rectangle's right?
     if (start.x + radius > R && end.x - radius < R) {
@@ -246,7 +242,6 @@ std::pair<CollisionManifold, V2_double> CircleVsAABB(const V2_double& rectangle_
         }
         corner.x = R;
     }
-
     // Top Side
     // Does the circle go from the top side to the bottom side of the rectangle's top?
     if (start.y - radius < T && end.y + radius > T) {
@@ -261,7 +256,6 @@ std::pair<CollisionManifold, V2_double> CircleVsAABB(const V2_double& rectangle_
         }
         corner.y = T;
     }
-
     // Bottom Side
     // Does the circle go from the bottom side to the top side of the rectangle's bottom?
     if (start.y + radius > B && end.y - radius < B) {
@@ -276,13 +270,11 @@ std::pair<CollisionManifold, V2_double> CircleVsAABB(const V2_double& rectangle_
         }
         corner.y = B;
     }
-
     // No intersection at all!
     if (corner.x == V2_double::Maximum().x && corner.y == V2_double::Maximum().y) {
         debug::PrintLine("Exiting 2");
         return {};
     }
-
     // Account for the times where we don't pass over a side but we do hit it's corner
     if (corner.x != V2_double::Maximum().x && corner.y == V2_double::Maximum().y) {
         corner.y = (dy > 0.0 ? B : T);
@@ -290,7 +282,6 @@ std::pair<CollisionManifold, V2_double> CircleVsAABB(const V2_double& rectangle_
     if (corner.y != V2_double::Maximum().y && corner.x == V2_double::Maximum().x) {
         corner.x = (dx > 0.0 ? R : L);
     }
-
     // Solve the triangle between the start, corner, and intersection point.
      //
      //           +-----------T-----------+
@@ -318,24 +309,20 @@ std::pair<CollisionManifold, V2_double> CircleVsAABB(const V2_double& rectangle_
      // <I = angle1
      // <C = angle2
      //
-
     double inverseRadius = 1.0 / radius;
     double lineLength = std::sqrt(dx * dx + dy * dy);
     double cornerdx = corner.x - start.x;
     double cornerdy = corner.y - start.y;
     double cornerDistance = std::sqrt(cornerdx * cornerdx + cornerdy * cornerdy);
     double innerAngle = std::acos((cornerdx * dx + cornerdy * dy) / (lineLength * cornerDistance));
-
     // If the circle is too close, no intersection.
     if (cornerDistance < radius) {
         debug::PrintLine("Exiting 3");
         return {};
     }
-
     // If inner angle is zero, it's going to hit the corner straight on.
     if (innerAngle == 0.0) {
         double time = (double)((cornerDistance - radius) / lineLength);
-
         // If time is outside the boundaries, return null. This algorithm can
         // return a negative time which indicates a previous intersection, and
         // can also return a time > 1.0 which can predict a corner intersection.
@@ -343,32 +330,25 @@ std::pair<CollisionManifold, V2_double> CircleVsAABB(const V2_double& rectangle_
             debug::PrintLine("Exiting 4");
             return {};
         }
-
         auto ix = time * dx + start.x;
         auto iy = time * dy + start.y;
         auto nx = (double)(cornerdx / cornerDistance);
         auto ny = (double)(cornerdy / cornerDistance);
-
         // circle center: { ix, iy }
         return { CollisionManifold({ corner.x, corner.y }, { nx, ny }, time), { ix, iy } };
     }
-
     double innerAngleSin = std::sin(innerAngle);
     double angle1Sin = innerAngleSin * cornerDistance * inverseRadius;
-
     // The angle is too large, there cannot be an intersection
     if (std::abs(angle1Sin) > 1.0) {
         debug::PrintLine("Exiting 5: ", innerAngleSin, ",", cornerDistance, ",", inverseRadius);
         return {};
     }
-
     double angle1 = math::PI<double> - std::asin(angle1Sin);
     double angle2 = math::PI<double> - innerAngle - angle1;
     double intersectionDistance = radius * std::sin(angle2) / innerAngleSin;
-
     // Solve for time
     double time = (double)(intersectionDistance / lineLength);
-
     // If time is outside the boundaries, return null. This algorithm can
     // return a negative time which indicates a previous intersection, and
     // can also return a time > 1.0f which can predict a corner intersection.
@@ -376,19 +356,17 @@ std::pair<CollisionManifold, V2_double> CircleVsAABB(const V2_double& rectangle_
         debug::PrintLine("Exiting 6");
         return {};
     }
-
     // Solve the intersection and normal
     double ix = time * dx + start.x;
     double iy = time * dy + start.y;
     double nx = (double)((ix - corner.x) * inverseRadius);
     double ny = (double)((iy - corner.y) * inverseRadius);
-
     // circle center: { ix, iy }
     return { CollisionManifold({ corner.x, corner.y }, { nx, ny }, time), { ix, iy } };
 }
 */
 
-void IntersectsVertex(int32_t i0, int32_t i1, V2_double const& K,
+inline void IntersectsVertex(int32_t i0, int32_t i1, V2_double const& K,
                       double q0, double q1, double q2, CollisionManifold& result) {
     result.intersection = +1;
     result.time = (q0 - std::sqrt(q1)) / q2;
@@ -396,7 +374,7 @@ void IntersectsVertex(int32_t i0, int32_t i1, V2_double const& K,
     result.point[i1] = K[i1];
 }
 
-void IntersectsEdge(int32_t i0, int32_t i1, V2_double const& K0, V2_double const& C,
+inline void IntersectsEdge(int32_t i0, int32_t i1, V2_double const& K0, V2_double const& C,
                     double radius, V2_double const& V, CollisionManifold& result) {
     result.intersection = +1;
     result.time = (K0[i0] + radius - C[i0]) / V[i0];
@@ -405,13 +383,13 @@ void IntersectsEdge(int32_t i0, int32_t i1, V2_double const& K0, V2_double const
 }
 
 
-void InteriorOverlap(V2_double const& C, CollisionManifold& result) {
+inline void InteriorOverlap(V2_double const& C, CollisionManifold& result) {
     result.intersection = -1;
     result.time = (double)0;
     result.point = C;
 }
 
-void EdgeOverlap(int32_t i0, int32_t i1, V2_double const& K, V2_double const& C,
+inline void EdgeOverlap(int32_t i0, int32_t i1, V2_double const& K, V2_double const& C,
                  V2_double const& delta, double radius, CollisionManifold& result) {
     result.intersection = (delta[i0] < radius ? -1 : 1);
     result.time = (double)0;
@@ -419,7 +397,7 @@ void EdgeOverlap(int32_t i0, int32_t i1, V2_double const& K, V2_double const& C,
     result.point[i1] = C[i1];
 }
 
-void VertexOverlap(V2_double const& K0, V2_double const& delta,
+inline void VertexOverlap(V2_double const& K0, V2_double const& delta,
                    double radius, CollisionManifold& result) {
     double sqrDistance = delta[0] * delta[0] + delta[1] * delta[1];
     double sqrRadius = radius * radius;
@@ -428,7 +406,7 @@ void VertexOverlap(V2_double const& K0, V2_double const& delta,
     result.point = K0;
 }
 
-void VertexSeparated(V2_double const& K0, V2_double const& delta0,
+inline void VertexSeparated(V2_double const& K0, V2_double const& delta0,
                      V2_double const& V, double radius, CollisionManifold& result) {
     double q0 = -V.DotProduct(delta0);
     if (q0 > (double)0) {
@@ -441,7 +419,7 @@ void VertexSeparated(V2_double const& K0, V2_double const& delta0,
     }
 }
 
-void EdgeUnbounded(int32_t i0, int32_t i1, V2_double const& K0, V2_double const& C,
+inline void EdgeUnbounded(int32_t i0, int32_t i1, V2_double const& K0, V2_double const& C,
                    double radius, V2_double const& delta0, V2_double const& V, CollisionManifold& result) {
     if (V[i0] < (double)0) {
         double dotVPerpD0 = V[i0] * delta0[i1] - V[i1] * delta0[i0];
@@ -473,7 +451,7 @@ void EdgeUnbounded(int32_t i0, int32_t i1, V2_double const& K0, V2_double const&
     }
 }
 
-void VertexUnbounded(V2_double const& K0, V2_double const& C, double radius,
+inline void VertexUnbounded(V2_double const& K0, V2_double const& C, double radius,
                      V2_double const& delta0, V2_double const& V, CollisionManifold& result) {
     if (V[0] < (double)0 && V[1] < (double)0) {
         double dotVPerpD0 = V.DotProduct(delta0.Tangent());
@@ -515,7 +493,7 @@ void VertexUnbounded(V2_double const& K0, V2_double const& C, double radius,
         }
     }
 }
-void DoQuery(V2_double const& K, V2_double const& C,
+inline void DoQuery(V2_double const& K, V2_double const& C,
              double radius, V2_double const& V, CollisionManifold& result) {
     V2_double delta = C - K;
     if (delta[1] <= radius) {
@@ -550,7 +528,7 @@ void DoQuery(V2_double const& K, V2_double const& C,
     }
 }
 
-CollisionManifold CircleVsAABB(double dt, const V2_double& box_position, const V2_double& box_size, V2_double const& boxVelocity,
+inline CollisionManifold CircleVsAABB(double dt, const V2_double& box_position, const V2_double& box_size, V2_double const& boxVelocity,
                     const V2_double& circle_center, double circle_radius, V2_double const& circleVelocity) {
     CollisionManifold result{};
 

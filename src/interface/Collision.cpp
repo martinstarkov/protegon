@@ -268,7 +268,7 @@ void Update(ecs::Manager& manager, double dt) {
 				}
 
 				// Velocity changed, complete a second sweep to ensure both axes have been swept.
-				/*
+				
 				if (rb.velocity.x != old_velocity.x || rb.velocity.y != old_velocity.y) {
 					// Clear first sweep collisions.
 					collisions.clear();
@@ -301,7 +301,7 @@ void Update(ecs::Manager& manager, double dt) {
 							ResolveDynamicAABBVsAABB(dt, relative_velocity, rb.velocity, position, size, target_transform.position, target_shape.instance->GetSize(), collision.manifold);
 						}
 					}
-				}*/
+				}
 			}
 			// Update collider position with resolved velocity.
 			position += rb.velocity * dt;
