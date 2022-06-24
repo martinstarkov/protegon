@@ -93,6 +93,267 @@ inline bool AABBVsAABB(const V2_double& position1, const V2_double& size1, const
     return true;
 }
 // Check if a ray collides with an AABB.
+
+using SCALAR = double;
+using VECTOR = V2_double;
+
+class AABB {
+
+public:
+    VECTOR P; //position
+    VECTOR E; //x,y,z extents
+
+    AABB(const VECTOR& p,
+         const VECTOR& e) : P(p), E(e)
+
+    {}
+
+    //returns true if this is overlapping b
+    const bool overlaps(const AABB& b) const {
+
+        const VECTOR T = b.P - P;//vector from A to B
+        return std::abs(T.x) <= (E.x + b.E.x)
+            &&
+
+            std::abs(T.y) <= (E.y + b.E.y);
+
+    }
+
+    //NOTE: since the vector indexing operator is not const,
+    //we must cast away the const of the this pointer in the
+    //following min() and max() functions
+    //min x, y, or z
+
+    const SCALAR min(long i) const
+
+    {
+
+        return ((AABB*)this)->P[i] - ((AABB*)this)->E[i];
+    }
+
+    //max x, y, or z
+    const SCALAR max(long i) const
+
+    {
+
+        return ((AABB*)this)->P[i] + ((AABB*)this)->E[i];
+    }
+
+};
+
+
+// taken from https://github.com/pgkelley4/line-segments-intersect/blob/master/js/line-segments-intersect.js
+// returns the point where they intersect (if they intersect)
+// returns null if they don't intersect
+double getRayIntersectionFractionOfFirstRay(V2_double originA, V2_double endA, V2_double originB, V2_double endB)
+{
+    auto r = endA - originA;
+    auto s = endB - originB;
+
+    double numerator = (originB - originA).DotProduct(r);
+    double denominator = r.DotProduct(s);
+
+    if (numerator == 0 && denominator == 0) {
+        // the lines are co-linear
+        // check if they overlap
+        /*return	((originB.x - originA.x < 0) != (originB.x - endA.x < 0) != (endB.x - originA.x < 0) != (endB.x - endA.x < 0)) ||
+                ((originB.y - originA.y < 0) != (originB.y - endA.y < 0) != (endB.y - originA.y < 0) != (endB.y - endA.y < 0));*/
+        return V2_double::Maximum().x;
+    }
+    if (denominator == 0) {
+        // lines are parallel
+        return V2_double::Maximum().x;
+    }
+
+    double u = numerator / denominator;
+    double t = ((originB - originA).DotProduct(s)) / denominator;
+    if ((t >= 0) && (t <= 1) && (u >= 0) && (u <= 1)) {
+        //return originA + (r * t);
+        return t;
+    }
+    return V2_double::Maximum().x;
+}
+
+double getRayIntersectionFraction(V2_double origin, V2_double direction, V2_double min, V2_double max) {
+    V2_double end = origin + direction;
+
+    double minT = getRayIntersectionFractionOfFirstRay(origin, end, V2_double(min.x, min.y), V2_double(min.x, max.y));
+    double x = getRayIntersectionFractionOfFirstRay(origin, end, V2_double(min.x, max.y), V2_double(max.x, max.y));
+    if (x < minT)
+        minT = x;
+    x = getRayIntersectionFractionOfFirstRay(origin, end, V2_double(max.x, max.y), V2_double(max.x, min.y));
+    if (x < minT)
+        minT = x;
+    x = getRayIntersectionFractionOfFirstRay(origin, end, V2_double(max.x, min.y), V2_double(min.x, min.y));
+    if (x < minT)
+        minT = x;
+
+    // ok, now we should have found the fractional component along the ray where we collided
+    return minT;
+}
+
+double lineToPlane(V2_double p, V2_double u, V2_double v, V2_double n) {
+    auto NdotU = n.x * u.x + n.y * u.y;
+    if (NdotU == 0) return std::numeric_limits<double>::infinity();
+
+    // return n.(v-p) / n.u
+    return (n.x * (v.x - p.x) + n.y * (v.y - p.y)) / NdotU;
+}
+
+bool between(double x, double a, double b) {
+    return x >= a && x <= b;
+}
+
+double sweepAABB(V2_double a, V2_double ah, V2_double b, V2_double bh, V2_double d, V2_double& normal) {
+    V2_double m;
+    V2_double mh;
+
+    m.x = b.x - (a.x + ah.x);
+    m.y = b.y - (a.y + ah.y);
+    mh.x = ah.x + bh.x;
+    mh.y = ah.y + bh.y;
+
+    double h = 1;
+
+    normal = {};
+    double xmin, xmax, ymin, ymax;
+    // X min
+    xmin = lineToPlane({ 0, 0 }, d, m, { -1, 0 });
+    if (xmin >= 0 && d.x > 0 && between(xmin * d.y, m.y, m.y + mh.y)) { 
+        if (xmin < h) {
+            h = xmin;
+        }
+    }
+
+    // X max
+    xmax = lineToPlane({ 0, 0 }, d, { m.x + mh.x, m.y }, { 1, 0 });
+    if (xmax >= 0 && d.x < 0 && between(xmax * d.y, m.y, m.y + mh.y)) {
+        if (xmax < h) {
+            h = xmax;
+        }
+    }
+
+    // Y min
+    ymin = lineToPlane({ 0, 0 }, d, m, { 0, -1 });
+    if (ymin >= 0 && d.y > 0 && between(ymin * d.x, m.x, m.x + mh.x)) {
+        if (ymin < h) {
+            h = ymin;
+        }
+    }
+
+    // Y max
+    ymax = lineToPlane({ 0, 0 }, d, { m.x, m.y + mh.y }, { 0, 1 });
+    if (ymax >= 0 && d.y < 0 && between(ymax * d.x, m.x, m.x + mh.x)) {
+        if (ymax < h) {
+            h = ymax;
+        }
+    }
+
+
+    return h;
+}
+
+
+double rayaabb(V2_double v, V2_double a_min, V2_double a_max, V2_double b_min, V2_double b_max, double& tfirst, double& tlast) {
+    // Initialize times of first and last contact
+    tfirst = 0.0;
+    tlast = 1.0;
+    // For each axis, determine times of first and last contact, if any
+    for (int i = 0; i < 2; i++) {
+        if (v[i] < 0.0) {
+            if (b_max[i] < a_min[i]) return 0; // Nonintersecting and moving apart
+            if (a_max[i] < b_min[i]) tfirst = std::max((a_max[i] - b_min[i]) / v[i], tfirst);
+            if (b_max[i] > a_min[i]) tlast = std::min((a_min[i] - b_max[i]) / v[i], tlast);
+        }
+        if (v[i] > 0.0) {
+            if (b_min[i] > a_max[i]) return 0; // Nonintersecting and moving apart
+            if (b_max[i] < a_min[i]) tfirst = std::max((a_min[i] - b_max[i]) / v[i], tfirst);
+            if (a_max[i] > b_min[i]) tlast = std::min((a_max[i] - b_min[i]) / v[i], tlast);
+        }
+        // No overlap possible if time of first contact occurs after time of last contact
+        if (tfirst > tlast) return 0;
+    }
+    return 1;
+}
+
+
+const bool AABBSweep (
+    const VECTOR& Ea, //extents of AABB A
+    const VECTOR& A0, //its previous position
+    const VECTOR& A1, //its current position
+    const VECTOR& Eb, //extents of AABB B
+    const VECTOR& B0, //its previous position
+    const VECTOR& B1, //its current position
+    SCALAR& u0, //normalized time of first collision
+    SCALAR& u1 //normalized time of second collision
+) {
+
+    const AABB A(A0, Ea);//previous state of AABB A
+    const AABB B(B0, Eb);//previous state of AABB B
+    const VECTOR va = A1 - A0;//displacement of A
+    const VECTOR vb = B1 - B0;//displacement of B
+    //the problem is solved in A's frame of reference
+
+    VECTOR v = vb - va;
+    //relative velocity (in normalized time)
+
+    VECTOR u_0(0, 0);
+    //first times of overlap along each axis
+
+    VECTOR u_1(1, 1);
+    //last times of overlap along each axis
+
+    //check if they were overlapping
+    // on the previous frame
+    if (A.overlaps(B)) {
+
+
+        u0 = u1 = 0;
+        return true;
+
+    }
+
+    //find the possible first and last times
+    //of overlap along each axis
+    for (long i = 0; i < 2; i++) {
+
+
+        if (A.max(i) < B.min(i) && v[i] < 0) {
+
+            u_0[i] = (A.max(i) - B.min(i)) / v[i];
+        }
+
+        else if (B.max(i) < A.min(i) && v[i] > 0) {
+
+            u_0[i] = (A.min(i) - B.max(i)) / v[i];
+        }
+
+        if (B.max(i) > A.min(i) && v[i] < 0) {
+
+            u_1[i] = (A.min(i) - B.max(i)) / v[i];
+        }
+
+        else if (A.max(i) > B.min(i) && v[i] > 0) {
+
+            u_1[i] = (A.max(i) - B.min(i)) / v[i];
+        }
+
+    }
+
+    //possible first time of overlap
+    u0 = std::max(u_0.x, u_0.y);
+
+    //possible last time of overlap
+    u1 = std::min(u_1.x, u_1.y);
+
+    //they could have only collided if
+    //the first time of overlap occurred
+    //before the last time of overlap
+    return u0 <= u1;
+
+}
+
+
 inline bool RayVsAABB(const V2_double& ray_origin, const V2_double& ray_dir, const V2_double& position, const V2_double& size, CollisionManifold& out_collision) {
 
     // Initial condition: no collision normal.
