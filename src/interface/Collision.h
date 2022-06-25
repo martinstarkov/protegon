@@ -12,7 +12,9 @@
 #include "core/Transform.h"
 #include "physics/RigidBody.h"
 
-#include "debugging/Debug.h" // TODO: TEMPORARY
+// TODO: TEMPORARY
+#include "debugging/Debug.h"
+#include "interface/Input.h"
 
 namespace ptgn {
 
@@ -201,7 +203,7 @@ double lineToPlane(V2_double p, V2_double u, V2_double v, V2_double n) {
 }
 
 bool between(double x, double a, double b) {
-    return x >= a && x <= b;
+    return x > a && x < b;
 }
 
 double sweepAABB(V2_double a, V2_double ah, V2_double b, V2_double bh, V2_double d, V2_double& normal) {
@@ -222,6 +224,8 @@ double sweepAABB(V2_double a, V2_double ah, V2_double b, V2_double bh, V2_double
     if (xmin >= 0 && d.x > 0 && between(xmin * d.y, m.y, m.y + mh.y)) { 
         if (xmin < h) {
             h = xmin;
+            normal.x = -1;
+            normal.y = 0;
         }
     }
 
@@ -230,6 +234,8 @@ double sweepAABB(V2_double a, V2_double ah, V2_double b, V2_double bh, V2_double
     if (xmax >= 0 && d.x < 0 && between(xmax * d.y, m.y, m.y + mh.y)) {
         if (xmax < h) {
             h = xmax;
+            normal.x = 1;
+            normal.y = 0;
         }
     }
 
@@ -238,6 +244,8 @@ double sweepAABB(V2_double a, V2_double ah, V2_double b, V2_double bh, V2_double
     if (ymin >= 0 && d.y > 0 && between(ymin * d.x, m.x, m.x + mh.x)) {
         if (ymin < h) {
             h = ymin;
+            normal.y = -1;
+            normal.x = 0;
         }
     }
 
@@ -246,6 +254,8 @@ double sweepAABB(V2_double a, V2_double ah, V2_double b, V2_double bh, V2_double
     if (ymax >= 0 && d.y < 0 && between(ymax * d.x, m.x, m.x + mh.x)) {
         if (ymax < h) {
             h = ymax;
+            normal.y = 1;
+            normal.x = 0;
         }
     }
 
@@ -354,7 +364,7 @@ const bool AABBSweep (
 }
 
 
-inline bool RayVsAABB(const V2_double& ray_origin, const V2_double& ray_dir, const V2_double& position, const V2_double& size, CollisionManifold& out_collision) {
+inline bool RayVsAABB(const V2_double& ray_origin, const V2_double& ray_dir, const V2_double& position, const V2_double& size, CollisionManifold& out_collision, bool print_info = false) {
 
     // Initial condition: no collision normal.
     out_collision.normal = { 0.0, 0.0 };
@@ -375,6 +385,7 @@ inline bool RayVsAABB(const V2_double& ray_origin, const V2_double& ray_dir, con
     if (t_near.x > t_far.x) std::swap(t_near.x, t_far.x);
     if (t_near.y > t_far.y) std::swap(t_near.y, t_far.y);
 
+
     // Early rejection.
     if (t_near.x > t_far.y || t_near.y > t_far.x) return false;
 
@@ -393,26 +404,44 @@ inline bool RayVsAABB(const V2_double& ray_origin, const V2_double& ray_dir, con
     out_collision.point = ray_origin + out_collision.time * ray_dir;
 
     // Find which axis collides further along the movement time.
-    if (t_near.x > t_near.y) { // X-axis.
+
+
+    auto epsilon = 1e-10;
+    print_info = print_info && (input::KeyPressed(Key::R) || input::KeyPressed(Key::Q) || input::KeyPressed(Key::Z) || input::KeyPressed(Key::C));
+    /*if (print_info) debug::PrintLine("tnear: ", t_near.x-t_near.y, ", tfar: ", t_far.x-t_far.y, ", invdir: ", inv_dir);
+    if (print_info) debug::PrintLine("tnear: ", math::Compare(t_near.x, t_near.y, epsilon), ", tfar: ", math::Compare(t_far.x, t_far.y, epsilon), ", invdir: ", math::Compare(math::Abs(inv_dir.x), math::Abs(inv_dir.y), epsilon));*/
+
+    // TODO: Figure out how to fix biasing of one direction from one side and another on the other side.
+
+    if (math::Compare(t_near.x, t_near.y, epsilon) && math::Compare(math::Abs(inv_dir.x), math::Abs(inv_dir.y), epsilon)) { // Both axes collide at the same time.
+        // Diagonal collision, set normal to opposite of direction of movement.
+        // TODO: This may be important to fix corner collisions in the future.
+        out_collision.normal = ray_dir.Identity().Opposite();
+        //if (print_info) debug::PrintLine("ray_dir.Identity().Opposite() = ", out_collision.normal);
+    } if (t_near.x > t_near.y) { // X-axis.
         // Direction of movement.
         if (inv_dir.x < 0.0) {
+            //if (print_info) debug::PrintLine("9");
             out_collision.normal = { 1.0, 0.0 };
         } else {
+            //if (print_info) debug::PrintLine("10: ", t_near, ", ", t_far, ", ", inv_dir);
             out_collision.normal = { -1.0, 0.0 };
         }
     } else if (t_near.x < t_near.y) { // Y-axis.
         // Direction of movement.
         if (inv_dir.y < 0.0) {
+            //if (print_info) debug::PrintLine("11: ", t_near, ", ", t_far, ", ", inv_dir, ", ", position, ", ", -ray_origin, ", ", (position - ray_origin));
             out_collision.normal = { 0.0, 1.0 };
         } else {
+            //if (print_info) debug::PrintLine("12");
             out_collision.normal = { 0.0, -1.0 };
         }
-    } else if (t_near.x == t_near.y) { // Both axes collide at the same time.
-        // Diagonal collision, set normal to opposite of direction of movement.
-        // TODO: This may be important to fix corner collisions in the future.
-        out_collision.normal = ray_dir.Identity().Opposite();
     }
 
+    // TODO: Figure out why the hell it's clipping through corners...
+
+    /*if (print_info) debug::PrintLine("t_near: ", t_near);
+    if (print_info) debug::PrintLine("t_far: ", t_far);*/
     // Raycast collision occurred.
     return true;
 }
