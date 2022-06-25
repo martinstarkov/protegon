@@ -22,6 +22,7 @@ namespace internal {
 static constexpr const char VECTOR_LEFT_DELIMETER{ '(' };
 static constexpr const char VECTOR_CENTER_DELIMETER{ ',' };
 static constexpr const char VECTOR_RIGHT_DELIMETER{ ')' };
+static constexpr const double VECTOR_EPSILON{ 1e-10 };
 
 } // namespace internal
 
@@ -242,11 +243,20 @@ struct Vector2 {
 
     // Return true if both vector components equal 0.
     inline bool IsZero() const {
+        if constexpr (std::is_floating_point_v<T>) {
+            return ptgn::math::Compare(x, 0.0, ptgn::internal::VECTOR_EPSILON) && 
+                   ptgn::math::Compare(y, 0.0, ptgn::internal::VECTOR_EPSILON);
+        }
         return !x && !y;
+        
     }
 
     // Return true if either vector component equals 0.
     inline bool HasZero() const {
+        if constexpr (std::is_floating_point_v<T>) {
+            return ptgn::math::Compare(x, 0.0, ptgn::internal::VECTOR_EPSILON) || 
+                   ptgn::math::Compare(y, 0.0, ptgn::internal::VECTOR_EPSILON);
+        }
         return !x || !y;
     }
 
@@ -258,9 +268,8 @@ struct Vector2 {
     // Return true if both vector components equal numeric limits infinity.
     inline bool IsInfinite() const {
         if constexpr (std::is_floating_point_v<T>) {
-            return 
-                x == std::numeric_limits<T>::infinity() && 
-                y == std::numeric_limits<T>::infinity();
+            return ptgn::math::Compare(x, std::numeric_limits<T>::infinity(), ptgn::internal::VECTOR_EPSILON) &&
+                   ptgn::math::Compare(y, std::numeric_limits<T>::infinity(), ptgn::internal::VECTOR_EPSILON);
         }
         return false;
     }
@@ -268,9 +277,8 @@ struct Vector2 {
     // Return true if either vector component equals numeric limits infinity.
     inline bool HasInfinity() const {
         if constexpr (std::is_floating_point_v<T>) {
-            return 
-                x == std::numeric_limits<T>::infinity() || 
-                y == std::numeric_limits<T>::infinity();
+            return ptgn::math::Compare(x, std::numeric_limits<T>::infinity(), ptgn::internal::VECTOR_EPSILON) ||
+                   ptgn::math::Compare(y, std::numeric_limits<T>::infinity(), ptgn::internal::VECTOR_EPSILON);
         }
         return false;
     }
@@ -279,26 +287,22 @@ struct Vector2 {
     template <typename U, 
         typename S = typename std::common_type<T, U>::type>
     inline S DotProduct(const Vector2<U>& other) const {
-        return
-            static_cast<S>(x) * static_cast<S>(other.x) + 
-            static_cast<S>(y) * static_cast<S>(other.y);
+        return static_cast<S>(x) * static_cast<S>(other.x) + 
+               static_cast<S>(y) * static_cast<S>(other.y);
     }
     // Return area of cross product between x and y components.
     template <typename U, 
         typename S = typename std::common_type<T, U>::type>
     inline S CrossProduct(const Vector2<U>& other) const {
-        return
-            static_cast<S>(x) * static_cast<S>(other.y) - 
-            static_cast<S>(y) * static_cast<S>(other.x);
+        return static_cast<S>(x) * static_cast<S>(other.y) - 
+               static_cast<S>(y) * static_cast<S>(other.x);
     }
 
     template <typename U, 
         typename S = typename std::common_type<T, U>::type>
     inline Vector2<S> CrossProduct(U value) {
-        return { 
-            static_cast<S>(value) * static_cast<S>(y),
-           -static_cast<S>(value) * static_cast<S>(x)
-        };
+        return { static_cast<S>(value) * static_cast<S>(y),
+                -static_cast<S>(value) * static_cast<S>(x) };
     }
 
     // Return a unit vector (normalized).
@@ -315,10 +319,6 @@ struct Vector2 {
     // Return normalized (unit) vector.
     inline Vector2<T> Normalize() const {
         return Unit();
-        /*
-        T r = 1 / Magnitude();
-        return Vector2<T>{ x * r, y * r };
-        */
     }
 
     // Return identity vector, both components must be 0, 1 or -1.
@@ -382,9 +382,12 @@ std::ostream& operator<<(std::ostream& os, const Vector2<T>& obj) {
 template <typename T, typename U, 
     typename S = typename std::common_type<T, U>::type>
 inline bool operator==(const Vector2<T>& lhs, const Vector2<U>& rhs) {
-    return
-        static_cast<S>(lhs.x) == static_cast<S>(rhs.x) &&
-        static_cast<S>(lhs.y) == static_cast<S>(rhs.y);
+    if constexpr (std::is_floating_point_v<T> && std::is_floating_point_v<U>) {
+        return ptgn::math::Compare(lhs.x, rhs.x, ptgn::internal::VECTOR_EPSILON) &&
+               ptgn::math::Compare(lhs.y, rhs.y, ptgn::internal::VECTOR_EPSILON);
+    }
+    return static_cast<S>(lhs.x) == static_cast<S>(rhs.x) &&
+           static_cast<S>(lhs.y) == static_cast<S>(rhs.y);
 }
 
 template <typename T, typename U>
@@ -396,9 +399,12 @@ template <typename T, typename U,
     typename S = typename std::common_type<T, U>::type,
     ptgn::type_traits::is_number_e<U> = true>
 inline bool operator==(const Vector2<T>& lhs, U rhs) {
-    return 
-        static_cast<S>(lhs.x) == static_cast<S>(rhs) && 
-        static_cast<S>(lhs.y) == static_cast<S>(rhs);
+    if constexpr (std::is_floating_point_v<T> && std::is_floating_point_v<U>) {
+        return ptgn::math::Compare(lhs.x, rhs, ptgn::internal::VECTOR_EPSILON) &&
+               ptgn::math::Compare(lhs.y, rhs, ptgn::internal::VECTOR_EPSILON);
+    }
+    return static_cast<S>(lhs.x) == static_cast<S>(rhs) && 
+           static_cast<S>(lhs.y) == static_cast<S>(rhs);
 }
 
 template <typename T, typename U, 
@@ -557,10 +563,8 @@ namespace math {
 template <typename T, typename U, 
     typename S = typename std::common_type<T, U>::type>
 inline Vector2<S> CrossProduct(U value, const Vector2<T>& vector) {
-    return { 
-       -static_cast<S>(value) * static_cast<S>(vector.y), 
-        static_cast<S>(value) * static_cast<S>(vector.x) 
-    };
+    return { -static_cast<S>(value) * static_cast<S>(vector.y), 
+              static_cast<S>(value) * static_cast<S>(vector.x) };
 }
 
 // Return the distance squared between two vectors.
@@ -576,7 +580,7 @@ inline S DistanceSquared(const Vector2<T>& lhs, const Vector2<U>& rhs) {
 template <typename T, typename U, 
     typename S = typename std::common_type<T, U>::type>
 inline S Distance(const Vector2<T>& lhs, const Vector2<U>& rhs) {
-    return Sqrt<S>(DistanceSquared(lhs, rhs));
+    return ptgn::math::Sqrt<S>(DistanceSquared(lhs, rhs));
 }
 
 // Return minimum component of vector. (reference)
@@ -595,55 +599,55 @@ inline T& Max(Vector2<T>& vector) {
 // Return a vector composed of the minimum components of two vectors.
 template <typename T>
 inline Vector2<T> Min(const Vector2<T>& a, const Vector2<T>& b) {
-    return { std::min(a.x, b.x), std::min(a.y, b.y) };
+    return { ptgn::math::Min(a.x, b.x), ptgn::math::Min(a.y, b.y) };
 }
 
 // Return a vector composed of the maximum components of two vectors.
 template <typename T>
 inline Vector2<T> Max(const Vector2<T>& a, const Vector2<T>& b) {
-    return { std::max(a.x, b.x), std::max(a.y, b.y) };
+    return { ptgn::math::Max(a.x, b.x), ptgn::math::Max(a.y, b.y) };
 }
 
 // Return the absolute value of both vectors components.
 template <typename T>
 inline Vector2<T> Abs(const Vector2<T>& vector) {
-    return { Abs(vector.x), Abs(vector.y) };
+    return { ptgn::math::Abs(vector.x), ptgn::math::Abs(vector.y) };
 }
 
 // Return both vector components rounded to the closest integer.
 template <typename T = int, typename S>
 inline Vector2<T> Round(const Vector2<S>& vector) {
-    return { Round<T>(vector.x), Round<T>(vector.y) };
+    return { ptgn::math::Round<T>(vector.x), ptgn::math::Round<T>(vector.y) };
 }
 
 // Return both vector components ceiled to the closest integer.
 template <typename T = int, typename S>
 inline Vector2<T> Ceil(const Vector2<S>& vector) {
-    return { Ceil<T>(vector.x), Ceil<T>(vector.y) };
+    return { ptgn::math::Ceil<T>(vector.x), ptgn::math::Ceil<T>(vector.y) };
 }
 
 // Return both vector components floored to the closest integer.
 template <typename T = int, typename S>
 inline Vector2<T> Floor(const Vector2<S>& vector) {
-    return { Floor<T>(vector.x), Floor<T>(vector.y) };
+    return { ptgn::math::Floor<T>(vector.x), ptgn::math::Floor<T>(vector.y) };
 }
 
 // Clamp both vectors value within a vector range.
 template <typename T>
 inline Vector2<T> Clamp(const Vector2<T>& value, const Vector2<T>& low, const Vector2<T>& high) {
-    return { Clamp(value.x, low.x, high.x), Clamp(value.y, low.y, high.y) };
+    return { ptgn::math::Clamp(value.x, low.x, high.x), ptgn::math::Clamp(value.y, low.y, high.y) };
 }
 
 // Linearly interpolates both vector components by the given value.
 template <typename T, typename U>
 inline Vector2<U> Lerp(const Vector2<T>& a, const Vector2<T>& b, U amount) {
-    return { Lerp(a.x, b.x, amount), Lerp(a.y, b.y, amount) };
+    return { ptgn::math::Lerp(a.x, b.x, amount), ptgn::math::Lerp(a.y, b.y, amount) };
 }
 
 // Return both vector components smooth stepped.
 template <typename T>
 inline Vector2<T> SmoothStep(const Vector2<T>& vector) {
-    return { SmoothStep(vector.x), SmoothStep(vector.y) };
+    return { ptgn::math::SmoothStep(vector.x), ptgn::math::SmoothStep(vector.y) };
 }
 
 } // namespace math
