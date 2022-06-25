@@ -24,6 +24,10 @@ inline void PrintLine(TArgs&&... items) {
 	std::cout << std::endl;
 }
 
+inline void PrintLine() {
+	std::cout << std::endl;
+}
+
 } // namespace debug
 
 } // namespace ptgn
