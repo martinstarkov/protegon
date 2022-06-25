@@ -10,6 +10,7 @@
 #include <iomanip> // std::setprecision for truncating
 #include <sstream> // std::stringstream for truncating
 #include <random> // std::minstd_rand, std::uniform_real_distribution, std::uniform_int_distribution
+#include <algorithm> // std::min, std::max
 
 #include "utils/TypeTraits.h"
 
@@ -82,6 +83,39 @@ template <typename T = double,
     type_traits::is_floating_point_e<T> = true>
 inline T RadiansToDegrees(T degrees) {
     return degrees * static_cast<T>(180.0) / PI<T>;
+}
+
+// Returns the maximum of two values, if equal first value is returned.
+template <typename T, typename U, 
+    type_traits::is_greater_than_comparable_e<T, U> = true>
+inline auto Max(const T& left, const U& right) {
+    return right > left ? right : left;
+}
+
+// Returns the minimum of two values, if equal first value is returned.
+template <typename T, typename U,
+    type_traits::is_less_than_comparable_e<T, U> = true>
+inline auto Min(const T& left, const U& right) {
+    return right < left ? right : left;
+}
+
+// Compare two floating point numbers using relative tolerance and absolute tolerances.
+// The absolute tolerance test fails when x and y become large.
+// The relative tolerance test fails when x and y become small.
+template <typename T = double,
+    type_traits::is_floating_point_e<T> = true>
+inline T Compare(T x, T y, T relative_tolerance, T absolute_tolerance) {
+    return math::Abs(x - y) <= math::Max(absolute_tolerance, relative_tolerance * math::Max(math::Abs(x), math::Abs(y)));
+}
+
+// Compare two floating point numbers using equal relative and absolute tolerances.
+// The absolute tolerance test fails when x and y become large.
+// The relative tolerance test fails when x and y become small.
+// TODO: Consider if changing default value to std::numeric_limits<T>::epsilon() is better
+template <typename T = double,
+    type_traits::is_floating_point_e<T> = true>
+inline T Compare(T x, T y, T tolerance = 1e-10) {
+    return Compare(x, y, tolerance, tolerance);
 }
 
 // Signum function.
