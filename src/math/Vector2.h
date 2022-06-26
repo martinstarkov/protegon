@@ -15,16 +15,22 @@
 
 namespace ptgn {
 
+namespace math {
+
 namespace internal {
 
 // Vector stream output / input delimeters, allow for consistent serialization / deserialization.
 
-static constexpr const char VECTOR_LEFT_DELIMETER{ '(' };
-static constexpr const char VECTOR_CENTER_DELIMETER{ ',' };
-static constexpr const char VECTOR_RIGHT_DELIMETER{ ')' };
-static constexpr const double VECTOR_EPSILON{ 1e-10 };
+inline constexpr const char VECTOR_LEFT_DELIMETER{ '(' };
+inline constexpr const char VECTOR_CENTER_DELIMETER{ ',' };
+inline constexpr const char VECTOR_RIGHT_DELIMETER{ ')' };
+template <typename T,
+    type_traits::is_floating_point_e<T> = true>
+inline constexpr const T VECTOR_EPSILON{ math::EPSILON<T> };
 
 } // namespace internal
+
+} // namespace math
 
 } // namespace ptgn
 
@@ -244,8 +250,8 @@ struct Vector2 {
     // Return true if both vector components equal 0.
     inline bool IsZero() const {
         if constexpr (std::is_floating_point_v<T>) {
-            return ptgn::math::Compare(x, 0.0, ptgn::internal::VECTOR_EPSILON) && 
-                   ptgn::math::Compare(y, 0.0, ptgn::internal::VECTOR_EPSILON);
+            return ptgn::math::Compare(x, 0.0, ptgn::math::internal::VECTOR_EPSILON<T>) &&
+                   ptgn::math::Compare(y, 0.0, ptgn::math::internal::VECTOR_EPSILON<T>);
         }
         return !x && !y;
         
@@ -254,8 +260,8 @@ struct Vector2 {
     // Return true if either vector component equals 0.
     inline bool HasZero() const {
         if constexpr (std::is_floating_point_v<T>) {
-            return ptgn::math::Compare(x, 0.0, ptgn::internal::VECTOR_EPSILON) || 
-                   ptgn::math::Compare(y, 0.0, ptgn::internal::VECTOR_EPSILON);
+            return ptgn::math::Compare(x, 0.0, ptgn::math::internal::VECTOR_EPSILON<T>) ||
+                   ptgn::math::Compare(y, 0.0, ptgn::math::internal::VECTOR_EPSILON<T>);
         }
         return !x || !y;
     }
@@ -268,8 +274,8 @@ struct Vector2 {
     // Return true if both vector components equal numeric limits infinity.
     inline bool IsInfinite() const {
         if constexpr (std::is_floating_point_v<T>) {
-            return ptgn::math::Compare(x, std::numeric_limits<T>::infinity(), ptgn::internal::VECTOR_EPSILON) &&
-                   ptgn::math::Compare(y, std::numeric_limits<T>::infinity(), ptgn::internal::VECTOR_EPSILON);
+            return ptgn::math::Compare(x, std::numeric_limits<T>::infinity(), ptgn::math::internal::VECTOR_EPSILON<T>) &&
+                   ptgn::math::Compare(y, std::numeric_limits<T>::infinity(), ptgn::math::internal::VECTOR_EPSILON<T>);
         }
         return false;
     }
@@ -277,8 +283,8 @@ struct Vector2 {
     // Return true if either vector component equals numeric limits infinity.
     inline bool HasInfinity() const {
         if constexpr (std::is_floating_point_v<T>) {
-            return ptgn::math::Compare(x, std::numeric_limits<T>::infinity(), ptgn::internal::VECTOR_EPSILON) ||
-                   ptgn::math::Compare(y, std::numeric_limits<T>::infinity(), ptgn::internal::VECTOR_EPSILON);
+            return ptgn::math::Compare(x, std::numeric_limits<T>::infinity(), ptgn::math::internal::VECTOR_EPSILON<T>) ||
+                   ptgn::math::Compare(y, std::numeric_limits<T>::infinity(), ptgn::math::internal::VECTOR_EPSILON<T>);
         }
         return false;
     }
@@ -371,9 +377,9 @@ using V2_float = Vector2<float>;
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const Vector2<T>& obj) {
-    os << ptgn::internal::VECTOR_LEFT_DELIMETER;
-    os << obj.x << ptgn::internal::VECTOR_CENTER_DELIMETER;
-    os << obj.y << ptgn::internal::VECTOR_RIGHT_DELIMETER;
+    os << ptgn::math::internal::VECTOR_LEFT_DELIMETER;
+    os << obj.x << ptgn::math::internal::VECTOR_CENTER_DELIMETER;
+    os << obj.y << ptgn::math::internal::VECTOR_RIGHT_DELIMETER;
     return os;
 }
 
@@ -383,8 +389,8 @@ template <typename T, typename U,
     typename S = typename std::common_type<T, U>::type>
 inline bool operator==(const Vector2<T>& lhs, const Vector2<U>& rhs) {
     if constexpr (std::is_floating_point_v<T> && std::is_floating_point_v<U>) {
-        return ptgn::math::Compare(lhs.x, rhs.x, ptgn::internal::VECTOR_EPSILON) &&
-               ptgn::math::Compare(lhs.y, rhs.y, ptgn::internal::VECTOR_EPSILON);
+        return ptgn::math::Compare(lhs.x, rhs.x, ptgn::math::internal::VECTOR_EPSILON<T>) &&
+               ptgn::math::Compare(lhs.y, rhs.y, ptgn::math::internal::VECTOR_EPSILON<T>);
     }
     return static_cast<S>(lhs.x) == static_cast<S>(rhs.x) &&
            static_cast<S>(lhs.y) == static_cast<S>(rhs.y);
@@ -400,8 +406,8 @@ template <typename T, typename U,
     ptgn::type_traits::is_number_e<U> = true>
 inline bool operator==(const Vector2<T>& lhs, U rhs) {
     if constexpr (std::is_floating_point_v<T> && std::is_floating_point_v<U>) {
-        return ptgn::math::Compare(lhs.x, rhs, ptgn::internal::VECTOR_EPSILON) &&
-               ptgn::math::Compare(lhs.y, rhs, ptgn::internal::VECTOR_EPSILON);
+        return ptgn::math::Compare(lhs.x, rhs, ptgn::math::internal::VECTOR_EPSILON<T>) &&
+               ptgn::math::Compare(lhs.y, rhs, ptgn::math::internal::VECTOR_EPSILON<T>);
     }
     return static_cast<S>(lhs.x) == static_cast<S>(rhs) && 
            static_cast<S>(lhs.y) == static_cast<S>(rhs);

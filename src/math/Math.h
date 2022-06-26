@@ -18,11 +18,36 @@ namespace ptgn {
 
 namespace math {
 
-// Definition of PI
+// Definition of PI, requires specification of type (default: double)
 // @tparam T - Precision of PI (type: int, float, double, etc).
-template <typename T, 
+template <typename T = double, 
     type_traits::is_number_e<T> = true>
-inline T const PI{ std::acos(-T(1)) };
+inline const T PI{ std::acos(-T(1)) };
+
+namespace internal {
+
+template <typename T,
+    type_traits::is_floating_point_e<T> = true>
+class Epsilon {};
+
+template<> class Epsilon<float> {
+public:
+    static constexpr float value() { return 1.0e-5f; }
+};
+
+template<> class Epsilon<double> {
+public:
+    static constexpr double value() { return 1.0e-10; }
+};
+
+} // namespace internal
+
+  // General epsilon values for comparing small differences 
+// (often used in floating point comparisons).
+// TODO: Consider if changing default value to std::numeric_limits<T>::epsilon() is better
+template <typename T = double,
+    type_traits::is_floating_point_e<T> = true>
+inline constexpr const T EPSILON{ internal::Epsilon<T>::value() };
 
 // Wrapper around std::numeric_limits infinities.
 template <typename T, 
@@ -111,10 +136,9 @@ inline T Compare(T x, T y, T relative_tolerance, T absolute_tolerance) {
 // Compare two floating point numbers using equal relative and absolute tolerances.
 // The absolute tolerance test fails when x and y become large.
 // The relative tolerance test fails when x and y become small.
-// TODO: Consider if changing default value to std::numeric_limits<T>::epsilon() is better
 template <typename T = double,
     type_traits::is_floating_point_e<T> = true>
-inline T Compare(T x, T y, T tolerance = 1e-10) {
+inline T Compare(T x, T y, T tolerance = math::EPSILON<T>) {
     return Compare(x, y, tolerance, tolerance);
 }
 
