@@ -8,7 +8,7 @@ namespace draw {
 
 namespace internal {
 
-DrawCallback DrawDispatch[static_cast<int>(ptgn::internal::physics::ShapeType::COUNT)][2] = {
+DrawCallback DrawDispatch[static_cast<int>(physics::ShapeType::COUNT)][2] = {
 	{ DrawShapeCircle, DrawShapeSolidCircle },
 	{ DrawShapeAABB,   DrawShapeSolidAABB }
 };

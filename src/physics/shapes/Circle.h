@@ -8,15 +8,15 @@ namespace ptgn {
 
 namespace physics {
 
-class Circle : public internal::physics::Shape {
+class Circle : public Shape {
 public:
 	Circle() = default;
 	~Circle() = default;
 	
 	Circle(const double radius) : radius{ radius } {}
 	
-	virtual internal::physics::ShapeType GetType() const override final {
-		return internal::physics::ShapeType::CIRCLE;
+	virtual ShapeType GetType() const override final {
+		return ShapeType::CIRCLE;
 	}
 	
 	virtual std::unique_ptr<Shape> Clone() const override final {

@@ -15,7 +15,7 @@ namespace component {
 
 struct Shape {
 	Shape() = delete;
-	template <typename T, type_traits::is_base_of_e<internal::physics::Shape, T> = true>
+	template <typename T, type_traits::is_base_of_e<physics::Shape, T> = true>
 	Shape(const T& shape, const V2_double& offset = {}) :
 		instance{ std::make_unique<T>(shape) },
 		offset{ offset } {
@@ -34,7 +34,7 @@ struct Shape {
 	Shape& operator=(Shape&& move) = default;
 
 	V2_double offset;
-	std::unique_ptr<internal::physics::Shape> instance{ nullptr };
+	std::unique_ptr<physics::Shape> instance{ nullptr };
 };
 
 struct OriginalShape : public Shape {};

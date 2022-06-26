@@ -14,7 +14,7 @@ namespace internal {
 
 using DrawCallback = void(*)(const component::Shape& shape, const component::Transform& transform, const Color& color);
 
-extern DrawCallback DrawDispatch[static_cast<int>(ptgn::internal::physics::ShapeType::COUNT)][2];
+extern DrawCallback DrawDispatch[static_cast<int>(physics::ShapeType::COUNT)][2];
 
 void DrawShapeSolidAABB(const component::Shape& shape, const component::Transform& transform, const Color& color);
 

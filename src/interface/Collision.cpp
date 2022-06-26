@@ -10,8 +10,8 @@ namespace collision {
 namespace internal {
 
 CollisionCallback StaticCollisionDispatch
-[static_cast<int>(ptgn::internal::physics::ShapeType::COUNT)]
-[static_cast<int>(ptgn::internal::physics::ShapeType::COUNT)] = {
+[static_cast<int>(ptgn::physics::ShapeType::COUNT)]
+[static_cast<int>(ptgn::physics::ShapeType::COUNT)] = {
     { StaticCirclevsCircle, StaticCirclevsAABB },
     { StaticAABBvsCircle, StaticAABBvsAABB }
 };

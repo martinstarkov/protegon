@@ -5,8 +5,6 @@
 
 namespace ptgn {
 
-namespace internal {
-
 namespace physics {
 
 enum class ShapeType {
@@ -41,7 +39,5 @@ public:
 };
 
 } // namespace physics
-
-} // namespace internal
 
 } // namespace ptgn

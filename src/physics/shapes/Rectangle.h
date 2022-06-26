@@ -8,15 +8,15 @@ namespace ptgn {
 
 namespace physics {
 
-class Rectangle : public internal::physics::Shape {
+class Rectangle : public Shape {
 public:
 	Rectangle() = default;
 	~Rectangle() = default;
 	
 	Rectangle(const V2_double& size) : size{ size } {}
 	
-	virtual internal::physics::ShapeType GetType() const override final {
-		return internal::physics::ShapeType::AABB;
+	virtual ShapeType GetType() const override final {
+		return ShapeType::AABB;
 	}
 	
 	virtual std::unique_ptr<Shape> Clone() const override final {
