@@ -2,7 +2,7 @@
 
 namespace ptgn {
 
-namespace impl {
+namespace internal {
 
 class SDLManager {
 public:
@@ -13,6 +13,6 @@ public:
 // Calling this function ensures that all SDL systems have been initialized.
 SDLManager& GetSDLManager();
 
-} // namespace impl
+} // namespace internal
 
 } // namespace ptgn

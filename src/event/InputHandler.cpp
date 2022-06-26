@@ -13,7 +13,7 @@
 
 namespace ptgn {
 
-namespace impl {
+namespace internal {
 
 void SDLInputHandler::Update() {
 	// Update previous key states.
@@ -156,12 +156,12 @@ SDLInputHandler& GetSDLInputHandler() {
 	return sdl_input_handler;
 }
 
-} // namespace impl
+} // namespace internal
 
 namespace services {
 	
 interfaces::InputHandler& GetInputHandler() {
-	return impl::GetSDLInputHandler();
+	return internal::GetSDLInputHandler();
 }
 
 } // namespace services

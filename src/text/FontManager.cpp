@@ -10,7 +10,7 @@
 
 namespace ptgn {
 
-namespace impl {
+namespace internal {
 
 void SDLFontDeleter::operator()(TTF_Font* font) {
 	TTF_CloseFont(font);
@@ -67,12 +67,12 @@ SDLFontManager& GetSDLFontManager() {
 	return default_font_manager;
 }
 
-} // namespace impl
+} // namespace internal
 
 namespace services {
 
 interfaces::FontManager& GetFontManager() {
-	return impl::GetSDLFontManager();
+	return internal::GetSDLFontManager();
 }
 
 } // namespace services

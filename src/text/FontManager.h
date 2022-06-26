@@ -27,7 +27,7 @@ public:
 
 } // namespace interface
 
-namespace impl {
+namespace internal {
 
 struct SDLFontDeleter {
     void operator()(TTF_Font* font);
@@ -47,7 +47,7 @@ public:
 
 SDLFontManager& GetSDLFontManager();
 
-} // namespace impl
+} // namespace internal
 
 namespace services {
 

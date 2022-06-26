@@ -13,7 +13,7 @@
 
 namespace ptgn {
 
-namespace impl {
+namespace internal {
 
 SDLRenderer::SDLRenderer(SDL_Window* window, int index, std::uint32_t flags) {
 	GetSDLManager();
@@ -51,7 +51,7 @@ void SDLRenderer::DrawTexture(const char* texture_key,
 						  const V2_int& source_position,
 						  const V2_int& source_size) const {
 	assert(renderer_ != nullptr && "Cannot draw texture with non-existent sdl renderer");
-	auto& sdl_texture_manager{ impl::GetSDLTextureManager() };
+	auto& sdl_texture_manager{ internal::GetSDLTextureManager() };
 	auto texture{ sdl_texture_manager.GetTexture(math::Hash(texture_key)) };
 	assert(texture != nullptr && "Cannot draw texture which is not loaded in the sdl texture manager");
 	SDL_Rect* source{ NULL };
@@ -114,7 +114,7 @@ void SDLRenderer::DrawText(const char* text_key,
 	auto& text_manager{ services::GetTextManager() };
 	const auto key{ math::Hash(text_key) };
 	assert(text_manager.HasText(key) && "Cannot draw text which has not been loaded into the text manager");
-	auto& sdl_texture_manager{ impl::GetSDLTextureManager() };
+	auto& sdl_texture_manager{ internal::GetSDLTextureManager() };
 	auto texture{ sdl_texture_manager.GetTexture(key) };
 	assert(texture != nullptr && "Cannot draw non-existent text texture");
 	SDL_Rect destination{ position.x, position.y, size.x, size.y };
@@ -239,12 +239,12 @@ SDLRenderer& GetSDLRenderer() {
 	return sdl_renderer;
 }
 
-} // namespace impl
+} // namespace internal
 
 namespace services {
 
 interfaces::Renderer& GetRenderer() {
-	return impl::GetSDLRenderer();
+	return internal::GetSDLRenderer();
 }
 
 } // namespace services

@@ -11,7 +11,7 @@
 
 namespace ptgn {
 
-namespace impl {
+namespace internal {
 
 SDLManager::SDLManager() {
 	auto sdl_flags{ 
@@ -58,6 +58,6 @@ SDLManager& GetSDLManager() {
 	return sdl_manager;
 }
 
-} // namespace impl
+} // namespace internal
 
 } // namespace ptgn

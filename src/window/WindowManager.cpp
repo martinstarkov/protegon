@@ -9,7 +9,7 @@
 
 namespace ptgn {
 
-namespace impl {
+namespace internal {
 
 SDLWindowManager::SDLWindowManager() {
 	GetSDLManager();
@@ -105,12 +105,12 @@ SDLWindowManager& GetSDLWindowManager() {
 	return sdl_window_manager;
 }
 
-} // namespace impl
+} // namespace internal
 
 namespace services {
 
 interfaces::WindowManager& GetWindowManager() {
-	return impl::GetSDLWindowManager();
+	return internal::GetSDLWindowManager();
 }
 
 } // namespace services

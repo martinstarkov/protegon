@@ -16,7 +16,7 @@ public:
 
 } // namespace interface
 
-namespace impl {
+namespace internal {
 
 class DefaultAnimationManager : public interfaces::AnimationManager {
 public:
@@ -30,7 +30,7 @@ private:
 
 DefaultAnimationManager& GetDefaultAnimationManager();
 
-} // namespace impl
+} // namespace internal
 
 namespace services {
 

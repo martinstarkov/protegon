@@ -20,7 +20,7 @@ public:
 
 } // namespace interface
 
-namespace impl {
+namespace internal {
 
 struct SDLTextureDeleter {
     void operator()(SDL_Texture* texture);
@@ -44,7 +44,7 @@ private:
 
 SDLTextureManager& GetSDLTextureManager();
 
-} // namespace impl
+} // namespace internal
 
 namespace services {
 

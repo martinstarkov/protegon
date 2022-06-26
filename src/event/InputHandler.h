@@ -30,7 +30,7 @@ public:
 
 } // namespace interfaces
 
-namespace impl {
+namespace internal {
 
 // Enum for storing states of mouse keys.
 enum class MouseState {
@@ -113,7 +113,7 @@ private:
 
 SDLInputHandler& GetSDLInputHandler();
 
-} // namespace impl
+} // namespace internal
 
 namespace services {
 

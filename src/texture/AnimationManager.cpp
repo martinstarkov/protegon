@@ -7,7 +7,7 @@
 
 namespace ptgn {
 
-namespace impl {
+namespace internal {
 
 DefaultAnimationManager::~DefaultAnimationManager() {
 	// for (auto& [key, animation] : animation_map_) {
@@ -46,12 +46,12 @@ DefaultAnimationManager& GetDefaultAnimationManager() {
 	return default_animation_manager;
 }
 
-} // namespace impl
+} // namespace internal
 
 namespace services {
 
 interfaces::AnimationManager& GetAnimationManager() {
-	return impl::GetDefaultAnimationManager();
+	return internal::GetDefaultAnimationManager();
 }
 
 } // namespace services

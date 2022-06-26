@@ -9,7 +9,7 @@
 
 namespace ptgn {
 
-namespace impl {
+namespace internal {
 
 DefaultUIManager::DefaultUIManager() {
 	GetSDLManager();
@@ -61,12 +61,12 @@ DefaultUIManager& GetDefaultUIManager() {
 	return default_ui_manager;
 }
 
-} // namespace impl
+} // namespace internal
 
 namespace services {
 
 interfaces::UIManager& GetUIManager() {
-	return impl::GetDefaultUIManager();
+	return internal::GetDefaultUIManager();
 }
 
 } // namespace services

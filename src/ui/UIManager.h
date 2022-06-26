@@ -16,7 +16,7 @@ public:
 
 } // namespace interface
 
-namespace impl {
+namespace internal {
 
 class DefaultUIManager : public interfaces::UIManager {
 public:
@@ -32,7 +32,7 @@ private:
 
 DefaultUIManager& GetDefaultUIManager();
 
-} // namespace impl
+} // namespace internal
 
 namespace services {
 

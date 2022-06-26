@@ -61,7 +61,7 @@ public:
 
 } // namespace interfaces
 
-namespace impl {
+namespace internal {
 
 class SDLTextureManager;
 
@@ -116,7 +116,7 @@ private:
 
 SDLRenderer& GetSDLRenderer();
 
-} // namespace impl
+} // namespace internal
 
 namespace services {
 

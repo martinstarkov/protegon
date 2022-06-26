@@ -32,7 +32,7 @@ public:
 
 } // namespace interfaces
 
-namespace impl {
+namespace internal {
 
 class SDLWindowManager : public interfaces::WindowManager {
 public:
@@ -60,7 +60,7 @@ private:
 
 SDLWindowManager& GetSDLWindowManager();
 
-} // namespace impl
+} // namespace internal
 
 namespace services {
 

@@ -29,7 +29,7 @@ public:
 
 } // namespace interface
 
-namespace impl {
+namespace internal {
 
 struct SDLText {
 	SDLText() = delete;
@@ -83,7 +83,7 @@ public:
 
 SDLTextManager& GetSDLTextManager();
 
-} // namespace impl
+} // namespace internal
 
 namespace services {
 

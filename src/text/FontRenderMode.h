@@ -2,7 +2,7 @@
 
 namespace ptgn {
 
-namespace impl {
+namespace internal {
 
 enum class FontRenderMode : int {
 	SOLID = 0,
@@ -10,6 +10,6 @@ enum class FontRenderMode : int {
 	BLENDED = 2
 };
 
-} // namespace impl
+} // namespace internal
 
 } // namespace ptgn

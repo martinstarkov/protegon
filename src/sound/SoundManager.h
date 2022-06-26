@@ -45,7 +45,7 @@ public:
 
 } // namespace interface
 
-namespace impl {
+namespace internal {
 
 struct SDLSoundDeleter {
     void operator()(Mix_Chunk* sound);
@@ -98,7 +98,7 @@ private:
 
 SDLSoundManager& GetSDLSoundManager();
 
-} // namespace impl
+} // namespace internal
 
 namespace services {
 

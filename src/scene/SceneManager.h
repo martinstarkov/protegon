@@ -16,7 +16,7 @@ public:
 
 } // namespace interface
 
-namespace impl {
+namespace internal {
 
 //class SDLRenderer;
 
@@ -34,7 +34,7 @@ private:
 
 DefaultSceneManager& GetDefaultSceneManager();
 
-} // namespace impl
+} // namespace internal
 
 namespace services {
 

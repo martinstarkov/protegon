@@ -2,7 +2,7 @@
 
 namespace ptgn {
 
-namespace impl {
+namespace internal {
 
 enum class FontStyle : int {
 	NORMAL = 0,        // TTF_STYLE_NORMAL = 0
@@ -12,6 +12,6 @@ enum class FontStyle : int {
 	STRIKETHROUGH = 8  // TTF_STYLE_STRIKETHROUGH = 8
 };
 
-} // namespace impl
+} // namespace internal
 
 } // namespace ptgn

@@ -8,7 +8,7 @@
 
 namespace ptgn {
 
-namespace impl {
+namespace internal {
 
 DefaultSceneManager::~DefaultSceneManager() {
 	for (auto& [key, scene] : scene_map_) {
@@ -56,12 +56,12 @@ DefaultSceneManager& GetDefaultSceneManager() {
 	return default_scene_manager;
 }
 
-} // namespace impl
+} // namespace internal
 
 namespace services {
 
 interfaces::SceneManager& GetSceneManager() {
-	return impl::GetDefaultSceneManager();
+	return internal::GetDefaultSceneManager();
 }
 
 } // namespace services

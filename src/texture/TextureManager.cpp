@@ -11,7 +11,7 @@
 
 namespace ptgn {
 
-namespace impl {
+namespace internal {
 
 void SDLTextureDeleter::operator()(SDL_Texture* texture) {
 	SDL_DestroyTexture(texture);
@@ -73,12 +73,12 @@ SDLTextureManager& GetSDLTextureManager() {
 	return default_texture_manager;
 }
 
-} // namespace impl
+} // namespace internal
 
 namespace services {
 
 interfaces::TextureManager& GetTextureManager() {
-	return impl::GetSDLTextureManager();
+	return internal::GetSDLTextureManager();
 }
 
 } // namespace services

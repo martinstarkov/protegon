@@ -15,7 +15,7 @@
 
 namespace ptgn {
 
-namespace impl {
+namespace internal {
 
 SDLTextManager::SDLTextManager() {
 	GetSDLManager();
@@ -143,12 +143,12 @@ SDLTextManager& GetSDLTextManager() {
 	return default_text_manager;
 }
 
-} // namespace impl
+} // namespace internal
 
 namespace services {
 
 interfaces::TextManager& GetTextManager() {
-	return impl::GetSDLTextManager();
+	return internal::GetSDLTextManager();
 }
 
 } // namespace services

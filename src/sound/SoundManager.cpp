@@ -11,7 +11,7 @@
 
 namespace ptgn {
 
-namespace impl {
+namespace internal {
 
 void SDLSoundDeleter::operator()(Mix_Chunk* sound) {
 	Mix_FreeChunk(sound);
@@ -206,12 +206,12 @@ SDLSoundManager& GetSDLSoundManager() {
 	return default_sound_manager;
 }
 
-} // namespace impl
+} // namespace internal
 
 namespace services {
 
 interfaces::SoundManager& GetSoundManager() {
-	return impl::GetSDLSoundManager();
+	return internal::GetSDLSoundManager();
 }
 
 } // namespace services
