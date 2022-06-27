@@ -570,10 +570,10 @@ void SortCollisionTimes(std::vector<CollisionManifold>& collisions) {
 V2_double GetNewVelocity(const V2_double& velocity, const CollisionManifold& collision) {
     V2_double new_velocity;
     double remaining_time = (1.0 - collision.time);
-    double dot_product = velocity.DotProduct(collision.normal.Flip());
+    double dot_product = velocity.DotProduct(collision.normal.Tangent());
 
     // SLIDE
-    new_velocity = dot_product * collision.normal.Flip() * remaining_time;
+    new_velocity = dot_product * collision.normal.Tangent() * remaining_time;
 
     // PUSH
     //if (dot_product > 0.0) { dot_product = 1.0; } else if (dot_product < 0.0) { dot_product = -1.0; }
@@ -622,6 +622,7 @@ void SweepRectangleVsRectangles(const V2_double& position, const V2_double& size
             //new_origin = origin + (velocity * collisions[0].time - velocity.Unit() * epsilon);
             std::vector<CollisionManifold> collisions2;
             V2_double new_position = position + final_velocity;
+            draw::Line(new_position, new_position + new_velocity, color::BLUE);
             if (!new_velocity.IsZero()) {
                 for (std::size_t i = 0; i < target_positions.size(); ++i) {
                     V2_double relative_velocity = new_velocity;
