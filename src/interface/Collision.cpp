@@ -199,119 +199,6 @@ void Clear(ecs::Manager& manager) {
 }
 
 void Update(ecs::Manager& manager, double dt) {
-
-	// Vector containing entities which have changed positions during the current cycle.
-	std::vector<std::tuple<ecs::Entity, component::Transform&, component::Shape&>> static_check;
-	// Swept collision detection and resolution routine.
-	manager.ForEachEntityWith<component::Transform, component::Shape>([&](auto& entity, auto& transform, auto& shape) {
-
-		// Round the position to the nearest whole number, this ensures collision detection is precise and prevents tunneling. Very important.
-		auto position = transform.position;//math::Round(transform.position);
-		auto size = shape.instance->GetSize();
-
-		// Do not check static entities against other entities but the other way around.
-		if (entity.HasComponent<component::RigidBody>()) {
-			auto& rb = entity.GetComponent<component::RigidBody>(); // Passed later to static check.
-			// Vector of entities which the entity could potentially have collided with during its path.
-			/*
-			std::vector<ecs::Entity> broadphase_entities;
-			auto [broadphase_position, broadphase_size] = GetBroadphaseBox(rb.velocity, position, size);
-			manager.ForEachEntityWith<component::Transform, component::Shape>([&](auto& entity2, auto& transform2, auto& shape2) {
-				if (entity != entity2) {
-					if (AABBVsAABB(broadphase_position, broadphase_size, transform2.position, shape2.instance->GetSize())) {
-						broadphase_entities.emplace_back(entity2);
-					}
-				}
-			});
-			*/
-			// Vector of entities which collided with the swept path of the collider
-			std::vector<Collision> collisions;
-			// Temporary object used inside each loop for passing by reference.
-			Collision info;
-			// Second sweep (narrow phase) collision detection.
-			manager.ForEachEntityWith<component::Transform, component::Shape>([&](auto& entity2, auto& target_transform, auto& target_shape) {
-				if (entity != entity2) {
-					V2_double target_velocity;
-					if (entity2.HasComponent<component::RigidBody>()) {
-						target_velocity = entity2.GetComponent<component::RigidBody>().velocity;
-					}
-					auto relative_velocity = rb.velocity - target_velocity;
-					if (DynamicAABBVsAABB(dt, relative_velocity, position, size, target_transform.position, target_shape.instance->GetSize(), info.manifold)) {
-						info.entity = entity2;
-						collisions.emplace_back(info);
-					}
-				}
-			});
-
-			SortTimes(collisions);
-
-			// A swept collision occurred.
-			if (collisions.size() > 0) {
-
-				// Store old velocity to see if it changes and complete second sweep.
-				auto old_velocity = rb.velocity;
-
-				// First sweep (narrow phase) collision resolution.
-				for (auto& collision : collisions) {
-					auto& target_transform = collision.entity.GetComponent<component::Transform>();
-					auto& target_shape = collision.entity.GetComponent<component::Shape>();
-					V2_double target_velocity;
-					if (collision.entity.HasComponent<component::RigidBody>()) {
-						target_velocity = collision.entity.GetComponent<component::RigidBody>().velocity;
-					}
-					auto relative_velocity = rb.velocity - target_velocity;
-					if (ResolveDynamicAABBVsAABB(dt, relative_velocity, rb.velocity, position, size, target_transform.position, target_shape.instance->GetSize(), collision.manifold)) {
-						// ... objects which were used to resolve the collision, not necessarily all touching objects.
-					}
-					// TODO: Limit collision coloring to only objects which touch the player.
-					collision.entity.GetComponent<component::Color>() = color::RED;
-				}
-
-				// Velocity changed, complete a second sweep to ensure both axes have been swept.
-				
-				if (rb.velocity.x != old_velocity.x || rb.velocity.y != old_velocity.y) {
-					// Clear first sweep collisions.
-					collisions.clear();
-					// Second sweep (narrow phase) collision detection.
-					manager.ForEachEntityWith<component::Transform, component::Shape>([&](auto& entity2, auto& target_transform, auto& target_shape) {
-						if (entity != entity2) {
-							V2_double target_velocity;
-							if (entity2.HasComponent<component::RigidBody>()) {
-								target_velocity = entity2.GetComponent<component::RigidBody>().velocity;
-							}
-							auto relative_velocity = rb.velocity - target_velocity;
-							if (DynamicAABBVsAABB(dt, relative_velocity, position, size, target_transform.position, target_shape.instance->GetSize(), info.manifold)) {
-								info.entity = entity2;
-								collisions.emplace_back(info);
-							}
-						}
-					});
-					if (collisions.size() > 0) {
-
-						SortTimes(collisions);
-						// Second sweep (narrow phase) collision resolution.
-						for (auto& collision : collisions) {
-							auto& target_transform = collision.entity.GetComponent<component::Transform>();
-							auto& target_shape = collision.entity.GetComponent<component::Shape>();
-							V2_double target_velocity;
-							if (collision.entity.HasComponent<component::RigidBody>()) {
-								target_velocity = collision.entity.GetComponent<component::RigidBody>().velocity;
-							}
-							auto relative_velocity = rb.velocity - target_velocity;
-							ResolveDynamicAABBVsAABB(dt, relative_velocity, rb.velocity, position, size, target_transform.position, target_shape.instance->GetSize(), collision.manifold);
-						}
-					}
-				}
-			}
-			// Update collider position with resolved velocity.
-			position += rb.velocity * dt;
-			// If position has changed, update it and add entity to static collision check list.
-			if (transform.position != position) {
-				transform.position = position;
-				static_check.emplace_back(entity, transform, shape);
-			}
-		}
-	});
 	// Static collision detection for objects which have moved due to sweeps (dynamic AABBs).
 	// Important note: The static check mostly prevents objects from preferring to stay inside each other if both are dynamic (altough this still occurs in circumstances where the resolution would result in another static collision).
 	//for (auto [entity, transform, shape] : static_check) {
@@ -328,7 +215,7 @@ void Update(ecs::Manager& manager, double dt) {
 	//		}
 	//	});
 	//}
-
+	/*
 	manager.ForEachEntityWith<component::Collider, component::Transform, component::Shape>([&](ecs::Entity& entityA, component::Collider& colliderA, component::Transform& transformA, component::Shape& shapeA) {
 		manager.ForEachEntityWith<component::Collider, component::Transform, component::Shape>([&](ecs::Entity& entityB, component::Collider& colliderB, component::Transform& transformB, component::Shape& shapeB) {
 			if (colliderA.collideable && colliderB.collideable && entityA != entityB) {
@@ -339,10 +226,10 @@ void Update(ecs::Manager& manager, double dt) {
 					//rigid_bodyA.velocity = rigid_bodyA.velocity.DotProduct(normal_flip) * normal_flip;
 					transformA.position -= manifold.penetration;
 					// TODO: Move this out, into some resolve function with templates possibly? Component for resolving collisions?
-					/*if (entityA.HasComponent<component::RigidBody>()) {
-						auto& rigid_bodyA = entityA.GetComponent<component::RigidBody>();
-						auto normal_flip = manifold.normal.Flip();
-					};*/
+					//if (entityA.HasComponent<component::RigidBody>()) {
+						//auto& rigid_bodyA = entityA.GetComponent<component::RigidBody>();
+						//auto normal_flip = manifold.normal.Flip();
+					//};
 				}
 			}
 		});
@@ -359,6 +246,7 @@ void Update(ecs::Manager& manager, double dt) {
 			}
 		});
 	});
+	*/
 }
 
 void Resolve(ecs::Manager& manager) {
