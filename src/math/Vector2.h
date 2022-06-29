@@ -40,22 +40,28 @@ inline constexpr const T VECTOR_EPSILON{ math::EPSILON<T> };
 template <typename T,
     ptgn::type_traits::is_number_e<T> = true>
 struct Vector2 {
-    // Return a vector with numeric_limit::infinity() set for both components
+    // Return a vector with numeric_limit::infinity() set for both components.
     static Vector2 Infinite() {
         static_assert(std::is_floating_point_v<T>,
                       "Cannot create infinite vector for integer type. Must use floating points.");
         return { std::numeric_limits<T>::infinity(), std::numeric_limits<T>::infinity() };
     }
 
-    // Return a vector with std::numeric_limits<T>::max() set for both components
+    // Return a vector with std::numeric_limits<T>::max() set for both components.
     static Vector2 Maximum() {
         return { std::numeric_limits<T>::max(), std::numeric_limits<T>::max() };
     }
 
-    // Return a vector with std::numeric_limits<T>::min() set for both components
+    // Return a vector with std::numeric_limits<T>::min() set for both components.
     static Vector2 Minimum() {
         return { std::numeric_limits<T>::min(), std::numeric_limits<T>::min() };
     }
+
+    // Return a vector with 0 for both components.
+    static Vector2 Zero() {
+        return { (T)0, (T)0 };
+    }
+
     // Return a vector with both components randomized in the given ranges.
     static Vector2 Random(T min_x = 0.0, T max_x = 1.0, T min_y = 0.0, T max_y = 1.0) {
         assert(min_x < max_x &&
