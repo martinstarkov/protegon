@@ -127,7 +127,7 @@ inline void EdgeOverlap(int32_t i0, int32_t i1, V2_double const& K, V2_double co
 }
 
 inline void VertexOverlap(V2_double const& K0, V2_double const& delta,
-                          double radius, CollisionManifold& result) {
+                          double radius, CollisionManifold& result, const V2_double& V) {
     double sqrDistance = delta[0] * delta[0] + delta[1] * delta[1];
     double sqrRadius = radius * radius;
     // TODO: Possibly change later to account for the type of collision.
@@ -247,7 +247,7 @@ inline void DoQuery(V2_double const& K, V2_double const& C,
                     EdgeOverlap(1, 0, K, C, delta, radius, result);
                 } else {
                     if (delta.DotProduct(delta) < radius * radius) {
-                        VertexOverlap(K, delta, radius, result);
+                        VertexOverlap(K, delta, radius, result, V);
                     } else {
                         VertexSeparated(K, delta, V, radius, result);
                     }
@@ -551,11 +551,14 @@ inline bool QuadraticFormula
 
 {
 
+   
 
     const SCALAR q = b * b - 4 * a * c;
-    if (q >= 0)
 
-    {
+    if (q < 0 || math::Compare(q, 0.0)) {
+        r1 = r2 = 1.0;
+        return false; // complex or repeated roots.
+    } else {
 
 
         const SCALAR sq = sqrt(q);
@@ -565,16 +568,6 @@ inline bool QuadraticFormula
         return true;//real roots
 
     }
-
-    else
-
-    {
-
-
-        return false;//complex roots
-
-    }
-
 }
 
 CollisionManifold SphereSphereSweep
@@ -614,6 +607,8 @@ CollisionManifold SphereSphereSweep
     //u coefficient
 
     const SCALAR c = AB.DotProduct(AB) - rab * rab;
+
+
     //constant term
     //check if they're currently overlapping
 
@@ -645,8 +640,6 @@ CollisionManifold SphereSphereSweep
     // during the frame
     if (QuadraticFormula(a, b, c, u0, u1)) {
 
-        if (print_info) debug::PrintLine("later exit");
-
         if (u0 > u1)
             SWAP(u0, u1);
         // TODO: Check that this is accurate to theory:
@@ -662,6 +655,7 @@ CollisionManifold SphereSphereSweep
         collision.occurs = true;
         collision.distance = (A0 - B0).MagnitudeSquared();
         collision.normal = normal;
+        if (print_info) debug::PrintLine(u0, " | ", u1);
         collision.time = u0;
         collision.point = new_origin;
 
@@ -674,10 +668,59 @@ CollisionManifold SphereSphereSweep
         u0 = 1.0;
         u1 = 1.0;
     }
+    if (print_info) debug::PrintLine(u0, ", ", u1);
     collision::CollisionManifold collision;
     collision.time = 1.0;
     return collision;
 
+}
+
+bool SolveQuadratic(const double& a, const double& b, const double& c, double& x0, double& x1) {
+    const double q = b * b - 4 * a * c;
+    if (math::Compare(q, 0.0) || q < 0) {
+        x0 = x1 = 1.0;
+        return false; //complex roots 
+    } else if (q > 0) {
+        const double sq = std::sqrt(q);
+        const double d = 1 / (2 * a);
+        x0 = (-b + sq) * d;
+        x1 = (-b - sq) * d;
+    }
+    return true;//real roots
+}
+
+bool intersect(const V2_double& center, const double& radius_squared, const V2_double& orig, const V2_double& dir, double& t) {
+    double t0, t1;  //solutions for t if the ray intersects 
+#if 0 
+        // geometric solution
+    V2_double L = orig - center;
+    double tca = L.DotProduct(dir);
+    if (tca < 0) return false;
+    double d2 = L.DotProduct(L) - tca * tca;
+    if (d2 > radius_squared || math::Compare(d2, radius_squared)) return false;
+    double thc = std::sqrt(radius_squared - d2);
+    t0 = tca - thc;
+    t1 = tca + thc;
+#else 
+        // analytic solution
+    V2_double L = center - orig;
+    double a = dir.DotProduct(dir);
+    double b = 2 * dir.DotProduct(L);
+    double c = L.DotProduct(L) - radius_squared;
+    if (!SolveQuadratic(a, b, c, t0, t1)) return false;
+#endif 
+    if (t0 > t1) std::swap(t0, t1);
+
+    if (t0 < 0) {
+        t0 = t1;  //if t0 is negative, let's use t1 instead 
+        if (t0 < 0) return false;  //both t0 and t1 are negative 
+    }
+
+    t = t0;
+
+    t = math::Clamp(t, 0.0, 1.0);
+
+    return true;
 }
 
 void SortCollisionTimes(std::vector<CollisionManifold>& collisions) {
@@ -703,7 +746,6 @@ V2_double GetNewVelocity(const V2_double& velocity, const CollisionManifold& col
     V2_double new_velocity;
     double remaining_time = (1.0 - collision.time);
     double dot_product = velocity.DotProduct(collision.normal.Tangent());
-
     // SLIDE
     new_velocity = dot_product * collision.normal.Tangent() * remaining_time;
 
@@ -727,15 +769,6 @@ CollisionManifold SweepRectangleVsRectangle(const V2_double& origin, const V2_do
     bool occured = collision::RayVsRectangle(origin, velocity, expanded_position, expanded_size, c);
     c.occurs = occured && c.time < 1.0 && (c.time > 0.0 || math::Compare(c.time, 0.0)) && !c.normal.IsZero();
     if (c.occurs) c.distance = (origin - (target_position + target_size / 2)).MagnitudeSquared();
-    return c;
-}
-
-// @return Struct containing collision information about the sweep.
-static CollisionManifold SweepCircleVsCircle(const V2_double& origin, const double& radius, const V2_double& velocity, const V2_double& target_position, const double& target_radius) {
-    double close, far;
-    collision::CollisionManifold c = collision::internal::SphereSphereSweep(radius, origin, origin + velocity, target_radius, target_position + target_radius, target_position + target_radius, close, far, velocity, false);
-    c.occurs = c.occurs && c.time < 1.0 && (c.time > 0.0 || math::Compare(c.time, 0.0)) && !c.normal.IsZero();
-    //if (print_info) debug::PrintLine("Occured: ", c.occurs, " at ", c.time);
     return c;
 }
 
@@ -997,7 +1030,7 @@ int IntersectSegmentCapsule(V2_double sa, V2_double sb, V2_double p, V2_double q
     // Segment intersects cylinder between the endcaps; t is correct
     return 1;
 }
-int IntersectMovingSphereAABB(V2_double sc, double sr, V2_double d, V2_double rect_pos, V2_double rect_size, double& t, V2_double& normal) {
+int IntersectMovingSphereAABB(V2_double sc, double sr, V2_double d, V2_double rect_pos, V2_double rect_size, double& t, V2_double& normal, V2_double& p) {
     // Compute the AABB resulting from expanding b by sphere radius r
     auto min = rect_pos;
     auto max = rect_pos + rect_size;
@@ -1007,9 +1040,10 @@ int IntersectMovingSphereAABB(V2_double sc, double sr, V2_double d, V2_double re
     emax.x += sr; emax.y += sr;
     // Intersect ray against expanded AABB e. Exit with no intersection if ray
     // misses e, else get intersection point p and time t as result
-    V2_double p;
-    if (!IntersectRayAABB(sc, d, emin, emax, t, p) || t > 1.0)
+    
+    if (!IntersectRayAABB(sc, d, emin, emax, t, p) || t > 1.0) {
         return 0;
+    }
     // Compute which min and max faces of b the intersection point p lies
     // outside of. Note, u and v cannot have the same bits set and
     // they must have at least one bit set among them
@@ -1023,7 +1057,7 @@ int IntersectMovingSphereAABB(V2_double sc, double sr, V2_double d, V2_double re
     // Define line segment [c, c+d] specified by the sphere movement
     Segment seg{ sc, sc + d };
     // If all 3 bits set (m == 7) then p is in a vertex region
-    if (m == 7) {
+    if (m == 3) {
         // Must now intersect segment [c, c+d] against the capsules of the three
         // edges meeting at the vertex and return the best time, if one or more hit
         double tmin = DBL_MAX;
@@ -1033,40 +1067,323 @@ int IntersectMovingSphereAABB(V2_double sc, double sr, V2_double d, V2_double re
         if (IntersectSegmentCapsule(sc, sc + d, Corner(min, max, v), Corner(min, max, v ^ 2), sr, t)) {
             tmin = std::min(t, tmin);
         }
-        if (IntersectSegmentCapsule(sc, sc + d, Corner(min, max, v), Corner(min, max, v ^ 4), sr, t)) {
-            tmin = std::min(t, tmin);
-        }
-        if (tmin == FLT_MAX) return 0; // No intersection
+        if (tmin == DBL_MAX) return 0; // No intersection
         t = tmin;
-        normal = (sc + d * t - p).Unit();
         return 1; // Intersection at time t == tmin
     }
     // If only one bit set in m, then p is in a face region
     if ((m & (m - 1)) == 0) {
         // Do nothing. Time t from intersection with
         // expanded box is correct intersection time
-        normal = (sc + d * t - p).Unit();
         return 1;
     }
     // p is in an edge region. Intersect against the capsule at the edge
-    int result = IntersectSegmentCapsule(sc, sc + d, Corner(min, max, u ^ 7), Corner(min, max, v), sr, t);
-    // TODO: Check if this normal is correct even?
-    if (result) normal = (sc + d * t - p).Unit();
-    return result;
+    return IntersectSegmentCapsule(sc, sc + d, Corner(min, max, u ^ 3), Corner(min, max, v), sr, t);
 }
 // @return Struct containing collision information about the sweep.
-static CollisionManifold SweepCircleVsAABB(const V2_double& origin, const double& radius, const V2_double& velocity, const V2_double& target_position, const V2_double& target_size) {
-    //auto c = collision::CircleVsAABB(0, target_position, target_size, {}, origin, radius, velocity);
-    CollisionManifold c;
-    //auto pair = collision::internal::CircleAABBSweep(target_position, target_size, origin, origin + velocity, radius);
-    //c = pair.first;
-    // TODO: Figure out this function and what it returns / should return.
-    c.occurs = IntersectMovingSphereAABB(origin, radius, velocity, target_position, target_size, c.time, c.normal);
 
-    //c.point = pair.second;
+
+
+
+template <typename T>
+class Test {
+public:
+    // Currently, only a dynamic query is supported.  A static query will
+    // need to compute the intersection set of (solid) box and circle.
+    struct Result {
+        Result()
+            :
+            intersectionType(0),
+            contactTime(static_cast<T>(0)),
+            contactPoint(Vector2<T>::Zero()) {}
+
+        // The cases are
+        // 1. Objects initially overlapping.  The contactPoint is only one
+        //    of infinitely many points in the overlap.
+        //      intersectionType = -1
+        //      contactTime = 0
+        //      contactPoint = circle.center
+        // 2. Objects initially separated but do not intersect later.  The
+        //      contactTime and contactPoint are invalid.
+        //      intersectionType = 0
+        //      contactTime = 0
+        //      contactPoint = (0,0)
+        // 3. Objects initially separated but intersect later.
+        //      intersectionType = +1
+        //      contactTime = first time T > 0
+        //      contactPoint = corresponding first contact
+        int32_t intersectionType;
+        T contactTime;
+        Vector2<T> contactPoint;
+
+        // TODO: To support arbitrary precision for the contactTime,
+        // return q0, q1 and q2 where contactTime = (q0 - sqrt(q1)) / q2.
+        // The caller can compute contactTime to desired number of digits
+        // of precision.  These are valid when intersectionType is +1 but
+        // are set to zero (invalid) in the other cases.  Do the same for
+        // the contactPoint.
+    };
+
+    Result operator()(const V2_double& boxmin, const V2_double& boxmax, const Vector2<T>& boxVelocity,
+                      const V2_double& circlecenter, const double& circleradius, const Vector2<T>& circleVelocity, bool circle = false) {
+        Result result{};
+
+        // Translate the circle and box so that the box center becomes
+        // the origin.  Compute the velocity of the circle relative to
+        // the box.
+        Vector2<T> boxCenter = (boxmax + boxmin) * (T)0.5;
+        Vector2<T> extent = (boxmax - boxmin) * (T)0.5;
+        Vector2<T> C = circlecenter - boxCenter;
+        Vector2<T> V = circleVelocity - boxVelocity;
+
+        // Change signs on components, if necessary, to transform C to the
+        // first quadrant.  Adjust the velocity accordingly.
+        std::array<T, 2> sign = { (T)0, (T)0 };
+
+        for (int32_t i = 0; i < 2; ++i) {
+            if (C[i] > (T)0 || math::Compare(C[i], 0.0)) {
+                sign[i] = (T)1;
+            } else {
+                C[i] = -C[i];
+                V[i] = -V[i];
+                sign[i] = (T)-1;
+            }
+        }
+
+        DoQuery(extent, C, circleradius, V, result, circle);
+
+        if (result.intersectionType != 0) {
+            // Translate back to the original coordinate system.
+            for (int32_t i = 0; i < 2; ++i) {
+                if (sign[i] < (T)0) {
+                    result.contactPoint[i] = -result.contactPoint[i];
+                }
+            }
+
+            result.contactPoint += boxCenter;
+        }
+        return result;
+    }
+
+protected:
+    void DoQuery(Vector2<T> const& K, Vector2<T> const& C,
+                 T radius, Vector2<T> const& V, Result& result, bool circle) {
+        Vector2<T> delta = C - K;
+        if (delta[1] < radius) {
+            if (delta[0] < radius) {
+                if (delta[1] < (T)0 || math::Compare(delta[1], 0.0)) {
+                    if (delta[0] < (T)0 || math::Compare(delta[0], 0.0)) {
+                        InteriorOverlap(C, result);
+                    } else {
+                        if (!circle)
+                            EdgeOverlap(0, 1, K, C, delta, radius, result);
+                    }
+                } else {
+                    if (delta[0] < (T)0 || math::Compare(delta[0], 0.0)) {
+                        if (!circle)
+                            EdgeOverlap(1, 0, K, C, delta, radius, result);
+                    } else {
+                        if (delta.DotProduct(delta) < radius * radius) {
+                            VertexOverlap(K, delta, radius, result, V);
+                        } else {
+                            VertexSeparated(K, delta, V, radius, result);
+                        }
+                    }
+
+                }
+            } else {
+                    EdgeUnbounded(0, 1, K, C, radius, delta, V, result, circle);
+            }
+        } else {
+            if (delta[0] < radius) {
+                    EdgeUnbounded(1, 0, K, C, radius, delta, V, result, circle);
+            } else {
+                VertexUnbounded(K, C, radius, delta, V, result, circle);
+            }
+        }
+    }
+
+private:
+    void InteriorOverlap(Vector2<T> const& C, Result& result) {
+        result.intersectionType = -1;
+        result.contactTime = (T)0;
+        result.contactPoint = C;
+    }
+
+    void EdgeOverlap(int32_t i0, int32_t i1, Vector2<T> const& K, Vector2<T> const& C,
+                     Vector2<T> const& delta, T radius, Result& result) {
+        result.intersectionType = (delta[i0] < radius ? -1 : 1);
+        result.contactTime = (T)0;
+        result.contactPoint[i0] = K[i0];
+        result.contactPoint[i1] = C[i1];
+    }
+
+    void VertexOverlap(Vector2<T> const& K0, Vector2<T> const& delta,
+                       T radius, Result& result, const V2_double& V) {
+        T sqrDistance = delta[0] * delta[0] + delta[1] * delta[1];
+        T sqrRadius = radius * radius;
+        auto delta0 = delta;
+        if (math::Compare(sqrDistance, sqrRadius, 1e-5)) {
+            // corner collision
+            VertexSeparated(K0, delta, V, radius, result);
+        } else {
+            result.intersectionType = (sqrDistance < sqrRadius ? -1 : 1);
+            result.contactTime = (T)0;
+            result.contactPoint = K0;
+        }
+    }
+
+    void VertexSeparated(Vector2<T> const& K0, Vector2<T> const& delta0,
+                         Vector2<T> const& V, T radius, Result& result) {
+        T q0 = -V.DotProduct(delta0);
+        if (q0 > (T)0) {
+            T dotVPerpD0 = V.DotProduct(delta0.Tangent());
+            T q2 = V.DotProduct(V);
+            T q1 = radius * radius * q2 - dotVPerpD0 * dotVPerpD0;
+            if (q1 > (T)0) {
+                IntersectsVertex(0, 1, K0, q0, q1, q2, result);
+            }
+        }
+    }
+
+    void EdgeUnbounded(int32_t i0, int32_t i1, Vector2<T> const& K0, Vector2<T> const& C,
+                       T radius, Vector2<T> const& delta0, Vector2<T> const& V, Result& result, bool circle) {
+        if (V[i0] < (T)0) {
+            T dotVPerpD0 = V[i0] * delta0[i1] - V[i1] * delta0[i0];
+            if (radius * V[i1] + dotVPerpD0 > (T)0) {
+                Vector2<T> K1, delta1;
+                K1[i0] = K0[i0];
+                K1[i1] = -K0[i1];
+                delta1[i0] = C[i0] - K1[i0];
+                delta1[i1] = C[i1] - K1[i1];
+                T dotVPerpD1 = V[i0] * delta1[i1] - V[i1] * delta1[i0];
+                if (radius * V[i1] + dotVPerpD1 < (T)0) {
+                        IntersectsEdge(i0, i1, K0, C, radius, V, result);
+                } else {
+                    T q2 = V.DotProduct(V);
+                    T q1 = radius * radius * q2 - dotVPerpD1 * dotVPerpD1;
+                    if (q1 >= (T)0) {
+                        T q0 = -(V[i0] * delta1[i0] + V[i1] * delta1[i1]);
+                        IntersectsVertex(i0, i1, K1, q0, q1, q2, result);
+                    }
+                }
+            } else {
+                T q2 = V.DotProduct(V);
+                T q1 = radius * radius * q2 - dotVPerpD0 * dotVPerpD0;
+                if (q1 > (T)0) {
+                    T q0 = -(V[i0] * delta0[i0] + V[i1] * delta0[i1]);
+                    IntersectsVertex(i0, i1, K0, q0, q1, q2, result);
+                }
+            }
+        }
+    }
+
+    void VertexUnbounded(Vector2<T> const& K0, Vector2<T> const& C, T radius,
+                         Vector2<T> const& delta0, Vector2<T> const& V, Result& result, bool circle) {
+        if (V[0] < (T)0 && V[1] < (T)0) {
+            T dotVPerpD0 = V.DotProduct(delta0.Tangent());
+            if (radius * V[0] - dotVPerpD0 < (T)0) {
+                if (-radius * V[1] - dotVPerpD0 > (T)0) {
+                    T q2 = V.DotProduct(V);
+                    T q1 = radius * radius * q2 - dotVPerpD0 * dotVPerpD0;
+                    T q0 = -V.DotProduct(delta0);
+                    IntersectsVertex(0, 1, K0, q0, q1, q2, result);
+                } else {
+                    Vector2<T> K1{ K0[0], -K0[1] };
+                    Vector2<T> delta1 = C - K1;
+                    T dotVPerpD1 = V.DotProduct(delta1.Tangent());
+                    if (-radius * V[1] - dotVPerpD1 > (T)0) {
+                        if (!circle)
+                            IntersectsEdge(0, 1, K0, C, radius, V, result);
+                    } else {
+                        T q2 = V.DotProduct(V);
+                        T q1 = radius * radius * q2 - dotVPerpD1 * dotVPerpD1;
+                        if (q1 > (T)0) {
+                            T q0 = -V.DotProduct(delta1);
+                            IntersectsVertex(0, 1, K1, q0, q1, q2, result);
+                        }
+                    }
+                }
+            } else {
+                Vector2<T> K2{ -K0[0], K0[1] };
+                Vector2<T> delta2 = C - K2;
+                T dotVPerpD2 = V.DotProduct(delta2.Tangent());
+                if (radius * V[0] - dotVPerpD2 < (T)0) {
+                    if (!circle)
+                        IntersectsEdge(1, 0, K0, C, radius, V, result);
+                } else {
+                    T q2 = V.DotProduct(V);
+                    T q1 = radius * radius * q2 - dotVPerpD2 * dotVPerpD2;
+                    if (q1 > (T)0) {
+                        T q0 = -V.DotProduct(delta2);
+                        IntersectsVertex(1, 0, K2, q0, q1, q2, result);
+                    }
+                }
+            }
+        }
+    }
+
+    void IntersectsVertex(int32_t i0, int32_t i1, Vector2<T> const& K,
+                          T q0, T q1, T q2, Result& result) {
+        result.intersectionType = +1;
+        result.contactTime = (q0 - std::sqrt(q1)) / q2;
+        result.contactPoint[i0] = K[i0];
+        result.contactPoint[i1] = K[i1];
+    }
+
+    void IntersectsEdge(int32_t i0, int32_t i1, Vector2<T> const& K0, Vector2<T> const& C,
+                        T radius, Vector2<T> const& V, Result& result) {
+        result.intersectionType = +1;
+        result.contactTime = (K0[i0] + radius - C[i0]) / V[i0];
+        result.contactPoint[i0] = K0[i0];
+        result.contactPoint[i1] = C[i1] + result.contactTime * V[i1];
+    }
+};
+
+
+// @return Struct containing collision information about the sweep.
+static CollisionManifold SweepCircleVsCircle(const V2_double& origin, const double& radius, const V2_double& velocity, const V2_double& target_position, const double& target_radius) {
+    double close, far;
+    collision::CollisionManifold c = collision::internal::SphereSphereSweep(radius, origin, origin + velocity, target_radius, target_position, target_position, close, far, velocity, false);
     c.occurs = c.occurs && c.time < 1.0 && (c.time > 0.0 || math::Compare(c.time, 0.0)) && !c.normal.IsZero();
-    //debug::PrintLine(c.time);
     return c;
+}
+
+static CollisionManifold SweepCircleVsAABB(const V2_double& origin, const double& radius, const V2_double& velocity, const V2_double& target_position, const V2_double& target_size) {
+    collision::CollisionManifold cnew;
+    Test<double> test;
+    auto c = test(target_position, target_position + target_size, {}, origin, radius, velocity);
+    V2_double normal = (origin + velocity * c.contactTime - c.contactPoint).Unit();
+    if (c.intersectionType == 1) {
+        if ((c.contactTime < 1.0 || math::Compare(c.contactTime, 1.0)) && (c.contactTime > 0.0 || math::Compare(c.contactTime, 0.0))) {
+            cnew.normal = normal;
+            cnew.time = c.contactTime;
+            cnew.occurs = true;
+            cnew.point = c.contactPoint;
+        }
+    } else if (c.intersectionType == 0) {
+        cnew.occurs = false;
+        cnew.time = 1.0;
+    } else if (c.intersectionType == -1) {
+        if (cnew.normal.IsZero() && math::Compare(c.contactTime, 0.0)) {
+            cnew = {};
+            V2_double expanded_position{ target_position - radius };
+            V2_double expanded_size{ target_size + radius * 2 };
+            bool occured = collision::RayVsRectangle(origin, velocity, expanded_position, expanded_size, cnew);
+            cnew.occurs = occured && cnew.time < 1.0 && (cnew.time > 0.0 || math::Compare(cnew.time, 0.0)) && !cnew.normal.IsZero();
+            if (cnew.occurs) cnew.distance = (origin - (target_position + target_size / 2)).MagnitudeSquared();
+        } else {
+            cnew.normal = normal;
+            cnew.time = c.contactTime;
+            cnew.occurs = true;
+            cnew.point = c.contactPoint;
+        }
+    }
+    return cnew;
+}
+
+static CollisionManifold SweepRectangleVsCircle(const V2_double& origin, const V2_double& size, const V2_double& velocity, const V2_double& target_position, const double& target_radius) {
+    return SweepCircleVsAABB(target_position, target_radius, -velocity, origin - size / 2, size);
 }
 
 } // namespace internal
@@ -1094,6 +1411,8 @@ void Sweep(const V2_double& position, const S& size, V2_double& velocity, const 
             //new_origin = origin + (velocity * collisions[0].time - velocity.Unit() * epsilon);
             std::vector<CollisionManifold> collisions2;
             V2_double new_position = position + final_velocity;
+            //draw::Line(position, new_position, color::BLUE);
+            //draw::Circle(new_position, size, color::BLUE);
             if (!new_velocity.IsZero()) {
                 for (std::size_t i = 0; i < target_positions.size(); ++i) {
                     V2_double relative_velocity = new_velocity;
@@ -1106,8 +1425,13 @@ void Sweep(const V2_double& position, const S& size, V2_double& velocity, const 
                 internal::SortCollisionTimes(collisions2);
                 if (collisions2.size() > 0) {
                     final_velocity += new_velocity * collisions2[0].time;
+                    //draw::Line(new_position, new_position + new_velocity * collisions2[0].time, color::RED);
+                    //draw::Circle(new_position + new_velocity * collisions2[0].time, size, color::RED);
+                    //draw::Circle(position + final_velocity, size, color::RED);
                 } else {
                     final_velocity += new_velocity;
+                    //draw::Line(new_position, new_position + new_velocity, color::RED);
+                    //draw::Circle(new_position + new_velocity, size, color::RED);
                 }
             }
         } else {
