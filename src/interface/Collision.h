@@ -540,12 +540,16 @@ CollisionManifold DynamicRectangleVsRectangle(const V2_double& position,
     return c;
 }
 
+// TODO: This function is not clip proof. Figure out why the clipping occurs:
+// HINT: It most likely occurs due to the quadratic formula solution being 
+// within 1e-10 of 0.0 due to floating point error.
 // @return Struct containing collision information about the sweep.
 CollisionManifold DynamicCircleVsCircle(const V2_double& position,
                                         const V2_double& size,
                                         const V2_double& target_position,
                                         const V2_double& target_size,
                                         const V2_double& velocity) {
+
     const double radius{ size.x };
     const double target_radius{ target_size.x };
     double u0, u1;
