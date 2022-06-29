@@ -81,383 +81,8 @@ inline bool AABBVsAABB(const V2_double& position1, const V2_double& size1, const
     if (position1.y + size1.y <= position2.y || position1.y >= position2.y + size2.y) return false;
     return true;
 }
-// Check if a ray collides with an AABB.
 
-inline void IntersectsVertex(int32_t i0, int32_t i1, V2_double const& K,
-                             double q0, double q1, double q2, CollisionManifold& result) {
-    // TODO: Possibly change later to account for the type of collision.
-    result.occurs = true; // +1
-    result.time = (q0 - std::sqrt(q1)) / q2;
-    result.point[i0] = K[i0];
-    result.point[i1] = K[i1];
-}
-
-inline void IntersectsEdge(int32_t i0, int32_t i1, V2_double const& K0, V2_double const& C,
-                           double radius, V2_double const& V, CollisionManifold& result) {
-    // TODO: Possibly change later to account for the type of collision.
-    result.occurs = true; // +1
-    result.time = (K0[i0] + radius - C[i0]) / V[i0];
-    result.point[i0] = K0[i0];
-    result.point[i1] = C[i1] + result.time * V[i1];
-}
-
-
-inline void InteriorOverlap(V2_double const& C, CollisionManifold& result) {
-    // TODO: Possibly change later to account for the type of collision.
-    result.occurs = true; // -1
-    result.time = (double)0;
-    result.point = C;
-}
-
-inline void EdgeOverlap(int32_t i0, int32_t i1, V2_double const& K, V2_double const& C,
-                        V2_double const& delta, double radius, CollisionManifold& result) {
-    // TODO: Possibly change later to account for the type of collision.
-    result.occurs = delta[i0] < radius ? true : true; // -1, +1
-    if (math::Compare(delta[i0], radius)) {
-        // TODO: Figure out this corner clipping issue...
-        result.time = (double)0.0;
-    } else if (delta[i0] < radius) {
-        // Check exact corner case
-        result.time = (double)0.0;
-    } else {
-        result.time = 0.0;
-    }
-    result.point[i0] = K[i0];
-    result.point[i1] = C[i1];
-}
-
-inline void VertexOverlap(V2_double const& K0, V2_double const& delta,
-                          double radius, CollisionManifold& result, const V2_double& V) {
-    double sqrDistance = delta[0] * delta[0] + delta[1] * delta[1];
-    double sqrRadius = radius * radius;
-    // TODO: Possibly change later to account for the type of collision.
-    result.occurs = sqrDistance < sqrRadius ? true : true; // -1, +1
-    if (math::Compare(sqrDistance, sqrRadius)) {
-        // TODO: Figure out this corner clipping issue...
-        result.time = (double)0.0;
-    } else if (sqrDistance < sqrRadius) {
-        // Check exact corner case
-        result.time = (double)0.0;
-    } else {
-        result.time = 0.0;
-    }
-    result.point = K0;
-}
-
-inline void VertexSeparated(V2_double const& K0, V2_double const& delta0,
-                            V2_double const& V, double radius, CollisionManifold& result) {
-    double q0 = -V.DotProduct(delta0);
-    if (q0 > (double)0) {
-        double dotVPerpD0 = V.DotProduct(delta0.Tangent());
-        double q2 = V.DotProduct(V);
-        double q1 = radius * radius * q2 - dotVPerpD0 * dotVPerpD0;
-        if (q1 >= (double)0) {
-            IntersectsVertex(0, 1, K0, q0, q1, q2, result);
-        }
-    }
-}
-
-inline void EdgeUnbounded(int32_t i0, int32_t i1, V2_double const& K0, V2_double const& C,
-                          double radius, V2_double const& delta0, V2_double const& V, CollisionManifold& result) {
-    if (V[i0] < (double)0) {
-        double dotVPerpD0 = V[i0] * delta0[i1] - V[i1] * delta0[i0];
-        if (radius * V[i1] + dotVPerpD0 >= (double)0) {
-            V2_double K1, delta1;
-            K1[i0] = K0[i0];
-            K1[i1] = -K0[i1];
-            delta1[i0] = C[i0] - K1[i0];
-            delta1[i1] = C[i1] - K1[i1];
-            double dotVPerpD1 = V[i0] * delta1[i1] - V[i1] * delta1[i0];
-            if (radius * V[i1] + dotVPerpD1 <= (double)0) {
-                IntersectsEdge(i0, i1, K0, C, radius, V, result);
-            } else {
-                double q2 = V.DotProduct(V);
-                double q1 = radius * radius * q2 - dotVPerpD1 * dotVPerpD1;
-                if (q1 >= (double)0) {
-                    double q0 = -(V[i0] * delta1[i0] + V[i1] * delta1[i1]);
-                    IntersectsVertex(i0, i1, K1, q0, q1, q2, result);
-                }
-            }
-        } else {
-            double q2 = V.DotProduct(V);
-            double q1 = radius * radius * q2 - dotVPerpD0 * dotVPerpD0;
-            if (q1 >= (double)0) {
-                double q0 = -(V[i0] * delta0[i0] + V[i1] * delta0[i1]);
-                IntersectsVertex(i0, i1, K0, q0, q1, q2, result);
-            }
-        }
-    }
-}
-
-inline void VertexUnbounded(V2_double const& K0, V2_double const& C, double radius,
-                            V2_double const& delta0, V2_double const& V, CollisionManifold& result) {
-    if (V[0] < (double)0 && V[1] < (double)0) {
-        double dotVPerpD0 = V.DotProduct(delta0.Tangent());
-        if (radius * V[0] - dotVPerpD0 <= (double)0) {
-            if (-radius * V[1] - dotVPerpD0 >= (double)0) {
-                double q2 = V.DotProduct(V);
-                double q1 = radius * radius * q2 - dotVPerpD0 * dotVPerpD0;
-                double q0 = -V.DotProduct(delta0);
-                IntersectsVertex(0, 1, K0, q0, q1, q2, result);
-            } else {
-                V2_double K1{ K0[0], -K0[1] };
-                V2_double delta1 = C - K1;
-                double dotVPerpD1 = V.DotProduct(delta1.Tangent());
-                if (-radius * V[1] - dotVPerpD1 >= (double)0) {
-                    IntersectsEdge(0, 1, K0, C, radius, V, result);
-                } else {
-                    double q2 = V.DotProduct(V);
-                    double q1 = radius * radius * q2 - dotVPerpD1 * dotVPerpD1;
-                    if (q1 >= (double)0) {
-                        double q0 = -V.DotProduct(delta1);
-                        IntersectsVertex(0, 1, K1, q0, q1, q2, result);
-                    }
-                }
-            }
-        } else {
-            V2_double K2{ -K0[0], K0[1] };
-            V2_double delta2 = C - K2;
-            double dotVPerpD2 = V.DotProduct(delta2.Tangent());
-            if (radius * V[0] - dotVPerpD2 <= (double)0) {
-                IntersectsEdge(1, 0, K0, C, radius, V, result);
-            } else {
-                double q2 = V.DotProduct(V);
-                double q1 = radius * radius * q2 - dotVPerpD2 * dotVPerpD2;
-                if (q1 >= (double)0) {
-                    double q0 = -V.DotProduct(delta2);
-                    IntersectsVertex(1, 0, K2, q0, q1, q2, result);
-                }
-            }
-        }
-    }
-}
-inline void DoQuery(V2_double const& K, V2_double const& C,
-                    double radius, V2_double const& V, CollisionManifold& result) {
-    V2_double delta = C - K;
-    if (delta[1] < radius) {
-        if (delta[0] < radius) {
-            if (delta[1] < (double)0) {
-                if (delta[0] < (double)0) {
-                    InteriorOverlap(C, result);
-                } else {
-                    EdgeOverlap(0, 1, K, C, delta, radius, result);
-                }
-            } else {
-                if (delta[0] < (double)0) {
-                    EdgeOverlap(1, 0, K, C, delta, radius, result);
-                } else {
-                    if (delta.DotProduct(delta) < radius * radius) {
-                        VertexOverlap(K, delta, radius, result, V);
-                    } else {
-                        VertexSeparated(K, delta, V, radius, result);
-                    }
-                }
-
-            }
-        } else {
-            EdgeUnbounded(0, 1, K, C, radius, delta, V, result);
-        }
-    } else {
-        if (delta[0] < radius) {
-            EdgeUnbounded(1, 0, K, C, radius, delta, V, result);
-        } else {
-            VertexUnbounded(K, C, radius, delta, V, result);
-        }
-    }
-}
-
-inline CollisionManifold CircleVsAABB(double dt, const V2_double& box_position, const V2_double& box_size, V2_double const& boxVelocity,
-                                      const V2_double& circle_center, double circle_radius, V2_double const& circleVelocity) {
-    CollisionManifold result{};
-    result.time = 1.0;
-    // Translate the circle and box so that the box center becomes
-    // the origin.  Compute the velocity of the circle relative to
-    // the box.
-
-    auto box_min = box_position;
-    auto box_max = box_position + box_size;
-
-    V2_double extent = box_size / 2;
-    V2_double boxCenter = box_position + extent;
-    V2_double C = circle_center - boxCenter;
-    V2_double V = (circleVelocity - boxVelocity);
-
-    // Change signs on components, if necessary, to transform C to the
-    // first quadrant.  Adjust the velocity accordingly.
-    std::array<double, 2> sign = { (double)0, (double)0 };
-    for (int32_t i = 0; i < 2; ++i) {
-        if (C[i] >= (double)0) {
-            sign[i] = (double)1;
-        } else {
-            C[i] = -C[i];
-            V[i] = -V[i];
-            sign[i] = (double)-1;
-        }
-    }
-
-    DoQuery(extent, C, circle_radius, V, result);
-
-    if (result.occurs) {
-
-        // Translate back to the original coordinate system.
-        for (int32_t i = 0; i < 2; ++i) {
-            if (sign[i] < (double)0) {
-                result.point[i] = -result.point[i];
-            }
-        }
-
-        result.point += boxCenter;
-
-        //auto new_box_center = boxCenter + V * result.time;
-        result.normal = (circle_center + circleVelocity * result.time - result.point).Unit();
-    }
-    return result;
-}
-
-using SCALAR = double;
-using VECTOR = V2_double;
-
-// taken from https://github.com/pgkelley4/line-segments-intersect/blob/master/js/line-segments-intersect.js
-// returns the point where they intersect (if they intersect)
-// returns null if they don't intersect
-double getRayIntersectionFractionOfFirstRay(V2_double originA, V2_double endA, V2_double originB, V2_double endB)
-{
-    auto r = endA - originA;
-    auto s = endB - originB;
-
-    double numerator = (originB - originA).DotProduct(r);
-    double denominator = r.DotProduct(s);
-
-    if (numerator == 0 && denominator == 0) {
-        // the lines are co-linear
-        // check if they overlap
-        /*return	((originB.x - originA.x < 0) != (originB.x - endA.x < 0) != (endB.x - originA.x < 0) != (endB.x - endA.x < 0)) ||
-                ((originB.y - originA.y < 0) != (originB.y - endA.y < 0) != (endB.y - originA.y < 0) != (endB.y - endA.y < 0));*/
-        return V2_double::Maximum().x;
-    }
-    if (denominator == 0) {
-        // lines are parallel
-        return V2_double::Maximum().x;
-    }
-
-    double u = numerator / denominator;
-    double t = ((originB - originA).DotProduct(s)) / denominator;
-    if ((t >= 0) && (t <= 1) && (u >= 0) && (u <= 1)) {
-        //return originA + (r * t);
-        return t;
-    }
-    return V2_double::Maximum().x;
-}
-
-double getRayIntersectionFraction(V2_double origin, V2_double direction, V2_double min, V2_double max) {
-    V2_double end = origin + direction;
-
-    double minT = getRayIntersectionFractionOfFirstRay(origin, end, V2_double(min.x, min.y), V2_double(min.x, max.y));
-    double x = getRayIntersectionFractionOfFirstRay(origin, end, V2_double(min.x, max.y), V2_double(max.x, max.y));
-    if (x < minT)
-        minT = x;
-    x = getRayIntersectionFractionOfFirstRay(origin, end, V2_double(max.x, max.y), V2_double(max.x, min.y));
-    if (x < minT)
-        minT = x;
-    x = getRayIntersectionFractionOfFirstRay(origin, end, V2_double(max.x, min.y), V2_double(min.x, min.y));
-    if (x < minT)
-        minT = x;
-
-    // ok, now we should have found the fractional component along the ray where we collided
-    return minT;
-}
-
-double lineToPlane(V2_double p, V2_double u, V2_double v, V2_double n) {
-    auto NdotU = n.x * u.x + n.y * u.y;
-    if (NdotU == 0) return std::numeric_limits<double>::infinity();
-
-    // return n.(v-p) / n.u
-    return (n.x * (v.x - p.x) + n.y * (v.y - p.y)) / NdotU;
-}
-
-bool between(double x, double a, double b) {
-    return x > a && x < b;
-}
-
-double sweepAABB(V2_double a, V2_double ah, V2_double b, V2_double bh, V2_double d, V2_double& normal) {
-    V2_double m;
-    V2_double mh;
-
-    m.x = b.x - (a.x + ah.x);
-    m.y = b.y - (a.y + ah.y);
-    mh.x = ah.x + bh.x;
-    mh.y = ah.y + bh.y;
-
-    double h = 1;
-
-    normal = {};
-    double xmin, xmax, ymin, ymax;
-    // X min
-    xmin = lineToPlane({ 0, 0 }, d, m, { -1, 0 });
-    if (xmin >= 0 && d.x > 0 && between(xmin * d.y, m.y, m.y + mh.y)) { 
-        if (xmin < h) {
-            h = xmin;
-            normal.x = -1;
-            normal.y = 0;
-        }
-    }
-
-    // X max
-    xmax = lineToPlane({ 0, 0 }, d, { m.x + mh.x, m.y }, { 1, 0 });
-    if (xmax >= 0 && d.x < 0 && between(xmax * d.y, m.y, m.y + mh.y)) {
-        if (xmax < h) {
-            h = xmax;
-            normal.x = 1;
-            normal.y = 0;
-        }
-    }
-
-    // Y min
-    ymin = lineToPlane({ 0, 0 }, d, m, { 0, -1 });
-    if (ymin >= 0 && d.y > 0 && between(ymin * d.x, m.x, m.x + mh.x)) {
-        if (ymin < h) {
-            h = ymin;
-            normal.y = -1;
-            normal.x = 0;
-        }
-    }
-
-    // Y max
-    ymax = lineToPlane({ 0, 0 }, d, { m.x, m.y + mh.y }, { 0, 1 });
-    if (ymax >= 0 && d.y < 0 && between(ymax * d.x, m.x, m.x + mh.x)) {
-        if (ymax < h) {
-            h = ymax;
-            normal.y = 1;
-            normal.x = 0;
-        }
-    }
-
-
-    return h;
-}
-
-
-double rayaabb(V2_double v, V2_double a_min, V2_double a_max, V2_double b_min, V2_double b_max, double& tfirst, double& tlast) {
-    // Initialize times of first and last contact
-    tfirst = 0.0;
-    tlast = 1.0;
-    // For each axis, determine times of first and last contact, if any
-    for (int i = 0; i < 2; i++) {
-        if (v[i] < 0.0) {
-            if (b_max[i] < a_min[i]) return 0; // Nonintersecting and moving apart
-            if (a_max[i] < b_min[i]) tfirst = std::max((a_max[i] - b_min[i]) / v[i], tfirst);
-            if (b_max[i] > a_min[i]) tlast = std::min((a_min[i] - b_max[i]) / v[i], tlast);
-        }
-        if (v[i] > 0.0) {
-            if (b_min[i] > a_max[i]) return 0; // Nonintersecting and moving apart
-            if (b_max[i] < a_min[i]) tfirst = std::max((a_min[i] - b_max[i]) / v[i], tfirst);
-            if (a_max[i] > b_min[i]) tlast = std::min((a_max[i] - b_min[i]) / v[i], tlast);
-        }
-        // No overlap possible if time of first contact occurs after time of last contact
-        if (tfirst > tlast) return 0;
-    }
-    return 1;
-}
+namespace internal {
 
 inline bool RayVsRectangle(const V2_double& ray_origin, const V2_double& ray_dir, 
                       const V2_double& position, const V2_double& size, 
@@ -525,103 +150,45 @@ inline bool RayVsRectangle(const V2_double& ray_origin, const V2_double& ray_dir
     return true;
 }
 
-
-namespace internal {
-
-template <typename T>
-inline void SWAP(T& a, T& b)
-//swap the values of a and b
-
-{
-
-    const T temp = a;
-    a = b;
-    b = temp;
-}
-
 // Return true if r1 and r2 are real
-inline bool QuadraticFormula
-(
-    const SCALAR a,
-    const SCALAR b,
-    const SCALAR c,
-    SCALAR& r1, //first
-    SCALAR& r2 //and second roots
-)
-
-{
-
-   
-
-    const SCALAR q = b * b - 4 * a * c;
-
+inline bool QuadraticFormula(const double a, const double b, const double c,
+                             double& r1, double& r2) { // first and second roots.
+    const double q = b * b - 4 * a * c;
     if (q < 0 || math::Compare(q, 0.0)) {
         r1 = r2 = 1.0;
         return false; // complex or repeated roots.
     } else {
-
-
-        const SCALAR sq = sqrt(q);
-        const SCALAR d = 1 / (2 * a);
+        const double sq = sqrt(q);
+        const double d = 1 / (2 * a);
         r1 = (-b + sq) * d;
         r2 = (-b - sq) * d;
-        return true;//real roots
-
+        return true; //real roots.
     }
 }
 
-CollisionManifold SphereSphereSweep
-(
-    const SCALAR ra, //radius of sphere A
-    const VECTOR& A0, //previous position of sphere A
-    const VECTOR& A1, //current position of sphere A
-    const SCALAR rb, //radius of sphere B
-    const VECTOR& B0, //previous position of sphere B
-    const VECTOR& B1, //current position of sphere B
-    SCALAR& u0, //normalized time of first collision
-    SCALAR& u1, //normalized time of second collision
-    const V2_double& velocity,
-    bool print_info = false
-)
-
-{
-
-    const VECTOR va = A1 - A0;
-    //vector from A0 to A1
-
-    const VECTOR vb = B1 - B0;
-    //vector from B0 to B1
-
-    const VECTOR AB = B0 - A0;
-    //vector from A0 to B0
-
-    const VECTOR vab = vb - va;
-    //relative velocity (in normalized time)
-
-    const SCALAR rab = ra + rb;
-
-    const SCALAR a = vab.DotProduct(vab);
-    //u*u coefficient
-
-    const SCALAR b = 2 * vab.DotProduct(AB);
-    //u coefficient
-
-    const SCALAR c = AB.DotProduct(AB) - rab * rab;
-
-
-    //constant term
-    //check if they're currently overlapping
+CollisionManifold SweepCircleVsCircle(const double ra, //radius of sphere A
+                                      const V2_double& A0, //previous position of sphere A
+                                      const V2_double& A1, //current position of sphere A
+                                      const double rb, //radius of sphere B
+                                      const V2_double& B0, //previous position of sphere B
+                                      const V2_double& B1, //current position of sphere B
+                                      const V2_double& velocity) {
+    double u0;
+    double u1;
+    const V2_double va = A1 - A0;//vector from A0 to A1
+    const V2_double vb = B1 - B0; //vector from B0 to B1
+    const V2_double AB = B0 - A0; //vector from A0 to B0
+    const V2_double vab = vb - va; //relative velocity (in normalized time)
+    const double rab = ra + rb; // combined radius
+    const double a = vab.DotProduct(vab); //u*u coefficient
+    const double b = 2 * vab.DotProduct(AB); //u coefficient
+    const double c = AB.DotProduct(AB) - rab * rab;
 
     // TODO: Figure out how to reintroduce this without causing sticking.
-    /*
-    if (AB.DotProduct(AB) <= rab * rab)
-
-    {
-
-        if (print_info) debug::PrintLine("early exit");
+    // constant term, check if they're currently overlapping.
+    /*if (AB.DotProduct(AB) <= rab * rab) {
         u0 = 0;
         u1 = 0;
-
         auto new_origin = A0 + velocity * u0;
         auto normal = (new_origin - B0).Unit();
         collision::CollisionManifold collision;
@@ -630,18 +197,14 @@ CollisionManifold SphereSphereSweep
         collision.normal = normal;
         collision.time = u0;
         collision.point = new_origin;
-
-
         return collision;
-
     }*/
 
-    //check if they hit each other
-    // during the frame
+    collision::CollisionManifold collision;
+    // check if they hit each other during the frame.
     if (QuadraticFormula(a, b, c, u0, u1)) {
-
         if (u0 > u1)
-            SWAP(u0, u1);
+            std::swap(u0, u1);
         // TODO: Check that this is accurate to theory:
         // https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
         if (math::Compare(u0, u1)) {
@@ -651,86 +214,33 @@ CollisionManifold SphereSphereSweep
         // TODO: Clean this up.
         auto new_origin = A0 + velocity * u0;
         auto normal = (new_origin - B0).Unit();
-        collision::CollisionManifold collision;
         collision.occurs = true;
         collision.distance = (A0 - B0).MagnitudeSquared();
         collision.normal = normal;
-        if (print_info) debug::PrintLine(u0, " | ", u1);
         collision.time = u0;
         collision.point = new_origin;
-
-
         return collision;
-
     }
-    // TODO: Figure out if this is required.
-    if (math::Compare(u0, u1)) {
-        u0 = 1.0;
-        u1 = 1.0;
-    }
-    if (print_info) debug::PrintLine(u0, ", ", u1);
-    collision::CollisionManifold collision;
     collision.time = 1.0;
     return collision;
 
 }
 
-bool SolveQuadratic(const double& a, const double& b, const double& c, double& x0, double& x1) {
-    const double q = b * b - 4 * a * c;
-    if (math::Compare(q, 0.0) || q < 0) {
-        x0 = x1 = 1.0;
-        return false; //complex roots 
-    } else if (q > 0) {
-        const double sq = std::sqrt(q);
-        const double d = 1 / (2 * a);
-        x0 = (-b + sq) * d;
-        x1 = (-b - sq) * d;
-    }
-    return true;//real roots
-}
-
-bool intersect(const V2_double& center, const double& radius_squared, const V2_double& orig, const V2_double& dir, double& t) {
-    double t0, t1;  //solutions for t if the ray intersects 
-#if 0 
-        // geometric solution
-    V2_double L = orig - center;
-    double tca = L.DotProduct(dir);
-    if (tca < 0) return false;
-    double d2 = L.DotProduct(L) - tca * tca;
-    if (d2 > radius_squared || math::Compare(d2, radius_squared)) return false;
-    double thc = std::sqrt(radius_squared - d2);
-    t0 = tca - thc;
-    t1 = tca + thc;
-#else 
-        // analytic solution
-    V2_double L = center - orig;
-    double a = dir.DotProduct(dir);
-    double b = 2 * dir.DotProduct(L);
-    double c = L.DotProduct(L) - radius_squared;
-    if (!SolveQuadratic(a, b, c, t0, t1)) return false;
-#endif 
-    if (t0 > t1) std::swap(t0, t1);
-
-    if (t0 < 0) {
-        t0 = t1;  //if t0 is negative, let's use t1 instead 
-        if (t0 < 0) return false;  //both t0 and t1 are negative 
-    }
-
-    t = t0;
-
-    t = math::Clamp(t, 0.0, 1.0);
-
-    return true;
-}
-
 void SortCollisionTimes(std::vector<CollisionManifold>& collisions) {
-    // Initial sort based on distances of collision manifolds to the collider.
-    // TODO: Figure out if the distance sort is required. I'm not sure but I think it
-    // may be required in order to prioritize walls to corners, but then again the 
-    // normal magnitude comparison may do this already so it may not be required.
+    /* 
+    * Initial sort based on distances of collision manifolds to the collider.
+    * This is required for RectangleVsRectangle collisions to prevent sticking
+    * to corners in certain configurations, such as if the player (o) gives
+    * a bottom right velocity into the following rectangle (x) configuration:
+    *       x
+    *     o x
+    *   x   x
+    * (player would stay still instead of moving down if this distance sort did not exist).
+    */
     std::sort(collisions.begin(), collisions.end(), [](const CollisionManifold& a, const CollisionManifold& b) {
         return a.distance < b.distance;
     });
+    // Sort based on collision times, and if they are equal, by collision normal magnitudes.
     std::sort(collisions.begin(), collisions.end(), [](const CollisionManifold& a, const CollisionManifold& b) {
         // If collision times are not equal, sort by collision time.
         if (!math::Compare(a.time, b.time)) {
@@ -748,345 +258,18 @@ V2_double GetNewVelocity(const V2_double& velocity, const CollisionManifold& col
     double dot_product = velocity.DotProduct(collision.normal.Tangent());
     // SLIDE
     new_velocity = dot_product * collision.normal.Tangent() * remaining_time;
-
     // PUSH
     //if (dot_product > 0.0) { dot_product = 1.0; } else if (dot_product < 0.0) { dot_product = -1.0; }
     //new_velocity = dot_product * collision.normal.Flip() * remaining_time * velocity.Magnitude();
-
     // BOUNCE
     //new_velocity = velocity * remaining_time;
     //if (!math::Compare(math::Abs(collision.normal.x), 0.0)) new_velocity.x = -new_velocity.x;
     //if (!math::Compare(math::Abs(collision.normal.y), 0.0)) new_velocity.y = -new_velocity.y;
-
     return new_velocity;
 }
 
-// @return Struct containing collision information about the sweep.
-CollisionManifold SweepRectangleVsRectangle(const V2_double& origin, const V2_double& size, const V2_double& velocity, const V2_double& target_position, const V2_double& target_size) {
-    collision::CollisionManifold c;
-    V2_double expanded_position{ target_position - target_size / 2.0 };
-    V2_double expanded_size{ target_size + size };
-    bool occured = collision::RayVsRectangle(origin, velocity, expanded_position, expanded_size, c);
-    c.occurs = occured && c.time < 1.0 && (c.time > 0.0 || math::Compare(c.time, 0.0)) && !c.normal.IsZero();
-    if (c.occurs) c.distance = (origin - (target_position + target_size / 2)).MagnitudeSquared();
-    return c;
-}
-
-std::pair<CollisionManifold, V2_double> CircleAABBSweep(const V2_double& rectangle_position, const V2_double& rectangle_size, const V2_double& start, const V2_double& end, double radius) {
-    const auto L = rectangle_position.x;
-    const auto T = rectangle_position.y;
-    const auto R = rectangle_position.x + rectangle_size.x;
-    const auto B = rectangle_position.y + rectangle_size.y;
-    // If the bounding box around the start and end points (+radius on all
-    // sides) does not intersect with the rectangle, definitely not an
-    // intersection
-    if ((std::max(start.x, end.x) + radius < L) ||
-        (std::min(start.x, end.x) - radius > R) ||
-        (std::max(start.y, end.y) + radius < T) ||
-        (std::min(start.y, end.y) - radius > B)) {
-        return {};
-    }
-    const auto dx = end.x - start.x;
-    const auto dy = end.y - start.y;
-    const auto invdx = (math::Compare(dx, 0.0) ? 0.0 : 1.0 / dx);
-    const auto invdy = (math::Compare(dy, 0.0) ? 0.0 : 1.0 / dy);
-    V2_double corner = V2_double::Maximum();
-    // Calculate intersection times with each side's plane
-    // Check each side's quadrant for single-side intersection
-    // Calculate Corner
-    // Left Side
-    // Does the circle go from the left side to the right side of the rectangle's left?
-    if (start.x - radius < L && end.x + radius > L) {
-        auto ltime = ((L - radius) - start.x) * invdx;
-        if ((ltime > 0.0 || math::Compare(ltime, 0.0)) && (ltime < 1.0 || math::Compare(ltime, 1.0))) {
-            auto ly = dy * ltime + start.y;
-            // Does the collisions point lie on the left side?
-            if ((ly > T || math::Compare(ly, T)) && (ly < B || math::Compare(ly, B))) {
-                // circle center: { dx * ltime + start.x, ly }
-                return { CollisionManifold({ L, ly }, { -1, 0 }, ltime), { dx * ltime + start.x, ly } };
-            }
-        }
-        corner.x = L;
-    }
-    // Right Side
-    // Does the circle go from the right side to the left side of the rectangle's right?
-    if (start.x + radius > R && end.x - radius < R) {
-        auto rtime = (start.x - (R + radius)) * -invdx;
-        if ((rtime > 0.0 || math::Compare(rtime, 0.0)) && (rtime < 1.0 || math::Compare(rtime, 1.0))) {
-            auto ry = dy * rtime + start.y;
-            // Does the collisions point lie on the right side?
-            if ((ry > T || math::Compare(ry, T)) && (ry < B || math::Compare(ry, B))) {
-                // circle center: { dx * rtime + start.x, ry }
-                return { CollisionManifold({ R, ry }, { 1, 0 }, rtime), { dx * rtime + start.x, ry } };
-            }
-        }
-        corner.x = R;
-    }
-    // Top Side
-    // Does the circle go from the top side to the bottom side of the rectangle's top?
-    if (start.y - radius < T && end.y + radius > T) {
-        auto ttime = ((T - radius) - start.y) * invdy;
-        if ((ttime > 0.0 || math::Compare(ttime, 0.0)) && (ttime < 1.0 || math::Compare(ttime, 1.0))) {
-            auto tx = dx * ttime + start.x;
-            // Does the collisions point lie on the top side?
-            if ((tx > L || math::Compare(tx, L)) && (tx < R || math::Compare(tx, R))) {
-                // circle center: { tx, dy * ttime + start.y }
-                return { CollisionManifold({ tx, T }, { 0, -1 }, ttime), { tx, dy * ttime + start.y } };
-            }
-        }
-        corner.y = T;
-    }
-    // Bottom Side
-    // Does the circle go from the bottom side to the top side of the rectangle's bottom?
-    if (start.y + radius > B && end.y - radius < B) {
-        auto btime = (start.y - (B + radius)) * -invdy;
-        if ((btime > 0.0 || math::Compare(btime, 0.0)) && (btime < 1.0 || math::Compare(btime, 1.0))) {
-            auto bx = dx * btime + start.x;
-            // Does the collisions point lie on the bottom side?
-            if ((bx > L || math::Compare(bx, L)) && (bx < R || math::Compare(bx, R))) {
-                // circle center: { bx, dy * btime + start.y }
-                return { CollisionManifold({ bx, B }, { 0, 1 }, btime), { bx, dy * btime + start.y } };
-            }
-        }
-        corner.y = B;
-    }
-    // No intersection at all!
-    if (math::Compare(corner.x, V2_double::Maximum().x) && math::Compare(corner.y, V2_double::Maximum().y)) {
-        return {};
-    }
-    // Account for the times where we don't pass over a side but we do hit it's corner
-    if (!math::Compare(corner.x, V2_double::Maximum().x) && math::Compare(corner.y, V2_double::Maximum().y)) {
-        corner.y = (dy > 0.0 ? B : T);
-    }
-    if (!math::Compare(corner.y, V2_double::Maximum().y) && math::Compare(corner.x, V2_double::Maximum().x)) {
-        corner.x = (dx > 0.0 ? R : L);
-    }
-    // Solve the triangle between the start, corner, and intersection point.
-     //
-     //           +-----------T-----------+
-     //           |                       |
-     //          L|                       |R
-     //           |                       |
-     //           C-----------B-----------+
-     //          / \
-     //         /   \r     _.-E
-     //        /     \ _.-'
-     //       /    _.-I
-     //      / _.-'
-     //     S-'
-     //
-     // S = start of circle's path
-     // E = end of circle's path
-     // LTRB = sides of the rectangle
-     // I = {ix, iY} = point at which the circle intersects with the rectangle
-     // C = corner of intersection (and collision point)
-     // C=>I (r) = {nx, ny} = radius and intersection normal
-     // S=>C = cornerdist
-     // S=>I = intersectionDistance
-     // S=>E = lineLength
-     // <S = innerAngle
-     // <I = angle1
-     // <C = angle2
-     //
-    double inverseRadius = 1.0 / radius;
-    double lineLength = std::sqrt(dx * dx + dy * dy);
-    double cornerdx = corner.x - start.x;
-    double cornerdy = corner.y - start.y;
-    double cornerDistance = std::sqrt(cornerdx * cornerdx + cornerdy * cornerdy);
-    double innerAngle = std::acos((cornerdx * dx + cornerdy * dy) / (lineLength * cornerDistance));
-    if (std::isnan(innerAngle)) innerAngle = 0.0; //debug::PrintLine((cornerdx * dx + cornerdy * dy) / lineLength, ", ", (cornerDistance));
-    
-    // If the circle is too close, no intersection.
-    if (cornerDistance < radius) {
-        return {};
-    }
-    // If inner angle is zero, it's going to hit the corner straight on.
-    if (math::Compare(innerAngle, 0.0)) {
-        double time = (double)((cornerDistance - radius) / lineLength);
-        // If time is outside the boundaries, return null. This algorithm can
-        // return a negative time which indicates a previous intersection, and
-        // can also return a time > 1.0 which can predict a corner intersection.
-        if (time > 1.0 || time < 0.0) {
-            return {};
-        }
-        auto ix = time * dx + start.x;
-        auto iy = time * dy + start.y;
-        auto nx = (double)(cornerdx / cornerDistance);
-        auto ny = (double)(cornerdy / cornerDistance);
-        // circle center: { ix, iy }
-        return { CollisionManifold({ corner.x, corner.y }, { nx, ny }, time), { ix, iy } };
-    }
-    double innerAngleSin = std::sin(innerAngle);
-    double angle1Sin = innerAngleSin * cornerDistance * inverseRadius;
-    // The angle is too large, there cannot be an intersection
-    if (std::abs(angle1Sin) > 1.0) {
-        return {};
-    }
-    double angle1 = math::PI<double> - std::asin(angle1Sin);
-    double angle2 = math::PI<double> - innerAngle - angle1;
-    double intersectionDistance = radius * std::sin(angle2) / innerAngleSin;
-    debug::PrintLine(intersectionDistance);
-    // Solve for time
-    double time = (double)(intersectionDistance / lineLength);
-    if (math::Compare(time, 0.0)) time = 0.0;
-    // If time is outside the boundaries, return null. This algorithm can
-    // return a negative time which indicates a previous intersection, and
-    // can also return a time > 1.0f which can predict a corner intersection.
-    if (time > 1.0 || time < 0.0) {
-        return {};
-    }
-    // Solve the intersection and normal
-    double ix = time * dx + start.x;
-    double iy = time * dy + start.y;
-    double nx = (double)((ix - corner.x) * inverseRadius);
-    double ny = (double)((iy - corner.y) * inverseRadius);
-    // circle center: { ix, iy }
-    return { CollisionManifold({ corner.x, corner.y }, { nx, ny }, time), { ix, iy } };
-}
-
-
-// Support function that returns the AABB vertex with index n
-V2_double Corner(V2_double min, V2_double max, int n) {
-    V2_double p;
-    p.x = ((n & 1) ? max.x : min.x);
-    p.y = ((n & 1) ? max.y : min.y);
-    return p;
-}
-struct Segment{
-    V2_double start;
-    V2_double end;
-};
-
-// Intersect ray R(t) = p + t*d against AABB a. When intersecting,
-// return intersection distance tmin and point q of intersection
-int IntersectRayAABB(V2_double p, V2_double d, V2_double amax, V2_double amin, double& tmin, V2_double& q) {
-    tmin = 0.0; // set to -FLT_MAX to get first hit on line
-    double tmax = DBL_MAX; // set to max distance ray can travel (for segment)
-    // For all three slabs
-    for (int i = 0; i < 2; i++) {
-        if (std::abs(d[i]) < math::EPSILON<double>) {
-            // Ray is parallel to slab. No hit if origin not within slab
-            if (p[i] < amin[i] || p[i] > amax[i]) return 0;
-        } else {
-            // Compute intersection t value of ray with near and far plane of slab
-            double ood = 1.0 / d[i];
-            double t1 = (amin[i] - p[i]) * ood;
-            double t2 = (amax[i] - p[i]) * ood;
-            // Make t1 be intersection with near plane, t2 with far plane
-            if (t1 > t2) std::swap(t1, t2);
-            // Compute the intersection of slab intersection intervals
-            if (t1 > tmin) tmin = t1;
-            if (t2 > tmax) tmax = t2;
-            // Exit with no collision as soon as slab intersection becomes empty
-            if (tmin > tmax) return 0;
-        }
-    }
-    // Ray intersects all 3 slabs. Return point (q) and intersection t value (tmin)
-    q = p + d * tmin;
-    return 1;
-}
-
-// Intersect segment S(t)=sa+t(sb-sa), 0<=t<=1 against cylinder specified by p, q and r
-int IntersectSegmentCapsule(V2_double sa, V2_double sb, V2_double p, V2_double q, double r, double& t) {
-    V2_double d = q - p, m = sa - p, n = sb - sa;
-    double md = m.DotProduct(d);
-    double nd = n.DotProduct(d);
-    double dd = d.DotProduct(d);
-    // Test if segment fully outside either endcap of cylinder
-    if (md < 0.0 && md + nd < 0.0) return 0; // Segment outside ’p’ side of cylinder
-    if (md > dd && md + nd > dd) return 0; // Segment outside ’q’ side of cylinder
-    double nn = n.DotProduct(n);
-    double mn = m.DotProduct(n);
-    double a = dd * nn - nd * nd;
-    double k = m.DotProduct(m) - r * r;
-    double c = dd * k - md * md;
-    if (std::abs(a) < math::EPSILON<double>) {
-        // Segment runs parallel to cylinder axis
-        if (c > 0.0) return 0; // ’a’ and thus the segment lie outside cylinder
-        // Now known that segment intersects cylinder; figure out how it intersects
-        if (md < 0.0) t = -mn / nn; // Intersect segment against ’p’ endcap
-        else if (md > dd) t = (nd - mn) / nn; // Intersect segment against ’q’ endcap
-        else t = 0.0; // ’a’ lies inside cylinder
-        return 1;
-    }
-    double b = dd * mn - nd * md;
-    double discr = b * b - a * c;
-    if (discr < 0.0) return 0; // No real roots; no intersection
-    t = (-b - math::Sqrt(discr)) / a;
-    if (t < 0.0 || t > 1.0) return 0; // Intersection lies outside segment
-    if (md + t * nd < 0.0) {
-        // Intersection outside cylinder on ’p’ side
-        if (nd <= 0.0) return 0; // Segment pointing away from endcap
-        t = -md / nd;
-        // Keep intersection if Dot(S(t) - p, S(t) - p) <= r∧2
-        return k + 2 * t * (mn + t * nn) <= 0.0;
-    } else if (md + t * nd > dd) {
-        // Intersection outside cylinder on ’q’ side
-        if (nd >= 0.0) return 0; // Segment pointing away from endcap
-        t = (dd - md) / nd;
-        // Keep intersection if Dot(S(t) - q, S(t) - q) <= r∧2
-        return k + dd - 2 * md + t * (2 * (mn - nd) + t * nn) <= 0.0;
-    }
-    // Segment intersects cylinder between the endcaps; t is correct
-    return 1;
-}
-int IntersectMovingSphereAABB(V2_double sc, double sr, V2_double d, V2_double rect_pos, V2_double rect_size, double& t, V2_double& normal, V2_double& p) {
-    // Compute the AABB resulting from expanding b by sphere radius r
-    auto min = rect_pos;
-    auto max = rect_pos + rect_size;
-    auto emin = rect_pos;
-    auto emax = rect_pos + rect_size;
-    emin.x -= sr; emin.y -= sr; 
-    emax.x += sr; emax.y += sr;
-    // Intersect ray against expanded AABB e. Exit with no intersection if ray
-    // misses e, else get intersection point p and time t as result
-    
-    if (!IntersectRayAABB(sc, d, emin, emax, t, p) || t > 1.0) {
-        return 0;
-    }
-    // Compute which min and max faces of b the intersection point p lies
-    // outside of. Note, u and v cannot have the same bits set and
-    // they must have at least one bit set among them
-    int u = 0, v = 0;
-    if (p.x < min.x) u |= 1;
-    if (p.x > max.x) v |= 1;
-    if (p.y < min.y) u |= 2;
-    if (p.y > max.y) v |= 2;
-    // ‘Or’ all set bits together into a bit mask (note: here u + v == u | v)
-    int m = u + v;
-    // Define line segment [c, c+d] specified by the sphere movement
-    Segment seg{ sc, sc + d };
-    // If all 3 bits set (m == 7) then p is in a vertex region
-    if (m == 3) {
-        // Must now intersect segment [c, c+d] against the capsules of the three
-        // edges meeting at the vertex and return the best time, if one or more hit
-        double tmin = DBL_MAX;
-        if (IntersectSegmentCapsule(sc, sc + d, Corner(min, max, v), Corner(min, max, v ^ 1), sr, t)) {
-            tmin = std::min(t, tmin);
-        }
-        if (IntersectSegmentCapsule(sc, sc + d, Corner(min, max, v), Corner(min, max, v ^ 2), sr, t)) {
-            tmin = std::min(t, tmin);
-        }
-        if (tmin == DBL_MAX) return 0; // No intersection
-        t = tmin;
-        return 1; // Intersection at time t == tmin
-    }
-    // If only one bit set in m, then p is in a face region
-    if ((m & (m - 1)) == 0) {
-        // Do nothing. Time t from intersection with
-        // expanded box is correct intersection time
-        return 1;
-    }
-    // p is in an edge region. Intersect against the capsule at the edge
-    return IntersectSegmentCapsule(sc, sc + d, Corner(min, max, u ^ 3), Corner(min, max, v), sr, t);
-}
-// @return Struct containing collision information about the sweep.
-
-
-
-
 template <typename T>
-class Test {
+class CollisionQuery {
 public:
     // Currently, only a dynamic query is supported.  A static query will
     // need to compute the intersection set of (solid) box and circle.
@@ -1192,11 +375,11 @@ protected:
 
                 }
             } else {
-                    EdgeUnbounded(0, 1, K, C, radius, delta, V, result, circle);
+                EdgeUnbounded(0, 1, K, C, radius, delta, V, result, circle);
             }
         } else {
             if (delta[0] < radius) {
-                    EdgeUnbounded(1, 0, K, C, radius, delta, V, result, circle);
+                EdgeUnbounded(1, 0, K, C, radius, delta, V, result, circle);
             } else {
                 VertexUnbounded(K, C, radius, delta, V, result, circle);
             }
@@ -1258,7 +441,7 @@ private:
                 delta1[i1] = C[i1] - K1[i1];
                 T dotVPerpD1 = V[i0] * delta1[i1] - V[i1] * delta1[i0];
                 if (radius * V[i1] + dotVPerpD1 < (T)0) {
-                        IntersectsEdge(i0, i1, K0, C, radius, V, result);
+                    IntersectsEdge(i0, i1, K0, C, radius, V, result);
                 } else {
                     T q2 = V.DotProduct(V);
                     T q1 = radius * radius * q2 - dotVPerpD1 * dotVPerpD1;
@@ -1340,20 +523,91 @@ private:
     }
 };
 
+} // namespace internal
 
 // @return Struct containing collision information about the sweep.
-static CollisionManifold SweepCircleVsCircle(const V2_double& origin, const double& radius, const V2_double& velocity, const V2_double& target_position, const double& target_radius) {
-    double close, far;
-    collision::CollisionManifold c = collision::internal::SphereSphereSweep(radius, origin, origin + velocity, target_radius, target_position, target_position, close, far, velocity, false);
-    c.occurs = c.occurs && c.time < 1.0 && (c.time > 0.0 || math::Compare(c.time, 0.0)) && !c.normal.IsZero();
+CollisionManifold DynamicRectangleVsRectangle(const V2_double& position,
+                                              const V2_double& size, 
+                                              const V2_double& target_position, 
+                                              const V2_double& target_size,
+                                              const V2_double& velocity) {
+    collision::CollisionManifold c;
+    V2_double expanded_position{ target_position - target_size / 2.0 };
+    V2_double expanded_size{ target_size + size };
+    bool occured = collision::internal::RayVsRectangle(position + size / 2, velocity, expanded_position, expanded_size, c);
+    c.occurs = occured && c.time < 1.0 && (c.time > 0.0 || math::Compare(c.time, 0.0)) && !c.normal.IsZero();
+    if (c.occurs) c.distance = (position + size / 2 - (target_position + target_size / 2)).MagnitudeSquared();
     return c;
 }
 
-static CollisionManifold SweepCircleVsAABB(const V2_double& origin, const double& radius, const V2_double& velocity, const V2_double& target_position, const V2_double& target_size) {
+// @return Struct containing collision information about the sweep.
+CollisionManifold DynamicCircleVsCircle(const V2_double& position,
+                                        const V2_double& size,
+                                        const V2_double& target_position,
+                                        const V2_double& target_size,
+                                        const V2_double& velocity) {
+    const double radius{ size.x };
+    const double target_radius{ target_size.x };
+    double u0, u1;
+    const V2_double AB = target_position - position; // vector from A0 to B0
+    const double rab = radius + target_radius; // combined radius
+    const auto rel_vel = -velocity;
+    const double a = rel_vel.DotProduct(rel_vel); //u*u coefficient
+    const double b = 2 * rel_vel.DotProduct(AB); //u coefficient
+    const double c = AB.DotProduct(AB) - rab * rab;
+
+    collision::CollisionManifold collision;
+
+    // TODO: Figure out how to reintroduce this without causing sticking.
+    // constant term, check if they're currently overlapping.
+    /*if (AB.DotProduct(AB) <= rab * rab) {
+        u0 = 0;
+        u1 = 0;
+        auto new_origin = position + rel_vel * u0;
+        collision::CollisionManifold collision;
+        collision.occurs = true;
+        collision.distance = (position - target_position).MagnitudeSquared();
+        collision.normal = (new_origin - target_position).Unit();
+        collision.time = u0;
+        collision.point = new_origin;
+        // TODO: Put an else here and connect to the below if-statement when introducing this
+    }*/
+
+    // check if they hit each other during the frame.
+    if (internal::QuadraticFormula(a, b, c, u0, u1)) {
+        if (u0 > u1)
+            std::swap(u0, u1);
+        // TODO: Check that this is accurate to theory:
+        // https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
+        if (math::Compare(u0, u1)) {
+            u0 = 1.0;
+            u1 = 1.0;
+        }
+        // TODO: Clean this up.
+        auto new_origin = position + rel_vel * u0;
+        collision.occurs = true;
+        collision.distance = (position - target_position).MagnitudeSquared();
+        collision.normal = (new_origin - target_position).Unit();
+        collision.time = u0;
+        collision.point = new_origin;
+    } else {
+        collision.time = 1.0;
+    }
+    collision.occurs = collision.occurs && collision.time < 1.0 && (collision.time > 0.0 || math::Compare(collision.time, 0.0)) && !collision.normal.IsZero();
+    return collision;
+}
+
+CollisionManifold DynamicCircleVsRectangle(const V2_double& position, 
+                                           const V2_double& size, 
+                                           const V2_double& target_position, 
+                                           const V2_double& target_size,
+                                           const V2_double& velocity) {
+    // TODO: Combine the collision query and manifold functions.
+    const double radius{ size.x };
     collision::CollisionManifold cnew;
-    Test<double> test;
-    auto c = test(target_position, target_position + target_size, {}, origin, radius, velocity);
-    V2_double normal = (origin + velocity * c.contactTime - c.contactPoint).Unit();
+    internal::CollisionQuery<double> query;
+    auto c = query(target_position, target_position + target_size, {}, position, radius, velocity);
+    V2_double normal = (position + velocity * c.contactTime - c.contactPoint).Unit();
     if (c.intersectionType == 1) {
         if ((c.contactTime < 1.0 || math::Compare(c.contactTime, 1.0)) && (c.contactTime > 0.0 || math::Compare(c.contactTime, 0.0))) {
             cnew.normal = normal;
@@ -1369,9 +623,9 @@ static CollisionManifold SweepCircleVsAABB(const V2_double& origin, const double
             cnew = {};
             V2_double expanded_position{ target_position - radius };
             V2_double expanded_size{ target_size + radius * 2 };
-            bool occured = collision::RayVsRectangle(origin, velocity, expanded_position, expanded_size, cnew);
+            bool occured = collision::internal::RayVsRectangle(position, velocity, expanded_position, expanded_size, cnew);
             cnew.occurs = occured && cnew.time < 1.0 && (cnew.time > 0.0 || math::Compare(cnew.time, 0.0)) && !cnew.normal.IsZero();
-            if (cnew.occurs) cnew.distance = (origin - (target_position + target_size / 2)).MagnitudeSquared();
+            if (cnew.occurs) cnew.distance = (position - (target_position + target_size / 2)).MagnitudeSquared();
         } else {
             cnew.normal = normal;
             cnew.time = c.contactTime;
@@ -1382,31 +636,39 @@ static CollisionManifold SweepCircleVsAABB(const V2_double& origin, const double
     return cnew;
 }
 
-static CollisionManifold SweepRectangleVsCircle(const V2_double& origin, const V2_double& size, const V2_double& velocity, const V2_double& target_position, const double& target_radius) {
-    return SweepCircleVsAABB(target_position, target_radius, -velocity, origin - size / 2, size);
+CollisionManifold DynamicRectangleVsCircle(const V2_double& position, 
+                                           const V2_double& size, 
+                                           const V2_double& target_position, 
+                                           const V2_double& target_size,
+                                           const V2_double& velocity) {
+    return DynamicCircleVsRectangle(target_position, target_size, position, size, -velocity);
 }
 
-} // namespace internal
-
-template <typename T, typename S, typename U>
-void Sweep(const V2_double& position, const S& size, V2_double& velocity, const std::vector<V2_double>& target_positions, const std::vector<U>& target_sizes, const std::vector<V2_double>& target_velocities, T lambda) {
+template <typename T>
+void Sweep(const V2_double& position,
+           const V2_double& size,
+           V2_double& out_velocity,
+           const std::vector<V2_double>& target_positions,
+           const std::vector<V2_double>& target_sizes,
+           const std::vector<V2_double>& target_velocities,
+           T lambda) {
     std::vector<CollisionManifold> collisions;
     V2_double final_velocity;
-    if (!velocity.IsZero()) {
+    if (!out_velocity.IsZero()) {
         assert(target_positions.size() == target_sizes.size());
         bool use_relative_velocity{ target_velocities.size() == target_positions.size() };
         for (std::size_t i = 0; i < target_positions.size(); ++i) {
-            V2_double relative_velocity = velocity;
+            V2_double relative_velocity = out_velocity;
             if (use_relative_velocity) relative_velocity -= target_velocities[i];
-            const CollisionManifold collision = lambda(position, size, relative_velocity, target_positions[i], target_sizes[i]);
+            const CollisionManifold collision = lambda(position, size, target_positions[i], target_sizes[i], relative_velocity);
             if (collision.occurs) {
                 collisions.push_back(collision);
             }
         }
         internal::SortCollisionTimes(collisions);
         if (collisions.size() > 0) {
-            V2_double new_velocity = internal::GetNewVelocity(velocity, collisions[0]);
-            final_velocity += velocity * collisions[0].time;
+            V2_double new_velocity = internal::GetNewVelocity(out_velocity, collisions[0]);
+            final_velocity += out_velocity * collisions[0].time;
             // Potential alternative solution to corner clipping:
             //new_origin = origin + (velocity * collisions[0].time - velocity.Unit() * epsilon);
             std::vector<CollisionManifold> collisions2;
@@ -1415,9 +677,9 @@ void Sweep(const V2_double& position, const S& size, V2_double& velocity, const 
             //draw::Circle(new_position, size, color::BLUE);
             if (!new_velocity.IsZero()) {
                 for (std::size_t i = 0; i < target_positions.size(); ++i) {
-                    V2_double relative_velocity = new_velocity;
-                    if (use_relative_velocity) relative_velocity -= target_velocities[i];
-                    const CollisionManifold collision = lambda(new_position, size, new_velocity, target_positions[i], target_sizes[i]);
+                    V2_double new_relative_velocity = new_velocity;
+                    if (use_relative_velocity) new_relative_velocity -= target_velocities[i];
+                    const CollisionManifold collision = lambda(new_position, size, target_positions[i], target_sizes[i], new_relative_velocity);
                     if (collision.occurs) {
                         collisions2.push_back(collision);
                     }
@@ -1435,51 +697,49 @@ void Sweep(const V2_double& position, const S& size, V2_double& velocity, const 
                 }
             }
         } else {
-            final_velocity += velocity;
+            final_velocity += out_velocity;
         }
     }
-    velocity = final_velocity;
+    out_velocity = final_velocity;
 }
-
-
 
 namespace internal {
 
-using CollisionCallback = Manifold(*)(const component::Transform& A,
-									  const component::Transform& B,
-									  const component::Shape& a,
-									  const component::Shape& b);
+using CollisionCallback = Manifold(*)(const V2_double& A_position,
+                                      const V2_double& B_position,
+                                      const V2_double& A_size,
+                                      const V2_double& B_size);
 
 extern CollisionCallback StaticCollisionDispatch
-[static_cast<int>(ptgn::physics::ShapeType::COUNT)]
-[static_cast<int>(ptgn::physics::ShapeType::COUNT)];
+[static_cast<int>(physics::ShapeType::COUNT)]
+[static_cast<int>(physics::ShapeType::COUNT)];
 
-Manifold StaticAABBvsAABB(const component::Transform& A,
-						  const component::Transform& B,
-						  const component::Shape& a,
-						  const component::Shape& b);
+Manifold StaticAABBvsAABB(const V2_double& A_position,
+                          const V2_double& B_position,
+                          const V2_double& A_size,
+                          const V2_double& B_size);
 
-Manifold StaticCirclevsCircle(const component::Transform& A,
-							  const component::Transform& B,
-							  const component::Shape& a,
-							  const component::Shape& b);
+Manifold StaticCirclevsCircle(const V2_double& A_position,
+                              const V2_double& B_position,
+                              const V2_double& A_size,
+                              const V2_double& B_size);
 
-Manifold StaticAABBvsCircle(const component::Transform& A,
-							const component::Transform& B,
-							const component::Shape& a,
-							const component::Shape& b);
+Manifold StaticAABBvsCircle(const V2_double& A_position,
+                            const V2_double& B_position,
+                            const V2_double& A_size,
+                            const V2_double& B_size);
 
-Manifold StaticCirclevsAABB(const component::Transform& A,
-							const component::Transform& B,
-							const component::Shape& a,
-							const component::Shape& b);
+Manifold StaticCirclevsAABB(const V2_double& A_position,
+                            const V2_double& B_position,
+                            const V2_double& A_size,
+                            const V2_double& B_size);
 
 } // namespace internal
 
-Manifold StaticIntersection(const component::Transform& A,
-							const component::Transform& B,
-							const component::Shape& a,
-							const component::Shape& b);
+Manifold StaticIntersection(const V2_double& A_position,
+                            const V2_double& B_position,
+                            const V2_double& A_size,
+                            const V2_double& B_size);
 
 void Clear(ecs::Manager& manager);
 
@@ -1488,10 +748,10 @@ void Update(ecs::Manager& manager, double dt);
 void Resolve(ecs::Manager& manager);
 
 // Check if two AABBs overlap.
-bool AABBvsAABB(const component::Transform& A,
-				const component::Transform& B,
-				const component::Shape& a,
-				const component::Shape& b);
+bool AABBvsAABB(const V2_double& A_position,
+                const V2_double& B_position,
+                const V2_double& A_size,
+                const V2_double& B_size);
 
 } // namespace collision
 

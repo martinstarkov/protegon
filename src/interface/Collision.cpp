@@ -10,28 +10,23 @@ namespace collision {
 namespace internal {
 
 CollisionCallback StaticCollisionDispatch
-[static_cast<int>(ptgn::physics::ShapeType::COUNT)]
-[static_cast<int>(ptgn::physics::ShapeType::COUNT)] = {
+[static_cast<int>(physics::ShapeType::COUNT)]
+[static_cast<int>(physics::ShapeType::COUNT)] = {
     { StaticCirclevsCircle, StaticCirclevsAABB },
     { StaticAABBvsCircle, StaticAABBvsAABB }
 };
 
-Manifold StaticAABBvsAABB(const component::Transform& A,
-						  const component::Transform& B,
-						  const component::Shape& a,
-						  const component::Shape& b) {
-	assert(a.instance != nullptr && "Cannot generate manifold for non-existent shape");
-	assert(b.instance != nullptr && "Cannot generate manifold for non-existent shape");
-	
-	physics::Rectangle aabb_A{ a.instance->CastTo<physics::Rectangle>() };
-	physics::Rectangle aabb_B{ b.instance->CastTo<physics::Rectangle>() };
+Manifold StaticAABBvsAABB(const V2_double& A_position,
+						  const V2_double& B_position,
+						  const V2_double& A_size,
+						  const V2_double& B_size) {
 
 	// Use center positions.
-	const auto half_A{ aabb_A.size / 2.0 };
-	const auto half_B{ aabb_B.size / 2.0 };
+	const auto half_A{ A_size / 2.0 };
+	const auto half_B{ B_size / 2.0 };
 
-	auto top_left_A{ A.position };
-	auto top_left_B{ B.position };
+	auto top_left_A{ A_position };
+	auto top_left_B{ B_position };
 
 	top_left_A += half_A;
 	top_left_B += half_B;
@@ -69,21 +64,18 @@ Manifold StaticAABBvsAABB(const component::Transform& A,
 	return manifold;
 }
 
-Manifold StaticCirclevsCircle(const component::Transform& A,
-							  const component::Transform& B,
-							  const component::Shape& a,
-							  const component::Shape& b) {
-	assert(a.instance != nullptr && "Cannot generate manifold for destroyed shape");
-	assert(b.instance != nullptr && "Cannot generate manifold for destroyed shape");
-
+Manifold StaticCirclevsCircle(const V2_double& A_position,
+							  const V2_double& B_position,
+							  const V2_double& A_size,
+							  const V2_double& B_size) {
 	Manifold manifold;
 
-	physics::Circle circle_A{ a.instance->CastTo<physics::Circle>() };
-	physics::Circle circle_B{ b.instance->CastTo<physics::Circle>() };
+	auto A_radius{ A_size.x };
+	auto B_radius{ B_size.x };
 
-	auto normal{ B.position - A.position };
+	auto normal{ B_position - A_position };
 	auto distance_squared{ normal.MagnitudeSquared() };
-	auto sum_radius{ circle_A.radius + circle_B.radius };
+	auto sum_radius{ A_radius + B_radius };
 
 	// Collision did not occur.
 	if (distance_squared >= sum_radius * sum_radius) {
@@ -98,36 +90,31 @@ Manifold StaticCirclevsCircle(const component::Transform& A,
 	// Bias toward selecting A for exact overlap edge case.
 	if (distance == 0.0) {
 		manifold.normal = { 1, 0 };
-		manifold.penetration = circle_A.radius * manifold.normal;
-		contact_point = A.position;
+		manifold.penetration = A_radius * manifold.normal;
+		contact_point = A_position;
 	} else {
 		// Normalise collision vector.
 		manifold.normal = normal / distance;
 		// Find the amount by which circles overlap.
 		manifold.penetration = (sum_radius - distance) * manifold.normal;
 		// Find point of collision from A.
-		contact_point = manifold.normal * circle_A.radius + A.position;
+		contact_point = manifold.normal * A_radius + A_position;
 	}
 
 	manifold.contact_point = contact_point;
 	return manifold;
 }
 
-Manifold StaticAABBvsCircle(const component::Transform& A,
-							const component::Transform& B,
-							const component::Shape& a,
-							const component::Shape& b) {
-	assert(a.instance != nullptr && "Cannot generate manifold for destroyed shape");
-	assert(b.instance != nullptr && "Cannot generate manifold for destroyed shape");
-
-	physics::Rectangle aabb{ a.instance->CastTo<physics::Rectangle>() };
-	physics::Circle circle{ b.instance->CastTo<physics::Circle>() };
-
+Manifold StaticAABBvsCircle(const V2_double& A_position,
+							const V2_double& B_position,
+							const V2_double& A_size,
+							const V2_double& B_size) {
 	Manifold manifold;
 
-	auto center{ B.position };
-	auto aabb_half_extents{ aabb.size / 2.0 };
-	auto aabb_center{ A.position + aabb_half_extents };
+	auto circle_radius{ B_size.x };
+	auto center{ B_position };
+	auto aabb_half_extents{ A_size / 2.0 };
+	auto aabb_center{ A_position + aabb_half_extents };
 	auto difference{ center - aabb_center };
 	auto original_difference{ difference };
 	auto clamped{ math::Clamp(difference, -aabb_half_extents, aabb_half_extents) };
@@ -136,17 +123,17 @@ Manifold StaticAABBvsCircle(const component::Transform& A,
 	difference = closest - center;
 	bool inside{ original_difference == clamped };
 
-	if (difference.MagnitudeSquared() <= circle.radius * circle.radius) {
+	if (difference.MagnitudeSquared() <= circle_radius * circle_radius) {
 
 		manifold.normal = -difference.Identity();
-		auto penetration{ circle.radius * math::Abs(difference.Normalize()) - math::Abs(difference) };
+		auto penetration{ circle_radius * math::Abs(difference.Normalize()) - math::Abs(difference) };
 		manifold.penetration = math::Abs(penetration) * manifold.normal;
 		manifold.contact_point = closest;
 
 		if (inside) {
 
 			manifold.normal = {};
-			manifold.contact_point = B.position;
+			manifold.contact_point = B_position;
 
 			if (original_difference.x >= 0) {
 				manifold.normal.x = 1;
@@ -167,17 +154,17 @@ Manifold StaticAABBvsCircle(const component::Transform& A,
 				manifold.normal.y = 0;
 			}
 
-			manifold.penetration = (penetration + circle.radius) * manifold.normal;
+			manifold.penetration = (penetration + circle_radius) * manifold.normal;
 		}
 	}
 	return manifold;
 }
 
-Manifold StaticCirclevsAABB(const component::Transform& A,
-							const component::Transform& B,
-							const component::Shape& a,
-							const component::Shape& b) {
-	Manifold manifold{ StaticAABBvsCircle(B, A, b, a) };
+Manifold StaticCirclevsAABB(const V2_double& A_position,
+							const V2_double& B_position,
+							const V2_double& A_size,
+							const V2_double& B_size) {
+	Manifold manifold{ StaticAABBvsCircle(B_position, A_position, B_size, A_size) };
 	manifold.normal *= -1;
 	manifold.penetration *= -1;
 	return manifold;
@@ -185,11 +172,13 @@ Manifold StaticCirclevsAABB(const component::Transform& A,
 
 } // namespace internal
 
-Manifold StaticIntersection(const component::Transform& A,
-							const component::Transform& B,
-							const component::Shape& a,
-							const component::Shape& b) {
-	return internal::StaticCollisionDispatch[static_cast<int>(a.instance->GetType())][static_cast<int>(b.instance->GetType())](A, B, a, b);
+Manifold StaticIntersection(const V2_double& A_position,
+							const V2_double& B_position,
+							const V2_double& A_size,
+							const V2_double& B_size,
+							const physics::ShapeType& a_type,
+							const physics::ShapeType& b_type) {
+	return internal::StaticCollisionDispatch[static_cast<int>(a_type)][static_cast<int>(b_type)](A_position, B_position, A_size, B_size);
 }
 
 void Clear(ecs::Manager& manager) {
@@ -253,17 +242,13 @@ void Resolve(ecs::Manager& manager) {
 	// TODO: Figure out how to resolve different types of collisions. Lambdas with template args? Component approach?
 }
 
-bool AABBvsAABB(const component::Transform& A,
-				const component::Transform& B,
-				const component::Shape& a,
-				const component::Shape& b) {
-	assert(a.instance != nullptr && "Cannot generate manifold for non-existent shape");
-	assert(b.instance != nullptr && "Cannot generate manifold for non-existent shape");
-	physics::Rectangle aabb{ a.instance->CastTo<physics::Rectangle>() };
-	physics::Rectangle aabb2{ b.instance->CastTo<physics::Rectangle>() };
+bool AABBvsAABB(const V2_double& A_position,
+				const V2_double& B_position,
+				const V2_double& A_size,
+				const V2_double& B_size) {
 	// If any side of the aabb it outside the other aabb, there cannot be an overlap.
-	if (A.position.x + aabb.size.x <= B.position.x || A.position.x >= B.position.x + aabb2.size.x) return false;
-	if (A.position.y + aabb.size.y <= B.position.y || A.position.y >= B.position.y + aabb2.size.y) return false;
+	if (A_position.x + A_size.x <= B_position.x || A_position.x >= B_position.x + B_size.x) return false;
+	if (A_position.y + A_size.y <= B_position.y || A_position.y >= B_position.y + B_size.y) return false;
 	return true;
 }
 
