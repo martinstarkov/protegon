@@ -93,11 +93,11 @@ inline bool RayVsRectangle(const V2_double& ray_origin, const V2_double& ray_dir
     out_collision.point = { 0.0, 0.0 };
 
     // Cache division.
-    auto inv_dir = 1.0 / ray_dir;
+    V2_double inv_dir = 1.0 / ray_dir;
 
     // Calculate intersections with rectangle bounding axes.
-    auto t_near = (position - ray_origin) * inv_dir;
-    auto t_far = (position + size - ray_origin) * inv_dir;
+    V2_double t_near = (position - ray_origin) * inv_dir;
+    V2_double t_far = (position + size - ray_origin) * inv_dir;
 
     // Discard 0 / 0 divisions.
     if (std::isnan(t_far.y) || std::isnan(t_far.x)) return false;
@@ -154,76 +154,16 @@ inline bool RayVsRectangle(const V2_double& ray_origin, const V2_double& ray_dir
 inline bool QuadraticFormula(const double a, const double b, const double c,
                              double& r1, double& r2) { // first and second roots.
     const double q = b * b - 4 * a * c;
-    if (q < 0 || math::Compare(q, 0.0)) {
+    if (q < 0 || math::Compare(q, 0.0, std::numeric_limits<double>::epsilon())) {
         r1 = r2 = 1.0;
         return false; // complex or repeated roots.
     } else {
-        const double sq = sqrt(q);
-        const double d = 1 / (2 * a);
+        const double sq = std::sqrt(q);
+        const double d = 0.5 / a;
         r1 = (-b + sq) * d;
         r2 = (-b - sq) * d;
-        return true; //real roots.
+        return true; // real roots.
     }
-}
-
-CollisionManifold SweepCircleVsCircle(const double ra, //radius of sphere A
-                                      const V2_double& A0, //previous position of sphere A
-                                      const V2_double& A1, //current position of sphere A
-                                      const double rb, //radius of sphere B
-                                      const V2_double& B0, //previous position of sphere B
-                                      const V2_double& B1, //current position of sphere B
-                                      const V2_double& velocity) {
-    double u0;
-    double u1;
-    const V2_double va = A1 - A0;//vector from A0 to A1
-    const V2_double vb = B1 - B0; //vector from B0 to B1
-    const V2_double AB = B0 - A0; //vector from A0 to B0
-    const V2_double vab = vb - va; //relative velocity (in normalized time)
-    const double rab = ra + rb; // combined radius
-    const double a = vab.DotProduct(vab); //u*u coefficient
-    const double b = 2 * vab.DotProduct(AB); //u coefficient
-    const double c = AB.DotProduct(AB) - rab * rab;
-
-    // TODO: Figure out how to reintroduce this without causing sticking.
-    // constant term, check if they're currently overlapping.
-    /*if (AB.DotProduct(AB) <= rab * rab) {
-        u0 = 0;
-        u1 = 0;
-        auto new_origin = A0 + velocity * u0;
-        auto normal = (new_origin - B0).Unit();
-        collision::CollisionManifold collision;
-        collision.occurs = true;
-        collision.distance = (A0 - B0).MagnitudeSquared();
-        collision.normal = normal;
-        collision.time = u0;
-        collision.point = new_origin;
-        return collision;
-    }*/
-
-    collision::CollisionManifold collision;
-    // check if they hit each other during the frame.
-    if (QuadraticFormula(a, b, c, u0, u1)) {
-        if (u0 > u1)
-            std::swap(u0, u1);
-        // TODO: Check that this is accurate to theory:
-        // https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
-        if (math::Compare(u0, u1)) {
-            u0 = 1.0;
-            u1 = 1.0;
-        }
-        // TODO: Clean this up.
-        auto new_origin = A0 + velocity * u0;
-        auto normal = (new_origin - B0).Unit();
-        collision.occurs = true;
-        collision.distance = (A0 - B0).MagnitudeSquared();
-        collision.normal = normal;
-        collision.time = u0;
-        collision.point = new_origin;
-        return collision;
-    }
-    collision.time = 1.0;
-    return collision;
-
 }
 
 void SortCollisionTimes(std::vector<CollisionManifold>& collisions) {
@@ -543,6 +483,10 @@ CollisionManifold DynamicRectangleVsRectangle(const V2_double& position,
 // TODO: This function is not clip proof. Figure out why the clipping occurs:
 // HINT: It most likely occurs due to the quadratic formula solution being 
 // within 1e-10 of 0.0 due to floating point error.
+// UPDATE: Potentially fixed? I tried testing for 10 minutes and could not
+// see it occuring so perhaps making the epsilon be std::numeric_limits or
+// removing the compare u0 u1 which set t=1.0 did the trick. Keeping this
+// comment here in case this clipping arises again in the future.
 // @return Struct containing collision information about the sweep.
 CollisionManifold DynamicCircleVsCircle(const V2_double& position,
                                         const V2_double& size,
@@ -583,11 +527,6 @@ CollisionManifold DynamicCircleVsCircle(const V2_double& position,
             std::swap(u0, u1);
         // TODO: Check that this is accurate to theory:
         // https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
-        if (math::Compare(u0, u1)) {
-            u0 = 1.0;
-            u1 = 1.0;
-        }
-        // TODO: Clean this up.
         auto new_origin = position + rel_vel * u0;
         collision.occurs = true;
         collision.distance = (position - target_position).MagnitudeSquared();
