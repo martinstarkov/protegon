@@ -4,14 +4,18 @@ namespace ptgn {
 
 namespace internal {
 
+namespace managers {
+
 class SDLManager {
 public:
 	SDLManager();
     ~SDLManager();
 };
 
+} // namespace managers
+
 // Calling this function ensures that all SDL systems have been initialized.
-SDLManager& GetSDLManager();
+managers::SDLManager& GetSDLManager();
 
 } // namespace internal
 

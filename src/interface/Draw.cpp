@@ -1,6 +1,9 @@
 #include "Draw.h"
 
-#include "renderer/Renderer.h"
+#include "managers/RendererManager.h"
+#include "managers/TextManager.h"
+
+// TODO: Fix this...
 
 namespace ptgn {
 
@@ -60,39 +63,48 @@ void SetColor(const Color& color) {
 }
 
 void Texture(const char* texture_key,
-			 const V2_int& position,
-			 const V2_int& size,
+			 const V2_int& texture_position,
+			 const V2_int& texture_size,
 			 const V2_int& source_position,
 			 const V2_int& source_size) {
 	auto& renderer{ services::GetRenderer() };
-	renderer.DrawTexture(texture_key, position, size, source_position, source_size);
+	renderer.DrawTexture(texture_key, texture_position, texture_size, source_position, source_size);
 }
 
 void Texture(const char* texture_key,
-			 const V2_int& position,
-			 const V2_int& size,
+			 const V2_int& texture_position,
+			 const V2_int& texture_size,
 			 const V2_int& source_position,
 			 const V2_int& source_size,
 			 const V2_int* center_of_rotation,
 			 const double angle,
 			 Flip flip) {
 	auto& renderer{ services::GetRenderer() };
-	renderer.DrawTexture(texture_key, position, size, source_position, source_size, center_of_rotation, angle, flip);
+	renderer.DrawTexture(texture_key, texture_position, texture_size, source_position, source_size, center_of_rotation, angle, flip);
 }
 
 void Text(const char* text_key,
-		  const V2_int& position,
-		  const V2_int& size) {
+		  const V2_int& text_position,
+		  const V2_int& text_size) {
 	auto& renderer{ services::GetRenderer() };
-	renderer.DrawText(text_key, position, size);
+	renderer.DrawText(text_key, text_position, text_size);
 }
 
-void UI(const char* ui_key,
-		const V2_int& position,
-		const V2_int& size) {
+void Text(const char* font_key,
+		  const char* text_content,
+		  const V2_int& text_position,
+		  const V2_int& text_size,
+		  const Color& text_color) {
 	auto& renderer{ services::GetRenderer() };
-	renderer.DrawUI(ui_key, position, size);
+	renderer.DrawText(font_key, text_content, text_position, text_size, text_color);
 }
+
+//void UI(const char* ui_key,
+//		const V2_int& position,
+//		const V2_int& size) {
+//	auto& renderer{ services::GetRenderer() };
+//	renderer.DrawUI(ui_key, position, size);
+//}
 
 void Point(const V2_int& point,
 		   const Color& color) {

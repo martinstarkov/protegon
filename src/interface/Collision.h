@@ -9,7 +9,7 @@
 #include "core/ECS.h"
 #include "physics/Collider.h"
 #include "physics/Shape.h"
-#include "core/Transform.h"
+#include "components/Transform.h"
 #include "physics/RigidBody.h"
 
 // TODO: TEMPORARY

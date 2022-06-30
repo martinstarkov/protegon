@@ -6,7 +6,8 @@ namespace ptgn {
 
 namespace font {
 
-/* Load a font into the font manager.
+/* 
+* Load a font into the font manager.
 * @param font_point_size Point size (based on 72 DPI). This translates to pixel height.
 * @param font_face_index Font face index, the first face is 0.
 */
