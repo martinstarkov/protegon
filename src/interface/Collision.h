@@ -682,7 +682,9 @@ Manifold StaticCirclevsAABB(const V2_double& A_position,
 Manifold StaticIntersection(const V2_double& A_position,
                             const V2_double& B_position,
                             const V2_double& A_size,
-                            const V2_double& B_size);
+                            const V2_double& B_size,
+                            const physics::ShapeType& a_type,
+                            const physics::ShapeType& b_type);
 
 void Clear(ecs::Manager& manager);
 
