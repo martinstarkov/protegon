@@ -9,7 +9,7 @@ namespace ptgn {
 
 namespace internal {
 
-struct Music {
+class Music {
 public:
 	Music() = delete;
 	/*
@@ -19,18 +19,11 @@ public:
 	~Music();
 
 	void Play(int loops) const;
-	void Stop() const;
 	void FadeIn(int loops, milliseconds time) const;
-	void FadeOut(milliseconds time) const;
-	void Pause() const;
-	void Resume() const;
-	bool IsPlaying() const;
-	bool IsPaused() const;
-	bool IsFading() const;
 
 	operator Mix_Music*() const;
 private:
-	Mix_Music* music_;
+	Mix_Music* music_{ nullptr };
 };
 
 } // namespace internal

@@ -9,9 +9,9 @@ namespace ptgn {
 
 namespace internal {
 
-struct Font {
+class Font {
 public:
-	Font() = delete;
+	Font() = default;
 	/*
 	* @param font_path Path to font file.
 	* @param point_size Point size (based on 72 DPI). This translates to pixel height.
@@ -22,7 +22,7 @@ public:
 	std::int32_t GetHeight() const;
 	operator TTF_Font*() const;
 private:
-	TTF_Font* font_;
+	TTF_Font* font_{ nullptr };
 };
 
 } // namespace internal

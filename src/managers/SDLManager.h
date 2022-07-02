@@ -1,21 +1,28 @@
 #pragma once
 
+#include "managers/ResourceManager.h"
+
 namespace ptgn {
 
 namespace internal {
 
 namespace managers {
 
-class SDLManager {
+class SDLSystemManager {
 public:
-	SDLManager();
-    ~SDLManager();
+	SDLSystemManager();
+	~SDLSystemManager();
+};
+
+template <typename T>
+class SDLManager : public ResourceManager<T> {
+public:
+	SDLManager() {
+		GetManager<SDLSystemManager>();
+	}
 };
 
 } // namespace managers
-
-// Calling this function ensures that all SDL systems have been initialized.
-managers::SDLManager& GetSDLManager();
 
 } // namespace internal
 

@@ -1,9 +1,9 @@
 #include "Font.h"
 
-#include "debugging/Debug.h"
-
 #include <SDL.h>
 #include <SDL_ttf.h>
+
+#include "debugging/Debug.h"
 
 namespace ptgn {
 

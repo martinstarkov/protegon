@@ -3,18 +3,17 @@
 #include "text/FontRenderMode.h"
 #include "text/FontStyle.h"
 #include "renderer/Colors.h"
-#include "managers/Manager.h"
-#include "renderer/Renderer.h"
+#include "managers/ResourceManager.h"
 #include "texture/Texture.h"
 
 namespace ptgn {
 
 namespace internal {
 
-struct Text {
+class Text {
 public:
 	Text() = delete;
-	Text(const Renderer& renderer, const managers::id font_key, const char* content, const Color& color);
+	Text(const managers::id font_key, const char* content, const Color& color);
 	void SetContent(const char* new_content);
 	void SetColor(const Color& new_color);
 	void SetFont(const managers::id new_font_key);
@@ -29,7 +28,7 @@ public:
 		style_ = (static_cast<int>(styles) | ...);
 		Refresh();
 	}
-	void Draw(const V2_int& text_position, const V2_int& text_size) const;
+	Texture GetTexture() const;
 private:
 	void Refresh();
 	Texture texture_;

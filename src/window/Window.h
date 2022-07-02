@@ -2,6 +2,7 @@
 
 #include "math/Vector2.h"
 #include "renderer/Colors.h"
+#include "managers/ResourceManager.h"
 #include "renderer/Renderer.h"
 
 struct SDL_Window;
@@ -10,16 +11,17 @@ namespace ptgn {
 
 namespace internal {
 
-struct Window {
+class Window {
 public:
 	Window() = delete;
 	/*
+	* @param window_key Unique identifier for the window.
 	* @param window_title Window title.
 	* @param window_size Size of window.
 	* @param window_position Position of window.
 	* @param window_flags Any additional window flags (SDL).
 	*/
-	Window(const char* window_title, const V2_int& window_size, const V2_int& window_position, std::uint32_t window_flags = 0);
+	Window(const managers::id window_key, const char* window_title, const V2_int& window_size, const V2_int& window_position, std::uint32_t window_flags = 0);
 	~Window();
 	bool Exists() const;
 	V2_int GetSize() const;
@@ -35,9 +37,9 @@ public:
 	operator SDL_Window*() const;
 	const Renderer& GetRenderer() const;
 private:
+	managers::id window_key_;
 	Color color{ color::WHITE };
 	SDL_Window* window_;
-	Renderer renderer_;
 };
 
 } // namespace internal

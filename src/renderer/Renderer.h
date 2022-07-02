@@ -5,8 +5,9 @@
 #include "math/Vector2.h"
 #include "renderer/Colors.h"
 #include "texture/Flip.h"
+#include "texture/Texture.h"
 
-class SDL_Renderer;
+struct SDL_Renderer;
 class SDL_Window;
 
 namespace ptgn {
@@ -15,11 +16,11 @@ namespace internal {
 
 class Renderer {
 public:
-    Renderer() = default;
+    Renderer() = delete;
 	Renderer(SDL_Window* window, int index, std::uint32_t flags);
     ~Renderer();
-    void Present();
-    void Clear();
+    void Present() const;
+    void Clear() const;
     void SetDrawColor(const Color& color) const;
     void DrawPoint(const V2_int& point,
                    const Color& color = color::DEFAULT) const;
@@ -38,6 +39,22 @@ public:
     void DrawSolidRectangle(const V2_int& top_left,
                             const V2_int& size,
                             const Color& color = color::DEFAULT) const;
+    // Draws the texture to the screen.
+    void DrawTexture(const Texture& texture,
+                     const V2_int& texture_position,
+                     const V2_int& texture_size,
+                     const V2_int& source_position,
+                     const V2_int& source_size) const;
+    // Draws the texture to the screen. Allows for rotation and texture flipping.
+    // Set center_of_rotation to nullptr if center of rotation is desired to be the center of the texture.
+    void DrawTexture(const Texture& texture,
+                     const V2_int& texture_position,
+                     const V2_int& texture_size,
+                     const V2_int& source_position,
+                     const V2_int& source_size,
+                     const V2_int* center_of_rotation,
+                     const double angle,
+                     Flip flip) const;
     operator SDL_Renderer*() const;
 private:
 	SDL_Renderer* renderer_{ nullptr };

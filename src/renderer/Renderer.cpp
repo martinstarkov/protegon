@@ -9,7 +9,7 @@ namespace ptgn {
 namespace internal {
 
 Renderer::Renderer(SDL_Window* window, int index, std::uint32_t flags) {
-	assert(window != nullptr && "Cannot create Renderer from non-existent window");
+	assert(window != nullptr && "Cannot create renderer from non-existent window");
 	renderer_ = SDL_CreateRenderer(window, index, flags);
 	if (renderer_ == nullptr) {
 		debug::PrintLine(SDL_GetError());
@@ -22,12 +22,12 @@ Renderer::~Renderer() {
 	renderer_ = nullptr;
 }
 
-void Renderer::Present() {
+void Renderer::Present() const {
 	assert(renderer_ != nullptr && "Cannot present non-existent renderer");
 	SDL_RenderPresent(renderer_);
 }
 
-void Renderer::Clear() {
+void Renderer::Clear() const {
 	assert(renderer_ != nullptr && "Cannot clear non-existent renderer");
 	SDL_RenderClear(renderer_);
 }
@@ -135,6 +135,48 @@ void Renderer::DrawSolidRectangle(const V2_int& top_left,
 	SetDrawColor(color);
 	SDL_Rect rect{ top_left.x, top_left.y, size.x, size.y };
 	SDL_RenderFillRect(renderer_, &rect);
+}
+
+void Renderer::DrawTexture(const Texture& texture,
+						   const V2_int& texture_position,
+						   const V2_int& texture_size,
+						   const V2_int& source_position,
+						   const V2_int& source_size) const {
+	assert(texture != nullptr && "Cannot draw nonexistent texture");
+	SDL_Rect* source{ NULL };
+	SDL_Rect source_rectangle;
+	if (!source_size.IsZero()) {
+		source_rectangle = { source_position.x, source_position.y, source_size.x, source_size.y };
+		source = &source_rectangle;
+	}
+	SDL_Rect destination{ texture_position.x, texture_position.y, texture_size.x, texture_size.y };
+	SDL_RenderCopy(renderer_, texture, source, &destination);
+}
+
+void Renderer::DrawTexture(const Texture& texture,
+						   const V2_int& texture_position,
+						   const V2_int& texture_size,
+						   const V2_int& source_position,
+						   const V2_int& source_size,
+						   const V2_int* center_of_rotation,
+						   const double angle,
+						   Flip flip) const {
+	assert(texture != nullptr && "Cannot draw nonexistent texture");
+	SDL_Rect* source{ NULL };
+	SDL_Rect source_rectangle;
+	if (!source_position.IsZero() && !source_size.IsZero()) {
+		source_rectangle = { source_position.x, source_position.y, source_size.x, source_size.y };
+		source = &source_rectangle;
+	}
+	SDL_Rect destination{ texture_position.x, texture_position.y, texture_size.x, texture_size.y };
+	if (center_of_rotation != nullptr) {
+		SDL_Point center{ center_of_rotation->x, center_of_rotation->y };
+		SDL_RenderCopyEx(renderer_, texture, source, &destination,
+						 angle, &center, static_cast<SDL_RendererFlip>(static_cast<int>(flip)));
+	} else {
+		SDL_RenderCopyEx(renderer_, texture, source, &destination,
+						 angle, NULL, static_cast<SDL_RendererFlip>(static_cast<int>(flip)));
+	}
 }
 
 Renderer::operator SDL_Renderer*() const {

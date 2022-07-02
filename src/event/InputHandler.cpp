@@ -7,7 +7,7 @@
 
 #include "renderer/Renderer.h"
 #include "debugging/Debug.h"
-#include "window/WindowManager.h"
+#include "interface/Window.h"
 
 // TODO: Fix GetMouseAbsolutePosition function
 
@@ -38,7 +38,7 @@ void SDLInputHandler::Update() {
 				break;
 			}
 			case SDL_QUIT: {
-				GetSDLWindowManager().DestroyWindow();
+				window::Destroy();
 				break;
 			}
 			// Possible window events here in the future.

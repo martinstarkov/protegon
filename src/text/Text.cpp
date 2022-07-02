@@ -1,26 +1,25 @@
 #include "Text.h"
 
-#include "managers/FontManager.h"
-
 #include <SDL.h>
 #include <SDL_ttf.h>
+
+#include "managers/TextureManager.h"
 
 namespace ptgn {
 
 namespace internal {
 
-Text::Text(const Renderer& renderer, const managers::id font_key, const char* content, const Color& color) :
-	texture_{ renderer },
+Text::Text(const managers::id font_key, const char* content, const Color& color) :
 	font_key_{ font_key },
 	content_{ content },
 	color_{ color } {
-	auto& font_manager{ GetFontManager() };
+	auto& font_manager{ managers::GetManager<managers::FontManager>() };
 	assert(font_manager.Has(font_key) && "Must first load font into the font manager before loading text into the text manager");
 	Refresh();
 }
 
 void Text::Refresh() {
-	auto& font_manager{ GetFontManager() };
+	auto& font_manager{ managers::GetManager<managers::FontManager>() };
 	auto& font{ *font_manager.Get(font_key_) };
 	assert(font != nullptr && "Cannot refresh text for font which is not loaded in the the font manager");
 	TTF_SetFontStyle(font, style_);
@@ -55,7 +54,7 @@ void Text::SetColor(const Color& new_color) {
 }
 
 void Text::SetFont(const managers::id new_font_key) {
-	auto& font_manager{ GetFontManager() };
+	auto& font_manager{ managers::GetManager<managers::FontManager>() };
 	assert(font_manager.Has(new_font_key) && "Cannot set text font to a font which has not been loaded into the font manager");
 	font_key_ = new_font_key;
 	Refresh();
@@ -77,10 +76,9 @@ void Text::SetBlendedRenderMode() {
 	Refresh();
 }
 
-void Text::Draw(const V2_int& text_position, const V2_int& text_size) const {
-	assert(texture_ != nullptr && "Cannot draw text with non-existent texture");
-	SDL_Rect destination{ text_position.x, text_position.y, text_size.x, text_size.y };
-	SDL_RenderCopy(texture_.GetRenderer(), texture_, NULL, &destination);
+Texture Text::GetTexture() const {
+	assert(texture_ != nullptr && "Cannot return nullptr texture for text");
+	return texture_;
 }
 
 } // namespace internal

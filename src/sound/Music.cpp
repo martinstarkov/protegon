@@ -1,8 +1,8 @@
 #include "Music.h"
 
-#include "debugging/Debug.h"
-
 #include <SDL_mixer.h>
+
+#include "debugging/Debug.h"
 
 namespace ptgn {
 
@@ -26,41 +26,8 @@ void Music::Play(int loops) const {
 	Mix_PlayMusic(music_, loops);
 }
 
-void Music::Stop() const {
-	Mix_HaltMusic();
-}
-
 void Music::FadeIn(int loops, milliseconds time) const {
 	Mix_FadeInMusic(music_, loops, time.count());
-}
-
-void Music::FadeOut(milliseconds time) const {
-	Mix_FadeOutMusic(time.count());
-}
-
-void Music::Pause() const {
-	Mix_PauseMusic();
-}
-
-void Music::Resume() const {
-	Mix_ResumeMusic();
-}
-
-bool Music::IsPlaying() const {
-	return Mix_PlayingMusic();
-}
-
-bool Music::IsPaused() const {
-	return Mix_PausedMusic();
-}
-
-bool Music::IsFading() const {
-	switch (Mix_FadingMusic()) {
-		case MIX_NO_FADING:  return false;
-		case MIX_FADING_OUT: return true;
-		case MIX_FADING_IN:  return true;
-		default:             return false;
-	}
 }
 
 Music::operator Mix_Music*() const {

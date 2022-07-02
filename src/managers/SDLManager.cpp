@@ -1,11 +1,11 @@
 #include "SDLManager.h"
 
-#include "debugging/Debug.h"
-
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h>
 #include <SDL_mixer.h>
+
+#include "debugging/Debug.h"
 
 namespace ptgn {
 
@@ -13,7 +13,7 @@ namespace internal {
 
 namespace managers {
 
-SDLManager::SDLManager() {
+SDLSystemManager::SDLSystemManager() {
 	auto sdl_flags{
 		SDL_INIT_AUDIO |
 		SDL_INIT_EVENTS |
@@ -44,7 +44,7 @@ SDLManager::SDLManager() {
 	}
 }
 
-SDLManager::~SDLManager() {
+SDLSystemManager::~SDLSystemManager() {
 	Mix_CloseAudio();
 	Mix_Quit();
 	TTF_Quit();
@@ -53,11 +53,6 @@ SDLManager::~SDLManager() {
 }
 
 } // namespace managers
-
-managers::SDLManager& GetSDLManager() {
-	static managers::SDLManager sdl_manager;
-	return sdl_manager;
-}
 
 } // namespace internal
 

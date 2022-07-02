@@ -1,8 +1,9 @@
 #pragma once
 
-#include "managers/Manager.h"
+#include "managers/SDLManager.h"
 #include "sound/Music.h"
 #include "sound/Sound.h"
+#include "utils/Timer.h"
 
 namespace ptgn {
 
@@ -10,20 +11,29 @@ namespace internal {
 
 namespace managers {
 
-class SoundManager : public Manager<Sound> {
+class SoundManager : public SDLManager<Sound> {
 public:
-    SoundManager();
+	static void Pause(int channel);
+	static void Resume(int channel);
+	static void Stop(int channel);
+	static void FadeOut(int channel, milliseconds time);
+	static bool IsPlaying(int channel);
+	static bool IsPaused(int channel);
+	static bool IsFading(int channel);
 };
 
-class MusicManager : public Manager<Music> {
+class MusicManager : public SDLManager<Music> {
 public:
-    MusicManager();
+	static void Pause();
+	static void Resume();
+	static void Stop();
+	static void FadeOut(milliseconds time);
+	static bool IsPlaying();
+	static bool IsPaused();
+	static bool IsFading();
 };
 
 } // namespace managers
-
-managers::SoundManager& GetSoundManager();
-managers::MusicManager& GetMusicManager();
 
 } // namespace internal
 
