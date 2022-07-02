@@ -5,6 +5,7 @@
 #include <cstdint> // std::int64_t
 
 #include "debugging/Logger.h"
+#include "math/Math.h"
 
 namespace ptgn {
 
@@ -37,7 +38,11 @@ using is_duration_e = std::enable_if_t<is_duration_v<T>, bool>;
 class Timer {
 public:
 
-    Timer() = default;
+    Timer(bool start = false) {
+        if (start) {
+            Start();
+        }
+    }
 	~Timer() = default;
 
     /*
@@ -94,10 +99,9 @@ public:
     template <typename Duration = milliseconds,
         type_traits::is_duration_e<Duration> = true>
     void PrintElapsed() const {
-        PrintLine("Elapsed: ", Elapsed<Duration>().count());
+        debug::PrintLine("Elapsed: ", Elapsed<Duration>().count());
     }
 private:
-    
     std::chrono::time_point<std::chrono::steady_clock> start_time_;
     std::chrono::time_point<std::chrono::steady_clock> stop_time_;
     bool running_{ false };
