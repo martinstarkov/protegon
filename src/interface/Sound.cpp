@@ -25,7 +25,7 @@ bool Exists(const char* sound_key) {
 void Play(const char* sound_key, int channel, int loops) {
 	const auto& sound_manager{ internal::managers::GetManager<internal::managers::SoundManager>() };
 	const auto key{ math::Hash(sound_key) };
-	assert(sound_manager.Has(key));
+	assert(sound_manager.Has(key) && "Cannot play sound which has not been loaded into the sound manager");
 	const internal::Sound* sound = sound_manager.Get(key);
     sound->Play(channel, loops);
 }
@@ -45,7 +45,7 @@ void Stop(int channel) {
 void FadeIn(const char* sound_key, int channel, int loops, milliseconds fade_time) {
 	const auto& sound_manager{ internal::managers::GetManager<internal::managers::SoundManager>() };
 	const auto key{ math::Hash(sound_key) };
-	assert(sound_manager.Has(key));
+	assert(sound_manager.Has(key) && "Cannot fade in a sound which has not been loaded into the sound manager");
 	const internal::Sound* sound = sound_manager.Get(key);
 	sound->FadeIn(channel, loops, fade_time);
 }
@@ -88,7 +88,7 @@ bool Exists(const char* music_key) {
 void Play(const char* music_key, int loops) {
 	const auto& music_manager{ internal::managers::GetManager<internal::managers::MusicManager>() };
 	const auto key{ math::Hash(music_key) };
-	assert(music_manager.Has(key));
+	assert(music_manager.Has(key) && "Cannot play music which has not been loaded into the music manager");
 	const internal::Music* music = music_manager.Get(key);
 	music->Play(loops);
 }
@@ -107,7 +107,7 @@ void Stop() {
 void FadeIn(const char* music_key, int loops, milliseconds fade_time) {
 	const auto& music_manager{ internal::managers::GetManager<internal::managers::MusicManager>() };
 	const auto key{ math::Hash(music_key) };
-	assert(music_manager.Has(key));
+	assert(music_manager.Has(key) && "Cannot fade in music which has not been loaded into the music manager");
 	const internal::Music* music = music_manager.Get(key);
 	music->FadeIn(loops, fade_time);
 }
