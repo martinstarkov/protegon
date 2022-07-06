@@ -1,3 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
 
-add_subdirectory(demo1)
+add_subdirectory(event)
+add_subdirectory(state)
+add_subdirectory(animation)

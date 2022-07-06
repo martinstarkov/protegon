@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(demo1)
+project(event)
 
 set(TEST_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
@@ -15,4 +15,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${TEST_SRC_DIR})
 
 add_protegon_to(${PROJECT_NAME})
 
-file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/resources/" DESTINATION "${PROJECT_BINARY_DIR}/resources")
+IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/resources/")
+    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/resources/" DESTINATION "${PROJECT_BINARY_DIR}/resources")
+ENDIF()
