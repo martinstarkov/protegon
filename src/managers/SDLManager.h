@@ -6,6 +6,12 @@ namespace ptgn {
 
 namespace managers {
 
+class SDLSystemManager {
+public:
+	SDLSystemManager();
+	~SDLSystemManager();
+};
+
 template <typename T>
 class SDLManager : public ResourceManager<T> {
 public:
@@ -13,11 +19,6 @@ public:
 		GetManager<SDLSystemManager>();
 	}
 private:
-	class SDLSystemManager {
-	public:
-		SDLSystemManager();
-		~SDLSystemManager();
-	};
 };
 
 } // namespace managers

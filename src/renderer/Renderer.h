@@ -8,7 +8,7 @@
 #include "renderer/Texture.h"
 
 struct SDL_Renderer;
-class SDL_Window;
+struct SDL_Window;
 
 namespace ptgn {
 
