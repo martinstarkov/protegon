@@ -8,6 +8,7 @@ namespace ptgn {
 namespace animation {
 
 struct Offset {
+	Offset() = default;
 	Offset(const Animation& animation, const V2_int& reference_size, const Alignment& horizontal_alignment, const Alignment& vertical_alignment) {
 		V2_double horizontal_size_vector{ animation.size.x, reference_size.x };
 		V2_double vertical_size_vector{ animation.size.y, reference_size.y };
