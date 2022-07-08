@@ -44,7 +44,7 @@ public:
 	}
 
 	template <typename T = double, 
-		type_traits::is_floating_point_e<T> = true>
+		std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
 	T RemainingPercentage() const {
 		std::chrono::duration<T, time::period> percentage_time{ 
 			Remaining<std::chrono::duration<T, time::period>>() / cutoff_
@@ -57,7 +57,7 @@ public:
 	}
 
 	template <typename T = double,
-		type_traits::is_floating_point_e<T> = true>
+		std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
 	T ElapsedPercentage() const {
 		return static_cast<T>(1) - RemainingPercentage<T>();
 	}

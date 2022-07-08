@@ -1,17 +1,8 @@
 #pragma once
 
-#include <chrono> // std::chrono
-
-#include "utility/TypeTraits.h"
+#include "utility/Time.h"
 
 namespace ptgn {
-
-using hours = std::chrono::hours;
-using minutes = std::chrono::minutes;
-using seconds = std::chrono::seconds;
-using milliseconds = std::chrono::milliseconds;
-using microseconds = std::chrono::microseconds;
-using nanoseconds = std::chrono::nanoseconds;
 
 // Monotonic clock to prevent time variations if system time is changed.
 // With modifications to: https://gist.github.com/mcleary/b0bf4fa88830ff7c882d
