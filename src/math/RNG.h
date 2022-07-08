@@ -3,8 +3,6 @@
 #include <cstdint> // std::uint32_t, etc
 #include <random> // std::minstd_rand, std::mt19937, std::uniform_int_distribution, etc
 
-#include "utils/TypeTraits.h"
-
 namespace ptgn {
 
 namespace math {
@@ -19,7 +17,7 @@ namespace math {
 * @tparam E Type of rng engine to use (std::minstd_rand [default], std::mt19937, etc)
 */
 template <typename T, typename E = std::minstd_rand,
-	type_traits::is_number_e<T> = true>
+	std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
 class RNG {
 public:
 	// Default constructor makes distribution range 0 to 1.
