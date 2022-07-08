@@ -95,7 +95,7 @@ private:
 namespace math {
 
 template <typename T,
-	type_traits::is_floating_point_e<T> = true>
+	std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
 inline Color Lerp(const Color& a, const Color& b, T t) {
 	return {
 		Lerp<std::uint8_t>(a.r, b.r, t),

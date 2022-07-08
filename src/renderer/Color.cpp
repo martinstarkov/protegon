@@ -1,10 +1,9 @@
 #include "Color.h"
 
-#include <cassert> // assert
-
 #include <SDL.h>
 
 #include "math/RNG.h"
+#include <cassert> // assert
 
 namespace ptgn {
 

@@ -3,7 +3,6 @@
 #include <cstdlib> // std::size_t
 #include <memory> // std::unique_ptr, std::default_delete
 #include <unordered_map> // std::unordered_map
-#include <cassert> // assert
 
 namespace ptgn {
 

@@ -1,12 +1,11 @@
 #include "InputHandler.h"
 
-#include <cassert> // assert
 #include <algorithm> // std::copy
 
 #include <SDL.h>
 
 #include "renderer/Renderer.h"
-#include "debugging/Debug.h"
+#include <cassert> // assert
 #include "core/Window.h"
 
 // TODO: Fix GetMouseAbsolutePosition function
