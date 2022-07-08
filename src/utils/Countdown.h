@@ -1,10 +1,8 @@
 #pragma once
 
 #include <cassert> // assert
-#include <chrono> // assert
 
 #include "utils/Timer.h"
-#include "utils/TypeTraits.h"
 
 namespace ptgn {
 
@@ -82,18 +80,6 @@ public:
 
 	template <typename Duration = milliseconds,
 		type_traits::is_duration_e<Duration> = true>
-	void PrintElapsed() const {
-		Print(Elapsed<Duration>());
-	}
-	
-	template <typename Duration = milliseconds,
-		type_traits::is_duration_e<Duration> = true>
-	void PrintRemaining() const {
-		Print(Remaining<Duration>());
-	}
-
-	template <typename Duration = milliseconds,
-		type_traits::is_duration_e<Duration> = true>
 	void IncreaseRemaining(Duration time_amount) {
 		cutoff_ += time_amount;
 	}
@@ -103,7 +89,6 @@ public:
 	void DecreaseRemaining(Duration time_amount) {
 		cutoff_ -= time_amount;
 	}
-
 private:
 	using time = nanoseconds;
 	time cutoff_{ 0 };

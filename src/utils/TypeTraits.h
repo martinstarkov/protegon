@@ -2,6 +2,7 @@
 
 #include <type_traits> // std::enable_if_t, std::is_arithmetic_v, std::is_floating_point_v, etc.
 #include <utility> // std::forward
+#include <chrono> // std::chrono
 
 namespace ptgn {
 
@@ -36,50 +37,7 @@ struct is_stream_writable : std::false_type {};
 template<typename Stream, typename Type>
 struct is_stream_writable<Stream, Type, std::void_t<decltype(std::declval<Stream&>() << std::declval<Type>()) >> : std::true_type {};
 
-} // namespace internal
-
-// Custom template helpers.
-
-// Template qualifier of whether or not Type is an integer OR float point number.
-// This includes bool, char, char8_t, char16_t, char32_t, wchar_t, short, int, long, long long, float, double, and long double.
-template <typename Type>
-using is_number_e = std::enable_if_t<std::is_arithmetic_v<Type>, bool>;
-
-// Template qualifier of whether or not Type is an integer number.
-// This includes bool, char, char8_t, char16_t, char32_t, wchar_t, short, int, long, long long.
-template <typename Type>
-using is_integral_e = std::enable_if_t<std::is_integral_v<Type>, bool>;
-
-// Template qualifier of whether or not Type is a float point number.
-// This includes float, double, and long double.
-template <typename Type>
-using is_floating_point_e = std::enable_if_t<std::is_floating_point_v<Type>, bool>;
-
-// Template qualifier of whether or not From is convertible to To (double to int, int to float, etc).
-template <typename From, typename To>
-using is_convertible_e = std::enable_if_t<std::is_convertible_v<From, To>, bool>;
-
-// Template qualifier of whether or not the Types are the same.
-template <typename Type1, typename Type2>
-using is_same_as_e = std::enable_if_t<std::is_same_v<Type1, Type2>, bool>;
-
-// Template qualifier of whether or not the Derived inherits from Base.
-template <typename Base, typename Derived>
-using is_base_of_e = std::enable_if_t<std::is_base_of_v<Base, Derived>, bool>;
-
-// Template qualifier of whether or not Type is default constructible.
-template <typename Type>
-using is_default_constructible_e = std::enable_if_t<std::is_default_constructible_v<Type>, bool>;
-
-// Template qualifier of whether or not Type is constructible from TArgs.
-template <typename Type, typename ...TArgs>
-using is_constructible_e = std::enable_if_t<std::is_constructible_v<Type, TArgs...>, bool>;
-
-// Template qualifier of whether or not Type is the same as one or more of Types.
-template <typename Type, typename ...Types>
-using is_one_of_e = std::enable_if_t<(std::is_same_v<Type, Types> || ...), bool>;
-
-namespace internal {
+// Comparison operator template helpers
 
 // Source: https://stackoverflow.com/a/44536046
 template <typename T, typename U>
@@ -144,6 +102,63 @@ struct is_greater_than_or_equal_comparable<T, U, std::void_t<greater_than_or_equ
 
 } // namespace internal
 
+// Duration (chrono) template helpers
+
+template <typename T>
+struct is_duration : std::false_type {};
+
+template <typename Rep, typename Period>
+struct is_duration<std::chrono::duration<Rep, Period>> : std::true_type {};
+
+template <typename T>
+constexpr bool is_duration_v{ is_duration<T>::value };
+
+template <typename T>
+using is_duration_e = std::enable_if_t<is_duration_v<T>, bool>;
+
+// Custom template helpers.
+
+// Template qualifier of whether or not Type is an integer OR float point number.
+// This includes bool, char, char8_t, char16_t, char32_t, wchar_t, short, int, long, long long, float, double, and long double.
+template <typename Type>
+using is_number_e = std::enable_if_t<std::is_arithmetic_v<Type>, bool>;
+
+// Template qualifier of whether or not Type is an integer number.
+// This includes bool, char, char8_t, char16_t, char32_t, wchar_t, short, int, long, long long.
+template <typename Type>
+using is_integral_e = std::enable_if_t<std::is_integral_v<Type>, bool>;
+
+// Template qualifier of whether or not Type is a float point number.
+// This includes float, double, and long double.
+template <typename Type>
+using is_floating_point_e = std::enable_if_t<std::is_floating_point_v<Type>, bool>;
+
+// Template qualifier of whether or not From is convertible to To (double to int, int to float, etc).
+template <typename From, typename To>
+using is_convertible_e = std::enable_if_t<std::is_convertible_v<From, To>, bool>;
+
+// Template qualifier of whether or not the Types are the same.
+template <typename Type1, typename Type2>
+using is_same_as_e = std::enable_if_t<std::is_same_v<Type1, Type2>, bool>;
+
+// Template qualifier of whether or not the Derived inherits from Base.
+template <typename Base, typename Derived>
+using is_base_of_e = std::enable_if_t<std::is_base_of_v<Base, Derived>, bool>;
+
+// Template qualifier of whether or not Type is default constructible.
+template <typename Type>
+using is_default_constructible_e = std::enable_if_t<std::is_default_constructible_v<Type>, bool>;
+
+// Template qualifier of whether or not Type is constructible from TArgs.
+template <typename Type, typename ...TArgs>
+using is_constructible_e = std::enable_if_t<std::is_constructible_v<Type, TArgs...>, bool>;
+
+// Template qualifier of whether or not Type is the same as one or more of Types.
+template <typename Type, typename ...Types>
+using is_one_of_e = std::enable_if_t<(std::is_same_v<Type, Types> || ...), bool>;
+
+// Comparison operator template helpers
+
 // True if T and U are comparable using == operator, false otherwise.
 template <typename T, typename U>
 bool constexpr is_equals_comparable_v{ internal::is_equals_comparable<T, U>::value };
@@ -194,9 +209,7 @@ using is_greater_than_or_equal_comparable_e = std::enable_if_t<is_greater_than_o
 
 // True if Derived derives from a template Base, false otherwise.
 template <template <typename...> class Base, typename Derived>
-bool constexpr is_base_of_template_v{
-	internal::is_base_of_template<Base, Derived>::value
-};
+bool constexpr is_base_of_template_v{ internal::is_base_of_template<Base, Derived>::value };
 
 // Template qualifier of whether or not Dervied derives from a template Base.
 template <template <typename...> class Base, typename Derived>
