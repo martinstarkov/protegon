@@ -7,8 +7,6 @@ using TTF_Font = _TTF_Font;
 
 namespace ptgn {
 
-namespace internal {
-
 class Font {
 public:
 	Font() = default;
@@ -20,11 +18,10 @@ public:
 	Font(const char* font_path, std::uint32_t point_size, std::uint32_t index = 0);
 	~Font();
 	std::int32_t GetHeight() const;
-	operator TTF_Font*() const;
+	bool IsValid() const { return font_ != nullptr; }
+	operator TTF_Font*() const { return font_; }
 private:
 	TTF_Font* font_{ nullptr };
 };
-
-} // namespace internal
 
 } // namespace ptgn

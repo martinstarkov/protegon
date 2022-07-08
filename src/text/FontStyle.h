@@ -2,8 +2,6 @@
 
 namespace ptgn {
 
-namespace internal {
-
 enum class FontStyle : int {
 	NORMAL = 0,        // TTF_STYLE_NORMAL = 0
 	BOLD = 1,          // TTF_STYLE_BOLD = 1
@@ -11,7 +9,5 @@ enum class FontStyle : int {
 	UNDERLINE = 4,     // TTF_STYLE_UNDERLINE = 4
 	STRIKETHROUGH = 8  // TTF_STYLE_STRIKETHROUGH = 8
 };
-
-} // namespace internal
 
 } // namespace ptgn

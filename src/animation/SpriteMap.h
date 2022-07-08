@@ -4,7 +4,6 @@
 
 #include "math/Hash.h"
 #include "animation/Animation.h"
-#include "renderer/Renderer.h"
 
 namespace ptgn {
 
@@ -13,7 +12,7 @@ namespace animation {
 class SpriteMap {
 public:
 	SpriteMap() = default;
-	SpriteMap(const Renderer& renderer, const char* key, const char* path);
+	SpriteMap(const char* key, const char* path);
 	~SpriteMap();
 	void AddAnimation(const char* name, const Animation& animation) {
 		animations.emplace(math::Hash(name), animation);

@@ -78,7 +78,7 @@ public:
 	/*
 	* @return True if alpha value of color is 0, false otherwise.
 	*/
-	bool IsTransparent() const;
+	bool IsTransparent() const { return a == 0; }
 
 	// Default color: black.
 

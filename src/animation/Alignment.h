@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdlib> // std::size_t
+
 #include "math/Vector2.h"
 
 namespace ptgn {

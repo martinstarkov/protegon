@@ -15,13 +15,13 @@ private:
 	friend class Color;
 	friend class TileMap;
 
-	PixelFormat(SDL_PixelFormat* format);
+	PixelFormat(SDL_PixelFormat* format) : format_{ format } {}
 
 	// Frees memory used by format pointer.
 	void Destroy();
 
-	operator SDL_PixelFormat* () const;
-	SDL_PixelFormat* operator&() const;
+	operator SDL_PixelFormat* () const { return format_; }
+	SDL_PixelFormat* operator&() const { return format_; }
 	
 	SDL_PixelFormat* format_{ nullptr };
 };

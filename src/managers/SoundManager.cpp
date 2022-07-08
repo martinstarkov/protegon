@@ -4,8 +4,6 @@
 
 namespace ptgn {
 
-namespace internal {
-
 namespace managers {
 
 void SoundManager::Pause(int channel) {
@@ -75,7 +73,5 @@ bool MusicManager::IsFading() {
 }
 
 } // namespace managers
-
-} // namespace internal
 
 } // namespace ptgn

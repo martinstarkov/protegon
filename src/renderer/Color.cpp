@@ -1,9 +1,10 @@
 #include "Color.h"
 
+#include <cassert> // assert
+
 #include <SDL.h>
 
 #include "math/RNG.h"
-#include <cassert> // assert
 
 namespace ptgn {
 
@@ -27,9 +28,7 @@ Color Color::Random() {
 	};
 }
 
-Color::Color(const SDL_Color& color) : 
-	r{ color.r }, g{ color.g }, b{ color.b }, a{ color.a } 
-{}
+Color::Color(const SDL_Color& color) : r{ color.r }, g{ color.g }, b{ color.b }, a{ color.a } {}
 
 Color::Color(std::uint32_t pixel, PixelFormat format) {
 	SDL_GetRGBA(pixel, format, &r, &g, &b, &a);
@@ -42,9 +41,5 @@ Color::operator SDL_Color() const {
 std::uint32_t Color::ToUint32(PixelFormat format) const {
 	return SDL_MapRGBA(format, r, g, b, a);
 }
-
-bool Color::IsTransparent() const { 
-	return a == 0; 
-};
 
 } // namespace ptgn

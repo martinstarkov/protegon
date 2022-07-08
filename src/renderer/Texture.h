@@ -5,20 +5,22 @@
 
 struct SDL_Texture;
 struct SDL_Surface;
-struct SDL_Renderer;
 
 namespace ptgn {
 
 class Texture {
 public:
 	Texture() = default;
-	Texture(SDL_Renderer* renderer, const char* texture_path);
-	Texture(SDL_Renderer* renderer, SDL_Surface* surface);
+	Texture(const char* texture_path);
+	Texture(SDL_Surface* surface) { Set(surface); }
 	~Texture();
-	void Reset(SDL_Renderer* renderer, SDL_Surface* surface);
-	operator SDL_Texture*() const;
+	void Reset(SDL_Surface* surface);
+	operator SDL_Texture*() const {
+		assert(texture_ != nullptr && "Cannot cast nullptr texture to SDL_Texture");
+		return texture_;
+	}
 private:
-	void Set(SDL_Renderer* renderer, SDL_Surface* surface);
+	void Set(SDL_Surface* surface);
 	SDL_Texture* texture_{ nullptr };
 };
 

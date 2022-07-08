@@ -3,11 +3,9 @@
 #include "managers/SDLManager.h"
 #include "sound/Music.h"
 #include "sound/Sound.h"
-#include "utils/Timer.h"
+#include "utility/Time.h"
 
 namespace ptgn {
-
-namespace internal {
 
 namespace managers {
 
@@ -34,7 +32,5 @@ public:
 };
 
 } // namespace managers
-
-} // namespace internal
 
 } // namespace ptgn

@@ -591,7 +591,7 @@ inline S DistanceSquared(const Vector2<T>& lhs, const Vector2<U>& rhs) {
 template <typename T, typename U, 
     typename S = typename std::common_type<T, U>::type>
 inline S Distance(const Vector2<T>& lhs, const Vector2<U>& rhs) {
-    return ptgn::math::Sqrt<S>(DistanceSquared(lhs, rhs));
+    return Sqrt<S>(DistanceSquared(lhs, rhs));
 }
 
 // Return minimum component of vector. (reference)
@@ -610,55 +610,55 @@ inline T& Max(Vector2<T>& vector) {
 // Return a vector composed of the minimum components of two vectors.
 template <typename T>
 inline Vector2<T> Min(const Vector2<T>& a, const Vector2<T>& b) {
-    return { ptgn::math::Min(a.x, b.x), ptgn::math::Min(a.y, b.y) };
+    return { Min(a.x, b.x), Min(a.y, b.y) };
 }
 
 // Return a vector composed of the maximum components of two vectors.
 template <typename T>
 inline Vector2<T> Max(const Vector2<T>& a, const Vector2<T>& b) {
-    return { ptgn::math::Max(a.x, b.x), ptgn::math::Max(a.y, b.y) };
+    return { Max(a.x, b.x), Max(a.y, b.y) };
 }
 
 // Return the absolute value of both vectors components.
 template <typename T>
 inline Vector2<T> Abs(const Vector2<T>& vector) {
-    return { ptgn::math::Abs(vector.x), ptgn::math::Abs(vector.y) };
+    return { Abs(vector.x), Abs(vector.y) };
 }
 
 // Return both vector components rounded to the closest integer.
 template <typename T = int, typename S>
 inline Vector2<T> Round(const Vector2<S>& vector) {
-    return { ptgn::math::Round<T>(vector.x), ptgn::math::Round<T>(vector.y) };
+    return { Round<T>(vector.x), Round<T>(vector.y) };
 }
 
 // Return both vector components ceiled to the closest integer.
 template <typename T = int, typename S>
 inline Vector2<T> Ceil(const Vector2<S>& vector) {
-    return { ptgn::math::Ceil<T>(vector.x), ptgn::math::Ceil<T>(vector.y) };
+    return { Ceil<T>(vector.x), Ceil<T>(vector.y) };
 }
 
 // Return both vector components floored to the closest integer.
 template <typename T = int, typename S>
 inline Vector2<T> Floor(const Vector2<S>& vector) {
-    return { ptgn::math::Floor<T>(vector.x), ptgn::math::Floor<T>(vector.y) };
+    return { Floor<T>(vector.x), Floor<T>(vector.y) };
 }
 
 // Clamp both vectors value within a vector range.
 template <typename T>
 inline Vector2<T> Clamp(const Vector2<T>& value, const Vector2<T>& low, const Vector2<T>& high) {
-    return { ptgn::math::Clamp(value.x, low.x, high.x), ptgn::math::Clamp(value.y, low.y, high.y) };
+    return { Clamp(value.x, low.x, high.x), Clamp(value.y, low.y, high.y) };
 }
 
 // Linearly interpolates both vector components by the given value.
 template <typename T, typename U>
 inline Vector2<U> Lerp(const Vector2<T>& a, const Vector2<T>& b, U amount) {
-    return { ptgn::math::Lerp(a.x, b.x, amount), ptgn::math::Lerp(a.y, b.y, amount) };
+    return { Lerp(a.x, b.x, amount), Lerp(a.y, b.y, amount) };
 }
 
 // Return both vector components smooth stepped.
 template <typename T>
 inline Vector2<T> SmoothStep(const Vector2<T>& vector) {
-    return { ptgn::math::SmoothStep(vector.x), ptgn::math::SmoothStep(vector.y) };
+    return { SmoothStep(vector.x), SmoothStep(vector.y) };
 }
 
 } // namespace math

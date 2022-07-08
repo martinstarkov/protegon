@@ -12,6 +12,8 @@
 #include <algorithm> // std::min, std::max
 #include <cassert> // assert
 
+#include "utility/TypeTraits.h"
+
 namespace ptgn {
 
 namespace math {
@@ -127,7 +129,7 @@ inline auto Min(const T& left, const U& right) {
 template <typename T = double,
     std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
 inline T Compare(T x, T y, T relative_tolerance, T absolute_tolerance) {
-    return math::Abs(x - y) <= math::Max(absolute_tolerance, relative_tolerance * math::Max(math::Abs(x), math::Abs(y)));
+    return math::Abs(x - y) <= Max(absolute_tolerance, relative_tolerance * Max(Abs(x), Abs(y)));
 }
 
 // Compare two floating point numbers using equal relative and absolute tolerances.
@@ -135,7 +137,7 @@ inline T Compare(T x, T y, T relative_tolerance, T absolute_tolerance) {
 // The relative tolerance test fails when x and y become small.
 template <typename T = double,
     std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
-inline T Compare(T x, T y, T tolerance = math::EPSILON<T>) {
+inline T Compare(T x, T y, T tolerance = EPSILON<T>) {
     return Compare(x, y, tolerance, tolerance);
 }
 

@@ -4,12 +4,12 @@
 #include <SDL_ttf.h>
 
 #include "managers/TextureManager.h"
+#include "managers/FontManager.h"
 
 namespace ptgn {
 
-namespace internal {
-
-Text::Text(const managers::id font_key, const char* content, const Color& color) :
+Text::Text(const std::size_t texture_key, const std::size_t font_key, const char* content, const Color& color) :
+	texture_key_{ texture_key },
 	font_key_{ font_key },
 	content_{ content },
 	color_{ color } {
@@ -53,7 +53,7 @@ void Text::SetColor(const Color& new_color) {
 	Refresh();
 }
 
-void Text::SetFont(const managers::id new_font_key) {
+void Text::SetFont(const std::size_t new_font_key) {
 	auto& font_manager{ managers::GetManager<managers::FontManager>() };
 	assert(font_manager.Has(new_font_key) && "Cannot set text font to a font which has not been loaded into the font manager");
 	font_key_ = new_font_key;
@@ -75,12 +75,5 @@ void Text::SetBlendedRenderMode() {
 	mode_ = FontRenderMode::BLENDED;
 	Refresh();
 }
-
-Texture Text::GetTexture() const {
-	assert(texture_ != nullptr && "Cannot return nullptr texture for text");
-	return texture_;
-}
-
-} // namespace internal
 
 } // namespace ptgn
