@@ -2,7 +2,7 @@
 
 #include <cassert> // assert
 
-#include "utils/Timer.h"
+#include "utility/Timer.h"
 
 namespace ptgn {
 

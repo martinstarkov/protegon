@@ -3,11 +3,9 @@
 #include <iostream> // std::cout
 #include <ostream> // std::ostream, std::endl;
 
-#include "utils/TypeTraits.h"
+#include "utility/TypeTraits.h"
 
 namespace ptgn {
-
-namespace debug {
 
 // Print desired items to the console. If a newline is desired, use PrintLine() instead.
 template <typename ...TArgs,
@@ -27,7 +25,5 @@ inline void PrintLine(TArgs&&... items) {
 inline void PrintLine() {
 	std::cout << std::endl;
 }
-
-} // namespace debug
 
 } // namespace ptgn

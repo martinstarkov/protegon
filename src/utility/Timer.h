@@ -2,7 +2,7 @@
 
 #include <chrono> // std::chrono
 
-#include "utils/TypeTraits.h"
+#include "utility/TypeTraits.h"
 
 namespace ptgn {
 
