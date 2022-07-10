@@ -18,6 +18,11 @@ Text::Text(const std::size_t texture_key, const std::size_t font_key, const char
 	Refresh();
 }
 
+Text::~Text() {
+	auto& texture_manager{ managers::GetManager<managers::TextureManager>() };
+	texture_manager.Unload(texture_key_);
+}
+
 void Text::Refresh() {
 	auto& font_manager{ managers::GetManager<managers::FontManager>() };
 	auto& font{ *font_manager.Get(font_key_) };

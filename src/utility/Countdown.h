@@ -89,6 +89,12 @@ public:
 	void DecreaseRemaining(Duration time_amount) {
 		cutoff_ -= time_amount;
 	}
+
+	template <typename Duration = milliseconds,
+		type_traits::is_duration_e<Duration> = true>
+	void SetRemaining(Duration time_amount) {
+		cutoff_ = time_amount;
+	}
 private:
 	using time = nanoseconds;
 	time cutoff_{ 0 };

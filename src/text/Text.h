@@ -8,10 +8,19 @@
 
 namespace ptgn {
 
+namespace type_traits {
+
+// Template qualifier of whether or not all Types are same as a given Type.
+template <typename Type, typename ...Types>
+using are_type_e = std::enable_if_t<std::conjunction_v<std::is_same<Type, Types>...>, bool>;
+
+} // namespace type_traits
+
 class Text {
 public:
 	Text() = delete;
 	Text(const std::size_t texture_key, const std::size_t font_key, const char* content, const Color& color);
+	~Text();
 	void SetContent(const char* new_content) {
 		content_ = new_content;
 		Refresh();
@@ -38,7 +47,7 @@ public:
 	// These are combined into one style and text is renderer in that style.
 	template <typename ...Style,
 		type_traits::are_type_e<FontStyle, Style...> = true>
-		void SetStyles(Style... styles) {
+	void SetStyles(Style... styles) {
 		style_ = (static_cast<int>(styles) | ...);
 		Refresh();
 	}

@@ -16,7 +16,7 @@ void Init(int index, std::uint32_t flags) {
 	assert(SDLWindow::Get().window_ != nullptr && "Cannot create renderer from nonexistent window");
 	auto& renderer = SDLRenderer::Get().renderer_;
 	renderer = SDL_CreateRenderer(SDLWindow::Get().window_, index, flags);
-	if (renderer == nullptr) {
+	if (!Exists()) {
 		PrintLine(SDL_GetError());
 		assert(!"Failed to create renderer");
 	}

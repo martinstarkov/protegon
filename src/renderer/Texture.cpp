@@ -10,10 +10,10 @@
 namespace ptgn {
 
 void Texture::Set(SDL_Surface* surface) {
-	assert(texture_ == nullptr && "Cannot set texture after it has already been set");
+	assert(!Exists() && "Cannot set texture after it has already been set");
 	assert(surface != nullptr && "Cannot create texture from nonexistent surface");
 	texture_ = SDL_CreateTextureFromSurface(SDLRenderer::Get().renderer_, surface);
-	assert(texture_ != nullptr && "Failed to create texture from surface");
+	assert(Exists() && "Failed to create texture from surface");
 	// TODO: CONSIDER: Change not to free surface after use.
 	SDL_FreeSurface(surface);
 }
@@ -35,7 +35,7 @@ Texture::~Texture() {
 }
 
 void Texture::Reset(SDL_Surface* surface) {
-	if (texture_ != nullptr) {
+	if (Exists()) {
 		SDL_DestroyTexture(texture_);
 	}
 	Set(surface);

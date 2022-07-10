@@ -19,7 +19,7 @@ public:
 	void Play(int loops) const;
 	void FadeIn(int loops, milliseconds time) const;
 
-	bool IsValid() const { return music_ != nullptr; }
+	bool Exists() const { return music_ != nullptr; }
 	operator Mix_Music*() const { return music_; }
 private:
 	Mix_Music* music_{ nullptr };

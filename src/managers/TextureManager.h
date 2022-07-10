@@ -1,13 +1,13 @@
 #pragma once
 
-#include "managers/SDLManager.h"
+#include "managers/ResourceManager.h"
 #include "renderer/Texture.h"
 
 namespace ptgn {
 
 namespace managers {
 
-class TextureManager : public SDLManager<Texture> {};
+class TextureManager : public ResourceManager<Texture> {};
 
 } // namespace managers
 

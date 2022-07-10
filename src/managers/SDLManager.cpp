@@ -13,7 +13,7 @@ namespace ptgn {
 
 namespace managers {
 
-SDLSystemManager::SDLSystemManager() {
+SDLManager::SDLManager() {
 	auto sdl_flags{
 		SDL_INIT_AUDIO |
 		SDL_INIT_EVENTS |
@@ -44,7 +44,7 @@ SDLSystemManager::SDLSystemManager() {
 	}
 }
 
-SDLSystemManager::~SDLSystemManager() {
+SDLManager::~SDLManager() {
 	Mix_CloseAudio();
 	Mix_Quit();
 	TTF_Quit();

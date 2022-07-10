@@ -9,9 +9,9 @@ namespace ptgn {
 
 namespace window {
 
-void Init(const char* window_title, const V2_int& window_size, const V2_int& window_position, std::uint32_t window_flags) {
+void Init(const char* window_title, const V2_int& window_size, const V2_int& window_position, Flags window_flags) {
 	auto& window = SDLWindow::Get().window_;
-	window = SDL_CreateWindow(window_title, window_position.x, window_position.y, window_size.x, window_size.y, window_flags);
+	window = SDL_CreateWindow(window_title, window_position.x, window_position.y, window_size.x, window_size.y, static_cast<std::uint32_t>(window_flags));
 	if (window == nullptr) {
 		PrintLine(SDL_GetError());
 		assert(!"Failed to create window");
@@ -78,6 +78,14 @@ void SetResizeable(bool on) {
 
 void SetColor(const Color& new_color) {
 	SDLWindow::Get().color_ = new_color;
+}
+
+void Show() {
+	SDL_ShowWindow(SDLWindow::Get().window_);
+}
+
+void Hide() {
+	SDL_HideWindow(SDLWindow::Get().window_);
 }
 
 } // namespace window

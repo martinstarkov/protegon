@@ -1,24 +1,18 @@
 #pragma once
 
-#include "managers/ResourceManager.h"
-
 namespace ptgn {
 
 namespace managers {
 
-class SDLSystemManager {
+class SDLManager {
 public:
-	SDLSystemManager();
-	~SDLSystemManager();
-};
-
-template <typename T>
-class SDLManager : public ResourceManager<T> {
-public:
-	SDLManager() {
-		GetManager<SDLSystemManager>();
+	static SDLManager& Get() {
+		static SDLManager instance;
+		return instance;
 	}
 private:
+	SDLManager();
+	~SDLManager();
 };
 
 } // namespace managers

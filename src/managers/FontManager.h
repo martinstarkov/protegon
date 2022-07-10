@@ -1,13 +1,13 @@
 #pragma once
 
-#include "managers/SDLManager.h"
+#include "managers/ResourceManager.h"
 #include "text/Font.h"
 
 namespace ptgn {
 
 namespace managers {
 
-class FontManager : public SDLManager<Font> {};
+class FontManager : public ResourceManager<Font> {};
 
 } // namespace managers
 

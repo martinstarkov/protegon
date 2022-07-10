@@ -18,7 +18,7 @@ public:
 	Font(const char* font_path, std::uint32_t point_size, std::uint32_t index = 0);
 	~Font();
 	std::int32_t GetHeight() const;
-	bool IsValid() const { return font_ != nullptr; }
+	bool Exists() const { return font_ != nullptr; }
 	operator TTF_Font*() const { return font_; }
 private:
 	TTF_Font* font_{ nullptr };

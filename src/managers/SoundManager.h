@@ -1,6 +1,6 @@
 #pragma once
 
-#include "managers/SDLManager.h"
+#include "managers/ResourceManager.h"
 #include "sound/Music.h"
 #include "sound/Sound.h"
 #include "utility/Time.h"
@@ -9,7 +9,7 @@ namespace ptgn {
 
 namespace managers {
 
-class SoundManager : public SDLManager<Sound> {
+class SoundManager : public ResourceManager<Sound> {
 public:
 	static void Pause(int channel);
 	static void Resume(int channel);
@@ -20,7 +20,7 @@ public:
 	static bool IsFading(int channel);
 };
 
-class MusicManager : public SDLManager<Music> {
+class MusicManager : public ResourceManager<Music> {
 public:
 	static void Pause();
 	static void Resume();
