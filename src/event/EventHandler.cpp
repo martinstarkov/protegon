@@ -5,8 +5,7 @@
 namespace ptgn {
 
 void EventHandler::Invoke(ecs::Entity& invoker) {
-	auto& instance{ GetInstance() };
-	auto caller_it{ instance.callers_.find(invoker) };
+	/*auto caller_it{ instance.callers_.find(invoker) };
 	assert(caller_it != std::end(instance.callers_) &&
 		   "Could not invoke event on entity which has not registered such an event");
 	for (const auto event_id : caller_it->second) {
@@ -17,24 +16,24 @@ void EventHandler::Invoke(ecs::Entity& invoker) {
 		assert(invoke_function != nullptr &&
 			   "Could not create valid event invoke function pointer");
 		invoke_function(invoker);
-	}
+	}*/
 }
 
 void EventHandler::Remove(const ecs::Entity& invoker) {
-	GetInstance().callers_.erase(invoker);
+	//GetInstance().callers_.erase(invoker);
 }
 
 void EventHandler::Update() {
-	auto& instance{ GetInstance() };
-	// Remove dead entities from event handler every cycle.
-	// This ensures event handler won't get bloated with dead entities.
-	for (auto it{ instance.callers_.begin() }; it != instance.callers_.end();) {
-		if (!it->first.IsAlive()) {
-			instance.callers_.erase(it++);
-		} else {
-			++it;
-		}
-	}
+	//auto& instance{ GetInstance() };
+	//// Remove dead entities from event handler every cycle.
+	//// This ensures event handler won't get bloated with dead entities.
+	//for (auto it{ instance.callers_.begin() }; it != instance.callers_.end();) {
+	//	if (!it->first.IsAlive()) {
+	//		instance.callers_.erase(it++);
+	//	} else {
+	//		++it;
+	//	}
+	//}
 }
 
 EventHandler::EventId& EventHandler::EventTypeCount() {

@@ -2,7 +2,7 @@
 //
 //#include "ecs/System.h"
 //
-//#include "utils/Direction.h"
+//#include "utility/Direction.h"
 //
 //#define IDLE_DIRECTION Direction::DOWN
 //

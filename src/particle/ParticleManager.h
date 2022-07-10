@@ -6,7 +6,7 @@
 #include <algorithm> // std::fill
 
 #include "renderer/particle/Particle.h"
-#include "utils/TypeTraits.h"
+#include "utility/TypeTraits.h"
 #include "math/Math.h"
 #include "renderer/ScreenRenderer.h"
 

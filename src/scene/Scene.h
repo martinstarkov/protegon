@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/Camera.h"
+#include "scene/Camera.h"
 #include "core/ECS.h"
 
 namespace ptgn {

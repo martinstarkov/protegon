@@ -7,7 +7,7 @@
 
 #include "event/Inputs.h"
 #include "math/Vector2.h"
-#include "utils/Timer.h"
+#include "utility/Timer.h"
 
 namespace ptgn {
 

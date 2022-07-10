@@ -12,12 +12,28 @@ class Text {
 public:
 	Text() = delete;
 	Text(const std::size_t texture_key, const std::size_t font_key, const char* content, const Color& color);
-	void SetContent(const char* new_content);
-	void SetColor(const Color& new_color);
+	void SetContent(const char* new_content) {
+		content_ = new_content;
+		Refresh();
+	}
+	void SetColor(const Color& new_color) {
+		color_ = new_color;
+		Refresh();
+	}
 	void SetFont(const std::size_t new_font_key);
-	void SetSolidRenderMode();
-	void SetShadedRenderMode(const Color& background_shading);
-	void SetBlendedRenderMode();
+	void SetSolidRenderMode() {
+		mode_ = FontRenderMode::SOLID;
+		Refresh();
+	}
+	void SetShadedRenderMode(const Color& background_shading) {
+		background_shading_ = background_shading;
+		mode_ = FontRenderMode::SHADED;
+		Refresh();
+	}
+	void SetBlendedRenderMode() {
+		mode_ = FontRenderMode::BLENDED;
+		Refresh();
+	}
 	// Accepts any number of FontStyle enum values (UNDERLINED, BOLD, etc).
 	// These are combined into one style and text is renderer in that style.
 	template <typename ...Style,

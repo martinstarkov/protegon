@@ -14,10 +14,10 @@ namespace ptgn {
 
 TileMap::TileMap(const char* path) {
     assert(path != "" && "Cannot load tile map from empty texture path");
-	assert(debug::FileExists(path) && "Cannot load surface with non-existent into tile map");
+	assert(FileExists(path) && "Cannot load surface with nonexistent into tile map");
 	surface_ = IMG_Load(path);
     if (surface_ == nullptr) {
-		debug::PrintLine("Failed to load surface into tile map: ", IMG_GetError());
+		PrintLine("Failed to load surface into tile map: ", IMG_GetError());
 	}
 }
 

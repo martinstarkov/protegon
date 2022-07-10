@@ -1,11 +1,11 @@
 #include "InputHandler.h"
 
 #include <algorithm> // std::copy
+#include <cassert> // assert
 
 #include <SDL.h>
 
 #include "renderer/Renderer.h"
-#include <cassert> // assert
 #include "core/Window.h"
 
 // TODO: Fix GetMouseAbsolutePosition function
@@ -37,8 +37,7 @@ void SDLInputHandler::Update() {
 				break;
 			}
 			case SDL_QUIT: {
-				// TODO: FIX THIS.
-				//window::Destroy();
+				Window::Destroy();
 				break;
 			}
 			// Possible window events here in the future.

@@ -3,9 +3,9 @@
 #include "core/Engine.h"
 #include "animation/SpriteMap.h"
 #include "animation/Offset.h"
-#include "managers/RendererManager.h"
 #include "managers/TextureManager.h"
-#include "utils/Countdown.h"
+#include "renderer/Renderer.h"
+#include "utility/Countdown.h"
 #include "event/Input.h"
 
 using namespace ptgn;
@@ -19,12 +19,6 @@ public:
 	V2_int velocity = {};
 	V2_int size = { 64, 64 };
 	virtual void Init() {
-		const auto& renderer_manager{ managers::GetManager<managers::RendererManager>() };
-		bool draw = renderer_manager.Has(key_);
-		auto renderer = renderer_manager.Get(key_);
-		draw &= renderer != nullptr;
-		if (draw) {
-		}
 		hitbox_size = { 8, 8 };
 		offset = { test_animation, hitbox_size, animation::Alignment::MIDDLE, animation::Alignment::MIDDLE };
 	}
@@ -45,33 +39,28 @@ public:
 		position += velocity * dt;
 
 		static Countdown animation_countdown(milliseconds{ 400 }, true);
-		const auto& renderer_manager{ managers::GetManager<managers::RendererManager>() };
-		bool draw = renderer_manager.Has(key_);
-		auto renderer = renderer_manager.Get(key_);
-		static animation::SpriteMap sprite_map{ *renderer, "map1", "resources/spritesheet.png" };
-		draw &= renderer != nullptr;
-		if (draw) {
-			auto texture_key = sprite_map.GetTextureKey();
-			const auto& texture_manager{ managers::GetManager<managers::TextureManager>() };
-			assert(texture_manager.Has(texture_key));
-			auto texture = texture_manager.Get(texture_key);
-			assert(texture != nullptr);
-			V2_int animation_position{ test_animation.top_left.x + test_animation.size.x * test_animation.frame, test_animation.top_left.y };
-			renderer->DrawTexture(*texture, position, size, animation_position, test_animation.size);
-			if (animation_countdown.Finished()) {
-				++test_animation.frame;
-				animation_countdown.Start();
-			}
-			if (test_animation.frame >= test_animation.frames) {
-				test_animation.frame = 0;
-			}
+		static animation::SpriteMap sprite_map{ "map1", "resources/spritesheet.png" };
+		auto texture_key = sprite_map.GetTextureKey();
+		const auto& texture_manager{ managers::GetManager<managers::TextureManager>() };
+		assert(texture_manager.Has(texture_key));
+		auto texture = texture_manager.Get(texture_key);
+		assert(texture != nullptr);
+		V2_int animation_position{ test_animation.top_left_pixel.x + test_animation.frame_size.x * test_animation.current_frame, test_animation.top_left_pixel.y };
+		Renderer::DrawTexture(*texture, position, size, animation_position, test_animation.frame_size);
+		if (animation_countdown.Finished()) {
+			++test_animation.current_frame;
+			animation_countdown.Start();
+		}
+		if (test_animation.current_frame >= test_animation.frame_count) {
+			test_animation.current_frame = 0;
 		}
 	}
 };
 
 int main(int c, char** v) {
 	AnimationTest test;
-	test.Start("test", "Animation Test", { 400, 400 });
+	test.Start("Animation Test", { 400, 400 });
+	test.Stop();
 	
 	return 0;
 }

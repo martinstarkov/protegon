@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <tuple>
+#include <type_traits>
 
+#include "math/Math.h"
 #include "math/Vector2.h"
 #include "physics/Manifold.h"
 #include "physics/shapes/Rectangle.h"
@@ -11,12 +13,6 @@
 #include "physics/Shape.h"
 #include "components/Transform.h"
 #include "physics/RigidBody.h"
-
-// TODO: TEMPORARY
-#include "renderer/Colors.h"
-#include "debugging/Debug.h"
-#include "interface/Input.h"
-#include "interface/Draw.h"
 
 namespace ptgn {
 
@@ -218,7 +214,7 @@ public:
             :
             intersectionType(0),
             contactTime(static_cast<T>(0)),
-            contactPoint(Vector2<T>::Zero()) {}
+            contactPoint(V2_double::Zero()) {}
 
         // The cases are
         // 1. Objects initially overlapping.  The contactPoint is only one
@@ -237,7 +233,7 @@ public:
         //      contactPoint = corresponding first contact
         int32_t intersectionType;
         T contactTime;
-        Vector2<T> contactPoint;
+        V2_double contactPoint;
 
         // TODO: To support arbitrary precision for the contactTime,
         // return q0, q1 and q2 where contactTime = (q0 - sqrt(q1)) / q2.
@@ -247,17 +243,17 @@ public:
         // the contactPoint.
     };
 
-    Result operator()(const V2_double& boxmin, const V2_double& boxmax, const Vector2<T>& boxVelocity,
-                      const V2_double& circlecenter, const double& circleradius, const Vector2<T>& circleVelocity, bool circle = false) {
+    Result operator()(const V2_double& boxmin, const V2_double& boxmax, const V2_double& boxVelocity,
+                      const V2_double& circlecenter, const double& circleradius, const V2_double& circleVelocity, bool circle = false) {
         Result result{};
 
         // Translate the circle and box so that the box center becomes
         // the origin.  Compute the velocity of the circle relative to
         // the box.
-        Vector2<T> boxCenter = (boxmax + boxmin) * (T)0.5;
-        Vector2<T> extent = (boxmax - boxmin) * (T)0.5;
-        Vector2<T> C = circlecenter - boxCenter;
-        Vector2<T> V = circleVelocity - boxVelocity;
+        V2_double boxCenter = (boxmax + boxmin) * (T)0.5;
+        V2_double extent = (boxmax - boxmin) * (T)0.5;
+        V2_double C = circlecenter - boxCenter;
+        V2_double V = circleVelocity - boxVelocity;
 
         // Change signs on components, if necessary, to transform C to the
         // first quadrant.  Adjust the velocity accordingly.
@@ -289,9 +285,9 @@ public:
     }
 
 protected:
-    void DoQuery(Vector2<T> const& K, Vector2<T> const& C,
-                 T radius, Vector2<T> const& V, Result& result, bool circle) {
-        Vector2<T> delta = C - K;
+    void DoQuery(V2_double const& K, V2_double const& C,
+                 T radius, V2_double const& V, Result& result, bool circle) {
+        V2_double delta = C - K;
         if (delta[1] < radius) {
             if (delta[0] < radius) {
                 if (delta[1] < (T)0 || math::Compare(delta[1], 0.0)) {
@@ -327,21 +323,21 @@ protected:
     }
 
 private:
-    void InteriorOverlap(Vector2<T> const& C, Result& result) {
+    void InteriorOverlap(const V2_double& C, Result& result) {
         result.intersectionType = -1;
         result.contactTime = (T)0;
         result.contactPoint = C;
     }
 
-    void EdgeOverlap(int32_t i0, int32_t i1, Vector2<T> const& K, Vector2<T> const& C,
-                     Vector2<T> const& delta, T radius, Result& result) {
+    void EdgeOverlap(int32_t i0, int32_t i1, V2_double const& K, V2_double const& C,
+                     V2_double const& delta, T radius, Result& result) {
         result.intersectionType = (delta[i0] < radius ? -1 : 1);
         result.contactTime = (T)0;
         result.contactPoint[i0] = K[i0];
         result.contactPoint[i1] = C[i1];
     }
 
-    void VertexOverlap(Vector2<T> const& K0, Vector2<T> const& delta,
+    void VertexOverlap(V2_double const& K0, V2_double const& delta,
                        T radius, Result& result, const V2_double& V) {
         T sqrDistance = delta[0] * delta[0] + delta[1] * delta[1];
         T sqrRadius = radius * radius;
@@ -356,8 +352,8 @@ private:
         }
     }
 
-    void VertexSeparated(Vector2<T> const& K0, Vector2<T> const& delta0,
-                         Vector2<T> const& V, T radius, Result& result) {
+    void VertexSeparated(V2_double const& K0, V2_double const& delta0,
+                         V2_double const& V, T radius, Result& result) {
         T q0 = -V.DotProduct(delta0);
         if (q0 > (T)0) {
             T dotVPerpD0 = V.DotProduct(delta0.Tangent());
@@ -369,12 +365,12 @@ private:
         }
     }
 
-    void EdgeUnbounded(int32_t i0, int32_t i1, Vector2<T> const& K0, Vector2<T> const& C,
-                       T radius, Vector2<T> const& delta0, Vector2<T> const& V, Result& result, bool circle) {
+    void EdgeUnbounded(int32_t i0, int32_t i1, V2_double const& K0, V2_double const& C,
+                       T radius, V2_double const& delta0, V2_double const& V, Result& result, bool circle) {
         if (V[i0] < (T)0) {
             T dotVPerpD0 = V[i0] * delta0[i1] - V[i1] * delta0[i0];
             if (radius * V[i1] + dotVPerpD0 > (T)0) {
-                Vector2<T> K1, delta1;
+                V2_double K1, delta1;
                 K1[i0] = K0[i0];
                 K1[i1] = -K0[i1];
                 delta1[i0] = C[i0] - K1[i0];
@@ -401,8 +397,8 @@ private:
         }
     }
 
-    void VertexUnbounded(Vector2<T> const& K0, Vector2<T> const& C, T radius,
-                         Vector2<T> const& delta0, Vector2<T> const& V, Result& result, bool circle) {
+    void VertexUnbounded(V2_double const& K0, V2_double const& C, T radius,
+                         V2_double const& delta0, V2_double const& V, Result& result, bool circle) {
         if (V[0] < (T)0 && V[1] < (T)0) {
             T dotVPerpD0 = V.DotProduct(delta0.Tangent());
             if (radius * V[0] - dotVPerpD0 < (T)0) {
@@ -412,8 +408,8 @@ private:
                     T q0 = -V.DotProduct(delta0);
                     IntersectsVertex(0, 1, K0, q0, q1, q2, result);
                 } else {
-                    Vector2<T> K1{ K0[0], -K0[1] };
-                    Vector2<T> delta1 = C - K1;
+                    V2_double K1{ K0[0], -K0[1] };
+                    V2_double delta1 = C - K1;
                     T dotVPerpD1 = V.DotProduct(delta1.Tangent());
                     if (-radius * V[1] - dotVPerpD1 > (T)0) {
                         if (!circle)
@@ -428,8 +424,8 @@ private:
                     }
                 }
             } else {
-                Vector2<T> K2{ -K0[0], K0[1] };
-                Vector2<T> delta2 = C - K2;
+                V2_double K2{ -K0[0], K0[1] };
+                V2_double delta2 = C - K2;
                 T dotVPerpD2 = V.DotProduct(delta2.Tangent());
                 if (radius * V[0] - dotVPerpD2 < (T)0) {
                     if (!circle)
@@ -446,7 +442,7 @@ private:
         }
     }
 
-    void IntersectsVertex(int32_t i0, int32_t i1, Vector2<T> const& K,
+    void IntersectsVertex(int32_t i0, int32_t i1, V2_double const& K,
                           T q0, T q1, T q2, Result& result) {
         result.intersectionType = +1;
         result.contactTime = (q0 - std::sqrt(q1)) / q2;
@@ -454,8 +450,8 @@ private:
         result.contactPoint[i1] = K[i1];
     }
 
-    void IntersectsEdge(int32_t i0, int32_t i1, Vector2<T> const& K0, Vector2<T> const& C,
-                        T radius, Vector2<T> const& V, Result& result) {
+    void IntersectsEdge(int32_t i0, int32_t i1, V2_double const& K0, V2_double const& C,
+                        T radius, V2_double const& V, Result& result) {
         result.intersectionType = +1;
         result.contactTime = (K0[i0] + radius - C[i0]) / V[i0];
         result.contactPoint[i0] = K0[i0];
@@ -549,7 +545,7 @@ CollisionManifold DynamicCircleVsRectangle(const V2_double& position,
     const double radius{ size.x };
     collision::CollisionManifold cnew;
     internal::CollisionQuery<double> query;
-    auto c = query(target_position, target_position + target_size, {}, position, radius, velocity);
+    auto c = query(target_position, target_position + target_size, V2_double{}, position, radius, velocity);
     V2_double normal = (position + velocity * c.contactTime - c.contactPoint).Unit();
     if (c.intersectionType == 1) {
         if ((c.contactTime < 1.0 || math::Compare(c.contactTime, 1.0)) && (c.contactTime > 0.0 || math::Compare(c.contactTime, 0.0))) {

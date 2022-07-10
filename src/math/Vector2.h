@@ -7,6 +7,7 @@
 #include <cmath> // std::round
 #include <cstdint> // std::int32_t, etc
 #include <cstdlib> // std::size_t
+#include <type_traits>
 #include <cassert> // assert
 
 #include "math/Math.h"
@@ -25,7 +26,7 @@ inline constexpr const char VECTOR_CENTER_DELIMETER{ ',' };
 inline constexpr const char VECTOR_RIGHT_DELIMETER{ ')' };
 template <typename T,
     std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
-inline constexpr const T VECTOR_EPSILON{ math::EPSILON<T> };
+inline constexpr const T VECTOR_EPSILON{ EPSILON<T> };
 
 } // namespace internal
 

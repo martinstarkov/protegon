@@ -11,7 +11,7 @@ namespace ptgn {
 
 Music::Music(const char* music_path) {
 	assert(music_path != "" && "Cannot load empty music path into the music manager");
-	assert(FileExists(music_path) && "Cannot load music with non-existent file path into the music manager");
+	assert(FileExists(music_path) && "Cannot load music with nonexistent file path into the music manager");
 	music_ = Mix_LoadMUS(music_path);
 	if (music_ == NULL) {
 		PrintLine("Failed to load music into sound manager: ", Mix_GetError());

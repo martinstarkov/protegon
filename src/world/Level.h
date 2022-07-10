@@ -64,10 +64,6 @@ private:
 	
 	Level(const char* level_path) : surface_{ level_path } {}
 	
-	void Destroy() {
-		surface_.Destroy();
-	}
-	
 	Surface surface_;
 };
 

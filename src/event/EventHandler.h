@@ -3,11 +3,10 @@
 #include <cstdint> // std::uint32_t
 #include <unordered_map> // std::unordered_map
 #include <vector> // std::vector
+#include <cassert> // assert
 
 #include "core/ECS.h"
 #include "utility/TypeTraits.h"
-#include "utility/Singleton.h"
-#include <cassert> // assert
 
 namespace ptgn {
 
@@ -28,7 +27,7 @@ constexpr EventFunction EventCast() {
 
 } // namespace internal
 
-class EventHandler : public Singleton<EventHandler> {
+class EventHandler {
 public:
 	// Register an event class which implements an Invoke function taking an entity as an argument.
 	template <typename TEvent>
@@ -61,7 +60,6 @@ public:
 	static void Remove(const ecs::Entity& invoker);
 private:
 	friend class Engine;
-	friend class Singleton<EventHandler>;
 	
 	using EventId = std::uint32_t;
 

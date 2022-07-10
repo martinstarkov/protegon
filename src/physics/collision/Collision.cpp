@@ -1,7 +1,6 @@
 #include "Collision.h"
 
 #include "renderer/Colors.h"
-#include "debugging/Debug.h"
 
 namespace ptgn {
 

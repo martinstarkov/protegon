@@ -1,7 +1,6 @@
 #pragma once
 
 #include "math/Vector2.h"
-#include "utils/TypeTraits.h"
 
 namespace ptgn {
 
@@ -32,7 +31,7 @@ public:
 	virtual V2_double GetSize() const = 0;
 	
 	// Cast shape to a specific type.
-	template <typename T, type_traits::is_base_of_e<Shape, T> = true>
+	template <typename T, std::enable_if_t<std::is_base_of_v<Shape, T>, bool> = true>
 	T& CastTo() {
 		return *static_cast<T*>(this);
 	}

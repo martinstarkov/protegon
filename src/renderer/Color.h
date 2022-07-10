@@ -2,6 +2,7 @@
 
 #include <cstdint> // std::uint32_t, std::uint8_t, etc
 #include <ostream> // std::ostream
+#include <type_traits> // std::enable_if_t
 
 #include "math/Math.h"
 #include "renderer/PixelFormat.h"

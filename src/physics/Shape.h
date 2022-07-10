@@ -6,7 +6,6 @@
 #include "physics/shapes/Shape.h"
 #include "physics/shapes/Rectangle.h"
 #include "physics/shapes/Circle.h"
-#include "utility/TypeTraits.h"
 #include <cassert> // assert
 
 namespace ptgn {
@@ -15,7 +14,7 @@ namespace component {
 
 struct Shape {
 	Shape() = delete;
-	template <typename T, type_traits::is_base_of_e<physics::Shape, T> = true>
+	template <typename T, std::enable_if_t<std::is_base_of_v<physics::Shape, T>, bool> = true>
 	Shape(const T& shape, const V2_double& offset = {}) :
 		instance{ std::make_unique<T>(shape) },
 		offset{ offset } {

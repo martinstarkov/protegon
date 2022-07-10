@@ -20,8 +20,8 @@ public:
 
 	virtual void Render() {}
 
-	friend bool operator==(const Chunk& a, const Chunk& b) {
-		return a.coordinate_ == b.coordinate_;
+	bool operator==(const Chunk& b) {
+		return coordinate_ == b.coordinate_;
 	}
 
 	const ecs::Manager& GetManager() const {

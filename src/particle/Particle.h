@@ -6,8 +6,8 @@
 #include "physics/shapes/AABB.h"
 #include "physics/shapes/Circle.h"
 #include "renderer/Color.h"
-#include "utils/Countdown.h"
-#include "utils/TypeTraits.h"
+#include "utility/Countdown.h"
+#include "utility/TypeTraits.h"
 
 namespace ptgn {
 

@@ -39,40 +39,15 @@ void Text::Refresh() {
 			break;
 	}
 	assert(temp_surface != nullptr && "Failed to load text onto the surface");
-	texture_.Reset(temp_surface);
+	auto& texture_manager{ managers::GetManager<managers::TextureManager>() };
+	texture_manager.Load(texture_key_, new Texture{ temp_surface });
 	TTF_SetFontStyle(font, static_cast<int>(FontStyle::NORMAL));
-}
-
-void Text::SetContent(const char* new_content) {
-	content_ = new_content;
-	Refresh();
-}
-
-void Text::SetColor(const Color& new_color) {
-	color_ = new_color;
-	Refresh();
 }
 
 void Text::SetFont(const std::size_t new_font_key) {
 	auto& font_manager{ managers::GetManager<managers::FontManager>() };
 	assert(font_manager.Has(new_font_key) && "Cannot set text font to a font which has not been loaded into the font manager");
 	font_key_ = new_font_key;
-	Refresh();
-}
-
-void Text::SetSolidRenderMode() {
-	mode_ = FontRenderMode::SOLID;
-	Refresh();
-}
-
-void Text::SetShadedRenderMode(const Color& background_shading) {
-	background_shading_ = background_shading;
-	mode_ = FontRenderMode::SHADED;
-	Refresh();
-}
-
-void Text::SetBlendedRenderMode() {
-	mode_ = FontRenderMode::BLENDED;
 	Refresh();
 }
 

@@ -20,7 +20,7 @@ void Texture::Set(SDL_Surface* surface) {
 
 Texture::Texture(const char* texture_path) {
 	assert(texture_path != "" && "Cannot load empty texture path into the texture manager");
-	assert(FileExists(texture_path) && "Cannot load texture with non-existent file path into the texture manager");
+	assert(FileExists(texture_path) && "Cannot load texture with nonexistent file path into the texture manager");
 	auto surface{ IMG_Load(texture_path) };
 	if (surface == nullptr) {
 		PrintLine(IMG_GetError());

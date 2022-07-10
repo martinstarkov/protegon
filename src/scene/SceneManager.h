@@ -3,19 +3,19 @@
 #include <cstdlib> // std::size_t
 #include <vector> // std::vector
 #include <utility> // std::forward
+#include <type_traits> // std::enable_if_t
 
-#include "core/Scene.h"
+#include "scene/Scene.h"
 #include "math/Math.h"
-#include "utils/Singleton.h"
-#include "utils/TypeTraits.h"
+#include "scene/Camera.h"
 
 namespace ptgn {
 
-class SceneManager : public Singleton<SceneManager> {
+class SceneManager {
 private:
 public:
 	template <typename TScene, typename ...TArgs,
-		type_traits::is_base_of_e<Scene, TScene> = true>
+		std::enable_if_t<std::is_base_of_v<Scene, TScene>, bool> = true>
 	static void LoadScene(const char* scene_key, TArgs&&... args) {
 		static_assert(std::is_constructible_v<TScene, TArgs...>,
 					  "Cannot construct scene from passed arguments");
@@ -23,8 +23,8 @@ public:
 	}
 
 	template <typename TScene,
-		type_traits::is_default_constructible_e<TScene> = true,
-		type_traits::is_base_of_e<Scene, TScene> = true>
+		std::enable_if_t<std::is_default_constructible_v<TScene>, bool> = true,
+		std::enable_if_t<std::is_base_of_v<Scene, TScene>, bool> = true>
 	static void LoadScene(const char* scene_key) {
 		GetInstance().LoadSceneImpl(math::Hash(scene_key), new TScene{});
 	}
@@ -38,7 +38,6 @@ public:
 	static Camera& GetActiveCamera();
 private:
 	friend class Engine;
-	friend class Singleton<SceneManager>;
 
 	static Scene& GetActiveScene();
 	static void RenderActiveScene();

@@ -8,7 +8,6 @@
 #include "renderer/Texture.h"
 
 struct SDL_Renderer;
-struct SDL_Window;
 
 namespace ptgn {
 
@@ -16,9 +15,10 @@ class Renderer {
 public:
     Renderer() = delete;
     ~Renderer() = delete;
-    static void Create(SDL_Window* window, int index = 0, std::uint32_t flags = 0);
+    static void Create(int index = 0, std::uint32_t flags = 0);
     static void Destroy();
     static SDL_Renderer* Get() { return renderer_; }
+    static bool IsValid() { return renderer_ != nullptr; }
     static void Present();
     static void Clear();
     static void SetDrawColor(const Color& color = color::DEFAULT);

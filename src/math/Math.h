@@ -11,6 +11,7 @@
 #include <random> // std::minstd_rand, std::uniform_real_distribution, std::uniform_int_distribution
 #include <algorithm> // std::min, std::max
 #include <cassert> // assert
+#include <type_traits>
 
 #include "utility/TypeTraits.h"
 
@@ -39,7 +40,7 @@ public:
 // Definition of PI, requires specification of type (default: double)
 // @tparam T - Precision of PI (type: int, float, double, etc).
 template <typename T = double, 
-    std::enable_if_t<std::is_integral_v<T>, bool> = true>
+    std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
 inline const T PI{ std::acos(-T(1)) };
 
   // General epsilon values for comparing small differences 
@@ -51,7 +52,7 @@ inline constexpr const T EPSILON{ internal::Epsilon<T>::value() };
 
 // Wrapper around std::numeric_limits infinities.
 template <typename T, 
-    std::enable_if_t<std::is_integral_v<T>, bool> = true>
+    std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
 inline constexpr T Infinity() {
     if constexpr (std::is_floating_point_v<T>) {
         return std::numeric_limits<T>::infinity();
@@ -80,8 +81,8 @@ inline T Truncate(T value, int significant_figures) {
 // Clamp value within a range from low to high.
 // Allows for static cast.
 template <typename S, typename T,
-    std::enable_if_t<std::is_integral_v<S>, bool> = true,
-    std::enable_if_t<std::is_integral_v<T>, bool> = true>
+    std::enable_if_t<std::is_arithmetic_v<S>, bool> = true,
+    std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
 inline constexpr S Clamp(T value, T low, T high) {
     assert(high >= low && "Clamp low value must be below or equal to high value");
     return static_cast<S>((value < low) ? low : (high < value) ? high : value);
@@ -89,7 +90,7 @@ inline constexpr S Clamp(T value, T low, T high) {
 
 // Clamp value within a range from low to high.
 template <typename T, 
-    std::enable_if_t<std::is_integral_v<T>, bool> = true>
+    std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
 inline constexpr T Clamp(T value, T low, T high) {
     assert(high >= low && "Clamp low value must be below or equal to high value");
     return (value < low) ? low : (high < value) ? high : value;
@@ -129,7 +130,7 @@ inline auto Min(const T& left, const U& right) {
 template <typename T = double,
     std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
 inline T Compare(T x, T y, T relative_tolerance, T absolute_tolerance) {
-    return math::Abs(x - y) <= Max(absolute_tolerance, relative_tolerance * Max(Abs(x), Abs(y)));
+    return Abs(x - y) <= Max(absolute_tolerance, relative_tolerance * Max(Abs(x), Abs(y)));
 }
 
 // Compare two floating point numbers using equal relative and absolute tolerances.

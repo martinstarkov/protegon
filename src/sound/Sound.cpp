@@ -11,7 +11,7 @@ namespace ptgn {
 
 Sound::Sound(const char* sound_path) {
 	assert(sound_path != "" && "Cannot load empty sound path into the sound manager");
-	assert(FileExists(sound_path) && "Cannot load sound with non-existent file path into the sound manager");
+	assert(FileExists(sound_path) && "Cannot load sound with nonexistent file path into the sound manager");
 	chunk_ = Mix_LoadWAV(sound_path);
 	if (chunk_ == NULL) {
 		PrintLine(Mix_GetError());

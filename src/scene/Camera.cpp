@@ -1,9 +1,10 @@
 #include "Camera.h"
 
 #include <cassert> // assert
+
 #include "core/Window.h"
-#include "components/TransformComponent.h"
-#include "components/ShapeComponent.h"
+#include "components/Transform.h"
+#include "physics/Shape.h"
 
 namespace ptgn {
 
@@ -46,21 +47,21 @@ void Camera::CenterOn(const V2_double& point, V2_double size) {
 }
 
 void Camera::CenterOn(const ecs::Entity& entity, bool use_size) {
-	assert(entity.HasComponent<TransformComponent>() &&
-		   "Cannot center camera on entity without TransformComponent");
-	auto& transform{ entity.GetComponent<TransformComponent>().transform };
-	V2_int size;
-	if (use_size) {
-		assert(entity.HasComponent<ShapeComponent>() &&
-			   "Cannot center camera on entity size without ShapeComponent");
-		auto& shape{ entity.GetComponent<ShapeComponent>().shape };
-		auto type{ shape->GetType() };
-		// Only define size for AABB as circle positions are relative to center already.
-		if (type == ShapeType::AABB) {
-			size = shape->CastTo<AABB>().size;
-		}
-	}
-	CenterOn(transform.position, size);
+	//assert(entity.HasComponent<Transform>() &&
+	//	   "Cannot center camera on entity without TransformComponent");
+	//auto& transform{ entity.GetComponent<Transform>() };
+	//V2_int size;
+	//if (use_size) {
+	//	assert(entity.HasComponent<physics::Shape>() &&
+	//		   "Cannot center camera on entity size without ShapeComponent");
+	//	auto& shape{ entity.GetComponent<physics::Shape>() };
+	//	auto type{ shape.GetType() };
+	//	// Only define size for AABB as circle positions are relative to center already.
+	//	if (type == physics::ShapeType::AABB) {
+	//		size = shape.GetSize();
+	//	}
+	//}
+	//CenterOn(transform.position, size);
 }
 
 } // namespace ptgn
