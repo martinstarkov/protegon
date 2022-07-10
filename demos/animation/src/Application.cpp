@@ -2,58 +2,40 @@
 
 #include "core/Engine.h"
 #include "animation/SpriteMap.h"
-#include "animation/Offset.h"
 #include "managers/TextureManager.h"
+#include "animation/Offset.h"
 #include "renderer/Renderer.h"
 #include "utility/Countdown.h"
-#include "event/Input.h"
+#include "input/Input.h"
+#include "math/Hash.h"
 
 using namespace ptgn;
 
 class AnimationTest : public Engine {
 public:
-	animation::Animation test_animation{ { 0, 0 + 1 * 16 + 1 }, { 16, 16 }, 3 };
-	V2_int hitbox_size;
-	animation::Offset offset;
-	V2_int position = { 200, 200 };
-	V2_int velocity = {};
 	V2_int size = { 64, 64 };
+	V2_int position = { 200, 200 };
+	V2_int position2 = { 100, 200 };
+	animation::SpriteMap sprite_map{ "map1", "resources/spritesheet.png" };
+	animation::AnimationMap animation_map;
+	std::size_t anim1 = math::Hash("anim1");
+	std::size_t anim2 = math::Hash("anim2");
+	std::size_t map1 = math::Hash("map1");
+	managers::TextureManager& texture_manager{ managers::GetManager<managers::TextureManager>() };
+	animation::AnimationState state;
 	virtual void Init() {
-		hitbox_size = { 8, 8 };
-		offset = { test_animation, hitbox_size, animation::Alignment::MIDDLE, animation::Alignment::MIDDLE };
+		auto& animation = sprite_map.Load(anim1, V2_int{ 0, 0 + 1 * 16 + 1 }, V2_int{ 16, 16 }, 3, milliseconds{ 400 });
+		animation_map.Load(anim1, &animation, 0, true);
+		animation_map.Load(anim2, &animation, 2, true);
 	}
 	virtual void Update(double dt) {
-
-		double speed = 1000;
-		if (input::KeyPressed(Key::A)) velocity.x = -speed;
-		if (input::KeyPressed(Key::D)) velocity.x = speed;
-		if (input::KeyPressed(Key::W)) velocity.y = -speed;
-		if (input::KeyPressed(Key::S)) velocity.y = speed;
-		if (!input::KeyPressed(Key::S) &&
-			!input::KeyPressed(Key::W) &&
-			!input::KeyPressed(Key::A) &&
-			!input::KeyPressed(Key::D)) {
-			velocity = {};
-		}
-
-		position += velocity * dt;
-
-		static Countdown animation_countdown(milliseconds{ 400 }, true);
-		static animation::SpriteMap sprite_map{ "map1", "resources/spritesheet.png" };
-		auto texture_key = sprite_map.GetTextureKey();
-		const auto& texture_manager{ managers::GetManager<managers::TextureManager>() };
-		assert(texture_manager.Has(texture_key));
-		auto texture = texture_manager.Get(texture_key);
-		assert(texture != nullptr);
-		V2_int animation_position{ test_animation.top_left_pixel.x + test_animation.frame_size.x * test_animation.current_frame, test_animation.top_left_pixel.y };
-		Renderer::DrawTexture(*texture, position, size, animation_position, test_animation.frame_size);
-		if (animation_countdown.Finished()) {
-			++test_animation.current_frame;
-			animation_countdown.Start();
-		}
-		if (test_animation.current_frame >= test_animation.frame_count) {
-			test_animation.current_frame = 0;
-		}
+		auto animation = sprite_map.Get(anim1);
+		auto state = animation_map.Get(anim1);
+		auto state2 = animation_map.Get(anim2);
+		draw::Texture(*texture_manager.Get(sprite_map.GetTextureKey()), position, size, state->GetCurrentPosition(), state->animation->frame_size);
+		draw::Texture(*texture_manager.Get(sprite_map.GetTextureKey()), position2, size, state2->GetCurrentPosition(), state2->animation->frame_size);
+		state->Update();
+		state2->Update();
 	}
 };
 
