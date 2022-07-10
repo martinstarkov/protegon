@@ -1,25 +1,24 @@
 #include "Engine.h"
 
-#include "math/Hash.h"
 #include "renderer/Renderer.h"
 #include "core/Window.h"
-#include "event/Input.h"
+#include "input/Input.h"
 
 namespace ptgn {
 
 void Engine::Start(const char* window_title, const V2_int& window_size) {
-    Window::Create(window_title, window_size);
-    Renderer::Create();
+    window::Init(window_title, window_size);
+    draw::Init();
     InternalInit();
 }
 
 void Engine::Stop() {
-    Window::Destroy();
-    Renderer::Destroy();
+    window::Release();
+    draw::Release();
 }
 
 void Engine::InternalUpdate() {
-    while (Window::IsValid()) {
+    while (window::Exists()) {
         // Calculate time elapsed during previous frame.
         end = std::chrono::system_clock::now();
         std::chrono::duration<double> elapsed = end - start;
@@ -27,8 +26,8 @@ void Engine::InternalUpdate() {
         double dt = elapsed.count();
         
         // Clear screen.
-        Renderer::Clear();
-        Renderer::SetDrawColor(Window::GetColor());
+        draw::Clear();
+        draw::SetColor(window::GetColor());
         
         // Fetch updated user inputs.
         input::Update();
@@ -37,7 +36,7 @@ void Engine::InternalUpdate() {
         Update(dt);
 
         // Push drawn objects to screen.
-        Renderer::Present();
+        draw::Present();
     }
 }
 

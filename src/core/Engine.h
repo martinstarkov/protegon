@@ -1,17 +1,17 @@
 #pragma once
 
 #include <cstdlib> // std::size_t
-#include <chrono> // std::chrono::time_point
 
 #include "math/Vector2.h"
+#include "utility/Time.h"
 
 namespace ptgn {
 
 class Engine {
 public:
 	// Starts the engine by creating a window and initiating required systems and the game loop.
-	void Start(const char* window_title, const V2_int& window_size);
-	void Stop();
+	virtual void Start(const char* window_title, const V2_int& window_size) final;
+	virtual void Stop() final;
 	// User function called before entering game loop.
 	virtual void Init() {}
 	// User function called at the beginning of each game frame.

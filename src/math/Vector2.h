@@ -17,8 +17,6 @@ namespace ptgn {
 
 namespace math {
 
-namespace internal {
-
 // Vector stream output / input delimeters, allow for consistent serialization / deserialization.
 
 inline constexpr const char VECTOR_LEFT_DELIMETER{ '(' };
@@ -26,9 +24,7 @@ inline constexpr const char VECTOR_CENTER_DELIMETER{ ',' };
 inline constexpr const char VECTOR_RIGHT_DELIMETER{ ')' };
 template <typename T,
     std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
-inline constexpr const T VECTOR_EPSILON{ EPSILON<T> };
-
-} // namespace internal
+inline constexpr const T VECTOR_EPSILON{ math::EPSILON<T> };
 
 /*
 * @tparam T Type contained in vector.
@@ -59,7 +55,8 @@ struct Vector2 {
     }
 
     // Return a vector with both components randomized in the given ranges.
-    static Vector2 Random(T min_x = 0.0, T max_x = 1.0, T min_y = 0.0, T max_y = 1.0) {
+    static Vector2 Random(T min_x = static_cast<T>(0), T max_x = static_cast<T>(1), 
+                          T min_y = static_cast<T>(0), T max_y = static_cast<T>(1)) {
         assert(min_x < max_x &&
                "Minimum random value must be less than maximum random value");
         assert(min_y < max_y &&
@@ -150,16 +147,14 @@ struct Vector2 {
     template <typename U, 
         std::enable_if_t<std::is_convertible_v<U, T>, bool> = true>
     Vector2& operator/=(const Vector2<U>& rhs) {
-        if (rhs.x) {
+        if (rhs.x != static_cast<U>(0))
             x /= static_cast<T>(rhs.x);
-        } else {
+        else
             x = std::numeric_limits<T>::infinity();
-        }
-        if (rhs.y) {
+        if (rhs.y != static_cast<U>(0))
             y /= static_cast<T>(rhs.y);
-        } else {
+        else
             y = std::numeric_limits<T>::infinity();
-        }
         return *this;
     }
 
@@ -196,7 +191,7 @@ struct Vector2 {
         std::enable_if_t<std::is_arithmetic_v<U>, bool> = true,
         std::enable_if_t<std::is_convertible_v<U, T>, bool> = true>
     Vector2& operator/=(U rhs) {
-        if (rhs) {
+        if (rhs != static_cast<U>(0)) {
             x /= static_cast<T>(rhs);
             y /= static_cast<T>(rhs);
         } else {
@@ -251,21 +246,13 @@ struct Vector2 {
 
     // Return true if both vector components equal 0.
     inline bool IsZero() const {
-        if constexpr (std::is_floating_point_v<T>) {
-            return math::Compare(x, 0.0, math::internal::VECTOR_EPSILON<T>) &&
-                   math::Compare(y, 0.0, math::internal::VECTOR_EPSILON<T>);
-        }
-        return !x && !y;
+        return x == static_cast<T>(0) && y == static_cast<T>(0);
         
     }
 
     // Return true if either vector component equals 0.
     inline bool HasZero() const {
-        if constexpr (std::is_floating_point_v<T>) {
-            return math::Compare(x, 0.0, math::internal::VECTOR_EPSILON<T>) ||
-                   math::Compare(y, 0.0, math::internal::VECTOR_EPSILON<T>);
-        }
-        return !x || !y;
+        return x == static_cast<T>(0) || y == static_cast<T>(0);
     }
 
     friend inline void Swap(Vector2& lhs, Vector2& rhs) {
@@ -275,20 +262,12 @@ struct Vector2 {
 
     // Return true if both vector components equal numeric limits infinity.
     inline bool IsInfinite() const {
-        if constexpr (std::is_floating_point_v<T>) {
-            return math::Compare(x, std::numeric_limits<T>::infinity(), math::internal::VECTOR_EPSILON<T>) &&
-                   math::Compare(y, std::numeric_limits<T>::infinity(), math::internal::VECTOR_EPSILON<T>);
-        }
-        return false;
+        return x == std::numeric_limits<T>::infinity() && y == std::numeric_limits<T>::infinity();
     }
 
     // Return true if either vector component equals numeric limits infinity.
     inline bool HasInfinity() const {
-        if constexpr (std::is_floating_point_v<T>) {
-            return math::Compare(x, std::numeric_limits<T>::infinity(), math::internal::VECTOR_EPSILON<T>) ||
-                   math::Compare(y, std::numeric_limits<T>::infinity(), math::internal::VECTOR_EPSILON<T>);
-        }
-        return false;
+        return x == std::numeric_limits<T>::infinity() || y == std::numeric_limits<T>::infinity();
     }
 
     // Return 2D vector projection (dot product).
@@ -358,7 +337,7 @@ struct Vector2 {
     template <typename U = double, 
         std::enable_if_t<std::is_arithmetic_v<U>, bool> = true>
     inline U Magnitude() const {
-        return static_cast<U>(math::Sqrt(MagnitudeSquared()));
+        return static_cast<U>(std::sqrt(MagnitudeSquared()));
     }
 
     template <typename S = T,
@@ -383,9 +362,9 @@ using V2_float = math::Vector2<float>;
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const ptgn::math::Vector2<T>& obj) {
-    os << ptgn::math::internal::VECTOR_LEFT_DELIMETER;
-    os << obj.x << ptgn::math::internal::VECTOR_CENTER_DELIMETER;
-    os << obj.y << ptgn::math::internal::VECTOR_RIGHT_DELIMETER;
+    os << ptgn::math::VECTOR_LEFT_DELIMETER;
+    os << obj.x << ptgn::math::VECTOR_CENTER_DELIMETER;
+    os << obj.y << ptgn::math::VECTOR_RIGHT_DELIMETER;
     return os;
 }
 
@@ -395,8 +374,8 @@ template <typename T, typename U,
     typename S = typename std::common_type<T, U>::type>
 inline bool operator==(const ptgn::math::Vector2<T>& lhs, const ptgn::math::Vector2<U>& rhs) {
     if constexpr (std::is_floating_point_v<T> && std::is_floating_point_v<U>) {
-        return ptgn::math::Compare(lhs.x, rhs.x, ptgn::math::internal::VECTOR_EPSILON<T>) &&
-               ptgn::math::Compare(lhs.y, rhs.y, ptgn::math::internal::VECTOR_EPSILON<T>);
+        return ptgn::math::Compare(lhs.x, rhs.x, ptgn::math::VECTOR_EPSILON<T>) &&
+               ptgn::math::Compare(lhs.y, rhs.y, ptgn::math::VECTOR_EPSILON<T>);
     }
     return static_cast<S>(lhs.x) == static_cast<S>(rhs.x) &&
            static_cast<S>(lhs.y) == static_cast<S>(rhs.y);
@@ -412,8 +391,8 @@ template <typename T, typename U,
     std::enable_if_t<std::is_arithmetic_v<U>, bool> = true>
 inline bool operator==(const ptgn::math::Vector2<T>& lhs, U rhs) {
     if constexpr (std::is_floating_point_v<T> && std::is_floating_point_v<U>) {
-        return ptgn::math::Compare(lhs.x, rhs, ptgn::math::internal::VECTOR_EPSILON<T>) &&
-               ptgn::math::Compare(lhs.y, rhs, ptgn::math::internal::VECTOR_EPSILON<T>);
+        return ptgn::math::Compare(lhs.x, rhs, ptgn::math::VECTOR_EPSILON<T>) &&
+               ptgn::math::Compare(lhs.y, rhs, ptgn::math::VECTOR_EPSILON<T>);
     }
     return static_cast<S>(lhs.x) == static_cast<S>(rhs) && 
            static_cast<S>(lhs.y) == static_cast<S>(rhs);
@@ -481,12 +460,12 @@ template <typename T, typename U,
     typename S = typename std::common_type<T, U>::type>
 ptgn::math::Vector2<S> operator/(const ptgn::math::Vector2<T>& lhs, const ptgn::math::Vector2<U>& rhs) {
     ptgn::math::Vector2<S> vector;
-    if (rhs.x) {
+    if (rhs.x != static_cast<U>(0)) {
         vector.x = lhs.x / rhs.x;
     } else {
         vector.x = std::numeric_limits<S>::infinity();
     }
-    if (rhs.y) {
+    if (rhs.y != static_cast<U>(0)) {
         vector.y = lhs.y / rhs.y;
     } else {
         vector.y = std::numeric_limits<S>::infinity();
@@ -519,12 +498,12 @@ template <typename T, typename U,
     typename S = typename std::common_type<T, U>::type>
 ptgn::math::Vector2<S> operator/(T lhs, const ptgn::math::Vector2<U>& rhs) {
     ptgn::math::Vector2<S> vector;
-    if (rhs.x) {
+    if (rhs.x != static_cast<U>(0)) {
         vector.x = lhs / rhs.x;
     } else {
         vector.x = std::numeric_limits<S>::infinity();
     }
-    if (rhs.y) {
+    if (rhs.y != static_cast<U>(0)) {
         vector.y = lhs / rhs.y;
     } else {
         vector.y = std::numeric_limits<S>::infinity();
@@ -555,7 +534,7 @@ template <typename T, typename U,
     typename S = typename std::common_type<T, U>::type>
 ptgn::math::Vector2<S> operator/(const ptgn::math::Vector2<T>& lhs, U rhs) {
     ptgn::math::Vector2<S> vector;
-    if (rhs) {
+    if (rhs != static_cast<U>(0)) {
         vector.x = lhs.x / rhs;
         vector.y = lhs.y / rhs;
     } else {
@@ -592,7 +571,7 @@ inline S DistanceSquared(const Vector2<T>& lhs, const Vector2<U>& rhs) {
 template <typename T, typename U, 
     typename S = typename std::common_type<T, U>::type>
 inline S Distance(const Vector2<T>& lhs, const Vector2<U>& rhs) {
-    return Sqrt<S>(DistanceSquared(lhs, rhs));
+    return std::sqrt<S>(DistanceSquared(lhs, rhs));
 }
 
 // Return minimum component of vector. (reference)
@@ -611,55 +590,55 @@ inline T& Max(Vector2<T>& vector) {
 // Return a vector composed of the minimum components of two vectors.
 template <typename T>
 inline Vector2<T> Min(const Vector2<T>& a, const Vector2<T>& b) {
-    return { Min(a.x, b.x), Min(a.y, b.y) };
+    return { math::Min(a.x, b.x), math::Min(a.y, b.y) };
 }
 
 // Return a vector composed of the maximum components of two vectors.
 template <typename T>
 inline Vector2<T> Max(const Vector2<T>& a, const Vector2<T>& b) {
-    return { Max(a.x, b.x), Max(a.y, b.y) };
+    return { math::Max(a.x, b.x), math::Max(a.y, b.y) };
 }
 
 // Return the absolute value of both vectors components.
 template <typename T>
 inline Vector2<T> Abs(const Vector2<T>& vector) {
-    return { Abs(vector.x), Abs(vector.y) };
+    return { math::Abs(vector.x), math::Abs(vector.y) };
 }
 
 // Return both vector components rounded to the closest integer.
 template <typename T = int, typename S>
 inline Vector2<T> Round(const Vector2<S>& vector) {
-    return { Round<T>(vector.x), Round<T>(vector.y) };
+    return { math::Round<T>(vector.x), math::Round<T>(vector.y) };
 }
 
 // Return both vector components ceiled to the closest integer.
 template <typename T = int, typename S>
 inline Vector2<T> Ceil(const Vector2<S>& vector) {
-    return { Ceil<T>(vector.x), Ceil<T>(vector.y) };
+    return { math::Ceil<T>(vector.x), math::Ceil<T>(vector.y) };
 }
 
 // Return both vector components floored to the closest integer.
 template <typename T = int, typename S>
 inline Vector2<T> Floor(const Vector2<S>& vector) {
-    return { Floor<T>(vector.x), Floor<T>(vector.y) };
+    return { math::Floor<T>(vector.x), math::Floor<T>(vector.y) };
 }
 
 // Clamp both vectors value within a vector range.
 template <typename T>
 inline Vector2<T> Clamp(const Vector2<T>& value, const Vector2<T>& low, const Vector2<T>& high) {
-    return { Clamp(value.x, low.x, high.x), Clamp(value.y, low.y, high.y) };
+    return { math::Clamp(value.x, low.x, high.x), math::Clamp(value.y, low.y, high.y) };
 }
 
 // Linearly interpolates both vector components by the given value.
 template <typename T, typename U>
 inline Vector2<U> Lerp(const Vector2<T>& a, const Vector2<T>& b, U amount) {
-    return { Lerp(a.x, b.x, amount), Lerp(a.y, b.y, amount) };
+    return { math::Lerp(a.x, b.x, amount), math::Lerp(a.y, b.y, amount) };
 }
 
 // Return both vector components smooth stepped.
 template <typename T>
 inline Vector2<T> SmoothStep(const Vector2<T>& vector) {
-    return { SmoothStep(vector.x), SmoothStep(vector.y) };
+    return { math::SmoothStep(vector.x), math::SmoothStep(vector.y) };
 }
 
 } // namespace math

@@ -15,8 +15,9 @@ public:
 	Texture(SDL_Surface* surface) { Set(surface); }
 	~Texture();
 	void Reset(SDL_Surface* surface);
+	bool Exists() const { return texture_ != nullptr; }
 	operator SDL_Texture*() const {
-		assert(texture_ != nullptr && "Cannot cast nullptr texture to SDL_Texture");
+		assert(Exists() && "Cannot cast nullptr texture to SDL_Texture");
 		return texture_;
 	}
 private:
