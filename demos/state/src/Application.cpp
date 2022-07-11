@@ -1,40 +1,51 @@
 #include <iostream>
-#include "event/Event.h"
+#include "state/State.h"
+#include "state/StateMachine.h"
+#include "input/Input.h"
+#include "core/Engine.h"
+#include "core/ECS.h"
 
 using namespace ptgn;
 
-struct QuitEvent : public event::Event<QuitEvent> {};
-struct CollisionEvent : public event::Event<CollisionEvent> {
+struct JumpState : public state::State {
+	void Enter(ecs::Entity& player, int i) {
+		std::cout << "Jump!" << std::endl;
+	}
+	void Exit() {
+		std::cout << "Stopped Jump!" << std::endl;
+	}
+};
+struct LandState : public state::State {
+	void Enter() {
+		std::cout << "Landed!" << std::endl;
+	}
+	void Exit() {
+		std::cout << "No longer landed!" << std::endl;
+	}
+};
+
+class MyEngine : public Engine {
 public:
-	CollisionEvent(int i) : i{ i } {}
-	int i;
+	state::StateMachine state_machine;
+	virtual void Init() {
+		state_machine.AddState<JumpState>();
+		state_machine.AddState<LandState>();
+		state_machine.SetState<LandState>();
+	}
+	ecs::Entity player;
+	virtual void Update(double dt) {
+		if (input::KeyDown(Key::W)) {
+			int i;
+			state_machine.SetState<JumpState>(player, i);
+		}
+		if (input::KeyDown(Key::S)) {
+			state_machine.SetState<LandState>();
+		}
+	}
 };
 
 int main(int c, char** v) {
-
-	event::Dispatcher dispatcher;
-	auto listener1 = dispatcher.Subscribe([](QuitEvent& event) {
-		std::cout << "WINDOW QUIT SOUND!" << std::endl;
-	});
-	auto listener2 = dispatcher.Subscribe([](const QuitEvent& event) {
-		std::cout << "WINDOW QUIT GRAPHIC!" << std::endl;
-	});
-	auto listener3 = dispatcher.Subscribe([](CollisionEvent& event) {
-		std::cout << "COLLISION1 OCCURED! -> " << event.i << std::endl;
-	});
-	auto listener4 = dispatcher.Subscribe([](CollisionEvent event) {
-		std::cout << "COLLISION2 OCCURED! -> " << event.i << std::endl;
-	});
-	auto listener5 = dispatcher.Subscribe([](QuitEvent& event) {
-		std::cout << "COLLISION3 OCCURED!" << std::endl;
-	});
-	QuitEvent window;
-	dispatcher.Post(window);
-	//listener4.Unsubscribe<CollisionEvent>();
-	dispatcher.Post(window);
-	dispatcher.Post(CollisionEvent{ 1 });
-	listener4.Post(CollisionEvent{ 2 });
-	listener5.Post(CollisionEvent{ 3 });
-	std::cin.get();
+	MyEngine test;
+	test.Start("State test", { 300, 300 });
 	return 0;
 }

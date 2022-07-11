@@ -1,5 +1,5 @@
 #include <iostream>
-#include "event/Event.h"
+#include "event/Observer.h"
 
 using namespace ptgn;
 

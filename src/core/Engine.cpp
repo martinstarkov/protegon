@@ -22,6 +22,7 @@ void Engine::Start(const char* window_title, const V2_int& window_size, bool win
     window::SetOriginPosition(window_position);
     window::Show();
     InternalInit();
+    Stop();
 }
 
 void Engine::Stop() {

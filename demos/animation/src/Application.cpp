@@ -14,7 +14,7 @@ using namespace ptgn;
 
 class AnimationTest : public Engine {
 public:
-	V2_int size = { 64, 64 };
+	V2_int size{ 64, 64 };
 	std::vector<V2_int> positions = { { 200, 200 }, { 100, 200 } };
 	animation::SpriteMap sprite_map{ "map1", "resources/spritesheet.png" };
 	animation::AnimationMap animation_map;
@@ -39,7 +39,5 @@ public:
 int main(int c, char** v) {
 	AnimationTest test;
 	test.Start("Animation Test", { 400, 400 });
-	test.Stop();
-	
 	return 0;
 }
