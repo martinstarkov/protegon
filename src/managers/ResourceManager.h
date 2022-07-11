@@ -87,6 +87,16 @@ public:
             return *new_it->second;
         }
     }
+
+    template <typename TLambda>
+    void ForEach(TLambda lambda) {
+        for (auto it = map.begin(); it != map.end(); ++it)
+            lambda(*it->second);
+    }
+
+    std::size_t Size() const {
+        return map.size();
+    }
 private:
     std::unordered_map<I, std::shared_ptr<T>> map;
 };
