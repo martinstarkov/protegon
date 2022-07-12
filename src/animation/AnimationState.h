@@ -45,6 +45,9 @@ struct AnimationState {
 			Start();
 		}
 	}
+	std::size_t GetCurrentFrame() const {
+		return current_frame_;
+	}
 	V2_int GetCurrentPosition() const {
 		auto& animation{ GetAnimation() };
 		return { animation.top_left_pixel.x + animation.frame_size.x * current_frame_, animation.top_left_pixel.y };

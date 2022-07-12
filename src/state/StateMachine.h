@@ -2,14 +2,46 @@
 
 #include <cstdlib> // std::size_t
 #include <limits> // std::numeric_limits
+#include <stack> // std::stack
+#include <unordered_map> // std::unordered_map
 
 #include "state/State.h"
-#include "managers/ResourceManager.h"
+#include "event/Observer.h"
 
 namespace ptgn {
 
 namespace state {
 
+using state = const char*;
+
+class StateMachine : public event::Dispatcher {
+public:
+	template <typename T>
+	void AddState(state state, T&& lambda) {
+		event::Listener l = Subscribe(std::move(lambda));
+		states.emplace(state, l);
+	}
+	void PopState() {
+		stack.pop();
+	}
+	void PushState(state state) {
+		stack.push(state);
+	}
+	template <typename T>
+	void Notify(state state, T& event) {
+		event::Listener l = states.find(state)->second;
+		l.Post(event);
+		PushState(state);
+	}
+	state GetCurrentState() const {
+		return stack.top();
+	}
+private:
+	std::unordered_map<state, event::Listener> states;
+	std::stack<state> stack;
+};
+
+/*
 using Id = std::size_t;
 
 class StateMachine : public managers::ResourceManager<State> {
@@ -48,6 +80,7 @@ private:
 	}
 	Id previous_state{ std::numeric_limits<Id>::max() };
 };
+*/
 
 } // namespace state
 

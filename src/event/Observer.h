@@ -43,6 +43,8 @@ inline constexpr const Id invalid_listener_id{ 0 };
 template <typename T>
 class Event {
 public:
+	Event() = default;
+	virtual ~Event() = default;
 	bool IsHandled() const { return handled_; }
 	void SetHandled() { handled_ = true; }
 private:
