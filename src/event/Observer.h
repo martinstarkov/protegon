@@ -9,9 +9,8 @@
 
 namespace ptgn {
 
-namespace event {
+namespace type_traits {
 
-class Listener;
 
 template <typename T>
 struct function_traits
@@ -36,6 +35,11 @@ struct function_traits<ReturnType(ClassType::*)(Args...) const>
 template <typename T>
 using base_type = std::remove_cv<typename std::remove_reference<T>::type>;
 
+} // namespace type_traits
+
+namespace event {
+
+class Listener;
 using Id = std::size_t;
 
 inline constexpr const Id invalid_listener_id{ 0 };
@@ -59,8 +63,7 @@ public:
 
 	template <typename L>
 	Listener Subscribe(L&& callback) {
-		typedef function_traits<L> traits;
-		using T = base_type<traits::arg<0>::type>::type;
+		using T = type_traits::base_type<type_traits::function_traits<L>::arg<0>::type>::type;
 		const auto id = Id(++GetId());
 		Map<T>& map{ Observers<T>() };
 		map.emplace(id, std::move(callback));
@@ -69,7 +72,7 @@ public:
 	template <typename T>
 	bool Unsubscribe(Listener& listener) {
 		if (listener.id_ != invalid_listener_id) {
-			using S = base_type<T>::type;
+			using S = type_traits::base_type<T>::type;
 			Map<S>& map{ Observers<S>() };
 			const auto it = map.find(listener.id_);
 			if (it == map.end())
@@ -84,7 +87,7 @@ public:
 	// TODO: Add template check that S is child of Event class.
 	template <typename T>
 	void Post(T& event) {
-		using S = base_type<T>::type;
+		using S = type_traits::base_type<T>::type;
 		Map<S>& map{ Observers<S>() };
 		for (auto&& pair : map)
 			if (!event.IsHandled()) 
@@ -103,7 +106,7 @@ private:
 	}
 	template <typename T>
 	bool HasSubscriber(const Listener& listener) const {
-		using S = base_type<T>::type;
+		using S = type_traits::base_type<T>::type;
 		Map<S>& map{ Observers<S>() };
 		return map.find(listener.id_) != map.end();
 	}
@@ -116,7 +119,7 @@ public:
 	template <typename T>
 	void Post(T& event) {
 		if (id_ != invalid_listener_id) {
-			using S = base_type<T>::type;
+			using S = type_traits::base_type<T>::type;
 			Map<S>& map{ dispatcher_.Observers<S>() };
 			const auto it = map.find(id_);
 			if (it != map.end() && !event.IsHandled())

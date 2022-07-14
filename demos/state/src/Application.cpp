@@ -11,8 +11,12 @@
 #include "math/Hash.h"
 #include "state/StateMachine.h"
 #include "event/Observer.h"
+#include "utility/Log.h"
 
 using namespace ptgn;
+
+class JumpState {};
+class IdleState {};
 
 class AnimationTest : public Engine {
 public:
@@ -22,41 +26,39 @@ public:
 	animation::AnimationMap animation_map;
 	managers::TextureManager& texture_manager{ managers::GetManager<managers::TextureManager>() };
 	state::StateMachine state_machine;
-	struct MovementState : public event::Event<MovementState> {
-		MovementState(animation::AnimationState* animation) : animation{ animation } {}
-		animation::AnimationState* animation;
-	};
 	virtual void Init() {
 		sprite_map.Load(math::Hash("idle_animation"), V2_int{ 0, 0 + 1 * 16 + 1 }, V2_int{ 16, 16 }, 3, milliseconds{ 300 });
 		sprite_map.Load(math::Hash("jump_animation"), V2_int{ 0, 0 }, V2_int{ 16, 16 }, 8, milliseconds{ 200 });
 		animation_map.Load(0, sprite_map, math::Hash("idle_animation"), 0, true);
-
-
-
-		state_machine.AddState("idle", [&](MovementState& state) {
-			if (state_machine.GetCurrentState() == "jump") {
-				std::cout << "Entering idle" << std::endl;
-			    state.animation->SetAnimation(math::Hash("idle_animation"), 0);
+		state_machine.AddState<IdleState>([&](animation::AnimationState& animation) {
+			if (!state_machine.IsState<IdleState>()) {
+				state_machine.PopState();
+				PrintLine("Idle");
+				animation.SetAnimation(math::Hash("idle_animation"), 0);
 			}
 		});
-		state_machine.AddState("jump", [&](MovementState& state) {
-			if (state_machine.GetCurrentState() == "idle") {
-				std::cout << "Entering jump" << std::endl;
-				state.animation->SetAnimation(math::Hash("jump_animation"), 0);
+		state_machine.AddState<JumpState>([&](animation::AnimationState& animation, int i) {
+			if (!state_machine.IsState<JumpState>()) {
+				state_machine.PopState();
+				PrintLine("Jump: ", i);
+				animation.SetAnimation(math::Hash("jump_animation"), 0);
 			}
 		});
-		state_machine.PushState("idle");
+		state_machine.PushState<IdleState>(*animation_map.Get(0));
 
 	}
 	virtual void Update(double dt) {
 		auto state = animation_map.Get(0);
 		draw::Texture(*texture_manager.Get(state->sprite_map.GetTextureKey()), positions[0], size, state->GetCurrentPosition(), state->GetAnimation().frame_size);
-		if (input::KeyDown(Key::W)) {
-			state_machine.Notify("jump", MovementState{ state });
-		} if (input::KeyDown(Key::S)) {
-			state_machine.Notify("idle", MovementState{ state });
-		}
+		state_machine.Update([&]() {
+			if (input::KeyPressed(Key::W)) {
+				state_machine.PushState<JumpState>(*state, 4);
+			} else if (input::KeyPressed(Key::S)) {
+				state_machine.PushState<IdleState>(*state);
+			}
+		});
 		animation_map.Update();
+		//PrintLine("state: ", state_machine.GetState(), ", active state count: ", state_machine.GetActiveStateCount());
 	}
 };
 
