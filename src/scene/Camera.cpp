@@ -3,65 +3,42 @@
 #include <cassert> // assert
 
 #include "core/Window.h"
-#include "components/Transform.h"
-#include "physics/Shape.h"
 
 namespace ptgn {
 
-Camera::Camera(const V2_double& scale,
-			   V2_double zoom_speed,
-			   V2_double min_scale,
-			   V2_double max_scale) :
-	scale{ scale },
-	zoom_speed{ zoom_speed },
-	min_scale{ min_scale },
-	max_scale{ max_scale }
-{}
-
 void Camera::ZoomIn(const V2_double& amount) {
 	scale += amount;
-	ClampToBound();
+	ClampZoom();
 }
 
 void Camera::ZoomIn() {
 	scale += zoom_speed;
-	ClampToBound();
+	ClampZoom();
 }
 
 void Camera::ZoomOut(const V2_double& amount) {
 	scale -= amount;
-	ClampToBound();
+	ClampZoom();
 }
 
 void Camera::ZoomOut() {
 	scale -= zoom_speed;
-	ClampToBound();
+	ClampZoom();
 }
 
-void Camera::ClampToBound() {
+void Camera::ClampZoom() {
 	scale = math::Clamp(scale, min_scale, max_scale);
 }
 
-void Camera::CenterOn(const V2_double& point, V2_double size) {
-	position = point + size / 2.0 - (Window::GetSize() / 2.0) / scale;
+void Camera::CenterOn(const V2_double& point, const V2_double& size) {
+	position = point + size / 2.0 - (window::GetSize() / 2.0) / scale;
 }
 
-void Camera::CenterOn(const ecs::Entity& entity, bool use_size) {
-	//assert(entity.HasComponent<Transform>() &&
-	//	   "Cannot center camera on entity without TransformComponent");
-	//auto& transform{ entity.GetComponent<Transform>() };
-	//V2_int size;
-	//if (use_size) {
-	//	assert(entity.HasComponent<physics::Shape>() &&
-	//		   "Cannot center camera on entity size without ShapeComponent");
-	//	auto& shape{ entity.GetComponent<physics::Shape>() };
-	//	auto type{ shape.GetType() };
-	//	// Only define size for AABB as circle positions are relative to center already.
-	//	if (type == physics::ShapeType::AABB) {
-	//		size = shape.GetSize();
-	//	}
-	//}
-	//CenterOn(transform.position, size);
+V2_double Camera::RelativePosition(const V2_double& object_position) {
+	return (object_position - position) * scale;
+}
+V2_double Camera::RelativeSize(const V2_double& object_size) {
+	return object_size * scale;
 }
 
 } // namespace ptgn
