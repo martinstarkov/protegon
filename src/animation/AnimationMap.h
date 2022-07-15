@@ -10,7 +10,7 @@ namespace animation {
 class AnimationMap : public managers::ResourceManager<AnimationState> {
 public:
 	void Update() {
-		ForEach([](AnimationState& animation_state) {
+		ForEach([&](AnimationState& animation_state) {
 			animation_state.Update();
 		});
 	}

@@ -37,10 +37,10 @@ void Engine::InternalUpdate() {
         std::chrono::duration<double> elapsed = end - start;
         start = end;
         double dt = elapsed.count();
-        
+
+        draw::SetColor(window::GetColor());
         // Clear screen.
         draw::Clear();
-        draw::SetColor(window::GetColor());
         
         // Fetch updated user inputs.
         input::Update();
