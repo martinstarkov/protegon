@@ -13,4 +13,5 @@ find_package(protegon REQUIRED)
 
 if(DEMOS)
   add_subdirectory(demos)
+  add_subdirectory(gmtk_jam)
 endif()
