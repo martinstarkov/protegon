@@ -293,14 +293,16 @@ struct Vector2 {
     }
 
     // Return a unit vector (normalized).
-    inline auto Unit() const {
+    template <typename S = T,
+        std::enable_if_t<std::is_floating_point_v<S>, bool> = true>
+    inline Vector2<S> Unit() const {
         // Cache magnitude calculation.
-        auto m{ Magnitude<T>() };
+        auto m{ Magnitude<S>() };
         // Avoid division by zero error for zero magnitude vectors.
         if (m > 0) {
             return *this / m;
         }
-        return Vector2<T>{};
+        return Vector2<S>{};
     }
 
     // Return normalized (unit) vector.
@@ -338,6 +340,18 @@ struct Vector2 {
         std::enable_if_t<std::is_arithmetic_v<U>, bool> = true>
     inline U Magnitude() const {
         return static_cast<U>(std::sqrt(MagnitudeSquared()));
+    }
+
+    inline bool operator==(const ptgn::math::Vector2<T>& rhs) const {
+        if constexpr (std::is_floating_point_v<T>) {
+            return ptgn::math::Compare(x, rhs.x, ptgn::math::VECTOR_EPSILON<T>) &&
+                   ptgn::math::Compare(y, rhs.y, ptgn::math::VECTOR_EPSILON<T>);
+        }
+        return x == rhs.x && y == rhs.y;
+    }
+
+    inline bool operator!=(const ptgn::math::Vector2<T>& rhs) const {
+        return !operator==(rhs);
     }
 
     template <typename S = T,

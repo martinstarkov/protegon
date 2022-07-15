@@ -38,8 +38,8 @@ void SolidRectangle(const V2_int& top_left,
 void Texture(const ptgn::Texture& texture,
                     const V2_int& texture_position,
                     const V2_int& texture_size,
-                    const V2_int& source_position,
-                    const V2_int& source_size);
+             const V2_int& source_position = {},
+                    const V2_int& source_size = {});
 // Draws the texture to the screen. Allows for rotation and texture flipping.
 // Set center_of_rotation to nullptr if center of rotation is desired to be the center of the texture.
 void Texture(const ptgn::Texture& texture,

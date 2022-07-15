@@ -66,9 +66,12 @@ void SetTitle(const char* new_title) {
 	return SDL_SetWindowTitle(SDLWindow::Get().window_, new_title);
 }
 
-void SetFullscreen(bool on) {
+void SetFullscreen(window::Flags flag) {
 	assert(Exists() && "Cannot set nonexistent window to fullscreen");
-	SDL_SetWindowFullscreen(SDLWindow::Get().window_, on);
+	assert(flag == window::Flags::FULLSCREEN_DESKTOP ||
+		   flag == window::Flags::FULLSCREEN ||
+		   flag == window::Flags::NONE);
+	SDL_SetWindowFullscreen(SDLWindow::Get().window_, static_cast<std::uint32_t>(flag));
 }
 
 void SetResizeable(bool on) {
@@ -80,11 +83,23 @@ void SetColor(const Color& new_color) {
 	SDLWindow::Get().color_ = new_color;
 }
 
+void Maximize() {
+	assert(Exists() && "Cannot maximize nonexistent window");
+	SDL_MaximizeWindow(SDLWindow::Get().window_);
+}
+
+void Minimize() {
+	assert(Exists() && "Cannot minimize nonexistent window");
+	SDL_MinimizeWindow(SDLWindow::Get().window_);
+}
+
 void Show() {
+	assert(Exists() && "Cannot show nonexistent window");
 	SDL_ShowWindow(SDLWindow::Get().window_);
 }
 
 void Hide() {
+	assert(Exists() && "Cannot hide nonexistent window");
 	SDL_HideWindow(SDLWindow::Get().window_);
 }
 

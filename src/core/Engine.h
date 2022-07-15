@@ -4,6 +4,7 @@
 
 #include "math/Vector2.h"
 #include "utility/Time.h"
+#include "core/WindowFlags.h"
 
 namespace ptgn {
 
@@ -12,7 +13,13 @@ public:
 	Engine();
 	virtual ~Engine() = default;
 	// Starts the engine by creating a window and initiating required systems and the game loop.
-	virtual void Start(const char* window_title, const V2_int& window_size, bool window_centered = true, V2_int& window_position = V2_int{}) final;
+	virtual void Start(const char* window_title = "Default Title",
+					   const V2_int& window_size = V2_int{},
+					   bool window_centered = false, 
+					   V2_int& window_position = V2_int{},
+					   window::Flags fullscreen_flag = window::Flags::NONE,
+					   bool resizeable = true,
+					   bool maximize = true) final;
 	virtual void Stop() final;
 	// User function called before entering game loop.
 	virtual void Init() {}

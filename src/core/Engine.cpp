@@ -13,13 +13,23 @@ Engine::Engine() {
     draw::Init();
 }
 
-void Engine::Start(const char* window_title, const V2_int& window_size, bool window_centered, V2_int& window_position) {
+void Engine::Start(const char* window_title, 
+                   const V2_int& window_size, 
+                   bool window_centered, 
+                   V2_int& window_position,
+                   window::Flags fullscreen_flag,
+                   bool resizeable,
+                   bool maximize) {
     if (window_centered) {
         window_position = window::CENTERED;
     }
     window::SetTitle(window_title);
     window::SetSize(window_size);
     window::SetOriginPosition(window_position);
+    window::SetResizeable(resizeable);
+    window::SetFullscreen(fullscreen_flag);
+    if (maximize)
+        window::Maximize();
     window::Show();
     InternalInit();
     Stop();
