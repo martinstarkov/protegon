@@ -37,7 +37,7 @@ void SDLInputHandler::Update() {
 				break;
 			}
 			case SDL_QUIT: {
-				Window::Destroy();
+				window::Destroy();
 				break;
 			}
 			// Possible window events here in the future.
