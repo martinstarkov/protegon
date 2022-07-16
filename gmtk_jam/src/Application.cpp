@@ -246,16 +246,14 @@ public:
 			auto direction = static_cast<V2_double>(mouse - player_position);
 			auto axis_direction = ClosestAxis(direction);
 
-			bool new_direction = previous_direction != axis_direction && previous_direction != V2_int{};
-
-			if (new_direction) {
+			if (previous_direction != axis_direction) {
 				sound_manager.Get(move_key)->Play(-1, 0);
 				previous_direction = axis_direction;
 			}
 
 			turn_allowed = Contains(directions, axis_direction);
 
-			if (turn_allowed || new_direction) {
+			if (turn_allowed || previous_direction != axis_direction) {
 				auto rotated = GetRotatedSequence(sequence, axis_direction.Angle());
 				absolute_sequence = GetAbsoluteSequence(rotated, player_tile);
 			}
