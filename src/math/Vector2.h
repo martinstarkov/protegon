@@ -342,22 +342,34 @@ struct Vector2 {
         return static_cast<U>(std::sqrt(MagnitudeSquared()));
     }
 
+    template <typename S = T,
+        std::enable_if_t<std::is_floating_point_v<S>, bool> = true>
+    Vector2<T> Fraction() const {
+        return *this - math::Floor(*this);
+    }
+
+    // Returns a new vector rotated by the radian angle in the clockwise direction.
+    // See https://en.wikipedia.org/wiki/Rotation_matrix for details
+    Vector2<double> Rotate(double angle) const {
+        return { x * std::cos(angle) - y * std::sin(angle),
+                 x * std::sin(angle) + y * std::cos(angle) };
+    }
+
+    // Returns the angle between the x and y components of the vector relative to the x-axis (clockwise positive).
+    double Angle() const {
+        return std::atan2(y, x);
+    }
+
     inline bool operator==(const ptgn::math::Vector2<T>& rhs) const {
         if constexpr (std::is_floating_point_v<T>) {
             return ptgn::math::Compare(x, rhs.x, ptgn::math::VECTOR_EPSILON<T>) &&
-                   ptgn::math::Compare(y, rhs.y, ptgn::math::VECTOR_EPSILON<T>);
+                ptgn::math::Compare(y, rhs.y, ptgn::math::VECTOR_EPSILON<T>);
         }
         return x == rhs.x && y == rhs.y;
     }
 
     inline bool operator!=(const ptgn::math::Vector2<T>& rhs) const {
         return !operator==(rhs);
-    }
-
-    template <typename S = T,
-        std::enable_if_t<std::is_floating_point_v<S>, bool> = true>
-    Vector2<T> Fraction() const {
-        return *this - math::Floor(*this);
     }
 };
 
