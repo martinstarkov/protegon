@@ -1,6 +1,5 @@
 #include "core/Engine.h"
 #include "input/Input.h"
-#include "text/Text.h"
 #include "interface/Font.h"
 #include "interface/Text.h"
 #include "interface/Texture.h"
