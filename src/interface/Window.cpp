@@ -1,134 +1,106 @@
 #include "Window.h"
 
-#include "managers/WindowManager.h"
+#include <SDL.h>
+
+#include "core/Window.h"
+#include "utility/Log.h"
 
 namespace ptgn {
 
 namespace window {
 
-internal::managers::id Create(const char* window_title, const V2_int& window_size, const V2_int& window_position, std::uint32_t window_flags) {
-	auto& window_manager{ internal::managers::GetManager<internal::managers::WindowManager>() };
-	static internal::managers::id window_count{ window_manager.GetFirstTargetWindow() };
-	window_manager.Load(window_count, new internal::Window{ window_count, window_title, window_size, window_position, window_flags });
-	return window_count++;
-}
-
-void SetDefault(internal::managers::id window) {
-	auto& window_manager{ internal::managers::GetManager<internal::managers::WindowManager>() };
-	assert(window_manager.Has(window) && "Cannot set nonexistent window as default window");
-	return window_manager.SetTargetWindow(window);
-}
-
-void Destroy(bool default, internal::managers::id window) {
-	auto& window_manager{ internal::managers::GetManager<internal::managers::WindowManager>() };
-	if (default) window = window_manager.GetTargetWindowId();
-	window_manager.Unload(window);
-}
-
-bool Exists(bool default, internal::managers::id window) {
-	auto& window_manager{ internal::managers::GetManager<internal::managers::WindowManager>() };
-	if (default) window = window_manager.GetTargetWindowId();
-	return window_manager.Has(window);
-}
-
-V2_int GetSize(bool default, internal::managers::id window) {
-	auto& window_manager{ internal::managers::GetManager<internal::managers::WindowManager>() };
-	if (!default) {
-		const auto& window = window_manager.GetTargetWindow();
-		return window.GetSize();
+void Init(const char* window_title, const V2_int& window_size, const V2_int& window_position, Flags window_flags) {
+	auto& window = Window::Get().window_;
+	window = SDL_CreateWindow(window_title, window_position.x, window_position.y, window_size.x, window_size.y, static_cast<std::uint32_t>(window_flags));
+	if (window == nullptr) {
+		PrintLine(SDL_GetError());
+		assert(!"Failed to create window");
 	}
-	assert(window_manager.Has(window) && "Cannot get size of nonexistent window");
-	return window_manager.Get(window)->GetSize();
 }
 
-V2_int GetOriginPosition(bool default, internal::managers::id window) {
-	auto& window_manager{ internal::managers::GetManager<internal::managers::WindowManager>() };
-	if (!default) {
-		const auto& window = window_manager.GetTargetWindow();
-		return window.GetOriginPosition();
-	}
-	assert(window_manager.Has(window) && "Cannot get origin position of nonexistent window");
-	return window_manager.Get(window)->GetOriginPosition();
+void Release() {
+	auto& window = Window::Get().window_;
+	SDL_DestroyWindow(window);
+	window = nullptr;
 }
 
-const char* GetTitle(bool default, internal::managers::id window) {
-	auto& window_manager{ internal::managers::GetManager<internal::managers::WindowManager>() };
-	if (!default) {
-		const auto& window = window_manager.GetTargetWindow();
-		return window.GetTitle();
-	}
-	assert(window_manager.Has(window) && "Cannot get title of nonexistent window");
-	return window_manager.Get(window)->GetTitle();
+bool Exists() {
+	return Window::Get().window_ != nullptr;
 }
 
-Color GetColor(bool default, internal::managers::id window) {
-	auto& window_manager{ internal::managers::GetManager<internal::managers::WindowManager>() };
-	if (!default) {
-		const auto& window = window_manager.GetTargetWindow();
-		return window.GetColor();
-	}
-	assert(window_manager.Has(window) && "Cannot get background color of nonexistent window");
-	return window_manager.Get(window)->GetColor();
+V2_int GetSize() {
+	V2_int size;
+	assert(Exists() && "Cannot get size of nonexistent window");
+	SDL_GetWindowSize(Window::Get().window_, &size.x, &size.y);
+	return size;
 }
 
-void SetSize(const V2_int& new_size, bool default, internal::managers::id window) {
-	auto& window_manager{ internal::managers::GetManager<internal::managers::WindowManager>() };
-	if (!default) {
-		auto& window = window_manager.GetTargetWindow();
-		window.SetSize(new_size);
-	}
-	assert(window_manager.Has(window) && "Cannot set size of nonexistent window");
-	window_manager.Get(window)->SetSize(new_size);
+V2_int GetOriginPosition() {
+	V2_int origin;
+	assert(Exists() && "Cannot get origin position of nonexistent window");
+	SDL_GetWindowPosition(Window::Get().window_, &origin.x, &origin.y);
+	return origin;
 }
 
-void SetOriginPosition(const V2_int& new_origin, bool default, internal::managers::id window) {
-	auto& window_manager{ internal::managers::GetManager<internal::managers::WindowManager>() };
-	if (!default) {
-		auto& window = window_manager.GetTargetWindow();
-		window.SetOriginPosition(new_origin);
-	}
-	assert(window_manager.Has(window) && "Cannot set origin position of nonexistent window");
-	window_manager.Get(window)->SetOriginPosition(new_origin);
+const char* GetTitle() {
+	assert(Exists() && "Cannot get title of nonexistent window");
+	return SDL_GetWindowTitle(Window::Get().window_);
 }
 
-void SetTitle(const char* new_title, bool default, internal::managers::id window) {
-	auto& window_manager{ internal::managers::GetManager<internal::managers::WindowManager>() };
-	if (!default) {
-		auto& window = window_manager.GetTargetWindow();
-		window.SetTitle(new_title);
-	}
-	assert(window_manager.Has(window) && "Cannot set title of nonexistent window");
-	window_manager.Get(window)->SetTitle(new_title);
+Color GetColor() {
+	return Window::Get().color_;
 }
 
-void SetFullscreen(bool state, bool default, internal::managers::id window) {
-	auto& window_manager{ internal::managers::GetManager<internal::managers::WindowManager>() };
-	if (!default) {
-		auto& window = window_manager.GetTargetWindow();
-		window.SetFullscreen(state);
-	}
-	assert(window_manager.Has(window) && "Cannot set nonexistent window to be fullscreen");
-	window_manager.Get(window)->SetFullscreen(state);
+void SetSize(const V2_int& new_size) {
+	assert(Exists() && "Cannot set size of nonexistent window");
+	SDL_SetWindowSize(Window::Get().window_, new_size.x, new_size.y);
 }
 
-void SetResizeable(bool state, bool default, internal::managers::id window) {
-	auto& window_manager{ internal::managers::GetManager<internal::managers::WindowManager>() };
-	if (!default) {
-		auto& window = window_manager.GetTargetWindow();
-		window.SetResizeable(state);
-	}
-	assert(window_manager.Has(window) && "Cannot set nonexistent window to be resizeable");
-	window_manager.Get(window)->SetResizeable(state);
+void SetOriginPosition(const V2_int& new_origin) {
+	assert(Exists() && "Cannot set origin position of nonexistent window");
+	SDL_SetWindowPosition(Window::Get().window_, new_origin.x, new_origin.y);
 }
 
-void SetColor(const Color& color, bool default, internal::managers::id window) {
-	auto& window_manager{ internal::managers::GetManager<internal::managers::WindowManager>() };
-	if (!default) {
-		auto& window = window_manager.GetTargetWindow();
-		window.SetColor(color);
-	}
-	assert(window_manager.Has(window) && "Cannot set background color of nonexistent window");
-	window_manager.Get(window)->SetColor(color);
+void SetTitle(const char* new_title) {
+	assert(Exists() && "Cannot set title of nonexistent window");
+	return SDL_SetWindowTitle(Window::Get().window_, new_title);
+}
+
+void SetFullscreen(window::Flags flag) {
+	assert(Exists() && "Cannot set nonexistent window to fullscreen");
+	assert(flag == window::Flags::FULLSCREEN_DESKTOP ||
+		   flag == window::Flags::FULLSCREEN ||
+		   flag == window::Flags::NONE);
+	SDL_SetWindowFullscreen(Window::Get().window_, static_cast<std::uint32_t>(flag));
+}
+
+void SetResizeable(bool on) {
+	assert(Exists() && "Cannot set nonexistent window to resizeable");
+	SDL_SetWindowResizable(Window::Get().window_, static_cast<SDL_bool>(on));
+}
+
+void SetColor(const Color& new_color) {
+	Window::Get().color_ = new_color;
+}
+
+void Maximize() {
+	assert(Exists() && "Cannot maximize nonexistent window");
+	SDL_MaximizeWindow(Window::Get().window_);
+}
+
+void Minimize() {
+	assert(Exists() && "Cannot minimize nonexistent window");
+	SDL_MinimizeWindow(Window::Get().window_);
+}
+
+void Show() {
+	assert(Exists() && "Cannot show nonexistent window");
+	SDL_ShowWindow(Window::Get().window_);
+}
+
+void Hide() {
+	assert(Exists() && "Cannot hide nonexistent window");
+	SDL_HideWindow(Window::Get().window_);
 }
 
 } // namespace window

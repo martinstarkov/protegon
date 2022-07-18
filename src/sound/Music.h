@@ -1,13 +1,11 @@
 #pragma once
 
-#include "utils/Timer.h"
+#include "utility/Time.h"
 
 class _Mix_Music;
 using Mix_Music = _Mix_Music;
 
 namespace ptgn {
-
-namespace internal {
 
 class Music {
 public:
@@ -21,11 +19,10 @@ public:
 	void Play(int loops) const;
 	void FadeIn(int loops, milliseconds time) const;
 
-	operator Mix_Music*() const;
+	bool Exists() const { return music_ != nullptr; }
+	operator Mix_Music*() const { return music_; }
 private:
 	Mix_Music* music_{ nullptr };
 };
-
-} // namespace internal
 
 } // namespace ptgn

@@ -1,12 +1,10 @@
 #pragma once
 
-#include "utils/Timer.h"
+#include "utility/Time.h"
 
 struct Mix_Chunk;
 
 namespace ptgn {
-
-namespace internal {
 
 class Sound {
 public:
@@ -20,11 +18,10 @@ public:
 	void Play(int channel, int loops) const;
 	void FadeIn(int channel, int loops, milliseconds time) const;
 
-	operator Mix_Chunk*() const;
+	bool Exists() const { return chunk_ != nullptr; }
+	operator Mix_Chunk* () const { return chunk_; }
 private:
 	Mix_Chunk* chunk_{ nullptr };
 };
-
-} // namespace internal
 
 } // namespace ptgn

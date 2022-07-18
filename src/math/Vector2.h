@@ -7,17 +7,15 @@
 #include <cmath> // std::round
 #include <cstdint> // std::int32_t, etc
 #include <cstdlib> // std::size_t
+#include <type_traits>
 #include <cassert> // assert
 
 #include "math/Math.h"
 #include "math/RNG.h"
-#include "utils/TypeTraits.h"
 
 namespace ptgn {
 
 namespace math {
-
-namespace internal {
 
 // Vector stream output / input delimeters, allow for consistent serialization / deserialization.
 
@@ -25,20 +23,14 @@ inline constexpr const char VECTOR_LEFT_DELIMETER{ '(' };
 inline constexpr const char VECTOR_CENTER_DELIMETER{ ',' };
 inline constexpr const char VECTOR_RIGHT_DELIMETER{ ')' };
 template <typename T,
-    type_traits::is_floating_point_e<T> = true>
+    std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
 inline constexpr const T VECTOR_EPSILON{ math::EPSILON<T> };
-
-} // namespace internal
-
-} // namespace math
-
-} // namespace ptgn
 
 /*
 * @tparam T Type contained in vector.
 */
 template <typename T,
-    ptgn::type_traits::is_number_e<T> = true>
+    std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
 struct Vector2 {
     // Return a vector with numeric_limit::infinity() set for both components.
     static Vector2 Infinite() {
@@ -63,13 +55,14 @@ struct Vector2 {
     }
 
     // Return a vector with both components randomized in the given ranges.
-    static Vector2 Random(T min_x = 0.0, T max_x = 1.0, T min_y = 0.0, T max_y = 1.0) {
+    static Vector2 Random(T min_x = static_cast<T>(0), T max_x = static_cast<T>(1), 
+                          T min_y = static_cast<T>(0), T max_y = static_cast<T>(1)) {
         assert(min_x < max_x &&
                "Minimum random value must be less than maximum random value");
         assert(min_y < max_y &&
                "Minimum random value must be less than maximum random value");
-        ptgn::math::RNG<T> rng_x{ min_x, max_x };
-        ptgn::math::RNG<T> rng_y{ min_y, max_y };
+        math::RNG<T> rng_x{ min_x, max_x };
+        math::RNG<T> rng_y{ min_y, max_y };
         // Vary distribution type based on template parameter type.
         return { rng_x(), rng_y() };
     }
@@ -84,8 +77,8 @@ struct Vector2 {
     
     // Allow construction from two different types, cast to the vector type.
     template <typename U, typename V, 
-        ptgn::type_traits::is_number_e<U> = true,
-        ptgn::type_traits::is_number_e<V> = true>
+        std::enable_if_t<std::is_arithmetic_v<U>, bool> = true,
+        std::enable_if_t<std::is_arithmetic_v<V>, bool> = true>
     constexpr Vector2(U x, V y) : x{ static_cast<T>(x) }, y{ static_cast<T>(y) } {}
 
     // Copy / assignment construction.
@@ -128,7 +121,7 @@ struct Vector2 {
     // Arithmetic operators between vectors.
 
     template <typename U,
-        ptgn::type_traits::is_convertible_e<U, T> = true>
+        std::enable_if_t<std::is_convertible_v<U, T>, bool> = true>
     Vector2& operator+=(const Vector2<U>& rhs) {
         x += static_cast<T>(rhs.x);
         y += static_cast<T>(rhs.y);
@@ -136,7 +129,7 @@ struct Vector2 {
     }
 
     template <typename U, 
-        ptgn::type_traits::is_convertible_e<U, T> = true>
+        std::enable_if_t<std::is_convertible_v<U, T>, bool> = true>
     Vector2& operator-=(const Vector2<U>& rhs) {
         x -= static_cast<T>(rhs.x);
         y -= static_cast<T>(rhs.y);
@@ -144,7 +137,7 @@ struct Vector2 {
     }
 
     template <typename U, 
-        ptgn::type_traits::is_convertible_e<U, T> = true>
+        std::enable_if_t<std::is_convertible_v<U, T>, bool> = true>
     Vector2& operator*=(const Vector2<U>& rhs) {
         x *= static_cast<T>(rhs.x);
         y *= static_cast<T>(rhs.y);
@@ -152,26 +145,24 @@ struct Vector2 {
     }
 
     template <typename U, 
-        ptgn::type_traits::is_convertible_e<U, T> = true>
+        std::enable_if_t<std::is_convertible_v<U, T>, bool> = true>
     Vector2& operator/=(const Vector2<U>& rhs) {
-        if (rhs.x) {
+        if (rhs.x != static_cast<U>(0))
             x /= static_cast<T>(rhs.x);
-        } else {
+        else
             x = std::numeric_limits<T>::infinity();
-        }
-        if (rhs.y) {
+        if (rhs.y != static_cast<U>(0))
             y /= static_cast<T>(rhs.y);
-        } else {
+        else
             y = std::numeric_limits<T>::infinity();
-        }
         return *this;
     }
 
     // Arithmetic operators with basic types.
 
     template <typename U,
-        ptgn::type_traits::is_number_e<U> = true,
-        ptgn::type_traits::is_convertible_e<U, T> = true>
+        std::enable_if_t<std::is_arithmetic_v<U>, bool> = true,
+        std::enable_if_t<std::is_convertible_v<U, T>, bool> = true>
     Vector2& operator+=(U rhs) {
         x += static_cast<T>(rhs);
         y += static_cast<T>(rhs);
@@ -179,8 +170,8 @@ struct Vector2 {
     }
 
     template <typename U, 
-        ptgn::type_traits::is_number_e<U> = true,
-        ptgn::type_traits::is_convertible_e<U, T> = true>
+        std::enable_if_t<std::is_arithmetic_v<U>, bool> = true,
+        std::enable_if_t<std::is_convertible_v<U, T>, bool> = true>
     Vector2& operator-=(U rhs) {
         x -= static_cast<T>(rhs);
         y -= static_cast<T>(rhs);
@@ -188,8 +179,8 @@ struct Vector2 {
     }
 
     template <typename U,
-        ptgn::type_traits::is_number_e<U> = true,
-        ptgn::type_traits::is_convertible_e<U, T> = true>
+        std::enable_if_t<std::is_arithmetic_v<U>, bool> = true,
+        std::enable_if_t<std::is_convertible_v<U, T>, bool> = true>
     Vector2& operator*=(U rhs) {
         x *= static_cast<T>(rhs);
         y *= static_cast<T>(rhs);
@@ -197,10 +188,10 @@ struct Vector2 {
     }
 
     template <typename U,
-        ptgn::type_traits::is_number_e<U> = true,
-        ptgn::type_traits::is_convertible_e<U, T> = true>
+        std::enable_if_t<std::is_arithmetic_v<U>, bool> = true,
+        std::enable_if_t<std::is_convertible_v<U, T>, bool> = true>
     Vector2& operator/=(U rhs) {
-        if (rhs) {
+        if (rhs != static_cast<U>(0)) {
             x /= static_cast<T>(rhs);
             y /= static_cast<T>(rhs);
         } else {
@@ -236,8 +227,8 @@ struct Vector2 {
     // Explicit conversion from this vector to other arithmetic type vectors.
     /*
     template <typename U, 
-        ptgn::type_traits::is_number_e<U> = true, 
-        ptgn::type_traits::convertible<T, U> = true>
+        std::enable_if_t<std::is_arithmetic_v<U>, bool> = true, 
+        std::enable_if_t<std::is_convertible_v<T, U>, bool> = true>
     explicit operator Vector2<U>() const {
         return Vector2<U>{ static_cast<U>(x), static_cast<U>(y) }; 
     }
@@ -246,7 +237,7 @@ struct Vector2 {
     // Implicit conversion from this vector to other arithmetic type vectors.
 
     template <typename U,
-        ptgn::type_traits::is_number_e<U> = true>
+        std::enable_if_t<std::is_arithmetic_v<U>, bool> = true>
     operator Vector2<U>() const {
         return Vector2<U>{ static_cast<U>(x), static_cast<U>(y) };
     }
@@ -255,21 +246,13 @@ struct Vector2 {
 
     // Return true if both vector components equal 0.
     inline bool IsZero() const {
-        if constexpr (std::is_floating_point_v<T>) {
-            return ptgn::math::Compare(x, 0.0, ptgn::math::internal::VECTOR_EPSILON<T>) &&
-                   ptgn::math::Compare(y, 0.0, ptgn::math::internal::VECTOR_EPSILON<T>);
-        }
-        return !x && !y;
+        return x == static_cast<T>(0) && y == static_cast<T>(0);
         
     }
 
     // Return true if either vector component equals 0.
     inline bool HasZero() const {
-        if constexpr (std::is_floating_point_v<T>) {
-            return ptgn::math::Compare(x, 0.0, ptgn::math::internal::VECTOR_EPSILON<T>) ||
-                   ptgn::math::Compare(y, 0.0, ptgn::math::internal::VECTOR_EPSILON<T>);
-        }
-        return !x || !y;
+        return x == static_cast<T>(0) || y == static_cast<T>(0);
     }
 
     friend inline void Swap(Vector2& lhs, Vector2& rhs) {
@@ -279,20 +262,12 @@ struct Vector2 {
 
     // Return true if both vector components equal numeric limits infinity.
     inline bool IsInfinite() const {
-        if constexpr (std::is_floating_point_v<T>) {
-            return ptgn::math::Compare(x, std::numeric_limits<T>::infinity(), ptgn::math::internal::VECTOR_EPSILON<T>) &&
-                   ptgn::math::Compare(y, std::numeric_limits<T>::infinity(), ptgn::math::internal::VECTOR_EPSILON<T>);
-        }
-        return false;
+        return x == std::numeric_limits<T>::infinity() && y == std::numeric_limits<T>::infinity();
     }
 
     // Return true if either vector component equals numeric limits infinity.
     inline bool HasInfinity() const {
-        if constexpr (std::is_floating_point_v<T>) {
-            return ptgn::math::Compare(x, std::numeric_limits<T>::infinity(), ptgn::math::internal::VECTOR_EPSILON<T>) ||
-                   ptgn::math::Compare(y, std::numeric_limits<T>::infinity(), ptgn::math::internal::VECTOR_EPSILON<T>);
-        }
-        return false;
+        return x == std::numeric_limits<T>::infinity() || y == std::numeric_limits<T>::infinity();
     }
 
     // Return 2D vector projection (dot product).
@@ -318,14 +293,16 @@ struct Vector2 {
     }
 
     // Return a unit vector (normalized).
-    inline auto Unit() const {
+    template <typename S = T,
+        std::enable_if_t<std::is_floating_point_v<S>, bool> = true>
+    inline Vector2<S> Unit() const {
         // Cache magnitude calculation.
-        auto m{ Magnitude<T>() };
+        auto m{ Magnitude<S>() };
         // Avoid division by zero error for zero magnitude vectors.
         if (m > 0) {
             return *this / m;
         }
-        return Vector2<T>{};
+        return Vector2<S>{};
     }
 
     // Return normalized (unit) vector.
@@ -335,7 +312,7 @@ struct Vector2 {
 
     // Return identity vector, both components must be 0, 1 or -1.
     inline Vector2 Identity() const {
-        return { ptgn::math::Sign(x), ptgn::math::Sign(y) };
+        return { math::Sign(x), math::Sign(y) };
     }
 
     // Return tangent vector, (x, y) -> (y, -x).
@@ -360,32 +337,60 @@ struct Vector2 {
 
     // Return magnitude, sqrt(x * x + y * y).
     template <typename U = double, 
-        ptgn::type_traits::is_number_e<U> = true>
+        std::enable_if_t<std::is_arithmetic_v<U>, bool> = true>
     inline U Magnitude() const {
-        return static_cast<U>(ptgn::math::Sqrt(MagnitudeSquared()));
+        return static_cast<U>(std::sqrt(MagnitudeSquared()));
     }
 
     template <typename S = T,
-        ptgn::type_traits::is_floating_point_e<S> = true>
+        std::enable_if_t<std::is_floating_point_v<S>, bool> = true>
     Vector2<T> Fraction() const {
-        return *this - ptgn::math::Floor(*this);
+        return *this - math::Floor(*this);
+    }
+
+    // Returns a new vector rotated by the radian angle in the clockwise direction.
+    // See https://en.wikipedia.org/wiki/Rotation_matrix for details
+    Vector2<double> Rotate(double angle) const {
+        return { x * std::cos(angle) - y * std::sin(angle),
+                 x * std::sin(angle) + y * std::cos(angle) };
+    }
+
+    // Returns the angle between the x and y components of the vector relative to the x-axis (clockwise positive).
+    double Angle() const {
+        return std::atan2(y, x);
+    }
+
+    inline bool operator==(const ptgn::math::Vector2<T>& rhs) const {
+        if constexpr (std::is_floating_point_v<T>) {
+            return ptgn::math::Compare(x, rhs.x, ptgn::math::VECTOR_EPSILON<T>) &&
+                ptgn::math::Compare(y, rhs.y, ptgn::math::VECTOR_EPSILON<T>);
+        }
+        return x == rhs.x && y == rhs.y;
+    }
+
+    inline bool operator!=(const ptgn::math::Vector2<T>& rhs) const {
+        return !operator==(rhs);
     }
 };
 
+} // namespace math
+
 // Common vector aliases.
 
-using V2_int = Vector2<int>;
-using V2_uint = Vector2<unsigned int>;
-using V2_double = Vector2<double>;
-using V2_float = Vector2<float>;
+using V2_int = math::Vector2<int>;
+using V2_uint = math::Vector2<unsigned int>;
+using V2_double = math::Vector2<double>;
+using V2_float = math::Vector2<float>;
+
+} // namespace ptgn
 
 // Bitshift / stream operators.
 
 template <typename T>
-std::ostream& operator<<(std::ostream& os, const Vector2<T>& obj) {
-    os << ptgn::math::internal::VECTOR_LEFT_DELIMETER;
-    os << obj.x << ptgn::math::internal::VECTOR_CENTER_DELIMETER;
-    os << obj.y << ptgn::math::internal::VECTOR_RIGHT_DELIMETER;
+std::ostream& operator<<(std::ostream& os, const ptgn::math::Vector2<T>& obj) {
+    os << ptgn::math::VECTOR_LEFT_DELIMETER;
+    os << obj.x << ptgn::math::VECTOR_CENTER_DELIMETER;
+    os << obj.y << ptgn::math::VECTOR_RIGHT_DELIMETER;
     return os;
 }
 
@@ -393,69 +398,69 @@ std::ostream& operator<<(std::ostream& os, const Vector2<T>& obj) {
 
 template <typename T, typename U, 
     typename S = typename std::common_type<T, U>::type>
-inline bool operator==(const Vector2<T>& lhs, const Vector2<U>& rhs) {
+inline bool operator==(const ptgn::math::Vector2<T>& lhs, const ptgn::math::Vector2<U>& rhs) {
     if constexpr (std::is_floating_point_v<T> && std::is_floating_point_v<U>) {
-        return ptgn::math::Compare(lhs.x, rhs.x, ptgn::math::internal::VECTOR_EPSILON<T>) &&
-               ptgn::math::Compare(lhs.y, rhs.y, ptgn::math::internal::VECTOR_EPSILON<T>);
+        return ptgn::math::Compare(lhs.x, rhs.x, ptgn::math::VECTOR_EPSILON<T>) &&
+               ptgn::math::Compare(lhs.y, rhs.y, ptgn::math::VECTOR_EPSILON<T>);
     }
     return static_cast<S>(lhs.x) == static_cast<S>(rhs.x) &&
            static_cast<S>(lhs.y) == static_cast<S>(rhs.y);
 }
 
 template <typename T, typename U>
-inline bool operator!=(const Vector2<T>& lhs, const Vector2<U>& rhs) {
+inline bool operator!=(const ptgn::math::Vector2<T>& lhs, const ptgn::math::Vector2<U>& rhs) {
     return !operator==(lhs, rhs);
 }
 
 template <typename T, typename U, 
     typename S = typename std::common_type<T, U>::type,
-    ptgn::type_traits::is_number_e<U> = true>
-inline bool operator==(const Vector2<T>& lhs, U rhs) {
+    std::enable_if_t<std::is_arithmetic_v<U>, bool> = true>
+inline bool operator==(const ptgn::math::Vector2<T>& lhs, U rhs) {
     if constexpr (std::is_floating_point_v<T> && std::is_floating_point_v<U>) {
-        return ptgn::math::Compare(lhs.x, rhs, ptgn::math::internal::VECTOR_EPSILON<T>) &&
-               ptgn::math::Compare(lhs.y, rhs, ptgn::math::internal::VECTOR_EPSILON<T>);
+        return ptgn::math::Compare(lhs.x, rhs, ptgn::math::VECTOR_EPSILON<T>) &&
+               ptgn::math::Compare(lhs.y, rhs, ptgn::math::VECTOR_EPSILON<T>);
     }
     return static_cast<S>(lhs.x) == static_cast<S>(rhs) && 
            static_cast<S>(lhs.y) == static_cast<S>(rhs);
 }
 
 template <typename T, typename U, 
-    ptgn::type_traits::is_number_e<U> = true>
-inline bool operator!=(const Vector2<T>& lhs, U rhs) {
+    std::enable_if_t<std::is_arithmetic_v<U>, bool> = true>
+inline bool operator!=(const ptgn::math::Vector2<T>& lhs, U rhs) {
     return !operator==(lhs, rhs);
 }
 
 template <typename T, typename U, 
-    ptgn::type_traits::is_number_e<U> = true>
-inline bool operator==(U lhs, const Vector2<T>& rhs) {
+    std::enable_if_t<std::is_arithmetic_v<U>, bool> = true>
+inline bool operator==(U lhs, const ptgn::math::Vector2<T>& rhs) {
     return operator==(rhs, lhs);
 }
 
 template <typename T, typename U, 
-    ptgn::type_traits::is_number_e<U> = true>
-inline bool operator!=(U lhs, const Vector2<T>& rhs) {
+    std::enable_if_t<std::is_arithmetic_v<U>, bool> = true>
+inline bool operator!=(U lhs, const ptgn::math::Vector2<T>& rhs) {
     return !operator==(rhs, lhs);
 }
 
 
 // Possibly include these comparisons in the future.
 template <typename T>
-inline bool operator< (const Vector2<T>& lhs, const Vector2<T>& rhs) { 
+inline bool operator< (const ptgn::math::Vector2<T>& lhs, const ptgn::math::Vector2<T>& rhs) {
     return lhs.x < rhs.x && lhs.y < rhs.y; 
 }
 
 template <typename T>
-inline bool operator> (const Vector2<T>& lhs, const Vector2<T>& rhs) {
+inline bool operator> (const ptgn::math::Vector2<T>& lhs, const ptgn::math::Vector2<T>& rhs) {
     return  operator< (rhs, lhs);
 }
 
 template <typename T>
-inline bool operator<=(const Vector2<T>& lhs, const Vector2<T>& rhs) {
+inline bool operator<=(const ptgn::math::Vector2<T>& lhs, const ptgn::math::Vector2<T>& rhs) {
     return !operator> (lhs, rhs);
 }
 
 template <typename T>
-inline bool operator>=(const Vector2<T>& lhs, const Vector2<T>& rhs) {
+inline bool operator>=(const ptgn::math::Vector2<T>& lhs, const ptgn::math::Vector2<T>& rhs) {
     return !operator< (lhs, rhs);
 }
 
@@ -463,30 +468,30 @@ inline bool operator>=(const Vector2<T>& lhs, const Vector2<T>& rhs) {
 // Binary arithmetic operators between two vectors.
 
 template <typename T, typename U>
-Vector2<typename std::common_type<T, U>::type> operator+(const Vector2<T>& lhs, const Vector2<U>& rhs) {
+ptgn::math::Vector2<typename std::common_type<T, U>::type> operator+(const ptgn::math::Vector2<T>& lhs, const ptgn::math::Vector2<U>& rhs) {
     return { lhs.x + rhs.x, lhs.y + rhs.y };
 }
 
 template <typename T, typename U>
-Vector2<typename std::common_type<T, U>::type> operator-(const Vector2<T>& lhs, const Vector2<U>& rhs) {
+ptgn::math::Vector2<typename std::common_type<T, U>::type> operator-(const ptgn::math::Vector2<T>& lhs, const ptgn::math::Vector2<U>& rhs) {
     return { lhs.x - rhs.x, lhs.y - rhs.y };
 }
 
 template <typename T, typename U>
-Vector2<typename std::common_type<T, U>::type> operator*(const Vector2<T>& lhs, const Vector2<U>& rhs) {
+ptgn::math::Vector2<typename std::common_type<T, U>::type> operator*(const ptgn::math::Vector2<T>& lhs, const ptgn::math::Vector2<U>& rhs) {
     return { lhs.x * rhs.x, lhs.y * rhs.y };
 }
 
 template <typename T, typename U,
     typename S = typename std::common_type<T, U>::type>
-Vector2<S> operator/(const Vector2<T>& lhs, const Vector2<U>& rhs) {
-    Vector2<S> vector;
-    if (rhs.x) {
+ptgn::math::Vector2<S> operator/(const ptgn::math::Vector2<T>& lhs, const ptgn::math::Vector2<U>& rhs) {
+    ptgn::math::Vector2<S> vector;
+    if (rhs.x != static_cast<U>(0)) {
         vector.x = lhs.x / rhs.x;
     } else {
         vector.x = std::numeric_limits<S>::infinity();
     }
-    if (rhs.y) {
+    if (rhs.y != static_cast<U>(0)) {
         vector.y = lhs.y / rhs.y;
     } else {
         vector.y = std::numeric_limits<S>::infinity();
@@ -497,34 +502,34 @@ Vector2<S> operator/(const Vector2<T>& lhs, const Vector2<U>& rhs) {
 // Binary arithmetic operators with a basic type.
 
 template <typename T, typename U,
-    ptgn::type_traits::is_number_e<T> = true>
-Vector2<typename std::common_type<T, U>::type> operator+(T lhs, const Vector2<U>& rhs) {
+    std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
+ptgn::math::Vector2<typename std::common_type<T, U>::type> operator+(T lhs, const ptgn::math::Vector2<U>& rhs) {
     return { lhs + rhs.x, lhs + rhs.y };
 }
 
 template <typename T, typename U,
-    ptgn::type_traits::is_number_e<T> = true>
-Vector2<typename std::common_type<T, U>::type> operator-(T lhs, const Vector2<U>& rhs) {
+    std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
+ptgn::math::Vector2<typename std::common_type<T, U>::type> operator-(T lhs, const ptgn::math::Vector2<U>& rhs) {
     return { lhs - rhs.x, lhs - rhs.y };
 }
 
 template <typename T, typename U,
-    ptgn::type_traits::is_number_e<T> = true>
-Vector2<typename std::common_type<T, U>::type> operator*(T lhs, const Vector2<U>& rhs) {
+    std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
+ptgn::math::Vector2<typename std::common_type<T, U>::type> operator*(T lhs, const ptgn::math::Vector2<U>& rhs) {
     return { lhs * rhs.x, lhs * rhs.y };
 }
 
 template <typename T, typename U,
-    ptgn::type_traits::is_number_e<T> = true,
+    std::enable_if_t<std::is_arithmetic_v<T>, bool> = true,
     typename S = typename std::common_type<T, U>::type>
-Vector2<S> operator/(T lhs, const Vector2<U>& rhs) {
-    Vector2<S> vector;
-    if (rhs.x) {
+ptgn::math::Vector2<S> operator/(T lhs, const ptgn::math::Vector2<U>& rhs) {
+    ptgn::math::Vector2<S> vector;
+    if (rhs.x != static_cast<U>(0)) {
         vector.x = lhs / rhs.x;
     } else {
         vector.x = std::numeric_limits<S>::infinity();
     }
-    if (rhs.y) {
+    if (rhs.y != static_cast<U>(0)) {
         vector.y = lhs / rhs.y;
     } else {
         vector.y = std::numeric_limits<S>::infinity();
@@ -533,29 +538,29 @@ Vector2<S> operator/(T lhs, const Vector2<U>& rhs) {
 }
 
 template <typename T, typename U,
-    ptgn::type_traits::is_number_e<U> = true>
-Vector2<typename std::common_type<T, U>::type> operator+(const Vector2<T>& lhs, U rhs) {
+    std::enable_if_t<std::is_arithmetic_v<U>, bool> = true>
+ptgn::math::Vector2<typename std::common_type<T, U>::type> operator+(const ptgn::math::Vector2<T>& lhs, U rhs) {
     return { lhs.x + rhs, lhs.y + rhs };
 }
 
 template <typename T, typename U,
-    ptgn::type_traits::is_number_e<U> = true>
-Vector2<typename std::common_type<T, U>::type> operator-(const Vector2<T>& lhs, U rhs) {
+    std::enable_if_t<std::is_arithmetic_v<U>, bool> = true>
+ptgn::math::Vector2<typename std::common_type<T, U>::type> operator-(const ptgn::math::Vector2<T>& lhs, U rhs) {
     return { lhs.x - rhs, lhs.y - rhs };
 }
 
 template <typename T, typename U,
-    ptgn::type_traits::is_number_e<U> = true>
-Vector2<typename std::common_type<T, U>::type> operator*(const Vector2<T>& lhs, U rhs) {
+    std::enable_if_t<std::is_arithmetic_v<U>, bool> = true>
+ptgn::math::Vector2<typename std::common_type<T, U>::type> operator*(const ptgn::math::Vector2<T>& lhs, U rhs) {
     return { lhs.x * rhs, lhs.y * rhs };
 }
 
 template <typename T, typename U,
-    ptgn::type_traits::is_number_e<U> = true,
+    std::enable_if_t<std::is_arithmetic_v<U>, bool> = true,
     typename S = typename std::common_type<T, U>::type>
-Vector2<S> operator/(const Vector2<T>& lhs, U rhs) {
-    Vector2<S> vector;
-    if (rhs) {
+ptgn::math::Vector2<S> operator/(const ptgn::math::Vector2<T>& lhs, U rhs) {
+    ptgn::math::Vector2<S> vector;
+    if (rhs != static_cast<U>(0)) {
         vector.x = lhs.x / rhs;
         vector.y = lhs.y / rhs;
     } else {
@@ -592,7 +597,7 @@ inline S DistanceSquared(const Vector2<T>& lhs, const Vector2<U>& rhs) {
 template <typename T, typename U, 
     typename S = typename std::common_type<T, U>::type>
 inline S Distance(const Vector2<T>& lhs, const Vector2<U>& rhs) {
-    return ptgn::math::Sqrt<S>(DistanceSquared(lhs, rhs));
+    return std::sqrt<S>(DistanceSquared(lhs, rhs));
 }
 
 // Return minimum component of vector. (reference)
@@ -611,55 +616,55 @@ inline T& Max(Vector2<T>& vector) {
 // Return a vector composed of the minimum components of two vectors.
 template <typename T>
 inline Vector2<T> Min(const Vector2<T>& a, const Vector2<T>& b) {
-    return { ptgn::math::Min(a.x, b.x), ptgn::math::Min(a.y, b.y) };
+    return { math::Min(a.x, b.x), math::Min(a.y, b.y) };
 }
 
 // Return a vector composed of the maximum components of two vectors.
 template <typename T>
 inline Vector2<T> Max(const Vector2<T>& a, const Vector2<T>& b) {
-    return { ptgn::math::Max(a.x, b.x), ptgn::math::Max(a.y, b.y) };
+    return { math::Max(a.x, b.x), math::Max(a.y, b.y) };
 }
 
 // Return the absolute value of both vectors components.
 template <typename T>
 inline Vector2<T> Abs(const Vector2<T>& vector) {
-    return { ptgn::math::Abs(vector.x), ptgn::math::Abs(vector.y) };
+    return { math::Abs(vector.x), math::Abs(vector.y) };
 }
 
 // Return both vector components rounded to the closest integer.
 template <typename T = int, typename S>
 inline Vector2<T> Round(const Vector2<S>& vector) {
-    return { ptgn::math::Round<T>(vector.x), ptgn::math::Round<T>(vector.y) };
+    return { math::Round<T>(vector.x), math::Round<T>(vector.y) };
 }
 
 // Return both vector components ceiled to the closest integer.
 template <typename T = int, typename S>
 inline Vector2<T> Ceil(const Vector2<S>& vector) {
-    return { ptgn::math::Ceil<T>(vector.x), ptgn::math::Ceil<T>(vector.y) };
+    return { math::Ceil<T>(vector.x), math::Ceil<T>(vector.y) };
 }
 
 // Return both vector components floored to the closest integer.
 template <typename T = int, typename S>
 inline Vector2<T> Floor(const Vector2<S>& vector) {
-    return { ptgn::math::Floor<T>(vector.x), ptgn::math::Floor<T>(vector.y) };
+    return { math::Floor<T>(vector.x), math::Floor<T>(vector.y) };
 }
 
 // Clamp both vectors value within a vector range.
 template <typename T>
 inline Vector2<T> Clamp(const Vector2<T>& value, const Vector2<T>& low, const Vector2<T>& high) {
-    return { ptgn::math::Clamp(value.x, low.x, high.x), ptgn::math::Clamp(value.y, low.y, high.y) };
+    return { math::Clamp(value.x, low.x, high.x), math::Clamp(value.y, low.y, high.y) };
 }
 
 // Linearly interpolates both vector components by the given value.
 template <typename T, typename U>
 inline Vector2<U> Lerp(const Vector2<T>& a, const Vector2<T>& b, U amount) {
-    return { ptgn::math::Lerp(a.x, b.x, amount), ptgn::math::Lerp(a.y, b.y, amount) };
+    return { math::Lerp(a.x, b.x, amount), math::Lerp(a.y, b.y, amount) };
 }
 
 // Return both vector components smooth stepped.
 template <typename T>
 inline Vector2<T> SmoothStep(const Vector2<T>& vector) {
-    return { ptgn::math::SmoothStep(vector.x), ptgn::math::SmoothStep(vector.y) };
+    return { math::SmoothStep(vector.x), math::SmoothStep(vector.y) };
 }
 
 } // namespace math
@@ -671,8 +676,8 @@ namespace std {
 // Custom hashing function for Vector class.
 // This allows for use of unordered maps and sets with vectors as keys.
 template <typename T>
-struct hash<Vector2<T>> {
-    std::size_t operator()(const Vector2<T>& k) const {
+struct hash<ptgn::math::Vector2<T>> {
+    std::size_t operator()(const ptgn::math::Vector2<T>& k) const {
         // Hashing combination algorithm from:
         // https://stackoverflow.com/a/17017281
         std::size_t hash{ 17 };
