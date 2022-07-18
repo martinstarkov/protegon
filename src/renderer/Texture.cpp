@@ -3,7 +3,7 @@
 #include <SDL.h>
 #include <SDL_image.h>
 
-#include "renderer/SDLRenderer.h"
+#include "renderer/Renderer.h"
 #include "utility/File.h"
 #include "utility/Log.h"
 
@@ -12,7 +12,7 @@ namespace ptgn {
 void Texture::Set(SDL_Surface* surface) {
 	assert(!Exists() && "Cannot set texture after it has already been set");
 	assert(surface != nullptr && "Cannot create texture from nonexistent surface");
-	texture_ = SDL_CreateTextureFromSurface(SDLRenderer::Get().renderer_, surface);
+	texture_ = SDL_CreateTextureFromSurface(Renderer::Get().renderer_, surface);
 	assert(Exists() && "Failed to create texture from surface");
 	// TODO: CONSIDER: Change not to free surface after use.
 	SDL_FreeSurface(surface);

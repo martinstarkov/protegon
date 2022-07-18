@@ -35,11 +35,11 @@ public:
 
 	static void UnloadScene(const char* scene_key);
 
-	static Camera& GetActiveCamera();
+	//static Camera& GetActiveCamera();
 private:
 	friend class Engine;
 
-	static Scene& GetActiveScene();
+	//static Scene& GetActiveScene();
 	static void RenderActiveScene();
 	static void UnloadFlaggedScenes();
 	static void UpdateActiveScene();

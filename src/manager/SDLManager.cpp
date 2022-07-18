@@ -11,8 +11,6 @@
 
 namespace ptgn {
 
-namespace managers {
-
 SDLManager::SDLManager() {
 	auto sdl_flags{
 		SDL_INIT_AUDIO |
@@ -51,7 +49,5 @@ SDLManager::~SDLManager() {
 	IMG_Quit();
 	SDL_Quit();
 }
-
-} // namespace managers
 
 } // namespace ptgn

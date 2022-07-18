@@ -1,13 +1,13 @@
 #pragma once
 
 #include "animation/Animation.h"
-#include "managers/ResourceManager.h"
+#include "manager/ResourceManager.h"
 
 namespace ptgn {
 
 namespace animation {
 
-class SpriteMap : public managers::ResourceManager<Animation> {
+class SpriteMap : public manager::ResourceManager<Animation> {
 public:
 	SpriteMap() = default;
 	SpriteMap(const char* texture_key, const char* map_path);

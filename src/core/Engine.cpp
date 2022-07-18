@@ -1,14 +1,14 @@
 #include "Engine.h"
 
-#include "managers/SDLManager.h"
-#include "renderer/Renderer.h"
-#include "core/Window.h"
+#include "manager/SDLManager.h"
+#include "interface/Draw.h"
+#include "interface/Window.h"
 #include "input/Input.h"
 
 namespace ptgn {
 
 Engine::Engine() {
-    managers::SDLManager::Get();
+    SDLManager::Get();
     window::Init("", {}, {}, window::Flags::HIDDEN);
     draw::Init();
 }

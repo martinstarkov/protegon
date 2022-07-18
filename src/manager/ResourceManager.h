@@ -8,7 +8,7 @@
 
 namespace ptgn {
 
-namespace managers {
+namespace manager {
 
 using id = std::size_t;
 
@@ -102,11 +102,11 @@ private:
 };
 
 template <typename T>
-T& GetManager() {
+T& Get() {
     static T manager;
     return manager;
 }
 
-} // namespace managers
+} // namespace manager
 
 } // namespace ptgn

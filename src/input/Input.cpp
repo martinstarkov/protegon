@@ -2,7 +2,7 @@
 
 #include <SDL.h>
 
-#include "core/Window.h"
+#include "interface/Window.h"
 #include "input/InputHandler.h"
 
 // TODO: Fix GetMouseAbsolutePosition function

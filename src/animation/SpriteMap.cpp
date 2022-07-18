@@ -1,19 +1,20 @@
 #include "SpriteMap.h"
 
-#include "managers/TextureManager.h"
+#include "manager/TextureManager.h"
 #include "math/Hash.h"
 
 namespace ptgn {
 
 namespace animation {
 
-SpriteMap::SpriteMap(const char* texture_key, const char* map_path) : texture_key_{ math::Hash(texture_key) } {
-	auto& texture_manager{ managers::GetManager<managers::TextureManager>() };
+SpriteMap::SpriteMap(const char* texture_key, const char* map_path) : 
+	texture_key_{ math::Hash(texture_key) } {
+	auto& texture_manager{ manager::Get<TextureManager>() };
 	texture_manager.Load(texture_key_, map_path);
 }
 
 SpriteMap::~SpriteMap() {
-	auto& texture_manager{ managers::GetManager<managers::TextureManager>() };
+	auto& texture_manager{ manager::Get<TextureManager>() };
 	texture_manager.Unload(texture_key_);
 }
 

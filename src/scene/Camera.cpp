@@ -2,7 +2,7 @@
 
 #include <cassert> // assert
 
-#include "core/Window.h"
+#include "interface/Window.h"
 
 namespace ptgn {
 

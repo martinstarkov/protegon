@@ -19,9 +19,9 @@ void SceneManager::UnloadScene(const char* scene_key) {
 	//GetInstance().UnloadSceneImpl(math::Hash(scene_key));
 }
 
-Camera& SceneManager::GetActiveCamera() {
-	return GetActiveScene().camera;
-}
+//Camera& SceneManager::GetActiveCamera() {
+//	return GetActiveScene().camera;
+//}
 
 void SceneManager::LoadSceneImpl(std::size_t scene_key, Scene* scene) {
 	assert(GetSceneImpl(scene_key) == std::end(scenes_) &&
@@ -77,20 +77,20 @@ void SceneManager::RenderActiveScene() {
 	}*/
 }
 
-Scene& SceneManager::GetActiveScene() {
-	/*auto& instance{ GetInstance() };
-	auto& scenes{ instance.scenes_ };
-	auto previous_scene{ instance.previous_scene_ };
-	if (previous_scene != nullptr) {
-		return *previous_scene;
-	} else {
-		auto active_scene{ scenes.front() };
-		assert(active_scene != nullptr &&
-			   "Cannot retrieve active scene if it has been deleted");
-		return *active_scene;
-	}*/
-	return Scene{};
-}
+//Scene& SceneManager::GetActiveScene() {
+//	/*auto& instance{ GetInstance() };
+//	auto& scenes{ instance.scenes_ };
+//	auto previous_scene{ instance.previous_scene_ };
+//	if (previous_scene != nullptr) {
+//		return *previous_scene;
+//	} else {
+//		auto active_scene{ scenes.front() };
+//		assert(active_scene != nullptr &&
+//			   "Cannot retrieve active scene if it has been deleted");
+//		return *active_scene;
+//	}*/
+//	return Scene{};
+//}
 
 void SceneManager::UnloadFlaggedScenes() {
 	//auto& instance{ GetInstance() };
