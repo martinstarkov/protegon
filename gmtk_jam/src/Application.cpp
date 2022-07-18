@@ -1,16 +1,14 @@
 #include "core/Engine.h"
-#include "renderer/Renderer.h"
 #include "input/Input.h"
 #include "text/Text.h"
-#include "managers/FontManager.h"
-#include "managers/TextureManager.h"
-#include "managers/SoundManager.h"
-#include "math/Hash.h"
+#include "interface/Font.h"
+#include "interface/Text.h"
+#include "interface/Texture.h"
+#include "interface/Sound.h"
+#include "interface/Music.h"
+#include "interface/Draw.h"
+#include "interface/Window.h"
 #include "math/RNG.h"
-#include "core/Window.h"
-
-// TEMP:
-#include "utility/Log.h"
 
 using namespace ptgn;
 
@@ -282,21 +280,17 @@ public:
 	Sequence sequence;
 	Sequence absolute_sequence;
 	Directions directions;
-	managers::FontManager& font_manager = managers::GetManager<managers::FontManager>();
-	managers::TextureManager& texture_manager = managers::GetManager<managers::TextureManager>();
-	managers::SoundManager& sound_manager = managers::GetManager<managers::SoundManager>();
-	managers::MusicManager& music_manager = managers::GetManager<managers::MusicManager>();
-	std::size_t grid_key = math::Hash("grid");
-	std::size_t choice_key = math::Hash("choice");
-	std::size_t nochoice_key = math::Hash("nochoice");
-	std::size_t used_key = math::Hash("used");
-	std::size_t dice_key = math::Hash("dice");
-	std::size_t win_key = math::Hash("win");
-	std::size_t loss_key = math::Hash("loss");
-	std::size_t select_key = math::Hash("select");
-	std::size_t move_key = math::Hash("move");
-	std::size_t music_key = math::Hash("music");
-	std::size_t button_key = math::Hash("button");
+	const char* grid_key = "grid";
+	const char* choice_key = "choice";
+	const char* nochoice_key = "nochoice";
+	const char* used_key = "used";
+	const char* dice_key = "dice";
+	const char* win_key = "win";
+	const char* select_key = "select";
+	const char* move_key = "move";
+	const char* loss_key = "loss";
+	const char* music_key = "music";
+	const char* button_key = "button";
 	std::size_t dice{ 1 };
 	bool turn_allowed = false;
 	bool game_over = false;
@@ -324,21 +318,29 @@ public:
 		directions = pair.second;
 		grid.AddTile(win_tile, Tile{ TileType::WIN });
 		assert(pair.second.size() != 0 && "Could not find a valid starting positions, restart program");
-		font_manager.Load(0, "resources/font/04B_30.ttf", 32);
-		font_manager.Load(1, "resources/font/retro_gaming.ttf", 32);
-		texture_manager.Load(grid_key, "resources/tile/thick_grid.png");
-		texture_manager.Load(button_key, "resources/ui/button.png");
-		texture_manager.Load(choice_key, "resources/tile/thick_choice.png");
-		texture_manager.Load(nochoice_key, "resources/tile/thick_nochoice.png");
-		texture_manager.Load(win_key, "resources/tile/thick_win.png");
-		texture_manager.Load(used_key, "resources/tile/used.png");
-		texture_manager.Load(dice_key, "resources/tile/dice.png");
-		sound_manager.Load(select_key, "resources/sound/select_click.wav");
-		sound_manager.Load(move_key, "resources/sound/move_click.wav");
-		sound_manager.Load(win_key, "resources/sound/win.wav");
-		sound_manager.Load(loss_key, "resources/sound/loss.wav");
-		music_manager.Load(music_key, "resources/music/background.wav");
-		music_manager.Get(music_key)->Play(-1);
+		font::Load("0", "resources/font/04B_30.ttf", 32);
+		font::Load("1", "resources/font/retro_gaming.ttf", 32);
+		texture::Load(grid_key, "resources/tile/thick_grid.png");
+		texture::Load(button_key, "resources/ui/button.png");
+		texture::Load(choice_key, "resources/tile/thick_choice.png");
+		texture::Load(nochoice_key, "resources/tile/thick_nochoice.png");
+		texture::Load(win_key, "resources/tile/thick_win.png");
+		texture::Load(used_key, "resources/tile/used.png");
+		texture::Load(dice_key, "resources/tile/dice.png");
+		sound::Load(select_key, "resources/sound/select_click.wav");
+		sound::Load(move_key, "resources/sound/move_click.wav");
+		sound::Load(win_key, "resources/sound/win.wav");
+		sound::Load(loss_key, "resources/sound/loss.wav");
+		music::Load(music_key, "resources/music/background.wav");
+		music::Play(music_key, -1);
+		text::Load("text0", "title_text", "0", "Stroll of the Dice", color::CYAN);
+		text::Load("text1", "r_text", "1", "'R' to restart if stuck", color::RED);
+		text::Load("text2", "m_text", "1", "'Mouse' to choose direction", color::ORANGE);
+		text::Load("text3", "s_text", "1", "'Spacebar' to confirm move", color::GOLD);
+		text::Load("text5", "l_text", "1", "Green tile = Go over it to win", color::GREEN);
+		text::Load("text4", "g_text", "1", "Grey tile = Cannot move in that direction", color::GREY);
+		text::Load("text6", "u_text", "1", "Red tile = No longer usable tile", color::RED);
+		text::Load("text7", "instruction", "1", "Press 'i' to see instructions", color::GOLD);
 	}
 	virtual void Update(double dt) override final {
 		if (input::KeyDown(Key::I)) {
@@ -347,21 +349,14 @@ public:
 		if (play_screen) {
 
 			//draw::Line(player_position, player_position + axis_direction * 100, color::RED);
-			Text text0{ math::Hash("title_text"), 0, "Stroll of the Dice", color::CYAN };
-			Text text1{ math::Hash("r_text"), 1, "'R' to restart if stuck", color::RED };
-			Text text2{ math::Hash("m_text"), 1, "'Mouse' to choose direction", color::ORANGE };
-			Text text3{ math::Hash("s_text"), 1, "'Spacebar' to confirm move", color::GOLD };
-			Text text5{ math::Hash("l_text"), 1, "Green tile = Go over it to win", color::GREEN };
-			Text text4{ math::Hash("g_text"), 1, "Grey tile = Cannot move in that direction", color::GREY };
-			Text text6{ math::Hash("u_text"), 1, "Red tile = No longer usable tile", color::RED };
 			auto s = grid.GetSize() * grid.GetTileSize();
-			draw::Texture(*texture_manager.Get(math::Hash("title_text")), { 32, 32 }, { s.x, 64 });
-			draw::Texture(*texture_manager.Get(math::Hash("l_text")), { 32, 32 + 128 }, { s.x, 64 });
-			draw::Texture(*texture_manager.Get(math::Hash("u_text")), { 32, 32 + 64 + 128 }, { s.x, 64 });
-			draw::Texture(*texture_manager.Get(math::Hash("g_text")), { 32, 32 + 128 + 128 }, { s.x, 64 });
-			draw::Texture(*texture_manager.Get(math::Hash("r_text")), { 32, s.y }, { s.x, 64 });
-			draw::Texture(*texture_manager.Get(math::Hash("m_text")), { 32, s.y + 64 }, { s.x, 64 });
-			draw::Texture(*texture_manager.Get(math::Hash("s_text")), { 32, s.y + 128 }, { s.x, 64 });
+			draw::Text("text0", { 32, 32 }, { s.x, 64 });
+			draw::Text("text1", { 32, s.y }, { s.x, 64 });
+			draw::Text("text2", { 32, s.y + 64 }, { s.x, 64 });
+			draw::Text("text3", { 32, s.y + 128 }, { s.x, 64 });
+			draw::Text("text4", { 32, 32 + 128 + 128 }, { s.x, 64 });
+			draw::Text("text5", { 32, 32 + 128 }, { s.x, 64 });
+			draw::Text("text6", { 32, 32 + 64 + 128 }, { s.x, 64 });
 
 
 			V2_int play_size{ s.x, 128 + 64 };
@@ -383,14 +378,13 @@ public:
 				text_color = color::GOLD;
 				play_screen = false;
 			}
-			Text text_play{ math::Hash("play_text"), 0, "Play", text_color };
-			draw::Texture(*texture_manager.Get(button_key), play_pos, play_size);
-			draw::Texture(*texture_manager.Get(math::Hash("play_text")), play_text_pos, play_text_size);
+			draw::Texture(button_key, play_pos, play_size);
+			draw::TemporaryText("text_play", "0", "Play", text_color, play_text_pos, play_text_size);
 		} else {
 		auto mouse = input::GetMouseScreenPosition();
 		if (input::KeyDown(Key::R) || game_over) {
 			if (turn > 0) {
-				sound_manager.Get(loss_key)->Play(-1, 0);
+				sound::Play(loss_key, -1, 0);
 				current_moves = 0;
 				std::string title = "";
 				title += "Moves: ";
@@ -428,7 +422,7 @@ public:
 			auto axis_direction = ClosestAxis(direction);
 
 			if (previous_direction != axis_direction && previous_direction != V2_int{}) {
-				sound_manager.Get(move_key)->Play(-1, 0);
+				sound::Play(move_key, -1, 0);
 			}
 
 			if (previous_direction != axis_direction) {
@@ -452,9 +446,9 @@ public:
 				current_moves++;
 
 				if (!grid.WinCondition(absolute_sequence)) {
-					sound_manager.Get(select_key)->Play(-1, 0);
+					sound::Play(select_key, -1, 0);
 				} else {
-					sound_manager.Get(win_key)->Play(-1, 0);
+					sound::Play(win_key, -1, 0);
 					game_over = true;
 					turn = 0;
 					++win_count;
@@ -481,14 +475,14 @@ public:
 				for (auto j = 0; j < grid.GetSize().x; j++) {
 					V2_int tile_position{ i, j };
 
-					draw::Texture(*texture_manager.Get(grid_key), grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
+					draw::Texture(grid_key, grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
 				
 					if (grid.HasTile(tile_position)) {
 						auto tile = grid.GetTile(tile_position);
 						if (tile.type == TileType::USED) {
-							draw::Texture(*texture_manager.Get(used_key), grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
+							draw::Texture(used_key, grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
 						} else if (tile.type == TileType::WIN) {
-							draw::Texture(*texture_manager.Get(win_key), grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
+							draw::Texture(win_key, grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
 						}
 					}
 				}
@@ -496,25 +490,23 @@ public:
 			for (auto i = 0; i < absolute_sequence.size(); ++i) {
 				auto pos = grid_top_left_offset + absolute_sequence[i] * grid.GetTileSize(); // + (grid.GetTileSize() - dice_size) / 2
 				if (turn_allowed) {
-					draw::Texture(*texture_manager.Get(choice_key), pos, grid.GetTileSize());
-					Text text{ math::Hash("temp_text"), 0, std::to_string(i + 1).c_str(), color::YELLOW };
-					draw::Texture(*texture_manager.Get(math::Hash("temp_text")), pos + (grid.GetTileSize() - dice_size) / 2, dice_size);
+					draw::Texture(choice_key, pos, grid.GetTileSize());
+					draw::TemporaryText("temp_text", "0", std::to_string(i + 1).c_str(), color::YELLOW, pos + (grid.GetTileSize() - dice_size) / 2, dice_size);
 				} else {
 					auto rotated = GetRotatedSequence(sequence, axis_direction.Angle());
 					absolute_sequence = GetAbsoluteSequence(rotated, player_tile);
 					if (grid.InBound(absolute_sequence[i])) {
 						auto pos = grid_top_left_offset + absolute_sequence[i] * grid.GetTileSize(); // + (grid.GetTileSize() - dice_size) / 2
-						draw::Texture(*texture_manager.Get(nochoice_key), pos, grid.GetTileSize());
+						draw::Texture(nochoice_key, pos, grid.GetTileSize());
 					}
 				}
 			}
 
 			//auto player_dice = 1;
-			draw::Texture(*texture_manager.Get(dice_key), grid_top_left_offset + player_tile * grid.GetTileSize(), grid.GetTileSize(), { 64 * (dice - 1), 0 }, { 64, 64 });
+			draw::Texture(dice_key, grid_top_left_offset + player_tile * grid.GetTileSize(), grid.GetTileSize(), { 64 * (dice - 1), 0 }, { 64, 64 });
 			//draw::SolidRectangle(grid_top_left_offset + player_tile * grid.GetTileSize() + (grid.GetTileSize() - dice_size) / 2, dice_size, color::GREY);
 			auto s = grid.GetSize() * grid.GetTileSize();
-			Text text1{ math::Hash("instruction"), 1, "Press 'i' to see instructions", color::GOLD };
-			draw::Texture(*texture_manager.Get(math::Hash("instruction")), { 32, 32 }, { s.x, 64 });
+			draw::Text("text7", { 32, 32 }, { s.x, 64 });
 		}
 		}
 	}
