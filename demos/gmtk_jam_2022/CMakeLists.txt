@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(gmtk_jam)
+project(gmtk_jam_2022)
 
 set(TEST_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
