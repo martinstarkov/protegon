@@ -1,5 +1,7 @@
 #pragma once
 
+#include <tuple> // std::pair
+
 #include "math/Vector2.h"
 #include "renderer/Color.h"
 #include "core/WindowFlags.h"
@@ -30,6 +32,8 @@ V2_int GetOriginPosition();
 const char* GetTitle();
 
 Color GetColor();
+
+V2_double GetScale();
 
 void SetSize(const V2_int& new_size);
 
