@@ -1,60 +1,86 @@
 #pragma once
 
-#include <cstdlib> // std::size_t
-#include <vector> // std::vector
-#include <utility> // std::forward
-#include <type_traits> // std::enable_if_t
+#include <vector>
+#include <memory>
+#include <cassert>
 
+#include "manager/ResourceManager.h"
 #include "scene/Scene.h"
-#include "math/Math.h"
-#include "scene/Camera.h"
+#include "math/Hash.h"
 
 namespace ptgn {
 
-class SceneManager {
-private:
-public:
-	template <typename TScene, typename ...TArgs,
-		std::enable_if_t<std::is_base_of_v<Scene, TScene>, bool> = true>
-	static void LoadScene(const char* scene_key, TArgs&&... args) {
-		static_assert(std::is_constructible_v<TScene, TArgs...>,
-					  "Cannot construct scene from passed arguments");
-		GetInstance().LoadSceneImpl(math::Hash(scene_key), new TScene(std::forward<TArgs>(args)...));
+class SceneManager : public manager::ResourceManager<Scene>{
+public: 
+	template <typename ...TArgs,
+		std::enable_if_t<std::is_constructible_v<Scene, TArgs...>, bool> = true>
+	Scene& Load(const std::size_t scene_key, TArgs&&... constructor_args) {
+		auto& scene{ manager::ResourceManager<Scene>::Load(scene_key, std::forward<TArgs>(constructor_args)...) };
+		scene.id_ = scene_key;
+		return scene;
 	}
 
-	template <typename TScene,
-		std::enable_if_t<std::is_default_constructible_v<TScene>, bool> = true,
-		std::enable_if_t<std::is_base_of_v<Scene, TScene>, bool> = true>
-	static void LoadScene(const char* scene_key) {
-		GetInstance().LoadSceneImpl(math::Hash(scene_key), new TScene{});
+	void Unload(const std::size_t scene_key) {
+		assert(Has(scene_key) && "Cannot unload a scene which has not been loaded into the scene manager");
+		RemoveActiveScene(scene_key);
+		FlagScene(scene_key);
 	}
 
-	static void SetActiveScene(const char* scene_key);
+	void AddActiveScene(const std::size_t scene_key) {
+		assert(Has(scene_key) && "Cannot add active scene which has not been loaded into the scene manager");
+		auto scene{ Get(scene_key) };
+		scene->Enter();
+		active_scenes_.emplace_back(scene);
+	}
 
-	static bool HasScene(const char* scene_key);
+	void RemoveActiveScene(const std::size_t scene_key) {
+		assert(Has(scene_key) && "Cannot remove active scene which has not been loaded into the scene manager");
+		for (auto it{ active_scenes_.begin() }; it != active_scenes_.end();) {
+			auto& scene{ *it };
+			if (scene->id_ == scene_key)
+				active_scenes_.erase(it++);
+			else
+				++it;
+		}
+	}
 
-	static void UnloadScene(const char* scene_key);
+	std::shared_ptr<Scene> GetActiveScene() {
+		if (active_scenes_.size() > 0)
+			return active_scenes_.back();
+		return nullptr;
+	}
 
-	//static Camera& GetActiveCamera();
+	void Update() {
+		auto active_scene{ GetActiveScene() };
+		if (active_scene != nullptr)
+			active_scene->Update();
+		if (flagged_scenes_ > 0)
+			UnloadFlaggedScenes();
+	}
 private:
-	friend class Engine;
+	void FlagScene(const std::size_t scene_key) {
+		assert(Has(scene_key) && "Cannot flag a scene which has not been loaded into the scene manager");
+		auto scene{ Get(scene_key) };
+		scene->destroy_ = true;
+		flagged_scenes_++;
+	}
 
-	//static Scene& GetActiveScene();
-	static void RenderActiveScene();
-	static void UnloadFlaggedScenes();
-	static void UpdateActiveScene();
+	void UnloadFlaggedScenes() {
+		auto& map{ GetMap() };
+		for (auto it{ map.begin() }; it != map.end() && flagged_scenes_ > 0;) {
+			auto& scene{ it->second };
+			if (scene->destroy_) {
+				map.erase(it++);
+				flagged_scenes_--;
+			} else {
+				++it;
+			}
+		}
+		assert(flagged_scenes_ == 0 && "Failed to delete a flagged scene");
+	}
 
-	std::vector<Scene*>::iterator GetSceneImpl(std::size_t);
-	void LoadSceneImpl(std::size_t scene_key, Scene* scene);
-	void UnloadSceneImpl(std::size_t scene_key);
-	void SetActiveSceneImpl(std::size_t scene_key);
-
-	SceneManager() = default;
-	~SceneManager();
-
-	Scene* previous_scene_{ nullptr };
-	// Active scene is first element.
-	std::vector<Scene*> scenes_;
+	std::size_t flagged_scenes_{ 0 };
+	std::vector<std::shared_ptr<Scene>> active_scenes_;
 };
 
 } // namespace ptgn
