@@ -342,7 +342,6 @@ public:
 	}
 	virtual void Update(double dt) override final {
 		auto mouse = input::GetMouseScreenPosition();
-		PrintLine(mouse);
 		if (input::KeyDown(Key::I)) {
 			play_screen = !play_screen;
 		}
