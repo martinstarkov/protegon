@@ -129,11 +129,12 @@ def ValidateDependency(path, directory, zip, version, name):
 def ValidateDependencies():
     directory = os.path.dirname(__file__)
     vendor_directory = os.path.join(directory, "../vendor")
-    SDL2_version = "2.0.16"
+    SDL2_version = "2.23.1"
     SDL2_image_version = "2.0.5"
     SDL2_ttf_version = "2.0.15"
     SDL2_mixer_version = "2.0.4"
-    SDL2_zip = f"https://www.libsdl.org/release/SDL2-devel-{SDL2_version}-VC.zip"
+    SDL2_zip = f"https://github.com/libsdl-org/SDL/releases/download/prerelease-2.23.1/SDL2-devel-2.23.1-VC.zip"
+    #SDL2_zip = f"https://www.libsdl.org/release/SDL2-devel-{SDL2_version}-VC.zip"
     SDL2_image_zip = f"https://www.libsdl.org/projects/SDL_image/release/SDL2_image-devel-{SDL2_image_version}-VC.zip"
     SDL2_ttf_zip = f"https://www.libsdl.org/projects/SDL_ttf/release/SDL2_ttf-devel-{SDL2_ttf_version}-VC.zip"
     SDL2_mixer_zip = f"https://www.libsdl.org/projects/SDL_mixer/release/SDL2_mixer-devel-{SDL2_mixer_version}-VC.zip"
