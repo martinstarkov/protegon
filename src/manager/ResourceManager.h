@@ -59,18 +59,11 @@ public:
     * @param key Id of the item to be retrieved.
     * @return Pointer to the desired item, nullptr if no such item exists.
     */
-    const T* Get(const I key) const {
+    std::shared_ptr<T> Get(const I key) const {
         auto it{ map_.find(key) };
         if (it == std::end(map_))
             return nullptr;
-        return it->second.get();
-    }
-    /*
-    * @param key Id of the item to be retrieved.
-    * @return Pointer to the desired item, nullptr if no such item exists.
-    */
-    T* Get(const I key) {
-        return const_cast<T*>(const_cast<const ResourceManager<T>*>(this)->Get(key));
+        return it->second;
     }
     
     /*

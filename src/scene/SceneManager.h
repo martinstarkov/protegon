@@ -8,14 +8,16 @@
 #include "scene/Scene.h"
 #include "math/Hash.h"
 
+// TODO: Add init system
+
 namespace ptgn {
 
 class SceneManager : public manager::ResourceManager<Scene>{
 public: 
-	template <typename ...TArgs,
+	template <typename T, typename ...TArgs,
 		std::enable_if_t<std::is_constructible_v<Scene, TArgs...>, bool> = true>
 	Scene& Load(const std::size_t scene_key, TArgs&&... constructor_args) {
-		auto& scene{ manager::ResourceManager<Scene>::Load(scene_key, std::forward<TArgs>(constructor_args)...) };
+		auto& scene{ manager::ResourceManager<Scene>::Load(scene_key, new T{ std::forward<TArgs>(constructor_args)... }) };
 		scene.id_ = scene_key;
 		return scene;
 	}
@@ -27,6 +29,8 @@ public:
 	}
 
 	void AddActiveScene(const std::size_t scene_key) {
+		auto current_scene{ GetActiveScene() };
+		if (current_scene != nullptr && current_scene->id_ == scene_key) return;
 		assert(Has(scene_key) && "Cannot add active scene which has not been loaded into the scene manager");
 		auto scene{ Get(scene_key) };
 		scene->Enter();
@@ -35,12 +39,12 @@ public:
 
 	void RemoveActiveScene(const std::size_t scene_key) {
 		assert(Has(scene_key) && "Cannot remove active scene which has not been loaded into the scene manager");
-		for (auto it{ active_scenes_.begin() }; it != active_scenes_.end();) {
-			auto& scene{ *it };
-			if (scene->id_ == scene_key)
-				active_scenes_.erase(it++);
-			else
+		for (auto it = active_scenes_.begin(); it != active_scenes_.end();) {
+			if (it->get()->id_ == scene_key) {
+				it = active_scenes_.erase(it++);  // alternatively, i = items.erase(i);
+			} else {
 				++it;
+			}
 		}
 	}
 
@@ -50,10 +54,10 @@ public:
 		return nullptr;
 	}
 
-	void Update() {
+	void Update(double dt) {
 		auto active_scene{ GetActiveScene() };
 		if (active_scene != nullptr)
-			active_scene->Update();
+			active_scene->Update(dt);
 		if (flagged_scenes_ > 0)
 			UnloadFlaggedScenes();
 	}
