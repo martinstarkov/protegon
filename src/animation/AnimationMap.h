@@ -1,13 +1,13 @@
 #pragma once
 
-#include "managers/ResourceManager.h"
+#include "manager/ResourceManager.h"
 #include "animation/AnimationState.h"
 
 namespace ptgn {
 
 namespace animation {
 
-class AnimationMap : public managers::ResourceManager<AnimationState> {
+class AnimationMap : public manager::ResourceManager<AnimationState> {
 public:
 	void Update() {
 		ForEach([&](AnimationState& animation_state) {

@@ -39,29 +39,29 @@ public:
     * @param key Id of the item to be unloaded.
     */
     void Unload(const I key) {
-        map.erase(key);
+        map_.erase(key);
     }
     /*
     * Clears the manager.
     */
     void Clear() {
-        map.clear();
+        map_.clear();
     }
     /*
     * @param key Id of the item to be checked for.
     * @return True if manager contains key, false otherwise
     */
     bool Has(const I key) const {
-        auto it{ map.find(key) };
-        return it != std::end(map) && it->second != nullptr;
+        auto it{ map_.find(key) };
+        return it != std::end(map_) && it->second != nullptr;
     }
     /*
     * @param key Id of the item to be retrieved.
     * @return Pointer to the desired item, nullptr if no such item exists.
     */
     const T* Get(const I key) const {
-        auto it{ map.find(key) };
-        if (it == std::end(map))
+        auto it{ map_.find(key) };
+        if (it == std::end(map_))
             return nullptr;
         return it->second.get();
     }
@@ -72,33 +72,38 @@ public:
     T* Get(const I key) {
         return const_cast<T*>(const_cast<const ResourceManager<T>*>(this)->Get(key));
     }
+    
     /*
     * Replaces or adds a new entry to the manager
     * @param key Id of the item to be added.
     * @param item Item to be added.
     */
     T& Set(const I key, T* item) {
-        auto it{ map.find(key) };
-        if (!(it == std::end(map)) && !(it->second.get() == item)) {
+        auto it{ map_.find(key) };
+        if (!(it == std::end(map_)) && !(it->second.get() == item)) {
             it->second.reset(item);
             return *it->second;
         } else {
-            auto [new_it, inserted] = map.emplace(key, item);
+            auto [new_it, inserted] = map_.emplace(key, item);
             return *new_it->second;
         }
     }
 
     template <typename TLambda>
     void ForEach(TLambda lambda) {
-        for (auto it = map.begin(); it != map.end(); ++it)
+        for (auto it = map_.begin(); it != map_.end(); ++it)
             lambda(*it->second);
     }
 
     std::size_t Size() const {
-        return map.size();
+        return map_.size();
+    }
+
+    std::unordered_map<I, std::shared_ptr<T>>& GetMap() {
+        return map_;
     }
 private:
-    std::unordered_map<I, std::shared_ptr<T>> map;
+    std::unordered_map<I, std::shared_ptr<T>> map_;
 };
 
 template <typename T>
