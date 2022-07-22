@@ -3,12 +3,13 @@
 #include "core/Engine.h"
 #include "animation/SpriteMap.h"
 #include "animation/AnimationMap.h"
-#include "managers/TextureManager.h"
+#include "interface/Draw.h"
 #include "animation/Offset.h"
 #include "renderer/Renderer.h"
 #include "utility/Countdown.h"
 #include "input/Input.h"
 #include "math/Hash.h"
+
 
 using namespace ptgn;
 
@@ -21,7 +22,6 @@ public:
 	std::size_t anim1 = math::Hash("anim1");
 	std::size_t anim2 = math::Hash("anim2");
 	std::size_t map1 = math::Hash("map1");
-	managers::TextureManager& texture_manager{ managers::GetManager<managers::TextureManager>() };
 	virtual void Init() {
 		sprite_map.Load(anim1, V2_int{ 0, 0 + 1 * 16 + 1 }, V2_int{ 16, 16 }, 3, milliseconds{ 400 });
 		animation_map.Load(0, sprite_map, anim1, 0, true);
@@ -30,7 +30,7 @@ public:
 	virtual void Update(double dt) {
 		for (auto i = 0; i < animation_map.Size(); ++i) {
 			auto state = animation_map.Get(i);
-			draw::Texture(*texture_manager.Get(state->sprite_map.GetTextureKey()), positions[i], size, state->GetCurrentPosition(), state->GetAnimation().frame_size);
+			draw::Texture(state->sprite_map.GetTextureKey(), positions[i], size, state->GetCurrentPosition(), state->GetAnimation().frame_size);
 		}
 		animation_map.Update();
 	}

@@ -8,6 +8,7 @@
 #include "interface/Draw.h"
 #include "interface/Window.h"
 #include "math/RNG.h"
+#include "utility/Log.h"
 
 using namespace ptgn;
 
@@ -302,7 +303,6 @@ public:
 	std::size_t current_moves = 0;
 	std::size_t best_moves = 1000000;
 	virtual void Init() override final {
-
 		Directions directions{ V2_int{ 1, 0 }, V2_int{ -1, 0 }, V2_int{ 0, 1 }, V2_int{ 0, -1 } };
 		sequence_map.emplace(1, std::vector<Sequence>{ Sequence{ V2_int{ 1, 0 } }});
 		for (std::size_t i = 1; i < 6; ++i) {
@@ -311,7 +311,6 @@ public:
 			Combinations(sequences, directions, pos, 0);
 			sequence_map.emplace(i + 1, sequences);
 		}
-		//CumulativeSum(sequences);
 		auto pair = GetSequenceAndAllowedDirections(sequence_map.find(dice)->second, grid, player_tile);
 		sequence = pair.first;
 		directions = pair.second;
@@ -342,12 +341,12 @@ public:
 		text::Load("text7", "instruction", "1", "Press 'i' to see instructions", color::GOLD);
 	}
 	virtual void Update(double dt) override final {
+		auto mouse = input::GetMouseScreenPosition();
+		PrintLine(mouse);
 		if (input::KeyDown(Key::I)) {
 			play_screen = !play_screen;
 		}
 		if (play_screen) {
-
-			//draw::Line(player_position, player_position + axis_direction * 100, color::RED);
 			auto s = grid.GetSize() * grid.GetTileSize();
 			draw::Text("text0", { 32, 32 }, { s.x, 64 });
 			draw::Text("text1", { 32, s.y }, { s.x, 64 });
@@ -366,7 +365,6 @@ public:
 
 			Color text_color = color::WHITE;
 
-			auto mouse = input::GetMouseScreenPosition();
 			bool hover = PointvsAABB(mouse, play_pos, play_size);
 			if (hover) {
 				text_color = color::GOLD;
@@ -379,134 +377,136 @@ public:
 			}
 			draw::Texture(button_key, play_pos, play_size);
 			draw::TemporaryText("text_play", "0", "Play", text_color, play_text_pos, play_text_size);
+
+			
 		} else {
-		auto mouse = input::GetMouseScreenPosition();
-		if (input::KeyDown(Key::R) || game_over) {
-			if (turn > 0) {
-				sound::Play(loss_key, -1, 0);
-				current_moves = 0;
-				std::string title = "";
-				title += "Moves: ";
-				title += std::to_string(0);
-				if (win_count > 0) {
-					title += " | Wins: ";
-					title += std::to_string(win_count);
-					title += " | Lowest: ";
-					title += std::to_string(best_moves);
-				}
-				window::SetTitle(title.c_str());
-			}
-			++turn;
-			grid.Clear();
-			player_tile = GetNewWinTile(grid, win_tile);
-			win_tile = GetNewWinTile(grid, player_tile);
-			grid.AddTile(win_tile, Tile{ TileType::WIN });
-			game_over = false;
-			generate_new = true;
-		}
 
-		if (!game_over && generate_new) {
-			generate_new = false;
-			dice = dice_roll();
-			auto pair = GetSequenceAndAllowedDirections(sequence_map.find(dice)->second, grid, player_tile);
-			sequence = pair.first;
-			directions = pair.second;
-		}
-
-		game_over = directions.size() == 0;
-
-		if (!game_over) {
-			auto player_position = grid_top_left_offset + player_tile * grid.GetTileSize() + grid.GetTileSize() / 2;
-			auto direction = static_cast<V2_double>(mouse - player_position);
-			auto axis_direction = ClosestAxis(direction);
-
-			if (previous_direction != axis_direction && previous_direction != V2_int{}) {
-				sound::Play(move_key, -1, 0);
-			}
-
-			if (previous_direction != axis_direction) {
-				previous_direction = axis_direction;
-			}
-
-
-			turn_allowed = Contains(directions, axis_direction);
-
-			if (turn_allowed || previous_direction != axis_direction) {
-				auto rotated = GetRotatedSequence(sequence, axis_direction.Angle());
-				absolute_sequence = GetAbsoluteSequence(rotated, player_tile);
-			}
-
-
-			if (turn_allowed && input::KeyDown(Key::SPACE) && sequence.size() > 0) {
-				grid.AddTile(player_tile, Tile{ TileType::USED });
-				player_tile = absolute_sequence.back();
-				grid.AddTiles(absolute_sequence, Tile{ TileType::USED });
-				generate_new = true;
-				current_moves++;
-
-				if (!grid.WinCondition(absolute_sequence)) {
-					sound::Play(select_key, -1, 0);
-				} else {
-					sound::Play(win_key, -1, 0);
-					game_over = true;
-					turn = 0;
-					++win_count;
-					best_moves = std::min(best_moves, current_moves);
-				}
-
-				std::string title = "";
-				if (game_over) {
+			if (input::KeyDown(Key::R) || game_over) {
+				if (turn > 0) {
+					sound::Play(loss_key, -1, 0);
 					current_moves = 0;
+					std::string title = "";
+					title += "Moves: ";
+					title += std::to_string(0);
+					if (win_count > 0) {
+						title += " | Wins: ";
+						title += std::to_string(win_count);
+						title += " | Lowest: ";
+						title += std::to_string(best_moves);
+					}
+					window::SetTitle(title.c_str());
 				}
-				title += "Moves: ";
-				title += std::to_string(current_moves);
-				if (win_count > 0) {
-					title += " | Wins: ";
-					title += std::to_string(win_count);
-					title += " | Lowest: ";
-					title += std::to_string(best_moves);
-				}
-				window::SetTitle(title.c_str());
-				//game_over = !CanWin(grid, player_tile, win_tile);
+				++turn;
+				grid.Clear();
+				player_tile = GetNewWinTile(grid, win_tile);
+				win_tile = GetNewWinTile(grid, player_tile);
+				grid.AddTile(win_tile, Tile{ TileType::WIN });
+				game_over = false;
+				generate_new = true;
 			}
 
-			for (auto i = 0; i < grid.GetSize().x; ++i) {
-				for (auto j = 0; j < grid.GetSize().x; j++) {
-					V2_int tile_position{ i, j };
+			if (!game_over && generate_new) {
+				generate_new = false;
+				dice = dice_roll();
+				auto pair = GetSequenceAndAllowedDirections(sequence_map.find(dice)->second, grid, player_tile);
+				sequence = pair.first;
+				directions = pair.second;
+			}
 
-					draw::Texture(grid_key, grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
+			game_over = directions.size() == 0;
+
+			if (!game_over) {
+				auto player_position = grid_top_left_offset + player_tile * grid.GetTileSize() + grid.GetTileSize() / 2;
+				auto direction = static_cast<V2_double>(mouse - player_position);
+				auto axis_direction = ClosestAxis(direction);
+
+				if (previous_direction != axis_direction && previous_direction != V2_int{}) {
+					sound::Play(move_key, -1, 0);
+				}
+
+				if (previous_direction != axis_direction) {
+					previous_direction = axis_direction;
+				}
+
+
+				turn_allowed = Contains(directions, axis_direction);
+
+				if (turn_allowed || previous_direction != axis_direction) {
+					auto rotated = GetRotatedSequence(sequence, axis_direction.Angle());
+					absolute_sequence = GetAbsoluteSequence(rotated, player_tile);
+				}
+
+
+				if (turn_allowed && input::KeyDown(Key::SPACE) && sequence.size() > 0) {
+					grid.AddTile(player_tile, Tile{ TileType::USED });
+					player_tile = absolute_sequence.back();
+					grid.AddTiles(absolute_sequence, Tile{ TileType::USED });
+					generate_new = true;
+					current_moves++;
+
+					if (!grid.WinCondition(absolute_sequence)) {
+						sound::Play(select_key, -1, 0);
+					} else {
+						sound::Play(win_key, -1, 0);
+						game_over = true;
+						turn = 0;
+						++win_count;
+						best_moves = std::min(best_moves, current_moves);
+					}
+
+					std::string title = "";
+					if (game_over) {
+						current_moves = 0;
+					}
+					title += "Moves: ";
+					title += std::to_string(current_moves);
+					if (win_count > 0) {
+						title += " | Wins: ";
+						title += std::to_string(win_count);
+						title += " | Lowest: ";
+						title += std::to_string(best_moves);
+					}
+					window::SetTitle(title.c_str());
+					//game_over = !CanWin(grid, player_tile, win_tile);
+				}
+
+				for (auto i = 0; i < grid.GetSize().x; ++i) {
+					for (auto j = 0; j < grid.GetSize().x; j++) {
+						V2_int tile_position{ i, j };
+
+						draw::Texture(grid_key, grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
 				
-					if (grid.HasTile(tile_position)) {
-						auto tile = grid.GetTile(tile_position);
-						if (tile.type == TileType::USED) {
-							draw::Texture(used_key, grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
-						} else if (tile.type == TileType::WIN) {
-							draw::Texture(win_key, grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
+						if (grid.HasTile(tile_position)) {
+							auto tile = grid.GetTile(tile_position);
+							if (tile.type == TileType::USED) {
+								draw::Texture(used_key, grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
+							} else if (tile.type == TileType::WIN) {
+								draw::Texture(win_key, grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
+							}
 						}
 					}
 				}
-			}
-			for (auto i = 0; i < absolute_sequence.size(); ++i) {
-				auto pos = grid_top_left_offset + absolute_sequence[i] * grid.GetTileSize(); // + (grid.GetTileSize() - dice_size) / 2
-				if (turn_allowed) {
-					draw::Texture(choice_key, pos, grid.GetTileSize());
-					draw::TemporaryText("temp_text", "0", std::to_string(i + 1).c_str(), color::YELLOW, pos + (grid.GetTileSize() - dice_size) / 2, dice_size);
-				} else {
-					auto rotated = GetRotatedSequence(sequence, axis_direction.Angle());
-					absolute_sequence = GetAbsoluteSequence(rotated, player_tile);
-					if (grid.InBound(absolute_sequence[i])) {
-						auto pos = grid_top_left_offset + absolute_sequence[i] * grid.GetTileSize(); // + (grid.GetTileSize() - dice_size) / 2
-						draw::Texture(nochoice_key, pos, grid.GetTileSize());
+				for (auto i = 0; i < absolute_sequence.size(); ++i) {
+					auto pos = grid_top_left_offset + absolute_sequence[i] * grid.GetTileSize(); // + (grid.GetTileSize() - dice_size) / 2
+					if (turn_allowed) {
+						draw::Texture(choice_key, pos, grid.GetTileSize());
+						draw::TemporaryText("temp_text", "0", std::to_string(i + 1).c_str(), color::YELLOW, pos + (grid.GetTileSize() - dice_size) / 2, dice_size);
+					} else {
+						auto rotated = GetRotatedSequence(sequence, axis_direction.Angle());
+						absolute_sequence = GetAbsoluteSequence(rotated, player_tile);
+						if (grid.InBound(absolute_sequence[i])) {
+							auto pos = grid_top_left_offset + absolute_sequence[i] * grid.GetTileSize(); // + (grid.GetTileSize() - dice_size) / 2
+							draw::Texture(nochoice_key, pos, grid.GetTileSize());
+						}
 					}
 				}
-			}
 
-			//auto player_dice = 1;
-			draw::Texture(dice_key, grid_top_left_offset + player_tile * grid.GetTileSize(), grid.GetTileSize(), { 64 * (dice - 1), 0 }, { 64, 64 });
-			//draw::SolidRectangle(grid_top_left_offset + player_tile * grid.GetTileSize() + (grid.GetTileSize() - dice_size) / 2, dice_size, color::GREY);
-			auto s = grid.GetSize() * grid.GetTileSize();
-			draw::Text("text7", { 32, 32 }, { s.x, 64 });
-		}
+				//auto player_dice = 1;
+				draw::Texture(dice_key, grid_top_left_offset + player_tile * grid.GetTileSize(), grid.GetTileSize(), { 64 * (dice - 1), 0 }, { 64, 64 });
+				//draw::SolidRectangle(grid_top_left_offset + player_tile * grid.GetTileSize() + (grid.GetTileSize() - dice_size) / 2, dice_size, color::GREY);
+				auto s = grid.GetSize() * grid.GetTileSize();
+				draw::Text("text7", { 32, 32 }, { s.x, 64 });
+			}
 		}
 	}
 };
