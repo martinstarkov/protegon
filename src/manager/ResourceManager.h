@@ -21,10 +21,10 @@ class ResourceManager {
 public:
     ResourceManager() = default;
     virtual ~ResourceManager() = default;
-    ResourceManager(const ResourceManager&) = delete;
-    ResourceManager(ResourceManager&&) noexcept = default;
-    ResourceManager& operator=(const ResourceManager&) = delete;
-    ResourceManager& operator=(ResourceManager&&) noexcept = default;
+    ResourceManager(const ResourceManager& copy) = delete;
+    ResourceManager(ResourceManager&& move) noexcept = default;
+    ResourceManager& operator=(const ResourceManager& copy) = delete;
+    ResourceManager& operator=(ResourceManager&& move) noexcept = default;
     
     template <typename ...TArgs,
         std::enable_if_t<std::is_constructible_v<T, TArgs...>, bool> = true>
@@ -35,13 +35,11 @@ public:
     T& LoadPointer(const I key, T* item) {
         return Set(key, item);
     }
-
     /*
     * @param key Id of the item to be unloaded.
     */
     void Unload(const I key) {
-        if (map_.count(key))
-            map_.erase(key);
+        map_.erase(key);
     }
     /*
     * Clears the manager.
@@ -75,7 +73,7 @@ public:
     */
     T& Set(const I key, T* item) {
         auto it{ map_.find(key) };
-        if (it != std::end(map_)) {
+        if (it != std::end(map_) && it->second != nullptr) {
             return *it->second;
         } else {
             auto [new_it, inserted] = map_.emplace(key, item);
@@ -100,6 +98,7 @@ private:
     std::unordered_map<I, std::shared_ptr<T>> map_;
 };
 
+// TODO: Check that T is child of ResourceManager.
 template <typename T>
 T& Get() {
     static T manager;

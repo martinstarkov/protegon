@@ -9,7 +9,7 @@
 #include "manager/SoundManager.h"
 #include "manager/TextManager.h"
 #include "manager/TextureManager.h"
-#include "scene/SceneManager.h"
+#include "manager/SceneManager.h"
 
 namespace ptgn {
 

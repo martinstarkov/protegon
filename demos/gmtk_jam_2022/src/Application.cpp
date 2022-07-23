@@ -7,9 +7,9 @@
 #include "interface/Music.h"
 #include "interface/Draw.h"
 #include "interface/Window.h"
+#include "interface/Scene.h"
 #include "math/RNG.h"
 #include "utility/Log.h"
-#include "scene/SceneManager.h"
 
 using namespace ptgn;
 
@@ -269,64 +269,6 @@ V2_int GetNewWinTile(const Grid& grid, const V2_int& player_tile) {
 	return GetNewWinTile(grid, player_tile);
 }
 
-Grid grid{ { 20, 20 }, { 32, 32 } };
-
-class MenuScreen : public Scene {
-public:
-	const char* button_key = "button";
-	const char* music_key = "music";
-	virtual void Init() override final {
-		text::Load("text0", "title_text", "0", "Stroll of the Dice", color::CYAN);
-		text::Load("text1", "r_text", "1", "'R' to restart if stuck", color::RED);
-		text::Load("text2", "m_text", "1", "'Mouse' to choose direction", color::ORANGE);
-		text::Load("text3", "s_text", "1", "'Spacebar' to confirm move", color::GOLD);
-		text::Load("text5", "l_text", "1", "Green tile = Go over it to win", color::GREEN);
-		text::Load("text4", "g_text", "1", "Grey tile = Cannot move in that direction", color::GREY);
-		text::Load("text6", "u_text", "1", "Red tile = No longer usable tile", color::RED);
-		texture::Load(button_key, "resources/ui/button.png");
-		music::Load(music_key, "resources/music/background.wav");
-		music::Play(music_key, -1);
-	}
-	virtual void Enter() override final {}
-	virtual void Update(double dt) override final {
-		auto mouse = input::GetMouseScreenPosition();
-		auto s = grid.GetSize() * grid.GetTileSize();
-		draw::Text("text0", { 32, 32 }, { s.x, 64 });
-		draw::Text("text1", { 32, s.y }, { s.x, 64 });
-		draw::Text("text2", { 32, s.y + 64 }, { s.x, 64 });
-		draw::Text("text3", { 32, s.y + 128 }, { s.x, 64 });
-		draw::Text("text4", { 32, 32 + 128 + 128 }, { s.x, 64 });
-		draw::Text("text5", { 32, 32 + 128 }, { s.x, 64 });
-		draw::Text("text6", { 32, 32 + 64 + 128 }, { s.x, 64 });
-
-
-		V2_int play_size{ s.x, 128 + 64 };
-		V2_int play_pos{ 32, 32 + 128 + 128 + 32 + 64 };
-
-		V2_int play_text_size{ s.x - 16 - 16, 128 + 64 - 16 - 16 - 16 - 16 };
-		V2_int play_text_pos{ 32 + 16 + 16, 32 + 128 + 128 + 32 + 16 + 16 + 64 };
-
-		Color text_color = color::WHITE;
-
-		bool hover = PointvsAABB(mouse, play_pos, play_size);
-		if (hover) {
-			text_color = color::GOLD;
-			if (input::MouseDown(Mouse::LEFT)) {
-				manager::Get<SceneManager>().RemoveActiveScene(1);
-				manager::Get<SceneManager>().AddActiveScene(0);
-			}
-		}
-		if (input::KeyDown(Key::SPACE)) {
-			text_color = color::GOLD;
-			manager::Get<SceneManager>().RemoveActiveScene(1);
-			manager::Get<SceneManager>().AddActiveScene(0);
-		}
-		draw::Texture(button_key, play_pos, play_size);
-		draw::TemporaryText("text_play", "0", "Play", text_color, play_text_pos, play_text_size);
-
-	}
-};
-
 class DiceScene : public Scene {
 public:
 	V2_int grid_top_left_offset{ 32, 32 + 64 };
@@ -357,7 +299,8 @@ public:
 	std::size_t win_count = 0;
 	std::size_t current_moves = 0;
 	std::size_t best_moves = 1000000;
-	virtual void Init() override final {
+	Grid& grid;
+	DiceScene(Grid& grid) : grid{ grid } {
 		Directions directions{ V2_int{ 1, 0 }, V2_int{ -1, 0 }, V2_int{ 0, 1 }, V2_int{ 0, -1 } };
 		sequence_map.emplace(1, std::vector<Sequence>{ Sequence{ V2_int{ 1, 0 } }});
 		for (std::size_t i = 1; i < 6; ++i) {
@@ -383,12 +326,10 @@ public:
 		sound::Load(loss_key, "resources/sound/loss.wav");
 		text::Load("text7", "instruction", "1", "Press 'i' to see instructions", color::GOLD);
 	}
-	virtual void Enter() override final {}
 	virtual void Update(double dt) override final {
 		auto mouse = input::GetMouseScreenPosition();
 		if (input::KeyDown(Key::I)) {
-			manager::Get<SceneManager>().RemoveActiveScene(0);
-			manager::Get<SceneManager>().AddActiveScene(1);
+			scene::SetActive("menu");
 		}
 		if (input::KeyDown(Key::R) || game_over) {
 			if (turn > 0) {
@@ -484,7 +425,7 @@ public:
 					V2_int tile_position{ i, j };
 
 					draw::Texture(grid_key, grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
-				
+
 					if (grid.HasTile(tile_position)) {
 						auto tile = grid.GetTile(tile_position);
 						if (tile.type == TileType::USED) {
@@ -519,16 +460,66 @@ public:
 	}
 };
 
+class MenuScreen : public Scene {
+public:
+	Grid grid{ { 20, 20 }, { 32, 32 } };
+	const char* button_key = "button";
+	const char* music_key = "music";
+	MenuScreen() {
+		text::Load("text0", "title_text", "0", "Stroll of the Dice", color::CYAN);
+		text::Load("text1", "r_text", "1", "'R' to restart if stuck", color::RED);
+		text::Load("text2", "m_text", "1", "'Mouse' to choose direction", color::ORANGE);
+		text::Load("text3", "s_text", "1", "'Spacebar' to confirm move", color::GOLD);
+		text::Load("text5", "l_text", "1", "Green tile = Go over it to win", color::GREEN);
+		text::Load("text4", "g_text", "1", "Grey tile = Cannot move in that direction", color::GREY);
+		text::Load("text6", "u_text", "1", "Red tile = No longer usable tile", color::RED);
+		texture::Load(button_key, "resources/ui/button.png");
+		music::Load(music_key, "resources/music/background.wav");
+		music::Play(music_key, -1);
+	}
+	virtual void Update(double dt) override final {
+		auto mouse = input::GetMouseScreenPosition();
+		auto s = grid.GetSize() * grid.GetTileSize();
+		draw::Text("text0", { 32, 32 }, { s.x, 64 });
+		draw::Text("text1", { 32, s.y }, { s.x, 64 });
+		draw::Text("text2", { 32, s.y + 64 }, { s.x, 64 });
+		draw::Text("text3", { 32, s.y + 128 }, { s.x, 64 });
+		draw::Text("text4", { 32, 32 + 128 + 128 }, { s.x, 64 });
+		draw::Text("text5", { 32, 32 + 128 }, { s.x, 64 });
+		draw::Text("text6", { 32, 32 + 64 + 128 }, { s.x, 64 });
+
+
+		V2_int play_size{ s.x, 128 + 64 };
+		V2_int play_pos{ 32, 32 + 128 + 128 + 32 + 64 };
+
+		V2_int play_text_size{ s.x - 16 - 16, 128 + 64 - 16 - 16 - 16 - 16 };
+		V2_int play_text_pos{ 32 + 16 + 16, 32 + 128 + 128 + 32 + 16 + 16 + 64 };
+
+		Color text_color = color::WHITE;
+
+		bool hover = PointvsAABB(mouse, play_pos, play_size);
+		if (hover) {
+			text_color = color::GOLD;
+		}
+		if ((hover && input::MouseDown(Mouse::LEFT)) || input::KeyDown(Key::SPACE)) {
+			scene::Load<DiceScene>("game", grid);
+			scene::SetActive("game");
+		}
+		draw::Texture(button_key, play_pos, play_size);
+		draw::TemporaryText("text_play", "0", "Play", text_color, play_text_pos, play_text_size);
+
+	}
+};
+
 class DiceGame : public Engine {
 	virtual void Init() override final {
 		font::Load("0", "resources/font/04B_30.ttf", 32);
 		font::Load("1", "resources/font/retro_gaming.ttf", 32);
-		manager::Get<SceneManager>().Load<DiceScene>(0);
-		manager::Get<SceneManager>().Load<MenuScreen>(1);
-		manager::Get<SceneManager>().AddActiveScene(1);
+		scene::Load<MenuScreen>("menu");
+		scene::SetActive("menu");
 	}
 	virtual void Update(double dt) override final {
-		manager::Get<SceneManager>().Update(dt);
+		scene::Update(dt);
 	}
 };
 
