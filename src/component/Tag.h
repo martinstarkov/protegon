@@ -6,14 +6,11 @@
 
 namespace ptgn {
 
-struct Tag {
-	Tag() = delete;
+template <typename T>
+class Tag {
+public:
 	~Tag() = default;
-	Tag(std::size_t id) : id{ id } {}
-	std::size_t id{ 0 };
-
-	// Comparison between tag id and const char* tag.
-	// These use the hasher internally.
+	Tag() : id{ GetId<T>() } {}
 
 	bool operator==(const char* rhs) const {
 		return id == math::Hash(rhs);
@@ -21,14 +18,43 @@ struct Tag {
 	bool operator!=(const char* rhs) const {
 		return !operator==(rhs);
 	}
+	bool operator==(const std::size_t rhs) const {
+		return id == rhs;
+	}
+	bool operator!=(const std::size_t rhs) const {
+		return !operator==(rhs);
+	}
+private:
+	const std::size_t id{ 0 };
+	static std::size_t& TagCount() {
+		static std::size_t id{ 0 };
+		return id;
+	}
+	template <typename T>
+	static GetId() {
+		static std::size_t id{ TagCount()++ };
+		return id;
+	}
 };
 
 } // namespace ptgn
 
-bool operator==(const char* lhs, const ptgn::Tag& rhs) {
+template <typename T>
+bool operator==(const char* lhs, const ptgn::Tag<T>& rhs) {
 	return rhs == lhs;
 }
 
-bool operator!=(const char* lhs, const ptgn::Tag& rhs) {
+template <typename T>
+bool operator!=(const char* lhs, const ptgn::Tag<T>& rhs) {
+	return !(rhs == lhs);
+}
+
+template <typename T>
+bool operator==(const std::size_t lhs, const ptgn::Tag<T>& rhs) {
+	return rhs == lhs;
+}
+
+template <typename T>
+bool operator!=(const std::size_t lhs, const ptgn::Tag<T>& rhs) {
 	return !(rhs == lhs);
 }
