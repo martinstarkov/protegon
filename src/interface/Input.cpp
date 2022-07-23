@@ -1,5 +1,8 @@
 #include "Input.h"
 
+#include <cstdlib> // std::size_t
+#include <cassert> // assert
+
 #include <SDL.h>
 
 #include "interface/Window.h"
@@ -8,6 +11,15 @@
 // TODO: Fix GetMouseAbsolutePosition function
 
 namespace ptgn {
+
+nanoseconds GetMouseHeldTime(Mouse button) {
+	auto& input_handler{ InputHandler::Get() };
+	auto [state, timer] = input_handler.GetMouseStateAndTimer(button);
+	// Retrieve held time in nanoseconds for maximum precision.
+	const auto held_time{ timer->Elapsed<nanoseconds>() };
+	// Comparison units handled by chrono.
+	return held_time;
+}
 
 namespace input {
 

@@ -1,5 +1,5 @@
 #include "core/Engine.h"
-#include "input/Input.h"
+#include "interface/Input.h"
 #include "interface/Font.h"
 #include "interface/Text.h"
 #include "interface/Texture.h"
@@ -11,9 +11,15 @@
 #include "math/RNG.h"
 #include "utility/Log.h"
 
-using namespace ptgn;
-
+#include <queue>
 #include <vector>
+#include <unordered_map>
+#include <array>
+#include <numeric>
+#include <tuple>
+#include <string>
+
+using namespace ptgn;
 
 inline bool PointvsAABB(const V2_int& point,
 						const V2_double& position,
@@ -30,8 +36,6 @@ inline bool Contains(const std::vector<T>& container, const T& value) {
 		if (v == value) return true;
 	return false;
 }
-
-#include <unordered_map>
 
 enum class TileType {
 	NONE = 0,
@@ -101,7 +105,6 @@ private:
 	std::unordered_map<V2_int, Tile> tiles;
 };
 
-
 inline V2_int ClosestAxis(const V2_double& direction) {
 	auto dir{ direction.DotProduct(V2_double{ 1, 0 }) };
 	V2_int axis{ 1, 0 };
@@ -122,12 +125,6 @@ inline V2_int ClosestAxis(const V2_double& direction) {
 	}
 	return axis;
 }
-
-#include <array>
-#include <vector>
-#include <numeric>
-#include <tuple>
-#include "math/RNG.h"
 
 using Sequence = std::vector<V2_int>;
 using Directions = std::vector<V2_int>;
@@ -159,20 +156,12 @@ Sequence GetRotatedSequence(Sequence sequence, const double angle) {
 		vector  = math::Round(vector.Rotate(angle));
 	return sequence;
 }
+
 Sequence GetAbsoluteSequence(Sequence sequence, const V2_int& tile) {
 	for (auto& vector : sequence)
 		vector += tile;
 	return sequence;
 }
-
-void Explore(const std::vector<std::size_t>& possible_directions, const std::size_t value_index, const std::size_t layer_index, const std::size_t max_count) {
-}
-
-
-#include <numeric>
-#include <bitset>
-#include <string>
-#include <vector>
 
 void Combinations(std::vector<Sequence>& sequences, const Directions& directions, std::vector<int>& pos, int n) {
 	if (n == pos.size()) {
@@ -201,16 +190,6 @@ void Combinations(std::vector<Sequence>& sequences, const Directions& directions
 	}
 }
 
-V2_int MyAddition(const V2_int& a, const V2_int& b) {
-	return a + b;
-}
-
-void CumulativeSum(std::vector<Sequence>& sequences) {
-	for (auto& sequence : sequences) {
-		std::partial_sum(sequence.begin(), sequence.end(), sequence.begin(), MyAddition);
-	}
-}
-
 std::pair<Sequence, Directions> GetSequenceAndAllowedDirections(std::vector<Sequence>& sequences, const Grid& grid, const V2_int& tile) {
 	auto rd = std::random_device{};
 	auto rng = std::default_random_engine{ rd() };
@@ -231,8 +210,6 @@ std::pair<Sequence, Directions> GetSequenceAndAllowedDirections(std::vector<Sequ
 	}
 	return {};
 }
-
-#include <queue>
 
 bool CanWin(const Grid& grid, const V2_int& player_tile, const V2_int& win_tile) {
 	std::array<V2_int, 4> directions{ V2_int{ 0, 1 }, V2_int{ 0, -1 }, V2_int{ 1, 0 }, V2_int{ -1, 0 } };
@@ -280,15 +257,6 @@ public:
 	Sequence sequence;
 	Sequence absolute_sequence;
 	Directions directions;
-	const char* grid_key = "grid";
-	const char* choice_key = "choice";
-	const char* nochoice_key = "nochoice";
-	const char* used_key = "used";
-	const char* dice_key = "dice";
-	const char* win_key = "win";
-	const char* select_key = "select";
-	const char* move_key = "move";
-	const char* loss_key = "loss";
 	std::size_t dice{ 1 };
 	bool turn_allowed = false;
 	bool game_over = false;
@@ -314,16 +282,16 @@ public:
 		directions = pair.second;
 		grid.AddTile(win_tile, Tile{ TileType::WIN });
 		assert(pair.second.size() != 0 && "Could not find a valid starting positions, restart program");
-		texture::Load(grid_key, "resources/tile/thick_grid.png");
-		texture::Load(choice_key, "resources/tile/thick_choice.png");
-		texture::Load(nochoice_key, "resources/tile/thick_nochoice.png");
-		texture::Load(win_key, "resources/tile/thick_win.png");
-		texture::Load(used_key, "resources/tile/used.png");
-		texture::Load(dice_key, "resources/tile/dice.png");
-		sound::Load(select_key, "resources/sound/select_click.wav");
-		sound::Load(move_key, "resources/sound/move_click.wav");
-		sound::Load(win_key, "resources/sound/win.wav");
-		sound::Load(loss_key, "resources/sound/loss.wav");
+		texture::Load("grid", "resources/tile/thick_grid.png");
+		texture::Load("choice", "resources/tile/thick_choice.png");
+		texture::Load("nochoice", "resources/tile/thick_nochoice.png");
+		texture::Load("win", "resources/tile/thick_win.png");
+		texture::Load("used", "resources/tile/used.png");
+		texture::Load("dice", "resources/tile/dice.png");
+		sound::Load("select", "resources/sound/select_click.wav");
+		sound::Load("move", "resources/sound/move_click.wav");
+		sound::Load("win", "resources/sound/win.wav");
+		sound::Load("loss", "resources/sound/loss.wav");
 		text::Load("text7", "instruction", "1", "Press 'i' to see instructions", color::GOLD);
 	}
 	virtual void Update(double dt) override final {
@@ -333,7 +301,7 @@ public:
 		}
 		if (input::KeyDown(Key::R) || game_over) {
 			if (turn > 0) {
-				sound::Play(loss_key, -1, 0);
+				sound::Play("loss", -1, 0);
 				current_moves = 0;
 				std::string title = "";
 				title += "Moves: ";
@@ -371,7 +339,7 @@ public:
 			auto axis_direction = ClosestAxis(direction);
 
 			if (previous_direction != axis_direction && previous_direction != V2_int{}) {
-				sound::Play(move_key, -1, 0);
+				sound::Play("move", -1, 0);
 			}
 
 			if (previous_direction != axis_direction) {
@@ -395,15 +363,14 @@ public:
 				current_moves++;
 
 				if (!grid.WinCondition(absolute_sequence)) {
-					sound::Play(select_key, -1, 0);
+					sound::Play("select", -1, 0);
 				} else {
-					sound::Play(win_key, -1, 0);
+					sound::Play("win", -1, 0);
 					game_over = true;
 					turn = 0;
 					++win_count;
 					best_moves = std::min(best_moves, current_moves);
 				}
-
 				std::string title = "";
 				if (game_over) {
 					current_moves = 0;
@@ -424,14 +391,14 @@ public:
 				for (auto j = 0; j < grid.GetSize().x; j++) {
 					V2_int tile_position{ i, j };
 
-					draw::Texture(grid_key, grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
+					draw::Texture("grid", grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
 
 					if (grid.HasTile(tile_position)) {
 						auto tile = grid.GetTile(tile_position);
 						if (tile.type == TileType::USED) {
-							draw::Texture(used_key, grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
+							draw::Texture("used", grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
 						} else if (tile.type == TileType::WIN) {
-							draw::Texture(win_key, grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
+							draw::Texture("win", grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
 						}
 					}
 				}
@@ -439,20 +406,20 @@ public:
 			for (auto i = 0; i < absolute_sequence.size(); ++i) {
 				auto pos = grid_top_left_offset + absolute_sequence[i] * grid.GetTileSize(); // + (grid.GetTileSize() - dice_size) / 2
 				if (turn_allowed) {
-					draw::Texture(choice_key, pos, grid.GetTileSize());
+					draw::Texture("choice", pos, grid.GetTileSize());
 					draw::TemporaryText("temp_text", "0", std::to_string(i + 1).c_str(), color::YELLOW, pos + (grid.GetTileSize() - dice_size) / 2, dice_size);
 				} else {
 					auto rotated = GetRotatedSequence(sequence, axis_direction.Angle());
 					absolute_sequence = GetAbsoluteSequence(rotated, player_tile);
 					if (grid.InBound(absolute_sequence[i])) {
 						auto pos = grid_top_left_offset + absolute_sequence[i] * grid.GetTileSize(); // + (grid.GetTileSize() - dice_size) / 2
-						draw::Texture(nochoice_key, pos, grid.GetTileSize());
+						draw::Texture("nochoice", pos, grid.GetTileSize());
 					}
 				}
 			}
 
 			//auto player_dice = 1;
-			draw::Texture(dice_key, grid_top_left_offset + player_tile * grid.GetTileSize(), grid.GetTileSize(), { 64 * (dice - 1), 0 }, { 64, 64 });
+			draw::Texture("dice", grid_top_left_offset + player_tile * grid.GetTileSize(), grid.GetTileSize(), { 64 * (dice - 1), 0 }, { 64, 64 });
 			//draw::SolidRectangle(grid_top_left_offset + player_tile * grid.GetTileSize() + (grid.GetTileSize() - dice_size) / 2, dice_size, color::GREY);
 			auto s = grid.GetSize() * grid.GetTileSize();
 			draw::Text("text7", { 32, 32 }, { s.x, 64 });
@@ -463,8 +430,6 @@ public:
 class MenuScreen : public Scene {
 public:
 	Grid grid{ { 20, 20 }, { 32, 32 } };
-	const char* button_key = "button";
-	const char* music_key = "music";
 	MenuScreen() {
 		text::Load("text0", "title_text", "0", "Stroll of the Dice", color::CYAN);
 		text::Load("text1", "r_text", "1", "'R' to restart if stuck", color::RED);
@@ -473,9 +438,9 @@ public:
 		text::Load("text5", "l_text", "1", "Green tile = Go over it to win", color::GREEN);
 		text::Load("text4", "g_text", "1", "Grey tile = Cannot move in that direction", color::GREY);
 		text::Load("text6", "u_text", "1", "Red tile = No longer usable tile", color::RED);
-		texture::Load(button_key, "resources/ui/button.png");
-		music::Load(music_key, "resources/music/background.wav");
-		music::Play(music_key, -1);
+		texture::Load("button", "resources/ui/button.png");
+		music::Load("music", "resources/music/background.wav");
+		music::Play("music", -1);
 	}
 	virtual void Update(double dt) override final {
 		auto mouse = input::GetMouseScreenPosition();
@@ -487,7 +452,6 @@ public:
 		draw::Text("text4", { 32, 32 + 128 + 128 }, { s.x, 64 });
 		draw::Text("text5", { 32, 32 + 128 }, { s.x, 64 });
 		draw::Text("text6", { 32, 32 + 64 + 128 }, { s.x, 64 });
-
 
 		V2_int play_size{ s.x, 128 + 64 };
 		V2_int play_pos{ 32, 32 + 128 + 128 + 32 + 64 };
@@ -505,7 +469,7 @@ public:
 			scene::Load<DiceScene>("game", grid);
 			scene::SetActive("game");
 		}
-		draw::Texture(button_key, play_pos, play_size);
+		draw::Texture("button", play_pos, play_size);
 		draw::TemporaryText("text_play", "0", "Play", text_color, play_text_pos, play_text_size);
 
 	}
