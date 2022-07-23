@@ -4,6 +4,12 @@
 #include "interface/Draw.h"
 #include "interface/Window.h"
 #include "input/Input.h"
+#include "manager/FontManager.h"
+#include "manager/MusicManager.h"
+#include "manager/SoundManager.h"
+#include "manager/TextManager.h"
+#include "manager/TextureManager.h"
+#include "scene/SceneManager.h"
 
 namespace ptgn {
 
@@ -38,9 +44,16 @@ void Engine::Start(const char* window_title,
 void Engine::Stop() {
     window::Release();
     draw::Release();
+    manager::Get<SceneManager>().Clear();
+    manager::Get<TextManager>().Clear();
+    manager::Get<FontManager>().Clear();
+    manager::Get<TextureManager>().Clear();
+    manager::Get<MusicManager>().Clear();
+    manager::Get<SoundManager>().Clear();
 }
 
 void Engine::InternalUpdate() {
+    input::Update();
     while (window::Exists()) {
         // Calculate time elapsed during previous frame.
         end = std::chrono::system_clock::now();
@@ -51,15 +64,15 @@ void Engine::InternalUpdate() {
         draw::SetColor(window::GetColor());
         // Clear screen.
         draw::Clear();
-        
-        // Fetch updated user inputs.
-        input::Update();
 
         // Call user update.
         Update(dt);
 
         // Push drawn objects to screen.
         draw::Present();
+
+        // Fetch updated user inputs.
+        input::Update();
     }
 }
 

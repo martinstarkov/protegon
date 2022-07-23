@@ -273,7 +273,9 @@ Grid grid{ { 20, 20 }, { 32, 32 } };
 
 class MenuScreen : public Scene {
 public:
-	MenuScreen() {
+	const char* button_key = "button";
+	const char* music_key = "music";
+	virtual void Init() override final {
 		text::Load("text0", "title_text", "0", "Stroll of the Dice", color::CYAN);
 		text::Load("text1", "r_text", "1", "'R' to restart if stuck", color::RED);
 		text::Load("text2", "m_text", "1", "'Mouse' to choose direction", color::ORANGE);
@@ -285,11 +287,6 @@ public:
 		music::Load(music_key, "resources/music/background.wav");
 		music::Play(music_key, -1);
 	}
-	~MenuScreen() {
-		PrintLine("destroying menu screen");
-	}
-	const char* button_key = "button";
-	const char* music_key = "music";
 	virtual void Enter() override final {}
 	virtual void Update(double dt) override final {
 		auto mouse = input::GetMouseScreenPosition();
@@ -332,35 +329,6 @@ public:
 
 class DiceScene : public Scene {
 public:
-	DiceScene() {
-		Directions directions{ V2_int{ 1, 0 }, V2_int{ -1, 0 }, V2_int{ 0, 1 }, V2_int{ 0, -1 } };
-		sequence_map.emplace(1, std::vector<Sequence>{ Sequence{ V2_int{ 1, 0 } }});
-		for (std::size_t i = 1; i < 6; ++i) {
-			std::vector<Sequence> sequences;
-			std::vector<int> pos(i, 0);
-			Combinations(sequences, directions, pos, 0);
-			sequence_map.emplace(i + 1, sequences);
-		}
-		auto pair = GetSequenceAndAllowedDirections(sequence_map.find(dice)->second, grid, player_tile);
-		sequence = pair.first;
-		directions = pair.second;
-		grid.AddTile(win_tile, Tile{ TileType::WIN });
-		assert(pair.second.size() != 0 && "Could not find a valid starting positions, restart program");
-		texture::Load(grid_key, "resources/tile/thick_grid.png");
-		texture::Load(choice_key, "resources/tile/thick_choice.png");
-		texture::Load(nochoice_key, "resources/tile/thick_nochoice.png");
-		texture::Load(win_key, "resources/tile/thick_win.png");
-		texture::Load(used_key, "resources/tile/used.png");
-		texture::Load(dice_key, "resources/tile/dice.png");
-		sound::Load(select_key, "resources/sound/select_click.wav");
-		sound::Load(move_key, "resources/sound/move_click.wav");
-		sound::Load(win_key, "resources/sound/win.wav");
-		sound::Load(loss_key, "resources/sound/loss.wav");
-		text::Load("text7", "instruction", "1", "Press 'i' to see instructions", color::GOLD);
-	}
-	~DiceScene() {
-		PrintLine("destroying dice scene");
-	}
 	V2_int grid_top_left_offset{ 32, 32 + 64 };
 	V2_int dice_size{ 24, 24 };
 	V2_int player_tile{ 1, 9 };
@@ -389,8 +357,33 @@ public:
 	std::size_t win_count = 0;
 	std::size_t current_moves = 0;
 	std::size_t best_moves = 1000000;
-	virtual void Enter() override final {
+	virtual void Init() override final {
+		Directions directions{ V2_int{ 1, 0 }, V2_int{ -1, 0 }, V2_int{ 0, 1 }, V2_int{ 0, -1 } };
+		sequence_map.emplace(1, std::vector<Sequence>{ Sequence{ V2_int{ 1, 0 } }});
+		for (std::size_t i = 1; i < 6; ++i) {
+			std::vector<Sequence> sequences;
+			std::vector<int> pos(i, 0);
+			Combinations(sequences, directions, pos, 0);
+			sequence_map.emplace(i + 1, sequences);
+		}
+		auto pair = GetSequenceAndAllowedDirections(sequence_map.find(dice)->second, grid, player_tile);
+		sequence = pair.first;
+		directions = pair.second;
+		grid.AddTile(win_tile, Tile{ TileType::WIN });
+		assert(pair.second.size() != 0 && "Could not find a valid starting positions, restart program");
+		texture::Load(grid_key, "resources/tile/thick_grid.png");
+		texture::Load(choice_key, "resources/tile/thick_choice.png");
+		texture::Load(nochoice_key, "resources/tile/thick_nochoice.png");
+		texture::Load(win_key, "resources/tile/thick_win.png");
+		texture::Load(used_key, "resources/tile/used.png");
+		texture::Load(dice_key, "resources/tile/dice.png");
+		sound::Load(select_key, "resources/sound/select_click.wav");
+		sound::Load(move_key, "resources/sound/move_click.wav");
+		sound::Load(win_key, "resources/sound/win.wav");
+		sound::Load(loss_key, "resources/sound/loss.wav");
+		text::Load("text7", "instruction", "1", "Press 'i' to see instructions", color::GOLD);
 	}
+	virtual void Enter() override final {}
 	virtual void Update(double dt) override final {
 		auto mouse = input::GetMouseScreenPosition();
 		if (input::KeyDown(Key::I)) {

@@ -29,17 +29,19 @@ public:
     template <typename ...TArgs,
         std::enable_if_t<std::is_constructible_v<T, TArgs...>, bool> = true>
     T& Load(const I key, TArgs&&... constructor_args) {
-        return Set(key, new T(std::forward<TArgs>(constructor_args)...));
+        return Set(key, new T{ std::forward<TArgs>(constructor_args)... });
     }
 
-    T& Load(const I key, T* item) {
+    T& LoadPointer(const I key, T* item) {
         return Set(key, item);
     }
+
     /*
     * @param key Id of the item to be unloaded.
     */
     void Unload(const I key) {
-        map_.erase(key);
+        if (map_.count(key))
+            map_.erase(key);
     }
     /*
     * Clears the manager.
@@ -73,8 +75,7 @@ public:
     */
     T& Set(const I key, T* item) {
         auto it{ map_.find(key) };
-        if (!(it == std::end(map_)) && !(it->second.get() == item)) {
-            it->second.reset(item);
+        if (it != std::end(map_)) {
             return *it->second;
         } else {
             auto [new_it, inserted] = map_.emplace(key, item);

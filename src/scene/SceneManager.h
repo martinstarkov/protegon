@@ -17,7 +17,7 @@ public:
 	template <typename T, typename ...TArgs,
 		std::enable_if_t<std::is_constructible_v<Scene, TArgs...>, bool> = true>
 	Scene& Load(const std::size_t scene_key, TArgs&&... constructor_args) {
-		auto& scene{ manager::ResourceManager<Scene>::Load(scene_key, new T{ std::forward<TArgs>(constructor_args)... }) };
+		auto& scene{ manager::ResourceManager<Scene>::LoadPointer(scene_key, new T{ std::forward<TArgs>(constructor_args)... }) };
 		scene.id_ = scene_key;
 		return scene;
 	}
@@ -33,6 +33,10 @@ public:
 		if (current_scene != nullptr && current_scene->id_ == scene_key) return;
 		assert(Has(scene_key) && "Cannot add active scene which has not been loaded into the scene manager");
 		auto scene{ Get(scene_key) };
+		if (scene->init_) {
+			scene->Init();
+			scene->init_ = false;
+		}
 		scene->Enter();
 		active_scenes_.emplace_back(scene);
 	}

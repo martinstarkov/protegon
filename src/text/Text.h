@@ -18,7 +18,7 @@ using are_type_e = std::enable_if_t<std::conjunction_v<std::is_same<Type, Types>
 
 class Text {
 public:
-	Text() = delete;
+	Text() = default;
 	Text(const char* texture_key, const char* font_key, const char* text_content, const Color& text_color);
 	~Text();
 	void SetContent(const char* new_content) {
@@ -59,10 +59,10 @@ public:
 	}
 private:
 	void Refresh();
-	std::size_t texture_key_;
-	std::size_t font_key_;
-	const char* content_;
-	Color color_;
+	std::size_t texture_key_{ 0 };
+	std::size_t font_key_{ 0 };
+	const char* content_{ "" };
+	Color color_{ color::BLACK };
 	int style_{ static_cast<int>(FontStyle::NORMAL) };
 	Color background_shading_{ color::WHITE };
 	FontRenderMode mode_{ FontRenderMode::SOLID };
