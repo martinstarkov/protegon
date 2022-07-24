@@ -1,22 +1,14 @@
 #pragma once
 
-#include "math/Vector2.h"
-#include "physics/Manifold.h"
-#include "physics/shapes/Circle.h"
+#include <tuple> // std::pair
+
+#include "physics/shapes/AABB.h"
+#include "physics/collision/Collision.h"
+#include "physics/collision/LinevsAABB.h"
 
 namespace ptgn {
 
 namespace math {
-
-// Static collision check between two circles.
-inline bool CirclevsCircle(const Circle& shapeA, 
-						   const V2_double& positionA, 
-						   const Circle& shapeB, 
-						   const V2_double& positionB) {
-	double radius_combined{ shapeA.radius + shapeB.radius };
-	radius_combined *= radius_combined;
-	return radius_combined < (positionA + positionB).MagnitudeSquared();
-}
 
 // Static collision check between two circles with collision information.
 inline Manifold IntersectionCirclevsCircle(const Circle& shapeA,
@@ -57,7 +49,6 @@ inline Manifold IntersectionCirclevsCircle(const Circle& shapeA,
 
 	return manifold;
 }
-
 } // namespace math
 
 } // namespace ptgn

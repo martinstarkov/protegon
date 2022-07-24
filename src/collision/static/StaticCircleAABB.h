@@ -1,9 +1,10 @@
 #pragma once
 
-#include "math/Vector2.h"
-#include "physics/Manifold.h"
+#include <tuple> // std::pair
+
 #include "physics/shapes/AABB.h"
-#include "physics/shapes/Circle.h"
+#include "physics/collision/Collision.h"
+#include "physics/collision/LinevsAABB.h"
 
 namespace ptgn {
 
@@ -64,14 +65,6 @@ inline Manifold IntersectionCirclevsAABB(const Circle& shapeA,
 	manifold.penetration = manifold.normal * (shapeA.radius - distance);
 	manifold.contact_point = positionA + manifold.penetration;
 	return manifold;
-}
-
-// Returns true if Aabb and Circle are overlapping.
-inline bool CirclevsAABB(const Circle& shapeA,
-						 const V2_double& positionA,
-						 const AABB& shapeB,
-						 const V2_double& positionB) {
-	return IntersectionCirclevsAABB(shapeA, positionA, shapeB, positionB).CollisionOccured();
 }
 
 } // namespace math

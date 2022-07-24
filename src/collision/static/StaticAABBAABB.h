@@ -1,23 +1,8 @@
 #pragma once
 
-#include "math/Vector2.h"
-#include "physics/Manifold.h"
-#include "physics/shapes/AABB.h"
-
 namespace ptgn {
 
 namespace math {
-
-// Check if two AABBs overlap.
-inline bool AABBvsAABB(const AABB& shapeA,
-					   const V2_double& positionA,
-					   const AABB& shapeB,
-					   const V2_double& positionB) {
-	// If any side of the aabb it outside the other aabb, there cannot be an overlap.
-	if (positionA.x + shapeA.size.x <= positionB.x || positionA.x >= positionB.x + shapeB.size.x) return false;
-	if (positionA.y + shapeA.size.y <= positionB.y || positionA.y >= positionB.y + shapeB.size.y) return false;
-	return true;
-}
 
 // Find the penetration vector of one AABB into another AABB.
 // shapeA is the box you want the penetration to be for.

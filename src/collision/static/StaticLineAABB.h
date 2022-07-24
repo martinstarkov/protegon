@@ -1,20 +1,19 @@
 #pragma once
 
-#include <algorithm> // std::swap
-#include <cmath> // std::isnan
 #include <tuple> // std::pair
 
-#include "math/Vector2.h"
 #include "physics/shapes/AABB.h"
-#include "physics/Manifold.h"
+#include "physics/collision/Collision.h"
+#include "physics/collision/LinevsAABB.h"
 
 namespace ptgn {
 
 namespace math {
 
+
 // Return collision manifold between line and an AABB.
-inline std::pair<double, Manifold> IntersectionLinevsAABB(const V2_double& line_origin, 
-														  const V2_double& line_direction, 
+inline std::pair<double, Manifold> IntersectionLinevsAABB(const V2_double& line_origin,
+														  const V2_double& line_direction,
 														  const AABB& shape,
 														  const V2_double& position) {
 
@@ -84,14 +83,6 @@ inline std::pair<double, Manifold> IntersectionLinevsAABB(const V2_double& line_
 
 	// Raycast collision occurred.
 	return { t_hit_near, manifold };
-}
-
-// Check if a line collides with an AABB.
-inline bool LinevsAABB(const V2_double& line_origin,
-					   const V2_double& line_direction,
-					   const AABB& shape,
-					   const V2_double& position) {
-	return IntersectionLinevsAABB(line_origin, line_direction, shape, position).second.CollisionOccured();
 }
 
 } // namespace math
