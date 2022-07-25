@@ -17,7 +17,7 @@ inline bool CirclevsCircle(const math::Vector2<T>& position,
 						   const T other_radius) {
 	math::Vector2<T> distance{ position - other_position };
 	T distance_squared{ distance.DotProduct(distance) };
-	T combined_radius{ a.r + b.r };
+	T combined_radius{ radius + other_radius };
 	// TODO: Check if this should be an epsilon comparison for floating points.
 	return distance_squared <= combined_radius * combined_radius;
 }

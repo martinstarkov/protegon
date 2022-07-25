@@ -11,7 +11,7 @@ T SquareDistancePointAABB(const Vector2<T>& point, const Vector2<T>& position, c
 	T square_distance{ 0 };
 	Vector2<T> max{ position + size };
 	for (std::size_t i{ 0 }; i < 2; ++i) {
-		T v{ p[i] };
+		T v{ point[i] };
 		if (v < position[i]) square_distance += (position[i] - v) * (position[i] - v);
 		if (v > max[i]) square_distance += (v - max[i]) * (v - max[i]);
 	}
@@ -33,7 +33,7 @@ inline bool CirclevsAABB(const math::Vector2<T>& circle_position,
 						 const T circle_radius,
 						 const math::Vector2<T>& aabb_position,
 						 const math::Vector2<T>& aabb_size) {
-	T square_distance{ math::SquareDistancePointAABB(circle_center, aabb_position, aabb_size) };
+	T square_distance{ math::SquareDistancePointAABB(circle_position, aabb_position, aabb_size) };
 	// TODO: Check if this should be an epsilon comparison for floating points.
 	return square_distance <= circle_radius * circle_radius;
 }
