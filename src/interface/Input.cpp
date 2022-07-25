@@ -76,7 +76,7 @@ V2_int GetMouseScreenPosition() {
 	// Update mouse position.
 	V2_int mouse_position;
 	SDL_GetMouseState(&mouse_position.x, &mouse_position.y);
-	return math::Floor(V2_double(mouse_position) * window::GetScale());
+	return mouse_position;
 }
 
 V2_int GetMouseAbsolutePosition() {

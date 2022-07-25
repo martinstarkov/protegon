@@ -15,7 +15,6 @@ namespace window {
 void Init(const char* window_title, const V2_int& window_size, const V2_int& window_position, Flags window_flags) {
 	auto& window = Window::Get().window_;
 	window = SDL_CreateWindow(window_title, window_position.x, window_position.y, window_size.x, window_size.y, static_cast<std::uint32_t>(window_flags));
-	SetSize(window_size);
 	if (window == nullptr) {
 		PrintLine(SDL_GetError());
 		assert(!"Failed to create window");
@@ -56,19 +55,9 @@ Color GetColor() {
 	return Window::Get().color_;
 }
 
-V2_double GetScale() {
-	return Window::Get().scale_;
-}
-
 void SetSize(const V2_int& new_size) {
 	assert(Exists() && "Cannot set size of nonexistent window");
-	auto& window = Window::Get();
-	SDL_SetWindowSize(window.window_, new_size.x, new_size.y);
-	V2_int full_size;
-	SDL_GL_GetDrawableSize(window.window_, &full_size.x, &full_size.y);
-	window.scale_ = V2_double(full_size) / V2_double(new_size);
-	V2_int scaled_size{ math::Floor(V2_double(new_size) / window::GetScale()) };
-	SDL_SetWindowSize(window.window_, scaled_size.x, scaled_size.y);
+	SDL_SetWindowSize(Window::Get().window_, new_size.x, new_size.y);
 }
 
 void SetOriginPosition(const V2_int& new_origin) {

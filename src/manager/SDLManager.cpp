@@ -12,7 +12,7 @@
 namespace ptgn {
 
 SDLManager::SDLManager() {
-	SDL_SetHint(SDL_HINT_WINDOWS_DPI_SCALING, "1");
+	SDL_SetHint(SDL_HINT_WINDOWS_DPI_AWARENESS, "permonitorv2");
 	auto sdl_flags{
 		SDL_INIT_AUDIO |
 		SDL_INIT_EVENTS |

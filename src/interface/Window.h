@@ -33,8 +33,6 @@ const char* GetTitle();
 
 Color GetColor();
 
-V2_double GetScale();
-
 void SetSize(const V2_int& new_size);
 
 void SetOriginPosition(const V2_int& new_origin);

@@ -13,7 +13,6 @@ struct Window {
 	}
 	Color color_{ color::WHITE };
 	SDL_Window* window_{ nullptr };
-	V2_double scale_{ 1.0, 1.0 };
 };
 
 } // namespace ptgn
