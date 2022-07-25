@@ -2,6 +2,9 @@
 
 #include "math/Vector2.h"
 
+// Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
+// Modified page 79 with size of other AABB set to 0.
+
 namespace ptgn {
 
 namespace collision {

@@ -3,39 +3,37 @@
 #include "math/Vector2.h"
 #include "math/Math.h"
 
+// Source: https://en.wikipedia.org/wiki/Cohen%E2%80%93Sutherland_algorithm
+
 namespace ptgn {
 
-
 namespace math {
-
-// Source: https://en.wikipedia.org/wiki/Cohen%E2%80%93Sutherland_algorithm
 
 namespace cs {
 
 typedef int OutCode;
 
-const int INSIDE = 0; // 0000
-const int LEFT = 1;   // 0001
-const int RIGHT = 2;  // 0010
-const int BOTTOM = 4; // 0100
-const int TOP = 8;    // 1000
+constexpr const int INSIDE = 0; // 0000
+constexpr const int LEFT = 1;   // 0001
+constexpr const int RIGHT = 2;  // 0010
+constexpr const int BOTTOM = 4; // 0100
+constexpr const int TOP = 8;    // 1000
 
-// Compute the bit code for a point (x, y) using the clip rectangle
+// Compute the bit code for a point p (x, y) using the clip rectangle
 // bounded diagonally by (xmin, ymin), and (xmax, ymax)
 
 // ASSUME THAT xmax, xmin, ymax and ymin are global constants.
 
-template <typename T>
-OutCode ComputeOutCode(const T x, const T y, const Vector2<T>& min, const Vector2<T>& max) {
+const OutCode ComputeOutCode(const V2_double& p, const V2_double& min, const V2_double& max) {
 	OutCode code = INSIDE;  // initialised as being inside of clip window
 
-	if (x < min.x)           // to the left of clip window
+	if (p.x < min.x)           // to the left of clip window
 		code |= LEFT;
-	else if (x > max.x)      // to the right of clip window
+	else if (p.x > max.x)      // to the right of clip window
 		code |= RIGHT;
-	if (y < min.y)           // below the clip window
+	if (p.y < min.y)           // below the clip window
 		code |= BOTTOM;
-	else if (y > max.y)      // above the clip window
+	else if (p.y > max.y)      // above the clip window
 		code |= TOP;
 
 	return code;
@@ -44,14 +42,14 @@ OutCode ComputeOutCode(const T x, const T y, const Vector2<T>& min, const Vector
 } // namespace cs
 
 // Cohen–Sutherland clipping algorithm clips a line from
-// P0 = (x0, y0) to P1 = (x1, y1) against a rectangle with 
+// p0 = (x0, y0) to p1 = (x1, y1) against a rectangle with 
 // diagonal from (xmin, ymin) to (xmax, ymax).
-template <typename T>
-bool CohenSutherlandLineClip(T x0, T y0, T x1, T y1, const Vector2<T>& min, const Vector2<T>& max) {
+bool CohenSutherlandLineClip(V2_double p0, V2_double p1, 
+							 const V2_double& min, const V2_double& max) {
 	// compute outcodes for P0, P1, and whatever point lies outside the clip rectangle
-	cs::OutCode outcode0 = cs::ComputeOutCode(x0, y0, min, max);
-	cs::OutCode outcode1 = cs::ComputeOutCode(x1, y1, min, max);
-	bool accept = false;
+	cs::OutCode outcode0{ cs::ComputeOutCode(p0, min, max) };
+	cs::OutCode outcode1{ cs::ComputeOutCode(p1, min, max) };
+	bool accept{ false };
 
 	while (true) {
 		if (!(outcode0 | outcode1)) {
@@ -63,12 +61,9 @@ bool CohenSutherlandLineClip(T x0, T y0, T x1, T y1, const Vector2<T>& min, cons
 			// or BOTTOM), so both must be outside window; exit loop (accept is false)
 			break;
 		} else {
-			// failed both tests, so calculate the line segment to clip
-			// from an outside point to an intersection with clip edge
-			double x, y;
-
+			V2_double p;
 			// At least one endpoint is outside the clip rectangle; pick it.
-			cs::OutCode outcodeOut = outcode1 > outcode0 ? outcode1 : outcode0;
+			const cs::OutCode outcodeOut{ outcode1 > outcode0 ? outcode1 : outcode0 };
 
 			// Now find the intersection point;
 			// use formulas:
@@ -78,29 +73,29 @@ bool CohenSutherlandLineClip(T x0, T y0, T x1, T y1, const Vector2<T>& min, cons
 			// No need to worry about divide-by-zero because, in each case, the
 			// outcode bit being tested guarantees the denominator is non-zero
 			if (outcodeOut & cs::TOP) {           // point is above the clip window
-				x = x0 + (x1 - x0) * (max.y - y0) / (y1 - y0);
-				y = max.y;
+				p.x = p0.x + (p1.x - p0.x) * (max.y - p0.y) / (p1.y - p0.y);
+				p.y = max.y;
 			} else if (outcodeOut & cs::BOTTOM) { // point is below the clip window
-				x = x0 + (x1 - x0) * (min.y - y0) / (y1 - y0);
-				y = min.y;
+				p.x = p0.x + (p1.x - p0.x) * (min.y - p0.y) / (p1.y - p0.y);
+				p.y = min.y;
 			} else if (outcodeOut & cs::RIGHT) {  // point is to the right of clip window
-				y = y0 + (y1 - y0) * (max.x - x0) / (x1 - x0);
-				x = max.x;
+				p.y = p0.y + (p1.y - p0.y) * (max.x - p0.x) / (p1.x - p0.x);
+				p.x = max.x;
 			} else if (outcodeOut & cs::LEFT) {   // point is to the left of clip window
-				y = y0 + (y1 - y0) * (min.x - x0) / (x1 - x0);
-				x = min.x;
+				p.y = p0.y + (p1.y - p0.y) * (min.x - p0.x) / (p1.x - p0.x);
+				p.x = min.x;
 			}
 
 			// Now we move outside point to intersection point to clip
 			// and get ready for next pass.
 			if (outcodeOut == outcode0) {
-				x0 = x;
-				y0 = y;
-				outcode0 = cs::ComputeOutCode(x0, y0, min, max);
+				p0.x = p.x;
+				p0.y = p.y;
+				outcode0 = cs::ComputeOutCode(p0, min, max);
 			} else {
-				x1 = x;
-				y1 = y;
-				outcode1 = cs::ComputeOutCode(x1, y1, min, max);
+				p1.x = p.x;
+				p1.y = p.y;
+				outcode1 = cs::ComputeOutCode(p1, min, max);
 			}
 		}
 	}
@@ -121,7 +116,24 @@ inline bool LinevsAABB(const math::Vector2<T>& line_origin,
                        const math::Vector2<T>& line_destination,
                        const math::Vector2<T>& aabb_position,
                        const math::Vector2<T>& aabb_size) {
-	return math::CohenSutherlandLineClip(line_origin.x, line_origin.y, line_destination.x, line_destination.y, aabb_position, aabb_position + aabb_size);
+	const V2_double e{ aabb_position + aabb_size - aabb_position };
+	const V2_double d{ line_destination - line_origin };
+	const V2_double m{ line_origin + line_destination - 2 * aabb_position - aabb_size };
+	// Try world coordinate axes as separating axes
+	double adx{ math::Abs(d.x) };
+	if (math::Abs(m.x) > e.x + adx) return false;
+	double ady{ math::Abs(d.y) };
+	if (math::Abs(m.y) > e.y + ady) return false;
+	// Add in an epsilon term to counteract arithmetic errors when segment is
+	// (near) parallel to a coordinate axis (see text for detail)
+	adx += math::EPSILON<double>; ady += math::EPSILON<double>;
+	// Try cross products of segment direction vector with coordinate axes
+	if (math::Abs(m.x * d.y - m.y * d.x) > e.x * ady + e.y * adx) return false;
+	// No separating axis found; segment must be overlapping AABB
+	return true;
+
+	// Alternative method:
+	//return math::CohenSutherlandLineClip(line_origin, line_destination, aabb_position, aabb_position + aabb_size);
 }
 
 } // namespace overlap

@@ -2,6 +2,9 @@
 
 #include "math/Vector2.h"
 
+// Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
+// Page 79.
+
 namespace ptgn {
 
 namespace collision {

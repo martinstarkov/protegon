@@ -8,3 +8,5 @@
 #include "overlap/OverlapLineLine.h"
 #include "overlap/OverlapPointAABB.h"
 #include "overlap/OverlapPointCircle.h"
+#include "overlap/OverlapPointLine.h"
+#include "overlap/OverlapPointPoint.h"

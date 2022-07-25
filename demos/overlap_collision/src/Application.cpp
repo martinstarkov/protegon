@@ -7,13 +7,6 @@
 
 using namespace ptgn;
 
-enum Type {
-	POINT,
-	AABB,
-	CIRCLE,
-	LINE
-};
-
 class OverlapCollisionTest : public Engine {
 public:
 	virtual void Init() {}
@@ -26,88 +19,134 @@ public:
 	V2_int size2{ 40, 40 };
 	int radius2{ 20 };
 	Color color2{ color::BLUE };
-	const int options = 6;
+	const int options = 16;
 	int option = 0;
-	Type player;
-	Type target;
 	virtual void Update(double dt) {
 		if (input::KeyDown(Key::T)) {
 			option++;
 			option = option++ % options;
 		}
-		if (option == 0) {
-			player = AABB;
-			target = AABB;
-		} else if (option == 1) {
-			player = AABB;
-			target = CIRCLE;
-		} else if (option == 2) {
-			player = CIRCLE;
-			target = AABB;
-		} else if (option == 3) {
-			player = CIRCLE;
-			target = CIRCLE;
-		} else if (option == 4) {
-			player = AABB;
-			target = LINE;
-		} else if (option == 5) {
-			player = LINE;
-			target = AABB;
-		}
 		auto mouse = input::GetMouseScreenPosition();
-		V2_int position2;
-		if (player == CIRCLE) {
-			position2 = mouse;
-		} else if (player == AABB) {
-			position2 = mouse - size2 / 2;
-		} else if (player == LINE) {
-			position2 = mouse;
-		}
+		V2_int position2 = mouse;
 
 		auto acolor1 = color1;
 		auto acolor2 = color2;
-		if (target == AABB && player == AABB) {
+		if (option == 0) {
+			position2 = mouse - size2 / 2;
 			if (collision::overlap::AABBvsAABB(position1, size1, position2, size2)) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}
 			draw::Rectangle(position2, size2, acolor2);
 			draw::Rectangle(position1, size1, acolor1);
-		} else if (target == CIRCLE && player == AABB) {
+		} else if (option == 1) {
+			position2 = mouse - size2 / 2;
 			if (collision::overlap::CirclevsAABB(position1, radius1, position2, size2)) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}
 			draw::Rectangle(position2, size2, acolor2);
 			draw::Circle(position1, radius1, acolor1);
-		} else if (target == AABB && player == CIRCLE) {
+		} else if (option == 2) {
 			if (collision::overlap::CirclevsAABB(position2, radius2, position1, size1)) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}
 			draw::Rectangle(position1, size1, acolor1);
 			draw::Circle(position2, radius2, acolor2);
-		} else if (target == CIRCLE && player == CIRCLE) {
+		} else if (option == 3) {
 			if (collision::overlap::CirclevsCircle(position2, radius2, position1, radius1)) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}
 			draw::Circle(position2, radius2, acolor2);
 			draw::Circle(position1, radius1, acolor1);
-		} else if (target == LINE && player == AABB) {
+		} else if (option == 4) {
+			position2 = mouse - size2 / 2;
 			if (collision::overlap::LinevsAABB(position1, position3, position2, size2)) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}
 			draw::Line(position1, position3, acolor1);
 			draw::Rectangle(position2, size2, acolor2);
-		} else if (target == AABB && player == LINE) {
+		} else if (option == 5) {
 			if (collision::overlap::LinevsAABB(position2, position4, position1, size1)) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}
 			draw::Line(position2, position4, acolor2);
 			draw::Rectangle(position1, size1, acolor1);
+		} else if (option == 6) {
+			if (collision::overlap::LinevsCircle(position2, position4, position1, radius1)) {
+				acolor1 = color::RED;
+				acolor2 = color::RED;
+			}
+			draw::Line(position2, position4, acolor2);
+			draw::Circle(position1, radius1, acolor1);
+		} else if (option == 7) {
+			if (collision::overlap::LinevsCircle(position1, position3, position2, radius2)) {
+				acolor1 = color::RED;
+				acolor2 = color::RED;
+			}
+			draw::Line(position1, position3, acolor1);
+			draw::Circle(position2, radius2, acolor2);
+		} else if (option == 8) {
+			if (collision::overlap::LinevsLine(position1, position3, position2, position4)) {
+				acolor1 = color::RED;
+				acolor2 = color::RED;
+			}
+			draw::Line(position1, position3, acolor1);
+			draw::Line(position2, position4, acolor2);
+		} else if (option == 9) {
+			if (collision::overlap::PointvsAABB(position2, position1, size1)) {
+				acolor1 = color::RED;
+				acolor2 = color::RED;
+			}
+			draw::Rectangle(position1, size1, acolor1);
+			draw::Point(position2, acolor2);
+		} else if (option == 10) {
+			position2 = mouse - size2 / 2;
+			if (collision::overlap::PointvsAABB(position1, position2, size2)) {
+				acolor1 = color::RED;
+				acolor2 = color::RED;
+			}
+			draw::Rectangle(position2, size2, acolor2);
+			draw::Point(position1, acolor1);
+		} else if (option == 11) {
+			if (collision::overlap::PointvsCircle(position2, position1, radius1)) {
+				acolor1 = color::RED;
+				acolor2 = color::RED;
+			}
+			draw::Circle(position1, radius1, acolor1);
+			draw::Point(position2, acolor2);
+		} else if (option == 12) {
+			if (collision::overlap::PointvsCircle(position1, position2, radius2)) {
+				acolor1 = color::RED;
+				acolor2 = color::RED;
+			}
+			draw::Circle(position2, radius2, acolor2);
+			draw::Point(position1, acolor1);
+		} else if (option == 13) {
+			if (collision::overlap::PointvsLine(position1, position2, position4)) {
+				acolor1 = color::RED;
+				acolor2 = color::RED;
+			}
+			draw::Line(position2, position4, acolor2);
+			draw::Point(position1, acolor1);
+		} else if (option == 14) {
+			if (collision::overlap::PointvsLine(position2, position1, position3)) {
+				acolor1 = color::RED;
+				acolor2 = color::RED;
+			}
+			draw::Line(position1, position3, acolor1);
+			draw::Point(position2, acolor2);
+		} else if (option == 15) {
+			if (collision::overlap::PointvsPoint(position2, position1)) {
+				acolor1 = color::RED;
+				acolor2 = color::RED;
+			}
+			draw::Point(position1, acolor1);
+			draw::Point(position2, acolor2);
 		}
 	}
 };
