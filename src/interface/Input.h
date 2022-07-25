@@ -7,7 +7,7 @@
 
 namespace ptgn {
 
-nanoseconds GetMouseHeldTime(Mouse button);
+milliseconds GetMouseHeldTime(Mouse button);
 
 namespace input {
 

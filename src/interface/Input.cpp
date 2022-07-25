@@ -12,11 +12,11 @@
 
 namespace ptgn {
 
-nanoseconds GetMouseHeldTime(Mouse button) {
+milliseconds GetMouseHeldTime(Mouse button) {
 	auto& input_handler{ InputHandler::Get() };
 	auto [state, timer] = input_handler.GetMouseStateAndTimer(button);
 	// Retrieve held time in nanoseconds for maximum precision.
-	const auto held_time{ timer->Elapsed<nanoseconds>() };
+	const auto held_time{ timer->Elapsed<milliseconds>() };
 	// Comparison units handled by chrono.
 	return held_time;
 }
