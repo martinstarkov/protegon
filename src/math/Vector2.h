@@ -649,10 +649,16 @@ inline Vector2<T> Floor(const Vector2<S>& vector) {
     return { math::Floor<T>(vector.x), math::Floor<T>(vector.y) };
 }
 
-// Clamp both vectors value within a vector range.
+// Clamp both vector components within a vector range.
 template <typename T>
 inline Vector2<T> Clamp(const Vector2<T>& value, const Vector2<T>& low, const Vector2<T>& high) {
     return { math::Clamp(value.x, low.x, high.x), math::Clamp(value.y, low.y, high.y) };
+}
+
+// Get the sign of both vector components.
+template <typename T>
+inline Vector2<T> Sign(const Vector2<T>& value) {
+    return { math::Sign(value.x), math::Sign(value.y) };
 }
 
 // Linearly interpolates both vector components by the given value.
