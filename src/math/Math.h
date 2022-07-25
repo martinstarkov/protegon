@@ -244,6 +244,12 @@ inline auto Min(const T& left, const U& right) {
     return right < left ? right : left;
 }
 
+template <typename T = double,
+    std::enable_if_t<std::is_integral_v<T>, bool> = true>
+inline T Compare(T x, T y, T relative_tolerance = 0, T absolute_tolerance = 0) {
+    return x == y;
+}
+
 // Compare two floating point numbers using relative tolerance and absolute tolerances.
 // The absolute tolerance test fails when x and y become large.
 // The relative tolerance test fails when x and y become small.
