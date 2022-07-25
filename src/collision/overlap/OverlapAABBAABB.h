@@ -9,8 +9,8 @@ namespace collision {
 namespace overlap {
 
 // Check if two AABBs overlap.
-// Positions are taken from top left.
-// Sizes is the full extent from top left to bottom right.
+// AABB positions are taken from top left.
+// AABB sizes are the full extent from top left to bottom right.
 template <typename T>
 inline bool AABBvsAABB(const math::Vector2<T>& position,
 					   const math::Vector2<T>& size, 

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "math/Vector2.h"
-#include "math/Math.h"
 
 namespace ptgn {
 
@@ -9,24 +8,26 @@ namespace collision {
 
 namespace overlap {
 
-// Check if a line and an AABB overlap.
-// AABB position is taken from top left.
-// AABB size is the full extent from top left to bottom right.
+// Check if a line and a circle overlap.
+// Circle position is taken from its center.
 template <typename T>
-inline bool LinevsAABB(const math::Vector2<T>& line_origin,
-					   const math::Vector2<T>& line_direction,
-					   const math::Vector2<T>& aabb_position,
-					   const math::Vector2<T>& aabb_size) {
-	math::Vector2<T> extents{ aabb_size / 2 };
-	math::Vector2<T> center{ aabb_position + extents };
-	auto normal{ line_direction.Tangent() };
-	// Compute the projection interval radius of b onto L(t) = b.c + t * p.n
-	T r{ extents[0] * math::Abs(normal[0]) + extents[1] * math::Abs(normal[1]) };
-	// Compute distance of box center from plane
-	// TODO: Check that this is correct, the second term was p.d and may not be correctly interpreted in line form.
-	T s{ normal.DotProduct(center) - normal.DotProduct(line_origin) };
-	// Intersection occurs when distance s falls within [-r,+r] interval
-	return math::Abs(s) <= r;
+inline bool LinevsCircle(const math::Vector2<T>& line_origin,
+					     const math::Vector2<T>& line_destination,
+					     const math::Vector2<T>& circle_position,
+					     const T circle_radius) {
+	math::Vector2<T> m{ line_origin - circle_position };
+	T c{ m.DotProduct(m) - circle_radius * circle_radius };
+	// If there is definitely at least one real root, there must be an intersection
+	// TODO: Check if this should be an epsilon comparison for floating points.
+	if (c <= T(0)) return true;
+	T b{ m.DotProduct(line_destination - line_origin) };
+	// Early exit if ray origin outside sphere and ray pointing away from sphere
+	if (b > T(0)) return false;
+	T disc{ b * b - c };
+	// A negative discriminant corresponds to ray missing sphere
+	if (disc < T(0)) return false;
+	// Now ray must hit sphere
+	return true;
 }
 
 } // namespace overlap

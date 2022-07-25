@@ -9,8 +9,7 @@ namespace collision {
 namespace overlap {
 
 // Check if two circles overlap.
-// Circle positions are taken from their center.
-// Circle radii are the distance from their center to perimeter.
+// Circle positions are taken from their centers.
 template <typename T>
 inline bool CirclevsCircle(const math::Vector2<T>& position,
 						   const T radius,
@@ -19,6 +18,7 @@ inline bool CirclevsCircle(const math::Vector2<T>& position,
 	math::Vector2<T> distance{ position - other_position };
 	T distance_squared{ distance.DotProduct(distance) };
 	T combined_radius{ a.r + b.r };
+	// TODO: Check if this should be an epsilon comparison for floating points.
 	return distance_squared <= combined_radius * combined_radius;
 }
 
