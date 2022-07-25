@@ -7,17 +7,9 @@
 
 namespace ptgn {
 
-namespace math {
+namespace collision {
 
-// Determine if a point lies inside an AABB.
-inline bool PointvsAABB(const V2_double& point, 
-						const AABB& shape,
-						const V2_double& position) {
-	return (point.x >= position.x &&
-			point.y >= position.y &&
-			point.x < position.x + shape.size.x &&
-			point.y < position.y + shape.size.y);
-}
+namespace intersection {
 
 // Return the intersection details of a point with an AABB.
 inline Manifold IntersectionPointvsAABB(const V2_double& point,
@@ -51,6 +43,8 @@ inline Manifold IntersectionPointvsAABB(const V2_double& point,
 	return manifold;
 }
 
-} // namespace math
+} // namespace fixed
+
+} // namespace collision
 
 } // namespace ptgn
