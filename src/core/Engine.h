@@ -19,7 +19,7 @@ public:
 					   V2_int& window_position = V2_int{},
 					   window::Flags fullscreen_flag = window::Flags::NONE,
 					   bool resizeable = true,
-					   bool maximize = true) final;
+					   bool maximize = false) final;
 	virtual void Stop() final;
 	// User function called before entering game loop.
 	virtual void Init() {}

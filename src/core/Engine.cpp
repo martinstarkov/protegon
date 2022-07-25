@@ -1,9 +1,9 @@
 #include "Engine.h"
 
-#include "manager/SDLManager.h"
 #include "interface/Draw.h"
 #include "interface/Window.h"
-#include "input/Input.h"
+#include "interface/Input.h"
+#include "manager/SDLManager.h"
 #include "manager/FontManager.h"
 #include "manager/MusicManager.h"
 #include "manager/SoundManager.h"
