@@ -1,6 +1,9 @@
 #pragma once
 
+#include <type_traits> // std::is_signed_v, ...
+
 #include "math/Vector2.h"
+#include "math/Math.h"
 
 // Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 // Source: Page 152-153.
@@ -31,9 +34,16 @@ inline bool LinevsLine(const math::Vector2<T>& line_origin,
 	// Sign of areas correspond to which side of ab points c and d are
 	const T a1{ math::SignedTriangleArea(line_origin, line_destination, other_line_destination) }; // Compute winding of abd (+ or -)
 	const T a2{ math::SignedTriangleArea(line_origin, line_destination, other_line_origin) }; // To intersect, must have sign opposite of a1
-
 	// If c and d are on different sides of ab, areas have different signs
-	if (a1 * a2 < T(0)) {
+	// TODO: Fix this according to http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
+	// Page 153.
+	bool different_sides{ false };
+	if constexpr (std::is_signed_v<T> && std::is_integral_v<T>) {
+		//different_sides = (a1 | a2) != 0 && a1 ^ a2 < 0;
+	} else {
+	}
+	different_sides = a1 != static_cast<T>(0) && a2 != static_cast<T>(0) && a1 * a2 < static_cast<T>(0);
+	if (different_sides) {
 		// Compute signs for a and b with respect to segment cd
 		const T a3{ math::SignedTriangleArea(other_line_origin, other_line_destination, line_origin) }; // Compute winding of cda (+ or -)
 		// Since area is constant a1 - a2 = a3 - a4, or a4 = a3 + a2 - a1
@@ -41,7 +51,13 @@ inline bool LinevsLine(const math::Vector2<T>& line_origin,
 		const T a4{ a3 + a2 - a1 };
 		// Points a and b on different sides of cd if areas have different signs
 		// Segments intersect if true.
-		return a3 * a4 < T(0);
+		bool intersect{ false };
+		if constexpr (std::is_signed_v<T> && std::is_integral_v<T>) {
+			//intersect = a3 ^ a4 < T(0);
+		} else {
+		}
+		intersect = a3 * a4 < static_cast<T>(0);
+		return intersect;
 	}
 	// Segments not intersecting (or collinear)
 	return false;
