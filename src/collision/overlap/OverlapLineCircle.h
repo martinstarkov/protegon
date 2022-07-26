@@ -2,6 +2,7 @@
 
 #include <type_traits> // std::enable_if_t, ...
 
+#include "collision/overlap/OverlapPointCircle.h"
 #include "math/Vector2.h"
 #include "math/Math.h"
 
@@ -40,6 +41,8 @@ static bool LinevsCircle(const math::Vector2<T>& line_origin,
 					     const math::Vector2<T>& line_destination,
 					     const math::Vector2<T>& circle_position,
 					     const T circle_radius) {
+	// If the line is inside the circle entirely, exit early.
+	if (PointvsCircle(line_origin, circle_position, circle_radius) && PointvsCircle(line_destination, circle_position, circle_radius)) return true;
 	S minimum_distance_squared{ std::numeric_limits<S>::infinity() };
 	const S radius_squared{ static_cast<S>(circle_radius) * static_cast<S>(circle_radius) };
 	// O is the circle center, P is the line origin, Q is the line destination.
