@@ -35,31 +35,33 @@ inline bool LinevsLine(const math::Vector2<T>& line_origin,
 	const T a1{ math::SignedTriangleArea(line_origin, line_destination, other_line_destination) }; // Compute winding of abd (+ or -)
 	const T a2{ math::SignedTriangleArea(line_origin, line_destination, other_line_origin) }; // To intersect, must have sign opposite of a1
 	// If c and d are on different sides of ab, areas have different signs
-	// TODO: Fix this according to http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
-	// Page 153.
 	bool different_sides{ false };
+	// Check if a1 and a2 signs are different.
 	if constexpr (std::is_signed_v<T> && std::is_integral_v<T>) {
-		//different_sides = (a1 | a2) != 0 && a1 ^ a2 < 0;
+		// First part checks for collinearity, second part for difference in polarity.
+		different_sides = (a1 | a2) != static_cast<T>(0) && (a1 ^ a2) < static_cast<T>(0);
 	} else {
+		// Same as above but for floating points.
+		different_sides = !math::Compare(a1, static_cast<T>(0)) && !math::Compare(a2, static_cast<T>(0)) && a1 * a2 < static_cast<T>(0);
 	}
-	different_sides = a1 != static_cast<T>(0) && a2 != static_cast<T>(0) && a1 * a2 < static_cast<T>(0);
 	if (different_sides) {
 		// Compute signs for a and b with respect to segment cd
 		const T a3{ math::SignedTriangleArea(other_line_origin, other_line_destination, line_origin) }; // Compute winding of cda (+ or -)
 		// Since area is constant a1 - a2 = a3 - a4, or a4 = a3 + a2 - a1
-		// float a4 = SignedTriangleArea(c, d, b); // Must have opposite sign of a3
+		// const T a4 = SignedTriangleArea(c, d, b); // Must have opposite sign of a3
 		const T a4{ a3 + a2 - a1 };
 		// Points a and b on different sides of cd if areas have different signs
 		// Segments intersect if true.
 		bool intersect{ false };
+		// Check if a3 and a4 signs are different.
 		if constexpr (std::is_signed_v<T> && std::is_integral_v<T>) {
-			//intersect = a3 ^ a4 < T(0);
+			intersect = (a3 ^ a4) < static_cast<T>(0);
 		} else {
+			intersect = a3 * a4 < static_cast<T>(0);
 		}
-		intersect = a3 * a4 < static_cast<T>(0);
 		return intersect;
 	}
-	// Segments not intersecting (or collinear)
+	// Segments not intersecting
 	return false;
 }
 
