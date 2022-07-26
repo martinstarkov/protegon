@@ -170,6 +170,27 @@ template <typename T = double,
     std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
 inline constexpr const T EPSILON{ internal::Epsilon<T>::value() };
 
+template <typename T,
+    std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+static bool QuadraticFormula(const T& a, const T& b, const T& c, T& out_x0, T& out_x1) {
+    const T discriminant{ b * b - static_cast<T>(4) * a * c };
+    if (discriminant < static_cast<T>(0)) {
+        // Imaginary roots.
+        return false;
+    } else if (math::Compare(discr, static_cast<T>(0))) {
+        // Repeated roots.
+        out_x0 = out_x1 = -static_cast<T>(0.5) * b / a;
+    } else {
+        // Real roots.
+        const T q = (b > static_cast<T>(0)) ?
+            -static_cast<T>(0.5) * (b + math::Sqrt(discriminant)) :
+            -static_cast<T>(0.5) * (b - math::Sqrt(discriminant));
+        out_x0 = q / a;
+        out_x1 = c / q;
+    }
+    return true;
+}
+
 // Wrapper around std::numeric_limits infinities.
 template <typename T, 
     std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>

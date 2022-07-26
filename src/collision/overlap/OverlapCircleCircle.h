@@ -1,6 +1,7 @@
 #pragma once
 
 #include "math/Vector2.h"
+#include "math/Math.h"
 
 // Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 // Page 88.

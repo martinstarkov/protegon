@@ -1,9 +1,10 @@
 #pragma once
 
 #include "math/Vector2.h"
+#include "math/Math.h"
 
 // Source: https://www.jeffreythompson.org/collision-detection/point-circle.php
-// Source: https://doubleroot.in/lessons/circle/position-of-a-point/#:~:text=If%20the%20distance%20is%20greater,As%20simple%20as%20that!
+// Source (used): https://doubleroot.in/lessons/circle/position-of-a-point/#:~:text=If%20the%20distance%20is%20greater,As%20simple%20as%20that!
 
 namespace ptgn {
 

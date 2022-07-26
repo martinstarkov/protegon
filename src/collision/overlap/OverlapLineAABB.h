@@ -1,5 +1,7 @@
 #pragma once
 
+#include <type_traits> // std::enable_if_t, ...
+
 #include "math/Vector2.h"
 #include "math/Math.h"
 
@@ -24,13 +26,16 @@ constexpr const int TOP = 8;    // 1000
 
 // ASSUME THAT xmax, xmin, ymax and ymin are global constants.
 
-const OutCode ComputeOutCode(const V2_double& p, const V2_double& min, const V2_double& max) {
+template <typename T = double,
+	std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+const OutCode ComputeOutCode(const math::Vector2<T>& p, const math::Vector2<T>& min, const math::Vector2<T>& max) {
 	OutCode code = INSIDE;  // initialised as being inside of clip window
 
 	if (p.x < min.x)           // to the left of clip window
 		code |= LEFT;
 	else if (p.x > max.x)      // to the right of clip window
 		code |= RIGHT;
+	
 	if (p.y < min.y)           // below the clip window
 		code |= BOTTOM;
 	else if (p.y > max.y)      // above the clip window
@@ -44,11 +49,13 @@ const OutCode ComputeOutCode(const V2_double& p, const V2_double& min, const V2_
 // Cohen–Sutherland clipping algorithm clips a line from
 // p0 = (x0, y0) to p1 = (x1, y1) against a rectangle with 
 // diagonal from (xmin, ymin) to (xmax, ymax).
-bool CohenSutherlandLineClip(V2_double p0, V2_double p1, 
-							 const V2_double& min, const V2_double& max) {
+template <typename T = double,
+	std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+bool CohenSutherlandLineClip(math::Vector2<T> p0, math::Vector2<T> p1,
+							 const math::Vector2<T>& min, const math::Vector2<T>& max) {
 	// compute outcodes for P0, P1, and whatever point lies outside the clip rectangle
-	cs::OutCode outcode0{ cs::ComputeOutCode(p0, min, max) };
-	cs::OutCode outcode1{ cs::ComputeOutCode(p1, min, max) };
+	cs::OutCode outcode0{ cs::ComputeOutCode<T>(p0, min, max) };
+	cs::OutCode outcode1{ cs::ComputeOutCode<T>(p1, min, max) };
 	bool accept{ false };
 
 	while (true) {
@@ -61,7 +68,7 @@ bool CohenSutherlandLineClip(V2_double p0, V2_double p1,
 			// or BOTTOM), so both must be outside window; exit loop (accept is false)
 			break;
 		} else {
-			V2_double p;
+			math::Vector2<T> p;
 			// At least one endpoint is outside the clip rectangle; pick it.
 			const cs::OutCode outcodeOut{ outcode1 > outcode0 ? outcode1 : outcode0 };
 
@@ -85,17 +92,16 @@ bool CohenSutherlandLineClip(V2_double p0, V2_double p1,
 				p.y = p0.y + (p1.y - p0.y) * (min.x - p0.x) / (p1.x - p0.x);
 				p.x = min.x;
 			}
-
 			// Now we move outside point to intersection point to clip
 			// and get ready for next pass.
 			if (outcodeOut == outcode0) {
 				p0.x = p.x;
 				p0.y = p.y;
-				outcode0 = cs::ComputeOutCode(p0, min, max);
+				outcode0 = cs::ComputeOutCode<T>(p0, min, max);
 			} else {
 				p1.x = p.x;
 				p1.y = p.y;
-				outcode1 = cs::ComputeOutCode(p1, min, max);
+				outcode1 = cs::ComputeOutCode<T>(p1, min, max);
 			}
 		}
 	}
@@ -111,22 +117,24 @@ namespace overlap {
 // Check if a line and an AABB overlap.
 // AABB position is taken from top left.
 // AABB size is the full extent from top left to bottom right.
-template <typename T>
+template <typename T, typename S = double,
+	std::enable_if_t<std::is_floating_point_v<S>, bool> = true>
 inline bool LinevsAABB(const math::Vector2<T>& line_origin,
                        const math::Vector2<T>& line_destination,
                        const math::Vector2<T>& aabb_position,
                        const math::Vector2<T>& aabb_size) {
-	const V2_double e{ aabb_position + aabb_size - aabb_position };
-	const V2_double d{ line_destination - line_origin };
-	const V2_double m{ line_origin + line_destination - 2 * aabb_position - aabb_size };
+	const math::Vector2<S> e{ aabb_position + aabb_size - aabb_position };
+	const math::Vector2<S> d{ line_destination - line_origin };
+	const math::Vector2<S> m{ line_origin + line_destination - 2 * aabb_position - aabb_size };
 	// Try world coordinate axes as separating axes
-	double adx{ math::Abs(d.x) };
+	S adx{ math::Abs(d.x) };
 	if (math::Abs(m.x) > e.x + adx) return false;
-	double ady{ math::Abs(d.y) };
+	S ady{ math::Abs(d.y) };
 	if (math::Abs(m.y) > e.y + ady) return false;
 	// Add in an epsilon term to counteract arithmetic errors when segment is
 	// (near) parallel to a coordinate axis (see text for detail)
-	adx += math::EPSILON<double>; ady += math::EPSILON<double>;
+	adx += math::EPSILON<S>;
+	ady += math::EPSILON<S>;
 	// Try cross products of segment direction vector with coordinate axes
 	if (math::Abs(m.x * d.y - m.y * d.x) > e.x * ady + e.y * adx) return false;
 	// No separating axis found; segment must be overlapping AABB
