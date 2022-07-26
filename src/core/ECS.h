@@ -508,7 +508,7 @@ public:
 			// Compare manager component pools.
 			auto IdenticalComponentPools = [](const internal::PoolInterface* lhs,
 											  const internal::PoolInterface* rhs) {
-				return (lhs == rhs) || (lhs != nullptr && rhs != nullptr && lhs->Hash() == rhs->Hash());
+				return lhs == rhs || lhs != nullptr && rhs != nullptr && lhs->Hash() == rhs->Hash();
 			};
 			return std::equal(std::begin(pools_),
 							  std::end(pools_),
@@ -1305,15 +1305,15 @@ inline internal::Id internal::Pool<TComponent>::GetComponentId() const {
 
 inline bool Entity::IsIdenticalTo(const Entity& entity) const {
 	return 
-		*this == entity ||
-		(*this == ecs::null &&
-		 entity == ecs::null) ||
-		(*this != ecs::null && 
+		 *this == entity ||
+		 *this == ecs::null &&
+		 entity == ecs::null ||
+		 *this != ecs::null && 
 		 entity != ecs::null &&
 		 manager_ == entity.manager_ &&
 		 manager_ != nullptr &&
 		 entity_ != entity.entity_ &&
-		 manager_->HaveMatchingComponents(entity_, entity.entity_));
+		 manager_->HaveMatchingComponents(entity_, entity.entity_);
 }
 
 inline Entity Manager::CreateEntity() {
