@@ -1,30 +1,29 @@
 #pragma once
 
+#include <type_traits> // std::enable_if_t, ...
+
 #include "math/Vector2.h"
+#include "math/Math.h"
 
 // Source: https://www.jeffreythompson.org/collision-detection/line-circle.php
 // Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 // Page 179.
 // Source: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
+// Source (used): https://www.baeldung.com/cs/circle-line-segment-collision-detection
 
 namespace ptgn {
 
 namespace math {
 
-static bool SolveQuadratic(const double& a, const double& b, const double& c, double& x0, double& x1) {
-	double discr = b * b - 4 * a * c;
-	if (discr < 0) return false;
-	else if (math::Compare(discr, 0.0)) {
-		x0 = x1 = -0.5 * b / a;
-	} else {
-		double q = (b > 0) ?
-			-0.5 * (b + math::Sqrt(discr)) :
-			-0.5 * (b - math::Sqrt(discr));
-		x0 = q / a;
-		x1 = c / q;
-	}
-
-	return true;
+// Get the area of the triangle formed by points A, B, C.
+template <typename T, typename S = double,
+	std::enable_if_t<std::is_floating_point_v<S>, bool> = true>
+inline S TriangleArea(const math::Vector2<T>& A,
+					  const math::Vector2<T>& B,
+					  const math::Vector2<T>& C) {
+	const math::Vector2<S> AB{ B - A };
+	const math::Vector2<S> AC{ C - A };
+	return math::Abs(AB.CrossProduct(AC)) / static_cast<S>(2);
 }
 
 } // namespace math
@@ -33,49 +32,31 @@ namespace collision {
 
 namespace overlap {
 
-// TODO: Fix this...
-
 // Check if a line and a circle overlap.
 // Circle position is taken from its center.
-template <typename T>
+template <typename T, typename S = double,
+	std::enable_if_t<std::is_floating_point_v<S>, bool> = true>
 static bool LinevsCircle(const math::Vector2<T>& line_origin,
 					     const math::Vector2<T>& line_destination,
 					     const math::Vector2<T>& circle_position,
 					     const T circle_radius) {
-
-
-	/*
-	// is either end INSIDE the circle?
-    // if so, return true immediately
-	const bool inside1 = PointvsCircle(line_origin, circle_position, circle_radius);
-	const bool inside2 = PointvsCircle(line_destination, circle_position, circle_radius);
-	if (inside1 || inside2) return true;
-
-	// get length of the line
-	V2_double dist = line_origin - line_destination;
-	const double len_squared = dist.Magnitude();
-
-	// get dot product of the line and circle
-	const double dot = (((circle_position.x - line_origin.x) * (line_destination.x - line_origin.x)) + ((circle_position.y - line_origin.y) * (line_destination.y - line_origin.y))) / len_squared;
-
-	// find the closest point on the line
-	const V2_double closest = line_origin + (dot * (line_destination - line_origin));
-
-	// is this point actually on the line segment?
-	// if so keep going, but if not, return false
-	const bool onSegment = PointvsLine<double>(closest, line_origin, line_destination);
-	if (!onSegment) return false;
-
-	// get distance to closest point
-	dist = closest - circle_position;
-	const double distance_squared = dist.MagnitudeSquared();
-	const double radius_squared{ static_cast<double>(circle_radius) * static_cast<double>(circle_radius) };
-
-	if (distance_squared < radius_squared || math::Compare(distance_squared, radius_squared)) {
-		return true;
+	S minimum_distance_squared{ std::numeric_limits<S>::infinity() };
+	const S radius_squared{ static_cast<S>(circle_radius) * static_cast<S>(circle_radius) };
+	// O is the circle center, P is the line origin, Q is the line destination.
+	const math::Vector2<S> OP{ line_origin - circle_position };
+	const math::Vector2<S> OQ{ line_destination - circle_position };
+	const math::Vector2<S> PQ{ line_destination - line_origin };
+	const S OP_distance_squared{ OP.MagnitudeSquared() };
+	const S OQ_distance_squared{ OQ.MagnitudeSquared() };
+	const S maximum_distance_squared{ std::max(OP_distance_squared, OQ_distance_squared) };
+	if (OP.DotProduct(-PQ) > static_cast<S>(0) && OQ.DotProduct(PQ) > static_cast<S>(0)) {
+		const S triangle_area{ math::TriangleArea<S>(circle_position, line_origin, line_destination) };
+		minimum_distance_squared = static_cast<S>(4) * triangle_area * triangle_area / PQ.MagnitudeSquared();
+	} else {
+		minimum_distance_squared = std::min(OP_distance_squared, OQ_distance_squared);
 	}
-	return false;
-	*/
+	return (minimum_distance_squared < radius_squared || math::Compare(minimum_distance_squared, radius_squared)) && 
+		   (maximum_distance_squared > radius_squared || math::Compare(maximum_distance_squared, radius_squared));
 }
 
 } // namespace overlap
