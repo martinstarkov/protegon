@@ -4,9 +4,10 @@
 
 #include "math/Vector2.h"
 #include "math/Math.h"
+#include "collision/overlap/OverlapPointLine.h"
 
 // Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
-// Source: Page 152-153.
+// Source: Page 152-153 with modifications for collinearity and straight edge intersections.
 
 namespace ptgn {
 
@@ -37,12 +38,15 @@ inline bool LinevsLine(const math::Vector2<T>& line_origin,
 	// If c and d are on different sides of ab, areas have different signs
 	bool different_sides{ false };
 	// Check if a1 and a2 signs are different.
+	bool collinear{ false };
 	if constexpr (std::is_signed_v<T> && std::is_integral_v<T>) {
 		// First part checks for collinearity, second part for difference in polarity.
-		different_sides = (a1 | a2) != static_cast<T>(0) && (a1 ^ a2) < static_cast<T>(0);
+		collinear = !((a1 | a2) != static_cast<T>(0));
+		different_sides = !collinear && (a1 ^ a2) < static_cast<T>(0);
 	} else {
 		// Same as above but for floating points.
-		different_sides = !math::Compare(a1, static_cast<T>(0)) && !math::Compare(a2, static_cast<T>(0)) && a1 * a2 < static_cast<T>(0);
+		collinear = math::Compare(a1, static_cast<T>(0)) || math::Compare(a2, static_cast<T>(0));
+		different_sides = !collinear && a1 * a2 < static_cast<T>(0);
 	}
 	if (different_sides) {
 		// Compute signs for a and b with respect to segment cd
@@ -55,13 +59,23 @@ inline bool LinevsLine(const math::Vector2<T>& line_origin,
 		bool intersect{ false };
 		// Check if a3 and a4 signs are different.
 		if constexpr (std::is_signed_v<T> && std::is_integral_v<T>) {
-			intersect = (a3 ^ a4) < static_cast<T>(0);
+			// If either is 0, the line is intersecting with the straight edge of the other line.
+			// (i.e. corners with angles).
+			intersect = a3 == static_cast<T>(0) || a4 == static_cast<T>(0) || (a3 ^ a4) < static_cast<T>(0);
 		} else {
-			intersect = a3 * a4 < static_cast<T>(0);
+			// Same as above, hence the floating point comparison to 0.
+			const T result{ a3 * a4 };
+			intersect = result < static_cast<T>(0) || math::Compare(result, static_cast<T>(0));
 		}
 		return intersect;
 	}
-	// Segments not intersecting
+	if (collinear) {
+		return PointvsLine(line_origin, other_line_origin, other_line_destination) || 
+			   PointvsLine(line_destination, other_line_origin, other_line_destination) ||
+			   PointvsLine(other_line_origin, line_origin, line_destination) ||
+			   PointvsLine(other_line_destination, line_origin, line_destination);
+	}
+	// Segments not intersecting.
 	return false;
 }
 
