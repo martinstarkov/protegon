@@ -12,21 +12,24 @@ public:
 	virtual void Init() {}
 	V2_int position1{ 200, 200 };
 	V2_int position3{ 300, 300 };
-	V2_int position4{ 200, 300 };
+	V2_int position4{ 200, 100 };
 	V2_int size1{ 60, 60 };
 	int radius1{ 30 };
 	Color color1{ color::GREEN };
-	V2_int size2{ 40, 40 };
-	int radius2{ 20 };
+	V2_int size2{ 200, 200 };
+	int radius2{ 200 };
 	Color color2{ color::BLUE };
 	const int options = 16;
 	int option = 0;
 	virtual void Update(double dt) {
+		auto mouse = input::GetMouseScreenPosition();
 		if (input::KeyDown(Key::T)) {
 			option++;
 			option = option++ % options;
 		}
-		auto mouse = input::GetMouseScreenPosition();
+		if (input::KeyDown(Key::R)) {
+			position4 = mouse;
+		}
 		V2_int position2 = mouse;
 
 		auto acolor1 = color1;
@@ -153,6 +156,6 @@ public:
 
 int main(int c, char** v) {
 	OverlapCollisionTest test;
-	test.Start("Overlap Collision Test", { 600, 600 }, true);
+	test.Start("Overlap Test, 'r' to change origin, 't' to toggle through shapes", { 600, 600 }, true);
 	return 0;
 }
