@@ -3,11 +3,11 @@
 #include "core/Engine.h"
 #include "animation/SpriteMap.h"
 #include "animation/AnimationMap.h"
-#include "managers/TextureManager.h"
+#include "manager/TextureManager.h"
 #include "animation/Offset.h"
-#include "renderer/Renderer.h"
 #include "utility/Countdown.h"
-#include "input/Input.h"
+#include "interface/Input.h"
+#include "interface/Draw.h"
 #include "math/Hash.h"
 #include "utility/Log.h"
 #include "scene/Camera.h"
@@ -26,7 +26,6 @@ public:
 	animation::Offset offset;
 	V2_double velocity;
 	Camera camera;
-	managers::TextureManager& texture_manager{ managers::GetManager<managers::TextureManager>() };
 	virtual void Init() {
 		auto& animation = sprite_map.Load(anim1, V2_int{ 0, 0 + 1 * 16 }, V2_int{ 16, 16 }, 3, milliseconds{ 400 });
 		animation_map.Load(0, sprite_map, anim1, 0, true);
@@ -43,8 +42,8 @@ public:
 		if (input::KeyPressed(Key::S)) velocity.y = speed;
 		if (input::KeyPressed(Key::Q)) camera.ZoomOut();
 		if (input::KeyPressed(Key::E)) camera.ZoomIn();
-		if ((input::KeyPressed(Key::A) && input::KeyPressed(Key::D)) || (!input::KeyPressed(Key::A) && !input::KeyPressed(Key::D))) velocity.x = 0;
-		if ((input::KeyPressed(Key::W) && input::KeyPressed(Key::S)) || (!input::KeyPressed(Key::W) && !input::KeyPressed(Key::S))) velocity.y = 0;
+		if (input::KeyPressed(Key::A) && input::KeyPressed(Key::D) || !input::KeyPressed(Key::A) && !input::KeyPressed(Key::D)) velocity.x = 0;
+		if (input::KeyPressed(Key::W) && input::KeyPressed(Key::S) || !input::KeyPressed(Key::W) && !input::KeyPressed(Key::S)) velocity.y = 0;
 
 		positions[0] += velocity * dt;
 
@@ -54,7 +53,7 @@ public:
 
 		for (auto i = 0; i < animation_map.Size(); ++i) {
 			auto state = animation_map.Get(i);
-			draw::Texture(*texture_manager.Get(state->sprite_map.GetTextureKey()), 
+			draw::Texture(state->sprite_map.GetTextureKey(), 
 						  camera.RelativePosition(positions[i] - offset.value), 
 						  camera.RelativeSize(state->GetAnimation().frame_size),
 						  state->GetCurrentPosition(), 

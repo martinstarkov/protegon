@@ -68,7 +68,7 @@ struct Grid {
 		for (const auto& coordinate : sequence) {
 			// If tile is being used or if tile is out of bounds.
 			auto it = tiles.find(coordinate);
-			if (!InBound(coordinate) || (it != tiles.end() && !Contains(ignore, it->second.type))) return false;
+			if (!InBound(coordinate) || it != tiles.end() && !Contains(ignore, it->second.type)) return false;
 		}
 		return true;
 	}
@@ -465,7 +465,7 @@ public:
 		if (hover) {
 			text_color = color::GOLD;
 		}
-		if ((hover && input::MouseDown(Mouse::LEFT)) || input::KeyDown(Key::SPACE)) {
+		if (hover && input::MouseDown(Mouse::LEFT) || input::KeyDown(Key::SPACE)) {
 			scene::Load<DiceScene>("game", grid);
 			scene::SetActive("game");
 		}
