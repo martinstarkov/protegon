@@ -1,54 +1,56 @@
 #pragma once
 
-#include <tuple> // std::pair
-
-#include "physics/shapes/AABB.h"
-#include "physics/collision/Collision.h"
-#include "physics/collision/LinevsAABB.h"
+#include "math/Vector2.h"
+#include "collision/fixed/FixedCollision.h"
 
 namespace ptgn {
 
-namespace math {
+namespace collision {
+
+namespace fixed {
 
 // Static collision check between two circles with collision information.
-inline Manifold IntersectionCirclevsCircle(const Circle& shapeA,
-										   const V2_double& positionA,
-										   const Circle& shapeB,
-										   const V2_double& positionB) {
-	Manifold manifold;
-	// Vector from A to B
-	const V2_double n{ positionB - positionA };
+template <typename T, typename S = double,
+    std::enable_if_t<std::is_floating_point_v<S>, bool> = true>
+static Collision<S> CirclevsCircle(const math::Vector2<T>& circle_position,
+                                    const T circle_radius,
+                                    const math::Vector2<T>& other_circle_position,
+                                    const T other_circle_radius) {
+    Collision<S> collision;
 
-	double radius_combined{ shapeA.radius + shapeB.radius };
-	radius_combined *= radius_combined;
+    const math::Vector2<T> direction{ other_circle_position - circle_position };
+    const T distance_squared{ direction.MagnitudeSquared() };
+    const T combined_radius{ circle_radius + other_circle_radius };
+    const T combined_radius_squared{ combined_radius * combined_radius };
 
-	const auto n_squared{ n.MagnitudeSquared() };
+    // Collision did not occur, exit with empty collision.
+    if (distance_squared > combined_radius_squared ||
+        math::Compare(distance_squared, combined_radius_squared)) {
+        return collision;
+    }
 
-	if (radius_combined < n_squared) {
-		return manifold;
-	}
+    const S distance{ math::Sqrt<S>(distance_squared) };
 
-	// Circles have collided, now compute manifold.
-	const double d{ math::Sqrt(n_squared) }; // perform actual sqrt
-
-	// If distance between circles is not zero
-	if (d != 0) {
-		// Distance is difference between radius and distance
-		const auto penetration{ radius_combined - d };
-		// Utilize our d since we performed sqrt on it already within magnitude()
-		// Points from A to B, and is a unit vector
-		manifold.normal = n / d;
-		manifold.penetration = manifold.normal * penetration;
-		manifold.contact_point = positionA + manifold.penetration / 2.0;
-	} else { // Circles are in the same position
-		// Choose random (but consistent) values.
-		manifold.penetration = { shapeA.radius, shapeA.radius };
-		manifold.normal = { 1.0, 0.0 };
-		manifold.contact_point = positionA;
-	}
-
-	return manifold;
+    // Bias toward selecting first circle for exact overlap edge case.
+    if (math::Compare(distance, static_cast<S>(0))) {
+        collision.normal = { static_cast<S>(1), static_cast<S>(0) };
+        collision.penetration = circle_radius + other_circle_radius;
+        // Subtract other radius from point in the direction of the normal because the
+        // other radius was added to the penetration which is taken along the normal.
+        collision.point = circle_position - collision.normal * other_circle_radius;
+    } else {
+        // Normalise collision vector.
+        collision.normal = direction / distance;
+        // Find the amount by which circles overlap.
+        collision.penetration = distance - static_cast<S>(combined_radius);
+        // Find point of collision from A.
+        collision.point = circle_position + circle_radius * collision.normal;
+    }
+    return collision;
 }
-} // namespace math
+
+} // namespace fixed
+
+} // namespace collision
 
 } // namespace ptgn
