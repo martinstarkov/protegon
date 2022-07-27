@@ -1,6 +1,7 @@
 #pragma once
 
 #include "math/Vector2.h"
+#include "collision/overlap/OverlapAABBAABB.h"
 
 // Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 // Modified page 79 with size of other AABB set to 0.
@@ -18,9 +19,7 @@ template <typename T>
 inline bool PointvsAABB(const math::Vector2<T>& point,
 						const math::Vector2<T>& aabb_position,
 						const math::Vector2<T>& aabb_size) {
-	if (point.x < aabb_position.x || point.x > aabb_position.x + aabb_size.x) return false;
-	if (point.y < aabb_position.y || point.y > aabb_position.y + aabb_size.y) return false;
-	return true;
+	return AABBvsAABB(point, math::Vector2<T>{ static_cast<T>(0), static_cast<T>(0) }, aabb_position, aabb_size);
 }
 
 } // namespace overlap
