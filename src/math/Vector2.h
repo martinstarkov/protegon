@@ -247,8 +247,8 @@ struct Vector2 {
     // Return true if both vector components equal 0.
     bool IsZero() const {
         if constexpr (std::is_floating_point_v<T>) {
-            return ptgn::math::Compare(x, 0, ptgn::math::VECTOR_EPSILON<T>) && 
-                   ptgn::math::Compare(y, 0, ptgn::math::VECTOR_EPSILON<T>);
+            return ptgn::math::Compare(x, static_cast<T>(0), ptgn::math::VECTOR_EPSILON<T>) &&
+                   ptgn::math::Compare(y, static_cast<T>(0), ptgn::math::VECTOR_EPSILON<T>);
         }
         return x == static_cast<T>(0) && y == static_cast<T>(0);
     }
@@ -256,8 +256,8 @@ struct Vector2 {
     // Return true if either vector component equals 0.
     bool HasZero() const {
         if constexpr (std::is_floating_point_v<T>) {
-            return ptgn::math::Compare(x, 0, ptgn::math::VECTOR_EPSILON<T>) ||
-                   ptgn::math::Compare(y, 0, ptgn::math::VECTOR_EPSILON<T>);
+            return ptgn::math::Compare(x, static_cast<T>(0), ptgn::math::VECTOR_EPSILON<T>) ||
+                   ptgn::math::Compare(y, static_cast<T>(0), ptgn::math::VECTOR_EPSILON<T>);
         }
         return x == static_cast<T>(0) || y == static_cast<T>(0);
     }
@@ -427,8 +427,8 @@ template <typename T, typename U,
     typename S = typename std::common_type<T, U>::type>
 inline bool operator==(const ptgn::math::Vector2<T>& lhs, const ptgn::math::Vector2<U>& rhs) {
     if constexpr (std::is_floating_point_v<T> && std::is_floating_point_v<U>) {
-        return ptgn::math::Compare(lhs.x, rhs.x, ptgn::math::VECTOR_EPSILON<T>) &&
-               ptgn::math::Compare(lhs.y, rhs.y, ptgn::math::VECTOR_EPSILON<T>);
+        return ptgn::math::Compare(static_cast<S>(lhs.x), static_cast<S>(rhs.x), ptgn::math::VECTOR_EPSILON<T>) &&
+               ptgn::math::Compare(static_cast<S>(lhs.y), static_cast<S>(rhs.y), ptgn::math::VECTOR_EPSILON<T>);
     }
     return static_cast<S>(lhs.x) == static_cast<S>(rhs.x) &&
            static_cast<S>(lhs.y) == static_cast<S>(rhs.y);
@@ -444,8 +444,8 @@ template <typename T, typename U,
     std::enable_if_t<std::is_arithmetic_v<U>, bool> = true>
 inline bool operator==(const ptgn::math::Vector2<T>& lhs, U rhs) {
     if constexpr (std::is_floating_point_v<T> && std::is_floating_point_v<U>) {
-        return ptgn::math::Compare(lhs.x, rhs, ptgn::math::VECTOR_EPSILON<T>) &&
-               ptgn::math::Compare(lhs.y, rhs, ptgn::math::VECTOR_EPSILON<T>);
+        return ptgn::math::Compare(static_cast<S>(lhs.x), static_cast<S>(rhs), ptgn::math::VECTOR_EPSILON<T>) &&
+               ptgn::math::Compare(static_cast<S>(lhs.y), static_cast<S>(rhs), ptgn::math::VECTOR_EPSILON<T>);
     }
     return static_cast<S>(lhs.x) == static_cast<S>(rhs) && 
            static_cast<S>(lhs.y) == static_cast<S>(rhs);
