@@ -2,9 +2,7 @@
 
 #include <tuple> // std::pair
 
-#include "physics/shapes/AABB.h"
-#include "physics/collision/Collision.h"
-#include "physics/collision/LinevsAABB.h"
+// Source: https://steamcdn-a.akamaihd.net/apps/valve/2015/DirkGregorius_Contacts.pdf
 
 namespace ptgn {
 
