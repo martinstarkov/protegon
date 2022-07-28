@@ -1,45 +1,55 @@
 #pragma once
 
+#include "math/Vector2.h"
+#include "math/Math.h"
+#include "collision/fixed/FixedCollision.h"
+
 namespace ptgn {
 
-namespace math {
+namespace collision {
 
-// Find the penetration vector of one AABB into another AABB.
-// shapeA is the box you want the penetration to be for.
-// shapeB is the box with which you are overlapping.
-inline Manifold IntersectionAABBvsAABB(const AABB& shapeA,
-									   const V2_double& positionA,
-									   const AABB& shapeB,
-									   const V2_double& positionB) {
-	Manifold manifold;
-	const auto dx{ positionB.x - positionA.x };
-	const auto A_half{ shapeA.size / 2.0 };
-	const auto B_half{ shapeB.size / 2.0 };
-	const auto px{ (B_half.x + A_half.x) - math::Abs(dx) };
-	if (px <= 0) {
-		return manifold;
-	}
-	const auto dy{ positionB.y - positionA.y };
-	const auto py{ (B_half.y + A_half.y) - math::Abs(dy) };
-	if (py <= 0) {
-		return manifold;
-	}
-	if (px < py) {
-		const auto sx{ math::Sign(dx) };
-		manifold.penetration.x = px * sx;
-		manifold.normal.x = sx;
-		manifold.contact_point.x = positionA.x + (A_half.x * sx);
-		manifold.contact_point.y = positionB.y;
-	} else {
-		const auto sy{ math::Sign(dy) };
-		manifold.penetration.y = py * sy;
-		manifold.normal.y = sy;
-		manifold.contact_point.x = positionB.x;
-		manifold.contact_point.y = positionA.y + (A_half.y * sy);
-	}
-	return manifold;
+namespace fixed {
+
+// Static collision check between two aabbs with collision information.
+template <typename T, typename S = double,
+	std::enable_if_t<std::is_floating_point_v<S>, bool> = true>
+static Collision<S> AABBvsAABB(const math::Vector2<T>& aabb_position,
+							   const math::Vector2<T>& aabb_size,
+							   const math::Vector2<T>& other_aabb_position,
+							   const math::Vector2<T>& other_aabb_size) {
+	Collision<S> collision;
+    const auto direction_x = other_aabb_position.x - aabb_position.x + other_aabb_size.x / static_cast<S>(2) - aabb_size.x / static_cast<S>(2);
+    const auto penetration_x = (aabb_size.x + other_aabb_size.x) / static_cast<S>(2) - math::Abs(direction_x);
+    if (penetration_x < 0 || math::Compare(penetration_x, static_cast<S>(0))) {
+        return collision;
+    }
+    const auto direction_y = other_aabb_position.y - aabb_position.y + other_aabb_size.y / static_cast<S>(2) - aabb_size.y / static_cast<S>(2);
+    const auto penetration_y = (aabb_size.y + other_aabb_size.y) / static_cast<S>(2) - math::Abs(direction_y);
+    if (penetration_y < 0 || math::Compare(penetration_y, static_cast<S>(0))) {
+        return collision;
+    }
+
+    collision.SetOccured();
+
+    // Edge case where aabb centers are in the same location, choose arbitrary normal to resolve this.
+    if (math::Compare(direction_x, static_cast<S>(0)) && math::Compare(direction_y, static_cast<S>(0))) {
+        collision.penetration = (aabb_size.y + other_aabb_size.y) / static_cast<S>(2);
+        collision.normal.y = static_cast<S>(-1);
+    } else if (penetration_x < penetration_y) {
+        const auto sx = math::Sign(direction_x);
+        collision.penetration = math::Abs(penetration_x);
+        collision.normal.x = -sx;
+    } else {
+        const auto sy = math::Sign(direction_y);
+        collision.penetration = math::Abs(penetration_y);
+        collision.normal.y = -sy;
+    }
+    collision.point = aabb_position + collision.normal * collision.penetration;
+    return collision;
 }
 
-} // namespace math
+} // namespace fixed
+
+} // namespace collision
 
 } // namespace ptgn
