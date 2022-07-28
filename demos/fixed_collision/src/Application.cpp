@@ -19,7 +19,7 @@ public:
 	V2_int size2{ 200, 200 };
 	int radius2{ 200 };
 	Color color2{ color::BLUE };
-	const int options = 3;
+	const int options = 6;
 	int option = 0;
 	virtual void Update(double dt) {
 		auto mouse = input::GetMouseScreenPosition();
@@ -43,9 +43,8 @@ public:
 			draw::Circle(position2, radius2, acolor2);
 			draw::Circle(position1, radius1, acolor1);
 			if (collision.Occured()) {
-				draw::Line(collision.point, collision.point + collision.normal * collision.penetration, color::DARK_GREEN);
-				draw::Circle(position2 + collision.normal * collision.penetration, radius2, color::DARK_GREEN);
-
+				draw::Line(collision.point, position2, color::DARK_GREEN);
+				draw::Circle(collision.point, radius2, color::GREEN);
 			}
 		} else if (option == 1) {
 			auto collision{ collision::fixed::PointvsCircle(position2, position1, radius1) };
@@ -56,7 +55,8 @@ public:
 			draw::Circle(position1, radius1, acolor1);
 			draw::Point(position2, acolor2);
 			if (collision.Occured()) {
-				draw::Line(collision.point, collision.point + collision.normal * collision.penetration, color::DARK_GREEN);
+				draw::Line(collision.point, position2, color::DARK_GREEN);
+				draw::Circle(collision.point, 3, color::GREEN);
 			}
 		} else if (option == 2) {
 			auto collision{ collision::fixed::PointvsCircle(position1, position2, radius2) };
@@ -67,30 +67,47 @@ public:
 			draw::Circle(position2, radius2, acolor2);
 			draw::Point(position1, acolor1);
 			if (collision.Occured()) {
-				draw::Line(collision.point, collision.point + collision.normal * collision.penetration, color::DARK_GREEN);
+				draw::Line(collision.point, position1, color::DARK_GREEN);
+				draw::Circle(collision.point, 3, color::GREEN);
 			}
 		} else if (option == 3) {
-			/*if (collision::fixed::CirclevsAABB(position2, radius2, position1, size1)) {
-				acolor1 = color::RED;
-				acolor2 = color::RED;
-			}*/
-			draw::Rectangle(position1, size1, acolor1);
-			draw::Circle(position2, radius2, acolor2);
-		} else if (option == 4) {
 			position2 = mouse - size2 / 2;
-			/*if (collision::fixed::LinevsAABB(position1, position3, position2, size2)) {
+			auto collision{ collision::fixed::AABBvsAABB(position2, size2, position1, size1) };
+			if (collision.Occured()) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
-			}*/
-			draw::Line(position1, position3, acolor1);
+			}
 			draw::Rectangle(position2, size2, acolor2);
-		} else if (option == 5) {
-			/*if (collision::fixed::LinevsAABB(position2, position4, position1, size1)) {
+			draw::Rectangle(position1, size1, acolor1);
+			if (collision.Occured()) {
+				draw::Line(collision.point, position2, color::DARK_GREEN);
+				draw::Rectangle(collision.point, size2, color::GREEN);
+			}
+		} else if (option == 4) {
+			auto collision{ collision::fixed::PointvsAABB(position2, position1, size1) };
+			if (collision.Occured()) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
-			}*/
-			draw::Line(position2, position4, acolor2);
+			}
 			draw::Rectangle(position1, size1, acolor1);
+			draw::Point(position2, acolor2);
+			if (collision.Occured()) {
+				draw::Line(collision.point, position2, color::DARK_GREEN);
+				draw::SolidCircle(collision.point, 3, color::GREEN);
+			}
+		} else if (option == 5) {
+			position2 = mouse - size2 / 2;
+			auto collision{ collision::fixed::PointvsAABB(position1, position2, size2) };
+			if (collision.Occured()) {
+				acolor1 = color::RED;
+				acolor2 = color::RED;
+			}
+			draw::Rectangle(position2, size2, acolor2);
+			draw::Point(position1, acolor1);
+			if (collision.Occured()) {
+				draw::Line(collision.point, position1, color::DARK_GREEN);
+				draw::SolidCircle(collision.point, 3, color::GREEN);
+			}
 		} else if (option == 6) {
 			/*if (collision::fixed::LinevsCircle(position2, position4, position1, radius1)) {
 				acolor1 = color::RED;
@@ -113,20 +130,20 @@ public:
 			draw::Line(position1, position3, acolor1);
 			draw::Line(position2, position4, acolor2);
 		} else if (option == 9) {
-			/*if (collision::fixed::PointvsAABB(position2, position1, size1)) {
-				acolor1 = color::RED;
-				acolor2 = color::RED;
-			}*/
-			draw::Rectangle(position1, size1, acolor1);
-			draw::Point(position2, acolor2);
-		} else if (option == 10) {
 			position2 = mouse - size2 / 2;
-			/*if (collision::fixed::PointvsAABB(position1, position2, size2)) {
+			/*if (collision::fixed::LinevsAABB(position1, position3, position2, size2)) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}*/
+			draw::Line(position1, position3, acolor1);
 			draw::Rectangle(position2, size2, acolor2);
-			draw::Point(position1, acolor1);
+		} else if (option == 10) {
+			/*if (collision::fixed::LinevsAABB(position2, position4, position1, size1)) {
+				acolor1 = color::RED;
+				acolor2 = color::RED;
+			}*/
+			draw::Line(position2, position4, acolor2);
+			draw::Rectangle(position1, size1, acolor1);
 		} else if (option == 11) {
 			position2 = mouse - size2 / 2;
 			/*if (collision::fixed::CirclevsAABB(position1, radius1, position2, size2)) {
@@ -136,13 +153,12 @@ public:
 			draw::Rectangle(position2, size2, acolor2);
 			draw::Circle(position1, radius1, acolor1);
 		} else if (option == 12) {
-			position2 = mouse - size2 / 2;
-			/*if (collision::fixed::AABBvsAABB(position1, size1, position2, size2)) {
+			/*if (collision::fixed::CirclevsAABB(position2, radius2, position1, size1)) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}*/
-			draw::Rectangle(position2, size2, acolor2);
 			draw::Rectangle(position1, size1, acolor1);
+			draw::Circle(position2, radius2, acolor2);
 		} else if (option == 13) {
 			/*if (collision::fixed::PointvsLine(position1, position2, position4)) {
 				acolor1 = color::RED;

@@ -14,7 +14,7 @@ struct Collision {
     Collision() = default;
     ~Collision() = default;
     bool Occured() const {
-        return !normal.IsZero();
+        return occured_;
     }
     // Point at which collision occurs (where the collision plane is created).
     math::Vector2<T> point;
@@ -22,6 +22,11 @@ struct Collision {
     math::Vector2<T> normal;
     // Penetration of objects into each other along the collision normal.
     T penetration;
+    void SetOccured() {
+        occured_ = true;
+    }
+private:
+    bool occured_{ false };
 };
 
 } // namespace fixed

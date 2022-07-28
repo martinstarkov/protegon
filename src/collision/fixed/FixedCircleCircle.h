@@ -1,6 +1,7 @@
 #pragma once
 
 #include "math/Vector2.h"
+#include "math/Math.h"
 #include "collision/fixed/FixedCollision.h"
 
 namespace ptgn {
@@ -29,23 +30,23 @@ static Collision<S> CirclevsCircle(const math::Vector2<T>& circle_position,
         return collision;
     }
 
+    collision.SetOccured();
+
     const S distance{ math::Sqrt<S>(distance_squared) };
 
     // Bias toward selecting first circle for exact overlap edge case.
     if (math::Compare(distance, static_cast<S>(0))) {
-        collision.normal = { static_cast<S>(1), static_cast<S>(0) };
+        // Arbitrary normal chosen upward.
+        collision.normal = { static_cast<S>(0), static_cast<S>(-1) };
         collision.penetration = circle_radius + other_circle_radius;
-        // Subtract other radius from point in the direction of the normal because the
-        // other radius was added to the penetration which is taken along the normal.
-        collision.point = circle_position - collision.normal * other_circle_radius;
     } else {
         // Normalise collision vector.
         collision.normal = direction / distance;
         // Find the amount by which circles overlap.
         collision.penetration = distance - static_cast<S>(combined_radius);
-        // Find point of collision from A.
-        collision.point = circle_position + circle_radius * collision.normal;
     }
+    // Find point of collision from the first circle.
+    collision.point = circle_position + collision.penetration * collision.normal;
     return collision;
 }
 
