@@ -28,7 +28,7 @@ namespace overlap {
 
 // Check if two lines overlap.
 template <typename T>
-inline bool LinevsLine(const math::Vector2<T>& line_origin,
+static bool LinevsLine(const math::Vector2<T>& line_origin,
 					   const math::Vector2<T>& line_destination,
 					   const math::Vector2<T>& other_line_origin,
 					   const math::Vector2<T>& other_line_destination) {

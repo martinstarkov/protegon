@@ -119,7 +119,7 @@ namespace overlap {
 // AABB size is the full extent from top left to bottom right.
 template <typename T, typename S = double,
 	std::enable_if_t<std::is_floating_point_v<S>, bool> = true>
-inline bool LinevsAABB(const math::Vector2<T>& line_origin,
+static bool LinevsAABB(const math::Vector2<T>& line_origin,
                        const math::Vector2<T>& line_destination,
                        const math::Vector2<T>& aabb_position,
                        const math::Vector2<T>& aabb_size) {
