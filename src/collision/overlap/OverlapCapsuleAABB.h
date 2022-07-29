@@ -1,5 +1,9 @@
 #pragma once
 
+#include <array> // std::array
+#include <limits> // std::numeric_limits
+#include <tuple> // std::pair
+
 #include "math/Vector2.h"
 #include "math/Math.h"
 #include "collision/overlap/OverlapCapsuleCapsule.h"
@@ -17,15 +21,46 @@ namespace collision {
 
 namespace overlap {
 
-// Check if a point and a circle overlap.
-// Circle position is taken from its center.
-template <typename T>
+// Check if a capsule and an AABB overlap.
+// Capsule origin and destination are taken from the edge circle centers.
+template <typename T, typename S = double,
+	std::enable_if_t<std::is_floating_point_v<S>, bool> = true>
 static bool CapsulevsAABB(const math::Vector2<T>& capsule_origin,
-						  const math::Vector2<T>& capsule_destination,
-						  const T capsule_radius,
-						  const math::Vector2<T>& aabb_position,
-						  const math::Vector2<T>& aabb_size) {
-	return false;
+							  const math::Vector2<T>& capsule_destination,
+							  const T capsule_radius,
+							  const math::Vector2<T>& aabb_position,
+							  const math::Vector2<T>& aabb_size) {
+	using Edge = std::pair<math::Vector2<T>, math::Vector2<T>>;
+	math::Vector2<T> top_right{ aabb_position.x + aabb_size.x, aabb_position.y };
+	math::Vector2<T> bottom_right{ aabb_position + aabb_size };
+	math::Vector2<T> bottom_left{ aabb_position.x, aabb_position.y + aabb_size.y };
+	std::array<Edge, 4> edges;
+	edges.at(0) = { aabb_position, top_right };
+	edges.at(1) = { top_right, bottom_right };
+	edges.at(2) = { bottom_right, bottom_left };
+	edges.at(3) = { bottom_left, aabb_position };
+	std::array<math::Vector2<T>, 3> sizes{ 0, aabb_size };
+	S minimum_distance{ std::numeric_limits<S>::infinity() };
+	math::Vector2<T> minimum_capsule_point;
+	//math::Vector2<T> minimum_edge_point;
+	// Find shortest distance between capsule line and AABB by iterating over each edge of the AABB.
+	for (auto& [origin, destination] : edges) {
+		const S s;
+		const S t;
+		const math::Vector2<T> c1;
+		const math::Vector2<T> c2;
+		const S distance_squared{ ClosestPointLineLine<S>(capsule_origin, capsule_destination,
+														  origin, destination,
+														  s, t, c1, c2) };
+		if (distance_squared < minimum_distance) {
+			minimum_distance = distance_squared;
+			// Point on the capsule that was the closest.
+			minimum_capsule_point = c1;
+			//minimum_edge_point = c2;
+		}
+	}
+	// Simply check if the closest point on the capsule (as a circle) overlaps with the AABB.
+	return CirclevsAABB(minimum_capsule_point, capsule_radius, aabb_position, aabb_size));
 }
 
 } // namespace overlap
