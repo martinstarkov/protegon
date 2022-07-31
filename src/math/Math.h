@@ -155,13 +155,67 @@ public:
     static constexpr double value() { return 1.0e-10; }
 };
 
+template <typename T,
+    std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+class PI {};
+
+template<> class PI<float> {
+public:
+    static constexpr float value() { return 3.14159265; }
+};
+
+template<> class PI<double> {
+public:
+    static constexpr double value() { return 3.141592653589793; }
+};
+
+template <typename T,
+    std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+class TWO_PI {};
+
+template<> class TWO_PI<float> {
+public:
+    static constexpr float value() { return 6.2831853; }
+};
+
+template<> class TWO_PI<double> {
+public:                                      
+    static constexpr double value() { return 6.283185307179586; }
+};
+
+template <typename T,
+    std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+class HALF_PI {};
+
+template<> class HALF_PI<float> {
+public:
+    static constexpr float value() { return 1.570796325; }
+};
+
+template<> class HALF_PI<double> {
+public:
+    static constexpr double value() { return 1.5707963267948965; }
+};
+
 } // namespace internal
 
 // Definition of PI, requires specification of type (default: double)
-// @tparam T - Precision of PI (type: int, float, double, etc).
-template <typename T = double, 
-    std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
-inline const T PI{ std::acos(-T(1)) };
+// @tparam T - Precision of PI (type: float, double).
+template <typename T = double,
+    std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+inline constexpr const T PI{ internal::PI<T>::value() };
+
+// Definition of 2 * PI, requires specification of type (default: double)
+// @tparam T - Precision of PI (type: float, double).
+template <typename T = double,
+    std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+inline constexpr const T TWO_PI{ internal::TWO_PI<T>::value() };
+
+// Definition of PI / 2, requires specification of type (default: double)
+// @tparam T - Precision of PI (type: float, double).
+template <typename T = double,
+    std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+inline constexpr const T HALF_PI{ internal::HALF_PI<T>::value() };
 
   // General epsilon values for comparing small differences 
 // (often used in floating point comparisons).
@@ -250,6 +304,32 @@ template <typename T = double,
 inline T RadiansToDegrees(T degrees) {
     return degrees * static_cast<T>(180.0) / PI<T>;
 }
+
+// Angle in degrees.
+template <typename T = double,
+    std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
+T ConstrainAngleFrom0To360(T angle) {
+    if constexpr (std::is_floating_point_v<T>) {
+        angle = fmod(angle, static_cast<T>(360));
+        while (angle < static_cast<T>(0)) angle += static_cast<T>(360);
+        angle = fmod(angle, static_cast<T>(360));
+    } else {
+        angle %= static_cast<T>(360);
+        while (angle < static_cast<T>(0)) angle += static_cast<T>(360);
+        angle %= static_cast<T>(360);
+    }
+    return angle;
+};
+
+// Angle in radians.
+template <typename T = double,
+    std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+T ConstrainAngleFrom0To2PI(T angle) {
+    angle = fmod(angle, TWO_PI<T>);
+    while (angle < static_cast<T>(0)) angle += TWO_PI<T>;
+    angle = fmod(angle, TWO_PI<T>);
+    return angle;
+};
 
 // Returns the maximum of two values, if equal first value is returned.
 template <typename T, typename U, 
