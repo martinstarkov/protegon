@@ -331,21 +331,21 @@ struct Vector2 {
     template <typename U = T,
         std::enable_if_t<std::is_arithmetic_v<U>, bool> = true>
     Vector2<U> Identity() const {
-        return static_cast<U>({ math::Sign(x), math::Sign(y) });
+        return static_cast<Vector2<U>>(Vector2<T>{ math::Sign(x), math::Sign(y) });
     }
 
     // Return tangent vector, (x, y) -> (y, -x).
     template <typename U = T,
         std::enable_if_t<std::is_arithmetic_v<U>, bool> = true>
     Vector2<U> Tangent() const {
-        return static_cast<U>({ y, -x });
+        return static_cast<Vector2<U>>(Vector2<T>{ y, -x });
     }
 
     // Flip signs of both vector components, (x, y) -> (-x, -y).
     template <typename U = T,
         std::enable_if_t<std::is_arithmetic_v<U>, bool> = true>
     Vector2<U> Opposite() const {
-        return static_cast<U>(-(*this));
+        return static_cast<Vector2<U>>(-(*this));
     }
 
     // Flip places of both vector components, (x, y) -> (y, x).
