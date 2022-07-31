@@ -39,19 +39,20 @@ static bool CapsulevsAABB(const math::Vector2<T>& capsule_origin,
 	edges.at(1) = { top_right, bottom_right };
 	edges.at(2) = { bottom_right, bottom_left };
 	edges.at(3) = { bottom_left, aabb_position };
-	std::array<math::Vector2<T>, 3> sizes{ 0, aabb_size };
 	S minimum_distance{ std::numeric_limits<S>::infinity() };
 	math::Vector2<T> minimum_capsule_point;
 	//math::Vector2<T> minimum_edge_point;
 	// Find shortest distance between capsule line and AABB by iterating over each edge of the AABB.
 	for (auto& [origin, destination] : edges) {
-		const S s;
-		const S t;
-		const math::Vector2<T> c1;
-		const math::Vector2<T> c2;
-		const S distance_squared{ ClosestPointLineLine<S>(capsule_origin, capsule_destination,
-														  origin, destination,
-														  s, t, c1, c2) };
+		S s;
+		S t;
+		math::Vector2<T> c1;
+		math::Vector2<T> c2;
+		const S distance_squared{ math::ClosestPointLineLine<S>(capsule_origin,
+																capsule_destination,
+														        origin,
+																destination,
+														        s, t, c1, c2) };
 		if (distance_squared < minimum_distance) {
 			minimum_distance = distance_squared;
 			// Point on the capsule that was the closest.
@@ -60,7 +61,7 @@ static bool CapsulevsAABB(const math::Vector2<T>& capsule_origin,
 		}
 	}
 	// Simply check if the closest point on the capsule (as a circle) overlaps with the AABB.
-	return CirclevsAABB(minimum_capsule_point, capsule_radius, aabb_position, aabb_size));
+	return CirclevsAABB(minimum_capsule_point, capsule_radius, aabb_position, aabb_size);
 }
 
 } // namespace overlap

@@ -14,7 +14,7 @@ namespace math {
 // Computes closest points C1 and C2 of S1(s)=P1+s*(Q1-P1) and
 // S2(t)=P2+t*(Q2-P2), returning s and t. 
 // Function return is squared distance between between S1(s) and S2(t)
-template <typename T, typename S = double,
+template <typename S = double, typename T,
 	std::enable_if_t<std::is_floating_point_v<S>, bool> = true>
 const S ClosestPointLineLine(const math::Vector2<T>& line_origin,
 					         const math::Vector2<T>& line_destination,
@@ -101,7 +101,7 @@ namespace overlap {
 
 // Check if two capsules overlap.
 // Capsule origins and destinations are taken from the edge circle centers.
-template <typename T, typename S = double,
+template <typename S = double, typename T,
 	std::enable_if_t<std::is_floating_point_v<S>, bool> = true>
 static bool CapsulevsCapsule(const math::Vector2<T>& capsule_origin,
 							 const math::Vector2<T>& capsule_destination,
@@ -110,15 +110,17 @@ static bool CapsulevsCapsule(const math::Vector2<T>& capsule_origin,
 							 const math::Vector2<T>& other_capsule_destination,
 							 const T other_capsule_radius) {
 	// Compute (squared) distance between the inner structures of the capsules.
-	const S s;
-	const S t;
-	const math::Vector2<T> c1;
-	const math::Vector2<T> c2;
-	const S distance_squared{ ClosestPointLineLine<S>(capsule_origin, capsule_destination,
-												      other_capsule_origin, other_capsule_destination,
-									                  s, t, c1, c2) };
+	S s;
+	S t;
+	math::Vector2<T> c1;
+	math::Vector2<T> c2;
+	const S distance_squared{ math::ClosestPointLineLine<S>(capsule_origin,
+															capsule_destination,
+													        other_capsule_origin,
+															other_capsule_destination,
+									                        s, t, c1, c2) };
 	// If (squared) distance smaller than (squared) sum of radii, they collide
-	const S combined_radius{ capsule_radius + other_capsule_radius };
+	const S combined_radius{ static_cast<S>(capsule_radius) + static_cast<S>(other_capsule_radius) };
 	const S combined_radius_squared{ combined_radius * combined_radius };
 	return distance_squared < combined_radius_squared ||
 		   math::Compare(distance_squared, combined_radius_squared);

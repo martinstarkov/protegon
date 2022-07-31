@@ -21,7 +21,7 @@ struct Collision {
     // Normal vector to the collision plane.
     math::Vector2<T> normal;
     // Penetration of objects into each other along the collision normal.
-    T penetration;
+    T penetration{ 0 };
     void SetOccured() {
         occured_ = true;
     }

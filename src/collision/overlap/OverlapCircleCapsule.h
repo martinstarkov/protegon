@@ -45,7 +45,9 @@ static bool CirclevsCapsule(const math::Vector2<T>& circle_position,
 							const math::Vector2<T>& capsule_destination,
 							const T capsule_radius) {
 	// Compute (squared) distance between sphere center and capsule line segment.
-	const S distance_squared{ PointToLineSquareDistance<S>(circle_position, capsule_origin, capsule_destination) };
+	const S distance_squared{ math::PointToLineSquareDistance<S>(circle_position,
+																 capsule_origin,
+																 capsule_destination) };
 	// If (squared) distance smaller than (squared) sum of radii, they collide.
 	const S combined_radius = circle_radius + capsule_radius;
 	const S combined_radius_squared{ combined_radius * combined_radius };
