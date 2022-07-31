@@ -39,6 +39,26 @@ void SolidCircle(const V2_int& center,
                  const double radius,
                  const Color& color = color::DEFAULT);
 
+/*
+* @param center Center point of the arc circle.
+* @param direction Vector from center to point at which arc circle starts.
+* @param radius Radius of the arc circle.
+* @param angle Angle in radians by which arc is rotated (positive is clockwise, negative is anti-clockwise).
+* @param color Color of arc.
+* @param resolution Number of individual points with which to draw the arc, must be at least 2.
+*/
+void Arc(const V2_int& center,
+         const double radius,
+         double start_angle,
+         double end_angle,
+         const Color& color = color::DEFAULT);
+
+void Capsule(const V2_int& origin,
+             const V2_int& destination,
+             const double radius,
+             const Color& color = color::DEFAULT,
+             bool draw_centerline = false);
+
 void Rectangle(const V2_int& top_left,
                const V2_int& size,
                const Color& color = color::DEFAULT);
