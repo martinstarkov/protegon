@@ -1,12 +1,16 @@
 #pragma once
 
 #include "overlap/OverlapAABBAABB.h"
+#include "overlap/OverlapCapsuleAABB.h"
 #include "overlap/OverlapCircleAABB.h"
+#include "overlap/OverlapCircleCapsule.h"
 #include "overlap/OverlapCircleCircle.h"
 #include "overlap/OverlapLineAABB.h"
+#include "overlap/OverlapLineCapsule.h"
 #include "overlap/OverlapLineCircle.h"
 #include "overlap/OverlapLineLine.h"
 #include "overlap/OverlapPointAABB.h"
+#include "overlap/OverlapPointCapsule.h"
 #include "overlap/OverlapPointCircle.h"
 #include "overlap/OverlapPointLine.h"
 #include "overlap/OverlapPointPoint.h"
