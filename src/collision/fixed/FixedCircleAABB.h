@@ -8,6 +8,8 @@ namespace ptgn {
 
 namespace math {
 
+// TODO: Fix this.
+
 // Static rectangle and circle collision detection.
 inline Manifold IntersectionCirclevsAABB(const Circle& shapeA,
 										 const V2_double& positionA,

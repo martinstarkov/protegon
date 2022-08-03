@@ -8,6 +8,7 @@ namespace collision {
 
 namespace fixed {
 
+// TODO: Implement this.
 
 } // namespace fixed
 
