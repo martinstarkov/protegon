@@ -22,8 +22,8 @@ const S ClosestPointLineLine(const math::Vector2<T>& line_origin,
 					         const math::Vector2<T>& other_line_destination,
 					         S& out_s,
 					         S& out_t,
-					         math::Vector2<T>& out_c1,
-					         math::Vector2<T>& out_c2) {
+					         math::Vector2<S>& out_c1,
+					         math::Vector2<S>& out_c2) {
 	const math::Vector2<S> d1 = line_destination - line_origin; // Direction vector of segment S1
 	const math::Vector2<S> d2 = other_line_destination - other_line_origin; // Direction vector of segment S2
 	const math::Vector2<S> r = line_origin - other_line_origin;
@@ -112,8 +112,8 @@ static bool CapsulevsCapsule(const math::Vector2<T>& capsule_origin,
 	// Compute (squared) distance between the inner structures of the capsules.
 	S s;
 	S t;
-	math::Vector2<T> c1;
-	math::Vector2<T> c2;
+	math::Vector2<S> c1;
+	math::Vector2<S> c2;
 	const S distance_squared{ math::ClosestPointLineLine<S>(capsule_origin,
 															capsule_destination,
 													        other_capsule_origin,

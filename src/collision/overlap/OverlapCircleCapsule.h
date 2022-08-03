@@ -11,7 +11,7 @@ namespace ptgn {
 
 namespace math {
 
-// Returns the squared distance between point c and segment ab
+// Returns the squared distance between point and segment line_origin -> line_destination.
 template <typename T, typename S = double,
 	std::enable_if_t<std::is_floating_point_v<S>, bool> = true>
 const S PointToLineSquareDistance(const math::Vector2<T>& point, 
