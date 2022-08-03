@@ -38,15 +38,15 @@ static Collision<S> CirclevsCircle(const math::Vector2<T>& circle_position,
     if (math::Compare(distance, static_cast<S>(0))) {
         // Arbitrary normal chosen upward.
         collision.normal = { static_cast<S>(0), static_cast<S>(-1) };
-        collision.penetration = circle_radius + other_circle_radius;
+        collision.penetration = collision.normal * (circle_radius + other_circle_radius);
     } else {
         // Normalise collision vector.
         collision.normal = direction / distance;
         // Find the amount by which circles overlap.
-        collision.penetration = distance - static_cast<S>(combined_radius);
+        collision.penetration = collision.normal * (distance - static_cast<S>(combined_radius));
     }
     // Find point of collision from the first circle.
-    collision.point = circle_position + collision.penetration * collision.normal;
+    //collision.point = circle_position + collision.penetration * collision.normal;
     return collision;
 }
 

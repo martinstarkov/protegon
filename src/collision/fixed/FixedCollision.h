@@ -16,12 +16,10 @@ struct Collision {
     bool Occured() const {
         return occured_;
     }
-    // Point at which collision occurs (where the collision plane is created).
-    math::Vector2<T> point;
     // Normal vector to the collision plane.
     math::Vector2<T> normal;
     // Penetration of objects into each other along the collision normal.
-    T penetration{ 0 };
+    math::Vector2<T> penetration;
     void SetOccured() {
         occured_ = true;
     }
