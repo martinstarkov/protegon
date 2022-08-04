@@ -20,8 +20,8 @@ public:
 	V2_int size2{ 200, 200 };
 	int radius2{ 20 };
 	Color color2{ color::BLUE };
-	const int options = 7;
-	int option = 6;
+	const int options = 9;
+	int option = 8;
 	virtual void Update(double dt) {
 		auto mouse = input::GetMouseScreenPosition();
 		if (input::KeyDown(Key::T)) {
@@ -133,19 +133,29 @@ public:
 				draw::Capsule(position1 + collision.penetration, position3 + collision.penetration, radius1, color::DARK_GREEN);
 			}
 		} else if (option == 7) {
-			/*if (collision::fixed::LinevsCircle(position1, position3, position2, radius2)) {
+			auto collision{ collision::fixed::PointvsCapsule(position1, position2, position4, radius2) };
+			if (collision.Occured()) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
-			}*/
-			draw::Line(position1, position3, acolor1);
-			draw::Circle(position2, radius2, acolor2);
+			}
+			draw::Capsule(position2, position4, radius2, acolor2, true);
+			draw::Point(position1, acolor1);
+			if (collision.Occured()) {
+				draw::SolidCircle(position1 + collision.penetration, 3, color::PURPLE);
+				draw::Line(position1, position1 + collision.penetration, color::ORANGE);
+			}
 		} else if (option == 8) {
-			/*if (collision::fixed::LinevsLine(position1, position3, position2, position4)) {
+			auto collision{ collision::fixed::PointvsCapsule(position2, position1, position3, radius1) };
+			if (collision.Occured()) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
-			}*/
-			draw::Line(position1, position3, acolor1);
-			draw::Line(position2, position4, acolor2);
+			}
+			draw::Capsule(position1, position3, radius1, acolor1, true);
+			draw::Point(position2, acolor2);
+			if (collision.Occured()) {
+				draw::SolidCircle(position2 + collision.penetration, 3, color::PURPLE);
+				draw::Line(position2, position2 + collision.penetration, color::ORANGE);
+			}
 		} else if (option == 9) {
 			position2 = mouse - size2 / 2;
 			/*if (collision::fixed::LinevsAABB(position1, position3, position2, size2)) {
@@ -248,19 +258,19 @@ public:
 			draw::Capsule(position1, position3, radius1, acolor1);
 			draw::Line(position2, position4, acolor2);
 		} else if (option == 23) {
-			/*if (collision::overlap::PointvsCapsule(position1, position2, position4, radius2)) {
+			/*if (collision::fixed::LinevsCircle(position1, position3, position2, radius2)) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}*/
-			draw::Capsule(position2, position4, radius2, acolor2);
-			draw::Point(position1, acolor1);
+			draw::Line(position1, position3, acolor1);
+			draw::Circle(position2, radius2, acolor2);
 		} else if (option == 24) {
-			/*if (collision::overlap::PointvsCapsule(position2, position1, position3, radius1)) {
+			/*if (collision::fixed::LinevsLine(position1, position3, position2, position4)) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}*/
-			draw::Capsule(position1, position3, radius1, acolor1);
-			draw::Point(position2, acolor2);
+			draw::Line(position1, position3, acolor1);
+			draw::Line(position2, position4, acolor2);
 		}
 	}
 };

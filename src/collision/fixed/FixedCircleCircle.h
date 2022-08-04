@@ -40,6 +40,7 @@ static Collision<S> CirclevsCircle(const math::Vector2<T>& circle_position,
         collision.normal = { static_cast<S>(0), static_cast<S>(-1) };
         collision.penetration = collision.normal * (circle_radius + other_circle_radius);
     } else {
+        // TODO: Check for division by zero?
         // Normalise collision vector.
         collision.normal = direction / distance;
         // Find the amount by which circles overlap.

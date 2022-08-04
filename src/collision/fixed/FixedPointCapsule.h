@@ -1,8 +1,9 @@
 #pragma once
 
 #include "math/Vector2.h"
-#include "collision/fixed/FixedCapsuleCapsule.h"
+#include "collision/overlap/OverlapCircleCapsule.h"
 #include "collision/fixed/FixedCollision.h"
+#include "collision/fixed/FixedPointCircle.h"
 
 namespace ptgn {
 
@@ -20,7 +21,50 @@ static Collision<S> PointvsCapsule(const math::Vector2<T>& point,
 								   const math::Vector2<T>& capsule_origin,
 								   const math::Vector2<T>& capsule_destination,
 								   const T capsule_radius) {
-	return CapsulevsCapsule<S>(point, point, static_cast<T>(0), capsule_origin, capsule_destination, capsule_radius);
+	Collision<S> collision;
+	S t;
+	math::Vector2<S> d;
+	// Compute (squared) distance between sphere center and capsule line segment.
+	math::ClosestPointLine<S>(point, capsule_origin, capsule_destination, t, d);
+	const math::Vector2<S> vector{ d - point };
+	const S distance_squared{ vector.MagnitudeSquared() };
+	// If (squared) distance smaller than (squared) sum of radii, they collide.
+	const S radius_squared{ static_cast<S>(capsule_radius) * static_cast<S>(capsule_radius) };
+	if (!(distance_squared < radius_squared || math::Compare(distance_squared, radius_squared))) {
+		return collision;
+	}
+	collision.SetOccured();
+	if (math::Compare(distance_squared, static_cast<S>(0))) {
+		// Point is on the capsule's centerline.
+		math::Vector2<S> dir{ capsule_destination - capsule_origin };
+		if (dir.IsZero()) {
+			// Point vs circle where point is at circle center.
+			collision.normal = { static_cast<S>(0), static_cast<S>(-1) };
+			collision.penetration = collision.normal * capsule_radius;
+		} else {
+			// Point vs capsule where point is on capsule centerline.
+			T min_distance1{ DistanceSquared(point, capsule_origin) };
+			T min_distance2{ DistanceSquared(point, capsule_destination) };
+			min_distance1 = math::Min(min_distance1, min_distance2);
+			if (min_distance1 > static_cast<T>(0)) {
+				// Push point apart in perpendicular direction (closer).
+				collision.normal = -dir.Tangent().Unit();
+				collision.penetration = collision.normal * capsule_radius;
+			} else {
+				// Push point apart in parallel direction (closer).
+				collision.normal = -dir.Unit();
+				collision.penetration = collision.normal * (math::Sqrt(min_distance1) + capsule_radius);
+			}
+		}
+	} else {
+		// Point is within capsule but not on centerline.
+		const S distance{ math::Sqrt(distance_squared) };
+		// TODO: Check for division by zero?
+		collision.normal = vector / distance;
+		// Find the amount by which circles overlap.
+		collision.penetration = collision.normal * (distance - static_cast<S>(capsule_radius));
+	}
+	return collision;
 }
 
 } // namespace fixed
