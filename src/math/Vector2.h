@@ -624,7 +624,7 @@ template <typename T, typename U,
     typename V = S,
     std::enable_if_t<std::is_arithmetic_v<V>, bool> = true>
 inline V Distance(const Vector2<T>& lhs, const Vector2<U>& rhs) {
-    return static_cast<V>(std::sqrt<S>(DistanceSquared(lhs, rhs)));
+    return static_cast<V>(math::Sqrt<S>(DistanceSquared(lhs, rhs)));
 }
 
 // Return minimum component of vector. (reference)
