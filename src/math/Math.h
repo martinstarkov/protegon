@@ -4,7 +4,7 @@
 // In some cases with improved performance over standard library alternatives, e.g. ceil and floor.
 
 #include <cstdlib> // std::size_t
-#include <cmath> // std::round, std::sqrt, etc
+#include <cmath> // std::isfinite, std::round, std::sqrt, ...
 #include <limits> // std::numeric_limits
 #include <iomanip> // std::setprecision for truncating
 #include <sstream> // std::stringstream for truncating
@@ -357,6 +357,8 @@ inline T Compare(T x, T y, T relative_tolerance = 0, T absolute_tolerance = 0) {
 template <typename T = double,
     std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
 inline T Compare(T x, T y, T relative_tolerance, T absolute_tolerance) {
+    assert(std::isfinite(x) && std::isfinite(y) && "Cannot provide infinite or undefined numbers to floating point comparison");
+    assert(std::isfinite(relative_tolerance) && std::isfinite(absolute_tolerance) && "Cannot provide infinite or undefined tolerances for floating point comparison");
     return Abs(x - y) <= Max(absolute_tolerance, relative_tolerance * Max(Abs(x), Abs(y)));
 }
 
