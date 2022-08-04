@@ -11,6 +11,8 @@ namespace ptgn {
 
 namespace math {
 
+// Source: file:///C:/Users/Martin/Desktop/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
+// Page 130.
 // Returns the squared distance between point and segment line_origin -> line_destination.
 template <typename T, typename S = double,
 	std::enable_if_t<std::is_floating_point_v<S>, bool> = true>
@@ -27,6 +29,38 @@ const S PointToLineSquareDistance(const math::Vector2<T>& point,
 	if (e > f || math::Compare(e, f)) return bc.DotProduct(bc);
 	// Handle cases where c projects onto ab
 	return ac.DotProduct(ac) - e * e / f;
+}
+
+// Source: file:///C:/Users/Martin/Desktop/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
+// Page 129.
+// Given segment ab and point c, computes closest point out_d on ab.
+// Also returns out_t for the position of out_d, out_d(out_t)= a + out_t * (b - a)
+template <typename T, typename S = double,
+	std::enable_if_t<std::is_floating_point_v<S>, bool> = true>
+void ClosestPointLine(const math::Vector2<T>& point,
+					  const math::Vector2<T>& line_origin,
+					  const math::Vector2<T>& line_destination,
+					  S& out_t,
+					  math::Vector2<S>& out_d) {
+	const math::Vector2<S> ab{ line_destination - line_origin };
+	// Project c onto ab, but deferring divide by Dot(ab, ab)
+	out_t = (point - line_origin).DotProduct(ab);
+	if (out_t < static_cast<S>(0) || math::Compare(out_t, static_cast<S>(0))) {
+		// c projects outside the [a,b] interval, on the a side; clamp to a
+		out_t = static_cast<S>(0);
+		out_d = line_origin;
+	} else {
+		S denom = ab.DotProduct(ab); // Always nonnegative since denom = ||ab||^2
+		if (out_t > denom || math::Compare(out_t, denom)) {
+			// c projects outside the [a,b] interval, on the b side; clamp to b
+			out_t = static_cast<S>(1);
+			out_d = line_destination;
+		} else {
+			// c projects inside the [a,b] interval; must do deferred divide now
+			out_t = out_t / denom;
+			out_d = line_origin + out_t * ab;
+		}
+	}
 }
 
 } // namespace math
