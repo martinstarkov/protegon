@@ -5,6 +5,10 @@
 #include "collision/fixed/FixedAABBAABB.h"
 #include "collision/fixed/FixedPointAABB.h"
 #include "collision/fixed/FixedCapsuleCapsule.h"
+#include "collision/fixed/FixedCircleCapsule.h"
+#include "collision/fixed/FixedLineCapsule.h"
+#include "collision/fixed/FixedLineLine.h"
+#include "collision/fixed/FixedPointCapsule.h"
 
 // point circle
 // collision point = closest point on perimeter of circle to the point.
