@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array> // std::array
+
 #include "math/Vector2.h"
 #include "math/Math.h"
 #include "collision/fixed/FixedCollision.h"
@@ -7,13 +9,24 @@
 #include "collision/overlap/OverlapCircleCapsule.h"
 #include "collision/fixed/FixedCircleCircle.h"
 
-// TODO: TEMP
-#include "utility/Log.h"
-#include "interface/Draw.h"
-
 // Source: https://steamcdn-a.akamaihd.net/apps/valve/2015/DirkGregorius_Contacts.pdf
 
 namespace ptgn {
+
+namespace math {
+
+// Given an infinite line line_origin->line_destination and point, computes closest point out_d on ab.
+// Also returns out_t for the parametric position of out_d, out_d(t)= a + out_t * (b - a)
+template <typename S = double, typename T,
+	std::enable_if_t<std::is_floating_point_v<S>, bool> = true>
+void ClosestPointInfiniteLine(const math::Vector2<T>& point, const math::Vector2<T>& line_origin, const math::Vector2<T>& line_destination, S& out_t, math::Vector2<S>& out_d) {
+	math::Vector2<S> ab{ line_destination - line_origin };
+	// Project c onto ab, but deferring divide by Dot(ab, ab)
+	out_t = (point - line_origin).DotProduct(ab) / ab.DotProduct(ab);
+	out_d = line_origin + out_t * ab;
+}
+
+} // namespace math
 
 namespace collision {
 
@@ -48,43 +61,99 @@ static Collision<S> CapsulevsCapsule(const math::Vector2<T>& capsule_origin,
 		return collision;
 	}
 	collision.SetOccured();
-	const math::Vector2<S> direction{ capsule_destination - capsule_origin };
-	const math::Vector2<S> other_direction{ other_capsule_destination - other_capsule_origin };
-	const S slope{ direction.y / direction.x };
-	const S other_slope{ other_direction.y / other_direction.x };
-	if (math::Compare(slope, other_slope)) {
-		//Capsules lines are parallel, normal is tangent to either.
-		collision.normal = (-direction).Tangent().Unit();
-		collision.penetration = collision.normal * (capsule_radius + other_capsule_radius - math::Sqrt(distance_squared));
-	} else if (math::Compare(distance_squared, static_cast<S>(0))) {
+	if (math::Compare(distance_squared, static_cast<S>(0))) {
 		// Capsules lines intersect, different kind of routine needed.
-		// TODO: Fix line intersections.
-		math::Vector2<S> minimum_distance_point{ capsule_destination };
-		math::Vector2<S> maximum_distance_point{ capsule_origin };
-		S max_distance_squared{ DistanceSquared(capsule_origin, c1) };
-		S min_distance_squared{ DistanceSquared(capsule_destination, c1) };
-		if (min_distance_squared > max_distance_squared) {
-			std::swap(min_distance_squared, max_distance_squared);
-			Swap(minimum_distance_point, maximum_distance_point);
+		std::array<math::Vector2<S>, 4> points;
+		points[0] = capsule_origin;
+		points[1] = capsule_destination;
+		points[2] = other_capsule_origin;
+		points[3] = other_capsule_destination;
+
+		// Find shortest distance (and index) to 4 capsule end points (2 per capsule).
+		S min_distance_squared{ math::Infinity<S>() };
+		std::size_t min_index{ 0 };
+		std::size_t max_index{ 0 };
+		for (std::size_t i{ 0 }; i < points.size(); ++i) {
+			const S d{ DistanceSquared(points[i], c1) };
+			if (d < min_distance_squared) {
+				min_index = i;
+				min_distance_squared = d;
+			}
 		}
-		const math::Vector2<S> vector_to_max{ maximum_distance_point - c1 };
-		const S dot_product{ vector_to_max.DotProduct(other_direction.Unit()) };
-		const S p{ math::Sqrt(max_distance_squared / (max_distance_squared - dot_product * dot_product) * other_capsule_radius * other_capsule_radius) };
-		const S pen1{ (minimum_distance_point - c1).Magnitude() + p };
-
-		collision.normal = vector_to_max.Unit();
-
-		const math::Vector2<S> new_point{ minimum_distance_point + collision.normal * pen1 };
-		const math::Vector2<S> vector_to_end{ maximum_distance_point - new_point };
-		const S distance_to_end_squared{ vector_to_end.MagnitudeSquared() };
-		const S dot_product_to_end{ vector_to_end.DotProduct(other_direction.Unit()) };
-		const S p2{ math::Sqrt(distance_to_end_squared / (distance_to_end_squared - dot_product_to_end * dot_product_to_end) * capsule_radius * capsule_radius) };
-		const S pen2{ p2 };
-
-		collision.penetration = collision.normal * (pen1 + pen2);
-		
+		math::Vector2<S> origin{ capsule_origin };
+		math::Vector2<S> destination{ capsule_destination };
+		math::Vector2<S> other_origin{ other_capsule_origin };
+		math::Vector2<S> other_destination{ other_capsule_destination };
+		S sign{ -1 };
+		// Determine which is the which is the collision normal axis
+		// and set the non collision normal axis as the other one.
+		if (min_index == 0) {
+			max_index = 1;
+		} else if (min_index == 1) {
+			max_index = 0;
+		} else if (min_index == 2) {
+			Swap(origin, other_origin);
+			Swap(destination, other_destination);
+			sign = 1;
+			max_index = 3;
+		} else if (min_index == 3) {
+			Swap(origin, other_origin);
+			Swap(destination, other_destination);
+			sign = 1;
+			max_index = 2;
+		}
+		math::Vector2<S> dir{ destination - origin };
+		math::Vector2<S> o_dir{ other_destination - other_origin };
+		// TODO: Perhaps this check could be moved to the very beginning as it does not rely on projections.
+		if (dir.IsZero()) {
+			// At least one of the capsules is a circle.
+			if (o_dir.IsZero()) {
+				// Both capsules are circles.
+				// Circle vs circle collision where both circle centers overlap.
+				collision = CirclevsCircle(c1, static_cast<S>(capsule_radius), c2, static_cast<S>(other_capsule_radius));
+			} else {
+				// Only one of the capsules is a circle.
+				// Capsule vs circle collision where circle center intersects capsule centerline.
+				collision.normal = o_dir.Tangent().Unit();
+				collision.penetration = collision.normal * combined_radius;
+			}
+		} else {
+			// Capsule vs capsule.
+			S frac; // frac is an unused variable.
+			math::Vector2<S> point;
+			// TODO: Clean this up, I'm sure some of these cases can be combined.
+			math::ClosestPointInfiniteLine(points[min_index], other_origin, other_destination, frac, point);
+			const math::Vector2<S> vector_to_min{ points[min_index] - point };
+			if (vector_to_min.IsZero()) {
+				// Capsule centerlines touch in at least one location.
+				math::ClosestPointInfiniteLine(points[max_index], other_origin, other_destination, frac, point);
+				const math::Vector2<S> vector_to_max{ -(points[max_index] - point).Unit() };
+				if (vector_to_max.IsZero()) {
+					// Capsules are collinear.
+					const S penetration{ Distance(points[min_index], point) + combined_radius };
+					if (penetration > combined_radius) {
+						// Push capsules apart in perpendicular direction.
+						collision.normal = -dir.Tangent().Unit();
+						collision.penetration = collision.normal * combined_radius;
+					} else {
+						// Push capsules apart in parallel direction.
+						collision.normal = sign * -dir.Unit();
+						collision.penetration = collision.normal * penetration;
+					}
+				} else {
+					// Capsule origin or destination lies on the other capsule's centerline.
+					collision.normal = sign * vector_to_max;
+					collision.penetration = collision.normal * combined_radius;
+				}
+			} else {
+				// Capsule centerlines intersect each other.
+				collision.normal = sign * vector_to_min.Unit();
+				collision.penetration = collision.normal * (Distance(points[min_index], point) + combined_radius);
+			}
+		}
 	} else {
-		return CirclevsCircle(c1, static_cast<S>(capsule_radius), c2, static_cast<S>(other_capsule_radius));
+		// Capsule centerlines do not intersect each other.
+		collision = CirclevsCircle(c1, static_cast<S>(capsule_radius), c2, static_cast<S>(other_capsule_radius));
 	}
 	return collision;
 }

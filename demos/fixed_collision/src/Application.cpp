@@ -11,8 +11,9 @@ class FixedCollisionTest : public Engine {
 public:
 	virtual void Init() {}
 	V2_int position1{ 200, 200 };
-	V2_int position3{ 300, 300 };
-	V2_int position4{ 200, 100 };
+	V2_int position2{ 100, 100 };
+	V2_int position3{ 500, 500 };
+	V2_int position4{ 300 - 50, 300 };
 	V2_int size1{ 60, 60 };
 	int radius1{ 30 };
 	Color color1{ color::GREEN };
@@ -109,6 +110,12 @@ public:
 				draw::SolidCircle(position1 + collision.penetration, 3, color::GREEN);
 			}
 		} else if (option == 6) {
+			/*position1 = { 300, 300 };
+			position3 = { 300, 300 };
+			position4 = { 300, 300 };
+			position2 = { 300, 300 };*/
+			/*position2 = { 100, 600 };
+			position4 = { 600, 100 };*/
 			//position2 = { 180 + 15, 180 };
 			//position4 = { 280 + 15, 280 };
 			auto collision{ collision::fixed::CapsulevsCapsule(position1, position3, radius1, position2, position4, radius2) };
