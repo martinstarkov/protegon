@@ -1,6 +1,7 @@
 #pragma once
 
-#include <array> // std::array
+#include <array>  // std::array
+#include <limits> // std::numeric_limits
 
 #include "math/Vector2.h"
 #include "math/Math.h"
@@ -71,7 +72,7 @@ static Collision<S> CapsulevsCapsule(const math::Vector2<T>& capsule_origin,
 		points[3] = other_capsule_destination;
 
 		// Find shortest distance (and index) to 4 capsule end points (2 per capsule).
-		S min_distance_squared{ math::Infinity<S>() };
+		S min_distance_squared{ std::numeric_limits<S>::infinity() };
 		std::size_t min_index{ 0 };
 		std::size_t max_index{ 0 };
 		for (std::size_t i{ 0 }; i < points.size(); ++i) {
@@ -93,13 +94,13 @@ static Collision<S> CapsulevsCapsule(const math::Vector2<T>& capsule_origin,
 		} else if (min_index == 1) {
 			max_index = 0;
 		} else if (min_index == 2) {
-			Swap(origin, other_origin);
-			Swap(destination, other_destination);
+			std::swap(origin, other_origin);
+			std::swap(destination, other_destination);
 			sign = 1;
 			max_index = 3;
 		} else if (min_index == 3) {
-			Swap(origin, other_origin);
-			Swap(destination, other_destination);
+			std::swap(origin, other_origin);
+			std::swap(destination, other_destination);
 			sign = 1;
 			max_index = 2;
 		}

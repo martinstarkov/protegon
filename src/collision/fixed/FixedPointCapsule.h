@@ -23,7 +23,7 @@ static Collision<S> PointvsCapsule(const math::Vector2<T>& point,
 								   const T capsule_radius) {
 	static_assert(!tt::is_narrowing_v<T, S>);
 	Collision<S> collision;
-	S t;
+	S t{};
 	math::Vector2<S> d;
 	// Compute (squared) distance between sphere center and capsule line segment.
 	math::ClosestPointLine<S>(point, capsule_origin, capsule_destination, t, d);
@@ -46,7 +46,7 @@ static Collision<S> PointvsCapsule(const math::Vector2<T>& point,
 			// Point vs capsule where point is on capsule centerline.
 			T min_distance1{ DistanceSquared(point, capsule_origin) };
 			T min_distance2{ DistanceSquared(point, capsule_destination) };
-			min_distance1 = math::Min(min_distance1, min_distance2);
+			min_distance1 = std::min(min_distance1, min_distance2);
 			if (min_distance1 > 0) {
 				// Push point apart in perpendicular direction (closer).
 				collision.normal = -dir.Tangent().Normalize();
@@ -54,12 +54,12 @@ static Collision<S> PointvsCapsule(const math::Vector2<T>& point,
 			} else {
 				// Push point apart in parallel direction (closer).
 				collision.normal = -dir.Normalize();
-				collision.penetration = collision.normal * (math::Sqrt(min_distance1) + capsule_radius);
+				collision.penetration = collision.normal * (std::sqrt(min_distance1) + capsule_radius);
 			}
 		}
 	} else {
 		// Point is within capsule but not on centerline.
-		const S distance{ math::Sqrt(distance_squared) };
+		const S distance{ std::sqrt(distance_squared) };
 		// TODO: Check for division by zero?
 		collision.normal = vector / distance;
 		// Find the amount by which circles overlap.

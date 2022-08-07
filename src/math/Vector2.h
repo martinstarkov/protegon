@@ -27,11 +27,14 @@ struct Vector2 {
     Vector2(Vector2&&) noexcept = default;
     Vector2& operator=(Vector2&&) noexcept = default;
 
-    template <typename U,
+    template <typename U, typename V,
         tt::arithmetic<U> = true,
         tt::convertible<U, T> = true,
-        tt::not_narrowing<U, T> = true>
-    constexpr Vector2(U x, U y) :
+        tt::not_narrowing<U, T> = true,
+        tt::arithmetic<V> = true,
+        tt::convertible<V, T> = true,
+        tt::not_narrowing<V, T> = true>
+    constexpr Vector2(U x, V y) :
         x{ static_cast<T>(x) }, 
         y{ static_cast<T>(y) } {}
 
@@ -116,8 +119,8 @@ struct Vector2 {
     template <typename To,
         tt::arithmetic<To> = true,
         tt::convertible<T, To> = true>
-    // Adding the line below makes only non-narrowing static casts allowed.
-    //  tt::not_narrowing<T, To> = true>
+        // Adding the line below makes only non-narrowing static casts allowed.
+        //tt::not_narrowing<T, To> = true>
     operator Vector2<To>() const {
         return Vector2<To>{ static_cast<To>(x), static_cast<To>(y) };
     }
@@ -202,7 +205,7 @@ struct Vector2 {
         tt::arithmetic<U> = true,
         tt::convertible<U, T> = true,
         typename S = typename std::common_type_t<T, U>>
-    S DistanceSquared(const Vector2<U>& rhs) {
+    S DistanceSquared(const Vector2<U>& rhs) const {
         const Vector2<U> n{ x - rhs.x, y - rhs.y };
         return n.x * n.x + n.y * n.y;
     }
@@ -211,7 +214,7 @@ struct Vector2 {
         tt::arithmetic<U> = true,
         tt::convertible<U, T> = true,
         typename S = typename std::common_type_t<T, U, float>>
-    S Distance(const Vector2<U>& rhs) {
+    S Distance(const Vector2<U>& rhs) const {
         return std::sqrt(DistanceSquared(rhs));
     }
 

@@ -9,7 +9,7 @@ namespace ptgn {
 namespace math {
 
 // TODO: Fix this.
-
+/*
 // Static rectangle and circle collision detection.
 inline Manifold IntersectionCirclevsAABB(const Circle& shapeA,
 										 const V2_double& positionA,
@@ -54,7 +54,7 @@ inline Manifold IntersectionCirclevsAABB(const Circle& shapeA,
 		return manifold;
 	}
 	// Avoid sqrt until we needed to take it.
-	auto distance{ math::Sqrt(distance_squared) };
+	auto distance{ std::sqrt(distance_squared) };
 	// Collision normal needs to be flipped to point outside if circle was
 	// inside the AABB
 	if (inside) {
@@ -66,7 +66,7 @@ inline Manifold IntersectionCirclevsAABB(const Circle& shapeA,
 	manifold.contact_point = positionA + manifold.penetration;
 	return manifold;
 }
-
+*/
 } // namespace math
 
 } // namespace ptgn

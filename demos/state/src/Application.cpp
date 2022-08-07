@@ -7,7 +7,7 @@
 #include "animation/Offset.h"
 #include "renderer/Renderer.h"
 #include "utility/Countdown.h"
-#include "input/Input.h"
+#include "interface/Input.h"
 #include "math/Hash.h"
 #include "state/StateMachine.h"
 #include "event/Observer.h"

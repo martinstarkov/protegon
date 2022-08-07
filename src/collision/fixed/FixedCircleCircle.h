@@ -33,7 +33,7 @@ static Collision<S> CirclevsCircle(const math::Vector2<T>& circle_position,
 
     collision.SetOccured();
 
-    const S distance{ math::Sqrt<S>(distance_squared) };
+    const S distance{ std::sqrt(distance_squared) };
 
     // Bias toward selecting first circle for exact overlap edge case.
     if (math::Compare(distance, 0)) {

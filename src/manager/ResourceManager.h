@@ -65,6 +65,12 @@ public:
             return nullptr;
         return it->second;
     }
+
+    const T& GetReference(const I key) const {
+        auto it{ map_.find(key) };
+        assert(it != std::end(map_) && "Cannot get reference to non-existent manager item");
+        return *it->second;
+    }
     
     /*
     * Replaces or adds a new entry to the manager
@@ -101,7 +107,7 @@ private:
 // TODO: Check that T is child of ResourceManager.
 template <typename T>
 T& Get() {
-    static T manager;
+    static T manager{};
     return manager;
 }
 
