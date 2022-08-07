@@ -130,21 +130,21 @@ public:
 			draw::Circle(position2, radius2, acolor2);
 			draw::Point(position1, acolor1);
 		} else if (option == 13) {
-			if (collision::overlap::PointvsLine(position1, position2, position4)) {
+			if (collision::overlap::PointLine(position1, position2, position4)) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}
 			draw::Line(position2, position4, acolor2);
 			draw::Point(position1, acolor1);
 		} else if (option == 14) {
-			if (collision::overlap::PointvsLine(position2, position1, position3)) {
+			if (collision::overlap::PointLine(position2, position1, position3)) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}
 			draw::Line(position1, position3, acolor1);
 			draw::Point(position2, acolor2);
 		} else if (option == 15) {
-			if (collision::overlap::PointvsPoint(position2, position1)) {
+			if (collision::overlap::PointPoint(position2, position1)) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}

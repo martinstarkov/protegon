@@ -22,7 +22,7 @@
 using namespace ptgn;
 
 inline bool PointvsAABB(const V2_int& point,
-						const V2_double& position,
+						const V2_int& position,
 						const V2_int& size) {
 	return (point.x >= position.x &&
 			point.y >= position.y &&
@@ -106,19 +106,19 @@ private:
 };
 
 inline V2_int ClosestAxis(const V2_double& direction) {
-	auto dir{ direction.DotProduct(V2_double{ 1, 0 }) };
+	auto dir{ direction.Dot(V2_double{ 1, 0 }) };
 	V2_int axis{ 1, 0 };
-	auto temp_dir{ direction.DotProduct(V2_double{ -1, 0 }) };
+	auto temp_dir{ direction.Dot(V2_double{ -1, 0 }) };
 	if (temp_dir > dir) {
 		dir = temp_dir;
 		axis = { -1, 0 };
 	}
-	temp_dir = direction.DotProduct(V2_double{ 0, 1 });
+	temp_dir = direction.Dot(V2_double{ 0, 1 });
 	if (temp_dir > dir) {
 		dir = temp_dir;
 		axis = { 0, 1 };
 	}
-	temp_dir = direction.DotProduct(V2_double{ 0, -1 });
+	temp_dir = direction.Dot(V2_double{ 0, -1 });
 	if (temp_dir > dir) {
 		dir = temp_dir;
 		axis = { 0, -1 };
@@ -153,7 +153,7 @@ Sequence GetRandomRollSequence(std::size_t count) {
 
 Sequence GetRotatedSequence(Sequence sequence, const double angle) {
 	for (auto& vector : sequence)
-		vector  = math::Round(vector.Rotate(angle));
+		vector = math::Round(vector.Rotate(angle));
 	return sequence;
 }
 
@@ -240,7 +240,9 @@ bool CanWin(const Grid& grid, const V2_int& player_tile, const V2_int& win_tile)
 }
 
 V2_int GetNewWinTile(const Grid& grid, const V2_int& player_tile) {
-	V2_int win_tile = V2_int::Random(0, grid.GetSize().x - 1, 0, grid.GetSize().y - 1);
+	math::RNG rng_x{ 0, grid.GetSize().x - 1 };
+	math::RNG rng_y{ 0, grid.GetSize().y - 1 };
+	V2_int win_tile{ rng_x(), rng_y() };
 	if (!grid.HasTile(win_tile) && win_tile != player_tile)
 		return win_tile;
 	return GetNewWinTile(grid, player_tile);
@@ -257,7 +259,7 @@ public:
 	Sequence sequence;
 	Sequence absolute_sequence;
 	Directions directions;
-	std::size_t dice{ 1 };
+	int dice{ 1 };
 	bool turn_allowed = false;
 	bool game_over = false;
 	bool generate_new = false;
@@ -335,7 +337,7 @@ public:
 
 		if (!game_over) {
 			auto player_position = grid_top_left_offset + player_tile * grid.GetTileSize() + grid.GetTileSize() / 2;
-			auto direction = static_cast<V2_double>(mouse - player_position);
+			auto direction = mouse - player_position;
 			auto axis_direction = ClosestAxis(direction);
 
 			if (previous_direction != axis_direction && previous_direction != V2_int{}) {
@@ -394,7 +396,7 @@ public:
 					draw::Texture("grid", grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
 
 					if (grid.HasTile(tile_position)) {
-						auto tile = grid.GetTile(tile_position);
+						auto& tile = grid.GetTile(tile_position);
 						if (tile.type == TileType::USED) {
 							draw::Texture("used", grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
 						} else if (tile.type == TileType::WIN) {
