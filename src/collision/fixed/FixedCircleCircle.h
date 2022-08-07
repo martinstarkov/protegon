@@ -17,6 +17,7 @@ static Collision<S> CirclevsCircle(const math::Vector2<T>& circle_position,
                                     const T circle_radius,
                                     const math::Vector2<T>& other_circle_position,
                                     const T other_circle_radius) {
+    static_assert(!tt::is_narrowing_v<T, S>);
     Collision<S> collision;
 
     const math::Vector2<T> direction{ other_circle_position - circle_position };
@@ -35,12 +36,11 @@ static Collision<S> CirclevsCircle(const math::Vector2<T>& circle_position,
     const S distance{ math::Sqrt<S>(distance_squared) };
 
     // Bias toward selecting first circle for exact overlap edge case.
-    if (math::Compare(distance, static_cast<S>(0))) {
+    if (math::Compare(distance, 0)) {
         // Arbitrary normal chosen upward.
-        collision.normal = { static_cast<S>(0), static_cast<S>(-1) };
-        collision.penetration = collision.normal * (circle_radius + other_circle_radius);
+        collision.normal = { 0, -1 };
+        collision.penetration = collision.normal * combined_radius;
     } else {
-        // TODO: Check for division by zero?
         // Normalise collision vector.
         collision.normal = direction / distance;
         // Find the amount by which circles overlap.

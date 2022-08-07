@@ -17,7 +17,7 @@ static Collision<S> LinevsLine(const math::Vector2<T>& line_origin,
 									  const math::Vector2<T>& line_destination,
 									  const math::Vector2<T>& other_line_origin,
 									  const math::Vector2<T>& other_line_destination) {
-	return CapsulevsCapsule<S>(line_origin, line_destination, static_cast<T>(0), other_line_origin, other_line_destination, static_cast<T>(0));
+	return CapsulevsCapsule<S>(line_origin, line_destination, 0, other_line_origin, other_line_destination, 0);
 }
 
 } // namespace fixed

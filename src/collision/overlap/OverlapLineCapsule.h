@@ -19,7 +19,7 @@ inline bool LinevsCapsule(const math::Vector2<T>& line_origin,
 						  const math::Vector2<T>& capsule_destination,
 						  const T capsule_radius) {
 	return CapsulevsCapsule(line_origin, line_destination, 
-							static_cast<T>(0), capsule_origin, 
+							0, capsule_origin, 
 							capsule_destination, capsule_radius);
 }
 

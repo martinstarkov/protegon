@@ -51,8 +51,8 @@ public:
 			Remaining<std::chrono::duration<T, time::period>>() / cutoff_
 		};
 		T percentage{ percentage_time.count() };
-		assert(percentage >= static_cast<T>(0) &&
-			   percentage <= static_cast<T>(1) &&
+		assert(percentage >= 0 &&
+			   percentage <= 1 &&
 			   "Remaining countdown percentage cannot be outside the 0.0 to 1.0 range");
 		return percentage;
 	}
@@ -60,7 +60,7 @@ public:
 	template <typename T = double,
 		std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
 	T ElapsedPercentage() const {
-		return static_cast<T>(1) - RemainingPercentage<T>();
+		return 1 - RemainingPercentage<T>();
 	}
 
 	template <typename Duration = time,
@@ -138,8 +138,8 @@ public:
 	T RemainingPercentage() const {
 		std::chrono::duration<T, time::period> percentage_time{ remaining_ / original_remaining_ };
 		T percentage{ percentage_time.count() };
-		assert(percentage >= static_cast<T>(0) &&
-			   percentage <= static_cast<T>(1) &&
+		assert(percentage >= 0 &&
+			   percentage <= 1 &&
 			   "Remaining countdown percentage cannot be outside the 0.0 to 1.0 range");
 		return percentage;
 	}
@@ -147,7 +147,7 @@ public:
 	template <typename T = double,
 		std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
 	T ElapsedPercentage() const {
-		return static_cast<T>(1) - RemainingPercentage<T>();
+		return 1 - RemainingPercentage<T>();
 	}
 
 	template <typename Duration = time,

@@ -22,14 +22,14 @@ inline Manifold IntersectionCirclevsAABB(const Circle& shapeA,
 	// Closest point on A to center of B.
 	V2_double closest{ n };
 	// Clamp point to edges of the AABB.
-	closest = math::Clamp(closest, -half, half);
+	closest = std::clamp(closest, -half, half);
 	bool inside{ false };
 	// Circle is inside the AABB, so we need to clamp the circle's center
 	// to the closest edge
 	if (n == closest) {
 		inside = true;
 		// Find closest axis
-		if (math::Abs(n.x) > math::Abs(n.y)) {
+		if (math::FastAbs(n.x) > math::FastAbs(n.y)) {
 			// Clamp to closest extent
 			if (closest.x > 0.0) {
 				closest.x = half.x;

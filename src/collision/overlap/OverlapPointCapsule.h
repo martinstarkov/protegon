@@ -16,7 +16,7 @@ inline bool PointvsCapsule(const math::Vector2<T>& point,
 						   const math::Vector2<T>& capsule_origin,
 						   const math::Vector2<T>& capsule_destination,
 						   const T capsule_radius) {
-	return CirclevsCapsule(point, static_cast<T>(0), capsule_origin, capsule_destination, capsule_radius);
+	return CirclevsCapsule(point, 0, capsule_origin, capsule_destination, capsule_radius);
 }
 
 } // namespace overlap

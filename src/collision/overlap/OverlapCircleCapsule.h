@@ -22,13 +22,13 @@ const S PointToLineSquareDistance(const math::Vector2<T>& point,
 	const math::Vector2<S> ab = line_destination - line_origin;
 	const math::Vector2<S> ac = point - line_origin;
 	const math::Vector2<S> bc = point - line_destination;
-	const S e{ ac.DotProduct(ab) };
+	const S e{ ac.Dot(ab) };
 	// Handle cases where c projects outside ab
-	if (e < static_cast<S>(0) || math::Compare(e, static_cast<S>(0))) return ac.DotProduct(ac);
-	const S f{ ab.DotProduct(ab) };
-	if (e > f || math::Compare(e, f)) return bc.DotProduct(bc);
+	if (e < 0 || math::Compare(e, 0)) return ac.Dot(ac);
+	const S f{ ab.Dot(ab) };
+	if (e > f || math::Compare(e, f)) return bc.Dot(bc);
 	// Handle cases where c projects onto ab
-	return ac.DotProduct(ac) - e * e / f;
+	return ac.Dot(ac) - e * e / f;
 }
 
 // Source: file:///C:/Users/Martin/Desktop/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
@@ -44,16 +44,16 @@ void ClosestPointLine(const math::Vector2<T>& point,
 					  math::Vector2<S>& out_d) {
 	const math::Vector2<S> ab{ line_destination - line_origin };
 	// Project c onto ab, but deferring divide by Dot(ab, ab)
-	out_t = (point - line_origin).DotProduct(ab);
-	if (out_t < static_cast<S>(0) || math::Compare(out_t, static_cast<S>(0))) {
+	out_t = (point - line_origin).Dot(ab);
+	if (out_t < 0 || math::Compare(out_t, 0)) {
 		// c projects outside the [a,b] interval, on the a side; clamp to a
-		out_t = static_cast<S>(0);
+		out_t = 0;
 		out_d = line_origin;
 	} else {
-		S denom = ab.DotProduct(ab); // Always nonnegative since denom = ||ab||^2
+		S denom = ab.Dot(ab); // Always nonnegative since denom = ||ab||^2
 		if (out_t > denom || math::Compare(out_t, denom)) {
 			// c projects outside the [a,b] interval, on the b side; clamp to b
-			out_t = static_cast<S>(1);
+			out_t = 1;
 			out_d = line_destination;
 		} else {
 			// c projects inside the [a,b] interval; must do deferred divide now
@@ -78,13 +78,14 @@ static bool CirclevsCapsule(const math::Vector2<T>& circle_position,
 							const math::Vector2<T>& capsule_origin,
 							const math::Vector2<T>& capsule_destination,
 							const T capsule_radius) {
+	static_assert(!tt::is_narrowing_v<T, S>);
 	// Compute (squared) distance between sphere center and capsule line segment.
 	const S distance_squared{ math::PointToLineSquareDistance<S>(circle_position,
 																 capsule_origin,
 																 capsule_destination) };
 	// If (squared) distance smaller than (squared) sum of radii, they collide.
-	const S combined_radius = circle_radius + capsule_radius;
-	const S combined_radius_squared{ combined_radius * combined_radius };
+	const T combined_radius{ circle_radius + capsule_radius };
+	const S combined_radius_squared{ static_cast<S>(combined_radius) * static_cast<S>(combined_radius) };
 	return distance_squared < combined_radius_squared ||
 		   math::Compare(distance_squared, combined_radius_squared);
 }

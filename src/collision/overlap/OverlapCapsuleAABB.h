@@ -30,6 +30,7 @@ static bool CapsulevsAABB(const math::Vector2<T>& capsule_origin,
 							  const T capsule_radius,
 							  const math::Vector2<T>& aabb_position,
 							  const math::Vector2<T>& aabb_size) {
+	static_assert(!tt::is_narrowing_v<T, S>);
 	using Edge = std::pair<math::Vector2<T>, math::Vector2<T>>;
 	math::Vector2<T> top_right{ aabb_position.x + aabb_size.x, aabb_position.y };
 	math::Vector2<T> bottom_right{ aabb_position + aabb_size };
@@ -44,8 +45,8 @@ static bool CapsulevsAABB(const math::Vector2<T>& capsule_origin,
 	//math::Vector2<T> minimum_edge_point;
 	// Find shortest distance between capsule line and AABB by iterating over each edge of the AABB.
 	for (auto& [origin, destination] : edges) {
-		S s;
-		S t;
+		S s{};
+		S t{};
 		math::Vector2<S> c1;
 		math::Vector2<S> c2;
 		const S distance_squared{ math::ClosestPointLineLine<S>(capsule_origin,

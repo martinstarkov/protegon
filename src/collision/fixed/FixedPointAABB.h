@@ -16,7 +16,7 @@ template <typename T, typename S = double,
 inline Collision<S> PointvsAABB(const math::Vector2<T>& point,
 						        const math::Vector2<T>& aabb_position,
 								const math::Vector2<T>& aabb_size) {
-	return AABBvsAABB(point, math::Vector2<T>{ static_cast<T>(0), static_cast<T>(0) }, aabb_position, aabb_size);
+	return AABBvsAABB(point, math::Vector2<T>{ 0, 0 }, aabb_position, aabb_size);
 }
 
 } // namespace fixed

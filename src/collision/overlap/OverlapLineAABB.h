@@ -123,20 +123,20 @@ static bool LinevsAABB(const math::Vector2<T>& line_origin,
                        const math::Vector2<T>& line_destination,
                        const math::Vector2<T>& aabb_position,
                        const math::Vector2<T>& aabb_size) {
-	const math::Vector2<S> e{ aabb_position + aabb_size - aabb_position };
+	const math::Vector2<S> e{ aabb_size };
 	const math::Vector2<S> d{ line_destination - line_origin };
 	const math::Vector2<S> m{ line_origin + line_destination - 2 * aabb_position - aabb_size };
 	// Try world coordinate axes as separating axes
-	S adx{ math::Abs(d.x) };
-	if (math::Abs(m.x) > e.x + adx) return false;
-	S ady{ math::Abs(d.y) };
-	if (math::Abs(m.y) > e.y + ady) return false;
+	S adx{ math::FastAbs(d.x) };
+	if (math::FastAbs(m.x) > e.x + adx) return false;
+	S ady{ math::FastAbs(d.y) };
+	if (math::FastAbs(m.y) > e.y + ady) return false;
 	// Add in an epsilon term to counteract arithmetic errors when segment is
 	// (near) parallel to a coordinate axis (see text for detail)
-	adx += math::EPSILON<S>;
-	ady += math::EPSILON<S>;
+	adx += math::epsilon<S>;
+	ady += math::epsilon<S>;
 	// Try cross products of segment direction vector with coordinate axes
-	if (math::Abs(m.x * d.y - m.y * d.x) > e.x * ady + e.y * adx) return false;
+	if (math::FastAbs(m.x * d.y - m.y * d.x) > e.x * ady + e.y * adx) return false;
 	// No separating axis found; segment must be overlapping AABB
 	return true;
 

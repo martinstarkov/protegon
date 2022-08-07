@@ -104,7 +104,7 @@ private:
 
 	// Returns the smooth noise value at a given point.
 	T Noise(const Vector2<T>& point) const {
-		V2_int integer{ Floor(point) };
+		V2_int integer{ FastFloor(point) };
 
 		auto rx0{ integer.x & length_mask_ };
 		auto rx1{ (rx0 + 1) & length_mask_ };

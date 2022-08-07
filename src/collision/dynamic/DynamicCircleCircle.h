@@ -62,7 +62,7 @@ inline std::pair<double, Manifold> ResolveDynamicAABBvsAABB(const AABB& dynamic_
 											  static_position);
 	// Repeat check is needed due to the fact that if multiple collisions are found, resolving the velocityforthe nearest one may invalidate the previously thought collisions.
 	if (manifold.CollisionOccured()) {
-		dynamic_velocity += manifold.normal * math::Abs(dynamic_velocity) * (1.0 - nearest_time);
+		dynamic_velocity += manifold.normal * math::FastAbs(dynamic_velocity) * (1.0 - nearest_time);
 		return { nearest_time, manifold };
 	}
 	return { 1.0, manifold };

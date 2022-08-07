@@ -41,12 +41,12 @@ static bool LinevsLine(const math::Vector2<T>& line_origin,
 	bool collinear{ false };
 	if constexpr (std::is_signed_v<T> && std::is_integral_v<T>) {
 		// First part checks for collinearity, second part for difference in polarity.
-		collinear = !((a1 | a2) != static_cast<T>(0));
-		different_sides = !collinear && (a1 ^ a2) < static_cast<T>(0);
+		collinear = !((a1 | a2) != 0);
+		different_sides = !collinear && (a1 ^ a2) < 0;
 	} else {
 		// Same as above but for floating points.
-		collinear = math::Compare(a1, static_cast<T>(0)) || math::Compare(a2, static_cast<T>(0));
-		different_sides = !collinear && a1 * a2 < static_cast<T>(0);
+		collinear = math::Compare(a1, 0) || math::Compare(a2, 0);
+		different_sides = !collinear && a1 * a2 < 0;
 	}
 	if (different_sides) {
 		// Compute signs for a and b with respect to segment cd
@@ -61,19 +61,19 @@ static bool LinevsLine(const math::Vector2<T>& line_origin,
 		if constexpr (std::is_signed_v<T> && std::is_integral_v<T>) {
 			// If either is 0, the line is intersecting with the straight edge of the other line.
 			// (i.e. corners with angles).
-			intersect = a3 == static_cast<T>(0) || a4 == static_cast<T>(0) || (a3 ^ a4) < static_cast<T>(0);
+			intersect = a3 == 0 || a4 == 0 || (a3 ^ a4) < 0;
 		} else {
 			// Same as above, hence the floating point comparison to 0.
 			const T result{ a3 * a4 };
-			intersect = result < static_cast<T>(0) || math::Compare(result, static_cast<T>(0));
+			intersect = result < 0 || math::Compare(result, 0);
 		}
 		return intersect;
 	}
 	if (collinear) {
-		return PointvsLine(line_origin, other_line_origin, other_line_destination) || 
-			   PointvsLine(line_destination, other_line_origin, other_line_destination) ||
-			   PointvsLine(other_line_origin, line_origin, line_destination) ||
-			   PointvsLine(other_line_destination, line_origin, line_destination);
+		return PointLine(line_origin, other_line_origin, other_line_destination) || 
+			   PointLine(line_destination, other_line_origin, other_line_destination) ||
+			   PointLine(other_line_origin, line_origin, line_destination) ||
+			   PointLine(other_line_destination, line_origin, line_destination);
 	}
 	// Segments not intersecting.
 	return false;

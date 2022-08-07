@@ -75,7 +75,7 @@ void Circle(const V2_int& center,
 
 	SetColor(color);
 
-	int r{ math::Floor(radius) };
+	int r{ static_cast<int>(math::FastFloor(radius)) };
 	V2_int position{ r, 0 };
 	auto renderer = Renderer::Get().renderer_;
 	    SDL_RenderDrawPoint(renderer,  position.x + center.x,  position.y + center.y);
@@ -122,7 +122,7 @@ void SolidCircle(const V2_int& center,
 				 const Color& color) {
 	assert(Exists() && "Cannot draw solid circle with nonexistent renderer");
 	SetColor(color);
-	int r{ math::Floor(radius) };
+	int r{ static_cast<int>(math::FastFloor(radius)) };
 	int r_squared{ r * r };
 	auto renderer = Renderer::Get().renderer_;
 	for (auto y{ -r }; y <= r; ++y) {
@@ -146,7 +146,7 @@ void Arc(const V2_int& center,
 	assert(Exists() && "Cannot draw line with nonexistent renderer");
 	using S = double;
 	auto renderer{ Renderer::Get().renderer_ };
-	int r{ math::Floor(radius) };
+	int r{ static_cast<int>(math::FastFloor(radius)) };
 	int cx = 0;
 	int cy = r;
 	int df = 1 - r;
@@ -197,8 +197,8 @@ void Arc(const V2_int& center,
 	/*
 	* Fixup angles
 	*/
-	start_angle = math::ConstrainAngleFrom0To360(start_angle);
-	end_angle = math::ConstrainAngleFrom0To360(end_angle);
+	start_angle = math::ClampAngle360(start_angle);
+	end_angle = math::ClampAngle360(end_angle);
 
 	/* now, we find which octants we're drawing in. */
 	startoct = start_angle / 45;
@@ -215,19 +215,19 @@ void Arc(const V2_int& center,
 			switch (oct) {
 				case 0:
 				case 3:
-					temp = sin(dstart * math::PI<double> / 180.);
+					temp = sin(dstart * math::pi<double> / 180.);
 					break;
 				case 1:
 				case 6:
-					temp = cos(dstart * math::PI<double> / 180.);
+					temp = cos(dstart * math::pi<double> / 180.);
 					break;
 				case 2:
 				case 5:
-					temp = -cos(dstart * math::PI<double> / 180.);
+					temp = -cos(dstart * math::pi<double> / 180.);
 					break;
 				case 4:
 				case 7:
-					temp = -sin(dstart * math::PI<double> / 180.);
+					temp = -sin(dstart * math::pi<double> / 180.);
 					break;
 			}
 			temp *= r;
@@ -248,19 +248,19 @@ void Arc(const V2_int& center,
 			switch (oct) {
 				case 0:
 				case 3:
-					temp = sin(dend * math::PI<double> / 180);
+					temp = sin(dend * math::pi<double> / 180);
 					break;
 				case 1:
 				case 6:
-					temp = cos(dend * math::PI<double> / 180);
+					temp = cos(dend * math::pi<double> / 180);
 					break;
 				case 2:
 				case 5:
-					temp = -cos(dend * math::PI<double> / 180);
+					temp = -cos(dend * math::pi<double> / 180);
 					break;
 				case 4:
 				case 7:
-					temp = -sin(dend * math::PI<double> / 180);
+					temp = -sin(dend * math::pi<double> / 180);
 					break;
 			}
 			temp *= r;
@@ -360,9 +360,16 @@ void Capsule(const V2_int& origin,
 	SetColor(color);
 	auto renderer = Renderer::Get().renderer_;
 	V2_int direction{ destination - origin };
-	const double angle{ math::RadiansToDegrees(math::ConstrainAngleFrom0To2PI(direction.Angle() + math::HALF_PI<double>)) };
-	int r{ math::Floor(radius) };
-	V2_int tangent_r{ Floor(direction.Tangent().Unit() * r) };
+	const double angle{ math::ToDeg(math::ClampAngle2Pi(direction.Angle() + math::half_pi<double>)) };
+	int r{ static_cast<int>(math::FastFloor(radius)) };
+	const int dir2{ direction.MagnitudeSquared() };
+	V2_int tangent_r;
+	if (dir2 == 0) {
+		Circle(origin, radius, color);
+		return;
+	} else {
+		tangent_r = static_cast<V2_int>(FastFloor(direction.Tangent() / std::sqrt(dir2) * r));
+	}
 	// Draw centerline.
 	if (draw_centerline)
 		SDL_RenderDrawLine(renderer, origin.x, origin.y, destination.x, destination.y);

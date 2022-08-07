@@ -24,7 +24,7 @@ inline S TriangleArea(const math::Vector2<T>& A,
 					  const math::Vector2<T>& C) {
 	const math::Vector2<S> AB{ B - A };
 	const math::Vector2<S> AC{ C - A };
-	return math::Abs(AB.CrossProduct(AC)) / static_cast<S>(2);
+	return math::FastAbs(AB.Cross(AC)) / 2;
 }
 
 } // namespace math
@@ -41,6 +41,7 @@ static bool LinevsCircle(const math::Vector2<T>& line_origin,
 					     const math::Vector2<T>& line_destination,
 					     const math::Vector2<T>& circle_position,
 					     const T circle_radius) {
+	static_assert(!tt::is_narrowing_v<T, S>);
 	// If the line is inside the circle entirely, exit early.
 	if (PointvsCircle(line_origin, circle_position, circle_radius) && PointvsCircle(line_destination, circle_position, circle_radius)) return true;
 	S minimum_distance_squared{ std::numeric_limits<S>::infinity() };
@@ -52,9 +53,9 @@ static bool LinevsCircle(const math::Vector2<T>& line_origin,
 	const S OP_distance_squared{ OP.MagnitudeSquared() };
 	const S OQ_distance_squared{ OQ.MagnitudeSquared() };
 	const S maximum_distance_squared{ std::max(OP_distance_squared, OQ_distance_squared) };
-	if (OP.DotProduct(-PQ) > static_cast<S>(0) && OQ.DotProduct(PQ) > static_cast<S>(0)) {
+	if (OP.Dot(-PQ) > 0 && OQ.Dot(PQ) > 0) {
 		const S triangle_area{ math::TriangleArea<S>(circle_position, line_origin, line_destination) };
-		minimum_distance_squared = static_cast<S>(4) * triangle_area * triangle_area / PQ.MagnitudeSquared();
+		minimum_distance_squared = 4 * triangle_area * triangle_area / PQ.MagnitudeSquared();
 	} else {
 		minimum_distance_squared = std::min(OP_distance_squared, OQ_distance_squared);
 	}

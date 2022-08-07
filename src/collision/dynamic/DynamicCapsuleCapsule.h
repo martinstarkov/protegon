@@ -19,7 +19,7 @@ template <typename T>
 inline bool PointvsCircle(const math::Vector2<T>& point,
 						  const math::Vector2<T>& circle_position,
 						  const T circle_radius) {
-	return CirclevsCircle(point, static_cast<T>(0), circle_position, circle_radius);
+	return CirclevsCircle(point, 0, circle_position, circle_radius);
 }
 
 } // namespace overlap
