@@ -1,14 +1,12 @@
 #pragma once
 
-#include <type_traits>
+#include <type_traits> // std::enable_if_t
 
 namespace ptgn {
 
-namespace type_traits {
+namespace tt {
 
 namespace impl {
-
-// Comparison operator template helpers.
 
 // Source: https://stackoverflow.com/a/44536046
 template <typename T, typename U>
@@ -71,58 +69,91 @@ template <typename T, typename U>
 struct is_greater_than_or_equal_comparable<T, U, std::void_t<greater_than_or_equal_comparison_t<T, U>>>
     : std::is_same<greater_than_or_equal_comparison_t<T, U>, bool> {};
 
+
+// pred_base selects the appropriate base type (true_type or false_type) to
+// make defining our own predicates easier.
+template<bool> struct pred_base : std::false_type {};
+template<>     struct pred_base<true> : std::true_type {};
+
+// same_decayed
+// -------------
+// Are the decayed versions of "T" and "O" the same basic type?
+// Gets around the fact that std::is_same will treat, say "bool" and "bool&" as
+// different types and using std::decay all over the place gets really verbose
+template <class T, class O>
+struct same_decayed
+    : pred_base <std::is_same<typename std::decay<T>::type, typename std::decay<O>::type>::value> {};
+
+// is_numeric, i.e. true for floats and integrals but not bool
+template<class T>
+struct is_numeric
+    : pred_base<std::is_arithmetic<T>::value && !same_decayed<bool, T>::value> {};
+
+// both - less verbose way to determine if two types both meet a single predicate
+template<class A, class B, template<typename> class PRED>
+struct both
+    : pred_base<PRED<A>::value&& PRED<B>::value> {};
+
+template<class A, class B> struct both_numeric : both<A, B, is_numeric> {}; // Are both A and B numeric types
+template<class A, class B> struct both_floating : both<A, B, std::is_floating_point> {}; // Are both A and B floating point types
+template<class A, class B> struct both_integral : both<A, B, std::is_integral> {}; // Are both A and B integral types
+template<class A, class B> struct both_signed : both<A, B, std::is_signed> {}; // Are both A and B signed types
+template<class A, class B> struct both_unsigned : both<A, B, std::is_unsigned> {}; // Are both A and B unsigned types
+
+// Returns true if both number types are signed or both are unsigned.
+template<class T, class F>
+struct same_signage : pred_base<(both_signed<T, F>::value) || (both_unsigned<T, F>::value)> {};
+
+// Source: https://stackoverflow.com/a/36272533
+template <class T, class F>
+struct is_safe_numeric_cast : pred_base <
+    both_numeric<T, F>::value && // Obviously both src and dest must be numbers
+    (std::is_floating_point<T>::value && (std::is_integral<F>::value || sizeof(T) >= sizeof(F))) || // Floating dest: src must be integral or smaller/equal float-type
+    ((both_integral<T, F>::value) && // Integral dest: src must be integral and (smaller/equal+same signage) or (smaller+different signage)
+     (sizeof(T) > sizeof(F) || (sizeof(T) == sizeof(F) && same_signage<T, F>::value)))>{};
+
 } // namespace impl
 
-// Comparison operator template helpers
-
-// True if T and U are comparable using == operator, false otherwise.
 template <typename T, typename U>
-bool constexpr is_equals_comparable_v{ impl::is_equals_comparable<T, U>::value };
-
-// Template qualifier of whether or not Type is comparable using == operator.
+inline constexpr bool is_equals_comparable_v{ impl::is_equals_comparable<T, U>::value };
 template <typename T, typename U>
-using is_equals_comparable_e = std::enable_if_t<is_equals_comparable_v<T, U>, bool>;
-
-// True if T and U are comparable using != operator, false otherwise.
+inline constexpr bool is_not_equals_comparable_v{ impl::is_not_equals_comparable<T, U>::value };
 template <typename T, typename U>
-bool constexpr is_not_equals_comparable_v{ impl::is_not_equals_comparable<T, U>::value };
-
-// Template qualifier of whether or not Type is comparable using != operator.
+inline constexpr bool is_less_than_comparable_v{ impl::is_less_than_comparable<T, U>::value };
 template <typename T, typename U>
-using is_not_equals_comparable_e = std::enable_if_t<is_not_equals_comparable_v<T, U>, bool>;
-
-// True if T and U are comparable using < operator, false otherwise.
+inline constexpr bool is_less_than_or_equal_comparable_v{ impl::is_less_than_or_equal_comparable<T, U>::value };
 template <typename T, typename U>
-bool constexpr is_less_than_comparable_v{ impl::is_less_than_comparable<T, U>::value };
-
-// Template qualifier of whether or not Type is comparable using < operator.
+inline constexpr bool is_greater_than_comparable_v{ impl::is_greater_than_comparable<T, U>::value };
 template <typename T, typename U>
-using is_less_than_comparable_e = std::enable_if_t<is_less_than_comparable_v<T, U>, bool>;
+inline constexpr bool is_greater_than_or_equal_comparable_v{ impl::is_greater_than_or_equal_comparable<T, U>::value };
+template <typename From, typename To>
+inline constexpr bool is_narrowing_v{ !impl::is_safe_numeric_cast<To, From>::value };
 
-// True if T and U are comparable using <= operator, false otherwise.
 template <typename T, typename U>
-bool constexpr is_less_than_or_equal_comparable_v{ impl::is_less_than_or_equal_comparable<T, U>::value };
-
-// Template qualifier of whether or not Type is comparable using <= operator.
+using equals_comparable = std::enable_if_t<is_equals_comparable_v<T, U>, bool>;
 template <typename T, typename U>
-using is_less_than_or_equal_comparable_e = std::enable_if_t<is_less_than_or_equal_comparable_v<T, U>, bool>;
-
-// True if T and U are comparable using > operator, false otherwise.
+using not_equals_comparable = std::enable_if_t<is_not_equals_comparable_v<T, U>, bool>;
 template <typename T, typename U>
-bool constexpr is_greater_than_comparable_v{ impl::is_greater_than_comparable<T, U>::value };
-
-// Template qualifier of whether or not Type is comparable using > operator.
+using less_than_comparable = std::enable_if_t<is_less_than_comparable_v<T, U>, bool>;
 template <typename T, typename U>
-using is_greater_than_comparable_e = std::enable_if_t<is_greater_than_comparable_v<T, U>, bool>;
-
-// True if T and U are comparable using >= operator, false otherwise.
+using less_than_or_equal_comparable = std::enable_if_t<is_less_than_or_equal_comparable_v<T, U>, bool>;
 template <typename T, typename U>
-bool constexpr is_greater_than_or_equal_comparable_v{ impl::is_greater_than_or_equal_comparable<T, U>::value };
-
-// Template qualifier of whether or not Type is comparable using >= operator.
+using greater_than_comparable = std::enable_if_t<is_greater_than_comparable_v<T, U>, bool>;
 template <typename T, typename U>
-using is_greater_than_or_equal_comparable_e = std::enable_if_t<is_greater_than_or_equal_comparable_v<T, U>, bool>;
+using greater_than_or_equal_comparable = std::enable_if_t<is_greater_than_or_equal_comparable_v<T, U>, bool>;
+template <typename From, typename To>
+using convertible = std::enable_if_t<std::is_convertible_v<From, To>, bool>;
+template <typename T>
+using arithmetic = std::enable_if_t<std::is_arithmetic_v<T>, bool>;
+template <typename T>
+using integral = std::enable_if_t<std::is_integral_v<T>, bool>;
+template <typename T>
+using floating_point = std::enable_if_t<std::is_floating_point_v<T>, bool>;
+template <typename From, typename To>
+using narrowing = std::enable_if_t<is_narrowing_v<From, To>, bool>;
+template <typename From, typename To>
+using not_narrowing = std::enable_if_t<!is_narrowing_v<From, To>, bool>;
 
-} // namespace type_traits
+} // namespace tt
 
 } // namespace ptgn
