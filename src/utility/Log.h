@@ -43,11 +43,11 @@ template <typename ...TArgs,
 	type_traits::are_stream_writable_e<std::ostream, TArgs...> = true>
 inline void PrintLine(TArgs&&... items) {
 	Print(std::forward<TArgs>(items)...);
-	std::cout << std::endl;
+	std::cout << '\n';
 }
 
 inline void PrintLine() {
-	std::cout << std::endl;
+	std::cout << '\n';
 }
 
 } // namespace ptgn
