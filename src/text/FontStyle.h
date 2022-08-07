@@ -10,4 +10,8 @@ enum class FontStyle : int {
 	STRIKETHROUGH = 8  // TTF_STYLE_STRIKETHROUGH = 8
 };
 
+inline FontStyle operator|(FontStyle a, FontStyle b) {
+	return static_cast<FontStyle>(static_cast<int>(a) | static_cast<int>(b));
+}
+
 } // namespace ptgn

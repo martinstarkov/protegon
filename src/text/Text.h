@@ -48,7 +48,7 @@ public:
 	template <typename ...Style,
 		type_traits::are_type_e<FontStyle, Style...> = true>
 	void SetStyles(Style... styles) {
-		style_ = (static_cast<int>(styles) | ...);
+		style_ = (styles | ...);
 		Refresh();
 	}
 	const std::size_t GetTextureKey() const {
@@ -59,11 +59,11 @@ public:
 	}
 private:
 	void Refresh();
-	std::size_t texture_key_{ 0 };
-	std::size_t font_key_{ 0 };
-	const char* content_{ "" };
-	Color color_{ color::BLACK };
-	int style_{ static_cast<int>(FontStyle::NORMAL) };
+	std::size_t texture_key_{};
+	std::size_t font_key_{};
+	const char* content_{};
+	Color color_{};
+	FontStyle style_{ FontStyle::NORMAL };
 	Color background_shading_{ color::WHITE };
 	FontRenderMode mode_{ FontRenderMode::SOLID };
 };

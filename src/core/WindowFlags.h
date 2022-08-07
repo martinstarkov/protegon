@@ -32,6 +32,10 @@ enum class Flags : std::uint32_t {
 	POPUP_MENU = 524288        // SDL_WINDOW_POPUP_MENU
 };
 
+inline Flags operator|(Flags a, Flags b) {
+	return static_cast<Flags>(static_cast<int>(a) | static_cast<int>(b));
+}
+
 // Definition for a screen position that is centered on the user's monitor.
 inline constexpr V2_int CENTERED{ 805240832, 805240832 };
 
