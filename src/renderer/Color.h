@@ -2,10 +2,10 @@
 
 #include <cstdint> // std::uint32_t, std::uint8_t, etc
 #include <ostream> // std::ostream
-#include <type_traits> // std::enable_if_t
 
 #include "math/Math.h"
 #include "renderer/PixelFormat.h"
+#include "utility/TypeTraits.h"
 
 struct SDL_Color;
 
@@ -96,13 +96,13 @@ private:
 namespace math {
 
 template <typename T,
-	std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+	tt::floating_point<T> = true>
 inline Color Lerp(const Color& a, const Color& b, T t) {
 	return {
-		Lerp<std::uint8_t>(a.r, b.r, t),
-		Lerp<std::uint8_t>(a.g, b.g, t),
-		Lerp<std::uint8_t>(a.b, b.b, t),
-		Lerp<std::uint8_t>(a.a, b.a, t)
+		static_cast<std::uint8_t>(std::lerp(a.r, b.r, t)),
+		static_cast<std::uint8_t>(std::lerp(a.g, b.g, t)),
+		static_cast<std::uint8_t>(std::lerp(a.b, b.b, t)),
+		static_cast<std::uint8_t>(std::lerp(a.a, b.a, t))
 	};
 }
 

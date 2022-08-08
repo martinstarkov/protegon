@@ -23,7 +23,7 @@ struct AnimationState {
 	}
 	const Animation& GetAnimation() const {
 		assert(sprite_map.Has(animation_key_) && "Animation not found in sprite map");
-		return sprite_map.GetReference(animation_key_);
+		return *sprite_map.Get(animation_key_);
 	}
 	void SetCurrentFrame(int new_frame = 0) {
 		assert(new_frame < GetAnimation().frame_count && "Cannot set animation which is not found in the parent sprite map");

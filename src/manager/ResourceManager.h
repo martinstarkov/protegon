@@ -1,10 +1,10 @@
 #pragma once
 
-#include <cstdlib> // std::size_t
-#include <memory> // std::shared_ptr
+#include <cstdlib>       // std::size_t
+#include <memory>        // std::shared_ptr
 #include <unordered_map> // std::unordered_map
-#include <type_traits> // std::enable_if_t
-#include <utility> // std::forward
+#include <type_traits>   // std::is_constructible_v
+#include <utility>       // std::forward
 
 namespace ptgn {
 
@@ -64,12 +64,6 @@ public:
         if (it == std::end(map_))
             return nullptr;
         return it->second;
-    }
-
-    const T& GetReference(const I key) const {
-        auto it{ map_.find(key) };
-        assert(it != std::end(map_) && "Cannot get reference to non-existent manager item");
-        return *it->second;
     }
     
     /*
