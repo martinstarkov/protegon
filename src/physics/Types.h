@@ -5,21 +5,11 @@
 namespace ptgn {
 
 template <typename T>
-struct Point {
-	Point(const math::Vector2<T>& p) : p{ p } {}
-	math::Vector2<T> p;
-	template <typename T>
-	operator math::Vector2<T>() const {
-		return p;
-	}
-	template <typename U>
-	operator Point<U>() const {
-		return { static_cast<math::Vector2<U>>(p) };
-	}
-};
+using Point = math::Vector2<T>;
 
 template <typename T>
 struct Line {
+	Line() = default;
 	Line(const math::Vector2<T>& o, const math::Vector2<T>& d) : origin{ o }, destination{ d } {}
 	math::Vector2<T> origin;
 	math::Vector2<T> destination;
@@ -35,11 +25,13 @@ struct Line {
 
 template <typename T>
 struct Ray : public Line<T> {
+	Ray() = default;
 	using Line::Line;
 };
 
 template <typename T>
 struct Segment : public Line<T> {
+	Segment() = default;
 	using Line::Line;
 };
 
@@ -47,12 +39,14 @@ template <typename T>
 struct Capsule : public Segment<T> {
 	using Segment::Segment;
 	// TODO: Add explicit conversions to Line or Circle.
+	Capsule() = default;
 	Capsule(const math::Vector2<T>& o, const math::Vector2<T>& d, T r) : Segment{ o, d }, radius{ r } {}
 	T radius{ 0 };
 };
 
 template <typename T>
 struct Circle {
+	Circle() = default;
 	Circle(const math::Vector2<T>& c, T r) : center{ c }, radius{ r } {}
 	math::Vector2<T> center;
 	T radius{ 0 };
@@ -63,6 +57,7 @@ struct Circle {
 
 template <typename T>
 struct AABB {
+	AABB() = default;
 	AABB(const math::Vector2<T>& p, const math::Vector2<T>& s) : position{ p }, size{ s } {}
 	math::Vector2<T> position; // taken from top left
 	math::Vector2<T> size;
