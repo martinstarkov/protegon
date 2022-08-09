@@ -30,7 +30,7 @@ public:
 	virtual void Update(double dt) {
 		for (auto i = 0; i < animation_map.Size(); ++i) {
 			auto state = animation_map.Get(i);
-			draw::Texture(state->sprite_map.GetTextureKey(), positions[i], size, state->GetCurrentPosition(), state->GetAnimation().frame_size);
+			draw::Texture(state->sprite_map.GetTextureKey(), { positions[i], size }, { state->GetCurrentPosition(), state->GetAnimation().frame_size });
 		}
 		animation_map.Update();
 	}

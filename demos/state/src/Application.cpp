@@ -48,7 +48,7 @@ public:
 	}
 	virtual void Update(double dt) {
 		auto state = animation_map.Get(0);
-		draw::Texture(state->sprite_map.GetTextureKey(), positions[0], size, state->GetCurrentPosition(), state->GetAnimation().frame_size);
+		draw::Texture(state->sprite_map.GetTextureKey(), { positions[0], size }, { state->GetCurrentPosition(), state->GetAnimation().frame_size });
 		state_machine.Update([&]() {
 			if (input::KeyPressed(Key::W)) {
 				state_machine.PushState<JumpState>(*state, 4);

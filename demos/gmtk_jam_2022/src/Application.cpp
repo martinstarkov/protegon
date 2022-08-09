@@ -393,14 +393,14 @@ public:
 				for (auto j = 0; j < grid.GetSize().x; j++) {
 					V2_int tile_position{ i, j };
 
-					draw::Texture("grid", grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
+					draw::Texture("grid", { grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize() });
 
 					if (grid.HasTile(tile_position)) {
 						auto& tile = grid.GetTile(tile_position);
 						if (tile.type == TileType::USED) {
-							draw::Texture("used", grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
+							draw::Texture("used", { grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize() });
 						} else if (tile.type == TileType::WIN) {
-							draw::Texture("win", grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize());
+							draw::Texture("win", { grid_top_left_offset + tile_position * grid.GetTileSize(), grid.GetTileSize() });
 						}
 					}
 				}
@@ -408,23 +408,23 @@ public:
 			for (auto i = 0; i < absolute_sequence.size(); ++i) {
 				auto pos = grid_top_left_offset + absolute_sequence[i] * grid.GetTileSize(); // + (grid.GetTileSize() - dice_size) / 2
 				if (turn_allowed) {
-					draw::Texture("choice", pos, grid.GetTileSize());
-					draw::TemporaryText("temp_text", "0", std::to_string(i + 1).c_str(), color::YELLOW, pos + (grid.GetTileSize() - dice_size) / 2, dice_size);
+					draw::Texture("choice", { pos, grid.GetTileSize() });
+					draw::TemporaryText("temp_text", "0", std::to_string(i + 1).c_str(), color::YELLOW, { pos + (grid.GetTileSize() - dice_size) / 2, dice_size });
 				} else {
 					auto rotated = GetRotatedSequence(sequence, axis_direction.Angle());
 					absolute_sequence = GetAbsoluteSequence(rotated, player_tile);
 					if (grid.InBound(absolute_sequence[i])) {
 						auto pos = grid_top_left_offset + absolute_sequence[i] * grid.GetTileSize(); // + (grid.GetTileSize() - dice_size) / 2
-						draw::Texture("nochoice", pos, grid.GetTileSize());
+						draw::Texture("nochoice", { pos, grid.GetTileSize() });
 					}
 				}
 			}
 
 			//auto player_dice = 1;
-			draw::Texture("dice", grid_top_left_offset + player_tile * grid.GetTileSize(), grid.GetTileSize(), { 64 * (dice - 1), 0 }, { 64, 64 });
-			//draw::SolidRectangle(grid_top_left_offset + player_tile * grid.GetTileSize() + (grid.GetTileSize() - dice_size) / 2, dice_size, color::GREY);
+			draw::Texture("dice", { grid_top_left_offset + player_tile * grid.GetTileSize(), grid.GetTileSize() }, { { 64 * (dice - 1), 0 }, { 64, 64 } });
+			//draw::SolidRectangle({ grid_top_left_offset + player_tile * grid.GetTileSize() + (grid.GetTileSize() - dice_size) / 2, dice_size }, color::GREY);
 			auto s = grid.GetSize() * grid.GetTileSize();
-			draw::Text("text7", { 32, 32 }, { s.x, 64 });
+			draw::Text("text7", { { 32, 32 }, { s.x, 64 } });
 		}
 	}
 };
@@ -447,13 +447,13 @@ public:
 	virtual void Update(double dt) override final {
 		auto mouse = input::GetMouseScreenPosition();
 		auto s = grid.GetSize() * grid.GetTileSize();
-		draw::Text("text0", { 32, 32 }, { s.x, 64 });
-		draw::Text("text1", { 32, s.y }, { s.x, 64 });
-		draw::Text("text2", { 32, s.y + 64 }, { s.x, 64 });
-		draw::Text("text3", { 32, s.y + 128 }, { s.x, 64 });
-		draw::Text("text4", { 32, 32 + 128 + 128 }, { s.x, 64 });
-		draw::Text("text5", { 32, 32 + 128 }, { s.x, 64 });
-		draw::Text("text6", { 32, 32 + 64 + 128 }, { s.x, 64 });
+		draw::Text("text0", { { 32, 32 }, { s.x, 64 } });
+		draw::Text("text1", { { 32, s.y }, { s.x, 64 } });
+		draw::Text("text2", { { 32, s.y + 64 }, { s.x, 64 } });
+		draw::Text("text3", { { 32, s.y + 128 }, { s.x, 64 } });
+		draw::Text("text4", { { 32, 32 + 128 + 128 }, { s.x, 64 } });
+		draw::Text("text5", { { 32, 32 + 128 }, { s.x, 64 } });
+		draw::Text("text6", { { 32, 32 + 64 + 128 }, { s.x, 64 } });
 
 		V2_int play_size{ s.x, 128 + 64 };
 		V2_int play_pos{ 32, 32 + 128 + 128 + 32 + 64 };
@@ -471,8 +471,8 @@ public:
 			scene::Load<DiceScene>("game", grid);
 			scene::SetActive("game");
 		}
-		draw::Texture("button", play_pos, play_size);
-		draw::TemporaryText("text_play", "0", "Play", text_color, play_text_pos, play_text_size);
+		draw::Texture("button", { play_pos, play_size });
+		draw::TemporaryText("text_play", "0", "Play", text_color, { play_text_pos, play_text_size });
 
 	}
 };

@@ -54,11 +54,11 @@ public:
 		for (auto i = 0; i < animation_map.Size(); ++i) {
 			auto state = animation_map.Get(i);
 			draw::Texture(state->sprite_map.GetTextureKey(), 
-						  camera.RelativePosition(positions[i] - offset.value), 
-						  camera.RelativeSize(state->GetAnimation().frame_size),
-						  state->GetCurrentPosition(), 
-						  state->GetAnimation().frame_size);
-			draw::Rectangle(camera.RelativePosition(positions[i]), camera.RelativeSize(size), color::RED);
+						  { camera.RelativePosition(positions[i] - offset.value),
+						  camera.RelativeSize(state->GetAnimation().frame_size) },
+						  { state->GetCurrentPosition(),
+						  state->GetAnimation().frame_size });
+			draw::AABB({ camera.RelativePosition(positions[i]), camera.RelativeSize(size) }, color::RED);
 		}
 	}
 };
