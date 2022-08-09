@@ -4,7 +4,7 @@
 // In some cases with improved performance over standard library alternatives, e.g. ceil and floor.
 
 #include <cstdlib>   // std::size_t
-#include <cmath>     // std::sqrt
+#include <cmath>     // std::sqrtf
 #include <algorithm> // std::max
 #include <tuple>     // std::tuple
 
@@ -213,19 +213,19 @@ inline constexpr bool Compare(T a, U b, S epsilon = math::epsilon<S>) noexcept {
 template <typename T,
     tt::floating_point<T> = true>
 static std::tuple<bool, T, T> QuadraticFormula(T a, T b, T c) {
-    const T discr{ b * b - 4 * a * c };
+    const T discr{ b * b - 4.0f * a * c };
     if (discr < 0) {
         // Imaginary roots.
         return { false, 0, 0 };
     } else if (math::Compare(discr, 0)) {
         // Repeated roots.
-        T root{ -0.5 * b / a };
+        T root{ -0.5f * b / a };
         return { true, root, root };
     }
     // Real roots.
     const T q = (b > 0) ?
-        -0.5 * (b + std::sqrt(discr)) :
-        -0.5 * (b - std::sqrt(discr));
+        -0.5f * (b + std::sqrtf(discr)) :
+        -0.5f * (b - std::sqrtf(discr));
     return { true, q / a, c / q };
 }
 

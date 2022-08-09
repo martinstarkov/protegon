@@ -198,7 +198,7 @@ struct Vector2 {
         tt::convertible<T, U> = true,
         typename S = typename std::common_type_t<T, U, float>>
     S Magnitude() const {
-        return std::sqrt(MagnitudeSquared());
+        return std::sqrtf(MagnitudeSquared());
     }
 
     template <typename U,
@@ -215,7 +215,7 @@ struct Vector2 {
         tt::convertible<U, T> = true,
         typename S = typename std::common_type_t<T, U, float>>
     S Distance(const Vector2<U>& rhs) const {
-        return std::sqrt(DistanceSquared(rhs));
+        return std::sqrtf(DistanceSquared(rhs));
     }
 
     // Returns a unit vector (magnitude = 1) except for zero vectors (magnitude = 0).
@@ -227,7 +227,7 @@ struct Vector2 {
         T m{ MagnitudeSquared() };
         if (Compare(m, T{ 0 }) || Compare(m, T{ 1 }))
             return *this;
-        return *this / std::sqrt(m);
+        return *this / std::sqrtf(m);
     }
 
     // Returns a new vector rotated by the radian angle in the clockwise direction.

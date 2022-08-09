@@ -358,7 +358,7 @@ void Capsule(const ptgn::Capsule<int>& c,
 		Circle({ c.origin, c.radius }, color);
 		return;
 	} else {
-		tangent_r = static_cast<V2_int>(FastFloor(direction.Tangent() / std::sqrt(dir2) * c.radius));
+		tangent_r = static_cast<V2_int>(FastFloor(direction.Tangent() / std::sqrtf(dir2) * c.radius));
 	}
 	// Draw centerline.
 	if (draw_centerline)
