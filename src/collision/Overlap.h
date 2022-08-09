@@ -79,7 +79,7 @@ inline bool CircleCircle(const Circle<T>& a,
 // Capsule origins and destinations are taken from the edge circle centers.
 template <typename S = double, typename T,
 	tt::floating_point<S> = true>
-	static bool CapsuleCapsule(const Capsule<T>& a,
+static bool CapsuleCapsule(const Capsule<T>& a,
 							   const Capsule<T>& b) {
 	// Compute (squared) distance between the inner structures of the capsules.
 	S s{};
@@ -110,7 +110,7 @@ static bool CapsuleAABB(const Capsule<T>& a,
 	edges.at(1) = { top_right, bottom_right };
 	edges.at(2) = { bottom_right, bottom_left };
 	edges.at(3) = { bottom_left, b.position };
-	S minimum_distance{ std::numeric_limits<S>::infinity() };
+	S min_dist2{ std::numeric_limits<S>::infinity() };
 	math::Vector2<S> min_capsule;
 	//math::Vector2<T> minimum_edge_point;
 	// Find shortest distance between capsule line and AABB by iterating over each edge of the AABB.
@@ -119,10 +119,10 @@ static bool CapsuleAABB(const Capsule<T>& a,
 		S t{};
 		math::Vector2<S> c1;
 		math::Vector2<S> c2;
-		const S distance_squared{ math::ClosestPointLineLine<S>(a, { origin, destination },
+		const S dist2{ math::ClosestPointLineLine<S>(a, { origin, destination },
 																s, t, c1, c2) };
-		if (distance_squared < minimum_distance) {
-			minimum_distance = distance_squared;
+		if (dist2 < min_dist2) {
+			min_dist2 = dist2;
 			// Point on the capsule that was the closest.
 			min_capsule = c1;
 			//minimum_edge_point = c2;
