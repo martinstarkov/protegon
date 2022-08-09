@@ -183,8 +183,19 @@ static void ClosestPointLine(const Point<T>& a,
     }
 }
 
+// Given an infinite line line_origin->line_destination and point, computes closest point out_d on ab.
+// Also returns out_t for the parametric position of out_d, out_d(t)= a + out_t * (b - a)
+template <typename S = double, typename T,
+    std::enable_if_t<std::is_floating_point_v<S>, bool> = true>
+inline void ClosestPointInfiniteLine(const math::Vector2<T>& point, const math::Vector2<T>& line_origin, const math::Vector2<T>& line_destination, S& out_t, math::Vector2<S>& out_d) {
+    math::Vector2<S> ab{ line_destination - line_origin };
+    // Project c onto ab, but deferring divide by Dot(ab, ab)
+    out_t = (point - line_origin).Dot(ab) / ab.Dot(ab);
+    out_d = line_origin + out_t * ab;
+}
+
 template <typename T>
-T SquareDistancePointAABB(const Point<T>& a, const AABB<T>& b) {
+inline T SquareDistancePointAABB(const Point<T>& a, const AABB<T>& b) {
     T dist2{ 0 };
     const Vector2<T> max{ b.Max() };
     for (std::size_t i{ 0 }; i < 2; ++i) {
