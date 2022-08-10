@@ -29,10 +29,6 @@ inline bool AABBAABB(const AABB<T>& a,
 
 // Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 // Page 165-166.
-// Check if a circle and an AABB overlap.
-// AABB position is taken from top left.
-// AABB size is the full extent from top left to bottom right.
-// Circle position is taken from its center.
 template <typename T>
 inline bool CircleAABB(const Circle<T>& a,
 					   const AABB<T>& b) {
@@ -42,9 +38,7 @@ inline bool CircleAABB(const Circle<T>& a,
 }
 
 // Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
-// Page 114; page 130 for PointToLineSquareDistance function.
-// Check if a circle and a capsule overlap.
-// Capsule origin and destination are taken from the edge circle centers.
+// Page 114.
 template <typename T, typename S = double,
 	tt::floating_point<S> = true>
 static bool CircleCapsule(const Circle<T>& a,
@@ -61,8 +55,6 @@ static bool CircleCapsule(const Circle<T>& a,
 
 // Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 // Page 88.
-// Check if two circles overlap.
-// Circle positions are taken from their centers.
 template <typename T>
 inline bool CircleCircle(const Circle<T>& a,
 						 const Circle<T>& b) {
@@ -74,9 +66,7 @@ inline bool CircleCircle(const Circle<T>& a,
 }
 
 // Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
-// Pages 114-115; pages 149-150 for ClosestPointLineLine function.
-// Check if two capsules overlap.
-// Capsule origins and destinations are taken from the edge circle centers.
+// Pages 114-115.
 template <typename S = double, typename T,
 	tt::floating_point<S> = true>
 static bool CapsuleCapsule(const Capsule<T>& a,
@@ -94,8 +84,6 @@ static bool CapsuleCapsule(const Capsule<T>& a,
 	return dist2 < rad_sum2 || math::Compare(dist2, rad_sum2);
 }
 
-// Check if a capsule and an AABB overlap.
-// Capsule origin and destination are taken from the edge circle centers.
 template <typename T, typename S = double,
 	tt::floating_point<S> = true>
 static bool CapsuleAABB(const Capsule<T>& a,
@@ -132,9 +120,6 @@ static bool CapsuleAABB(const Capsule<T>& a,
 	return CircleAABB({ min_capsule, static_cast<S>(a.radius) }, static_cast<AABB<S>>(b));
 }
 
-// Check if a line and an AABB overlap.
-// AABB position is taken from top left.
-// AABB size is the full extent from top left to bottom right.
 template <typename T, typename S = double,
 	tt::floating_point<S> = true>
 static bool LineAABB(const Line<T>& a,
@@ -161,8 +146,6 @@ static bool LineAABB(const Line<T>& a,
 	//return math::CohenSutherlandLineClip(a.origin, a.destination, b.Min(), b.Max());
 }
 
-// Check if a line and a capsule overlap.
-// Capsule origin and destination are taken from the edge circle centers.
 template <typename T, typename S = double,
 	tt::floating_point<S> = true>
 inline bool LineCapsule(const Line<T>& a,
@@ -175,8 +158,6 @@ inline bool LineCapsule(const Line<T>& a,
 // Page 179.
 // Source: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
 // Source (used): https://www.baeldung.com/cs/circle-line-segment-collision-detection
-// Check if a line and a circle overlap.
-// Circle position is taken from its center.
 template <typename T, typename S = double,
 	tt::floating_point<S> = true>
 static bool LineCircle(const Line<T>& a,
@@ -194,7 +175,7 @@ static bool LineCircle(const Line<T>& a,
 	const S OQ_dist2{ OQ.MagnitudeSquared() };
 	const S max_dist2{ std::max(OP_dist2, OQ_dist2) };
 	if (OP.Dot(-PQ) > 0 && OQ.Dot(PQ) > 0) {
-		const S triangle_area{ math::TriangleArea<S>(b.center, a.origin, a.destination) };
+		const S triangle_area{ math::FastAbs(math::ParallelogramArea<S>(b.center, a.origin, a.destination)) / S{ 2 } };
 		min_dist2 = 4 * triangle_area * triangle_area / PQ.MagnitudeSquared();
 	} else {
 		min_dist2 = std::min(OP_dist2, OQ_dist2);
@@ -203,33 +184,32 @@ static bool LineCircle(const Line<T>& a,
 		(max_dist2 > rad2 || math::Compare(max_dist2, rad2));
 }
 
-// Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
-// Source: Page 152-153 with modifications for collinearity and straight edge intersections.
-// Check if two lines overlap.
+
+// Source: https://www.geeksforgeeks.org/check-if-two-given-line-segments-intersect/
+// With some modifications.
 template <typename T>
 static bool LineLine(const Line<T>& a,
 					 const Line<T>& b) {
 	// Sign of areas correspond to which side of ab points c and d are
-	const T a1{ math::SignedTriangleArea(a.origin, a.destination, b.destination) }; // Compute winding of abd (+ or -)
-	const T a2{ math::SignedTriangleArea(a.origin, a.destination, b.origin) }; // To intersect, must have sign opposite of a1
+	const T a1{ math::ParallelogramArea(a.origin, a.destination, b.destination) }; // Compute winding of abd (+ or -)
+	const T a2{ math::ParallelogramArea(a.origin, a.destination, b.origin) }; // To intersect, must have sign opposite of a1
 	// If c and d are on different sides of ab, areas have different signs
-	bool different_sides{ false };
-	// Check if a1 and a2 signs are different.
+	bool polarity_diff{ false };
 	bool collinear{ false };
 	if constexpr (std::is_signed_v<T> && std::is_integral_v<T>) {
-		// First part checks for collinearity, second part for difference in polarity.
-		collinear = !((a1 | a2) != 0);
-		different_sides = !collinear && (a1 ^ a2) < 0;
+		// Second part for difference in polarity.
+		polarity_diff = (a1 ^ a2) < 0;
+		collinear = a1 == 0 || a2 == 0;
 	} else {
 		// Same as above but for floating points.
+		polarity_diff = a1 * a2 < 0;
 		collinear = math::Compare(a1, 0) || math::Compare(a2, 0);
-		different_sides = !collinear && a1 * a2 < 0;
 	}
-	if (different_sides) {
+	if (!collinear && polarity_diff) {
 		// Compute signs for a and b with respect to segment cd
-		const T a3{ math::SignedTriangleArea(b.origin, b.destination, a.origin) }; // Compute winding of cda (+ or -)
+		const T a3{ math::ParallelogramArea(b.origin, b.destination, a.origin) }; // Compute winding of cda (+ or -)
 		// Since area is constant a1 - a2 = a3 - a4, or a4 = a3 + a2 - a1
-		// const T a4 = SignedTriangleArea(c, d, b); // Must have opposite sign of a3
+		// const T a4 = math::ParallelogramArea(c, d, b); // Must have opposite sign of a3
 		const T a4{ a3 + a2 - a1 };
 		// Points a and b on different sides of cd if areas have different signs
 		// Segments intersect if true.
@@ -238,103 +218,47 @@ static bool LineLine(const Line<T>& a,
 		if constexpr (std::is_signed_v<T> && std::is_integral_v<T>) {
 			// If either is 0, the line is intersecting with the straight edge of the other line.
 			// (i.e. corners with angles).
-			intersect = a3 == 0 || a4 == 0 || (a3 ^ a4) < 0;
+			intersect = (a3 ^ a4) < 0;
+			collinear = a3 == 0 || a4 == 0;
 		} else {
 			// Same as above, hence the floating point comparison to 0.
-			const T result{ a3 * a4 };
-			intersect = result < 0 || math::Compare(result, 0);
+			intersect = a3 * a4 < 0;
+			collinear = math::Compare(a3, 0) || math::Compare(a4, 0);
 		}
-		return intersect;
+		if (intersect) return true;
 	}
-	if (collinear) {
-		return PointLine(a.origin, b) ||
-			   PointLine(a.destination, b) ||
-			   PointLine(b.origin, a) ||
-			   PointLine(b.destination, a);
-	}
-	// Segments not intersecting.
-	return false;
+	return collinear &&
+		  (math::PointLine(b.destination, a) ||
+		   math::PointLine(b.origin, a)      ||
+		   math::PointLine(a.origin, b)      ||
+		   math::PointLine(a.destination, b));
 }
 
-// Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
-// Modified page 79 with size of other AABB set to 0.
-// Check if a point an AABB overlap.
-// AABB position is taken from top left.
-// AABB size is the full extent from top left to bottom right.
 template <typename T>
 inline bool PointAABB(const Point<T>& a,
 					  const AABB<T>& b) {
 	return AABBAABB({ a, { T{ 0 }, T{ 0 } } }, b);
 }
 
-// Check if a point and a capsule overlap.
-// Capsule origin and destination are taken from the edge circle centers.
 template <typename T>
 inline bool PointCapsule(const Point<T>& a,
 						 const Capsule<T>& b) {
 	return CircleCapsule({ a, T{ 0 } }, b);
 }
 
-// Source: https://www.jeffreythompson.org/collision-detection/point-circle.php
-// Source (used): https://doubleroot.in/lessons/circle/position-of-a-point/#:~:text=If%20the%20distance%20is%20greater,As%20simple%20as%20that!
-// Check if a point and a circle overlap.
-// Circle position is taken from its center.
 template <typename T>
 inline bool PointCircle(const Point<T>& a,
 						const Circle<T>& b) {
 	return CircleCircle({ a, T{ 0 } }, b);
 }
 
-// Source: https://www.jeffreythompson.org/collision-detection/line-point.php
-// Source: https://stackoverflow.com/a/7050238
-// Source (used): PointToLineSquareDistance == 0 but optimized slightly.
-template <typename T, typename S = double,
-	tt::floating_point<S> = true>
-inline bool PointLine(const Point<T>& a,
-					  const Line<T>& b) {
-	const math::Vector2<S> ab{ b.Direction() };
-	const math::Vector2<S> ac{ a - b.origin };
-	const math::Vector2<S> bc{ a - b.destination };
-	const S e{ ac.Dot(ab) };
-	// Handle cases where c projects outside ab
-	if (e < 0 || math::Compare(e, 0)) return math::Compare(ac.x, 0) && math::Compare(ac.y, 0);
-	const S f{ ab.Dot(ab) };
-	if (e > f || math::Compare(e, f)) return math::Compare(bc.x, 0) && math::Compare(bc.y, 0);
-	// Handle cases where c projects onto ab
-	return math::Compare(ac.Dot(ac) * f, e * e);
-
-	// Same principle as above but more opertions:
-	/*
-	const S dist2{ math::PointToLineSquareDistance(a, b) };
-	return math::Compare(dist2, 0);
-	*/
-	// Alternative approach using gradients:
-	/*
-	const math::Vector2<S> ap{ a - b.origin };
-	const math::Vector2<S> dir{ b.Direction() };
-	const math::Vector2<S> grad{ ap / dir };
-	// Check that the gradient is the same along both axes, i.e. "colinear".
-	const math::Vector2<T> min{ math::Min(b.origin, b.destination) };
-	const math::Vector2<T> max{ math::Max(b.origin, b.destination) };
-	// Edge cases where line aligns with an axis.
-	// TODO: Check that this is correct.
-	if (math::Compare(dir.x, 0) && math::Compare(a.x, b.origin.x)) {
-		if (a.y < min.y || a.y > max.y) return false;
-		return true;
-	}
-	if (math::Compare(dir.y, 0) && math::Compare(a.y, b.origin.y)) {
-		if (a.x < min.x || a.x > max.x) return false;
-		return true;
-	}
-	return grad.IsEqual() && PointAABB(a, { min, max - min });
-	*/
-}
-
+/*
 template <typename T>
 inline bool PointPoint(const Point<T>& a,
 					   const Point<T>& b) {
 	return a == b;
 }
+*/
 
 } // namespace overlap
 
