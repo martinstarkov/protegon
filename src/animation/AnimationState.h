@@ -21,12 +21,12 @@ struct AnimationState {
 			ResetRemaining();
 		}
 	}
-	const Animation& GetAnimation() const {
+	std::shared_ptr<Animation> GetAnimation() const {
 		assert(sprite_map.Has(animation_key_) && "Animation not found in sprite map");
-		return *sprite_map.Get(animation_key_);
+		return sprite_map.Get(animation_key_);
 	}
 	void SetCurrentFrame(int new_frame = 0) {
-		assert(new_frame < GetAnimation().frame_count && "Cannot set animation which is not found in the parent sprite map");
+		assert(new_frame < GetAnimation()->frame_count && "Cannot set animation which is not found in the parent sprite map");
 		current_frame_ = new_frame;
 		ResetRemaining();
 	}
@@ -49,18 +49,18 @@ struct AnimationState {
 		return current_frame_;
 	}
 	V2_int GetCurrentPosition() const {
-		auto& animation{ GetAnimation() };
-		return { animation.top_left_pixel.x + animation.frame_size.x * current_frame_, animation.top_left_pixel.y };
+		auto animation{ GetAnimation() };
+		return { animation->top_left_pixel.x + animation->frame_size.x * current_frame_, animation->top_left_pixel.y };
 	}
 	SpriteMap& sprite_map;
 private:
 	void IncrementFrame() {
-		current_frame_ = (current_frame_ + 1) % GetAnimation().frame_count;
+		current_frame_ = (current_frame_ + 1) % GetAnimation()->frame_count;
 	}
 	void ResetRemaining() {
-		auto& animation{ GetAnimation() };
-		assert(current_frame_ < animation.frame_delays.size());
-		countdown_.SetRemaining(animation.frame_delays[current_frame_]);
+		auto animation{ GetAnimation() };
+		assert(current_frame_ < animation->frame_delays.size());
+		countdown_.SetRemaining(animation->frame_delays[current_frame_]);
 	}
 	std::size_t animation_key_;
 	int current_frame_{ 0 };
