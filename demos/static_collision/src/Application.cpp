@@ -20,7 +20,7 @@ public:
 	V2_int size2{ 200, 200 };
 	int radius2{ 20 };
 	Color color2{ color::BLUE };
-	const int options = 25;
+	const int options = 13;
 	int option = 0;
 	virtual void Update(double dt) {
 		auto mouse = input::GetMouseScreenPosition();
@@ -32,7 +32,6 @@ public:
 			position4 = mouse;
 		}
 		V2_int position2 = mouse;
-
 
 		auto acolor1 = color1;
 		auto acolor2 = color2;
@@ -47,87 +46,55 @@ public:
 		Capsule capsule2{ position2, position4, radius2 };
 
 		if (option == 0) {
-			aabb2.position = mouse - aabb2.size / 2;
-			const auto collision{ intersect::AABBAABB(aabb1, aabb2) };
+			const auto collision{ intersect::PointCircle(position2, circle1) };
 			if (collision.Occured()) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}
-			draw::AABB(aabb2, acolor2);
-			draw::AABB(aabb1, acolor1);
+			draw::Circle(circle1, acolor1);
+			draw::Point(position2, acolor2);
 			if (collision.Occured()) {
-				draw::AABB(aabb1.AddPenetration(collision.penetration), color1);
-				draw::Line({ aabb1.Center(), aabb1.Center() + collision.penetration }, color::GOLD);
+				draw::Point(position2 + collision.penetration, color2);
+				draw::Line({ position2, position2 + collision.penetration }, color::GOLD);
 			}
 		} else if (option == 1) {
-			/*aabb2.position = mouse - aabb2.size / 2;
-			const auto collision{ intersect::CircleAABB(circle1, aabb2) };
+			const auto collision{ intersect::PointCapsule(position2, capsule1) };
 			if (collision.Occured()) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}
-			draw::AABB(aabb2, acolor2);
-			draw::Circle(circle1, acolor1);
+			draw::Capsule(capsule1, acolor1);
+			draw::Point(position2, acolor2);
 			if (collision.Occured()) {
-				draw::Circle(circle1.AddPenetration(collision.penetration), color1);
-				draw::Line({ circle1.center, circle1.center + collision.penetration }, color::GOLD);
+				draw::Point(position2 + collision.penetration, color2);
+				draw::Line({ position2, position2 + collision.penetration }, color::GOLD);
 			}
-			*/
 		} else if (option == 2) {
-			/*const auto collision{ intersect::CircleAABB(circle2, aabb1) };
+			const auto collision{ intersect::PointAABB(position2, aabb1) };
 			if (collision.Occured()) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}
 			draw::AABB(aabb1, acolor1);
-			draw::Circle(circle2, acolor2);
+			draw::Point(position2, acolor2);
 			if (collision.Occured()) {
-				draw::Circle(circle2.AddPenetration(collision.penetration), color2);
-				draw::Line({ circle2.center, circle2.center + collision.penetration }, color::GOLD);
+				draw::Point(position2 + collision.penetration, color2);
+				draw::Line({ position2, position2 + collision.penetration }, color::GOLD);
 			}
-			*/
 		} else if (option == 3) {
-			const auto collision{ intersect::CircleCircle(circle2, circle1) };
-			if (collision.Occured()) {
-				acolor1 = color::RED;
-				acolor2 = color::RED;
-			}
-			draw::Circle(circle2, acolor2);
-			draw::Circle(circle1, acolor1);
-			if (collision.Occured()) {
-				draw::Circle(circle2.AddPenetration(collision.penetration), color2);
-				draw::Line({ circle2.center, circle2.center + collision.penetration }, color::GOLD);
-			}
-		} else if (option == 4) {
-			/*aabb2.position = mouse - aabb2.size / 2;
-			const auto collision{ intersect::LineAABB(line1, aabb2) };
+			const auto collision{ intersect::LineLine(line2, line1) };
 			if (collision.Occured()) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}
 			draw::Line(line1, acolor1);
-			draw::AABB(aabb2, acolor2);
-			if (collision.Occured()) {
-				draw::Line(line1.AddPenetration(collision.penetration), color1);
-				draw::Line({ line1.origin, line1.origin + collision.penetration }, color::GOLD);
-				draw::Line({ line1.destination, line1.destination + collision.penetration }, color::GOLD);
-			}
-			*/
-		} else if (option == 5) {
-			/*const auto collision{ intersect::LineAABB(line2, aabb1) };
-			if (collision.Occured()) {
-				acolor1 = color::RED;
-				acolor2 = color::RED;
-			}
 			draw::Line(line2, acolor2);
-			draw::AABB(aabb1, acolor1);
 			if (collision.Occured()) {
 				draw::Line(line2.AddPenetration(collision.penetration), color2);
 				draw::Line({ line2.origin, line2.origin + collision.penetration }, color::GOLD);
 				draw::Line({ line2.destination, line2.destination + collision.penetration }, color::GOLD);
 			}
-			*/
-		} else if (option == 6) {
+		} else if (option == 4) {
 			/*const auto collision{ intersect::LineCircle(line2, circle1) };
 			if (collision.Occured()) {
 				acolor1 = color::RED;
@@ -141,147 +108,46 @@ public:
 				draw::Line({ line2.destination, line2.destination + collision.penetration }, color::GOLD);
 			}
 			*/
-		} else if (option == 7) {
-			/*const auto collision{ intersect::LineCircle(line1, circle2) };
-			if (collision.Occured()) {
-				acolor1 = color::RED;
-				acolor2 = color::RED;
-			}
-			draw::Line(line1, acolor1);
-			draw::Circle(circle2, acolor2);
-			if (collision.Occured()) {
-				draw::Line(line1.AddPenetration(collision.penetration), color1);
-				draw::Line({ line1.origin, line1.origin + collision.penetration }, color::GOLD);
-				draw::Line({ line1.destination, line1.destination + collision.penetration }, color::GOLD);
-			}
-			*/
-		} else if (option == 8) {
-			const auto collision{ intersect::LineLine(line1, line2) };
-			if (collision.Occured()) {
-				acolor1 = color::RED;
-				acolor2 = color::RED;
-			}
-			draw::Line(line1, acolor1);
-			draw::Line(line2, acolor2);
-			if (collision.Occured()) {
-				draw::Line(line1.AddPenetration(collision.penetration), color1);
-				draw::Line({ line1.origin, line1.origin + collision.penetration }, color::GOLD);
-				draw::Line({ line1.destination, line1.destination + collision.penetration }, color::GOLD);
-			}
-		} else if (option == 9) {
-			const auto collision{ intersect::PointAABB(position2, aabb1) };
-			if (collision.Occured()) {
-				acolor1 = color::RED;
-				acolor2 = color::RED;
-			}
-			draw::AABB(aabb1, acolor1);
-			draw::Point(position2, acolor2);
-			if (collision.Occured()) {
-				draw::Point(position2 + collision.penetration, color2);
-				draw::Line({ position2, position2 + collision.penetration }, color::GOLD);
-			}
-		} else if (option == 10) {
-			aabb2.position = mouse - aabb2.size / 2;
-			const auto collision{ intersect::PointAABB(position1, aabb2) };
-			if (collision.Occured()) {
-				acolor1 = color::RED;
-				acolor2 = color::RED;
-			}
-			draw::AABB(aabb2, acolor2);
-			draw::Point(position1, acolor1);
-			if (collision.Occured()) {
-				draw::Point(position1 + collision.penetration, color1);
-				draw::Line({ position1, position1 + collision.penetration }, color::GOLD);
-			}
-		} else if (option == 11) {
-			const auto collision{ intersect::PointCircle(position2, circle1) };
-			if (collision.Occured()) {
-				acolor1 = color::RED;
-				acolor2 = color::RED;
-			}
-			draw::Circle(circle1, acolor1);
-			draw::Point(position2, acolor2);
-			if (collision.Occured()) {
-				draw::Point(position2 + collision.penetration, color2);
-				draw::Line({ position2, position2 + collision.penetration }, color::GOLD);
-			}
-		} else if (option == 12) {
-			const auto collision{ intersect::PointCircle(position1, circle2) };
-			if (collision.Occured()) {
-				acolor1 = color::RED;
-				acolor2 = color::RED;
-			}
-			draw::Circle(circle2, acolor2);
-			draw::Point(position1, acolor1);
-			if (collision.Occured()) {
-				draw::Point(position1 + collision.penetration, color1);
-				draw::Line({ position1, position1 + collision.penetration }, color::GOLD);
-			}
-		} else if (option == 13) {
-			/*const auto collision{ intersect::PointLine(position1, line2) };
-			if (collision.Occured()) {
-				acolor1 = color::RED;
-				acolor2 = color::RED;
-			}
-			draw::Line(line2, acolor2);
-			draw::Point(position1, acolor1);
-			if (collision.Occured()) {
-				draw::Point(position1 + collision.penetration, color1);
-				draw::Line({ position1, position1 + collision.penetration }, color::GOLD);
-			}
-			*/
-		} else if (option == 14) {
-			/*const auto collision{ intersect::PointLine(position2, line1) };
-			if (collision.Occured()) {
-				acolor1 = color::RED;
-				acolor2 = color::RED;
-			}
-			draw::Line(line1, acolor1);
-			draw::Point(position2, acolor2);
-			if (collision.Occured()) {
-				draw::Point(position2 + collision.penetration, color2);
-				draw::Line({ position2, position2 + collision.penetration }, color::GOLD);
-			}
-			*/
-		} else if (option == 15) {
-			/*const auto collision{ intersect::PointPoint(position2, position1) };
-			if (collision.Occured()) {
-				acolor1 = color::RED;
-				acolor2 = color::RED;
-			}
-			draw::Point(position1, acolor1);
-			draw::Point(position2, acolor2);
-			if (collision.Occured()) {
-				draw::Point(position2 + collision.penetration, color2);
-				draw::Line({ position2, position2 + collision.penetration }, color::GOLD);
-			}
-			*/
-		} else if (option == 16) {
-			const auto collision{ intersect::CapsuleCapsule(capsule1, capsule2) };
+		} else if (option == 5) {
+			const auto collision{ intersect::LineCapsule(line2, capsule1) };
 			if (collision.Occured()) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}
 			draw::Capsule(capsule1, acolor1);
-			draw::Capsule(capsule2, acolor2);
+			draw::Line(line2, acolor2);
 			if (collision.Occured()) {
-				draw::Capsule(capsule1.AddPenetration(collision.penetration), color1);
-				draw::Line({ capsule1.origin, capsule1.origin + collision.penetration }, color::GOLD);
-				draw::Line({ capsule1.destination, capsule1.destination + collision.penetration }, color::GOLD);
+				draw::Line(line2.AddPenetration(collision.penetration), color2);
+				draw::Line({ line2.origin, line2.origin + collision.penetration }, color::GOLD);
+				draw::Line({ line2.destination, line2.destination + collision.penetration }, color::GOLD);
 			}
-		} else if (option == 17) {
-			const auto collision{ intersect::CircleCapsule(circle1, capsule2) };
+		} else if (option == 6) {
+			/*const auto collision{ intersect::LineAABB(line2, aabb1) };
 			if (collision.Occured()) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}
-			draw::Capsule(capsule2, acolor2);
+			draw::Line(line2, acolor2);
+			draw::AABB(aabb1, acolor1);
+			if (collision.Occured()) {
+				draw::Line(line2.AddPenetration(collision.penetration), color2);
+				draw::Line({ line2.origin, line2.origin + collision.penetration }, color::GOLD);
+				draw::Line({ line2.destination, line2.destination + collision.penetration }, color::GOLD);
+			}
+			*/
+		} else if (option == 7) {
+			const auto collision{ intersect::CircleCircle(circle2, circle1) };
+			if (collision.Occured()) {
+				acolor1 = color::RED;
+				acolor2 = color::RED;
+			}
+			draw::Circle(circle2, acolor2);
 			draw::Circle(circle1, acolor1);
 			if (collision.Occured()) {
-				draw::Circle(circle1.AddPenetration(collision.penetration), color1);
-				draw::Line({ circle1.center, circle1.center + collision.penetration }, color::GOLD);
+				draw::Circle(circle2.AddPenetration(collision.penetration), color2);
+				draw::Line({ circle2.center, circle2.center + collision.penetration }, color::GOLD);
 			}
-		} else if (option == 18) {
+		} else if (option == 8) {
 			const auto collision{ intersect::CircleCapsule(circle2, capsule1) };
 			if (collision.Occured()) {
 				acolor1 = color::RED;
@@ -293,22 +159,33 @@ public:
 				draw::Circle(circle2.AddPenetration(collision.penetration), color2);
 				draw::Line({ circle2.center, circle2.center + collision.penetration }, color::GOLD);
 			}
-		} else if (option == 19) {
-			/*aabb2.position = mouse - aabb2.size / 2;
-			const auto collision{ intersect::CapsuleAABB(capsule1, aabb2) };
+		} else if (option == 9) {
+			/*const auto collision{ intersect::CircleAABB(circle2, aabb1) };
+			if (collision.Occured()) {
+				acolor1 = color::RED;
+				acolor2 = color::RED;
+			}
+			draw::AABB(aabb1, acolor1);
+			draw::Circle(circle2, acolor2);
+			if (collision.Occured()) {
+				draw::Circle(circle2.AddPenetration(collision.penetration), color2);
+				draw::Line({ circle2.center, circle2.center + collision.penetration }, color::GOLD);
+			}
+			*/
+		} else if (option == 10) {
+			const auto collision{ intersect::CapsuleCapsule(capsule2, capsule1) };
 			if (collision.Occured()) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}
 			draw::Capsule(capsule1, acolor1);
-			draw::AABB(aabb2, acolor2);
+			draw::Capsule(capsule2, acolor2);
 			if (collision.Occured()) {
-				draw::Capsule(capsule1.AddPenetration(collision.penetration), color1);
-				draw::Line({ capsule1.origin, capsule1.origin + collision.penetration }, color::GOLD);
-				draw::Line({ capsule1.destination, capsule1.destination + collision.penetration }, color::GOLD);
+				draw::Capsule(capsule2.AddPenetration(collision.penetration), color2);
+				draw::Line({ capsule2.origin, capsule2.origin + collision.penetration }, color::GOLD);
+				draw::Line({ capsule2.destination, capsule2.destination + collision.penetration }, color::GOLD);
 			}
-			*/
-		} else if (option == 20) {
+		} else if (option == 11) {
 			/*const auto collision{ intersect::CapsuleAABB(capsule2, aabb1) };
 			if (collision.Occured()) {
 				acolor1 = color::RED;
@@ -322,55 +199,18 @@ public:
 				draw::Line({ capsule2.destination, capsule2.destination + collision.penetration }, color::GOLD);
 			}
 			*/
-		} else if (option == 21) {
-			const auto collision{ intersect::LineCapsule(line1, capsule2) };
+		} else if (option == 12) {
+			aabb2.position = mouse - aabb2.size / 2;
+			const auto collision{ intersect::AABBAABB(aabb2, aabb1) };
 			if (collision.Occured()) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}
-			draw::Capsule(capsule2, acolor2);
-			draw::Line(line1, acolor1);
+			draw::AABB(aabb2, acolor2);
+			draw::AABB(aabb1, acolor1);
 			if (collision.Occured()) {
-				draw::Line(line1.AddPenetration(collision.penetration), color1);
-				draw::Line({ line1.origin, line1.origin + collision.penetration }, color::GOLD);
-				draw::Line({ line1.destination, line1.destination + collision.penetration }, color::GOLD);
-			}
-		} else if (option == 22) {
-			const auto collision{ intersect::LineCapsule(line2, capsule1) };
-			if (collision.Occured()) {
-				acolor1 = color::RED;
-				acolor2 = color::RED;
-			}
-			draw::Capsule(capsule1, acolor1);
-			draw::Line(line2, acolor2);
-			if (collision.Occured()) {
-				draw::Line(line2.AddPenetration(collision.penetration), color2);
-				draw::Line({ line2.origin, line2.origin + collision.penetration }, color::GOLD);
-				draw::Line({ line2.destination, line2.destination + collision.penetration }, color::GOLD);
-			}
-		} else if (option == 23) {
-			const auto collision{ intersect::PointCapsule(position1, capsule2) };
-			if (collision.Occured()) {
-				acolor1 = color::RED;
-				acolor2 = color::RED;
-			}
-			draw::Capsule(capsule2, acolor2);
-			draw::Point(position1, acolor1);
-			if (collision.Occured()) {
-				draw::Point(position1 + collision.penetration, color1);
-				draw::Line({ position1, position1 + collision.penetration }, color::GOLD);
-			}
-		} else if (option == 24) {
-			const auto collision{ intersect::PointCapsule(position2, capsule1) };
-			if (collision.Occured()) {
-				acolor1 = color::RED;
-				acolor2 = color::RED;
-			}
-			draw::Capsule(capsule1, acolor1);
-			draw::Point(position2, acolor2);
-			if (collision.Occured()) {
-				draw::Point(position2 + collision.penetration, color2);
-				draw::Line({ position2, position2 + collision.penetration }, color::GOLD);
+				draw::AABB(aabb2.AddPenetration(collision.penetration), color2);
+				draw::Line({ aabb2.Center(), aabb2.Center() + collision.penetration }, color::GOLD);
 			}
 		}
 	}
