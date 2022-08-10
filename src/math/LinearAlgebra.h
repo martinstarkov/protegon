@@ -5,32 +5,65 @@
 #include "physics/Types.h"
 
 // TODO: Use segments instead of lines where appropriate.
+// TODO: Use physics types where appropriate.
 
 namespace ptgn {
 
 namespace math {
 
-// TODO: This is essentially the same as SignedTriangleArea
-// Get the area of the triangle formed by points a, b, c.
-template <typename T, typename S = double,
+// The result is:
+// positive if abc is counterclockwise, 
+// negative if abc is clockwise, 
+// zero if abc is degenerate.
+template <typename T,
+    tt::arithmetic<T> = true>
+inline T ParallelogramArea(const math::Vector2<T>& a,
+                           const math::Vector2<T>& b,
+                           const math::Vector2<T>& c) {
+    return (a - c).Cross(b - c);
+}
+
+// Source: https://www.jeffreythompson.org/collision-detection/line-point.php
+// Source: https://stackoverflow.com/a/7050238
+// Source (used): PointToLineSquareDistance == 0 but optimized slightly.
+template <typename T, typename S = float,
     tt::floating_point<S> = true>
-inline S TriangleArea(const math::Vector2<T>& a,
-                          const math::Vector2<T>& b,
-                          const math::Vector2<T>& c) {
-    const math::Vector2<S> ab{ b - a };
-    const math::Vector2<S> ac{ c - a };
-    return math::FastAbs(ab.Cross(ac)) / 2;
-}
+    inline bool PointLine(const Point<T>& a,
+                          const Line<T>& b) {
+    const math::Vector2<S> ab{ b.Direction() };
+    const math::Vector2<S> ac{ a - b.origin };
+    const math::Vector2<S> bc{ a - b.destination };
+    const S e{ ac.Dot(ab) };
+    // Handle cases where c projects outside ab
+    if (e < 0 || math::Compare(e, 0)) return math::Compare(ac.x, 0) && math::Compare(ac.y, 0);
+    const S f{ ab.Dot(ab) };
+    if (e > f || math::Compare(e, f)) return math::Compare(bc.x, 0) && math::Compare(bc.y, 0);
+    // Handle cases where c projects onto ab
+    return math::Compare(ac.Dot(ac) * f, e * e);
 
-// Returns 2 times the signed triangle area. The result is positive if
-// abc is ccw, negative if abc is cw, zero if abc is degenerate.
-template <typename T>
-inline T SignedTriangleArea(const Vector2<T>& a,
-                            const Vector2<T>& b,
-                            const Vector2<T>& c) {
-    return (a.x - c.x) * (b.y - c.y) - (a.y - c.y) * (b.x - c.x);
-}
+    // Same principle as above but more opertions:
+    //const S dist2{ math::PointToLineSquareDistance(a, b) };
+    //return math::Compare(dist2, 0);
 
+    // Alternative approach using gradients:
+    //const math::Vector2<S> ap{ a - b.origin };
+    //const math::Vector2<S> dir{ b.Direction() };
+    //const math::Vector2<S> grad{ ap / dir };
+    //// Check that the gradient is the same along both axes, i.e. "colinear".
+    //const math::Vector2<T> min{ math::Min(b.origin, b.destination) };
+    //const math::Vector2<T> max{ math::Max(b.origin, b.destination) };
+    //// Edge cases where line aligns with an axis.
+    //// TODO: Check that this is correct.
+    //if (math::Compare(dir.x, 0) && math::Compare(a.x, b.origin.x)) {
+    //	if (a.y < min.y || a.y > max.y) return false;
+    //	return true;
+    //}
+    //if (math::Compare(dir.y, 0) && math::Compare(a.y, b.origin.y)) {
+    //	if (a.x < min.x || a.x > max.x) return false;
+    //	return true;
+    //}
+    //return grad.IsEqual() && PointAABB(a, { min, max - min });
+}
 
 namespace cs {
 
@@ -47,11 +80,11 @@ constexpr const int TOP = 8;    // 1000
 
 // ASSUME THAT xmax, xmin, ymax and ymin are global constants.
 
-template <typename T = double,
+template <typename T = float,
     tt::floating_point<T> = true>
 OutCode ComputeOutCode(const math::Vector2<T>& a,
-                           const math::Vector2<T>& min,
-                           const math::Vector2<T>& max) {
+                       const math::Vector2<T>& min,
+                       const math::Vector2<T>& max) {
     OutCode code = INSIDE;  // initialised as being inside of clip window
 
     if (a.x < min.x)           // to the left of clip window
@@ -72,12 +105,12 @@ OutCode ComputeOutCode(const math::Vector2<T>& a,
 // Cohen–Sutherland clipping algorithm clips a line from
 // p0 = (x0, y0) to p1 = (x1, y1) against a rectangle with 
 // diagonal from (xmin, ymin) to (xmax, ymax).
-template <typename T = double,
+template <typename T = float,
     tt::floating_point<T> = true>
 bool CohenSutherlandLineClip(math::Vector2<T> p0,
-                                 math::Vector2<T> p1,
-                                 const math::Vector2<T>& min,
-                                 const math::Vector2<T>& max) {
+                             math::Vector2<T> p1,
+                             const math::Vector2<T>& min,
+                             const math::Vector2<T>& max) {
     // compute outcodes for P0, P1, and whatever point lies outside the clip rectangle
     cs::OutCode outcode0{ cs::ComputeOutCode<T>(p0, min, max) };
     cs::OutCode outcode1{ cs::ComputeOutCode<T>(p1, min, max) };
@@ -136,7 +169,7 @@ bool CohenSutherlandLineClip(math::Vector2<T> p0,
 // Source: file:///C:/Users/Martin/Desktop/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 // Page 130.
 // Returns the squared distance between point and segment line_origin -> line_destination.
-template <typename T, typename S = double,
+template <typename T, typename S = float,
     tt::floating_point<S> = true>
 static S PointToLineSquareDistance(const Point<T>& a,
                                    const Line<T>& b) {
@@ -156,7 +189,7 @@ static S PointToLineSquareDistance(const Point<T>& a,
 // Page 129.
 // Given segment ab and point c, computes closest point out_d on ab.
 // Also returns out_t for the position of out_d, out_d(out_t)= a + out_t * (b - a)
-template <typename T, typename S = double,
+template <typename T, typename S = float,
     tt::floating_point<S> = true>
 static void ClosestPointLine(const Point<T>& a,
                              const Line<T>& b,
@@ -185,17 +218,21 @@ static void ClosestPointLine(const Point<T>& a,
 
 // Given an infinite line line_origin->line_destination and point, computes closest point out_d on ab.
 // Also returns out_t for the parametric position of out_d, out_d(t)= a + out_t * (b - a)
-template <typename S = double, typename T,
-    std::enable_if_t<std::is_floating_point_v<S>, bool> = true>
-inline void ClosestPointInfiniteLine(const math::Vector2<T>& point, const math::Vector2<T>& line_origin, const math::Vector2<T>& line_destination, S& out_t, math::Vector2<S>& out_d) {
-    math::Vector2<S> ab{ line_destination - line_origin };
+template <typename S = float, typename T,
+    tt::floating_point<S> = true>
+inline void ClosestPointInfiniteLine(const Point<T>& a,
+                                     const Line<T>& b,
+                                     S& out_t,
+                                     math::Vector2<S>& out_d) {
+    math::Vector2<S> dir{ b.Direction() };
     // Project c onto ab, but deferring divide by Dot(ab, ab)
-    out_t = (point - line_origin).Dot(ab) / ab.Dot(ab);
-    out_d = line_origin + out_t * ab;
+    out_t = (a - b.origin).Dot(dir) / dir.Dot(dir);
+    out_d = b.origin + out_t * dir;
 }
 
 template <typename T>
-inline T SquareDistancePointAABB(const Point<T>& a, const AABB<T>& b) {
+inline T SquareDistancePointAABB(const Point<T>& a,
+                                 const AABB<T>& b) {
     T dist2{ 0 };
     const Vector2<T> max{ b.Max() };
     for (std::size_t i{ 0 }; i < 2; ++i) {
