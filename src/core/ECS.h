@@ -26,18 +26,18 @@ SOFTWARE.
 
 #pragma once
 
-#include <cstdlib> // std::size_t, std::malloc, std::realloc, std::free
-#include <cstdint> // std::uint32_t
-#include <vector> // std::vector
-#include <array> // std::array
-#include <deque> // std::deque
-#include <tuple> // std::tuple
-#include <functional> // std::hash
-#include <utility> // std::exchange, std::function
-#include <algorithm> // std::max_element
-#include <memory> // std::allocator
-#include <type_traits> // std::enable_if_t, std::is_destructible_v, std::is_base_of_v, etc
-#include <cassert> // assert
+#include <cstdlib>     // std::malloc
+#include <cstdint>     // std::uint32_t
+#include <vector>      // std::vector
+#include <array>       // std::array
+#include <deque>       // std::deque
+#include <tuple>       // std::tuple
+#include <functional>  // std::hash
+#include <utility>     // std::function
+#include <algorithm>   // std::max_element
+#include <memory>      // std::allocator
+#include <type_traits> // std::is_destructible_v
+#include <cassert>     // assert
 
 namespace ecs {
 
