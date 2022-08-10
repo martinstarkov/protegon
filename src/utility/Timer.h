@@ -48,7 +48,7 @@ public:
     * @return Elapsed duration of time since timer start.
     */
     template <typename Duration = milliseconds, 
-        type_traits::is_duration_e<Duration> = true>
+        tt::duration<Duration> = true>
     Duration Elapsed() const {
         std::chrono::time_point<std::chrono::steady_clock> end_time;
         if (running_) {

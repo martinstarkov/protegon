@@ -6,6 +6,7 @@
 #include "math/RNG.h"
 #include "math/Math.h"
 #include "math/Vector2.h"
+#include "utility/TypeTraits.h"
 
 namespace ptgn {
 
@@ -15,7 +16,7 @@ namespace math {
 * @tparam T Type of floating point noise values to generate. Float by default.
 */
 template <typename T = float, 
-	std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+	tt::floating_point<T> = true>
 class ValueNoise {
 public:
 	/*

@@ -3,8 +3,9 @@
 #include <cstdlib>       // std::size_t
 #include <memory>        // std::shared_ptr
 #include <unordered_map> // std::unordered_map
-#include <type_traits>   // std::is_constructible_v
 #include <utility>       // std::forward
+
+#include "utility/TypeTraits.h"
 
 namespace ptgn {
 
@@ -27,7 +28,7 @@ public:
     ResourceManager& operator=(ResourceManager&& move) noexcept = default;
     
     template <typename ...TArgs,
-        std::enable_if_t<std::is_constructible_v<T, TArgs...>, bool> = true>
+        tt::constructible<T, TArgs...> = true>
     T& Load(const I key, TArgs&&... constructor_args) {
         return Set(key, new T{ std::forward<TArgs>(constructor_args)... });
     }

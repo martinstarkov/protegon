@@ -38,7 +38,7 @@ void Update();
 * @return True if the mouse button has been held for the given amount of time.
 */
 template <typename Duration,
-	type_traits::is_duration_e<Duration> = true>
+	tt::duration<Duration> = true>
 inline bool MouseHeld(Mouse button, Duration time) {
 	const auto held_time{ GetMouseHeldTime(button) };
 	return held_time > time;

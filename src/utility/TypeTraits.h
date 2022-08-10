@@ -1,6 +1,6 @@
 #pragma once
 
-#include <type_traits> // std::enable_if_t
+#include <type_traits>
 
 namespace ptgn {
 
@@ -69,7 +69,7 @@ template <typename T, typename U>
 struct is_greater_than_or_equal_comparable<T, U, std::void_t<greater_than_or_equal_comparison_t<T, U>>>
     : std::is_same<greater_than_or_equal_comparison_t<T, U>, bool> {};
 
-
+// Source: https://stackoverflow.com/a/36272533
 // pred_base selects the appropriate base type (true_type or false_type) to
 // make defining our own predicates easier.
 template<bool> struct pred_base : std::false_type {};
@@ -112,6 +112,12 @@ struct is_safe_numeric_cast : pred_base <
     ((both_integral<T, F>::value) && // Integral dest: src must be integral and (smaller/equal+same signage) or (smaller+different signage)
      (sizeof(T) > sizeof(F) || (sizeof(T) == sizeof(F) && same_signage<T, F>::value)))>{};
 
+// Source: https://stackoverflow.com/a/49026811
+template<typename Stream, typename Type, typename = void>
+struct is_stream_writable : std::false_type {};
+template<typename Stream, typename Type>
+struct is_stream_writable<Stream, Type, std::void_t<decltype(std::declval<Stream&>() << std::declval<Type>()) >> : std::true_type {};
+
 } // namespace impl
 
 template <typename T, typename U>
@@ -128,6 +134,8 @@ template <typename T, typename U>
 inline constexpr bool is_greater_than_or_equal_comparable_v{ impl::is_greater_than_or_equal_comparable<T, U>::value };
 template <typename From, typename To>
 inline constexpr bool is_narrowing_v{ !impl::is_safe_numeric_cast<To, From>::value };
+template <typename Stream, typename Type>
+inline constexpr bool is_stream_writable_v{ impl::is_stream_writable<Stream, Type>::value };
 
 template <typename T, typename U>
 using equals_comparable = std::enable_if_t<is_equals_comparable_v<T, U>, bool>;
@@ -153,6 +161,12 @@ template <typename From, typename To>
 using narrowing = std::enable_if_t<is_narrowing_v<From, To>, bool>;
 template <typename From, typename To>
 using not_narrowing = std::enable_if_t<!is_narrowing_v<From, To>, bool>;
+template <typename T, typename ...TArgs>
+using constructible = std::enable_if_t<std::is_constructible_v<T, TArgs...>, bool>;
+template <typename Stream, typename ...Types>
+using stream_writable = std::enable_if_t<std::conjunction_v<impl::is_stream_writable<Stream, Types>...>, bool>;
+template <typename Type, typename ...Types>
+using type = std::enable_if_t<std::conjunction_v<std::is_same<Type, Types>...>, bool>;
 
 } // namespace tt
 

@@ -3,6 +3,8 @@
 #include <cstdint> // std::uint32_t, etc
 #include <random> // std::minstd_rand, std::mt19937, std::uniform_int_distribution, etc
 
+#include "utility/TypeTraits.h"
+
 namespace ptgn {
 
 namespace math {
@@ -17,7 +19,7 @@ namespace math {
 * @tparam E Type of rng engine to use (std::minstd_rand [default], std::mt19937, etc)
 */
 template <typename T, typename E = std::minstd_rand,
-	std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
+	tt::arithmetic<T> = true>
 class RNG {
 public:
 	// Default constructor makes distribution range 0 to 1.
@@ -44,10 +46,10 @@ private:
 	template <typename V>
 	using uniform_distribution = 
 		typename std::conditional<
-		std::is_floating_point<V>::value, 
+		std::is_floating_point_v<V>, 
 		std::uniform_real_distribution<V>,
 		typename std::conditional<
-		std::is_integral<V>::value, 
+		std::is_integral_v<V>, 
 		std::uniform_int_distribution<V>, 
 		void>::type>::type;
 	// Internal random number generator.
