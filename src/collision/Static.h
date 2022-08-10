@@ -121,10 +121,8 @@ static Collision<S> CapsuleCapsule(const Capsule<T>& a,
 				min_dist2 = d;
 			}
 		}
-		math::Vector2<S> origin{ a.origin };
-		math::Vector2<S> destination{ a.destination };
-		math::Vector2<S> other_origin{ b.origin };
-		math::Vector2<S> other_destination{ b.destination };
+		Line<S> line{ a };
+		Line<S> other{ b };
 		S sign{ -1 };
 		// Determine which is the which is the collision normal axis
 		// and set the non collision normal axis as the other one.
@@ -133,18 +131,18 @@ static Collision<S> CapsuleCapsule(const Capsule<T>& a,
 		} else if (min_index == 1) {
 			max_index = 0;
 		} else if (min_index == 2) {
-			std::swap(origin, other_origin);
-			std::swap(destination, other_destination);
+			swap(line.origin, other.origin);
+			swap(line.destination, other.destination);
 			sign = 1;
 			max_index = 3;
 		} else if (min_index == 3) {
-			std::swap(origin, other_origin);
-			std::swap(destination, other_destination);
+			swap(line.origin, other.origin);
+			swap(line.destination, other.destination);
 			sign = 1;
 			max_index = 2;
 		}
-		math::Vector2<S> dir{ destination - origin };
-		math::Vector2<S> o_dir{ other_destination - other_origin };
+		math::Vector2<S> dir{ line.Direction() };
+		math::Vector2<S> o_dir{ other.Direction() };
 		// TODO: Perhaps this check could be moved to the very beginning as it does not rely on projections.
 		if (dir.IsZero()) {
 			// At least one of the capsules is a circle.
@@ -165,11 +163,11 @@ static Collision<S> CapsuleCapsule(const Capsule<T>& a,
 			math::Vector2<S> point;
 			// TODO: Fix this awful branching.
 			// TODO: Clean this up, I'm sure some of these cases can be combined.
-			math::ClosestPointInfiniteLine(points[min_index], other_origin, other_destination, frac, point);
+			math::ClosestPointInfiniteLine(points[min_index], other, frac, point);
 			const math::Vector2<S> vector_to_min{ points[min_index] - point };
 			if (vector_to_min.IsZero()) {
 				// Capsule centerlines touch in at least one location.
-				math::ClosestPointInfiniteLine(points[max_index], other_origin, other_destination, frac, point);
+				math::ClosestPointInfiniteLine(points[max_index], other, frac, point);
 				const math::Vector2<S> vector_to_max{ -(points[max_index] - point).Normalize() };
 				if (vector_to_max.IsZero()) {
 					// Capsules are collinear.
