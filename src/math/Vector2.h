@@ -38,6 +38,17 @@ struct Vector2 {
         x{ static_cast<T>(x) }, 
         y{ static_cast<T>(y) } {}
 
+    template <typename U, typename V,
+        tt::arithmetic<U> = true,
+        tt::convertible<U, T> = true,
+        tt::narrowing<U, T> = true,
+        tt::arithmetic<V> = true,
+        tt::convertible<V, T> = true,
+        tt::narrowing<V, T> = true>
+    explicit constexpr Vector2(U x, V y) :
+        x{ static_cast<T>(x) },
+        y{ static_cast<T>(y) } {}
+
     template <typename U,
         tt::convertible<U, T> = true>
     Vector2& operator+=(const Vector2<U>& rhs) {
@@ -66,8 +77,8 @@ struct Vector2 {
         tt::convertible<U, T> = true>
     Vector2& operator/=(const Vector2<U>& rhs) {
         if constexpr (std::is_integral_v<T>)
-            assert(!math::Compare(rhs.x, T{ 0 }) &&
-                   !math::Compare(rhs.y, T{ 0 }) && "Vector2 division by zero");
+            assert(!math::Compare(rhs.x, 0) &&
+                   !math::Compare(rhs.y, 0) && "Vector2 division by zero");
         x /= rhs.x;
         y /= rhs.y;
         return *this;
@@ -87,7 +98,7 @@ struct Vector2 {
         tt::convertible<U, T> = true>
     Vector2& operator/=(U rhs) {
         if constexpr (std::is_integral_v<T>)
-            assert(!math::Compare(rhs, T{ 0 }) && "Vector2 division by zero");
+            assert(!math::Compare(rhs, 0) && "Vector2 division by zero");
         x /= rhs;
         y /= rhs;
         return *this;
@@ -127,13 +138,15 @@ struct Vector2 {
 
     bool IsZero() const {
         if constexpr (std::is_floating_point_v<T>)
-            return math::Compare(x, T{ 0 }) && math::Compare(y, T{ 0 });
+            return math::Compare(x, 0) &&
+                   math::Compare(y, 0);
         return x == 0 && y == 0;
     }
 
     bool HasZero() const {
         if constexpr (std::is_floating_point_v<T>)
-            return math::Compare(x, T{ 0 }) || math::Compare(y, T{ 0 });
+            return math::Compare(x, 0) ||
+                   math::Compare(y, 0);
         return x == 0 || y == 0;
     }
 
@@ -225,7 +238,8 @@ struct Vector2 {
         typename S = typename std::common_type_t<T, U, float>>
     Vector2<S> Normalize() const {
         T m{ MagnitudeSquared() };
-        if (Compare(m, T{ 0 }) || Compare(m, T{ 1 }))
+        if (math::Compare(m, 0) ||
+            math::Compare(m, 1))
             return *this;
         return *this / std::sqrtf(m);
     }
@@ -250,7 +264,8 @@ struct Vector2 {
 
     bool operator==(const Vector2& rhs) const {
         if constexpr (std::is_floating_point_v<T>)
-            return math::Compare(x, rhs.x) && math::Compare(y, rhs.y);
+            return math::Compare(x, rhs.x) &&
+                   math::Compare(y, rhs.y);
         return x == rhs.x && y == rhs.y;
     }
 
