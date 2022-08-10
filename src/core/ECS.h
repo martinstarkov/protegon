@@ -500,7 +500,7 @@ public:
 			// Compare manager component pools.
 			auto IdenticalComponentPools = [](const impl::PoolInterface* lhs,
 											  const impl::PoolInterface* rhs) {
-				return lhs == rhs || lhs != nullptr && rhs != nullptr && lhs->Hash() == rhs->Hash();
+				return lhs == rhs || lhs && rhs && lhs->Hash() == rhs->Hash();
 			};
 			return std::equal(std::begin(pools_),
 							  std::end(pools_),
@@ -538,7 +538,7 @@ public:
 		clone.pools_.resize(pools_.size(), nullptr);
 		for (std::size_t i{ 0 }; i < pools_.size(); ++i) {
 			auto pool{ pools_[i] };
-			if (pool != nullptr) {
+			if (pool) {
 				// Clone pools over to new manager.
 				clone.pools_[i] = pool->Clone();
 			}
