@@ -48,7 +48,7 @@ std::vector<std::shared_ptr<Scene>> GetActive() {
 	return scene_manager.GetActive();
 }
 
-void Update(double dt) {
+void Update(float dt) {
 	auto& scene_manager{ manager::Get<SceneManager>() };
 	scene_manager.Update(dt);
 }

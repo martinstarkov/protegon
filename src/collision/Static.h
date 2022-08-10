@@ -208,15 +208,15 @@ static Collision<S> CapsuleCapsule(const Capsule<T>& a,
 // Source: https://steamcdn-a.akamaihd.net/apps/valve/2015/DirkGregorius_Contacts.pdf
 // Static rectangle and circle collision detection.
 inline Collision<S> CircleAABB(const Circle& shapeA,
-							   const V2_double& positionA,
+							   const V2_float& positionA,
 							   const AABB& shapeB,
-							   const V2_double& positionB) {
+							   const V2_float& positionB) {
 	Collision<S> collision;
 	// Vector from A to B.
-	const V2_double half{ shapeB.size / 2.0 };
-	const V2_double n{ positionA - (positionB + half) };
+	const V2_float half{ shapeB.size / 2.0 };
+	const V2_float n{ positionA - (positionB + half) };
 	// Closest point on A to center of B.
-	V2_double closest{ n };
+	V2_float closest{ n };
 	// Clamp point to edges of the AABB.
 	closest = std::clamp(closest, -half, half);
 	bool inside{ false };
@@ -288,8 +288,7 @@ static Collision<S> CircleCircle(const Circle<T>& a,
 	const T rad_sum2{ rad_sum * rad_sum };
 
 	// Collision did not occur, exit with empty collision.
-	if (dist2 > rad_sum2 ||
-		math::Compare(dist2, rad_sum2)) {
+	if (dist2 > rad_sum2 || math::Compare(dist2, rad_sum2)) {
 		return collision;
 	}
 
@@ -316,19 +315,19 @@ static Collision<S> CircleCircle(const Circle<T>& a,
 // TODO: Fix LineAABB.
 /*
 // Return collision manifold between line and an AABB.
-inline std::pair<double, Collision<S>> LineAABB(const V2_double& line_origin,
-												const V2_double& line_direction,
+inline std::pair<float, Collision<S>> LineAABB(const V2_float& line_origin,
+												const V2_float& line_direction,
 												const AABB& shape,
-												const V2_double& position) {
+												const V2_float& position) {
 
 	Collision<S> collision;
 
 	// Cache division.
-	const V2_double inverse_direction{ 1.0 / line_direction };
+	const V2_float inverse_direction{ 1.0 / line_direction };
 
 	// Calculate intersections with rectangle bounding axes.
-	V2_double t_near{ (position - line_origin) * inverse_direction };
-	V2_double t_far{ (position + shape.size - line_origin) * inverse_direction };
+	V2_float t_near{ (position - line_origin) * inverse_direction };
+	V2_float t_far{ (position + shape.size - line_origin) * inverse_direction };
 
 	// Discard 0 / 0 divisions.
 	if (std::isnan(t_far.y) || std::isnan(t_far.x)) {
@@ -397,7 +396,7 @@ template <typename S = float, typename T,
 static Collision<S> LineCapsule(const Line<T>& a,
 								const Capsule<T>& b) {
 	// TODO: Make this more efficient.
-	return CapsuleCapsule(Capsule{ a.origin, a.destination, T{ 0 } }, b);
+	return CapsuleCapsule(Capsule{ a.origin, a.destination, 0 }, b);
 }
 
 // TODO: Implement LineCircle collisions.
@@ -408,7 +407,7 @@ template <typename S = float, typename T,
 static Collision<S> LineLine(const Line<T>& a,
 							 const Line<T>& b) {
 	// TODO: Make this more efficient.
-	return CapsuleCapsule(Capsule{ a.origin, a.destination, T{ 0 } }, Capsule{ b.origin, b.destination, T{ 0 } });
+	return CapsuleCapsule(Capsule{ a.origin, a.destination, 0 }, Capsule{ b.origin, b.destination, 0 });
 }
 
 // Static collision check between a point and an aabb with collision information.
@@ -416,7 +415,7 @@ template <typename T, typename S = float,
 	tt::floating_point<S> = true>
 inline Collision<S> PointAABB(const Point<T>& a,
 							  const AABB<T>& b) {
-	return AABBAABB(AABB{ a, { T{ 0 }, T{ 0 } } }, AABB{ b.position, b.size });
+	return AABBAABB(AABB{ a, {} }, AABB{ b.position, b.size });
 }
 
 // Get the collision information of a point and a capsule.

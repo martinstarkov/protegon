@@ -18,10 +18,10 @@ using namespace ptgn;
 class JumpState {};
 class IdleState {};
 
-class AnimationTest : public Engine {
+class StateTest : public Engine {
 public:
 	V2_int size{ 64, 64 };
-	std::vector<V2_int> positions = { { 200, 200 }, { 100, 200 } };
+	std::vector<V2_int> positions{ { 200, 200 }, { 100, 200 } };
 	animation::SpriteMap sprite_map{ "map1", "resources/spritesheet.png" };
 	animation::AnimationMap animation_map;
 	state::StateMachine state_machine;
@@ -46,9 +46,11 @@ public:
 		state_machine.PushState<IdleState>(*animation_map.Get(0));
 
 	}
-	virtual void Update(double dt) {
+	virtual void Update(float dt) {
 		auto state = animation_map.Get(0);
-		draw::Texture(state->sprite_map.GetTextureKey(), { positions[0], size }, { state->GetCurrentPosition(), state->GetAnimation().frame_size });
+		draw::Texture(state->sprite_map.GetTextureKey(),
+					  { positions[0], size },
+					  { state->GetCurrentPosition(), state->GetAnimation()->frame_size });
 		state_machine.Update([&]() {
 			if (input::KeyPressed(Key::W)) {
 				state_machine.PushState<JumpState>(*state, 4);
@@ -62,7 +64,7 @@ public:
 };
 
 int main(int c, char** v) {
-	AnimationTest test;
-	test.Start("Animation Test", { 400, 400 });
+	StateTest test;
+	test.Start("Animation Test", { 400, 400 }, true, V2_int{}, window::Flags::NONE, true, false);
 	return 0;
 }

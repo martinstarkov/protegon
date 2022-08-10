@@ -8,11 +8,11 @@ struct Transform {
 	Transform() = default;
 	~Transform() = default;
 	Transform(const V2_double& position) : position{ position } {}
-	Transform(const V2_double& position, const double rotation) : 
+	Transform(const V2_double& position, float rotation) : 
 		position{ position }, rotation{ rotation } {}
 	
 	V2_double position;
-	double rotation{ 0 };
+	float rotation{ 0 };
 };
 
 struct OriginalTransform : public Transform {

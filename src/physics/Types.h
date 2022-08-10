@@ -83,7 +83,7 @@ struct AABB {
 		return { position + p, size };
 	}
 	inline math::Vector2<T> Center() const {
-		return position + size / T{ 2 };
+		return position + size / 2;
 	}
 	inline math::Vector2<T> Max() const {
 		return position + size;

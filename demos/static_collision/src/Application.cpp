@@ -20,9 +20,9 @@ public:
 	V2_int size2{ 200, 200 };
 	int radius2{ 20 };
 	Color color2{ color::BLUE };
-	const int options = 13;
-	int option = 0;
-	virtual void Update(double dt) {
+	const int options{ 13 };
+	int option{ 0 };
+	virtual void Update(float dt) {
 		auto mouse = input::GetMouseScreenPosition();
 		if (input::KeyDown(Key::T)) {
 			option++;
@@ -31,10 +31,10 @@ public:
 		if (input::KeyDown(Key::R)) {
 			position4 = mouse;
 		}
-		V2_int position2 = mouse;
+		position2 = mouse;
 
-		auto acolor1 = color1;
-		auto acolor2 = color2;
+		auto acolor1{ color1 };
+		auto acolor2{ color2 };
 
 		AABB aabb1{ position1, size1 };
 		AABB aabb2{ position2, size2 };
@@ -44,6 +44,11 @@ public:
 		Line line2{ position2, position4 };
 		Capsule capsule1{ position1, position3, radius1 };
 		Capsule capsule2{ position2, position4, radius2 };
+
+		// TODO: Implement LineCircle
+		// TODO: Implement LineAABB
+		// TODO: Implement CircleAABB
+		// TODO: Implement CapsuleAABB
 
 		if (option == 0) {
 			const auto collision{ intersect::PointCircle(position2, circle1) };
@@ -218,6 +223,6 @@ public:
 
 int main(int c, char** v) {
 	StaticCollisionTest test;
-	test.Start("Static Test, 'r' to change origin, 't' to toggle through shapes", { 600, 600 }, true);
+	test.Start("Static Test, 'r' to change origin, 't' to toggle through shapes", { 600, 600 }, true, V2_int{}, window::Flags::NONE, true, false);
 	return 0;
 }

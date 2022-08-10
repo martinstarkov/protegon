@@ -105,20 +105,20 @@ private:
 	std::unordered_map<V2_int, Tile> tiles;
 };
 
-inline V2_int ClosestAxis(const V2_double& direction) {
-	auto dir{ direction.Dot(V2_double{ 1, 0 }) };
+inline V2_int ClosestAxis(const V2_float& direction) {
+	auto dir{ direction.Dot(V2_float{ 1, 0 }) };
 	V2_int axis{ 1, 0 };
-	auto temp_dir{ direction.Dot(V2_double{ -1, 0 }) };
+	auto temp_dir{ direction.Dot(V2_float{ -1, 0 }) };
 	if (temp_dir > dir) {
 		dir = temp_dir;
 		axis = { -1, 0 };
 	}
-	temp_dir = direction.Dot(V2_double{ 0, 1 });
+	temp_dir = direction.Dot(V2_float{ 0, 1 });
 	if (temp_dir > dir) {
 		dir = temp_dir;
 		axis = { 0, 1 };
 	}
-	temp_dir = direction.Dot(V2_double{ 0, -1 });
+	temp_dir = direction.Dot(V2_float{ 0, -1 });
 	if (temp_dir > dir) {
 		dir = temp_dir;
 		axis = { 0, -1 };
@@ -151,7 +151,7 @@ Sequence GetRandomRollSequence(std::size_t count) {
 	return sequence;
 }
 
-Sequence GetRotatedSequence(Sequence sequence, const double angle) {
+Sequence GetRotatedSequence(Sequence sequence, const float angle) {
 	for (auto& vector : sequence)
 		vector = math::Round(vector.Rotate(angle));
 	return sequence;
@@ -296,7 +296,7 @@ public:
 		sound::Load("loss", "resources/sound/loss.wav");
 		text::Load("text7", "instruction", "1", "Press 'i' to see instructions", color::GOLD);
 	}
-	virtual void Update(double dt) override final {
+	virtual void Update(float dt) override final {
 		auto mouse = input::GetMouseScreenPosition();
 		if (input::KeyDown(Key::I)) {
 			scene::SetActive("menu");
@@ -444,7 +444,7 @@ public:
 		music::Load("music", "resources/music/background.wav");
 		music::Play("music", -1);
 	}
-	virtual void Update(double dt) override final {
+	virtual void Update(float dt) override final {
 		auto mouse = input::GetMouseScreenPosition();
 		auto s = grid.GetSize() * grid.GetTileSize();
 		draw::Text("text0", { { 32, 32 }, { s.x, 64 } });
@@ -484,7 +484,7 @@ class DiceGame : public Engine {
 		scene::Load<MenuScreen>("menu");
 		scene::SetActive("menu");
 	}
-	virtual void Update(double dt) override final {
+	virtual void Update(float dt) override final {
 		scene::Update(dt);
 	}
 };

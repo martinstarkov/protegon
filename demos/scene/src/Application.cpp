@@ -14,17 +14,17 @@
 
 using namespace ptgn;
 
-class AnimationTest : public Engine {
+class SceneTest : public Engine {
 public:
 	V2_int size{ 16, 9 };
-	std::vector<V2_double> positions = { { 200, 200 }, { 100, 200 } };
+	std::vector<V2_float> positions{ { 200, 200 }, { 100, 200 } };
 	animation::SpriteMap sprite_map{ "map1", "resources/spritesheet.png" };
 	animation::AnimationMap animation_map;
-	std::size_t anim1 = math::Hash("anim1");
-	std::size_t anim2 = math::Hash("anim2");
-	std::size_t map1 = math::Hash("map1");
+	std::size_t anim1{ math::Hash("anim1") };
+	std::size_t anim2{ math::Hash("anim2") };
+	std::size_t map1{ math::Hash("map1") };
 	animation::Offset offset;
-	V2_double velocity;
+	V2_float velocity;
 	Camera camera;
 	virtual void Init() {
 		auto& animation = sprite_map.Load(anim1, V2_int{ 0, 0 + 1 * 16 }, V2_int{ 16, 16 }, 3, milliseconds{ 400 });
@@ -32,8 +32,8 @@ public:
 		animation_map.Load(1, sprite_map, anim1, 2, true);
 		offset = { animation.frame_size, size, animation::Alignment::CENTER, animation::Alignment::BOTTOM };
 	}
-	virtual void Update(double dt) {
-		double speed = 100;
+	virtual void Update(float dt) {
+		float speed = 100;
 		//PrintLine(dt);
 
 		if (input::KeyPressed(Key::A)) velocity.x = -speed;
@@ -55,16 +55,16 @@ public:
 			auto state = animation_map.Get(i);
 			draw::Texture(state->sprite_map.GetTextureKey(), 
 						  { camera.RelativePosition(positions[i] - offset.value),
-						  camera.RelativeSize(state->GetAnimation().frame_size) },
+						  camera.RelativeSize(state->GetAnimation()->frame_size) },
 						  { state->GetCurrentPosition(),
-						  state->GetAnimation().frame_size });
+						  state->GetAnimation()->frame_size });
 			draw::AABB({ camera.RelativePosition(positions[i]), camera.RelativeSize(size) }, color::RED);
 		}
 	}
 };
 
 int main(int c, char** v) {
-	AnimationTest test;
-	test.Start("Animation Test", { 400, 400 });
+	SceneTest test;
+	test.Start("Animation Test", { 400, 400 }, true, V2_int{}, window::Flags::NONE, true, false);
 	return 0;
 }

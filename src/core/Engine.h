@@ -25,7 +25,7 @@ public:
 	virtual void Init() {}
 	// User function called at the beginning of each game frame.
 	// dt is the time since the last update (in seconds).
-	virtual void Update(double dt) {}
+	virtual void Update(float dt) {}
 private:
 	// Called when engine is first started, sets up all required systems and variables.
 	void InternalInit() {

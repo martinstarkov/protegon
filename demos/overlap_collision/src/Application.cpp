@@ -19,9 +19,9 @@ public:
 	V2_int size2{ 200, 200 };
 	int radius2{ 20 };
 	Color color2{ color::BLUE };
-	const int options = 13;
-	int option = 0;
-	virtual void Update(double dt) {
+	const int options{ 13 };
+	int option{ 0 };
+	virtual void Update(float dt) {
 		auto mouse = input::GetMouseScreenPosition();
 		if (input::KeyDown(Key::T)) {
 			option++;
@@ -160,6 +160,6 @@ public:
 
 int main(int c, char** v) {
 	OverlapCollisionTest test;
-	test.Start("Overlap Test, 'r' to change origin, 't' to toggle through shapes", { 600, 600 }, true);
+	test.Start("Overlap Test, 'r' to change origin, 't' to toggle through shapes", { 600, 600 }, true, V2_int{}, window::Flags::NONE, true, false);
 	return 0;
 }

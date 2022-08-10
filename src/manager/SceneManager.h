@@ -52,7 +52,7 @@ public:
 		}
 		return active;
 	}
-	void Update(double dt) {
+	void Update(float dt) {
 		for (auto scene_key : active_scenes_) {
 			if (Has(scene_key)) {
 				auto scene = Get(scene_key);

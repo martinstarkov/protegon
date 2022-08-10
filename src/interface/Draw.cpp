@@ -134,11 +134,11 @@ void SolidCircle(const ptgn::Circle<int>& c,
 // Source: https://github.com/martinstarkov/SDL2_gfx/blob/master/SDL2_gfxPrimitives.c#L1183
 // With some modifications.
 void Arc(const ptgn::Circle<int>& arc_circle,
-		 double start_angle,
-		 double end_angle,
+		 float start_angle,
+		 float end_angle,
 		 const Color& color) {
 	assert(Exists() && "Cannot draw line with nonexistent renderer");
-	using S = double;
+	using S = float;
 	auto renderer{ Renderer::Get().renderer_ };
 	int cx = 0;
 	int cy = arc_circle.radius;
@@ -149,7 +149,7 @@ void Arc(const ptgn::Circle<int>& arc_circle,
 	int ypcy, ymcy, ypcx, ymcx;
 	std::uint8_t drawoct;
 	int startoct, endoct, oct, stopval_start = 0, stopval_end = 0;
-	double dstart, dend, temp = 0.;
+	float dstart, dend, temp = 0.;
 
 	/*
 	* Sanity check radius
@@ -204,23 +204,23 @@ void Arc(const ptgn::Circle<int>& arc_circle,
 
 		if (oct == startoct) {
 			/* need to compute stopval_start for this octant.  Look at picture above if this is unclear */
-			dstart = (double)start_angle;
+			dstart = (float)start_angle;
 			switch (oct) {
 				case 0:
 				case 3:
-					temp = sin(dstart * math::pi<double> / 180.);
+					temp = sin(dstart * math::pi<float> / 180.);
 					break;
 				case 1:
 				case 6:
-					temp = cos(dstart * math::pi<double> / 180.);
+					temp = cos(dstart * math::pi<float> / 180.);
 					break;
 				case 2:
 				case 5:
-					temp = -cos(dstart * math::pi<double> / 180.);
+					temp = -cos(dstart * math::pi<float> / 180.);
 					break;
 				case 4:
 				case 7:
-					temp = -sin(dstart * math::pi<double> / 180.);
+					temp = -sin(dstart * math::pi<float> / 180.);
 					break;
 			}
 			temp *= arc_circle.radius;
@@ -237,23 +237,23 @@ void Arc(const ptgn::Circle<int>& arc_circle,
 		}
 		if (oct == endoct) {
 			/* need to compute stopval_end for this octant */
-			dend = (double)end_angle;
+			dend = (float)end_angle;
 			switch (oct) {
 				case 0:
 				case 3:
-					temp = sin(dend * math::pi<double> / 180);
+					temp = sin(dend * math::pi<float> / 180);
 					break;
 				case 1:
 				case 6:
-					temp = cos(dend * math::pi<double> / 180);
+					temp = cos(dend * math::pi<float> / 180);
 					break;
 				case 2:
 				case 5:
-					temp = -cos(dend * math::pi<double> / 180);
+					temp = -cos(dend * math::pi<float> / 180);
 					break;
 				case 4:
 				case 7:
-					temp = -sin(dend * math::pi<double> / 180);
+					temp = -sin(dend * math::pi<float> / 180);
 					break;
 			}
 			temp *= arc_circle.radius;
@@ -351,7 +351,7 @@ void Capsule(const ptgn::Capsule<int>& c,
 	SetColor(color);
 	auto renderer = Renderer::Get().renderer_;
 	V2_int direction{ c.Direction() };
-	const double angle{ math::ToDeg(math::ClampAngle2Pi(direction.Angle() + math::half_pi<double>)) };
+	const float angle{ math::ToDeg(math::ClampAngle2Pi(direction.Angle() + math::half_pi<float>)) };
 	const int dir2{ direction.MagnitudeSquared() };
 	V2_int tangent_r;
 	if (dir2 == 0) {
@@ -411,7 +411,7 @@ void Texture(const char* texture_key,
 			 const ptgn::AABB<int>& texture,
 			 const ptgn::AABB<int>& source,
 			 const V2_int* center_of_rotation,
-			 const double angle,
+			 const float angle,
 			 Flip flip) {
 	assert(Exists() && "Cannot draw texture with nonexistent renderer");
 	const auto& texture_manager{ manager::Get<TextureManager>() };

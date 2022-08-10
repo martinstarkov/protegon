@@ -57,9 +57,9 @@ void Engine::InternalUpdate() {
     while (window::Exists()) {
         // Calculate time elapsed during previous frame.
         end = std::chrono::system_clock::now();
-        std::chrono::duration<double> elapsed = end - start;
+        std::chrono::duration<float> elapsed = end - start;
         start = end;
-        double dt = elapsed.count();
+        float dt = elapsed.count();
 
         draw::SetColor(window::GetColor());
         // Clear screen.

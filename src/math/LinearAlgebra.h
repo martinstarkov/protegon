@@ -248,7 +248,7 @@ inline T SquareDistancePointAABB(const Point<T>& a,
 // Computes closest points C1 and C2 of S1(s)=P1+s*(Q1-P1) and
 // S2(t)=P2+t*(Q2-P2), returning s and t. 
 // Function return is squared distance between between S1(s) and S2(t)
-template <typename S = double, typename T,
+template <typename S = float, typename T,
     tt::floating_point<S> = true>
 static S ClosestPointLineLine(const Line<T>& a,
                               const Line<T>& b,

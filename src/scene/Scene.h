@@ -13,7 +13,7 @@ class Scene {
 public:
 	virtual ~Scene() = default;
 	virtual void Enter() {}
-	virtual void Update(double dt) {}
+	virtual void Update(float dt) {}
 	virtual void Exit() {}
 private:
 	friend class SceneManager;

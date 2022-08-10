@@ -39,7 +39,7 @@ inline bool CircleAABB(const Circle<T>& a,
 
 // Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 // Page 114.
-template <typename T, typename S = double,
+template <typename T, typename S = float,
 	tt::floating_point<S> = true>
 static bool CircleCapsule(const Circle<T>& a,
 						  const Capsule<T>& b) {
@@ -67,7 +67,7 @@ inline bool CircleCircle(const Circle<T>& a,
 
 // Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 // Pages 114-115.
-template <typename S = double, typename T,
+template <typename S = float, typename T,
 	tt::floating_point<S> = true>
 static bool CapsuleCapsule(const Capsule<T>& a,
 							   const Capsule<T>& b) {
@@ -84,7 +84,7 @@ static bool CapsuleCapsule(const Capsule<T>& a,
 	return dist2 < rad_sum2 || math::Compare(dist2, rad_sum2);
 }
 
-template <typename T, typename S = double,
+template <typename T, typename S = float,
 	tt::floating_point<S> = true>
 static bool CapsuleAABB(const Capsule<T>& a,
 						const AABB<T>& b) {
@@ -120,7 +120,7 @@ static bool CapsuleAABB(const Capsule<T>& a,
 	return CircleAABB({ min_capsule, static_cast<S>(a.radius) }, static_cast<AABB<S>>(b));
 }
 
-template <typename T, typename S = double,
+template <typename T, typename S = float,
 	tt::floating_point<S> = true>
 static bool LineAABB(const Line<T>& a,
 					 const AABB<T>& b) {
@@ -146,11 +146,11 @@ static bool LineAABB(const Line<T>& a,
 	//return math::CohenSutherlandLineClip(a.origin, a.destination, b.Min(), b.Max());
 }
 
-template <typename T, typename S = double,
+template <typename T, typename S = float,
 	tt::floating_point<S> = true>
 inline bool LineCapsule(const Line<T>& a,
 					    const Capsule<T>& b) {
-	return CapsuleCapsule({ a.origin, a.destination, T{ 0 } }, b);
+	return CapsuleCapsule({ a.origin, a.destination, 0 }, b);
 }
 
 // Source: https://www.jeffreythompson.org/collision-detection/line-circle.php
@@ -158,7 +158,7 @@ inline bool LineCapsule(const Line<T>& a,
 // Page 179.
 // Source: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
 // Source (used): https://www.baeldung.com/cs/circle-line-segment-collision-detection
-template <typename T, typename S = double,
+template <typename T, typename S = float,
 	tt::floating_point<S> = true>
 static bool LineCircle(const Line<T>& a,
 					   const Circle<T>& b) {
@@ -237,19 +237,19 @@ static bool LineLine(const Line<T>& a,
 template <typename T>
 inline bool PointAABB(const Point<T>& a,
 					  const AABB<T>& b) {
-	return AABBAABB({ a, { T{ 0 }, T{ 0 } } }, b);
+	return AABBAABB({ a, {} }, b);
 }
 
 template <typename T>
 inline bool PointCapsule(const Point<T>& a,
 						 const Capsule<T>& b) {
-	return CircleCapsule({ a, T{ 0 } }, b);
+	return CircleCapsule({ a, 0 }, b);
 }
 
 template <typename T>
 inline bool PointCircle(const Point<T>& a,
 						const Circle<T>& b) {
-	return CircleCircle({ a, T{ 0 } }, b);
+	return CircleCircle({ a, 0 }, b);
 }
 
 /*

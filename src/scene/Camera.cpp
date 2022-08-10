@@ -6,7 +6,7 @@
 
 namespace ptgn {
 
-void Camera::ZoomIn(const V2_double& amount) {
+void Camera::ZoomIn(const V2_float& amount) {
 	scale += amount;
 	ClampZoom();
 }
@@ -16,7 +16,7 @@ void Camera::ZoomIn() {
 	ClampZoom();
 }
 
-void Camera::ZoomOut(const V2_double& amount) {
+void Camera::ZoomOut(const V2_float& amount) {
 	scale -= amount;
 	ClampZoom();
 }
@@ -30,14 +30,14 @@ void Camera::ClampZoom() {
 	scale = math::Clamp(scale, min_scale, max_scale);
 }
 
-void Camera::CenterOn(const V2_double& point, const V2_double& size) {
+void Camera::CenterOn(const V2_float& point, const V2_float& size) {
 	position = point + size / 2.0 - (window::GetSize() / 2.0) / scale;
 }
 
-V2_double Camera::RelativePosition(const V2_double& object_position) {
+V2_float Camera::RelativePosition(const V2_float& object_position) {
 	return (object_position - position) * scale;
 }
-V2_double Camera::RelativeSize(const V2_double& object_size) {
+V2_float Camera::RelativeSize(const V2_float& object_size) {
 	return object_size * scale;
 }
 

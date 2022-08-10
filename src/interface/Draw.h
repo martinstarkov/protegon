@@ -39,8 +39,8 @@ void SolidCircle(const ptgn::Circle<int>& c,
                  const Color& color = color::DEFAULT);
 
 void Arc(const ptgn::Circle<int>& arc_circle,
-         double start_angle,
-         double end_angle,
+         float start_angle,
+         float end_angle,
          const Color& color = color::DEFAULT);
 
 void Capsule(const ptgn::Capsule<int>& c,
@@ -65,7 +65,7 @@ void Texture(const char* texture_key,
              const ptgn::AABB<int>& texture,
              const ptgn::AABB<int>& source,
              const V2_int* center_of_rotation,
-             const double angle,
+             const float angle,
              Flip flip);
 
 // Draws text to the screen.

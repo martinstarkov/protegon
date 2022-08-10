@@ -28,7 +28,7 @@ struct Collision {
 // TODO: Fix AABBAABB dynamic.
 // Determine the time at which a dynamic AABB would collide with a static AABB.
 // Pair contains collision time.
-inline std::pair<double, Collision<S>> AABBAABB(const AABB& dynamic_shape,
+inline std::pair<float, Collision<S>> AABBAABB(const AABB& dynamic_shape,
 													 const V2_double& dynamic_position,
 													 const V2_double& dynamic_velocity,
 													 const AABB& static_shape,
@@ -66,7 +66,7 @@ inline std::pair<double, Collision<S>> AABBAABB(const AABB& dynamic_shape,
 }
 
 // Modify the velocity of a dynamic AABB so it does not collide with a static AABB.
-inline std::pair<double, Collision<S>> ResolveAABBAABB(const AABB& dynamic_shape,
+inline std::pair<float, Collision<S>> ResolveAABBAABB(const AABB& dynamic_shape,
 													   const V2_double& dynamic_position,
 													   V2_double& dynamic_velocity,
 													   const AABB& static_shape,
