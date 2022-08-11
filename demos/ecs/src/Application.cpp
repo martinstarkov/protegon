@@ -7,8 +7,8 @@ using namespace ptgn;
 
 struct HumanComponent {
 	HumanComponent(int age, double height) : age{ age }, height{ height } {}
-	int age;
-	double height;
+	int age{};
+	double height{};
 };
 
 struct RobotComponent {
