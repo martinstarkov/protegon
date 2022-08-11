@@ -28,8 +28,8 @@ inline T ParallelogramArea(const math::Vector2<T>& a,
 // Source (used): PointToLineSquareDistance == 0 but optimized slightly.
 template <typename T, typename S = float,
     tt::floating_point<S> = true>
-    inline bool PointLine(const Point<T>& a,
-                          const Line<T>& b) {
+inline bool PointLine(const Point<T>& a,
+                      const Line<T>& b) {
     const math::Vector2<S> ab{ b.Direction() };
     const math::Vector2<S> ac{ a - b.origin };
     const math::Vector2<S> bc{ a - b.destination };
