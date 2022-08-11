@@ -96,6 +96,81 @@ inline std::pair<float, Collision<S>> ResolveAABBAABB(const AABB& dynamic_shape,
 // TODO: Implement CircleCircle dynamic.
 
 // TODO: Implement LineAABB dynamic.
+/*
+// Return collision manifold between line and an AABB.
+inline std::pair<float, Collision<S>> LineAABB(const V2_float& line_origin,
+												const V2_float& line_direction,
+												const AABB& shape,
+												const V2_float& position) {
+
+	Collision<S> collision;
+
+	// Cache division.
+	const V2_float inverse_direction{ 1.0 / line_direction };
+
+	// Calculate intersections with rectangle bounding axes.
+	V2_float t_near{ (position - line_origin) * inverse_direction };
+	V2_float t_far{ (position + shape.size - line_origin) * inverse_direction };
+
+	// Discard 0 / 0 divisions.
+	if (std::isnan(t_far.y) || std::isnan(t_far.x)) {
+		return { 1.0, collision };
+	}
+	if (std::isnan(t_near.y) || std::isnan(t_near.x)) {
+		return { 1.0, collision };
+	}
+
+	// Sort axis collision times so t_near contains the shorter time.
+	if (t_near.x > t_far.x) {
+		std::swap(t_near.x, t_far.x);
+	}
+	if (t_near.y > t_far.y) {
+		std::swap(t_near.y, t_far.y);
+	}
+
+	// Early rejection.
+	if (t_near.x > t_far.y || t_near.y > t_far.x) return { 1.0, collision };
+
+	// Closest time will be the first contact.
+	auto t_hit_near{ std::max(t_near.x, t_near.y) };
+
+	// Furthest time is contact on opposite side of target.
+	auto t_hit_far{ std::min(t_far.x, t_far.y) };
+
+	// Reject if furthest time is negative, meaning the object is travelling away from the target.
+	if (t_hit_far < 0.0) {
+		return { 1.0, collision };
+	}
+
+	// Contact point of collision from parametric line equation.
+	//collision.point = line_origin + line_direction * t_hit_near;
+
+	// Find which axis collides further along the movement time.
+	if (t_near.x > t_near.y) { // X-axis.
+		// Direction of movement.
+		if (inverse_direction.x < 0.0) {
+			collision.normal = { 1.0, 0.0 };
+		} else {
+			collision.normal = { -1.0, 0.0 };
+		}
+	} else if (t_near.x < t_near.y) { // Y-axis.
+		// Direction of movement.
+		if (inverse_direction.y < 0.0) {
+			collision.normal = { 0.0, 1.0 };
+		} else {
+			collision.normal = { 0.0, -1.0 };
+		}
+	} else if (t_near.x == t_near.y && t_far.x == t_far.y) { // Both axes collide at the same time.
+		// Diagonal collision, set normal to opposite of direction of movement.
+		collision.normal = line_direction.Identity().Opposite();
+	}
+
+	collision.penetration = line_direction * (t_hit_far - t_hit_near) * collision.normal;
+
+	// Raycast collision occurred.
+	return { t_hit_near, collision };
+}
+*/
 
 // TODO: Implement LineCapsule dynamic.
 
