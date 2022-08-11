@@ -82,8 +82,11 @@ struct AABB {
 	inline AABB AddPenetration(const math::Vector2<T>& p) const {
 		return { position + p, size };
 	}
+	inline math::Vector2<T> Half() const {
+		return size / 2;
+	}
 	inline math::Vector2<T> Center() const {
-		return position + size / 2;
+		return position + Half();
 	}
 	inline math::Vector2<T> Max() const {
 		return position + size;
