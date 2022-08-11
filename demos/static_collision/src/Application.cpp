@@ -15,7 +15,7 @@ public:
 	V2_int position3{ 500, 500 };
 	V2_int position4{ 300 - 50, 300 };
 	V2_int size1{ 60, 60 };
-	int radius1{ 30 };
+	int radius1{ 60 };
 	Color color1{ color::GREEN };
 	V2_int size2{ 200, 200 };
 	int radius2{ 20 };
@@ -100,19 +100,18 @@ public:
 				draw::Line({ line2.destination, line2.destination + collision.penetration }, color::GOLD);
 			}
 		} else if (option == 4) {
-			/*const auto collision{ intersect::LineCircle(line2, circle1) };
+			const auto collision{ intersect::LineCircle(line2, circle1) };
 			if (collision.Occured()) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}
-			draw::Line(line2, acolor2);
 			draw::Circle(circle1, acolor1);
+			draw::Line(line2, acolor2);
 			if (collision.Occured()) {
-				draw::Line(line2.AddPenetration(collision.penetration), color2);
 				draw::Line({ line2.origin, line2.origin + collision.penetration }, color::GOLD);
 				draw::Line({ line2.destination, line2.destination + collision.penetration }, color::GOLD);
+				draw::Line(line2.AddPenetration(collision.penetration), color2);
 			}
-			*/
 		} else if (option == 5) {
 			const auto collision{ intersect::LineCapsule(line2, capsule1) };
 			if (collision.Occured()) {
@@ -138,8 +137,7 @@ public:
 				draw::Line(line2.AddPenetration(collision.penetration), color2);
 				draw::Line({ line2.origin, line2.origin + collision.penetration }, color::GOLD);
 				draw::Line({ line2.destination, line2.destination + collision.penetration }, color::GOLD);
-			}
-			*/
+			}*/
 		} else if (option == 7) {
 			const auto collision{ intersect::CircleCircle(circle2, circle1) };
 			if (collision.Occured()) {
@@ -165,7 +163,7 @@ public:
 				draw::Line({ circle2.center, circle2.center + collision.penetration }, color::GOLD);
 			}
 		} else if (option == 9) {
-			/*const auto collision{ intersect::CircleAABB(circle2, aabb1) };
+			const auto collision{ intersect::CircleAABB(circle2, aabb1) };
 			if (collision.Occured()) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
@@ -176,7 +174,6 @@ public:
 				draw::Circle(circle2.AddPenetration(collision.penetration), color2);
 				draw::Line({ circle2.center, circle2.center + collision.penetration }, color::GOLD);
 			}
-			*/
 		} else if (option == 10) {
 			const auto collision{ intersect::CapsuleCapsule(capsule2, capsule1) };
 			if (collision.Occured()) {

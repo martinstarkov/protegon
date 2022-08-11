@@ -8,6 +8,7 @@
 #include "math/Math.h"
 #include "math/LinearAlgebra.h"
 #include "utility/TypeTraits.h"
+#include "collision/Overlap.h"
 
 namespace ptgn {
 
@@ -32,6 +33,7 @@ struct Collision {
         bool occured_{ false };
 };
 
+// TODO: Replace with SAT algorithm.
 // Static collision check between two aabbs with collision information.
 template <typename T, typename S = float,
     tt::floating_point<S> = true>
@@ -75,7 +77,7 @@ static Collision<S> AABBAABB(const AABB<T>& a,
 
 // Source: https://steamcdn-a.akamaihd.net/apps/valve/2015/DirkGregorius_Contacts.pdf
 // TODO: Implement CapsuleAABB here.
-
+// Basically do a line vs 4 AABB sides, find min distance, pick that point and do a CirclevsAABB there.
 
 // Source: https://steamcdn-a.akamaihd.net/apps/valve/2015/DirkGregorius_Contacts.pdf
 // With edge cases added.
@@ -144,18 +146,28 @@ static Collision<S> CapsuleCapsule(const Capsule<T>& a,
 		math::Vector2<S> dir{ line.Direction() };
 		math::Vector2<S> o_dir{ other.Direction() };
 		// TODO: Perhaps this check could be moved to the very beginning as it does not rely on projections.
-		if (dir.IsZero()) {
+		bool zero_dir{ dir.IsZero() };
+		bool o_zero_dir{ o_dir.IsZero() };
+		if (zero_dir || o_zero_dir) {
 			// At least one of the capsules is a circle.
-			if (o_dir.IsZero()) {
+			if (zero_dir && o_zero_dir) {
 				// Both capsules are circles.
 				// Circle vs circle collision where both circle centers overlap.
 				return CircleCircle(Circle{ c1, static_cast<S>(a.radius) }, Circle{ c2, static_cast<S>(b.radius) });
 			} else {
-				// Only one of the capsules is a circle.
-				// Capsule vs circle collision where circle center intersects capsule centerline.
-				collision.normal = o_dir.Tangent().Normalize();
-				collision.penetration = collision.normal * rad_sum;
-				return collision;
+				if (zero_dir) {
+					// Only one of the capsules is a circle.
+					// Capsule vs circle collision where circle center intersects capsule centerline.
+					collision.normal = o_dir.Tangent().Normalize();
+					collision.penetration = collision.normal * rad_sum;
+					return collision;
+				} else if (o_zero_dir) {
+					// Only one of the capsules is a circle.
+					// Capsule vs circle collision where circle center intersects capsule centerline.
+					collision.normal = dir.Tangent().Normalize();
+					collision.penetration = collision.normal * rad_sum;
+					return collision;
+				}
 			}
 		} else {
 			// Capsule vs capsule.
@@ -203,66 +215,88 @@ static Collision<S> CapsuleCapsule(const Capsule<T>& a,
 	return collision;
 }
 
-// TODO: Fix CircleAABB function.
-/*
+// TODO: Replace with modified SAT algorithm.
 // Source: https://steamcdn-a.akamaihd.net/apps/valve/2015/DirkGregorius_Contacts.pdf
 // Static rectangle and circle collision detection.
-inline Collision<S> CircleAABB(const Circle& shapeA,
-							   const V2_float& positionA,
-							   const AABB& shapeB,
-							   const V2_float& positionB) {
+template <typename S = float, typename T,
+	tt::floating_point<S> = true>
+static Collision<S> CircleAABB(const Circle<T>& a,
+							   const AABB<T>& b) {
 	Collision<S> collision;
-	// Vector from A to B.
-	const V2_float half{ shapeB.size / 2.0 };
-	const V2_float n{ positionA - (positionB + half) };
-	// Closest point on A to center of B.
-	V2_float closest{ n };
-	// Clamp point to edges of the AABB.
-	closest = std::clamp(closest, -half, half);
-	bool inside{ false };
-	// Circle is inside the AABB, so we need to clamp the circle's center
-	// to the closest edge
-	if (n == closest) {
-		inside = true;
-		// Find closest axis
-		if (math::FastAbs(n.x) > math::FastAbs(n.y)) {
-			// Clamp to closest extent
-			if (closest.x > 0.0) {
-				closest.x = half.x;
-			} else {
-				closest.x = -half.x;
-			}
-		} else { // y axis is shorter
-			// Clamp to closest extent
-			if (closest.y > 0.0) {
-				closest.y = half.y;
-			} else {
-				closest.y = -half.y;
-			}
+
+	using Edge = std::pair<math::Vector2<T>, math::Vector2<T>>;
+	math::Vector2<T> top_right{ b.position.x + b.size.x, b.position.y };
+	math::Vector2<T> bottom_right{ b.position + b.size };
+	math::Vector2<T> bottom_left{ b.position.x, b.position.y + b.size.y };
+	std::array<Edge, 4> edges;
+	edges.at(0) = { b.position, top_right };     // top
+	edges.at(1) = { top_right, bottom_right };   // right
+	edges.at(2) = { bottom_right, bottom_left }; // bottom
+	edges.at(3) = { bottom_left, b.position };   // left
+	S min_dist2{ std::numeric_limits<S>::infinity() };
+	math::Vector2<S> min_point;
+	std::size_t side_index{ 0 };
+	for (std::size_t i{ 0 }; i < edges.size(); ++i) {
+		auto& [origin, destination] = edges[i];
+		S t{};
+		math::Vector2<S> c1;
+		math::ClosestPointLine<S>(a.center, { origin, destination }, t, c1);
+		S dist2{ (a.center - c1).MagnitudeSquared() };
+		if (dist2 < min_dist2) {
+			side_index = i;
+			min_dist2 = dist2;
+			// Point on the AABB that was the closest.
+			min_point = c1;
 		}
 	}
 
-	const auto normal{ n - closest };
-	const auto dist2{ normal.MagnitudeSquared() };
-	// Early out of the radius is shorter than distance to closest point and
-	// Circle not inside the AABB
-	if (dist2 > shapeA.radius * shapeA.radius && !inside) {
+	bool inside{ overlap::PointAABB(a.center, b) };
+
+	const T rad2{ a.RadiusSquared() };
+	if (min_dist2 > rad2 && !inside)
+		return collision;
+
+	collision.SetOccured();
+
+	if (math::Compare(min_dist2, 0)) {
+		// Circle is on one of the AABB edges.
+		switch (side_index) {
+			case 0:
+				collision.normal = { 0, -1 }; // top
+				break;
+			case 1:
+				collision.normal = { 1, 0 };  // right
+				break;
+			case 2:
+				collision.normal = { 0, 1 };  // bottom
+				break;
+			case 3:
+				collision.normal = { -1, 0 }; // left
+				break;
+		}
+		collision.penetration = collision.normal * a.radius;
+		return collision;
+	} else {
+		const math::Vector2<S> dir{ a.center - min_point };
+		const S mag{ dir.Magnitude() };
+
+		// TODO: Move this to the very beginning as it is an edge case 
+		// which can be checked before looping all sides of aabb.
+		if (math::Compare(mag, 0))
+			// Choose upward vector arbitrarily if circle center is aabb center.
+			collision.normal = { 0, -1 }; // top
+		else
+			collision.normal = dir / mag;
+
+		if (inside) {
+			collision.normal *= -1;
+			collision.penetration = collision.normal * (a.radius + mag);
+		} else {
+			collision.penetration = collision.normal * (a.radius - mag);
+		}
 		return collision;
 	}
-	// Avoid sqrtf until we needed to take it.
-	auto distance{ std::sqrtf(dist2) };
-	// Collision normal needs to be flipped to point outside if circle was
-	// inside the AABB
-	if (inside) {
-		collision.normal = -n;
-	} else {
-		collision.normal = n;
-	}
-	collision.penetration = collision.normal * (shapeA.radius - distance);
-	collision.contact_point = positionA + collision.penetration;
-	return collision;
 }
-*/
 
 // Source: https://steamcdn-a.akamaihd.net/apps/valve/2015/DirkGregorius_Contacts.pdf
 // Get the collision information of a circle and a capsule.
@@ -312,82 +346,7 @@ static Collision<S> CircleCircle(const Circle<T>& a,
 	return collision;
 }
 
-// TODO: Fix LineAABB.
-/*
-// Return collision manifold between line and an AABB.
-inline std::pair<float, Collision<S>> LineAABB(const V2_float& line_origin,
-												const V2_float& line_direction,
-												const AABB& shape,
-												const V2_float& position) {
-
-	Collision<S> collision;
-
-	// Cache division.
-	const V2_float inverse_direction{ 1.0 / line_direction };
-
-	// Calculate intersections with rectangle bounding axes.
-	V2_float t_near{ (position - line_origin) * inverse_direction };
-	V2_float t_far{ (position + shape.size - line_origin) * inverse_direction };
-
-	// Discard 0 / 0 divisions.
-	if (std::isnan(t_far.y) || std::isnan(t_far.x)) {
-		return { 1.0, collision };
-	}
-	if (std::isnan(t_near.y) || std::isnan(t_near.x)) {
-		return { 1.0, collision };
-	}
-
-	// Sort axis collision times so t_near contains the shorter time.
-	if (t_near.x > t_far.x) {
-		std::swap(t_near.x, t_far.x);
-	}
-	if (t_near.y > t_far.y) {
-		std::swap(t_near.y, t_far.y);
-	}
-
-	// Early rejection.
-	if (t_near.x > t_far.y || t_near.y > t_far.x) return { 1.0, collision };
-
-	// Closest time will be the first contact.
-	auto t_hit_near{ std::max(t_near.x, t_near.y) };
-
-	// Furthest time is contact on opposite side of target.
-	auto t_hit_far{ std::min(t_far.x, t_far.y) };
-
-	// Reject if furthest time is negative, meaning the object is travelling away from the target.
-	if (t_hit_far < 0.0) {
-		return { 1.0, collision };
-	}
-
-	// Contact point of collision from parametric line equation.
-	//collision.point = line_origin + line_direction * t_hit_near;
-
-	// Find which axis collides further along the movement time.
-	if (t_near.x > t_near.y) { // X-axis.
-		// Direction of movement.
-		if (inverse_direction.x < 0.0) {
-			collision.normal = { 1.0, 0.0 };
-		} else {
-			collision.normal = { -1.0, 0.0 };
-		}
-	} else if (t_near.x < t_near.y) { // Y-axis.
-		// Direction of movement.
-		if (inverse_direction.y < 0.0) {
-			collision.normal = { 0.0, 1.0 };
-		} else {
-			collision.normal = { 0.0, -1.0 };
-		}
-	} else if (t_near.x == t_near.y && t_far.x == t_far.y) { // Both axes collide at the same time.
-		// Diagonal collision, set normal to opposite of direction of movement.
-		collision.normal = line_direction.Identity().Opposite();
-	}
-
-	collision.penetration = line_direction * (t_hit_far - t_hit_near) * collision.normal;
-
-	// Raycast collision occurred.
-	return { t_hit_near, collision };
-}
-*/
+// TODO: Implement LineAABB.
 
 // Get the collision information of a line and a capsule.
 // Capsule origin and destination are taken from the edge circle centers.
@@ -400,6 +359,14 @@ static Collision<S> LineCapsule(const Line<T>& a,
 }
 
 // TODO: Implement LineCircle collisions.
+// Intersects ray r = p + td, |d| = 1, with sphere s and, if intersecting,
+// returns t value of intersection and intersection point q
+template <typename S = float, typename T,
+	tt::floating_point<S> = true>
+static Collision<S> LineCircle(const Line<T>& a,
+							   const Circle<T>& b) {
+	return CapsuleCapsule(Capsule{ a.origin, a.destination, 0 }, Capsule{ b.center, b.center, b.radius });
+}
 
 // Get the collision information of two lines.
 template <typename S = float, typename T,
