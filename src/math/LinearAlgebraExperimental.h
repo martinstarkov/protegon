@@ -27,8 +27,8 @@ void ClosestPointsSegmentSegment(const Segment<T>& a,
 	const T mag_a2{ d1.MagnitudeSquared() }; // Squared length of segment S1, always nonnegative
 	const T mag_b2{ d2.MagnitudeSquared() }; // Squared length of segment S2, always nonnegative
 	// Check if either or both segments degenerate into points
-	bool a_point{ mag_a2 <= math::epsilon<T> };
-	bool b_point{ mag_b2 <= math::epsilon<T> };
+	bool a_point{ math::Compare(mag_a2, 0) };
+	bool b_point{ math::Compare(mag_b2, 0) };
 	if (a_point && b_point) {
 		// Both segments degenerate into points.
 		out_s = out_t = 0;

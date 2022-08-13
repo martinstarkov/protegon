@@ -18,14 +18,11 @@ template <typename T,
 struct Collision {
     Collision() = default;
     ~Collision() = default;
-    bool Occured() const {
-        return count;
-    }
-	T penetration{ 0 };
-    int count{ 0 };
-	T depth[2]{};
-    math::Vector2<T> point[2];
+	// TODO: Consider making this variable private.
+    bool occured{ false };
+	T depth{ 0 };
     math::Vector2<T> normal;
+    //math::Vector2<T> point[2];
 };
 
 template <typename T = float,
@@ -42,9 +39,9 @@ Collision<T> CircleCircle(const Circle<T>& a,
 			c.normal.y = -1;
 		else
 			c.normal = dir / dist;
-		c.count = 1;
-		c.depth[0] = rad - dist;
-		c.point[0] = b.center - c.normal * b.radius;
+		c.occured = true;
+		c.depth = rad - dist;
+		//c.point[0] = b.center - c.normal * b.radius;
 	}
 	return c;
 }
@@ -65,25 +62,25 @@ Collision<T> AABBAABB(const AABB<T>& a,
 	const T dy{ eA.y + eB.y - math::FastAbs(d.y) };
 	if (dy < 0) return c;
 
-	c.count = 1;
-	c.point[0] = mid_a;
+	c.occured = true;
+	//c.point[0] = mid_a;
 	if (dx < dy) {
-		c.depth[0] = dx;
+		c.depth = dx;
 		if (d.x < 0) {
 			c.normal.x = -1;
-			c.point[0].x -= eA.x;
+			//c.point[0].x -= eA.x;
 		} else {
 			c.normal.x = 1;
-			c.point[0].x += eA.x;
+			//c.point[0].x += eA.x;
 		}
 	} else {
-		c.depth[0] = dy;
+		c.depth = dy;
 		if (d.y < 0) {
 			c.normal.y = -1;
-			c.point[0].y -= eA.y;
+			//c.point[0].y -= eA.y;
 		} else {
 			c.normal.y = 1;
-			c.point[0].y += eA.y;
+			//c.point[0].y += eA.y;
 		}
 	}
 	return c;
@@ -99,13 +96,13 @@ Collision<T> CircleAABB(const Circle<T>& a,
 	const T dist2{ dir.MagnitudeSquared() };
 	const T rad2{ a.RadiusSquared() };
 	if (dist2 < rad2) {
-		c.count = 1;
+		c.occured = true;
 		if (!math::Compare(dist2, 0)) {
 			// shallow (center of circle not inside of AABB).
 			const T dist{ std::sqrtf(dist2) };
 			c.normal = dir / dist;
-			c.depth[0] = a.radius - dist;
-			c.point[0] = a.center + c.normal * dist;
+			c.depth = a.radius - dist;
+			//c.point[0] = a.center + c.normal * dist;
 		} else {
 			// deep (center of circle inside of AABB)
 			// clamp circle's center to edge of AABB, then form the manifold.
@@ -129,8 +126,8 @@ Collision<T> CircleAABB(const Circle<T>& a,
 					c.normal.y = 1;
 			}
 
-			c.depth[0] = a.radius + depth;
-			c.point[0] = a.center - c.normal * depth;
+			c.depth = a.radius + depth;
+			//c.point[0] = a.center - c.normal * depth;
 		}
 	}
 	return c;
@@ -167,9 +164,9 @@ Collision<T> CircleCapsule(const Circle<T>& a,
 			c.normal = -ab.Tangent() / std::sqrtf(denom);
 		else 
 			c.normal = dir / dist;
-		c.count = 1;
-		c.depth[0] = rad - dist;
-		c.point[0] = p - c.normal * b.radius;
+		c.occured = true;
+		c.depth = rad - dist;
+		//c.point[0] = p - c.normal * b.radius;
 	}
 	return c;
 }
@@ -189,6 +186,123 @@ Collision<T> CapsuleCapsule(const Capsule<T>& a,
 	const T rad{ a.radius + b.radius };
 	if (dist2 < rad * rad) {
 		if (math::Compare(dist2, 0)) {
+			const T mag_a2{ a.Direction().MagnitudeSquared() }; // Squared length of segment S1, always nonnegative
+			const T mag_b2{ b.Direction().MagnitudeSquared() }; // Squared length of segment S2, always nonnegative
+			// Check if either or both segments degenerate into points
+			bool a_point{ math::Compare(mag_a2, 0) };
+			bool b_point{ math::Compare(mag_b2, 0) };
+			if (a_point && b_point) {
+				return CircleCircle({ a.origin, a.radius }, { b.origin, b.radius });
+			} else if (a_point) {
+				return CircleCapsule({ a.origin, a.radius }, b);
+			} else if (b_point) {
+				c = CircleCapsule({ b.origin, b.radius }, a);
+				c.normal *= -1;
+				return c;
+			}
+			// Capsules lines intersect, different kind of routine needed.
+			
+			const T mag_a{ std::sqrtf(mag_a2) };
+			const T mag_b{ std::sqrtf(mag_b2) };
+			const std::array<T, 4> f{ s * mag_a, (1 - s) * mag_a, t * mag_b, (1 - t) * mag_b };
+			const std::array<math::Vector2<T>, 4> ep{ a.origin, a.destination, b.origin, b.destination };
+			// Determine which end of both capsules is closest to intersection point.
+			const auto min_i{ std::distance(std::begin(f), std::min_element(std::begin(f), std::end(f))) };
+			const auto half{ min_i / 2 };
+			const auto sign{ 1 - 2 * half };
+			// This code replaces the 4 if-statements below but is less readable.
+			const auto max_i{ half < 1 ? (min_i + 1) % 2 : (min_i - 1) % 2 + 2 };
+			T min_dist2 = f[min_i];
+			Line<T> line{ a.origin, a.destination };
+			Line<T> other{ b.origin, b.destination };
+			if (half > 0) {
+				Swap(line.origin, other.origin);
+				Swap(line.destination, other.destination);
+			}
+			// Capsule vs capsule.
+			T frac{}; // frac is an unused variable.
+			Point<T> point;
+			// TODO: Fix this awful branching.
+			// TODO: Clean this up, I'm sure some of these cases can be combined.
+			math::ClosestPointLine(ep[min_i], other, frac, point);
+			const auto to_min{ ep[min_i] - point };
+			if (to_min.IsZero()) {
+				// Capsule centerlines touch in at least one location.
+				math::ClosestPointLine(ep[max_i], other, frac, point);
+				const auto to_max{ (point - ep[max_i]).Normalize() };
+				if (to_max.IsZero()) {
+					// Capsules are collinear.
+					if (DistanceSquared(ep[min_i], point) > 0) {
+						// Push capsules apart in perpendicular direction.
+						c.normal = line.Direction().Tangent().Normalize();
+						c.depth = rad;
+					} else {
+						// Push capsules apart in parallel direction.
+						c.normal = line.Direction().Normalize();
+					}
+					c.depth = rad;
+				} else {
+					// Capsule origin or destination lies on the other capsule's centerline.
+					c.normal = to_max;
+					c.depth = rad;
+				}
+			} else {
+				// Capsule centerlines intersect each other.
+				c.normal = sign * to_min.Normalize();
+				c.depth = (Distance(ep[min_i], point) + rad);
+			}
+			/*
+			// Two capsules with intersecting centerlines.
+			// Fractional distances to end points.
+			const std::array<T, 4> f{ s, 1 - s, t, 1 - t };
+			const std::array<math::Vector2<T>, 4> ep{ a.origin, a.destination, b.origin, b.destination };
+			// Determine which end of both capsules is closest to intersection point.
+			const auto min_i{ std::distance(std::begin(f), std::min_element(std::begin(f), std::end(f))) };
+			const auto half{ min_i / 2 };
+			// This code replaces the 4 if-statements below but is less readable.
+			const auto max_i{ half < 1 ? (min_i + 1) % 2 : (min_i - 1) % 2 + 2 };
+			Line<T> line{ b };
+			math::Vector2<T> proj{ b_dir };
+			if (half < 1) {
+				line = a;
+				proj = a_dir;
+			}
+
+			const auto n{ proj / proj.MagnitudeSquared() };
+			// Project point onto infinite line.
+			auto point_to_line = [&](auto& point) {
+				return line.origin + (point - line.origin).Dot(proj) * n;
+			};
+			auto p{ point_to_line(ep[min_i]) };
+			const auto to_min{ ep[min_i] - p };
+
+			if (to_min.IsZero()) {
+				// At least one capsule centerline end point is on the other capsule centerline.
+				p = point_to_line(ep[max_i]);
+				const auto to_max{ ep[max_i] - p };
+				if (to_max.IsZero()) {
+					// Capsule centerlines are collinear.
+					const T pen2{ DistanceSquared(ep[min_i], p) };
+					if (pen2 > 0) {
+						// Push capsules apart in perpendicular direction.
+						c.normal = a_dir.Tangent().Normalize();
+					} else {
+						// Push capsules apart in parallel direction.
+						c.normal = a_dir.Normalize();
+					}
+					c.depth = rad;
+				} else {
+					// Capsule origin or destination lies on the other capsule's centerline.
+					c.normal = to_max.Normalize();
+					c.depth = rad;
+				}
+			} else {
+				// Capsule centerlines intersect each other.
+				c.normal = to_min.Normalize();
+				c.depth = rad + Distance(ep[min_i], p);
+			}
+			*/
+			/*
 			assert(c1 == c2);
 			const auto a_dir{ a.Direction() };
 			const auto b_dir{ b.Direction() };
@@ -196,143 +310,26 @@ Collision<T> CapsuleCapsule(const Capsule<T>& a,
 			bool b_circle{ b_dir.IsZero() };
 			if (a_circle && b_circle) {
 				c.normal.y = -1;
-				c.depth[0] = rad;
+				c.depth = rad;
 				//return CircleCircle(Circle{ c1, a.radius }, Circle{ c2, b.radius });
 			} else if (a_circle) {
 				c.normal = -b_dir.Tangent().Normalize();
-				c.depth[0] = rad;
+				c.depth = rad;
 			} else if (b_circle) {
 				c.normal = -a_dir.Tangent().Normalize();
-				c.depth[0] = rad;
+				c.depth = rad;
 			} else {
-				// Capsules lines intersect, different kind of routine needed.
-				std::array<math::Vector2<T>, 4> points{ a.origin, a.destination, b.origin, b.destination };
-				// Find shortest distance (and index) to 4 capsule end points (2 per capsule).
-				T min_dist2{ std::numeric_limits<T>::infinity() };
-				std::size_t min_index{ 0 };
-				std::size_t max_index{ 0 };
-				for (std::size_t i{ 0 }; i < points.size(); ++i) {
-					const T d{ DistanceSquared(points[i], c1) };
-					if (d < min_dist2) {
-						min_index = i;
-						min_dist2 = d;
-					}
-				}
-				Line<T> line{ a };
-				Line<T> other{ b };
-				T sign{ -1 };
-				// Determine which is the which is the collision normal axis
-				// and set the non collision normal axis as the other one.
-				if (min_index == 0) {
-					max_index = 1;
-				} else if (min_index == 1) {
-					max_index = 0;
-				} else if (min_index == 2) {
-					Swap(line.origin, other.origin);
-					Swap(line.destination, other.destination);
-					sign = 1;
-					max_index = 3;
-				} else if (min_index == 3) {
-					Swap(line.origin, other.origin);
-					Swap(line.destination, other.destination);
-					sign = 1;
-					max_index = 2;
-				}
-				math::Vector2<T> i_dir{ line.Direction() };
-				math::Vector2<T> o_dir{ other.Direction() };
-				// Capsule vs capsule.
-				T frac{}; // frac is an unused variable.
-				Point<T> point;
-				// TODO: Fix this awful branching.
-				// TODO: Clean this up, I'm sure some of these cases can be combined.
-				math::ClosestPointLine(points[min_index], other, frac, point);
-				const auto vector_to_min{ points[min_index] - point };
-				if (vector_to_min.IsZero()) {
-					// Capsule centerlines touch in at least one location.
-					math::ClosestPointLine(points[max_index], other, frac, point);
-					const auto vector_to_max{ -(points[max_index] - point).Normalize() };
-					if (vector_to_max.IsZero()) {
-						// Capsules are collinear.
-						const T penetration{ Distance(points[min_index], point) + rad };
-						if (penetration > rad) {
-							// Push capsules apart in perpendicular direction.
-							c.normal = -i_dir.Tangent().Normalize();
-							c.depth[0] = rad;
-						} else {
-							// Push capsules apart in parallel direction.
-							c.normal = -sign * -i_dir.Normalize();
-							c.depth[0] = penetration;
-						}
-					} else {
-						// Capsule origin or destination lies on the other capsule's centerline.
-						c.normal = -sign * vector_to_max;
-						c.depth[0] = rad;
-					}
-				} else {
-					// Capsule centerlines intersect each other.
-					c.normal = -sign * vector_to_min.Normalize();
-					c.depth[0] = (Distance(points[min_index], point) + rad);
-				}
-				/*
-				// Two capsules with intersecting centerlines.
-				// Fractional distances to end points.
-				const std::array<T, 4> f{ s, 1 - s, t, 1 - t };
-				const std::array<math::Vector2<T>, 4> ep{ a.origin, a.destination, b.origin, b.destination };
-				// Determine which end of both capsules is closest to intersection point.
-				const auto min_i{ std::distance(std::begin(f), std::min_element(std::begin(f), std::end(f))) };
-				const auto half{ min_i / 2 };
-				// This code replaces the 4 if-statements below but is less readable.
-				const auto max_i{ half < 1 ? (min_i + 1) % 2 : (min_i - 1) % 2 + 2 };
-				Line<T> line{ b };
-				math::Vector2<T> proj{ b_dir };
-				if (half < 1) {
-					line = a;
-					proj = a_dir;
-				}
-
-				const auto n{ proj / proj.MagnitudeSquared() };
-				// Project point onto infinite line.
-				auto point_to_line = [&](auto& point) {
-					return line.origin + (point - line.origin).Dot(proj) * n;
-				};
-				auto p{ point_to_line(ep[min_i]) };
-				const auto to_min{ ep[min_i] - p };
-
-				if (to_min.IsZero()) {
-					// At least one capsule centerline end point is on the other capsule centerline.
-					p = point_to_line(ep[max_i]);
-					const auto to_max{ ep[max_i] - p };
-					if (to_max.IsZero()) {
-						// Capsule centerlines are collinear.
-						const T pen2{ DistanceSquared(ep[min_i], p) };
-						if (pen2 > 0) {
-							// Push capsules apart in perpendicular direction.
-							c.normal = a_dir.Tangent().Normalize();
-						} else {
-							// Push capsules apart in parallel direction.
-							c.normal = a_dir.Normalize();
-						}
-						c.depth[0] = rad;
-					} else {
-						// Capsule origin or destination lies on the other capsule's centerline.
-						c.normal = to_max.Normalize();
-						c.depth[0] = rad;
-					}
-				} else {
-					// Capsule centerlines intersect each other.
-					c.normal = to_min.Normalize();
-					c.depth[0] = rad + Distance(ep[min_i], p);
-				}
-				*/
+				// CAPSULE LINES INTERSECT
 			}
+			*/
 		} else {
 			T dist{ std::sqrtf(dist2) };
 			assert(!math::Compare(dist, 0));
 			c.normal = dir / dist;
-			c.depth[0] = rad - dist;
-			c.point[0] = c2 - c.normal * b.radius;
+			c.depth = rad - dist;
+			//c.point[0] = c2 - c.normal * b.radius;
 		}
-		c.count = 1;
+		c.occured = true;
 	}
 	return c;
 }
