@@ -186,6 +186,7 @@ Collision<T> CapsuleCapsule(const Capsule<T>& a,
 	const T rad{ a.radius + b.radius };
 	if (dist2 < rad * rad) {
 		if (math::Compare(dist2, 0)) {
+			
 			const T mag_a2{ a.Direction().MagnitudeSquared() }; // Squared length of segment S1, always nonnegative
 			const T mag_b2{ b.Direction().MagnitudeSquared() }; // Squared length of segment S2, always nonnegative
 			// Check if either or both segments degenerate into points
@@ -200,8 +201,8 @@ Collision<T> CapsuleCapsule(const Capsule<T>& a,
 				c.normal *= -1;
 				return c;
 			}
+
 			// Capsules lines intersect, different kind of routine needed.
-			
 			const T mag_a{ std::sqrtf(mag_a2) };
 			const T mag_b{ std::sqrtf(mag_b2) };
 			const std::array<T, 4> f{ s * mag_a, (1 - s) * mag_a, t * mag_b, (1 - t) * mag_b };
@@ -226,102 +227,26 @@ Collision<T> CapsuleCapsule(const Capsule<T>& a,
 			// TODO: Clean this up, I'm sure some of these cases can be combined.
 			math::ClosestPointLine(ep[min_i], other, frac, point);
 			const auto to_min{ ep[min_i] - point };
-			if (to_min.IsZero()) {
-				// Capsule centerlines touch in at least one location.
-				math::ClosestPointLine(ep[max_i], other, frac, point);
-				const auto to_max{ (point - ep[max_i]).Normalize() };
-				if (to_max.IsZero()) {
-					// Capsules are collinear.
-					if (DistanceSquared(ep[min_i], point) > 0) {
-						// Push capsules apart in perpendicular direction.
-						c.normal = line.Direction().Tangent().Normalize();
-						c.depth = rad;
-					} else {
-						// Push capsules apart in parallel direction.
-						c.normal = line.Direction().Normalize();
-					}
-					c.depth = rad;
-				} else {
-					// Capsule origin or destination lies on the other capsule's centerline.
-					c.normal = to_max;
-					c.depth = rad;
-				}
-			} else {
+			if (!to_min.IsZero()) {
 				// Capsule centerlines intersect each other.
 				c.normal = sign * to_min.Normalize();
 				c.depth = (Distance(ep[min_i], point) + rad);
-			}
-			/*
-			// Two capsules with intersecting centerlines.
-			// Fractional distances to end points.
-			const std::array<T, 4> f{ s, 1 - s, t, 1 - t };
-			const std::array<math::Vector2<T>, 4> ep{ a.origin, a.destination, b.origin, b.destination };
-			// Determine which end of both capsules is closest to intersection point.
-			const auto min_i{ std::distance(std::begin(f), std::min_element(std::begin(f), std::end(f))) };
-			const auto half{ min_i / 2 };
-			// This code replaces the 4 if-statements below but is less readable.
-			const auto max_i{ half < 1 ? (min_i + 1) % 2 : (min_i - 1) % 2 + 2 };
-			Line<T> line{ b };
-			math::Vector2<T> proj{ b_dir };
-			if (half < 1) {
-				line = a;
-				proj = a_dir;
-			}
-
-			const auto n{ proj / proj.MagnitudeSquared() };
-			// Project point onto infinite line.
-			auto point_to_line = [&](auto& point) {
-				return line.origin + (point - line.origin).Dot(proj) * n;
-			};
-			auto p{ point_to_line(ep[min_i]) };
-			const auto to_min{ ep[min_i] - p };
-
-			if (to_min.IsZero()) {
-				// At least one capsule centerline end point is on the other capsule centerline.
-				p = point_to_line(ep[max_i]);
-				const auto to_max{ ep[max_i] - p };
-				if (to_max.IsZero()) {
-					// Capsule centerlines are collinear.
-					const T pen2{ DistanceSquared(ep[min_i], p) };
-					if (pen2 > 0) {
-						// Push capsules apart in perpendicular direction.
-						c.normal = a_dir.Tangent().Normalize();
-					} else {
-						// Push capsules apart in parallel direction.
-						c.normal = a_dir.Normalize();
-					}
-					c.depth = rad;
-				} else {
-					// Capsule origin or destination lies on the other capsule's centerline.
-					c.normal = to_max.Normalize();
-					c.depth = rad;
+			} else {
+				// Capsule centerlines touch in at least one location.
+				math::ClosestPointLine(ep[max_i], other, frac, point);
+				const auto to_max{ (point - ep[max_i]).Normalize() };
+				if (!to_max.IsZero()) // Capsule origin or destination lies on the other capsule's centerline.
+					c.normal = to_max;
+				// Capsules are collinear.
+				else if (DistanceSquared(ep[min_i], point) > 0) { // Push capsules apart in perpendicular direction.
+					PrintLine(DistanceSquared(ep[min_i], point));
+					c.normal = line.Direction().Tangent().Normalize();
+				} else { // Push capsules apart in parallel direction.
+					PrintLine(DistanceSquared(ep[min_i], point));
+					c.normal = line.Direction().Normalize();
 				}
-			} else {
-				// Capsule centerlines intersect each other.
-				c.normal = to_min.Normalize();
-				c.depth = rad + Distance(ep[min_i], p);
+				c.depth = rad;
 			}
-			*/
-			/*
-			assert(c1 == c2);
-			const auto a_dir{ a.Direction() };
-			const auto b_dir{ b.Direction() };
-			bool a_circle{ a_dir.IsZero() };
-			bool b_circle{ b_dir.IsZero() };
-			if (a_circle && b_circle) {
-				c.normal.y = -1;
-				c.depth = rad;
-				//return CircleCircle(Circle{ c1, a.radius }, Circle{ c2, b.radius });
-			} else if (a_circle) {
-				c.normal = -b_dir.Tangent().Normalize();
-				c.depth = rad;
-			} else if (b_circle) {
-				c.normal = -a_dir.Tangent().Normalize();
-				c.depth = rad;
-			} else {
-				// CAPSULE LINES INTERSECT
-			}
-			*/
 		} else {
 			T dist{ std::sqrtf(dist2) };
 			assert(!math::Compare(dist, 0));

@@ -21,7 +21,7 @@ public:
 	float radius2{ 20 };
 	Color color2{ color::BLUE };
 	const int options{ 13 };
-	int option{ 7 };
+	int option{ 10 };
 	virtual void Update(float dt) {
 		auto mouse = input::GetMouseScreenPosition();
 		if (input::KeyDown(Key::T)) {
@@ -192,19 +192,6 @@ public:
 				draw::Line({ capsule2.origin, new_capsule.origin }, color::GOLD);
 				draw::Line({ capsule2.destination, new_capsule.destination }, color::GOLD);
 			}
-			/*const auto collision{ intersect::CapsuleCapsule(capsule2, capsule1) };
-			if (collision.occured) {
-				acolor1 = color::RED;
-				acolor2 = color::RED;
-			}
-			draw::Capsule(capsule1, acolor1);
-			draw::Capsule(capsule2, acolor2);
-			if (collision.occured) {
-				const auto new_capsule{ capsule2.Resolve(collision.normal * collision.depth) };
-				draw::Capsule(new_capsule, color2);
-				draw::Line({ capsule2.origin, new_capsule.origin }, color::GOLD);
-				draw::Line({ capsule2.destination, new_capsule.destination }, color::GOLD);
-			}*/
 		} else if (option == 11) {
 			/*const auto collision{ intersect::CapsuleAABB(capsule2, aabb1) };
 			if (collision.occured) {
