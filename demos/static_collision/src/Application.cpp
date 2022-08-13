@@ -4,8 +4,6 @@
 #include "renderer/Colors.h"
 #include "interface/Input.h"
 #include "interface/Draw.h"
-//#define CUTE_C2_IMPLEMENTATION
-//#include "cute_c2.h"
 
 using namespace ptgn;
 
