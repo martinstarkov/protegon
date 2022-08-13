@@ -179,7 +179,7 @@ struct Vector2 {
         return { y, x };
     }
 
-    friend void swap(Vector2& lhs, Vector2& rhs) {
+    friend void Swap(Vector2& lhs, Vector2& rhs) {
         std::swap(lhs.x, rhs.x);
         std::swap(lhs.y, rhs.y);
     }

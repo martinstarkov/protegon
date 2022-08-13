@@ -13,8 +13,8 @@ struct Line {
 	Line(const math::Vector2<T>& o, const math::Vector2<T>& d) : origin{ o }, destination{ d } {}
 	math::Vector2<T> origin;
 	math::Vector2<T> destination;
-	inline Line AddPenetration(const math::Vector2<T>& p) const {
-		return { origin + p, destination + p };
+	inline Line Resolve(const math::Vector2<T>& p1, const math::Vector2<T>& p2) const {
+		return { origin - p1, destination - p2 };
 	}
 	inline math::Vector2<T> Direction() const {
 		return destination - origin;
@@ -30,8 +30,13 @@ template <typename T>
 struct Ray : public Line<T> {
 	Ray() = default;
 	using Line::Line;
-	inline Ray AddPenetration(const math::Vector2<T>& p) const {
-		return { origin + p, destination + p };
+	inline Ray Resolve(const math::Vector2<T>& p1, const math::Vector2<T>& p2) const {
+		return { origin - p1, destination - p2 };
+	}
+	template <typename U>
+	operator Ray<U>() const {
+		return { static_cast<math::Vector2<U>>(origin),
+				 static_cast<math::Vector2<U>>(destination) };
 	}
 };
 
@@ -39,8 +44,13 @@ template <typename T>
 struct Segment : public Line<T> {
 	Segment() = default;
 	using Line::Line;
-	inline Segment AddPenetration(const math::Vector2<T>& p) const {
-		return { origin + p, destination + p };
+	inline Segment Resolve(const math::Vector2<T>& p1, const math::Vector2<T>& p2) const {
+		return { origin - p1, destination - p2 };
+	}
+	template <typename U>
+	operator Segment<U>() const {
+		return { static_cast<math::Vector2<U>>(origin),
+				 static_cast<math::Vector2<U>>(destination) };
 	}
 };
 
@@ -54,8 +64,14 @@ struct Capsule : public Segment<T> {
 	inline T RadiusSquared() const {
 		return radius * radius;
 	}
-	inline Capsule AddPenetration(const math::Vector2<T>& p) const {
-		return { origin + p, destination + p, radius };
+	inline Capsule Resolve(const math::Vector2<T>& p) const {
+		return { origin - p, destination - p, radius };
+	}
+	template <typename U>
+	operator Capsule<U>() const {
+		return { static_cast<math::Vector2<U>>(origin),
+				 static_cast<math::Vector2<U>>(destination),
+				 static_cast<U>(radius) };
 	}
 };
 
@@ -68,8 +84,13 @@ struct Circle {
 	inline T RadiusSquared() const {
 		return radius * radius;
 	}
-	inline Circle AddPenetration(const math::Vector2<T>& p) const {
-		return { center + p, radius };
+	inline Circle Resolve(const math::Vector2<T>& p) const {
+		return { center - p, radius };
+	}
+	template <typename U>
+	operator Circle<U>() const {
+		return { static_cast<math::Vector2<U>>(center),
+				 static_cast<U>(radius) };
 	}
 };
 
@@ -79,8 +100,8 @@ struct AABB {
 	AABB(const math::Vector2<T>& p, const math::Vector2<T>& s) : position{ p }, size{ s } {}
 	math::Vector2<T> position; // taken from top left
 	math::Vector2<T> size;
-	inline AABB AddPenetration(const math::Vector2<T>& p) const {
-		return { position + p, size };
+	inline AABB Resolve(const math::Vector2<T>& p) const {
+		return { position - p, size };
 	}
 	inline math::Vector2<T> Half() const {
 		return size / 2;

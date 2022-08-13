@@ -133,13 +133,13 @@ static Collision<S> CapsuleCapsule(const Capsule<T>& a,
 		} else if (min_index == 1) {
 			max_index = 0;
 		} else if (min_index == 2) {
-			swap(line.origin, other.origin);
-			swap(line.destination, other.destination);
+			Swap(line.origin, other.origin);
+			Swap(line.destination, other.destination);
 			sign = 1;
 			max_index = 3;
 		} else if (min_index == 3) {
-			swap(line.origin, other.origin);
-			swap(line.destination, other.destination);
+			Swap(line.origin, other.origin);
+			Swap(line.destination, other.destination);
 			sign = 1;
 			max_index = 2;
 		}

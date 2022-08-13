@@ -184,7 +184,7 @@ inline T FastCeil(T value) {
 template <typename T, 
     tt::arithmetic<T> = true>
 inline T FastAbs(T value) {
-    return (value < 0) ? -value : value;
+    return value < 0 ? -value : value;
 }
 
 // TODO: Check that this works without casts.
