@@ -2,7 +2,7 @@
 
 #include "math/LinearAlgebraExperimental.h"
 #include "math/Math.h"
-#include "math/Vector.h"
+#include "math/Vector2.h"
 #include "physics/Types.h"
 #include "utility/TypeTraits.h"
 
@@ -10,15 +10,12 @@ namespace ptgn {
 
 namespace overlap {
 
-template <typename T = float,
-	tt::floating_point<T> = true>
-bool CircleCircle(const Circle<T>& a,
-				  const Circle<T>& b) {
-	// Calculate squared distance between centers
-	Vector d = a.c - b.c;
+bool CircleCircle(const Circle<float>& A,
+				  const Circle<float>& B) {
+	Vector2 d = A.c - B.c;
 	float dist2 = Dot(d, d);
-	// Spheres intersect if squared distance is less than squared sum of radii
-	float radiusSum = a.r + b.r;
+	float radiusSum = A.r + B.r;
+	// TODO: Add appropriate epsilon here.
 	return dist2 <= radiusSum * radiusSum;
 }
 
@@ -43,7 +40,7 @@ bool CircleCircle(const Circle<T>& a,
 //	const auto dir{ a.center - clamped };
 //	const T dist2{ dir.MagnitudeSquared() };
 //	const T rad2{ a.RadiusSquared() };
-//	return dist2 < rad2 || math::Compare(dist2, rad2);
+//	return dist2 < rad2 || Compare(dist2, rad2);
 //}
 //
 //template <typename T = float,
@@ -68,7 +65,7 @@ bool CircleCircle(const Circle<T>& a,
 //	}
 //	const T rad{ a.radius + b.radius };
 //	const T rad2{ rad * rad };
-//	return dist2 < rad2 || math::Compare(dist2, rad2);
+//	return dist2 < rad2 || Compare(dist2, rad2);
 //}
 //
 //template <typename T = float,
@@ -86,7 +83,7 @@ bool CircleCircle(const Circle<T>& a,
 //	const T test{ std::max(0.0f, std::sqrtf(dist2) - rad) };
 //	return test < 10.0f * std::numeric_limits<float>::epsilon();
 //	//return dist2 - rad2 < 10.0f * std::numeric_limits<float>::epsilon();
-//	//return dist2 < rad2 || math::Compare(dist2, rad2);
+//	//return dist2 < rad2 || Compare(dist2, rad2);
 //}
 
 

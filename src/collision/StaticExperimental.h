@@ -5,7 +5,7 @@
 
 #include "math/LinearAlgebraExperimental.h"
 #include "math/Math.h"
-#include "math/Vector.h"
+#include "math/Vector2.h"
 #include "physics/Types.h"
 #include "utility/TypeTraits.h"
 
@@ -13,41 +13,65 @@ namespace ptgn {
 
 namespace intersect {
 
-template <typename T,
-    tt::floating_point<T> = true>
 struct Collision {
-    Collision() = default;
-    ~Collision() = default;
-	// TODO: Consider making this variable private.
-    bool occured{ false };
 	bool Occured() const {
-		return occured && depth >= 10.0f * std::numeric_limits<float>::epsilon();
+		return false;//depth >= 10.0f * std::numeric_limits<float>::epsilon();
 	}
-	T depth{ 0 };
-    math::Vector<T> normal;
-    //math::Vector<T> point[2];
+	float depth{ 0.0f };
+    V2_float normal;
+    //Vector2<T> point[2];
 };
 
-Collision<float> CircleCircle(const Circle<float>& a,
-							  const Circle<float>& b) {
-	Collision<T> c;
-	const auto dir{ b.center - a.center };
-	const T dist2{ dir.MagnitudeSquared() };
-	const T rad{ a.radius + b.radius };
-	const T rad2{ rad * rad };
-	if (dist2 > rad2) return c;
-	T dist{ 0.0f };
-	if (dist2 > std::numeric_limits<float>::epsilon() * std::numeric_limits<float>::epsilon()) {
-		dist = std::sqrtf(dist2);
-		c.normal = dir / dist;
-	} else {
-		c.normal.y = -1.0f;
+bool CircleCircle(const Circle<float>& A,
+			      const Circle<float>& B,
+				  Collision& c) {
+
+	Vector2 d = B.c - A.c;
+	float distSqr = Dot(d, d);
+	float rA = A.r;
+	float rB = B.r;
+	float radius = rA + rB;
+	if (distSqr > radius * radius) {
+		return false;
 	}
-	c.occured = true;
-	c.depth = rad - dist;
-	//c.point[0] = b.center - c.normal * b.radius;
-	return c;
+
+	//c.localPoint = circleA->m_p;
+	//c.localNormal.SetZero();
+	//c.pointCount = 1;
+	//c.points[0].localPoint = circleB->m_p;
+	//c.points[0].id.key = 0;
+	c.normal = { 1.0f, 0.0f };
+	if (DistanceSquared(A.c, B.c) > epsilon<float> * epsilon<float>) {
+		c.normal = (B.c - A.c).Normalized();
+	}
+
+	Vector2 cA = A.c + A.r * c.normal;
+	Vector2 cB = B.c - B.r * c.normal;
+	//points[0] = 0.5f * (cA + cB);
+	c.depth = Dot(cB - cA, c.normal);
+	return true;
 }
+
+//Collision<float> CircleCircle(const Circle<float>& a,
+//							  const Circle<float>& b) {
+//	Collision<T> c;
+//	const auto dir{ b.center - a.center };
+//	const T dist2{ dir.MagnitudeSquared() };
+//	const T rad{ a.radius + b.radius };
+//	const T rad2{ rad * rad };
+//	if (dist2 > rad2) return c;
+//	T dist{ 0.0f };
+//	if (dist2 > std::numeric_limits<float>::epsilon() * std::numeric_limits<float>::epsilon()) {
+//		dist = std::sqrtf(dist2);
+//		c.normal = dir / dist;
+//	} else {
+//		c.normal.y = -1.0f;
+//	}
+//	c.occured = true;
+//	c.depth = rad - dist;
+//	//c.point[0] = b.center - c.normal * b.radius;
+//	return c;
+//}
 
 //template <typename T = float,
 //	tt::floating_point<T> = true>
@@ -98,9 +122,9 @@ Collision<float> CircleCircle(const Circle<float>& a,
 //	const auto dir{ clamped - a.center };
 //	const T dist2{ dir.MagnitudeSquared() };
 //	const T rad2{ a.RadiusSquared() };
-//	if (dist2 < rad2 || math::Compare(dist2, rad2)) {
+//	if (dist2 < rad2 || Compare(dist2, rad2)) {
 //		c.occured = true;
-//		if (!math::Compare(dist2, 0)) {
+//		if (!Compare(dist2, 0)) {
 //			// shallow (center of circle not inside of AABB).
 //			const T dist{ std::sqrtf(dist2) };
 //			c.normal = dir / dist;
@@ -142,7 +166,7 @@ Collision<float> CircleCircle(const Circle<float>& a,
 //						   const Capsule<T>& b) {
 //	Collision<T> c;
 //	const auto ab{ b.Direction() };
-//	math::Vector<T> p;
+//	Vector2<T> p;
 //	// Project c onto ab, but deferring divide by Dot(ab, ab)
 //	const T t{ (a.center - b.origin).Dot(ab) };
 //	const T denom{ ab.MagnitudeSquared() }; // Always nonnegative since denom = ||ab||^2
@@ -162,9 +186,9 @@ Collision<float> CircleCircle(const Circle<float>& a,
 //	const T dist2{ dir.MagnitudeSquared() };
 //	const T rad{ a.radius + b.radius };
 //	const T rad2{ rad * rad };
-//	if (dist2 < rad2 || math::Compare(dist2, rad2)) {
+//	if (dist2 < rad2 || Compare(dist2, rad2)) {
 //		const T dist{ std::sqrtf(dist2) };
-//		if (math::Compare(dist, 0))
+//		if (Compare(dist, 0))
 //			c.normal = -ab.Tangent() / std::sqrtf(denom);
 //		else 
 //			c.normal = dir / dist;
@@ -180,8 +204,8 @@ Collision<float> CircleCircle(const Circle<float>& a,
 //Collision<T> CapsuleCapsule(const Capsule<T>& a,
 //							const Capsule<T>& b) {
 //	Collision<T> c;
-//	math::Vector<T> c1;
-//	math::Vector<T> c2;
+//	Vector2<T> c1;
+//	Vector2<T> c2;
 //	T s{ 0 };
 //	T t{ 0 };
 //	math::ClosestPointsSegmentSegment(a, b, c1, c2, s, t);
@@ -189,14 +213,14 @@ Collision<float> CircleCircle(const Circle<float>& a,
 //	const T dist2{ dir.MagnitudeSquared() };
 //	const T rad{ a.radius + b.radius };
 //	const T rad2{ rad * rad };
-//	if (dist2 - rad2 < 10.0f * std::numeric_limits<float>::epsilon()) {// || math::Compare(dist2, rad2)) {
-//		if (math::Compare(dist2, 0)) {
+//	if (dist2 - rad2 < 10.0f * std::numeric_limits<float>::epsilon()) {// || Compare(dist2, rad2)) {
+//		if (Compare(dist2, 0)) {
 //			
 //			const T mag_a2{ a.Direction().MagnitudeSquared() }; // Squared length of segment S1, always nonnegative
 //			const T mag_b2{ b.Direction().MagnitudeSquared() }; // Squared length of segment S2, always nonnegative
 //			// Check if either or both segments degenerate into points
-//			bool a_point{ math::Compare(mag_a2, 0) };
-//			bool b_point{ math::Compare(mag_b2, 0) };
+//			bool a_point{ Compare(mag_a2, 0) };
+//			bool b_point{ Compare(mag_b2, 0) };
 //			if (a_point && b_point) {
 //				return CircleCircle({ a.origin, a.radius }, { b.origin, b.radius });
 //			} else if (a_point) {
@@ -211,7 +235,7 @@ Collision<float> CircleCircle(const Circle<float>& a,
 //			const T mag_a{ std::sqrtf(mag_a2) };
 //			const T mag_b{ std::sqrtf(mag_b2) };
 //			const std::array<T, 4> f{ s * mag_a, (1 - s) * mag_a, t * mag_b, (1 - t) * mag_b };
-//			const std::array<math::Vector<T>, 4> ep{ a.origin, a.destination, b.origin, b.destination };
+//			const std::array<Vector2<T>, 4> ep{ a.origin, a.destination, b.origin, b.destination };
 //			// Determine which end of both capsules is closest to intersection point.
 //			const auto min_i{ std::distance(std::begin(f), std::min_element(std::begin(f), std::end(f))) };
 //			const auto half{ min_i / 2 };
@@ -253,7 +277,7 @@ Collision<float> CircleCircle(const Circle<float>& a,
 //			}
 //		} else {
 //			T dist{ std::sqrtf(dist2) };
-//			assert(!math::Compare(dist, 0));
+//			assert(!Compare(dist, 0));
 //			c.normal = dir / dist;
 //			c.depth = rad - dist;
 //			//c.point[0] = c2 - c.normal * b.radius;

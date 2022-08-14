@@ -10,14 +10,14 @@ using namespace ptgn;
 class OverlapCollisionTest : public Engine {
 public:
 	virtual void Init() {}
-	V2_int position1{ 200, 200 };
-	V2_int position3{ 300, 300 };
-	V2_int position4{ 200, 300 };
-	V2_int size1{ 60, 60 };
-	int radius1{ 30 };
+	V2_float position1{ 200, 200 };
+	V2_float position3{ 300, 300 };
+	V2_float position4{ 200, 300 };
+	V2_float size1{ 60, 60 };
+	V2_float size2{ 200, 200 };
+	float radius1{ 30 };
+	float radius2{ 20 };
 	Color color1{ color::GREEN };
-	V2_int size2{ 200, 200 };
-	int radius2{ 20 };
 	Color color2{ color::BLUE };
 	const int options{ 13 };
 	int option{ 0 };
@@ -35,15 +35,15 @@ public:
 		auto acolor1 = color1;
 		auto acolor2 = color2;
 
-		AABB aabb1{ position1, size1 };
-		AABB aabb2{ position2, size2 };
-		Circle circle1{ position1, radius1 };
-		Circle circle2{ position2, radius2 };
-		Line line1{ position1, position3 };
-		Line line2{ position2, position4 };
-		Capsule capsule1{ position1, position3, radius1 };
-		Capsule capsule2{ position2, position4, radius2 };
-		
+		AABB<float> aabb1{ position1, size1 };
+		AABB<float> aabb2{ position2, size2 };
+		Circle<float> circle1{ position1, radius1 };
+		Circle<float> circle2{ position2, radius2 };
+		Line<float> line1{ position1, position3 };
+		Line<float> line2{ position2, position4 };
+		Capsule<float> capsule1{ position1, position3, radius1 };
+		Capsule<float> capsule2{ position2, position4, radius2 };
+		/*
 		if (option == 0) {
 			if (overlap::PointCircle(position2, circle1)) {
 				acolor1 = color::RED;
@@ -137,7 +137,7 @@ public:
 			draw::AABB(aabb2, acolor2);
 			draw::AABB(aabb1, acolor1);
 		}
-
+		*/
 		/*
 		// Zero thickness geometry collisions.
 		} else if (option == 13) {

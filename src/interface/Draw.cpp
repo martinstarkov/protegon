@@ -62,7 +62,7 @@ void Line(const ptgn::Line<int>& l,
 		  const Color& color) {
 	assert(Exists() && "Cannot draw line with nonexistent renderer");
 	SetColor(color);
-	SDL_RenderDrawLine(Renderer::Get().renderer_, l.origin.x, l.origin.y, l.destination.x, l.destination.y);
+	SDL_RenderDrawLine(Renderer::Get().renderer_, l.a.x, l.a.y, l.b.x, l.b.y);
 }
 
 void Circle(const ptgn::Circle<int>& c,
@@ -73,42 +73,42 @@ void Circle(const ptgn::Circle<int>& c,
 
 	SetColor(color);
 
-	V2_int position{ c.radius, 0 };
+	V2_int p{ c.r, 0 };
 	auto renderer = Renderer::Get().renderer_;
-	    SDL_RenderDrawPoint(renderer, position.x + c.center.x,  position.y + c.center.y);
+	    SDL_RenderDrawPoint(renderer, p.x + c.c.x,  p.y + c.c.y);
 
-	if (c.radius > 0) {
-		SDL_RenderDrawPoint(renderer,  position.x + c.center.x, -position.y + c.center.y);
-		SDL_RenderDrawPoint(renderer,  position.y + c.center.x,  position.x + c.center.y);
-		SDL_RenderDrawPoint(renderer, -position.y + c.center.x,  position.x + c.center.y);
+	if (c.r > 0) {
+		SDL_RenderDrawPoint(renderer,  p.x + c.c.x, -p.y + c.c.y);
+		SDL_RenderDrawPoint(renderer,  p.y + c.c.x,  p.x + c.c.y);
+		SDL_RenderDrawPoint(renderer, -p.y + c.c.x,  p.x + c.c.y);
 	}
 
-	int P{ 1 - c.radius };
+	int P{ 1 - c.r };
 
-	while (position.x > position.y) {
-		position.y++;
+	while (p.x > p.y) {
+		p.y++;
 
 		if (P <= 0) {
-			P = P + 2 * position.y + 1;
+			P = P + 2 * p.y + 1;
 		} else {
-			position.x--;
-			P = P + 2 * position.y - 2 * position.x + 1;
+			p.x--;
+			P = P + 2 * p.y - 2 * p.x + 1;
 		}
 
-		if (position.x < position.y) {
+		if (p.x < p.y) {
 			break;
 		}
 
-		SDL_RenderDrawPoint(renderer,  position.x + c.center.x,  position.y + c.center.y);
-		SDL_RenderDrawPoint(renderer, -position.x + c.center.x,  position.y + c.center.y);
-		SDL_RenderDrawPoint(renderer,  position.x + c.center.x, -position.y + c.center.y);
-		SDL_RenderDrawPoint(renderer, -position.x + c.center.x, -position.y + c.center.y);
+		SDL_RenderDrawPoint(renderer,  p.x + c.c.x,  p.y + c.c.y);
+		SDL_RenderDrawPoint(renderer, -p.x + c.c.x,  p.y + c.c.y);
+		SDL_RenderDrawPoint(renderer,  p.x + c.c.x, -p.y + c.c.y);
+		SDL_RenderDrawPoint(renderer, -p.x + c.c.x, -p.y + c.c.y);
 
-		if (position.x != position.y) {
-			SDL_RenderDrawPoint(renderer,  position.y + c.center.x,  position.x + c.center.y);
-			SDL_RenderDrawPoint(renderer, -position.y + c.center.x,  position.x + c.center.y);
-			SDL_RenderDrawPoint(renderer,  position.y + c.center.x, -position.x + c.center.y);
-			SDL_RenderDrawPoint(renderer, -position.y + c.center.x, -position.x + c.center.y);
+		if (p.x != p.y) {
+			SDL_RenderDrawPoint(renderer,  p.y + c.c.x,  p.x + c.c.y);
+			SDL_RenderDrawPoint(renderer, -p.y + c.c.x,  p.x + c.c.y);
+			SDL_RenderDrawPoint(renderer,  p.y + c.c.x, -p.x + c.c.y);
+			SDL_RenderDrawPoint(renderer, -p.y + c.c.x, -p.x + c.c.y);
 		}
 	}
 }
@@ -118,14 +118,14 @@ void SolidCircle(const ptgn::Circle<int>& c,
 				 const Color& color) {
 	assert(Exists() && "Cannot draw solid circle with nonexistent renderer");
 	SetColor(color);
-	int radius2{ c.RadiusSquared() };
+	int radius2{ c.r * c.r };
 	auto renderer = Renderer::Get().renderer_;
-	for (auto y{ -c.radius }; y <= c.radius; ++y) {
+	for (auto y{ -c.r }; y <= c.r; ++y) {
 		auto y_squared{ y * y };
-		auto y_position{ c.center.y + y };
-		for (auto x{ -c.radius }; x <= c.radius; ++x) {
+		auto y_position{ c.c.y + y };
+		for (auto x{ -c.r }; x <= c.r; ++x) {
 			if (x * x + y_squared <= radius2) {
-				SDL_RenderDrawPoint(renderer, c.center.x + x, y_position);
+				SDL_RenderDrawPoint(renderer, c.c.x + x, y_position);
 			}
 		}
 	}
@@ -141,10 +141,10 @@ void Arc(const ptgn::Circle<int>& arc_circle,
 	using S = float;
 	auto renderer{ Renderer::Get().renderer_ };
 	int cx = 0;
-	int cy = arc_circle.radius;
-	int df = 1 - arc_circle.radius;
+	int cy = arc_circle.r;
+	int df = 1 - arc_circle.r;
 	int d_e = 3;
-	int d_se = -2 * arc_circle.radius + 5;
+	int d_se = -2 * arc_circle.r + 5;
 	int xpcx, xmcx, xpcy, xmcy;
 	int ypcy, ymcy, ypcx, ymcx;
 	std::uint8_t drawoct;
@@ -152,19 +152,19 @@ void Arc(const ptgn::Circle<int>& arc_circle,
 	float dstart, dend, temp = 0.;
 
 	/*
-	* Sanity check radius
+	* Sanity check r
 	*/
-	if (arc_circle.radius < 0) {
+	if (arc_circle.r < 0) {
 		return;
 	}
 
 	SetColor(color);
 
 	/*
-	* Special case for radius=0 - draw a point
+	* Special case for r=0 - draw a point
 	*/
-	if (arc_circle.radius == 0) {
-		SDL_RenderDrawPoint(renderer, arc_circle.center.x, arc_circle.center.y);
+	if (arc_circle.r == 0) {
+		SDL_RenderDrawPoint(renderer, arc_circle.c.x, arc_circle.c.y);
 		return;
 	}
 
@@ -223,7 +223,7 @@ void Arc(const ptgn::Circle<int>& arc_circle,
 					temp = -sin(dstart * math::pi<float> / 180.);
 					break;
 			}
-			temp *= arc_circle.radius;
+			temp *= arc_circle.r;
 			stopval_start = (int)temp;
 
 			/*
@@ -256,7 +256,7 @@ void Arc(const ptgn::Circle<int>& arc_circle,
 					temp = -sin(dend * math::pi<float> / 180);
 					break;
 			}
-			temp *= arc_circle.radius;
+			temp *= arc_circle.r;
 			stopval_end = (int)temp;
 
 			/* and whether to draw in this octant initially */
@@ -283,11 +283,11 @@ void Arc(const ptgn::Circle<int>& arc_circle,
 	* Draw arc
 	*/
 	do {
-		ypcy = arc_circle.center.y + cy;
-		ymcy = arc_circle.center.y - cy;
+		ypcy = arc_circle.c.y + cy;
+		ymcy = arc_circle.c.y - cy;
 		if (cx > 0) {
-			xpcx = arc_circle.center.x + cx;
-			xmcx = arc_circle.center.x - cx;
+			xpcx = arc_circle.c.x + cx;
+			xmcx = arc_circle.c.x - cx;
 
 			/* always check if we're drawing a certain octant before adding a pixel to that octant. */
 			if (drawoct & 4)  SDL_RenderDrawPoint(renderer, xmcx, ypcy);
@@ -295,22 +295,22 @@ void Arc(const ptgn::Circle<int>& arc_circle,
 			if (drawoct & 32) SDL_RenderDrawPoint(renderer, xmcx, ymcy);
 			if (drawoct & 64) SDL_RenderDrawPoint(renderer, xpcx, ymcy);
 		} else {
-			if (drawoct & 96) SDL_RenderDrawPoint(renderer, arc_circle.center.x, ymcy);
-			if (drawoct & 6)  SDL_RenderDrawPoint(renderer, arc_circle.center.x, ypcy);
+			if (drawoct & 96) SDL_RenderDrawPoint(renderer, arc_circle.c.x, ymcy);
+			if (drawoct & 6)  SDL_RenderDrawPoint(renderer, arc_circle.c.x, ypcy);
 		}
 
-		xpcy = arc_circle.center.x + cy;
-		xmcy = arc_circle.center.x - cy;
+		xpcy = arc_circle.c.x + cy;
+		xmcy = arc_circle.c.x - cy;
 		if (cx > 0 && cx != cy) {
-			ypcx = arc_circle.center.y + cx;
-			ymcx = arc_circle.center.y - cx;
+			ypcx = arc_circle.c.y + cx;
+			ymcx = arc_circle.c.y - cx;
 			if (drawoct & 8)   SDL_RenderDrawPoint(renderer, xmcy, ypcx);
 			if (drawoct & 1)   SDL_RenderDrawPoint(renderer, xpcy, ypcx);
 			if (drawoct & 16)  SDL_RenderDrawPoint(renderer, xmcy, ymcx);
 			if (drawoct & 128) SDL_RenderDrawPoint(renderer, xpcy, ymcx);
 		} else if (cx == 0) {
-			if (drawoct & 24)  SDL_RenderDrawPoint(renderer, xmcy, arc_circle.center.y);
-			if (drawoct & 129) SDL_RenderDrawPoint(renderer, xpcy, arc_circle.center.y);
+			if (drawoct & 24)  SDL_RenderDrawPoint(renderer, xmcy, arc_circle.c.y);
+			if (drawoct & 129) SDL_RenderDrawPoint(renderer, xpcy, arc_circle.c.y);
 		}
 
 		/*
@@ -355,22 +355,22 @@ void Capsule(const ptgn::Capsule<int>& c,
 	const int dir2{ direction.MagnitudeSquared() };
 	V2_int tangent_r;
 	if (dir2 == 0) {
-		Circle({ c.origin, c.radius }, color);
+		Circle({ c.a, c.r }, color);
 		return;
 	} else {
-		tangent_r = static_cast<V2_int>(FastFloor(direction.Tangent() / std::sqrtf(dir2) * c.radius));
+		tangent_r = static_cast<V2_int>(FastFloor(direction.Skewed() / std::sqrtf(dir2) * c.r));
 	}
 	// Draw centerline.
 	if (draw_centerline)
-		SDL_RenderDrawLine(renderer, c.origin.x, c.origin.y, c.destination.x, c.destination.y);
+		SDL_RenderDrawLine(renderer, c.a.x, c.a.y, c.b.x, c.b.y);
 	// Draw edge lines.
-	SDL_RenderDrawLine(renderer, c.origin.x + tangent_r.x, c.origin.y + tangent_r.y,
-					             c.destination.x + tangent_r.x, c.destination.y + tangent_r.y);
-	SDL_RenderDrawLine(renderer, c.origin.x - tangent_r.x, c.origin.y - tangent_r.y,
-					             c.destination.x - tangent_r.x, c.destination.y - tangent_r.y);
+	SDL_RenderDrawLine(renderer, c.a.x + tangent_r.x, c.a.y + tangent_r.y,
+					             c.b.x + tangent_r.x, c.b.y + tangent_r.y);
+	SDL_RenderDrawLine(renderer, c.a.x - tangent_r.x, c.a.y - tangent_r.y,
+					             c.b.x - tangent_r.x, c.b.y - tangent_r.y);
 	// Draw edge arcs.
-	Arc({ c.origin, c.radius }, angle, angle + 180.0, color);
-	Arc({ c.destination, c.radius }, angle + 180.0, angle, color);
+	Arc({ c.a, c.r }, angle, angle + 180.0, color);
+	Arc({ c.b, c.r }, angle + 180.0, angle, color);
 
 }
 
@@ -378,7 +378,7 @@ void AABB(const ptgn::AABB<int>& a,
           const Color& color) {
 	assert(Exists() && "Cannot draw aabb with nonexistent renderer");
 	SetColor(color);
-	SDL_Rect rect{ a.position.x, a.position.y, a.size.x, a.size.y };
+	SDL_Rect rect{ a.p.x, a.p.y, a.s.x, a.s.y };
 	SDL_RenderDrawRect(Renderer::Get().renderer_, &rect);
 }
 
@@ -386,7 +386,7 @@ void SolidAABB(const ptgn::AABB<int>& a,
 			        const Color& color) {
 	assert(Exists() && "Cannot draw solid aabb with nonexistent renderer");
 	SetColor(color);
-	SDL_Rect rect{ a.position.x, a.position.y, a.size.x, a.size.y };
+	SDL_Rect rect{ a.p.x, a.p.y, a.s.x, a.s.y };
 	SDL_RenderFillRect(Renderer::Get().renderer_, &rect);
 }
 
@@ -399,11 +399,11 @@ void Texture(const char* texture_key,
 	assert(texture_manager.Has(key) && "Cannot draw nonexistent texture");
 	SDL_Rect* src{ NULL };
 	SDL_Rect source_rectangle;
-	if (!source.size.IsZero()) {
-		source_rectangle = { source.position.x, source.position.y, source.size.x, source.size.y };
+	if (!source.s.IsZero()) {
+		source_rectangle = { source.p.x, source.p.y, source.s.x, source.s.y };
 		src = &source_rectangle;
 	}
-	SDL_Rect destination{ texture.position.x, texture.position.y, texture.size.x, texture.size.y };
+	SDL_Rect destination{ texture.p.x, texture.p.y, texture.s.x, texture.s.y };
 	SDL_RenderCopy(Renderer::Get().renderer_, *texture_manager.Get(key), src, &destination);
 }
 
@@ -420,11 +420,11 @@ void Texture(const char* texture_key,
 	auto renderer = Renderer::Get().renderer_;
 	SDL_Rect* src{ NULL };
 	SDL_Rect source_rectangle;
-	if (!source.position.IsZero() && !source.size.IsZero()) {
-		source_rectangle = { source.position.x, source.position.y, source.size.x, source.size.y };
+	if (!source.p.IsZero() && !source.s.IsZero()) {
+		source_rectangle = { source.p.x, source.p.y, source.s.x, source.s.y };
 		src = &source_rectangle;
 	}
-	SDL_Rect destination{ texture.position.x, texture.position.y, texture.size.x, texture.size.y };
+	SDL_Rect destination{ texture.p.x, texture.p.y, texture.s.x, texture.s.y };
 	if (center_of_rotation != nullptr) {
 		SDL_Point center{ center_of_rotation->x, center_of_rotation->y };
 		SDL_RenderCopyEx(renderer, *texture_manager.Get(key), src, &destination,
@@ -441,7 +441,7 @@ void Text(const ptgn::Text& text,
 	const auto& texture_manager{ manager::Get<TextureManager>() };
 	const auto texture_key{ text.GetTextureKey() };
 	assert(texture_manager.Has(texture_key) && "Cannot draw nonexistent text");
-	SDL_Rect destination{ box.position.x, box.position.y, box.size.x, box.size.y };
+	SDL_Rect destination{ box.p.x, box.p.y, box.s.x, box.s.y };
 	SDL_RenderCopy(Renderer::Get().renderer_, *texture_manager.Get(texture_key), NULL, &destination);
 }
 
@@ -454,7 +454,7 @@ void Text(const char* text_key,
 	assert(text_manager.Has(key) && "Cannot draw text which has not been loaded into the text manager");
 	const auto texture_key{ text_manager.Get(key)->GetTextureKey() };
 	assert(texture_manager.Has(texture_key) && "Cannot draw nonexistent text");
-	SDL_Rect destination{ box.position.x, box.position.y, box.size.x, box.size.y };
+	SDL_Rect destination{ box.p.x, box.p.y, box.s.x, box.s.y };
 	SDL_RenderCopy(Renderer::Get().renderer_, *texture_manager.Get(texture_key), NULL, &destination);
 }
 

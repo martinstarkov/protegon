@@ -27,7 +27,7 @@ void Camera::ZoomOut() {
 }
 
 void Camera::ClampZoom() {
-	scale = math::Clamp(scale, min_scale, max_scale);
+	scale = Clamp(scale, min_scale, max_scale);
 }
 
 void Camera::CenterOn(const V2_float& point, const V2_float& size) {

@@ -93,8 +93,6 @@ private:
 	Color(const SDL_Color& color);
 };
 
-namespace math {
-
 template <typename T,
 	tt::floating_point<T> = true>
 inline Color Lerp(const Color& a, const Color& b, T t) {
@@ -105,8 +103,6 @@ inline Color Lerp(const Color& a, const Color& b, T t) {
 		static_cast<std::uint8_t>(std::lerp(a.a, b.a, t))
 	};
 }
-
-} // namespace math
 
 } // namespace ptgn
 

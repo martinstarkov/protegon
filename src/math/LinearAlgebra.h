@@ -15,50 +15,48 @@ namespace math {
 // positive if abc is counterclockwise, 
 // negative if abc is clockwise, 
 // zero if abc is degenerate.
-template <typename T,
-    tt::arithmetic<T> = true>
-inline T ParallelogramArea(const math::Vector2<T>& a,
-                           const math::Vector2<T>& b,
-                           const math::Vector2<T>& c) {
+template <typename T, tt::arithmetic<T> = true>
+inline T ParallelogramArea(const Vector2<T>& a,
+                           const Vector2<T>& b,
+                           const Vector2<T>& c) {
     return (a - c).Cross(b - c);
 }
 
 // Source: https://www.jeffreythompson.org/collision-detection/line-point.php
 // Source: https://stackoverflow.com/a/7050238
 // Source (used): PointToLineSquareDistance == 0 but optimized slightly.
-template <typename T, typename S = float,
-    tt::floating_point<S> = true>
+template <typename T, typename S = float, tt::floating_point<S> = true>
 inline bool PointLine(const Point<T>& a,
                       const Line<T>& b) {
-    const math::Vector2<S> ab{ b.Direction() };
-    const math::Vector2<S> ac{ a - b.origin };
-    const math::Vector2<S> bc{ a - b.destination };
+    const Vector2<S> ab{ b.Direction() };
+    const Vector2<S> ac{ a - b.origin };
+    const Vector2<S> bc{ a - b.destination };
     const S e{ ac.Dot(ab) };
     // Handle cases where c projects outside ab
-    if (e < 0 || math::Compare(e, 0)) return math::Compare(ac.x, 0) && math::Compare(ac.y, 0);
+    if (e < 0 || Compare(e, 0)) return Compare(ac.x, 0) && Compare(ac.y, 0);
     const S f{ ab.Dot(ab) };
-    if (e > f || math::Compare(e, f)) return math::Compare(bc.x, 0) && math::Compare(bc.y, 0);
+    if (e > f || Compare(e, f)) return Compare(bc.x, 0) && Compare(bc.y, 0);
     // Handle cases where c projects onto ab
-    return math::Compare(ac.Dot(ac) * f, e * e);
+    return Compare(ac.Dot(ac) * f, e * e);
 
     // Same principle as above but more opertions:
     //const S dist2{ math::PointToLineSquareDistance(a, b) };
-    //return math::Compare(dist2, 0);
+    //return Compare(dist2, 0);
 
     // Alternative approach using gradients:
-    //const math::Vector2<S> ap{ a - b.origin };
-    //const math::Vector2<S> dir{ b.Direction() };
-    //const math::Vector2<S> grad{ ap / dir };
+    //const Vector2<S> ap{ a - b.origin };
+    //const Vector2<S> dir{ b.Direction() };
+    //const Vector2<S> grad{ ap / dir };
     //// Check that the gradient is the same along both axes, i.e. "colinear".
-    //const math::Vector2<T> min{ math::Min(b.origin, b.destination) };
-    //const math::Vector2<T> max{ math::Max(b.origin, b.destination) };
+    //const Vector2<T> min{ math::Min(b.origin, b.destination) };
+    //const Vector2<T> max{ math::Max(b.origin, b.destination) };
     //// Edge cases where line aligns with an axis.
     //// TODO: Check that this is correct.
-    //if (math::Compare(dir.x, 0) && math::Compare(a.x, b.origin.x)) {
+    //if (Compare(dir.x, 0) && Compare(a.x, b.origin.x)) {
     //	if (a.y < min.y || a.y > max.y) return false;
     //	return true;
     //}
-    //if (math::Compare(dir.y, 0) && math::Compare(a.y, b.origin.y)) {
+    //if (Compare(dir.y, 0) && Compare(a.y, b.origin.y)) {
     //	if (a.x < min.x || a.x > max.x) return false;
     //	return true;
     //}
@@ -80,11 +78,10 @@ constexpr const int TOP = 8;    // 1000
 
 // ASSUME THAT xmax, xmin, ymax and ymin are global constants.
 
-template <typename T = float,
-    tt::floating_point<T> = true>
-OutCode ComputeOutCode(const math::Vector2<T>& a,
-                       const math::Vector2<T>& min,
-                       const math::Vector2<T>& max) {
+template <typename T = float, tt::floating_point<T> = true>
+OutCode ComputeOutCode(const Vector2<T>& a,
+                       const Vector2<T>& min,
+                       const Vector2<T>& max) {
     OutCode code = INSIDE;  // initialised as being inside of clip window
 
     if (a.x < min.x)           // to the left of clip window
@@ -105,12 +102,11 @@ OutCode ComputeOutCode(const math::Vector2<T>& a,
 // Cohen–Sutherland clipping algorithm clips a line from
 // p0 = (x0, y0) to p1 = (x1, y1) against a rectangle with 
 // diagonal from (xmin, ymin) to (xmax, ymax).
-template <typename T = float,
-    tt::floating_point<T> = true>
-bool CohenSutherlandLineClip(math::Vector2<T> p0,
-                             math::Vector2<T> p1,
-                             const math::Vector2<T>& min,
-                             const math::Vector2<T>& max) {
+template <typename T = float, tt::floating_point<T> = true>
+bool CohenSutherlandLineClip(Vector2<T> p0,
+                             Vector2<T> p1,
+                             const Vector2<T>& min,
+                             const Vector2<T>& max) {
     // compute outcodes for P0, P1, and whatever point lies outside the clip rectangle
     cs::OutCode outcode0{ cs::ComputeOutCode<T>(p0, min, max) };
     cs::OutCode outcode1{ cs::ComputeOutCode<T>(p1, min, max) };
@@ -126,7 +122,7 @@ bool CohenSutherlandLineClip(math::Vector2<T> p0,
             // or BOTTOM), so both must be outside window; exit loop (accept is false)
             break;
         } else {
-            math::Vector2<T> p;
+            Vector2<T> p;
             // At least one endpoint is outside the clip rectangle; pick it.
             const cs::OutCode outcodeOut{ outcode1 > outcode0 ? outcode1 : outcode0 };
 
@@ -169,18 +165,17 @@ bool CohenSutherlandLineClip(math::Vector2<T> p0,
 // Source: file:///C:/Users/Martin/Desktop/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 // Page 130.
 // Returns the squared distance between point and segment line_origin -> line_destination.
-template <typename T, typename S = float,
-    tt::floating_point<S> = true>
+template <typename T, typename S = float, tt::floating_point<S> = true>
 static S PointToLineSquareDistance(const Point<T>& a,
                                    const Line<T>& b) {
-    const math::Vector2<S> ab{ b.Direction() };
-    const math::Vector2<S> ac{ a - b.origin };
-    const math::Vector2<S> bc{ a - b.destination };
+    const Vector2<S> ab{ b.Direction() };
+    const Vector2<S> ac{ a - b.origin };
+    const Vector2<S> bc{ a - b.destination };
     const S e{ ac.Dot(ab) };
     // Handle cases where c projects outside ab
-    if (e < 0 || math::Compare(e, 0)) return ac.Dot(ac);
+    if (e < 0 || Compare(e, 0)) return ac.Dot(ac);
     const S f{ ab.Dot(ab) };
-    if (e > f || math::Compare(e, f)) return bc.Dot(bc);
+    if (e > f || Compare(e, f)) return bc.Dot(bc);
     // Handle cases where c projects onto ab
     return ac.Dot(ac) - e * e / f;
 }
@@ -189,22 +184,21 @@ static S PointToLineSquareDistance(const Point<T>& a,
 // Page 129.
 // Given segment ab and point c, computes closest point out_d on ab.
 // Also returns out_t for the position of out_d, out_d(out_t)= a + out_t * (b - a)
-template <typename T, typename S = float,
-    tt::floating_point<S> = true>
+template <typename T, typename S = float, tt::floating_point<S> = true>
 static void ClosestPointLine(const Point<T>& a,
                              const Line<T>& b,
                              S& out_t,
-                             math::Vector2<S>& out_d) {
-    const math::Vector2<S> ab{ b.Direction() };
+                             Vector2<S>& out_d) {
+    const Vector2<S> ab{ b.Direction() };
     // Project c onto ab, but deferring divide by Dot(ab, ab)
     out_t = (a - b.origin).Dot(ab);
-    if (out_t < 0 || math::Compare(out_t, 0)) {
+    if (out_t < 0 || Compare(out_t, 0)) {
         // c projects outside the [a,b] interval, on the a side; clamp to a
         out_t = 0;
         out_d = b.origin;
     } else {
         S denom = ab.Dot(ab); // Always nonnegative since denom = ||ab||^2
-        if (out_t > denom || math::Compare(out_t, denom)) {
+        if (out_t > denom || Compare(out_t, denom)) {
             // c projects outside the [a,b] interval, on the b side; clamp to b
             out_t = 1;
             out_d = b.destination;
@@ -218,13 +212,12 @@ static void ClosestPointLine(const Point<T>& a,
 
 // Given an infinite line line_origin->line_destination and point, computes closest point out_d on ab.
 // Also returns out_t for the parametric position of out_d, out_d(t)= a + out_t * (b - a)
-template <typename S = float, typename T,
-    tt::floating_point<S> = true>
+template <typename S = float, typename T, tt::floating_point<S> = true>
 inline void ClosestPointInfiniteLine(const Point<T>& a,
                                      const Line<T>& b,
                                      S& out_t,
-                                     math::Vector2<S>& out_d) {
-    math::Vector2<S> dir{ b.Direction() };
+                                     Vector2<S>& out_d) {
+    Vector2<S> dir{ b.Direction() };
     // Project c onto ab, but deferring divide by Dot(ab, ab)
     out_t = (a - b.origin).Dot(dir) / dir.Dot(dir);
     out_d = b.origin + out_t * dir;
@@ -248,18 +241,17 @@ inline T SquareDistancePointAABB(const Point<T>& a,
 // Computes closest points C1 and C2 of S1(s)=P1+s*(Q1-P1) and
 // S2(t)=P2+t*(Q2-P2), returning s and t. 
 // Function return is squared distance between between S1(s) and S2(t)
-template <typename S = float, typename T,
-    tt::floating_point<S> = true>
+template <typename S = float, typename T, tt::floating_point<S> = true>
 static S ClosestPointLineLine(const Line<T>& a,
                               const Line<T>& b,
                               S& out_s,
                               S& out_t,
-                              math::Vector2<S>& out_c1,
-                              math::Vector2<S>& out_c2) {
+                              Vector2<S>& out_c1,
+                              Vector2<S>& out_c2) {
     static_assert(!tt::is_narrowing_v<T, S>);
-    const math::Vector2<S> d1{ a.destination - a.origin }; // Direction vector of segment S1
-    const math::Vector2<S> d2{ b.destination - b.origin }; // Direction vector of segment S2
-    const math::Vector2<S> r{ a.origin - b.origin };
+    const Vector2<S> d1{ a.destination - a.origin }; // Direction vector of segment S1
+    const Vector2<S> d2{ b.destination - b.origin }; // Direction vector of segment S2
+    const Vector2<S> r{ a.origin - b.origin };
     const S z{ d1.Dot(d1) }; // Squared length of segment S1, always nonnegative
     const S e{ d2.Dot(d2) }; // Squared length of segment S2, always nonnegative
     const S f{ d2.Dot(r) };
@@ -269,7 +261,7 @@ static S ClosestPointLineLine(const Line<T>& a,
         out_s = out_t = 0;
         out_c1 = a.origin;
         out_c2 = b.origin;
-        const math::Vector2<S> subtraction{ out_c1 - out_c2 };
+        const Vector2<S> subtraction{ out_c1 - out_c2 };
         return subtraction.Dot(subtraction);
     }
     const S lower{ 0 };
@@ -291,7 +283,7 @@ static S ClosestPointLineLine(const Line<T>& a,
             const S denom{ z * e - b * b }; // Always nonnegative
             // If segments not parallel, compute closest point on L1 to L2 and
             // clamp to segment S1. Else pick arbitrary out_s (here 0)
-            if (!math::Compare(denom, 0))
+            if (!Compare(denom, 0))
                 out_s = std::clamp((b * f - c * e) / denom, lower, upper);
             else
                 out_s = 0;
@@ -325,8 +317,8 @@ static S ClosestPointLineLine(const Line<T>& a,
     }
     out_c1 = a.origin + d1 * out_s;
     out_c2 = b.origin + d2 * out_t;
-    const math::Vector2<S> subtraction{ out_c1 - out_c2 };
-    return subtraction.Dot(subtraction);
+    const Vector2<S> sub{ out_c1 - out_c2 };
+    return Dot(sub, sub);
 }
 
 } // namespace math

@@ -153,7 +153,7 @@ Sequence GetRandomRollSequence(std::size_t count) {
 
 Sequence GetRotatedSequence(Sequence sequence, const float angle) {
 	for (auto& vector : sequence)
-		vector = math::Round(vector.Rotate(angle));
+		vector = Round(vector.Rotated(angle));
 	return sequence;
 }
 

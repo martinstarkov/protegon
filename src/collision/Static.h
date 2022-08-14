@@ -23,9 +23,9 @@ struct Collision {
         return occured_;
     }
     // Normal vector to the collision plane.
-    math::Vector2<T> normal;
+    Vector2<T> normal;
     // Penetration of objects into each other along the collision normal.
-    math::Vector2<T> penetration;
+    Vector2<T> penetration;
     void SetOccured() {
         occured_ = true;
     }
@@ -44,20 +44,20 @@ static Collision<S> AABBAABB(const AABB<T>& a,
     const S b_half_x{ b.size.x / 2.0f };
     const S direction_x{ b.position.x + b_half_x - (a.position.x + a_half_x) };
     const S penetration_x{ a_half_x + b_half_x - math::FastAbs(direction_x) };
-    if (penetration_x < 0 || math::Compare(penetration_x, 0)) {
+    if (penetration_x < 0 || Compare(penetration_x, 0)) {
         return collision;
     }
     const S a_half_y{ a.size.y / 2.0f };
     const S b_half_y{ b.size.y / 2.0f };
     const S direction_y{ b.position.y + b_half_y - (a.position.y + a_half_y) };
     const S penetration_y{ a_half_y + b_half_y - math::FastAbs(direction_y) };
-    if (penetration_y < 0 || math::Compare(penetration_y, 0)) {
+    if (penetration_y < 0 || Compare(penetration_y, 0)) {
         return collision;
     }
 
     collision.SetOccured();
 
-    if (math::Compare(direction_x, 0) && math::Compare(direction_y, 0)) {
+    if (Compare(direction_x, 0) && Compare(direction_y, 0)) {
         // Edge case where aabb centers are in the same location, 
         // choose arbitrary upward normal to resolve this.
         collision.normal.y = -1;
@@ -93,20 +93,20 @@ static Collision<S> CapsuleCapsule(const Capsule<T>& a,
 	// Compute (squared) distance between the inner structures of the capsules.
 	S s{};
 	S t{};
-	math::Vector2<S> c1;
-	math::Vector2<S> c2;
+	Vector2<S> c1;
+	Vector2<S> c2;
 	const S dist2{ math::ClosestPointLineLine<S>(a, b, s, t, c1, c2) };
 	// If (squared) distance smaller than (squared) sum of radii, they collide
 	const S rad_sum{ static_cast<S>(a.radius) + static_cast<S>(b.radius) };
 	const S rad_sum2{ rad_sum * rad_sum };
 	if (!(dist2 < rad_sum2 ||
-		  math::Compare(dist2, rad_sum2))) {
+		  Compare(dist2, rad_sum2))) {
 		return collision;
 	}
 	collision.SetOccured();
-	if (math::Compare(dist2, 0)) {
+	if (Compare(dist2, 0)) {
 		// Capsules lines intersect, different kind of routine needed.
-		std::array<math::Vector2<S>, 4> points;
+		std::array<Vector2<S>, 4> points;
 		points[0] = a.origin;
 		points[1] = a.destination;
 		points[2] = b.origin;
@@ -143,8 +143,8 @@ static Collision<S> CapsuleCapsule(const Capsule<T>& a,
 			sign = 1;
 			max_index = 2;
 		}
-		math::Vector2<S> dir{ line.Direction() };
-		math::Vector2<S> o_dir{ other.Direction() };
+		Vector2<S> dir{ line.Direction() };
+		Vector2<S> o_dir{ other.Direction() };
 		// TODO: Perhaps this check could be moved to the very beginning as it does not rely on projections.
 		bool zero_dir{ dir.IsZero() };
 		bool o_zero_dir{ o_dir.IsZero() };
@@ -172,15 +172,15 @@ static Collision<S> CapsuleCapsule(const Capsule<T>& a,
 		} else {
 			// Capsule vs capsule.
 			S frac{}; // frac is an unused variable.
-			math::Vector2<S> point;
+			Vector2<S> point;
 			// TODO: Fix this awful branching.
 			// TODO: Clean this up, I'm sure some of these cases can be combined.
 			math::ClosestPointInfiniteLine(points[min_index], other, frac, point);
-			const math::Vector2<S> vector_to_min{ points[min_index] - point };
+			const Vector2<S> vector_to_min{ points[min_index] - point };
 			if (vector_to_min.IsZero()) {
 				// Capsule centerlines touch in at least one location.
 				math::ClosestPointInfiniteLine(points[max_index], other, frac, point);
-				const math::Vector2<S> vector_to_max{ -(points[max_index] - point).Normalize() };
+				const Vector2<S> vector_to_max{ -(points[max_index] - point).Normalize() };
 				if (vector_to_max.IsZero()) {
 					// Capsules are collinear.
 					const S penetration{ Distance(points[min_index], point) + rad_sum };
@@ -224,22 +224,22 @@ static Collision<S> CircleAABB(const Circle<T>& a,
 							   const AABB<T>& b) {
 	Collision<S> collision;
 
-	using Edge = std::pair<math::Vector2<T>, math::Vector2<T>>;
-	math::Vector2<T> top_right{ b.position.x + b.size.x, b.position.y };
-	math::Vector2<T> bottom_right{ b.position + b.size };
-	math::Vector2<T> bottom_left{ b.position.x, b.position.y + b.size.y };
+	using Edge = std::pair<Vector2<T>, Vector2<T>>;
+	Vector2<T> top_right{ b.position.x + b.size.x, b.position.y };
+	Vector2<T> bottom_right{ b.position + b.size };
+	Vector2<T> bottom_left{ b.position.x, b.position.y + b.size.y };
 	std::array<Edge, 4> edges;
 	edges.at(0) = { b.position, top_right };     // top
 	edges.at(1) = { top_right, bottom_right };   // right
 	edges.at(2) = { bottom_right, bottom_left }; // bottom
 	edges.at(3) = { bottom_left, b.position };   // left
 	S min_dist2{ std::numeric_limits<S>::infinity() };
-	math::Vector2<S> min_point;
+	Vector2<S> min_point;
 	std::size_t side_index{ 0 };
 	for (std::size_t i{ 0 }; i < edges.size(); ++i) {
 		auto& [origin, destination] = edges[i];
 		S t{};
-		math::Vector2<S> c1;
+		Vector2<S> c1;
 		math::ClosestPointLine<S>(a.center, { origin, destination }, t, c1);
 		S dist2{ (a.center - c1).MagnitudeSquared() };
 		if (dist2 < min_dist2) {
@@ -258,7 +258,7 @@ static Collision<S> CircleAABB(const Circle<T>& a,
 
 	collision.SetOccured();
 
-	if (math::Compare(min_dist2, 0)) {
+	if (Compare(min_dist2, 0)) {
 		// Circle is on one of the AABB edges.
 		switch (side_index) {
 			case 0:
@@ -277,12 +277,12 @@ static Collision<S> CircleAABB(const Circle<T>& a,
 		collision.penetration = collision.normal * a.radius;
 		return collision;
 	} else {
-		const math::Vector2<S> dir{ a.center - min_point };
+		const Vector2<S> dir{ a.center - min_point };
 		const S mag{ dir.Magnitude() };
 
 		// TODO: Move this to the very beginning as it is an edge case 
 		// which can be checked before looping all sides of aabb.
-		if (math::Compare(mag, 0))
+		if (Compare(mag, 0))
 			// Choose upward vector arbitrarily if circle center is aabb center.
 			collision.normal = { 0, -1 }; // top
 		else
@@ -316,13 +316,13 @@ static Collision<S> CircleCircle(const Circle<T>& a,
 	static_assert(!tt::is_narrowing_v<T, S>);
 	Collision<S> collision;
 
-	const math::Vector2<T> dir{ b.center - a.center };
+	const Vector2<T> dir{ b.center - a.center };
 	const T dist2{ dir.MagnitudeSquared() };
 	const T rad_sum{ a.radius + b.radius };
 	const T rad_sum2{ rad_sum * rad_sum };
 
 	// Collision did not occur, exit with empty collision.
-	if (dist2 > rad_sum2 || math::Compare(dist2, rad_sum2)) {
+	if (dist2 > rad_sum2 || Compare(dist2, rad_sum2)) {
 		return collision;
 	}
 
@@ -331,7 +331,7 @@ static Collision<S> CircleCircle(const Circle<T>& a,
 	const S dist{ std::sqrtf(dist2) };
 
 	// Bias toward selecting first circle for exact overlap edge case.
-	if (math::Compare(dist, 0)) {
+	if (Compare(dist, 0)) {
 		// Arbitrary normal chosen upward.
 		collision.normal = { 0, -1 };
 		collision.penetration = collision.normal * rad_sum;
@@ -394,20 +394,20 @@ static Collision<S> PointCapsule(const Point<T>& a,
 	static_assert(!tt::is_narrowing_v<T, S>);
 	Collision<S> collision;
 	S t{};
-	math::Vector2<S> d;
+	Vector2<S> d;
 	// Compute (squared) distance between sphere center and capsule line segment.
 	math::ClosestPointLine<S>(a, b, t, d);
-	const math::Vector2<S> vector{ d - a };
+	const Vector2<S> vector{ d - a };
 	const S dist2{ vector.MagnitudeSquared() };
 	// If (squared) distance smaller than (squared) sum of radii, they collide.
 	const S rad2{ static_cast<S>(b.RadiusSquared()) };
-	if (!(dist2 < rad2 || math::Compare(dist2, rad2))) {
+	if (!(dist2 < rad2 || Compare(dist2, rad2))) {
 		return collision;
 	}
 	collision.SetOccured();
-	if (math::Compare(dist2, 0)) {
+	if (Compare(dist2, 0)) {
 		// Point is on the capsule's centerline.
-		math::Vector2<S> dir{ b.Direction() };
+		Vector2<S> dir{ b.Direction() };
 		if (dir.IsZero()) {
 			// Point vs circle where point is at circle center.
 			collision.normal = { 0, -1 };

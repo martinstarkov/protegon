@@ -27,8 +27,8 @@ void ClosestPointsSegmentSegment(const Segment<T>& a,
 	const T mag_a2{ d1.MagnitudeSquared() }; // Squared length of segment S1, always nonnegative
 	const T mag_b2{ d2.MagnitudeSquared() }; // Squared length of segment S2, always nonnegative
 	// Check if either or both segments degenerate into points
-	bool a_point{ math::Compare(mag_a2, 0) };
-	bool b_point{ math::Compare(mag_b2, 0) };
+	bool a_point{ Compare(mag_a2, 0) };
+	bool b_point{ Compare(mag_b2, 0) };
 	if (a_point && b_point) {
 		// Both segments degenerate into points.
 		out_s = out_t = 0;
@@ -54,7 +54,7 @@ void ClosestPointsSegmentSegment(const Segment<T>& a,
 		const T denom{ mag_a2 * mag_b2 - adb * adb }; // Always nonnegative
 		// If segments not parallel, compute closest point on L1 to L2 and
 		// clamp to segment S1. Else pick arbitrary s (here 0)
-		if (math::Compare(denom, 0))
+		if (Compare(denom, 0))
 			out_s = 0;
 		else 
 			out_s = std::clamp((adb * bdr - adr * mag_b2) / denom, 0.0f, 1.0f);
@@ -100,12 +100,12 @@ template <typename S = float, typename T,
 								  const Line<T>& b,
 								  S& out_s,
 								  S& out_t,
-								  math::Vector2<S>& out_c1,
-								  math::Vector2<S>& out_c2) {
+								  Vector2<S>& out_c1,
+								  Vector2<S>& out_c2) {
 	static_assert(!tt::is_narrowing_v<T, S>);
-	const math::Vector2<S> d1{ a.destination - a.origin }; // Direction vector of segment S1
-	const math::Vector2<S> d2{ b.destination - b.origin }; // Direction vector of segment S2
-	const math::Vector2<S> r{ a.origin - b.origin };
+	const Vector2<S> d1{ a.destination - a.origin }; // Direction vector of segment S1
+	const Vector2<S> d2{ b.destination - b.origin }; // Direction vector of segment S2
+	const Vector2<S> r{ a.origin - b.origin };
 	const S z{ d1.Dot(d1) }; // Squared length of segment S1, always nonnegative
 	const S e{ d2.Dot(d2) }; // Squared length of segment S2, always nonnegative
 	const S f{ d2.Dot(r) };
@@ -115,7 +115,7 @@ template <typename S = float, typename T,
 		out_s = out_t = 0;
 		out_c1 = a.origin;
 		out_c2 = b.origin;
-		const math::Vector2<S> subtraction{ out_c1 - out_c2 };
+		const Vector2<S> subtraction{ out_c1 - out_c2 };
 		return subtraction.Dot(subtraction);
 	}
 	const S lower{ 0 };
@@ -137,7 +137,7 @@ template <typename S = float, typename T,
 			const S denom{ z * e - b * b }; // Always nonnegative
 			// If segments not parallel, compute closest point on L1 to L2 and
 			// clamp to segment S1. Else pick arbitrary out_s (here 0)
-			if (!math::Compare(denom, 0))
+			if (!Compare(denom, 0))
 				out_s = std::clamp((b * f - c * e) / denom, lower, upper);
 			else
 				out_s = 0;
@@ -156,7 +156,7 @@ template <typename S = float, typename T,
 }
 out_c1 = a.origin + d1 * out_s;
 out_c2 = b.origin + d2 * out_t;
-const math::Vector2<S> subtraction{ out_c1 - out_c2 };
+const Vector2<S> subtraction{ out_c1 - out_c2 };
 return subtraction.Dot(subtraction);
 }
 
@@ -168,8 +168,8 @@ template <typename S = float, typename T,
 	inline void ClosestPointInfiniteLine(const Point<T>& a,
 										 const Line<T>& b,
 										 S& out_t,
-										 math::Vector2<S>& out_d) {
-	math::Vector2<S> dir{ b.Direction() };
+										 Vector2<S>& out_d) {
+	Vector2<S> dir{ b.Direction() };
 	// Project c onto ab, but deferring divide by Dot(ab, ab)
 	out_t = (a - b.origin).Dot(dir) / dir.Dot(dir);
 	out_d = b.origin + out_t * dir;
@@ -182,7 +182,7 @@ template <typename T = float,
 							   const Capsule<T>& b) {
 	Collision<T> c;
 	const auto ab{ b.Direction() };
-	math::Vector2<T> p;
+	Vector2<T> p;
 	// Project c onto ab, but deferring divide by Dot(ab, ab)
 	const T t{ (a.center - b.origin).Dot(ab) };
 	const T denom{ ab.MagnitudeSquared() }; // Always nonnegative since denom = ||ab||^2
@@ -203,7 +203,7 @@ template <typename T = float,
 	const T dist2{ dir.MagnitudeSquared() };
 	if (dist2 < rad * rad) {
 		const T dist{ std::sqrtf(dist2) };
-		if (math::Compare(dist, 0))
+		if (Compare(dist, 0))
 			c.normal = -ab.Tangent() / std::sqrtf(denom);
 		else
 			c.normal = dir / dist;
@@ -224,20 +224,20 @@ template <typename S = float, typename T,
 	// Compute (squared) distance between the inner structures of the capsules.
 	S s{};
 	S t{};
-	math::Vector2<S> c1;
-	math::Vector2<S> c2;
+	Vector2<S> c1;
+	Vector2<S> c2;
 	const S dist2{ math::ClosestPointLineLine<S>(a, b, s, t, c1, c2) };
 	// If (squared) distance smaller than (squared) sum of radii, they collide
 	const S rad_sum{ static_cast<S>(a.radius) + static_cast<S>(b.radius) };
 	const S rad_sum2{ rad_sum * rad_sum };
 	if (!(dist2 < rad_sum2 ||
-		  math::Compare(dist2, rad_sum2))) {
+		  Compare(dist2, rad_sum2))) {
 		return collision;
 	}
 	collision.count = 1;
-	if (math::Compare(dist2, 0)) {
+	if (Compare(dist2, 0)) {
 		// Capsules lines intersect, different kind of routine needed.
-		std::array<math::Vector2<S>, 4> points;
+		std::array<Vector2<S>, 4> points;
 		points[0] = a.origin;
 		points[1] = a.destination;
 		points[2] = b.origin;
@@ -274,8 +274,8 @@ template <typename S = float, typename T,
 			sign = 1;
 			max_index = 2;
 		}
-		math::Vector2<S> dir{ line.Direction() };
-		math::Vector2<S> o_dir{ other.Direction() };
+		Vector2<S> dir{ line.Direction() };
+		Vector2<S> o_dir{ other.Direction() };
 		// TODO: Perhaps this check could be moved to the very beginning as it does not rely on projections.
 		bool zero_dir{ dir.IsZero() };
 		bool o_zero_dir{ o_dir.IsZero() };
@@ -303,15 +303,15 @@ template <typename S = float, typename T,
 		} else {
 			// Capsule vs capsule.
 			S frac{}; // frac is an unused variable.
-			math::Vector2<S> point;
+			Vector2<S> point;
 			// TODO: Fix this awful branching.
 			// TODO: Clean this up, I'm sure some of these cases can be combined.
 			math::ClosestPointInfiniteLine(points[min_index], other, frac, point);
-			const math::Vector2<S> vector_to_min{ points[min_index] - point };
+			const Vector2<S> vector_to_min{ points[min_index] - point };
 			if (vector_to_min.IsZero()) {
 				// Capsule centerlines touch in at least one location.
 				math::ClosestPointInfiniteLine(points[max_index], other, frac, point);
-				const math::Vector2<S> vector_to_max{ -(points[max_index] - point).Normalize() };
+				const Vector2<S> vector_to_max{ -(points[max_index] - point).Normalize() };
 				if (vector_to_max.IsZero()) {
 					// Capsules are collinear.
 					const S penetration{ Distance(points[min_index], point) + rad_sum };

@@ -11,15 +11,15 @@ using namespace ptgn;
 class StaticCollisionTest : public Engine {
 public:
 	virtual void Init() {}
-	V2_int position1{ 200, 200 };
-	V2_int position2{ 100, 100 };
-	V2_int position3{ 500, 500 };
-	V2_int position4{ 300 - 50, 300 };
-	V2_int size1{ 60, 60 };
+	V2_float position1{ 200, 200 };
+	V2_float position3{ 500, 500 };
+	V2_float position2{ 100, 100 };
+	V2_float position4{ 300 - 50, 300 };
+	V2_float size1{ 60, 60 };
+	V2_float size2{ 200, 200 };
 	float radius1{ 60 };
-	Color color1{ color::GREEN };
-	V2_int size2{ 200, 200 };
 	float radius2{ 20 };
+	Color color1{ color::GREEN };
 	Color color2{ color::BLUE };
 	const int options{ 13 };
 	int option{ 7 };
@@ -45,6 +45,8 @@ public:
 		Line<float> line2{ position2, position4 };
 		Capsule<float> capsule1{ position1, position3, radius1 };
 		Capsule<float> capsule2{ position2, position4, radius2 };
+
+		intersect::Collision c;
 
 		// TODO: Implement LineCircle
 		// TODO: Implement LineAABB
@@ -140,29 +142,32 @@ public:
 				draw::Line({ line2.destination, line2.destination + collision.penetration }, color::GOLD);
 			}*/
 		} else if (option == 7) {
-			const auto collision{ intersect::CircleCircle(circle2, circle1) };
-			if (collision.occured) {
+			bool occured{ intersect::CircleCircle(circle2, circle1, c) };
+			if (occured) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}
 			draw::Circle(circle2, acolor2);
 			draw::Circle(circle1, acolor1);
-			if (collision.occured) {
+			if (occured) {
 				//auto new_circle{ circle2.Resolve(collision.normal * collision.depth) };
-				auto new_circle{ circle2.Resolve(collision.normal * collision.depth) };
+				auto new_circle{ circle2.Resolve(c.normal * c.depth) };
 				draw::Circle(new_circle, color2);
-				draw::Line({ circle2.center, new_circle.center }, color::GOLD);
+				draw::Line({ circle2.c, new_circle.c }, color::GOLD);
 				if (overlap::CircleCircle(new_circle, circle1)) {
 					bool overlap{ overlap::CircleCircle(new_circle, circle1) };
-					const auto collision{ intersect::CircleCircle(new_circle, circle1) };
-					if (collision.Occured()) {
-						PrintLine();
+					intersect::Collision c_2;
+					bool again{ intersect::CircleCircle(new_circle, circle1, c_2) };
+					if (overlap) {
+						PrintLine("Overlap fell for it");
 					}
-					PrintLine();
+					if (again) {
+						PrintLine("Intersect fell for it");
+					}
 				}
 			}
 		} else if (option == 8) {
-			const auto collision{ intersect::CircleCapsule(circle2, capsule1) };
+			/*const auto collision{ intersect::CircleCapsule(circle2, capsule1) };
 			if (collision.occured) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
@@ -173,9 +178,9 @@ public:
 				auto new_circle{ circle2.Resolve(collision.normal * collision.depth) };
 				draw::Circle(new_circle, color2);
 				draw::Line({ circle2.center, new_circle.center }, color::GOLD);
-			}
+			}*/
 		} else if (option == 9) {
-			const auto collision{ intersect::CircleAABB(circle2, aabb1) };
+			/*const auto collision{ intersect::CircleAABB(circle2, aabb1) };
 			if (collision.occured) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
@@ -186,7 +191,7 @@ public:
 				auto new_circle{ circle2.Resolve(collision.normal * collision.depth) };
 				draw::Circle(new_circle, color2);
 				draw::Line({ circle2.center, new_circle.center }, color::GOLD);
-			}
+			}*/
 		} else if (option == 10) {
 			/*capsule2.origin = { 199, 201 };
 			capsule2.destination = { 201, 199 };*/
@@ -232,7 +237,7 @@ public:
 			}
 			*/
 		} else if (option == 12) {
-			aabb2.position = mouse - aabb2.size / 2;
+			/*aabb2.position = mouse - aabb2.size / 2;
 			const auto collision{ intersect::AABBAABB(aabb2, aabb1) };
 			if (collision.occured) {
 				acolor1 = color::RED;
@@ -244,7 +249,7 @@ public:
 				auto new_aabb{ aabb2.Resolve(collision.normal * collision.depth) };
 				draw::AABB(new_aabb, color2);
 				draw::Line({ aabb2.Center(), new_aabb.Center() }, color::GOLD);
-			}
+			}*/
 		}
 	}
 };

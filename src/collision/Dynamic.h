@@ -14,9 +14,9 @@ struct Collision {
 		return occured_;
 	}
 	// Normal vector to the collision plane.
-	math::Vector2<T> normal;
+	Vector2<T> normal;
 	// Penetration of objects into each other along the collision normal.
-	math::Vector2<T> penetration;
+	Vector2<T> penetration;
 	void SetOccured() {
 		occured_ = true;
 	}

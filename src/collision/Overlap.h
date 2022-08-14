@@ -34,7 +34,7 @@ inline bool CircleAABB(const Circle<T>& a,
 					   const AABB<T>& b) {
 	const T dist2{ math::SquareDistancePointAABB(a.center, b) };
 	const T rad2{ a.RadiusSquared() };
-	return dist2 < rad2 || math::Compare(dist2, rad2);
+	return dist2 < rad2 || Compare(dist2, rad2);
 }
 
 // Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
@@ -50,7 +50,7 @@ static bool CircleCapsule(const Circle<T>& a,
 	// If (squared) distance smaller than (squared) sum of radii, they collide.
 	const T rad_sum{ a.radius + b.radius };
 	const S rad_sum2{ static_cast<S>(rad_sum) * static_cast<S>(rad_sum) };
-	return dist2 < rad_sum2 || math::Compare(dist2, rad_sum2);
+	return dist2 < rad_sum2 || Compare(dist2, rad_sum2);
 }
 
 // Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
@@ -58,11 +58,11 @@ static bool CircleCapsule(const Circle<T>& a,
 template <typename T>
 inline bool CircleCircle(const Circle<T>& a,
 						 const Circle<T>& b) {
-	const math::Vector2<T> dist{ a.center - b.center };
+	const Vector2<T> dist{ a.center - b.center };
 	const T dist2{ dist.Dot(dist) };
 	const T rad_sum{ a.radius + b.radius };
 	const T rad_sum2{ rad_sum * rad_sum };
-	return dist2 < rad_sum2 || math::Compare(dist2, rad_sum2);
+	return dist2 < rad_sum2 || Compare(dist2, rad_sum2);
 }
 
 // Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
@@ -74,14 +74,14 @@ static bool CapsuleCapsule(const Capsule<T>& a,
 	// Compute (squared) distance between the inner structures of the capsules.
 	S s{};
 	S t{};
-	math::Vector2<S> c1;
-	math::Vector2<S> c2;
+	Vector2<S> c1;
+	Vector2<S> c2;
 	const S dist2{ math::ClosestPointLineLine<S>(a, b, s, t, c1, c2) };
 	static_assert(!tt::is_narrowing_v<T, S>);
 	// If (squared) distance smaller than (squared) sum of radii, they collide
 	const S rad_sum{ static_cast<S>(a.radius) + static_cast<S>(b.radius) };
 	const S rad_sum2{ rad_sum * rad_sum };
-	return dist2 < rad_sum2 || math::Compare(dist2, rad_sum2);
+	return dist2 < rad_sum2 || Compare(dist2, rad_sum2);
 }
 
 template <typename T, typename S = float,
@@ -89,24 +89,24 @@ template <typename T, typename S = float,
 static bool CapsuleAABB(const Capsule<T>& a,
 						const AABB<T>& b) {
 	static_assert(!tt::is_narrowing_v<T, S>);
-	using Edge = std::pair<math::Vector2<T>, math::Vector2<T>>;
-	math::Vector2<T> top_right{ b.position.x + b.size.x, b.position.y };
-	math::Vector2<T> bottom_right{ b.position + b.size };
-	math::Vector2<T> bottom_left{ b.position.x, b.position.y + b.size.y };
+	using Edge = std::pair<Vector2<T>, Vector2<T>>;
+	Vector2<T> top_right{ b.position.x + b.size.x, b.position.y };
+	Vector2<T> bottom_right{ b.position + b.size };
+	Vector2<T> bottom_left{ b.position.x, b.position.y + b.size.y };
 	std::array<Edge, 4> edges;
 	edges.at(0) = { b.position, top_right };
 	edges.at(1) = { top_right, bottom_right };
 	edges.at(2) = { bottom_right, bottom_left };
 	edges.at(3) = { bottom_left, b.position };
 	S min_dist2{ std::numeric_limits<S>::infinity() };
-	math::Vector2<S> min_capsule;
-	//math::Vector2<T> minimum_edge_point;
+	Vector2<S> min_capsule;
+	//Vector2<T> minimum_edge_point;
 	// Find shortest distance between capsule line and AABB by iterating over each edge of the AABB.
 	for (auto& [origin, destination] : edges) {
 		S s{};
 		S t{};
-		math::Vector2<S> c1;
-		math::Vector2<S> c2;
+		Vector2<S> c1;
+		Vector2<S> c2;
 		const S dist2{ math::ClosestPointLineLine<S>(a, { origin, destination },
 																s, t, c1, c2) };
 		if (dist2 < min_dist2) {
@@ -124,9 +124,9 @@ template <typename T, typename S = float,
 	tt::floating_point<S> = true>
 static bool LineAABB(const Line<T>& a,
 					 const AABB<T>& b) {
-	const math::Vector2<S> e{ b.size };
-	const math::Vector2<S> d{ a.destination - a.origin };
-	const math::Vector2<S> m{ a.origin + a.destination - 2 * b.position - b.size };
+	const Vector2<S> e{ b.size };
+	const Vector2<S> d{ a.destination - a.origin };
+	const Vector2<S> m{ a.origin + a.destination - 2 * b.position - b.size };
 	// Try world coordinate axes as separating axes
 	S adx{ math::FastAbs(d.x) };
 	if (math::FastAbs(m.x) > e.x + adx) return false;
@@ -168,9 +168,9 @@ static bool LineCircle(const Line<T>& a,
 	S min_dist2{ std::numeric_limits<S>::infinity() };
 	const S rad2{ static_cast<S>(b.RadiusSquared()) };
 	// O is the circle center, P is the line origin, Q is the line destination.
-	const math::Vector2<S> OP{ a.origin - b.center };
-	const math::Vector2<S> OQ{ a.destination - b.center };
-	const math::Vector2<S> PQ{ a.destination - a.origin };
+	const Vector2<S> OP{ a.origin - b.center };
+	const Vector2<S> OQ{ a.destination - b.center };
+	const Vector2<S> PQ{ a.destination - a.origin };
 	const S OP_dist2{ OP.MagnitudeSquared() };
 	const S OQ_dist2{ OQ.MagnitudeSquared() };
 	const S max_dist2{ std::max(OP_dist2, OQ_dist2) };
@@ -180,8 +180,8 @@ static bool LineCircle(const Line<T>& a,
 	} else {
 		min_dist2 = std::min(OP_dist2, OQ_dist2);
 	}
-	return (min_dist2 < rad2 || math::Compare(min_dist2, rad2)) &&
-		(max_dist2 > rad2 || math::Compare(max_dist2, rad2));
+	return (min_dist2 < rad2 || Compare(min_dist2, rad2)) &&
+		(max_dist2 > rad2 || Compare(max_dist2, rad2));
 }
 
 
@@ -203,7 +203,7 @@ static bool LineLine(const Line<T>& a,
 	} else {
 		// Same as above but for floating points.
 		polarity_diff = a1 * a2 < 0;
-		collinear = math::Compare(a1, 0) || math::Compare(a2, 0);
+		collinear = Compare(a1, 0) || Compare(a2, 0);
 	}
 	if (!collinear && polarity_diff) {
 		// Compute signs for a and b with respect to segment cd
@@ -223,7 +223,7 @@ static bool LineLine(const Line<T>& a,
 		} else {
 			// Same as above, hence the floating point comparison to 0.
 			intersect = a3 * a4 < 0;
-			collinear = math::Compare(a3, 0) || math::Compare(a4, 0);
+			collinear = Compare(a3, 0) || Compare(a4, 0);
 		}
 		if (intersect) return true;
 	}

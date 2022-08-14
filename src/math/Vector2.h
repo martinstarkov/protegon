@@ -12,8 +12,6 @@
 
 namespace ptgn {
 
-namespace math {
-
 template <typename T>
 struct Vector2 {
     static_assert(std::is_arithmetic_v<T>, "Cannot construct Vector2 with non-arithmetic type");
@@ -77,8 +75,8 @@ struct Vector2 {
         tt::convertible<U, T> = true>
     Vector2& operator/=(const Vector2<U>& rhs) {
         if constexpr (std::is_integral_v<T>)
-            assert(!math::Compare(rhs.x, 0) &&
-                   !math::Compare(rhs.y, 0) && "Vector2 division by zero");
+            assert(!Compare(rhs.x, 0) &&
+                   !Compare(rhs.y, 0) && "Vector2 division by zero");
         x /= rhs.x;
         y /= rhs.y;
         return *this;
@@ -98,7 +96,7 @@ struct Vector2 {
         tt::convertible<U, T> = true>
     Vector2& operator/=(U rhs) {
         if constexpr (std::is_integral_v<T>)
-            assert(!math::Compare(rhs, 0) && "Vector2 division by zero");
+            assert(!Compare(rhs, 0) && "Vector2 division by zero");
         x /= rhs;
         y /= rhs;
         return *this;
@@ -138,21 +136,21 @@ struct Vector2 {
 
     bool IsZero() const {
         if constexpr (std::is_floating_point_v<T>)
-            return math::Compare(x, 0) &&
-                   math::Compare(y, 0);
+            return Compare(x, 0) &&
+                   Compare(y, 0);
         return x == 0 && y == 0;
     }
 
     bool HasZero() const {
         if constexpr (std::is_floating_point_v<T>)
-            return math::Compare(x, 0) ||
-                   math::Compare(y, 0);
+            return Compare(x, 0) ||
+                   Compare(y, 0);
         return x == 0 || y == 0;
     }
 
     bool IsEqual() const {
         if constexpr (std::is_floating_point_v<T>)
-            return math::Compare(x, y);
+            return Compare(x, y);
         return x == y;
     }
 
@@ -160,22 +158,17 @@ struct Vector2 {
         return { -x, -y };
     }
 
-    // Flip signs of both vector components.
-    Vector2 Opposite() const {
-        return -(*this);
-    }
-
     // Both components will be either 0, 1 or -1.
     Vector2 Identity() const {
-        return { math::Sign(x), math::Sign(y) };
+        return { Sign(x), Sign(y) };
     }
 
-    Vector2 Tangent() const {
-        return { y, -x };
+    Vector2 Skewed() const {
+        return { -y, x };
     }
 
     // Flip places of both vector components.
-    Vector2 Flip() const {
+    Vector2 Flipped() const {
         return { y, x };
     }
 
@@ -236,10 +229,10 @@ struct Vector2 {
         tt::arithmetic<U> = true,
         tt::convertible<T, U> = true,
         typename S = typename std::common_type_t<T, U, float>>
-    Vector2<S> Normalize() const {
+    Vector2<S> Normalized() const {
         T m{ MagnitudeSquared() };
-        if (math::Compare(m, 0) ||
-            math::Compare(m, 1))
+        if (Compare(m, 0) ||
+            Compare(m, 1))
             return *this;
         return *this / std::sqrtf(m);
     }
@@ -249,7 +242,7 @@ struct Vector2 {
     template <typename U = float,
         tt::floating_point<U> = true,
         tt::convertible<T, U> = true>
-    Vector2<U> Rotate(U rad) const {
+    Vector2<U> Rotated(U rad) const {
         return { x * std::cos(rad) - y * std::sin(rad),
                  x * std::sin(rad) + y * std::cos(rad) };
     }
@@ -264,8 +257,8 @@ struct Vector2 {
 
     bool operator==(const Vector2& rhs) const {
         if constexpr (std::is_floating_point_v<T>)
-            return math::Compare(x, rhs.x) &&
-                   math::Compare(y, rhs.y);
+            return Compare(x, rhs.x) &&
+                   Compare(y, rhs.y);
         return x == rhs.x && y == rhs.y;
     }
 
@@ -274,111 +267,103 @@ struct Vector2 {
     }
 };
 
-} // namespace math
-
 // Common Vector2 aliases.
 
-using V2_int = math::Vector2<int>;
-using V2_lint = math::Vector2<long int>;
-using V2_uint = math::Vector2<unsigned int>;
-using V2_double = math::Vector2<double>;
-using V2_float = math::Vector2<float>;
-
-} // namespace ptgn
+using V2_int = Vector2<int>;
+using V2_lint = Vector2<long int>;
+using V2_uint = Vector2<unsigned int>;
+using V2_double = Vector2<double>;
+using V2_float = Vector2<float>;
 
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os,
-                                const ptgn::math::Vector2<T>& obj) {
+                                const Vector2<T>& obj) {
     os << '(' << obj.x << ',' << obj.y << ')';
     return os;
 }
 
 template <typename T, typename U,
     typename S = typename std::common_type_t<T, U>>
-inline bool operator==(const ptgn::math::Vector2<T>& lhs,
-                       const ptgn::math::Vector2<U>& rhs) {
+inline bool operator==(const Vector2<T>& lhs,
+                       const Vector2<U>& rhs) {
     if constexpr (std::is_floating_point_v<S>)
-        return ptgn::math::Compare(lhs.x, rhs.x) &&
-               ptgn::math::Compare(lhs.y, rhs.y);
+        return Compare(lhs.x, rhs.x) &&
+               Compare(lhs.y, rhs.y);
     return lhs.x == rhs.x &&
            lhs.y == rhs.y;
 }
 
 template <typename T, typename U>
-inline bool operator!=(const ptgn::math::Vector2<T>& lhs,
-                       const ptgn::math::Vector2<U>& rhs) {
+inline bool operator!=(const Vector2<T>& lhs,
+                       const Vector2<U>& rhs) {
     return !operator==(lhs, rhs);
 }
 
 template <typename T, typename U,
     typename S = typename std::common_type_t<T, U>>
-inline ptgn::math::Vector2<S> operator+(const ptgn::math::Vector2<T>& lhs,
-                                        const ptgn::math::Vector2<U>& rhs) {
+inline Vector2<S> operator+(const Vector2<T>& lhs,
+                                        const Vector2<U>& rhs) {
     return { lhs.x + rhs.x, lhs.y + rhs.y };
 }
 
 template <typename T, typename U,
     typename S = typename std::common_type_t<T, U>>
-inline ptgn::math::Vector2<S> operator-(const ptgn::math::Vector2<T>& lhs,
-                                        const ptgn::math::Vector2<U>& rhs) {
+inline Vector2<S> operator-(const Vector2<T>& lhs,
+                                        const Vector2<U>& rhs) {
     return { lhs.x - rhs.x, lhs.y - rhs.y };
 }
 
 template <typename T, typename U,
     typename S = typename std::common_type_t<T, U>>
-inline ptgn::math::Vector2<S> operator*(const ptgn::math::Vector2<T>& lhs,
-                                        const ptgn::math::Vector2<U>& rhs) {
+inline Vector2<S> operator*(const Vector2<T>& lhs,
+                                        const Vector2<U>& rhs) {
     return { lhs.x * rhs.x, lhs.y * rhs.y };
 }
 
 template <typename T, typename U,
     typename S = typename std::common_type_t<T, U>>
-inline ptgn::math::Vector2<S> operator/(const ptgn::math::Vector2<T>& lhs,
-                                        const ptgn::math::Vector2<U>& rhs) {
+inline Vector2<S> operator/(const Vector2<T>& lhs,
+                                        const Vector2<U>& rhs) {
     if constexpr (std::is_integral_v<S>)
         assert(rhs.x != 0 && rhs.y != 0 && "Vector2 division by zero");
     return { lhs.x / rhs.x, lhs.y / rhs.y };
 }
 
 template <typename T, typename U,
-    ptgn::tt::arithmetic<T> = true, 
+    tt::arithmetic<T> = true, 
     typename S = typename std::common_type_t<T, U>>
-inline ptgn::math::Vector2<S> operator*(T lhs,
-                                        const ptgn::math::Vector2<U>& rhs) {
+inline Vector2<S> operator*(T lhs,
+                                        const Vector2<U>& rhs) {
     return { lhs * rhs.x, lhs * rhs.y };
 }
 
 template <typename T, typename U,
-    ptgn::tt::arithmetic<U> = true,
+    tt::arithmetic<U> = true,
     typename S = typename std::common_type_t<T, U>>
-inline ptgn::math::Vector2<S> operator*(const ptgn::math::Vector2<T>& lhs,
+inline Vector2<S> operator*(const Vector2<T>& lhs,
                                         U rhs) {
     return { lhs.x * rhs, lhs.y * rhs };
 }
 
 template <typename T, typename U,
-    ptgn::tt::arithmetic<T> = true,
+    tt::arithmetic<T> = true,
     typename S = typename std::common_type_t<T, U>>
-inline ptgn::math::Vector2<S> operator/(T lhs,
-                                        const ptgn::math::Vector2<U>& rhs) {
+inline Vector2<S> operator/(T lhs,
+                                        const Vector2<U>& rhs) {
     if constexpr (std::is_integral_v<S>)
         assert(rhs.x != 0 && rhs.y != 0 && "Vector2 division by zero");
     return { lhs / rhs.x, lhs / rhs.y };
 }
 
 template <typename T, typename U,
-    ptgn::tt::arithmetic<T> = true,
+    tt::arithmetic<T> = true,
     typename S = typename std::common_type_t<T, U>>
-inline ptgn::math::Vector2<S> operator/(const ptgn::math::Vector2<T>& lhs,
+inline Vector2<S> operator/(const Vector2<T>& lhs,
                                         U rhs) {
     if constexpr (std::is_integral_v<S>)
         assert(rhs != 0 && "Vector2 division by zero");
     return { lhs.x / rhs, lhs.y / rhs };
 }
-
-namespace ptgn {
-
-namespace math {
 
 template <typename T, typename U,
     typename S = typename std::common_type_t<T, U>>
@@ -392,6 +377,13 @@ template <typename T, typename U,
 inline S Distance(const Vector2<T>& lhs,
                   const Vector2<U>& rhs) {
     return lhs.Distance(rhs);
+}
+
+template <typename T, typename U,
+    typename S = typename std::common_type_t<T, U>>
+S Dot(const Vector2<T>& lhs,
+      const Vector2<U>& rhs) {
+    return lhs.Dot(rhs);
 }
 
 // Return minimum component of vector.
@@ -427,7 +419,7 @@ inline Vector2<T> Abs(const Vector2<T>& vector) {
 
 template <typename T>
 inline Vector2<T> FastAbs(const Vector2<T>& vector) {
-    return { math::FastAbs(vector.x), math::FastAbs(vector.y) };
+    return { FastAbs(vector.x), FastAbs(vector.y) };
 }
 
 template <typename T>
@@ -442,7 +434,7 @@ inline Vector2<T> Ceil(const Vector2<T>& vector) {
 
 template <typename T>
 inline Vector2<T> FastCeil(const Vector2<T>& vector) {
-    return { math::FastCeil(vector.x), math::FastCeil(vector.y) };
+    return { FastCeil(vector.x), FastCeil(vector.y) };
 }
 
 template <typename T>
@@ -452,7 +444,7 @@ inline Vector2<T> Floor(const Vector2<T>& vector) {
 
 template <typename T>
 inline Vector2<T> FastFloor(const Vector2<T>& vector) {
-    return { math::FastFloor(vector.x), math::FastFloor(vector.y) };
+    return { FastFloor(vector.x), FastFloor(vector.y) };
 }
 
 // Clamp both vector components within a vector range.
@@ -466,7 +458,7 @@ inline Vector2<T> Clamp(const Vector2<T>& value,
 // Get the sign of both vector components.
 template <typename T>
 inline Vector2<T> Sign(const Vector2<T>& value) {
-    return { math::Sign(value.x), math::Sign(value.y) };
+    return { Sign(value.x), Sign(value.y) };
 }
 
 // Linearly interpolates both vector components by the given value.
@@ -478,8 +470,6 @@ inline Vector2<U> Lerp(const Vector2<T>& a,
     return { std::lerp(a.x, b.x, amount), std::lerp(a.y, b.y, amount) };
 }
 
-} // namespace math
-
 } // namespace ptgn
 
 namespace std {
@@ -487,8 +477,8 @@ namespace std {
 // Custom hashing function for Vector class.
 // This allows for use of unordered maps and sets with vectors as keys.
 template <typename T>
-struct hash<ptgn::math::Vector2<T>> {
-    std::size_t operator()(const ptgn::math::Vector2<T>& k) const noexcept {
+struct hash<ptgn::Vector2<T>> {
+    std::size_t operator()(const ptgn::Vector2<T>& k) const noexcept {
         // Hashing combination algorithm from:
         // https://stackoverflow.com/a/17017281
         std::size_t hash{ 17 };
