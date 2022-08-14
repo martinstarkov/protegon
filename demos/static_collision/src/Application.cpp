@@ -1,6 +1,7 @@
 #include "core/Engine.h"
 #include "utility/Log.h"
 #include "collision/StaticExperimental.h"
+#include "collision/OverlapExperimental.h"
 #include "renderer/Colors.h"
 #include "interface/Input.h"
 #include "interface/Draw.h"
@@ -21,7 +22,7 @@ public:
 	float radius2{ 20 };
 	Color color2{ color::BLUE };
 	const int options{ 13 };
-	int option{ 10 };
+	int option{ 7 };
 	virtual void Update(float dt) {
 		auto mouse = input::GetMouseScreenPosition();
 		if (input::KeyDown(Key::T)) {
@@ -151,6 +152,14 @@ public:
 				auto new_circle{ circle2.Resolve(collision.normal * collision.depth) };
 				draw::Circle(new_circle, color2);
 				draw::Line({ circle2.center, new_circle.center }, color::GOLD);
+				if (overlap::CircleCircle(new_circle, circle1)) {
+					bool overlap{ overlap::CircleCircle(new_circle, circle1) };
+					const auto collision{ intersect::CircleCircle(new_circle, circle1) };
+					if (collision.Occured()) {
+						PrintLine();
+					}
+					PrintLine();
+				}
 			}
 		} else if (option == 8) {
 			const auto collision{ intersect::CircleCapsule(circle2, capsule1) };
@@ -179,19 +188,35 @@ public:
 				draw::Line({ circle2.center, new_circle.center }, color::GOLD);
 			}
 		} else if (option == 10) {
-			const auto collision{ intersect::CapsuleCapsule(capsule2, capsule1) };
-			if (collision.occured) {
-				acolor1 = color::RED;
-				acolor2 = color::RED;
-			}
-			draw::Capsule(capsule1, acolor1);
-			draw::Capsule(capsule2, acolor2);
-			if (collision.occured) {
-				const auto new_capsule{ capsule2.Resolve(collision.normal * collision.depth) };
-				draw::Capsule(new_capsule, color2);
-				draw::Line({ capsule2.origin, new_capsule.origin }, color::GOLD);
-				draw::Line({ capsule2.destination, new_capsule.destination }, color::GOLD);
-			}
+			/*capsule2.origin = { 199, 201 };
+			capsule2.destination = { 201, 199 };*/
+			/*capsule2.origin = { 200, 200 };
+			capsule2.destination = { 500, 500 };*/
+			//const auto collision{ intersect::CapsuleCapsule(capsule2, capsule1) };
+			//if (collision.Occured()) {
+			//	acolor1 = color::RED;
+			//	acolor2 = color::RED;
+			//}
+			//draw::Capsule(capsule1, acolor1);
+			//draw::Capsule(capsule2, acolor2);
+			//if (collision.Occured()) { // 10.0f * math::epsilon<float>
+			//	const auto new_capsule{ capsule2.Resolve(collision.normal * (collision.depth)) };
+			//	draw::Capsule(new_capsule, color2);
+			//	draw::Line({ capsule2.origin, new_capsule.origin }, color::GOLD);
+			//	draw::Line({ capsule2.destination, new_capsule.destination }, color::GOLD);
+			//	if(overlap::CapsuleCapsule(new_capsule, capsule1)) {
+			//		overlap::CapsuleCapsule(new_capsule, capsule1);
+			//		const auto collision{ intersect::CapsuleCapsule(new_capsule, capsule1) };
+			//		bool occured{ collision.Occured() };
+			//		PrintLine(collision.depth);
+			//		if (occured) {
+			//			overlap::CapsuleCapsule(new_capsule, capsule1);
+			//			const auto collision{ intersect::CapsuleCapsule(new_capsule, capsule1) };
+			//			PrintLine(collision.depth);
+			//		}
+
+			//	}
+			//}
 		} else if (option == 11) {
 			/*const auto collision{ intersect::CapsuleAABB(capsule2, aabb1) };
 			if (collision.occured) {
