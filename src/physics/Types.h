@@ -76,7 +76,7 @@ struct AABB {
 	Point<T> p; // point taken from top left
 	Vector2<T> s; // size is full width and height
 	AABB<T> Resolve(const Vector2<T>& pen) const {
-		return { p + pen, s + pen };
+		return { p + pen, s };
 	}
 	Vector2<T> Half() const {
 		return s / 2;
