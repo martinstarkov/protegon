@@ -8,29 +8,25 @@
 
 namespace ptgn {
 
+
 namespace overlap {
 
 bool CircleCircle(const Circle<float>& A,
 				  const Circle<float>& B) {
-	Vector2 d = A.c - B.c;
-	float dist2 = Dot(d, d);
-	float radiusSum = A.r + B.r;
-	// TODO: Add appropriate epsilon here.
-	return dist2 <= radiusSum * radiusSum;
+	const V2_float d{ B.c - A.c };
+	const float dist2{ Dot(d, d) };
+	const float r{ A.r + B.r };
+	return dist2 <= r * r;
 }
 
-//template <typename T = float,
-//	tt::floating_point<T> = true>
-//bool AABBAABB(const AABB<T>& a,
-//			  const AABB<T>& b) {
-//	if (a.position.x + a.size.x < b.position.x ||
-//		a.position.x > b.position.x + b.size.x)
-//		return false;
-//	if (a.position.y + a.size.y < b.position.y ||
-//		a.position.y > b.position.y + b.size.y)
-//		return false;
-//	return true;
-//}
+bool AABBAABB(const AABB<float>& A,
+			  const AABB<float>& B) {
+	if (A.p.x + A.s.x < B.p.x || A.p.x > B.p.x + B.s.x)
+		return false;
+	if (A.p.y + A.s.y < B.p.y || A.p.y > B.p.y + B.s.y)
+		return false;
+	return true;
+}
 //
 //template <typename T = float,
 //	tt::floating_point<T> = true>

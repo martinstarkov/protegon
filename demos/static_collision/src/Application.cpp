@@ -22,7 +22,7 @@ public:
 	Color color1{ color::GREEN };
 	Color color2{ color::BLUE };
 	const int options{ 13 };
-	int option{ 7 };
+	int option{ 12 };
 	virtual void Update(float dt) {
 		auto mouse = input::GetMouseScreenPosition();
 		if (input::KeyDown(Key::T)) {
@@ -47,6 +47,7 @@ public:
 		Capsule<float> capsule2{ position2, position4, radius2 };
 
 		intersect::Collision c;
+		const float slop{ 0.005f };
 
 		// TODO: Implement LineCircle
 		// TODO: Implement LineAABB
@@ -142,6 +143,7 @@ public:
 				draw::Line({ line2.destination, line2.destination + collision.penetration }, color::GOLD);
 			}*/
 		} else if (option == 7) {
+			//circle2.c = circle1.c;
 			bool occured{ intersect::CircleCircle(circle2, circle1, c) };
 			if (occured) {
 				acolor1 = color::RED;
@@ -150,20 +152,14 @@ public:
 			draw::Circle(circle2, acolor2);
 			draw::Circle(circle1, acolor1);
 			if (occured) {
-				//auto new_circle{ circle2.Resolve(collision.normal * collision.depth) };
-				auto new_circle{ circle2.Resolve(c.normal * c.depth) };
+				auto new_circle{ circle2.Resolve(c.normal * (c.depth + slop)) };
 				draw::Circle(new_circle, color2);
 				draw::Line({ circle2.c, new_circle.c }, color::GOLD);
 				if (overlap::CircleCircle(new_circle, circle1)) {
+					occured = intersect::CircleCircle(new_circle, circle1, c);
 					bool overlap{ overlap::CircleCircle(new_circle, circle1) };
-					intersect::Collision c_2;
-					bool again{ intersect::CircleCircle(new_circle, circle1, c_2) };
-					if (overlap) {
-						PrintLine("Overlap fell for it");
-					}
-					if (again) {
-						PrintLine("Intersect fell for it");
-					}
+					if (overlap) PrintLine("Overlap fell for it");
+					if (occured) PrintLine("Intersect fell for it");
 				}
 			}
 		} else if (option == 8) {
@@ -237,19 +233,26 @@ public:
 			}
 			*/
 		} else if (option == 12) {
-			/*aabb2.position = mouse - aabb2.size / 2;
-			const auto collision{ intersect::AABBAABB(aabb2, aabb1) };
-			if (collision.occured) {
+			aabb2.p = mouse - aabb2.Half();
+			//aabb2.p = aabb1.Center() - aabb2.Half();
+			bool occured{ intersect::AABBAABB(aabb2, aabb1, c) };
+			if (occured) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}
 			draw::AABB(aabb2, acolor2);
 			draw::AABB(aabb1, acolor1);
-			if (collision.occured) {
-				auto new_aabb{ aabb2.Resolve(collision.normal * collision.depth) };
+			if (occured) {
+				auto new_aabb{ aabb2.Resolve(c.normal * (c.depth + slop)) };
 				draw::AABB(new_aabb, color2);
 				draw::Line({ aabb2.Center(), new_aabb.Center() }, color::GOLD);
-			}*/
+				if (overlap::AABBAABB(new_aabb, aabb1)) {
+					occured = intersect::AABBAABB(new_aabb, aabb1, c);
+					bool overlap{ overlap::AABBAABB(new_aabb, aabb1) };
+					if (overlap) PrintLine("Overlap fell for it");
+					if (occured) PrintLine("Intersect fell for it");
+				}
+			}
 		}
 	}
 };
