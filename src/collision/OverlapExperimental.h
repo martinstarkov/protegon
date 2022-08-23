@@ -14,9 +14,8 @@ namespace overlap {
 bool CircleCircle(const Circle<float>& A,
 				  const Circle<float>& B) {
 	const V2_float d{ B.c - A.c };
-	const float dist2{ Dot(d, d) };
 	const float r{ A.r + B.r };
-	return dist2 <= r * r;
+	return Dot(d, d) <= r * r;
 }
 
 bool AABBAABB(const AABB<float>& A,
@@ -27,17 +26,19 @@ bool AABBAABB(const AABB<float>& A,
 		return false;
 	return true;
 }
-//
-//template <typename T = float,
-//	tt::floating_point<T> = true>
-//bool CircleAABB(const Circle<T>& a,
-//				const AABB<T>& b) {
-//	const auto clamped{ math::Clamp(a.center, b.Min(), b.Max()) };
-//	const auto dir{ a.center - clamped };
-//	const T dist2{ dir.MagnitudeSquared() };
-//	const T rad2{ a.RadiusSquared() };
-//	return dist2 < rad2 || Compare(dist2, rad2);
-//}
+
+bool CircleAABB(const Circle<float>& A,
+				const AABB<float>& B) {
+	const V2_float c{ Clamp(A.c, B.Min(), B.Max()) };
+	const V2_float d{ A.c - c };
+	return Dot(d, d) <= A.r * A.r;
+}
+
+bool PointAABB(const Point<float>& A,
+			  const AABB<float>& B) {
+	return AABBAABB({ A, { 0.0f, 0.0f } }, B);
+}
+
 //
 //template <typename T = float,
 //	tt::floating_point<T> = true>

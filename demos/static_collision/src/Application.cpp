@@ -22,7 +22,7 @@ public:
 	Color color1{ color::GREEN };
 	Color color2{ color::BLUE };
 	const int options{ 13 };
-	int option{ 12 };
+	int option{ 9 };
 	virtual void Update(float dt) {
 		auto mouse = input::GetMouseScreenPosition();
 		if (input::KeyDown(Key::T)) {
@@ -176,18 +176,26 @@ public:
 				draw::Line({ circle2.center, new_circle.center }, color::GOLD);
 			}*/
 		} else if (option == 9) {
-			/*const auto collision{ intersect::CircleAABB(circle2, aabb1) };
-			if (collision.occured) {
+			//circle2.c = aabb1.p;
+			//circle2.c = aabb1.Center();
+			bool occured{ intersect::CircleAABB(circle2, aabb1, c) };
+			if (occured) {
 				acolor1 = color::RED;
 				acolor2 = color::RED;
 			}
 			draw::AABB(aabb1, acolor1);
 			draw::Circle(circle2, acolor2);
-			if (collision.occured) {
-				auto new_circle{ circle2.Resolve(collision.normal * collision.depth) };
+			if (occured) {
+				auto new_circle{ circle2.Resolve(c.normal * (c.depth + slop)) };
 				draw::Circle(new_circle, color2);
-				draw::Line({ circle2.center, new_circle.center }, color::GOLD);
-			}*/
+				draw::Line({ circle2.c, new_circle.c }, color::GOLD);
+				if (overlap::CircleAABB(new_circle, aabb1)) {
+					occured = intersect::CircleAABB(new_circle, aabb1, c);
+					bool overlap{ overlap::CircleAABB(new_circle, aabb1) };
+					if (overlap) PrintLine("Overlap fell for it");
+					if (occured) PrintLine("Intersect fell for it");
+				}
+			}
 		} else if (option == 10) {
 			/*capsule2.origin = { 199, 201 };
 			capsule2.destination = { 201, 199 };*/
