@@ -75,8 +75,8 @@ struct Vector2 {
         tt::convertible<U, T> = true>
     Vector2& operator/=(const Vector2<U>& rhs) {
         if constexpr (std::is_integral_v<T>)
-            assert(!Compare(rhs.x, 0) &&
-                   !Compare(rhs.y, 0) && "Vector2 division by zero");
+            assert(!NearlyEqual(rhs.x, static_cast<U>(0)) &&
+                   !NearlyEqual(rhs.y, static_cast<U>(0)) && "Vector2 division by zero");
         x /= rhs.x;
         y /= rhs.y;
         return *this;
@@ -96,7 +96,7 @@ struct Vector2 {
         tt::convertible<U, T> = true>
     Vector2& operator/=(U rhs) {
         if constexpr (std::is_integral_v<T>)
-            assert(!Compare(rhs, 0) && "Vector2 division by zero");
+            assert(!NearlyEqual(rhs, static_cast<U>(0)) && "Vector2 division by zero");
         x /= rhs;
         y /= rhs;
         return *this;
@@ -136,21 +136,21 @@ struct Vector2 {
 
     bool IsZero() const {
         if constexpr (std::is_floating_point_v<T>)
-            return Compare(x, 0) &&
-                   Compare(y, 0);
+            return NearlyEqual(x, static_cast<T>(0)) &&
+                   NearlyEqual(y, static_cast<T>(0));
         return x == 0 && y == 0;
     }
 
     bool HasZero() const {
         if constexpr (std::is_floating_point_v<T>)
-            return Compare(x, 0) ||
-                   Compare(y, 0);
+            return NearlyEqual(x, static_cast<T>(0)) ||
+            NearlyEqual(y, static_cast<T>(0));
         return x == 0 || y == 0;
     }
 
     bool IsEqual() const {
         if constexpr (std::is_floating_point_v<T>)
-            return Compare(x, y);
+            return NearlyEqual(x, y);
         return x == y;
     }
 
@@ -231,8 +231,7 @@ struct Vector2 {
         typename S = typename std::common_type_t<T, U, float>>
     Vector2<S> Normalized() const {
         T m{ MagnitudeSquared() };
-        if (Compare(m, 0) ||
-            Compare(m, 1))
+        if (NearlyEqual(m, static_cast<T>(0)))
             return *this;
         return *this / std::sqrtf(m);
     }
@@ -257,8 +256,8 @@ struct Vector2 {
 
     bool operator==(const Vector2& rhs) const {
         if constexpr (std::is_floating_point_v<T>)
-            return Compare(x, rhs.x) &&
-                   Compare(y, rhs.y);
+            return NearlyEqual(x, rhs.x) &&
+                   NearlyEqual(y, rhs.y);
         return x == rhs.x && y == rhs.y;
     }
 
@@ -287,8 +286,8 @@ template <typename T, typename U,
 inline bool operator==(const Vector2<T>& lhs,
                        const Vector2<U>& rhs) {
     if constexpr (std::is_floating_point_v<S>)
-        return Compare(lhs.x, rhs.x) &&
-               Compare(lhs.y, rhs.y);
+        return NearlyEqual(lhs.x, rhs.x) &&
+               NearlyEqual(lhs.y, rhs.y);
     return lhs.x == rhs.x &&
            lhs.y == rhs.y;
 }

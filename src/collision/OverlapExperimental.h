@@ -39,50 +39,38 @@ bool PointAABB(const Point<float>& A,
 	return AABBAABB({ A, { 0.0f, 0.0f } }, B);
 }
 
-//
-//template <typename T = float,
-//	tt::floating_point<T> = true>
-//bool CircleCapsule(const Circle<T>& a,
-//				   const Capsule<T>& b) {
-//	const auto n{ b.destination - b.origin };
-//	const auto ap{ a.center - b.origin };
-//	const T da{ ap.Dot(n) };
-//	T dist2{ 0 };
-//	if (da < 0) {
-//		dist2 = ap.MagnitudeSquared();
-//	} else {
-//		const auto bp{ a.center - b.destination };
-//		const T db{ bp.Dot(n) };
-//		if (db < 0) {
-//			const auto e{ ap - n / n.Dot(n) * da };
-//			dist2 = e.MagnitudeSquared();
-//		} else {
-//			dist2 = bp.MagnitudeSquared();
-//		}
-//	}
-//	const T rad{ a.radius + b.radius };
-//	const T rad2{ rad * rad };
-//	return dist2 < rad2 || Compare(dist2, rad2);
-//}
-//
-//template <typename T = float,
-//	tt::floating_point<T> = true>
-//bool CapsuleCapsule(const Capsule<T>& a,
-//					const Capsule<T>& b) {
-//	math::Vector<T> c1;
-//	math::Vector<T> c2;
-//	T s{};
-//	T t{};
-//	math::ClosestPointsSegmentSegment(a, b, c1, c2, s, t);
-//	const T dist2{ (c2 - c1).MagnitudeSquared() };
-//	const T rad{ a.radius + b.radius };
-//	const T rad2{ rad * rad };
-//	const T test{ std::max(0.0f, std::sqrtf(dist2) - rad) };
-//	return test < 10.0f * std::numeric_limits<float>::epsilon();
-//	//return dist2 - rad2 < 10.0f * std::numeric_limits<float>::epsilon();
-//	//return dist2 < rad2 || Compare(dist2, rad2);
-//}
+bool CircleCapsule(const Circle<float>& A,
+				   const Capsule<float>& B) {
+	const V2_float n{ B.Direction() };
+	const V2_float ap{ A.c - B.a };
+	const float da{ ap.Dot(n) };
+	float dist2{ 0.0f };
+	if (da < 0.0f) {
+		dist2 = Dot(ap, ap);
+	} else {
+		const V2_float bp{ A.c - B.b };
+		const float db{ bp.Dot(n) };
+		if (db < 0.0f) {
+			const V2_float e{ ap - n / n.Dot(n) * da };
+			dist2 = Dot(e, e);
+		} else {
+			dist2 = Dot(bp, bp);
+		}
+	}
+	const float r{ A.r + B.r };
+	return dist2 <= r * r;
+}
 
+bool CapsuleCapsule(const Capsule<float>& A,
+					const Capsule<float>& B) {
+	V2_float c1;
+	V2_float c2;
+	float s{};
+	float t{};
+	math::ClosestPointsSegmentSegment(A, B, c1, c2, s, t);
+	const float r{ A.r + B.r };
+	return (c2 - c1).MagnitudeSquared() <= r * r;
+}
 
 } // namespace overlap
 

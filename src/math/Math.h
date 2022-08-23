@@ -79,7 +79,7 @@ std::tuple<bool, T, T> QuadraticFormula(T a, T b, T c) {
     if (discr < 0) {
         // Imaginary roots.
         return { false, 0, 0 };
-    } else if (Compare(discr, 0)) {
+    } else if (NearlyEqual(discr, static_cast<T>(0))) {
         // Repeated roots.
         T root{ -0.5f * b / a };
         return { true, root, root };

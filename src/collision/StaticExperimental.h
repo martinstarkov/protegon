@@ -21,7 +21,6 @@ struct Collision {
 		depth = 0.0f;
 		normal = { 0.0f, 0.0f };
 	}
-    //Vector2<T> point[2];
 };
 
 bool CircleCircle(const Circle<float>& A,
@@ -53,10 +52,10 @@ bool AABBAABB(const AABB<float>& A,
               Collision& c) {
     c.Reset();
 
-	const Vector2<float> A_h{ A.Half() };
-	const Vector2<float> B_h{ B.Half() };
-	const Vector2<float> d{ B.p + B_h - (A.p + A_h) };
-	const Vector2<float> pen{ A_h + B_h - FastAbs(d) };
+	const V2_float A_h{ A.Half() };
+	const V2_float B_h{ B.Half() };
+	const V2_float d{ B.p + B_h - (A.p + A_h) };
+	const V2_float pen{ A_h + B_h - FastAbs(d) };
 
     if (pen.x < 0 || pen.y < 0 || NearlyEqual(pen.x, 0.0f) || NearlyEqual(pen.y, 0.0f))
         return false;
@@ -112,8 +111,7 @@ bool CircleAABB(const Circle<float>& A,
 
 	bool inside{ overlap::PointAABB(A.c, B) };
 
-	const float rad2{ A.r * A.r };
-	if (!inside && min_dist2 > rad2)
+	if (!inside && min_dist2 > A.r * A.r)
 		return false;
 
 	if (NearlyEqual(min_dist2, 0.0f)) {
@@ -152,6 +150,128 @@ bool CircleAABB(const Circle<float>& A,
 			}
 		}
 
+	}
+	return true;
+}
+
+bool CircleCapsule(const Circle<float>& A,
+				   const Capsule<float>& B,
+				   Collision& c) {
+	const V2_float ab{ B.Direction() };
+	if (ab.IsZero())
+		return CircleCircle(A, { B.a, B.r }, c);
+	V2_float p;
+	// Project c onto ab, but deferring divide by Dot(ab, ab)
+	const float t{ (A.c - B.a).Dot(ab) };
+	const float denom{ ab.MagnitudeSquared() }; // Always nonnegative since denom = ||ab||^2
+	if (t > 0) {
+		if (t < denom) {
+			// c projects inside the [a,b] interval; must do deferred divide now
+			p = B.a + t / denom * ab;
+		} else {
+			// c projects outside the [a,b] interval, on the b side; clamp to b
+			p = B.b;
+		}
+	} else {
+		// c projects outside the [a,b] interval, on the a side; clamp to a
+		p = B.a;
+	}
+	const auto d{ p - A.c };
+	const float dist2{ Dot(d, d) };
+	const float r{ A.r + B.r };
+
+	if (dist2 > r * r)
+		return false;
+
+	if (NearlyEqual(dist2, 0.0f)) {
+		assert(!NearlyEqual(denom, 0.0f));
+		c.normal = ab.Skewed() / std::sqrtf(denom);
+		c.depth = r;
+	} else {
+		const float dist{ std::sqrtf(dist2) };
+		c.normal = -d / dist;
+		c.depth = r - dist;
+	}
+	return true;
+}
+
+bool CapsuleCapsule(const Capsule<float>& A,
+					const Capsule<float>& B,
+					Collision& c) {
+	V2_float c1;
+	V2_float c2;
+	float s{ 0 };
+	float t{ 0 };
+	math::ClosestPointsSegmentSegment(A, B, c1, c2, s, t);
+	const auto dir{ c2 - c1 };
+	const float dist2{ dir.MagnitudeSquared() };
+	const float r{ A.r + B.r };
+	
+	if (dist2 > r * r)
+		return false;
+
+	if (!NearlyEqual(dist2, 0.0f)) {
+		float dist{ std::sqrtf(dist2) };
+		c.normal = -dir / dist;
+		c.depth = r - dist;
+	} else {
+		const float mag_a2{ A.Direction().MagnitudeSquared() }; // Squared length of segment S1, always nonnegative
+		const float mag_b2{ B.Direction().MagnitudeSquared() }; // Squared length of segment S2, always nonnegative
+		// Check if either or both segments degenerate into points
+		bool a_point{ NearlyEqual(mag_a2, 0.0f) };
+		bool b_point{ NearlyEqual(mag_b2, 0.0f) };
+		if (a_point && b_point) {
+			return CircleCircle({ A.a, A.r }, { B.a, B.r }, c);
+		} else if (a_point) {
+			return CircleCapsule({ A.a, A.r }, B, c);
+		} else if (b_point) {
+			bool occured{ CircleCapsule({ B.a, B.r }, A, c) };
+			c.normal *= -1;
+			return occured;
+		}
+
+		// Capsules lines intersect, different kind of routine needed.
+		const float mag_a{ std::sqrtf(mag_a2) };
+		const float mag_b{ std::sqrtf(mag_b2) };
+		const std::array<float, 4> f{ s * mag_a, (1 - s) * mag_a, t * mag_b, (1 - t) * mag_b };
+		const std::array<V2_float, 4> ep{ A.a, A.b, B.a, B.b };
+		// Determine which end of both capsules is closest to intersection point.
+		const auto min_i{ std::distance(std::begin(f), std::min_element(std::begin(f), std::end(f))) };
+		const auto half{ min_i / 2 };
+		const auto sign{ 1 - 2 * half };
+		// This code replaces the 4 if-statements below but is less readable.
+		const auto max_i{ half < 1 ? (min_i + 1) % 2 : (min_i - 1) % 2 + 2 };
+		float min_dist2 = f[min_i];
+		Line<float> line{ A.a, A.b };
+		Line<float> other{ B.a, B.b };
+		if (half > 0) {
+			Swap(line.a, other.a);
+			Swap(line.b, other.b);
+		}
+		// Capsule vs capsule.
+		float frac{}; // frac is an unused variable.
+		Point<float> point;
+		// TODO: Fix this awful branching.
+		math::ClosestPointLine(ep[min_i], other, frac, point);
+		const V2_float to_min{ ep[min_i] - point };
+		if (!to_min.IsZero()) {
+			// Capsule centerlines intersect each other.
+			c.normal = -sign * to_min.Normalized();
+			c.depth = to_min.Magnitude() + r;
+		} else {
+			c.depth = r;
+			// Capsule centerlines touch in at least one location.
+			math::ClosestPointLine(ep[max_i], other, frac, point);
+			const V2_float to_max{ point - ep[max_i] };
+			if (!to_max.IsZero()) { // Capsule a or b lies on the other capsule's centerline.
+				c.normal = -sign * to_max.Normalized();
+			} else if (DistanceSquared(ep[min_i], point) > 0) { // Push capsules apart in perpendicular direction.
+				// Capsules are collinear.
+				c.normal = -line.Direction().Skewed().Normalized();
+			} else { // Push capsules apart in parallel direction.
+				c.normal = -line.Direction().Normalized();
+			}
+		}
 	}
 	return true;
 }
