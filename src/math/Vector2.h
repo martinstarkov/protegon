@@ -465,8 +465,8 @@ template <typename T, typename U,
     tt::floating_point<U> = true>
 inline Vector2<U> Lerp(const Vector2<T>& a,
                        const Vector2<T>& b,
-                       U amount) {
-    return { std::lerp(a.x, b.x, amount), std::lerp(a.y, b.y, amount) };
+                       U t) {
+    return { Lerp(a.x, b.x, t), Lerp(a.y, b.y, t) };
 }
 
 } // namespace ptgn
