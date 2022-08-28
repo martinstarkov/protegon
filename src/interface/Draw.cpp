@@ -20,6 +20,7 @@ void Init(int index, std::uint32_t flags) {
 	assert(Window::Get().window_ != nullptr && "Cannot create renderer from nonexistent window");
 	auto& renderer = Renderer::Get().renderer_;
 	renderer = SDL_CreateRenderer(Window::Get().window_, index, flags);
+	SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 	if (!Exists()) {
 		PrintLine(SDL_GetError());
 		assert(!"Failed to create renderer");
