@@ -1,7 +1,8 @@
 #pragma once
 
 #include <cstdint> // std::uint32_t, etc
-#include <vector> // std::vector
+#include <vector>  // std::vector
+#include <cmath>   // std::lerp
 
 #include "math/RNG.h"
 #include "math/Math.h"
@@ -100,7 +101,7 @@ private:
 
 	// Noise interpolation routine. Linear for now.
 	T Interpolate(T a, T b, T amount) const {
-		return math::Lerp(a, b, amount);
+		return Lerp(a, b, amount);
 	}
 
 	// Returns the smooth noise value at a given point.
@@ -127,6 +128,10 @@ private:
 
 		// Linearly interpolate result along the y-axis.
 		return Interpolate(nx0, nx1, s.y);
+	}
+
+	Vector2<T> SmoothStep(const Vector2<T>& v) const {
+		return { ptgn::SmoothStep(v.x), ptgn::SmoothStep(v.y) };
 	}
 
 	V2_int size_;
