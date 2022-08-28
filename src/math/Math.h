@@ -137,6 +137,13 @@ T SmoothStep(T value) {
     return value * value * (3 - 2 * value);
 }
 
+template <typename T, typename U,
+    tt::arithmetic<T> = true,
+    tt::floating_point<U> = true>
+T Lerp(T a, T b, U t) {
+    return a + t * (b - a);
+}
+
 // Source: https://stackoverflow.com/a/65015333
 // Compare two floating point numbers using relative tolerance and absolute tolerances.
 // The absolute tolerance test fails when x and y become large.
