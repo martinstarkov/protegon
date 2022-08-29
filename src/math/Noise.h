@@ -4,12 +4,105 @@
 #include <vector>  // std::vector
 #include <cmath>   // std::lerp
 
+
+
+
+
+#include <utility>   // 
+#include <numeric>   // 
+#include <random>   // 
+#include <cmath>
+#include <random>
+#include <algorithm>
+#include <numeric>
+#include <cstdio> 
+#include <random> 
+#include <functional> 
+#include <iostream> 
+#include <vector> 
+#include <fstream> 
+#include <cstdint>
+#include <float.h>
+#include <random>
+#include <cassert>
+
+
+
+
 #include "math/RNG.h"
 #include "math/Math.h"
 #include "math/Vector2.h"
 #include "utility/TypeTraits.h"
 
+#include "interface/Draw.h"
+
 namespace ptgn {
+
+template<typename T = float>
+inline T lerp(const T& lo, const T& hi, const T& t) {
+	return lo * (1 - t) + hi * t;
+}
+
+inline float smoothstep(const float& t) {
+	return t * t * (3 - 2 * t);
+}
+
+class ValueNoise {
+public:
+	ValueNoise(unsigned size, unsigned seed = 2021) : kMaxTableSize{ size }, kMaxTableSizeMask{ kMaxTableSize - 1 } {
+		std::mt19937 gen(seed);
+		std::uniform_real_distribution<float> distrFloat;
+		auto randFloat = std::bind(distrFloat, gen);
+		r.resize(kMaxTableSize, 0);
+		permutationTable.resize(kMaxTableSize * 2, 0);
+		// create an array of random values and initialize permutation table
+		for (unsigned k = 0; k < kMaxTableSize; ++k) {
+			r[k] = randFloat();
+			permutationTable[k] = k;
+		}
+		// shuffle values of the permutation table
+		std::uniform_int_distribution<unsigned> distrUInt;
+		auto randUInt = std::bind(distrUInt, gen);
+		for (unsigned k = 0; k < kMaxTableSize; ++k) {
+			unsigned i = randUInt() & kMaxTableSizeMask;
+			std::swap(permutationTable[k], permutationTable[i]);
+			permutationTable[k + kMaxTableSize] = permutationTable[k];
+		}
+	}
+	float eval(V2_float& p) {
+		int xi = (int)std::floor(p.x);
+		int yi = (int)std::floor(p.y);
+
+		float tx = p.x - xi;
+		float ty = p.y - yi;
+
+		int rx0 = xi & kMaxTableSizeMask;
+		int rx1 = (rx0 + 1) & kMaxTableSizeMask;
+		int ry0 = yi & kMaxTableSizeMask;
+		int ry1 = (ry0 + 1) & kMaxTableSizeMask;
+
+		// random values at the corners of the cell using permutation table
+		const float& c00 = r[permutationTable[permutationTable[rx0] + ry0]];
+		const float& c10 = r[permutationTable[permutationTable[rx1] + ry0]];
+		const float& c01 = r[permutationTable[permutationTable[rx0] + ry1]];
+		const float& c11 = r[permutationTable[permutationTable[rx1] + ry1]];
+
+		// remapping of tx and ty using the Smoothstep function 
+		float sx = smoothstep(tx);
+		float sy = smoothstep(ty);
+
+		// linearly interpolate values along the x axis
+		float nx0 = lerp(c00, c10, sx);
+		float nx1 = lerp(c01, c11, sx);
+
+		// linearly interpolate the nx0/nx1 along they y axis
+		return lerp(nx0, nx1, sy);
+	}
+	unsigned int kMaxTableSize;// = 256 * 2;
+	unsigned int kMaxTableSizeMask;// = kMaxTableSize - 1;
+	std::vector<float> r; // size: kMaxTableSize
+	std::vector<unsigned int> permutationTable; // kMaxTableSize * 2
+};
 
 namespace math {
 
@@ -97,6 +190,92 @@ public:
 
 		return noise_map;
 	}
+
+	std::vector<float> Generate(V2_int grid_position) {
+		int seed = 5;
+		int octave = 5;
+		double bias = 2.0;
+
+		auto tiles = 2;
+
+		float amplitude = 1;
+		float maxPossibleNoiseVal = 0;
+		float amplitudeMult = 0.5f;//0.35;
+		unsigned numLayers = octave;//5;
+
+		for (unsigned l = 0; l < numLayers; ++l) {
+			maxPossibleNoiseVal += amplitude;
+			amplitude *= amplitudeMult;
+		}
+
+		//LOG("maxPossibleNoiseVal: " << maxPossibleNoiseVal);
+
+		ptgn::ValueNoise noise(256, seed);
+
+		V2_int tile_size = { 16, 16 };
+		V2_int tiles_per_chunk = { 16, 16 };
+		V2_int chunk_size = tiles_per_chunk * tile_size;
+		V2_int info_size = tiles_per_chunk;
+		V2_int info_position = chunk_size * grid_position;
+
+		unsigned imageWidth = (unsigned)info_size.x;
+		unsigned imageHeight = (unsigned)info_size.y;
+
+		V2_float overall = info_position / tile_size / info_size;
+
+		std::vector<float> noiseMap(imageWidth * imageHeight, 0);
+
+		// FRACTAL NOISE
+		float frequency = 0.05f;//0.02f;
+		float frequencyMult = (float)bias;//1.8;
+		float maxNoiseVal = 0;
+		for (unsigned j = 0; j < imageHeight; ++j) {
+			for (unsigned i = 0; i < imageWidth; ++i) {
+				V2_float pNoise = V2_float{ (float)overall.x * imageWidth + i, (float)overall.y * imageHeight + j } * frequency;
+				amplitude = 1;
+				for (unsigned l = 0; l < numLayers; ++l) {
+					//LOG("pNoise: " << pNoise.x << "," << pNoise.y);
+					auto fractal_noise = noise.eval(pNoise);
+					auto value = fractal_noise * amplitude;
+					if (std::isnan(value) && l > 10) value = 0;
+					bool assertion = value >= 0;
+					if (!assertion) {
+						//LOG("fractal_noise: " << value << ", pNoise: (" << pNoise.x << "," << pNoise.y << "), octave: " << l << ", amplitude: " << amplitude);
+					}
+					assert(assertion && "fractal_noise must be above or equal to 0");
+					noiseMap[j * imageWidth + i] += value;
+					pNoise *= frequencyMult;
+					amplitude *= amplitudeMult;
+				}
+				if (noiseMap[j * imageWidth + i] > maxNoiseVal) maxNoiseVal = noiseMap[j * imageWidth + i];
+			}
+		}
+		//for (unsigned i = 0; i < imageWidth * imageHeight; ++i) noiseMap[i] /= maxNoiseVal;
+		for (unsigned i = 0; i < imageWidth * imageHeight; ++i) {
+			assert(noiseMap[i] >= 0 && "Noise must be above or equal to 0");
+			noiseMap[i] = noiseMap[i] / maxPossibleNoiseVal;
+			assert(noiseMap[i] >= 0 && "Noise divided by something which made it negative");
+		}
+
+		for (unsigned j = 0; j < imageHeight; ++j) {
+			for (unsigned i = 0; i < imageWidth; ++i) {
+				// generate a float in the range [0:1]
+				auto raw_noise = noiseMap[j * imageWidth + i];
+				auto noise = static_cast<unsigned char>(std::clamp(raw_noise * 255.0f, 0.0f, 255.0f));
+				//auto noise = noiseMap[j * imageWidth + i];
+				//engine::TextureManager::DrawPoint(, engine::Color(a, 0, 0, 255));
+				auto tile = V2_int{ (int)i, (int)j };
+				V2_double tile_position = tile * tile_size;
+				V2_int absolute_tile_position = tile_position + info_position;
+				Color color{ noise, 0, 0, 255 };
+				AABB<int> aabb{ tile_position, tile_size };
+				draw::SolidAABB(aabb, color);
+			}
+		}
+
+		return noiseMap;
+	}
+
 private:
 
 	// Noise interpolation routine. Linear for now.

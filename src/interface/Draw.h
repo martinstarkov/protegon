@@ -49,7 +49,7 @@ void Capsule(const ptgn::Capsule<int>& c,
 
 // AABB = Axis-aligned bounding-box
 void AABB(const ptgn::AABB<int>& a,
-               const Color& color = color::DEFAULT);
+          const Color& color = color::DEFAULT);
 
 void SolidAABB(const ptgn::AABB<int>& a,
                     const Color& color = color::DEFAULT);

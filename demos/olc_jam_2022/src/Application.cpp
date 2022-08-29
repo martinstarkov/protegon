@@ -222,46 +222,47 @@ public:
 	virtual void Update(float dt) override final {
 		acceleration = V2_float{ rng(), rng() } * 0.05f;
 		velocity += acceleration;
-		position += velocity;
+		position += V2_float{ -0.01f, -0.01f };
 		map = noise.GenerateNoiseMap(position, 5, 0.01f, 1.8, 0.35f);
-		sim.SetNoiseMap(map.data(), 0.05f);
+		noise.Generate(position);
+		//sim.SetNoiseMap(map.data(), 0.05f);
 		V2_int mouse{ input::GetMouseScreenPosition() };
-		sim.AddDensityNoiseMap(map.data(), 300);
+		//sim.AddDensityNoiseMap(map.data(), 300);
 		//sim.AddVelocity(mouse / scale, Sign(mouse - prev) * 1.0f);
 		prev = mouse;
 		if (input::MousePressed(Mouse::LEFT))
 			sim.AddDensity(input::GetMouseScreenPosition() / scale, 400, 2);
-		sim.Step(0.0005f, 0.0005f, dt);
+		//sim.Step(0.0005f, 0.0005f, dt);
 		//sim.FadeDensity();
-		for (std::size_t i = 0; i < size.x; ++i) {
-			for (std::size_t j = 0; j < size.y; ++j) {
-				V2_int point{ i * scale, j * scale };
-				V2_int scale_size{ scale, scale };
-				auto index{ sim.IX(i, j) };
-				
-				float value = sim.dens[index];
-				std::uint8_t red = value >= 255 ? 255 : static_cast<std::uint8_t>(value);
-				
-				float rand_value = map[i + size.x * j];
-				//std::uint8_t red{ (std::uint8_t)(255.0f * rand_value) };
+		//for (std::size_t i = 0; i < size.x; ++i) {
+		//	for (std::size_t j = 0; j < size.y; ++j) {
+		//		V2_int point{ i * scale, j * scale };
+		//		V2_int scale_size{ scale, scale };
+		//		auto index{ sim.IX(i, j) };
+		//		
+		//		float value = sim.dens[index];
+		//		//std::uint8_t red = value >= 255 ? 255 : static_cast<std::uint8_t>(value);
+		//		
+		//		float rand_value = map[i + size.x * j];
+		//		std::uint8_t red{ (std::uint8_t)(255.0f * rand_value) };
 
-				Color color{ red, red, red, red };
+		//		Color color{ red, red, red, red };
 
-				/*if (value > 0.8) {
-					color.r = (std::uint8_t)(255.0f * (1.0f - value));
-					color.g = (std::uint8_t)(255.0f * (1.0f - value));
-					color.b = (std::uint8_t)(255.0f * (1.0f - value));
-					color.a = red;
-				}*/
+		//		/*if (value > 0.8) {
+		//			color.r = (std::uint8_t)(255.0f * (1.0f - value));
+		//			color.g = (std::uint8_t)(255.0f * (1.0f - value));
+		//			color.b = (std::uint8_t)(255.0f * (1.0f - value));
+		//			color.a = red;
+		//		}*/
 
-				V2_float norm_velocity = V2_float{ sim.u[index], sim.v[index] } / 0.05f;
-				Line<int> direction{ point, V2_int{ point + norm_velocity * 5.0f } };
-				AABB<std::size_t> aabb{ point, scale_size };
-				
-				draw::SolidAABB(aabb, color);
-				//draw::Line(direction, color::WHITE);
-			}
-		}
+		//		V2_float norm_velocity = V2_float{ sim.u[index], sim.v[index] } / 0.05f;
+		//		Line<int> direction{ point, V2_int{ point + norm_velocity * 5.0f } };
+		//		AABB<std::size_t> aabb{ point, scale_size };
+		//		
+		//		draw::SolidAABB(aabb, color);
+		//		//draw::Line(direction, color::WHITE);
+		//	}
+		//}
 	}
 };
 
