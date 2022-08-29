@@ -1,15 +1,4 @@
-#include "core/Engine.h"
-#include "interface/Input.h"
-#include "interface/Font.h"
-#include "interface/Text.h"
-#include "interface/Texture.h"
-#include "interface/Sound.h"
-#include "interface/Music.h"
-#include "interface/Draw.h"
-#include "interface/Window.h"
-#include "interface/Scene.h"
-#include "math/RNG.h"
-#include "utility/Log.h"
+#include "protegon/protegon.h"
 
 #include <queue>
 #include <vector>
@@ -20,15 +9,6 @@
 #include <string>
 
 using namespace ptgn;
-
-inline bool PointvsAABB(const V2_int& point,
-						const V2_int& position,
-						const V2_int& size) {
-	return (point.x >= position.x &&
-			point.y >= position.y &&
-			point.x < position.x + size.x &&
-			point.y < position.y + size.y);
-}
 
 template <typename T>
 inline bool Contains(const std::vector<T>& container, const T& value) {

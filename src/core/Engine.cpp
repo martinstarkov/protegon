@@ -1,16 +1,6 @@
-#include "Engine.h"
+#include "protegon/engine.h"
 
-#include "interface/Draw.h"
-#include "interface/Window.h"
-#include "interface/Input.h"
-#include "manager/SDLManager.h"
-#include "manager/FontManager.h"
-#include "manager/MusicManager.h"
-#include "manager/SoundManager.h"
-#include "manager/TextManager.h"
-#include "manager/TextureManager.h"
-#include "manager/SceneManager.h"
-
+/*
 namespace ptgn {
 
 Engine::Engine() {
@@ -77,3 +67,4 @@ void Engine::InternalUpdate() {
 }
 
 } // namespace ptgn
+*/
