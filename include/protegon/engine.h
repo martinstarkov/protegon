@@ -6,11 +6,14 @@ namespace ptgn {
 
 class Engine {
 public:
-	void Construct(const V2_int& window_size);
+	Engine();
+	~Engine();
+	void Construct(const char* window_title,
+				   const V2_int& window_size);
 	virtual void Create();
 	virtual void Update(float dt);
 private:
-
+	void Loop();
 };
 
 inline void Engine::Create() {}
