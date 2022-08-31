@@ -115,7 +115,7 @@ Sequence GetRandomRollSequence(std::size_t count) {
 	std::array<V2_int, 4> directions{ V2_int{ 1, 0 }, V2_int{ -1, 0 }, V2_int{ 0, 1 }, V2_int{ 0, -1 } };
 	V2_int previous_direction{ directions[0] };
 	sequence.push_back(previous_direction);
-	math::RNG<std::size_t> rng{ 0, 3 };
+	RNG<std::size_t> rng{ 0, 3 };
 	for (auto i = 0; i < count - 1; ++i) {
 		start:
 		auto dir = rng();
@@ -133,7 +133,7 @@ Sequence GetRandomRollSequence(std::size_t count) {
 
 Sequence GetRotatedSequence(Sequence sequence, const float angle) {
 	for (auto& vector : sequence)
-		vector = Round(vector.Rotated(angle));
+		vector = V2_int{ vector.Rotated(angle).Rounded() };
 	return sequence;
 }
 
@@ -178,7 +178,7 @@ std::pair<Sequence, Directions> GetSequenceAndAllowedDirections(std::vector<Sequ
 	for (auto& sequence : sequences) {
 		Directions permitted_directions;
 		for (const auto& direction : directions) {
-			auto rotated = GetRotatedSequence(sequence, direction.Angle());
+			auto rotated = GetRotatedSequence(sequence, direction.Angle<float>());
 			auto absolute = GetAbsoluteSequence(rotated, tile);
 			if (grid.Permits(absolute, { TileType::WIN })) {
 				permitted_directions.emplace_back(direction);
@@ -220,8 +220,8 @@ bool CanWin(const Grid& grid, const V2_int& player_tile, const V2_int& win_tile)
 }
 
 V2_int GetNewWinTile(const Grid& grid, const V2_int& player_tile) {
-	math::RNG rng_x{ 0, grid.GetSize().x - 1 };
-	math::RNG rng_y{ 0, grid.GetSize().y - 1 };
+	RNG rng_x{ 0, grid.GetSize().x - 1 };
+	RNG rng_y{ 0, grid.GetSize().y - 1 };
 	V2_int win_tile{ rng_x(), rng_y() };
 	if (!grid.HasTile(win_tile) && win_tile != player_tile)
 		return win_tile;
@@ -235,7 +235,7 @@ public:
 	V2_int player_tile{ 1, 9 };
 	V2_int win_tile{ 8, 8 };
 	V2_int player_start_tile{ player_tile };
-	math::RNG<std::size_t> dice_roll{ 1, 6 };
+	RNG<std::size_t> dice_roll{ 1, 6 };
 	Sequence sequence;
 	Sequence absolute_sequence;
 	Directions directions;
@@ -332,7 +332,7 @@ public:
 			turn_allowed = Contains(directions, axis_direction);
 
 			if (turn_allowed || previous_direction != axis_direction) {
-				auto rotated = GetRotatedSequence(sequence, axis_direction.Angle());
+				auto rotated = GetRotatedSequence(sequence, axis_direction.Angle<float>());
 				absolute_sequence = GetAbsoluteSequence(rotated, player_tile);
 			}
 
@@ -391,7 +391,7 @@ public:
 					draw::Texture("choice", { pos, grid.GetTileSize() });
 					draw::TemporaryText("temp_text", "0", std::to_string(i + 1).c_str(), color::YELLOW, { pos + (grid.GetTileSize() - dice_size) / 2, dice_size });
 				} else {
-					auto rotated = GetRotatedSequence(sequence, axis_direction.Angle());
+					auto rotated = GetRotatedSequence(sequence, axis_direction.Angle<float>());
 					absolute_sequence = GetAbsoluteSequence(rotated, player_tile);
 					if (grid.InBound(absolute_sequence[i])) {
 						auto pos = grid_top_left_offset + absolute_sequence[i] * grid.GetTileSize(); // + (grid.GetTileSize() - dice_size) / 2
@@ -443,7 +443,7 @@ public:
 
 		Color text_color = color::WHITE;
 
-		bool hover = PointvsAABB(mouse, play_pos, play_size);
+		bool hover = PointAABB(mouse, AABB<int>{ play_pos, play_size });
 		if (hover) {
 			text_color = color::GOLD;
 		}
@@ -458,19 +458,19 @@ public:
 };
 
 class DiceGame : public Engine {
-	virtual void Init() override final {
+	void Create() final {
 		font::Load("0", "resources/font/04B_30.ttf", 32);
 		font::Load("1", "resources/font/retro_gaming.ttf", 32);
 		scene::Load<MenuScreen>("menu");
 		scene::SetActive("menu");
 	}
-	virtual void Update(float dt) override final {
+	void Update(float dt) final {
 		scene::Update(dt);
 	}
 };
 
 int main(int c, char** v) {
 	DiceGame game;
-	game.Start("", V2_int{ 704, 860 }, true, V2_int{}, window::Flags::NONE, true, false);
+	game.Construct("", V2_int{ 704, 860 });
 	return 0;
 }
