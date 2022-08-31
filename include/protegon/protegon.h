@@ -11,6 +11,7 @@
 #include "protegon/log.h"
 #include "protegon/music.h"
 #include "protegon/rectangle.h"
+#include "protegon/rng.h"
 #include "protegon/scene.h"
 #include "protegon/sound.h"
 #include "protegon/text.h"
