@@ -103,7 +103,17 @@ struct Vector2 {
                  x * std::sin(rad) + y * std::cos(rad) };
     }
 
-    // Returns angle between x and y components relative to the x-axis (clockwise positive).
+    /*
+    * Returns angle between vector x and y components in radians.
+    * Relative to the horizontal x-axis.
+    * Range: [-3.14159, 3.14159).
+    * (counter-clockwise positive).
+    *             1.5708
+    *               |
+    *    3.14159 ---o--- 0
+    *               |
+    *            -1.5708
+    */
     template <typename U, type_traits::not_narrowing<T, U> = true>
     U Angle() const {
         return std::atan2(y, x);
