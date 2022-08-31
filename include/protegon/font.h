@@ -2,6 +2,6 @@
 
 namespace ptgn {
 
-
+struct Font {};
 
 } // namespace ptgn

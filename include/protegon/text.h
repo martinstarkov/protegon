@@ -2,6 +2,6 @@
 
 namespace ptgn {
 
-
+struct Text {};
 
 } // namespace ptgn
