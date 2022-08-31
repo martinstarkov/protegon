@@ -276,7 +276,7 @@ public:
 		sound::Load("loss", "resources/sound/loss.wav");
 		text::Load("text7", "instruction", "1", "Press 'i' to see instructions", color::GOLD);
 	}
-	virtual void Update(float dt) override final {
+	void Update(float dt) final {
 		auto mouse = input::GetMouseScreenPosition();
 		if (input::KeyDown(Key::I)) {
 			scene::SetActive("menu");
@@ -335,7 +335,6 @@ public:
 				auto rotated = GetRotatedSequence(sequence, axis_direction.Angle<float>());
 				absolute_sequence = GetAbsoluteSequence(rotated, player_tile);
 			}
-
 
 			if (turn_allowed && input::KeyDown(Key::SPACE) && sequence.size() > 0) {
 				grid.AddTile(player_tile, Tile{ TileType::USED });
