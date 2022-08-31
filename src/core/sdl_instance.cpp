@@ -2,31 +2,13 @@
 
 #include <cassert> // assert
 
+#include <SDL_image.h>
+#include <SDL_ttf.h>
+#include <SDL_mixer.h>
+
 #include "protegon/log.h"
 
 namespace ptgn {
-
-namespace global {
-
-namespace hidden {
-
-std::unique_ptr<SDLInstance> sdl{ nullptr };
-
-} // namespace hidden
-
-void InitSDL() {
-	hidden::sdl = std::make_unique<SDLInstance>();
-}
-
-void DestroySDL() {
-	hidden::sdl.reset();
-}
-
-SDLInstance& GetSDL() {
-	return *hidden::sdl;
-}
-
-} // namespace global
 
 SDLInstance::SDLInstance() {
 	InitSDL();

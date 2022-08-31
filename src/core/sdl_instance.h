@@ -1,11 +1,6 @@
 #pragma once
 
-#include <memory> // std::unique_ptr
-
 #include <SDL.h>
-#include <SDL_image.h>
-#include <SDL_ttf.h>
-#include <SDL_mixer.h>
 
 namespace ptgn {
 
@@ -26,19 +21,5 @@ private:
 	SDL_Window* window_{ nullptr };
 	SDL_Renderer* renderer_{ nullptr };
 };
-
-namespace global {
-
-namespace hidden {
-
-extern std::unique_ptr<SDLInstance> sdl;
-
-} // namespace hidden
-
-void InitSDL();
-void DestroySDL();
-SDLInstance& GetSDL();
-
-} // namespace global
 
 } // namespace ptgn

@@ -1,23 +1,23 @@
 #include "protegon/engine.h"
 #include "protegon/color.h"
 
-#include "core/sdl_instance.h"
+#include "core/game.h"
 
 #include <chrono>
 
 namespace ptgn {
 
 Engine::Engine() {
-	global::InitSDL();
+	global::InitGame();
 }
 
 Engine::~Engine() {
-	global::DestroySDL();
+	global::DestroyGame();
 }
 
 void Engine::Construct(const char* window_title,
 					   const V2_int& window_size) {
-	auto window{ global::GetSDL().GetWindow() };
+	auto window{ global::GetGame().sdl.GetWindow() };
 	SDL_SetWindowTitle(window,
 					   window_title);
 	SDL_SetWindowSize(window,
@@ -36,7 +36,7 @@ void Engine::Loop() {
 	time start{ std::chrono::system_clock::now() };
 	time end{ std::chrono::system_clock::now() };
 
-	auto sdl{ global::GetSDL() };
+	auto sdl{ global::GetGame().sdl };
 	auto renderer{ sdl.GetRenderer() };
 
 	Color window_color{ 255, 255, 255, 255 };
