@@ -190,10 +190,10 @@ bool TestVector2() {
 	assert(q4 == 6.0);
 
 	// TODO:
-	// Add tests for Rounded()
-	// Add tests for Rotated()
-	// Add tests for Angle()
-	// Add tests for all +, -, *, / operators.
+	// Add tests for Rounded(), don't forget to check narrowing issues
+	// Add tests for Rotated(), don't forget to check narrowing issues
+	// Add tests for Angle(), don't forget to check narrowing issues
+	// Add tests for all +, -, *, / operators, don't forget to check narrowing issues.
 
 	std::cout << "All Vector2 tests passed!" << std::endl;
 	return true;
