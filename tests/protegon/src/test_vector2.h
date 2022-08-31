@@ -193,6 +193,7 @@ bool TestVector2() {
 	// Add tests for Rounded()
 	// Add tests for Rotated()
 	// Add tests for Angle()
+	// Add tests for all +, -, *, / operators.
 
 	std::cout << "All Vector2 tests passed!" << std::endl;
 	return true;

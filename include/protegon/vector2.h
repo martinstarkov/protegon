@@ -127,6 +127,66 @@ inline bool operator!=(const Vector2<T>& lhs,
     return !operator==(lhs, rhs);
 }
 
+template <typename T, typename U,
+    typename S = typename std::common_type_t<T, U>>
+inline Vector2<S> operator+(const Vector2<T>& lhs,
+                            const Vector2<U>& rhs) {
+    return { lhs.x + rhs.x, lhs.y + rhs.y };
+}
+
+template <typename T, typename U,
+    typename S = typename std::common_type_t<T, U>>
+inline Vector2<S> operator-(const Vector2<T>& lhs,
+                            const Vector2<U>& rhs) {
+    return { lhs.x - rhs.x, lhs.y - rhs.y };
+}
+
+template <typename T, typename U,
+    typename S = typename std::common_type_t<T, U>>
+inline Vector2<S> operator*(const Vector2<T>& lhs,
+                            const Vector2<U>& rhs) {
+    return { lhs.x * rhs.x, lhs.y * rhs.y };
+}
+
+template <typename T, typename U,
+    typename S = typename std::common_type_t<T, U>>
+inline Vector2<S> operator/(const Vector2<T>& lhs,
+                            const Vector2<U>& rhs) {
+    return { lhs.x / rhs.x, lhs.y / rhs.y };
+}
+
+template <typename T, typename U,
+    type_traits::arithmetic<T> = true,
+    typename S = typename std::common_type_t<T, U>>
+inline Vector2<S> operator*(T lhs,
+                            const Vector2<U>& rhs) {
+    return { lhs * rhs.x, lhs * rhs.y };
+}
+
+template <typename T, typename U,
+    type_traits::arithmetic<U> = true,
+    typename S = typename std::common_type_t<T, U>>
+inline Vector2<S> operator*(const Vector2<T>& lhs,
+                            U rhs) {
+    return { lhs.x * rhs, lhs.y * rhs };
+}
+
+template <typename T, typename U,
+    type_traits::arithmetic<T> = true,
+    typename S = typename std::common_type_t<T, U>>
+inline Vector2<S> operator/(T lhs,
+                            const Vector2<U>& rhs) {
+    return { lhs / rhs.x, lhs / rhs.y };
+}
+
+template <typename T, typename U,
+    type_traits::arithmetic<T> = true,
+    typename S = typename std::common_type_t<T, U>>
+inline Vector2<S> operator/(const Vector2<T>& lhs,
+                            U rhs) {
+    return { lhs.x / rhs, lhs.y / rhs };
+}
+
 } // namespace ptgn
 
 // Custom hashing function for Vector2 class.
