@@ -189,10 +189,90 @@ bool TestVector2() {
 	assert(q2.y == 4.0 / 5 / 6.0);
 	assert(q4 == 6.0);
 
+	Vector2<double> r1r{ 1.3, 1.3 };
+	Vector2<double> r2r{ 2.6, 2.6 };
+	Vector2<double> r3r{ 3.5, 3.5 };
+	Vector2<double> r4r{ 1.0, 1.0 };
+	Vector2<double> r5r{ 0.0, 0.0 };
+	Vector2<double> r6r{ -1.3, -1.3 };
+	Vector2<double> r7r{ -2.6, -2.6 };
+	Vector2<double> r8r{ -3.5, -3.5 };
+	Vector2<double> r9r{ -1.0, -1.0 };
+
+	r1r = r1r.Rounded();
+	r2r = r2r.Rounded();
+	r3r = r3r.Rounded();
+	r4r = r4r.Rounded();
+	r5r = r5r.Rounded();
+	r6r = r6r.Rounded();
+	r7r = r7r.Rounded();
+	r8r = r8r.Rounded();
+	r9r = r9r.Rounded();
+
+	assert(r1r.x == 1.0);
+	assert(r2r.x == 3.0);
+	assert(r3r.x == 4.0);
+	assert(r4r.x == 1.0);
+	assert(r5r.x == 0.0);
+	assert(r6r.x == -1.0);
+	assert(r7r.x == -3.0);
+	assert(r8r.x == -4.0);
+	assert(r9r.x == -1.0);
+
+	assert(r1r.y == 1.0);
+	assert(r2r.y == 3.0);
+	assert(r3r.y == 4.0);
+	assert(r4r.y == 1.0);
+	assert(r5r.y == 0.0);
+	assert(r6r.y == -1.0);
+	assert(r7r.y == -3.0);
+	assert(r8r.y == -4.0);
+	assert(r9r.y == -1.0);
+
+	Vector2<int> rot1{  1,  0 };
+	Vector2<int> rot2{ -1,  0 };
+	Vector2<int> rot3{  0,  1 };
+	Vector2<int> rot4{  0, -1 };
+	Vector2<int> rot5{  1,  1 };
+	Vector2<int> rot6{ -1, -1 };
+
+	assert(NearlyEqual(rot1.Angle<float>(), 0.0f));
+	assert(NearlyEqual(rot2.Angle<float>(), 3.14159f));
+	assert(NearlyEqual(rot3.Angle<float>(), 1.5708f));
+	assert(NearlyEqual(rot5.Angle<float>(), 0.785398f));
+	assert(NearlyEqual(rot4.Angle<float>(), -1.5708f));
+	assert(NearlyEqual(rot6.Angle<float>(), -2.35619f));
+
+	Vector2<int> rotate_me{ 1, 0 };
+	Vector2<int> rotated_90{ rotate_me.Rotated(1.5708f) };
+	Vector2<int> rotated_180{ rotate_me.Rotated(3.14159f) };
+	Vector2<int> rotated_270{ rotate_me.Rotated(-1.5708f) };
+	Vector2<int> rotated_360{ rotate_me.Rotated(0.0f) };
+
+	Vector2<double> drotated_90{ rotate_me.Rotated(1.5708f) };
+	Vector2<double> drotated_180{ rotate_me.Rotated(3.14159f) };
+	Vector2<double> drotated_270{ rotate_me.Rotated(-1.5708f) };
+	Vector2<double> drotated_360{ rotate_me.Rotated(0.0f) };
+
+	assert(rotated_90.x  ==  0);
+	assert(rotated_90.y  ==  1);
+	assert(rotated_180.x == -1);
+	assert(rotated_180.y ==  0);
+	assert(rotated_270.x ==  0);
+	assert(rotated_270.y == -1);
+	assert(rotated_360.x ==  1);
+	assert(rotated_360.y ==  0);
+
+	assert(NearlyEqual(drotated_90.x,   0.0));
+	assert(NearlyEqual(drotated_90.y,   1.0));
+	assert(NearlyEqual(drotated_180.x, -1.0));
+	assert(NearlyEqual(drotated_180.y,  0.0));
+	assert(NearlyEqual(drotated_270.x,  0.0));
+	assert(NearlyEqual(drotated_270.y, -1.0));
+	assert(NearlyEqual(drotated_360.x,  1.0));
+	assert(NearlyEqual(drotated_360.y,  0.0));
+
 	// TODO:
-	// Add tests for Rounded(), don't forget to check narrowing issues
-	// Add tests for Rotated(), don't forget to check narrowing issues
-	// Add tests for Angle(), don't forget to check narrowing issues
 	// Add tests for all +, -, *, / operators, don't forget to check narrowing issues.
 
 	std::cout << "All Vector2 tests passed!" << std::endl;
