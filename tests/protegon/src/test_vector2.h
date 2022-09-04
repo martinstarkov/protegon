@@ -272,6 +272,30 @@ bool TestVector2() {
 	assert(NearlyEqual(drotated_360.x,  1.0));
 	assert(NearlyEqual(drotated_360.y,  0.0));
 
+	Vector2<double> test1{ 0.0, 0.0 };
+	Vector2<float> test2{ 0.0f, 0.0f };
+	Vector2<int> test3{ 0, 0 };
+
+	Vector2<double> test1a{ 1.0, 1.0 };
+	Vector2<float> test2a{ 1.0f, 1.0f };
+	Vector2<int> test3a{ 1, 1 };
+
+	test1a *= 2.0;
+	test2a *= 2.0f;
+	test3a *= 2;
+	test1a -= Vector2<double>{ 2.0, 2.0 };
+	test2a -= Vector2<float>{ 2.0f, 2.0f };
+	test3a -= Vector2<int>{ 2, 2 };
+
+	assert(test1.IsZero());
+	assert(test2.IsZero());
+	assert(test3.IsZero());
+	assert(test1a.IsZero());
+	assert(test2a.IsZero());
+	assert(test3a.IsZero());
+
+
+
 	// TODO:
 	// Add tests for all +, -, *, / operators, don't forget to check narrowing issues.
 

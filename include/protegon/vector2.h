@@ -85,6 +85,11 @@ struct Vector2 {
         return *this;
     }
 
+    bool IsZero() const {
+        return NearlyEqual(x, static_cast<T>(0)) &&
+               NearlyEqual(y, static_cast<T>(0));
+    }
+
     // Returns the dot product of two vectors.
     T Dot(const Vector2& o) const {
         return x * o.x + y * o.y;
@@ -123,6 +128,8 @@ struct Vector2 {
 using V2_int = Vector2<int>;
 using V2_float = Vector2<float>;
 using V2_double = Vector2<double>;
+template <typename T>
+using Point = Vector2<T>;
 
 template <typename T>
 inline bool operator==(const Vector2<T>& lhs,
