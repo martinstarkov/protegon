@@ -1,5 +1,7 @@
 #include "game.h"
 
+#include <cassert>
+
 namespace ptgn {
 
 namespace global {
@@ -19,6 +21,7 @@ void DestroyGame() {
 }
 
 Game& GetGame() {
+	assert(hidden::game != nullptr && "Game not initialized?");
 	return *hidden::game;
 }
 
