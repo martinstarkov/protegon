@@ -3,6 +3,8 @@
 
 #include "core/game.h"
 
+#include <SDL.h>
+
 #include <chrono>
 
 namespace ptgn {
@@ -36,12 +38,12 @@ void Engine::Loop() {
 	time start{ std::chrono::system_clock::now() };
 	time end{ std::chrono::system_clock::now() };
 
-	auto sdl{ global::GetGame().sdl };
-	auto renderer{ sdl.GetRenderer() };
+	auto& game{ global::GetGame() };
+	auto renderer{ game.sdl.GetRenderer() };
 
 	Color window_color{ 255, 255, 255, 255 };
 
-	while (sdl.GetWindow() != nullptr) {
+	while (game.sdl.GetWindow() != nullptr) {
 		// TODO: Fetch updated user inputs here.
 
 		// Calculate time elapsed during previous frame.

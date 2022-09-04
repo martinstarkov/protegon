@@ -1,6 +1,7 @@
 #pragma once
 
-#include <SDL.h>
+struct SDL_Window;
+struct SDL_Renderer;
 
 namespace ptgn {
 

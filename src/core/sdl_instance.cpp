@@ -2,6 +2,7 @@
 
 #include <cassert> // assert
 
+#include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h>
 #include <SDL_mixer.h>
@@ -76,7 +77,9 @@ void SDLInstance::InitRenderer() {
 
 SDLInstance::~SDLInstance() {
 	SDL_DestroyRenderer(renderer_);
+	renderer_ = nullptr;
 	SDL_DestroyWindow(window_);
+	window_ = nullptr;
 	Mix_CloseAudio();
 	Mix_Quit();
 	TTF_Quit();
