@@ -162,7 +162,7 @@ using narrowing = std::enable_if_t<is_narrowing_v<From, To>, bool>;
 template <typename From, typename To>
 using not_narrowing = std::enable_if_t<!is_narrowing_v<From, To>, bool>;
 template <typename T, typename ...TArgs>
-using constructible = std::enable_if_t<std::is_constructible_v<T, TArgs...>, bool>;
+using constructible = std::enable_if_t<std::is_constructible_v<T, TArgs...> || std::is_trivially_constructible_v<T, TArgs...>, bool>;
 template <typename Stream, typename ...Types>
 using stream_writable = std::enable_if_t<std::conjunction_v<impl::is_stream_writable<Stream, Types>...>, bool>;
 template <typename Type, typename ...Types>
