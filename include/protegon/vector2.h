@@ -1,8 +1,9 @@
 #pragma once
 
+#include <cassert>    // assert
+#include <cmath>      // std::round
 #include <cstdlib>    // std::size_t
 #include <functional> // std::hash
-#include <cmath>      // std::roun
 
 #include "type_traits.h"
 #include "math.h"
@@ -38,6 +39,22 @@ struct Vector2 {
     explicit constexpr Vector2(const Vector2<U>& o) :
         x{ static_cast<T>(o.x) },
         y{ static_cast<T>(o.y) } {}
+
+    // Access vector elements by index, 0 for x, 1 for y.
+    T& operator[](std::size_t idx) {
+        assert(idx < 2 && "Vector2 subscript out of range");
+        if (idx == 0)
+            return x;
+        return y; // idx == 1
+    }
+
+    // Access vector elements by index, 0 for x, 1 for y.
+    T operator[](std::size_t idx) const {
+        assert(idx < 2 && "Vector2 subscript out of range");
+        if (idx == 0)
+            return x;
+        return y; // idx == 1
+    }
 
     Vector2 operator-() const {
         return { -x, -y };
