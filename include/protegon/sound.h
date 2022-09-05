@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory> // std::shared_ptr
+
 #include "time.h"
 
 class _Mix_Music;
@@ -10,34 +12,42 @@ namespace ptgn {
 
 class Music {
 public:
-	Music() = delete;
-	/*
-	* @param music_path Path to music file.
-	*/
 	Music(const char* music_path);
-	~Music();
+	~Music() = default;
+	Music(const Music&) = default;
+	Music& operator=(const Music&) = default;
+	Music(Music&&) = default;
+	Music& operator=(Music&&) = default;
 
 	void Play(int loops) const;
 	void FadeIn(int loops, milliseconds time) const;
 	bool IsValid() const;
 private:
-	Mix_Music* music_{ nullptr };
+	Music() = default;
+	struct Mix_Music_Deleter {
+		void operator()(Mix_Music* music);
+	};
+	std::shared_ptr<Mix_Music> music_{ nullptr };
 };
 
 class Sound {
 public:
-	Sound() = delete;
-	/*
-	* @param sound_path Path to sound file.
-	*/
 	Sound(const char* sound_path);
-	~Sound();
+	~Sound() = default;
+	Sound(const Sound&) = default;
+	Sound& operator=(const Sound&) = default;
+	Sound(Sound&&) = default;
+	Sound& operator=(Sound&&) = default;
 
 	void Play(int channel, int loops) const;
 	void FadeIn(int channel, int loops, milliseconds time) const;
 	bool IsValid() const;
 private:
-	Mix_Chunk* chunk_{ nullptr };
+	Sound() = default;
+	struct Mix_Chunk_Deleter {
+		void operator()(Mix_Chunk* chunk);
+	};
+	std::shared_ptr<Mix_Chunk> chunk_{ nullptr };
 };
 
 } // namespace ptgn
