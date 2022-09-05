@@ -41,8 +41,6 @@ void Engine::Loop() {
 	auto& game{ global::GetGame() };
 	auto renderer{ game.sdl.GetRenderer() };
 
-	Color window_color{ 255, 255, 255, 255 };
-
 	while (game.sdl.GetWindow() != nullptr) {
 		// TODO: Fetch updated user inputs here.
 
@@ -52,11 +50,8 @@ void Engine::Loop() {
 		float dt{ elapsed.count() };
 		start = end;
 
-		SDL_SetRenderDrawColor(renderer,
-							   window_color.r,
-							   window_color.g,
-							   window_color.b,
-							   window_color.a);
+		Color o{ game.sdl.GetWindowBackgroundColor() };
+		SDL_SetRenderDrawColor(renderer, o.r, o.g, o.b, o.a);
 		// Clear screen.
 		SDL_RenderClear(renderer);
 

@@ -95,4 +95,12 @@ SDL_Renderer* SDLInstance::GetRenderer() const {
 	return renderer_;
 }
 
+Color SDLInstance::GetWindowBackgroundColor() const {
+	return window_bg_color_;
+}
+
+void SDLInstance::SetWindowBackgroundColor(const Color& new_color) {
+	window_bg_color_ = new_color;
+}
+
 } // namespace ptgn
