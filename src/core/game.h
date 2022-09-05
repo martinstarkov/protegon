@@ -4,22 +4,23 @@
 
 #include "core/sdl_instance.h"
 #include "protegon/resources.h"
+#include "event/input_handler.h"
 
 namespace ptgn {
 
 struct Game {
 	SDLInstance sdl;
 	ResourceManagers managers;
-	// TODO: Add InputHandler input;
+	InputHandler input;
 };
 
 namespace global {
 
-namespace hidden {
+namespace impl {
 
 extern std::unique_ptr<Game> game;
 
-} // namespace hidden
+} // namespace impl
 
 void InitGame();
 void DestroyGame();

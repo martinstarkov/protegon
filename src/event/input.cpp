@@ -1,99 +1,119 @@
-#pragma once
+#include "protegon/input.h"
 
-#include <array> // std::array
-#include <cstdlib> // std::size_t
-#include <cstdint> // std::int64_t, etc
-#include <tuple> // std::pair
-#include <algorithm> // std::copy
 #include <cassert> // assert
 
-#include "input/Mouse.h"
-#include "math/Vector2.h"
-#include "utility/Timer.h"
+#include <SDL.h>
+
+#include "event/input_handler.h"
+#include "core/game.h"
 
 namespace ptgn {
 
-struct InputHandler {
-	static InputHandler& Get() {
-		static InputHandler instance;
-		return instance;
-	}
-	// Enum for storing states of mouse keys.
-	enum class MouseState {
-		DOWN,
-		PRESSED,
-		UP,
-		RELEASED
-	};
-	// Number of keys stored in the SDL key states array. For creating previous key states array.
-	static constexpr const std::size_t KEY_COUNT{ 512 };
+milliseconds GetMouseHeldTime(Mouse button) {
+	auto& input_handler{ global::GetGame().input };
+	auto& [state, timer] = input_handler.GetMouseStateAndTimer(button);
+	// Retrieve held time in nanoseconds for maximum precision.
+	const auto held_time{ timer.Elapsed<milliseconds>() };
+	// Comparison units handled by chrono.
+	return held_time;
+}
 
-	// Updates previous key states for key up and down check.
-	void InputHandler::UpdateKeyStates(const std::uint8_t* key_states) {
-		// Copy current key states to previous key states.
-		std::copy(key_states, key_states + KEY_COUNT, std::begin(previous_key_states_));
-	}
+namespace input {
 
-	// Updates previous mouse states for mouse up and down check.
-	void InputHandler::UpdateMouseState(Mouse button) {
-		auto [state, timer] = GetMouseStateAndTimer(button);
-		if (timer->IsRunning() && *state == MouseState::DOWN) {
-			*state = MouseState::PRESSED;
-		} else if (!timer->IsRunning() && *state == MouseState::UP) {
-			*state = MouseState::RELEASED;
-		}
-	}
-
-	/*
-	* @param button Mouse enum corresponding to the desired button.
-	* @return Pair of pointers to the mouse state and timer for a given button,
-	* pair of nullptrs if no such button exists.
-	*/
-	std::pair<InputHandler::MouseState*, Timer*> InputHandler::GetMouseStateAndTimer(Mouse button) {
-		switch (button) {
-			case Mouse::LEFT:
-				return { &left_mouse_, &left_mouse_timer_ };
-			case Mouse::RIGHT:
-				return { &right_mouse_, &right_mouse_timer_ };
-			case Mouse::MIDDLE:
-				return { &middle_mouse_, &middle_mouse_timer_ };
+void Update() {
+	auto& input_handler{ global::GetGame().input };
+	// Update previous key states.
+	const auto key_states{ SDL_GetKeyboardState(NULL) };
+	input_handler.UpdateKeyStates(key_states);
+	// Update mouse states.
+	input_handler.UpdateMouseState(Mouse::LEFT);
+	input_handler.UpdateMouseState(Mouse::RIGHT);
+	input_handler.UpdateMouseState(Mouse::MIDDLE);
+	SDL_Event event;
+	while (SDL_PollEvent(&event)) {
+		switch (event.type) {
+			case SDL_MOUSEBUTTONDOWN:
+			{
+				auto& [state, timer] = input_handler.GetMouseStateAndTimer(static_cast<Mouse>(event.button.button));
+				timer.Start();
+				state = InputHandler::MouseState::DOWN;
+				break;
+			}
+			case SDL_MOUSEBUTTONUP:
+			{
+				auto& [state, timer] = input_handler.GetMouseStateAndTimer(static_cast<Mouse>(event.button.button));
+				timer.Reset();
+				state = InputHandler::MouseState::UP;
+				break;
+			}
+			case SDL_QUIT:
+			{
+				// TODO: Ensure this doesn't crash anything.
+				SDL_DestroyWindow(global::GetGame().sdl.GetWindow());
+				break;
+			}
+			// Possible window events here in the future.
+			/*
+			case SDL_WINDOWEVENT: {
+				switch (event.window.event) {
+					default:
+						break;
+				}
+				break;
+			}
+			*/
 			default:
 				break;
 		}
-		assert(!"Input handler cannot retrieve state and timer for invalid mouse button");
-		return { nullptr, nullptr };
 	}
+}
 
-	/*
-	* @param button Mouse enum corresponding to the desired button.
-	* @return Current state of the given mouse button.
-	*/
-	InputHandler::MouseState InputHandler::GetMouseState(Mouse button) const {
-		switch (button) {
-			case Mouse::LEFT:
-				return left_mouse_;
-			case Mouse::RIGHT:
-				return right_mouse_;
-			case Mouse::MIDDLE:
-				return middle_mouse_;
-			default:
-				return left_mouse_;
-		}
-	}
+V2_int GetMousePosition() {
+	// Grab latest mouse events from queue.
+	SDL_PumpEvents();
+	// Update mouse position.
+	V2_int mouse_position;
+	SDL_GetMouseState(&mouse_position.x, &mouse_position.y);
+	return mouse_position;
+}
 
-	// Previous loop cycle key states for comparison with current.
-	std::array<std::uint8_t, KEY_COUNT> previous_key_states_{};
-private:
-	// Mouse states.
-	MouseState left_mouse_{ MouseState::RELEASED };
-	MouseState right_mouse_{ MouseState::RELEASED };
-	MouseState middle_mouse_{ MouseState::RELEASED };
+bool MousePressed(Mouse button) {
+	auto state{ global::GetGame().input.GetMouseState(button) };
+	return state == InputHandler::MouseState::PRESSED || state == InputHandler::MouseState::DOWN;
+}
 
-	// Mouse button held for timers.
+bool MouseReleased(Mouse button) {
+	auto state{ global::GetGame().input.GetMouseState(button) };
+	return state == InputHandler::MouseState::RELEASED || state == InputHandler::MouseState::UP;
+}
 
-	Timer left_mouse_timer_;
-	Timer right_mouse_timer_;
-	Timer middle_mouse_timer_;
-};
+bool MouseDown(Mouse button) {
+	return global::GetGame().input.GetMouseState(button) == InputHandler::MouseState::DOWN;
+}
+
+bool MouseUp(Mouse button) {
+	return global::GetGame().input.GetMouseState(button) == InputHandler::MouseState::UP;
+}
+
+bool KeyPressed(Key key) {
+	const auto key_states{ SDL_GetKeyboardState(NULL) };
+	auto key_number{ static_cast<std::size_t>(key) };
+	assert(key_number < InputHandler::KEY_COUNT && "Could not find key in input handler key states");
+	return key_states[key_number];
+}
+
+bool KeyReleased(Key key) {
+	return !KeyPressed(key);
+}
+
+bool KeyDown(Key key) {
+	return KeyPressed(key) && !global::GetGame().input.previous_key_states_[static_cast<std::size_t>(key)];
+}
+
+bool KeyUp(Key key) {
+	return KeyReleased(key) && global::GetGame().input.previous_key_states_[static_cast<std::size_t>(key)];
+}
+
+} // namespace input
 
 } // namespace ptgn

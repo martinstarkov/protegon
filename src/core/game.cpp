@@ -6,23 +6,23 @@ namespace ptgn {
 
 namespace global {
 
-namespace hidden {
+namespace impl {
 
 std::unique_ptr<Game> game{ nullptr };
 
-} // namespace hidden
+} // namespace impl
 
 void InitGame() {
-	hidden::game = std::make_unique<Game>();
+	impl::game = std::make_unique<Game>();
 }
 
 void DestroyGame() {
-	hidden::game.reset();
+	impl::game.reset();
 }
 
 Game& GetGame() {
-	assert(hidden::game != nullptr && "Game not initialized?");
-	return *hidden::game;
+	assert(impl::game != nullptr && "Game not initialized?");
+	return *impl::game;
 }
 
 } // namespace global
