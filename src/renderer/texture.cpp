@@ -11,10 +11,6 @@
 
 namespace ptgn {
 
-void Texture::SDL_Texture_Deleter::operator()(SDL_Texture* texture) {
-	SDL_DestroyTexture(texture);
-}
-
 Texture::Texture(const char* texture_path) {
 	assert(texture_path != "" && "Empty path?");
 	assert(FileExists(texture_path) && "Nonexistent file path?");
@@ -23,7 +19,7 @@ Texture::Texture(const char* texture_path) {
 		PrintLine(IMG_GetError());
 		assert(!"Failed to create texture from texture path");
 	}
-	texture_ = std::make_shared<SDL_Texture>(SDL_CreateTextureFromSurface(global::GetGame().sdl.GetRenderer(), surface), SDL_Texture_Deleter{});
+	texture_ = std::shared_ptr<SDL_Texture>(SDL_CreateTextureFromSurface(global::GetGame().sdl.GetRenderer(), surface), SDL_DestroyTexture);
 	if (!IsValid()) {
 		PrintLine(SDL_GetError());
 		assert(!"Failed to create texture");
@@ -33,7 +29,7 @@ Texture::Texture(const char* texture_path) {
 
 Texture::Texture(SDL_Surface* surface) {
 	assert(surface != nullptr && "Nullptr surface?");
-	texture_ = std::make_shared<SDL_Texture>(SDL_CreateTextureFromSurface(global::GetGame().sdl.GetRenderer(), surface), SDL_Texture_Deleter{});
+	texture_ = std::shared_ptr<SDL_Texture>(SDL_CreateTextureFromSurface(global::GetGame().sdl.GetRenderer(), surface), SDL_DestroyTexture);
 	if (!IsValid()) {
 		PrintLine(SDL_GetError());
 		assert(!"Failed to create texture from surface");

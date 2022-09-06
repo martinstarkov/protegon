@@ -24,9 +24,6 @@ public:
 	bool IsValid() const;
 private:
 	Music() = default;
-	struct Mix_Music_Deleter {
-		void operator()(Mix_Music* music);
-	};
 	std::shared_ptr<Mix_Music> music_{ nullptr };
 };
 
@@ -44,9 +41,6 @@ public:
 	bool IsValid() const;
 private:
 	Sound() = default;
-	struct Mix_Chunk_Deleter {
-		void operator()(Mix_Chunk* chunk);
-	};
 	std::shared_ptr<Mix_Chunk> chunk_{ nullptr };
 };
 

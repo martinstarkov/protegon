@@ -10,14 +10,10 @@
 
 namespace ptgn {
 
-void Font::TTF_Font_Deleter::operator()(TTF_Font* font) {
-	TTF_CloseFont(font);
-}
-
 Font::Font(const char* font_path, std::uint32_t point_size, std::uint32_t index) {
 	assert(font_path != "" && "Empty font file path?");
 	assert(FileExists(font_path) && "Nonexistent font file path?");
-	font_ = std::make_shared<TTF_Font>(TTF_OpenFontIndex(font_path, point_size, index), TTF_Font_Deleter{});
+	font_ = std::shared_ptr<TTF_Font>(TTF_OpenFontIndex(font_path, point_size, index), TTF_CloseFont);
 	if (!IsValid()) {
 		PrintLine(TTF_GetError());
 		assert(!"Failed to create font");

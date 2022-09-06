@@ -34,9 +34,6 @@ public:
 private:
 	Font() = default;
 	friend class Text;
-	struct TTF_Font_Deleter {
-		void operator()(TTF_Font* font);
-	};
 	std::shared_ptr<TTF_Font> font_{ nullptr };
 };
 

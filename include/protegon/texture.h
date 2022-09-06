@@ -26,9 +26,6 @@ private:
 	friend class Text;
 	// Takes ownership of surface pointer.
 	Texture(SDL_Surface* surface);
-	struct SDL_Texture_Deleter {
-		void operator()(SDL_Texture* texture);
-	};
 	std::shared_ptr<SDL_Texture> texture_{ nullptr };
 };
 
