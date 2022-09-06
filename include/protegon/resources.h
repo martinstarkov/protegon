@@ -8,6 +8,7 @@
 #include "text.h"
 #include "texture.h"
 #include "time.h"
+#include "scene.h"
 
 namespace ptgn {
 
@@ -17,6 +18,7 @@ struct ResourceManagers {
 	ResourceManager<Sound> sound;
 	ResourceManager<Text> text;
 	ResourceManager<Texture> texture;
+	SceneManager scene;
 };
 
 ResourceManagers& GetManagers();
@@ -96,5 +98,31 @@ std::shared_ptr<Texture> Get(std::size_t key);
 void Clear();
 
 } // namespace texture
+
+
+namespace scene {
+
+bool Has(std::size_t scene_key);
+
+template <typename T, typename ...TArgs,
+	type_traits::constructible<T, TArgs...> = true,
+	type_traits::convertible<T*, Scene*> = true>
+std::shared_ptr<T> Load(std::size_t key, TArgs&&... constructor_args) {
+	return GetManagers().scene.LoadPolymorphic<T>(key, std::forward<TArgs>(constructor_args)...);
+}
+
+void Unload(std::size_t scene_key);
+
+void SetActive(std::size_t scene_key);
+
+void AddActive(std::size_t scene_key);
+
+void RemoveActive(std::size_t scene_key);
+
+std::vector<std::shared_ptr<Scene>> GetActive();
+
+void Update(float dt);
+
+} // namespace scene
 
 } // namespace ptgn

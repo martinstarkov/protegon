@@ -280,7 +280,7 @@ public:
 	void Update(float dt) final {
 		auto mouse = input::GetMousePosition();
 		if (input::KeyDown(Key::I)) {
-			scene::SetActive("menu");
+			scene::SetActive(Hash("menu"));
 		}
 		if (input::KeyDown(Key::R) || game_over) {
 			if (turn > 0) {
@@ -449,8 +449,8 @@ public:
 			text_color = color::GOLD;
 		}
 		if (hover && input::MouseDown(Mouse::LEFT) || input::KeyDown(Key::SPACE)) {
-			scene::Load<DiceScene>("game", grid);
-			scene::SetActive("game");
+			scene::Load<DiceScene>(Hash("game"), grid);
+			scene::SetActive(Hash("game"));
 		}
 		button.Draw({ play_pos, play_size });
 		Text t{ Hash("0"), "Play", text_color };
@@ -463,8 +463,8 @@ class DiceGame : public Engine {
 	void Create() final {
 		font::Load(Hash("0"), "resources/font/04B_30.ttf", 32);
 		font::Load(Hash("1"), "resources/font/retro_gaming.ttf", 32);
-		scene::Load<MenuScreen>("menu");
-		scene::SetActive("menu");
+		scene::Load<MenuScreen>(Hash("menu"));
+		scene::SetActive(Hash("menu"));
 	}
 	void Update(float dt) final {
 		scene::Update(dt);

@@ -4,10 +4,7 @@ using namespace ptgn;
 
 class Sandbox : public Engine {
 	void Create() final {
-		auto t{ Hash("test") };
-		int te = 3;
-		//font::Load(t);
-		//font::Unload(t);
+	
 	}
 	void Update(float dt) final {
 

@@ -143,4 +143,39 @@ void Clear() {
 
 } // namespace texture
 
+namespace scene {
+
+bool Exists(std::size_t scene_key) {
+	return GetManagers().scene.Has(scene_key);
+}
+
+void Unload(std::size_t scene_key) {
+	GetManagers().scene.Unload(scene_key);
+}
+
+void SetActive(std::size_t scene_key) {
+	assert(Exists(scene_key) && "Cannot set active scene if it has not been loaded into the scene manager");
+	GetManagers().scene.SetActive(scene_key);
+}
+
+void AddActive(std::size_t scene_key) {
+	assert(Exists(scene_key) && "Cannot add active scene if it has not been loaded into the scene manager");
+	GetManagers().scene.AddActive(scene_key);
+}
+
+void RemoveActive(std::size_t scene_key) {
+	assert(Exists(scene_key) && "Cannot remove active scene if it has not been loaded into the scene manager");
+	GetManagers().scene.RemoveActive(scene_key);
+}
+
+std::vector<std::shared_ptr<Scene>> GetActive() {
+	return GetManagers().scene.GetActive();
+}
+
+void Update(float dt) {
+	GetManagers().scene.Update(dt);
+}
+
+} // namespace scene
+
 } // namespace ptgn

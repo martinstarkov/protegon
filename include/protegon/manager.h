@@ -28,10 +28,26 @@ public:
     std::shared_ptr<T> Load(std::size_t key, TArgs&&... constructor_args) {
         auto p = map_.try_emplace(key, nullptr);
         // If key is new, initialize a shared ptr, else return current value.
-        if (p.second)
+        if (p.second || p.first->second == nullptr)
             p.first->second = std::make_shared<T>(std::forward<TArgs>(constructor_args)...);
         assert(p.first->second != nullptr && "Previous shared ptr with matching key reset externally?");
         return p.first->second;
+    }
+
+    template <typename U, typename ...TArgs,
+        type_traits::constructible<U, TArgs...> = true,
+        type_traits::convertible<U*, T*> = true>
+    std::shared_ptr<U> LoadPolymorphic(std::size_t key, TArgs&&... constructor_args) {
+        auto p = map_.try_emplace(key, nullptr);
+        // If key is new, initialize a shared ptr, else return current value.
+        if (p.second || p.first->second == nullptr) {
+            std::shared_ptr<U> scene = std::make_shared<U>(std::forward<TArgs>(constructor_args)...);
+            p.first->second = scene;
+            return scene;
+        } else {
+            assert(p.first->second != nullptr && "Previous shared ptr with matching key reset externally?");
+            return std::static_pointer_cast<U>(p.first->second);
+        }
     }
 
     /*
@@ -79,7 +95,12 @@ public:
         map_.clear();
     }
 private:
-    std::unordered_map<std::size_t, std::shared_ptr<T>> map_;
+    friend class SceneManager;
+    using Map = std::unordered_map<std::size_t, std::shared_ptr<T>>;
+    Map& GetMap() {
+        return map_;
+    }
+    Map map_;
 };
 
 } // namespace ptgn
