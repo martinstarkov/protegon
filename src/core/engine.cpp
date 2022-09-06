@@ -42,7 +42,7 @@ void Engine::Loop() {
 	auto renderer{ game.sdl.GetRenderer() };
 
 	while (game.sdl.GetWindow() != nullptr) {
-		// TODO: Fetch updated user inputs here.
+		game.input.Update();
 
 		// Calculate time elapsed during previous frame.
 		end = std::chrono::system_clock::now();

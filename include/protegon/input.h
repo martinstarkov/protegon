@@ -5,13 +5,14 @@
 #include "time.h"
 #include "vector2.h"
 
-namespace ptgn {
+// TODO: Consider adding scene camera relative position fetch?
 
-milliseconds GetMouseHeldTime(Mouse button);
+namespace ptgn {
 
 namespace input {
 
-// TODO: Consider adding scene camera relative position fetch?
+// Retrieves and updates latest user key strokes.
+void Update();
 
 V2_int GetMousePosition();
 
@@ -31,8 +32,7 @@ bool KeyDown(Key key);
 
 bool KeyUp(Key key);
 
-// Retrieves and updates latest user key strokes.
-void Update();
+milliseconds GetMouseHeldTime(Mouse button);
 
 /*
 * @tparam Duration The unit of time measurement.

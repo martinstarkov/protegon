@@ -5,7 +5,8 @@
 #include <cstdlib> // std::size_t
 #include <tuple>   // std::pair
 
-#include "protegon/Mouse.h"
+#include "protegon/mouse.h"
+#include "protegon/key.h"
 #include "protegon/vector2.h"
 #include "protegon/timer.h"
 
@@ -39,14 +40,33 @@ struct InputHandler {
 	*/
 	MouseState GetMouseState(Mouse button) const;
 
-	// TODO: Move KEY_COUNT and previous_key_states_ to private.
+	milliseconds GetMouseHeldTime(Mouse button);
 
+	void Update();
+
+	V2_int GetMousePosition();
+
+	bool MousePressed(Mouse button) const;
+
+	bool MouseReleased(Mouse button) const;
+
+	bool MouseDown(Mouse button) const;
+
+	bool MouseUp(Mouse button) const;
+
+	bool KeyPressed(Key key) const;
+
+	bool KeyReleased(Key key) const;
+
+	bool KeyDown(Key key) const;
+
+	bool KeyUp(Key key) const;
+private:
 	// Number of keys stored in the SDL key states array. For creating previous key states array.
 	static constexpr std::size_t KEY_COUNT{ 512 };
 
 	// Previous loop cycle key states for comparison with current.
 	std::array<std::uint8_t, KEY_COUNT> previous_key_states_{};
-private:
 
 	// Mouse states.
 	MouseState left_mouse_{ MouseState::RELEASED };
