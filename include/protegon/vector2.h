@@ -42,18 +42,18 @@ struct Vector2 {
 
     // Access vector elements by index, 0 for x, 1 for y.
     T& operator[](std::size_t idx) {
-        assert(idx < 2 && "Vector2 subscript out of range");
-        if (idx == 0)
-            return x;
-        return y; // idx == 1
+        assert(idx >= 0 && idx < 2 && "Vector2 subscript out of range");
+        if (idx == 1)
+            return y;
+        return x; // idx == 0
     }
 
     // Access vector elements by index, 0 for x, 1 for y.
     T operator[](std::size_t idx) const {
-        assert(idx < 2 && "Vector2 subscript out of range");
-        if (idx == 0)
-            return x;
-        return y; // idx == 1
+        assert(idx >= 0 && idx < 2 && "Vector2 subscript out of range");
+        if (idx == 1)
+            return y;
+        return x; // idx == 0
     }
 
     Vector2 operator-() const {

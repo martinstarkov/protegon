@@ -11,6 +11,8 @@ using namespace ptgn;
 bool TestVector2() {
 	std::cout << "Starting Vector2 tests..." << std::endl;
 
+	// Implicit / explicit construction and copy tests.
+
 	Vector2<int> t0{ 5, -2 };
 	assert(t0.x == 5);
 	assert(t0.y == -2);
@@ -60,6 +62,8 @@ bool TestVector2() {
 	Vector2<double> t6h = t5;
 	Vector2<double> t6i { t5 };
 
+	// Dot() tests.
+
 	double t7a = t2.Dot(t1);
 	double t7b = t2.Dot(t2);
 	int t7c = t1.Dot(t0);
@@ -68,7 +72,7 @@ bool TestVector2() {
 	assert(t7b - (1) < DBL_EPSILON);
 	assert(t7c == 12);
 
-	// hashing test
+	// Use in hashed container as keys test.
 
 	std::unordered_map<Vector2<int>, int> map1;
 	map1.emplace(t1, 3);
@@ -189,6 +193,8 @@ bool TestVector2() {
 	assert(q2.y == 4.0 / 5 / 6.0);
 	assert(q4 == 6.0);
 
+	// Rounded() tests.
+
 	Vector2<double> r1r{ 1.3, 1.3 };
 	Vector2<double> r2r{ 2.6, 2.6 };
 	Vector2<double> r3r{ 3.5, 3.5 };
@@ -229,6 +235,8 @@ bool TestVector2() {
 	assert(r8r.y == -4.0);
 	assert(r9r.y == -1.0);
 
+	// Angle() tests.
+
 	Vector2<int> rot1{  1,  0 };
 	Vector2<int> rot2{ -1,  0 };
 	Vector2<int> rot3{  0,  1 };
@@ -242,6 +250,8 @@ bool TestVector2() {
 	assert(NearlyEqual(rot5.Angle<float>(), 0.785398f));
 	assert(NearlyEqual(rot4.Angle<float>(), -1.5708f));
 	assert(NearlyEqual(rot6.Angle<float>(), -2.35619f));
+
+	// Rotated() tests.
 
 	Vector2<int> rotate_me{ 1, 0 };
 	Vector2<int> rotated_90{ rotate_me.Rotated(1.5708f) };
@@ -272,6 +282,8 @@ bool TestVector2() {
 	assert(NearlyEqual(drotated_360.x,  1.0));
 	assert(NearlyEqual(drotated_360.y,  0.0));
 
+	// IsZero() tests.
+
 	Vector2<double> test1{ 0.0, 0.0 };
 	Vector2<float> test2{ 0.0f, 0.0f };
 	Vector2<int> test3{ 0, 0 };
@@ -294,7 +306,42 @@ bool TestVector2() {
 	assert(test2a.IsZero());
 	assert(test3a.IsZero());
 
+	// [] access operator tests.
 
+	Vector2<int> access1{ 56, -73 };
+	Vector2<float> access2{ -51.0f, 72.0f };
+	Vector2<double> access3{ 32.0, -54.0 };
+
+	assert(access1[0] ==  56);
+	assert(access1[1] == -73);
+	assert(access2[0] == -51.0f);
+	assert(access2[1] ==  72.0f);
+	assert(access3[0] ==  32.0);
+	assert(access3[1] == -54.0);
+
+	access1[0] -= 3;
+	access1[1] = -2;
+	access2[0] *= 2.0f;
+	access2[1] *= -3.0f;
+	access3[0] /= 2.0;
+	access3[1] = 555.0;
+
+
+	assert(access1[0] == 56 - 3);
+	assert(access1[1] == -2);
+	assert(access2[0] == -51.0f * 2.0f);
+	assert(access2[1] == 72.0f * -3.0f);
+	assert(access3[0] == 32.0 / 2.0);
+	assert(access3[1] == 555.0);
+
+	//access1[-2] = 3;   // assert error called for index out of range.
+	//access1[-1] = 3;   // assert error called for index out of range.
+	//access1[3] = 3;    // assert error called for index out of range.
+	//access1[4] = 3;    // assert error called for index out of range.
+	//access2[5] = 3.0f; // assert error called for index out of range.
+	//access2[6] = 3.0f; // assert error called for index out of range.
+	//access3[7] = 3.0;  // assert error called for index out of range.
+	//access3[8] = 3.0;  // assert error called for index out of range.
 
 	// TODO:
 	// Add tests for all +, -, *, / operators, don't forget to check narrowing issues.
