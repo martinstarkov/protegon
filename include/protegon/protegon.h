@@ -3,7 +3,6 @@
 #include "ecs/ecs.h"
 
 #include "protegon/circle.h"
-#include "protegon/collision.h"
 #include "protegon/color.h"
 #include "protegon/engine.h"
 #include "protegon/font.h"
