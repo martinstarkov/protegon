@@ -128,7 +128,7 @@ def ValidateDependency(path, directory, zip, version, name):
 
 def ValidateDependencies():
     directory = os.path.dirname(__file__)
-    vendor_directory = os.path.join(directory, "../vendor")
+    vendor_directory = os.path.join(directory, "../external")
     SDL2_version = "2.23.1"
     SDL2_image_version = "2.0.5"
     SDL2_ttf_version = "2.0.15"

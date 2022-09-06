@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.20)
 project(protegon)
 
 option(DEMOS "Build protegon demos" ON)
+option(TESTS "Build protegon tests" ON)
+option(AUTOMATIC_SDL "Automatically download SDL zips into external directory" ON)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -13,4 +15,8 @@ find_package(protegon REQUIRED)
 
 if(DEMOS)
   add_subdirectory(demos)
+endif()
+
+if(TESTS)
+  add_subdirectory(tests)
 endif()
