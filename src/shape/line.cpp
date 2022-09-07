@@ -6,6 +6,8 @@
 
 namespace ptgn {
 
+namespace impl {
+
 void DrawLine(int x1, int y1, int x2, int y2, const Color& color) {
 	auto renderer{ global::GetGame().sdl.GetRenderer() };
 	assert(renderer != nullptr && "Cannot draw line with nonexistent renderer");
@@ -14,5 +16,7 @@ void DrawLine(int x1, int y1, int x2, int y2, const Color& color) {
 
 	SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
 }
+
+} // namespace impl
 
 } // namespace ptgn
