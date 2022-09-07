@@ -9,6 +9,8 @@ namespace window {
 
 bool Exists();
 
+void Clear();
+
 V2_int GetSize();
 
 V2_int GetOriginPosition();

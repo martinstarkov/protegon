@@ -39,9 +39,10 @@ void Engine::Loop() {
 	time end{ std::chrono::system_clock::now() };
 
 	auto& game{ global::GetGame() };
-	auto renderer{ game.sdl.GetRenderer() };
 
 	while (game.sdl.GetWindow() != nullptr) {
+		auto renderer{ game.sdl.GetRenderer() };
+		
 		game.input.Update();
 
 		// Calculate time elapsed during previous frame.
@@ -51,7 +52,9 @@ void Engine::Loop() {
 		start = end;
 
 		Color o{ game.sdl.GetWindowBackgroundColor() };
+
 		SDL_SetRenderDrawColor(renderer, o.r, o.g, o.b, o.a);
+		
 		// Clear screen.
 		SDL_RenderClear(renderer);
 

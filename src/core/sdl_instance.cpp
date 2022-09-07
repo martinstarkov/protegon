@@ -21,6 +21,7 @@ SDLInstance::SDLInstance() {
 }
 
 void SDLInstance::InitSDL() {
+	// Ensures window and elements scale by monitor zoom level for constant appearance.
 	SDL_SetHint(SDL_HINT_WINDOWS_DPI_AWARENESS, "permonitorv2");
 	auto sdl_flags{	SDL_INIT_AUDIO | SDL_INIT_EVENTS |
 		            SDL_INIT_TIMER | SDL_INIT_VIDEO };
