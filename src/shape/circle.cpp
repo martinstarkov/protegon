@@ -15,12 +15,12 @@ void DrawCircle(int x, int y, int r, const Color& color) {
 	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
 
 	V2_int p{ r, 0 };
-	SDL_RenderDrawPoint(renderer, p.x + x, p.y + y);
+	SDL_RenderDrawPoint(renderer, x + p.x, y + p.y);
 
 	if (r > 0) {
-		SDL_RenderDrawPoint(renderer, p.x + x, -p.y + y);
-		SDL_RenderDrawPoint(renderer, p.y + x, p.x + y);
-		SDL_RenderDrawPoint(renderer, -p.y + x, p.x + y);
+		SDL_RenderDrawPoint(renderer, x - p.x, y);
+		SDL_RenderDrawPoint(renderer, x, y + p.x);
+		SDL_RenderDrawPoint(renderer, x, y - p.x);
 	}
 
 	int P{ 1 - r };
