@@ -22,6 +22,7 @@
 #include "protegon/text.h"
 #include "protegon/texture.h"
 #include "protegon/time.h"
+#include "protegon/timer.h"
 #include "protegon/type_traits.h"
 #include "protegon/vector2.h"
 #include "protegon/window.h"
