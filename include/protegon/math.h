@@ -110,7 +110,7 @@ T FastAbs(T value) {
 // The relative tolerance test fails when x and y become small.
 template <typename T>
 bool NearlyEqual(T a, T b,
-                 T rel_tol = 0.95f,
+                 T rel_tol = 10.0f * epsilon<float>,
                  T abs_tol = 0.005f) {
     if constexpr (std::is_floating_point_v<T>)
         return a == b ||
