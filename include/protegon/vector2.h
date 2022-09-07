@@ -7,8 +7,15 @@
 
 #include "type_traits.h"
 #include "math.h"
+#include "color.h"
 
 namespace ptgn {
+
+namespace impl {
+
+void DrawPoint(int x, int y, const Color& color);
+
+} // namespace impl
 
 template <typename T,
     type_traits::arithmetic<T> = true>
@@ -102,11 +109,6 @@ struct Vector2 {
         return *this;
     }
 
-    bool IsZero() const {
-        return NearlyEqual(x, static_cast<T>(0)) &&
-               NearlyEqual(y, static_cast<T>(0));
-    }
-
     // Returns the dot product of two vectors.
     T Dot(const Vector2& o) const {
         return x * o.x + y * o.y;
@@ -139,6 +141,15 @@ struct Vector2 {
     template <typename U, type_traits::not_narrowing<T, U> = true>
     U Angle() const {
         return std::atan2(y, x);
+    }
+
+    bool IsZero() const {
+        return NearlyEqual(x, static_cast<T>(0)) &&
+               NearlyEqual(y, static_cast<T>(0));
+    }
+
+    void Draw(const Color& color) const {
+        impl::DrawPoint(x, y, color);
     }
 };
 
