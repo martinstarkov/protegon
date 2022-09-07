@@ -109,9 +109,14 @@ struct Vector2 {
         return *this;
     }
 
-    // Returns the dot product of two vectors.
+    // Returns the dot product (this * o).
     T Dot(const Vector2& o) const {
         return x * o.x + y * o.y;
+    }
+
+    // Returns the cross product (this x o).
+    T Cross(const Vector2& o) const {
+        return x * o.y - y * o.x;
     }
 
     // Returns a vector with both components rounded to the nearest 0.5.
