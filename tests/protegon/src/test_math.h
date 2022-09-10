@@ -61,6 +61,7 @@ bool TestMath() {
 	double c10 = 64.6;
 
 	// FastFloor / FastCeil / FastAbs tests.
+	// TODO: Add test cases for Inf/-Inf and Nan?
 
 	assert(FastFloor(c1) == std::floor(c1));
 	assert(FastFloor(c2) == std::floor(c2));
