@@ -2,6 +2,7 @@
 
 #include <algorithm> // std::max
 #include <cmath>     // std::sqrtf, std::fmod
+#include <tuple>     // std::tuple
 
 #include "type_traits.h"
 
