@@ -4,6 +4,7 @@
 #include <cmath>      // std::round
 #include <cstdlib>    // std::size_t
 #include <functional> // std::hash
+#include <algorithm>  // std::clamp
 
 #include "type_traits.h"
 #include "math.h"
@@ -134,6 +135,19 @@ struct Vector2 {
 
     Vector2 FastFloor() const {
         return { ptgn::FastFloor(x), ptgn::FastFloor(y) };
+    }
+
+    Vector2 Clamped(const T& low, const T& high) const {
+        return { std::clamp(x, low, high), std::clamp(y, low, high) };
+    }
+
+    Vector2 Clamped(const Vector2& low, const Vector2& high) const {
+        return { std::clamp(x, low.x, high.x), std::clamp(y, low.y, high.y) };
+    }
+
+    // Both components will be either 0, 1 or -1.
+    Vector2 Identity() const {
+        return { Sign(x), Sign(y) };
     }
 
     // Returns a new vector rotated by the radian angle in the clockwise direction.
