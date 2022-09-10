@@ -278,80 +278,42 @@ bool CircleRectangle(const Circle<float>& a,
                      const Rectangle<float>& b,
                      Collision& c) {
     c = {};
-    using Edge = std::pair<V2_float, V2_float>;
 
-    V2_float top_right{ b.position.x + b.size.x, b.position.y };
-    V2_float bottom_right{ b.position + b.size };
-    V2_float bottom_left{ b.position.x, b.position.y + b.size.y };
+    const V2_float half{ b.Half() };
+    const V2_float clamped{ a.center.Clamped(b.position, b.position + b.size) };
+    const V2_float ab{ a.center - clamped };
 
-    std::array<Edge, 4> edges;
-    edges.at(0) = { b.position,   top_right };    // top
-    edges.at(1) = { top_right,    bottom_right }; // right
-    edges.at(2) = { bottom_right, bottom_left };  // bottom
-    edges.at(3) = { bottom_left,  b.position };   // left
+    const float d2{ ab.Dot(ab) };
+    const float r2{ a.radius * a.radius };
 
-    float min_dist2{ std::numeric_limits<float>::infinity() };
-    V2_float min_point;
-    std::size_t side{ 0 };
+    if (d2 < r2) {
+        if (NearlyEqual(d2, 0.0f)) { // deep (center of circle inside of AABB)
+            
+            // clamp circle's center to edge of AABB, then form the manifold
+            const V2_float mid{ b.position + half };
+            const V2_float d{ mid - a.center };
+            const V2_float abs_d{ d.FastAbs() };
 
-    for (std::size_t i{ 0 }; i < edges.size(); ++i) {
-        auto& [a_, b_] = edges[i];
-        float t{};
-        V2_float c1;
-        impl::ClosestPointSegment(a.center, { a_, b_ }, t, c1);
-        const V2_float d{ a.center - c1 };
-        float dist2{ d.Dot(d) };
-        if (dist2 < min_dist2) {
-            side = i;
-            min_dist2 = dist2;
-            // Point on the AABB that was the closest.
-            min_point = c1;
-        }
-    }
+            const float x_overlap{ half.x - abs_d.x };
+            const float y_overlap{ half.y - abs_d.y };
 
-    bool inside{ overlap::PointRectangle(a.center, b) };
-
-    if (!inside && min_dist2 > a.radius * a.radius)
-        return false;
-
-    if (NearlyEqual(min_dist2, 0.0f)) {
-        // Circle is on one of the AABB edges.
-        switch (side) {
-            case 0:
-                c.normal = { 0.0f, -1.0f }; // top
-                break;
-            case 1:
-                c.normal = { 1.0f, 0.0f };  // right
-                break;
-            case 2:
-                c.normal = { 0.0f, 1.0f };  // bottom
-                break;
-            case 3:
-                c.normal = { -1.0f, 0.0f }; // left
-                break;
-        }
-        c.depth = a.radius;
-    } else {
-        const V2_float d{ a.center - min_point };
-        const float mag2{ d.Dot(d) };
-
-        if (NearlyEqual(mag2, 0.0f)) {
-            // Edge case where circle and aabb centers are in the same location.
-            c.normal = { 0.0f, -1.0f }; // upward
-            c.depth = a.radius;
-        } else {
-            const float mag{ std::sqrtf(mag2) };
-            c.normal = d / mag;
-            if (inside) {
-                c.normal *= -1.0f;
-                c.depth = a.radius + mag;
+            if (x_overlap < y_overlap) {
+                c.depth = a.radius + x_overlap;
+                c.normal = { 1.0f, 0.0f };
+                c.normal = c.normal * (d.x < 0 ? 1.0f : -1.0f);
             } else {
-                c.depth = a.radius - mag;
+                c.depth = a.radius + y_overlap;
+                c.normal = { 0.0f, 1.0f };
+                c.normal = c.normal * (d.y < 0 ? 1.0f : -1.0f);
             }
+        } else { // shallow (center of circle not inside of AABB)
+            const float d{ std::sqrtf(d2) };
+            c.normal = ab / d;
+            c.depth = a.radius - d;
         }
-
+        return true;
     }
-    return true;
+    return false;
 }
 
 } // namespace intersect
