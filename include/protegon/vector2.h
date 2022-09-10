@@ -124,6 +124,18 @@ struct Vector2 {
         return { std::round(x), std::round(y) };
     }
 
+    Vector2 FastAbs() const {
+        return { ptgn::FastAbs(x), ptgn::FastAbs(y) };
+    }
+
+    Vector2 FastCeil() const {
+        return { ptgn::FastCeil(x), ptgn::FastCeil(y) };
+    }
+
+    Vector2 FastFloor() const {
+        return { ptgn::FastFloor(x), ptgn::FastFloor(y) };
+    }
+
     // Returns a new vector rotated by the radian angle in the clockwise direction.
     // See https://en.wikipedia.org/wiki/Rotation_matrix for details
     template <typename U, type_traits::not_narrowing<T, U> = true>
