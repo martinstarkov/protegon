@@ -3,6 +3,7 @@
 #include "ecs/ecs.h"
 
 #include "protegon/circle.h"
+#include "protegon/collision.h"
 #include "protegon/color.h"
 #include "protegon/engine.h"
 #include "protegon/font.h"
@@ -13,7 +14,6 @@
 #include "protegon/manager.h"
 #include "protegon/math.h"
 #include "protegon/mouse.h"
-#include "protegon/overlap.h"
 #include "protegon/rectangle.h"
 #include "protegon/resources.h"
 #include "protegon/rng.h"
