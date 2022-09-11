@@ -116,7 +116,7 @@ public:
 				aabb1.Draw(acolor1);
 				circle2.Draw(acolor2);
 			} else if (option == 8) {
-				aabb2.position = mouse - aabb2.size / 2;
+				aabb2.pos = mouse - aabb2.size / 2;
 				if (overlap::RectangleRectangle(aabb1, aabb2)) {
 					acolor1 = color::RED;
 					acolor2 = color::RED;
@@ -138,9 +138,9 @@ public:
 				circle2.Draw(acolor2);
 				circle1.Draw(acolor1);
 				if (occured) {
-					Circle<float> new_circle{ circle2.center + c.normal * (c.depth + slop), circle2.radius };
+					Circle<float> new_circle{ circle2.c + c.normal * (c.depth + slop), circle2.r };
 					new_circle.Draw(color2);
-					Segment<float> l{ circle2.center, new_circle.center };
+					Segment<float> l{ circle2.c, new_circle.c };
 					l.Draw(color::GOLD);
 					if (overlap::CircleCircle(new_circle, circle1)) {
 						occured = intersect::CircleCircle(new_circle, circle1, c);
@@ -160,9 +160,9 @@ public:
 				aabb1.Draw(acolor1);
 				circle2.Draw(acolor2);
 				if (occured) {
-					Circle<float> new_circle{ circle2.center + c.normal * (c.depth + slop), circle2.radius };
+					Circle<float> new_circle{ circle2.c + c.normal * (c.depth + slop), circle2.r };
 					new_circle.Draw(color2);
-					Segment<float> l{ circle2.center, new_circle.center };
+					Segment<float> l{ circle2.c, new_circle.c };
 					l.Draw(color::GOLD);
 					if (overlap::CircleRectangle(new_circle, aabb1)) {
 						occured = intersect::CircleRectangle(new_circle, aabb1, c);
@@ -172,7 +172,7 @@ public:
 					}
 				}
 			} else if (option == 2) {
-				aabb2.position = mouse - aabb2.Half();
+				aabb2.pos = mouse - aabb2.Half();
 				//aabb2.position = aabb1.Center() - aabb2.Half();
 				bool occured{ intersect::RectangleRectangle(aabb2, aabb1, c) };
 				if (occured) {
@@ -182,7 +182,7 @@ public:
 				aabb2.Draw(acolor2);
 				aabb1.Draw(acolor1);
 				if (occured) {
-					Rectangle<float> new_aabb{ aabb2.position + c.normal * (c.depth + slop), aabb2.size };
+					Rectangle<float> new_aabb{ aabb2.pos + c.normal * (c.depth + slop), aabb2.size };
 					new_aabb.Draw(color2);
 					Segment<float> l{ aabb2.Center(), new_aabb.Center() };
 					l.Draw(color::GOLD);
@@ -195,7 +195,94 @@ public:
 				}
 			}
 		} else if (type == 2) { // dynamic
-
+			options = 1;
+			const float slop{ 0.005f };
+			dynamic::Collision c;
+			/*
+			if (option == 0) {
+				//circle2.center = circle1.center;
+				int occured{ dynamic::SegmentCircle(line2, circle1, c) };
+				if (occured) {
+					acolor1 = color::RED;
+					acolor2 = color::RED;
+				}
+				line2.Draw(acolor2);
+				circle2.Draw(acolor2);
+				circle1.Draw(acolor1);
+				if (occured) {
+					Circle<float> new_circle{ circle2.c + line2.Direction() * c.t, circle2.r };
+					new_circle.Draw(acolor2);
+				}
+			}
+			*/
+			/*
+			if (option == 0) {
+				//circle2.center = circle1.center;
+				bool occured{ dynamic::CircleCircle(circle2, circle1, c) };
+				if (occured) {
+					acolor1 = color::RED;
+					acolor2 = color::RED;
+				}
+				circle2.Draw(acolor2);
+				circle1.Draw(acolor1);
+				if (occured) {
+					Circle<float> new_circle{ circle2.c + c.normal * (c.depth + slop), circle2.r };
+					new_circle.Draw(color2);
+					Segment<float> l{ circle2.c, new_circle.c };
+					l.Draw(color::GOLD);
+					if (overlap::CircleCircle(new_circle, circle1)) {
+						occured = intersect::CircleCircle(new_circle, circle1, c);
+						bool overlap{ overlap::CircleCircle(new_circle, circle1) };
+						if (overlap) PrintLine("Slop insufficient, overlap reoccurs");
+						if (occured) PrintLine("Slop insufficient, intersect reoccurs");
+					}
+				}
+			} else if (option == 1) {
+				//circle2.center = aabb1.position;
+				//circle2.center = aabb1.Center();
+				bool occured{ intersect::CircleRectangle(circle2, aabb1, c) };
+				if (occured) {
+					acolor1 = color::RED;
+					acolor2 = color::RED;
+				}
+				aabb1.Draw(acolor1);
+				circle2.Draw(acolor2);
+				if (occured) {
+					Circle<float> new_circle{ circle2.c + c.normal * (c.depth + slop), circle2.r };
+					new_circle.Draw(color2);
+					Segment<float> l{ circle2.c, new_circle.c };
+					l.Draw(color::GOLD);
+					if (overlap::CircleRectangle(new_circle, aabb1)) {
+						occured = intersect::CircleRectangle(new_circle, aabb1, c);
+						bool overlap{ overlap::CircleRectangle(new_circle, aabb1) };
+						if (overlap) PrintLine("Slop insufficient, overlap reoccurs");
+						if (occured) PrintLine("Slop insufficient, intersect reoccurs");
+					}
+				}
+			} else if (option == 2) {
+				aabb2.pos = mouse - aabb2.Half();
+				//aabb2.position = aabb1.Center() - aabb2.Half();
+				bool occured{ intersect::RectangleRectangle(aabb2, aabb1, c) };
+				if (occured) {
+					acolor1 = color::RED;
+					acolor2 = color::RED;
+				}
+				aabb2.Draw(acolor2);
+				aabb1.Draw(acolor1);
+				if (occured) {
+					Rectangle<float> new_aabb{ aabb2.pos + c.normal * (c.depth + slop), aabb2.size };
+					new_aabb.Draw(color2);
+					Segment<float> l{ aabb2.Center(), new_aabb.Center() };
+					l.Draw(color::GOLD);
+					if (overlap::RectangleRectangle(new_aabb, aabb1)) {
+						occured = intersect::RectangleRectangle(new_aabb, aabb1, c);
+						bool overlap{ overlap::RectangleRectangle(new_aabb, aabb1) };
+						if (overlap) PrintLine("Slop insufficient, overlap reoccurs");
+						if (occured) PrintLine("Slop insufficient, intersect reoccurs");
+					}
+				}
+			}
+			*/
 		}
 	}
 };

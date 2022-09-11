@@ -49,12 +49,12 @@ void Texture::Draw(const Rectangle<int>& texture,
 	SDL_Rect* src{ NULL };
 	SDL_Rect src_rect;
 	if (!source.size.IsZero()) {
-		src_rect = { source.position.x, source.position.y,
-			         source.size.x,     source.size.y };
+		src_rect = { source.pos.x,  source.pos.y,
+			         source.size.x, source.size.y };
 		src = &src_rect;
 	}
-	SDL_Rect destination{ texture.position.x, texture.position.y,
-		                  texture.size.x,     texture.size.y };
+	SDL_Rect destination{ texture.pos.x,  texture.pos.y,
+		                  texture.size.x, texture.size.y };
 	SDL_RenderCopy(renderer, texture_.get(), src, &destination);
 }
 

@@ -17,23 +17,23 @@ void DrawSolidCircle(int x, int y, int r, const Color& color);
 
 template <typename T = float>
 struct Circle {
-	Point<T> center;
-	T radius{ 0 };
+	Point<T> c;
+	T r{ 0 };
 	template <typename U>
 	operator Circle<U>() const {
-		return { static_cast<Point<U>>(center),
-				 static_cast<U>(radius) };
+		return { static_cast<Point<U>>(c),
+				 static_cast<U>(r) };
 	}
 	void Draw(const Color& color) const {
-		impl::DrawCircle(static_cast<int>(center.x),
-						 static_cast<int>(center.y),
-						 static_cast<int>(radius),
+		impl::DrawCircle(static_cast<int>(c.x),
+						 static_cast<int>(c.y),
+						 static_cast<int>(r),
 						 color);
 	}
 	void DrawSolid(const Color& color) const {
-		impl::DrawSolidCircle(static_cast<int>(center.x),
-						      static_cast<int>(center.y),
-						      static_cast<int>(radius),
+		impl::DrawSolidCircle(static_cast<int>(c.x),
+						      static_cast<int>(c.y),
+						      static_cast<int>(r),
 						      color);
 	}
 };

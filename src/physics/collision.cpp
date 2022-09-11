@@ -16,8 +16,8 @@ float SquareDistancePointRectangle(const Point<float>& a,
     const V2_float max{ b.Max() };
     for (std::size_t i{ 0 }; i < 2; ++i) {
         const float v{ a[i] };
-        if (v < b.position[i])
-            dist2 += (b.position[i] - v) * (b.position[i] - v);
+        if (v < b.pos[i])
+            dist2 += (b.pos[i] - v) * (b.pos[i] - v);
         if (v > max[i])
             dist2 += (v - max[i]) * (v - max[i]);
     }
@@ -61,26 +61,26 @@ namespace overlap {
 
 bool RectangleRectangle(const Rectangle<float>& a,
                         const Rectangle<float>& b) {
-    if (a.position.x + a.size.x < b.position.x || a.position.x > b.position.x + b.size.x)
+    if (a.pos.x + a.size.x < b.pos.x || a.pos.x > b.pos.x + b.size.x)
         return false;
-    if (a.position.y + a.size.y < b.position.y || a.position.y > b.position.y + b.size.y)
+    if (a.pos.y + a.size.y < b.pos.y || a.pos.y > b.pos.y + b.size.y)
         return false;
     return true;
 }
 
 bool CircleCircle(const Circle<float>& a,
                   const Circle<float>& b) {
-    const V2_float dist{ a.center - b.center };
+    const V2_float dist{ a.c - b.c };
     const float dist2{ dist.Dot(dist) };
-    const float rad_sum{ a.radius + b.radius };
+    const float rad_sum{ a.r + b.r };
     const float rad_sum2{ rad_sum * rad_sum };
     return dist2 < rad_sum2 || NearlyEqual(dist2, rad_sum2);
 }
 
 bool CircleRectangle(const Circle<float>& a,
                      const Rectangle<float>& b) {
-    const float dist2{ impl::SquareDistancePointRectangle(a.center, b) };
-    const float rad2{ a.radius * a.radius };
+    const float dist2{ impl::SquareDistancePointRectangle(a.c, b) };
+    const float rad2{ a.r * a.r };
     return dist2 < rad2 || NearlyEqual(dist2, rad2);
 }
 
@@ -117,7 +117,7 @@ bool SegmentRectangle(const Segment<float>& a,
                       const Rectangle<float>& b) {
     const Vector2<float> e{ b.size };
     const Vector2<float> d{ a.Direction() };
-    const Vector2<float> m{ a.a + a.b - 2 * b.position - b.size };
+    const Vector2<float> m{ a.a + a.b - 2 * b.pos - b.size };
 
     // Try world coordinate axes as separating axes
     float adx{ FastAbs(d.x) };
@@ -152,11 +152,11 @@ bool SegmentCircle(const Segment<float>& a,
         return true;
 
     float min_dist2{ std::numeric_limits<float>::infinity() };
-    const float rad2{ b.radius * b.radius };
+    const float rad2{ b.r * b.r };
 
     // O is the circle center, P is the line origin, Q is the line destination.
-    const V2_float OP{ a.a - b.center };
-    const V2_float OQ{ a.b - b.center };
+    const V2_float OP{ a.a - b.c };
+    const V2_float OQ{ a.b - b.c };
     const V2_float PQ{ a.Direction() };
 
     const float OP_dist2{ OP.Dot(OP) };
@@ -164,7 +164,7 @@ bool SegmentCircle(const Segment<float>& a,
     const float max_dist2{ std::max(OP_dist2, OQ_dist2) };
 
     if (OP.Dot(-PQ) > 0.0f && OQ.Dot(PQ) > 0.0f) {
-        const float triangle_area{ FastAbs(impl::ParallelogramArea(b.center, a.a, a.b)) / 2.0f };
+        const float triangle_area{ FastAbs(impl::ParallelogramArea(b.c, a.a, a.b)) / 2.0f };
         min_dist2 = 4.0f * triangle_area * triangle_area / PQ.Dot(PQ);
     } else {
         min_dist2 = std::min(OP_dist2, OQ_dist2);
@@ -227,9 +227,9 @@ bool CircleCircle(const Circle<float>& a,
                   Collision& c) {
     c = {};
 
-    const V2_float d{ b.center - a.center };
+    const V2_float d{ b.c - a.c };
     const float dist2{ d.Dot(d) };
-    const float r{ a.radius + b.radius };
+    const float r{ a.r + b.r };
 
     if (dist2 > r * r)
         return false;
@@ -253,7 +253,7 @@ bool RectangleRectangle(const Rectangle<float>& a,
 
     const V2_float a_h{ a.Half() };
     const V2_float b_h{ b.Half() };
-    const V2_float d{ b.position + b_h - (a.position + a_h) };
+    const V2_float d{ b.pos + b_h - (a.pos + a_h) };
     const V2_float pen{ a_h + b_h - d.FastAbs() };
 
     if (pen.x < 0 || pen.y < 0 || NearlyEqual(pen.x, 0.0f) || NearlyEqual(pen.y, 0.0f))
@@ -280,36 +280,36 @@ bool CircleRectangle(const Circle<float>& a,
     c = {};
 
     const V2_float half{ b.Half() };
-    const V2_float clamped{ a.center.Clamped(b.position, b.position + b.size) };
-    const V2_float ab{ a.center - clamped };
+    const V2_float clamped{ a.c.Clamped(b.pos, b.pos + b.size) };
+    const V2_float ab{ a.c - clamped };
 
     const float d2{ ab.Dot(ab) };
-    const float r2{ a.radius * a.radius };
+    const float r2{ a.r * a.r };
 
     if (d2 < r2) {
         if (NearlyEqual(d2, 0.0f)) { // deep (center of circle inside of AABB)
             
             // clamp circle's center to edge of AABB, then form the manifold
-            const V2_float mid{ b.position + half };
-            const V2_float d{ mid - a.center };
+            const V2_float mid{ b.pos + half };
+            const V2_float d{ mid - a.c };
             const V2_float abs_d{ d.FastAbs() };
 
             const float x_overlap{ half.x - abs_d.x };
             const float y_overlap{ half.y - abs_d.y };
 
             if (x_overlap < y_overlap) {
-                c.depth = a.radius + x_overlap;
+                c.depth = a.r + x_overlap;
                 c.normal = { 1.0f, 0.0f };
                 c.normal = c.normal * (d.x < 0 ? 1.0f : -1.0f);
             } else {
-                c.depth = a.radius + y_overlap;
+                c.depth = a.r + y_overlap;
                 c.normal = { 0.0f, 1.0f };
                 c.normal = c.normal * (d.y < 0 ? 1.0f : -1.0f);
             }
         } else { // shallow (center of circle not inside of AABB)
             const float d{ std::sqrtf(d2) };
             c.normal = ab / d;
-            c.depth = a.radius - d;
+            c.depth = a.r - d;
         }
         return true;
     }

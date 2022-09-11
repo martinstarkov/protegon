@@ -37,11 +37,15 @@ struct Line {
 };
 
 template <typename T = float>
-struct Ray : public Line<T> {
+struct Ray {
+	Point<T> p;   // position
+	Vector2<T> d; // direction (normalized)
+	float t;      // distance along d from position p to find endpoint of ray.
 	template <typename U>
 	operator Ray<U>() const {
-		return { static_cast<Point<U>>(a),
-				 static_cast<Point<U>>(b) };
+		return { static_cast<Point<U>>(p),
+				 static_cast<Vector2<U>>(d),
+		         static_cast<U>(t) };
 	}
 };
 

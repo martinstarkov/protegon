@@ -87,7 +87,7 @@ bool Text::IsValid() const {
 }
 
 void Text::Draw(const Rectangle<int>& box) const {
-	SDL_Rect destination{ box.position.x, box.position.y, box.size.x, box.size.y };
+	SDL_Rect destination{ box.pos.x, box.pos.y, box.size.x, box.size.y };
 	auto renderer{ global::GetGame().sdl.GetRenderer() };
 	assert(renderer != nullptr && "Game instance destroyed or nonexistent?");
 	assert(texture_.IsValid() && "Text texture destroyed?");
