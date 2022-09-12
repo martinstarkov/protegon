@@ -150,6 +150,10 @@ struct Vector2 {
         return { Sign(x), Sign(y) };
     }
 
+    Vector2 Skewed() const {
+        return { -y, x };
+    }
+
     // Returns a new vector rotated by the radian angle in the clockwise direction.
     // See https://en.wikipedia.org/wiki/Rotation_matrix for details
     template <typename U, type_traits::not_narrowing<T, U> = true>
