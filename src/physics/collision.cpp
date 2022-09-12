@@ -409,7 +409,7 @@ int SegmentCapsule(Point<float> r1, Point<float> r2, Point<float> c1, Point<floa
 
     if (occured) {
         float min_t = 1.0f;
-        for (auto v : times) {
+        for (const auto v : times) {
             if (v < min_t && v >= 0.0f && v <= 1.0f)
                 min_t = v;
         }
@@ -470,10 +470,10 @@ int SegmentRectangle(Segment<float> A, Rectangle<float> B, float& t) {
     float lo = std::max(v0.x, v0.y);
     float hi = std::min(v1.x, v1.y);
 
-    if (hi >= 0 && hi >= lo && lo <= 1.0f/*A.t*/) {
-        V2_float c = (B.Min() + B.Max()) * 0.5f;
+    if (hi >= 0.0f && hi >= lo && lo <= 1.0f/*A.t*/) {
+        /*V2_float c = (B.Min() + B.Max()) * 0.5f;
         c = A.a + d * lo - c;
-        V2_float abs_c = c.FastAbs();
+        V2_float abs_c = c.FastAbs();*/
         /*if (abs_c.x > abs_c.y) 
             out->n = c2V(c2Sign(c.x), 0);
         else
@@ -510,15 +510,15 @@ int IntersectMovingCircleCircle(Segment<float> seg, float r, const Circle<float>
 
 int IntersectMovingCircleRectangle(Segment<float> seg, float r, const Rectangle<float> b, float& t) {
     // Compute the AABB resulting from expanding b by sphere radius r
-    //Rectangle<float> e = b;
-    //e.pos.x -= r;
-    //e.pos.y -= r;
-    //e.size.x += r * 2.0f;
-    //e.size.y += r * 2.0f;
-    //// Intersect ray against expanded AABB e. Exit with no intersection if ray
-    //// misses e, else get intersection point p and time t as result
-    //if (!overlap::SegmentRectangle(seg, e))
-    //    return 0;
+    Rectangle<float> e{ b };
+    e.pos -= V2_float{ r, r };
+    e.size += V2_float{ r * 2.0f, r * 2.0f };
+    // Intersect ray against expanded AABB e. Exit with no intersection if ray
+    // misses e, else get intersection point p and time t as result
+    if (!overlap::SegmentRectangle(seg, e)) {
+        t = 1.0f;
+        return 0;
+    }
     // Define line segment [c, c+d] specified by the sphere movement
     float tmin = 1.0f;
     if (SegmentCapsule(seg.a, seg.b, b.pos, { b.pos.x + b.size.x, b.pos.y }, r, t))
