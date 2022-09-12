@@ -154,6 +154,14 @@ struct Vector2 {
         return { -y, x };
     }
 
+    // Returns a unit vector (magnitude = 1) except for zero vectors (magnitude = 0).
+    Vector2 Normalized() const {
+        T m{ Dot(*this) };
+        if (NearlyEqual(m, static_cast<T>(0)))
+            return *this;
+        return *this / std::sqrtf(m);
+    }
+
     // Returns a new vector rotated by the radian angle in the clockwise direction.
     // See https://en.wikipedia.org/wiki/Rotation_matrix for details
     template <typename U, type_traits::not_narrowing<T, U> = true>
