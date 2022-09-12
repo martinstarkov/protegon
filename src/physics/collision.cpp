@@ -6,6 +6,9 @@
 
 #include "protegon/math.h"
 
+// TODO: TEMP
+#include "protegon/log.h"
+
 namespace ptgn {
 
 namespace impl {
@@ -320,8 +323,9 @@ bool CircleRectangle(const Circle<float>& a,
 
 namespace dynamic {
 
-bool SegmentCircle(Point<float> p, Point<float> pe, Point<float> cc, float r, float& t1, float& t2) {
-    t1 = t2 = 1.0f;
+bool SegmentCircle(Point<float> p, Point<float> pe, Point<float> cc, float r, Collision& c1, Collision& c2) {
+    c1.t = c2.t = 1.0f;
+    c1.normal = c2.normal = {};
     /*Point<float> d = pe - p;
     Point<float> f = p - cc;*/
 
@@ -337,8 +341,16 @@ bool SegmentCircle(Point<float> p, Point<float> pe, Point<float> cc, float r, fl
         return false;
     }
     float discRoot = std::sqrtf(disc);
-    t1 = (-b - discRoot) / (2.0f * a);
-    t2 = (-b + discRoot) / (2.0f * a);
+    c1.t = (-b - discRoot) / (2.0f * a);
+    c2.t = (-b + discRoot) / (2.0f * a);
+
+    V2_float impact1 = cc + d * c1.t - p;
+    V2_float impact2 = cc + d * c2.t - p;
+    assert(!NearlyEqual(impact1.Dot(impact1), 0.0f));
+    assert(!NearlyEqual(impact2.Dot(impact2), 0.0f));
+    c1.normal = -impact1.Normalized();
+    c2.normal = -impact2.Normalized();
+
     return true;
 }
 
@@ -347,7 +359,7 @@ int SegmentSegment(Point<float> sa,
                    Point<float> sb,
                    Point<float> pa,
                    Point<float> pb,
-                   float& time) {
+                   Collision& col) {
     Point<float> p = sa;
     Point<float> pe = sb;
     Point<float> q = pa;
@@ -368,25 +380,33 @@ int SegmentSegment(Point<float> sa,
     Point<float> qp = q - p;
     float rs = r.Cross(s);
     float qps = qp.Cross(s);
-    time = qps / rs;
+    col.t = qps / rs;
+    assert(!NearlyEqual(r.Dot(r), 0.0f));
+
+    //V2_double normal = // (sa + r * col.t).Unit();
+
+    col.normal = -s.Skewed().Normalized();
     return true;
 }
 
-int SegmentCapsule(Point<float> r1, Point<float> r2, Point<float> c1, Point<float> c2, float r, float& time) {
+int SegmentCapsule(Point<float> r1, Point<float> r2, Point<float> c1, Point<float> c2, float r, Collision& col) {
     Point<float> cv = c2 - c1;
     float mag2 = cv.Dot(cv);
     if (NearlyEqual(mag2, 0.0f)) {
-        float t1{ 1.0f };
-        float t2{ 1.0f };
-        int occured = SegmentCircle(r1, r2, c1, r, t1, t2);
-        bool w1{ t1 >= 0.0f && t1 <= 1.0f };
-        bool w2{ t2 >= 0.0f && t2 <= 1.0f };
+        Collision col1;
+        Collision col2;
+        int occured = SegmentCircle(r1, r2, c1, r, col1, col2);
+        bool w1{ col1.t >= 0.0f && col1.t <= 1.0f };
+        bool w2{ col2.t >= 0.0f && col2.t <= 1.0f };
         if (w1 && w2) {
-            time = std::min(t1, t2);
+            if (col1.t < col2.t)
+                col = col1;
+            else
+                col = col2;
         } else if (w1) {
-            time = t1;
+            col = col1;
         } else if (w2) {
-            time = t2;
+            col = col2;
         }
         return occured;
     }
@@ -399,7 +419,7 @@ int SegmentCapsule(Point<float> r1, Point<float> r2, Point<float> c1, Point<floa
     Point<float> p3 = c1 + ncu * -r;
     Point<float> p4 = c2 + ncu * -r;
 
-    std::array<float, 6> times;
+    std::array<Collision, 6> times;
     bool first = SegmentSegment(r1, r2, p1, p2, times[0]);
     bool second = SegmentSegment(r1, r2, p3, p4, times[1]);
     bool third = SegmentCircle(r1, r2, c1, r, times[2], times[3]);
@@ -408,59 +428,21 @@ int SegmentCapsule(Point<float> r1, Point<float> r2, Point<float> c1, Point<floa
     bool occured = first || second || third || fourth;
 
     if (occured) {
-        float min_t = 1.0f;
+        Collision min_col;
         for (const auto v : times) {
-            if (v < min_t && v >= 0.0f && v <= 1.0f)
-                min_t = v;
+            if (v.t < min_col.t && v.t >= 0.0f && v.t <= 1.0f)
+                min_col = v;
         }
-        time = min_t;
+        col = min_col;
         return true;
     } else {
-        time = 1.0f;
+        col = {};
         return false;
     }
 }
 
-
-// Support function that returns the AABB vertex with index n
-Point<float> Corner(Rectangle<float> b, int n) {
-    Point<float> p;
-    p.x = ((n & 1) ? b.Max().x : b.Min().x);
-    p.y = ((n & 1) ? b.Max().y : b.Min().y);
-    return p;
-}
-
-// Intersect ray R(t) = p + t*d against AABB a. When intersecting,
-// return intersection distance tmin and point q of intersection
-int IntersectRayAABB(Point<float> p, Vector2<float> d, Rectangle<float> a, float& tmin, Point<float>& q) {
-    tmin = 0.0f; // set to -FLT_MAX to get first hit on line
-    float tmax = 1.0f; // set to max distance ray can travel (for segment)
-    // For all three slabs
-    for (int i = 0; i < 2; i++) {
-        if (FastAbs(d[i]) < epsilon<float>) {
-            // Ray is parallel to slab. No hit if origin not within slab
-            if (p[i] < a.Min()[i] || p[i] > a.Max()[i]) return 0;
-        } else {
-            // Compute intersection t value of ray with near and far plane of slab
-            float ood = 1.0f / d[i];
-            float t1 = (a.Min()[i] - p[i]) * ood;
-            float t2 = (a.Max()[i] - p[i]) * ood;
-            // Make t1 be intersection with near plane, t2 with far plane
-            if (t1 > t2) std::swap(t1, t2);
-            // Compute the intersection of slab intersection intervals
-            if (t1 > tmin) tmin = t1;
-            if (t2 > tmax) tmax = t2;
-            // Exit with no collision as soon as slab intersection becomes empty
-            if (tmin > tmax) return 0;
-        }
-    }
-    // Ray intersects all 3 slabs. Return point (q) and intersection t value (tmin)
-    q = p + d * tmin;
-    return 1;
-}
-
-int SegmentRectangle(Segment<float> A, Rectangle<float> B, float& t) {
-    t = 1.0f;
+int SegmentRectangle(Segment<float> A, Rectangle<float> B, Collision& col) {
+    col = {};
     V2_float d{ A.Direction() };
     V2_float inv = { 1.0f / d.x, 1.0f / d.y };
     V2_float d0 = (B.Min() - A.a) * inv;
@@ -471,44 +453,47 @@ int SegmentRectangle(Segment<float> A, Rectangle<float> B, float& t) {
     float hi = std::min(v1.x, v1.y);
 
     if (hi >= 0.0f && hi >= lo && lo <= 1.0f/*A.t*/) {
-        /*V2_float c = (B.Min() + B.Max()) * 0.5f;
+        V2_float c = (B.Min() + B.Max()) * 0.5f;
         c = A.a + d * lo - c;
-        V2_float abs_c = c.FastAbs();*/
-        /*if (abs_c.x > abs_c.y) 
-            out->n = c2V(c2Sign(c.x), 0);
+        V2_float abs_c = c.FastAbs();
+        if (abs_c.x > abs_c.y) 
+            col.normal = { Sign(c.x), 0.0f };
         else
-            out->n = c2V(0, c2Sign(c.y));*/
-        t = lo;
+            col.normal = { 0.0f, Sign(c.y) };
+        col.t = lo;
         return 1;
     }
     return 0;
 }
 
-int IntersectMovingRectangleRectangle(Segment<float> seg, V2_float size, const Rectangle<float> b, float& t) {
+int IntersectMovingRectangleRectangle(Segment<float> seg, V2_float size, const Rectangle<float> b, Collision& col) {
     Rectangle<float> e = b;
     e.pos -= size / 2.0f;
     e.size += size;
-    bool occured = SegmentRectangle(seg, e, t);
+    bool occured = SegmentRectangle(seg, e, col);
     return occured;
 }
 
-int IntersectMovingCircleCircle(Segment<float> seg, float r, const Circle<float> b, float& t) {
-    float t1{ 1.0f };
-    float t2{ 1.0f };
-    int occured = SegmentCircle(seg.a, seg.b, b.c, b.r + r, t1, t2);
-    bool w1{ t1 >= 0.0f && t1 <= 1.0f };
-    bool w2{ t2 >= 0.0f && t2 <= 1.0f };
+int IntersectMovingCircleCircle(Segment<float> seg, float r, const Circle<float> b, Collision& col) {
+    Collision col1;
+    Collision col2;
+    int occured = SegmentCircle(seg.a, seg.b, b.c, b.r + r, col1, col2);
+    bool w1{ col1.t >= 0.0f && col1.t <= 1.0f };
+    bool w2{ col2.t >= 0.0f && col2.t <= 1.0f };
     if (w1 && w2) {
-        t = std::min(t1, t2);
+        if (col1.t < col2.t)
+            col = col1;
+        else
+            col = col2;
     } else if (w1) {
-        t = t1;
+        col = col1;
     } else if (w2) {
-        t = t2;
+        col = col2;
     }
     return occured;
 }
 
-int IntersectMovingCircleRectangle(Segment<float> seg, float r, const Rectangle<float> b, float& t) {
+int IntersectMovingCircleRectangle(Segment<float> seg, float r, const Rectangle<float> b, Collision& col) {
     // Compute the AABB resulting from expanding b by sphere radius r
     Rectangle<float> e{ b };
     e.pos -= V2_float{ r, r };
@@ -516,22 +501,26 @@ int IntersectMovingCircleRectangle(Segment<float> seg, float r, const Rectangle<
     // Intersect ray against expanded AABB e. Exit with no intersection if ray
     // misses e, else get intersection point p and time t as result
     if (!overlap::SegmentRectangle(seg, e)) {
-        t = 1.0f;
+        col = {};
         return 0;
     }
     // Define line segment [c, c+d] specified by the sphere movement
-    float tmin = 1.0f;
-    if (SegmentCapsule(seg.a, seg.b, b.pos, { b.pos.x + b.size.x, b.pos.y }, r, t))
-        tmin = std::min(t, tmin);
-    if (SegmentCapsule(seg.a, seg.b, { b.pos.x + b.size.x, b.pos.y }, b.pos + b.size, r, t))
-        tmin = std::min(t, tmin);
-    if (SegmentCapsule(seg.a, seg.b, b.pos + b.size, { b.pos.x, b.pos.y + b.size.y }, r, t))
-        tmin = std::min(t, tmin);
-    if (SegmentCapsule(seg.a, seg.b, { b.pos.x, b.pos.y + b.size.y }, b.pos, r, t))
-        tmin = std::min(t, tmin);
-    t = tmin;
-    if (tmin == 1.0f) {
-        t = 1.0f;
+    Collision col_min = col;
+    if (SegmentCapsule(seg.a, seg.b, b.pos, { b.pos.x + b.size.x, b.pos.y }, r, col))
+        if (col.t < col_min.t)
+            col_min = col;
+    if (SegmentCapsule(seg.a, seg.b, { b.pos.x + b.size.x, b.pos.y }, b.pos + b.size, r, col))
+        if (col.t < col_min.t)
+            col_min = col;
+    if (SegmentCapsule(seg.a, seg.b, b.pos + b.size, { b.pos.x, b.pos.y + b.size.y }, r, col))
+        if (col.t < col_min.t)
+            col_min = col;
+    if (SegmentCapsule(seg.a, seg.b, { b.pos.x, b.pos.y + b.size.y }, b.pos, r, col))
+        if (col.t < col_min.t)
+            col_min = col;
+    col = col_min;
+    if (col_min.t == 1.0f) {
+        col = {};
         return 0; // No intersection
     }
     return 1; // Intersection at time t == tmin

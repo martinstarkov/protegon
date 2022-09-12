@@ -94,13 +94,13 @@ bool CircleRectangle(const Circle<float>& a,
 namespace dynamic {
 
 struct Collision {
-	float t{ 0.0f };       // time of impact.
+	float t{ 1.0f };       // time of impact.
 	Vector2<float> normal; // normal of impact (normalised).
 };
 
-int IntersectMovingCircleRectangle(Segment<float> seg, float r, const Rectangle<float> b, float& t);
-int IntersectMovingCircleCircle(Segment<float> seg, float r, const Circle<float> b, float& t);
-int IntersectMovingRectangleRectangle(Segment<float> seg, V2_float size, const Rectangle<float> b, float& t);
+int IntersectMovingCircleRectangle(Segment<float> seg, float r, const Rectangle<float> b, Collision& col);
+int IntersectMovingCircleCircle(Segment<float> seg, float r, const Circle<float> b, Collision& col);
+int IntersectMovingRectangleRectangle(Segment<float> seg, V2_float size, const Rectangle<float> b, Collision& col);
 
 /*
 namespace impl {

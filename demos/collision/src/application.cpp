@@ -207,9 +207,11 @@ public:
 				Circle<float> potential{ circle2.c + d, circle2.r };
 				potential.Draw(color::GREY);
 				line2.Draw(color::GREY);
-				int occured{ dynamic::IntersectMovingCircleRectangle(line2, circle2.r, aabb1, t) };
+				int occured{ dynamic::IntersectMovingCircleRectangle(line2, circle2.r, aabb1, c) };
 				if (occured) {
-					Circle<float> swept{ circle2.c + d * t, circle2.r };
+					Circle<float> swept{ circle2.c + d * c.t, circle2.r };
+					Segment<float> normal{ swept.c, swept.c + 50 * c.normal };
+					normal.Draw(color::ORANGE);
 					swept.Draw(color::GREEN);
 					acolor1 = color::RED;
 					acolor2 = color::RED;
@@ -225,9 +227,11 @@ public:
 				Circle<float> potential{ circle2.c + d, circle2.r };
 				potential.Draw(color::GREY);
 				line2.Draw(color::GREY);
-				int occured{ dynamic::IntersectMovingCircleCircle(line2, circle2.r, circle1, t) };
+				int occured{ dynamic::IntersectMovingCircleCircle(line2, circle2.r, circle1, c) };
 				if (occured) {
-					Circle<float> swept{ circle2.c + d * t, circle2.r };
+					Circle<float> swept{ circle2.c + d * c.t, circle2.r };
+					Segment<float> normal{ swept.c, swept.c + 50 * c.normal };
+					normal.Draw(color::ORANGE);
 					swept.Draw(color::GREEN);
 					acolor1 = color::RED;
 					acolor2 = color::RED;
@@ -243,9 +247,11 @@ public:
 				Rectangle<float> potential{ aabb2.pos + d, aabb2.size };
 				potential.Draw(color::GREY);
 				line2.Draw(color::GREY);
-				int occured{ dynamic::IntersectMovingRectangleRectangle(line2, aabb2.size, aabb1, t) };
+				int occured{ dynamic::IntersectMovingRectangleRectangle(line2, aabb2.size, aabb1, c) };
 				if (occured) {
-					Rectangle<float> swept{ aabb2.pos + d * t, aabb2.size };
+					Rectangle<float> swept{ aabb2.pos + d * c.t, aabb2.size };
+					Segment<float> normal{ swept.Center(), swept.Center() + 50 * c.normal };
+					normal.Draw(color::ORANGE);
 					swept.Draw(color::GREEN);
 					acolor1 = color::RED;
 					acolor2 = color::RED;
