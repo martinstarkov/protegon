@@ -11,7 +11,7 @@ public:
 	V2_float position4{ 200, 300 };
 
 	V2_float size1{ 60, 60 };
-	V2_float size2{ 200, 200 };
+	V2_float size2{ 30, 30 };
 
 	float radius1{ 30 };
 	float radius2{ 20 };
@@ -22,7 +22,7 @@ public:
 	int options{ 9 };
 	int option{ 0 };
 
-	int type{ 0 };
+	int type{ 2 };
 	int types{ 3 };
 
 	virtual void Update(float dt) {
@@ -195,9 +195,65 @@ public:
 				}
 			}
 		} else if (type == 2) { // dynamic
-			options = 1;
+			options = 3;
 			const float slop{ 0.005f };
 			dynamic::Collision c;
+			if (option == 0) {
+				circle2.c = position4;
+				V2_float d{ mouse - circle2.c };
+				line2.a = circle2.c;
+				line2.b = mouse;
+				float t{ 1.0f };
+				Circle<float> potential{ circle2.c + d, circle2.r };
+				potential.Draw(color::GREY);
+				line2.Draw(color::GREY);
+				int occured{ dynamic::IntersectMovingCircleRectangle(line2, circle2.r, aabb1, t) };
+				if (occured) {
+					Circle<float> swept{ circle2.c + d * t, circle2.r };
+					swept.Draw(color::GREEN);
+					acolor1 = color::RED;
+					acolor2 = color::RED;
+				}
+				circle2.Draw(acolor1);
+				aabb1.Draw(acolor1);
+			} else if (option == 1) {
+				circle2.c = position4;
+				V2_float d{ mouse - circle2.c };
+				line2.a = circle2.c;
+				line2.b = mouse;
+				float t{ 1.0f };
+				Circle<float> potential{ circle2.c + d, circle2.r };
+				potential.Draw(color::GREY);
+				line2.Draw(color::GREY);
+				int occured{ dynamic::IntersectMovingCircleCircle(line2, circle2.r, circle1, t) };
+				if (occured) {
+					Circle<float> swept{ circle2.c + d * t, circle2.r };
+					swept.Draw(color::GREEN);
+					acolor1 = color::RED;
+					acolor2 = color::RED;
+				}
+				circle2.Draw(acolor1);
+				circle1.Draw(acolor1);
+			} else if (option == 2) {
+				aabb2.pos = position4 - aabb2.size / 2;
+				V2_float d{ mouse - aabb2.size / 2 - aabb2.pos };
+				line2.a = aabb2.pos + aabb2.size / 2;
+				line2.b = mouse;
+				float t{ 1.0f };
+				Rectangle<float> potential{ aabb2.pos + d, aabb2.size };
+				potential.Draw(color::GREY);
+				line2.Draw(color::GREY);
+				int occured{ dynamic::IntersectMovingRectangleRectangle(line2, aabb2.size, aabb1, t) };
+				if (occured) {
+					Rectangle<float> swept{ aabb2.pos + d * t, aabb2.size };
+					swept.Draw(color::GREEN);
+					acolor1 = color::RED;
+					acolor2 = color::RED;
+				}
+				aabb2.Draw(acolor1);
+				aabb1.Draw(acolor1);
+			}
+
 			/*
 			if (option == 0) {
 				//circle2.center = circle1.center;
