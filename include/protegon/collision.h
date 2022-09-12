@@ -98,6 +98,10 @@ struct Collision {
 	Vector2<float> normal; // normal of impact (normalised).
 };
 
+int IntersectMovingCircleRectangle(Segment<float> seg, float r, const Rectangle<float> b, float& t);
+int IntersectMovingCircleCircle(Segment<float> seg, float r, const Circle<float> b, float& t);
+int IntersectMovingRectangleRectangle(Segment<float> seg, V2_float size, const Rectangle<float> b, float& t);
+
 /*
 namespace impl {
 
