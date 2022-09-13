@@ -323,43 +323,13 @@ bool CircleRectangle(const Circle<float>& a,
 
 namespace dynamic {
 
-bool SegmentCircle(Point<float> p, Point<float> pe, Point<float> cc, float r, Collision& c1, Collision& c2) {
-    c1.t = c2.t = 1.0f;
-    c1.normal = c2.normal = {};
-    /*Point<float> d = pe - p;
-    Point<float> f = p - cc;*/
-
-    Point<float> d = p - pe;
-    Point<float> f = cc - p;
-
-    float a = d.Dot(d);
-    float b = 2.0f * f.Dot(d);
-    float c = f.Dot(f) - r * r;
-
-    float disc = b * b - 4.0f * a * c;
-    if (disc < 0.0f) {
-        return false;
-    }
-    float discRoot = std::sqrtf(disc);
-    c1.t = (-b - discRoot) / (2.0f * a);
-    c2.t = (-b + discRoot) / (2.0f * a);
-
-    V2_float impact1 = cc + d * c1.t - p;
-    V2_float impact2 = cc + d * c2.t - p;
-    assert(!NearlyEqual(impact1.Dot(impact1), 0.0f));
-    assert(!NearlyEqual(impact2.Dot(impact2), 0.0f));
-    c1.normal = -impact1.Normalized();
-    c2.normal = -impact2.Normalized();
-
-    return true;
-}
-
 // Intersect segment S(t)=sa+t(sb-sa), 0<=t<=1 against cylinder specified by p, q and r
 int SegmentSegment(Point<float> sa,
                    Point<float> sb,
                    Point<float> pa,
                    Point<float> pb,
                    Collision& col) {
+    col = {};
     Point<float> p = sa;
     Point<float> pe = sb;
     Point<float> q = pa;
@@ -389,27 +359,101 @@ int SegmentSegment(Point<float> sa,
     return true;
 }
 
+bool SegmentCircle(Point<float> p, Point<float> pe, Point<float> cc, float r, Collision& col) {
+    col = {};
+
+    Point<float> d = p - pe;
+    Point<float> f = cc - p;
+
+    float a = d.Dot(d);
+    float b = 2.0f * f.Dot(d);
+    float c = f.Dot(f) - r * r;
+
+    float disc = b * b - 4.0f * a * c;
+
+    if (disc < 0.0f) {
+        return false;
+    }
+
+    float discRoot = std::sqrtf(disc);
+
+    float t1 = (-b - discRoot) / (2.0f * a);
+    float t2 = (-b + discRoot) / (2.0f * a);
+
+    bool w1{ t1 >= 0.0f && t1 <= 1.0f };
+    bool w2{ t2 >= 0.0f && t2 <= 1.0f };
+
+    if (w1 && w2) {
+        if (t1 < t2) {
+            col.t = t1;
+        } else {
+            col.t = t2;
+        }
+    } else if (w1) {
+        col.t = t1;
+    } else if (w2) {
+        col.t = t2;
+    } else {
+        return false;
+    }
+
+    V2_float impact = cc + d * col.t - p;
+    assert(!NearlyEqual(impact.Dot(impact), 0.0f));
+    col.normal = -impact.Normalized();
+    
+    return true;
+}
+
+int SegmentRectangle(Segment<float> A, Rectangle<float> B, Collision& col) {
+    col = {};
+    V2_float d{ A.Direction() };
+    V2_float inv = { 1.0f / d.x, 1.0f / d.y };
+    V2_float d0 = (B.Min() - A.a) * inv;
+    V2_float d1 = (B.Max() - A.a) * inv;
+    V2_float v0 = { std::min(d0.x, d1.x), std::min(d0.y, d1.y) };
+    V2_float v1 = { std::max(d0.x, d1.x), std::max(d0.y, d1.y) };
+    float lo = std::max(v0.x, v0.y);
+    float hi = std::min(v1.x, v1.y);
+
+    if (hi >= 0.0f && hi >= lo && lo <= 1.0f/*A.t*/) {
+
+        bool w1{ hi >= 0.0f && hi <= 1.0f };
+        bool w2{ lo >= 0.0f && lo <= 1.0f };
+
+        if (w1 && w2) {
+            if (hi < lo) {
+                col.t = hi;
+            } else {
+                col.t = lo;
+            }
+        } else if (w1) {
+            col.t = hi;
+        } else if (w2) {
+            col.t = lo;
+        } else {
+            return false;
+        }
+
+        V2_float c = (B.Min() + B.Max()) * 0.5f;
+        c = A.a + d * col.t - c;
+        V2_float abs_c = c.FastAbs();
+        if (abs_c.x > abs_c.y)
+            col.normal = { Sign(c.x), 0.0f };
+        else
+            col.normal = { 0.0f, Sign(c.y) };
+        return 1;
+    }
+    return 0;
+}
+
 int SegmentCapsule(Point<float> r1, Point<float> r2, Point<float> c1, Point<float> c2, float r, Collision& col) {
     Point<float> cv = c2 - c1;
     float mag2 = cv.Dot(cv);
+    
     if (NearlyEqual(mag2, 0.0f)) {
-        Collision col1;
-        Collision col2;
-        int occured = SegmentCircle(r1, r2, c1, r, col1, col2);
-        bool w1{ col1.t >= 0.0f && col1.t <= 1.0f };
-        bool w2{ col2.t >= 0.0f && col2.t <= 1.0f };
-        if (w1 && w2) {
-            if (col1.t < col2.t)
-                col = col1;
-            else
-                col = col2;
-        } else if (w1) {
-            col = col1;
-        } else if (w2) {
-            col = col2;
-        }
-        return occured;
+        return SegmentCircle(r1, r2, c1, r, col);
     }
+
     float mag = std::sqrtf(mag2);
     V2_float cu = cv / mag;
     V2_float ncu = cu.Skewed();
@@ -419,11 +463,11 @@ int SegmentCapsule(Point<float> r1, Point<float> r2, Point<float> c1, Point<floa
     Point<float> p3 = c1 + ncu * -r;
     Point<float> p4 = c2 + ncu * -r;
 
-    std::array<Collision, 6> times;
+    std::array<Collision, 4> times;
     bool first = SegmentSegment(r1, r2, p1, p2, times[0]);
     bool second = SegmentSegment(r1, r2, p3, p4, times[1]);
-    bool third = SegmentCircle(r1, r2, c1, r, times[2], times[3]);
-    bool fourth = SegmentCircle(r1, r2, c2, r, times[4], times[5]);
+    bool third = SegmentCircle(r1, r2, c1, r, times[2]);
+    bool fourth = SegmentCircle(r1, r2, c2, r, times[3]);
 
     bool occured = first || second || third || fourth;
 
@@ -441,56 +485,8 @@ int SegmentCapsule(Point<float> r1, Point<float> r2, Point<float> c1, Point<floa
     }
 }
 
-int SegmentRectangle(Segment<float> A, Rectangle<float> B, Collision& col) {
-    col = {};
-    V2_float d{ A.Direction() };
-    V2_float inv = { 1.0f / d.x, 1.0f / d.y };
-    V2_float d0 = (B.Min() - A.a) * inv;
-    V2_float d1 = (B.Max() - A.a) * inv;
-    V2_float v0 = { std::min(d0.x, d1.x), std::min(d0.y, d1.y) };
-    V2_float v1 = { std::max(d0.x, d1.x), std::max(d0.y, d1.y) };
-    float lo = std::max(v0.x, v0.y);
-    float hi = std::min(v1.x, v1.y);
-
-    if (hi >= 0.0f && hi >= lo && lo <= 1.0f/*A.t*/) {
-        V2_float c = (B.Min() + B.Max()) * 0.5f;
-        c = A.a + d * lo - c;
-        V2_float abs_c = c.FastAbs();
-        if (abs_c.x > abs_c.y) 
-            col.normal = { Sign(c.x), 0.0f };
-        else
-            col.normal = { 0.0f, Sign(c.y) };
-        col.t = lo;
-        return 1;
-    }
-    return 0;
-}
-
-int IntersectMovingRectangleRectangle(Segment<float> seg, V2_float size, const Rectangle<float> b, Collision& col) {
-    Rectangle<float> e = b;
-    e.pos -= size / 2.0f;
-    e.size += size;
-    bool occured = SegmentRectangle(seg, e, col);
-    return occured;
-}
-
 int IntersectMovingCircleCircle(Segment<float> seg, float r, const Circle<float> b, Collision& col) {
-    Collision col1;
-    Collision col2;
-    int occured = SegmentCircle(seg.a, seg.b, b.c, b.r + r, col1, col2);
-    bool w1{ col1.t >= 0.0f && col1.t <= 1.0f };
-    bool w2{ col2.t >= 0.0f && col2.t <= 1.0f };
-    if (w1 && w2) {
-        if (col1.t < col2.t)
-            col = col1;
-        else
-            col = col2;
-    } else if (w1) {
-        col = col1;
-    } else if (w2) {
-        col = col2;
-    }
-    return occured;
+    return SegmentCircle(seg.a, seg.b, b.c, b.r + r, col);
 }
 
 int IntersectMovingCircleRectangle(Segment<float> seg, float r, const Rectangle<float> b, Collision& col) {
@@ -524,6 +520,10 @@ int IntersectMovingCircleRectangle(Segment<float> seg, float r, const Rectangle<
         return 0; // No intersection
     }
     return 1; // Intersection at time t == tmin
+}
+
+int IntersectMovingRectangleRectangle(Segment<float> seg, V2_float size, const Rectangle<float> b, Collision& col) {
+    return SegmentRectangle(seg, { b.pos - size / 2.0f, b.size + size }, col);
 }
 
 } // namespace dynamic
