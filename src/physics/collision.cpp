@@ -33,33 +33,6 @@ float ParallelogramArea(const Point<float>& a,
     return (a - c).Cross(b - c);
 }
 
-/*
-void ClosestPointSegment(const Point<float>& a,
-                         const Segment<float>& b,
-                         float& out_t,
-                         Point<float>& out_d) {
-    const V2_float ab{ b.Direction() };
-    // Project A onto ab, but deferring divide by Dot(ab, ab)
-    out_t = (a - b.a).Dot(ab);
-    if (out_t <= 0.0f) {
-        // A projects outside the [B.a,B.b] interval, on the B.a side; clamp to B.a
-        out_t = 0.0f;
-        out_d = b.a;
-    } else {
-        const float denom{ ab.Dot(ab) }; // Always nonnegative since denom = ||ab||^2
-        if (out_t >= denom) {
-            // A projects outside the [B.a,B.b] interval, on the B.b side; clamp to B.b
-            out_t = 1.0f;
-            out_d = b.b;
-        } else {
-            // A projects inside the [B.a,B.b] interval; must do deferred divide now
-            out_t = out_t / denom;
-            out_d = b.a + out_t * ab;
-        }
-    }
-}
-*/
-
 } // namespace impl
 
 namespace overlap {
