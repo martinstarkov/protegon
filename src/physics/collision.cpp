@@ -335,36 +335,45 @@ bool SegmentSegment(const Segment<float>& a,
     return true;
 }
 
-// Source: https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm/1084899#1084899
-bool SegmentCircle(const Segment<float>& seg,
-                   const Circle<float>& circle,
-                   Collision& col) {
-    col = {};
+bool SegmentCircle(const Segment<float>& a,
+                   const Circle<float>& b,
+                   Collision& c) {
+    c = {};
 
-    Point<float> d{ -seg.Direction() };
-    Point<float> f{ circle.c - seg.a };
+    const Point<float> d{ -a.Direction() };
+    const Point<float> f{ b.c - a.a };
 
-    auto [real, t1, t2] = QuadraticFormula(d.Dot(d),
-                                           2.0f * f.Dot(d),
-                                           f.Dot(f) - circle.r * circle.r);
+    // bool (roots exist), float (root 1), float (root 2).
+    const auto [real, t1, t2] = QuadraticFormula(d.Dot(d),
+                                                 2.0f * f.Dot(d),
+                                                 f.Dot(f) - b.r * b.r);
 
-    if (!real) return false;
+    if (!real)
+        return false;
 
     bool w1{ t1 >= 0.0f && t1 <= 1.0f };
     bool w2{ t2 >= 0.0f && t2 <= 1.0f };
 
+    // Pick the lowest collision time that is in the [0, 1] range.
     if (w1 && w2)
-        col.t = std::min(t1, t2);
+        c.t = std::min(t1, t2);
     else if (w1)
-        col.t = t1;
+        c.t = t1;
     else if (w2)
-        col.t = t2;
+        c.t = t2;
     else
         return false;
 
-    V2_float impact{ circle.c + d * col.t - seg.a };
-    assert(!NearlyEqual(impact.Dot(impact), 0.0f));
-    col.normal = -impact.Normalized();
+    const V2_float impact{ b.c + d * c.t - a.a };
+
+    const float mag2{ impact.Dot(impact) };
+
+    if (NearlyEqual(mag2, 0.0f)) {
+        c = {};
+        return false;
+    }
+
+    c.normal = -impact / std::sqrtf(mag2);
     
     return true;
 }
@@ -374,17 +383,26 @@ bool SegmentRectangle(const Segment<float>& a,
                       Collision& c) {
     c = {};
 
-    V2_float d{ a.Direction() };
-    V2_float inv{ 1.0f / d.x, 1.0f / d.y };
-    V2_float d0{ (b.Min() - a.a) * inv };
-    V2_float d1{ (b.Max() - a.a) * inv };
-    V2_float v0{ std::min(d0.x, d1.x), std::min(d0.y, d1.y) };
-    V2_float v1{ std::max(d0.x, d1.x), std::max(d0.y, d1.y) };
-    float lo{ std::max(v0.x, v0.y) };
-    float hi{ std::min(v1.x, v1.y) };
+    const V2_float d{ a.Direction() };
 
-    if (hi >= 0.0f && hi >= lo && lo <= 1.0f/*A.t*/) {
+    if (NearlyEqual(d.Dot(d), 0.0f))
+        return false;
+    
+    const V2_float inv{ 1.0f / d.x, 1.0f / d.y };
+    const V2_float b_max{ b.Max() };
+    const V2_float d0{ (b.Min() - a.a) * inv };
+    const V2_float d1{ (b_max - a.a) * inv };
+    const V2_float v0{ std::min(d0.x, d1.x), std::min(d0.y, d1.y) };
+    const V2_float v1{ std::max(d0.x, d1.x), std::max(d0.y, d1.y) };
 
+    const float lo{ std::max(v0.x, v0.y) };
+    const float hi{ std::min(v1.x, v1.y) };
+
+    if (hi >= 0.0f &&
+        hi >= lo &&
+        lo <= 1.0f) {
+
+        // Pick the lowest collision time that is in the [0, 1] range.
         bool w1{ hi >= 0.0f && hi <= 1.0f };
         bool w2{ lo >= 0.0f && lo <= 1.0f };
 
@@ -397,12 +415,14 @@ bool SegmentRectangle(const Segment<float>& a,
         else
             return false;
 
-        V2_float coeff{ a.a + d * c.t - (b.Min() + b.Max()) * 0.5f };
-        V2_float abs_coeff{ coeff.FastAbs() };
+        const V2_float coeff{ a.a + d * c.t - (b.Min() + b_max) * 0.5f };
+        const V2_float abs_coeff{ coeff.FastAbs() };
+
         if (abs_coeff.x > abs_coeff.y)
             c.normal = { Sign(coeff.x), 0.0f };
         else
             c.normal = { 0.0f, Sign(coeff.y) };
+
         return true;
     }
     return false;

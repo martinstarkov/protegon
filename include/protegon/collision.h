@@ -104,6 +104,15 @@ bool SegmentSegment(const Segment<float>& a,
                     const Segment<float>& b,
                     Collision& c);
 
+// Source: https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm/1084899#1084899
+bool SegmentCircle(const Segment<float>& a,
+                   const Circle<float>& b,
+                   Collision& c);
+
+bool SegmentRectangle(const Segment<float>& a,
+                      const Rectangle<float>& b,
+                      Collision& c);
+
 bool CircleRectangle(const Segment<float>& seg, float r, const Rectangle<float>& b, Collision& col);
 bool CircleCircle(const Segment<float>& seg, float r, const Circle<float>& b, Collision& col);
 bool RectangleRectangle(const Segment<float>& seg, const V2_float& size, const Rectangle<float>& b, Collision& col);
