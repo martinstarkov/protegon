@@ -124,19 +124,20 @@ bool NearlyEqual(T a, T b,
 // (equal if repeated), false and roots of 0 if imaginary.
 template <typename T, type_traits::floating_point<T> = true>
 std::tuple<bool, T, T> QuadraticFormula(T a, T b, T c) {
-    const T discr{ b * b - 4.0f * a * c };
-    if (discr < 0.0f) {
+    const T disc{ b * b - 4.0f * a * c };
+    if (disc < 0.0f) {
         // Imaginary roots.
         return { false, 0.0f, 0.0f };
-    } else if (NearlyEqual(discr, static_cast<T>(0))) {
+    } else if (NearlyEqual(disc, static_cast<T>(0))) {
         // Repeated roots.
-        T root{ -0.5f * b / a };
+        const T root{ -0.5f * b / a };
         return { true, root, root };
     }
     // Real roots.
     const T q = (b > 0.0f) ?
-        -0.5f * (b + std::sqrtf(discr)) :
-        -0.5f * (b - std::sqrtf(discr));
+        -0.5f * (b + std::sqrtf(disc)) :
+        -0.5f * (b - std::sqrtf(disc));
+    // This may look weird but the algebra checks out here (I checked).
     return { true, q / a, c / q };
 }
 
