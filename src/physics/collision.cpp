@@ -299,31 +299,39 @@ bool CircleRectangle(const Circle<float>& a,
 
 namespace dynamic {
 
-// Intersect segment S(t)=sa+t(sb-sa), 0<=t<=1 against cylinder specified by p, q and r
-bool SegmentSegment(const Segment<float>& p,
-                   const Segment<float>& q,
+bool SegmentSegment(const Segment<float>& a,
+                   const Segment<float>& b,
                    Collision& col) {
     col = {};
 
-    Point<float> r{ p.Direction() };
-    Point<float> s{ q.Direction() };
+    const Point<float> r{ a.Direction() };
+    const Point<float> s{ b.Direction() };
 
-    float sr{ s.Cross(r) };
-    if (sr == 0) return false;
+    const float sr{ s.Cross(r) };
+    if (NearlyEqual(sr, 0.0f))
+        return false;
 
-    Point<float> pq{ p.a - q.a };
-    float pqr{ pq.Cross(r) };
+    const Point<float> ab{ a.a - b.a };
+    const float abr{ ab.Cross(r) };
 
-    float u{ pqr / sr };
-    if (u < 0 || u>1) return false;
+    const float u{ abr / sr };
+    if (u < 0.0f || u > 1.0f)
+        return false;
 
-    Point<float> qp{ q.a - p.a };
-    float rs{ r.Cross(s) };
-    float qps{ qp.Cross(s) };
-    col.t = qps / rs;
-    assert(!NearlyEqual(r.Dot(r), 0.0f));
+    const Point<float> ba{ b.a - a.a };
+    const float rs{ r.Cross(s) };
+    if (NearlyEqual(rs, 0.0f))
+        return false;
 
-    col.normal = -s.Skewed().Normalized();
+    const V2_float skewed{ -s.Skewed() };
+    const float mag2{ skewed.Dot(skewed) };
+    if (NearlyEqual(mag2, 0.0f))
+        return false;
+
+    const float bas{ ba.Cross(s) };
+
+    col.t = bas / rs;
+    col.normal = skewed / std::sqrtf(mag2);
     return true;
 }
 
