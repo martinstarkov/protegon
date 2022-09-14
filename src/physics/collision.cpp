@@ -301,8 +301,8 @@ namespace dynamic {
 
 bool SegmentSegment(const Segment<float>& a,
                    const Segment<float>& b,
-                   Collision& col) {
-    col = {};
+                   Collision& c) {
+    c = {};
 
     const Point<float> r{ a.Direction() };
     const Point<float> s{ b.Direction() };
@@ -330,11 +330,12 @@ bool SegmentSegment(const Segment<float>& a,
 
     const float bas{ ba.Cross(s) };
 
-    col.t = bas / rs;
-    col.normal = skewed / std::sqrtf(mag2);
+    c.t = bas / rs;
+    c.normal = skewed / std::sqrtf(mag2);
     return true;
 }
 
+// Source: https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm/1084899#1084899
 bool SegmentCircle(const Segment<float>& seg,
                    const Circle<float>& circle,
                    Collision& col) {
@@ -407,6 +408,7 @@ bool SegmentRectangle(const Segment<float>& a,
     return false;
 }
 
+// Source: https://stackoverflow.com/a/52462458
 bool SegmentCapsule(const Segment<float>& seg,
                     const Segment<float>& cap,
                     float r,

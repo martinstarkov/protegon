@@ -99,6 +99,11 @@ struct Collision {
 	Vector2<float> normal; // normal of impact (normalised).
 };
 
+// Source: https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect/565282#565282
+bool SegmentSegment(const Segment<float>& a,
+                    const Segment<float>& b,
+                    Collision& c);
+
 bool CircleRectangle(const Segment<float>& seg, float r, const Rectangle<float>& b, Collision& col);
 bool CircleCircle(const Segment<float>& seg, float r, const Circle<float>& b, Collision& col);
 bool RectangleRectangle(const Segment<float>& seg, const V2_float& size, const Rectangle<float>& b, Collision& col);
