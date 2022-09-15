@@ -113,9 +113,25 @@ bool SegmentRectangle(const Segment<float>& a,
                       const Rectangle<float>& b,
                       Collision& c);
 
-bool CircleRectangle(const Segment<float>& seg, float r, const Rectangle<float>& b, Collision& col);
-bool CircleCircle(const Segment<float>& seg, float r, const Circle<float>& b, Collision& col);
-bool RectangleRectangle(const Segment<float>& seg, const V2_float& size, const Rectangle<float>& b, Collision& col);
+// Source: https://stackoverflow.com/a/52462458
+bool SegmentCapsule(const Segment<float>& a,
+                    const Capsule<float>& b,
+                    Collision& c);
+
+bool CircleCircle(const Circle<float>& a,
+                  const Vector2<float>& vel,
+                  const Circle<float>& b,
+                  Collision& c);
+
+bool CircleRectangle(const Circle<float>& a,
+                     const Vector2<float>& vel,
+                     const Rectangle<float>& b,
+                     Collision& c);
+
+bool RectangleRectangle(const Rectangle<float>& a,
+                        const Vector2<float>& vel,
+                        const Rectangle<float>& b,
+                        Collision& c);
 
 /*
 inline bool RayVsRectangle(const V2_double& ray_origin, const V2_double& ray_dir,

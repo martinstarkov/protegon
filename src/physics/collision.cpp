@@ -1,7 +1,6 @@
 #include "protegon/collision.h"
 
 #include <limits> // std::numeric_limits
-#include <array>  // std::array
 #include <cmath>  // std::sqrtf
 
 #include "protegon/math.h"
@@ -330,7 +329,12 @@ bool SegmentSegment(const Segment<float>& a,
 
     const float bas{ ba.Cross(s) };
 
-    c.t = bas / rs;
+    const float t{ bas / rs };
+
+    if (t < 0.0f || t > 1.0f)
+        return false;
+
+    c.t = t;
     c.normal = skewed / std::sqrtf(mag2);
     return true;
 }
@@ -428,95 +432,99 @@ bool SegmentRectangle(const Segment<float>& a,
     return false;
 }
 
-// Source: https://stackoverflow.com/a/52462458
-bool SegmentCapsule(const Segment<float>& seg,
-                    const Segment<float>& cap,
-                    float r,
-                    Collision& col) {
-    Point<float> cv{ cap.Direction() };
-    float mag2{ cv.Dot(cv) };
+bool SegmentCapsule(const Segment<float>& a,
+                    const Capsule<float>& b,
+                    Collision& c) {
+    c = {};
+
+    const Point<float> cv{ b.segment.Direction() };
+    const float mag2{ cv.Dot(cv) };
     
-    if (NearlyEqual(mag2, 0.0f)) {
-        return SegmentCircle(seg, { cap.a, r }, col);
-    }
+    if (NearlyEqual(mag2, 0.0f))
+        return SegmentCircle(a, { b.segment.a, b.r }, c);
 
-    float mag{ std::sqrtf(mag2) };
-    V2_float cu{ cv / mag };
-    V2_float ncu{ cu.Skewed() };
+    const float mag{ std::sqrtf(mag2) };
+    const V2_float cu{ cv / mag };
+    const V2_float ncu{ cu.Skewed() };
 
-    Segment<float> p1{ cap.a + ncu * r, cap.b + ncu * r };
-    Segment<float> p3{ cap.a + ncu * -r, cap.b + ncu * -r };
+    const Segment<float> p1{ b.segment.a + ncu *  b.r, b.segment.b + ncu *  b.r };
+    const Segment<float> p3{ b.segment.a + ncu * -b.r, b.segment.b + ncu * -b.r };
 
-    std::array<Collision, 4> times;
-    bool first{ SegmentSegment(seg, p1, times[0]) };
-    bool second{ SegmentSegment(seg, p3, times[1]) };
-    bool third{ SegmentCircle(seg, { cap.a, r }, times[2]) };
-    bool fourth{ SegmentCircle(seg, { cap.b, r }, times[3]) };
-
-    bool occured{ first || second || third || fourth };
-
-    if (occured) {
-        Collision min_col;
-        for (const auto v : times) {
-            if (v.t < min_col.t && v.t >= 0.0f && v.t <= 1.0f)
-                min_col = v;
-        }
-        col = min_col;
-        return true;
-    } else {
-        col = {};
-        return false;
-    }
-}
-
-bool CircleCircle(const Segment<float>& seg,
-                  float r,
-                  const Circle<float>& b,
-                  Collision& col) {
-    return SegmentCircle(seg, { b.c, b.r + r }, col);
-}
-
-bool CircleRectangle(const Segment<float>& seg,
-                     float r,
-                     const Rectangle<float>& b,
-                     Collision& col) {
-    // Compute the AABB resulting from expanding b by sphere radius r
-    Rectangle<float> e{ b };
-    e.pos -= V2_float{ r, r };
-    e.size += V2_float{ r * 2.0f, r * 2.0f };
-    // Intersect ray against expanded AABB e. Exit with no intersection if ray
-    // misses e, else get intersection point p and time t as result
-    if (!overlap::SegmentRectangle(seg, e)) {
-        col = {};
-        return false;
-    }
-    // Define line segment [c, c+d] specified by the sphere movement
-    Collision col_min = col;
-    if (SegmentCapsule(seg, { b.pos, V2_float{ b.pos.x + b.size.x, b.pos.y } }, r, col))
-        if (col.t < col_min.t)
-            col_min = col;
-    if (SegmentCapsule(seg, { V2_float{ b.pos.x + b.size.x, b.pos.y }, b.pos + b.size }, r, col))
-        if (col.t < col_min.t)
-            col_min = col;
-    if (SegmentCapsule(seg, { b.pos + b.size, V2_float{ b.pos.x, b.pos.y + b.size.y } }, r, col))
-        if (col.t < col_min.t)
-            col_min = col;
-    if (SegmentCapsule(seg, { V2_float{ b.pos.x, b.pos.y + b.size.y }, b.pos }, r, col))
-        if (col.t < col_min.t)
-            col_min = col;
-    col = col_min;
+    Collision col_min{ c };
+    if (SegmentSegment(a, p1, c))
+        if (c.t < col_min.t)
+            col_min = c;
+    if (SegmentSegment(a, p3, c))
+        if (c.t < col_min.t)
+            col_min = c;
+    if (SegmentCircle(a, { b.segment.a, b.r }, c))
+        if (c.t < col_min.t)
+            col_min = c;
+    if (SegmentCircle(a, { b.segment.b, b.r }, c))
+        if (c.t < col_min.t)
+            col_min = c;
+    
     if (col_min.t == 1.0f) {
-        col = {};
-        return false; // No intersection
+        c = {};
+        return false;
     }
-    return true; // Intersection at time t == tmin
+
+    c = col_min;
+    return true;
 }
 
-bool RectangleRectangle(const Segment<float>& seg,
-                        const V2_float& size,
+bool CircleCircle(const Circle<float>& a,
+                  const Vector2<float>& vel,
+                  const Circle<float>& b,
+                  Collision& c) {
+    return SegmentCircle({ a.c, a.c + vel }, { b.c, b.r + a.r }, c);
+}
+
+bool CircleRectangle(const Circle<float>& a,
+                     const Vector2<float>& vel,
+                     const Rectangle<float>& b,
+                     Collision& c) {
+    const Segment<float> seg{ a.c, a.c + vel };
+    
+    // Compute the rectangle resulting from expanding b by circle radius.
+    Rectangle<float> e{ b };
+    e.pos -= V2_float{ a.r, a.r };
+    e.size += V2_float{ a.r * 2.0f, a.r * 2.0f };
+
+    if (!overlap::SegmentRectangle(seg, e)) {
+        c = {};
+        return false;
+    }
+
+    Collision col_min{ c };
+    if (SegmentCapsule(seg, { { b.pos, V2_float{ b.pos.x + b.size.x, b.pos.y } }, a.r }, c))
+        if (c.t < col_min.t)
+            col_min = c;
+    if (SegmentCapsule(seg, { { V2_float{ b.pos.x + b.size.x, b.pos.y }, b.pos + b.size }, a.r }, c))
+        if (c.t < col_min.t)
+            col_min = c;
+    if (SegmentCapsule(seg, { { b.pos + b.size, V2_float{ b.pos.x, b.pos.y + b.size.y } }, a.r }, c))
+        if (c.t < col_min.t)
+            col_min = c;
+    if (SegmentCapsule(seg, { { V2_float{ b.pos.x, b.pos.y + b.size.y }, b.pos }, a.r }, c))
+        if (c.t < col_min.t)
+            col_min = c;
+    
+    if (col_min.t == 1.0f) {
+        c = {};
+        return false;
+    }
+
+    c = col_min;
+    return true;
+}
+
+bool RectangleRectangle(const Rectangle<float>& a,
+                        const Vector2<float>& vel,
                         const Rectangle<float>& b,
-                        Collision& col) {
-    return SegmentRectangle(seg, { b.pos - size / 2.0f, b.size + size }, col);
+                        Collision& c) {
+    const V2_float a_center{ a.Center() };
+    return SegmentRectangle({ a_center, a_center + vel }, { b.pos - a.size / 2.0f, b.size + a.size }, c);
 }
 
 } // namespace dynamic

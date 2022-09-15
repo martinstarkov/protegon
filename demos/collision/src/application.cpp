@@ -200,16 +200,13 @@ public:
 			dynamic::Collision c;
 			if (option == 0) {
 				circle2.c = position4;
-				V2_float d{ mouse - circle2.c };
-				line2.a = circle2.c;
-				line2.b = mouse;
-				float t{ 1.0f };
-				Circle<float> potential{ circle2.c + d, circle2.r };
+				V2_float vel{ mouse - circle2.c };
+				Circle<float> potential{ circle2.c + vel, circle2.r };
 				potential.Draw(color::GREY);
-				line2.Draw(color::GREY);
-				int occured{ dynamic::CircleRectangle(line2, circle2.r, aabb1, c) };
+				Segment<float>{ circle2.c, potential.c }.Draw(color::GREY);
+				bool occured{ dynamic::CircleRectangle(circle2, vel, aabb1, c) };
 				if (occured) {
-					Circle<float> swept{ circle2.c + d * c.t, circle2.r };
+					Circle<float> swept{ circle2.c + vel * c.t, circle2.r };
 					Segment<float> normal{ swept.c, swept.c + 50 * c.normal };
 					normal.Draw(color::ORANGE);
 					swept.Draw(color::GREEN);
@@ -220,16 +217,13 @@ public:
 				aabb1.Draw(acolor1);
 			} else if (option == 1) {
 				circle2.c = position4;
-				V2_float d{ mouse - circle2.c };
-				line2.a = circle2.c;
-				line2.b = mouse;
-				float t{ 1.0f };
-				Circle<float> potential{ circle2.c + d, circle2.r };
+				V2_float vel{ mouse - circle2.c };
+				Circle<float> potential{ circle2.c + vel, circle2.r };
 				potential.Draw(color::GREY);
-				line2.Draw(color::GREY);
-				int occured{ dynamic::CircleCircle(line2, circle2.r, circle1, c) };
+				Segment<float>{ circle2.c, potential.c }.Draw(color::GREY);
+				bool occured{ dynamic::CircleCircle(circle2, vel, circle1, c) };
 				if (occured) {
-					Circle<float> swept{ circle2.c + d * c.t, circle2.r };
+					Circle<float> swept{ circle2.c + vel * c.t, circle2.r };
 					Segment<float> normal{ swept.c, swept.c + 50 * c.normal };
 					normal.Draw(color::ORANGE);
 					swept.Draw(color::GREEN);
@@ -240,16 +234,13 @@ public:
 				circle1.Draw(acolor1);
 			} else if (option == 2) {
 				aabb2.pos = position4 - aabb2.size / 2;
-				V2_float d{ mouse - aabb2.size / 2 - aabb2.pos };
-				line2.a = aabb2.pos + aabb2.size / 2;
-				line2.b = mouse;
-				float t{ 1.0f };
-				Rectangle<float> potential{ aabb2.pos + d, aabb2.size };
+				V2_float vel{ mouse - aabb2.size / 2 - aabb2.pos };
+				Rectangle<float> potential{ aabb2.pos + vel, aabb2.size };
 				potential.Draw(color::GREY);
-				line2.Draw(color::GREY);
-				int occured{ dynamic::RectangleRectangle(line2, aabb2.size, aabb1, c) };
+				Segment<float>{ aabb2.Center(), potential.Center() }.Draw(color::GREY);
+				bool occured{ dynamic::RectangleRectangle(aabb2, vel, aabb1, c) };
 				if (occured) {
-					Rectangle<float> swept{ aabb2.pos + d * c.t, aabb2.size };
+					Rectangle<float> swept{ aabb2.pos + vel * c.t, aabb2.size };
 					Segment<float> normal{ swept.Center(), swept.Center() + 50 * c.normal };
 					normal.Draw(color::ORANGE);
 					swept.Draw(color::GREEN);
