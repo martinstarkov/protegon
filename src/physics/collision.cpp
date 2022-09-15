@@ -5,9 +5,6 @@
 
 #include "protegon/math.h"
 
-// TODO: TEMP
-#include "protegon/log.h"
-
 namespace ptgn {
 
 namespace impl {
