@@ -107,16 +107,19 @@ bool SegmentCapsule(const Segment<float>& a,
                     const Capsule<float>& b,
                     Collision& c);
 
+// Velocity is taken relative to a, b is seen as static.
 bool CircleCircle(const Circle<float>& a,
                   const Vector2<float>& vel,
                   const Circle<float>& b,
                   Collision& c);
 
+// Velocity is taken relative to a, b is seen as static.
 bool CircleRectangle(const Circle<float>& a,
                      const Vector2<float>& vel,
                      const Rectangle<float>& b,
                      Collision& c);
 
+// Velocity is taken relative to a, b is seen as static.
 bool RectangleRectangle(const Rectangle<float>& a,
                         const Vector2<float>& vel,
                         const Rectangle<float>& b,
