@@ -16,11 +16,6 @@ float ParallelogramArea(const Point<float>& a,
 						const Point<float>& b,
 						const Point<float>& c);
 
-void ClosestPointSegment(const Point<float>& A,
-						 const Segment<float>& B,
-						 float& out_t,
-						 Point<float>& out_d);
-
 } // namespace impl
 
 namespace overlap {
@@ -46,25 +41,19 @@ bool PointRectangle(const Point<float>& a,
 bool PointCircle(const Point<float>& a,
 				 const Circle<float>& b);
 
-// Source: https://www.jeffreythompson.org/collision-detection/line-point.php
-// Source: https://stackoverflow.com/a/7050238
-// Source (used): PointToLineSquareDistance == 0 but optimized slightly.
+// Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
+// Page 130. (SqDistPointSegment == 0) but optimized.
 bool PointSegment(const Point<float>& a,
                   const Segment<float>& b);
 
 bool SegmentRectangle(const Segment<float>& a,
 				      const Rectangle<float>& b);
 
-// Source: https://www.jeffreythompson.org/collision-detection/line-circle.php
-// Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
-// Page 179.
-// Source: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
-// Source (used): https://www.baeldung.com/cs/circle-line-segment-collision-detection
+// Source: https://www.baeldung.com/cs/circle-line-segment-collision-detection
 bool SegmentCircle(const Segment<float>& a,
 			       const Circle<float>& b);
 
 // Source: https://www.geeksforgeeks.org/check-if-two-given-line-segments-intersect/
-// With some modifications.
 bool SegmentSegment(const Segment<float>& a,
 			        const Segment<float>& b);
 
