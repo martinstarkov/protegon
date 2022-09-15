@@ -4,11 +4,19 @@
 #include <cmath>      // std::round
 #include <cstdlib>    // std::size_t
 #include <functional> // std::hash
+#include <algorithm>  // std::clamp
 
 #include "type_traits.h"
 #include "math.h"
+#include "color.h"
 
 namespace ptgn {
+
+namespace impl {
+
+void DrawPoint(int x, int y, const Color& color);
+
+} // namespace impl
 
 template <typename T,
     type_traits::arithmetic<T> = true>
@@ -102,19 +110,56 @@ struct Vector2 {
         return *this;
     }
 
-    bool IsZero() const {
-        return NearlyEqual(x, static_cast<T>(0)) &&
-               NearlyEqual(y, static_cast<T>(0));
-    }
-
-    // Returns the dot product of two vectors.
+    // Returns the dot product (this * o).
     T Dot(const Vector2& o) const {
         return x * o.x + y * o.y;
+    }
+
+    // Returns the cross product (this x o).
+    T Cross(const Vector2& o) const {
+        return x * o.y - y * o.x;
     }
 
     // Returns a vector with both components rounded to the nearest 0.5.
     Vector2 Rounded() const {
         return { std::round(x), std::round(y) };
+    }
+
+    Vector2 FastAbs() const {
+        return { ptgn::FastAbs(x), ptgn::FastAbs(y) };
+    }
+
+    Vector2 FastCeil() const {
+        return { ptgn::FastCeil(x), ptgn::FastCeil(y) };
+    }
+
+    Vector2 FastFloor() const {
+        return { ptgn::FastFloor(x), ptgn::FastFloor(y) };
+    }
+
+    Vector2 Clamped(const T& low, const T& high) const {
+        return { std::clamp(x, low, high), std::clamp(y, low, high) };
+    }
+
+    Vector2 Clamped(const Vector2& low, const Vector2& high) const {
+        return { std::clamp(x, low.x, high.x), std::clamp(y, low.y, high.y) };
+    }
+
+    // Both components will be either 0, 1 or -1.
+    Vector2 Identity() const {
+        return { Sign(x), Sign(y) };
+    }
+
+    Vector2 Skewed() const {
+        return { -y, x };
+    }
+
+    // Returns a unit vector (magnitude = 1) except for zero vectors (magnitude = 0).
+    Vector2 Normalized() const {
+        T m{ Dot(*this) };
+        if (NearlyEqual(m, static_cast<T>(0)))
+            return *this;
+        return *this / std::sqrtf(m);
     }
 
     // Returns a new vector rotated by the radian angle in the clockwise direction.
@@ -139,6 +184,15 @@ struct Vector2 {
     template <typename U, type_traits::not_narrowing<T, U> = true>
     U Angle() const {
         return std::atan2(y, x);
+    }
+
+    bool IsZero() const {
+        return NearlyEqual(x, static_cast<T>(0)) &&
+               NearlyEqual(y, static_cast<T>(0));
+    }
+
+    void Draw(const Color& color) const {
+        impl::DrawPoint(x, y, color);
     }
 };
 

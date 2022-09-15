@@ -12,6 +12,12 @@ bool Exists() {
 	return global::GetGame().sdl.GetWindow() != nullptr;
 }
 
+void Clear() {
+	auto renderer{ global::GetGame().sdl.GetRenderer() };
+	assert(renderer != nullptr && "Cannot clear window with nonexistent renderer");
+	SDL_RenderClear(renderer);
+}
+
 V2_int GetSize() {
 	V2_int size;
 	assert(Exists() && "Cannot get size of nonexistent window");

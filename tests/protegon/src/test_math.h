@@ -61,6 +61,7 @@ bool TestMath() {
 	double c10 = 64.6;
 
 	// FastFloor / FastCeil / FastAbs tests.
+	// TODO: Add test cases for Inf/-Inf and Nan?
 
 	assert(FastFloor(c1) == std::floor(c1));
 	assert(FastFloor(c2) == std::floor(c2));
@@ -144,6 +145,13 @@ bool TestMath() {
 	assert(!NearlyEqual(0, 1));
 	assert(!NearlyEqual(0.0, 0.0 + 0.0065));
 	assert(!NearlyEqual(0.0f, 0.0f + 0.0065f));
+
+	// TODO: Add tests for:
+	// ToRad()
+	// ToDeg()
+	// ClampAngle360()
+	// ClampAngle2Pi()
+	// QuadraticFormula()
 
 	std::cout << "All math tests passed!" << std::endl;
 	return true;

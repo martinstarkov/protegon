@@ -345,7 +345,11 @@ bool TestVector2() {
 
 	// TODO:
 	// Add tests for all +, -, *, / operators, don't forget to check narrowing issues.
-	// Add tests for []
+	// Add tests for Cross()
+	// Add tests for Normalized()
+	// Add tests for Skewed()
+	// Add tests for Identity()
+	// Add tests for Clamped()
 
 	std::cout << "All Vector2 tests passed!" << std::endl;
 	return true;
