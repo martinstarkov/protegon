@@ -40,7 +40,7 @@ template <typename T = float>
 struct Ray {
 	Point<T> p;   // position
 	Vector2<T> d; // direction (normalized)
-	float t;      // distance along d from position p to find endpoint of ray.
+	float t{};      // distance along d from position p to find endpoint of ray.
 	template <typename U>
 	operator Ray<U>() const {
 		return { static_cast<Point<U>>(p),
@@ -55,6 +55,17 @@ struct Segment : public Line<T> {
 	operator Segment<U>() const {
 		return { static_cast<Point<U>>(a),
 				 static_cast<Point<U>>(b) };
+	}
+};
+
+template <typename T = float>
+struct Capsule {
+	Segment<T> segment;
+	T r{};
+	template <typename U>
+	operator Capsule<U>() const {
+		return { static_cast<Segment<U>>(segment),
+				 static_cast<U>(r) };
 	}
 };
 
