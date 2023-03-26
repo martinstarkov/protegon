@@ -2,6 +2,15 @@
 
 2D game engine built on top of SDL2, SDL2_ttf, SDL2_mixer, and SDL2_image. Requires C++17 or newer.
 
+# Build Instructions
+
+1. Clone the repository to your local machine.
+2. Navigate into the cloned repository in a terminal such as Git Bash.
+2. `mkdir build` to create a build directory.
+3. `cd build` to enter the build directory.
+4. `cmake .. -DDEMOS=ON` to build protegon with demos using CMake.
+5. Open the project files in the build directory.
+
 # Adding to CMake project
 
 Clone this repository into a directory.
