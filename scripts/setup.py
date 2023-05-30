@@ -2,7 +2,6 @@ import os
 import subprocess
 import platform
 import sys
-import requests
 import time
 import urllib
 
@@ -81,6 +80,7 @@ def DownloadFile(url, filepath):
         raise TypeError("Argument 'url' must be of type list or string")
 
     with open(filepath, 'wb') as f:
+        import requests
         headers = {'User-Agent': "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36"}
         response = requests.get(url, headers=headers, stream=True)
         total = response.headers.get('content-length')
@@ -129,19 +129,23 @@ def ValidateDependency(path, directory, zip, version, name):
 def ValidateDependencies():
     directory = os.path.dirname(__file__)
     vendor_directory = os.path.join(directory, "../external")
-    SDL2_version = "2.23.1"
-    SDL2_image_version = "2.0.5"
-    SDL2_ttf_version = "2.0.15"
-    SDL2_mixer_version = "2.0.4"
-    SDL2_zip = f"https://github.com/libsdl-org/SDL/releases/download/prerelease-2.23.1/SDL2-devel-2.23.1-VC.zip"
-    #SDL2_zip = f"https://www.libsdl.org/release/SDL2-devel-{SDL2_version}-VC.zip"
-    SDL2_image_zip = f"https://www.libsdl.org/projects/SDL_image/release/SDL2_image-devel-{SDL2_image_version}-VC.zip"
-    SDL2_ttf_zip = f"https://www.libsdl.org/projects/SDL_ttf/release/SDL2_ttf-devel-{SDL2_ttf_version}-VC.zip"
-    SDL2_mixer_zip = f"https://www.libsdl.org/projects/SDL_mixer/release/SDL2_mixer-devel-{SDL2_mixer_version}-VC.zip"
+    
+    # Ensure that these versions are consistent with those found in the protegon/cmake/FindProtegon.cmake file.
+    SDL2_version = "2.26.5"
+    SDL2_image_version = "2.6.3"
+    SDL2_ttf_version = "2.20.2"
+    SDL2_mixer_version = "2.6.3"
+    
+    SDL2_zip = f"https://github.com/libsdl-org/SDL/releases/download/release-2.26.5/SDL2-devel-{SDL2_version}-VC.zip"
+    SDL2_image_zip = f"https://github.com/libsdl-org/SDL_image/releases/download/release-2.6.3/SDL2_image-devel-{SDL2_image_version}-VC.zip"
+    SDL2_ttf_zip = f"https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.20.2/SDL2_ttf-devel-{SDL2_ttf_version}-VC.zip"
+    SDL2_mixer_zip = f"https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.6.3/SDL2_mixer-devel-{SDL2_mixer_version}-VC.zip"
+
     SDL2_path = Path(f"{vendor_directory}/SDL2-{SDL2_version}/include/SDL.h");
     SDL2_image_path = Path(f"{vendor_directory}/SDL2_image-{SDL2_image_version}/include/SDL_image.h");
     SDL2_mixer_path = Path(f"{vendor_directory}/SDL2_mixer-{SDL2_mixer_version}/include/SDL_mixer.h");
     SDL2_ttf_path = Path(f"{vendor_directory}/SDL2_ttf-{SDL2_ttf_version}/include/SDL_ttf.h");
+
     SDL2_found = ValidateDependency(SDL2_path, vendor_directory, SDL2_zip, SDL2_version, "SDL2")
     SDL2_image_found = ValidateDependency(SDL2_image_path, vendor_directory, SDL2_image_zip, SDL2_image_version, "SDL2_image")
     SDL2_ttf_found = ValidateDependency(SDL2_ttf_path, vendor_directory, SDL2_ttf_zip, SDL2_ttf_version, "SDL2_ttf")
