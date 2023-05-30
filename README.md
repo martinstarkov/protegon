@@ -2,14 +2,18 @@
 
 2D game engine built on top of SDL2, SDL2_ttf, SDL2_mixer, and SDL2_image. Requires C++17 or newer.
 
-# Build Instructions
+# Build Instructions using CMake
 
-1. Clone the repository to your local machine.
-2. Navigate into the cloned repository in a terminal such as Git Bash.
-2. `mkdir build` to create a build directory.
-3. `cd build` to enter the build directory.
-4. `cmake .. -DDEMOS=ON` to build protegon with demos using CMake.
-5. Open the project files in the build directory.
+Before starting the build, ensure that you have [CMake 3.20+](https://cmake.org/download/) and [Python 3.3+](https://www.python.org/downloads/) installed. You will also need a valid C++ compiler.
+
+1. [Clone the repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) to your local machine.
+2. Navigate into the cloned repository by typing `cd <replace_with_repository_directory>` into a terminal such as [Git Bash](https://git-scm.com/downloads).
+3. `mkdir build` to create a build directory.
+4. `cd build` to enter the created build directory.
+5. `cmake .. -DDEMOS=ON` (note the repeated D) to build protegon using CMake with demos (use `-DDEMOS=OFF` instead to omit demos).
+6. If prompted, enter `Y` to confirm the download of the `requests` python package. 
+7. Enter `Y` to each of the SDL2 module download confirmation prompts. 
+8. All done! Open/access the generated project files in the build directory.
 
 # Adding to CMake project
 
