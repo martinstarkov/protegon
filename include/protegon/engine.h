@@ -10,6 +10,8 @@ public:
 	~Engine();
 	void Construct(const char* window_title,
 				   const V2_int& window_size);
+	// Override function for when engine is created.
+	// Usually this is where one would load fonts and scenes into the respective resource managers.
 	virtual void Create();
 	virtual void Update(float dt);
 private:

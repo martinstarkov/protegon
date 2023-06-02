@@ -29,8 +29,8 @@ struct Tile {
 	TileType type{ TileType::NONE };
 };
 
-struct Grid {
-	Grid(const V2_int& size, const V2_int& tile_size) : size{ size }, tile_size{ tile_size } {}
+struct CustomGrid {
+	CustomGrid(const V2_int& size, const V2_int& tile_size) : size{ size }, tile_size{ tile_size } {}
 	bool InBound(const V2_int& coordinate) const {
 		return coordinate.x < size.x && coordinate.x >= 0 &&
 			   coordinate.y < size.y && coordinate.y >= 0;
@@ -169,7 +169,7 @@ void Combinations(std::vector<Sequence>& sequences, const Directions& directions
 	}
 }
 
-std::pair<Sequence, Directions> GetSequenceAndAllowedDirections(std::vector<Sequence>& sequences, const Grid& grid, const V2_int& tile) {
+std::pair<Sequence, Directions> GetSequenceAndAllowedDirections(std::vector<Sequence>& sequences, const CustomGrid& grid, const V2_int& tile) {
 	auto rd = std::random_device{};
 	auto rng = std::default_random_engine{ rd() };
 	std::shuffle(std::begin(sequences), std::end(sequences), rng);
@@ -190,7 +190,7 @@ std::pair<Sequence, Directions> GetSequenceAndAllowedDirections(std::vector<Sequ
 	return {};
 }
 
-bool CanWin(const Grid& grid, const V2_int& player_tile, const V2_int& win_tile) {
+bool CanWin(const CustomGrid& grid, const V2_int& player_tile, const V2_int& win_tile) {
 	std::array<V2_int, 4> directions{ V2_int{ 0, 1 }, V2_int{ 0, -1 }, V2_int{ 1, 0 }, V2_int{ -1, 0 } };
 	std::queue<V2_int> q;
 	q.push(player_tile);
@@ -218,7 +218,7 @@ bool CanWin(const Grid& grid, const V2_int& player_tile, const V2_int& win_tile)
 	return false;
 }
 
-V2_int GetNewWinTile(const Grid& grid, const V2_int& player_tile) {
+V2_int GetNewWinTile(const CustomGrid& grid, const V2_int& player_tile) {
 	RNG rng_x{ 0, grid.GetSize().x - 1 };
 	RNG rng_y{ 0, grid.GetSize().y - 1 };
 	V2_int win_tile{ rng_x(), rng_y() };
@@ -248,7 +248,7 @@ public:
 	std::size_t win_count = 0;
 	std::size_t current_moves = 0;
 	std::size_t best_moves = 1000000;
-	Grid& grid;
+	CustomGrid& grid;
 	Text text7{ *font::Get(Hash("1")), "Press 'i' to see instructions", color::GOLD };
 	Sound s_select{ "resources/sound/select_click.wav" };
 	Sound s_move{ "resources/sound/move_click.wav" };
@@ -262,7 +262,7 @@ public:
 	Texture t_used{ "resources/tile/used.png" };
 	Texture t_dice{ "resources/tile/dice.png" };
 
-	DiceScene(Grid& grid) : grid{ grid } {
+	DiceScene(CustomGrid& grid) : grid{ grid } {
 		Directions directions{ V2_int{ 1, 0 }, V2_int{ -1, 0 }, V2_int{ 0, 1 }, V2_int{ 0, -1 } };
 		sequence_map.emplace(1, std::vector<Sequence>{ Sequence{ V2_int{ 1, 0 } }});
 		for (std::size_t i = 1; i < 6; ++i) {
@@ -412,7 +412,7 @@ public:
 
 class MenuScreen : public Scene {
 public:
-	Grid grid{ { 20, 20 }, { 32, 32 } };
+	CustomGrid grid{ { 20, 20 }, { 32, 32 } };
 	Text text0{ Hash("0"), "Stroll of the Dice", color::CYAN };
 	Text text1{ Hash("1"), "'R' to restart if stuck", color::RED };
 	Text text2{ Hash("1"), "'Mouse' to choose direction", color::ORANGE };

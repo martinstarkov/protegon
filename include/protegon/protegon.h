@@ -7,6 +7,7 @@
 #include "protegon/color.h"
 #include "protegon/engine.h"
 #include "protegon/font.h"
+#include "protegon/grid.h"
 #include "protegon/hash.h"
 #include "protegon/input.h"
 #include "protegon/key.h"
