@@ -5,6 +5,7 @@
 #include <cstdlib>    // std::size_t
 #include <functional> // std::hash
 #include <algorithm>  // std::clamp
+#include <ostream>    // std::ostream
 
 #include "type_traits.h"
 #include "math.h"
@@ -276,6 +277,12 @@ inline Vector2<S> operator/(const Vector2<T>& lhs,
 }
 
 } // namespace ptgn
+
+template <typename T, ptgn::type_traits::stream_writable<std::ostream, T> = true>
+std::ostream& operator<<(std::ostream& os, const ptgn::Vector2<T>& v) {
+    os << "(" << v.x << ", " << v.y << ")";
+    return os;
+}
 
 // Custom hashing function for Vector2 class.
 // This allows for use of unordered maps and sets with Vector2s as keys.
