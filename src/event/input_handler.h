@@ -1,6 +1,6 @@
 #pragma once
 
-#include <array>   // std::array
+#include <bitset>   // std::bitset
 #include <cstdint> // std::uint8_t
 #include <cstdlib> // std::size_t
 #include <tuple>   // std::pair
@@ -20,9 +20,6 @@ struct InputHandler {
 		UP,
 		RELEASED
 	};
-
-	// Updates previous key states for key up and down check.
-	void UpdateKeyStates(const std::uint8_t* key_states);
 
 	// Updates previous mouse states for mouse up and down check.
 	void UpdateMouseState(Mouse button);
@@ -58,15 +55,16 @@ struct InputHandler {
 
 	bool KeyReleased(Key key) const;
 
-	bool KeyDown(Key key) const;
+	bool KeyDown(Key key);
 
-	bool KeyUp(Key key) const;
+	bool KeyUp(Key key);
 private:
 	// Number of keys stored in the SDL key states array. For creating previous key states array.
 	static constexpr std::size_t KEY_COUNT{ 512 };
 
 	// Previous loop cycle key states for comparison with current.
-	std::array<std::uint8_t, KEY_COUNT> previous_key_states_{};
+	std::bitset<KEY_COUNT> key_states_{};
+	std::bitset<KEY_COUNT> first_time_{};
 
 	// Mouse states.
 	MouseState left_mouse_{ MouseState::RELEASED };

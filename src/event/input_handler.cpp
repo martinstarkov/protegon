@@ -6,17 +6,16 @@
 #include <SDL.h>
 
 #include "core/game.h"
+#include <protegon/log.h>
 
 namespace ptgn {
 
 void InputHandler::Update() {
-	// Update previous key states.
-	const auto key_states{ SDL_GetKeyboardState(NULL) };
-	UpdateKeyStates(key_states);
 	// Update mouse states.
 	UpdateMouseState(Mouse::LEFT);
 	UpdateMouseState(Mouse::RIGHT);
 	UpdateMouseState(Mouse::MIDDLE);
+	first_time_.reset();
 	SDL_Event event;
 	while (SDL_PollEvent(&event)) {
 		switch (event.type) {
@@ -32,6 +31,20 @@ void InputHandler::Update() {
 				auto& [state, timer] = GetMouseStateAndTimer(static_cast<Mouse>(event.button.button));
 				timer.Reset();
 				state = InputHandler::MouseState::UP;
+				break;
+			}
+			case SDL_KEYUP: {
+				if (key_states_[event.key.keysym.scancode]) {
+					first_time_[event.key.keysym.scancode] = true;
+				}
+				key_states_[event.key.keysym.scancode] = false;
+				break;
+			}
+			case SDL_KEYDOWN: {
+				if (!key_states_[event.key.keysym.scancode]) {
+					first_time_[event.key.keysym.scancode] = true;
+				}
+				key_states_[event.key.keysym.scancode] = true;
 				break;
 			}
 			case SDL_QUIT:
@@ -71,11 +84,6 @@ milliseconds InputHandler::GetMouseHeldTime(Mouse button) {
 	const auto held_time{ timer.Elapsed<milliseconds>() };
 	// Comparison units handled by chrono.
 	return held_time;
-}
-
-void InputHandler::UpdateKeyStates(const std::uint8_t* key_states) {
-	// Copy current key states to previous key states.
-	std::copy(key_states, key_states + KEY_COUNT, std::begin(previous_key_states_));
 }
 
 void InputHandler::UpdateMouseState(Mouse button) {
@@ -134,22 +142,25 @@ bool InputHandler::MouseUp(Mouse button) const {
 }
 
 bool InputHandler::KeyPressed(Key key) const {
-	const auto key_states{ SDL_GetKeyboardState(NULL) };
 	auto key_number{ static_cast<std::size_t>(key) };
 	assert(key_number < InputHandler::KEY_COUNT && "Could not find key in input handler key states");
-	return key_states[key_number];
+	return key_states_[key_number];
 }
 
 bool InputHandler::KeyReleased(Key key) const {
 	return !KeyPressed(key);
 }
 
-bool InputHandler::KeyDown(Key key) const {
-	return KeyPressed(key) && !previous_key_states_[static_cast<std::size_t>(key)];
+bool InputHandler::KeyDown(Key key) {
+	auto key_number{ static_cast<std::size_t>(key) };
+	assert(key_number < InputHandler::KEY_COUNT && "Could not find key in input handler key states");
+	return first_time_[key_number] && key_states_[key_number];
 }
 
-bool InputHandler::KeyUp(Key key) const {
-	return KeyReleased(key) && previous_key_states_[static_cast<std::size_t>(key)];
+bool InputHandler::KeyUp(Key key) {
+	auto key_number{ static_cast<std::size_t>(key) };
+	assert(key_number < InputHandler::KEY_COUNT && "Could not find key in input handler key states");
+	return first_time_[key_number] && !key_states_[key_number];
 }
 
 } // namespace ptgn
