@@ -8,6 +8,7 @@ namespace ptgn {
 template <typename T>
 struct Grid {
 	Grid() = delete;
+	Grid(const Vector2<int>& size, const std::unordered_map<V2_int, T>& cells) : size{ size }, cells{ cells } {}
 	Grid(const Vector2<int>& size) : size{ size } {}
 	bool InBound(const V2_int& coordinate) const {
 		return coordinate.x < size.x && coordinate.x >= 0 &&
@@ -40,13 +41,29 @@ struct Grid {
 		assert(InBound(coordinate));
 		return cells.find(coordinate) != cells.end();
 	}
-	const T& GetTile(const V2_int& coordinate) const {
+	Grid<T> GetSubgridWith(const T& object) {
+		std::unordered_map<V2_int, T> cells_with;
+		cells_with.reserve(cells.size());
+		for (auto& [key, value] : cells)
+			if (value == object)
+				cells_with.emplace(key, value);
+		return { size, cells_with };
+	}
+	Grid<T> GetSubgridWithout(const T& object) {
+		std::unordered_map<V2_int, T> cells_without;
+		cells_without.reserve(cells.size());
+		for (auto& [key, value] : cells)
+			if (value != object)
+				cells_without.emplace(key, value);
+		return { size, cells_without };
+	}
+	const T& Get(const V2_int& coordinate) const {
 		assert(InBound(coordinate));
 		auto it = cells.find(coordinate);
 		assert(it != cells.end());
 		return it->second;
 	}
-	T& GetTile(const V2_int& coordinate) {
+	T& Get(const V2_int& coordinate) {
 		assert(InBound(coordinate));
 		auto it = cells.find(coordinate);
 		assert(it != cells.end());
