@@ -15,6 +15,7 @@
 #include "protegon/manager.h"
 #include "protegon/math.h"
 #include "protegon/mouse.h"
+#include "protegon/path_planning.h"
 #include "protegon/rectangle.h"
 #include "protegon/resources.h"
 #include "protegon/rng.h"

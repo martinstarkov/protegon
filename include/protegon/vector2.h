@@ -155,6 +155,16 @@ struct Vector2 {
         return { -y, x };
     }
 
+    template <typename U = float>
+    U Magnitude() const {
+        if constexpr (std::is_same_v<U, double>)
+            return std::sqrt(Dot(*this));
+        else if constexpr (std::is_same_v<U, long double>)
+            return std::sqrtl(Dot(*this));
+        else
+            return static_cast<U>(std::sqrtf(Dot(*this)));
+    }
+
     // Returns a unit vector (magnitude = 1) except for zero vectors (magnitude = 0).
     Vector2 Normalized() const {
         T m{ Dot(*this) };

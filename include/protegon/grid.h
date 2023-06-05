@@ -6,10 +6,13 @@
 namespace ptgn {
 
 template <typename T>
-struct Grid {
+class Grid {
+public:
 	Grid() = delete;
 	Grid(const Vector2<int>& size, const std::unordered_map<V2_int, T>& cells) : size{ size }, cells{ cells } {}
-	Grid(const Vector2<int>& size) : size{ size } {}
+	Grid(const Vector2<int>& size) : size{ size } {
+		Fill({});
+	}
 	bool InBound(const V2_int& coordinate) const {
 		return coordinate.x < size.x && coordinate.x >= 0 &&
 			   coordinate.y < size.y && coordinate.y >= 0;
@@ -26,9 +29,9 @@ struct Grid {
 			cells.emplace(V2_int{ i, j }, object);
 		});	
 	}
-	void Insert(const V2_int& coordinate, const T&& object) {
+	T& Insert(const V2_int& coordinate, const T&& object) {
 		assert(InBound(coordinate));
-		cells.insert_or_assign(coordinate, std::move(object));
+		return cells.insert_or_assign(coordinate, std::move(object))->first->second;
 	}
 	void Remove(const V2_int& coordinate) {
 		assert(InBound(coordinate));
@@ -75,9 +78,9 @@ struct Grid {
 	void Clear() {
 		cells.clear();
 	}
+	std::unordered_map<V2_int, T> cells;
 private:
 	V2_int size;
-	std::unordered_map<V2_int, T> cells;
 };
 
 } // namespace ptgn
