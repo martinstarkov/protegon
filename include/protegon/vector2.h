@@ -158,11 +158,15 @@ struct Vector2 {
     template <typename U = float>
     U Magnitude() const {
         if constexpr (std::is_same_v<U, double>)
-            return std::sqrt(Dot(*this));
+            return std::sqrt(MagnitudeSquared());
         else if constexpr (std::is_same_v<U, long double>)
-            return std::sqrtl(Dot(*this));
+            return std::sqrtl(MagnitudeSquared());
         else
-            return static_cast<U>(std::sqrtf(Dot(*this)));
+            return static_cast<U>(std::sqrtf(MagnitudeSquared()));
+    }
+
+    T MagnitudeSquared() const {
+        return Dot(*this);
     }
 
     // Returns a unit vector (magnitude = 1) except for zero vectors (magnitude = 0).
@@ -212,6 +216,13 @@ using V2_float = Vector2<float>;
 using V2_double = Vector2<double>;
 template <typename T>
 using Point = Vector2<T>;
+
+template <typename T, typename U, type_traits::floating_point<U> = true>
+inline Vector2<U> Lerp(const Vector2<T>& a,
+                       const Vector2<T>& b,
+                       U t) {
+    return { Lerp(a.x, b.x, t), Lerp(a.y, b.y, t) };
+}
 
 template <typename T>
 inline bool operator==(const Vector2<T>& lhs,

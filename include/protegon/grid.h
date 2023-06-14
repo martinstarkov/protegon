@@ -7,80 +7,57 @@ namespace ptgn {
 
 template <typename T>
 class Grid {
+	static_assert(std::is_default_constructible_v<T>);
 public:
 	Grid() = delete;
-	Grid(const Vector2<int>& size, const std::unordered_map<V2_int, T>& cells) : size{ size }, cells{ cells } {}
-	Grid(const Vector2<int>& size) : size{ size } {
-		Fill({});
+	Grid(const Vector2<int>& size, const std::vector<T>& cells) : size{ size }, length{ size.x * size.y }, cells{ cells } {
+		assert(length == cells.size());
 	}
-	bool InBound(const V2_int& coordinate) const {
-		return coordinate.x < size.x && coordinate.x >= 0 &&
-			   coordinate.y < size.y && coordinate.y >= 0;
+	Grid(const Vector2<int>& size) : size{ size }, length{ size.x * size.y }, cells(length, T{}) {
+		assert(length == cells.size());
 	}
 	template <typename L>
 	void ForEach(L function) {
 		for (int i = 0; i < size.x; i++)
 			for (int j = 0; j < size.y; j++)
-				function(i, j);
+				function(V2_int{ i, j });
+	}
+	template <typename L>
+	void ForAll(L function) {
+		for (int i = 0; i < length; i++) {
+			function(&cells[i]);
+		}
 	}
 	template <typename U = T, type_traits::copy_constructible<U> = true>
 	void Fill(const T& object) {
-		ForEach([&](int i, int j) {
-			cells.emplace(V2_int{ i, j }, object);
-		});	
-	}
-	T& Insert(const V2_int& coordinate, const T&& object) {
-		assert(InBound(coordinate));
-		return cells.insert_or_assign(coordinate, std::move(object))->first->second;
-	}
-	void Remove(const V2_int& coordinate) {
-		assert(InBound(coordinate));
-		auto it = cells.find(coordinate);
-		if (it != cells.end()) {
-			cells.erase(it);
-		}
+		std::fill(cells.begin(), cells.end(), object);
 	}
 	bool Has(const V2_int& coordinate) const {
-		assert(InBound(coordinate));
-		return cells.find(coordinate) != cells.end();
+		return coordinate.x >= 0 &&
+			   coordinate.y >= 0 &&
+			   coordinate.x < size.x &&
+			   coordinate.y < size.y;
 	}
-	Grid<T> GetSubgridWith(const T& object) {
-		std::unordered_map<V2_int, T> cells_with;
-		cells_with.reserve(cells.size());
-		for (auto& [key, value] : cells)
-			if (value == object)
-				cells_with.emplace(key, value);
-		return { size, cells_with };
+	const T* Get(const V2_int& coordinate) const {
+		assert(Has(coordinate));
+		const auto point{ OneDimensionalize(coordinate) };
+		return &cells[point];
 	}
-	Grid<T> GetSubgridWithout(const T& object) {
-		std::unordered_map<V2_int, T> cells_without;
-		cells_without.reserve(cells.size());
-		for (auto& [key, value] : cells)
-			if (value != object)
-				cells_without.emplace(key, value);
-		return { size, cells_without };
-	}
-	const T& Get(const V2_int& coordinate) const {
-		assert(InBound(coordinate));
-		auto it = cells.find(coordinate);
-		assert(it != cells.end());
-		return it->second;
-	}
-	T& Get(const V2_int& coordinate) {
-		assert(InBound(coordinate));
-		auto it = cells.find(coordinate);
-		assert(it != cells.end());
-		return it->second;
-	}
-	const V2_int& GetSize() const {
-		return size;
+	T* Get(const V2_int& coordinate) {
+		assert(Has(coordinate));
+		const auto point{ OneDimensionalize(coordinate) };
+		return &cells[point];
 	}
 	void Clear() {
 		cells.clear();
 	}
-	std::unordered_map<V2_int, T> cells;
+	const V2_int size;
 private:
-	V2_int size;
+	int OneDimensionalize(const V2_int& coordinate) const {
+		return coordinate.x + coordinate.y * size.y;
+	}
+	const int length{ 0 };
+	std::vector<T> cells;
 };
 
 } // namespace ptgn

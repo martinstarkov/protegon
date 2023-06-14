@@ -60,12 +60,12 @@ void DrawSolidCircle(int x, int y, int r, const Color& color) {
 	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
 	
 	int r2{ r * r };
-	for (auto y{ -r }; y <= r; ++y) {
+	for (auto y_c{ -r }; y_c <= r; ++y_c) {
 		auto y2{ y * y };
-		auto y_pos{ y + y };
-		for (auto x{ -r }; x <= r; ++x) {
+		auto y_pos{ y_c + y };
+		for (auto x_c{ -r }; x_c <= r; ++x_c) {
 			if (x * x + y2 <= r2) {
-				SDL_RenderDrawPoint(renderer, x + x, y_pos);
+				SDL_RenderDrawPoint(renderer, x_c + x, y_pos);
 			}
 		}
 	}

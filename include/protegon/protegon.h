@@ -11,6 +11,7 @@
 #include "protegon/hash.h"
 #include "protegon/input.h"
 #include "protegon/key.h"
+#include "protegon/line.h"
 #include "protegon/log.h"
 #include "protegon/manager.h"
 #include "protegon/math.h"
