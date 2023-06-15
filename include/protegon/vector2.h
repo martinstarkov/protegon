@@ -170,7 +170,8 @@ struct Vector2 {
     }
 
     // Returns a unit vector (magnitude = 1) except for zero vectors (magnitude = 0).
-    Vector2 Normalized() const {
+    template <typename U = float, type_traits::not_narrowing<T, U> = true>
+    Vector2<U> Normalized() const {
         T m{ Dot(*this) };
         if (NearlyEqual(m, static_cast<T>(0)))
             return *this;
