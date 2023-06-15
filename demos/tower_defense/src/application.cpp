@@ -78,7 +78,7 @@ class TowerDefense :  public Engine {
 	Grid<sNode> grid{ { 30, 30 } };
 	V2_int start;
 	V2_int end;
-	V2_float pos;
+	V2_int pos;
 	float counter{ 0.0f };
 	float vel{ 5.0f };
 	void Create() final {
@@ -98,8 +98,11 @@ class TowerDefense :  public Engine {
 			if (mouse_tile.x >= 0 && mouse_tile.x < grid.size.x)
 				if (mouse_tile.y >= 0 && mouse_tile.y < grid.size.y) {
 					assert(grid.Has(mouse_tile));
-					grid.Get(mouse_tile)->obstacle = false;
-					Solve_AStar(grid, V2_int{ start }, end);
+					auto node{ grid.Get(mouse_tile) };
+					if (node->obstacle) {
+						node->obstacle = false;
+						Solve_AStar(grid, start, end);
+					}
 				}
 		}
 		if (input::MousePressed(Mouse::LEFT)) {
@@ -109,12 +112,17 @@ class TowerDefense :  public Engine {
 					if (input::KeyPressed(Key::LEFT_SHIFT)) {
 						start = mouse_tile;
 						pos = start;
+						Solve_AStar(grid, start, end);
 					} else if (input::KeyPressed(Key::LEFT_CTRL)) {
 						end = mouse_tile;
+						Solve_AStar(grid, start, end);
 					} else {
-						grid.Get(mouse_tile)->obstacle = true;
+						auto node{ grid.Get(mouse_tile) };
+						if (!node->obstacle) {
+							node->obstacle = true;
+							Solve_AStar(grid, start, end);
+						}
 					}
-					Solve_AStar(grid, V2_int{ start }, end);
 				}
 		}
 
@@ -122,11 +130,11 @@ class TowerDefense :  public Engine {
 			Color c = color::GREY;
 			Rectangle<int> r{ p * tile_size, tile_size };
 			assert(grid.Has(p));
-			if (grid.Get(p)->visited)
-				c = color::CYAN;
+			//if (grid.Get(p)->visited)
+				//c = color::CYAN;
 			if (grid.Get(p)->obstacle)
 				c = color::RED;
-			if (p == V2_int{ start })
+			if (p == start)
 				c = color::GREEN;
 			else if (p == end)
 				c = color::GOLD;
@@ -138,8 +146,8 @@ class TowerDefense :  public Engine {
 		std::deque<V2_int> points;
 		std::deque<V2_int> dirs;
 		while (p.first->parent.first != nullptr) {
-			Line<int> test{ p.second * tile_size + tile_size / 2, p.first->parent.second * tile_size + tile_size / 2 };
-			test.Draw(color::PURPLE);
+			//Line<int> test{ p.second * tile_size + tile_size / 2, p.first->parent.second * tile_size + tile_size / 2 };
+			//test.Draw(color::PURPLE);
 			dirs.emplace_front(p.second - p.first->parent.second);
 			points.emplace_front(p.second);
 			p = p.first->parent;
@@ -156,19 +164,24 @@ class TowerDefense :  public Engine {
 			return -1;
 		};
 
-		auto idx = find(V2_int{ pos });
+		auto idx = find(pos);
 
 		if (idx != -1) {
-			counter += dt * vel;
-			if (counter > 1.0f) {
+			counter += dt * 10.0f;
+			while (counter > 1.0f && idx < dirs.size()) {
 				pos += dirs[idx];
-				counter = 0.0f;
+				counter -= 1.0f;
+				idx++;
 			}
 		} else {
-			PrintLine("Not on path!");
+			Solve_AStar(grid, pos, end);
 		}
-		if (idx != -1) {
+		if (idx != -1 && idx < dirs.size()) {
 			Rectangle<int> enemy{ V2_int{ Lerp(V2_float{ pos * tile_size }, V2_float{ (pos + dirs[idx]) * tile_size }, counter) }, tile_size };
+			enemy.DrawSolid(color::PURPLE);
+		} else {
+
+			Rectangle<int> enemy{ pos * tile_size, tile_size };
 			enemy.DrawSolid(color::PURPLE);
 		}
 
