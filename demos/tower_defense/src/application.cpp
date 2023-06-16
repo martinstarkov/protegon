@@ -73,14 +73,45 @@ bool Solve_AStar(Grid<sNode>& grid, const V2_int& start, const V2_int& end) {
 	return true;
 }
 
+std::pair<std::deque<V2_int>, std::deque<V2_int>> FindWaypointsAndDirections(Grid<sNode>& grid, const V2_int& start, const V2_int& end) {
+	Solve_AStar(grid, start, end);
+	std::pair<sNode*, V2_int> p{ grid.Get(end), end };
+	std::deque<V2_int> points;
+	std::deque<V2_int> dirs;
+	while (p.first->parent.first != nullptr) {
+		dirs.emplace_front(p.second - p.first->parent.second);
+		points.emplace_front(p.second);
+		p = p.first->parent;
+	}
+	points.emplace_front(p.second);
+	points.pop_back();
+	//dirs.emplace_back(V2_int{});
+	return { points, dirs };
+}
+
+void DisplayWaypointPath(const std::deque<V2_int>& waypoints, const std::deque<V2_int>& dirs, const V2_int& tile_size, const Color& color) {
+	assert(waypoints.size() == dirs.size());
+	for (int i = 0; i < waypoints.size(); ++i) {
+		auto& waypoint = waypoints.at(i);
+		auto& dir = dirs.at(i);
+		Line<int> path{ waypoint * tile_size + tile_size / 2, (waypoint + dir) * tile_size + tile_size / 2 };
+		path.Draw(color);
+	}
+}
+
 
 class TowerDefense :  public Engine {
 	Grid<sNode> grid{ { 30, 30 } };
 	V2_int start;
 	V2_int end;
 	V2_int pos;
-	float counter{ 0.0f };
+	float current_waypoint{ 0.0f };
 	float vel{ 5.0f };
+	std::deque<V2_int> global_waypoints;
+	std::deque<V2_int> global_dirs;
+	std::deque<V2_int> local_waypoints;
+	std::deque<V2_int> local_dirs;
+
 	void Create() final {
 		start = { 1, grid.size.y / 2 };
 		pos = start;
@@ -101,7 +132,9 @@ class TowerDefense :  public Engine {
 					auto node{ grid.Get(mouse_tile) };
 					if (node->obstacle) {
 						node->obstacle = false;
-						Solve_AStar(grid, start, end);
+						auto pair = FindWaypointsAndDirections(grid, start, end);
+						global_waypoints = pair.first;
+						global_dirs = pair.second;
 					}
 				}
 		}
@@ -112,15 +145,21 @@ class TowerDefense :  public Engine {
 					if (input::KeyPressed(Key::LEFT_SHIFT)) {
 						start = mouse_tile;
 						pos = start;
-						Solve_AStar(grid, start, end);
+						auto pair = FindWaypointsAndDirections(grid, start, end);
+						global_waypoints = pair.first;
+						global_dirs = pair.second;
 					} else if (input::KeyPressed(Key::LEFT_CTRL)) {
 						end = mouse_tile;
-						Solve_AStar(grid, start, end);
+						auto pair = FindWaypointsAndDirections(grid, start, end);
+						global_waypoints = pair.first;
+						global_dirs = pair.second;
 					} else {
 						auto node{ grid.Get(mouse_tile) };
 						if (!node->obstacle) {
 							node->obstacle = true;
-							Solve_AStar(grid, start, end);
+							auto pair = FindWaypointsAndDirections(grid, start, end);
+							global_waypoints = pair.first;
+							global_dirs = pair.second;
 						}
 					}
 				}
@@ -142,48 +181,53 @@ class TowerDefense :  public Engine {
 		});
 		if (grid.Has(mouse_tile))
 			mouse_box.Draw(color::YELLOW);
-		std::pair<sNode*, V2_int> p{ grid.Get(end), end };
-		std::deque<V2_int> points;
-		std::deque<V2_int> dirs;
-		while (p.first->parent.first != nullptr) {
-			//Line<int> test{ p.second * tile_size + tile_size / 2, p.first->parent.second * tile_size + tile_size / 2 };
-			//test.Draw(color::PURPLE);
-			dirs.emplace_front(p.second - p.first->parent.second);
-			points.emplace_front(p.second);
-			p = p.first->parent;
-		}
-		points.emplace_front(p.second);
-		dirs.emplace_back(V2_int{});
-		
-		auto find = [&](const V2_int& position) {
-			for (int i = 0; i < points.size(); ++i) {
-				if (position == points[i]) {
+
+		auto find = [&](const V2_int& position, const std::deque<V2_int>& waypoints) {
+			for (int i = 0; i < waypoints.size(); ++i) {
+				if (position == waypoints[i]) {
 					return i;
 				}
 			}
 			return -1;
 		};
 
-		auto idx = find(pos);
-
-		if (idx != -1) {
-			counter += dt * 10.0f;
-			while (counter > 1.0f && idx < dirs.size()) {
-				pos += dirs[idx];
-				counter -= 1.0f;
-				idx++;
-			}
-		} else {
-			Solve_AStar(grid, pos, end);
+		local_waypoints = global_waypoints;
+		local_dirs = global_dirs;
+		auto idx = find(pos, local_waypoints);
+		bool path_exists = pos != end;
+		if (idx == -1 && path_exists) {
+			auto pair = FindWaypointsAndDirections(grid, pos, end);
+			local_waypoints = pair.first;
+			local_dirs = pair.second;
+			idx = find(pos, local_waypoints);
+			path_exists = idx != -1;
 		}
-		if (idx != -1 && idx < dirs.size()) {
-			Rectangle<int> enemy{ V2_int{ Lerp(V2_float{ pos * tile_size }, V2_float{ (pos + dirs[idx]) * tile_size }, counter) }, tile_size };
-			enemy.DrawSolid(color::PURPLE);
-		} else {
 
+		DisplayWaypointPath(local_waypoints, local_dirs, tile_size, color::PURPLE);
+		DisplayWaypointPath(global_waypoints, global_dirs, tile_size, color::GREEN);
+
+		if (!path_exists) { // no global or local path
 			Rectangle<int> enemy{ pos * tile_size, tile_size };
 			enemy.DrawSolid(color::PURPLE);
+		} else {
+				current_waypoint += dt * vel;
+				while (current_waypoint >= 1.0f && idx < local_dirs.size()) {
+					pos += local_dirs[idx];
+					current_waypoint -= 1.0f;
+					idx++;
+				}
+			bool not_finished{ idx < local_dirs.size() };
+			if (not_finished) {
+				assert(current_waypoint <= 1.0f);
+				assert(current_waypoint >= 0.0f);
+				Rectangle<int> enemy{ V2_int{ Lerp(V2_float{ pos * tile_size }, V2_float{ (pos + local_dirs[idx]) * tile_size }, current_waypoint) }, tile_size };
+				enemy.DrawSolid(color::PURPLE);
+			} else {
+				Rectangle<int> enemy{ pos * tile_size, tile_size };
+				enemy.DrawSolid(color::PURPLE);
+			}
 		}
+
 
 		//Line<int> test{ start * tile_size + tile_size / 2, (start + dirs.back()) * tile_size + tile_size / 2 };
 		//test.Draw(color::YELLOW);
