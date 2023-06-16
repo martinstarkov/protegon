@@ -169,6 +169,12 @@ struct Vector2 {
         return Dot(*this);
     }
 
+    template <typename U = float>
+    Vector2<U> Fraction() const {
+        return { x - static_cast<std::int64_t>(x), 
+                 y - static_cast<std::int64_t>(y) };
+    }
+
     // Returns a unit vector (magnitude = 1) except for zero vectors (magnitude = 0).
     template <typename U = float, type_traits::not_narrowing<T, U> = true>
     Vector2<U> Normalized() const {
@@ -223,6 +229,13 @@ inline Vector2<U> Lerp(const Vector2<T>& a,
                        const Vector2<T>& b,
                        U t) {
     return { Lerp(a.x, b.x, t), Lerp(a.y, b.y, t) };
+}
+
+template <typename T, typename U, type_traits::floating_point<U> = true>
+inline Vector2<U> Lerp(const Vector2<T>& a,
+                       const Vector2<T>& b,
+                       const Vector2<U>& t) {
+    return { Lerp(a.x, b.x, t.x), Lerp(a.y, b.y, t.y) };
 }
 
 template <typename T>
