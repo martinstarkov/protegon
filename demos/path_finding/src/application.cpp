@@ -104,7 +104,7 @@ int FindWaypointIndex(const V2_int& position, const std::deque<V2_int>& waypoint
 	return -1;
 };
 
-class TowerDefense :  public Engine {
+class PathFinding :  public Engine {
 	Grid<AStarNode> grid{ { 50, 30 } };
 	V2_int start;
 	V2_int end;
@@ -213,7 +213,7 @@ class TowerDefense :  public Engine {
 };
 
 int main(int c, char** v) {
-	TowerDefense game;
-	game.Construct("Tower Defense", { 1000, 600 });
+	PathFinding game;
+	game.Construct("'left': place, 'right': remove, 'shift + left': move start, 'ctrl + left': move end, 'V': show visited", { 1000, 600 });
 	return 0;
 }
