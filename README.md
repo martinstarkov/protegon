@@ -10,7 +10,7 @@ Before starting the build, ensure that you have [CMake 3.20+](https://cmake.org/
 2. Navigate into the cloned repository by typing `cd <replace_with_repository_directory>` into a terminal such as [Git Bash](https://git-scm.com/downloads).
 3. `mkdir build` to create a build directory.
 4. `cd build` to enter the created build directory.
-5. `cmake .. -DDEMOS=ON` (note the repeated D) to build protegon using CMake with demos (use `-DDEMOS=OFF` instead to omit demos).
+5. `cmake ..` to build protegon using CMake with demos (add ` -DDEMOS=OFF` (note the repeated D) to the command to build without demos).
 6. If prompted, enter `Y` to confirm the download of the `requests` python package. 
 7. Enter `Y` to each of the SDL2 module download confirmation prompts. 
 8. All done! Open/access the generated project files in the build directory.
