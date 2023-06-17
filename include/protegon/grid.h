@@ -54,7 +54,7 @@ public:
 	const V2_int size;
 private:
 	int OneDimensionalize(const V2_int& coordinate) const {
-		return coordinate.x + coordinate.y * size.y;
+		return coordinate.x + coordinate.y * size.x;
 	}
 	const int length{ 0 };
 	std::vector<T> cells;
