@@ -3,12 +3,12 @@
 
 using namespace ptgn;
 
-struct sNode {
+struct AStarNode {
 	bool obstacle{ false };
 	bool visited{ false };
 	float global_goal{ INFINITY };
 	float local_goal{ INFINITY };
-	std::pair<sNode*, V2_int> parent{};
+	std::pair<AStarNode*, V2_int> parent{};
 	void Reset() {
 		visited = false;
 		global_goal = INFINITY;
@@ -18,23 +18,23 @@ struct sNode {
 };
 
 //template <typename T, type_traits::convertible<T, Node> = true>
-bool SolveAStar(Grid<sNode>& grid, const V2_int& start, const V2_int& end) {
-	sNode* start_node = grid.Get(start);
-	sNode* end_node = grid.Get(end);
+bool SolveAStar(Grid<AStarNode>& grid, const V2_int& start, const V2_int& end) {
+	AStarNode* start_node = grid.Get(start);
+	AStarNode* end_node = grid.Get(end);
 
-	grid.ForAll([](sNode* node) {
+	grid.ForAll([](AStarNode* node) {
 		node->Reset();
 	});
 
-	std::pair<sNode*, V2_int> current_node{ start_node, start };
+	std::pair<AStarNode*, V2_int> current_node{ start_node, start };
 	start_node->local_goal = 0.0f;
 	start_node->global_goal = (start - end).Magnitude();
 
-	std::list<std::pair<sNode*, V2_int>> node_candidates;
+	std::list<std::pair<AStarNode*, V2_int>> node_candidates;
 	node_candidates.push_back(current_node);
 
 	while (!node_candidates.empty() && current_node.first != end_node) {
-		node_candidates.sort([](const std::pair<sNode*, V2_int>& lhs, const std::pair<sNode*, V2_int>& rhs) { return lhs.first->global_goal < rhs.first->global_goal; });
+		node_candidates.sort([](const std::pair<AStarNode*, V2_int>& lhs, const std::pair<AStarNode*, V2_int>& rhs) { return lhs.first->global_goal < rhs.first->global_goal; });
 
 		while (!node_candidates.empty() && node_candidates.front().first->visited)
 			node_candidates.pop_front();
@@ -51,18 +51,20 @@ bool SolveAStar(Grid<sNode>& grid, const V2_int& start, const V2_int& end) {
 		for (auto dir : neighbors) {
 			auto coordinate = current_node.second + dir;
 			if (grid.Has(coordinate)) {
-				auto nodeNeighbour = grid.Get(coordinate);
+				auto neighbor_node{ grid.Get(coordinate) };
 
-				if (!nodeNeighbour->visited && nodeNeighbour->obstacle == 0)
-					node_candidates.emplace_back(nodeNeighbour, coordinate);
+				if (!neighbor_node->visited && neighbor_node->obstacle == 0)
+					node_candidates.emplace_back(neighbor_node, coordinate);
 
-				float new_goal = current_node.first->local_goal + (current_node.second - coordinate).Magnitude();
+				float new_goal{ current_node.first->local_goal + 
+					           (current_node.second - coordinate).Magnitude() };
 
-				if (new_goal < nodeNeighbour->local_goal) {
-					nodeNeighbour->parent = current_node;
-					nodeNeighbour->local_goal = new_goal;
+				if (new_goal < neighbor_node->local_goal) {
+					neighbor_node->parent = current_node;
+					neighbor_node->local_goal = new_goal;
 					
-					nodeNeighbour->global_goal = nodeNeighbour->local_goal + (coordinate - end).Magnitude();
+					neighbor_node->global_goal = neighbor_node->local_goal + 
+						                        (coordinate - end).Magnitude();
 				}
 			}
 		}
@@ -73,9 +75,9 @@ bool SolveAStar(Grid<sNode>& grid, const V2_int& start, const V2_int& end) {
 	return true;
 }
 
-std::deque<V2_int> FindWaypoints(Grid<sNode>& grid, const V2_int& start, const V2_int& end) {
+std::deque<V2_int> FindWaypoints(Grid<AStarNode>& grid, const V2_int& start, const V2_int& end) {
 	SolveAStar(grid, start, end);
-	std::pair<sNode*, V2_int> p{ grid.Get(end), end };
+	std::pair<AStarNode*, V2_int> p{ grid.Get(end), end };
 	std::deque<V2_int> waypoints;
 	while (p.first->parent.first != nullptr) {
 		waypoints.emplace_front(p.second);
@@ -102,8 +104,8 @@ int FindWaypointIndex(const V2_int& position, const std::deque<V2_int>& waypoint
 	return -1;
 };
 
-class TowerDefense :  public Engine {
-	Grid<sNode> grid{ { 30, 30 } };
+class PathFinding :  public Engine {
+	Grid<AStarNode> grid{ { 50, 30 } };
 	V2_int start;
 	V2_int end;
 	V2_int pos;
@@ -161,8 +163,8 @@ class TowerDefense :  public Engine {
 			Color c = color::GREY;
 			Rectangle<int> r{ p * tile_size, tile_size };
 			assert(grid.Has(p));
-			//if (grid.Get(p)->visited)
-				//c = color::CYAN;
+			if (input::KeyPressed(Key::V) && grid.Get(p)->visited)
+				c = color::CYAN;
 			if (grid.Get(p)->obstacle)
 				c = color::RED;
 			if (p == start)
@@ -182,6 +184,9 @@ class TowerDefense :  public Engine {
 			idx = FindWaypointIndex(pos, local_waypoints);
 			path_exists = idx != -1;
 		}
+
+		DisplayWaypoints(local_waypoints, tile_size, color::PURPLE);
+		DisplayWaypoints(global_waypoints, tile_size, color::GREEN);
 
 		if (!path_exists) { // no global or local path
 			Rectangle<int> enemy{ pos * tile_size, tile_size };
@@ -204,14 +209,11 @@ class TowerDefense :  public Engine {
 				enemy.DrawSolid(color::PURPLE);
 			}
 		}
-
-		DisplayWaypoints(local_waypoints, tile_size, color::PURPLE);
-		DisplayWaypoints(global_waypoints, tile_size, color::GREEN);
 	}
 };
 
 int main(int c, char** v) {
-	TowerDefense game;
-	game.Construct("Tower Defense", { 720, 720 });
+	PathFinding game;
+	game.Construct("'left': place, 'right': remove, 'shift + left': move start, 'ctrl + left': move end, 'V': show visited", { 1000, 600 });
 	return 0;
 }
