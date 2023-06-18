@@ -1,7 +1,12 @@
 #pragma once
 
-#include <tuple>  // std::pair
-#include <vector> // std::vector
+#include <tuple> // std::pair
+#include <list>  // std::list
+#include <array> // std::array
+#include <deque> // std::deque
+
+#include "vector2.h"
+#include "line.h"
 
 namespace ptgn {
 
@@ -21,6 +26,9 @@ struct AStarNode {
 	}
 };
 
+inline constexpr std::array<V2_int, 4> neighbors{ V2_int{ 0, 1 }, V2_int{ 0, -1 },
+												  V2_int{ 1, 0 }, V2_int{ -1, 0 } };
+
 } // namespace impl
 
 class AStarGrid : private Grid<impl::AStarNode> {
@@ -33,7 +41,7 @@ public:
 	// @return True if grid has an obstacle and its state was flipped, false otherwise.
 	bool SetObstacle(const V2_int& coordinate, bool obstacle) {
 		if (Has(coordinate)) {
-			auto node{ Get(coordinate) };
+			impl::AStarNode* node{ Get(coordinate) };
 			if (node->obstacle != obstacle) {
 				node->obstacle = obstacle;
 				return true;
@@ -61,15 +69,6 @@ public:
 		waypoints.emplace_front(p.second);
 		return waypoints;
 	}
-
-	static void DisplayWaypoints(const std::deque<V2_int>& waypoints, const V2_int& tile_size, const Color& color) {
-		for (int i = 0; i + 1 < waypoints.size(); ++i) {
-			Line<int> path{ waypoints[i] * tile_size + tile_size / 2,
-							waypoints[i + 1] * tile_size + tile_size / 2 };
-			path.Draw(color);
-		}
-	}
-
 	static int FindWaypointIndex(const std::deque<V2_int>& waypoints, const V2_int& position) {
 		for (int i = 0; i < waypoints.size(); ++i) {
 			if (position == waypoints[i]) {
@@ -78,7 +77,13 @@ public:
 		}
 		return -1;
 	};
-
+	static void DisplayWaypoints(const std::deque<V2_int>& waypoints, const V2_int& tile_size, const Color& color) {
+		for (int i = 0; i + 1 < waypoints.size(); ++i) {
+			Line<int> path{ waypoints[i] * tile_size + tile_size / 2,
+							waypoints[i + 1] * tile_size + tile_size / 2 };
+			path.Draw(color);
+		}
+	}
 private:
 	void SolvePath(const V2_int& start, const V2_int& end) {
 		impl::AStarNode* start_node{ Get(start) };
@@ -95,11 +100,17 @@ private:
 		std::list<std::pair<impl::AStarNode*, V2_int>> node_candidates;
 		node_candidates.push_back(current_node);
 
-		while (!node_candidates.empty() && current_node.first != end_node) {
-			node_candidates.sort([](const std::pair<impl::AStarNode*, V2_int>& lhs, const std::pair<impl::AStarNode*, V2_int>& rhs) { return lhs.first->global_goal < rhs.first->global_goal; });
+		while (!node_candidates.empty() && 
+			    current_node.first != end_node) {
+			node_candidates.sort([](const std::pair<impl::AStarNode*, V2_int>& lhs, 
+									const std::pair<impl::AStarNode*, V2_int>& rhs) {
+				return lhs.first->global_goal < rhs.first->global_goal; 
+			});
 
-			while (!node_candidates.empty() && node_candidates.front().first->visited)
+			while (!node_candidates.empty() &&
+				   node_candidates.front().first->visited) {
 				node_candidates.pop_front();
+			}
 
 			if (node_candidates.empty())
 				break;
@@ -107,13 +118,10 @@ private:
 			current_node = node_candidates.front();
 			current_node.first->visited = true;
 
-			std::array<V2_int, 4> neighbors{ V2_int{ 0, 1 }, V2_int{ 0, -1 },
-											 V2_int{ 1, 0 }, V2_int{ -1, 0 } };
-
-			for (auto dir : neighbors) {
+			for (const V2_int& dir : impl::neighbors) {
 				auto coordinate = current_node.second + dir;
 				if (Has(coordinate)) {
-					auto neighbor_node{ Get(coordinate) };
+					impl::AStarNode* neighbor_node{ Get(coordinate) };
 
 					if (!neighbor_node->visited && neighbor_node->obstacle == 0)
 						node_candidates.emplace_back(neighbor_node, coordinate);
