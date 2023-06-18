@@ -1,111 +1,10 @@
 #include "protegon/protegon.h"
-#include <deque>
 
 using namespace ptgn;
 
-struct AStarNode {
-	bool obstacle{ false };
-	bool visited{ false };
-	float global_goal{ INFINITY };
-	float local_goal{ INFINITY };
-	std::pair<AStarNode*, V2_int> parent{};
-	void Reset() {
-		visited = false;
-		global_goal = INFINITY;
-		local_goal = INFINITY;
-		parent = { nullptr, V2_int{} };
-	}
-};
-
-//template <typename T, type_traits::convertible<T, Node> = true>
-bool SolveAStar(Grid<AStarNode>& grid, const V2_int& start, const V2_int& end) {
-	AStarNode* start_node = grid.Get(start);
-	AStarNode* end_node = grid.Get(end);
-
-	grid.ForAll([](AStarNode* node) {
-		node->Reset();
-	});
-
-	std::pair<AStarNode*, V2_int> current_node{ start_node, start };
-	start_node->local_goal = 0.0f;
-	start_node->global_goal = (start - end).Magnitude();
-
-	std::list<std::pair<AStarNode*, V2_int>> node_candidates;
-	node_candidates.push_back(current_node);
-
-	while (!node_candidates.empty() && current_node.first != end_node) {
-		node_candidates.sort([](const std::pair<AStarNode*, V2_int>& lhs, const std::pair<AStarNode*, V2_int>& rhs) { return lhs.first->global_goal < rhs.first->global_goal; });
-
-		while (!node_candidates.empty() && node_candidates.front().first->visited)
-			node_candidates.pop_front();
-
-		if (node_candidates.empty())
-			break;
-
-		current_node = node_candidates.front();
-		current_node.first->visited = true;
-
-		std::array<V2_int, 4> neighbors{ V2_int{ 0, 1 }, V2_int{ 0, -1 },
-										 V2_int{ 1, 0 }, V2_int{ -1, 0 } };
-
-		for (auto dir : neighbors) {
-			auto coordinate = current_node.second + dir;
-			if (grid.Has(coordinate)) {
-				auto neighbor_node{ grid.Get(coordinate) };
-
-				if (!neighbor_node->visited && neighbor_node->obstacle == 0)
-					node_candidates.emplace_back(neighbor_node, coordinate);
-
-				float new_goal{ current_node.first->local_goal + 
-					           (current_node.second - coordinate).Magnitude() };
-
-				if (new_goal < neighbor_node->local_goal) {
-					neighbor_node->parent = current_node;
-					neighbor_node->local_goal = new_goal;
-					
-					neighbor_node->global_goal = neighbor_node->local_goal + 
-						                        (coordinate - end).Magnitude();
-				}
-			}
-		}
-	}
-
-
-
-	return true;
-}
-
-std::deque<V2_int> FindWaypoints(Grid<AStarNode>& grid, const V2_int& start, const V2_int& end) {
-	SolveAStar(grid, start, end);
-	std::pair<AStarNode*, V2_int> p{ grid.Get(end), end };
-	std::deque<V2_int> waypoints;
-	while (p.first->parent.first != nullptr) {
-		waypoints.emplace_front(p.second);
-		p = p.first->parent;
-	}
-	waypoints.emplace_front(p.second);
-	return waypoints;
-}
-
-void DisplayWaypoints(const std::deque<V2_int>& waypoints, const V2_int& tile_size, const Color& color) {
-	for (int i = 0; i + 1 < waypoints.size(); ++i) {
-		Line<int> path{ waypoints.at(i)     * tile_size + tile_size / 2, 
-			            waypoints.at(i + 1) * tile_size + tile_size / 2 };
-		path.Draw(color);
-	}
-}
-
-int FindWaypointIndex(const V2_int& position, const std::deque<V2_int>& waypoints) {
-	for (int i = 0; i < waypoints.size(); ++i) {
-		if (position == waypoints[i]) {
-			return i;
-		}
-	}
-	return -1;
-};
-
-class PathFinding :  public Engine {
-	Grid<AStarNode> grid{ { 50, 30 } };
+class PathFinding : public Engine {
+	AStarGrid grid{ { 50, 30 } };
+	V2_int tile_size{ 20, 20 };
 	V2_int start;
 	V2_int end;
 	V2_int pos;
@@ -119,8 +18,6 @@ class PathFinding :  public Engine {
 		pos = start;
 		end = { grid.size.x - 2, grid.size.y / 2 };
 	}
-	V2_int tile_size{ 20, 20 };
-	bool toggle = true;
 	void Update(float dt) final {
 
 		V2_int mouse_pos = input::GetMousePosition();
@@ -128,86 +25,82 @@ class PathFinding :  public Engine {
 		Rectangle<int> mouse_box{ mouse_tile * tile_size, tile_size };
 
 		if (input::MousePressed(Mouse::RIGHT)) {
-			if (mouse_tile.x >= 0 && mouse_tile.x < grid.size.x)
-				if (mouse_tile.y >= 0 && mouse_tile.y < grid.size.y) {
-					assert(grid.Has(mouse_tile));
-					auto node{ grid.Get(mouse_tile) };
-					if (node->obstacle) {
-						node->obstacle = false;
-						global_waypoints = FindWaypoints(grid, start, end);
-					}
-				}
+			if (grid.SetObstacle(mouse_tile, false)) {
+				global_waypoints = grid.FindWaypoints(start, end);
+			}
 		}
 		if (input::MousePressed(Mouse::LEFT)) {
-			if (mouse_tile.x >= 0 && mouse_tile.x < grid.size.x)
-				if (mouse_tile.y >= 0 && mouse_tile.y < grid.size.y) {
-					assert(grid.Has(mouse_tile));
-					if (input::KeyPressed(Key::LEFT_SHIFT)) {
-						start = mouse_tile;
-						pos = start;
-						global_waypoints = FindWaypoints(grid, start, end);
-					} else if (input::KeyPressed(Key::LEFT_CTRL)) {
-						end = mouse_tile;
-						global_waypoints = FindWaypoints(grid, start, end);
-					} else {
-						auto node{ grid.Get(mouse_tile) };
-						if (!node->obstacle) {
-							node->obstacle = true;
-							global_waypoints = FindWaypoints(grid, start, end);
-						}
-					}
+			if (grid.Has(mouse_tile)) {
+				if (input::KeyPressed(Key::LEFT_SHIFT)) {
+					start = mouse_tile;
+					pos = start;
+					global_waypoints = grid.FindWaypoints(start, end);
+				} else if (input::KeyPressed(Key::LEFT_CTRL)) {
+					end = mouse_tile;
+					global_waypoints = grid.FindWaypoints(start, end);
+				} else if (grid.SetObstacle(mouse_tile, true)) {
+					global_waypoints = grid.FindWaypoints(start, end);
 				}
+			}
 		}
 
-		grid.ForEach([&](const V2_int& p) {
+		grid.ForEach([&](const V2_int& tile) {
 			Color c = color::GREY;
-			Rectangle<int> r{ p * tile_size, tile_size };
-			assert(grid.Has(p));
-			if (input::KeyPressed(Key::V) && grid.Get(p)->visited)
+			if (input::KeyPressed(Key::V) && grid.IsVisited(tile))
 				c = color::CYAN;
-			if (grid.Get(p)->obstacle)
+			if (grid.IsObstacle(tile))
 				c = color::RED;
-			if (p == start)
+			if (tile == start)
 				c = color::GREEN;
-			else if (p == end)
+			else if (tile == end)
 				c = color::GOLD;
+			Rectangle<int> r{ tile * tile_size, tile_size };
 			r.DrawSolid(c);
 		});
 		if (grid.Has(mouse_tile))
 			mouse_box.Draw(color::YELLOW);
 
 		local_waypoints = global_waypoints;
-		int idx = FindWaypointIndex(pos, local_waypoints);
+		int idx = AStarGrid::FindWaypointIndex(local_waypoints, pos);
+		// path is obviously finished if character is at the end tile.
 		bool path_exists = pos != end;
-		if (idx == -1 && path_exists) {
-			local_waypoints = FindWaypoints(grid, pos, end);
-			idx = FindWaypointIndex(pos, local_waypoints);
+		if (idx == -1 && path_exists) { // look for a local path if the character is not on the global path or at the end
+			local_waypoints = grid.FindWaypoints(pos, end);
+
+			idx = AStarGrid::FindWaypointIndex(local_waypoints, pos);
 			path_exists = idx != -1;
 		}
 
-		DisplayWaypoints(local_waypoints, tile_size, color::PURPLE);
-		DisplayWaypoints(global_waypoints, tile_size, color::GREEN);
+		AStarGrid::DisplayWaypoints(local_waypoints, tile_size, color::PURPLE);
+		AStarGrid::DisplayWaypoints(global_waypoints, tile_size, color::GREEN);
 
-		if (!path_exists) { // no global or local path
-			Rectangle<int> enemy{ pos * tile_size, tile_size };
+		if (path_exists) { // global or local path exists
+			current_waypoint += dt * vel;
+			assert(idx >= 0);
+			assert(idx < local_waypoints.size());
+			assert(idx + 1 < local_waypoints.size());
+			// Keep moving character 1 tile forward on its path
+			// until there is no longer enough "speed" for 1 full tile
+			// in which case exit the loop and linearly interpolate
+			// the position between the "in progress" tiles.
+			while (current_waypoint >= 1.0f && idx + 1 < local_waypoints.size()) {
+				pos += local_waypoints[idx + 1] - local_waypoints[idx];
+				current_waypoint -= 1.0f;
+				idx++;
+			}
+		}
+
+		if (path_exists && idx + 1 < local_waypoints.size()) {
+			assert(current_waypoint <= 1.0f);
+			assert(current_waypoint >= 0.0f);
+			assert(idx >= 0);
+			assert(idx < local_waypoints.size());
+			assert(idx + 1 < local_waypoints.size());
+			Rectangle<int> enemy{ V2_int{ Lerp(V2_float{ pos * tile_size }, V2_float{ (pos + local_waypoints[idx + 1] - local_waypoints[idx]) * tile_size }, current_waypoint) }, tile_size };
 			enemy.DrawSolid(color::PURPLE);
 		} else {
-				current_waypoint += dt * vel;
-				while (current_waypoint >= 1.0f && idx + 1 < local_waypoints.size()) {
-					pos += local_waypoints[idx + 1] - local_waypoints[idx];
-					current_waypoint -= 1.0f;
-					idx++;
-				}
-			bool not_finished{ idx + 1 < local_waypoints.size() };
-			if (not_finished) {
-				assert(current_waypoint <= 1.0f);
-				assert(current_waypoint >= 0.0f);
-				Rectangle<int> enemy{ V2_int{ Lerp(V2_float{ pos * tile_size }, V2_float{ (pos + local_waypoints[idx + 1] - local_waypoints[idx]) * tile_size }, current_waypoint) }, tile_size };
-				enemy.DrawSolid(color::PURPLE);
-			} else {
-				Rectangle<int> enemy{ pos * tile_size, tile_size };
-				enemy.DrawSolid(color::PURPLE);
-			}
+			Rectangle<int> enemy{ pos * tile_size, tile_size };
+			enemy.DrawSolid(color::PURPLE);
 		}
 	}
 };
