@@ -4,8 +4,9 @@ using namespace ptgn;
 
 struct HealthComponent {
 	HealthComponent() = default;
-	HealthComponent(int health) : health{ health } {}
-	int health{ 0 };
+	HealthComponent(int health) : original{ health }, current{ original } {}
+	const int original{ 0 };
+	int current{ 0 };
 };
 
 struct PathComponent {
@@ -19,6 +20,7 @@ struct PositionComponent {
 	PositionComponent() = default;
 	PositionComponent(const V2_int& pos) : pos{ pos } {}
 	V2_int pos;
+	V2_float point;
 };
 
 struct VelocityComponent {
@@ -46,11 +48,11 @@ class TowerDefense :  public Engine {
 		enemy1.AddComponent<PositionComponent>().pos = start;
 		enemy1.AddComponent<VelocityComponent>().vel = 7.0f;
 		enemy1.AddComponent<PathComponent>();
-		enemy1.AddComponent<HealthComponent>();
+		enemy1.AddComponent<HealthComponent>(100);
 	}
 	void Update(float dt) final {
 
-		auto& enemy1_pos = enemy1.GetComponent<PositionComponent>().pos;
+		auto& enemy1_p = enemy1.GetComponent<PositionComponent>();
 		auto& enemy1_path = enemy1.GetComponent<PathComponent>();
 
 		V2_int mouse_pos = input::GetMousePosition();
@@ -66,7 +68,7 @@ class TowerDefense :  public Engine {
 			if (grid.Has(mouse_tile)) {
 				if (input::KeyPressed(Key::LEFT_SHIFT)) {
 					start = mouse_tile;
-					enemy1_pos = start;
+					enemy1_p.pos = start;
 					global_waypoints = grid.FindWaypoints(start, end);
 				} else if (input::KeyPressed(Key::LEFT_CTRL)) {
 					end = mouse_tile;
@@ -94,13 +96,13 @@ class TowerDefense :  public Engine {
 			mouse_box.Draw(color::YELLOW);
 
 		enemy1_path.waypoints = global_waypoints;
-		int idx = AStarGrid::FindWaypointIndex(enemy1_path.waypoints, enemy1_pos);
+		int idx = AStarGrid::FindWaypointIndex(enemy1_path.waypoints, enemy1_p.pos);
 		// path is obviously finished if character is at the end tile.
-		bool path_exists = enemy1_pos != end;
+		bool path_exists = enemy1_p.pos != end;
 		if (idx == -1 && path_exists) { // look for a local path if the character is not on the global path or at the end
-			enemy1_path.waypoints = grid.FindWaypoints(enemy1_pos, end);
+			enemy1_path.waypoints = grid.FindWaypoints(enemy1_p.pos, end);
 			
-			idx = AStarGrid::FindWaypointIndex(enemy1_path.waypoints, enemy1_pos);
+			idx = AStarGrid::FindWaypointIndex(enemy1_path.waypoints, enemy1_p.pos);
 			path_exists = idx != -1;
 		}
 
@@ -117,7 +119,7 @@ class TowerDefense :  public Engine {
 			// in which case exit the loop and linearly interpolate
 			// the position between the "in progress" tiles.
 			while (enemy1_path.current_waypoint >= 1.0f && idx + 1 < enemy1_path.waypoints.size()) {
-				enemy1_pos += enemy1_path.waypoints[idx + 1] - enemy1_path.waypoints[idx];
+				enemy1_p.pos += enemy1_path.waypoints[idx + 1] - enemy1_path.waypoints[idx];
 				enemy1_path.current_waypoint -= 1.0f;
 				idx++;
 			}
@@ -129,16 +131,41 @@ class TowerDefense :  public Engine {
 			assert(idx >= 0);
 			assert(idx < enemy1_path.waypoints.size());
 			assert(idx + 1 < enemy1_path.waypoints.size());
-			Rectangle<int> enemy{ V2_int{ Lerp(V2_float{ enemy1_pos * tile_size }, V2_float{ (enemy1_pos + enemy1_path.waypoints[idx + 1] - enemy1_path.waypoints[idx]) * tile_size }, enemy1_path.current_waypoint) }, tile_size };
+			enemy1_p.point = Lerp(V2_float{ enemy1_p.pos * tile_size }, V2_float{ (enemy1_p.pos + enemy1_path.waypoints[idx + 1] - enemy1_path.waypoints[idx]) * tile_size }, enemy1_path.current_waypoint);
+			Rectangle<int> enemy{ V2_int{ enemy1_p.point }, tile_size };
 			enemy.DrawSolid(color::PURPLE);
 		} else {
-			Rectangle<int> enemy{ enemy1_pos * tile_size, tile_size };
+			Rectangle<int> enemy{ enemy1_p.pos * tile_size, tile_size };
 			enemy.DrawSolid(color::PURPLE);
 		}
 
-		/*enemy_manager.ForEachEntityWith<HealthComponent>([&](auto& entity) {
-		
-		});*/
+		bool down{ input::KeyPressed(Key::DOWN) };
+		bool up{ input::KeyPressed(Key::UP) };
+		if (up || down) {
+			int sign = 1;
+			if (down) sign = -1;
+			enemy_manager.ForEachEntityWith<HealthComponent>([&](auto& e, auto& h) {
+				int potential_new = h.current + sign;
+				if (potential_new >= 0 &&
+					potential_new <= h.original)
+					h.current = potential_new;
+			});
+		}
+		enemy_manager.ForEachEntityWith<PositionComponent, HealthComponent>([&](auto& e, const PositionComponent& p, const HealthComponent& h) {
+			assert(h.current >= 0);
+			assert(h.current <= h.original);
+			float fraction = 0.0f;
+			if (h.original > 0) {
+				fraction = (float)h.current / h.original;
+			}
+			Rectangle<int> full_bar{ V2_int{ p.point }, { tile_size.x + 8, 5 } };
+			full_bar.pos.x -= 4;
+			full_bar.pos.y -= 10;
+			full_bar.DrawSolid(color::RED);
+			Rectangle<int> remaining_bar = full_bar;
+			remaining_bar.size.x = full_bar.size.x * fraction;
+			remaining_bar.DrawSolid(color::GREEN);
+		});
 	}
 };
 
