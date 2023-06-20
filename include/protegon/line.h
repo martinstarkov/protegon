@@ -3,14 +3,25 @@
 #include "vector2.h"
 #include "color.h"
 
+struct SDL_Renderer;
+
 namespace ptgn {
 
 namespace impl {
 
+void DrawPixel(SDL_Renderer* renderer, int x, int y, const Color& color);
 void DrawLine(int x1, int y1, int x2, int y2, const Color& color);
+// Source: https://github.com/rtrussell/BBCSDL/blob/master/src/SDL2_gfxPrimitives.c
+void DrawThickLine(int x, int y, int w, int h, const Color& color, std::uint8_t pixel_thickness);
 void DrawCapsule(int x1, int y1, int x2, int y2, int r, const Color& color, bool draw_centerline);
-// Source: https://github.com/martinstarkov/SDL2_gfx/blob/master/SDL2_gfxPrimitives.c#L1183
 void DrawArc(int x, int y, int arc_radius, float start_angle, float end_angle, const Color& color);
+void DrawVerticalLine(SDL_Renderer* renderer, int x, int y1, int y2, const Color& color);
+void DrawHorizontalLine(SDL_Renderer* renderer, int x1, int x2, int y, const Color& color);
+void DrawYPerpendicular(SDL_Renderer* B, int x1, int y1, int dx, int dy, int xstep, int ystep, int einit, int w_left, int w_right, int winit);
+void DrawXPerpendicular(SDL_Renderer* B, int x1, int y1, int dx, int dy, int xstep, int ystep, int einit, int w_left, int w_right, int winit);
+void DrawXThickLine(SDL_Renderer* B, int x1, int y1, int dx, int dy, int xstep, int ystep, double pixel_thickness, int pxstep, int pystep);
+void DrawYThickLine(SDL_Renderer* B, int x1, int y1, int dx, int dy, int xstep, int ystep, double pixel_thickness, int pxstep, int pystep);
+void DrawThickLineImpl(SDL_Renderer* B, int x1, int y1, int x2, int y2, double pixel_thickness);
 
 } // namespace impl
 
@@ -30,12 +41,20 @@ struct Line {
 		return { static_cast<Point<U>>(a),
 				 static_cast<Point<U>>(b) };
 	}
-	void Draw(const Color& color) const {
-		impl::DrawLine(static_cast<int>(a.x),
-					   static_cast<int>(a.y),
-					   static_cast<int>(b.x),
-					   static_cast<int>(b.y),
-					   color);
+	void Draw(const Color& color, std::uint8_t pixel_thickness = 1) const {
+		if (pixel_thickness == 1)
+			impl::DrawLine(static_cast<int>(a.x),
+						   static_cast<int>(a.y),
+						   static_cast<int>(b.x),
+						   static_cast<int>(b.y),
+						   color);
+		else
+			impl::DrawThickLine(static_cast<int>(a.x),
+						        static_cast<int>(a.y),
+						        static_cast<int>(b.x),
+						        static_cast<int>(b.y),
+						        color,
+								pixel_thickness);
 	}
 };
 
