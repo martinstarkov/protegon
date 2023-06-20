@@ -29,6 +29,43 @@ struct VelocityComponent {
 	float vel{ 0.0f };
 };
 
+void DrawHealthbars(ecs::Manager& manager, bool moving, const V2_int& tile_size) {
+	manager.ForEachEntityWith<PositionComponent, HealthComponent>(
+		[&](auto& e, const PositionComponent& p, const HealthComponent& h) {
+		assert(h.current >= 0);
+		assert(h.current <= h.original);
+		float fraction{ 0.0f };
+		if (h.original > 0) {
+			fraction = (float)h.current / h.original;
+		}
+		V2_int pos{ p.point };
+		if (!moving)
+			pos = p.pos * tile_size;
+		Rectangle<int> full_bar{ pos, { 28, 5 } };
+		full_bar.pos.x -= 4;
+		full_bar.pos.y -= 10;
+		full_bar.DrawSolid(color::RED);
+		Rectangle<int> remaining_bar{ full_bar };
+		remaining_bar.size.x = full_bar.size.x * fraction;
+		remaining_bar.DrawSolid(color::GREEN);
+	});
+}
+
+void RegulateHealthbars(ecs::Manager& manager) {
+	bool down{ input::KeyPressed(Key::DOWN) };
+	bool up{ input::KeyPressed(Key::UP) };
+	if (up || down) {
+		int sign = 1;
+		if (down) sign = -1;
+		manager.ForEachEntityWith<HealthComponent>([&](auto& e, auto& h) {
+			int potential_new = h.current + sign;
+			if (potential_new >= 0 &&
+				potential_new <= h.original)
+				h.current = potential_new;
+		});
+	}
+}
+
 class TowerDefense :  public Engine {
 	AStarGrid grid{ { 50, 30 } };
 	V2_int tile_size{ 20, 20 };
@@ -37,12 +74,18 @@ class TowerDefense :  public Engine {
 	std::deque<V2_int> global_waypoints;
 	ecs::Manager enemy_manager;
 	ecs::Entity enemy1;
+	int selected_slot{ 0 };
+	int slot_count{ 9 };
 
 	void Create() final {
+		texture::Load(3000, "resources/ui/inventory_slot.png");
+		texture::Load(2000, "resources/tile/thick_nochoice.png");
+
 		start = { 1, grid.size.y / 2 };
-		end = { grid.size.x - 2, grid.size.y / 2 };
+		end = { grid.size.x - 6, grid.size.y / 2 };
 
 		enemy1 = enemy_manager.CreateEntity();
+
 		enemy_manager.Refresh();
 
 		enemy1.AddComponent<PositionComponent>().pos = start;
@@ -51,12 +94,11 @@ class TowerDefense :  public Engine {
 		enemy1.AddComponent<HealthComponent>(100);
 	}
 	void Update(float dt) final {
-
 		auto& enemy1_p = enemy1.GetComponent<PositionComponent>();
 		auto& enemy1_path = enemy1.GetComponent<PathComponent>();
 
-		V2_int mouse_pos = input::GetMousePosition();
-		V2_int mouse_tile = mouse_pos / tile_size;
+		V2_int mouse_pos{ input::GetMousePosition() };
+		V2_int mouse_tile{ mouse_pos / tile_size };
 		Rectangle<int> mouse_box{ mouse_tile * tile_size, tile_size };
 
 		if (input::MousePressed(Mouse::RIGHT)) {
@@ -79,19 +121,25 @@ class TowerDefense :  public Engine {
 			}
 		}
 
+		auto bg_tile = texture::Get(2000);
 		grid.ForEach([&](const V2_int& tile) {
-			Color c = color::GREY;
+			Rectangle<int> r{ tile * tile_size, tile_size };
+			Color c;
 			if (input::KeyPressed(Key::V) && grid.IsVisited(tile))
 				c = color::CYAN;
-			if (grid.IsObstacle(tile))
+			else if (grid.IsObstacle(tile))
 				c = color::RED;
-			if (tile == start)
+			else if (tile == start)
 				c = color::GREEN;
 			else if (tile == end)
 				c = color::GOLD;
-			Rectangle<int> r{ tile * tile_size, tile_size };
+			else {
+				bg_tile->Draw(r);
+				return;
+			}
 			r.DrawSolid(c);
 		});
+
 		if (grid.Has(mouse_tile))
 			mouse_box.Draw(color::YELLOW);
 
@@ -125,7 +173,9 @@ class TowerDefense :  public Engine {
 			}
 		}
 
-		if (path_exists && idx + 1 < enemy1_path.waypoints.size()) {
+		bool moving{ path_exists && idx + 1 < enemy1_path.waypoints.size() };
+
+		if (moving) {
 			assert(enemy1_path.current_waypoint <= 1.0f);
 			assert(enemy1_path.current_waypoint >= 0.0f);
 			assert(idx >= 0);
@@ -139,33 +189,24 @@ class TowerDefense :  public Engine {
 			enemy.DrawSolid(color::PURPLE);
 		}
 
-		bool down{ input::KeyPressed(Key::DOWN) };
-		bool up{ input::KeyPressed(Key::UP) };
-		if (up || down) {
-			int sign = 1;
-			if (down) sign = -1;
-			enemy_manager.ForEachEntityWith<HealthComponent>([&](auto& e, auto& h) {
-				int potential_new = h.current + sign;
-				if (potential_new >= 0 &&
-					potential_new <= h.original)
-					h.current = potential_new;
-			});
+		auto t = texture::Get(3000);
+		Rectangle<int> s{ { window::GetSize().x - 32 - 3, 140 }, { 32, 32 } };
+		for (int i = 0; i < slot_count; i++) {
+			t->Draw(s.Offset({ 0, s.size.y * i }));
 		}
-		enemy_manager.ForEachEntityWith<PositionComponent, HealthComponent>([&](auto& e, const PositionComponent& p, const HealthComponent& h) {
-			assert(h.current >= 0);
-			assert(h.current <= h.original);
-			float fraction = 0.0f;
-			if (h.original > 0) {
-				fraction = (float)h.current / h.original;
-			}
-			Rectangle<int> full_bar{ V2_int{ p.point }, { tile_size.x + 8, 5 } };
-			full_bar.pos.x -= 4;
-			full_bar.pos.y -= 10;
-			full_bar.DrawSolid(color::RED);
-			Rectangle<int> remaining_bar = full_bar;
-			remaining_bar.size.x = full_bar.size.x * fraction;
-			remaining_bar.DrawSolid(color::GREEN);
-		});
+
+		int scroll{ input::MouseScroll() };
+		if (scroll) {
+			selected_slot -= scroll;
+			selected_slot = ((selected_slot % slot_count) + slot_count) % slot_count;
+		}
+		Rectangle<int> o{ { window::GetSize().x - 32 - 3, 140 }, { 32, 32 } };
+		o.pos.y += o.size.y * selected_slot;
+		o.Draw(color::CYAN);
+
+		RegulateHealthbars(enemy_manager);
+
+		DrawHealthbars(enemy_manager, moving, tile_size);
 	}
 };
 

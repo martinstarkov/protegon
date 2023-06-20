@@ -15,6 +15,7 @@ void InputHandler::Update() {
 	UpdateMouseState(Mouse::LEFT);
 	UpdateMouseState(Mouse::RIGHT);
 	UpdateMouseState(Mouse::MIDDLE);
+	mouse_scroll = {};
 	first_time_.reset();
 	SDL_Event event;
 	while (SDL_PollEvent(&event)) {
@@ -33,14 +34,21 @@ void InputHandler::Update() {
 				state = InputHandler::MouseState::UP;
 				break;
 			}
-			case SDL_KEYUP: {
+			case SDL_MOUSEWHEEL:
+			{
+				mouse_scroll = { event.wheel.x, event.wheel.y };
+				break;
+			}
+			case SDL_KEYUP: 
+			{
 				if (key_states_[event.key.keysym.scancode]) {
 					first_time_[event.key.keysym.scancode] = true;
 				}
 				key_states_[event.key.keysym.scancode] = false;
 				break;
 			}
-			case SDL_KEYDOWN: {
+			case SDL_KEYDOWN: 
+			{
 				if (!key_states_[event.key.keysym.scancode]) {
 					first_time_[event.key.keysym.scancode] = true;
 				}
@@ -69,13 +77,17 @@ void InputHandler::Update() {
 	}
 }
 
-V2_int InputHandler::GetMousePosition() {
+V2_int InputHandler::GetMousePosition() const {
 	// Grab latest mouse events from queue.
 	SDL_PumpEvents();
 	// Update mouse position.
 	V2_int mouse_position;
 	SDL_GetMouseState(&mouse_position.x, &mouse_position.y);
 	return mouse_position;
+}
+
+int InputHandler::GetMouseScroll() const {
+	return mouse_scroll.y;
 }
 
 milliseconds InputHandler::GetMouseHeldTime(Mouse button) {

@@ -14,6 +14,10 @@ V2_int GetMousePosition() {
 	return global::GetGame().input.GetMousePosition();
 }
 
+int MouseScroll() {
+	return global::GetGame().input.GetMouseScroll();
+}
+
 bool MousePressed(Mouse button) {
 	return global::GetGame().input.MousePressed(button);
 }

@@ -41,7 +41,10 @@ struct InputHandler {
 
 	void Update();
 
-	V2_int GetMousePosition();
+	V2_int GetMousePosition() const;
+
+	// @return The amount scrolled by the mouse vertically in the current frame, positive upward, negative downward.
+	int GetMouseScroll() const;
 
 	bool MousePressed(Mouse button) const;
 
@@ -70,6 +73,7 @@ private:
 	MouseState left_mouse_{ MouseState::RELEASED };
 	MouseState right_mouse_{ MouseState::RELEASED };
 	MouseState middle_mouse_{ MouseState::RELEASED };
+	V2_int mouse_scroll;
 
 	// Mouse button held for timers.
 

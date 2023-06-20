@@ -14,7 +14,7 @@ void DrawArc(int x, int y, int arc_radius, float start_angle, float end_angle, c
 
 } // namespace impl
 
-template <typename T = float>
+template <typename T = int>
 struct Line {
 	Point<T> a;
 	Point<T> b;

@@ -14,7 +14,7 @@ void DrawSolidRectangle(int x, int y, int w, int h, const Color& color);
 } // namespace impl
 
 // Rectangles are axis aligned bounding boxes (AABBs).
-template <typename T = float>
+template <typename T = int>
 struct Rectangle {
 	Point<T> pos;    // Point taken from top left.
 	Vector2<T> size; // Full width and height.
@@ -29,6 +29,9 @@ struct Rectangle {
 	}
 	Point<T> Min() const {
 		return pos;
+	}
+	Rectangle<T> Offset(const Vector2<T>& amount) const {
+		return { pos + amount, size };
 	}
 	template <typename U>
 	operator Rectangle<U>() const {

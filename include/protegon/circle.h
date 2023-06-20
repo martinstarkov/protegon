@@ -15,7 +15,7 @@ void DrawSolidCircle(int x, int y, int r, const Color& color);
 
 } // namespace impl
 
-template <typename T = float>
+template <typename T = int>
 struct Circle {
 	Point<T> c;
 	T r{ 0 };
