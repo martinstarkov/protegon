@@ -82,6 +82,11 @@ T Sign(T value) {
     return static_cast<T>((0 < value) - (value < 0));
 }
 
+// Returns a wrapped to mod n in positive and negative directions.
+inline int ModFloor(int a, int n) {
+    return ((a % n) + n) % n;
+}
+
 // Source: https://stackoverflow.com/a/30308919.
 // No NaN/inf checking.
 template <typename T>
