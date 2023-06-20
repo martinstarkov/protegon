@@ -38,6 +38,12 @@ public:
 			   coordinate.x < size.x &&
 			   coordinate.y < size.y;
 	}
+	T* Set(const V2_int& coordinate, T&& object) {
+		assert(Has(coordinate));
+		const auto point{ OneDimensionalize(coordinate) };
+		cells[point] = std::move(object);
+		return &cells[point];
+	}
 	const T* Get(const V2_int& coordinate) const {
 		assert(Has(coordinate));
 		const auto point{ OneDimensionalize(coordinate) };
@@ -52,11 +58,11 @@ public:
 		cells.clear();
 	}
 	const V2_int size;
+	const int length{ 0 };
 private:
 	int OneDimensionalize(const V2_int& coordinate) const {
 		return coordinate.x + coordinate.y * size.x;
 	}
-	const int length{ 0 };
 	std::vector<T> cells;
 };
 
