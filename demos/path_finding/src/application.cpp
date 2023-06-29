@@ -14,9 +14,9 @@ class PathFinding : public Engine {
 	std::deque<V2_int> local_waypoints;
 
 	void Create() final {
-		start = { 1, grid.size.y / 2 };
+		start = { 1, grid.GetSize().y / 2 };
 		pos = start;
-		end = { grid.size.x - 2, grid.size.y / 2 };
+		end = { grid.GetSize().x - 2, grid.GetSize().y / 2 };
 	}
 	void Update(float dt) final {
 
@@ -44,7 +44,7 @@ class PathFinding : public Engine {
 			}
 		}
 
-		grid.ForEach([&](const V2_int& tile) {
+		grid.ForEachCoordinate([&](const V2_int& tile) {
 			Color c = color::GREY;
 			if (input::KeyPressed(Key::V) && grid.IsVisited(tile))
 				c = color::CYAN;

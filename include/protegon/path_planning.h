@@ -33,9 +33,11 @@ inline constexpr std::array<V2_int, 4> neighbors{ V2_int{ 0, 1 }, V2_int{ 0, -1 
 
 class AStarGrid : private Grid<impl::AStarNode> {
 public:
-	using Grid<impl::AStarNode>::size;
+	using Grid<impl::AStarNode>::GetSize;
 	using Grid<impl::AStarNode>::Has;
-	using Grid<impl::AStarNode>::ForEach;
+	using Grid<impl::AStarNode>::ForEachIndex;
+	using Grid<impl::AStarNode>::ForEachElement;
+	using Grid<impl::AStarNode>::ForEachCoordinate;
 	using Grid<impl::AStarNode>::Grid;
 
 	// @return True if grid has an obstacle and its state was flipped, false otherwise.
@@ -89,8 +91,8 @@ private:
 		impl::AStarNode* start_node{ Get(start) };
 		impl::AStarNode* end_node{ Get(end) };
 
-		ForAll([](impl::AStarNode* node) {
-			node->Reset();
+		ForEachElement([](impl::AStarNode& node) {
+			node.Reset();
 		});
 
 		std::pair<impl::AStarNode*, V2_int> current_node{ start_node, start };

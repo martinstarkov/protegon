@@ -7,8 +7,12 @@ using namespace ptgn;
 struct HealthComponent {
 	HealthComponent() = default;
 	HealthComponent(int health) : original{ health }, current{ original } {}
-	const int original{ 0 };
 	int current{ 0 };
+	int GetOriginal() const {
+		return original;
+	}
+private:
+	int original{ 0 };
 };
 
 struct PathComponent {
@@ -47,10 +51,10 @@ void DrawHealthbars(ecs::Manager& manager, bool moving, const V2_int& tile_size)
 	manager.ForEachEntityWith<PositionComponent, HealthComponent>(
 		[&](auto& e, const PositionComponent& p, const HealthComponent& h) {
 		assert(h.current >= 0);
-		assert(h.current <= h.original);
+		assert(h.current <= h.GetOriginal());
 		float fraction{ 0.0f };
-		if (h.original > 0) {
-			fraction = (float)h.current / h.original;
+		if (h.GetOriginal() > 0) {
+			fraction = (float)h.current / h.GetOriginal();
 		}
 		V2_int pos{ p.point };
 		if (!moving)
@@ -74,7 +78,7 @@ void RegulateHealthbars(ecs::Manager& manager) {
 		manager.ForEachEntityWith<HealthComponent>([&](auto& e, auto& h) {
 			int potential_new = h.current + sign;
 			if (potential_new >= 0 &&
-				potential_new <= h.original)
+				potential_new <= h.GetOriginal())
 				h.current = potential_new;
 		});
 	}
@@ -116,21 +120,21 @@ class TowerDefense :  public Engine {
 		for (auto i = 0; i < turret_resources.size(); ++i) {
 			texture::Load(turret_resources[i].second, turret_resources[i].first);
 			auto e = turret_manager.CreateEntity();
-			e.AddComponent<TextureComponent>(turret_resources[i].second);
-			e.AddComponent<TurretComponent>(i);
+			e.Add<TextureComponent>(turret_resources[i].second);
+			e.Add<TurretComponent>(i);
 			turrets[i] = e;
 		}
 		
-		for (int i = 0; i < entity_grid.size.x; i++) {
-			for (int j = 0; j < entity_grid.size.y; j++) {
+		for (int i = 0; i < entity_grid.GetSize().x; i++) {
+			for (int j = 0; j < entity_grid.GetSize().y; j++) {
 				entity_grid.Set({ i, j }, turret_manager.CreateEntity());
 			}
 		}
 
 		turret_manager.Refresh();
 		
-		start = { 1, grid.size.y / 2 };
-		end = { grid.size.x - 6, grid.size.y / 2 };
+		start = { 1, grid.GetSize().y / 2 };
+		end = { grid.GetSize().x - 6, grid.GetSize().y / 2 };
 
 		/*
 		enemy1 = enemy_manager.CreateEntity();
@@ -269,7 +273,7 @@ class TowerDefense :  public Engine {
 		for (int i = 0; i < turrets.size(); i++) {
 			auto r = s.Offset({ 0, s.size.y * i });
 			t->Draw(r);
-			auto key = turrets[i].GetComponent<TextureComponent>().key;
+			auto key = turrets[i].Get<TextureComponent>().key;
 			texture::Get(key)->Draw(r.Offset({ 4, 4 }, { -8, -8 }));
 		}
 		int scroll{ input::MouseScroll() };

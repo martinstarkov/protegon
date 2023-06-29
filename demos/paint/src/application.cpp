@@ -13,7 +13,14 @@ class Paint : public Engine {
 	bool toggle = true;
 	void Update(float dt) final {
 
-		inner_grid = outer_grid.GetSubgridWithout(1);
+		std::vector<int> cells_without;
+		cells_without.resize(outer_grid.GetLength(), -1);
+		outer_grid.ForEachIndex([&](std::size_t index) {
+			int value = *outer_grid.Get(index);
+			if (value != 1)
+				cells_without[index] = value;
+		});
+		inner_grid = Grid<int>{ outer_grid.GetSize(), cells_without };
 		if (input::KeyDown(Key::B)) toggle = !toggle;
 		if (toggle) {
 			grid = outer_grid;
@@ -26,20 +33,20 @@ class Paint : public Engine {
 		V2_int mouse_tile = mouse_pos / tile_size;
 		Rectangle<int> mouse_box{ mouse_tile* tile_size, tile_size };
 
-		if (grid.InBound(mouse_tile)) {
+		if (grid.Has(mouse_tile)) {
 			if (input::MousePressed(Mouse::LEFT)) {
-				outer_grid.Insert(mouse_tile, 1);
+				outer_grid.Set(mouse_tile, 1);
 			}
 			if (input::MousePressed(Mouse::RIGHT)) {
-				outer_grid.Insert(mouse_tile, 0);
+				outer_grid.Set(mouse_tile, 0);
 			}
 		}
 
-		grid.ForEach([&](int i, int j) {
+		grid.ForEachCoordinate([&](const V2_int& p) {
 			Color c = color::RED;
-			Rectangle<int> r{ V2_int{ i* tile_size.x, j* tile_size.y }, tile_size };
-			if (grid.Has(V2_int{ i, j })) {
-				switch (grid.Get(V2_int{ i, j })) {
+			Rectangle<int> r{ V2_int{ p.x * tile_size.x, p.y * tile_size.y }, tile_size };
+			if (grid.Has(p)) {
+				switch (*grid.Get(p)) {
 					case 0:
 						c = color::GREY;
 						break;
@@ -50,7 +57,7 @@ class Paint : public Engine {
 			}
 			r.DrawSolid(c);
 		});
-		if (grid.InBound(mouse_tile)) {
+		if (grid.Has(mouse_tile)) {
 			mouse_box.Draw(color::YELLOW);
 		}
 	}
