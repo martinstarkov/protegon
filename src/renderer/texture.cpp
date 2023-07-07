@@ -11,13 +11,13 @@
 
 namespace ptgn {
 
-Texture::Texture(const char* texture_path) {
-	assert(texture_path != "" && "Empty path?");
-	assert(FileExists(texture_path) && "Nonexistent file path?");
-	auto surface{ IMG_Load(texture_path) };
+Texture::Texture(const char* image_path) {
+	assert(image_path != "" && "Empty image path?");
+	assert(FileExists(image_path) && "Nonexistent image path?");
+	auto surface{ IMG_Load(image_path) };
 	if (surface == nullptr) {
 		PrintLine(IMG_GetError());
-		assert(!"Failed to create texture from texture path");
+		assert(!"Failed to create texture from image path");
 	}
 	texture_ = std::shared_ptr<SDL_Texture>(SDL_CreateTextureFromSurface(global::GetGame().sdl.GetRenderer(), surface), SDL_DestroyTexture);
 	if (!IsValid()) {
@@ -26,6 +26,7 @@ Texture::Texture(const char* texture_path) {
 	}
 	SDL_FreeSurface(surface);
 }
+
 
 Texture::Texture(SDL_Surface* surface) {
 	assert(surface != nullptr && "Nullptr surface?");
