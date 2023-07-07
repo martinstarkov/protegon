@@ -11,6 +11,8 @@ bool Exists();
 
 void Clear();
 
+void SetLogicalSize(const V2_int& logical_size);
+
 V2_int GetSize();
 
 V2_int GetOriginPosition();
