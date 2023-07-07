@@ -23,6 +23,7 @@
 #include "protegon/rng.h"
 #include "protegon/scene.h"
 #include "protegon/sound.h"
+#include "protegon/surface.h"
 #include "protegon/text.h"
 #include "protegon/texture.h"
 #include "protegon/time.h"
