@@ -7,7 +7,6 @@ struct SDL_Color;
 namespace ptgn {
 
 struct Color {
-
 	std::uint8_t r{ 0 };
 	std::uint8_t g{ 0 };
 	std::uint8_t b{ 0 };
@@ -21,6 +20,18 @@ struct Color {
 						   std::uint8_t a) :
 		r{ r }, g{ g }, b{ b }, a{ a } {}
 };
+
+inline bool operator==(const Color& lhs, const Color& rhs) {
+	return
+		lhs.r == rhs.r &&
+		lhs.g == rhs.g &&
+		lhs.b == rhs.b &&
+		lhs.a == rhs.a;
+}
+
+inline bool operator!=(const Color& lhs, const Color& rhs) {
+	return !operator==(lhs, rhs);
+}
 
 namespace color {
 
