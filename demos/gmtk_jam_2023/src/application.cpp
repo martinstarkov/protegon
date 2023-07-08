@@ -12,8 +12,8 @@ struct ColliderComponent {};
 struct TurretComponent {};
 struct BulletComponent {};
 struct ShooterComponent {
-	ShooterComponent(int range, milliseconds delay) : range{ range }, delay{ delay } {}
-	int range{ 0 };
+	ShooterComponent(float range, milliseconds delay) : range{ range }, delay{ delay } {}
+	float range{ 0.0f };
 	milliseconds delay{};
 	bool CanShoot() const {
 		return !reload.IsRunning() || reload.Elapsed<milliseconds>() >= delay;
@@ -127,15 +127,15 @@ class GMTKJam2023 :  public Engine {
 	
 	int max_queue_size{ 15 };
 	std::deque<Enemy> enemy_queue;
-	milliseconds enemy_release_delay{ 100 };
+	milliseconds enemy_release_delay{ 500 };
 	Timer enemy_release_timer;
 
-	ecs::Entity CreateWall(const Rectangle<float>& rect, const V2_int& coordinate) {
+	ecs::Entity CreateWall(const Rectangle<float>& rect, const V2_int& coordinate, int key) {
 		auto entity = manager.CreateEntity();
 		entity.Add<WallComponent>();
 		entity.Add<StaticComponent>();
 		entity.Add<DrawComponent>();
-		entity.Add<TextureComponent>(1001);
+		entity.Add<TextureComponent>(key);
 		entity.Add<TileComponent>(coordinate);
 		entity.Add<Rectangle<float>>(rect);
 		manager.Refresh();
@@ -175,7 +175,7 @@ class GMTKJam2023 :  public Engine {
 		entity.Add<TileComponent>(coordinate);
 		entity.Add<Rectangle<float>>(rect);
 		entity.Add<HealthComponent>(10);
-		entity.Add<VelocityComponent>(10.0f, 5.0f);
+		entity.Add<VelocityComponent>(10.0f, 3.0f);
 		manager.Refresh();
 		return entity;
 	}
@@ -248,7 +248,8 @@ class GMTKJam2023 :  public Engine {
 		levels = j["levels"].size();
 
 		// Load textures.
-		texture::Load(1001, "resources/tile/wall.png");
+		texture::Load(500, "resources/tile/wall.png");
+		texture::Load(501, "resources/tile/top_wall.png");
 		texture::Load(1002, "resources/tile/start.png");
 		texture::Load(1003, "resources/tile/end.png");
 		texture::Load(1004, "resources/tile/enemy.png");
@@ -263,7 +264,10 @@ class GMTKJam2023 :  public Engine {
 			V2_int position = coordinate * tile_size;
 			Rectangle<float> rect{ position, tile_size };
 			if (color == color::MAGENTA) {
-				CreateWall(rect, coordinate);
+				CreateWall(rect, coordinate, 501);
+				node_grid.SetObstacle(coordinate, true);
+			} else if (color == color::LIGHT_PINK) {
+				CreateWall(rect, coordinate, 500);
 				node_grid.SetObstacle(coordinate, true);
 			} else if (color == color::BLUE) {
 				start = CreateStart(rect, coordinate);
@@ -431,11 +435,11 @@ class GMTKJam2023 :  public Engine {
 		});
 
 		// Draw shooter tower range.
-		/*manager.ForEachEntityWith<ShooterComponent, Rectangle<float>, TurretComponent>(
+		manager.ForEachEntityWith<ShooterComponent, Rectangle<float>, TurretComponent>(
 			[&](ecs::Entity& entity, ShooterComponent& s, Rectangle<float>& r, TurretComponent& t) {
 			Circle<float> circle{ r.Center(), s.range };
 			circle.DrawSolid(Color{ 128, 0, 0, 70 });
-		});*/
+		});
 
 		// Move bullet position forward by their velocity.
 		manager.ForEachEntityWith<Circle<float>, Velocity2DComponent>([&](
@@ -533,15 +537,15 @@ class GMTKJam2023 :  public Engine {
 		});
 
 		// Draw healthbars
-		manager.ForEachEntityWith<Rectangle<float>, HealthComponent>(
-			[&](auto& e, const Rectangle<float>& p, const HealthComponent& h) {
+		manager.ForEachEntityWith<Rectangle<float>, HealthComponent, EnemyComponent>(
+			[&](auto& e, const Rectangle<float>& p, const HealthComponent& h, const EnemyComponent& ene) {
 			assert(h.current >= 0);
 			assert(h.current <= h.GetOriginal());
 			float fraction{ 0.0f };
 			if (h.GetOriginal() > 0)
 				fraction = (float)h.current / h.GetOriginal();
-			Rectangle<float> full_bar{ p.pos, V2_float{ static_cast<float>(tile_size.x), 5.0f } };
-			full_bar = full_bar.Offset({ -4, -10 }, { 8, 0 });
+			Rectangle<float> full_bar{ p.pos, V2_float{ 20, 2.0f } };
+			full_bar = full_bar.Offset({ 6, 3 }, { 0, 0 });
 			full_bar.DrawSolid(color::RED);
 			Rectangle<float> remaining_bar{ full_bar };
 			if (fraction >= 0.1f) { // Stop drawing green bar after health reaches below 1%.
@@ -551,6 +555,11 @@ class GMTKJam2023 :  public Engine {
 		});
 
 		const Rectangle<float> queue_frame{ { 400, 420 }, { 28, 32 } };
+
+		// Draw border around queue frame.
+		//Rectangle<float> queue_frame_border = queue_frame.Offset({ -4, -4 }, { queue_frame.size.x * (max_queue_size - 1) + 8, 8 });
+		//queue_frame_border.Draw(color::GREY, 6);
+		
 		// Display queue.
 		for (int i = 0; i < max_queue_size; i++) {
 			texture::Get(3000)->Draw(queue_frame.Offset({ queue_frame.size.x * i, 0 }));
