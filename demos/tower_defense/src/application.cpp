@@ -6,7 +6,7 @@ using namespace ptgn;
 
 struct HealthComponent {
 	HealthComponent() = default;
-	HealthComponent(int health) : original{ health }, current{ original } {}
+	HealthComponent(int health) : current{ health }, original{ health } {}
 	int current{ 0 };
 	int GetOriginal() const {
 		return original;
