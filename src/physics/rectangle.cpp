@@ -88,8 +88,8 @@ void DrawSolidRectangleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int 
 
 	rect.x = x1;
 	rect.y = y1;
-	rect.w = x2 - x1 + 1;
-	rect.h = y2 - y1 + 1;
+	rect.w = x2 - x1;
+	rect.h = y2 - y1;
 
 	if (color.a != 255)
 		SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
