@@ -103,53 +103,75 @@ struct LifeTimerComponent {
 	Timer countdown;
 };
 
+enum class Enemy {
+	REGULAR = 0,
+	WIZARD = 1,
+	ELF = 2,
+	FAIRY = 3
+};
+
 class GMTKJam2023 :  public Engine {
 	Surface test_map{ "resources/maps/test_map.png" };
-	V2_int grid_size{ 60, 33 };
+	V2_int grid_size{ 30, 15 };
 	V2_int tile_size{ 32, 32 };
 	AStarGrid node_grid{ grid_size };
 	ecs::Manager manager;
-	ecs::Entity CreateWall(const Rectangle<int>& rect, const V2_int& coordinate) {
+	ecs::Entity start;
+	ecs::Entity end;
+	std::deque<V2_int> waypoints;
+	json j;
+	int current_level{ 0 };
+	int levels{ 0 };
+	int current_wave{ 0 };
+	int current_max_waves{ 0 };
+	
+	int max_queue_size{ 15 };
+	std::deque<Enemy> enemy_queue;
+	milliseconds enemy_release_delay{ 100 };
+	Timer enemy_release_timer;
+
+	ecs::Entity CreateWall(const Rectangle<float>& rect, const V2_int& coordinate) {
 		auto entity = manager.CreateEntity();
 		entity.Add<WallComponent>();
 		entity.Add<StaticComponent>();
 		entity.Add<DrawComponent>();
 		entity.Add<TextureComponent>(1001);
 		entity.Add<TileComponent>(coordinate);
-		entity.Add<Rectangle<int>>(rect);
+		entity.Add<Rectangle<float>>(rect);
 		manager.Refresh();
 		return entity;
 	}
-	ecs::Entity CreateStart(const Rectangle<int>& rect, const V2_int& coordinate) {
+	ecs::Entity CreateStart(const Rectangle<float>& rect, const V2_int& coordinate) {
 		auto entity = manager.CreateEntity();
 		entity.Add<StartComponent>();
 		entity.Add<StaticComponent>();
 		entity.Add<DrawComponent>();
 		entity.Add<TextureComponent>(1002);
 		entity.Add<TileComponent>(coordinate);
-		entity.Add<Rectangle<int>>(rect);
+		entity.Add<Rectangle<float>>(rect);
 		manager.Refresh();
 		return entity;
 	}
-	ecs::Entity CreateEnd(const Rectangle<int>& rect, const V2_int& coordinate) {
+	ecs::Entity CreateEnd(const Rectangle<float>& rect, const V2_int& coordinate) {
 		auto entity = manager.CreateEntity();
 		entity.Add<EndComponent>();
 		entity.Add<StaticComponent>();
 		entity.Add<DrawComponent>();
 		entity.Add<TextureComponent>(1003);
 		entity.Add<TileComponent>(coordinate);
-		entity.Add<Rectangle<int>>(rect);
+		entity.Add<Rectangle<float>>(rect);
+		entity.Add<HealthComponent>(100);
 		manager.Refresh();
 		return entity;
 	}
-	ecs::Entity CreateEnemy(const Rectangle<int>& rect, const V2_int& coordinate, int texture_index) {
+	ecs::Entity CreateEnemy(const Rectangle<float>& rect, const V2_int& coordinate, Enemy index) {
 		auto entity = manager.CreateEntity();
 		entity.Add<DrawComponent>();
 		entity.Add<ColliderComponent>();
 		entity.Add<EnemyComponent>();
 		entity.Add<WaypointComponent>();
 		entity.Add<DirectionComponent>();
-		entity.Add<TextureComponent>(2000, texture_index);
+		entity.Add<TextureComponent>(2000, static_cast<int>(index));
 		entity.Add<TileComponent>(coordinate);
 		entity.Add<Rectangle<float>>(rect);
 		entity.Add<HealthComponent>(10);
@@ -157,26 +179,26 @@ class GMTKJam2023 :  public Engine {
 		manager.Refresh();
 		return entity;
 	}
-	ecs::Entity CreateShooterTurret(const Rectangle<int>& rect, const V2_int& coordinate) {
+	ecs::Entity CreateShooterTurret(const Rectangle<float>& rect, const V2_int& coordinate) {
 		auto entity = manager.CreateEntity();
 		entity.Add<DrawComponent>();
 		entity.Add<TurretComponent>();
 		entity.Add<StaticComponent>();
 		entity.Add<TextureComponent>(j["turrets"]["shooter"]["texture_key"]);
 		entity.Add<TileComponent>(coordinate);
-		entity.Add<Rectangle<int>>(rect);
+		entity.Add<Rectangle<float>>(rect);
 		entity.Add<ShooterComponent>(300, milliseconds{ 100 });
 		manager.Refresh();
 		return entity;
 	}
-	ecs::Entity CreateLaserTurret(const Rectangle<int>& rect, const V2_int& coordinate) {
+	ecs::Entity CreateLaserTurret(const Rectangle<float>& rect, const V2_int& coordinate) {
 		auto entity = manager.CreateEntity();
 		entity.Add<DrawComponent>();
 		entity.Add<TurretComponent>();
 		entity.Add<StaticComponent>();
 		entity.Add<TextureComponent>(j["turrets"]["laser"]["texture_key"]);
 		entity.Add<TileComponent>(coordinate);
-		entity.Add<Rectangle<int>>(rect);
+		entity.Add<Rectangle<float>>(rect);
 		manager.Refresh();
 		return entity;
 	}
@@ -195,27 +217,17 @@ class GMTKJam2023 :  public Engine {
 		return entity;
 	}
 	
-	ecs::Entity start;
-	ecs::Entity end;
-	std::deque<V2_int> waypoints;
-	json j;
-	int current_level{ 0 };
-	int levels{ 0 };
-	int current_wave{ 0 };
-	int current_max_waves{ 0 };
-
 	void DestroyTurrets() {
 		manager.ForEachEntityWith<TurretComponent>([](auto& e, auto& t) {
 			e.Destroy();
 		});
 		manager.Refresh();
 	}
-
 	void CreateTurrets() {
 		auto& enemies = j["levels"][current_level]["waves"][current_wave]["enemies"];
 		for (auto& enemy : enemies) {
 			V2_int coordinate{ enemy["position"][0], enemy["position"][1] };
-			Rectangle<int> rect{ coordinate * tile_size, tile_size };
+			Rectangle<float> rect{ coordinate * tile_size, tile_size };
 			if (enemy["type"] == "shooter")
 				CreateShooterTurret(rect, coordinate);
 			else if (enemy["type"] == "laser")
@@ -225,9 +237,10 @@ class GMTKJam2023 :  public Engine {
 
 	void Create() final {
 		// Setup window configuration.
-		window::SetColor(color::WHITE);
+		window::SetColor(color::BLACK);
 		window::Maximize();
 		window::SetResizeable(true);
+		window::SetLogicalSize({ 960, 480 });
 
 		// Load json data.
 		std::ifstream f("resources/data/level_data.json");
@@ -242,11 +255,13 @@ class GMTKJam2023 :  public Engine {
 		texture::Load(1005, "resources/turret/shooter_turret.png");
 		texture::Load(1006, "resources/turret/laser_turret.png");
 		texture::Load(2000, "resources/enemy/enemy.png");
+		texture::Load(3000, "resources/ui/queue_frame.png");
+		texture::Load(3001, "resources/ui/arrow.png");
 
 		// Setup node grid for the map.
 		test_map.ForEachPixel([&](const V2_int& coordinate, const Color& color) {
 			V2_int position = coordinate * tile_size;
-			Rectangle<int> rect{ position, tile_size };
+			Rectangle<float> rect{ position, tile_size };
 			if (color == color::MAGENTA) {
 				CreateWall(rect, coordinate);
 				node_grid.SetObstacle(coordinate, true);
@@ -267,11 +282,14 @@ class GMTKJam2023 :  public Engine {
 		CreateTurrets();
 	}
 	void Update(float dt) final {
+		Rectangle<float> bg{ {}, window::GetLogicalSize() };
+		bg.DrawSolid(color::WHITE);
+
 		// Get mouse position on screen and tile grid.
 		V2_int mouse_pos = input::GetMousePosition();
-		Circle<int> mouse_circle{ mouse_pos, 30 };
-		V2_int mouse_tile = mouse_pos / tile_size;
-		Rectangle<int> mouse_box{ mouse_tile* tile_size, tile_size };
+		Circle<float> mouse_circle{ mouse_pos, 30 };
+		V2_int mouse_tile = V2_int{ V2_float{ mouse_pos } / V2_float{ tile_size } };
+		Rectangle<float> mouse_box{ mouse_tile* tile_size, tile_size };
 
 		bool new_level = false;
 
@@ -306,8 +324,8 @@ class GMTKJam2023 :  public Engine {
 		}
 
 		// Determine nearest enemy to a shooter turret and shoot a bullet toward it.
-		manager.ForEachEntityWith<ShooterComponent, Rectangle<int>, TurretComponent>(
-			[&](ecs::Entity& entity, ShooterComponent& s, Rectangle<int>& r, TurretComponent& t) {
+		manager.ForEachEntityWith<ShooterComponent, Rectangle<float>, TurretComponent>(
+			[&](ecs::Entity& entity, ShooterComponent& s, Rectangle<float>& r, TurretComponent& t) {
 			float closest_dist2 = INFINITY;
 			float range2 = s.range * s.range;
 			ecs::Entity closest_enemy = ecs::null;
@@ -327,12 +345,58 @@ class GMTKJam2023 :  public Engine {
 				CreateBullet(r.Center(), closest_dir.Normalized(), closest_enemy);
 			}
 		});
-		
-		// Create enemy when hitting C.
-		if (input::KeyDown(Key::C)) {
-			CreateEnemy(start.Get<Rectangle<int>>(), start.Get<TileComponent>().coordinate, ModFloor(current_level, 4));
+
+		// Add enemies to queue using number keys when enemies are not being released.
+		static bool releasing_enemies = false;
+		if (!releasing_enemies && enemy_queue.size() < max_queue_size) {
+			if (input::KeyDown(Key::K_1)) {
+				enemy_queue.push_back(Enemy::REGULAR);
+			} else if (input::KeyDown(Key::K_2)) {
+				enemy_queue.push_back(Enemy::WIZARD);
+			} else if (input::KeyDown(Key::K_3)) {
+				enemy_queue.push_back(Enemy::ELF);
+			} else if (input::KeyDown(Key::K_4)) {
+				enemy_queue.push_back(Enemy::FAIRY);
+			}
 		}
-		
+
+		// Hitting space triggers the emptying of the queue.
+		if (input::KeyDown(Key::SPACE) && !releasing_enemies) {
+			releasing_enemies = true;
+		}
+
+		if (releasing_enemies) {
+			// Start the queue release timer.
+			if (!enemy_release_timer.IsRunning())
+				enemy_release_timer.Start();
+			// Every time the delay has been passed, send one enemy from the queue.
+			if (enemy_release_timer.Elapsed<milliseconds>() >= enemy_release_delay) {
+				if (enemy_queue.size() > 0) {
+					Enemy queue_element = enemy_queue.front();
+					switch (queue_element) {
+						// TODO: Will eventually break these up once enemies get custom mechanics.
+						case Enemy::REGULAR:
+						case Enemy::WIZARD:
+						case Enemy::ELF:
+						case Enemy::FAIRY:
+						{
+							CreateEnemy(start.Get<Rectangle<float>>(), start.Get<TileComponent>().coordinate, queue_element);
+							break;
+						}
+					}
+					enemy_queue.pop_front();
+					enemy_release_timer.Reset();
+				} else {
+					// Once the queue is empty, stop the timer and stop releasing enemies.
+					if (enemy_release_timer.IsRunning()) {
+						enemy_release_timer.Reset();
+						enemy_release_timer.Stop();
+					}
+					releasing_enemies = false;
+				}
+			}
+		}
+
 		// Increase enemy velocity on right click.
 		if (input::MouseDown(Mouse::LEFT)) {
 			manager.ForEachEntityWith<VelocityComponent, EnemyComponent>([](
@@ -367,9 +431,9 @@ class GMTKJam2023 :  public Engine {
 		});
 
 		// Draw shooter tower range.
-		/*manager.ForEachEntityWith<ShooterComponent, Rectangle<int>, TurretComponent>(
-			[&](ecs::Entity& entity, ShooterComponent& s, Rectangle<int>& r, TurretComponent& t) {
-			Circle<int> circle{ r.Center(), s.range };
+		/*manager.ForEachEntityWith<ShooterComponent, Rectangle<float>, TurretComponent>(
+			[&](ecs::Entity& entity, ShooterComponent& s, Rectangle<float>& r, TurretComponent& t) {
+			Circle<float> circle{ r.Center(), s.range };
 			circle.DrawSolid(Color{ 128, 0, 0, 70 });
 		});*/
 
@@ -384,23 +448,20 @@ class GMTKJam2023 :  public Engine {
 			auto& e, Circle<float>& c, Velocity2DComponent& v, TargetComponent& t) {
 			if (t.target.IsAlive()) {
 				V2_float target_position;
+				// TODO: Add generalized shape parent with position function.
 				if (t.target.Has<Circle<float>>()) {
 					target_position = t.target.Get<Circle<float>>().c;
-				} else if (t.target.Has<Circle<int>>()) {
-					target_position = t.target.Get<Circle<int>>().c;
-				} else if (t.target.Has<Rectangle<int>>()) {
-					target_position = t.target.Get<Rectangle<int>>().Center();
 				} else if (t.target.Has<Rectangle<float>>()) {
 					target_position = t.target.Get<Rectangle<float>>().Center();
+					assert((t.target.HasAny<Circle<float>, Rectangle<float>>()));
+					v.direction = (target_position - c.c).Normalized();
 				}
-				assert((t.target.HasAny<Circle<int>, Circle<float>, Rectangle<int>, Rectangle<float>>()));
-				v.direction = (target_position - c.c).Normalized();
 			}
 		});
 
-		// Draw static rectangular structures with textures.
-		manager.ForEachEntityWith<Rectangle<int>, TextureComponent, DrawComponent, StaticComponent>([](
-			ecs::Entity e, Rectangle<int>& rect,
+			// Draw static rectangular structures with textures.
+		manager.ForEachEntityWith<Rectangle<float>, TextureComponent, DrawComponent, StaticComponent>([](
+			ecs::Entity e, Rectangle<float>& rect,
 			TextureComponent& texture, DrawComponent& draw, StaticComponent& s) {
 			texture::Get(texture.key)->Draw(rect);
 		});
@@ -409,11 +470,11 @@ class GMTKJam2023 :  public Engine {
 		node_grid.DisplayWaypoints(waypoints, tile_size, color::PURPLE);
 
 		// Move enemies along their path.
-		manager.ForEachEntityWith<TileComponent, Rectangle<float>, TextureComponent, 
+		manager.ForEachEntityWith<TileComponent, Rectangle<float>, TextureComponent,
 			VelocityComponent, EnemyComponent, WaypointComponent, DirectionComponent>([&](
-			ecs::Entity e, TileComponent& tile, Rectangle<float>& rect, 
-			TextureComponent& texture, VelocityComponent& vel,
-			EnemyComponent& enemy, WaypointComponent& waypoint, DirectionComponent& dir) {
+				ecs::Entity e, TileComponent& tile, Rectangle<float>& rect,
+				TextureComponent& texture, VelocityComponent& vel,
+				EnemyComponent& enemy, WaypointComponent& waypoint, DirectionComponent& dir) {
 			bool path_exists = tile.coordinate != end.Get<TileComponent>().coordinate;
 			int idx = -1;
 			if (path_exists) {
@@ -444,14 +505,24 @@ class GMTKJam2023 :  public Engine {
 				V2_int direction = waypoints[idx + 1] - waypoints[idx];
 				// Linearly interpolate between the turret tile coordinate and the next one.
 				rect.pos = Lerp(V2_float{ tile.coordinate * tile_size },
-								V2_float{ (tile.coordinate +
-										   direction) * tile_size },
-								waypoint.current);
+					V2_float{ (tile.coordinate +
+							   direction) * tile_size },
+					waypoint.current);
 				dir.RecalculateCurrentDirection(direction);
-				texture::Get(texture.key)->Draw(rect.Offset({ -6, -6 }, { 12, 12 }), Rectangle<int>{V2_int{ static_cast<int>(dir.current) * tile_size.x, texture.index * tile_size.y }, tile_size });
+				Rectangle<float> source_rect{ V2_float{ static_cast<float>(dir.current), static_cast<float>(texture.index) } * tile_size, tile_size };
+				texture::Get(texture.key)->Draw(rect, source_rect);
 			} else {
 				// Destroy enemy when it reaches the end or when no path remains for it.
 				e.Destroy();
+				// Decrease health of end tower by 1.
+				assert(end.Has<HealthComponent>());
+				HealthComponent& h = end.Get<HealthComponent>();
+				int potential_new = h.current - 1;
+				if (potential_new == 0) {
+					// TODO: Lose condition.
+				} else if (potential_new > 0 && potential_new <= h.GetOriginal())
+					h.current = potential_new;
+
 			}
 		});
 
@@ -467,20 +538,39 @@ class GMTKJam2023 :  public Engine {
 			assert(h.current >= 0);
 			assert(h.current <= h.GetOriginal());
 			float fraction{ 0.0f };
-			if (h.GetOriginal() > 0) {
+			if (h.GetOriginal() > 0)
 				fraction = (float)h.current / h.GetOriginal();
-			}
-			Rectangle<float> full_bar{ p.pos, V2_float{ tile_size.x + 8.0f, 5.0f } };
-			full_bar.pos.x -= 4;
-			full_bar.pos.y -= 10;
+			Rectangle<float> full_bar{ p.pos, V2_float{ static_cast<float>(tile_size.x), 5.0f } };
+			full_bar = full_bar.Offset({ -4, -10 }, { 8, 0 });
 			full_bar.DrawSolid(color::RED);
 			Rectangle<float> remaining_bar{ full_bar };
-			remaining_bar.size.x = full_bar.size.x * fraction;
-			remaining_bar.DrawSolid(color::GREEN);
+			if (fraction >= 0.1f) { // Stop drawing green bar after health reaches below 1%.
+				remaining_bar.size.x = full_bar.size.x * fraction;
+				remaining_bar.DrawSolid(color::GREEN);
+			}
 		});
 
+		const Rectangle<float> queue_frame{ { 400, 420 }, { 28, 32 } };
+		// Display queue.
+		for (int i = 0; i < max_queue_size; i++) {
+			texture::Get(3000)->Draw(queue_frame.Offset({ queue_frame.size.x * i, 0 }));
+		}
+		// Draw UI displaying enemies in queue.
+		int facing_direction = 7; // characters point to the bottom left.
+		for (int i = 0; i < enemy_queue.size(); i++) {
+			Enemy type = enemy_queue[i];
+			Rectangle<float> source_rect{V2_float{ static_cast<float>(facing_direction), static_cast<float>(type) } * tile_size, tile_size };
+			texture::Get(2000)->Draw(queue_frame.Offset({ queue_frame.size.x * i, 0 }), source_rect);
+		}
+		// Display arrow over first enemy in queue.
+		if (enemy_queue.size() > 0) {
+			V2_float arrow_size{ 15, 21 };
+			Rectangle<float> arrow = queue_frame.Offset({ 0.0f, -arrow_size.y });
+			texture::Get(3001)->Draw(arrow);
+		}
+
 		// Draw mouse hover square.
-		if (node_grid.Has(mouse_tile))
+		if (overlap::PointRectangle(mouse_pos, bg))
 			mouse_box.Draw(color::GOLD, 3);
 
 		// Destroy enemies which run out of lifetime.
@@ -499,6 +589,7 @@ class GMTKJam2023 :  public Engine {
 
 		manager.Refresh();
 	}
+	
 };
 
 int main(int c, char** v) {
