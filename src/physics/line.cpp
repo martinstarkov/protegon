@@ -26,18 +26,26 @@ void DrawPixel(SDL_Renderer* renderer, int x, int y, const Color& color) {
 	SDL_RenderDrawPoint(renderer, x, y);
 }
 
+void DrawVerticalLineImpl(SDL_Renderer* renderer, int x, int y1, int y2) {
+	SDL_RenderDrawLine(renderer, x, y1, x, y2);
+}
+
 void DrawVerticalLine(SDL_Renderer* renderer, int x, int y1, int y2, const Color& color) {
 	if (color.a != 255)
 		SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-	SDL_RenderDrawLine(renderer, x, y1, x, y2);
+	DrawVerticalLineImpl(renderer, x, y1, y2);
+}
+
+void DrawHorizontalLineImpl(SDL_Renderer* renderer, int x1, int x2, int y) {
+	SDL_RenderDrawLine(renderer, x1, y, x2, y);
 }
 
 void DrawHorizontalLine(SDL_Renderer* renderer, int x1, int x2, int y, const Color& color) {
 	if (color.a != 255)
 		SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-	SDL_RenderDrawLine(renderer, x1, y, x2, y);
+	DrawHorizontalLineImpl(renderer, x1, x2, y);
 }
 
 void DrawXPerpendicular(SDL_Renderer* B, int x1, int y1, int dx, int dy, int xstep, int ystep, int einit, int w_left, int w_right, int winit) {
