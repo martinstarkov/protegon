@@ -1,0 +1,178 @@
+{
+  "levels": [
+    {
+      "waves": [
+        {
+          "enemies": [
+            {
+              "type": "shooter",
+              "position": [
+                3,
+                3
+              ]
+            },
+            {
+              "type": "shooter",
+              "position": [
+                21,
+                7
+              ]
+            }
+          ]
+        },
+        {
+          "enemies": [
+            {
+              "type": "shooter",
+              "position": [
+                3,
+                3
+              ]
+            },
+            {
+              "type": "shooter",
+              "position": [
+                5,
+                5
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "waves": [
+        {
+          "enemies": [
+            {
+              "type": "shooter",
+              "position": [
+                7,
+                7
+              ]
+            },
+            {
+              "type": "shooter",
+              "position": [
+                9,
+                9
+              ]
+            }
+          ]
+        },
+        {
+          "enemies": [
+            {
+              "type": "shooter",
+              "position": [
+                3,
+                3
+              ]
+            },
+            {
+              "type": "laser",
+              "position": [
+                5,
+                5
+              ]
+            },
+            {
+              "type": "shooter",
+              "position": [
+                10,
+                10
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "waves": [
+        {
+          "enemies": [
+            {
+              "type": "laser",
+              "position": [
+                14,
+                14
+              ]
+            },
+            {
+              "type": "laser",
+              "position": [
+                16,
+                16
+              ]
+            }
+          ]
+        },
+        {
+          "enemies": [
+            {
+              "type": "laser",
+              "position": [
+                15,
+                15
+              ]
+            },
+            {
+              "type": "laser",
+              "position": [
+                16,
+                16
+              ]
+            },
+            {
+              "type": "laser",
+              "position": [
+                17,
+                17
+              ]
+            }
+          ]
+        },
+        {
+          "enemies": [
+            {
+              "type": "laser",
+              "position": [
+                15,
+                15
+              ]
+            },
+            {
+              "type": "laser",
+              "position": [
+                16,
+                16
+              ]
+            },
+            {
+              "type": "laser",
+              "position": [
+                17,
+                17
+              ]
+            },
+            {
+              "type": "laser",
+              "position": [
+                18,
+                18
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "turrets": {
+    "shooter": {
+      "texture_key": 1005
+    },
+    "laser": {
+      "texture_key": 1006
+    }
+  }
+}
