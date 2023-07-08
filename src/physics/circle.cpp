@@ -69,19 +69,70 @@ void DrawThickCircle(int x, int y, int r, const Color& color, std::uint8_t pixel
 void DrawSolidCircle(int x, int y, int r, const Color& color) {
 	auto renderer{ global::GetGame().sdl.GetRenderer() };
 	assert(renderer != nullptr && "Cannot draw solid circle with nonexistent renderer");
+	
+	int result;
+	int cx = 0;
+	int cy = r;
+	int ocx = (int)0xffff;
+	int ocy = (int)0xffff;
+	int df = 1 - r;
+	int d_e = 3;
+	int d_se = -2 * r + 5;
+	int xpcx, xmcx, xpcy, xmcy;
+	int ypcy, ymcy, ypcx, ymcx;
+
+	if (r < 0)
+		return;
+
+	if (r == 0)
+		return DrawPixel(renderer, x, y, color);
 
 	if (color.a != 255)
 		SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-	
-	for (int w = 0; w < r * 2; w++) {
-		int dx = r - w;
-		for (int h = 0; h < r * 2; h++) {
-			int dy = r - h;
-			if (dx * dx + dy * dy <= r * r)
-				SDL_RenderDrawPoint(renderer, x + dx, y + dy);
+
+	do {
+		xpcx = x + cx;
+		xmcx = x - cx;
+		xpcy = x + cy;
+		xmcy = x - cy;
+		if (ocy != cy) {
+			if (cy > 0) {
+				ypcy = y + cy;
+				ymcy = y - cy;
+				DrawHorizontalLineImpl(renderer, xmcx, xpcx, ypcy);
+				DrawHorizontalLineImpl(renderer, xmcx, xpcx, ymcy);
+			} else {
+				DrawHorizontalLineImpl(renderer, xmcx, xpcx, y);
+			}
+			ocy = cy;
 		}
-	}
+		if (ocx != cx) {
+			if (cx != cy) {
+				if (cx > 0) {
+					ypcx = y + cx;
+					ymcx = y - cx;
+					DrawHorizontalLineImpl(renderer, xmcy, xpcy, ymcx);
+					DrawHorizontalLineImpl(renderer, xmcy, xpcy, ypcx);
+				} else {
+					DrawHorizontalLineImpl(renderer, xmcy, xpcy, y);
+				}
+			}
+			ocx = cx;
+		}
+
+		if (df < 0) {
+			df += d_e;
+			d_e += 2;
+			d_se += 2;
+		} else {
+			df += d_se;
+			d_e += 2;
+			d_se += 4;
+			cy--;
+		}
+		cx++;
+	} while (cx <= cy);
 }
 
 void DrawEllipse(SDL_Renderer* renderer, int x, int y, int rx, int ry, const Color& color) {
@@ -96,15 +147,11 @@ void DrawEllipse(SDL_Renderer* renderer, int x, int y, int rx, int ry, const Col
 	assert(!((rx < 0) || (ry < 0)) && "Radii cannot be below 0");
 
 	// Special case for rx=0 - draw a vline
-	if (rx == 0) {
-		DrawVerticalLine(renderer, x, y - ry, y + ry, color);
-		return;
-	}
+	if (rx == 0)
+		return DrawVerticalLine(renderer, x, y - ry, y + ry, color);
 	// Special case for ry=0 - draw a hline
-	if (ry == 0) {
-		DrawHorizontalLine(renderer, x - rx, x + rx, y, color);
-		return;
-	}
+	if (ry == 0)
+		return DrawHorizontalLine(renderer, x - rx, x + rx, y, color);
 
 	if (color.a != 255)
 		SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
@@ -262,6 +309,107 @@ void DrawThickEllipse(SDL_Renderer* renderer, int xc, int yc, int xr, int yr, co
 			x = std::sqrt(xo2 * (1.0 - y * y / yo2)) + 0.5;
 			SDL_RenderDrawLine(renderer, xc - x, yc + y, xc + x, yc + y);
 		}
+	}
+}
+
+void DrawSolidEllipse(SDL_Renderer* renderer, int x, int y, int rx, int ry, const Color& color) {
+	int result;
+	int ix, iy;
+	int h, i, j, k;
+	int oh, oi, oj, ok;
+	int xmh, xph;
+	int xmi, xpi;
+	int xmj, xpj;
+	int xmk, xpk;
+
+	if ((rx < 0) || (ry < 0))
+		return;
+
+	if (rx == 0)
+		return DrawVerticalLine(renderer, x, y - ry, y + ry, color);
+	if (ry == 0)
+		return DrawHorizontalLine(renderer, x - rx, x + rx, y, color);
+
+	if (color.a != 255)
+		SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+
+	oh = oi = oj = ok = 0xFFFF;
+
+	if (rx > ry) {
+		ix = 0;
+		iy = rx * 64;
+
+		do {
+			h = (ix + 32) >> 6;
+			i = (iy + 32) >> 6;
+			j = (h * ry) / rx;
+			k = (i * ry) / rx;
+
+			if ((ok != k) && (oj != k)) {
+				xph = x + h;
+				xmh = x - h;
+				if (k > 0) {
+					DrawHorizontalLineImpl(renderer, xmh, xph, y + k);
+					DrawHorizontalLineImpl(renderer, xmh, xph, y - k);
+				} else {
+					DrawHorizontalLineImpl(renderer, xmh, xph, y);
+				}
+				ok = k;
+			}
+			if ((oj != j) && (ok != j) && (k != j)) {
+				xmi = x - i;
+				xpi = x + i;
+				if (j > 0) {
+					DrawHorizontalLineImpl(renderer, xmi, xpi, y + j);
+					DrawHorizontalLineImpl(renderer, xmi, xpi, y - j);
+				} else {
+					DrawHorizontalLineImpl(renderer, xmi, xpi, y);
+				}
+				oj = j;
+			}
+
+			ix = ix + iy / rx;
+			iy = iy - ix / rx;
+
+		} while (i > h);
+	} else {
+		ix = 0;
+		iy = ry * 64;
+
+		do {
+			h = (ix + 32) >> 6;
+			i = (iy + 32) >> 6;
+			j = (h * rx) / ry;
+			k = (i * rx) / ry;
+
+			if ((oi != i) && (oh != i)) {
+				xmj = x - j;
+				xpj = x + j;
+				if (i > 0) {
+					DrawHorizontalLineImpl(renderer, xmj, xpj, y + i);
+					DrawHorizontalLineImpl(renderer, xmj, xpj, y - i);
+				} else {
+					DrawHorizontalLineImpl(renderer, xmj, xpj, y);
+				}
+				oi = i;
+			}
+			if ((oh != h) && (oi != h) && (i != h)) {
+				xmk = x - k;
+				xpk = x + k;
+				if (h > 0) {
+					DrawHorizontalLineImpl(renderer, xmk, xpk, y + h);
+					DrawHorizontalLineImpl(renderer, xmk, xpk, y - h);
+				} else {
+					DrawHorizontalLineImpl(renderer, xmk, xpk, y);
+				}
+				oh = h;
+			}
+
+			ix = ix + iy / ry;
+			iy = iy - ix / ry;
+
+		} while (i > h);
 	}
 }
 
