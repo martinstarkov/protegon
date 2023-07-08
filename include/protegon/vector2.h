@@ -29,7 +29,7 @@ struct Vector2 {
     ~Vector2() = default;
 
     constexpr Vector2(T x, T y) : 
-        x{ x }, 
+        x{ x },
         y{ y } {}
 
     template <typename U, type_traits::not_narrowing<U, T> = true>

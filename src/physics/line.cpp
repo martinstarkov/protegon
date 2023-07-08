@@ -265,15 +265,10 @@ void DrawThickLine(int x1, int y1, int x2, int y2, const Color& color, std::uint
 		return;
 	}
 
-	/*
-	* Set color
-	*/
-	if (color.a != 255) SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+	if (color.a != 255)
+		SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
 
-	/*
-	* Draw
-	*/
 	DrawThickLineImpl(renderer, x1, y1, x2, y2, (double)pixel_thickness);
 }
 
