@@ -1,5 +1,10 @@
 #pragma once
 
+#include <nlohmann/json.hpp>
+#include <fstream>
+
+using json = nlohmann::json;
+
 #include "ecs/ecs.h"
 
 #include "protegon/circle.h"

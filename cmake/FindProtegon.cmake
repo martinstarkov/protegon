@@ -18,7 +18,15 @@ FetchContent_Declare(ecs
 					 GIT_TAG main)
 FetchContent_MakeAvailable(ecs)
 
+FetchContent_Declare(nlohmann_json
+  GIT_REPOSITORY https://github.com/ArthurSonzogni/nlohmann_json_cmake_fetchcontent
+  GIT_PROGRESS TRUE
+  GIT_SHALLOW TRUE
+  GIT_TAG v3.11.2)
+FetchContent_MakeAvailable(nlohmann_json)
+
 set(ECS_INCLUDE_DIR "${ecs_SOURCE_DIR}/include")
+set(JSON_INCLUDE_DIR "${nlohmann_json_SOURCE_DIR}/single_include")
 
 file(GLOB_RECURSE PROTEGON_FILES CONFIGURE_DEPENDS LIST_DIRECTORIES false 
      "${PROTEGON_SRC_DIR}/*.h"
@@ -63,14 +71,19 @@ endif()
 
 add_library(protegon STATIC ${PROTEGON_FILES})
 
-target_link_libraries(protegon PRIVATE SDL2::Main SDL2::Image SDL2::TTF SDL2::Mixer)
+target_link_libraries(protegon PRIVATE SDL2::Main 
+                                       SDL2::Image 
+									   SDL2::TTF 
+									   SDL2::Mixer)
 
 target_include_directories(protegon INTERFACE ${PROTEGON_INCLUDE_DIR}
-											  ${ECS_INCLUDE_DIR})
+											  ${ECS_INCLUDE_DIR}
+											  ${JSON_INCLUDE_DIR})
 
 target_include_directories(protegon PRIVATE ${PROTEGON_INCLUDE_DIR}
 											${PROTEGON_SRC_DIR}
 											${ECS_INCLUDE_DIR}
+											${JSON_INCLUDE_DIR}
 										    ${SDL2_INCLUDE_DIRS}
 											${SDL2_IMAGE_INCLUDE_DIRS}
 											${SDL2_MIXER_INCLUDE_DIRS}
@@ -94,6 +107,7 @@ function(add_protegon_to TARGET)
 	set_property(TARGET ${TARGET} PROPERTY CXX_STANDARD 17)
     target_link_libraries(${TARGET} protegon)
 	target_include_directories(${TARGET} PRIVATE ${ECS_INCLUDE_DIR})
+	target_include_directories(${TARGET} PRIVATE ${JSON_INCLUDE_DIR})
     # Commands for copying dlls to executable directory on Windows.
     if(WIN32)
 		get_property(DLLS GLOBAL PROPERTY PROTEGON_DLLS)
