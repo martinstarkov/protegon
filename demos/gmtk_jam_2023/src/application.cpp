@@ -236,6 +236,9 @@ class GMTKJam2023 :  public Engine {
 	}
 
 	void Create() final {
+
+		music::Load(Hash("in_game"), "resources/music/in_game.wav");
+		music::Get(Hash("in_game"))->Play(-1);
 		// Setup window configuration.
 		window::SetColor(color::BLACK);
 		window::Maximize();
