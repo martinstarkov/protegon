@@ -20,6 +20,11 @@ void InputHandler::Update() {
 	SDL_Event event;
 	while (SDL_PollEvent(&event)) {
 		switch (event.type) {
+			case SDL_MOUSEMOTION: {
+				mouse_position.x = event.button.x;
+				mouse_position.y = event.button.y;
+				break;
+			}
 			case SDL_MOUSEBUTTONDOWN:
 			{
 				auto& [state, timer] = GetMouseStateAndTimer(static_cast<Mouse>(event.button.button));
@@ -79,10 +84,10 @@ void InputHandler::Update() {
 
 V2_int InputHandler::GetMousePosition() const {
 	// Grab latest mouse events from queue.
-	SDL_PumpEvents();
+	//SDL_PumpEvents();
 	// Update mouse position.
-	V2_int mouse_position;
-	SDL_GetMouseState(&mouse_position.x, &mouse_position.y);
+	//V2_int mouse_position;
+	//SDL_GetMouseState(&mouse_position.x, &mouse_position.y);
 	return mouse_position;
 }
 

@@ -73,6 +73,7 @@ private:
 	MouseState left_mouse_{ MouseState::RELEASED };
 	MouseState right_mouse_{ MouseState::RELEASED };
 	MouseState middle_mouse_{ MouseState::RELEASED };
+	V2_int mouse_position;
 	V2_int mouse_scroll;
 
 	// Mouse button held for timers.
