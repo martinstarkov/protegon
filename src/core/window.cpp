@@ -24,6 +24,14 @@ void SetLogicalSize(const V2_int& logical_size) {
 	SDL_RenderSetLogicalSize(renderer, logical_size.x, logical_size.y);
 }
 
+V2_int GetLogicalSize() {
+	auto renderer{ global::GetGame().sdl.GetRenderer() };
+	assert(renderer != nullptr && "Cannot get logical size of window with nonexistent renderer");
+	V2_int logical_size;
+	SDL_RenderGetLogicalSize(renderer, &logical_size.x, &logical_size.y);
+	return logical_size;
+}
+
 V2_int GetSize() {
 	V2_int size;
 	assert(Exists() && "Cannot get size of nonexistent window");
