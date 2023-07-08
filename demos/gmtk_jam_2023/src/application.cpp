@@ -8,24 +8,29 @@ struct EndComponent {};
 struct DrawComponent {};
 struct EnemyComponent {};
 struct StaticComponent {};
+struct ColliderComponent {};
 struct TurretComponent {};
 struct BulletComponent {};
 struct ShooterComponent {
 	ShooterComponent(int range, milliseconds delay) : range{ range }, delay{ delay } {}
 	int range{ 0 };
 	milliseconds delay{};
-	void RestartCountdown() {
-		reload.Start();
-	}
 	bool CanShoot() const {
 		return !reload.IsRunning() || reload.Elapsed<milliseconds>() >= delay;
 	}
-private:
 	Timer reload;
+};
+struct TargetComponent {
+	TargetComponent(const ecs::Entity& target, milliseconds begin) : target{ target }, begin{ begin } {}
+	ecs::Entity target;
+	milliseconds begin{};
+	Timer timer;
 };
 struct TextureComponent {
 	TextureComponent(std::size_t key) : key{ key } {}
+	TextureComponent(std::size_t key, int index) : key{ key }, index{ index } {}
 	std::size_t key{ 0 };
+	int index{ 0 };
 };
 struct TileComponent {
 	TileComponent(const V2_int& coordinate) : coordinate{ coordinate } {}
@@ -36,13 +41,52 @@ struct VelocityComponent {
 	float maximum{ 10.0f };
 	float velocity{ 0.0f };
 };
+struct DirectionComponent {
+	enum Direction {
+		DOWN = 0,
+		RIGHT = 2,
+		UP = 4,
+		LEFT = 6,
+	};
+	DirectionComponent(Direction current = Direction::DOWN) : current{ current } {}
+	void RecalculateCurrentDirection(const V2_int& normalized_direction) {
+		if (normalized_direction != previous_direction) {
+			if (normalized_direction.x < 0)
+				current = LEFT;
+			else if (normalized_direction.x > 0)
+				current = RIGHT;
+			else if (normalized_direction.y < 0)
+				current = UP;
+			else // Default direction.
+				current = DOWN;
+		}
+		previous_direction = normalized_direction;
+	}
+	Direction current;
+private:
+	V2_int previous_direction;
+};
+
 struct Velocity2DComponent {
-	Velocity2DComponent(const V2_float& initial, const V2_float& maximum) : velocity{ initial }, maximum{ maximum } {}
-	V2_float velocity;
-	V2_float maximum{ 10.0f, 10.0f };
+	Velocity2DComponent(const V2_float& initial_direction, float magnitude) :
+		direction{ initial_direction }, magnitude{ magnitude } {}
+	float magnitude{ 0.0f };
+	V2_float direction;
 };
 struct WaypointComponent {
 	float current{ 0.0f };
+};
+struct HealthComponent {
+	HealthComponent(int start_health) : current{ start_health }, original{ current } {}
+	int current{ 0 };
+	int GetOriginal() const {
+		return original;
+	}
+	bool IsDead() const {
+		return current <= 0;
+	}
+private:
+	int original{ 0 };
 };
 struct LifeTimerComponent {
 	LifeTimerComponent(milliseconds lifetime) : lifetime{ lifetime } {}
@@ -67,10 +111,10 @@ class GMTKJam2023 :  public Engine {
 	ecs::Manager manager;
 	ecs::Entity CreateWall(const Rectangle<int>& rect, const V2_int& coordinate) {
 		auto entity = manager.CreateEntity();
-		entity.Add<TextureComponent>(1001);
 		entity.Add<WallComponent>();
 		entity.Add<StaticComponent>();
 		entity.Add<DrawComponent>();
+		entity.Add<TextureComponent>(1001);
 		entity.Add<TileComponent>(coordinate);
 		entity.Add<Rectangle<int>>(rect);
 		manager.Refresh();
@@ -78,10 +122,10 @@ class GMTKJam2023 :  public Engine {
 	}
 	ecs::Entity CreateStart(const Rectangle<int>& rect, const V2_int& coordinate) {
 		auto entity = manager.CreateEntity();
-		entity.Add<TextureComponent>(1002);
 		entity.Add<StartComponent>();
 		entity.Add<StaticComponent>();
 		entity.Add<DrawComponent>();
+		entity.Add<TextureComponent>(1002);
 		entity.Add<TileComponent>(coordinate);
 		entity.Add<Rectangle<int>>(rect);
 		manager.Refresh();
@@ -89,59 +133,64 @@ class GMTKJam2023 :  public Engine {
 	}
 	ecs::Entity CreateEnd(const Rectangle<int>& rect, const V2_int& coordinate) {
 		auto entity = manager.CreateEntity();
-		entity.Add<TextureComponent>(1003);
 		entity.Add<EndComponent>();
 		entity.Add<StaticComponent>();
 		entity.Add<DrawComponent>();
+		entity.Add<TextureComponent>(1003);
 		entity.Add<TileComponent>(coordinate);
 		entity.Add<Rectangle<int>>(rect);
 		manager.Refresh();
 		return entity;
 	}
-	ecs::Entity CreateEnemy(const Rectangle<int>& rect, const V2_int& coordinate) {
+	ecs::Entity CreateEnemy(const Rectangle<int>& rect, const V2_int& coordinate, int texture_index) {
 		auto entity = manager.CreateEntity();
-		entity.Add<TextureComponent>(1004);
 		entity.Add<DrawComponent>();
+		entity.Add<ColliderComponent>();
+		entity.Add<EnemyComponent>();
+		entity.Add<WaypointComponent>();
+		entity.Add<DirectionComponent>();
+		entity.Add<TextureComponent>(2000, texture_index);
 		entity.Add<TileComponent>(coordinate);
 		entity.Add<Rectangle<float>>(rect);
-		entity.Add<EnemyComponent>();
+		entity.Add<HealthComponent>(10);
 		entity.Add<VelocityComponent>(10.0f, 5.0f);
-		entity.Add<WaypointComponent>();
 		manager.Refresh();
 		return entity;
 	}
 	ecs::Entity CreateShooterTurret(const Rectangle<int>& rect, const V2_int& coordinate) {
 		auto entity = manager.CreateEntity();
-		entity.Add<TextureComponent>(j["turrets"]["shooter"]["texture_key"]);
 		entity.Add<DrawComponent>();
+		entity.Add<TurretComponent>();
 		entity.Add<StaticComponent>();
+		entity.Add<TextureComponent>(j["turrets"]["shooter"]["texture_key"]);
 		entity.Add<TileComponent>(coordinate);
 		entity.Add<Rectangle<int>>(rect);
-		entity.Add<TurretComponent>();
-		entity.Add<ShooterComponent>(150, milliseconds{ 500 });
+		entity.Add<ShooterComponent>(300, milliseconds{ 100 });
 		manager.Refresh();
 		return entity;
 	}
 	ecs::Entity CreateLaserTurret(const Rectangle<int>& rect, const V2_int& coordinate) {
 		auto entity = manager.CreateEntity();
-		entity.Add<TextureComponent>(j["turrets"]["laser"]["texture_key"]);
 		entity.Add<DrawComponent>();
+		entity.Add<TurretComponent>();
 		entity.Add<StaticComponent>();
+		entity.Add<TextureComponent>(j["turrets"]["laser"]["texture_key"]);
 		entity.Add<TileComponent>(coordinate);
 		entity.Add<Rectangle<int>>(rect);
-		entity.Add<TurretComponent>();
 		manager.Refresh();
 		return entity;
 	}
-	ecs::Entity CreateBullet(const V2_float& start_position, const V2_float& normalized_direction) {
+	ecs::Entity CreateBullet(const V2_float& start_position, const V2_float& normalized_direction, ecs::Entity target = ecs::null) {
 		auto entity = manager.CreateEntity();
 		//entity.Add<TextureComponent>(j["turrets"]["laser"]["texture_key"]);
 		entity.Add<DrawComponent>();
-		entity.Add<Circle<float>>(Circle<float>{ start_position, 10.0f });
 		entity.Add<BulletComponent>();
-		entity.Add<Color>(color::GREY);
-		entity.Add<Velocity2DComponent>(normalized_direction * 3.0f, V2_float{ 10.0f, 10.0f });
-		entity.Add<LifeTimerComponent>(milliseconds{ 3000 }).Start();
+		entity.Add<ColliderComponent>();
+		entity.Add<Circle<float>>(Circle<float>{ start_position, 5.0f });
+		entity.Add<Color>(color::BLACK);
+		entity.Add<TargetComponent>(target, milliseconds{ 3000 });
+		entity.Add<Velocity2DComponent>(normalized_direction, 1000.0f);
+		entity.Add<LifeTimerComponent>(milliseconds{ 6000 }).Start();
 		manager.Refresh();
 		return entity;
 	}
@@ -192,6 +241,7 @@ class GMTKJam2023 :  public Engine {
 		texture::Load(1004, "resources/tile/enemy.png");
 		texture::Load(1005, "resources/turret/shooter_turret.png");
 		texture::Load(1006, "resources/turret/laser_turret.png");
+		texture::Load(2000, "resources/enemy/enemy.png");
 
 		// Setup node grid for the map.
 		test_map.ForEachPixel([&](const V2_int& coordinate, const Color& color) {
@@ -272,15 +322,15 @@ class GMTKJam2023 :  public Engine {
 					closest_enemy = enemy;
 				}
 			});
-			if (closest_enemy != ecs::null && s.CanShoot()) {
-				s.RestartCountdown();
-				CreateBullet(r.Center(), closest_dir.Normalized());
+			if (closest_enemy.IsAlive() && s.CanShoot()) {
+				s.reload.Start();
+				CreateBullet(r.Center(), closest_dir.Normalized(), closest_enemy);
 			}
 		});
 		
 		// Create enemy when hitting C.
 		if (input::KeyDown(Key::C)) {
-			CreateEnemy(start.Get<Rectangle<int>>(), start.Get<TileComponent>().coordinate);
+			CreateEnemy(start.Get<Rectangle<int>>(), start.Get<TileComponent>().coordinate, ModFloor(current_level, 4));
 		}
 		
 		// Increase enemy velocity on right click.
@@ -299,23 +349,53 @@ class GMTKJam2023 :  public Engine {
 			});
 		}
 
+		// Collide bullets with enemies, decrease health of enemies, and destroy bullets.
+		manager.ForEachEntityWith<BulletComponent, Circle<float>, ColliderComponent>([&](
+			auto& e, BulletComponent& d, Circle<float>& c, ColliderComponent& collider) {
+			manager.ForEachEntityWith<Rectangle<float>, ColliderComponent, EnemyComponent>([&](
+				auto& e2, Rectangle<float>& r2, ColliderComponent& c2, EnemyComponent& enemy2) {
+				if (e.IsAlive() && overlap::CircleRectangle(c, r2)) {
+					if (e2.Has<HealthComponent>()) {
+						HealthComponent& h = e2.Get<HealthComponent>();
+						int potential_new = h.current - 1;
+						if (potential_new >= 0 && potential_new <= h.GetOriginal())
+							h.current = potential_new;
+					}
+					e.Destroy();
+				}
+			});
+		});
+
 		// Draw shooter tower range.
-		manager.ForEachEntityWith<ShooterComponent, Rectangle<int>, TurretComponent>(
+		/*manager.ForEachEntityWith<ShooterComponent, Rectangle<int>, TurretComponent>(
 			[&](ecs::Entity& entity, ShooterComponent& s, Rectangle<int>& r, TurretComponent& t) {
 			Circle<int> circle{ r.Center(), s.range };
 			circle.DrawSolid(Color{ 128, 0, 0, 70 });
-		});
+		});*/
 
 		// Move bullet position forward by their velocity.
-		manager.ForEachEntityWith<Circle<float>, Velocity2DComponent>([](
+		manager.ForEachEntityWith<Circle<float>, Velocity2DComponent>([&](
 			auto& e, Circle<float>& c, Velocity2DComponent& v) {
-			c.c += v.velocity;
+			c.c += v.direction * v.magnitude * dt;
 		});
 
-		// Draw circles.
-		manager.ForEachEntityWith<DrawComponent, Circle<float>, Color>([](
-			auto& e, DrawComponent& d, Circle<float>& c, Color& color) {
-			c.DrawSolid(color);
+		// Move targetted projectile bullets toward targets.
+		manager.ForEachEntityWith<Circle<float>, Velocity2DComponent, TargetComponent>([](
+			auto& e, Circle<float>& c, Velocity2DComponent& v, TargetComponent& t) {
+			if (t.target.IsAlive()) {
+				V2_float target_position;
+				if (t.target.Has<Circle<float>>()) {
+					target_position = t.target.Get<Circle<float>>().c;
+				} else if (t.target.Has<Circle<int>>()) {
+					target_position = t.target.Get<Circle<int>>().c;
+				} else if (t.target.Has<Rectangle<int>>()) {
+					target_position = t.target.Get<Rectangle<int>>().Center();
+				} else if (t.target.Has<Rectangle<float>>()) {
+					target_position = t.target.Get<Rectangle<float>>().Center();
+				}
+				assert((t.target.HasAny<Circle<int>, Circle<float>, Rectangle<int>, Rectangle<float>>()));
+				v.direction = (target_position - c.c).Normalized();
+			}
 		});
 
 		// Draw static rectangular structures with textures.
@@ -329,10 +409,11 @@ class GMTKJam2023 :  public Engine {
 		node_grid.DisplayWaypoints(waypoints, tile_size, color::PURPLE);
 
 		// Move enemies along their path.
-		manager.ForEachEntityWith<TileComponent, Rectangle<float>, TextureComponent, VelocityComponent, EnemyComponent, WaypointComponent>([&](
+		manager.ForEachEntityWith<TileComponent, Rectangle<float>, TextureComponent, 
+			VelocityComponent, EnemyComponent, WaypointComponent, DirectionComponent>([&](
 			ecs::Entity e, TileComponent& tile, Rectangle<float>& rect, 
 			TextureComponent& texture, VelocityComponent& vel,
-			EnemyComponent& enemy, WaypointComponent& waypoint) {
+			EnemyComponent& enemy, WaypointComponent& waypoint, DirectionComponent& dir) {
 			bool path_exists = tile.coordinate != end.Get<TileComponent>().coordinate;
 			int idx = -1;
 			if (path_exists) {
@@ -360,16 +441,42 @@ class GMTKJam2023 :  public Engine {
 				assert(idx >= 0);
 				assert(idx < waypoints.size());
 				assert(idx + 1 < waypoints.size());
+				V2_int direction = waypoints[idx + 1] - waypoints[idx];
 				// Linearly interpolate between the turret tile coordinate and the next one.
 				rect.pos = Lerp(V2_float{ tile.coordinate * tile_size },
 								V2_float{ (tile.coordinate +
-										   waypoints[idx + 1] - waypoints[idx]) * tile_size },
+										   direction) * tile_size },
 								waypoint.current);
-				texture::Get(texture.key)->Draw(rect);
+				dir.RecalculateCurrentDirection(direction);
+				texture::Get(texture.key)->Draw(rect.Offset({ -6, -6 }, { 12, 12 }), Rectangle<int>{V2_int{ static_cast<int>(dir.current) * tile_size.x, texture.index * tile_size.y }, tile_size });
 			} else {
 				// Destroy enemy when it reaches the end or when no path remains for it.
 				e.Destroy();
 			}
+		});
+
+		// Draw bullet circles.
+		manager.ForEachEntityWith<DrawComponent, Circle<float>, Color, BulletComponent>([](
+			auto& e, DrawComponent& d, Circle<float>& c, Color& color, BulletComponent& b) {
+			c.DrawSolid(color);
+		});
+
+		// Draw healthbars
+		manager.ForEachEntityWith<Rectangle<float>, HealthComponent>(
+			[&](auto& e, const Rectangle<float>& p, const HealthComponent& h) {
+			assert(h.current >= 0);
+			assert(h.current <= h.GetOriginal());
+			float fraction{ 0.0f };
+			if (h.GetOriginal() > 0) {
+				fraction = (float)h.current / h.GetOriginal();
+			}
+			Rectangle<float> full_bar{ p.pos, V2_float{ tile_size.x + 8.0f, 5.0f } };
+			full_bar.pos.x -= 4;
+			full_bar.pos.y -= 10;
+			full_bar.DrawSolid(color::RED);
+			Rectangle<float> remaining_bar{ full_bar };
+			remaining_bar.size.x = full_bar.size.x * fraction;
+			remaining_bar.DrawSolid(color::GREEN);
 		});
 
 		// Draw mouse hover square.
@@ -380,6 +487,13 @@ class GMTKJam2023 :  public Engine {
 		manager.ForEachEntityWith<LifeTimerComponent>([](
 			auto& e, LifeTimerComponent& l) {
 			if (l.IsDead())
+				e.Destroy();
+		});
+
+		// Destroy enemies which run out of health.
+		manager.ForEachEntityWith<HealthComponent>([](
+			auto& e, HealthComponent& h) {
+			if (h.IsDead())
 				e.Destroy();
 		});
 
