@@ -82,6 +82,7 @@ private:
 	int OneDimensionalize(const V2_int& coordinate) const {
 		return coordinate.x + coordinate.y * size.x;
 	}
+protected:
 	std::vector<T> cells;
 };
 

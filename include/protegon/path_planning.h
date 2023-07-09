@@ -17,12 +17,16 @@ struct AStarNode {
 	bool visited{ false };
 	float global_goal{ INFINITY };
 	float local_goal{ INFINITY };
-	std::pair<AStarNode*, V2_int> parent{};
+	std::pair<AStarNode*, V2_int> parent{ nullptr, V2_int{} };
 	void Reset() {
 		visited = false;
 		global_goal = INFINITY;
 		local_goal = INFINITY;
 		parent = { nullptr, V2_int{} };
+	}
+	void Destroy() {
+		Reset();
+		obstacle = false;
 	}
 };
 
@@ -39,6 +43,11 @@ public:
 	using Grid<impl::AStarNode>::ForEachElement;
 	using Grid<impl::AStarNode>::ForEachCoordinate;
 	using Grid<impl::AStarNode>::Grid;
+
+	void Reset() {
+		for (auto& cell : cells)
+			cell.Destroy();
+	}
 
 	// @return True if grid has an obstacle and its state was flipped, false otherwise.
 	bool SetObstacle(const V2_int& coordinate, bool obstacle) {
