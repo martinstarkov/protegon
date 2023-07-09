@@ -258,17 +258,16 @@ void DrawThickEllipse(SDL_Renderer* renderer, int xc, int yc, int xr, int yr, co
 	int xi, yi, xo, yo, x, y, z;
 	double xi2, yi2, xo2, yo2;
 
-	if (pixel_thickness <= 1) {
-		DrawEllipse(renderer, xc, yc, xr, yr, color);
-		return;
-	}
+	if (pixel_thickness <= 1)
+		return DrawEllipse(renderer, xc, yc, xr, yr, color);
 
 	xi = xr - pixel_thickness / 2;
 	xo = xi + pixel_thickness - 1;
 	yi = yr - pixel_thickness / 2;
 	yo = yi + pixel_thickness - 1;
 
-	assert(!((xi <= 0) || (yi <= 0)));
+	if ((xi <= 0) || (yi <= 0))
+		return;
 
 	xi2 = xi * xi;
 	yi2 = yi * yi;
