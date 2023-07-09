@@ -64,6 +64,35 @@ void Resume() {
 	Mix_ResumeMusic();
 }
 
+void Toggle(int optional_new_volume) {
+	if (GetVolume() != 0)
+		Mute();
+	else
+		Unmute(optional_new_volume);
+}
+
+int GetVolume() {
+	return Mix_VolumeMusic(-1);
+}
+
+void SetVolume(int new_volume) {
+	Mix_VolumeMusic(new_volume);
+}
+
+void Mute() {
+	SetVolume(0);
+}
+
+void Unmute(int optional_new_volume) {
+	if (optional_new_volume == -1) {
+		SetVolume(MIX_MAX_VOLUME);
+		return;
+	}
+	assert(optional_new_volume >= 0 && "Cannot unmute to volume below 0");
+	assert(optional_new_volume <= MIX_MAX_VOLUME && "Cannot unmute to volume above max volume (128)");
+	SetVolume(optional_new_volume);
+}
+
 bool IsPlaying() {
 	return Mix_PlayingMusic();
 }

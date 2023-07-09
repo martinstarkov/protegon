@@ -49,6 +49,16 @@ std::shared_ptr<Music> Get(std::size_t key);
 void Clear();
 void Pause();
 void Resume();
+// Returns the current music track volume from 0 to 128 (MIX_MAX_VOLUME).
+int GetVolume();
+// Volume can be set from 0 to 128 (MIX_MAX_VOLUME).
+void SetVolume(int new_volume);
+// Default: -1 for max volume 128 (MIX_MAX_VOLUME).
+void Toggle(int optional_new_volume = -1);
+// Sets volume to 0.
+void Mute();
+// Default: -1 for max volume 128 (MIX_MAX_VOLUME).
+void Unmute(int optional_new_volume = -1);
 void Stop();
 void FadeOut(milliseconds time);
 bool IsPlaying();
