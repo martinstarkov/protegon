@@ -2,6 +2,9 @@
 
 using namespace ptgn;
 
+class StartScreen;
+class GameScene;
+
 struct WallComponent {};
 struct StartComponent {};
 struct EndComponent {};
@@ -176,7 +179,8 @@ ClosestInfo GetClosestInfo(ecs::Manager& manager, V2_float& position, float rang
 	return ClosestInfo{ closest_target, closest_dist2, closest_dir };
 }
 
-class GMTKJam2023 :  public Engine {
+class GameScene : public Scene {
+public:
 	Surface test_map{ "resources/maps/test_map.png" };
 	V2_int grid_size{ 30, 15 };
 	V2_int tile_size{ 32, 32 };
@@ -192,8 +196,11 @@ class GMTKJam2023 :  public Engine {
 	int current_wave{ 0 };
 	int current_max_waves{ 0 };
 	bool music_muted{ false };
+
+	Text sell_hint{ Hash("1"), "Click unit to refund", color::BLACK };
+	Text info_hint{ Hash("1"), "Press 'i' to see instructions", color::BLACK };
 	
-	int max_queue_size{ 15 };
+	int max_queue_size{ 7 };
 	std::deque<Enemy> enemy_queue;
 	milliseconds enemy_release_delay{ 500 };
 	Timer enemy_release_timer;
@@ -242,7 +249,7 @@ class GMTKJam2023 :  public Engine {
 		entity.Add<TextureComponent>(2000, static_cast<int>(index));
 		entity.Add<TileComponent>(coordinate);
 		entity.Add<Rectangle<float>>(rect);
-		entity.Add<HealthComponent>(50);
+		entity.Add<HealthComponent>(100);
 		entity.Add<VelocityComponent>(10.0f, 3.0f);
 		manager.Refresh();
 		return entity;
@@ -319,58 +326,14 @@ class GMTKJam2023 :  public Engine {
 		return entity;
 	}
 	
-	void DestroyTurrets() {
-		manager.ForEachEntityWith<TurretComponent>([](auto& e, auto& t) {
-			e.Destroy();
-		});
-		manager.Refresh();
-	}
-	void CreateTurrets() {
-		auto& enemies = j["levels"][current_level]["waves"][current_wave]["enemies"];
-		for (auto& enemy : enemies) {
-			V2_int coordinate{ enemy["position"][0], enemy["position"][1] };
-			Rectangle<float> rect{ coordinate * tile_size, tile_size };
-			if (enemy["type"] == "shooter")
-				CreateShooterTurret(rect, coordinate);
-			else if (enemy["type"] == "laser")
-				CreateLaserTurret(rect, coordinate);
-			else if (enemy["type"] == "pulser")
-				CreatePulserTurret(rect, coordinate);
-		}
-	}
-
-	void Create() final {
-
-		music::Load(Hash("in_game"), "resources/music/in_game.wav");
-		music::Get(Hash("in_game"))->Play(-1);
-		// Setup window configuration.
-		window::SetColor(color::BLACK);
-		window::Maximize();
-		window::SetResizeable(true);
-		window::SetLogicalSize(map_size);
-
-		// Load json data.
-		std::ifstream f("resources/data/level_data.json");
-		j = json::parse(f);
-		levels = j["levels"].size();
-
-		// Load textures.
-		texture::Load(500,  "resources/tile/wall.png");
-		texture::Load(501,  "resources/tile/top_wall.png");
-		texture::Load(1002, "resources/tile/start.png");
-		texture::Load(1003, "resources/tile/end.png");
-		texture::Load(1004, "resources/tile/enemy.png");
-		texture::Load(j["turrets"]["shooter"]["texture_key"], "resources/turret/shooter.png");
-		texture::Load(j["turrets"]["laser"]["texture_key"], "resources/turret/laser.png");
-		texture::Load(j["turrets"]["pulser"]["texture_key"], "resources/turret/pulser.png");
-		texture::Load(2000, "resources/enemy/enemy.png");
-		texture::Load(3000, "resources/ui/queue_frame.png");
-		texture::Load(3001, "resources/ui/arrow.png");
-		texture::Load(3101, "resources/ui/mute.png");
-		texture::Load(3102, "resources/ui/mute_hover.png");
-		texture::Load(3103, "resources/ui/mute_grey.png");
-		texture::Load(3104, "resources/ui/mute_grey_hover.png");
-
+	void Reset() {
+		releasing_enemies = false;
+		manager.Reset();
+		waypoints.clear();
+		enemy_queue.clear();
+		node_grid.Reset();
+		enemy_release_timer.Reset();
+		enemy_release_timer.Stop();
 		// Setup node grid for the map.
 		test_map.ForEachPixel([&](const V2_int& coordinate, const Color& color) {
 			V2_int position = coordinate * tile_size;
@@ -392,20 +355,78 @@ class GMTKJam2023 :  public Engine {
 		assert(end.Has<TileComponent>());
 		// Calculate waypoints for the current map.
 		waypoints = node_grid.FindWaypoints(start.Get<TileComponent>().coordinate, end.Get<TileComponent>().coordinate);
-	
-		// Create turrets for the current wave.
-		current_max_waves = j["levels"][current_level]["waves"].size();
+
+		DestroyTurrets();
 		CreateTurrets();
 	}
+
+	void DestroyTurrets() {
+		manager.ForEachEntityWith<TurretComponent>([](auto& e, auto& t) {
+			e.Destroy();
+		});
+		manager.Refresh();
+	}
+	void CreateTurrets() {
+		auto& enemies = j["levels"][current_level]["waves"][current_wave]["enemies"];
+		for (auto& enemy : enemies) {
+			V2_int coordinate{ enemy["position"][0], enemy["position"][1] };
+			Rectangle<float> rect{ coordinate * tile_size, tile_size };
+			if (enemy["type"] == "shooter")
+				CreateShooterTurret(rect, coordinate);
+			else if (enemy["type"] == "laser")
+				CreateLaserTurret(rect, coordinate);
+			else if (enemy["type"] == "pulser")
+				CreatePulserTurret(rect, coordinate);
+		}
+	}
+
+	GameScene() {
+
+		music::Unmute();
+		music::Load(Hash("in_game"), "resources/music/in_game.wav");
+		music::Get(Hash("in_game"))->Play(-1);
+
+		window::SetColor(color::BLACK);
+
+		// Load json data.
+		std::ifstream f("resources/data/level_data.json");
+		j = json::parse(f);
+		levels = j["levels"].size();
+		// Create turrets for the current wave.
+		current_max_waves = j["levels"][current_level]["waves"].size();
+
+		// Load textures.
+		texture::Load(500,  "resources/tile/wall.png");
+		texture::Load(501,  "resources/tile/top_wall.png");
+		texture::Load(1002, "resources/tile/start.png");
+		texture::Load(1003, "resources/tile/end.png");
+		texture::Load(1004, "resources/tile/enemy.png");
+		texture::Load(j["turrets"]["shooter"]["texture_key"], "resources/turret/shooter.png");
+		texture::Load(j["turrets"]["laser"]["texture_key"], "resources/turret/laser.png");
+		texture::Load(j["turrets"]["pulser"]["texture_key"], "resources/turret/pulser.png");
+		texture::Load(2000, "resources/enemy/enemy.png");
+		texture::Load(3000, "resources/ui/queue_frame.png");
+		texture::Load(3001, "resources/ui/arrow.png");
+		texture::Load(3101, "resources/ui/mute.png");
+		texture::Load(3102, "resources/ui/mute_hover.png");
+		texture::Load(3103, "resources/ui/mute_grey.png");
+		texture::Load(3104, "resources/ui/mute_grey_hover.png");
+		texture::Load(1, "resources/background/level.png");
+
+		Reset();
+	}
+	bool paused = false;
+	bool releasing_enemies = false;
 	void Update(float dt) final {
+		if (!paused) {
 		Rectangle<float> bg{ {}, window::GetLogicalSize() };
-		bg.DrawSolid(color::WHITE);
+		texture::Get(1)->Draw(bg);
 
 		// Get mouse position on screen and tile grid.
 		V2_int mouse_pos = input::GetMousePosition();
 		Circle<float> mouse_circle{ mouse_pos, 30 };
 		V2_int mouse_tile = V2_int{ V2_float{ mouse_pos } / V2_float{ tile_size } };
-		Rectangle<float> mouse_box{ mouse_tile* tile_size, tile_size };
+		Rectangle<float> mouse_box{ mouse_tile * tile_size, tile_size };
 
 		bool new_level = false;
 
@@ -420,8 +441,7 @@ class GMTKJam2023 :  public Engine {
 		if (new_level) { // Remake turrets and reset wave upon level change.
 			current_max_waves = j["levels"][current_level]["waves"].size();
 			current_wave = 0;
-			DestroyTurrets();
-			CreateTurrets();
+			Reset();
 		}
 
 		bool new_wave = false;
@@ -435,8 +455,7 @@ class GMTKJam2023 :  public Engine {
 		}
 
 		if (new_wave) { // Remake turrets upon wave change.
-			DestroyTurrets();
-			CreateTurrets();
+			Reset();
 		}
 
 		// Determine nearest enemy to a turret.
@@ -483,7 +502,7 @@ class GMTKJam2023 :  public Engine {
 		});
 
 		// Add enemies to queue using number keys when enemies are not being released.
-		static bool releasing_enemies = false;
+		
 		if (!releasing_enemies && enemy_queue.size() < max_queue_size) {
 			if (input::KeyDown(Key::K_1)) {
 				enemy_queue.push_back(Enemy::REGULAR);
@@ -496,9 +515,25 @@ class GMTKJam2023 :  public Engine {
 			}
 		}
 
+		V2_float queue_frame_size{ 28, 32 };
+		const Rectangle<float> queue_frame{ { map_size.x / 2 - queue_frame_size.x * max_queue_size / 2, map_size.y - queue_frame_size.y }, queue_frame_size };
+
 		// Hitting space triggers the emptying of the queue.
 		if (input::KeyDown(Key::SPACE) && !releasing_enemies) {
 			releasing_enemies = true;
+		}
+
+		if (!releasing_enemies) {
+			for (int i = 0; i < max_queue_size; i++) {
+				Rectangle<float> frame = queue_frame.Offset({ queue_frame.size.x * i, 0 });
+				if (overlap::PointRectangle(mouse_pos, frame) &&
+					input::MouseDown(Mouse::LEFT) &&
+					i < enemy_queue.size()) {
+					enemy_queue.erase(enemy_queue.begin() + i);
+					// TODO: Give money back to player here.
+					break;
+				}
+			}
 		}
 
 		if (releasing_enemies) {
@@ -583,7 +618,7 @@ class GMTKJam2023 :  public Engine {
 		manager.ForEachEntityWith<RangeComponent, Rectangle<float>, TurretComponent>(
 			[&](ecs::Entity& entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t) {
 			Circle<float> circle{ r.Center(), s.range };
-			circle.DrawSolid(Color{ 128, 0, 0, 70 });
+			circle.DrawSolid(Color{ 128, 0, 0, 30 });
 		});
 
 		// Move bullet position forward by their velocity.
@@ -613,7 +648,7 @@ class GMTKJam2023 :  public Engine {
 			}
 		});
 
-			// Draw static rectangular structures with textures.
+		// Draw static rectangular structures with textures.
 		manager.ForEachEntityWith<Rectangle<float>, TextureComponent, DrawComponent, StaticComponent>([](
 			ecs::Entity e, Rectangle<float>& rect,
 			TextureComponent& texture, DrawComponent& draw, StaticComponent& s) {
@@ -623,6 +658,7 @@ class GMTKJam2023 :  public Engine {
 		// Display node grid paths from start to finish.
 		node_grid.DisplayWaypoints(waypoints, tile_size, color::PURPLE);
 
+		bool quit = false;
 		// Move enemies along their path.
 		manager.ForEachEntityWith<TileComponent, Rectangle<float>, TextureComponent,
 			VelocityComponent, EnemyComponent, WaypointComponent, DirectionComponent>([&](
@@ -671,13 +707,22 @@ class GMTKJam2023 :  public Engine {
 				// Decrease health of end tower by 1.
 				assert(end.Has<HealthComponent>());
 				HealthComponent& h = end.Get<HealthComponent>();
-				h.Decrease(1);
+				// TODO: Set this to damage of unit.
+				h.Decrease(10);
 				if (h.IsDead()) {
-					// TODO: Lose condition.
+					current_wave++;
+					if (current_wave > current_max_waves) {
+						scene::Unload(Hash("game"));
+						scene::SetActive(Hash("game_win"));
+					} else {
+						Reset();
+					}
+					quit = true;
 				}
 			}
 		});
-
+		if (quit)
+			return;
 		// Draw bullet circles.
 		manager.ForEachEntityWith<DrawComponent, Circle<float>, Color, BulletComponent>([](
 			auto& e, DrawComponent& d, Circle<float>& c, Color& color, BulletComponent& b) {
@@ -693,7 +738,7 @@ class GMTKJam2023 :  public Engine {
 				if (f.IsFading())
 					color.a = static_cast<std::uint8_t>(col.a * f.GetFraction());
 			}
-			c.DrawSolid({ color.r, color.g, color.b, static_cast<std::uint8_t>(0.1f * color.a) });//color, r.thickness);
+			c.DrawSolid({ color.r, color.g, color.b, static_cast<std::uint8_t>(0.2f * color.a) });//color, r.thickness);
 			c.Draw(color, r.thickness);
 		});
 
@@ -725,18 +770,58 @@ class GMTKJam2023 :  public Engine {
 			}
 		});
 
-		V2_float queue_frame_size{ 28, 32 };
-		const Rectangle<float> queue_frame{ { map_size.x / 2 - queue_frame_size.x * max_queue_size / 2, map_size.y - queue_frame_size.y }, queue_frame_size };
+
+		V2_float full_end_bar_size{ 300, 30 };
+		Rectangle<float> full_end_bar{ { window::GetLogicalSize().x / 2 - full_end_bar_size.x / 2, 0 }, full_end_bar_size };
+		
+		// Draw "end block" health bar
+		manager.ForEachEntityWith<Rectangle<float>, HealthComponent, EndComponent>(
+			[&](auto& e, const Rectangle<float>& p, const HealthComponent& h, const EndComponent& end_comp) {
+			assert(h.current >= 0);
+			assert(h.current <= h.GetOriginal());
+			float fraction{ 0.0f };
+			if (h.GetOriginal() > 0)
+				fraction = (float)h.current / h.GetOriginal();
+			full_end_bar.DrawSolid(color::RED);
+			Rectangle<float> remaining_bar{ full_end_bar };
+			if (fraction >= 0.1f) { // Stop drawing green bar after health reaches below 1%.
+				remaining_bar.size.x = full_end_bar.size.x * fraction;
+				remaining_bar.DrawSolid(color::GREEN);
+			}
+		});
+
+		// Draw border around "end block" health bar.
+		Rectangle<float> health_bar_border = full_end_bar.Offset({ -4, -4 }, { 8, 8 });
+		health_bar_border.Draw(color::DARK_BROWN, 6);
+		health_bar_border.Draw(color::BLACK, 3);
 
 		// Draw border around queue frame.
 		Rectangle<float> queue_frame_border = queue_frame.Offset({ -4, -4 }, { queue_frame.size.x * (max_queue_size - 1) + 8, 8 });
 		queue_frame_border.Draw(color::DARK_BROWN, 6);
 		queue_frame_border.Draw(color::BLACK, 3);
 		
+		Rectangle<float> sell_hint_box{ { queue_frame_border.pos.x + queue_frame_border.size.x + 10, queue_frame_border.pos.y + 3 }, { 160, queue_frame_border.size.y - 6  } };
+		sell_hint.Draw(sell_hint_box);
+
+		V2_float info_hint_box_size{ 230, queue_frame_border.size.y - 6 };
+		Rectangle<float> info_hint_box{ { queue_frame_border.pos.x - info_hint_box_size.x - 10, queue_frame_border.pos.y + 3 }, info_hint_box_size };
+		info_hint.Draw(info_hint_box);
+		
 		// Draw queue.
 		for (int i = 0; i < max_queue_size; i++) {
-			texture::Get(3000)->Draw(queue_frame.Offset({ queue_frame.size.x * i, 0 }));
+			Rectangle<float> frame = queue_frame.Offset({ queue_frame.size.x * i, 0 });
+			texture::Get(3000)->Draw(frame);
 		}
+
+		// Draw hover.
+		for (int i = 0; i < max_queue_size; i++) {
+			Rectangle<float> frame = queue_frame.Offset({ queue_frame.size.x * i, 0 });
+			if (overlap::PointRectangle(mouse_pos, frame)) {
+				frame.Draw(color::GOLD, 3);
+				break;
+			}
+		}
+
 		// Draw UI displaying enemies in queue.
 		int facing_direction = 7; // characters point to the bottom left.
 		for (int i = 0; i < enemy_queue.size(); i++) {
@@ -802,8 +887,210 @@ class GMTKJam2023 :  public Engine {
 		});
 
 		manager.Refresh();
+
+		if (input::KeyDown(Key::ESCAPE)) {
+			scene::SetActive(Hash("menu"));
+			scene::Unload(Hash("game"));
+		}
+		if (input::KeyDown(Key::I)) {
+			scene::AddActive(Hash("instructions"));
+			paused = true;
+		}
+
+		} else {
+			if (input::KeyDown(Key::I) || input::KeyDown(Key::ESCAPE)) {
+				scene::RemoveActive(Hash("instructions"));
+				paused = false;
+			}
+		}
 	}
-	
+};
+
+
+class InstructionScreen : public Scene {
+public:
+	//Texture back_button{ "resources/ui/back.png" };
+	//Texture back_button_hover{ "resources/ui/back_hover.png" };
+
+	Text text0{ Hash("1"), "Stroll of the Dice", color::CYAN };
+	Text text1{ Hash("1"), "'R' to restart if stuck", color::RED };
+	Text text2{ Hash("1"), "'Mouse' to choose direction", color::ORANGE };
+	Text text3{ Hash("1"), "'Spacebar' to confirm move", color::GOLD };
+	Text text4{ Hash("1"), "Green tile = Go over it to win", color::GREEN };
+	Text text5{ Hash("1"), "Grey tile = Cannot move in that direction", color::GREY };
+	Text text6{ Hash("1"), "Red tile = No longer usable tile", color::RED };
+
+	InstructionScreen() {}
+	void Update(float dt) final {
+		
+		Rectangle<float> bg{ {}, window::GetLogicalSize() };
+		texture::Get(2)->Draw(bg);
+
+		auto mouse = input::GetMousePosition();
+		V2_int s{ 960, 480 };
+
+		V2_int play_size{ 463, 204 };
+		V2_int play_pos{ window::GetLogicalSize().x / 2 - play_size.x / 2 - 10,
+						 window::GetLogicalSize().y / 2 - play_size.y / 2 - 18 };
+
+		V2_int play_text_size{ 220, 50 };
+		V2_int play_text_pos{ window::GetLogicalSize().x / 2 - play_text_size.x / 2,
+							  window::GetLogicalSize().y / 2 - play_text_size.y / 2 };
+
+		Text t{ Hash("1"), "'i' to exit instructions page", color::BLACK };
+		t.Draw({ play_text_pos - V2_int{ 250, 160 }, { play_text_size.x + 500, play_text_size.y } });
+
+		Text t2{ Hash("1"), "'b' to open the unit purchase menu", color::BLACK };
+		t2.Draw({ play_text_pos - V2_int{ 250, 160 - 70 }, { play_text_size.x + 500, play_text_size.y } });
+
+
+
+
+		/*
+		V2_int play_size{ 463, 204 };
+		V2_int play_pos{ window::GetLogicalSize().x / 2 - play_size.x / 2 - 10,
+						 window::GetLogicalSize().y / 2 - play_size.y / 2 - 18 };
+
+		V2_int play_text_size{ 220, 80 };
+		V2_int play_text_pos{ window::GetLogicalSize().x / 2 - play_text_size.x / 2,
+							  window::GetLogicalSize().y / 2 - play_text_size.y / 2 };
+
+		Color text_color = color::WHITE;
+
+		bool hover = overlap::PointRectangle(mouse, Rectangle<int>{ { window::GetLogicalSize().x / 2 - (int)(716 / 2 / window::GetScale().x), window::GetLogicalSize().y / 2 - (int)(274 / 2 / window::GetScale().y) }, { (int)(716 / window::GetScale().x), (int)(274 / window::GetScale().y) } });
+
+		if (hover && input::MouseDown(Mouse::LEFT) || input::KeyDown(Key::SPACE)) {
+			scene::Load<GameScene>(Hash("game"));
+			scene::SetActive(Hash("game"));
+		}
+
+		if (hover) {
+			text_color = color::GOLD;
+			button_hover.Draw({ play_pos, play_size });
+		} else {
+			button.Draw({ play_pos, play_size });
+		}
+		Text t{ Hash("0"), "Play", text_color };
+		t.Draw({ play_text_pos, play_text_size });
+		*/
+	}
+};
+
+class StartScreen : public Scene {
+public:
+	//Text text0{ Hash("0"), "Stroll of the Dice", color::CYAN };
+	Texture button{ "resources/ui/play.png" };
+	Texture button_hover{ "resources/ui/play_hover.png" };
+
+	StartScreen() {
+		music::Mute();
+	}
+	void Update(float dt) final {
+		music::Mute();
+		Rectangle<float> bg{ {}, window::GetLogicalSize() };
+		texture::Get(2)->Draw(bg);
+
+		auto mouse = input::GetMousePosition();
+		V2_int s{ 960, 480 };
+
+		V2_int play_size{ 463, 204 };
+		V2_int play_pos{ window::GetLogicalSize().x / 2 - play_size.x / 2 - 10, 
+			             window::GetLogicalSize().y / 2 - play_size.y / 2 - 18 };
+
+		V2_int play_text_size{ 220, 80 };
+		V2_int play_text_pos{ window::GetLogicalSize().x / 2 - play_text_size.x / 2,
+			                  window::GetLogicalSize().y / 2 - play_text_size.y / 2 };
+		
+		Color text_color = color::WHITE;
+
+		bool hover = overlap::PointRectangle(mouse, Rectangle<int>{ { window::GetLogicalSize().x / 2 - (int)(716 / 2 / window::GetScale().x), window::GetLogicalSize().y / 2 - (int)(274 / 2 / window::GetScale().y) }, { (int)(716 / window::GetScale().x), (int)(274 / window::GetScale().y) } });
+		
+		if (hover && input::MouseDown(Mouse::LEFT) || input::KeyDown(Key::SPACE)) {
+			scene::Load<GameScene>(Hash("game"));
+			scene::SetActive(Hash("game"));
+		}
+
+		if (hover) {
+			text_color = color::GOLD;
+			button_hover.Draw({ play_pos, play_size });
+		} else {
+			button.Draw({ play_pos, play_size });
+		}
+
+		Text t{ Hash("0"), "Play", text_color };
+		t.Draw({ play_text_pos, play_text_size });
+	}
+};
+
+
+class LevelWinScreen : public Scene {
+public:
+	//Text text0{ Hash("0"), "Stroll of the Dice", color::CYAN };
+	Texture button{ "resources/ui/play.png" };
+	Texture button_hover{ "resources/ui/play_hover.png" };
+
+	LevelWinScreen() {
+		music::Mute();
+	}
+	void Update(float dt) final {
+		music::Mute();
+		Rectangle<float> bg{ {}, window::GetLogicalSize() };
+		texture::Get(2)->Draw(bg);
+
+		auto mouse = input::GetMousePosition();
+		V2_int s{ 960, 480 };
+
+		V2_int play_size{ 463, 204 };
+		V2_int play_pos{ window::GetLogicalSize().x / 2 - play_size.x / 2 - 10,
+						 window::GetLogicalSize().y / 2 - play_size.y / 2 - 18 };
+
+		V2_int play_text_size{ 220, 80 };
+		V2_int play_text_pos{ window::GetLogicalSize().x / 2 - play_text_size.x / 2,
+							  window::GetLogicalSize().y / 2 - play_text_size.y / 2 };
+
+		Color text_color = color::WHITE;
+
+		bool hover = overlap::PointRectangle(mouse, Rectangle<int>{ { window::GetLogicalSize().x / 2 - (int)(716 / 2 / window::GetScale().x), window::GetLogicalSize().y / 2 - (int)(274 / 2 / window::GetScale().y) }, { (int)(716 / window::GetScale().x), (int)(274 / window::GetScale().y) } });
+
+		if (hover && input::MouseDown(Mouse::LEFT) || input::KeyDown(Key::SPACE)) {
+			scene::Load<GameScene>(Hash("game"));
+			scene::SetActive(Hash("game"));
+		}
+
+		if (hover) {
+			text_color = color::GOLD;
+			button_hover.Draw({ play_pos, play_size });
+		} else {
+			button.Draw({ play_pos, play_size });
+		}
+
+		Text t{ Hash("0"), "You beat our game! Thanks for playing!", color::BLACK };
+		t.Draw({ play_text_pos - V2_int{ 250, 160 }, { play_text_size.x + 500, play_text_size.y } });
+
+		Text t2{ Hash("0"), "Try Again!", text_color };
+		t2.Draw({ play_text_pos, play_text_size });
+	}
+};
+
+class GMTKJam2023 : public Engine {
+	void Create() final {
+		// Setup window configuration.
+		window::SetColor(color::DARK_GREY);
+		window::Maximize();
+		window::SetResizeable(true);
+		window::SetLogicalSize({ 960, 480 });
+
+		texture::Load(2, "resources/background/menu.png");
+		font::Load(Hash("0"), "resources/font/04B_30.ttf", 32);
+		font::Load(Hash("1"), "resources/font/retro_gaming.ttf", 32);
+		scene::Load<StartScreen>(Hash("menu"));
+		scene::Load<InstructionScreen>(Hash("instructions"));
+		scene::Load<LevelWinScreen>(Hash("game_win"));
+		scene::SetActive(Hash("menu"));
+	}
+	void Update(float dt) final {
+		scene::Update(dt);
+	}
 };
 
 int main(int c, char** v) {
