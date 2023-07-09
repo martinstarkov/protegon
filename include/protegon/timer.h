@@ -32,6 +32,21 @@ public:
         }
         return std::chrono::duration_cast<Duration>(end_time - start_time_);
     }
+
+    template <typename Duration = milliseconds, 
+        typename T = float,
+        type_traits::duration<Duration> = true,
+        std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+    T ElapsedPercentage(Duration compared_to) const {
+        std::chrono::duration<T, Duration::period> elapsed_time{
+            Elapsed<std::chrono::duration<T, Duration::period>>() / compared_to
+        };
+        T percentage{ std::clamp(elapsed_time.count(), static_cast<T>(0), static_cast<T>(1)) };
+        assert(percentage >= static_cast<T>(0) &&
+               percentage <= static_cast<T>(1) &&
+               "Elapsed countdown percentage cannot be outside the 0.0 to 1.0 range");
+        return percentage;
+    }
 private:
     std::chrono::time_point<std::chrono::steady_clock> start_time_;
     std::chrono::time_point<std::chrono::steady_clock> stop_time_;
