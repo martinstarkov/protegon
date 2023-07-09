@@ -39,6 +39,10 @@ V2_int GetSize() {
 	return size;
 }
 
+V2_float GetScale() {
+	return V2_float{ window::GetSize() } / V2_float{ window::GetLogicalSize() };
+}
+
 V2_int GetOriginPosition() {
 	V2_int origin;
 	assert(Exists() && "Cannot get origin position of nonexistent window");

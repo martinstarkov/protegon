@@ -17,6 +17,8 @@ V2_int GetLogicalSize();
 
 V2_int GetSize();
 
+V2_float GetScale();
+
 V2_int GetOriginPosition();
 
 const char* GetTitle();
