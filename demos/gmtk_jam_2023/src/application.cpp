@@ -197,8 +197,8 @@ public:
 	int current_max_waves{ 0 };
 	bool music_muted{ false };
 
-	Text sell_hint{ Hash("1"), "Click unit to refund", color::BLACK };
-	Text info_hint{ Hash("1"), "Press 'i' to see instructions", color::BLACK };
+	Text sell_hint{ Hash("2"), "Click unit to refund", color::BLACK };
+	Text info_hint{ Hash("2"), "Press 'i' to see instructions", color::BLACK };
 	
 	int max_queue_size{ 7 };
 	std::deque<Enemy> enemy_queue;
@@ -428,22 +428,7 @@ public:
 		V2_int mouse_tile = V2_int{ V2_float{ mouse_pos } / V2_float{ tile_size } };
 		Rectangle<float> mouse_box{ mouse_tile * tile_size, tile_size };
 
-		bool new_level = false;
-
-		if (input::KeyDown(Key::UP)) { // Increment level.
-			current_level = ModFloor(current_level + 1, levels);
-			new_level = true;
-		} else if (input::KeyDown(Key::DOWN)) { // Decrement level.
-			current_level = ModFloor(current_level - 1, levels);
-			new_level = true;
-		}
-
-		if (new_level) { // Remake turrets and reset wave upon level change.
-			current_max_waves = j["levels"][current_level]["waves"].size();
-			current_wave = 0;
-			Reset();
-		}
-
+		/*
 		bool new_wave = false;
 
 		if (input::KeyDown(Key::Q)) { // Decrement wave.
@@ -457,6 +442,7 @@ public:
 		if (new_wave) { // Remake turrets upon wave change.
 			Reset();
 		}
+		*/
 
 		// Determine nearest enemy to a turret.
 		manager.ForEachEntityWith<RangeComponent, Rectangle<float>, TurretComponent, ClosestInfo>(
@@ -501,8 +487,9 @@ public:
 			}
 		});
 
-		// Add enemies to queue using number keys when enemies are not being released.
 		
+		// Add enemies to queue using number keys when enemies are not being released.
+		// TODO: Make these push from buy menu buttons.
 		if (!releasing_enemies && enemy_queue.size() < max_queue_size) {
 			if (input::KeyDown(Key::K_1)) {
 				enemy_queue.push_back(Enemy::REGULAR);
@@ -519,6 +506,7 @@ public:
 		const Rectangle<float> queue_frame{ { map_size.x / 2 - queue_frame_size.x * max_queue_size / 2, map_size.y - queue_frame_size.y }, queue_frame_size };
 
 		// Hitting space triggers the emptying of the queue.
+		// TODO: Make this trigger on button press.
 		if (input::KeyDown(Key::SPACE) && !releasing_enemies) {
 			releasing_enemies = true;
 		}
@@ -569,20 +557,20 @@ public:
 		}
 
 		// Increase enemy velocity on right click.
-		if (input::MouseDown(Mouse::LEFT)) {
+		/*if (input::MouseDown(Mouse::LEFT)) {
 			manager.ForEachEntityWith<VelocityComponent, EnemyComponent>([](
 				auto& e, VelocityComponent& vel, EnemyComponent& enemy) {
 				vel.velocity = std::min(vel.maximum, vel.velocity + 1.0f);
 			});
-		}
+		}*/
 
 		// Decrease enemy velocity on right click.
-		if (input::MouseDown(Mouse::RIGHT)) {
+		/*if (input::MouseDown(Mouse::RIGHT)) {
 			manager.ForEachEntityWith<VelocityComponent, EnemyComponent>([](
 				auto& e, VelocityComponent& vel, EnemyComponent& enemy) {
 				vel.velocity = std::max(0.0f, vel.velocity - 1.0f);
 			});
-		}
+		}*/
 
 		// Collide bullets with enemies, decrease health of enemies, and destroy bullets.
 		manager.ForEachEntityWith<BulletComponent, Circle<float>, ColliderComponent>([&](
@@ -912,14 +900,6 @@ public:
 	//Texture back_button{ "resources/ui/back.png" };
 	//Texture back_button_hover{ "resources/ui/back_hover.png" };
 
-	Text text0{ Hash("1"), "Stroll of the Dice", color::CYAN };
-	Text text1{ Hash("1"), "'R' to restart if stuck", color::RED };
-	Text text2{ Hash("1"), "'Mouse' to choose direction", color::ORANGE };
-	Text text3{ Hash("1"), "'Spacebar' to confirm move", color::GOLD };
-	Text text4{ Hash("1"), "Green tile = Go over it to win", color::GREEN };
-	Text text5{ Hash("1"), "Grey tile = Cannot move in that direction", color::GREY };
-	Text text6{ Hash("1"), "Red tile = No longer usable tile", color::RED };
-
 	InstructionScreen() {}
 	void Update(float dt) final {
 		
@@ -937,14 +917,14 @@ public:
 		V2_int play_text_pos{ window::GetLogicalSize().x / 2 - play_text_size.x / 2,
 							  window::GetLogicalSize().y / 2 - play_text_size.y / 2 };
 
-		Text t{ Hash("1"), "'i' to exit instructions page", color::BLACK };
+		Text t{ Hash("2"), "'i' to exit instructions page", color::BLACK };
 		t.Draw({ play_text_pos - V2_int{ 250, 160 }, { play_text_size.x + 500, play_text_size.y } });
 
-		Text t2{ Hash("1"), "'b' to open the unit purchase menu", color::BLACK };
+		Text t2{ Hash("2"), "'b' to open the unit purchase menu", color::BLACK };
 		t2.Draw({ play_text_pos - V2_int{ 250, 160 - 70 }, { play_text_size.x + 500, play_text_size.y } });
 
-
-
+		//Text t3{ Hash("1"), "TEXT HERE", color::BLACK };
+		//t3.Draw({ play_text_pos - V2_int{ 250, 160 - 70 - 70 }, { play_text_size.x + 500, play_text_size.y } });
 
 		/*
 		V2_int play_size{ 463, 204 };
@@ -1017,7 +997,7 @@ public:
 			button.Draw({ play_pos, play_size });
 		}
 
-		Text t{ Hash("0"), "Play", text_color };
+		Text t{ Hash("2"), "Play", text_color };
 		t.Draw({ play_text_pos, play_text_size });
 	}
 };
@@ -1064,10 +1044,10 @@ public:
 			button.Draw({ play_pos, play_size });
 		}
 
-		Text t{ Hash("0"), "You beat our game! Thanks for playing!", color::BLACK };
+		Text t{ Hash("2"), "You beat our game! Thanks for playing!", color::BLACK };
 		t.Draw({ play_text_pos - V2_int{ 250, 160 }, { play_text_size.x + 500, play_text_size.y } });
 
-		Text t2{ Hash("0"), "Try Again!", text_color };
+		Text t2{ Hash("2"), "Try Again!", text_color };
 		t2.Draw({ play_text_pos, play_text_size });
 	}
 };
@@ -1083,6 +1063,7 @@ class GMTKJam2023 : public Engine {
 		texture::Load(2, "resources/background/menu.png");
 		font::Load(Hash("0"), "resources/font/04B_30.ttf", 32);
 		font::Load(Hash("1"), "resources/font/retro_gaming.ttf", 32);
+		font::Load(Hash("2"), "resources/font/Deutsch.ttf", 32);
 		scene::Load<StartScreen>(Hash("menu"));
 		scene::Load<InstructionScreen>(Hash("instructions"));
 		scene::Load<LevelWinScreen>(Hash("game_win"));
