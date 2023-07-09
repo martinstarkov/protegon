@@ -12,17 +12,17 @@
               ]
             },
             {
-              "type": "shooter",
-              "position": [
-                21,
-                15
-              ]
-            },
-            {
               "type": "laser",
               "position": [
                 17,
                 2
+              ]
+            },
+            {
+              "type": "pulser",
+              "position": [
+                17,
+                4
               ]
             }
           ]
@@ -180,6 +180,9 @@
     },
     "laser": {
       "texture_key": 1006
+    },
+    "pulser": {
+      "texture_key": 1007
     }
   }
 }

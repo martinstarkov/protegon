@@ -11,6 +11,33 @@ struct StaticComponent {};
 struct ColliderComponent {};
 struct TurretComponent {};
 struct BulletComponent {};
+struct ShooterComponent {};
+struct PulserComponent {};
+struct FadeComponent {
+	FadeComponent(milliseconds time) : time{ time } {}
+	bool IsFaded() const {
+		return countdown.IsRunning() && countdown.Elapsed<milliseconds>() >= time;
+	}
+	bool IsFading() const {
+		return countdown.IsRunning();
+	}
+	float GetFraction() const {
+		return 1.0f - countdown.ElapsedPercentage(time);
+	}
+	milliseconds time{};
+	Timer countdown;
+};
+struct RingComponent {
+	RingComponent(int thickness) : thickness{ thickness } {}
+	bool HasPassed(const ecs::Entity& entity) const {
+		for (const auto& passed_entity : passed_entities) {
+			if (entity == passed_entity) return true;
+		}
+		return false;
+	}
+	int thickness{ 0 };
+	std::vector<ecs::Entity> passed_entities;
+};
 struct LaserComponent {
 	LaserComponent(milliseconds damage_delay) : damage_delay{ damage_delay } {}
 	milliseconds damage_delay{};
@@ -19,13 +46,13 @@ struct LaserComponent {
 	}
 	Timer cooldown;
 };
-struct ShooterComponent {
-	ShooterComponent(milliseconds delay) : delay{ delay } {}
+struct ReloadComponent {
+	ReloadComponent(milliseconds delay) : delay{ delay } {}
 	milliseconds delay{};
 	bool CanShoot() const {
-		return !reload.IsRunning() || reload.Elapsed<milliseconds>() >= delay;
+		return !timer.IsRunning() || timer.Elapsed<milliseconds>() >= delay;
 	}
-	Timer reload;
+	Timer timer;
 };
 struct RangeComponent {
 	RangeComponent(float range) : range{ range } {}
@@ -49,7 +76,7 @@ struct TileComponent {
 };
 struct VelocityComponent {
 	VelocityComponent(float maximum, float initial = 0.0f) : maximum{ maximum }, velocity{ initial } {}
-	float maximum{ 10.0f };
+	float maximum{ 0.0f };
 	float velocity{ 0.0f };
 };
 struct DirectionComponent {
@@ -108,14 +135,8 @@ struct HealthComponent {
 private:
 	int original{ 0 };
 };
-struct LifeTimerComponent {
-	LifeTimerComponent(milliseconds lifetime) : lifetime{ lifetime } {}
-	void Start() {
-		countdown.Start();
-	}
-	void Stop() {
-		countdown.Stop();
-	}
+struct LifetimeComponent {
+	LifetimeComponent(milliseconds lifetime) : lifetime{ lifetime } {}
 	bool IsDead() const {
 		return countdown.Elapsed<milliseconds>() >= lifetime;
 	}
@@ -170,6 +191,7 @@ class GMTKJam2023 :  public Engine {
 	int levels{ 0 };
 	int current_wave{ 0 };
 	int current_max_waves{ 0 };
+	bool music_muted{ false };
 	
 	int max_queue_size{ 15 };
 	std::deque<Enemy> enemy_queue;
@@ -230,12 +252,27 @@ class GMTKJam2023 :  public Engine {
 		entity.Add<DrawComponent>();
 		entity.Add<TurretComponent>();
 		entity.Add<StaticComponent>();
+		entity.Add<ShooterComponent>();
 		entity.Add<ClosestInfo>();
 		entity.Add<TextureComponent>(j["turrets"]["shooter"]["texture_key"]);
 		entity.Add<TileComponent>(coordinate);
 		entity.Add<Rectangle<float>>(rect);
 		entity.Add<RangeComponent>(300.0f);
-		entity.Add<ShooterComponent>(milliseconds{ 100 });
+		entity.Add<ReloadComponent>(milliseconds{ 100 });
+		manager.Refresh();
+		return entity;
+	}
+	ecs::Entity CreateBullet(const V2_float& start_position, const V2_float& normalized_direction, ecs::Entity target = ecs::null) {
+		auto entity = manager.CreateEntity();
+		//entity.Add<TextureComponent>(j["turrets"]["laser"]["texture_key"]);
+		entity.Add<DrawComponent>();
+		entity.Add<BulletComponent>();
+		entity.Add<ColliderComponent>();
+		entity.Add<Circle<float>>(Circle<float>{ start_position, 5.0f });
+		entity.Add<Color>(color::BLACK);
+		entity.Add<TargetComponent>(target, milliseconds{ 3000 });
+		entity.Add<Velocity2DComponent>(normalized_direction, 1000.0f);
+		entity.Add<LifetimeComponent>(milliseconds{ 6000 }).countdown.Start();
 		manager.Refresh();
 		return entity;
 	}
@@ -253,17 +290,31 @@ class GMTKJam2023 :  public Engine {
 		manager.Refresh();
 		return entity;
 	}
-	ecs::Entity CreateBullet(const V2_float& start_position, const V2_float& normalized_direction, ecs::Entity target = ecs::null) {
+	ecs::Entity CreatePulserTurret(const Rectangle<float>& rect, const V2_int& coordinate) {
 		auto entity = manager.CreateEntity();
-		//entity.Add<TextureComponent>(j["turrets"]["laser"]["texture_key"]);
 		entity.Add<DrawComponent>();
-		entity.Add<BulletComponent>();
+		entity.Add<TurretComponent>();
+		entity.Add<StaticComponent>();
+		entity.Add<PulserComponent>();
+		entity.Add<ClosestInfo>();
+		entity.Add<TextureComponent>(j["turrets"]["pulser"]["texture_key"]);
+		entity.Add<TileComponent>(coordinate);
+		entity.Add<Rectangle<float>>(rect);
+		entity.Add<RangeComponent>(300.0f);
+		entity.Add<ReloadComponent>(milliseconds{ 2000 });
+		manager.Refresh();
+		return entity;
+	}
+	ecs::Entity CreateRing(const V2_float& start_position) {
+		auto entity = manager.CreateEntity();
+		entity.Add<DrawComponent>();
 		entity.Add<ColliderComponent>();
-		entity.Add<Circle<float>>(Circle<float>{ start_position, 5.0f });
-		entity.Add<Color>(color::BLACK);
-		entity.Add<TargetComponent>(target, milliseconds{ 3000 });
-		entity.Add<Velocity2DComponent>(normalized_direction, 1000.0f);
-		entity.Add<LifeTimerComponent>(milliseconds{ 6000 }).Start();
+		entity.Add<RingComponent>(3);
+		entity.Add<FadeComponent>(milliseconds{ 1000 });
+		entity.Add<Circle<float>>(Circle<float>{ start_position, 2.0f });
+		entity.Add<Color>(color::LIGHT_PINK);
+		entity.Add<VelocityComponent>(100.0f, 100.0f);
+		entity.Add<LifetimeComponent>(milliseconds{ 1000 }).countdown.Start();
 		manager.Refresh();
 		return entity;
 	}
@@ -283,6 +334,8 @@ class GMTKJam2023 :  public Engine {
 				CreateShooterTurret(rect, coordinate);
 			else if (enemy["type"] == "laser")
 				CreateLaserTurret(rect, coordinate);
+			else if (enemy["type"] == "pulser")
+				CreatePulserTurret(rect, coordinate);
 		}
 	}
 
@@ -302,16 +355,21 @@ class GMTKJam2023 :  public Engine {
 		levels = j["levels"].size();
 
 		// Load textures.
-		texture::Load(500, "resources/tile/wall.png");
-		texture::Load(501, "resources/tile/top_wall.png");
+		texture::Load(500,  "resources/tile/wall.png");
+		texture::Load(501,  "resources/tile/top_wall.png");
 		texture::Load(1002, "resources/tile/start.png");
 		texture::Load(1003, "resources/tile/end.png");
 		texture::Load(1004, "resources/tile/enemy.png");
-		texture::Load(1005, "resources/turret/shooter_turret.png");
-		texture::Load(1006, "resources/turret/laser_turret.png");
+		texture::Load(j["turrets"]["shooter"]["texture_key"], "resources/turret/shooter.png");
+		texture::Load(j["turrets"]["laser"]["texture_key"], "resources/turret/laser.png");
+		texture::Load(j["turrets"]["pulser"]["texture_key"], "resources/turret/pulser.png");
 		texture::Load(2000, "resources/enemy/enemy.png");
 		texture::Load(3000, "resources/ui/queue_frame.png");
 		texture::Load(3001, "resources/ui/arrow.png");
+		texture::Load(3101, "resources/ui/mute.png");
+		texture::Load(3102, "resources/ui/mute_hover.png");
+		texture::Load(3103, "resources/ui/mute_grey.png");
+		texture::Load(3104, "resources/ui/mute_grey_hover.png");
 
 		// Setup node grid for the map.
 		test_map.ForEachPixel([&](const V2_int& coordinate, const Color& color) {
@@ -388,18 +446,18 @@ class GMTKJam2023 :  public Engine {
 			
 		});
 
-		// Shoot bullet from shooter turret if there is an enemy nearby.
-		manager.ForEachEntityWith<RangeComponent, Rectangle<float>, TurretComponent, ClosestInfo, ShooterComponent>(
-			[&](ecs::Entity& entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t, ClosestInfo& closest, ShooterComponent& shooter) {
+		// Fire bullet from shooter turret if there is an enemy nearby.
+		manager.ForEachEntityWith<RangeComponent, Rectangle<float>, TurretComponent, ClosestInfo, ReloadComponent, ShooterComponent>(
+			[&](ecs::Entity& entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t, ClosestInfo& closest, ReloadComponent& reload, ShooterComponent& shooter) {
 			if (closest.entity.IsAlive()) {
-				if (shooter.CanShoot()) {
-					shooter.reload.Start();
+				if (reload.CanShoot()) {
+					reload.timer.Start();
 					CreateBullet(r.Center(), closest.dir.Normalized(), closest.entity);
 				}
 			}
 		});
 
-		// Draw laser turret laser toward closest enemy.
+		// Draw laser turret beam toward closest enemy.
 		manager.ForEachEntityWith<RangeComponent, Rectangle<float>, TurretComponent, ClosestInfo, LaserComponent>(
 			[&](ecs::Entity& entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t, ClosestInfo& closest, LaserComponent& laser) {
 			if (closest.entity.IsAlive()) {
@@ -409,6 +467,17 @@ class GMTKJam2023 :  public Engine {
 						auto& h = closest.entity.Get<HealthComponent>();
 						h.Decrease(1);
 					}
+				}
+			}
+		});
+
+		// Expand ring from pulser if there is an enemy nearby.
+		manager.ForEachEntityWith<RangeComponent, Rectangle<float>, TurretComponent, ClosestInfo, ReloadComponent, PulserComponent>(
+			[&](ecs::Entity& entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t, ClosestInfo& closest, ReloadComponent& reload, PulserComponent& pulser) {
+			if (closest.entity.IsAlive()) {
+				if (reload.CanShoot()) {
+					reload.timer.Start();
+					CreateRing(r.Center());
 				}
 			}
 		});
@@ -495,6 +564,21 @@ class GMTKJam2023 :  public Engine {
 			});
 		});
 
+		// Collide rings with enemies, decrease health of enemies once.
+		manager.ForEachEntityWith<RingComponent, Circle<float>, ColliderComponent>([&](
+			auto& e, RingComponent& r, Circle<float>& c, ColliderComponent& collider) {
+			manager.ForEachEntityWith<Rectangle<float>, ColliderComponent, EnemyComponent>([&](
+				auto& e2, Rectangle<float>& r2, ColliderComponent& c2, EnemyComponent& enemy2) {
+				if (e.IsAlive() && overlap::CircleRectangle(c, r2) && !r.HasPassed(e2)) {
+					if (e2.Has<HealthComponent>()) {
+						HealthComponent& h = e2.Get<HealthComponent>();
+						h.Decrease(10);
+					}
+					r.passed_entities.push_back(e2);
+				}
+			});
+		});
+
 		// Draw shooter tower range.
 		manager.ForEachEntityWith<RangeComponent, Rectangle<float>, TurretComponent>(
 			[&](ecs::Entity& entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t) {
@@ -506,6 +590,11 @@ class GMTKJam2023 :  public Engine {
 		manager.ForEachEntityWith<Circle<float>, Velocity2DComponent>([&](
 			auto& e, Circle<float>& c, Velocity2DComponent& v) {
 			c.c += v.direction * v.magnitude * dt;
+		});
+
+		manager.ForEachEntityWith<Circle<float>, VelocityComponent, RingComponent>(
+			[&](ecs::Entity& entity, Circle<float>& c, VelocityComponent& v, RingComponent& r) {
+			c.r += v.velocity * dt;
 		});
 
 		// Move targetted projectile bullets toward targets.
@@ -595,6 +684,19 @@ class GMTKJam2023 :  public Engine {
 			c.DrawSolid(color);
 		});
 
+		// Draw ring circles.
+		manager.ForEachEntityWith<DrawComponent, Circle<float>, Color, RingComponent>([](
+			ecs::Entity& e, DrawComponent& d, Circle<float>& c, const Color& col, RingComponent& r) {
+			Color color = col;
+			if (e.Has<FadeComponent>()) {
+				FadeComponent& f = e.Get<FadeComponent>();
+				if (f.IsFading())
+					color.a = static_cast<std::uint8_t>(col.a * f.GetFraction());
+			}
+			c.DrawSolid({ color.r, color.g, color.b, static_cast<std::uint8_t>(0.1f * color.a) });//color, r.thickness);
+			c.Draw(color, r.thickness);
+		});
+
 		// Draw laser turret laser toward closest enemy.
 		manager.ForEachEntityWith<RangeComponent, Rectangle<float>, TurretComponent, ClosestInfo, LaserComponent>(
 			[&](ecs::Entity& entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t, ClosestInfo& closest, LaserComponent& laser) {
@@ -653,11 +755,43 @@ class GMTKJam2023 :  public Engine {
 		if (overlap::PointRectangle(mouse_pos, bg) && node_grid.IsObstacle(mouse_tile))
 			mouse_box.Draw(color::GOLD, 3);
 
+		const Rectangle<float> mute_button{ map_size - tile_size, tile_size };
+		int key = 3101;
+
+		static bool previous_music_state = music_muted;
+
+		bool hovering_over_mute = overlap::PointRectangle(mouse_pos, mute_button);
+		if (hovering_over_mute) {
+			key = 3102;
+			if (input::MouseDown(Mouse::LEFT)) {
+				music_muted = !music_muted;
+			}
+		}
+		if (music_muted) {
+			key = 3103;
+			if (hovering_over_mute)
+				key = 3104;
+		}
+		if (previous_music_state != music_muted)
+			music::Toggle();
+		previous_music_state = music_muted;
+
+		texture::Get(key)->Draw(mute_button);
+
 		// Destroy enemies which run out of lifetime.
-		manager.ForEachEntityWith<LifeTimerComponent>([](
-			auto& e, LifeTimerComponent& l) {
-			if (l.IsDead())
-				e.Destroy();
+		manager.ForEachEntityWith<LifetimeComponent>([](
+			ecs::Entity& e, LifetimeComponent& l) {
+			if (l.IsDead()) {
+				if (e.Has<FadeComponent>()) {
+					auto& f = e.Get<FadeComponent>();
+					if (f.IsFaded())
+						e.Destroy();
+					else if (!f.IsFading())
+						f.countdown.Start();
+				} else {
+					e.Destroy();
+				}
+			}
 		});
 
 		// Destroy enemies which run out of health.
