@@ -14,6 +14,7 @@ struct Game {
 	ResourceManagers managers;
 	InputHandler input;
 	SceneManager scene;
+	bool running{ false };
 };
 
 namespace global {

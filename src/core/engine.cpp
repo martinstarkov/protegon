@@ -40,7 +40,9 @@ void Engine::Loop() {
 
 	auto& game{ global::GetGame() };
 
-	while (game.sdl.GetWindow() != nullptr) {
+	game.running = true;
+
+	while (game.running) {
 		auto renderer{ game.sdl.GetRenderer() };
 		
 		game.input.Update();

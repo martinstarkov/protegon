@@ -64,6 +64,7 @@ void InputHandler::Update() {
 			{
 				// TODO: Ensure this doesn't crash anything.
 				SDL_DestroyWindow(global::GetGame().sdl.GetWindow());
+				global::GetGame().running = false;
 				break;
 			}
 			// Possible window events here in the future.
