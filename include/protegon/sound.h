@@ -36,7 +36,7 @@ public:
 	Sound(Sound&&) = default;
 	Sound& operator=(Sound&&) = default;
 
-	void Play(int channel, int loops) const;
+	void Play(int channel, int loops = 0) const;
 	void FadeIn(int channel, int loops, milliseconds time) const;
 	bool IsValid() const;
 private:
