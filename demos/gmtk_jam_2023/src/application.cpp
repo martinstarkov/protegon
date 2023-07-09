@@ -11,14 +11,25 @@ struct StaticComponent {};
 struct ColliderComponent {};
 struct TurretComponent {};
 struct BulletComponent {};
+struct LaserComponent {
+	LaserComponent(milliseconds damage_delay) : damage_delay{ damage_delay } {}
+	milliseconds damage_delay{};
+	bool CanDamage() const {
+		return !cooldown.IsRunning() || cooldown.Elapsed<milliseconds>() >= damage_delay;
+	}
+	Timer cooldown;
+};
 struct ShooterComponent {
-	ShooterComponent(float range, milliseconds delay) : range{ range }, delay{ delay } {}
-	float range{ 0.0f };
+	ShooterComponent(milliseconds delay) : delay{ delay } {}
 	milliseconds delay{};
 	bool CanShoot() const {
 		return !reload.IsRunning() || reload.Elapsed<milliseconds>() >= delay;
 	}
 	Timer reload;
+};
+struct RangeComponent {
+	RangeComponent(float range) : range{ range } {}
+	float range{ 0.0f };
 };
 struct TargetComponent {
 	TargetComponent(const ecs::Entity& target, milliseconds begin) : target{ target }, begin{ begin } {}
@@ -79,6 +90,15 @@ struct WaypointComponent {
 struct HealthComponent {
 	HealthComponent(int start_health) : current{ start_health }, original{ current } {}
 	int current{ 0 };
+	// Returns true if the health was decreased by the given amount.
+	bool Decrease(int amount) {
+		int potential_new = current - amount;
+		if (potential_new >= 0 && potential_new <= original) {
+			current = potential_new;
+			return true;
+		}
+		return false;
+	}
 	int GetOriginal() const {
 		return original;
 	}
@@ -110,10 +130,36 @@ enum class Enemy {
 	FAIRY = 3
 };
 
+struct ClosestInfo {
+	ecs::Entity entity{ ecs::null };
+	float distance2{ INFINITY };
+	V2_float dir;
+};
+
+template <typename T>
+ClosestInfo GetClosestInfo(ecs::Manager& manager, V2_float& position, float range) {
+	float closest_dist2{ INFINITY };
+	float range2{ range * range };
+	ecs::Entity closest_target{ ecs::null};
+	V2_float closest_dir;
+	manager.ForEachEntityWith<Rectangle<float>, T>(
+		[&](ecs::Entity& target, Rectangle<float>& target_r, T& e) {
+		V2_float dir = target_r.Center() - position;
+		float dist2 = dir.MagnitudeSquared();
+		if (dist2 < closest_dist2 && dist2 <= range2) {
+			closest_dir = dir;
+			closest_dist2 = dist2;
+			closest_target = target;
+		}
+	});
+	return ClosestInfo{ closest_target, closest_dist2, closest_dir };
+}
+
 class GMTKJam2023 :  public Engine {
 	Surface test_map{ "resources/maps/test_map.png" };
 	V2_int grid_size{ 30, 15 };
 	V2_int tile_size{ 32, 32 };
+	V2_int map_size{ grid_size * tile_size };
 	AStarGrid node_grid{ grid_size };
 	ecs::Manager manager;
 	ecs::Entity start;
@@ -174,7 +220,7 @@ class GMTKJam2023 :  public Engine {
 		entity.Add<TextureComponent>(2000, static_cast<int>(index));
 		entity.Add<TileComponent>(coordinate);
 		entity.Add<Rectangle<float>>(rect);
-		entity.Add<HealthComponent>(10);
+		entity.Add<HealthComponent>(50);
 		entity.Add<VelocityComponent>(10.0f, 3.0f);
 		manager.Refresh();
 		return entity;
@@ -184,10 +230,12 @@ class GMTKJam2023 :  public Engine {
 		entity.Add<DrawComponent>();
 		entity.Add<TurretComponent>();
 		entity.Add<StaticComponent>();
+		entity.Add<ClosestInfo>();
 		entity.Add<TextureComponent>(j["turrets"]["shooter"]["texture_key"]);
 		entity.Add<TileComponent>(coordinate);
 		entity.Add<Rectangle<float>>(rect);
-		entity.Add<ShooterComponent>(300, milliseconds{ 100 });
+		entity.Add<RangeComponent>(300.0f);
+		entity.Add<ShooterComponent>(milliseconds{ 100 });
 		manager.Refresh();
 		return entity;
 	}
@@ -195,10 +243,13 @@ class GMTKJam2023 :  public Engine {
 		auto entity = manager.CreateEntity();
 		entity.Add<DrawComponent>();
 		entity.Add<TurretComponent>();
+		entity.Add<LaserComponent>(milliseconds{ 50 });
 		entity.Add<StaticComponent>();
+		entity.Add<ClosestInfo>();
 		entity.Add<TextureComponent>(j["turrets"]["laser"]["texture_key"]);
 		entity.Add<TileComponent>(coordinate);
 		entity.Add<Rectangle<float>>(rect);
+		entity.Add<RangeComponent>(300.0f);
 		manager.Refresh();
 		return entity;
 	}
@@ -243,7 +294,7 @@ class GMTKJam2023 :  public Engine {
 		window::SetColor(color::BLACK);
 		window::Maximize();
 		window::SetResizeable(true);
-		window::SetLogicalSize({ 960, 480 });
+		window::SetLogicalSize(map_size);
 
 		// Load json data.
 		std::ifstream f("resources/data/level_data.json");
@@ -330,26 +381,35 @@ class GMTKJam2023 :  public Engine {
 			CreateTurrets();
 		}
 
-		// Determine nearest enemy to a shooter turret and shoot a bullet toward it.
-		manager.ForEachEntityWith<ShooterComponent, Rectangle<float>, TurretComponent>(
-			[&](ecs::Entity& entity, ShooterComponent& s, Rectangle<float>& r, TurretComponent& t) {
-			float closest_dist2 = INFINITY;
-			float range2 = s.range * s.range;
-			ecs::Entity closest_enemy = ecs::null;
-			V2_float closest_dir;
-			manager.ForEachEntityWith<Rectangle<float>, EnemyComponent>(
-				[&](ecs::Entity& enemy, Rectangle<float>& enemy_r, EnemyComponent& e) {
-				V2_float dir = enemy_r.Center() - r.Center();
-				float dist2 = dir.MagnitudeSquared();
-				if (dist2 < closest_dist2 && dist2 <= range2) {
-					closest_dir = dir;
-					closest_dist2 = dist2;
-					closest_enemy = enemy;
+		// Determine nearest enemy to a turret.
+		manager.ForEachEntityWith<RangeComponent, Rectangle<float>, TurretComponent, ClosestInfo>(
+			[&](ecs::Entity& entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t, ClosestInfo& closest) {
+			closest = GetClosestInfo<EnemyComponent>(manager, r.Center(), s.range);
+			
+		});
+
+		// Shoot bullet from shooter turret if there is an enemy nearby.
+		manager.ForEachEntityWith<RangeComponent, Rectangle<float>, TurretComponent, ClosestInfo, ShooterComponent>(
+			[&](ecs::Entity& entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t, ClosestInfo& closest, ShooterComponent& shooter) {
+			if (closest.entity.IsAlive()) {
+				if (shooter.CanShoot()) {
+					shooter.reload.Start();
+					CreateBullet(r.Center(), closest.dir.Normalized(), closest.entity);
 				}
-			});
-			if (closest_enemy.IsAlive() && s.CanShoot()) {
-				s.reload.Start();
-				CreateBullet(r.Center(), closest_dir.Normalized(), closest_enemy);
+			}
+		});
+
+		// Draw laser turret laser toward closest enemy.
+		manager.ForEachEntityWith<RangeComponent, Rectangle<float>, TurretComponent, ClosestInfo, LaserComponent>(
+			[&](ecs::Entity& entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t, ClosestInfo& closest, LaserComponent& laser) {
+			if (closest.entity.IsAlive()) {
+				if (laser.CanDamage()) {
+					laser.cooldown.Start();
+					if (closest.entity.Has<HealthComponent>()) {
+						auto& h = closest.entity.Get<HealthComponent>();
+						h.Decrease(1);
+					}
+				}
 			}
 		});
 
@@ -428,9 +488,7 @@ class GMTKJam2023 :  public Engine {
 				if (e.IsAlive() && overlap::CircleRectangle(c, r2)) {
 					if (e2.Has<HealthComponent>()) {
 						HealthComponent& h = e2.Get<HealthComponent>();
-						int potential_new = h.current - 1;
-						if (potential_new >= 0 && potential_new <= h.GetOriginal())
-							h.current = potential_new;
+						h.Decrease(1);
 					}
 					e.Destroy();
 				}
@@ -438,8 +496,8 @@ class GMTKJam2023 :  public Engine {
 		});
 
 		// Draw shooter tower range.
-		manager.ForEachEntityWith<ShooterComponent, Rectangle<float>, TurretComponent>(
-			[&](ecs::Entity& entity, ShooterComponent& s, Rectangle<float>& r, TurretComponent& t) {
+		manager.ForEachEntityWith<RangeComponent, Rectangle<float>, TurretComponent>(
+			[&](ecs::Entity& entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t) {
 			Circle<float> circle{ r.Center(), s.range };
 			circle.DrawSolid(Color{ 128, 0, 0, 70 });
 		});
@@ -524,12 +582,10 @@ class GMTKJam2023 :  public Engine {
 				// Decrease health of end tower by 1.
 				assert(end.Has<HealthComponent>());
 				HealthComponent& h = end.Get<HealthComponent>();
-				int potential_new = h.current - 1;
-				if (potential_new == 0) {
+				h.Decrease(1);
+				if (h.IsDead()) {
 					// TODO: Lose condition.
-				} else if (potential_new > 0 && potential_new <= h.GetOriginal())
-					h.current = potential_new;
-
+				}
 			}
 		});
 
@@ -537,6 +593,16 @@ class GMTKJam2023 :  public Engine {
 		manager.ForEachEntityWith<DrawComponent, Circle<float>, Color, BulletComponent>([](
 			auto& e, DrawComponent& d, Circle<float>& c, Color& color, BulletComponent& b) {
 			c.DrawSolid(color);
+		});
+
+		// Draw laser turret laser toward closest enemy.
+		manager.ForEachEntityWith<RangeComponent, Rectangle<float>, TurretComponent, ClosestInfo, LaserComponent>(
+			[&](ecs::Entity& entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t, ClosestInfo& closest, LaserComponent& laser) {
+			if (closest.entity.IsAlive()) {
+				assert(closest.entity.Has<Rectangle<float>>());
+				Line<float> beam{ r.Center(), closest.entity.Get<Rectangle<float>>().Center() };
+				beam.Draw(color::RED, 3);
+			}
 		});
 
 		// Draw healthbars
@@ -557,13 +623,15 @@ class GMTKJam2023 :  public Engine {
 			}
 		});
 
-		const Rectangle<float> queue_frame{ { 400, 420 }, { 28, 32 } };
+		V2_float queue_frame_size{ 28, 32 };
+		const Rectangle<float> queue_frame{ { map_size.x / 2 - queue_frame_size.x * max_queue_size / 2, map_size.y - queue_frame_size.y }, queue_frame_size };
 
 		// Draw border around queue frame.
-		//Rectangle<float> queue_frame_border = queue_frame.Offset({ -4, -4 }, { queue_frame.size.x * (max_queue_size - 1) + 8, 8 });
-		//queue_frame_border.Draw(color::GREY, 6);
+		Rectangle<float> queue_frame_border = queue_frame.Offset({ -4, -4 }, { queue_frame.size.x * (max_queue_size - 1) + 8, 8 });
+		queue_frame_border.Draw(color::DARK_BROWN, 6);
+		queue_frame_border.Draw(color::BLACK, 3);
 		
-		// Display queue.
+		// Draw queue.
 		for (int i = 0; i < max_queue_size; i++) {
 			texture::Get(3000)->Draw(queue_frame.Offset({ queue_frame.size.x * i, 0 }));
 		}
@@ -574,7 +642,7 @@ class GMTKJam2023 :  public Engine {
 			Rectangle<float> source_rect{V2_float{ static_cast<float>(facing_direction), static_cast<float>(type) } * tile_size, tile_size };
 			texture::Get(2000)->Draw(queue_frame.Offset({ queue_frame.size.x * i, 0 }), source_rect);
 		}
-		// Display arrow over first enemy in queue.
+		// Draw arrow over first enemy in queue.
 		if (enemy_queue.size() > 0) {
 			V2_float arrow_size{ 15, 21 };
 			Rectangle<float> arrow = queue_frame.Offset({ 0.0f, -arrow_size.y });
@@ -582,7 +650,7 @@ class GMTKJam2023 :  public Engine {
 		}
 
 		// Draw mouse hover square.
-		if (overlap::PointRectangle(mouse_pos, bg))
+		if (overlap::PointRectangle(mouse_pos, bg) && node_grid.IsObstacle(mouse_tile))
 			mouse_box.Draw(color::GOLD, 3);
 
 		// Destroy enemies which run out of lifetime.
