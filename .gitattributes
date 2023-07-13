@@ -1,6 +1,9 @@
 * text=auto
 
 vendor/* -linguist-detectable
+build/* -linguist-detectable
+external/* -linguist-detectable
+cmake/* -linguist-detectable
 
 ###### Git
 .gitattributes text
