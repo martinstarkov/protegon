@@ -16,5 +16,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${TEST_SRC_DIR})
 add_protegon_to(${PROJECT_NAME})
 
 IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/resources/")
-    file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/resources/" DESTINATION "${PROJECT_BINARY_DIR}/resources")
+    create_protegon_link("resources")
+    #file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/resources/" DESTINATION "${PROJECT_BINARY_DIR}/resources")
 ENDIF()

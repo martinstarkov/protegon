@@ -119,6 +119,18 @@ function(add_protegon_to TARGET)
     endif()
 endfunction()
 
+function(create_protegon_link DIR_NAME)
+	if(WIN32)
+		get_filename_component(real_path "${DIR_NAME}" REALPATH)
+		string(REPLACE "/" "\\" target_path "${real_path}")
+		execute_process(
+			COMMAND cmd /C mklink /J ${DIR_NAME} "${target_path}"
+			WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+	else()
+		execute_process(COMMAND "ln -s ${CMAKE_CURRENT_SOURCE_DIR}/${DIR_NAME} ${CMAKE_CURRENT_BINARY_DIR}/${DIR_NAME}")
+	endif()
+endfunction()
+
 mark_as_advanced(PROTEGON_DIR
 	             PROTEGON_SRC_DIR
 				 PROTEGON_VENDOR_DIR
