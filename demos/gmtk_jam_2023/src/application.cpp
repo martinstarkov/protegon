@@ -1314,8 +1314,8 @@ class GMTKJam2023 : public Engine {
 std::array<std::tuple<std::string, int, int, float>, 4> GameScene::values{
 	std::tuple<std::string, int, int, float>{ "Normie", 10, 150, 3.0f },
 	std::tuple<std::string, int, int, float>{ "Wizard", 20, 120, 3.5f },
-	std::tuple<std::string, int, int, float>{ "Fairy", 40, 80, 4.5f },
-	std::tuple<std::string, int, int, float>{ "Elf", 60, 40, 5.0f }
+	std::tuple<std::string, int, int, float>{ "Elf", 40, 80, 4.5f },
+	std::tuple<std::string, int, int, float>{ "Fairy", 60, 40, 5.0f }
 };
 
 int GameScene::money = 0;
