@@ -14,10 +14,10 @@ struct Color {
 	operator SDL_Color() const;
 	// Default color is black.
 	constexpr Color() = default;
-	constexpr Color::Color(std::uint8_t r,
-						   std::uint8_t g,
-						   std::uint8_t b,
-						   std::uint8_t a) :
+	constexpr Color(std::uint8_t r,
+                    std::uint8_t g,
+                    std::uint8_t b,
+                    std::uint8_t a) :
 		r{ r }, g{ g }, b{ b }, a{ a } {}
 };
 

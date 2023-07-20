@@ -105,12 +105,13 @@ template<class T, class F>
 struct same_signage : pred_base<(both_signed<T, F>::value) || (both_unsigned<T, F>::value)> {};
 
 // Source: https://stackoverflow.com/a/36272533
+// Obviously both src and dest must be numbers
+// Floating dest: src must be integral or smaller/equal float-type
+// Integral dest: src must be integral and (smaller/equal+same signage) or (smaller+different signage)
 template <class T, class F>
 struct is_safe_numeric_cast : pred_base <
-    both_numeric<T, F>::value && // Obviously both src and dest must be numbers
-    (std::is_floating_point<T>::value && (std::is_integral<F>::value || sizeof(T) >= sizeof(F))) || // Floating dest: src must be integral or smaller/equal float-type
-    ((both_integral<T, F>::value) && // Integral dest: src must be integral and (smaller/equal+same signage) or (smaller+different signage)
-     (sizeof(T) > sizeof(F) || (sizeof(T) == sizeof(F) && same_signage<T, F>::value)))>{};
+    (both_numeric<T, F>::value && std::is_floating_point<T>::value && std::is_integral<F>::value) || (sizeof(T) >= sizeof(F)) ||
+    (both_integral<T, F>::value && ((sizeof(T) > sizeof(F)) || (sizeof(T) == sizeof(F))) && same_signage<T, F>::value)>{};
 
 // Source: https://stackoverflow.com/a/49026811
 template<typename Stream, typename Type, typename = void>

@@ -169,13 +169,13 @@ struct ClosestInfo {
 };
 
 template <typename T>
-ClosestInfo GetClosestInfo(ecs::Manager& manager, V2_float& position, float range) {
+ClosestInfo GetClosestInfo(ecs::Manager& manager, const V2_float& position, float range) {
 	float closest_dist2{ INFINITY };
 	float range2{ range * range };
 	ecs::Entity closest_target{ ecs::null};
 	V2_float closest_dir;
 	manager.ForEachEntityWith<Rectangle<float>, T>(
-		[&](ecs::Entity& target, Rectangle<float>& target_r, T& e) {
+		[&](ecs::Entity target, Rectangle<float>& target_r, T& e) {
 		V2_float dir = target_r.Center() - position;
 		float dist2 = dir.MagnitudeSquared();
 		if (dist2 < closest_dist2 && dist2 <= range2) {
@@ -380,7 +380,7 @@ public:
 	}
 
 	void DestroyTurrets() {
-		manager.ForEachEntityWith<TurretComponent>([](auto& e, auto& t) {
+		manager.ForEachEntityWith<TurretComponent>([](auto e, auto& t) {
 			e.Destroy();
 		});
 		manager.Refresh();
@@ -477,14 +477,14 @@ public:
 
 		// Determine nearest enemy to a turret.
 		manager.ForEachEntityWith<RangeComponent, Rectangle<float>, TurretComponent, ClosestInfo>(
-			[&](ecs::Entity& entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t, ClosestInfo& closest) {
+			[&](ecs::Entity entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t, ClosestInfo& closest) {
 			closest = GetClosestInfo<EnemyComponent>(manager, r.Center(), s.range);
 			
 		});
 
 		// Fire bullet from shooter turret if there is an enemy nearby.
 		manager.ForEachEntityWith<RangeComponent, Rectangle<float>, TurretComponent, ClosestInfo, ReloadComponent, ShooterComponent>(
-			[&](ecs::Entity& entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t, ClosestInfo& closest, ReloadComponent& reload, ShooterComponent& shooter) {
+			[&](ecs::Entity entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t, ClosestInfo& closest, ReloadComponent& reload, ShooterComponent& shooter) {
 			if (closest.entity.IsAlive()) {
 				if (reload.CanShoot()) {
 					reload.timer.Start();
@@ -496,7 +496,7 @@ public:
 
 		// Draw laser turret beam toward closest enemy.
 		manager.ForEachEntityWith<RangeComponent, Rectangle<float>, TurretComponent, ClosestInfo, LaserComponent>(
-			[&](ecs::Entity& entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t, ClosestInfo& closest, LaserComponent& laser) {
+			[&](ecs::Entity entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t, ClosestInfo& closest, LaserComponent& laser) {
 			if (closest.entity.IsAlive()) {
 				if (laser.CanDamage()) {
 					laser.cooldown.Start();
@@ -510,7 +510,7 @@ public:
 
 		// Expand ring from pulser if there is an enemy nearby.
 		manager.ForEachEntityWith<RangeComponent, Rectangle<float>, TurretComponent, ClosestInfo, ReloadComponent, PulserComponent>(
-			[&](ecs::Entity& entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t, ClosestInfo& closest, ReloadComponent& reload, PulserComponent& pulser) {
+			[&](ecs::Entity entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t, ClosestInfo& closest, ReloadComponent& reload, PulserComponent& pulser) {
 			if (closest.entity.IsAlive()) {
 				if (reload.CanShoot()) {
 					reload.timer.Start();
@@ -582,7 +582,7 @@ public:
 		// Increase enemy velocity on right click.
 		/*if (input::MouseDown(Mouse::LEFT)) {
 			manager.ForEachEntityWith<VelocityComponent, EnemyComponent>([](
-				auto& e, VelocityComponent& vel, EnemyComponent& enemy) {
+				auto e, VelocityComponent& vel, EnemyComponent& enemy) {
 				vel.velocity = std::min(vel.maximum, vel.velocity + 1.0f);
 			});
 		}*/
@@ -590,19 +590,19 @@ public:
 		// Decrease enemy velocity on right click.
 		/*if (input::MouseDown(Mouse::RIGHT)) {
 			manager.ForEachEntityWith<VelocityComponent, EnemyComponent>([](
-				auto& e, VelocityComponent& vel, EnemyComponent& enemy) {
+				auto e, VelocityComponent& vel, EnemyComponent& enemy) {
 				vel.velocity = std::max(0.0f, vel.velocity - 1.0f);
 			});
 		}*/
 
 		// Collide bullets with enemies, decrease health of enemies, and destroy bullets.
 		manager.ForEachEntityWith<BulletComponent, Circle<float>, ColliderComponent>([&](
-			auto& e, BulletComponent& d, Circle<float>& c, ColliderComponent& collider) {
+			auto e, BulletComponent& d, Circle<float>& c, ColliderComponent& collider) {
 			manager.ForEachEntityWith<Rectangle<float>, ColliderComponent, EnemyComponent>([&](
-				auto& e2, Rectangle<float>& r2, ColliderComponent& c2, EnemyComponent& enemy2) {
+				auto e2, Rectangle<float>& r2, ColliderComponent& c2, EnemyComponent& enemy2) {
 				if (e.IsAlive() && overlap::CircleRectangle(c, r2)) {
-					if (e2.Has<HealthComponent>()) {
-						HealthComponent& h = e2.Get<HealthComponent>();
+                    if (e2.template Has<HealthComponent>()) {
+                        HealthComponent& h = e2.template Get<HealthComponent>();
 						h.Decrease(2);
 					}
 					e.Destroy();
@@ -612,12 +612,12 @@ public:
 
 		// Collide rings with enemies, decrease health of enemies once.
 		manager.ForEachEntityWith<RingComponent, Circle<float>, ColliderComponent>([&](
-			auto& e, RingComponent& r, Circle<float>& c, ColliderComponent& collider) {
+			auto e, RingComponent& r, Circle<float>& c, ColliderComponent& collider) {
 			manager.ForEachEntityWith<Rectangle<float>, ColliderComponent, EnemyComponent>([&](
-				auto& e2, Rectangle<float>& r2, ColliderComponent& c2, EnemyComponent& enemy2) {
+				auto e2, Rectangle<float>& r2, ColliderComponent& c2, EnemyComponent& enemy2) {
 				if (e.IsAlive() && overlap::CircleRectangle(c, r2) && !r.HasPassed(e2)) {
-					if (e2.Has<HealthComponent>()) {
-						HealthComponent& h = e2.Get<HealthComponent>();
+                    if (e2.template Has<HealthComponent>()) {
+                        HealthComponent& h = e2.template Get<HealthComponent>();
 						h.Decrease(10);
 					}
 					r.passed_entities.push_back(e2);
@@ -633,25 +633,25 @@ public:
 
 		// Draw shooter tower range.
 		manager.ForEachEntityWith<RangeComponent, Rectangle<float>, TurretComponent>(
-			[&](ecs::Entity& entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t) {
+			[&](ecs::Entity entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t) {
 			Circle<float> circle{ r.Center(), s.range };
 			circle.DrawSolid(Color{ 128, 0, 0, 30 });
 		});
 
 		// Move bullet position forward by their velocity.
 		manager.ForEachEntityWith<Circle<float>, Velocity2DComponent>([&](
-			auto& e, Circle<float>& c, Velocity2DComponent& v) {
+			auto e, Circle<float>& c, Velocity2DComponent& v) {
 			c.c += v.direction * v.magnitude * dt;
 		});
 
 		manager.ForEachEntityWith<Circle<float>, VelocityComponent, RingComponent>(
-			[&](ecs::Entity& entity, Circle<float>& c, VelocityComponent& v, RingComponent& r) {
+			[&](ecs::Entity entity, Circle<float>& c, VelocityComponent& v, RingComponent& r) {
 			c.r += v.velocity * dt;
 		});
 
 		// Move targetted projectile bullets toward targets.
 		manager.ForEachEntityWith<Circle<float>, Velocity2DComponent, TargetComponent>([](
-			auto& e, Circle<float>& c, Velocity2DComponent& v, TargetComponent& t) {
+			auto e, Circle<float>& c, Velocity2DComponent& v, TargetComponent& t) {
 			if (t.target.IsAlive()) {
 				V2_float target_position;
 				// TODO: Add generalized shape parent with position function.
@@ -742,13 +742,13 @@ public:
 			return;
 		// Draw bullet circles.
 		manager.ForEachEntityWith<DrawComponent, Circle<float>, Color, BulletComponent>([](
-			auto& e, DrawComponent& d, Circle<float>& c, Color& color, BulletComponent& b) {
+			auto e, DrawComponent& d, Circle<float>& c, Color& color, BulletComponent& b) {
 			c.DrawSolid(color);
 		});
 
 		// Draw ring circles.
 		manager.ForEachEntityWith<DrawComponent, Circle<float>, Color, RingComponent>([](
-			ecs::Entity& e, DrawComponent& d, Circle<float>& c, const Color& col, RingComponent& r) {
+			ecs::Entity e, DrawComponent& d, Circle<float>& c, const Color& col, RingComponent& r) {
 			Color color = col;
 			if (e.Has<FadeComponent>()) {
 				FadeComponent& f = e.Get<FadeComponent>();
@@ -761,7 +761,7 @@ public:
 
 		// Draw laser turret laser toward closest enemy.
 		manager.ForEachEntityWith<RangeComponent, Rectangle<float>, TurretComponent, ClosestInfo, LaserComponent>(
-			[&](ecs::Entity& entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t, ClosestInfo& closest, LaserComponent& laser) {
+			[&](ecs::Entity entity, RangeComponent& s, Rectangle<float>& r, TurretComponent& t, ClosestInfo& closest, LaserComponent& laser) {
 			if (closest.entity.IsAlive()) {
 				assert(closest.entity.Has<Rectangle<float>>());
 				Line<float> beam{ r.Center(), closest.entity.Get<Rectangle<float>>().Center() };
@@ -771,7 +771,7 @@ public:
 
 		// Draw healthbars
 		manager.ForEachEntityWith<Rectangle<float>, HealthComponent, EnemyComponent>(
-			[&](auto& e, const Rectangle<float>& p, const HealthComponent& h, const EnemyComponent& ene) {
+			[&](auto e, const Rectangle<float>& p, const HealthComponent& h, const EnemyComponent& ene) {
 			assert(h.current >= 0);
 			assert(h.current <= h.GetOriginal());
 			float fraction{ 0.0f };
@@ -793,7 +793,7 @@ public:
 		
 		// Draw "end block" health bar
 		manager.ForEachEntityWith<Rectangle<float>, HealthComponent, EndComponent>(
-			[&](auto& e, const Rectangle<float>& p, const HealthComponent& h, const EndComponent& end_comp) {
+			[&](auto e, const Rectangle<float>& p, const HealthComponent& h, const EndComponent& end_comp) {
 			assert(h.current >= 0);
 			assert(h.current <= h.GetOriginal());
 			float fraction{ 0.0f };
@@ -897,7 +897,7 @@ public:
 
 		// Destroy enemies which run out of lifetime.
 		manager.ForEachEntityWith<LifetimeComponent>([](
-			ecs::Entity& e, LifetimeComponent& l) {
+			ecs::Entity e, LifetimeComponent& l) {
 			if (l.IsDead()) {
 				if (e.Has<FadeComponent>()) {
 					auto& f = e.Get<FadeComponent>();
@@ -913,9 +913,9 @@ public:
 
 		// Destroy enemies which run out of health.
 		manager.ForEachEntityWith<HealthComponent>([](
-			auto& e, HealthComponent& h) {
+			auto e, HealthComponent& h) {
 			if (h.IsDead()) {
-				if (e.Has<EnemyComponent>()) {
+                if (e.template Has<EnemyComponent>()) {
 					sound::Get(Hash("enemy_death_sound"))->Play(4, 0);
 				}
 				e.Destroy();
@@ -939,7 +939,7 @@ public:
 
 		int alive_entities = 0;
 		manager.ForEachEntityWith<EnemyComponent>([&](
-			auto& e, EnemyComponent& en) {
+			auto e, EnemyComponent& en) {
 			alive_entities++;
 		});
 
@@ -1215,7 +1215,7 @@ public:
 
 		bool hover = overlap::PointRectangle(mouse, Rectangle<int>{ { window::GetLogicalSize().x / 2 - (int)(716 / 2 / window::GetScale().x), window::GetLogicalSize().y / 2 - (int)(274 / 2 / window::GetScale().y) }, { (int)(716 / window::GetScale().x), (int)(274 / window::GetScale().y) } });
 		
-		if (hover && input::MouseDown(Mouse::LEFT) || input::KeyDown(Key::SPACE)) {
+        if ((hover && input::MouseDown(Mouse::LEFT)) || input::KeyDown(Key::SPACE)) {
 			sound::Get(Hash("click"))->Play(3, 0);
 			scene::Load<GameScene>(Hash("game"));
 			scene::SetActive(Hash("game"));
@@ -1266,7 +1266,7 @@ public:
 
 		bool hover = overlap::PointRectangle(mouse, Rectangle<int>{ { window::GetLogicalSize().x / 2 - (int)(716 / 2 / window::GetScale().x), window::GetLogicalSize().y / 2 - (int)(274 / 2 / window::GetScale().y) }, { (int)(716 / window::GetScale().x), (int)(274 / window::GetScale().y) } });
 
-		if (hover && input::MouseDown(Mouse::LEFT) || input::KeyDown(Key::SPACE)) {
+        if ((hover && input::MouseDown(Mouse::LEFT)) || input::KeyDown(Key::SPACE)) {
 			sound::Get(Hash("click"))->Play(3, 0);
 			scene::Load<GameScene>(Hash("game"));
 			scene::SetActive(Hash("game"));

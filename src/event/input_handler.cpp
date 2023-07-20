@@ -27,16 +27,16 @@ void InputHandler::Update() {
 			}
 			case SDL_MOUSEBUTTONDOWN:
 			{
-				auto& [state, timer] = GetMouseStateAndTimer(static_cast<Mouse>(event.button.button));
-				timer.Start();
-				state = InputHandler::MouseState::DOWN;
+                std::pair<InputHandler::MouseState&, Timer&> pair = GetMouseStateAndTimer(static_cast<Mouse>(event.button.button));
+				pair.second.Start();
+				pair.first = InputHandler::MouseState::DOWN;
 				break;
 			}
 			case SDL_MOUSEBUTTONUP:
 			{
-				auto& [state, timer] = GetMouseStateAndTimer(static_cast<Mouse>(event.button.button));
-				timer.Reset();
-				state = InputHandler::MouseState::UP;
+                std::pair<InputHandler::MouseState&, Timer&> pair = GetMouseStateAndTimer(static_cast<Mouse>(event.button.button));
+				pair.second.Reset();
+				pair.first = InputHandler::MouseState::UP;
 				break;
 			}
 			case SDL_MOUSEWHEEL:
@@ -97,19 +97,19 @@ int InputHandler::GetMouseScroll() const {
 }
 
 milliseconds InputHandler::GetMouseHeldTime(Mouse button) {
-	auto& [state, timer] = GetMouseStateAndTimer(button);
+    std::pair<InputHandler::MouseState&, Timer&> pair = GetMouseStateAndTimer(button);
 	// Retrieve held time in nanoseconds for maximum precision.
-	const auto held_time{ timer.Elapsed<milliseconds>() };
+	const auto held_time{ pair.second.Elapsed<milliseconds>() };
 	// Comparison units handled by chrono.
 	return held_time;
 }
 
 void InputHandler::UpdateMouseState(Mouse button) {
-	auto& [state, timer] = GetMouseStateAndTimer(button);
-	if (timer.IsRunning() && state == MouseState::DOWN) {
-		state = MouseState::PRESSED;
-	} else if (!timer.IsRunning() && state == MouseState::UP) {
-		state = MouseState::RELEASED;
+    std::pair<InputHandler::MouseState&, Timer&> pair = GetMouseStateAndTimer(button);
+	if (pair.second.IsRunning() && pair.first == MouseState::DOWN) {
+        pair.first = MouseState::PRESSED;
+	} else if (!pair.second.IsRunning() && pair.first == MouseState::UP) {
+        pair.first = MouseState::RELEASED;
 	}
 }
 

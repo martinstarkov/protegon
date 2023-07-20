@@ -47,7 +47,7 @@ struct CustomGrid {
 		for (const auto& coordinate : sequence) {
 			// If tile is being used or if tile is out of bounds.
 			auto it = tiles.find(coordinate);
-			if (!InBound(coordinate) || it != tiles.end() && !Contains(ignore, it->second.type)) return false;
+			if (!InBound(coordinate) || (it != tiles.end() && !Contains(ignore, it->second.type))) return false;
 		}
 		return true;
 	}
@@ -114,7 +114,7 @@ Sequence GetRandomRollSequence(std::size_t count) {
 	std::array<V2_int, 4> directions{ V2_int{ 1, 0 }, V2_int{ -1, 0 }, V2_int{ 0, 1 }, V2_int{ 0, -1 } };
 	V2_int previous_direction{ directions[0] };
 	sequence.push_back(previous_direction);
-	RNG<std::size_t> rng{ 0, 3 };
+	RNG<int> rng{ 0, 3 };
 	for (auto i = 0; i < count - 1; ++i) {
 		start:
 		auto dir = rng();
@@ -219,8 +219,8 @@ bool CanWin(const CustomGrid& grid, const V2_int& player_tile, const V2_int& win
 }
 
 V2_int GetNewWinTile(const CustomGrid& grid, const V2_int& player_tile) {
-	RNG rng_x{ 0, grid.GetSize().x - 1 };
-	RNG rng_y{ 0, grid.GetSize().y - 1 };
+	RNG<int> rng_x{ 0, grid.GetSize().x - 1 };
+	RNG<int> rng_y{ 0, grid.GetSize().y - 1 };
 	V2_int win_tile{ rng_x(), rng_y() };
 	if (!grid.HasTile(win_tile) && win_tile != player_tile)
 		return win_tile;
@@ -448,7 +448,7 @@ public:
 		if (hover) {
 			text_color = color::GOLD;
 		}
-		if (hover && input::MouseDown(Mouse::LEFT) || input::KeyDown(Key::SPACE)) {
+		if ((hover && input::MouseDown(Mouse::LEFT)) || input::KeyDown(Key::SPACE)) {
 			scene::Load<DiceScene>(Hash("game"), grid);
 			scene::SetActive(Hash("game"));
 		}

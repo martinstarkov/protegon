@@ -77,8 +77,8 @@ template <typename T = float>
 struct Segment : public Line<T> {
 	template <typename U>
 	operator Segment<U>() const {
-		return { static_cast<Point<U>>(a),
-				 static_cast<Point<U>>(b) };
+		return { static_cast<Point<U>>(this->a),
+				 static_cast<Point<U>>(this->b) };
 	}
 };
 

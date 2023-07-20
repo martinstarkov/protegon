@@ -30,6 +30,7 @@ inline void Deallocation(const std::size_t& size) {
 /*
 * @return Current heap allocated memory in bytes.
 */
+// TODO: This seems to grow infinitely on Mac.
 inline std::uint64_t CurrentUsage() {
 	return impl::Allocations::total_allocated_ - impl::Allocations::total_freed_;
 }

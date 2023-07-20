@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+
 #include "time.h"
 
 namespace ptgn {
@@ -38,8 +40,8 @@ public:
         type_traits::duration<Duration> = true,
         std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
     T ElapsedPercentage(Duration compared_to) const {
-        std::chrono::duration<T, Duration::period> elapsed_time{
-            Elapsed<std::chrono::duration<T, Duration::period>>() / compared_to
+        std::chrono::duration<T, typename Duration::period> elapsed_time{
+            Elapsed<std::chrono::duration<T, typename Duration::period>>() / compared_to
         };
         T percentage{ std::clamp(elapsed_time.count(), static_cast<T>(0), static_cast<T>(1)) };
         assert(percentage >= static_cast<T>(0) &&

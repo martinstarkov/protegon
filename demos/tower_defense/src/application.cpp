@@ -49,7 +49,7 @@ struct TextureComponent {
 
 void DrawHealthbars(ecs::Manager& manager, bool moving, const V2_int& tile_size) {
 	manager.ForEachEntityWith<PositionComponent, HealthComponent>(
-		[&](auto& e, const PositionComponent& p, const HealthComponent& h) {
+		[&](ecs::Entity e, const PositionComponent& p, const HealthComponent& h) {
 		assert(h.current >= 0);
 		assert(h.current <= h.GetOriginal());
 		float fraction{ 0.0f };
@@ -75,7 +75,7 @@ void RegulateHealthbars(ecs::Manager& manager) {
 	if (up || down) {
 		int sign = 1;
 		if (down) sign = -1;
-		manager.ForEachEntityWith<HealthComponent>([&](auto& e, auto& h) {
+		manager.ForEachEntityWith<HealthComponent>([&](ecs::Entity e, HealthComponent& h) {
 			int potential_new = h.current + sign;
 			if (potential_new >= 0 &&
 				potential_new <= h.GetOriginal())
