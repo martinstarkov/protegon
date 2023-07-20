@@ -1,5 +1,3 @@
-#pragma once
-
 #include "protegon/timer.h"
 
 namespace ptgn {
