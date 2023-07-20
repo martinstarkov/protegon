@@ -4,6 +4,7 @@
 
 #include <cassert>		 // assert
 #include <iostream>		 // std::cout
+#include <limits>        // std::numeric_limits
 #include <unordered_map> // std::unordered_map
 
 using namespace ptgn;
@@ -68,8 +69,8 @@ bool TestVector2() {
 	double t7b = t2.Dot(t2);
 	int t7c = t1.Dot(t0);
 	//int t7d = t1.Dot(t2); // implicit narrowing
-	assert(t7a - (-1) < DBL_EPSILON);
-	assert(t7b - (1) < DBL_EPSILON);
+	assert(t7a - (-1) < std::numeric_limits<double>::epsilon());
+	assert(t7b - (1) < std::numeric_limits<double>::epsilon());
 	assert(t7c == 12);
 
 	// Use in hashed container as keys test.
