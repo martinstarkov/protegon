@@ -32,11 +32,11 @@ public:
 	// Custom range seedless distribution.
     // Range: [min, max] (inclusive).
 	RNG(T min, T max) {
-		if constexpr (std::is_floating_point_v<T>)
+        if constexpr (std::is_floating_point_v<T>)
 			// ensures inclusive range.
-			distribution_ = { min, std::nextafter(max, std::numeric_limits<T>::epsilon()) };
-		else
-			distribution_ = { min, max };
+			distribution_ = uniform_distribution<T>{ min, std::nextafter(max, std::numeric_limits<T>::epsilon()) };
+        else
+			distribution_ = uniform_distribution<T>{ min, max };
 	}
 
 	// Custom range seeded distribution.
@@ -44,9 +44,9 @@ public:
 	RNG(std::uint32_t seed, T min, T max) : generator_{ seed } {
 		if constexpr (std::is_floating_point_v<T>)
 			// ensures inclusive range.
-			distribution_ = { min, std::nextafter(max, std::numeric_limits<T>::epsilon()) };
+			distribution_ = uniform_distribution<T>{ min, std::nextafter(max, std::numeric_limits<T>::epsilon()) };
 		else
-			distribution_ = { min, max };
+			distribution_ = uniform_distribution<T>{ min, max };
 	}
 
 	// Generate a new random number in the specified range.
@@ -76,7 +76,7 @@ private:
 
 	// Defined internal distribution.
     // Range: [0, 1] (inclusive).
-	uniform_distribution<T> distribution_{ 0, 1 };
+    uniform_distribution<T> distribution_{ 0, 1 };
 };
 
 } // namespace ptgn

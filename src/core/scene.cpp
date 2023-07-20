@@ -38,7 +38,7 @@ void SceneManager::RemoveActive(std::size_t scene_key) {
 }
 
 std::vector<std::shared_ptr<Scene>> SceneManager::GetActive() {
-	std::vector<std::shared_ptr<Scene>> active;
+    std::vector<std::shared_ptr<Scene>> active{};
 	for (auto scene_key : active_scenes_) {
 		if (Has(scene_key)) {
 			auto scene = Get(scene_key);

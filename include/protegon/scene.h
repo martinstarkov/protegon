@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include "manager.h"
 #include "type_traits.h"
 
@@ -42,7 +44,7 @@ private:
 	}*/
 	bool ActiveScenesContain(std::size_t key) const;
 	std::size_t flagged_{ 0 };
-	std::vector<std::size_t> active_scenes_;
+    std::vector<std::size_t> active_scenes_{};
 };
 
 } // namespace ptgn
