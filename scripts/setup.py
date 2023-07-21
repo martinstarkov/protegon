@@ -62,7 +62,7 @@ def DownloadFile(url, filepath):
             
     if (type(url) is list):
         for url_option in url:
-            print("Downloading", url_option)
+            #print("Downloading", url_option)
             try:
                 DownloadFile(url_option, filepath)
                 return
@@ -120,17 +120,17 @@ def InstallZip(directory, url, version, name):
     
     if (platform == "win32"):
         path = "{directory}/{name}-{version}.zip".format(directory=directory, name=name, version=version)
-        print("Downloading {0:s} to {1:s}".format(url, path))
+        #print("Downloading {0:s} to {1:s}".format(url, path))
         DownloadFile(url, path)
-        print("Extracting", path)
+        #print("Extracting", path)
         UnzipFile(path, deleteZipFile=True)
         print("{name} {version} has been downloaded to '{directory}'".format(name=name, version=version, directory=directory))
     elif (platform == "darwin"):
         deleteZipFile = True
         path = "{directory}/{name}-{version}.dmg".format(directory=directory, name=name, version=version)
-        print("Downloading {0:s} to {1:s}".format(url, path))
+        #print("Downloading {0:s} to {1:s}".format(url, path))
         DownloadFile(url, path)
-        print("Extracting", path)
+        #print("Extracting", path)
         os.system("hdiutil attach {path} -quiet".format(path=path))
         os.system("cp -r '/Volumes/{name}/{name}.framework' {directory}".format(name=name, directory=directory))
         os.system("hdiutil detach /Volumes/{name} -quiet".format(name=name))
@@ -180,13 +180,13 @@ def ValidateDependencies():
 
 PythonConfiguration.Validate()
 
-if platform == "linux" or platform == "linux2": # Linux
+if platform == "win32" or platform == "darwin": # Windows or MacOS
+    dependencies_installed = ValidateDependencies()
+    if not dependencies_installed:
+        raise Exception("Failed to install a dependency")
+elif platform == "linux" or platform == "linux2": # Linux
     os.system("sudo apt install -y libsdl2-dev libsdl2-2.0-0 \
                        libjpeg-dev libwebp-dev libtiff5-dev libsdl2-image-dev libsdl2-image-2.0-0 \
                        libmikmod-dev libfishsound1-dev libsmpeg-dev liboggz2-dev libflac-dev libfluidsynth-dev libsdl2-mixer-dev libsdl2-mixer-2.0-0 \
                        libfreetype6-dev libsdl2-ttf-dev libsdl2-ttf-2.0-0")
     print("Installed SDL modules on Linux")
-elif platform == "win32" or platform == "darwin": # Windows or MacOS
-    dependencies_installed = ValidateDependencies()
-    if not dependencies_installed:
-        raise Exception("Failed to install a dependency on Windows")
