@@ -43,14 +43,15 @@ class PythonConfiguration:
 
     @classmethod
     def __InstallPackage(cls, packageName):
-        permissionGranted = False
-        while not permissionGranted:
-            reply = str(input("Would you like to install Python package '{0:s}'? [Y/N]: ".format(packageName))).lower().strip()[:1]
-            if reply == 'n':
-                return False
-            permissionGranted = (reply == 'y')
+        # TODO: Consider implementing this in the future.
+        # permissionGranted = False
+        # while not permissionGranted:
+        #     reply = str(input("Would you like to install Python package '{0:s}'? [Y/N]: ".format(packageName))).lower().strip()[:1]
+        #     if reply == 'n':
+        #         return False
+        #     permissionGranted = (reply == 'y')
         
-        print("Installing {packageName} module...".format(packageName=packageName))
+        print("Installing missing python {packageName} module...".format(packageName=packageName))
         subprocess.check_call(['python3', '-m', 'pip', 'install', packageName])
 
         return cls.__ValidatePackage(packageName)
@@ -71,7 +72,7 @@ def DownloadFile(url, filepath):
                 os.remove(filepath)
                 pass
             except urllib.error.HTTPError as e:
-                print("HTTP Error  encountered: {code}. Proceeding with backup...{newline}".format(code=e.code, newline="\n\n"))
+                print("HTTP Error encountered: {code}. Proceeding with backup...{newline}".format(code=e.code, newline="\n\n"))
                 os.remove(filepath)
                 pass
             except:
@@ -111,12 +112,13 @@ def UnzipFile(filepath, deleteZipFile=True):
         os.remove(zipFilePath) # delete zip file
 
 def InstallZip(directory, url, version, name):
-    permissionGranted = False
-    while not permissionGranted:
-        reply = str(input("{1:s} not found. Would you like to download {1:s} {0:s}? [Y/N]: ".format(version, name))).lower().strip()[:1]
-        if reply == 'n':
-            return False
-        permissionGranted = (reply == 'y')
+    # TODO: Consider implementing this in the future.
+    # permissionGranted = False
+    # while not permissionGranted:
+    #     reply = str(input("{1:s} not found. Would you like to download {1:s} {0:s}? [Y/N]: ".format(version, name))).lower().strip()[:1]
+    #     if reply == 'n':
+    #         return False
+    #     permissionGranted = (reply == 'y')
     
     if (platform == "win32"):
         path = "{directory}/{name}-{version}.zip".format(directory=directory, name=name, version=version)
@@ -124,7 +126,7 @@ def InstallZip(directory, url, version, name):
         DownloadFile(url, path)
         #print("Extracting", path)
         UnzipFile(path, deleteZipFile=True)
-        #print("{name} {version} has been downloaded to '{directory}'".format(name=name, version=version, directory=directory))
+        print("{name} {version} has been downloaded to '{directory}'".format(name=name, version=version, directory=directory))
     elif (platform == "darwin"):
         deleteZipFile = True
         path = "{directory}/{name}-{version}.dmg".format(directory=directory, name=name, version=version)
@@ -136,6 +138,7 @@ def InstallZip(directory, url, version, name):
         os.system("hdiutil detach /Volumes/{name} -quiet".format(name=name))
         if deleteZipFile:
             os.remove(os.path.abspath(path)) # delete zip file
+        print("{name} {version} has been downloaded to '{directory}'".format(name=name, version=version, directory=directory))
     return True
 
 def ValidateDependency(path, directory, url, version, name):
