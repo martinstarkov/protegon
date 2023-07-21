@@ -142,6 +142,11 @@ function(add_protegon_to TARGET)
     target_link_libraries(${TARGET} protegon)
 	target_include_directories(${TARGET} PRIVATE ${ECS_INCLUDE_DIR})
 	target_include_directories(${TARGET} PRIVATE ${JSON_INCLUDE_DIR})
+	if(MACOSX)
+		set_target_properties(${TARGET} PROPERTIES
+			XCODE_GENERATE_SCHEME TRUE
+			XCODE_SCHEME_WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+	endif()
     # Commands for copying dlls to executable directory on Windows.
     if(WIN32)
 		get_property(DLLS GLOBAL PROPERTY PROTEGON_DLLS)
@@ -157,11 +162,6 @@ endfunction()
 function(create_protegon_link TARGET_NAME DIR_NAME)
 	set(SOURCE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${DIR_NAME})
 	set(DESTINATION_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${DIR_NAME})
-	if(MACOSX)
-		set_target_properties(${TARGET_NAME} PROPERTIES
-			XCODE_GENERATE_SCHEME TRUE
-			XCODE_SCHEME_WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-	endif()
 	if (NOT EXISTS ${DESTINATION_DIRECTORY})
 		if(WIN32)
 			file(TO_NATIVE_PATH ${DESTINATION_DIRECTORY} _dst_dir)
