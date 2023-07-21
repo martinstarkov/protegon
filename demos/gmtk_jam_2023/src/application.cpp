@@ -1002,11 +1002,10 @@ public:
 	}
 };
 
+
 class BuyScreen : public Scene {
 public:
 	Texture menu{ "resources/ui/menu.png" };
-	Texture exit{ "resources/ui/exit_menu.png" };
-	Texture exit_hover{ "resources/ui/exit_menu_hover.png" };
 	Texture enemies{ "resources/enemy/enemy.png" };
 	Texture buy{ "resources/ui/buy.png" };
 	BuyScreen() {
@@ -1032,7 +1031,6 @@ public:
 		menu_bg_border.Draw(color::DARK_BROWN, 20);
 		menu_bg_border.Draw(color::BLACK, 10);
 
-		const Rectangle<int> exit_button{ { window::GetLogicalSize().x - 60 - 4, 30 + 2 }, tile_size };
 
 		V2_float unit_frame_size{ window::GetLogicalSize().x * 0.160416667f, window::GetLogicalSize().y * 0.334375f };
 
@@ -1062,6 +1060,9 @@ public:
 			price_text.Draw(first_button.Offset({ 0, -unit_frame_size.y - 48 }));
 		}
 
+		Texture exit{ "resources/ui/exit_menu.png" };
+		Texture exit_hover{ "resources/ui/exit_menu_hover.png" };
+		const Rectangle<int> exit_button{ { window::GetLogicalSize().x - 60 - 4, 30 + 2 }, tile_size };
 		bool hovering_over_exit = overlap::PointRectangle(mouse_pos, exit_button);
 		if (hovering_over_exit) {
 			if (input::MouseDown(Mouse::LEFT)) {
@@ -1310,6 +1311,7 @@ class GMTKJam2023 : public Engine {
 		scene::Load<BuyScreen>(Hash("buy_menu"));
 		scene::SetActive(Hash("menu"));
 	}
+
 	void Update(float dt) final {
 		scene::Update(dt);
 	}
