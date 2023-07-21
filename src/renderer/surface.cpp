@@ -6,13 +6,13 @@
 #include <cassert> // assert
 
 #include "protegon/log.h"
-#include "utility/file.h"
+#include "protegon/file.h"
 
 namespace ptgn {
 
 Surface::Surface(const char* image_path) {
 	assert(*image_path && "Empty image path?");
-	//assert(FileExists(image_path) && "Nonexistent image path?");
+	assert(FileExists(image_path) && "Nonexistent image path?");
 	auto surface{ IMG_Load(image_path) };
 	if (surface == nullptr) {
 		PrintLine(IMG_GetError());

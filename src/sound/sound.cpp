@@ -5,13 +5,13 @@
 #include <SDL_mixer.h>
 
 #include "protegon/log.h"
-#include "utility/file.h"
+#include "protegon/file.h"
 
 namespace ptgn {
 
 Music::Music(const char* music_path) {
 	assert(*music_path && "Empty music path?");
-	//assert(FileExists(music_path) && "Nonexistent music file path?");
+	assert(FileExists(music_path) && "Nonexistent music file path?");
 	music_ = std::shared_ptr<Mix_Music>(Mix_LoadMUS(music_path), Mix_FreeMusic);
 	if (!IsValid()) {
 		PrintLine(Mix_GetError());
