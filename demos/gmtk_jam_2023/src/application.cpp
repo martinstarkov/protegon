@@ -408,7 +408,9 @@ public:
 		window::SetColor(color::BLACK);
         
 		// Load json data.
-        std::ifstream f{ GetAbsolutePath("resources/data/level_data.json") };
+        std::ifstream f{ "resources/data/level_data.json" };
+        if (f.fail())
+            f = std::ifstream{ GetAbsolutePath("resources/data/level_data.json") };
         assert(!f.fail() && "Failed to load json file");
 		j = json::parse(f);
         
