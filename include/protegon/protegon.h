@@ -1,7 +1,6 @@
 #pragma once
 
 #include <nlohmann/json.hpp>
-#include <fstream>
 
 using json = nlohmann::json;
 
@@ -13,6 +12,7 @@ using json = nlohmann::json;
 #include "protegon/debug.h"
 #include "protegon/engine.h"
 #include "protegon/font.h"
+#include "protegon/file.h"
 #include "protegon/grid.h"
 #include "protegon/hash.h"
 #include "protegon/input.h"
