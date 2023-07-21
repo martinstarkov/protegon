@@ -32,6 +32,7 @@
 namespace ptgn {
 
 #if defined(_WIN32)
+#pragma comment(lib, "shlwapi.lib")
 
 std::string GetExecutablePath() {
    char rawPathName[MAX_PATH];
