@@ -124,7 +124,7 @@ def InstallZip(directory, url, version, name):
         DownloadFile(url, path)
         #print("Extracting", path)
         UnzipFile(path, deleteZipFile=True)
-        print("{name} {version} has been downloaded to '{directory}'".format(name=name, version=version, directory=directory))
+        #print("{name} {version} has been downloaded to '{directory}'".format(name=name, version=version, directory=directory))
     elif (platform == "darwin"):
         deleteZipFile = True
         path = "{directory}/{name}-{version}.dmg".format(directory=directory, name=name, version=version)
