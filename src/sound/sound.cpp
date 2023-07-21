@@ -11,7 +11,7 @@ namespace ptgn {
 
 Music::Music(const char* music_path) {
 	assert(*music_path && "Empty music path?");
-	assert(FileExists(music_path) && "Nonexistent music file path?");
+	//assert(FileExists(music_path) && "Nonexistent music file path?");
 	music_ = std::shared_ptr<Mix_Music>(Mix_LoadMUS(music_path), Mix_FreeMusic);
 	if (!IsValid()) {
 		PrintLine(Mix_GetError());
@@ -35,7 +35,7 @@ void Music::FadeIn(int loops, milliseconds time) const {
 
 Sound::Sound(const char* sound_path) {
 	assert(*sound_path && "Empty sound path?");
-	assert(FileExists(sound_path) && "Nonexistent sound file path?");
+	//assert(FileExists(sound_path) && "Nonexistent sound file path?");
 	chunk_ = std::shared_ptr<Mix_Chunk>(Mix_LoadWAV(sound_path), Mix_FreeChunk);
 	if (!IsValid()) {
 		PrintLine(Mix_GetError());

@@ -12,7 +12,7 @@ namespace ptgn {
 
 Font::Font(const char* font_path, std::uint32_t point_size, std::uint32_t index) {
 	assert(*font_path && "Empty font file path?");
-	assert(FileExists(font_path) && "Nonexistent font file path?");
+	//assert(FileExists(font_path) && "Nonexistent font file path?");
 	font_ = std::shared_ptr<TTF_Font>(TTF_OpenFontIndex(font_path, point_size, index), TTF_CloseFont);
 	if (!IsValid()) {
 		PrintLine(TTF_GetError());
