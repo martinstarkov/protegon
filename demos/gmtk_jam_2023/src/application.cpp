@@ -404,12 +404,14 @@ public:
 		music::Unmute();
 		music::Load(Hash("in_game"), "resources/music/in_game.wav");
 		music::Get(Hash("in_game"))->Play(-1);
-
+        
 		window::SetColor(color::BLACK);
-
+        
 		// Load json data.
-		std::ifstream f("resources/data/level_data.json");
+        std::ifstream f{ GetAbsolutePath("resources/data/level_data.json") };
+        assert(!f.fail() && "Failed to load json file");
 		j = json::parse(f);
+        
 		levels = j["levels"].size();
 		// Create turrets for the current wave.
 		current_max_waves = j["levels"][current_level]["waves"].size();
