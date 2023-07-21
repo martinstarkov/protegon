@@ -8,7 +8,6 @@ option(AUTOMATIC_SDL "Automatically download SDL zips into external directory" O
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++1z -stdlib=libc++")
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
