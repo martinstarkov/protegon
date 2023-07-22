@@ -119,7 +119,18 @@ struct is_stream_writable : std::false_type {};
 template<typename Stream, typename Type>
 struct is_stream_writable<Stream, Type, std::void_t<decltype(std::declval<Stream&>() << std::declval<Type>()) >> : std::true_type {};
 
+// Source: https://stackoverflow.com/a/50473559
+template <typename T, typename U, typename = void>
+struct is_safely_castable : std::false_type {};
+
+template <typename T, typename U>
+struct is_safely_castable<T, U,
+    std::void_t<decltype(static_cast<U>(std::declval<T>()))>>
+    : std::true_type
+{};
+
 } // namespace impl
+
 
 template <typename T, typename U>
 inline constexpr bool is_equals_comparable_v{ impl::is_equals_comparable<T, U>::value };
@@ -137,6 +148,8 @@ template <typename From, typename To>
 inline constexpr bool is_narrowing_v{ !impl::is_safe_numeric_cast<To, From>::value };
 template <typename Stream, typename Type>
 inline constexpr bool is_stream_writable_v{ impl::is_stream_writable<Stream, Type>::value };
+template <typename From, typename To>
+inline constexpr bool is_safely_castable_v{ impl::is_safely_castable<From, To>::value };
 
 template <typename T, typename U>
 using equals_comparable = std::enable_if_t<is_equals_comparable_v<T, U>, bool>;
@@ -164,6 +177,8 @@ template <typename From, typename To>
 using not_narrowing = std::enable_if_t<!is_narrowing_v<From, To>, bool>;
 template <typename T>
 using copy_constructible = std::enable_if_t<std::is_copy_constructible_v<T>, bool>;
+template <typename From, typename To>
+using is_safely_castable = std::enable_if_t<is_safely_castable_v<From, To>, bool>;
 template <typename T, typename ...TArgs>
 using constructible = std::enable_if_t<std::is_constructible_v<T, TArgs...> || std::is_trivially_constructible_v<T, TArgs...>, bool>;
 template <typename Stream, typename ...Types>
