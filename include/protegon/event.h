@@ -47,11 +47,11 @@ class Dispatcher {
 private:
 	using SlotType = std::function<void(const Event<T>&)>;
 public:
-	void Subscribe(const SlotType& func) {
-		observers_.emplace(func.target_type().hash_code(), func);
+	void Subscribe(void* ptr, const SlotType& func) {
+		observers_.emplace(ptr, func);
 	};
-	void Unsubscribe(const SlotType& func) {
-		observers_.erase(func.target_type().hash_code());
+	void Unsubscribe(void* ptr) {
+		observers_.erase(ptr);
 	}
 
 	template <typename T>
@@ -60,7 +60,7 @@ public:
 			func(event);
 	};
 private:
-	std::map<std::size_t, SlotType> observers_;
+	std::map<void*, SlotType> observers_;
 };
 
 } // namespace ptgn

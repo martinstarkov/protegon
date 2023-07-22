@@ -57,6 +57,7 @@ public:
 
 class Button : public IButton {
 public:
+	// TODO: Add disabled state.
 	enum class State : std::size_t {
 		IDLE_UP = 0,
 		HOVER = 1,
@@ -71,8 +72,8 @@ public:
 		textures{ textures } {
 	}
 	virtual ~Button() = default;
-	virtual void OnActivate() override {
-		static int index = 0;
+	int index = 0;
+	void OnActivate() {
 		PrintLine("Button Activated: ", index);
 		index++;
 		if (state == State::FOCUSED)
@@ -221,10 +222,16 @@ class Sandbox : public Engine {
 		{ Button::State::PRESSED,       Texture{ "resources/ui/pressed.png" } },
 		{ Button::State::FOCUSED,       Texture{ "resources/ui/focused.png" } }
 	} };
+	Button button2{ Rectangle<int>{ { 390, 390 }, { 30, 30 } }, {
+		{ Button::State::IDLE_UP,       Texture{ "resources/ui/idle.png" } },
+		{ Button::State::HOVER,         Texture{ "resources/ui/hover.png" } },
+		{ Button::State::HOVER_PRESSED, Texture{ "resources/ui/hover.png" } },
+		{ Button::State::PRESSED,       Texture{ "resources/ui/pressed.png" } },
+		{ Button::State::FOCUSED,       Texture{ "resources/ui/focused.png" } }
+	} };
 	void Create() final {
-		auto button_func = std::bind(&Button::OnMouseEvent, &button, std::placeholders::_1);
-
-		mouse_event.Subscribe(button_func);
+		mouse_event.Subscribe((void*)&button,  std::bind(&Button::OnMouseEvent, &button, std::placeholders::_1));
+		mouse_event.Subscribe((void*)&button2, std::bind(&Button::OnMouseEvent, &button2, std::placeholders::_1));
 	}
 	void Update(float dt) final {
 		static V2_int previous_mouse = input::GetMousePosition();
@@ -239,7 +246,9 @@ class Sandbox : public Engine {
 			else if (input::MouseUp(mouse))
 				mouse_event.Post(MouseUpEvent{ mouse, current_mouse });
 		}
+
 		button.Draw();
+		button2.Draw();
 		previous_mouse = current_mouse;
 	}
 };
