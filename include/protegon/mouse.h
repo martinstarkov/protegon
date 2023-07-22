@@ -10,4 +10,12 @@ enum class Mouse : std::size_t {
 	RIGHT = 3				// SDL_BUTTON_RIGHT
 };
 
+// Enum for storing states of mouse keys.
+enum class MouseState : std::size_t {
+	UP = 1,
+	DOWN = 2,
+	RELEASED = 3,
+	PRESSED = 4
+};
+
 } // namespace ptgn

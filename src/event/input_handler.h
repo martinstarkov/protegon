@@ -13,13 +13,6 @@
 namespace ptgn {
 
 struct InputHandler {
-	// Enum for storing states of mouse keys.
-	enum class MouseState {
-		DOWN,
-		PRESSED,
-		UP,
-		RELEASED
-	};
 
 	// Updates previous mouse states for mouse up and down check.
 	void UpdateMouseState(Mouse button);

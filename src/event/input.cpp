@@ -18,6 +18,10 @@ int MouseScroll() {
 	return global::GetGame().input.GetMouseScroll();
 }
 
+MouseState GetMouseState(Mouse button) {
+	return global::GetGame().input.GetMouseState(button);
+}
+
 bool MousePressed(Mouse button) {
 	return global::GetGame().input.MousePressed(button);
 }

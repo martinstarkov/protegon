@@ -19,6 +19,8 @@ V2_int GetMousePosition();
 // @return The amount scrolled by the mouse vertically in the current frame, positive upward, negative downward.
 int MouseScroll();
 
+MouseState GetMouseState(Mouse button);
+
 bool MousePressed(Mouse button);
 
 bool MouseReleased(Mouse button);

@@ -6,7 +6,7 @@
 #include <SDL.h>
 
 #include "core/game.h"
-#include <protegon/log.h>
+#include "protegon/log.h"
 
 namespace ptgn {
 
@@ -27,16 +27,16 @@ void InputHandler::Update() {
 			}
 			case SDL_MOUSEBUTTONDOWN:
 			{
-                std::pair<InputHandler::MouseState&, Timer&> pair = GetMouseStateAndTimer(static_cast<Mouse>(event.button.button));
+                std::pair<MouseState&, Timer&> pair = GetMouseStateAndTimer(static_cast<Mouse>(event.button.button));
 				pair.second.Start();
-				pair.first = InputHandler::MouseState::DOWN;
+				pair.first = MouseState::DOWN;
 				break;
 			}
 			case SDL_MOUSEBUTTONUP:
 			{
-                std::pair<InputHandler::MouseState&, Timer&> pair = GetMouseStateAndTimer(static_cast<Mouse>(event.button.button));
+                std::pair<MouseState&, Timer&> pair = GetMouseStateAndTimer(static_cast<Mouse>(event.button.button));
 				pair.second.Reset();
-				pair.first = InputHandler::MouseState::UP;
+				pair.first = MouseState::UP;
 				break;
 			}
 			case SDL_MOUSEWHEEL:
@@ -97,7 +97,7 @@ int InputHandler::GetMouseScroll() const {
 }
 
 milliseconds InputHandler::GetMouseHeldTime(Mouse button) {
-    std::pair<InputHandler::MouseState&, Timer&> pair = GetMouseStateAndTimer(button);
+    std::pair<MouseState&, Timer&> pair = GetMouseStateAndTimer(button);
 	// Retrieve held time in nanoseconds for maximum precision.
 	const auto held_time{ pair.second.Elapsed<milliseconds>() };
 	// Comparison units handled by chrono.
@@ -105,7 +105,7 @@ milliseconds InputHandler::GetMouseHeldTime(Mouse button) {
 }
 
 void InputHandler::UpdateMouseState(Mouse button) {
-    std::pair<InputHandler::MouseState&, Timer&> pair = GetMouseStateAndTimer(button);
+    std::pair<MouseState&, Timer&> pair = GetMouseStateAndTimer(button);
 	if (pair.second.IsRunning() && pair.first == MouseState::DOWN) {
         pair.first = MouseState::PRESSED;
 	} else if (!pair.second.IsRunning() && pair.first == MouseState::UP) {
@@ -113,7 +113,7 @@ void InputHandler::UpdateMouseState(Mouse button) {
 	}
 }
 
-std::pair<InputHandler::MouseState&, Timer&> InputHandler::GetMouseStateAndTimer(Mouse button) {
+std::pair<MouseState&, Timer&> InputHandler::GetMouseStateAndTimer(Mouse button) {
 	switch (button) {
 		case Mouse::LEFT:
 			return { left_mouse_, left_mouse_timer_ };
@@ -128,7 +128,7 @@ std::pair<InputHandler::MouseState&, Timer&> InputHandler::GetMouseStateAndTimer
 	return { middle_mouse_, middle_mouse_timer_ }; // unused but avoids control path error.
 }
 
-InputHandler::MouseState InputHandler::GetMouseState(Mouse button) const {
+MouseState InputHandler::GetMouseState(Mouse button) const {
 	switch (button) {
 		case Mouse::LEFT:
 			return left_mouse_;
@@ -143,20 +143,20 @@ InputHandler::MouseState InputHandler::GetMouseState(Mouse button) const {
 
 bool InputHandler::MousePressed(Mouse button) const {
 	auto state{ GetMouseState(button) };
-	return state == InputHandler::MouseState::PRESSED || state == InputHandler::MouseState::DOWN;
+	return state == MouseState::PRESSED || state == MouseState::DOWN;
 }
 
 bool InputHandler::MouseReleased(Mouse button) const {
 	auto state{ GetMouseState(button) };
-	return state == InputHandler::MouseState::RELEASED || state == InputHandler::MouseState::UP;
+	return state == MouseState::RELEASED || state == MouseState::UP;
 }
 
 bool InputHandler::MouseDown(Mouse button) const {
-	return GetMouseState(button) == InputHandler::MouseState::DOWN;
+	return GetMouseState(button) == MouseState::DOWN;
 }
 
 bool InputHandler::MouseUp(Mouse button) const {
-	return GetMouseState(button) == InputHandler::MouseState::UP;
+	return GetMouseState(button) == MouseState::UP;
 }
 
 bool InputHandler::KeyPressed(Key key) const {
