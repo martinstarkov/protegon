@@ -13,6 +13,7 @@ namespace ptgn {
 
 class Texture {
 public:
+	Texture() = default;
 	Texture(const char* image_path);
 	~Texture() = default;
 	Texture(const Texture&) = default;
@@ -23,7 +24,6 @@ public:
 	void Draw(const Rectangle<int>& texture,
 			  const Rectangle<int>& source = {}) const;
 private:
-	Texture() = default;
 	friend class Text;
 	// Takes ownership of surface pointer.
 	Texture(SDL_Surface* surface);
