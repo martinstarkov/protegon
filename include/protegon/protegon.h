@@ -6,12 +6,14 @@ using json = nlohmann::json;
 
 #include "ecs/ecs.h"
 
+#include "protegon/button.h"
 #include "protegon/circle.h"
 #include "protegon/collision.h"
 #include "protegon/color.h"
 #include "protegon/debug.h"
 #include "protegon/engine.h"
 #include "protegon/event.h"
+#include "protegon/events.h"
 #include "protegon/font.h"
 #include "protegon/file.h"
 #include "protegon/grid.h"

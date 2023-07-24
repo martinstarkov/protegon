@@ -6,6 +6,7 @@
 #include "protegon/resources.h"
 #include "protegon/scene.h"
 #include "event/input_handler.h"
+#include "event/event_handler.h"
 
 namespace ptgn {
 
@@ -13,6 +14,7 @@ struct Game {
 	SDLInstance sdl;
 	ResourceManagers managers;
 	InputHandler input;
+	EventHandler event;
 	SceneManager scene;
 	bool running{ false };
 };
