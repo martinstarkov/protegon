@@ -9,6 +9,17 @@
 
 namespace ptgn {
 
+// TODO: Add disabled state.
+enum class ButtonState : std::size_t {
+	IDLE_UP       = 0,
+	HOVER         = 1,
+	PRESSED       = 2,
+	HELD_OUTSIDE  = 3,
+	IDLE_DOWN     = 4,
+	HOVER_PRESSED = 5,
+	FOCUSED       = 6
+};
+
 // Interface class for buttons
 class IButton {
 public:
@@ -22,17 +33,9 @@ public:
 
 class Button : public IButton {
 public:
-	// TODO: Add disabled state.
-	enum class State : std::size_t {
-		IDLE_UP = 0,
-		HOVER = 1,
-		PRESSED = 2,
-		HELD_OUTSIDE = 3,
-		IDLE_DOWN = 4,
-		HOVER_PRESSED = 5,
-		FOCUSED = 6
-	};
-	Button(const Rectangle<int>& rect, const std::unordered_map<State, Texture>& textures, std::function<void()> on_activate_function = nullptr);
+	Button(const Rectangle<int>& rect,
+		   const std::unordered_map<ButtonState, Texture>& textures,
+		   std::function<void()> on_activate_function = nullptr);
 	virtual ~Button();
 	virtual void SetOnActivate(std::function<void()> function) override final;
 	virtual void OnMouseEvent(const Event<MouseEvent>& event) override;
@@ -48,11 +51,15 @@ public:
 	void OnMouseUp(const MouseUpEvent& e);
 	void OnMouseUpOutside(const MouseUpEvent& e);
 	void Draw();
+	const Rectangle<int>& GetRectangle() const;
+	void SetRectangle(const Rectangle<int>& new_rectangle);
+	ButtonState GetState() const;
+	void SetState(ButtonState new_state);
 private:
 	std::function<void()> on_activate{ nullptr };
-	std::unordered_map<State, Texture> textures;
+	std::unordered_map<ButtonState, Texture> textures;
 	Rectangle<int> rect;
-	State state{ State::IDLE_UP };
+	ButtonState state{ ButtonState::IDLE_UP };
 };
 
 } // namespace ptgn

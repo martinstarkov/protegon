@@ -8,7 +8,9 @@
 
 namespace ptgn {
 
-Button::Button(const Rectangle<int>& rect, const std::unordered_map<State, Texture>& textures, std::function<void()> on_activate_function) :
+Button::Button(const Rectangle<int>& rect, 
+			   const std::unordered_map<ButtonState, Texture>& textures, 
+			   std::function<void()> on_activate_function) :
 	rect{ rect },
 	textures{ textures },
 	on_activate{ on_activate_function } {
@@ -64,8 +66,8 @@ void Button::OnMouseEvent(const Event<MouseEvent>& event) {
 }
 
 void Button::ResetState() {
-	if (state == State::FOCUSED)
-		state = State::HOVER;
+	if (state == ButtonState::FOCUSED)
+		state = ButtonState::HOVER;
 }
 
 void Button::SubscribeToMouseEvents() {
@@ -77,8 +79,8 @@ void Button::UnsubscribeFromMouseEvents() {
 }
 
 void Button::OnMouseMove(const MouseMoveEvent& e) {
-	if (state == State::IDLE_UP) {
-		state = State::HOVER;
+	if (state == ButtonState::IDLE_UP) {
+		state = ButtonState::HOVER;
 	}
 }
 
@@ -87,59 +89,59 @@ void Button::OnMouseMoveOutside(const MouseMoveEvent& e) {
 }
 
 void Button::OnMouseEnter(const MouseMoveEvent& e) {
-	if (state == State::IDLE_UP) {
-		state = State::HOVER;
-	} else if (state == State::IDLE_DOWN) {
-		state = State::HOVER_PRESSED;
-	} else if (state == State::HELD_OUTSIDE) {
-		state = State::PRESSED;
+	if (state == ButtonState::IDLE_UP) {
+		state = ButtonState::HOVER;
+	} else if (state == ButtonState::IDLE_DOWN) {
+		state = ButtonState::HOVER_PRESSED;
+	} else if (state == ButtonState::HELD_OUTSIDE) {
+		state = ButtonState::PRESSED;
 	}
 }
 
 void Button::OnMouseLeave(const MouseMoveEvent& e) {
-	if (state == State::HOVER) {
-		state = State::IDLE_UP;
-	} else if (state == State::PRESSED) {
-		state = State::HELD_OUTSIDE;
-	} else if (state == State::HOVER_PRESSED) {
-		state = State::IDLE_DOWN;
+	if (state == ButtonState::HOVER) {
+		state = ButtonState::IDLE_UP;
+	} else if (state == ButtonState::PRESSED) {
+		state = ButtonState::HELD_OUTSIDE;
+	} else if (state == ButtonState::HOVER_PRESSED) {
+		state = ButtonState::IDLE_DOWN;
 	}
 }
 
 void Button::OnMouseDown(const MouseDownEvent& e) {
 	if (e.mouse == Mouse::LEFT)
-		if (state == State::HOVER) {
-			state = State::PRESSED;
+		if (state == ButtonState::HOVER) {
+			state = ButtonState::PRESSED;
 		}
 }
 
 void Button::OnMouseDownOutside(const MouseDownEvent& e) {
 	if (e.mouse == Mouse::LEFT)
-		if (state == State::IDLE_UP) {
-			state = State::IDLE_DOWN;
+		if (state == ButtonState::IDLE_UP) {
+			state = ButtonState::IDLE_DOWN;
 		}
 }
 
 void Button::OnMouseUp(const MouseUpEvent& e) {
 	if (e.mouse == Mouse::LEFT)
-		if (state == State::PRESSED) {
-			state = State::FOCUSED;
+		if (state == ButtonState::PRESSED) {
+			state = ButtonState::FOCUSED;
 			if (on_activate != nullptr)
 				on_activate();
 			ResetState();
-		} else if (state == State::HOVER_PRESSED) {
-			state = State::HOVER;
-		} else if (state == State::FOCUSED) {
-			state = State::HOVER;
+		} else if (state == ButtonState::HOVER_PRESSED) {
+			state = ButtonState::HOVER;
+		} else if (state == ButtonState::FOCUSED) {
+			state = ButtonState::HOVER;
 		}
 }
 
 void Button::OnMouseUpOutside(const MouseUpEvent& e) {
 	if (e.mouse == Mouse::LEFT) {
-		if (state == State::IDLE_DOWN) {
-			state = State::IDLE_UP;
-		} else if (state == State::HELD_OUTSIDE) {
-			state = State::IDLE_UP;
+		if (state == ButtonState::IDLE_DOWN) {
+			state = ButtonState::IDLE_UP;
+		} else if (state == ButtonState::HELD_OUTSIDE) {
+			state = ButtonState::IDLE_UP;
 		}
 		/*else if (state == State::FOCUSED) { // TODO: Set button to idle if user left clicks outside it.
 			state = State::IDLE_UP;
@@ -154,11 +156,27 @@ void Button::Draw() {
 		if (texture.IsValid())
 			texture.Draw(rect);
 	} else {
-		auto idle_it = textures.find(State::IDLE_UP);
+		auto idle_it = textures.find(ButtonState::IDLE_UP);
 		assert(idle_it != textures.end() && "Idle up state button texture must be added");
 		assert(idle_it->second.IsValid() && "Idle up state button texture must be valid");
 		idle_it->second.Draw(rect);
 	}
+}
+
+const Rectangle<int>& Button::GetRectangle() const {
+	return rect;
+}
+
+void Button::SetRectangle(const Rectangle<int>& new_rectangle) {
+	rect = new_rectangle;
+}
+
+ButtonState Button::GetState() const {
+	return state;
+}
+
+void Button::SetState(ButtonState new_state) {
+	state = new_state;
 }
 
 } // namespace ptgn
