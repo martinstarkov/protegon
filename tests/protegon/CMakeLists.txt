@@ -10,7 +10,7 @@ file(GLOB_RECURSE TEST_SRC_FILES CONFIGURE_DEPENDS LIST_DIRECTORIES false
 add_executable(${PROJECT_NAME} ${TEST_SRC_FILES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${TEST_SRC_DIR}
-                                                   ${ecs_SOURCE_DIR})
+                                                   ${MODULES_DIR}/ecs)
 
 #add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}../../protegon binary_dir)
 

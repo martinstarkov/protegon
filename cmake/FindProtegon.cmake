@@ -5,48 +5,60 @@ endif()
 
 set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
 
-set(EXTERNAL_DIR         ${CMAKE_SOURCE_DIR}/external)
-set(PROTEGON_SRC_DIR     ${CMAKE_SOURCE_DIR}/src)
-set(PROTEGON_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/include)
+set(MODULES_DIR          ${CMAKE_CURRENT_SOURCE_DIR}/modules)
+set(EXTERNAL_DIR         ${CMAKE_CURRENT_SOURCE_DIR}/external)
+set(PROTEGON_SRC_DIR     ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set(PROTEGON_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-function(download_and_extract url folder_name)
+function(download_and_extract url folder_name plain_name)
 	if (NOT EXISTS ${EXTERNAL_DIR}/${folder_name})
 		get_filename_component(zip_name ${url} NAME)
+		get_filename_component(extension ${url} LAST_EXT)
 		message(STATUS "Downloading ${url}...")
 		set(zip_location ${EXTERNAL_DIR}/${zip_name})
-		file(DOWNLOAD ${url} ${zip_location} SHOW_PROGRESS INACTIVITY_TIMEOUT 60)
-		message(STATUS "Successfully extracted ${folder_name}")
-		file(ARCHIVE_EXTRACT INPUT ${zip_location} DESTINATION ${EXTERNAL_DIR})
+		file(DOWNLOAD ${url} ${zip_location} INACTIVITY_TIMEOUT 60) # SHOW_PROGRESS
+		string(TOLOWER "${extension}" lower_extension)
+		if ("${lower_extension}" STREQUAL ".zip")
+			file(ARCHIVE_EXTRACT INPUT ${zip_location} DESTINATION ${EXTERNAL_DIR})
+		elseif("${lower_extension}" STREQUAL ".dmg")
+			message(STATUS "Extracting ${folder_name}...")
+			execute_process(COMMAND hdiutil attach ${zip_location} -quiet
+			                COMMAND cp -r /Volumes/${plain_name}/${folder_name} ${EXTERNAL_DIR}
+			                COMMAND hdiutil detach /Volumes/${plain_name} -quiet 
+											WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+		endif()
 		file(REMOVE ${zip_location})
-		#message(STATUS "Successfully downloaded and extracted ${folder_name} library files")
+		message(STATUS "Successfully downloaded and extracted ${plain_name}")
 	endif()
 endfunction()
 
-download_and_extract(https://github.com/martinstarkov/ecs/archive/refs/heads/main.zip ecs-main)
-download_and_extract(https://github.com/ArthurSonzogni/nlohmann_json_cmake_fetchcontent/archive/refs/tags/v3.11.2.zip nlohmann_json_cmake_fetchcontent-3.11.2)
+# Currently handled by git submodules
+#download_and_extract(https://github.com/martinstarkov/ecs/archive/refs/heads/main.zip ecs-main ecs)
+#download_and_extract(https://github.com/ArthurSonzogni/nlohmann_json_cmake_fetchcontent/archive/refs/tags/v3.11.2.zip nlohmann_json_cmake_fetchcontent-3.11.2 json)
 
-set(ECS_INCLUDE_DIR  ${EXTERNAL_DIR}/ecs-main/include)
-set(JSON_INCLUDE_DIR ${EXTERNAL_DIR}/nlohmann_json_cmake_fetchcontent-3.11.2/single_include)
+set(ECS_INCLUDE_DIR  ${MODULES_DIR}/ecs/include)
+set(JSON_INCLUDE_DIR ${MODULES_DIR}/json/single_include)
 
 if(AUTOMATIC_SDL)
   set(SDL2_VERSION       2.28.1)
   set(SDL2_IMAGE_VERSION 2.6.3)
   set(SDL2_TTF_VERSION   2.20.2)
   set(SDL2_MIXER_VERSION 2.6.3)
+	# TODO: Change this to detect between VC and MinGW
 	if (WIN32)
-    download_and_extract(https://github.com/libsdl-org/SDL/releases/download/release-${SDL2_VERSION}/SDL2-devel-${SDL2_VERSION}-VC.zip SDL2-${SDL2_VERSION})
-    download_and_extract(https://github.com/libsdl-org/SDL_image/releases/download/release-${SDL2_IMAGE_VERSION}/SDL2_image-devel-${SDL2_IMAGE_VERSION}-VC.zip SDL2_image-${SDL2_IMAGE_VERSION})
-    download_and_extract(https://github.com/libsdl-org/SDL_ttf/releases/download/release-${SDL2_TTF_VERSION}/SDL2_ttf-devel-${SDL2_TTF_VERSION}-VC.zip SDL2_ttf-${SDL2_TTF_VERSION})
-    download_and_extract(https://github.com/libsdl-org/SDL_mixer/releases/download/release-${SDL2_MIXER_VERSION}/SDL2_mixer-devel-${SDL2_MIXER_VERSION}-VC.zip SDL2_mixer-${SDL2_MIXER_VERSION})
+    download_and_extract(https://github.com/libsdl-org/SDL/releases/download/release-${SDL2_VERSION}/SDL2-devel-${SDL2_VERSION}-VC.zip SDL2-${SDL2_VERSION} SDL2)
+    download_and_extract(https://github.com/libsdl-org/SDL_image/releases/download/release-${SDL2_IMAGE_VERSION}/SDL2_image-devel-${SDL2_IMAGE_VERSION}-VC.zip SDL2_image-${SDL2_IMAGE_VERSION} SDL2_image)
+    download_and_extract(https://github.com/libsdl-org/SDL_ttf/releases/download/release-${SDL2_TTF_VERSION}/SDL2_ttf-devel-${SDL2_TTF_VERSION}-VC.zip SDL2_ttf-${SDL2_TTF_VERSION} SDL2_ttf)
+    download_and_extract(https://github.com/libsdl-org/SDL_mixer/releases/download/release-${SDL2_MIXER_VERSION}/SDL2_mixer-devel-${SDL2_MIXER_VERSION}-VC.zip SDL2_mixer-${SDL2_MIXER_VERSION} SDL2_mixer)
     set(SDL2_DIR       ${EXTERNAL_DIR}/SDL2-${SDL2_VERSION}/cmake             CACHE BOOL "" FORCE)
     set(SDL2_image_DIR ${EXTERNAL_DIR}/SDL2_image-${SDL2_IMAGE_VERSION}/cmake CACHE BOOL "" FORCE)
     set(SDL2_ttf_DIR   ${EXTERNAL_DIR}/SDL2_ttf-${SDL2_TTF_VERSION}/cmake     CACHE BOOL "" FORCE)
     set(SDL2_mixer_DIR ${EXTERNAL_DIR}/SDL2_mixer-${SDL2_MIXER_VERSION}/cmake CACHE BOOL "" FORCE)
   elseif(MACOSX)
-    download_and_extract(https://github.com/libsdl-org/SDL/releases/download/release-${SDL2_VERSION}/SDL2-${SDL2_VERSION}.dmg SDL2.framework)
-    download_and_extract(https://github.com/libsdl-org/SDL_image/releases/download/release-${SDL2_IMAGE_VERSION}/SDL2-${SDL2_IMAGE_VERSION}.dmg SDL2_image.framework)
-    download_and_extract(https://github.com/libsdl-org/SDL_ttf/releases/download/release-${SDL2_TTF_VERSION}/SDL2-${SDL2_TTF_VERSION}.dmg SDL2_ttf.framework)
-    download_and_extract(https://github.com/libsdl-org/SDL_mixer/releases/download/release-${SDL2_MIXER_VERSION}/SDL2-${SDL2_MIXER_VERSION}.dmg SDL2_mixer.framework)
+		download_and_extract(https://github.com/libsdl-org/SDL/releases/download/release-${SDL2_VERSION}/SDL2-${SDL2_VERSION}.dmg SDL2.framework SDL2)
+    download_and_extract(https://github.com/libsdl-org/SDL_image/releases/download/release-${SDL2_IMAGE_VERSION}/SDL2_image-${SDL2_IMAGE_VERSION}.dmg SDL2_image.framework SDL2_image)
+    download_and_extract(https://github.com/libsdl-org/SDL_ttf/releases/download/release-${SDL2_TTF_VERSION}/SDL2_ttf-${SDL2_TTF_VERSION}.dmg SDL2_ttf.framework SDL2_ttf)
+    download_and_extract(https://github.com/libsdl-org/SDL_mixer/releases/download/release-${SDL2_MIXER_VERSION}/SDL2_mixer-${SDL2_MIXER_VERSION}.dmg SDL2_mixer.framework SDL2_mixer)
     set(SDL2_DIR       ${EXTERNAL_DIR}/SDL2.framework/Resources/CMake       CACHE BOOL "" FORCE)
     set(SDL2_image_DIR ${EXTERNAL_DIR}/SDL2_image.framework/Resources/CMake CACHE BOOL "" FORCE)
     set(SDL2_ttf_DIR   ${EXTERNAL_DIR}/SDL2_ttf.framework/Resources/CMake   CACHE BOOL "" FORCE)
@@ -106,23 +118,27 @@ add_library(protegon STATIC ${PROTEGON_FILES})
 target_compile_features(protegon PUBLIC cxx_std_17)
 set_target_properties(protegon PROPERTIES CXX_EXTENSIONS OFF)
 
-target_link_libraries(protegon PRIVATE SDL2::SDL2
-                                       SDL2_image::SDL2_image
-									   SDL2_ttf::SDL2_ttf
-									   SDL2_mixer::SDL2_mixer)	
+target_link_libraries(protegon
+	PRIVATE
+	SDL2::SDL2
+	SDL2_image::SDL2_image
+	SDL2_ttf::SDL2_ttf
+	SDL2_mixer::SDL2_mixer)
 
-target_include_directories(protegon INTERFACE ${PROTEGON_INCLUDE_DIR}
-											  ${ECS_INCLUDE_DIR}
-											  ${JSON_INCLUDE_DIR})
-
-target_include_directories(protegon PRIVATE ${PROTEGON_INCLUDE_DIR}
-											${PROTEGON_SRC_DIR}
-											${ECS_INCLUDE_DIR}
-											${JSON_INCLUDE_DIR}
-										    ${SDL2_INCLUDE_DIRS}
-											${SDL2_IMAGE_INCLUDE_DIRS}
-											${SDL2_MIXER_INCLUDE_DIRS}
-											${SDL2_TTF_INCLUDE_DIRS})
+target_include_directories(protegon
+	INTERFACE
+	${PROTEGON_INCLUDE_DIR}
+	${ECS_INCLUDE_DIR}
+	${JSON_INCLUDE_DIR}
+	PRIVATE
+	${PROTEGON_INCLUDE_DIR}
+	${PROTEGON_SRC_DIR}
+	${ECS_INCLUDE_DIR}
+	${JSON_INCLUDE_DIR}
+	${SDL2_INCLUDE_DIRS}
+	${SDL2_IMAGE_INCLUDE_DIRS}
+	${SDL2_MIXER_INCLUDE_DIRS}
+	${SDL2_TTF_INCLUDE_DIRS})
 
 if (WIN32)
 	get_target_property(SDL2_DLL       SDL2::SDL2 	          IMPORTED_LOCATION)

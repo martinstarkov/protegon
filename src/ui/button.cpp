@@ -123,17 +123,18 @@ void Button::OnMouseDownOutside(const MouseDownEvent& e) {
 }
 
 void Button::OnMouseUp(const MouseUpEvent& e) {
-	if (e.mouse == Mouse::LEFT)
+    if (e.mouse == Mouse::LEFT) {
 		if (state == ButtonState::PRESSED) {
 			state = ButtonState::FOCUSED;
-			if (on_activate != nullptr)
+            if (on_activate != nullptr)
 				on_activate();
 			ResetState();
-		} else if (state == ButtonState::HOVER_PRESSED) {
+        } else if (state == ButtonState::HOVER_PRESSED) {
 			state = ButtonState::HOVER;
 		} else if (state == ButtonState::FOCUSED) {
 			state = ButtonState::HOVER;
 		}
+    }
 }
 
 void Button::OnMouseUpOutside(const MouseUpEvent& e) {

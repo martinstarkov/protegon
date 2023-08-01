@@ -20,8 +20,7 @@ public:
 	void Unsubscribe(void* ptr) {
 		observers_.erase(ptr);
 	}
-	template <typename T>
-	void Post(Event<T>& event) {
+	void Post(Event<T>&& event) {
 		for (auto&& [_, func] : observers_)
 			func(event);
 	};
