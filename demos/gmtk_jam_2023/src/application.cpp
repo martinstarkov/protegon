@@ -1295,7 +1295,7 @@ public:
 class GMTKJam2023 : public Engine {
 	void Create() final {
 		// Setup window configuration.
-		window::SetColor(color::DARK_GREY);
+		window::SetColor(color::BLACK);
 		window::Maximize();
 		window::SetResizeable(true);
 		window::SetLogicalSize({ 960, 480 });
