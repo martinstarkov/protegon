@@ -3,32 +3,32 @@
 using namespace ptgn;
 
 class Sandbox : public Engine {
-	Button button0{ Rectangle<int>{ { 5, 5 }, { 50, 50 } }, {
-		{ ButtonState::IDLE_UP,       Texture{ "resources/ui/idle.png" } },
-		{ ButtonState::HOVER,         Texture{ "resources/ui/hover.png" } },
-		{ ButtonState::HOVER_PRESSED, Texture{ "resources/ui/hover.png" } },
-		{ ButtonState::PRESSED,       Texture{ "resources/ui/pressed.png" } },
-		{ ButtonState::FOCUSED,       Texture{ "resources/ui/focused.png" } }
-	}, [&]() {
+	Button button0{ Rectangle<int>{ { 5, 5 }, { 50, 50 } },
+		Texture{ "resources/ui/idle.png" },
+		Texture{ "resources/ui/hover.png" },
+		Texture{ "resources/ui/pressed.png" }, 
+	[&]() {
 		PrintLine(bye);
 	} };
-	Button button1{ Rectangle<int>{ { 60, 60 }, { 300, 300 } }, {
-		{ ButtonState::IDLE_UP,       Texture{ "resources/ui/q0.png" } },
-		{ ButtonState::HOVER,         Texture{ "resources/ui/q1.png" } },
-		{ ButtonState::PRESSED,       Texture{ "resources/ui/q2.png" } },
-		{ ButtonState::HELD_OUTSIDE,  Texture{ "resources/ui/q3.png" } },
-		{ ButtonState::IDLE_DOWN,     Texture{ "resources/ui/q4.png" } },
-		{ ButtonState::HOVER_PRESSED, Texture{ "resources/ui/q5.png" } },
-		{ ButtonState::FOCUSED,       Texture{ "resources/ui/q6.png" } }
-	}};
+	Button button1{ Rectangle<int>{ { 60, 60 }, { 300, 300 } },
+		Texture{ "resources/ui/q0.png" },
+		Texture{ "resources/ui/q1.png" },
+		Texture{ "resources/ui/q2.png" }
+	};
 	std::string bye{ "bye" };
-	Button button2{ Rectangle<int>{ { 390, 390 }, { 30, 30 } }, {
-		{ ButtonState::IDLE_UP,       Texture{ "resources/ui/idle.png" } },
-		{ ButtonState::HOVER,         Texture{ "resources/ui/hover.png" } },
-		{ ButtonState::HOVER_PRESSED, Texture{ "resources/ui/hover.png" } },
-		{ ButtonState::PRESSED,       Texture{ "resources/ui/pressed.png" } },
-		{ ButtonState::FOCUSED,       Texture{ "resources/ui/focused.png" } }
-	} };
+	Button button2{ Rectangle<int>{ { 460, 460 }, { 30, 30 } },
+		Texture{ "resources/ui/idle.png" },
+		Texture{ "resources/ui/hover.png" },
+		Texture{ "resources/ui/pressed.png" }
+	};
+	ToggleButton button3{ Rectangle<int>{ { 390, 390 }, { 50, 50 } },
+		std::pair<Texture, Texture>{ Texture{ "resources/ui/idle.png" }, Texture{ "resources/ui/mute_grey.png" } },
+		std::pair<Texture, Texture>{ Texture{ "resources/ui/hover.png" }, Texture{ "resources/ui/mute_grey_hover.png" } },
+		Texture{ "resources/ui/pressed.png" },
+		[&]() {
+			 PrintLine("Toggling!");
+	    }
+	};
 	void Create() final {
 		button2.SetOnActivate([]() {
 			PrintLine("Hi!");
@@ -39,6 +39,11 @@ class Sandbox : public Engine {
 		button1.GetRectangle().Draw(color::BLACK, 10);
 		button1.Draw();
 		button2.Draw();
+		button3.Draw();
+		if (input::KeyDown(Key::T)) {
+			button3.SetToggleStatus(!button3.GetToggleStatus());
+			button3.Activate();
+		}
 	}
 };
 
