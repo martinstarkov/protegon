@@ -444,6 +444,11 @@ public:
 
 		Reset();
 	}
+	ToggleButton mute_button_b{ Rectangle<int>{ map_size - tile_size, tile_size },
+			3101,
+			3102,
+			3103
+	};
 	bool paused = false;
 	bool releasing_enemies = false;
 	bool release_done = false;
@@ -875,29 +880,12 @@ public:
 		//if (overlap::PointRectangle(mouse_pos, bg) && node_grid.IsObstacle(mouse_tile))
 		//	mouse_box.Draw(color::GOLD, 3);
 
-		const Rectangle<float> mute_button{ map_size - tile_size, tile_size };
-		int key = 3101;
-
-		static bool previous_music_state = music_muted;
-
-		bool hovering_over_mute = overlap::PointRectangle(mouse_pos, mute_button);
-		if (hovering_over_mute) {
-			key = 3102;
-			if (input::MouseDown(Mouse::LEFT)) {
-				sound::Get(Hash("click"))->Play(3, 0);
-				music_muted = !music_muted;
-			}
-		}
-		if (music_muted) {
-			key = 3103;
-			if (hovering_over_mute)
-				key = 3104;
-		}
-		if (previous_music_state != music_muted)
+		mute_button_b.SetOnActivate([&]() {
+			sound::Get(Hash("click"))->Play(3, 0);
 			music::Toggle();
-		previous_music_state = music_muted;
+		});
 
-		texture::Get(key)->Draw(mute_button);
+		mute_button_b.Draw();
 
 		// Destroy enemies which run out of lifetime.
 		manager.ForEachEntityWith<LifetimeComponent>([](

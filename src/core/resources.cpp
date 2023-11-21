@@ -12,15 +12,15 @@ ResourceManagers& GetManagers() {
 
 namespace font {
 
-void Unload(std::size_t key) {
+void Unload(FontKey key) {
 	GetManagers().font.Unload(key);
 }
 
-bool Has(std::size_t key) {
+bool Has(FontKey key) {
 	return GetManagers().font.Has(key);
 }
 
-std::shared_ptr<Font> Get(std::size_t key) {
+std::shared_ptr<Font> Get(FontKey key) {
 	return GetManagers().font.Get(key);
 }
 
@@ -32,15 +32,15 @@ void Clear() {
 
 namespace music {
 
-void Unload(std::size_t key) {
+void Unload(MusicKey key) {
 	GetManagers().music.Unload(key);
 }
 
-bool Has(std::size_t key) {
+bool Has(MusicKey key) {
 	return GetManagers().music.Has(key);
 }
 
-std::shared_ptr<Music> Get(std::size_t key) {
+std::shared_ptr<Music> Get(MusicKey key) {
 	return GetManagers().music.Get(key);
 }
 
@@ -114,15 +114,15 @@ bool IsFading() {
 
 namespace sound {
 
-void Unload(std::size_t key) {
+void Unload(SoundKey key) {
 	GetManagers().sound.Unload(key);
 }
 
-bool Has(std::size_t key) {
+bool Has(SoundKey key) {
 	return GetManagers().sound.Has(key);
 }
 
-std::shared_ptr<Sound> Get(std::size_t key) {
+std::shared_ptr<Sound> Get(SoundKey key) {
 	return GetManagers().sound.Get(key);
 }
 
@@ -134,15 +134,15 @@ void Clear() {
 
 namespace text {
 
-void Unload(std::size_t key) {
+void Unload(TextKey key) {
 	GetManagers().text.Unload(key);
 }
 
-bool Has(std::size_t key) {
+bool Has(TextKey key) {
 	return GetManagers().text.Has(key);
 }
 
-std::shared_ptr<Text> Get(std::size_t key) {
+std::shared_ptr<Text> Get(TextKey key) {
 	return GetManagers().text.Get(key);
 }
 
@@ -154,15 +154,15 @@ void Clear() {
 
 namespace texture {
 
-void Unload(std::size_t key) {
+void Unload(TextureKey key) {
 	GetManagers().texture.Unload(key);
 }
 
-bool Has(std::size_t key) {
+bool Has(TextureKey key) {
 	return GetManagers().texture.Has(key);
 }
 
-std::shared_ptr<Texture> Get(std::size_t key) {
+std::shared_ptr<Texture> Get(TextureKey key) {
 	return GetManagers().texture.Get(key);
 }
 
@@ -174,27 +174,27 @@ void Clear() {
 
 namespace scene {
 
-bool Exists(std::size_t scene_key) {
-	return GetManagers().scene.Has(scene_key);
+bool Has(SceneKey key) {
+	return GetManagers().scene.Has(key);
 }
 
-void Unload(std::size_t scene_key) {
-	GetManagers().scene.Unload(scene_key);
+void Unload(SceneKey key) {
+	GetManagers().scene.Unload(key);
 }
 
-void SetActive(std::size_t scene_key) {
-	assert(Exists(scene_key) && "Cannot set active scene if it has not been loaded into the scene manager");
-	GetManagers().scene.SetActive(scene_key);
+void SetActive(SceneKey key) {
+	assert(Has(key) && "Cannot set active scene if it has not been loaded into the scene manager");
+	GetManagers().scene.SetActive(key);
 }
 
-void AddActive(std::size_t scene_key) {
-	assert(Exists(scene_key) && "Cannot add active scene if it has not been loaded into the scene manager");
-	GetManagers().scene.AddActive(scene_key);
+void AddActive(SceneKey key) {
+	assert(Has(key) && "Cannot add active scene if it has not been loaded into the scene manager");
+	GetManagers().scene.AddActive(key);
 }
 
-void RemoveActive(std::size_t scene_key) {
-	assert(Exists(scene_key) && "Cannot remove active scene if it has not been loaded into the scene manager");
-	GetManagers().scene.RemoveActive(scene_key);
+void RemoveActive(SceneKey key) {
+	assert(Has(key) && "Cannot remove active scene if it has not been loaded into the scene manager");
+	GetManagers().scene.RemoveActive(key);
 }
 
 std::vector<std::shared_ptr<Scene>> GetActive() {

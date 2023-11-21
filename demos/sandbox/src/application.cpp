@@ -24,7 +24,7 @@ class Sandbox : public Engine {
 	ToggleButton button3{ Rectangle<int>{ { 390, 390 }, { 50, 50 } },
 		std::pair<Texture, Texture>{ Texture{ "resources/ui/idle.png" }, Texture{ "resources/ui/mute_grey.png" } },
 		std::pair<Texture, Texture>{ Texture{ "resources/ui/hover.png" }, Texture{ "resources/ui/mute_grey_hover.png" } },
-		Texture{ "resources/ui/pressed.png" },
+		std::pair<Texture, Texture>{ Texture{ "resources/ui/pressed.png" }, Texture{ "resources/ui/mute_grey_pressed.png" } },
 		[&]() {
 			 PrintLine("Toggling!");
 	    }

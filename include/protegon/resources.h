@@ -23,15 +23,22 @@ struct ResourceManagers {
 
 ResourceManagers& GetManagers();
 
+using FontKey = std::size_t;
+using MusicKey = std::size_t;
+using SoundKey = std::size_t;
+using TextKey = std::size_t;
+using TextureKey = std::size_t;
+using SceneKey = std::size_t;
+
 namespace font {
 
 template <typename ...TArgs, type_traits::constructible<Font, TArgs...> = true>
-std::shared_ptr<Font> Load(std::size_t key, TArgs&&... constructor_args) {
+std::shared_ptr<Font> Load(FontKey key, TArgs&&... constructor_args) {
 	return GetManagers().font.Load(key, std::forward<TArgs>(constructor_args)...);
 }
-void Unload(std::size_t key);
-bool Has(std::size_t key);
-std::shared_ptr<Font> Get(std::size_t key);
+void Unload(FontKey key);
+bool Has(FontKey key);
+std::shared_ptr<Font> Get(FontKey key);
 void Clear();
 
 } // namespace font
@@ -39,13 +46,13 @@ void Clear();
 namespace music {
 
 template <typename ...TArgs, type_traits::constructible<Music, TArgs...> = true>
-std::shared_ptr<Music> Load(std::size_t key, TArgs&&... constructor_args) {
+std::shared_ptr<Music> Load(MusicKey key, TArgs&&... constructor_args) {
 	return GetManagers().music.Load(key, std::forward<TArgs>(constructor_args)...);
 }
 
-void Unload(std::size_t key);
-bool Has(std::size_t key);
-std::shared_ptr<Music> Get(std::size_t key);
+void Unload(MusicKey key);
+bool Has(MusicKey key);
+std::shared_ptr<Music> Get(MusicKey key);
 void Clear();
 void Pause();
 void Resume();
@@ -70,13 +77,13 @@ bool IsFading();
 namespace sound {
 
 template <typename ...TArgs, type_traits::constructible<Sound, TArgs...> = true>
-std::shared_ptr<Sound> Load(std::size_t key, TArgs&&... constructor_args) {
+std::shared_ptr<Sound> Load(SoundKey key, TArgs&&... constructor_args) {
 	return GetManagers().sound.Load(key, std::forward<TArgs>(constructor_args)...);
 }
 
-void Unload(std::size_t key);
-bool Has(std::size_t key);
-std::shared_ptr<Sound> Get(std::size_t key);
+void Unload(SoundKey key);
+bool Has(SoundKey key);
+std::shared_ptr<Sound> Get(SoundKey key);
 void Clear();
 
 } // namespace sound
@@ -84,13 +91,13 @@ void Clear();
 namespace text {
 
 template <typename ...TArgs, type_traits::constructible<Text, TArgs...> = true>
-std::shared_ptr<Text> Load(std::size_t key, TArgs&&... constructor_args) {
+std::shared_ptr<Text> Load(TextKey key, TArgs&&... constructor_args) {
 	return GetManagers().text.Load(key, std::forward<TArgs>(constructor_args)...);
 }
 
-void Unload(std::size_t key);
-bool Has(std::size_t key);
-std::shared_ptr<Text> Get(std::size_t key);
+void Unload(TextKey key);
+bool Has(TextKey key);
+std::shared_ptr<Text> Get(TextKey key);
 void Clear();
 
 } // namespace text
@@ -98,13 +105,13 @@ void Clear();
 namespace texture {
 
 template <typename ...TArgs, type_traits::constructible<Texture, TArgs...> = true>
-std::shared_ptr<Texture> Load(std::size_t key, TArgs&&... constructor_args) {
+std::shared_ptr<Texture> Load(TextureKey key, TArgs&&... constructor_args) {
 	return GetManagers().texture.Load(key, std::forward<TArgs>(constructor_args)...);
 }
 
-void Unload(std::size_t key);
-bool Has(std::size_t key);
-std::shared_ptr<Texture> Get(std::size_t key);
+void Unload(TextureKey key);
+bool Has(TextureKey key);
+std::shared_ptr<Texture> Get(TextureKey key);
 void Clear();
 
 } // namespace texture
@@ -112,22 +119,22 @@ void Clear();
 
 namespace scene {
 
-bool Has(std::size_t scene_key);
-
 template <typename T, typename ...TArgs,
 	type_traits::constructible<T, TArgs...> = true,
 	type_traits::convertible<T*, Scene*> = true>
-std::shared_ptr<T> Load(std::size_t key, TArgs&&... constructor_args) {
+std::shared_ptr<T> Load(SceneKey key, TArgs&&... constructor_args) {
 	return GetManagers().scene.LoadPolymorphic<T>(key, std::forward<TArgs>(constructor_args)...);
 }
 
-void Unload(std::size_t scene_key);
+bool Has(SceneKey key);
 
-void SetActive(std::size_t scene_key);
+void Unload(SceneKey key);
 
-void AddActive(std::size_t scene_key);
+void SetActive(SceneKey key);
 
-void RemoveActive(std::size_t scene_key);
+void AddActive(SceneKey key);
+
+void RemoveActive(SceneKey key);
 
 std::vector<std::shared_ptr<Scene>> GetActive();
 

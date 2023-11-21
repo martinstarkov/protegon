@@ -11,10 +11,17 @@
 
 namespace ptgn {
 
+// First element  = texture for 'not toggled' state of button
+// Second element = texture for 'toggled' state of button.
+using TexturePair = std::pair<Texture, Texture>;
+// First element  = texture key for 'not toggled' state of button
+// Second element = texture key for 'toggled' state of button.
+using TextureKeyPair = std::pair<TextureKey, TextureKey>;
+
 enum class ButtonState : std::size_t {
 	DEFAULT = 0,
 	HOVER   = 1,
-	PRESSED = 2,
+	PRESSED = 2
 };
 
 // Interface class for buttons
@@ -41,14 +48,6 @@ class Button : public IButton {
 public:
 	Button() = default;
 	Button(const Rectangle<int>& rect,
-		   Texture default_texture,
-		   Texture hover_texture,
-		   Texture pressed_texture,
-		   std::function<void()> on_activate_function = nullptr);
-	Button(const Rectangle<int>& rect,
-		   const std::size_t default_texture_key,
-		   const std::size_t hover_texture_key,
-		   const std::size_t pressed_texture_key,
 		   std::function<void()> on_activate_function = nullptr);
 	virtual ~Button();
 	virtual void Activate() override final;
@@ -64,50 +63,68 @@ public:
 	virtual void OnMouseDownOutside(const MouseDownEvent& e);
 	virtual void OnMouseUp(const MouseUpEvent& e);
 	virtual void OnMouseUpOutside(const MouseUpEvent& e);
-	virtual void Draw();
 	const Rectangle<int>& GetRectangle() const;
 	void SetRectangle(const Rectangle<int>& new_rectangle);
 	ButtonState GetState() const;
 protected:
+	Rectangle<int> rect_{};
 	std::function<void()> on_activate_{ nullptr };
-	Rectangle<int> rect_;
-	InternalButtonState state_{ InternalButtonState::IDLE_UP };
-private:
-	// TODO: Add default array here.
-	std::variant<std::array<Texture, 3>,
-		         std::array<std::size_t, 3>> textures_;
+	InternalButtonState button_state_{ InternalButtonState::IDLE_UP };
 };
 
 class ToggleButton : public Button {
 public:
-	ToggleButton() = default;
-	virtual ~ToggleButton();
+	using Button::Button;
 	ToggleButton(const Rectangle<int>& rect,
-		         std::variant<Texture, 
-				              std::pair<Texture, Texture>> default_texture,
-				 std::variant<Texture,
-							  std::pair<Texture, Texture>> hover_texture,
-				 std::variant<Texture,
-							  std::pair<Texture, Texture>> pressed_texture,
-		         std::function<void()> on_activate_function = nullptr);
-	ToggleButton(const Rectangle<int>& rect,
-				 std::variant<std::size_t,
-							  std::pair<std::size_t, std::size_t>> default_texture_key,
-				 std::variant<std::size_t,
-							  std::pair<std::size_t, std::size_t>> hover_texture_key,
-				 std::variant<std::size_t,
-							  std::pair<std::size_t, std::size_t>> pressed_texture_key,
-		         std::function<void()> on_activate_function = nullptr);
+				 std::function<void()> on_activate_function = nullptr,
+				 bool initially_toggled = false);
+	// Start in non toggled state.
 	virtual void OnMouseUp(const MouseUpEvent& e) override;
-	virtual void Draw() override;
-	// Returns false if not toggled, true if toggled.
-	bool GetToggleStatus() const;
-	void SetToggleStatus(bool toggled);
+	bool IsToggled() const;
+	void Toggle();
 private:
-	bool toggled_{ false }; // false = not toggled, true = toggled
-	// TODO: Add default array here.
-	std::variant<std::array<std::array<Texture, 2>, 3>,
-		         std::array<std::array<std::size_t, 2>, 3>> textures_;
+	bool toggled_{ false };
+};
+
+class TexturedButton : public Button {
+public:
+	TexturedButton() = default;
+	template <typename T, type_traits::type<T, Texture, TextureKey> = true>
+	TexturedButton(
+		const Rectangle<int>& rect,
+		T default,
+		T hover,
+		T pressed,
+		std::function<void()> on_activate_function = nullptr) : Button{ rect, on_activate_function } {
+		textures_ = std::array<T, 3>{ default, hover, pressed };
+	}
+	virtual void Draw();
+private:
+	// Must be initialized explicitly by a constructor.
+	// Can technically exist uninitialized if button is default constructed (temporary object).
+	std::variant<std::array<Texture, 3>,
+		         std::array<TextureKey, 3>> textures_;
+};
+
+class TexturedToggleButton : public ToggleButton {
+public:
+	TexturedToggleButton() = default;
+	TexturedToggleButton(const Rectangle<int>& rect,
+						 std::variant<Texture, TexturePair> default,
+						 std::variant<Texture, TexturePair> hover,
+						 std::variant<Texture, TexturePair> pressed,
+						 std::function<void()> on_activate_function = nullptr);
+	TexturedToggleButton(const Rectangle<int>& rect,
+						 std::variant<TextureKey, TextureKeyPair> default,
+						 std::variant<TextureKey, TextureKeyPair> hover,
+						 std::variant<TextureKey, TextureKeyPair> pressed,
+						 std::function<void()> on_activate_function = nullptr);
+	virtual void Draw();
+private:
+	// Must be initialized explicitly by a constructor.
+	// Can technically exist uninitialized if button is default constructed (temporary object).
+	std::variant<std::array<TexturePair, 3>,
+		         std::array<TextureKeyPair, 3>> textures_;
 };
 
 } // namespace ptgn

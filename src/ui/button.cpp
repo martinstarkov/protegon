@@ -10,23 +10,8 @@
 namespace ptgn {
 
 Button::Button(const Rectangle<int>& rect,
-			   Texture default_texture,
-			   Texture hover_texture,
-			   Texture pressed_texture,
 			   std::function<void()> on_activate_function) :
 	rect_{ rect },
-	textures_{ std::array<Texture, 3>{ default_texture, hover_texture, pressed_texture } },
-	on_activate_{ on_activate_function } {
-	SubscribeToMouseEvents();
-}
-
-Button::Button(const Rectangle<int>& rect,
-			   const std::size_t default_texture_key,
-			   const std::size_t hover_texture_key,
-			   const std::size_t pressed_texture_key,
-			   std::function<void()> on_activate_function) :
-	rect_{ rect },
-	textures_{ std::array<std::size_t, 3>{ default_texture_key, hover_texture_key, pressed_texture_key } },
 	on_activate_{ on_activate_function } {
 	SubscribeToMouseEvents();
 }
@@ -92,9 +77,8 @@ void Button::UnsubscribeFromMouseEvents() {
 }
 
 void Button::OnMouseMove(const MouseMoveEvent& e) {
-	if (state_ == InternalButtonState::IDLE_UP) {
-		state_ = InternalButtonState::HOVER;
-	}
+	if (button_state_ == InternalButtonState::IDLE_UP)
+		button_state_ = InternalButtonState::HOVER;
 }
 
 void Button::OnMouseMoveOutside(const MouseMoveEvent& e) {
@@ -102,82 +86,51 @@ void Button::OnMouseMoveOutside(const MouseMoveEvent& e) {
 }
 
 void Button::OnMouseEnter(const MouseMoveEvent& e) {
-	if (state_ == InternalButtonState::IDLE_UP) {
-		state_ = InternalButtonState::HOVER;
-	} else if (state_ == InternalButtonState::IDLE_DOWN) {
-		state_ = InternalButtonState::HOVER_PRESSED;
-	} else if (state_ == InternalButtonState::HELD_OUTSIDE) {
-		state_ = InternalButtonState::PRESSED;
-	}
+	if (button_state_ == InternalButtonState::IDLE_UP)
+		button_state_ = InternalButtonState::HOVER;
+	else if (button_state_ == InternalButtonState::IDLE_DOWN)
+		button_state_ = InternalButtonState::HOVER_PRESSED;
+	else if (button_state_ == InternalButtonState::HELD_OUTSIDE)
+		button_state_ = InternalButtonState::PRESSED;
 }
 
 void Button::OnMouseLeave(const MouseMoveEvent& e) {
-	if (state_ == InternalButtonState::HOVER) {
-		state_ = InternalButtonState::IDLE_UP;
-	} else if (state_ == InternalButtonState::PRESSED) {
-		state_ = InternalButtonState::HELD_OUTSIDE;
-	} else if (state_ == InternalButtonState::HOVER_PRESSED) {
-		state_ = InternalButtonState::IDLE_DOWN;
-	}
+	if (button_state_ == InternalButtonState::HOVER)
+		button_state_ = InternalButtonState::IDLE_UP;
+	else if (button_state_ == InternalButtonState::PRESSED)
+		button_state_ = InternalButtonState::HELD_OUTSIDE;
+	else if (button_state_ == InternalButtonState::HOVER_PRESSED)
+		button_state_ = InternalButtonState::IDLE_DOWN;
 }
 
 void Button::OnMouseDown(const MouseDownEvent& e) {
-	if (e.mouse == Mouse::LEFT)
-		if (state_ == InternalButtonState::HOVER) {
-			state_ = InternalButtonState::PRESSED;
-		}
+	if (e.mouse == Mouse::LEFT && button_state_ == InternalButtonState::HOVER)
+		button_state_ = InternalButtonState::PRESSED;
 }
 
 void Button::OnMouseDownOutside(const MouseDownEvent& e) {
-	if (e.mouse == Mouse::LEFT)
-		if (state_ == InternalButtonState::IDLE_UP) {
-			state_ = InternalButtonState::IDLE_DOWN;
-		}
+	if (e.mouse == Mouse::LEFT && button_state_ == InternalButtonState::IDLE_UP)
+		button_state_ = InternalButtonState::IDLE_DOWN;
 }
 
 void Button::OnMouseUp(const MouseUpEvent& e) {
     if (e.mouse == Mouse::LEFT) {
-		if (state_ == InternalButtonState::PRESSED) {
-			state_ = InternalButtonState::HOVER;
+		if (button_state_ == InternalButtonState::PRESSED) {
+			button_state_ = InternalButtonState::HOVER;
             if (on_activate_ != nullptr)
 				Activate();
-        } else if (state_ == InternalButtonState::HOVER_PRESSED) {
-			state_ = InternalButtonState::HOVER;
+        } else if (button_state_ == InternalButtonState::HOVER_PRESSED) {
+			button_state_ = InternalButtonState::HOVER;
 		}
     }
 }
 
 void Button::OnMouseUpOutside(const MouseUpEvent& e) {
 	if (e.mouse == Mouse::LEFT) {
-		if (state_ == InternalButtonState::IDLE_DOWN) {
-			state_ = InternalButtonState::IDLE_UP;
-		} else if (state_ == InternalButtonState::HELD_OUTSIDE) {
-			state_ = InternalButtonState::IDLE_UP;
-		}
-	}
-}
-
-void Button::Draw() {
-	if (std::holds_alternative<std::array<Texture, 3>>(textures_)) {
-		auto& ts{ std::get<std::array<Texture, 3>>(textures_) };
-		auto& state_texture = ts.at(static_cast<std::size_t>(GetState()));
-		if (state_texture.IsValid()) {
-			state_texture.Draw(rect_);
-		} else {
-			auto& default_texture = ts.at(static_cast<std::size_t>(ButtonState::DEFAULT));
-			assert(default_texture.IsValid() && "Default button state texture must be valid");
-			default_texture.Draw(rect_);
-		}
-	} else if (std::holds_alternative<std::array<std::size_t, 3>>(textures_)) {
-		auto& ts{ std::get<std::array<std::size_t, 3>>(textures_) };
-		auto& state_texture_key = ts.at(static_cast<std::size_t>(GetState()));
-		if (texture::Has(state_texture_key)) {
-			texture::Get(state_texture_key)->Draw(rect_);
-		} else {
-			auto default_texture_key = ts.at(static_cast<std::size_t>(ButtonState::DEFAULT));
-			assert(texture::Has(default_texture_key) && "Default button state texture must be valid");
-			texture::Get(default_texture_key)->Draw(rect_);
-		}
+		if (button_state_ == InternalButtonState::IDLE_DOWN)
+			button_state_ = InternalButtonState::IDLE_UP;
+		else if (button_state_ == InternalButtonState::HELD_OUTSIDE)
+			button_state_ = InternalButtonState::IDLE_UP;
 	}
 }
 
@@ -190,22 +143,38 @@ void Button::SetRectangle(const Rectangle<int>& new_rectangle) {
 }
 
 ButtonState Button::GetState() const {
-	if (state_ == InternalButtonState::HOVER)
+	if (button_state_ == InternalButtonState::HOVER)
 		return ButtonState::HOVER;
-	else if (state_ == InternalButtonState::PRESSED)
+	else if (button_state_ == InternalButtonState::PRESSED)
 		return ButtonState::PRESSED;
 	else
 		return ButtonState::DEFAULT;
 }
 
 ToggleButton::ToggleButton(const Rectangle<int>& rect,
+			               std::function<void()> on_activate_function,
+			               bool initially_toggled) : Button{ rect, on_activate_function } {
+	toggled_ = initially_toggled;
+}
+
+
+TexturedButton::TexturedButton(
+	const Rectangle<int>& rect,
+    Texture default,
+    Texture hover,
+    Texture pressed,
+	std::function<void()> on_activate_function = nullptr) : Button{ rect, on_activate_function } {
+	textures_ = std::array<Texture, 3>{ default, hover, pressed };
+}
+
+TexturedToggleButton::TexturedToggleButton(const Rectangle<int>& rect,
 						   std::variant<Texture,
-										std::pair<Texture, Texture>> default_texture,
+										std::array<Texture, 2>> default_texture,
 						   std::variant<Texture,
-										std::pair<Texture, Texture>> hover_texture,
+										std::array<Texture, 2>> hover_texture,
 						   std::variant<Texture,
-										std::pair<Texture, Texture>> pressed_texture,
-						   std::function<void()> on_activate_function) {
+										std::array<Texture, 2>> pressed_texture,
+						   std::function<void()> on_activate_function) : textures_{ std::array<std::array<Texture, 2>, 3>{} } {
 	rect_ = rect;
 	on_activate_ = on_activate_function;
 	SubscribeToMouseEvents();
@@ -215,8 +184,7 @@ ToggleButton::ToggleButton(const Rectangle<int>& rect,
 																std::get<Texture>(default_texture) };
 	} else {
 		std::get<std::array<std::array<Texture, 2>, 3>>(textures_).at(
-			static_cast<std::size_t>(ButtonState::DEFAULT)) = { std::get<std::pair<Texture, Texture>>(default_texture).first,
-																std::get<std::pair<Texture, Texture>>(default_texture).second };
+			static_cast<std::size_t>(ButtonState::DEFAULT)) = std::get<std::array<Texture, 2>>(default_texture);
 	}
 	if (std::holds_alternative<Texture>(hover_texture)) {
 		std::get<std::array<std::array<Texture, 2>, 3>>(textures_).at(
@@ -224,8 +192,7 @@ ToggleButton::ToggleButton(const Rectangle<int>& rect,
 															  std::get<Texture>(hover_texture) };
 	} else {
 		std::get<std::array<std::array<Texture, 2>, 3>>(textures_).at(
-			static_cast<std::size_t>(ButtonState::HOVER)) = { std::get<std::pair<Texture, Texture>>(hover_texture).first,
-															  std::get<std::pair<Texture, Texture>>(hover_texture).second };
+			static_cast<std::size_t>(ButtonState::HOVER)) = std::get<std::array<Texture, 2>>(hover_texture);
 	}
 	if (std::holds_alternative<Texture>(pressed_texture)) {
 		std::get<std::array<std::array<Texture, 2>, 3>>(textures_).at(
@@ -233,30 +200,34 @@ ToggleButton::ToggleButton(const Rectangle<int>& rect,
 																std::get<Texture>(pressed_texture) };
 	} else {
 		std::get<std::array<std::array<Texture, 2>, 3>>(textures_).at(
-			static_cast<std::size_t>(ButtonState::PRESSED)) = { std::get<std::pair<Texture, Texture>>(pressed_texture).first,
-																std::get<std::pair<Texture, Texture>>(pressed_texture).second };
+			static_cast<std::size_t>(ButtonState::PRESSED)) = std::get<std::array<Texture, 2>>(pressed_texture);
 	}
 }
 
 ToggleButton::ToggleButton(const Rectangle<int>& rect,
 						   std::variant<std::size_t,
-										std::pair<std::size_t, std::size_t>> default_texture_key,
+										std::array<std::size_t, 2>> default_texture_key,
 						   std::variant<std::size_t,
-										std::pair<std::size_t, std::size_t>> hover_texture_key,
+										std::array<std::size_t, 2>> hover_texture_key,
 						   std::variant<std::size_t,
-										std::pair<std::size_t, std::size_t>> pressed_texture_key,
+										std::array<std::size_t, 2>> pressed_texture_key,
 						   std::function<void()> on_activate_function) {
 	rect_ = rect;
 	on_activate_ = on_activate_function;
 	SubscribeToMouseEvents();
 	if (std::holds_alternative<std::size_t>(default_texture_key)) {
+		if (std::holds_alternative<std::array<std::array<Texture, 2>, 3>>(textures_)) {
+			PrintLine("Texture");
+		}
+		if (std::holds_alternative<std::array<std::array<std::size_t, 2>, 3>>(textures_)) {
+			PrintLine("size_t");
+		}
 		std::get<std::array<std::array<std::size_t, 2>, 3>>(textures_).at(
 			static_cast<std::size_t>(ButtonState::DEFAULT)) = { std::get<std::size_t>(default_texture_key), 
 			                                                    std::get<std::size_t>(default_texture_key) };
 	} else {
 		std::get<std::array<std::array<std::size_t, 2>, 3>>(textures_).at(
-			static_cast<std::size_t>(ButtonState::DEFAULT)) = { std::get<std::pair<std::size_t, std::size_t>>(default_texture_key).first,
-																std::get<std::pair<std::size_t, std::size_t>>(default_texture_key).second };
+			static_cast<std::size_t>(ButtonState::DEFAULT)) = std::get<std::array<std::size_t, 2>>(default_texture_key);
 	}
 	if (std::holds_alternative<std::size_t>(hover_texture_key)) {
 		std::get<std::array<std::array<std::size_t, 2>, 3>>(textures_).at(
@@ -264,8 +235,7 @@ ToggleButton::ToggleButton(const Rectangle<int>& rect,
 															  std::get<std::size_t>(hover_texture_key) };
 	} else {
 		std::get<std::array<std::array<std::size_t, 2>, 3>>(textures_).at(
-			static_cast<std::size_t>(ButtonState::HOVER)) = { std::get<std::pair<std::size_t, std::size_t>>(hover_texture_key).first,
-															  std::get<std::pair<std::size_t, std::size_t>>(hover_texture_key).second };
+			static_cast<std::size_t>(ButtonState::HOVER)) = std::get<std::array<std::size_t, 2>>(hover_texture_key);
 	}
 	if (std::holds_alternative<std::size_t>(pressed_texture_key)) {
 		std::get<std::array<std::array<std::size_t, 2>, 3>>(textures_).at(
@@ -273,8 +243,7 @@ ToggleButton::ToggleButton(const Rectangle<int>& rect,
 																std::get<std::size_t>(pressed_texture_key) };
 	} else {
 		std::get<std::array<std::array<std::size_t, 2>, 3>>(textures_).at(
-			static_cast<std::size_t>(ButtonState::PRESSED)) = { std::get<std::pair<std::size_t, std::size_t>>(pressed_texture_key).first,
-																std::get<std::pair<std::size_t, std::size_t>>(pressed_texture_key).second };
+			static_cast<std::size_t>(ButtonState::PRESSED)) = std::get<std::array<std::size_t, 2>>(pressed_texture_key);
 	}
 }
 
@@ -284,23 +253,24 @@ ToggleButton::~ToggleButton() {
 
 void ToggleButton::OnMouseUp(const MouseUpEvent& e) {
 	if (e.mouse == Mouse::LEFT) {
-		if (state_ == InternalButtonState::PRESSED) {
-			state_ = InternalButtonState::HOVER;
-			toggled_ = !toggled_;
+		if (button_state_ == InternalButtonState::PRESSED) {
+			button_state_ = InternalButtonState::HOVER;
+			toggle_state_ = !toggle_state_;
 			if (on_activate_ != nullptr)
 				Activate();
-		} else if (state_ == InternalButtonState::HOVER_PRESSED) {
-			state_ = InternalButtonState::HOVER;
+		} else if (button_state_ == InternalButtonState::HOVER_PRESSED) {
+			button_state_ = InternalButtonState::HOVER;
 		}
 	}
 }
 
-bool ToggleButton::GetToggleStatus() const {
+bool ToggleButton::IsToggled() const {
 	return toggled_;
 }
 
-void ToggleButton::SetToggleStatus(bool toggled) {
-	toggled_ = toggled;
+void ToggleButton::Toggle() {
+	Activate();
+	toggled_ = !toggled_;
 }
 
 void ToggleButton::Draw() {
@@ -321,6 +291,32 @@ void ToggleButton::Draw() {
 			texture::Get(state_texture_key)->Draw(rect_);
 		} else {
 			auto default_texture_key = ts.at(static_cast<std::size_t>(ButtonState::DEFAULT))[static_cast<std::size_t>(toggled_)];
+			assert(texture::Has(default_texture_key) && "Default button state texture must be valid");
+			texture::Get(default_texture_key)->Draw(rect_);
+		}
+	}
+}
+
+
+
+void TexturedButton::Draw() {
+	if (std::holds_alternative<std::array<Texture, 3>>(textures_)) {
+		auto& ts{ std::get<std::array<Texture, 3>>(textures_) };
+		auto& state_texture = ts.at(static_cast<std::size_t>(GetState()));
+		if (state_texture.IsValid()) {
+			state_texture.Draw(rect_);
+		} else {
+			auto& default_texture = ts.at(static_cast<std::size_t>(ButtonState::DEFAULT));
+			assert(default_texture.IsValid() && "Default button state texture must be valid");
+			default_texture.Draw(rect_);
+		}
+	} else if (std::holds_alternative<std::array<std::size_t, 3>>(textures_)) {
+		auto& ts{ std::get<std::array<std::size_t, 3>>(textures_) };
+		auto& state_texture_key = ts.at(static_cast<std::size_t>(GetState()));
+		if (texture::Has(state_texture_key)) {
+			texture::Get(state_texture_key)->Draw(rect_);
+		} else {
+			auto default_texture_key = ts.at(static_cast<std::size_t>(ButtonState::DEFAULT));
 			assert(texture::Has(default_texture_key) && "Default button state texture must be valid");
 			texture::Get(default_texture_key)->Draw(rect_);
 		}
