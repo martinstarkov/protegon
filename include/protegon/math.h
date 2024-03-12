@@ -1,8 +1,9 @@
 #pragma once
 
 #include <algorithm> // std::max
-#include <cmath>     // std::sqrtf, std::fmod
+#include <cmath>     // std::sqrt, std::fmod
 #include <tuple>     // std::tuple
+#include <cstdint>
 
 #include "type_traits.h"
 
@@ -92,7 +93,7 @@ inline int ModFloor(int a, int n) {
 template <typename T>
 T FastFloor(T value) {
     if constexpr (std::is_floating_point_v<T>)
-        return static_cast<T>((std::int64_t)value - (value < (std::int64_t)value));
+        return static_cast<T>((int64_t)value - (value < (int64_t)value));
     return value;
 }
 
@@ -100,7 +101,7 @@ T FastFloor(T value) {
 template <typename T>
 T FastCeil(T value) {
     if constexpr (std::is_floating_point_v<T>)
-        return static_cast<T>((std::int64_t)value + (value > (std::int64_t)value));
+        return static_cast<T>((int64_t)value + (value > (int64_t)value));
     return value;
 }
 
@@ -140,8 +141,8 @@ std::tuple<bool, T, T> QuadraticFormula(T a, T b, T c) {
     }
     // Real roots.
     const T q = (b > 0.0f) ?
-        -0.5f * (b + std::sqrtf(disc)) :
-        -0.5f * (b - std::sqrtf(disc));
+        -0.5f * (b + std::sqrt(disc)) :
+        -0.5f * (b - std::sqrt(disc));
     // This may look weird but the algebra checks out here (I checked).
     return { true, q / a, c / q };
 }

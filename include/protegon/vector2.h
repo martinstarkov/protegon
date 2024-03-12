@@ -160,9 +160,9 @@ struct Vector2 {
         if constexpr (std::is_same_v<U, double>)
             return std::sqrt(MagnitudeSquared());
         else if constexpr (std::is_same_v<U, long double>)
-            return std::sqrtl(MagnitudeSquared());
+            return std::sqrt(MagnitudeSquared());
         else
-            return static_cast<U>(std::sqrtf(MagnitudeSquared()));
+            return static_cast<U>(std::sqrt(MagnitudeSquared()));
     }
 
     T MagnitudeSquared() const {
@@ -181,7 +181,7 @@ struct Vector2 {
         T m{ Dot(*this) };
         if (NearlyEqual(m, static_cast<T>(0)))
             return *this;
-        return *this / std::sqrtf(m);
+        return *this / std::sqrt(m);
     }
 
     // Returns a new vector rotated by the radian angle in the clockwise direction.

@@ -493,7 +493,7 @@ void DrawCapsule(int x1, int y1, int x2, int y2, int r, const Color& color, bool
 		DrawCircle(x1, y1, r, color);
 		return;
 	} else {
-		tangent_r = static_cast<V2_int>((dir.Skewed() / std::sqrtf(dir2) * r).FastFloor());
+		tangent_r = static_cast<V2_int>((dir.Skewed() / std::sqrt(dir2) * r).FastFloor());
 	}
 
 	if (color.a != 255)

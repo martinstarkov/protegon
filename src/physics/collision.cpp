@@ -213,7 +213,7 @@ bool CircleCircle(const Circle<float>& a,
     c.depth = r;
 
     if (dist2 > epsilon2<float>) {
-        const float dist{ std::sqrtf(dist2) };
+        const float dist{ std::sqrt(dist2) };
         assert(!NearlyEqual(dist, 0.0f));
         c.normal = -d / dist;
         c.depth = r - dist;
@@ -281,7 +281,7 @@ bool CircleRectangle(const Circle<float>& a,
                 c.normal = c.normal * (d.y < 0 ? 1.0f : -1.0f);
             }
         } else { // shallow (center of circle not inside of AABB)
-            const float d{ std::sqrtf(d2) };
+            const float d{ std::sqrt(d2) };
             assert(!NearlyEqual(d, 0.0f));
             c.normal = ab / d;
             c.depth = a.r - d;
@@ -332,7 +332,7 @@ bool SegmentSegment(const Segment<float>& a,
         return false;
 
     c.t = t;
-    c.normal = skewed / std::sqrtf(mag2);
+    c.normal = skewed / std::sqrt(mag2);
     return true;
 }
 
@@ -374,7 +374,7 @@ bool SegmentCircle(const Segment<float>& a,
         return false;
     }
 
-    c.normal = -impact / std::sqrtf(mag2);
+    c.normal = -impact / std::sqrt(mag2);
     
     return true;
 }
@@ -440,7 +440,7 @@ bool SegmentCapsule(const Segment<float>& a,
     if (NearlyEqual(mag2, 0.0f))
         return SegmentCircle(a, { b.segment.a, b.r }, c);
 
-    const float mag{ std::sqrtf(mag2) };
+    const float mag{ std::sqrt(mag2) };
     const V2_float cu{ cv / mag };
     const V2_float ncu{ cu.Skewed() };
 
