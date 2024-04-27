@@ -146,7 +146,6 @@ elseif(UNIX)
 
 endif()
 
-
 if (WIN32 OR APPLE)
   list(APPEND CMAKE_MODULE_PATH ${SDL2_DIR})
   list(APPEND CMAKE_MODULE_PATH ${SDL2_image_DIR})
@@ -221,16 +220,16 @@ if(MINGW AND NOT BUILD_SHARED_LIBS)
     SDL2_ttf::SDL2_ttf-static
     ${FREETYPE_LIB})
 else()
-target_link_libraries(protegon PRIVATE
-	SDL2::SDL2
-	SDL2_image::SDL2_image
-	SDL2_mixer::SDL2_mixer
-	SDL2_ttf::SDL2_ttf
-  ${FREETYPE_LIB})
+  target_link_libraries(protegon PRIVATE
+    SDL2::SDL2
+    SDL2_image::SDL2_image
+    SDL2_mixer::SDL2_mixer
+    SDL2_ttf::SDL2_ttf
+    ${FREETYPE_LIB})
 endif()
 
 if(MINGW)
-target_link_libraries(protegon PUBLIC shlwapi)
+  target_link_libraries(protegon PUBLIC shlwapi)
 endif()
 
 target_include_directories(protegon PUBLIC
