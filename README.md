@@ -1,37 +1,40 @@
 # protegon
 
-2D game engine built on top of SDL2, SDL2_ttf, SDL2_mixer, and SDL2_image. Requires C++17 or newer.
+2D game engine using SDL2, SDL2_ttf, SDL2_mixer, and SDL2_image.
 
-# Build Instructions using CMake
+# Prerequisites
 
-# Ninja
+This project requires C++17 or newer and [CMake 3.20+](https://cmake.org/download/).
+You will also need a build system and a C++ compiler (see CMake Build Instructions).
 
-`mkdir build`
-`cd build`
-`cmake .. -G Ninja`
-`ninja`
+# Adding to a CMake project
 
-# Other
+1. [Clone the repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) to a directory on your local machine (referred to as `<repository_directory>`). Alternatively, you can add it as a git submodule.
 
-Before starting the build, ensure that you have [CMake 3.20+](https://cmake.org/download/). You will also need a valid C++ compiler. Tested on Windows 10 MSVC 2022 and MacOS Xcode 14.3.1.
-
-1. [Clone the repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) to your local machine.
-2. Navigate into the cloned repository by typing `cd <replace_with_repository_directory>` into a terminal such as [Git Bash](https://git-scm.com/downloads).
-3. `mkdir build` to create a build directory.
-4. `cd build` to enter the created build directory.
-5. `cmake ..` to build with CMake (add `-DDEMOS=OFF` to build without demos) (add `-G Xcode` when using Xcode).
-6. All done! Open/access the generated project files in the build directory.
-
-# Adding to CMake project
-
-Clone this repository into a directory.
-
-Add the following lines in your `CMakeLists.txt` file after creating the target:
+2. Add the following lines in your `CMakeLists.txt` file after creating your target (referred to as `<target_name>`):
 
 ```cmake
 add_subdirectory(<repository_directory> binary_dir)
 add_protegon_to(<target_name>)
+create_resource_symlink(<target_name> "resources") // (optional for creating a symlink for the resources folder)
 ```
 
-- `<repository_directory>` directory where this repository resides (cloned or submodule).
-- `<target_name>` name of your desired cmake target.
+# CMake Build Instructions
+
+1. `cd <replace_with_repository_directory>` to navigate into the cloned repository.
+2. `mkdir build` to create a build directory.
+3. `cd build` to enter the created build directory.
+4. Depending on your build system, follow the appropriate next steps:
+
+# Microsoft Visual Studio
+
+5. `cmake .. -G "Visual Studio 17 2022"` to generate build files.
+6. Open the generated `<your_project_name>.sln` file.
+7. Set `<your_project_name>` as the startup project.
+8. Build and run.
+
+# Ninja
+
+5. `cmake .. -G Ninja` to generate build files.
+6. `ninja` to build the project.
+7. `./your_project_name.exe` to run your executable.
