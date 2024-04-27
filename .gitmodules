@@ -4,3 +4,6 @@
 [submodule "modules/json"]
 	path = modules/json
 	url = https://github.com/ArthurSonzogni/nlohmann_json_cmake_fetchcontent.git
+[submodule "cmake/sdl2"]
+	path = cmake/sdl2
+	url = https://github.com/martinstarkov/cmake-modern-findsdl2

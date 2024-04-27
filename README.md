@@ -38,3 +38,10 @@ create_resource_symlink(<target_name> "resources") // (optional for creating a s
 5. `cmake .. -G Ninja` to generate build files.
 6. `ninja` to build the project.
 7. `./your_project_name.exe` to run your executable.
+
+# Linux
+
+5. `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"` (Installs [Homebrew](https://brew.sh/) for Linux).
+6. (echo; echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"') >> /home/<your_username>/.bashrc
+7. eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+8. 

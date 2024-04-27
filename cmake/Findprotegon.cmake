@@ -12,6 +12,7 @@ set(PROTEGON_DIR         ${PROJECT_SOURCE_DIR} CACHE BOOL "" FORCE)
 set(EXTERNAL_DIR         ${PROTEGON_DIR}/external)
 set(PROTEGON_SRC_DIR     ${PROTEGON_DIR}/src)
 set(PROTEGON_INCLUDE_DIR ${PROTEGON_DIR}/include)
+set(SCRIPT_DIR           ${PROTEGON_DIR}/scripts)
 set(MODULES_DIR          ${PROTEGON_DIR}/modules)
 set(ECS_INCLUDE_DIR      ${MODULES_DIR}/ecs/include)
 set(JSON_INCLUDE_DIR     ${MODULES_DIR}/json/single_include)
@@ -98,6 +99,10 @@ endif()
 
 set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
 
+if(NOT EXISTS "/usr/local/bin/brew")  # Check for brew executable
+  message(WARNING "Homebrew not found. Some functionalities might be limited.")
+endif()
+
 if (WIN32)
   if (MSVC AND NOT BUILD_SHARED_LIBS) # Static MSVC
 
@@ -141,26 +146,81 @@ elseif(APPLE)
   set(SDL2_mixer_DIR ${SDL_LOCATION}/SDL2_mixer.framework/Resources/CMake CACHE BOOL "" FORCE)
 
 elseif(UNIX)
+  #execute_process(COMMAND wget https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/libsdl2/2.30.0+dfsg-1build3/libsdl2_2.30.0+dfsg.orig.tar.gz)
+  #execute_process(COMMAND tar xzf libsdl2_2.30.0+dfsg.orig.tar.gz)
+  #execute_process(COMMAND ./configure)
+  #execute_process(COMMAND make)
+  #execute_process(COMMAND sudo make install)
+  #execute_process(COMMAND)
+  #execute_process(COMMAND wget http://launchpadlibrarian.net/723552711/libsdl2-dev_2.30.0+dfsg-1build3_amd64.deb)
+  #execute_process(COMMAND sudo dpkg -i libsdl2-dev_2.30.0+dfsg-1build3_amd64.deb)
+  #execute_process(COMMAND sudo apt-get reinstall libsdl2-2.0-0 libsdl2-image-2.0-0 libsdl2-ttf-2.0-0 libsdl2-mixer-2.0-0)
+  #execute_process(COMMAND brew install sdl2@${SDL2_VERSION})
+  #execute_process(COMMAND brew install sdl2_image@${SDL2_IMAGE_VERSION})
+  #execute_process(COMMAND brew install sdl2_ttf@${SDL2_TTF_VERSION})
+  #execute_process(COMMAND brew install sdl2_mixer@${SDL2_MIXER_VERSION})
+	
+  #execute_process(COMMAND curl https://raw.githubusercontent.com/Homebrew/homebrew-core/5f2b3ba5bb5c4bef36c1e4be278f43601394b729/Formula/s/sdl2.rb)
+  #execute_process(COMMAND brew extract --version=${SDL2_VERSION} sdl2 homebrew/cask)
+  #execute_process(COMMAND curl -o sdl2.rb )
+  
+function(install_with_homebrew library output_variable path)
 
-  execute_process(COMMAND sudo apt-get install libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-mixer-dev)
+execute_process(
+  COMMAND ${SCRIPT_DIR}/check_brew_package.sh "${library}"
+  OUTPUT_VARIABLE brew_package_status
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  RESULT_VARIABLE brew_package_result
+)
 
-endif()
-
-if (WIN32 OR APPLE)
-  list(APPEND CMAKE_MODULE_PATH ${SDL2_DIR})
-  list(APPEND CMAKE_MODULE_PATH ${SDL2_image_DIR})
-  list(APPEND CMAKE_MODULE_PATH ${SDL2_ttf_DIR})
-  list(APPEND CMAKE_MODULE_PATH ${SDL2_mixer_DIR})
-endif()
-    
-if(NOT APPLE)
-
-  find_package(SDL2       REQUIRED)
-  find_package(SDL2_image REQUIRED)
-  find_package(SDL2_ttf   REQUIRED)
-  find_package(SDL2_mixer REQUIRED)
-
+if(brew_package_result EQUAL 0)
+  message(STATUS "Package '${library}' found in Homebrew.")
 else()
+  message(WARNING "Package '${library}' not found in Homebrew. Some functionalities might be limited.")
+endif()
+
+  #execute_process(COMMAND brew unlink ${library})
+  #execute_process(COMMAND wget ${path})
+  #execute_process(COMMAND brew install "${library}.rb")
+  #execute_process(COMMAND brew link ${library} --force)
+  execute_process(COMMAND brew info sdl2)
+  execute_process(COMMAND brew --prefix "${library}" OUTPUT_VARIABLE location_prefix)
+  set(${output_variable} "${location_prefix}" PARENT_SCOPE)
+  message("${location_prefix}")
+
+
+endfunction()  
+
+
+
+
+
+  install_with_homebrew(sdl2 SDL2_LOCATION https://raw.githubusercontent.com/Homebrew/homebrew-core/5f2b3ba5bb5c4bef36c1e4be278f43601394b729/Formula/s/sdl2.rb)
+  install_with_homebrew(sdl2_image SDL2_IMAGE_LOCATION https://github.com/Homebrew/homebrew-core/raw/6c917a52f9fc1de0dfe5eb962da23288b478423d/Formula/s/sdl2_image.rb)
+  install_with_homebrew(sdl2_ttf SDL2_TTF_LOCATION https://github.com/Homebrew/homebrew-core/raw/254685622723c6603b528e1456b7827e4390a860/Formula/s/sdl2_ttf.rb)
+  install_with_homebrew(sdl2_mixer SDL2_MIXER_LOCATION https://github.com/Homebrew/homebrew-core/raw/6f7a42bf1a9375d1a2786d90476b32ce366f232d/Formula/s/sdl2_mixer.rb)
+  
+  set(SDL2_DIR       ${SDL2_LOCATION}/lib/cmake       CACHE BOOL "" FORCE)
+  set(SDL2_image_DIR ${SDL2_IMAGE_LOCATION}/lib/cmake CACHE BOOL "" FORCE)
+  set(SDL2_ttf_DIR   ${SDL2_TTF_LOCATION}/lib/cmake   CACHE BOOL "" FORCE)
+  set(SDL2_mixer_DIR ${SDL2_MIXER_LOCATION}/lib/cmake CACHE BOOL "" FORCE)
+  
+  message("${SDL2_DIR}")
+  message("${SDL2_image_DIR}")
+  message("${SDL2_ttf_DIR}")
+  message("${SDL2_mixer_DIR}")
+  #execute_process(COMMAND brew --prefix sdl2_image OUTPUT_VARIABLE SDL2_IMAGE_LOCATION)
+  #execute_process(COMMAND brew --prefix sdl2_ttf OUTPUT_VARIABLE SDL2_TTF_LOCATION)
+  #execute_process(COMMAND brew --prefix sdl2_mixer OUTPUT_VARIABLE SDL2_MIXER_LOCATION)
+
+endif()
+
+list(APPEND CMAKE_MODULE_PATH ${SDL2_DIR})
+list(APPEND CMAKE_MODULE_PATH ${SDL2_image_DIR})
+list(APPEND CMAKE_MODULE_PATH ${SDL2_ttf_DIR})
+list(APPEND CMAKE_MODULE_PATH ${SDL2_mixer_DIR})
+
+if(APPLE)
 
   set(CMAKE_SKIP_BUILD_RPATH FALSE)
   set(CMAKE_BUILD_WITH_INSTALL_RPATH YES)
@@ -171,6 +231,14 @@ else()
   find_package(SDL2_image REQUIRED NAMES SDL2_image PATHS ${SDL_LOCATION}/SDL2_image.framework/Versions/A/ NO_DEFAULT_PATH)
   find_package(SDL2_ttf   REQUIRED NAMES SDL2_ttf   PATHS ${SDL_LOCATION}/SDL2_ttf.framework/Versions/A/   NO_DEFAULT_PATH)
   find_package(SDL2_mixer REQUIRED NAMES SDL2_mixer PATHS ${SDL_LOCATION}/SDL2_mixer.framework/Versions/A/ NO_DEFAULT_PATH)
+  
+else() #if(WIN32)
+
+  message("HELLO")
+  find_package(SDL2       REQUIRED)
+  find_package(SDL2_image REQUIRED)
+  find_package(SDL2_ttf   REQUIRED)
+  find_package(SDL2_mixer REQUIRED)
 
 endif()
 
@@ -333,7 +401,7 @@ function(create_resource_symlink TARGET DIR_NAME)
     file(TO_NATIVE_PATH ${EXE_DEST_DIR} _exe_dir)
     # This is for distributing the binaries
     add_custom_command(TARGET ${TARGET}
-      COMMAND ${PROTEGON_DIR}/scripts/create_link.sh
+      COMMAND ${SCRIPT_DIR}/create_link.sh
       ARGS "${_exe_dir}" "${_src_dir}")
   endif()
 	if (NOT EXISTS ${DESTINATION_DIRECTORY})

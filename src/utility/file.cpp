@@ -20,6 +20,7 @@
     #include <limits.h>
     #include <libgen.h>
     #include <unistd.h>
+    #include <cstring>
 
     #if defined(__sun)
         #define PROC_SELF_EXE "/proc/self/path/a.out"
