@@ -16,6 +16,7 @@ set(MODULES_DIR          ${PROTEGON_DIR}/modules CACHE BOOL "" FORCE)
 set(ECS_INCLUDE_DIR      ${MODULES_DIR}/ecs/include CACHE BOOL "" FORCE)
 set(JSON_INCLUDE_DIR     ${MODULES_DIR}/json/single_include CACHE BOOL "" FORCE)
 
+# Not enforced on Linux (instead using brew latest version)
 set(SDL2_VERSION       2.30.0)
 set(SDL2_IMAGE_VERSION 2.8.2)
 set(SDL2_MIXER_VERSION 2.8.0)
@@ -97,17 +98,19 @@ endif()
 
 set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
 
-if(UNIX AND NOT EXISTS "/usr/local/bin/brew")  # Check for brew executable
+if(UNIX AND NOT APPLE) # Check for brew executable
   execute_process(
   COMMAND sh ${SCRIPT_DIR}/check_brew.sh
   OUTPUT_VARIABLE brew_installed
   OUTPUT_STRIP_TRAILING_WHITESPACE
   RESULT_VARIABLE brew_installed_result
   )
-  if(brew_installed_result EQUAL 0)
+  if(brew_installed_result EQUAL 1)
     message(STATUS "Homebrew found.")
+    set(ENV{HOMEBREW_NO_INSTALL_CLEANUP} TRUE)
+    set(ENV{HOMEBREW_NO_ENV_HINTS} TRUE)
   else()
-    message(ERROR "Homebrew not found.")
+    message(FATAL_ERROR "Homebrew not found.")
   endif()
 endif()
 
@@ -164,59 +167,44 @@ elseif(APPLE)
   set(SDL2_ttf_DIR   ${OUTPUT_DIR}/SDL2_ttf.framework/Resources/CMake   CACHE BOOL "" FORCE)
   set(SDL2_mixer_DIR ${OUTPUT_DIR}/SDL2_mixer.framework/Resources/CMake CACHE BOOL "" FORCE)
 
-elseif(UNIX)
-  #execute_process(COMMAND wget https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/libsdl2/2.30.0+dfsg-1build3/libsdl2_2.30.0+dfsg.orig.tar.gz)
-  #execute_process(COMMAND tar xzf libsdl2_2.30.0+dfsg.orig.tar.gz)
-  #execute_process(COMMAND ./configure)
-  #execute_process(COMMAND make)
-  #execute_process(COMMAND sudo make install)
-  #execute_process(COMMAND)
-  #execute_process(COMMAND wget http://launchpadlibrarian.net/723552711/libsdl2-dev_2.30.0+dfsg-1build3_amd64.deb)
-  #execute_process(COMMAND sudo dpkg -i libsdl2-dev_2.30.0+dfsg-1build3_amd64.deb)
-  #execute_process(COMMAND sudo apt-get reinstall libsdl2-2.0-0 libsdl2-image-2.0-0 libsdl2-ttf-2.0-0 libsdl2-mixer-2.0-0)
-  #execute_process(COMMAND brew install sdl2@${SDL2_VERSION})
-  #execute_process(COMMAND brew install sdl2_image@${SDL2_IMAGE_VERSION})
-  #execute_process(COMMAND brew install sdl2_ttf@${SDL2_TTF_VERSION})
-  #execute_process(COMMAND brew install sdl2_mixer@${SDL2_MIXER_VERSION})
-	
-  #execute_process(COMMAND curl https://raw.githubusercontent.com/Homebrew/homebrew-core/5f2b3ba5bb5c4bef36c1e4be278f43601394b729/Formula/s/sdl2.rb)
-  #execute_process(COMMAND brew extract --version=${SDL2_VERSION} sdl2 homebrew/cask)
-  #execute_process(COMMAND curl -o sdl2.rb )
+elseif(UNIX AND NOT APPLE)
   
-function(install_with_homebrew library output_variable path)
+function(install_with_homebrew library archive_name output_variable library_path)
 
-execute_process(
-  COMMAND sh ${SCRIPT_DIR}/check_brew_package.sh ${library}
-  OUTPUT_VARIABLE brew_package_status
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-  RESULT_VARIABLE brew_package_result)
+  execute_process(
+    COMMAND sh ${SCRIPT_DIR}/check_brew_package.sh ${library}
+    OUTPUT_VARIABLE brew_package_status
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE brew_package_result)
 
-if(brew_package_result EQUAL 0)
-  message(STATUS "Package '${library}' found in Homebrew.")
-else()
-  message(WARNING "Package '${library}' not found in Homebrew. Some functionalities might be limited.")
-endif()
+  if(brew_package_result EQUAL 1)
+    message(STATUS "Package '${library}' found in Homebrew.")
+  else()
+    message(STATUS "Package '${library}' not found in Homebrew. Installing...")
+    execute_process(COMMAND brew install ${library})
+    # DOWNLOAD OLDER VERSION OF BREW LIBRARY
+    # set(OUTPUT_DIR ${EXTERNAL_DIR}/sdl2-linux/${archive_name})
+    # execute_process(COMMAND brew unlink ${library})
+    # execute_process(COMMAND wget ${library_path} -P ${OUTPUT_DIR})
+    # execute_process(COMMAND brew install --HEAD -s ${OUTPUT_DIR}/${library}.rb
+    #                 WORKING_DIRECTORY ${OUTPUT_DIR})
+  endif()
 
-  #execute_process(COMMAND brew info sdl2)
-  #execute_process(COMMAND brew --prefix "${library}" OUTPUT_VARIABLE location_prefix)
-  #set(${output_variable} "${location_prefix}" PARENT_SCOPE)
+  execute_process(COMMAND brew --prefix "${library}" OUTPUT_VARIABLE location_prefix)
+  set(${output_variable} "${location_prefix}" PARENT_SCOPE)
 
 endfunction()  
 
-  install_with_homebrew(sdl2 SDL2_LOCATION https://raw.githubusercontent.com/Homebrew/homebrew-core/5f2b3ba5bb5c4bef36c1e4be278f43601394b729/Formula/s/sdl2.rb)
-  install_with_homebrew(sdl2_image SDL2_IMAGE_LOCATION https://github.com/Homebrew/homebrew-core/raw/6c917a52f9fc1de0dfe5eb962da23288b478423d/Formula/s/sdl2_image.rb)
-  install_with_homebrew(sdl2_ttf SDL2_TTF_LOCATION https://github.com/Homebrew/homebrew-core/raw/254685622723c6603b528e1456b7827e4390a860/Formula/s/sdl2_ttf.rb)
-  install_with_homebrew(sdl2_mixer SDL2_MIXER_LOCATION https://github.com/Homebrew/homebrew-core/raw/6f7a42bf1a9375d1a2786d90476b32ce366f232d/Formula/s/sdl2_mixer.rb)
+  install_with_homebrew(sdl2 SDL2-${SDL2_VERSION} SDL2_LOCATION https://raw.githubusercontent.com/Homebrew/homebrew-core/5f2b3ba5bb5c4bef36c1e4be278f43601394b729/Formula/s/sdl2.rb)
+  install_with_homebrew(sdl2_image SDL2_image-${SDL2_IMAGE_VERSION} SDL2_IMAGE_LOCATION https://github.com/Homebrew/homebrew-core/raw/6c917a52f9fc1de0dfe5eb962da23288b478423d/Formula/s/sdl2_image.rb)
+  install_with_homebrew(sdl2_ttf SDL2_ttf-${SDL2_TTF_VERSION} SDL2_TTF_LOCATION https://github.com/Homebrew/homebrew-core/raw/254685622723c6603b528e1456b7827e4390a860/Formula/s/sdl2_ttf.rb)
+  install_with_homebrew(sdl2_mixer SDL2_mixer-${SDL2_MIXER_VERSION} SDL2_MIXER_LOCATION https://github.com/Homebrew/homebrew-core/raw/6f7a42bf1a9375d1a2786d90476b32ce366f232d/Formula/s/sdl2_mixer.rb)
   
   set(SDL2_DIR       ${SDL2_LOCATION}/lib/cmake       CACHE BOOL "" FORCE)
   set(SDL2_image_DIR ${SDL2_IMAGE_LOCATION}/lib/cmake CACHE BOOL "" FORCE)
   set(SDL2_ttf_DIR   ${SDL2_TTF_LOCATION}/lib/cmake   CACHE BOOL "" FORCE)
   set(SDL2_mixer_DIR ${SDL2_MIXER_LOCATION}/lib/cmake CACHE BOOL "" FORCE)
-  
-  message("${SDL2_DIR}")
-  message("${SDL2_image_DIR}")
-  message("${SDL2_ttf_DIR}")
-  message("${SDL2_mixer_DIR}")
+
 endif()
 
 list(APPEND CMAKE_MODULE_PATH ${SDL2_DIR})
@@ -341,7 +329,7 @@ endif()
 
 function(add_protegon_to TARGET)
   target_link_libraries(${TARGET} PRIVATE protegon)
-  if(MACOSX)
+  if(APPLE)
     set_target_properties(${TARGET} PROPERTIES
       XCODE_GENERATE_SCHEME TRUE
       XCODE_SCHEME_WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
@@ -412,10 +400,10 @@ function(create_resource_symlink TARGET DIR_NAME)
       file(TO_NATIVE_PATH ${DESTINATION_DIRECTORY} _dst_dir)
       # This is for MSVC IDE
       execute_process(COMMAND cmd.exe /c mklink /J ${_dst_dir} ${_src_dir})
-		elseif(MACOSX)
+		elseif(APPLE)
 			#message(STATUS "Creating Symlink from ${SOURCE_DIRECTORY} to ${DESTINATION_DIRECTORY}")
 			execute_process(COMMAND ln -s ${SOURCE_DIRECTORY} ${DESTINATION_DIRECTORY})
-		elseif(UNIX)
+		elseif(UNIX AND NOT APPLE)
 			execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${SOURCE_DIRECTORY} ${DESTINATION_DIRECTORY})
 		endif()
 	endif()

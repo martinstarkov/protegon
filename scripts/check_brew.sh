@@ -1,8 +1,7 @@
 #!/bin/bash
 
-which -s brew
-if [[ $? != 0 ]]; then
-  exit 0 # Brew not found
+if brew --version > /dev/null; then
+  exit 1 # Homebrew found.
 else
-  exit 1 # Brew found
+  exit 0 # Homebrew not found.
 fi
