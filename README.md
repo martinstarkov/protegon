@@ -50,6 +50,6 @@ create_resource_symlink(<target_name> "resources") // (optional for creating a s
 
 # Linux
 
-8. `cmake .. -G XCode` to generate build files.
+8. `cmake .. -G Xcode` to generate build files.
 9. `make` to build the project.
 10. `./your_project_name.exe` to run your executable.

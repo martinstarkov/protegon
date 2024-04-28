@@ -30,7 +30,8 @@ void Music::Play(int loops) const {
 
 void Music::FadeIn(int loops, milliseconds time) const {
 	assert(IsValid() && "Cannot fade in nonexistent music");
-	Mix_FadeInMusic(music_.get(), loops, time.count());
+    auto time_int = std::chrono::duration_cast<std::chrono::duration<int, std::milli>>(time);
+	Mix_FadeInMusic(music_.get(), loops, time_int.count());
 }
 
 Sound::Sound(const char* sound_path) {
@@ -50,7 +51,8 @@ void Sound::Play(int channel, int loops) const {
 
 void Sound::FadeIn(int channel, int loops, milliseconds time) const {
 	assert(IsValid() && "Cannot fade in nonexistent sound");
-	Mix_FadeInChannel(channel, chunk_.get(), loops, time.count());
+    auto time_int = std::chrono::duration_cast<std::chrono::duration<int, std::milli>>(time);
+	Mix_FadeInChannel(channel, chunk_.get(), loops, time_int.count());
 }
 
 bool Sound::IsValid() const {

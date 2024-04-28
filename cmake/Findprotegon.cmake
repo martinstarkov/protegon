@@ -57,9 +57,8 @@ function(download_and_extract dir exists_dir url archive_name plain_name downloa
     elseif("${lower_extension}" STREQUAL ".dmg" AND NOT plain_name STREQUAL "")
       message(STATUS "Extracting ${archive_name}...")
       execute_process(COMMAND hdiutil attach ${zip_location} -quiet
-                      COMMAND cp -r /Volumes/${plain_name}/${archive_name} ${dir}
-                      COMMAND hdiutil detach /Volumes/${plain_name} -quiet 
-                      WORKING_DIRECTORY ${PROTEGON_DIR})
+                      COMMAND cp -r /Volumes/${plain_name}/${archive_name} ${dir}/${archive_name}
+                      COMMAND hdiutil detach /Volumes/${plain_name} -quiet)
     endif()
     file(REMOVE ${zip_location})
     message(STATUS "Successfully downloaded and extracted ${archive_name}")
@@ -159,13 +158,13 @@ elseif(APPLE)
 
   download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR}/SDL2.framework ${SDL2_URL} SDL2.framework SDL2 DOWNLOADED)
   download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR}/SDL2_image.framework ${SDL2_IMAGE_URL} SDL2_image.framework SDL2_image DOWNLOADED)
-  download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR}/SDL2_ttf.framework ${SDL2_MIXER_URL} SDL2_ttf.framework SDL2_mixer DOWNLOADED)
-  download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR}/SDL2_mixer.framework ${SDL2_TTF_URL} SDL2_mixer.framework SDL2_ttf DOWNLOADED)
+  download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR}/SDL2_ttf.framework ${SDL2_MIXER_URL} SDL2_ttf.framework SDL2_ttf DOWNLOADED)
+  download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR}/SDL2_mixer.framework ${SDL2_TTF_URL} SDL2_mixer.framework SDL2_mixer DOWNLOADED)
 
-  set(SDL2_DIR       ${OUTPUT_DIR}/SDL2.framework/Resources/CMake       CACHE BOOL "" FORCE)
-  set(SDL2_image_DIR ${OUTPUT_DIR}/SDL2_image.framework/Resources/CMake CACHE BOOL "" FORCE)
-  set(SDL2_ttf_DIR   ${OUTPUT_DIR}/SDL2_ttf.framework/Resources/CMake   CACHE BOOL "" FORCE)
-  set(SDL2_mixer_DIR ${OUTPUT_DIR}/SDL2_mixer.framework/Resources/CMake CACHE BOOL "" FORCE)
+  set(SDL2_DIR       ${OUTPUT_DIR}/SDL2.framework/Versions/A/Resources/CMake       CACHE BOOL "" FORCE)
+  set(SDL2_image_DIR ${OUTPUT_DIR}/SDL2_image.framework/Versions/A/Resources/CMake CACHE BOOL "" FORCE)
+  set(SDL2_ttf_DIR   ${OUTPUT_DIR}/SDL2_ttf.framework/Versions/A/Resources/CMake   CACHE BOOL "" FORCE)
+  set(SDL2_mixer_DIR ${OUTPUT_DIR}/SDL2_mixer.framework/Versions/A/Resources/CMake CACHE BOOL "" FORCE)
 
 elseif(UNIX AND NOT APPLE)
   
@@ -212,26 +211,12 @@ list(APPEND CMAKE_MODULE_PATH ${SDL2_image_DIR})
 list(APPEND CMAKE_MODULE_PATH ${SDL2_ttf_DIR})
 list(APPEND CMAKE_MODULE_PATH ${SDL2_mixer_DIR})
 
-if(APPLE)
-
-  set(CMAKE_SKIP_BUILD_RPATH FALSE)
-  set(CMAKE_BUILD_WITH_INSTALL_RPATH YES)
-  set(CMAKE_INSTALL_RPATH ${EXTERNAL_DIR})
-  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
-  find_package(SDL2       REQUIRED NAMES SDL2       PATHS ${OUTPUT_DIR}/SDL2.framework/Versions/A/       NO_DEFAULT_PATH)
-  find_package(SDL2_image REQUIRED NAMES SDL2_image PATHS ${OUTPUT_DIR}/SDL2_image.framework/Versions/A/ NO_DEFAULT_PATH)
-  find_package(SDL2_ttf   REQUIRED NAMES SDL2_ttf   PATHS ${OUTPUT_DIR}/SDL2_ttf.framework/Versions/A/   NO_DEFAULT_PATH)
-  find_package(SDL2_mixer REQUIRED NAMES SDL2_mixer PATHS ${OUTPUT_DIR}/SDL2_mixer.framework/Versions/A/ NO_DEFAULT_PATH)
-  
-else()
 
   find_package(SDL2       REQUIRED)
   find_package(SDL2_image REQUIRED)
   find_package(SDL2_ttf   REQUIRED)
   find_package(SDL2_mixer REQUIRED)
 
-endif()
 
 set(CMAKE_WARN_DEPRECATED ON CACHE BOOL "" FORCE)
 
@@ -387,13 +372,16 @@ function(create_resource_symlink TARGET DIR_NAME)
 	set(SOURCE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${DIR_NAME})
 	set(DESTINATION_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${DIR_NAME})
   file(TO_NATIVE_PATH ${SOURCE_DIRECTORY} _src_dir)
-  if (MSVC)
-	  set(EXE_DEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/${DIR_NAME})
+  if (MSVC OR XCODE)
+    set(EXE_DEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/${DIR_NAME})
     file(TO_NATIVE_PATH ${EXE_DEST_DIR} _exe_dir)
-    # This is for distributing the binaries
-    add_custom_command(TARGET ${TARGET}
-      COMMAND ${SCRIPT_DIR}/create_link.sh
-      ARGS "${_exe_dir}" "${_src_dir}")
+    if (MSVC)
+      add_custom_command(TARGET ${TARGET} COMMAND ${SCRIPT_DIR}/create_link_win.sh "${_exe_dir}" "${_src_dir}")
+    elseif(XCODE)
+      add_custom_command(TARGET ${TARGET} COMMAND ln -sf ${SOURCE_DIRECTORY} ${EXE_DEST_DIR})
+    endif()
+      # This is for distributing the binaries
+      #add_custom_command(TARGET ${TARGET} COMMAND ${SYMLINK_COMMAND})
   endif()
 	if (NOT EXISTS ${DESTINATION_DIRECTORY})
 		if (WIN32)

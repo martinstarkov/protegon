@@ -53,7 +53,8 @@ void Stop() {
 }
 
 void FadeOut(milliseconds time) {
-	Mix_FadeOutMusic(time.count());
+    auto time_int = std::chrono::duration_cast<std::chrono::duration<int, std::milli>>(time);
+	Mix_FadeOutMusic(time_int.count());
 }
 
 void Pause() {
