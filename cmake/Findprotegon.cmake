@@ -9,9 +9,6 @@ if (WIN32)
   option(ENABLE_CONSOLE "Enable console executable" OFF)
 endif()
 
-set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
-set(LINUX UNIX AND NOT APPLE)
-
 # Protegon variables
 
 set(PROTEGON_DIR         ${PROJECT_SOURCE_DIR}              CACHE BOOL "" FORCE)
@@ -94,7 +91,53 @@ function(install_with_homebrew library archive_name library_location library_pat
 
   execute_process(COMMAND brew --prefix "${library}" OUTPUT_VARIABLE location_prefix)
   set(${library_location} "${location_prefix}" PARENT_SCOPE)
-endfunction()  
+endfunction()
+
+function(add_protegon_to TARGET)
+  target_link_libraries(${TARGET} PRIVATE protegon)
+  if(APPLE)
+    set_target_properties(${TARGET} PROPERTIES
+      XCODE_GENERATE_SCHEME TRUE
+      XCODE_SCHEME_WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  endif()
+  # Commands for copying dlls to executable directory on Windows.
+  if(WIN32 AND SHARED_SDL2_LIBS)
+    get_property(DLLS GLOBAL PROPERTY PROTEGON_DLLS)
+    add_custom_command(TARGET ${TARGET} POST_BUILD COMMAND ${CMAKE_COMMAND}
+                        -E copy_if_different ${DLLS} $<TARGET_FILE_DIR:${TARGET}>
+                        COMMAND_EXPAND_LISTS)
+    mark_as_advanced(DLLS)
+  endif()
+endfunction()
+
+function(create_resource_symlink TARGET DIR_NAME)
+	set(SOURCE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${DIR_NAME})
+	set(DESTINATION_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${DIR_NAME})
+  file(TO_NATIVE_PATH ${SOURCE_DIRECTORY} _src_dir)
+  if (MSVC OR XCODE)
+    set(EXE_DEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/${DIR_NAME})
+    file(TO_NATIVE_PATH ${EXE_DEST_DIR} _exe_dir)
+    if (MSVC)
+      add_custom_command(TARGET ${TARGET} COMMAND ${SCRIPT_DIR}/create_link_win.sh "${_exe_dir}" "${_src_dir}")
+    elseif(XCODE)
+      add_custom_command(TARGET ${TARGET} COMMAND ln -sf ${SOURCE_DIRECTORY} ${EXE_DEST_DIR})
+    endif()
+      # This is for distributing the binaries
+      #add_custom_command(TARGET ${TARGET} COMMAND ${SYMLINK_COMMAND})
+  endif()
+	if (NOT EXISTS ${DESTINATION_DIRECTORY})
+		if (WIN32)
+      file(TO_NATIVE_PATH ${DESTINATION_DIRECTORY} _dst_dir)
+      # This is for MSVC IDE
+      execute_process(COMMAND cmd.exe /c mklink /J ${_dst_dir} ${_src_dir})
+		elseif(APPLE)
+			#message(STATUS "Creating Symlink from ${SOURCE_DIRECTORY} to ${DESTINATION_DIRECTORY}")
+			execute_process(COMMAND ln -s ${SOURCE_DIRECTORY} ${DESTINATION_DIRECTORY})
+		elseif(UNIX AND NOT APPLE)
+			execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${SOURCE_DIRECTORY} ${DESTINATION_DIRECTORY})
+		endif()
+	endif()
+endfunction()
 
 if (WIN32 AND (MSVC OR MINGW))
   if (MSVC)
@@ -167,20 +210,18 @@ elseif(APPLE)
   set(SDL2_ttf_DIR   ${OUTPUT_DIR}/SDL2_ttf.framework/Versions/A/Resources/CMake   CACHE BOOL "" FORCE)
   set(SDL2_mixer_DIR ${OUTPUT_DIR}/SDL2_mixer.framework/Versions/A/Resources/CMake CACHE BOOL "" FORCE)
 
-elseif(LINUX)
+elseif(UNIX AND NOT APPLE)
   
-  execute_process(
-  COMMAND sh ${SCRIPT_DIR}/check_brew.sh
-  OUTPUT_VARIABLE brew_installed
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-  RESULT_VARIABLE brew_installed_result
-  )
+  execute_process(COMMAND sh ${SCRIPT_DIR}/check_brew.sh
+                  OUTPUT_VARIABLE brew_installed
+                  OUTPUT_STRIP_TRAILING_WHITESPACE
+                  RESULT_VARIABLE brew_installed_result)
   if(brew_installed_result EQUAL 1)
     message(STATUS "Homebrew found.")
     set(ENV{HOMEBREW_NO_INSTALL_CLEANUP} TRUE)
     set(ENV{HOMEBREW_NO_ENV_HINTS} TRUE)
   else()
-    message(FATAL_ERROR "Homebrew not found.")
+    message(FATAL_ERROR "Homebrew not found. Please install it before continuing.")
   endif()
 
   install_with_homebrew(sdl2       SDL2-${SDL2_VERSION}             SDL2_LOCATION       https://raw.githubusercontent.com/Homebrew/homebrew-core/5f2b3ba5bb5c4bef36c1e4be278f43601394b729/Formula/s/sdl2.rb)
@@ -200,66 +241,61 @@ list(APPEND CMAKE_MODULE_PATH ${SDL2_image_DIR})
 list(APPEND CMAKE_MODULE_PATH ${SDL2_ttf_DIR})
 list(APPEND CMAKE_MODULE_PATH ${SDL2_mixer_DIR})
 
+find_package(SDL2       REQUIRED)
+find_package(SDL2_image REQUIRED)
+find_package(SDL2_ttf   REQUIRED)
+find_package(SDL2_mixer REQUIRED)
 
-  find_package(SDL2       REQUIRED)
-  find_package(SDL2_image REQUIRED)
-  find_package(SDL2_ttf   REQUIRED)
-  find_package(SDL2_mixer REQUIRED)
+set(STATIC_POSTFIX $<IF:$<AND:$<BOOL:${MSVC}>,$<NOT:$<BOOL:${SHARED_SDL2_LIBS}>>>,-static,>)
+set(SDL_TARGETS SDL2::SDL2${STATIC_POSTFIX}
+                SDL2_image::SDL2_image${STATIC_POSTFIX}
+                SDL2_ttf::SDL2_ttf${STATIC_POSTFIX}
+                SDL2_mixer::SDL2_mixer${STATIC_POSTFIX})
 
+function(get_target_file_paths TARGETS OUTPUT_VAR)
+set(TARGET_FILE_PATHS)
+foreach(TARGET IN LISTS ${TARGETS})
+list(APPEND TARGET_FILE_PATHS $<TARGET_FILE:${TARGET}>)
+endforeach(TARGET)
+set(${OUTPUT_VAR} ${TARGET_FILE_PATHS} PARENT_SCOPE)
+endfunction(get_target_file_paths)
 
-set(CMAKE_WARN_DEPRECATED ON CACHE BOOL "" FORCE)
-
+# Combine freetype lib into protegon lib.
 set(FREETYPE_LIB "")
-
-set(SDL_TARGET_FILES "$<TARGET_FILE:SDL2::SDL2>"
-                     "$<TARGET_FILE:SDL2_image::SDL2_image>"
-                     "$<TARGET_FILE:SDL2_ttf::SDL2_ttf>"
-                     "$<TARGET_FILE:SDL2_mixer::SDL2_mixer>")
-
 if(NOT SHARED_SDL2_LIBS)
   if(MSVC)
     set(FREETYPE_LIB "${OUTPUT_DIR}/SDL2_ttf-${SDL2_TTF_VERSION}/lib/${CMAKE_LIBRARY_ARCHITECTURE}/freetype.lib")
+    get_target_file_paths(SDL_TARGETS SDL_TARGET_FILES)
     list(APPEND SDL_TARGET_FILES ${FREETYPE_LIB})
     add_custom_command(TARGET protegon POST_BUILD
-      COMMAND ${CMAKE_AR} /NOLOGO /OUT:"$<TARGET_FILE:protegon>"
-      "$<TARGET_FILE:protegon>" ${TARGET_FILES} COMMAND_EXPAND_LISTS)
+                       COMMAND ${CMAKE_AR} /NOLOGO /OUT:"$<TARGET_FILE:protegon>" "$<TARGET_FILE:protegon>" "${SDL_TARGET_FILES}"
+                       COMMAND_EXPAND_LISTS)
   elseif(CMAKE_CXX_COMPILER_ID MATCHES "^(Clang|GNU)$") # TODO: Check if works with Clang "^(Clang|GNU)$")
-    list(APPEND SDL_TARGET_FILES freetype)
     if (MINGW)
     	target_link_options(protegon PUBLIC "-static")
     endif()
-    add_custom_command(
-      TARGET protegon
-      POST_BUILD
-      COMMAND ${CMAKE_AR}
-      VERBATIM
-      r
-      "$<TARGET_FILE:protegon>"
-      ${TARGET_FILES}
-      COMMAND_EXPAND_LISTS)
+    set(FREETYPE_LIB freetype)
+    get_target_file_paths(SDL_TARGETS SDL_TARGET_FILES)
+    if (UNIX AND NOT APPLE)
+
+    else()
+      list(APPEND SDL_TARGET_FILES ${FREETYPE_LIB})
+    endif()
+    add_custom_command(TARGET protegon POST_BUILD
+                       COMMAND ${CMAKE_AR}
+                       VERBATIM r "$<TARGET_FILE:protegon>" "${SDL_TARGET_FILES}"
+                       COMMAND_EXPAND_LISTS)
   endif()
 endif()
+
+#file(GENERATE OUTPUT protegon_log_output_file CONTENT "Message: ${SDL_TARGETS}")
 
 if(NOT SHARED_SDL2_LIBS AND MSVC)
   # target_link_libraries(SDL2 PRIVATE "-nodefaultlib:MSVCRT")
   target_link_options(protegon PUBLIC $<IF:$<CONFIG:Debug>,/NODEFAULTLIB:MSVCRT,>)
 endif()
 
-if(MINGW AND NOT SHARED_SDL2_LIBS)
-  target_link_libraries(protegon PRIVATE
-    SDL2::SDL2-static
-    SDL2_image::SDL2_image-static
-    SDL2_mixer::SDL2_mixer-static
-    SDL2_ttf::SDL2_ttf-static
-    ${FREETYPE_LIB})
-else()
-  target_link_libraries(protegon PRIVATE
-    SDL2::SDL2
-    SDL2_image::SDL2_image
-    SDL2_mixer::SDL2_mixer
-    SDL2_ttf::SDL2_ttf
-    ${FREETYPE_LIB})
-endif()
+target_link_libraries(protegon PRIVATE ${SDL_TARGETS} ${FREETYPE_LIB})
 
 if(MINGW)
   target_link_libraries(protegon PUBLIC shlwapi)
@@ -301,23 +337,6 @@ if(WIN32 AND SHARED_SDL2_LIBS AND NOT CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_D
   set_property(GLOBAL PROPERTY PROTEGON_DLLS ${DLLS})
 endif()
 
-function(add_protegon_to TARGET)
-  target_link_libraries(${TARGET} PRIVATE protegon)
-  if(APPLE)
-    set_target_properties(${TARGET} PROPERTIES
-      XCODE_GENERATE_SCHEME TRUE
-      XCODE_SCHEME_WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  endif()
-  # Commands for copying dlls to executable directory on Windows.
-  if(WIN32 AND SHARED_SDL2_LIBS)
-    get_property(DLLS GLOBAL PROPERTY PROTEGON_DLLS)
-    add_custom_command(TARGET ${TARGET} POST_BUILD COMMAND ${CMAKE_COMMAND}
-                        -E copy_if_different ${DLLS} $<TARGET_FILE_DIR:${TARGET}>
-                        COMMAND_EXPAND_LISTS)
-    mark_as_advanced(DLLS)
-  endif()
-endfunction()
-
 if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
 
   include(GNUInstallDirs)
@@ -356,35 +375,6 @@ if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
   install(FILES ${CMAKE_BINARY_DIR}/protegon.pc DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig)
 
 endif()
-
-function(create_resource_symlink TARGET DIR_NAME)
-	set(SOURCE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${DIR_NAME})
-	set(DESTINATION_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${DIR_NAME})
-  file(TO_NATIVE_PATH ${SOURCE_DIRECTORY} _src_dir)
-  if (MSVC OR XCODE)
-    set(EXE_DEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/${DIR_NAME})
-    file(TO_NATIVE_PATH ${EXE_DEST_DIR} _exe_dir)
-    if (MSVC)
-      add_custom_command(TARGET ${TARGET} COMMAND ${SCRIPT_DIR}/create_link_win.sh "${_exe_dir}" "${_src_dir}")
-    elseif(XCODE)
-      add_custom_command(TARGET ${TARGET} COMMAND ln -sf ${SOURCE_DIRECTORY} ${EXE_DEST_DIR})
-    endif()
-      # This is for distributing the binaries
-      #add_custom_command(TARGET ${TARGET} COMMAND ${SYMLINK_COMMAND})
-  endif()
-	if (NOT EXISTS ${DESTINATION_DIRECTORY})
-		if (WIN32)
-      file(TO_NATIVE_PATH ${DESTINATION_DIRECTORY} _dst_dir)
-      # This is for MSVC IDE
-      execute_process(COMMAND cmd.exe /c mklink /J ${_dst_dir} ${_src_dir})
-		elseif(APPLE)
-			#message(STATUS "Creating Symlink from ${SOURCE_DIRECTORY} to ${DESTINATION_DIRECTORY}")
-			execute_process(COMMAND ln -s ${SOURCE_DIRECTORY} ${DESTINATION_DIRECTORY})
-		elseif(LINUX)
-			execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${SOURCE_DIRECTORY} ${DESTINATION_DIRECTORY})
-		endif()
-	endif()
-endfunction()
 
 mark_as_advanced(
   PROTEGON_DIR
