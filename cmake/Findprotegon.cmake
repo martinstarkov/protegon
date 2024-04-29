@@ -41,6 +41,11 @@ set(SDL2_MIXER_VERSION 2.8.0)
 set(SDL2_TTF_VERSION   2.22.0)
 set(SDL2MAIN_LIBRARY FALSE)
 
+set(SDL2_NAME       SDL2-${SDL2_VERSION})
+set(SDL2_IMAGE_NAME SDL2_image-${SDL2_IMAGE_VERSION})
+set(SDL2_MIXER_NAME SDL2_mixer-${SDL2_MIXER_VERSION})
+set(SDL2_TTF_NAME   SDL2_ttf-${SDL2_TTF_VERSION})
+
 # Create static library
 add_library(protegon STATIC ${PROTEGON_SOURCES})
 target_compile_features(protegon PUBLIC cxx_std_17)
@@ -164,11 +169,6 @@ if (MSVC)
   endif()
 endif()
 
-set(SDL2_NAME       SDL2-${SDL2_VERSION})
-set(SDL2_IMAGE_NAME SDL2_image-${SDL2_IMAGE_VERSION})
-set(SDL2_MIXER_NAME SDL2_mixer-${SDL2_MIXER_VERSION})
-set(SDL2_TTF_NAME   SDL2_ttf-${SDL2_TTF_VERSION})
-
 if (WIN32)
   if(MSVC)
     set(WIN_COMPILER_POSTFIX "-VC")
@@ -190,14 +190,7 @@ if (WIN32)
   
   set(EXTENSION "zip")
   set(WIN_COMPILER_PREFIX "-devel")
-
-  set(SDL2_LOCATION       ${OUTPUT_DIR}/${SDL2_NAME})
-  set(SDL2_IMAGE_LOCATION ${OUTPUT_DIR}/${SDL2_IMAGE_NAME})
-  set(SDL2_MIXER_LOCATION ${OUTPUT_DIR}/${SDL2_MIXER_NAME})
-  set(SDL2_TTF_LOCATION   ${OUTPUT_DIR}/${SDL2_TTF_NAME})
-
   set(SDL_CMAKE_PATH cmake)
-
 elseif(APPLE)
   set(OUTPUT_DIR ${SDL_DIR}-mac)
 
@@ -206,18 +199,28 @@ elseif(APPLE)
   set(SDL2_MIXER_NAME SDL2_mixer.framework)
   set(SDL2_TTF_NAME   SDL2_ttf.framework)
 
-  set(SDL2_LOCATION       ${OUTPUT_DIR}/${SDL2_NAME})
-  set(SDL2_IMAGE_LOCATION ${OUTPUT_DIR}/${SDL2_IMAGE_NAME})
-  set(SDL2_MIXER_LOCATION ${OUTPUT_DIR}/${SDL2_MIXER_NAME})
-  set(SDL2_TTF_LOCATION   ${OUTPUT_DIR}/${SDL2_TTF_NAME})
-
   set(EXTENSION "dmg")
   set(WIN_COMPILER_PREFIX "")
   set(WIN_COMPILER_POSTFIX "")
-
   set(SDL_CMAKE_PATH Versions/A/Resources/CMake)
+endif()
+
+set(SDL2_LOCATION       ${OUTPUT_DIR}/${SDL2_NAME})
+set(SDL2_IMAGE_LOCATION ${OUTPUT_DIR}/${SDL2_IMAGE_NAME})
+set(SDL2_MIXER_LOCATION ${OUTPUT_DIR}/${SDL2_MIXER_NAME})
+set(SDL2_TTF_LOCATION   ${OUTPUT_DIR}/${SDL2_TTF_NAME})
+
+if (APPLE OR MINGW OR MSVC AND SHARED_SDL2_LIBS)
+  download_and_extract(${OUTPUT_DIR} ${SDL2_LOCATION}       https://github.com/libsdl-org/SDL/releases/download/release-${SDL2_VERSION}/SDL2${WIN_COMPILER_PREFIX}-${SDL2_VERSION}${WIN_COMPILER_POSTFIX}.${EXTENSION}                         ${SDL2_NAME}       SDL2       DOWNLOADED)
+  download_and_extract(${OUTPUT_DIR} ${SDL2_IMAGE_LOCATION} https://github.com/libsdl-org/SDL_image/releases/download/release-${SDL2_IMAGE_VERSION}/SDL2_image${WIN_COMPILER_PREFIX}-${SDL2_IMAGE_VERSION}${WIN_COMPILER_POSTFIX}.${EXTENSION} ${SDL2_IMAGE_NAME} SDL2_image DOWNLOADED)
+  download_and_extract(${OUTPUT_DIR} ${SDL2_MIXER_LOCATION} https://github.com/libsdl-org/SDL_mixer/releases/download/release-${SDL2_MIXER_VERSION}/SDL2_mixer${WIN_COMPILER_PREFIX}-${SDL2_MIXER_VERSION}${WIN_COMPILER_POSTFIX}.${EXTENSION} ${SDL2_MIXER_NAME} SDL2_mixer DOWNLOADED)
+  download_and_extract(${OUTPUT_DIR} ${SDL2_TTF_LOCATION}   https://github.com/libsdl-org/SDL_ttf/releases/download/release-${SDL2_TTF_VERSION}/SDL2_ttf${WIN_COMPILER_PREFIX}-${SDL2_TTF_VERSION}${WIN_COMPILER_POSTFIX}.${EXTENSION}         ${SDL2_TTF_NAME}   SDL2_ttf   DOWNLOADED)
+elseif(MSVC AND NOT SHARED_SDL2_LIBS)
+  download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR} https://github.com/martinstarkov/SDL2-static-libs/archive/refs/heads/main.zip SDL2-static-libs-main "" DOWNLOADED)
+  if (${DOWNLOADED})
+    execute_process(COMMAND sh ${SCRIPT_DIR}/move_subdirs.sh "${OUTPUT_DIR}/SDL2-static-libs-main")
+  endif()
 elseif(UNIX AND NOT APPLE)
-  
   execute_process(COMMAND sh ${SCRIPT_DIR}/check_brew.sh
                   OUTPUT_VARIABLE brew_installed
                   OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -236,18 +239,6 @@ elseif(UNIX AND NOT APPLE)
   install_with_homebrew(sdl2_mixer SDL2_mixer-${SDL2_MIXER_VERSION} SDL2_MIXER_LOCATION https://github.com/Homebrew/homebrew-core/raw/6f7a42bf1a9375d1a2786d90476b32ce366f232d/Formula/s/sdl2_mixer.rb)
   
   set(SDL_CMAKE_PATH lib/cmake)
-endif()
-
-if (APPLE OR MINGW OR MSVC AND SHARED_SDL2_LIBS)
-  download_and_extract(${OUTPUT_DIR} ${SDL2_LOCATION}       https://github.com/libsdl-org/SDL/releases/download/release-${SDL2_VERSION}/SDL2${WIN_COMPILER_PREFIX}-${SDL2_VERSION}${WIN_COMPILER_POSTFIX}.${EXTENSION}                         ${SDL2_NAME}       SDL2       DOWNLOADED)
-  download_and_extract(${OUTPUT_DIR} ${SDL2_IMAGE_LOCATION} https://github.com/libsdl-org/SDL_image/releases/download/release-${SDL2_IMAGE_VERSION}/SDL2_image${WIN_COMPILER_PREFIX}-${SDL2_IMAGE_VERSION}${WIN_COMPILER_POSTFIX}.${EXTENSION} ${SDL2_IMAGE_NAME} SDL2_image DOWNLOADED)
-  download_and_extract(${OUTPUT_DIR} ${SDL2_MIXER_LOCATION} https://github.com/libsdl-org/SDL_mixer/releases/download/release-${SDL2_MIXER_VERSION}/SDL2_mixer${WIN_COMPILER_PREFIX}-${SDL2_MIXER_VERSION}${WIN_COMPILER_POSTFIX}.${EXTENSION} ${SDL2_MIXER_NAME} SDL2_mixer DOWNLOADED)
-  download_and_extract(${OUTPUT_DIR} ${SDL2_TTF_LOCATION}   https://github.com/libsdl-org/SDL_ttf/releases/download/release-${SDL2_TTF_VERSION}/SDL2_ttf${WIN_COMPILER_PREFIX}-${SDL2_TTF_VERSION}${WIN_COMPILER_POSTFIX}.${EXTENSION}         ${SDL2_TTF_NAME}   SDL2_ttf   DOWNLOADED)
-elseif(MSVC AND NOT SHARED_SDL2_LIBS)
-  download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR} https://github.com/martinstarkov/SDL2-static-libs/archive/refs/heads/main.zip SDL2-static-libs-main "" DOWNLOADED)
-  if (${DOWNLOADED})
-    execute_process(COMMAND sh ${SCRIPT_DIR}/move_subdirs.sh "${OUTPUT_DIR}/SDL2-static-libs-main")
-  endif()
 endif()
 
 set(SDL2_DIR       ${SDL2_LOCATION}/${SDL_CMAKE_PATH}       CACHE BOOL "" FORCE)
@@ -358,6 +349,8 @@ if(WIN32 AND SHARED_SDL2_LIBS AND NOT CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_D
 
   set_property(GLOBAL PROPERTY PROTEGON_DLLS ${DLLS})
 endif()
+
+# Install
 
 if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
 
