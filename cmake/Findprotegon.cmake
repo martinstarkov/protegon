@@ -1,48 +1,53 @@
 cmake_minimum_required(VERSION 3.20)
 
+# Misc options
+
 option(SHARED_SDL2_LIBS "Statically Link SDL2 libs to protegon" ON)
 
+# TODO: Figure out how to disable console for macOS
 if (WIN32)
   option(ENABLE_CONSOLE "Enable console executable" OFF)
 endif()
 
-set(PROTEGON_DIR         ${PROJECT_SOURCE_DIR} CACHE BOOL "" FORCE)
-set(SCRIPT_DIR           ${PROTEGON_DIR}/scripts CACHE BOOL "" FORCE)
-set(EXTERNAL_DIR         ${PROTEGON_DIR}/external CACHE BOOL "" FORCE)
-set(SDL_DIR              ${EXTERNAL_DIR}/sdl2 CACHE BOOL "" FORCE)
-set(PROTEGON_SRC_DIR     ${PROTEGON_DIR}/src CACHE BOOL "" FORCE)
-set(PROTEGON_INCLUDE_DIR ${PROTEGON_DIR}/include CACHE BOOL "" FORCE)
-set(MODULES_DIR          ${PROTEGON_DIR}/modules CACHE BOOL "" FORCE)
-set(ECS_INCLUDE_DIR      ${MODULES_DIR}/ecs/include CACHE BOOL "" FORCE)
+set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
+set(LINUX UNIX AND NOT APPLE)
+
+# Protegon variables
+
+set(PROTEGON_DIR         ${PROJECT_SOURCE_DIR}              CACHE BOOL "" FORCE)
+set(SCRIPT_DIR           ${PROTEGON_DIR}/scripts            CACHE BOOL "" FORCE)
+set(EXTERNAL_DIR         ${PROTEGON_DIR}/external           CACHE BOOL "" FORCE)
+set(SDL_DIR              ${EXTERNAL_DIR}/sdl2               CACHE BOOL "" FORCE)
+set(PROTEGON_SRC_DIR     ${PROTEGON_DIR}/src                CACHE BOOL "" FORCE)
+set(PROTEGON_INCLUDE_DIR ${PROTEGON_DIR}/include            CACHE BOOL "" FORCE)
+set(MODULES_DIR          ${PROTEGON_DIR}/modules            CACHE BOOL "" FORCE)
+set(ECS_INCLUDE_DIR      ${MODULES_DIR}/ecs/include         CACHE BOOL "" FORCE)
 set(JSON_INCLUDE_DIR     ${MODULES_DIR}/json/single_include CACHE BOOL "" FORCE)
 
-# Not enforced on Linux (instead using brew latest version)
-set(SDL2_VERSION       2.30.0)
-set(SDL2_IMAGE_VERSION 2.8.2)
-set(SDL2_MIXER_VERSION 2.8.0)
-set(SDL2_TTF_VERSION   2.22.0)
-
+# Search for protegon source and header files
 file(GLOB_RECURSE PROTEGON_SOURCES CONFIGURE_DEPENDS LIST_DIRECTORIES false 
 	${PROTEGON_SRC_DIR}/*.cpp)
 file(GLOB_RECURSE PROTEGON_HEADERS CONFIGURE_DEPENDS LIST_DIRECTORIES false 
   ${PROTEGON_SRC_DIR}/*.h
   ${PROTEGON_INCLUDE_DIR}/*.h)
-set(PROTEGON_FILES ${PROTEGON_SOURCES} ${PROTEGON_HEADERS})
-  
-# Group files for MSVC project tree
-if (MSVC)
-  foreach(_source IN ITEMS ${PROTEGON_FILES})
-    get_filename_component(_source_path ${_source} PATH)
-    file(RELATIVE_PATH _source_path_rel ${PROTEGON_SRC_DIR} ${_source_path})
-    string(REPLACE "/" "\\" _group_path ${_source_path_rel})
-    source_group(${_group_path} FILES ${_source})
-  endforeach()
-endif()
 
+set(PROTEGON_FILES ${PROTEGON_SOURCES} ${PROTEGON_HEADERS})
+
+# SDL variables
+
+# Versions not enforced on Linux (instead using brew latest version)
+set(SDL2_VERSION       2.30.0)
+set(SDL2_IMAGE_VERSION 2.8.2)
+set(SDL2_MIXER_VERSION 2.8.0)
+set(SDL2_TTF_VERSION   2.22.0)
+set(SDL2MAIN_LIBRARY FALSE)
+
+# Create static library
 add_library(protegon STATIC ${PROTEGON_SOURCES})
 target_compile_features(protegon PUBLIC cxx_std_17)
 set_target_properties(protegon PROPERTIES CXX_EXTENSIONS OFF)
 
+# Function for downloading and extracting SDL libraries
 function(download_and_extract dir exists_dir url archive_name plain_name downloaded)
   if (NOT EXISTS ${exists_dir})
     file(MAKE_DIRECTORY ${dir})
@@ -68,114 +73,12 @@ function(download_and_extract dir exists_dir url archive_name plain_name downloa
   endif()
 endfunction()
 
-set(SDL2MAIN_LIBRARY FALSE)
-
-if(WIN32)
-  if(MSVC)
-    if (ENABLE_CONSOLE)
-      target_link_options(protegon PUBLIC "/SUBSYSTEM:CONSOLE")
-    else()
-      target_link_options(protegon PUBLIC "/SUBSYSTEM:WINDOWS")
-      target_compile_definitions(protegon INTERFACE main=WinMain)
-    endif()
-    set(WIN_COMPILER_POSTFIX "VC")
-    # Updates CMAKE_PREFIX_PATH paths to include library architecture
-    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-      set(CMAKE_LIBRARY_ARCHITECTURE "x64")
-    elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
-      set(CMAKE_LIBRARY_ARCHITECTURE "x86")
-    endif()
-  elseif(MINGW)
-    if (ENABLE_CONSOLE)
-      target_link_options(protegon PUBLIC "-mconsole")
-    else()
-      target_link_options(protegon PUBLIC "-mwindows")
-    endif()
-    set(WIN_COMPILER_POSTFIX "mingw")
-  endif()
-endif()
-
-set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
-
-if(UNIX AND NOT APPLE) # Check for brew executable
-  execute_process(
-  COMMAND sh ${SCRIPT_DIR}/check_brew.sh
-  OUTPUT_VARIABLE brew_installed
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-  RESULT_VARIABLE brew_installed_result
-  )
-  if(brew_installed_result EQUAL 1)
-    message(STATUS "Homebrew found.")
-    set(ENV{HOMEBREW_NO_INSTALL_CLEANUP} TRUE)
-    set(ENV{HOMEBREW_NO_ENV_HINTS} TRUE)
-  else()
-    message(FATAL_ERROR "Homebrew not found.")
-  endif()
-endif()
-
-if (WIN32)
-
-  if (MSVC AND NOT SHARED_SDL2_LIBS) # Static MSVC
-    set(OUTPUT_DIR ${SDL_DIR}-msvc-static)
-
-    set(SDL2_URL "https://github.com/martinstarkov/SDL2-static-libs/archive/refs/heads/main.zip")
-    download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR} ${SDL2_URL} SDL2-static-libs-main "" DOWNLOADED)
-    if (${DOWNLOADED})
-      execute_process(COMMAND sh ${SCRIPT_DIR}/move_subdirs.sh "${OUTPUT_DIR}/SDL2-static-libs-main")
-    endif()
-  else() # MinGW and shared MSVC
-
-    if(MSVC)
-      set(OUTPUT_DIR ${SDL_DIR}-msvc-shared)
-    else()
-      set(OUTPUT_DIR ${SDL_DIR}-mingw)
-    endif()
-
-    set(SDL2_URL       "https://github.com/libsdl-org/SDL/releases/download/release-${SDL2_VERSION}/SDL2-devel-${SDL2_VERSION}-${WIN_COMPILER_POSTFIX}.zip")
-    set(SDL2_IMAGE_URL "https://github.com/libsdl-org/SDL_image/releases/download/release-${SDL2_IMAGE_VERSION}/SDL2_image-devel-${SDL2_IMAGE_VERSION}-${WIN_COMPILER_POSTFIX}.zip")
-    set(SDL2_MIXER_URL "https://github.com/libsdl-org/SDL_mixer/releases/download/release-${SDL2_MIXER_VERSION}/SDL2_mixer-devel-${SDL2_MIXER_VERSION}-${WIN_COMPILER_POSTFIX}.zip")
-    set(SDL2_TTF_URL   "https://github.com/libsdl-org/SDL_ttf/releases/download/release-${SDL2_TTF_VERSION}/SDL2_ttf-devel-${SDL2_TTF_VERSION}-${WIN_COMPILER_POSTFIX}.zip")
-    
-    download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR}/SDL2-${SDL2_VERSION} ${SDL2_URL} SDL2-${SDL2_VERSION} SDL2 DOWNLOADED)
-    download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR}/SDL2_image-${SDL2_IMAGE_VERSION} ${SDL2_IMAGE_URL} SDL2_image-${SDL2_IMAGE_VERSION} SDL2_image DOWNLOADED)
-    download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR}/SDL2_mixer-${SDL2_MIXER_VERSION} ${SDL2_MIXER_URL} SDL2_mixer-${SDL2_MIXER_VERSION} SDL2_mixer DOWNLOADED)
-    download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR}/SDL2_ttf-${SDL2_TTF_VERSION} ${SDL2_TTF_URL} SDL2_ttf-${SDL2_TTF_VERSION} SDL2_ttf DOWNLOADED)
-
-  endif()
-
-  set(SDL2_DIR       ${OUTPUT_DIR}/SDL2-${SDL2_VERSION}/cmake             CACHE BOOL "" FORCE)
-  set(SDL2_image_DIR ${OUTPUT_DIR}/SDL2_image-${SDL2_IMAGE_VERSION}/cmake CACHE BOOL "" FORCE)
-  set(SDL2_ttf_DIR   ${OUTPUT_DIR}/SDL2_ttf-${SDL2_TTF_VERSION}/cmake     CACHE BOOL "" FORCE)
-  set(SDL2_mixer_DIR ${OUTPUT_DIR}/SDL2_mixer-${SDL2_MIXER_VERSION}/cmake CACHE BOOL "" FORCE)
-
-elseif(APPLE)
-  set(OUTPUT_DIR ${SDL_DIR}-mac)
-
-  set(SDL2_URL       "https://github.com/libsdl-org/SDL/releases/download/release-${SDL2_VERSION}/SDL2-${SDL2_VERSION}.dmg")
-  set(SDL2_IMAGE_URL "https://github.com/libsdl-org/SDL_image/releases/download/release-${SDL2_IMAGE_VERSION}/SDL2_image-${SDL2_IMAGE_VERSION}.dmg")
-  set(SDL2_MIXER_URL "https://github.com/libsdl-org/SDL_mixer/releases/download/release-${SDL2_MIXER_VERSION}/SDL2_mixer-${SDL2_MIXER_VERSION}.dmg")
-  set(SDL2_TTF_URL   "https://github.com/libsdl-org/SDL_ttf/releases/download/release-${SDL2_TTF_VERSION}/SDL2_ttf-${SDL2_TTF_VERSION}.dmg")
-
-  download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR}/SDL2.framework ${SDL2_URL} SDL2.framework SDL2 DOWNLOADED)
-  download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR}/SDL2_image.framework ${SDL2_IMAGE_URL} SDL2_image.framework SDL2_image DOWNLOADED)
-  download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR}/SDL2_ttf.framework ${SDL2_MIXER_URL} SDL2_ttf.framework SDL2_ttf DOWNLOADED)
-  download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR}/SDL2_mixer.framework ${SDL2_TTF_URL} SDL2_mixer.framework SDL2_mixer DOWNLOADED)
-
-  set(SDL2_DIR       ${OUTPUT_DIR}/SDL2.framework/Versions/A/Resources/CMake       CACHE BOOL "" FORCE)
-  set(SDL2_image_DIR ${OUTPUT_DIR}/SDL2_image.framework/Versions/A/Resources/CMake CACHE BOOL "" FORCE)
-  set(SDL2_ttf_DIR   ${OUTPUT_DIR}/SDL2_ttf.framework/Versions/A/Resources/CMake   CACHE BOOL "" FORCE)
-  set(SDL2_mixer_DIR ${OUTPUT_DIR}/SDL2_mixer.framework/Versions/A/Resources/CMake CACHE BOOL "" FORCE)
-
-elseif(UNIX AND NOT APPLE)
-  
-function(install_with_homebrew library archive_name output_variable library_path)
-
+function(install_with_homebrew library archive_name library_location library_path)
   execute_process(
     COMMAND sh ${SCRIPT_DIR}/check_brew_package.sh ${library}
     OUTPUT_VARIABLE brew_package_status
     OUTPUT_STRIP_TRAILING_WHITESPACE
     RESULT_VARIABLE brew_package_result)
-
   if(brew_package_result EQUAL 1)
     message(STATUS "Package '${library}' found in Homebrew.")
   else()
@@ -190,13 +93,99 @@ function(install_with_homebrew library archive_name output_variable library_path
   endif()
 
   execute_process(COMMAND brew --prefix "${library}" OUTPUT_VARIABLE location_prefix)
-  set(${output_variable} "${location_prefix}" PARENT_SCOPE)
-
+  set(${library_location} "${location_prefix}" PARENT_SCOPE)
 endfunction()  
 
-  install_with_homebrew(sdl2 SDL2-${SDL2_VERSION} SDL2_LOCATION https://raw.githubusercontent.com/Homebrew/homebrew-core/5f2b3ba5bb5c4bef36c1e4be278f43601394b729/Formula/s/sdl2.rb)
+if (WIN32 AND (MSVC OR MINGW))
+  if (MSVC)
+    # Group files for MSVC project tree
+    foreach(_source IN ITEMS ${PROTEGON_FILES})
+      get_filename_component(_source_path ${_source} PATH)
+      file(RELATIVE_PATH _source_path_rel ${PROTEGON_SRC_DIR} ${_source_path})
+      string(REPLACE "/" "\\" _group_path ${_source_path_rel})
+      source_group(${_group_path} FILES ${_source})
+    endforeach()
+    # Console related flags
+    if (ENABLE_CONSOLE)
+      target_link_options(protegon PUBLIC "/SUBSYSTEM:CONSOLE")
+    else()
+      target_link_options(protegon PUBLIC "/SUBSYSTEM:WINDOWS")
+      target_compile_definitions(protegon INTERFACE main=WinMain)
+    endif()
+    # Updates CMAKE_PREFIX_PATH paths to include library architecture
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+      set(CMAKE_LIBRARY_ARCHITECTURE "x64")
+    elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
+      set(CMAKE_LIBRARY_ARCHITECTURE "x86")
+    endif()
+  endif()
+
+  if (MSVC AND NOT SHARED_SDL2_LIBS) # Static MSVC
+    set(OUTPUT_DIR ${SDL_DIR}-msvc-static)
+    download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR} https://github.com/martinstarkov/SDL2-static-libs/archive/refs/heads/main.zip SDL2-static-libs-main "" DOWNLOADED)
+    if (${DOWNLOADED})
+      execute_process(COMMAND sh ${SCRIPT_DIR}/move_subdirs.sh "${OUTPUT_DIR}/SDL2-static-libs-main")
+    endif()
+  else() # MinGW and shared MSVC
+
+    if(MSVC)
+      set(WIN_COMPILER_POSTFIX "VC")
+      set(OUTPUT_DIR ${SDL_DIR}-msvc-shared)
+    elseif(MINGW)
+      # Console related flags
+      if (ENABLE_CONSOLE)
+        target_link_options(protegon PUBLIC "-mconsole")
+      else()
+        target_link_options(protegon PUBLIC "-mwindows")
+      endif()
+      set(WIN_COMPILER_POSTFIX "mingw")
+      set(OUTPUT_DIR ${SDL_DIR}-mingw)
+    endif()
+    
+    download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR}/SDL2-${SDL2_VERSION}             https://github.com/libsdl-org/SDL/releases/download/release-${SDL2_VERSION}/SDL2-devel-${SDL2_VERSION}-${WIN_COMPILER_POSTFIX}.zip                         SDL2-${SDL2_VERSION}             SDL2       DOWNLOADED)
+    download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR}/SDL2_image-${SDL2_IMAGE_VERSION} https://github.com/libsdl-org/SDL_image/releases/download/release-${SDL2_IMAGE_VERSION}/SDL2_image-devel-${SDL2_IMAGE_VERSION}-${WIN_COMPILER_POSTFIX}.zip SDL2_image-${SDL2_IMAGE_VERSION} SDL2_image DOWNLOADED)
+    download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR}/SDL2_mixer-${SDL2_MIXER_VERSION} https://github.com/libsdl-org/SDL_mixer/releases/download/release-${SDL2_MIXER_VERSION}/SDL2_mixer-devel-${SDL2_MIXER_VERSION}-${WIN_COMPILER_POSTFIX}.zip SDL2_mixer-${SDL2_MIXER_VERSION} SDL2_mixer DOWNLOADED)
+    download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR}/SDL2_ttf-${SDL2_TTF_VERSION}     https://github.com/libsdl-org/SDL_ttf/releases/download/release-${SDL2_TTF_VERSION}/SDL2_ttf-devel-${SDL2_TTF_VERSION}-${WIN_COMPILER_POSTFIX}.zip         SDL2_ttf-${SDL2_TTF_VERSION}     SDL2_ttf   DOWNLOADED)
+
+  endif()
+
+  set(SDL2_DIR       ${OUTPUT_DIR}/SDL2-${SDL2_VERSION}/cmake             CACHE BOOL "" FORCE)
+  set(SDL2_image_DIR ${OUTPUT_DIR}/SDL2_image-${SDL2_IMAGE_VERSION}/cmake CACHE BOOL "" FORCE)
+  set(SDL2_ttf_DIR   ${OUTPUT_DIR}/SDL2_ttf-${SDL2_TTF_VERSION}/cmake     CACHE BOOL "" FORCE)
+  set(SDL2_mixer_DIR ${OUTPUT_DIR}/SDL2_mixer-${SDL2_MIXER_VERSION}/cmake CACHE BOOL "" FORCE)
+
+elseif(APPLE)
+  set(OUTPUT_DIR ${SDL_DIR}-mac)
+
+  download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR}/SDL2.framework       https://github.com/libsdl-org/SDL/releases/download/release-${SDL2_VERSION}/SDL2-${SDL2_VERSION}.dmg       SDL2.framework       SDL2       DOWNLOADED)
+  download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR}/SDL2_image.framework https://github.com/libsdl-org/SDL_image/releases/download/release-${SDL2_IMAGE_VERSION}/SDL2_image-${SDL2_IMAGE_VERSION}.dmg SDL2_image.framework SDL2_image DOWNLOADED)
+  download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR}/SDL2_ttf.framework   https://github.com/libsdl-org/SDL_mixer/releases/download/release-${SDL2_MIXER_VERSION}/SDL2_mixer-${SDL2_MIXER_VERSION}.dmg SDL2_ttf.framework   SDL2_ttf   DOWNLOADED)
+  download_and_extract(${OUTPUT_DIR} ${OUTPUT_DIR}/SDL2_mixer.framework https://github.com/libsdl-org/SDL_ttf/releases/download/release-${SDL2_TTF_VERSION}/SDL2_ttf-${SDL2_TTF_VERSION}.dmg   SDL2_mixer.framework SDL2_mixer DOWNLOADED)
+
+  set(SDL2_DIR       ${OUTPUT_DIR}/SDL2.framework/Versions/A/Resources/CMake       CACHE BOOL "" FORCE)
+  set(SDL2_image_DIR ${OUTPUT_DIR}/SDL2_image.framework/Versions/A/Resources/CMake CACHE BOOL "" FORCE)
+  set(SDL2_ttf_DIR   ${OUTPUT_DIR}/SDL2_ttf.framework/Versions/A/Resources/CMake   CACHE BOOL "" FORCE)
+  set(SDL2_mixer_DIR ${OUTPUT_DIR}/SDL2_mixer.framework/Versions/A/Resources/CMake CACHE BOOL "" FORCE)
+
+elseif(LINUX)
+  
+  execute_process(
+  COMMAND sh ${SCRIPT_DIR}/check_brew.sh
+  OUTPUT_VARIABLE brew_installed
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  RESULT_VARIABLE brew_installed_result
+  )
+  if(brew_installed_result EQUAL 1)
+    message(STATUS "Homebrew found.")
+    set(ENV{HOMEBREW_NO_INSTALL_CLEANUP} TRUE)
+    set(ENV{HOMEBREW_NO_ENV_HINTS} TRUE)
+  else()
+    message(FATAL_ERROR "Homebrew not found.")
+  endif()
+
+  install_with_homebrew(sdl2       SDL2-${SDL2_VERSION}             SDL2_LOCATION       https://raw.githubusercontent.com/Homebrew/homebrew-core/5f2b3ba5bb5c4bef36c1e4be278f43601394b729/Formula/s/sdl2.rb)
   install_with_homebrew(sdl2_image SDL2_image-${SDL2_IMAGE_VERSION} SDL2_IMAGE_LOCATION https://github.com/Homebrew/homebrew-core/raw/6c917a52f9fc1de0dfe5eb962da23288b478423d/Formula/s/sdl2_image.rb)
-  install_with_homebrew(sdl2_ttf SDL2_ttf-${SDL2_TTF_VERSION} SDL2_TTF_LOCATION https://github.com/Homebrew/homebrew-core/raw/254685622723c6603b528e1456b7827e4390a860/Formula/s/sdl2_ttf.rb)
+  install_with_homebrew(sdl2_ttf   SDL2_ttf-${SDL2_TTF_VERSION}     SDL2_TTF_LOCATION   https://github.com/Homebrew/homebrew-core/raw/254685622723c6603b528e1456b7827e4390a860/Formula/s/sdl2_ttf.rb)
   install_with_homebrew(sdl2_mixer SDL2_mixer-${SDL2_MIXER_VERSION} SDL2_MIXER_LOCATION https://github.com/Homebrew/homebrew-core/raw/6f7a42bf1a9375d1a2786d90476b32ce366f232d/Formula/s/sdl2_mixer.rb)
   
   set(SDL2_DIR       ${SDL2_LOCATION}/lib/cmake       CACHE BOOL "" FORCE)
@@ -391,7 +380,7 @@ function(create_resource_symlink TARGET DIR_NAME)
 		elseif(APPLE)
 			#message(STATUS "Creating Symlink from ${SOURCE_DIRECTORY} to ${DESTINATION_DIRECTORY}")
 			execute_process(COMMAND ln -s ${SOURCE_DIRECTORY} ${DESTINATION_DIRECTORY})
-		elseif(UNIX AND NOT APPLE)
+		elseif(LINUX)
 			execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${SOURCE_DIRECTORY} ${DESTINATION_DIRECTORY})
 		endif()
 	endif()
