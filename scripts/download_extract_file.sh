@@ -26,15 +26,21 @@ if [[ ! -d "$output_dir" ]]; then
   mkdir -p "$output_dir" || error_exit "Failed to create output directory: $output_dir"
 fi
 
-# Download the file using curl
-echo "Downloading: $download_url"
-curl -L -o "$output_dir/$(basename "$download_url")" "$download_url" || error_exit "Download failed: $download_url"
-
 # Get the downloaded file path
-downloaded_file="$output_dir/$(basename "$download_url")"
+downloaded_file_name="$(basename "$download_url")"
+downloaded_file="$output_dir/$downloaded_file_name"
+plain_name="${downloaded_file_name%%-*}"
+
+# Download the file using curl
+echo "Downloading $plain_name from: $download_url"
+curl -L -o "$downloaded_file" "$download_url" || error_exit "Download failed: $download_url"
+      
+echo "Successfully downloaded $plain_name"
+
+echo "Extracting $plain_name from: $downloaded_file"
 
 # Check file extension and extract accordingly
-file_extension="${downloaded_file##*.}"
+file_extension="${downloaded_file_name##*.}"
 case "$file_extension" in
   "zip")
     # Check if PowerShell can be executed (more reliable than just checking if it exists)
@@ -51,10 +57,10 @@ case "$file_extension" in
     if ! command -v hdiutil >/dev/null 2>&1; then
       echo "Warning: hdiutil not found. Skipping extraction."
     else
-      hdiutil attach -quiet "$downloaded_file" || error_exit "Failed to mount $downloaded_file"
-      archive_dir_name=$(df | grep "${downloaded_file%/}" | awk '{print NF}')
-      cp -r "/Volumes/$archive_dir_name/"* "$output_dir/" || error_exit "Failed to copy content from archive"
-      hdiutil detach -quiet "/Volumes/$archive_dir_name" || error_exit "Failed to unmount $downloaded_file"
+      archive_name="$plain_name.framework"
+      hdiutil attach "$downloaded_file" -quiet || error_exit "Failed to mount $downloaded_file"
+      cp -r "/Volumes/$plain_name/$archive_name" "$output_dir/$archive_name"
+      hdiutil detach "/Volumes/$plain_name" -quiet || error_exit "Failed to unmount $downloaded_file"
     fi
     ;;
   "tar.gz" | "tgz")
@@ -85,5 +91,5 @@ if [[ "$move_subdirs" == "-m" ]]; then
   echo "$extracted_folder_path"
   move_extracted_subdirs "$extracted_folder_path" || error_exit "Failed to move subdirectories"
 fi
-
-echo "Download complete."
+            
+echo "Successfully extracted $plain_name"

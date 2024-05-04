@@ -43,7 +43,7 @@ set_target_properties(protegon PROPERTIES CXX_EXTENSIONS OFF)
 
 function(add_protegon_to TARGET)
   target_link_libraries(${TARGET} PRIVATE protegon)
-  if(APPLE)
+  if(XCODE)
     set_target_properties(${TARGET} PROPERTIES
       XCODE_GENERATE_SCHEME TRUE
       XCODE_SCHEME_WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
@@ -58,6 +58,12 @@ function(add_protegon_to TARGET)
   endif()
 endfunction()
 
+# When using AppleClang, for some reason the working directory for the executable is set to $HOME instead of the executable directory.
+# Therefore, the C++ code corrects the working directory using std::filesystem so that relative paths work properly.
+if (APPLE AND NOT XCODE)
+  target_compile_definitions(protegon PRIVATE USING_APPLE_CLANG=1)
+endif()
+
 function(create_resource_symlink TARGET DIR_NAME)
 	set(SOURCE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${DIR_NAME})
 	set(DESTINATION_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${DIR_NAME})
@@ -68,6 +74,7 @@ function(create_resource_symlink TARGET DIR_NAME)
     if (MSVC)
       add_custom_command(TARGET ${TARGET} COMMAND ${SCRIPT_DIR}/create_link_win.sh "${_exe_dir}" "${_src_dir}")
     elseif(XCODE)
+      message(STATUS "Creating Symlink from ${SOURCE_DIRECTORY} to ${EXE_DEST_DIR}")
       add_custom_command(TARGET ${TARGET} COMMAND ln -sf ${SOURCE_DIRECTORY} ${EXE_DEST_DIR})
     endif()
       # This is for distributing the binaries
@@ -79,8 +86,8 @@ function(create_resource_symlink TARGET DIR_NAME)
       # This is for MSVC IDE
       execute_process(COMMAND cmd.exe /c mklink /J ${_dst_dir} ${_src_dir})
 		elseif(APPLE)
-			#message(STATUS "Creating Symlink from ${SOURCE_DIRECTORY} to ${DESTINATION_DIRECTORY}")
-			execute_process(COMMAND ln -s ${SOURCE_DIRECTORY} ${DESTINATION_DIRECTORY})
+			message(STATUS "Creating Symlink from ${SOURCE_DIRECTORY} to ${DESTINATION_DIRECTORY}")
+			execute_process(COMMAND ln -sf ${SOURCE_DIRECTORY} ${DESTINATION_DIRECTORY})
 		elseif(UNIX AND NOT APPLE)
 			execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${SOURCE_DIRECTORY} ${DESTINATION_DIRECTORY})
 		endif()
@@ -165,6 +172,8 @@ if(NOT SHARED_SDL2_LIBS AND ${DOWNLOAD_SDL2})
                        VERBATIM r "$<TARGET_FILE:protegon>" "${SDL_TARGET_FILES}"
                        COMMAND_EXPAND_LISTS)
   endif()
+else()
+  get_target_file_paths(SDL_TARGETS SDL_TARGET_FILES)
 endif()
 
 #file(GENERATE OUTPUT protegon_log_output_file CONTENT "Targets: ${SDL_TARGETS}..............TargetFiles: ${SDL_TARGET_FILES}")
@@ -231,24 +240,15 @@ if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
-  install(
-    FILES 
-    ${PROTEGON_HEADERS}
-    DESTINATION
-    ${CMAKE_INSTALL_INCLUDEDIR}/protegon)
+  install(FILES ${PROTEGON_HEADERS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/protegon)
 
   if (WIN32 AND SHARED_SDL2_LIBS)
     # Copy SDL dlls to executable directory
-    install(
-      FILES
-      ${TARGET_FILES}
-      DESTINATION
-      ${CMAKE_INSTALL_BINDIR})
+    install(FILES ${SDL_TARGET_FILES} DESTINATION ${CMAKE_INSTALL_BINDIR})
   endif()
 
   if(MSVC)
-    add_custom_command(TARGET protegon POST_BUILD
-      COMMAND ${CMAKE_COMMAND} --install . --config $<CONFIG>)
+    add_custom_command(TARGET protegon POST_BUILD COMMAND ${CMAKE_COMMAND} --install . --config $<CONFIG>)
   endif()
 
   configure_file(protegon.pc.in protegon.pc @ONLY)
