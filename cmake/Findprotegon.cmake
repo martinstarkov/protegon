@@ -2,15 +2,13 @@ cmake_minimum_required(VERSION 3.20)
 
 # Misc options
 
-option(SHARED_SDL2_LIBS "Statically Link SDL2 libs to protegon" OFF)
+option(BUILD_SHARED_LIBS "Statically Link SDL2 libs to protegon" OFF)
 option(DOWNLOAD_SDL2 "Download prebuilt SDL2 libs" ON)
 
 # TODO: Figure out how to disable console for macOS
 if (WIN32)
   option(ENABLE_CONSOLE "Enable console executable" ON)
 endif()
-
-set(BUILD_SHARED_LIBS ${SHARED_SDL2_LIBS})
 
 # Protegon variables
 
@@ -49,7 +47,7 @@ function(add_protegon_to TARGET)
       XCODE_SCHEME_WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
   endif()
   # Commands for copying dlls to executable directory on Windows.
-  if(WIN32 AND SHARED_SDL2_LIBS)
+  if(WIN32 AND BUILD_SHARED_LIBS)
     get_property(DLLS GLOBAL PROPERTY PROTEGON_DLLS)
     add_custom_command(TARGET ${TARGET} POST_BUILD COMMAND ${CMAKE_COMMAND}
                         -E copy_if_different ${DLLS} $<TARGET_FILE_DIR:${TARGET}>
@@ -138,8 +136,8 @@ find_package(SDL2_ttf   REQUIRED)
 find_package(SDL2_mixer REQUIRED)
 set(CMAKE_WARN_DEPRECATED ON CACHE BOOL "" FORCE)
 
-# IF MINGW and NOT SHARED_SDL2_LIBS add '-static' to the targets 
-set(STATIC_POSTFIX $<IF:$<AND:$<BOOL:${MINGW}>,$<NOT:$<BOOL:${SHARED_SDL2_LIBS}>>>,-static,>)
+# IF MINGW and NOT BUILD_SHARED_LIBS add '-static' to the targets 
+set(STATIC_POSTFIX $<IF:$<AND:$<BOOL:${MINGW}>,$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>>,-static,>)
 set(SDL_TARGETS SDL2::SDL2${STATIC_POSTFIX}
                 SDL2_image::SDL2_image${STATIC_POSTFIX}
                 SDL2_ttf::SDL2_ttf${STATIC_POSTFIX}
@@ -147,7 +145,7 @@ set(SDL_TARGETS SDL2::SDL2${STATIC_POSTFIX}
 
 # Combine freetype lib into protegon lib.
 set(FREETYPE_LIB "")
-if(NOT SHARED_SDL2_LIBS AND ${DOWNLOAD_SDL2})
+if(NOT BUILD_SHARED_LIBS AND ${DOWNLOAD_SDL2})
   if(MSVC)
     set(FREETYPE_LIB "${OUTPUT_DIR}/SDL2_ttf-${SDL2_TTF_VERSION}/lib/${CMAKE_LIBRARY_ARCHITECTURE}/freetype.lib")
     get_target_file_paths(SDL_TARGETS SDL_TARGET_FILES)
@@ -176,9 +174,7 @@ else()
   get_target_file_paths(SDL_TARGETS SDL_TARGET_FILES)
 endif()
 
-#file(GENERATE OUTPUT protegon_log_output_file CONTENT "Targets: ${SDL_TARGETS}..............TargetFiles: ${SDL_TARGET_FILES}")
-
-if(NOT SHARED_SDL2_LIBS AND MSVC)
+if(NOT BUILD_SHARED_LIBS AND MSVC)
   # target_link_libraries(SDL2 PRIVATE "-nodefaultlib:MSVCRT")
   target_link_options(protegon PUBLIC $<IF:$<CONFIG:Debug>,/NODEFAULTLIB:MSVCRT,>)
 endif()
@@ -205,7 +201,7 @@ target_include_directories(protegon PUBLIC
   $<INSTALL_INTERFACE:include>)
 
 # Copy SDL dlls to parent exe directory
-if(WIN32 AND SHARED_SDL2_LIBS AND NOT CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+if(WIN32 AND BUILD_SHARED_LIBS AND NOT CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
   get_target_property(SDL2_DLL       SDL2::SDL2 	          IMPORTED_LOCATION)
   get_target_property(SDL2_IMAGE_DLL SDL2_image::SDL2_image IMPORTED_LOCATION)
   get_target_property(SDL2_TTF_DLL   SDL2_ttf::SDL2_ttf     IMPORTED_LOCATION)
@@ -242,7 +238,7 @@ if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
 
   install(FILES ${PROTEGON_HEADERS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/protegon)
 
-  if (WIN32 AND SHARED_SDL2_LIBS)
+  if (WIN32 AND BUILD_SHARED_LIBS)
     # Copy SDL dlls to executable directory
     install(FILES ${SDL_TARGET_FILES} DESTINATION ${CMAKE_INSTALL_BINDIR})
   endif()
@@ -251,20 +247,6 @@ if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
     add_custom_command(TARGET protegon POST_BUILD COMMAND ${CMAKE_COMMAND} --install . --config $<CONFIG>)
   endif()
 
-  configure_file(protegon.pc.in protegon.pc @ONLY)
-
-  install(FILES ${CMAKE_BINARY_DIR}/protegon.pc DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig)
-
 endif()
-
-mark_as_advanced(
-  PROTEGON_DIR
-	PROTEGON_SRC_DIR
-	PROTEGON_INCLUDE_DIR
-	EXTERNAL_DIR
-	PROTEGON_HEADERS
-	PROTEGON_SOURCES
-	PROTEGON_FILES
-	protegon)
 
 message(STATUS "Found protegon")
