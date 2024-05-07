@@ -39,7 +39,7 @@ create_resource_symlink(<target_name> "resources") // (optional for creating a s
 6. `ninja` to build the project.
 7. `./your_project_name.exe` to run your executable.
 
-# macOS
+# Linux
 
 5. `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"` (Installs [Homebrew](https://brew.sh/) for Linux).
 6. (required if brew not in PATH) `(echo; echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"') >> /home/<your_username>/.bashrc`
@@ -48,7 +48,7 @@ create_resource_symlink(<target_name> "resources") // (optional for creating a s
 9. `make` to build the project.
 10. `./your_project_name.exe` to run your executable.
 
-# Linux
+# macOS
 
 8. `cmake .. -G Xcode` to generate build files.
 9. `make` to build the project.
