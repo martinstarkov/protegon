@@ -5,7 +5,7 @@
 #include <utility>
 
 #include "protegon/collision.h"
-#include "core/game.h"
+#include "core/global.h"
 #include "protegon/log.h"
 
 namespace ptgn {
@@ -70,11 +70,11 @@ void Button::OnMouseEvent(const Event<MouseEvent>& event) {
 }
 
 void Button::SubscribeToMouseEvents() {
-    global::GetGame().event.mouse_event.Subscribe((void*)this, std::bind(&Button::OnMouseEvent, this, std::placeholders::_1));
+    global::GetGame().systems.event.mouse_event.Subscribe((void*)this, std::bind(&Button::OnMouseEvent, this, std::placeholders::_1));
 }
 
 void Button::UnsubscribeFromMouseEvents() {
-    global::GetGame().event.mouse_event.Unsubscribe((void*)this);
+    global::GetGame().systems.event.mouse_event.Unsubscribe((void*)this);
 }
 
 void Button::OnMouseMove(const MouseMoveEvent& e) {

@@ -3,14 +3,14 @@
 #include <SDL.h>
 
 #include "protegon/line.h"
-#include "core/game.h"
+#include "core/global.h"
 
 namespace ptgn {
 
 namespace impl {
 
 void DrawCircle(int x, int y, int r, const Color& color) {
-	auto renderer{ global::GetGame().sdl.GetRenderer() };
+	auto renderer{ global::GetGame().systems.sdl.GetRenderer() };
 	assert(renderer != nullptr && "Cannot draw circle with nonexistent renderer");
 
 	// Alternative with slightly more jagged perimeter: DrawEllipse(renderer, x, y, r, r, color);
@@ -60,14 +60,14 @@ void DrawCircle(int x, int y, int r, const Color& color) {
 }
 
 void DrawThickCircle(int x, int y, int r, const Color& color, std::uint8_t pixel_thickness) {
-	auto renderer{ global::GetGame().sdl.GetRenderer() };
+	auto renderer{ global::GetGame().systems.sdl.GetRenderer() };
 	assert(renderer != nullptr && "Cannot draw thick circle with nonexistent renderer");
 
 	DrawThickEllipse(renderer, x, y, r, r, color, pixel_thickness);
 }
 
 void DrawSolidCircle(int x, int y, int r, const Color& color) {
-	auto renderer{ global::GetGame().sdl.GetRenderer() };
+	auto renderer{ global::GetGame().systems.sdl.GetRenderer() };
 	assert(renderer != nullptr && "Cannot draw solid circle with nonexistent renderer");
 	
 	int result;

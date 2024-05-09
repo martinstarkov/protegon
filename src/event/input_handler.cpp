@@ -5,7 +5,7 @@
 
 #include <SDL.h>
 
-#include "core/game.h"
+#include "core/global.h"
 #include "protegon/log.h"
 
 namespace ptgn {
@@ -18,7 +18,8 @@ void InputHandler::Update() {
 	mouse_scroll = {};
 	first_time_.reset();
 	SDL_Event event;
-	EventDispatcher<MouseEvent>& mouse_event{ global::GetGame().event.mouse_event };
+	Game& game{ global::GetGame() };
+	EventDispatcher<MouseEvent>& mouse_event{ game.systems.event.mouse_event };
 	while (SDL_PollEvent(&event)) {
 		switch (event.type) {
 			case SDL_MOUSEMOTION: {
@@ -67,10 +68,8 @@ void InputHandler::Update() {
 			}
 			case SDL_QUIT:
 			{
-				// TODO: Ensure this doesn't crash anything.
-				SDL_DestroyWindow(global::GetGame().sdl.GetWindow());
-				global::GetGame().running = false;
-				break;
+				game.Stop();
+				return;
 			}
 			// Possible window events here in the future.
 			/*

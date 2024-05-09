@@ -2,7 +2,7 @@
 
 #include <SDL.h>
 
-#include "core/game.h"
+#include "core/global.h"
 #include "protegon/circle.h"
 
 namespace ptgn {
@@ -10,7 +10,7 @@ namespace ptgn {
 namespace impl {
 
 void DrawLine(int x1, int y1, int x2, int y2, const Color& color) {
-	auto renderer{ global::GetGame().sdl.GetRenderer() };
+	auto renderer{ global::GetGame().systems.sdl.GetRenderer() };
 	assert(renderer != nullptr && "Cannot draw line with nonexistent renderer");
 
 	if (color.a != 255)
@@ -260,7 +260,7 @@ void DrawThickLineImpl(SDL_Renderer* B, int x1, int y1, int x2, int y2, double p
 }
 
 void DrawThickLine(int x1, int y1, int x2, int y2, const Color& color, std::uint8_t pixel_thickness) {
-	auto renderer{ global::GetGame().sdl.GetRenderer() };
+	auto renderer{ global::GetGame().systems.sdl.GetRenderer() };
 	assert(renderer != nullptr && "Cannot draw thick line with nonexistent renderer");
 	assert(pixel_thickness >= 1 && "Cannot draw line with thickness below 1 pixel");
 	
@@ -281,7 +281,7 @@ void DrawThickLine(int x1, int y1, int x2, int y2, const Color& color, std::uint
 }
 
 void DrawArc(int x, int y, int arc_radius, float start_angle, float end_angle, const Color& color) {
-	auto renderer{ global::GetGame().sdl.GetRenderer() };
+	auto renderer{ global::GetGame().systems.sdl.GetRenderer() };
 	assert(renderer != nullptr && "Cannot draw arc with nonexistent renderer");
 	
 	int cx = 0;
@@ -479,7 +479,7 @@ void DrawArc(int x, int y, int arc_radius, float start_angle, float end_angle, c
 }
 
 void DrawCapsule(int x1, int y1, int x2, int y2, int r, const Color& color, bool draw_centerline) {
-	auto renderer{ global::GetGame().sdl.GetRenderer() };
+	auto renderer{ global::GetGame().systems.sdl.GetRenderer() };
 	assert(renderer != nullptr && "Cannot draw capsule with nonexistent renderer");
 	
 	V2_int dir{ V2_int{ x2, y2 } - V2_int{ x1, y1 } };

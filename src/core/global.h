@@ -1,25 +1,36 @@
 #pragma once
 
-#include "vector2.h"
+#include "protegon/game.h"
+
+#include "game_systems.h"
 
 namespace ptgn {
 
-class Engine {
+class Game {
 public:
-	Engine();
-	~Engine();
-	void Construct(const char* window_title,
-				   const V2_int& window_size);
+	Game();
+	~Game();
 	// Override function for when engine is created.
 	// Usually this is where one would load fonts and scenes into the respective resource managers.
 	virtual void Create();
 	virtual void Update(float dt);
+
+	void Stop();
 private:
+	bool running_{ false };
 	void Loop();
 };
 
-inline void Engine::Create() {}
+namespace global {
 
-inline void Engine::Update(float dt) {}
+namespace impl {
+
+extern Game* game;
+
+} // namespace impl
+
+Game& GetGame();
+
+} // namespace global
 
 } // namespace ptgn

@@ -13,7 +13,6 @@
 namespace ptgn {
 
 struct InputHandler {
-
 	// Updates previous mouse states for mouse up and down check.
 	void UpdateMouseState(Mouse button);
 

@@ -185,6 +185,8 @@ template <typename Stream, typename ...Types>
 using stream_writable = std::enable_if_t<std::conjunction_v<impl::is_stream_writable<Stream, Types>...>, bool>;
 template <typename Type, typename ...Types>
 using type = std::enable_if_t<std::conjunction_v<std::is_same<Type, Types>...>, bool>;
+template <typename ChildClass, typename ParentClass>
+using is_base_of = std::enable_if_t<std::is_base_of_v<ParentClass, ChildClass>, bool>;
 
 } // namespace type_traits
 

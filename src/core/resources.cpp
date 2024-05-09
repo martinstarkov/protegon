@@ -2,12 +2,12 @@
 
 #include <SDL_mixer.h>
 
-#include "core/game.h"
+#include "core/global.h"
 
 namespace ptgn {
 
 ResourceManagers& GetManagers() {
-	return global::GetGame().managers;
+	return global::GetGame().systems.managers;
 }
 
 namespace font {
@@ -198,6 +198,13 @@ void RemoveActive(SceneKey key) {
 	GetManagers().scene.RemoveActive(key);
 }
 
+std::shared_ptr<Scene> Get(SceneKey key) {
+	assert(Has(key) && "Cannot get scene if it has not been loaded into the scene manager");
+	auto scene{ GetManagers().scene.Get(key) };
+	assert(scene != nullptr && "Cannot get scene which has been destroyed");
+	return scene;
+}
+
 std::vector<std::shared_ptr<Scene>> GetActive() {
 	return GetManagers().scene.GetActive();
 }
@@ -205,6 +212,14 @@ std::vector<std::shared_ptr<Scene>> GetActive() {
 void Update(float dt) {
 	GetManagers().scene.Update(dt);
 }
+
+namespace impl {
+
+void SetStartSceneActive() {
+	SetActive(start_scene_key);
+}
+
+} // namespace impl
 
 } // namespace scene
 

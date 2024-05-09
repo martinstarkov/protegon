@@ -119,10 +119,25 @@ void Clear();
 
 namespace scene {
 
+namespace impl {
+
+inline constexpr SceneKey start_scene_key{ 0 };
+
+template <typename T, type_traits::is_base_of<T, Scene> = true>
+std::shared_ptr<T> LoadStartScene(T&& start_scene) {
+	assert(!Has(start_scene_key) && "Only one start scene can be loaded");
+	return GetManagers().scene.LoadPolymorphic<T>(start_scene_key, start_scene);
+}
+
+void SetStartSceneActive();
+
+} // namespace impl
+
 template <typename T, typename ...TArgs,
 	type_traits::constructible<T, TArgs...> = true,
 	type_traits::convertible<T*, Scene*> = true>
 std::shared_ptr<T> Load(SceneKey key, TArgs&&... constructor_args) {
+	assert(key != impl::start_scene_key && "Cannot load scene with key == 0, that is reserved for the starting scene");
 	return GetManagers().scene.LoadPolymorphic<T>(key, std::forward<TArgs>(constructor_args)...);
 }
 
@@ -135,6 +150,13 @@ void SetActive(SceneKey key);
 void AddActive(SceneKey key);
 
 void RemoveActive(SceneKey key);
+
+std::shared_ptr<Scene> Get(SceneKey key);
+
+template <typename TScene, type_traits::is_base_of<TScene, Scene> = true>
+std::shared_ptr<TScene> Get(SceneKey key) {
+	return std::static_pointer_cast<TScene>(Get(key));
+}
 
 std::vector<std::shared_ptr<Scene>> GetActive();
 

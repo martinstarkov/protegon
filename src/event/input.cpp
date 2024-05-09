@@ -1,61 +1,61 @@
 #include "protegon/input.h"
 
-#include "core/game.h"
+#include "core/global.h"
 
 namespace ptgn {
 
 namespace input {
 
 void Update() {
-	global::GetGame().input.Update();
+	global::GetGame().systems.input.Update();
 }
 
 V2_int GetMousePosition() {
-	return global::GetGame().input.GetMousePosition();
+	return global::GetGame().systems.input.GetMousePosition();
 }
 
 int MouseScroll() {
-	return global::GetGame().input.GetMouseScroll();
+	return global::GetGame().systems.input.GetMouseScroll();
 }
 
 MouseState GetMouseState(Mouse button) {
-	return global::GetGame().input.GetMouseState(button);
+	return global::GetGame().systems.input.GetMouseState(button);
 }
 
 bool MousePressed(Mouse button) {
-	return global::GetGame().input.MousePressed(button);
+	return global::GetGame().systems.input.MousePressed(button);
 }
 
 bool MouseReleased(Mouse button) {
-	return global::GetGame().input.MouseReleased(button);
+	return global::GetGame().systems.input.MouseReleased(button);
 }
 
 bool MouseDown(Mouse button) {
-	return global::GetGame().input.MouseDown(button);
+	return global::GetGame().systems.input.MouseDown(button);
 }
 
 bool MouseUp(Mouse button) {
-	return global::GetGame().input.MouseUp(button);
+	return global::GetGame().systems.input.MouseUp(button);
 }
 
 bool KeyPressed(Key key) {
-	return global::GetGame().input.KeyPressed(key);
+	return global::GetGame().systems.input.KeyPressed(key);
 }
 
 bool KeyReleased(Key key) {
-	return global::GetGame().input.KeyReleased(key);
+	return global::GetGame().systems.input.KeyReleased(key);
 }
 
 bool KeyDown(Key key) {
-	return global::GetGame().input.KeyDown(key);
+	return global::GetGame().systems.input.KeyDown(key);
 }
 
 bool KeyUp(Key key) {
-	return global::GetGame().input.KeyUp(key);
+	return global::GetGame().systems.input.KeyUp(key);
 }
 
 milliseconds GetMouseHeldTime(Mouse button) {
-	return global::GetGame().input.GetMouseHeldTime(button);
+	return global::GetGame().systems.input.GetMouseHeldTime(button);
 }
 
 } // namespace input

@@ -2,30 +2,30 @@
 
 #include <SDL.h>
 
-#include "core/game.h"
+#include "core/global.h"
 
 namespace ptgn {
 
 namespace window {
 
 bool Exists() {
-	return global::GetGame().sdl.GetWindow() != nullptr;
+	return global::GetGame().systems.sdl.GetWindow() != nullptr;
 }
 
 void Clear() {
-	auto renderer{ global::GetGame().sdl.GetRenderer() };
+	auto renderer{ global::GetGame().systems.sdl.GetRenderer() };
 	assert(renderer != nullptr && "Cannot clear window with nonexistent renderer");
 	SDL_RenderClear(renderer);
 }
 
 void SetLogicalSize(const V2_int& logical_size) {
-	auto renderer{ global::GetGame().sdl.GetRenderer() };
+	auto renderer{ global::GetGame().systems.sdl.GetRenderer() };
 	assert(renderer != nullptr && "Cannot set window logical size with nonexistent renderer");
 	SDL_RenderSetLogicalSize(renderer, logical_size.x, logical_size.y);
 }
 
 V2_int GetLogicalSize() {
-	auto renderer{ global::GetGame().sdl.GetRenderer() };
+	auto renderer{ global::GetGame().systems.sdl.GetRenderer() };
 	assert(renderer != nullptr && "Cannot get logical size of window with nonexistent renderer");
 	V2_int logical_size;
 	SDL_RenderGetLogicalSize(renderer, &logical_size.x, &logical_size.y);
@@ -35,7 +35,7 @@ V2_int GetLogicalSize() {
 V2_int GetSize() {
 	V2_int size;
 	assert(Exists() && "Cannot get size of nonexistent window");
-	SDL_GetWindowSize(global::GetGame().sdl.GetWindow(), &size.x, &size.y);
+	SDL_GetWindowSize(global::GetGame().systems.sdl.GetWindow(), &size.x, &size.y);
 	return size;
 }
 
@@ -46,70 +46,70 @@ V2_float GetScale() {
 V2_int GetOriginPosition() {
 	V2_int origin;
 	assert(Exists() && "Cannot get origin position of nonexistent window");
-	SDL_GetWindowPosition(global::GetGame().sdl.GetWindow(), &origin.x, &origin.y);
+	SDL_GetWindowPosition(global::GetGame().systems.sdl.GetWindow(), &origin.x, &origin.y);
 	return origin;
 }
 
 const char* GetTitle() {
 	assert(Exists() && "Cannot get title of nonexistent window");
-	return SDL_GetWindowTitle(global::GetGame().sdl.GetWindow());
+	return SDL_GetWindowTitle(global::GetGame().systems.sdl.GetWindow());
 }
 
 Color GetColor() {
 	assert(Exists() && "Cannot get color of nonexistent window");
-	return global::GetGame().sdl.GetWindowBackgroundColor();
+	return global::GetGame().systems.sdl.GetWindowBackgroundColor();
 }
 
 void SetSize(const V2_int& new_size) {
 	assert(Exists() && "Cannot set size of nonexistent window");
-	SDL_SetWindowSize(global::GetGame().sdl.GetWindow(), new_size.x, new_size.y);
+	SDL_SetWindowSize(global::GetGame().systems.sdl.GetWindow(), new_size.x, new_size.y);
 }
 
 void SetOriginPosition(const V2_int& new_origin) {
 	assert(Exists() && "Cannot set origin position of nonexistent window");
-	SDL_SetWindowPosition(global::GetGame().sdl.GetWindow(), new_origin.x, new_origin.y);
+	SDL_SetWindowPosition(global::GetGame().systems.sdl.GetWindow(), new_origin.x, new_origin.y);
 }
 
 void SetTitle(const char* new_title) {
 	assert(Exists() && "Cannot set title of nonexistent window");
-	return SDL_SetWindowTitle(global::GetGame().sdl.GetWindow(), new_title);
+	return SDL_SetWindowTitle(global::GetGame().systems.sdl.GetWindow(), new_title);
 }
 
 void SetFullscreen(bool on) {
 	assert(Exists() && "Cannot toggle nonexistent window fullscreen");
 	if (on)
-		SDL_SetWindowFullscreen(global::GetGame().sdl.GetWindow(), SDL_WINDOW_FULLSCREEN_DESKTOP);
+		SDL_SetWindowFullscreen(global::GetGame().systems.sdl.GetWindow(), SDL_WINDOW_FULLSCREEN_DESKTOP);
 	else
-		SDL_SetWindowFullscreen(global::GetGame().sdl.GetWindow(), 0); // windowed mode.
+		SDL_SetWindowFullscreen(global::GetGame().systems.sdl.GetWindow(), 0); // windowed mode.
 }
 
 void SetResizeable(bool on) {
 	assert(Exists() && "Cannot toggle nonexistent window resizeability");
-	SDL_SetWindowResizable(global::GetGame().sdl.GetWindow(), static_cast<SDL_bool>(on));
+	SDL_SetWindowResizable(global::GetGame().systems.sdl.GetWindow(), static_cast<SDL_bool>(on));
 }
 
 void SetColor(const Color& new_color) {
-	global::GetGame().sdl.SetWindowBackgroundColor(new_color);
+	global::GetGame().systems.sdl.SetWindowBackgroundColor(new_color);
 }
 
 void Maximize() {
 	assert(Exists() && "Cannot maximize nonexistent window");
-	SDL_MaximizeWindow(global::GetGame().sdl.GetWindow());
+	SDL_MaximizeWindow(global::GetGame().systems.sdl.GetWindow());
 }
 
 void Minimize() {
 	assert(Exists() && "Cannot minimize nonexistent window");
-	SDL_MinimizeWindow(global::GetGame().sdl.GetWindow());
+	SDL_MinimizeWindow(global::GetGame().systems.sdl.GetWindow());
 }
 
 void Show() {
 	assert(Exists() && "Cannot show nonexistent window");
-	SDL_ShowWindow(global::GetGame().sdl.GetWindow());
+	SDL_ShowWindow(global::GetGame().systems.sdl.GetWindow());
 }
 
 void Hide() {
 	assert(Exists() && "Cannot hide nonexistent window");
-	SDL_HideWindow(global::GetGame().sdl.GetWindow());
+	SDL_HideWindow(global::GetGame().systems.sdl.GetWindow());
 }
 
 } // namespace window
