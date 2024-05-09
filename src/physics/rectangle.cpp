@@ -3,14 +3,14 @@
 #include <SDL.h>
 
 #include "protegon/line.h"
-#include "core/global.h"
+#include "core/game.h"
 
 namespace ptgn {
 
 namespace impl {
 
 void DrawRectangle(int x, int y, int w, int h, const Color& color) {
-	auto renderer{ global::GetGame().systems.sdl.GetRenderer() };
+	auto renderer{ global::GetGame().sdl.GetRenderer() };
 	assert(renderer != nullptr && "Cannot draw rectangle with nonexistent renderer");
 	SDL_Rect rect{ x, y, w, h };
 	if (color.a != 255)
@@ -20,7 +20,7 @@ void DrawRectangle(int x, int y, int w, int h, const Color& color) {
 }
 
 void DrawThickRectangle(int x, int y, int w, int h, const Color& color, std::uint8_t pixel_width) {
-	auto renderer{ global::GetGame().systems.sdl.GetRenderer() };
+	auto renderer{ global::GetGame().sdl.GetRenderer() };
 	assert(renderer != nullptr && "Cannot draw thick rectangle with nonexistent renderer");
 	assert(pixel_width >= 1 && "Cannot draw rectangle with thickness below 1 pixel");
 	int x2 = x + w;
@@ -46,7 +46,7 @@ void DrawThickRectangle(int x, int y, int w, int h, const Color& color, std::uin
 }
 
 void DrawSolidRectangle(int x, int y, int w, int h, const Color& color) {
-	auto renderer{ global::GetGame().systems.sdl.GetRenderer() };
+	auto renderer{ global::GetGame().sdl.GetRenderer() };
 	assert(renderer != nullptr && "Cannot draw solid rectangle with nonexistent renderer");
 	DrawSolidRectangleImpl(renderer, x, y, x + w, y + h, color);
 }

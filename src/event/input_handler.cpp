@@ -5,7 +5,7 @@
 
 #include <SDL.h>
 
-#include "core/global.h"
+#include "core/game.h"
 #include "protegon/log.h"
 
 namespace ptgn {
@@ -19,7 +19,7 @@ void InputHandler::Update() {
 	first_time_.reset();
 	SDL_Event event;
 	Game& game{ global::GetGame() };
-	EventDispatcher<MouseEvent>& mouse_event{ game.systems.event.mouse_event };
+	EventDispatcher<MouseEvent>& mouse_event{ game.event.mouse_event };
 	while (SDL_PollEvent(&event)) {
 		switch (event.type) {
 			case SDL_MOUSEMOTION: {

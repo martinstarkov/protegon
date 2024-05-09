@@ -3,7 +3,7 @@
 #include <SDL.h>
 #include <SDL_ttf.h>
 
-#include "core/global.h"
+#include "core/game.h"
 
 // TODO: Figure out the font situation.
 
@@ -12,7 +12,7 @@ namespace ptgn {
 Text::Text(std::size_t font_key, const char* content, const Color& color) :
 	content_{ content },
 	color_{ color } {
-	auto& font_manager{ global::GetGame().systems.managers.font };
+	auto& font_manager{ global::GetGame().managers.font };
 	assert(font_manager.Has(font_key) && "font::Load() into manager before creating text");
 	font_ = *font_manager.Get(font_key);
 	assert(font_.IsValid() && "Attempting to create text from invalid font?");
@@ -88,7 +88,7 @@ bool Text::IsValid() const {
 
 void Text::Draw(const Rectangle<int>& box) const {
 	SDL_Rect destination{ box.pos.x, box.pos.y, box.size.x, box.size.y };
-	auto renderer{ global::GetGame().systems.sdl.GetRenderer() };
+	auto renderer{ global::GetGame().sdl.GetRenderer() };
 	assert(renderer != nullptr && "Game instance destroyed or nonexistent?");
 	assert(texture_.IsValid() && "Text texture destroyed?");
 	assert(font_.IsValid() && "Text font destroyed?");

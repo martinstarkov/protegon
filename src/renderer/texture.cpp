@@ -7,7 +7,7 @@
 
 #include "protegon/log.h"
 #include "protegon/file.h"
-#include "core/global.h"
+#include "core/game.h"
 
 namespace ptgn {
 
@@ -19,7 +19,7 @@ Texture::Texture(const char* image_path) {
 		PrintLine(IMG_GetError());
 		assert(!"Failed to create texture from image path");
 	}
-	texture_ = std::shared_ptr<SDL_Texture>(SDL_CreateTextureFromSurface(global::GetGame().systems.sdl.GetRenderer(), surface), SDL_DestroyTexture);
+	texture_ = std::shared_ptr<SDL_Texture>(SDL_CreateTextureFromSurface(global::GetGame().sdl.GetRenderer(), surface), SDL_DestroyTexture);
 	if (!IsValid()) {
 		PrintLine(SDL_GetError());
 		assert(!"Failed to create texture");
@@ -30,7 +30,7 @@ Texture::Texture(const char* image_path) {
 
 Texture::Texture(SDL_Surface* surface) {
 	assert(surface != nullptr && "Nullptr surface?");
-	texture_ = std::shared_ptr<SDL_Texture>(SDL_CreateTextureFromSurface(global::GetGame().systems.sdl.GetRenderer(), surface), SDL_DestroyTexture);
+	texture_ = std::shared_ptr<SDL_Texture>(SDL_CreateTextureFromSurface(global::GetGame().sdl.GetRenderer(), surface), SDL_DestroyTexture);
 	if (!IsValid()) {
 		PrintLine(SDL_GetError());
 		assert(!"Failed to create texture from surface");
@@ -44,7 +44,7 @@ bool Texture::IsValid() const {
 
 void Texture::Draw(const Rectangle<int>& texture,
 				   const Rectangle<int>& source) const {
-	auto renderer{ global::GetGame().systems.sdl.GetRenderer() };
+	auto renderer{ global::GetGame().sdl.GetRenderer() };
 	assert(renderer != nullptr && "Game uninitialized?");
 	assert(IsValid() && "Destroyed or uninitialized texture?");
 	SDL_Rect* src{ NULL };

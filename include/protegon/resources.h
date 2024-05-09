@@ -123,10 +123,19 @@ namespace impl {
 
 inline constexpr SceneKey start_scene_key{ 0 };
 
-template <typename T, type_traits::is_base_of<T, Scene> = true>
-std::shared_ptr<T> LoadStartScene(T&& start_scene) {
+template <typename T, typename ...TArgs,
+	type_traits::constructible<T, TArgs...> = true,
+	type_traits::convertible<T*, Scene*> = true>
+std::shared_ptr<T> LoadImpl(SceneKey key, TArgs&&... constructor_args) {
+	return GetManagers().scene.LoadPolymorphic<T>(key, std::forward<TArgs>(constructor_args)...);
+}
+
+template <typename T, typename ...TArgs,
+	type_traits::constructible<T, TArgs...> = true,
+	type_traits::convertible<T*, Scene*> = true>
+void LoadStartScene(TArgs&&... constructor_args) {
 	assert(!Has(start_scene_key) && "Only one start scene can be loaded");
-	return GetManagers().scene.LoadPolymorphic<T>(start_scene_key, start_scene);
+	LoadImpl<T>(start_scene_key, std::forward<TArgs>(constructor_args)...);
 }
 
 void SetStartSceneActive();
@@ -138,7 +147,7 @@ template <typename T, typename ...TArgs,
 	type_traits::convertible<T*, Scene*> = true>
 std::shared_ptr<T> Load(SceneKey key, TArgs&&... constructor_args) {
 	assert(key != impl::start_scene_key && "Cannot load scene with key == 0, that is reserved for the starting scene");
-	return GetManagers().scene.LoadPolymorphic<T>(key, std::forward<TArgs>(constructor_args)...);
+	return impl::LoadImpl<T>(key, std::forward<TArgs>(constructor_args)...);
 }
 
 bool Has(SceneKey key);

@@ -2,7 +2,6 @@
 
 #include <functional> // std::function
 #include <map>        // std::map
-#include <iostream> // TODO: TEMPORARY
 
 #include "protegon/type_traits.h"
 #include "protegon/events.h"
@@ -32,9 +31,6 @@ private:
 class EventHandler {
 public:
 	EventDispatcher<MouseEvent> mouse_event;
-	~EventHandler() {
-		std::cout << "Destroyed event handler" << std::endl;
-	}
 };
 
 

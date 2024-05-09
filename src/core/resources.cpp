@@ -2,12 +2,12 @@
 
 #include <SDL_mixer.h>
 
-#include "core/global.h"
+#include "core/game.h"
 
 namespace ptgn {
 
 ResourceManagers& GetManagers() {
-	return global::GetGame().systems.managers;
+	return global::GetGame().managers;
 }
 
 namespace font {
@@ -184,7 +184,7 @@ void Unload(SceneKey key) {
 }
 
 void SetActive(SceneKey key) {
-	assert(Has(key) && "Cannot set active scene if it has not been loaded into the scene manager");
+	assert((Has(key) || key == impl::start_scene_key) && "Cannot set active scene if it has not been loaded into the scene manager");
 	GetManagers().scene.SetActive(key);
 }
 

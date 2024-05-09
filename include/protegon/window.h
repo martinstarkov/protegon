@@ -25,18 +25,22 @@ const char* GetTitle();
 
 Color GetColor();
 
-void SetSize(const V2_int& new_size);
+void SetSize(const V2_int& new_size, bool centered = true);
 
-void SetOriginPosition(const V2_int& new_origin);
+void Center();
+
+void SetPosition(const V2_int& new_origin);
 
 void SetTitle(const char* new_title);
 
 void SetFullscreen(bool on);
 
+// Note: The effect of Maximimize() is cancelled after calling SetResizeable(true).
 void SetResizeable(bool on);
 
 void SetColor(const Color& new_color);
 
+// Note: The effect of Maximimize() is cancelled after calling SetResizeable(true).
 void Maximize();
 
 void Minimize();

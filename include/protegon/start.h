@@ -7,26 +7,29 @@ namespace ptgn {
 
 namespace impl {
 
-void GameSetup();
+void GameStart();
 void GameLoop();
-void GameDestroy();
+void GameStop();
 
 } // namespace impl
 
 namespace game {
 
-template <typename StartScene, type_traits::is_base_of<StartScene, Scene> = true>
-void Start(const char* window_title, const V2_int& window_size, StartScene&& scene) {
-	impl::GameSetup();
-	scene::impl::LoadStartScene<StartScene>(scene);
+template <typename TStartScene, typename ...TArgs,
+	type_traits::constructible<TStartScene, TArgs...> = true,
+	type_traits::convertible<TStartScene*, Scene*> = true>
+// Optional: pass in constructor arguments for the TStartScene.
+void Start(TArgs&&... constructor_args) {
+	impl::GameStart();
+	// This may be unintuitive order but since the starting scene may set other active scenes,
+	// it is important to set it first so it is the "earliest" active scene in the list.
 	scene::impl::SetStartSceneActive();
+	scene::impl::LoadStartScene<TStartScene>(std::forward<TArgs>(constructor_args)...);
 	impl::GameLoop();
+	impl::GameStop();
 }
 
-void Stop() {
-	// Trigger game stop (running = false).
-	//impl::GameDestroy();
-}
+void Stop();
 
 } // namespace game
 
