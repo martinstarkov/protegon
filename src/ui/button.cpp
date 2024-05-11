@@ -187,28 +187,42 @@ void ToggleButton::Toggle() {
  	toggled_ = !toggled_;
 }
 
+void TexturedButton::DrawImpl(std::size_t texture_array_index) {
+    auto& texture_array = textures_.data.at(static_cast<std::size_t>(GetState()));
+
+    std::variant<Texture, TextureKey>& state = texture_array.at(texture_array_index);
+
+    Texture texture;
+
+    if (std::holds_alternative<TextureKey>(state)) {
+        texture = *texture::Get(std::get<TextureKey>(state));
+    } else {
+        texture = std::get<Texture>(state);
+    }
+
+    if (!texture.IsValid()) {
+        auto& default_texture_array = textures_.data.at(static_cast<std::size_t>(ButtonState::DEFAULT));
+        std::variant<Texture, TextureKey>& default_state = default_texture_array.at(0);
+
+        if (std::holds_alternative<TextureKey>(default_state)) {
+            TextureKey key = std::get<TextureKey>(default_state);
+            assert(texture::Has(key) && "Cannot draw textured button for which a texture has not been loaded");
+            texture = *texture::Get(key);
+        } else {
+            texture = std::get<Texture>(default_state);
+        }
+    }
+
+    assert(texture.IsValid() && "Button state texture (or default texture) must be valid");
+    texture.Draw(rect_);
+}
+
 void TexturedButton::Draw() {
- 	auto& ts{ textures_.data };
- 	auto& state_texture = ts.at(static_cast<std::size_t>(GetState())).at(0);
- 	if (state_texture.IsValid()) {
- 		state_texture.Draw(rect_);
- 	} else {
- 		auto& default_texture = ts.at(static_cast<std::size_t>(ButtonState::DEFAULT)).at(0);
- 		assert(default_texture.IsValid() && "Default button state texture must be valid");
- 		default_texture.Draw(rect_);
- 	}
+    DrawImpl(0);
 }
 
 void TexturedToggleButton::Draw() {
-    auto& ts{ textures_.data };
-    auto& state_texture = ts.at(static_cast<std::size_t>(GetState())).at(static_cast<std::size_t>(toggled_));
-    if (state_texture.IsValid()) {
-        state_texture.Draw(rect_);
-    } else {
-        auto& default_texture = ts.at(static_cast<std::size_t>(ButtonState::DEFAULT)).at(0);
-        assert(default_texture.IsValid() && "Default button state texture must be valid");
-        default_texture.Draw(rect_);
-    }
+    DrawImpl(static_cast<std::size_t>(toggled_));
 }
 
 } // namespace ptgn
