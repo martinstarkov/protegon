@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.16)
 option(DOWNLOAD_SDL2 "Download prebuilt SDL2 libs" ON)
 
 if (WIN32)
-  option(SHARED_SDL2_LIBS "Statically Link SDL2 libs to protegon" OFF)
+  option(SHARED_SDL2_LIBS "Link SDL2 libs to protegon as dlls" ON)
   # TODO: Figure out how to disable console for macOS and enable for linux
   option(ENABLE_CONSOLE "Enable console executable" ON)
 else()

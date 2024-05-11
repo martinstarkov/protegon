@@ -31,7 +31,6 @@ private:
 class EventHandler {
 public:
 	EventDispatcher<MouseEvent> mouse_event;
-private:
 };
 
 

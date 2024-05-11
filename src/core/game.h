@@ -1,6 +1,6 @@
 #pragma once
 
-#include <memory> // std::unique_ptr
+#include <memory>
 
 #include "core/sdl_instance.h"
 #include "protegon/resources.h"
@@ -10,13 +10,21 @@
 
 namespace ptgn {
 
-struct Game {
+class Game {
+public:
+	Game() = default;
+	~Game() = default;
+
+	void Stop();
+	void Loop();
+
 	SDLInstance sdl;
-	ResourceManagers managers;
-	InputHandler input;
 	EventHandler event;
+	ResourceManagers managers;
 	SceneManager scene;
-	bool running{ false };
+	InputHandler input;
+private:
+	bool running_{ false };
 };
 
 namespace global {
@@ -25,10 +33,10 @@ namespace impl {
 
 extern std::unique_ptr<Game> game;
 
+void InitGame();
+
 } // namespace impl
 
-void InitGame();
-void DestroyGame();
 Game& GetGame();
 
 } // namespace global

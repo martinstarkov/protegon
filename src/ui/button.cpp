@@ -25,8 +25,21 @@ void Button::Activate() {
  	on_activate_();
 }
 
+void Button::StartHover() {
+    on_hover_start_();
+}
+
+void Button::StopHover() {
+    on_hover_stop_();
+}
+
 void Button::SetOnActivate(std::function<void()> function) {
  	on_activate_ = function;
+}
+
+void Button::SetOnHover(std::function<void()> start_hover_function, std::function<void()> stop_hover_function) {
+    on_hover_start_ = start_hover_function;
+    on_hover_stop_ = stop_hover_function;
 }
 
 void Button::OnMouseEvent(const Event<MouseEvent>& event) {
@@ -93,6 +106,9 @@ void Button::OnMouseEnter(const MouseMoveEvent& e) {
  	    button_state_ = InternalButtonState::HOVER_PRESSED;
     else if (button_state_ == InternalButtonState::HELD_OUTSIDE)
  	    button_state_ = InternalButtonState::PRESSED;
+    if (on_hover_start_ != nullptr) {
+        StartHover();
+    }
 }
 
 void Button::OnMouseLeave(const MouseMoveEvent& e) {
@@ -102,6 +118,9 @@ void Button::OnMouseLeave(const MouseMoveEvent& e) {
  	    button_state_ = InternalButtonState::HELD_OUTSIDE;
     else if (button_state_ == InternalButtonState::HOVER_PRESSED)
  	    button_state_ = InternalButtonState::IDLE_DOWN;
+    if (on_hover_stop_ != nullptr) {
+        StopHover();
+    }
 }
 
 void Button::OnMouseDown(const MouseDownEvent& e) {
@@ -187,28 +206,63 @@ void ToggleButton::Toggle() {
  	toggled_ = !toggled_;
 }
 
-void TexturedButton::Draw() {
- 	auto& ts{ textures_.data };
- 	auto& state_texture = ts.at(static_cast<std::size_t>(GetState())).at(0);
- 	if (state_texture.IsValid()) {
- 		state_texture.Draw(rect_);
- 	} else {
- 		auto& default_texture = ts.at(static_cast<std::size_t>(ButtonState::DEFAULT)).at(0);
- 		assert(default_texture.IsValid() && "Default button state texture must be valid");
- 		default_texture.Draw(rect_);
- 	}
+void SolidButton::DrawImpl(std::size_t color_array_index) const {
+    const Color& color = GetCurrentColorImpl(GetState(), color_array_index);
+    rect_.DrawSolid(color);
 }
 
-void TexturedToggleButton::Draw() {
-    auto& ts{ textures_.data };
-    auto& state_texture = ts.at(static_cast<std::size_t>(GetState())).at(static_cast<std::size_t>(toggled_));
-    if (state_texture.IsValid()) {
-        state_texture.Draw(rect_);
-    } else {
-        auto& default_texture = ts.at(static_cast<std::size_t>(ButtonState::DEFAULT)).at(0);
-        assert(default_texture.IsValid() && "Default button state texture must be valid");
-        default_texture.Draw(rect_);
+void SolidButton::Draw() const {
+    DrawImpl(0);
+}
+
+const Color& SolidButton::GetCurrentColorImpl(ButtonState state, std::size_t color_array_index) const {
+    auto& color_array = colors_.data.at(static_cast<std::size_t>(state));
+    const Color& color = color_array.at(color_array_index);
+    return color;
+}
+
+const Color& SolidButton::GetCurrentColor() const {
+    return GetCurrentColorImpl(GetState(), 0);
+}
+
+void TexturedButton::DrawImpl(std::size_t texture_array_index) const {
+    Texture texture = GetCurrentTextureImpl(GetState(), texture_array_index);
+    if (!texture.IsValid()) {
+        texture = GetCurrentTextureImpl(ButtonState::DEFAULT, 0);
     }
+    assert(texture.IsValid() && "Button state texture (or default texture) must be valid");
+    texture.Draw(rect_);
+}
+
+void TexturedButton::Draw() const {
+    DrawImpl(0);
+}
+
+const Texture& TexturedButton::GetCurrentTextureImpl(ButtonState state, std::size_t texture_array_index) const {
+    auto& texture_array = textures_.data.at(static_cast<std::size_t>(state));
+
+    const std::variant<Texture, TextureKey>& texture_state = texture_array.at(texture_array_index);
+
+    if (std::holds_alternative<TextureKey>(texture_state)) {
+        const TextureKey key = std::get<TextureKey>(texture_state);
+        assert(texture::Has(key) && "Cannot get button texture which has not been loaded");
+        return *texture::Get(key);
+    }
+    else {
+        return std::get<Texture>(texture_state);
+    }
+}
+
+const Texture& TexturedButton::GetCurrentTexture() const {
+    return GetCurrentTextureImpl(GetState(), 0);
+}
+
+void TexturedToggleButton::Draw() const {
+    DrawImpl(static_cast<std::size_t>(toggled_));
+}
+
+const Texture& TexturedToggleButton::GetCurrentTexture() const {
+    return GetCurrentTextureImpl(GetState(), static_cast<std::size_t>(toggled_));
 }
 
 } // namespace ptgn

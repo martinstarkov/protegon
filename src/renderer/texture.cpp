@@ -59,4 +59,10 @@ void Texture::Draw(const Rectangle<int>& texture,
 	SDL_RenderCopy(renderer, texture_.get(), src, &destination);
 }
 
+V2_int Texture::GetSize() const {
+	V2_int size;
+	SDL_QueryTexture(texture_.get(), NULL, NULL, &size.x, &size.y);
+	return size;
+}
+
 } // namespace ptgn

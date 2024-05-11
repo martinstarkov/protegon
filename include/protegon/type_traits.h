@@ -150,6 +150,10 @@ template <typename Stream, typename Type>
 inline constexpr bool is_stream_writable_v{ impl::is_stream_writable<Stream, Type>::value };
 template <typename From, typename To>
 inline constexpr bool is_safely_castable_v{ impl::is_safely_castable<From, To>::value };
+template <typename T, typename ...Ts>
+inline constexpr bool is_one_of_v{ (std::is_same_v<T, Ts> || ...) };
+template <typename T, typename ...Ts>
+inline constexpr bool is_safely_castable_to_one_of_v{ (type_traits::is_safely_castable_v<T, Ts> || ...) };
 
 template <typename T, typename U>
 using equals_comparable = std::enable_if_t<is_equals_comparable_v<T, U>, bool>;
@@ -185,6 +189,12 @@ template <typename Stream, typename ...Types>
 using stream_writable = std::enable_if_t<std::conjunction_v<impl::is_stream_writable<Stream, Types>...>, bool>;
 template <typename Type, typename ...Types>
 using type = std::enable_if_t<std::conjunction_v<std::is_same<Type, Types>...>, bool>;
+template <typename ChildClass, typename ParentClass>
+using is_base_of = std::enable_if_t<std::is_base_of_v<ParentClass, ChildClass>, bool>;
+template <typename T, typename ...Ts>
+using is_one_of = std::enable_if_t<type_traits::is_one_of_v<T, Ts...>, bool>;
+template <typename T, typename ...Ts>
+using is_safely_castable_to_one_of = std::enable_if_t<type_traits::is_safely_castable_to_one_of_v<T, Ts...>, bool>;
 
 } // namespace type_traits
 

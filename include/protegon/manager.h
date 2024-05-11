@@ -6,6 +6,8 @@
 #include <unordered_map> // std::unordered_map
 #include <utility>       // std::forward
 
+#include "protegon/window.h"
+
 #include "type_traits.h"
 
 namespace ptgn {

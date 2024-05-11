@@ -11,7 +11,7 @@ using json = nlohmann::json;
 #include "protegon/collision.h"
 #include "protegon/color.h"
 #include "protegon/debug.h"
-#include "protegon/engine.h"
+#include "protegon/start.h"
 #include "protegon/event.h"
 #include "protegon/events.h"
 #include "protegon/font.h"

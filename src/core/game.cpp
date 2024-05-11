@@ -1,16 +1,52 @@
 #include "game.h"
 
-#include <cassert>
+#include "protegon/window.h"
 
-#if defined(__APPLE__) && defined(USING_APPLE_CLANG)
+#include <SDL.h>
 
-#include <filesystem>
-#include <iostream>
-#include <mach-o/dyld.h>
-
-#endif
+#include <chrono>
 
 namespace ptgn {
+
+void Game::Loop() {
+	// Design decision: Latest possible point to show window is right before loop starts.
+	// Comment this if you wish the window to appear hidden for an indefinite period of time.
+	window::Show();
+	using time = std::chrono::time_point<std::chrono::system_clock>;
+	time start{ std::chrono::system_clock::now() };
+	time end{ std::chrono::system_clock::now() };
+
+	running_ = true;
+
+	while (running_) {
+		auto renderer{ sdl.GetRenderer() };
+
+		input.Update();
+
+		// Calculate time elapsed during previous frame.
+		end = std::chrono::system_clock::now();
+		std::chrono::duration<float> elapsed{ end - start };
+		float dt{ elapsed.count() };
+		start = end;
+
+		Color o{ sdl.GetWindowBackgroundColor() };
+
+		SDL_SetRenderDrawColor(renderer, o.r, o.g, o.b, o.a);
+
+		// Clear screen.
+		SDL_RenderClear(renderer);
+
+		// Call user update on active scenes.
+		scene::Update(dt);
+
+		// Push drawn objects to screen.
+		SDL_RenderPresent(renderer);
+	}
+}
+
+void Game::Stop() {
+	running_ = false;
+}
 
 namespace global {
 
@@ -18,32 +54,14 @@ namespace impl {
 
 std::unique_ptr<Game> game{ nullptr };
 
+void InitGame() {
+	game = std::make_unique<Game>();
+}
+
 } // namespace impl
 
-void InitGame() {
-// When using AppleClang, for some reason the working directory for the executable is set to $HOME instead of the executable directory.
-// Therefore, the C++ code corrects the working directory using std::filesystem so that relative paths work properly.
-#if defined(__APPLE__) && defined(USING_APPLE_CLANG)
-    char path[1024];
-    std::uint32_t size = sizeof(path);
-    std::filesystem::path exe_dir;
-    if (_NSGetExecutablePath(path, &size) == 0) {
-        exe_dir = std::filesystem::path(path).parent_path();
-    } else {
-        std::cout << "Buffer too small to retrieve executable path. Please run the executable from a terminal" << std::endl;
-        exe_dir = std::getenv("PWD");
-    }
-    std::filesystem::current_path(exe_dir);
-#endif
-	impl::game = std::make_unique<Game>();
-}
-
-void DestroyGame() {
-	impl::game.reset();
-}
-
 Game& GetGame() {
-	assert(impl::game != nullptr && "Game not initialized?");
+	assert(impl::game != nullptr && "Game not initialized or destroyed early");
 	return *impl::game;
 }
 

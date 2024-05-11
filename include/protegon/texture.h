@@ -23,6 +23,7 @@ public:
 	bool IsValid() const;
 	void Draw(const Rectangle<int>& texture,
 			  const Rectangle<int>& source = {}) const;
+	V2_int GetSize() const;
 private:
 	friend class Text;
 	// Takes ownership of surface pointer.

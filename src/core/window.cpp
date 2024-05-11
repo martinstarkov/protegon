@@ -60,14 +60,20 @@ Color GetColor() {
 	return global::GetGame().sdl.GetWindowBackgroundColor();
 }
 
-void SetSize(const V2_int& new_size) {
+void SetSize(const V2_int& new_size, bool centered) {
 	assert(Exists() && "Cannot set size of nonexistent window");
 	SDL_SetWindowSize(global::GetGame().sdl.GetWindow(), new_size.x, new_size.y);
+	// Important to center after resizing.
+	if (centered) Center();
 }
 
-void SetOriginPosition(const V2_int& new_origin) {
+void SetPosition(const V2_int& new_origin) {
 	assert(Exists() && "Cannot set origin position of nonexistent window");
 	SDL_SetWindowPosition(global::GetGame().sdl.GetWindow(), new_origin.x, new_origin.y);
+}
+
+void Center() {
+	SetPosition({ SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED });
 }
 
 void SetTitle(const char* new_title) {
