@@ -31,14 +31,24 @@ struct TextureArray {
     std::array<std::array<std::variant<Texture, TextureKey>, I>, 3> data;
 };
 
+template <size_t I>
+struct ColorArray {
+    std::array<std::array<Color, I>, 3> data;
+};
+
 class Button {
 public:
     Button() = default;
     Button(const Rectangle<int>& rect,
  		    std::function<void()> on_activate_function = nullptr);
     virtual ~Button();
+    // These allow for manually triggering button callback events.
     virtual void Activate();
+    virtual void StartHover();
+    virtual void StopHover();
+
     virtual void SetOnActivate(std::function<void()> function);
+    virtual void SetOnHover(std::function<void()> start_hover_function = nullptr, std::function<void()> stop_hover_function = nullptr);
     virtual void OnMouseEvent(const Event<MouseEvent>& event);
     virtual void SubscribeToMouseEvents();
     virtual void UnsubscribeFromMouseEvents();
@@ -64,7 +74,31 @@ protected:
     };
     Rectangle<int> rect_{};
     std::function<void()> on_activate_{ nullptr };
+    std::function<void()> on_hover_start_{ nullptr };
+    std::function<void()> on_hover_stop_{ nullptr };
     InternalButtonState button_state_{ InternalButtonState::IDLE_UP };
+};
+
+class SolidButton : public virtual Button {
+public:
+    SolidButton() = default;
+    SolidButton(
+        const Rectangle<int>& rect,
+        Color default,
+        Color hover,
+        Color pressed,
+        std::function<void()> on_activate_function = nullptr) :
+        Button{ rect, on_activate_function } {
+        colors_.data.at(static_cast<std::size_t>(ButtonState::DEFAULT)).at(0) = default;
+        colors_.data.at(static_cast<std::size_t>(ButtonState::HOVER)).at(0) = hover;
+        colors_.data.at(static_cast<std::size_t>(ButtonState::PRESSED)).at(0) = pressed;
+    }
+    virtual void Draw() const;
+    virtual const Color& GetCurrentColor() const;
+protected:
+    const Color& GetCurrentColorImpl(ButtonState state, std::size_t color_array_index = 0) const;
+    void DrawImpl(std::size_t color_array_index = 0) const;
+    ColorArray<2> colors_{};
 };
 
 class ToggleButton : public virtual Button {
@@ -85,8 +119,7 @@ protected:
 class TexturedButton : public virtual Button {
 public:
     TexturedButton() = default;
-    // TODO: Add type check.
-    template <typename T>
+    template <typename T, type_traits::is_safely_castable_to_one_of<T, Texture, TextureKey> = true>
     TexturedButton(
         const Rectangle<int>& rect,
         T default,
@@ -94,21 +127,15 @@ public:
         T pressed,
         std::function<void()> on_activate_function = nullptr) :
         Button{ rect, on_activate_function } {
-
-        std::variant<Texture, TextureKey> default_on = default;
-        std::variant<Texture, TextureKey> hover_on = hover;
-        std::variant<Texture, TextureKey> pressed_on = pressed;
-
-        for (std::size_t i = 0; i++ i < 2) {
-            textures_.data.at(static_cast<std::size_t>(ButtonState::DEFAULT)).at(i) = default_on;
-            textures_.data.at(static_cast<std::size_t>(ButtonState::HOVER)).at(i) = hover_on;
-            textures_.data.at(static_cast<std::size_t>(ButtonState::PRESSED)).at(i) = pressed_on;
-        }
+        textures_.data.at(static_cast<std::size_t>(ButtonState::DEFAULT)).at(0) = default;
+        textures_.data.at(static_cast<std::size_t>(ButtonState::HOVER)).at(0) = hover;
+        textures_.data.at(static_cast<std::size_t>(ButtonState::PRESSED)).at(0) = pressed;
     }
-    virtual void Draw();
+    virtual void Draw() const;
+    virtual const Texture& GetCurrentTexture() const;
 protected:
-    void DrawImpl(std::size_t texture_array_index = 0);
-private:
+    const Texture& GetCurrentTextureImpl(ButtonState state, std::size_t texture_array_index = 0) const;
+    void DrawImpl(std::size_t texture_array_index = 0) const;
     // Must be initialized explicitly by a constructor.
     // Can technically exist uninitialized if button is default constructed (temporary object).
     // TODO: Figure out a way to store 1 here and 2 in the toggle button class
@@ -118,53 +145,36 @@ private:
 class TexturedToggleButton : public TexturedButton, public ToggleButton {
 public:
     TexturedToggleButton() = default;
-    // TODO: Add type check.
-    template <typename T>
+    template <typename T, type_traits::is_safely_castable_to_one_of<T, Texture, TextureKey> = true>
     TexturedToggleButton(
         const Rectangle<int>& rect,
-        T default,
-        T hover,
-        T pressed,
+        std::initializer_list<T> default,
+        std::initializer_list<T> hover,
+        std::initializer_list<T> pressed,
         std::function<void()> on_activate_function = nullptr) {
         rect_ = rect;
         on_activate_ = on_activate_function;
         SubscribeToMouseEvents();
 
-        std::variant<Texture, TextureKey> default_on;
-        std::variant<Texture, TextureKey> hover_on;
-        std::variant<Texture, TextureKey> pressed_on;
-        std::variant<Texture, TextureKey> default_off;
-        std::variant<Texture, TextureKey> hover_off;
-        std::variant<Texture, TextureKey> pressed_off;
+        // TODO: Perhaps allow for more than two entries later
+        assert(default.size() <= 2);
+        assert(hover.size()   <= 2);
+        assert(pressed.size() <= 2);
 
-        if constexpr (type_traits::is_safely_castable_v<T, Texture> ||
-                      type_traits::is_safely_castable_v<T, TextureKey>) {
-            default_on = default;
-            hover_on   = hover;
-            pressed_on = pressed;
-            default_off = default;
-            hover_off = hover;
-            pressed_off = pressed;
-        } else if constexpr (type_traits::is_safely_castable_v<T, TexturePair> ||
-                             type_traits::is_safely_castable_v<T, TextureKeyPair>) {
-            default_on  = default.first;
-            hover_on    = hover.first;
-            pressed_on  = pressed.first;
-            default_off = default.second;
-            hover_off   = hover.second;
-            pressed_off = pressed.second;
-        }
+        auto set_textures = [&](const std::initializer_list<T>& list, const ButtonState state) -> void {
+            std::size_t i = 0;
+            for (auto it = list.begin(); it != list.end(); ++it) {
+                textures_.data.at(static_cast<std::size_t>(state)).at(i) = *it;
+                ++i;
+            }
+        };
 
-        textures_.data.at(static_cast<std::size_t>(ButtonState::DEFAULT)).at(0) = default_on;
-        textures_.data.at(static_cast<std::size_t>(ButtonState::HOVER)).at(0) = hover_on;
-        textures_.data.at(static_cast<std::size_t>(ButtonState::PRESSED)).at(0) = pressed_on;
-
-        textures_.data.at(static_cast<std::size_t>(ButtonState::DEFAULT)).at(1) = default_off;
-        textures_.data.at(static_cast<std::size_t>(ButtonState::HOVER)).at(1) = hover_off;
-        textures_.data.at(static_cast<std::size_t>(ButtonState::PRESSED)).at(1) = pressed_off;
-
+        set_textures(default, ButtonState::DEFAULT);
+        set_textures(hover, ButtonState::HOVER);
+        set_textures(pressed, ButtonState::PRESSED);
     }
-    virtual void Draw() override;
+    virtual const Texture& GetCurrentTexture() const override;
+    virtual void Draw() const override;
 };
 
 } // namespace ptgn
