@@ -11,6 +11,13 @@ struct SDL_Surface;
 
 namespace ptgn {
 
+enum class Flip
+{
+	NONE       = 0x00000000,
+	HORIZONTAL = 0x00000001,
+	VERTICAL   = 0x00000002
+};
+
 class Texture {
 public:
 	Texture() = default;
@@ -21,8 +28,12 @@ public:
 	Texture(Texture&&) = default;
 	Texture& operator=(Texture&&) = default;
 	bool IsValid() const;
-	void Draw(const Rectangle<int>& texture,
-			  const Rectangle<int>& source = {}) const;
+	// Rotation is clockwise.
+	void Draw(Rectangle<float> texture,
+			  const Rectangle<int>& source = {},
+			  float angle = 0.0f,
+			  Flip flip = Flip::NONE,
+			  V2_int* center_of_rotation = nullptr) const;
 	V2_int GetSize() const;
 private:
 	friend class Text;

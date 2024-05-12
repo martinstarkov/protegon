@@ -42,8 +42,11 @@ bool Texture::IsValid() const {
 	return texture_ != nullptr;
 }
 
-void Texture::Draw(const Rectangle<int>& texture,
-				   const Rectangle<int>& source) const {
+void Texture::Draw(Rectangle<float> texture,
+				   const Rectangle<int>& source,
+				   float angle,
+				   Flip flip,
+				   V2_int* center_of_rotation) const {
 	auto renderer{ global::GetGame().sdl.GetRenderer() };
 	assert(renderer != nullptr && "Game uninitialized?");
 	assert(IsValid() && "Destroyed or uninitialized texture?");
@@ -54,9 +57,28 @@ void Texture::Draw(const Rectangle<int>& texture,
 			         source.size.x, source.size.y };
 		src = &src_rect;
 	}
-	SDL_Rect destination{ texture.pos.x,  texture.pos.y,
-		                  texture.size.x, texture.size.y };
-	SDL_RenderCopy(renderer, texture_.get(), src, &destination);
+	V2_float scale = window::GetScale();
+	texture.pos *= scale;
+	texture.size *= scale;
+	SDL_Rect destination{
+		static_cast<int>(texture.pos.x),
+		static_cast<int>(texture.pos.y),
+		static_cast<int>(texture.size.x),
+		static_cast<int>(texture.size.y)
+	};
+	SDL_Point rotation_point;
+	if (center_of_rotation != nullptr) {
+		rotation_point.x = center_of_rotation->x;
+		rotation_point.y = center_of_rotation->y;
+	}
+	SDL_RenderCopyEx(renderer,
+		texture_.get(),
+		src,
+		&destination,
+		angle,
+		center_of_rotation != nullptr ? &rotation_point : NULL,
+		static_cast<SDL_RendererFlip>(flip)
+	);
 }
 
 V2_int Texture::GetSize() const {
