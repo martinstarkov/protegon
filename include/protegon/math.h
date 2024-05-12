@@ -150,7 +150,7 @@ std::tuple<bool, T, T> QuadraticFormula(T a, T b, T c) {
 template <typename T, typename U,
     type_traits::arithmetic<T> = true,
     type_traits::floating_point<U> = true>
-T Lerp(T a, T b, U t) {
+U Lerp(T a, T b, U t) {
     return a + t * (b - a);
 }
 
