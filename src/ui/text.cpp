@@ -86,8 +86,16 @@ bool Text::IsValid() const {
 	return texture_.IsValid() && font_.IsValid();
 }
 
-void Text::Draw(const Rectangle<int>& box) const {
-	SDL_Rect destination{ box.pos.x, box.pos.y, box.size.x, box.size.y };
+void Text::Draw(Rectangle<float> box) const {
+	V2_float scale = window::GetScale();
+	box.pos *= scale;
+	box.size *= scale;
+	SDL_Rect destination{
+		static_cast<int>(box.pos.x),
+		static_cast<int>(box.pos.y),
+		static_cast<int>(box.size.x),
+		static_cast<int>(box.size.y)
+	};
 	auto renderer{ global::GetGame().sdl.GetRenderer() };
 	assert(renderer != nullptr && "Game instance destroyed or nonexistent?");
 	assert(texture_.IsValid() && "Text texture destroyed?");

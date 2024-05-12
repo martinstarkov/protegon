@@ -17,8 +17,6 @@ V2_int GetLogicalSize();
 
 V2_int GetSize();
 
-V2_float GetScale();
-
 V2_int GetOriginPosition();
 
 const char* GetTitle();
@@ -48,6 +46,10 @@ void Minimize();
 void Show();
 
 void Hide();
+
+void SetScale(const V2_float& new_scale);
+
+V2_float GetScale();
 
 } // namespace window
 

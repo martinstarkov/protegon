@@ -10,7 +10,7 @@
 
 namespace ptgn {
 
-Button::Button(const Rectangle<int>& rect,
+Button::Button(const Rectangle<float>& rect,
 			   std::function<void()> on_activate_function) :
 	rect_{ rect },
 	on_activate_{ on_activate_function } {
@@ -156,11 +156,11 @@ void Button::OnMouseUpOutside(const MouseUpEvent& e) {
     }
 }
 
-const Rectangle<int>& Button::GetRectangle() const {
+const Rectangle<float>& Button::GetRectangle() const {
     return rect_;
 }
 
-void Button::SetRectangle(const Rectangle<int>& new_rectangle) {
+void Button::SetRectangle(const Rectangle<float>& new_rectangle) {
  	rect_ = new_rectangle;
 }
 
@@ -174,7 +174,7 @@ ButtonState Button::GetState() const {
 }
 
 ToggleButton::ToggleButton(
-    const Rectangle<int>& rect,
+    const Rectangle<float>& rect,
     std::function<void()> on_activate_function,
  	bool initially_toggled) : Button{ rect, on_activate_function } {
  	toggled_ = initially_toggled;

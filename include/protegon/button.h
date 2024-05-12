@@ -39,7 +39,7 @@ struct ColorArray {
 class Button {
 public:
     Button() = default;
-    Button(const Rectangle<int>& rect,
+    Button(const Rectangle<float>& rect,
  		    std::function<void()> on_activate_function = nullptr);
     virtual ~Button();
     // These allow for manually triggering button callback events.
@@ -60,8 +60,8 @@ public:
     virtual void OnMouseDownOutside(const MouseDownEvent& e);
     virtual void OnMouseUp(const MouseUpEvent& e);
     virtual void OnMouseUpOutside(const MouseUpEvent& e);
-    const Rectangle<int>& GetRectangle() const;
-    void SetRectangle(const Rectangle<int>& new_rectangle);
+    const Rectangle<float>& GetRectangle() const;
+    void SetRectangle(const Rectangle<float>& new_rectangle);
     ButtonState GetState() const;
 protected:
     enum class InternalButtonState : std::size_t {
@@ -72,7 +72,7 @@ protected:
         IDLE_DOWN = 4,
         HOVER_PRESSED = 5
     };
-    Rectangle<int> rect_{};
+    Rectangle<float> rect_{};
     std::function<void()> on_activate_{ nullptr };
     std::function<void()> on_hover_start_{ nullptr };
     std::function<void()> on_hover_stop_{ nullptr };
@@ -83,7 +83,7 @@ class SolidButton : public virtual Button {
 public:
     SolidButton() = default;
     SolidButton(
-        const Rectangle<int>& rect,
+        const Rectangle<float>& rect,
         Color default,
         Color hover,
         Color pressed,
@@ -104,7 +104,7 @@ protected:
 class ToggleButton : public virtual Button {
 public:
     using Button::Button;
-    ToggleButton(const Rectangle<int>& rect,
+    ToggleButton(const Rectangle<float>& rect,
  				 std::function<void()> on_activate_function = nullptr,
  				 bool initially_toggled = false);
     ~ToggleButton();
@@ -121,7 +121,7 @@ public:
     TexturedButton() = default;
     template <typename T, type_traits::is_safely_castable_to_one_of<T, Texture, TextureKey> = true>
     TexturedButton(
-        const Rectangle<int>& rect,
+        const Rectangle<float>& rect,
         T default,
         T hover,
         T pressed,
@@ -147,7 +147,7 @@ public:
     TexturedToggleButton() = default;
     template <typename T, type_traits::is_safely_castable_to_one_of<T, Texture, TextureKey> = true>
     TexturedToggleButton(
-        const Rectangle<int>& rect,
+        const Rectangle<float>& rect,
         std::initializer_list<T> default,
         std::initializer_list<T> hover,
         std::initializer_list<T> pressed,

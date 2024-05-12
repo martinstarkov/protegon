@@ -44,19 +44,20 @@ struct Line {
 				 static_cast<Point<U>>(b) };
 	}
 	void Draw(const Color& color, std::uint8_t pixel_thickness = 1) const {
+		V2_float scale = window::GetScale();
 		if (pixel_thickness == 1)
-			impl::DrawLine(static_cast<int>(a.x),
-						   static_cast<int>(a.y),
-						   static_cast<int>(b.x),
-						   static_cast<int>(b.y),
+			impl::DrawLine(static_cast<int>(a.x * scale.x),
+						   static_cast<int>(a.y * scale.y),
+						   static_cast<int>(b.x * scale.x),
+						   static_cast<int>(b.y * scale.y),
 						   color);
 		else
-			impl::DrawThickLine(static_cast<int>(a.x),
-						        static_cast<int>(a.y),
-						        static_cast<int>(b.x),
-						        static_cast<int>(b.y),
+			impl::DrawThickLine(static_cast<int>(a.x * scale.x),
+						        static_cast<int>(a.y * scale.y),
+						        static_cast<int>(b.x * scale.x),
+						        static_cast<int>(b.y * scale.y),
 						        color,
-								pixel_thickness);
+								pixel_thickness * scale.x);
 	}
 };
 
@@ -92,11 +93,12 @@ struct Capsule {
 				 static_cast<U>(r) };
 	}
 	void Draw(const Color& color, bool draw_centerline = false) const {
-		impl::DrawCapsule(static_cast<int>(segment.a.x),
-					      static_cast<int>(segment.a.y),
-					      static_cast<int>(segment.b.x),
-					      static_cast<int>(segment.b.y),
-						  static_cast<int>(r),
+		V2_float scale = window::GetScale();
+		impl::DrawCapsule(static_cast<int>(segment.a.x * scale.x),
+					      static_cast<int>(segment.a.y * scale.y),
+					      static_cast<int>(segment.b.x * scale.x),
+					      static_cast<int>(segment.b.y * scale.y),
+						  static_cast<int>(r * scale.x),
 					      color,
 						  draw_centerline);
 	}

@@ -104,4 +104,12 @@ void SDLInstance::SetWindowBackgroundColor(const Color& new_color) {
 	window_bg_color_ = new_color;
 }
 
+void SDLInstance::SetScale(const V2_float& new_scale) {
+	scale_ = new_scale;
+}
+
+V2_float SDLInstance::GetScale() const {
+	return scale_;
+}
+
 } // namespace ptgn

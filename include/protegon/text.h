@@ -32,7 +32,7 @@ public:
 		style_ = (styles | ...);
 		Refresh();
 	}
-	void Draw(const Rectangle<int>& box) const;
+	void Draw(Rectangle<float> box) const;
 private:
 	Text() = default;
 	// TLDR; Call this if you change any attribute of the text.

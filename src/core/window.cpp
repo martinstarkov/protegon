@@ -21,6 +21,7 @@ void Clear() {
 void SetLogicalSize(const V2_int& logical_size) {
 	auto renderer{ global::GetGame().sdl.GetRenderer() };
 	assert(renderer != nullptr && "Cannot set window logical size with nonexistent renderer");
+	//SDL_RenderSetIntegerScale(renderer,	static_cast<SDL_bool>(true));
 	SDL_RenderSetLogicalSize(renderer, logical_size.x, logical_size.y);
 }
 
@@ -37,10 +38,6 @@ V2_int GetSize() {
 	assert(Exists() && "Cannot get size of nonexistent window");
 	SDL_GetWindowSize(global::GetGame().sdl.GetWindow(), &size.x, &size.y);
 	return size;
-}
-
-V2_float GetScale() {
-	return V2_float{ window::GetSize() } / V2_float{ window::GetLogicalSize() };
 }
 
 V2_int GetOriginPosition() {
@@ -116,6 +113,16 @@ void Show() {
 void Hide() {
 	assert(Exists() && "Cannot hide nonexistent window");
 	SDL_HideWindow(global::GetGame().sdl.GetWindow());
+}
+
+void SetScale(const V2_float& new_scale) {
+	auto& sdl{ global::GetGame().sdl };
+	sdl.SetScale(new_scale);
+}
+
+V2_float GetScale() {
+	auto& sdl{ global::GetGame().sdl };
+	return sdl.GetScale();
 }
 
 } // namespace window
