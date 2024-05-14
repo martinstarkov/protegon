@@ -35,6 +35,7 @@ public:
 			  Flip flip = Flip::NONE,
 			  V2_int* center_of_rotation = nullptr) const;
 	V2_int GetSize() const;
+	void SetAlpha(std::uint8_t alpha);
 private:
 	friend class Text;
 	// Takes ownership of surface pointer.
