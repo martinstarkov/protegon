@@ -13,6 +13,7 @@ namespace impl {
 // Source (used): https://www.geeksforgeeks.org/mid-point-circle-drawing-algorithm/
 void DrawCircle(int x, int y, int r, const Color& color);
 void DrawThickCircle(int x, int y, int r, const Color& color, std::uint8_t pixel_thickness);
+void DrawSolidCircleSliced(int x, int y, int r, const Color& color, std::function<bool(float y_frac)> condition);
 void DrawSolidCircle(int x, int y, int r, const Color& color);
 // Source: https://github.com/rtrussell/BBCSDL/blob/master/src/SDL2_gfxPrimitives.c
 void DrawEllipse(SDL_Renderer* renderer, int x, int y, int rx, int ry, const Color& color);
@@ -49,6 +50,17 @@ struct Circle {
 						      static_cast<int>(c.y * scale.y),
 						      static_cast<int>(r * scale.x),
 						      color);
+	}
+	// condition is a lambda which returns true for pixels where the circle is rendered.
+	// y_frac indicates which fraction of the radius the circle is rendering: 
+	// y_frac is 0.0 (top of circle) to 1.0 (bottom of circle), 0.5 is the center.
+	void DrawSolidSliced(const Color& color, std::function<bool(float y_frac)> condition) const {
+		V2_float scale = window::GetScale();
+		impl::DrawSolidCircleSliced(static_cast<int>(c.x * scale.x),
+			static_cast<int>(c.y * scale.y),
+			static_cast<int>(r * scale.x),
+			color,
+			condition);
 	}
 };
 

@@ -66,6 +66,94 @@ void DrawThickCircle(int x, int y, int r, const Color& color, std::uint8_t pixel
 	DrawThickEllipse(renderer, x, y, r, r, color, pixel_thickness);
 }
 
+void DrawSolidCircleSliced(int x, int y, int r, const Color& color, std::function<bool(float y_frac)> condition) {
+	auto renderer{ global::GetGame().sdl.GetRenderer() };
+	assert(renderer != nullptr && "Cannot draw solid circle with nonexistent renderer");
+
+	int result;
+	int cx = 0;
+	int cy = r;
+	int ocx = (int)0xffff;
+	int ocy = (int)0xffff;
+	int df = 1 - r;
+	int d_e = 3;
+	int d_se = -2 * r + 5;
+	int xpcx, xmcx, xpcy, xmcy;
+	int ypcy, ymcy, ypcx, ymcx;
+	float rf = 2.0f * static_cast<float>(r);
+	float frac_x = static_cast<float>(cx) / rf;
+	float frac_y = static_cast<float>(cy) / rf;
+	float frac_y_f = static_cast<float>(y) / rf;
+
+	if (r < 0)
+		return;
+
+	if (r == 0)
+		if (condition(0.5f + frac_y_f))
+			return DrawPixel(renderer, x, y, color);
+
+	if (color.a != 255)
+		SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+
+	float scale_y = r;
+
+	do {
+		xpcx = x + cx;
+		xmcx = x - cx;
+		xpcy = x + cy;
+		xmcy = x - cy;
+
+
+		if (ocy != cy) {
+			if (cy > 0) {
+				ypcy = y + cy;
+				ymcy = y - cy;
+				frac_y = static_cast<float>(cy) / rf;
+				if (condition(0.5f + frac_y))
+					DrawHorizontalLineImpl(renderer, xmcx, xpcx, ypcy);
+				if (condition(0.5f - frac_y))
+					DrawHorizontalLineImpl(renderer, xmcx, xpcx, ymcy);
+			} else {
+				frac_y_f = static_cast<float>(y) / rf;
+				if (condition(0.5f + frac_y_f))
+					DrawHorizontalLineImpl(renderer, xmcx, xpcx, y);
+			}
+			ocy = cy;
+		}
+		if (ocx != cx) {
+			if (cx != cy) {
+				if (cx > 0) {
+					ypcx = y + cx;
+					ymcx = y - cx;
+					frac_x = static_cast<float>(cx) / rf;
+					if (condition(0.5f + frac_x))
+						DrawHorizontalLineImpl(renderer, xmcy, xpcy, ypcx);
+					if (condition(0.5f - frac_x))
+						DrawHorizontalLineImpl(renderer, xmcy, xpcy, ymcx);
+				} else {
+					frac_y_f = static_cast<float>(y) / rf;
+					if (condition(0.5f + frac_y_f))
+						DrawHorizontalLineImpl(renderer, xmcy, xpcy, y);
+				}
+			}
+			ocx = cx;
+		}
+
+		if (df < 0) {
+			df += d_e;
+			d_e += 2;
+			d_se += 2;
+		} else {
+			df += d_se;
+			d_e += 2;
+			d_se += 4;
+			cy--;
+		}
+		cx++;
+	} while (cx <= cy);
+}
+
 void DrawSolidCircle(int x, int y, int r, const Color& color) {
 	auto renderer{ global::GetGame().sdl.GetRenderer() };
 	assert(renderer != nullptr && "Cannot draw solid circle with nonexistent renderer");
