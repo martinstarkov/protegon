@@ -154,4 +154,32 @@ U Lerp(T a, T b, U t) {
     return a + t * (b - a);
 }
 
+template <typename T, typename U,
+    type_traits::arithmetic<T> = true,
+    type_traits::floating_point<U> = true>
+U CosineInterpolate(T a, T b, U t) {
+    return Lerp(a, b, static_cast<U>(0.5) * (static_cast<U>(1) - std::cos(t * pi<U>)))
+}
+
+// From https://paulbourke.net/miscellaneous/interpolation/
+template <typename T, typename U,
+    type_traits::arithmetic<T> = true,
+    type_traits::floating_point<U> = true>
+U CubicInterpolate(T y0, T y1, T y2, T y3, U t) {
+    U mu2 = t * t;
+    U a0 = y3 - y2 - y0 + y1;
+    U a1 = y0 - y1 - a0;
+    U a2 = y2 - y0;
+    U a3 = y1;
+    return(a0 * t * mu2 + a1 * mu2 + a2 * t + a3);
+}
+
+// From: https://en.wikipedia.org/wiki/Smoothstep
+template <typename U,
+    type_traits::floating_point<U> = true>
+U SmoothStepInterpolate(U a, U b, U t) {
+    return Lerp(a, b, t * t * (3.0f - 2.0f * t));
+}
+
+
 } // namespace ptgn
