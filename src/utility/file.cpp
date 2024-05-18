@@ -111,8 +111,7 @@ std::string MergePaths(std::string pathA, std::string pathB) {
 #endif
 
 bool FileExists(const std::string& file_path) {
-        return access( file_path.c_str(), 0 ) == 0 ||
-               access( GetAbsolutePath(file_path).c_str(), 0 ) == 0;
+    return std::filesystem::exists(file_path);
 }
 
 std::string GetAbsolutePath(const std::string& relative_file_path) {
