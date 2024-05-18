@@ -38,6 +38,10 @@ struct Rectangle {
 		return { pos + pos_amount, size + size_amount };
 	}
 	template <typename U>
+	Rectangle<T> Scale(const Vector2<U>& size_scale) const {
+		return { pos, size * size_scale };
+	}
+	template <typename U>
 	operator Rectangle<U>() const {
 		return { static_cast<Point<U>>(pos),
 				 static_cast<Vector2<U>>(size) };
