@@ -14,7 +14,6 @@ void DrawLine(int x1, int y1, int x2, int y2, const Color& color);
 // Source: https://github.com/rtrussell/BBCSDL/blob/master/src/SDL2_gfxPrimitives.c
 void DrawThickLine(int x, int y, int w, int h, const Color& color, std::uint8_t pixel_thickness);
 void DrawCapsule(int x1, int y1, int x2, int y2, int r, const Color& color, bool draw_centerline);
-void DrawArc(int x, int y, int arc_radius, float start_angle, float end_angle, const Color& color);
 void DrawVerticalLineImpl(SDL_Renderer* renderer, int x, int y1, int y2);
 void DrawVerticalLine(SDL_Renderer* renderer, int x, int y1, int y2, const Color& color);
 void DrawHorizontalLineImpl(SDL_Renderer* renderer, int x1, int x2, int y);

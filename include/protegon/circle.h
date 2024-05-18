@@ -18,6 +18,8 @@ void DrawSolidCircle(int x, int y, int r, const Color& color);
 // Source: https://github.com/rtrussell/BBCSDL/blob/master/src/SDL2_gfxPrimitives.c
 void DrawEllipse(SDL_Renderer* renderer, int x, int y, int rx, int ry, const Color& color);
 void DrawThickEllipse(SDL_Renderer* renderer, int xc, int yc, int xr, int yr, const Color& color, std::uint8_t pixel_thickness);
+// start and end angles in degrees.
+void DrawArc(int x, int y, int arc_radius, float start_angle, float end_angle, const Color& color);
 
 } // namespace impl
 
@@ -56,12 +58,41 @@ struct Circle {
 	// y_frac is 0.0 (top of circle) to 1.0 (bottom of circle), 0.5 is the center.
 	void DrawSolidSliced(const Color& color, std::function<bool(float y_frac)> condition) const {
 		V2_float scale = window::GetScale();
-		impl::DrawSolidCircleSliced(static_cast<int>(c.x * scale.x),
+		impl::DrawSolidCircleSliced(
+			static_cast<int>(c.x * scale.x),
 			static_cast<int>(c.y * scale.y),
 			static_cast<int>(r * scale.x),
 			color,
 			condition);
 	}
+};
+
+template <typename T = float>
+struct Arc {
+	Point<T> c;
+	T r{};
+	// Degrees
+	T start_angle{};
+	// Degrees
+	T end_angle{};
+	template <typename U>
+	operator Arc<U>() const {
+		return { static_cast<Point<U>>(c),
+				 static_cast<U>(r),
+				 static_cast<U>(start_angle),
+				 static_cast<U>(end_angle) };
+	}
+	// TODO: Fix this function
+	/*void DrawSolid(const Color& color) const {
+		V2_float scale = window::GetScale();
+		impl::DrawArc(static_cast<int>(c.x * scale.x),
+			static_cast<int>(c.y * scale.y),
+			static_cast<int>(r * scale.x),
+			static_cast<float>(start_angle),
+			static_cast<float>(end_angle),
+			color
+		);
+	}*/
 };
 
 } // namespace ptgn
