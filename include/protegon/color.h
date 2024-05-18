@@ -1,5 +1,7 @@
 #pragma once
 
+#include "protegon/type_traits.h"
+
 #include <cstdint>
 
 struct SDL_Color;
@@ -31,6 +33,26 @@ inline bool operator==(const Color& lhs, const Color& rhs) {
 
 inline bool operator!=(const Color& lhs, const Color& rhs) {
 	return !operator==(lhs, rhs);
+}
+
+template <typename U, type_traits::floating_point<U> = true>
+inline Color Lerp(const Color& lhs, const Color& rhs, U t) {
+	return Color{
+		static_cast<std::uint8_t>(Lerp(lhs.r, rhs.r, t)),
+		static_cast<std::uint8_t>(Lerp(lhs.g, rhs.g, t)),
+		static_cast<std::uint8_t>(Lerp(lhs.b, rhs.b, t)),
+		static_cast<std::uint8_t>(Lerp(lhs.a, rhs.a, t))
+	};
+}
+
+template <typename U, type_traits::floating_point<U> = true>
+inline Color Lerp(const Color& lhs, const Color& rhs, U t_r, U t_g, U t_b, U t_a) {
+	return Color{
+		static_cast<std::uint8_t>(Lerp(lhs.r, rhs.r, t_r)),
+		static_cast<std::uint8_t>(Lerp(lhs.g, rhs.g, t_g)),
+		static_cast<std::uint8_t>(Lerp(lhs.b, rhs.b, t_b)),
+		static_cast<std::uint8_t>(Lerp(lhs.a, rhs.a, t_a))
+	};
 }
 
 namespace color {
