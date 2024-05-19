@@ -15,6 +15,8 @@ public:
     // Acts as a reset.
     void Start();
     void Stop();
+    void Pause();
+    void Unpause();
     bool IsRunning() const;
     // This does not actually start the timer, just sets it to original configuration.
     // TODO: POSSIBLE CHANGE: Change this to start the timer?
@@ -26,12 +28,7 @@ public:
     template <typename Duration = milliseconds, 
         type_traits::duration<Duration> = true>
     Duration Elapsed() const {
-        std::chrono::time_point<std::chrono::steady_clock> end_time;
-        if (running_) {
-            end_time = std::chrono::steady_clock::now();
-        } else {
-            end_time = stop_time_;
-        }
+        auto end_time = running_ ? std::chrono::steady_clock::now() : stop_time_;
         return std::chrono::duration_cast<Duration>(end_time - start_time_);
     }
 
@@ -52,6 +49,7 @@ public:
 private:
     std::chrono::time_point<std::chrono::steady_clock> start_time_;
     std::chrono::time_point<std::chrono::steady_clock> stop_time_;
+    std::chrono::time_point<std::chrono::steady_clock> pause_time_;
     bool running_{ false };
 };
 
