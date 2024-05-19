@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "protegon/collision.h"
+#include "protegon/input.h"
 #include "core/game.h"
 #include "protegon/log.h"
 
@@ -15,6 +16,7 @@ Button::Button(const Rectangle<float>& rect,
 	rect_{ rect },
 	on_activate_{ on_activate_function } {
 	SubscribeToMouseEvents();
+    RecheckState();
 }
 
 Button::~Button() {
@@ -160,7 +162,12 @@ const Rectangle<float>& Button::GetRectangle() const {
     return rect_;
 }
 
+void Button::RecheckState() {
+    OnMouseEvent(MouseMoveEvent{ V2_int{ std::numeric_limits<int>().min(), std::numeric_limits<int>().min() }, input::GetMousePosition() });
+}
+
 void Button::SetRectangle(const Rectangle<float>& new_rectangle) {
+    RecheckState();
  	rect_ = new_rectangle;
 }
 

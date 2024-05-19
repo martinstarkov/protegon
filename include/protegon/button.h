@@ -41,6 +41,9 @@ public:
     Button() = default;
     Button(const Rectangle<float>& rect,
  		    std::function<void()> on_activate_function = nullptr);
+
+    virtual void RecheckState() final;
+
     virtual ~Button();
     // These allow for manually triggering button callback events.
     virtual void Activate();
