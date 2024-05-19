@@ -23,6 +23,8 @@ void SetLogicalSize(const V2_int& logical_size) {
 	assert(renderer != nullptr && "Cannot set window logical size with nonexistent renderer");
 	//SDL_RenderSetIntegerScale(renderer,	static_cast<SDL_bool>(true));
 	SDL_RenderSetLogicalSize(renderer, logical_size.x, logical_size.y);
+	// Ensure mouse position matches latest window scale.
+	global::GetGame().input.ForceUpdateMousePosition();
 }
 
 V2_int GetLogicalSize() {
@@ -116,8 +118,10 @@ void Hide() {
 }
 
 void SetScale(const V2_float& new_scale) {
-	auto& sdl{ global::GetGame().sdl };
-	sdl.SetScale(new_scale);
+	auto& game{ global::GetGame() };
+	game.sdl.SetScale(new_scale);
+	// Ensure mouse position matches latest window scale.
+	game.input.ForceUpdateMousePosition();
 }
 
 V2_float GetScale() {

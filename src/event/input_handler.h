@@ -33,6 +33,7 @@ struct InputHandler {
 
 	void Update();
 
+	void ForceUpdateMousePosition();
 	V2_int GetMousePosition() const;
 
 	// @return The amount scrolled by the mouse vertically in the current frame, positive upward, negative downward.

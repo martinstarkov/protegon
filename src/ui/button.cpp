@@ -13,10 +13,9 @@ namespace ptgn {
 
 Button::Button(const Rectangle<float>& rect,
 			   std::function<void()> on_activate_function) :
-	rect_{ rect },
 	on_activate_{ on_activate_function } {
+    SetRectangle(rect);
 	SubscribeToMouseEvents();
-    RecheckState();
 }
 
 Button::~Button() {
@@ -44,17 +43,21 @@ void Button::SetOnHover(std::function<void()> start_hover_function, std::functio
     on_hover_stop_ = stop_hover_function;
 }
 
+bool Button::InsideRectangle(const V2_int& position) {
+    return overlap::PointRectangle(position, scaled_rect_);
+}
+
 void Button::OnMouseEvent(const Event<MouseEvent>& event) {
     switch (event.Type()) {
  	    case MouseEvent::MOVE:
  	    {
  		    const MouseMoveEvent& e = static_cast<const MouseMoveEvent&>(event);
- 		    bool is_in{ overlap::PointRectangle(e.current, rect_) };
+ 		    bool is_in{ InsideRectangle(e.current) };
  		    if (is_in)
  			    OnMouseMove(e);
  		    else
  			    OnMouseMoveOutside(e);
- 		    bool was_in{ overlap::PointRectangle(e.previous, rect_) };
+ 		    bool was_in{ InsideRectangle(e.previous) };
  		    if (!was_in && is_in)
  			    OnMouseEnter(e);
  		    else if (was_in && !is_in)
@@ -64,7 +67,7 @@ void Button::OnMouseEvent(const Event<MouseEvent>& event) {
  	    case MouseEvent::DOWN:
  	    {
  		    const MouseDownEvent& e = static_cast<const MouseDownEvent&>(event);
- 		    if (overlap::PointRectangle(e.current, rect_))
+ 		    if (InsideRectangle(e.current))
  			    OnMouseDown(e);
  		    else
  			    OnMouseDownOutside(e);
@@ -73,7 +76,7 @@ void Button::OnMouseEvent(const Event<MouseEvent>& event) {
  	    case MouseEvent::UP:
  	    {
  		    const MouseUpEvent& e = static_cast<const MouseUpEvent&>(event);
- 		    if (overlap::PointRectangle(e.current, rect_))
+ 		    if (InsideRectangle(e.current))
  			    OnMouseUp(e);
  		    else
  			    OnMouseUpOutside(e);
@@ -163,12 +166,14 @@ const Rectangle<float>& Button::GetRectangle() const {
 }
 
 void Button::RecheckState() {
-    OnMouseEvent(MouseMoveEvent{ V2_int{ std::numeric_limits<int>().min(), std::numeric_limits<int>().min() }, input::GetMousePosition() });
+    OnMouseEvent(MouseMoveEvent{ V2_int{ std::numeric_limits<int>().max(), std::numeric_limits<int>().max() }, input::GetMousePosition() });
 }
 
 void Button::SetRectangle(const Rectangle<float>& new_rectangle) {
-    RecheckState();
  	rect_ = new_rectangle;
+    V2_float scale = window::GetScale();
+    scaled_rect_ = Rectangle<float>{ rect_.pos * scale, rect_.size * scale };
+    RecheckState();
 }
 
 ButtonState Button::GetState() const {

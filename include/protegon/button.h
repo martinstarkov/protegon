@@ -67,6 +67,7 @@ public:
     void SetRectangle(const Rectangle<float>& new_rectangle);
     ButtonState GetState() const;
 protected:
+    bool InsideRectangle(const V2_int& position);
     enum class InternalButtonState : std::size_t {
         IDLE_UP = 0,
         HOVER = 1,
@@ -76,6 +77,7 @@ protected:
         HOVER_PRESSED = 5
     };
     Rectangle<float> rect_{};
+    Rectangle<float> scaled_rect_{};
     std::function<void()> on_activate_{ nullptr };
     std::function<void()> on_hover_start_{ nullptr };
     std::function<void()> on_hover_stop_{ nullptr };

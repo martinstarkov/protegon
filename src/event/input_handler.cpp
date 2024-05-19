@@ -87,6 +87,13 @@ void InputHandler::Update() {
 	}
 }
 
+void InputHandler::ForceUpdateMousePosition() {
+	// Grab latest mouse events from queue.
+	SDL_PumpEvents();
+	// Update mouse position.
+	SDL_GetMouseState(&mouse_position.x, &mouse_position.y);
+}
+
 V2_int InputHandler::GetMousePosition() const {
 	// Grab latest mouse events from queue.
 	//SDL_PumpEvents();
