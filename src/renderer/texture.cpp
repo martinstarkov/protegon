@@ -88,7 +88,13 @@ V2_int Texture::GetSize() const {
 }
 
 void Texture::SetAlpha(std::uint8_t alpha) {
+	SDL_SetTextureBlendMode(texture_.get(), SDL_BLENDMODE_BLEND);
 	SDL_SetTextureAlphaMod(texture_.get(), alpha);
+}
+
+void Texture::SetColor(const Color& color) {
+	SetAlpha(color.a);
+	SDL_SetTextureColorMod(texture_.get(), color.r, color.g, color.b);
 }
 
 } // namespace ptgn
