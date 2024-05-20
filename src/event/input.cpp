@@ -10,6 +10,10 @@ void Update() {
 	global::GetGame().input.Update();
 }
 
+void ForceUpdateMousePosition() {
+	global::GetGame().input.ForceUpdateMousePosition();
+}
+
 V2_int GetMousePosition() {
 	return global::GetGame().input.GetMousePosition() / window::GetScale();
 }

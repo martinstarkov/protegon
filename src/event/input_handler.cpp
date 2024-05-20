@@ -92,14 +92,15 @@ void InputHandler::ForceUpdateMousePosition() {
 	SDL_PumpEvents();
 	// Update mouse position.
 	SDL_GetMouseState(&mouse_position.x, &mouse_position.y);
+	float x, y;
+	SDL_RenderWindowToLogical(global::GetGame().sdl.GetRenderer(), mouse_position.x, mouse_position.y, &x, &y);
+
+	mouse_position.x = static_cast<int>(x);
+	mouse_position.y = static_cast<int>(y);
 }
 
-V2_int InputHandler::GetMousePosition() const {
-	// Grab latest mouse events from queue.
-	//SDL_PumpEvents();
-	// Update mouse position.
-	//V2_int mouse_position;
-	//SDL_GetMouseState(&mouse_position.x, &mouse_position.y);
+V2_int InputHandler::GetMousePosition() {
+	ForceUpdateMousePosition();
 	return mouse_position;
 }
 
