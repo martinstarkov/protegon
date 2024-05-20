@@ -9,7 +9,7 @@
 
 namespace ptgn {
 
-Text::Text(std::size_t font_key, const char* content, const Color& color) :
+Text::Text(std::size_t font_key, const std::string& content, const Color& color) :
 	content_{ content },
 	color_{ color } {
 	auto& font_manager{ global::GetGame().managers.font };
@@ -19,7 +19,7 @@ Text::Text(std::size_t font_key, const char* content, const Color& color) :
 	Refresh();
 }
 
-Text::Text(const Font& font, const char* content, const Color& color) :
+Text::Text(const Font& font, const std::string& content, const Color& color) :
 	font_{ font },
 	content_{ content },
 	color_{ color } {
@@ -28,19 +28,20 @@ Text::Text(const Font& font, const char* content, const Color& color) :
 }
 
 void Text::Refresh() {
+	if (content_ == "") return; // Cannot create surface for text with empty content.
 	assert(font_.IsValid() && "Cannot refresh text due to invalid font");
 	auto font{ font_.font_.get() };
 	TTF_SetFontStyle(font, static_cast<int>(style_));
 	SDL_Surface* temp_surface{ nullptr };
 	switch (mode_) {
 		case Font::RenderMode::SOLID:
-			temp_surface = TTF_RenderText_Solid(font, content_, color_);
+			temp_surface = TTF_RenderText_Solid(font, content_.c_str(), color_);
 			break;
 		case Font::RenderMode::SHADED:
-			temp_surface = TTF_RenderText_Shaded(font, content_, color_, bg_shading_);
+			temp_surface = TTF_RenderText_Shaded(font, content_.c_str(), color_, bg_shading_);
 			break;
 		case Font::RenderMode::BLENDED:
-			temp_surface = TTF_RenderText_Blended(font, content_, color_);
+			temp_surface = TTF_RenderText_Blended(font, content_.c_str(), color_);
 			break;
 		default:
 			assert(!"Unrecognized render mode when creating surface for the text texture");
@@ -52,7 +53,15 @@ void Text::Refresh() {
 	TTF_SetFontStyle(font, static_cast<int>(Font::Style::NORMAL));
 }
 
-void Text::SetContent(const char* new_content) {
+void Text::SetVisibility(bool visibility) {
+	visible_ = visibility;
+}
+
+bool Text::GetVisibility() const {
+	return visible_;
+}
+
+void Text::SetContent(const std::string& new_content) {
 	content_ = new_content;
 	Refresh();
 }
@@ -87,6 +96,8 @@ bool Text::IsValid() const {
 }
 
 void Text::Draw(Rectangle<float> box) const {
+	if (!visible_) return;
+	if (content_ == "") return; // Cannot draw text with empty content.
 	V2_float scale = window::GetScale();
 	box.pos *= scale;
 	box.size *= scale;

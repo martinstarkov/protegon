@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include "color.h"
 #include "rectangle.h"
 #include "texture.h"
@@ -9,15 +11,17 @@ namespace ptgn {
 
 class Text {
 public:
-	Text(std::size_t font_key, const char* content, const Color& color);
-	Text(const Font& font, const char* content, const Color& color);
+	Text(std::size_t font_key, const std::string& content, const Color& color);
+	Text(const Font& font, const std::string& content, const Color& color);
 	~Text() = default;
 	Text(const Text&) = default;
 	Text& operator=(const Text&) = default;
 	Text(Text&&) = default;
 	Text& operator=(Text&&) = default;
 
-	void SetContent(const char* new_content);
+	void SetVisibility(bool visibility);
+	bool GetVisibility() const;
+	void SetContent(const std::string& new_content);
 	void SetColor(const Color& new_color);
 	void SetFont(const Font& new_font);
 	void SetSolidRenderMode();
@@ -39,11 +43,12 @@ private:
 	void Refresh();
 	Texture texture_;
 	Font font_;
-	const char* content_{};
+	std::string content_;
 	Color color_{};
 	Font::Style style_{ Font::Style::NORMAL };
 	Font::RenderMode mode_{ Font::RenderMode::SOLID };
 	Color bg_shading_{ color::WHITE };
+	bool visible_{ true };
 };
 
 } // namespace ptgn
