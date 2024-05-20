@@ -17,6 +17,7 @@ public:
     void Stop();
     void Pause();
     void Unpause();
+    bool IsPaused() const;
     bool IsRunning() const;
     // This does not actually start the timer, just sets it to original configuration.
     // TODO: POSSIBLE CHANGE: Change this to start the timer?
@@ -51,6 +52,7 @@ private:
     std::chrono::time_point<std::chrono::steady_clock> stop_time_;
     std::chrono::time_point<std::chrono::steady_clock> pause_time_;
     bool running_{ false };
+    bool paused_{ false };
 };
 
 } // namespace ptgn
