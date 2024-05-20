@@ -39,12 +39,16 @@ struct ColorArray {
 class Button {
 public:
     Button() = default;
-    Button(const Rectangle<float>& rect,
- 		    std::function<void()> on_activate_function = nullptr);
+    Button(const Rectangle<float>& rect, std::function<void()> on_activate_function = nullptr);
 
     virtual void RecheckState() final;
 
     virtual ~Button();
+
+    // These functions cause button to stop responding to events.
+    virtual bool GetInteractable() const final;
+    virtual void SetInteractable(bool interactable);
+
     // These allow for manually triggering button callback events.
     virtual void Activate();
     virtual void StartHover();
@@ -53,8 +57,9 @@ public:
     virtual void SetOnActivate(std::function<void()> function);
     virtual void SetOnHover(std::function<void()> start_hover_function = nullptr, std::function<void()> stop_hover_function = nullptr);
     virtual void OnMouseEvent(const Event<MouseEvent>& event);
-    virtual void SubscribeToMouseEvents();
-    virtual void UnsubscribeFromMouseEvents();
+    virtual bool IsSubscribedToMouseEvents() const final;
+    virtual void SubscribeToMouseEvents() final;
+    virtual void UnsubscribeFromMouseEvents() final;
     virtual void OnMouseMove(const MouseMoveEvent& e);
     virtual void OnMouseMoveOutside(const MouseMoveEvent& e);
     virtual void OnMouseEnter(const MouseMoveEvent& e);
@@ -66,8 +71,8 @@ public:
     const Rectangle<float>& GetRectangle() const;
     void SetRectangle(const Rectangle<float>& new_rectangle);
     ButtonState GetState() const;
+    bool InsideRectangle(const V2_int& position) const;
 protected:
-    bool InsideRectangle(const V2_int& position);
     enum class InternalButtonState : std::size_t {
         IDLE_UP = 0,
         HOVER = 1,
@@ -82,6 +87,7 @@ protected:
     std::function<void()> on_hover_start_{ nullptr };
     std::function<void()> on_hover_stop_{ nullptr };
     InternalButtonState button_state_{ InternalButtonState::IDLE_UP };
+    bool enabled_{ true };
 };
 
 class SolidButton : public virtual Button {
@@ -117,6 +123,7 @@ public:
     virtual void OnMouseUp(const MouseUpEvent& e) override;
     bool IsToggled() const;
     void Toggle();
+    void SetToggleState(bool toggled);
 protected:
     bool toggled_{ false };
 };
@@ -136,18 +143,24 @@ public:
         textures_.data.at(static_cast<std::size_t>(ButtonState::HOVER)).at(0) = hover;
         textures_.data.at(static_cast<std::size_t>(ButtonState::PRESSED)).at(0) = pressed;
     }
+
+    virtual bool GetVisibility() const final;
+    virtual void SetVisibility(bool visibility);
+
     virtual void Draw() const;
-    virtual const Texture& GetCurrentTexture() const;
+    virtual Texture GetCurrentTexture();
+    void ForEachTexture(std::function<void(Texture)> func);
 protected:
-    const Texture& GetCurrentTextureImpl(ButtonState state, std::size_t texture_array_index = 0) const;
+    Texture GetCurrentTextureImpl(ButtonState state, std::size_t texture_array_index = 0) const;
     void DrawImpl(std::size_t texture_array_index = 0) const;
     // Must be initialized explicitly by a constructor.
     // Can technically exist uninitialized if button is default constructed (temporary object).
     // TODO: Figure out a way to store 1 here and 2 in the toggle button class
     TextureArray<2> textures_{};
+    bool hidden_{ false };
 };
 
-class TexturedToggleButton : public TexturedButton, public ToggleButton {
+class TexturedToggleButton : public ToggleButton, public TexturedButton {
 public:
     TexturedToggleButton() = default;
     template <typename T, type_traits::is_safely_castable_to_one_of<T, Texture, TextureKey> = true>
@@ -178,7 +191,7 @@ public:
         set_textures(hover, ButtonState::HOVER);
         set_textures(pressed, ButtonState::PRESSED);
     }
-    virtual const Texture& GetCurrentTexture() const override;
+    virtual Texture GetCurrentTexture() override;
     virtual void Draw() const override;
 };
 

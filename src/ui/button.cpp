@@ -22,15 +22,44 @@ Button::~Button() {
  	UnsubscribeFromMouseEvents();
 }
 
+bool Button::GetInteractable() const {
+    return enabled_;
+}
+
+void Button::SetInteractable(bool interactable) {
+    bool subscribed = IsSubscribedToMouseEvents();
+    if (interactable && !subscribed) {
+        // This needs to happen before RecheckState as it will not trigger if enabled_ == false.
+        enabled_ = interactable;
+        SubscribeToMouseEvents();
+        RecheckState();
+    } else if (!interactable && subscribed) {
+        UnsubscribeFromMouseEvents();
+        button_state_ = InternalButtonState::IDLE_UP;
+        if (on_hover_start_ != nullptr) {
+            StopHover();
+        }
+        // This needs to happen after StopHover as it will not trigger if enabled_ == true.
+        enabled_ = interactable;
+    }
+}
+
 void Button::Activate() {
+    if (!enabled_) return;
+    assert(on_activate_ != nullptr && "Cannot activate button which has no activate function set");
  	on_activate_();
+    RecheckState();
 }
 
 void Button::StartHover() {
+    if (!enabled_) return;
+    assert(on_hover_start_ != nullptr && "Cannot start hover for button which has no hover start function set");
     on_hover_start_();
 }
 
 void Button::StopHover() {
+    if (!enabled_) return;
+    assert(on_hover_stop_ != nullptr && "Cannot stop hover for button which has no hover stop function set");
     on_hover_stop_();
 }
 
@@ -43,11 +72,12 @@ void Button::SetOnHover(std::function<void()> start_hover_function, std::functio
     on_hover_stop_ = stop_hover_function;
 }
 
-bool Button::InsideRectangle(const V2_int& position) {
+bool Button::InsideRectangle(const V2_int& position) const {
     return overlap::PointRectangle(position, scaled_rect_);
 }
 
 void Button::OnMouseEvent(const Event<MouseEvent>& event) {
+    if (!enabled_) return;
     switch (event.Type()) {
  	    case MouseEvent::MOVE:
  	    {
@@ -87,6 +117,10 @@ void Button::OnMouseEvent(const Event<MouseEvent>& event) {
     }
 }
 
+bool Button::IsSubscribedToMouseEvents() const {
+    return global::GetGame().event.mouse_event.IsSubscribed((void*)this);
+}
+
 void Button::SubscribeToMouseEvents() {
     global::GetGame().event.mouse_event.Subscribe((void*)this, std::bind(&Button::OnMouseEvent, this, std::placeholders::_1));
 }
@@ -96,15 +130,27 @@ void Button::UnsubscribeFromMouseEvents() {
 }
 
 void Button::OnMouseMove(const MouseMoveEvent& e) {
-    if (button_state_ == InternalButtonState::IDLE_UP)
- 	    button_state_ = InternalButtonState::HOVER;
+    if (!enabled_) return;
+    if (button_state_ == InternalButtonState::IDLE_UP) {
+        button_state_ = InternalButtonState::HOVER;
+        if (on_hover_start_ != nullptr) {
+            StartHover();
+        }
+    }
 }
 
 void Button::OnMouseMoveOutside(const MouseMoveEvent& e) {
-
+    if (!enabled_) return;
+    if (button_state_ == InternalButtonState::HOVER) {
+        button_state_ = InternalButtonState::IDLE_UP;
+        if (on_hover_stop_ != nullptr) {
+            StopHover();
+        }
+    }
 }
 
 void Button::OnMouseEnter(const MouseMoveEvent& e) {
+    if (!enabled_) return;
     if (button_state_ == InternalButtonState::IDLE_UP)
  	    button_state_ = InternalButtonState::HOVER;
     else if (button_state_ == InternalButtonState::IDLE_DOWN)
@@ -117,6 +163,7 @@ void Button::OnMouseEnter(const MouseMoveEvent& e) {
 }
 
 void Button::OnMouseLeave(const MouseMoveEvent& e) {
+    if (!enabled_) return;
     if (button_state_ == InternalButtonState::HOVER)
  	    button_state_ = InternalButtonState::IDLE_UP;
     else if (button_state_ == InternalButtonState::PRESSED)
@@ -129,30 +176,34 @@ void Button::OnMouseLeave(const MouseMoveEvent& e) {
 }
 
 void Button::OnMouseDown(const MouseDownEvent& e) {
+    if (!enabled_) return;
     if (e.mouse == Mouse::LEFT && button_state_ == InternalButtonState::HOVER)
         button_state_ = InternalButtonState::PRESSED;
 }
 
 void Button::OnMouseDownOutside(const MouseDownEvent& e) {
+    if (!enabled_) return;
     if (e.mouse == Mouse::LEFT && button_state_ == InternalButtonState::IDLE_UP)
  	    button_state_ = InternalButtonState::IDLE_DOWN;
 }
 
 void Button::OnMouseUp(const MouseUpEvent& e) {
+    if (!enabled_) return;
     if (e.mouse == Mouse::LEFT) {
         if (button_state_ == InternalButtonState::PRESSED) {
             button_state_ = InternalButtonState::HOVER;
             if (on_activate_ != nullptr) {
                 Activate();
-            }
-            else if (button_state_ == InternalButtonState::HOVER_PRESSED) {
+            } else if (button_state_ == InternalButtonState::HOVER_PRESSED) {
                 button_state_ = InternalButtonState::HOVER;
             }
         }
     }
+    RecheckState();
 }
 
 void Button::OnMouseUpOutside(const MouseUpEvent& e) {
+    if (!enabled_) return;
     if (e.mouse == Mouse::LEFT) {
  	    if (button_state_ == InternalButtonState::IDLE_DOWN)
  		    button_state_ = InternalButtonState::IDLE_UP;
@@ -166,7 +217,7 @@ const Rectangle<float>& Button::GetRectangle() const {
 }
 
 void Button::RecheckState() {
-    OnMouseEvent(MouseMoveEvent{ V2_int{ std::numeric_limits<int>().max(), std::numeric_limits<int>().max() }, input::GetMousePosition() });
+    OnMouseEvent(MouseMoveEvent{ V2_int{ std::numeric_limits<int>().max(), std::numeric_limits<int>().max() }, global::GetGame().input.GetMousePosition() });
 }
 
 void Button::SetRectangle(const Rectangle<float>& new_rectangle) {
@@ -213,6 +264,11 @@ bool ToggleButton::IsToggled() const {
  	return toggled_;
 }
 
+void ToggleButton::SetToggleState(bool toggled) {
+    toggled_ = toggled;
+    //RecheckState();
+ }
+
 void ToggleButton::Toggle() {
  	Activate();
  	toggled_ = !toggled_;
@@ -237,7 +293,32 @@ const Color& SolidButton::GetCurrentColor() const {
     return GetCurrentColorImpl(GetState(), 0);
 }
 
+bool TexturedButton::GetVisibility() const {
+    return !hidden_;
+}
+
+void TexturedButton::ForEachTexture(std::function<void(Texture)> func) {
+    for (std::size_t state = 0; state < 3; state++) {
+        for (std::size_t texture_array_index = 0; texture_array_index < 2; texture_array_index++) {
+            Texture texture = GetCurrentTextureImpl(static_cast<ButtonState>(state), texture_array_index);
+            if (!texture.IsValid()) {
+                texture = GetCurrentTextureImpl(ButtonState::DEFAULT, texture_array_index);
+                if (!texture.IsValid()) {
+                    texture = GetCurrentTextureImpl(ButtonState::DEFAULT, 0);
+                }
+            }
+            if (texture.IsValid())
+                func(texture);
+        }
+    }
+}
+
+void TexturedButton::SetVisibility(bool visibility) {
+    hidden_ = !visibility;
+}
+
 void TexturedButton::DrawImpl(std::size_t texture_array_index) const {
+    if (hidden_) return;
     Texture texture = GetCurrentTextureImpl(GetState(), texture_array_index);
     if (!texture.IsValid()) {
         texture = GetCurrentTextureImpl(ButtonState::DEFAULT, 0);
@@ -250,22 +331,24 @@ void TexturedButton::Draw() const {
     DrawImpl(0);
 }
 
-const Texture& TexturedButton::GetCurrentTextureImpl(ButtonState state, std::size_t texture_array_index) const {
+Texture TexturedButton::GetCurrentTextureImpl(ButtonState state, std::size_t texture_array_index) const {
     auto& texture_array = textures_.data.at(static_cast<std::size_t>(state));
 
     const std::variant<Texture, TextureKey>& texture_state = texture_array.at(texture_array_index);
 
+    Texture texture;
+
     if (std::holds_alternative<TextureKey>(texture_state)) {
         const TextureKey key = std::get<TextureKey>(texture_state);
         assert(texture::Has(key) && "Cannot get button texture which has not been loaded");
-        return *texture::Get(key);
+        texture = *texture::Get(key);
+    } else if (std::holds_alternative<Texture>(texture_state)) {
+        texture = std::get<Texture>(texture_state);
     }
-    else {
-        return std::get<Texture>(texture_state);
-    }
+    return texture;
 }
 
-const Texture& TexturedButton::GetCurrentTexture() const {
+Texture TexturedButton::GetCurrentTexture() {
     return GetCurrentTextureImpl(GetState(), 0);
 }
 
@@ -273,7 +356,7 @@ void TexturedToggleButton::Draw() const {
     DrawImpl(static_cast<std::size_t>(toggled_));
 }
 
-const Texture& TexturedToggleButton::GetCurrentTexture() const {
+Texture TexturedToggleButton::GetCurrentTexture() {
     return GetCurrentTextureImpl(GetState(), static_cast<std::size_t>(toggled_));
 }
 
