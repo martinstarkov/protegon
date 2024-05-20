@@ -86,6 +86,9 @@ bool Has(SoundKey key);
 std::shared_ptr<Sound> Get(SoundKey key);
 void Clear();
 
+void HaltChannel(int channel);
+void ResumeChannel(int channel);
+
 } // namespace sound
 
 namespace text {

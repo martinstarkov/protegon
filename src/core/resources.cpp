@@ -131,6 +131,14 @@ void Clear() {
 	GetManagers().sound.Clear();
 }
 
+void HaltChannel(int channel) {
+	Mix_HaltChannel(channel);
+}
+
+void ResumeChannel(int channel) {
+	Mix_Resume(channel);
+}
+
 } // namespace sound
 
 namespace text {
