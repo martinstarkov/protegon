@@ -62,9 +62,11 @@ void SceneManager::Update(float dt) {
 }
 
 void SceneManager::UnloadFlagged() {
-	if (flagged_ > 0) {
-		auto& map{ GetMap() };
-		for (auto it = map.begin(); it != map.end() && flagged_ > 0;) {
+	auto& map{ GetMap() };
+	std::size_t max_counter = 10000;
+	std::size_t counter = 0;
+	while (flagged_ > 0) {
+		for (auto it = map.begin(); it != map.end();) {
 			if (it->second->status_ == Scene::Status::DELETE) {
 				it = map.erase(it);
 				flagged_--;
@@ -72,8 +74,10 @@ void SceneManager::UnloadFlagged() {
 				++it;
 			}
 		}
-		assert(flagged_ == 0 && "Could not delete a flagged scene");
+		counter++;
+		assert(counter <= max_counter && "Failed to properly delete all flagged scenes within a reasonable number of loops");
 	}
+	assert(flagged_ == 0 && "Could not delete a flagged scene");
 }
 
 bool SceneManager::ActiveScenesContain(std::size_t key) const {

@@ -15,15 +15,23 @@ private:
 public:
 	// TODO: Figure out a better key to use than pointer cast.
 	void Subscribe(void* ptr, const SlotType& func) {
+		assert(ptr != nullptr && "Cannot add nullptr observer to EventDispatcher");
 		observers_.emplace(ptr, func);
 	};
 	void Unsubscribe(void* ptr) {
 		observers_.erase(ptr);
 	}
 	void Post(Event<T>&& event) {
-		for (auto&& [_, func] : observers_)
+		// This ensures that if a posted function modified observers, it does not invalidate the iterators.
+		std::map<void*, SlotType> observers = observers_;
+		for (auto&& [ptr, func] : observers) {
+			if (ptr == nullptr || func == nullptr) continue;
 			func(event);
+		}
 	};
+	bool IsSubscribed(void* ptr) const {
+		return observers_.find(ptr) != observers_.end();
+	}
 private:
 	std::map<void*, SlotType> observers_;
 };
