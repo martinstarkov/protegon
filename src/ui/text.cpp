@@ -98,9 +98,6 @@ bool Text::IsValid() const {
 void Text::Draw(Rectangle<float> box) const {
 	if (!visible_) return;
 	if (content_ == "") return; // Cannot draw text with empty content.
-	V2_float scale = window::GetScale();
-	box.pos *= scale;
-	box.size *= scale;
 	SDL_Rect destination{
 		static_cast<int>(box.pos.x),
 		static_cast<int>(box.pos.y),
