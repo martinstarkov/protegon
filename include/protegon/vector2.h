@@ -214,10 +214,9 @@ struct Vector2 {
     }
 
     void Draw(const Color& color) const {
-        V2_float scale = window::GetScale();
         impl::DrawPoint(
-            static_cast<int>(x * scale.x),
-            static_cast<int>(y * scale.y),
+            static_cast<int>(x),
+            static_cast<int>(y),
             color
         );
     }

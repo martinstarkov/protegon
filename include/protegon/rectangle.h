@@ -47,27 +47,25 @@ struct Rectangle {
 				 static_cast<Vector2<U>>(size) };
 	}
 	void Draw(const Color& color, std::uint8_t pixel_thickness = 1) const {
-		V2_float scale = window::GetScale();
 		if (pixel_thickness == 1)
-			impl::DrawRectangle(static_cast<int>(pos.x * scale.x),
-								static_cast<int>(pos.y * scale.x),
-								static_cast<int>(size.x * scale.x),
-								static_cast<int>(size.y * scale.x),
+			impl::DrawRectangle(static_cast<int>(pos.x),
+								static_cast<int>(pos.y),
+								static_cast<int>(size.x),
+								static_cast<int>(size.y),
 								color);
 		else
-			impl::DrawThickRectangle(static_cast<int>(pos.x * scale.x),
-								     static_cast<int>(pos.y * scale.x),
-								     static_cast<int>(size.x * scale.x),
-								     static_cast<int>(size.y * scale.x),
+			impl::DrawThickRectangle(static_cast<int>(pos.x),
+								     static_cast<int>(pos.y),
+								     static_cast<int>(size.x),
+								     static_cast<int>(size.y),
 								     color,
-									 pixel_thickness * scale.x);
+									 pixel_thickness);
 	}
 	void DrawSolid(const Color& color) const {
-		V2_float scale = window::GetScale();
-		impl::DrawSolidRectangle(static_cast<int>(pos.x * scale.x),
-								 static_cast<int>(pos.y * scale.x),
-								 static_cast<int>(size.x * scale.x),
-								 static_cast<int>(size.y * scale.x),
+		impl::DrawSolidRectangle(static_cast<int>(pos.x),
+								 static_cast<int>(pos.y),
+								 static_cast<int>(size.x),
+								 static_cast<int>(size.y),
 								 color);
 	}
 };

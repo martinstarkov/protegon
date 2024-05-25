@@ -73,7 +73,7 @@ void Button::SetOnHover(std::function<void()> start_hover_function, std::functio
 }
 
 bool Button::InsideRectangle(const V2_int& position) const {
-    return overlap::PointRectangle(position, scaled_rect_);
+    return overlap::PointRectangle(position, rect_);
 }
 
 void Button::OnMouseEvent(const Event<MouseEvent>& event) {
@@ -222,8 +222,6 @@ void Button::RecheckState() {
 
 void Button::SetRectangle(const Rectangle<float>& new_rectangle) {
  	rect_ = new_rectangle;
-    V2_float scale = window::GetScale();
-    scaled_rect_ = Rectangle<float>{ rect_.pos * scale, rect_.size * scale };
     RecheckState();
 }
 

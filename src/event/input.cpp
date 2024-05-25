@@ -15,7 +15,7 @@ void ForceUpdateMousePosition() {
 }
 
 V2_int GetMousePosition() {
-	return global::GetGame().input.GetMousePosition() / window::GetScale();
+	return global::GetGame().input.GetMousePosition();
 }
 
 int MouseScroll() {

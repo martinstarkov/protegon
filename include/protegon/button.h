@@ -82,7 +82,6 @@ protected:
         HOVER_PRESSED = 5
     };
     Rectangle<float> rect_{};
-    Rectangle<float> scaled_rect_{};
     std::function<void()> on_activate_{ nullptr };
     std::function<void()> on_hover_start_{ nullptr };
     std::function<void()> on_hover_stop_{ nullptr };

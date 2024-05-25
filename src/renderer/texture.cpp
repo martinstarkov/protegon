@@ -14,17 +14,11 @@ namespace ptgn {
 Texture::Texture(const char* image_path) {
 	assert(*image_path && "Empty image path?");
 	assert(FileExists(image_path) && "Nonexistent image path?");
-	auto surface{ IMG_Load(image_path) };
-	if (surface == nullptr) {
+	texture_ = std::shared_ptr<SDL_Texture>(IMG_LoadTexture(global::GetGame().sdl.GetRenderer(), image_path), SDL_DestroyTexture);
+	if (!IsValid()) {
 		PrintLine(IMG_GetError());
 		assert(!"Failed to create texture from image path");
 	}
-	texture_ = std::shared_ptr<SDL_Texture>(SDL_CreateTextureFromSurface(global::GetGame().sdl.GetRenderer(), surface), SDL_DestroyTexture);
-	if (!IsValid()) {
-		PrintLine(SDL_GetError());
-		assert(!"Failed to create texture");
-	}
-	SDL_FreeSurface(surface);
 }
 
 
@@ -42,7 +36,7 @@ bool Texture::IsValid() const {
 	return texture_ != nullptr;
 }
 
-void Texture::Draw(Rectangle<float> texture,
+void Texture::Draw(const Rectangle<float>& texture,
 				   const Rectangle<int>& source,
 				   float angle,
 				   Flip flip,
@@ -50,16 +44,12 @@ void Texture::Draw(Rectangle<float> texture,
 	auto renderer{ global::GetGame().sdl.GetRenderer() };
 	assert(renderer != nullptr && "Game uninitialized?");
 	assert(IsValid() && "Destroyed or uninitialized texture?");
-	SDL_Rect* src{ NULL };
 	SDL_Rect src_rect;
-	if (!source.size.IsZero()) {
+	bool source_given{ !source.size.IsZero() };
+	if (source_given) {
 		src_rect = { source.pos.x,  source.pos.y,
-			         source.size.x, source.size.y };
-		src = &src_rect;
+					 source.size.x, source.size.y };
 	}
-	V2_float scale = window::GetScale();
-	texture.pos *= scale;
-	texture.size *= scale;
 	SDL_Rect destination{
 		static_cast<int>(texture.pos.x),
 		static_cast<int>(texture.pos.y),
@@ -71,9 +61,10 @@ void Texture::Draw(Rectangle<float> texture,
 		rotation_point.x = center_of_rotation->x;
 		rotation_point.y = center_of_rotation->y;
 	}
+	//texture.Draw(color::RED, 1);
 	SDL_RenderCopyEx(renderer,
 		texture_.get(),
-		src,
+		source_given ? &src_rect : NULL,
 		&destination,
 		angle,
 		center_of_rotation != nullptr ? &rotation_point : NULL,

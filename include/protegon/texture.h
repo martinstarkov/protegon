@@ -28,8 +28,8 @@ public:
 	Texture(Texture&&) = default;
 	Texture& operator=(Texture&&) = default;
 	bool IsValid() const;
-	// Rotation is clockwise.
-	void Draw(Rectangle<float> texture,
+	// Rotation in degrees. Positive clockwise.
+	void Draw(const Rectangle<float>& texture,
 			  const Rectangle<int>& source = {},
 			  float angle = 0.0f,
 			  Flip flip = Flip::NONE,
