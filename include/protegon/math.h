@@ -46,31 +46,27 @@ T ToDeg(T rad) {
     return rad / pi<T> * 180;
 }
 
-// Angle in degrees clamped from 0 to 360.
-template <typename T, type_traits::arithmetic<T> = true>
-T ClampAngle360(T deg) {
-    if constexpr (std::is_floating_point_v<T>) {
-        deg = std::fmod(deg, 360);
-        while (deg < 0)
-            deg += 360;
-        deg = std::fmod(deg, 360);
-    } else {
-        deg %= 360;
-        while (deg < 0)
-            deg += 360;
-        deg %= 360;
-    }
-    return deg;
+// Modulo operator which supports wrapping negative numbers.
+template <typename T, type_traits::integral<T> = true>
+T Mod(T a, T b) {
+    return (a % b + b) % b;
 }
 
-// Angle in radians clamped from 0 to 2 pi.
+// Angle in degrees from 0 to 360.
+template <typename T, type_traits::arithmetic<T> = true>
+T RestrictAngle360(T deg) {
+    while (deg < 0) deg += 360;
+    if constexpr (std::is_floating_point_v<T>)
+        return std::fmod(deg, 360);
+    else
+        return Mod(deg, static_cast<T>(360));
+}
+
+// Angle in radians from 0 to 2 pi.
 template <typename T, type_traits::floating_point<T> = true>
-T ClampAngle2Pi(T rad) {
-    rad = std::fmod(rad, two_pi<T>);
-    while (rad < 0)
-        rad += two_pi<T>;
-    rad = std::fmod(rad, two_pi<T>);
-    return rad;
+T RestrictAngle2Pi(T rad) {
+    while (rad < 0) rad += two_pi<T>;
+    return std::fmod(rad, two_pi<T>);
 }
 
 // Signum function.
