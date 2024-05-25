@@ -285,7 +285,7 @@ void DrawCapsule(int x1, int y1, int x2, int y2, int r, const Color& color, bool
 	assert(renderer != nullptr && "Cannot draw capsule with nonexistent renderer");
 	
 	V2_int dir{ V2_int{ x2, y2 } - V2_int{ x1, y1 } };
-	const float angle{ ToDeg(ClampAngle2Pi(dir.Angle<float>() + half_pi<float>)) };
+	const float angle{ ToDeg(RestrictAngle2Pi(dir.Angle<float>() + half_pi<float>)) };
 	const int dir2{ dir.Dot(dir) };
 	
 	V2_int tangent_r;
@@ -315,6 +315,36 @@ void DrawCapsule(int x1, int y1, int x2, int y2, int r, const Color& color, bool
 	// Draw edge arcs.
 	DrawArc(x1, y1, r, angle, angle + 180.0, color);
 	DrawArc(x2, y2, r, angle + 180.0, angle, color);
+}
+
+void DrawSolidCapsule(int x1, int y1, int x2, int y2, int r, const Color& color) {
+	auto renderer{ global::GetGame().sdl.GetRenderer() };
+	assert(renderer != nullptr && "Cannot draw capsule with nonexistent renderer");
+
+	V2_int dir{ V2_int{ x2, y2 } - V2_int{ x1, y1 } };
+	const float angle{ ToDeg(RestrictAngle2Pi(dir.Angle<float>() + half_pi<float>)) };
+	const int dir2{ dir.Dot(dir) };
+
+	V2_int tangent_r;
+
+	// Note that dir2 is an int.
+	if (dir2 == 0) {
+		DrawSolidCircle(x1, y1, r, color);
+		return;
+	} else {
+		tangent_r = static_cast<V2_int>((dir.Skewed() / std::sqrt(dir2) * r).FastFloor());
+	}
+
+	if (color.a != 255)
+		SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+
+	// TODO: Remove 2.0 once DrawSolidArc no longer uses 2.0 thickness lines (temporary hack).
+	DrawThickLineImpl(renderer, x1, y1, x2, y2, 2.0 * r + 2.0);
+
+	// Draw edge arcs.
+	DrawSolidArc(x1, y1, r, angle, angle + 180.0, color);
+	DrawSolidArc(x2, y2, r, angle + 180.0, angle, color);
 }
 
 } // namespace impl

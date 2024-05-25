@@ -12,8 +12,9 @@ namespace impl {
 void DrawPixel(SDL_Renderer* renderer, int x, int y, const Color& color);
 void DrawLine(int x1, int y1, int x2, int y2, const Color& color);
 // Source: https://github.com/rtrussell/BBCSDL/blob/master/src/SDL2_gfxPrimitives.c
-void DrawThickLine(int x, int y, int w, int h, const Color& color, std::uint8_t pixel_thickness);
+void DrawThickLine(int x1, int y1, int x2, int y2, const Color& color, std::uint8_t pixel_thickness);
 void DrawCapsule(int x1, int y1, int x2, int y2, int r, const Color& color, bool draw_centerline);
+void DrawSolidCapsule(int x1, int y1, int x2, int y2, int r, const Color& color);
 void DrawVerticalLineImpl(SDL_Renderer* renderer, int x, int y1, int y2);
 void DrawVerticalLine(SDL_Renderer* renderer, int x, int y1, int y2, const Color& color);
 void DrawHorizontalLineImpl(SDL_Renderer* renderer, int x1, int x2, int y);
@@ -43,20 +44,19 @@ struct Line {
 				 static_cast<Point<U>>(b) };
 	}
 	void Draw(const Color& color, std::uint8_t pixel_thickness = 1) const {
-		V2_float scale = window::GetScale();
 		if (pixel_thickness == 1)
-			impl::DrawLine(static_cast<int>(a.x * scale.x),
-						   static_cast<int>(a.y * scale.y),
-						   static_cast<int>(b.x * scale.x),
-						   static_cast<int>(b.y * scale.y),
+			impl::DrawLine(static_cast<int>(a.x),
+						   static_cast<int>(a.y),
+						   static_cast<int>(b.x),
+						   static_cast<int>(b.y),
 						   color);
 		else
-			impl::DrawThickLine(static_cast<int>(a.x * scale.x),
-						        static_cast<int>(a.y * scale.y),
-						        static_cast<int>(b.x * scale.x),
-						        static_cast<int>(b.y * scale.y),
+			impl::DrawThickLine(static_cast<int>(a.x),
+						        static_cast<int>(a.y),
+						        static_cast<int>(b.x),
+						        static_cast<int>(b.y),
 						        color,
-								pixel_thickness * scale.x);
+								pixel_thickness);
 	}
 };
 
@@ -92,14 +92,21 @@ struct Capsule {
 				 static_cast<U>(r) };
 	}
 	void Draw(const Color& color, bool draw_centerline = false) const {
-		V2_float scale = window::GetScale();
-		impl::DrawCapsule(static_cast<int>(segment.a.x * scale.x),
-					      static_cast<int>(segment.a.y * scale.y),
-					      static_cast<int>(segment.b.x * scale.x),
-					      static_cast<int>(segment.b.y * scale.y),
-						  static_cast<int>(r * scale.x),
+		impl::DrawCapsule(static_cast<int>(segment.a.x),
+					      static_cast<int>(segment.a.y),
+					      static_cast<int>(segment.b.x),
+					      static_cast<int>(segment.b.y),
+						  static_cast<int>(r),
 					      color,
 						  draw_centerline);
+	}
+	void DrawSolid(const Color& color) const {
+		impl::DrawSolidCapsule(static_cast<int>(segment.a.x),
+							   static_cast<int>(segment.a.y),
+							   static_cast<int>(segment.b.x),
+							   static_cast<int>(segment.b.y),
+							   static_cast<int>(r),
+							   color);
 	}
 };
 
