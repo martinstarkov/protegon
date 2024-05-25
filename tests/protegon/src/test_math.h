@@ -149,8 +149,8 @@ bool TestMath() {
 	// TODO: Add tests for:
 	// ToRad()
 	// ToDeg()
-	// ClampAngle360()
-	// ClampAngle2Pi()
+	// RestrictAngle360()
+	// RestrictAngle2Pi()
 	// QuadraticFormula()
 
 	std::cout << "All math tests passed!" << std::endl;
