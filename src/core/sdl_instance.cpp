@@ -8,6 +8,7 @@
 #include <SDL_mixer.h>
 
 #include "protegon/log.h"
+#include "game.h"
 
 namespace ptgn {
 
@@ -20,9 +21,33 @@ SDLInstance::SDLInstance() {
 	InitRenderer();
 }
 
+void SDLInstance::SetResolution(const V2_int& new_resolution) {
+	resolution_ = new_resolution;
+}
+
+V2_int SDLInstance::GetResolution() const {
+	return resolution_;
+}
+
+void SDLInstance::SetDrawMode(const Color& color, DrawMode draw_mode) {
+	if (color.a != 255)
+		SDL_SetRenderDrawBlendMode(renderer_, static_cast<SDL_BlendMode>(draw_mode));
+	SDL_SetRenderDrawColor(renderer_, color.r, color.g, color.b, color.a);
+}
+
+void SDLInstance::SetScale(const V2_float& new_scale) {
+	scale_ = new_scale;
+}
+
+V2_float SDLInstance::GetScale() const {
+	return scale_;
+}
+
 void SDLInstance::InitSDL() {
+	SDL_SetHint(SDL_HINT_MOUSE_RELATIVE_SCALING, "1");
 	// Ensures window and elements scale by monitor zoom level for constant appearance.
 	SDL_SetHint(SDL_HINT_WINDOWS_DPI_AWARENESS, "permonitorv2");
+	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
 	auto sdl_flags{	SDL_INIT_AUDIO | SDL_INIT_EVENTS |
 		            SDL_INIT_TIMER | SDL_INIT_VIDEO };
 	if (!SDL_WasInit(sdl_flags)) {
@@ -68,7 +93,7 @@ void SDLInstance::InitWindow() {
 }
 
 void SDLInstance::InitRenderer() {
-	renderer_ = SDL_CreateRenderer(window_, -1, 0);
+	renderer_ = SDL_CreateRenderer(window_, -1, SDL_RENDERER_ACCELERATED);
 	SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
 	if (renderer_ == nullptr) {
 		PrintLine(SDL_GetError());
@@ -104,12 +129,16 @@ void SDLInstance::SetWindowBackgroundColor(const Color& new_color) {
 	window_bg_color_ = new_color;
 }
 
-void SDLInstance::SetScale(const V2_float& new_scale) {
-	scale_ = new_scale;
+namespace impl {
+
+SDL_Renderer* SetDrawColor(const Color& color) {
+	auto& sdl{ global::GetGame().sdl };
+	auto renderer{ sdl.GetRenderer() };
+	assert(renderer != nullptr && "Cannot draw with nonexistent renderer");
+	sdl.SetDrawMode(color, DrawMode::BLEND);
+	return renderer;
 }
 
-V2_float SDLInstance::GetScale() const {
-	return scale_;
-}
+} // namespace impl
 
 } // namespace ptgn
