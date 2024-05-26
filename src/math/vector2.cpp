@@ -4,17 +4,21 @@
 
 #include <SDL.h>
 
+#include "protegon/line.h"
+#include "protegon/circle.h"
+
 #include "core/game.h"
 
 namespace ptgn {
 
 namespace impl {
 
-void DrawPoint(int x, int y, const Color& color) {
-	auto renderer{ global::GetGame().sdl.GetRenderer() };
-	assert(renderer != nullptr && "Cannot draw point with nonexistent renderer");
-	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-	SDL_RenderDrawPoint(renderer, x, y);
+void DrawPointWrapper(int x, int y, const Color& color) {
+	impl::DrawPoint(x, y, color);
+}
+
+void DrawSolidCircleWrapper(int x, int y, int r, const Color& color) {
+	impl::DrawSolidCircle(x, y, r, color);
 }
 
 } // namespace impl

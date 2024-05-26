@@ -15,12 +15,12 @@ namespace ptgn {
 
 namespace impl {
 
-void DrawPoint(int x, int y, const Color& color);
+void DrawPointWrapper(int x, int y, const Color& color);
+void DrawSolidCircleWrapper(int x, int y, int r, const Color& color);
 
 } // namespace impl
 
-template <typename T,
-    type_traits::arithmetic<T> = true>
+template <typename T, type_traits::arithmetic<T> = true>
 struct Vector2 {
 	T x{};
 	T y{};
@@ -213,12 +213,22 @@ struct Vector2 {
                NearlyEqual(y, static_cast<T>(0));
     }
 
-    void Draw(const Color& color) const {
-        impl::DrawPoint(
-            static_cast<int>(x),
-            static_cast<int>(y),
-            color
-        );
+    void Draw(const Color& color, int radius = 0) const {
+        assert(radius >= 0 && "Cannot draw vector point with negative radius");
+        if (radius <= 1) {
+            impl::DrawPointWrapper(
+                static_cast<int>(x),
+                static_cast<int>(y),
+                color
+            );
+        } else {
+            impl::DrawSolidCircleWrapper(
+                static_cast<int>(x),
+                static_cast<int>(y),
+                radius,
+                color
+            );
+        }
     }
 };
 
