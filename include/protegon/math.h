@@ -36,13 +36,13 @@ inline constexpr T epsilon2{ epsilon<T> * epsilon<T> };
 
 // Convert degrees to radians.
 template <typename T, type_traits::floating_point<T> = true>
-T ToRad(T deg) {
+T DegToRad(T deg) {
     return deg * pi<T> / 180;
 }
 
 // Convert radians to degrees.
 template <typename T, type_traits::floating_point<T> = true>
-T ToDeg(T rad) {
+T RadToDeg(T rad) {
     return rad / pi<T> * 180;
 }
 
