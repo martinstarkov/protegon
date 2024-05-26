@@ -9,28 +9,43 @@ namespace ptgn {
 
 namespace impl {
 
-void DrawPixel(SDL_Renderer* renderer, int x, int y, const Color& color);
+void DrawPoint(int x, int y, const Color& color);
 void DrawLine(int x1, int y1, int x2, int y2, const Color& color);
-// Source: https://github.com/rtrussell/BBCSDL/blob/master/src/SDL2_gfxPrimitives.c
-void DrawThickLine(int x1, int y1, int x2, int y2, const Color& color, std::uint8_t pixel_thickness);
-void DrawCapsule(int x1, int y1, int x2, int y2, int r, const Color& color, bool draw_centerline);
+void DrawThickLine(int x1, int y1, int x2, int y2, double pixel_thickness, const Color& color);
+void DrawCapsule(int x1, int y1, int x2, int y2, int r, const Color& color);
 void DrawSolidCapsule(int x1, int y1, int x2, int y2, int r, const Color& color);
+void DrawThickCapsule(int x1, int y1, int x2, int y2, int r, double pixel_thickness, const Color& color);
+void DrawVerticalLine(int x, int y1, int y2, const Color& color);
+void DrawThickVerticalLine(int x, int y1, int y2, double pixel_thickness, const Color& color);
+void DrawHorizontalLine(int x1, int x2, int y, const Color& color);
+void DrawThickHorizontalLine(int x1, int x2, int y, double pixel_thickness, const Color& color);
+
+// Taken from: https://github.com/rtrussell/BBCSDL/blob/master/src/SDL2_gfxPrimitives.c (with some modifications)
+void DrawPointImpl(SDL_Renderer* renderer, int x, int y);
+void DrawLineImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2);
+void DrawThickLineImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, double pixel_thickness);
+void DrawCapsuleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int r);
+void DrawSolidCapsuleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int r);
+void DrawThickCapsuleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int r, double pixel_thickness);
 void DrawVerticalLineImpl(SDL_Renderer* renderer, int x, int y1, int y2);
-void DrawVerticalLine(SDL_Renderer* renderer, int x, int y1, int y2, const Color& color);
+void DrawThickVerticalLineImpl(SDL_Renderer* renderer, int x, int y1, int y2, double pixel_thickness);
 void DrawHorizontalLineImpl(SDL_Renderer* renderer, int x1, int x2, int y);
-void DrawHorizontalLine(SDL_Renderer* renderer, int x1, int x2, int y, const Color& color);
-void DrawYPerpendicular(SDL_Renderer* B, int x1, int y1, int dx, int dy, int xstep, int ystep, int einit, int w_left, int w_right, int winit);
-void DrawXPerpendicular(SDL_Renderer* B, int x1, int y1, int dx, int dy, int xstep, int ystep, int einit, int w_left, int w_right, int winit);
-void DrawXThickLine(SDL_Renderer* B, int x1, int y1, int dx, int dy, int xstep, int ystep, double pixel_thickness, int pxstep, int pystep);
-void DrawYThickLine(SDL_Renderer* B, int x1, int y1, int dx, int dy, int xstep, int ystep, double pixel_thickness, int pxstep, int pystep);
-void DrawThickLineImpl(SDL_Renderer* B, int x1, int y1, int x2, int y2, double pixel_thickness);
+void DrawThickHorizontalLineImpl(SDL_Renderer* renderer, int x1, int x2, int y, double pixel_thickness);
+void DrawXPerpendicular(SDL_Renderer* renderer, int x1, int y1, int dx, int dy, int xstep, int ystep, int einit, int w_left, int w_right, int winit);
+void DrawYPerpendicular(SDL_Renderer* renderer, int x1, int y1, int dx, int dy, int xstep, int ystep, int einit, int w_left, int w_right, int winit);
+void DrawXThickLine(SDL_Renderer* renderer, int x1, int y1, int dx, int dy, int xstep, int ystep, double pixel_thickness, int pxstep, int pystep);
+void DrawYThickLine(SDL_Renderer* renderer, int x1, int y1, int dx, int dy, int xstep, int ystep, double pixel_thickness, int pxstep, int pystep);
 
 } // namespace impl
 
-template <typename T = int>
+template <typename T = float>
 struct Line {
-	Point<T> a;
-	Point<T> b;
+	Line() = default;
+	Line(const Point<T> a, Point<T> b) : a{ a }, b{ b } {}
+
+	Point<T> a{};
+	Point<T> b{};
+
 	// p is the penetration vector.
 	Line<T> Resolve(const Vector2<T>& p) const {
 		return { a + p, b + p };
@@ -38,75 +53,97 @@ struct Line {
 	Vector2<T> Direction() const {
 		return b - a;
 	}
+
 	template <typename U>
 	operator Line<U>() const {
-		return { static_cast<Point<U>>(a),
-				 static_cast<Point<U>>(b) };
+		return {
+			static_cast<Point<U>>(a),
+			static_cast<Point<U>>(b)
+		};
 	}
-	void Draw(const Color& color, std::uint8_t pixel_thickness = 1) const {
-		if (pixel_thickness == 1)
-			impl::DrawLine(static_cast<int>(a.x),
-						   static_cast<int>(a.y),
-						   static_cast<int>(b.x),
-						   static_cast<int>(b.y),
-						   color);
-		else
-			impl::DrawThickLine(static_cast<int>(a.x),
-						        static_cast<int>(a.y),
-						        static_cast<int>(b.x),
-						        static_cast<int>(b.y),
-						        color,
-								pixel_thickness);
-	}
-};
 
-template <typename T = float>
-struct Ray {
-	Point<T> p;   // position
-	Vector2<T> d; // direction (normalized)
-	float t{};      // distance along d from position p to find endpoint of ray.
-	template <typename U>
-	operator Ray<U>() const {
-		return { static_cast<Point<U>>(p),
-				 static_cast<Vector2<U>>(d),
-		         static_cast<U>(t) };
+	void Draw(const Color& color, double pixel_thickness = 1) const {
+		if (pixel_thickness <= 1) {
+			impl::DrawLine(
+				static_cast<int>(a.x),
+				static_cast<int>(a.y),
+				static_cast<int>(b.x),
+				static_cast<int>(b.y),
+				color
+			);
+		} else {
+			impl::DrawThickLine(
+				static_cast<int>(a.x),
+				static_cast<int>(a.y),
+				static_cast<int>(b.x),
+				static_cast<int>(b.y),
+				pixel_thickness,
+				color
+			);
+		}
 	}
 };
 
 template <typename T = float>
 struct Segment : public Line<T> {
+	using Line<T>::Line;
 	template <typename U>
 	operator Segment<U>() const {
-		return { static_cast<Point<U>>(this->a),
-				 static_cast<Point<U>>(this->b) };
+		return {
+			static_cast<Point<U>>(this->a),
+			static_cast<Point<U>>(this->b)
+		};
 	}
 };
 
 template <typename T = float>
 struct Capsule {
-	Segment<T> segment;
-	T r{};
+	Capsule() = default;
+	Capsule(const Line<T>& segment, T radius) : segment{ segment }, radius{ radius } {}
+
+	Line<T> segment;
+	T radius{};
+
 	template <typename U>
 	operator Capsule<U>() const {
-		return { static_cast<Segment<U>>(segment),
-				 static_cast<U>(r) };
+		return {
+			static_cast<Line<U>>(segment),
+			static_cast<U>(radius)
+		};
 	}
-	void Draw(const Color& color, bool draw_centerline = false) const {
-		impl::DrawCapsule(static_cast<int>(segment.a.x),
-					      static_cast<int>(segment.a.y),
-					      static_cast<int>(segment.b.x),
-					      static_cast<int>(segment.b.y),
-						  static_cast<int>(r),
-					      color,
-						  draw_centerline);
+
+	void Draw(const Color& color, double pixel_thickness = 1) const {
+		if (pixel_thickness <= 1) {
+			impl::DrawCapsule(
+				static_cast<int>(segment.a.x),
+				static_cast<int>(segment.a.y),
+				static_cast<int>(segment.b.x),
+				static_cast<int>(segment.b.y),
+				static_cast<int>(radius),
+				color
+			);
+		} else {
+			impl::DrawThickCapsule(
+				static_cast<int>(segment.a.x),
+				static_cast<int>(segment.a.y),
+				static_cast<int>(segment.b.x),
+				static_cast<int>(segment.b.y),
+				static_cast<int>(radius),
+				pixel_thickness,
+				color
+			);
+		}
 	}
+
 	void DrawSolid(const Color& color) const {
-		impl::DrawSolidCapsule(static_cast<int>(segment.a.x),
-							   static_cast<int>(segment.a.y),
-							   static_cast<int>(segment.b.x),
-							   static_cast<int>(segment.b.y),
-							   static_cast<int>(r),
-							   color);
+		impl::DrawSolidCapsule(
+			static_cast<int>(segment.a.x),
+			static_cast<int>(segment.a.y),
+			static_cast<int>(segment.b.x),
+			static_cast<int>(segment.b.y),
+			static_cast<int>(radius),
+			color
+		);
 	}
 };
 

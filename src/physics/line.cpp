@@ -2,53 +2,205 @@
 
 #include <SDL.h>
 
-#include "core/game.h"
+#include "core/sdl_instance.h"
 #include "protegon/circle.h"
 
 namespace ptgn {
 
 namespace impl {
 
+void DrawPoint(int x, int y, const Color& color) {
+	auto renderer{ SetDrawColor(color) };
+	DrawPointImpl(renderer, x, y);
+}
+
 void DrawLine(int x1, int y1, int x2, int y2, const Color& color) {
-	auto renderer{ global::GetGame().sdl.GetRenderer() };
-	assert(renderer != nullptr && "Cannot draw line with nonexistent renderer");
-
-	if (color.a != 255)
-		SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-	SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
+	auto renderer{ SetDrawColor(color) };
+	DrawLineImpl(renderer, x1, y1, x2, y2);
 }
 
-void DrawPixel(SDL_Renderer* renderer, int x, int y, const Color& color) {
-	if (color.a != 255)
-		SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-	SDL_RenderDrawPoint(renderer, x, y);
+void DrawThickLine(int x1, int y1, int x2, int y2, double pixel_thickness, const Color& color) {
+	auto renderer{ SetDrawColor(color) };
+	DrawThickLineImpl(renderer, x1, y1, x2, y2, pixel_thickness);
 }
 
-void DrawVerticalLineImpl(SDL_Renderer* renderer, int x, int y1, int y2) {
-	SDL_RenderDrawLine(renderer, x, y1, x, y2);
+void DrawCapsule(int x1, int y1, int x2, int y2, int r, const Color& color) {
+	auto renderer{ SetDrawColor(color) };
+	DrawCapsuleImpl(renderer, x1, y1, x2, y2, r);
 }
 
-void DrawVerticalLine(SDL_Renderer* renderer, int x, int y1, int y2, const Color& color) {
-	if (color.a != 255)
-		SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+void DrawSolidCapsule(int x1, int y1, int x2, int y2, int r, const Color& color) {
+	auto renderer{ SetDrawColor(color) };
+	DrawSolidCapsuleImpl(renderer, x1, y1, x2, y2, r);
+}
+
+void DrawThickCapsule(int x1, int y1, int x2, int y2, int r, double pixel_thickness, const Color& color) {
+	auto renderer{ SetDrawColor(color) };
+	DrawThickCapsuleImpl(renderer, x1, y1, x2, y2, r, pixel_thickness);
+}
+
+void DrawVerticalLine(int x, int y1, int y2, const Color& color) {
+	auto renderer{ SetDrawColor(color) };
 	DrawVerticalLineImpl(renderer, x, y1, y2);
 }
 
-void DrawHorizontalLineImpl(SDL_Renderer* renderer, int x1, int x2, int y) {
-	SDL_RenderDrawLine(renderer, x1, y, x2, y);
+void DrawThickVerticalLine(int x, int y1, int y2, double pixel_thickness, const Color& color) {
+	auto renderer{ SetDrawColor(color) };
+	DrawThickVerticalLineImpl(renderer, x, y1, y2, pixel_thickness);
 }
 
-void DrawHorizontalLine(SDL_Renderer* renderer, int x1, int x2, int y, const Color& color) {
-	if (color.a != 255)
-		SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+void DrawHorizontalLine(int x1, int x2, int y, const Color& color) {
+	auto renderer{ SetDrawColor(color) };
 	DrawHorizontalLineImpl(renderer, x1, x2, y);
 }
 
-void DrawXPerpendicular(SDL_Renderer* B, int x1, int y1, int dx, int dy, int xstep, int ystep, int einit, int w_left, int w_right, int winit) {
+void DrawThickHorizontalLine(int x1, int x2, int y, double pixel_thickness, const Color& color) {
+	auto renderer{ SetDrawColor(color) };
+	DrawThickHorizontalLineImpl(renderer, x1, x2, y, pixel_thickness);
+}
+
+void DrawPointImpl(SDL_Renderer* renderer, int x, int y) {
+	SDL_RenderDrawPoint(renderer, x, y);
+}
+
+void DrawLineImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2) {
+	SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
+}
+
+void DrawThickLineImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, double pixel_thickness) {
+	int wh;
+	// Special case: thick "point"
+	if (x1 == x2 && y1 == y2) {
+		wh = pixel_thickness / 2;
+		DrawSolidRectangleImpl(renderer, x1 - wh, y1 - wh, x2 + wh, y2 + wh);
+		return;
+	}
+
+	int dx, dy, xstep, ystep;
+	int pxstep = 0, pystep = 0;
+
+	dx = x2 - x1;
+	dy = y2 - y1;
+	xstep = ystep = 1;
+
+	if (dx < 0) { dx = -dx; xstep = -1; }
+	if (dy < 0) { dy = -dy; ystep = -1; }
+
+	if (dx == 0) xstep = 0;
+	if (dy == 0) ystep = 0;
+
+	switch (xstep + ystep * 4) {
+		case -1 + -1 * 4:  pystep = -1; pxstep = 1; break; // -5
+		case -1 + 0 * 4:  pystep = -1; pxstep = 0; break; // -1
+		case -1 + 1 * 4:  pystep = 1; pxstep = 1; break; // 3
+		case  0 + -1 * 4:  pystep = 0; pxstep = -1; break; // -4
+		case  0 + 0 * 4:  pystep = 0; pxstep = 0; break; // 0
+		case  0 + 1 * 4:  pystep = 0; pxstep = 1; break; // 4
+		case  1 + -1 * 4:  pystep = -1; pxstep = -1; break; // -3
+		case  1 + 0 * 4:  pystep = -1; pxstep = 0; break; // 1
+		case  1 + 1 * 4:  pystep = 1; pxstep = -1; break; // 5
+	}
+
+	if (dx > dy)
+		DrawXThickLine(renderer, x1, y1, dx, dy, xstep, ystep, pixel_thickness + 1.0, pxstep, pystep);
+	else
+		DrawYThickLine(renderer, x1, y1, dx, dy, xstep, ystep, pixel_thickness + 1.0, pxstep, pystep);
+}
+
+void DrawCapsuleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int r) {
+	V2_int dir{ V2_int{ x2, y2 } - V2_int{ x1, y1 } };
+	const float angle{ RadToDeg(RestrictAngle2Pi(dir.Angle<float>() + half_pi<float>)) };
+	const int dir2{ dir.Dot(dir) };
+
+	V2_int tangent_r;
+
+	// Note that dir2 is an int.
+	if (dir2 == 0) {
+		DrawCircleImpl(renderer, x1, y1, r);
+		return;
+	} else {
+		tangent_r = static_cast<V2_int>((dir.Skewed() / std::sqrt(dir2) * r).FastFloor());
+	}
+
+	// Draw edge lines.
+	DrawLineImpl(renderer, x1 + tangent_r.x, y1 + tangent_r.y,
+						   x2 + tangent_r.x, y2 + tangent_r.y);
+	DrawLineImpl(renderer, x1 - tangent_r.x, y1 - tangent_r.y,
+						   x2 - tangent_r.x, y2 - tangent_r.y);
+
+	// Draw edge arcs.
+	DrawArcImpl(renderer, x1, y1, r, angle, angle + 180.0);
+	DrawArcImpl(renderer, x2, y2, r, angle + 180.0, angle);
+}
+
+void DrawSolidCapsuleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int r) {
+	V2_int dir{ V2_int{ x2, y2 } - V2_int{ x1, y1 } };
+	const float angle{ RadToDeg(RestrictAngle2Pi(dir.Angle<float>() + half_pi<float>)) };
+	const int dir2{ dir.Dot(dir) };
+
+	V2_int tangent_r;
+
+	// Note that dir2 is an int.
+	if (dir2 == 0) {
+		DrawSolidCircleImpl(renderer, x1, y1, r);
+		return;
+	} else {
+		tangent_r = static_cast<V2_int>((dir.Skewed() / std::sqrt(dir2) * r).FastFloor());
+	}
+
+	DrawThickLineImpl(renderer, x1, y1, x2, y2, r * 2);
+
+	DrawSolidCircleImpl(renderer, x1, y1, r);
+	DrawSolidCircleImpl(renderer, x2, y2, r);
+
+	// TODO: Check if this is faster than drawing circles.
+	//DrawSolidArcImpl(renderer, x1, y1, r, angle, angle + 180.0);
+	//DrawSolidArcImpl(renderer, x2, y2, r, angle + 180.0, angle);
+}
+
+void DrawThickCapsuleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int r, double pixel_thickness) {
+	V2_int dir{ V2_int{ x2, y2 } - V2_int{ x1, y1 } };
+	const double angle{ RadToDeg(RestrictAngle2Pi(dir.Angle<double>() + half_pi<double>)) };
+	const int dir2{ dir.Dot(dir) };
+
+	V2_int tangent_r;
+
+	// Note that dir2 is an int.
+	if (dir2 == 0) {
+		DrawThickCircleImpl(renderer, x1, y1, r, pixel_thickness);
+		return;
+	} else {
+		tangent_r = static_cast<V2_int>((dir.Skewed() / std::sqrt(dir2) * r).FastFloor());
+	}
+
+	// Draw edge lines.
+	DrawThickLineImpl(renderer, x1 + tangent_r.x, y1 + tangent_r.y,
+								x2 + tangent_r.x, y2 + tangent_r.y, pixel_thickness);
+	DrawThickLineImpl(renderer, x1 - tangent_r.x, y1 - tangent_r.y,
+								x2 - tangent_r.x, y2 - tangent_r.y, pixel_thickness);
+
+	// Draw edge arcs.
+	DrawThickArcImpl(renderer, x1, y1, r, angle, angle + 180.0, pixel_thickness);
+	DrawThickArcImpl(renderer, x2, y2, r, angle + 180.0, angle, pixel_thickness);
+}
+
+void DrawVerticalLineImpl(SDL_Renderer* renderer, int x, int y1, int y2) {
+	DrawLineImpl(renderer, x, y1, x, y2);
+}
+
+void DrawThickVerticalLineImpl(SDL_Renderer* renderer, int x, int y1, int y2, double pixel_thickness) {
+	DrawThickLineImpl(renderer, x, y1, x, y2, pixel_thickness);
+}
+
+void DrawHorizontalLineImpl(SDL_Renderer* renderer, int x1, int x2, int y) {
+	DrawLineImpl(renderer, x1, y, x2, y);
+}
+
+void DrawThickHorizontalLineImpl(SDL_Renderer* renderer, int x1, int x2, int y, double pixel_thickness) {
+	DrawThickLineImpl(renderer, x1, y, x2, y, pixel_thickness);
+}
+
+void DrawXPerpendicular(SDL_Renderer* renderer, int x1, int y1, int dx, int dy, int xstep, int ystep, int einit, int w_left, int w_right, int winit) {
 	int x, y, threshold, E_diag, E_square;
 	int tk;
 	int error;
@@ -65,7 +217,7 @@ void DrawXPerpendicular(SDL_Renderer* B, int x1, int y1, int dx, int dy, int xst
 	tk = dx + dy - winit;
 
 	while (tk <= w_left) {
-		SDL_RenderDrawPoint(B, x, y);
+		DrawPointImpl(renderer, x, y);
 		if (error >= threshold) {
 			x = x + xstep;
 			error = error + E_diag;
@@ -84,7 +236,7 @@ void DrawXPerpendicular(SDL_Renderer* B, int x1, int y1, int dx, int dy, int xst
 
 	while (tk <= w_right) {
 		if (p)
-			SDL_RenderDrawPoint(B, x, y);
+			DrawPointImpl(renderer, x, y);
 		if (error > threshold) {
 			x = x - xstep;
 			error = error + E_diag;
@@ -96,10 +248,10 @@ void DrawXPerpendicular(SDL_Renderer* B, int x1, int y1, int dx, int dy, int xst
 		p++;
 	}
 
-	if (q == 0 && p < 2) SDL_RenderDrawPoint(B, x1, y1); // very thin lines
+	if (q == 0 && p < 2) DrawPointImpl(renderer, x1, y1); // very thin lines
 }
 
-void DrawYPerpendicular(SDL_Renderer* B, int x1, int y1, int dx, int dy, int xstep, int ystep, int einit, int w_left, int w_right, int winit) {
+void DrawYPerpendicular(SDL_Renderer* renderer, int x1, int y1, int dx, int dy, int xstep, int ystep, int einit, int w_left, int w_right, int winit) {
 
 	int x, y, threshold, E_diag, E_square;
 	int tk;
@@ -117,7 +269,7 @@ void DrawYPerpendicular(SDL_Renderer* B, int x1, int y1, int dx, int dy, int xst
 	tk = dx + dy + winit;
 
 	while (tk <= w_left) {
-		SDL_RenderDrawPoint(B, x, y);
+		DrawPointImpl(renderer, x, y);
 		if (error > threshold) {
 			y = y + ystep;
 			error = error + E_diag;
@@ -136,7 +288,7 @@ void DrawYPerpendicular(SDL_Renderer* B, int x1, int y1, int dx, int dy, int xst
 
 	while (tk <= w_right) {
 		if (p)
-			SDL_RenderDrawPoint(B, x, y);
+			DrawPointImpl(renderer, x, y);
 		if (error >= threshold) {
 			y = y - ystep;
 			error = error + E_diag;
@@ -148,11 +300,10 @@ void DrawYPerpendicular(SDL_Renderer* B, int x1, int y1, int dx, int dy, int xst
 		p++;
 	}
 
-	if (q == 0 && p < 2) SDL_RenderDrawPoint(B, x1, y1); // for very thin lines
+	if (q == 0 && p < 2) DrawPointImpl(renderer, x1, y1); // very thin lines
 }
 
-void DrawXThickLine(SDL_Renderer* B, int x1, int y1, int dx, int dy, int xstep, int ystep, double pixel_thickness, int pxstep, int pystep) {
-
+void DrawXThickLine(SDL_Renderer* renderer, int x1, int y1, int dx, int dy, int xstep, int ystep, double pixel_thickness, int pxstep, int pystep) {
 	int p_error, error, x, y, threshold, E_diag, E_square, length, p;
 	int w_left, w_right;
 	double D;
@@ -171,15 +322,15 @@ void DrawXThickLine(SDL_Renderer* B, int x1, int y1, int dx, int dy, int xstep, 
 	w_right -= w_left;
 
 	for (p = 0; p < length; p++) {
-		DrawXPerpendicular(B, x, y, dx, dy, pxstep, pystep,
-							p_error, w_left, w_right, error);
+		DrawXPerpendicular(renderer, x, y, dx, dy, pxstep, pystep,
+			p_error, w_left, w_right, error);
 		if (error >= threshold) {
 			y = y + ystep;
 			error = error + E_diag;
 			if (p_error >= threshold) {
-				DrawXPerpendicular(B, x, y, dx, dy, pxstep, pystep,
-									(p_error + E_diag + E_square),
-									w_left, w_right, error);
+				DrawXPerpendicular(renderer, x, y, dx, dy, pxstep, pystep,
+					(p_error + E_diag + E_square),
+					w_left, w_right, error);
 				p_error = p_error + E_diag;
 			}
 			p_error = p_error + E_square;
@@ -189,7 +340,7 @@ void DrawXThickLine(SDL_Renderer* B, int x1, int y1, int dx, int dy, int xstep, 
 	}
 }
 
-void DrawYThickLine(SDL_Renderer* B, int x1, int y1, int dx, int dy, int xstep, int ystep, double pixel_thickness, int pxstep, int pystep) {
+void DrawYThickLine(SDL_Renderer* renderer, int x1, int y1, int dx, int dy, int xstep, int ystep, double pixel_thickness, int pxstep, int pystep) {
 
 	int p_error, error, x, y, threshold, E_diag, E_square, length, p;
 	int w_left, w_right;
@@ -209,15 +360,15 @@ void DrawYThickLine(SDL_Renderer* B, int x1, int y1, int dx, int dy, int xstep, 
 	w_right -= w_left;
 
 	for (p = 0; p < length; p++) {
-		DrawYPerpendicular(B, x, y, dx, dy, pxstep, pystep,
-							p_error, w_left, w_right, error);
+		DrawYPerpendicular(renderer, x, y, dx, dy, pxstep, pystep,
+			p_error, w_left, w_right, error);
 		if (error >= threshold) {
 			x = x + xstep;
 			error = error + E_diag;
 			if (p_error >= threshold) {
-				DrawYPerpendicular(B, x, y, dx, dy, pxstep, pystep,
-									p_error + E_diag + E_square,
-									w_left, w_right, error);
+				DrawYPerpendicular(renderer, x, y, dx, dy, pxstep, pystep,
+					p_error + E_diag + E_square,
+					w_left, w_right, error);
 				p_error = p_error + E_diag;
 			}
 			p_error = p_error + E_square;
@@ -225,126 +376,6 @@ void DrawYThickLine(SDL_Renderer* B, int x1, int y1, int dx, int dy, int xstep, 
 		error = error + E_square;
 		y = y + ystep;
 	}
-}
-
-void DrawThickLineImpl(SDL_Renderer* B, int x1, int y1, int x2, int y2, double pixel_thickness) {
-	int dx, dy, xstep, ystep;
-	int pxstep = 0, pystep = 0;
-
-	dx = x2 - x1;
-	dy = y2 - y1;
-	xstep = ystep = 1;
-
-	if (dx < 0) { dx = -dx; xstep = -1; }
-	if (dy < 0) { dy = -dy; ystep = -1; }
-
-	if (dx == 0) xstep = 0;
-	if (dy == 0) ystep = 0;
-
-	switch (xstep + ystep * 4) {
-		case -1 + -1 * 4:  pystep = -1; pxstep = 1; break;   // -5
-		case -1 + 0 * 4:  pystep = -1; pxstep = 0; break;   // -1
-		case -1 + 1 * 4:  pystep = 1; pxstep = 1; break;   // 3
-		case  0 + -1 * 4:  pystep = 0; pxstep = -1; break;  // -4
-		case  0 + 0 * 4:  pystep = 0; pxstep = 0; break;   // 0
-		case  0 + 1 * 4:  pystep = 0; pxstep = 1; break;   // 4
-		case  1 + -1 * 4:  pystep = -1; pxstep = -1; break;  // -3
-		case  1 + 0 * 4:  pystep = -1; pxstep = 0;  break;  // 1
-		case  1 + 1 * 4:  pystep = 1; pxstep = -1; break;  // 5
-	}
-
-	if (dx > dy)
-		DrawXThickLine(B, x1, y1, dx, dy, xstep, ystep, pixel_thickness + 1.0, pxstep, pystep);
-	else 
-		DrawYThickLine(B, x1, y1, dx, dy, xstep, ystep, pixel_thickness + 1.0, pxstep, pystep);
-}
-
-void DrawThickLine(int x1, int y1, int x2, int y2, const Color& color, std::uint8_t pixel_thickness) {
-	auto renderer{ global::GetGame().sdl.GetRenderer() };
-	assert(renderer != nullptr && "Cannot draw thick line with nonexistent renderer");
-	assert(pixel_thickness >= 1 && "Cannot draw line with thickness below 1 pixel");
-	
-	int wh;
-
-	// Special case: thick "point"
-	if ((x1 == x2) && (y1 == y2)) {
-		wh = pixel_thickness / 2;
-		DrawSolidRectangleImpl(renderer, x1 - wh, y1 - wh, x2 + wh, y2 + wh, color);
-		return;
-	}
-
-	if (color.a != 255)
-		SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-
-	DrawThickLineImpl(renderer, x1, y1, x2, y2, (double)pixel_thickness);
-}
-
-void DrawCapsule(int x1, int y1, int x2, int y2, int r, const Color& color, bool draw_centerline) {
-	auto renderer{ global::GetGame().sdl.GetRenderer() };
-	assert(renderer != nullptr && "Cannot draw capsule with nonexistent renderer");
-	
-	V2_int dir{ V2_int{ x2, y2 } - V2_int{ x1, y1 } };
-	const float angle{ ToDeg(RestrictAngle2Pi(dir.Angle<float>() + half_pi<float>)) };
-	const int dir2{ dir.Dot(dir) };
-	
-	V2_int tangent_r;
-	
-	// Note that dir2 is an int.
-	if (dir2 == 0) {
-		DrawCircle(x1, y1, r, color);
-		return;
-	} else {
-		tangent_r = static_cast<V2_int>((dir.Skewed() / std::sqrt(dir2) * r).FastFloor());
-	}
-
-	if (color.a != 255)
-		SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-
-	// Draw centerline.
-	if (draw_centerline)
-		SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
-	
-	// Draw edge lines.
-	SDL_RenderDrawLine(renderer, x1 + tangent_r.x, y1 + tangent_r.y,
-						         x2 + tangent_r.x, y2 + tangent_r.y);
-	SDL_RenderDrawLine(renderer, x1 - tangent_r.x, y1 - tangent_r.y,
-						         x2 - tangent_r.x, y2 - tangent_r.y);
-	
-	// Draw edge arcs.
-	DrawArc(x1, y1, r, angle, angle + 180.0, color);
-	DrawArc(x2, y2, r, angle + 180.0, angle, color);
-}
-
-void DrawSolidCapsule(int x1, int y1, int x2, int y2, int r, const Color& color) {
-	auto renderer{ global::GetGame().sdl.GetRenderer() };
-	assert(renderer != nullptr && "Cannot draw capsule with nonexistent renderer");
-
-	V2_int dir{ V2_int{ x2, y2 } - V2_int{ x1, y1 } };
-	const float angle{ ToDeg(RestrictAngle2Pi(dir.Angle<float>() + half_pi<float>)) };
-	const int dir2{ dir.Dot(dir) };
-
-	V2_int tangent_r;
-
-	// Note that dir2 is an int.
-	if (dir2 == 0) {
-		DrawSolidCircle(x1, y1, r, color);
-		return;
-	} else {
-		tangent_r = static_cast<V2_int>((dir.Skewed() / std::sqrt(dir2) * r).FastFloor());
-	}
-
-	if (color.a != 255)
-		SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-
-	// TODO: Remove 2.0 once DrawSolidArc no longer uses 2.0 thickness lines (temporary hack).
-	DrawThickLineImpl(renderer, x1, y1, x2, y2, 2.0 * r + 2.0);
-
-	// Draw edge arcs.
-	DrawSolidArc(x1, y1, r, angle, angle + 180.0, color);
-	DrawSolidArc(x2, y2, r, angle + 180.0, angle, color);
 }
 
 } // namespace impl
