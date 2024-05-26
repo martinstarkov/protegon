@@ -2,7 +2,7 @@
 
 #include <memory> // std::shared_ptr
 
-#include "rectangle.h"
+#include "polygon.h"
 #include "vector2.h"
 #include "color.h"
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "vector2.h"
-#include "rectangle.h"
+#include "polygon.h"
 #include "circle.h"
 #include "line.h"
 

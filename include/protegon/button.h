@@ -6,7 +6,7 @@
 
 #include "event.h"
 #include "events.h"
-#include "rectangle.h"
+#include "polygon.h"
 #include "texture.h"
 #include "resources.h"
 #include "type_traits.h"
