@@ -2,7 +2,7 @@
 
 #include <memory> // std::shared_ptr
 
-#include "rectangle.h"
+#include "polygon.h"
 #include "vector2.h"
 #include "color.h"
 
@@ -16,6 +16,24 @@ enum class Flip
 	NONE       = 0x00000000,
 	HORIZONTAL = 0x00000001,
 	VERTICAL   = 0x00000002
+};
+
+enum class DrawMode {
+	NONE = 0x00000000,     /**< no blending
+											  dstRGBA = srcRGBA */
+	BLEND = 0x00000001,    /**< alpha blending
+											  dstRGB = (srcRGB * srcA) + (dstRGB * (1-srcA))
+											  dstA = srcA + (dstA * (1-srcA)) */
+	ADD = 0x00000002,      /**< additive blending
+											  dstRGB = (srcRGB * srcA) + dstRGB
+											  dstA = dstA */
+	MOD = 0x00000004,      /**< color modulate
+											  dstRGB = srcRGB * dstRGB
+											  dstA = dstA */
+	MUL = 0x00000008,      /**< color multiply
+											  dstRGB = (srcRGB * dstRGB) + (dstRGB * (1-srcA))
+											  dstA = dstA */
+	INVALID = 0x7FFFFFFF
 };
 
 class Texture {
