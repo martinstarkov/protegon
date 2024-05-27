@@ -44,10 +44,9 @@ public:
 	int GetLength() const;
 
 	int OneDimensionalize(const V2_int& coordinate) const;
-private:
-	V2_int size;
-	int length{ 0 };
 protected:
+	int length{ 0 };
+	V2_int size;
 	std::vector<T> cells;
 };
 
