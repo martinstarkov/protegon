@@ -101,11 +101,16 @@ function(create_resource_symlink TARGET DIR_NAME)
 	endif()
 endfunction()
 
+find_package(OpenGL REQUIRED)
+
+target_link_libraries(protegon PRIVATE ${OPENGL_LIBRARIES})
+
 target_include_directories(protegon PUBLIC
 	"${PROTEGON_INCLUDE_DIR}"
 	"${ECS_INCLUDE_DIR}"
 	"${JSON_INCLUDE_DIR}"
   PRIVATE
+  "${OPENGL_INCLUDE_DIRS}"
 	"${PROTEGON_SRC_DIR}")
 
 # Add d to debug static lib files to differentiate them from release
