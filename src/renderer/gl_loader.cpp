@@ -317,6 +317,19 @@ return GL_LIST true;
 
 #endif // __APPLE__
 
+// TODO: Check if useful:
+#ifdef __APPLE__
+void InitializeAppleFileSystem() {
+	/*CFBundleRef mainBundle = CFBundleGetMainBundle();
+	CFURLRef resourcesURL = CFBundleCopyResourcesDirectoryURL(mainBundle);
+	char path[PATH_MAX];
+	if (!CFURLGetFileSystemRepresentation(resourcesURL, TRUE, (UInt8*)path, PATH_MAX)) {
+		std::cerr << "Couldn't get file system representation! " << std::endl;
+	}
+	CFRelease(resourcesURL);
+	chdir(path);*/
+}
+#endif
 
 //#if defined(__linux__)
 //
@@ -457,10 +470,10 @@ void presentBackBuffer(SDL_Renderer* renderer, SDL_Window* win, SDL_Texture* bac
 	GLfloat minu, maxu, minv, maxv;
 
 	// Coordenadas de la ventana donde pintar.
-	minx = -0.5;
-	miny = -0.5;
-	maxx = 0.5;
-	maxy = 0.5;
+	minx = -1;
+	miny = -1;
+	maxx = 1;
+	maxy = 1;
 
 	minu = 0.0f;
 	maxu = 1.0f;
@@ -497,7 +510,7 @@ void TestFunction() {
 	GLuint programId;
 
 #ifdef __APPLE__
-	initializeFileSystem();
+	InitializeAppleFileSystem();
 #endif
 
 	if (SDL_Init(SDL_INIT_EVERYTHING | SDL_VIDEO_OPENGL) != 0) {
