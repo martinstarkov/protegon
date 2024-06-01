@@ -1,15 +1,18 @@
 #pragma once
 
 #include <filesystem> // std::filesystem
-#include <fstream>    // std::ifstream
 #include <string>
 
 namespace ptgn {
 
-std::string GetExecutablePath();
-std::string GetExecutableDirectory();
-std::string MergePaths(std::string path_A, std::string path_B);
-bool FileExists (const std::string& file_path);
-std::string GetAbsolutePath(const std::string& relative_file_path);
+namespace fs = std::filesystem;
+
+std::string FileToString(const fs::path& file);
+fs::path GetExecutablePath();
+fs::path GetExecutableDirectory();
+fs::path MergePaths(const fs::path& path_A, const fs::path& path_B);
+bool FileExists (const fs::path& file_path);
+fs::path GetAbsolutePath(const fs::path& relative_file_path);
+fs::path GetRelativePath(const fs::path& absolute_file_path);
 
 } // namespace ptgn
