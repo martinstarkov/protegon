@@ -12,6 +12,7 @@ namespace ptgn {
 
 class Surface {
 public:
+	// TODO: Switch to fs::path
 	Surface(const char* image_path);
 	~Surface() = default;
 	Surface(const Surface&) = default;

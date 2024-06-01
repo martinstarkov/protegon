@@ -10,6 +10,7 @@ namespace ptgn {
 
 class Font {
 public:
+	// TODO: Switch to fs::path
 	Font(const char* font_path, std::uint32_t point_size, std::uint32_t index = 0);
 	~Font() = default;
 	Font(const Font&) = default;

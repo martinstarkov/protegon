@@ -12,6 +12,7 @@ namespace ptgn {
 
 class Music {
 public:
+	// TODO: Switch to fs::path
 	Music(const char* music_path);
 	~Music() = default;
 	Music(const Music&) = default;
@@ -29,6 +30,7 @@ private:
 
 class Sound {
 public:
+	// TODO: Switch to fs::path
 	Sound(const char* sound_path);
 	~Sound() = default;
 	Sound(const Sound&) = default;
