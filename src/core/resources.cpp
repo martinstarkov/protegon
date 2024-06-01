@@ -181,6 +181,26 @@ void Clear() {
 
 } // namespace texture
 
+namespace shader {
+
+void Unload(ShaderKey key) {
+	GetManagers().shader.Unload(key);
+}
+
+bool Has(ShaderKey key) {
+	return GetManagers().shader.Has(key);
+}
+
+std::shared_ptr<Shader> Get(ShaderKey key) {
+	return GetManagers().shader.Get(key);
+}
+
+void Clear() {
+	GetManagers().shader.Clear();
+}
+
+} // namespace shader
+
 namespace scene {
 
 bool Has(SceneKey key) {

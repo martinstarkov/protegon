@@ -9,6 +9,7 @@
 #include "texture.h"
 #include "time.h"
 #include "scene.h"
+#include "shader.h"
 
 namespace ptgn {
 
@@ -18,6 +19,7 @@ struct ResourceManagers {
 	ResourceManager<Sound> sound;
 	ResourceManager<Text> text;
 	ResourceManager<Texture> texture;
+	ResourceManager<Shader> shader;
 	SceneManager scene;
 };
 
@@ -28,6 +30,7 @@ using MusicKey = std::size_t;
 using SoundKey = std::size_t;
 using TextKey = std::size_t;
 using TextureKey = std::size_t;
+using ShaderKey = std::size_t;
 using SceneKey = std::size_t;
 
 namespace font {
@@ -118,6 +121,21 @@ std::shared_ptr<Texture> Get(TextureKey key);
 void Clear();
 
 } // namespace texture
+
+
+namespace shader {
+
+template <typename ...TArgs, type_traits::constructible<Shader, TArgs...> = true>
+std::shared_ptr<Shader> Load(ShaderKey key, TArgs&&... constructor_args) {
+	return GetManagers().shader.Load(key, std::forward<TArgs>(constructor_args)...);
+}
+
+void Unload(ShaderKey key);
+bool Has(ShaderKey key);
+std::shared_ptr<Shader> Get(ShaderKey key);
+void Clear();
+
+} // namespace shader
 
 
 namespace scene {
