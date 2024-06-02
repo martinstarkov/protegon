@@ -173,6 +173,40 @@ bool TestShader() {
 		3 * sizeof(bool));
 	assert(e3.at(9).GetSize() == 4 * sizeof(unsigned int));
 
+	/*std::string vertex_source = R"(
+		#version 330 core
+
+		layout(location = 0) in vec3 pos;
+		layout(location = 1) in vec4 color;
+
+		out vec3 v_Position;
+		out vec4 v_Color;
+
+		void main() {
+			v_Position = pos;
+			v_Color = color;
+			gl_Position = vec4(pos, 1.0);
+		}
+	)";
+
+	std::string fragment_source = R"(
+		#version 330 core
+
+		layout(location = 0) out vec4 color;
+
+		in vec3 v_Position;
+		in vec4 v_Color;
+
+		void main() {
+			color = vec4(v_Position * 0.5 + 0.5, 1.0);
+			color = v_Color;
+		}
+	)";*/
+
+	//Shader shader;
+	//shader.CreateFromStrings(vertex_source, fragment_source);
+	//Shader shader = Shader{ "resources/shader/main_vert.glsl", "resources/shader/fire_ball_frag.glsl" };
+
 	std::cout << "All Shader tests passed!" << std::endl;
 	return true;
 }
