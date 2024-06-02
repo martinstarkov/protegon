@@ -39,6 +39,7 @@ enum class DrawMode {
 class Texture {
 public:
 	Texture() = default;
+	// TODO: Switch to fs::path
 	Texture(const char* image_path);
 	~Texture() = default;
 	Texture(const Texture&) = default;
