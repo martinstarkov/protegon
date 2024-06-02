@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "core/sdl_instance.h"
+#include "core/opengl_instance.h"
 #include "protegon/resources.h"
 #include "protegon/scene.h"
 #include "event/input_handler.h"
@@ -19,6 +20,7 @@ public:
 	void Loop();
 
 	SDLInstance sdl;
+	OpenGLInstance opengl; // Must be initialized after SDL2.
 	EventHandler event;
 	ResourceManagers managers;
 	SceneManager scene;
@@ -26,6 +28,12 @@ public:
 private:
 	bool running_{ false };
 };
+
+namespace impl {
+
+void InitializeFileSystem();
+
+} // namespace impl
 
 namespace global {
 

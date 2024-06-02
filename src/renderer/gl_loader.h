@@ -2,14 +2,8 @@
 
 // IMPORTANT: This file is not meant to be included outside the protegon library so keep it in .cpp files only!
 
-#include <string>
-
-#include <SDL.h>
-#include <SDL_image.h>
-
 #ifdef __APPLE__
 
-#include "CoreFoundation/CoreFoundation.h"
 #include <OpenGL/OpenGL.h>
 
 #if ESSENTIAL_GL_PRACTICES_SUPPORT_GL3
@@ -141,22 +135,3 @@ GL_LIST
 #undef GLE
 
 #endif
-
-#include "protegon/shader.h"
-
-namespace ptgn {
-
-namespace impl {
-
-bool GLInit();
-
-void InitializeFileSystem();
-
-} // namespace impl
-
-void PresentBuffer(SDL_Renderer* renderer, SDL_Window* win, SDL_Texture* backBuffer, Shader& shader, float playing_time, float w, float h, int rx, int ry, int rw, int rh);
-
-void vao_init();
-void vao_exit();
-
-} // namespace ptgn

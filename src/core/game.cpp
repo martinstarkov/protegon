@@ -6,7 +6,29 @@
 
 #include <chrono>
 
+#ifdef __APPLE__
+#include "CoreFoundation/CoreFoundation.h"
+#endif
+
 namespace ptgn {
+
+namespace impl {
+
+void InitializeFileSystem() {
+	// TODO: Check if needed:
+#ifdef __APPLE__
+	/*CFBundleRef main_bundle = CFBundleGetMainBundle();
+	CFURLRef resources_url = CFBundleCopyResourcesDirectoryURL(main_bundle);
+	char path[PATH_MAX];
+	if (!CFURLGetFileSystemRepresentation(resources_url, TRUE, (UInt8*)path, PATH_MAX)) {
+		std::cerr << "Couldn't get file system representation! " << std::endl;
+	}
+	CFRelease(resources_url);
+	chdir(path);*/
+#endif
+}
+
+} // namespace impl
 
 void Game::Loop() {
 	// Design decision: Latest possible point to show window is right before loop starts.
@@ -55,6 +77,7 @@ namespace impl {
 std::unique_ptr<Game> game{ nullptr };
 
 void InitGame() {
+	ptgn::impl::InitializeFileSystem();
 	game = std::make_unique<Game>();
 }
 
