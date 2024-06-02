@@ -10,6 +10,7 @@
 #include <cassert>
 
 #include "protegon/log.h"
+#include "buffer.h"
 
 #define GLE(name, caps_name) PFNGL##caps_name##PROC gl##name;
 GL_LIST
@@ -54,37 +55,23 @@ void InitializeFileSystem() {
 
 } // namespace impl
 
-GLuint vbo[4] = { -1,-1,-1,-1 };
-GLuint vao[4] = { -1,-1,-1,-1 };
-const float vao_pos[] =
-{
-	//       x      y     z
-		 0.75f, 0.75f, 0.0f,
-		 0.75f,-0.75f, 0.0f,
-		-0.75f,-0.75f, 0.0f,
-};
-const float vao_col[] =
-{
-	//      r   g    b
-		 1.0f,0.0f,0.0f,
-		 0.0f,1.0f,0.0f,
-		 0.0f,0.0f,1.0f,
+std::shared_ptr<VertexBuffer<float>> vbo[4] = { {}, {}, {}, {} };
+GLuint vao[4] = { 0, 0, 0, 0 };
+const std::vector<float> vao_vert = {
+	-0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+	 0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+	 0.0f,  0.5f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f,
 };
 //---------------------------------------------------------------------------
 void vao_init() {
 	glGenVertexArrays(4, vao);
-	glGenBuffers(4, vbo);
-
 	glBindVertexArray(vao[0]);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vao_pos), vao_pos, GL_STATIC_DRAW);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
-	glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vao_col), vao_col, GL_STATIC_DRAW);
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	vbo[0] = VertexBuffer<float>::Create(vao_vert);
+	vbo[0]->SetLayout(BufferLayout{
+		{ ShaderDataType::vec3 },
+		{ ShaderDataType::vec4 },
+	});
 
 	glDisableVertexAttribArray(0);
 	glDisableVertexAttribArray(1);
@@ -94,7 +81,7 @@ void vao_init() {
 //---------------------------------------------------------------------------
 void vao_exit() {
 	glDeleteVertexArrays(4, vao);
-	glDeleteBuffers(4, vbo);
+	//glDeleteBuffers(4, vbo);
 }
 //---------------------------------------------------------------------------
 void vao_draw(GLuint mode) {
@@ -122,8 +109,12 @@ void PresentBuffer(SDL_Renderer* renderer, SDL_Window* win, SDL_Texture* backBuf
 
 	SDL_SetRenderTarget(renderer, NULL);
 	SDL_SetTextureBlendMode(backBuffer, SDL_BLENDMODE_BLEND);
-	SDL_Rect dest_rect{ rx, ry, rw, rh };
-	SDL_RenderCopyEx(renderer, backBuffer, NULL, &dest_rect, 0, NULL, SDL_FLIP_NONE);
+	SDL_Rect dest_rect{
+		rx, ry,
+		rw, rh
+	};
+	// OpenGL coordinate system is flipped vertically compared to SDL
+	SDL_RenderCopyEx(renderer, backBuffer, NULL, &dest_rect, 0, NULL, SDL_FLIP_VERTICAL);
 }
 
 } // namespace ptgn
