@@ -21,6 +21,18 @@ SDLInstance::SDLInstance() {
 	InitRenderer();
 }
 
+SDLInstance::~SDLInstance() {
+	SDL_DestroyRenderer(renderer_);
+	renderer_ = nullptr;
+	SDL_DestroyWindow(window_);
+	window_ = nullptr;
+	Mix_CloseAudio();
+	Mix_Quit();
+	TTF_Quit();
+	IMG_Quit();
+	SDL_Quit();
+}
+
 void SDLInstance::SetResolution(const V2_int& new_resolution) {
 	resolution_ = new_resolution;
 }
@@ -48,8 +60,10 @@ void SDLInstance::InitSDL() {
 	// Ensures window and elements scale by monitor zoom level for constant appearance.
 	SDL_SetHint(SDL_HINT_WINDOWS_DPI_AWARENESS, "permonitorv2");
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
+	SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
+
 	auto sdl_flags{	SDL_INIT_AUDIO | SDL_INIT_EVENTS |
-		            SDL_INIT_TIMER | SDL_INIT_VIDEO };
+		            SDL_INIT_TIMER | SDL_INIT_VIDEO | SDL_VIDEO_OPENGL };
 	if (!SDL_WasInit(sdl_flags)) {
 		auto sdl_init{ SDL_Init(sdl_flags) };
 		if (sdl_init != 0) {
@@ -99,18 +113,6 @@ void SDLInstance::InitRenderer() {
 		PrintLine(SDL_GetError());
 		assert(!"Failed to create SDL renderer");
 	}
-}
-
-SDLInstance::~SDLInstance() {
-	SDL_DestroyRenderer(renderer_);
-	renderer_ = nullptr;
-	SDL_DestroyWindow(window_);
-	window_ = nullptr;
-	Mix_CloseAudio();
-	Mix_Quit();
-	TTF_Quit();
-	IMG_Quit();
-	SDL_Quit();
 }
 
 SDL_Window* SDLInstance::GetWindow() const {
