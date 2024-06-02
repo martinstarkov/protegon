@@ -2,6 +2,7 @@
 #include "test_math.h"
 #include "test_vector2.h"
 #include "test_rng.h"
+#include "test_shader.h"
 
 #include "protegon/protegon.h"
 
@@ -15,6 +16,7 @@ public:
         TestMath();
         TestVector2();
         TestRNG();
+        TestShader();
     }
     void Render() {
         static bool drawing_tests_passed = false;
