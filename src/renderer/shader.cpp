@@ -12,27 +12,26 @@ namespace impl {
 
 std::string_view GetShaderTypeName(unsigned int type) {
 	switch (type) {
-		case GL_VERTEX_SHADER:
-			return "vertex";
-		case GL_FRAGMENT_SHADER:
-			return "fragment";
-		case GL_COMPUTE_SHADER:
-			return "compute";
-		case GL_GEOMETRY_SHADER:
-			return "geometry";
-		case GL_TESS_CONTROL_SHADER:
-			return "tess control";
-		case GL_TESS_EVALUATION_SHADER:
-			return "tess evaluation";
-		default:
-			return "invalid";
+		case GL_VERTEX_SHADER:		    return "vertex";
+		case GL_FRAGMENT_SHADER:        return "fragment";
+		case GL_COMPUTE_SHADER:         return "compute";
+		case GL_GEOMETRY_SHADER:        return "geometry";
+		case GL_TESS_CONTROL_SHADER:    return "tess control";
+		case GL_TESS_EVALUATION_SHADER: return "tess evaluation";
+		default:						return "invalid";
 	}
 }
 
 } // namespace impl
 
-Shader::Shader(const fs::path& vertex_shader, const fs::path& fragment_shader) :
-	program_id_{ CompileProgram(vertex_shader, fragment_shader) } {
+Shader::Shader(const fs::path& vertex_shader_path, const fs::path& fragment_shader_path) {
+	std::string vertex_source = FileToString(vertex_shader_path);
+	std::string fragment_source = FileToString(fragment_shader_path);
+	program_id_ = CompileProgram(vertex_source, fragment_source);
+}
+
+void Shader::CreateFromStrings(const std::string& vertex_shader_source, const std::string& fragment_shader_source) {
+	program_id_ = CompileProgram(vertex_shader_source, fragment_shader_source);
 }
 
 Shader::~Shader() {
@@ -62,13 +61,10 @@ unsigned int Shader::CompileShader(unsigned int type, const std::string& source)
 	return id;
 }
 
-unsigned int Shader::CompileProgram(const fs::path& vertex_shader, const fs::path& fragment_shader) {
+unsigned int Shader::CompileProgram(const std::string& vertex_source, const std::string& fragment_source) {
 	unsigned int program = glCreateProgram();
 
-	std::string vertex_source = FileToString(vertex_shader);
 	unsigned int vertex = CompileShader(GL_VERTEX_SHADER, vertex_source);
-
-	std::string fragment_source = FileToString(fragment_shader);
 	unsigned int fragment = CompileShader(GL_FRAGMENT_SHADER, fragment_source);
 
 	if (vertex && fragment) {
