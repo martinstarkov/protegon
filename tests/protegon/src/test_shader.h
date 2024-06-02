@@ -1,7 +1,9 @@
 #pragma once
 
-#include "protegon/shader.h"
+#include "protegon/protegon.h"
 #include "renderer/buffer.h"
+#include "core/opengl_instance.h"
+#include "core/game.h"
 
 #include <cassert>  // assert
 #include <iostream> // std::cout
@@ -173,7 +175,8 @@ bool TestShader() {
 		3 * sizeof(bool));
 	assert(e3.at(9).GetSize() == 4 * sizeof(unsigned int));
 
-	/*std::string vertex_source = R"(
+	/*
+	std::string vertex_source = R"(
 		#version 330 core
 
 		layout(location = 0) in vec3 pos;
@@ -201,11 +204,19 @@ bool TestShader() {
 			color = vec4(v_Position * 0.5 + 0.5, 1.0);
 			color = v_Color;
 		}
-	)";*/
+	)";
 
-	//Shader shader;
-	//shader.CreateFromStrings(vertex_source, fragment_source);
-	//Shader shader = Shader{ "resources/shader/main_vert.glsl", "resources/shader/fire_ball_frag.glsl" };
+	assert(ptgn::global::GetGame().opengl.IsInitialized());
+
+	Shader shader_triangle;
+	shader_triangle.CreateFromStrings(vertex_source, fragment_source);
+
+	Shader shader_fireball = Shader{ "resources/shader/main_vert.glsl", "resources/shader/fire_ball_frag.glsl" };
+	*/
+
+	window::SetSize({ 640, 480 });
+	window::Show();
+	impl::TestOpenGL();
 
 	std::cout << "All Shader tests passed!" << std::endl;
 	return true;

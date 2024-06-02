@@ -11,12 +11,12 @@ using namespace ptgn;
 class Tests : public Scene {
 public:
     Tests() {
-        window::SetSize({ 800, 400 });
         TestECS();
         TestMath();
         TestVector2();
         TestRNG();
         TestShader();
+        window::SetSize({ 800, 400 });
     }
     void Render() {
         static bool drawing_tests_passed = false;
