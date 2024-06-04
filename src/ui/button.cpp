@@ -1,7 +1,7 @@
 #include "protegon/button.h"
 
-#include <cassert>    // assert
-#include <functional> // std::bind
+#include <cassert>
+#include <functional>
 #include <utility>
 
 #include "protegon/collision.h"
@@ -272,6 +272,18 @@ void ToggleButton::Toggle() {
  	toggled_ = !toggled_;
 }
 
+SolidButton::SolidButton(
+    const Rectangle<float>& rect,
+    Color default,
+    Color hover,
+    Color pressed,
+    std::function<void()> on_activate_function) :
+    Button{ rect, on_activate_function } {
+    colors_.data.at(static_cast<std::size_t>(ButtonState::DEFAULT)).at(0) = default;
+    colors_.data.at(static_cast<std::size_t>(ButtonState::HOVER)).at(0) = hover;
+    colors_.data.at(static_cast<std::size_t>(ButtonState::PRESSED)).at(0) = pressed;
+}
+
 void SolidButton::DrawImpl(std::size_t color_array_index) const {
     const Color& color = GetCurrentColorImpl(GetState(), color_array_index);
     rect_.DrawSolid(color);
@@ -289,6 +301,18 @@ const Color& SolidButton::GetCurrentColorImpl(ButtonState state, std::size_t col
 
 const Color& SolidButton::GetCurrentColor() const {
     return GetCurrentColorImpl(GetState(), 0);
+}
+
+TexturedButton::TexturedButton(
+    const Rectangle<float>& rect,
+    const TextureOrKey& default,
+    const TextureOrKey& hover,
+    const TextureOrKey& pressed,
+    std::function<void()> on_activate_function) :
+    Button{ rect, on_activate_function } {
+    textures_.data.at(static_cast<std::size_t>(ButtonState::DEFAULT)).at(0) = default;
+    textures_.data.at(static_cast<std::size_t>(ButtonState::HOVER)).at(0) = hover;
+    textures_.data.at(static_cast<std::size_t>(ButtonState::PRESSED)).at(0) = pressed;
 }
 
 bool TexturedButton::GetVisibility() const {
@@ -332,22 +356,51 @@ void TexturedButton::Draw() const {
 Texture TexturedButton::GetCurrentTextureImpl(ButtonState state, std::size_t texture_array_index) const {
     auto& texture_array = textures_.data.at(static_cast<std::size_t>(state));
 
-    const std::variant<Texture, TextureKey>& texture_state = texture_array.at(texture_array_index);
+    const TextureOrKey& texture_state = texture_array.at(texture_array_index);
 
     Texture texture;
 
     if (std::holds_alternative<TextureKey>(texture_state)) {
-        const TextureKey key = std::get<TextureKey>(texture_state);
+        const TextureKey key{ std::get<TextureKey>(texture_state) };
         assert(texture::Has(key) && "Cannot get button texture which has not been loaded");
-        texture = *texture::Get(key);
+        texture = texture::Get(key);
     } else if (std::holds_alternative<Texture>(texture_state)) {
         texture = std::get<Texture>(texture_state);
     }
+
     return texture;
 }
 
 Texture TexturedButton::GetCurrentTexture() {
     return GetCurrentTextureImpl(GetState(), 0);
+}
+
+TexturedToggleButton::TexturedToggleButton(
+    const Rectangle<float>& rect,
+    std::initializer_list<TextureOrKey> default,
+    std::initializer_list<TextureOrKey> hover,
+    std::initializer_list<TextureOrKey> pressed,
+    std::function<void()> on_activate_function) {
+    rect_ = rect;
+    on_activate_ = on_activate_function;
+    SubscribeToMouseEvents();
+
+    // TODO: Perhaps allow for more than two entries later
+    assert(default.size() <= 2);
+    assert(hover.size() <= 2);
+    assert(pressed.size() <= 2);
+
+    auto set_textures = [&](const auto& list, const ButtonState state) -> void {
+        std::size_t i = 0;
+        for (auto it = list.begin(); it != list.end(); ++it) {
+            textures_.data.at(static_cast<std::size_t>(state)).at(i) = *it;
+            ++i;
+        }
+    };
+
+    set_textures(default, ButtonState::DEFAULT);
+    set_textures(hover, ButtonState::HOVER);
+    set_textures(pressed, ButtonState::PRESSED);
 }
 
 void TexturedToggleButton::Draw() const {
