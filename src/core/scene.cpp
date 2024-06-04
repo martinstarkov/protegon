@@ -1,7 +1,5 @@
 #include "protegon/scene.h"
 
-#include "protegon/resources.h"
-
 namespace ptgn {
 
 void SceneManager::Unload(std::size_t scene_key) {
@@ -20,7 +18,10 @@ void SceneManager::SetActive(std::size_t scene_key) {
 
 void SceneManager::AddActive(std::size_t scene_key) {
 	active_scenes_.emplace_back(scene_key);
-	assert((Has(scene_key) || scene_key == scene::impl::start_scene_key) && "Cannot set scene to active unless it has been loaded first");
+	assert(
+		(Has(scene_key) || scene_key == scene::impl::start_scene_key) &&
+		"Cannot set scene to active unless it has been loaded first"
+	);
 	/*auto scene = Get(scene_key);
 	scene->Enter();*/
 }

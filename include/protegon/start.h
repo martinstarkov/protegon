@@ -21,10 +21,7 @@ template <typename TStartScene, typename ...TArgs,
 // Optional: pass in constructor arguments for the TStartScene.
 void Start(TArgs&&... constructor_args) {
 	impl::GameStart();
-	// This may be unintuitive order but since the starting scene may set other active scenes,
-	// it is important to set it first so it is the "earliest" active scene in the list.
-	scene::impl::SetStartSceneActive();
-	scene::impl::LoadStartScene<TStartScene>(std::forward<TArgs>(constructor_args)...);
+	scene::impl::SetStartScene<TStartScene>(std::forward<TArgs>(constructor_args)...);
 	impl::GameLoop();
 	impl::GameStop();
 }
