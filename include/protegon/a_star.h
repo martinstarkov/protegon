@@ -1,9 +1,10 @@
 #pragma once
 
-#include <tuple> // std::pair
-#include <list>  // std::list
-#include <array> // std::array
-#include <deque> // std::deque
+#include <tuple>
+#include <list>
+#include <array>
+#include <deque>
+#include <limits>
 
 #include "vector2.h"
 #include "line.h"
@@ -16,8 +17,8 @@ namespace impl {
 struct AStarNode {
 	bool obstacle{ false };
 	bool visited{ false };
-	float global_goal{ INFINITY };
-	float local_goal{ INFINITY };
+	float global_goal{ std::numeric_limits<float>::infinity() };
+	float local_goal{ std::numeric_limits<float>::infinity() };
 	std::pair<AStarNode*, V2_int> parent{ nullptr, V2_int{} };
 	void Reset();
 	void Destroy();
@@ -49,6 +50,7 @@ public:
 	std::deque<V2_int> FindWaypoints(const V2_int& start, const V2_int& end);
 
 	static int FindWaypointIndex(const std::deque<V2_int>& waypoints, const V2_int& position);
+
 	static void DisplayWaypoints(const std::deque<V2_int>& waypoints, const V2_int& tile_size, const Color& color);
 private:
 	void SolvePath(const V2_int& start, const V2_int& end);

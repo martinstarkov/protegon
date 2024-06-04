@@ -6,8 +6,8 @@ namespace impl {
 
 void AStarNode::Reset() {
 	visited = false;
-	global_goal = INFINITY;
-	local_goal = INFINITY;
+	global_goal = std::numeric_limits<float>::infinity();
+	local_goal = std::numeric_limits<float>::infinity();
 	parent = { nullptr, V2_int{} };
 }
 
