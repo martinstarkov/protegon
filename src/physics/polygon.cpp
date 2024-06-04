@@ -14,47 +14,47 @@ namespace impl {
 
 void DrawRectangle(int x, int y, int w, int h, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawRectangleImpl(renderer, x, y, w, h);
+	DrawRectangleImpl(renderer.get(), x, y, w, h);
 }
 
 void DrawSolidRectangle(int x, int y, int w, int h, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawSolidRectangleImpl(renderer, x, y, x + w, y + h);
+	DrawSolidRectangleImpl(renderer.get(), x, y, x + w, y + h);
 }
 
 void DrawThickRectangle(int x, int y, int w, int h, double pixel_thickness, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawThickRectangleImpl(renderer, x, y, x + w, y + h, pixel_thickness);
+	DrawThickRectangleImpl(renderer.get(), x, y, x + w, y + h, pixel_thickness);
 }
 
 void DrawRoundedRectangle(int x, int y, int w, int h, int r, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawRoundedRectangleImpl(renderer, x, y, w, h, r);
+	DrawRoundedRectangleImpl(renderer.get(), x, y, w, h, r);
 }
 
 void DrawSolidRoundedRectangle(int x, int y, int w, int h, int r, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawSolidRoundedRectangleImpl(renderer, x, y, w, h, r);
+	DrawSolidRoundedRectangleImpl(renderer.get(), x, y, w, h, r);
 }
 
 void DrawThickRoundedRectangle(int x, int y, int w, int h, int r, double pixel_thickness, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawThickRoundedRectangleImpl(renderer, x, y, w, h, r, pixel_thickness);
+	DrawThickRoundedRectangleImpl(renderer.get(), x, y, w, h, r, pixel_thickness);
 }
 
 void DrawPolygon(const std::vector<V2_int>& v, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawPolygonImpl(renderer, v);
+	DrawPolygonImpl(renderer.get(), v);
 }
 
 void DrawSolidPolygon(const std::vector<V2_int>& v, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawSolidPolygonImpl(renderer, v);
+	DrawSolidPolygonImpl(renderer.get(), v);
 }
 
 void DrawThickPolygon(const std::vector<V2_int>& v, double pixel_thickness, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawThickPolygonImpl(renderer, v, pixel_thickness);
+	DrawThickPolygonImpl(renderer.get(), v, pixel_thickness);
 }
 
 void DrawRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, int h) {

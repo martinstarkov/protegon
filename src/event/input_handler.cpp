@@ -1,7 +1,7 @@
 #include "input_handler.h"
 
-#include <cassert>   // assert
-#include <algorithm> // std::copy
+#include <cassert>
+#include <algorithm>
 
 #include <SDL.h>
 
@@ -93,7 +93,7 @@ void InputHandler::ForceUpdateMousePosition() {
 	// Update mouse position.
 	SDL_GetMouseState(&mouse_position.x, &mouse_position.y);
 	float x, y;
-	SDL_RenderWindowToLogical(global::GetGame().sdl.GetRenderer(), mouse_position.x, mouse_position.y, &x, &y);
+	SDL_RenderWindowToLogical(global::GetGame().sdl.GetRenderer().get(), mouse_position.x, mouse_position.y, &x, &y);
 
 	mouse_position.x = static_cast<int>(x);
 	mouse_position.y = static_cast<int>(y);

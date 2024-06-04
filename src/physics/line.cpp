@@ -11,52 +11,52 @@ namespace impl {
 
 void DrawPoint(int x, int y, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawPointImpl(renderer, x, y);
+	DrawPointImpl(renderer.get(), x, y);
 }
 
 void DrawLine(int x1, int y1, int x2, int y2, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawLineImpl(renderer, x1, y1, x2, y2);
+	DrawLineImpl(renderer.get(), x1, y1, x2, y2);
 }
 
 void DrawThickLine(int x1, int y1, int x2, int y2, double pixel_thickness, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawThickLineImpl(renderer, x1, y1, x2, y2, pixel_thickness);
+	DrawThickLineImpl(renderer.get(), x1, y1, x2, y2, pixel_thickness);
 }
 
 void DrawCapsule(int x1, int y1, int x2, int y2, int r, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawCapsuleImpl(renderer, x1, y1, x2, y2, r);
+	DrawCapsuleImpl(renderer.get(), x1, y1, x2, y2, r);
 }
 
 void DrawSolidCapsule(int x1, int y1, int x2, int y2, int r, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawSolidCapsuleImpl(renderer, x1, y1, x2, y2, r);
+	DrawSolidCapsuleImpl(renderer.get(), x1, y1, x2, y2, r);
 }
 
 void DrawThickCapsule(int x1, int y1, int x2, int y2, int r, double pixel_thickness, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawThickCapsuleImpl(renderer, x1, y1, x2, y2, r, pixel_thickness);
+	DrawThickCapsuleImpl(renderer.get(), x1, y1, x2, y2, r, pixel_thickness);
 }
 
 void DrawVerticalLine(int x, int y1, int y2, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawVerticalLineImpl(renderer, x, y1, y2);
+	DrawVerticalLineImpl(renderer.get(), x, y1, y2);
 }
 
 void DrawThickVerticalLine(int x, int y1, int y2, double pixel_thickness, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawThickVerticalLineImpl(renderer, x, y1, y2, pixel_thickness);
+	DrawThickVerticalLineImpl(renderer.get(), x, y1, y2, pixel_thickness);
 }
 
 void DrawHorizontalLine(int x1, int x2, int y, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawHorizontalLineImpl(renderer, x1, x2, y);
+	DrawHorizontalLineImpl(renderer.get(), x1, x2, y);
 }
 
 void DrawThickHorizontalLine(int x1, int x2, int y, double pixel_thickness, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawThickHorizontalLineImpl(renderer, x1, x2, y, pixel_thickness);
+	DrawThickHorizontalLineImpl(renderer.get(), x1, x2, y, pixel_thickness);
 }
 
 void DrawPointImpl(SDL_Renderer* renderer, int x, int y) {

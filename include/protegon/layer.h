@@ -31,14 +31,14 @@ public:
 		texture = texture::Get(texture_key);
 	}
 	void Draw() const {
-		if (texture != nullptr) {
-			texture->Draw(rect, source);
+		if (texture.IsValid()) {
+			texture.Draw(rect, source);
 		}
 	}
 private:
 	Rectangle<int> rect;
 	Rectangle<int> source;
-	std::shared_ptr<Texture> texture{ nullptr };
+	Texture texture;
 };
 
 } // namespace impl

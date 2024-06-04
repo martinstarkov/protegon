@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vector> // std::vector
-#include <array>  // std::array
+#include <vector>
+#include <array>
 
 #include "vector2.h"
 #include "color.h"
@@ -40,38 +40,64 @@ void DrawThickPolygonImpl(SDL_Renderer* renderer, const std::vector<V2_int>& v, 
 // Rectangles are axis aligned bounding boxes (AABBs).
 template <typename T = int>
 struct Rectangle {
-	Rectangle() = default;
+	Rectangle() : pos{}, size{} {}
 	Rectangle(const Point<T>& pos, const Vector2<T>& size) : pos{ pos }, size{ size } {}
 
-	Point<T> pos{};    // Point taken from top left.
-	Vector2<T> size{}; // Full width and height.
+	union {
+		struct {
+			// Position taken from top left.
+			Point<T> pos;
+			Vector2<T> size; 
+		};
+		struct {
+			// Position taken from top left.
+			T x, y, w, h;
+		};
+	};
 
 	Vector2<T> Half() const {
 		return size / static_cast<T>(2);
 	}
+
 	Point<T> Center() const {
 		return pos + Half();
 	}
+
 	Point<T> Max() const {
 		return pos + size;
 	}
+
 	Point<T> Min() const {
 		return pos;
 	}
+
 	Rectangle<T> Offset(const Vector2<T>& pos_amount, const Vector2<T>& size_amount = {}) const {
 		return { pos + pos_amount, size + size_amount };
 	}
+
 	template <typename U>
-	Rectangle<T> Scale(const Vector2<U>& pos_scale, const Vector2<U>& size_scale) const {
-		return { pos * pos_scale, size * size_scale };
+	Rectangle<T> Scale(const Vector2<U>& scale) const {
+		return { pos * scale, size * scale };
 	}
+
+	template <typename U>
+	Rectangle<T> ScalePos(const Vector2<U>& pos_scale) const {
+		return { pos * pos_scale, size };
+	}
+
+	template <typename U>
+	Rectangle<T> ScaleSize(const Vector2<U>& size_scale) const {
+		return { pos, size * size_scale };
+	}
+
 	template <typename U>
 	operator Rectangle<U>() const {
-		return {
+		return Rectangle<U>{
 			static_cast<Point<U>>(pos),
 			static_cast<Vector2<U>>(size)
 		};
 	}
+
 	void Draw(const Color& color, double pixel_thickness = 1) const {
 		if (pixel_thickness <= 1)
 			impl::DrawRectangle(
@@ -91,6 +117,7 @@ struct Rectangle {
 				color
 			);
 	}
+
 	void DrawSolid(const Color& color) const {
 		impl::DrawSolidRectangle(
 			static_cast<int>(pos.x),
@@ -130,6 +157,7 @@ struct RoundedRectangle : public Rectangle<T> {
 				color
 			);
 	}
+
 	void DrawSolid(const Color& color) const {
 		impl::DrawSolidRoundedRectangle(
 			static_cast<int>(pos.x),
@@ -162,6 +190,7 @@ struct Polygon {
 				color
 			);
 	}
+
 	void DrawSolid(const Color& color) const {
 		assert(vertices.size() >= 3 && "Cannot draw a polygon with less than 3 vertices");
 		impl::DrawSolidPolygon(
@@ -180,6 +209,7 @@ public:
 		assert(vertices.size() == 3 && "Cannot draw a triangle that has more or less than 3 vertices");
 		Polygon::Draw(color, pixel_thickness);
 	}
+
 	void DrawSolid(const Color& color) const {
 		assert(vertices.size() == 3 && "Cannot draw a solid triangle that has more or less than 3 vertices");
 		Polygon::DrawSolid(color);

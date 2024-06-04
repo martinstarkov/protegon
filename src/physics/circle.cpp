@@ -15,52 +15,52 @@ namespace impl {
 
 void DrawCircle(int x, int y, int r, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawCircleImpl(renderer, x, y, r);
+	DrawCircleImpl(renderer.get(), x, y, r);
 }
 
 void DrawSolidCircle(int x, int y, int r, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawSolidCircleImpl(renderer, x, y, r);
+	DrawSolidCircleImpl(renderer.get(), x, y, r);
 }
 
 void DrawSolidCircleSliced(int x, int y, int r, const Color& color, std::function<bool(double y_frac)> condition) {
 	auto renderer{ SetDrawColor(color) };
-	DrawSolidCircleSlicedImpl(renderer, x, y, r, condition);
+	DrawSolidCircleSlicedImpl(renderer.get(), x, y, r, condition);
 }
 
 void DrawThickCircle(int x, int y, int r, double pixel_thickness, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawThickCircleImpl(renderer, x, y, r, pixel_thickness);
+	DrawThickCircleImpl(renderer.get(), x, y, r, pixel_thickness);
 }
 
 void DrawEllipse(int x, int y, int rx, int ry, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawEllipseImpl(renderer, x, y, rx, ry);
+	DrawEllipseImpl(renderer.get(), x, y, rx, ry);
 }
 
 void DrawSolidEllipse(int x, int y, int rx, int ry, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawSolidEllipseImpl(renderer, x, y, rx, ry);
+	DrawSolidEllipseImpl(renderer.get(), x, y, rx, ry);
 }
 
 void DrawThickEllipse(int x, int y, int rx, int ry, double pixel_thickness, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawThickEllipseImpl(renderer, x, y, rx, ry, pixel_thickness);
+	DrawThickEllipseImpl(renderer.get(), x, y, rx, ry, pixel_thickness);
 }
 
 void DrawArc(int x, int y, int arc_radius, double start_angle, double end_angle, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawArcImpl(renderer, x, y, arc_radius, start_angle, end_angle);
+	DrawArcImpl(renderer.get(), x, y, arc_radius, start_angle, end_angle);
 }
 
 void DrawSolidArc(int x, int y, int arc_radius, double start_angle, double end_angle, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawSolidArcImpl(renderer, x, y, arc_radius, start_angle, end_angle);
+	DrawSolidArcImpl(renderer.get(), x, y, arc_radius, start_angle, end_angle);
 }
 
 void DrawThickArc(int x, int y, int arc_radius, double start_angle, double end_angle, double pixel_thickness, const Color& color) {
 	auto renderer{ SetDrawColor(color) };
-	DrawThickArcImpl(renderer, x, y, arc_radius, start_angle, end_angle, pixel_thickness);
+	DrawThickArcImpl(renderer.get(), x, y, arc_radius, start_angle, end_angle, pixel_thickness);
 }
 
 void DrawCircleImpl(SDL_Renderer* renderer, int x, int y, int r) {

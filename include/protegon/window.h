@@ -5,38 +5,52 @@
 
 namespace ptgn {
 
+namespace screen {
+
+V2_int GetSize();
+
+} // namespace screen
+
 namespace window {
+
+// Setting fullscreen to true invalidates borderless and resizeable.
+// Setting borderless to true invalidates resizeable.
+void SetupSize(const V2_int& resolution, const V2_int& minimum_resolution, bool fullscreen = false, bool borderless = false, bool resizeable = true, const V2_float& scale = { 1.0f, 1.0f });
+
+void SetScale(const V2_float& scale);
+V2_float GetScale();
 
 bool Exists();
 
 void Clear();
 
-void SetLogicalSize(const V2_int& logical_size);
+void SetResolution(const V2_int& resolution);
+V2_int GetResolution();
 
-V2_int GetLogicalSize();
+void SetMinimumSize(const V2_int& minimum_size);
+V2_int GetMinimumSize();
 
+void SetSize(const V2_int& new_size, bool centered = true);
 V2_int GetSize();
 
 V2_int GetOriginPosition();
 
+void SetTitle(const char* new_title);
 const char* GetTitle();
 
 Color GetColor();
-
-void SetSize(const V2_int& new_size, bool centered = true);
+void SetColor(const Color& new_color);
 
 void Center();
 
 void SetPosition(const V2_int& new_origin);
-
-void SetTitle(const char* new_title);
 
 void SetFullscreen(bool on);
 
 // Note: The effect of Maximimize() is cancelled after calling SetResizeable(true).
 void SetResizeable(bool on);
 
-void SetColor(const Color& new_color);
+void SetBorderless(bool on);
 
 // Note: The effect of Maximimize() is cancelled after calling SetResizeable(true).
 void Maximize();
@@ -46,10 +60,6 @@ void Minimize();
 void Show();
 
 void Hide();
-
-void SetScale(const V2_float& new_scale);
-
-V2_float GetScale();
 
 } // namespace window
 

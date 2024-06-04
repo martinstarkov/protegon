@@ -53,16 +53,16 @@ void Game::Loop() {
 
 		Color o{ sdl.GetWindowBackgroundColor() };
 
-		SDL_SetRenderDrawColor(renderer, o.r, o.g, o.b, o.a);
+		SDL_SetRenderDrawColor(renderer.get(), o.r, o.g, o.b, o.a);
 
 		// Clear screen.
-		SDL_RenderClear(renderer);
+		SDL_RenderClear(renderer.get());
 
 		// Call user update on active scenes.
 		scene::Update(dt);
 
 		// Push drawn objects to screen.
-		SDL_RenderPresent(renderer);
+		SDL_RenderPresent(renderer.get());
 	}
 }
 
@@ -74,7 +74,7 @@ namespace global {
 
 namespace impl {
 
-std::unique_ptr<Game> game{ nullptr };
+std::unique_ptr<Game> game;
 
 void InitGame() {
 	ptgn::impl::InitializeFileSystem();
