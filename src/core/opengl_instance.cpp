@@ -7,9 +7,11 @@
 #include <SDL_image.h>
 
 #include "game.h"
+#include "protegon/window.h"
 #include "renderer/gl_loader.h"
 #include "renderer/buffer.h"
 #include "protegon/shader.h"
+#include "renderer/vertex_array.h"
 
 namespace ptgn {
 
@@ -54,37 +56,69 @@ bool OpenGLInstance::InitOpenGL() {
 
 namespace impl {
 
-std::shared_ptr<VertexBuffer<float>> vbo[4] = { {}, {}, {}, {} };
-GLuint vao[4] = { 0, 0, 0, 0 };
+std::shared_ptr<IndexBuffer> ibo;
+std::shared_ptr<VertexBuffer<float>> vbo;
+std::shared_ptr<VertexArray> vao;
+
+std::shared_ptr<IndexBuffer> ibo2;
+std::shared_ptr<VertexBuffer<float>> vbo2;
+std::shared_ptr<VertexArray> vao2;
+
+const std::vector<std::uint32_t> indices = {
+	0, 1, 2,
+	2, 3, 1
+};
+
+const std::vector<std::uint32_t> indices2 = {
+	0, 1, 2,
+};
+
 const std::vector<float> vao_vert = {
-	-0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-	 0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-	 0.0f,  0.5f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+	-1.0f, -1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+	 1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+	-1.0f,  1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+     1.0f,  1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+};
+
+
+const std::vector<float> vao_vert2 = {
+	-0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+	 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+	 0.0f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
 };
 
 //---------------------------------------------------------------------------
 static void vao_init() {
-	glGenVertexArrays(4, vao);
-	glBindVertexArray(vao[0]);
+	vao = VertexArray::Create();
+	//vao2 = VertexArray::Create();
 
-	vbo[0] = VertexBuffer<float>::Create(vao_vert);
-	vbo[0]->SetLayout(BufferLayout{
+	//vbo2 = VertexBuffer<float>::Create(vao_vert2);
+	vbo = VertexBuffer<float>::Create(vao_vert);
+
+	ibo = IndexBuffer::Create(indices);
+	//ibo2 = IndexBuffer::Create(indices2);
+
+	/*vbo2->SetLayout(BufferLayout{
 		{ ShaderDataType::vec3 },
 		{ ShaderDataType::vec4 },
-		});
+	});*/
 
-	glDisableVertexAttribArray(0);
-	glDisableVertexAttribArray(1);
-	glBindVertexArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	vbo->SetLayout(BufferLayout{
+		{ ShaderDataType::vec3 },
+		{ ShaderDataType::vec4 },
+	});
+
+	//vao2->AddVertexBuffer(vbo2);
+	vao->AddVertexBuffer(vbo);
+
+	vao->SetIndexBuffer(ibo);
+	//vao2->SetIndexBuffer(ibo2);
+
+	vao->Unbind();
+	vbo->Unbind();
+	//vao2->Unbind();
+	//vbo2->Unbind();
 }
-//---------------------------------------------------------------------------
-static void vao_exit() {
-	glDeleteVertexArrays(4, vao);
-	//glDeleteBuffers(4, vbo);
-}
-//---------------------------------------------------------------------------
-static void vao_draw(GLuint mode) {}
 
 static void PresentBuffer(SDL_Renderer* renderer, SDL_Window* win, SDL_Texture* backBuffer, Shader& shader, float playing_time, float w, float h, int rx, int ry, int rw, int rh) {
 	//SDL_GL_BindTexture(backBuffer, NULL, NULL);
@@ -95,11 +129,15 @@ static void PresentBuffer(SDL_Renderer* renderer, SDL_Window* win, SDL_Texture* 
 
 	shader.Bind();
 
-	glBindVertexArray(vao[0]);
-	glEnableVertexAttribArray(0);
-	glEnableVertexAttribArray(1);
-	glDrawArrays(GL_TRIANGLES, 0, 3);
-	glBindVertexArray(0);
+	vao->Bind();
+	//glDrawArrays(GL_TRIANGLES, 0, ibo->GetCount());
+	glDrawElements(GL_TRIANGLES, ibo->GetCount(), ibo->GetType(), nullptr);
+	vao->Unbind();
+
+	//vao2->Bind();
+	//glDrawArrays(GL_TRIANGLES, 0, ibo->GetCount());
+	//glDrawElements(GL_TRIANGLES, ibo2->GetCount(), ibo2->GetType(), nullptr);
+	//vao2->Unbind();
 
 	shader.SetUniform("iResolution", w, h, 0.0f);
 	shader.SetUniform("iTime", playing_time);
@@ -127,8 +165,8 @@ void TestOpenGL() {
 	OpenGLInstance& opengl = game.opengl;
 	assert(opengl.IsInitialized());
 	SDLInstance& sdl = game.sdl;
-	SDL_Renderer* renderer = sdl.GetRenderer();
-	SDL_Window* win = sdl.GetWindow();
+	auto renderer = sdl.GetRenderer();
+	auto win = sdl.GetWindow();
 
 	std::string vertex_source = R"(
 		#version 330 core
@@ -161,8 +199,8 @@ void TestOpenGL() {
 	)";
 
 	Shader shader;
-	shader.CreateFromStrings(vertex_source, fragment_source);
-	//Shader shader = Shader{ "resources/shader/main_vert.glsl", "resources/shader/fire_ball_frag.glsl" };
+	shader = Shader(ShaderSource{ vertex_source }, ShaderSource{ fragment_source });
+	shader = Shader("resources/shader/main_vert.glsl", "resources/shader/fire_ball_frag.glsl");
 
 	const float WIN_WIDTH = (float)window::GetSize().x;
 	const float WIN_HEIGHT = (float)window::GetSize().y;
@@ -172,14 +210,14 @@ void TestOpenGL() {
 	clock_t curr_time;
 	float playtime_in_second = 0;
 
-	SDL_Texture* texTarget = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888,
+	SDL_Texture* texTarget = SDL_CreateTexture(renderer.get(), SDL_PIXELFORMAT_RGBA8888,
 		SDL_TEXTUREACCESS_TARGET, WIN_WIDTH, WIN_HEIGHT);
 
 	int done = 0;
 	int useShader = 0;
-	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+	SDL_SetRenderDrawColor(renderer.get(), 255, 255, 255, 255);
 
-	SDL_Texture* drawTarget = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888,
+	SDL_Texture* drawTarget = SDL_CreateTexture(renderer.get(), SDL_PIXELFORMAT_RGBA8888,
 		SDL_TEXTUREACCESS_TARGET, WIN_WIDTH, WIN_HEIGHT);
 
 	SDL_Rect rect1;
@@ -207,9 +245,9 @@ void TestOpenGL() {
 	vao_init();
 
 	while (!done) {
-		SDL_SetRenderTarget(renderer, NULL);
-		SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-		SDL_RenderClear(renderer);
+		SDL_SetRenderTarget(renderer.get(), NULL);
+		SDL_SetRenderDrawColor(renderer.get(), 255, 255, 255, 255);
+		SDL_RenderClear(renderer.get());
 
 		SDL_Point mouse;
 
@@ -217,62 +255,22 @@ void TestOpenGL() {
 
 		SDL_Rect dest_rect;
 
-		dest_rect.w = 300;
-		dest_rect.h = 200;
+		dest_rect.w = WIN_WIDTH;
+		dest_rect.h = WIN_HEIGHT;
 
 		dest_rect.x = mouse.x - dest_rect.w / 2;
 		dest_rect.y = mouse.y - dest_rect.h / 2;
-		//Render to the texture
-		/*SDL_SetRenderTarget(renderer, NULL);
-		SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-		SDL_RenderClear(renderer);*/
-		//SDL_SetRenderTarget(renderer, texTarget);
 
 		curr_time = clock();
 		playtime_in_second = (curr_time - start_time) * 1.0f / 1000.0f;
 
-		/*SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-		SDL_RenderFillRect(renderer, &rect1);
+		//DrawRect(renderer.get(), rect1, { 0, 0, 255, 255 });
 
-		SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
-		SDL_RenderFillRect(renderer, &rect2);
+		PresentBuffer(renderer.get(), win.get(), drawTarget, shader, playtime_in_second, WIN_WIDTH, WIN_HEIGHT, dest_rect.x, dest_rect.y, dest_rect.w, dest_rect.h);
 
-		SDL_SetRenderTarget(renderer, drawTarget);
-
-		SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-		SDL_RenderClear(renderer);
-
-		SDL_SetRenderDrawColor(renderer, 0, 128, 0, 255);
-		SDL_RenderFillRect(renderer, &rect3);*/
-
-		//Now render to the texture
-
-
-		//shader.Bind();
-		//shader.SetUniform("iResolution", w, h, 0.0f);
-		//shader.SetUniform("iTime", playing_time);
-
-		////SDL_GL_SwapWindow(win);
-
-		//shader.Unbind();
-
-		DrawRect(renderer, rect1, { 0, 0, 255, 255 });
-
-		PresentBuffer(renderer, win, drawTarget, shader, playtime_in_second, WIN_WIDTH, WIN_HEIGHT, dest_rect.x, dest_rect.y, dest_rect.w, dest_rect.h);
-
-		DrawRect(renderer, rect2, { 255, 0, 0, 255 });
-		// Detach the texture
-
-		//SDL_RenderCopyEx(renderer, texTarget, NULL, NULL, 0, NULL, SDL_FLIP_NONE);
-
-		SDL_RenderPresent(renderer);
-		//SDL_SetRenderTarget(renderer, NULL);
-
-		/*SDL_RenderPresent(renderer);*/
-
-//		SDL_RenderPresent(renderer);
-
-		/* This could go in a separate function */
+		//DrawRect(renderer.get(), rect2, { 255, 0, 0, 255 });
+		SDL_RenderPresent(renderer.get());
+		
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
 			if (event.type == SDL_QUIT) {
@@ -289,7 +287,6 @@ void TestOpenGL() {
 			}
 		}
 	}
-	vao_exit();
 
 	SDL_DestroyTexture(texTarget);
 }
