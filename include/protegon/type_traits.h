@@ -131,7 +131,6 @@ struct is_safely_castable<T, U,
 
 } // namespace impl
 
-
 template <typename T, typename U>
 inline constexpr bool is_equals_comparable_v{ impl::is_equals_comparable<T, U>::value };
 template <typename T, typename U>
@@ -189,12 +188,18 @@ template <typename Stream, typename ...Types>
 using stream_writable = std::enable_if_t<std::conjunction_v<impl::is_stream_writable<Stream, Types>...>, bool>;
 template <typename Type, typename ...Types>
 using type = std::enable_if_t<std::conjunction_v<std::is_same<Type, Types>...>, bool>;
+template <typename TypeA, typename TypeB>
+using same = std::enable_if_t<std::is_same_v<TypeA, TypeB>, bool>;
+template <typename TypeA, typename TypeB>
+using not_same = std::enable_if_t<!std::is_same_v<TypeA, TypeB>, bool>;
 template <typename ChildClass, typename ParentClass>
 using is_base_of = std::enable_if_t<std::is_base_of_v<ParentClass, ChildClass>, bool>;
 template <typename T, typename ...Ts>
 using is_one_of = std::enable_if_t<type_traits::is_one_of_v<T, Ts...>, bool>;
 template <typename T, typename ...Ts>
 using is_safely_castable_to_one_of = std::enable_if_t<type_traits::is_safely_castable_to_one_of_v<T, Ts...>, bool>;
+template <bool CONDITION>
+using enable = std::enable_if_t<(CONDITION), bool>;
 
 } // namespace type_traits
 
