@@ -20,7 +20,7 @@ bool Has(FontKey key) {
 	return GetManagers().font.Has(key);
 }
 
-std::shared_ptr<Font> Get(FontKey key) {
+Font Get(FontKey key) {
 	return GetManagers().font.Get(key);
 }
 
@@ -40,7 +40,7 @@ bool Has(MusicKey key) {
 	return GetManagers().music.Has(key);
 }
 
-std::shared_ptr<Music> Get(MusicKey key) {
+Music Get(MusicKey key) {
 	return GetManagers().music.Get(key);
 }
 
@@ -123,7 +123,7 @@ bool Has(SoundKey key) {
 	return GetManagers().sound.Has(key);
 }
 
-std::shared_ptr<Sound> Get(SoundKey key) {
+Sound Get(SoundKey key) {
 	return GetManagers().sound.Get(key);
 }
 
@@ -151,7 +151,7 @@ bool Has(TextKey key) {
 	return GetManagers().text.Has(key);
 }
 
-std::shared_ptr<Text> Get(TextKey key) {
+Text Get(TextKey key) {
 	return GetManagers().text.Get(key);
 }
 
@@ -171,7 +171,7 @@ bool Has(TextureKey key) {
 	return GetManagers().texture.Has(key);
 }
 
-std::shared_ptr<Texture> Get(TextureKey key) {
+Texture Get(TextureKey key) {
 	return GetManagers().texture.Get(key);
 }
 
@@ -191,7 +191,7 @@ bool Has(ShaderKey key) {
 	return GetManagers().shader.Has(key);
 }
 
-std::shared_ptr<Shader> Get(ShaderKey key) {
+Shader Get(ShaderKey key) {
 	return GetManagers().shader.Get(key);
 }
 
@@ -240,14 +240,6 @@ std::vector<std::shared_ptr<Scene>> GetActive() {
 void Update(float dt) {
 	GetManagers().scene.Update(dt);
 }
-
-namespace impl {
-
-void SetStartSceneActive() {
-	SetActive(start_scene_key);
-}
-
-} // namespace impl
 
 } // namespace scene
 

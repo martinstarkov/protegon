@@ -7,6 +7,16 @@
 
 namespace ptgn {
 
+namespace scene {
+
+namespace impl {
+
+inline constexpr std::size_t start_scene_key{ 0 };
+
+} // namespace impl
+
+} // namespace scene
+
 class Scene {
 public:
 	virtual ~Scene() = default;
@@ -24,13 +34,15 @@ private:
 	Status status_{ Status::IDLE };
 };
 
-class SceneManager : public ResourceManager<Scene> {
+class SceneManager : public HandleManager<std::shared_ptr<Scene>> {
 public:
 	void Unload(std::size_t scene_key);
+	
 	void SetActive(std::size_t scene_key);
 	void AddActive(std::size_t scene_key);
 	void RemoveActive(std::size_t scene_key);
 	std::vector<std::shared_ptr<Scene>> GetActive();
+	
 	void Update(float dt);
 private:
 	void UnloadFlagged();
@@ -43,8 +55,9 @@ private:
 		}
 	}*/
 	bool ActiveScenesContain(std::size_t key) const;
+private:
 	std::size_t flagged_{ 0 };
-    std::vector<std::size_t> active_scenes_{};
+    std::vector<std::size_t> active_scenes_;
 };
 
 } // namespace ptgn
