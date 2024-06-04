@@ -1,8 +1,8 @@
 #pragma once
 
-#include <memory> // std::shared_ptr
-
 #include "time.h"
+#include "handle.h"
+#include "file.h"
 
 class _Mix_Music;
 using Mix_Music = _Mix_Music;
@@ -10,40 +10,22 @@ struct Mix_Chunk;
 
 namespace ptgn {
 
-class Music {
+class Music : public Handle<Mix_Music> {
 public:
-	// TODO: Switch to fs::path
-	Music(const char* music_path);
-	~Music() = default;
-	Music(const Music&) = default;
-	Music& operator=(const Music&) = default;
-	Music(Music&&) = default;
-	Music& operator=(Music&&) = default;
+	Music() = default;
+	Music(const path& music_path);
 
 	void Play(int loops) const;
 	void FadeIn(int loops, milliseconds time) const;
-	bool IsValid() const;
-private:
-	Music() = default;
-	std::shared_ptr<Mix_Music> music_{ nullptr };
 };
 
-class Sound {
+class Sound : public Handle<Mix_Chunk> {
 public:
-	// TODO: Switch to fs::path
-	Sound(const char* sound_path);
-	~Sound() = default;
-	Sound(const Sound&) = default;
-	Sound& operator=(const Sound&) = default;
-	Sound(Sound&&) = default;
-	Sound& operator=(Sound&&) = default;
+	Sound() = default;
+	Sound(const path& sound_path);
 
 	void Play(int channel, int loops = 0) const;
 	void FadeIn(int channel, int loops, milliseconds time) const;
-	bool IsValid() const;
-private:
-	Sound() = default;
-	std::shared_ptr<Mix_Chunk> chunk_{ nullptr };
 };
 
 } // namespace ptgn

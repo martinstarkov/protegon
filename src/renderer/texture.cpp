@@ -3,37 +3,41 @@
 #include <SDL.h>
 #include <SDL_image.h>
 
-#include <cassert> // assert
+#include <cassert>
 
 #include "protegon/log.h"
-#include "protegon/file.h"
 #include "core/game.h"
 
 namespace ptgn {
 
-Texture::Texture(const char* image_path) {
-	assert(*image_path && "Empty image path?");
-	assert(FileExists(image_path) && "Nonexistent image path?");
-	texture_ = std::shared_ptr<SDL_Texture>(IMG_LoadTexture(global::GetGame().sdl.GetRenderer(), image_path), SDL_DestroyTexture);
+Texture::Texture(const path& image_path) {
+	assert(FileExists(image_path) && "Cannot create texture from a nonexistent image path");
+	instance_ = {
+		IMG_LoadTexture(
+			global::GetGame().sdl.GetRenderer().get(), 
+			image_path.string().c_str()
+		),
+		SDL_DestroyTexture
+	};
 	if (!IsValid()) {
 		PrintLine(IMG_GetError());
 		assert(!"Failed to create texture from image path");
 	}
 }
 
-
-Texture::Texture(SDL_Surface* surface) {
-	assert(surface != nullptr && "Nullptr surface?");
-	texture_ = std::shared_ptr<SDL_Texture>(SDL_CreateTextureFromSurface(global::GetGame().sdl.GetRenderer(), surface), SDL_DestroyTexture);
+Texture::Texture(const std::shared_ptr<SDL_Surface>& surface) {
+	assert(surface != nullptr && "Cannot create texture from uninitialized or destroyed surface");
+	instance_ = {
+		SDL_CreateTextureFromSurface(
+			global::GetGame().sdl.GetRenderer().get(),
+			surface.get()
+		),
+		SDL_DestroyTexture
+	};
 	if (!IsValid()) {
 		PrintLine(SDL_GetError());
 		assert(!"Failed to create texture from surface");
 	}
-	SDL_FreeSurface(surface);
-}
-
-bool Texture::IsValid() const {
-	return texture_ != nullptr;
 }
 
 void Texture::Draw(const Rectangle<float>& texture,
@@ -41,29 +45,31 @@ void Texture::Draw(const Rectangle<float>& texture,
 				   float angle,
 				   Flip flip,
 				   V2_int* center_of_rotation) const {
-	auto renderer{ global::GetGame().sdl.GetRenderer() };
-	assert(renderer != nullptr && "Game uninitialized?");
-	assert(IsValid() && "Destroyed or uninitialized texture?");
+	assert(IsValid() && "Cannot draw uninitialized or destroyed texture");
+	
 	SDL_Rect src_rect;
 	bool source_given{ !source.size.IsZero() };
 	if (source_given) {
 		src_rect = { source.pos.x,  source.pos.y,
 					 source.size.x, source.size.y };
 	}
+	
 	SDL_Rect destination{
 		static_cast<int>(texture.pos.x),
 		static_cast<int>(texture.pos.y),
 		static_cast<int>(texture.size.x),
 		static_cast<int>(texture.size.y)
 	};
+	
 	SDL_Point rotation_point;
 	if (center_of_rotation != nullptr) {
 		rotation_point.x = center_of_rotation->x;
 		rotation_point.y = center_of_rotation->y;
 	}
-	//texture.Draw(color::RED, 1);
-	SDL_RenderCopyEx(renderer,
-		texture_.get(),
+
+	SDL_RenderCopyEx(
+		global::GetGame().sdl.GetRenderer().get(),
+		instance_.get(),
 		source_given ? &src_rect : NULL,
 		&destination,
 		angle,
@@ -73,19 +79,22 @@ void Texture::Draw(const Rectangle<float>& texture,
 }
 
 V2_int Texture::GetSize() const {
+	assert(IsValid() && "Cannot get size of uninitialized or destroyed texture");
 	V2_int size;
-	SDL_QueryTexture(texture_.get(), NULL, NULL, &size.x, &size.y);
+	SDL_QueryTexture(instance_.get(), NULL, NULL, &size.x, &size.y);
 	return size;
 }
 
 void Texture::SetAlpha(std::uint8_t alpha) {
-	SDL_SetTextureBlendMode(texture_.get(), SDL_BLENDMODE_BLEND);
-	SDL_SetTextureAlphaMod(texture_.get(), alpha);
+	assert(IsValid() && "Cannot set alpha of uninitialized or destroyed texture");
+	SDL_SetTextureBlendMode(instance_.get(), SDL_BLENDMODE_BLEND);
+	SDL_SetTextureAlphaMod(instance_.get(), alpha);
 }
 
 void Texture::SetColor(const Color& color) {
+	assert(IsValid() && "Cannot set color of uninitialized or destroyed texture");
 	SetAlpha(color.a);
-	SDL_SetTextureColorMod(texture_.get(), color.r, color.g, color.b);
+	SDL_SetTextureColorMod(instance_.get(), color.r, color.g, color.b);
 }
 
 } // namespace ptgn
