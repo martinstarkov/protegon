@@ -35,6 +35,10 @@ bool TestShader() {
 	assert((impl::GetTypeIdentifier<std::float_t>() == GL_FLOAT));
 	assert((impl::GetTypeIdentifier<std::double_t>() == GL_DOUBLE));
 
+	assert(BufferElement{ ShaderDataType::none }.GetSize() == 0);
+	assert(BufferElement{ ShaderDataType::none }.GetOffset() == 0);
+	assert(BufferElement{ ShaderDataType::none }.GetDataType() == ShaderDataType::none);
+
 	// BufferLayout tests
 
 	BufferLayout layout1{
