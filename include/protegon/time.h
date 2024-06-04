@@ -1,7 +1,7 @@
 #pragma once
 
-#include <chrono>      // std::chrono
-#include <type_traits> // std::false_type
+#include <chrono>
+#include <type_traits>
 
 namespace ptgn {
 

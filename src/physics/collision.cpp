@@ -1,7 +1,7 @@
 #include "protegon/collision.h"
 
-#include <limits> // std::numeric_limits
-#include <cmath>  // std::sqrtf
+#include <limits>
+#include <cmath>
 
 #include "protegon/math.h"
 

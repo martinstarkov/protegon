@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cstdlib> // std::size_t
-#include <cstdint> // std::uint8_t
+#include <cstdlib>
+#include <cstdint>
 
 namespace ptgn {
 

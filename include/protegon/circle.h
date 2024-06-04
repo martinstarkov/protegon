@@ -1,6 +1,6 @@
 #pragma once
 
-#include <functional> // std::function
+#include <functional>
 
 #include "vector2.h"
 #include "color.h"

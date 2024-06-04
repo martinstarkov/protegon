@@ -1,7 +1,7 @@
 #pragma once
 
-#include <iostream> // std::cout
-#include <ostream> // std::ostream, std::endl;
+#include <iostream>
+#include <ostream>
 
 #include "type_traits.h"
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cstdlib> // std::size_t, std::malloc, std::free
-#include <cstdint> // std::uint64_t
+#include <cstdlib>
+#include <cstdint>
 
 namespace ptgn {
 

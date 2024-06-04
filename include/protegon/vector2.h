@@ -1,11 +1,11 @@
 #pragma once
 
-#include <cassert>    // assert
-#include <cmath>      // std::round
-#include <cstdlib>    // std::size_t
-#include <functional> // std::hash
-#include <algorithm>  // std::clamp
-#include <ostream>    // std::ostream
+#include <cassert>
+#include <cmath>
+#include <cstdlib>
+#include <functional>
+#include <algorithm>
+#include <ostream>
 
 #include "type_traits.h"
 #include "math.h"
@@ -22,8 +22,8 @@ void DrawSolidCircleWrapper(int x, int y, int r, const Color& color);
 
 template <typename T, type_traits::arithmetic<T> = true>
 struct Vector2 {
-	T x{};
-	T y{};
+	T x{ 0 };
+	T y{ 0 };
 
     constexpr Vector2() = default;
     ~Vector2() = default;

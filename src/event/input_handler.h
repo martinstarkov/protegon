@@ -1,9 +1,9 @@
 #pragma once
 
-#include <bitset>   // std::bitset
-#include <cstdint> // std::uint8_t
-#include <cstdlib> // std::size_t
-#include <tuple>   // std::pair
+#include <bitset>
+#include <cstdint>
+#include <cstdlib>
+#include <tuple>
 
 #include "protegon/mouse.h"
 #include "protegon/key.h"

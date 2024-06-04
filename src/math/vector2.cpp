@@ -1,6 +1,6 @@
 #include "protegon/vector2.h"
 
-#include <cassert> // assert
+#include <cassert>
 
 #include <SDL.h>
 

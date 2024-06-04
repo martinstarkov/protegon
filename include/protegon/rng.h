@@ -1,9 +1,9 @@
 #pragma once
 
-#include <cstdint> // std::uint32_t
-#include <cmath>   // std::nextafter
-#include <random>  // std::minstd_rand, std::mt19937, std::uniform_int_distribution, ...
-#include <limits>  // std::numeric_limits
+#include <cstdint>
+#include <cmath>
+#include <random>
+#include <limits>
 
 #include "type_traits.h"
 

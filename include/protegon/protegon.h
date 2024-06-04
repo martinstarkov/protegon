@@ -6,6 +6,7 @@ using json = nlohmann::json;
 
 #include "ecs/ecs.h"
 
+#include "protegon/a_star.h"
 #include "protegon/button.h"
 #include "protegon/circle.h"
 #include "protegon/collision.h"
@@ -26,7 +27,6 @@ using json = nlohmann::json;
 #include "protegon/manager.h"
 #include "protegon/math.h"
 #include "protegon/mouse.h"
-#include "protegon/a_star.h"
 #include "protegon/polygon.h"
 #include "protegon/resources.h"
 #include "protegon/rng.h"

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <algorithm> // std::max
-#include <cmath>     // std::sqrt, std::fmod
-#include <tuple>     // std::tuple
+#include <algorithm>
+#include <cmath>
+#include <tuple>
 #include <cstdint>
 
 #include "type_traits.h"

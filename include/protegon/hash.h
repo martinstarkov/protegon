@@ -1,9 +1,9 @@
 #pragma once
 
-#include <cstdlib> // std::size_t
-#include <functional> // std::hash
-#include <string> // std::string_view
-#include <cstring> // std::strlen
+#include <cstdlib>
+#include <functional>
+#include <string>
+#include <cstring>
 
 namespace ptgn {
 

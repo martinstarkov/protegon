@@ -1,7 +1,7 @@
 #pragma once
 
-#include <functional> // std::function
-#include <map>        // std::map
+#include <functional>
+#include <map>
 
 #include "protegon/type_traits.h"
 #include "protegon/events.h"

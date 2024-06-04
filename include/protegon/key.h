@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdlib> // std::size_t
+#include <cstdlib>
 
 namespace ptgn {
 
