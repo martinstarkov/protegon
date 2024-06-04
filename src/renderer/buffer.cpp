@@ -1,7 +1,8 @@
 #include "buffer.h"
 
-#include "gl_loader.h"
 #include <cassert>
+
+#include "gl_loader.h"
 
 namespace ptgn {
 
@@ -18,95 +19,8 @@ template <> inline constexpr GLEnumType GetTypeIdentifier<std::double_t>() { ret
 
 } // namespace impl
 
-template <typename T>
-VertexBuffer<T>::VertexBuffer(const std::vector<T>& vertices) : vertices_{ vertices } {
-	glGenBuffers(1, &id_);
-	glBindBuffer(GL_ARRAY_BUFFER, id_);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(T) * vertices_.size(), vertices_.data(), GL_STATIC_DRAW);
-}
-
-template <typename T>
-VertexBuffer<T>::~VertexBuffer() {
-	glDeleteBuffers(1, &id_);
-}
-
-template <typename T>
-void VertexBuffer<T>::SetLayout(const BufferLayout& layout) {
-	layout_ = layout;
-	const std::vector<BufferElement>& elements = layout_.GetElements();
-	for (std::size_t i = 0; i < elements.size(); ++i) {
-		const BufferElement& element{ elements[i] };
-		ShaderDataInfo info{ element.GetDataType()};
-		glEnableVertexAttribArray(i);
-		glVertexAttribPointer(
-			i, 
-			info.count, 
-			static_cast<GLenum>(impl::GetTypeIdentifier<T>()), 
-			element.IsNormalized() ? GL_TRUE : GL_FALSE,
-			layout.GetStride(),
-			(const void*)element.GetOffset()
-		);
-	}
-}
-
-template <typename T>
-const BufferLayout& VertexBuffer<T>::GetLayout() const {
-	return layout_;
-}
-
-template <typename T>
-void VertexBuffer<T>::Bind() const {
-	glBindBuffer(GL_ARRAY_BUFFER, id_);
-}
-
-template <typename T>
-void VertexBuffer<T>::Unbind() const {
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-}
-
-template <typename T>
-IndexBuffer::Id VertexBuffer<T>::GetId() const {
-	return id_;
-}
-
-template <typename T>
-std::shared_ptr<VertexBuffer<T>> VertexBuffer<T>::Create(const std::vector<T>& vertices) {
-	return std::shared_ptr<VertexBuffer>(new VertexBuffer(vertices));
-}
-
-IndexBuffer::IndexBuffer(const std::vector<Type>& indices) : indices_{ indices } {
-	glGenBuffers(1, &id_);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id_);
-	std::size_t type_size = sizeof(std::remove_reference_t<decltype(indices_)>::value_type);
-	std::size_t size = type_size * indices_.size();
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, indices_.data(), GL_STATIC_DRAW);
-}
-
-IndexBuffer::~IndexBuffer() {
-	glDeleteBuffers(1, &id_);
-}
-
-void IndexBuffer::Bind() const {
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id_);
-}
-
-void IndexBuffer::Unbind() const {
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-}
-
-IndexBuffer::Id IndexBuffer::GetId() const {
-	return id_;
-}
-
-std::shared_ptr<IndexBuffer> IndexBuffer::Create(const std::vector<Type>& indices) {
-	return std::shared_ptr<IndexBuffer>(new IndexBuffer(indices));
-}
-
-std::size_t IndexBuffer::GetCount() const {
-	return indices_.size();
-}
-
-BufferElement::BufferElement(ShaderDataType data_type, bool normalized) : data_type_{ data_type }, normalized_{ normalized } {}
+BufferElement::BufferElement(ShaderDataType data_type, bool normalized) :
+	data_type_{ data_type }, normalized_{ normalized } {}
 
 ShaderDataType BufferElement::GetDataType() const {
 	return data_type_;
@@ -136,6 +50,10 @@ BufferLayout::BufferLayout(const std::initializer_list<BufferElement>& elements)
 	CalculateOffsets();
 }
 
+bool BufferLayout::IsEmpty() const {
+	return elements_.size() == 0;
+}
+
 const std::vector<BufferElement>& BufferLayout::GetElements() const {
 	return elements_;
 }
@@ -154,6 +72,82 @@ void BufferLayout::CalculateOffsets() {
 		offset += element.GetSize();
 	}
 	stride_ = offset;
+}
+
+template <typename T>
+VertexBuffer<T>::VertexBuffer(const std::vector<T>& vertices) : vertices_{ vertices } {
+	glGenBuffers(1, &id_);
+	glBindBuffer(GL_ARRAY_BUFFER, id_);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(T) * vertices_.size(), vertices_.data(), GL_STATIC_DRAW);
+}
+
+template <typename T>
+VertexBuffer<T>::~VertexBuffer() {
+	glDeleteBuffers(1, &id_);
+}
+
+template <typename T>
+void VertexBuffer<T>::SetLayout(const BufferLayout& layout) {
+	layout_ = layout;
+}
+
+template <typename T>
+const BufferLayout& VertexBuffer<T>::GetLayout() const {
+	return layout_;
+}
+
+template <typename T>
+void VertexBuffer<T>::Bind() const {
+	glBindBuffer(GL_ARRAY_BUFFER, id_);
+}
+
+template <typename T>
+void VertexBuffer<T>::Unbind() const {
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+template <typename T>
+IndexBuffer::Id VertexBuffer<T>::GetId() const {
+	return id_;
+}
+
+template <typename T>
+std::shared_ptr<VertexBuffer<T>> VertexBuffer<T>::Create(const std::vector<T>& vertices) {
+	return std::shared_ptr<VertexBuffer>(new VertexBuffer(vertices));
+}
+
+IndexBuffer::IndexBuffer(const std::vector<IndexType>& indices) : indices_{ indices } {
+	glGenBuffers(1, &id_);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id_);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(IndexType) * indices_.size(), indices_.data(), GL_STATIC_DRAW);
+}
+
+IndexBuffer::~IndexBuffer() {
+	glDeleteBuffers(1, &id_);
+}
+
+void IndexBuffer::Bind() const {
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id_);
+}
+
+void IndexBuffer::Unbind() const {
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+}
+
+IndexBuffer::Id IndexBuffer::GetId() const {
+	return id_;
+}
+
+std::shared_ptr<IndexBuffer> IndexBuffer::Create(const std::vector<IndexType>& indices) {
+	return std::shared_ptr<IndexBuffer>(new IndexBuffer(indices));
+}
+
+impl::GLEnumType IndexBuffer::GetType() const {
+	return GL_UNSIGNED_INT;
+}
+
+std::size_t IndexBuffer::GetCount() const {
+	return indices_.size();
 }
 
 // Explicit template instantiation
