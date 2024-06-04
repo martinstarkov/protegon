@@ -3,6 +3,7 @@
 #include "test_vector2.h"
 #include "test_rng.h"
 #include "test_shader.h"
+#include "test_shapes.h"
 
 #include "protegon/protegon.h"
 
@@ -14,6 +15,7 @@ public:
         TestECS();
         TestMath();
         TestVector2();
+        TestShapes();
         TestRNG();
         TestShader();
         window::SetSize({ 800, 400 });
