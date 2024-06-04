@@ -4,15 +4,17 @@
 #include <string_view>
 #include <unordered_map>
 #include <cstdint>
+#include <memory>
 
+#include "type_traits.h"
 #include "file.h"
+#include "handle.h"
 
 namespace ptgn {
 
-
 namespace impl {
 
-std::string_view GetShaderTypeName(unsigned int type);
+std::string_view GetShaderTypeName(std::uint32_t type);
 
 } // namespace impl
 
@@ -50,48 +52,75 @@ enum class ShaderDataType : std::uint64_t {
 };
 
 struct ShaderDataInfo {
-	ShaderDataInfo(ShaderDataType encoded) : ShaderDataInfo{ static_cast<std::uint64_t>(encoded) } {}
-	ShaderDataInfo(std::uint64_t encoded) :
-		size{ encoded >> 32 }, count{ encoded & 0xFFFFFFFF } {}
+	ShaderDataInfo(ShaderDataType encoded);
+	ShaderDataInfo(std::uint64_t encoded);
 	std::uint32_t size{ 0 };
 	std::uint32_t count{ 0 };
 };
 
-class Shader {
+class Shader;
+
+namespace impl {
+
+using Id = std::uint32_t;
+	
+class ShaderInstance {
+public:
+	ShaderInstance() = default;
+	~ShaderInstance();
+private:
+	ShaderInstance(Id program_id);
+private:
+	friend class Shader;
+	// Cache should not prevent const calls.
+	mutable std::unordered_map<std::string, std::int32_t> location_cache_;
+	Id program_id_{ 0 };
+};
+
+} // namespace impl
+
+// Wrapper for distinguishing between Shader from path construction and Shader from source construction.
+class ShaderSource {
+public:
+	ShaderSource() = delete;
+	// Explicit prevents conflict with Shader path construction.
+	explicit ShaderSource(const std::string& source) : source_{ source } {}
+	~ShaderSource() = default;
+private:
+	friend class Shader;
+	const std::string source_;
+};
+
+class Shader : public Handle<impl::ShaderInstance> {
 public:
 	Shader() = default;
-	Shader(const fs::path& vertex_shader_path, const fs::path& fragment_shader_path);
-	void CreateFromStrings(const std::string& vertex_shader_source, const std::string& fragment_shader_source);
-	~Shader();
+
+	Shader(const ShaderSource& vertex_shader, const ShaderSource& fragment_shader);
+	Shader(const path& vertex_shader_path, const path& fragment_shader_path);
 
 	void SetUniform(const std::string& name, float v0);
 	void SetUniform(const std::string& name, float v0, float v1);
 	void SetUniform(const std::string& name, float v0, float v1, float v2);
 	void SetUniform(const std::string& name, float v0, float v1, float v2, float v3);
-	void SetUniform(const std::string& name, int v0);
-	// Behaves identically to SetUniform(name, int).
+	void SetUniform(const std::string& name, std::int32_t v0);
+	// Behaves identically to SetUniform(name, std::int32_t).
 	void SetUniform(const std::string& name, bool value);
-	void SetUniform(const std::string& name, int v0, int v1);
-	void SetUniform(const std::string& name, int v0, int v1, int v2);
-	void SetUniform(const std::string& name, int v0, int v1, int v2, int v3);
+	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1);
+	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2);
+	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2, std::int32_t v3);
 
-	int GetUniformLocation(const std::string& name) const;
+	std::int32_t GetUniformLocation(const std::string& name) const;
 
 	void Bind();
 	void Unbind();
 
-	unsigned int GetProgramId() const;
 private:
-	// Cache should not prevent const calls.
-	mutable std::unordered_map<std::string, int> location_cache_;
-
-
+	void Create(const std::string& vertex_shader_source, const std::string& fragment_shader_source);
+	impl::Id GetProgramId() const;
 	// Returns program id.
-	unsigned int CompileProgram(const std::string& vertex_shader, const std::string& fragment_shader);
+	impl::Id CompileProgram(const std::string& vertex_shader, const std::string& fragment_shader);
 	// Returns shader id.
-	unsigned int CompileShader(unsigned int type, const std::string& source);
-
-	unsigned int program_id_{ 0 };
+	std::uint32_t CompileShader(std::uint32_t type, const std::string& source);
 };
 
 } // namespace ptgn
