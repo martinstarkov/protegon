@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <memory>
 
+#include "utility/debug.h"
 #include "type_traits.h"
 #include "file.h"
 #include "handle.h"
@@ -14,34 +15,36 @@ namespace ptgn {
 
 namespace impl {
 
-using GLEnumType = std::uint32_t;
+std::string_view GetShaderTypeName(std::uint32_t type);
 
-std::string_view GetShaderTypeName(GLEnumType type);
-
-inline constexpr GLEnumType TYPE_BYTE			= 0x1400; // GL_BYTE
-inline constexpr GLEnumType TYPE_UNSIGNED_BYTE	= 0x1401; // GL_UNSIGNED_BYTE
-inline constexpr GLEnumType TYPE_SHORT			= 0x1402; // GL_SHORT
-inline constexpr GLEnumType TYPE_UNSIGNED_SHORT	= 0x1403; // GL_UNSIGNED_SHORT
-inline constexpr GLEnumType TYPE_INT			= 0x1404; // GL_INT
-inline constexpr GLEnumType TYPE_UNSIGNED_INT	= 0x1405; // GL_UNSIGNED_INT
-inline constexpr GLEnumType TYPE_FLOAT			= 0x1406; // GL_FLOAT
-inline constexpr GLEnumType TYPE_DOUBLE         = 0x140A; // GL_DOUBLE
+enum class GLSLType : std::uint32_t {
+	None		  = 0,
+	Byte		  = 0x1400, // GL_BYTE
+	UnsignedByte  = 0x1401, // GL_UNSIGNED_BYTE
+	Short		  = 0x1402, // GL_SHORT
+	UnsignedShort = 0x1403, // GL_UNSIGNED_SHORT
+	Int			  = 0x1404, // GL_INT
+	UnsignedInt	  = 0x1405, // GL_UNSIGNED_INT
+	Float		  = 0x1406, // GL_FLOAT
+	Double		  = 0x140A, // GL_DOUBLE
+};
 
 template <typename T>
-[[nodiscard]] GLEnumType GetType() {
+[[nodiscard]] GLSLType GetType() {
 	static_assert(type_traits::is_one_of_v<T,
 		std::float_t, std::double_t, std::int32_t, std::uint32_t,
 		std::int16_t, std::uint16_t, std::int8_t, std::uint8_t, bool>, "Cannot retrieve type which is not supported by OpenGL");
-	if constexpr (std::is_same_v<T, std::float_t>)									return TYPE_FLOAT;
-	else if constexpr (std::is_same_v<T, std::double_t>)							return TYPE_DOUBLE;
-	else if constexpr (std::is_same_v<T, std::int32_t>)								return TYPE_INT;
-	else if constexpr (std::is_same_v<T, std::uint32_t>)							return TYPE_UNSIGNED_INT;
-	else if constexpr (std::is_same_v<T, std::int16_t>)								return TYPE_SHORT;
-	else if constexpr (std::is_same_v<T, std::uint16_t>)							return TYPE_UNSIGNED_SHORT;
-	else if constexpr (std::is_same_v<T, std::int8_t> || std::is_same_v<T, bool>)   return TYPE_BYTE;
-	else if constexpr (std::is_same_v<T, std::uint8_t>)								return TYPE_UNSIGNED_BYTE;
+
+	     if constexpr (std::is_same_v<T, std::float_t>)								return GLSLType::Float;
+	else if constexpr (std::is_same_v<T, std::double_t>)							return GLSLType::Double;
+	else if constexpr (std::is_same_v<T, std::int32_t>)								return GLSLType::Int;
+	else if constexpr (std::is_same_v<T, std::uint32_t>)							return GLSLType::UnsignedInt;
+	else if constexpr (std::is_same_v<T, std::int16_t>)								return GLSLType::Short;
+	else if constexpr (std::is_same_v<T, std::uint16_t>)							return GLSLType::UnsignedShort;
+	else if constexpr (std::is_same_v<T, std::int8_t> || std::is_same_v<T, bool>)   return GLSLType::Byte;
+	else if constexpr (std::is_same_v<T, std::uint8_t>)								return GLSLType::UnsignedByte;
 	PTGN_ASSERT(false, "Failed to retrieve type of buffer element");
-	return 0;
+	return GLSLType::None;
 }
 
 } // namespace impl

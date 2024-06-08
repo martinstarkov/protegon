@@ -9,7 +9,7 @@ namespace ptgn {
 
 namespace impl {
 
-std::string_view GetShaderTypeName(GLEnumType type) {
+std::string_view GetShaderTypeName(std::uint32_t type) {
 	switch (type) {
 		case GL_VERTEX_SHADER:		    return "vertex";
 		case GL_FRAGMENT_SHADER:        return "fragment";

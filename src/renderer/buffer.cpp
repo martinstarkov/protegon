@@ -6,7 +6,7 @@
 
 namespace ptgn {
 
-BufferElement::BufferElement(std::uint16_t size_of_element, std::uint16_t count, impl::GLEnumType type, bool normalized) :
+BufferElement::BufferElement(std::uint16_t size_of_element, std::uint16_t count, impl::GLSLType type, bool normalized) :
 	size_{ static_cast<std::uint16_t>(size_of_element * count) }, count_{ count }, type_{ type }, normalized_{ normalized } {}
 
 //BufferElement::BufferElement(ShaderDataType data_type, bool normalized) : normalized_{ normalized } {
@@ -25,7 +25,7 @@ std::uint16_t BufferElement::GetCount() const {
 	return count_;
 }
 
-impl::GLEnumType BufferElement::GetType() const {
+impl::GLSLType BufferElement::GetType() const {
 	return type_;
 }
 
@@ -80,8 +80,9 @@ void VertexBufferInstance::GenerateBuffer(void* vertex_data, std::size_t size) {
 }
 
 IndexBufferInstance::IndexBufferInstance(const std::vector<std::uint32_t>& indices) : count_{ indices.size() } {
+	PTGN_ASSERT(indices.size() > 0);
 	using IndexType = std::remove_reference_t<decltype(indices)>::value_type;
-	GenerateBuffer((void*)indices.data(), sizeof(std::uint32_t) * indices.size());
+	GenerateBuffer((void*)indices.data(), sizeof(std::uint32_t) * count_);
 }
 
 void IndexBufferInstance::GenerateBuffer(void* index_data, std::size_t size) {
@@ -108,6 +109,11 @@ void VertexBuffer::Bind() const {
 
 void VertexBuffer::Unbind() const {
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+std::size_t VertexBuffer::GetCount() const {
+	PTGN_CHECK(IsValid(), "Cannot get count of uninitialized or destroyed vertex buffer");
+	return instance_->count_;
 }
 
 IndexBuffer::IndexBuffer(const std::vector<std::uint32_t>& indices) {

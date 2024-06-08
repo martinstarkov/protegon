@@ -21,7 +21,7 @@ public:
 		VERTICAL   = 0x00000002
 	};
 
-	enum class DrawMode {
+	enum class BlendMode {
 		// Source: https://wiki.libsdl.org/SDL2/SDL_BlendMode
 
 		NONE     = 0x00000000, /*       no blending: dstRGBA = srcRGBA */
@@ -36,8 +36,15 @@ public:
 		INVALID  = 0x7FFFFFFF
 	};
 
+	enum class AccessType : int {
+		STATIC = 0,	   // SDL_TEXTUREACCESS_STATIC    /* Changes rarely, not lockable */
+		STREAMING = 1, // SDL_TEXTUREACCESS_STREAMING /* Changes frequently, lockable */
+		TARGET = 2,    // SDL_TEXTUREACCESS_TARGET
+	};
+
 	Texture() = default;
 	Texture(const path& image_path);
+	Texture(AccessType access, const V2_int& size);
 
 	// Rotation in degrees. Positive clockwise.
 	void Draw(const Rectangle<float>& texture,
@@ -48,9 +55,15 @@ public:
 
 	[[nodiscard]] V2_int GetSize() const;
 
+	void SetBlendMode(BlendMode mode);
+
 	void SetAlpha(std::uint8_t alpha);
 
 	void SetColor(const Color& color);
+
+	AccessType GetAccessType() const;
+
+	void SetAsRendererTarget();
 private:
 	friend class Text;
 	Texture(const std::shared_ptr<SDL_Surface>& surface);

@@ -10,6 +10,7 @@
 
 #include "protegon/shader.h"
 #include "protegon/type_traits.h"
+#include "utility/debug.h"
 
 #include "luple/type_loophole.h"
 
@@ -19,13 +20,26 @@ class VertexBuffer;
 class IndexBuffer;
 class BufferLayout;
 
+enum class PrimitiveMode : std::uint32_t {
+	Points		  = 0x0000, // GL_POINTS
+	Lines		  = 0x0001, // GL_LINES
+	LineLoop	  = 0x0002, // GL_LINE_LOOP
+	LineStrip	  = 0x0003, // GL_LINE_STRIP
+	Triangles	  = 0x0004, // GL_TRIANGLES
+	TriangleStrip = 0x0005, // GL_TRIANGLE_STRIP
+	TriangleFan	  = 0x0006, // GL_TRIANGLE_FAN
+	Quads		  = 0x0007, // GL_QUADS
+	QuadStrip	  =	0x0008, // GL_QUAD_STRIP
+	Polygon		  = 0x0009  // GL_POLYGON
+};
+
 class BufferElement {
 public:
-	BufferElement(std::uint16_t size_of_element, std::uint16_t count, impl::GLEnumType type, bool normalized = false);
+	BufferElement(std::uint16_t size_of_element, std::uint16_t count, impl::GLSLType type, bool normalized = false);
 	//BufferElement(ShaderDataType data_type, bool normalized = false);
 	[[nodiscard]] std::uint16_t GetSize() const;
 	[[nodiscard]] std::uint16_t GetCount() const;
-	[[nodiscard]] impl::GLEnumType GetType() const;
+	[[nodiscard]] impl::GLSLType GetType() const;
 	[[nodiscard]] bool IsNormalized() const;
 	[[nodiscard]] std::size_t GetOffset() const;
 private:
@@ -33,7 +47,7 @@ private:
 	friend class BufferLayout;
 	std::uint16_t size_{ 0 };    // Number of elements x Size of element.
 	std::uint16_t count_{ 0 };   // Number of elements
-	impl::GLEnumType type_{ 0 }; // Type of buffer element (i.e. GL_FLOAT)
+	impl::GLSLType type_{ 0 }; // Type of buffer element (i.e. GL_FLOAT)
 	// Set by BufferLayout.
 	std::size_t offset_{ 0 };  // Number of bytes from start of buffer.
 	bool normalized_{ false };   // Whether or not the buffer elements are normalized. See here for more info: https://registry.khronos.org/OpenGL-Refpages/es3.0/html/glVertexAttribPointer.xhtml
@@ -115,17 +129,17 @@ public:
 	~VertexBufferInstance();
 private:
 	template <typename T, impl::valid_vertex<T> = true>
-	VertexBufferInstance(const std::vector<T>& vertices) {
-		PTGN_ASSERT(vertices.size() > 0);
+	VertexBufferInstance(const std::vector<T>& vertices) : count_{ vertices.size() } {
+		PTGN_ASSERT(count_ > 0);
 		// Take any vertex element to figure out its layout.
 		DeduceLayout<T>();
-		GenerateBuffer((void*)vertices.data(), sizeof(T) * vertices.size());
+		GenerateBuffer((void*)vertices.data(), sizeof(T) * count_);
 	}
 	
 	/*template <typename T, impl::valid_vertex<T> = true>
-	VertexBufferInstance(const std::vector<T>& vertices, const BufferLayout& layout) {
-		PTGN_ASSERT(vertices.size() > 0);
-		GenerateBuffer((void*)vertices.data(), sizeof(T) * vertices.size());
+	VertexBufferInstance(const std::vector<T>& vertices, const BufferLayout& layout) : count_{ vertices.size() } {
+		PTGN_ASSERT(count_ > 0);
+		GenerateBuffer((void*)vertices.data(), sizeof(T) * count_);
 	}*/
 private:
 	void GenerateBuffer(void* vertex_data, std::size_t size);
@@ -138,7 +152,7 @@ private:
 		std::vector<BufferElement> elements;
 		type_traits::class_members::impl::luple_do(l,
 			[&] (auto& value) {
-				using glsl_type = typename std::remove_reference_t<decltype(value)>;
+				using glsl_type = typename std::remove_const_t<typename std::remove_reference_t<decltype(value)>>;
 				static_assert(is_vertex_data_type<glsl_type>, "Buffer element type must be a valid vertex data type");
 				using element_type = glsl_type::value_type;
 
@@ -153,6 +167,7 @@ private:
 	}
 private:
 	friend class VertexBuffer;
+	std::size_t count_{ 0 };
 	BufferLayout layout_;
 	std::uint32_t id_{ 0 };
 };
@@ -180,7 +195,7 @@ public:
 	template <typename T>
 	VertexBuffer(const std::vector<T>& vertices) {
 		static_assert(impl::is_valid_vertex<T>, "Provided vertex type should only contain ptgn::glsl:: types");
-		if (vertices.size() == 0) throw std::exception("Cannot create a vertex buffer with no vertices");
+		PTGN_CHECK(vertices.size() != 0, "Cannot create a vertex buffer with no vertices");
 		instance_ = std::shared_ptr<impl::VertexBufferInstance>(new impl::VertexBufferInstance(vertices));
 	}
 
@@ -196,6 +211,8 @@ public:
 	void Unbind() const;
 
 	[[nodiscard]] const BufferLayout& GetLayout() const;
+
+	[[nodiscard]] std::size_t GetCount() const;
 };
 
 class IndexBuffer : public Handle<impl::IndexBufferInstance> {
@@ -207,8 +224,8 @@ public:
 	void Unbind() const;
 
 	[[nodiscard]] std::size_t GetCount() const;
-	[[nodiscard]] static constexpr impl::GLEnumType GetType() {
-		return impl::TYPE_UNSIGNED_INT;
+	[[nodiscard]] static constexpr impl::GLSLType GetType() {
+		return impl::GLSLType::UnsignedInt;
 	}
 };
 
