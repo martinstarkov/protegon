@@ -142,18 +142,18 @@ public:
 	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2);
 	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2, std::int32_t v3);
 
-	std::int32_t GetUniformLocation(const std::string& name) const;
+	[[nodiscard]] std::int32_t GetUniformLocation(const std::string& name) const;
 
 	void Bind();
 	void Unbind();
 
 private:
 	void Create(const std::string& vertex_shader_source, const std::string& fragment_shader_source);
-	impl::Id GetProgramId() const;
+	[[nodiscard]] impl::Id GetProgramId() const;
 	// Returns program id.
-	impl::Id CompileProgram(const std::string& vertex_shader, const std::string& fragment_shader);
+	[[nodiscard]] impl::Id CompileProgram(const std::string& vertex_shader, const std::string& fragment_shader);
 	// Returns shader id.
-	std::uint32_t CompileShader(std::uint32_t type, const std::string& source);
+	[[nodiscard]] std::uint32_t CompileShader(std::uint32_t type, const std::string& source);
 };
 
 } // namespace ptgn

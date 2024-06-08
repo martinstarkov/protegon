@@ -7,8 +7,6 @@
 #include <memory>
 #include <variant>
 #include <array>
-// TODO: TEMPORARY:
-#include <iostream>
 
 #include "protegon/shader.h"
 #include "protegon/type_traits.h"
