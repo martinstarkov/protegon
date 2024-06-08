@@ -56,14 +56,6 @@ bool OpenGLInstance::InitOpenGL() {
 
 namespace impl {
 
-std::shared_ptr<IndexBuffer> ibo;
-std::shared_ptr<VertexBuffer<float>> vbo;
-std::shared_ptr<VertexArray> vao;
-
-std::shared_ptr<IndexBuffer> ibo2;
-std::shared_ptr<VertexBuffer<float>> vbo2;
-std::shared_ptr<VertexArray> vao2;
-
 const std::vector<std::uint32_t> indices = {
 	0, 1, 2,
 	2, 3, 1
@@ -73,51 +65,55 @@ const std::vector<std::uint32_t> indices2 = {
 	0, 1, 2,
 };
 
-const std::vector<float> vao_vert = {
-	-1.0f, -1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-	 1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-	-1.0f,  1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f,
-     1.0f,  1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+struct Vertex {
+	glsl::vec3 pos;
+	glsl::vec4 color;
+};
+
+const std::vector<Vertex> vao_vert = {
+	Vertex{ glsl::vec3{ -1.0f, -1.0f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 1.0f, 1.0f } },
+	Vertex{ glsl::vec3{  1.0f, -1.0f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 1.0f, 1.0f } },
+	Vertex{ glsl::vec3{ -1.0f,  1.0f, 0.0f }, glsl::vec4{ 1.0f, 1.0f, 0.0f, 1.0f } },
+	Vertex{ glsl::vec3{  1.0f,  1.0f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 1.0f, 1.0f } },
 };
 
 
-const std::vector<float> vao_vert2 = {
-	-0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
-	 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-	 0.0f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
+const std::vector<Vertex> vao_vert2 = {
+	Vertex{ glsl::vec3{ -0.5f, -0.5f, 0.0f }, glsl::vec4{ 0.0f, 1.0f, 1.0f, 1.0f } },
+	Vertex{ glsl::vec3{  0.5f, -0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 0.0f, 1.0f } },
+	Vertex{ glsl::vec3{  0.0f,  0.5f, 0.0f }, glsl::vec4{ 0.0f, 1.0f, 0.0f, 1.0f } },
 };
+
+VertexArray vao;
+IndexBuffer ibo;
+VertexBuffer vbo;
+
+VertexArray vao2;
+IndexBuffer ibo2;
+VertexBuffer vbo2;
 
 //---------------------------------------------------------------------------
 static void vao_init() {
+
 	vao = VertexArray::Create();
-	//vao2 = VertexArray::Create();
+	vao2 = VertexArray::Create();
 
-	//vbo2 = VertexBuffer<float>::Create(vao_vert2);
-	vbo = VertexBuffer<float>::Create(vao_vert);
+	vbo2 = { vao_vert2 };
+	vbo = { vao_vert };
 
-	ibo = IndexBuffer::Create(indices);
-	//ibo2 = IndexBuffer::Create(indices2);
+	ibo = { indices };
+	ibo2 = { indices2 };
 
-	/*vbo2->SetLayout(BufferLayout{
-		{ ShaderDataType::vec3 },
-		{ ShaderDataType::vec4 },
-	});*/
+	vao2.AddVertexBuffer(vbo2);
+	vao.AddVertexBuffer(vbo);
 
-	vbo->SetLayout(BufferLayout{
-		{ ShaderDataType::vec3 },
-		{ ShaderDataType::vec4 },
-	});
+	vao.SetIndexBuffer(ibo);
+	vao2.SetIndexBuffer(ibo2);
 
-	//vao2->AddVertexBuffer(vbo2);
-	vao->AddVertexBuffer(vbo);
-
-	vao->SetIndexBuffer(ibo);
-	//vao2->SetIndexBuffer(ibo2);
-
-	vao->Unbind();
-	vbo->Unbind();
-	//vao2->Unbind();
-	//vbo2->Unbind();
+	vao.Unbind();
+	vbo.Unbind();
+	vao2.Unbind();
+	vbo2.Unbind();
 }
 
 static void PresentBuffer(SDL_Renderer* renderer, SDL_Window* win, SDL_Texture* backBuffer, Shader& shader, float playing_time, float w, float h, int rx, int ry, int rw, int rh) {
@@ -129,15 +125,13 @@ static void PresentBuffer(SDL_Renderer* renderer, SDL_Window* win, SDL_Texture* 
 
 	shader.Bind();
 
-	vao->Bind();
-	//glDrawArrays(GL_TRIANGLES, 0, ibo->GetCount());
-	glDrawElements(GL_TRIANGLES, ibo->GetCount(), ibo->GetType(), nullptr);
-	vao->Unbind();
+	vao.Bind();
+	glDrawElements(GL_TRIANGLES, vao.GetIndexBuffer().GetCount(), vao.GetIndexBuffer().GetType(), nullptr);
+	vao.Unbind();
 
-	//vao2->Bind();
-	//glDrawArrays(GL_TRIANGLES, 0, ibo->GetCount());
-	//glDrawElements(GL_TRIANGLES, ibo2->GetCount(), ibo2->GetType(), nullptr);
-	//vao2->Unbind();
+	vao2.Bind();
+	glDrawElements(GL_TRIANGLES, vao2.GetIndexBuffer().GetCount(), vao2.GetIndexBuffer().GetType(), nullptr);
+	vao2.Unbind();
 
 	shader.SetUniform("iResolution", w, h, 0.0f);
 	shader.SetUniform("iTime", playing_time);
@@ -200,7 +194,7 @@ void TestOpenGL() {
 
 	Shader shader;
 	shader = Shader(ShaderSource{ vertex_source }, ShaderSource{ fragment_source });
-	shader = Shader("resources/shader/main_vert.glsl", "resources/shader/fire_ball_frag.glsl");
+	//shader = Shader("resources/shader/main_vert.glsl", "resources/shader/fire_ball_frag.glsl");
 
 	const float WIN_WIDTH = (float)window::GetSize().x;
 	const float WIN_HEIGHT = (float)window::GetSize().y;

@@ -6,47 +6,42 @@
 
 namespace ptgn {
 
-namespace impl {
+BufferElement::BufferElement(std::uint16_t size_of_element, std::uint16_t count, impl::GLEnumType type, bool normalized) :
+	size_{ static_cast<std::uint16_t>(size_of_element * count) }, count_{ count }, type_{ type }, normalized_{ normalized } {}
 
-template <> inline constexpr GLEnumType GetTypeIdentifier<std::int8_t>()   { return GL_BYTE;		   }
-template <> inline constexpr GLEnumType GetTypeIdentifier<std::uint8_t>()  { return GL_UNSIGNED_BYTE;  }
-template <> inline constexpr GLEnumType GetTypeIdentifier<std::int16_t>()  { return GL_SHORT;		   }
-template <> inline constexpr GLEnumType GetTypeIdentifier<std::uint16_t>() { return GL_UNSIGNED_SHORT; }
-template <> inline constexpr GLEnumType GetTypeIdentifier<std::int32_t>()  { return GL_INT;			   }
-template <> inline constexpr GLEnumType GetTypeIdentifier<std::uint32_t>() { return GL_UNSIGNED_INT;   }
-template <> inline constexpr GLEnumType GetTypeIdentifier<std::float_t>()  { return GL_FLOAT;		   }
-template <> inline constexpr GLEnumType GetTypeIdentifier<std::double_t>() { return GL_DOUBLE;		   }
+//BufferElement::BufferElement(ShaderDataType data_type, bool normalized) : normalized_{ normalized } {
+//	ShaderDataInfo info{ data_type };
+//	// ShaderDataInfo size stores the size of a single buffer element.
+//	size_ = info.size * info.count;
+//	count_ = info.count;
+//	type_ = info.type;
+//}
 
-} // namespace impl
-
-BufferElement::BufferElement(ShaderDataType data_type, bool normalized) :
-	data_type_{ data_type }, normalized_{ normalized } {}
-
-ShaderDataType BufferElement::GetDataType() const {
-	return data_type_;
-}
-
-bool BufferElement::IsNormalized() const {
-	return normalized_;
-}
-
-std::size_t BufferElement::GetSize() const {
+std::uint16_t BufferElement::GetSize() const {
 	return size_;
+}
+
+std::uint16_t BufferElement::GetCount() const {
+	return count_;
+}
+
+impl::GLEnumType BufferElement::GetType() const {
+	return type_;
 }
 
 std::size_t BufferElement::GetOffset() const {
 	return offset_;
 }
 
-void BufferElement::SetSize(std::size_t size) {
-	size_ = size;
-}
-
-void BufferElement::SetOffset(std::size_t offset) {
-	offset_ = offset;
+bool BufferElement::IsNormalized() const {
+	return normalized_;
 }
 
 BufferLayout::BufferLayout(const std::initializer_list<BufferElement>& elements) : elements_{ elements } {
+	CalculateOffsets();
+}
+
+BufferLayout::BufferLayout(const std::vector<BufferElement>& elements) : elements_{ elements } {
 	CalculateOffsets();
 }
 
@@ -66,98 +61,71 @@ void BufferLayout::CalculateOffsets() {
 	std::size_t offset = 0;
 	stride_ = 0;
 	for (BufferElement& element : elements_) {
-		element.SetOffset(offset);
-		ShaderDataInfo info{ element.GetDataType() };
-		element.SetSize(info.size * info.count);
-		offset += element.GetSize();
+		element.offset_ = offset;
+		offset += element.size_;
 	}
 	stride_ = offset;
 }
 
-template <typename T>
-VertexBuffer<T>::VertexBuffer(const std::vector<T>& vertices) : vertices_{ vertices } {
-	glGenBuffers(1, &id_);
-	glBindBuffer(GL_ARRAY_BUFFER, id_);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(T) * vertices_.size(), vertices_.data(), GL_STATIC_DRAW);
-}
+namespace impl {
 
-template <typename T>
-VertexBuffer<T>::~VertexBuffer() {
+VertexBufferInstance::~VertexBufferInstance() {
 	glDeleteBuffers(1, &id_);
 }
 
-template <typename T>
-void VertexBuffer<T>::SetLayout(const BufferLayout& layout) {
-	layout_ = layout;
-}
-
-template <typename T>
-const BufferLayout& VertexBuffer<T>::GetLayout() const {
-	return layout_;
-}
-
-template <typename T>
-void VertexBuffer<T>::Bind() const {
+void VertexBufferInstance::GenerateBuffer(void* vertex_data, std::size_t size) {
+	glGenBuffers(1, &id_);
 	glBindBuffer(GL_ARRAY_BUFFER, id_);
+	glBufferData(GL_ARRAY_BUFFER, size, vertex_data, GL_STATIC_DRAW);
 }
 
-template <typename T>
-void VertexBuffer<T>::Unbind() const {
+IndexBufferInstance::IndexBufferInstance(const std::vector<std::uint32_t>& indices) : count_{ indices.size() } {
+	using IndexType = std::remove_reference_t<decltype(indices)>::value_type;
+	GenerateBuffer((void*)indices.data(), sizeof(std::uint32_t) * indices.size());
+}
+
+void IndexBufferInstance::GenerateBuffer(void* index_data, std::size_t size) {
+	glGenBuffers(1, &id_);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id_);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, index_data, GL_STATIC_DRAW);
+}
+
+IndexBufferInstance::~IndexBufferInstance() {
+	glDeleteBuffers(1, &id_);
+}
+
+} // namespace impl
+
+const BufferLayout& VertexBuffer::GetLayout() const {
+	assert(IsValid() && "Cannot get layout of uninitialized or destroyed vertex buffer");
+	return instance_->layout_;
+}
+
+void VertexBuffer::Bind() const {
+	assert(IsValid() && "Cannot bind uninitialized or destroyed vertex buffer");
+	glBindBuffer(GL_ARRAY_BUFFER, instance_->id_);
+}
+
+void VertexBuffer::Unbind() const {
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-template <typename T>
-IndexBuffer::Id VertexBuffer<T>::GetId() const {
-	return id_;
-}
-
-template <typename T>
-std::shared_ptr<VertexBuffer<T>> VertexBuffer<T>::Create(const std::vector<T>& vertices) {
-	return std::shared_ptr<VertexBuffer>(new VertexBuffer(vertices));
-}
-
-IndexBuffer::IndexBuffer(const std::vector<IndexType>& indices) : indices_{ indices } {
-	glGenBuffers(1, &id_);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id_);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(IndexType) * indices_.size(), indices_.data(), GL_STATIC_DRAW);
-}
-
-IndexBuffer::~IndexBuffer() {
-	glDeleteBuffers(1, &id_);
+IndexBuffer::IndexBuffer(const std::vector<std::uint32_t>& indices) {
+	instance_ = std::shared_ptr<impl::IndexBufferInstance>(new impl::IndexBufferInstance(indices));
 }
 
 void IndexBuffer::Bind() const {
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id_);
+	assert(IsValid() && "Cannot bind uninitialized or destroyed index buffer");
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, instance_->id_);
 }
 
 void IndexBuffer::Unbind() const {
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
-IndexBuffer::Id IndexBuffer::GetId() const {
-	return id_;
-}
-
-std::shared_ptr<IndexBuffer> IndexBuffer::Create(const std::vector<IndexType>& indices) {
-	return std::shared_ptr<IndexBuffer>(new IndexBuffer(indices));
-}
-
-impl::GLEnumType IndexBuffer::GetType() const {
-	return GL_UNSIGNED_INT;
-}
-
 std::size_t IndexBuffer::GetCount() const {
-	return indices_.size();
+	assert(IsValid() && "Cannot get count of uninitialized or destroyed index buffer");
+	return instance_->count_;
 }
-
-// Explicit template instantiation
-template class VertexBuffer<std::int8_t>;
-template class VertexBuffer<std::uint8_t>;
-template class VertexBuffer<std::int16_t>;
-template class VertexBuffer<std::uint16_t>;
-template class VertexBuffer<std::int32_t>;
-template class VertexBuffer<std::uint32_t>;
-template class VertexBuffer<std::float_t>;
-template class VertexBuffer<std::double_t>;
 
 } // namespace ptgn

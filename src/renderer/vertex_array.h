@@ -7,26 +7,38 @@
 
 namespace ptgn {
 
-class VertexArray {
+class VertexArray;
+
+namespace impl {
+
+struct VertexArrayInstance {
 public:
-	using Id = std::uint32_t;
+	VertexArrayInstance();
+	~VertexArrayInstance();
+private:
+	friend class VertexArray;
 
-	static std::shared_ptr<VertexArray> Create();
+	std::vector<VertexBuffer> vertex_buffers_;
+	IndexBuffer index_buffer_;
+	std::uint32_t id_{ 0 };
+};
 
-	VertexArray();
-	~VertexArray();
+} // namespace impl
+
+class VertexArray : public Handle<impl::VertexArrayInstance> {
+public:
+	VertexArray() = default;
+	~VertexArray() = default;
+	[[nodiscard]] static VertexArray Create();
 
 	void Bind() const;
 	void Unbind() const;
 
-	void AddVertexBuffer(const std::shared_ptr<AbstractVertexBuffer>& vertex_buffer);
-	void SetIndexBuffer(const std::shared_ptr<IndexBuffer>& index_buffer);
-
-	Id GetId() const;
+	void AddVertexBuffer(const VertexBuffer& vertex_buffer);
+	void SetIndexBuffer(const IndexBuffer& index_buffer);
+	[[nodiscard]] const IndexBuffer& GetIndexBuffer() const;
 private:
-	std::vector<std::shared_ptr<AbstractVertexBuffer>> vertex_buffers_;
-	std::shared_ptr<IndexBuffer> index_buffer_;
-	Id id_{ 0 };
+	VertexArray(const std::shared_ptr<impl::VertexArrayInstance>& instance);
 };
 
 } // namespace ptgn

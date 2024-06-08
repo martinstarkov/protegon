@@ -10,7 +10,7 @@ namespace ptgn {
 
 namespace impl {
 
-std::string_view GetShaderTypeName(std::uint32_t type) {
+std::string_view GetShaderTypeName(GLEnumType type) {
 	switch (type) {
 		case GL_VERTEX_SHADER:		    return "vertex";
 		case GL_FRAGMENT_SHADER:        return "fragment";
@@ -30,13 +30,13 @@ ShaderInstance::~ShaderInstance() {
 
 } // namespace impl
 
-ShaderDataInfo::ShaderDataInfo(ShaderDataType encoded) :
-	ShaderDataInfo{ static_cast<std::uint64_t>(encoded) } {
-	assert(encoded != ShaderDataType::none && "Cannot retrieve shader data info for ShaderDataType::none");
-}
-
-ShaderDataInfo::ShaderDataInfo(std::uint64_t encoded) :
-	size{ encoded >> 32 }, count{ encoded & 0xFFFFFFFF } {}
+//ShaderDataInfo::ShaderDataInfo(ShaderDataType encoded) :
+//	ShaderDataInfo{ static_cast<std::uint64_t>(encoded) } {
+//	assert(encoded != ShaderDataType::none && "Cannot retrieve shader data info for ShaderDataType::none");
+//}
+//
+//ShaderDataInfo::ShaderDataInfo(std::uint64_t encoded) :
+//	size{ (encoded >> 48) & 0xFFFF }, count{ (encoded >> 32) & 0xFFFF }, type{ encoded & 0xFFFFFFFF } {}
 
 Shader::Shader(const ShaderSource& vertex_shader, const ShaderSource& fragment_shader) {
 	Create(vertex_shader.source_, fragment_shader.source_);
