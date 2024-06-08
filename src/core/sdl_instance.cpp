@@ -1,13 +1,11 @@
 #include "sdl_instance.h"
 
-#include <cassert>
-
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h>
 #include <SDL_mixer.h>
 
-#include "protegon/log.h"
+#include "utility/debug.h"
 #include "game.h"
 
 namespace ptgn {
@@ -34,12 +32,12 @@ bool SDLInstance::WindowExists() const {
 }
 
 std::shared_ptr<SDL_Window> SDLInstance::GetWindow() const {
-	assert(window_ != nullptr && "Cannot access uninitialized or destroyed SDL_Window");
+	PTGN_ASSERT(window_ != nullptr, "Cannot access uninitialized or destroyed SDL_Window");
 	return window_;
 }
 
 std::shared_ptr<SDL_Renderer> SDLInstance::GetRenderer() const {
-	assert(renderer_ != nullptr && "Cannot access uninitialized or destroyed SDL_Renderer");
+	PTGN_ASSERT(renderer_ != nullptr, "Cannot access uninitialized or destroyed SDL_Renderer");
 	return renderer_;
 }
 
@@ -90,8 +88,8 @@ void SDLInstance::InitSDL() {
 
 		int sdl_init{ SDL_Init(sdl_flags) };
 		if (sdl_init != 0) {
-			PrintLine(SDL_GetError());
-			assert(!"Failed to initialize SDL core");
+			PTGN_ERROR(SDL_GetError());
+			PTGN_CHECK(false, "Failed to initialize SDL core");
 		}
 	}
 }
@@ -103,40 +101,40 @@ void SDLInstance::InitSDLImage() {
 	};
 	int img_init{ IMG_Init(img_flags) };
 	if ((img_init & img_flags) != img_flags) {
-		PrintLine(IMG_GetError());
-		assert(!"Failed to initialize SDL Image");
+		PTGN_ERROR(IMG_GetError());
+		PTGN_CHECK(false, "Failed to initialize SDL Image");
 	}
 }
 
 void SDLInstance::InitSDLTTF() {
 	int ttf_init{ TTF_Init() };
 	if (ttf_init == -1) {
-		PrintLine(TTF_GetError());
-		assert(!"Failed to initialize SDL TTF");
+		PTGN_ERROR(TTF_GetError());
+		PTGN_CHECK(false, "Failed to initialize SDL TTF");
 	}
 }
 
 void SDLInstance::InitSDLMixer() {
 	int mixer_init{ Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) };
 	if (mixer_init == -1) {
-		PrintLine(Mix_GetError());
-		assert(!"Failed to initialize SDL Mixer");
+		PTGN_ERROR(Mix_GetError());
+		PTGN_CHECK(false, "Failed to initialize SDL Mixer");
 	}
 }
 
 void SDLInstance::InitWindow() {
 	window_ = { SDL_CreateWindow("", 0, 0, 0, 0, SDL_WINDOW_HIDDEN), SDL_DestroyWindow };
 	if (window_ == nullptr) {
-		PrintLine(SDL_GetError());
-		assert(!"Failed to create SDL window");
+		PTGN_ERROR(SDL_GetError());
+		PTGN_ASSERT(false, "Failed to create SDL window");
 	}
 }
 
 void SDLInstance::InitRenderer() {
 	renderer_ = { SDL_CreateRenderer(window_.get(), -1, SDL_RENDERER_ACCELERATED), SDL_DestroyRenderer };
 	if (renderer_ == nullptr) {
-		PrintLine(SDL_GetError());
-		assert(!"Failed to create SDL renderer");
+		PTGN_ERROR(SDL_GetError());
+		PTGN_ASSERT(false, "Failed to create SDL renderer");
 	}
 	SDL_SetRenderDrawBlendMode(renderer_.get(), static_cast<SDL_BlendMode>(Texture::DrawMode::BLEND));
 }

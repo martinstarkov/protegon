@@ -116,7 +116,7 @@ public:
 private:
 	template <typename T, impl::valid_vertex<T> = true>
 	VertexBufferInstance(const std::vector<T>& vertices) {
-		assert(vertices.size() > 0);
+		PTGN_ASSERT(vertices.size() > 0);
 		// Take any vertex element to figure out its layout.
 		DeduceLayout<T>();
 		GenerateBuffer((void*)vertices.data(), sizeof(T) * vertices.size());
@@ -124,7 +124,7 @@ private:
 	
 	/*template <typename T, impl::valid_vertex<T> = true>
 	VertexBufferInstance(const std::vector<T>& vertices, const BufferLayout& layout) {
-		assert(vertices.size() > 0);
+		PTGN_ASSERT(vertices.size() > 0);
 		GenerateBuffer((void*)vertices.data(), sizeof(T) * vertices.size());
 	}*/
 private:

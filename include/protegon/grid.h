@@ -13,11 +13,11 @@ public:
 	Grid() = delete;
 
 	Grid(const Vector2<int>& size, const std::vector<T>& cells) : size{ size }, length{ size.x * size.y }, cells{ cells } {
-		assert(length == cells.size() && "Failed to construct grid");
+		PTGN_ASSERT(length == cells.size(), "Failed to construct grid");
 	}
 
 	Grid(const Vector2<int>& size) : size{ size }, length{ size.x * size.y }, cells(length, T{}) {
-		assert(length == cells.size() && "Failed to construct grid");
+		PTGN_ASSERT(length == cells.size(), "Failed to construct grid");
 	}
 
 	void ForEachCoordinate(std::function<void(V2_int)> function) {
@@ -53,17 +53,17 @@ public:
 	}
 
 	[[nodiscard]] const T& Get(std::size_t index) const {
-		assert(Has(index) && "Cannot get grid element which is outside the grid");
+		PTGN_CHECK(Has(index), "Cannot get grid element which is outside the grid");
 		return cells[index];
 	}
 
 	[[nodiscard]] T& Get(std::size_t index) {
-		assert(Has(index) && "Cannot get grid element which is outside the grid");
+		PTGN_CHECK(Has(index), "Cannot get grid element which is outside the grid");
 		return cells[index];
 	}
 
 	T& Set(std::size_t index, T&& object) {
-		assert(Has(index) && "Cannot set grid element which is outside the grid");
+		PTGN_CHECK(Has(index), "Cannot set grid element which is outside the grid");
 		auto& value = cells[index];
 		value = std::move(object);
 		return value;

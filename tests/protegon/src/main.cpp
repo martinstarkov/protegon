@@ -24,7 +24,7 @@ public:
         static bool drawing_tests_passed = false;
 
         if (!drawing_tests_passed) {
-            std::cout << "Starting drawing tests..." << std::endl;
+            PTGN_INFO("Starting drawing tests...");
         }
 
         Point<float> test01{ 30, 10 };
@@ -134,7 +134,7 @@ public:
         test93.DrawSolid(color::SILVER);
 
         if (!drawing_tests_passed) {
-            std::cout << "All drawing tests passed!" << std::endl;
+            PTGN_INFO("All drawing tests passed!");
             drawing_tests_passed = true;
         }
 
@@ -147,7 +147,7 @@ public:
 
         if (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - oldTime) >= std::chrono::seconds{ 1 }) {
             oldTime = std::chrono::high_resolution_clock::now();
-            PrintLine("FPS: ", fps);
+            PTGN_INFO("FPS: ", fps);
             fps = 0;
         }
     }

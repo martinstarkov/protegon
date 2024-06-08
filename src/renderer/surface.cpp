@@ -3,24 +3,22 @@
 #include <SDL.h>
 #include <SDL_image.h>
 
-#include <cassert>
-
-#include "protegon/log.h"
+#include "utility/debug.h"
 #include "protegon/file.h"
 
 namespace ptgn {
 
 Surface::Surface(const path& image_path) {
-	assert(FileExists(image_path) && "Cannot create surface from a nonexistent image path");
+	PTGN_CHECK(FileExists(image_path), "Cannot create surface from a nonexistent image path");
 	instance_ = { IMG_Load(image_path.string().c_str()), SDL_FreeSurface };
 	if (!IsValid()) {
-		PrintLine(IMG_GetError());
-		assert(!"Failed to create surface from image path");
+		PTGN_ERROR(IMG_GetError());
+		PTGN_ASSERT(false, "Failed to create surface from image path");
 	}
 }
 
 void Surface::ForEachPixel(std::function<void(const V2_int&, const Color&)> function) {
-	assert(IsValid() && "Cannot loop through each pixel of uninitialized or destroyed surface");
+	PTGN_CHECK(IsValid(), "Cannot loop through each pixel of uninitialized or destroyed surface");
 	Lock();
 
 	const V2_int size{ GetSize() };
@@ -35,42 +33,42 @@ void Surface::ForEachPixel(std::function<void(const V2_int&, const Color&)> func
 }
 
 void Surface::Lock() {
-	assert(IsValid() && "Cannot lock an uninitialized or destroyed surface");
+	PTGN_CHECK(IsValid(), "Cannot lock an uninitialized or destroyed surface");
 	int success = SDL_LockSurface(instance_.get());
 	if (success != 0) {
-		PrintLine(SDL_GetError());
-		assert(!"Failed to lock surface");
+		PTGN_ERROR(SDL_GetError());
+		PTGN_ASSERT(false, "Failed to lock surface");
 	}
 }
 
 V2_int Surface::GetSize() const {
-	assert(IsValid() && "Cannot get size of an uninitialized or destroyed surface");
+	PTGN_CHECK(IsValid(), "Cannot get size of an uninitialized or destroyed surface");
 	return { instance_.get()->w, instance_.get()->h };
 }
 
 void Surface::Unlock() {
-	assert(IsValid() && "Cannot unlock an uninitialized or destroyed surface");
+	PTGN_CHECK(IsValid(), "Cannot unlock an uninitialized or destroyed surface");
 	SDL_UnlockSurface(instance_.get());
 }
 
 Color Surface::GetColor(const V2_int& coordinate) {
-	assert(IsValid() && "Cannot get color of an uninitialized or destroyed surface");
+	PTGN_CHECK(IsValid(), "Cannot get color of an uninitialized or destroyed surface");
 	return GetColorData(GetPixelData(coordinate));
 }
 
 Color Surface::GetColorData(std::uint32_t pixel_data) {
-	assert(IsValid() && "Cannot get color data of an uninitialized or destroyed surface");
+	PTGN_CHECK(IsValid(), "Cannot get color data of an uninitialized or destroyed surface");
 	Color color;
 	SDL_GetRGB(pixel_data, instance_.get()->format, &color.r, &color.g, &color.b);
 	return color;
 }
 
 std::uint32_t Surface::GetPixelData(const V2_int& coordinate) {
-	assert(IsValid() && "Cannot get pixel data of an uninitialized or destroyed surface");
+	PTGN_CHECK(IsValid(), "Cannot get pixel data of an uninitialized or destroyed surface");
 	int bpp = instance_.get()->format->BytesPerPixel;
 	std::uint8_t* p = (std::uint8_t*)instance_.get()->pixels + 
 					  coordinate.y * instance_.get()->pitch + coordinate.x * bpp;
-	assert(p != nullptr && "Failed to find coordinate pixel data");
+	PTGN_CHECK(p != nullptr, "Failed to find coordinate pixel data");
 	switch (bpp) {
 		case 1:
 			return *p;
@@ -91,7 +89,7 @@ std::uint32_t Surface::GetPixelData(const V2_int& coordinate) {
 			break;
 
 		default:
-			assert(!"Failed to find coordinate pixel data");
+			PTGN_ASSERT(false, "Failed to find coordinate pixel data");
 			return 0;
 	}
 }

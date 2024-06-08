@@ -18,8 +18,8 @@ void SceneManager::SetActive(std::size_t scene_key) {
 
 void SceneManager::AddActive(std::size_t scene_key) {
 	active_scenes_.emplace_back(scene_key);
-	assert(
-		(Has(scene_key) || scene_key == scene::impl::start_scene_key) &&
+	PTGN_ASSERT(
+		Has(scene_key) || scene_key == scene::impl::start_scene_key,
 		"Cannot set scene to active unless it has been loaded first"
 	);
 	/*auto scene = Get(scene_key);
@@ -76,9 +76,9 @@ void SceneManager::UnloadFlagged() {
 			}
 		}
 		counter++;
-		assert(counter <= max_counter && "Failed to properly delete all flagged scenes within a reasonable number of loops");
+		PTGN_ASSERT(counter <= max_counter && "Failed to properly delete all flagged scenes within a reasonable number of loops");
 	}
-	assert(flagged_ == 0 && "Could not delete a flagged scene");
+	PTGN_ASSERT(flagged_ == 0 && "Could not delete a flagged scene");
 }
 
 bool SceneManager::ActiveScenesContain(std::size_t key) const {

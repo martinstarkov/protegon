@@ -1,5 +1,7 @@
 #include "protegon/a_star.h"
 
+#include "utility/debug.h"
+
 namespace ptgn {
 
 namespace impl {
@@ -74,8 +76,8 @@ void AStarGrid::DisplayWaypoints(const std::deque<V2_int>& waypoints, const V2_i
 }
 
 void AStarGrid::SolvePath(const V2_int& start, const V2_int& end) {
-	assert(Has(start));
-	assert(Has(end));
+	PTGN_CHECK(Has(start));
+	PTGN_CHECK(Has(end));
 	impl::AStarNode* start_node{ &Get(start) };
 	impl::AStarNode* end_node{ &Get(end) };
 

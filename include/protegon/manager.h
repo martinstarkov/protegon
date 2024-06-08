@@ -1,11 +1,11 @@
 #pragma once
 
-#include <cassert>
 #include <cstdlib>
 #include <memory>
 #include <unordered_map>
 #include <utility>
 
+#include "utility/debug.h"
 #include "type_traits.h"
 
 namespace ptgn {
@@ -51,7 +51,7 @@ public:
     */
     [[nodiscard]] T Get(std::size_t key) {
         auto it{ map_.find(key) };
-        assert(it != std::end(map_) && "Entry does not exist in resource manager");
+        PTGN_CHECK(it != std::end(map_), "Entry does not exist in resource manager");
         return it->second;
     }
 

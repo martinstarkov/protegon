@@ -2,8 +2,9 @@
 
 #include "game.h"
 #include "protegon/window.h"
+#include "utility/platform.h"
 
-#if defined(__APPLE__) && defined(USING_APPLE_CLANG)
+#ifdef PTGN_PLATFORM_MACOS
 
 #include <filesystem>
 #include <iostream>
@@ -18,7 +19,7 @@ namespace impl {
 void GameStart() {
 // When using AppleClang, for some reason the working directory for the executable is set to $HOME instead of the executable directory.
 // Therefore, the C++ code corrects the working directory using std::filesystem so that relative paths work properly.
-#if defined(__APPLE__) && defined(USING_APPLE_CLANG)
+#ifdef PTGN_PLATFORM_MACOS
 	char path[1024];
 	std::uint32_t size = sizeof(path);
 	std::filesystem::path exe_dir;

@@ -1,6 +1,5 @@
 #include "input_handler.h"
 
-#include <cassert>
 #include <algorithm>
 
 #include <SDL.h>
@@ -136,7 +135,7 @@ std::pair<MouseState&, Timer&> InputHandler::GetMouseStateAndTimer(Mouse button)
 		default:
 			break;
 	}
-	assert(!"Input handler cannot retrieve state and timer for invalid mouse button");
+	PTGN_ASSERT(false, "Input handler cannot retrieve state and timer for invalid mouse button");
 	return { middle_mouse_, middle_mouse_timer_ }; // unused but avoids control path error.
 }
 
@@ -173,7 +172,7 @@ bool InputHandler::MouseUp(Mouse button) const {
 
 bool InputHandler::KeyPressed(Key key) const {
 	auto key_number{ static_cast<std::size_t>(key) };
-	assert(key_number < InputHandler::KEY_COUNT && "Could not find key in input handler key states");
+	PTGN_CHECK(key_number < InputHandler::KEY_COUNT, "Could not find key in input handler key states");
 	return key_states_[key_number];
 }
 
@@ -183,13 +182,13 @@ bool InputHandler::KeyReleased(Key key) const {
 
 bool InputHandler::KeyDown(Key key) {
 	auto key_number{ static_cast<std::size_t>(key) };
-	assert(key_number < InputHandler::KEY_COUNT && "Could not find key in input handler key states");
+	PTGN_CHECK(key_number < InputHandler::KEY_COUNT, "Could not find key in input handler key states");
 	return first_time_[key_number] && key_states_[key_number];
 }
 
 bool InputHandler::KeyUp(Key key) {
 	auto key_number{ static_cast<std::size_t>(key) };
-	assert(key_number < InputHandler::KEY_COUNT && "Could not find key in input handler key states");
+	PTGN_CHECK(key_number < InputHandler::KEY_COUNT, "Could not find key in input handler key states");
 	return first_time_[key_number] && !key_states_[key_number];
 }
 

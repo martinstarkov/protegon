@@ -32,7 +32,7 @@ public:
 	// Custom range seedless distribution.
     // Range: [min, max] (inclusive).
 	RNG(T min, T max) {
-		assert(min <= max && "Cannot construct RNG range where min is above max");
+		PTGN_CHECK(min <= max, "Cannot construct RNG range where min is above max");
         if constexpr (std::is_floating_point_v<T>)
 			// ensures inclusive range.
 			distribution_ = uniform_distribution<T>{ min, std::nextafter(max, std::numeric_limits<T>::epsilon()) };
@@ -43,7 +43,7 @@ public:
 	// Custom range seeded distribution.
     // Range: [min, max] (inclusive).
 	RNG(std::uint32_t seed, T min, T max) : generator_{ seed } {
-		assert(min <= max && "Cannot construct RNG range where min is above max");
+		PTGN_CHECK(min <= max, "Cannot construct RNG range where min is above max");
 		if constexpr (std::is_floating_point_v<T>)
 			// ensures inclusive range.
 			distribution_ = uniform_distribution<T>{ min, std::nextafter(max, std::numeric_limits<T>::epsilon()) };

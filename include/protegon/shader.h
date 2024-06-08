@@ -5,7 +5,6 @@
 #include <unordered_map>
 #include <cstdint>
 #include <memory>
-#include <cassert>
 
 #include "type_traits.h"
 #include "file.h"
@@ -41,7 +40,7 @@ template <typename T>
 	else if constexpr (std::is_same_v<T, std::uint16_t>)							return TYPE_UNSIGNED_SHORT;
 	else if constexpr (std::is_same_v<T, std::int8_t> || std::is_same_v<T, bool>)   return TYPE_BYTE;
 	else if constexpr (std::is_same_v<T, std::uint8_t>)								return TYPE_UNSIGNED_BYTE;
-	assert(!"Failed to retrieve type of buffer element");
+	PTGN_ASSERT(false, "Failed to retrieve type of buffer element");
 	return 0;
 }
 

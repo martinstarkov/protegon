@@ -1,14 +1,12 @@
 #pragma once
 
 #include "protegon/rng.h"
-
-#include <cassert>  // assert
-#include <iostream> // std::cout
+#include "utility/debug.h"
 
 using namespace ptgn;
 
 bool TestRNG() {
-	std::cout << "Starting RNG tests..." << std::endl;
+	PTGN_INFO("Starting RNG tests...");
 
 	int test_amount = 100000;
 
@@ -33,13 +31,13 @@ bool TestRNG() {
 		if (value == 6) six_found = true;
 	}
 
-	assert(zero_found);
-	assert(one_found);
-	assert(!two_found);
-	assert(!three_found);
-	assert(!four_found);
-	assert(!five_found);
-	assert(!six_found);
+	PTGN_ASSERT(zero_found);
+	PTGN_ASSERT(one_found);
+	PTGN_ASSERT(!two_found);
+	PTGN_ASSERT(!three_found);
+	PTGN_ASSERT(!four_found);
+	PTGN_ASSERT(!five_found);
+	PTGN_ASSERT(!six_found);
 
 	zero_found  = false;
 	one_found   = false;
@@ -62,13 +60,13 @@ bool TestRNG() {
 		if (value == 6) six_found = true;
 	}
 
-	assert(zero_found);
-	assert(one_found);
-	assert(!two_found);
-	assert(!three_found);
-	assert(!four_found);
-	assert(!five_found);
-	assert(!six_found);
+	PTGN_ASSERT(zero_found);
+	PTGN_ASSERT(one_found);
+	PTGN_ASSERT(!two_found);
+	PTGN_ASSERT(!three_found);
+	PTGN_ASSERT(!four_found);
+	PTGN_ASSERT(!five_found);
+	PTGN_ASSERT(!six_found);
 
 	zero_found  = false;
 	one_found   = false;
@@ -91,13 +89,13 @@ bool TestRNG() {
 		if (value == 6) six_found = true;
 	}
 
-	assert(!zero_found);
-	assert(!one_found);
-	assert(!two_found);
-	assert(three_found);
-	assert(four_found);
-	assert(five_found);
-	assert(six_found);
+	PTGN_ASSERT(!zero_found);
+	PTGN_ASSERT(!one_found);
+	PTGN_ASSERT(!two_found);
+	PTGN_ASSERT(three_found);
+	PTGN_ASSERT(four_found);
+	PTGN_ASSERT(five_found);
+	PTGN_ASSERT(six_found);
 
 	zero_found  = false;
 	one_found   = false;
@@ -121,42 +119,42 @@ bool TestRNG() {
 		if (value == 6) six_found = true;
 	}
 
-	assert(!zero_found);
-	assert(!one_found);
-	assert(!two_found);
-	assert(three_found);
-	assert(four_found);
-	assert(five_found);
-	assert(six_found);
+	PTGN_ASSERT(!zero_found);
+	PTGN_ASSERT(!one_found);
+	PTGN_ASSERT(!two_found);
+	PTGN_ASSERT(three_found);
+	PTGN_ASSERT(four_found);
+	PTGN_ASSERT(five_found);
+	PTGN_ASSERT(six_found);
 
 	RNG<float> r5a{ 400.0f, 600.0f }; // seedless, custom range: [400.0f, 600.0f], inclusive.
 	
 	for (auto i = 0; i < test_amount; ++i) {
 		float value = r5a();
-		assert(value >= 400.0f);
+		PTGN_ASSERT(value >= 400.0f);
 		if (value > 600.0f) {
 			std::cout << "value was: " << value;
 		}
-		assert(value <= 600.0f);
+		PTGN_ASSERT(value <= 600.0f);
 	}
 
 	RNG<double> r5b{ -30.0, 60.0 }; // seedless, custom range: [-30.0, 60.0], inclusive.
 
 	for (auto i = 0; i < test_amount; ++i) {
 		double value = r5b();
-		assert(value >= -30.0);
+		PTGN_ASSERT(value >= -30.0);
 		if (value > 60.0) {
 			std::cout << "value was: " << value;
 		}
-		assert(value <= 60.0);
+		PTGN_ASSERT(value <= 60.0);
 	}
 
 	RNG<std::size_t> r5c{ 0, 300 }; // seedless, custom range: [0, 300], inclusive.
 
 	for (auto i = 0; i < test_amount; ++i) {
 		std::size_t value = r5c();
-		assert(value >= 0);
-		assert(value <= 300);
+		PTGN_ASSERT(value >= 0);
+		PTGN_ASSERT(value <= 300);
 	}
 
 	/*
@@ -165,11 +163,11 @@ bool TestRNG() {
 	
 	for (auto i = 0; i < test_amount; ++i) {
 		std::uint8_t value = r5d();
-		assert(value >= 0);
-		assert(value <= 255);
+		PTGN_ASSERT(value >= 0);
+		PTGN_ASSERT(value <= 255);
 	}
 	*/
 
-	std::cout << "All RNG tests passed!" << std::endl;
+	PTGN_INFO("All RNG tests passed!");
 	return true;
 }

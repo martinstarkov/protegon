@@ -1,8 +1,10 @@
 #pragma once
 
+#include "utility/platform.h"
+
 // IMPORTANT: This file is not meant to be included outside the protegon library so keep it in .cpp files only!
 
-#ifdef __APPLE__
+#ifdef PTGN_PLATFORM_MACOS
 
 #include <OpenGL/OpenGL.h>
 
@@ -19,7 +21,7 @@
 
 #endif
 
-#ifndef __APPLE__
+#ifndef PTGN_PLATFORM_MACOS
 
 #define GL_LIST \
 GLE(AttachShader, ATTACHSHADER) \

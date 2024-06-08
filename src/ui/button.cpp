@@ -1,13 +1,12 @@
 #include "protegon/button.h"
 
-#include <cassert>
 #include <functional>
 #include <utility>
 
 #include "protegon/collision.h"
 #include "protegon/input.h"
 #include "core/game.h"
-#include "protegon/log.h"
+#include "utility/debug.h"
 
 namespace ptgn {
 
@@ -46,20 +45,20 @@ void Button::SetInteractable(bool interactable) {
 
 void Button::Activate() {
     if (!enabled_) return;
-    assert(on_activate_ != nullptr && "Cannot activate button which has no activate function set");
+    PTGN_CHECK(on_activate_ != nullptr, "Cannot activate button which has no activate function set");
  	on_activate_();
     RecheckState();
 }
 
 void Button::StartHover() {
     if (!enabled_) return;
-    assert(on_hover_start_ != nullptr && "Cannot start hover for button which has no hover start function set");
+    PTGN_CHECK(on_hover_start_ != nullptr, "Cannot start hover for button which has no hover start function set");
     on_hover_start_();
 }
 
 void Button::StopHover() {
     if (!enabled_) return;
-    assert(on_hover_stop_ != nullptr && "Cannot stop hover for button which has no hover stop function set");
+    PTGN_CHECK(on_hover_stop_ != nullptr, "Cannot stop hover for button which has no hover stop function set");
     on_hover_stop_();
 }
 
@@ -345,7 +344,7 @@ void TexturedButton::DrawImpl(std::size_t texture_array_index) const {
     if (!texture.IsValid()) {
         texture = GetCurrentTextureImpl(ButtonState::DEFAULT, 0);
     }
-    assert(texture.IsValid() && "Button state texture (or default texture) must be valid");
+    PTGN_ASSERT(texture.IsValid(), "Button state texture (or default texture) must be valid");
     texture.Draw(rect_);
 }
 
@@ -362,7 +361,7 @@ Texture TexturedButton::GetCurrentTextureImpl(ButtonState state, std::size_t tex
 
     if (std::holds_alternative<TextureKey>(texture_state)) {
         const TextureKey key{ std::get<TextureKey>(texture_state) };
-        assert(texture::Has(key) && "Cannot get button texture which has not been loaded");
+        PTGN_ASSERT(texture::Has(key), "Cannot get button texture which has not been loaded");
         texture = texture::Get(key);
     } else if (std::holds_alternative<Texture>(texture_state)) {
         texture = std::get<Texture>(texture_state);
@@ -386,9 +385,9 @@ TexturedToggleButton::TexturedToggleButton(
     SubscribeToMouseEvents();
 
     // TODO: Perhaps allow for more than two entries later
-    assert(default.size() <= 2);
-    assert(hover.size() <= 2);
-    assert(pressed.size() <= 2);
+    PTGN_CHECK(default.size() <= 2);
+    PTGN_CHECK(hover.size() <= 2);
+    PTGN_CHECK(pressed.size() <= 2);
 
     auto set_textures = [&](const auto& list, const ButtonState state) -> void {
         std::size_t i = 0;

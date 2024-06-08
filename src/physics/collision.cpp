@@ -214,7 +214,7 @@ bool CircleCircle(const Circle<float>& a,
 
     if (dist2 > epsilon2<float>) {
         const float dist{ std::sqrt(dist2) };
-        assert(!NearlyEqual(dist, 0.0f));
+        PTGN_ASSERT(!NearlyEqual(dist, 0.0f));
         c.normal = -d / dist;
         c.depth = r - dist;
     }
@@ -282,7 +282,7 @@ bool CircleRectangle(const Circle<float>& a,
             }
         } else { // shallow (center of circle not inside of AABB)
             const float d{ std::sqrt(d2) };
-            assert(!NearlyEqual(d, 0.0f));
+            PTGN_ASSERT(!NearlyEqual(d, 0.0f));
             c.normal = ab / d;
             c.depth = a.radius - d;
         }

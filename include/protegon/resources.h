@@ -144,7 +144,7 @@ template <typename T, typename ...TArgs,
 	type_traits::constructible<T, TArgs...> = true,
 	type_traits::convertible<T*, Scene*> = true>
 void SetStartScene(TArgs&&... constructor_args) {
-	assert(!scene::Has(start_scene_key) && "Cannot load more than one start scene");
+	PTGN_ASSERT(!scene::Has(start_scene_key), "Cannot load more than one start scene");
 	// This may be unintuitive order but since the starting scene may set other active scenes,
 	// it is important to set it first so it is the "earliest" active scene in the list.
 	scene::SetActive(start_scene_key);
@@ -157,7 +157,7 @@ template <typename T, typename ...TArgs,
 	type_traits::constructible<T, TArgs...> = true,
 	type_traits::convertible<T*, Scene*> = true>
 std::shared_ptr<T> Load(SceneKey key, TArgs&&... constructor_args) {
-	assert(key != impl::start_scene_key && "Cannot load scene with key == 0, it is reserved for the starting scene");
+	PTGN_CHECK(key != impl::start_scene_key, "Cannot load scene with key == 0, it is reserved for the starting scene");
 	return std::static_pointer_cast<T>(GetManagers().scene.Load(key, std::make_shared<T>(std::forward<TArgs>(constructor_args)...)));
 }
 

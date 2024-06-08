@@ -1,7 +1,5 @@
 #include "protegon/vector2.h"
 
-#include <cassert>
-
 #include <SDL.h>
 
 #include "protegon/line.h"

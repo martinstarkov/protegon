@@ -42,8 +42,8 @@ public:
             Elapsed<std::chrono::duration<T, typename Duration::period>>() / compared_to
         };
         T percentage{ std::clamp(elapsed_time.count(), static_cast<T>(0), static_cast<T>(1)) };
-        assert(percentage >= static_cast<T>(0) &&
-               percentage <= static_cast<T>(1) &&
+        PTGN_ASSERT(percentage >= static_cast<T>(0) &&
+                    percentage <= static_cast<T>(1),
                "Elapsed countdown percentage cannot be outside the 0.0 to 1.0 range");
         return percentage;
     }

@@ -1,13 +1,12 @@
 #pragma once
 
+#include <set>
+
 #include "protegon/protegon.h"
 #include "renderer/buffer.h"
 #include "core/opengl_instance.h"
 #include "core/game.h"
-
-#include <cassert>  // assert
-#include <iostream> // std::cout
-#include <set> // std::set
+#include "utility/debug.h"
 
 using namespace ptgn;
 
@@ -32,7 +31,7 @@ void EncodeAndExtract(
 
 	// Only check shader data types which have been implemented.
 	/*if (data_type != ShaderDataType::none) {
-		assert(encoded == static_cast<std::uint64_t>(data_type));
+		PTGN_ASSERT(encoded == static_cast<std::uint64_t>(data_type));
 	}*/
 
 	unique_codes.emplace(encoded);
@@ -41,33 +40,33 @@ void EncodeAndExtract(
 	std::uint16_t extracted_count = (encoded >> 32) & 0xFFFF;
 	std::uint16_t extracted_size = (encoded >> 48) & 0xFFFF;
 
-	assert(extracted_type  == hidden_type);
-	assert(extracted_count == hidden_count);
-	assert(extracted_size  == hidden_size);
+	PTGN_ASSERT(extracted_type  == hidden_type);
+	PTGN_ASSERT(extracted_count == hidden_count);
+	PTGN_ASSERT(extracted_size  == hidden_size);
 
-	//PrintLine("Hidden Size: ", static_cast<std::int32_t>(hidden_size));
-	//PrintLine("Hidden Count: ", static_cast<std::int32_t>(hidden_count));
-	//PrintLine("Hidden Type: ", hidden_type);
-	//PrintLine("Encoded: ", encoded);
-	//PrintLine("Extracted Size: ", static_cast<std::int32_t>(extracted_size));
-	//PrintLine("Extracted Count: ", static_cast<std::int32_t>(extracted_count));
-	//PrintLine("Extracted Type: ", extracted_type);
-	//PrintLine("--------------------------------------");
+	//PTGN_INFO("Hidden Size: ", static_cast<std::int32_t>(hidden_size));
+	//PTGN_INFO("Hidden Count: ", static_cast<std::int32_t>(hidden_count));
+	//PTGN_INFO("Hidden Type: ", hidden_type);
+	//PTGN_INFO("Encoded: ", encoded);
+	//PTGN_INFO("Extracted Size: ", static_cast<std::int32_t>(extracted_size));
+	//PTGN_INFO("Extracted Count: ", static_cast<std::int32_t>(extracted_count));
+	//PTGN_INFO("Extracted Type: ", extracted_type);
+	//PTGN_INFO("--------------------------------------");
 
 }
 
 bool TestShader() {
-	PrintLine("Starting Shader tests...");
+	PTGN_INFO("Starting Shader tests...");
 
 	// Identifier tests
-	assert(impl::TYPE_BYTE == GL_BYTE);
-	assert(impl::TYPE_UNSIGNED_BYTE == GL_UNSIGNED_BYTE);
-	assert(impl::TYPE_SHORT == GL_SHORT);
-	assert(impl::TYPE_UNSIGNED_SHORT == GL_UNSIGNED_SHORT);
-	assert(impl::TYPE_INT == GL_INT);
-	assert(impl::TYPE_UNSIGNED_INT == GL_UNSIGNED_INT);
-	assert(impl::TYPE_FLOAT == GL_FLOAT);
-	assert(impl::TYPE_DOUBLE == GL_DOUBLE);
+	PTGN_ASSERT(impl::TYPE_BYTE == GL_BYTE);
+	PTGN_ASSERT(impl::TYPE_UNSIGNED_BYTE == GL_UNSIGNED_BYTE);
+	PTGN_ASSERT(impl::TYPE_SHORT == GL_SHORT);
+	PTGN_ASSERT(impl::TYPE_UNSIGNED_SHORT == GL_UNSIGNED_SHORT);
+	PTGN_ASSERT(impl::TYPE_INT == GL_INT);
+	PTGN_ASSERT(impl::TYPE_UNSIGNED_INT == GL_UNSIGNED_INT);
+	PTGN_ASSERT(impl::TYPE_FLOAT == GL_FLOAT);
+	PTGN_ASSERT(impl::TYPE_DOUBLE == GL_DOUBLE);
 
 	std::set<std::uint64_t> unique_codes;
 
@@ -111,11 +110,11 @@ bool TestShader() {
 	EncodeAndExtract(sizeof(std::double_t), 3, impl::TYPE_DOUBLE, unique_codes);//, ShaderDataType::dvec3);
 	EncodeAndExtract(sizeof(std::double_t), 4, impl::TYPE_DOUBLE, unique_codes);//, ShaderDataType::dvec4);
 
-	assert(unique_codes.size() == 32);
+	PTGN_ASSERT(unique_codes.size() == 32);
 
-	//assert(BufferElement{ ShaderDataType::none }.GetSize() == 0);
-	//assert(BufferElement{ ShaderDataType::none }.GetOffset() == 0);
-	//assert(BufferElement{ ShaderDataType::none }.GetType() == ShaderDataInfo{ ShaderDataType::none }.type);
+	//PTGN_ASSERT(BufferElement{ ShaderDataType::none }.GetSize() == 0);
+	//PTGN_ASSERT(BufferElement{ ShaderDataType::none }.GetOffset() == 0);
+	//PTGN_ASSERT(BufferElement{ ShaderDataType::none }.GetType() == ShaderDataInfo{ ShaderDataType::none }.type);
 
 	// BufferLayout tests
 
@@ -134,13 +133,13 @@ bool TestShader() {
 	BufferLayout layout1{ b1.GetLayout() };
 	auto e1{ layout1.GetElements() };
 
-	assert(e1.size() == 1);
-	assert(layout1.GetStride()  == 3 * sizeof(float));
+	PTGN_ASSERT(e1.size() == 1);
+	PTGN_ASSERT(layout1.GetStride()  == 3 * sizeof(float));
 
-	//assert(e1.at(0).GetType() == ShaderDataInfo{ ShaderDataType::vec3 }.type);
+	//PTGN_ASSERT(e1.at(0).GetType() == ShaderDataInfo{ ShaderDataType::vec3 }.type);
 
-	assert(e1.at(0).GetOffset() == 0);
-	assert(e1.at(0).GetSize()   == 3 * sizeof(float));
+	PTGN_ASSERT(e1.at(0).GetOffset() == 0);
+	PTGN_ASSERT(e1.at(0).GetSize()   == 3 * sizeof(float));
 
 	struct TestVertex2 {
 		glsl::vec3 a;
@@ -161,21 +160,21 @@ bool TestShader() {
 	//	{ ShaderDataType::vec3 },
 	//};
 
-	assert(e2.size() == 3);
-	assert(layout2.GetStride() == 3 * sizeof(float) + 4 * sizeof(float) + 3 * sizeof(float));
+	PTGN_ASSERT(e2.size() == 3);
+	PTGN_ASSERT(layout2.GetStride() == 3 * sizeof(float) + 4 * sizeof(float) + 3 * sizeof(float));
 
-	//assert(e2.at(0).GetType() == ShaderDataInfo{ ShaderDataType::vec3 }.type);
-	//assert(e2.at(1).GetType() == ShaderDataInfo{ ShaderDataType::vec4 }.type);
-	//assert(e2.at(2).GetType() == ShaderDataInfo{ ShaderDataType::vec3 }.type);
+	//PTGN_ASSERT(e2.at(0).GetType() == ShaderDataInfo{ ShaderDataType::vec3 }.type);
+	//PTGN_ASSERT(e2.at(1).GetType() == ShaderDataInfo{ ShaderDataType::vec4 }.type);
+	//PTGN_ASSERT(e2.at(2).GetType() == ShaderDataInfo{ ShaderDataType::vec3 }.type);
 
-	assert(e2.at(0).GetOffset() == 0);
-	assert(e2.at(0).GetSize() == 3 * sizeof(float));
+	PTGN_ASSERT(e2.at(0).GetOffset() == 0);
+	PTGN_ASSERT(e2.at(0).GetSize() == 3 * sizeof(float));
 
-	assert(e2.at(1).GetOffset() == 3 * sizeof(float));
-	assert(e2.at(1).GetSize() == 4 * sizeof(float));
+	PTGN_ASSERT(e2.at(1).GetOffset() == 3 * sizeof(float));
+	PTGN_ASSERT(e2.at(1).GetSize() == 4 * sizeof(float));
 	
-	assert(e2.at(2).GetOffset() == 3 * sizeof(float) + 4 * sizeof(float));
-	assert(e2.at(2).GetSize() == 3 * sizeof(float));
+	PTGN_ASSERT(e2.at(2).GetOffset() == 3 * sizeof(float) + 4 * sizeof(float));
+	PTGN_ASSERT(e2.at(2).GetSize() == 3 * sizeof(float));
 
 	struct TestVertex3 {
 		glsl::vec4 a;
@@ -210,8 +209,8 @@ bool TestShader() {
 	//	{ ShaderDataType::uvec4 },
 	//};
 
-	assert(e3.size() == 10);
-	assert(layout3.GetStride() == 4 * sizeof(float) + \
+	PTGN_ASSERT(e3.size() == 10);
+	PTGN_ASSERT(layout3.GetStride() == 4 * sizeof(float) + \
 								  1 * sizeof(double) + \
 								  3 * sizeof(int) + \
 								  2 * sizeof(double) + \
@@ -222,62 +221,62 @@ bool TestShader() {
 								  3 * sizeof(bool) + \
 								  4 * sizeof(unsigned int));
 
-	//assert(e3.at(0).GetType() == ShaderDataInfo{ ShaderDataType::vec4 }.type);
-	//assert(e3.at(1).GetType() == ShaderDataInfo{ ShaderDataType::double_ }.type);
-	//assert(e3.at(2).GetType() == ShaderDataInfo{ ShaderDataType::ivec3 }.type);
-	//assert(e3.at(3).GetType() == ShaderDataInfo{ ShaderDataType::dvec2 }.type);
-	//assert(e3.at(4).GetType() == ShaderDataInfo{ ShaderDataType::int_ }.type);
-	//assert(e3.at(5).GetType() == ShaderDataInfo{ ShaderDataType::float_ }.type);
-	//assert(e3.at(6).GetType() == ShaderDataInfo{ ShaderDataType::bool_ }.type);
-	//assert(e3.at(7).GetType() == ShaderDataInfo{ ShaderDataType::uint_ }.type);
-	//assert(e3.at(8).GetType() == ShaderDataInfo{ ShaderDataType::bvec3 }.type);
-	//assert(e3.at(9).GetType() == ShaderDataInfo{ ShaderDataType::uvec4 }.type);
+	//PTGN_ASSERT(e3.at(0).GetType() == ShaderDataInfo{ ShaderDataType::vec4 }.type);
+	//PTGN_ASSERT(e3.at(1).GetType() == ShaderDataInfo{ ShaderDataType::double_ }.type);
+	//PTGN_ASSERT(e3.at(2).GetType() == ShaderDataInfo{ ShaderDataType::ivec3 }.type);
+	//PTGN_ASSERT(e3.at(3).GetType() == ShaderDataInfo{ ShaderDataType::dvec2 }.type);
+	//PTGN_ASSERT(e3.at(4).GetType() == ShaderDataInfo{ ShaderDataType::int_ }.type);
+	//PTGN_ASSERT(e3.at(5).GetType() == ShaderDataInfo{ ShaderDataType::float_ }.type);
+	//PTGN_ASSERT(e3.at(6).GetType() == ShaderDataInfo{ ShaderDataType::bool_ }.type);
+	//PTGN_ASSERT(e3.at(7).GetType() == ShaderDataInfo{ ShaderDataType::uint_ }.type);
+	//PTGN_ASSERT(e3.at(8).GetType() == ShaderDataInfo{ ShaderDataType::bvec3 }.type);
+	//PTGN_ASSERT(e3.at(9).GetType() == ShaderDataInfo{ ShaderDataType::uvec4 }.type);
 
-	assert(e3.at(0).GetOffset() == 0);
-	assert(e3.at(0).GetSize() == 4 * sizeof(float));
+	PTGN_ASSERT(e3.at(0).GetOffset() == 0);
+	PTGN_ASSERT(e3.at(0).GetSize() == 4 * sizeof(float));
 
-	assert(e3.at(1).GetOffset() == 4 * sizeof(float));
-	assert(e3.at(1).GetSize() == 1 * sizeof(double));
+	PTGN_ASSERT(e3.at(1).GetOffset() == 4 * sizeof(float));
+	PTGN_ASSERT(e3.at(1).GetSize() == 1 * sizeof(double));
 
-	assert(e3.at(2).GetOffset() == 4 * sizeof(float) + \
+	PTGN_ASSERT(e3.at(2).GetOffset() == 4 * sizeof(float) + \
 		1 * sizeof(double));
-	assert(e3.at(2).GetSize() == 3 * sizeof(int));
+	PTGN_ASSERT(e3.at(2).GetSize() == 3 * sizeof(int));
 
-	assert(e3.at(3).GetOffset() == 4 * sizeof(float) + \
+	PTGN_ASSERT(e3.at(3).GetOffset() == 4 * sizeof(float) + \
 		1 * sizeof(double) + \
 		3 * sizeof(int));
-	assert(e3.at(3).GetSize() == 2 * sizeof(double));
-	assert(e3.at(4).GetOffset() == 4 * sizeof(float) + \
+	PTGN_ASSERT(e3.at(3).GetSize() == 2 * sizeof(double));
+	PTGN_ASSERT(e3.at(4).GetOffset() == 4 * sizeof(float) + \
 		1 * sizeof(double) + \
 		3 * sizeof(int) + \
 		2 * sizeof(double));
-	assert(e3.at(4).GetSize() == 1 * sizeof(int));
+	PTGN_ASSERT(e3.at(4).GetSize() == 1 * sizeof(int));
 
-	assert(e3.at(5).GetOffset() == 4 * sizeof(float) + \
+	PTGN_ASSERT(e3.at(5).GetOffset() == 4 * sizeof(float) + \
 		1 * sizeof(double) + \
 		3 * sizeof(int) + \
 		2 * sizeof(double) + \
 		1 * sizeof(int));
-	assert(e3.at(5).GetSize() == 1 * sizeof(float));
+	PTGN_ASSERT(e3.at(5).GetSize() == 1 * sizeof(float));
 
-	assert(e3.at(6).GetOffset() == 4 * sizeof(float) + \
+	PTGN_ASSERT(e3.at(6).GetOffset() == 4 * sizeof(float) + \
 		1 * sizeof(double) + \
 		3 * sizeof(int) + \
 		2 * sizeof(double) + \
 		1 * sizeof(int) + \
 		1 * sizeof(float));
-	assert(e3.at(6).GetSize() == 1 * sizeof(bool));
+	PTGN_ASSERT(e3.at(6).GetSize() == 1 * sizeof(bool));
 
-	assert(e3.at(7).GetOffset() == 4 * sizeof(float) + \
+	PTGN_ASSERT(e3.at(7).GetOffset() == 4 * sizeof(float) + \
 		1 * sizeof(double) + \
 		3 * sizeof(int) + \
 		2 * sizeof(double) + \
 		1 * sizeof(int) + \
 		1 * sizeof(float) + \
 		1 * sizeof(bool));
-	assert(e3.at(7).GetSize() == 1 * sizeof(unsigned int));
+	PTGN_ASSERT(e3.at(7).GetSize() == 1 * sizeof(unsigned int));
 
-	assert(e3.at(8).GetOffset() == 4 * sizeof(float) + \
+	PTGN_ASSERT(e3.at(8).GetOffset() == 4 * sizeof(float) + \
 		1 * sizeof(double) + \
 		3 * sizeof(int) + \
 		2 * sizeof(double) + \
@@ -285,9 +284,9 @@ bool TestShader() {
 		1 * sizeof(float) + \
 		1 * sizeof(bool) + \
 		1 * sizeof(unsigned int));
-	assert(e3.at(8).GetSize() == 3 * sizeof(bool));
+	PTGN_ASSERT(e3.at(8).GetSize() == 3 * sizeof(bool));
 
-	assert(e3.at(9).GetOffset() == 4 * sizeof(float) + \
+	PTGN_ASSERT(e3.at(9).GetOffset() == 4 * sizeof(float) + \
 		1 * sizeof(double) + \
 		3 * sizeof(int) + \
 		2 * sizeof(double) + \
@@ -296,7 +295,7 @@ bool TestShader() {
 		1 * sizeof(bool) + \
 		1 * sizeof(unsigned int) + \
 		3 * sizeof(bool));
-	assert(e3.at(9).GetSize() == 4 * sizeof(unsigned int));
+	PTGN_ASSERT(e3.at(9).GetSize() == 4 * sizeof(unsigned int));
 
 	// Fails to compile due to float type.
 	//struct Vertex {
@@ -350,7 +349,7 @@ bool TestShader() {
 		}
 	)";
 
-	assert(ptgn::global::GetGame().opengl.IsInitialized());
+	PTGN_ASSERT(ptgn::global::GetGame().opengl.IsInitialized());
 
 	Shader shader_triangle;
 	shader_triangle.CreateFromStrings(vertex_source, fragment_source);
@@ -361,6 +360,6 @@ bool TestShader() {
 	window::Show();
 	impl::TestOpenGL();
 
-	std::cout << "All Shader tests passed!" << std::endl;
+	PTGN_INFO("All Shader tests passed!");
 	return true;
 }

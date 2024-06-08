@@ -15,7 +15,7 @@ private:
 public:
 	// TODO: Figure out a better key to use than pointer cast.
 	void Subscribe(void* ptr, const SlotType& func) {
-		assert(ptr != nullptr && "Cannot add nullptr observer to EventDispatcher");
+		PTGN_CHECK(ptr != nullptr, "Cannot add nullptr observer to EventDispatcher");
 		observers_.emplace(ptr, func);
 	};
 	void Unsubscribe(void* ptr) {

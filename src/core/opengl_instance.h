@@ -16,6 +16,6 @@ namespace impl {
 
 void TestOpenGL();
 
-}
+} // namespace impl
 
 } // namespace ptgn

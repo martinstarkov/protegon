@@ -102,7 +102,7 @@ void DrawSolidRectangleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int 
 }
 
 void DrawThickRectangleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, double pixel_width) {
-	assert(pixel_width >= 1 && "Cannot draw rectangle with thickness below 1 pixel");
+	PTGN_ASSERT(pixel_width >= 1, "Cannot draw rectangle with thickness below 1 pixel");
 
 	int wh;
 
@@ -123,7 +123,7 @@ void DrawRoundedRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, int h
 	int xx1, xx2;
 	int yy1, yy2;
 
-	assert(r >= 0 && "Cannot draw rounded rectangle with negative radius");
+	PTGN_ASSERT(r >= 0, "Cannot draw rounded rectangle with negative radius");
 
 	if (r <= 1) {
 		DrawRectangleImpl(renderer, x, y, w, h);
@@ -201,7 +201,7 @@ void DrawSolidRoundedRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, 
 	int ypcy, ymcy, ypcx, ymcx;
 	int x1, y1, dx, dy;
 
-	assert(r >= 0 && "Cannot draw solid rounded rectangle with negative radius");
+	PTGN_ASSERT(r >= 0, "Cannot draw solid rounded rectangle with negative radius");
 
 	int x2 = x + w + 1;
 	int y2 = y + h + 1;
@@ -303,7 +303,7 @@ void DrawThickRoundedRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, 
 	int xx1, xx2;
 	int yy1, yy2;
 
-	assert(r >= 0 && "Cannot draw thick rounded rectangle with negative radius");
+	PTGN_ASSERT(r >= 0, "Cannot draw thick rounded rectangle with negative radius");
 
 	if (r <= 1) {
 		DrawThickRectangleImpl(renderer, x, y, x + w, y + h, pixel_thickness);
@@ -369,7 +369,7 @@ void DrawThickRoundedRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, 
 }
 
 void DrawPolygonImpl(SDL_Renderer* renderer, const std::vector<V2_int>& v) {
-	assert(v.size() >= 3 && "Cannot draw solid polygon with less than 3 vertices");
+	PTGN_ASSERT(v.size() >= 3, "Cannot draw solid polygon with less than 3 vertices");
 	// TODO: Figure out if there is a better way to do this conversion from std::vector<V2_int> to SDL_Point*.
 	std::vector<SDL_Point> p;
 	for (const auto& vi : v) {
@@ -380,7 +380,7 @@ void DrawPolygonImpl(SDL_Renderer* renderer, const std::vector<V2_int>& v) {
 }
 
 void DrawSolidPolygonImpl(SDL_Renderer* renderer, const std::vector<V2_int>& v) {
-	assert(v.size() >= 3 && "Cannot draw solid polygon with less than 3 vertices");
+	PTGN_ASSERT(v.size() >= 3, "Cannot draw solid polygon with less than 3 vertices");
 	int i;
 	int y, xa, xb;
 	int miny, maxy;
@@ -446,7 +446,7 @@ void DrawSolidPolygonImpl(SDL_Renderer* renderer, const std::vector<V2_int>& v) 
 }
 
 void DrawThickPolygonImpl(SDL_Renderer* renderer, const std::vector<V2_int>& v, double pixel_thickness) {
-	assert(v.size() >= 3 && "Cannot draw thick polygon with less than 3 vertices");
+	PTGN_ASSERT(v.size() >= 3, "Cannot draw thick polygon with less than 3 vertices");
 	for (size_t i = 0; i < v.size() - 1; i++) {
 		DrawThickLineImpl(renderer, v[i].x, v[i].y, v[i + 1].x, v[i + 1].y, pixel_thickness);
 	}

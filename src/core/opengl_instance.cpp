@@ -1,7 +1,6 @@
 #include "opengl_instance.h"
 
 #include <iostream>
-#include <cassert>
 
 #include <SDL.h>
 #include <SDL_image.h>
@@ -12,18 +11,19 @@
 #include "renderer/buffer.h"
 #include "protegon/shader.h"
 #include "renderer/vertex_array.h"
+#include "utility/platform.h"
 
 namespace ptgn {
 
 ptgn::OpenGLInstance::OpenGLInstance() {
-#ifndef __APPLE__
+#ifndef PTGN_PLATFORM_MACOS
 	initialized_ = InitOpenGL();
 	// TODO: Potentially make this optional in the future:
 #else
 	// TODO: Figure out what to do here for Apple.
 	initialized_ = false;
 #endif
-	assert(initialized_ && "Failed to initialize OpenGL");
+	PTGN_CHECK(initialized_, "Failed to initialize OpenGL");
 }
 
 OpenGLInstance::~OpenGLInstance() {
@@ -36,22 +36,22 @@ bool OpenGLInstance::IsInitialized() const {
 }
 
 bool OpenGLInstance::InitOpenGL() {
-	#ifndef __APPLE__
+#ifndef PTGN_PLATFORM_MACOS
 
-	#define STR(x) #x
-	#define GLE(name, caps_name) gl##name = (PFNGL##caps_name##PROC) SDL_GL_GetProcAddress(STR(gl##name));
-		GL_LIST
-	#undef GLE
-	#undef STR
+#define STR(x) #x
+#define GLE(name, caps_name) gl##name = (PFNGL##caps_name##PROC) SDL_GL_GetProcAddress(STR(gl##name));
+	GL_LIST
+#undef GLE
+#undef STR
 
-	#define GLE(name, caps_name) gl##name && 
-			return GL_LIST true;
-	#undef GLE
+#define GLE(name, caps_name) gl##name && 
+		return GL_LIST true;
+#undef GLE
 
-	#else // __APPLE__
+#else
 		// TODO: Figure out if something needs to be done separately on apple.
 		return true;
-	#endif
+#endif
 }
 
 namespace impl {
@@ -157,7 +157,7 @@ void TestOpenGL() {
 
 	Game& game = global::GetGame();
 	OpenGLInstance& opengl = game.opengl;
-	assert(opengl.IsInitialized());
+	PTGN_ASSERT(opengl.IsInitialized());
 	SDLInstance& sdl = game.sdl;
 	auto renderer = sdl.GetRenderer();
 	auto win = sdl.GetWindow();

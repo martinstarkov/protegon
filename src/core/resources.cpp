@@ -89,8 +89,8 @@ void Unmute(int optional_new_volume) {
 		SetVolume(MIX_MAX_VOLUME);
 		return;
 	}
-	assert(optional_new_volume >= 0 && "Cannot unmute to volume below 0");
-	assert(optional_new_volume <= MIX_MAX_VOLUME && "Cannot unmute to volume above max volume (128)");
+	PTGN_CHECK(optional_new_volume >= 0, "Cannot unmute to volume below 0");
+	PTGN_CHECK(optional_new_volume <= MIX_MAX_VOLUME, "Cannot unmute to volume above max volume (128)");
 	SetVolume(optional_new_volume);
 }
 
@@ -212,24 +212,24 @@ void Unload(SceneKey key) {
 }
 
 void SetActive(SceneKey key) {
-	assert((Has(key) || key == impl::start_scene_key) && "Cannot set active scene if it has not been loaded into the scene manager");
+	PTGN_CHECK(Has(key) || key == impl::start_scene_key, "Cannot set active scene if it has not been loaded into the scene manager");
 	GetManagers().scene.SetActive(key);
 }
 
 void AddActive(SceneKey key) {
-	assert(Has(key) && "Cannot add active scene if it has not been loaded into the scene manager");
+	PTGN_CHECK(Has(key), "Cannot add active scene if it has not been loaded into the scene manager");
 	GetManagers().scene.AddActive(key);
 }
 
 void RemoveActive(SceneKey key) {
-	assert(Has(key) && "Cannot remove active scene if it has not been loaded into the scene manager");
+	PTGN_CHECK(Has(key), "Cannot remove active scene if it has not been loaded into the scene manager");
 	GetManagers().scene.RemoveActive(key);
 }
 
 std::shared_ptr<Scene> Get(SceneKey key) {
-	assert(Has(key) && "Cannot get scene if it has not been loaded into the scene manager");
+	PTGN_CHECK(Has(key), "Cannot get scene if it has not been loaded into the scene manager");
 	auto scene{ GetManagers().scene.Get(key) };
-	assert(scene != nullptr && "Cannot get scene which has been destroyed");
+	PTGN_ASSERT(scene != nullptr, "Cannot get scene which has been destroyed");
 	return scene;
 }
 

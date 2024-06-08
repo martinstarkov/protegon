@@ -1,12 +1,13 @@
 #include "game.h"
 
-#include "protegon/window.h"
+#include <chrono>
 
 #include <SDL.h>
 
-#include <chrono>
+#include "protegon/window.h"
+#include "utility/platform.h"
 
-#ifdef __APPLE__
+#ifdef PTGN_PLATFORM_MACOS
 #include "CoreFoundation/CoreFoundation.h"
 #endif
 
@@ -16,7 +17,7 @@ namespace impl {
 
 void InitializeFileSystem() {
 	// TODO: Check if needed:
-#ifdef __APPLE__
+#ifdef PTGN_PLATFORM_MACOS
 	/*CFBundleRef main_bundle = CFBundleGetMainBundle();
 	CFURLRef resources_url = CFBundleCopyResourcesDirectoryURL(main_bundle);
 	char path[PATH_MAX];
@@ -84,7 +85,7 @@ void InitGame() {
 } // namespace impl
 
 Game& GetGame() {
-	assert(impl::game != nullptr && "Game not initialized or destroyed early");
+	PTGN_ASSERT(impl::game != nullptr && "Game not initialized or destroyed early");
 	return *impl::game;
 }
 

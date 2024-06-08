@@ -1,12 +1,12 @@
 #pragma once
 
-#include <cassert>
 #include <cmath>
 #include <cstdlib>
 #include <functional>
 #include <algorithm>
 #include <ostream>
 
+#include "utility/debug.h"
 #include "type_traits.h"
 #include "math.h"
 #include "color.h"
@@ -51,7 +51,7 @@ struct Vector2 {
 
     // Access vector elements by index, 0 for x, 1 for y.
     T& operator[](std::size_t idx) {
-        assert(idx >= 0 && idx < 2 && "Vector2 subscript out of range");
+        PTGN_CHECK(idx >= 0 && idx < 2, "Vector2 subscript out of range");
         if (idx == 1)
             return y;
         return x; // idx == 0
@@ -59,7 +59,7 @@ struct Vector2 {
 
     // Access vector elements by index, 0 for x, 1 for y.
     T operator[](std::size_t idx) const {
-        assert(idx >= 0 && idx < 2 && "Vector2 subscript out of range");
+        PTGN_CHECK(idx >= 0 && idx < 2, "Vector2 subscript out of range");
         if (idx == 1)
             return y;
         return x; // idx == 0
@@ -214,7 +214,7 @@ struct Vector2 {
     }
 
     void Draw(const Color& color, int radius = 0) const {
-        assert(radius >= 0 && "Cannot draw vector point with negative radius");
+        PTGN_CHECK(radius >= 0, "Cannot draw vector point with negative radius");
         if (radius <= 1) {
             impl::DrawPointWrapper(
                 static_cast<int>(x),

@@ -1,8 +1,8 @@
 #include "vertex_array.h"
 
-#include <cassert>
-
 #include "gl_loader.h"
+
+#include "utility/debug.h"
 
 namespace ptgn {
 
@@ -25,7 +25,7 @@ VertexArray VertexArray::Create() {
 VertexArray::VertexArray(const std::shared_ptr<impl::VertexArrayInstance>& instance) : Handle<impl::VertexArrayInstance>{ instance } {}
 
 void VertexArray::Bind() const {
-	assert(IsValid() && "Cannot bind uninitialized or destroyed vertex array");
+	PTGN_CHECK(IsValid(), "Cannot bind uninitialized or destroyed vertex array");
 	glBindVertexArray(instance_->id_);
 }
 
@@ -34,9 +34,9 @@ void VertexArray::Unbind() const {
 }
 
 void VertexArray::AddVertexBuffer(const VertexBuffer& vertex_buffer) {
-	assert(IsValid() && "Cannot add vertex buffer to uninitialized or destroyed vertex array");
+	PTGN_CHECK(IsValid(), "Cannot add vertex buffer to uninitialized or destroyed vertex array");
 	const BufferLayout& layout = vertex_buffer.GetLayout();
-	assert(!layout.IsEmpty() && "Cannot add a vertex buffer with an empty (unset) layout to a vertex array");
+	PTGN_ASSERT(!layout.IsEmpty(), "Cannot add a vertex buffer with an empty (unset) layout to a vertex array");
 
 	glBindVertexArray(instance_->id_);
 	vertex_buffer.Bind();
@@ -59,15 +59,15 @@ void VertexArray::AddVertexBuffer(const VertexBuffer& vertex_buffer) {
 }
 
 void VertexArray::SetIndexBuffer(const IndexBuffer& index_buffer) {
-	assert(IsValid() && "Cannot set vertex buffer of uninitialized or destroyed vertex array");
+	PTGN_CHECK(IsValid(), "Cannot set vertex buffer of uninitialized or destroyed vertex array");
 	glBindVertexArray(instance_->id_);
 	index_buffer.Bind();
 	instance_->index_buffer_ = index_buffer;
 }
 
 const IndexBuffer& VertexArray::GetIndexBuffer() const {
-	assert(IsValid() && "Cannot get index buffer of uninitialized or destroyed vertex array");
-	assert(instance_->index_buffer_.IsValid() && "Cannot get index buffer which is uninitialized or destroyed");
+	PTGN_CHECK(IsValid(), "Cannot get index buffer of uninitialized or destroyed vertex array");
+	PTGN_CHECK(instance_->index_buffer_.IsValid(), "Cannot get index buffer which is uninitialized or destroyed");
 	return instance_->index_buffer_;
 }
 

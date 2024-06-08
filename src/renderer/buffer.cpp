@@ -1,6 +1,6 @@
 #include "buffer.h"
 
-#include <cassert>
+#include "utility/debug.h"
 
 #include "gl_loader.h"
 
@@ -97,12 +97,12 @@ IndexBufferInstance::~IndexBufferInstance() {
 } // namespace impl
 
 const BufferLayout& VertexBuffer::GetLayout() const {
-	assert(IsValid() && "Cannot get layout of uninitialized or destroyed vertex buffer");
+	PTGN_CHECK(IsValid(), "Cannot get layout of uninitialized or destroyed vertex buffer");
 	return instance_->layout_;
 }
 
 void VertexBuffer::Bind() const {
-	assert(IsValid() && "Cannot bind uninitialized or destroyed vertex buffer");
+	PTGN_CHECK(IsValid(), "Cannot bind uninitialized or destroyed vertex buffer");
 	glBindBuffer(GL_ARRAY_BUFFER, instance_->id_);
 }
 
@@ -115,7 +115,7 @@ IndexBuffer::IndexBuffer(const std::vector<std::uint32_t>& indices) {
 }
 
 void IndexBuffer::Bind() const {
-	assert(IsValid() && "Cannot bind uninitialized or destroyed index buffer");
+	PTGN_CHECK(IsValid(), "Cannot bind uninitialized or destroyed index buffer");
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, instance_->id_);
 }
 
@@ -124,7 +124,7 @@ void IndexBuffer::Unbind() const {
 }
 
 std::size_t IndexBuffer::GetCount() const {
-	assert(IsValid() && "Cannot get count of uninitialized or destroyed index buffer");
+	PTGN_CHECK(IsValid(), "Cannot get count of uninitialized or destroyed index buffer");
 	return instance_->count_;
 }
 

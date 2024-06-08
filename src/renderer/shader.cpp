@@ -1,10 +1,9 @@
 #include "protegon/shader.h"
 
-#include <cassert>
 #include <fstream>
 
 #include "gl_loader.h"
-#include "protegon/log.h"
+#include "utility/debug.h"
 
 namespace ptgn {
 
@@ -32,7 +31,7 @@ ShaderInstance::~ShaderInstance() {
 
 //ShaderDataInfo::ShaderDataInfo(ShaderDataType encoded) :
 //	ShaderDataInfo{ static_cast<std::uint64_t>(encoded) } {
-//	assert(encoded != ShaderDataType::none && "Cannot retrieve shader data info for ShaderDataType::none");
+//	PTGN_CHECK(encoded != ShaderDataType::none, "Cannot retrieve shader data info for ShaderDataType::none");
 //}
 //
 //ShaderDataInfo::ShaderDataInfo(std::uint64_t encoded) :
@@ -43,8 +42,8 @@ Shader::Shader(const ShaderSource& vertex_shader, const ShaderSource& fragment_s
 }
 
 Shader::Shader(const path& vertex_shader_path, const path& fragment_shader_path) {
-	assert(FileExists(vertex_shader_path) && "Cannot create shader from nonexistent vertex shader path");
-	assert(FileExists(fragment_shader_path) && "Cannot create shader from nonexistent fragment shader path");
+	PTGN_CHECK(FileExists(vertex_shader_path), "Cannot create shader from nonexistent vertex shader path");
+	PTGN_CHECK(FileExists(fragment_shader_path), "Cannot create shader from nonexistent fragment shader path");
 	Create(FileToString(vertex_shader_path), FileToString(fragment_shader_path));
 }
 
@@ -67,10 +66,9 @@ std::uint32_t Shader::CompileShader(std::uint32_t type, const std::string& sourc
 		glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
 		std::vector<GLchar> log(length);
 		glGetShaderInfoLog(id, length, &length, &log[0]);
-		PrintLine("Failed to compile ", impl::GetShaderTypeName(type), " shader");
-		PrintLine(log.data());
+		PTGN_ERROR(log.data());
 		glDeleteShader(id);
-		assert(!false); // OPTIONAL: crash on shader compilation fail.
+		PTGN_CHECK(false, "Failed to compile ", impl::GetShaderTypeName(type), " shader");
 		return 0;
 	}
 	return id;
@@ -103,9 +101,8 @@ impl::Id Shader::CompileProgram(const std::string& vertex_source, const std::str
 			glDeleteShader(vertex);
 			glDeleteShader(fragment);
 
-			PrintLine("Failed to link shaders to program");
-			PrintLine(log.data());
-			assert(!false); // OPTIONAL: crash on shader link fail.
+			PTGN_ERROR(log.data());
+			PTGN_CHECK(false, "Failed to link shaders to program"); // OPTIONAL: crash on shader link fail.
 			return 0;
 		}
 	}
@@ -119,7 +116,7 @@ impl::Id Shader::CompileProgram(const std::string& vertex_source, const std::str
 }
 
 void Shader::Bind() {
-	assert(instance_ != nullptr && "Attempting to bind shader which has not been initialized");
+	PTGN_CHECK(instance_ != nullptr, "Attempting to bind shader which has not been initialized");
 	glUseProgram(instance_->program_id_);
 }
 
@@ -132,7 +129,7 @@ std::uint32_t Shader::GetProgramId() const {
 }
 
 std::int32_t Shader::GetUniformLocation(const std::string& name) const {
-	assert(instance_ != nullptr && "Attempting to get uniform location of shader which has not been initialized");
+	PTGN_CHECK(instance_ != nullptr, "Attempting to get uniform location of shader which has not been initialized");
 	//if (instance_ == nullptr) return -1;
 	auto& location_cache{ instance_->location_cache_ };
 	auto it = location_cache.find(name);

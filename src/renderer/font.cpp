@@ -1,16 +1,14 @@
 #include "protegon/font.h"
 
-#include <cassert>
-
 #include <SDL.h>
 #include <SDL_ttf.h>
 
-#include "protegon/log.h"
+#include "utility/debug.h"
 
 namespace ptgn {
 
 Font::Font(const path& font_path, std::uint32_t point_size, std::uint32_t index) {
-	assert(FileExists(font_path) && "Cannot create font from a nonexistent font path");
+	PTGN_CHECK(FileExists(font_path), "Cannot create font from a nonexistent font path");
 	instance_ = {
 		TTF_OpenFontIndex(
 			font_path.string().c_str(),
@@ -20,13 +18,13 @@ Font::Font(const path& font_path, std::uint32_t point_size, std::uint32_t index)
 		TTF_CloseFont
 	};
 	if (!IsValid()) {
-		PrintLine(TTF_GetError());
-		assert(!"Failed to create font");
+		PTGN_ERROR(TTF_GetError());
+		PTGN_ASSERT(false, "Failed to create font");
 	}
 }
 
 std::int32_t Font::GetHeight() const {
-	assert(IsValid() && "Cannot retrieve height of nonexistent font");
+	PTGN_CHECK(IsValid(), "Cannot retrieve height of nonexistent font");
 	return TTF_FontHeight(instance_.get());
 }
 

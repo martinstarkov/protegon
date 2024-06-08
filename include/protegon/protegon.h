@@ -11,7 +11,6 @@ using json = nlohmann::json;
 #include "protegon/circle.h"
 #include "protegon/collision.h"
 #include "protegon/color.h"
-#include "protegon/debug.h"
 #include "protegon/start.h"
 #include "protegon/event.h"
 #include "protegon/events.h"
