@@ -55,38 +55,38 @@ struct Rectangle {
 		};
 	};
 
-	Vector2<T> Half() const {
+	[[nodiscard]] Vector2<T> Half() const {
 		return size / static_cast<T>(2);
 	}
 
-	Point<T> Center() const {
+	[[nodiscard]] Point<T> Center() const {
 		return pos + Half();
 	}
 
-	Point<T> Max() const {
+	[[nodiscard]] Point<T> Max() const {
 		return pos + size;
 	}
 
-	Point<T> Min() const {
+	[[nodiscard]] Point<T> Min() const {
 		return pos;
 	}
 
-	Rectangle<T> Offset(const Vector2<T>& pos_amount, const Vector2<T>& size_amount = {}) const {
+	[[nodiscard]] Rectangle<T> Offset(const Vector2<T>& pos_amount, const Vector2<T>& size_amount = {}) const {
 		return { pos + pos_amount, size + size_amount };
 	}
 
 	template <typename U>
-	Rectangle<T> Scale(const Vector2<U>& scale) const {
+	[[nodiscard]] Rectangle<T> Scale(const Vector2<U>& scale) const {
 		return { pos * scale, size * scale };
 	}
 
 	template <typename U>
-	Rectangle<T> ScalePos(const Vector2<U>& pos_scale) const {
+	[[nodiscard]] Rectangle<T> ScalePos(const Vector2<U>& pos_scale) const {
 		return { pos * pos_scale, size };
 	}
 
 	template <typename U>
-	Rectangle<T> ScaleSize(const Vector2<U>& size_scale) const {
+	[[nodiscard]] Rectangle<T> ScaleSize(const Vector2<U>& size_scale) const {
 		return { pos, size * size_scale };
 	}
 

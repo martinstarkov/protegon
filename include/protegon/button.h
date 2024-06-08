@@ -41,7 +41,7 @@ public:
     virtual ~Button();
 
     // These functions cause button to stop responding to events.
-    virtual bool GetInteractable() const final;
+    [[nodiscard]] virtual bool GetInteractable() const final;
     virtual void SetInteractable(bool interactable);
 
     // These allow for manually triggering button callback events.
@@ -55,7 +55,7 @@ public:
         std::function<void()> stop_hover_function = nullptr
     );
 
-    virtual bool IsSubscribedToMouseEvents() const final;
+    [[nodiscard]] virtual bool IsSubscribedToMouseEvents() const final;
     virtual void SubscribeToMouseEvents() final;
     virtual void UnsubscribeFromMouseEvents() final;
 
@@ -69,12 +69,12 @@ public:
     virtual void OnMouseUp(const MouseUpEvent& e);
     virtual void OnMouseUpOutside(const MouseUpEvent& e);
 
-    const Rectangle<float>& GetRectangle() const;
+    [[nodiscard]] const Rectangle<float>& GetRectangle() const;
     void SetRectangle(const Rectangle<float>& new_rectangle);
 
-    ButtonState GetState() const;
+    [[nodiscard]] ButtonState GetState() const;
 
-    bool InsideRectangle(const V2_int& position) const;
+    [[nodiscard]] bool InsideRectangle(const V2_int& position) const;
 protected:
     enum class InternalButtonState : std::size_t {
         IDLE_UP = 0,
@@ -106,9 +106,9 @@ public:
 
     virtual void Draw() const;
     
-    virtual const Color& GetCurrentColor() const;
+    [[nodiscard]] virtual const Color& GetCurrentColor() const;
 protected:
-    const Color& GetCurrentColorImpl(ButtonState state, std::size_t color_array_index = 0) const;
+    [[nodiscard]] const Color& GetCurrentColorImpl(ButtonState state, std::size_t color_array_index = 0) const;
     
     void DrawImpl(std::size_t color_array_index = 0) const;
 protected:
@@ -129,7 +129,7 @@ public:
     // Start in non toggled state.
     virtual void OnMouseUp(const MouseUpEvent& e) override;
     
-    bool IsToggled() const;
+    [[nodiscard]] bool IsToggled() const;
     void Toggle();
     void SetToggleState(bool toggled);
 protected:
@@ -147,17 +147,17 @@ public:
         std::function<void()> on_activate_function = nullptr
     );
 
-    virtual bool GetVisibility() const final;
+    [[nodiscard]] virtual bool GetVisibility() const final;
     virtual void SetVisibility(bool visibility);
 
     virtual void Draw() const;
 
-    virtual Texture GetCurrentTexture();
+    [[nodiscard]] virtual Texture GetCurrentTexture();
     
     void ForEachTexture(std::function<void(Texture)> func);
 protected:
     // This function does not check for the validity of the returned texture.
-    Texture GetCurrentTextureImpl(ButtonState state, std::size_t texture_array_index = 0) const;
+    [[nodiscard]] Texture GetCurrentTextureImpl(ButtonState state, std::size_t texture_array_index = 0) const;
 
     void DrawImpl(std::size_t texture_array_index = 0) const;
 
@@ -180,7 +180,7 @@ public:
         std::function<void()> on_activate_function = nullptr
     );
 
-    virtual Texture GetCurrentTexture() override;
+    [[nodiscard]] virtual Texture GetCurrentTexture() override;
     virtual void Draw() const override;
 };
 

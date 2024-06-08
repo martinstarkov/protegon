@@ -41,7 +41,7 @@ public:
 	void SetActive(std::size_t scene_key);
 	void AddActive(std::size_t scene_key);
 	void RemoveActive(std::size_t scene_key);
-	std::vector<std::shared_ptr<Scene>> GetActive();
+	[[nodiscard]] std::vector<std::shared_ptr<Scene>> GetActive();
 	
 	void Update(float dt);
 private:
@@ -54,7 +54,7 @@ private:
 			}
 		}
 	}*/
-	bool ActiveScenesContain(std::size_t key) const;
+	[[nodiscard]] bool ActiveScenesContain(std::size_t key) const;
 private:
 	std::size_t flagged_{ 0 };
     std::vector<std::size_t> active_scenes_;

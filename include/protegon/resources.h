@@ -39,8 +39,8 @@ Font Load(FontKey key, TArgs&&... constructor_args) {
 }
 
 void Unload(FontKey key);
-bool Has(FontKey key);
-Font Get(FontKey key);
+[[nodiscard]] bool Has(FontKey key);
+[[nodiscard]] Font Get(FontKey key);
 void Clear();
 
 } // namespace font
@@ -53,13 +53,13 @@ Music Load(MusicKey key, TArgs&&... constructor_args) {
 }
 
 void Unload(MusicKey key);
-bool Has(MusicKey key);
-Music Get(MusicKey key);
+[[nodiscard]] bool Has(MusicKey key);
+[[nodiscard]] Music Get(MusicKey key);
 void Clear();
 void Pause();
 void Resume();
 // Returns the current music track volume from 0 to 128 (MIX_MAX_VOLUME).
-int GetVolume();
+[[nodiscard]] int GetVolume();
 // Volume can be set from 0 to 128 (MIX_MAX_VOLUME).
 void SetVolume(int new_volume);
 // Default: -1 for max volume 128 (MIX_MAX_VOLUME).
@@ -70,9 +70,9 @@ void Mute();
 void Unmute(int optional_new_volume = -1);
 void Stop();
 void FadeOut(milliseconds time);
-bool IsPlaying();
-bool IsPaused();
-bool IsFading();
+[[nodiscard]] bool IsPlaying();
+[[nodiscard]] bool IsPaused();
+[[nodiscard]] bool IsFading();
 
 } // namespace music
 
@@ -84,8 +84,8 @@ Sound Load(SoundKey key, TArgs&&... constructor_args) {
 }
 
 void Unload(SoundKey key);
-bool Has(SoundKey key);
-Sound Get(SoundKey key);
+[[nodiscard]] bool Has(SoundKey key);
+[[nodiscard]] Sound Get(SoundKey key);
 void Clear();
 
 void HaltChannel(int channel);
@@ -101,8 +101,8 @@ Text Load(TextKey key, TArgs&&... constructor_args) {
 }
 
 void Unload(TextKey key);
-bool Has(TextKey key);
-Text Get(TextKey key);
+[[nodiscard]] bool Has(TextKey key);
+[[nodiscard]] Text Get(TextKey key);
 void Clear();
 
 } // namespace text
@@ -115,8 +115,8 @@ Texture Load(TextureKey key, TArgs&&... constructor_args) {
 }
 
 void Unload(TextureKey key);
-bool Has(TextureKey key);
-Texture Get(TextureKey key);
+[[nodiscard]] bool Has(TextureKey key);
+[[nodiscard]] Texture Get(TextureKey key);
 void Clear();
 
 } // namespace texture
@@ -130,8 +130,8 @@ Shader Load(ShaderKey key, TArgs&&... constructor_args) {
 }
 
 void Unload(ShaderKey key);
-bool Has(ShaderKey key);
-Shader Get(ShaderKey key);
+[[nodiscard]] bool Has(ShaderKey key);
+[[nodiscard]] Shader Get(ShaderKey key);
 void Clear();
 
 } // namespace shader
@@ -161,15 +161,15 @@ std::shared_ptr<T> Load(SceneKey key, TArgs&&... constructor_args) {
 	return std::static_pointer_cast<T>(GetManagers().scene.Load(key, std::make_shared<T>(std::forward<TArgs>(constructor_args)...)));
 }
 
-bool Has(SceneKey key);
+[[nodiscard]] bool Has(SceneKey key);
 void Unload(SceneKey key);
-std::shared_ptr<Scene> Get(SceneKey key);
+[[nodiscard]] std::shared_ptr<Scene> Get(SceneKey key);
 template <typename TScene, type_traits::is_base_of<TScene, Scene> = true>
-std::shared_ptr<TScene> Get(SceneKey key) {
+[[nodiscard]] std::shared_ptr<TScene> Get(SceneKey key) {
 	return std::static_pointer_cast<TScene>(Get(key));
 }
 
-std::vector<std::shared_ptr<Scene>> GetActive();
+[[nodiscard]] std::vector<std::shared_ptr<Scene>> GetActive();
 void SetActive(SceneKey key);
 void AddActive(SceneKey key);
 void RemoveActive(SceneKey key);

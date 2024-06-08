@@ -14,19 +14,19 @@ public:
 	SDLInstance();
 	~SDLInstance();
 
-	std::shared_ptr<SDL_Window> GetWindow() const;
-	std::shared_ptr<SDL_Renderer> GetRenderer() const;
+	[[nodiscard]] std::shared_ptr<SDL_Window> GetWindow() const;
+	[[nodiscard]] std::shared_ptr<SDL_Renderer> GetRenderer() const;
 
 	void SetWindowBackgroundColor(const Color& new_color);
-	Color GetWindowBackgroundColor() const;
+	[[nodiscard]] Color GetWindowBackgroundColor() const;
 
 	void SetScale(const V2_float& new_scale);
-	V2_float GetScale() const;
+	[[nodiscard]] V2_float GetScale() const;
 
 	void SetResolution(const V2_int& new_resolution);
-	V2_int GetResolution() const;
+	[[nodiscard]] V2_int GetResolution() const;
 
-	bool WindowExists() const;
+	[[nodiscard]] bool WindowExists() const;
 
 	void SetDrawMode(const Color& color, Texture::DrawMode draw_mode);
 private:

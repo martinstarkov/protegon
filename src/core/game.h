@@ -45,7 +45,7 @@ void InitGame();
 
 } // namespace impl
 
-Game& GetGame();
+[[nodiscard]] Game& GetGame();
 
 } // namespace global
 

@@ -9,10 +9,10 @@ namespace ptgn {
 
 namespace impl {
 
-float SquareDistancePointRectangle(const Point<float>& a,
+[[nodiscard]] float SquareDistancePointRectangle(const Point<float>& a,
                                    const Rectangle<float>& b);
 
-float ParallelogramArea(const Point<float>& a,
+[[nodiscard]] float ParallelogramArea(const Point<float>& a,
 						const Point<float>& b,
 						const Point<float>& c);
 
@@ -22,39 +22,39 @@ namespace overlap {
 
 // Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 // Page 79.
-bool RectangleRectangle(const Rectangle<float>& a,
+[[nodiscard]] bool RectangleRectangle(const Rectangle<float>& a,
 					    const Rectangle<float>& b);
 
 // Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 // Page 88.
-bool CircleCircle(const Circle<float>& a,
+[[nodiscard]] bool CircleCircle(const Circle<float>& a,
 				  const Circle<float>& b);
 
 // Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 // Page 165-166.
-bool CircleRectangle(const Circle<float>& a,
+[[nodiscard]] bool CircleRectangle(const Circle<float>& a,
 					 const Rectangle<float>& b);
 
-bool PointRectangle(const Point<float>& a,
+[[nodiscard]] bool PointRectangle(const Point<float>& a,
 					const Rectangle<float>& b);
 
-bool PointCircle(const Point<float>& a,
+[[nodiscard]] bool PointCircle(const Point<float>& a,
 				 const Circle<float>& b);
 
 // Source: http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 // Page 130. (SqDistPointSegment == 0) but optimized.
-bool PointSegment(const Point<float>& a,
+[[nodiscard]] bool PointSegment(const Point<float>& a,
                   const Segment<float>& b);
 
-bool SegmentRectangle(const Segment<float>& a,
+[[nodiscard]] bool SegmentRectangle(const Segment<float>& a,
 				      const Rectangle<float>& b);
 
 // Source: https://www.baeldung.com/cs/circle-line-segment-collision-detection
-bool SegmentCircle(const Segment<float>& a,
+[[nodiscard]] bool SegmentCircle(const Segment<float>& a,
 			       const Circle<float>& b);
 
 // Source: https://www.geeksforgeeks.org/check-if-two-given-line-segments-intersect/
-bool SegmentSegment(const Segment<float>& a,
+[[nodiscard]] bool SegmentSegment(const Segment<float>& a,
 			        const Segment<float>& b);
 
 } // namespace overlap
@@ -66,16 +66,16 @@ struct Collision {
 	V2_float normal{ 0.0f, 0.0f };
 };
 
-bool RectangleRectangle(const Rectangle<float>& a,
+[[nodiscard]] bool RectangleRectangle(const Rectangle<float>& a,
 						const Rectangle<float>& b,
 						Collision& c);
 
-bool CircleCircle(const Circle<float>& a,
+[[nodiscard]] bool CircleCircle(const Circle<float>& a,
 				  const Circle<float>& b,
 				  Collision& c);
 
 // Source: https://steamcdn-a.akamaihd.net/apps/valve/2015/DirkGregorius_Contacts.pdf
-bool CircleRectangle(const Circle<float>& a,
+[[nodiscard]] bool CircleRectangle(const Circle<float>& a,
 					 const Rectangle<float>& b,
 					 Collision& c);
 
@@ -89,38 +89,38 @@ struct Collision {
 };
 
 // Source: https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect/565282#565282
-bool SegmentSegment(const Segment<float>& a,
+[[nodiscard]] bool SegmentSegment(const Segment<float>& a,
                     const Segment<float>& b,
                     Collision& c);
 
 // Source: https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm/1084899#1084899
-bool SegmentCircle(const Segment<float>& a,
+[[nodiscard]] bool SegmentCircle(const Segment<float>& a,
                    const Circle<float>& b,
                    Collision& c);
 
-bool SegmentRectangle(const Segment<float>& a,
+[[nodiscard]] bool SegmentRectangle(const Segment<float>& a,
                       const Rectangle<float>& b,
                       Collision& c);
 
 // Source: https://stackoverflow.com/a/52462458
-bool SegmentCapsule(const Segment<float>& a,
+[[nodiscard]] bool SegmentCapsule(const Segment<float>& a,
                     const Capsule<float>& b,
                     Collision& c);
 
 // Velocity is taken relative to a, b is seen as static.
-bool CircleCircle(const Circle<float>& a,
+[[nodiscard]] bool CircleCircle(const Circle<float>& a,
                   const Vector2<float>& vel,
                   const Circle<float>& b,
                   Collision& c);
 
 // Velocity is taken relative to a, b is seen as static.
-bool CircleRectangle(const Circle<float>& a,
+[[nodiscard]] bool CircleRectangle(const Circle<float>& a,
                      const Vector2<float>& vel,
                      const Rectangle<float>& b,
                      Collision& c);
 
 // Velocity is taken relative to a, b is seen as static.
-bool RectangleRectangle(const Rectangle<float>& a,
+[[nodiscard]] bool RectangleRectangle(const Rectangle<float>& a,
                         const Vector2<float>& vel,
                         const Rectangle<float>& b,
                         Collision& c);

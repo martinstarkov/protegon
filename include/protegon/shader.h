@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <cstdint>
 #include <memory>
+#include <cassert>
 
 #include "type_traits.h"
 #include "file.h"
@@ -14,49 +15,81 @@ namespace ptgn {
 
 namespace impl {
 
-std::string_view GetShaderTypeName(std::uint32_t type);
+using GLEnumType = std::uint32_t;
+
+std::string_view GetShaderTypeName(GLEnumType type);
+
+inline constexpr GLEnumType TYPE_BYTE			= 0x1400; // GL_BYTE
+inline constexpr GLEnumType TYPE_UNSIGNED_BYTE	= 0x1401; // GL_UNSIGNED_BYTE
+inline constexpr GLEnumType TYPE_SHORT			= 0x1402; // GL_SHORT
+inline constexpr GLEnumType TYPE_UNSIGNED_SHORT	= 0x1403; // GL_UNSIGNED_SHORT
+inline constexpr GLEnumType TYPE_INT			= 0x1404; // GL_INT
+inline constexpr GLEnumType TYPE_UNSIGNED_INT	= 0x1405; // GL_UNSIGNED_INT
+inline constexpr GLEnumType TYPE_FLOAT			= 0x1406; // GL_FLOAT
+inline constexpr GLEnumType TYPE_DOUBLE         = 0x140A; // GL_DOUBLE
+
+template <typename T>
+[[nodiscard]] GLEnumType GetType() {
+	static_assert(type_traits::is_one_of_v<T,
+		std::float_t, std::double_t, std::int32_t, std::uint32_t,
+		std::int16_t, std::uint16_t, std::int8_t, std::uint8_t, bool>, "Cannot retrieve type which is not supported by OpenGL");
+	if constexpr (std::is_same_v<T, std::float_t>)									return TYPE_FLOAT;
+	else if constexpr (std::is_same_v<T, std::double_t>)							return TYPE_DOUBLE;
+	else if constexpr (std::is_same_v<T, std::int32_t>)								return TYPE_INT;
+	else if constexpr (std::is_same_v<T, std::uint32_t>)							return TYPE_UNSIGNED_INT;
+	else if constexpr (std::is_same_v<T, std::int16_t>)								return TYPE_SHORT;
+	else if constexpr (std::is_same_v<T, std::uint16_t>)							return TYPE_UNSIGNED_SHORT;
+	else if constexpr (std::is_same_v<T, std::int8_t> || std::is_same_v<T, bool>)   return TYPE_BYTE;
+	else if constexpr (std::is_same_v<T, std::uint8_t>)								return TYPE_UNSIGNED_BYTE;
+	assert(!"Failed to retrieve type of buffer element");
+	return 0;
+}
 
 } // namespace impl
 
+/*
 enum class ShaderDataType : std::uint64_t {
 	// To encode information in:
-	// std::uint64_t encoded = (static_cast<std::uint64_t>(size) << 32) | count;
-	// To extract information out:
-	// std::uint32_t size  = encoded >> 32;		   // size of each element
-	// std::uint32_t count = encoded & 0xFFFFFFFF; // number of elements	 
-	// Alternatively use the ShaderDataInfo class:
+	// std::uint64_t encoded = 
+	// (static_cast<std::uint64_t>(hidden_size) << 48) | 
+	// ((static_cast<std::uint64_t>(hidden_count) << 32) | hidden_type);
+	// To extract information out use the ShaderDataInfo class:
 	// ShaderDataInfo info{ shader_data_type };
-	// std::uint32_t size  = info.size;
-	// std::uint32_t count = info.count;
+	// std::uint16_t size  = info.size;
+	// std::uint16_t count = info.count;
+	// std::uint32_t type = info.type;
+
 	none    = 0,
-	float_  = (sizeof(int)          << 32) | 1,
-	int_    = (sizeof(unsigned int) << 32) | 1,
-	uint_   = (sizeof(float)        << 32) | 1,
-	double_ = (sizeof(double)       << 32) | 1,
-	bool_   = (sizeof(bool)         << 32) | 1,
-	vec2    = (sizeof(int)          << 32) | 2,
-	ivec2   = (sizeof(unsigned int) << 32) | 2,
-	uvec2   = (sizeof(float)        << 32) | 2,
-	dvec2   = (sizeof(double)       << 32) | 2,
-	bvec2   = (sizeof(bool)         << 32) | 2,
-	vec3    = (sizeof(int)          << 32) | 3,
-	ivec3   = (sizeof(unsigned int) << 32) | 3,
-	uvec3   = (sizeof(float)        << 32) | 3,
-	dvec3   = (sizeof(double)       << 32) | 3,
-	bvec3   = (sizeof(bool)         << 32) | 3,
-	vec4    = (sizeof(int)          << 32) | 4,
-	ivec4   = (sizeof(unsigned int) << 32) | 4,
-	uvec4   = (sizeof(float)        << 32) | 4,
-	dvec4   = (sizeof(double)       << 32) | 4,
-	bvec4   = (sizeof(bool)         << 32) | 4
+	float_  = (static_cast<std::uint64_t>(sizeof(float))        << 48) | ((static_cast<std::uint64_t>(1) << 32) | impl::TYPE_FLOAT),
+	vec2    = (static_cast<std::uint64_t>(sizeof(float))        << 48) | ((static_cast<std::uint64_t>(2) << 32) | impl::TYPE_FLOAT),
+	vec3    = (static_cast<std::uint64_t>(sizeof(float))        << 48) | ((static_cast<std::uint64_t>(3) << 32) | impl::TYPE_FLOAT),
+	vec4    = (static_cast<std::uint64_t>(sizeof(float))        << 48) | ((static_cast<std::uint64_t>(4) << 32) | impl::TYPE_FLOAT),
+	int_    = (static_cast<std::uint64_t>(sizeof(int))          << 48) | ((static_cast<std::uint64_t>(1) << 32) | impl::TYPE_INT),
+	ivec2   = (static_cast<std::uint64_t>(sizeof(int))          << 48) | ((static_cast<std::uint64_t>(2) << 32) | impl::TYPE_INT),
+	ivec3   = (static_cast<std::uint64_t>(sizeof(int))          << 48) | ((static_cast<std::uint64_t>(3) << 32) | impl::TYPE_INT),
+	ivec4   = (static_cast<std::uint64_t>(sizeof(int))          << 48) | ((static_cast<std::uint64_t>(4) << 32) | impl::TYPE_INT),
+	uint_   = (static_cast<std::uint64_t>(sizeof(unsigned int)) << 48) | ((static_cast<std::uint64_t>(1) << 32) | impl::TYPE_UNSIGNED_INT),
+	uvec2   = (static_cast<std::uint64_t>(sizeof(unsigned int)) << 48) | ((static_cast<std::uint64_t>(2) << 32) | impl::TYPE_UNSIGNED_INT),
+	uvec3   = (static_cast<std::uint64_t>(sizeof(unsigned int)) << 48) | ((static_cast<std::uint64_t>(3) << 32) | impl::TYPE_UNSIGNED_INT),
+	uvec4   = (static_cast<std::uint64_t>(sizeof(unsigned int)) << 48) | ((static_cast<std::uint64_t>(4) << 32) | impl::TYPE_UNSIGNED_INT),
+	double_ = (static_cast<std::uint64_t>(sizeof(double))       << 48) | ((static_cast<std::uint64_t>(1) << 32) | impl::TYPE_DOUBLE),
+	dvec2   = (static_cast<std::uint64_t>(sizeof(double))       << 48) | ((static_cast<std::uint64_t>(2) << 32) | impl::TYPE_DOUBLE),
+	dvec3   = (static_cast<std::uint64_t>(sizeof(double))       << 48) | ((static_cast<std::uint64_t>(3) << 32) | impl::TYPE_DOUBLE),
+	dvec4   = (static_cast<std::uint64_t>(sizeof(double))       << 48) | ((static_cast<std::uint64_t>(4) << 32) | impl::TYPE_DOUBLE),
+	bool_   = (static_cast<std::uint64_t>(sizeof(bool))         << 48) | ((static_cast<std::uint64_t>(1) << 32) | impl::TYPE_BYTE),
+	bvec2   = (static_cast<std::uint64_t>(sizeof(bool))         << 48) | ((static_cast<std::uint64_t>(2) << 32) | impl::TYPE_BYTE),
+	bvec3   = (static_cast<std::uint64_t>(sizeof(bool))         << 48) | ((static_cast<std::uint64_t>(3) << 32) | impl::TYPE_BYTE),
+	bvec4   = (static_cast<std::uint64_t>(sizeof(bool))         << 48) | ((static_cast<std::uint64_t>(4) << 32) | impl::TYPE_BYTE)
 };
 
 struct ShaderDataInfo {
 	ShaderDataInfo(ShaderDataType encoded);
 	ShaderDataInfo(std::uint64_t encoded);
-	std::uint32_t size{ 0 };
-	std::uint32_t count{ 0 };
+	std::uint16_t size{ 0 };    // Size of an individual buffer element.
+	std::uint16_t count{ 0 };   // Number of buffer elements.
+	impl::GLEnumType type{ 0 }; // Type of buffer element (e.g. GL_FLOAT).
 };
+*/
 
 class Shader;
 

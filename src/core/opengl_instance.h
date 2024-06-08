@@ -6,7 +6,7 @@ class OpenGLInstance {
 public:
 	OpenGLInstance();
 	~OpenGLInstance();
-	bool IsInitialized() const;
+	[[nodiscard]] bool IsInitialized() const;
 private:
 	bool initialized_{ false };
 	bool InitOpenGL();

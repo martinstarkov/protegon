@@ -36,25 +36,25 @@ inline constexpr T epsilon2{ epsilon<T> * epsilon<T> };
 
 // Convert degrees to radians.
 template <typename T, type_traits::floating_point<T> = true>
-T DegToRad(T deg) {
+[[nodiscard]] T DegToRad(T deg) {
     return deg * pi<T> / 180;
 }
 
 // Convert radians to degrees.
 template <typename T, type_traits::floating_point<T> = true>
-T RadToDeg(T rad) {
+[[nodiscard]] T RadToDeg(T rad) {
     return rad / pi<T> * 180;
 }
 
 // Modulo operator which supports wrapping negative numbers.
 template <typename T, type_traits::integral<T> = true>
-T Mod(T a, T b) {
+[[nodiscard]] T Mod(T a, T b) {
     return (a % b + b) % b;
 }
 
 // Angle in degrees from 0 to 360.
 template <typename T, type_traits::arithmetic<T> = true>
-T RestrictAngle360(T deg) {
+[[nodiscard]] T RestrictAngle360(T deg) {
     while (deg < 0) deg += 360;
     if constexpr (std::is_floating_point_v<T>)
         return std::fmod(deg, 360);
@@ -64,7 +64,7 @@ T RestrictAngle360(T deg) {
 
 // Angle in radians from 0 to 2 pi.
 template <typename T, type_traits::floating_point<T> = true>
-T RestrictAngle2Pi(T rad) {
+[[nodiscard]] T RestrictAngle2Pi(T rad) {
     while (rad < 0) rad += two_pi<T>;
     return std::fmod(rad, two_pi<T>);
 }
@@ -75,19 +75,19 @@ T RestrictAngle2Pi(T rad) {
 // Returns -1  if value is negative.
 // No NaN/inf checking.
 template <typename T>
-T Sign(T value) {
+[[nodiscard]] T Sign(T value) {
     return static_cast<T>((0 < value) - (value < 0));
 }
 
 // Returns a wrapped to mod n in positive and negative directions.
-inline int ModFloor(int a, int n) {
+[[nodiscard]] inline int ModFloor(int a, int n) {
     return ((a % n) + n) % n;
 }
 
 // Source: https://stackoverflow.com/a/30308919.
 // No NaN/inf checking.
 template <typename T>
-T FastFloor(T value) {
+[[nodiscard]] T FastFloor(T value) {
     if constexpr (std::is_floating_point_v<T>)
         return static_cast<T>((int64_t)value - (value < (int64_t)value));
     return value;
@@ -95,7 +95,7 @@ T FastFloor(T value) {
 
 // No NaN/inf checking.
 template <typename T>
-T FastCeil(T value) {
+[[nodiscard]] T FastCeil(T value) {
     if constexpr (std::is_floating_point_v<T>)
         return static_cast<T>((int64_t)value + (value > (int64_t)value));
     return value;
@@ -103,7 +103,7 @@ T FastCeil(T value) {
 
 // No NaN/inf checking.
 template <typename T>
-T FastAbs(T value) {
+[[nodiscard]] T FastAbs(T value) {
     return value >= 0 ? value : -value;
 }
 
@@ -112,7 +112,7 @@ T FastAbs(T value) {
 // The absolute tolerance test fails when x and y become large.
 // The relative tolerance test fails when x and y become small.
 template <typename T>
-bool NearlyEqual(T a, T b,
+[[nodiscard]] bool NearlyEqual(T a, T b,
                  T rel_tol = static_cast<T>(10.0f * epsilon<float>),
                  T abs_tol = static_cast<T>(0.005)) {
     if constexpr (std::is_floating_point_v<T>)
@@ -125,7 +125,7 @@ bool NearlyEqual(T a, T b,
 // Returns true if there is a real solution followed by both roots
 // (equal if repeated), false and roots of 0 if imaginary.
 template <typename T, type_traits::floating_point<T> = true>
-std::tuple<bool, T, T> QuadraticFormula(T a, T b, T c) {
+[[nodiscard]] std::tuple<bool, T, T> QuadraticFormula(T a, T b, T c) {
     const T disc{ b * b - 4.0f * a * c };
     if (disc < 0.0f) {
         // Imaginary roots.
@@ -146,14 +146,14 @@ std::tuple<bool, T, T> QuadraticFormula(T a, T b, T c) {
 template <typename T, typename U,
     type_traits::arithmetic<T> = true,
     type_traits::floating_point<U> = true>
-U Lerp(T a, T b, U t) {
+[[nodiscard]] U Lerp(T a, T b, U t) {
     return a + t * (b - a);
 }
 
 template <typename T, typename U,
     type_traits::arithmetic<T> = true,
     type_traits::floating_point<U> = true>
-U CosineInterpolate(T a, T b, U t) {
+[[nodiscard]] U CosineInterpolate(T a, T b, U t) {
     return Lerp(a, b, static_cast<U>(0.5) * (static_cast<U>(1) - std::cos(t * pi<U>)))
 }
 
@@ -161,7 +161,7 @@ U CosineInterpolate(T a, T b, U t) {
 template <typename T, typename U,
     type_traits::arithmetic<T> = true,
     type_traits::floating_point<U> = true>
-U CubicInterpolate(T y0, T y1, T y2, T y3, U t) {
+[[nodiscard]] U CubicInterpolate(T y0, T y1, T y2, T y3, U t) {
     U mu2 = t * t;
     U a0 = y3 - y2 - y0 + y1;
     U a1 = y0 - y1 - a0;
@@ -173,7 +173,7 @@ U CubicInterpolate(T y0, T y1, T y2, T y3, U t) {
 // From: https://en.wikipedia.org/wiki/Smoothstep
 template <typename U,
     type_traits::floating_point<U> = true>
-U SmoothStepInterpolate(U a, U b, U t) {
+[[nodiscard]] U SmoothStepInterpolate(U a, U b, U t) {
     return Lerp(a, b, t * t * (3.0f - 2.0f * t));
 }
 

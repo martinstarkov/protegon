@@ -6,7 +6,7 @@ template <typename T>
 class Event {
 public:
 	Event(T type) : type_{ type } {}
-	T Type() const {
+	[[nodiscard]] T Type() const {
 		return type_;
 	}
 protected:

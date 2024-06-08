@@ -29,7 +29,7 @@ public:
 	Font() = default;
 	Font(const path& font_path, std::uint32_t point_size, std::uint32_t index = 0);
 
-	std::int32_t GetHeight() const;
+	[[nodiscard]] std::int32_t GetHeight() const;
 private:
 	friend class Text;
 };

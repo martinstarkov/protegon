@@ -36,7 +36,7 @@ public:
 			function(cell);
 	}
 
-	bool Has(const V2_int& coordinate) const {
+	[[nodiscard]] bool Has(const V2_int& coordinate) const {
 		return Has(OneDimensionalize(coordinate));
 	}
 
@@ -44,20 +44,20 @@ public:
 		return Set(OneDimensionalize(coordinate), std::move(object));
 	}
 
-	const T& Get(const V2_int& coordinate) const {
+	[[nodiscard]] const T& Get(const V2_int& coordinate) const {
 		return Get(OneDimensionalize(coordinate));
 	}
 
-	T& Get(const V2_int& coordinate) {
+	[[nodiscard]] T& Get(const V2_int& coordinate) {
 		return Get(OneDimensionalize(coordinate));
 	}
 
-	const T& Get(std::size_t index) const {
+	[[nodiscard]] const T& Get(std::size_t index) const {
 		assert(Has(index) && "Cannot get grid element which is outside the grid");
 		return cells[index];
 	}
 
-	T& Get(std::size_t index) {
+	[[nodiscard]] T& Get(std::size_t index) {
 		assert(Has(index) && "Cannot get grid element which is outside the grid");
 		return cells[index];
 	}
@@ -69,7 +69,7 @@ public:
 		return value;
 	}
 
-	bool Has(std::size_t index) const {
+	[[nodiscard]] bool Has(std::size_t index) const {
 		return index >= 0 && index < length;
 	}
 
@@ -77,15 +77,15 @@ public:
 		cells.clear();
 	}
 
-	const V2_int& GetSize() const {
+	[[nodiscard]] const V2_int& GetSize() const {
 		return size;
 	}
 
-	int GetLength() const {
+	[[nodiscard]] int GetLength() const {
 		return length;
 	}
 
-	int OneDimensionalize(const V2_int& coordinate) const {
+	[[nodiscard]] int OneDimensionalize(const V2_int& coordinate) const {
 		return coordinate.x + coordinate.y * size.x;
 	}
 

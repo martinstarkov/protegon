@@ -17,8 +17,8 @@ public:
     void Stop();
     void Pause();
     void Unpause();
-    bool IsPaused() const;
-    bool IsRunning() const;
+    [[nodiscard]] bool IsPaused() const;
+    [[nodiscard]] bool IsRunning() const;
     // This does not actually start the timer, just sets it to original configuration.
     // TODO: POSSIBLE CHANGE: Change this to start the timer?
     void Reset();
@@ -28,7 +28,7 @@ public:
     */
     template <typename Duration = milliseconds, 
         type_traits::duration<Duration> = true>
-    Duration Elapsed() const {
+    [[nodiscard]] Duration Elapsed() const {
         auto end_time = running_ ? std::chrono::steady_clock::now() : stop_time_;
         return std::chrono::duration_cast<Duration>(end_time - start_time_);
     }
@@ -37,7 +37,7 @@ public:
         typename T = float,
         type_traits::duration<Duration> = true,
         std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
-    T ElapsedPercentage(Duration compared_to) const {
+    [[nodiscard]] T ElapsedPercentage(Duration compared_to) const {
         std::chrono::duration<T, typename Duration::period> elapsed_time{
             Elapsed<std::chrono::duration<T, typename Duration::period>>() / compared_to
         };

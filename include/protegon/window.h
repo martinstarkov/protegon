@@ -7,7 +7,7 @@ namespace ptgn {
 
 namespace screen {
 
-V2_int GetSize();
+[[nodiscard]] V2_int GetSize();
 
 } // namespace screen
 
@@ -18,27 +18,27 @@ namespace window {
 void SetupSize(const V2_int& resolution, const V2_int& minimum_resolution, bool fullscreen = false, bool borderless = false, bool resizeable = true, const V2_float& scale = { 1.0f, 1.0f });
 
 void SetScale(const V2_float& scale);
-V2_float GetScale();
+[[nodiscard]] V2_float GetScale();
 
-bool Exists();
+[[nodiscard]] bool Exists();
 
 void Clear();
 
 void SetResolution(const V2_int& resolution);
-V2_int GetResolution();
+[[nodiscard]] V2_int GetResolution();
 
 void SetMinimumSize(const V2_int& minimum_size);
-V2_int GetMinimumSize();
+[[nodiscard]] V2_int GetMinimumSize();
 
 void SetSize(const V2_int& new_size, bool centered = true);
-V2_int GetSize();
+[[nodiscard]] V2_int GetSize();
 
-V2_int GetOriginPosition();
+[[nodiscard]] V2_int GetOriginPosition();
 
 void SetTitle(const char* new_title);
-const char* GetTitle();
+[[nodiscard]] const char* GetTitle();
 
-Color GetColor();
+[[nodiscard]] Color GetColor();
 void SetColor(const Color& new_color);
 
 void Center();

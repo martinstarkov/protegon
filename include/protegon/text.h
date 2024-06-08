@@ -38,7 +38,7 @@ public:
 	Text(const FontOrKey& font, const std::string& content, const Color& color);
 
 	void SetVisibility(bool visibility);
-	bool GetVisibility() const;
+	[[nodiscard]] bool GetVisibility() const;
 	void SetContent(const std::string& new_content);
 	void SetColor(const Color& new_color);
 	void SetFont(const FontOrKey& new_font);
@@ -57,7 +57,7 @@ public:
 
 	void Draw(const Rectangle<float>& box) const;
 private:
-	static Font GetFont(const FontOrKey& font);
+	[[nodiscard]] static Font GetFont(const FontOrKey& font);
 	// Call Refresh() if you change any attribute of the text.
 	void Refresh();
 };

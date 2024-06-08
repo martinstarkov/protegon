@@ -43,13 +43,13 @@ public:
 	// @return True if grid has an obstacle and its state was flipped, false otherwise.
 	bool SetObstacle(const V2_int& coordinate, bool obstacle);
 
-	bool IsObstacle(const V2_int& coordinate) const;
+	[[nodiscard]] bool IsObstacle(const V2_int& coordinate) const;
 
-	bool IsVisited(const V2_int& coordinate) const;
+	[[nodiscard]] bool IsVisited(const V2_int& coordinate) const;
 
-	std::deque<V2_int> FindWaypoints(const V2_int& start, const V2_int& end);
+	[[nodiscard]] std::deque<V2_int> FindWaypoints(const V2_int& start, const V2_int& end);
 
-	static int FindWaypointIndex(const std::deque<V2_int>& waypoints, const V2_int& position);
+	[[nodiscard]] static int FindWaypointIndex(const std::deque<V2_int>& waypoints, const V2_int& position);
 
 	static void DisplayWaypoints(const std::deque<V2_int>& waypoints, const V2_int& tile_size, const Color& color);
 private:

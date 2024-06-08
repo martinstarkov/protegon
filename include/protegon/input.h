@@ -16,30 +16,30 @@ void Update();
 
 void ForceUpdateMousePosition();
 
-V2_int GetMousePosition();
+[[nodiscard]] V2_int GetMousePosition();
 
 // @return The amount scrolled by the mouse vertically in the current frame, positive upward, negative downward.
-int MouseScroll();
+[[nodiscard]] int MouseScroll();
 
-MouseState GetMouseState(Mouse button);
+[[nodiscard]] MouseState GetMouseState(Mouse button);
 
-bool MousePressed(Mouse button);
+[[nodiscard]] bool MousePressed(Mouse button);
 
-bool MouseReleased(Mouse button);
+[[nodiscard]] bool MouseReleased(Mouse button);
 
-bool MouseDown(Mouse button);
+[[nodiscard]] bool MouseDown(Mouse button);
 
-bool MouseUp(Mouse button);
+[[nodiscard]] bool MouseUp(Mouse button);
 
-bool KeyPressed(Key key);
+[[nodiscard]] bool KeyPressed(Key key);
 
-bool KeyReleased(Key key);
+[[nodiscard]] bool KeyReleased(Key key);
 
-bool KeyDown(Key key);
+[[nodiscard]] bool KeyDown(Key key);
 
-bool KeyUp(Key key);
+[[nodiscard]] bool KeyUp(Key key);
 
-milliseconds GetMouseHeldTime(Mouse button);
+[[nodiscard]] milliseconds GetMouseHeldTime(Mouse button);
 
 /*
 * @tparam Duration The unit of time measurement.
@@ -47,7 +47,7 @@ milliseconds GetMouseHeldTime(Mouse button);
 */
 template <typename Duration,
 	type_traits::duration<Duration> = true>
-inline bool MouseHeld(Mouse button, Duration time) {
+[[nodiscard]] inline bool MouseHeld(Mouse button, Duration time) {
 	const auto held_time{ GetMouseHeldTime(button) };
 	return held_time > time;
 }

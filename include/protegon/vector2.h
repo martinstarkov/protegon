@@ -112,51 +112,51 @@ struct Vector2 {
     }
 
     // Returns the dot product (this * o).
-    T Dot(const Vector2& o) const {
+    [[nodiscard]] T Dot(const Vector2& o) const {
         return x * o.x + y * o.y;
     }
 
     // Returns the cross product (this x o).
-    T Cross(const Vector2& o) const {
+    [[nodiscard]] T Cross(const Vector2& o) const {
         return x * o.y - y * o.x;
     }
 
     // Returns a vector with both components rounded to the nearest 0.5.
-    Vector2 Rounded() const {
+    [[nodiscard]] Vector2 Rounded() const {
         return { std::round(x), std::round(y) };
     }
 
-    Vector2 FastAbs() const {
+    [[nodiscard]] Vector2 FastAbs() const {
         return { ptgn::FastAbs(x), ptgn::FastAbs(y) };
     }
 
-    Vector2 FastCeil() const {
+    [[nodiscard]] Vector2 FastCeil() const {
         return { ptgn::FastCeil(x), ptgn::FastCeil(y) };
     }
 
-    Vector2 FastFloor() const {
+    [[nodiscard]] Vector2 FastFloor() const {
         return { ptgn::FastFloor(x), ptgn::FastFloor(y) };
     }
 
-    Vector2 Clamped(const T& low, const T& high) const {
+    [[nodiscard]] Vector2 Clamped(const T& low, const T& high) const {
         return { std::clamp(x, low, high), std::clamp(y, low, high) };
     }
 
-    Vector2 Clamped(const Vector2& low, const Vector2& high) const {
+    [[nodiscard]] Vector2 Clamped(const Vector2& low, const Vector2& high) const {
         return { std::clamp(x, low.x, high.x), std::clamp(y, low.y, high.y) };
     }
 
     // Both components will be either 0, 1 or -1.
-    Vector2 Identity() const {
+    [[nodiscard]] Vector2 Identity() const {
         return { Sign(x), Sign(y) };
     }
 
-    Vector2 Skewed() const {
+    [[nodiscard]] Vector2 Skewed() const {
         return { -y, x };
     }
 
     template <typename U = float>
-    U Magnitude() const {
+    [[nodiscard]] U Magnitude() const {
         if constexpr (std::is_same_v<U, double>)
             return std::sqrt(MagnitudeSquared());
         else if constexpr (std::is_same_v<U, long double>)
@@ -165,19 +165,19 @@ struct Vector2 {
             return static_cast<U>(std::sqrt(MagnitudeSquared()));
     }
 
-    T MagnitudeSquared() const {
+    [[nodiscard]] T MagnitudeSquared() const {
         return Dot(*this);
     }
 
     template <typename U = float>
-    Vector2<U> Fraction() const {
+    [[nodiscard]] Vector2<U> Fraction() const {
         return { x - static_cast<std::int64_t>(x), 
                  y - static_cast<std::int64_t>(y) };
     }
 
     // Returns a unit vector (magnitude = 1) except for zero vectors (magnitude = 0).
     template <typename U = float, type_traits::not_narrowing<T, U> = true>
-    Vector2<U> Normalized() const {
+    [[nodiscard]] Vector2<U> Normalized() const {
         T m{ Dot(*this) };
         if (NearlyEqual(m, static_cast<T>(0)))
             return *this;
@@ -187,7 +187,7 @@ struct Vector2 {
     // Returns a new vector rotated by the radian angle in the clockwise direction.
     // See https://en.wikipedia.org/wiki/Rotation_matrix for details
     template <typename U, type_traits::not_narrowing<T, U> = true>
-    Vector2<U> Rotated(U rad) const {
+    [[nodiscard]] Vector2<U> Rotated(U rad) const {
         return { x * std::cos(rad) - y * std::sin(rad),
                  x * std::sin(rad) + y * std::cos(rad) };
     }
@@ -204,11 +204,11 @@ struct Vector2 {
     *            -1.5708
     */
     template <typename U, type_traits::not_narrowing<T, U> = true>
-    U Angle() const {
+    [[nodiscard]] U Angle() const {
         return std::atan2(y, x);
     }
 
-    bool IsZero() const {
+    [[nodiscard]] bool IsZero() const {
         return NearlyEqual(x, static_cast<T>(0)) &&
                NearlyEqual(y, static_cast<T>(0));
     }
@@ -239,14 +239,14 @@ template <typename T>
 using Point = Vector2<T>;
 
 template <typename T, typename U, type_traits::floating_point<U> = true>
-inline Vector2<U> Lerp(const Vector2<T>& a,
+[[nodiscard]] inline Vector2<U> Lerp(const Vector2<T>& a,
                        const Vector2<T>& b,
                        U t) {
     return { Lerp(a.x, b.x, t), Lerp(a.y, b.y, t) };
 }
 
 template <typename T, typename U, type_traits::floating_point<U> = true>
-inline Vector2<U> Lerp(const Vector2<T>& a,
+[[nodiscard]] inline Vector2<U> Lerp(const Vector2<T>& a,
                        const Vector2<T>& b,
                        const Vector2<U>& t) {
     return { Lerp(a.x, b.x, t.x), Lerp(a.y, b.y, t.y) };

@@ -40,7 +40,7 @@ public:
     * @param key Id of the item to be checked for.
     * @return True if manager contains key, false otherwise
     */
-    bool Has(std::size_t key) const {
+    [[nodiscard]] bool Has(std::size_t key) const {
         auto it{ map_.find(key) };
         return it != std::end(map_);
     }
@@ -49,7 +49,7 @@ public:
     * @param key Id of the item to be retrieved.
     * @return Shared pointer to the desired item.
     */
-    T Get(std::size_t key) {
+    [[nodiscard]] T Get(std::size_t key) {
         auto it{ map_.find(key) };
         assert(it != std::end(map_) && "Entry does not exist in resource manager");
         return it->second;
@@ -64,7 +64,7 @@ public:
 private:
     friend class SceneManager;
     using Map = std::unordered_map<std::size_t, T>;
-    Map& GetMap() {
+    [[nodiscard]] Map& GetMap() {
         return map_;
     }
     Map map_;

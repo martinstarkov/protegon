@@ -21,39 +21,39 @@ struct InputHandler {
 	* @return Pair of pointers to the mouse state and timer for a given button,
 	* pair of nullptrs if no such button exists.
 	*/
-	std::pair<MouseState&, Timer&> GetMouseStateAndTimer(Mouse button);
+	[[nodiscard]] std::pair<MouseState&, Timer&> GetMouseStateAndTimer(Mouse button);
 
 	/*
 	* @param button Mouse enum corresponding to the desired button.
 	* @return Current state of the given mouse button.
 	*/
-	MouseState GetMouseState(Mouse button) const;
+	[[nodiscard]] MouseState GetMouseState(Mouse button) const;
 
-	milliseconds GetMouseHeldTime(Mouse button);
+	[[nodiscard]] milliseconds GetMouseHeldTime(Mouse button);
 
 	void Update();
 
 	void ForceUpdateMousePosition();
-	V2_int GetMousePosition();
+	[[nodiscard]] V2_int GetMousePosition();
 
 	// @return The amount scrolled by the mouse vertically in the current frame, positive upward, negative downward.
-	int GetMouseScroll() const;
+	[[nodiscard]] int GetMouseScroll() const;
 
-	bool MousePressed(Mouse button) const;
+	[[nodiscard]] bool MousePressed(Mouse button) const;
 
-	bool MouseReleased(Mouse button) const;
+	[[nodiscard]] bool MouseReleased(Mouse button) const;
 
-	bool MouseDown(Mouse button) const;
+	[[nodiscard]] bool MouseDown(Mouse button) const;
 
-	bool MouseUp(Mouse button) const;
+	[[nodiscard]] bool MouseUp(Mouse button) const;
 
-	bool KeyPressed(Key key) const;
+	[[nodiscard]] bool KeyPressed(Key key) const;
 
-	bool KeyReleased(Key key) const;
+	[[nodiscard]] bool KeyReleased(Key key) const;
 
-	bool KeyDown(Key key);
+	[[nodiscard]] bool KeyDown(Key key);
 
-	bool KeyUp(Key key);
+	[[nodiscard]] bool KeyUp(Key key);
 private:
 	// Number of keys stored in the SDL key states array. For creating previous key states array.
 	static constexpr std::size_t KEY_COUNT{ 512 };

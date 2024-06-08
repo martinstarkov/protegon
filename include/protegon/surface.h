@@ -17,16 +17,16 @@ public:
 	Surface() = default;
 	Surface(const path& image_path);
 
-	V2_int GetSize() const;
+	[[nodiscard]] V2_int GetSize() const;
 
-	Color GetColor(const V2_int& coordinate);
+	[[nodiscard]] Color GetColor(const V2_int& coordinate);
 
 	void ForEachPixel(std::function<void(const V2_int&, const Color&)> function);
 private:
 	void Lock();
 	void Unlock();
-	Color GetColorData(std::uint32_t pixel_data);
-	std::uint32_t GetPixelData(const V2_int& coordinate);
+	[[nodiscard]] Color GetColorData(std::uint32_t pixel_data);
+	[[nodiscard]] std::uint32_t GetPixelData(const V2_int& coordinate);
 };
 
 } // namespace ptgn

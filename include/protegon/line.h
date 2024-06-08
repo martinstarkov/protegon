@@ -47,10 +47,10 @@ struct Line {
 	Point<T> b{};
 
 	// p is the penetration vector.
-	Line<T> Resolve(const Vector2<T>& p) const {
+	[[nodiscard]] Line<T> Resolve(const Vector2<T>& p) const {
 		return { a + p, b + p };
 	}
-	Vector2<T> Direction() const {
+	[[nodiscard]] Vector2<T> Direction() const {
 		return b - a;
 	}
 

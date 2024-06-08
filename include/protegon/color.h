@@ -36,7 +36,7 @@ inline bool operator!=(const Color& lhs, const Color& rhs) {
 }
 
 template <typename U, type_traits::floating_point<U> = true>
-inline Color Lerp(const Color& lhs, const Color& rhs, U t) {
+[[nodiscard]] inline Color Lerp(const Color& lhs, const Color& rhs, U t) {
 	return Color{
 		static_cast<std::uint8_t>(Lerp(lhs.r, rhs.r, t)),
 		static_cast<std::uint8_t>(Lerp(lhs.g, rhs.g, t)),
@@ -46,7 +46,7 @@ inline Color Lerp(const Color& lhs, const Color& rhs, U t) {
 }
 
 template <typename U, type_traits::floating_point<U> = true>
-inline Color Lerp(const Color& lhs, const Color& rhs, U t_r, U t_g, U t_b, U t_a) {
+[[nodiscard]] inline Color Lerp(const Color& lhs, const Color& rhs, U t_r, U t_g, U t_b, U t_a) {
 	return Color{
 		static_cast<std::uint8_t>(Lerp(lhs.r, rhs.r, t_r)),
 		static_cast<std::uint8_t>(Lerp(lhs.g, rhs.g, t_g)),

@@ -29,7 +29,7 @@ public:
 			func(event);
 		}
 	};
-	bool IsSubscribed(void* ptr) const {
+	[[nodiscard]] bool IsSubscribed(void* ptr) const {
 		return observers_.find(ptr) != observers_.end();
 	}
 private:
