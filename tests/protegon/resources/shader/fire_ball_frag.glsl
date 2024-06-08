@@ -92,5 +92,5 @@ void main(){
 	float starGlow	= min( max( 1.0 - dist * ( 1.0 - brightness ), 0.0 ), 1.0 );
 	//fragColor.rgb	= vec3( r );
 	fragColor.rgb	= vec3( f * ( 0.75 + brightness * 0.3 ) * orange ) + starSphere + corona * orange + starGlow * orangeRed;
-	fragColor.a	= 0.5;
+	fragColor.a	= 1.0;
 }

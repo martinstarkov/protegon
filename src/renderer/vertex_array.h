@@ -13,12 +13,15 @@ namespace impl {
 
 struct VertexArrayInstance {
 public:
-	VertexArrayInstance();
+	VertexArrayInstance() = default;
 	~VertexArrayInstance();
+private:
+	VertexArrayInstance(PrimitiveMode mode);
 private:
 	friend class VertexArray;
 
-	std::vector<VertexBuffer> vertex_buffers_;
+	PrimitiveMode mode_{ PrimitiveMode::Triangles };
+	VertexBuffer vertex_buffer_;
 	IndexBuffer index_buffer_;
 	std::uint32_t id_{ 0 };
 };
@@ -29,14 +32,21 @@ class VertexArray : public Handle<impl::VertexArrayInstance> {
 public:
 	VertexArray() = default;
 	~VertexArray() = default;
-	[[nodiscard]] static VertexArray Create();
+
+	VertexArray(PrimitiveMode mode);
 
 	void Bind() const;
 	void Unbind() const;
 
-	void AddVertexBuffer(const VertexBuffer& vertex_buffer);
+	void Draw() const;
+
+	void SetVertexBuffer(const VertexBuffer& vertex_buffer);
 	void SetIndexBuffer(const IndexBuffer& index_buffer);
+	[[nodiscard]] const VertexBuffer& GetVertexBuffer() const;
 	[[nodiscard]] const IndexBuffer& GetIndexBuffer() const;
+
+	[[nodiscard]] PrimitiveMode GetPrimitiveMode() const;
+	void SetPrimitiveMode(PrimitiveMode mode);
 private:
 	VertexArray(const std::shared_ptr<impl::VertexArrayInstance>& instance);
 };
