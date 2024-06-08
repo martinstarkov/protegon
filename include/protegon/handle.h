@@ -13,6 +13,12 @@ public:
 	bool IsValid() const {
 		return instance_ != nullptr;
 	}
+	std::shared_ptr<T>& GetInstance() {
+		return instance_;
+	}
+	const std::shared_ptr<T>& GetInstance() const {
+		return instance_;
+	}
 protected:
 	std::shared_ptr<T> instance_;
 private:
