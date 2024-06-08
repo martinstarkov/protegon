@@ -23,6 +23,12 @@ Texture::Texture(const path& image_path) {
 	}
 }
 
+Texture::Texture(AccessType access, const V2_int& size) {
+	instance_ = { SDL_CreateTexture(global::GetGame().sdl.GetRenderer().get(), SDL_PIXELFORMAT_RGBA8888,
+				  static_cast<SDL_TextureAccess>(access), size.x, size.y), SDL_DestroyTexture };
+	PTGN_ASSERT(IsValid(), "Failed to create texture from access type and size");
+}
+
 Texture::Texture(const std::shared_ptr<SDL_Surface>& surface) {
 	PTGN_ASSERT(surface != nullptr, "Cannot create texture from uninitialized or destroyed surface");
 	instance_ = {
@@ -83,9 +89,14 @@ V2_int Texture::GetSize() const {
 	return size;
 }
 
+void Texture::SetBlendMode(BlendMode mode) {
+	PTGN_CHECK(IsValid(), "Cannot set blend mode of uninitialized or destroyed texture");
+	SDL_SetTextureBlendMode(instance_.get(), static_cast<SDL_BlendMode>(mode));
+}
+
 void Texture::SetAlpha(std::uint8_t alpha) {
 	PTGN_CHECK(IsValid(), "Cannot set alpha of uninitialized or destroyed texture");
-	SDL_SetTextureBlendMode(instance_.get(), SDL_BLENDMODE_BLEND);
+	SDL_SetTextureBlendMode(instance_.get(), static_cast<SDL_BlendMode>(BlendMode::BLEND));
 	SDL_SetTextureAlphaMod(instance_.get(), alpha);
 }
 
@@ -93,6 +104,19 @@ void Texture::SetColor(const Color& color) {
 	PTGN_CHECK(IsValid(), "Cannot set color of uninitialized or destroyed texture");
 	SetAlpha(color.a);
 	SDL_SetTextureColorMod(instance_.get(), color.r, color.g, color.b);
+}
+
+Texture::AccessType Texture::GetAccessType() const {
+	PTGN_CHECK(IsValid(), "Cannot get access type of uninitialized or destroyed texture");
+	int access;
+	SDL_QueryTexture(instance_.get(), nullptr, &access, NULL, NULL);
+	return static_cast<Texture::AccessType>(access);
+}
+
+void Texture::SetAsRendererTarget() {
+	PTGN_CHECK(IsValid(), "Cannot set uninitialized or destroyed texture as renderer target");
+	PTGN_CHECK(GetAccessType() == AccessType::TARGET, "Cannot set texture as renderer target if it was not created with target access type flag");
+	SDL_SetRenderTarget(global::GetGame().sdl.GetRenderer().get(), instance_.get());
 }
 
 } // namespace ptgn
