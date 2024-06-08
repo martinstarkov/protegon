@@ -22,6 +22,7 @@ set(PROTEGON_INCLUDE_DIR "${PROTEGON_DIR}/include"            CACHE BOOL "" FORC
 set(MODULES_DIR          "${PROTEGON_DIR}/modules"            CACHE BOOL "" FORCE)
 set(ECS_INCLUDE_DIR      "${MODULES_DIR}/ecs/include"         CACHE BOOL "" FORCE)
 set(JSON_INCLUDE_DIR     "${MODULES_DIR}/json/single_include" CACHE BOOL "" FORCE)
+set(LUPLE_INCLUDE_DIR    "${MODULES_DIR}/luple/include"       CACHE BOOL "" FORCE)
 
 # Search for protegon source and header files
 file(GLOB_RECURSE PROTEGON_SOURCES CONFIGURE_DEPENDS LIST_DIRECTORIES false 
@@ -108,6 +109,7 @@ target_link_libraries(protegon PRIVATE ${OPENGL_LIBRARIES})
 target_include_directories(protegon PUBLIC
 	"${PROTEGON_INCLUDE_DIR}"
 	"${ECS_INCLUDE_DIR}"
+	"${LUPLE_INCLUDE_DIR}"
 	"${JSON_INCLUDE_DIR}"
   PRIVATE
   "${OPENGL_INCLUDE_DIRS}"
