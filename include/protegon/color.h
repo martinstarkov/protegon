@@ -57,6 +57,7 @@ template <typename U, type_traits::floating_point<U> = true>
 
 namespace color {
 
+// TODO: Fix overlap with windows macros.
 inline constexpr Color TRANSPARENT   {   0,   0,   0,   0 };
 inline constexpr Color BLACK         {   0,   0,   0, 255 };
 inline constexpr Color WHITE         { 255, 255, 255, 255 };
