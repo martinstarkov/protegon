@@ -23,11 +23,11 @@ using namespace ptgn;
 void EncodeAndExtract(
 	std::uint16_t hidden_size,
 	std::uint16_t hidden_count,
-	std::uint32_t hidden_type,
+	impl::GLSLType hidden_type,
 	std::set<std::uint64_t>& unique_codes) {
 	//ShaderDataType data_type = ShaderDataType::none) {
 	std::uint64_t encoded = (static_cast<std::uint64_t>(hidden_size) << 48) |
-		((static_cast<std::uint64_t>(hidden_count) << 32) | hidden_type);  // Pack with unique offsets
+		((static_cast<std::uint64_t>(hidden_count) << 32) | static_cast<std::uint32_t>(hidden_type));  // Pack with unique offsets
 
 	// Only check shader data types which have been implemented.
 	/*if (data_type != ShaderDataType::none) {
@@ -40,7 +40,7 @@ void EncodeAndExtract(
 	std::uint16_t extracted_count = (encoded >> 32) & 0xFFFF;
 	std::uint16_t extracted_size = (encoded >> 48) & 0xFFFF;
 
-	PTGN_ASSERT(extracted_type  == hidden_type);
+	PTGN_ASSERT(extracted_type  == static_cast<std::uint32_t>(hidden_type));
 	PTGN_ASSERT(extracted_count == hidden_count);
 	PTGN_ASSERT(extracted_size  == hidden_size);
 
@@ -59,56 +59,56 @@ bool TestShader() {
 	PTGN_INFO("Starting Shader tests...");
 
 	// Identifier tests
-	PTGN_ASSERT(impl::TYPE_BYTE == GL_BYTE);
-	PTGN_ASSERT(impl::TYPE_UNSIGNED_BYTE == GL_UNSIGNED_BYTE);
-	PTGN_ASSERT(impl::TYPE_SHORT == GL_SHORT);
-	PTGN_ASSERT(impl::TYPE_UNSIGNED_SHORT == GL_UNSIGNED_SHORT);
-	PTGN_ASSERT(impl::TYPE_INT == GL_INT);
-	PTGN_ASSERT(impl::TYPE_UNSIGNED_INT == GL_UNSIGNED_INT);
-	PTGN_ASSERT(impl::TYPE_FLOAT == GL_FLOAT);
-	PTGN_ASSERT(impl::TYPE_DOUBLE == GL_DOUBLE);
+	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLSLType::Byte) == GL_BYTE);
+	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLSLType::UnsignedByte) == GL_UNSIGNED_BYTE);
+	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLSLType::Short) == GL_SHORT);
+	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLSLType::UnsignedShort) == GL_UNSIGNED_SHORT);
+	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLSLType::Int) == GL_INT);
+	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLSLType::UnsignedInt) == GL_UNSIGNED_INT);
+	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLSLType::Float) == GL_FLOAT);
+	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLSLType::Double) == GL_DOUBLE);
 
 	std::set<std::uint64_t> unique_codes;
 
-	EncodeAndExtract(sizeof(std::int8_t), 1, impl::TYPE_BYTE, unique_codes);//, ShaderDataType::bool_);
-	EncodeAndExtract(sizeof(std::int8_t), 2, impl::TYPE_BYTE, unique_codes);//, ShaderDataType::bvec2);
-	EncodeAndExtract(sizeof(std::int8_t), 3, impl::TYPE_BYTE, unique_codes);//, ShaderDataType::bvec3);
-	EncodeAndExtract(sizeof(std::int8_t), 4, impl::TYPE_BYTE, unique_codes);//, ShaderDataType::bvec4);
+	EncodeAndExtract(sizeof(std::int8_t), 1, impl::GLSLType::Byte, unique_codes);//, ShaderDataType::bool_);
+	EncodeAndExtract(sizeof(std::int8_t), 2, impl::GLSLType::Byte, unique_codes);//, ShaderDataType::bvec2);
+	EncodeAndExtract(sizeof(std::int8_t), 3, impl::GLSLType::Byte, unique_codes);//, ShaderDataType::bvec3);
+	EncodeAndExtract(sizeof(std::int8_t), 4, impl::GLSLType::Byte, unique_codes);//, ShaderDataType::bvec4);
 
-	EncodeAndExtract(sizeof(std::uint8_t), 1, impl::TYPE_UNSIGNED_BYTE, unique_codes);
-	EncodeAndExtract(sizeof(std::uint8_t), 2, impl::TYPE_UNSIGNED_BYTE, unique_codes);
-	EncodeAndExtract(sizeof(std::uint8_t), 3, impl::TYPE_UNSIGNED_BYTE, unique_codes);
-	EncodeAndExtract(sizeof(std::uint8_t), 4, impl::TYPE_UNSIGNED_BYTE, unique_codes);
+	EncodeAndExtract(sizeof(std::uint8_t), 1, impl::GLSLType::UnsignedByte, unique_codes);
+	EncodeAndExtract(sizeof(std::uint8_t), 2, impl::GLSLType::UnsignedByte, unique_codes);
+	EncodeAndExtract(sizeof(std::uint8_t), 3, impl::GLSLType::UnsignedByte, unique_codes);
+	EncodeAndExtract(sizeof(std::uint8_t), 4, impl::GLSLType::UnsignedByte, unique_codes);
 
-	EncodeAndExtract(sizeof(std::int16_t), 1, impl::TYPE_SHORT, unique_codes);
-	EncodeAndExtract(sizeof(std::int16_t), 2, impl::TYPE_SHORT, unique_codes);
-	EncodeAndExtract(sizeof(std::int16_t), 3, impl::TYPE_SHORT, unique_codes);
-	EncodeAndExtract(sizeof(std::int16_t), 4, impl::TYPE_SHORT, unique_codes);
+	EncodeAndExtract(sizeof(std::int16_t), 1, impl::GLSLType::Short, unique_codes);
+	EncodeAndExtract(sizeof(std::int16_t), 2, impl::GLSLType::Short, unique_codes);
+	EncodeAndExtract(sizeof(std::int16_t), 3, impl::GLSLType::Short, unique_codes);
+	EncodeAndExtract(sizeof(std::int16_t), 4, impl::GLSLType::Short, unique_codes);
 
-	EncodeAndExtract(sizeof(std::uint16_t), 1, impl::TYPE_UNSIGNED_SHORT, unique_codes);
-	EncodeAndExtract(sizeof(std::uint16_t), 2, impl::TYPE_UNSIGNED_SHORT, unique_codes);
-	EncodeAndExtract(sizeof(std::uint16_t), 3, impl::TYPE_UNSIGNED_SHORT, unique_codes);
-	EncodeAndExtract(sizeof(std::uint16_t), 4, impl::TYPE_UNSIGNED_SHORT, unique_codes);
+	EncodeAndExtract(sizeof(std::uint16_t), 1, impl::GLSLType::UnsignedShort, unique_codes);
+	EncodeAndExtract(sizeof(std::uint16_t), 2, impl::GLSLType::UnsignedShort, unique_codes);
+	EncodeAndExtract(sizeof(std::uint16_t), 3, impl::GLSLType::UnsignedShort, unique_codes);
+	EncodeAndExtract(sizeof(std::uint16_t), 4, impl::GLSLType::UnsignedShort, unique_codes);
 
-	EncodeAndExtract(sizeof(std::int32_t), 1, impl::TYPE_INT, unique_codes);//, ShaderDataType::int_);
-	EncodeAndExtract(sizeof(std::int32_t), 2, impl::TYPE_INT, unique_codes);//, ShaderDataType::ivec2);
-	EncodeAndExtract(sizeof(std::int32_t), 3, impl::TYPE_INT, unique_codes);//, ShaderDataType::ivec3);
-	EncodeAndExtract(sizeof(std::int32_t), 4, impl::TYPE_INT, unique_codes);//, ShaderDataType::ivec4);
+	EncodeAndExtract(sizeof(std::int32_t), 1, impl::GLSLType::Int, unique_codes);//, ShaderDataType::int_);
+	EncodeAndExtract(sizeof(std::int32_t), 2, impl::GLSLType::Int, unique_codes);//, ShaderDataType::ivec2);
+	EncodeAndExtract(sizeof(std::int32_t), 3, impl::GLSLType::Int, unique_codes);//, ShaderDataType::ivec3);
+	EncodeAndExtract(sizeof(std::int32_t), 4, impl::GLSLType::Int, unique_codes);//, ShaderDataType::ivec4);
 
-	EncodeAndExtract(sizeof(std::uint32_t), 1, impl::TYPE_UNSIGNED_INT, unique_codes);//, ShaderDataType::uint_);
-	EncodeAndExtract(sizeof(std::uint32_t), 2, impl::TYPE_UNSIGNED_INT, unique_codes);//, ShaderDataType::uvec2);
-	EncodeAndExtract(sizeof(std::uint32_t), 3, impl::TYPE_UNSIGNED_INT, unique_codes);//, ShaderDataType::uvec3);
-	EncodeAndExtract(sizeof(std::uint32_t), 4, impl::TYPE_UNSIGNED_INT, unique_codes);//, ShaderDataType::uvec4);
+	EncodeAndExtract(sizeof(std::uint32_t), 1, impl::GLSLType::UnsignedInt, unique_codes);//, ShaderDataType::uint_);
+	EncodeAndExtract(sizeof(std::uint32_t), 2, impl::GLSLType::UnsignedInt, unique_codes);//, ShaderDataType::uvec2);
+	EncodeAndExtract(sizeof(std::uint32_t), 3, impl::GLSLType::UnsignedInt, unique_codes);//, ShaderDataType::uvec3);
+	EncodeAndExtract(sizeof(std::uint32_t), 4, impl::GLSLType::UnsignedInt, unique_codes);//, ShaderDataType::uvec4);
 
-	EncodeAndExtract(sizeof(std::float_t), 1, impl::TYPE_FLOAT, unique_codes);//, ShaderDataType::float_);
-	EncodeAndExtract(sizeof(std::float_t), 2, impl::TYPE_FLOAT, unique_codes);//, ShaderDataType::vec2);
-	EncodeAndExtract(sizeof(std::float_t), 3, impl::TYPE_FLOAT, unique_codes);//, ShaderDataType::vec3);
-	EncodeAndExtract(sizeof(std::float_t), 4, impl::TYPE_FLOAT, unique_codes);//, ShaderDataType::vec4);
+	EncodeAndExtract(sizeof(std::float_t), 1, impl::GLSLType::Float, unique_codes);//, ShaderDataType::float_);
+	EncodeAndExtract(sizeof(std::float_t), 2, impl::GLSLType::Float, unique_codes);//, ShaderDataType::vec2);
+	EncodeAndExtract(sizeof(std::float_t), 3, impl::GLSLType::Float, unique_codes);//, ShaderDataType::vec3);
+	EncodeAndExtract(sizeof(std::float_t), 4, impl::GLSLType::Float, unique_codes);//, ShaderDataType::vec4);
 
-	EncodeAndExtract(sizeof(std::double_t), 1, impl::TYPE_DOUBLE, unique_codes);//, ShaderDataType::double_);
-	EncodeAndExtract(sizeof(std::double_t), 2, impl::TYPE_DOUBLE, unique_codes);//, ShaderDataType::dvec2);
-	EncodeAndExtract(sizeof(std::double_t), 3, impl::TYPE_DOUBLE, unique_codes);//, ShaderDataType::dvec3);
-	EncodeAndExtract(sizeof(std::double_t), 4, impl::TYPE_DOUBLE, unique_codes);//, ShaderDataType::dvec4);
+	EncodeAndExtract(sizeof(std::double_t), 1, impl::GLSLType::Double, unique_codes);//, ShaderDataType::double_);
+	EncodeAndExtract(sizeof(std::double_t), 2, impl::GLSLType::Double, unique_codes);//, ShaderDataType::dvec2);
+	EncodeAndExtract(sizeof(std::double_t), 3, impl::GLSLType::Double, unique_codes);//, ShaderDataType::dvec3);
+	EncodeAndExtract(sizeof(std::double_t), 4, impl::GLSLType::Double, unique_codes);//, ShaderDataType::dvec4);
 
 	PTGN_ASSERT(unique_codes.size() == 32);
 
