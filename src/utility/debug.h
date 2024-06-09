@@ -8,6 +8,8 @@
 #include "protegon/log.h"
 #include "platform.h"
 
+#define PTGN_EXPAND_MACRO(x) x
+
 #ifndef NDEBUG
 #define PTGN_DEBUG
 #endif
@@ -17,6 +19,13 @@
 		std::stringstream ss; \
 		PTGN_ERROR(ss, __VA_ARGS__); \
 		throw std::exception(ss.str(), __FILE__, __LINE__); \
+	}
+
+#define PTGN_INTERNAL_ASSERT_IMPL(...) \
+	{ \
+		std::stringstream ss; \
+		PTGN_ERROR(ss, __VA_ARGS__); \
+		std::abort(); \
 	}
 
 #ifdef PTGN_DEBUG
@@ -35,21 +44,24 @@
 				PTGN_ERROR(__VA_ARGS__); \
 				PTGN_DEBUGBREAK(); \
 			}
+		#undef PTGN_INTERNAL_ASSERT_IMPL
+		#define PTGN_INTERNAL_ASSERT_IMPL PTGN_EXPAND_MACRO(PTGN_INTERNAL_EXCEPTION_IMPL)
 	#endif
 	#define PTGN_ENABLE_ASSERTS
 #else
 	#define PTGN_DEBUGBREAK()
 #endif
 
+
 #define PTGN_CHECK(condition, ...) \
 	if (!(condition)) { \
 		PTGN_INTERNAL_EXCEPTION_IMPL(__VA_ARGS__); \
 	}
+
 #ifdef PTGN_ENABLE_ASSERTS
 #define PTGN_ASSERT(condition, ...) \
     if (!(condition)) {          \
-		PTGN_ERROR(__VA_ARGS__); \
-        std::abort();            \
+		PTGN_INTERNAL_ASSERT_IMPL(__VA_ARGS__); \
     }
 #else
 #define PTGN_ASSERT(condition, ...) do {} while(false)

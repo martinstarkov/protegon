@@ -6,7 +6,7 @@
 
 #include "protegon/line.h"
 #include "protegon/polygon.h"
-#include "core/sdl_instance.h"
+#include "core/game.h"
 #include <protegon/log.h>
 
 namespace ptgn {
@@ -14,52 +14,52 @@ namespace ptgn {
 namespace impl {
 
 void DrawCircle(int x, int y, int r, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawCircleImpl(renderer.get(), x, y, r);
 }
 
 void DrawSolidCircle(int x, int y, int r, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawSolidCircleImpl(renderer.get(), x, y, r);
 }
 
 void DrawSolidCircleSliced(int x, int y, int r, const Color& color, std::function<bool(double y_frac)> condition) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawSolidCircleSlicedImpl(renderer.get(), x, y, r, condition);
 }
 
 void DrawThickCircle(int x, int y, int r, double pixel_thickness, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawThickCircleImpl(renderer.get(), x, y, r, pixel_thickness);
 }
 
 void DrawEllipse(int x, int y, int rx, int ry, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawEllipseImpl(renderer.get(), x, y, rx, ry);
 }
 
 void DrawSolidEllipse(int x, int y, int rx, int ry, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawSolidEllipseImpl(renderer.get(), x, y, rx, ry);
 }
 
 void DrawThickEllipse(int x, int y, int rx, int ry, double pixel_thickness, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawThickEllipseImpl(renderer.get(), x, y, rx, ry, pixel_thickness);
 }
 
 void DrawArc(int x, int y, int arc_radius, double start_angle, double end_angle, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawArcImpl(renderer.get(), x, y, arc_radius, start_angle, end_angle);
 }
 
 void DrawSolidArc(int x, int y, int arc_radius, double start_angle, double end_angle, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawSolidArcImpl(renderer.get(), x, y, arc_radius, start_angle, end_angle);
 }
 
 void DrawThickArc(int x, int y, int arc_radius, double start_angle, double end_angle, double pixel_thickness, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawThickArcImpl(renderer.get(), x, y, arc_radius, start_angle, end_angle, pixel_thickness);
 }
 
@@ -512,32 +512,32 @@ void DrawThickEllipseImpl(SDL_Renderer* renderer, int x, int y, int rx, int ry, 
 	if (rx < ry) {
 		for (x0 = -xo; x0 <= -xi; x0++) {
 			y0 = std::sqrt(yo2 * (1.0 - x0 * x0 / xo2)) + 0.5;
-			SDL_RenderDrawLine(renderer, x + x0, y - y0, x + x0, y + y0);
+			DrawLineImpl(renderer, x + x0, y - y0, x + x0, y + y0);
 		}
 		for (x0 = -xi + 1; x0 <= xi - 1; x0++) {
 			y0 = std::sqrt(yo2 * (1.0 - x0 * x0 / xo2)) + 0.5;
 			z = std::sqrt(yi2 * (1.0 - x0 * x0 / xi2)) + 0.5;
-			SDL_RenderDrawLine(renderer, x + x0, y + z, x + x0, y + y0);
-			SDL_RenderDrawLine(renderer, x + x0, y - z, x + x0, y - y0);
+			DrawLineImpl(renderer, x + x0, y + z, x + x0, y + y0);
+			DrawLineImpl(renderer, x + x0, y - z, x + x0, y - y0);
 		}
 		for (x0 = xo; x0 >= xi; x0--) {
 			y0 = std::sqrt(yo2 * (1.0 - x0 * x0 / xo2)) + 0.5;
-			SDL_RenderDrawLine(renderer, x + x0, y - y0, x + x0, y + y0);
+			DrawLineImpl(renderer, x + x0, y - y0, x + x0, y + y0);
 		}
 	} else {
 		for (y0 = -yo; y0 <= -yi; y0++) {
 			x0 = std::sqrt(xo2 * (1.0 - y0 * y0 / yo2)) + 0.5;
-			SDL_RenderDrawLine(renderer, x - x0, y + y0, x + x0, y + y0);
+			DrawLineImpl(renderer, x - x0, y + y0, x + x0, y + y0);
 		}
 		for (y0 = -yi + 1; y0 <= yi - 1; y0++) {
 			x0 = std::sqrt(xo2 * (1.0 - y0 * y0 / yo2)) + 0.5;
 			z = std::sqrt(xi2 * (1.0 - y0 * y0 / yi2)) + 0.5;
-			SDL_RenderDrawLine(renderer, x + z, y + y0, x + x0, y + y0);
-			SDL_RenderDrawLine(renderer, x - z, y + y0, x - x0, y + y0);
+			DrawLineImpl(renderer, x + z, y + y0, x + x0, y + y0);
+			DrawLineImpl(renderer, x - z, y + y0, x - x0, y + y0);
 		}
 		for (y0 = yo; y0 >= yi; y0--) {
 			x0 = std::sqrt(xo2 * (1.0 - y0 * y0 / yo2)) + 0.5;
-			SDL_RenderDrawLine(renderer, x - x0, y + y0, x + x0, y + y0);
+			DrawLineImpl(renderer, x - x0, y + y0, x + x0, y + y0);
 		}
 	}
 }

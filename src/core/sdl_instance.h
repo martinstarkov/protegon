@@ -27,8 +27,6 @@ public:
 	[[nodiscard]] V2_int GetResolution() const;
 
 	[[nodiscard]] bool WindowExists() const;
-
-	void SetDrawMode(const Color& color, BlendMode draw_mode);
 private:
 	void InitSDL();
 	void InitSDLImage();
@@ -45,11 +43,5 @@ private:
 	std::shared_ptr<SDL_Window> window_;
 	std::shared_ptr<SDL_Renderer> renderer_;
 };
-
-namespace impl {
-
-std::shared_ptr<SDL_Renderer> SetDrawColor(const Color& color);
-
-} // namespace impl
 
 } // namespace ptgn

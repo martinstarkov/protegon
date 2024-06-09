@@ -13,47 +13,47 @@ namespace ptgn {
 namespace impl {
 
 void DrawRectangle(int x, int y, int w, int h, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawRectangleImpl(renderer.get(), x, y, w, h);
 }
 
 void DrawSolidRectangle(int x, int y, int w, int h, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawSolidRectangleImpl(renderer.get(), x, y, x + w, y + h);
 }
 
 void DrawThickRectangle(int x, int y, int w, int h, double pixel_thickness, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawThickRectangleImpl(renderer.get(), x, y, x + w, y + h, pixel_thickness);
 }
 
 void DrawRoundedRectangle(int x, int y, int w, int h, int r, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawRoundedRectangleImpl(renderer.get(), x, y, w, h, r);
 }
 
 void DrawSolidRoundedRectangle(int x, int y, int w, int h, int r, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawSolidRoundedRectangleImpl(renderer.get(), x, y, w, h, r);
 }
 
 void DrawThickRoundedRectangle(int x, int y, int w, int h, int r, double pixel_thickness, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawThickRoundedRectangleImpl(renderer.get(), x, y, w, h, r, pixel_thickness);
 }
 
 void DrawPolygon(const std::vector<V2_int>& v, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawPolygonImpl(renderer.get(), v);
 }
 
 void DrawSolidPolygon(const std::vector<V2_int>& v, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawSolidPolygonImpl(renderer.get(), v);
 }
 
 void DrawThickPolygon(const std::vector<V2_int>& v, double pixel_thickness, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawThickPolygonImpl(renderer.get(), v, pixel_thickness);
 }
 

@@ -113,10 +113,4 @@ Texture::AccessType Texture::GetAccessType() const {
 	return static_cast<Texture::AccessType>(access);
 }
 
-void Texture::SetAsRendererTarget() {
-	PTGN_CHECK(IsValid(), "Cannot set uninitialized or destroyed texture as renderer target");
-	PTGN_CHECK(GetAccessType() == AccessType::TARGET, "Cannot set texture as renderer target if it was not created with target access type flag");
-	SDL_SetRenderTarget(global::GetGame().sdl.GetRenderer().get(), instance_.get());
-}
-
 } // namespace ptgn

@@ -9,6 +9,8 @@ namespace ptgn {
 
 namespace impl {
 
+std::shared_ptr<SDL_Renderer> SetDrawMode(const Color& color);
+
 void DrawPoint(int x, int y, const Color& color);
 void DrawLine(int x1, int y1, int x2, int y2, const Color& color);
 void DrawThickLine(int x1, int y1, int x2, int y2, double pixel_thickness, const Color& color);

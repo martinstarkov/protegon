@@ -5,6 +5,7 @@
 #include "color.h"
 #include "handle.h"
 #include "file.h"
+#include "renderer.h"
 
 struct SDL_Texture;
 struct SDL_Surface;
@@ -47,8 +48,6 @@ public:
 	void SetColor(const Color& color);
 
 	AccessType GetAccessType() const;
-
-	void SetAsRendererTarget();
 private:
 	friend class Text;
 	Texture(const std::shared_ptr<SDL_Surface>& surface);

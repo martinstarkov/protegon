@@ -76,9 +76,9 @@ void SceneManager::UnloadFlagged() {
 			}
 		}
 		counter++;
-		PTGN_ASSERT(counter <= max_counter && "Failed to properly delete all flagged scenes within a reasonable number of loops");
+		PTGN_ASSERT(counter <= max_counter, "Failed to properly delete all flagged scenes within a reasonable number of loops");
 	}
-	PTGN_ASSERT(flagged_ == 0 && "Could not delete a flagged scene");
+	PTGN_ASSERT(flagged_ == 0, "Could not delete a flagged scene");
 }
 
 bool SceneManager::ActiveScenesContain(std::size_t key) const {

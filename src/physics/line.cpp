@@ -2,60 +2,66 @@
 
 #include <SDL.h>
 
-#include "core/sdl_instance.h"
+#include "core/game.h"
 #include "protegon/circle.h"
 
 namespace ptgn {
 
 namespace impl {
 
+std::shared_ptr<SDL_Renderer> SetDrawMode(const Color& color) {
+	SDLInstance& sdl{ global::GetGame().sdl };
+	renderer::SetDrawMode(color, BlendMode::BLEND);
+	return sdl.GetRenderer();
+}
+
 void DrawPoint(int x, int y, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawPointImpl(renderer.get(), x, y);
 }
 
 void DrawLine(int x1, int y1, int x2, int y2, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawLineImpl(renderer.get(), x1, y1, x2, y2);
 }
 
 void DrawThickLine(int x1, int y1, int x2, int y2, double pixel_thickness, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawThickLineImpl(renderer.get(), x1, y1, x2, y2, pixel_thickness);
 }
 
 void DrawCapsule(int x1, int y1, int x2, int y2, int r, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawCapsuleImpl(renderer.get(), x1, y1, x2, y2, r);
 }
 
 void DrawSolidCapsule(int x1, int y1, int x2, int y2, int r, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawSolidCapsuleImpl(renderer.get(), x1, y1, x2, y2, r);
 }
 
 void DrawThickCapsule(int x1, int y1, int x2, int y2, int r, double pixel_thickness, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawThickCapsuleImpl(renderer.get(), x1, y1, x2, y2, r, pixel_thickness);
 }
 
 void DrawVerticalLine(int x, int y1, int y2, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawVerticalLineImpl(renderer.get(), x, y1, y2);
 }
 
 void DrawThickVerticalLine(int x, int y1, int y2, double pixel_thickness, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawThickVerticalLineImpl(renderer.get(), x, y1, y2, pixel_thickness);
 }
 
 void DrawHorizontalLine(int x1, int x2, int y, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawHorizontalLineImpl(renderer.get(), x1, x2, y);
 }
 
 void DrawThickHorizontalLine(int x1, int x2, int y, double pixel_thickness, const Color& color) {
-	auto renderer{ SetDrawColor(color) };
+	auto renderer{ SetDrawMode(color) };
 	DrawThickHorizontalLineImpl(renderer.get(), x1, x2, y, pixel_thickness);
 }
 
