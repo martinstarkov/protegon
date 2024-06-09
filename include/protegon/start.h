@@ -9,7 +9,7 @@ namespace impl {
 
 void GameStart();
 void GameLoop();
-void GameStop();
+void GameRelease();
 
 } // namespace impl
 
@@ -23,7 +23,7 @@ void Start(TArgs&&... constructor_args) {
 	impl::GameStart();
 	scene::impl::SetStartScene<TStartScene>(std::forward<TArgs>(constructor_args)...);
 	impl::GameLoop();
-	impl::GameStop();
+	impl::GameRelease();
 }
 
 void Stop();

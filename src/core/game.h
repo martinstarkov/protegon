@@ -16,7 +16,6 @@ public:
 	Game() = default;
 	~Game() = default;
 
-	void Stop();
 	void Loop();
 
 	SDLInstance sdl;
@@ -25,8 +24,6 @@ public:
 	ResourceManagers managers;
 	SceneManager scene;
 	InputHandler input;
-private:
-	bool running_{ false };
 };
 
 namespace impl {

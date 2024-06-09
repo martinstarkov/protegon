@@ -39,11 +39,7 @@ void Game::Loop() {
 	time start{ std::chrono::system_clock::now() };
 	time end{ std::chrono::system_clock::now() };
 
-	running_ = true;
-
-	while (running_) {
-		input.Update();
-
+	window::RepeatUntilQuit([&]() {
 		// Calculate time elapsed during previous frame.
 		end = std::chrono::system_clock::now();
 		std::chrono::duration<float> elapsed{ end - start };
@@ -57,11 +53,7 @@ void Game::Loop() {
 		scene::Update(dt);
 
 		renderer::Present();
-	}
-}
-
-void Game::Stop() {
-	running_ = false;
+	});
 }
 
 namespace global {

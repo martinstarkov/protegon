@@ -40,8 +40,7 @@ void GameLoop() {
 	global::GetGame().Loop();
 }
 
-void GameStop() {
-	global::GetGame().Stop();
+void GameRelease() {
 	// Release first ensures destruction of Game instance before the 
 	// global pointer is invalidated. This is necessary because some 
 	// of the Game subsystems require a reference to the global pointer 
@@ -56,7 +55,7 @@ namespace game {
 
 void Stop() {
 	// Trigger game stop (running = false).
-	impl::GameStop();
+	global::GetGame().event.window_event.Post(WindowQuitEvent{});
 }
 
 } // namespace game

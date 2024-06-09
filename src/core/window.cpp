@@ -3,6 +3,7 @@
 #include <SDL.h>
 
 #include "core/game.h"
+#include "protegon/input.h"
 
 namespace ptgn {
 
@@ -174,6 +175,25 @@ void Show() {
 void Hide() {
 	PTGN_ASSERT(Exists(), "Cannot hide nonexistent window");
 	SDL_HideWindow(global::GetGame().sdl.GetWindow().get());
+}
+
+void RepeatUntilQuit(std::function<void()> while_not_quit) {
+	Game& game = global::GetGame();
+
+	bool running = true;
+
+	game.event.window_event.Subscribe((void*)&running, [&](const Event<WindowEvent>& event) {
+		if (event.Type() == WindowEvent::QUIT) {
+			running = false;
+		}
+	});
+
+	while (running) {
+		input::Update();
+		while_not_quit();
+	}
+
+	game.event.window_event.Unsubscribe((void*)&running);
 }
 
 } // namespace window

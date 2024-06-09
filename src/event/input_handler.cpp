@@ -68,8 +68,7 @@ void InputHandler::Update() {
 			case SDL_QUIT:
 			{
 				event_handler.window_event.Post(WindowQuitEvent{});
-				game.Stop();
-				return;
+				break;
 			}
 			// Possible window events here in the future.
 			/*

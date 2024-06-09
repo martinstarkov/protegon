@@ -61,6 +61,9 @@ void Show();
 
 void Hide();
 
+// Go into a while loop which exists upon quitting the current window.
+void RepeatUntilQuit(std::function<void()> while_not_quit);
+
 } // namespace window
 
 } // namespace ptgn
