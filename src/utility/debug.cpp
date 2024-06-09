@@ -1,4 +1,4 @@
-#include "protegon/debug.h"
+#include "debug.h"
 
 namespace ptgn {
 
