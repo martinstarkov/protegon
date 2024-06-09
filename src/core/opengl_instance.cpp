@@ -853,15 +853,8 @@ void TestOpenGL() {
 		curr_time = clock();
 		playtime_in_second = (curr_time - start_time) * 1.0f / 1000.0f;
 
-		//DrawRect(renderer.get(), rect1, { 0, 0, 255, 255 });
-
 		PresentBuffer(drawTarget, shader, playtime_in_second, dest_rect);
 
-		//light_engine.Draw(playtime_in_second);
-
-		//light_engine.SetPosition(mouseLight, V2_float{ (float)mouse.x, (float)mouse.y });
-
-		//DrawRect(renderer.get(), rect2, { 255, 0, 0, 255 });
 		renderer::Present();
 		
 		SDL_Event event;
