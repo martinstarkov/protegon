@@ -18,14 +18,14 @@ void InputHandler::Update() {
 	first_time_.reset();
 	SDL_Event event;
 	Game& game{ global::GetGame() };
-	EventDispatcher<MouseEvent>& mouse_event{ game.event.mouse_event };
+	EventHandler& event_handler{ game.event };
 	while (SDL_PollEvent(&event)) {
 		switch (event.type) {
 			case SDL_MOUSEMOTION: {
 				V2_int previous{ mouse_position };
 				mouse_position.x = event.button.x;
 				mouse_position.y = event.button.y;
-				mouse_event.Post(MouseMoveEvent{ previous, mouse_position });
+				event_handler.mouse_event.Post(MouseMoveEvent{ previous, mouse_position });
 				break;
 			}
 			case SDL_MOUSEBUTTONDOWN:
@@ -33,7 +33,7 @@ void InputHandler::Update() {
                 std::pair<MouseState&, Timer&> pair = GetMouseStateAndTimer(static_cast<Mouse>(event.button.button));
 				pair.second.Start();
 				pair.first = MouseState::DOWN;
-				mouse_event.Post(MouseDownEvent{ static_cast<Mouse>(event.button.button), mouse_position });
+				event_handler.mouse_event.Post(MouseDownEvent{ static_cast<Mouse>(event.button.button), mouse_position });
 				break;
 			}
 			case SDL_MOUSEBUTTONUP:
@@ -41,7 +41,7 @@ void InputHandler::Update() {
                 std::pair<MouseState&, Timer&> pair = GetMouseStateAndTimer(static_cast<Mouse>(event.button.button));
 				pair.second.Reset();
 				pair.first = MouseState::UP;
-				mouse_event.Post(MouseUpEvent{ static_cast<Mouse>(event.button.button), mouse_position });
+				event_handler.mouse_event.Post(MouseUpEvent{ static_cast<Mouse>(event.button.button), mouse_position });
 				break;
 			}
 			case SDL_MOUSEWHEEL:
@@ -67,6 +67,7 @@ void InputHandler::Update() {
 			}
 			case SDL_QUIT:
 			{
+				event_handler.window_event.Post(WindowQuitEvent{});
 				game.Stop();
 				return;
 			}

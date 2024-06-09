@@ -41,4 +41,13 @@ public:
 	V2_int current;
 };
 
+enum class WindowEvent {
+	QUIT
+};
+
+class WindowQuitEvent : public Event<WindowEvent> {
+public:
+	WindowQuitEvent() : Event{ WindowEvent::QUIT } {}
+};
+
 } // namespace ptgn

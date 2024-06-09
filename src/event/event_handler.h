@@ -39,7 +39,7 @@ private:
 class EventHandler {
 public:
 	EventDispatcher<MouseEvent> mouse_event;
+	EventDispatcher<WindowEvent> window_event;
 };
-
 
 } // namespace ptgn
