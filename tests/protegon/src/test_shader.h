@@ -3,7 +3,7 @@
 #include <set>
 
 #include "protegon/protegon.h"
-#include "renderer/buffer.h"
+#include "protegon/buffer.h"
 #include "core/opengl_instance.h"
 #include "core/game.h"
 #include "utility/debug.h"
@@ -55,9 +55,7 @@ void EncodeAndExtract(
 
 }
 
-bool TestShader() {
-	PTGN_INFO("Starting Shader tests...");
-
+bool TestShaderProperties() {
 	// Identifier tests
 	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLSLType::Byte) == GL_BYTE);
 	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLSLType::UnsignedByte) == GL_UNSIGNED_BYTE);
@@ -134,12 +132,12 @@ bool TestShader() {
 	auto e1{ layout1.GetElements() };
 
 	PTGN_ASSERT(e1.size() == 1);
-	PTGN_ASSERT(layout1.GetStride()  == 3 * sizeof(float));
+	PTGN_ASSERT(layout1.GetStride() == 3 * sizeof(float));
 
 	//PTGN_ASSERT(e1.at(0).GetType() == ShaderDataInfo{ ShaderDataType::vec3 }.type);
 
 	PTGN_ASSERT(e1.at(0).GetOffset() == 0);
-	PTGN_ASSERT(e1.at(0).GetSize()   == 3 * sizeof(float));
+	PTGN_ASSERT(e1.at(0).GetSize() == 3 * sizeof(float));
 
 	struct TestVertex2 {
 		glsl::vec3 a;
@@ -172,7 +170,7 @@ bool TestShader() {
 
 	PTGN_ASSERT(e2.at(1).GetOffset() == 3 * sizeof(float));
 	PTGN_ASSERT(e2.at(1).GetSize() == 4 * sizeof(float));
-	
+
 	PTGN_ASSERT(e2.at(2).GetOffset() == 3 * sizeof(float) + 4 * sizeof(float));
 	PTGN_ASSERT(e2.at(2).GetSize() == 3 * sizeof(float));
 
@@ -211,15 +209,15 @@ bool TestShader() {
 
 	PTGN_ASSERT(e3.size() == 10);
 	PTGN_ASSERT(layout3.GetStride() == 4 * sizeof(float) + \
-								  1 * sizeof(double) + \
-								  3 * sizeof(int) + \
-								  2 * sizeof(double) + \
-								  1 * sizeof(int) + \
-								  1 * sizeof(float) + \
-								  1 * sizeof(bool) + \
-								  1 * sizeof(unsigned int) + \
-								  3 * sizeof(bool) + \
-								  4 * sizeof(unsigned int));
+		1 * sizeof(double) + \
+		3 * sizeof(int) + \
+		2 * sizeof(double) + \
+		1 * sizeof(int) + \
+		1 * sizeof(float) + \
+		1 * sizeof(bool) + \
+		1 * sizeof(unsigned int) + \
+		3 * sizeof(bool) + \
+		4 * sizeof(unsigned int));
 
 	//PTGN_ASSERT(e3.at(0).GetType() == ShaderDataInfo{ ShaderDataType::vec4 }.type);
 	//PTGN_ASSERT(e3.at(1).GetType() == ShaderDataInfo{ ShaderDataType::double_ }.type);
@@ -356,10 +354,144 @@ bool TestShader() {
 
 	Shader shader_fireball = Shader{ "resources/shader/main_vert.glsl", "resources/shader/fire_ball_frag.glsl" };
 	*/
-	window::SetSize({ 640, 480 });
-	window::Show();
-	impl::TestOpenGL();
+	return true;
+}
 
-	PTGN_INFO("All Shader tests passed!");
+bool TestShaderDrawing() {
+
+	window::SetSize({ 800, 800 });
+	window::Show();
+
+	std::string vertex_source = R"(
+		#version 330 core
+
+		layout(location = 0) in vec3 pos;
+		layout(location = 1) in vec4 color;
+
+		out vec3 v_Position;
+		out vec4 v_Color;
+
+		void main() {
+			v_Position = pos;
+			v_Color = color;
+			gl_Position = vec4(pos, 1.0);
+		}
+	)";
+
+	std::string fragment_source = R"(
+		#version 330 core
+
+		layout(location = 0) out vec4 color;
+
+		in vec3 v_Position;
+		in vec4 v_Color;
+
+		void main() {
+			color = vec4(v_Position * 0.5 + 0.5, 1.0);
+			color = v_Color;
+		}
+	)";
+
+	Shader shader;
+	//shader = Shader(ShaderSource{ vertex_source }, ShaderSource{ fragment_source });
+	shader = Shader("resources/shader/main_vert.glsl", "resources/shader/lightFs.glsl");
+	//shader = Shader("resources/shader/main_vert.glsl", "resources/shader/fire_ball_frag.glsl");
+
+	clock_t start_time = clock();
+	clock_t curr_time;
+	float playtime_in_second = 0;
+
+	renderer::ResetDrawColor();
+
+	Texture drawTarget{ Texture::AccessType::TARGET, window::GetSize() };
+
+	const std::vector<std::uint32_t> indices = {
+		0, 1, 2,
+		2, 3, 1
+	};
+
+	const std::vector<std::uint32_t> indices2 = {
+		0, 1, 2,
+	};
+
+	struct Vertex {
+		glsl::vec3 pos;
+		glsl::vec4 color;
+	};
+
+	const std::vector<Vertex> vao_vert = {
+		Vertex{ glsl::vec3{ -1.0f, -1.0f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 1.0f, 1.0f } },
+		Vertex{ glsl::vec3{  1.0f, -1.0f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 1.0f, 1.0f } },
+		Vertex{ glsl::vec3{ -1.0f,  1.0f, 0.0f }, glsl::vec4{ 1.0f, 1.0f, 0.0f, 1.0f } },
+		Vertex{ glsl::vec3{  1.0f,  1.0f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 1.0f, 1.0f } },
+	};
+
+	VertexArray vao{ PrimitiveMode::Triangles };
+	VertexBuffer vbo{ vao_vert };
+	IndexBuffer ibo{ indices };
+
+	vao.SetVertexBuffer(vbo);
+	vao.SetIndexBuffer(ibo);
+
+	vbo.Unbind();
+	vao.Unbind();
+
+	window::RepeatUntilQuit([&]() {
+		renderer::ResetTarget();
+		renderer::ResetDrawColor();
+		renderer::Clear();
+
+		V2_float window_size = window::GetSize();
+		V2_float mouse = input::GetMousePosition();
+
+		Rectangle<int> dest_rect{ {}, window_size };
+
+		curr_time = clock();
+		playtime_in_second = (curr_time - start_time) * 1.0f / 1000.0f;
+
+		renderer::SetTarget(drawTarget);
+		renderer::SetBlendMode(BlendMode::Add);
+
+		renderer::ResetDrawColor();
+		renderer::Clear();
+
+		shader.Bind();
+
+		//shader.SetUniform("iResolution", size.x, size.y, 0.0f);
+		//shader.SetUniform("iTime", playtime_in_second);
+
+		shader.SetUniform("lightpos", mouse.x, mouse.y);
+		shader.SetUniform("lightColor", 1.0f, 0.0f, 0.0f);
+		shader.SetUniform("intensity", 10.0f);
+		shader.SetUniform("screenHeight", window_size.y);
+
+		//shader.SetUniform("iResolution", size.x, size.y, 0.0f);
+		//shader.SetUniform("iTime", playing_time);
+
+		vao.Draw();
+
+		shader.Unbind();
+
+		renderer::ResetTarget();
+		drawTarget.SetBlendMode(BlendMode::Blend);
+		// OpenGL coordinate system is flipped vertically compared to SDL
+		drawTarget.Draw(dest_rect, {}, 0, Flip::Vertical, nullptr);
+
+		renderer::Present();
+	});
+
+	return true;
+}
+
+bool TestShader() {
+	PTGN_INFO("Starting shader tests...");
+
+	Game& game = global::GetGame();
+	PTGN_ASSERT(game.opengl.IsInitialized());
+
+	TestShaderProperties();
+	TestShaderDrawing();
+
+	PTGN_INFO("All shader tests passed!");
 	return true;
 }
