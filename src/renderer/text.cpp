@@ -57,14 +57,17 @@ Texture Text::CreateTexture(
 	const auto& f = font.GetInstance();
 
 	TTF_SetFontStyle(f.get(), static_cast<int>(font_style));
-	
+
 	switch (render_mode) {
-		case FontRenderMode::Solid: 
-			return { std::shared_ptr<SDL_Surface>{ TTF_RenderText_Solid(f.get(), content.c_str(), text_color), SDL_FreeSurface } };
+		case FontRenderMode::Solid:
+			return { std::shared_ptr<SDL_Surface>{
+				TTF_RenderText_Solid(f.get(), content.c_str(), text_color), SDL_FreeSurface } };
 		case FontRenderMode::Shaded:
-			return { std::shared_ptr<SDL_Surface>{ TTF_RenderText_Shaded(f.get(), content.c_str(), text_color, shading_color), SDL_FreeSurface } };
-		case FontRenderMode::Blended: 
-			return { std::shared_ptr<SDL_Surface>{ TTF_RenderText_Blended(f.get(), content.c_str(), text_color), SDL_FreeSurface } };
+			return { std::shared_ptr<SDL_Surface>{
+				TTF_RenderText_Shaded(f.get(), content.c_str(), text_color, shading_color), SDL_FreeSurface } };
+		case FontRenderMode::Blended:
+			return { std::shared_ptr<SDL_Surface>{
+				TTF_RenderText_Blended(f.get(), content.c_str(), text_color), SDL_FreeSurface } };
 		default:
 			PTGN_ASSERT(false, "Unrecognized render mode given when creating text");
 	}
@@ -81,11 +84,17 @@ bool Text::GetVisibility() const {
 	return instance_->visible_;
 }
 
-void Text::Draw(const Rectangle<float>& destination) const {
+void Text::Draw(const Rectangle<int>& destination) const {
+	if (!IsValid()) return;
 	if (!instance_->visible_) return;
-	if (IsValid()) return;
-	if (instance_->texture_.IsValid()) return;
+	if (!instance_->texture_.IsValid()) return;
 	renderer::DrawTexture(instance_->texture_, destination);
+}
+
+V2_int Text::GetSize(const FontOrKey& font, const std::string& content) {
+	V2_int size;
+	TTF_SizeUTF8(GetFont(font).GetInstance().get(), content.c_str(), &size.x, &size.y);
+	return size;
 }
 
 } // namespace ptgn

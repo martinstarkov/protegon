@@ -27,7 +27,7 @@ enum class FontRenderMode : int {
 class Font : public Handle<TTF_Font> {
 public:
 	Font() = default;
-	Font(const path& font_path, std::uint32_t point_size, std::uint32_t index = 0);
+	Font(const path& font_path, std::int32_t point_size, std::int32_t index = 0);
 
 	[[nodiscard]] std::int32_t GetHeight() const;
 };

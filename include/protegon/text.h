@@ -42,7 +42,9 @@ public:
 	void SetVisibility(bool visibility);
 	[[nodiscard]] bool GetVisibility() const;
 
-	void Draw(const Rectangle<float>& destination) const;
+	void Draw(const Rectangle<int>& destination) const;
+
+	[[nodiscard]] static V2_int GetSize(const FontOrKey& font, const std::string& content);
 private:
 	[[nodiscard]] static Font GetFont(const FontOrKey& font);
 	[[nodiscard]] static Texture CreateTexture(

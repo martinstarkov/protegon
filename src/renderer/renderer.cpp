@@ -63,8 +63,8 @@ void DrawTexture(
 	SDL_RenderCopyEx(
 		renderer.get(),
 		texture.GetInstance().get(),
-		destination_rect.IsZero() ? NULL : &SDL_Rect(destination_rect),
-		source_rect.IsZero() ? NULL : &SDL_Rect(source_rect),
+		source_rect.IsEmpty() ? NULL : &SDL_Rect(source_rect),
+		destination_rect.IsEmpty() ? NULL : &SDL_Rect(destination_rect),
 		angle,
 		center_of_rotation == nullptr ? NULL : &SDL_Point(*center_of_rotation),
 		static_cast<SDL_RendererFlip>(flip)

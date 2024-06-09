@@ -12,8 +12,6 @@ struct SDL_Surface;
 
 namespace ptgn {
 
-class Text;
-
 class Texture : public Handle<SDL_Texture> {
 public:
 	enum class AccessType : int {
@@ -44,8 +42,7 @@ public:
 	void SetColor(const Color& color);
 
 	AccessType GetAccessType() const;
-private:
-	friend class Text;
+
 	Texture(const std::shared_ptr<SDL_Surface>& surface);
 };
 

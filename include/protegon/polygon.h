@@ -94,7 +94,7 @@ struct Rectangle {
 		return { pos, size * size_scale };
 	}
 
-	[[nodiscard]] bool IsZero() const {
+	[[nodiscard]] bool IsEmpty() const {
 		return pos.IsZero() && size.IsZero();
 	}
 
