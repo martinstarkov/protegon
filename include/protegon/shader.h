@@ -18,7 +18,7 @@ namespace impl {
 std::string_view GetShaderTypeName(std::uint32_t type);
 
 enum class GLSLType : std::uint32_t {
-	None		  = 0,
+	None		  =      0,
 	Byte		  = 0x1400, // GL_BYTE
 	UnsignedByte  = 0x1401, // GL_UNSIGNED_BYTE
 	Short		  = 0x1402, // GL_SHORT
@@ -48,50 +48,6 @@ template <typename T>
 }
 
 } // namespace impl
-
-/*
-enum class ShaderDataType : std::uint64_t {
-	// To encode information in:
-	// std::uint64_t encoded = 
-	// (static_cast<std::uint64_t>(hidden_size) << 48) | 
-	// ((static_cast<std::uint64_t>(hidden_count) << 32) | hidden_type);
-	// To extract information out use the ShaderDataInfo class:
-	// ShaderDataInfo info{ shader_data_type };
-	// std::uint16_t size  = info.size;
-	// std::uint16_t count = info.count;
-	// std::uint32_t type = info.type;
-
-	none    = 0,
-	float_  = (static_cast<std::uint64_t>(sizeof(float))        << 48) | ((static_cast<std::uint64_t>(1) << 32) | impl::TYPE_FLOAT),
-	vec2    = (static_cast<std::uint64_t>(sizeof(float))        << 48) | ((static_cast<std::uint64_t>(2) << 32) | impl::TYPE_FLOAT),
-	vec3    = (static_cast<std::uint64_t>(sizeof(float))        << 48) | ((static_cast<std::uint64_t>(3) << 32) | impl::TYPE_FLOAT),
-	vec4    = (static_cast<std::uint64_t>(sizeof(float))        << 48) | ((static_cast<std::uint64_t>(4) << 32) | impl::TYPE_FLOAT),
-	int_    = (static_cast<std::uint64_t>(sizeof(int))          << 48) | ((static_cast<std::uint64_t>(1) << 32) | impl::TYPE_INT),
-	ivec2   = (static_cast<std::uint64_t>(sizeof(int))          << 48) | ((static_cast<std::uint64_t>(2) << 32) | impl::TYPE_INT),
-	ivec3   = (static_cast<std::uint64_t>(sizeof(int))          << 48) | ((static_cast<std::uint64_t>(3) << 32) | impl::TYPE_INT),
-	ivec4   = (static_cast<std::uint64_t>(sizeof(int))          << 48) | ((static_cast<std::uint64_t>(4) << 32) | impl::TYPE_INT),
-	uint_   = (static_cast<std::uint64_t>(sizeof(unsigned int)) << 48) | ((static_cast<std::uint64_t>(1) << 32) | impl::TYPE_UNSIGNED_INT),
-	uvec2   = (static_cast<std::uint64_t>(sizeof(unsigned int)) << 48) | ((static_cast<std::uint64_t>(2) << 32) | impl::TYPE_UNSIGNED_INT),
-	uvec3   = (static_cast<std::uint64_t>(sizeof(unsigned int)) << 48) | ((static_cast<std::uint64_t>(3) << 32) | impl::TYPE_UNSIGNED_INT),
-	uvec4   = (static_cast<std::uint64_t>(sizeof(unsigned int)) << 48) | ((static_cast<std::uint64_t>(4) << 32) | impl::TYPE_UNSIGNED_INT),
-	double_ = (static_cast<std::uint64_t>(sizeof(double))       << 48) | ((static_cast<std::uint64_t>(1) << 32) | impl::TYPE_DOUBLE),
-	dvec2   = (static_cast<std::uint64_t>(sizeof(double))       << 48) | ((static_cast<std::uint64_t>(2) << 32) | impl::TYPE_DOUBLE),
-	dvec3   = (static_cast<std::uint64_t>(sizeof(double))       << 48) | ((static_cast<std::uint64_t>(3) << 32) | impl::TYPE_DOUBLE),
-	dvec4   = (static_cast<std::uint64_t>(sizeof(double))       << 48) | ((static_cast<std::uint64_t>(4) << 32) | impl::TYPE_DOUBLE),
-	bool_   = (static_cast<std::uint64_t>(sizeof(bool))         << 48) | ((static_cast<std::uint64_t>(1) << 32) | impl::TYPE_BYTE),
-	bvec2   = (static_cast<std::uint64_t>(sizeof(bool))         << 48) | ((static_cast<std::uint64_t>(2) << 32) | impl::TYPE_BYTE),
-	bvec3   = (static_cast<std::uint64_t>(sizeof(bool))         << 48) | ((static_cast<std::uint64_t>(3) << 32) | impl::TYPE_BYTE),
-	bvec4   = (static_cast<std::uint64_t>(sizeof(bool))         << 48) | ((static_cast<std::uint64_t>(4) << 32) | impl::TYPE_BYTE)
-};
-
-struct ShaderDataInfo {
-	ShaderDataInfo(ShaderDataType encoded);
-	ShaderDataInfo(std::uint64_t encoded);
-	std::uint16_t size{ 0 };    // Size of an individual buffer element.
-	std::uint16_t count{ 0 };   // Number of buffer elements.
-	impl::GLEnumType type{ 0 }; // Type of buffer element (e.g. GL_FLOAT).
-};
-*/
 
 class Shader;
 

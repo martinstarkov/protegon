@@ -11,32 +11,32 @@ namespace impl {
 
 std::shared_ptr<SDL_Renderer> SetDrawMode(const Color& color);
 
-void DrawPoint(int x, int y, const Color& color);
-void DrawLine(int x1, int y1, int x2, int y2, const Color& color);
-void DrawThickLine(int x1, int y1, int x2, int y2, double pixel_thickness, const Color& color);
-void DrawCapsule(int x1, int y1, int x2, int y2, int r, const Color& color);
-void DrawSolidCapsule(int x1, int y1, int x2, int y2, int r, const Color& color);
-void DrawThickCapsule(int x1, int y1, int x2, int y2, int r, double pixel_thickness, const Color& color);
-void DrawVerticalLine(int x, int y1, int y2, const Color& color);
-void DrawThickVerticalLine(int x, int y1, int y2, double pixel_thickness, const Color& color);
-void DrawHorizontalLine(int x1, int x2, int y, const Color& color);
-void DrawThickHorizontalLine(int x1, int x2, int y, double pixel_thickness, const Color& color);
+void               DrawPoint(int x,  int y,  const Color& color);
+void                DrawLine(int x1, int y1, int x2, int y2, const Color& color);
+void           DrawThickLine(int x1, int y1, int x2, int y2, double pixel_thickness, const Color& color);
+void             DrawCapsule(int x1, int y1, int x2, int y2, int r, const Color& color);
+void        DrawSolidCapsule(int x1, int y1, int x2, int y2, int r, const Color& color);
+void        DrawThickCapsule(int x1, int y1, int x2, int y2, int r, double pixel_thickness, const Color& color);
+void        DrawVerticalLine(int x,  int y1, int y2, const Color& color);
+void   DrawThickVerticalLine(int x,  int y1, int y2, double pixel_thickness, const Color& color);
+void      DrawHorizontalLine(int x1, int x2, int y,  const Color& color);
+void DrawThickHorizontalLine(int x1, int x2, int y,  double pixel_thickness, const Color& color);
 
 // Taken from: https://github.com/rtrussell/BBCSDL/blob/master/src/SDL2_gfxPrimitives.c (with some modifications)
-void DrawPointImpl(SDL_Renderer* renderer, int x, int y);
-void DrawLineImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2);
-void DrawThickLineImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, double pixel_thickness);
-void DrawCapsuleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int r);
-void DrawSolidCapsuleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int r);
-void DrawThickCapsuleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int r, double pixel_thickness);
-void DrawVerticalLineImpl(SDL_Renderer* renderer, int x, int y1, int y2);
-void DrawThickVerticalLineImpl(SDL_Renderer* renderer, int x, int y1, int y2, double pixel_thickness);
-void DrawHorizontalLineImpl(SDL_Renderer* renderer, int x1, int x2, int y);
+void               DrawPointImpl(SDL_Renderer* renderer, int x,  int y);
+void                DrawLineImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2);
+void           DrawThickLineImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, double pixel_thickness);
+void             DrawCapsuleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int r);
+void        DrawSolidCapsuleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int r);
+void        DrawThickCapsuleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int r, double pixel_thickness);
+void        DrawVerticalLineImpl(SDL_Renderer* renderer, int x,  int y1, int y2);
+void   DrawThickVerticalLineImpl(SDL_Renderer* renderer, int x,  int y1, int y2, double pixel_thickness);
+void      DrawHorizontalLineImpl(SDL_Renderer* renderer, int x1, int x2, int y);
 void DrawThickHorizontalLineImpl(SDL_Renderer* renderer, int x1, int x2, int y, double pixel_thickness);
-void DrawXPerpendicular(SDL_Renderer* renderer, int x1, int y1, int dx, int dy, int xstep, int ystep, int einit, int w_left, int w_right, int winit);
-void DrawYPerpendicular(SDL_Renderer* renderer, int x1, int y1, int dx, int dy, int xstep, int ystep, int einit, int w_left, int w_right, int winit);
-void DrawXThickLine(SDL_Renderer* renderer, int x1, int y1, int dx, int dy, int xstep, int ystep, double pixel_thickness, int pxstep, int pystep);
-void DrawYThickLine(SDL_Renderer* renderer, int x1, int y1, int dx, int dy, int xstep, int ystep, double pixel_thickness, int pxstep, int pystep);
+void          DrawXPerpendicular(SDL_Renderer* renderer, int x1, int y1, int dx, int dy, int xstep, int ystep, int einit, int w_left,  int w_right, int winit);
+void          DrawYPerpendicular(SDL_Renderer* renderer, int x1, int y1, int dx, int dy, int xstep, int ystep, int einit, int w_left,  int w_right, int winit);
+void              DrawXThickLine(SDL_Renderer* renderer, int x1, int y1, int dx, int dy, int xstep, int ystep, double pixel_thickness, int pxstep,  int pystep);
+void              DrawYThickLine(SDL_Renderer* renderer, int x1, int y1, int dx, int dy, int xstep, int ystep, double pixel_thickness, int pxstep,  int pystep);
 
 } // namespace impl
 

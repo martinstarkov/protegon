@@ -8,33 +8,34 @@
 #include "utility/debug.h"
 
 struct SDL_Renderer;
+struct SDL_Rect;
 
 namespace ptgn {
 
 namespace impl {
 
-void DrawRectangle(int x, int y, int w, int h, const Color& color);
+void      DrawRectangle(int x, int y, int w, int h, const Color& color);
 void DrawSolidRectangle(int x, int y, int w, int h, const Color& color);
 void DrawThickRectangle(int x, int y, int w, int h, double pixel_thickness, const Color& color);
 
-void DrawRoundedRectangle(int x, int y, int w, int h, int r, const Color& color);
+void      DrawRoundedRectangle(int x, int y, int w, int h, int r, const Color& color);
 void DrawSolidRoundedRectangle(int x, int y, int w, int h, int r, const Color& color);
 void DrawThickRoundedRectangle(int x, int y, int w, int h, int r, double pixel_thickness, const Color& color);
 
-void DrawPolygon(const std::vector<V2_int>& v, const Color& color);
+void      DrawPolygon(const std::vector<V2_int>& v, const Color& color);
 void DrawSolidPolygon(const std::vector<V2_int>& v, const Color& color);
 void DrawThickPolygon(const std::vector<V2_int>& v, double pixel_thickness, const Color& color);
 
 // Taken from: https://github.com/rtrussell/BBCSDL/blob/master/src/SDL2_gfxPrimitives.c (with some modifications)
-void DrawRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, int h);
-void DrawSolidRectangleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2);
-void DrawThickRectangleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, double pixel_thickness);
-void DrawRoundedRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, int h, int r);
-void DrawSolidRoundedRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, int h, int r);
-void DrawThickRoundedRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, int h, int r, double pixel_thickness);
-void DrawPolygonImpl(SDL_Renderer* renderer, const std::vector<V2_int>& v);
-void DrawSolidPolygonImpl(SDL_Renderer* renderer, const std::vector<V2_int>& v);
-void DrawThickPolygonImpl(SDL_Renderer* renderer, const std::vector<V2_int>& v, double pixel_thickness);
+void             DrawRectangleImpl(SDL_Renderer* renderer, int x,  int y,  int w,  int h);
+void        DrawSolidRectangleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2);
+void        DrawThickRectangleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, double pixel_thickness);
+void      DrawRoundedRectangleImpl(SDL_Renderer* renderer, int x,  int y,  int w,  int h, int r);
+void DrawSolidRoundedRectangleImpl(SDL_Renderer* renderer, int x,  int y,  int w,  int h, int r);
+void DrawThickRoundedRectangleImpl(SDL_Renderer* renderer, int x,  int y,  int w,  int h, int r, double pixel_thickness);
+void               DrawPolygonImpl(SDL_Renderer* renderer, const std::vector<V2_int>& v);
+void          DrawSolidPolygonImpl(SDL_Renderer* renderer, const std::vector<V2_int>& v);
+void          DrawThickPolygonImpl(SDL_Renderer* renderer, const std::vector<V2_int>& v, double pixel_thickness);
 
 } // namespace impl
 
@@ -55,6 +56,8 @@ struct Rectangle {
 			T x, y, w, h;
 		};
 	};
+
+	operator SDL_Rect() const;
 
 	[[nodiscard]] Vector2<T> Half() const {
 		return size / static_cast<T>(2);
@@ -89,6 +92,10 @@ struct Rectangle {
 	template <typename U>
 	[[nodiscard]] Rectangle<T> ScaleSize(const Vector2<U>& size_scale) const {
 		return { pos, size * size_scale };
+	}
+
+	[[nodiscard]] bool IsZero() const {
+		return pos.IsZero() && size.IsZero();
 	}
 
 	template <typename U>
