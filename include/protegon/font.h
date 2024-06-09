@@ -10,32 +10,38 @@ using TTF_Font = _TTF_Font;
 
 namespace ptgn {
 
+enum class FontStyle : int {
+	Normal        = 0, // TTF_STYLE_NORMAL
+	Bold		  = 1, // TTF_STYLE_BOLD
+	Italic        = 2, // TTF_STYLE_ITALIC
+	Underline     = 4, // TTF_STYLE_UNDERLINE
+	Strikethrough = 8  // TTF_STYLE_STRIKETHROUGH
+};
+
+enum class FontRenderMode : int {
+	Solid   = 0,
+	Shaded  = 1,
+	Blended = 2
+};
+
 class Font : public Handle<TTF_Font> {
 public:
-	enum class Style : int {
-		NORMAL = 0,        // TTF_STYLE_NORMAL = 0
-		BOLD = 1,          // TTF_STYLE_BOLD = 1
-		ITALIC = 2,        // TTF_STYLE_ITALIC = 2
-		UNDERLINE = 4,     // TTF_STYLE_UNDERLINE = 4
-		STRIKETHROUGH = 8  // TTF_STYLE_STRIKETHROUGH = 8
-	};
-
-	enum class RenderMode : int {
-		SOLID = 0,
-		SHADED = 1,
-		BLENDED = 2
-	};
-
 	Font() = default;
 	Font(const path& font_path, std::uint32_t point_size, std::uint32_t index = 0);
 
 	[[nodiscard]] std::int32_t GetHeight() const;
-private:
-	friend class Text;
 };
 
-inline Font::Style operator|(Font::Style a, Font::Style b) {
-	return static_cast<Font::Style>(static_cast<int>(a) | static_cast<int>(b));
+inline FontStyle operator&(FontStyle a, FontStyle b) {
+	return static_cast<FontStyle>(static_cast<int>(a) | static_cast<int>(b));
+}
+
+inline FontStyle operator&&(FontStyle a, FontStyle b) {
+	return static_cast<FontStyle>(static_cast<int>(a) | static_cast<int>(b));
+}
+
+inline FontStyle operator|(FontStyle a, FontStyle b) {
+	return static_cast<FontStyle>(static_cast<int>(a) | static_cast<int>(b));
 }
 
 } // namespace ptgn

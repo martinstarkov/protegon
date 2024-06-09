@@ -11,7 +11,7 @@ namespace impl {
 
 std::shared_ptr<SDL_Renderer> SetDrawMode(const Color& color) {
 	SDLInstance& sdl{ global::GetGame().sdl };
-	renderer::SetDrawMode(color, BlendMode::BLEND);
+	renderer::SetDrawMode(color, BlendMode::Blend);
 	return sdl.GetRenderer();
 }
 

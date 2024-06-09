@@ -111,10 +111,10 @@ static void PresentBuffer(Texture& backBuffer, Shader& shader, float playing_tim
 	auto renderer{ global::GetGame().sdl.GetRenderer() };
 
 	renderer::ResetDrawColor();
-	renderer::SetBlendMode(BlendMode::ADDITIVE);
+	renderer::SetBlendMode(BlendMode::Add);
 
 	renderer::SetTarget(backBuffer);
-	renderer::SetBlendMode(BlendMode::ADDITIVE);
+	renderer::SetBlendMode(BlendMode::Add);
 
 	renderer::ResetDrawColor();
 	renderer::Clear();
@@ -144,9 +144,9 @@ static void PresentBuffer(Texture& backBuffer, Shader& shader, float playing_tim
 	shader.Unbind();
 
 	renderer::ResetTarget();
-	backBuffer.SetBlendMode(BlendMode::BLEND);
+	backBuffer.SetBlendMode(BlendMode::Blend);
 	// OpenGL coordinate system is flipped vertically compared to SDL
-	backBuffer.Draw(dest_rect, {}, 0, Texture::Flip::VERTICAL, nullptr);
+	backBuffer.Draw(dest_rect, {}, 0, Flip::Vertical, nullptr);
 }
 
 Intersect::Intersect(V2_float intersect, float parameter)
@@ -592,7 +592,7 @@ void LightEngine::Draw(float playing_time) {
 
 	//auto renderer{ global::GetGame().sdl.GetRenderer() };
 
-	//lightRenderTex.SetBlendMode(BlendMode::ADDITIVE);
+	//lightRenderTex.SetBlendMode(BlendMode::Add);
 	//lightRenderTex.SetAsRendererTarget();
 	//
 	//SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
@@ -646,20 +646,20 @@ void LightEngine::Draw(float playing_time) {
 	//lightShader.Unbind();
 
 	//SDL_SetRenderTarget(renderer.get(), NULL);
-	//lightRenderTex.SetBlendMode(BlendMode::BLEND);
+	//lightRenderTex.SetBlendMode(BlendMode::Blend);
 	//Rectangle<float> dest_rect{
 	//	{},
 	//	size
 	//};
 
-	//lightRenderTex.Draw(dest_rect, {}, 0, Texture::Flip::VERTICAL, nullptr);
+	//lightRenderTex.Draw(dest_rect, {}, 0, Flip::Vertical, nullptr);
 
 	//SDL_RenderClear(renderWindow);
 
-	//lightRenderTex.SetBlendMode(BlendMode::ADDITIVE);
+	//lightRenderTex.SetBlendMode(BlendMode::Add);
 	//Shader r1 = lightShader;
-	//// BLEND MULTIPLY
-	//renderer::SetBlendMode(BlendMode::MULTIPLY);
+	//// BLEND Multiply
+	//renderer::SetBlendMode(BlendMode::Multiply);
 
 	//Shader r2X;
 	//Shader r2Y;
@@ -675,13 +675,13 @@ void LightEngine::Draw(float playing_time) {
 	//}
 
 	//SDL_SetRenderTarget(renderWindow, NULL);
-	//lightRenderTex.SetBlendMode(BlendMode::BLEND);
+	//lightRenderTex.SetBlendMode(BlendMode::Blend);
 
 	//const V2_int window_size = window::GetSize();
 
 	//Rectangle<float> dest_rect{ {}, window_size };
 
-	//lightRenderTex.Draw(dest_rect, {}, 0, Texture::Flip::VERTICAL, nullptr);
+	//lightRenderTex.Draw(dest_rect, {}, 0, Flip::Vertical, nullptr);
 }
 
 

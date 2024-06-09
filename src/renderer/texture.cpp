@@ -5,6 +5,7 @@
 
 #include "utility/debug.h"
 #include "core/game.h"
+#include "protegon/renderer.h"
 
 namespace ptgn {
 
@@ -44,42 +45,12 @@ Texture::Texture(const std::shared_ptr<SDL_Surface>& surface) {
 	}
 }
 
-void Texture::Draw(const Rectangle<float>& texture,
+void Texture::Draw(const Rectangle<float>& destination,
 				   const Rectangle<int>& source,
 				   float angle,
 				   Flip flip,
 				   V2_int* center_of_rotation) const {
-	PTGN_CHECK(IsValid(), "Cannot draw uninitialized or destroyed texture");
-	
-	SDL_Rect src_rect;
-	bool source_given{ !source.size.IsZero() };
-	if (source_given) {
-		src_rect = { source.pos.x,  source.pos.y,
-					 source.size.x, source.size.y };
-	}
-	
-	SDL_Rect destination{
-		static_cast<int>(texture.pos.x),
-		static_cast<int>(texture.pos.y),
-		static_cast<int>(texture.size.x),
-		static_cast<int>(texture.size.y)
-	};
-	
-	SDL_Point rotation_point;
-	if (center_of_rotation != nullptr) {
-		rotation_point.x = center_of_rotation->x;
-		rotation_point.y = center_of_rotation->y;
-	}
-
-	SDL_RenderCopyEx(
-		global::GetGame().sdl.GetRenderer().get(),
-		instance_.get(),
-		source_given ? &src_rect : NULL,
-		&destination,
-		angle,
-		center_of_rotation != nullptr ? &rotation_point : NULL,
-		static_cast<SDL_RendererFlip>(flip)
-	);
+	renderer::DrawTexture(*this, destination, source, angle, flip, center_of_rotation);
 }
 
 V2_int Texture::GetSize() const {
@@ -96,7 +67,7 @@ void Texture::SetBlendMode(BlendMode mode) {
 
 void Texture::SetAlpha(std::uint8_t alpha) {
 	PTGN_CHECK(IsValid(), "Cannot set alpha of uninitialized or destroyed texture");
-	SDL_SetTextureBlendMode(instance_.get(), static_cast<SDL_BlendMode>(BlendMode::BLEND));
+	SDL_SetTextureBlendMode(instance_.get(), static_cast<SDL_BlendMode>(BlendMode::Blend));
 	SDL_SetTextureAlphaMod(instance_.get(), alpha);
 }
 

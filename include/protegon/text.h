@@ -15,16 +15,10 @@ namespace impl {
 
 struct TextInstance {
 	TextInstance() = default;
-	TextInstance(const Font& font, const std::string& content, const Color& color);
+	TextInstance(const Texture& texture);
+	~TextInstance() = default;
 
-	Font font_;
-	std::string content_;
-	Color color_;
 	Texture texture_;
-
-	Font::Style style_{ Font::Style::NORMAL };
-	Font::RenderMode mode_{ Font::RenderMode::SOLID };
-	Color bg_shading_{ color::White };
 	bool visible_{ true };
 };
 
@@ -35,31 +29,30 @@ public:
 	using FontOrKey = std::variant<std::size_t, Font>;
 
 	Text() = default;
-	Text(const FontOrKey& font, const std::string& content, const Color& color);
+	// To create text with multiple FontStyles, simply use &&, e.g. FontStyle::Italic && FontStyle::Bold
+	Text(
+		const FontOrKey& font,
+		const std::string& content,
+		const Color& text_color,
+		FontStyle font_style = FontStyle::Normal,
+		FontRenderMode render_mode = FontRenderMode::Solid,
+		const Color& shading_color = color::White
+	);
 
 	void SetVisibility(bool visibility);
 	[[nodiscard]] bool GetVisibility() const;
-	void SetContent(const std::string& new_content);
-	void SetColor(const Color& new_color);
-	void SetFont(const FontOrKey& new_font);
-	void SetSolidRenderMode();
-	void SetShadedRenderMode(const Color& bg_shading);
-	void SetBlendedRenderMode();
 
-	// Accepts any number of FontStyle enum values (UNDERLINED, BOLD, etc).
-	// These are combined into one style and text is renderer in that style.
-	template <typename ...Style,
-		type_traits::type<Font::Style, Style...> = true>
-	void SetStyles(Style... styles) {
-		style_ = (styles | ...);
-		Refresh();
-	}
-
-	void Draw(const Rectangle<float>& box) const;
+	void Draw(const Rectangle<float>& destination) const;
 private:
 	[[nodiscard]] static Font GetFont(const FontOrKey& font);
-	// Call Refresh() if you change any attribute of the text.
-	void Refresh();
+	[[nodiscard]] static Texture CreateTexture(
+		const Font& font,
+		const std::string& content,
+		const Color& text_color,
+		FontStyle font_style,
+		FontRenderMode render_mode,
+		const Color& shading_color
+	);
 };
 
 } // namespace ptgn

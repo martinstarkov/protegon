@@ -12,16 +12,10 @@ struct SDL_Surface;
 
 namespace ptgn {
 
+class Text;
+
 class Texture : public Handle<SDL_Texture> {
 public:
-	enum class Flip {
-		// Source: https://wiki.libsdl.org/SDL2/SDL_RendererFlip
-
-		NONE       = 0x00000000,
-		HORIZONTAL = 0x00000001,
-		VERTICAL   = 0x00000002
-	};
-
 	enum class AccessType : int {
 		STATIC = 0,	   // SDL_TEXTUREACCESS_STATIC    /* Changes rarely, not lockable */
 		STREAMING = 1, // SDL_TEXTUREACCESS_STREAMING /* Changes frequently, lockable */
@@ -33,11 +27,13 @@ public:
 	Texture(AccessType access, const V2_int& size);
 
 	// Rotation in degrees. Positive clockwise.
-	void Draw(const Rectangle<float>& texture,
-			  const Rectangle<int>& source = {},
-			  float angle = 0.0f,
-			  Flip flip = Flip::NONE,
-			  V2_int* center_of_rotation = nullptr) const;
+	void Draw(
+		const Rectangle<float>& destination,
+		const Rectangle<int>& source = {},
+		float angle = 0.0f,
+		Flip flip = Flip::None,
+		V2_int* center_of_rotation = nullptr
+	) const;
 
 	[[nodiscard]] V2_int GetSize() const;
 

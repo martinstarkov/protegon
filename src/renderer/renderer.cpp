@@ -50,6 +50,27 @@ void ResetTarget() {
 	SDL_SetRenderTarget(renderer.get(), NULL);
 }
 
+void DrawTexture(
+	const Texture& texture,
+	const Rectangle<int>& destination_rect,
+	const Rectangle<int>& source_rect,
+	float angle,
+	Flip flip,
+	V2_int* center_of_rotation
+) {
+	PTGN_CHECK(texture.IsValid(), "Cannot draw texture which is uninitialized or destroyed to renderer");
+	auto renderer{ global::GetGame().sdl.GetRenderer() };
+	SDL_RenderCopyEx(
+		renderer.get(),
+		texture.GetInstance().get(),
+		destination_rect.IsZero() ? NULL : &SDL_Rect(destination_rect),
+		source_rect.IsZero() ? NULL : &SDL_Rect(source_rect),
+		angle,
+		center_of_rotation == nullptr ? NULL : &SDL_Point(*center_of_rotation),
+		static_cast<SDL_RendererFlip>(flip)
+	);
+}
+
 } // namespace renderer
 
 } // namespace ptgn

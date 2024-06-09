@@ -11,14 +11,21 @@ namespace ptgn {
 
 namespace impl {
 
-TextInstance::TextInstance(const Font& font, const std::string& content, const Color& color) :
-	font_{ font }, content_{ content }, color_{ color } {}
+TextInstance::TextInstance(const Texture& texture) : texture_{ texture } {}
 
 } // namespace impl
 
-Text::Text(const FontOrKey& font, const std::string& content, const Color& color) {
-	instance_ = std::make_shared<impl::TextInstance>(GetFont(font), content, color);
-	Refresh();
+Text::Text(
+	const FontOrKey& font,
+	const std::string& content,
+	const Color& text_color,
+	FontStyle font_style,
+	FontRenderMode render_mode,
+	const Color& shading_color
+) {
+	instance_ = std::make_shared<impl::TextInstance>(
+		CreateTexture(GetFont(font), content, text_color, font_style, render_mode, shading_color)
+	);
 }
 
 Font Text::GetFont(const FontOrKey& font) {
@@ -35,47 +42,33 @@ Font Text::GetFont(const FontOrKey& font) {
 	return f;
 }
 
-void Text::Refresh() {
-	PTGN_CHECK(IsValid(), "Cannot refresh texture which is uninitialized or destroyed");
-	PTGN_CHECK(instance_->font_.IsValid(), "Cannot refresh text which has uninitialized or destroyed font");
+Texture Text::CreateTexture(
+	const Font& font,
+	const std::string& content,
+	const Color& text_color,
+	FontStyle font_style,
+	FontRenderMode render_mode,
+	const Color& shading_color
+) {
+	PTGN_ASSERT(font.IsValid(), "Cannot create text which has uninitialized or destroyed font");
 	
-	if (instance_->content_ == "") return; // Cannot create surface for text with empty content.
+	if (content == "") return {}; // Create null texture for empty text.
 	
-	std::shared_ptr<TTF_Font>& font{ instance_->font_.instance_ };
-	TTF_SetFontStyle(font.get(), static_cast<int>(instance_->style_));
+	const auto& f = font.GetInstance();
 
-	std::shared_ptr<SDL_Surface> surface{ nullptr, SDL_FreeSurface };
+	TTF_SetFontStyle(f.get(), static_cast<int>(font_style));
 	
-	switch (instance_->mode_) {
-		case Font::RenderMode::SOLID:
-			surface = std::shared_ptr<SDL_Surface>{
-				TTF_RenderText_Solid(font.get(), instance_->content_.c_str(), instance_->color_),
-				SDL_FreeSurface
-			};
-			break;
-		case Font::RenderMode::SHADED:
-			surface = std::shared_ptr<SDL_Surface>{
-				TTF_RenderText_Shaded(font.get(), instance_->content_.c_str(), instance_->color_, instance_->bg_shading_),
-				SDL_FreeSurface
-			};
-			break;
-		case Font::RenderMode::BLENDED:
-			surface = std::shared_ptr<SDL_Surface>{
-				TTF_RenderText_Blended(font.get(), instance_->content_.c_str(), instance_->color_),
-				SDL_FreeSurface
-			};
-			break;
+	switch (render_mode) {
+		case FontRenderMode::Solid: 
+			return { std::shared_ptr<SDL_Surface>{ TTF_RenderText_Solid(f.get(), content.c_str(), text_color), SDL_FreeSurface } };
+		case FontRenderMode::Shaded:
+			return { std::shared_ptr<SDL_Surface>{ TTF_RenderText_Shaded(f.get(), content.c_str(), text_color, shading_color), SDL_FreeSurface } };
+		case FontRenderMode::Blended: 
+			return { std::shared_ptr<SDL_Surface>{ TTF_RenderText_Blended(f.get(), content.c_str(), text_color), SDL_FreeSurface } };
 		default:
-			PTGN_ASSERT(false, "Unrecognized render mode when creating surface for the text texture");
-			break;
+			PTGN_ASSERT(false, "Unrecognized render mode given when creating text");
 	}
-	PTGN_ASSERT(surface != nullptr, "Failed to load text onto surface");
-
-	instance_->texture_ = Texture{ surface };
-	PTGN_ASSERT(instance_->texture_.IsValid(), "Failed to create text from texture");
-
-	// TODO: Consider if this is necessary.
-	//TTF_SetFontStyle(font.get(), static_cast<int>(Font::Style::NORMAL));
+	return {};
 }
 
 void Text::SetVisibility(bool visibility) {
@@ -88,61 +81,11 @@ bool Text::GetVisibility() const {
 	return instance_->visible_;
 }
 
-void Text::SetContent(const std::string& new_content) {
-	PTGN_CHECK(IsValid(), "Cannot set content of text which is uninitialized or destroyed");
-	instance_->content_ = new_content;
-	Refresh();
-}
-void Text::SetColor(const Color& new_color) {
-	PTGN_CHECK(IsValid(), "Cannot set color of text which is uninitialized or destroyed");
-	instance_->color_ = new_color;
-	Refresh();
-}
-
-void Text::SetFont(const FontOrKey& new_font) {
-	PTGN_CHECK(IsValid(), "Cannot set font of text which is uninitialized or destroyed");
-	instance_->font_ = GetFont(new_font);
-	Refresh();
-}
-
-void Text::SetSolidRenderMode() {
-	PTGN_CHECK(IsValid(), "Cannot set render mode of text which is uninitialized or destroyed");
-	instance_->mode_ = Font::RenderMode::SOLID;
-	Refresh();
-}
-
-void Text::SetShadedRenderMode(const Color& bg_shading) {
-	PTGN_CHECK(IsValid(), "Cannot set render mode of text which is uninitialized or destroyed");
-	instance_->bg_shading_ = bg_shading;
-	instance_->mode_ = Font::RenderMode::SHADED;
-	Refresh();
-}
-
-void Text::SetBlendedRenderMode() {
-	PTGN_CHECK(IsValid(), "Cannot set render mode of text which is uninitialized or destroyed");
-	instance_->mode_ = Font::RenderMode::BLENDED;
-	Refresh();
-}
-
-void Text::Draw(const Rectangle<float>& box) const {
+void Text::Draw(const Rectangle<float>& destination) const {
 	if (!instance_->visible_) return;
-	if (instance_->content_ == "") return; // Cannot draw text with empty content.
-
-	PTGN_CHECK(IsValid(), "Cannot draw text which is uninitialized or destroyed");
-	PTGN_CHECK(instance_->texture_.IsValid(), "Cannot draw text which has an uninitialized or destroyed texture");
-	
-	SDL_Rect destination{
-		static_cast<int>(box.pos.x),
-		static_cast<int>(box.pos.y),
-		static_cast<int>(box.size.x),
-		static_cast<int>(box.size.y)
-	};
-
-	SDL_RenderCopy(
-		global::GetGame().sdl.GetRenderer().get(),
-		instance_->texture_.instance_.get(),
-		NULL, &destination
-	);
+	if (IsValid()) return;
+	if (instance_->texture_.IsValid()) return;
+	renderer::DrawTexture(instance_->texture_, destination);
 }
 
 } // namespace ptgn
