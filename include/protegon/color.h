@@ -57,32 +57,31 @@ template <typename U, type_traits::floating_point<U> = true>
 
 namespace color {
 
-// TODO: Fix overlap with windows macros.
-inline constexpr Color TRANSPARENT   {   0,   0,   0,   0 };
-inline constexpr Color BLACK         {   0,   0,   0, 255 };
-inline constexpr Color WHITE         { 255, 255, 255, 255 };
-inline constexpr Color RED           { 255,   0,   0, 255 };
-inline constexpr Color DARK_RED      { 128,   0,   0, 255 };
-inline constexpr Color BROWN         { 128,  64,  32, 255 };
-inline constexpr Color DARK_BROWN    {  64,  32,  16, 255 };
-inline constexpr Color ORANGE        { 255, 165,   0, 255 };
-inline constexpr Color YELLOW        { 255, 255,   0, 255 };
-inline constexpr Color GOLD          { 255, 215,   0, 255 };
-inline constexpr Color GREEN         {   0, 128,   0, 255 };
-inline constexpr Color LIME          {   0, 255,   0, 255 };
-inline constexpr Color DARK_GREEN    {   0, 100,   0, 255 };
-inline constexpr Color BLUE          {   0,   0, 255, 255 };
-inline constexpr Color DARK_BLUE     {   0,   0, 128, 255 };
-inline constexpr Color CYAN          {   0, 255, 255, 255 };
-inline constexpr Color TEAL          {   0, 128, 128, 255 };
-inline constexpr Color MAGENTA       { 255,   0, 255, 255 };
-inline constexpr Color PURPLE        { 128,   0, 128, 255 };
-inline constexpr Color PINK          { 255, 192, 203, 255 };
-inline constexpr Color LIGHT_PINK    { 255, 128, 255, 255 };
-inline constexpr Color GREY          { 128, 128, 128, 255 };
-inline constexpr Color DARK_GREY     {  64,  64,  64, 255 };
-inline constexpr Color LIGHT_GREY    {  83,  83,  83, 255 };
-inline constexpr Color SILVER        { 192, 192, 192, 255 };
+inline constexpr Color Transparent  {   0,   0,   0,   0 };
+inline constexpr Color Black        {   0,   0,   0, 255 };
+inline constexpr Color White        { 255, 255, 255, 255 };
+inline constexpr Color Red          { 255,   0,   0, 255 };
+inline constexpr Color DarkRed      { 128,   0,   0, 255 };
+inline constexpr Color Brown        { 128,  64,  32, 255 };
+inline constexpr Color DarkBrown    {  64,  32,  16, 255 };
+inline constexpr Color Orange       { 255, 165,   0, 255 };
+inline constexpr Color Yellow       { 255, 255,   0, 255 };
+inline constexpr Color Gold         { 255, 215,   0, 255 };
+inline constexpr Color Green        {   0, 128,   0, 255 };
+inline constexpr Color Lime         {   0, 255,   0, 255 };
+inline constexpr Color DarkGreen    {   0, 100,   0, 255 };
+inline constexpr Color Blue         {   0,   0, 255, 255 };
+inline constexpr Color DarkBlue     {   0,   0, 128, 255 };
+inline constexpr Color Cyan         {   0, 255, 255, 255 };
+inline constexpr Color Teal         {   0, 128, 128, 255 };
+inline constexpr Color Magenta      { 255,   0, 255, 255 };
+inline constexpr Color Purple       { 128,   0, 128, 255 };
+inline constexpr Color Pink         { 255, 192, 203, 255 };
+inline constexpr Color LightPink    { 255, 128, 255, 255 };
+inline constexpr Color Grey         { 128, 128, 128, 255 };
+inline constexpr Color DarkGrey     {  64,  64,  64, 255 };
+inline constexpr Color LightGrey    {  83,  83,  83, 255 };
+inline constexpr Color Silver       { 192, 192, 192, 255 };
 
 } // namespace color
 

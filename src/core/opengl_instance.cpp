@@ -108,7 +108,7 @@ static void PresentBuffer(Texture& backBuffer, Shader& shader, float playing_tim
 	//SDL_GL_BindTexture(backBuffer, NULL, NULL);
 
 	auto renderer{ global::GetGame().sdl.GetRenderer() };
-
+	
 	SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
 	SDL_SetRenderDrawBlendMode(renderer.get(), SDL_BLENDMODE_ADD);
 
@@ -166,10 +166,10 @@ static void DrawShader(Texture target, Shader shader) {
 	V2_float size = window::GetSize();
 
 	std::vector<VertexPosColor> vertices{
-		VertexPosColor{ { 0.0f, 0.0f, 0.0f }, { color::BLACK.r / 255.0f, color::BLACK.g / 255.0f, color::BLACK.b / 255.0f, color::BLACK.a / 255.0f } },
-		VertexPosColor{ { size.x, 0.0f, 0.0f }, { color::BLACK.r / 255.0f, color::BLACK.g / 255.0f, color::BLACK.b / 255.0f, color::BLACK.a / 255.0f } },
-		VertexPosColor{ { size.x, size.y, 0.0f }, { color::BLACK.r / 255.0f, color::BLACK.g / 255.0f, color::BLACK.b / 255.0f, color::BLACK.a / 255.0f } },
-		VertexPosColor{ { 0.0f, size.y, 0.0f }, { color::BLACK.r / 255.0f, color::BLACK.g / 255.0f, color::BLACK.b / 255.0f, color::BLACK.a / 255.0f } }
+		VertexPosColor{ { 0.0f, 0.0f, 0.0f }, { color::Black.r / 255.0f, color::Black.g / 255.0f, color::Black.b / 255.0f, color::Black.a / 255.0f } },
+		VertexPosColor{ { size.x, 0.0f, 0.0f }, { color::Black.r / 255.0f, color::Black.g / 255.0f, color::Black.b / 255.0f, color::Black.a / 255.0f } },
+		VertexPosColor{ { size.x, size.y, 0.0f }, { color::Black.r / 255.0f, color::Black.g / 255.0f, color::Black.b / 255.0f, color::Black.a / 255.0f } },
+		VertexPosColor{ { 0.0f, size.y, 0.0f }, { color::Black.r / 255.0f, color::Black.g / 255.0f, color::Black.b / 255.0f, color::Black.a / 255.0f } }
 	};
 
 	VertexBuffer vbo{ vertices };
@@ -286,8 +286,8 @@ std::vector<Intersect> ClosestIntersectionFinder::FindClosestIntersection(const 
 		V2_float seg1 = shapeVectors.at(i);
 		V2_float seg2 = shapeVectors.at(i + 1);
 		VertexVector segLine;
-		segLine.push_back(VertexPosColor{ { seg1.x, seg1.y, 0.0f }, { color::BLACK.r / 255.0f, color::BLACK.g / 255.0f, color::BLACK.b / 255.0f, color::BLACK.a / 255.0f } });
-		segLine.push_back(VertexPosColor{ { seg2.x, seg2.y, 0.0f }, { color::BLACK.r / 255.0f, color::BLACK.g / 255.0f, color::BLACK.b / 255.0f, color::BLACK.a / 255.0f } });
+		segLine.push_back(VertexPosColor{ { seg1.x, seg1.y, 0.0f }, { color::Black.r / 255.0f, color::Black.g / 255.0f, color::Black.b / 255.0f, color::Black.a / 255.0f } });
+		segLine.push_back(VertexPosColor{ { seg2.x, seg2.y, 0.0f }, { color::Black.r / 255.0f, color::Black.g / 255.0f, color::Black.b / 255.0f, color::Black.a / 255.0f } });
 		Intersect intersect = LightEngine::GetLineIntersect(ray, segLine);
 
 		if (intersect.GetIntersectPoint().x > 0 && intersect.GetIntersectPoint().y > 0) {
@@ -363,9 +363,9 @@ std::vector<Intersect> SpotLight::GetIntersectPoints(std::vector<V2_float>& shap
 		float y = sin(angle);
 
 		VertexVector ray;
-		ray.push_back(VertexPosColor{ { lightVector.x, lightVector.y, 0.0f}, { color::BLACK.r / 255.0f, color::BLACK.g / 255.0f, color::BLACK.b / 255.0f, color::BLACK.a / 255.0f }
+		ray.push_back(VertexPosColor{ { lightVector.x, lightVector.y, 0.0f}, { color::Black.r / 255.0f, color::Black.g / 255.0f, color::Black.b / 255.0f, color::Black.a / 255.0f }
 	});
-		ray.push_back(VertexPosColor{ { lightVector.x + x, lightVector.y + y, 0.0f }, { color::BLACK.r / 255.0f, color::BLACK.g / 255.0f, color::BLACK.b / 255.0f, color::BLACK.a / 255.0f }
+		ray.push_back(VertexPosColor{ { lightVector.x + x, lightVector.y + y, 0.0f }, { color::Black.r / 255.0f, color::Black.g / 255.0f, color::Black.b / 255.0f, color::Black.a / 255.0f }
 });
 
 		std::vector<Intersect> closestIntersections = intersectFinder.FindClosestIntersection(ray, shapeVectors, angle);
@@ -892,12 +892,12 @@ void TestOpenGL() {
 	light_engine.DebugLightRays(false);
 	light_engine.EnableSoftShadow(true);
 
-	LightKey mouseLight = light_engine.AddLight("mouse light", V2_float(400, 400), color::WHITE, 5, true);
-	light_engine.AddLight("mouse light 2", V2_float(300, 350), color::YELLOW, 5, false);
-	light_engine.AddLight("mouse light 3", V2_float(300, 370), color::RED, 5, false);
-	light_engine.AddLight("mouse light 4", V2_float(300, 400), color::YELLOW, 5, false);
-	light_engine.AddLight("mouse light 5", V2_float(350, 350), color::GREEN, 5, false);
-	light_engine.AddDirectionalLight("mouse light 6", V2_float(500, 500), color::CYAN, 5, 180, 20, false);*/
+	LightKey mouseLight = light_engine.AddLight("mouse light", V2_float(400, 400), color::White, 5, true);
+	light_engine.AddLight("mouse light 2", V2_float(300, 350), color::Yellow, 5, false);
+	light_engine.AddLight("mouse light 3", V2_float(300, 370), color::Red, 5, false);
+	light_engine.AddLight("mouse light 4", V2_float(300, 400), color::Yellow, 5, false);
+	light_engine.AddLight("mouse light 5", V2_float(350, 350), color::Green, 5, false);
+	light_engine.AddDirectionalLight("mouse light 6", V2_float(500, 500), color::Cyan, 5, 180, 20, false);*/
 
 
 	while (!done) {

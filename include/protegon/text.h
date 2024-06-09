@@ -24,7 +24,7 @@ struct TextInstance {
 
 	Font::Style style_{ Font::Style::NORMAL };
 	Font::RenderMode mode_{ Font::RenderMode::SOLID };
-	Color bg_shading_{ color::WHITE };
+	Color bg_shading_{ color::White };
 	bool visible_{ true };
 };
 

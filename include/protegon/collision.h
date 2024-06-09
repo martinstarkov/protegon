@@ -155,8 +155,8 @@ void Sweep(const V2_double& position,
             //new_origin = origin + (velocity * collisions[0].time - velocity.Unit() * epsilon);
             std::vector<CollisionManifold> collisions2;
             V2_double new_position = position + final_velocity;
-            //draw::Line(position, new_position, color::BLUE);
-            //draw::Circle(new_position, size, color::BLUE);
+            //draw::Line(position, new_position, color::Blue);
+            //draw::Circle(new_position, size, color::Blue);
             if (!new_velocity.IsZero()) {
                 for (std::size_t i = 0; i < target_positions.size(); ++i) {
                     V2_double new_relative_velocity = new_velocity;
@@ -169,13 +169,13 @@ void Sweep(const V2_double& position,
                 internal::SortCollisionTimes(collisions2);
                 if (collisions2.size() > 0) {
                     final_velocity += new_velocity * collisions2[0].time;
-                    //draw::Line(new_position, new_position + new_velocity * collisions2[0].time, color::RED);
-                    //draw::Circle(new_position + new_velocity * collisions2[0].time, size, color::RED);
-                    //draw::Circle(position + final_velocity, size, color::RED);
+                    //draw::Line(new_position, new_position + new_velocity * collisions2[0].time, color::Red);
+                    //draw::Circle(new_position + new_velocity * collisions2[0].time, size, color::Red);
+                    //draw::Circle(position + final_velocity, size, color::Red);
                 } else {
                     final_velocity += new_velocity;
-                    //draw::Line(new_position, new_position + new_velocity, color::RED);
-                    //draw::Circle(new_position + new_velocity, size, color::RED);
+                    //draw::Line(new_position, new_position + new_velocity, color::Red);
+                    //draw::Circle(new_position + new_velocity, size, color::Red);
                 }
             }
         } else {

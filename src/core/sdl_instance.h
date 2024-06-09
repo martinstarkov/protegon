@@ -40,7 +40,7 @@ private:
 	V2_float scale_{ 1.0f, 1.0f };
 	V2_int resolution_{ 1280, 720 };
 
-	Color window_bg_color_{ color::WHITE };
+	Color window_bg_color_{ color::White };
 	
 	std::shared_ptr<SDL_Window> window_;
 	std::shared_ptr<SDL_Renderer> renderer_;
