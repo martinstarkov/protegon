@@ -33,6 +33,7 @@ void GameStart() {
 	std::filesystem::current_path(exe_dir);
 #endif
 	global::impl::InitGame();
+	renderer::SetBlendMode(BlendMode::BLEND);
 }
 
 void GameLoop() {

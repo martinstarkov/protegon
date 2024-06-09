@@ -42,8 +42,6 @@ void Game::Loop() {
 	running_ = true;
 
 	while (running_) {
-		auto renderer{ sdl.GetRenderer() };
-
 		input.Update();
 
 		// Calculate time elapsed during previous frame.
@@ -52,18 +50,13 @@ void Game::Loop() {
 		float dt{ elapsed.count() };
 		start = end;
 
-		Color o{ sdl.GetWindowBackgroundColor() };
-
-		SDL_SetRenderDrawColor(renderer.get(), o.r, o.g, o.b, o.a);
-
-		// Clear screen.
-		SDL_RenderClear(renderer.get());
+		renderer::SetDrawColor(sdl.GetWindowBackgroundColor());
+		renderer::Clear();
 
 		// Call user update on active scenes.
 		scene::Update(dt);
 
-		// Push drawn objects to screen.
-		SDL_RenderPresent(renderer.get());
+		renderer::Present();
 	}
 }
 
@@ -85,7 +78,7 @@ void InitGame() {
 } // namespace impl
 
 Game& GetGame() {
-	PTGN_ASSERT(impl::game != nullptr && "Game not initialized or destroyed early");
+	PTGN_ASSERT(impl::game != nullptr, "Game not initialized or destroyed early");
 	return *impl::game;
 }
 

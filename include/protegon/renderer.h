@@ -4,6 +4,8 @@
 
 namespace ptgn {
 
+class Texture;
+
 enum class BlendMode {
 	// Source: https://wiki.libsdl.org/SDL2/SDL_BlendMode
 
@@ -22,6 +24,17 @@ enum class BlendMode {
 namespace renderer {
 
 void SetDrawColor(const Color& color);
+// Reset renderer draw color to transparent.
+void ResetDrawColor();
+void SetBlendMode(BlendMode mode);
+void SetDrawMode(const Color& color, BlendMode mode);
+// Clear screen.
+void Clear();
+// Push drawn objects to screen.
+void Present();
+void SetTarget(const Texture& texture);
+// Reset renderer target to window.
+void ResetTarget();
 
 } // namespace renderer
 
