@@ -65,7 +65,7 @@ V2_int SDLInstance::GetResolution() const {
 	return resolution_;
 }
 
-void SDLInstance::SetDrawMode(const Color& color, Texture::BlendMode draw_mode) {
+void SDLInstance::SetDrawMode(const Color& color, BlendMode draw_mode) {
 	if (color.a != 255)
 		SDL_SetRenderDrawBlendMode(renderer_.get(), static_cast<SDL_BlendMode>(draw_mode));
 	SDL_SetRenderDrawColor(renderer_.get(), color.r, color.g, color.b, color.a);
@@ -136,14 +136,14 @@ void SDLInstance::InitRenderer() {
 		PTGN_ERROR(SDL_GetError());
 		PTGN_ASSERT(false, "Failed to create SDL renderer");
 	}
-	SDL_SetRenderDrawBlendMode(renderer_.get(), static_cast<SDL_BlendMode>(Texture::BlendMode::BLEND));
+	SDL_SetRenderDrawBlendMode(renderer_.get(), static_cast<SDL_BlendMode>(BlendMode::BLEND));
 }
 
 namespace impl {
 
 std::shared_ptr<SDL_Renderer> SetDrawColor(const Color& color) {
 	SDLInstance& sdl{ global::GetGame().sdl };
-	sdl.SetDrawMode(color, Texture::BlendMode::BLEND);
+	sdl.SetDrawMode(color, BlendMode::BLEND);
 	return sdl.GetRenderer();
 }
 

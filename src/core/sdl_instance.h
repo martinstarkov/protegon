@@ -28,7 +28,7 @@ public:
 
 	[[nodiscard]] bool WindowExists() const;
 
-	void SetDrawMode(const Color& color, Texture::BlendMode draw_mode);
+	void SetDrawMode(const Color& color, BlendMode draw_mode);
 private:
 	void InitSDL();
 	void InitSDLImage();

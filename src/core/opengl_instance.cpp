@@ -7,6 +7,7 @@
 
 #include "game.h"
 #include "protegon/hash.h"
+#include "protegon/renderer.h"
 #include "protegon/window.h"
 #include "renderer/gl_loader.h"
 #include "renderer/buffer.h"
@@ -108,8 +109,8 @@ static void PresentBuffer(Texture& backBuffer, Shader& shader, float playing_tim
 	//SDL_GL_BindTexture(backBuffer, NULL, NULL);
 
 	auto renderer{ global::GetGame().sdl.GetRenderer() };
-	
-	SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
+
+	renderer::SetDrawColor(color::Transparent);
 	SDL_SetRenderDrawBlendMode(renderer.get(), SDL_BLENDMODE_ADD);
 
 
@@ -143,7 +144,7 @@ static void PresentBuffer(Texture& backBuffer, Shader& shader, float playing_tim
 	shader.Unbind();
 
 	SDL_SetRenderTarget(renderer.get(), NULL);
-	backBuffer.SetBlendMode(Texture::BlendMode::BLEND);
+	backBuffer.SetBlendMode(BlendMode::BLEND);
 	// OpenGL coordinate system is flipped vertically compared to SDL
 	backBuffer.Draw(dest_rect, {}, 0, Texture::Flip::VERTICAL, nullptr);
 }
@@ -651,7 +652,7 @@ void LightEngine::Draw(float playing_time) {
 
 	//auto renderer{ global::GetGame().sdl.GetRenderer() };
 
-	//lightRenderTex.SetBlendMode(Texture::BlendMode::ADDITIVE);
+	//lightRenderTex.SetBlendMode(BlendMode::ADDITIVE);
 	//lightRenderTex.SetAsRendererTarget();
 	//
 	//SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
@@ -705,7 +706,7 @@ void LightEngine::Draw(float playing_time) {
 	//lightShader.Unbind();
 
 	//SDL_SetRenderTarget(renderer.get(), NULL);
-	//lightRenderTex.SetBlendMode(Texture::BlendMode::BLEND);
+	//lightRenderTex.SetBlendMode(BlendMode::BLEND);
 	//Rectangle<float> dest_rect{
 	//	{},
 	//	size
@@ -715,7 +716,7 @@ void LightEngine::Draw(float playing_time) {
 
 	//SDL_RenderClear(renderWindow);
 
-	//lightRenderTex.SetBlendMode(Texture::BlendMode::ADDITIVE);
+	//lightRenderTex.SetBlendMode(BlendMode::ADDITIVE);
 	//Shader r1 = lightShader;
 	//// BLEND MULTIPLY
 	//SDL_SetRenderDrawBlendMode(renderWindow, SDL_BLENDMODE_MUL);
@@ -734,7 +735,7 @@ void LightEngine::Draw(float playing_time) {
 	//}
 
 	//SDL_SetRenderTarget(renderWindow, NULL);
-	//lightRenderTex.SetBlendMode(Texture::BlendMode::BLEND);
+	//lightRenderTex.SetBlendMode(BlendMode::BLEND);
 
 	//const V2_int window_size = window::GetSize();
 
