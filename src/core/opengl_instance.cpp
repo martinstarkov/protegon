@@ -3,11 +3,11 @@
 #include <string>
 
 #include <SDL.h>
-#include <SDL_image.h>
 
 #include "game.h"
 #include "protegon/hash.h"
 #include "protegon/renderer.h"
+#include "protegon/input.h"
 #include "protegon/window.h"
 #include "renderer/gl_loader.h"
 #include "renderer/buffer.h"
@@ -110,16 +110,14 @@ static void PresentBuffer(Texture& backBuffer, Shader& shader, float playing_tim
 
 	auto renderer{ global::GetGame().sdl.GetRenderer() };
 
-	renderer::SetDrawColor(color::Transparent);
-	SDL_SetRenderDrawBlendMode(renderer.get(), SDL_BLENDMODE_ADD);
+	renderer::ResetDrawColor();
+	renderer::SetBlendMode(BlendMode::ADDITIVE);
 
+	renderer::SetTarget(backBuffer);
+	renderer::SetBlendMode(BlendMode::ADDITIVE);
 
-	backBuffer.SetAsRendererTarget();
-	SDL_SetRenderDrawBlendMode(renderer.get(), SDL_BLENDMODE_ADD);
-
-
-	SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
-	SDL_RenderClear(renderer.get());
+	renderer::ResetDrawColor();
+	renderer::Clear();
 
 	shader.Bind();
 
@@ -131,7 +129,9 @@ static void PresentBuffer(Texture& backBuffer, Shader& shader, float playing_tim
 	/*shader.SetUniform("iResolution", size.x, size.y, 0.0f);
 	shader.SetUniform("iTime", playing_time);*/
 
-	shader.SetUniform("lightpos", size.x / 2, size.y / 2);
+	V2_float mouse = input::GetMousePosition();
+
+	shader.SetUniform("lightpos", mouse.x, mouse.y);
 	shader.SetUniform("lightColor", 1.0f, 0.0f, 0.0f);
 	shader.SetUniform("intensity", 10.0f);
 	shader.SetUniform("screenHeight", size.y);
@@ -143,72 +143,10 @@ static void PresentBuffer(Texture& backBuffer, Shader& shader, float playing_tim
 
 	shader.Unbind();
 
-	SDL_SetRenderTarget(renderer.get(), NULL);
+	renderer::ResetTarget();
 	backBuffer.SetBlendMode(BlendMode::BLEND);
 	// OpenGL coordinate system is flipped vertically compared to SDL
 	backBuffer.Draw(dest_rect, {}, 0, Texture::Flip::VERTICAL, nullptr);
-}
-
-void DrawRect(SDL_Renderer* renderer, const SDL_Rect& rect, SDL_Color color) {
-	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-	SDL_RenderFillRect(renderer, &rect);
-}
-
-static void DrawShader(Texture target, Shader shader) {
-	auto renderer{ global::GetGame().sdl.GetRenderer() };
-	target.SetAsRendererTarget();
-	SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
-	SDL_RenderClear(renderer.get());
-
-	shader.Bind();
-
-	VertexArray vao = VertexArray{ PrimitiveMode::Quads };
-
-	V2_float size = window::GetSize();
-
-	std::vector<VertexPosColor> vertices{
-		VertexPosColor{ { 0.0f, 0.0f, 0.0f }, { color::Black.r / 255.0f, color::Black.g / 255.0f, color::Black.b / 255.0f, color::Black.a / 255.0f } },
-		VertexPosColor{ { size.x, 0.0f, 0.0f }, { color::Black.r / 255.0f, color::Black.g / 255.0f, color::Black.b / 255.0f, color::Black.a / 255.0f } },
-		VertexPosColor{ { size.x, size.y, 0.0f }, { color::Black.r / 255.0f, color::Black.g / 255.0f, color::Black.b / 255.0f, color::Black.a / 255.0f } },
-		VertexPosColor{ { 0.0f, size.y, 0.0f }, { color::Black.r / 255.0f, color::Black.g / 255.0f, color::Black.b / 255.0f, color::Black.a / 255.0f } }
-	};
-
-	VertexBuffer vbo{ vertices };
-
-	vao.SetVertexBuffer(vbo);
-	vao.SetIndexBuffer({ { 0, 1, 2, 3 } });
-
-	vao.Draw();
-
-	shader.Unbind();
-}
-
-static void DrawShader(Texture target, Shader shader, VertexVector vertices) {
-	if (vertices.size() == 0) return;
-
-	auto renderer{ global::GetGame().sdl.GetRenderer() };
-	target.SetAsRendererTarget();
-	SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
-	SDL_RenderClear(renderer.get());
-
-	shader.Bind();
-
-	VertexArray vao = VertexArray(PrimitiveMode::Quads);
-
-	V2_int size = window::GetSize();
-
-
-	VertexBuffer vbo{ vertices };
-
-	std::vector<std::uint32_t> indices;
-	std::iota(std::begin(indices), std::end(indices), 0);
-
-	vao.SetVertexBuffer(vbo);
-	vao.SetIndexBuffer({ indices });
-
-	vao.Draw();
-
-	shader.Unbind();
 }
 
 Intersect::Intersect(V2_float intersect, float parameter)
@@ -428,11 +366,12 @@ void SpotLight::BuildLightRayVertexes(VertexVector& rayLine, VertexVector& debug
 
 void SpotLight::Render(Texture target, Shader shader) {
 
-	DrawShader(target, shader, lightVertexArray);
+	// TODO: Figure this out.
+	/*DrawShader(target, shader, lightVertexArray);
 
 	if (shouldDebugLines) {
 		DrawShader(target, shader, debugRays);
-	}
+	}*/
 
 }
 
@@ -584,11 +523,12 @@ void DirectionalLight::BuildLightRayVertexes(VertexVector& rayLine, VertexVector
 
 void DirectionalLight::Render(Texture target, Shader shader) {
 
-	DrawShader(target, shader, lightVertexArray);
+	// TODO: Figure this out.
+	/*DrawShader(target, shader, lightVertexArray);
 
 	if (shouldDebugLines) {
 		DrawShader(target, shader, debugRays);
-	}
+	}*/
 
 }
 
@@ -719,7 +659,7 @@ void LightEngine::Draw(float playing_time) {
 	//lightRenderTex.SetBlendMode(BlendMode::ADDITIVE);
 	//Shader r1 = lightShader;
 	//// BLEND MULTIPLY
-	//SDL_SetRenderDrawBlendMode(renderWindow, SDL_BLENDMODE_MUL);
+	//renderer::SetBlendMode(BlendMode::MULTIPLY);
 
 	//Shader r2X;
 	//Shader r2Y;
@@ -790,11 +730,7 @@ void LightEngine::EnableSoftShadow(bool shouldUseSoftShadow) {
 void TestOpenGL() {
 
 	Game& game = global::GetGame();
-	OpenGLInstance& opengl = game.opengl;
-	PTGN_ASSERT(opengl.IsInitialized());
-	SDLInstance& sdl = game.sdl;
-	auto renderer = sdl.GetRenderer();
-	auto win = sdl.GetWindow();
+	PTGN_ASSERT(game.opengl.IsInitialized());
 
 	std::string vertex_source = R"(
 		#version 330 core
@@ -831,10 +767,6 @@ void TestOpenGL() {
 	shader = Shader("resources/shader/main_vert.glsl", "resources/shader/lightFs.glsl");
 	//shader = Shader("resources/shader/main_vert.glsl", "resources/shader/fire_ball_frag.glsl");
 
-	const float WIN_WIDTH = (float)window::GetSize().x;
-	const float WIN_HEIGHT = (float)window::GetSize().y;
-
-	GLfloat iResolution[3] = { WIN_WIDTH, WIN_HEIGHT, 0 };
 	clock_t start_time = clock();
 	clock_t curr_time;
 	float playtime_in_second = 0;
@@ -843,15 +775,14 @@ void TestOpenGL() {
 
 	Texture texTarget{ Texture::AccessType::TARGET, window::GetSize() };
 
-	int done = 0;
 	int useShader = 0;
-	SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
+	renderer::ResetDrawColor();
 
 	Texture drawTarget{ Texture::AccessType::TARGET, window::GetSize() };
 
-	SDL_Rect rect1;
-	SDL_Rect rect2;
-	SDL_Rect rect3;
+	Rectangle<int> rect1;
+	Rectangle<int> rect2;
+	Rectangle<int> rect3;
 
 	rect1.x = 200;
 	rect1.y = 200;
@@ -900,23 +831,24 @@ void TestOpenGL() {
 	light_engine.AddLight("mouse light 5", V2_float(350, 350), color::Green, 5, false);
 	light_engine.AddDirectionalLight("mouse light 6", V2_float(500, 500), color::Cyan, 5, 180, 20, false);*/
 
+	bool running = true;
 
-	while (!done) {
-		SDL_SetRenderTarget(renderer.get(), NULL);
-		SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
-		SDL_RenderClear(renderer.get());
+	game.event.window_event.Subscribe((void*)&running, [&] (const Event<WindowEvent>& event) {
+		if (event.Type() == WindowEvent::QUIT) {
+			running = false;
+		}
+	});
 
-		SDL_Point mouse;
+	while (running) {
+		renderer::ResetTarget();
+		renderer::ResetDrawColor();
+		renderer::Clear();
 
-		SDL_GetMouseState(&mouse.x, &mouse.y);
+		V2_int mouse = input::GetMousePosition();
 
 		Rectangle<int> dest_rect;
 
-		dest_rect.w = WIN_WIDTH;
-		dest_rect.h = WIN_HEIGHT;
-
-		dest_rect.x = mouse.x - dest_rect.w / 2;
-		dest_rect.y = mouse.y - dest_rect.h / 2;
+		dest_rect.size = window::GetSize();
 
 		curr_time = clock();
 		playtime_in_second = (curr_time - start_time) * 1.0f / 1000.0f;
@@ -930,24 +862,14 @@ void TestOpenGL() {
 		//light_engine.SetPosition(mouseLight, V2_float{ (float)mouse.x, (float)mouse.y });
 
 		//DrawRect(renderer.get(), rect2, { 255, 0, 0, 255 });
-		SDL_RenderPresent(renderer.get());
+		renderer::Present();
 		
 		SDL_Event event;
-		while (SDL_PollEvent(&event)) {
-			if (event.type == SDL_QUIT) {
-				done = 1;
-			}
-			if (event.type == SDL_KEYDOWN) {
-				if (event.key.keysym.sym == SDLK_SPACE) {
-					useShader ^= 1;
-					PTGN_INFO("useShader = ", (useShader ? "true" : "false"));
-				}
-				if (event.key.keysym.sym == SDLK_ESCAPE) {
-					done = 1;
-				}
-			}
-		}
+
+		input::Update();
 	}
+
+	game.event.window_event.Unsubscribe((void*)&running);
 }
 
 
