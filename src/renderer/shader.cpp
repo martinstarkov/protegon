@@ -115,12 +115,18 @@ impl::Id Shader::CompileProgram(const std::string& vertex_source, const std::str
 	return program;
 }
 
-void Shader::Bind() {
+void Shader::WhileBound(std::function<void()> func) {
+	Bind();
+	func();
+	Unbind();
+}
+
+void Shader::Bind() const {
 	PTGN_CHECK(instance_ != nullptr, "Attempting to bind shader which has not been initialized");
 	glUseProgram(instance_->program_id_);
 }
 
-void Shader::Unbind() {
+void Shader::Unbind() const {
 	glUseProgram(0);
 }
 

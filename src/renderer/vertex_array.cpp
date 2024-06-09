@@ -18,8 +18,14 @@ VertexArrayInstance::VertexArrayInstance(PrimitiveMode mode) : mode_{ mode } {
 
 } // namespace impl
 
-VertexArray::VertexArray(PrimitiveMode mode) {
+VertexArray::VertexArray(PrimitiveMode mode, const VertexBuffer& vertex_buffer, const IndexBuffer& index_buffer) {
 	instance_ = std::shared_ptr<impl::VertexArrayInstance>(new impl::VertexArrayInstance(mode));
+	if (vertex_buffer.IsValid()) {
+		SetVertexBuffer(vertex_buffer);
+	}
+	if (index_buffer.IsValid()) {
+		SetIndexBuffer(index_buffer);
+	}
 }
 
 VertexArray::VertexArray(const std::shared_ptr<impl::VertexArrayInstance>& instance) : Handle<impl::VertexArrayInstance>{ instance } {}
@@ -33,8 +39,17 @@ void VertexArray::Unbind() const {
 	glBindVertexArray(0);
 }
 
-void VertexArray::Draw() const {
+void VertexArray::Draw(const Shader& shader) const {
+	const VertexBuffer& vbo{ GetVertexBuffer() };
+	if (!vbo.IsValid()) return; // Do not draw VertexArray with no VertexBuffer set.
 	PTGN_CHECK(IsValid(), "Cannot draw uninitialized or destroyed vertex array");
+
+	bool valid_shader{ shader.IsValid() };
+
+	if (valid_shader) {
+		shader.Bind();
+	}
+
 	Bind();
 	const IndexBuffer& ibo{ GetIndexBuffer() };
 	if (ibo.IsValid()) {
@@ -52,6 +67,10 @@ void VertexArray::Draw() const {
 		);
 	}
 	Unbind();
+
+	if (valid_shader) {
+		shader.Unbind();
+	}
 }
 
 void VertexArray::SetVertexBuffer(const VertexBuffer& vertex_buffer) {
@@ -76,6 +95,9 @@ void VertexArray::SetVertexBuffer(const VertexBuffer& vertex_buffer) {
 		// Not required according to: https://stackoverflow.com/a/12428035
 		//glDisableVertexAttribArray(i);
 	}
+
+	vertex_buffer.Unbind();
+
 	instance_->vertex_buffer_ = vertex_buffer;
 }
 
@@ -88,13 +110,11 @@ void VertexArray::SetIndexBuffer(const IndexBuffer& index_buffer) {
 
 const VertexBuffer& VertexArray::GetVertexBuffer() const {
 	PTGN_CHECK(IsValid(), "Cannot get vertex buffer of uninitialized or destroyed vertex array");
-	PTGN_CHECK(instance_->vertex_buffer_.IsValid(), "Cannot get vertex buffer which is uninitialized or destroyed");
 	return instance_->vertex_buffer_;
 }
 
 const IndexBuffer& VertexArray::GetIndexBuffer() const {
 	PTGN_CHECK(IsValid(), "Cannot get index buffer of uninitialized or destroyed vertex array");
-	PTGN_CHECK(instance_->index_buffer_.IsValid(), "Cannot get index buffer which is uninitialized or destroyed");
 	return instance_->index_buffer_;
 }
 

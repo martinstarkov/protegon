@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "buffer.h"
+#include "shader.h"
 
 namespace ptgn {
 
@@ -33,16 +34,19 @@ public:
 	VertexArray() = default;
 	~VertexArray() = default;
 
-	VertexArray(PrimitiveMode mode);
+	VertexArray(PrimitiveMode mode, const VertexBuffer& vertex_buffer = {}, const IndexBuffer& index_buffer = {});
 
 	void Bind() const;
 	void Unbind() const;
 
-	void Draw() const;
+	void Draw(const Shader& shader) const;
 
 	void SetVertexBuffer(const VertexBuffer& vertex_buffer);
 	void SetIndexBuffer(const IndexBuffer& index_buffer);
+
+	// Does not check VertexBuffer validity.
 	[[nodiscard]] const VertexBuffer& GetVertexBuffer() const;
+	// Does not check IndexBuffer validity.
 	[[nodiscard]] const IndexBuffer& GetIndexBuffer() const;
 
 	[[nodiscard]] PrimitiveMode GetPrimitiveMode() const;

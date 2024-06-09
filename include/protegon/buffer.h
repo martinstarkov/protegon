@@ -215,7 +215,7 @@ public:
 class IndexBuffer : public Handle<impl::IndexBufferInstance> {
 public:
 	IndexBuffer() = default;
-	IndexBuffer(const std::vector<std::uint32_t>& indices);
+	IndexBuffer(const std::initializer_list<std::uint32_t>& indices);
 
 	void Bind() const;
 	void Unbind() const;

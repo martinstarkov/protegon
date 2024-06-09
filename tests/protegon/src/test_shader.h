@@ -393,9 +393,11 @@ bool TestShaderDrawing() {
 	)";
 
 	Shader shader;
-	//shader = Shader(ShaderSource{ vertex_source }, ShaderSource{ fragment_source });
+	Shader shader2;
+
 	shader = Shader("resources/shader/main_vert.glsl", "resources/shader/lightFs.glsl");
-	//shader = Shader("resources/shader/main_vert.glsl", "resources/shader/fire_ball_frag.glsl");
+	//shader2 = Shader(ShaderSource{ vertex_source }, ShaderSource{ fragment_source });
+	shader2 = Shader("resources/shader/main_vert.glsl", "resources/shader/fire_ball_frag.glsl");
 
 	clock_t start_time = clock();
 	clock_t curr_time;
@@ -405,36 +407,26 @@ bool TestShaderDrawing() {
 
 	Texture drawTarget{ Texture::AccessType::TARGET, window::GetSize() };
 
-	const std::vector<std::uint32_t> indices = {
-		0, 1, 2,
-		2, 3, 1
-	};
-
-	const std::vector<std::uint32_t> indices2 = {
-		0, 1, 2,
-	};
-
 	struct Vertex {
 		glsl::vec3 pos;
 		glsl::vec4 color;
 	};
 
 	const std::vector<Vertex> vao_vert = {
-		Vertex{ glsl::vec3{ -1.0f, -1.0f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 1.0f, 1.0f } },
-		Vertex{ glsl::vec3{  1.0f, -1.0f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 1.0f, 1.0f } },
-		Vertex{ glsl::vec3{ -1.0f,  1.0f, 0.0f }, glsl::vec4{ 1.0f, 1.0f, 0.0f, 1.0f } },
 		Vertex{ glsl::vec3{  1.0f,  1.0f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 1.0f, 1.0f } },
+		Vertex{ glsl::vec3{  1.0f, -1.0f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 1.0f, 1.0f } },
+		Vertex{ glsl::vec3{ -1.0f, -1.0f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 1.0f, 1.0f } },
+		Vertex{ glsl::vec3{ -1.0f,  1.0f, 0.0f }, glsl::vec4{ 1.0f, 1.0f, 0.0f, 1.0f } },
 	};
 
-	VertexArray vao{ PrimitiveMode::Triangles };
-	VertexBuffer vbo{ vao_vert };
-	IndexBuffer ibo{ indices };
+	const std::vector<Vertex> triangle_vertices = {
+		Vertex{ glsl::vec3{  0.5f, -0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 0.0f, 0.5f } },
+		Vertex{ glsl::vec3{  0.0f,  0.5f, 0.0f }, glsl::vec4{ 0.0f, 1.0f, 0.0f, 0.5f } },
+		Vertex{ glsl::vec3{ -0.5f, -0.5f, 0.0f }, glsl::vec4{ 0.0f, 1.0f, 1.0f, 0.5f } },
+	};
 
-	vao.SetVertexBuffer(vbo);
-	vao.SetIndexBuffer(ibo);
-
-	vbo.Unbind();
-	vao.Unbind();
+	VertexArray vao{ PrimitiveMode::Quads, { vao_vert } };
+	VertexArray vao2{ PrimitiveMode::Triangles, { triangle_vertices } };
 
 	window::RepeatUntilQuit([&]() {
 		renderer::ResetTarget();
@@ -455,22 +447,23 @@ bool TestShaderDrawing() {
 		renderer::ResetDrawColor();
 		renderer::Clear();
 
-		shader.Bind();
+		shader.WhileBound([&]() {
+			shader.SetUniform("lightpos", mouse.x, mouse.y);
+			shader.SetUniform("lightColor", 1.0f, 0.0f, 0.0f);
+			shader.SetUniform("intensity", 14.0f);
+			shader.SetUniform("screenHeight", window_size.y);
+		});
 
-		//shader.SetUniform("iResolution", size.x, size.y, 0.0f);
-		//shader.SetUniform("iTime", playtime_in_second);
+		shader2.WhileBound([&]() {
+			shader2.SetUniform("iResolution", window_size.x, window_size.y, 0.0f);
+			shader2.SetUniform("iTime", playtime_in_second);
+		});
 
-		shader.SetUniform("lightpos", mouse.x, mouse.y);
-		shader.SetUniform("lightColor", 1.0f, 0.0f, 0.0f);
-		shader.SetUniform("intensity", 10.0f);
-		shader.SetUniform("screenHeight", window_size.y);
+		vao.Draw(shader);
 
-		//shader.SetUniform("iResolution", size.x, size.y, 0.0f);
-		//shader.SetUniform("iTime", playing_time);
+		renderer::SetBlendMode(BlendMode::Blend);
 
-		vao.Draw();
-
-		shader.Unbind();
+		vao2.Draw(shader2);
 
 		renderer::ResetTarget();
 		drawTarget.SetBlendMode(BlendMode::Blend);

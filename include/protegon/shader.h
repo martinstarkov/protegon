@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <cstdint>
 #include <memory>
+#include <functional>
 
 #include "utility/debug.h"
 #include "type_traits.h"
@@ -89,6 +90,8 @@ public:
 	Shader(const ShaderSource& vertex_shader, const ShaderSource& fragment_shader);
 	Shader(const path& vertex_shader_path, const path& fragment_shader_path);
 
+	void WhileBound(std::function<void()> func);
+
 	void SetUniform(const std::string& name, float v0);
 	void SetUniform(const std::string& name, float v0, float v1);
 	void SetUniform(const std::string& name, float v0, float v1, float v2);
@@ -102,8 +105,8 @@ public:
 
 	[[nodiscard]] std::int32_t GetUniformLocation(const std::string& name) const;
 
-	void Bind();
-	void Unbind();
+	void Bind() const;
+	void Unbind() const;
 
 private:
 	void Create(const std::string& vertex_shader_source, const std::string& fragment_shader_source);

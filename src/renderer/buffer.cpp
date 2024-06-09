@@ -116,7 +116,7 @@ std::size_t VertexBuffer::GetCount() const {
 	return instance_->count_;
 }
 
-IndexBuffer::IndexBuffer(const std::vector<std::uint32_t>& indices) {
+IndexBuffer::IndexBuffer(const std::initializer_list<std::uint32_t>& indices) {
 	instance_ = std::shared_ptr<impl::IndexBufferInstance>(new impl::IndexBufferInstance(indices));
 }
 
