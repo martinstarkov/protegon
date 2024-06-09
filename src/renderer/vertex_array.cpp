@@ -1,4 +1,4 @@
-#include "vertex_array.h"
+#include "protegon/vertex_array.h"
 
 #include "gl_loader.h"
 

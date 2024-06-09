@@ -1,17 +1,14 @@
 #pragma once
 
-#include <cstdlib>
-#include <cstdint>
 #include <vector>
 #include <initializer_list>
-#include <memory>
-#include <variant>
 #include <array>
 
 #include "protegon/shader.h"
 #include "protegon/type_traits.h"
 #include "utility/debug.h"
 
+// TODO: Figure out a way to isolate this from the public API (other than a tree of namespaces).
 #include "luple/type_loophole.h"
 
 namespace ptgn {
