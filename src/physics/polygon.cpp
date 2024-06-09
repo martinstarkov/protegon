@@ -10,6 +10,10 @@
 
 namespace ptgn {
 
+Rectangle<int>::operator SDL_Rect() const {
+	return SDL_Rect{ x, y, w, h };
+}
+
 namespace impl {
 
 void DrawRectangle(int x, int y, int w, int h, const Color& color) {

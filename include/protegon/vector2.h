@@ -11,6 +11,8 @@
 #include "math.h"
 #include "color.h"
 
+struct SDL_Point;
+
 namespace ptgn {
 
 namespace impl {
@@ -27,6 +29,8 @@ struct Vector2 {
 
     constexpr Vector2() = default;
     ~Vector2() = default;
+
+    operator SDL_Point() const;
 
     constexpr Vector2(T x, T y) : 
         x{ x },

@@ -9,6 +9,10 @@
 
 namespace ptgn {
 
+Vector2<int>::operator SDL_Point() const {
+	return SDL_Point{ x, y };
+}
+
 namespace impl {
 
 void DrawPointWrapper(int x, int y, const Color& color) {
