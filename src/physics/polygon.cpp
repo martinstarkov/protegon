@@ -10,9 +10,7 @@
 
 namespace ptgn {
 
-Rectangle<int>::operator SDL_Rect() const {
-	return SDL_Rect{ x, y, w, h };
-}
+Rectangle<int>::operator SDL_Rect() const { return SDL_Rect{ pos.x, pos.y, size.x, size.y }; }
 
 namespace impl {
 
@@ -111,7 +109,7 @@ void DrawThickRectangleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int 
 	int wh;
 
 	if (x1 == x2 && y1 == y2) {
-		wh = pixel_width / 2;
+		wh = static_cast<int>(pixel_width / 2);
 		DrawSolidRectangleImpl(renderer, x1 - wh, y1 - wh, x2 + wh, y2 + wh);
 		return;
 	}
@@ -193,7 +191,7 @@ void DrawRoundedRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, int h
 }
 
 void DrawSolidRoundedRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, int h, int r) {
-	int r2, tmp;
+	int tmp;
 	int cx = 0;
 	int cy = r;
 	int ocx = (int)0xffff;
@@ -380,7 +378,7 @@ void DrawPolygonImpl(SDL_Renderer* renderer, const std::vector<V2_int>& v) {
 		p.push_back(SDL_Point{ vi.x, vi.y });
 	}
 	p.push_back(SDL_Point{ v.at(0).x, v.at(0).y });
-	SDL_RenderDrawLines(renderer, p.data(), p.size());
+    SDL_RenderDrawLines(renderer, p.data(), static_cast<int>(p.size()));
 }
 
 void DrawSolidPolygonImpl(SDL_Renderer* renderer, const std::vector<V2_int>& v) {
@@ -392,7 +390,7 @@ void DrawSolidPolygonImpl(SDL_Renderer* renderer, const std::vector<V2_int>& v) 
 	int x2, y2;
 	int ind1, ind2;
 	int ints;
-	int n = v.size();
+    int n = static_cast<int>(v.size());
 
 	miny = v[0].y;
 	maxy = v[0].y;

@@ -495,12 +495,12 @@ void DrawThickEllipseImpl(SDL_Renderer* renderer, int x, int y, int rx, int ry, 
 		return;
 	}
 
-	int half = pixel_thickness / 2;
+	int half = static_cast<int>(pixel_thickness) / 2;
 
 	xi = rx - half;
-	xo = xi + pixel_thickness - 1;
+    xo = xi + static_cast<int>(pixel_thickness) - 1;
 	yi = ry - half;
-	yo = yi + pixel_thickness - 1;
+	yo = yi + static_cast<int>(pixel_thickness) - 1;
 
 	PTGN_ASSERT(!(xi <= 0 || yi <= 0));
 
@@ -511,32 +511,32 @@ void DrawThickEllipseImpl(SDL_Renderer* renderer, int x, int y, int rx, int ry, 
 
 	if (rx < ry) {
 		for (x0 = -xo; x0 <= -xi; x0++) {
-			y0 = std::sqrt(yo2 * (1.0 - x0 * x0 / xo2)) + 0.5;
+			y0 = static_cast<int>(std::sqrt(yo2 * (1.0 - x0 * x0 / xo2)) + 0.5);
 			DrawLineImpl(renderer, x + x0, y - y0, x + x0, y + y0);
 		}
 		for (x0 = -xi + 1; x0 <= xi - 1; x0++) {
-			y0 = std::sqrt(yo2 * (1.0 - x0 * x0 / xo2)) + 0.5;
-			z = std::sqrt(yi2 * (1.0 - x0 * x0 / xi2)) + 0.5;
+            y0 = static_cast<int>(std::sqrt(yo2 * (1.0 - x0 * x0 / xo2)) + 0.5);
+            z = static_cast<int>(std::sqrt(yi2 * (1.0 - x0 * x0 / xi2)) + 0.5);
 			DrawLineImpl(renderer, x + x0, y + z, x + x0, y + y0);
 			DrawLineImpl(renderer, x + x0, y - z, x + x0, y - y0);
 		}
 		for (x0 = xo; x0 >= xi; x0--) {
-			y0 = std::sqrt(yo2 * (1.0 - x0 * x0 / xo2)) + 0.5;
+			y0 = static_cast<int>(std::sqrt(yo2 * (1.0 - x0 * x0 / xo2)) + 0.5);
 			DrawLineImpl(renderer, x + x0, y - y0, x + x0, y + y0);
 		}
 	} else {
 		for (y0 = -yo; y0 <= -yi; y0++) {
-			x0 = std::sqrt(xo2 * (1.0 - y0 * y0 / yo2)) + 0.5;
+            x0 = static_cast<int>(std::sqrt(xo2 * (1.0 - y0 * y0 / yo2)) + 0.5);
 			DrawLineImpl(renderer, x - x0, y + y0, x + x0, y + y0);
 		}
 		for (y0 = -yi + 1; y0 <= yi - 1; y0++) {
-			x0 = std::sqrt(xo2 * (1.0 - y0 * y0 / yo2)) + 0.5;
-			z = std::sqrt(xi2 * (1.0 - y0 * y0 / yi2)) + 0.5;
+            x0 = static_cast<int>(std::sqrt(xo2 * (1.0 - y0 * y0 / yo2)) + 0.5);
+			z = static_cast<int>(std::sqrt(xi2 * (1.0 - y0 * y0 / yi2)) + 0.5);
 			DrawLineImpl(renderer, x + z, y + y0, x + x0, y + y0);
 			DrawLineImpl(renderer, x - z, y + y0, x - x0, y + y0);
 		}
 		for (y0 = yo; y0 >= yi; y0--) {
-			x0 = std::sqrt(xo2 * (1.0 - y0 * y0 / yo2)) + 0.5;
+            x0 = static_cast<int>(std::sqrt(xo2 * (1.0 - y0 * y0 / yo2)) + 0.5);
 			DrawLineImpl(renderer, x - x0, y + y0, x + x0, y + y0);
 		}
 	}
@@ -584,8 +584,8 @@ void DrawArcImpl(SDL_Renderer* renderer, int x, int y, int arc_radius, double st
 	start_angle = RestrictAngle360(start_angle);
 	end_angle = RestrictAngle360(end_angle);
 
-	startoct = start_angle / 45;
-	endoct = end_angle / 45;
+	startoct = static_cast<int>(start_angle / 45);
+    endoct = static_cast<int>(end_angle / 45);
 	oct = startoct - 1;
 
 	do {

@@ -77,7 +77,7 @@ void DrawThickLineImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, d
 	int wh;
 	// Special case: thick "point"
 	if (x1 == x2 && y1 == y2) {
-		wh = pixel_thickness / 2;
+        wh = static_cast<int>(pixel_thickness / 2);
 		DrawSolidRectangleImpl(renderer, x1 - wh, y1 - wh, x2 + wh, y2 + wh);
 		return;
 	}
@@ -140,28 +140,29 @@ void DrawCapsuleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int
 }
 
 void DrawSolidCapsuleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int r) {
-	V2_int dir{ V2_int{ x2, y2 } - V2_int{ x1, y1 } };
-	const float angle{ RadToDeg(RestrictAngle2Pi(dir.Angle<float>() + half_pi<float>)) };
-	const int dir2{ dir.Dot(dir) };
+	//V2_int dir{ V2_int{ x2, y2 } - V2_int{ x1, y1 } };
+	//const float angle{ RadToDeg(RestrictAngle2Pi(dir.Angle<float>() + half_pi<float>)) };
+	//const int dir2{ dir.Dot(dir) };
 
-	V2_int tangent_r;
+	//V2_int tangent_r;
 
 	// Note that dir2 is an int.
-	if (dir2 == 0) {
-		DrawSolidCircleImpl(renderer, x1, y1, r);
-		return;
-	} else {
-		tangent_r = static_cast<V2_int>((dir.Skewed() / std::sqrt(dir2) * r).FastFloor());
-	}
+	//if (dir2 == 0) {
+		//DrawSolidCircleImpl(renderer, x1, y1, r);
+		//return;
+	//} else {
+		//tangent_r = static_cast<V2_int>((dir.Skewed() / std::sqrt(dir2) * r).FastFloor());
+	//}
+	// 
+	// TODO: Check if this is faster than drawing circles.
+	//DrawSolidArcImpl(renderer, x1, y1, r, angle, angle + 180.0);
+	//DrawSolidArcImpl(renderer, x2, y2, r, angle + 180.0, angle);
 
 	DrawThickLineImpl(renderer, x1, y1, x2, y2, r * 2);
 
 	DrawSolidCircleImpl(renderer, x1, y1, r);
 	DrawSolidCircleImpl(renderer, x2, y2, r);
 
-	// TODO: Check if this is faster than drawing circles.
-	//DrawSolidArcImpl(renderer, x1, y1, r, angle, angle + 180.0);
-	//DrawSolidArcImpl(renderer, x2, y2, r, angle + 180.0, angle);
 }
 
 void DrawThickCapsuleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int r, double pixel_thickness) {
@@ -323,8 +324,8 @@ void DrawXThickLine(SDL_Renderer* renderer, int x1, int y1, int dx, int dy, int 
 	E_square = 2 * dy;
 	length = dx + 1;
 	D = std::sqrt(dx * dx + dy * dy);
-	w_left = pixel_thickness * D + 0.5;
-	w_right = 2.0 * pixel_thickness * D + 0.5;
+	w_left = static_cast<int>(pixel_thickness * D + 0.5);
+    w_right = static_cast<int>(2.0 * pixel_thickness * D + 0.5);
 	w_right -= w_left;
 
 	for (p = 0; p < length; p++) {
@@ -361,8 +362,8 @@ void DrawYThickLine(SDL_Renderer* renderer, int x1, int y1, int dx, int dy, int 
 	E_square = 2 * dx;
 	length = dy + 1;
 	D = std::sqrt(dx * dx + dy * dy);
-	w_left = pixel_thickness * D + 0.5;
-	w_right = 2.0 * pixel_thickness * D + 0.5;
+    w_left = static_cast<int>(pixel_thickness * D + 0.5);
+	w_right = static_cast<int>(2.0 * pixel_thickness * D + 0.5);
 	w_right -= w_left;
 
 	for (p = 0; p < length; p++) {
