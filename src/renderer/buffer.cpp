@@ -53,7 +53,7 @@ const std::vector<BufferElement>& BufferLayout::GetElements() const {
 	return elements_;
 }
 
-std::size_t BufferLayout::GetStride() const {
+std::int32_t BufferLayout::GetStride() const {
 	return stride_;
 }
 
@@ -79,7 +79,7 @@ void VertexBufferInstance::GenerateBuffer(void* vertex_data, std::size_t size) {
 	glBufferData(GL_ARRAY_BUFFER, size, vertex_data, GL_STATIC_DRAW);
 }
 
-IndexBufferInstance::IndexBufferInstance(const std::vector<std::uint32_t>& indices) : count_{ indices.size() } {
+IndexBufferInstance::IndexBufferInstance(const std::vector<std::uint32_t>& indices) : count_{ static_cast<std::int32_t>(indices.size()) } {
 	PTGN_ASSERT(indices.size() > 0);
 	using IndexType = std::remove_reference_t<decltype(indices)>::value_type;
 	GenerateBuffer((void*)indices.data(), sizeof(std::uint32_t) * count_);
@@ -111,7 +111,7 @@ void VertexBuffer::Unbind() const {
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-std::size_t VertexBuffer::GetCount() const {
+std::int32_t VertexBuffer::GetCount() const {
 	PTGN_CHECK(IsValid(), "Cannot get count of uninitialized or destroyed vertex buffer");
 	return instance_->count_;
 }
@@ -129,7 +129,7 @@ void IndexBuffer::Unbind() const {
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
-std::size_t IndexBuffer::GetCount() const {
+std::int32_t IndexBuffer::GetCount() const {
 	PTGN_CHECK(IsValid(), "Cannot get count of uninitialized or destroyed index buffer");
 	return instance_->count_;
 }

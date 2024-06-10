@@ -56,12 +56,12 @@ public:
 	BufferLayout(const std::initializer_list<BufferElement>& elements);
 	BufferLayout(const std::vector<BufferElement>& elements);
 	[[nodiscard]] const std::vector<BufferElement>& GetElements() const;
-	[[nodiscard]] std::size_t GetStride() const;
+    [[nodiscard]] std::int32_t GetStride() const;
 	[[nodiscard]] bool IsEmpty() const;
 private:
 	void CalculateOffsets();
 	std::vector<BufferElement> elements_;
-	std::size_t stride_{ 0 };
+    std::int32_t stride_{0};
 };
 
 // Vertex Types
@@ -110,12 +110,20 @@ inline constexpr bool is_vertex_data_type{
 template<bool> struct vertex_data : std::false_type {};
 template<>     struct vertex_data<true> : std::true_type {};
 
-template <typename ...Ts>
-struct is_vertex_data
-	: vertex_data <(is_vertex_data_type<Ts> && ...)> {};
+template <typename TupleT, std::size_t... Is>
+constexpr bool are_vertex_data_types(std::index_sequence<Is...>) {
+  return (is_vertex_data_type<type_traits::class_members::impl::element_t<TupleT, Is>> && ...);
+}
 
 template <typename T>
-inline constexpr bool is_valid_vertex{ type_traits::class_members::types<T>::apply<impl::is_vertex_data>::value };
+struct is_valid_vertex_type {
+	using vertex_type_list = type_traits::class_members::as_type_list<T>;
+	using vertex_luple = type_traits::class_members::impl::luple_t<vertex_type_list>;
+    static constexpr bool value{are_vertex_data_types<vertex_luple>(std::make_index_sequence<vertex_type_list::size>{})};
+};
+
+template <typename T>
+inline constexpr bool is_valid_vertex{ is_valid_vertex_type<T>::value };
 
 template <typename T>
 using valid_vertex = std::enable_if_t<is_valid_vertex<T>, bool>;
@@ -126,7 +134,7 @@ public:
 	~VertexBufferInstance();
 private:
 	template <typename T, impl::valid_vertex<T> = true>
-	VertexBufferInstance(const std::vector<T>& vertices) : count_{ vertices.size() } {
+	VertexBufferInstance(const std::vector<T>& vertices) : count_{ static_cast<std::int32_t>(vertices.size()) } {
 		PTGN_ASSERT(count_ > 0);
 		// Take any vertex element to figure out its layout.
 		DeduceLayout<T>();
@@ -134,7 +142,7 @@ private:
 	}
 	
 	/*template <typename T, impl::valid_vertex<T> = true>
-	VertexBufferInstance(const std::vector<T>& vertices, const BufferLayout& layout) : count_{ vertices.size() } {
+	VertexBufferInstance(const std::vector<T>& vertices, const BufferLayout& layout) : count_{ static_cast<std::int32_t>(vertices.size()) } {
 		PTGN_ASSERT(count_ > 0);
 		GenerateBuffer((void*)vertices.data(), sizeof(T) * count_);
 	}*/
@@ -151,7 +159,7 @@ private:
 			[&] (auto& value) {
 				using glsl_type = typename std::remove_const_t<typename std::remove_reference_t<decltype(value)>>;
 				static_assert(is_vertex_data_type<glsl_type>, "Buffer element type must be a valid vertex data type");
-				using element_type = glsl_type::value_type;
+				using element_type = typename glsl_type::value_type;
 
 				elements.emplace_back(
 					static_cast<std::uint16_t>(sizeof(element_type)),
@@ -164,7 +172,7 @@ private:
 	}
 private:
 	friend class VertexBuffer;
-	std::size_t count_{ 0 };
+	std::int32_t count_{ 0 };
 	BufferLayout layout_;
 	std::uint32_t id_{ 0 };
 };
@@ -179,7 +187,7 @@ private:
 	void GenerateBuffer(void* index_data, std::size_t size);
 private:
 	friend class IndexBuffer;
-	std::size_t count_{ 0 };
+	std::int32_t count_{ 0 };
 	std::uint32_t id_{ 0 };
 };
 
@@ -209,7 +217,7 @@ public:
 
 	[[nodiscard]] const BufferLayout& GetLayout() const;
 
-	[[nodiscard]] std::size_t GetCount() const;
+	[[nodiscard]] std::int32_t GetCount() const;
 };
 
 class IndexBuffer : public Handle<impl::IndexBufferInstance> {
@@ -220,7 +228,7 @@ public:
 	void Bind() const;
 	void Unbind() const;
 
-	[[nodiscard]] std::size_t GetCount() const;
+	[[nodiscard]] std::int32_t GetCount() const;
 	[[nodiscard]] static constexpr impl::GLSLType GetType() {
 		return impl::GLSLType::UnsignedInt;
 	}
