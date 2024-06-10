@@ -3,6 +3,7 @@
 #include "utility/debug.h"
 
 #include "gl_loader.h"
+#include "protegon/handle.h"
 
 namespace ptgn {
 
