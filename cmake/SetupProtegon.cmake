@@ -38,6 +38,8 @@ target_compile_features(protegon PUBLIC cxx_std_17)
 set_target_properties(protegon PROPERTIES CXX_EXTENSIONS OFF)
 
 include("${CMAKE_DIR}/SetupSDL2.cmake")
+include("${CMAKE_DIR}/ClangFormat.cmake")
+include("${CMAKE_DIR}/CompilerWarnings.cmake")
 
 function(add_protegon_to TARGET)
   target_link_libraries(${TARGET} PRIVATE protegon)
@@ -122,6 +124,10 @@ target_include_directories(protegon PUBLIC
   $<BUILD_INTERFACE:${PROTEGON_DIR}/include>
   $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
   $<INSTALL_INTERFACE:include>)
+
+set_project_warnings(protegon)
+add_clang_tidy()
+add_clang_format_target(${PROTEGON_SOURCES} ${PROTEGON_SOURCES} ${PROTEGON_HEADERS})
 
 if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
 
