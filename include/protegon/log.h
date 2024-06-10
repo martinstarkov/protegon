@@ -18,7 +18,7 @@ inline void PrintImpl(std::ostream& ostream, TArgs&&... items) {
 template <typename ...TArgs,
 	type_traits::stream_writable<std::ostream, TArgs...> = true>
 inline void PrintLineImpl(std::ostream& ostream, TArgs&&... items) {
-	Print(std::forward<TArgs>(items)...);
+  PrintImpl(ostream, std::forward<TArgs>(items)...);
 	ostream << '\n';
 }
 
