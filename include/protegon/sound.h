@@ -4,7 +4,7 @@
 #include "handle.h"
 #include "file.h"
 
-class _Mix_Music;
+struct _Mix_Music;
 using Mix_Music = _Mix_Music;
 struct Mix_Chunk;
 
