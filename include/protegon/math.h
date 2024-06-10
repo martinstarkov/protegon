@@ -14,11 +14,11 @@ namespace impl {
 template <typename T, type_traits::floating_point<T> = true> class Pi {};
 template <typename T, type_traits::floating_point<T> = true> class TwoPi {};
 template <typename T, type_traits::floating_point<T> = true> class HalfPi {};
-template<> class Pi<float>      { public: static constexpr float  value() { return 3.14159265; } };
+template<> class Pi<float>      { public: static constexpr float  value() { return 3.14159265f; } };
 template<> class Pi<double>     { public: static constexpr double value() { return 3.141592653589793; } };
-template<> class TwoPi<float>   { public: static constexpr float  value() { return 6.2831853; } };
+template<> class TwoPi<float>   { public: static constexpr float  value() { return 6.2831853f; } };
 template<> class TwoPi<double>  { public: static constexpr double value() { return 6.283185307179586; } };
-template<> class HalfPi<float>  { public: static constexpr float  value() { return 1.570796325; } };
+template<> class HalfPi<float>  { public: static constexpr float  value() { return 1.570796325f; } };
 template<> class HalfPi<double> { public: static constexpr double value() { return 1.5707963267948965; } };
 
 } // namespace impl
@@ -90,7 +90,8 @@ template <typename T>
 [[nodiscard]] T FastFloor(T value) {
     if constexpr (std::is_floating_point_v<T>)
         return static_cast<T>((int64_t)value - (value < (int64_t)value));
-    return value;
+    else
+        return value;
 }
 
 // No NaN/inf checking.
@@ -98,7 +99,8 @@ template <typename T>
 [[nodiscard]] T FastCeil(T value) {
     if constexpr (std::is_floating_point_v<T>)
         return static_cast<T>((int64_t)value + (value > (int64_t)value));
-    return value;
+    else
+        return value;
 }
 
 // No NaN/inf checking.
@@ -154,7 +156,7 @@ template <typename T, typename U,
     type_traits::arithmetic<T> = true,
     type_traits::floating_point<U> = true>
 [[nodiscard]] U CosineInterpolate(T a, T b, U t) {
-    return Lerp(a, b, static_cast<U>(0.5) * (static_cast<U>(1) - std::cos(t * pi<U>)))
+    return Lerp(a, b, static_cast<U>(0.5) * (static_cast<U>(1) - std::cos(t * pi<U>)));
 }
 
 // From https://paulbourke.net/miscellaneous/interpolation/
