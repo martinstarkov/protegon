@@ -181,6 +181,7 @@ if(WIN32)
     endfunction(get_target_file_paths)
 
     get_target_file_paths(SDL_TARGETS SDL_TARGET_FILES)
+    set(SDL_TARGET_FILES "${SDL_TARGET_FILES}" CACHE INTERNAL "")
     if(MSVC)
       list(APPEND SDL_TARGET_FILES ${FREETYPE_LIB})
       add_custom_command(TARGET protegon POST_BUILD
@@ -192,7 +193,7 @@ if(WIN32)
                         VERBATIM r "$<TARGET_FILE:protegon>" "${SDL_TARGET_FILES}"
                         COMMAND_EXPAND_LISTS)
     endif()
-  elseif(SHARED_SDL2_LIBS AND NOT CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+  elseif(SHARED_SDL2_LIBS)
     # Copy SDL dlls to parent exe directory
     get_target_property(SDL2_DLL       SDL2::SDL2 	          IMPORTED_LOCATION)
     get_target_property(SDL2_IMAGE_DLL SDL2_image::SDL2_image IMPORTED_LOCATION)
@@ -210,6 +211,6 @@ if(WIN32)
       ${SDL2_TTF_LIB_DIR}/*.dll
       ${SDL2_MIXER_LIB_DIR}/*.dll)
 
-    set_property(GLOBAL PROPERTY PROTEGON_DLLS ${DLLS})
+    set(PTGN_SDL_DLLS "${DLLS}" CACHE INTERNAL "")
   endif()
 endif()

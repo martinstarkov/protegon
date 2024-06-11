@@ -6,7 +6,7 @@
 #include "protegon/collision.h"
 #include "protegon/input.h"
 #include "core/game.h"
-#include "utility/debug.h"
+#include "protegon/debug.h"
 
 namespace ptgn {
 

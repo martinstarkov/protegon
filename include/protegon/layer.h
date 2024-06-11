@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utility/debug.h"
+#include "protegon/debug.h"
 #include "ecs/ecs.h"
 #include "grid.h"
 #include "vector2.h"

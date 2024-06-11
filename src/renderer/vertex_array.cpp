@@ -2,7 +2,7 @@
 
 #include "gl_loader.h"
 
-#include "utility/debug.h"
+#include "protegon/debug.h"
 
 namespace ptgn {
 

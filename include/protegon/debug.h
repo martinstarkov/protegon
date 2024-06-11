@@ -6,7 +6,7 @@
 #include <sstream>
 
 #include "protegon/log.h"
-#include "platform.h"
+#include "protegon/platform.h"
 
 #define PTGN_EXPAND_MACRO(x) x
 

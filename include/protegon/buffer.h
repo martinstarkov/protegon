@@ -6,7 +6,7 @@
 
 #include "protegon/shader.h"
 #include "protegon/type_traits.h"
-#include "utility/debug.h"
+#include "protegon/debug.h"
 
 // TODO: Figure out a way to isolate this from the public API (other than a tree of namespaces).
 #include "luple/type_loophole.h"

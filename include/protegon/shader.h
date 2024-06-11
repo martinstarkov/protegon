@@ -7,7 +7,7 @@
 #include <memory>
 #include <functional>
 
-#include "utility/debug.h"
+#include "protegon/debug.h"
 #include "type_traits.h"
 #include "file.h"
 #include "handle.h"

@@ -5,7 +5,7 @@
 #include <SDL_ttf.h>
 #include <SDL_mixer.h>
 
-#include "utility/debug.h"
+#include "protegon/debug.h"
 #include "game.h"
 
 namespace ptgn {

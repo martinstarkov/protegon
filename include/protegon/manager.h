@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <utility>
 
-#include "utility/debug.h"
+#include "protegon/debug.h"
 #include "type_traits.h"
 
 namespace ptgn {

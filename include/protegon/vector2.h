@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <ostream>
 
-#include "utility/debug.h"
+#include "protegon/debug.h"
 #include "type_traits.h"
 #include "math.h"
 #include "color.h"

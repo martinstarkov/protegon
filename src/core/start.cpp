@@ -2,7 +2,7 @@
 
 #include "game.h"
 #include "protegon/window.h"
-#include "utility/platform.h"
+#include "protegon/platform.h"
 
 #ifdef PTGN_PLATFORM_MACOS
 

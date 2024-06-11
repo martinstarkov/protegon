@@ -38,8 +38,8 @@ target_compile_features(protegon PUBLIC cxx_std_17)
 set_target_properties(protegon PROPERTIES CXX_EXTENSIONS OFF)
 
 include("${CMAKE_DIR}/SetupSDL2.cmake")
-include("${CMAKE_DIR}/ClangFormat.cmake")
-include("${CMAKE_DIR}/CompilerWarnings.cmake")
+#include("${CMAKE_DIR}/ClangFormat.cmake")
+#include("${CMAKE_DIR}/CompilerWarnings.cmake")
 
 function(add_protegon_to TARGET)
   target_link_libraries(${TARGET} PRIVATE protegon)
@@ -50,11 +50,12 @@ function(add_protegon_to TARGET)
   endif()
   # Commands for copying dlls to executable directory on Windows.
   if(WIN32 AND SHARED_SDL2_LIBS)
-    get_property(DLLS GLOBAL PROPERTY PROTEGON_DLLS)
+    if("${PTGN_SDL_DLLS}" STREQUAL "")
+      message(FATAL_ERROR "Could not find SDL2 dlls")
+    endif()
     add_custom_command(TARGET ${TARGET} POST_BUILD COMMAND ${CMAKE_COMMAND}
-                        -E copy_if_different ${DLLS} $<TARGET_FILE_DIR:${TARGET}>
+                        -E copy_if_different ${PTGN_SDL_DLLS} $<TARGET_FILE_DIR:${TARGET}>
                         COMMAND_EXPAND_LISTS)
-    mark_as_advanced(DLLS)
   endif()
 endfunction()
 
@@ -106,15 +107,15 @@ endfunction()
 
 find_package(OpenGL REQUIRED)
 
-target_link_libraries(protegon PRIVATE ${OPENGL_LIBRARIES})
+target_link_libraries(protegon PUBLIC ${OPENGL_LIBRARIES})
 
 target_include_directories(protegon PUBLIC
 	"${PROTEGON_INCLUDE_DIR}"
 	"${ECS_INCLUDE_DIR}"
 	"${LUPLE_INCLUDE_DIR}"
 	"${JSON_INCLUDE_DIR}"
-  PRIVATE
   "${OPENGL_INCLUDE_DIRS}"
+  PRIVATE
 	"${PROTEGON_SRC_DIR}")
 
 # Add d to debug static lib files to differentiate them from release
@@ -125,9 +126,9 @@ target_include_directories(protegon PUBLIC
   $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 
-set_project_warnings(protegon)
-add_clang_tidy()
-add_clang_format_target(${PROTEGON_SOURCES} ${PROTEGON_SOURCES} ${PROTEGON_HEADERS})
+#set_project_warnings(protegon)
+#add_clang_tidy()
+#add_clang_format_target(${PROTEGON_SOURCES} ${PROTEGON_SOURCES} ${PROTEGON_HEADERS})
 
 if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
 
