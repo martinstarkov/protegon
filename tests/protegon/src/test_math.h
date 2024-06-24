@@ -1,9 +1,9 @@
 #pragma once
 
-#include "protegon/math.h"
-#include "utility/debug.h"
-
 #include <cmath>
+
+#include "protegon/debug.h"
+#include "protegon/math.h"
 
 using namespace ptgn;
 
@@ -48,15 +48,15 @@ bool TestMath() {
 	PTGN_ASSERT(bb4 == -1);
 	PTGN_ASSERT(bb5 == 1);
 
-	double c1 = 0.1;
-	double c2 = 1.2;
-	double c3 = -1.3;
-	double c4 = -66.4;
-	double c5 = 64.1;
-	double c6 = 0.6;
-	double c7 = 1.7;
-	double c8 = -1.8;
-	double c9 = -66.9;
+	double c1  = 0.1;
+	double c2  = 1.2;
+	double c3  = -1.3;
+	double c4  = -66.4;
+	double c5  = 64.1;
+	double c6  = 0.6;
+	double c7  = 1.7;
+	double c8  = -1.8;
+	double c9  = -66.9;
 	double c10 = 64.6;
 
 	// FastFloor / FastCeil / FastAbs tests.

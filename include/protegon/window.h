@@ -1,7 +1,7 @@
 #pragma once
 
-#include "vector2.h"
 #include "color.h"
+#include "vector2.h"
 
 namespace ptgn {
 
@@ -13,9 +13,14 @@ namespace screen {
 
 namespace window {
 
+void SwapBuffers();
+
 // Setting fullscreen to true invalidates borderless and resizeable.
 // Setting borderless to true invalidates resizeable.
-void SetupSize(const V2_int& resolution, const V2_int& minimum_resolution, bool fullscreen = false, bool borderless = false, bool resizeable = true, const V2_float& scale = { 1.0f, 1.0f });
+void SetupSize(
+	const V2_int& resolution, const V2_int& minimum_resolution, bool fullscreen = false,
+	bool borderless = false, bool resizeable = true, const V2_float& scale = { 1.0f, 1.0f }
+);
 
 void SetScale(const V2_float& scale);
 [[nodiscard]] V2_float GetScale();
@@ -47,12 +52,14 @@ void SetPosition(const V2_int& new_origin);
 
 void SetFullscreen(bool on);
 
-// Note: The effect of Maximimize() is cancelled after calling SetResizeable(true).
+// Note: The effect of Maximimize() is cancelled after calling
+// SetResizeable(true).
 void SetResizeable(bool on);
 
 void SetBorderless(bool on);
 
-// Note: The effect of Maximimize() is cancelled after calling SetResizeable(true).
+// Note: The effect of Maximimize() is cancelled after calling
+// SetResizeable(true).
 void Maximize();
 
 void Minimize();

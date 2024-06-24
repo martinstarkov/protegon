@@ -1,9 +1,9 @@
 #pragma once
 
-#include "protegon/vector2.h"
-
 #include <limits>
 #include <unordered_map>
+
+#include "protegon/vector2.h"
 
 using namespace ptgn;
 
@@ -44,29 +44,29 @@ bool TestVector2() {
 
 	Vector2<float> t3a{ 0.0, 1.0 };
 	Vector2<float> t3b = Vector2<float>{ 0.0, 1.0 };
-	//Vector2<float> t3c = { 0.0, 1.0 }; // implicit narrowing
+	// Vector2<float> t3c = { 0.0, 1.0 }; // implicit narrowing
 	Vector2<double> t3d{ 0.0f, 1.0f };
 	Vector2<double> t3e = Vector2<double>{ 0.0f, 1.0f };
 	Vector2<double> t3f = { 0.0f, 1.0f };
 
 	Vector2<float> t4{ 0.0f, 1.0f };
 	Vector2<double> t5{ 0.0, 1.0 };
-	
-	Vector2<float>  t6a = t4;
-	Vector2<float>  t6b { t4 };
+
+	Vector2<float> t6a = t4;
+	Vector2<float> t6b{ t4 };
 	Vector2<double> t6c = t4;
-	Vector2<double> t6e { t4 };
-    //Vector2<float>  t6f = t5; // implicit narrowing
-	Vector2<float>  t6g { t5 };
+	Vector2<double> t6e{ t4 };
+	// Vector2<float>  t6f = t5; // implicit narrowing
+	Vector2<float> t6g{ t5 };
 	Vector2<double> t6h = t5;
-	Vector2<double> t6i { t5 };
+	Vector2<double> t6i{ t5 };
 
 	// Dot() tests.
 
 	double t7a = t2.Dot(t1);
 	double t7b = t2.Dot(t2);
-	int t7c = t1.Dot(t0);
-	//int t7d = t1.Dot(t2); // implicit narrowing
+	int t7c	   = t1.Dot(t0);
+	// int t7d = t1.Dot(t2); // implicit narrowing
 	PTGN_ASSERT(t7a - (-1) < std::numeric_limits<double>::epsilon());
 	PTGN_ASSERT(t7b - (1) < std::numeric_limits<double>::epsilon());
 	PTGN_ASSERT(t7c == 12);
@@ -98,7 +98,7 @@ bool TestVector2() {
 
 	Vector2<int> s3{ 3, 4 };
 	Vector2<double> s4{ 5.0, 6.0 };
-	//s3 *= s4; // implicit narrowing
+	// s3 *= s4; // implicit narrowing
 	s4 *= s3;
 	PTGN_ASSERT(s4.x == 3 * 5.0);
 	PTGN_ASSERT(s4.y == 4 * 6.0);
@@ -115,7 +115,7 @@ bool TestVector2() {
 
 	Vector2<int> s7{ 3, 4 };
 	Vector2<double> s8{ 5.0, 6.0 };
-	//s7 /= s8; // implicit narrowing
+	// s7 /= s8; // implicit narrowing
 	s8 /= s7;
 	PTGN_ASSERT(s8.x == 5.0 / 3);
 	PTGN_ASSERT(s8.y == 6.0 / 4);
@@ -132,7 +132,7 @@ bool TestVector2() {
 
 	Vector2<int> s11{ 3, 4 };
 	Vector2<double> s12{ 5.0, 6.0 };
-	//s11 -= s12; // implicit narrowing
+	// s11 -= s12; // implicit narrowing
 	s12 -= s11;
 	PTGN_ASSERT(s12.x == 5.0 - 3);
 	PTGN_ASSERT(s12.y == 6.0 - 4);
@@ -149,7 +149,7 @@ bool TestVector2() {
 
 	Vector2<int> s15{ 3, 4 };
 	Vector2<double> s16{ 5.0, 6.0 };
-	//s15 += s16; // implicit narrowing
+	// s15 += s16; // implicit narrowing
 	s16 += s15;
 	PTGN_ASSERT(s16.x == 5.0 + 3);
 	PTGN_ASSERT(s16.y == 6.0 + 4);
@@ -161,7 +161,7 @@ bool TestVector2() {
 	int p3{ 5 };
 	double p4{ 6.0 };
 	p1 *= p3;
-	//p1 *= p4; // // implicit narrowing
+	// p1 *= p4; // // implicit narrowing
 	PTGN_ASSERT(p1.x == 3 * 5);
 	PTGN_ASSERT(p1.y == 4 * 5);
 	PTGN_ASSERT(p3 == 5);
@@ -179,7 +179,7 @@ bool TestVector2() {
 	int q3{ 5 };
 	double q4{ 6.0 };
 	q1 /= q3;
-	//q1 /= q4; // // implicit narrowing
+	// q1 /= q4; // // implicit narrowing
 	PTGN_ASSERT(q1.x == 3 / 5);
 	PTGN_ASSERT(q1.y == 4 / 5);
 	PTGN_ASSERT(q3 == 5);
@@ -236,11 +236,11 @@ bool TestVector2() {
 
 	// Angle() tests.
 
-	Vector2<int> rot1{  1,  0 };
-	Vector2<int> rot2{ -1,  0 };
-	Vector2<int> rot3{  0,  1 };
-	Vector2<int> rot4{  0, -1 };
-	Vector2<int> rot5{  1,  1 };
+	Vector2<int> rot1{ 1, 0 };
+	Vector2<int> rot2{ -1, 0 };
+	Vector2<int> rot3{ 0, 1 };
+	Vector2<int> rot4{ 0, -1 };
+	Vector2<int> rot5{ 1, 1 };
 	Vector2<int> rot6{ -1, -1 };
 
 	PTGN_ASSERT(NearlyEqual(rot1.Angle<float>(), 0.0f));
@@ -263,23 +263,23 @@ bool TestVector2() {
 	Vector2<double> drotated_270{ rotate_me.Rotated(-1.5708f) };
 	Vector2<double> drotated_360{ rotate_me.Rotated(0.0f) };
 
-	PTGN_ASSERT(rotated_90.x  ==  0);
-	PTGN_ASSERT(rotated_90.y  ==  1);
+	PTGN_ASSERT(rotated_90.x == 0);
+	PTGN_ASSERT(rotated_90.y == 1);
 	PTGN_ASSERT(rotated_180.x == -1);
-	PTGN_ASSERT(rotated_180.y ==  0);
-	PTGN_ASSERT(rotated_270.x ==  0);
+	PTGN_ASSERT(rotated_180.y == 0);
+	PTGN_ASSERT(rotated_270.x == 0);
 	PTGN_ASSERT(rotated_270.y == -1);
-	PTGN_ASSERT(rotated_360.x ==  1);
-	PTGN_ASSERT(rotated_360.y ==  0);
+	PTGN_ASSERT(rotated_360.x == 1);
+	PTGN_ASSERT(rotated_360.y == 0);
 
-	PTGN_ASSERT(NearlyEqual(drotated_90.x,   0.0));
-	PTGN_ASSERT(NearlyEqual(drotated_90.y,   1.0));
+	PTGN_ASSERT(NearlyEqual(drotated_90.x, 0.0));
+	PTGN_ASSERT(NearlyEqual(drotated_90.y, 1.0));
 	PTGN_ASSERT(NearlyEqual(drotated_180.x, -1.0));
-	PTGN_ASSERT(NearlyEqual(drotated_180.y,  0.0));
-	PTGN_ASSERT(NearlyEqual(drotated_270.x,  0.0));
+	PTGN_ASSERT(NearlyEqual(drotated_180.y, 0.0));
+	PTGN_ASSERT(NearlyEqual(drotated_270.x, 0.0));
 	PTGN_ASSERT(NearlyEqual(drotated_270.y, -1.0));
-	PTGN_ASSERT(NearlyEqual(drotated_360.x,  1.0));
-	PTGN_ASSERT(NearlyEqual(drotated_360.y,  0.0));
+	PTGN_ASSERT(NearlyEqual(drotated_360.x, 1.0));
+	PTGN_ASSERT(NearlyEqual(drotated_360.y, 0.0));
 
 	// IsZero() tests.
 
@@ -311,20 +311,19 @@ bool TestVector2() {
 	Vector2<float> access2{ -51.0f, 72.0f };
 	Vector2<double> access3{ 32.0, -54.0 };
 
-	PTGN_ASSERT(access1[0] ==  56);
+	PTGN_ASSERT(access1[0] == 56);
 	PTGN_ASSERT(access1[1] == -73);
 	PTGN_ASSERT(access2[0] == -51.0f);
-	PTGN_ASSERT(access2[1] ==  72.0f);
-	PTGN_ASSERT(access3[0] ==  32.0);
+	PTGN_ASSERT(access2[1] == 72.0f);
+	PTGN_ASSERT(access3[0] == 32.0);
 	PTGN_ASSERT(access3[1] == -54.0);
 
 	access1[0] -= 3;
-	access1[1] = -2;
+	access1[1]	= -2;
 	access2[0] *= 2.0f;
 	access2[1] *= -3.0f;
 	access3[0] /= 2.0;
-	access3[1] = 555.0;
-
+	access3[1]	= 555.0;
 
 	PTGN_ASSERT(access1[0] == 56 - 3);
 	PTGN_ASSERT(access1[1] == -2);
@@ -333,22 +332,19 @@ bool TestVector2() {
 	PTGN_ASSERT(access3[0] == 32.0 / 2.0);
 	PTGN_ASSERT(access3[1] == 555.0);
 
-	//access1[-2] = 3;   // PTGN_ASSERT error called for index out of range.
-	//access1[-1] = 3;   // PTGN_ASSERT error called for index out of range.
-	//access1[3] = 3;    // PTGN_ASSERT error called for index out of range.
-	//access1[4] = 3;    // PTGN_ASSERT error called for index out of range.
-	//access2[5] = 3.0f; // PTGN_ASSERT error called for index out of range.
-	//access2[6] = 3.0f; // PTGN_ASSERT error called for index out of range.
-	//access3[7] = 3.0;  // PTGN_ASSERT error called for index out of range.
-	//access3[8] = 3.0;  // PTGN_ASSERT error called for index out of range.
+	// access1[-2] = 3;   // PTGN_ASSERT error called for index out of range.
+	// access1[-1] = 3;   // PTGN_ASSERT error called for index out of range.
+	// access1[3] = 3;    // PTGN_ASSERT error called for index out of range.
+	// access1[4] = 3;    // PTGN_ASSERT error called for index out of range.
+	// access2[5] = 3.0f; // PTGN_ASSERT error called for index out of range.
+	// access2[6] = 3.0f; // PTGN_ASSERT error called for index out of range.
+	// access3[7] = 3.0;  // PTGN_ASSERT error called for index out of range.
+	// access3[8] = 3.0;  // PTGN_ASSERT error called for index out of range.
 
 	// TODO:
-	// Add tests for all +, -, *, / operators, don't forget to check narrowing issues.
-	// Add tests for Cross()
-	// Add tests for Normalized()
-	// Add tests for Skewed()
-	// Add tests for Identity()
-	// Add tests for Clamped()
+	// Add tests for all +, -, *, / operators, don't forget to check narrowing
+	// issues. Add tests for Cross() Add tests for Normalized() Add tests for
+	// Skewed() Add tests for Identity() Add tests for Clamped()
 
 	PTGN_INFO("All Vector2 tests passed!");
 	return true;

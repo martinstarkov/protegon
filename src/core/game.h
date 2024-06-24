@@ -2,18 +2,18 @@
 
 #include <memory>
 
-#include "core/sdl_instance.h"
 #include "core/opengl_instance.h"
+#include "core/sdl_instance.h"
+#include "event/event_handler.h"
+#include "event/input_handler.h"
 #include "protegon/resources.h"
 #include "protegon/scene.h"
-#include "event/input_handler.h"
-#include "event/event_handler.h"
 
 namespace ptgn {
 
 class Game {
 public:
-	Game() = default;
+	Game()	= default;
 	~Game() = default;
 
 	void Loop();

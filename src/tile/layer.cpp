@@ -1,7 +1,3 @@
 #include "protegon/layer.h"
 
-namespace ptgn {
-
-
-
-} // namespace ptgn
+namespace ptgn {} // namespace ptgn

@@ -3,8 +3,8 @@
 #include <SDL.h>
 #include <SDL_image.h>
 
-#include "protegon/debug.h"
 #include "core/game.h"
+#include "protegon/debug.h"
 #include "protegon/renderer.h"
 
 namespace ptgn {
@@ -12,10 +12,7 @@ namespace ptgn {
 Texture::Texture(const path& image_path) {
 	PTGN_CHECK(FileExists(image_path), "Cannot create texture from a nonexistent image path");
 	instance_ = {
-		IMG_LoadTexture(
-			global::GetGame().sdl.GetRenderer().get(), 
-			image_path.string().c_str()
-		),
+		IMG_LoadTexture(global::GetGame().sdl.GetRenderer().get(), image_path.string().c_str()),
 		SDL_DestroyTexture
 	};
 	if (!IsValid()) {
@@ -25,31 +22,28 @@ Texture::Texture(const path& image_path) {
 }
 
 Texture::Texture(AccessType access, const V2_int& size) {
-	instance_ = { SDL_CreateTexture(global::GetGame().sdl.GetRenderer().get(), SDL_PIXELFORMAT_RGBA8888,
-				  static_cast<SDL_TextureAccess>(access), size.x, size.y), SDL_DestroyTexture };
+	instance_ = { SDL_CreateTexture(
+					  global::GetGame().sdl.GetRenderer().get(), SDL_PIXELFORMAT_RGBA8888,
+					  static_cast<SDL_TextureAccess>(access), size.x, size.y
+				  ),
+				  SDL_DestroyTexture };
 	PTGN_ASSERT(IsValid(), "Failed to create texture from access type and size");
 }
 
 Texture::Texture(const std::shared_ptr<SDL_Surface>& surface) {
-	PTGN_ASSERT(surface != nullptr, "Cannot create texture from uninitialized or destroyed surface");
-	instance_ = {
-		SDL_CreateTextureFromSurface(
-			global::GetGame().sdl.GetRenderer().get(),
-			surface.get()
-		),
-		SDL_DestroyTexture
-	};
+	PTGN_ASSERT(
+		surface != nullptr, "Cannot create texture from uninitialized or destroyed surface"
+	);
 	if (!IsValid()) {
 		PTGN_ERROR(SDL_GetError());
 		PTGN_ASSERT(false, "Failed to create texture from surface");
 	}
 }
 
-void Texture::Draw(const Rectangle<float>& destination,
-				   const Rectangle<int>& source,
-				   float angle,
-				   Flip flip,
-				   V2_int* center_of_rotation) const {
+void Texture::Draw(
+	const Rectangle<float>& destination, const Rectangle<int>& source, float angle, Flip flip,
+	V2_int* center_of_rotation
+) const {
 	renderer::DrawTexture(*this, destination, source, angle, flip, center_of_rotation);
 }
 

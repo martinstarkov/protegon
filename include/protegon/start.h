@@ -1,7 +1,8 @@
 #pragma once
 
-#include "vector2.h"
+#include "resources.h"
 #include "scene.h"
+#include "vector2.h"
 
 namespace ptgn {
 
@@ -15,13 +16,13 @@ void GameRelease();
 
 namespace game {
 
-template <typename TStartScene, typename ...TArgs,
-	type_traits::constructible<TStartScene, TArgs...> = true,
-	type_traits::convertible<TStartScene*, Scene*> = true>
+template <typename TStartScene, typename... TArgs>
 // Optional: pass in constructor arguments for the TStartScene.
 void Start(TArgs&&... constructor_args) {
+	static_assert(std::is_constructible_v<TStartScene, TArgs...>, "Start scene must be constructible from given arguments, check that start scene constructor is not private");
+	static_assert(std::is_convertible_v<TStartScene*, Scene*>, "Start scene must inherit from ptgn::Scene");
 	impl::GameStart();
-	scene::impl::SetStartScene<TStartScene>(std::forward<TArgs>(constructor_args)...);
+	scene::impl::SetStartScene<TStartScene, TArgs...>(std::forward<TArgs>(constructor_args)...);
 	impl::GameLoop();
 	impl::GameRelease();
 }

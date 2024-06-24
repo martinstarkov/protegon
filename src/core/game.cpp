@@ -1,11 +1,11 @@
 #include "game.h"
 
-#include <chrono>
-
 #include <SDL.h>
 
-#include "protegon/window.h"
+#include <chrono>
+
 #include "protegon/platform.h"
+#include "protegon/window.h"
 
 #ifdef PTGN_PLATFORM_MACOS
 #include "CoreFoundation/CoreFoundation.h"
@@ -21,8 +21,9 @@ void InitializeFileSystem() {
 	/*CFBundleRef main_bundle = CFBundleGetMainBundle();
 	CFURLRef resources_url = CFBundleCopyResourcesDirectoryURL(main_bundle);
 	char path[PATH_MAX];
-	if (!CFURLGetFileSystemRepresentation(resources_url, TRUE, (UInt8*)path, PATH_MAX)) {
-		std::cerr << "Couldn't get file system representation! " << std::endl;
+	if (!CFURLGetFileSystemRepresentation(resources_url, TRUE, (UInt8*)path,
+	PATH_MAX)) { std::cerr << "Couldn't get file system representation! " <<
+	std::endl;
 	}
 	CFRelease(resources_url);
 	chdir(path);*/
@@ -32,8 +33,9 @@ void InitializeFileSystem() {
 } // namespace impl
 
 void Game::Loop() {
-	// Design decision: Latest possible point to show window is right before loop starts.
-	// Comment this if you wish the window to appear hidden for an indefinite period of time.
+	// Design decision: Latest possible point to show window is right before
+	// loop starts. Comment this if you wish the window to appear hidden for an
+	// indefinite period of time.
 	window::Show();
 	using time = std::chrono::time_point<std::chrono::system_clock>;
 	time start{ std::chrono::system_clock::now() };
@@ -70,7 +72,9 @@ void InitGame() {
 } // namespace impl
 
 Game& GetGame() {
-	PTGN_ASSERT(impl::game != nullptr, "Game not initialized or destroyed early");
+	PTGN_ASSERT(
+		impl::game != nullptr, "Game not initialized or destroyed early"
+	);
 	return *impl::game;
 }
 

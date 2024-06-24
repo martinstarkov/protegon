@@ -1,43 +1,43 @@
 #include "protegon/file.h"
 
-#include <sstream>
 #include <fstream>
+#include <sstream>
 
 #include "protegon/debug.h"
 
 namespace ptgn {
 
 std::string FileToString(const path& file) {
-    // Source: https://stackoverflow.com/a/2602258
-    std::ifstream f(file, std::ios::in | std::ios::binary);
-    PTGN_CHECK(f, "Could not open file to convert it to string");
-    std::stringstream buffer;
-    buffer << f.rdbuf();
-    return buffer.str();
+	// Source: https://stackoverflow.com/a/2602258
+	std::ifstream f(file, std::ios::in | std::ios::binary);
+	PTGN_CHECK(f, "Could not open file to convert it to string");
+	std::stringstream buffer;
+	buffer << f.rdbuf();
+	return buffer.str();
 }
 
 path GetExecutablePath() {
-   return fs::current_path();
+	return fs::current_path();
 }
 
 path GetExecutableDirectory() {
-    return GetExecutablePath().parent_path();
+	return GetExecutablePath().parent_path();
 }
 
 path MergePaths(const path& pathA, const path& pathB) {
-  return pathA / pathB;
+	return pathA / pathB;
 }
 
 bool FileExists(const path& file_path) {
-    return fs::exists(file_path);
+	return fs::exists(file_path);
 }
 
 path GetAbsolutePath(const path& relative_file_path) {
-    return fs::current_path() / relative_file_path;
+	return fs::current_path() / relative_file_path;
 }
 
 path GetRelativePath(const path& absolute_file_path) {
-    return absolute_file_path.relative_path();
+	return absolute_file_path.relative_path();
 }
 
 } // namespace ptgn

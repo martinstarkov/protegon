@@ -23,11 +23,12 @@ void Surface::ForEachPixel(std::function<void(const V2_int&, const Color&)> func
 
 	const V2_int size{ GetSize() };
 
-	for (int i = 0; i < size.x; i++)
+	for (int i = 0; i < size.x; i++) {
 		for (int j = 0; j < size.y; j++) {
 			V2_int coordinate{ i, j };
 			function(coordinate, GetColor(coordinate));
 		}
+	}
 
 	Unlock();
 }
@@ -65,32 +66,25 @@ Color Surface::GetColorData(std::uint32_t pixel_data) {
 
 std::uint32_t Surface::GetPixelData(const V2_int& coordinate) {
 	PTGN_CHECK(IsValid(), "Cannot get pixel data of an uninitialized or destroyed surface");
-	int bpp = instance_.get()->format->BytesPerPixel;
-	std::uint8_t* p = (std::uint8_t*)instance_.get()->pixels + 
+	int bpp			= instance_.get()->format->BytesPerPixel;
+	std::uint8_t* p = (std::uint8_t*)instance_.get()->pixels +
 					  coordinate.y * instance_.get()->pitch + coordinate.x * bpp;
 	PTGN_CHECK(p != nullptr, "Failed to find coordinate pixel data");
 	switch (bpp) {
-		case 1:
-			return *p;
-			break;
-		case 2:
-			return *(std::uint16_t*)p;
-			break;
+		case 1: return *p; break;
+		case 2: return *(std::uint16_t*)p; break;
 
 		case 3:
-			if (SDL_BYTEORDER == SDL_BIG_ENDIAN)
+			if constexpr (SDL_BYTEORDER == SDL_BIG_ENDIAN) {
 				return p[0] << 16 | p[1] << 8 | p[2];
-			else
+			} else {
 				return p[0] | p[1] << 8 | p[2] << 16;
+			}
 			break;
 
-		case 4:
-			return *(uint32_t*)p;
-			break;
+		case 4:	 return *(uint32_t*)p; break;
 
-		default:
-			PTGN_ASSERT(false, "Failed to find coordinate pixel data");
-			return 0;
+		default: PTGN_ASSERT(false, "Failed to find coordinate pixel data"); return 0;
 	}
 }
 

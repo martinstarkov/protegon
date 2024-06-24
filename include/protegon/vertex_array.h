@@ -13,13 +13,9 @@ class VertexArray;
 namespace impl {
 
 struct VertexArrayInstance {
-public:
 	VertexArrayInstance() = default;
 	~VertexArrayInstance();
-private:
 	VertexArrayInstance(PrimitiveMode mode);
-private:
-	friend class VertexArray;
 
 	PrimitiveMode mode_{ PrimitiveMode::Triangles };
 	VertexBuffer vertex_buffer_;
@@ -31,15 +27,16 @@ private:
 
 class VertexArray : public Handle<impl::VertexArrayInstance> {
 public:
-	VertexArray() = default;
+	VertexArray()  = default;
 	~VertexArray() = default;
 
-	VertexArray(PrimitiveMode mode, const VertexBuffer& vertex_buffer = {}, const IndexBuffer& index_buffer = {});
+	VertexArray(
+		PrimitiveMode mode, const VertexBuffer& vertex_buffer = {},
+		const IndexBuffer& index_buffer = {}
+	);
 
 	void Bind() const;
 	void Unbind() const;
-
-	void Draw(const Shader& shader) const;
 
 	void SetVertexBuffer(const VertexBuffer& vertex_buffer);
 	void SetIndexBuffer(const IndexBuffer& index_buffer);
@@ -51,6 +48,7 @@ public:
 
 	[[nodiscard]] PrimitiveMode GetPrimitiveMode() const;
 	void SetPrimitiveMode(PrimitiveMode mode);
+
 private:
 	VertexArray(const std::shared_ptr<impl::VertexArrayInstance>& instance);
 };

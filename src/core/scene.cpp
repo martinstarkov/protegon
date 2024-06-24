@@ -4,14 +4,14 @@ namespace ptgn {
 
 void SceneManager::Unload(std::size_t scene_key) {
 	if (Has(scene_key)) {
-		auto scene = Get(scene_key);
+		auto scene	   = Get(scene_key);
 		scene->status_ = Scene::Status::DELETE;
 		flagged_++;
 	}
 }
 
 void SceneManager::SetActive(std::size_t scene_key) {
-	//ExitAllExcept(scene_key);
+	// ExitAllExcept(scene_key);
 	active_scenes_.clear();
 	AddActive(scene_key);
 }
@@ -41,7 +41,7 @@ void SceneManager::RemoveActive(std::size_t scene_key) {
 }
 
 std::vector<std::shared_ptr<Scene>> SceneManager::GetActive() {
-    std::vector<std::shared_ptr<Scene>> active{};
+	std::vector<std::shared_ptr<Scene>> active{};
 	for (auto scene_key : active_scenes_) {
 		if (Has(scene_key)) {
 			auto scene = Get(scene_key);
@@ -55,8 +55,10 @@ void SceneManager::Update(float dt) {
 	for (auto scene_key : active_scenes_) {
 		if (Has(scene_key)) {
 			auto scene = Get(scene_key);
-			if (scene->status_ != Scene::Status::DELETE)
+			if (scene->status_ != Scene::Status::DELETE) {
+				scene->Update();
 				scene->Update(dt);
+			}
 		}
 	}
 	UnloadFlagged();
@@ -65,7 +67,7 @@ void SceneManager::Update(float dt) {
 void SceneManager::UnloadFlagged() {
 	auto& map{ GetMap() };
 	std::size_t max_counter = 10000;
-	std::size_t counter = 0;
+	std::size_t counter		= 0;
 	while (flagged_ > 0) {
 		for (auto it = map.begin(); it != map.end();) {
 			if (it->second->status_ == Scene::Status::DELETE) {
@@ -76,14 +78,20 @@ void SceneManager::UnloadFlagged() {
 			}
 		}
 		counter++;
-		PTGN_ASSERT(counter <= max_counter, "Failed to properly delete all flagged scenes within a reasonable number of loops");
+		PTGN_ASSERT(
+			counter <= max_counter, "Failed to properly delete all flagged "
+									"scenes within a reasonable number of loops"
+		);
 	}
 	PTGN_ASSERT(flagged_ == 0, "Could not delete a flagged scene");
 }
 
 bool SceneManager::ActiveScenesContain(std::size_t key) const {
-	for (auto k : active_scenes_)
-		if (k == key) return true;
+	for (auto k : active_scenes_) {
+		if (k == key) {
+			return true;
+		}
+	}
 	return false;
 }
 

@@ -2,11 +2,11 @@
 
 #include <functional>
 
+#include "color.h"
+#include "file.h"
+#include "handle.h"
 #include "polygon.h"
 #include "vector2.h"
-#include "color.h"
-#include "handle.h"
-#include "file.h"
 
 struct SDL_Surface;
 
@@ -21,7 +21,9 @@ public:
 
 	[[nodiscard]] Color GetColor(const V2_int& coordinate);
 
-	void ForEachPixel(std::function<void(const V2_int&, const Color&)> function);
+	void ForEachPixel(std::function<void(const V2_int&, const Color&)> function
+	);
+
 private:
 	void Lock();
 	void Unlock();

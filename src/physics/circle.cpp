@@ -1,13 +1,13 @@
 #include "protegon/circle.h"
 
-#include <vector>
-
+#include <protegon/log.h>
 #include <SDL.h>
 
+#include <vector>
+
+#include "core/game.h"
 #include "protegon/line.h"
 #include "protegon/polygon.h"
-#include "core/game.h"
-#include <protegon/log.h>
 
 namespace ptgn {
 
@@ -23,12 +23,17 @@ void DrawSolidCircle(int x, int y, int r, const Color& color) {
 	DrawSolidCircleImpl(renderer.get(), x, y, r);
 }
 
-void DrawSolidCircleSliced(int x, int y, int r, const Color& color, std::function<bool(double y_frac)> condition) {
+void DrawSolidCircleSliced(
+	int x, int y, int r, const Color& color,
+	std::function<bool(double y_frac)> condition
+) {
 	auto renderer{ SetDrawMode(color) };
 	DrawSolidCircleSlicedImpl(renderer.get(), x, y, r, condition);
 }
 
-void DrawThickCircle(int x, int y, int r, double pixel_thickness, const Color& color) {
+void DrawThickCircle(
+	int x, int y, int r, double pixel_thickness, const Color& color
+) {
 	auto renderer{ SetDrawMode(color) };
 	DrawThickCircleImpl(renderer.get(), x, y, r, pixel_thickness);
 }
@@ -43,31 +48,46 @@ void DrawSolidEllipse(int x, int y, int rx, int ry, const Color& color) {
 	DrawSolidEllipseImpl(renderer.get(), x, y, rx, ry);
 }
 
-void DrawThickEllipse(int x, int y, int rx, int ry, double pixel_thickness, const Color& color) {
+void DrawThickEllipse(
+	int x, int y, int rx, int ry, double pixel_thickness, const Color& color
+) {
 	auto renderer{ SetDrawMode(color) };
 	DrawThickEllipseImpl(renderer.get(), x, y, rx, ry, pixel_thickness);
 }
 
-void DrawArc(int x, int y, int arc_radius, double start_angle, double end_angle, const Color& color) {
+void DrawArc(
+	int x, int y, int arc_radius, double start_angle, double end_angle,
+	const Color& color
+) {
 	auto renderer{ SetDrawMode(color) };
 	DrawArcImpl(renderer.get(), x, y, arc_radius, start_angle, end_angle);
 }
 
-void DrawSolidArc(int x, int y, int arc_radius, double start_angle, double end_angle, const Color& color) {
+void DrawSolidArc(
+	int x, int y, int arc_radius, double start_angle, double end_angle,
+	const Color& color
+) {
 	auto renderer{ SetDrawMode(color) };
 	DrawSolidArcImpl(renderer.get(), x, y, arc_radius, start_angle, end_angle);
 }
 
-void DrawThickArc(int x, int y, int arc_radius, double start_angle, double end_angle, double pixel_thickness, const Color& color) {
+void DrawThickArc(
+	int x, int y, int arc_radius, double start_angle, double end_angle,
+	double pixel_thickness, const Color& color
+) {
 	auto renderer{ SetDrawMode(color) };
-	DrawThickArcImpl(renderer.get(), x, y, arc_radius, start_angle, end_angle, pixel_thickness);
+	DrawThickArcImpl(
+		renderer.get(), x, y, arc_radius, start_angle, end_angle,
+		pixel_thickness
+	);
 }
 
 void DrawCircleImpl(SDL_Renderer* renderer, int x, int y, int r) {
 	PTGN_ASSERT(r >= 0, "Cannot draw circle with negative radius");
-	
-	// Alternative with slightly more jagged perimeter: DrawEllipseImpl(renderer, x, y, r, r, color);
-	
+
+	// Alternative with slightly more jagged perimeter:
+	// DrawEllipseImpl(renderer, x, y, r, r, color);
+
 	V2_int p{ r, 0 };
 
 	DrawPointImpl(renderer, x + p.x, y + p.y);
@@ -111,12 +131,12 @@ void DrawCircleImpl(SDL_Renderer* renderer, int x, int y, int r) {
 void DrawSolidCircleImpl(SDL_Renderer* renderer, int x, int y, int r) {
 	PTGN_ASSERT(r >= 0, "Cannot draw solid circle with negative radius");
 
-	int cx = 0;
-	int cy = r;
-	int ocx = (int)0xffff;
-	int ocy = (int)0xffff;
-	int df = 1 - r;
-	int d_e = 3;
+	int cx	 = 0;
+	int cy	 = r;
+	int ocx	 = (int)0xffff;
+	int ocy	 = (int)0xffff;
+	int df	 = 1 - r;
+	int d_e	 = 3;
 	int d_se = -2 * r + 5;
 	int xpcx, xmcx, xpcy, xmcy;
 	int ypcy, ymcy, ypcx, ymcx;
@@ -157,12 +177,12 @@ void DrawSolidCircleImpl(SDL_Renderer* renderer, int x, int y, int r) {
 		}
 
 		if (df < 0) {
-			df += d_e;
-			d_e += 2;
+			df	 += d_e;
+			d_e	 += 2;
 			d_se += 2;
 		} else {
-			df += d_se;
-			d_e += 2;
+			df	 += d_se;
+			d_e	 += 2;
 			d_se += 4;
 			cy--;
 		}
@@ -170,28 +190,32 @@ void DrawSolidCircleImpl(SDL_Renderer* renderer, int x, int y, int r) {
 	} while (cx <= cy);
 }
 
-void DrawSolidCircleSlicedImpl(SDL_Renderer* renderer, int x, int y, int r, std::function<bool(double y_frac)> condition) {
+void DrawSolidCircleSlicedImpl(
+	SDL_Renderer* renderer, int x, int y, int r,
+	std::function<bool(double y_frac)> condition
+) {
 	PTGN_ASSERT(r >= 0, "Cannot draw solid sliced circle with negative radius");
 
-	int cx = 0;
-	int cy = r;
-	int ocx = (int)0xffff;
-	int ocy = (int)0xffff;
-	int df = 1 - r;
-	int d_e = 3;
+	int cx	 = 0;
+	int cy	 = r;
+	int ocx	 = (int)0xffff;
+	int ocy	 = (int)0xffff;
+	int df	 = 1 - r;
+	int d_e	 = 3;
 	int d_se = -2 * r + 5;
 	int xpcx, xmcx, xpcy, xmcy;
 	int ypcy, ymcy, ypcx, ymcx;
-	double rf = 2.0 * static_cast<double>(r);
-	double frac_x = static_cast<double>(cx) / rf;
-	double frac_y = static_cast<double>(cy) / rf;
+	double rf		= 2.0 * static_cast<double>(r);
+	double frac_x	= static_cast<double>(cx) / rf;
+	double frac_y	= static_cast<double>(cy) / rf;
 	double frac_y_f = static_cast<double>(y) / rf;
 
-	if (r == 0)
+	if (r == 0) {
 		if (condition(0.5f + frac_y_f)) {
 			DrawPointImpl(renderer, x, y);
 			return;
 		}
+	}
 
 	do {
 		xpcx = x + cx;
@@ -199,11 +223,10 @@ void DrawSolidCircleSlicedImpl(SDL_Renderer* renderer, int x, int y, int r, std:
 		xpcy = x + cy;
 		xmcy = x - cy;
 
-
 		if (ocy != cy) {
 			if (cy > 0) {
-				ypcy = y + cy;
-				ymcy = y - cy;
+				ypcy   = y + cy;
+				ymcy   = y - cy;
 				frac_y = static_cast<double>(cy) / rf;
 				if (condition(0.5f + frac_y)) {
 					DrawHorizontalLineImpl(renderer, xmcx, xpcx, ypcy);
@@ -226,8 +249,8 @@ void DrawSolidCircleSlicedImpl(SDL_Renderer* renderer, int x, int y, int r, std:
 		if (ocx != cx) {
 			if (cx != cy) {
 				if (cx > 0) {
-					ypcx = y + cx;
-					ymcx = y - cx;
+					ypcx   = y + cx;
+					ymcx   = y - cx;
 					frac_x = static_cast<double>(cx) / rf;
 					if (condition(0.5f + frac_x)) {
 						DrawHorizontalLineImpl(renderer, xmcy, xpcy, ypcx);
@@ -250,12 +273,12 @@ void DrawSolidCircleSlicedImpl(SDL_Renderer* renderer, int x, int y, int r, std:
 		}
 
 		if (df < 0) {
-			df += d_e;
-			d_e += 2;
+			df	 += d_e;
+			d_e	 += 2;
 			d_se += 2;
 		} else {
-			df += d_se;
-			d_e += 2;
+			df	 += d_se;
+			d_e	 += 2;
 			d_se += 4;
 			cy--;
 		}
@@ -263,7 +286,9 @@ void DrawSolidCircleSlicedImpl(SDL_Renderer* renderer, int x, int y, int r, std:
 	} while (cx <= cy);
 }
 
-void DrawThickCircleImpl(SDL_Renderer* renderer, int x, int y, int r, double pixel_thickness) {
+void DrawThickCircleImpl(
+	SDL_Renderer* renderer, int x, int y, int r, double pixel_thickness
+) {
 	PTGN_ASSERT(r >= 0, "Cannot draw thick circle with negative radius");
 	DrawThickEllipseImpl(renderer, x, y, r, r, pixel_thickness);
 }
@@ -301,7 +326,8 @@ void DrawEllipseImpl(SDL_Renderer* renderer, int x, int y, int rx, int ry) {
 			j = (h * ry) / rx;
 			k = (i * ry) / rx;
 
-			if (((ok != k) && (oj != k)) || ((oj != j) && (ok != j)) || (k != j)) {
+			if (((ok != k) && (oj != k)) || ((oj != j) && (ok != j)) ||
+				(k != j)) {
 				xph = x + h;
 				xmh = x - h;
 				if (k > 0) {
@@ -315,7 +341,7 @@ void DrawEllipseImpl(SDL_Renderer* renderer, int x, int y, int rx, int ry) {
 					DrawPointImpl(renderer, xmh, y);
 					DrawPointImpl(renderer, xph, y);
 				}
-				ok = k;
+				ok	= k;
 				xpi = x + i;
 				xmi = x - i;
 				if (j > 0) {
@@ -346,7 +372,8 @@ void DrawEllipseImpl(SDL_Renderer* renderer, int x, int y, int rx, int ry) {
 			j = (h * rx) / ry;
 			k = (i * rx) / ry;
 
-			if (((oi != i) && (oh != i)) || ((oh != h) && (oi != h) && (i != h))) {
+			if (((oi != i) && (oh != i)) ||
+				((oh != h) && (oi != h) && (i != h))) {
 				xmj = x - j;
 				xpj = x + j;
 				if (i > 0) {
@@ -360,7 +387,7 @@ void DrawEllipseImpl(SDL_Renderer* renderer, int x, int y, int rx, int ry) {
 					DrawPointImpl(renderer, xmj, y);
 					DrawPointImpl(renderer, xpj, y);
 				}
-				oi = i;
+				oi	= i;
 				xmk = x - k;
 				xpk = x + k;
 				if (h > 0) {
@@ -384,9 +411,15 @@ void DrawEllipseImpl(SDL_Renderer* renderer, int x, int y, int rx, int ry) {
 	}
 }
 
-void DrawSolidEllipseImpl(SDL_Renderer* renderer, int x, int y, int rx, int ry) {
-	PTGN_ASSERT(rx >= 0, "Cannot draw solid ellipse with negative horizontal radius");
-	PTGN_ASSERT(ry >= 0, "Cannot draw solid ellipse with negative vertical radius");
+void DrawSolidEllipseImpl(
+	SDL_Renderer* renderer, int x, int y, int rx, int ry
+) {
+	PTGN_ASSERT(
+		rx >= 0, "Cannot draw solid ellipse with negative horizontal radius"
+	);
+	PTGN_ASSERT(
+		ry >= 0, "Cannot draw solid ellipse with negative vertical radius"
+	);
 
 	int ix, iy;
 	int h, i, j, k;
@@ -484,9 +517,15 @@ void DrawSolidEllipseImpl(SDL_Renderer* renderer, int x, int y, int rx, int ry) 
 	}
 }
 
-void DrawThickEllipseImpl(SDL_Renderer* renderer, int x, int y, int rx, int ry, double pixel_thickness) {
-	PTGN_ASSERT(rx >= 0, "Cannot draw thick ellipse with negative horizontal radius");
-	PTGN_ASSERT(ry >= 0, "Cannot draw thick ellipse with negative vertical radius");
+void DrawThickEllipseImpl(
+	SDL_Renderer* renderer, int x, int y, int rx, int ry, double pixel_thickness
+) {
+	PTGN_ASSERT(
+		rx >= 0, "Cannot draw thick ellipse with negative horizontal radius"
+	);
+	PTGN_ASSERT(
+		ry >= 0, "Cannot draw thick ellipse with negative vertical radius"
+	);
 	int xi, yi, xo, yo, x0, y0, z;
 	double xi2, yi2, xo2, yo2;
 
@@ -498,7 +537,7 @@ void DrawThickEllipseImpl(SDL_Renderer* renderer, int x, int y, int rx, int ry, 
 	int half = static_cast<int>(pixel_thickness) / 2;
 
 	xi = rx - half;
-    xo = xi + static_cast<int>(pixel_thickness) - 1;
+	xo = xi + static_cast<int>(pixel_thickness) - 1;
 	yi = ry - half;
 	yo = yi + static_cast<int>(pixel_thickness) - 1;
 
@@ -515,8 +554,8 @@ void DrawThickEllipseImpl(SDL_Renderer* renderer, int x, int y, int rx, int ry, 
 			DrawLineImpl(renderer, x + x0, y - y0, x + x0, y + y0);
 		}
 		for (x0 = -xi + 1; x0 <= xi - 1; x0++) {
-            y0 = static_cast<int>(std::sqrt(yo2 * (1.0 - x0 * x0 / xo2)) + 0.5);
-            z = static_cast<int>(std::sqrt(yi2 * (1.0 - x0 * x0 / xi2)) + 0.5);
+			y0 = static_cast<int>(std::sqrt(yo2 * (1.0 - x0 * x0 / xo2)) + 0.5);
+			z  = static_cast<int>(std::sqrt(yi2 * (1.0 - x0 * x0 / xi2)) + 0.5);
 			DrawLineImpl(renderer, x + x0, y + z, x + x0, y + y0);
 			DrawLineImpl(renderer, x + x0, y - z, x + x0, y - y0);
 		}
@@ -526,29 +565,32 @@ void DrawThickEllipseImpl(SDL_Renderer* renderer, int x, int y, int rx, int ry, 
 		}
 	} else {
 		for (y0 = -yo; y0 <= -yi; y0++) {
-            x0 = static_cast<int>(std::sqrt(xo2 * (1.0 - y0 * y0 / yo2)) + 0.5);
+			x0 = static_cast<int>(std::sqrt(xo2 * (1.0 - y0 * y0 / yo2)) + 0.5);
 			DrawLineImpl(renderer, x - x0, y + y0, x + x0, y + y0);
 		}
 		for (y0 = -yi + 1; y0 <= yi - 1; y0++) {
-            x0 = static_cast<int>(std::sqrt(xo2 * (1.0 - y0 * y0 / yo2)) + 0.5);
-			z = static_cast<int>(std::sqrt(xi2 * (1.0 - y0 * y0 / yi2)) + 0.5);
+			x0 = static_cast<int>(std::sqrt(xo2 * (1.0 - y0 * y0 / yo2)) + 0.5);
+			z  = static_cast<int>(std::sqrt(xi2 * (1.0 - y0 * y0 / yi2)) + 0.5);
 			DrawLineImpl(renderer, x + z, y + y0, x + x0, y + y0);
 			DrawLineImpl(renderer, x - z, y + y0, x - x0, y + y0);
 		}
 		for (y0 = yo; y0 >= yi; y0--) {
-            x0 = static_cast<int>(std::sqrt(xo2 * (1.0 - y0 * y0 / yo2)) + 0.5);
+			x0 = static_cast<int>(std::sqrt(xo2 * (1.0 - y0 * y0 / yo2)) + 0.5);
 			DrawLineImpl(renderer, x - x0, y + y0, x + x0, y + y0);
 		}
 	}
 }
 
-void DrawArcImpl(SDL_Renderer* renderer, int x, int y, int arc_radius, double start_angle, double end_angle) {
+void DrawArcImpl(
+	SDL_Renderer* renderer, int x, int y, int arc_radius, double start_angle,
+	double end_angle
+) {
 	PTGN_ASSERT(arc_radius >= 0, "Cannot draw arc with negative radius");
 
-	int cx = 0;
-	int cy = arc_radius;
-	int df = 1 - arc_radius;
-	int d_e = 3;
+	int cx	 = 0;
+	int cy	 = arc_radius;
+	int df	 = 1 - arc_radius;
+	int d_e	 = 3;
 	int d_se = -2 * arc_radius + 5;
 	int xpcx, xmcx, xpcy, xmcy;
 	int ypcy, ymcy, ypcx, ymcx;
@@ -582,11 +624,11 @@ void DrawArcImpl(SDL_Renderer* renderer, int x, int y, int arc_radius, double st
 	drawoct = 0;
 
 	start_angle = RestrictAngle360(start_angle);
-	end_angle = RestrictAngle360(end_angle);
+	end_angle	= RestrictAngle360(end_angle);
 
 	startoct = static_cast<int>(start_angle / 45);
-    endoct = static_cast<int>(end_angle / 45);
-	oct = startoct - 1;
+	endoct	 = static_cast<int>(end_angle / 45);
+	oct		 = startoct - 1;
 
 	do {
 		oct = (oct + 1) % 8;
@@ -595,50 +637,37 @@ void DrawArcImpl(SDL_Renderer* renderer, int x, int y, int arc_radius, double st
 			dstart = (double)start_angle;
 			switch (oct) {
 				case 0:
-				case 3:
-					temp = std::sin(dstart * pi<double> / 180.0);
-					break;
+				case 3: temp = std::sin(dstart * pi<double> / 180.0); break;
 				case 1:
-				case 6:
-					temp = std::cos(dstart * pi<double> / 180.0);
-					break;
+				case 6: temp = std::cos(dstart * pi<double> / 180.0); break;
 				case 2:
-				case 5:
-					temp = -std::cos(dstart * pi<double> / 180.0);
-					break;
+				case 5: temp = -std::cos(dstart * pi<double> / 180.0); break;
 				case 4:
-				case 7:
-					temp = -std::sin(dstart * pi<double> / 180.0);
-					break;
+				case 7: temp = -std::sin(dstart * pi<double> / 180.0); break;
 			}
-			temp *= arc_radius;
-			stopval_start = (int)temp;
+			temp		  *= arc_radius;
+			stopval_start  = (int)temp;
 
-			if (oct % 2) drawoct |= (1 << oct);
-			else		 drawoct &= 255 - (1 << oct); 
+			if (oct % 2) {
+				drawoct |= (1 << oct);
+			} else {
+				drawoct &= 255 - (1 << oct);
+			}
 		}
 		if (oct == endoct) {
 			dend = (double)end_angle;
 			switch (oct) {
 				case 0:
-				case 3:
-					temp = std::sin(dend * pi<double> / 180.0);
-					break;
+				case 3: temp = std::sin(dend * pi<double> / 180.0); break;
 				case 1:
-				case 6:
-					temp = std::cos(dend * pi<double> / 180.0);
-					break;
+				case 6: temp = std::cos(dend * pi<double> / 180.0); break;
 				case 2:
-				case 5:
-					temp = -std::cos(dend * pi<double> / 180.0);
-					break;
+				case 5: temp = -std::cos(dend * pi<double> / 180.0); break;
 				case 4:
-				case 7:
-					temp = -std::sin(dend * pi<double> / 180.0);
-					break;
+				case 7: temp = -std::sin(dend * pi<double> / 180.0); break;
 			}
-			temp *= arc_radius;
-			stopval_end = (int)temp;
+			temp		*= arc_radius;
+			stopval_end	 = (int)temp;
 
 			if (startoct == endoct) {
 				if (start_angle > end_angle) {
@@ -646,8 +675,11 @@ void DrawArcImpl(SDL_Renderer* renderer, int x, int y, int arc_radius, double st
 				} else {
 					drawoct &= 255 - (1 << oct);
 				}
-			} else if (oct % 2) drawoct &= 255 - (1 << oct);
-			else			  drawoct |= (1 << oct);
+			} else if (oct % 2) {
+				drawoct &= 255 - (1 << oct);
+			} else {
+				drawoct |= (1 << oct);
+			}
 		} else if (oct != startoct) {
 			drawoct |= (1 << oct);
 		}
@@ -661,14 +693,27 @@ void DrawArcImpl(SDL_Renderer* renderer, int x, int y, int arc_radius, double st
 			xpcx = x + cx;
 			xmcx = x - cx;
 
-			// always check if we're drawing a certain octant before adding a pixel to that octant.
-			if (drawoct & 4)  DrawPointImpl(renderer, xmcx, ypcy);
-			if (drawoct & 2)  DrawPointImpl(renderer, xpcx, ypcy);
-			if (drawoct & 32) DrawPointImpl(renderer, xmcx, ymcy);
-			if (drawoct & 64) DrawPointImpl(renderer, xpcx, ymcy);
+			// always check if we're drawing a certain octant before adding a
+			// pixel to that octant.
+			if (drawoct & 4) {
+				DrawPointImpl(renderer, xmcx, ypcy);
+			}
+			if (drawoct & 2) {
+				DrawPointImpl(renderer, xpcx, ypcy);
+			}
+			if (drawoct & 32) {
+				DrawPointImpl(renderer, xmcx, ymcy);
+			}
+			if (drawoct & 64) {
+				DrawPointImpl(renderer, xpcx, ymcy);
+			}
 		} else {
-			if (drawoct & 96) DrawPointImpl(renderer, x, ymcy);
-			if (drawoct & 6)  DrawPointImpl(renderer, x, ypcy);
+			if (drawoct & 96) {
+				DrawPointImpl(renderer, x, ymcy);
+			}
+			if (drawoct & 6) {
+				DrawPointImpl(renderer, x, ypcy);
+			}
 		}
 
 		xpcy = x + cy;
@@ -676,35 +721,53 @@ void DrawArcImpl(SDL_Renderer* renderer, int x, int y, int arc_radius, double st
 		if (cx > 0 && cx != cy) {
 			ypcx = y + cx;
 			ymcx = y - cx;
-			if (drawoct & 8)   DrawPointImpl(renderer, xmcy, ypcx);
-			if (drawoct & 1)   DrawPointImpl(renderer, xpcy, ypcx);
-			if (drawoct & 16)  DrawPointImpl(renderer, xmcy, ymcx);
-			if (drawoct & 128) DrawPointImpl(renderer, xpcy, ymcx);
+			if (drawoct & 8) {
+				DrawPointImpl(renderer, xmcy, ypcx);
+			}
+			if (drawoct & 1) {
+				DrawPointImpl(renderer, xpcy, ypcx);
+			}
+			if (drawoct & 16) {
+				DrawPointImpl(renderer, xmcy, ymcx);
+			}
+			if (drawoct & 128) {
+				DrawPointImpl(renderer, xpcy, ymcx);
+			}
 		} else if (cx == 0) {
-			if (drawoct & 24)  DrawPointImpl(renderer, xmcy, y);
-			if (drawoct & 129) DrawPointImpl(renderer, xpcy, y);
+			if (drawoct & 24) {
+				DrawPointImpl(renderer, xmcy, y);
+			}
+			if (drawoct & 129) {
+				DrawPointImpl(renderer, xpcy, y);
+			}
 		}
 
 		// Update whether we're drawing an octant
 		if (stopval_start == cx) {
 			// works like an on-off switch.
 			// This is just in case start & end are in the same octant.
-			if (drawoct & (1 << startoct)) drawoct &= 255 - (1 << startoct);
-			else						   drawoct |= (1 << startoct);
+			if (drawoct & (1 << startoct)) {
+				drawoct &= 255 - (1 << startoct);
+			} else {
+				drawoct |= (1 << startoct);
+			}
 		}
 		if (stopval_end == cx) {
-			if (drawoct & (1 << endoct)) drawoct &= 255 - (1 << endoct);
-			else						 drawoct |= (1 << endoct);
+			if (drawoct & (1 << endoct)) {
+				drawoct &= 255 - (1 << endoct);
+			} else {
+				drawoct |= (1 << endoct);
+			}
 		}
 
 		// Update pixels
 		if (df < 0) {
-			df += d_e;
-			d_e += 2;
+			df	 += d_e;
+			d_e	 += 2;
 			d_se += 2;
 		} else {
-			df += d_se;
-			d_e += 2;
+			df	 += d_se;
+			d_e	 += 2;
 			d_se += 4;
 			cy--;
 		}
@@ -712,7 +775,10 @@ void DrawArcImpl(SDL_Renderer* renderer, int x, int y, int arc_radius, double st
 	} while (cx <= cy);
 }
 
-void DrawSolidArcImpl(SDL_Renderer* renderer, int x, int y, int arc_radius, double start_angle, double end_angle) {
+void DrawSolidArcImpl(
+	SDL_Renderer* renderer, int x, int y, int arc_radius, double start_angle,
+	double end_angle
+) {
 	PTGN_ASSERT(arc_radius >= 0, "Cannot draw solid arc with negative radius");
 
 	double angle;
@@ -721,17 +787,17 @@ void DrawSolidArcImpl(SDL_Renderer* renderer, int x, int y, int arc_radius, doub
 	int numpoints, i;
 
 	start_angle = RestrictAngle360(start_angle);
-	end_angle = RestrictAngle360(end_angle);
+	end_angle	= RestrictAngle360(end_angle);
 
 	if (arc_radius == 0) {
 		DrawPointImpl(renderer, x, y);
 		return;
 	}
 
-	dr = (double)arc_radius;
-	deltaAngle = 3.0 / dr;
+	dr			= (double)arc_radius;
+	deltaAngle	= 3.0 / dr;
 	start_angle = DegToRad(start_angle);
-	end_angle = DegToRad(end_angle);
+	end_angle	= DegToRad(end_angle);
 	if (start_angle > end_angle) {
 		end_angle += two_pi<double>;
 	}
@@ -751,14 +817,14 @@ void DrawSolidArcImpl(SDL_Renderer* renderer, int x, int y, int arc_radius, doub
 	v.at(0).x = x;
 	v.at(0).y = y;
 
-	angle = start_angle;
+	angle	  = start_angle;
 	v.at(1).x = x + (int)(dr * std::cos(angle));
 	v.at(1).y = y + (int)(dr * std::sin(angle));
 
 	if (numpoints < 3) {
 		DrawLineImpl(renderer, v.at(0).x, v.at(0).y, v.at(1).x, v.at(1).y);
 	} else {
-		i = 2;
+		i	  = 2;
 		angle = start_angle;
 		while (angle < end_angle) {
 			angle += deltaAngle;
@@ -780,11 +846,14 @@ void DrawSolidArcImpl(SDL_Renderer* renderer, int x, int y, int arc_radius, doub
 	}
 }
 
-void DrawThickArcImpl(SDL_Renderer* renderer, int x, int y, int arc_radius, double start_angle, double end_angle, double pixel_thickness) {
+void DrawThickArcImpl(
+	SDL_Renderer* renderer, int x, int y, int arc_radius, double start_angle,
+	double end_angle, double pixel_thickness
+) {
 	PTGN_ASSERT(arc_radius >= 0, "Cannot draw thick arc with negative radius");
 
 	start_angle = RestrictAngle360(start_angle);
-	end_angle = RestrictAngle360(end_angle);
+	end_angle	= RestrictAngle360(end_angle);
 
 	if (arc_radius == 0) {
 		DrawPointImpl(renderer, x, y);
@@ -794,12 +863,11 @@ void DrawThickArcImpl(SDL_Renderer* renderer, int x, int y, int arc_radius, doub
 	double deltaAngle = two_pi<double> / (double)arc_radius;
 
 	start_angle = DegToRad(start_angle);
-	end_angle = DegToRad(end_angle);
+	end_angle	= DegToRad(end_angle);
 
 	if (start_angle > end_angle) {
 		end_angle += two_pi<double>;
 	}
-
 
 	double arc = end_angle - start_angle;
 
@@ -811,16 +879,17 @@ void DrawThickArcImpl(SDL_Renderer* renderer, int x, int y, int arc_radius, doub
 
 	for (int i = 0; i < n; i++) {
 		double angle = start_angle + i * deltaAngle;
-		V2_int p{
-			x + (int)(arc_radius * std::cos(angle)),
-			y + (int)(arc_radius * std::sin(angle))
-		};
+		V2_int p{ x + (int)(arc_radius * std::cos(angle)),
+				  y + (int)(arc_radius * std::sin(angle)) };
 		v.push_back(p);
 	}
 
 	if (v.size() > 1) {
 		for (size_t i = 0; i < v.size() - 1; i++) {
-			DrawThickLineImpl(renderer, v[i].x, v[i].y, v[i + 1].x, v[i + 1].y, pixel_thickness);
+			DrawThickLineImpl(
+				renderer, v[i].x, v[i].y, v[i + 1].x, v[i + 1].y,
+				pixel_thickness
+			);
 		}
 	}
 }

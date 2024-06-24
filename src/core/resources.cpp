@@ -53,7 +53,9 @@ void Stop() {
 }
 
 void FadeOut(milliseconds time) {
-    auto time_int = std::chrono::duration_cast<std::chrono::duration<int, std::milli>>(time);
+	auto time_int =
+		std::chrono::duration_cast<std::chrono::duration<int, std::milli>>(time
+		);
 	Mix_FadeOutMusic(time_int.count());
 }
 
@@ -66,10 +68,11 @@ void Resume() {
 }
 
 void Toggle(int optional_new_volume) {
-	if (GetVolume() != 0)
+	if (GetVolume() != 0) {
 		Mute();
-	else
+	} else {
 		Unmute(optional_new_volume);
+	}
 }
 
 int GetVolume() {
@@ -90,7 +93,10 @@ void Unmute(int optional_new_volume) {
 		return;
 	}
 	PTGN_CHECK(optional_new_volume >= 0, "Cannot unmute to volume below 0");
-	PTGN_CHECK(optional_new_volume <= MIX_MAX_VOLUME, "Cannot unmute to volume above max volume (128)");
+	PTGN_CHECK(
+		optional_new_volume <= MIX_MAX_VOLUME,
+		"Cannot unmute to volume above max volume (128)"
+	);
 	SetVolume(optional_new_volume);
 }
 
@@ -104,10 +110,10 @@ bool IsPaused() {
 
 bool IsFading() {
 	switch (Mix_FadingMusic()) {
-		case MIX_NO_FADING:  return false;
+		case MIX_NO_FADING:	 return false;
 		case MIX_FADING_OUT: return true;
-		case MIX_FADING_IN:  return true;
-		default:             return false;
+		case MIX_FADING_IN:	 return true;
+		default:			 return false;
 	}
 }
 
@@ -212,22 +218,35 @@ void Unload(SceneKey key) {
 }
 
 void SetActive(SceneKey key) {
-	PTGN_CHECK(Has(key) || key == impl::start_scene_key, "Cannot set active scene if it has not been loaded into the scene manager");
+	PTGN_CHECK(
+		Has(key) || key == impl::start_scene_key,
+		"Cannot set active scene if it has not been loaded into the scene "
+		"manager"
+	);
 	GetManagers().scene.SetActive(key);
 }
 
 void AddActive(SceneKey key) {
-	PTGN_CHECK(Has(key), "Cannot add active scene if it has not been loaded into the scene manager");
+	PTGN_CHECK(
+		Has(key), "Cannot add active scene if it has not been loaded into the "
+				  "scene manager"
+	);
 	GetManagers().scene.AddActive(key);
 }
 
 void RemoveActive(SceneKey key) {
-	PTGN_CHECK(Has(key), "Cannot remove active scene if it has not been loaded into the scene manager");
+	PTGN_CHECK(
+		Has(key), "Cannot remove active scene if it has not been loaded into "
+				  "the scene manager"
+	);
 	GetManagers().scene.RemoveActive(key);
 }
 
 std::shared_ptr<Scene> Get(SceneKey key) {
-	PTGN_CHECK(Has(key), "Cannot get scene if it has not been loaded into the scene manager");
+	PTGN_CHECK(
+		Has(key),
+		"Cannot get scene if it has not been loaded into the scene manager"
+	);
 	auto scene{ GetManagers().scene.Get(key) };
 	PTGN_ASSERT(scene != nullptr, "Cannot get scene which has been destroyed");
 	return scene;

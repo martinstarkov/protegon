@@ -5,12 +5,12 @@
 
 namespace ptgn {
 
-using hours = std::chrono::hours;
-using minutes = std::chrono::minutes;
-using seconds = std::chrono::seconds;
+using hours		   = std::chrono::hours;
+using minutes	   = std::chrono::minutes;
+using seconds	   = std::chrono::seconds;
 using milliseconds = std::chrono::milliseconds;
 using microseconds = std::chrono::microseconds;
-using nanoseconds = std::chrono::nanoseconds;
+using nanoseconds  = std::chrono::nanoseconds;
 
 namespace type_traits {
 

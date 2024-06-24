@@ -1,7 +1,7 @@
 #pragma once
 
-#include "mouse.h"
 #include "key.h"
+#include "mouse.h"
 #include "time.h"
 #include "vector2.h"
 
@@ -18,7 +18,8 @@ void ForceUpdateMousePosition();
 
 [[nodiscard]] V2_int GetMousePosition();
 
-// @return The amount scrolled by the mouse vertically in the current frame, positive upward, negative downward.
+// @return The amount scrolled by the mouse vertically in the current frame,
+// positive upward, negative downward.
 [[nodiscard]] int MouseScroll();
 
 [[nodiscard]] MouseState GetMouseState(Mouse button);
@@ -42,11 +43,10 @@ void ForceUpdateMousePosition();
 [[nodiscard]] milliseconds GetMouseHeldTime(Mouse button);
 
 /*
-* @tparam Duration The unit of time measurement.
-* @return True if the mouse button has been held for the given amount of time.
-*/
-template <typename Duration,
-	type_traits::duration<Duration> = true>
+ * @tparam Duration The unit of time measurement.
+ * @return True if the mouse button has been held for the given amount of time.
+ */
+template <typename Duration, type_traits::duration<Duration> = true>
 [[nodiscard]] inline bool MouseHeld(Mouse button, Duration time) {
 	const auto held_time{ GetMouseHeldTime(button) };
 	return held_time > time;

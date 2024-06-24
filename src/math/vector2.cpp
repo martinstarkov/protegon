@@ -2,13 +2,13 @@
 
 #include <SDL.h>
 
-#include "protegon/line.h"
-#include "protegon/circle.h"
-
 #include "core/game.h"
+#include "protegon/circle.h"
+#include "protegon/line.h"
 
 namespace ptgn {
 
+template <>
 Vector2<int>::operator SDL_Point() const {
 	return SDL_Point{ x, y };
 }

@@ -1,22 +1,35 @@
 #include "protegon/buffer.h"
 
-#include "protegon/debug.h"
+#include <cstdint>
+#include <initializer_list>
+#include <memory>
+#include <new>
+#include <type_traits>
+#include <vector>
 
 #include "gl_loader.h"
+#include "protegon/debug.h"
 #include "protegon/handle.h"
+#include "protegon/shader.h"
+#include "SDL_opengl_glext.h"
 
 namespace ptgn {
 
-BufferElement::BufferElement(std::uint16_t size_of_element, std::uint16_t count, impl::GLSLType type, bool normalized) :
-	size_{ static_cast<std::uint16_t>(size_of_element * count) }, count_{ count }, type_{ type }, normalized_{ normalized } {}
+BufferElement::BufferElement(
+	std::uint16_t size_of_element, std::uint16_t count, impl::GLSLType type, bool normalized
+) :
+	size_{ static_cast<std::uint16_t>(size_of_element * count) },
+	count_{ count },
+	type_{ type },
+	normalized_{ normalized } {}
 
-//BufferElement::BufferElement(ShaderDataType data_type, bool normalized) : normalized_{ normalized } {
-//	ShaderDataInfo info{ data_type };
+// BufferElement::BufferElement(ShaderDataType data_type, bool normalized) :
+// normalized_{ normalized } { 	ShaderDataInfo info{ data_type };
 //	// ShaderDataInfo size stores the size of a single buffer element.
 //	size_ = info.size * info.count;
 //	count_ = info.count;
 //	type_ = info.type;
-//}
+// }
 
 std::uint16_t BufferElement::GetSize() const {
 	return size_;
@@ -38,7 +51,8 @@ bool BufferElement::IsNormalized() const {
 	return normalized_;
 }
 
-BufferLayout::BufferLayout(const std::initializer_list<BufferElement>& elements) : elements_{ elements } {
+BufferLayout::BufferLayout(const std::initializer_list<BufferElement>& elements) :
+	elements_{ elements } {
 	CalculateOffsets();
 }
 
@@ -59,11 +73,11 @@ std::int32_t BufferLayout::GetStride() const {
 }
 
 void BufferLayout::CalculateOffsets() {
-	std::size_t offset = 0;
-	stride_ = 0;
+	std::int32_t offset = 0;
+	stride_				= 0;
 	for (BufferElement& element : elements_) {
-		element.offset_ = offset;
-		offset += element.size_;
+		element.offset_	 = offset;
+		offset			+= element.size_;
 	}
 	stride_ = offset;
 }
@@ -80,7 +94,8 @@ void VertexBufferInstance::GenerateBuffer(void* vertex_data, std::size_t size) {
 	glBufferData(GL_ARRAY_BUFFER, size, vertex_data, GL_STATIC_DRAW);
 }
 
-IndexBufferInstance::IndexBufferInstance(const std::vector<std::uint32_t>& indices) : count_{ static_cast<std::int32_t>(indices.size()) } {
+IndexBufferInstance::IndexBufferInstance(const std::vector<std::uint32_t>& indices) :
+	count_{ static_cast<std::int32_t>(indices.size()) } {
 	PTGN_ASSERT(indices.size() > 0);
 	using IndexType = std::remove_reference_t<decltype(indices)>::value_type;
 	GenerateBuffer((void*)indices.data(), sizeof(std::uint32_t) * count_);

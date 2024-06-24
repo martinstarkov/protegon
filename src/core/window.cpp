@@ -22,7 +22,14 @@ V2_int GetSize() {
 
 namespace window {
 
-void SetupSize(const V2_int& resolution, const V2_int& minimum_resolution, bool fullscreen, bool borderless, bool resizeable, const V2_float& scale) {
+void SwapBuffers() {
+	SDL_GL_SwapWindow(global::GetGame().sdl.GetWindow().get());
+}
+
+void SetupSize(
+	const V2_int& resolution, const V2_int& minimum_resolution, bool fullscreen, bool borderless,
+	bool resizeable, const V2_float& scale
+) {
 	window::SetMinimumSize(minimum_resolution);
 	window::SetFullscreen(fullscreen);
 	window::SetScale(scale);
@@ -62,7 +69,8 @@ void Clear() {
 void SetResolution(const V2_int& resolution) {
 	auto& sdl{ global::GetGame().sdl };
 	sdl.SetResolution(resolution);
-	//SDL_RenderSetIntegerScale(renderer,	static_cast<SDL_bool>(integer_scaling));
+	// SDL_RenderSetIntegerScale(renderer,
+	// static_cast<SDL_bool>(integer_scaling));
 	SDL_RenderSetLogicalSize(sdl.GetRenderer().get(), resolution.x, resolution.y);
 	// Ensure mouse position matches latest window scale.
 	global::GetGame().input.ForceUpdateMousePosition();
@@ -70,19 +78,25 @@ void SetResolution(const V2_int& resolution) {
 
 void SetMinimumSize(const V2_int& minimum_size) {
 	PTGN_ASSERT(Exists(), "Cannot set minimum size of nonexistent window");
-	SDL_SetWindowMinimumSize(global::GetGame().sdl.GetWindow().get(), minimum_size.x, minimum_size.y);
+	SDL_SetWindowMinimumSize(
+		global::GetGame().sdl.GetWindow().get(), minimum_size.x, minimum_size.y
+	);
 }
 
 V2_int GetMinimumSize() {
 	PTGN_ASSERT(Exists(), "Cannot get minimum size of nonexistent window");
 	V2_int minimum_size;
-	SDL_GetWindowMinimumSize(global::GetGame().sdl.GetWindow().get(), &minimum_size.x, &minimum_size.y);
+	SDL_GetWindowMinimumSize(
+		global::GetGame().sdl.GetWindow().get(), &minimum_size.x, &minimum_size.y
+	);
 	return minimum_size;
 }
 
 V2_int GetResolution() {
 	V2_int logical_size;
-	SDL_RenderGetLogicalSize(global::GetGame().sdl.GetRenderer().get(), &logical_size.x, &logical_size.y);
+	SDL_RenderGetLogicalSize(
+		global::GetGame().sdl.GetRenderer().get(), &logical_size.x, &logical_size.y
+	);
 	return logical_size;
 }
 
@@ -114,7 +128,9 @@ void SetSize(const V2_int& new_size, bool centered) {
 	PTGN_ASSERT(Exists(), "Cannot set size of nonexistent window");
 	SDL_SetWindowSize(global::GetGame().sdl.GetWindow().get(), new_size.x, new_size.y);
 	// Important to center after resizing.
-	if (centered) Center();
+	if (centered) {
+		Center();
+	}
 }
 
 void SetPosition(const V2_int& new_origin) {
@@ -133,10 +149,13 @@ void SetTitle(const char* new_title) {
 
 void SetFullscreen(bool on) {
 	PTGN_ASSERT(Exists(), "Cannot toggle nonexistent window fullscreen");
-	if (on)
-		SDL_SetWindowFullscreen(global::GetGame().sdl.GetWindow().get(), SDL_WINDOW_FULLSCREEN_DESKTOP);
-	else
+	if (on) {
+		SDL_SetWindowFullscreen(
+			global::GetGame().sdl.GetWindow().get(), SDL_WINDOW_FULLSCREEN_DESKTOP
+		);
+	} else {
 		SDL_SetWindowFullscreen(global::GetGame().sdl.GetWindow().get(), 0); // windowed mode.
+	}
 }
 
 void SetResizeable(bool on) {

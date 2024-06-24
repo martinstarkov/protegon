@@ -1,8 +1,8 @@
 #pragma once
 
 #include "protegon/color.h"
-#include "protegon/vector2.h"
 #include "protegon/texture.h"
+#include "protegon/vector2.h"
 
 struct SDL_Window;
 struct SDL_Renderer;
@@ -27,6 +27,7 @@ public:
 	[[nodiscard]] V2_int GetResolution() const;
 
 	[[nodiscard]] bool WindowExists() const;
+
 private:
 	void InitSDL();
 	void InitSDLImage();
@@ -39,7 +40,7 @@ private:
 	V2_int resolution_{ 1280, 720 };
 
 	Color window_bg_color_{ color::White };
-	
+
 	std::shared_ptr<SDL_Window> window_;
 	std::shared_ptr<SDL_Renderer> renderer_;
 };

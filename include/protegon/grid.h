@@ -1,7 +1,7 @@
 #pragma once
 
-#include "vector2.h"
 #include "type_traits.h"
+#include "vector2.h"
 
 namespace ptgn {
 
@@ -9,31 +9,38 @@ template <typename T>
 class Grid {
 	static_assert(std::is_default_constructible_v<T>);
 	static_assert(std::is_move_constructible_v<T>);
+
 public:
 	Grid() = delete;
 
-	Grid(const Vector2<int>& size, const std::vector<T>& cells) : size{ size }, length{ size.x * size.y }, cells{ cells } {
+	Grid(const Vector2<int>& size, const std::vector<T>& cells) :
+		size{ size }, length{ size.x * size.y }, cells{ cells } {
 		PTGN_ASSERT(length == cells.size(), "Failed to construct grid");
 	}
 
-	Grid(const Vector2<int>& size) : size{ size }, length{ size.x * size.y }, cells(length, T{}) {
+	Grid(const Vector2<int>& size) :
+		size{ size }, length{ size.x * size.y }, cells(length, T{}) {
 		PTGN_ASSERT(length == cells.size(), "Failed to construct grid");
 	}
 
 	void ForEachCoordinate(std::function<void(V2_int)> function) {
-		for (int i = 0; i < size.x; i++)
-			for (int j = 0; j < size.y; j++)
+		for (int i = 0; i < size.x; i++) {
+			for (int j = 0; j < size.y; j++) {
 				function(V2_int{ i, j });
+			}
+		}
 	}
 
 	void ForEachIndex(std::function<void(std::size_t)> function) {
-		for (std::size_t i = 0; i < length; i++)
+		for (std::size_t i = 0; i < length; i++) {
 			function(i);
+		}
 	}
 
 	void ForEachElement(std::function<void(T&)> function) {
-		for (auto& cell : cells)
+		for (auto& cell : cells) {
 			function(cell);
+		}
 	}
 
 	[[nodiscard]] bool Has(const V2_int& coordinate) const {
@@ -53,19 +60,25 @@ public:
 	}
 
 	[[nodiscard]] const T& Get(std::size_t index) const {
-		PTGN_CHECK(Has(index), "Cannot get grid element which is outside the grid");
+		PTGN_CHECK(
+			Has(index), "Cannot get grid element which is outside the grid"
+		);
 		return cells[index];
 	}
 
 	[[nodiscard]] T& Get(std::size_t index) {
-		PTGN_CHECK(Has(index), "Cannot get grid element which is outside the grid");
+		PTGN_CHECK(
+			Has(index), "Cannot get grid element which is outside the grid"
+		);
 		return cells[index];
 	}
 
 	T& Set(std::size_t index, T&& object) {
-		PTGN_CHECK(Has(index), "Cannot set grid element which is outside the grid");
+		PTGN_CHECK(
+			Has(index), "Cannot set grid element which is outside the grid"
+		);
 		auto& value = cells[index];
-		value = std::move(object);
+		value		= std::move(object);
 		return value;
 	}
 
@@ -89,10 +102,11 @@ public:
 		return coordinate.x + coordinate.y * size.x;
 	}
 
-	template <typename T, type_traits::copy_constructible<T> = true>
+	template <type_traits::copy_constructible<T> = true>
 	void Fill(const T& object) {
 		std::fill(cells.begin(), cells.end(), object);
 	}
+
 protected:
 	int length{ 0 };
 	V2_int size;

@@ -2,8 +2,8 @@
 
 #include <cstdint>
 
-#include "handle.h"
 #include "file.h"
+#include "handle.h"
 
 struct _TTF_Font;
 using TTF_Font = _TTF_Font;
@@ -11,23 +11,25 @@ using TTF_Font = _TTF_Font;
 namespace ptgn {
 
 enum class FontStyle : int {
-	Normal        = 0, // TTF_STYLE_NORMAL
+	Normal		  = 0, // TTF_STYLE_NORMAL
 	Bold		  = 1, // TTF_STYLE_BOLD
-	Italic        = 2, // TTF_STYLE_ITALIC
-	Underline     = 4, // TTF_STYLE_UNDERLINE
+	Italic		  = 2, // TTF_STYLE_ITALIC
+	Underline	  = 4, // TTF_STYLE_UNDERLINE
 	Strikethrough = 8  // TTF_STYLE_STRIKETHROUGH
 };
 
 enum class FontRenderMode : int {
-	Solid   = 0,
-	Shaded  = 1,
+	Solid	= 0,
+	Shaded	= 1,
 	Blended = 2
 };
 
 class Font : public Handle<TTF_Font> {
 public:
 	Font() = default;
-	Font(const path& font_path, std::int32_t point_size, std::int32_t index = 0);
+	Font(
+		const path& font_path, std::int32_t point_size, std::int32_t index = 0
+	);
 
 	[[nodiscard]] std::int32_t GetHeight() const;
 };

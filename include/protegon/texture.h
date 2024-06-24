@@ -1,11 +1,11 @@
 #pragma once
 
-#include "polygon.h"
-#include "vector2.h"
 #include "color.h"
-#include "handle.h"
 #include "file.h"
+#include "handle.h"
+#include "polygon.h"
 #include "renderer.h"
+#include "vector2.h"
 
 struct SDL_Texture;
 struct SDL_Surface;
@@ -15,9 +15,11 @@ namespace ptgn {
 class Texture : public Handle<SDL_Texture> {
 public:
 	enum class AccessType : int {
-		STATIC = 0,	   // SDL_TEXTUREACCESS_STATIC    /* Changes rarely, not lockable */
-		STREAMING = 1, // SDL_TEXTUREACCESS_STREAMING /* Changes frequently, lockable */
-		TARGET = 2,    // SDL_TEXTUREACCESS_TARGET
+		STATIC = 0, // SDL_TEXTUREACCESS_STATIC    /* Changes rarely, not
+					// lockable */
+		STREAMING = 1, // SDL_TEXTUREACCESS_STREAMING /* Changes frequently,
+					   // lockable */
+		TARGET = 2, // SDL_TEXTUREACCESS_TARGET
 	};
 
 	Texture() = default;
@@ -26,10 +28,8 @@ public:
 
 	// Rotation in degrees. Positive clockwise.
 	void Draw(
-		const Rectangle<float>& destination,
-		const Rectangle<int>& source = {},
-		float angle = 0.0f,
-		Flip flip = Flip::None,
+		const Rectangle<float>& destination, const Rectangle<int>& source = {},
+		float angle = 0.0f, Flip flip = Flip::None,
 		V2_int* center_of_rotation = nullptr
 	) const;
 

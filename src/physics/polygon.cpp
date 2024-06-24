@@ -1,16 +1,19 @@
 #include "protegon/polygon.h"
 
-#include <cstdlib>
-
 #include <SDL.h>
 
-#include "protegon/line.h"
-#include "protegon/circle.h"
+#include <cstdlib>
+
 #include "core/sdl_instance.h"
+#include "protegon/circle.h"
+#include "protegon/line.h"
 
 namespace ptgn {
 
-Rectangle<int>::operator SDL_Rect() const { return SDL_Rect{ pos.x, pos.y, size.x, size.y }; }
+template <>
+Rectangle<int>::operator SDL_Rect() const {
+	return SDL_Rect{ pos.x, pos.y, size.x, size.y };
+}
 
 namespace impl {
 
@@ -39,7 +42,9 @@ void DrawSolidRoundedRectangle(int x, int y, int w, int h, int r, const Color& c
 	DrawSolidRoundedRectangleImpl(renderer.get(), x, y, w, h, r);
 }
 
-void DrawThickRoundedRectangle(int x, int y, int w, int h, int r, double pixel_thickness, const Color& color) {
+void DrawThickRoundedRectangle(
+	int x, int y, int w, int h, int r, double pixel_thickness, const Color& color
+) {
 	auto renderer{ SetDrawMode(color) };
 	DrawThickRoundedRectangleImpl(renderer.get(), x, y, w, h, r, pixel_thickness);
 }
@@ -85,14 +90,14 @@ void DrawSolidRectangleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int 
 
 	if (x1 > x2) {
 		tmp = x1;
-		x1 = x2;
-		x2 = tmp;
+		x1	= x2;
+		x2	= tmp;
 	}
 
 	if (y1 > y2) {
 		tmp = y1;
-		y1 = y2;
-		y2 = tmp;
+		y1	= y2;
+		y2	= tmp;
 	}
 
 	rect.x = x1;
@@ -103,7 +108,9 @@ void DrawSolidRectangleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int 
 	SDL_RenderFillRect(renderer, &rect);
 }
 
-void DrawThickRectangleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, double pixel_width) {
+void DrawThickRectangleImpl(
+	SDL_Renderer* renderer, int x1, int y1, int x2, int y2, double pixel_width
+) {
 	PTGN_ASSERT(pixel_width >= 1, "Cannot draw rectangle with thickness below 1 pixel");
 
 	int wh;
@@ -114,10 +121,10 @@ void DrawThickRectangleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int 
 		return;
 	}
 
-	DrawThickLineImpl(renderer,     x1,      y1,  x2 - 1,     y1, pixel_width);
-	DrawThickLineImpl(renderer, x2 - 1,      y1,  x2 - 1, y2 - 1, pixel_width);
-	DrawThickLineImpl(renderer, x2 - 1,  y2 - 1,      x1, y2 - 1, pixel_width);
-	DrawThickLineImpl(renderer,     x1,  y2 - 1,      x1,     y1, pixel_width);
+	DrawThickLineImpl(renderer, x1, y1, x2 - 1, y1, pixel_width);
+	DrawThickLineImpl(renderer, x2 - 1, y1, x2 - 1, y2 - 1, pixel_width);
+	DrawThickLineImpl(renderer, x2 - 1, y2 - 1, x1, y2 - 1, pixel_width);
+	DrawThickLineImpl(renderer, x1, y2 - 1, x1, y1, pixel_width);
 }
 
 void DrawRoundedRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, int h, int r) {
@@ -152,14 +159,14 @@ void DrawRoundedRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, int h
 
 	if (x > x2) {
 		tmp = x;
-		x = x2;
-		x2 = tmp;
+		x	= x2;
+		x2	= tmp;
 	}
 
 	if (y > y2) {
 		tmp = y;
-		y = y2;
-		y2 = tmp;
+		y	= y2;
+		y2	= tmp;
 	}
 
 	if (2 * r > w) {
@@ -192,12 +199,12 @@ void DrawRoundedRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, int h
 
 void DrawSolidRoundedRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, int h, int r) {
 	int tmp;
-	int cx = 0;
-	int cy = r;
-	int ocx = (int)0xffff;
-	int ocy = (int)0xffff;
-	int df = 1 - r;
-	int d_e = 3;
+	int cx	 = 0;
+	int cy	 = r;
+	int ocx	 = (int)0xffff;
+	int ocy	 = (int)0xffff;
+	int df	 = 1 - r;
+	int d_e	 = 3;
 	int d_se = -2 * r + 5;
 	int xpcx, xmcx, xpcy, xmcy;
 	int ypcy, ymcy, ypcx, ymcx;
@@ -230,14 +237,14 @@ void DrawSolidRoundedRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, 
 
 	if (x > x2) {
 		tmp = x;
-		x = x2;
-		x2 = tmp;
+		x	= x2;
+		x2	= tmp;
 	}
 
 	if (y > y2) {
 		tmp = y;
-		y = y2;
-		y2 = tmp;
+		y	= y2;
+		y2	= tmp;
 	}
 
 	if (2 * r > w) {
@@ -283,12 +290,12 @@ void DrawSolidRoundedRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, 
 		}
 
 		if (df < 0) {
-			df += d_e;
-			d_e += 2;
+			df	 += d_e;
+			d_e	 += 2;
 			d_se += 2;
 		} else {
-			df += d_se;
-			d_e += 2;
+			df	 += d_se;
+			d_e	 += 2;
 			d_se += 4;
 			cy--;
 		}
@@ -300,7 +307,9 @@ void DrawSolidRoundedRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, 
 	}
 }
 
-void DrawThickRoundedRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, int h, int r, double pixel_thickness) {
+void DrawThickRoundedRectangleImpl(
+	SDL_Renderer* renderer, int x, int y, int w, int h, int r, double pixel_thickness
+) {
 	int tmp;
 	int xx1, xx2;
 	int yy1, yy2;
@@ -332,14 +341,14 @@ void DrawThickRoundedRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, 
 
 	if (x > x2) {
 		tmp = x;
-		x = x2;
-		x2 = tmp;
+		x	= x2;
+		x2	= tmp;
 	}
 
 	if (y > y2) {
 		tmp = y;
-		y = y2;
-		y2 = tmp;
+		y	= y2;
+		y2	= tmp;
 	}
 
 	if (2 * r > w) {
@@ -372,13 +381,14 @@ void DrawThickRoundedRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, 
 
 void DrawPolygonImpl(SDL_Renderer* renderer, const std::vector<V2_int>& v) {
 	PTGN_ASSERT(v.size() >= 3, "Cannot draw solid polygon with less than 3 vertices");
-	// TODO: Figure out if there is a better way to do this conversion from std::vector<V2_int> to SDL_Point*.
+	// TODO: Figure out if there is a better way to do this conversion from
+	// std::vector<V2_int> to SDL_Point*.
 	std::vector<SDL_Point> p;
 	for (const auto& vi : v) {
 		p.push_back(SDL_Point{ vi.x, vi.y });
 	}
 	p.push_back(SDL_Point{ v.at(0).x, v.at(0).y });
-    SDL_RenderDrawLines(renderer, p.data(), static_cast<int>(p.size()));
+	SDL_RenderDrawLines(renderer, p.data(), static_cast<int>(p.size()));
 }
 
 void DrawSolidPolygonImpl(SDL_Renderer* renderer, const std::vector<V2_int>& v) {
@@ -390,7 +400,7 @@ void DrawSolidPolygonImpl(SDL_Renderer* renderer, const std::vector<V2_int>& v) 
 	int x2, y2;
 	int ind1, ind2;
 	int ints;
-    int n = static_cast<int>(v.size());
+	int n = static_cast<int>(v.size());
 
 	miny = v[0].y;
 	maxy = v[0].y;
@@ -429,13 +439,15 @@ void DrawSolidPolygonImpl(SDL_Renderer* renderer, const std::vector<V2_int>& v) 
 				continue;
 			}
 			if (((y >= y1) && (y < y2)) || ((y == maxy) && (y > y1) && (y <= y2))) {
-				gfxPrimitivesPolyInts[ints++] = ((65536 * (y - y1)) / (y2 - y1)) * (x2 - x1) + (65536 * x1);
+				gfxPrimitivesPolyInts[ints++] =
+					((65536 * (y - y1)) / (y2 - y1)) * (x2 - x1) + (65536 * x1);
 			}
 		}
 
-		std::qsort((void*)gfxPrimitivesPolyInts.data(), ints, sizeof(int), [](const void* a, const void* b) {
-			return (*(const int*)a) - (*(const int*)b);
-		});
+		std::qsort(
+			(void*)gfxPrimitivesPolyInts.data(), ints, sizeof(int),
+			[](const void* a, const void* b) { return (*(const int*)a) - (*(const int*)b); }
+		);
 
 		for (i = 0; (i < ints); i += 2) {
 			xa = gfxPrimitivesPolyInts[i] + 1;
@@ -447,12 +459,16 @@ void DrawSolidPolygonImpl(SDL_Renderer* renderer, const std::vector<V2_int>& v) 
 	}
 }
 
-void DrawThickPolygonImpl(SDL_Renderer* renderer, const std::vector<V2_int>& v, double pixel_thickness) {
+void DrawThickPolygonImpl(
+	SDL_Renderer* renderer, const std::vector<V2_int>& v, double pixel_thickness
+) {
 	PTGN_ASSERT(v.size() >= 3, "Cannot draw thick polygon with less than 3 vertices");
 	for (size_t i = 0; i < v.size() - 1; i++) {
 		DrawThickLineImpl(renderer, v[i].x, v[i].y, v[i + 1].x, v[i + 1].y, pixel_thickness);
 	}
-	DrawThickLineImpl(renderer, v[v.size() - 1].x, v[v.size() - 1].y, v[0].x, v[0].y, pixel_thickness);
+	DrawThickLineImpl(
+		renderer, v[v.size() - 1].x, v[v.size() - 1].y, v[0].x, v[0].y, pixel_thickness
+	);
 }
 
 } // namespace impl
