@@ -88,9 +88,9 @@ function(set_project_warnings project_name)
   endif()
 
   if(${PROJECT_NAME}_BUILD_HEADERS_ONLY)
-        target_compile_options(${project_name} INTERFACE ${PROJECT_WARNINGS})
+    target_compile_options(${project_name} INTERFACE ${PROJECT_WARNINGS})
   else()
-        target_compile_options(${project_name} PUBLIC ${PROJECT_WARNINGS})
+    target_compile_options(${project_name} PUBLIC ${PROJECT_WARNINGS})
   endif()
 
   if(NOT TARGET ${project_name})

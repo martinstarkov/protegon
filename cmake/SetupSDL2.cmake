@@ -4,57 +4,76 @@ set(SDL2_IMAGE_VERSION  2.8.2)
 set(SDL2_TTF_VERSION   2.22.0)
 set(SDL2_MIXER_VERSION  2.8.0)
 
+function(download_and_extract url output_dir flags)
+    execute_process(COMMAND sh "${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_extract_file.sh" "${url}" "${output_dir}" "${flags}")
+endfunction()
+
 if (WIN32 AND DOWNLOAD_SDL)
 
-set(SDL_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/external/sdl2-msvc-shared")
+  set(SDL_DOWNLOAD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external")
 
-list(APPEND CMAKE_PREFIX_PATH "${SDL_LOCATION}/SDL2-${SDL2_VERSION}/")
-list(APPEND CMAKE_PREFIX_PATH "${SDL_LOCATION}/SDL2_image-${SDL2_IMAGE_VERSION}/")
-list(APPEND CMAKE_PREFIX_PATH "${SDL_LOCATION}/SDL2_ttf-${SDL2_TTF_VERSION}/")
-list(APPEND CMAKE_PREFIX_PATH "${SDL_LOCATION}/SDL2_mixer-${SDL2_MIXER_VERSION}/")
+  if (MSVC)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/DownloadSDL2MSVC.cmake")
+  elseif(MINGW)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/DownloadSDL2MinGW.cmake")
+  endif()
 
 endif()
 
 set(SDL2MAIN_LIBRARY FALSE)
 
+set(PREVIOUS_CMAKE_WARN_VALUE ${CMAKE_WARN_DEPRECATED})
+set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
 find_package(SDL2        ${SDL2_VERSION}       REQUIRED)
 find_package(SDL2_image  ${SDL2_IMAGE_VERSION} REQUIRED)
 find_package(SDL2_ttf    ${SDL2_TTF_VERSION}   REQUIRED)
 find_package(SDL2_mixer  ${SDL2_MIXER_VERSION} REQUIRED)
+set(CMAKE_WARN_DEPRECATED ${PREVIOUS_CMAKE_WARN_VALUE} CACHE BOOL "" FORCE)
 
-# Copy SDL dlls to target executable directory
 if(WIN32)
+  if(LINK_STATIC_SDL)
+    if (MSVC)
+      # Updates CMAKE_PREFIX_PATH paths to include library architecture
+      if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+        set(CMAKE_LIBRARY_ARCHITECTURE "x64")
+      elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
+        set(CMAKE_LIBRARY_ARCHITECTURE "x86")
+      endif()
+      target_link_libraries(protegon PRIVATE "${SDL2_TTF_LOCATION}/lib/${CMAKE_LIBRARY_ARCHITECTURE}/freetype.lib")
+      target_link_options(protegon PUBLIC $<IF:$<CONFIG:Debug>,/NODEFAULTLIB:MSVCRT,>)
+    endif()
+  else()
+    get_target_property(SDL2_DLL       SDL2::SDL2 	        IMPORTED_LOCATION)
+    get_target_property(SDL2_IMAGE_DLL SDL2_image::SDL2_image IMPORTED_LOCATION)
+    get_target_property(SDL2_TTF_DLL   SDL2_ttf::SDL2_ttf     IMPORTED_LOCATION)
+    get_target_property(SDL2_MIXER_DLL SDL2_mixer::SDL2_mixer IMPORTED_LOCATION)
 
-get_target_property(SDL2_DLL       SDL2::SDL2 	        IMPORTED_LOCATION)
-get_target_property(SDL2_IMAGE_DLL SDL2_image::SDL2_image IMPORTED_LOCATION)
-get_target_property(SDL2_TTF_DLL   SDL2_ttf::SDL2_ttf     IMPORTED_LOCATION)
-get_target_property(SDL2_MIXER_DLL SDL2_mixer::SDL2_mixer IMPORTED_LOCATION)
+    get_filename_component(SDL2_LIB_DIR       ${SDL2_DLL}       DIRECTORY)
+    get_filename_component(SDL2_IMAGE_LIB_DIR ${SDL2_IMAGE_DLL} DIRECTORY)
+    get_filename_component(SDL2_TTF_LIB_DIR   ${SDL2_TTF_DLL}   DIRECTORY)
+    get_filename_component(SDL2_MIXER_LIB_DIR ${SDL2_MIXER_DLL} DIRECTORY)
 
-get_filename_component(SDL2_LIB_DIR       ${SDL2_DLL}       DIRECTORY)
-get_filename_component(SDL2_IMAGE_LIB_DIR ${SDL2_IMAGE_DLL} DIRECTORY)
-get_filename_component(SDL2_TTF_LIB_DIR   ${SDL2_TTF_DLL}   DIRECTORY)
-get_filename_component(SDL2_MIXER_LIB_DIR ${SDL2_MIXER_DLL} DIRECTORY)
+  # Identify all SDL dlls present throughout the SDL extensions
+    file(GLOB_RECURSE SDL_DLLS CONFIGURE_DEPENDS
+      ${SDL2_LIB_DIR}/*.dll
+      ${SDL2_IMAGE_LIB_DIR}/*.dll
+      ${SDL2_TTF_LIB_DIR}/*.dll
+      ${SDL2_MIXER_LIB_DIR}/*.dll)
 
-file(GLOB_RECURSE SDL_DLLS CONFIGURE_DEPENDS
-     ${SDL2_LIB_DIR}/*.dll
-     ${SDL2_IMAGE_LIB_DIR}/*.dll
-     ${SDL2_TTF_LIB_DIR}/*.dll
-     ${SDL2_MIXER_LIB_DIR}/*.dll)
+    if("${SDL_DLLS}" STREQUAL "")
+      message(FATAL_ERROR "Could not find SDL2 dlls")
+    endif()
 
-if("${SDL_DLLS}" STREQUAL "")
-message(FATAL_ERROR "Could not find SDL2 dlls")
-endif()
+    set(SDL_DLLS ${SDL_DLLS} CACHE BOOL "")
 
-set(SDL_DLLS ${SDL_DLLS} CACHE BOOL "")
+    function(add_sdl_dll_copy TARGET)
 
-function(add_sdl_dll_copy TARGET)
+      add_custom_command(TARGET ${TARGET} POST_BUILD COMMAND ${CMAKE_COMMAND}
+                        -E copy_if_different ${SDL_DLLS} $<TARGET_FILE_DIR:${TARGET}>
+                        COMMAND_EXPAND_LISTS)
 
-add_custom_command(TARGET ${TARGET} POST_BUILD COMMAND ${CMAKE_COMMAND}
-                   -E copy_if_different ${SDL_DLLS} $<TARGET_FILE_DIR:${TARGET}>
-                   COMMAND_EXPAND_LISTS)
-
-endfunction()
-
+    endfunction()
+  endif()
 endif()
 
 #target_link_libraries(protegon PRIVATE ${SDL_LIBRARIES})

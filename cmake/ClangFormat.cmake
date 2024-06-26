@@ -1,5 +1,3 @@
-cmake_minimum_required(VERSION 3.16)
-
 function(add_clang_tidy)
   #set(CMAKE_CXX_CLANG_TIDY clang-tidy -extra-arg=-Wno-unknown-warning-option)
 endfunction()

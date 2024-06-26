@@ -2,9 +2,9 @@ cmake_minimum_required(VERSION 3.20)
 
 project(tests)
 
-add_executable(${PROJECT_NAME} ${PTGN_TEST_SRC_FILES})
+add_executable(${PROJECT_NAME} ${PROTEGON_TEST_FILES})
 
-target_include_directories(${PROJECT_NAME} PRIVATE ${PTGN_TEST_SRC_FILES})
+target_include_directories(${PROJECT_NAME} PRIVATE ${PROTEGON_TEST_FILES})
 
 add_protegon_to(${PROJECT_NAME})
 
