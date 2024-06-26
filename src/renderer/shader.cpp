@@ -1,6 +1,7 @@
 #include "protegon/shader.h"
 
 #include <fstream>
+#include <unordered_map>
 
 #include "gl_loader.h"
 #include "protegon/debug.h"
@@ -88,8 +89,11 @@ std::uint32_t Shader::CompileShader(
 		glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
 		std::vector<GLchar> log(length);
 		glGetShaderInfoLog(id, length, &length, &log[0]);
+		
 		PTGN_ERROR(log.data());
+
 		glDeleteShader(id);
+		
 		PTGN_CHECK(
 			false, "Failed to compile ", impl::GetShaderTypeName(type),
 			" shader"
@@ -123,12 +127,13 @@ impl::Id Shader::CompileProgram(
 			std::vector<GLchar> log(length);
 			glGetProgramInfoLog(program, length, &length, &log[0]);
 
+			PTGN_ERROR(log.data());
+
 			glDeleteProgram(program);
 
 			glDeleteShader(vertex);
 			glDeleteShader(fragment);
 
-			PTGN_ERROR(log.data());
 			PTGN_CHECK(
 				false, "Failed to link shaders to program"
 			); // OPTIONAL: crash on shader link fail.
@@ -181,7 +186,7 @@ std::int32_t Shader::GetUniformLocation(const std::string& name) const {
 	std::int32_t location =
 		glGetUniformLocation(instance_->program_id_, name.c_str());
 	// TODO: Consider not adding uniform to cache if it is -1.
-	location_cache[name] = location;
+	location_cache.emplace(name, location);
 	return location;
 }
 

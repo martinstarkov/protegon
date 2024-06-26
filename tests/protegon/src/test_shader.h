@@ -2,8 +2,6 @@
 
 #include <set>
 
-#include "core/game.h"
-#include "core/opengl_instance.h"
 #include "protegon/buffer.h"
 #include "protegon/debug.h"
 #include "protegon/protegon.h"
@@ -493,24 +491,24 @@ bool TestShaderDrawing() {
 			shader2.SetUniform("iTime", playtime_in_second);
 		});
 
-		renderer::SetDrawColor(color::White);
+		/*renderer::SetDrawColor(color::White);
 
-		renderer::Clear();
+		renderer::Clear();*/
 
-		Text text(font_key, "Hello", color::Black);
+		/*Text text(font_key, "Hello", color::Black);
 
 		text.Draw({
 			{  0,	 0},
 			  {300, 300}
-		   });
+		   });*/
 
-		renderer::impl::Flush();
+		/*renderer::impl::Flush();*/
 
 		test.Draw(vao, shader);
 
-		// renderer::SetBlendMode(BlendMode::Blend);
+		//renderer::SetBlendMode(BlendMode::Blend);
 
-		// test.Draw(vao, shader2);
+		test.Draw(vao, shader2);
 
 		// renderer::ResetTarget();
 		// drawTarget.SetBlendMode(BlendMode::Blend);
@@ -523,9 +521,6 @@ bool TestShaderDrawing() {
 
 bool TestShader() {
 	PTGN_INFO("Starting shader tests...");
-
-	Game& game = global::GetGame();
-	PTGN_ASSERT(game.opengl.IsInitialized());
 
 	TestShaderProperties();
 	TestShaderDrawing();

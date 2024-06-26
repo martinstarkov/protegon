@@ -1,3 +1,4 @@
+#include "../tests/test_ecs.h"
 #include "protegon/protegon.h"
 #include "test_math.h"
 #include "test_rng.h"
@@ -5,7 +6,6 @@
 #include "test_shapes.h"
 #include "test_text.h"
 #include "test_vector2.h"
-#include "tests/test_ecs.h"
 
 using namespace ptgn;
 

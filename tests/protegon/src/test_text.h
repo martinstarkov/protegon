@@ -1,6 +1,5 @@
 #pragma once
 
-#include "core/game.h"
 #include "protegon/text.h"
 #include "protegon/window.h"
 
