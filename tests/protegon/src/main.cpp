@@ -28,6 +28,5 @@ public:
 
 int main() {
 	ptgn::game::Start<Tests>();
-	// TestProgram();
 	return 0;
 }

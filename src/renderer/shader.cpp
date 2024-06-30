@@ -1,10 +1,7 @@
 #include "protegon/shader.h"
 
-#include <fstream>
-#include <unordered_map>
-
-#include "gl_loader.h"
 #include "protegon/debug.h"
+#include "renderer/gl_loader.h"
 
 namespace ptgn {
 
@@ -30,52 +27,29 @@ ShaderInstance::~ShaderInstance() {
 
 } // namespace impl
 
-// ShaderDataInfo::ShaderDataInfo(ShaderDataType encoded) :
-//	ShaderDataInfo{ static_cast<std::uint64_t>(encoded) } {
-//	PTGN_CHECK(encoded != ShaderDataType::none, "Cannot retrieve shader data
-// info for ShaderDataType::none");
-// }
-//
-// ShaderDataInfo::ShaderDataInfo(std::uint64_t encoded) :
-//	size{ (encoded >> 48) & 0xFFFF }, count{ (encoded >> 32) & 0xFFFF }, type{
-// encoded & 0xFFFFFFFF } {}
-
-Shader::Shader(
-	const ShaderSource& vertex_shader, const ShaderSource& fragment_shader
-) {
+Shader::Shader(const ShaderSource& vertex_shader, const ShaderSource& fragment_shader) {
 	Create(vertex_shader.source_, fragment_shader.source_);
 }
 
-Shader::Shader(
-	const path& vertex_shader_path, const path& fragment_shader_path
-) {
+Shader::Shader(const path& vertex_shader_path, const path& fragment_shader_path) {
 	PTGN_CHECK(
-		FileExists(vertex_shader_path),
-		"Cannot create shader from nonexistent vertex shader path"
+		FileExists(vertex_shader_path), "Cannot create shader from nonexistent vertex shader path"
 	);
 	PTGN_CHECK(
 		FileExists(fragment_shader_path),
 		"Cannot create shader from nonexistent fragment shader path"
 	);
-	Create(
-		FileToString(vertex_shader_path), FileToString(fragment_shader_path)
-	);
+	Create(FileToString(vertex_shader_path), FileToString(fragment_shader_path));
 }
 
 void Shader::Create(
-	const std::string& vertex_shader_source,
-	const std::string& fragment_shader_source
+	const std::string& vertex_shader_source, const std::string& fragment_shader_source
 ) {
-	impl::Id program =
-		CompileProgram(vertex_shader_source, fragment_shader_source);
-	instance_ = std::shared_ptr<impl::ShaderInstance>{
-		new impl::ShaderInstance(program)
-	};
+	impl::Id program = CompileProgram(vertex_shader_source, fragment_shader_source);
+	instance_		 = std::shared_ptr<impl::ShaderInstance>{ new impl::ShaderInstance(program) };
 }
 
-std::uint32_t Shader::CompileShader(
-	std::uint32_t type, const std::string& source
-) {
+std::uint32_t Shader::CompileShader(std::uint32_t type, const std::string& source) {
 	std::uint32_t id = glCreateShader(type);
 	const char* src	 = source.c_str();
 	glShaderSource(id, 1, &src, NULL);
@@ -89,15 +63,12 @@ std::uint32_t Shader::CompileShader(
 		glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
 		std::vector<GLchar> log(length);
 		glGetShaderInfoLog(id, length, &length, &log[0]);
-		
+
 		PTGN_ERROR(log.data());
 
 		glDeleteShader(id);
-		
-		PTGN_CHECK(
-			false, "Failed to compile ", impl::GetShaderTypeName(type),
-			" shader"
-		);
+
+		PTGN_CHECK(false, "Failed to compile ", impl::GetShaderTypeName(type), " shader");
 		return 0;
 	}
 	return id;
@@ -156,10 +127,7 @@ void Shader::WhileBound(std::function<void()> func) {
 }
 
 void Shader::Bind() const {
-	PTGN_CHECK(
-		instance_ != nullptr,
-		"Attempting to bind shader which has not been initialized"
-	);
+	PTGN_CHECK(instance_ != nullptr, "Attempting to bind shader which has not been initialized");
 	glUseProgram(instance_->program_id_);
 }
 
@@ -183,8 +151,7 @@ std::int32_t Shader::GetUniformLocation(const std::string& name) const {
 		return it->second;
 	}
 
-	std::int32_t location =
-		glGetUniformLocation(instance_->program_id_, name.c_str());
+	std::int32_t location = glGetUniformLocation(instance_->program_id_, name.c_str());
 	// TODO: Consider not adding uniform to cache if it is -1.
 	location_cache.emplace(name, location);
 	return location;
@@ -211,9 +178,7 @@ void Shader::SetUniform(const std::string& name, float v0, float v1, float v2) {
 	}
 }
 
-void Shader::SetUniform(
-	const std::string& name, float v0, float v1, float v2, float v3
-) {
+void Shader::SetUniform(const std::string& name, float v0, float v1, float v2, float v3) {
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
 		glUniform4f(location, v0, v1, v2, v3);
@@ -241,9 +206,7 @@ void Shader::SetUniform(const std::string& name, int v0, int v1, int v2) {
 	}
 }
 
-void Shader::SetUniform(
-	const std::string& name, int v0, int v1, int v2, int v3
-) {
+void Shader::SetUniform(const std::string& name, int v0, int v1, int v2, int v3) {
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
 		glUniform4i(location, v0, v1, v2, v3);

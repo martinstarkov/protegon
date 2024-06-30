@@ -1,17 +1,6 @@
 #include "protegon/buffer.h"
 
-#include <cstdint>
-#include <initializer_list>
-#include <memory>
-#include <new>
-#include <type_traits>
-#include <vector>
-
-#include "gl_loader.h"
-#include "protegon/debug.h"
-#include "protegon/handle.h"
-#include "protegon/shader.h"
-#include "SDL_opengl_glext.h"
+#include "renderer/gl_loader.h"
 
 namespace ptgn {
 
@@ -22,14 +11,6 @@ BufferElement::BufferElement(
 	count_{ count },
 	type_{ type },
 	normalized_{ normalized } {}
-
-// BufferElement::BufferElement(ShaderDataType data_type, bool normalized) :
-// normalized_{ normalized } { 	ShaderDataInfo info{ data_type };
-//	// ShaderDataInfo size stores the size of a single buffer element.
-//	size_ = info.size * info.count;
-//	count_ = info.count;
-//	type_ = info.type;
-// }
 
 std::uint16_t BufferElement::GetSize() const {
 	return size_;
@@ -53,10 +34,6 @@ bool BufferElement::IsNormalized() const {
 
 BufferLayout::BufferLayout(const std::initializer_list<BufferElement>& elements) :
 	elements_{ elements } {
-	CalculateOffsets();
-}
-
-BufferLayout::BufferLayout(const std::vector<BufferElement>& elements) : elements_{ elements } {
 	CalculateOffsets();
 }
 
@@ -92,6 +69,17 @@ void VertexBufferInstance::GenerateBuffer(void* vertex_data, std::size_t size) {
 	glGenBuffers(1, &id_);
 	glBindBuffer(GL_ARRAY_BUFFER, id_);
 	glBufferData(GL_ARRAY_BUFFER, size, vertex_data, GL_STATIC_DRAW);
+}
+
+void VertexBufferInstance::GenerateBuffer(std::size_t size) {
+	glGenBuffers(1, &id_);
+	glBindBuffer(GL_ARRAY_BUFFER, id_);
+	glBufferData(GL_ARRAY_BUFFER, size, nullptr, GL_DYNAMIC_DRAW);
+}
+
+void VertexBufferInstance::SetBuffer(void* vertex_data, std::size_t size) {
+	glBindBuffer(GL_ARRAY_BUFFER, id_);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, size, vertex_data);
 }
 
 IndexBufferInstance::IndexBufferInstance(const std::vector<std::uint32_t>& indices) :

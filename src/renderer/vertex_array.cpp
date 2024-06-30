@@ -46,8 +46,8 @@ void VertexArray::SetVertexBuffer(const VertexBuffer& vertex_buffer) {
 	PTGN_CHECK(IsValid(), "Cannot add vertex buffer to uninitialized or destroyed vertex array");
 	const BufferLayout& layout = vertex_buffer.GetLayout();
 	PTGN_ASSERT(
-		!layout.IsEmpty(), "Cannot add a vertex buffer with an empty (unset) "
-						   "layout to a vertex array"
+		!layout.IsEmpty(),
+		"Cannot add a vertex buffer with an empty (unset) layout to a vertex array"
 	);
 
 	glBindVertexArray(instance_->id_);

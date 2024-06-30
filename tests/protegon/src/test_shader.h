@@ -167,11 +167,13 @@ bool TestShaderProperties() {
 	v1.push_back({});
 
 	VertexBuffer b1{ v1 };
+	b1.SetLayout<glsl::vec3>();
 	BufferLayout layout1{ b1.GetLayout() };
 	auto e1{ layout1.GetElements() };
-
 	PTGN_ASSERT(e1.size() == 1);
 	PTGN_ASSERT(layout1.GetStride() == 3 * sizeof(float));
+	VertexArray va1{ PrimitiveMode::Triangles };
+	va1.SetVertexBuffer(b1);
 
 	// PTGN_ASSERT(e1.at(0).GetType() == ShaderDataInfo{ ShaderDataType::vec3
 	// }.type);
@@ -189,8 +191,11 @@ bool TestShaderProperties() {
 	v2.push_back({});
 
 	VertexBuffer b2{ v2 };
+	b2.SetLayout<glsl::vec3, glsl::vec4, glsl::vec3>();
 	BufferLayout layout2{ b2.GetLayout() };
 	auto e2{ layout2.GetElements() };
+	VertexArray va2{ PrimitiveMode::Triangles };
+	va2.SetVertexBuffer(b2);
 
 	// BufferLayout layout2{
 	//	{ ShaderDataType::vec3 },
@@ -232,8 +237,13 @@ bool TestShaderProperties() {
 	v3.push_back({});
 
 	VertexBuffer b3{ v3 };
+	b3.SetLayout<
+		glsl::vec4, glsl::double_, glsl::ivec3, glsl::dvec2, glsl::int_, glsl::float_, glsl::bool_,
+		glsl::uint_, glsl::bvec3, glsl::uvec4>();
 	BufferLayout layout3{ b3.GetLayout() };
 	auto e3{ layout3.GetElements() };
+	VertexArray va3{ PrimitiveMode::Triangles };
+	va3.SetVertexBuffer(b3);
 
 	// BufferLayout layout3{
 	//	{ ShaderDataType::vec4 },
@@ -342,6 +352,9 @@ bool TestShaderProperties() {
 	};
 
 	VertexBuffer vbo{ vao_vert };
+	vbo.SetLayout<glsl::float_, glsl::ivec3, glsl::dvec4>();
+	VertexArray vao{ PrimitiveMode::Triangles };
+	vao.SetVertexBuffer(vbo);
 	/*
 	std::string vertex_source = R"(
 		#version 330 core
@@ -452,10 +465,15 @@ bool TestShaderDrawing() {
 		Vertex{glsl::vec3{ -0.5f, -0.5f, 0.0f }, glsl::vec4{ 0.0f, 1.0f, 1.0f, 0.5f }},
 	};
 
-	VertexArray vao{ PrimitiveMode::Quads, { vao_vert } };
-	VertexArray vao2{ PrimitiveMode::Triangles, { triangle_vertices } };
+	VertexBuffer vbo1{ vao_vert };
+	VertexBuffer vbo2{ triangle_vertices };
+	vbo1.SetLayout<glsl::vec3, glsl::vec4>();
+	vbo2.SetLayout<glsl::vec3, glsl::vec4>();
 
-	Renderer test{ window::GetSize() };
+	VertexArray vao{ PrimitiveMode::Quads, vbo1 };
+	VertexArray vao2{ PrimitiveMode::Triangles, vbo2 };
+
+	Renderer renderer{ window::GetSize() };
 
 	std::size_t font_key = 0;
 	font::Load(font_key, "resources/fonts/retro_gaming.ttf", 30);
@@ -491,6 +509,7 @@ bool TestShaderDrawing() {
 			shader2.SetUniform("iTime", playtime_in_second);
 		});
 
+		renderer.Clear();
 		/*renderer::SetDrawColor(color::White);
 
 		renderer::Clear();*/
@@ -504,11 +523,12 @@ bool TestShaderDrawing() {
 
 		/*renderer::impl::Flush();*/
 
-		test.Draw(vao, shader);
+		renderer.Draw(vao, shader2);
+		renderer.Draw(vao, shader);
 
-		//renderer::SetBlendMode(BlendMode::Blend);
+		renderer.Present();
 
-		test.Draw(vao, shader2);
+		// renderer::SetBlendMode(BlendMode::Blend);
 
 		// renderer::ResetTarget();
 		// drawTarget.SetBlendMode(BlendMode::Blend);
