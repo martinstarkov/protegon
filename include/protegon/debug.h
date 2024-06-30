@@ -15,52 +15,93 @@
 #endif
 
 #ifdef PTGN_DEBUG
-	#if defined(PTGN_PLATFORM_WINDOWS)
-		#define PTGN_DEBUGBREAK() __debugbreak()
-	#elif defined(PTGN_PLATFORM_LINUX)
-		#include <signal.h>
-		#define PTGN_DEBUGBREAK() raise(SIGTRAP)
-	#endif
+#if defined(PTGN_PLATFORM_WINDOWS)
+#define PTGN_DEBUGBREAK() __debugbreak()
+#elif defined(PTGN_PLATFORM_LINUX)
+#include <signal.h>
+#define PTGN_DEBUGBREAK() raise(SIGTRAP)
+#endif
+#define PTGN_ENABLE_ASSERTS
 #else
-	#define PTGN_DEBUGBREAK()
+#define PTGN_DEBUGBREAK()
 #endif
 
-#define PTGN_EXPAND_MACRO(x) x
-#define PTGN_STRINGIFY_MACRO(x) #x
-#define PTGN_GET_MACRO(_1, NAME) NAME
+#define PTGN_EXPAND_MACRO(x)			  x
+#define PTGN_STRINGIFY_MACRO(x)			  #x
+#define PTGN_GET_MACRO(_1, _2, NAME, ...) NAME
 
 #define PTGN_NUMBER_OF_ARGS(...) std::tuple_size<decltype(std::make_tuple(__VA_ARGS__))>::value
 
-#define PTGN_INTERNAL_CHECK_WITHOUT_MSG(ss) ((void)0)
-#define PTGN_INTERNAL_CHECK_WITH_MSG(ss, ...) ptgn::impl::PrintImpl(ss, __VA_ARGS__)
+#define PTGN_INTERNAL_PRINT_WITHOUT_MSG(ss)	  ((void)0)
+#define PTGN_INTERNAL_PRINT_WITH_MSG(ss, ...) ptgn::impl::PrintImpl(ss, __VA_ARGS__)
 
-#define PTGN_INTERNAL_CHECK_GET_MACRO(ss, ...) PTGN_EXPAND_MACRO( PTGN_GET_MACRO(ss, __VA_ARGS__, PTGN_INTERNAL_CHECK_WITH_MSG, PTGN_INTERNAL_CHECK_WITHOUT_MSG) )
+#define PTGN_INTERNAL_PRINT_GET_MACRO(ss, ...)                                         \
+	PTGN_EXPAND_MACRO(PTGN_GET_MACRO(                                                  \
+		ss, __VA_ARGS__, PTGN_INTERNAL_PRINT_WITH_MSG, PTGN_INTERNAL_PRINT_WITHOUT_MSG \
+	))                                                                                 \
+	(ss, __VA_ARGS__)
 
-#define PTGN_CHECK(condition, ...) \
-{ \
-	if (!(condition)) { \
-		std::stringstream ss; \
-		ss << "Check '" << PTGN_STRINGIFY_MACRO(condition) << "' failed at " << std::filesystem::path(__FILE__).filename().string() << ":" << __LINE__; \
-		ptgn::impl::PrintImpl(ss, ##__VA_ARGS__); \
-		throw std::runtime_error(ss.str()); \
-	} \
-}
+namespace ptgn {
+
+namespace impl {
+
+// This class exists so that printline(ss, __VA_ARGS__) does not fail with 0 args.
+struct StringStreamWriter {
+	StringStreamWriter() = default;
+
+	template <typename... TArgs, type_traits::stream_writable<std::stringstream, TArgs...> = true>
+	inline void Write(TArgs&&... items) {
+		((ss << std::forward<TArgs>(items)), ...);
+	}
+
+	template <typename... TArgs, type_traits::stream_writable<std::stringstream, TArgs...> = true>
+	inline void WriteLine(TArgs&&... items) {
+		Write(std::forward<TArgs>(items)...);
+		ss << std::endl;
+	}
+
+	std::string Get() const {
+		return ss.str();
+	}
+
+	std::stringstream ss;
+};
+
+} // namespace impl
+
+} // namespace ptgn
 
 #ifdef PTGN_ENABLE_ASSERTS
-	#define PTGN_ASSERT(condition, ...) \
-	{ \
-		if (!(condition)) { \
-			std::stringstream ss; \
-			ss << "Assertion '" << PTGN_STRINGIFY_MACRO(condition) << "' failed at " << std::filesystem::path(__FILE__).filename().string() << ":" << __LINE__; \
-			ptgn::impl::PrintImpl(ss, ##__VA_ARGS__); \
-			ptgn::debug::Print(ss); \
-			PTGN_DEBUGBREAK(); \
-			std::abort(); \
-		} \
+#define PTGN_ASSERT(condition, ...)                                                 \
+	{                                                                               \
+		if (!(condition)) {                                                         \
+			ptgn::debug::Print(                                                     \
+				"Assertion '", PTGN_STRINGIFY_MACRO(condition), "' failed at ",     \
+				std::filesystem::path(__FILE__).filename().string(), ":", __LINE__, \
+				PTGN_NUMBER_OF_ARGS(__VA_ARGS__) > 0 ? ": " : ""                    \
+			);                                                                      \
+			ptgn::debug::PrintLine(__VA_ARGS__);                                    \
+			PTGN_DEBUGBREAK();                                                      \
+			std::abort();                                                           \
+		}                                                                           \
 	}
 #else
-	#define PTGN_ASSERT(...) ((void)0)
+#define PTGN_ASSERT(...) ((void)0)
 #endif
+
+#define PTGN_CHECK(condition, ...)                                                  \
+	{                                                                               \
+		if (!(condition)) {                                                         \
+			ptgn::impl::StringStreamWriter s;                                       \
+			s.Write(                                                                \
+				"Check '", PTGN_STRINGIFY_MACRO(condition), "' failed at ",         \
+				std::filesystem::path(__FILE__).filename().string(), ":", __LINE__, \
+				PTGN_NUMBER_OF_ARGS(__VA_ARGS__) > 0 ? ": " : ""                    \
+			);                                                                      \
+			s.WriteLine(__VA_ARGS__);                                               \
+			throw std::runtime_error(s.Get());                                      \
+		}                                                                           \
+	}
 
 namespace ptgn {
 
@@ -90,8 +131,7 @@ inline void Deallocation(const std::size_t& size) {
  */
 // TODO: This seems to grow infinitely on Mac.
 inline std::uint64_t CurrentUsage() {
-	return impl::Allocations::total_allocated_ -
-		   impl::Allocations::total_freed_;
+	return impl::Allocations::total_allocated_ - impl::Allocations::total_freed_;
 }
 
 /*
