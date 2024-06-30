@@ -4,13 +4,15 @@ add_library(protegon STATIC ${PROTEGON_SOURCES} ${PROTEGON_HEADERS})
 
 target_compile_features(protegon PUBLIC cxx_std_17)
 
-#include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/ClangFormat.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/ClangFormat.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CompilerWarnings.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/SetupSDL2.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CreateSymlink.cmake")
 if (MSVC)
   include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/MSVCSetup.cmake")
 endif()
+
+add_clang_format_target(${PROTEGON_SOURCES} ${PROTEGON_HEADERS})
 
 find_package(OpenGL REQUIRED)
 
