@@ -4,6 +4,3 @@
 [submodule "modules/json"]
 	path = modules/json
 	url = https://github.com/ArthurSonzogni/nlohmann_json_cmake_fetchcontent.git
-[submodule "modules/luple"]
-	path = modules/luple
-	url = https://github.com/martinstarkov/luple.git
