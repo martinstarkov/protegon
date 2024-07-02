@@ -5,6 +5,7 @@
 #include <chrono>
 
 #include "protegon/platform.h"
+#include "protegon/renderer.h"
 #include "protegon/window.h"
 
 #ifdef PTGN_PLATFORM_MACOS
@@ -72,9 +73,7 @@ void InitGame() {
 } // namespace impl
 
 Game& GetGame() {
-	PTGN_ASSERT(
-		impl::game != nullptr, "Game not initialized or destroyed early"
-	);
+	PTGN_ASSERT(impl::game != nullptr, "Game not initialized or destroyed early");
 	return *impl::game;
 }
 

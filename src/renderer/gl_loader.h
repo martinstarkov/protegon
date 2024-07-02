@@ -131,10 +131,12 @@
 	GLE(GenVertexArrays, GENVERTEXARRAYS)                   \
 	GLE(BindVertexArray, BINDVERTEXARRAY)                   \
 	GLE(DeleteVertexArrays, DELETEVERTEXARRAYS)             \
+	GLE(BindTextureUnit, BINDTEXTUREUNIT)                   \
 	/* end */
 
 #define GLE(name, caps_name) extern PFNGL##caps_name##PROC gl##name;
 GL_LIST
+extern PFNGLACTIVETEXTUREARBPROC pglActiveTexture;
 #undef GLE
 
 #endif

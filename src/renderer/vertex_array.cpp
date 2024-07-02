@@ -1,8 +1,8 @@
 #include "protegon/vertex_array.h"
 
-#include "gl_loader.h"
 #include "protegon/debug.h"
 #include "protegon/renderer.h"
+#include "renderer/gl_loader.h"
 
 namespace ptgn {
 
@@ -44,7 +44,7 @@ void VertexArray::Unbind() const {
 
 void VertexArray::SetVertexBuffer(const VertexBuffer& vertex_buffer) {
 	PTGN_CHECK(IsValid(), "Cannot add vertex buffer to uninitialized or destroyed vertex array");
-	const BufferLayout& layout = vertex_buffer.GetLayout();
+	const impl::BufferLayout& layout = vertex_buffer.GetLayout();
 	PTGN_ASSERT(
 		!layout.IsEmpty(),
 		"Cannot add a vertex buffer with an empty (unset) layout to a vertex array"
@@ -53,9 +53,9 @@ void VertexArray::SetVertexBuffer(const VertexBuffer& vertex_buffer) {
 	glBindVertexArray(instance_->id_);
 	vertex_buffer.Bind();
 
-	const std::vector<BufferElement>& elements = layout.GetElements();
+	const std::vector<impl::BufferElement>& elements = layout.GetElements();
 	for (std::uint32_t i = 0; i < elements.size(); ++i) {
-		const BufferElement& element{ elements[i] };
+		const impl::BufferElement& element{ elements[i] };
 		glEnableVertexAttribArray(i);
 		glVertexAttribPointer(
 			i, element.GetCount(), static_cast<GLenum>(element.GetType()),

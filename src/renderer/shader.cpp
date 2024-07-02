@@ -185,28 +185,32 @@ void Shader::SetUniform(const std::string& name, float v0, float v1, float v2, f
 	}
 }
 
-void Shader::SetUniform(const std::string& name, int v0) {
+void Shader::SetUniform(const std::string& name, std::int32_t v0) {
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
 		glUniform1i(location, v0);
 	}
 }
 
-void Shader::SetUniform(const std::string& name, int v0, int v1) {
+void Shader::SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1) {
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
 		glUniform2i(location, v0, v1);
 	}
 }
 
-void Shader::SetUniform(const std::string& name, int v0, int v1, int v2) {
+void Shader::SetUniform(
+	const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2
+) {
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
 		glUniform3i(location, v0, v1, v2);
 	}
 }
 
-void Shader::SetUniform(const std::string& name, int v0, int v1, int v2, int v3) {
+void Shader::SetUniform(
+	const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2, std::int32_t v3
+) {
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
 		glUniform4i(location, v0, v1, v2, v3);
@@ -214,7 +218,7 @@ void Shader::SetUniform(const std::string& name, int v0, int v1, int v2, int v3)
 }
 
 void Shader::SetUniform(const std::string& name, bool value) {
-	SetUniform(name, static_cast<int>(value));
+	SetUniform(name, static_cast<std::int32_t>(value));
 }
 
 } // namespace ptgn

@@ -394,7 +394,8 @@ void TexturedButton::DrawImpl(std::size_t texture_array_index) const {
 		texture = GetCurrentTextureImpl(ButtonState::DEFAULT, 0);
 	}
 	PTGN_ASSERT(texture.IsValid(), "Button state texture (or default texture) must be valid");
-	texture.Draw(rect_);
+	// TODO: Fix
+	// texture.Draw(rect_);
 }
 
 void TexturedButton::Draw() const {

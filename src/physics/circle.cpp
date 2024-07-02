@@ -8,6 +8,7 @@
 #include "core/game.h"
 #include "protegon/line.h"
 #include "protegon/polygon.h"
+#include "protegon/renderer.h"
 
 namespace ptgn {
 
@@ -24,16 +25,13 @@ void DrawSolidCircle(int x, int y, int r, const Color& color) {
 }
 
 void DrawSolidCircleSliced(
-	int x, int y, int r, const Color& color,
-	std::function<bool(double y_frac)> condition
+	int x, int y, int r, const Color& color, std::function<bool(double y_frac)> condition
 ) {
 	auto renderer{ SetDrawMode(color) };
 	DrawSolidCircleSlicedImpl(renderer.get(), x, y, r, condition);
 }
 
-void DrawThickCircle(
-	int x, int y, int r, double pixel_thickness, const Color& color
-) {
+void DrawThickCircle(int x, int y, int r, double pixel_thickness, const Color& color) {
 	auto renderer{ SetDrawMode(color) };
 	DrawThickCircleImpl(renderer.get(), x, y, r, pixel_thickness);
 }
@@ -48,38 +46,31 @@ void DrawSolidEllipse(int x, int y, int rx, int ry, const Color& color) {
 	DrawSolidEllipseImpl(renderer.get(), x, y, rx, ry);
 }
 
-void DrawThickEllipse(
-	int x, int y, int rx, int ry, double pixel_thickness, const Color& color
-) {
+void DrawThickEllipse(int x, int y, int rx, int ry, double pixel_thickness, const Color& color) {
 	auto renderer{ SetDrawMode(color) };
 	DrawThickEllipseImpl(renderer.get(), x, y, rx, ry, pixel_thickness);
 }
 
 void DrawArc(
-	int x, int y, int arc_radius, double start_angle, double end_angle,
-	const Color& color
+	int x, int y, int arc_radius, double start_angle, double end_angle, const Color& color
 ) {
 	auto renderer{ SetDrawMode(color) };
 	DrawArcImpl(renderer.get(), x, y, arc_radius, start_angle, end_angle);
 }
 
 void DrawSolidArc(
-	int x, int y, int arc_radius, double start_angle, double end_angle,
-	const Color& color
+	int x, int y, int arc_radius, double start_angle, double end_angle, const Color& color
 ) {
 	auto renderer{ SetDrawMode(color) };
 	DrawSolidArcImpl(renderer.get(), x, y, arc_radius, start_angle, end_angle);
 }
 
 void DrawThickArc(
-	int x, int y, int arc_radius, double start_angle, double end_angle,
-	double pixel_thickness, const Color& color
+	int x, int y, int arc_radius, double start_angle, double end_angle, double pixel_thickness,
+	const Color& color
 ) {
 	auto renderer{ SetDrawMode(color) };
-	DrawThickArcImpl(
-		renderer.get(), x, y, arc_radius, start_angle, end_angle,
-		pixel_thickness
-	);
+	DrawThickArcImpl(renderer.get(), x, y, arc_radius, start_angle, end_angle, pixel_thickness);
 }
 
 void DrawCircleImpl(SDL_Renderer* renderer, int x, int y, int r) {
@@ -191,8 +182,7 @@ void DrawSolidCircleImpl(SDL_Renderer* renderer, int x, int y, int r) {
 }
 
 void DrawSolidCircleSlicedImpl(
-	SDL_Renderer* renderer, int x, int y, int r,
-	std::function<bool(double y_frac)> condition
+	SDL_Renderer* renderer, int x, int y, int r, std::function<bool(double y_frac)> condition
 ) {
 	PTGN_ASSERT(r >= 0, "Cannot draw solid sliced circle with negative radius");
 
@@ -286,9 +276,7 @@ void DrawSolidCircleSlicedImpl(
 	} while (cx <= cy);
 }
 
-void DrawThickCircleImpl(
-	SDL_Renderer* renderer, int x, int y, int r, double pixel_thickness
-) {
+void DrawThickCircleImpl(SDL_Renderer* renderer, int x, int y, int r, double pixel_thickness) {
 	PTGN_ASSERT(r >= 0, "Cannot draw thick circle with negative radius");
 	DrawThickEllipseImpl(renderer, x, y, r, r, pixel_thickness);
 }
@@ -326,8 +314,7 @@ void DrawEllipseImpl(SDL_Renderer* renderer, int x, int y, int rx, int ry) {
 			j = (h * ry) / rx;
 			k = (i * ry) / rx;
 
-			if (((ok != k) && (oj != k)) || ((oj != j) && (ok != j)) ||
-				(k != j)) {
+			if (((ok != k) && (oj != k)) || ((oj != j) && (ok != j)) || (k != j)) {
 				xph = x + h;
 				xmh = x - h;
 				if (k > 0) {
@@ -372,8 +359,7 @@ void DrawEllipseImpl(SDL_Renderer* renderer, int x, int y, int rx, int ry) {
 			j = (h * rx) / ry;
 			k = (i * rx) / ry;
 
-			if (((oi != i) && (oh != i)) ||
-				((oh != h) && (oi != h) && (i != h))) {
+			if (((oi != i) && (oh != i)) || ((oh != h) && (oi != h) && (i != h))) {
 				xmj = x - j;
 				xpj = x + j;
 				if (i > 0) {
@@ -411,15 +397,9 @@ void DrawEllipseImpl(SDL_Renderer* renderer, int x, int y, int rx, int ry) {
 	}
 }
 
-void DrawSolidEllipseImpl(
-	SDL_Renderer* renderer, int x, int y, int rx, int ry
-) {
-	PTGN_ASSERT(
-		rx >= 0, "Cannot draw solid ellipse with negative horizontal radius"
-	);
-	PTGN_ASSERT(
-		ry >= 0, "Cannot draw solid ellipse with negative vertical radius"
-	);
+void DrawSolidEllipseImpl(SDL_Renderer* renderer, int x, int y, int rx, int ry) {
+	PTGN_ASSERT(rx >= 0, "Cannot draw solid ellipse with negative horizontal radius");
+	PTGN_ASSERT(ry >= 0, "Cannot draw solid ellipse with negative vertical radius");
 
 	int ix, iy;
 	int h, i, j, k;
@@ -520,12 +500,8 @@ void DrawSolidEllipseImpl(
 void DrawThickEllipseImpl(
 	SDL_Renderer* renderer, int x, int y, int rx, int ry, double pixel_thickness
 ) {
-	PTGN_ASSERT(
-		rx >= 0, "Cannot draw thick ellipse with negative horizontal radius"
-	);
-	PTGN_ASSERT(
-		ry >= 0, "Cannot draw thick ellipse with negative vertical radius"
-	);
+	PTGN_ASSERT(rx >= 0, "Cannot draw thick ellipse with negative horizontal radius");
+	PTGN_ASSERT(ry >= 0, "Cannot draw thick ellipse with negative vertical radius");
 	int xi, yi, xo, yo, x0, y0, z;
 	double xi2, yi2, xo2, yo2;
 
@@ -582,8 +558,7 @@ void DrawThickEllipseImpl(
 }
 
 void DrawArcImpl(
-	SDL_Renderer* renderer, int x, int y, int arc_radius, double start_angle,
-	double end_angle
+	SDL_Renderer* renderer, int x, int y, int arc_radius, double start_angle, double end_angle
 ) {
 	PTGN_ASSERT(arc_radius >= 0, "Cannot draw arc with negative radius");
 
@@ -776,8 +751,7 @@ void DrawArcImpl(
 }
 
 void DrawSolidArcImpl(
-	SDL_Renderer* renderer, int x, int y, int arc_radius, double start_angle,
-	double end_angle
+	SDL_Renderer* renderer, int x, int y, int arc_radius, double start_angle, double end_angle
 ) {
 	PTGN_ASSERT(arc_radius >= 0, "Cannot draw solid arc with negative radius");
 
@@ -847,8 +821,8 @@ void DrawSolidArcImpl(
 }
 
 void DrawThickArcImpl(
-	SDL_Renderer* renderer, int x, int y, int arc_radius, double start_angle,
-	double end_angle, double pixel_thickness
+	SDL_Renderer* renderer, int x, int y, int arc_radius, double start_angle, double end_angle,
+	double pixel_thickness
 ) {
 	PTGN_ASSERT(arc_radius >= 0, "Cannot draw thick arc with negative radius");
 
@@ -886,10 +860,7 @@ void DrawThickArcImpl(
 
 	if (v.size() > 1) {
 		for (size_t i = 0; i < v.size() - 1; i++) {
-			DrawThickLineImpl(
-				renderer, v[i].x, v[i].y, v[i + 1].x, v[i + 1].y,
-				pixel_thickness
-			);
+			DrawThickLineImpl(renderer, v[i].x, v[i].y, v[i + 1].x, v[i + 1].y, pixel_thickness);
 		}
 	}
 }

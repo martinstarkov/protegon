@@ -82,6 +82,15 @@ void SDLInstance::InitSDL() {
 			PTGN_ERROR(SDL_GetError());
 			PTGN_CHECK(false, "Failed to initialize SDL core");
 		}
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+
+		int gl_load = SDL_GL_LoadLibrary(NULL);
+		if (gl_load != 0) {
+			PTGN_ERROR(SDL_GetError());
+			PTGN_CHECK(false, "Failed to load OpenGL library");
+		}
 	}
 }
 
@@ -111,16 +120,17 @@ void SDLInstance::InitSDLMixer() {
 }
 
 void SDLInstance::InitWindow() {
-	window_ = { SDL_CreateWindow("", 0, 0, 0, 0, SDL_WINDOW_HIDDEN), SDL_DestroyWindow };
+	window_ = { SDL_CreateWindow("", 0, 0, 0, 0, SDL_WINDOW_HIDDEN | SDL_WINDOW_OPENGL),
+				SDL_DestroyWindow };
 	if (window_ == nullptr) {
 		PTGN_ERROR(SDL_GetError());
 		PTGN_ASSERT(false, "Failed to create SDL window");
 	}
-	/*SDL_GLContext context = SDL_GL_CreateContext(window_.get());
+	SDL_GLContext context = SDL_GL_CreateContext(window_.get());
 	if (context == NULL) {
 		PTGN_ERROR(SDL_GetError());
 		PTGN_ASSERT(false, "Failed to create SDL OpenGL context");
-	}*/
+	}
 }
 
 void SDLInstance::InitRenderer() {

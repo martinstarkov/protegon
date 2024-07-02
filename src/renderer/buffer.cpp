@@ -4,6 +4,8 @@
 
 namespace ptgn {
 
+namespace impl {
+
 BufferElement::BufferElement(
 	std::uint16_t size_of_element, std::uint16_t count, impl::GLSLType type, bool normalized
 ) :
@@ -59,8 +61,6 @@ void BufferLayout::CalculateOffsets() {
 	stride_ = offset;
 }
 
-namespace impl {
-
 VertexBufferInstance::~VertexBufferInstance() {
 	glDeleteBuffers(1, &id_);
 }
@@ -101,11 +101,6 @@ IndexBufferInstance::~IndexBufferInstance() {
 
 } // namespace impl
 
-const BufferLayout& VertexBuffer::GetLayout() const {
-	PTGN_CHECK(IsValid(), "Cannot get layout of uninitialized or destroyed vertex buffer");
-	return instance_->layout_;
-}
-
 void VertexBuffer::Bind() const {
 	PTGN_CHECK(IsValid(), "Cannot bind uninitialized or destroyed vertex buffer");
 	glBindBuffer(GL_ARRAY_BUFFER, instance_->id_);
@@ -118,6 +113,11 @@ void VertexBuffer::Unbind() const {
 std::int32_t VertexBuffer::GetCount() const {
 	PTGN_CHECK(IsValid(), "Cannot get count of uninitialized or destroyed vertex buffer");
 	return instance_->count_;
+}
+
+const impl::BufferLayout& VertexBuffer::GetLayout() const {
+	PTGN_CHECK(IsValid(), "Cannot get layout of uninitialized or destroyed vertex buffer");
+	return instance_->layout_;
 }
 
 IndexBuffer::IndexBuffer(const std::initializer_list<std::uint32_t>& indices) {

@@ -4,7 +4,7 @@ project(tests)
 
 add_executable(${PROJECT_NAME} ${PROTEGON_TEST_FILES})
 
-target_include_directories(${PROJECT_NAME} PRIVATE ${PROTEGON_TEST_FILES})
+target_include_directories(${PROJECT_NAME} PRIVATE "${PROTEGON_ROOT_DIR}/src")
 
 add_protegon_to(${PROJECT_NAME})
 

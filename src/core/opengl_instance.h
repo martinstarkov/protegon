@@ -14,5 +14,3 @@ private:
 };
 
 } // namespace ptgn
-
-int TestProgram();

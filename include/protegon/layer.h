@@ -28,15 +28,16 @@ public:
 
 	Tile(const Rectangle<int>& rect) : rect{ rect } {}
 
-	Tile(std::size_t texture_key, const Rectangle<int>& source) :
-		source{ source } {
+	Tile(std::size_t texture_key, const Rectangle<int>& source) : source{ source } {
 		PTGN_CHECK(texture::Has(texture_key));
-		texture = texture::Get(texture_key);
+		// TODO: Fix
+		// texture = texture::Get(texture_key);
 	}
 
 	void Draw() const {
 		if (texture.IsValid()) {
-			texture.Draw(rect, source);
+			// TODO: Fix
+			// texture.Draw(rect, source);
 		}
 	}
 
@@ -51,8 +52,8 @@ private:
 class TileLayer : public Grid<impl::Tile> {
 public:
 	TileLayer(
-		const char* tileset_path, const V2_int& tile_size,
-		const V2_int& grid_size, const V2_float& scale
+		const char* tileset_path, const V2_int& tile_size, const V2_int& grid_size,
+		const V2_float& scale
 	) :
 		Grid<impl::Tile>{ grid_size },
 		texture_key{ Hash(tileset_path) },
@@ -60,12 +61,12 @@ public:
 		scale{ scale },
 		scaled_tile_size{ scale * tile_size } {
 		PTGN_CHECK(FileExists(tileset_path));
-		texture::Load(texture_key, tileset_path);
+		// TODO: Fix
+		// texture::Load(texture_key, tileset_path);
 		for (int i = 0; i < size.x; i++) {
 			for (int j = 0; j < size.y; j++) {
 				V2_int tile{ i, j };
-				Rectangle<int> rect{ tile * grid_size * scaled_tile_size,
-									 scaled_tile_size };
+				Rectangle<int> rect{ tile * grid_size * scaled_tile_size, scaled_tile_size };
 				Set(tile, impl::Tile{ rect });
 			}
 		}

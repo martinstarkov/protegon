@@ -43,8 +43,8 @@ void Present() {
 }
 
 void SetTarget(const Texture& texture) {
-	auto renderer{ global::GetGame().sdl.GetRenderer() };
-	SDL_SetRenderTarget(renderer.get(), texture.GetInstance().get());
+	// auto renderer{ global::GetGame().sdl.GetRenderer() };
+	// SDL_SetRenderTarget(renderer.get(), texture.GetInstance().get());
 }
 
 void ResetTarget() {
@@ -56,7 +56,7 @@ void DrawTexture(
 	const Texture& texture, const Rectangle<int>& destination_rect,
 	const Rectangle<int>& source_rect, float angle, Flip flip, V2_int* center_of_rotation
 ) {
-	PTGN_CHECK(
+	/*PTGN_CHECK(
 		texture.IsValid(), "Cannot draw texture which is uninitialized or destroyed to renderer"
 	);
 	auto renderer{ global::GetGame().sdl.GetRenderer() };
@@ -86,7 +86,7 @@ void DrawTexture(
 	SDL_RenderCopyEx(
 		renderer.get(), texture.GetInstance().get(), s_rect, d_rect, angle, cor_point,
 		static_cast<SDL_RendererFlip>(flip)
-	);
+	);*/
 }
 
 namespace impl {
@@ -102,11 +102,13 @@ void Flush() {
 
 Renderer::Renderer(const V2_int& size) {
 	glViewport(0, 0, size.x, size.y);
-	glClearColor(1.0f, 1.0f, 1.0f, 1.0f); /* This Will Clear The Background Color To Black */
+	glClearColor(1.0f, 1.0f, 1.0f, 0.0f); /* This Will Clear The Background Color To Black */
 	glClearDepth(1.0);					  /* Enables Clearing Of The Depth Buffer */
 	glDepthFunc(GL_LESS);				  /* The Type Of Depth Test To Do */
 	// glEnable(GL_DEPTH_TEST);			  /* Enables Depth Testing */
 	glShadeModel(GL_SMOOTH); /* Enables Smooth Color Shading */
+
+	glEnable(GL_BLEND);
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity(); /* Reset The Projection Matrix */
@@ -117,7 +119,7 @@ Renderer::Renderer(const V2_int& size) {
 	glMatrixMode(GL_MODELVIEW);
 }
 
-void Renderer::Draw(const VertexArray& va, const Shader& shader) const {
+void Renderer::Draw(const VertexArray& va, Shader& shader, const Texture& texture) const {
 	/*
 	const VertexBuffer& vbo{ va.GetVertexBuffer() };
 	if (!vbo.IsValid()) {
@@ -158,11 +160,10 @@ void Renderer::Draw(const VertexArray& va, const Shader& shader) const {
 		MAXY
 	};
 
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); /* Clear The Screen And The Depth Buffer
-														 */
-	glLoadIdentity();									/* Reset The View */
+	// glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glLoadIdentity(); /* Reset The View */
 
-	glTranslatef(-1.5f, 0.0f, 0.0f);					/* Move Left 1.5 Units */
+	// glTranslatef(-1.5f, 0.0f, 0.0f);					/* Move Left 1.5 Units */
 
 	///* draw a triangle (in smooth coloring mode) */
 	glBegin(GL_POLYGON);			/* start drawing a polygon */
@@ -174,43 +175,55 @@ void Renderer::Draw(const VertexArray& va, const Shader& shader) const {
 	glVertex3f(-1.0f, -1.0f, 0.0f); /* Bottom Left */
 	glEnd();						/* we're done with the polygon (smooth color interpolation) */
 
-	glTranslatef(3.0f, 0.0f, 0.0f); /* Move Right 3 Units */
+	// glTranslatef(3.0f, 0.0f, 0.0f); /* Move Right 3 Units */
 
-									///* Enable blending */
+	///* Enable blending */
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	///* draw a textured square (quadrilateral) */
-	// glEnable(GL_TEXTURE_2D);
+	glEnable(GL_TEXTURE_2D);
+	texture.Bind();
 	//  glBindTexture(GL_TEXTURE_2D, texture);
 	// glColor3f(1.0f, 1.0f, 1.0f);
 	if (shader.IsValid()) {
 		shader.Bind();
 	}
 
+	va.Bind();
+	glDrawArrays(static_cast<GLenum>(va.GetPrimitiveMode()), 0, 4);
+	va.Unbind();
+
+	float texcoord[4];
+
 	glBegin(GL_QUADS); /* start drawing a polygon (4 sided) */
-	//// glTexCoord2f(texcoord[MINX], texcoord[MINY]);
+	// glTexCoord2f(texcoord[MINX], texcoord[MINY]);
 	glVertex3f(-1.0f, 1.0f, 0.0f); /* Top Left */
-	//// glTexCoord2f(texcoord[MAXX], texcoord[MINY]);
+	// glTexCoord2f(texcoord[MAXX], texcoord[MINY]);
 	glVertex3f(1.0f, 1.0f, 0.0f); /* Top Right */
-	//// glTexCoord2f(texcoord[MAXX], texcoord[MAXY]);
+	// glTexCoord2f(texcoord[MAXX], texcoord[MAXY]);
 	glVertex3f(1.0f, -1.0f, 0.0f); /* Bottom Right */
-	//// glTexCoord2f(texcoord[MINX], texcoord[MAXY]);
+	// glTexCoord2f(texcoord[MINX], texcoord[MAXY]);
 	glVertex3f(-1.0f, -1.0f, 0.0f); /* Bottom Left */
 	glEnd();						/* done with the polygon */
 
 	if (shader.IsValid()) {
 		shader.Unbind();
 	}
+	texture.Unbind();
 	glDisable(GL_TEXTURE_2D);
 
+	// SDL_GL_SwapWindow(global::GetGame().sdl.GetWindow().get());
 	///* swap buffers to display, since we're double buffered. */
-	SDL_GL_SwapWindow(global::GetGame().sdl.GetWindow().get());
 }
 
 void Renderer::Clear() const {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+void Renderer::Present() const {
+	SDL_GL_SwapWindow(global::GetGame().sdl.GetWindow().get());
 }
 
 } // namespace ptgn

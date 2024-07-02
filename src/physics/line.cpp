@@ -4,6 +4,7 @@
 
 #include "core/game.h"
 #include "protegon/circle.h"
+#include "protegon/renderer.h"
 
 namespace ptgn {
 

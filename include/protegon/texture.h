@@ -1,49 +1,138 @@
 #pragma once
 
-#include "color.h"
+#include <cstdint>
+
 #include "file.h"
 #include "handle.h"
-#include "polygon.h"
-#include "renderer.h"
+#include "surface.h"
 #include "vector2.h"
-
-struct SDL_Texture;
-struct SDL_Surface;
 
 namespace ptgn {
 
-class Texture : public Handle<SDL_Texture> {
+//
+//	struct TextureSpecification
+//	{
+//		uint32_t Width = 1;
+//		uint32_t Height = 1;
+//		ImageFormat Format = ImageFormat::RGBA8;
+//		bool GenerateMips = true;
+//	};
+//
+//	class Texture
+//	{
+//	public:
+//		virtual ~Texture() = default;
+//
+//		virtual const TextureSpecification& GetSpecification() const = 0;
+//
+//		virtual uint32_t GetWidth() const = 0;
+//		virtual uint32_t GetHeight() const = 0;
+//		virtual uint32_t GetRendererID() const = 0;
+//
+//		virtual const std::string& GetPath() const = 0;
+//
+//		virtual void SetData(void* data, uint32_t size) = 0;
+//
+//		virtual void Bind(uint32_t slot = 0) const = 0;
+//
+//		virtual bool IsLoaded() const = 0;
+//
+//		virtual bool operator==(const Texture& other) const = 0;
+//	};
+//
+//	class Texture2D : public Texture
+//	{
+//	public:
+//		static Ref<Texture2D> Create(const TextureSpecification& specification);
+//		static Ref<Texture2D> Create(const std::string& path);
+//	};
+
+// class OpenGLTexture2D : public Texture2D
+//	{
+//	public:
+//		OpenGLTexture2D(const TextureSpecification& specification);
+//		OpenGLTexture2D(const std::string& path);
+//		virtual ~OpenGLTexture2D();
+//
+//		virtual const TextureSpecification& GetSpecification() const override { return
+// m_Specification; }
+//
+//		virtual uint32_t GetWidth() const override { return m_Width;  }
+//		virtual uint32_t GetHeight() const override { return m_Height; }
+//		virtual uint32_t GetRendererID() const override { return m_RendererID; }
+//
+//		virtual const std::string& GetPath() const override { return m_Path; }
+//
+//		virtual void SetData(void* data, uint32_t size) override;
+//
+//		virtual void Bind(uint32_t slot = 0) const override;
+//
+//		virtual bool IsLoaded() const override { return m_IsLoaded; }
+//
+//		virtual bool operator==(const Texture& other) const override
+//		{
+//			return m_RendererID == other.GetRendererID();
+//		}
+//	private:
+//		TextureSpecification m_Specification;
+//
+//		std::string m_Path;
+//		bool m_IsLoaded = false;
+//		uint32_t m_Width, m_Height;
+//		uint32_t m_RendererID;
+//		GLenum m_InternalFormat, m_DataFormat;
+//	};
+
+namespace impl {
+
+struct TextureInstance {
+	TextureInstance(const Surface& surface);
+	~TextureInstance();
+
+	std::uint32_t id_{ 0 };
+	V2_int size_;
+};
+
+} // namespace impl
+
+class Texture : public Handle<impl::TextureInstance> {
 public:
-	enum class AccessType : int {
-		STATIC = 0, // SDL_TEXTUREACCESS_STATIC    /* Changes rarely, not
-					// lockable */
-		STREAMING = 1, // SDL_TEXTUREACCESS_STREAMING /* Changes frequently,
-					   // lockable */
-		TARGET = 2, // SDL_TEXTUREACCESS_TARGET
-	};
-
 	Texture() = default;
-	Texture(const path& image_path);
-	Texture(AccessType access, const V2_int& size);
+	Texture(const Surface& surface);
 
-	// Rotation in degrees. Positive clockwise.
-	void Draw(
-		const Rectangle<float>& destination, const Rectangle<int>& source = {},
-		float angle = 0.0f, Flip flip = Flip::None,
-		V2_int* center_of_rotation = nullptr
-	) const;
+	void Bind(std::uint32_t slot = 0) const;
+	void Unbind() const;
 
-	[[nodiscard]] V2_int GetSize() const;
+	V2_int GetSize() const;
+	// enum class AccessType : int {
+	//	STATIC = 0,	   // SDL_TEXTUREACCESS_STATIC    /* Changes rarely, not
+	//				   // lockable */
+	//	STREAMING = 1, // SDL_TEXTUREACCESS_STREAMING /* Changes frequently,
+	//				   // lockable */
+	//	TARGET = 2,	   // SDL_TEXTUREACCESS_TARGET
+	// };
 
-	void SetBlendMode(BlendMode mode);
+	// Texture() = default;
+	// Texture(const path& image_path);
+	// Texture(AccessType access, const V2_int& size);
 
-	void SetAlpha(std::uint8_t alpha);
+	//// Rotation in degrees. Positive clockwise.
+	// void Draw(
+	//	const Rectangle<float>& destination, const Rectangle<int>& source = {}, float angle = 0.0f,
+	//	Flip flip = Flip::None, V2_int* center_of_rotation = nullptr
+	//) const;
 
-	void SetColor(const Color& color);
+	//[[nodiscard]] V2_int GetSize() const;
 
-	AccessType GetAccessType() const;
+	// void SetBlendMode(BlendMode mode);
 
-	Texture(const std::shared_ptr<SDL_Surface>& surface);
+	// void SetAlpha(std::uint8_t alpha);
+
+	// void SetColor(const Color& color);
+
+	// AccessType GetAccessType() const;
+
+	// Texture(const std::shared_ptr<SDL_Surface>& surface);
 };
 
 } // namespace ptgn

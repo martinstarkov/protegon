@@ -168,7 +168,7 @@ bool TestShaderProperties() {
 
 	VertexBuffer b1{ v1 };
 	b1.SetLayout<glsl::vec3>();
-	BufferLayout layout1{ b1.GetLayout() };
+	impl::BufferLayout layout1{ b1.GetLayout() };
 	auto e1{ layout1.GetElements() };
 	PTGN_ASSERT(e1.size() == 1);
 	PTGN_ASSERT(layout1.GetStride() == 3 * sizeof(float));
@@ -192,7 +192,7 @@ bool TestShaderProperties() {
 
 	VertexBuffer b2{ v2 };
 	b2.SetLayout<glsl::vec3, glsl::vec4, glsl::vec3>();
-	BufferLayout layout2{ b2.GetLayout() };
+	impl::BufferLayout layout2{ b2.GetLayout() };
 	auto e2{ layout2.GetElements() };
 	VertexArray va2{ PrimitiveMode::Triangles };
 	va2.SetVertexBuffer(b2);
@@ -240,7 +240,7 @@ bool TestShaderProperties() {
 	b3.SetLayout<
 		glsl::vec4, glsl::double_, glsl::ivec3, glsl::dvec2, glsl::int_, glsl::float_, glsl::bool_,
 		glsl::uint_, glsl::bvec3, glsl::uvec4>();
-	BufferLayout layout3{ b3.GetLayout() };
+	impl::BufferLayout layout3{ b3.GetLayout() };
 	auto e3{ layout3.GetElements() };
 	VertexArray va3{ PrimitiveMode::Triangles };
 	va3.SetVertexBuffer(b3);
@@ -406,14 +406,17 @@ bool TestShaderDrawing() {
 
 		layout(location = 0) in vec3 pos;
 		layout(location = 1) in vec4 color;
+		layout(location = 2) in vec2 texcoord;
 
 		out vec3 v_Position;
 		out vec4 v_Color;
+		out vec2 v_TexCoord;
 
 		void main() {
 			v_Position = pos;
 			v_Color = color;
 			gl_Position = vec4(pos, 1.0);
+			v_TexCoord = texcoord;
 		}
 	)";
 
@@ -424,20 +427,23 @@ bool TestShaderDrawing() {
 
 		in vec3 v_Position;
 		in vec4 v_Color;
+		in vec2 v_TexCoord;
+		uniform sampler2D tex0;
 
 		void main() {
 			color = vec4(v_Position * 0.5 + 0.5, 1.0);
 			color = v_Color;
+			color = texture2D(tex0, v_TexCoord);
 		}
 	)";
 
 	Shader shader;
 	Shader shader2;
+	Shader shader3;
 
-	shader = Shader("resources/shader/main_vert.glsl", "resources/shader/lightFs.glsl");
-	// shader2 = Shader(ShaderSource{ vertex_source }, ShaderSource{
-	// fragment_source });
+	shader	= Shader("resources/shader/main_vert.glsl", "resources/shader/lightFs.glsl");
 	shader2 = Shader("resources/shader/main_vert.glsl", "resources/shader/fire_ball_frag.glsl");
+	shader3 = Shader(ShaderSource{ vertex_source }, ShaderSource{ fragment_source });
 
 	clock_t start_time = clock();
 	clock_t curr_time;
@@ -450,13 +456,18 @@ bool TestShaderDrawing() {
 	struct Vertex {
 		glsl::vec3 pos;
 		glsl::vec4 color;
+		glsl::vec2 texcoord;
 	};
 
 	const std::vector<Vertex> vao_vert = {
-		Vertex{	glsl::vec3{ 1.0f, 1.0f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 1.0f, 1.0f }},
-		Vertex{ glsl::vec3{ 1.0f, -1.0f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 1.0f, 1.0f }},
-		Vertex{glsl::vec3{ -1.0f, -1.0f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 1.0f, 1.0f }},
-		Vertex{ glsl::vec3{ -1.0f, 1.0f, 0.0f }, glsl::vec4{ 1.0f, 1.0f, 0.0f, 1.0f }},
+		Vertex{	glsl::vec3{ 1.0f, 1.0f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 1.0f, 1.0f },
+				glsl::vec2{ 1.0f, 1.0f }},
+		Vertex{ glsl::vec3{ 1.0f, -1.0f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 1.0f, 1.0f },
+				glsl::vec2{ 1.0f, 0.0f }},
+		Vertex{glsl::vec3{ -1.0f, -1.0f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 1.0f, 1.0f },
+				glsl::vec2{ 0.0f, 0.0f }},
+		Vertex{ glsl::vec3{ -1.0f, 1.0f, 0.0f }, glsl::vec4{ 1.0f, 1.0f, 0.0f, 1.0f },
+				glsl::vec2{ 0.0f, 1.0f }},
 	};
 
 	const std::vector<Vertex> triangle_vertices = {
@@ -466,14 +477,22 @@ bool TestShaderDrawing() {
 	};
 
 	VertexBuffer vbo1{ vao_vert };
-	VertexBuffer vbo2{ triangle_vertices };
-	vbo1.SetLayout<glsl::vec3, glsl::vec4>();
-	vbo2.SetLayout<glsl::vec3, glsl::vec4>();
+	// VertexBuffer vbo2{ triangle_vertices };
+	vbo1.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2>();
+	// vbo2.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2>();
 
 	VertexArray vao{ PrimitiveMode::Quads, vbo1 };
-	VertexArray vao2{ PrimitiveMode::Triangles, vbo2 };
+	// VertexArray vao2{ PrimitiveMode::Triangles, vbo2 };
 
 	Renderer renderer{ window::GetSize() };
+
+	Texture texture1;
+
+	{
+		Surface surface{ "resources/sprites/test.png" };
+		surface.FlipVertically();
+		texture1 = surface;
+	}
 
 	std::size_t font_key = 0;
 	font::Load(font_key, "resources/fonts/retro_gaming.ttf", 30);
@@ -509,6 +528,8 @@ bool TestShaderDrawing() {
 			shader2.SetUniform("iTime", playtime_in_second);
 		});
 
+		shader3.WhileBound([&]() { shader3.SetUniform("tex0", 0); });
+
 		renderer.Clear();
 		/*renderer::SetDrawColor(color::White);
 
@@ -523,8 +544,9 @@ bool TestShaderDrawing() {
 
 		/*renderer::impl::Flush();*/
 
-		renderer.Draw(vao, shader2);
-		renderer.Draw(vao, shader);
+		// renderer.Draw(vao, shader2, texture1);
+		// renderer.Draw(vao, shader, texture1);
+		renderer.Draw(vao, shader3, texture1);
 
 		renderer.Present();
 
