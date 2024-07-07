@@ -470,6 +470,17 @@ bool TestShaderDrawing() {
 				glsl::vec2{ 0.0f, 1.0f }},
 	};
 
+	const std::vector<Vertex> vao_vert2 = {
+		Vertex{	glsl::vec3{ 0.5f, 0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 1.0f, 1.0f },
+				glsl::vec2{ 1.0f, 1.0f }},
+		Vertex{ glsl::vec3{ 0.5f, -0.5f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 1.0f, 1.0f },
+				glsl::vec2{ 1.0f, 0.0f }},
+		Vertex{glsl::vec3{ -0.5f, -0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 1.0f, 1.0f },
+				glsl::vec2{ 0.0f, 0.0f }},
+		Vertex{ glsl::vec3{ -0.5f, 0.5f, 0.0f }, glsl::vec4{ 1.0f, 1.0f, 0.0f, 1.0f },
+				glsl::vec2{ 0.0f, 1.0f }},
+	};
+
 	const std::vector<Vertex> triangle_vertices = {
 		Vertex{ glsl::vec3{ 0.5f, -0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 0.0f, 0.5f }},
 		Vertex{	glsl::vec3{ 0.0f, 0.5f, 0.0f }, glsl::vec4{ 0.0f, 1.0f, 0.0f, 0.5f }},
@@ -477,21 +488,28 @@ bool TestShaderDrawing() {
 	};
 
 	VertexBuffer vbo1{ vao_vert };
+	VertexBuffer vbo2{ vao_vert2 };
 	// VertexBuffer vbo2{ triangle_vertices };
 	vbo1.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2>();
+	vbo2.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2>();
 	// vbo2.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2>();
 
 	VertexArray vao{ PrimitiveMode::Quads, vbo1 };
+	VertexArray vao2{ PrimitiveMode::Quads, vbo2 };
 	// VertexArray vao2{ PrimitiveMode::Triangles, vbo2 };
 
 	Renderer renderer{ window::GetSize() };
 
 	Texture texture1;
+	Texture texture2;
 
 	{
 		Surface surface{ "resources/sprites/test.png" };
+		Surface surface2{ "resources/sprites/icon.bmp" };
 		surface.FlipVertically();
+		surface2.FlipVertically();
 		texture1 = surface;
+		texture2 = surface2;
 	}
 
 	std::size_t font_key = 0;
@@ -528,8 +546,6 @@ bool TestShaderDrawing() {
 			shader2.SetUniform("iTime", playtime_in_second);
 		});
 
-		shader3.WhileBound([&]() { shader3.SetUniform("tex0", 0); });
-
 		renderer.Clear();
 		/*renderer::SetDrawColor(color::White);
 
@@ -546,7 +562,8 @@ bool TestShaderDrawing() {
 
 		// renderer.Draw(vao, shader2, texture1);
 		// renderer.Draw(vao, shader, texture1);
-		renderer.Draw(vao, shader3, texture1);
+		renderer.Draw(vao2, shader3, texture2, 1);
+		renderer.Draw(vao, shader3, texture1, 0);
 
 		renderer.Present();
 

@@ -131,8 +131,8 @@
 	GLE(GenVertexArrays, GENVERTEXARRAYS)                   \
 	GLE(BindVertexArray, BINDVERTEXARRAY)                   \
 	GLE(DeleteVertexArrays, DELETEVERTEXARRAYS)             \
-	GLE(BindTextureUnit, BINDTEXTUREUNIT)                   \
 	/* end */
+	//GLE(BindTextureUnit, BINDTEXTUREUNIT)
 
 #define GLE(name, caps_name) extern PFNGL##caps_name##PROC gl##name;
 GL_LIST

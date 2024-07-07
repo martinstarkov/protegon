@@ -39,6 +39,9 @@ bool OpenGLInstance::InitOpenGL() {
 #undef GLE
 #undef STR
 
+// For debugging which commands were not initialized.
+// #define GLE(name, caps_name) if (!(gl##name)) { std::cout << "Failed to load " << #name << std::endl; } GL_LIST if (!pglActiveTexture) { std::cout << "Failed to load glActiveTexture" << std::endl; }
+
 	// PTGN_ASSERT(SDL_GL_ExtensionSupported("glActiveTexture"));
 
 // Check that each of the loaded gl functions was found.

@@ -140,7 +140,7 @@ public:
 	}*/
 
 	Renderer(const V2_int& size);
-	void Draw(const VertexArray& va, Shader& shader, const Texture& texture) const;
+	void Draw(const VertexArray& va, Shader& shader, const Texture& texture, int slot) const;
 	void Clear() const;
 	void Present() const;
 
