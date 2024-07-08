@@ -1,6 +1,6 @@
 #include "protegon/window.h"
 
-#include <SDL.h>
+#include "SDL.h"
 
 #include "core/game.h"
 #include "protegon/input.h"

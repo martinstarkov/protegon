@@ -1,6 +1,6 @@
 #include "protegon/sound.h"
 
-#include <SDL_mixer.h>
+#include "SDL_mixer.h"
 
 #include "protegon/debug.h"
 

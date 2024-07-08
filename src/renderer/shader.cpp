@@ -22,7 +22,7 @@ std::string_view GetShaderTypeName(std::uint32_t type) {
 ShaderInstance::ShaderInstance(Id program_id) : program_id_{ program_id } {}
 
 ShaderInstance::~ShaderInstance() {
-	glDeleteProgram(program_id_);
+	gl::DeleteProgram(program_id_);
 }
 
 } // namespace impl
@@ -50,23 +50,23 @@ void Shader::Create(
 }
 
 std::uint32_t Shader::CompileShader(std::uint32_t type, const std::string& source) {
-	std::uint32_t id = glCreateShader(type);
+	std::uint32_t id = gl::CreateShader(type);
 	const char* src	 = source.c_str();
-	glShaderSource(id, 1, &src, NULL);
-	glCompileShader(id);
+	gl::ShaderSource(id, 1, &src, NULL);
+	gl::CompileShader(id);
 
 	// Check for shader compilation errors.
 	std::int32_t result{ GL_FALSE };
-	glGetShaderiv(id, GL_COMPILE_STATUS, &result);
+	gl::GetShaderiv(id, GL_COMPILE_STATUS, &result);
 	if (result == GL_FALSE) {
 		std::int32_t length{ 0 };
-		glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
-		std::vector<GLchar> log(length);
-		glGetShaderInfoLog(id, length, &length, &log[0]);
+		gl::GetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
+		std::vector<gl::GLchar> log(length);
+		gl::GetShaderInfoLog(id, length, &length, &log[0]);
 
 		PTGN_ERROR(log.data());
 
-		glDeleteShader(id);
+		gl::DeleteShader(id);
 
 		PTGN_CHECK(false, "Failed to compile ", impl::GetShaderTypeName(type), " shader");
 		return 0;
@@ -77,33 +77,33 @@ std::uint32_t Shader::CompileShader(std::uint32_t type, const std::string& sourc
 impl::Id Shader::CompileProgram(
 	const std::string& vertex_source, const std::string& fragment_source
 ) {
-	impl::Id program = glCreateProgram();
+	impl::Id program = gl::CreateProgram();
 
 	std::uint32_t vertex   = CompileShader(GL_VERTEX_SHADER, vertex_source);
 	std::uint32_t fragment = CompileShader(GL_FRAGMENT_SHADER, fragment_source);
 
 	if (vertex && fragment) {
-		glAttachShader(program, vertex);
-		glAttachShader(program, fragment);
-		glLinkProgram(program);
-		glValidateProgram(program);
+		gl::AttachShader(program, vertex);
+		gl::AttachShader(program, fragment);
+		gl::LinkProgram(program);
+		gl::ValidateProgram(program);
 
 		// Check for shader link errors.
 		std::int32_t linked = GL_FALSE;
-		glGetProgramiv(program, GL_LINK_STATUS, &linked);
+		gl::GetProgramiv(program, GL_LINK_STATUS, &linked);
 		if (linked == GL_FALSE) {
 			std::int32_t length{ 0 };
-			glGetProgramiv(program, GL_INFO_LOG_LENGTH, &length);
+			gl::GetProgramiv(program, GL_INFO_LOG_LENGTH, &length);
 
-			std::vector<GLchar> log(length);
-			glGetProgramInfoLog(program, length, &length, &log[0]);
+			std::vector<gl::GLchar> log(length);
+			gl::GetProgramInfoLog(program, length, &length, &log[0]);
 
 			PTGN_ERROR(log.data());
 
-			glDeleteProgram(program);
+			gl::DeleteProgram(program);
 
-			glDeleteShader(vertex);
-			glDeleteShader(fragment);
+			gl::DeleteShader(vertex);
+			gl::DeleteShader(fragment);
 
 			PTGN_CHECK(
 				false, "Failed to link shaders to program"
@@ -112,10 +112,10 @@ impl::Id Shader::CompileProgram(
 		}
 	}
 	if (vertex) {
-		glDeleteShader(vertex);
+		gl::DeleteShader(vertex);
 	}
 	if (fragment) {
-		glDeleteShader(fragment);
+		gl::DeleteShader(fragment);
 	}
 	return program;
 }
@@ -128,11 +128,11 @@ void Shader::WhileBound(std::function<void()> func) {
 
 void Shader::Bind() const {
 	PTGN_CHECK(instance_ != nullptr, "Attempting to bind shader which has not been initialized");
-	glUseProgram(instance_->program_id_);
+	gl::UseProgram(instance_->program_id_);
 }
 
 void Shader::Unbind() const {
-	glUseProgram(0);
+	gl::UseProgram(0);
 }
 
 std::uint32_t Shader::GetProgramId() const {
@@ -151,7 +151,7 @@ std::int32_t Shader::GetUniformLocation(const std::string& name) const {
 		return it->second;
 	}
 
-	std::int32_t location = glGetUniformLocation(instance_->program_id_, name.c_str());
+	std::int32_t location = gl::GetUniformLocation(instance_->program_id_, name.c_str());
 	// TODO: Consider not adding uniform to cache if it is -1.
 	location_cache.emplace(name, location);
 	return location;
@@ -160,42 +160,42 @@ std::int32_t Shader::GetUniformLocation(const std::string& name) const {
 void Shader::SetUniform(const std::string& name, float v0) {
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
-		glUniform1f(location, v0);
+		gl::Uniform1f(location, v0);
 	}
 }
 
 void Shader::SetUniform(const std::string& name, float v0, float v1) {
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
-		glUniform2f(location, v0, v1);
+		gl::Uniform2f(location, v0, v1);
 	}
 }
 
 void Shader::SetUniform(const std::string& name, float v0, float v1, float v2) {
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
-		glUniform3f(location, v0, v1, v2);
+		gl::Uniform3f(location, v0, v1, v2);
 	}
 }
 
 void Shader::SetUniform(const std::string& name, float v0, float v1, float v2, float v3) {
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
-		glUniform4f(location, v0, v1, v2, v3);
+		gl::Uniform4f(location, v0, v1, v2, v3);
 	}
 }
 
 void Shader::SetUniform(const std::string& name, std::int32_t v0) {
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
-		glUniform1i(location, v0);
+		gl::Uniform1i(location, v0);
 	}
 }
 
 void Shader::SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1) {
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
-		glUniform2i(location, v0, v1);
+		gl::Uniform2i(location, v0, v1);
 	}
 }
 
@@ -204,7 +204,7 @@ void Shader::SetUniform(
 ) {
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
-		glUniform3i(location, v0, v1, v2);
+		gl::Uniform3i(location, v0, v1, v2);
 	}
 }
 
@@ -213,7 +213,7 @@ void Shader::SetUniform(
 ) {
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
-		glUniform4i(location, v0, v1, v2, v3);
+		gl::Uniform4i(location, v0, v1, v2, v3);
 	}
 }
 

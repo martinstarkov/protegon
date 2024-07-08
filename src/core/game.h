@@ -19,7 +19,7 @@ public:
 	void Loop();
 
 	SDLInstance sdl;
-	OpenGLInstance opengl; // Must be initialized after SDL2.
+	gl::OpenGLInstance opengl; // Must be initialized after SDL2.
 	EventHandler event;
 	ResourceManagers managers;
 	SceneManager scene;

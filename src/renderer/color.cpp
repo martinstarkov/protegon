@@ -1,6 +1,6 @@
 #include "protegon/color.h"
 
-#include <SDL.h>
+#include "SDL.h"
 
 namespace ptgn {
 

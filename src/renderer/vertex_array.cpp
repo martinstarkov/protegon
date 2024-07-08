@@ -9,11 +9,11 @@ namespace ptgn {
 namespace impl {
 
 VertexArrayInstance::~VertexArrayInstance() {
-	glDeleteVertexArrays(1, &id_);
+	gl::DeleteVertexArrays(1, &id_);
 }
 
 VertexArrayInstance::VertexArrayInstance(PrimitiveMode mode) : mode_{ mode } {
-	glGenVertexArrays(1, &id_);
+	gl::GenVertexArrays(1, &id_);
 }
 
 } // namespace impl
@@ -35,11 +35,11 @@ VertexArray::VertexArray(const std::shared_ptr<impl::VertexArrayInstance>& insta
 
 void VertexArray::Bind() const {
 	PTGN_CHECK(IsValid(), "Cannot bind uninitialized or destroyed vertex array");
-	glBindVertexArray(instance_->id_);
+	gl::BindVertexArray(instance_->id_);
 }
 
 void VertexArray::Unbind() const {
-	glBindVertexArray(0);
+	gl::BindVertexArray(0);
 }
 
 void VertexArray::SetVertexBuffer(const VertexBuffer& vertex_buffer) {
@@ -50,15 +50,15 @@ void VertexArray::SetVertexBuffer(const VertexBuffer& vertex_buffer) {
 		"Cannot add a vertex buffer with an empty (unset) layout to a vertex array"
 	);
 
-	glBindVertexArray(instance_->id_);
+	gl::BindVertexArray(instance_->id_);
 	vertex_buffer.Bind();
 
 	const std::vector<impl::BufferElement>& elements = layout.GetElements();
 	for (std::uint32_t i = 0; i < elements.size(); ++i) {
 		const impl::BufferElement& element{ elements[i] };
-		glEnableVertexAttribArray(i);
-		glVertexAttribPointer(
-			i, element.GetCount(), static_cast<GLenum>(element.GetType()),
+		gl::EnableVertexAttribArray(i);
+		gl::VertexAttribPointer(
+			i, element.GetCount(), static_cast<gl::GLenum>(element.GetType()),
 			element.IsNormalized() ? GL_TRUE : GL_FALSE, layout.GetStride(),
 			(const void*)element.GetOffset()
 		);
@@ -73,7 +73,7 @@ void VertexArray::SetVertexBuffer(const VertexBuffer& vertex_buffer) {
 
 void VertexArray::SetIndexBuffer(const IndexBuffer& index_buffer) {
 	PTGN_CHECK(IsValid(), "Cannot set vertex buffer of uninitialized or destroyed vertex array");
-	glBindVertexArray(instance_->id_);
+	gl::BindVertexArray(instance_->id_);
 	index_buffer.Bind();
 	instance_->index_buffer_ = index_buffer;
 }

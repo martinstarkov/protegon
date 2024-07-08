@@ -1,6 +1,13 @@
 #include "gl_loader.h"
 
-#define GLE(name, caps_name) PFNGL##caps_name##PROC gl##name;
+namespace ptgn {
+
+namespace gl {
+
+#define GLE(name, caps_name) PFNGL##caps_name##PROC name;
 GL_LIST
-PFNGLACTIVETEXTUREARBPROC pglActiveTexture;
 #undef GLE
+
+} // namespace gl
+
+} // namespace ptgn

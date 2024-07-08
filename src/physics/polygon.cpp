@@ -1,6 +1,6 @@
 #include "protegon/polygon.h"
 
-#include <SDL.h>
+#include "SDL.h"
 
 #include <cstdlib>
 

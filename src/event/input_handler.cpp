@@ -1,6 +1,6 @@
 #include "input_handler.h"
 
-#include <SDL.h>
+#include "SDL.h"
 
 #include <algorithm>
 

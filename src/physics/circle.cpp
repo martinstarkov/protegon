@@ -1,7 +1,7 @@
 #include "protegon/circle.h"
 
 #include <protegon/log.h>
-#include <SDL.h>
+#include "SDL.h"
 
 #include <vector>
 

@@ -20,10 +20,8 @@ namespace impl {
 struct SurfaceInstance {
 	SurfaceInstance(const path& image_path, ImageFormat format);
 	ImageFormat format_{ ImageFormat::Unknown };
-	std::vector<std::uint8_t> data_;
+	std::vector<Color> data_;
 	V2_int size_;
-	std::int32_t pitch_{ 0 };
-	std::int32_t bytes_per_pixel_{ 0 };
 };
 
 } // namespace impl
@@ -35,10 +33,10 @@ public:
 
 	void FlipVertically();
 
+	void ForEachPixel(std::function<void(const V2_int&, const Color&)> function);
+
 	[[nodiscard]] V2_int GetSize() const;
-	[[nodiscard]] std::int32_t GetBytesPerPixel() const;
-	[[nodiscard]] std::int32_t GetPitch() const;
-	[[nodiscard]] const std::vector<std::uint8_t>& GetData() const;
+	[[nodiscard]] const std::vector<Color>& GetData() const;
 	[[nodiscard]] ImageFormat GetImageFormat() const;
 };
 

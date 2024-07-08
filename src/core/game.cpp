@@ -1,6 +1,6 @@
 #include "game.h"
 
-#include <SDL.h>
+#include "SDL.h"
 
 #include <chrono>
 

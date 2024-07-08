@@ -431,8 +431,6 @@ bool TestShaderDrawing() {
 		uniform sampler2D tex0;
 
 		void main() {
-			color = vec4(v_Position * 0.5 + 0.5, 1.0);
-			color = v_Color;
 			color = texture2D(tex0, v_TexCoord);
 		}
 	)";
@@ -460,13 +458,13 @@ bool TestShaderDrawing() {
 	};
 
 	const std::vector<Vertex> vao_vert = {
-		Vertex{	glsl::vec3{ 1.0f, 1.0f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 1.0f, 1.0f },
+		Vertex{	glsl::vec3{ 1.0f, 1.0f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 0.0f, 0.0f },
 				glsl::vec2{ 1.0f, 1.0f }},
-		Vertex{ glsl::vec3{ 1.0f, -1.0f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 1.0f, 1.0f },
+		Vertex{ glsl::vec3{ 1.0f, -1.0f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 0.0f, 0.0f },
 				glsl::vec2{ 1.0f, 0.0f }},
-		Vertex{glsl::vec3{ -1.0f, -1.0f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 1.0f, 1.0f },
+		Vertex{glsl::vec3{ -1.0f, -1.0f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 0.0f, 0.0f },
 				glsl::vec2{ 0.0f, 0.0f }},
-		Vertex{ glsl::vec3{ -1.0f, 1.0f, 0.0f }, glsl::vec4{ 1.0f, 1.0f, 0.0f, 1.0f },
+		Vertex{ glsl::vec3{ -1.0f, 1.0f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 0.0f, 0.0f },
 				glsl::vec2{ 0.0f, 1.0f }},
 	};
 
@@ -494,7 +492,9 @@ bool TestShaderDrawing() {
 	vbo2.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2>();
 	// vbo2.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2>();
 
-	VertexArray vao{ PrimitiveMode::Quads, vbo1 };
+	VertexArray vao{
+		PrimitiveMode::Quads, vbo1, {0, 1, 2, 3}
+	};
 	VertexArray vao2{ PrimitiveMode::Quads, vbo2 };
 	// VertexArray vao2{ PrimitiveMode::Triangles, vbo2 };
 
@@ -505,6 +505,11 @@ bool TestShaderDrawing() {
 
 	{
 		Surface surface{ "resources/sprites/test.png" };
+		/*surface.ForEachPixel([&](auto& v, auto& c) {
+			if (c != color::Transparent) {
+				PTGN_INFO(v, ":", c);
+			}
+		});*/
 		Surface surface2{ "resources/sprites/icon.bmp" };
 		surface.FlipVertically();
 		surface2.FlipVertically();

@@ -301,7 +301,7 @@ inline Vector2<S> operator/(const Vector2<T>& lhs, U rhs) {
 } // namespace ptgn
 
 template <typename T, ptgn::type_traits::stream_writable<std::ostream, T> = true>
-std::ostream& operator<<(std::ostream& os, const ptgn::Vector2<T>& v) {
+inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector2<T>& v) {
 	os << "(" << v.x << ", " << v.y << ")";
 	return os;
 }

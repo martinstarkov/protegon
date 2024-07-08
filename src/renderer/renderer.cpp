@@ -1,6 +1,6 @@
 #include "protegon/renderer.h"
 
-#include <SDL.h>
+#include "SDL.h"
 
 #include "core/game.h"
 #include "protegon/texture.h"
@@ -101,24 +101,27 @@ void Flush() {
 } // namespace renderer
 
 Renderer::Renderer(const V2_int& size) {
-	glViewport(0, 0, size.x, size.y);
-	glClearColor(1.0f, 1.0f, 1.0f, 0.0f); /* This Will Clear The Background Color To Black */
-	glClearDepth(1.0);					  /* Enables Clearing Of The Depth Buffer */
-	glDepthFunc(GL_LESS);				  /* The Type Of Depth Test To Do */
-	glEnable(GL_DEPTH_TEST);			  /* Enables Depth Testing */
-	glShadeModel(GL_SMOOTH); /* Enables Smooth Color Shading */
+	gl::glViewport(0, 0, size.x, size.y);
+	gl::glClearColor(0.0f, 0.0f, 0.0f, 0.0f); /* This Will Clear The Background Color To Black */
+	gl::glClearDepth(1.0);					  /* Enables Clearing Of The Depth Buffer */
+	gl::glDepthFunc(GL_LESS);				  /* The Type Of Depth Test To Do */
+	gl::glEnable(GL_DEPTH_TEST);			  /* Enables Depth Testing */
+	gl::glShadeModel(GL_SMOOTH);			  /* Enables Smooth Color Shading */
 
+	// From: https://nullprogram.com/blog/2023/01/08/
+	// If you’re using OpenGL, set a non-zero SDL_GL_SetSwapInterval so that SDL_GL_SwapWindow synchronizes. For the other rendering APIs, consult their documentation. (I can only speak to SDL and OpenGL from experience
+	SDL_GL_SetSwapInterval(1);
 
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	gl::glEnable(GL_BLEND);
+	gl::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity(); /* Reset The Projection Matrix */
+    //gl::glMatrixMode(GL_PROJECTION);
+	//gl::glLoadIdentity(); /* Reset The Projection Matrix */
 
-	double aspect = (GLdouble)size.x / size.y;
-	glOrtho(-3.0, 3.0, -3.0 / aspect, 3.0 / aspect, 0.0, 1.0);
+	//double aspect = (gl::GLdouble)size.x / size.y;
+	//gl::glOrtho(-3.0, 3.0, -3.0 / aspect, 3.0 / aspect, 0.0, 1.0);
 
-	glMatrixMode(GL_MODELVIEW);
+	//gl::glMatrixMode(GL_MODELVIEW);
 }
 
 void Renderer::Draw(const VertexArray& va, Shader& shader, const Texture& texture, int slot) const {
@@ -140,26 +143,26 @@ void Renderer::Draw(const VertexArray& va, Shader& shader, const Texture& textur
 	if (ibo.IsValid()) {
 		ibo.Bind();
 		if (valid_texture) {
-			glEnable(GL_TEXTURE_2D);
+			gl::glEnable(GL_TEXTURE_2D);
 			texture.Bind(slot);
 			shader.SetUniform("tex0", slot);
 		}
-		glDrawElements(
-			static_cast<GLenum>(va.GetPrimitiveMode()), ibo.GetCount(),
-			static_cast<GLenum>(impl::IndexBufferInstance::GetType()), nullptr
+		gl::glDrawElements(
+			static_cast<gl::GLenum>(va.GetPrimitiveMode()), ibo.GetCount(),
+			static_cast<gl::GLenum>(impl::IndexBufferInstance::GetType()), nullptr
 		);
 	} else {
 		if (valid_texture) {
-			glEnable(GL_TEXTURE_2D);
+			gl::glEnable(GL_TEXTURE_2D);
 			texture.Bind(slot);
 			shader.SetUniform("tex0", slot);
 		}
-		glDrawArrays(static_cast<GLenum>(va.GetPrimitiveMode()), 0, vbo.GetCount());
+		gl::glDrawArrays(static_cast<gl::GLenum>(va.GetPrimitiveMode()), 0, vbo.GetCount());
 	}
 
 	if (valid_texture) {
 		texture.Unbind();
-		glDisable(GL_TEXTURE_2D);
+		gl::glDisable(GL_TEXTURE_2D);
 	}
 
 	va.Unbind();
@@ -170,8 +173,7 @@ void Renderer::Draw(const VertexArray& va, Shader& shader, const Texture& textur
 }
 
 void Renderer::Clear() const {
-	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	gl::glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void Renderer::Present() const {

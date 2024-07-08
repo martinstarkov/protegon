@@ -5,6 +5,10 @@
 // IMPORTANT: This file is not meant to be included outside the protegon library
 // so keep it in .cpp files only!
 
+namespace ptgn {
+
+namespace gl {
+
 #ifdef PTGN_PLATFORM_MACOS
 
 #include <OpenGL/OpenGL.h>
@@ -131,12 +135,15 @@
 	GLE(GenVertexArrays, GENVERTEXARRAYS)                   \
 	GLE(BindVertexArray, BINDVERTEXARRAY)                   \
 	GLE(DeleteVertexArrays, DELETEVERTEXARRAYS)             \
+	GLE(ActiveTexture, ACTIVETEXTURE)                       \
 	/* end */
-	//GLE(BindTextureUnit, BINDTEXTUREUNIT)
 
-#define GLE(name, caps_name) extern PFNGL##caps_name##PROC gl##name;
+#define GLE(name, caps_name) extern PFNGL##caps_name##PROC name;
 GL_LIST
-extern PFNGLACTIVETEXTUREARBPROC pglActiveTexture;
 #undef GLE
 
 #endif
+
+} // namespace gl
+
+} // namespace ptgn

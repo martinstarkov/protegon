@@ -2,6 +2,8 @@
 
 namespace ptgn {
 
+namespace gl {
+
 class OpenGLInstance {
 public:
 	OpenGLInstance();
@@ -12,5 +14,7 @@ private:
 	bool InitOpenGL();
 	bool initialized_{ false };
 };
+
+} // namespace gl
 
 } // namespace ptgn

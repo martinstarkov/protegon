@@ -1,6 +1,6 @@
 #include "protegon/vector2.h"
 
-#include <SDL.h>
+#include "SDL.h"
 
 #include "core/game.h"
 #include "protegon/circle.h"

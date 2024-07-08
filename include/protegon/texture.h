@@ -91,6 +91,17 @@ struct TextureInstance {
 
 	std::uint32_t id_{ 0 };
 	V2_int size_;
+
+	// TODO: Implement
+	//void SetData(void* pixel_data, std::size_t size);
+
+	struct GLFormats {
+		std::int32_t internal_{ 0 };
+		std::uint32_t format_{ 0 };
+	};
+
+	static GLFormats GetGLFormats(ImageFormat format);
+
 };
 
 } // namespace impl

@@ -1,7 +1,7 @@
 #include "protegon/font.h"
 
-#include <SDL.h>
-#include <SDL_ttf.h>
+#include "SDL.h"
+#include "SDL_ttf.h"
 
 #include "protegon/debug.h"
 

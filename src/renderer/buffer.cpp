@@ -62,24 +62,24 @@ void BufferLayout::CalculateOffsets() {
 }
 
 VertexBufferInstance::~VertexBufferInstance() {
-	glDeleteBuffers(1, &id_);
+	gl::DeleteBuffers(1, &id_);
 }
 
 void VertexBufferInstance::GenerateBuffer(void* vertex_data, std::size_t size) {
-	glGenBuffers(1, &id_);
-	glBindBuffer(GL_ARRAY_BUFFER, id_);
-	glBufferData(GL_ARRAY_BUFFER, size, vertex_data, GL_STATIC_DRAW);
+	gl::GenBuffers(1, &id_);
+	gl::BindBuffer(GL_ARRAY_BUFFER, id_);
+	gl::BufferData(GL_ARRAY_BUFFER, size, vertex_data, GL_STATIC_DRAW);
 }
 
 void VertexBufferInstance::GenerateBuffer(std::size_t size) {
-	glGenBuffers(1, &id_);
-	glBindBuffer(GL_ARRAY_BUFFER, id_);
-	glBufferData(GL_ARRAY_BUFFER, size, nullptr, GL_DYNAMIC_DRAW);
+	gl::GenBuffers(1, &id_);
+	gl::BindBuffer(GL_ARRAY_BUFFER, id_);
+	gl::BufferData(GL_ARRAY_BUFFER, size, nullptr, GL_DYNAMIC_DRAW);
 }
 
 void VertexBufferInstance::SetBuffer(void* vertex_data, std::size_t size) {
-	glBindBuffer(GL_ARRAY_BUFFER, id_);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, size, vertex_data);
+	gl::BindBuffer(GL_ARRAY_BUFFER, id_);
+	gl::BufferSubData(GL_ARRAY_BUFFER, 0, size, vertex_data);
 }
 
 IndexBufferInstance::IndexBufferInstance(const std::vector<std::uint32_t>& indices) :
@@ -90,24 +90,24 @@ IndexBufferInstance::IndexBufferInstance(const std::vector<std::uint32_t>& indic
 }
 
 void IndexBufferInstance::GenerateBuffer(void* index_data, std::size_t size) {
-	glGenBuffers(1, &id_);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id_);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, index_data, GL_STATIC_DRAW);
+	gl::GenBuffers(1, &id_);
+	gl::BindBuffer(GL_ELEMENT_ARRAY_BUFFER, id_);
+	gl::BufferData(GL_ELEMENT_ARRAY_BUFFER, size, index_data, GL_STATIC_DRAW);
 }
 
 IndexBufferInstance::~IndexBufferInstance() {
-	glDeleteBuffers(1, &id_);
+	gl::DeleteBuffers(1, &id_);
 }
 
 } // namespace impl
 
 void VertexBuffer::Bind() const {
 	PTGN_CHECK(IsValid(), "Cannot bind uninitialized or destroyed vertex buffer");
-	glBindBuffer(GL_ARRAY_BUFFER, instance_->id_);
+	gl::BindBuffer(GL_ARRAY_BUFFER, instance_->id_);
 }
 
 void VertexBuffer::Unbind() const {
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	gl::BindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 std::int32_t VertexBuffer::GetCount() const {
@@ -126,11 +126,11 @@ IndexBuffer::IndexBuffer(const std::initializer_list<std::uint32_t>& indices) {
 
 void IndexBuffer::Bind() const {
 	PTGN_CHECK(IsValid(), "Cannot bind uninitialized or destroyed index buffer");
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, instance_->id_);
+	gl::BindBuffer(GL_ELEMENT_ARRAY_BUFFER, instance_->id_);
 }
 
 void IndexBuffer::Unbind() const {
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	gl::BindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
 std::int32_t IndexBuffer::GetCount() const {

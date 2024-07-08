@@ -4,6 +4,7 @@
 
 #include "protegon/math.h"
 #include "protegon/type_traits.h"
+#include <ostream>
 
 struct SDL_Color;
 
@@ -77,3 +78,13 @@ inline constexpr Color Silver{ 192, 192, 192, 255 };
 } // namespace color
 
 } // namespace ptgn
+
+inline std::ostream& operator<<(std::ostream& os, const ptgn::Color& color) {
+	os << "[";
+	os << static_cast<int>(color.r) << ", ";
+	os << static_cast<int>(color.g) << ", ";
+	os << static_cast<int>(color.b) << ", ";
+	os << static_cast<int>(color.a);
+	os << "]";
+	return os;
+}
