@@ -108,7 +108,7 @@ template <typename T, type_traits::arithmetic<T> = true>
 	if constexpr (std::is_floating_point_v<T>) {
 		return std::fmod(deg, 360);
 	} else {
-		return Mod(deg, static_cast<T>(360));
+		return Mod(deg, T{ 360 });
 	}
 }
 
@@ -168,10 +168,7 @@ template <typename T>
 // tolerances. The absolute tolerance test fails when x and y become large. The
 // relative tolerance test fails when x and y become small.
 template <typename T>
-[[nodiscard]] bool NearlyEqual(
-	T a, T b, T rel_tol = static_cast<T>(10.0f * epsilon<float>),
-	T abs_tol = static_cast<T>(0.005)
-) {
+[[nodiscard]] bool NearlyEqual(T a, T b, T rel_tol = static_cast<T>(10.0f * epsilon<float>), T abs_tol = static_cast<T>(0.005)) {
 	if constexpr (std::is_floating_point_v<T>) {
 		return a == b ||
 			   FastAbs(a - b) <=
@@ -191,7 +188,7 @@ template <typename T, type_traits::floating_point<T> = true>
 	if (disc < 0.0f) {
 		// Imaginary roots.
 		return { false, 0.0f, 0.0f };
-	} else if (NearlyEqual(disc, static_cast<T>(0))) {
+	} else if (NearlyEqual(disc, T{ 0 })) {
 		// Repeated roots.
 		const T root{ -0.5f * b / a };
 		return { true, root, root };

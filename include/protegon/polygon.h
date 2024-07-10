@@ -62,7 +62,7 @@ struct Rectangle {
 	operator SDL_Rect() const;
 
 	[[nodiscard]] Vector2<T> Half() const {
-		return size / static_cast<T>(2);
+		return size / T{ 2 };
 	}
 
 	[[nodiscard]] Point<T> Center() const {

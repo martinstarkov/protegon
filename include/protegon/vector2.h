@@ -34,6 +34,7 @@ struct Vector2 {
 
 	constexpr Vector2(T x, T y) : x{ x }, y{ y } {}
 
+	// TODO: Check that not_narrowing actually works as intended and static cast is not narrowing.
 	template <typename U, type_traits::not_narrowing<U, T> = true>
 	constexpr Vector2(const Vector2<U>& o) : x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
 
@@ -179,7 +180,7 @@ struct Vector2 {
 	template <typename U = float, type_traits::not_narrowing<T, U> = true>
 	[[nodiscard]] Vector2<U> Normalized() const {
 		T m{ Dot(*this) };
-		if (NearlyEqual(m, static_cast<T>(0))) {
+		if (NearlyEqual(m, T{ 0 })) {
 			return *this;
 		}
 		return *this / std::sqrt(m);
@@ -209,7 +210,7 @@ struct Vector2 {
 	}
 
 	[[nodiscard]] bool IsZero() const {
-		return NearlyEqual(x, static_cast<T>(0)) && NearlyEqual(y, static_cast<T>(0));
+		return NearlyEqual(x, T{ 0 }) && NearlyEqual(y, T{ 0 });
 	}
 
 	void Draw(const Color& color, int radius = 0) const {
