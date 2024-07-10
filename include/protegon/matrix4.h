@@ -2,8 +2,11 @@
 
 #include <ostream>
 #include <array>
+#include <iomanip>
 
 #include "type_traits.h"
+#include "vector2.h"
+#include "math.h"
 
 namespace ptgn {
 
@@ -58,14 +61,98 @@ struct Matrix4 {
 	[[nodiscard]] static Matrix4 Identity() {
 		Matrix4 identity;
 		for (std::size_t x = 0; x < size.x; x++) {
-			identity[x + x * size.x] = static_cast<T>(1);
+			identity[x + x * size.x] = T{ 1 };
 		}
 		return identity;
 	}
 
+	[[nodiscard]] static Matrix4 Orthographic(
+		T left, T right, T bottom, T top, T near = T{ -1 }, T far = T{ 1 }
+	) {
+		Matrix4<T> o;
+		T width = right - left;
+		T height = top - bottom;
+		T depth = far - near;
+
+		o[0] = T{ 2 } / width;
+		o[5] = T{ 2 } / height;
+		o[10] = -T{ 2 } / depth; // -1 by default
+		o[12] = - (right + left) / width;
+		o[13] = - (top + bottom) / height;
+		o[14] = - (far + near) / depth; // 0 by default
+		o[15] = T{ 1 };
+		return o;
+	}
+
+	[[nodiscard]] static Matrix4 Translate(const Matrix4& m, T x, T y, T z) {
+		Matrix4<T> result{ m };
+		for (std::size_t i = 0; i < result.size.x; i++) {
+			result(i, 3) = m(i, 0) * x + m(i, 1) * y + m(i, 2) * z + m(i, 3);
+		}
+		return result;
+	}
+
+	[[nodiscard]] static Matrix4 Rotate(const Matrix4& m, T angle, T x_axis, T y_axis, T z_axis) {
+		const T a = angle;
+		const T c = std::cos(a);
+		const T s = std::sin(a);
+
+		// m = Dot(axis, axis)
+		T magnitude{ x_axis * x_axis + y_axis * y_axis + z_axis * z_axis };
+
+		T axis[3] = { T{ 0 }, T{ 0 }, T{ 0 } };
+
+		if (!NearlyEqual(magnitude, T{ 0 })) {
+			// axis = Normalize(axis);
+			T m_sqrt = std::sqrt(magnitude);
+			axis[0]	 = x_axis / m_sqrt;
+			axis[1]	 = y_axis / m_sqrt;
+			axis[2]	 = z_axis / m_sqrt;
+		}
+
+		T d = T{ 1 } - c;
+
+		T temp[3] = { d * axis[0], d * axis[1], d * axis[2] };
+
+		Matrix4<T> rotate;
+
+		rotate(0, 0) = c + temp[0] * axis[0];
+		rotate(0, 1) = temp[0] * axis[1] + s * axis[2];
+		rotate(0, 2) = temp[0] * axis[2] - s * axis[1];
+
+		rotate(1, 0) = temp[1] * axis[0] - s * axis[2];
+		rotate(1, 1) = c + temp[1] * axis[1];
+		rotate(1, 2) = temp[1] * axis[2] + s * axis[0];
+
+		rotate(2, 0) = temp[2] * axis[0] + s * axis[1];
+		rotate(2, 1) = temp[2] * axis[1] - s * axis[0];
+		rotate(2, 2) = c + temp[2] * axis[2];
+
+		Matrix4<T> result;
+
+		for (std::size_t i = 0; i < result.size.x; i++) {
+			result(i, 0) = m(i, 0) * rotate(0, 0) + m(i, 1) * rotate(0, 1) + m(i, 2) * rotate(0, 2);
+			result(i, 1) = m(i, 0) * rotate(1, 0) + m(i, 1) * rotate(1, 1) + m(i, 2) * rotate(1, 2);
+			result(i, 2) = m(i, 0) * rotate(2, 0) + m(i, 1) * rotate(2, 1) + m(i, 2) * rotate(2, 2);
+			result(i, 3) = m(i, 3);
+		}
+		return result;
+	}
+
+	[[nodiscard]] static Matrix4 Scale(const Matrix4& m, T x, T y, T z) {
+		Matrix4<T> result;
+		for (std::size_t i = 0; i < result.size.x; i++) {
+			result(i, 0) = m(i, 0) * x;
+			result(i, 1) = m(i, 1) * y;
+			result(i, 2) = m(i, 2) * z;
+			result(i, 3) = m(i, 3);
+		}
+		return result;
+	}
+
 	[[nodiscard]] bool IsZero() const {
 		for (std::size_t i = 0; i < length; i++) {
-			if (!NearlyEqual(m[i], static_cast<T>(0))) {
+			if (!NearlyEqual(m[i], T{ 0 })) {
 				return false;
 			}
 		}
@@ -127,34 +214,29 @@ inline bool operator!=(const Matrix4<T>& lhs, const Matrix4<T>& rhs) {
 	return !operator==(lhs, rhs);
 }
 
-
 } // namespace ptgn
 
 template <typename T, ptgn::type_traits::stream_writable<std::ostream, T> = true>
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Matrix4<T>& m) {
-	os << "[";
-	for (std::size_t x = 0; x < m.size.x; x++) {
-		bool last_row = x == m.size.x - 1;
-		// Extra space before [ for row alignment purposes.
-		if (x != 0) {
+	os << "\n";
+	os << std::fixed << std::right << std::setprecision(static_cast<std::streamsize>(3))
+	   << std::setfill(' ') << "[";
+	for (std::size_t i = 0; i < m.size.x; ++i) {
+		if (i != 0) {
 			os << " ";
 		}
 		os << "[";
-		for (std::size_t y = 0; y < m.size.y; y++) {
-			bool last_col = y == m.size.y - 1;
-			const T& val  = m[x + y * m.size.x];
-			// Extra space for negative sign alignment purposes.
-			if (val >= 0) {
-				os << " ";
-			}
-			os << val;
-			if (!last_col) {
-				os << ", ";
+		for (std::size_t j = 0; j < m.size.y; ++j) {
+			os << std::setw(9);
+			os << m(i, j);
+			if (j != m.size.y - 1) {
+				os << ",";
 			}
 		}
 		os << "]";
-		if (!last_row) {
-			os << ",\n";
+		if (i != m.size.x - 1) {
+			//os << ",";
+			os << "\n";
 		}
 	}
 	os << "]";
