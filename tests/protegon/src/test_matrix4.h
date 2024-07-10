@@ -74,6 +74,8 @@ bool TestMatrix4() {
 
 	M4_int test6 = M4_int::Identity();
 
+	// PTGN_LOG(test6);
+
 	PTGN_ASSERT(test5 == test6);
 
 	M4_int test7;
@@ -228,6 +230,9 @@ bool TestMatrix4() {
 
 	M4_int test23;
 	test23.m = { -8, -4, -7, 6, -6, -8, 9, -5, -3, -8, 8, -8, 4, 3, -8, -3 };
+
+	//PTGN_LOG(test23);
+
 	M4_int test24;
 	test24.m = { -5, -1, 2, -3, -9, 6, 6, 3, -3, 9, -6, -3, 6, 2, 4, -2 };
 

@@ -57,10 +57,9 @@ struct Matrix4 {
 
 	[[nodiscard]] static Matrix4 Identity() {
 		Matrix4 identity;
-		identity[0] = 1;
-		identity[5] = 1;
-		identity[10] = 1;
-		identity[15] = 1;
+		for (std::size_t x = 0; x < size.x; x++) {
+			identity[x + x * size.x] = static_cast<T>(1);
+		}
 		return identity;
 	}
 
@@ -133,9 +132,31 @@ inline bool operator!=(const Matrix4<T>& lhs, const Matrix4<T>& rhs) {
 
 template <typename T, ptgn::type_traits::stream_writable<std::ostream, T> = true>
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Matrix4<T>& m) {
-	os << "[" << m[0] << ", " << m[4] << ", " << m[8]  << ", " << m[12] << "]\n";
-	os << "[" << m[1] << ", " << m[5] << ", " << m[9]  << ", " << m[13] << "]\n";
-	os << "[" << m[2] << ", " << m[6] << ", " << m[10] << ", " << m[14] << "]\n";
-	os << "[" << m[3] << ", " << m[7] << ", " << m[11] << ", " << m[15] << "]";
+	os << "[";
+	for (std::size_t x = 0; x < m.size.x; x++) {
+		bool last_row = x == m.size.x - 1;
+		// Extra space before [ for row alignment purposes.
+		if (x != 0) {
+			os << " ";
+		}
+		os << "[";
+		for (std::size_t y = 0; y < m.size.y; y++) {
+			bool last_col = y == m.size.y - 1;
+			const T& val  = m[x + y * m.size.x];
+			// Extra space for negative sign alignment purposes.
+			if (val >= 0) {
+				os << " ";
+			}
+			os << val;
+			if (!last_col) {
+				os << ", ";
+			}
+		}
+		os << "]";
+		if (!last_row) {
+			os << ",\n";
+		}
+	}
+	os << "]";
 	return os;
 }

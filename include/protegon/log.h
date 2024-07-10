@@ -80,6 +80,7 @@ inline void PrintLine() {
 
 } // namespace ptgn
 
+#define PTGN_LOG(...) ptgn::PrintLine(__VA_ARGS__)
 #define PTGN_INFO(...) ptgn::PrintLine("INFO: ", __VA_ARGS__)
 #define PTGN_WARN(...) ptgn::debug::PrintLine("WARN: ", __FILE__, "#", __LINE__, ": ", __VA_ARGS__)
 #define PTGN_ERROR(...)	ptgn::debug::PrintLine("ERROR: ", __FILE__, "#", __LINE__, ": ", __VA_ARGS__)
