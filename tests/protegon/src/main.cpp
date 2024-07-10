@@ -6,12 +6,14 @@
 #include "test_shapes.h"
 #include "test_text.h"
 #include "test_vector2.h"
+#include "test_matrix4.h"
 
 using namespace ptgn;
 
 class Tests : public Scene {
 public:
 	Tests() {
+		TestMatrix4();
 		TestShader();
 		TestECS();
 		TestMath();
