@@ -36,9 +36,9 @@ enum CameraDirection {
 	Right
 };
 
-constexpr const V3_float DEFAULT_ANGLE	  = { -90.0f, 0.0f, 0.0f };
+constexpr const V3_float DEFAULT_ANGLE	  = { 0.0f, 0.0f, 0.0f };
 constexpr const float DEFAULT_SPEED		= 2.5f;
-constexpr const float DEFAULT_SENSITIVITY = 0.00001f;
+constexpr const float DEFAULT_SENSITIVITY = 1.0f;
 constexpr const float DEFAULT_ZOOM		= 45.0f;
 constexpr const float MIN_ZOOM		= 1.0f;
 constexpr const float MAX_ZOOM		= 45.0f;
@@ -55,7 +55,7 @@ public:
 
 	// constructor with vectors
 	CameraController(
-		const V3_float& position = {}, const V3_float& up = { 0.0f, 1.0f, 0.0f },
+		const V3_float& position = { 0.0f, 0.0f, -3.0f }, const V3_float& up = { 0.0f, 1.0f, 0.0f },
 		const V3_float& angle = DEFAULT_ANGLE
 	) : camera{
 		position, { 0.0f, 0.0f, -1.0f }, up, up, angle } {
@@ -109,7 +109,6 @@ public:
 			camera.angle.y = std::clamp(camera.angle.y, DegToRad(-89.0f), DegToRad(89.0f));
 		}
 
-		// update Front, Right and Up Vectors using the updated Euler angles
 		UpdateVectors();
 	}
 
@@ -127,15 +126,12 @@ private:
 
 	// calculates the front vector from the Camera's (updated) Euler Angles
 	void UpdateVectors() {
-		// calculate the new Front vector
 		V3_float front;
 		front.x			= std::cos(camera.angle.x) * std::cos(camera.angle.y);
 		front.y			= std::sin(camera.angle.y);
 		front.z			= std::sin(camera.angle.x) * std::cos(camera.angle.y);
 		camera.front	= front.Normalized();
-		// also re-calculate the Right and Up vector
-		camera.right = camera.front.Cross(camera.world_up).Normalized(); // normalize the vectors, because their length gets closer to 0 the more you look up or
-		   // down which results in slower movement.
+		camera.right = camera.front.Cross(camera.world_up).Normalized();
 		camera.up = camera.right.Cross(camera.front).Normalized();
 	}
 };

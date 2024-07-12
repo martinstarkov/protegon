@@ -75,34 +75,25 @@ struct Matrix4 {
 	[[nodiscard]] static Matrix4 LookAt(
 		const Vector3<T>& position, const Vector3<T>& target, const Vector3<T>& up
 	) {
-		Matrix4<T> m;
-		Vector3<T> X, Y, Z;
-		Z = position - target;
-		Z = Z.Normalized();
-		Y = up;
-		X = Y.Cross(Z);
-		Y = Z.Cross(X);
-		X = X.Normalized();
-		Y = Y.Normalized();
+		Vector3<T> dir = (target - position).Normalized();
+		const Vector3<T> right = (dir.Cross(up)).Normalized();
+		const Vector3<T> up_n = right.Cross(dir);
 
-		m[0] = X.x;
-		m[1] = Y.x;
-		m[2] = Z.x;
-		m[3] = 0.0f;
-		m[4] = X.y;
-		m[5] = Y.y;
-		m[6] = Z.y;
-		m[7] = 0.0f;
-		m[8] = X.z;
-		m[9] = Y.z;
-		m[10] = Z.z;
-		m[11] = 0.0f;
-		m[12] = -X.Dot(position);
-		m[13] = -Y.Dot(position);
-		m[14] = -Z.Dot(position);
-		m[15] = 1.0f;
+		Matrix4<T> result{ T{ 1 } };
+		result[0] = right.x;
+		result[1]  = up_n.x;
+		result[2] = -dir.x;
+		result[4] = right.y;
+		result[5]  = up_n.y;
+		result[6] = -dir.y;
+		result[8] = right.z;
+		result[9]  = up_n.z;
+		result[10] = -dir.z;
+		result[12] = -right.Dot(position);
+		result[13] = -up_n.Dot(position);
+		result[14] = dir.Dot(position);
 
-		return m;
+		return result;
 	}
 
 	[[nodiscard]] static Matrix4 Identity() {

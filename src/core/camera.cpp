@@ -32,9 +32,10 @@ void CameraController::OnMouseMoveEvent([[maybe_unused]] const Event<MouseEvent>
 
 			V2_float size = window::GetSize();
 
-			V2_float scaled_offset = 2.0f * offset / size - V2_float{ 1.0f, 1.0f };
+			V2_float scaled_offset = offset / size;
 
-			Rotate(scaled_offset.x, scaled_offset.y, 0.0f);
+			// OpenGL y-axis is flipped compared to SDL mouse position.
+			Rotate(scaled_offset.x, -scaled_offset.y, 0.0f);
 		} else {
 			first_mouse = false;
 		}
