@@ -6,6 +6,7 @@
 #include "protegon/debug.h"
 #include "protegon/protegon.h"
 #include "protegon/renderer.h"
+#include "protegon/camera.h"
 
 using namespace ptgn;
 
@@ -403,35 +404,37 @@ bool TestShaderDrawing() {
 
 	std::string vertex_source = R"(
 		#version 330 core
+		layout (location = 0) in vec3 a_pos;
+		layout (location = 1) in vec4 a_color;
+		layout (location = 2) in vec2 a_texcoord;
 
-		layout(location = 0) in vec3 pos;
-		layout(location = 1) in vec4 color;
-		layout(location = 2) in vec2 texcoord;
+		out vec2 v_texcoord;
 
-		out vec3 v_Position;
-		out vec4 v_Color;
-		out vec2 v_TexCoord;
+		uniform mat4 u_model;
+		uniform mat4 u_view;
+		uniform mat4 u_projection;
 
-		void main() {
-			v_Position = pos;
-			v_Color = color;
-			gl_Position = vec4(pos, 1.0);
-			v_TexCoord = texcoord;
+		void main()
+		{
+			gl_Position = u_projection * u_view * u_model * vec4(a_pos, 1.0);
+			v_texcoord = a_texcoord;
 		}
 	)";
 
 	std::string fragment_source = R"(
 		#version 330 core
+		out vec4 frag_color;
 
-		layout(location = 0) out vec4 color;
+		in vec2 v_texcoord;
 
-		in vec3 v_Position;
-		in vec4 v_Color;
-		in vec2 v_TexCoord;
+		// texture samplers
 		uniform sampler2D tex0;
+		uniform sampler2D tex1;
 
-		void main() {
-			color = texture2D(tex0, v_TexCoord);
+		void main()
+		{
+			// frag_color = mix(texture(tex0, v_texcoord), texture(tex1, v_texcoord), 0.2);
+			frag_color = texture(tex0, v_texcoord);
 		}
 	)";
 
@@ -457,6 +460,23 @@ bool TestShaderDrawing() {
 		glsl::vec2 texcoord;
 	};
 
+	Texture texture1;
+	Texture texture2;
+
+	{
+		Surface surface{ "resources/sprites/test.png" };
+		/*surface.ForEachPixel([&](auto& v, auto& c) {
+			if (c != color::Transparent) {
+				PTGN_INFO(v, ":", c);
+			}
+		});*/
+		Surface surface2{ "resources/sprites/icon.bmp" };
+		surface.FlipVertically();
+		surface2.FlipVertically();
+		texture1 = surface;
+		texture2 = surface2;
+	}
+
 	const std::vector<Vertex> vao_vert = {
 		Vertex{	glsl::vec3{ 1.0f, 1.0f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 0.0f, 0.0f },
 				glsl::vec2{ 1.0f, 1.0f }},
@@ -467,17 +487,31 @@ bool TestShaderDrawing() {
 		Vertex{ glsl::vec3{ -1.0f, 1.0f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 0.0f, 0.0f },
 				glsl::vec2{ 0.0f, 1.0f }},
 	};
-
+	
 	const std::vector<Vertex> vao_vert2 = {
-		Vertex{	glsl::vec3{ 0.5f, 0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 1.0f, 1.0f },
+		Vertex{	glsl::vec3{ 0.5f, 0.5f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 0.0f, 0.0f },
 				glsl::vec2{ 1.0f, 1.0f }},
-		Vertex{ glsl::vec3{ 0.5f, -0.5f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 1.0f, 1.0f },
+		Vertex{ glsl::vec3{ 0.5f, -0.5f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 0.0f, 0.0f },
 				glsl::vec2{ 1.0f, 0.0f }},
-		Vertex{glsl::vec3{ -0.5f, -0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 1.0f, 1.0f },
+		Vertex{glsl::vec3{ -0.5f, -0.5f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 0.0f, 0.0f },
 				glsl::vec2{ 0.0f, 0.0f }},
-		Vertex{ glsl::vec3{ -0.5f, 0.5f, 0.0f }, glsl::vec4{ 1.0f, 1.0f, 0.0f, 1.0f },
+		Vertex{ glsl::vec3{ -0.5f, 0.5f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 0.0f, 0.0f },
 				glsl::vec2{ 0.0f, 1.0f }},
 	};
+
+	/*const std::vector<Vertex> vao_vert2 = {
+		Vertex{ glsl::vec3{ (float)texture2.GetSize().x, (float)texture2.GetSize().y, 0.0f },
+				glsl::vec4{ 1.0f, 0.0f, 1.0f, 1.0f },
+				glsl::vec2{ 1.0f, 1.0f }},
+		Vertex{ glsl::vec3{ (float)texture2.GetSize().x, 0.0f, 0.0f },
+				glsl::vec4{ 0.0f, 0.0f, 1.0f, 1.0f },
+				glsl::vec2{ 1.0f, 0.0f }},
+		Vertex{ glsl::vec3{ 0.0f, 0.0f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 1.0f, 1.0f },
+				glsl::vec2{ 0.0f, 0.0f }},
+		Vertex{ glsl::vec3{ 0.0f, (float)texture2.GetSize().y, 0.0f },
+				glsl::vec4{ 1.0f, 1.0f, 0.0f, 1.0f },
+				glsl::vec2{ 0.0f, 1.0f }},
+	};*/
 
 	const std::vector<Vertex> triangle_vertices = {
 		Vertex{ glsl::vec3{ 0.5f, -0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 0.0f, 0.5f }},
@@ -500,27 +534,23 @@ bool TestShaderDrawing() {
 
 	Renderer renderer{ window::GetSize() };
 
-	Texture texture1;
-	Texture texture2;
-
-	{
-		Surface surface{ "resources/sprites/test.png" };
-		/*surface.ForEachPixel([&](auto& v, auto& c) {
-			if (c != color::Transparent) {
-				PTGN_INFO(v, ":", c);
-			}
-		});*/
-		Surface surface2{ "resources/sprites/icon.bmp" };
-		surface.FlipVertically();
-		surface2.FlipVertically();
-		texture1 = surface;
-		texture2 = surface2;
-	}
+	CameraController camera;
 
 	std::size_t font_key = 0;
 	font::Load(font_key, "resources/fonts/retro_gaming.ttf", 30);
 
-	window::RepeatUntilQuit([&]() {
+	//M4_float projection = M4_float::Orthographic(0.0f, (float)window::GetSize().x, 0.0f, (float)window::GetSize().y);
+	//M4_float projection = M4_float::Orthographic(-1.0f, 1.0f, -1.0f, 1.0f);
+	//M4_float projection = M4_float::Perspective(DegToRad(45.0f), (float)window::GetSize().x / (float)window::GetSize().y, 0.1f, 100.0f);
+	M4_float projection = M4_float::Perspective(DegToRad(camera.zoom), (float)window::GetSize().x / (float)window::GetSize().y, 0.1f, 100.0f);
+
+	M4_float model{ 1.0f };
+	M4_float view{ 1.0f };
+
+	//model = M4_float::Rotate(model, DegToRad(-55.0f), 1.0f, 0.0f, 0.0f);
+	//view = M4_float::Translate(view, 0.0f, 0.0f, -3.0f);
+
+	window::RepeatUntilQuit([&](float dt) {
 		/*renderer::ResetTarget();
 		renderer::ResetDrawColor();
 		renderer::Clear();
@@ -530,6 +560,50 @@ bool TestShaderDrawing() {
 
 		renderer::ResetDrawColor();
 		renderer::Clear();*/
+
+		int scroll = input::MouseScroll();
+
+		if (scroll != 0) {
+			camera.Zoom(scroll);
+		}
+
+		if (input::KeyPressed(Key::W)) {
+			camera.Move(CameraDirection::Forward, dt);
+		}
+		if (input::KeyPressed(Key::S)) {
+			camera.Move(CameraDirection::Backward, dt);
+		}
+		if (input::KeyPressed(Key::A)) {
+			camera.Move(CameraDirection::Left, dt);
+		}
+		if (input::KeyPressed(Key::D)) {
+			camera.Move(CameraDirection::Right, dt);
+		}
+
+		/*if (input::KeyPressed(Key::A)) {
+			view = M4_float::Translate(view, -0.05f, 0.0f, 0.0f); 
+		}
+		if (input::KeyPressed(Key::D)) {
+			view = M4_float::Translate(view, 0.05f, 0.0f, 0.0f);
+		}
+		if (input::KeyPressed(Key::W)) {
+			view = M4_float::Translate(view, 0.0f, 0.05f, 0.0f);
+		}
+		if (input::KeyPressed(Key::S)) {
+			view = M4_float::Translate(view, 0.0f, -0.05f, 0.0f);
+		}*/
+		if (input::KeyPressed(Key::Q)) {
+			model = M4_float::Rotate(model, DegToRad(5.0f), 0.0f, 1.0f, 0.0f);
+		}
+		if (input::KeyPressed(Key::E)) {
+			model = M4_float::Rotate(model, DegToRad(-5.0f), 0.0f, 1.0f, 0.0f);
+		}
+		if (input::KeyPressed(Key::Z)) {
+			model = M4_float::Rotate(model, DegToRad(5.0f), 1.0f, 0.0f, 0.0f);
+		}
+		if (input::KeyPressed(Key::C)) {
+			model = M4_float::Rotate(model, DegToRad(-5.0f), 1.0f, 0.0f, 0.0f);
+		}
 
 		V2_float window_size = window::GetSize();
 		V2_float mouse		 = input::GetMousePosition();
@@ -549,6 +623,12 @@ bool TestShaderDrawing() {
 		shader2.WhileBound([&]() {
 			shader2.SetUniform("iResolution", window_size.x, window_size.y, 0.0f);
 			shader2.SetUniform("iTime", playtime_in_second);
+		});
+
+		shader3.WhileBound([&]() {
+			shader3.SetUniform("u_model", model);
+			shader3.SetUniform("u_view", camera.GetViewMatrix());
+			shader3.SetUniform("u_projection", projection);
 		});
 
 		renderer.Clear();
