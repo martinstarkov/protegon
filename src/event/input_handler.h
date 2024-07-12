@@ -68,9 +68,9 @@ private:
 	std::bitset<KEY_COUNT> first_time_{};
 
 	// Mouse states.
-	MouseState left_mouse_{ MouseState::RELEASED };
-	MouseState right_mouse_{ MouseState::RELEASED };
-	MouseState middle_mouse_{ MouseState::RELEASED };
+	MouseState left_mouse_{ MouseState::Released };
+	MouseState right_mouse_{ MouseState::Released };
+	MouseState middle_mouse_{ MouseState::Released };
 	V2_int mouse_position;
 	V2_int mouse_scroll;
 

@@ -7,14 +7,14 @@
 namespace ptgn {
 
 enum class MouseEvent {
-	MOVE,
-	DOWN,
-	UP
+	Move,
+	Down,
+	Up
 };
 
 struct MouseMoveEvent : public Event<MouseEvent> {
 	MouseMoveEvent(const V2_int& previous, const V2_int& current) :
-		previous{ previous }, current{ current }, Event{ MouseEvent::MOVE } {}
+		previous{ previous }, current{ current }, Event{ MouseEvent::Move } {}
 
 	V2_int previous;
 	V2_int current;
@@ -23,7 +23,7 @@ struct MouseMoveEvent : public Event<MouseEvent> {
 class MouseDownEvent : public Event<MouseEvent> {
 public:
 	MouseDownEvent(Mouse mouse, const V2_int& current) :
-		mouse{ mouse }, current{ current }, Event{ MouseEvent::DOWN } {}
+		mouse{ mouse }, current{ current }, Event{ MouseEvent::Down } {}
 
 	Mouse mouse;
 	V2_int current;
@@ -32,19 +32,19 @@ public:
 class MouseUpEvent : public Event<MouseEvent> {
 public:
 	MouseUpEvent(Mouse mouse, const V2_int& current) :
-		mouse{ mouse }, current{ current }, Event{ MouseEvent::UP } {}
+		mouse{ mouse }, current{ current }, Event{ MouseEvent::Up } {}
 
 	Mouse mouse;
 	V2_int current;
 };
 
 enum class WindowEvent {
-	QUIT
+	Quit
 };
 
 class WindowQuitEvent : public Event<WindowEvent> {
 public:
-	WindowQuitEvent() : Event{ WindowEvent::QUIT } {}
+	WindowQuitEvent() : Event{ WindowEvent::Quit } {}
 };
 
 } // namespace ptgn

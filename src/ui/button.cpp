@@ -34,7 +34,7 @@ void Button::SetInteractable(bool interactable) {
 		RecheckState();
 	} else if (!interactable && subscribed) {
 		UnsubscribeFromMouseEvents();
-		button_state_ = InternalButtonState::IDLE_UP;
+		button_state_ = InternalButtonState::IdleUp;
 		if (on_hover_start_ != nullptr) {
 			StopHover();
 		}
@@ -97,7 +97,7 @@ void Button::OnMouseEvent(const Event<MouseEvent>& event) {
 		return;
 	}
 	switch (event.Type()) {
-		case MouseEvent::MOVE: {
+		case MouseEvent::Move: {
 			const MouseMoveEvent& e = static_cast<const MouseMoveEvent&>(event);
 			bool is_in{ InsideRectangle(e.current) };
 			if (is_in) {
@@ -113,7 +113,7 @@ void Button::OnMouseEvent(const Event<MouseEvent>& event) {
 			}
 			break;
 		}
-		case MouseEvent::DOWN: {
+		case MouseEvent::Down: {
 			const MouseDownEvent& e = static_cast<const MouseDownEvent&>(event);
 			if (InsideRectangle(e.current)) {
 				OnMouseDown(e);
@@ -122,7 +122,7 @@ void Button::OnMouseEvent(const Event<MouseEvent>& event) {
 			}
 			break;
 		}
-		case MouseEvent::UP: {
+		case MouseEvent::Up: {
 			const MouseUpEvent& e = static_cast<const MouseUpEvent&>(event);
 			if (InsideRectangle(e.current)) {
 				OnMouseUp(e);
@@ -153,8 +153,8 @@ void Button::OnMouseMove([[maybe_unused]] const MouseMoveEvent& e) {
 	if (!enabled_) {
 		return;
 	}
-	if (button_state_ == InternalButtonState::IDLE_UP) {
-		button_state_ = InternalButtonState::HOVER;
+	if (button_state_ == InternalButtonState::IdleUp) {
+		button_state_ = InternalButtonState::Hover;
 		if (on_hover_start_ != nullptr) {
 			StartHover();
 		}
@@ -165,8 +165,8 @@ void Button::OnMouseMoveOutside([[maybe_unused]] const MouseMoveEvent& e) {
 	if (!enabled_) {
 		return;
 	}
-	if (button_state_ == InternalButtonState::HOVER) {
-		button_state_ = InternalButtonState::IDLE_UP;
+	if (button_state_ == InternalButtonState::Hover) {
+		button_state_ = InternalButtonState::IdleUp;
 		if (on_hover_stop_ != nullptr) {
 			StopHover();
 		}
@@ -177,12 +177,12 @@ void Button::OnMouseEnter([[maybe_unused]] const MouseMoveEvent& e) {
 	if (!enabled_) {
 		return;
 	}
-	if (button_state_ == InternalButtonState::IDLE_UP) {
-		button_state_ = InternalButtonState::HOVER;
-	} else if (button_state_ == InternalButtonState::IDLE_DOWN) {
-		button_state_ = InternalButtonState::HOVER_PRESSED;
-	} else if (button_state_ == InternalButtonState::HELD_OUTSIDE) {
-		button_state_ = InternalButtonState::PRESSED;
+	if (button_state_ == InternalButtonState::IdleUp) {
+		button_state_ = InternalButtonState::Hover;
+	} else if (button_state_ == InternalButtonState::IdleDown) {
+		button_state_ = InternalButtonState::HoverPressed;
+	} else if (button_state_ == InternalButtonState::HeldOutside) {
+		button_state_ = InternalButtonState::Pressed;
 	}
 	if (on_hover_start_ != nullptr) {
 		StartHover();
@@ -193,12 +193,12 @@ void Button::OnMouseLeave([[maybe_unused]] const MouseMoveEvent& e) {
 	if (!enabled_) {
 		return;
 	}
-	if (button_state_ == InternalButtonState::HOVER) {
-		button_state_ = InternalButtonState::IDLE_UP;
-	} else if (button_state_ == InternalButtonState::PRESSED) {
-		button_state_ = InternalButtonState::HELD_OUTSIDE;
-	} else if (button_state_ == InternalButtonState::HOVER_PRESSED) {
-		button_state_ = InternalButtonState::IDLE_DOWN;
+	if (button_state_ == InternalButtonState::Hover) {
+		button_state_ = InternalButtonState::IdleUp;
+	} else if (button_state_ == InternalButtonState::Pressed) {
+		button_state_ = InternalButtonState::HeldOutside;
+	} else if (button_state_ == InternalButtonState::HoverPressed) {
+		button_state_ = InternalButtonState::IdleDown;
 	}
 	if (on_hover_stop_ != nullptr) {
 		StopHover();
@@ -209,8 +209,8 @@ void Button::OnMouseDown(const MouseDownEvent& e) {
 	if (!enabled_) {
 		return;
 	}
-	if (e.mouse == Mouse::LEFT && button_state_ == InternalButtonState::HOVER) {
-		button_state_ = InternalButtonState::PRESSED;
+	if (e.mouse == Mouse::Left && button_state_ == InternalButtonState::Hover) {
+		button_state_ = InternalButtonState::Pressed;
 	}
 }
 
@@ -218,8 +218,8 @@ void Button::OnMouseDownOutside(const MouseDownEvent& e) {
 	if (!enabled_) {
 		return;
 	}
-	if (e.mouse == Mouse::LEFT && button_state_ == InternalButtonState::IDLE_UP) {
-		button_state_ = InternalButtonState::IDLE_DOWN;
+	if (e.mouse == Mouse::Left && button_state_ == InternalButtonState::IdleUp) {
+		button_state_ = InternalButtonState::IdleDown;
 	}
 }
 
@@ -227,13 +227,13 @@ void Button::OnMouseUp(const MouseUpEvent& e) {
 	if (!enabled_) {
 		return;
 	}
-	if (e.mouse == Mouse::LEFT) {
-		if (button_state_ == InternalButtonState::PRESSED) {
-			button_state_ = InternalButtonState::HOVER;
+	if (e.mouse == Mouse::Left) {
+		if (button_state_ == InternalButtonState::Pressed) {
+			button_state_ = InternalButtonState::Hover;
 			if (on_activate_ != nullptr) {
 				Activate();
-			} else if (button_state_ == InternalButtonState::HOVER_PRESSED) {
-				button_state_ = InternalButtonState::HOVER;
+			} else if (button_state_ == InternalButtonState::HoverPressed) {
+				button_state_ = InternalButtonState::Hover;
 			}
 		}
 	}
@@ -244,11 +244,11 @@ void Button::OnMouseUpOutside(const MouseUpEvent& e) {
 	if (!enabled_) {
 		return;
 	}
-	if (e.mouse == Mouse::LEFT) {
-		if (button_state_ == InternalButtonState::IDLE_DOWN) {
-			button_state_ = InternalButtonState::IDLE_UP;
-		} else if (button_state_ == InternalButtonState::HELD_OUTSIDE) {
-			button_state_ = InternalButtonState::IDLE_UP;
+	if (e.mouse == Mouse::Left) {
+		if (button_state_ == InternalButtonState::IdleDown) {
+			button_state_ = InternalButtonState::IdleUp;
+		} else if (button_state_ == InternalButtonState::HeldOutside) {
+			button_state_ = InternalButtonState::IdleUp;
 		}
 	}
 }
@@ -270,12 +270,12 @@ void Button::SetRectangle(const Rectangle<float>& new_rectangle) {
 }
 
 ButtonState Button::GetState() const {
-	if (button_state_ == InternalButtonState::HOVER) {
-		return ButtonState::HOVER;
-	} else if (button_state_ == InternalButtonState::PRESSED) {
-		return ButtonState::PRESSED;
+	if (button_state_ == InternalButtonState::Hover) {
+		return ButtonState::Hover;
+	} else if (button_state_ == InternalButtonState::Pressed) {
+		return ButtonState::Pressed;
 	} else {
-		return ButtonState::DEFAULT;
+		return ButtonState::Default;
 	}
 }
 
@@ -291,15 +291,15 @@ ToggleButton::~ToggleButton() {
 }
 
 void ToggleButton::OnMouseUp(const MouseUpEvent& e) {
-	if (e.mouse == Mouse::LEFT) {
-		if (button_state_ == InternalButtonState::PRESSED) {
-			button_state_ = InternalButtonState::HOVER;
+	if (e.mouse == Mouse::Left) {
+		if (button_state_ == InternalButtonState::Pressed) {
+			button_state_ = InternalButtonState::Hover;
 			toggled_	  = !toggled_;
 			if (on_activate_ != nullptr) {
 				Activate();
 			}
-		} else if (button_state_ == InternalButtonState::HOVER_PRESSED) {
-			button_state_ = InternalButtonState::HOVER;
+		} else if (button_state_ == InternalButtonState::HoverPressed) {
+			button_state_ = InternalButtonState::Hover;
 		}
 	}
 }
@@ -323,9 +323,9 @@ SolidButton::SolidButton(
 	std::function<void()> on_activate_function
 ) :
 	Button{ rect, on_activate_function } {
-	colors_.data.at(static_cast<std::size_t>(ButtonState::DEFAULT)).at(0) = default_color;
-	colors_.data.at(static_cast<std::size_t>(ButtonState::HOVER)).at(0)	  = hover_color;
-	colors_.data.at(static_cast<std::size_t>(ButtonState::PRESSED)).at(0) = pressed_color;
+	colors_.data.at(static_cast<std::size_t>(ButtonState::Default)).at(0) = default_color;
+	colors_.data.at(static_cast<std::size_t>(ButtonState::Hover)).at(0)	  = hover_color;
+	colors_.data.at(static_cast<std::size_t>(ButtonState::Pressed)).at(0) = pressed_color;
 }
 
 void SolidButton::DrawImpl(std::size_t color_array_index) const {
@@ -354,9 +354,9 @@ TexturedButton::TexturedButton(
 	std::function<void()> on_activate_function
 ) :
 	Button{ rect, on_activate_function } {
-	textures_.data.at(static_cast<std::size_t>(ButtonState::DEFAULT)).at(0) = default_texture;
-	textures_.data.at(static_cast<std::size_t>(ButtonState::HOVER)).at(0)	= hover_texture;
-	textures_.data.at(static_cast<std::size_t>(ButtonState::PRESSED)).at(0) = pressed_texture;
+	textures_.data.at(static_cast<std::size_t>(ButtonState::Default)).at(0) = default_texture;
+	textures_.data.at(static_cast<std::size_t>(ButtonState::Hover)).at(0)	= hover_texture;
+	textures_.data.at(static_cast<std::size_t>(ButtonState::Pressed)).at(0) = pressed_texture;
 }
 
 bool TexturedButton::GetVisibility() const {
@@ -369,9 +369,9 @@ void TexturedButton::ForEachTexture(std::function<void(Texture)> func) {
 			Texture texture =
 				GetCurrentTextureImpl(static_cast<ButtonState>(state), texture_array_index);
 			if (!texture.IsValid()) {
-				texture = GetCurrentTextureImpl(ButtonState::DEFAULT, texture_array_index);
+				texture = GetCurrentTextureImpl(ButtonState::Default, texture_array_index);
 				if (!texture.IsValid()) {
-					texture = GetCurrentTextureImpl(ButtonState::DEFAULT, 0);
+					texture = GetCurrentTextureImpl(ButtonState::Default, 0);
 				}
 			}
 			if (texture.IsValid()) {
@@ -391,7 +391,7 @@ void TexturedButton::DrawImpl(std::size_t texture_array_index) const {
 	}
 	Texture texture = GetCurrentTextureImpl(GetState(), texture_array_index);
 	if (!texture.IsValid()) {
-		texture = GetCurrentTextureImpl(ButtonState::DEFAULT, 0);
+		texture = GetCurrentTextureImpl(ButtonState::Default, 0);
 	}
 	PTGN_ASSERT(texture.IsValid(), "Button state texture (or default texture) must be valid");
 	// TODO: Fix
@@ -447,9 +447,9 @@ TexturedToggleButton::TexturedToggleButton(
 		}
 	};
 
-	set_textures(default_textures, ButtonState::DEFAULT);
-	set_textures(hover_textures, ButtonState::HOVER);
-	set_textures(pressed_textures, ButtonState::PRESSED);
+	set_textures(default_textures, ButtonState::Default);
+	set_textures(hover_textures, ButtonState::Hover);
+	set_textures(pressed_textures, ButtonState::Pressed);
 }
 
 void TexturedToggleButton::Draw() const {

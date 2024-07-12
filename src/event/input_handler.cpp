@@ -11,9 +11,9 @@ namespace ptgn {
 
 void InputHandler::Update() {
 	// Update mouse states.
-	UpdateMouseState(Mouse::LEFT);
-	UpdateMouseState(Mouse::RIGHT);
-	UpdateMouseState(Mouse::MIDDLE);
+	UpdateMouseState(Mouse::Left);
+	UpdateMouseState(Mouse::Right);
+	UpdateMouseState(Mouse::Middle);
 	mouse_scroll = {};
 	first_time_.reset();
 	SDL_Event event;
@@ -32,7 +32,7 @@ void InputHandler::Update() {
 				std::pair<MouseState&, Timer&> pair =
 					GetMouseStateAndTimer(static_cast<Mouse>(event.button.button));
 				pair.second.Start();
-				pair.first = MouseState::DOWN;
+				pair.first = MouseState::Down;
 				event_handler.mouse_event.Post(MouseDownEvent{
 					static_cast<Mouse>(event.button.button), mouse_position });
 				break;
@@ -41,7 +41,7 @@ void InputHandler::Update() {
 				std::pair<MouseState&, Timer&> pair =
 					GetMouseStateAndTimer(static_cast<Mouse>(event.button.button));
 				pair.second.Reset();
-				pair.first = MouseState::UP;
+				pair.first = MouseState::Up;
 				event_handler.mouse_event.Post(MouseUpEvent{
 					static_cast<Mouse>(event.button.button), mouse_position });
 				break;
@@ -117,18 +117,18 @@ milliseconds InputHandler::GetMouseHeldTime(Mouse button) {
 
 void InputHandler::UpdateMouseState(Mouse button) {
 	std::pair<MouseState&, Timer&> pair = GetMouseStateAndTimer(button);
-	if (pair.second.IsRunning() && pair.first == MouseState::DOWN) {
-		pair.first = MouseState::PRESSED;
-	} else if (!pair.second.IsRunning() && pair.first == MouseState::UP) {
-		pair.first = MouseState::RELEASED;
+	if (pair.second.IsRunning() && pair.first == MouseState::Down) {
+		pair.first = MouseState::Pressed;
+	} else if (!pair.second.IsRunning() && pair.first == MouseState::Up) {
+		pair.first = MouseState::Released;
 	}
 }
 
 std::pair<MouseState&, Timer&> InputHandler::GetMouseStateAndTimer(Mouse button) {
 	switch (button) {
-		case Mouse::LEFT:	return { left_mouse_, left_mouse_timer_ };
-		case Mouse::RIGHT:	return { right_mouse_, right_mouse_timer_ };
-		case Mouse::MIDDLE: return { middle_mouse_, middle_mouse_timer_ };
+		case Mouse::Left:	return { left_mouse_, left_mouse_timer_ };
+		case Mouse::Right:	return { right_mouse_, right_mouse_timer_ };
+		case Mouse::Middle: return { middle_mouse_, middle_mouse_timer_ };
 		default:			break;
 	}
 	PTGN_ASSERT(false, "Input handler cannot retrieve state and timer for invalid mouse button");
@@ -137,29 +137,29 @@ std::pair<MouseState&, Timer&> InputHandler::GetMouseStateAndTimer(Mouse button)
 
 MouseState InputHandler::GetMouseState(Mouse button) const {
 	switch (button) {
-		case Mouse::LEFT:	return left_mouse_;
-		case Mouse::RIGHT:	return right_mouse_;
-		case Mouse::MIDDLE: return middle_mouse_;
+		case Mouse::Left:	return left_mouse_;
+		case Mouse::Right:	return right_mouse_;
+		case Mouse::Middle: return middle_mouse_;
 		default:			return left_mouse_;
 	}
 }
 
 bool InputHandler::MousePressed(Mouse button) const {
 	auto state{ GetMouseState(button) };
-	return state == MouseState::PRESSED || state == MouseState::DOWN;
+	return state == MouseState::Pressed || state == MouseState::Down;
 }
 
 bool InputHandler::MouseReleased(Mouse button) const {
 	auto state{ GetMouseState(button) };
-	return state == MouseState::RELEASED || state == MouseState::UP;
+	return state == MouseState::Released || state == MouseState::Up;
 }
 
 bool InputHandler::MouseDown(Mouse button) const {
-	return GetMouseState(button) == MouseState::DOWN;
+	return GetMouseState(button) == MouseState::Down;
 }
 
 bool InputHandler::MouseUp(Mouse button) const {
-	return GetMouseState(button) == MouseState::UP;
+	return GetMouseState(button) == MouseState::Up;
 }
 
 bool InputHandler::KeyPressed(Key key) const {

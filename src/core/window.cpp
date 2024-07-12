@@ -196,20 +196,36 @@ void Hide() {
 	SDL_HideWindow(global::GetGame().sdl.GetWindow().get());
 }
 
-void RepeatUntilQuit(std::function<void()> while_not_quit) {
+void RepeatUntilQuit(
+	std::variant<std::function<void(void)>, std::function<void(float)>> while_not_quit
+) {
 	Game& game = global::GetGame();
 
 	bool running = true;
 
 	game.event.window_event.Subscribe((void*)&running, [&](const Event<WindowEvent>& event) {
-		if (event.Type() == WindowEvent::QUIT) {
+		if (event.Type() == WindowEvent::Quit) {
 			running = false;
 		}
 	});
 
+	using time = std::chrono::time_point<std::chrono::system_clock>;
+	time start{ std::chrono::system_clock::now() };
+	time end{ std::chrono::system_clock::now() };
+
 	while (running) {
+		// Calculate time elapsed during previous frame.
+		end = std::chrono::system_clock::now();
+		std::chrono::duration<float> elapsed{ end - start };
+		float dt{ elapsed.count() };
+		start = end;
+
 		input::Update();
-		while_not_quit();
+		if (std::holds_alternative<std::function<void(float)>>(while_not_quit)) {
+			std::get<std::function<void(float)>>(while_not_quit)(dt);
+		} else {
+			std::get<std::function<void(void)>>(while_not_quit)();
+		}
 	}
 
 	game.event.window_event.Unsubscribe((void*)&running);

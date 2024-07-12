@@ -5,7 +5,7 @@ namespace ptgn {
 void SceneManager::Unload(std::size_t scene_key) {
 	if (Has(scene_key)) {
 		auto scene	   = Get(scene_key);
-		scene->status_ = Scene::Status::DELETE;
+		scene->status_ = Scene::Status::Delete;
 		flagged_++;
 	}
 }
@@ -55,7 +55,7 @@ void SceneManager::Update(float dt) {
 	for (auto scene_key : active_scenes_) {
 		if (Has(scene_key)) {
 			auto scene = Get(scene_key);
-			if (scene->status_ != Scene::Status::DELETE) {
+			if (scene->status_ != Scene::Status::Delete) {
 				scene->Update();
 				scene->Update(dt);
 			}
@@ -70,7 +70,7 @@ void SceneManager::UnloadFlagged() {
 	std::size_t counter		= 0;
 	while (flagged_ > 0) {
 		for (auto it = map.begin(); it != map.end();) {
-			if (it->second->status_ == Scene::Status::DELETE) {
+			if (it->second->status_ == Scene::Status::Delete) {
 				it = map.erase(it);
 				flagged_--;
 			} else {

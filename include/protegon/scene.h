@@ -32,10 +32,10 @@ public:
 private:
 	friend class SceneManager;
 	enum class Status : std::size_t {
-		IDLE,
-		DELETE
+		Idle,
+		Delete
 	};
-	Status status_{ Status::IDLE };
+	Status status_{ Status::Idle };
 };
 
 class SceneManager : public HandleManager<std::shared_ptr<Scene>> {

@@ -16,9 +16,9 @@ namespace ptgn {
 using TextureOrKey = std::variant<Texture, TextureKey>;
 
 enum class ButtonState : std::size_t {
-	DEFAULT = 0,
-	HOVER	= 1,
-	PRESSED = 2
+	Default = 0,
+	Hover	= 1,
+	Pressed = 2
 };
 
 template <size_t I>
@@ -78,19 +78,19 @@ public:
 
 protected:
 	enum class InternalButtonState : std::size_t {
-		IDLE_UP		  = 0,
-		HOVER		  = 1,
-		PRESSED		  = 2,
-		HELD_OUTSIDE  = 3,
-		IDLE_DOWN	  = 4,
-		HOVER_PRESSED = 5
+		IdleUp		 = 0,
+		Hover		 = 1,
+		Pressed		 = 2,
+		HeldOutside  = 3,
+		IdleDown	 = 4,
+		HoverPressed = 5
 	};
 
 	Rectangle<float> rect_;
 	std::function<void()> on_activate_;
 	std::function<void()> on_hover_start_;
 	std::function<void()> on_hover_stop_;
-	InternalButtonState button_state_{ InternalButtonState::IDLE_UP };
+	InternalButtonState button_state_{ InternalButtonState::IdleUp };
 	bool enabled_{ true };
 };
 
