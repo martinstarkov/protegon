@@ -6,6 +6,7 @@
 
 #include "type_traits.h"
 #include "vector2.h"
+#include "vector3.h"
 #include "math.h"
 
 namespace ptgn {
@@ -14,8 +15,24 @@ template <typename T, type_traits::arithmetic<T> = true>
 struct Matrix4 {
 	constexpr static V2_int size{ 4, 4 };
 	constexpr static std::size_t length{ size.x * size.y };
-
+	
 	std::array<T, length> m{};
+
+	constexpr Matrix4() = default;
+	~Matrix4()			= default;
+
+	constexpr Matrix4(T x, T y, T z, T w) {
+		m[0] = x;
+		m[5] = y;
+		m[10] = z;
+		m[15] = w;
+	}
+
+	constexpr Matrix4(T diag) {
+		for (std::size_t x = 0; x < size.x; x++) {
+			m[x + x * size.x] = diag;
+		}
+	}
 
 	T& operator()(std::size_t x, std::size_t y) {
 		PTGN_ASSERT(x < size.x);
@@ -39,9 +56,6 @@ struct Matrix4 {
 		return m[col_major_index];
 	}
 
-	constexpr Matrix4() = default;
-	~Matrix4()			= default;
-
 	auto begin() {
 		return std::begin(m);
 	}
@@ -58,30 +72,76 @@ struct Matrix4 {
 		return std::end(m);
 	}
 
-	[[nodiscard]] static Matrix4 Identity() {
-		Matrix4 identity;
-		for (std::size_t x = 0; x < size.x; x++) {
-			identity[x + x * size.x] = T{ 1 };
-		}
-		return identity;
+	[[nodiscard]] static Matrix4 LookAt(
+		const Vector3<T>& position, const Vector3<T>& target, const Vector3<T>& up
+	) {
+		Matrix4<T> m;
+		Vector3<T> X, Y, Z;
+		Z = position - target;
+		Z = Z.Normalized();
+		Y = up;
+		X = Y.Cross(Z);
+		Y = Z.Cross(X);
+		X = X.Normalized();
+		Y = Y.Normalized();
+
+		m[0] = X.x;
+		m[1] = Y.x;
+		m[2] = Z.x;
+		m[3] = 0.0f;
+		m[4] = X.y;
+		m[5] = Y.y;
+		m[6] = Z.y;
+		m[7] = 0.0f;
+		m[8] = X.z;
+		m[9] = Y.z;
+		m[10] = Z.z;
+		m[11] = 0.0f;
+		m[12] = -X.Dot(position);
+		m[13] = -Y.Dot(position);
+		m[14] = -Z.Dot(position);
+		m[15] = 1.0f;
+
+		return m;
 	}
 
+	[[nodiscard]] static Matrix4 Identity() {
+		return { T{ 1 } };
+	}
+
+	// Example usage: M4_float proj = M4_float::Orthographic(-1.0f, 1.0f, -1.0f, 1.0f);
 	[[nodiscard]] static Matrix4 Orthographic(
 		T left, T right, T bottom, T top, T near = T{ -1 }, T far = T{ 1 }
 	) {
 		Matrix4<T> o;
-		T width = right - left;
-		T height = top - bottom;
-		T depth = far - near;
 
-		o[0] = T{ 2 } / width;
-		o[5] = T{ 2 } / height;
-		o[10] = -T{ 2 } / depth; // -1 by default
-		o[12] = - (right + left) / width;
-		o[13] = - (top + bottom) / height;
-		o[14] = - (far + near) / depth; // 0 by default
+		o[0]  = T{ 2 } / (right - left);
+		o[5]  = T{ 2 } / (top - bottom);
+		o[10] = -T{ 2 } / (far - near); // -1 by default
+		o[12] = -(right + left) / (right - left);
+		o[13] = -(top + bottom) / (top - bottom);
+		o[14] = -(far + near) / (far - near); // 0 by default
 		o[15] = T{ 1 };
 		return o;
+	}
+
+	// fov_x in radians
+	// Example usage: M4_float proj = M4_float::Perspective(DegToRad(45.0f), (float)window::GetSize().x / (float)window::GetSize().y, 0.1f, 100.0f);
+	[[nodiscard]] static Matrix4 Perspective(T fov_x, T aspect_ratio, T front, T back
+	) {
+		T tangent = std::tan(fov_x / T{ 2 }); // tangent of half fovX
+		T right	  = front * tangent;		 // half width of near plane
+		T top	  = right / aspect_ratio;	 // half height of near plane
+
+		// params: left, right, bottom, top, near(front), far(back)
+		Matrix4<T> p;
+		p[0]  = front / right;
+		p[5]  = front / top;
+		p[10] = -(back + front) / (back - front);
+		p[11] = T{ -1 };
+		p[14] = -(T{ 2 } * back * front) / (back - front);
+		p[15] = T{ 0 };
+		return p;
 	}
 
 	[[nodiscard]] static Matrix4 Translate(const Matrix4& m, T x, T y, T z) {
