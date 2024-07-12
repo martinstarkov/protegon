@@ -1,5 +1,7 @@
 #pragma once
 
+#include <variant>
+
 #include "color.h"
 #include "vector2.h"
 
@@ -69,7 +71,9 @@ void Show();
 void Hide();
 
 // Go into a while loop which exists upon quitting the current window.
-void RepeatUntilQuit(std::function<void()> while_not_quit);
+void RepeatUntilQuit(
+	std::variant<std::function<void()>, std::function<void(float dt)>> while_not_quit
+);
 
 } // namespace window
 

@@ -83,7 +83,7 @@ void SDLInstance::InitSDL() {
 			PTGN_CHECK(false, "Failed to initialize SDL core");
 		}
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
 		int gl_load = SDL_GL_LoadLibrary(NULL);

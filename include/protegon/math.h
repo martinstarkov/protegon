@@ -83,14 +83,14 @@ inline constexpr T epsilon2{ epsilon<T> * epsilon<T> };
 
 // Convert degrees to radians.
 template <typename T, type_traits::floating_point<T> = true>
-[[nodiscard]] T DegToRad(T deg) {
-	return deg * pi<T> / 180;
+[[nodiscard]] constexpr T DegToRad(T deg) {
+	return deg * pi<T> / T{ 180 };
 }
 
 // Convert radians to degrees.
 template <typename T, type_traits::floating_point<T> = true>
-[[nodiscard]] T RadToDeg(T rad) {
-	return rad / pi<T> * 180;
+[[nodiscard]] constexpr T RadToDeg(T rad) {
+	return rad / pi<T> * T{ 180 };
 }
 
 // Modulo operator which supports wrapping negative numbers.

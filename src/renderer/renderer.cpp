@@ -102,6 +102,10 @@ void Flush() {
 
 Renderer::Renderer(const V2_int& size) {
 	gl::glViewport(0, 0, size.x, size.y);
+	// TODO: Add on resize viewport change callback.
+	/*void framebuffer_size_callback(GLFWwindow * window, int width, int height) {
+		glViewport(0, 0, width, height);
+	} */
 	gl::glClearColor(0.0f, 0.0f, 0.0f, 0.0f); /* This Will Clear The Background Color To Black */
 	gl::glClearDepth(1.0);					  /* Enables Clearing Of The Depth Buffer */
 	gl::glDepthFunc(GL_LESS);				  /* The Type Of Depth Test To Do */

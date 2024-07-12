@@ -19,7 +19,7 @@ void ForceUpdateMousePosition();
 [[nodiscard]] V2_int GetMousePosition();
 
 // @return The amount scrolled by the mouse vertically in the current frame,
-// positive upward, negative downward.
+// positive upward, negative downward. Zero if no scroll occurred.
 [[nodiscard]] int MouseScroll();
 
 [[nodiscard]] MouseState GetMouseState(Mouse button);
