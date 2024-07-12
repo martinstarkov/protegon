@@ -10,6 +10,7 @@
 #include "protegon/file.h"
 #include "protegon/handle.h"
 #include "protegon/type_traits.h"
+#include "protegon/matrix4.h"
 
 namespace ptgn {
 
@@ -53,6 +54,7 @@ public:
 
 	void WhileBound(std::function<void()> func);
 
+	void SetUniform(const std::string& name, const Matrix4<float>& m);
 	void SetUniform(const std::string& name, float v0);
 	void SetUniform(const std::string& name, float v0, float v1);
 	void SetUniform(const std::string& name, float v0, float v1, float v2);

@@ -157,6 +157,13 @@ std::int32_t Shader::GetUniformLocation(const std::string& name) const {
 	return location;
 }
 
+void Shader::SetUniform(const std::string& name, const Matrix4<float>& m) {
+	std::int32_t location = GetUniformLocation(name);
+	if (location != -1) {
+		gl::UniformMatrix4fv(location, 1, GL_FALSE, m.m.data());
+	}
+}
+
 void Shader::SetUniform(const std::string& name, float v0) {
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
