@@ -54,6 +54,12 @@ void VertexArray::SetVertexBuffer(const VertexBuffer& vertex_buffer) {
 	vertex_buffer.Bind();
 
 	const std::vector<impl::BufferElement>& elements = layout.GetElements();
+
+	std::int32_t max_attributes{ 0 };
+	gl::glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max_attributes);
+
+	PTGN_ASSERT(elements.size() < max_attributes, "Too many vertex attributes");
+
 	for (std::uint32_t i = 0; i < elements.size(); ++i) {
 		const impl::BufferElement& element{ elements[i] };
 		gl::EnableVertexAttribArray(i);
