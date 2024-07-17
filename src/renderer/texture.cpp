@@ -3,10 +3,9 @@
 #include "SDL.h"
 #include "SDL_image.h"
 
-#include "core/game.h"
-#include "gl_helper.h"
-#include "protegon/debug.h"
-#include "protegon/renderer.h"
+#include "protegon/game.h"
+#include "renderer/gl_helper.h"
+#include "utility/debug.h"
 #include "renderer/gl_loader.h"
 
 namespace ptgn {
@@ -17,7 +16,7 @@ void Texture::Draw(
 	const Rectangle<float>& destination, const Rectangle<int>& source, float angle, Flip flip,
 	V2_int* center_of_rotation
 ) const {
-	renderer::DrawTexture(*this, destination, source, angle, flip, center_of_rotation);
+	game.renderer.DrawTexture(*this, destination, source, angle, flip, center_of_rotation);
 }
 
 V2_int Texture::GetSize() const {
@@ -54,7 +53,7 @@ TextureInstance::TextureInstance(const Surface& surface) {
 	
 	GLFormats formats{ GetGLFormats(surface.GetImageFormat()) };
 
-	GLSLType type{ GetType<std::uint8_t>() };
+	GLType type{ GetType<std::uint8_t>() };
 	
 	gl::glGenTextures(1, &id_);
 	gl::glBindTexture(GL_TEXTURE_2D, id_);

@@ -2,18 +2,17 @@
 
 #include "SDL.h"
 
-#include "core/game.h"
+#include "protegon/game.h"
 #include "protegon/circle.h"
-#include "protegon/renderer.h"
 
 namespace ptgn {
 
 namespace impl {
 
 std::shared_ptr<SDL_Renderer> SetDrawMode(const Color& color) {
-	SDLInstance& sdl{ global::GetGame().sdl };
-	renderer::SetDrawMode(color, BlendMode::Blend);
-	return sdl.GetRenderer();
+	// TODO: Fix
+	//game.renderer.SetDrawMode(color, BlendMode::Blend);
+	return nullptr; // sdl.GetRenderer();
 }
 
 void DrawPoint(int x, int y, const Color& color) {

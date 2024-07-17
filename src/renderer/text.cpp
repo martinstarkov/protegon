@@ -3,8 +3,8 @@
 #include "SDL.h"
 #include "SDL_ttf.h"
 
-#include "core/game.h"
-#include "protegon/debug.h"
+#include "protegon/game.h"
+#include "utility/debug.h"
 #include "protegon/font.h"
 
 namespace ptgn {
@@ -57,10 +57,11 @@ void TextInstance::RecreateTexture() {
 		default: PTGN_ASSERT(false, "Unrecognized render mode given when creating text");
 	}
 
-	texture_ = std::shared_ptr<SDL_Texture>{
-		SDL_CreateTextureFromSurface(global::GetGame().sdl.GetRenderer().get(), surface.get()),
+	// TODO: http://www.sdltutorials.com/sdl-tip-sdl-surface-to-opengl-texture
+	/*texture_ = std::shared_ptr<SDL_Texture>{
+		SDL_CreateTextureFromSurface(game.sdl.GetRenderer().get(), surface.get()),
 		SDL_DestroyTexture
-	};
+	};*/
 }
 
 } // namespace impl
@@ -144,9 +145,8 @@ Font Text::GetFont(const FontOrKey& font) {
 	Font f;
 	if (std::holds_alternative<std::size_t>(font)) {
 		std::size_t font_key{ std::get<std::size_t>(font) };
-		auto& fonts{ global::GetGame().managers.font };
-		PTGN_CHECK(fonts.Has(font_key), "font::Load() into manager before creating text");
-		f = fonts.Get(font_key);
+		PTGN_CHECK(game.font.Has(font_key), "game.font.Load() into manager before creating text");
+		f = game.font.Get(font_key);
 	} else {
 		f = std::get<Font>(font);
 	}
@@ -174,10 +174,11 @@ void Text::Draw(const Rectangle<int>& destination) const {
 	if (instance_->texture_ == nullptr) {
 		return;
 	}
-	SDL_Rect dest(destination);
+	// TODO: Fix
+	/*SDL_Rect dest(destination);
 	SDL_RenderCopy(
-		global::GetGame().sdl.GetRenderer().get(), instance_->texture_.get(), NULL, &dest
-	);
+		game.sdl.GetRenderer().get(), instance_->texture_.get(), NULL, &dest
+	);*/
 }
 
 V2_int Text::GetSize(const FontOrKey& font, const std::string& content) {

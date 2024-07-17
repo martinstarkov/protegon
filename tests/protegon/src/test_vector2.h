@@ -4,6 +4,7 @@
 #include <unordered_map>
 
 #include "protegon/vector2.h"
+#include "utility/debug.h"
 
 using namespace ptgn;
 

@@ -5,7 +5,7 @@
 
 #include <algorithm>
 
-#include "protegon/debug.h"
+#include "utility/debug.h"
 
 namespace ptgn {
 

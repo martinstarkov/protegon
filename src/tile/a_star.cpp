@@ -1,6 +1,6 @@
 #include "protegon/a_star.h"
 
-#include "protegon/debug.h"
+#include "utility/debug.h"
 
 namespace ptgn {
 

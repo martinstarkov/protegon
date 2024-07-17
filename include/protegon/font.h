@@ -3,7 +3,7 @@
 #include <cstdint>
 
 #include "file.h"
-#include "handle.h"
+#include "utility/handle.h"
 
 struct _TTF_Font;
 using TTF_Font = _TTF_Font;

@@ -2,13 +2,98 @@
 
 #include <algorithm>
 
-#include "event.h"
-#include "events.h"
-#include "vector2.h"
-#include "vector3.h"
-#include "matrix4.h"
+#include "protegon/event.h"
+#include "protegon/events.h"
+#include "protegon/vector2.h"
+#include "protegon/vector3.h"
+#include "protegon/matrix4.h"
 
 namespace ptgn {
+
+//template<typename T, qualifier Q> GLM_FUNC_QUALIFIER T angle(const qua<T, Q>& x) {
+//	if (abs(x.w) > cos_one_over_two<T>()) {
+//		const T a = asin(sqrt(x.x * x.x + x.y * x.y + x.z * x.z)) * static_cast<T>(2);
+//		if (x.w < static_cast<T>(0)) {
+//			return pi<T>() * static_cast<T>(2) - a;
+//		}
+//		return a;
+//	}
+//
+//	return acos(x.w) * static_cast<T>(2);
+//}
+//
+//template <typename T, qualifier Q>
+//GLM_FUNC_QUALIFIER vec<3, T, Q> axis(const qua<T, Q>& x) {
+//	const T tmp1 = static_cast<T>(1) - x.w * x.w;
+//	if (tmp1 <= static_cast<T>(0)) {
+//		return vec<3, T, Q>(0, 0, 1);
+//	}
+//	const T tmp2 = static_cast<T>(1) / sqrt(tmp1);
+//	return vec<3, T, Q>(x.x * tmp2, x.y * tmp2, x.z * tmp2);
+//}
+//
+//template <typename T, qualifier Q>
+//GLM_FUNC_QUALIFIER qua<T, Q> angleAxis(const T& angle, const vec<3, T, Q>& v) {
+//	const T a(angle);
+//	const T s = glm::sin(a * static_cast<T>(0.5));
+//
+//	return qua<T, Q>(glm::cos(a * static_cast<T>(0.5)), v * s);
+//}
+
+//class camera {
+//	glm::vec3 m_pos;
+//	glm::quat m_orient;
+//
+//public:
+//	camera(void)		   = default;
+//	camera(const camera &) = default;
+//
+//	camera(const glm::vec3 &pos) : m_pos(pos) {}
+//
+//	camera(const glm::vec3 &pos, const glm::quat &orient) : m_pos(pos), m_orient(orient) {}
+//
+//	camera &operator=(const camera &) = default;
+//
+//	const glm::vec3 &position(void) const {
+//		return m_pos;
+//	}
+//
+//	const glm::quat &orientation(void) const {
+//		return m_orient;
+//	}
+//
+//	glm::mat4 view(void) const {
+//		return glm::translate(glm::mat4_cast(m_orient), m_pos);
+//	}
+//
+//	void translate(const glm::vec3 &v) {
+//		m_pos += v * m_orient;
+//	}
+//
+//	void translate(float x, float y, float z) {
+//		m_pos += glm::vec3(x, y, z) * m_orient;
+//	}
+//
+//	void rotate(float angle, const glm::vec3 &axis) {
+//		m_orient *= glm::angleAxis(angle, axis * m_orient);
+//	}
+//
+//	void rotate(float angle, float x, float y, float z) {
+//		m_orient *= glm::angleAxis(angle, glm::vec3(x, y, z) * m_orient);
+//	}
+//
+//	void yaw(float angle) {
+//		rotate(angle, 0.0f, 1.0f, 0.0f);
+//	}
+//
+//	void pitch(float angle) {
+//		rotate(angle, 1.0f, 0.0f, 0.0f);
+//	}
+//
+//	void roll(float angle) {
+//		rotate(angle, 0.0f, 0.0f, 1.0f);
+//	}
+//};
 
 struct Camera {
 	Camera(
@@ -33,12 +118,14 @@ enum CameraDirection {
 	Forward,
 	Backward,
 	Left,
-	Right
+	Right,
+	Up,
+	Down
 };
 
-constexpr const V3_float DEFAULT_ANGLE	  = { 0.0f, 0.0f, 0.0f };
+constexpr const V3_float DEFAULT_ANGLE	  = { 90.0f, 0.0f, 0.0f };
 constexpr const float DEFAULT_SPEED		= 2.5f;
-constexpr const float DEFAULT_SENSITIVITY = 1.0f;
+constexpr const float DEFAULT_SENSITIVITY = 5.0f;
 constexpr const float DEFAULT_ZOOM		= 45.0f;
 constexpr const float MIN_ZOOM		= 1.0f;
 constexpr const float MAX_ZOOM		= 45.0f;
@@ -53,9 +140,11 @@ public:
 	float sensitivity{ DEFAULT_SENSITIVITY };
 	float zoom{ DEFAULT_ZOOM };
 
+	CameraController() = delete;
+
 	// constructor with vectors
 	CameraController(
-		const V3_float& position = { 0.0f, 0.0f, -3.0f }, const V3_float& up = { 0.0f, 1.0f, 0.0f },
+		const V3_float& position, const V3_float& up = { 0.0f, 1.0f, 0.0f },
 		const V3_float& angle = DEFAULT_ANGLE
 	) : camera{
 		position, { 0.0f, 0.0f, -1.0f }, up, up, angle } {
@@ -90,6 +179,12 @@ public:
 			case CameraDirection::Right:
 				camera.position += camera.right * velocity;
 				break;
+			case CameraDirection::Up:
+				camera.position += camera.up * velocity;
+				break;
+			case CameraDirection::Down:
+				camera.position -= camera.up * velocity;
+				break;
 			default: break;
 		}
 	}
@@ -109,6 +204,13 @@ public:
 			camera.angle.y = std::clamp(camera.angle.y, DegToRad(-89.0f), DegToRad(89.0f));
 		}
 
+		// TODO: Consider this.
+		// If we don't constrain the yaw to only use values between 0-360
+		// we would lose floating precission with very high values, hence
+		// the movement would look like big "steps" instead a smooth one!
+		//Yaw = std::fmod((Yaw + xoffset), (GLfloat)360.0f);
+
+
 		UpdateVectors();
 	}
 
@@ -121,7 +223,7 @@ public:
 
 	void SubscribeToMouseEvents();
 	void UnsubscribeFromMouseEvents();
-	void OnMouseMoveEvent(const Event<MouseEvent>& e);
+	void OnMouseMoveEvent(const MouseMoveEvent& e);
 private:
 
 	// calculates the front vector from the Camera's (updated) Euler Angles

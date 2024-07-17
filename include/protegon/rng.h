@@ -5,7 +5,7 @@
 #include <limits>
 #include <random>
 
-#include "type_traits.h"
+#include "utility/type_traits.h"
 
 namespace ptgn {
 

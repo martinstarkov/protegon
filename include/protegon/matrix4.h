@@ -4,7 +4,7 @@
 #include <array>
 #include <iomanip>
 
-#include "type_traits.h"
+#include "utility/type_traits.h"
 #include "vector2.h"
 #include "vector3.h"
 #include "math.h"
@@ -117,7 +117,7 @@ struct Matrix4 {
 	}
 
 	// fov_x in radians
-	// Example usage: M4_float proj = M4_float::Perspective(DegToRad(45.0f), (float)window::GetSize().x / (float)window::GetSize().y, 0.1f, 100.0f);
+	// Example usage: M4_float proj = M4_float::Perspective(DegToRad(45.0f), (float)game.window.GetSize().x / (float)game.window.GetSize().y, 0.1f, 100.0f);
 	[[nodiscard]] static Matrix4 Perspective(T fov_x, T aspect_ratio, T front, T back
 	) {
 		T tangent = std::tan(fov_x / T{ 2 }); // tangent of half fovX

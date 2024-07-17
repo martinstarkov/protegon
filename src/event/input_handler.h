@@ -5,8 +5,8 @@
 #include <cstdlib>
 #include <tuple>
 
-#include "protegon/key.h"
-#include "protegon/mouse.h"
+#include "event/key.h"
+#include "event/mouse.h"
 #include "protegon/timer.h"
 #include "protegon/vector2.h"
 
@@ -33,13 +33,25 @@ struct InputHandler {
 
 	[[nodiscard]] milliseconds GetMouseHeldTime(Mouse button);
 
+	/*
+	 * @tparam Duration The unit of time measurement.
+	 * @return True if the mouse button has been held for the given amount of time.
+	 */
+	template <typename Duration, type_traits::duration<Duration> = true>
+	[[nodiscard]] inline bool MouseHeld(Mouse button, Duration time) {
+		const auto held_time{ GetMouseHeldTime(button) };
+		return held_time > time;
+	}
+
 	void Update();
+
+	void SetRelativeMouseMode(bool on);
 
 	void ForceUpdateMousePosition();
 	[[nodiscard]] V2_int GetMousePosition();
 
 	// @return The amount scrolled by the mouse vertically in the current frame,
-	// positive upward, negative downward.
+	// positive upward, negative downward. Zero if no scroll occurred.
 	[[nodiscard]] int GetMouseScroll() const;
 
 	[[nodiscard]] bool MousePressed(Mouse button) const;

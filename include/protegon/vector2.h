@@ -6,10 +6,10 @@
 #include <functional>
 #include <ostream>
 
-#include "color.h"
-#include "math.h"
-#include "protegon/debug.h"
-#include "type_traits.h"
+#include "protegon/color.h"
+#include "protegon/math.h"
+#include "utility/debug.h"
+#include "utility/type_traits.h"
 
 struct SDL_Point;
 

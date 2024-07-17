@@ -1,7 +1,7 @@
 #pragma once
 
 #include "protegon/event.h"
-#include "protegon/mouse.h"
+#include "event/mouse.h"
 #include "protegon/vector2.h"
 
 namespace ptgn {
@@ -9,42 +9,56 @@ namespace ptgn {
 enum class MouseEvent {
 	Move,
 	Down,
-	Up
+	Up,
+	Scroll
 };
 
-struct MouseMoveEvent : public Event<MouseEvent> {
+struct MouseMoveEvent : public Event {
 	MouseMoveEvent(const V2_int& previous, const V2_int& current) :
-		previous{ previous }, current{ current }, Event{ MouseEvent::Move } {}
+		previous{ previous }, current{ current } {}
 
 	V2_int previous;
 	V2_int current;
 };
 
-class MouseDownEvent : public Event<MouseEvent> {
+class MouseDownEvent : public Event {
 public:
 	MouseDownEvent(Mouse mouse, const V2_int& current) :
-		mouse{ mouse }, current{ current }, Event{ MouseEvent::Down } {}
+		mouse{ mouse }, current{ current } {}
 
 	Mouse mouse;
 	V2_int current;
 };
 
-class MouseUpEvent : public Event<MouseEvent> {
+class MouseUpEvent : public Event {
 public:
 	MouseUpEvent(Mouse mouse, const V2_int& current) :
-		mouse{ mouse }, current{ current }, Event{ MouseEvent::Up } {}
+		mouse{ mouse }, current{ current } {}
 
 	Mouse mouse;
 	V2_int current;
+};
+
+struct MouseScrollEvent : public Event {
+	MouseScrollEvent(const V2_int& scroll) : scroll{ scroll } {}
+
+	V2_int scroll;
 };
 
 enum class WindowEvent {
-	Quit
+	Quit,
+	Resize
 };
 
-class WindowQuitEvent : public Event<WindowEvent> {
+class WindowQuitEvent : public Event {
 public:
-	WindowQuitEvent() : Event{ WindowEvent::Quit } {}
+	WindowQuitEvent() = default;
+};
+
+class WindowResizeEvent : public Event {
+public:
+	WindowResizeEvent(const V2_int& size) : size{ size } {}
+	V2_int size;
 };
 
 } // namespace ptgn

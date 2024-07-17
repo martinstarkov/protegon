@@ -2,7 +2,7 @@
 
 #include "protegon/matrix4.h"
 #include "protegon/log.h"
-#include "protegon/debug.h"
+#include "utility/debug.h"
 
 using namespace ptgn;
 

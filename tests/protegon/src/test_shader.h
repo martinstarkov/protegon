@@ -3,10 +3,10 @@
 #include <set>
 
 #include "protegon/buffer.h"
-#include "protegon/debug.h"
-#include "protegon/protegon.h"
-#include "protegon/renderer.h"
-#include "protegon/camera.h"
+#include "protegon/shader.h"
+#include "protegon/vertex_array.h"
+#include "protegon/game.h"
+#include "utility/debug.h"
 
 using namespace ptgn;
 
@@ -21,7 +21,7 @@ using namespace ptgn;
 #define GL_DOUBLE		  0x140A
 
 void EncodeAndExtract(
-	std::uint16_t hidden_size, std::uint16_t hidden_count, impl::GLSLType hidden_type,
+	std::uint16_t hidden_size, std::uint16_t hidden_count, impl::GLType hidden_type,
 	std::set<std::uint64_t>& unique_codes
 ) {
 	// ShaderDataType data_type = ShaderDataType::none) {
@@ -56,95 +56,95 @@ void EncodeAndExtract(
 
 bool TestShaderProperties() {
 	// Identifier tests
-	/*PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLSLType::Byte) == GL_BYTE);
-	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLSLType::UnsignedByte) == GL_UNSIGNED_BYTE);
-	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLSLType::Short) == GL_SHORT);
-	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLSLType::UnsignedShort) == GL_UNSIGNED_SHORT);
-	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLSLType::Int) == GL_INT);
-	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLSLType::UnsignedInt) == GL_UNSIGNED_INT);
-	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLSLType::Float) == GL_FLOAT);
-	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLSLType::Double) == GL_DOUBLE);*/
+	/*PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLType::Byte) == GL_BYTE);
+	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLType::UnsignedByte) == GL_UNSIGNED_BYTE);
+	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLType::Short) == GL_SHORT);
+	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLType::UnsignedShort) == GL_UNSIGNED_SHORT);
+	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLType::Int) == GL_INT);
+	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLType::UnsignedInt) == GL_UNSIGNED_INT);
+	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLType::Float) == GL_FLOAT);
+	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLType::Double) == GL_DOUBLE);*/
 
 	std::set<std::uint64_t> unique_codes;
 
 	EncodeAndExtract(
-		sizeof(std::int8_t), 1, impl::GLSLType::Byte, unique_codes
+		sizeof(std::int8_t), 1, impl::GLType::Byte, unique_codes
 	); //, ShaderDataType::bool_);
 	EncodeAndExtract(
-		sizeof(std::int8_t), 2, impl::GLSLType::Byte, unique_codes
+		sizeof(std::int8_t), 2, impl::GLType::Byte, unique_codes
 	); //, ShaderDataType::bvec2);
 	EncodeAndExtract(
-		sizeof(std::int8_t), 3, impl::GLSLType::Byte, unique_codes
+		sizeof(std::int8_t), 3, impl::GLType::Byte, unique_codes
 	); //, ShaderDataType::bvec3);
 	EncodeAndExtract(
-		sizeof(std::int8_t), 4, impl::GLSLType::Byte, unique_codes
+		sizeof(std::int8_t), 4, impl::GLType::Byte, unique_codes
 	); //, ShaderDataType::bvec4);
 
-	EncodeAndExtract(sizeof(std::uint8_t), 1, impl::GLSLType::UnsignedByte, unique_codes);
-	EncodeAndExtract(sizeof(std::uint8_t), 2, impl::GLSLType::UnsignedByte, unique_codes);
-	EncodeAndExtract(sizeof(std::uint8_t), 3, impl::GLSLType::UnsignedByte, unique_codes);
-	EncodeAndExtract(sizeof(std::uint8_t), 4, impl::GLSLType::UnsignedByte, unique_codes);
+	EncodeAndExtract(sizeof(std::uint8_t), 1, impl::GLType::UnsignedByte, unique_codes);
+	EncodeAndExtract(sizeof(std::uint8_t), 2, impl::GLType::UnsignedByte, unique_codes);
+	EncodeAndExtract(sizeof(std::uint8_t), 3, impl::GLType::UnsignedByte, unique_codes);
+	EncodeAndExtract(sizeof(std::uint8_t), 4, impl::GLType::UnsignedByte, unique_codes);
 
-	EncodeAndExtract(sizeof(std::int16_t), 1, impl::GLSLType::Short, unique_codes);
-	EncodeAndExtract(sizeof(std::int16_t), 2, impl::GLSLType::Short, unique_codes);
-	EncodeAndExtract(sizeof(std::int16_t), 3, impl::GLSLType::Short, unique_codes);
-	EncodeAndExtract(sizeof(std::int16_t), 4, impl::GLSLType::Short, unique_codes);
+	EncodeAndExtract(sizeof(std::int16_t), 1, impl::GLType::Short, unique_codes);
+	EncodeAndExtract(sizeof(std::int16_t), 2, impl::GLType::Short, unique_codes);
+	EncodeAndExtract(sizeof(std::int16_t), 3, impl::GLType::Short, unique_codes);
+	EncodeAndExtract(sizeof(std::int16_t), 4, impl::GLType::Short, unique_codes);
 
-	EncodeAndExtract(sizeof(std::uint16_t), 1, impl::GLSLType::UnsignedShort, unique_codes);
-	EncodeAndExtract(sizeof(std::uint16_t), 2, impl::GLSLType::UnsignedShort, unique_codes);
-	EncodeAndExtract(sizeof(std::uint16_t), 3, impl::GLSLType::UnsignedShort, unique_codes);
-	EncodeAndExtract(sizeof(std::uint16_t), 4, impl::GLSLType::UnsignedShort, unique_codes);
+	EncodeAndExtract(sizeof(std::uint16_t), 1, impl::GLType::UnsignedShort, unique_codes);
+	EncodeAndExtract(sizeof(std::uint16_t), 2, impl::GLType::UnsignedShort, unique_codes);
+	EncodeAndExtract(sizeof(std::uint16_t), 3, impl::GLType::UnsignedShort, unique_codes);
+	EncodeAndExtract(sizeof(std::uint16_t), 4, impl::GLType::UnsignedShort, unique_codes);
 
 	EncodeAndExtract(
-		sizeof(std::int32_t), 1, impl::GLSLType::Int, unique_codes
+		sizeof(std::int32_t), 1, impl::GLType::Int, unique_codes
 	); //, ShaderDataType::int_);
 	EncodeAndExtract(
-		sizeof(std::int32_t), 2, impl::GLSLType::Int, unique_codes
+		sizeof(std::int32_t), 2, impl::GLType::Int, unique_codes
 	); //, ShaderDataType::ivec2);
 	EncodeAndExtract(
-		sizeof(std::int32_t), 3, impl::GLSLType::Int, unique_codes
+		sizeof(std::int32_t), 3, impl::GLType::Int, unique_codes
 	); //, ShaderDataType::ivec3);
 	EncodeAndExtract(
-		sizeof(std::int32_t), 4, impl::GLSLType::Int, unique_codes
+		sizeof(std::int32_t), 4, impl::GLType::Int, unique_codes
 	); //, ShaderDataType::ivec4);
 
 	EncodeAndExtract(
-		sizeof(std::uint32_t), 1, impl::GLSLType::UnsignedInt, unique_codes
+		sizeof(std::uint32_t), 1, impl::GLType::UnsignedInt, unique_codes
 	); //, ShaderDataType::uint_);
 	EncodeAndExtract(
-		sizeof(std::uint32_t), 2, impl::GLSLType::UnsignedInt, unique_codes
+		sizeof(std::uint32_t), 2, impl::GLType::UnsignedInt, unique_codes
 	); //, ShaderDataType::uvec2);
 	EncodeAndExtract(
-		sizeof(std::uint32_t), 3, impl::GLSLType::UnsignedInt, unique_codes
+		sizeof(std::uint32_t), 3, impl::GLType::UnsignedInt, unique_codes
 	); //, ShaderDataType::uvec3);
 	EncodeAndExtract(
-		sizeof(std::uint32_t), 4, impl::GLSLType::UnsignedInt, unique_codes
+		sizeof(std::uint32_t), 4, impl::GLType::UnsignedInt, unique_codes
 	); //, ShaderDataType::uvec4);
 
 	EncodeAndExtract(
-		sizeof(std::float_t), 1, impl::GLSLType::Float, unique_codes
+		sizeof(std::float_t), 1, impl::GLType::Float, unique_codes
 	); //, ShaderDataType::float_);
 	EncodeAndExtract(
-		sizeof(std::float_t), 2, impl::GLSLType::Float, unique_codes
+		sizeof(std::float_t), 2, impl::GLType::Float, unique_codes
 	); //, ShaderDataType::vec2);
 	EncodeAndExtract(
-		sizeof(std::float_t), 3, impl::GLSLType::Float, unique_codes
+		sizeof(std::float_t), 3, impl::GLType::Float, unique_codes
 	); //, ShaderDataType::vec3);
 	EncodeAndExtract(
-		sizeof(std::float_t), 4, impl::GLSLType::Float, unique_codes
+		sizeof(std::float_t), 4, impl::GLType::Float, unique_codes
 	); //, ShaderDataType::vec4);
 
 	EncodeAndExtract(
-		sizeof(std::double_t), 1, impl::GLSLType::Double, unique_codes
+		sizeof(std::double_t), 1, impl::GLType::Double, unique_codes
 	); //, ShaderDataType::double_);
 	EncodeAndExtract(
-		sizeof(std::double_t), 2, impl::GLSLType::Double, unique_codes
+		sizeof(std::double_t), 2, impl::GLType::Double, unique_codes
 	); //, ShaderDataType::dvec2);
 	EncodeAndExtract(
-		sizeof(std::double_t), 3, impl::GLSLType::Double, unique_codes
+		sizeof(std::double_t), 3, impl::GLType::Double, unique_codes
 	); //, ShaderDataType::dvec3);
 	EncodeAndExtract(
-		sizeof(std::double_t), 4, impl::GLSLType::Double, unique_codes
+		sizeof(std::double_t), 4, impl::GLType::Double, unique_codes
 	); //, ShaderDataType::dvec4);
 
 	PTGN_ASSERT(unique_codes.size() == 32);
@@ -399,8 +399,8 @@ bool TestShaderProperties() {
 }
 
 bool TestShaderDrawing() {
-	window::SetSize({ 800, 800 });
-	window::Show();
+	game.window.SetSize({ 800, 800 });
+	game.window.Show();
 
 	std::string vertex_source = R"(
 		#version 330 core
@@ -450,9 +450,9 @@ bool TestShaderDrawing() {
 	clock_t curr_time;
 	float playtime_in_second = 0;
 
-	// renderer::ResetDrawColor();
+	// game.renderer.ResetDrawColor();
 
-	// Texture drawTarget{ Texture::AccessType::TARGET, window::GetSize() };
+	// Texture drawTarget{ Texture::AccessType::TARGET, game.window.GetSize() };
 
 	struct Vertex {
 		glsl::vec3 pos;
@@ -532,17 +532,15 @@ bool TestShaderDrawing() {
 	VertexArray vao2{ PrimitiveMode::Quads, vbo2 };
 	// VertexArray vao2{ PrimitiveMode::Triangles, vbo2 };
 
-	Renderer renderer{ window::GetSize() };
-
-	CameraController camera;
+	//CameraController camera{ { 0.0f, 0.0f, 0.0f } };
 
 	std::size_t font_key = 0;
-	font::Load(font_key, "resources/fonts/retro_gaming.ttf", 30);
+	game.font.Load(font_key, "resources/fonts/retro_gaming.ttf", 30);
 
-	//M4_float projection = M4_float::Orthographic(0.0f, (float)window::GetSize().x, 0.0f, (float)window::GetSize().y);
-	//M4_float projection = M4_float::Orthographic(-1.0f, 1.0f, -1.0f, 1.0f);
-	//M4_float projection = M4_float::Perspective(DegToRad(45.0f), (float)window::GetSize().x / (float)window::GetSize().y, 0.1f, 100.0f);
-	M4_float projection = M4_float::Perspective(DegToRad(camera.zoom), (float)window::GetSize().x / (float)window::GetSize().y, 0.1f, 100.0f);
+	//M4_float projection = M4_float::Orthographic(0.0f, (float)game.window.GetSize().x, 0.0f, (float)game.window.GetSize().y);
+	M4_float projection = M4_float::Orthographic(-1.0f, 1.0f, -1.0f, 1.0f);
+	//M4_float projection = M4_float::Perspective(DegToRad(45.0f), (float)game.window.GetSize().x / (float)game.window.GetSize().y, 0.1f, 100.0f);
+	//M4_float projection = M4_float::Perspective(DegToRad(camera.zoom), (float)game.window.GetSize().x / (float)game.window.GetSize().y, 0.1f, 100.0f);
 
 	M4_float model{ 1.0f };
 	M4_float view{ 1.0f };
@@ -550,63 +548,71 @@ bool TestShaderDrawing() {
 	//model = M4_float::Rotate(model, DegToRad(-55.0f), 1.0f, 0.0f, 0.0f);
 	//view = M4_float::Translate(view, 0.0f, 0.0f, -3.0f);
 
-	window::RepeatUntilQuit([&](float dt) {
-		/*renderer::ResetTarget();
-		renderer::ResetDrawColor();
-		renderer::Clear();
+	//game.input.SetRelativeMouseMode(true);
 
-		renderer::SetTarget(drawTarget);
-		renderer::SetBlendMode(BlendMode::Add);
+	game.RepeatUntilQuit([&](float dt) {
+		/*game.renderer.ResetTarget();
+		game.renderer.ResetDrawColor();
+		game.renderer.Clear();
 
-		renderer::ResetDrawColor();
-		renderer::Clear();*/
+		game.renderer.SetTarget(drawTarget);
+		game.renderer.SetBlendMode(BlendMode::Add);
 
-		int scroll = input::MouseScroll();
+		game.renderer.ResetDrawColor();
+		game.renderer.Clear();*/
+
+		/*int scroll = game.input.MouseScroll();
 
 		if (scroll != 0) {
 			camera.Zoom(scroll);
-		}
+		}*/
 
-		if (input::KeyPressed(Key::W)) {
+		/*if (game.input.KeyPressed(Key::W)) {
 			camera.Move(CameraDirection::Forward, dt);
 		}
-		if (input::KeyPressed(Key::S)) {
+		if (game.input.KeyPressed(Key::S)) {
 			camera.Move(CameraDirection::Backward, dt);
 		}
-		if (input::KeyPressed(Key::A)) {
+		if (game.input.KeyPressed(Key::A)) {
 			camera.Move(CameraDirection::Left, dt);
 		}
-		if (input::KeyPressed(Key::D)) {
+		if (game.input.KeyPressed(Key::D)) {
 			camera.Move(CameraDirection::Right, dt);
 		}
+		if (game.input.KeyPressed(Key::X)) {
+			camera.Move(CameraDirection::Down, dt);
+		}
+		if (game.input.KeyPressed(Key::SPACE)) {
+			camera.Move(CameraDirection::Up, dt);
+		}*/
 
-		/*if (input::KeyPressed(Key::A)) {
+		/*if (game.input.KeyPressed(Key::A)) {
 			view = M4_float::Translate(view, -0.05f, 0.0f, 0.0f); 
 		}
-		if (input::KeyPressed(Key::D)) {
+		if (game.input.KeyPressed(Key::D)) {
 			view = M4_float::Translate(view, 0.05f, 0.0f, 0.0f);
 		}
-		if (input::KeyPressed(Key::W)) {
+		if (game.input.KeyPressed(Key::W)) {
 			view = M4_float::Translate(view, 0.0f, 0.05f, 0.0f);
 		}
-		if (input::KeyPressed(Key::S)) {
+		if (game.input.KeyPressed(Key::S)) {
 			view = M4_float::Translate(view, 0.0f, -0.05f, 0.0f);
 		}*/
-		if (input::KeyPressed(Key::Q)) {
+		/*if (game.input.KeyPressed(Key::Q)) {
 			model = M4_float::Rotate(model, DegToRad(5.0f), 0.0f, 1.0f, 0.0f);
 		}
-		if (input::KeyPressed(Key::E)) {
+		if (game.input.KeyPressed(Key::E)) {
 			model = M4_float::Rotate(model, DegToRad(-5.0f), 0.0f, 1.0f, 0.0f);
 		}
-		if (input::KeyPressed(Key::Z)) {
+		if (game.input.KeyPressed(Key::Z)) {
 			model = M4_float::Rotate(model, DegToRad(5.0f), 1.0f, 0.0f, 0.0f);
 		}
-		if (input::KeyPressed(Key::C)) {
+		if (game.input.KeyPressed(Key::C)) {
 			model = M4_float::Rotate(model, DegToRad(-5.0f), 1.0f, 0.0f, 0.0f);
-		}
+		}*/
 
-		V2_float window_size = window::GetSize();
-		V2_float mouse		 = input::GetMousePosition();
+		V2_float window_size = game.window.GetSize();
+		V2_float mouse		 = game.input.GetMousePosition();
 
 		Rectangle<int> dest_rect{ {}, window_size };
 
@@ -627,14 +633,14 @@ bool TestShaderDrawing() {
 
 		shader3.WhileBound([&]() {
 			shader3.SetUniform("u_model", model);
-			shader3.SetUniform("u_view", camera.GetViewMatrix());
+			shader3.SetUniform("u_view", M4_float{ 1.0f }); // camera.GetViewMatrix());
 			shader3.SetUniform("u_projection", projection);
 		});
 
-		renderer.Clear();
-		/*renderer::SetDrawColor(color::White);
+		game.renderer.Clear();
+		/*game.renderer.SetClearColor(color::White);
 
-		renderer::Clear();*/
+		game.renderer.Clear();*/
 
 		/*Text text(font_key, "Hello", color::Black);
 
@@ -643,18 +649,19 @@ bool TestShaderDrawing() {
 			  {300, 300}
 		   });*/
 
-		/*renderer::impl::Flush();*/
+		/*game.renderer.impl::Flush();*/
 
 		// renderer.Draw(vao, shader2, texture1);
 		// renderer.Draw(vao, shader, texture1);
-		renderer.Draw(vao2, shader3, texture2, 1);
-		renderer.Draw(vao, shader3, texture1, 0);
+		
+		//game.renderer.Draw(vao2, shader3, texture2, 1);
+		//game.renderer.Draw(vao, shader3, texture1, 0);
 
-		renderer.Present();
+		game.renderer.Present();
 
-		// renderer::SetBlendMode(BlendMode::Blend);
+		// game.renderer.SetBlendMode(BlendMode::Blend);
 
-		// renderer::ResetTarget();
+		// game.renderer.ResetTarget();
 		// drawTarget.SetBlendMode(BlendMode::Blend);
 		//  OpenGL coordinate system is flipped vertically compared to SDL
 		// drawTarget.Draw(dest_rect, {}, 0, Flip::Vertical, nullptr);

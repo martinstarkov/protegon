@@ -3,7 +3,7 @@
 #include "SDL.h"
 #include "SDL_ttf.h"
 
-#include "protegon/debug.h"
+#include "utility/debug.h"
 
 namespace ptgn {
 

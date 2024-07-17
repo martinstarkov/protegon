@@ -3,7 +3,7 @@
 #include <array>
 #include <cstdint>
 
-#include "protegon/type_traits.h"
+#include "utility/type_traits.h"
 
 namespace ptgn {
 
@@ -59,7 +59,7 @@ inline constexpr bool is_vertex_data_type{ type_traits::is_one_of_v<
 	glsl::dvec4, glsl::bool_, glsl::bvec2, glsl::bvec3, glsl::bvec4, glsl::int_, glsl::ivec2,
 	glsl::ivec3, glsl::ivec4, glsl::uint_, glsl::uvec2, glsl::uvec3, glsl::uvec4> };
 
-enum class GLSLType : std::uint32_t {
+enum class GLType : std::uint32_t {
 	None		  = 0,
 	Byte		  = 0x1400, // GL_BYTE
 	UnsignedByte  = 0x1401, // GL_UNSIGNED_BYTE
@@ -72,7 +72,7 @@ enum class GLSLType : std::uint32_t {
 };
 
 template <typename T>
-[[nodiscard]] GLSLType GetType() {
+[[nodiscard]] GLType GetType() {
 	static_assert(
 		type_traits::is_one_of_v<
 			T, float, double, std::int32_t, std::uint32_t, std::int16_t, std::uint16_t, std::int8_t,
@@ -81,21 +81,21 @@ template <typename T>
 	);
 
 	if constexpr (std::is_same_v<T, float>) {
-		return GLSLType::Float;
+		return GLType::Float;
 	} else if constexpr (std::is_same_v<T, double>) {
-		return GLSLType::Double;
+		return GLType::Double;
 	} else if constexpr (std::is_same_v<T, std::int32_t>) {
-		return GLSLType::Int;
+		return GLType::Int;
 	} else if constexpr (std::is_same_v<T, std::uint32_t>) {
-		return GLSLType::UnsignedInt;
+		return GLType::UnsignedInt;
 	} else if constexpr (std::is_same_v<T, std::int16_t>) {
-		return GLSLType::Short;
+		return GLType::Short;
 	} else if constexpr (std::is_same_v<T, std::uint16_t>) {
-		return GLSLType::UnsignedShort;
+		return GLType::UnsignedShort;
 	} else if constexpr (std::is_same_v<T, std::int8_t> || std::is_same_v<T, bool>) {
-		return GLSLType::Byte;
+		return GLType::Byte;
 	} else if constexpr (std::is_same_v<T, std::uint8_t>) {
-		return GLSLType::UnsignedByte;
+		return GLType::UnsignedByte;
 	}
 }
 

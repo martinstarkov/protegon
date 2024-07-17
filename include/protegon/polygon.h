@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "color.h"
-#include "protegon/debug.h"
+#include "utility/debug.h"
 #include "vector2.h"
 
 struct SDL_Renderer;

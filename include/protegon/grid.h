@@ -1,6 +1,6 @@
 #pragma once
 
-#include "type_traits.h"
+#include "utility/type_traits.h"
 #include "vector2.h"
 
 namespace ptgn {

@@ -1,10 +1,11 @@
 #pragma once
 
 #include <cstdint>
+#include <ostream>
+#include <array>
 
 #include "protegon/math.h"
-#include "protegon/type_traits.h"
-#include <ostream>
+#include "utility/type_traits.h"
 
 struct SDL_Color;
 
@@ -21,6 +22,16 @@ struct Color {
 
 	constexpr Color(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a) :
 		r{ r }, g{ g }, b{ b }, a{ a } {}
+
+	// @return Color values normalized to 0.0f -> 1.0f range.
+	std::array<float, 4> Normalized() const {
+		return std::array<float, 4>{
+			static_cast<float>(r) / 255.0f,
+			static_cast<float>(g) / 255.0f,
+			static_cast<float>(b) / 255.0f,
+			static_cast<float>(a) / 255.0f
+		};
+	}
 };
 
 inline bool operator==(const Color& lhs, const Color& rhs) {

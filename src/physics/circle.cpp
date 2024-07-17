@@ -1,14 +1,13 @@
 #include "protegon/circle.h"
 
-#include <protegon/log.h>
-#include "SDL.h"
-
 #include <vector>
 
-#include "core/game.h"
+#include "SDL.h"
+
+#include "protegon/log.h"
+#include "protegon/game.h"
 #include "protegon/line.h"
 #include "protegon/polygon.h"
-#include "protegon/renderer.h"
 
 namespace ptgn {
 

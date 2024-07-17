@@ -4,10 +4,8 @@
 
 #include <cstdlib>
 
-#include "core/sdl_instance.h"
 #include "protegon/circle.h"
 #include "protegon/line.h"
-#include "protegon/renderer.h"
 
 namespace ptgn {
 

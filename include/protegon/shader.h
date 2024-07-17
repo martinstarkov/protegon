@@ -6,10 +6,10 @@
 #include <string_view>
 #include <unordered_map>
 
-#include "protegon/debug.h"
+#include "utility/debug.h"
 #include "protegon/file.h"
-#include "protegon/handle.h"
-#include "protegon/type_traits.h"
+#include "utility/handle.h"
+#include "utility/type_traits.h"
 #include "protegon/matrix4.h"
 
 namespace ptgn {

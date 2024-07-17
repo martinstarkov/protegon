@@ -1,8 +1,8 @@
-#include "protegon/sound.h"
+#include "protegon/audio.h"
 
 #include "SDL_mixer.h"
 
-#include "protegon/debug.h"
+#include "utility/debug.h"
 
 namespace ptgn {
 

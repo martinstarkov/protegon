@@ -1,12 +1,65 @@
 #pragma once
 
-#include "color.h"
-#include "polygon.h"
-#include "shader.h"
-#include "texture.h"
-#include "vertex_array.h"
+#include "protegon/color.h"
+#include "protegon/polygon.h"
+#include "protegon/shader.h"
+#include "protegon/texture.h"
+#include "protegon/vertex_array.h"
 
 namespace ptgn {
+
+namespace impl {
+
+class GameInstance;
+
+} // namespace impl
+
+//class SpriteBatch {
+//public:
+//	// when we know the specific texture and source rectangle
+//	void Draw(TextureHandle tex, Rect source, /*...*/);
+//
+//	// helper for drawing a whole texture
+//	void Draw(TextureHandle tex, /*...*/) {
+//		Draw(tex, Texture_SizeOf(text), /*...*/);
+//	}
+//
+//	// helper if we have an atlas and a specific index of a sub-texture therein
+//	void Draw(TextureAtlasHandle atlas, int index, /*...*/) {
+//		Draw(TextureAtlas_TextureOf(atlas), TextureAtlas_RectOf(atlas, index), /*...*/);
+//	}
+//
+//	// helper if we have an abstract sprite handle without details about a specific atlas
+//	void Draw(SpriteFrameHandle sprite, /*...*/) {
+//		Draw(SpriteFrame_SheetOf(sprite), SpriteFrame_IndexOf(sprite), /*...*/);
+//	}
+//};
+
+//if (blendMode != data->current.blendMode) {
+//	switch (blendMode) {
+//		case SDL_BLENDMODE_NONE:
+//			data->glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+//			data->glDisable(GL_BLEND);
+//			break;
+//		case SDL_BLENDMODE_BLEND:
+//			data->glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+//			data->glEnable(GL_BLEND);
+//			data->glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+//			break;
+//		case SDL_BLENDMODE_ADD:
+//			data->glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+//			data->glEnable(GL_BLEND);
+//			data->glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+//			break;
+//		case SDL_BLENDMODE_MOD:
+//			data->glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+//			data->glEnable(GL_BLEND);
+//			data->glBlendFunc(GL_ZERO, GL_SRC_COLOR);
+//			break;
+//	}
+//	data->current.blendMode = blendMode;
+//}
+
 // class Renderer2D
 //	{
 //	public:
@@ -86,6 +139,29 @@ namespace ptgn {
 //		static void NextBatch();
 //	};
 
+enum class BlendMode {
+	// Source: https://wiki.libsdl.org/SDL2/SDL_BlendMode
+
+	None  = 0x00000000,	   /*       no blending: dstRGBA = srcRGBA */
+	Blend = 0x00000001,	   /*    alpha blending: dstRGB = (srcRGB * srcA) + (dstRGB
+							* (1 - srcA)) dstA = srcA + (dstA * (1-srcA)) */
+	Add = 0x00000002,	   /* additive blending: dstRGB = (srcRGB * srcA) + dstRGB
+													  dstA = dstA */
+	Modulate = 0x00000004, /*    color modulate: dstRGB = srcRGB * dstRGB
+												 dstA = dstA */
+	Multiply = 0x00000008, /*    color multiply: dstRGB = (srcRGB * dstRGB) +
+							  (dstRGB * (1 - srcA)) dstA = dstA */
+	Invalid = 0x7FFFFFFF
+};
+
+enum class Flip {
+	// Source: https://wiki.libsdl.org/SDL2/SDL_RendererFlip
+
+	None	   = 0x00000000,
+	Horizontal = 0x00000001,
+	Vertical   = 0x00000002
+};
+
 class Renderer {
 public:
 	/*void OpenGLRendererAPI::SetViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
@@ -121,30 +197,15 @@ public:
 		glLineWidth(width);
 	}*/
 
-	/*Init() {
-
-	#ifdef HZ_DEBUG
-		glEnable(GL_DEBUG_OUTPUT);
-		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-		glDebugMessageCallback(OpenGLMessageCallback, nullptr);
-
-		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, NULL,
-	GL_FALSE); #endif
-
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-		glEnable(GL_DEPTH_TEST);
-		glEnable(GL_LINE_SMOOTH);
-
-	}*/
-
-	Renderer(const V2_int& size);
-	void Draw(const VertexArray& va, Shader& shader, const Texture& texture, int slot) const;
+	void SetClearColor(const Color& color) const;
 	void Clear() const;
 	void Present() const;
+	void SetSize(const V2_int& size);
 
 private:
+	friend class Game;
+	friend class impl::GameInstance;
+	void Init();
 };
 
 // struct QuadVertex {
@@ -840,58 +901,5 @@ private:
 // Renderer2D::Statistics Renderer2D::GetStats() {
 //	return s_Data.Stats;
 // }
-
-class Texture;
-
-enum class BlendMode {
-	// Source: https://wiki.libsdl.org/SDL2/SDL_BlendMode
-
-	None  = 0x00000000,	   /*       no blending: dstRGBA = srcRGBA */
-	Blend = 0x00000001,	   /*    alpha blending: dstRGB = (srcRGB * srcA) + (dstRGB
-							* (1 - srcA)) dstA = srcA + (dstA * (1-srcA)) */
-	Add = 0x00000002,	   /* additive blending: dstRGB = (srcRGB * srcA) + dstRGB
-													  dstA = dstA */
-	Modulate = 0x00000004, /*    color modulate: dstRGB = srcRGB * dstRGB
-												 dstA = dstA */
-	Multiply = 0x00000008, /*    color multiply: dstRGB = (srcRGB * dstRGB) +
-							  (dstRGB * (1 - srcA)) dstA = dstA */
-	Invalid = 0x7FFFFFFF
-};
-
-enum class Flip {
-	// Source: https://wiki.libsdl.org/SDL2/SDL_RendererFlip
-
-	None	   = 0x00000000,
-	Horizontal = 0x00000001,
-	Vertical   = 0x00000002
-};
-
-namespace renderer {
-
-void SetDrawColor(const Color& color);
-// Reset renderer draw color to transparent.
-void ResetDrawColor();
-void SetBlendMode(BlendMode mode);
-void SetDrawMode(const Color& color, BlendMode mode);
-// Clear screen.
-void Clear();
-// Push drawn objects to screen.
-void Present();
-void SetTarget(const Texture& texture);
-// Reset renderer target to window.
-void ResetTarget();
-void DrawTexture(
-	const Texture& texture, const Rectangle<int>& destination_rect = {},
-	const Rectangle<int>& source_rect = {}, float angle = 0.0f, Flip flip = Flip::None,
-	V2_int* center_of_rotation = nullptr
-);
-
-namespace impl {
-
-void Flush();
-
-} // namespace impl
-
-} // namespace renderer
 
 } // namespace ptgn

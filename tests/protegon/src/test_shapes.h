@@ -1,19 +1,20 @@
 #pragma once
 
+#include "protegon/game.h"
 #include "protegon/circle.h"
-#include "protegon/debug.h"
 #include "protegon/line.h"
 #include "protegon/polygon.h"
+#include "utility/debug.h"
 
 using namespace ptgn;
 
 bool TestDrawing() {
-	window::SetSize({ 800, 400 });
-	window::Show();
+	game.window.SetSize({ 800, 400 });
+	game.window.Show();
 
-	window::RepeatUntilQuit([&]() {
-		renderer::SetDrawColor(color::White);
-		renderer::Clear();
+	game.RepeatUntilQuit([&]() {
+		game.renderer.SetClearColor(color::White);
+		game.renderer.Clear();
 
 		Point<float> test01{ 30, 10 };
 		Point<float> test02{ 10, 10 };
@@ -203,7 +204,7 @@ bool TestDrawing() {
 		test92.Draw(color::Silver, 5);
 		test93.DrawSolid(color::Silver);
 
-		renderer::Present();
+		game.renderer.Present();
 	});
 	return true;
 }

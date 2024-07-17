@@ -3,7 +3,7 @@
 #include <fstream>
 #include <sstream>
 
-#include "protegon/debug.h"
+#include "utility/debug.h"
 
 namespace ptgn {
 

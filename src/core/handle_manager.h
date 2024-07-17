@@ -5,8 +5,8 @@
 #include <unordered_map>
 #include <utility>
 
-#include "protegon/debug.h"
-#include "type_traits.h"
+#include "utility/debug.h"
+#include "utility/type_traits.h"
 
 namespace ptgn {
 
@@ -32,7 +32,7 @@ public:
 	/*
 	 * @param key Id of the item to be unloaded.
 	 */
-	void Unload(std::size_t key) {
+	virtual void Unload(std::size_t key) {
 		map_.erase(key);
 	}
 

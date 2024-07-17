@@ -8,7 +8,8 @@
 #include <tuple>
 
 #include "protegon/log.h"
-#include "protegon/platform.h"
+#include "utility/platform.h"
+#include "utility/type_traits.h"
 
 #ifndef NDEBUG
 #define PTGN_DEBUG
@@ -50,12 +51,12 @@ struct StringStreamWriter {
 	StringStreamWriter() = default;
 
 	template <typename... TArgs, type_traits::stream_writable<std::stringstream, TArgs...> = true>
-	inline void Write(TArgs&&... items) {
+	void Write(TArgs&&... items) {
 		((ss << std::forward<TArgs>(items)), ...);
 	}
 
 	template <typename... TArgs, type_traits::stream_writable<std::stringstream, TArgs...> = true>
-	inline void WriteLine(TArgs&&... items) {
+	void WriteLine(TArgs&&... items) {
 		Write(std::forward<TArgs>(items)...);
 		ss << std::endl;
 	}

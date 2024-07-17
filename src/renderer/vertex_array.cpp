@@ -1,7 +1,6 @@
 #include "protegon/vertex_array.h"
 
-#include "protegon/debug.h"
-#include "protegon/renderer.h"
+#include "utility/debug.h"
 #include "renderer/gl_loader.h"
 
 namespace ptgn {

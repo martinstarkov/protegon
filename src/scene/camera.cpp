@@ -1,15 +1,12 @@
-#include "protegon/camera.h"
+#include "camera.h"
 
-#include <functional>
-
-#include "protegon/window.h"
-#include "core/game.h"
+#include "core/window.h"
+#include "protegon/game.h"
 
 namespace ptgn {
 
-void CameraController::OnMouseMoveEvent([[maybe_unused]] const Event<MouseEvent>& e
-) {
-	/*static V2_int last	   = window::GetSize() / 2;
+void CameraController::OnMouseMoveEvent([[maybe_unused]] const MouseMoveEvent& e) {
+	/*static V2_int last	   = game.window.GetSize() / 2;
 	static bool first_mouse = true;
 
 	V2_int mouse_position = e.current;
@@ -25,12 +22,12 @@ void CameraController::OnMouseMoveEvent([[maybe_unused]] const Event<MouseEvent>
 
 	static bool first_mouse = true;
 
-	if (e.Type() == MouseEvent::Move) {
+	if (game.input.MousePressed(Mouse::Left)) {
 		const MouseMoveEvent& mouse = static_cast<const MouseMoveEvent&>(e);
 		if (!first_mouse) {
 			V2_float offset = mouse.current - mouse.previous;
 
-			V2_float size = window::GetSize();
+			V2_float size = game.window.GetSize();
 
 			V2_float scaled_offset = offset / size;
 
@@ -43,13 +40,13 @@ void CameraController::OnMouseMoveEvent([[maybe_unused]] const Event<MouseEvent>
 }
 
 void CameraController::SubscribeToMouseEvents() {
-	global::GetGame().event.mouse_event.Subscribe(
-		(void*)this, std::bind(&CameraController::OnMouseMoveEvent, this, std::placeholders::_1)
-	);
+	game.event.mouse.Subscribe(MouseEvent::Move, (void*)this, std::function([&](const MouseMoveEvent& e) {
+		OnMouseMoveEvent(e);
+	}));
 }
 
 void CameraController::UnsubscribeFromMouseEvents() {
-	global::GetGame().event.mouse_event.Unsubscribe((void*)this);
+	game.event.mouse.Unsubscribe((void*)this);
 }
 
 

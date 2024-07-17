@@ -3,10 +3,9 @@
 #include <functional>
 #include <utility>
 
-#include "core/game.h"
+#include "protegon/game.h"
 #include "protegon/collision.h"
-#include "protegon/debug.h"
-#include "protegon/input.h"
+#include "utility/debug.h"
 
 namespace ptgn {
 
@@ -92,11 +91,11 @@ bool Button::InsideRectangle(const V2_int& position) const {
 	return overlap::PointRectangle(position, rect_);
 }
 
-void Button::OnMouseEvent(const Event<MouseEvent>& event) {
+void Button::OnMouseEvent(MouseEvent type, const Event& event) {
 	if (!enabled_) {
 		return;
 	}
-	switch (event.Type()) {
+	switch (type) {
 		case MouseEvent::Move: {
 			const MouseMoveEvent& e = static_cast<const MouseMoveEvent&>(event);
 			bool is_in{ InsideRectangle(e.current) };
@@ -136,17 +135,17 @@ void Button::OnMouseEvent(const Event<MouseEvent>& event) {
 }
 
 bool Button::IsSubscribedToMouseEvents() const {
-	return global::GetGame().event.mouse_event.IsSubscribed((void*)this);
+	return game.event.mouse.IsSubscribed((void*)this);
 }
 
 void Button::SubscribeToMouseEvents() {
-	global::GetGame().event.mouse_event.Subscribe(
-		(void*)this, std::bind(&Button::OnMouseEvent, this, std::placeholders::_1)
-	);
+	game.event.mouse.Subscribe((void*)this, [&](MouseEvent t, const Event& e) {
+		OnMouseEvent(t, e);
+	});
 }
 
 void Button::UnsubscribeFromMouseEvents() {
-	global::GetGame().event.mouse_event.Unsubscribe((void*)this);
+	game.event.mouse.Unsubscribe((void*)this);
 }
 
 void Button::OnMouseMove([[maybe_unused]] const MouseMoveEvent& e) {
@@ -258,10 +257,10 @@ const Rectangle<float>& Button::GetRectangle() const {
 }
 
 void Button::RecheckState() {
-	OnMouseEvent(MouseMoveEvent{
+	OnMouseEvent(MouseEvent::Move, MouseMoveEvent{
 		V2_int{std::numeric_limits<int>().max(), std::numeric_limits<int>().max()},
-		global::GetGame().input.GetMousePosition()
-	   });
+		game.input.GetMousePosition()
+	});
 }
 
 void Button::SetRectangle(const Rectangle<float>& new_rectangle) {
@@ -412,8 +411,8 @@ Texture TexturedButton::GetCurrentTextureImpl(ButtonState state, std::size_t tex
 
 	if (std::holds_alternative<TextureKey>(texture_state)) {
 		const TextureKey key{ std::get<TextureKey>(texture_state) };
-		PTGN_ASSERT(texture::Has(key), "Cannot get button texture which has not been loaded");
-		texture = texture::Get(key);
+		PTGN_ASSERT(game.texture.Has(key), "Cannot get button texture which has not been loaded");
+		texture = game.texture.Get(key);
 	} else if (std::holds_alternative<Texture>(texture_state)) {
 		texture = std::get<Texture>(texture_state);
 	}

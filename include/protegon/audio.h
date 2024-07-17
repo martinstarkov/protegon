@@ -1,8 +1,8 @@
 #pragma once
 
-#include "file.h"
-#include "handle.h"
-#include "time.h"
+#include "protegon/file.h"
+#include "utility/time.h"
+#include "utility/handle.h"
 
 struct _Mix_Music;
 using Mix_Music = _Mix_Music;

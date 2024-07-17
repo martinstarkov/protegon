@@ -2,8 +2,8 @@
 
 #include <functional>
 
-#include "color.h"
-#include "vector2.h"
+#include "protegon/color.h"
+#include "protegon/vector2.h"
 
 struct SDL_Renderer;
 

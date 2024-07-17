@@ -1,9 +1,9 @@
 #pragma once
 
-#include "circle.h"
-#include "line.h"
-#include "polygon.h"
-#include "vector2.h"
+#include "protegon/circle.h"
+#include "protegon/line.h"
+#include "protegon/polygon.h"
+#include "protegon/vector2.h"
 
 namespace ptgn {
 

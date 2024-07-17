@@ -1,17 +1,18 @@
 #pragma once
 
+#include "protegon/game.h"
 #include "protegon/text.h"
-#include "protegon/window.h"
+#include "utility/debug.h"
 
 using namespace ptgn;
 
 bool TestText() {
 	PTGN_INFO("Starting text tests...");
 
-	window::SetSize({ 800, 660 });
-	window::Show();
+	game.window.SetSize({ 800, 660 });
+	game.window.Show();
 
-	V2_int window_size = window::GetSize();
+	V2_int window_size = game.window.GetSize();
 
 	std::size_t font_key = Hash("different_font");
 
@@ -25,11 +26,11 @@ bool TestText() {
 
 	PTGN_ASSERT(font.GetHeight() > 0);
 
-	PTGN_ASSERT(!font::Has(font_key));
+	PTGN_ASSERT(!game.font.Has(font_key));
 
-	font::Load(font_key, "resources/fonts/retro_gaming.ttf", ysize);
+	game.font.Load(font_key, "resources/fonts/retro_gaming.ttf", ysize);
 
-	PTGN_ASSERT(font::Has(font_key));
+	PTGN_ASSERT(game.font.Has(font_key));
 
 	Text test001; // empty text
 
@@ -72,9 +73,9 @@ bool TestText() {
 	FontRenderMode render_mode = FontRenderMode::Solid,
 	const Color& shading_color = color::White*/
 
-	window::RepeatUntilQuit([&]() {
-		renderer::SetDrawColor(color::White);
-		renderer::Clear();
+	game.RepeatUntilQuit([&]() {
+		game.renderer.SetClearColor(color::White);
+		game.renderer.Clear();
 
 		// test001.Draw({ { 0, 0 }, { 30, 30 } });
 
@@ -127,18 +128,18 @@ bool TestText() {
 			 {window_size.x,		  ysize}
 		  });
 
-		if (input::KeyDown(Key::T)) {
+		if (game.input.KeyDown(Key::T)) {
 			test011.SetVisibility(!test011.GetVisibility());
 		}
 
-		renderer::Present();
+		game.renderer.Present();
 	});
 
-	PTGN_ASSERT(font::Has(font_key));
+	PTGN_ASSERT(game.font.Has(font_key));
 
-	font::Unload(font_key);
+	game.font.Unload(font_key);
 
-	PTGN_ASSERT(!font::Has(font_key));
+	PTGN_ASSERT(!game.font.Has(font_key));
 
 	PTGN_INFO("All text passed!");
 	return true;

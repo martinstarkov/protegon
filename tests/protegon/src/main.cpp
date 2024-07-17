@@ -1,3 +1,6 @@
+
+#include <iostream>
+
 #include "../tests/test_ecs.h"
 #include "protegon/protegon.h"
 #include "test_math.h"
@@ -21,14 +24,13 @@ public:
 		TestVector2();
 		TestText();
 		TestShapes();
+		game.Stop();
 	}
 
-	void Update() final {
-		game::Stop();
-	}
+	void Update() final {}
 };
 
 int main() {
-	ptgn::game::Start<Tests>();
+	game.Start<Tests>();
 	return 0;
 }

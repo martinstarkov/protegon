@@ -1,7 +1,7 @@
 #pragma once
 
-#include "protegon/debug.h"
 #include "protegon/rng.h"
+#include "utility/debug.h"
 
 using namespace ptgn;
 

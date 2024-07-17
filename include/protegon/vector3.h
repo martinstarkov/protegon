@@ -8,8 +8,8 @@
 
 #include "color.h"
 #include "math.h"
-#include "protegon/debug.h"
-#include "type_traits.h"
+#include "utility/debug.h"
+#include "utility/type_traits.h"
 
 namespace ptgn {
 

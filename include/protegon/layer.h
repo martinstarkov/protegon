@@ -1,14 +1,14 @@
 #pragma once
 
 #include "ecs/ecs.h"
-#include "file.h"
-#include "grid.h"
-#include "hash.h"
-#include "polygon.h"
-#include "protegon/debug.h"
-#include "resources.h"
-#include "texture.h"
-#include "vector2.h"
+#include "protegon/file.h"
+#include "protegon/grid.h"
+#include "protegon/hash.h"
+#include "protegon/polygon.h"
+#include "protegon/game.h"
+#include "protegon/texture.h"
+#include "protegon/vector2.h"
+#include "utility/debug.h"
 
 namespace ptgn {
 
@@ -29,9 +29,8 @@ public:
 	Tile(const Rectangle<int>& rect) : rect{ rect } {}
 
 	Tile(std::size_t texture_key, const Rectangle<int>& source) : source{ source } {
-		PTGN_CHECK(texture::Has(texture_key));
-		// TODO: Fix
-		// texture = texture::Get(texture_key);
+		PTGN_CHECK(game.texture.Has(texture_key));
+		texture = game.texture.Get(texture_key);
 	}
 
 	void Draw() const {

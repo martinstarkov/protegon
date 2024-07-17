@@ -3,7 +3,7 @@
 #include <iostream>
 #include <ostream>
 
-#include "type_traits.h"
+#include "utility/type_traits.h"
 
 namespace ptgn {
 

@@ -1,11 +1,12 @@
 #include "input_handler.h"
 
-#include "SDL.h"
-
 #include <algorithm>
 
-#include "core/game.h"
+#include "SDL.h"
+
+#include "protegon/game.h"
 #include "protegon/log.h"
+#include "utility/debug.h"
 
 namespace ptgn {
 
@@ -17,7 +18,6 @@ void InputHandler::Update() {
 	mouse_scroll = {};
 	first_time_.reset();
 	SDL_Event event;
-	Game& game{ global::GetGame() };
 	EventHandler& event_handler{ game.event };
 	while (SDL_PollEvent(&event)) {
 		switch (event.type) {
@@ -25,7 +25,7 @@ void InputHandler::Update() {
 				V2_int previous{ mouse_position };
 				mouse_position.x = event.button.x;
 				mouse_position.y = event.button.y;
-				event_handler.mouse_event.Post(MouseMoveEvent{ previous, mouse_position });
+				event_handler.mouse.Post(MouseEvent::Move, MouseMoveEvent{ previous, mouse_position });
 				break;
 			}
 			case SDL_MOUSEBUTTONDOWN: {
@@ -33,7 +33,7 @@ void InputHandler::Update() {
 					GetMouseStateAndTimer(static_cast<Mouse>(event.button.button));
 				pair.second.Start();
 				pair.first = MouseState::Down;
-				event_handler.mouse_event.Post(MouseDownEvent{
+				event_handler.mouse.Post(MouseEvent::Down, MouseDownEvent{
 					static_cast<Mouse>(event.button.button), mouse_position });
 				break;
 			}
@@ -42,12 +42,15 @@ void InputHandler::Update() {
 					GetMouseStateAndTimer(static_cast<Mouse>(event.button.button));
 				pair.second.Reset();
 				pair.first = MouseState::Up;
-				event_handler.mouse_event.Post(MouseUpEvent{
+				event_handler.mouse.Post(MouseEvent::Up, MouseUpEvent{
 					static_cast<Mouse>(event.button.button), mouse_position });
 				break;
 			}
 			case SDL_MOUSEWHEEL: {
 				mouse_scroll = { event.wheel.x, event.wheel.y };
+				event_handler.mouse.Post(
+					MouseEvent::Scroll, MouseScrollEvent{ mouse_scroll }
+				);
 				break;
 			}
 			case SDL_KEYUP: {
@@ -55,6 +58,7 @@ void InputHandler::Update() {
 					first_time_[event.key.keysym.scancode] = true;
 				}
 				key_states_[event.key.keysym.scancode] = false;
+				// TODO: Add event post here.
 				break;
 			}
 			case SDL_KEYDOWN: {
@@ -62,25 +66,34 @@ void InputHandler::Update() {
 					first_time_[event.key.keysym.scancode] = true;
 				}
 				key_states_[event.key.keysym.scancode] = true;
+				// TODO: Add event post here.
 				break;
 			}
 			case SDL_QUIT: {
-				event_handler.window_event.Post(WindowQuitEvent{});
+				event_handler.window.Post(WindowEvent::Quit, WindowQuitEvent{});
 				break;
 			}
-			// Possible window events here in the future.
-			/*
 			case SDL_WINDOWEVENT: {
 				switch (event.window.event) {
+					case SDL_WINDOWEVENT_RESIZED: {
+						V2_int window_size{ event.window.data1, event.window.data2 };
+						event_handler.window.Post(
+							WindowEvent::Resize, WindowResizeEvent{ window_size }
+						);
+						break;
+					}
 					default:
 						break;
 				}
 				break;
 			}
-			*/
 			default: break;
 		}
 	}
+}
+
+void InputHandler::SetRelativeMouseMode(bool on) {
+	SDL_SetRelativeMouseMode(static_cast<SDL_bool>(on));
 }
 
 void InputHandler::ForceUpdateMousePosition() {
@@ -90,7 +103,7 @@ void InputHandler::ForceUpdateMousePosition() {
 	SDL_GetMouseState(&mouse_position.x, &mouse_position.y);
 	// float x, y;
 	///*SDL_RenderWindowToLogical(
-	//	global::GetGame().sdl.GetRenderer().get(), mouse_position.x,
+	//	game.sdl.GetRenderer().get(), mouse_position.x,
 	//	mouse_position.y, &x, &y
 	//);*/
 

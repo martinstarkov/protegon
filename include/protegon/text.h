@@ -3,11 +3,11 @@
 #include <string>
 #include <variant>
 
-#include "color.h"
-#include "font.h"
-#include "handle.h"
-#include "polygon.h"
-#include "texture.h"
+#include "protegon/color.h"
+#include "protegon/font.h"
+#include "protegon/polygon.h"
+#include "protegon/texture.h"
+#include "utility/handle.h"
 
 struct SDL_Texture;
 
@@ -25,6 +25,7 @@ struct TextInstance {
 
 	void RecreateTexture();
 
+	// TODO: Switch to using Texture
 	std::shared_ptr<SDL_Texture> texture_;
 	Font font_;
 	std::string content_;

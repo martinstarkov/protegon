@@ -3,7 +3,7 @@
 #include <cstdint>
 
 #include "file.h"
-#include "handle.h"
+#include "utility/handle.h"
 #include "surface.h"
 #include "vector2.h"
 

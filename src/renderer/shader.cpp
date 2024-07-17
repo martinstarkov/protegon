@@ -1,6 +1,6 @@
 #include "protegon/shader.h"
 
-#include "protegon/debug.h"
+#include "utility/debug.h"
 #include "renderer/gl_loader.h"
 
 namespace ptgn {

@@ -2,7 +2,7 @@
 
 #include "SDL.h"
 
-#include "core/game.h"
+#include "protegon/game.h"
 #include "protegon/circle.h"
 #include "protegon/line.h"
 

@@ -4,12 +4,12 @@
 #include <tuple>
 #include <variant>
 
-#include "event.h"
-#include "events.h"
-#include "polygon.h"
-#include "resources.h"
-#include "texture.h"
-#include "type_traits.h"
+#include "protegon/event.h"
+#include "protegon/events.h"
+#include "protegon/polygon.h"
+#include "protegon/texture.h"
+#include "protegon/game.h"
+#include "utility/type_traits.h"
 
 namespace ptgn {
 
@@ -59,7 +59,7 @@ public:
 	virtual void SubscribeToMouseEvents() final;
 	virtual void UnsubscribeFromMouseEvents() final;
 
-	virtual void OnMouseEvent(const Event<MouseEvent>& event);
+	virtual void OnMouseEvent(MouseEvent type, const Event& event);
 	virtual void OnMouseMove(const MouseMoveEvent& e);
 	virtual void OnMouseMoveOutside(const MouseMoveEvent& e);
 	virtual void OnMouseEnter(const MouseMoveEvent& e);
