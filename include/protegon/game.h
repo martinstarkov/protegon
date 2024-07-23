@@ -6,10 +6,10 @@
 
 #include "core/resource_managers.h"
 #include "core/window.h"
-#include "event/input_handler.h"
 #include "event/event_handler.h"
-#include "scene/scene_manager.h"
+#include "event/input_handler.h"
 #include "renderer/renderer.h"
+#include "scene/scene_manager.h"
 
 namespace ptgn {
 
@@ -29,7 +29,7 @@ class Game {
 public:
 	using UpdateFunction = std::variant<std::function<void()>, std::function<void(float dt)>>;
 	void RepeatUntilQuit(UpdateFunction while_not_quit);
-	
+
 	template <typename TStartScene, typename... TArgs>
 	// Optional: pass in constructor arguments for the TStartScene.
 	void Start(TArgs&&... constructor_args) {
@@ -50,8 +50,7 @@ public:
 		// active scene in the list.
 		scene.SetActive(impl::start_scene_key);
 		scene.LoadStartScene<TStartScene>(
-			impl::start_scene_key,
-			std::forward<TArgs>(constructor_args)...
+			impl::start_scene_key, std::forward<TArgs>(constructor_args)...
 		);
 		// In case Stop() was called in Scene constructor (non-looping scene).
 		if (instance_ == nullptr) {
@@ -74,17 +73,18 @@ public:
 
 	void Stop();
 
+	InputHandler input;
 	Window window;
 	Renderer renderer;
 	EventHandler event;
 	MusicManager music;
 	SoundManager sound;
-	FontManager	font;
+	FontManager font;
 	TextManager text;
 	TextureManager texture;
 	ShaderManager shader;
 	SceneManager scene;
-	InputHandler input;
+
 private:
 	std::unique_ptr<impl::GameInstance> instance_;
 };

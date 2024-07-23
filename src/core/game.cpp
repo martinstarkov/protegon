@@ -4,10 +4,9 @@
 #include "SDL_image.h"
 #include "SDL_mixer.h"
 #include "SDL_ttf.h"
-
 #include "renderer/gl_loader.h"
-#include "utility/platform.h"
 #include "utility/debug.h"
+#include "utility/platform.h"
 
 #ifdef PTGN_PLATFORM_MACOS
 
@@ -118,6 +117,7 @@ static void InitSDLMixer() {
 
 namespace gl {
 
+// Must be called after SDL and window have been initialized.
 static void InitOpenGL() {
 #define GLE(name, caps_name) \
 	name = (PFNGL##caps_name##PROC)SDL_GL_GetProcAddress(PTGN_STRINGIFY_MACRO(gl##name));
@@ -158,8 +158,8 @@ GameInstance::GameInstance(Game& game) {
 	sdl::InitSDLMixer();
 	game.window.Init();
 	game.renderer.Init();
-	// Must be called after SDL and window are initialized.
 	gl::InitOpenGL();
+	game.input.Init();
 }
 
 GameInstance::~GameInstance() {
@@ -175,16 +175,17 @@ GameInstance::~GameInstance() {
 void Game::RepeatUntilQuit(UpdateFunction while_not_quit) {
 	bool running = true;
 
+	std::size_t counter = 0;
+	using time			= std::chrono::time_point<std::chrono::system_clock>;
+	time start{ std::chrono::system_clock::now() };
+	time end{ std::chrono::system_clock::now() };
+
 	event.window.Subscribe(
 		WindowEvent::Quit, (void*)&running,
 		std::function([&](const WindowQuitEvent& e) { running = false; })
 	);
 
-	using time = std::chrono::time_point<std::chrono::system_clock>;
-	time start{ std::chrono::system_clock::now() };
-	time end{ std::chrono::system_clock::now() };
-
-	while (running && instance_ != nullptr) {
+	auto update_function = [&]() {
 		// Calculate time elapsed during previous frame.
 		end = std::chrono::system_clock::now();
 		std::chrono::duration<float> elapsed{ end - start };
@@ -192,11 +193,28 @@ void Game::RepeatUntilQuit(UpdateFunction while_not_quit) {
 		start = end;
 
 		input.Update();
+		// For debugging:
+		// PTGN_LOG("Updating ", counter);
+
 		if (std::holds_alternative<std::function<void(float)>>(while_not_quit)) {
 			std::get<std::function<void(float)>>(while_not_quit)(dt);
 		} else {
 			std::get<std::function<void(void)>>(while_not_quit)();
 		}
+		++counter;
+	};
+
+	// Optional: Update window while it is being dragged. Upside: No rendering artefacts; Downside:
+	// window dragging becomes laggier.
+	// If enabling this, it is adviseable to change Renderer::Init such that the renderer viewport
+	// is updated during window resizing instead of after it has been resized.
+	/*event.window.Subscribe(
+		WindowEvent::Drag, (void*)this,
+		std::function([&](const WindowDragEvent& e) { update_function(); })
+	);*/
+
+	while (running && instance_ != nullptr) {
+		update_function();
 	}
 
 	event.window.Unsubscribe((void*)&running);
