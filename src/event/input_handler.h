@@ -10,9 +10,15 @@
 #include "protegon/timer.h"
 #include "protegon/vector2.h"
 
+union SDL_Event;
+
 namespace ptgn {
 
-struct InputHandler {
+class InputHandler {
+public:
+	void Init();
+	~InputHandler();
+
 	// Updates previous mouse states for mouse up and down check.
 	void UpdateMouseState(Mouse button);
 
@@ -21,9 +27,7 @@ struct InputHandler {
 	 * @return Pair of pointers to the mouse state and timer for a given button,
 	 * pair of nullptrs if no such button exists.
 	 */
-	[[nodiscard]] std::pair<MouseState&, Timer&> GetMouseStateAndTimer(
-		Mouse button
-	);
+	[[nodiscard]] std::pair<MouseState&, Timer&> GetMouseStateAndTimer(Mouse button);
 
 	/*
 	 * @param button Mouse enum corresponding to the desired button.

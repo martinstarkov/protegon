@@ -66,6 +66,7 @@ public:
 	void Hide();
 
 private:
+	friend class InputHandler;
 	friend class Renderer;
 	friend class Game;
 	friend class impl::GameInstance;

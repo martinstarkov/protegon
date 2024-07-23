@@ -1,7 +1,6 @@
 #include "renderer.h"
 
 #include "SDL.h"
-
 #include "protegon/game.h"
 #include "protegon/texture.h"
 #include "renderer/gl_renderer.h"
@@ -28,10 +27,13 @@ void Renderer::Init() {
 	GLRenderer::Init();
 	SetSize(game.window.GetSize());
 
-	// TODO: Check that this works.
-	game.event.window.Subscribe(WindowEvent::Resize, (void*)this, std::function([&](const WindowResizeEvent& e) {
-		SetSize(e.size);
-	}));
+	// Only update viewport after resizing finishes, not during (saves a few GPU calls).
+	// If desired, changing the word Resized -> Resizing will make the viewport update during
+	// resizing.
+	game.event.window.Subscribe(
+		WindowEvent::Resized, (void*)this,
+		std::function([&](const WindowResizedEvent& e) { SetSize(e.size); })
+	);
 
 	SDL_GL_SetSwapInterval(1);
 }

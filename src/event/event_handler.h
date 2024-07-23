@@ -1,15 +1,16 @@
 #pragma once
 
-#include <functional>
-#include <unordered_map>
-#include <type_traits>
 #include <cstdint>
+#include <functional>
+#include <type_traits>
+#include <unordered_map>
 
 #include "protegon/events.h"
 #include "utility/type_traits.h"
 
 namespace ptgn {
 
+class InputHandler;
 
 template <typename T>
 class EventDispatcher {
@@ -25,12 +26,14 @@ private:
 public:
 	// General event observation where type is passed to callback.
 	void Subscribe(void* ptr, GeneralEventCallback&& func) {
+		PTGN_ASSERT(ptr != nullptr);
 		general_observers_[ptr] = func;
 	}
 
 	// Specific event observation.
 	template <typename TEvent>
 	void Subscribe(T type, void* ptr, TEventCallback<TEvent>&& func) {
+		PTGN_ASSERT(ptr != nullptr);
 		using TEventType = std::decay_t<TEvent>;
 		static_assert(std::is_base_of_v<Event, TEventType>, "Events must inherit from Event class");
 		auto it = observers_.find(ptr);
@@ -47,6 +50,7 @@ public:
 	}
 
 	void Unsubscribe(void* ptr) {
+		PTGN_ASSERT(ptr != nullptr);
 		observers_.erase(ptr);
 		general_observers_.erase(ptr);
 	}
@@ -77,8 +81,8 @@ public:
 	};
 
 	[[nodiscard]] bool IsSubscribed(void* ptr) const {
-		return observers_.find(ptr) != observers_.end() ||
-			   general_observers_.find(ptr) != general_observers_.end();
+		return ptr != nullptr && (observers_.find(ptr) != observers_.end() ||
+								  general_observers_.find(ptr) != general_observers_.end());
 	}
 
 private:
@@ -90,8 +94,18 @@ private:
 
 class EventHandler {
 public:
+	EventDispatcher<KeyEvent> key;
 	EventDispatcher<MouseEvent> mouse;
 	EventDispatcher<WindowEvent> window;
+
+	// Unsubscribe from all built-in events (does not unsubscribe from custom user
+	// EventDispatchers).
+	void UnsubscribeAll(void* ptr) {
+		PTGN_ASSERT(ptr != nullptr);
+		key.Unsubscribe(ptr);
+		mouse.Unsubscribe(ptr);
+		window.Unsubscribe(ptr);
+	}
 };
 
 } // namespace ptgn

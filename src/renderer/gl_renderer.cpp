@@ -1,8 +1,8 @@
 #include "gl_renderer.h"
 
 #include "protegon/game.h"
-#include "renderer/gl_loader.h"
 #include "renderer/gl_helper.h"
+#include "renderer/gl_loader.h"
 
 namespace ptgn {
 
