@@ -141,6 +141,6 @@ bool TestText() {
 
 	PTGN_ASSERT(!game.font.Has(font_key));
 
-	PTGN_INFO("All text passed!");
+	PTGN_INFO("All text tests passed!");
 	return true;
 }
