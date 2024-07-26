@@ -16,13 +16,14 @@ using namespace ptgn;
 class Tests : public Scene {
 public:
 	Tests() {
-		TestEvents();
 		TestMatrix4();
-		TestShader();
 		TestECS();
 		TestMath();
 		TestRNG();
 		TestVector2();
+
+		TestShader();
+		TestEvents();
 		TestText();
 		TestShapes();
 		game.Stop();
