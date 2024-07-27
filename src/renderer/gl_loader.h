@@ -136,6 +136,8 @@ namespace gl {
 	GLE(BindVertexArray, BINDVERTEXARRAY)                   \
 	GLE(DeleteVertexArrays, DELETEVERTEXARRAYS)             \
 	GLE(ActiveTexture, ACTIVETEXTURE)                       \
+	GLE(GetBufferParameteriv, GETBUFFERPARAMETERIV)         \
+	GLE(TexStorage2D, TEXSTORAGE2D)                         \
 	/* end */
 
 #define GLE(name, caps_name) extern PFNGL##caps_name##PROC name;
