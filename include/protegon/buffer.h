@@ -7,71 +7,28 @@
 #include <vector>
 
 #include "protegon/buffer_layout.h"
-#include "utility/handle.h"
+#include "renderer/gl_helper.h"
 #include "utility/debug.h"
+#include "utility/handle.h"
 
 namespace ptgn {
+
+class VertexArray;
+class GLRenderer;
+class Renderer;
 
 namespace impl {
 
 struct VertexBufferInstance {
-	VertexBufferInstance() = default;
+	VertexBufferInstance();
 	~VertexBufferInstance();
-
-	template <typename T>
-	VertexBufferInstance(const std::vector<T>& vertices) :
-		count_{ static_cast<std::int32_t>(vertices.size()) } {
-		PTGN_ASSERT(count_ > 0);
-		GenerateBuffer((void*)vertices.data(), sizeof(T) * count_);
-	}
-
-	void GenerateBuffer(void* vertex_data, std::size_t size);
-	void GenerateBuffer(std::size_t size);
-
-	void SetBuffer(void* vertex_data, std::size_t size);
-
-	template <typename... Ts>
-	void SetLayout() {
-		static_assert(
-			(is_vertex_data_type<Ts> && ...),
-			"Provided vertex type should only contain ptgn::glsl:: types"
-		);
-		static_assert(sizeof...(Ts) > 0, "Must provide layout types as template arguments");
-		layout_ = CalculateLayout<Ts...>();
-	}
-
-	template <typename T>
-	void SetData(const std::vector<T>& vertices) {
-		// TODO: Consider in the future adding offset capability.
-		PTGN_ASSERT(static_cast<std::int32_t>(vertices.size()) == count_);
-		SetBuffer((void*)vertices.data(), sizeof(T) * count_);
-	}
-
-	template <typename... Ts>
-	constexpr std::array<BufferElement, sizeof...(Ts)> CalculateLayout() {
-		std::array<BufferElement, sizeof...(Ts)> elements = {
-			BufferElement{static_cast<std::uint16_t>(sizeof(Ts) / std::tuple_size<Ts>::value),
-						   static_cast<std::uint16_t>(std::tuple_size<Ts>::value),
-						   GetType<typename Ts::value_type>()}
-			   ...
-		};
-		return elements;
-	}
-
-	std::int32_t count_{ 0 };
-	BufferLayout layout_;
 	std::uint32_t id_{ 0 };
+	impl::BufferLayout layout_;
 };
 
 struct IndexBufferInstance {
-	IndexBufferInstance() = default;
+	IndexBufferInstance();
 	~IndexBufferInstance();
-	IndexBufferInstance(const std::vector<std::uint32_t>& indices);
-	void GenerateBuffer(void* index_data, std::size_t size);
-
-	static std::uint32_t GetType();
-
-	std::int32_t count_{ 0 };
 	std::uint32_t id_{ 0 };
 };
 
@@ -79,21 +36,24 @@ struct IndexBufferInstance {
 
 class VertexBuffer : public Handle<impl::VertexBufferInstance> {
 public:
-	VertexBuffer() = default;
+	VertexBuffer()	= default;
+	~VertexBuffer() = default;
 
 	template <typename T>
-	VertexBuffer(const std::vector<T>& vertices) {
-		PTGN_CHECK(vertices.size() != 0, "Cannot create a vertex buffer with no vertices");
-		instance_ =
-			std::shared_ptr<impl::VertexBufferInstance>(new impl::VertexBufferInstance(vertices));
-	}
+	VertexBuffer(const std::vector<T>& vertices) :
+		VertexBuffer{ vertices.data(), static_cast<std::uint32_t>(vertices.size() * sizeof(T)) } {}
 
-	template <typename T>
-	void SetData(const std::vector<T>& vertices) {
-		PTGN_CHECK(vertices.size() != 0, "Cannot create a vertex buffer with no vertices");
-		PTGN_CHECK(IsValid(), "Cannot set data of uninitialized or destroyed vertex buffer");
-		instance_->SetData(vertices);
-	}
+	VertexBuffer(
+		const void* vertex_data, std::uint32_t size, BufferUsage usage = BufferUsage::StaticDraw
+	);
+
+	void SetData(
+		const void* vertex_data, std::uint32_t size, BufferUsage usage = BufferUsage::StaticDraw
+	);
+	void SetSubData(const void* vertex_data, std::uint32_t size);
+
+	void Bind() const;
+	void Unbind() const;
 
 	template <typename... Ts, type_traits::enable<(sizeof...(Ts) > 0)> = true>
 	void SetLayout() {
@@ -101,27 +61,54 @@ public:
 			(impl::is_vertex_data_type<Ts> && ...),
 			"Provided vertex type should only contain ptgn::glsl:: types"
 		);
-		PTGN_ASSERT(instance_ != nullptr);
-		instance_->SetLayout<Ts...>();
+		static_assert(sizeof...(Ts) > 0, "Must provide layout types as template arguments");
+		PTGN_ASSERT(IsValid() && "Cannot set layout of uninitialized or destroyed vertex buffer");
+		instance_->layout_ = CalculateLayout<Ts...>();
 	}
 
-	void Bind() const;
-	void Unbind() const;
-
-	[[nodiscard]] std::int32_t GetCount() const;
-
 	[[nodiscard]] const impl::BufferLayout& GetLayout() const;
+
+private:
+	friend class VertexArray;
+
+	template <typename... Ts>
+	constexpr std::array<impl::BufferElement, sizeof...(Ts)> CalculateLayout() {
+		return {
+			impl::BufferElement{
+								static_cast<std::uint16_t>(sizeof(Ts) / std::tuple_size<Ts>::value),
+								static_cast<std::uint16_t>(std::tuple_size<Ts>::value),
+								impl::GetType<typename Ts::value_type>()}
+			  ...
+		};
+	}
 };
 
 class IndexBuffer : public Handle<impl::IndexBufferInstance> {
 public:
-	IndexBuffer() = default;
-	IndexBuffer(const std::initializer_list<std::uint32_t>& indices);
+	using IndexType = std::uint32_t;
+	using Indices	= std::vector<IndexType>;
+
+	IndexBuffer()  = default;
+	~IndexBuffer() = default;
+
+	IndexBuffer(const Indices& indices);
+
+	void SetData(const Indices& indices);
+	void SetSubData(const Indices& indices);
 
 	void Bind() const;
 	void Unbind() const;
 
-	[[nodiscard]] std::int32_t GetCount() const;
+	std::uint32_t GetCount() const;
+
+private:
+	friend class GLRenderer;
+
+	constexpr static impl::GLType GetType() {
+		return impl::GetType<IndexType>();
+	}
+
+	std::uint32_t count_{ 0 };
 };
 
 } // namespace ptgn

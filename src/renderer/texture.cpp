@@ -2,83 +2,29 @@
 
 #include "SDL.h"
 #include "SDL_image.h"
-
 #include "protegon/game.h"
 #include "renderer/gl_helper.h"
-#include "utility/debug.h"
 #include "renderer/gl_loader.h"
+#include "utility/debug.h"
 
 namespace ptgn {
 
-/*
-
-void Texture::Draw(
-	const Rectangle<float>& destination, const Rectangle<int>& source, float angle, Flip flip,
-	V2_int* center_of_rotation
-) const {
-	game.renderer.DrawTexture(*this, destination, source, angle, flip, center_of_rotation);
-}
-
-V2_int Texture::GetSize() const {
-	PTGN_CHECK(IsValid(), "Cannot get size of uninitialized or destroyed texture");
-	V2_int size;
-	SDL_QueryTexture(instance_.get(), NULL, NULL, &size.x, &size.y);
-	return size;
-}
-
-void Texture::SetBlendMode(BlendMode mode) {
-	PTGN_CHECK(IsValid(), "Cannot set blend mode of uninitialized or destroyed texture");
-	SDL_SetTextureBlendMode(instance_.get(), static_cast<SDL_BlendMode>(mode));
-}
-
-void Texture::SetAlpha(std::uint8_t alpha) {
-	PTGN_CHECK(IsValid(), "Cannot set alpha of uninitialized or destroyed texture");
-	SDL_SetTextureBlendMode(instance_.get(), static_cast<SDL_BlendMode>(BlendMode::Blend));
-	SDL_SetTextureAlphaMod(instance_.get(), alpha);
-}
-
-void Texture::SetColor(const Color& color) {
-	PTGN_CHECK(IsValid(), "Cannot set color of uninitialized or destroyed texture");
-	SetAlpha(color.a);
-	SDL_SetTextureColorMod(instance_.get(), color.r, color.g, color.b);
-}
-
-*/
-
 namespace impl {
 
-TextureInstance::TextureInstance(const Surface& surface) {
-	PTGN_ASSERT(surface.IsValid());
-	size_ = surface.GetSize();
-	
-	GLFormats formats{ GetGLFormats(surface.GetImageFormat()) };
+#define PUSHSTATE()       \
+	gl::GLint restore_id; \
+	gl::glGetIntegerv(GL_TEXTURE_BINDING_2D, &restore_id)
+#define POPSTATE() gl::glBindTexture(GL_TEXTURE_2D, restore_id)
 
-	GLType type{ GetType<std::uint8_t>() };
-	
+TextureInstance::TextureInstance() {
 	gl::glGenTextures(1, &id_);
-	gl::glBindTexture(GL_TEXTURE_2D, id_);
-	
-	gl::glTexImage2D(
-		GL_TEXTURE_2D, 0, formats.internal_, size_.x, size_.y, 0, formats.format_,
-		static_cast<gl::GLenum>(type),
-		surface.GetData().data()
-	);
-
-	// Linear resampling when scaling up and down.
-	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); // or GL_CLAMP_TO_EDGE
-	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT); // or GL_CLAMP_TO_EDGE
-
-	gl::glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 TextureInstance::~TextureInstance() {
 	gl::glDeleteTextures(1, &id_);
 }
 
-TextureInstance::GLFormats TextureInstance::GetGLFormats(ImageFormat format) {
+GLFormats GetGLFormats(ImageFormat format) {
 	switch (format) {
 		case ImageFormat::RGBA32:
 		case ImageFormat::RGBA8888: {
@@ -93,8 +39,25 @@ TextureInstance::GLFormats TextureInstance::GetGLFormats(ImageFormat format) {
 
 } // namespace impl
 
-Texture::Texture(const Surface& surface) {
-	instance_ = std::shared_ptr<impl::TextureInstance>(new impl::TextureInstance(surface));
+Texture::Texture(const Surface& surface) :
+	Texture{ (void*)surface.GetData().data(), surface.GetSize(), surface.GetImageFormat() } {}
+
+Texture::Texture(void* pixel_data, const V2_int& size, ImageFormat format) {
+	PUSHSTATE();
+
+	SetDataImpl(pixel_data, size, format);
+
+	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	POPSTATE();
+}
+
+void Texture::Bind() const {
+	PTGN_CHECK(IsValid(), "Cannot bind texture which is destroyed or uninitialized");
+	gl::glBindTexture(GL_TEXTURE_2D, instance_->id_);
 }
 
 void Texture::Bind(std::uint32_t slot) const {
@@ -104,14 +67,57 @@ void Texture::Bind(std::uint32_t slot) const {
 	PTGN_CHECK(
 		slot < max_texture_slots, "Attempting to bind a slot outside of OpenGL texture slot minimum"
 	);
-	PTGN_CHECK(IsValid(), "Cannot bind texture which is destroyed or uninitialized");
 	gl::ActiveTexture(GL_TEXTURE0 + slot);
-	gl::glBindTexture(GL_TEXTURE_2D, instance_->id_);
-	//gl::BindTextureUnit(slot, instance_->id_);
+	Bind();
+	// gl::BindTextureUnit(slot, instance_->id_);
 }
 
 void Texture::Unbind() const {
 	gl::glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void Texture::SetData(void* pixel_data, const V2_int& size, ImageFormat format) {
+	PUSHSTATE();
+
+	SetDataImpl(pixel_data, size, format);
+
+	POPSTATE();
+}
+
+void Texture::SetDataImpl(void* pixel_data, const V2_int& size, ImageFormat format) {
+	if (!IsValid()) {
+		instance_ = std::make_shared<impl::TextureInstance>();
+	}
+
+	instance_->size_ = size;
+
+	Bind();
+
+	auto formats = impl::GetGLFormats(format);
+
+	gl::glTexImage2D(
+		GL_TEXTURE_2D, 0, formats.internal_, instance_->size_.x, instance_->size_.y, 0,
+		formats.format_, static_cast<gl::GLenum>(impl::GLType::UnsignedByte), pixel_data
+	);
+}
+
+void Texture::SetSubData(void* pixel_data, ImageFormat format, const V2_int& offset) {
+	PTGN_CHECK(IsValid(), "Cannot set subdata of uninitialized or destroyed texture instance");
+	PTGN_ASSERT(offset.x < instance_->size_.x);
+	PTGN_ASSERT(offset.y < instance_->size_.y);
+
+	PUSHSTATE();
+
+	auto formats = impl::GetGLFormats(format);
+
+	Bind();
+
+	gl::glTexSubImage2D(
+		GL_TEXTURE_2D, 0, offset.x, offset.y, instance_->size_.x, instance_->size_.y,
+		formats.format_, static_cast<gl::GLenum>(impl::GLType::UnsignedByte), pixel_data
+	);
+
+	POPSTATE();
 }
 
 V2_int Texture::GetSize() const {

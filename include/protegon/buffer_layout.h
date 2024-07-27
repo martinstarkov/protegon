@@ -31,7 +31,7 @@ private:
 	friend class BufferLayout;
 	std::uint16_t size_{ 0 };  // Number of elements x Size of element.
 	std::uint16_t count_{ 0 }; // Number of elements
-	impl::GLType type_{ 0 }; // Type of buffer element (i.e. GL_FLOAT)
+	impl::GLType type_{ 0 };   // Type of buffer element (i.e. GL_FLOAT)
 	// Set by BufferLayout.
 	std::size_t offset_{ 0 }; // Number of bytes from start of buffer.
 	// Whether or not the buffer elements are normalized. See here for more info:
@@ -52,6 +52,7 @@ public:
 
 	[[nodiscard]] const std::vector<BufferElement>& GetElements() const;
 	[[nodiscard]] std::int32_t GetStride() const;
+
 	[[nodiscard]] bool IsEmpty() const;
 
 private:
