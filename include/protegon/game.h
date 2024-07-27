@@ -27,6 +27,16 @@ public:
 
 class Game {
 public:
+	Game()	= default;
+	~Game() = default;
+
+private:
+	Game(const Game&)			 = delete;
+	Game(Game&&)				 = default;
+	Game& operator=(const Game&) = delete;
+	Game& operator=(Game&&)		 = default;
+
+public:
 	using UpdateFunction = std::variant<std::function<void()>, std::function<void(float dt)>>;
 	void RepeatUntilQuit(UpdateFunction while_not_quit);
 
@@ -73,17 +83,22 @@ public:
 
 	void Stop();
 
+	// Systems:
+
 	InputHandler input;
 	Window window;
 	Renderer renderer;
 	EventHandler event;
+	SceneManager scene;
+
+	// Resources:
+
 	MusicManager music;
 	SoundManager sound;
 	FontManager font;
 	TextManager text;
 	TextureManager texture;
 	ShaderManager shader;
-	SceneManager scene;
 
 private:
 	std::unique_ptr<impl::GameInstance> instance_;
