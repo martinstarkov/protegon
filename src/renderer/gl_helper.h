@@ -2,10 +2,26 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
+#include <variant>
 
+#include "utility/debug.h"
+#include "utility/handle.h"
 #include "utility/type_traits.h"
 
 namespace ptgn {
+
+enum BufferUsage {
+	StreamDraw	= 0x88E0, // GL_STREAM_DRAW
+	StreamRead	= 0x88E1, // GL_STREAM_READ
+	StreamCopy	= 0x88E2, // GL_STREAM_COPY
+	StaticDraw	= 0x88E4, // GL_STATIC_DRAW
+	StaticRead	= 0x88E5, // GL_STATIC_READ
+	StaticCopy	= 0x88E6, // GL_STATIC_COPY
+	DynamicDraw = 0x88E8, // GL_DYNAMIC_DRAW
+	DynamicRead = 0x88E9, // GL_DYNAMIC_READ
+	DynamicCopy = 0x88EA  // GL_DYNAMIC_COPY
+};
 
 // Vertex Types
 
@@ -46,12 +62,14 @@ enum class PrimitiveMode : std::uint32_t {
 	Triangles	  = 0x0004, // GL_TRIANGLES
 	TriangleStrip = 0x0005, // GL_TRIANGLE_STRIP
 	TriangleFan	  = 0x0006, // GL_TRIANGLE_FAN
-	Quads		  = 0x0007, // GL_QUADS
-	QuadStrip	  = 0x0008, // GL_QUAD_STRIP
-	Polygon		  = 0x0009	// GL_POLYGON
 };
 
 namespace impl {
+
+enum class BufferType {
+	Vertex = 0x8892, // GL_ARRAY_BUFFER
+	Index  = 0x8893	 // GL_ELEMENT_ARRAY_BUFFER
+};
 
 template <typename T>
 inline constexpr bool is_vertex_data_type{ type_traits::is_one_of_v<
@@ -72,7 +90,7 @@ enum class GLType : std::uint32_t {
 };
 
 template <typename T>
-[[nodiscard]] GLType GetType() {
+[[nodiscard]] constexpr GLType GetType() {
 	static_assert(
 		type_traits::is_one_of_v<
 			T, float, double, std::int32_t, std::uint32_t, std::int16_t, std::uint16_t, std::int8_t,
