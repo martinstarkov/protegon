@@ -6,8 +6,6 @@
 #include "protegon/game.h"
 #include "protegon/shader.h"
 #include "protegon/vertex_array.h"
-// TODO: Temporary
-#include "renderer/gl_renderer.h"
 #include "utility/debug.h"
 
 using namespace ptgn;
@@ -569,16 +567,14 @@ bool TestShaderDrawing() {
 			shader3.SetUniform("u_model", model);
 			shader3.SetUniform("u_view", view); // camera.GetViewMatrix());
 			shader3.SetUniform("u_projection", projection);
+			shader3.SetUniform("tex0", 0);
 		});
 
 		game.renderer.Clear();
 
-		shader3.Bind();
-		vao.Bind();
 		texture1.Bind(0);
-		shader3.SetUniform("tex0", 0);
+		game.renderer.Submit(vao, shader3);
 		// GLRenderer::DrawArrays(PrimitiveMode::Triangles, 4);
-		GLRenderer::DrawElements(PrimitiveMode::Triangles, 6);
 		// vao.Unbind();
 		// shader3.Unbind();
 		/*texture1.Unbind();*/

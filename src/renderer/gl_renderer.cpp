@@ -16,23 +16,30 @@ void GLRenderer::Init() {
 	gl::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
-void GLRenderer::DrawIndexed(const VertexArray& va, std::int32_t index_count) {
+void GLRenderer::DrawElements(const VertexArray& va, std::int32_t index_count) {
 	PTGN_CHECK(va.IsValid(), "Cannot draw uninitialized or destroyed vertex array");
 	va.Bind();
 	gl::glDrawElements(
 		static_cast<gl::GLenum>(va.GetPrimitiveMode()),
 		index_count == 0 ? va.GetIndexBuffer().GetCount() : index_count,
-		static_cast<gl::GLenum>(impl::IndexBufferInstance::GetType()), nullptr
+		static_cast<gl::GLenum>(IndexBuffer::GetType()), nullptr
 	);
 }
 
-void GLRenderer::DrawLines(const VertexArray& va, std::uint32_t vertex_count) {
+void GLRenderer::DrawArrays(const VertexArray& va, std::uint32_t vertex_count) {
+	PTGN_CHECK(va.IsValid(), "Cannot draw uninitialized or destroyed vertex array");
 	va.Bind();
-	gl::glDrawArrays(static_cast<gl::GLenum>(PrimitiveMode::Lines), 0, vertex_count);
+	gl::glDrawArrays(static_cast<gl::GLenum>(va.GetPrimitiveMode()), 0, vertex_count);
 }
 
 void GLRenderer::SetLineWidth(float width) {
 	gl::glLineWidth(width);
+}
+
+std::int32_t GLRenderer::GetMaxTextureSlots() {
+	std::int32_t max_texture_slots{ 0 };
+	gl::glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_texture_slots);
+	return max_texture_slots;
 }
 
 void GLRenderer::SetClearColor(const Color& color) {
@@ -40,8 +47,8 @@ void GLRenderer::SetClearColor(const Color& color) {
 	gl::glClearColor(c[0], c[1], c[2], c[3]);
 }
 
-void GLRenderer::SetSize(const V2_int& size) {
-	gl::glViewport(0, 0, size.x, size.y);
+void GLRenderer::SetViewport(const V2_int& position, const V2_int& size) {
+	gl::glViewport(position.x, position.y, size.x, size.y);
 }
 
 void GLRenderer::Clear() {
