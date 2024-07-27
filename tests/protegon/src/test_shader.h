@@ -3,22 +3,14 @@
 #include <set>
 
 #include "protegon/buffer.h"
+#include "protegon/game.h"
 #include "protegon/shader.h"
 #include "protegon/vertex_array.h"
-#include "protegon/game.h"
+// TODO: Temporary
+#include "renderer/gl_renderer.h"
 #include "utility/debug.h"
 
 using namespace ptgn;
-
-// For testing purposes
-#define GL_BYTE			  0x1400
-#define GL_UNSIGNED_BYTE  0x1401
-#define GL_SHORT		  0x1402
-#define GL_UNSIGNED_SHORT 0x1403
-#define GL_INT			  0x1404
-#define GL_UNSIGNED_INT	  0x1405
-#define GL_FLOAT		  0x1406
-#define GL_DOUBLE		  0x140A
 
 void EncodeAndExtract(
 	std::uint16_t hidden_size, std::uint16_t hidden_count, impl::GLType hidden_type,
@@ -55,16 +47,6 @@ void EncodeAndExtract(
 }
 
 bool TestShaderProperties() {
-	// Identifier tests
-	/*PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLType::Byte) == GL_BYTE);
-	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLType::UnsignedByte) == GL_UNSIGNED_BYTE);
-	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLType::Short) == GL_SHORT);
-	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLType::UnsignedShort) == GL_UNSIGNED_SHORT);
-	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLType::Int) == GL_INT);
-	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLType::UnsignedInt) == GL_UNSIGNED_INT);
-	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLType::Float) == GL_FLOAT);
-	PTGN_ASSERT(static_cast<std::uint32_t>(impl::GLType::Double) == GL_DOUBLE);*/
-
 	std::set<std::uint64_t> unique_codes;
 
 	EncodeAndExtract(
@@ -173,8 +155,7 @@ bool TestShaderProperties() {
 	auto e1{ layout1.GetElements() };
 	PTGN_ASSERT(e1.size() == 1);
 	PTGN_ASSERT(layout1.GetStride() == 3 * sizeof(float));
-	VertexArray va1{ PrimitiveMode::Triangles };
-	va1.SetVertexBuffer(b1);
+	VertexArray va1{ PrimitiveMode::Triangles, b1 };
 
 	// PTGN_ASSERT(e1.at(0).GetType() == ShaderDataInfo{ ShaderDataType::vec3
 	// }.type);
@@ -195,8 +176,7 @@ bool TestShaderProperties() {
 	b2.SetLayout<glsl::vec3, glsl::vec4, glsl::vec3>();
 	impl::BufferLayout layout2{ b2.GetLayout() };
 	auto e2{ layout2.GetElements() };
-	VertexArray va2{ PrimitiveMode::Triangles };
-	va2.SetVertexBuffer(b2);
+	VertexArray va2{ PrimitiveMode::Triangles, b2 };
 
 	// BufferLayout layout2{
 	//	{ ShaderDataType::vec3 },
@@ -243,8 +223,7 @@ bool TestShaderProperties() {
 		glsl::uint_, glsl::bvec3, glsl::uvec4>();
 	impl::BufferLayout layout3{ b3.GetLayout() };
 	auto e3{ layout3.GetElements() };
-	VertexArray va3{ PrimitiveMode::Triangles };
-	va3.SetVertexBuffer(b3);
+	VertexArray va3{ PrimitiveMode::Triangles, b3 };
 
 	// BufferLayout layout3{
 	//	{ ShaderDataType::vec4 },
@@ -354,8 +333,7 @@ bool TestShaderProperties() {
 
 	VertexBuffer vbo{ vao_vert };
 	vbo.SetLayout<glsl::float_, glsl::ivec3, glsl::dvec4>();
-	VertexArray vao{ PrimitiveMode::Triangles };
-	vao.SetVertexBuffer(vbo);
+	VertexArray vao{ PrimitiveMode::Triangles, vbo };
 	/*
 	std::string vertex_source = R"(
 		#version 330 core
@@ -406,18 +384,23 @@ bool TestShaderDrawing() {
 		#version 330 core
 		layout (location = 0) in vec3 a_pos;
 		layout (location = 1) in vec4 a_color;
-		layout (location = 2) in vec2 a_texcoord;
+		layout(location = 2) in vec2 a_texcoord;
 
+		out vec4 v_color;
 		out vec2 v_texcoord;
-
+		
 		uniform mat4 u_model;
 		uniform mat4 u_view;
 		uniform mat4 u_projection;
 
 		void main()
 		{
-			gl_Position = u_projection * u_view * u_model * vec4(a_pos, 1.0);
+			v_color = a_color;
 			v_texcoord = a_texcoord;
+			
+			//gl_Position = vec4(a_pos, 1.0);
+			gl_Position = u_projection * u_view * u_model * vec4(a_pos, 1.0);
+
 		}
 	)";
 
@@ -425,15 +408,15 @@ bool TestShaderDrawing() {
 		#version 330 core
 		out vec4 frag_color;
 
+		in vec4 v_color;
 		in vec2 v_texcoord;
-
-		// texture samplers
 		uniform sampler2D tex0;
 		uniform sampler2D tex1;
 
 		void main()
 		{
-			// frag_color = mix(texture(tex0, v_texcoord), texture(tex1, v_texcoord), 0.2);
+			//frag_color = v_color;
+			//frag_color = mix(texture(tex0, v_texcoord), texture(tex1, v_texcoord), 0.2);
 			frag_color = texture(tex0, v_texcoord);
 		}
 	)";
@@ -450,10 +433,6 @@ bool TestShaderDrawing() {
 	clock_t curr_time;
 	float playtime_in_second = 0;
 
-	// game.renderer.ResetDrawColor();
-
-	// Texture drawTarget{ Texture::AccessType::TARGET, game.window.GetSize() };
-
 	struct Vertex {
 		glsl::vec3 pos;
 		glsl::vec4 color;
@@ -461,94 +440,49 @@ bool TestShaderDrawing() {
 	};
 
 	Texture texture1;
-	Texture texture2;
 
 	{
 		Surface surface{ "resources/sprites/test.png" };
-		/*surface.ForEachPixel([&](auto& v, auto& c) {
-			if (c != color::Transparent) {
-				PTGN_INFO(v, ":", c);
-			}
-		});*/
-		Surface surface2{ "resources/sprites/icon.bmp" };
 		surface.FlipVertically();
-		surface2.FlipVertically();
 		texture1 = surface;
-		texture2 = surface2;
 	}
 
 	const std::vector<Vertex> vao_vert = {
-		Vertex{	glsl::vec3{ 1.0f, 1.0f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 0.0f, 0.0f },
-				glsl::vec2{ 1.0f, 1.0f }},
-		Vertex{ glsl::vec3{ 1.0f, -1.0f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 0.0f, 0.0f },
-				glsl::vec2{ 1.0f, 0.0f }},
-		Vertex{glsl::vec3{ -1.0f, -1.0f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 0.0f, 0.0f },
+		Vertex{glsl::vec3{ -0.5f, -0.5f, 0.0f }, glsl::vec4{ 0.5f, 0.0f, 1.0f, 0.5f },
 				glsl::vec2{ 0.0f, 0.0f }},
-		Vertex{ glsl::vec3{ -1.0f, 1.0f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 0.0f, 0.0f },
-				glsl::vec2{ 0.0f, 1.0f }},
-	};
-	
-	const std::vector<Vertex> vao_vert2 = {
-		Vertex{	glsl::vec3{ 0.5f, 0.5f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 0.0f, 0.0f },
-				glsl::vec2{ 1.0f, 1.0f }},
-		Vertex{ glsl::vec3{ 0.5f, -0.5f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 0.0f, 0.0f },
+		Vertex{ glsl::vec3{ 0.5f, -0.5f, 0.0f }, glsl::vec4{ 0.0f, 1.0f, 0.5f, 0.5f },
 				glsl::vec2{ 1.0f, 0.0f }},
-		Vertex{glsl::vec3{ -0.5f, -0.5f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 0.0f, 0.0f },
-				glsl::vec2{ 0.0f, 0.0f }},
-		Vertex{ glsl::vec3{ -0.5f, 0.5f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 0.0f, 0.0f },
-				glsl::vec2{ 0.0f, 1.0f }},
-	};
-
-	/*const std::vector<Vertex> vao_vert2 = {
-		Vertex{ glsl::vec3{ (float)texture2.GetSize().x, (float)texture2.GetSize().y, 0.0f },
-				glsl::vec4{ 1.0f, 0.0f, 1.0f, 1.0f },
+		Vertex{	glsl::vec3{ 0.5f, 0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.5f, 0.0f, 0.5f },
 				glsl::vec2{ 1.0f, 1.0f }},
-		Vertex{ glsl::vec3{ (float)texture2.GetSize().x, 0.0f, 0.0f },
-				glsl::vec4{ 0.0f, 0.0f, 1.0f, 1.0f },
-				glsl::vec2{ 1.0f, 0.0f }},
-		Vertex{ glsl::vec3{ 0.0f, 0.0f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 1.0f, 1.0f },
-				glsl::vec2{ 0.0f, 0.0f }},
-		Vertex{ glsl::vec3{ 0.0f, (float)texture2.GetSize().y, 0.0f },
-				glsl::vec4{ 1.0f, 1.0f, 0.0f, 1.0f },
-				glsl::vec2{ 0.0f, 1.0f }},
-	};*/
-
-	const std::vector<Vertex> triangle_vertices = {
-		Vertex{ glsl::vec3{ 0.5f, -0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 0.0f, 0.5f }},
-		Vertex{	glsl::vec3{ 0.0f, 0.5f, 0.0f }, glsl::vec4{ 0.0f, 1.0f, 0.0f, 0.5f }},
-		Vertex{glsl::vec3{ -0.5f, -0.5f, 0.0f }, glsl::vec4{ 0.0f, 1.0f, 1.0f, 0.5f }},
+		Vertex{ glsl::vec3{ -0.5f, 0.5f, 0.0f }, glsl::vec4{ 0.5f, 0.5f, 0.5f, 0.5f },
+				glsl::vec2{ 0.0f, 1.0f }}
 	};
 
 	VertexBuffer vbo1{ vao_vert };
-	VertexBuffer vbo2{ vao_vert2 };
-	// VertexBuffer vbo2{ triangle_vertices };
 	vbo1.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2>();
-	vbo2.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2>();
-	// vbo2.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2>();
 
-	VertexArray vao{
-		PrimitiveMode::Quads, vbo1, {0, 1, 2, 3}
-	};
-	VertexArray vao2{ PrimitiveMode::Quads, vbo2 };
-	// VertexArray vao2{ PrimitiveMode::Triangles, vbo2 };
+	VertexArray vao{ PrimitiveMode::Triangles, vbo1, IndexBuffer{ { 0, 1, 2, 2, 3, 0 } } };
 
-	//CameraController camera{ { 0.0f, 0.0f, 0.0f } };
+	// std::size_t font_key = 0;
+	// game.font.Load(font_key, "resources/fonts/retro_gaming.ttf", 30);
 
-	std::size_t font_key = 0;
-	game.font.Load(font_key, "resources/fonts/retro_gaming.ttf", 30);
-
-	//M4_float projection = M4_float::Orthographic(0.0f, (float)game.window.GetSize().x, 0.0f, (float)game.window.GetSize().y);
+	// M4_float projection = M4_float::Orthographic(0.0f, (float)game.window.GetSize().x, 0.0f,
+	// (float)game.window.GetSize().y);
 	M4_float projection = M4_float::Orthographic(-1.0f, 1.0f, -1.0f, 1.0f);
-	//M4_float projection = M4_float::Perspective(DegToRad(45.0f), (float)game.window.GetSize().x / (float)game.window.GetSize().y, 0.1f, 100.0f);
-	//M4_float projection = M4_float::Perspective(DegToRad(camera.zoom), (float)game.window.GetSize().x / (float)game.window.GetSize().y, 0.1f, 100.0f);
+	// M4_float projection = M4_float::Perspective(DegToRad(45.0f), (float)game.window.GetSize().x /
+	// (float)game.window.GetSize().y, 0.1f, 100.0f); M4_float projection =
+	// M4_float::Perspective(DegToRad(camera.zoom), (float)game.window.GetSize().x /
+	// (float)game.window.GetSize().y, 0.1f, 100.0f);
 
 	M4_float model{ 1.0f };
 	M4_float view{ 1.0f };
 
-	//model = M4_float::Rotate(model, DegToRad(-55.0f), 1.0f, 0.0f, 0.0f);
-	//view = M4_float::Translate(view, 0.0f, 0.0f, -3.0f);
+	// model = M4_float::Rotate(model, DegToRad(-55.0f), 1.0f, 0.0f, 0.0f);
+	// view = M4_float::Translate(view, 0.0f, 0.0f, -3.0f);
 
-	//game.input.SetRelativeMouseMode(true);
+	// game.input.SetRelativeMouseMode(true);
+
+	game.renderer.SetClearColor(color::DarkBrown);
 
 	game.RepeatUntilQuit([&](float dt) {
 		/*game.renderer.ResetTarget();
@@ -587,7 +521,7 @@ bool TestShaderDrawing() {
 		}*/
 
 		/*if (game.input.KeyPressed(Key::A)) {
-			view = M4_float::Translate(view, -0.05f, 0.0f, 0.0f); 
+			view = M4_float::Translate(view, -0.05f, 0.0f, 0.0f);
 		}
 		if (game.input.KeyPressed(Key::D)) {
 			view = M4_float::Translate(view, 0.05f, 0.0f, 0.0f);
@@ -611,33 +545,54 @@ bool TestShaderDrawing() {
 			model = M4_float::Rotate(model, DegToRad(-5.0f), 1.0f, 0.0f, 0.0f);
 		}*/
 
-		V2_float window_size = game.window.GetSize();
+		/*V2_float window_size = game.window.GetSize();
 		V2_float mouse		 = game.input.GetMousePosition();
 
 		Rectangle<int> dest_rect{ {}, window_size };
 
 		curr_time		   = clock();
-		playtime_in_second = (curr_time - start_time) * 1.0f / 1000.0f;
+		playtime_in_second = (curr_time - start_time) * 1.0f / 1000.0f;*/
 
-		shader.WhileBound([&]() {
+		/*shader.WhileBound([&]() {
 			shader.SetUniform("lightpos", mouse.x, mouse.y);
 			shader.SetUniform("lightColor", 1.0f, 0.0f, 0.0f);
 			shader.SetUniform("intensity", 14.0f);
 			shader.SetUniform("screenHeight", window_size.y);
-		});
+		});*/
 
-		shader2.WhileBound([&]() {
+		/*shader2.WhileBound([&]() {
 			shader2.SetUniform("iResolution", window_size.x, window_size.y, 0.0f);
 			shader2.SetUniform("iTime", playtime_in_second);
-		});
+		});*/
 
 		shader3.WhileBound([&]() {
 			shader3.SetUniform("u_model", model);
-			shader3.SetUniform("u_view", M4_float{ 1.0f }); // camera.GetViewMatrix());
+			shader3.SetUniform("u_view", view); // camera.GetViewMatrix());
 			shader3.SetUniform("u_projection", projection);
 		});
 
 		game.renderer.Clear();
+
+		shader3.Bind();
+		vao.Bind();
+		texture1.Bind(0);
+		shader3.SetUniform("tex0", 0);
+		// GLRenderer::DrawArrays(PrimitiveMode::Triangles, 4);
+		GLRenderer::DrawElements(PrimitiveMode::Triangles, 6);
+		// vao.Unbind();
+		// shader3.Unbind();
+		/*texture1.Unbind();*/
+
+		// game.renderer.Clear();
+		//  texture1.Bind(0);
+
+		// game.renderer.Submit(vao, shader3, texture1, 0);
+		//  game.renderer.Submit(shader3, vao, {}, {});
+		//    texture1.Unbind();
+		game.window.SwapBuffers();
+
+		// game.renderer.DrawQuad({ 300, 300 }, { 400, 400 }, { 1.0f, 0.5f, 0.5, 1.0f });
+
 		/*game.renderer.SetClearColor(color::White);
 
 		game.renderer.Clear();*/
@@ -653,11 +608,9 @@ bool TestShaderDrawing() {
 
 		// renderer.Draw(vao, shader2, texture1);
 		// renderer.Draw(vao, shader, texture1);
-		
-		//game.renderer.Draw(vao2, shader3, texture2, 1);
-		//game.renderer.Draw(vao, shader3, texture1, 0);
 
-		game.renderer.Present();
+		// game.renderer.Draw(vao2, shader3, texture2, 1);
+		// game.renderer.Draw(vao, shader3, texture1, 0);
 
 		// game.renderer.SetBlendMode(BlendMode::Blend);
 
