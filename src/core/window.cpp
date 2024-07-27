@@ -1,7 +1,6 @@
 #include "core/window.h"
 
 #include "SDL.h"
-
 #include "utility/debug.h"
 
 namespace ptgn {

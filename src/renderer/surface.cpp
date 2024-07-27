@@ -1,10 +1,9 @@
 #include "protegon/surface.h"
 
-#include "SDL.h"
-#include "SDL_image.h"
-
 #include <algorithm>
 
+#include "SDL.h"
+#include "SDL_image.h"
 #include "utility/debug.h"
 
 namespace ptgn {
@@ -33,14 +32,14 @@ SurfaceInstance::SurfaceInstance(const path& image_path, ImageFormat format) : f
 		PTGN_ASSERT(false, "Failed to lock surface when copying pixels");
 	}
 
-	size_			 = { surface->w, surface->h };
+	size_ = { surface->w, surface->h };
 
 	int total_pixels = size_.x * size_.y;
 
 	data_.resize(total_pixels, color::Black);
 
 	for (int y = 0; y < size_.y; ++y) {
-		std::uint8_t* row = (std::uint8_t*)surface->pixels + y * surface->pitch;
+		std::uint8_t* row	= (std::uint8_t*)surface->pixels + y * surface->pitch;
 		std::size_t idx_row = y * size_.x;
 		for (int x = 0; x < size_.x; ++x) {
 			std::uint8_t* pixel = row + x * surface->format->BytesPerPixel;
@@ -50,12 +49,10 @@ SurfaceInstance::SurfaceInstance(const path& image_path, ImageFormat format) : f
 				case 4: // RGBA8888
 					data_[index] = { pixel[3], pixel[2], pixel[1], pixel[0] };
 					break;
-				case 3: // RGB888
+				case 3:													  // RGB888
 					data_[index] = { pixel[2], pixel[1], pixel[0], 255 }; // Assume opaque
 					break;
-				default:
-					PTGN_CHECK(false, "Unsupported image format");
-					break;
+				default: PTGN_CHECK(false, "Unsupported image format"); break;
 			}
 		}
 	}
@@ -66,8 +63,7 @@ SurfaceInstance::SurfaceInstance(const path& image_path, ImageFormat format) : f
 } // namespace impl
 
 Surface::Surface(const path& image_path, ImageFormat format) {
-	instance_ =
-		std::shared_ptr<impl::SurfaceInstance>(new impl::SurfaceInstance(image_path, format));
+	instance_ = std::make_shared<impl::SurfaceInstance>(image_path, format);
 }
 
 void Surface::FlipVertically() {
@@ -109,7 +105,7 @@ void Surface::ForEachPixel(std::function<void(const V2_int&, const Color&)> func
 			function(coordinate, instance_->data_[index]);
 		}
 	}
- }
+}
 
 //
 //  void Surface::Lock() {

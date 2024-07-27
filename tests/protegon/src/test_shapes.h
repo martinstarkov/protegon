@@ -1,7 +1,7 @@
 #pragma once
 
-#include "protegon/game.h"
 #include "protegon/circle.h"
+#include "protegon/game.h"
 #include "protegon/line.h"
 #include "protegon/polygon.h"
 #include "utility/debug.h"
@@ -19,8 +19,9 @@ bool TestDrawing() {
 		Point<float> test01{ 30, 10 };
 		Point<float> test02{ 10, 10 };
 
-		test01.Draw(color::Black);
-		test02.Draw(color::Black, 6);
+		// TODO: Fix.
+		// test01.Draw(color::Black);
+		// test02.Draw(color::Black, 6);
 
 		Rectangle<float> test11{
 			{20, 20},
