@@ -1,9 +1,8 @@
 #include "protegon/line.h"
 
 #include "SDL.h"
-
-#include "protegon/game.h"
 #include "protegon/circle.h"
+#include "protegon/game.h"
 
 namespace ptgn {
 
@@ -11,7 +10,7 @@ namespace impl {
 
 std::shared_ptr<SDL_Renderer> SetDrawMode(const Color& color) {
 	// TODO: Fix
-	//game.renderer.SetDrawMode(color, BlendMode::Blend);
+	// game.renderer.SetDrawMode(color, BlendMode::Blend);
 	return nullptr; // sdl.GetRenderer();
 }
 
@@ -174,7 +173,8 @@ void DrawCapsuleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int
 		DrawCircleImpl(renderer, x1, y1, r);
 		return;
 	} else {
-		tangent_r = static_cast<V2_int>((dir.Skewed() / std::sqrt(dir2) * r).FastFloor());
+		auto tmp  = static_cast<V2_int>(dir.Skewed() / std::sqrt(dir2) * r);
+		tangent_r = { FastFloor(tmp.x), FastFloor(tmp.y) };
 	}
 
 	// Draw edge lines.
@@ -229,7 +229,8 @@ void DrawThickCapsuleImpl(
 		DrawThickCircleImpl(renderer, x1, y1, r, pixel_thickness);
 		return;
 	} else {
-		tangent_r = static_cast<V2_int>((dir.Skewed() / std::sqrt(dir2) * r).FastFloor());
+		auto tmp  = static_cast<V2_int>((dir.Skewed() / std::sqrt(dir2) * r));
+		tangent_r = { FastFloor(tmp.x), FastFloor(tmp.y) };
 	}
 
 	// Draw edge lines.

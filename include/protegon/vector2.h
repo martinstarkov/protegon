@@ -15,22 +15,21 @@ struct SDL_Point;
 
 namespace ptgn {
 
-namespace impl {
-
-void DrawPointWrapper(int x, int y, const Color& color);
-void DrawSolidCircleWrapper(int x, int y, int r, const Color& color);
-
-} // namespace impl
-
 template <typename T, type_traits::arithmetic<T> = true>
 struct Vector2 {
 	T x{ 0 };
 	T y{ 0 };
 
-	constexpr Vector2() = default;
-	~Vector2()			= default;
+	constexpr Vector2()				   = default;
+	~Vector2()						   = default;
+	Vector2(const Vector2&)			   = default;
+	Vector2(Vector2&&)				   = default;
+	Vector2& operator=(const Vector2&) = default;
+	Vector2& operator=(Vector2&&)	   = default;
 
 	operator SDL_Point() const;
+
+	explicit constexpr Vector2(T all) : x{ all }, y{ all } {}
 
 	constexpr Vector2(T x, T y) : x{ x }, y{ y } {}
 
@@ -121,65 +120,24 @@ struct Vector2 {
 		return x * o.y - y * o.x;
 	}
 
-	// Returns a vector with both components rounded to the nearest 0.5.
-	[[nodiscard]] Vector2 Rounded() const {
-		return { std::round(x), std::round(y) };
-	}
-
-	[[nodiscard]] Vector2 FastAbs() const {
-		return { ptgn::FastAbs(x), ptgn::FastAbs(y) };
-	}
-
-	[[nodiscard]] Vector2 FastCeil() const {
-		return { ptgn::FastCeil(x), ptgn::FastCeil(y) };
-	}
-
-	[[nodiscard]] Vector2 FastFloor() const {
-		return { ptgn::FastFloor(x), ptgn::FastFloor(y) };
-	}
-
-	[[nodiscard]] Vector2 Clamped(const T& low, const T& high) const {
-		return { std::clamp(x, low, high), std::clamp(y, low, high) };
-	}
-
-	[[nodiscard]] Vector2 Clamped(const Vector2& low, const Vector2& high) const {
-		return { std::clamp(x, low.x, high.x), std::clamp(y, low.y, high.y) };
-	}
-
-	// Both components will be either 0, 1 or -1.
-	[[nodiscard]] Vector2 Identity() const {
-		return { Sign(x), Sign(y) };
-	}
-
 	[[nodiscard]] Vector2 Skewed() const {
 		return { -y, x };
 	}
 
 	template <typename U = float>
 	[[nodiscard]] U Magnitude() const {
-		if constexpr (std::is_same_v<U, double>) {
-			return std::sqrt(MagnitudeSquared());
-		} else if constexpr (std::is_same_v<U, long double>) {
-			return std::sqrt(MagnitudeSquared());
-		} else {
-			return static_cast<U>(std::sqrt(MagnitudeSquared()));
-		}
+		return std::sqrt(MagnitudeSquared());
 	}
 
 	[[nodiscard]] T MagnitudeSquared() const {
 		return Dot(*this);
 	}
 
-	template <typename U = float>
-	[[nodiscard]] Vector2<U> Fraction() const {
-		return { x - static_cast<std::int64_t>(x), y - static_cast<std::int64_t>(y) };
-	}
-
 	// Returns a unit vector (magnitude = 1) except for zero vectors (magnitude
 	// = 0).
 	template <typename U = float, type_traits::not_narrowing<T, U> = true>
 	[[nodiscard]] Vector2<U> Normalized() const {
-		T m{ Dot(*this) };
+		T m{ MagnitudeSquared() };
 		if (NearlyEqual(m, T{ 0 })) {
 			return *this;
 		}
@@ -212,15 +170,6 @@ struct Vector2 {
 	[[nodiscard]] bool IsZero() const {
 		return NearlyEqual(x, T{ 0 }) && NearlyEqual(y, T{ 0 });
 	}
-
-	void Draw(const Color& color, int radius = 0) const {
-		PTGN_CHECK(radius >= 0, "Cannot draw vector point with negative radius");
-		if (radius <= 1) {
-			impl::DrawPointWrapper(static_cast<int>(x), static_cast<int>(y), color);
-		} else {
-			impl::DrawSolidCircleWrapper(static_cast<int>(x), static_cast<int>(y), radius, color);
-		}
-	}
 };
 
 using V2_int	= Vector2<int>;
@@ -228,18 +177,6 @@ using V2_float	= Vector2<float>;
 using V2_double = Vector2<double>;
 template <typename T>
 using Point = Vector2<T>;
-
-template <typename T, typename U, type_traits::floating_point<U> = true>
-[[nodiscard]] inline Vector2<U> Lerp(const Vector2<T>& a, const Vector2<T>& b, U t) {
-	return { Lerp(a.x, b.x, t), Lerp(a.y, b.y, t) };
-}
-
-template <typename T, typename U, type_traits::floating_point<U> = true>
-[[nodiscard]] inline Vector2<U> Lerp(
-	const Vector2<T>& a, const Vector2<T>& b, const Vector2<U>& t
-) {
-	return { Lerp(a.x, b.x, t.x), Lerp(a.y, b.y, t.y) };
-}
 
 template <typename T>
 inline bool operator==(const Vector2<T>& lhs, const Vector2<T>& rhs) {

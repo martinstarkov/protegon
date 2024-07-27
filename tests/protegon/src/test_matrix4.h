@@ -1,7 +1,7 @@
 #pragma once
 
-#include "protegon/matrix4.h"
 #include "protegon/log.h"
+#include "protegon/matrix4.h"
 #include "utility/debug.h"
 
 using namespace ptgn;
@@ -52,7 +52,7 @@ bool TestMatrix4() {
 	M4_int test3;
 
 	test3(2, 1) = 6;
-	test3(1, 3)	= 2;
+	test3(1, 3) = 2;
 	test3(3, 0) = 1;
 
 	PTGN_ASSERT(test3 != test1);
@@ -152,22 +152,22 @@ bool TestMatrix4() {
 
 	M4_int test14 = test12 + test13;
 
-	PTGN_ASSERT(test14(0, 0)  == 4);
-	PTGN_ASSERT(test14(0, 1)  == 5);
-	PTGN_ASSERT(test14(0, 2)  == 5);
-	PTGN_ASSERT(test14(0, 3)  == 5);
-	PTGN_ASSERT(test14(1, 0)  == 5);
-	PTGN_ASSERT(test14(1, 1)  == 4);
-	PTGN_ASSERT(test14(1, 2)  == 5);
-	PTGN_ASSERT(test14(1, 3)  == 5);
-	PTGN_ASSERT(test14(2, 0)  == 5);
-	PTGN_ASSERT(test14(2, 1)  == 5);
-	PTGN_ASSERT(test14(2, 2)  == 4);
-	PTGN_ASSERT(test14(2, 3)  == 5);
-	PTGN_ASSERT(test14(3, 0)  == 5);
-	PTGN_ASSERT(test14(3, 1)  == 5);
-	PTGN_ASSERT(test14(3, 2)  == 5);
-	PTGN_ASSERT(test14(3, 3)  == 4);
+	PTGN_ASSERT(test14(0, 0) == 4);
+	PTGN_ASSERT(test14(0, 1) == 5);
+	PTGN_ASSERT(test14(0, 2) == 5);
+	PTGN_ASSERT(test14(0, 3) == 5);
+	PTGN_ASSERT(test14(1, 0) == 5);
+	PTGN_ASSERT(test14(1, 1) == 4);
+	PTGN_ASSERT(test14(1, 2) == 5);
+	PTGN_ASSERT(test14(1, 3) == 5);
+	PTGN_ASSERT(test14(2, 0) == 5);
+	PTGN_ASSERT(test14(2, 1) == 5);
+	PTGN_ASSERT(test14(2, 2) == 4);
+	PTGN_ASSERT(test14(2, 3) == 5);
+	PTGN_ASSERT(test14(3, 0) == 5);
+	PTGN_ASSERT(test14(3, 1) == 5);
+	PTGN_ASSERT(test14(3, 2) == 5);
+	PTGN_ASSERT(test14(3, 3) == 4);
 
 	M4_float test15 = M4_float::Identity() - M4_float::Identity();
 
@@ -175,11 +175,11 @@ bool TestMatrix4() {
 
 	M4_int test16;
 
-	test16.m = { 0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15 };
+	test16 = { 0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15 };
 
 	M4_int test17;
 
-	test17.m = { 15, 11, 7, 3, 14, 10, 6, 2, 13, 9, 5, 1, 12, 8, 4, 0 };
+	test17 = { 15, 11, 7, 3, 14, 10, 6, 2, 13, 9, 5, 1, 12, 8, 4, 0 };
 
 	M4_int test18 = test16 * test17;
 
@@ -201,7 +201,7 @@ bool TestMatrix4() {
 	PTGN_ASSERT(test18(3, 3) == 304);
 
 	M4_int test19;
-	test19.m = { -5, -1, 2, -3, -9, 6, 6, 3, -3, 9, -6, -3, 6, 2, 4, -2 };
+	test19 = { -5, -1, 2, -3, -9, 6, 6, 3, -3, 9, -6, -3, 6, 2, 4, -2 };
 
 	M4_int test20 = test19;
 	PTGN_ASSERT(test20 == test19);
@@ -229,12 +229,12 @@ bool TestMatrix4() {
 	PTGN_ASSERT(test21(3, 3) == -20);
 
 	M4_int test23;
-	test23.m = { -8, -4, -7, 6, -6, -8, 9, -5, -3, -8, 8, -8, 4, 3, -8, -3 };
+	test23 = { -8, -4, -7, 6, -6, -8, 9, -5, -3, -8, 8, -8, 4, 3, -8, -3 };
 
-	//PTGN_LOG(test23);
+	// PTGN_LOG(test23);
 
 	M4_int test24;
-	test24.m = { -5, -1, 2, -3, -9, 6, 6, 3, -3, 9, -6, -3, 6, 2, 4, -2 };
+	test24 = { -5, -1, 2, -3, -9, 6, 6, 3, -3, 9, -6, -3, 6, 2, 4, -2 };
 
 	M4_int test25 = test23 * test24;
 	M4_int test26 = test24 * test23;

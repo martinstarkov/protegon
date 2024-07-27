@@ -6,7 +6,6 @@
 #include <functional>
 #include <ostream>
 
-#include "color.h"
 #include "math.h"
 #include "utility/debug.h"
 #include "utility/type_traits.h"
@@ -19,8 +18,14 @@ struct Vector3 {
 	T y{ 0 };
 	T z{ 0 };
 
-	constexpr Vector3() = default;
-	~Vector3()			= default;
+	constexpr Vector3()				   = default;
+	~Vector3()						   = default;
+	Vector3(const Vector3&)			   = default;
+	Vector3(Vector3&&)				   = default;
+	Vector3& operator=(const Vector3&) = default;
+	Vector3& operator=(Vector3&&)	   = default;
+
+	explicit constexpr Vector3(T all) : x{ all }, y{ all }, z{ all } {}
 
 	constexpr Vector3(T x, T y, T z) : x{ x }, y{ y }, z{ z } {}
 
@@ -123,63 +128,20 @@ struct Vector3 {
 		return { y * o.z - z * o.y, z * o.x - x * o.z, x * o.y - y * o.z };
 	}
 
-	// Returns a vector with both components rounded to the nearest 0.5.
-	[[nodiscard]] Vector3 Rounded() const {
-		return { std::round(x), std::round(y), std::round(z) };
-	}
-
-	[[nodiscard]] Vector3 FastAbs() const {
-		return { ptgn::FastAbs(x), ptgn::FastAbs(y), ptgn::FastAbs(z) };
-	}
-
-	[[nodiscard]] Vector3 FastCeil() const {
-		return { ptgn::FastCeil(x), ptgn::FastCeil(y), ptgn::FastCeil(z) };
-	}
-
-	[[nodiscard]] Vector3 FastFloor() const {
-		return { ptgn::FastFloor(x), ptgn::FastFloor(y), ptgn::FastFloor(z) };
-	}
-
-	[[nodiscard]] Vector3 Clamped(const T& low, const T& high) const {
-		return { std::clamp(x, low, high), std::clamp(y, low, high), std::clamp(z, low, high) };
-	}
-
-	[[nodiscard]] Vector3 Clamped(const Vector3& low, const Vector3& high) const {
-		return { std::clamp(x, low.x, high.x), std::clamp(y, low.y, high.y),
-				 std::clamp(z, low.z, high.z) };
-	}
-
-	// All components will be either 0, 1 or -1.
-	[[nodiscard]] Vector3 Identity() const {
-		return { Sign(x), Sign(y), Sign(z) };
-	}
-
 	template <typename U = float>
 	[[nodiscard]] U Magnitude() const {
-		if constexpr (std::is_same_v<U, double>) {
-			return std::sqrt(MagnitudeSquared());
-		} else if constexpr (std::is_same_v<U, long double>) {
-			return std::sqrt(MagnitudeSquared());
-		} else {
-			return static_cast<U>(std::sqrt(MagnitudeSquared()));
-		}
+		return std::sqrt(MagnitudeSquared());
 	}
 
 	[[nodiscard]] T MagnitudeSquared() const {
 		return Dot(*this);
 	}
 
-	template <typename U = float>
-	[[nodiscard]] Vector3<U> Fraction() const {
-		return { x - static_cast<std::int64_t>(x), y - static_cast<std::int64_t>(y),
-				 z - static_cast<std::int64_t>(z) };
-	}
-
 	// Returns a unit vector (magnitude = 1) except for zero vectors (magnitude
 	// = 0).
 	template <typename U = float, type_traits::not_narrowing<T, U> = true>
 	[[nodiscard]] Vector3<U> Normalized() const {
-		T m{ Dot(*this) };
+		T m{ MagnitudeSquared() };
 		if (NearlyEqual(m, T{ 0 })) {
 			return *this;
 		}
@@ -211,18 +173,6 @@ struct Vector3 {
 using V3_int	= Vector3<int>;
 using V3_float	= Vector3<float>;
 using V3_double = Vector3<double>;
-
-template <typename T, typename U, type_traits::floating_point<U> = true>
-[[nodiscard]] inline Vector3<U> Lerp(const Vector3<T>& a, const Vector3<T>& b, U t) {
-	return { Lerp(a.x, b.x, t), Lerp(a.y, b.y, t), Lerp(a.z, b.z, t) };
-}
-
-template <typename T, typename U, type_traits::floating_point<U> = true>
-[[nodiscard]] inline Vector3<U> Lerp(
-	const Vector3<T>& a, const Vector3<T>& b, const Vector3<U>& t
-) {
-	return { Lerp(a.x, b.x, t.x), Lerp(a.y, b.y, t.y), Lerp(a.z, b.z, t.z) };
-}
 
 template <typename T>
 inline bool operator==(const Vector3<T>& lhs, const Vector3<T>& rhs) {

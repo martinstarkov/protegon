@@ -195,7 +195,7 @@ bool TestVector2() {
 
 	// Rounded() tests.
 
-	Vector2<double> r1r{ 1.3, 1.3 };
+	/*Vector2<double> r1r{ 1.3, 1.3 };
 	Vector2<double> r2r{ 2.6, 2.6 };
 	Vector2<double> r3r{ 3.5, 3.5 };
 	Vector2<double> r4r{ 1.0, 1.0 };
@@ -233,7 +233,7 @@ bool TestVector2() {
 	PTGN_ASSERT(r6r.y == -1.0);
 	PTGN_ASSERT(r7r.y == -3.0);
 	PTGN_ASSERT(r8r.y == -4.0);
-	PTGN_ASSERT(r9r.y == -1.0);
+	PTGN_ASSERT(r9r.y == -1.0);*/
 
 	// Angle() tests.
 

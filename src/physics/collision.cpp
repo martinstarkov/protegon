@@ -9,9 +9,7 @@ namespace ptgn {
 
 namespace impl {
 
-float SquareDistancePointRectangle(
-	const Point<float>& a, const Rectangle<float>& b
-) {
+float SquareDistancePointRectangle(const Point<float>& a, const Rectangle<float>& b) {
 	float dist2{ 0.0f };
 	const V2_float max{ b.Max() };
 	for (std::size_t i{ 0 }; i < 2; ++i) {
@@ -26,9 +24,7 @@ float SquareDistancePointRectangle(
 	return dist2;
 }
 
-float ParallelogramArea(
-	const Point<float>& a, const Point<float>& b, const Point<float>& c
-) {
+float ParallelogramArea(const Point<float>& a, const Point<float>& b, const Point<float>& c) {
 	return (a - c).Cross(b - c);
 }
 
@@ -140,9 +136,7 @@ bool SegmentCircle(const Segment<float>& a, const Circle<float>& b) {
 	const float max_dist2{ std::max(OP_dist2, OQ_dist2) };
 
 	if (OP.Dot(-PQ) > 0.0f && OQ.Dot(PQ) > 0.0f) {
-		const float triangle_area{
-			FastAbs(impl::ParallelogramArea(b.center, a.a, a.b)) / 2.0f
-		};
+		const float triangle_area{ FastAbs(impl::ParallelogramArea(b.center, a.a, a.b)) / 2.0f };
 		min_dist2 = 4.0f * triangle_area * triangle_area / PQ.Dot(PQ);
 	} else {
 		min_dist2 = std::min(OP_dist2, OQ_dist2);
@@ -153,9 +147,7 @@ bool SegmentCircle(const Segment<float>& a, const Circle<float>& b) {
 
 bool SegmentSegment(const Segment<float>& a, const Segment<float>& b) {
 	// Sign of areas correspond to which side of ab points c and d are
-	const float a1{
-		impl::ParallelogramArea(a.a, a.b, b.b)
-	}; // Compute winding of abd (+ or -)
+	const float a1{ impl::ParallelogramArea(a.a, a.b, b.b) }; // Compute winding of abd (+ or -)
 	const float a2{
 		impl::ParallelogramArea(a.a, a.b, b.a)
 	}; // To intersect, must have sign opposite of a1
@@ -173,9 +165,7 @@ bool SegmentSegment(const Segment<float>& a, const Segment<float>& b) {
 	//}
 	if (!collinear && polarity_diff) {
 		// Compute signs for a and b with respect to segment cd
-		const float a3{
-			impl::ParallelogramArea(b.a, b.b, a.a)
-		}; // Compute winding of cda (+ or -)
+		const float a3{ impl::ParallelogramArea(b.a, b.b, a.a) }; // Compute winding of cda (+ or -)
 		// Since area is constant a1 - a2 = a3 - a4, or a4 = a3 + a2 - a1
 		// const T a4 = math::ParallelogramArea(c, d, b); // Must have opposite
 		// sign of a3
@@ -197,17 +187,15 @@ bool SegmentSegment(const Segment<float>& a, const Segment<float>& b) {
 			return true;
 		}
 	}
-	return collinear && (PointSegment(b.b, a) || PointSegment(b.a, a) ||
-						 PointSegment(a.a, b) || PointSegment(a.b, b));
+	return collinear && (PointSegment(b.b, a) || PointSegment(b.a, a) || PointSegment(a.a, b) ||
+						 PointSegment(a.b, b));
 }
 
 } // namespace overlap
 
 namespace intersect {
 
-bool CircleCircle(
-	const Circle<float>& a, const Circle<float>& b, Collision& c
-) {
+bool CircleCircle(const Circle<float>& a, const Circle<float>& b, Collision& c) {
 	c = {};
 
 	const V2_float d{ b.center - a.center };
@@ -231,18 +219,17 @@ bool CircleCircle(
 	return true;
 }
 
-bool RectangleRectangle(
-	const Rectangle<float>& a, const Rectangle<float>& b, Collision& c
-) {
+bool RectangleRectangle(const Rectangle<float>& a, const Rectangle<float>& b, Collision& c) {
 	c = {};
 
 	const V2_float a_h{ a.Half() };
 	const V2_float b_h{ b.Half() };
 	const V2_float d{ b.pos + b_h - (a.pos + a_h) };
-	const V2_float pen{ a_h + b_h - d.FastAbs() };
+	const V2_float pen{
+		a_h + b_h - V2_float{FastAbs(d.x), FastAbs(d.y)}
+	};
 
-	if (pen.x < 0 || pen.y < 0 || NearlyEqual(pen.x, 0.0f) ||
-		NearlyEqual(pen.y, 0.0f)) {
+	if (pen.x < 0 || pen.y < 0 || NearlyEqual(pen.x, 0.0f) || NearlyEqual(pen.y, 0.0f)) {
 		return false;
 	}
 
@@ -260,13 +247,12 @@ bool RectangleRectangle(
 	return true;
 }
 
-bool CircleRectangle(
-	const Circle<float>& a, const Rectangle<float>& b, Collision& c
-) {
+bool CircleRectangle(const Circle<float>& a, const Rectangle<float>& b, Collision& c) {
 	c = {};
 
 	const V2_float half{ b.Half() };
-	const V2_float clamped{ a.center.Clamped(b.pos, b.pos + b.size) };
+	const V2_float clamped{ std::clamp(a.center.x, b.pos.x, b.pos.x + b.size.x),
+							std::clamp(a.center.y, b.pos.y, b.pos.y + b.size.y) };
 	const V2_float ab{ a.center - clamped };
 
 	const float d2{ ab.Dot(ab) };
@@ -278,7 +264,7 @@ bool CircleRectangle(
 			// clamp circle's center to edge of AABB, then form the manifold
 			const V2_float mid{ b.pos + half };
 			const V2_float d{ mid - a.center };
-			const V2_float abs_d{ d.FastAbs() };
+			const V2_float abs_d{ FastAbs(d.x), FastAbs(d.y) };
 
 			const float x_overlap{ half.x - abs_d.x };
 			const float y_overlap{ half.y - abs_d.y };
@@ -307,9 +293,7 @@ bool CircleRectangle(
 
 namespace dynamic {
 
-bool SegmentSegment(
-	const Segment<float>& a, const Segment<float>& b, Collision& c
-) {
+bool SegmentSegment(const Segment<float>& a, const Segment<float>& b, Collision& c) {
 	c = {};
 
 	const Point<float> r{ a.Direction() };
@@ -353,18 +337,15 @@ bool SegmentSegment(
 	return true;
 }
 
-bool SegmentCircle(
-	const Segment<float>& a, const Circle<float>& b, Collision& c
-) {
+bool SegmentCircle(const Segment<float>& a, const Circle<float>& b, Collision& c) {
 	c = {};
 
 	const Point<float> d{ -a.Direction() };
 	const Point<float> f{ b.center - a.a };
 
 	// bool (roots exist), float (root 1), float (root 2).
-	const auto [real, t1, t2] = QuadraticFormula(
-		d.Dot(d), 2.0f * f.Dot(d), f.Dot(f) - b.radius * b.radius
-	);
+	const auto [real, t1, t2] =
+		QuadraticFormula(d.Dot(d), 2.0f * f.Dot(d), f.Dot(f) - b.radius * b.radius);
 
 	if (!real) {
 		return false;
@@ -398,9 +379,7 @@ bool SegmentCircle(
 	return true;
 }
 
-bool SegmentRectangle(
-	const Segment<float>& a, const Rectangle<float>& b, Collision& c
-) {
+bool SegmentRectangle(const Segment<float>& a, const Rectangle<float>& b, Collision& c) {
 	c = {};
 
 	const V2_float d{ a.Direction() };
@@ -435,7 +414,7 @@ bool SegmentRectangle(
 		}
 
 		const V2_float coeff{ a.a + d * c.t - (b.Min() + b_max) * 0.5f };
-		const V2_float abs_coeff{ coeff.FastAbs() };
+		const V2_float abs_coeff{ FastAbs(coeff.x), FastAbs(coeff.y) };
 
 		if (abs_coeff.x > abs_coeff.y) {
 			c.normal = { Sign(coeff.x), 0.0f };
@@ -448,9 +427,7 @@ bool SegmentRectangle(
 	return false;
 }
 
-bool SegmentCapsule(
-	const Segment<float>& a, const Capsule<float>& b, Collision& c
-) {
+bool SegmentCapsule(const Segment<float>& a, const Capsule<float>& b, Collision& c) {
 	c = {};
 
 	const Point<float> cv{ b.segment.Direction() };
@@ -464,10 +441,8 @@ bool SegmentCapsule(
 	const V2_float cu{ cv / mag };
 	const V2_float ncu{ cu.Skewed() };
 
-	const Segment<float> p1{ b.segment.a + ncu * b.radius,
-							 b.segment.b + ncu * b.radius };
-	const Segment<float> p3{ b.segment.a + ncu * -b.radius,
-							 b.segment.b + ncu * -b.radius };
+	const Segment<float> p1{ b.segment.a + ncu * b.radius, b.segment.b + ncu * b.radius };
+	const Segment<float> p3{ b.segment.a + ncu * -b.radius, b.segment.b + ncu * -b.radius };
 
 	Collision col_min{ c };
 	if (SegmentSegment(a, p1, c)) {
@@ -501,17 +476,13 @@ bool SegmentCapsule(
 }
 
 bool CircleCircle(
-	const Circle<float>& a, const Vector2<float>& vel, const Circle<float>& b,
-	Collision& c
+	const Circle<float>& a, const Vector2<float>& vel, const Circle<float>& b, Collision& c
 ) {
-	return SegmentCircle(
-		{ a.center, a.center + vel }, { b.center, b.radius + a.radius }, c
-	);
+	return SegmentCircle({ a.center, a.center + vel }, { b.center, b.radius + a.radius }, c);
 }
 
 bool CircleRectangle(
-	const Circle<float>& a, const Vector2<float>& vel,
-	const Rectangle<float>& b, Collision& c
+	const Circle<float>& a, const Vector2<float>& vel, const Rectangle<float>& b, Collision& c
 ) {
 	const Segment<float> seg{ a.center, a.center + vel };
 
@@ -542,8 +513,8 @@ bool CircleRectangle(
 			seg,
 			{
 				{V2_float{ b.pos.x + b.size.x, b.pos.y }, b.pos + b.size},
-				a.radius
-	 },
+				 a.radius
+	  },
 			c
 		)) {
 		if (c.t < col_min.t) {
@@ -554,8 +525,8 @@ bool CircleRectangle(
 			seg,
 			{
 				{b.pos + b.size, V2_float{ b.pos.x, b.pos.y + b.size.y }},
-				a.radius
-	 },
+				 a.radius
+	  },
 			c
 		)) {
 		if (c.t < col_min.t) {
@@ -585,13 +556,11 @@ bool CircleRectangle(
 }
 
 bool RectangleRectangle(
-	const Rectangle<float>& a, const Vector2<float>& vel,
-	const Rectangle<float>& b, Collision& c
+	const Rectangle<float>& a, const Vector2<float>& vel, const Rectangle<float>& b, Collision& c
 ) {
 	const V2_float a_center{ a.Center() };
 	return SegmentRectangle(
-		{ a_center, a_center + vel },
-		{ b.pos - a.size / 2.0f, b.size + a.size }, c
+		{ a_center, a_center + vel }, { b.pos - a.size / 2.0f, b.size + a.size }, c
 	);
 }
 
