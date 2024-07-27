@@ -14,10 +14,24 @@ union SDL_Event;
 
 namespace ptgn {
 
+class Game;
+
+namespace impl {
+
+class GameInstance;
+
+} // namespace impl
+
 class InputHandler {
-public:
+private:
 	void Init();
+
+	InputHandler() = default;
 	~InputHandler();
+	InputHandler(const InputHandler&)			 = delete;
+	InputHandler(InputHandler&&)				 = default;
+	InputHandler& operator=(const InputHandler&) = delete;
+	InputHandler& operator=(InputHandler&&)		 = default;
 
 	// Updates previous mouse states for mouse up and down check.
 	void UpdateMouseState(Mouse button);
@@ -35,6 +49,10 @@ public:
 	 */
 	[[nodiscard]] MouseState GetMouseState(Mouse button) const;
 
+	void Update();
+	void ForceUpdateMousePosition();
+
+public:
 	[[nodiscard]] milliseconds GetMouseHeldTime(Mouse button);
 
 	/*
@@ -47,11 +65,8 @@ public:
 		return held_time > time;
 	}
 
-	void Update();
-
 	void SetRelativeMouseMode(bool on);
 
-	void ForceUpdateMousePosition();
 	[[nodiscard]] V2_int GetMousePosition();
 
 	// @return The amount scrolled by the mouse vertically in the current frame,
@@ -75,6 +90,8 @@ public:
 	[[nodiscard]] bool KeyUp(Key key);
 
 private:
+	friend class Game;
+	friend class impl::GameInstance;
 	// Number of keys stored in the SDL key states array. For creating previous
 	// key states array.
 	static constexpr std::size_t KEY_COUNT{ 512 };

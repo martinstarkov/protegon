@@ -10,7 +10,7 @@
 
 namespace ptgn {
 
-class InputHandler;
+class EventHandler;
 
 template <typename T>
 class EventDispatcher {
@@ -93,6 +93,14 @@ private:
 };
 
 class EventHandler {
+private:
+	EventHandler()								 = default;
+	~EventHandler()								 = default;
+	EventHandler(const EventHandler&)			 = delete;
+	EventHandler(EventHandler&&)				 = default;
+	EventHandler& operator=(const EventHandler&) = delete;
+	EventHandler& operator=(EventHandler&&)		 = default;
+
 public:
 	EventDispatcher<KeyEvent> key;
 	EventDispatcher<MouseEvent> mouse;
@@ -106,6 +114,9 @@ public:
 		mouse.Unsubscribe(ptr);
 		window.Unsubscribe(ptr);
 	}
+
+private:
+	friend class Game;
 };
 
 } // namespace ptgn

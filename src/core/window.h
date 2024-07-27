@@ -7,6 +7,8 @@ struct SDL_Window;
 
 namespace ptgn {
 
+class InputHandler;
+
 namespace impl {
 
 class GameInstance;
@@ -22,7 +24,13 @@ struct Screen {
 };
 
 class Window {
-public:
+private:
+	Window()						 = default;
+	~Window()						 = default;
+	Window(const Window&)			 = delete;
+	Window(Window&&)				 = default;
+	Window& operator=(const Window&) = delete;
+	Window& operator=(Window&&)		 = default;
 	// Setting fullscreen to true invalidates borderless and resizeable.
 	// Setting borderless to true invalidates resizeable.
 	void SetupSize(
@@ -32,6 +40,7 @@ public:
 
 	[[nodiscard]] bool Exists();
 
+public:
 	void SetMinimumSize(const V2_int& minimum_size);
 	[[nodiscard]] V2_int GetMinimumSize();
 
@@ -65,13 +74,15 @@ public:
 
 	void Hide();
 
+	// TODO: Move to private
+	void SwapBuffers();
+
 private:
-	friend class InputHandler;
-	friend class Renderer;
 	friend class Game;
+	friend class Renderer;
+	friend class InputHandler;
 	friend class impl::GameInstance;
 	void Init();
-	void SwapBuffers();
 
 	std::unique_ptr<SDL_Window, impl::WindowDeleter> window_;
 };

@@ -2,10 +2,10 @@
 
 #include <vector>
 
-#include "protegon/scene.h"
 #include "core/handle_manager.h"
-#include "utility/type_traits.h"
+#include "protegon/scene.h"
 #include "utility/debug.h"
+#include "utility/type_traits.h"
 
 namespace ptgn {
 
@@ -18,6 +18,14 @@ inline constexpr std::size_t start_scene_key{ 0 };
 } // namespace impl
 
 class SceneManager : public HandleManager<std::shared_ptr<Scene>> {
+private:
+	SceneManager()								 = default;
+	~SceneManager()								 = default;
+	SceneManager(const SceneManager&)			 = delete;
+	SceneManager(SceneManager&&)				 = default;
+	SceneManager& operator=(const SceneManager&) = delete;
+	SceneManager& operator=(SceneManager&&)		 = default;
+
 public:
 	template <
 		typename T, typename... TArgs, type_traits::constructible<T, TArgs...> = true,
@@ -32,7 +40,10 @@ public:
 		));
 	}
 
-    template <typename TScene = Scene, type_traits::enable<(std::is_base_of_v<TScene, Scene> || std::is_same_v<TScene, Scene>)> = true>
+	template <
+		typename TScene = Scene,
+		type_traits::enable<(std::is_base_of_v<TScene, Scene> || std::is_same_v<TScene, Scene>)> =
+			true>
 	[[nodiscard]] std::shared_ptr<TScene> Get(SceneKey scene_key) {
 		return std::static_pointer_cast<TScene>(HandleManager<std::shared_ptr<Scene>>::Get(scene_key
 		));
@@ -45,11 +56,12 @@ public:
 	void RemoveActive(std::size_t scene_key);
 	[[nodiscard]] std::vector<std::shared_ptr<Scene>> GetActive();
 
-	void Update(float dt);
-
 private:
 	friend class Game;
-	template <typename T, typename... TArgs, type_traits::constructible<T, TArgs...> = true, type_traits::convertible<T*, Scene*> = true>
+
+	template <
+		typename T, typename... TArgs, type_traits::constructible<T, TArgs...> = true,
+		type_traits::convertible<T*, Scene*> = true>
 	std::shared_ptr<T> LoadStartScene(SceneKey scene_key, TArgs&&... constructor_args) {
 		PTGN_ASSERT(scene_key == impl::start_scene_key);
 		return std::static_pointer_cast<T>(HandleManager<std::shared_ptr<Scene>>::Load(
@@ -57,6 +69,7 @@ private:
 		));
 	}
 
+	void Update(float dt);
 	void UnloadFlagged();
 	/*void ExitAllExcept(std::size_t scene_key) {
 		for (auto other_key : active_scenes_) {

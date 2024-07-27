@@ -157,8 +157,8 @@ GameInstance::GameInstance(Game& game) {
 	sdl::InitSDLTTF();
 	sdl::InitSDLMixer();
 	game.window.Init();
-	game.renderer.Init();
 	gl::InitOpenGL();
+	game.renderer.Init();
 	game.input.Init();
 }
 
