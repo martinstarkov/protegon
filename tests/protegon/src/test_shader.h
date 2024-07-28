@@ -613,6 +613,7 @@ bool TestShaderDrawing() {
 	game.window.SetSize({ 800, 800 });
 	game.window.Show();
 	game.renderer.SetClearColor(color::White);
+	game.window.SetTitle("Press '1' and '2' to cycle back and fourth between render tests");
 
 	/*static Shader shader =
 		Shader("resources/shader/main_vert.glsl", "resources/shader/lightFs.glsl");
@@ -736,6 +737,8 @@ bool TestShaderDrawing() {
 			default:							 break;
 		}
 	});
+
+	game.window.SetTitle("");
 
 	return true;
 }
