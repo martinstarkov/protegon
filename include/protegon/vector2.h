@@ -8,6 +8,7 @@
 
 #include "protegon/color.h"
 #include "protegon/math.h"
+#include "protegon/rng.h"
 #include "utility/debug.h"
 #include "utility/type_traits.h"
 
@@ -124,9 +125,9 @@ struct Vector2 {
 		return { -y, x };
 	}
 
-	template <typename U = float>
-	[[nodiscard]] U Magnitude() const {
-		return std::sqrt(MagnitudeSquared());
+	template <typename S = typename std::common_type_t<T, float>>
+	[[nodiscard]] S Magnitude() const {
+		return std::sqrt(static_cast<S>(MagnitudeSquared()));
 	}
 
 	[[nodiscard]] T MagnitudeSquared() const {

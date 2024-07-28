@@ -148,7 +148,7 @@ static void InitOpenGL() {
 
 namespace impl {
 
-GameInstance::GameInstance(Game& game) {
+GameInstance::GameInstance(Game& g) {
 #ifdef PTGN_PLATFORM_MACOS
 	InitApplePath();
 #endif
@@ -156,10 +156,10 @@ GameInstance::GameInstance(Game& game) {
 	sdl::InitSDLImage();
 	sdl::InitSDLTTF();
 	sdl::InitSDLMixer();
-	game.window.Init();
+	g.window.Init();
 	gl::InitOpenGL();
-	game.renderer.Init();
-	game.input.Init();
+	g.renderer.Init();
+	g.input.Init();
 }
 
 GameInstance::~GameInstance() {

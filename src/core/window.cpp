@@ -17,7 +17,7 @@ V2_int Screen::GetSize() {
 	SDL_DisplayMode dm;
 	if (SDL_GetDesktopDisplayMode(0, &dm) != 0) {
 		SDL_Log("SDL_GetDesktopDisplayMode failed: %s", SDL_GetError());
-		PTGN_ASSERT(!"Failed to retrieve screen size");
+		PTGN_ASSERT(false, "Failed to retrieve screen size");
 	}
 	return V2_int{ dm.w, dm.h };
 }

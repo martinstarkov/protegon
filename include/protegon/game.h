@@ -19,7 +19,7 @@ namespace impl {
 
 class GameInstance {
 public:
-	GameInstance(Game& game);
+	GameInstance(Game& g);
 	~GameInstance();
 };
 

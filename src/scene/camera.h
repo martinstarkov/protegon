@@ -121,8 +121,8 @@ struct Camera {
 		return projection;
 	}
 
-	void SetProjectionMatrix(const M4_float& projection) {
-		this->projection = projection;
+	void SetProjectionMatrix(const M4_float& p) {
+		projection = p;
 	}
 
 	M4_float projection{ 1.0f };
@@ -136,7 +136,6 @@ private:
 
 	// calculates the front vector from the Camera's (updated) Euler Angles
 	void UpdateVectors() {
-		V3_float front;
 		front.x = std::cos(angle.x) * std::cos(angle.y);
 		front.y = std::sin(angle.y);
 		front.z = std::sin(angle.x) * std::cos(angle.y);

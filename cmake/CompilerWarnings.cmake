@@ -37,6 +37,8 @@ function(set_project_warnings project_name)
       /w14928 # illegal copy-initialization; more than one user-defined
               # conversion has been implicitly applied
       /permissive- # standards conformance mode for MSVC compiler.
+      /wd4100 # Disable unreferenced formal parameter warning
+      /wd4189 # Disable local variable is initialized but not referenced warning
   )
 
   set(CLANG_WARNINGS
@@ -49,7 +51,7 @@ function(set_project_warnings project_name)
                          # track down memory errors
       -Wold-style-cast # warn for c-style casts
       -Wcast-align     # warn for potential performance problem casts
-      -Wunused         # warn on anything being unused
+      #-Wunused         # warn on anything being unused
       -Woverloaded-virtual # warn if you overload (not override) a virtual
                            # function
       -Wpedantic   # warn if non-standard C++ is used

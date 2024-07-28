@@ -79,7 +79,13 @@ struct StringStreamWriter {
 			ptgn::debug::Print(                                                     \
 				"Assertion '", PTGN_STRINGIFY_MACRO(condition), "' failed at ",     \
 				std::filesystem::path(__FILE__).filename().string(), ":", __LINE__, \
-				PTGN_NUMBER_OF_ARGS(__VA_ARGS__) > 0 ? ": " : ""                    \
+				[&]() -> const char* {                                              \
+					if constexpr (PTGN_NUMBER_OF_ARGS(__VA_ARGS__) > 0) {           \
+						return ": ";                                                \
+					} else {                                                        \
+						return "";                                                  \
+					}                                                               \
+				}()                                                                 \
 			);                                                                      \
 			ptgn::debug::PrintLine(__VA_ARGS__);                                    \
 			PTGN_DEBUGBREAK();                                                      \
@@ -90,6 +96,8 @@ struct StringStreamWriter {
 #define PTGN_ASSERT(...) ((void)0)
 #endif
 
+#define PTGN_EXCEPTION(msg) throw std::runtime_error(#msg)
+
 #define PTGN_CHECK(condition, ...)                                                  \
 	{                                                                               \
 		if (!(condition)) {                                                         \
@@ -97,10 +105,16 @@ struct StringStreamWriter {
 			s.Write(                                                                \
 				"Check '", PTGN_STRINGIFY_MACRO(condition), "' failed at ",         \
 				std::filesystem::path(__FILE__).filename().string(), ":", __LINE__, \
-				PTGN_NUMBER_OF_ARGS(__VA_ARGS__) > 0 ? ": " : ""                    \
+				[&]() -> const char* {                                              \
+					if constexpr (PTGN_NUMBER_OF_ARGS(__VA_ARGS__) > 0) {           \
+						return ": ";                                                \
+					} else {                                                        \
+						return "";                                                  \
+					}                                                               \
+				}()                                                                 \
 			);                                                                      \
 			s.WriteLine(__VA_ARGS__);                                               \
-			throw std::runtime_error(s.Get());                                      \
+			PTGN_EXCEPTION(s.Get());                                                \
 		}                                                                           \
 	}
 

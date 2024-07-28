@@ -159,7 +159,8 @@ public:
 	}
 };
 
-struct RendererData {
+class RendererData {
+public:
 	constexpr static const std::uint32_t max_quads_	   = 20000;
 	constexpr static const std::uint32_t max_vertices_ = max_quads_ * 4;
 	constexpr static const std::uint32_t max_indices_  = max_quads_ * 6;

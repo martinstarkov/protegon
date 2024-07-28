@@ -44,18 +44,18 @@ inline bool operator!=(const Color& lhs, const Color& rhs) {
 
 template <typename U, type_traits::floating_point<U> = true>
 [[nodiscard]] inline Color Lerp(const Color& lhs, const Color& rhs, U t) {
-	return Color{ static_cast<Type>(Lerp(lhs.r, rhs.r, t)),
-				  static_cast<Type>(Lerp(lhs.g, rhs.g, t)),
-				  static_cast<Type>(Lerp(lhs.b, rhs.b, t)),
-				  static_cast<Type>(Lerp(lhs.a, rhs.a, t)) };
+	return Color{ static_cast<Color::Type>(Lerp(lhs.r, rhs.r, t)),
+				  static_cast<Color::Type>(Lerp(lhs.g, rhs.g, t)),
+				  static_cast<Color::Type>(Lerp(lhs.b, rhs.b, t)),
+				  static_cast<Color::Type>(Lerp(lhs.a, rhs.a, t)) };
 }
 
 template <typename U, type_traits::floating_point<U> = true>
 [[nodiscard]] inline Color Lerp(const Color& lhs, const Color& rhs, U t_r, U t_g, U t_b, U t_a) {
-	return Color{ static_cast<Type>(Lerp(lhs.r, rhs.r, t_r)),
-				  static_cast<Type>(Lerp(lhs.g, rhs.g, t_g)),
-				  static_cast<Type>(Lerp(lhs.b, rhs.b, t_b)),
-				  static_cast<Type>(Lerp(lhs.a, rhs.a, t_a)) };
+	return Color{ static_cast<Color::Type>(Lerp(lhs.r, rhs.r, t_r)),
+				  static_cast<Color::Type>(Lerp(lhs.g, rhs.g, t_g)),
+				  static_cast<Color::Type>(Lerp(lhs.b, rhs.b, t_b)),
+				  static_cast<Color::Type>(Lerp(lhs.a, rhs.a, t_a)) };
 }
 
 namespace color {

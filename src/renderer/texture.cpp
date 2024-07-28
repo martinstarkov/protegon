@@ -65,7 +65,8 @@ void Texture::Bind(std::uint32_t slot) const {
 	gl::glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_texture_slots);
 	PTGN_ASSERT(max_texture_slots != 0);
 	PTGN_CHECK(
-		slot < max_texture_slots, "Attempting to bind a slot outside of OpenGL texture slot minimum"
+		slot < static_cast<std::uint32_t>(max_texture_slots),
+		"Attempting to bind a slot outside of OpenGL texture slot minimum"
 	);
 	gl::ActiveTexture(GL_TEXTURE0 + slot);
 	Bind();

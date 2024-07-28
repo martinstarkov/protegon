@@ -152,7 +152,7 @@ void RenderBatchExample(float dt) {
 			V2_float::Random(-1.0f, 1.0f), V2_float::Random(0.0f, 0.2f), { c.x, c.y, c.z, 0.2 }
 		);*/
 		RNG<float> rng{ 0.0f, 0.3f };
-		game.renderer.DrawCircle(V2_float::Random(-1.0f, 1.0f), rng(), { c.x, c.y, c.z, 0.2 });
+		game.renderer.DrawCircle(V2_float::Random(-1.0f, 1.0f), rng(), { c.x, c.y, c.z, 0.2f });
 	}
 
 	game.renderer.Present();
@@ -575,10 +575,6 @@ bool TestShaderDrawing() {
 	shader2 = Shader("resources/shader/main_vert.glsl", "resources/shader/fire_ball_frag.glsl");
 	shader3 = Shader(ShaderSource{ vertex_source }, ShaderSource{ fragment_source });
 
-	clock_t start_time = clock();
-	clock_t curr_time;
-	float playtime_in_second = 0;
-
 	struct Vertex {
 		glsl::vec3 pos;
 		glsl::vec4 color;
@@ -640,6 +636,10 @@ bool TestShaderDrawing() {
 	// game.input.SetRelativeMouseMode(true);
 
 	game.renderer.SetClearColor(color::White);
+
+	/*clock_t start_time = clock();
+	clock_t curr_time;
+	float playtime_in_second = 0;*/
 
 	game.RepeatUntilQuit([&](float dt) {
 		/*int scroll = game.input.MouseScroll();

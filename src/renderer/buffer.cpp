@@ -44,7 +44,7 @@ void VertexBuffer::SetSubData(const void* vertex_data, std::uint32_t size) {
 		gl::GetBufferParameteriv(
 			static_cast<gl::GLenum>(impl::BufferType::Vertex), GL_BUFFER_SIZE, &max_size
 		);
-		return size <= max_size;
+		return size <= static_cast<std::uint32_t>(max_size);
 	}());
 	Bind();
 	gl::BufferSubData(static_cast<gl::GLenum>(impl::BufferType::Vertex), 0, size, vertex_data);
@@ -92,7 +92,7 @@ void IndexBuffer::SetData(const IndexBuffer::Indices& indices) {
 	if (!IsValid()) {
 		instance_ = std::make_shared<impl::IndexBufferInstance>();
 	}
-	count_ = indices.size();
+	count_ = static_cast<std::uint32_t>(indices.size());
 	Bind();
 	gl::BufferData(
 		static_cast<gl::GLenum>(impl::BufferType::Index), indices.size() * sizeof(std::uint32_t),

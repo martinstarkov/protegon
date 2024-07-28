@@ -64,7 +64,7 @@ std::uint32_t Shader::CompileShader(std::uint32_t type, const std::string& sourc
 		gl::DeleteShader(id);
 
 		PTGN_ERROR("Failed to compile ", impl::GetShaderTypeName(type), " shader");
-		PTGN_CHECK(false);
+		PTGN_EXCEPTION("Failed to compile shader");
 		return 0;
 	}
 	return id;
@@ -181,14 +181,14 @@ void Shader::SetUniform(const std::string& name, const std::int32_t* data, std::
 	const {
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
-		gl::Uniform1iv(location, count, data);
+		gl::Uniform1iv(location, static_cast<std::uint32_t>(count), data);
 	}
 }
 
 void Shader::SetUniform(const std::string& name, const float* data, std::size_t count) const {
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
-		gl::Uniform1fv(location, count, data);
+		gl::Uniform1fv(location, static_cast<std::uint32_t>(count), data);
 	}
 }
 
