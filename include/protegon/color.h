@@ -1,10 +1,11 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <ostream>
-#include <array>
 
 #include "protegon/math.h"
+#include "protegon/vector4.h"
 #include "utility/type_traits.h"
 
 struct SDL_Color;
@@ -12,26 +13,25 @@ struct SDL_Color;
 namespace ptgn {
 
 struct Color {
-	std::uint8_t r{ 0 };
-	std::uint8_t g{ 0 };
-	std::uint8_t b{ 0 };
-	std::uint8_t a{ 255 };
+	using Type = std::uint8_t;
+	Type r{ 0 };
+	Type g{ 0 };
+	Type b{ 0 };
+	Type a{ 255 };
 	operator SDL_Color() const;
 	// Default color is black.
 	constexpr Color() = default;
 
-	constexpr Color(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a) :
-		r{ r }, g{ g }, b{ b }, a{ a } {}
+	constexpr Color(Type r, Type g, Type b, Type a) : r{ r }, g{ g }, b{ b }, a{ a } {}
 
 	// @return Color values normalized to 0.0f -> 1.0f range.
-	std::array<float, 4> Normalized() const {
-		return std::array<float, 4>{
-			static_cast<float>(r) / 255.0f,
-			static_cast<float>(g) / 255.0f,
-			static_cast<float>(b) / 255.0f,
-			static_cast<float>(a) / 255.0f
-		};
+	[[nodiscard]] Vector4<float> Normalized() const {
+		return { static_cast<float>(r) / 255.0f, static_cast<float>(g) / 255.0f,
+				 static_cast<float>(b) / 255.0f, static_cast<float>(a) / 255.0f };
 	}
+
+	[[nodiscard]] static Color RandomOpaque();
+	[[nodiscard]] static Color RandomTransparent();
 };
 
 inline bool operator==(const Color& lhs, const Color& rhs) {
@@ -44,18 +44,18 @@ inline bool operator!=(const Color& lhs, const Color& rhs) {
 
 template <typename U, type_traits::floating_point<U> = true>
 [[nodiscard]] inline Color Lerp(const Color& lhs, const Color& rhs, U t) {
-	return Color{ static_cast<std::uint8_t>(Lerp(lhs.r, rhs.r, t)),
-				  static_cast<std::uint8_t>(Lerp(lhs.g, rhs.g, t)),
-				  static_cast<std::uint8_t>(Lerp(lhs.b, rhs.b, t)),
-				  static_cast<std::uint8_t>(Lerp(lhs.a, rhs.a, t)) };
+	return Color{ static_cast<Type>(Lerp(lhs.r, rhs.r, t)),
+				  static_cast<Type>(Lerp(lhs.g, rhs.g, t)),
+				  static_cast<Type>(Lerp(lhs.b, rhs.b, t)),
+				  static_cast<Type>(Lerp(lhs.a, rhs.a, t)) };
 }
 
 template <typename U, type_traits::floating_point<U> = true>
 [[nodiscard]] inline Color Lerp(const Color& lhs, const Color& rhs, U t_r, U t_g, U t_b, U t_a) {
-	return Color{ static_cast<std::uint8_t>(Lerp(lhs.r, rhs.r, t_r)),
-				  static_cast<std::uint8_t>(Lerp(lhs.g, rhs.g, t_g)),
-				  static_cast<std::uint8_t>(Lerp(lhs.b, rhs.b, t_b)),
-				  static_cast<std::uint8_t>(Lerp(lhs.a, rhs.a, t_a)) };
+	return Color{ static_cast<Type>(Lerp(lhs.r, rhs.r, t_r)),
+				  static_cast<Type>(Lerp(lhs.g, rhs.g, t_g)),
+				  static_cast<Type>(Lerp(lhs.b, rhs.b, t_b)),
+				  static_cast<Type>(Lerp(lhs.a, rhs.a, t_a)) };
 }
 
 namespace color {

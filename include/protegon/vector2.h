@@ -133,6 +133,11 @@ struct Vector2 {
 		return Dot(*this);
 	}
 
+	[[nodiscard]] static Vector2<T> Random(T min, T max) {
+		RNG<T> rng{ min, max };
+		return { rng(), rng() };
+	}
+
 	// Returns a unit vector (magnitude = 1) except for zero vectors (magnitude
 	// = 0).
 	template <typename U = float, type_traits::not_narrowing<T, U> = true>
