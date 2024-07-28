@@ -32,12 +32,10 @@ VertexArray::VertexArray(
 	}
 }
 
-void VertexArray::Bind() const {
+void VertexArray::WhileBound(const std::function<void()>& func) const {
 	PTGN_CHECK(IsValid(), "Cannot bind uninitialized or destroyed vertex array");
 	gl::BindVertexArray(instance_->id_);
-}
-
-void VertexArray::Unbind() const {
+	func();
 	gl::BindVertexArray(0);
 }
 
@@ -54,32 +52,33 @@ void VertexArray::SetVertexBuffer(const VertexBuffer& vertex_buffer) {
 		"Cannot add a vertex buffer with an empty (unset) layout to a vertex array"
 	);
 
-	Bind();
-	vertex_buffer.Bind();
+	WhileBound([&]() {
+		vertex_buffer.Bind();
 
-	const std::vector<impl::BufferElement>& elements =
-		vertex_buffer.instance_->layout_.GetElements();
+		const std::vector<impl::BufferElement>& elements =
+			vertex_buffer.instance_->layout_.GetElements();
 
-	std::int32_t max_attributes{ 0 };
-	gl::glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max_attributes);
+		std::int32_t max_attributes{ 0 };
+		gl::glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max_attributes);
 
-	PTGN_ASSERT(elements.size() < max_attributes, "Too many vertex attributes");
+		PTGN_ASSERT(elements.size() < max_attributes, "Too many vertex attributes");
 
-	for (std::uint32_t i = 0; i < elements.size(); ++i) {
-		const impl::BufferElement& element{ elements[i] };
-		gl::EnableVertexAttribArray(i);
-		gl::VertexAttribPointer(
-			i, element.GetCount(), static_cast<gl::GLenum>(element.GetType()),
-			element.IsNormalized() ? GL_TRUE : GL_FALSE,
-			vertex_buffer.instance_->layout_.GetStride(), (const void*)element.GetOffset()
-		);
-		// Not required according to: https://stackoverflow.com/a/12428035
-		// glDisableVertexAttribArray(i);
-	}
+		for (std::uint32_t i = 0; i < elements.size(); ++i) {
+			const impl::BufferElement& element{ elements[i] };
+			gl::EnableVertexAttribArray(i);
+			gl::VertexAttribPointer(
+				i, element.GetCount(), static_cast<gl::GLenum>(element.GetType()),
+				element.IsNormalized() ? GL_TRUE : GL_FALSE,
+				vertex_buffer.instance_->layout_.GetStride(), (const void*)element.GetOffset()
+			);
+			// Not required according to: https://stackoverflow.com/a/12428035
+			// glDisableVertexAttribArray(i);
+		}
 
-	vertex_buffer.Unbind();
+		vertex_buffer.Unbind();
 
-	instance_->vertex_buffer_ = vertex_buffer;
+		instance_->vertex_buffer_ = vertex_buffer;
+	});
 }
 
 void VertexArray::SetIndexBuffer(const IndexBuffer& index_buffer) {
@@ -87,8 +86,7 @@ void VertexArray::SetIndexBuffer(const IndexBuffer& index_buffer) {
 		instance_ = std::make_shared<impl::VertexArrayInstance>();
 	}
 	PTGN_CHECK(IsValid(), "Cannot set index buffer of uninitialized or destroyed vertex array");
-	Bind();
-	index_buffer.Bind();
+	WhileBound([&]() { index_buffer.Bind(); });
 	instance_->index_buffer_ = index_buffer;
 }
 

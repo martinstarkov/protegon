@@ -30,8 +30,7 @@ public:
 		PrimitiveMode mode, const VertexBuffer& vertex_buffer, const IndexBuffer& index_buffer = {}
 	);
 
-	void Bind() const;
-	void Unbind() const;
+	void WhileBound(const std::function<void()>& func) const;
 
 	void SetPrimitiveMode(PrimitiveMode mode);
 	void SetVertexBuffer(const VertexBuffer& vertex_buffer);
