@@ -18,11 +18,14 @@ namespace ptgn {
  * @tparam E Type of rng engine to use (std::minstd_rand [default],
  * std::mt19937, etc)
  */
-template <
-	typename T, typename E = std::minstd_rand,
-	type_traits::arithmetic<T> = true>
+template <typename T, typename E = std::minstd_rand, type_traits::arithmetic<T> = true>
 class RNG {
 public:
+	static_assert(
+		type_traits::is_not_any_of_v<
+			T, char, signed char, unsigned char, std::int8_t, std::uint8_t>,
+		"RNG does not support the given type"
+	);
 	// Default range seedless distribution.
 	// Range: [0, 1] (inclusive).
 	RNG() = default;
@@ -34,14 +37,12 @@ public:
 	// Custom range seedless distribution.
 	// Range: [min, max] (inclusive).
 	RNG(T min, T max) {
-		PTGN_CHECK(
-			min <= max, "Cannot construct RNG range where min is above max"
-		);
+		PTGN_CHECK(min <= max, "Cannot construct RNG range where min is above max");
 		if constexpr (std::is_floating_point_v<T>) {
 			// ensures inclusive range.
-			distribution_ = uniform_distribution<T>{
-				min, std::nextafter(max, std::numeric_limits<T>::epsilon())
-			};
+			distribution_ =
+				uniform_distribution<T>{ min,
+										 std::nextafter(max, std::numeric_limits<T>::epsilon()) };
 		} else {
 			distribution_ = uniform_distribution<T>{ min, max };
 		}
@@ -50,14 +51,12 @@ public:
 	// Custom range seeded distribution.
 	// Range: [min, max] (inclusive).
 	RNG(std::uint32_t seed, T min, T max) : generator_{ seed } {
-		PTGN_CHECK(
-			min <= max, "Cannot construct RNG range where min is above max"
-		);
+		PTGN_CHECK(min <= max, "Cannot construct RNG range where min is above max");
 		if constexpr (std::is_floating_point_v<T>) {
 			// ensures inclusive range.
-			distribution_ = uniform_distribution<T>{
-				min, std::nextafter(max, std::numeric_limits<T>::epsilon())
-			};
+			distribution_ =
+				uniform_distribution<T>{ min,
+										 std::nextafter(max, std::numeric_limits<T>::epsilon()) };
 		} else {
 			distribution_ = uniform_distribution<T>{ min, max };
 		}
@@ -80,8 +79,7 @@ private:
 	using uniform_distribution = typename std::conditional<
 		std::is_floating_point_v<V>, std::uniform_real_distribution<V>,
 		typename std::conditional<
-			std::is_integral_v<V>, std::uniform_int_distribution<V>,
-			void>::type>::type;
+			std::is_integral_v<V>, std::uniform_int_distribution<V>, void>::type>::type;
 
 	// Internal random number generator.
 	E generator_{ std::random_device{}() };
