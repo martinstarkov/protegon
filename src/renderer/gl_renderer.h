@@ -9,6 +9,10 @@ namespace ptgn {
 class GLRenderer {
 public:
 	static void Init();
+	static void EnableBlending();
+	static void DisableBlending();
+	static void EnableDepthTesting();
+	static void DisableDepthTesting();
 	static void SetViewport(const V2_int& position, const V2_int& size);
 	static void Clear();
 	static void SetClearColor(const Color& color);
