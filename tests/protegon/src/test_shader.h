@@ -10,10 +10,100 @@
 
 using namespace ptgn;
 
-void RenderSubmitExample(
-	const VertexArray& vertex_array, const Shader& shader, const Texture& texture,
-	const M4_float& model, const M4_float& view, const M4_float& projection
-) {
+void RenderSubmitTextureExample(float dt) {
+	PTGN_LOG("Running Submit Texture Example");
+
+	static std::string vertex_source = R"(
+		#version 330 core
+		layout (location = 0) in vec3 a_pos;
+		layout (location = 1) in vec4 a_color;
+		layout(location = 2) in vec2 a_texcoord;
+
+		out vec4 v_color;
+		out vec2 v_texcoord;
+		
+		uniform mat4 u_model;
+		uniform mat4 u_view;
+		uniform mat4 u_projection;
+
+		void main()
+		{
+			v_color = a_color;
+			v_texcoord = a_texcoord;
+			
+			//gl_Position = vec4(a_pos, 1.0);
+			gl_Position = u_projection * u_view * u_model * vec4(a_pos, 1.0);
+
+		}
+	)";
+
+	static std::string fragment_source = R"(
+		#version 330 core
+		out vec4 frag_color;
+
+		in vec4 v_color;
+		in vec2 v_texcoord;
+		uniform sampler2D tex0;
+		uniform sampler2D tex1;
+
+		void main()
+		{
+			//frag_color = v_color;
+			//frag_color = mix(texture(tex0, v_texcoord), texture(tex1, v_texcoord), 0.2);
+			frag_color = texture(tex0, v_texcoord);
+		}
+	)";
+
+	static Shader shader = Shader(ShaderSource{ vertex_source }, ShaderSource{ fragment_source });
+
+	struct Vertex {
+		glsl::vec3 pos;
+		glsl::vec4 color;
+		glsl::vec2 texcoord;
+	};
+
+	static Texture texture;
+
+	if (!texture.IsValid()) {
+		Surface surface{ "resources/sprites/test.png" };
+		surface.FlipVertically();
+		texture = surface;
+	}
+
+	static const std::vector<Vertex> vertices_fullscreen = {
+		Vertex{glsl::vec3{ -1.0f, -1.0f, 0.0f }, glsl::vec4{ 0.5f, 0.0f, 1.0f, 0.5f },
+				glsl::vec2{ 0.0f, 0.0f }},
+		Vertex{ glsl::vec3{ 1.0f, -1.0f, 0.0f }, glsl::vec4{ 0.0f, 1.0f, 0.5f, 0.5f },
+				glsl::vec2{ 1.0f, 0.0f }},
+		Vertex{	glsl::vec3{ 1.0f, 1.0, 0.0f }, glsl::vec4{ 1.0f, 0.5f, 0.0f, 0.5f },
+				glsl::vec2{ 1.0f, 1.0f }},
+		Vertex{ glsl::vec3{ -1.0f, 1.0f, 0.0f }, glsl::vec4{ 0.5f, 0.5f, 0.5f, 0.5f },
+				glsl::vec2{ 0.0f, 1.0f }}
+	};
+
+	static const std::vector<Vertex> vertices_halfscreen = {
+		Vertex{glsl::vec3{ -0.5f, -0.5f, 0.0f }, glsl::vec4{ 0.5f, 0.0f, 1.0f, 0.5f },
+				glsl::vec2{ 0.0f, 0.0f }},
+		Vertex{ glsl::vec3{ 0.5f, -0.5f, 0.0f }, glsl::vec4{ 0.0f, 1.0f, 0.5f, 0.5f },
+				glsl::vec2{ 1.0f, 0.0f }},
+		Vertex{	glsl::vec3{ 0.5f, 0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.5f, 0.0f, 0.5f },
+				glsl::vec2{ 1.0f, 1.0f }},
+		Vertex{ glsl::vec3{ -0.5f, 0.5f, 0.0f }, glsl::vec4{ 0.5f, 0.5f, 0.5f, 0.5f },
+				glsl::vec2{ 0.0f, 1.0f }}
+	};
+
+	static VertexBuffer vbo1{ vertices_halfscreen };
+	if (vbo1.GetLayout().IsEmpty()) {
+		vbo1.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2>();
+	}
+
+	static VertexArray vertex_array{ PrimitiveMode::Triangles, vbo1,
+									 IndexBuffer{ { 0, 1, 2, 2, 3, 0 } } };
+
+	static M4_float projection = M4_float::Orthographic(-1.0f, 1.0f, -1.0f, 1.0f);
+	static M4_float model{ 1.0f };
+	static M4_float view{ 1.0f };
+
 	game.renderer.Clear();
 
 	shader.WhileBound([&]() {
@@ -29,8 +119,62 @@ void RenderSubmitExample(
 	game.renderer.Present();
 }
 
-void RenderTransparencyExample(float dt) {
-	PTGN_LOG("-----------------");
+void RenderSubmitColorExample(float dt) {
+	PTGN_LOG("Running Submit Color Example");
+	game.renderer.Clear();
+
+	static std::vector<QuadVertex> vertices{
+		{glsl::vec3{ -0.5f, -0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 0.0f, 0.5f },
+		  glsl::vec2{ 0.0f, 0.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }},
+		{ glsl::vec3{ 0.5f, -0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 0.0f, 0.5f },
+		  glsl::vec2{ 1.0f, 0.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }},
+		{  glsl::vec3{ 0.5f, 0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 0.0f, 0.5f },
+		  glsl::vec2{ 1.0f, 1.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }},
+		{ glsl::vec3{ -0.5f, 0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 0.0f, 0.5f },
+		  glsl::vec2{ 0.0f, 1.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }}
+	};
+	static std::vector<QuadVertex> vertices2{
+		{glsl::vec3{ -0.5f + 0.2f, -0.5f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 1.0f, 0.5f },
+		  glsl::vec2{ 0.0f, 0.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }},
+		{ glsl::vec3{ 0.5f + 0.2f, -0.5f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 1.0f, 0.5f },
+		  glsl::vec2{ 1.0f, 0.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }},
+		{  glsl::vec3{ 0.5f + 0.2f, 0.5f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 1.0f, 0.5f },
+		  glsl::vec2{ 1.0f, 1.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }},
+		{ glsl::vec3{ -0.5f + 0.2f, 0.5f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 1.0f, 0.5f },
+		  glsl::vec2{ 0.0f, 1.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }}
+	};
+
+	static VertexBuffer vbo;
+	static VertexBuffer vbo2;
+
+	if (!vbo.IsValid()) {
+		vbo = VertexBuffer(vertices, BufferUsage::DynamicDraw);
+		vbo.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_, glsl::float_>();
+	}
+	if (!vbo2.IsValid()) {
+		vbo2 = VertexBuffer(vertices2, BufferUsage::DynamicDraw);
+		vbo2.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_, glsl::float_>();
+	}
+
+	static IndexBuffer vio{
+		{0, 1, 2, 2, 3, 0}
+	};
+
+	static VertexArray vertex_array	 = VertexArray(PrimitiveMode::Triangles, vbo, vio);
+	static VertexArray vertex_array2 = VertexArray(PrimitiveMode::Triangles, vbo2, vio);
+
+	static Shader shader = Shader(
+		"resources/shader/renderer_quad_vertex.glsl", "resources/shader/renderer_quad_fragment.glsl"
+	);
+
+	game.renderer.Submit(vertex_array2, shader);
+	game.renderer.Submit(vertex_array, shader);
+
+	game.renderer.Present();
+}
+
+void RenderMovingTransparencyExample(float dt) {
+	PTGN_LOG("Running Moving Transparency Example");
 	game.renderer.Clear();
 
 	static V2_float pos1{ -0.5, 0.0 };
@@ -63,96 +207,39 @@ void RenderTransparencyExample(float dt) {
 		pos2.y -= speed.y;
 	}
 
-	static std::vector<QuadVertex> vertices{
-		{glsl::vec3{ -0.5f, -0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 0.0f, 0.5f },
-		  glsl::vec2{ 0.0f, 0.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }},
-		{ glsl::vec3{ 0.5f, -0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 0.0f, 0.5f },
-		  glsl::vec2{ 1.0f, 0.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }},
-		{  glsl::vec3{ 0.5f, 0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 0.0f, 0.5f },
-		  glsl::vec2{ 1.0f, 1.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }},
-		{ glsl::vec3{ -0.5f, 0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 0.0f, 0.5f },
-		  glsl::vec2{ 0.0f, 1.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }}
-	};
-	static std::vector<QuadVertex> vertices2{
-		{glsl::vec3{ -0.5f + 0.2f, -0.5f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 1.0f, 0.5f },
-		  glsl::vec2{ 0.0f, 0.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }},
-		{ glsl::vec3{ 0.5f + 0.2f, -0.5f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 1.0f, 0.5f },
-		  glsl::vec2{ 1.0f, 0.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }},
-		{  glsl::vec3{ 0.5f + 0.2f, 0.5f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 1.0f, 0.5f },
-		  glsl::vec2{ 1.0f, 1.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }},
-		{ glsl::vec3{ -0.5f + 0.2f, 0.5f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 1.0f, 0.5f },
-		  glsl::vec2{ 0.0f, 1.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }}
-	};
-
-	/*data_.quad_vertex_positions_[0] = { -0.5f, -0.5f, 0.0f, 1.0f };
-	data_.quad_vertex_positions_[1] = { 0.5f, -0.5f, 0.0f, 1.0f };
-	data_.quad_vertex_positions_[2] = { 0.5f, 0.5f, 0.0f, 1.0f };
-	data_.quad_vertex_positions_[3] = { -0.5f, 0.5f, 0.0f, 1.0f };*/
-
-	static VertexBuffer vbo;
-	static VertexBuffer vbo2;
-
-	if (!vbo.IsValid()) {
-		vbo = VertexBuffer(vertices, BufferUsage::DynamicDraw);
-		vbo.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_, glsl::float_>();
-	}
-	if (!vbo2.IsValid()) {
-		vbo2 = VertexBuffer(vertices2, BufferUsage::DynamicDraw);
-		vbo2.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_, glsl::float_>();
-	}
-
-	static IndexBuffer vio{
-		{0, 1, 2, 2, 3, 0}
-	};
-
-	static VertexArray vertex_array	 = VertexArray(PrimitiveMode::Triangles, vbo, vio);
-	static VertexArray vertex_array2 = VertexArray(PrimitiveMode::Triangles, vbo2, vio);
-
-	static Shader shader = Shader(
-		"resources/shader/renderer_quad_vertex.glsl", "resources/shader/renderer_quad_fragment.glsl"
-	);
-
-	game.renderer.Submit(vertex_array2, shader);
-	game.renderer.Submit(vertex_array, shader);
-
-	/*game.renderer.DrawQuad(pos1, V2_float{ 0.5f, 0.5f }, V4_float{ 1.0, 0.0, 0.0, 0.5 });
-	game.renderer.Flush();
-	game.renderer.DrawQuad(pos2, V2_float{ 0.5f, 0.5f }, V4_float{ 0.0, 0.0, 1.0, 0.5 });*/
-	// game.renderer.Flush();
-	game.window.SwapBuffers();
+	game.renderer.DrawQuad(pos1, V2_float{ 0.5f, 0.5f }, V4_float{ 1.0, 0.0, 0.0, 0.5 });
+	game.renderer.DrawQuad(pos2, V2_float{ 0.5f, 0.5f }, V4_float{ 0.0, 0.0, 1.0, 0.5 });
+	game.renderer.Present();
 }
 
-void RenderBatchExample(float dt) {
-	PTGN_LOG("------------------");
+void RenderBatchCircleExample(float dt) {
+	PTGN_LOG("Running Circle Batch");
 
 	game.renderer.Clear();
-
-	static V2_float pos{ 0.0, 0.0 };
-
-	V2_float speed = V2_float{ 0.2f, 0.2f } * dt;
-
-	if (game.input.KeyPressed(Key::A)) {
-		pos.x -= speed.x;
-	}
-	if (game.input.KeyPressed(Key::D)) {
-		pos.x += speed.x;
-	}
-	if (game.input.KeyPressed(Key::W)) {
-		pos.y += speed.y;
-	}
-	if (game.input.KeyPressed(Key::S)) {
-		pos.y -= speed.y;
-	}
 
 	std::size_t count = 100000;
 
 	for (size_t i = 0; i < count; i++) {
 		V4_float c = Color::RandomTransparent().Normalized();
-		/*game.renderer.DrawQuad(
-			V2_float::Random(-1.0f, 1.0f), V2_float::Random(0.0f, 0.2f), { c.x, c.y, c.z, 0.2 }
-		);*/
 		RNG<float> rng{ 0.0f, 0.3f };
 		game.renderer.DrawCircle(V2_float::Random(-1.0f, 1.0f), rng(), { c.x, c.y, c.z, 0.2f });
+	}
+
+	game.renderer.Present();
+}
+
+void RenderBatchQuadExample(float dt) {
+	PTGN_LOG("Running Quad Batch");
+
+	game.renderer.Clear();
+
+	std::size_t count = 100000;
+
+	for (size_t i = 0; i < count; i++) {
+		V4_float c = Color::RandomTransparent().Normalized();
+		game.renderer.DrawQuad(
+			V2_float::Random(-1.0f, 1.0f), V2_float::Random(0.0f, 0.2f), { c.x, c.y, c.z, 0.2f }
+		);
 	}
 
 	game.renderer.Present();
@@ -525,121 +612,42 @@ bool TestShaderProperties() {
 bool TestShaderDrawing() {
 	game.window.SetSize({ 800, 800 });
 	game.window.Show();
+	game.renderer.SetClearColor(color::White);
 
-	std::string vertex_source = R"(
-		#version 330 core
-		layout (location = 0) in vec3 a_pos;
-		layout (location = 1) in vec4 a_color;
-		layout(location = 2) in vec2 a_texcoord;
+	/*static Shader shader =
+		Shader("resources/shader/main_vert.glsl", "resources/shader/lightFs.glsl");
+	;
+	static Shader shader2 =
+		Shader("resources/shader/main_vert.glsl", "resources/shader/fire_ball_frag.glsl");*/
+	// model = M4_float::Rotate(model, DegToRad(-55.0f), 1.0f, 0.0f, 0.0f);
+	// view = M4_float::Translate(view, 0.0f, 0.0f, -3.0f);
 
-		out vec4 v_color;
-		out vec2 v_texcoord;
-		
-		uniform mat4 u_model;
-		uniform mat4 u_view;
-		uniform mat4 u_projection;
-
-		void main()
-		{
-			v_color = a_color;
-			v_texcoord = a_texcoord;
-			
-			//gl_Position = vec4(a_pos, 1.0);
-			gl_Position = u_projection * u_view * u_model * vec4(a_pos, 1.0);
-
-		}
-	)";
-
-	std::string fragment_source = R"(
-		#version 330 core
-		out vec4 frag_color;
-
-		in vec4 v_color;
-		in vec2 v_texcoord;
-		uniform sampler2D tex0;
-		uniform sampler2D tex1;
-
-		void main()
-		{
-			//frag_color = v_color;
-			//frag_color = mix(texture(tex0, v_texcoord), texture(tex1, v_texcoord), 0.2);
-			frag_color = texture(tex0, v_texcoord);
-		}
-	)";
-
-	Shader shader;
-	Shader shader2;
-	Shader shader3;
-
-	shader	= Shader("resources/shader/main_vert.glsl", "resources/shader/lightFs.glsl");
-	shader2 = Shader("resources/shader/main_vert.glsl", "resources/shader/fire_ball_frag.glsl");
-	shader3 = Shader(ShaderSource{ vertex_source }, ShaderSource{ fragment_source });
-
-	struct Vertex {
-		glsl::vec3 pos;
-		glsl::vec4 color;
-		glsl::vec2 texcoord;
-	};
-
-	Texture texture1;
-
-	{
-		Surface surface{ "resources/sprites/test.png" };
-		surface.FlipVertically();
-		texture1 = surface;
-	}
-
-	const std::vector<Vertex> vertices_fullscreen = {
-		Vertex{glsl::vec3{ -1.0f, -1.0f, 0.0f }, glsl::vec4{ 0.5f, 0.0f, 1.0f, 0.5f },
-				glsl::vec2{ 0.0f, 0.0f }},
-		Vertex{ glsl::vec3{ 1.0f, -1.0f, 0.0f }, glsl::vec4{ 0.0f, 1.0f, 0.5f, 0.5f },
-				glsl::vec2{ 1.0f, 0.0f }},
-		Vertex{	glsl::vec3{ 1.0f, 1.0, 0.0f }, glsl::vec4{ 1.0f, 0.5f, 0.0f, 0.5f },
-				glsl::vec2{ 1.0f, 1.0f }},
-		Vertex{ glsl::vec3{ -1.0f, 1.0f, 0.0f }, glsl::vec4{ 0.5f, 0.5f, 0.5f, 0.5f },
-				glsl::vec2{ 0.0f, 1.0f }}
-	};
-
-	const std::vector<Vertex> vertices_halfscreen = {
-		Vertex{glsl::vec3{ -0.5f, -0.5f, 0.0f }, glsl::vec4{ 0.5f, 0.0f, 1.0f, 0.5f },
-				glsl::vec2{ 0.0f, 0.0f }},
-		Vertex{ glsl::vec3{ 0.5f, -0.5f, 0.0f }, glsl::vec4{ 0.0f, 1.0f, 0.5f, 0.5f },
-				glsl::vec2{ 1.0f, 0.0f }},
-		Vertex{	glsl::vec3{ 0.5f, 0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.5f, 0.0f, 0.5f },
-				glsl::vec2{ 1.0f, 1.0f }},
-		Vertex{ glsl::vec3{ -0.5f, 0.5f, 0.0f }, glsl::vec4{ 0.5f, 0.5f, 0.5f, 0.5f },
-				glsl::vec2{ 0.0f, 1.0f }}
-	};
-
-	VertexBuffer vbo1{ vertices_halfscreen };
-	vbo1.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2>();
-
-	VertexArray vao{ PrimitiveMode::Triangles, vbo1, IndexBuffer{ { 0, 1, 2, 2, 3, 0 } } };
+	// game.input.SetRelativeMouseMode(true);
 
 	// std::size_t font_key = 0;
 	// game.font.Load(font_key, "resources/fonts/retro_gaming.ttf", 30);
 
 	// M4_float projection = M4_float::Orthographic(0.0f, (float)game.window.GetSize().x, 0.0f,
 	// (float)game.window.GetSize().y);
-	M4_float projection = M4_float::Orthographic(-1.0f, 1.0f, -1.0f, 1.0f);
 	// M4_float projection = M4_float::Perspective(DegToRad(45.0f), (float)game.window.GetSize().x /
 	// (float)game.window.GetSize().y, 0.1f, 100.0f); M4_float projection =
 	// M4_float::Perspective(DegToRad(camera.zoom), (float)game.window.GetSize().x /
 	// (float)game.window.GetSize().y, 0.1f, 100.0f);
 
-	M4_float model{ 1.0f };
-	M4_float view{ 1.0f };
-
-	// model = M4_float::Rotate(model, DegToRad(-55.0f), 1.0f, 0.0f, 0.0f);
-	// view = M4_float::Translate(view, 0.0f, 0.0f, -3.0f);
-
-	// game.input.SetRelativeMouseMode(true);
-
-	game.renderer.SetClearColor(color::White);
-
 	/*clock_t start_time = clock();
 	clock_t curr_time;
 	float playtime_in_second = 0;*/
+
+	enum class RenderTest {
+		BatchQuad = 0,
+		BatchCircle,
+		SubmitTexture,
+		SubmitColor,
+		MovingTransparency,
+		Count
+	};
+
+	int test = 0;
 
 	game.RepeatUntilQuit([&](float dt) {
 		/*int scroll = game.input.MouseScroll();
@@ -711,9 +719,22 @@ bool TestShaderDrawing() {
 			shader2.SetUniform("iTime", playtime_in_second);
 		});*/
 
-		// RenderSubmitExample(vao, shader3, texture1, model, view, projection);
-		RenderBatchExample(dt);
-		// RenderTransparencyExample(dt);
+		if (game.input.KeyDown(Key::ONE)) {
+			test++;
+			test = Mod(test, static_cast<int>(RenderTest::Count));
+		} else if (game.input.KeyDown(Key::TWO)) {
+			test--;
+			test = Mod(test, static_cast<int>(RenderTest::Count));
+		}
+
+		switch (static_cast<RenderTest>(test)) {
+			case RenderTest::BatchQuad:			 RenderBatchQuadExample(dt); break;
+			case RenderTest::BatchCircle:		 RenderBatchCircleExample(dt); break;
+			case RenderTest::SubmitTexture:		 RenderSubmitTextureExample(dt); break;
+			case RenderTest::SubmitColor:		 RenderSubmitColorExample(dt); break;
+			case RenderTest::MovingTransparency: RenderMovingTransparencyExample(dt); break;
+			default:							 break;
+		}
 	});
 
 	return true;
