@@ -94,6 +94,7 @@ template <typename T, type_traits::floating_point<T> = true>
 }
 
 // Modulo operator which supports wrapping negative numbers.
+// e.g. Mod(-1, 2) returns 1.
 template <typename T, type_traits::integral<T> = true>
 [[nodiscard]] T Mod(T a, T b) {
 	return (a % b + b) % b;
@@ -168,13 +169,12 @@ template <typename T>
 // tolerances. The absolute tolerance test fails when x and y become large. The
 // relative tolerance test fails when x and y become small.
 template <typename T>
-[[nodiscard]] bool NearlyEqual(T a, T b, T rel_tol = static_cast<T>(10.0f * epsilon<float>), T abs_tol = static_cast<T>(0.005)) {
+[[nodiscard]] bool NearlyEqual(
+	T a, T b, T rel_tol = static_cast<T>(10.0f * epsilon<float>), T abs_tol = static_cast<T>(0.005)
+) {
 	if constexpr (std::is_floating_point_v<T>) {
 		return a == b ||
-			   FastAbs(a - b) <=
-				   std::max(
-					   abs_tol, rel_tol * std::max(FastAbs(a), FastAbs(b))
-				   );
+			   FastAbs(a - b) <= std::max(abs_tol, rel_tol * std::max(FastAbs(a), FastAbs(b)));
 	} else {
 		return a == b;
 	}
@@ -194,8 +194,7 @@ template <typename T, type_traits::floating_point<T> = true>
 		return { true, root, root };
 	}
 	// Real roots.
-	const T q = (b > 0.0f) ? -0.5f * (b + std::sqrt(disc))
-						   : -0.5f * (b - std::sqrt(disc));
+	const T q = (b > 0.0f) ? -0.5f * (b + std::sqrt(disc)) : -0.5f * (b - std::sqrt(disc));
 	// This may look weird but the algebra checks out here (I checked).
 	return { true, q / a, c / q };
 }
@@ -211,9 +210,7 @@ template <
 	typename T, typename U, type_traits::arithmetic<T> = true,
 	type_traits::floating_point<U> = true>
 [[nodiscard]] U CosineInterpolate(T a, T b, U t) {
-	return Lerp(
-		a, b, static_cast<U>(0.5) * (static_cast<U>(1) - std::cos(t * pi<U>))
-	);
+	return Lerp(a, b, static_cast<U>(0.5) * (static_cast<U>(1) - std::cos(t * pi<U>)));
 }
 
 // From https://paulbourke.net/miscellaneous/interpolation/
