@@ -50,8 +50,10 @@ public:
 	Shader(const ShaderSource& vertex_shader, const ShaderSource& fragment_shader);
 	Shader(const path& vertex_shader_path, const path& fragment_shader_path);
 
-	void WhileBound(const std::function<void()>& func);
+	void WhileBound(const std::function<void()>& func) const;
 
+	void SetUniform(const std::string& name, const std::int32_t* data, std::size_t count) const;
+	void SetUniform(const std::string& name, const float* data, std::size_t count) const;
 	void SetUniform(const std::string& name, const Vector2<float>& v) const;
 	void SetUniform(const std::string& name, const Vector3<float>& v) const;
 	void SetUniform(const std::string& name, const Vector4<float>& v) const;

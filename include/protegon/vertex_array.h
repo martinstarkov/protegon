@@ -4,11 +4,8 @@
 #include <vector>
 
 #include "protegon/buffer.h"
-#include "protegon/shader.h"
 
 namespace ptgn {
-
-class VertexArray;
 
 namespace impl {
 

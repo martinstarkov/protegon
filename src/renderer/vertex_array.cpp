@@ -45,8 +45,10 @@ void VertexArray::SetVertexBuffer(const VertexBuffer& vertex_buffer) {
 	if (!IsValid()) {
 		instance_ = std::make_shared<impl::VertexArrayInstance>();
 	}
-	PTGN_CHECK(IsValid(), "Cannot add vertex buffer to uninitialized or destroyed vertex array");
-	PTGN_CHECK(vertex_buffer.IsValid());
+	PTGN_ASSERT(IsValid(), "Cannot add vertex buffer to uninitialized or destroyed vertex array");
+	PTGN_CHECK(
+		vertex_buffer.IsValid(), "Cannot set vertex buffer which is uninitialized or destroyed"
+	);
 	PTGN_ASSERT(
 		!vertex_buffer.instance_->layout_.IsEmpty(),
 		"Cannot add a vertex buffer with an empty (unset) layout to a vertex array"

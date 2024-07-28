@@ -116,7 +116,7 @@ void Shader::CompileProgram(const std::string& vertex_source, const std::string&
 	}
 }
 
-void Shader::WhileBound(const std::function<void()>& func) {
+void Shader::WhileBound(const std::function<void()>& func) const {
 	Bind();
 	func();
 	Unbind();
@@ -174,6 +174,21 @@ void Shader::SetUniform(const std::string& name, const Matrix4<float>& m) const 
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
 		gl::UniformMatrix4fv(location, 1, GL_FALSE, m.Data());
+	}
+}
+
+void Shader::SetUniform(const std::string& name, const std::int32_t* data, std::size_t count)
+	const {
+	std::int32_t location = GetUniformLocation(name);
+	if (location != -1) {
+		gl::Uniform1iv(location, count, data);
+	}
+}
+
+void Shader::SetUniform(const std::string& name, const float* data, std::size_t count) const {
+	std::int32_t location = GetUniformLocation(name);
+	if (location != -1) {
+		gl::Uniform1fv(location, count, data);
 	}
 }
 

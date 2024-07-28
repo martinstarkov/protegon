@@ -15,7 +15,6 @@ namespace ptgn {
 
 class VertexArray;
 class GLRenderer;
-class Renderer;
 
 namespace impl {
 
@@ -40,8 +39,9 @@ public:
 	~VertexBuffer() = default;
 
 	template <typename T>
-	VertexBuffer(const std::vector<T>& vertices) :
-		VertexBuffer{ vertices.data(), static_cast<std::uint32_t>(vertices.size() * sizeof(T)) } {}
+	VertexBuffer(const std::vector<T>& vertices, BufferUsage usage = BufferUsage::StaticDraw) :
+		VertexBuffer{ vertices.data(), static_cast<std::uint32_t>(vertices.size() * sizeof(T)),
+					  usage } {}
 
 	VertexBuffer(
 		const void* vertex_data, std::uint32_t size, BufferUsage usage = BufferUsage::StaticDraw
