@@ -72,7 +72,7 @@ enum class BufferType {
 };
 
 template <typename T>
-inline constexpr bool is_vertex_data_type{ type_traits::is_one_of_v<
+inline constexpr bool is_vertex_data_type{ type_traits::is_any_of_v<
 	T, glsl::float_, glsl::vec2, glsl::vec3, glsl::vec4, glsl::double_, glsl::dvec2, glsl::dvec3,
 	glsl::dvec4, glsl::bool_, glsl::bvec2, glsl::bvec3, glsl::bvec4, glsl::int_, glsl::ivec2,
 	glsl::ivec3, glsl::ivec4, glsl::uint_, glsl::uvec2, glsl::uvec3, glsl::uvec4> };
@@ -92,7 +92,7 @@ enum class GLType : std::uint32_t {
 template <typename T>
 [[nodiscard]] constexpr GLType GetType() {
 	static_assert(
-		type_traits::is_one_of_v<
+		type_traits::is_any_of_v<
 			T, float, double, std::int32_t, std::uint32_t, std::int16_t, std::uint16_t, std::int8_t,
 			std::uint8_t, bool>,
 		"Cannot retrieve type which is not supported by OpenGL"
