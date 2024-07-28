@@ -2,6 +2,7 @@
 
 #include <array>
 
+#include "protegon/buffer.h"
 #include "protegon/color.h"
 #include "protegon/polygon.h"
 #include "protegon/shader.h"
@@ -9,12 +10,6 @@
 #include "protegon/vertex_array.h"
 
 namespace ptgn {
-
-namespace impl {
-
-class GameInstance;
-
-} // namespace impl
 
 // class SpriteBatch {
 // public:
@@ -93,24 +88,115 @@ struct QuadVertex {
 	glsl::float_ tiling_factor;
 };
 
-// struct CircleVertex {
-//	glsl::vec3 world_position;
-//	glsl::vec3 local_position;
-//	glsl::vec4 color;
-//	glsl::float_ thickness;
-//	glsl::float_ fade;
-// };
-//
-// struct LineVertex {
-//	glsl::vec3 position;
-//	glsl::vec4 color;
-// };
+struct CircleVertex {
+	glsl::vec3 world_position;
+	glsl::vec3 local_position;
+	glsl::vec4 color;
+	glsl::float_ thickness;
+	glsl::float_ fade;
+};
+
+struct LineVertex {
+	glsl::vec3 position;
+	glsl::vec4 color;
+};
+
 //
 // struct TextVertex {
 //	glsl::vec3 position;
 //	glsl::vec4 color;
 //	glsl::vec2 tex_coord;
 // };
+
+namespace impl {
+
+class GameInstance;
+class RendererData;
+
+template <typename TVertex>
+class BatchData {
+public:
+	VertexArray array_;
+	VertexBuffer buffer_;
+	Shader shader_;
+	std::uint32_t index_count_ = 0;
+	std::vector<TVertex> buffer_base_;
+	TVertex* buffer_ptr_ = nullptr;
+
+	template <typename... TLayouts>
+	void Init(std::size_t vertex_count, PrimitiveMode mode, IndexBuffer index_buffer) {
+		array_.SetPrimitiveMode(mode);
+
+		buffer_base_.resize(vertex_count);
+		buffer_ = VertexBuffer(buffer_base_, BufferUsage::DynamicDraw);
+		buffer_.SetLayout<TLayouts...>();
+
+		array_.SetVertexBuffer(buffer_);
+		array_.SetIndexBuffer(index_buffer);
+	}
+
+	void SetupShader(
+		const path& vertex, const path& fragment, const std::vector<std::int32_t>& samplers
+	) {
+		shader_ = Shader(vertex, fragment);
+		shader_.Bind();
+		shader_.SetUniform("u_Textures", samplers.data(), samplers.size());
+	}
+
+	void SetupBatch() {
+		PTGN_ASSERT(buffer_ptr_ != nullptr);
+		std::uint32_t data_size =
+			(std::uint32_t)((uint8_t*)buffer_ptr_ - (uint8_t*)buffer_base_.data());
+		buffer_.SetData(buffer_base_.data(), data_size);
+		shader_.Bind();
+	}
+
+	void Draw(RendererData& data);
+
+	void Reset() {
+		index_count_ = 0;
+		buffer_ptr_	 = buffer_base_.data();
+	}
+};
+
+struct RendererData {
+	constexpr static const std::uint32_t max_quads_	   = 20000;
+	constexpr static const std::uint32_t max_vertices_ = max_quads_ * 4;
+	constexpr static const std::uint32_t max_indices_  = max_quads_ * 6;
+
+	std::uint32_t max_texture_slots_{ 0 };
+
+	V4_float quad_vertex_positions_[4];
+	M4_float view_projection_;
+
+	Texture white_texture_;
+
+	std::vector<Texture> texture_slots_;
+	std::uint32_t texture_slot_index_ = 1; // 0 = white texture
+
+	BatchData<QuadVertex> quad_;
+	BatchData<CircleVertex> circle_;
+	BatchData<LineVertex> line_;
+	// BatchData<TextVertex> text_;
+
+	float line_width_ = 2.0f;
+
+	// Texture font_atlas_texture_;
+
+	void Init();
+
+	void SetupBuffers();
+	void SetupTextureSlots();
+	void SetupShaders();
+
+	void BindTextures() const;
+
+	void Flush();
+
+	[[nodiscard]] static IndexBuffer GetQuadIndexBuffer(std::size_t index_count);
+};
+
+} // namespace impl
 
 class Renderer {
 private:
@@ -127,6 +213,7 @@ public:
 	void Present();
 	void SetViewport(const V2_int& size);
 
+	void Flush();
 	void Submit(const VertexArray& va, const Shader& shader);
 
 	// Primitives
@@ -163,17 +250,23 @@ public:
 		float tilingFactor = 1.0f, const V4_float& tintColor = V4_float(1.0f)
 	);
 
-	/*void DrawCircle(
+	void DrawCircle(
+		const V2_float& position, float radius, const V4_float& color, float thickness = 1.0f,
+		float fade = 0.005f
+	);
+	void DrawCircle(
+		const V3_float& position, float radius, const V4_float& color, float thickness = 1.0f,
+		float fade = 0.005f
+	);
+	void DrawCircle(
 		const M4_float& transform, const V4_float& color, float thickness = 1.0f,
-		float fade = 0.005f, int entityID = -1
+		float fade = 0.005f
 	);
 
-	void DrawLine(
-		const V3_float& p0, V3_float& p1, const V4_float& color, int entityID = -1
-	);*/
+	void DrawLine(const V3_float& p0, V3_float& p1, const V4_float& color);
 
-	/*void DrawRect(const V3_float& position, const V2_float& size, const V4_float& color);
-	void DrawRect(const M4_float& transform, const V4_float& color);*/
+	void DrawRect(const V3_float& position, const V2_float& size, const V4_float& color);
+	void DrawRect(const M4_float& transform, const V4_float& color);
 
 	// void DrawSprite(const M4_float& transform, SpriteRendererComponent& src);
 
@@ -223,43 +316,8 @@ private:
 	// static void BeginScene(const EditorCamera& camera);
 	// static void BeginScene(const OrthographicCamera& camera); // TODO: Remove
 	// static void EndScene();
-	void Flush();
 
-	struct RendererData {
-		template <typename TVertex>
-		struct BatchData {
-			VertexArray array_;
-			VertexBuffer buffer_;
-			Shader shader_;
-			std::uint32_t index_count_ = 0;
-			std::vector<TVertex> buffer_base_;
-			TVertex* buffer_ptr_ = nullptr;
-		};
-
-		constexpr static const std::uint32_t max_quads_	   = 20000;
-		constexpr static const std::uint32_t max_vertices_ = max_quads_ * 4;
-		constexpr static const std::uint32_t max_indices_  = max_quads_ * 6;
-		std::uint32_t max_texture_slots_{ 0 };
-
-		V4_float quad_vertex_positions_[4];
-		M4_float view_projection_;
-
-		Texture white_texture_;
-
-		std::vector<Texture> texture_slots_;   // max_texture_slots
-		std::uint32_t texture_slot_index_ = 1; // 0 = white texture
-
-		BatchData<QuadVertex> quad_;
-		/*BatchData<CircleVertex> circle_;
-		BatchData<LineVertex> line_;
-		BatchData<TextVertex> text_;
-
-		float line_width_ = 2.0f;*/
-
-		// Texture font_atlas_texture_;
-	};
-
-	RendererData data_;
+	impl::RendererData data_;
 };
 
 } // namespace ptgn
