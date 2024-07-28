@@ -10,6 +10,154 @@
 
 using namespace ptgn;
 
+void RenderSubmitExample(
+	const VertexArray& vertex_array, const Shader& shader, const Texture& texture,
+	const M4_float& model, const M4_float& view, const M4_float& projection
+) {
+	game.renderer.Clear();
+
+	shader.WhileBound([&]() {
+		shader.SetUniform("u_model", model);
+		shader.SetUniform("u_view", view); // camera.GetViewMatrix());
+		shader.SetUniform("u_projection", projection);
+		shader.SetUniform("tex0", 0);
+	});
+
+	texture.Bind(0);
+	game.renderer.Submit(vertex_array, shader);
+
+	game.renderer.Present();
+}
+
+void RenderTransparencyExample(float dt) {
+	PTGN_LOG("-----------------");
+	game.renderer.Clear();
+
+	static V2_float pos1{ -0.5, 0.0 };
+	static V2_float pos2{ 0.5, 0.0 };
+
+	V2_float speed = V2_float{ 0.2f, 0.2f } * dt;
+
+	if (game.input.KeyPressed(Key::A)) {
+		pos1.x -= speed.x;
+	}
+	if (game.input.KeyPressed(Key::D)) {
+		pos1.x += speed.x;
+	}
+	if (game.input.KeyPressed(Key::W)) {
+		pos1.y += speed.y;
+	}
+	if (game.input.KeyPressed(Key::S)) {
+		pos1.y -= speed.y;
+	}
+	if (game.input.KeyPressed(Key::LEFT)) {
+		pos2.x -= speed.x;
+	}
+	if (game.input.KeyPressed(Key::RIGHT)) {
+		pos2.x += speed.x;
+	}
+	if (game.input.KeyPressed(Key::UP)) {
+		pos2.y += speed.y;
+	}
+	if (game.input.KeyPressed(Key::DOWN)) {
+		pos2.y -= speed.y;
+	}
+
+	static std::vector<QuadVertex> vertices{
+		{glsl::vec3{ -0.5f, -0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 0.0f, 0.5f },
+		  glsl::vec2{ 0.0f, 0.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }},
+		{ glsl::vec3{ 0.5f, -0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 0.0f, 0.5f },
+		  glsl::vec2{ 1.0f, 0.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }},
+		{  glsl::vec3{ 0.5f, 0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 0.0f, 0.5f },
+		  glsl::vec2{ 1.0f, 1.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }},
+		{ glsl::vec3{ -0.5f, 0.5f, 0.0f }, glsl::vec4{ 1.0f, 0.0f, 0.0f, 0.5f },
+		  glsl::vec2{ 0.0f, 1.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }}
+	};
+	static std::vector<QuadVertex> vertices2{
+		{glsl::vec3{ -0.5f + 0.2f, -0.5f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 1.0f, 0.5f },
+		  glsl::vec2{ 0.0f, 0.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }},
+		{ glsl::vec3{ 0.5f + 0.2f, -0.5f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 1.0f, 0.5f },
+		  glsl::vec2{ 1.0f, 0.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }},
+		{  glsl::vec3{ 0.5f + 0.2f, 0.5f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 1.0f, 0.5f },
+		  glsl::vec2{ 1.0f, 1.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }},
+		{ glsl::vec3{ -0.5f + 0.2f, 0.5f, 0.0f }, glsl::vec4{ 0.0f, 0.0f, 1.0f, 0.5f },
+		  glsl::vec2{ 0.0f, 1.0f }, glsl::float_{ 1.0f }, glsl::float_{ 1.0f }}
+	};
+
+	/*data_.quad_vertex_positions_[0] = { -0.5f, -0.5f, 0.0f, 1.0f };
+	data_.quad_vertex_positions_[1] = { 0.5f, -0.5f, 0.0f, 1.0f };
+	data_.quad_vertex_positions_[2] = { 0.5f, 0.5f, 0.0f, 1.0f };
+	data_.quad_vertex_positions_[3] = { -0.5f, 0.5f, 0.0f, 1.0f };*/
+
+	static VertexBuffer vbo;
+	static VertexBuffer vbo2;
+
+	if (!vbo.IsValid()) {
+		vbo = VertexBuffer(vertices, BufferUsage::DynamicDraw);
+		vbo.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_, glsl::float_>();
+	}
+	if (!vbo2.IsValid()) {
+		vbo2 = VertexBuffer(vertices2, BufferUsage::DynamicDraw);
+		vbo2.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_, glsl::float_>();
+	}
+
+	static IndexBuffer vio{
+		{0, 1, 2, 2, 3, 0}
+	};
+
+	static VertexArray vertex_array	 = VertexArray(PrimitiveMode::Triangles, vbo, vio);
+	static VertexArray vertex_array2 = VertexArray(PrimitiveMode::Triangles, vbo2, vio);
+
+	static Shader shader = Shader(
+		"resources/shader/renderer_quad_vertex.glsl", "resources/shader/renderer_quad_fragment.glsl"
+	);
+
+	game.renderer.Submit(vertex_array2, shader);
+	game.renderer.Submit(vertex_array, shader);
+
+	/*game.renderer.DrawQuad(pos1, V2_float{ 0.5f, 0.5f }, V4_float{ 1.0, 0.0, 0.0, 0.5 });
+	game.renderer.Flush();
+	game.renderer.DrawQuad(pos2, V2_float{ 0.5f, 0.5f }, V4_float{ 0.0, 0.0, 1.0, 0.5 });*/
+	// game.renderer.Flush();
+	game.window.SwapBuffers();
+}
+
+void RenderBatchExample(float dt) {
+	PTGN_LOG("------------------");
+
+	game.renderer.Clear();
+
+	static V2_float pos{ 0.0, 0.0 };
+
+	V2_float speed = V2_float{ 0.2f, 0.2f } * dt;
+
+	if (game.input.KeyPressed(Key::A)) {
+		pos.x -= speed.x;
+	}
+	if (game.input.KeyPressed(Key::D)) {
+		pos.x += speed.x;
+	}
+	if (game.input.KeyPressed(Key::W)) {
+		pos.y += speed.y;
+	}
+	if (game.input.KeyPressed(Key::S)) {
+		pos.y -= speed.y;
+	}
+
+	std::size_t count = 100000;
+
+	for (size_t i = 0; i < count; i++) {
+		V4_float c = Color::RandomTransparent().Normalized();
+		/*game.renderer.DrawQuad(
+			V2_float::Random(-1.0f, 1.0f), V2_float::Random(0.0f, 0.2f), { c.x, c.y, c.z, 0.2 }
+		);*/
+		RNG<float> rng{ 0.0f, 0.3f };
+		game.renderer.DrawCircle(V2_float::Random(-1.0f, 1.0f), rng(), { c.x, c.y, c.z, 0.2 });
+	}
+
+	game.renderer.Present();
+}
+
 void EncodeAndExtract(
 	std::uint16_t hidden_size, std::uint16_t hidden_count, impl::GLType hidden_type,
 	std::set<std::uint64_t>& unique_codes
@@ -445,7 +593,18 @@ bool TestShaderDrawing() {
 		texture1 = surface;
 	}
 
-	const std::vector<Vertex> vao_vert = {
+	const std::vector<Vertex> vertices_fullscreen = {
+		Vertex{glsl::vec3{ -1.0f, -1.0f, 0.0f }, glsl::vec4{ 0.5f, 0.0f, 1.0f, 0.5f },
+				glsl::vec2{ 0.0f, 0.0f }},
+		Vertex{ glsl::vec3{ 1.0f, -1.0f, 0.0f }, glsl::vec4{ 0.0f, 1.0f, 0.5f, 0.5f },
+				glsl::vec2{ 1.0f, 0.0f }},
+		Vertex{	glsl::vec3{ 1.0f, 1.0, 0.0f }, glsl::vec4{ 1.0f, 0.5f, 0.0f, 0.5f },
+				glsl::vec2{ 1.0f, 1.0f }},
+		Vertex{ glsl::vec3{ -1.0f, 1.0f, 0.0f }, glsl::vec4{ 0.5f, 0.5f, 0.5f, 0.5f },
+				glsl::vec2{ 0.0f, 1.0f }}
+	};
+
+	const std::vector<Vertex> vertices_halfscreen = {
 		Vertex{glsl::vec3{ -0.5f, -0.5f, 0.0f }, glsl::vec4{ 0.5f, 0.0f, 1.0f, 0.5f },
 				glsl::vec2{ 0.0f, 0.0f }},
 		Vertex{ glsl::vec3{ 0.5f, -0.5f, 0.0f }, glsl::vec4{ 0.0f, 1.0f, 0.5f, 0.5f },
@@ -456,7 +615,7 @@ bool TestShaderDrawing() {
 				glsl::vec2{ 0.0f, 1.0f }}
 	};
 
-	VertexBuffer vbo1{ vao_vert };
+	VertexBuffer vbo1{ vertices_halfscreen };
 	vbo1.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2>();
 
 	VertexArray vao{ PrimitiveMode::Triangles, vbo1, IndexBuffer{ { 0, 1, 2, 2, 3, 0 } } };
@@ -480,26 +639,15 @@ bool TestShaderDrawing() {
 
 	// game.input.SetRelativeMouseMode(true);
 
-	game.renderer.SetClearColor(color::DarkBrown);
+	game.renderer.SetClearColor(color::White);
 
 	game.RepeatUntilQuit([&](float dt) {
-		/*game.renderer.ResetTarget();
-		game.renderer.ResetDrawColor();
-		game.renderer.Clear();
-
-		game.renderer.SetTarget(drawTarget);
-		game.renderer.SetBlendMode(BlendMode::Add);
-
-		game.renderer.ResetDrawColor();
-		game.renderer.Clear();*/
-
 		/*int scroll = game.input.MouseScroll();
 
 		if (scroll != 0) {
 			camera.Zoom(scroll);
-		}*/
-
-		/*if (game.input.KeyPressed(Key::W)) {
+		}
+		if (game.input.KeyPressed(Key::W)) {
 			camera.Move(CameraDirection::Forward, dt);
 		}
 		if (game.input.KeyPressed(Key::S)) {
@@ -516,9 +664,8 @@ bool TestShaderDrawing() {
 		}
 		if (game.input.KeyPressed(Key::SPACE)) {
 			camera.Move(CameraDirection::Up, dt);
-		}*/
-
-		/*if (game.input.KeyPressed(Key::A)) {
+		}
+		if (game.input.KeyPressed(Key::A)) {
 			view = M4_float::Translate(view, -0.05f, 0.0f, 0.0f);
 		}
 		if (game.input.KeyPressed(Key::D)) {
@@ -529,8 +676,8 @@ bool TestShaderDrawing() {
 		}
 		if (game.input.KeyPressed(Key::S)) {
 			view = M4_float::Translate(view, 0.0f, -0.05f, 0.0f);
-		}*/
-		/*if (game.input.KeyPressed(Key::Q)) {
+		}
+		if (game.input.KeyPressed(Key::Q)) {
 			model = M4_float::Rotate(model, DegToRad(5.0f), 0.0f, 1.0f, 0.0f);
 		}
 		if (game.input.KeyPressed(Key::E)) {
@@ -543,77 +690,30 @@ bool TestShaderDrawing() {
 			model = M4_float::Rotate(model, DegToRad(-5.0f), 1.0f, 0.0f, 0.0f);
 		}*/
 
-		/*V2_float window_size = game.window.GetSize();
+		/*
+		V2_float window_size = game.window.GetSize();
 		V2_float mouse		 = game.input.GetMousePosition();
 
 		Rectangle<int> dest_rect{ {}, window_size };
 
 		curr_time		   = clock();
-		playtime_in_second = (curr_time - start_time) * 1.0f / 1000.0f;*/
+		playtime_in_second = (curr_time - start_time) * 1.0f / 1000.0f;
 
-		/*shader.WhileBound([&]() {
+		shader.WhileBound([&]() {
 			shader.SetUniform("lightpos", mouse.x, mouse.y);
 			shader.SetUniform("lightColor", 1.0f, 0.0f, 0.0f);
 			shader.SetUniform("intensity", 14.0f);
 			shader.SetUniform("screenHeight", window_size.y);
-		});*/
+		});
 
-		/*shader2.WhileBound([&]() {
+		shader2.WhileBound([&]() {
 			shader2.SetUniform("iResolution", window_size.x, window_size.y, 0.0f);
 			shader2.SetUniform("iTime", playtime_in_second);
 		});*/
 
-		shader3.WhileBound([&]() {
-			shader3.SetUniform("u_model", model);
-			shader3.SetUniform("u_view", view); // camera.GetViewMatrix());
-			shader3.SetUniform("u_projection", projection);
-			shader3.SetUniform("tex0", 0);
-		});
-
-		game.renderer.Clear();
-
-		texture1.Bind(0);
-		game.renderer.Submit(vao, shader3);
-		// GLRenderer::DrawArrays(PrimitiveMode::Triangles, 4);
-		// vao.Unbind();
-		// shader3.Unbind();
-		/*texture1.Unbind();*/
-
-		// game.renderer.Clear();
-		//  texture1.Bind(0);
-
-		// game.renderer.Submit(vao, shader3, texture1, 0);
-		//  game.renderer.Submit(shader3, vao, {}, {});
-		//    texture1.Unbind();
-		game.window.SwapBuffers();
-
-		// game.renderer.DrawQuad({ 300, 300 }, { 400, 400 }, { 1.0f, 0.5f, 0.5, 1.0f });
-
-		/*game.renderer.SetClearColor(color::White);
-
-		game.renderer.Clear();*/
-
-		/*Text text(font_key, "Hello", color::Black);
-
-		text.Draw({
-			{  0,	 0},
-			  {300, 300}
-		   });*/
-
-		/*game.renderer.impl::Flush();*/
-
-		// renderer.Draw(vao, shader2, texture1);
-		// renderer.Draw(vao, shader, texture1);
-
-		// game.renderer.Draw(vao2, shader3, texture2, 1);
-		// game.renderer.Draw(vao, shader3, texture1, 0);
-
-		// game.renderer.SetBlendMode(BlendMode::Blend);
-
-		// game.renderer.ResetTarget();
-		// drawTarget.SetBlendMode(BlendMode::Blend);
-		//  OpenGL coordinate system is flipped vertically compared to SDL
-		// drawTarget.Draw(dest_rect, {}, 0, Flip::Vertical, nullptr);
+		// RenderSubmitExample(vao, shader3, texture1, model, view, projection);
+		RenderBatchExample(dt);
+		// RenderTransparencyExample(dt);
 	});
 
 	return true;
