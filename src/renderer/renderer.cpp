@@ -14,7 +14,7 @@ inline void BatchData<QuadVertex>::Draw(RendererData& data) {
 		SetupBatch();
 		data.BindTextures();
 		GLRenderer::DrawElements(array_, index_count_);
-		// stats.draw_calls_++;
+		data.stats_.draw_calls++;
 	}
 }
 
@@ -23,7 +23,7 @@ inline void BatchData<CircleVertex>::Draw(RendererData& data) {
 	if (index_count_) {
 		SetupBatch();
 		GLRenderer::DrawElements(array_, index_count_);
-		// stats.draw_calls_++;
+		data.stats_.draw_calls++;
 	}
 }
 
@@ -33,7 +33,7 @@ inline void BatchData<LineVertex>::Draw(RendererData& data) {
 		SetupBatch();
 		GLRenderer::SetLineWidth(data.line_width_);
 		GLRenderer::DrawElements(array_, index_count_);
-		// stats.draw_calls_++;
+		data.stats_.draw_calls++;
 	}
 }
 
@@ -93,7 +93,7 @@ void RendererData::SetupBuffers() {
 	);
 
 	/*
-
+	// TODO: Fix
 	line_.Init<glsl::vec3, glsl::vec4>(max_vertices_, PrimitiveMode::Lines, {});*/
 
 	/*text_.Init<glsl::vec3, glsl::vec4, glsl::vec2>(
@@ -164,6 +164,10 @@ void Renderer::Clear() const {
 
 void Renderer::Present() {
 	NextBatch();
+#ifdef PTGN_DEBUG
+	data_.stats_.Print();
+#endif
+	data_.stats_.Reset();
 	game.window.SwapBuffers();
 }
 
@@ -173,6 +177,7 @@ void Renderer::Submit(const VertexArray& va, const Shader& shader) {
 	 shader.SetUniform("u_Transform", transform);*/
 
 	GLRenderer::DrawElements(va);
+	data_.stats_.draw_calls++;
 }
 
 void Renderer::SetViewport(const V2_int& size) {
@@ -295,7 +300,7 @@ void Renderer::DrawQuad(const M4_float& transform, const V4_float& color) {
 
 	data_.quad_.index_count_ += 6;
 
-	// data_.Stats.QuadCount++;
+	data_.stats_.quad_count++;
 }
 
 void Renderer::DrawQuad(
@@ -323,6 +328,9 @@ void Renderer::DrawQuad(
 	}
 
 	if (texture_index == 0.0f) {
+		// TODO: Optimize this if you have time. Instead of flushing the batch when the slot index
+		// is beyond the slots, keep a separate texture buffer and just split that one into two or
+		// more batches. This should reduce draw calls drastically.
 		if (data_.texture_slot_index_ >= data_.max_texture_slots_) {
 			NextBatch();
 		}
@@ -344,7 +352,7 @@ void Renderer::DrawQuad(
 
 	data_.quad_.index_count_ += 6;
 
-	// data_.Stats.QuadCount++;
+	data_.stats_.quad_count++;
 }
 
 void Renderer::DrawRotatedQuad(
@@ -423,7 +431,7 @@ void Renderer::DrawCircle(
 
 	data_.circle_.index_count_ += 6;
 
-	// data_.stats.QuadCount++;
+	data_.stats_.circle_count++;
 }
 
 void Renderer::DrawLine(const V3_float& p0, V3_float& p1, const V4_float& color) {
@@ -436,6 +444,8 @@ void Renderer::DrawLine(const V3_float& p0, V3_float& p1, const V4_float& color)
 	data_.line_.buffer_ptr_++;
 
 	data_.line_.index_count_ += 2;
+
+	data_.stats_.line_count++;
 }
 
 void Renderer::DrawRect(const V3_float& position, const V2_float& size, const V4_float& color) {
@@ -601,12 +611,5 @@ void Renderer::DrawRect(const M4_float& transform, const V4_float& color) {
 //	data_.LineWidth = width;
 // }
 //
-// void Renderer::ResetStats() {
-//	memset(&data_.Stats, 0, sizeof(Statistics));
-// }
-//
-// Renderer::Statistics Renderer::GetStats() {
-//	return data_.Stats;
-// }
 
 } // namespace ptgn

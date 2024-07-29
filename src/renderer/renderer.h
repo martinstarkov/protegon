@@ -195,6 +195,29 @@ public:
 	void Flush();
 
 	[[nodiscard]] static IndexBuffer GetQuadIndexBuffer(std::size_t index_count);
+
+	struct Stats {
+		std::int64_t quad_count{ 0 };
+		std::int64_t circle_count{ 0 };
+		std::int64_t line_count{ 0 };
+		std::int64_t draw_calls{ 0 };
+
+		void Reset() {
+			quad_count	 = 0;
+			circle_count = 0;
+			line_count	 = 0;
+			draw_calls	 = 0;
+		};
+
+		void Print() {
+			PTGN_INFO(
+				"Draw Calls: ", draw_calls, ", Quads: ", quad_count, ", Circles: ", circle_count,
+				", Lines: ", line_count
+			);
+		}
+	};
+
+	Stats stats_;
 };
 
 } // namespace impl
