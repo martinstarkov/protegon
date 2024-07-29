@@ -39,6 +39,18 @@ GLFormats GetGLFormats(ImageFormat format) {
 
 } // namespace impl
 
+Texture::Texture(const path& image_path, bool flip_vertically, ImageFormat format) :
+	Texture{ [&]() -> Surface {
+		PTGN_CHECK(
+			FileExists(image_path), "Cannot create texture from file path which does not exist"
+		);
+		Surface surface{ image_path };
+		if (flip_vertically) {
+			surface.FlipVertically();
+		}
+		return surface;
+	}() } {}
+
 Texture::Texture(const Surface& surface) :
 	Texture{ (void*)surface.GetData().data(), surface.GetSize(), surface.GetImageFormat() } {}
 

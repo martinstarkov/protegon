@@ -35,6 +35,10 @@ public:
 	Texture()  = default;
 	~Texture() = default;
 
+	Texture(
+		const path& image_path, bool flip_vertically = true,
+		ImageFormat format = ImageFormat::RGBA8888
+	);
 	Texture(const Surface& surface);
 	Texture(void* pixel_data, const V2_int& size, ImageFormat format);
 
