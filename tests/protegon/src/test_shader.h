@@ -7,6 +7,7 @@
 #include "protegon/shader.h"
 #include "protegon/vertex_array.h"
 #include "utility/debug.h"
+#include "utility/utility.h"
 
 using namespace ptgn;
 
@@ -240,6 +241,25 @@ void RenderBatchQuadExample(float dt) {
 		game.renderer.DrawQuad(
 			V2_float::Random(-1.0f, 1.0f), V2_float::Random(0.0f, 0.2f), { c.x, c.y, c.z, 0.2f }
 		);
+	}
+
+	game.renderer.Present();
+}
+
+template <std::size_t I>
+void RenderBatchTextureExample(float dt, const std::array<Texture, I>& textures) {
+	PTGN_LOG("Running Texture Batch (binding ", I, " textures)");
+	game.renderer.Clear();
+
+	std::size_t count = 100000;
+
+	for (size_t i = 0; i < count; i++) {
+		RNG<int> rng_index{ 0, static_cast<int>(textures.size()) - 1 };
+		int index = rng_index();
+		PTGN_ASSERT(index < textures.size());
+		RNG<float> rng_size{ 0.05f, 0.2f };
+		float size = rng_size();
+		game.renderer.DrawQuad(V2_float::Random(-1.0f, 1.0f), { size, size }, textures[index]);
 	}
 
 	game.renderer.Present();
@@ -640,7 +660,9 @@ bool TestShaderDrawing() {
 	float playtime_in_second = 0;*/
 
 	enum class RenderTest {
-		BatchQuad = 0,
+		BatchTexturesEqualTo31 = 0,
+		BatchTexturesMoreThan31,
+		BatchQuad,
 		BatchCircle,
 		SubmitTexture,
 		SubmitColor,
@@ -649,6 +671,32 @@ bool TestShaderDrawing() {
 	};
 
 	int test = 0;
+
+	std::array<Texture, 31> textures_equal_to_31{
+		Texture("resources/textures/ (1).png"),	 Texture("resources/textures/ (2).png"),
+		Texture("resources/textures/ (3).png"),	 Texture("resources/textures/ (4).png"),
+		Texture("resources/textures/ (5).png"),	 Texture("resources/textures/ (6).png"),
+		Texture("resources/textures/ (7).png"),	 Texture("resources/textures/ (8).png"),
+		Texture("resources/textures/ (9).png"),	 Texture("resources/textures/ (10).png"),
+		Texture("resources/textures/ (11).png"), Texture("resources/textures/ (12).png"),
+		Texture("resources/textures/ (13).png"), Texture("resources/textures/ (14).png"),
+		Texture("resources/textures/ (15).png"), Texture("resources/textures/ (16).png"),
+		Texture("resources/textures/ (17).png"), Texture("resources/textures/ (18).png"),
+		Texture("resources/textures/ (19).png"), Texture("resources/textures/ (20).png"),
+		Texture("resources/textures/ (21).png"), Texture("resources/textures/ (22).png"),
+		Texture("resources/textures/ (23).png"), Texture("resources/textures/ (24).png"),
+		Texture("resources/textures/ (25).png"), Texture("resources/textures/ (26).png"),
+		Texture("resources/textures/ (27).png"), Texture("resources/textures/ (28).png"),
+		Texture("resources/textures/ (29).png"), Texture("resources/textures/ (30).png"),
+		Texture("resources/textures/ (31).png")
+	};
+
+	std::array<Texture, 35> textures_more_than_31{ ConcatenateArrays(
+		textures_equal_to_31, std::array<Texture, 4>{ Texture("resources/textures/ (32).png"),
+													  Texture("resources/textures/ (33).png"),
+													  Texture("resources/textures/ (34).png"),
+													  Texture("resources/textures/ (35).png") }
+	) };
 
 	game.RepeatUntilQuit([&](float dt) {
 		/*int scroll = game.input.MouseScroll();
@@ -721,14 +769,22 @@ bool TestShaderDrawing() {
 		});*/
 
 		if (game.input.KeyDown(Key::ONE)) {
-			test++;
+			test--;
 			test = Mod(test, static_cast<int>(RenderTest::Count));
 		} else if (game.input.KeyDown(Key::TWO)) {
-			test--;
+			test++;
 			test = Mod(test, static_cast<int>(RenderTest::Count));
 		}
 
 		switch (static_cast<RenderTest>(test)) {
+			case RenderTest::BatchTexturesEqualTo31: {
+				RenderBatchTextureExample(dt, textures_equal_to_31);
+				break;
+			}
+			case RenderTest::BatchTexturesMoreThan31: {
+				RenderBatchTextureExample(dt, textures_more_than_31);
+				break;
+			}
 			case RenderTest::BatchQuad:			 RenderBatchQuadExample(dt); break;
 			case RenderTest::BatchCircle:		 RenderBatchCircleExample(dt); break;
 			case RenderTest::SubmitTexture:		 RenderSubmitTextureExample(dt); break;

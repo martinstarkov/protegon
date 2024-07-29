@@ -11,13 +11,13 @@ uniform sampler2D u_Textures[32];
 
 void main()
 {
-	//vec4 texColor = vec4(v_Color.x, v_Color.y, v_Color.z, v_Color.w);
-	//int index = int(v_TexIndex);
+	vec4 texColor = v_Color;
+	int index = int(v_TexIndex);
 
-	//texColor *= texture(u_Textures[index], v_TexCoord * v_TilingFactor);
+	texColor *= texture(u_Textures[index], v_TexCoord * v_TilingFactor);
 
-	//if (texColor.a == 0.0)
-		//discard;
+	if (texColor.a == 0.0)
+		discard;
 
-	o_Color = v_Color; // texColor;
+	o_Color = texColor;
 }
