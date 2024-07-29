@@ -111,11 +111,12 @@ void RenderSubmitTextureExample(float dt) {
 		shader.SetUniform("u_model", model);
 		shader.SetUniform("u_view", view); // camera.GetViewMatrix());
 		shader.SetUniform("u_projection", projection);
-		shader.SetUniform("tex0", 0);
+		shader.SetUniform("tex0", 1);
 	});
 
-	texture.Bind(0);
+	texture.Bind(1);
 	game.renderer.Submit(vertex_array, shader);
+	texture.Unbind();
 
 	game.renderer.Present();
 }

@@ -16,8 +16,8 @@ public:
 	static void SetViewport(const V2_int& position, const V2_int& size);
 	static void Clear();
 	static void SetClearColor(const Color& color);
-	static void DrawElements(const VertexArray& va, std::int32_t index_count = 0);
-	static void DrawArrays(const VertexArray& va, std::uint32_t vertex_count);
+	static void DrawElements(const VertexArray& va, std::size_t index_count = 0);
+	static void DrawArrays(const VertexArray& va, std::size_t vertex_count);
 	static void SetLineWidth(float width);
 	static std::int32_t GetMaxTextureSlots();
 };

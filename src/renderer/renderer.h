@@ -86,6 +86,14 @@ struct QuadVertex {
 	glsl::vec2 tex_coord;
 	glsl::float_ tex_index;
 	glsl::float_ tiling_factor;
+
+	[[nodiscard]] constexpr static std::size_t VertexCount() {
+		return 4;
+	};
+
+	[[nodiscard]] constexpr static std::size_t IndexCount() {
+		return 6;
+	}
 };
 
 struct CircleVertex {
@@ -99,6 +107,14 @@ struct CircleVertex {
 struct LineVertex {
 	glsl::vec3 position;
 	glsl::vec4 color;
+
+	[[nodiscard]] constexpr static std::size_t VertexCount() {
+		return 2;
+	};
+
+	[[nodiscard]] constexpr static std::size_t IndexCount() {
+		return 2;
+	}
 };
 
 //
@@ -119,9 +135,31 @@ public:
 	VertexArray array_;
 	VertexBuffer buffer_;
 	Shader shader_;
-	std::uint32_t index_count_ = 0;
+	std::size_t index_count_{ 0 };
 	std::vector<TVertex> buffer_base_;
 	TVertex* buffer_ptr_ = nullptr;
+
+	constexpr static std::array<V3_float, QuadVertex::VertexCount()> GetQuadVertexPositions(
+		const M4_float& transform
+	) {
+		std::array<V3_float, QuadVertex::VertexCount()> vertices;
+		constexpr auto rel_vertices{ GetRelativeVertices() };
+		for (size_t i = 0; i < QuadVertex::VertexCount(); i++) {
+			auto pos	= transform * rel_vertices[i];
+			vertices[i] = { pos.x, pos.y, pos.z };
+		}
+		return vertices;
+	}
+
+	[[nodiscard]] constexpr static std::array<V4_float, QuadVertex::VertexCount()>
+	GetRelativeVertices() {
+		return {
+			V4_float{-0.5f, -0.5f, 0.0f, 1.0f},
+			  V4_float{ 0.5f, -0.5f, 0.0f, 1.0f},
+			V4_float{ 0.5f,	0.5f, 0.0f, 1.0f},
+			V4_float{-0.5f,	 0.5f, 0.0f, 1.0f}
+		};
+	}
 
 	template <typename... TLayouts>
 	void Init(std::size_t vertex_count, PrimitiveMode mode, IndexBuffer index_buffer) {
@@ -153,6 +191,20 @@ public:
 
 	void Draw(RendererData& data);
 
+	void AddQuad(
+		const M4_float& transform, const V4_float& color, const std::array<V2_float, 4>& tex_coords,
+		float texture_index, float tiling_factor
+	);
+
+	void AddCircle(const M4_float& transform, const V4_float& color, float thickness, float fade);
+
+	void AddLine(const V3_float& p0, const V3_float& p1, const V4_float& color);
+
+	void IncrementBufferPtr() {
+		PTGN_ASSERT(buffer_ptr_ != nullptr);
+		buffer_ptr_++;
+	}
+
 	void Reset() {
 		index_count_ = 0;
 		buffer_ptr_	 = buffer_base_.data();
@@ -161,26 +213,25 @@ public:
 
 class RendererData {
 public:
-	constexpr static const std::uint32_t max_quads_	   = 20000;
-	constexpr static const std::uint32_t max_vertices_ = max_quads_ * 4;
-	constexpr static const std::uint32_t max_indices_  = max_quads_ * 6;
+	constexpr static const std::size_t max_quads_	 = 20000;
+	constexpr static const std::size_t max_vertices_ = max_quads_ * QuadVertex::VertexCount();
+	constexpr static const std::size_t max_indices_	 = max_quads_ * QuadVertex::IndexCount();
 
 	std::uint32_t max_texture_slots_{ 0 };
 
-	V4_float quad_vertex_positions_[4];
 	M4_float view_projection_;
 
 	Texture white_texture_;
 
 	std::vector<Texture> texture_slots_;
-	std::uint32_t texture_slot_index_ = 1; // 0 = white texture
+	std::uint32_t texture_slot_index_{ 1 }; // 0 reserved for white texture
 
 	BatchData<QuadVertex> quad_;
 	BatchData<CircleVertex> circle_;
 	BatchData<LineVertex> line_;
 	// BatchData<TextVertex> text_;
 
-	float line_width_ = 2.0f;
+	float line_width_{ 2.0f };
 
 	// Texture font_atlas_texture_;
 
@@ -193,6 +244,16 @@ public:
 	void BindTextures() const;
 
 	void Flush();
+
+	[[nodiscard]] constexpr static std::array<V2_float, QuadVertex::VertexCount()>
+	GetTextureCoordinates() {
+		return {
+			V2_float{0.0f, 0.0f},
+			V2_float{1.0f, 0.0f},
+			V2_float{1.0f, 1.0f},
+			V2_float{0.0f, 1.0f}
+		};
+	}
 
 	[[nodiscard]] static IndexBuffer GetQuadIndexBuffer(std::size_t index_count);
 
@@ -312,23 +373,7 @@ public:
 	/*float GetLineWidth();
 	void SetLineWidth(float width);*/
 
-	// Stats
-	/*struct Statistics {
-		uint32_t DrawCalls = 0;
-		uint32_t QuadCount = 0;
-
-		uint32_t GetTotalVertexCount() const {
-			return QuadCount * 4;
-		}
-
-		uint32_t GetTotalIndexCount() const {
-			return QuadCount * 6;
-		}
-	};*/
-
-	/*void ResetStats();
-	Statistics GetStats();*/
-
+	// TODO: Add set line width and get line width functions.
 private:
 	friend class Game;
 	friend class impl::GameInstance;
