@@ -41,7 +41,6 @@ void GLRenderer::DrawElements(const VertexArray& va, std::int32_t index_count) {
 			static_cast<gl::GLenum>(IndexBuffer::GetType()), nullptr
 		);
 	});
-	PTGN_LOG("Draw call");
 }
 
 void GLRenderer::DrawArrays(const VertexArray& va, std::uint32_t vertex_count) {
@@ -49,7 +48,6 @@ void GLRenderer::DrawArrays(const VertexArray& va, std::uint32_t vertex_count) {
 	va.WhileBound([&]() {
 		gl::glDrawArrays(static_cast<gl::GLenum>(va.GetPrimitiveMode()), 0, vertex_count);
 	});
-	PTGN_LOG("Draw call");
 }
 
 void GLRenderer::SetLineWidth(float width) {
