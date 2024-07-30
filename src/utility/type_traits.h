@@ -180,9 +180,7 @@ template <typename T, typename... Ts>
 inline constexpr bool is_not_any_of_v{ (!std::is_same_v<T, Ts> && ...) };
 
 template <typename T, typename... Ts>
-inline constexpr bool is_safely_castable_to_one_of_v{
-	(type_traits::is_safely_castable_v<T, Ts> || ...)
-};
+inline constexpr bool is_safely_castable_to_one_of_v{ (is_safely_castable_v<T, Ts> || ...) };
 
 template <typename T, typename U>
 using equals_comparable = std::enable_if_t<is_equals_comparable_v<T, U>, bool>;
@@ -229,10 +227,10 @@ using not_same = std::enable_if_t<!std::is_same_v<TypeA, TypeB>, bool>;
 template <typename ChildClass, typename ParentClass>
 using is_base_of = std::enable_if_t<std::is_base_of_v<ParentClass, ChildClass>, bool>;
 template <typename T, typename... Ts>
-using is_one_of = std::enable_if_t<type_traits::is_any_of_v<T, Ts...>, bool>;
+using is_any_of = std::enable_if_t<is_any_of_v<T, Ts...>, bool>;
 template <typename T, typename... Ts>
 using is_safely_castable_to_one_of =
-	std::enable_if_t<type_traits::is_safely_castable_to_one_of_v<T, Ts...>, bool>;
+	std::enable_if_t<is_safely_castable_to_one_of_v<T, Ts...>, bool>;
 template <bool CONDITION>
 using enable = std::enable_if_t<(CONDITION), bool>;
 
