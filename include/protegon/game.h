@@ -10,6 +10,7 @@
 #include "event/input_handler.h"
 #include "renderer/renderer.h"
 #include "scene/scene_manager.h"
+#include "utility/profiling.h"
 
 namespace ptgn {
 
@@ -40,8 +41,8 @@ public:
 	using UpdateFunction = std::variant<std::function<void()>, std::function<void(float dt)>>;
 	void RepeatUntilQuit(UpdateFunction while_not_quit);
 
-	template <typename TStartScene, typename... TArgs>
 	// Optional: pass in constructor arguments for the TStartScene.
+	template <typename TStartScene, typename... TArgs>
 	void Start(TArgs&&... constructor_args) {
 		static_assert(
 			std::is_constructible_v<TStartScene, TArgs...>,
@@ -83,7 +84,7 @@ public:
 
 	void Stop();
 
-	// Systems:
+	// Systems
 
 	InputHandler input;
 	Window window;
@@ -91,7 +92,7 @@ public:
 	EventHandler event;
 	SceneManager scene;
 
-	// Resources:
+	// Resources
 
 	MusicManager music;
 	SoundManager sound;
@@ -99,6 +100,10 @@ public:
 	TextManager text;
 	TextureManager texture;
 	ShaderManager shader;
+
+	// Debug
+
+	Profiler profiler;
 
 private:
 	std::unique_ptr<impl::GameInstance> instance_;

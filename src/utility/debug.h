@@ -27,20 +27,31 @@
 #define PTGN_DEBUGBREAK()
 #endif
 
-#define PTGN_EXPAND_MACRO(x)			  x
-#define PTGN_STRINGIFY_MACRO(x)			  #x
-#define PTGN_GET_MACRO(_1, _2, NAME, ...) NAME
+#define PTGN_EXPAND_MACRO(x)	x
+#define PTGN_STRINGIFY_MACRO(x) #x
 
 #define PTGN_NUMBER_OF_ARGS(...) std::tuple_size<decltype(std::make_tuple(__VA_ARGS__))>::value
 
-#define PTGN_INTERNAL_PRINT_WITHOUT_MSG(ss)	  ((void)0)
-#define PTGN_INTERNAL_PRINT_WITH_MSG(ss, ...) ptgn::impl::PrintImpl(ss, __VA_ARGS__)
-
-#define PTGN_INTERNAL_PRINT_GET_MACRO(ss, ...)                                         \
-	PTGN_EXPAND_MACRO(PTGN_GET_MACRO(                                                  \
-		ss, __VA_ARGS__, PTGN_INTERNAL_PRINT_WITH_MSG, PTGN_INTERNAL_PRINT_WITHOUT_MSG \
-	))                                                                                 \
-	(ss, __VA_ARGS__)
+// Function signature macro: PTGN_FUNCTION_SIGNATURE
+#if defined(__GNUC__) || (defined(__MWERKS__) && (__MWERKS__ >= 0x3000)) || \
+	(defined(__ICC) && (__ICC >= 600)) || defined(__ghs__)
+#define PTGN_FUNCTION_SIGNATURE __PRETTY_FUNCTION__
+#elif defined(__DMC__) && (__DMC__ >= 0x810)
+#define PTGN_FUNCTION_SIGNATURE __PRETTY_FUNCTION__
+#elif (defined(__FUNCSIG__) || (_MSC_VER))
+#define PTGN_FUNCTION_SIGNATURE __FUNCSIG__
+#elif (defined(__INTEL_COMPILER) && (__INTEL_COMPILER >= 600)) || \
+	(defined(__IBMCPP__) && (__IBMCPP__ >= 500))
+#define PTGN_FUNCTION_SIGNATURE __FUNCTION__
+#elif defined(__BORLANDC__) && (__BORLANDC__ >= 0x550)
+#define PTGN_FUNCTION_SIGNATURE __FUNC__
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901)
+#define PTGN_FUNCTION_SIGNATURE __func__
+#elif defined(__cplusplus) && (__cplusplus >= 201103)
+#define PTGN_FUNCTION_SIGNATURE __func__
+#else
+#define PTGN_FUNCTION_SIGNATURE "PTGN_FUNCTION_SIGNATURE unknown!"
+#endif
 
 namespace ptgn {
 
