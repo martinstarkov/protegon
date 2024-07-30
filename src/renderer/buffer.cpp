@@ -31,14 +31,7 @@ IndexBufferInstance::~IndexBufferInstance() {
 
 } // namespace impl
 
-VertexBuffer::VertexBuffer(const void* vertex_data, std::uint32_t size, BufferUsage usage) {
-	SetData(vertex_data, size, usage);
-}
-
-void VertexBuffer::SetData(const void* vertex_data, std::uint32_t size, BufferUsage usage) {
-	if (!IsValid()) {
-		instance_ = std::make_shared<impl::VertexBufferInstance>();
-	}
+void VertexBuffer::SetDataImpl(const void* vertex_data, std::uint32_t size, BufferUsage usage) {
 	Bind();
 	gl::BufferData(
 		static_cast<gl::GLenum>(impl::BufferType::Vertex), size, vertex_data,
@@ -62,20 +55,20 @@ void VertexBuffer::Unbind() const {
 	gl::BindBuffer(static_cast<gl::GLenum>(impl::BufferType::Vertex), 0);
 }
 
-const impl::BufferLayout& VertexBuffer::GetLayout() const {
+const impl::InternalBufferLayout& VertexBuffer::GetLayout() const {
 	PTGN_CHECK(IsValid(), "Cannot get layout of uninitialized or destroyed vertex buffer");
 	return instance_->layout_;
 }
 
 IndexBuffer::IndexBuffer(const void* index_data, std::uint32_t size) {
-	SetData(index_data, size);
-}
-
-void IndexBuffer::SetData(const void* index_data, std::uint32_t size) {
 	if (!IsValid()) {
 		instance_ = std::make_shared<impl::IndexBufferInstance>();
 	}
 	count_ = size / sizeof(impl::IndexType);
+	SetDataImpl(index_data, size);
+}
+
+void IndexBuffer::SetDataImpl(const void* index_data, std::uint32_t size) {
 	Bind();
 	gl::BufferData(
 		static_cast<gl::GLenum>(impl::BufferType::Index), size, index_data,

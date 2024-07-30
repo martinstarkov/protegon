@@ -63,13 +63,7 @@ void RenderSubmitTextureExample(float dt) {
 		glsl::vec2 texcoord;
 	};
 
-	static Texture texture;
-
-	if (!texture.IsValid()) {
-		Surface surface{ "resources/sprites/test.png" };
-		surface.FlipVertically();
-		texture = surface;
-	}
+	static Texture texture{ "resources/sprites/test.png" };
 
 	static const std::vector<Vertex> vertices_fullscreen = {
 		Vertex{glsl::vec3{ -1.0f, -1.0f, 0.0f }, glsl::vec4{ 0.5f, 0.0f, 1.0f, 0.5f },
@@ -93,10 +87,8 @@ void RenderSubmitTextureExample(float dt) {
 				glsl::vec2{ 0.0f, 1.0f }}
 	};
 
-	static VertexBuffer vbo1{ vertices_halfscreen };
-	if (vbo1.GetLayout().IsEmpty()) {
-		vbo1.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2>();
-	}
+	static VertexBuffer vbo1{ vertices_halfscreen,
+							  BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2>{} };
 
 	static VertexArray vertex_array{
 		PrimitiveMode::Triangles, vbo1, IndexBuffer{0, 1, 2, 2, 3, 0}
@@ -151,12 +143,18 @@ void RenderSubmitColorExample(float dt) {
 	static VertexBuffer vbo2;
 
 	if (!vbo.IsValid()) {
-		vbo = VertexBuffer(vertices, BufferUsage::DynamicDraw);
-		vbo.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_, glsl::float_>();
+		vbo = VertexBuffer(
+			vertices,
+			BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_, glsl::float_>{},
+			BufferUsage::DynamicDraw
+		);
 	}
 	if (!vbo2.IsValid()) {
-		vbo2 = VertexBuffer(vertices2, BufferUsage::DynamicDraw);
-		vbo2.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_, glsl::float_>();
+		vbo2 = VertexBuffer(
+			vertices2,
+			BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_, glsl::float_>{},
+			BufferUsage::DynamicDraw
+		);
 	}
 
 	static IndexBuffer vio{ 0, 1, 2, 2, 3, 0 };
@@ -384,8 +382,8 @@ bool TestShaderProperties() {
 
 	PTGN_ASSERT(unique_codes.size() == 32);
 
-	// PTGN_ASSERT(BufferElement{ ShaderDataType::none }.GetSize() == 0);
-	// PTGN_ASSERT(BufferElement{ ShaderDataType::none }.GetOffset() == 0);
+	// PTGN_ASSERT(BufferElement{ ShaderDataType::none }.size == 0);
+	// PTGN_ASSERT(BufferElement{ ShaderDataType::none }.offset == 0);
 	// PTGN_ASSERT(BufferElement{ ShaderDataType::none }.GetType() ==
 	// ShaderDataInfo{ ShaderDataType::none }.type);
 
@@ -402,9 +400,8 @@ bool TestShaderProperties() {
 	std::vector<TestVertex1> v1;
 	v1.push_back({});
 
-	VertexBuffer b1{ v1 };
-	b1.SetLayout<glsl::vec3>();
-	impl::BufferLayout layout1{ b1.GetLayout() };
+	VertexBuffer b1{ v1, BufferLayout<glsl::vec3>{} };
+	impl::InternalBufferLayout layout1{ b1.GetLayout() };
 	auto e1{ layout1.GetElements() };
 	PTGN_ASSERT(e1.size() == 1);
 	PTGN_ASSERT(layout1.GetStride() == 3 * sizeof(float));
@@ -413,8 +410,8 @@ bool TestShaderProperties() {
 	// PTGN_ASSERT(e1.at(0).GetType() == ShaderDataInfo{ ShaderDataType::vec3
 	// }.type);
 
-	PTGN_ASSERT(e1.at(0).GetOffset() == 0);
-	PTGN_ASSERT(e1.at(0).GetSize() == 3 * sizeof(float));
+	PTGN_ASSERT(e1.at(0).offset == 0);
+	PTGN_ASSERT(e1.at(0).size == 3 * sizeof(float));
 
 	struct TestVertex2 {
 		glsl::vec3 a;
@@ -425,9 +422,8 @@ bool TestShaderProperties() {
 	std::vector<TestVertex2> v2;
 	v2.push_back({});
 
-	VertexBuffer b2{ v2 };
-	b2.SetLayout<glsl::vec3, glsl::vec4, glsl::vec3>();
-	impl::BufferLayout layout2{ b2.GetLayout() };
+	VertexBuffer b2{ v2, BufferLayout<glsl::vec3, glsl::vec4, glsl::vec3>{} };
+	impl::InternalBufferLayout layout2{ b2.GetLayout() };
 	auto e2{ layout2.GetElements() };
 	VertexArray va2{ PrimitiveMode::Triangles, b2 };
 
@@ -445,14 +441,14 @@ bool TestShaderProperties() {
 	// ShaderDataType::vec4 }.type); PTGN_ASSERT(e2.at(2).GetType() ==
 	// ShaderDataInfo{ ShaderDataType::vec3 }.type);
 
-	PTGN_ASSERT(e2.at(0).GetOffset() == 0);
-	PTGN_ASSERT(e2.at(0).GetSize() == 3 * sizeof(float));
+	PTGN_ASSERT(e2.at(0).offset == 0);
+	PTGN_ASSERT(e2.at(0).size == 3 * sizeof(float));
 
-	PTGN_ASSERT(e2.at(1).GetOffset() == 3 * sizeof(float));
-	PTGN_ASSERT(e2.at(1).GetSize() == 4 * sizeof(float));
+	PTGN_ASSERT(e2.at(1).offset == 3 * sizeof(float));
+	PTGN_ASSERT(e2.at(1).size == 4 * sizeof(float));
 
-	PTGN_ASSERT(e2.at(2).GetOffset() == 3 * sizeof(float) + 4 * sizeof(float));
-	PTGN_ASSERT(e2.at(2).GetSize() == 3 * sizeof(float));
+	PTGN_ASSERT(e2.at(2).offset == 3 * sizeof(float) + 4 * sizeof(float));
+	PTGN_ASSERT(e2.at(2).size == 3 * sizeof(float));
 
 	struct TestVertex3 {
 		glsl::vec4 a;
@@ -470,11 +466,10 @@ bool TestShaderProperties() {
 	std::vector<TestVertex3> v3;
 	v3.push_back({});
 
-	VertexBuffer b3{ v3 };
-	b3.SetLayout<
-		glsl::vec4, glsl::double_, glsl::ivec3, glsl::dvec2, glsl::int_, glsl::float_, glsl::bool_,
-		glsl::uint_, glsl::bvec3, glsl::uvec4>();
-	impl::BufferLayout layout3{ b3.GetLayout() };
+	VertexBuffer b3{ v3, BufferLayout<
+							 glsl::vec4, glsl::double_, glsl::ivec3, glsl::dvec2, glsl::int_,
+							 glsl::float_, glsl::bool_, glsl::uint_, glsl::bvec3, glsl::uvec4>{} };
+	impl::InternalBufferLayout layout3{ b3.GetLayout() };
 	auto e3{ layout3.GetElements() };
 	VertexArray va3{ PrimitiveMode::Triangles, b3 };
 
@@ -514,55 +509,55 @@ bool TestShaderProperties() {
 	// PTGN_ASSERT(e3.at(9).GetType() == ShaderDataInfo{ ShaderDataType::uvec4
 	// }.type);
 
-	PTGN_ASSERT(e3.at(0).GetOffset() == 0);
-	PTGN_ASSERT(e3.at(0).GetSize() == 4 * sizeof(float));
+	PTGN_ASSERT(e3.at(0).offset == 0);
+	PTGN_ASSERT(e3.at(0).size == 4 * sizeof(float));
 
-	PTGN_ASSERT(e3.at(1).GetOffset() == 4 * sizeof(float));
-	PTGN_ASSERT(e3.at(1).GetSize() == 1 * sizeof(double));
+	PTGN_ASSERT(e3.at(1).offset == 4 * sizeof(float));
+	PTGN_ASSERT(e3.at(1).size == 1 * sizeof(double));
 
-	PTGN_ASSERT(e3.at(2).GetOffset() == 4 * sizeof(float) + 1 * sizeof(double));
-	PTGN_ASSERT(e3.at(2).GetSize() == 3 * sizeof(int));
+	PTGN_ASSERT(e3.at(2).offset == 4 * sizeof(float) + 1 * sizeof(double));
+	PTGN_ASSERT(e3.at(2).size == 3 * sizeof(int));
 
-	PTGN_ASSERT(e3.at(3).GetOffset() == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int));
-	PTGN_ASSERT(e3.at(3).GetSize() == 2 * sizeof(double));
+	PTGN_ASSERT(e3.at(3).offset == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int));
+	PTGN_ASSERT(e3.at(3).size == 2 * sizeof(double));
 	PTGN_ASSERT(
-		e3.at(4).GetOffset() ==
+		e3.at(4).offset ==
 		4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) + 2 * sizeof(double)
 	);
-	PTGN_ASSERT(e3.at(4).GetSize() == 1 * sizeof(int));
+	PTGN_ASSERT(e3.at(4).size == 1 * sizeof(int));
 
 	PTGN_ASSERT(
-		e3.at(5).GetOffset() == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) +
-									2 * sizeof(double) + 1 * sizeof(int)
+		e3.at(5).offset == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) +
+							   2 * sizeof(double) + 1 * sizeof(int)
 	);
-	PTGN_ASSERT(e3.at(5).GetSize() == 1 * sizeof(float));
+	PTGN_ASSERT(e3.at(5).size == 1 * sizeof(float));
 
 	PTGN_ASSERT(
-		e3.at(6).GetOffset() == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) +
-									2 * sizeof(double) + 1 * sizeof(int) + 1 * sizeof(float)
+		e3.at(6).offset == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) +
+							   2 * sizeof(double) + 1 * sizeof(int) + 1 * sizeof(float)
 	);
-	PTGN_ASSERT(e3.at(6).GetSize() == 1 * sizeof(bool));
+	PTGN_ASSERT(e3.at(6).size == 1 * sizeof(bool));
 
 	PTGN_ASSERT(
-		e3.at(7).GetOffset() == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) +
-									2 * sizeof(double) + 1 * sizeof(int) + 1 * sizeof(float) +
-									1 * sizeof(bool)
+		e3.at(7).offset == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) +
+							   2 * sizeof(double) + 1 * sizeof(int) + 1 * sizeof(float) +
+							   1 * sizeof(bool)
 	);
-	PTGN_ASSERT(e3.at(7).GetSize() == 1 * sizeof(unsigned int));
+	PTGN_ASSERT(e3.at(7).size == 1 * sizeof(unsigned int));
 
 	PTGN_ASSERT(
-		e3.at(8).GetOffset() == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) +
-									2 * sizeof(double) + 1 * sizeof(int) + 1 * sizeof(float) +
-									1 * sizeof(bool) + 1 * sizeof(unsigned int)
+		e3.at(8).offset == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) +
+							   2 * sizeof(double) + 1 * sizeof(int) + 1 * sizeof(float) +
+							   1 * sizeof(bool) + 1 * sizeof(unsigned int)
 	);
-	PTGN_ASSERT(e3.at(8).GetSize() == 3 * sizeof(bool));
+	PTGN_ASSERT(e3.at(8).size == 3 * sizeof(bool));
 
 	PTGN_ASSERT(
-		e3.at(9).GetOffset() == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) +
-									2 * sizeof(double) + 1 * sizeof(int) + 1 * sizeof(float) +
-									1 * sizeof(bool) + 1 * sizeof(unsigned int) + 3 * sizeof(bool)
+		e3.at(9).offset == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) +
+							   2 * sizeof(double) + 1 * sizeof(int) + 1 * sizeof(float) +
+							   1 * sizeof(bool) + 1 * sizeof(unsigned int) + 3 * sizeof(bool)
 	);
-	PTGN_ASSERT(e3.at(9).GetSize() == 4 * sizeof(unsigned int));
+	PTGN_ASSERT(e3.at(9).size == 4 * sizeof(unsigned int));
 
 	// Fails to compile due to float type.
 	// struct Vertex {
@@ -584,8 +579,7 @@ bool TestShaderProperties() {
 		{1.0f,	{ 1, 1, 0 }, { 1.0, 0.0, 1.0, 1.0 }},
 	};
 
-	VertexBuffer vbo{ vao_vert };
-	vbo.SetLayout<glsl::float_, glsl::ivec3, glsl::dvec4>();
+	VertexBuffer vbo{ vao_vert, BufferLayout<glsl::float_, glsl::ivec3, glsl::dvec4>{} };
 	VertexArray vao{ PrimitiveMode::Triangles, vbo };
 	/*
 	std::string vertex_source = R"(
@@ -648,12 +642,12 @@ bool TestShaderDrawing() {
 	// std::size_t font_key = 0;
 	// game.font.Load(font_key, "resources/fonts/retro_gaming.ttf", 30);
 
-	// M4_float projection = M4_float::Orthographic(0.0f, (float)game.window.GetSize().x, 0.0f,
-	// (float)game.window.GetSize().y);
+	// M4_float projection = M4_float::Orthographic(0.0f, (float)game.window.size.x, 0.0f,
+	// (float)game.window.size.y);
 	// M4_float projection = M4_float::Perspective(DegToRad(45.0f),
-	// (float)game.window.GetSize().x / (float)game.window.GetSize().y, 0.1f, 100.0f); M4_float
-	// projection = M4_float::Perspective(DegToRad(camera.zoom), (float)game.window.GetSize().x
-	// / (float)game.window.GetSize().y, 0.1f, 100.0f);
+	// (float)game.window.size.x / (float)game.window.size.y, 0.1f, 100.0f); M4_float
+	// projection = M4_float::Perspective(DegToRad(camera.zoom), (float)game.window.size.x
+	// / (float)game.window.size.y, 0.1f, 100.0f);
 
 	/*clock_t start_time = clock();
 	clock_t curr_time;
@@ -748,7 +742,7 @@ bool TestShaderDrawing() {
 		}*/
 
 		/*
-		V2_float window_size = game.window.GetSize();
+		V2_float window_size = game.window.size;
 		V2_float mouse		 = game.input.GetMousePosition();
 
 		Rectangle<int> dest_rect{ {}, window_size };

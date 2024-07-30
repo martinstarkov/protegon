@@ -78,7 +78,7 @@ struct VertexBufferInstance {
 	VertexBufferInstance();
 	~VertexBufferInstance();
 	std::uint32_t id_{ 0 };
-	impl::BufferLayout layout_;
+	impl::InternalBufferLayout layout_;
 };
 
 struct IndexBufferInstance {
@@ -94,31 +94,40 @@ public:
 	VertexBuffer()	= default;
 	~VertexBuffer() = default;
 
+	template <typename... Ts>
 	VertexBuffer(
-		const void* vertex_data, std::uint32_t size, BufferUsage usage = BufferUsage::StaticDraw
-	);
+		const void* vertex_data, std::uint32_t size, const BufferLayout<Ts...>& layout,
+		BufferUsage usage = BufferUsage::StaticDraw
+	) {
+		static_assert(
+			(impl::is_vertex_data_type<Ts> && ...),
+			"Provided vertex type should only contain ptgn::glsl:: types"
+		);
+		static_assert(sizeof...(Ts) > 0, "Must provide layout types as template arguments");
+		if (!IsValid()) {
+			instance_ = std::make_shared<impl::VertexBufferInstance>();
+		}
+		PTGN_ASSERT(IsValid() && "Cannot set layout of uninitialized or destroyed vertex buffer");
+		instance_->layout_ = layout;
+		SetDataImpl(vertex_data, size, usage);
+	}
 
-	void SetData(
-		const void* vertex_data, std::uint32_t size, BufferUsage usage = BufferUsage::StaticDraw
-	);
+	template <typename... Ts, typename T>
+	VertexBuffer(
+		const T& vertices, const BufferLayout<Ts...>& layout,
+		BufferUsage usage = BufferUsage::StaticDraw
+	) :
+		VertexBuffer{ vertices.data(),
+					  static_cast<std::uint32_t>(vertices.size() * sizeof(T::value_type)), layout,
+					  usage } {
+		static_assert(type_traits::is_buffer_container_v<T>);
+	}
+
 	void SetSubData(const void* vertex_data, std::uint32_t size);
 
-	template <typename T, type_traits::is_buffer_container<T> = true>
-	VertexBuffer(const T& vertices, BufferUsage usage = BufferUsage::StaticDraw) :
-		VertexBuffer{ vertices.data(),
-					  static_cast<std::uint32_t>(vertices.size() * sizeof(T::value_type)), usage } {
-	}
-
-	template <typename T, type_traits::is_buffer_container<T> = true>
-	void SetData(const T& vertices, BufferUsage usage = BufferUsage::StaticDraw) {
-		SetData(
-			vertices.data(), static_cast<std::uint32_t>(vertices.size() * sizeof(T::value_type)),
-			usage
-		);
-	}
-
-	template <typename T, type_traits::is_buffer_container<T> = true>
+	template <typename T>
 	void SetSubData(const T& vertices) {
+		static_assert(type_traits::is_buffer_container_v<T>);
 		SetSubData(
 			vertices.data(), static_cast<std::uint32_t>(vertices.size() * sizeof(T::value_type))
 		);
@@ -127,32 +136,11 @@ public:
 	void Bind() const;
 	void Unbind() const;
 
-	template <typename... Ts, type_traits::enable<(sizeof...(Ts) > 0)> = true>
-	void SetLayout() {
-		static_assert(
-			(impl::is_vertex_data_type<Ts> && ...),
-			"Provided vertex type should only contain ptgn::glsl:: types"
-		);
-		static_assert(sizeof...(Ts) > 0, "Must provide layout types as template arguments");
-		PTGN_ASSERT(IsValid() && "Cannot set layout of uninitialized or destroyed vertex buffer");
-		instance_->layout_ = CalculateLayout<Ts...>();
-	}
-
-	[[nodiscard]] const impl::BufferLayout& GetLayout() const;
+	[[nodiscard]] const impl::InternalBufferLayout& GetLayout() const;
 
 private:
+	void SetDataImpl(const void* vertex_data, std::uint32_t size, BufferUsage usage);
 	friend class VertexArray;
-
-	template <typename... Ts>
-	constexpr std::array<impl::BufferElement, sizeof...(Ts)> CalculateLayout() {
-		return {
-			impl::BufferElement{
-								static_cast<std::uint16_t>(sizeof(Ts) / std::tuple_size<Ts>::value),
-								static_cast<std::uint16_t>(std::tuple_size<Ts>::value),
-								impl::GetType<typename Ts::value_type>()}
-			  ...
-		};
-	}
 };
 
 class IndexBuffer : public Handle<impl::IndexBufferInstance> {
@@ -162,9 +150,6 @@ public:
 
 	IndexBuffer(const void* index_data, std::uint32_t size);
 
-	void SetData(const void* index_data, std::uint32_t size);
-	void SetSubData(const void* index_data, std::uint32_t size);
-
 	template <
 		typename... Ts,
 		type_traits::enable<(std::is_convertible_v<Ts, impl::IndexType> && ...)> = true>
@@ -172,18 +157,18 @@ public:
 		IndexBuffer{ std::array<impl::IndexType, sizeof...(Ts)>{
 			(static_cast<impl::IndexType>(indices), ...) } } {}
 
-	template <typename T, type_traits::is_index_buffer_container<T> = true>
+	template <typename T>
 	IndexBuffer(const T& indices) :
 		IndexBuffer{ indices.data(),
-					 static_cast<std::uint32_t>(indices.size() * sizeof(T::value_type)) } {}
-
-	template <typename T, type_traits::is_index_buffer_container<T> = true>
-	void SetData(const T& indices) {
-		SetData(indices.data(), static_cast<std::uint32_t>(indices.size() * sizeof(T::value_type)));
+					 static_cast<std::uint32_t>(indices.size() * sizeof(T::value_type)) } {
+		static_assert(type_traits::is_index_buffer_container_v<T>);
 	}
 
-	template <typename T, type_traits::is_index_buffer_container<T> = true>
+	void SetSubData(const void* index_data, std::uint32_t size);
+
+	template <typename T>
 	void SetSubData(const T& indices) {
+		static_assert(type_traits::is_index_buffer_container_v<T>);
 		SetSubData(
 			indices.data(), static_cast<std::uint32_t>(indices.size() * sizeof(T::value_type))
 		);
@@ -196,6 +181,8 @@ public:
 
 private:
 	friend class GLRenderer;
+
+	void SetDataImpl(const void* index_data, std::uint32_t size);
 
 	constexpr static impl::GLType GetType() {
 		return impl::GetType<impl::IndexType>();

@@ -166,8 +166,7 @@ public:
 		array_.SetPrimitiveMode(mode);
 
 		buffer_base_.resize(vertex_count);
-		buffer_ = VertexBuffer(buffer_base_, BufferUsage::DynamicDraw);
-		buffer_.SetLayout<TLayouts...>();
+		buffer_ = VertexBuffer(buffer_base_, BufferLayout<TLayouts...>{}, BufferUsage::DynamicDraw);
 
 		array_.SetVertexBuffer(buffer_);
 		array_.SetIndexBuffer(index_buffer);
@@ -185,7 +184,7 @@ public:
 		PTGN_ASSERT(buffer_ptr_ != nullptr);
 		std::uint32_t data_size =
 			(std::uint32_t)((uint8_t*)buffer_ptr_ - (uint8_t*)buffer_base_.data());
-		buffer_.SetData(buffer_base_.data(), data_size);
+		buffer_.SetSubData(buffer_base_.data(), data_size);
 		shader_.Bind();
 	}
 

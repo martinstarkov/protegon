@@ -67,9 +67,9 @@ void VertexArray::SetVertexBuffer(const VertexBuffer& vertex_buffer) {
 			const impl::BufferElement& element{ elements[i] };
 			gl::EnableVertexAttribArray(i);
 			gl::VertexAttribPointer(
-				i, element.GetCount(), static_cast<gl::GLenum>(element.GetType()),
-				element.IsNormalized() ? GL_TRUE : GL_FALSE,
-				vertex_buffer.instance_->layout_.GetStride(), (const void*)element.GetOffset()
+				i, element.count, static_cast<gl::GLenum>(element.type),
+				element.normalized ? GL_TRUE : GL_FALSE,
+				vertex_buffer.instance_->layout_.GetStride(), (const void*)element.offset
 			);
 			// Not required according to: https://stackoverflow.com/a/12428035
 			// glDisableVertexAttribArray(i);
