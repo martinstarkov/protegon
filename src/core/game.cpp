@@ -188,7 +188,7 @@ void Game::RepeatUntilQuit(UpdateFunction while_not_quit) {
 	auto update_function = [&]() {
 		// Calculate time elapsed during previous frame.
 		end = std::chrono::system_clock::now();
-		std::chrono::duration<float> elapsed{ end - start };
+		duration<float> elapsed{ end - start };
 		float dt{ elapsed.count() };
 		start = end;
 

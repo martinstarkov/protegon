@@ -23,7 +23,7 @@ IndexBufferInstance::~IndexBufferInstance() {
 }
 
 // Returns the max buffer size (as set by glBufferData) of the currently bound buffer.
-[[nodiscard]] static std::uint32_t GetMaxBufferSize(BufferType type) {
+[[nodiscard]] inline static std::uint32_t GetMaxBufferSize(BufferType type) {
 	std::int32_t max_size{ 0 };
 	gl::GetBufferParameteriv(static_cast<gl::GLenum>(type), GL_BUFFER_SIZE, &max_size);
 	return static_cast<std::uint32_t>(max_size);

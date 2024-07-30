@@ -136,9 +136,9 @@ public:
 	void Bind() const;
 	void Unbind() const;
 
+private:
 	[[nodiscard]] const impl::InternalBufferLayout& GetLayout() const;
 
-private:
 	void SetDataImpl(const void* vertex_data, std::uint32_t size, BufferUsage usage);
 	friend class VertexArray;
 };

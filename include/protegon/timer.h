@@ -43,8 +43,8 @@ public:
 		type_traits::duration<Duration>						= true,
 		std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
 	[[nodiscard]] T ElapsedPercentage(Duration compared_to) const {
-		std::chrono::duration<T, typename Duration::period> elapsed_time{
-			Elapsed<std::chrono::duration<T, typename Duration::period>>() /
+		duration<T, typename Duration::period> elapsed_time{
+			Elapsed<duration<T, typename Duration::period>>() /
 			compared_to
 		};
 		T percentage{ std::clamp(

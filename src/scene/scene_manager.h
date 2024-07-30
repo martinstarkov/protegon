@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "core/handle_manager.h"
+#include "core/manager.h"
 #include "protegon/scene.h"
 #include "utility/debug.h"
 #include "utility/type_traits.h"
@@ -17,7 +17,7 @@ inline constexpr std::size_t start_scene_key{ 0 };
 
 } // namespace impl
 
-class SceneManager : public HandleManager<std::shared_ptr<Scene>> {
+class SceneManager : public Manager<std::shared_ptr<Scene>> {
 private:
 	SceneManager()								 = default;
 	~SceneManager()								 = default;
@@ -35,7 +35,7 @@ public:
 			scene_key != impl::start_scene_key,
 			"Cannot load scene with key == 0, it is reserved for the starting scene"
 		);
-		return std::static_pointer_cast<T>(HandleManager<std::shared_ptr<Scene>>::Load(
+		return std::static_pointer_cast<T>(Manager<std::shared_ptr<Scene>>::Load(
 			scene_key, std::make_shared<T>(std::forward<TArgs>(constructor_args)...)
 		));
 	}
@@ -45,11 +45,10 @@ public:
 		type_traits::enable<(std::is_base_of_v<TScene, Scene> || std::is_same_v<TScene, Scene>)> =
 			true>
 	[[nodiscard]] std::shared_ptr<TScene> Get(SceneKey scene_key) {
-		return std::static_pointer_cast<TScene>(HandleManager<std::shared_ptr<Scene>>::Get(scene_key
-		));
+		return std::static_pointer_cast<TScene>(Manager<std::shared_ptr<Scene>>::Get(scene_key));
 	}
 
-	virtual void Unload(std::size_t scene_key) override final;
+	void Unload(std::size_t scene_key);
 
 	void SetActive(std::size_t scene_key);
 	void AddActive(std::size_t scene_key);
@@ -64,7 +63,7 @@ private:
 		type_traits::convertible<T*, Scene*> = true>
 	std::shared_ptr<T> LoadStartScene(SceneKey scene_key, TArgs&&... constructor_args) {
 		PTGN_ASSERT(scene_key == impl::start_scene_key);
-		return std::static_pointer_cast<T>(HandleManager<std::shared_ptr<Scene>>::Load(
+		return std::static_pointer_cast<T>(Manager<std::shared_ptr<Scene>>::Load(
 			scene_key, std::make_shared<T>(std::forward<TArgs>(constructor_args)...)
 		));
 	}

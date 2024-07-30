@@ -26,7 +26,7 @@ void Music::Play(int loops) const {
 void Music::FadeIn(int loops, milliseconds time) const {
 	PTGN_CHECK(IsValid(), "Cannot fade in uninitialized or destroyed music");
 	const auto time_int = std::chrono::duration_cast<
-		std::chrono::duration<int, milliseconds::period>>(time);
+		duration<int, milliseconds::period>>(time);
 	Mix_FadeInMusic(instance_.get(), loops, time_int.count());
 }
 
@@ -50,7 +50,7 @@ void Sound::Play(int channel, int loops) const {
 void Sound::FadeIn(int channel, int loops, milliseconds time) const {
 	PTGN_CHECK(IsValid(), "Cannot fade in uninitialized or destroyed sound");
 	const auto time_int =
-		std::chrono::duration_cast<std::chrono::duration<int, std::milli>>(time
+		std::chrono::duration_cast<duration<int, std::milli>>(time
 		);
 	Mix_FadeInChannel(channel, instance_.get(), loops, time_int.count());
 }

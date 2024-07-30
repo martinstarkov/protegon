@@ -10,7 +10,7 @@ void MusicManager::Stop() {
 
 void MusicManager::FadeOut(milliseconds time) {
 	auto time_int =
-		std::chrono::duration_cast<std::chrono::duration<int, std::milli>>(time
+		std::chrono::duration_cast<duration<int, std::milli>>(time
 		);
 	Mix_FadeOutMusic(time_int.count());
 }

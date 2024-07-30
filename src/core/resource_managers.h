@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/handle_manager.h"
+#include "core/manager.h"
 #include "protegon/audio.h"
 #include "protegon/font.h"
 #include "protegon/scene.h"
@@ -13,7 +13,7 @@ namespace ptgn {
 
 class Game;
 
-class FontManager : public HandleManager<Font> {
+class FontManager : public Manager<Font> {
 private:
 	FontManager()							   = default;
 	~FontManager()							   = default;
@@ -27,7 +27,7 @@ private:
 	friend class Game;
 };
 
-class TextManager : public HandleManager<Text> {
+class TextManager : public Manager<Text> {
 private:
 	TextManager()							   = default;
 	~TextManager()							   = default;
@@ -41,7 +41,7 @@ private:
 	friend class Game;
 };
 
-class TextureManager : public HandleManager<Texture> {
+class TextureManager : public Manager<Texture> {
 private:
 	TextureManager()								 = default;
 	~TextureManager()								 = default;
@@ -55,7 +55,7 @@ private:
 	friend class Game;
 };
 
-class ShaderManager : public HandleManager<Shader> {
+class ShaderManager : public Manager<Shader> {
 private:
 	ShaderManager()								   = default;
 	~ShaderManager()							   = default;
@@ -76,7 +76,7 @@ using TextKey	 = std::size_t;
 using TextureKey = std::size_t;
 using ShaderKey	 = std::size_t;
 
-class MusicManager : public HandleManager<Music> {
+class MusicManager : public Manager<Music> {
 private:
 	MusicManager()								 = default;
 	~MusicManager()								 = default;
@@ -108,7 +108,7 @@ private:
 	friend class Game;
 };
 
-class SoundManager : public HandleManager<Sound> {
+class SoundManager : public Manager<Sound> {
 private:
 	SoundManager()								 = default;
 	~SoundManager()								 = default;

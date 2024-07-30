@@ -149,11 +149,11 @@ inline int WindowEventWatcher(void* data, SDL_Event* event) {
 }
 
 void InputHandler::Init() {
-	SDL_AddEventWatch(WindowEventWatcher, game.window.window_.get());
+	SDL_AddEventWatch(WindowEventWatcher, game.window.GetSDLWindow());
 }
 
 InputHandler::~InputHandler() {
-	SDL_DelEventWatch(WindowEventWatcher, game.window.window_.get());
+	SDL_DelEventWatch(WindowEventWatcher, game.window.GetSDLWindow());
 }
 
 void InputHandler::UpdateMouseState(Mouse button) {

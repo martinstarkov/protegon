@@ -11,27 +11,7 @@
 
 namespace ptgn {
 
-// class SpriteBatch {
-// public:
-//	// when we know the specific texture and source rectangle
-//	void Draw(TextureHandle tex, Rect source, /*...*/);
-//
-//	// helper for drawing a whole texture
-//	void Draw(TextureHandle tex, /*...*/) {
-//		Draw(tex, Texture_SizeOf(text), /*...*/);
-//	}
-//
-//	// helper if we have an atlas and a specific index of a sub-texture therein
-//	void Draw(TextureAtlasHandle atlas, int index, /*...*/) {
-//		Draw(TextureAtlas_TextureOf(atlas), TextureAtlas_RectOf(atlas, index), /*...*/);
-//	}
-//
-//	// helper if we have an abstract sprite handle without details about a specific atlas
-//	void Draw(SpriteFrameHandle sprite, /*...*/) {
-//		Draw(SpriteFrame_SheetOf(sprite), SpriteFrame_IndexOf(sprite), /*...*/);
-//	}
-// };
-
+// TODO: Add blending from here:
 // if (blendMode != data->current.blendMode) {
 //	switch (blendMode) {
 //		case SDL_BLENDMODE_NONE:
@@ -164,7 +144,7 @@ public:
 	template <typename... TLayouts>
 	void Init(std::size_t vertex_count, PrimitiveMode mode, IndexBuffer index_buffer) {
 		array_.SetPrimitiveMode(mode);
-
+		// TODO: Consider resizing buffer dynamically as demand grows?
 		buffer_base_.resize(vertex_count);
 		buffer_ = VertexBuffer(buffer_base_, BufferLayout<TLayouts...>{}, BufferUsage::DynamicDraw);
 

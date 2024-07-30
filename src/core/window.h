@@ -74,14 +74,17 @@ public:
 
 	void Hide();
 
-	// TODO: Move to private
+	// TODO: Move to private?
 	void SwapBuffers();
 
+	// TODO: Move to private
+	SDL_Window* GetSDLWindow() {
+		return window_.get();
+	}
+
 private:
-	friend class Game;
-	friend class Renderer;
-	friend class InputHandler;
 	friend class impl::GameInstance;
+	friend class Game;
 	void Init();
 
 	std::unique_ptr<SDL_Window, impl::WindowDeleter> window_;
