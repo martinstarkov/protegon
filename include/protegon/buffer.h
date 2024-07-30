@@ -3,18 +3,74 @@
 #include <array>
 #include <cstdint>
 #include <initializer_list>
-#include <tuple>
 #include <vector>
 
 #include "protegon/buffer_layout.h"
 #include "renderer/gl_helper.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
+#include "utility/type_traits.h"
 
 namespace ptgn {
 
+namespace impl {
+
+using IndexType = std::uint32_t;
+
+} // namespace impl
+
 class VertexArray;
 class GLRenderer;
+
+namespace type_traits {
+
+namespace impl {
+
+template <typename>
+struct is_std_vector : std::false_type {};
+
+template <typename T, typename A>
+struct is_std_vector<std::vector<T, A>> : std::true_type {};
+
+template <typename>
+struct is_std_array : std::false_type {};
+
+template <typename T, std::size_t I>
+struct is_std_array<std::array<T, I>> : std::true_type {};
+
+template <typename>
+struct is_std_initializer_list : std::false_type {};
+
+template <typename T>
+struct is_std_initializer_list<std::initializer_list<T>> : std::true_type {};
+
+} // namespace impl
+
+template <typename T>
+inline constexpr bool is_std_vector_v{ impl::is_std_vector<T>::value };
+template <typename T>
+inline constexpr bool is_std_array_v{ impl::is_std_array<T>::value };
+template <typename T>
+inline constexpr bool is_std_initializer_list_v{ impl::is_std_initializer_list<T>::value };
+
+template <typename T>
+inline constexpr bool is_buffer_container_v{ is_std_vector_v<T> || is_std_array_v<T> ||
+											 is_std_initializer_list_v<T> };
+
+// Returns true if T is std::vector<ANY> or std::array<ANY, ANY>
+template <typename T>
+using is_buffer_container = std::enable_if_t<is_buffer_container_v<T>, bool>;
+
+template <typename T>
+inline constexpr bool is_index_buffer_container_v{
+	is_buffer_container_v<T> && std::is_same_v<typename T::value_type, ptgn::impl::IndexType>
+};
+
+// Returns true if T is std::vector<IndexType> or std::array<IndexType, ANY>
+template <typename T>
+using is_index_buffer_container = std::enable_if_t<is_index_buffer_container_v<T>, bool>;
+
+} // namespace type_traits
 
 namespace impl {
 
@@ -38,11 +94,6 @@ public:
 	VertexBuffer()	= default;
 	~VertexBuffer() = default;
 
-	template <typename T>
-	VertexBuffer(const std::vector<T>& vertices, BufferUsage usage = BufferUsage::StaticDraw) :
-		VertexBuffer{ vertices.data(), static_cast<std::uint32_t>(vertices.size() * sizeof(T)),
-					  usage } {}
-
 	VertexBuffer(
 		const void* vertex_data, std::uint32_t size, BufferUsage usage = BufferUsage::StaticDraw
 	);
@@ -51,6 +102,27 @@ public:
 		const void* vertex_data, std::uint32_t size, BufferUsage usage = BufferUsage::StaticDraw
 	);
 	void SetSubData(const void* vertex_data, std::uint32_t size);
+
+	template <typename T, type_traits::is_buffer_container<T> = true>
+	VertexBuffer(const T& vertices, BufferUsage usage = BufferUsage::StaticDraw) :
+		VertexBuffer{ vertices.data(),
+					  static_cast<std::uint32_t>(vertices.size() * sizeof(T::value_type)), usage } {
+	}
+
+	template <typename T, type_traits::is_buffer_container<T> = true>
+	void SetData(const T& vertices, BufferUsage usage = BufferUsage::StaticDraw) {
+		SetData(
+			vertices.data(), static_cast<std::uint32_t>(vertices.size() * sizeof(T::value_type)),
+			usage
+		);
+	}
+
+	template <typename T, type_traits::is_buffer_container<T> = true>
+	void SetSubData(const T& vertices) {
+		SetSubData(
+			vertices.data(), static_cast<std::uint32_t>(vertices.size() * sizeof(T::value_type))
+		);
+	}
 
 	void Bind() const;
 	void Unbind() const;
@@ -85,16 +157,37 @@ private:
 
 class IndexBuffer : public Handle<impl::IndexBufferInstance> {
 public:
-	using IndexType = std::uint32_t;
-	using Indices	= std::vector<IndexType>;
-
 	IndexBuffer()  = default;
 	~IndexBuffer() = default;
 
-	IndexBuffer(const Indices& indices);
+	IndexBuffer(const void* index_data, std::uint32_t size);
 
-	void SetData(const Indices& indices);
-	void SetSubData(const Indices& indices);
+	void SetData(const void* index_data, std::uint32_t size);
+	void SetSubData(const void* index_data, std::uint32_t size);
+
+	template <
+		typename... Ts,
+		type_traits::enable<(std::is_convertible_v<Ts, impl::IndexType> && ...)> = true>
+	IndexBuffer(Ts... indices) :
+		IndexBuffer{ std::array<impl::IndexType, sizeof...(Ts)>{
+			(static_cast<impl::IndexType>(indices), ...) } } {}
+
+	template <typename T, type_traits::is_index_buffer_container<T> = true>
+	IndexBuffer(const T& indices) :
+		IndexBuffer{ indices.data(),
+					 static_cast<std::uint32_t>(indices.size() * sizeof(T::value_type)) } {}
+
+	template <typename T, type_traits::is_index_buffer_container<T> = true>
+	void SetData(const T& indices) {
+		SetData(indices.data(), static_cast<std::uint32_t>(indices.size() * sizeof(T::value_type)));
+	}
+
+	template <typename T, type_traits::is_index_buffer_container<T> = true>
+	void SetSubData(const T& indices) {
+		SetSubData(
+			indices.data(), static_cast<std::uint32_t>(indices.size() * sizeof(T::value_type))
+		);
+	}
 
 	void Bind() const;
 	void Unbind() const;
@@ -105,7 +198,7 @@ private:
 	friend class GLRenderer;
 
 	constexpr static impl::GLType GetType() {
-		return impl::GetType<IndexType>();
+		return impl::GetType<impl::IndexType>();
 	}
 
 	std::uint32_t count_{ 0 };

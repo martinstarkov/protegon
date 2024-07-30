@@ -98,8 +98,9 @@ void RenderSubmitTextureExample(float dt) {
 		vbo1.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2>();
 	}
 
-	static VertexArray vertex_array{ PrimitiveMode::Triangles, vbo1,
-									 IndexBuffer{ { 0, 1, 2, 2, 3, 0 } } };
+	static VertexArray vertex_array{
+		PrimitiveMode::Triangles, vbo1, IndexBuffer{0, 1, 2, 2, 3, 0}
+	};
 
 	static M4_float projection = M4_float::Orthographic(-1.0f, 1.0f, -1.0f, 1.0f);
 	static M4_float model{ 1.0f };
@@ -158,9 +159,7 @@ void RenderSubmitColorExample(float dt) {
 		vbo2.SetLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_, glsl::float_>();
 	}
 
-	static IndexBuffer vio{
-		{0, 1, 2, 2, 3, 0}
-	};
+	static IndexBuffer vio{ 0, 1, 2, 2, 3, 0 };
 
 	static VertexArray vertex_array	 = VertexArray(PrimitiveMode::Triangles, vbo, vio);
 	static VertexArray vertex_array2 = VertexArray(PrimitiveMode::Triangles, vbo2, vio);
@@ -651,10 +650,10 @@ bool TestShaderDrawing() {
 
 	// M4_float projection = M4_float::Orthographic(0.0f, (float)game.window.GetSize().x, 0.0f,
 	// (float)game.window.GetSize().y);
-	// M4_float projection = M4_float::Perspective(DegToRad(45.0f), (float)game.window.GetSize().x /
-	// (float)game.window.GetSize().y, 0.1f, 100.0f); M4_float projection =
-	// M4_float::Perspective(DegToRad(camera.zoom), (float)game.window.GetSize().x /
-	// (float)game.window.GetSize().y, 0.1f, 100.0f);
+	// M4_float projection = M4_float::Perspective(DegToRad(45.0f),
+	// (float)game.window.GetSize().x / (float)game.window.GetSize().y, 0.1f, 100.0f); M4_float
+	// projection = M4_float::Perspective(DegToRad(camera.zoom), (float)game.window.GetSize().x
+	// / (float)game.window.GetSize().y, 0.1f, 100.0f);
 
 	/*clock_t start_time = clock();
 	clock_t curr_time;
