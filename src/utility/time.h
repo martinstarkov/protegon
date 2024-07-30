@@ -5,6 +5,8 @@
 
 namespace ptgn {
 
+template <typename Rep, typename Period = std::ratio<1>>
+using duration	   = std::chrono::duration<Rep, Period>;
 using hours		   = std::chrono::hours;
 using minutes	   = std::chrono::minutes;
 using seconds	   = std::chrono::seconds;
@@ -20,7 +22,7 @@ template <typename T>
 struct is_duration : std::false_type {};
 
 template <typename Rep, typename Period>
-struct is_duration<std::chrono::duration<Rep, Period>> : std::true_type {};
+struct is_duration<ptgn::duration<Rep, Period>> : std::true_type {};
 
 } // namespace impl
 
@@ -33,3 +35,33 @@ using duration = std::enable_if_t<is_duration_v<T>, bool>;
 } // namespace type_traits
 
 } // namespace ptgn
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const ptgn::duration<T, ptgn::nanoseconds::period>& v) {
+	return os << v.count() << "ns";
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const ptgn::duration<T, ptgn::microseconds::period>& v) {
+	return os << v.count() << "us";
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const ptgn::duration<T, ptgn::milliseconds::period>& v) {
+	return os << v.count() << "ms";
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const ptgn::duration<T, ptgn::seconds::period>& v) {
+	return os << v.count() << "s";
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const ptgn::duration<T, ptgn::minutes::period>& v) {
+	return os << v.count() << "min";
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const ptgn::duration<T, ptgn::hours::period>& v) {
+	return os << v.count() << "h";
+}
