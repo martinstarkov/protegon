@@ -2,6 +2,8 @@
 
 #include <set>
 
+#include "SDL.h"
+#include "SDL_image.h"
 #include "protegon/buffer.h"
 #include "protegon/game.h"
 #include "protegon/shader.h"
@@ -9,7 +11,62 @@
 #include "utility/debug.h"
 #include "utility/utility.h"
 
+// #define SDL_RENDERER_TESTS
+
 using namespace ptgn;
+
+void SDLTextureBatchTest(const std::vector<path>& texture_paths) {
+	PTGN_ASSERT(texture_paths.size() > 0);
+	std::vector<SDL_Texture*> textures;
+	textures.resize(texture_paths.size(), nullptr);
+
+	SDL_Renderer* r = SDL_CreateRenderer(game.window.GetSDLWindow(), -1, 0);
+
+	for (size_t i = 0; i < textures.size(); i++) {
+		SDL_Surface* s = IMG_Load(texture_paths[i].string().c_str());
+		SDL_Texture* t = SDL_CreateTextureFromSurface(r, s);
+		textures[i]	   = t;
+		SDL_FreeSurface(s);
+	}
+
+	V2_int ws{ game.window.GetSize() };
+
+	auto draw_func = [&](float dt) {
+		PTGN_PROFILE_FUNCTION();
+
+		SDL_RenderClear(r);
+
+		std::size_t count = 100000;
+
+		for (size_t i = 0; i < count; i++) {
+			RNG<int> rng_index{ 0, static_cast<int>(textures.size()) - 1 };
+			int index = rng_index();
+			PTGN_ASSERT(index < textures.size());
+			RNG<float> rng_size{ 0.05f, 0.2f };
+			float size = rng_size() * ws.x / 2.0f;
+			V2_int pos = V2_float::Random(0.0f, (float)ws.x);
+			SDL_Rect texture_rect;
+			texture_rect.x = pos.x;		// the x coordinate
+			texture_rect.y = pos.y;		// the y coordinate
+			texture_rect.w = (int)size; // the width of the texture
+			texture_rect.h = (int)size; // the height of the texture
+			SDL_RenderCopy(r, textures[index], NULL, &texture_rect);
+		}
+
+		SDL_RenderPresent(r);
+	};
+
+	game.RepeatUntilQuit([&](float dt) {
+		draw_func(dt);
+		game.profiler.PrintAll<seconds>();
+	});
+
+	for (size_t i = 0; i < textures.size(); i++) {
+		SDL_DestroyTexture(textures[i]);
+	}
+
+	SDL_DestroyRenderer(r);
+}
 
 void RenderSubmitTextureExample(float dt) {
 	PTGN_LOG("Running Submit Texture Example");
@@ -244,15 +301,16 @@ void RenderBatchQuadExample(float dt) {
 	game.renderer.Present();
 }
 
-template <std::size_t I>
-void RenderBatchTextureExample(float dt, const std::array<Texture, I>& textures) {
-	PTGN_LOG("Running Texture Batch (binding ", I, " textures)");
+void RenderBatchTextureExample(float dt, const std::vector<Texture>& textures) {
+	PTGN_ASSERT(textures.size() > 0);
+	PTGN_PROFILE_FUNCTION();
+
 	game.renderer.Clear();
 
 	std::size_t count = 100000;
 
+	RNG<int> rng_index{ 0, static_cast<int>(textures.size()) - 1 };
 	for (size_t i = 0; i < count; i++) {
-		RNG<int> rng_index{ 0, static_cast<int>(textures.size()) - 1 };
 		int index = rng_index();
 		PTGN_ASSERT(index < textures.size());
 		RNG<float> rng_size{ 0.05f, 0.2f };
@@ -400,8 +458,9 @@ bool TestShaderProperties() {
 	std::vector<TestVertex1> v1;
 	v1.push_back({});
 
-	VertexBuffer b1{ v1, BufferLayout<glsl::vec3>{} };
-	impl::InternalBufferLayout layout1{ b1.GetLayout() };
+	BufferLayout<glsl::vec3> l1{};
+	VertexBuffer b1{ v1, l1 };
+	impl::InternalBufferLayout layout1{ l1 };
 	auto e1{ layout1.GetElements() };
 	PTGN_ASSERT(e1.size() == 1);
 	PTGN_ASSERT(layout1.GetStride() == 3 * sizeof(float));
@@ -422,8 +481,9 @@ bool TestShaderProperties() {
 	std::vector<TestVertex2> v2;
 	v2.push_back({});
 
-	VertexBuffer b2{ v2, BufferLayout<glsl::vec3, glsl::vec4, glsl::vec3>{} };
-	impl::InternalBufferLayout layout2{ b2.GetLayout() };
+	BufferLayout<glsl::vec3, glsl::vec4, glsl::vec3> l2{};
+	VertexBuffer b2{ v2, l2 };
+	impl::InternalBufferLayout layout2{ l2 };
 	auto e2{ layout2.GetElements() };
 	VertexArray va2{ PrimitiveMode::Triangles, b2 };
 
@@ -466,10 +526,12 @@ bool TestShaderProperties() {
 	std::vector<TestVertex3> v3;
 	v3.push_back({});
 
-	VertexBuffer b3{ v3, BufferLayout<
-							 glsl::vec4, glsl::double_, glsl::ivec3, glsl::dvec2, glsl::int_,
-							 glsl::float_, glsl::bool_, glsl::uint_, glsl::bvec3, glsl::uvec4>{} };
-	impl::InternalBufferLayout layout3{ b3.GetLayout() };
+	BufferLayout<
+		glsl::vec4, glsl::double_, glsl::ivec3, glsl::dvec2, glsl::int_, glsl::float_, glsl::bool_,
+		glsl::uint_, glsl::bvec3, glsl::uvec4>
+		l3{};
+	VertexBuffer b3{ v3, l3 };
+	impl::InternalBufferLayout layout3{ l3 };
 	auto e3{ layout3.GetElements() };
 	VertexArray va3{ PrimitiveMode::Triangles, b3 };
 
@@ -666,80 +728,55 @@ bool TestShaderDrawing() {
 
 	int test = 0;
 
-	std::array<Texture, 31> textures_equal_to_31{
-		Texture("resources/textures/ (1).png"),	 Texture("resources/textures/ (2).png"),
-		Texture("resources/textures/ (3).png"),	 Texture("resources/textures/ (4).png"),
-		Texture("resources/textures/ (5).png"),	 Texture("resources/textures/ (6).png"),
-		Texture("resources/textures/ (7).png"),	 Texture("resources/textures/ (8).png"),
-		Texture("resources/textures/ (9).png"),	 Texture("resources/textures/ (10).png"),
-		Texture("resources/textures/ (11).png"), Texture("resources/textures/ (12).png"),
-		Texture("resources/textures/ (13).png"), Texture("resources/textures/ (14).png"),
-		Texture("resources/textures/ (15).png"), Texture("resources/textures/ (16).png"),
-		Texture("resources/textures/ (17).png"), Texture("resources/textures/ (18).png"),
-		Texture("resources/textures/ (19).png"), Texture("resources/textures/ (20).png"),
-		Texture("resources/textures/ (21).png"), Texture("resources/textures/ (22).png"),
-		Texture("resources/textures/ (23).png"), Texture("resources/textures/ (24).png"),
-		Texture("resources/textures/ (25).png"), Texture("resources/textures/ (26).png"),
-		Texture("resources/textures/ (27).png"), Texture("resources/textures/ (28).png"),
-		Texture("resources/textures/ (29).png"), Texture("resources/textures/ (30).png"),
-		Texture("resources/textures/ (31).png")
-	};
+	/*
+	int scroll = game.input.MouseScroll();
 
-	std::array<Texture, 35> textures_more_than_31{ ConcatenateArrays(
-		textures_equal_to_31, std::array<Texture, 4>{ Texture("resources/textures/ (32).png"),
-													  Texture("resources/textures/ (33).png"),
-													  Texture("resources/textures/ (34).png"),
-													  Texture("resources/textures/ (35).png") }
-	) };
-
-	game.RepeatUntilQuit([&](float dt) {
-		/*int scroll = game.input.MouseScroll();
-
-		if (scroll != 0) {
-			camera.Zoom(scroll);
-		}
-		if (game.input.KeyPressed(Key::W)) {
-			camera.Move(CameraDirection::Forward, dt);
-		}
-		if (game.input.KeyPressed(Key::S)) {
-			camera.Move(CameraDirection::Backward, dt);
-		}
-		if (game.input.KeyPressed(Key::A)) {
-			camera.Move(CameraDirection::Left, dt);
-		}
-		if (game.input.KeyPressed(Key::D)) {
-			camera.Move(CameraDirection::Right, dt);
-		}
-		if (game.input.KeyPressed(Key::X)) {
-			camera.Move(CameraDirection::Down, dt);
-		}
-		if (game.input.KeyPressed(Key::SPACE)) {
-			camera.Move(CameraDirection::Up, dt);
-		}
-		if (game.input.KeyPressed(Key::A)) {
-			view = M4_float::Translate(view, -0.05f, 0.0f, 0.0f);
-		}
-		if (game.input.KeyPressed(Key::D)) {
-			view = M4_float::Translate(view, 0.05f, 0.0f, 0.0f);
-		}
-		if (game.input.KeyPressed(Key::W)) {
-			view = M4_float::Translate(view, 0.0f, 0.05f, 0.0f);
-		}
-		if (game.input.KeyPressed(Key::S)) {
-			view = M4_float::Translate(view, 0.0f, -0.05f, 0.0f);
-		}
-		if (game.input.KeyPressed(Key::Q)) {
-			model = M4_float::Rotate(model, DegToRad(5.0f), 0.0f, 1.0f, 0.0f);
-		}
-		if (game.input.KeyPressed(Key::E)) {
-			model = M4_float::Rotate(model, DegToRad(-5.0f), 0.0f, 1.0f, 0.0f);
-		}
-		if (game.input.KeyPressed(Key::Z)) {
-			model = M4_float::Rotate(model, DegToRad(5.0f), 1.0f, 0.0f, 0.0f);
-		}
-		if (game.input.KeyPressed(Key::C)) {
-			model = M4_float::Rotate(model, DegToRad(-5.0f), 1.0f, 0.0f, 0.0f);
-		}*/
+	if (scroll != 0) {
+		camera.Zoom(scroll);
+	}
+	if (game.input.KeyPressed(Key::W)) {
+		camera.Move(CameraDirection::Forward, dt);
+	}
+	if (game.input.KeyPressed(Key::S)) {
+		camera.Move(CameraDirection::Backward, dt);
+	}
+	if (game.input.KeyPressed(Key::A)) {
+		camera.Move(CameraDirection::Left, dt);
+	}
+	if (game.input.KeyPressed(Key::D)) {
+		camera.Move(CameraDirection::Right, dt);
+	}
+	if (game.input.KeyPressed(Key::X)) {
+		camera.Move(CameraDirection::Down, dt);
+	}
+	if (game.input.KeyPressed(Key::SPACE)) {
+		camera.Move(CameraDirection::Up, dt);
+	}
+	if (game.input.KeyPressed(Key::A)) {
+		view = M4_float::Translate(view, -0.05f, 0.0f, 0.0f);
+	}
+	if (game.input.KeyPressed(Key::D)) {
+		view = M4_float::Translate(view, 0.05f, 0.0f, 0.0f);
+	}
+	if (game.input.KeyPressed(Key::W)) {
+		view = M4_float::Translate(view, 0.0f, 0.05f, 0.0f);
+	}
+	if (game.input.KeyPressed(Key::S)) {
+		view = M4_float::Translate(view, 0.0f, -0.05f, 0.0f);
+	}
+	if (game.input.KeyPressed(Key::Q)) {
+		model = M4_float::Rotate(model, DegToRad(5.0f), 0.0f, 1.0f, 0.0f);
+	}
+	if (game.input.KeyPressed(Key::E)) {
+		model = M4_float::Rotate(model, DegToRad(-5.0f), 0.0f, 1.0f, 0.0f);
+	}
+	if (game.input.KeyPressed(Key::Z)) {
+		model = M4_float::Rotate(model, DegToRad(5.0f), 1.0f, 0.0f, 0.0f);
+	}
+	if (game.input.KeyPressed(Key::C)) {
+		model = M4_float::Rotate(model, DegToRad(-5.0f), 1.0f, 0.0f, 0.0f);
+	}
+	* /
 
 		/*
 		V2_float window_size = game.window.size;
@@ -762,6 +799,47 @@ bool TestShaderDrawing() {
 			shader2.SetUniform("iTime", playtime_in_second);
 		});*/
 
+	// #define SDL_BATCH_TEST
+
+	auto paths_from_int = [](std::size_t count, std::size_t offset = 0) {
+		std::vector<path> paths;
+		paths.resize(count);
+		for (size_t i = 0; i < paths.size(); i++) {
+			paths[i] = "resources/textures/ (" + std::to_string(i + 1 + offset) + ").png";
+		}
+		return paths;
+	};
+	auto paths = paths_from_int(31);
+#ifdef SDL_RENDERER_TESTS
+	SDLTextureBatchTest(paths);
+#else
+	auto textures_from_paths = [](const std::vector<path>& paths) {
+		std::vector<Texture> textures;
+		textures.resize(paths.size());
+		for (size_t i = 0; i < textures.size(); i++) {
+			textures[i] = Texture(paths[i]);
+		}
+		return textures;
+	};
+	auto textures = textures_from_paths(paths);
+
+	auto paths_further = paths_from_int(4, paths.size());
+	auto textures_more = textures_from_paths(paths_further);
+
+	auto textures_further{ ConcatenateVectors(textures, textures_more) };
+
+	auto draw_func = [&](float dt) {
+		RenderBatchTextureExample(dt, textures);
+	};
+
+	game.RepeatUntilQuit([&](float dt) {
+		draw_func(dt);
+		game.profiler.PrintAll<seconds>();
+	});
+
+#endif
+	/*
+	game.RepeatUntilQuit([&](float dt) {
 		if (game.input.KeyDown(Key::ONE)) {
 			test--;
 			test = Mod(test, static_cast<int>(RenderTest::Count));
@@ -772,11 +850,11 @@ bool TestShaderDrawing() {
 
 		switch (static_cast<RenderTest>(test)) {
 			case RenderTest::BatchTexturesEqualTo31: {
-				RenderBatchTextureExample(dt, textures_equal_to_31);
+				RenderBatchTextureExample(dt, textures);
 				break;
 			}
 			case RenderTest::BatchTexturesMoreThan31: {
-				RenderBatchTextureExample(dt, textures_more_than_31);
+				RenderBatchTextureExample(dt, textures_further);
 				break;
 			}
 			case RenderTest::BatchQuad:			 RenderBatchQuadExample(dt); break;
@@ -786,7 +864,7 @@ bool TestShaderDrawing() {
 			case RenderTest::MovingTransparency: RenderMovingTransparencyExample(dt); break;
 			default:							 break;
 		}
-	});
+	});*/
 
 	game.window.SetTitle("");
 
@@ -796,7 +874,9 @@ bool TestShaderDrawing() {
 bool TestShader() {
 	PTGN_INFO("Starting shader tests...");
 
+#ifdef PTGN_USING_OPENGL
 	TestShaderProperties();
+#endif
 	TestShaderDrawing();
 
 	PTGN_INFO("All shader tests passed!");
