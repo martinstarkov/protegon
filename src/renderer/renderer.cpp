@@ -100,26 +100,6 @@ void BatchData<LineVertex>::AddLine(const V3_float& p0, const V3_float& p1, cons
 	index_count_ += LineVertex::IndexCount();
 }
 
-IndexBuffer RendererData::GetQuadIndexBuffer(std::size_t index_count) {
-	IndexBuffer::Indices indices;
-	indices.resize(index_count, 0);
-
-	std::uint32_t offset{ 0 };
-	for (std::size_t i{ 0 }; i < index_count; i += QuadVertex::IndexCount()) {
-		indices[i + 0] = offset + 0;
-		indices[i + 1] = offset + 1;
-		indices[i + 2] = offset + 2;
-
-		indices[i + 3] = offset + 2;
-		indices[i + 4] = offset + 3;
-		indices[i + 5] = offset + 0;
-
-		offset += static_cast<std::uint32_t>(QuadVertex::VertexCount());
-	}
-
-	return IndexBuffer(indices);
-}
-
 void RendererData::Init() {
 	SetupBuffers();
 	SetupTextureSlots();
@@ -130,7 +110,7 @@ void RendererData::Init() {
 }
 
 void RendererData::SetupBuffers() {
-	IndexBuffer quad_index_buffer{ GetQuadIndexBuffer(max_indices_) };
+	IndexBuffer quad_index_buffer{ GetQuadIndices<max_indices_>() };
 
 	quad_.Init<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_, glsl::float_>(
 		max_vertices_, PrimitiveMode::Triangles, quad_index_buffer

@@ -255,7 +255,26 @@ public:
 		};
 	}
 
-	[[nodiscard]] static IndexBuffer GetQuadIndexBuffer(std::size_t index_count);
+	template <std::size_t I>
+	[[nodiscard]] constexpr static std::vector<IndexType> GetQuadIndices() {
+		std::vector<IndexType> indices;
+		indices.resize(I);
+
+		std::uint32_t offset{ 0 };
+		for (std::size_t i{ 0 }; i < indices.size(); i += QuadVertex::IndexCount()) {
+			indices[i + 0] = offset + 0;
+			indices[i + 1] = offset + 1;
+			indices[i + 2] = offset + 2;
+
+			indices[i + 3] = offset + 2;
+			indices[i + 4] = offset + 3;
+			indices[i + 5] = offset + 0;
+
+			offset += static_cast<std::uint32_t>(QuadVertex::VertexCount());
+		}
+
+		return indices;
+	}
 
 	struct Stats {
 		std::int64_t quad_count{ 0 };
