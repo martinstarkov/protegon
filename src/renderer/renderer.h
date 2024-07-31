@@ -293,7 +293,7 @@ private:
 public:
 	void SetClearColor(const Color& color) const;
 	void Clear() const;
-	void Present();
+	void Present(bool print_stats = false);
 	void SetViewport(const V2_int& size);
 
 	void Flush();

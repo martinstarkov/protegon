@@ -190,11 +190,11 @@ void Renderer::Clear() const {
 	GLRenderer::Clear();
 }
 
-void Renderer::Present() {
+void Renderer::Present(bool print_stats) {
 	NextBatch();
-#ifdef PTGN_DEBUG
-	data_.stats_.Print();
-#endif
+	if (print_stats) {
+		data_.stats_.Print();
+	}
 	data_.stats_.Reset();
 	game.window.SwapBuffers();
 }
