@@ -172,52 +172,27 @@ GameInstance::~GameInstance() {
 
 } // namespace impl
 
-void Game::RepeatUntilQuit(UpdateFunction while_not_quit) {
-	bool running = true;
-
-	std::size_t counter = 0;
-	using time			= std::chrono::time_point<std::chrono::system_clock>;
-	time start{ std::chrono::system_clock::now() };
-	time end{ std::chrono::system_clock::now() };
-
-	event.window.Subscribe(
-		WindowEvent::Quit, (void*)&running,
-		std::function([&](const WindowQuitEvent& e) { running = false; })
+void Game::LoopUntilKeyDown(
+	const std::vector<Key>& any_of_keys, const UpdateFunction& loop_function
+) {
+	LoopUntilEvent(
+		game.event.key, { KeyEvent::Down }, std::function([&](const KeyDownEvent& e) -> bool {
+			for (const Key& key : any_of_keys) {
+				if (e.key == key) {
+					return true;
+				}
+			}
+			return false;
+		}),
+		loop_function
 	);
+}
 
-	auto update_function = [&]() {
-		// Calculate time elapsed during previous frame.
-		end = std::chrono::system_clock::now();
-		duration<float> elapsed{ end - start };
-		float dt{ elapsed.count() };
-		start = end;
-
-		input.Update();
-		// For debugging:
-		// PTGN_LOG("Updating ", counter);
-
-		if (std::holds_alternative<std::function<void(float)>>(while_not_quit)) {
-			std::get<std::function<void(float)>>(while_not_quit)(dt);
-		} else {
-			std::get<std::function<void(void)>>(while_not_quit)();
-		}
-		++counter;
-	};
-
-	// Optional: Update window while it is being dragged. Upside: No rendering artefacts; Downside:
-	// window dragging becomes laggier.
-	// If enabling this, it is adviseable to change Renderer::Init such that the renderer viewport
-	// is updated during window resizing instead of after it has been resized.
-	/*event.window.Subscribe(
-		WindowEvent::Drag, (void*)this,
-		std::function([&](const WindowDragEvent& e) { update_function(); })
-	);*/
-
-	while (running && instance_ != nullptr) {
-		update_function();
-	}
-
-	event.window.Unsubscribe((void*)&running);
+void Game::LoopUntilQuit(const UpdateFunction& loop_function) {
+	LoopUntilEvent(
+		game.event.window, { WindowEvent::Quit },
+		std::function([&](const WindowQuitEvent& e) -> bool { return true; }), loop_function
+	);
 }
 
 void Game::Stop() {

@@ -87,7 +87,7 @@ bool TestEvents() {
 	game.window.SetResizeable(true);
 
 	game.renderer.SetClearColor(color::Black);
-	game.RepeatUntilQuit([&]() {
+	game.LoopUntilQuit([&]() {
 		game.renderer.Clear();
 		game.renderer.Present();
 	});

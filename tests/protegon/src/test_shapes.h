@@ -12,7 +12,7 @@ bool TestDrawing() {
 	game.window.SetSize({ 800, 400 });
 	game.window.Show();
 
-	game.RepeatUntilQuit([&]() {
+	game.LoopUntilQuit([&]() {
 		game.renderer.SetClearColor(color::White);
 		game.renderer.Clear();
 

@@ -39,7 +39,84 @@ private:
 
 public:
 	using UpdateFunction = std::variant<std::function<void()>, std::function<void(float dt)>>;
-	void RepeatUntilQuit(UpdateFunction while_not_quit);
+
+	template <typename EventEnum, typename EventType>
+	void LoopUntilEvent(
+		EventDispatcher<EventEnum>& dispatcher, const std::vector<EventEnum>& events,
+		const std::function<bool(const EventType&)> exit_condition_function,
+		const UpdateFunction& loop_function
+	) {
+		bool running = true;
+
+		std::size_t counter = 0;
+		using time			= std::chrono::time_point<std::chrono::system_clock>;
+		time start{ std::chrono::system_clock::now() };
+		time end{ std::chrono::system_clock::now() };
+
+		constexpr bool is_window_quit{ std::is_same_v<EventType, WindowQuitEvent> };
+
+		if constexpr (!is_window_quit) {
+			for (const EventEnum& event_enum : events) {
+				dispatcher.Subscribe(
+					event_enum, (void*)&running, std::function([&](const EventType& e) {
+						if (exit_condition_function(e)) {
+							running = false;
+						}
+					})
+				);
+			}
+		}
+
+		// Always quit on window quit.
+		event.window.Subscribe(
+			WindowEvent::Quit, (void*)&running,
+			std::function([&](const WindowQuitEvent& e) { running = false; })
+		);
+
+		auto update_function = [&]() {
+			// Calculate time elapsed during previous frame.
+			end = std::chrono::system_clock::now();
+			duration<float> elapsed{ end - start };
+			float dt{ elapsed.count() };
+			start = end;
+
+			input.Update();
+			// For debugging:
+			// PTGN_LOG("Updating ", counter);
+
+			if (std::holds_alternative<std::function<void(float)>>(loop_function)) {
+				std::get<std::function<void(float)>>(loop_function)(dt);
+			} else {
+				std::get<std::function<void(void)>>(loop_function)();
+			}
+			++counter;
+		};
+
+		// Optional: Update window while it is being dragged. Upside: No rendering artefacts;
+		// Downside: window dragging becomes laggier. If enabling this, it is adviseable to change
+		// Renderer::Init such that the renderer viewport is updated during window resizing instead
+		// of after it has been resized.
+		/*event.window.Subscribe(
+			WindowEvent::Drag, (void*)this,
+			std::function([&](const WindowDragEvent& e) { update_function(); })
+		);*/
+
+		while (running && instance_ != nullptr) {
+			update_function();
+		}
+
+		// Important to clear previous info from input cache (e.g. first time key presses).
+		// Otherwise they might trigger again in the next input.Update().
+		input.Reset();
+
+		if constexpr (!is_window_quit) {
+			dispatcher.Unsubscribe((void*)&running);
+		}
+		event.window.Unsubscribe((void*)&running);
+	}
+
+	void LoopUntilKeyDown(const std::vector<Key>& any_of_keys, const UpdateFunction& loop_function);
+	void LoopUntilQuit(const UpdateFunction& loop_function);
 
 	// Optional: pass in constructor arguments for the TStartScene.
 	template <typename TStartScene, typename... TArgs>
@@ -71,7 +148,7 @@ public:
 		// loop starts. Comment this if you wish the window to appear hidden for an
 		// indefinite period of time.
 		window.Show();
-		RepeatUntilQuit([&](float dt) {
+		LoopUntilQuit([&](float dt) {
 			renderer.Clear();
 			scene.Update(dt);
 			if (instance_ == nullptr) {
