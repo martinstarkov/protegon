@@ -90,22 +90,24 @@ public:
 	[[nodiscard]] bool KeyUp(Key key);
 
 private:
+	void Reset();
 	friend class Game;
 	friend class impl::GameInstance;
 	// Number of keys stored in the SDL key states array. For creating previous
 	// key states array.
-	static constexpr std::size_t KEY_COUNT{ 512 };
+	static constexpr std::size_t key_count_{ 512 };
 
 	// Previous loop cycle key states for comparison with current.
-	std::bitset<KEY_COUNT> key_states_{};
-	std::bitset<KEY_COUNT> first_time_{};
+	std::bitset<key_count_> key_states_;
+	std::bitset<key_count_> first_time_down_;
+	std::bitset<key_count_> first_time_up_;
 
 	// Mouse states.
 	MouseState left_mouse_{ MouseState::Released };
 	MouseState right_mouse_{ MouseState::Released };
 	MouseState middle_mouse_{ MouseState::Released };
-	V2_int mouse_position;
-	V2_int mouse_scroll;
+	V2_int mouse_position_;
+	V2_int mouse_scroll_;
 
 	// Mouse button held for timers.
 

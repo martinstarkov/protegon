@@ -14,16 +14,19 @@ void InputHandler::Update() {
 	UpdateMouseState(Mouse::Left);
 	UpdateMouseState(Mouse::Right);
 	UpdateMouseState(Mouse::Middle);
-	mouse_scroll = {};
-	first_time_.reset();
+	mouse_scroll_ = {};
+	first_time_down_.reset();
+	first_time_up_.reset();
 	SDL_Event e;
 	while (SDL_PollEvent(&e)) {
 		switch (e.type) {
 			case SDL_MOUSEMOTION: {
-				V2_int previous{ mouse_position };
-				mouse_position.x = e.button.x;
-				mouse_position.y = e.button.y;
-				game.event.mouse.Post(MouseEvent::Move, MouseMoveEvent{ previous, mouse_position });
+				V2_int previous{ mouse_position_ };
+				mouse_position_.x = e.button.x;
+				mouse_position_.y = e.button.y;
+				game.event.mouse.Post(
+					MouseEvent::Move, MouseMoveEvent{ previous, mouse_position_ }
+				);
 				break;
 			}
 			case SDL_MOUSEBUTTONDOWN: {
@@ -33,7 +36,7 @@ void InputHandler::Update() {
 				pair.first = MouseState::Down;
 				game.event.mouse.Post(
 					MouseEvent::Down,
-					MouseDownEvent{ static_cast<Mouse>(e.button.button), mouse_position }
+					MouseDownEvent{ static_cast<Mouse>(e.button.button), mouse_position_ }
 				);
 				break;
 			}
@@ -44,18 +47,18 @@ void InputHandler::Update() {
 				pair.first = MouseState::Up;
 				game.event.mouse.Post(
 					MouseEvent::Up,
-					MouseUpEvent{ static_cast<Mouse>(e.button.button), mouse_position }
+					MouseUpEvent{ static_cast<Mouse>(e.button.button), mouse_position_ }
 				);
 				break;
 			}
 			case SDL_MOUSEWHEEL: {
-				mouse_scroll = { e.wheel.x, e.wheel.y };
-				game.event.mouse.Post(MouseEvent::Scroll, MouseScrollEvent{ mouse_scroll });
+				mouse_scroll_ = { e.wheel.x, e.wheel.y };
+				game.event.mouse.Post(MouseEvent::Scroll, MouseScrollEvent{ mouse_scroll_ });
 				break;
 			}
 			case SDL_KEYUP: {
 				if (key_states_[e.key.keysym.scancode]) {
-					first_time_[e.key.keysym.scancode] = true;
+					first_time_up_[e.key.keysym.scancode] = true;
 				}
 				key_states_[e.key.keysym.scancode] = false;
 				game.event.key.Post(
@@ -65,7 +68,7 @@ void InputHandler::Update() {
 			}
 			case SDL_KEYDOWN: {
 				if (!key_states_[e.key.keysym.scancode]) {
-					first_time_[e.key.keysym.scancode] = true;
+					first_time_down_[e.key.keysym.scancode] = true;
 				}
 				key_states_[e.key.keysym.scancode] = true;
 				game.event.key.Post(
@@ -104,7 +107,7 @@ void InputHandler::ForceUpdateMousePosition() {
 	// Grab latest mouse events from queue.
 	SDL_PumpEvents();
 	// Update mouse position.
-	SDL_GetMouseState(&mouse_position.x, &mouse_position.y);
+	SDL_GetMouseState(&mouse_position_.x, &mouse_position_.y);
 	// float x, y;
 	///*SDL_RenderWindowToLogical(
 	//	game.sdl.GetRenderer().get(), mouse_position.x,
@@ -117,11 +120,11 @@ void InputHandler::ForceUpdateMousePosition() {
 
 V2_int InputHandler::GetMousePosition() {
 	ForceUpdateMousePosition();
-	return mouse_position;
+	return mouse_position_;
 }
 
 int InputHandler::GetMouseScroll() const {
-	return mouse_scroll.y;
+	return mouse_scroll_.y;
 }
 
 milliseconds InputHandler::GetMouseHeldTime(Mouse button) {
@@ -206,7 +209,7 @@ bool InputHandler::MouseUp(Mouse button) const {
 bool InputHandler::KeyPressed(Key key) const {
 	auto key_number{ static_cast<std::size_t>(key) };
 	PTGN_CHECK(
-		key_number < InputHandler::KEY_COUNT, "Could not find key in input handler key states"
+		key_number < InputHandler::key_count_, "Could not find key in input handler key states"
 	);
 	return key_states_[key_number];
 }
@@ -218,17 +221,29 @@ bool InputHandler::KeyReleased(Key key) const {
 bool InputHandler::KeyDown(Key key) {
 	auto key_number{ static_cast<std::size_t>(key) };
 	PTGN_CHECK(
-		key_number < InputHandler::KEY_COUNT, "Could not find key in input handler key states"
+		key_number < InputHandler::key_count_, "Could not find key in input handler key states"
 	);
-	return first_time_[key_number] && key_states_[key_number];
+	if (first_time_down_[key_number]) {
+		first_time_down_[key_number] = false;
+		return true;
+	}
+	return key_states_[key_number];
 }
 
 bool InputHandler::KeyUp(Key key) {
 	auto key_number{ static_cast<std::size_t>(key) };
 	PTGN_CHECK(
-		key_number < InputHandler::KEY_COUNT, "Could not find key in input handler key states"
+		key_number < InputHandler::key_count_, "Could not find key in input handler key states"
 	);
-	return first_time_[key_number] && !key_states_[key_number];
+	if (first_time_up_[key_number]) {
+		first_time_up_[key_number] = false;
+		return true;
+	}
+	return !key_states_[key_number];
+}
+
+void InputHandler::Reset() {
+	*this = {};
 }
 
 } // namespace ptgn
