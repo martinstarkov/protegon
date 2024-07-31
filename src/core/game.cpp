@@ -204,4 +204,52 @@ void Game::Stop() {
 	instance_.reset(nullptr);
 }
 
+void Game::Init() {
+	// Recall default constructor for all members.
+	*this	  = {};
+	instance_ = std::make_unique<impl::GameInstance>(*this);
+}
+
+void Game::SceneLoop() {
+	// In case Stop() was called in Scene constructor (non-looping scene).
+	if (instance_ == nullptr) {
+		return;
+	}
+	// Design decision: Latest possible point to show window is right before
+	// loop starts. Comment this if you wish the window to appear hidden for an
+	// indefinite period of time.
+	window.Show();
+	LoopUntilQuit([&](float dt) {
+		renderer.Clear();
+		scene.Update(dt);
+		if (instance_ == nullptr) {
+			return;
+		}
+		renderer.Present();
+	});
+	Stop();
+}
+
+void Game::Update(const UpdateFunction& loop_function) {
+	static std::size_t counter = 0;
+	static auto start{ std::chrono::system_clock::now() };
+	static auto end{ std::chrono::system_clock::now() };
+	// Calculate time elapsed during previous frame.
+	end = std::chrono::system_clock::now();
+	duration<float> elapsed{ end - start };
+	float dt{ elapsed.count() };
+	start = end;
+
+	input.Update();
+	// For debugging:
+	// PTGN_LOG("Updating ", counter);
+
+	if (std::holds_alternative<std::function<void(float)>>(loop_function)) {
+		std::get<std::function<void(float)>>(loop_function)(dt);
+	} else {
+		std::get<std::function<void(void)>>(loop_function)();
+	}
+	++counter;
+}
+
 } // namespace ptgn
