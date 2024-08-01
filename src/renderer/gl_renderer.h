@@ -8,7 +8,8 @@ namespace ptgn {
 
 class GLRenderer {
 public:
-	static void Init();
+	static void EnableLineSmoothing();
+	static void DisableLineSmoothing();
 	static void EnableBlending();
 	static void DisableBlending();
 	static void EnableDepthTesting();

@@ -6,10 +6,13 @@
 
 namespace ptgn {
 
-void GLRenderer::Init() {
+void GLRenderer::EnableLineSmoothing() {
 	EnableBlending();
 	gl::glEnable(GL_LINE_SMOOTH);
-	gl::glShadeModel(GL_SMOOTH);
+}
+
+void GLRenderer::DisableLineSmoothing() {
+	gl::glDisable(GL_LINE_SMOOTH);
 }
 
 void GLRenderer::EnableBlending() {
@@ -34,24 +37,20 @@ void GLRenderer::DisableDepthTesting() {
 
 void GLRenderer::DrawElements(const VertexArray& va, std::size_t index_count) {
 	PTGN_CHECK(va.IsValid(), "Cannot draw uninitialized or destroyed vertex array");
-	va.WhileBound([&]() {
-		gl::glDrawElements(
-			static_cast<gl::GLenum>(va.GetPrimitiveMode()),
-			index_count == 0 ? va.GetIndexBuffer().GetCount()
-							 : static_cast<std::uint32_t>(index_count),
-			static_cast<gl::GLenum>(IndexBuffer::GetType()), nullptr
-		);
-	});
+	va.Bind();
+	gl::glDrawElements(
+		static_cast<gl::GLenum>(va.GetPrimitiveMode()),
+		index_count == 0 ? va.GetIndexBuffer().GetCount() : static_cast<std::uint32_t>(index_count),
+		static_cast<gl::GLenum>(IndexBuffer::GetType()), nullptr
+	);
 }
 
 void GLRenderer::DrawArrays(const VertexArray& va, std::size_t vertex_count) {
 	PTGN_CHECK(va.IsValid(), "Cannot draw uninitialized or destroyed vertex array");
-	va.WhileBound([&]() {
-		gl::glDrawArrays(
-			static_cast<gl::GLenum>(va.GetPrimitiveMode()), 0,
-			static_cast<std::uint32_t>(vertex_count)
-		);
-	});
+	va.Bind();
+	gl::glDrawArrays(
+		static_cast<gl::GLenum>(va.GetPrimitiveMode()), 0, static_cast<std::uint32_t>(vertex_count)
+	);
 }
 
 void GLRenderer::SetLineWidth(float width) {
@@ -71,6 +70,7 @@ void GLRenderer::SetClearColor(const Color& color) {
 
 void GLRenderer::SetViewport(const V2_int& position, const V2_int& size) {
 	gl::glViewport(position.x, position.y, size.x, size.y);
+	// PTGN_LOG("Setting OpenGL Viewport to ", size);
 }
 
 void GLRenderer::Clear() {

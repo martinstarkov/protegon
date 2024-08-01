@@ -9,6 +9,25 @@
 
 namespace ptgn {
 
+void InputHandler::Reset() {
+	key_states_.reset();
+	first_time_down_.reset();
+	first_time_up_.reset();
+
+	// Mouse states.
+	left_mouse_		= MouseState::Released;
+	right_mouse_	= MouseState::Released;
+	middle_mouse_	= MouseState::Released;
+	mouse_position_ = {};
+	mouse_scroll_	= {};
+
+	// Mouse button held for timers.
+
+	left_mouse_timer_	= {};
+	right_mouse_timer_	= {};
+	middle_mouse_timer_ = {};
+}
+
 void InputHandler::Update() {
 	// Update mouse states.
 	UpdateMouseState(Mouse::Left);
@@ -151,7 +170,7 @@ inline int WindowEventWatcher(void* data, SDL_Event* event) {
 	return 0;
 }
 
-void InputHandler::Init() {
+InputHandler::InputHandler() {
 	SDL_AddEventWatch(WindowEventWatcher, game.window.GetSDLWindow());
 }
 
@@ -240,10 +259,6 @@ bool InputHandler::KeyUp(Key key) {
 		return true;
 	}
 	return !key_states_[key_number];
-}
-
-void InputHandler::Reset() {
-	*this = {};
 }
 
 } // namespace ptgn

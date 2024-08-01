@@ -24,9 +24,7 @@ class GameInstance;
 
 class InputHandler {
 private:
-	void Init();
-
-	InputHandler() = default;
+	InputHandler();
 	~InputHandler();
 	InputHandler(const InputHandler&)			 = delete;
 	InputHandler(InputHandler&&)				 = default;
@@ -90,9 +88,11 @@ public:
 	[[nodiscard]] bool KeyUp(Key key);
 
 private:
-	void Reset();
 	friend class Game;
 	friend class impl::GameInstance;
+
+	void Reset();
+
 	// Number of keys stored in the SDL key states array. For creating previous
 	// key states array.
 	static constexpr std::size_t key_count_{ 512 };
