@@ -115,12 +115,12 @@ RendererData::RendererData() {
 	SetupTextureSlots();
 	SetupShaders();
 
-	// TODO: Decide if necessary.
-	// CameraUniformBuffer = UniformBuffer::Create(sizeof(CameraData), 0);
+	// TODO: Init camera here?
 }
 
 void RendererData::SetupBuffers() {
 	IndexBuffer quad_index_buffer{ GetQuadIndices<QuadVertex, max_indices_>() };
+	IndexBuffer line_index_buffer{ GetLineIndices<LineVertex, max_indices_>() };
 
 	quad_.Init<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_, glsl::float_>(
 		max_vertices_, PrimitiveMode::Triangles, quad_index_buffer
@@ -130,7 +130,7 @@ void RendererData::SetupBuffers() {
 		max_vertices_, PrimitiveMode::Triangles, quad_index_buffer
 	);
 
-	line_.Init<glsl::vec3, glsl::vec4>(max_vertices_, PrimitiveMode::Lines, {});
+	line_.Init<glsl::vec3, glsl::vec4>(max_vertices_, PrimitiveMode::Lines, line_index_buffer);
 }
 
 void RendererData::SetupTextureSlots() {
@@ -225,8 +225,9 @@ void Renderer::DrawArray(const VertexArray& vertex_array) {
 void Renderer::SetViewport(const V2_int& size) {
 	PTGN_ASSERT(size.x > 0 && "Cannot set viewport width below 1");
 	PTGN_ASSERT(size.y > 0 && "Cannot set viewport height below 1");
-	viewport_size_		   = size;
-	data_.view_projection_ = M4_float::Orthographic(0, size.x, 0, size.y);
+	viewport_size_ = size;
+	data_.view_projection_ =
+		M4_float::Orthographic(0.0f, static_cast<float>(size.x), 0.0f, static_cast<float>(size.y));
 	data_.quad_.shader_.Bind();
 	data_.quad_.shader_.SetUniform("u_ViewProjection", data_.view_projection_);
 	data_.circle_.shader_.Bind();
@@ -304,7 +305,7 @@ void Renderer::DrawRectangleHollow(
 	data_.line_.AddLine(positions[2], positions[3], color);
 	data_.line_.AddLine(positions[3], positions[0], color);
 
-	data_.stats_.line_count += 4;
+	data_.stats_.line_count += QuadVertex::VertexCount();
 }
 
 void Renderer::DrawTexture(
@@ -380,13 +381,17 @@ void Renderer::DrawCircleSolid(
 	data_.stats_.circle_count++;
 }
 
-void Renderer::DrawLine(const V3_float& p0, V3_float& p1, const Color& color) {
+void Renderer::DrawLine(const V3_float& p0, const V3_float& p1, const Color& color) {
 	if (data_.line_.index_count_ >= data_.max_indices_) {
 		data_.line_.NextBatch(data_);
 	}
 
 	data_.line_.AddLine(p0, p1, color);
 	data_.stats_.line_count++;
+}
+
+void Renderer::DrawLine(const V2_float& p0, const V2_float& p1, const Color& color) {
+	DrawLine({ p0.x, p0.y, 0.0f }, { p1.x, p1.y, 0.0f }, color);
 }
 
 float Renderer::GetLineWidth() {

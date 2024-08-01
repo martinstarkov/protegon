@@ -281,6 +281,22 @@ public:
 		return indices;
 	}
 
+	template <typename T, std::size_t I>
+	[[nodiscard]] constexpr static std::vector<IndexType> GetLineIndices() {
+		std::vector<IndexType> indices;
+		indices.resize(I);
+
+		std::uint32_t offset{ 0 };
+		for (std::size_t i{ 0 }; i < indices.size(); i += T::IndexCount()) {
+			indices[i + 0] = offset + 0;
+			indices[i + 1] = offset + 1;
+
+			offset += static_cast<std::uint32_t>(T::VertexCount());
+		}
+
+		return indices;
+	}
+
 	struct Stats {
 		std::int64_t quad_count{ 0 };
 		std::int64_t circle_count{ 0 };
@@ -354,9 +370,13 @@ public:
 		float thickness = 1.0f, float fade = 0.005f
 	);
 
-	void DrawLine(const V3_float& p0, V3_float& p1, const Color& color);
+	void DrawLine(const V3_float& p0, const V3_float& p1, const Color& color);
+	void DrawLine(const V2_float& p0, const V2_float& p1, const Color& color);
 
+	// @return Line width in pixels.
 	float GetLineWidth();
+
+	// @param width Line width in pixels.
 	void SetLineWidth(float width);
 
 private:

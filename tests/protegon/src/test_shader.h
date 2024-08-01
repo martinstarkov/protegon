@@ -17,13 +17,15 @@
 using namespace ptgn;
 
 enum class RenderTest {
-	SubmitColor,
+	SubmitColorFilled,
+	SubmitColorHollow,
+	MovingTransparency,
 	SubmitTexture,
-	BatchTexturesEqualTo31,
-	BatchTexturesMoreThan31,
 	BatchQuad,
 	BatchCircle,
-	MovingTransparency,
+	BatchLine,
+	BatchTexturesEqualTo31,
+	BatchTexturesMoreThan31,
 	Count
 };
 
@@ -101,8 +103,8 @@ void SDLTextureBatchTest(const std::vector<path>& texture_paths) {
 	SDL_DestroyRenderer(r);
 }
 
-void RenderSubmitColorExample() {
-	PTGN_LOG("Render Test ", test, ": RenderSubmitColorExample");
+void RenderSubmitColorFilledExample() {
+	PTGN_LOG("Render Test ", test, ": RenderSubmitColorFilledExample");
 
 	V2_float pos1{ game.window.GetCenter() };
 	V2_float size1{ game.window.GetSize() / 2.0f };
@@ -114,6 +116,26 @@ void RenderSubmitColorExample() {
 		game.renderer.Clear();
 
 		game.renderer.DrawRectangleFilled(pos1, size1, color1);
+
+		game.renderer.Present();
+	});
+}
+
+void RenderSubmitColorHollowExample() {
+	PTGN_LOG("Render Test ", test, ": RenderSubmitColorHollowExample");
+
+	V2_float pos1{ game.window.GetCenter() };
+	V2_float size1{ game.window.GetSize() / 2.0f };
+	Color color1{ color::Green };
+
+	game.renderer.SetLineWidth(5.0f);
+
+	game.LoopUntilKeyDown(test_switch_keys, [&]() {
+		CheckForTestSwitch();
+
+		game.renderer.Clear();
+
+		game.renderer.DrawRectangleHollow(pos1, size1, color1);
 
 		game.renderer.Present();
 	});
@@ -204,6 +226,30 @@ void RenderBatchCircleExample() {
 			c.a		= static_cast<std::uint8_t>(255 * 0.2f);
 			RNG<float> rng{ 0.03f, 0.1f };
 			game.renderer.DrawCircleSolid(V2_float::Random(V2_float{}, ws), rng() * ws.x, c);
+		}
+
+		game.renderer.Present();
+	});
+}
+
+void RenderBatchLineExample() {
+	PTGN_LOG("Render Test ", test, ": RenderBatchLineExample");
+
+	V2_float ws{ game.window.GetSize() };
+
+	game.renderer.SetLineWidth(5.0f);
+
+	game.LoopUntilKeyDown(test_switch_keys, [&](float dt) {
+		CheckForTestSwitch();
+
+		game.renderer.Clear();
+
+		for (size_t i = 0; i < batch_count; i++) {
+			Color c = Color::RandomTransparent();
+			c.a		= static_cast<std::uint8_t>(255 * 0.2f);
+			game.renderer.DrawLine(
+				V2_float::Random(V2_float{}, ws), V2_float::Random(V2_float{}, ws), c
+			);
 		}
 
 		game.renderer.Present();
@@ -759,8 +805,10 @@ bool TestShaderDrawing() {
 				break;
 			case RenderTest::BatchQuad:			 RenderBatchQuadExample(); break;
 			case RenderTest::BatchCircle:		 RenderBatchCircleExample(); break;
+			case RenderTest::BatchLine:			 RenderBatchLineExample(); break;
 			case RenderTest::SubmitTexture:		 RenderSubmitTextureExample(); break;
-			case RenderTest::SubmitColor:		 RenderSubmitColorExample(); break;
+			case RenderTest::SubmitColorFilled:	 RenderSubmitColorFilledExample(); break;
+			case RenderTest::SubmitColorHollow:	 RenderSubmitColorHollowExample(); break;
 			case RenderTest::MovingTransparency: RenderMovingTransparencyExample(); break;
 			default:							 break;
 		}
