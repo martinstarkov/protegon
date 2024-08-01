@@ -7,6 +7,8 @@
 
 namespace ptgn {
 
+class GLRenderer;
+
 namespace impl {
 
 struct VertexArrayInstance {
@@ -30,8 +32,6 @@ public:
 		PrimitiveMode mode, const VertexBuffer& vertex_buffer, const IndexBuffer& index_buffer = {}
 	);
 
-	void WhileBound(const std::function<void()>& func) const;
-
 	void SetPrimitiveMode(PrimitiveMode mode);
 	void SetVertexBuffer(const VertexBuffer& vertex_buffer);
 	void SetIndexBuffer(const IndexBuffer& index_buffer);
@@ -43,6 +43,19 @@ public:
 	[[nodiscard]] const IndexBuffer& GetIndexBuffer() const;
 
 	[[nodiscard]] PrimitiveMode GetPrimitiveMode() const;
+
+private:
+	friend class VertexBuffer;
+	friend class IndexBuffer;
+	friend class GLRenderer;
+
+	static std::int32_t BoundId();
+
+	void SetVertexBufferImpl(const VertexBuffer& vertex_buffer);
+	void SetIndexBufferImpl(const IndexBuffer& index_buffer);
+
+	void Bind() const;
+	static void Unbind();
 };
 
 } // namespace ptgn

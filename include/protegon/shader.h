@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <functional>
 #include <string>
-#include <string_view>
 #include <unordered_map>
 
 #include "protegon/file.h"
@@ -18,7 +17,7 @@ class Shader;
 
 namespace impl {
 
-std::string_view GetShaderTypeName(std::uint32_t type);
+std::string GetShaderTypeName(std::uint32_t type);
 
 struct ShaderInstance {
 	ShaderInstance();
@@ -50,7 +49,7 @@ public:
 	Shader(const ShaderSource& vertex_shader, const ShaderSource& fragment_shader);
 	Shader(const path& vertex_shader_path, const path& fragment_shader_path);
 
-	void WhileBound(const std::function<void()>& func) const;
+	// void WhileBound(const std::function<void()>& func) const;
 
 	void SetUniform(const std::string& name, const std::int32_t* data, std::size_t count) const;
 	void SetUniform(const std::string& name, const float* data, std::size_t count) const;
@@ -76,9 +75,11 @@ public:
 	) const;
 
 	void Bind() const;
-	void Unbind() const;
 
 private:
+	static std::int32_t BoundId();
+	// static void Unbind();
+
 	[[nodiscard]] std::int32_t GetUniformLocation(const std::string& name) const;
 
 	[[nodiscard]] void CompileProgram(
