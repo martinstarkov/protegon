@@ -11,13 +11,15 @@ namespace ptgn {
 
 namespace impl {
 
-#define PUSHSTATE()       \
-	gl::GLint restore_id; \
-	gl::glGetIntegerv(GL_TEXTURE_BINDING_2D, &restore_id)
+#define PUSHSTATE()           \
+	std::int32_t restore_id { \
+		Texture::BoundId()    \
+	}
 #define POPSTATE() gl::glBindTexture(GL_TEXTURE_2D, restore_id)
 
 TextureInstance::TextureInstance() {
 	gl::glGenTextures(1, &id_);
+	PTGN_ASSERT(id_ != 0, "Failed to generate texture using OpenGL context");
 }
 
 TextureInstance::~TextureInstance() {
@@ -57,6 +59,12 @@ Texture::Texture(const Surface& surface) :
 Texture::Texture(void* pixel_data, const V2_int& size, ImageFormat format) {
 	PUSHSTATE();
 
+	if (!IsValid()) {
+		instance_ = std::make_shared<impl::TextureInstance>();
+	}
+
+	Bind();
+
 	SetDataImpl(pixel_data, size, format);
 
 	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -82,29 +90,26 @@ void Texture::Bind(std::uint32_t slot) const {
 	);
 	gl::ActiveTexture(GL_TEXTURE0 + slot);
 	Bind();
+	// For newer versions of OpenGL:
 	// gl::BindTextureUnit(slot, instance_->id_);
 }
 
-void Texture::Unbind() const {
-	gl::glBindTexture(GL_TEXTURE_2D, 0);
-}
+// void Texture::Unbind() {
+//	gl::glBindTexture(GL_TEXTURE_2D, 0);
+// }
 
-void Texture::SetData(void* pixel_data, const V2_int& size, ImageFormat format) {
-	PUSHSTATE();
-
-	SetDataImpl(pixel_data, size, format);
-
-	POPSTATE();
+std::int32_t Texture::BoundId() {
+	std::int32_t id{ 0 };
+	gl::glGetIntegerv(GL_TEXTURE_BINDING_2D, &id);
+	PTGN_ASSERT(id >= 0);
+	return id;
 }
 
 void Texture::SetDataImpl(void* pixel_data, const V2_int& size, ImageFormat format) {
-	if (!IsValid()) {
-		instance_ = std::make_shared<impl::TextureInstance>();
-	}
+	PTGN_ASSERT(IsValid(), "Cannot set data of uninitialized or destroyed texture");
+	PTGN_ASSERT(static_cast<std::uint32_t>(BoundId()) == instance_->id_);
 
 	instance_->size_ = size;
-
-	Bind();
 
 	auto formats = impl::GetGLFormats(format);
 

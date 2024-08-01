@@ -133,14 +133,17 @@ public:
 		);
 	}
 
-	void Bind() const;
-	void Unbind() const;
-
 private:
+	friend class VertexArray;
+
+	static std::int32_t BoundId();
+
+	void Bind() const;
+	// static void Unbind();
+
 	[[nodiscard]] const impl::InternalBufferLayout& GetLayout() const;
 
 	void SetDataImpl(const void* vertex_data, std::uint32_t size, BufferUsage usage);
-	friend class VertexArray;
 };
 
 class IndexBuffer : public Handle<impl::IndexBufferInstance> {
@@ -174,13 +177,16 @@ public:
 		);
 	}
 
-	void Bind() const;
-	void Unbind() const;
-
 	std::uint32_t GetCount() const;
 
 private:
 	friend class GLRenderer;
+	friend class VertexArray;
+
+	static std::int32_t BoundId();
+
+	void Bind() const;
+	// static void Unbind();
 
 	void SetDataImpl(const void* index_data, std::uint32_t size);
 

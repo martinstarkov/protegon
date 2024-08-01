@@ -7,7 +7,7 @@ namespace ptgn {
 
 namespace impl {
 
-std::string_view GetShaderTypeName(std::uint32_t type) {
+std::string GetShaderTypeName(std::uint32_t type) {
 	switch (type) {
 		case GL_VERTEX_SHADER:	 return "vertex";
 		case GL_FRAGMENT_SHADER: return "fragment";
@@ -21,6 +21,7 @@ std::string_view GetShaderTypeName(std::uint32_t type) {
 
 ShaderInstance::ShaderInstance() {
 	id_ = gl::CreateProgram();
+	PTGN_ASSERT(id_ != 0, "Failed to create shader program using OpenGL context");
 }
 
 ShaderInstance::~ShaderInstance() {
@@ -46,13 +47,16 @@ Shader::Shader(const path& vertex_shader_path, const path& fragment_shader_path)
 
 std::uint32_t Shader::CompileShader(std::uint32_t type, const std::string& source) {
 	std::uint32_t id = gl::CreateShader(type);
-	const char* src	 = source.c_str();
+
+	const char* src = source.c_str();
+
 	gl::ShaderSource(id, 1, &src, NULL);
 	gl::CompileShader(id);
 
 	// Check for shader compilation errors.
 	std::int32_t result{ GL_FALSE };
 	gl::GetShaderiv(id, GL_COMPILE_STATUS, &result);
+
 	if (result == GL_FALSE) {
 		std::int32_t length{ 0 };
 		gl::GetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
@@ -63,10 +67,13 @@ std::uint32_t Shader::CompileShader(std::uint32_t type, const std::string& sourc
 
 		gl::DeleteShader(id);
 
-		PTGN_ERROR("Failed to compile ", impl::GetShaderTypeName(type), " shader");
-		PTGN_EXCEPTION("Failed to compile shader");
+		std::string error{ "Failed to compile " + impl::GetShaderTypeName(type) + " shader" };
+
+		PTGN_ERROR(error);
+		PTGN_EXCEPTION(error);
 		return 0;
 	}
+
 	return id;
 }
 
@@ -92,7 +99,6 @@ void Shader::CompileProgram(const std::string& vertex_source, const std::string&
 		if (linked == GL_FALSE) {
 			std::int32_t length{ 0 };
 			gl::GetProgramiv(instance_->id_, GL_INFO_LOG_LENGTH, &length);
-
 			std::vector<gl::GLchar> log(length);
 			gl::GetProgramInfoLog(instance_->id_, length, &length, &log[0]);
 
@@ -103,23 +109,20 @@ void Shader::CompileProgram(const std::string& vertex_source, const std::string&
 			gl::DeleteShader(vertex);
 			gl::DeleteShader(fragment);
 
-			PTGN_CHECK(
-				false, "Failed to link shaders to program"
-			); // OPTIONAL: crash on shader link fail.
+			std::string error{ "Failed to link shaders to program" };
+
+			PTGN_ERROR(error);
+			PTGN_EXCEPTION(error);
 		}
 	}
+
 	if (vertex) {
 		gl::DeleteShader(vertex);
 	}
+
 	if (fragment) {
 		gl::DeleteShader(fragment);
 	}
-}
-
-void Shader::WhileBound(const std::function<void()>& func) const {
-	Bind();
-	func();
-	Unbind();
 }
 
 void Shader::Bind() const {
@@ -127,9 +130,9 @@ void Shader::Bind() const {
 	gl::UseProgram(instance_->id_);
 }
 
-void Shader::Unbind() const {
-	gl::UseProgram(0);
-}
+// void Shader::Unbind() {
+//	gl::UseProgram(0);
+// }
 
 std::int32_t Shader::GetUniformLocation(const std::string& name) const {
 	PTGN_CHECK(
@@ -274,6 +277,13 @@ void Shader::SetUniform(
 
 void Shader::SetUniform(const std::string& name, bool value) const {
 	SetUniform(name, static_cast<std::int32_t>(value));
+}
+
+std::int32_t Shader::BoundId() {
+	std::int32_t id{ 0 };
+	gl::glGetIntegerv(GL_CURRENT_PROGRAM, &id);
+	PTGN_ASSERT(id >= 0);
+	return id;
 }
 
 } // namespace ptgn

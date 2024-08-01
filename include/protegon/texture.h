@@ -9,7 +9,11 @@
 
 namespace ptgn {
 
+class Renderer;
+
 namespace impl {
+
+class RendererData;
 
 struct GLFormats {
 	// first
@@ -42,16 +46,21 @@ public:
 	Texture(const Surface& surface);
 	Texture(void* pixel_data, const V2_int& size, ImageFormat format);
 
-	void SetData(void* pixel_data, const V2_int& size, ImageFormat format);
 	void SetSubData(void* pixel_data, ImageFormat format, const V2_int& offset = {});
-
-	void Bind() const;
-	void Bind(std::uint32_t slot) const;
-	void Unbind() const;
 
 	V2_int GetSize() const;
 
+	void Bind() const;
+	void Bind(std::uint32_t slot) const;
+
 private:
+	friend class impl::RendererData;
+	friend class Renderer;
+
+	static std::int32_t BoundId();
+
+	// static void Unbind();
+
 	void SetDataImpl(void* pixel_data, const V2_int& size, ImageFormat format);
 };
 
