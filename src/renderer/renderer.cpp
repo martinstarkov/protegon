@@ -3,10 +3,30 @@
 #include "protegon/game.h"
 #include "protegon/texture.h"
 #include "renderer/gl_renderer.h"
+#include "utility/debug.h"
 
 namespace ptgn {
 
 namespace impl {
+
+template <>
+void BatchData<QuadVertex>::NextBatch(RendererData& data) {
+	Draw(data);
+	Reset();
+	data.texture_slot_index_ = 1;
+}
+
+template <>
+void BatchData<CircleVertex>::NextBatch(RendererData& data) {
+	Draw(data);
+	Reset();
+}
+
+template <>
+void BatchData<LineVertex>::NextBatch(RendererData& data) {
+	Draw(data);
+	Reset();
+}
 
 template <>
 inline void BatchData<QuadVertex>::Draw(RendererData& data) {
@@ -31,32 +51,21 @@ template <>
 inline void BatchData<LineVertex>::Draw(RendererData& data) {
 	if (index_count_) {
 		SetupBatch();
-		GLRenderer::SetLineWidth(data.line_width_);
 		GLRenderer::DrawElements(array_, index_count_);
 		data.stats_.draw_calls++;
 	}
 }
 
-// template <>
-// inline void BatchData<TextVertex>::Draw(RendererData& data) {
-//	if (index_count_) {
-//		SetupBatch();
-//		data.font_atlas_texture_.Bind(0);
-//		GLRenderer::DrawIndexed(array_, index_count_);
-//		// stats.draw_calls_++;
-//	}
-// }
-
 template <>
 void BatchData<QuadVertex>::AddQuad(
-	const M4_float& transform, const V4_float& color, const std::array<V2_float, 4>& tex_coords,
-	float texture_index, float tiling_factor
+	const V3_float& position, const V2_float& size, const V4_float& color,
+	const std::array<V2_float, 4>& tex_coords, float texture_index, float tiling_factor
 ) {
 	PTGN_ASSERT(buffer_ptr_ != nullptr);
-	constexpr auto rel_vertices{ GetRelativeVertices() };
+	auto positions = GetQuadVertices(position, size);
 	for (size_t i = 0; i < QuadVertex::VertexCount(); i++) {
-		auto pos				   = transform * rel_vertices[i];
-		buffer_ptr_->position	   = { pos.x, pos.y, pos.z };
+		// PTGN_LOG("V", i, ": ", positions[i]);
+		buffer_ptr_->position	   = { positions[i].x, positions[i].y, positions[i].z };
 		buffer_ptr_->color		   = { color.x, color.y, color.z, color.w };
 		buffer_ptr_->tex_coord	   = { tex_coords[i].x, tex_coords[i].y };
 		buffer_ptr_->tex_index	   = { texture_index };
@@ -69,15 +78,16 @@ void BatchData<QuadVertex>::AddQuad(
 
 template <>
 void BatchData<CircleVertex>::AddCircle(
-	const M4_float& transform, const V4_float& color, float thickness, float fade
+	const V3_float& position, const V2_float& size, const V4_float& color, float thickness,
+	float fade
 ) {
 	PTGN_ASSERT(buffer_ptr_ != nullptr);
-	constexpr auto rel_vertices{ GetRelativeVertices() };
+	auto positions	   = GetQuadVertices(position, size);
+	constexpr auto rel = GetRelativeVertices();
 	for (std::size_t i{ 0 }; i < QuadVertex::VertexCount(); i++) {
-		auto pos					= transform * rel_vertices[i];
-		auto local_pos				= rel_vertices[i] * 2.0f;
-		buffer_ptr_->world_position = { pos.x, pos.y, pos.z };
-		buffer_ptr_->local_position = { local_pos.x, local_pos.y, local_pos.z };
+		auto local					= rel[i] * 2.0f;
+		buffer_ptr_->world_position = { positions[i].x, positions[i].y, positions[i].z };
+		buffer_ptr_->local_position = { local.x, local.y, position.z };
 		buffer_ptr_->color			= { color.x, color.y, color.z, color.w };
 		buffer_ptr_->thickness		= { thickness };
 		buffer_ptr_->fade			= { fade };
@@ -100,7 +110,7 @@ void BatchData<LineVertex>::AddLine(const V3_float& p0, const V3_float& p1, cons
 	index_count_ += LineVertex::IndexCount();
 }
 
-void RendererData::Init() {
+RendererData::RendererData() {
 	SetupBuffers();
 	SetupTextureSlots();
 	SetupShaders();
@@ -110,7 +120,7 @@ void RendererData::Init() {
 }
 
 void RendererData::SetupBuffers() {
-	IndexBuffer quad_index_buffer{ GetQuadIndices<max_indices_>() };
+	IndexBuffer quad_index_buffer{ GetQuadIndices<QuadVertex, max_indices_>() };
 
 	quad_.Init<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_, glsl::float_>(
 		max_vertices_, PrimitiveMode::Triangles, quad_index_buffer
@@ -120,13 +130,7 @@ void RendererData::SetupBuffers() {
 		max_vertices_, PrimitiveMode::Triangles, quad_index_buffer
 	);
 
-	/*
-	// TODO: Fix
-	line_.Init<glsl::vec3, glsl::vec4>(max_vertices_, PrimitiveMode::Lines, {});*/
-
-	/*text_.Init<glsl::vec3, glsl::vec4, glsl::vec2>(
-		max_vertices_, PrimitiveMode::Triangles, quad_index_buffer
-	);*/
+	line_.Init<glsl::vec3, glsl::vec4>(max_vertices_, PrimitiveMode::Lines, {});
 }
 
 void RendererData::SetupTextureSlots() {
@@ -161,10 +165,6 @@ void RendererData::SetupShaders() {
 		"resources/shader/renderer_line_vertex.glsl",
 		"resources/shader/renderer_line_fragment.glsl", samplers
 	);
-	/*text_.SetupShader(
-		"resources/shader/renderer_text_vertex.glsl",
-		"resources/shader/renderer_text_fragment.glsl", samplers
-	);*/
 }
 
 void RendererData::BindTextures() const {
@@ -173,14 +173,29 @@ void RendererData::BindTextures() const {
 	}
 }
 
-void RendererData::Flush() {
-	quad_.Draw(*this);
-	circle_.Draw(*this);
-	line_.Draw(*this);
-	// text_.Draw();
+} // namespace impl
+
+Renderer::Renderer() {
+	GLRenderer::EnableBlending();
+	GLRenderer::EnableLineSmoothing();
+	SetViewport(game.window.GetSize());
+
+	// Only update viewport after resizing finishes, not during (saves a few GPU calls).
+	// If desired, changing the word Resized . Resizing will make the viewport update during
+	// resizing.
+	// TODO: Fix. This isnt working correctly. Viewport is not being set.
+	game.event.window.Subscribe(
+		WindowEvent::Resized, (void*)this,
+		std::function([&](const WindowResizedEvent& e) { SetViewport(e.size); })
+	);
+
+	StartBatch();
 }
 
-} // namespace impl
+Renderer::~Renderer() {
+	// TODO: Figure out a better way to do this?
+	game.event.window.Unsubscribe((void*)this);
+}
 
 void Renderer::SetClearColor(const Color& color) const {
 	GLRenderer::SetClearColor(color);
@@ -191,42 +206,198 @@ void Renderer::Clear() const {
 }
 
 void Renderer::Present(bool print_stats) {
-	NextBatch();
+	Flush();
+
 	if (print_stats) {
 		data_.stats_.Print();
 	}
 	data_.stats_.Reset();
+
 	game.window.SwapBuffers();
 }
 
-void Renderer::Submit(const VertexArray& va, const Shader& shader) {
-	shader.Bind();
-	/*shader.SetUniform("u_ViewProjection", view_projection);
-	 shader.SetUniform("u_Transform", transform);*/
-
-	GLRenderer::DrawElements(va);
+void Renderer::DrawArray(const VertexArray& vertex_array) {
+	PTGN_ASSERT(vertex_array.IsValid(), "Cannot submit invalid vertex array for rendering");
+	GLRenderer::DrawElements(vertex_array);
 	data_.stats_.draw_calls++;
 }
 
 void Renderer::SetViewport(const V2_int& size) {
-	GLRenderer::SetViewport({}, size);
+	PTGN_ASSERT(size.x > 0 && "Cannot set viewport width below 1");
+	PTGN_ASSERT(size.y > 0 && "Cannot set viewport height below 1");
+	viewport_size_		   = size;
+	data_.view_projection_ = M4_float::Orthographic(0, size.x, 0, size.y);
+	data_.quad_.shader_.Bind();
+	data_.quad_.shader_.SetUniform("u_ViewProjection", data_.view_projection_);
+	data_.circle_.shader_.Bind();
+	data_.circle_.shader_.SetUniform("u_ViewProjection", data_.view_projection_);
+	data_.line_.shader_.Bind();
+	data_.line_.shader_.SetUniform("u_ViewProjection", data_.view_projection_);
+	GLRenderer::SetViewport({}, viewport_size_);
 }
 
-void Renderer::Init() {
-	GLRenderer::Init();
-	SetViewport(game.window.GetSize());
+void Renderer::StartBatch() {
+	data_.quad_.Reset();
+	data_.circle_.Reset();
+	data_.line_.Reset();
+	data_.texture_slot_index_ = 1;
+}
 
-	// Only update viewport after resizing finishes, not during (saves a few GPU calls).
-	// If desired, changing the word Resized . Resizing will make the viewport update during
-	// resizing.
-	game.event.window.Subscribe(
-		WindowEvent::Resized, (void*)this,
-		std::function([&](const WindowResizedEvent& e) { SetViewport(e.size); })
-	);
+std::pair<V3_float, V2_float> Renderer::GetRotated(
+	const V2_float& position, const V2_float& size, float rotation, float z_index
+) {
+	V2_float r_pos	= position;
+	V2_float r_size = size;
 
-	data_.Init();
+	if (rotation != 0.0f) {
+		r_pos  = r_pos.Rotated(rotation);
+		r_size = r_size.Rotated(rotation);
+	}
 
+	return {
+		V3_float{r_pos.x, r_pos.y, z_index},
+		   r_size
+	};
+}
+
+void Renderer::Flush() {
+	data_.quad_.Draw(data_);
+	data_.circle_.Draw(data_);
+	data_.line_.Draw(data_);
 	StartBatch();
+}
+
+void Renderer::DrawRectangleFilled(
+	const V2_float& position, const V2_float& size, const Color& color, float rotation /* = 0.0f*/,
+	float z_index /* = 0.0f*/
+) {
+	if (data_.quad_.index_count_ >= data_.max_indices_) {
+		data_.quad_.NextBatch(data_);
+	}
+
+	auto [p, s] = GetRotated(position, size, rotation, z_index);
+
+	constexpr auto tex_coords{ impl::RendererData::GetTextureCoordinates() };
+	constexpr const float texture_index{ 0.0f }; // white texture
+	constexpr const float tiling_factor{ 1.0f };
+
+	data_.quad_.AddQuad(p, s, color, tex_coords, texture_index, tiling_factor);
+	data_.stats_.quad_count++;
+}
+
+void Renderer::DrawRectangleHollow(
+	const V2_float& position, const V2_float& size, const Color& color, float rotation /* = 0.0f*/,
+	float z_index /* = 0.0f*/
+) {
+	if (data_.line_.index_count_ >= data_.max_indices_) {
+		data_.line_.NextBatch(data_);
+	}
+
+	auto [p, s] = GetRotated(position, size, rotation, z_index);
+
+	auto positions = impl::BatchData<QuadVertex>::GetQuadVertices(p, s);
+
+	PTGN_ASSERT(positions.size() == QuadVertex::VertexCount());
+
+	data_.line_.AddLine(positions[0], positions[1], color);
+	data_.line_.AddLine(positions[1], positions[2], color);
+	data_.line_.AddLine(positions[2], positions[3], color);
+	data_.line_.AddLine(positions[3], positions[0], color);
+
+	data_.stats_.line_count += 4;
+}
+
+void Renderer::DrawTexture(
+	const V2_float& destination_position, const V2_float& destination_size, const Texture& texture,
+	const V2_float& source_position /* = {}*/, V2_float source_size /* = {}*/,
+	float rotation /* = 0.0f*/, float z_index /* = 0.0f*/, float tiling_factor /* = 1.0f*/,
+	const Color& tint_color /* = color::White*/
+) {
+	if (data_.quad_.index_count_ >= data_.max_indices_) {
+		data_.quad_.NextBatch(data_);
+	}
+
+	auto [p, s] = GetRotated(destination_position, destination_size, rotation, z_index);
+
+	V2_float tex_size{ texture.GetSize() };
+
+	PTGN_ASSERT(!NearlyEqual(tex_size.x, 0.0f), "Texture must have width > 0");
+	PTGN_ASSERT(!NearlyEqual(tex_size.y, 0.0f), "Texture must have height > 0");
+
+	PTGN_ASSERT(source_position.x < tex_size.x, "Source position X must be within texture width");
+	PTGN_ASSERT(source_position.y < tex_size.y, "Source position Y must be within texture height");
+
+	if (source_size.IsZero()) {
+		source_size = tex_size;
+	}
+
+	// TODO: Move to GPU?
+	V2_float src_pos{ source_position / tex_size };
+	V2_float src_size{ source_size / tex_size };
+
+	if (src_size.x > 1.0f || src_size.y > 1.0f) {
+		PTGN_WARN("Drawing source size from outside of texture size");
+	}
+
+	auto tex_coords{ impl::RendererData::GetTextureCoordinates(src_pos, src_size) };
+
+	float texture_index{ 0.0f };
+	for (std::uint32_t i{ 1 }; i < data_.texture_slot_index_; i++) {
+		if (data_.texture_slots_[i].GetInstance() == texture.GetInstance()) {
+			texture_index = (float)i;
+			break;
+		}
+	}
+
+	if (texture_index == 0.0f) {
+		// TODO: Optimize this if you have time. Instead of flushing the batch when the slot
+		// index is beyond the slots, keep a separate texture buffer and just split that one
+		// into two or more batches. This should reduce draw calls drastically.
+		if (data_.texture_slot_index_ >= data_.max_texture_slots_) {
+			data_.quad_.NextBatch(data_);
+		}
+
+		texture_index									= (float)data_.texture_slot_index_;
+		data_.texture_slots_[data_.texture_slot_index_] = texture;
+		data_.texture_slot_index_++;
+	}
+
+	data_.quad_.AddQuad(p, s, tint_color, tex_coords, texture_index, tiling_factor);
+	data_.stats_.quad_count++;
+}
+
+void Renderer::DrawCircleSolid(
+	const V2_float& position, float radius, const Color& color, float z_index /* = 0.0f*/,
+	float thickness /* = 1.0f*/, float fade /* = 0.005f*/
+) {
+	if (data_.circle_.index_count_ >= data_.max_indices_) {
+		data_.circle_.NextBatch(data_);
+	}
+
+	auto [p, s] = GetRotated(position, { radius, radius }, 0.0f, z_index);
+
+	data_.circle_.AddCircle(p, s, color, thickness, fade);
+	data_.stats_.circle_count++;
+}
+
+void Renderer::DrawLine(const V3_float& p0, V3_float& p1, const Color& color) {
+	if (data_.line_.index_count_ >= data_.max_indices_) {
+		data_.line_.NextBatch(data_);
+	}
+
+	data_.line_.AddLine(p0, p1, color);
+	data_.stats_.line_count++;
+}
+
+float Renderer::GetLineWidth() {
+	return data_.line_width_;
+}
+
+void Renderer::SetLineWidth(float width) {
+	if (data_.line_width_ != width) {
+		data_.line_width_ = width;
+		GLRenderer::SetLineWidth(data_.line_width_);
+	}
 }
 
 // void Renderer::BeginScene(const OrthographicCamera& camera) {
@@ -252,335 +423,6 @@ void Renderer::Init() {
 //
 // void Renderer::EndScene() {
 //	Flush();
-// }
-//
-void Renderer::StartBatch() {
-	data_.quad_.Reset();
-	data_.circle_.Reset();
-	data_.line_.Reset();
-	// data_.text_.Reset();
-	data_.texture_slot_index_ = 1;
-}
-
-void Renderer::Flush() {
-	data_.Flush();
-}
-
-void Renderer::NextBatch() {
-	Flush();
-	StartBatch();
-}
-
-void Renderer::DrawQuad(const V2_float& position, const V2_float& size, const V4_float& color) {
-	DrawQuad({ position.x, position.y, 0.0f }, size, color);
-}
-
-void Renderer::DrawQuad(const V3_float& position, const V2_float& size, const V4_float& color) {
-	M4_float transform = M4_float::Translate(M4_float(1.0f), position) *
-						 M4_float::Scale(M4_float(1.0f), { size.x, size.y, 1.0f });
-
-	DrawQuad(transform, color);
-}
-
-void Renderer::DrawQuad(
-	const V2_float& position, const V2_float& size, const Texture& texture, float tiling_factor,
-	const V4_float& tint_color
-) {
-	DrawQuad({ position.x, position.y, 0.0f }, size, texture, tiling_factor, tint_color);
-}
-
-void Renderer::DrawQuad(
-	const V3_float& position, const V2_float& size, const Texture& texture, float tiling_factor,
-	const V4_float& tint_color
-) {
-	M4_float transform = M4_float::Translate(M4_float(1.0f), position) *
-						 M4_float::Scale(M4_float(1.0f), { size.x, size.y, 1.0f });
-
-	DrawQuad(transform, texture, tiling_factor, tint_color);
-}
-
-void Renderer::DrawQuad(const M4_float& transform, const V4_float& color) {
-	constexpr auto texture_coords{ impl::RendererData::GetTextureCoordinates() };
-	const float texture_index = 0.0f; // white texture
-	const float tiling_factor = 1.0f;
-
-	if (data_.quad_.index_count_ >= data_.max_indices_) {
-		NextBatch();
-	}
-
-	data_.quad_.AddQuad(transform, color, texture_coords, texture_index, tiling_factor);
-	data_.stats_.quad_count++;
-}
-
-void Renderer::DrawQuad(
-	const M4_float& transform, const Texture& texture, float tiling_factor,
-	const V4_float& tint_color
-) {
-	constexpr auto texture_coords{ impl::RendererData::GetTextureCoordinates() };
-
-	if (data_.quad_.index_count_ >= data_.max_indices_) {
-		NextBatch();
-	}
-
-	float texture_index{ 0.0f };
-
-	for (std::uint32_t i{ 1 }; i < data_.texture_slot_index_; i++) {
-		if (data_.texture_slots_[i].GetInstance() == texture.GetInstance()) {
-			texture_index = (float)i;
-			break;
-		}
-	}
-
-	if (texture_index == 0.0f) {
-		// TODO: Optimize this if you have time. Instead of flushing the batch when the slot index
-		// is beyond the slots, keep a separate texture buffer and just split that one into two or
-		// more batches. This should reduce draw calls drastically.
-		if (data_.texture_slot_index_ >= data_.max_texture_slots_) {
-			NextBatch();
-		}
-
-		texture_index									= (float)data_.texture_slot_index_;
-		data_.texture_slots_[data_.texture_slot_index_] = texture;
-		data_.texture_slot_index_++;
-	}
-
-	data_.quad_.AddQuad(transform, tint_color, texture_coords, texture_index, tiling_factor);
-	data_.stats_.quad_count++;
-}
-
-void Renderer::DrawRotatedQuad(
-	const V2_float& position, const V2_float& size, float rotation, const V4_float& color
-) {
-	DrawRotatedQuad({ position.x, position.y, 0.0f }, size, rotation, color);
-}
-
-void Renderer::DrawRotatedQuad(
-	const V3_float& position, const V2_float& size, float rotation, const V4_float& color
-) {
-	M4_float transform =
-		M4_float::Translate(M4_float(1.0f), position) *
-		M4_float::Rotate(M4_float(1.0f), DegToRad(rotation), { 0.0f, 0.0f, 1.0f }) *
-		M4_float::Scale(M4_float(1.0f), { size.x, size.y, 1.0f });
-
-	DrawQuad(transform, color);
-}
-
-void Renderer::DrawRotatedQuad(
-	const V2_float& position, const V2_float& size, float rotation, const Texture& texture,
-	float tilingFactor, const V4_float& tintColor
-) {
-	DrawRotatedQuad(
-		{ position.x, position.y, 0.0f }, size, rotation, texture, tilingFactor, tintColor
-	);
-}
-
-void Renderer::DrawRotatedQuad(
-	const V3_float& position, const V2_float& size, float rotation, const Texture& texture,
-	float tilingFactor, const V4_float& tintColor
-) {
-	M4_float transform =
-		M4_float::Translate(M4_float(1.0f), position) *
-		M4_float::Rotate(M4_float(1.0f), DegToRad(rotation), { 0.0f, 0.0f, 1.0f }) *
-		M4_float::Scale(M4_float(1.0f), { size.x, size.y, 1.0f });
-
-	DrawQuad(transform, texture, tilingFactor, tintColor);
-}
-
-void Renderer::DrawCircle(
-	const V2_float& position, float radius, const V4_float& color, float thickness /*= 1.0f*/,
-	float fade /*= 0.005f*/
-) {
-	DrawCircle({ position.x, position.y, 0.0f }, radius, color, thickness, fade);
-}
-
-void Renderer::DrawCircle(
-	const V3_float& position, float radius, const V4_float& color, float thickness /*= 1.0f*/,
-	float fade /*= 0.005f*/
-) {
-	M4_float transform = M4_float::Translate(M4_float(1.0f), position) *
-						 M4_float::Scale(M4_float(1.0f), { radius, radius, 1.0f });
-
-	DrawCircle(transform, color, thickness, fade);
-}
-
-void Renderer::DrawCircle(
-	const M4_float& transform, const V4_float& color, float thickness /*= 1.0f*/,
-	float fade /*= 0.005f*/
-) {
-	if (data_.circle_.index_count_ >= data_.max_indices_) {
-		NextBatch();
-	}
-
-	data_.circle_.AddCircle(transform, color, thickness, fade);
-	data_.stats_.circle_count++;
-}
-
-void Renderer::DrawLine(const V3_float& p0, V3_float& p1, const V4_float& color) {
-	data_.line_.AddLine(p0, p1, color);
-	data_.stats_.line_count++;
-}
-
-void Renderer::DrawRect(const V3_float& position, const V2_float& size, const V4_float& color) {
-	float half_width{ size.x * 0.5f };
-	float half_height{ size.y * 0.5f };
-
-	V3_float p0{ position.x - half_width, position.y - half_height, position.z };
-	V3_float p1{ position.x + half_width, position.y - half_height, position.z };
-	V3_float p2{ position.x + half_width, position.y + half_height, position.z };
-	V3_float p3{ position.x - half_width, position.y + half_height, position.z };
-
-	DrawLine(p0, p1, color);
-	DrawLine(p1, p2, color);
-	DrawLine(p2, p3, color);
-	DrawLine(p3, p0, color);
-}
-
-void Renderer::DrawRect(const M4_float& transform, const V4_float& color) {
-	auto vertices = impl::BatchData<QuadVertex>::GetQuadVertexPositions(transform);
-	PTGN_ASSERT(vertices.size() == QuadVertex::VertexCount());
-
-	DrawLine(vertices[0], vertices[1], color);
-	DrawLine(vertices[1], vertices[2], color);
-	DrawLine(vertices[2], vertices[3], color);
-	DrawLine(vertices[3], vertices[0], color);
-}
-
-// void Renderer::DrawSprite(const M4_float& transform, SpriteRendererComponent& src) {
-//	if (src.Texture) {
-//		DrawQuad(transform, src.Texture, src.TilingFactor, src.Color);
-//	} else {
-//		DrawQuad(transform, src.Color);
-//	}
-// }
-
-// void Renderer::DrawString(
-//	const std::string& string, std::shared_ptr<Font> font, const M4_float& transform,
-//	const TextParams& textParams, int entityID
-//) {
-//	const auto& fontGeometry = font.GetMSDFData().FontGeometry;
-//	const auto& metrics		 = fontGeometry.getMetrics();
-//	Texture fontAtlas		 = font.GetAtlasTexture();
-//
-//	data_.FontAtlasTexture = fontAtlas;
-//
-//	double x	   = 0.0;
-//	double fsScale = 1.0 / (metrics.ascenderY - metrics.descenderY);
-//	double y	   = 0.0;
-//
-//	const float spaceGlyphAdvance = fontGeometry.getGlyph(' ').getAdvance();
-//
-//	for (size_t i = 0; i < string.size(); i++) {
-//		char character = string[i];
-//		if (character == '\r') {
-//			continue;
-//		}
-//
-//		if (character == '\n') {
-//			x  = 0;
-//			y -= fsScale * metrics.lineHeight + textParams.LineSpacing;
-//			continue;
-//		}
-//
-//		if (character == ' ') {
-//			float advance = spaceGlyphAdvance;
-//			if (i < string.size() - 1) {
-//				char nextCharacter = string[i + 1];
-//				double dAdvance;
-//				fontGeometry.getAdvance(dAdvance, character, nextCharacter);
-//				advance = (float)dAdvance;
-//			}
-//
-//			x += fsScale * advance + textParams.Kerning;
-//			continue;
-//		}
-//
-//		if (character == '\t') {
-//			// NOTE(Yan): is this right?
-//			x += 4.0f * (fsScale * spaceGlyphAdvance + textParams.Kerning);
-//			continue;
-//		}
-//
-//		auto glyph = fontGeometry.getGlyph(character);
-//		if (!glyph) {
-//			glyph = fontGeometry.getGlyph('?');
-//		}
-//		if (!glyph) {
-//			return;
-//		}
-//
-//		double al, ab, ar, at;
-//		glyph.getQuadAtlasBounds(al, ab, ar, at);
-//		V2_float texCoordMin((float)al, (float)ab);
-//		V2_float texCoordMax((float)ar, (float)at);
-//
-//		double pl, pb, pr, pt;
-//		glyph.getQuadPlaneBounds(pl, pb, pr, pt);
-//		V2_float quadMin((float)pl, (float)pb);
-//		V2_float quadMax((float)pr, (float)pt);
-//
-//		quadMin *= fsScale, quadMax *= fsScale;
-//		quadMin += V2_float(x, y);
-//		quadMax += V2_float(x, y);
-//
-//		float texelWidth   = 1.0f / fontAtlas.GetWidth();
-//		float texelHeight  = 1.0f / fontAtlas.GetHeight();
-//		texCoordMin		  *= V2_float(texelWidth, texelHeight);
-//		texCoordMax		  *= V2_float(texelWidth, texelHeight);
-//
-//		// render here
-//		data_.text_.buffer_ptr_.Position = transform * V4_float(quadMin, 0.0f, 1.0f);
-//		data_.text_.buffer_ptr_.Color	 = textParams.Color;
-//		data_.text_.buffer_ptr_.TexCoord = texCoordMin;
-//		data_.text_.buffer_ptr_.EntityID = entityID;
-//		data_.text_.buffer_ptr_++;
-//
-//		data_.text_.buffer_ptr_.Position = transform * V4_float(quadMin.x, quadMax.y, 0.0f, 1.0f);
-//		data_.text_.buffer_ptr_.Color	 = textParams.Color;
-//		data_.text_.buffer_ptr_.TexCoord = { texCoordMin.x, texCoordMax.y };
-//		data_.text_.buffer_ptr_.EntityID = entityID;
-//		data_.text_.buffer_ptr_++;
-//
-//		data_.text_.buffer_ptr_.Position = transform * V4_float(quadMax, 0.0f, 1.0f);
-//		data_.text_.buffer_ptr_.Color	 = textParams.Color;
-//		data_.text_.buffer_ptr_.TexCoord = texCoordMax;
-//		data_.text_.buffer_ptr_.EntityID = entityID;
-//		data_.text_.buffer_ptr_++;
-//
-//		data_.text_.buffer_ptr_.Position = transform * V4_float(quadMax.x, quadMin.y, 0.0f, 1.0f);
-//		data_.text_.buffer_ptr_.Color	 = textParams.Color;
-//		data_.text_.buffer_ptr_.TexCoord = { texCoordMax.x, texCoordMin.y };
-//		data_.text_.buffer_ptr_.EntityID = entityID;
-//		data_.text_.buffer_ptr_++;
-//
-//		data_.text_.index_count_ += 6;
-//		data_.Stats.QuadCount++;
-//
-//		if (i < string.size() - 1) {
-//			double advance	   = glyph.getAdvance();
-//			char nextCharacter = string[i + 1];
-//			fontGeometry.getAdvance(advance, character, nextCharacter);
-//
-//			x += fsScale * advance + textParams.Kerning;
-//		}
-//	}
-// }
-//
-// void Renderer::DrawString(
-//	const std::string& string, const M4_float& transform, const TextComponent& component,
-//	int entityID
-//) {
-//	DrawString(
-//		string, component.FontAsset, transform,
-//		{ component.Color, component.Kerning, component.LineSpacing }, entityID
-//	);
-// }
-//
-// float Renderer::GetLineWidth() {
-//	return data_.LineWidth;
-// }
-//
-// void Renderer::SetLineWidth(float width) {
-//	data_.LineWidth = width;
 // }
 //
 
