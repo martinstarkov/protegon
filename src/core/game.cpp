@@ -4,7 +4,6 @@
 #include "SDL_image.h"
 #include "SDL_mixer.h"
 #include "SDL_ttf.h"
-#include "renderer/gl_loader.h"
 #include "utility/debug.h"
 #include "utility/platform.h"
 
@@ -74,8 +73,8 @@ static void InitSDL() {
 			PTGN_ERROR(SDL_GetError());
 			PTGN_CHECK(false, "Failed to initialize SDL core");
 		}
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, PTGN_OPENGL_MAJOR_VERSION);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, PTGN_OPENGL_MINOR_VERSION);
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
 		int gl_load = SDL_GL_LoadLibrary(NULL);
@@ -115,37 +114,6 @@ static void InitSDLMixer() {
 
 } // namespace impl
 
-namespace gl {
-
-// Must be called after SDL and window have been initialized.
-static void InitOpenGL() {
-#define GLE(name, caps_name) \
-	name = (PFNGL##caps_name##PROC)SDL_GL_GetProcAddress(PTGN_STRINGIFY_MACRO(gl##name));
-	GL_LIST
-#undef GLE
-
-	// PTGN_INFO("OpenGL Version: ", glGetString(GL_VERSION));
-
-// For debugging which commands were not initialized.
-#define GLE(name, caps_name)                                       \
-	if (!(name)) {                                                 \
-		PTGN_ERROR("Failed to load ", PTGN_STRINGIFY_MACRO(name)); \
-	}
-	GL_LIST
-#undef GLE
-
-// Check that each of the loaded gl functions was found.
-#define GLE(name, caps_name) name&&
-	bool gl_init = GL_LIST true;
-#undef GLE
-	if (!gl_init) {
-		PTGN_ERROR("Failed to initialize OpenGL");
-		PTGN_CHECK(false, "Failed to initialize OpenGL");
-	}
-}
-
-} // namespace gl
-
 namespace impl {
 
 GameInstance::GameInstance(Game& g) {
@@ -156,10 +124,6 @@ GameInstance::GameInstance(Game& g) {
 	sdl::InitSDLImage();
 	sdl::InitSDLTTF();
 	sdl::InitSDLMixer();
-	g.window.Init();
-	gl::InitOpenGL();
-	g.renderer.Init();
-	g.input.Init();
 }
 
 GameInstance::~GameInstance() {
@@ -171,6 +135,8 @@ GameInstance::~GameInstance() {
 }
 
 } // namespace impl
+
+Game::Game() : instance_{ std::make_unique<impl::GameInstance>(*this) } {}
 
 void Game::LoopUntilKeyDown(
 	const std::vector<Key>& any_of_keys, const UpdateFunction& loop_function
@@ -204,12 +170,6 @@ void Game::Stop() {
 	instance_.reset(nullptr);
 }
 
-void Game::Init() {
-	// Recall default constructor for all members.
-	*this	  = {};
-	instance_ = std::make_unique<impl::GameInstance>(*this);
-}
-
 void Game::SceneLoop() {
 	// In case Stop() was called in Scene constructor (non-looping scene).
 	if (instance_ == nullptr) {
@@ -227,7 +187,6 @@ void Game::SceneLoop() {
 		}
 		renderer.Present();
 	});
-	Stop();
 }
 
 void Game::Update(const UpdateFunction& loop_function) {

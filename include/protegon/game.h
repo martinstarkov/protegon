@@ -28,7 +28,7 @@ public:
 
 class Game {
 public:
-	Game()	= default;
+	Game();
 	~Game() = default;
 
 private:
@@ -36,6 +36,8 @@ private:
 	Game(Game&&)				 = default;
 	Game& operator=(const Game&) = delete;
 	Game& operator=(Game&&)		 = default;
+
+	std::unique_ptr<impl::GameInstance> instance_;
 
 public:
 	using UpdateFunction = std::variant<std::function<void()>, std::function<void(float dt)>>;
@@ -46,21 +48,21 @@ public:
 	// Optional: pass in constructor arguments for the TStartScene.
 	template <typename TStartScene, typename... TArgs>
 	void Start(TArgs&&... constructor_args) {
-		Init();
 		scene.StartScene<TStartScene>(
 			impl::start_scene_key, std::forward<TArgs>(constructor_args)...
 		);
 		SceneLoop();
+		Stop();
 	}
 
 	void Stop();
 
-	// Systems
+	// Core Subsystems
 
-	InputHandler input;
 	Window window;
-	Renderer renderer;
 	EventHandler event;
+	InputHandler input;
+	Renderer renderer;
 	SceneManager scene;
 
 	// Resources
@@ -77,7 +79,6 @@ public:
 	Profiler profiler;
 
 private:
-	void Init();
 	void SceneLoop();
 	void Update(const UpdateFunction& loop_function);
 
@@ -111,8 +112,8 @@ private:
 
 		// Optional: Update window while it is being dragged. Upside: No rendering artefacts;
 		// Downside: window dragging becomes laggier. If enabling this, it is adviseable to change
-		// Renderer::Init such that the renderer viewport is updated during window resizing instead
-		// of after it has been resized.
+		// Renderer constructor such that the renderer viewport is updated during window resizing
+		// instead of after it has been resized.
 		/*event.window.Subscribe(
 			WindowEvent::Drag, (void*)this,
 			std::function([&](const WindowDragEvent& e) { update_function(); })
@@ -126,13 +127,12 @@ private:
 		// Otherwise they might trigger again in the next input.Update().
 		input.Reset();
 
+		// TODO: Something here is unsubscribing the renderer from resize events.
 		if constexpr (!is_window_quit) {
 			dispatcher.Unsubscribe((void*)&running);
 		}
 		event.window.Unsubscribe((void*)&running);
 	}
-
-	std::unique_ptr<impl::GameInstance> instance_;
 };
 
 extern Game game;

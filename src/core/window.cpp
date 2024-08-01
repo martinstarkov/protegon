@@ -1,9 +1,41 @@
 #include "core/window.h"
 
 #include "SDL.h"
+#include "renderer/gl_loader.h"
 #include "utility/debug.h"
 
 namespace ptgn {
+
+namespace gl {
+
+// Must be called after SDL and window have been initialized.
+static void InitOpenGL() {
+#define GLE(name, caps_name) \
+	name = (PFNGL##caps_name##PROC)SDL_GL_GetProcAddress(PTGN_STRINGIFY_MACRO(gl##name));
+	GL_LIST
+#undef GLE
+
+	PTGN_INFO("OpenGL Version: ", glGetString(GL_VERSION));
+
+// For debugging which commands were not initialized.
+#define GLE(name, caps_name)                                       \
+	if (!(name)) {                                                 \
+		PTGN_ERROR("Failed to load ", PTGN_STRINGIFY_MACRO(name)); \
+	}
+	GL_LIST
+#undef GLE
+
+// Check that each of the loaded gl functions was found.
+#define GLE(name, caps_name) name&&
+	bool gl_init = GL_LIST true;
+#undef GLE
+	if (!gl_init) {
+		PTGN_ERROR("Failed to initialize OpenGL");
+		PTGN_CHECK(false, "Failed to initialize OpenGL");
+	}
+}
+
+} // namespace gl
 
 namespace impl {
 
@@ -13,17 +45,8 @@ void WindowDeleter::operator()(SDL_Window* window) {
 
 } // namespace impl
 
-V2_int Screen::GetSize() {
-	SDL_DisplayMode dm;
-	if (SDL_GetDesktopDisplayMode(0, &dm) != 0) {
-		SDL_Log("SDL_GetDesktopDisplayMode failed: %s", SDL_GetError());
-		PTGN_ASSERT(false, "Failed to retrieve screen size");
-	}
-	return V2_int{ dm.w, dm.h };
-}
-
-void Window::Init() {
-	window_.reset(SDL_CreateWindow("", 0, 0, 0, 0, SDL_WINDOW_HIDDEN | SDL_WINDOW_OPENGL));
+Window::Window() {
+	window_.reset(SDL_CreateWindow("", 0, 0, 0, 0, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN));
 	if (window_ == nullptr) {
 		PTGN_ERROR(SDL_GetError());
 		PTGN_ASSERT(false, "Failed to create SDL window");
@@ -37,10 +60,32 @@ void Window::Init() {
 	// From: https://nullprogram.com/blog/2023/01/08/
 	// Set a non-zero SDL_GL_SetSwapInterval so that SDL_GL_SwapWindow synchronizes.
 	SDL_GL_SetSwapInterval(1);
+
+	gl::InitOpenGL();
 }
 
 void Window::SwapBuffers() {
 	SDL_GL_SwapWindow(window_.get());
+}
+
+V2_int Window::GetSize() {
+	PTGN_ASSERT(Exists(), "Cannot get size of nonexistent window");
+	V2_int size;
+	SDL_GL_GetDrawableSize(window_.get(), &size.x, &size.y);
+	return size;
+}
+
+V2_float Window::GetCenter() {
+	return GetSize() / 2.0f;
+}
+
+V2_int Screen::GetSize() {
+	SDL_DisplayMode dm;
+	if (SDL_GetDesktopDisplayMode(0, &dm) != 0) {
+		SDL_Log("SDL_GetDesktopDisplayMode failed: %s", SDL_GetError());
+		PTGN_ASSERT(false, "Failed to retrieve screen size");
+	}
+	return V2_int{ dm.w, dm.h };
 }
 
 void Window::SetupSize(
@@ -75,13 +120,6 @@ V2_int Window::GetMinimumSize() {
 	V2_int minimum_size;
 	SDL_GetWindowMinimumSize(window_.get(), &minimum_size.x, &minimum_size.y);
 	return minimum_size;
-}
-
-V2_int Window::GetSize() {
-	PTGN_ASSERT(Exists(), "Cannot get size of nonexistent window");
-	V2_int size;
-	SDL_GL_GetDrawableSize(window_.get(), &size.x, &size.y);
-	return size;
 }
 
 V2_int Window::GetOriginPosition() {

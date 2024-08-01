@@ -25,7 +25,7 @@ struct Screen {
 
 class Window {
 private:
-	Window()						 = default;
+	Window();
 	~Window()						 = default;
 	Window(const Window&)			 = delete;
 	Window(Window&&)				 = default;
@@ -46,6 +46,9 @@ public:
 
 	void SetSize(const V2_int& new_size, bool centered = true);
 	[[nodiscard]] V2_int GetSize();
+
+	// Returns the center coordinate of the window.
+	[[nodiscard]] V2_float GetCenter();
 
 	[[nodiscard]] V2_int GetOriginPosition();
 
@@ -85,7 +88,6 @@ public:
 private:
 	friend class impl::GameInstance;
 	friend class Game;
-	void Init();
 
 	std::unique_ptr<SDL_Window, impl::WindowDeleter> window_;
 };
