@@ -55,7 +55,7 @@ struct Vector4 {
 		w{ static_cast<T>(o.w) } {}
 
 	// Access vector elements by index, 0 for x, 1 for y, 2 for z, 3 for w.
-	T& operator[](std::size_t idx) {
+	constexpr T& operator[](std::size_t idx) {
 		PTGN_CHECK(idx >= 0 && idx < 4, "Vector4 subscript out of range");
 		if (idx == 0) {
 			return x;
@@ -68,7 +68,7 @@ struct Vector4 {
 	}
 
 	// Access vector elements by index, 0 for x, 1 for y, 2 for z, 3 for w.
-	T operator[](std::size_t idx) const {
+	constexpr T operator[](std::size_t idx) const {
 		PTGN_CHECK(idx >= 0 && idx < 4, "Vector4 subscript out of range");
 		if (idx == 0) {
 			return x;
@@ -80,12 +80,12 @@ struct Vector4 {
 		return w; // idx == 3
 	}
 
-	Vector4 operator-() const {
+	constexpr Vector4 operator-() const {
 		return { -x, -y, -z, -w };
 	}
 
 	template <typename U, type_traits::not_narrowing<U, T> = true>
-	Vector4& operator+=(const Vector4<U>& rhs) {
+	constexpr Vector4& operator+=(const Vector4<U>& rhs) {
 		x += rhs.x;
 		y += rhs.y;
 		z += rhs.z;
@@ -94,7 +94,7 @@ struct Vector4 {
 	}
 
 	template <typename U, type_traits::not_narrowing<U, T> = true>
-	Vector4& operator-=(const Vector4<U>& rhs) {
+	constexpr Vector4& operator-=(const Vector4<U>& rhs) {
 		x -= rhs.x;
 		y -= rhs.y;
 		z -= rhs.z;
@@ -103,7 +103,7 @@ struct Vector4 {
 	}
 
 	template <typename U, type_traits::not_narrowing<U, T> = true>
-	Vector4& operator*=(const Vector4<U>& rhs) {
+	constexpr Vector4& operator*=(const Vector4<U>& rhs) {
 		x *= rhs.x;
 		y *= rhs.y;
 		z *= rhs.z;
@@ -112,7 +112,7 @@ struct Vector4 {
 	}
 
 	template <typename U, type_traits::not_narrowing<U, T> = true>
-	Vector4& operator/=(const Vector4<U>& rhs) {
+	constexpr Vector4& operator/=(const Vector4<U>& rhs) {
 		x /= rhs.x;
 		y /= rhs.y;
 		z /= rhs.z;
@@ -121,7 +121,7 @@ struct Vector4 {
 	}
 
 	template <typename U, type_traits::not_narrowing<U, T> = true>
-	Vector4& operator*=(U rhs) {
+	constexpr Vector4& operator*=(U rhs) {
 		x *= rhs;
 		y *= rhs;
 		z *= rhs;
@@ -130,7 +130,7 @@ struct Vector4 {
 	}
 
 	template <typename U, type_traits::not_narrowing<U, T> = true>
-	Vector4& operator/=(U rhs) {
+	constexpr Vector4& operator/=(U rhs) {
 		x /= rhs;
 		y /= rhs;
 		z /= rhs;
@@ -139,7 +139,7 @@ struct Vector4 {
 	}
 
 	// Returns the dot product (this * o).
-	[[nodiscard]] T Dot(const Vector4& o) const {
+	[[nodiscard]] constexpr T Dot(const Vector4& o) const {
 		return x * o.x + y * o.y + z * o.z + w * o.w;
 	}
 
@@ -148,7 +148,7 @@ struct Vector4 {
 		return std::sqrt(MagnitudeSquared());
 	}
 
-	[[nodiscard]] T MagnitudeSquared() const {
+	[[nodiscard]] constexpr T MagnitudeSquared() const {
 		return Dot(*this);
 	}
 
@@ -185,50 +185,50 @@ inline bool operator!=(const Vector4<T>& lhs, const Vector4<T>& rhs) {
 }
 
 template <typename T, typename U, typename S = typename std::common_type_t<T, U>>
-inline Vector4<S> operator+(const Vector4<T>& lhs, const Vector4<U>& rhs) {
+constexpr inline Vector4<S> operator+(const Vector4<T>& lhs, const Vector4<U>& rhs) {
 	return { lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z, lhs.w + rhs.w };
 }
 
 template <typename T, typename U, typename S = typename std::common_type_t<T, U>>
-inline Vector4<S> operator-(const Vector4<T>& lhs, const Vector4<U>& rhs) {
+constexpr inline Vector4<S> operator-(const Vector4<T>& lhs, const Vector4<U>& rhs) {
 	return { lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z, lhs.w - rhs.w };
 }
 
 template <typename T, typename U, typename S = typename std::common_type_t<T, U>>
-inline Vector4<S> operator*(const Vector4<T>& lhs, const Vector4<U>& rhs) {
+constexpr inline Vector4<S> operator*(const Vector4<T>& lhs, const Vector4<U>& rhs) {
 	return { lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z, lhs.w * rhs.w };
 }
 
 template <typename T, typename U, typename S = typename std::common_type_t<T, U>>
-inline Vector4<S> operator/(const Vector4<T>& lhs, const Vector4<U>& rhs) {
+constexpr inline Vector4<S> operator/(const Vector4<T>& lhs, const Vector4<U>& rhs) {
 	return { lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z, lhs.w / rhs.w };
 }
 
 template <
 	typename T, typename U, type_traits::arithmetic<T> = true,
 	typename S = typename std::common_type_t<T, U>>
-inline Vector4<S> operator*(T lhs, const Vector4<U>& rhs) {
+constexpr inline Vector4<S> operator*(T lhs, const Vector4<U>& rhs) {
 	return { lhs * rhs.x, lhs * rhs.y, lhs * rhs.z, lhs * rhs.w };
 }
 
 template <
 	typename T, typename U, type_traits::arithmetic<U> = true,
 	typename S = typename std::common_type_t<T, U>>
-inline Vector4<S> operator*(const Vector4<T>& lhs, U rhs) {
+constexpr inline Vector4<S> operator*(const Vector4<T>& lhs, U rhs) {
 	return { lhs.x * rhs, lhs.y * rhs, lhs.z * rhs, lhs.w * rhs };
 }
 
 template <
 	typename T, typename U, type_traits::arithmetic<T> = true,
 	typename S = typename std::common_type_t<T, U>>
-inline Vector4<S> operator/(T lhs, const Vector4<U>& rhs) {
+constexpr inline Vector4<S> operator/(T lhs, const Vector4<U>& rhs) {
 	return { lhs / rhs.x, lhs / rhs.y, lhs / rhs.z, lhs / rhs.w };
 }
 
 template <
 	typename T, typename U, type_traits::arithmetic<T> = true,
 	typename S = typename std::common_type_t<T, U>>
-inline Vector4<S> operator/(const Vector4<T>& lhs, U rhs) {
+constexpr inline Vector4<S> operator/(const Vector4<T>& lhs, U rhs) {
 	return { lhs.x / rhs, lhs.y / rhs, lhs.z / rhs, lhs.w / rhs };
 }
 
