@@ -9,13 +9,18 @@ Color::operator SDL_Color() const {
 	return SDL_Color{ r, g, b, a };
 }
 
-[[nodiscard]] Color Color::RandomOpaque() {
+Vector4<float> Color::Normalized() const {
+	return { static_cast<float>(r) / 255.0f, static_cast<float>(g) / 255.0f,
+			 static_cast<float>(b) / 255.0f, static_cast<float>(a) / 255.0f };
+}
+
+Color Color::RandomOpaque() {
 	RNG<int> rng{ 0, 255 };
 	return { static_cast<Color::Type>(rng()), static_cast<Color::Type>(rng()),
 			 static_cast<Color::Type>(rng()), 255 };
 }
 
-[[nodiscard]] Color Color::RandomTransparent() {
+Color Color::RandomTransparent() {
 	RNG<int> rng{ 0, 255 };
 	return { static_cast<Color::Type>(rng()), static_cast<Color::Type>(rng()),
 			 static_cast<Color::Type>(rng()), static_cast<Color::Type>(rng()) };
