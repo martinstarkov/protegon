@@ -19,16 +19,19 @@ struct Color {
 	Type b{ 0 };
 	Type a{ 255 };
 	operator SDL_Color() const;
+
+	template <typename T>
+	operator Vector4<T>() const {
+		return { static_cast<T>(r), static_cast<T>(g), static_cast<T>(b), static_cast<T>(a) };
+	}
+
 	// Default color is black.
 	constexpr Color() = default;
 
 	constexpr Color(Type r, Type g, Type b, Type a) : r{ r }, g{ g }, b{ b }, a{ a } {}
 
 	// @return Color values normalized to 0.0f -> 1.0f range.
-	[[nodiscard]] Vector4<float> Normalized() const {
-		return { static_cast<float>(r) / 255.0f, static_cast<float>(g) / 255.0f,
-				 static_cast<float>(b) / 255.0f, static_cast<float>(a) / 255.0f };
-	}
+	[[nodiscard]] Vector4<float> Normalized() const;
 
 	[[nodiscard]] static Color RandomOpaque();
 	[[nodiscard]] static Color RandomTransparent();
