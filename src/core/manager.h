@@ -30,7 +30,9 @@ public:
 	 */
 	template <typename... TArgs, type_traits::constructible<Item, TArgs...> = true>
 	Item& Load(const Key& key, TArgs&&... constructor_args) {
-		return map_.try_emplace(key, std::forward<TArgs>(constructor_args)...).first->second;
+		auto& item{ map_[key] };
+		item = std::move(Item{ std::forward<TArgs>(constructor_args)... });
+		return item;
 	}
 
 	/*
