@@ -178,12 +178,10 @@ void RendererData::BindTextures() const {
 Renderer::Renderer() {
 	GLRenderer::EnableBlending();
 	GLRenderer::EnableLineSmoothing();
-	SetViewport(game.window.GetSize());
 
 	// Only update viewport after resizing finishes, not during (saves a few GPU calls).
 	// If desired, changing the word Resized . Resizing will make the viewport update during
 	// resizing.
-	// TODO: Fix. This isnt working correctly. Viewport is not being set.
 	game.event.window.Subscribe(
 		WindowEvent::Resized, (void*)this,
 		std::function([&](const WindowResizedEvent& e) { SetViewport(e.size); })
@@ -193,7 +191,6 @@ Renderer::Renderer() {
 }
 
 Renderer::~Renderer() {
-	// TODO: Figure out a better way to do this?
 	game.event.window.Unsubscribe((void*)this);
 }
 
@@ -227,7 +224,7 @@ void Renderer::SetViewport(const V2_int& size) {
 	PTGN_ASSERT(size.y > 0 && "Cannot set viewport height below 1");
 	viewport_size_ = size;
 	data_.view_projection_ =
-		M4_float::Orthographic(0.0f, static_cast<float>(size.x), 0.0f, static_cast<float>(size.y));
+		M4_float::Orthographic(0.0f, static_cast<float>(size.x), static_cast<float>(size.y), 0.0f);
 	data_.quad_.shader_.Bind();
 	data_.quad_.shader_.SetUniform("u_ViewProjection", data_.view_projection_);
 	data_.circle_.shader_.Bind();
