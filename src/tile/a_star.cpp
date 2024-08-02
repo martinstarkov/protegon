@@ -87,8 +87,8 @@ void AStarGrid::DisplayWaypoints(
 }
 
 void AStarGrid::SolvePath(const V2_int& start, const V2_int& end) {
-	PTGN_CHECK(Has(start));
-	PTGN_CHECK(Has(end));
+	PTGN_ASSERT(Has(start));
+	PTGN_ASSERT(Has(end));
 	impl::AStarNode* start_node{ &Get(start) };
 	impl::AStarNode* end_node{ &Get(end) };
 

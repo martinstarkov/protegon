@@ -149,7 +149,7 @@ void Sweep(const V2_double& position,
 	std::vector<CollisionManifold> collisions;
 	V2_double final_velocity;
 	if (!out_velocity.IsZero()) {
-		PTGN_CHECK(target_positions.size() == target_sizes.size());
+		PTGN_ASSERT(target_positions.size() == target_sizes.size());
 		bool use_relative_velocity{ target_velocities.size() ==
 target_positions.size() }; for (std::size_t i = 0; i < target_positions.size();
 ++i) { V2_double relative_velocity = out_velocity; if (use_relative_velocity)

@@ -47,7 +47,7 @@ void Button::Activate() {
 	if (!enabled_) {
 		return;
 	}
-	PTGN_CHECK(
+	PTGN_ASSERT(
 		on_activate_ != nullptr, "Cannot activate button which has no activate function set"
 	);
 	on_activate_();
@@ -58,7 +58,7 @@ void Button::StartHover() {
 	if (!enabled_) {
 		return;
 	}
-	PTGN_CHECK(
+	PTGN_ASSERT(
 		on_hover_start_ != nullptr,
 		"Cannot start hover for button which has no hover start function set"
 	);
@@ -69,7 +69,7 @@ void Button::StopHover() {
 	if (!enabled_) {
 		return;
 	}
-	PTGN_CHECK(
+	PTGN_ASSERT(
 		on_hover_stop_ != nullptr,
 		"Cannot stop hover for button which has no hover stop function set"
 	);
@@ -434,9 +434,9 @@ TexturedToggleButton::TexturedToggleButton(
 	SubscribeToMouseEvents();
 
 	// TODO: Perhaps allow for more than two entries later
-	PTGN_CHECK(default_textures.size() <= 2);
-	PTGN_CHECK(hover_textures.size() <= 2);
-	PTGN_CHECK(pressed_textures.size() <= 2);
+	PTGN_ASSERT(default_textures.size() <= 2);
+	PTGN_ASSERT(hover_textures.size() <= 2);
+	PTGN_ASSERT(pressed_textures.size() <= 2);
 
 	auto set_textures = [&](const auto& list, const ButtonState state) -> void {
 		std::size_t i = 0;

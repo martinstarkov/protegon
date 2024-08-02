@@ -60,21 +60,21 @@ public:
 	}
 
 	[[nodiscard]] const T& Get(std::size_t index) const {
-		PTGN_CHECK(
+		PTGN_ASSERT(
 			Has(index), "Cannot get grid element which is outside the grid"
 		);
 		return cells[index];
 	}
 
 	[[nodiscard]] T& Get(std::size_t index) {
-		PTGN_CHECK(
+		PTGN_ASSERT(
 			Has(index), "Cannot get grid element which is outside the grid"
 		);
 		return cells[index];
 	}
 
 	T& Set(std::size_t index, T&& object) {
-		PTGN_CHECK(
+		PTGN_ASSERT(
 			Has(index), "Cannot set grid element which is outside the grid"
 		);
 		auto& value = cells[index];

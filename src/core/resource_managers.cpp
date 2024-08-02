@@ -48,8 +48,8 @@ void MusicManager::Unmute(int optional_new_volume) {
 		SetVolume(MIX_MAX_VOLUME);
 		return;
 	}
-	PTGN_CHECK(optional_new_volume >= 0, "Cannot unmute to volume below 0");
-	PTGN_CHECK(
+	PTGN_ASSERT(optional_new_volume >= 0, "Cannot unmute to volume below 0");
+	PTGN_ASSERT(
 		optional_new_volume <= MIX_MAX_VOLUME,
 		"Cannot unmute to volume above max volume (128)"
 	);

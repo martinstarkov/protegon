@@ -57,7 +57,7 @@ public:
 	 */
 	[[nodiscard]] Item& Get(const Key& key) {
 		auto it{ map_.find(key) };
-		PTGN_CHECK(it != std::end(map_), "Entry does not exist in resource manager");
+		PTGN_ASSERT(it != std::end(map_), "Entry does not exist in resource manager");
 		return it->second;
 	}
 
@@ -67,7 +67,7 @@ public:
 	 */
 	[[nodiscard]] const Item& Get(const Key& key) const {
 		auto it{ map_.find(key) };
-		PTGN_CHECK(it != std::end(map_), "Entry does not exist in resource manager");
+		PTGN_ASSERT(it != std::end(map_), "Entry does not exist in resource manager");
 		return it->second;
 	}
 

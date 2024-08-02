@@ -49,7 +49,7 @@ struct Vector2 {
 
 	// Access vector elements by index, 0 for x, 1 for y.
 	constexpr T& operator[](std::size_t idx) {
-		PTGN_CHECK(idx >= 0 && idx < 2, "Vector2 subscript out of range");
+		PTGN_ASSERT(idx >= 0 && idx < 2, "Vector2 subscript out of range");
 		if (idx == 1) {
 			return y;
 		}
@@ -58,7 +58,7 @@ struct Vector2 {
 
 	// Access vector elements by index, 0 for x, 1 for y.
 	constexpr T operator[](std::size_t idx) const {
-		PTGN_CHECK(idx >= 0 && idx < 2, "Vector2 subscript out of range");
+		PTGN_ASSERT(idx >= 0 && idx < 2, "Vector2 subscript out of range");
 		if (idx == 1) {
 			return y;
 		}

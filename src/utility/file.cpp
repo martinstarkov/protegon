@@ -11,7 +11,7 @@ std::string FileToString(const path& file) {
 	// Source: https://stackoverflow.com/a/2602258
 	std::ifstream f(file, std::ios::in | std::ios::binary);
 	// TODO: Add further checks for file being opened correctly.
-	PTGN_CHECK(f, "Could not open file to convert it to string");
+	PTGN_ASSERT(f, "Could not open file to convert it to string");
 	std::stringstream buffer;
 	buffer << f.rdbuf();
 	return buffer.str();

@@ -36,7 +36,7 @@ void GLRenderer::DisableDepthTesting() {
 }
 
 void GLRenderer::DrawElements(const VertexArray& va, std::size_t index_count) {
-	PTGN_CHECK(va.IsValid(), "Cannot draw uninitialized or destroyed vertex array");
+	PTGN_ASSERT(va.IsValid(), "Cannot draw uninitialized or destroyed vertex array");
 	va.Bind();
 	gl::glDrawElements(
 		static_cast<gl::GLenum>(va.GetPrimitiveMode()),
@@ -46,7 +46,7 @@ void GLRenderer::DrawElements(const VertexArray& va, std::size_t index_count) {
 }
 
 void GLRenderer::DrawArrays(const VertexArray& va, std::size_t vertex_count) {
-	PTGN_CHECK(va.IsValid(), "Cannot draw uninitialized or destroyed vertex array");
+	PTGN_ASSERT(va.IsValid(), "Cannot draw uninitialized or destroyed vertex array");
 	va.Bind();
 	gl::glDrawArrays(
 		static_cast<gl::GLenum>(va.GetPrimitiveMode()), 0, static_cast<std::uint32_t>(vertex_count)

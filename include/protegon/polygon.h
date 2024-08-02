@@ -171,7 +171,7 @@ struct Polygon {
 	std::vector<V2_int> vertices;
 
 	void Draw(const Color& color, double pixel_thickness = 1) const {
-		PTGN_CHECK(vertices.size() >= 3, "Cannot draw a polygon with less than 3 vertices");
+		PTGN_ASSERT(vertices.size() >= 3, "Cannot draw a polygon with less than 3 vertices");
 		if (pixel_thickness <= 1) {
 			impl::DrawPolygon(vertices, color);
 		} else {
@@ -180,7 +180,7 @@ struct Polygon {
 	}
 
 	void DrawSolid(const Color& color) const {
-		PTGN_CHECK(vertices.size() >= 3, "Cannot draw a polygon with less than 3 vertices");
+		PTGN_ASSERT(vertices.size() >= 3, "Cannot draw a polygon with less than 3 vertices");
 		impl::DrawSolidPolygon(vertices, color);
 	}
 };
@@ -195,14 +195,14 @@ public:
 	} {}
 
 	void Draw(const Color& color, double pixel_thickness = 1) const {
-		PTGN_CHECK(
+		PTGN_ASSERT(
 			vertices.size() == 3, "Cannot draw a triangle that has more or less than 3 vertices"
 		);
 		Polygon::Draw(color, pixel_thickness);
 	}
 
 	void DrawSolid(const Color& color) const {
-		PTGN_CHECK(
+		PTGN_ASSERT(
 			vertices.size() == 3,
 			"Cannot draw a solid triangle that has more or less than 3 vertices"
 		);

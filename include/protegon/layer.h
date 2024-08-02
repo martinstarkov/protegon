@@ -29,7 +29,7 @@ public:
 	Tile(const Rectangle<int>& rect) : rect{ rect } {}
 
 	Tile(std::size_t texture_key, const Rectangle<int>& source) : source{ source } {
-		PTGN_CHECK(game.texture.Has(texture_key));
+		PTGN_ASSERT(game.texture.Has(texture_key));
 		texture = game.texture.Get(texture_key);
 	}
 
@@ -59,7 +59,7 @@ public:
 		tile_size{ tile_size },
 		scale{ scale },
 		scaled_tile_size{ scale * tile_size } {
-		PTGN_CHECK(FileExists(tileset_path));
+		PTGN_ASSERT(FileExists(tileset_path));
 		// TODO: Fix
 		// texture::Load(texture_key, tileset_path);
 		for (int i = 0; i < size.x; i++) {

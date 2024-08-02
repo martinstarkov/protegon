@@ -56,7 +56,7 @@ struct Vector4 {
 
 	// Access vector elements by index, 0 for x, 1 for y, 2 for z, 3 for w.
 	constexpr T& operator[](std::size_t idx) {
-		PTGN_CHECK(idx >= 0 && idx < 4, "Vector4 subscript out of range");
+		PTGN_ASSERT(idx >= 0 && idx < 4, "Vector4 subscript out of range");
 		if (idx == 0) {
 			return x;
 		} else if (idx == 1) {
@@ -69,7 +69,7 @@ struct Vector4 {
 
 	// Access vector elements by index, 0 for x, 1 for y, 2 for z, 3 for w.
 	constexpr T operator[](std::size_t idx) const {
-		PTGN_CHECK(idx >= 0 && idx < 4, "Vector4 subscript out of range");
+		PTGN_ASSERT(idx >= 0 && idx < 4, "Vector4 subscript out of range");
 		if (idx == 0) {
 			return x;
 		} else if (idx == 1) {

@@ -31,7 +31,7 @@ public:
 		typename T, typename... TArgs, type_traits::constructible<T, TArgs...> = true,
 		type_traits::convertible<T*, Scene*> = true>
 	std::shared_ptr<T> Load(SceneKey scene_key, TArgs&&... constructor_args) {
-		PTGN_CHECK(
+		PTGN_ASSERT(
 			scene_key != impl::start_scene_key,
 			"Cannot load scene with key == 0, it is reserved for the starting scene"
 		);

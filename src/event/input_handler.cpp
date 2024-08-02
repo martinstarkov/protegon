@@ -194,8 +194,7 @@ std::pair<MouseState&, Timer&> InputHandler::GetMouseStateAndTimer(Mouse button)
 		case Mouse::Middle: return { middle_mouse_, middle_mouse_timer_ };
 		default:			break;
 	}
-	PTGN_ASSERT(false, "Input handler cannot retrieve state and timer for invalid mouse button");
-	return { middle_mouse_, middle_mouse_timer_ }; // unused but avoids control path error.
+	PTGN_ERROR("Input handler cannot retrieve state and timer for invalid mouse button");
 }
 
 MouseState InputHandler::GetMouseState(Mouse button) const {
@@ -227,7 +226,7 @@ bool InputHandler::MouseUp(Mouse button) const {
 
 bool InputHandler::KeyPressed(Key key) const {
 	auto key_number{ static_cast<std::size_t>(key) };
-	PTGN_CHECK(
+	PTGN_ASSERT(
 		key_number < InputHandler::key_count_, "Could not find key in input handler key states"
 	);
 	return key_states_[key_number];
@@ -239,7 +238,7 @@ bool InputHandler::KeyReleased(Key key) const {
 
 bool InputHandler::KeyDown(Key key) {
 	auto key_number{ static_cast<std::size_t>(key) };
-	PTGN_CHECK(
+	PTGN_ASSERT(
 		key_number < InputHandler::key_count_, "Could not find key in input handler key states"
 	);
 	if (first_time_down_[key_number]) {
@@ -251,7 +250,7 @@ bool InputHandler::KeyDown(Key key) {
 
 bool InputHandler::KeyUp(Key key) {
 	auto key_number{ static_cast<std::size_t>(key) };
-	PTGN_CHECK(
+	PTGN_ASSERT(
 		key_number < InputHandler::key_count_, "Could not find key in input handler key states"
 	);
 	if (first_time_up_[key_number]) {

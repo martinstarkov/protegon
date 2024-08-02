@@ -35,10 +35,10 @@ Shader::Shader(const ShaderSource& vertex_shader, const ShaderSource& fragment_s
 }
 
 Shader::Shader(const path& vertex_shader_path, const path& fragment_shader_path) {
-	PTGN_CHECK(
+	PTGN_ASSERT(
 		FileExists(vertex_shader_path), "Cannot create shader from nonexistent vertex shader path"
 	);
-	PTGN_CHECK(
+	PTGN_ASSERT(
 		FileExists(fragment_shader_path),
 		"Cannot create shader from nonexistent fragment shader path"
 	);
@@ -60,18 +60,13 @@ std::uint32_t Shader::CompileShader(std::uint32_t type, const std::string& sourc
 	if (result == GL_FALSE) {
 		std::int32_t length{ 0 };
 		gl::GetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
-		std::vector<gl::GLchar> log(length);
+		std::string log;
+		log.resize(length);
 		gl::GetShaderInfoLog(id, length, &length, &log[0]);
-
-		PTGN_ERROR(log.data());
 
 		gl::DeleteShader(id);
 
-		std::string error{ "Failed to compile " + impl::GetShaderTypeName(type) + " shader" };
-
-		PTGN_ERROR(error);
-		PTGN_EXCEPTION(error);
-		return 0;
+		PTGN_ERROR("Failed to compile ", impl::GetShaderTypeName(type), " shader: ", log);
 	}
 
 	return id;
@@ -96,23 +91,20 @@ void Shader::CompileProgram(const std::string& vertex_source, const std::string&
 		// Check for shader link errors.
 		std::int32_t linked = GL_FALSE;
 		gl::GetProgramiv(instance_->id_, GL_LINK_STATUS, &linked);
+
 		if (linked == GL_FALSE) {
 			std::int32_t length{ 0 };
 			gl::GetProgramiv(instance_->id_, GL_INFO_LOG_LENGTH, &length);
-			std::vector<gl::GLchar> log(length);
+			std::string log;
+			log.resize(length);
 			gl::GetProgramInfoLog(instance_->id_, length, &length, &log[0]);
-
-			PTGN_ERROR(log.data());
 
 			gl::DeleteProgram(instance_->id_);
 
 			gl::DeleteShader(vertex);
 			gl::DeleteShader(fragment);
 
-			std::string error{ "Failed to link shaders to program" };
-
-			PTGN_ERROR(error);
-			PTGN_EXCEPTION(error);
+			PTGN_ERROR("Failed to link shaders to program: ", log);
 		}
 	}
 
@@ -126,7 +118,7 @@ void Shader::CompileProgram(const std::string& vertex_source, const std::string&
 }
 
 void Shader::Bind() const {
-	PTGN_CHECK(IsValid(), "Attempting to bind shader which has not been initialized");
+	PTGN_ASSERT(IsValid(), "Attempting to bind shader which has not been initialized");
 	gl::UseProgram(instance_->id_);
 }
 
@@ -135,7 +127,7 @@ void Shader::Bind() const {
 // }
 
 std::int32_t Shader::GetUniformLocation(const std::string& name) const {
-	PTGN_CHECK(
+	PTGN_ASSERT(
 		IsValid(), "Attempting to get uniform location of shader "
 				   "which has not been initialized"
 	);
