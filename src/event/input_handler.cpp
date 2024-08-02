@@ -34,8 +34,6 @@ void InputHandler::Update() {
 	UpdateMouseState(Mouse::Right);
 	UpdateMouseState(Mouse::Middle);
 	mouse_scroll_ = {};
-	first_time_down_.reset();
-	first_time_up_.reset();
 	SDL_Event e;
 	while (SDL_PollEvent(&e)) {
 		switch (e.type) {
@@ -88,10 +86,13 @@ void InputHandler::Update() {
 			case SDL_KEYDOWN: {
 				if (!key_states_[e.key.keysym.scancode]) {
 					first_time_down_[e.key.keysym.scancode] = true;
+					game.event.key.Post(
+						KeyEvent::Down, KeyDownEvent{ static_cast<Key>(e.key.keysym.scancode) }
+					);
 				}
 				key_states_[e.key.keysym.scancode] = true;
 				game.event.key.Post(
-					KeyEvent::Down, KeyDownEvent{ static_cast<Key>(e.key.keysym.scancode) }
+					KeyEvent::Pressed, KeyPressedEvent{ static_cast<Key>(e.key.keysym.scancode) }
 				);
 				break;
 			}
@@ -242,10 +243,11 @@ bool InputHandler::KeyDown(Key key) {
 		key_number < InputHandler::key_count_, "Could not find key in input handler key states"
 	);
 	if (first_time_down_[key_number]) {
+		first_time_up_[key_number]	 = false;
 		first_time_down_[key_number] = false;
 		return true;
 	}
-	return key_states_[key_number];
+	return false;
 }
 
 bool InputHandler::KeyUp(Key key) {
@@ -254,10 +256,11 @@ bool InputHandler::KeyUp(Key key) {
 		key_number < InputHandler::key_count_, "Could not find key in input handler key states"
 	);
 	if (first_time_up_[key_number]) {
-		first_time_up_[key_number] = false;
+		first_time_up_[key_number]	 = false;
+		first_time_down_[key_number] = false;
 		return true;
 	}
-	return !key_states_[key_number];
+	return false;
 }
 
 } // namespace ptgn

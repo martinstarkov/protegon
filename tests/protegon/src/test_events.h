@@ -67,6 +67,11 @@ bool TestEvents() {
 	game.event.key.Subscribe(
 		(void*)&event_observer, std::function([&](KeyEvent type, const Event& e) {
 			switch (type) {
+				case KeyEvent::Pressed: {
+					const auto& es{ static_cast<const KeyPressedEvent&>(e) };
+					PTGN_LOG("Key pressed, key: ", static_cast<int>(es.key));
+					break;
+				}
 				case KeyEvent::Down: {
 					const auto& es{ static_cast<const KeyDownEvent&>(e) };
 					PTGN_LOG("Key down, key: ", static_cast<int>(es.key));

@@ -8,8 +8,9 @@
 namespace ptgn {
 
 enum class KeyEvent {
-	Down,
-	Up,
+	Pressed, /* triggers continuously on key press */
+	Down,	 /* triggers once on key press */
+	Up,		 /* triggers once on key release */
 };
 
 struct KeyDownEvent : public Event {
@@ -20,6 +21,12 @@ struct KeyDownEvent : public Event {
 
 struct KeyUpEvent : public Event {
 	KeyUpEvent(Key key) : key{ key } {}
+
+	Key key;
+};
+
+struct KeyPressedEvent : public Event {
+	KeyPressedEvent(Key key) : key{ key } {}
 
 	Key key;
 };
