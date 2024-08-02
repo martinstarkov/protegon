@@ -125,7 +125,6 @@ struct LineVertex {
 
 namespace impl {
 
-class GameInstance;
 class RendererData;
 
 template <typename TVertex>
@@ -261,8 +260,8 @@ public:
 	}
 
 	template <typename T, std::size_t I>
-	[[nodiscard]] constexpr static std::vector<IndexType> GetQuadIndices() {
-		std::vector<IndexType> indices;
+	[[nodiscard]] constexpr static std::vector<IndexBuffer::IndexType> GetQuadIndices() {
+		std::vector<IndexBuffer::IndexType> indices;
 		indices.resize(I);
 
 		std::uint32_t offset{ 0 };
@@ -282,8 +281,8 @@ public:
 	}
 
 	template <typename T, std::size_t I>
-	[[nodiscard]] constexpr static std::vector<IndexType> GetLineIndices() {
-		std::vector<IndexType> indices;
+	[[nodiscard]] constexpr static std::vector<IndexBuffer::IndexType> GetLineIndices() {
+		std::vector<IndexBuffer::IndexType> indices;
 		indices.resize(I);
 
 		std::uint32_t offset{ 0 };
@@ -381,7 +380,6 @@ public:
 
 private:
 	friend class Game;
-	friend class impl::GameInstance;
 	void StartBatch();
 
 	[[nodiscard]] std::pair<V3_float, V2_float> GetRotated(

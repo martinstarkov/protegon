@@ -8,12 +8,12 @@ namespace ptgn {
 namespace impl {
 
 ProfileInstance::ProfileInstance(const std::string& function_name, const std::string& custom_name) :
-	name_{ custom_name == "" ? function_name : custom_name } {
+	name_{ custom_name.empty() ? function_name : custom_name } {
 	game.profiler.Load(name_).Start();
 }
 
 ProfileInstance::~ProfileInstance() {
-	if (name_ != std::string{}) {
+	if (!name_.empty()) {
 		game.profiler.Get(name_).Stop();
 	}
 }

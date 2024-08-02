@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <ostream>
 #include <type_traits>
 
 namespace ptgn {
@@ -37,17 +38,17 @@ using duration = std::enable_if_t<is_duration_v<T>, bool>;
 } // namespace ptgn
 
 template <typename T>
-std::ostream& operator<<(std::ostream& os, const ptgn::duration<T, ptgn::nanoseconds::period>& v) {
+std::ostream& operator<<(std::ostream& os, const ptgn::duration<T, std::nano>& v) {
 	return os << v.count() << "ns";
 }
 
 template <typename T>
-std::ostream& operator<<(std::ostream& os, const ptgn::duration<T, ptgn::microseconds::period>& v) {
+std::ostream& operator<<(std::ostream& os, const ptgn::duration<T, std::micro>& v) {
 	return os << v.count() << "us";
 }
 
 template <typename T>
-std::ostream& operator<<(std::ostream& os, const ptgn::duration<T, ptgn::milliseconds::period>& v) {
+std::ostream& operator<<(std::ostream& os, const ptgn::duration<T, std::milli>& v) {
 	return os << v.count() << "ms";
 }
 

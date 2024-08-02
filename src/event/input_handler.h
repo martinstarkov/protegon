@@ -16,12 +16,6 @@ namespace ptgn {
 
 class Game;
 
-namespace impl {
-
-class GameInstance;
-
-} // namespace impl
-
 class InputHandler {
 private:
 	InputHandler();
@@ -89,7 +83,6 @@ public:
 
 private:
 	friend class Game;
-	friend class impl::GameInstance;
 
 	void Reset();
 

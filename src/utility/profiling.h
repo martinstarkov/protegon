@@ -67,7 +67,9 @@ private:
 
 			n = name.substr(start, stop == std::string::npos ? stop : stop - start);
 		}
-		PTGN_LOG("PROFILING: ", n, ": ", timer.Elapsed<duration<double, typename T::period>>());
+		// TODO: Fix. There was an error about not finding the << operator inside the log.h
+		// StringStreamWriter PTGN_LOG("PROFILING: ", n, ": ", timer.Elapsed<duration<double,
+		// typename T::period>>());
 	}
 };
 
