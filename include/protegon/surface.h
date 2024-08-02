@@ -6,7 +6,11 @@
 #include "utility/handle.h"
 #include "vector2.h"
 
+struct SDL_Surface;
+
 namespace ptgn {
+
+class Text;
 
 enum class ImageFormat {
 	Unknown	 = 0,		  // SDL_PIXELFORMAT_UNKNOWN
@@ -19,8 +23,8 @@ enum class ImageFormat {
 namespace impl {
 
 struct SurfaceInstance {
-	// TODO: Move construction into Surface itself
-	SurfaceInstance(const path& image_path, ImageFormat format);
+	SurfaceInstance()  = default;
+	~SurfaceInstance() = default;
 	ImageFormat format_{ ImageFormat::Unknown };
 	std::vector<Color> data_;
 	V2_int size_;
@@ -31,7 +35,7 @@ struct SurfaceInstance {
 class Surface : public Handle<impl::SurfaceInstance> {
 public:
 	Surface() = default;
-	Surface(const path& image_path, ImageFormat format = ImageFormat::RGBA8888);
+	Surface(const path& image_path);
 
 	void FlipVertically();
 
@@ -40,6 +44,13 @@ public:
 	[[nodiscard]] V2_int GetSize() const;
 	[[nodiscard]] const std::vector<Color>& GetData() const;
 	[[nodiscard]] ImageFormat GetImageFormat() const;
+
+private:
+	friend class Text;
+
+	Surface(
+		const std::shared_ptr<SDL_Surface>& surface, ImageFormat format = ImageFormat::RGBA8888
+	);
 };
 
 } // namespace ptgn

@@ -26,28 +26,6 @@ TextureInstance::~TextureInstance() {
 	gl::glDeleteTextures(1, &id_);
 }
 
-static ImageFormat GetImageFormat(SDL_Surface* surface) {
-	PTGN_ASSERT(surface != nullptr, "Cannot get image format of invalid SDL_Surface");
-	switch (surface->format->BytesPerPixel) {
-		case 4: {
-			if (surface->format->Rmask == 0x000000ff) {
-				return ImageFormat::RGBA8888;
-			} else {
-				return ImageFormat::BGRA8888;
-			}
-		}
-		case 3: {
-			if (surface->format->Rmask == 0x000000ff) {
-				return ImageFormat::RGB888;
-			} else {
-				return ImageFormat::BGR888;
-			}
-		}
-		default: break;
-	}
-	return ImageFormat::Unknown;
-}
-
 static GLFormats GetGLFormats(ImageFormat format) {
 	// Possible internal format options:
 	// GL_R#size, GL_RG#size, GL_RGB#size, GL_RGBA#size
@@ -136,31 +114,6 @@ void Texture::Bind(std::uint32_t slot) const {
 // void Texture::Unbind() {
 //	gl::glBindTexture(GL_TEXTURE_2D, 0);
 // }
-
-Texture::Texture(const std::shared_ptr<SDL_Surface>& surface) {
-	PTGN_ASSERT(surface != nullptr, "Cannot create texture from invalid surface");
-
-	ImageFormat format{ impl::GetImageFormat(surface.get()) };
-
-	std::shared_ptr<SDL_Surface> used_surface;
-
-	if (format == ImageFormat::Unknown) {
-		format		 = ImageFormat::RGBA8888;
-		used_surface = std::shared_ptr<SDL_Surface>{
-			SDL_ConvertSurfaceFormat(surface.get(), static_cast<std::uint32_t>(format), 0),
-			SDL_FreeSurface
-		};
-		PTGN_ASSERT(used_surface != nullptr, SDL_GetError());
-	} else {
-		used_surface = surface;
-	}
-
-	V2_int size{ used_surface->w, used_surface->h };
-
-	PTGN_ASSERT(format != ImageFormat::Unknown, "Failed to parse SDL_Surface image format");
-
-	*this = Texture(used_surface->pixels, size, format);
-}
 
 std::int32_t Texture::BoundId() {
 	std::int32_t id{ 0 };

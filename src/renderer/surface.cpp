@@ -8,58 +8,80 @@
 
 namespace ptgn {
 
-namespace impl {
+namespace impl {} // namespace impl
 
-SurfaceInstance::SurfaceInstance(const path& image_path, ImageFormat format) : format_{ format } {
-	PTGN_ASSERT(FileExists(image_path), "Cannot create surface from a nonexistent image path");
-	PTGN_ASSERT(format_ != ImageFormat::Unknown, "Cannot create surface with unknown image format");
-	std::shared_ptr<SDL_Surface> raw_surface = { IMG_Load(image_path.string().c_str()),
-												 SDL_FreeSurface };
-	PTGN_ASSERT(raw_surface != nullptr, IMG_GetError());
+Surface::Surface(const std::shared_ptr<SDL_Surface>& raw_surface, ImageFormat format) {
+	PTGN_ASSERT(format != ImageFormat::Unknown, "Cannot create surface with unknown image format");
 
-	std::shared_ptr<SDL_Surface> surface = {
-		SDL_ConvertSurfaceFormat(raw_surface.get(), static_cast<std::uint32_t>(format_), 0),
-		SDL_FreeSurface
-	};
+	if (!IsValid()) {
+		instance_ = std::make_shared<impl::SurfaceInstance>();
+	}
+	instance_->format_ = format;
+
+	std::shared_ptr<SDL_Surface> surface = { SDL_ConvertSurfaceFormat(
+												 raw_surface.get(),
+												 static_cast<std::uint32_t>(instance_->format_), 0
+											 ),
+											 SDL_FreeSurface };
 	PTGN_ASSERT(surface != nullptr, SDL_GetError());
 
 	int lock = SDL_LockSurface(surface.get());
 	PTGN_ASSERT(lock == 0, "Failed to lock surface when copying pixels");
 
-	size_ = { surface->w, surface->h };
+	instance_->size_ = { surface->w, surface->h };
 
-	int total_pixels = size_.x * size_.y;
+	int total_pixels = instance_->size_.x * instance_->size_.y;
 
-	data_.resize(total_pixels, color::Black);
+	instance_->data_.resize(total_pixels, color::Transparent);
 
-	for (int y = 0; y < size_.y; ++y) {
+	bool r_mask{ surface->format->Rmask == 0x000000ff };
+
+	for (int y = 0; y < instance_->size_.y; ++y) {
 		std::uint8_t* row	= (std::uint8_t*)surface->pixels + y * surface->pitch;
-		std::size_t idx_row = y * size_.x;
-		for (int x = 0; x < size_.x; ++x) {
+		std::size_t idx_row = y * instance_->size_.x;
+		for (int x = 0; x < instance_->size_.x; ++x) {
 			std::uint8_t* pixel = row + x * surface->format->BytesPerPixel;
 			std::size_t index	= idx_row + x;
-			PTGN_ASSERT(index < data_.size());
+			PTGN_ASSERT(index < instance_->data_.size());
+
 			switch (surface->format->BytesPerPixel) {
-				case 4: // RGBA8888
-					data_[index] = { pixel[3], pixel[2], pixel[1], pixel[0] };
+				case 4: {
+					if (r_mask) {
+						instance_->data_[index] = { pixel[1], pixel[2], pixel[3], pixel[0] };
+					} else {
+						instance_->data_[index] = { pixel[3], pixel[2], pixel[1], pixel[0] };
+					}
 					break;
-				case 3:													  // RGB888
-					data_[index] = { pixel[2], pixel[1], pixel[0], 255 }; // Assume opaque
+				}
+				case 3: {
+					if (r_mask) {
+						instance_->data_[index] = { pixel[0], pixel[1], pixel[2], 255 };
+					} else {
+						instance_->data_[index] = { pixel[2], pixel[1], pixel[0], 255 };
+					}
 					break;
+				}
+				case 1: {
+					instance_->data_[index] = { 255, 255, 255, pixel[0] };
+					break;
+				}
 				default: PTGN_ERROR("Unsupported image format"); break;
 			}
 		}
 	}
-	PTGN_ASSERT(data_.size() == size_.x * size_.y);
+	PTGN_ASSERT(instance_->data_.size() == instance_->size_.x * instance_->size_.y);
 
 	SDL_UnlockSurface(surface.get());
 }
 
-} // namespace impl
-
-Surface::Surface(const path& image_path, ImageFormat format) {
-	instance_ = std::make_shared<impl::SurfaceInstance>(image_path, format);
-}
+Surface::Surface(const path& image_path) :
+	Surface{ [&]() -> std::shared_ptr<SDL_Surface> {
+		PTGN_ASSERT(FileExists(image_path), "Cannot create surface from a nonexistent image path");
+		std::shared_ptr<SDL_Surface> raw_surface = { IMG_Load(image_path.string().c_str()),
+													 SDL_FreeSurface };
+		PTGN_ASSERT(raw_surface != nullptr, IMG_GetError());
+		return raw_surface;
+	}() } {}
 
 void Surface::FlipVertically() {
 	PTGN_ASSERT(IsValid(), "Cannot flip surface vertically if it is uninitialized or destroyed");

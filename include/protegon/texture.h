@@ -7,11 +7,7 @@
 #include "protegon/vector2.h"
 #include "utility/handle.h"
 
-struct SDL_Surface;
-
 namespace ptgn {
-
-class Text;
 
 class Renderer;
 
@@ -57,10 +53,6 @@ public:
 private:
 	friend class impl::RendererData;
 	friend class Renderer;
-	friend class Text;
-
-	// Does not free surface.
-	Texture(const std::shared_ptr<SDL_Surface>& surface);
 
 	static std::int32_t BoundId();
 

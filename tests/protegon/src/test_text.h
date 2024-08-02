@@ -72,7 +72,7 @@ bool TestText() {
 	FontStyle font_style = FontStyle::Normal,
 	FontRenderMode render_mode = FontRenderMode::Solid,
 	const Color& shading_color = color::White*/
-	game.renderer.SetClearColor(color::LightGrey);
+	game.renderer.SetClearColor(color::White);
 
 	game.LoopUntilQuit([&]() {
 		game.renderer.Clear();
