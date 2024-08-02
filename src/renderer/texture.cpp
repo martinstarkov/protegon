@@ -82,8 +82,7 @@ Texture::Texture(const path& image_path, ImageFormat format) :
 		return Surface{ image_path };
 	}() } {}
 
-Texture::Texture(const Surface& surface) :
-	Texture{ surface.GetData(), surface.GetSize(), surface.GetImageFormat() } {}
+Texture::Texture(const Surface& surface) : Texture{ surface.GetData(), surface.GetSize() } {}
 
 Texture::Texture(const void* pixel_data, const V2_int& size, ImageFormat format) {
 	PUSHSTATE();
@@ -104,14 +103,14 @@ Texture::Texture(const void* pixel_data, const V2_int& size, ImageFormat format)
 	POPSTATE();
 }
 
-Texture::Texture(const std::vector<Color>& pixels, const V2_int& size, ImageFormat format) :
+Texture::Texture(const std::vector<Color>& pixels, const V2_int& size) :
 	Texture{ [&]() -> void* {
 				PTGN_ASSERT(
 					pixels.size() == size.x * size.y, "Provided pixel array must match texture size"
 				);
 				return (void*)pixels.data();
 			}(),
-			 size, format } {}
+			 size, ImageFormat::RGBA8888 } {}
 
 void Texture::Bind() const {
 	PTGN_ASSERT(IsValid(), "Cannot bind texture which is destroyed or uninitialized");
@@ -206,11 +205,11 @@ void Texture::SetSubData(const void* pixel_data, ImageFormat format) {
 	POPSTATE();
 }
 
-void Texture::SetSubData(const std::vector<Color>& pixels, ImageFormat format) {
+void Texture::SetSubData(const std::vector<Color>& pixels) {
 	PTGN_ASSERT(
 		pixels.size() == GetSize().x * GetSize().y, "Provided pixel array must match texture size"
 	);
-	SetSubData((void*)pixels.data(), format);
+	SetSubData((void*)pixels.data(), ImageFormat::RGBA8888);
 }
 
 V2_int Texture::GetSize() const {

@@ -44,10 +44,10 @@ public:
 	Texture(const path& image_path, ImageFormat format = ImageFormat::RGBA8888);
 	Texture(const Surface& surface);
 	Texture(const void* pixel_data, const V2_int& size, ImageFormat format);
-	Texture(const std::vector<Color>& pixels, const V2_int& size, ImageFormat format);
+	Texture(const std::vector<Color>& pixels, const V2_int& size);
 
 	void SetSubData(const void* pixel_data, ImageFormat format);
-	void SetSubData(const std::vector<Color>& pixels, ImageFormat format);
+	void SetSubData(const std::vector<Color>& pixels);
 
 	V2_int GetSize() const;
 
