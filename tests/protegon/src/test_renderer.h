@@ -19,7 +19,9 @@ enum class RenderTest {
 	RectangleHollow,
 	Transparency,
 	ViewportExtents,
-	Texture,
+	TextureJPG,
+	TexturePNG,
+	TextureBMP,
 	BatchRectangleFilled,
 	BatchRectangleHollow,
 	BatchCircle,
@@ -116,7 +118,7 @@ void TestViewportExtents() {
 		game.renderer.DrawRectangleFilled(V2_float{ 0, 0 }, V2_float{ 50, 50 }, color::Blue);
 		game.renderer.DrawRectangleFilled(V2_float{ ws.x, 0 }, V2_float{ 50, 50 }, color::Magenta);
 		game.renderer.DrawRectangleFilled(ws, V2_float{ 50, 50 }, color::Red);
-		game.renderer.DrawRectangleFilled(V2_float{ 0, ws.y }, V2_float{ 50, 50 }, color::Pink);
+		game.renderer.DrawRectangleFilled(V2_float{ 0, ws.y }, V2_float{ 50, 50 }, color::Orange);
 
 		game.renderer.Present();
 	});
@@ -158,19 +160,17 @@ void TestRectangleHollow() {
 	});
 }
 
-void TestTexture() {
-	PTGN_LOG("Render Test ", test, ": Texture");
+void TestTexture(const path& texture) {
+	PTGN_LOG("Render Test ", test, ": Texture (", texture.extension().string(), ")");
 
-	V2_float pos1{ game.window.GetCenter() };
-	V2_float size1{ game.window.GetSize() / 2.0f };
-	Texture texture{ "resources/sprites/test.png" };
+	Texture t{ texture };
 
 	game.LoopUntilKeyDown(test_switch_keys, [&]() {
 		CheckForTestSwitch();
 
 		game.renderer.Clear();
 
-		game.renderer.DrawTexture(pos1, size1, texture);
+		game.renderer.DrawTexture(game.window.GetCenter(), game.window.GetSize() / 2.0f, t);
 
 		game.renderer.Present();
 	});
@@ -687,27 +687,35 @@ void TestShaders() {
 }
 
 void TestTextures() {
-	Texture t0;
+	Texture t0_0;
 
-	PTGN_ASSERT(!t0.IsValid());
+	PTGN_ASSERT(!t0_0.IsValid());
 
 	// Both fail assertion due to non-existent files.
 	// Texture t0_1{ "resources/sprites/totally_not_a_file......" };
 	// Texture t0_2{ "resources/sprites/totally_not_a_file.png" };
 
-	Texture t1{ "resources/sprites/test.png" };
+	Texture t0{ "resources/sprites/test1.jpg" };
+
+	PTGN_ASSERT(t0.IsValid());
+	PTGN_ASSERT(t0.GetInstance()->id_ != 0);
+
+	PTGN_ASSERT((t0.GetSize() == V2_int{ 320, 240 }));
+
+	Texture t1{ "resources/sprites/test3.bmp" };
 
 	PTGN_ASSERT(t1.IsValid());
 	PTGN_ASSERT(t1.GetInstance()->id_ != 0);
 
-	PTGN_ASSERT((t1.GetSize() == V2_int{ 502, 239 }));
+	PTGN_ASSERT((t1.GetSize() == V2_int{ 32, 32 }));
 
-	Texture t2{ "resources/sprites/test.png" };
+	Texture t2{ "resources/sprites/test2.png" };
 
 	PTGN_ASSERT(t2.IsValid());
 	PTGN_ASSERT(t2.GetInstance()->id_ != 0);
 	PTGN_ASSERT(t2.GetInstance()->id_ != t1.GetInstance()->id_);
-	PTGN_ASSERT(t2.GetSize() == t1.GetSize());
+	PTGN_ASSERT((t2.GetSize() == V2_int{ 502, 239 }));
+	PTGN_ASSERT(t2.GetSize() != t1.GetSize());
 
 	std::vector<Color> pixels0;
 	pixels0.push_back(color::Cyan);
@@ -738,7 +746,7 @@ void TestTextures() {
 void TestRendering() {
 	game.window.SetSize({ 800, 800 });
 	game.window.Show();
-	game.renderer.SetClearColor(color::White);
+	game.renderer.SetClearColor(color::LightPink);
 	game.window.SetTitle("Press '1' and '2' to cycle back and fourth between render tests");
 
 	/*static Shader shader =
@@ -869,7 +877,9 @@ void TestRendering() {
 			case RenderTest::BatchRectangleHollow: TestBatchRectangleHollow(); break;
 			case RenderTest::BatchCircle:		   TestBatchCircle(); break;
 			case RenderTest::BatchLine:			   TestBatchLine(); break;
-			case RenderTest::Texture:			   TestTexture(); break;
+			case RenderTest::TextureJPG:		   TestTexture("resources/sprites/test1.jpg"); break;
+			case RenderTest::TexturePNG:		   TestTexture("resources/sprites/test2.png"); break;
+			case RenderTest::TextureBMP:		   TestTexture("resources/sprites/test3.bmp"); break;
 			case RenderTest::ViewportExtents:	   TestViewportExtents(); break;
 			case RenderTest::RectangleFilled:	   TestRectangleFilled(); break;
 			case RenderTest::RectangleHollow:	   TestRectangleHollow(); break;
