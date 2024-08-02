@@ -59,10 +59,11 @@ inline void BatchData<LineVertex>::Draw(RendererData& data) {
 template <>
 void BatchData<QuadVertex>::AddQuad(
 	const V3_float& position, const V2_float& size, const V4_float& color,
-	const std::array<V2_float, 4>& tex_coords, float texture_index, float tiling_factor
+	const std::array<V2_float, 4>& tex_coords, float texture_index, float tiling_factor,
+	bool center_relative
 ) {
 	PTGN_ASSERT(buffer_ptr_ != nullptr);
-	auto positions = GetQuadVertices(position, size);
+	auto positions = GetQuadVertices(position, size, center_relative);
 	for (size_t i = 0; i < QuadVertex::VertexCount(); i++) {
 		// PTGN_LOG("V", i, ": ", positions[i]);
 		buffer_ptr_->position	   = { positions[i].x, positions[i].y, positions[i].z };
@@ -82,8 +83,8 @@ void BatchData<CircleVertex>::AddCircle(
 	float fade
 ) {
 	PTGN_ASSERT(buffer_ptr_ != nullptr);
-	auto positions	   = GetQuadVertices(position, size);
-	constexpr auto rel = GetRelativeVertices();
+	auto positions	   = GetQuadVertices(position, size, true);
+	constexpr auto rel = GetCenterRelativeVertices();
 	for (std::size_t i{ 0 }; i < QuadVertex::VertexCount(); i++) {
 		auto local					= rel[i] * 2.0f;
 		buffer_ptr_->world_position = { positions[i].x, positions[i].y, positions[i].z };
@@ -135,8 +136,7 @@ void RendererData::SetupBuffers() {
 
 void RendererData::SetupTextureSlots() {
 	// First texture slot is occupied by white texture
-	std::uint32_t white_texture_data{ 0xffffffff };
-	white_texture_ = Texture(&white_texture_data, { 1, 1 }, ImageFormat::RGBA8888);
+	white_texture_ = Texture({ color::White }, { 1, 1 });
 
 	max_texture_slots_ = GLRenderer::GetMaxTextureSlots();
 
@@ -267,7 +267,7 @@ void Renderer::Flush() {
 
 void Renderer::DrawRectangleFilled(
 	const V2_float& position, const V2_float& size, const Color& color, float rotation /* = 0.0f*/,
-	float z_index /* = 0.0f*/
+	float z_index /* = 0.0f*/, bool center_relative /* = true*/
 ) {
 	if (data_.quad_.index_count_ >= data_.max_indices_) {
 		data_.quad_.NextBatch(data_);
@@ -279,13 +279,13 @@ void Renderer::DrawRectangleFilled(
 	constexpr const float texture_index{ 0.0f }; // white texture
 	constexpr const float tiling_factor{ 1.0f };
 
-	data_.quad_.AddQuad(p, s, color, tex_coords, texture_index, tiling_factor);
+	data_.quad_.AddQuad(p, s, color, tex_coords, texture_index, tiling_factor, center_relative);
 	data_.stats_.quad_count++;
 }
 
 void Renderer::DrawRectangleHollow(
 	const V2_float& position, const V2_float& size, const Color& color, float rotation /* = 0.0f*/,
-	float z_index /* = 0.0f*/
+	float z_index /* = 0.0f*/, bool center_relative /* = true*/
 ) {
 	if (data_.line_.index_count_ >= data_.max_indices_) {
 		data_.line_.NextBatch(data_);
@@ -293,7 +293,7 @@ void Renderer::DrawRectangleHollow(
 
 	auto [p, s] = GetRotated(position, size, rotation, z_index);
 
-	auto positions = impl::BatchData<QuadVertex>::GetQuadVertices(p, s);
+	auto positions = impl::BatchData<QuadVertex>::GetQuadVertices(p, s, center_relative);
 
 	PTGN_ASSERT(positions.size() == QuadVertex::VertexCount());
 
@@ -308,8 +308,8 @@ void Renderer::DrawRectangleHollow(
 void Renderer::DrawTexture(
 	const V2_float& destination_position, const V2_float& destination_size, const Texture& texture,
 	const V2_float& source_position /* = {}*/, V2_float source_size /* = {}*/,
-	float rotation /* = 0.0f*/, float z_index /* = 0.0f*/, float tiling_factor /* = 1.0f*/,
-	const Color& tint_color /* = color::White*/
+	float rotation /* = 0.0f*/, float z_index /* = 0.0f*/, bool center_relative /* = true*/,
+	float tiling_factor /* = 1.0f*/, const Color& tint_color /* = color::White*/
 ) {
 	if (data_.quad_.index_count_ >= data_.max_indices_) {
 		data_.quad_.NextBatch(data_);
@@ -360,7 +360,9 @@ void Renderer::DrawTexture(
 		data_.texture_slot_index_++;
 	}
 
-	data_.quad_.AddQuad(p, s, tint_color, tex_coords, texture_index, tiling_factor);
+	data_.quad_.AddQuad(
+		p, s, tint_color, tex_coords, texture_index, tiling_factor, center_relative
+	);
 	data_.stats_.quad_count++;
 }
 

@@ -57,7 +57,9 @@ Texture Text::RecreateTexture() {
 
 Text::Text(
 	const FontOrKey& font, const std::string& content, const Color& text_color,
-	FontStyle font_style, FontRenderMode render_mode, const Color& shading_color
+	FontStyle font_style /*= FontStyle::Normal*/,
+	FontRenderMode render_mode /*= FontRenderMode::Solid*/,
+	const Color& shading_color /*= color::White*/
 ) {
 	if (!IsValid()) {
 		instance_ = std::make_shared<impl::TextInstance>();
@@ -205,7 +207,9 @@ void Text::Draw(const Rectangle<int>& destination) const {
 	if (!instance_->texture_.IsValid()) {
 		return;
 	}
-	game.renderer.DrawTexture(destination.pos, destination.size, instance_->texture_);
+	game.renderer.DrawTexture(
+		destination.pos, destination.size, instance_->texture_, {}, {}, 0.0f, 0.0f, false
+	);
 }
 
 V2_int Text::GetSize(const FontOrKey& font, const std::string& content) {

@@ -1,12 +1,11 @@
 #pragma once
 
-#include <set>
-
 #include "SDL.h"
 #include "SDL_image.h"
 #include "protegon/buffer.h"
 #include "protegon/game.h"
 #include "protegon/shader.h"
+#include "protegon/texture.h"
 #include "protegon/vertex_array.h"
 #include "utility/debug.h"
 #include "utility/utility.h"
@@ -716,7 +715,7 @@ void TestTextures() {
 	pixels0.push_back(color::Orange);
 
 	// Assertion failed, not enough pixels provided.
-	// t1.SetSubData(pixels0, ImageFormat::RGBA8888);
+	// t1.SetSubData(pixels0);
 
 	std::vector<Color> pixels1;
 	for (size_t i = 0; i < t1.GetSize().x; i++) {
@@ -725,7 +724,7 @@ void TestTextures() {
 		}
 	}
 
-	t1.SetSubData(pixels1, ImageFormat::RGBA8888);
+	t1.SetSubData(pixels1);
 
 	t1.Bind();
 	t1.Bind(0);

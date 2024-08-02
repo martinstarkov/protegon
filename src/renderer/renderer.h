@@ -141,9 +141,10 @@ public:
 	void NextBatch(RendererData& data);
 
 	constexpr static std::array<V3_float, QuadVertex::VertexCount()> GetQuadVertices(
-		const V3_float& position, const V2_float& size
+		const V3_float& position, const V2_float& size, bool center_relative
 	) {
-		constexpr auto rel = GetRelativeVertices();
+		const auto rel =
+			center_relative ? GetCenterRelativeVertices() : GetTopLeftRelativeVertices();
 
 		std::array<V3_float, QuadVertex::VertexCount()> r;
 
@@ -155,12 +156,22 @@ public:
 	}
 
 	[[nodiscard]] constexpr static std::array<V2_float, QuadVertex::VertexCount()>
-	GetRelativeVertices() {
+	GetCenterRelativeVertices() {
 		return {
 			V2_float{-0.5f, -0.5f},
 			  V2_float{ 0.5f, -0.5f},
 			   V2_float{ 0.5f,  0.5f},
 			V2_float{-0.5f,	 0.5f}
+		};
+	}
+
+	[[nodiscard]] constexpr static std::array<V2_float, QuadVertex::VertexCount()>
+	GetTopLeftRelativeVertices() {
+		return {
+			V2_float{0.0f, 0.0f},
+			V2_float{1.0f, 0.0f},
+			V2_float{1.0f, 1.0f},
+			V2_float{0.0f, 1.0f}
 		};
 	}
 
@@ -193,7 +204,8 @@ public:
 
 	void AddQuad(
 		const V3_float& position, const V2_float& size, const V4_float& color,
-		const std::array<V2_float, 4>& tex_coords, float texture_index, float tiling_factor
+		const std::array<V2_float, 4>& tex_coords, float texture_index, float tiling_factor,
+		bool center_relative
 	);
 
 	void AddCircle(
@@ -347,13 +359,13 @@ public:
 	// Rotation in degrees.
 	void DrawRectangleFilled(
 		const V2_float& position, const V2_float& size, const Color& color, float rotation = 0.0f,
-		float z_index = 0.0f
+		float z_index = 0.0f, bool center_relative = true
 	);
 
 	// Rotation in degrees.
 	void DrawRectangleHollow(
 		const V2_float& position, const V2_float& size, const Color& color, float rotation = 0.0f,
-		float z_index = 0.0f
+		float z_index = 0.0f, bool center_relative = true
 	);
 
 	// Rotation in degrees.
@@ -361,7 +373,8 @@ public:
 		const V2_float& destination_position, const V2_float& destination_size,
 		const Texture& texture, const V2_float& source_position = {} /* defaults to bottom left */,
 		V2_float source_size = {} /* {} defaults to entire texture */, float rotation = 0.0f,
-		float z_index = 0.0f, float tiling_factor = 1.0f, const Color& tint_color = color::White
+		float z_index = 0.0f, bool center_relative = true, float tiling_factor = 1.0f,
+		const Color& tint_color = color::White
 	);
 
 	void DrawCircleSolid(
