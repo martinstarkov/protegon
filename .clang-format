@@ -2,7 +2,7 @@
 BasedOnStyle: Google
 AccessModifierOffset: -4
 AlignAfterOpenBracket: BlockIndent
-AlignArrayOfStructures: Right
+AlignArrayOfStructures: None
 AlignConsecutiveAssignments:
   Enabled: true
   AcrossEmptyLines: false
@@ -85,7 +85,7 @@ ColumnLimit: 100
 CommentPragmas: "^ IWYU pragma:"
 CompactNamespaces: false
 ConstructorInitializerIndentWidth: 4
-ContinuationIndentWidth: 4
+ContinuationIndentWidth: 8
 Cpp11BracedListStyle: false
 DerivePointerAlignment: true
 DisableFormat: false
