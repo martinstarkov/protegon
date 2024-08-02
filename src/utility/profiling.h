@@ -58,34 +58,25 @@ private:
 	template <typename T>
 	void PrintInfo(const std::string& name, const Timer& timer) const {
 		static_assert(type_traits::is_duration_v<T>, "Type must be duration");
-		const std::string begin_trim{ "__cdecl" }; // cutoff return type
-		const std::string end_trim{ "(" };		   // cutoff function parameter list
-		std::string n{ name };
-		if (const auto pos = name.find(begin_trim); pos != std::string::npos) {
-			const auto start{ pos + begin_trim.length() + 1 };
-			const auto stop = name.find(end_trim);
-
-			n = name.substr(start, stop == std::string::npos ? stop : stop - start);
-		}
 		// TODO: Fix. There was an error about not finding the << operator inside the log.h
-		// StringStreamWriter PTGN_LOG("PROFILING: ", n, ": ", timer.Elapsed<duration<double,
-		// typename T::period>>());
+		// StringStreamWriter PTGN_LOG("PROFILING: ", impl::TrimFunctionSignature(name), ": ",
+		// timer.Elapsed<duration<double, typename T::period>>());
 	}
 };
 
 } // namespace ptgn
 
-#define PTGN_PROFILE_FUNCTION(...)                                \
-	ptgn::impl::ProfileInstance ptgn_profile_instance_##__LINE__( \
-		PTGN_EXPAND_MACRO(PTGN_FUNCTION_SIGNATURE),               \
-		[&]() -> const char* {                                    \
-			if constexpr (PTGN_NUMBER_OF_ARGS(__VA_ARGS__) > 0) { \
-				return __VA_ARGS__;                               \
-			} else {                                              \
-				return "";                                        \
-			}                                                     \
-		}()                                                       \
-                                                                  \
+#define PTGN_PROFILE_FUNCTION(...)                                    \
+	ptgn::impl::ProfileInstance ptgn_profile_instance_##__LINE__(     \
+			PTGN_EXPAND_MACRO(PTGN_FULL_FUNCTION_SIGNATURE),          \
+			[&]() -> const char* {                                    \
+				if constexpr (PTGN_NUMBER_OF_ARGS(__VA_ARGS__) > 0) { \
+					return __VA_ARGS__;                               \
+				} else {                                              \
+					return "";                                        \
+				}                                                     \
+			}()                                                       \
+                                                                      \
 	)
 
 // Optional: Disable profiling in Release builds
