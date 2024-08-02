@@ -29,15 +29,16 @@ struct BufferElement {
 
 } // namespace impl
 
-template <typename... BufferElements>
+// TODO: Add checks for valid buffer elements.
+template <typename... Ts>
 class BufferLayout {
 public:
 	BufferLayout() {
-		elements_.reserve(sizeof...(BufferElements));
+		elements_.reserve(sizeof...(Ts));
 		elements_ = {
-			impl::BufferElement{static_cast<std::uint16_t>(sizeof(BufferElements)),
-								 static_cast<std::uint16_t>(std::tuple_size<BufferElements>::value),
-								 impl::GetType<typename BufferElements::value_type>()}
+			impl::BufferElement{static_cast<std::uint16_t>(sizeof(Ts)),
+								 static_cast<std::uint16_t>(std::tuple_size<Ts>::value),
+								 impl::GetType<typename Ts::value_type>()}
 			   ...
 		};
 	}
