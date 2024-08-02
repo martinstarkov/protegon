@@ -116,12 +116,13 @@ struct LineVertex {
 	}
 };
 
-//
-// struct TextVertex {
-//	glsl::vec3 position;
-//	glsl::vec4 color;
-//	glsl::vec2 tex_coord;
-// };
+enum class Origin {
+	Center,
+	TopLeft,
+	TopRight,
+	BottomRight,
+	BottomLeft,
+};
 
 namespace impl {
 
@@ -141,10 +142,19 @@ public:
 	void NextBatch(RendererData& data);
 
 	constexpr static std::array<V3_float, QuadVertex::VertexCount()> GetQuadVertices(
-		const V3_float& position, const V2_float& size, bool center_relative
+			const V3_float& position, const V2_float& size, Origin origin
 	) {
-		const auto rel =
-			center_relative ? GetCenterRelativeVertices() : GetTopLeftRelativeVertices();
+		std::array<V2_float, QuadVertex::VertexCount()> rel;
+		// TODO: Figure out a cleaner way to do this. Maybe some math tricks with the enum for
+		// finding the coordinate points.
+		switch (origin) {
+			case Origin::Center:	  rel = GetCenterRelativeVertices(); break;
+			case Origin::TopLeft:	  rel = GetTopLeftRelativeVertices(); break;
+			case Origin::TopRight:	  rel = GetTopRightRelativeVertices(); break;
+			case Origin::BottomRight: rel = GetBottomRightRelativeVertices(); break;
+			case Origin::BottomLeft:  rel = GetBottomLeftRelativeVertices(); break;
+			default:				  PTGN_ERROR("Failed to identify origin for drawing quad"); break;
+		}
 
 		std::array<V3_float, QuadVertex::VertexCount()> r;
 
@@ -158,20 +168,50 @@ public:
 	[[nodiscard]] constexpr static std::array<V2_float, QuadVertex::VertexCount()>
 	GetCenterRelativeVertices() {
 		return {
-			V2_float{-0.5f, -0.5f},
-			  V2_float{ 0.5f, -0.5f},
-			   V2_float{ 0.5f,  0.5f},
-			V2_float{-0.5f,	 0.5f}
+			V2_float{ -0.5f, -0.5f },
+			V2_float{ 0.5f, -0.5f },
+			V2_float{ 0.5f, 0.5f },
+			V2_float{ -0.5f, 0.5f },
 		};
 	}
 
 	[[nodiscard]] constexpr static std::array<V2_float, QuadVertex::VertexCount()>
 	GetTopLeftRelativeVertices() {
 		return {
-			V2_float{0.0f, 0.0f},
-			V2_float{1.0f, 0.0f},
-			V2_float{1.0f, 1.0f},
-			V2_float{0.0f, 1.0f}
+			V2_float{ 0.0f, 0.0f },
+			V2_float{ 1.0f, 0.0f },
+			V2_float{ 1.0f, 1.0f },
+			V2_float{ 0.0f, 1.0f },
+		};
+	}
+
+	[[nodiscard]] constexpr static std::array<V2_float, QuadVertex::VertexCount()>
+	GetTopRightRelativeVertices() {
+		return {
+			V2_float{ 0.0f, 0.0f },
+			V2_float{ -1.0f, 0.0f },
+			V2_float{ -1.0f, 1.0f },
+			V2_float{ 0.0f, 1.0f },
+		};
+	}
+
+	[[nodiscard]] constexpr static std::array<V2_float, QuadVertex::VertexCount()>
+	GetBottomRightRelativeVertices() {
+		return {
+			V2_float{ 0.0f, 0.0f },
+			V2_float{ -1.0f, 0.0f },
+			V2_float{ -1.0f, -1.0f },
+			V2_float{ 0.0f, -1.0f },
+		};
+	}
+
+	[[nodiscard]] constexpr static std::array<V2_float, QuadVertex::VertexCount()>
+	GetBottomLeftRelativeVertices() {
+		return {
+			V2_float{ 0.0f, 0.0f },
+			V2_float{ 1.0f, 0.0f },
+			V2_float{ 1.0f, -1.0f },
+			V2_float{ 0.0f, -1.0f },
 		};
 	}
 
@@ -185,7 +225,7 @@ public:
 	}
 
 	void SetupShader(
-		const path& vertex, const path& fragment, const std::vector<std::int32_t>& samplers
+			const path& vertex, const path& fragment, const std::vector<std::int32_t>& samplers
 	) {
 		shader_ = Shader(vertex, fragment);
 		shader_.Bind();
@@ -195,7 +235,7 @@ public:
 	void SetupBatch() {
 		PTGN_ASSERT(buffer_ptr_ != nullptr);
 		std::uint32_t data_size =
-			(std::uint32_t)((uint8_t*)buffer_ptr_ - (uint8_t*)buffer_base_.data());
+				(std::uint32_t)((uint8_t*)buffer_ptr_ - (uint8_t*)buffer_base_.data());
 		buffer_.SetSubData(buffer_base_.data(), data_size);
 		shader_.Bind();
 	}
@@ -203,14 +243,14 @@ public:
 	void Draw(RendererData& data);
 
 	void AddQuad(
-		const V3_float& position, const V2_float& size, const V4_float& color,
-		const std::array<V2_float, 4>& tex_coords, float texture_index, float tiling_factor,
-		bool center_relative
+			const V3_float& position, const V2_float& size, const V4_float& color,
+			const std::array<V2_float, 4>& tex_coords, float texture_index, float tiling_factor,
+			Origin origin
 	);
 
 	void AddCircle(
-		const V3_float& position, const V2_float& size, const V4_float& color, float thickness,
-		float fade
+			const V3_float& position, const V2_float& size, const V4_float& color, float thickness,
+			float fade
 	);
 
 	void AddLine(const V3_float& p0, const V3_float& p1, const V4_float& color);
@@ -261,14 +301,12 @@ public:
 
 	[[nodiscard]] constexpr static std::array<V2_float, QuadVertex::VertexCount()>
 	GetTextureCoordinates(
-		const V2_float& source_position = { 0.0f, 0.0f },
-		const V2_float& source_size		= { 1.0f, 1.0f }
+			const V2_float& source_position = { 0.0f, 0.0f },
+			const V2_float& source_size		= { 1.0f, 1.0f }
 	) {
-		return {
-			source_position, V2_float{source_position.x + source_size.x,				  source_position.y},
-			source_position + source_size,
-			V2_float{				  source_position.x, source_position.y + source_size.y}
-		};
+		return { source_position, V2_float{ source_position.x + source_size.x, source_position.y },
+				 source_position + source_size,
+				 V2_float{ source_position.x, source_position.y + source_size.y } };
 	}
 
 	template <typename T, std::size_t I>
@@ -323,8 +361,8 @@ public:
 
 		void Print() {
 			PTGN_INFO(
-				"Draw Calls: ", draw_calls, ", Quads: ", quad_count, ", Circles: ", circle_count,
-				", Lines: ", line_count
+					"Draw Calls: ", draw_calls, ", Quads: ", quad_count,
+					", Circles: ", circle_count, ", Lines: ", line_count
 			);
 		}
 	};
@@ -358,28 +396,29 @@ public:
 
 	// Rotation in degrees.
 	void DrawRectangleFilled(
-		const V2_float& position, const V2_float& size, const Color& color, float rotation = 0.0f,
-		float z_index = 0.0f, bool center_relative = true
+			const V2_float& position, const V2_float& size, const Color& color,
+			float rotation = 0.0f, float z_index = 0.0f, Origin origin = Origin::Center
 	);
 
 	// Rotation in degrees.
 	void DrawRectangleHollow(
-		const V2_float& position, const V2_float& size, const Color& color, float rotation = 0.0f,
-		float z_index = 0.0f, bool center_relative = true
+			const V2_float& position, const V2_float& size, const Color& color,
+			float rotation = 0.0f, float z_index = 0.0f, Origin origin = Origin::Center
 	);
 
 	// Rotation in degrees.
 	void DrawTexture(
-		const V2_float& destination_position, const V2_float& destination_size,
-		const Texture& texture, const V2_float& source_position = {} /* defaults to bottom left */,
-		V2_float source_size = {} /* {} defaults to entire texture */, float rotation = 0.0f,
-		float z_index = 0.0f, bool center_relative = true, float tiling_factor = 1.0f,
-		const Color& tint_color = color::White
+			const V2_float& destination_position, const V2_float& destination_size,
+			const Texture& texture,
+			const V2_float& source_position = {} /* defaults to bottom left */,
+			V2_float source_size = {} /* {} defaults to entire texture */, float rotation = 0.0f,
+			float z_index = 0.0f, Origin origin = Origin::Center, float tiling_factor = 1.0f,
+			const Color& tint_color = color::White
 	);
 
 	void DrawCircleSolid(
-		const V2_float& position, float radius, const Color& color, float z_index = 0.0f,
-		float thickness = 1.0f, float fade = 0.005f
+			const V2_float& position, float radius, const Color& color, float z_index = 0.0f,
+			float thickness = 1.0f, float fade = 0.005f
 	);
 
 	void DrawLine(const V3_float& p0, const V3_float& p1, const Color& color);
@@ -396,7 +435,7 @@ private:
 	void StartBatch();
 
 	[[nodiscard]] std::pair<V3_float, V2_float> GetRotated(
-		const V2_float& position, const V2_float& size, float rotation, float z_index
+			const V2_float& position, const V2_float& size, float rotation, float z_index
 	);
 
 	// void BeginScene(const Camera& camera, const M4_float& transform);
