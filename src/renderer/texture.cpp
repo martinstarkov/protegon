@@ -26,37 +26,66 @@ TextureInstance::~TextureInstance() {
 	gl::glDeleteTextures(1, &id_);
 }
 
-GLFormats GetGLFormats(ImageFormat format) {
+static ImageFormat GetImageFormat(SDL_Surface* surface) {
+	PTGN_ASSERT(surface != nullptr, "Cannot get image format of invalid SDL_Surface");
+	switch (surface->format->BytesPerPixel) {
+		case 4: {
+			if (surface->format->Rmask == 0x000000ff) {
+				return ImageFormat::RGBA8888;
+			} else {
+				return ImageFormat::BGRA8888;
+			}
+		}
+		case 3: {
+			if (surface->format->Rmask == 0x000000ff) {
+				return ImageFormat::RGB888;
+			} else {
+				return ImageFormat::BGR888;
+			}
+		}
+		default: break;
+	}
+	return ImageFormat::Unknown;
+}
+
+static GLFormats GetGLFormats(ImageFormat format) {
+	// Possible internal format options:
+	// GL_R#size, GL_RG#size, GL_RGB#size, GL_RGBA#size
 	switch (format) {
-		case ImageFormat::RGBA32:
 		case ImageFormat::RGBA8888: {
 			return { GL_RGBA8, GL_RGBA };
 		}
 		case ImageFormat::RGB888: {
 			return { GL_RGB8, GL_RGB };
 		}
-		default: return {};
+		case ImageFormat::BGRA8888: {
+			return { GL_RGBA8, GL_BGRA };
+		}
+		case ImageFormat::BGR888: {
+			return { GL_RGB8, GL_BGR };
+		}
+		default: break;
 	}
+	PTGN_ERROR("Could not determine OpenGL formats for given ImageFormat");
 }
 
 } // namespace impl
 
-Texture::Texture(const path& image_path, bool flip_vertically, ImageFormat format) :
+Texture::Texture(const path& image_path, ImageFormat format) :
 	Texture{ [&]() -> Surface {
-		PTGN_CHECK(
+		PTGN_ASSERT(
+			format != ImageFormat::Unknown, "Cannot create texture with unknown image format"
+		);
+		PTGN_ASSERT(
 			FileExists(image_path), "Cannot create texture from file path which does not exist"
 		);
-		Surface surface{ image_path };
-		if (flip_vertically) {
-			surface.FlipVertically();
-		}
-		return surface;
+		return Surface{ image_path };
 	}() } {}
 
 Texture::Texture(const Surface& surface) :
-	Texture{ (void*)surface.GetData().data(), surface.GetSize(), surface.GetImageFormat() } {}
+	Texture{ surface.GetData(), surface.GetSize(), surface.GetImageFormat() } {}
 
-Texture::Texture(void* pixel_data, const V2_int& size, ImageFormat format) {
+Texture::Texture(const void* pixel_data, const V2_int& size, ImageFormat format) {
 	PUSHSTATE();
 
 	if (!IsValid()) {
@@ -75,18 +104,29 @@ Texture::Texture(void* pixel_data, const V2_int& size, ImageFormat format) {
 	POPSTATE();
 }
 
+Texture::Texture(const std::vector<Color>& pixels, const V2_int& size, ImageFormat format) :
+	Texture{ [&]() -> void* {
+				PTGN_ASSERT(
+					pixels.size() == size.x * size.y, "Provided pixel array must match texture size"
+				);
+				return (void*)pixels.data();
+			}(),
+			 size, format } {}
+
 void Texture::Bind() const {
-	PTGN_CHECK(IsValid(), "Cannot bind texture which is destroyed or uninitialized");
+	PTGN_ASSERT(IsValid(), "Cannot bind texture which is destroyed or uninitialized");
 	gl::glBindTexture(GL_TEXTURE_2D, instance_->id_);
 }
 
 void Texture::Bind(std::uint32_t slot) const {
-	std::int32_t max_texture_slots{ 0 };
-	gl::glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_texture_slots);
-	PTGN_ASSERT(max_texture_slots != 0);
-	PTGN_CHECK(
-		slot < static_cast<std::uint32_t>(max_texture_slots),
-		"Attempting to bind a slot outside of OpenGL texture slot minimum"
+	PTGN_ASSERT(
+		[&]() -> bool {
+			std::int32_t max_texture_slots{ 0 };
+			gl::glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_texture_slots);
+			PTGN_ASSERT(max_texture_slots != 0);
+			return slot < static_cast<std::uint32_t>(max_texture_slots);
+		}(),
+		"Attempting to bind a slot outside of OpenGL texture slot maximum"
 	);
 	gl::ActiveTexture(GL_TEXTURE0 + slot);
 	Bind();
@@ -98,6 +138,31 @@ void Texture::Bind(std::uint32_t slot) const {
 //	gl::glBindTexture(GL_TEXTURE_2D, 0);
 // }
 
+Texture::Texture(const std::shared_ptr<SDL_Surface>& surface) {
+	PTGN_ASSERT(surface != nullptr, "Cannot create texture from invalid surface");
+
+	ImageFormat format{ impl::GetImageFormat(surface.get()) };
+
+	std::shared_ptr<SDL_Surface> used_surface;
+
+	if (format == ImageFormat::Unknown) {
+		format		 = ImageFormat::RGBA8888;
+		used_surface = std::shared_ptr<SDL_Surface>{
+			SDL_ConvertSurfaceFormat(surface.get(), static_cast<std::uint32_t>(format), 0),
+			SDL_FreeSurface
+		};
+		PTGN_ASSERT(used_surface != nullptr, SDL_GetError());
+	} else {
+		used_surface = surface;
+	}
+
+	V2_int size{ used_surface->w, used_surface->h };
+
+	PTGN_ASSERT(format != ImageFormat::Unknown, "Failed to parse SDL_Surface image format");
+
+	*this = Texture(used_surface->pixels, size, format);
+}
+
 std::int32_t Texture::BoundId() {
 	std::int32_t id{ 0 };
 	gl::glGetIntegerv(GL_TEXTURE_BINDING_2D, &id);
@@ -105,9 +170,13 @@ std::int32_t Texture::BoundId() {
 	return id;
 }
 
-void Texture::SetDataImpl(void* pixel_data, const V2_int& size, ImageFormat format) {
+void Texture::SetDataImpl(const void* pixel_data, const V2_int& size, ImageFormat format) {
+	PTGN_ASSERT(
+		format != ImageFormat::Unknown, "Cannot set data of texture with unknown image format"
+	);
 	PTGN_ASSERT(IsValid(), "Cannot set data of uninitialized or destroyed texture");
 	PTGN_ASSERT(static_cast<std::uint32_t>(BoundId()) == instance_->id_);
+	PTGN_ASSERT(pixel_data != nullptr);
 
 	instance_->size_ = size;
 
@@ -119,10 +188,9 @@ void Texture::SetDataImpl(void* pixel_data, const V2_int& size, ImageFormat form
 	);
 }
 
-void Texture::SetSubData(void* pixel_data, ImageFormat format, const V2_int& offset) {
-	PTGN_CHECK(IsValid(), "Cannot set subdata of uninitialized or destroyed texture instance");
-	PTGN_ASSERT(offset.x < instance_->size_.x);
-	PTGN_ASSERT(offset.y < instance_->size_.y);
+void Texture::SetSubData(const void* pixel_data, ImageFormat format) {
+	PTGN_ASSERT(IsValid(), "Cannot set subdata of uninitialized or destroyed texture instance");
+	PTGN_ASSERT(pixel_data != nullptr);
 
 	PUSHSTATE();
 
@@ -131,15 +199,22 @@ void Texture::SetSubData(void* pixel_data, ImageFormat format, const V2_int& off
 	Bind();
 
 	gl::glTexSubImage2D(
-		GL_TEXTURE_2D, 0, offset.x, offset.y, instance_->size_.x, instance_->size_.y,
-		formats.format_, static_cast<gl::GLenum>(impl::GLType::UnsignedByte), pixel_data
+		GL_TEXTURE_2D, 0, 0, 0, instance_->size_.x, instance_->size_.y, formats.format_,
+		static_cast<gl::GLenum>(impl::GLType::UnsignedByte), pixel_data
 	);
 
 	POPSTATE();
 }
 
+void Texture::SetSubData(const std::vector<Color>& pixels, ImageFormat format) {
+	PTGN_ASSERT(
+		pixels.size() == GetSize().x * GetSize().y, "Provided pixel array must match texture size"
+	);
+	SetSubData((void*)pixels.data(), format);
+}
+
 V2_int Texture::GetSize() const {
-	PTGN_CHECK(IsValid(), "Cannot get size of texture which is destroyed or uninitialized");
+	PTGN_ASSERT(IsValid(), "Cannot get size of texture which is destroyed or uninitialized");
 	return instance_->size_;
 }
 

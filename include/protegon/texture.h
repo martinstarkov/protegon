@@ -7,7 +7,11 @@
 #include "protegon/vector2.h"
 #include "utility/handle.h"
 
+struct SDL_Surface;
+
 namespace ptgn {
+
+class Text;
 
 class Renderer;
 
@@ -21,8 +25,6 @@ struct GLFormats {
 	// second
 	std::uint32_t format_{ 0 };
 };
-
-static GLFormats GetGLFormats(ImageFormat format);
 
 struct TextureInstance {
 	TextureInstance();
@@ -39,14 +41,13 @@ public:
 	Texture()  = default;
 	~Texture() = default;
 
-	Texture(
-		const path& image_path, bool flip_vertically = true,
-		ImageFormat format = ImageFormat::RGBA8888
-	);
+	Texture(const path& image_path, ImageFormat format = ImageFormat::RGBA8888);
 	Texture(const Surface& surface);
-	Texture(void* pixel_data, const V2_int& size, ImageFormat format);
+	Texture(const void* pixel_data, const V2_int& size, ImageFormat format);
+	Texture(const std::vector<Color>& pixels, const V2_int& size, ImageFormat format);
 
-	void SetSubData(void* pixel_data, ImageFormat format, const V2_int& offset = {});
+	void SetSubData(const void* pixel_data, ImageFormat format);
+	void SetSubData(const std::vector<Color>& pixels, ImageFormat format);
 
 	V2_int GetSize() const;
 
@@ -56,12 +57,16 @@ public:
 private:
 	friend class impl::RendererData;
 	friend class Renderer;
+	friend class Text;
+
+	// Does not free surface.
+	Texture(const std::shared_ptr<SDL_Surface>& surface);
 
 	static std::int32_t BoundId();
 
 	// static void Unbind();
 
-	void SetDataImpl(void* pixel_data, const V2_int& size, ImageFormat format);
+	void SetDataImpl(const void* pixel_data, const V2_int& size, ImageFormat format);
 };
 
 } // namespace ptgn
