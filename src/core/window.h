@@ -11,7 +11,7 @@ class InputHandler;
 
 namespace impl {
 
-class GameInstance;
+class GLContext;
 
 struct WindowDeleter {
 	void operator()(SDL_Window* window);
@@ -31,14 +31,6 @@ private:
 	Window(Window&&)				 = default;
 	Window& operator=(const Window&) = delete;
 	Window& operator=(Window&&)		 = default;
-	// Setting fullscreen to true invalidates borderless and resizeable.
-	// Setting borderless to true invalidates resizeable.
-	void SetupSize(
-		const V2_int& resolution, const V2_int& minimum_resolution, bool fullscreen = false,
-		bool borderless = false, bool resizeable = true, const V2_float& scale = { 1.0f, 1.0f }
-	);
-
-	[[nodiscard]] bool Exists();
 
 public:
 	void SetMinimumSize(const V2_int& minimum_size);
@@ -86,8 +78,17 @@ public:
 	}
 
 private:
-	friend class impl::GameInstance;
+	friend class impl::GLContext;
 	friend class Game;
+
+	// Setting fullscreen to true invalidates borderless and resizeable.
+	// Setting borderless to true invalidates resizeable.
+	void SetupSize(
+		const V2_int& resolution, const V2_int& minimum_resolution, bool fullscreen = false,
+		bool borderless = false, bool resizeable = true, const V2_float& scale = { 1.0f, 1.0f }
+	);
+
+	[[nodiscard]] bool Exists();
 
 	std::unique_ptr<SDL_Window, impl::WindowDeleter> window_;
 };
