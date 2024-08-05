@@ -3,7 +3,9 @@
 #include <iostream>
 
 #include "../tests/test_ecs.h"
+#include "common.h"
 #include "protegon/protegon.h"
+#include "test_camera.h"
 #include "test_events.h"
 #include "test_math.h"
 #include "test_matrix4.h"
@@ -15,17 +17,23 @@
 
 using namespace ptgn;
 
+V2_float ws		= {};
+V2_float center = {};
+
 class Tests : public Scene {
 public:
-	Tests() {
+	Tests() {}
+
+	void Init() final {
 		TestMatrix4();
 		TestECS();
 		TestMath();
 		TestRNG();
 		TestVector2();
 
-		TestText();
+		TestCamera();
 		TestRenderer();
+		TestText();
 		TestShapes();
 		TestEvents();
 		game.Stop();

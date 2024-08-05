@@ -2,17 +2,19 @@
 
 #include "SDL.h"
 #include "SDL_image.h"
+#include "common.h"
 #include "protegon/buffer.h"
-#include "protegon/game.h"
 #include "protegon/shader.h"
 #include "protegon/texture.h"
 #include "protegon/vertex_array.h"
-#include "utility/debug.h"
 #include "utility/utility.h"
 
 // #define SDL_RENDERER_TESTS
 
-using namespace ptgn;
+// TODO: Add rotated rectangle tests.
+
+constexpr const std::size_t batch_count = 10000;
+int renderer_test						= 0;
 
 enum class RenderTest {
 	RectangleFilled,
@@ -31,44 +33,16 @@ enum class RenderTest {
 	Count
 };
 
-int test = 0;
-
-constexpr const std::size_t batch_count = 10000;
-const std::string instructions{ "'1' (cycle back); '2' (cycle forward)" };
-
-V2_float ws;
-V2_float center;
-
-std::vector<Key> test_switch_keys{ Key::ONE, Key::TWO };
-
-void CheckForTestSwitch() {
-	if (game.input.KeyDown(Key::ONE)) {
-		test--;
-		test = Mod(test, static_cast<int>(RenderTest::Count));
-	} else if (game.input.KeyDown(Key::TWO)) {
-		test++;
-		test = Mod(test, static_cast<int>(RenderTest::Count));
-	}
-}
-
 template <typename T, typename... Ts>
 void TestRenderingLoop(const T& function, const std::string& name, const Ts&... message) {
-	game.window.SetTitle((instructions + ": [" + std::to_string(test) + "] " + name).c_str());
-	PTGN_LOG("[", test, "] ", name, message...);
-
-	game.LoopUntilKeyDown(test_switch_keys, [&]() {
-		CheckForTestSwitch();
-
-		game.renderer.Clear();
-
-		function();
-
-		game.renderer.Present();
-	});
+	TestLoop(
+			test_instructions, renderer_test, (int)RenderTest::Count, test_switch_keys, function,
+			name, message...
+	);
 }
 
 void TestBatchTextureSDL(const std::vector<path>& texture_paths) {
-	PTGN_LOG("[", test, "]: ", PTGN_FUNCTION_NAME(), " (", texture_paths.size(), ")");
+	PTGN_LOG("[", renderer_test, "]: ", PTGN_FUNCTION_NAME(), " (", texture_paths.size(), ")");
 
 	PTGN_ASSERT(texture_paths.size() > 0);
 	std::vector<SDL_Texture*> textures;
@@ -104,7 +78,7 @@ void TestBatchTextureSDL(const std::vector<path>& texture_paths) {
 	};
 
 	game.LoopUntilKeyDown(test_switch_keys, [&](float dt) {
-		CheckForTestSwitch();
+		CheckForTestSwitch(renderer_test, (int)RenderTest::Count, test_switch_keys);
 		draw_func(dt);
 		// game.profiler.PrintAll<seconds>();
 	});
@@ -669,72 +643,6 @@ void TestTextures() {
 }
 
 // TODO: Implement
-void TestCamera() {
-	/*
-	game.input.SetRelativeMouseMode(true);
-
-	std::size_t font_key = 0;
-	game.font.Load(font_key, "resources/fonts/retro_gaming.ttf", 30);
-
-	M4_float projection = M4_float::Orthographic(0.0f, (float)game.window.size.x, 0.0f,
-	(float)game.window.size.y);
-	M4_float projection = M4_float::Perspective(DegToRad(45.0f),
-	(float)game.window.size.x / (float)game.window.size.y, 0.1f, 100.0f); M4_float
-	projection = M4_float::Perspective(DegToRad(camera.zoom), (float)game.window.size.x
-	/ (float)game.window.size.y, 0.1f, 100.0f);
-	model = M4_float::Rotate(model, DegToRad(-55.0f), 1.0f, 0.0f, 0.0f);
-	view = M4_float::Translate(view, 0.0f, 0.0f, -3.0f);
-
-	int scroll = game.input.MouseScroll();
-
-	if (scroll != 0) {
-		camera.Zoom(scroll);
-	}
-	if (game.input.KeyPressed(Key::W)) {
-		camera.Move(CameraDirection::Forward, dt);
-	}
-	if (game.input.KeyPressed(Key::S)) {
-		camera.Move(CameraDirection::Backward, dt);
-	}
-	if (game.input.KeyPressed(Key::A)) {
-		camera.Move(CameraDirection::Left, dt);
-	}
-	if (game.input.KeyPressed(Key::D)) {
-		camera.Move(CameraDirection::Right, dt);
-	}
-	if (game.input.KeyPressed(Key::X)) {
-		camera.Move(CameraDirection::Down, dt);
-	}
-	if (game.input.KeyPressed(Key::SPACE)) {
-		camera.Move(CameraDirection::Up, dt);
-	}
-	if (game.input.KeyPressed(Key::A)) {
-		view = M4_float::Translate(view, -0.05f, 0.0f, 0.0f);
-	}
-	if (game.input.KeyPressed(Key::D)) {
-		view = M4_float::Translate(view, 0.05f, 0.0f, 0.0f);
-	}
-	if (game.input.KeyPressed(Key::W)) {
-		view = M4_float::Translate(view, 0.0f, 0.05f, 0.0f);
-	}
-	if (game.input.KeyPressed(Key::S)) {
-		view = M4_float::Translate(view, 0.0f, -0.05f, 0.0f);
-	}
-	if (game.input.KeyPressed(Key::Q)) {
-		model = M4_float::Rotate(model, DegToRad(5.0f), 0.0f, 1.0f, 0.0f);
-	}
-	if (game.input.KeyPressed(Key::E)) {
-		model = M4_float::Rotate(model, DegToRad(-5.0f), 0.0f, 1.0f, 0.0f);
-	}
-	if (game.input.KeyPressed(Key::Z)) {
-		model = M4_float::Rotate(model, DegToRad(5.0f), 1.0f, 0.0f, 0.0f);
-	}
-	if (game.input.KeyPressed(Key::C)) {
-		model = M4_float::Rotate(model, DegToRad(-5.0f), 1.0f, 0.0f, 0.0f);
-	}*/
-}
-
-// TODO: Implement
 void TestShaderComplex() {
 	/*
 	Shader shader =
@@ -770,7 +678,6 @@ void TestRendering() {
 	center = game.window.GetCenter();
 	game.window.Show();
 	game.renderer.SetClearColor(color::Silver);
-	game.window.SetTitle(instructions.c_str());
 
 	auto paths_from_int = [](std::size_t count, std::size_t offset = 0) {
 		std::vector<path> paths;
@@ -800,7 +707,7 @@ void TestRendering() {
 	auto textures_further{ ConcatenateVectors(textures, textures_more) };
 
 	game.LoopUntilQuit([&](float dt) {
-		switch (static_cast<RenderTest>(test)) {
+		switch (static_cast<RenderTest>(renderer_test)) {
 			case RenderTest::BatchTexture:			   TestBatchTexture(textures); break;
 			case RenderTest::BatchTextureMore:		   TestBatchTexture(textures_further); break;
 			case RenderTest::BatchRectangleFilled:	   TestBatchRectangleFilled(); break;
@@ -814,7 +721,7 @@ void TestRendering() {
 			case RenderTest::RectangleFilled:		   TestRectangleFilled(); break;
 			case RenderTest::RectangleHollow:		   TestRectangleHollow(); break;
 			case RenderTest::Transparency:			   TestTransparency(); break;
-			default:								   break;
+			default:								   PTGN_ERROR("Failed to find a valid renderer test");
 		}
 	});
 #endif
@@ -823,7 +730,7 @@ void TestRendering() {
 }
 
 void TestRenderer() {
-	PTGN_INFO("Starting shader tests...");
+	PTGN_INFO("Starting renderer tests...");
 
 	TestVertexBuffers();
 	TestIndexBuffers();
@@ -832,5 +739,5 @@ void TestRenderer() {
 	TestTextures();
 	TestRendering();
 
-	PTGN_INFO("All shader tests passed!");
+	PTGN_INFO("All renderer tests passed!");
 }
