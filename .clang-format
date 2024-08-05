@@ -87,7 +87,7 @@ CompactNamespaces: false
 ConstructorInitializerIndentWidth: 4
 ContinuationIndentWidth: 8
 Cpp11BracedListStyle: false
-DerivePointerAlignment: true
+DerivePointerAlignment: false
 DisableFormat: false
 EmptyLineAfterAccessModifier: Never
 EmptyLineBeforeAccessModifier: LogicalBlock
