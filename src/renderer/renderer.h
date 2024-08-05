@@ -17,6 +17,8 @@
 
 namespace ptgn {
 
+class CameraManager;
+
 // TODO: Add blending from here:
 // if (blendMode != data->current.blendMode) {
 //	switch (blendMode) {
@@ -431,8 +433,12 @@ public:
 	void SetLineWidth(float width);
 
 private:
+	friend class CameraManager;
 	friend class Game;
+
 	void StartBatch();
+
+	void UpdateViewProjection(const M4_float& view_projection);
 
 	[[nodiscard]] std::pair<V3_float, V2_float> GetRotated(
 			const V2_float& position, const V2_float& size, float rotation, float z_index

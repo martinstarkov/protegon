@@ -5,16 +5,16 @@
 namespace ptgn {
 
 enum class Key : std::size_t {
-	K_0 = 39,				// SDL_SCANCODE_0
-	K_1 = 30,				// SDL_SCANCODE_1
-	K_2 = 31,				// SDL_SCANCODE_2
-	K_3 = 32,				// SDL_SCANCODE_3
-	K_4 = 33,				// SDL_SCANCODE_4
-	K_5 = 34,				// SDL_SCANCODE_5
-	K_6 = 35,				// SDL_SCANCODE_6
-	K_7 = 36,				// SDL_SCANCODE_7
-	K_8 = 37,				// SDL_SCANCODE_8
-	K_9 = 38,				// SDL_SCANCODE_9
+	K_0 = 39,				// Key 0 // SDL_SCANCODE_0
+	K_1 = 30,				// Key 1 // SDL_SCANCODE_1
+	K_2 = 31,				// Key 2 // SDL_SCANCODE_2
+	K_3 = 32,				// Key 3 // SDL_SCANCODE_3
+	K_4 = 33,				// Key 4 // SDL_SCANCODE_4
+	K_5 = 34,				// Key 5 // SDL_SCANCODE_5
+	K_6 = 35,				// Key 6 // SDL_SCANCODE_6
+	K_7 = 36,				// Key 7 // SDL_SCANCODE_7
+	K_8 = 37,				// Key 8 // SDL_SCANCODE_8
+	K_9 = 38,				// Key 9 // SDL_SCANCODE_9
 
 	ZERO  = 39,				// SDL_SCANCODE_0
 	ONE	  = 30,				// SDL_SCANCODE_1

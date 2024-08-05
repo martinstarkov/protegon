@@ -55,32 +55,34 @@ static void InitApplePath() {
 
 #endif
 
-Game::Game() : sdl_instance_{ std::make_shared<impl::SDLInstance>() } {
+Game::Game() {
+	// dummy_camera_{ std::make_unique<CameraManager>() } {
+	//  camera{ *dummy_camera_ } {
 #ifdef PTGN_PLATFORM_MACOS
 	impl::InitApplePath();
 #endif
 }
 
 void Game::LoopUntilKeyDown(
-	const std::vector<Key>& any_of_keys, const UpdateFunction& loop_function
+		const std::vector<Key>& any_of_keys, const UpdateFunction& loop_function
 ) {
 	LoopUntilEvent(
-		game.event.key, { KeyEvent::Down }, std::function([&](const KeyDownEvent& e) -> bool {
-			for (const Key& key : any_of_keys) {
-				if (e.key == key) {
-					return true;
+			game.event.key, { KeyEvent::Down }, std::function([&](const KeyDownEvent& e) -> bool {
+				for (const Key& key : any_of_keys) {
+					if (e.key == key) {
+						return true;
+					}
 				}
-			}
-			return false;
-		}),
-		loop_function
+				return false;
+			}),
+			loop_function
 	);
 }
 
 void Game::LoopUntilQuit(const UpdateFunction& loop_function) {
 	LoopUntilEvent(
-		game.event.window, { WindowEvent::Quit },
-		std::function([&](const WindowQuitEvent& e) -> bool { return true; }), loop_function
+			game.event.window, { WindowEvent::Quit },
+			std::function([&](const WindowQuitEvent& e) -> bool { return true; }), loop_function
 	);
 }
 
@@ -98,14 +100,31 @@ void Game::Loop() {
 		scene.Update(dt);
 		renderer.Present();
 	});
-	*this = {};
+	Reset();
+}
+
+void Game::Reset() {
+	window		= {};
+	gl_context_ = {};
+	event		= {};
+	input		= {};
+	renderer	= {};
+	scene		= {};
+	camera		= {};
+	music		= {};
+	sound		= {};
+	font		= {};
+	text		= {};
+	texture		= {};
+	shader		= {};
+	profiler	= {};
 }
 
 void Game::Update(const UpdateFunction& loop_function, int& condition) {
 	// Always quit on window quit.
 	event.window.Subscribe(
-		WindowEvent::Quit, (void*)&condition,
-		std::function([&](const WindowQuitEvent& e) { condition = false; })
+			WindowEvent::Quit, (void*)&condition,
+			std::function([&](const WindowQuitEvent& e) { condition = false; })
 	);
 
 	// Optional: Update window while it is being dragged. Upside: No rendering artefacts;
@@ -129,6 +148,7 @@ void Game::Update(const UpdateFunction& loop_function, int& condition) {
 		start = end;
 
 		input.Update();
+		scene.GetTopActive().camera.Update();
 		// For debugging:
 		// PTGN_LOG("Updating ", counter);
 

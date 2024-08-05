@@ -1,5 +1,7 @@
 #pragma once
 
+#include "scene/camera.h"
+
 namespace ptgn {
 
 class Scene {
@@ -9,6 +11,11 @@ public:
 	virtual void Update([[maybe_unused]] float dt) {}
 
 	virtual void Update() {}
+
+	// Called when the scene is set to active.
+	virtual void Init() {}
+
+	CameraManager camera;
 
 	/*template <typename T>
 	std::shared_ptr<T> Cast() {

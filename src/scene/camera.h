@@ -2,105 +2,141 @@
 
 #include <algorithm>
 
+#include "core/manager.h"
 #include "protegon/event.h"
 #include "protegon/events.h"
 #include "protegon/matrix4.h"
+#include "protegon/quaternion.h"
 #include "protegon/vector2.h"
 #include "protegon/vector3.h"
 
 namespace ptgn {
 
-// template<typename T, qualifier Q> GLM_FUNC_QUALIFIER T angle(const qua<T, Q>& x) {
-//	if (abs(x.w) > cos_one_over_two<T>()) {
-//		const T a = asin(sqrt(x.x * x.x + x.y * x.y + x.z * x.z)) * static_cast<T>(2);
-//		if (x.w < static_cast<T>(0)) {
-//			return pi<T>() * static_cast<T>(2) - a;
-//		}
-//		return a;
-//	}
-//
-//	return acos(x.w) * static_cast<T>(2);
-// }
-//
-// template <typename T, qualifier Q>
-// GLM_FUNC_QUALIFIER vec<3, T, Q> axis(const qua<T, Q>& x) {
-//	const T tmp1 = static_cast<T>(1) - x.w * x.w;
-//	if (tmp1 <= static_cast<T>(0)) {
-//		return vec<3, T, Q>(0, 0, 1);
-//	}
-//	const T tmp2 = static_cast<T>(1) / sqrt(tmp1);
-//	return vec<3, T, Q>(x.x * tmp2, x.y * tmp2, x.z * tmp2);
-// }
-//
-// template <typename T, qualifier Q>
-// GLM_FUNC_QUALIFIER qua<T, Q> angleAxis(const T& angle, const vec<3, T, Q>& v) {
-//	const T a(angle);
-//	const T s = glm::sin(a * static_cast<T>(0.5));
-//
-//	return qua<T, Q>(glm::cos(a * static_cast<T>(0.5)), v * s);
-// }
+class Game;
 
-// class camera {
-//	glm::vec3 m_pos;
-//	glm::quat m_orient;
-//
-// public:
-//	camera(void)		   = default;
-//	camera(const camera &) = default;
-//
-//	camera(const glm::vec3 &pos) : m_pos(pos) {}
-//
-//	camera(const glm::vec3 &pos, const glm::quat &orient) : m_pos(pos), m_orient(orient) {}
-//
-//	camera &operator=(const camera &) = default;
-//
-//	const glm::vec3 &position(void) const {
-//		return m_pos;
-//	}
-//
-//	const glm::quat &orientation(void) const {
-//		return m_orient;
-//	}
-//
-//	glm::mat4 view(void) const {
-//		return glm::translate(glm::mat4_cast(m_orient), m_pos);
-//	}
-//
-//	void translate(const glm::vec3 &v) {
-//		m_pos += v * m_orient;
-//	}
-//
-//	void translate(float x, float y, float z) {
-//		m_pos += glm::vec3(x, y, z) * m_orient;
-//	}
-//
-//	void rotate(float angle, const glm::vec3 &axis) {
-//		m_orient *= glm::angleAxis(angle, axis * m_orient);
-//	}
-//
-//	void rotate(float angle, float x, float y, float z) {
-//		m_orient *= glm::angleAxis(angle, glm::vec3(x, y, z) * m_orient);
-//	}
-//
-//	void yaw(float angle) {
-//		rotate(angle, 0.0f, 1.0f, 0.0f);
-//	}
-//
-//	void pitch(float angle) {
-//		rotate(angle, 1.0f, 0.0f, 0.0f);
-//	}
-//
-//	void roll(float angle) {
-//		rotate(angle, 0.0f, 0.0f, 1.0f);
-//	}
-// };
+class Camera {
+protected:
+	M4_float view_{ 1.0f };
+	M4_float projection_{ 1.0f };
+	M4_float view_projection_{ 1.0f };
 
+	V3_float position_;
+	Quaternion orientation_;
+
+public:
+	Camera()		  = default;
+	virtual ~Camera() = default;
+
+	[[nodiscard]] virtual const V3_float& GetPosition() const;
+	[[nodiscard]] virtual const Quaternion& GetOrientation() const;
+	[[nodiscard]] virtual V3_float GetEulerOrientation() const;
+	[[nodiscard]] virtual const M4_float& GetView() const;
+	[[nodiscard]] virtual const M4_float& GetProjection() const;
+	[[nodiscard]] virtual const M4_float& GetViewProjection() const;
+
+	virtual void SetPosition(const V2_float& new_position);
+	virtual void SetPosition(const V3_float& new_position);
+	// Yaw, Pitch, Roll
+	virtual void SetRotation(const V3_float& new_angles);
+	virtual void Translate(const V3_float& amount);
+	virtual void Rotate(float angle_amount, const V3_float& axis);
+	virtual void Yaw(float angle_amount);
+	virtual void Pitch(float angle_amount);
+	virtual void Roll(float angle_amount);
+
+	virtual bool operator==(const Camera& o) const;
+	virtual bool operator!=(const Camera& o) const;
+
+protected:
+	virtual void RecalculateView();
+	virtual void RecalculateViewProjection();
+};
+
+class OrthographicCamera : public Camera {
+public:
+	OrthographicCamera();
+	~OrthographicCamera();
+
+	OrthographicCamera(
+			float left, float right, float bottom, float top, float near = -1.0f, float far = 1.0f
+	);
+
+	void SetProjection(
+			float left, float right, float bottom, float top, float near = -1.0f, float far = 1.0f
+	);
+};
+
+class CameraManager : public Manager<OrthographicCamera> {
+public:
+	CameraManager();
+	~CameraManager();
+	CameraManager(const CameraManager&)			   = default;
+	CameraManager(CameraManager&&)				   = default;
+	CameraManager& operator=(const CameraManager&) = default;
+	CameraManager& operator=(CameraManager&&)	   = default;
+
+	void SetPrimary(const Key& key);
+
+	[[nodiscard]] const OrthographicCamera& GetPrimary() const;
+	[[nodiscard]] OrthographicCamera& GetPrimary();
+
+	void ResetPrimaryToWindow();
+
+private:
+	friend class Game;
+
+	void Update();
+
+	void OnWindowResize(const V2_float& size);
+
+	OrthographicCamera window_camera_;
+	OrthographicCamera primary_camera_;
+};
+
+// This class provides quick access to the current top active scene.
+// i.e. using this is class equivalent to game.scene.GetTopActive().camera
+class ActiveSceneCameraManager {
+private:
+	ActiveSceneCameraManager()											 = default;
+	~ActiveSceneCameraManager()											 = default;
+	ActiveSceneCameraManager(const ActiveSceneCameraManager&)			 = delete;
+	ActiveSceneCameraManager(ActiveSceneCameraManager&&)				 = default;
+	ActiveSceneCameraManager& operator=(const ActiveSceneCameraManager&) = delete;
+	ActiveSceneCameraManager& operator=(ActiveSceneCameraManager&&)		 = default;
+
+public:
+	using Item = CameraManager::Item;
+	using Key  = CameraManager::Key;
+
+	template <typename... TArgs, type_traits::constructible<Item, TArgs...> = true>
+	static Item& Load(const Key& key, TArgs&&... constructor_args) {
+		return LoadImpl(key, std::move(Item(constructor_args...)));
+	}
+
+	static void Unload(const Key& key);
+	static [[nodiscard]] bool Has(const Key& key);
+	static [[nodiscard]] Item& Get(const Key& key);
+	static void Clear();
+
+	static void SetPrimary(const Key& key);
+
+	static [[nodiscard]] OrthographicCamera& GetPrimary();
+
+	static void ResetPrimaryToWindow();
+
+private:
+	static Item& LoadImpl(const Key& key, Item&& item);
+
+	friend class Game;
+};
+
+/*
 class CameraController;
 
-struct Camera {
-	Camera(
-		const V3_float& position, const V3_float& front, const V3_float& up,
-		const V3_float& world_up, const V3_float& angle
+struct PerspectiveCamera {
+	PerspectiveCamera(
+			const V3_float& position, const V3_float& front, const V3_float& up,
+			const V3_float& world_up, const V3_float& angle
 	) :
 		position{ position }, front{ front }, up{ up }, world_up{ world_up }, angle{ angle } {}
 
@@ -165,7 +201,7 @@ constexpr const float MAX_ZOOM			  = 45.0f;
 // Vectors, and Matrices for use in OpenGL
 class CameraController {
 public:
-	Camera camera;
+	// PerspectiveCamera camera;
 
 	// camera options
 	float speed{ DEFAULT_SPEED };
@@ -176,10 +212,10 @@ public:
 
 	// constructor with vectors
 	CameraController(
-		const V3_float& position, const V3_float& up = { 0.0f, 1.0f, 0.0f },
-		const V3_float& angle = DEFAULT_ANGLE
-	) : camera{
-		position, { 0.0f, 0.0f, -1.0f }, up, up, angle } {
+			const V3_float& position, const V3_float& up = { 0.0f, 1.0f, 0.0f },
+			const V3_float& angle = DEFAULT_ANGLE
+	) :
+		camera{ position, { 0.0f, 0.0f, -1.0f }, up, up, angle } {
 		camera.UpdateVectors();
 		// Optional:
 		SubscribeToMouseEvents();
@@ -189,7 +225,8 @@ public:
 		UnsubscribeFromMouseEvents();
 	}
 
-	// processes input received from any keyboard-like input system. Accepts input parameter in the
+	// processes input received from any keyboard-like input system. Accepts input parameter in
+the
 	// form of camera defined ENUM (to abstract it from windowing systems)
 	void Move(CameraDirection direction, float dt) {
 		float velocity = speed * dt;
@@ -204,12 +241,11 @@ public:
 		}
 	}
 
-	// processes input received from a mouse input system. Expects the offset value in both the x
+	// processes input received from a mouse input system. Expects the offset value in both the
+x
 	// and y direction.
-	void Rotate(float xoffset, float yoffset, float zoffset = 0.0f, bool constrain_pitch = true) {
-		xoffset *= sensitivity;
-		yoffset *= sensitivity;
-		zoffset *= sensitivity;
+	void Rotate(float xoffset, float yoffset, float zoffset = 0.0f, bool constrain_pitch = true)
+{ xoffset *= sensitivity; yoffset *= sensitivity; zoffset *= sensitivity;
 
 		camera.angle.x += xoffset;
 		camera.angle.y += yoffset;
@@ -229,7 +265,8 @@ public:
 		camera.UpdateVectors();
 	}
 
-	// processes input received from a mouse scroll-wheel event. Only requires input on the vertical
+	// processes input received from a mouse scroll-wheel event. Only requires input on the
+vertical
 	// wheel-axis
 	void Zoom(float yoffset) {
 		zoom -= (float)yoffset;
@@ -240,5 +277,6 @@ public:
 	void UnsubscribeFromMouseEvents();
 	void OnMouseMoveEvent(const MouseMoveEvent& e);
 };
+*/
 
 } // namespace ptgn

@@ -14,9 +14,12 @@ namespace ptgn {
  * @tparam Item Type of item stored in the manager.
  * @tparam Key Type of key used to uniquely identify items.
  */
-template <typename Item, typename Key = std::size_t>
+template <typename ItemType, typename KeyType = std::size_t>
 class Manager {
 public:
+	using Item = typename ItemType;
+	using Key  = typename KeyType;
+
 	Manager()						   = default;
 	virtual ~Manager()				   = default;
 	Manager(Manager&&)				   = default;

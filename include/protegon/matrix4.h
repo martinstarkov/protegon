@@ -12,6 +12,8 @@
 
 namespace ptgn {
 
+class Quaternion;
+
 template <typename T, type_traits::arithmetic<T> = true>
 struct Matrix4 {
 public:
@@ -19,6 +21,8 @@ public:
 	constexpr static std::size_t length{ size.x * size.y };
 
 private:
+	friend class Quaternion;
+
 	std::array<T, length> m{};
 
 public:
@@ -38,8 +42,8 @@ public:
 	constexpr Matrix4(T... args) : m{ args... } {}
 
 	constexpr Matrix4(
-		const Vector4<T>& row0, const Vector4<T>& row1, const Vector4<T>& row2,
-		const Vector4<T>& row3
+			const Vector4<T>& row0, const Vector4<T>& row1, const Vector4<T>& row2,
+			const Vector4<T>& row3
 	) {
 		m[0]  = row0.x;
 		m[1]  = row1.x;
@@ -112,7 +116,7 @@ public:
 	}
 
 	[[nodiscard]] static Matrix4 LookAt(
-		const Vector3<T>& position, const Vector3<T>& target, const Vector3<T>& up
+			const Vector3<T>& position, const Vector3<T>& target, const Vector3<T>& up
 	) {
 		Vector3<T> dir		   = (target - position).Normalized();
 		const Vector3<T> right = (dir.Cross(up)).Normalized();
@@ -141,7 +145,7 @@ public:
 
 	// Example usage: M4_float proj = M4_float::Orthographic(-1.0f, 1.0f, -1.0f, 1.0f);
 	[[nodiscard]] static Matrix4 Orthographic(
-		T left, T right, T bottom, T top, T near = T{ -1 }, T far = T{ 1 }
+			T left, T right, T bottom, T top, T near = T{ -1 }, T far = T{ 1 }
 	) {
 		Matrix4<T> o;
 

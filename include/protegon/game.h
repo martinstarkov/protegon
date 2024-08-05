@@ -22,12 +22,12 @@ public:
 
 private:
 	Game(const Game&)			 = delete;
-	Game(Game&&)				 = default;
+	Game(Game&&)				 = delete;
 	Game& operator=(const Game&) = delete;
-	Game& operator=(Game&&)		 = default;
+	Game& operator=(Game&&)		 = delete;
 
 private:
-	std::shared_ptr<impl::SDLInstance> sdl_instance_;
+	impl::SDLInstance sdl_instance_;
 
 public:
 	Window window;
@@ -42,6 +42,7 @@ public:
 	InputHandler input;
 	Renderer renderer;
 	SceneManager scene;
+	ActiveSceneCameraManager camera;
 
 	// Resources
 
@@ -67,7 +68,7 @@ public:
 	void Start(TArgs&&... constructor_args) {
 		running_ = true;
 		scene.StartScene<TStartScene>(
-			impl::start_scene_key, std::forward<TArgs>(constructor_args)...
+				impl::start_scene_key, std::forward<TArgs>(constructor_args)...
 		);
 		Loop();
 	}
@@ -75,14 +76,16 @@ public:
 	void Stop();
 
 private:
+	void Reset();
+
 	void Loop();
 	void Update(const UpdateFunction& loop_function, int& condition);
 
 	template <typename EventEnum, typename EventType>
 	void LoopUntilEvent(
-		EventDispatcher<EventEnum>& dispatcher, const std::vector<EventEnum>& events,
-		const std::function<bool(const EventType&)> exit_condition_function,
-		const UpdateFunction& loop_function
+			EventDispatcher<EventEnum>& dispatcher, const std::vector<EventEnum>& events,
+			const std::function<bool(const EventType&)> exit_condition_function,
+			const UpdateFunction& loop_function
 	) {
 		int condition = true;
 
@@ -91,11 +94,11 @@ private:
 		if constexpr (!is_window_quit) {
 			for (const EventEnum& event_enum : events) {
 				dispatcher.Subscribe(
-					event_enum, (void*)&condition, std::function([&](const EventType& e) {
-						if (exit_condition_function(e)) {
-							condition = false;
-						}
-					})
+						event_enum, (void*)&condition, std::function([&](const EventType& e) {
+							if (exit_condition_function(e)) {
+								condition = false;
+							}
+						})
 				);
 			}
 		}

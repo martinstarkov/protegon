@@ -58,9 +58,9 @@ inline void BatchData<LineVertex>::Draw(RendererData& data) {
 
 template <>
 void BatchData<QuadVertex>::AddQuad(
-	const V3_float& position, const V2_float& size, const V4_float& color,
-	const std::array<V2_float, 4>& tex_coords, float texture_index, float tiling_factor,
-	Origin origin
+		const V3_float& position, const V2_float& size, const V4_float& color,
+		const std::array<V2_float, 4>& tex_coords, float texture_index, float tiling_factor,
+		Origin origin
 ) {
 	PTGN_ASSERT(buffer_ptr_ != nullptr);
 	auto positions = GetQuadVertices(position, size, origin);
@@ -79,8 +79,8 @@ void BatchData<QuadVertex>::AddQuad(
 
 template <>
 void BatchData<CircleVertex>::AddCircle(
-	const V3_float& position, const V2_float& size, const V4_float& color, float thickness,
-	float fade
+		const V3_float& position, const V2_float& size, const V4_float& color, float thickness,
+		float fade
 ) {
 	PTGN_ASSERT(buffer_ptr_ != nullptr);
 	auto positions	   = GetQuadVertices(position, size, Origin::Center);
@@ -124,11 +124,11 @@ void RendererData::SetupBuffers() {
 	IndexBuffer line_index_buffer{ GetLineIndices<LineVertex, max_indices_>() };
 
 	quad_.Init<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_, glsl::float_>(
-		max_vertices_, PrimitiveMode::Triangles, quad_index_buffer
+			max_vertices_, PrimitiveMode::Triangles, quad_index_buffer
 	);
 
 	circle_.Init<glsl::vec3, glsl::vec3, glsl::vec4, glsl::float_, glsl::float_>(
-		max_vertices_, PrimitiveMode::Triangles, quad_index_buffer
+			max_vertices_, PrimitiveMode::Triangles, quad_index_buffer
 	);
 
 	line_.Init<glsl::vec3, glsl::vec4>(max_vertices_, PrimitiveMode::Lines, line_index_buffer);
@@ -154,16 +154,16 @@ void RendererData::SetupShaders() {
 	}
 
 	quad_.SetupShader(
-		"resources/shader/renderer_quad_vertex.glsl",
-		"resources/shader/renderer_quad_fragment.glsl", samplers
+			"resources/shader/renderer_quad_vertex.glsl",
+			"resources/shader/renderer_quad_fragment.glsl", samplers
 	);
 	circle_.SetupShader(
-		"resources/shader/renderer_circle_vertex.glsl",
-		"resources/shader/renderer_circle_fragment.glsl", samplers
+			"resources/shader/renderer_circle_vertex.glsl",
+			"resources/shader/renderer_circle_fragment.glsl", samplers
 	);
 	line_.SetupShader(
-		"resources/shader/renderer_line_vertex.glsl",
-		"resources/shader/renderer_line_fragment.glsl", samplers
+			"resources/shader/renderer_line_vertex.glsl",
+			"resources/shader/renderer_line_fragment.glsl", samplers
 	);
 }
 
@@ -183,8 +183,8 @@ Renderer::Renderer() {
 	// If desired, changing the word Resized . Resizing will make the viewport update during
 	// resizing.
 	game.event.window.Subscribe(
-		WindowEvent::Resized, (void*)this,
-		std::function([&](const WindowResizedEvent& e) { SetViewport(e.size); })
+			WindowEvent::Resized, (void*)this,
+			std::function([&](const WindowResizedEvent& e) { SetViewport(e.size); })
 	);
 
 	StartBatch();
@@ -219,18 +219,22 @@ void Renderer::DrawArray(const VertexArray& vertex_array) {
 	data_.stats_.draw_calls++;
 }
 
+void Renderer::UpdateViewProjection(const M4_float& view_projection) {
+	data_.quad_.shader_.Bind();
+	data_.quad_.shader_.SetUniform("u_ViewProjection", view_projection);
+	data_.circle_.shader_.Bind();
+	data_.circle_.shader_.SetUniform("u_ViewProjection", view_projection);
+	data_.line_.shader_.Bind();
+	data_.line_.shader_.SetUniform("u_ViewProjection", view_projection);
+}
+
 void Renderer::SetViewport(const V2_int& size) {
 	PTGN_ASSERT(size.x > 0 && "Cannot set viewport width below 1");
 	PTGN_ASSERT(size.y > 0 && "Cannot set viewport height below 1");
+	if (viewport_size_ == size) {
+		return;
+	}
 	viewport_size_ = size;
-	data_.view_projection_ =
-		M4_float::Orthographic(0.0f, static_cast<float>(size.x), static_cast<float>(size.y), 0.0f);
-	data_.quad_.shader_.Bind();
-	data_.quad_.shader_.SetUniform("u_ViewProjection", data_.view_projection_);
-	data_.circle_.shader_.Bind();
-	data_.circle_.shader_.SetUniform("u_ViewProjection", data_.view_projection_);
-	data_.line_.shader_.Bind();
-	data_.line_.shader_.SetUniform("u_ViewProjection", data_.view_projection_);
 	GLRenderer::SetViewport({}, viewport_size_);
 }
 
@@ -242,7 +246,7 @@ void Renderer::StartBatch() {
 }
 
 std::pair<V3_float, V2_float> Renderer::GetRotated(
-	const V2_float& position, const V2_float& size, float rotation, float z_index
+		const V2_float& position, const V2_float& size, float rotation, float z_index
 ) {
 	V2_float r_pos	= position;
 	V2_float r_size = size;
@@ -252,10 +256,7 @@ std::pair<V3_float, V2_float> Renderer::GetRotated(
 		r_size = r_size.Rotated(rotation);
 	}
 
-	return {
-		V3_float{r_pos.x, r_pos.y, z_index},
-		   r_size
-	};
+	return { V3_float{ r_pos.x, r_pos.y, z_index }, r_size };
 }
 
 void Renderer::Flush() {
@@ -266,8 +267,8 @@ void Renderer::Flush() {
 }
 
 void Renderer::DrawRectangleFilled(
-	const V2_float& position, const V2_float& size, const Color& color, float rotation /* = 0.0f*/,
-	float z_index /* = 0.0f*/, Origin origin /* = Origin::Center*/
+		const V2_float& position, const V2_float& size, const Color& color,
+		float rotation /* = 0.0f*/, float z_index /* = 0.0f*/, Origin origin /* = Origin::Center*/
 ) {
 	if (data_.quad_.index_count_ >= data_.max_indices_) {
 		data_.quad_.NextBatch(data_);
@@ -284,8 +285,8 @@ void Renderer::DrawRectangleFilled(
 }
 
 void Renderer::DrawRectangleHollow(
-	const V2_float& position, const V2_float& size, const Color& color, float rotation /* = 0.0f*/,
-	float z_index /* = 0.0f*/, Origin origin /* = Origin::Center*/
+		const V2_float& position, const V2_float& size, const Color& color,
+		float rotation /* = 0.0f*/, float z_index /* = 0.0f*/, Origin origin /* = Origin::Center*/
 ) {
 	if (data_.line_.index_count_ >= data_.max_indices_) {
 		data_.line_.NextBatch(data_);
@@ -306,10 +307,11 @@ void Renderer::DrawRectangleHollow(
 }
 
 void Renderer::DrawTexture(
-	const V2_float& destination_position, const V2_float& destination_size, const Texture& texture,
-	const V2_float& source_position /* = {}*/, V2_float source_size /* = {}*/,
-	float rotation /* = 0.0f*/, float z_index /* = 0.0f*/, Origin origin /* = Origin::Center*/,
-	float tiling_factor /* = 1.0f*/, const Color& tint_color /* = color::White*/
+		const V2_float& destination_position, const V2_float& destination_size,
+		const Texture& texture, const V2_float& source_position /* = {}*/,
+		V2_float source_size /* = {}*/, float rotation /* = 0.0f*/, float z_index /* = 0.0f*/,
+		Origin origin /* = Origin::Center*/, float tiling_factor /* = 1.0f*/,
+		const Color& tint_color /* = color::White*/
 ) {
 	if (data_.quad_.index_count_ >= data_.max_indices_) {
 		data_.quad_.NextBatch(data_);
@@ -365,8 +367,8 @@ void Renderer::DrawTexture(
 }
 
 void Renderer::DrawCircleSolid(
-	const V2_float& position, float radius, const Color& color, float z_index /* = 0.0f*/,
-	float thickness /* = 1.0f*/, float fade /* = 0.005f*/
+		const V2_float& position, float radius, const Color& color, float z_index /* = 0.0f*/,
+		float thickness /* = 1.0f*/, float fade /* = 0.005f*/
 ) {
 	if (data_.circle_.index_count_ >= data_.max_indices_) {
 		data_.circle_.NextBatch(data_);

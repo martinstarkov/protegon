@@ -15,28 +15,39 @@ void SceneManager::Unload(std::size_t scene_key) {
 void SceneManager::SetActive(std::size_t scene_key) {
 	// ExitAllExcept(scene_key);
 	PTGN_ASSERT(
-		Has(scene_key) || scene_key == impl::start_scene_key,
-		"Cannot set active scene if it has not been loaded into the scene "
-		"manager"
+			Has(scene_key) || scene_key == impl::start_scene_key,
+			"Cannot set active scene if it has not been loaded into the scene "
+			"manager"
 	);
 	active_scenes_.clear();
 	AddActive(scene_key);
 }
 
+void SceneManager::InitScene(std::size_t scene_key) {
+	PTGN_ASSERT(
+			Has(scene_key) || scene_key == impl::start_scene_key,
+			"Cannot init scene unless it has been loaded first"
+	);
+	auto scene = Get(scene_key);
+	scene->Init();
+}
+
 void SceneManager::AddActive(std::size_t scene_key) {
 	PTGN_ASSERT(
-		Has(scene_key) || scene_key == impl::start_scene_key,
-		"Cannot set scene to active unless it has been loaded first"
+			Has(scene_key) || scene_key == impl::start_scene_key,
+			"Cannot set scene to active unless it has been loaded first"
 	);
 	active_scenes_.emplace_back(scene_key);
-	/*auto scene = Get(scene_key);
-	scene->Enter();*/
+	// Start scene is initialized manually in the game.
+	if (scene_key != impl::start_scene_key) {
+		InitScene(scene_key);
+	}
 }
 
 void SceneManager::RemoveActive(std::size_t scene_key) {
 	PTGN_ASSERT(
-		Has(scene_key), "Cannot remove active scene if it has not been loaded into "
-				  "the scene manager"
+			Has(scene_key), "Cannot remove active scene if it has not been loaded into "
+							"the scene manager"
 	);
 	for (auto it = active_scenes_.begin(); it != active_scenes_.end();) {
 		if (*it == scene_key) {
@@ -54,22 +65,28 @@ void SceneManager::RemoveActive(std::size_t scene_key) {
 std::vector<std::shared_ptr<Scene>> SceneManager::GetActive() {
 	std::vector<std::shared_ptr<Scene>> active{};
 	for (auto scene_key : active_scenes_) {
-		if (Has(scene_key)) {
-			auto scene = Get(scene_key);
-			active.emplace_back(scene);
-		}
+		PTGN_ASSERT(Has(scene_key));
+		auto scene = Get(scene_key);
+		active.emplace_back(scene);
 	}
+
 	return active;
+}
+
+Scene& SceneManager::GetTopActive() {
+	auto scene_key = active_scenes_.back();
+	PTGN_ASSERT(Has(scene_key));
+	auto scene = Get(scene_key);
+	return *scene;
 }
 
 void SceneManager::Update(float dt) {
 	for (auto scene_key : active_scenes_) {
-		if (Has(scene_key)) {
-			auto scene = Get(scene_key);
-			if (scene->status_ != Scene::Status::Delete) {
-				scene->Update();
-				scene->Update(dt);
-			}
+		PTGN_ASSERT(Has(scene_key));
+		auto scene = Get(scene_key);
+		if (scene->status_ != Scene::Status::Delete) {
+			scene->Update();
+			scene->Update(dt);
 		}
 	}
 	UnloadFlagged();
@@ -81,6 +98,7 @@ void SceneManager::UnloadFlagged() {
 	while (flagged_ > 0) {
 		for (auto it = map.begin(); it != map.end();) {
 			if (it->second->status_ == Scene::Status::Delete) {
+				RemoveActive(it->first);
 				it = map.erase(it);
 				flagged_--;
 			} else {
