@@ -64,25 +64,25 @@ Game::Game() {
 }
 
 void Game::LoopUntilKeyDown(
-		const std::vector<Key>& any_of_keys, const UpdateFunction& loop_function
+	const std::vector<Key>& any_of_keys, const UpdateFunction& loop_function
 ) {
 	LoopUntilEvent(
-			game.event.key, { KeyEvent::Down }, std::function([&](const KeyDownEvent& e) -> bool {
-				for (const Key& key : any_of_keys) {
-					if (e.key == key) {
-						return true;
-					}
+		game.event.key, { KeyEvent::Down }, std::function([&](const KeyDownEvent& e) -> bool {
+			for (const Key& key : any_of_keys) {
+				if (e.key == key) {
+					return true;
 				}
-				return false;
-			}),
-			loop_function
+			}
+			return false;
+		}),
+		loop_function
 	);
 }
 
 void Game::LoopUntilQuit(const UpdateFunction& loop_function) {
 	LoopUntilEvent(
-			game.event.window, { WindowEvent::Quit },
-			std::function([&](const WindowQuitEvent& e) -> bool { return true; }), loop_function
+		game.event.window, { WindowEvent::Quit },
+		std::function([&](const WindowQuitEvent& e) -> bool { return true; }), loop_function
 	);
 }
 
@@ -104,27 +104,28 @@ void Game::Loop() {
 }
 
 void Game::Reset() {
-	window		= {};
-	gl_context_ = {};
-	event		= {};
-	input		= {};
-	renderer	= {};
-	scene		= {};
-	camera		= {};
-	music		= {};
-	sound		= {};
-	font		= {};
-	text		= {};
-	texture		= {};
-	shader		= {};
-	profiler	= {};
+	window = {};
+	gl_context_.~GLContext();
+	new (&gl_context_) impl::GLContext();
+	event	 = {};
+	input	 = {};
+	renderer = {};
+	scene	 = {};
+	camera	 = {};
+	music	 = {};
+	sound	 = {};
+	font	 = {};
+	text	 = {};
+	texture	 = {};
+	shader	 = {};
+	profiler = {};
 }
 
 void Game::Update(const UpdateFunction& loop_function, int& condition) {
 	// Always quit on window quit.
 	event.window.Subscribe(
-			WindowEvent::Quit, (void*)&condition,
-			std::function([&](const WindowQuitEvent& e) { condition = false; })
+		WindowEvent::Quit, (void*)&condition,
+		std::function([&](const WindowQuitEvent& e) { condition = false; })
 	);
 
 	// Optional: Update window while it is being dragged. Upside: No rendering artefacts;

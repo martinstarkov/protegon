@@ -64,31 +64,28 @@ namespace impl {
 #define PTGN_FUNCTION_NAME() ptgn::impl::TrimFunctionSignature(PTGN_FULL_FUNCTION_SIGNATURE)
 
 #ifdef PTGN_ENABLE_ASSERTS
-#define PTGN_ASSERT(condition, ...)                                                     \
-	{                                                                                   \
-		if (!(condition)) {                                                             \
-			ptgn::impl::StringStreamWriter internal_stream_writer;                      \
-			PTGN_INTERNAL_WRITE_STREAM(internal_stream_writer, __VA_ARGS__);            \
-			ptgn::debug::PrintLine("ASSERTION FAILED: ", internal_stream_writer.Get()); \
-			PTGN_DEBUGBREAK();                                                          \
-			std::abort();                                                               \
-		}                                                                               \
+#define PTGN_ASSERT(condition, ...)                                         \
+	{                                                                       \
+		if (!(condition)) {                                                 \
+			PTGN_INTERNAL_DEBUG_MESSAGE("ASSERTION FAILED: ", __VA_ARGS__); \
+			PTGN_DEBUGBREAK();                                              \
+			std::abort();                                                   \
+		}                                                                   \
 	}
 #else
 #define PTGN_ASSERT(...) ((void)0)
 #endif
 
-#define PTGN_EXCEPTION(msg) throw std::runtime_error(msg)
+// TODO: Upgrade this to allow error messages in the future.
+#define PTGN_EXCEPTION(message) throw std::runtime_error(message)
 
-#define PTGN_CHECK(condition, ...)                                                  \
-	{                                                                               \
-		if (!(condition)) {                                                         \
-			ptgn::impl::StringStreamWriter internal_stream_writer;                  \
-			PTGN_INTERNAL_WRITE_STREAM(internal_stream_writer, __VA_ARGS__);        \
-			ptgn::debug::PrintLine("CHECK FAILED: ", internal_stream_writer.Get()); \
-			PTGN_DEBUGBREAK();                                                      \
-			PTGN_EXCEPTION(internal_stream_writer.Get());                           \
-		}                                                                           \
+#define PTGN_CHECK(condition, ...)                                      \
+	{                                                                   \
+		if (!(condition)) {                                             \
+			PTGN_INTERNAL_DEBUG_MESSAGE("CHECK FAILED: ", __VA_ARGS__); \
+			PTGN_DEBUGBREAK();                                          \
+			PTGN_EXCEPTION("Check failed");                             \
+		}                                                               \
 	}
 
 namespace ptgn {

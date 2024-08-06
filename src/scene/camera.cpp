@@ -78,7 +78,8 @@ void Camera::RecalculateViewProjection() {
 }
 
 void Camera::RecalculateView() {
-	view_ = M4_float::Translate(orientation_.ToMatrix4(), position_);
+	view_ = M4_float::Translate(orientation_.ToMatrix4(), position_).Inverse();
+
 	RecalculateViewProjection();
 }
 
@@ -92,15 +93,14 @@ bool Camera::operator!=(const Camera& o) const {
 
 OrthographicCamera::OrthographicCamera() {
 	V2_float ws{ game.window.GetSize() };
-	SetProjection(0.0f, ws.x, ws.y, 0.0f);
 
-	game.event.window.Subscribe(
-			WindowEvent::Resized, (void*)this, std::function([&](const WindowResizedEvent& e) {
-				SetProjection(
-						0.0f, static_cast<float>(e.size.x), static_cast<float>(e.size.y), 0.0f
-				);
-			})
-	);
+	auto func = [&](const WindowResizedEvent& e) {
+		SetProjection(0.0f, static_cast<float>(e.size.x), static_cast<float>(e.size.y), 0.0f);
+	};
+
+	func(WindowResizedEvent{ ws });
+
+	game.event.window.Subscribe(WindowEvent::Resized, (void*)this, std::function(func));
 }
 
 OrthographicCamera::~OrthographicCamera() {

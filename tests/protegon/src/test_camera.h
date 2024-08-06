@@ -62,6 +62,12 @@ void TestCameraSwitching() {
 				if (game.input.KeyDown(Key::K_5)) {
 					game.camera.SetPrimary(5);
 				}
+
+				auto& primary{ game.camera.GetPrimary() };
+
+				PTGN_LOG("Pos: ", primary.GetPosition());
+				PTGN_LOG("View: ", primary.GetView());
+				PTGN_LOG("Proj: ", primary.GetProjection());
 			},
 			PTGN_FUNCTION_NAME()
 	);

@@ -84,72 +84,34 @@ inline void PrintLine() {
 
 } // namespace debug
 
-namespace impl {
-
-// This class exists so that printline(ss, __VA_ARGS__) does not fail with 0 args.
-struct StringStreamWriter {
-	StringStreamWriter() = default;
-
-	template <typename... TArgs, type_traits::stream_writable<std::ostream, TArgs...> = true>
-	void Write(TArgs&&... items) {
-		((ss << std::forward<TArgs>(items)), ...);
-	}
-
-	template <typename... TArgs, type_traits::stream_writable<std::ostream, TArgs...> = true>
-	void WriteLine(TArgs&&... items) {
-		Write(std::forward<TArgs>(items)...);
-		ss << std::endl;
-	}
-
-	std::string Get() const {
-		return ss.str();
-	}
-
-	std::stringstream ss;
-};
-
-} // namespace impl
-
 } // namespace ptgn
 
-#define PTGN_INTERNAL_WRITE_STREAM(internal_stream_writer, ...)                 \
-	{                                                                           \
-		internal_stream_writer.Write(                                           \
-			std::filesystem::path(__FILE__).filename().string(), ":", __LINE__, \
-			[&]() -> const char* {                                              \
-				if (PTGN_NUMBER_OF_ARGS(__VA_ARGS__) > 0) {                     \
-					return ": ";                                                \
-				} else {                                                        \
-					return "";                                                  \
-				}                                                               \
-			}()                                                                 \
-		);                                                                      \
-		internal_stream_writer.Write(__VA_ARGS__);                              \
+#define PTGN_LOG(...) ptgn::PrintLine(__VA_ARGS__);
+#define PTGN_INFO(...)                \
+	{                                 \
+		ptgn::Print("INFO: ");        \
+		ptgn::PrintLine(__VA_ARGS__); \
 	}
 
-#define PTGN_LOG(...)                                          \
-	{                                                          \
-		ptgn::impl::StringStreamWriter internal_stream_writer; \
-		internal_stream_writer.Write(__VA_ARGS__);             \
-		ptgn::PrintLine(internal_stream_writer.Get());         \
-	}
-#define PTGN_INFO(...)                                           \
-	{                                                            \
-		ptgn::impl::StringStreamWriter internal_stream_writer;   \
-		internal_stream_writer.Write(__VA_ARGS__);               \
-		ptgn::PrintLine("INFO: ", internal_stream_writer.Get()); \
-	}
-#define PTGN_WARN(...)                                                   \
-	{                                                                    \
-		ptgn::impl::StringStreamWriter internal_stream_writer;           \
-		PTGN_INTERNAL_WRITE_STREAM(internal_stream_writer, __VA_ARGS__); \
-		ptgn::debug::PrintLine("WARN: ", internal_stream_writer.Get());  \
+#define PTGN_INTERNAL_DEBUG_MESSAGE(prefix, ...)                                            \
+	{                                                                                       \
+		ptgn::debug::Print(                                                                 \
+				prefix, std::filesystem::path(__FILE__).filename().string(), ":", __LINE__, \
+				[&]() -> const char* {                                                      \
+					if (PTGN_NUMBER_OF_ARGS(__VA_ARGS__) > 0) {                             \
+						return ": ";                                                        \
+					} else {                                                                \
+						return "";                                                          \
+					}                                                                       \
+				}()                                                                         \
+		);                                                                                  \
+		ptgn::debug::PrintLine(__VA_ARGS__);                                                \
 	}
 
-#define PTGN_ERROR(...)                                                  \
-	{                                                                    \
-		ptgn::impl::StringStreamWriter internal_stream_writer;           \
-		PTGN_INTERNAL_WRITE_STREAM(internal_stream_writer, __VA_ARGS__); \
-		ptgn::debug::PrintLine("ERROR: ", internal_stream_writer.Get()); \
-		PTGN_EXCEPTION(internal_stream_writer.Get());                    \
+#define PTGN_WARN(...) PTGN_INTERNAL_DEBUG_MESSAGE("WARN: ", __VA_ARGS__)
+
+#define PTGN_ERROR(...)                                      \
+	{                                                        \
+		PTGN_INTERNAL_DEBUG_MESSAGE("ERROR: ", __VA_ARGS__); \
+		PTGN_EXCEPTION("Error");                             \
 	}

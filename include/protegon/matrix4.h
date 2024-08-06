@@ -360,6 +360,31 @@ inline Vector4<S> operator*(const Matrix4<T>& A, const Vector4<U>& B) {
 	return res;
 }
 
+template <typename T, typename U, typename S = typename std::common_type_t<T, U>>
+inline Matrix4<S> operator*(const Matrix4<T>& A, U B) {
+	Matrix4<S> res;
+
+	for (std::size_t i = 0; i < A.length; ++i) {
+		res[i] = A[i] * B;
+	}
+	return res;
+}
+
+template <typename T, typename U, typename S = typename std::common_type_t<T, U>>
+inline Matrix4<S> operator*(U A, const Matrix4<T>& B) {
+	return B * A;
+}
+
+template <typename T, typename U, typename S = typename std::common_type_t<T, U>>
+inline Matrix4<S> operator/(const Matrix4<T>& A, U B) {
+	Matrix4<S> res;
+
+	for (std::size_t i = 0; i < res.length; ++i) {
+		res[i] = static_cast<S>(A[i]) / static_cast<S>(B);
+	}
+	return res;
+}
+
 template <typename T>
 inline bool operator==(const Matrix4<T>& lhs, const Matrix4<T>& rhs) {
 	for (std::size_t i = 0; i < lhs.length; i++) {
