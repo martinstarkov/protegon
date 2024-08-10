@@ -12,6 +12,20 @@ struct SDL_Color;
 
 namespace ptgn {
 
+enum class BlendMode {
+	// Source: https://wiki.libsdl.org/SDL2/SDL_BlendMode
+
+	None  = 0x00000000,	   /*       no blending: dstRGBA = srcRGBA */
+	Blend = 0x00000001,	   /*    alpha blending: dstRGB = (srcRGB * srcA) + (dstRGB
+							* (1 - srcA)) dstA = srcA + (dstA * (1-srcA)) */
+	Add = 0x00000002,	   /* additive blending: dstRGB = (srcRGB * srcA) + dstRGB
+													  dstA = dstA */
+	Modulate = 0x00000004, /*    color modulate: dstRGB = srcRGB * dstRGB
+												 dstA = dstA */
+	Multiply = 0x00000008, /*    color multiply: dstRGB = (srcRGB * dstRGB) +
+							  (dstRGB * (1 - srcA)) dstA = dstA */
+};
+
 struct Color {
 	using Type = std::uint8_t;
 	Type r{ 0 };

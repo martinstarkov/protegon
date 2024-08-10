@@ -7,7 +7,7 @@
 namespace ptgn {
 
 void GLRenderer::EnableLineSmoothing() {
-	EnableBlending();
+	gl::glEnable(GL_BLEND);
 	gl::glEnable(GL_LINE_SMOOTH);
 }
 
@@ -15,14 +15,32 @@ void GLRenderer::DisableLineSmoothing() {
 	gl::glDisable(GL_LINE_SMOOTH);
 }
 
-void GLRenderer::EnableBlending() {
-	DisableDepthTesting();
-	gl::glEnable(GL_BLEND);
-	gl::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-}
+void GLRenderer::SetBlendMode(BlendMode mode/* = BlendMode::Blend*/) {
+	if (mode == BlendMode::None) {
+		gl::glDisable(GL_BLEND);
+		gl::glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+	} else {
+		DisableDepthTesting();
+		gl::glEnable(GL_BLEND);
+		gl::glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
-void GLRenderer::DisableBlending() {
-	gl::glDisable(GL_BLEND);
+		switch (mode) {
+			case BlendMode::Blend:
+				gl::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				break;
+			case BlendMode::Add:
+				gl::glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+				break;
+			case BlendMode::Modulate:
+				gl::glBlendFunc(GL_ZERO, GL_SRC_COLOR);
+				break;
+			case BlendMode::Multiply:
+				// TODO: Check that this works correctly.
+				gl::glBlendFunc(GL_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				break;
+			default: PTGN_ERROR("Failed to identify blend mode");
+		}
+	}
 }
 
 void GLRenderer::EnableDepthTesting() {
