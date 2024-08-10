@@ -43,11 +43,11 @@ void Camera::SetRotation(const V3_float& new_angles) {
 	orientation_ = {};
 	// TODO: Check that this works as intended (may need to flip x and y components).
 	orientation_ *=
-			Quaternion::GetAngleAxis(new_angles.x, V3_float{ 0.0f, 1.0f, 0.0f } * orientation_);
+		Quaternion::GetAngleAxis(new_angles.x, V3_float{ 0.0f, 1.0f, 0.0f } * orientation_);
 	orientation_ *=
-			Quaternion::GetAngleAxis(new_angles.y, V3_float{ 1.0f, 0.0f, 0.0f } * orientation_);
+		Quaternion::GetAngleAxis(new_angles.y, V3_float{ 1.0f, 0.0f, 0.0f } * orientation_);
 	orientation_ *=
-			Quaternion::GetAngleAxis(new_angles.z, V3_float{ 0.0f, 0.0f, 1.0f } * orientation_);
+		Quaternion::GetAngleAxis(new_angles.z, V3_float{ 0.0f, 0.0f, 1.0f } * orientation_);
 	RecalculateView();
 }
 
@@ -78,7 +78,13 @@ void Camera::RecalculateViewProjection() {
 }
 
 void Camera::RecalculateView() {
-	view_ = M4_float::Translate(orientation_.ToMatrix4(), position_).Inverse();
+	V2_float ws{ game.window.GetSize() };
+
+	// TODO: Instead of subtracting half the window size, incorporate this into the projection
+	// matrix.
+	view_ = M4_float::Translate(
+		orientation_.ToMatrix4(), position_ - V3_float{ ws.x * 0.5f, ws.y * 0.5f, 0.0f }
+	);
 
 	RecalculateViewProjection();
 }
@@ -92,12 +98,12 @@ bool Camera::operator!=(const Camera& o) const {
 }
 
 OrthographicCamera::OrthographicCamera() {
-	V2_float ws{ game.window.GetSize() };
-
 	auto func = [&](const WindowResizedEvent& e) {
+		// TODO: Incorporate camera centering here.
 		SetProjection(0.0f, static_cast<float>(e.size.x), static_cast<float>(e.size.y), 0.0f);
 	};
 
+	V2_float ws{ game.window.GetSize() };
 	func(WindowResizedEvent{ ws });
 
 	game.event.window.Subscribe(WindowEvent::Resized, (void*)this, std::function(func));
@@ -108,15 +114,13 @@ OrthographicCamera::~OrthographicCamera() {
 }
 
 OrthographicCamera::OrthographicCamera(
-		float left, float right, float bottom, float top, float near /* = -1.0f*/,
-		float far /* = 1.0f*/
+	float left, float right, float bottom, float top, float near /* = -1.0f*/, float far /* = 1.0f*/
 ) {
 	SetProjection(left, right, bottom, top, near, far);
 }
 
 void OrthographicCamera::SetProjection(
-		float left, float right, float bottom, float top, float near /* = -1.0f*/,
-		float far /*= 1.0f*/
+	float left, float right, float bottom, float top, float near /* = -1.0f*/, float far /*= 1.0f*/
 ) {
 	projection_ = M4_float::Orthographic(left, right, bottom, top, near, far);
 	RecalculateViewProjection();
@@ -157,8 +161,8 @@ void CameraController::UnsubscribeFromMouseEvents() {
 
 CameraManager::CameraManager() {
 	game.event.window.Subscribe(
-			WindowEvent::Resized, (void*)this,
-			std::function([&](const WindowResizedEvent& e) { OnWindowResize(e.size); })
+		WindowEvent::Resized, (void*)this,
+		std::function([&](const WindowResizedEvent& e) { OnWindowResize(e.size); })
 	);
 	ResetPrimaryToWindow();
 }
