@@ -8,8 +8,6 @@
 
 namespace ptgn {
 
-namespace impl {} // namespace impl
-
 Surface::Surface(const std::shared_ptr<SDL_Surface>& raw_surface, ImageFormat format) {
 	PTGN_ASSERT(format != ImageFormat::Unknown, "Cannot create surface with unknown image format");
 

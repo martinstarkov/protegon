@@ -208,7 +208,8 @@ void Text::Draw(const Rectangle<int>& destination) const {
 		return;
 	}
 	game.renderer.DrawTexture(
-		destination.pos, destination.size, instance_->texture_, {}, {}, 0.0f, 0.0f, Origin::TopLeft
+		destination.pos, destination.size, instance_->texture_, {}, {}, 0.0f, { 0.5f, 0.5f },
+		Flip::None, 0.0f, Origin::TopLeft
 	);
 }
 
