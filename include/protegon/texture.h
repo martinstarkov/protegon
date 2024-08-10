@@ -9,6 +9,14 @@
 
 namespace ptgn {
 
+enum class Flip {
+	// Source: https://wiki.libsdl.org/SDL2/SDL_RendererFlip
+
+	None	   = 0x00000000,
+	Horizontal = 0x00000001,
+	Vertical   = 0x00000002
+};
+
 class Renderer;
 
 namespace impl {
