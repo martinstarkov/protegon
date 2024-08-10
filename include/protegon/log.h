@@ -27,13 +27,21 @@ namespace ptgn {
 
 namespace impl {
 
-template <typename... TArgs, type_traits::stream_writable<std::ostream, TArgs...> = true>
+template <typename... TArgs>
 inline void PrintImpl(std::ostream& ostream, TArgs&&... items) {
+	static_assert(
+		(type_traits::is_stream_writable_v<std::ostream, TArgs> && ...),
+		"PTGN_* argument must be stream writeable"
+	);
 	((ostream << std::forward<TArgs>(items)), ...);
 }
 
-template <typename... TArgs, type_traits::stream_writable<std::ostream, TArgs...> = true>
+template <typename... TArgs>
 inline void PrintLineImpl(std::ostream& ostream, TArgs&&... items) {
+	static_assert(
+		(type_traits::is_stream_writable_v<std::ostream, TArgs> && ...),
+		"PTGN_* argument must be stream writeable"
+	);
 	PrintImpl(ostream, std::forward<TArgs>(items)...);
 	ostream << '\n';
 }
@@ -46,14 +54,14 @@ inline void PrintLineImpl(std::ostream& ostream) {
 
 // Print desired items to the console. If a newline is desired, use PrintLine()
 // instead.
-template <typename... TArgs, type_traits::stream_writable<std::ostream, TArgs...> = true>
+template <typename... TArgs>
 inline void Print(TArgs&&... items) {
 	impl::PrintImpl(std::cout, std::forward<TArgs>(items)...);
 }
 
 // Print desired items to the console and add a newline. If no newline is
 // desired, use Print() instead.
-template <typename... TArgs, type_traits::stream_writable<std::ostream, TArgs...> = true>
+template <typename... TArgs>
 inline void PrintLine(TArgs&&... items) {
 	impl::PrintLineImpl(std::cout, std::forward<TArgs>(items)...);
 }
