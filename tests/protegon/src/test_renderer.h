@@ -171,10 +171,10 @@ void TestTexture(const path& texture) {
 				Origin::Center
 			);
 			game.renderer.DrawTexture(
-				{ 200, 600 }, size, t, {}, {}, 0.0f, { 0.5f, 0.5f }, Flip::Horizontal
+				{ 200, 600 }, size, t, {}, {}, rotation, { 0.5f, 0.5f }, Flip::Horizontal
 			);
 			game.renderer.DrawTexture(
-				{ 400, 600 }, size, t, {}, {}, 0.0f, { 0.5f, 0.5f }, Flip::Vertical
+				{ 400, 600 }, size, t, {}, {}, rotation, { 0.5f, 0.5f }, Flip::Vertical
 			);
 			game.renderer.DrawTexture(
 				{ 600, 600 }, size * 0.5f, t, {}, {}, 0.0f, { 0.5f, 0.5f }, Flip::None, 0.8f
