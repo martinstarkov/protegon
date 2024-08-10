@@ -46,14 +46,6 @@ struct QuadVertex {
 	glsl::vec2 tex_coord;
 	glsl::float_ tex_index;
 	glsl::float_ tiling_factor;
-
-	[[nodiscard]] constexpr static std::size_t VertexCount() {
-		return 4;
-	};
-
-	[[nodiscard]] constexpr static std::size_t IndexCount() {
-		return 6;
-	}
 };
 
 struct CircleVertex {
@@ -62,27 +54,11 @@ struct CircleVertex {
 	glsl::vec4 color;
 	glsl::float_ thickness;
 	glsl::float_ fade;
-
-	[[nodiscard]] constexpr static std::size_t VertexCount() {
-		return 4;
-	};
-
-	[[nodiscard]] constexpr static std::size_t IndexCount() {
-		return 6;
-	}
 };
 
 struct LineVertex {
 	glsl::vec3 position;
 	glsl::vec4 color;
-
-	[[nodiscard]] constexpr static std::size_t VertexCount() {
-		return 2;
-	};
-
-	[[nodiscard]] constexpr static std::size_t IndexCount() {
-		return 2;
-	}
 };
 
 enum class Origin {
@@ -97,41 +73,85 @@ namespace impl {
 
 class RendererData;
 
-template <typename TVertex>
+class QuadData {
+public:
+	constexpr static std::size_t vertex_count{ 4 };
+	constexpr static std::size_t index_count{ 6 };
+
+	float GetZIndex() const {
+		return vertices_[0].position[2];
+	}
+
+	void Add(
+		const std::array<V2_float, vertex_count> positions, float z_index, const V4_float& color,
+		const std::array<V2_float, 4>& tex_coords, float texture_index, float tiling_factor
+	);
+
+private:
+	std::array<QuadVertex, vertex_count> vertices_;
+};
+
+class CircleData {
+public:
+	constexpr static const std::size_t vertex_count{ 4 };
+	constexpr static const std::size_t index_count{ 6 };
+
+	float GetZIndex() const {
+		return vertices_[0].position[2];
+	}
+
+	void Add(
+		const std::array<V2_float, vertex_count> positions, float z_index, const V4_float& color,
+		float thickness, float fade
+	);
+
+private:
+	std::array<CircleVertex, vertex_count> vertices_;
+};
+
+class LineData {
+public:
+	constexpr static std::size_t vertex_count{ 2 };
+	constexpr static std::size_t index_count{ 2 };
+
+	[[nodiscard]] float GetZIndex() const {
+		return vertices_[0].position[2];
+	}
+
+	void Add(const V3_float& p0, const V3_float& p1, const V4_float& color);
+
+private:
+	std::array<LineVertex, vertex_count> vertices_;
+};
+
+template <typename T>
 class BatchData {
 public:
 	VertexArray array_;
 	VertexBuffer buffer_;
 	Shader shader_;
-	std::size_t index_count_{ 0 };
-	std::vector<TVertex> buffer_base_;
-	std::int32_t buffer_index_{ -1 };
+	std::vector<T> batch_;
+	std::int32_t index_{ -1 };
 
 	constexpr static const std::size_t batch_count_	 = 20000;
-	constexpr static const std::size_t max_vertices_ = batch_count_ * TVertex::VertexCount();
-	constexpr static const std::size_t max_indices_	 = batch_count_ * TVertex::IndexCount();
+	constexpr static const std::size_t max_vertices_ = batch_count_ * T::vertex_count;
+	constexpr static const std::size_t max_indices_	 = batch_count_ * T::index_count;
 
-	// index_multiplier allows for drawing more complicated shapes from primitives, for instance a
-	// hollow rectangle drawn from 4 lines would have an index_multiplier of 4.
-	// @return True if batch was advanced, false if it was not.
-	bool AdvanceBatch(std::size_t index_multiplier = 1) {
-		if (index_count_ + TVertex::IndexCount() * index_multiplier >= max_indices_) {
-			NextBatch();
-			return true;
+	void AdvanceBatch() {
+		index_++;
+		if (index_ + 1 >= batch_count_) {
+			Draw();
+			index_ = 0;
 		}
-		return false;
 	}
 
-	void NextBatch() {
-		Draw();
-		Reset();
+	[[nodiscard]] bool IsFlushed() const {
+		return index_ == -1;
 	}
 
-	bool IsFlushed() const {
-		return index_count_ == 0;
-	}
-
-	constexpr static V2_float GetDrawOffset(const V2_float& size, Origin draw_origin) {
+	[[nodiscard]] constexpr static V2_float GetDrawOffset(
+		const V2_float& size, Origin draw_origin
+	) {
 		if (draw_origin == Origin::Center) {
 			return {};
 		}
@@ -162,9 +182,8 @@ public:
 		return offset;
 	}
 
-	constexpr static void OffsetVertices(
-		std::array<V2_float, QuadVertex::VertexCount()>& vertices, const V2_float& size,
-		Origin draw_origin
+	[[nodiscard]] constexpr static void OffsetVertices(
+		std::array<V2_float, T::vertex_count>& vertices, const V2_float& size, Origin draw_origin
 	) {
 		auto draw_offset = GetDrawOffset(size, draw_origin);
 
@@ -176,8 +195,8 @@ public:
 		}
 	}
 
-	constexpr static void FlipVertices(
-		std::array<V2_float, QuadVertex::VertexCount()>& vertices, Flip flip
+	[[nodiscard]] constexpr static void FlipVertices(
+		std::array<V2_float, T::vertex_count>& vertices, Flip flip
 	) {
 		switch (flip) {
 			case Flip::None:	   break;
@@ -195,8 +214,8 @@ public:
 		}
 	}
 
-	constexpr static void RotateVertices(
-		std::array<V2_float, QuadVertex::VertexCount()>& vertices, const V2_float& position,
+	[[nodiscard]] constexpr static void RotateVertices(
+		std::array<V2_float, T::vertex_count>& vertices, const V2_float& position,
 		const V2_float& size, float rotation, const V2_float& rotation_center
 	) {
 		PTGN_ASSERT(
@@ -236,11 +255,11 @@ public:
 		vertices[3] = position + rotated(s3);
 	}
 
-	constexpr static std::array<V2_float, QuadVertex::VertexCount()> GetQuadVertices(
+	[[nodiscard]] constexpr static std::array<V2_float, T::vertex_count> GetQuadVertices(
 		const V2_float& position, const V2_float& size, Flip flip, Origin draw_origin,
 		float rotation, const V2_float& rotation_center
 	) {
-		std::array<V2_float, QuadVertex::VertexCount()> vertices;
+		std::array<V2_float, T::vertex_count> vertices;
 
 		RotateVertices(vertices, position, size, rotation, rotation_center);
 		OffsetVertices(vertices, size, draw_origin);
@@ -250,12 +269,11 @@ public:
 	}
 
 	template <typename... TLayouts>
-	void Init(std::size_t vertex_count, PrimitiveMode mode, const IndexBuffer& index_buffer) {
+	void Init(std::size_t count, PrimitiveMode mode, const IndexBuffer& index_buffer) {
 		// TODO: Consider resizing buffer dynamically as demand grows?
-		buffer_base_.resize(vertex_count);
-		buffer_ = VertexBuffer(buffer_base_, BufferLayout<TLayouts...>{}, BufferUsage::DynamicDraw);
-
-		array_ = { mode, buffer_, index_buffer };
+		batch_.resize(count);
+		buffer_ = VertexBuffer(batch_, BufferLayout<TLayouts...>{}, BufferUsage::DynamicDraw);
+		array_	= { mode, buffer_, index_buffer };
 	}
 
 	void SetupShader(
@@ -266,52 +284,16 @@ public:
 		shader_.SetUniform("u_Textures", samplers.data(), samplers.size());
 	}
 
-	void SetupBatch() {
-		PTGN_ASSERT(buffer_index_ != -1);
-		std::uint32_t data_size = static_cast<std::uint32_t>(buffer_index_) * sizeof(TVertex);
-		// Sort by z-index before sending to GPU.
-		SortZPositions();
-		buffer_.SetSubData(buffer_base_.data(), data_size);
-		shader_.Bind();
-	}
-
 	void Draw() {
-		PTGN_ASSERT(index_count_ != 0);
-		SetupBatch();
-		GLRenderer::DrawElements(array_, index_count_);
-	}
-
-	void SortZPositions() {
-		std::sort(
-			buffer_base_.begin(), buffer_base_.begin() + index_count_ / TVertex::IndexCount(),
-			[](const TVertex& a, const TVertex& b) { return a.position[2] > b.position[2]; }
-		);
-	}
-
-	void AddQuad(
-		const V3_float& position, const V2_float& size, const V4_float& color, Flip flip,
-		const std::array<V2_float, 4>& tex_coords, float texture_index, float tiling_factor,
-		Origin origin, float rotation, const V2_float& rotation_center
-	);
-
-	void AddCircle(
-		const V3_float& position, const V2_float& size, const V4_float& color, float thickness,
-		float fade
-	);
-
-	void AddLine(
-		const V2_float& p0, float z_index0, const V2_float& p1, float z_index1,
-		const V4_float& color
-	);
-
-	void IncrementBuffer() {
-		PTGN_ASSERT(buffer_index_ != -1);
-		++buffer_index_;
-	}
-
-	void Reset() {
-		index_count_  = 0;
-		buffer_index_ = 0;
+		PTGN_ASSERT(index_ != -1);
+		// Sort by z-index before sending to GPU.
+		std::sort(batch_.begin(), batch_.begin() + index_ + 1, [](const T& a, const T& b) {
+			return a.GetZIndex() < b.GetZIndex();
+		});
+		buffer_.SetSubData(batch_.data(), static_cast<std::uint32_t>(index_ + 1) * sizeof(T));
+		shader_.Bind();
+		GLRenderer::DrawElements(array_, (index_ + 1) * T::index_count);
+		index_ = -1;
 	}
 };
 
@@ -329,14 +311,11 @@ public:
 	std::vector<Texture> texture_slots_;
 	std::uint32_t texture_slot_index_{ 1 }; // 0 reserved for white texture
 
-	BatchData<QuadVertex> quad_;
-	BatchData<CircleVertex> circle_;
-	BatchData<LineVertex> line_;
-	// BatchData<TextVertex> text_;
+	BatchData<QuadData> quad_;
+	BatchData<CircleData> circle_;
+	BatchData<LineData> line_;
 
 	float line_width_{ 2.0f };
-
-	// Texture font_atlas_texture_;
 
 	void SetupBuffers();
 	void SetupTextureSlots();
@@ -346,7 +325,20 @@ public:
 
 	void BindTextures() const;
 
-	[[nodiscard]] static std::array<V2_float, QuadVertex::VertexCount()> GetTextureCoordinates(
+	// @return Slot index of the texture or 0.0f if texture index is currently not in texture slots.
+	float GetTextureIndex(const Texture& texture) {
+		float texture_index{ 0.0f };
+
+		for (std::uint32_t i{ 1 }; i < texture_slot_index_; i++) {
+			if (texture_slots_[i].GetInstance() == texture.GetInstance()) {
+				texture_index = (float)i;
+				break;
+			}
+		}
+		return texture_index;
+	}
+
+	[[nodiscard]] static std::array<V2_float, QuadData::vertex_count> GetTextureCoordinates(
 		const V2_float& source_position, V2_float source_size, const V2_float& texture_size
 	) {
 		PTGN_ASSERT(!NearlyEqual(texture_size.x, 0.0f), "Texture must have width > 0");
@@ -380,7 +372,7 @@ public:
 		indices.resize(I);
 
 		std::uint32_t offset{ 0 };
-		for (std::size_t i{ 0 }; i < indices.size(); i += T::IndexCount()) {
+		for (std::size_t i{ 0 }; i < indices.size(); i += T::index_count) {
 			indices[i + 0] = offset + 0;
 			indices[i + 1] = offset + 1;
 			indices[i + 2] = offset + 2;
@@ -389,7 +381,7 @@ public:
 			indices[i + 4] = offset + 3;
 			indices[i + 5] = offset + 0;
 
-			offset += static_cast<std::uint32_t>(T::VertexCount());
+			offset += static_cast<std::uint32_t>(T::vertex_count);
 		}
 
 		return indices;
@@ -401,11 +393,11 @@ public:
 		indices.resize(I);
 
 		std::uint32_t offset{ 0 };
-		for (std::size_t i{ 0 }; i < indices.size(); i += T::IndexCount()) {
+		for (std::size_t i{ 0 }; i < indices.size(); i += T::index_count) {
 			indices[i + 0] = offset + 0;
 			indices[i + 1] = offset + 1;
 
-			offset += static_cast<std::uint32_t>(T::VertexCount());
+			offset += static_cast<std::uint32_t>(T::vertex_count);
 		}
 
 		return indices;

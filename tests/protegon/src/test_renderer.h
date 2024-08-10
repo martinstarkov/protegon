@@ -176,7 +176,6 @@ void TestTexture(const path& texture) {
 			game.renderer.DrawTexture(
 				{ 400, 600 }, size, t, {}, {}, 0.0f, { 0.5f, 0.5f }, Flip::Vertical
 			);
-			// TODO: Fix z_index.
 			game.renderer.DrawTexture(
 				{ 600, 600 }, size * 0.5f, t, {}, {}, 0.0f, { 0.5f, 0.5f }, Flip::None, 0.8f
 			);

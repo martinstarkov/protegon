@@ -9,72 +9,43 @@ namespace ptgn {
 
 namespace impl {
 
-template <>
-void BatchData<QuadVertex>::AddQuad(
-	const V3_float& position, const V2_float& size, const V4_float& color, Flip flip,
-	const std::array<V2_float, 4>& tex_coords, float texture_index, float tiling_factor,
-	Origin origin, float rotation, const V2_float& rotation_center
+void QuadData::Add(
+	const std::array<V2_float, vertex_count> positions, float z_index, const V4_float& color,
+	const std::array<V2_float, vertex_count>& tex_coords, float texture_index, float tiling_factor
 ) {
-	PTGN_ASSERT(buffer_index_ != -1);
-	auto positions =
-		GetQuadVertices({ position.x, position.y }, size, flip, origin, rotation, rotation_center);
-	for (size_t i = 0; i < QuadVertex::VertexCount(); i++) {
-		// PTGN_LOG("V", i, ": ", positions[i]);
-		PTGN_ASSERT(buffer_index_ < buffer_base_.size());
-		buffer_base_[buffer_index_].position	  = { positions[i].x, positions[i].y, position.z };
-		buffer_base_[buffer_index_].color		  = { color.x, color.y, color.z, color.w };
-		buffer_base_[buffer_index_].tex_coord	  = { tex_coords[i].x, tex_coords[i].y };
-		buffer_base_[buffer_index_].tex_index	  = { texture_index };
-		buffer_base_[buffer_index_].tiling_factor = { tiling_factor };
-		IncrementBuffer();
+	for (std::size_t i{ 0 }; i < vertices_.size(); i++) {
+		vertices_[i].position	   = { positions[i].x, positions[i].y, z_index };
+		vertices_[i].color		   = { color.x, color.y, color.z, color.w };
+		vertices_[i].tex_coord	   = { tex_coords[i].x, tex_coords[i].y };
+		vertices_[i].tex_index	   = { texture_index };
+		vertices_[i].tiling_factor = { tiling_factor };
 	}
-
-	index_count_ += QuadVertex::IndexCount();
 }
 
-template <>
-void BatchData<CircleVertex>::AddCircle(
-	const V3_float& position, const V2_float& size, const V4_float& color, float thickness,
-	float fade
+void CircleData::Add(
+	const std::array<V2_float, vertex_count> positions, float z_index, const V4_float& color,
+	float thickness, float fade
 ) {
-	PTGN_ASSERT(buffer_index_ != -1);
-	auto positions = GetQuadVertices(
-		{ position.x, position.y }, size, Flip::None, Origin::Center, 0.0f, { 0.5f, 0.5f }
-	);
-	constexpr auto local = std::array<V2_float, QuadVertex::VertexCount()>{
+	constexpr auto local = std::array<V2_float, vertex_count>{
 		V2_float{ -1.0f, -1.0f },
 		V2_float{ 1.0f, -1.0f },
 		V2_float{ 1.0f, 1.0f },
 		V2_float{ -1.0f, 1.0f },
 	};
-	for (std::size_t i{ 0 }; i < QuadVertex::VertexCount(); i++) {
-		PTGN_ASSERT(buffer_index_ < buffer_base_.size());
-		buffer_base_[buffer_index_].position	   = { positions[i].x, positions[i].y, position.z };
-		buffer_base_[buffer_index_].local_position = { local[i].x, local[i].y, position.z };
-		buffer_base_[buffer_index_].color		   = { color.x, color.y, color.z, color.w };
-		buffer_base_[buffer_index_].thickness	   = { thickness };
-		buffer_base_[buffer_index_].fade		   = { fade };
-		IncrementBuffer();
+	for (std::size_t i{ 0 }; i < vertices_.size(); i++) {
+		vertices_[i].position		= { positions[i].x, positions[i].y, z_index };
+		vertices_[i].local_position = { local[i].x, local[i].y, z_index };
+		vertices_[i].color			= { color.x, color.y, color.z, color.w };
+		vertices_[i].thickness		= { thickness };
+		vertices_[i].fade			= { fade };
 	}
-
-	index_count_ += QuadVertex::IndexCount();
 }
 
-template <>
-void BatchData<LineVertex>::AddLine(
-	const V2_float& p0, float z_index0, const V2_float& p1, float z_index1, const V4_float& color
-) {
-	PTGN_ASSERT(buffer_index_ != -1);
-	PTGN_ASSERT(buffer_index_ < buffer_base_.size());
-	buffer_base_[buffer_index_].position = { p0.x, p0.y, z_index0 };
-	buffer_base_[buffer_index_].color	 = { color.x, color.y, color.z, color.w };
-	IncrementBuffer();
-	PTGN_ASSERT(buffer_index_ < buffer_base_.size());
-	buffer_base_[buffer_index_].position = { p1.x, p1.y, z_index1 };
-	buffer_base_[buffer_index_].color	 = { color.x, color.y, color.z, color.w };
-	IncrementBuffer();
-
-	index_count_ += LineVertex::IndexCount();
+void LineData::Add(const V3_float& p0, const V3_float& p1, const V4_float& color) {
+	vertices_[0].position = { p0.x, p0.y, p0.z };
+	vertices_[0].color	  = { color.x, color.y, color.z, color.w };
+	vertices_[1].position = { p1.x, p1.y, p1.z };
+	vertices_[1].color	  = { color.x, color.y, color.z, color.w };
 }
 
 RendererData::RendererData() {
@@ -84,8 +55,8 @@ RendererData::RendererData() {
 }
 
 void RendererData::SetupBuffers() {
-	IndexBuffer quad_index_buffer{ GetQuadIndices<QuadVertex, quad_.max_indices_>() };
-	IndexBuffer line_index_buffer{ GetLineIndices<LineVertex, line_.max_indices_>() };
+	IndexBuffer quad_index_buffer{ GetQuadIndices<impl::QuadData, quad_.max_indices_>() };
+	IndexBuffer line_index_buffer{ GetLineIndices<impl::LineData, line_.max_indices_>() };
 
 	quad_.Init<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_, glsl::float_>(
 		quad_.max_vertices_, PrimitiveMode::Triangles, quad_index_buffer
@@ -237,9 +208,9 @@ void Renderer::SetViewport(const V2_int& size) {
 }
 
 void Renderer::StartBatch() {
-	data_.quad_.Reset();
-	data_.circle_.Reset();
-	data_.line_.Reset();
+	data_.quad_.index_	 = -1;
+	data_.circle_.index_ = -1;
+	data_.line_.index_	 = -1;
 
 	data_.texture_slot_index_ = 1;
 }
@@ -250,21 +221,27 @@ void Renderer::Flush() {
 }
 
 void Renderer::DrawRectangleFilled(
-	const V2_float& position, const V2_float& size, const Color& color, float rotation /* = 0.0f*/,
-	const V2_float& rotation_center, float z_index /* = 0.0f*/,
-	Origin draw_origin /* = Origin::Center*/
+	const V2_float& position, const V2_float& size, const Color& color, float rotation,
+	const V2_float& rotation_center, float z_index, Origin draw_origin
 ) {
 	data_.quad_.AdvanceBatch();
 
-	data_.quad_.AddQuad(
-		{ position.x, position.y, z_index }, size, color, Flip::None,
-		std::array<V2_float, QuadVertex::VertexCount()>{
-			V2_float{ 0.0f, 0.0f },
-			V2_float{ 1.0f, 0.0f },
-			V2_float{ 1.0f, 1.0f },
-			V2_float{ 0.0f, 1.0f },
-		},
-		0.0f /* white texture */, 1.0f, draw_origin, rotation, rotation_center
+	std::array<V2_float, impl::QuadData::vertex_count> texture_coords{
+		V2_float{ 0.0f, 0.0f },
+		V2_float{ 1.0f, 0.0f },
+		V2_float{ 1.0f, 1.0f },
+		V2_float{ 0.0f, 1.0f },
+	};
+
+	auto positions = impl::BatchData<impl::QuadData>::GetQuadVertices(
+		{ position.x, position.y }, size, Flip::None, draw_origin, rotation, rotation_center
+	);
+
+	PTGN_ASSERT(data_.quad_.index_ != -1);
+	PTGN_ASSERT(data_.quad_.index_ < data_.quad_.batch_.size());
+
+	data_.quad_.batch_[data_.quad_.index_].Add(
+		positions, z_index, color, texture_coords, 0.0f /* white texture */, 1.0f
 	);
 
 	data_.stats_.quad_count++;
@@ -274,20 +251,15 @@ void Renderer::DrawRectangleHollow(
 	const V2_float& position, const V2_float& size, const Color& color, float rotation,
 	const V2_float& rotation_center, float z_index, Origin origin
 ) {
-	data_.line_.AdvanceBatch(QuadVertex::VertexCount());
-
-	auto positions = impl::BatchData<QuadVertex>::GetQuadVertices(
+	auto positions = impl::BatchData<impl::QuadData>::GetQuadVertices(
 		position, size, Flip::None, origin, rotation, rotation_center
 	);
 
-	PTGN_ASSERT(positions.size() == QuadVertex::VertexCount());
-
-	data_.line_.AddLine(positions[0], z_index, positions[1], z_index, color);
-	data_.line_.AddLine(positions[1], z_index, positions[2], z_index, color);
-	data_.line_.AddLine(positions[2], z_index, positions[3], z_index, color);
-	data_.line_.AddLine(positions[3], z_index, positions[0], z_index, color);
-
-	data_.stats_.line_count += QuadVertex::VertexCount();
+	for (std::size_t i{ 0 }; i < positions.size(); i++) {
+		const V2_float& p0{ positions[i] };
+		const V2_float& p1{ positions[(i + 1) % positions.size()] };
+		DrawLine({ p0.x, p0.y, z_index }, { p1.x, p1.y, z_index }, color);
+	}
 }
 
 void Renderer::DrawTexture(
@@ -298,38 +270,40 @@ void Renderer::DrawTexture(
 ) {
 	data_.quad_.AdvanceBatch();
 
-	V2_float texture_size{ texture.GetSize() };
-
-	auto tex_coords{
-		impl::RendererData::GetTextureCoordinates(source_position, source_size, texture_size)
-	};
-
-	float texture_index{ 0.0f };
-
-	for (std::uint32_t i{ 1 }; i < data_.texture_slot_index_; i++) {
-		if (data_.texture_slots_[i].GetInstance() == texture.GetInstance()) {
-			texture_index = (float)i;
-			break;
-		}
-	}
+	float texture_index{ data_.GetTextureIndex(texture) };
 
 	if (texture_index == 0.0f) {
 		// TODO: Optimize this if you have time. Instead of flushing the batch when the slot
 		// index is beyond the slots, keep a separate texture buffer and just split that one
 		// into two or more batches. This should reduce draw calls drastically.
 		if (data_.texture_slot_index_ >= data_.max_texture_slots_) {
-			data_.quad_.NextBatch();
+			data_.quad_.Draw();
+			data_.quad_.index_		  = 0;
 			data_.texture_slot_index_ = 1;
 		}
 
-		texture_index									= (float)data_.texture_slot_index_;
+		texture_index = (float)data_.texture_slot_index_;
+
 		data_.texture_slots_[data_.texture_slot_index_] = texture;
 		data_.texture_slot_index_++;
 	}
 
-	data_.quad_.AddQuad(
-		{ destination_position.x, destination_position.y, z_index }, destination_size, tint_color,
-		flip, tex_coords, texture_index, tiling_factor, draw_origin, rotation, rotation_center
+	PTGN_ASSERT(texture_index != 0.0f);
+
+	auto texture_coords{
+		impl::RendererData::GetTextureCoordinates(source_position, source_size, texture.GetSize())
+	};
+
+	auto positions = impl::BatchData<impl::QuadData>::GetQuadVertices(
+		{ destination_position.x, destination_position.y }, destination_size, flip, draw_origin,
+		rotation, rotation_center
+	);
+
+	PTGN_ASSERT(data_.quad_.index_ != -1);
+	PTGN_ASSERT(data_.quad_.index_ < data_.quad_.batch_.size());
+
+	data_.quad_.batch_[data_.quad_.index_].Add(
+		positions, z_index, tint_color, texture_coords, texture_index, tiling_factor
 	);
 
 	data_.stats_.quad_count++;
@@ -341,9 +315,15 @@ void Renderer::DrawCircleSolid(
 ) {
 	data_.circle_.AdvanceBatch();
 
-	data_.circle_.AddCircle(
-		{ position.x, position.y, z_index }, { radius, radius }, color, thickness, fade
+	auto positions = impl::BatchData<impl::CircleData>::GetQuadVertices(
+		{ position.x, position.y }, { radius, radius }, Flip::None, Origin::Center, 0.0f,
+		{ 0.5f, 0.5f }
 	);
+
+	PTGN_ASSERT(data_.circle_.index_ != -1);
+	PTGN_ASSERT(data_.circle_.index_ < data_.circle_.batch_.size());
+
+	data_.circle_.batch_[data_.circle_.index_].Add(positions, z_index, color, thickness, fade);
 
 	data_.stats_.circle_count++;
 }
@@ -351,7 +331,10 @@ void Renderer::DrawCircleSolid(
 void Renderer::DrawLine(const V3_float& p0, const V3_float& p1, const Color& color) {
 	data_.line_.AdvanceBatch();
 
-	data_.line_.AddLine({ p0.x, p0.y }, p0.z, { p1.x, p1.y }, p1.z, color);
+	PTGN_ASSERT(data_.line_.index_ != -1);
+	PTGN_ASSERT(data_.line_.index_ < data_.line_.batch_.size());
+
+	data_.line_.batch_[data_.line_.index_].Add(p0, p1, color);
 
 	data_.stats_.line_count++;
 }
