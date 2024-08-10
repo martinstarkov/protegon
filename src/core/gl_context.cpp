@@ -29,6 +29,8 @@ void GLContext::LoadGLFunctions() {
 	gl::name = (gl::PFNGL##caps_name##PROC)SDL_GL_GetProcAddress(PTGN_STRINGIFY_MACRO(gl##name));
 	GL_LIST
 #undef GLE
+	
+	//PTGN_LOG("OpenGL Build: ", gl::glGetString(GL_VERSION));
 
 // For debugging which commands were not initialized.
 #define GLE(name, caps_name) \
