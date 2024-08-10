@@ -160,7 +160,9 @@ struct Vector2 {
 	// direction. See https://en.wikipedia.org/wiki/Rotation_matrix for details
 	template <typename U, type_traits::not_narrowing<T, U> = true>
 	[[nodiscard]] Vector2<U> Rotated(U rad) const {
-		return { x * std::cos(rad) - y * std::sin(rad), x * std::sin(rad) + y * std::cos(rad) };
+		auto cos_r{ std::cos(rad) };
+		auto sin_r{ std::sin(rad) };
+		return { x * cos_r - y * sin_r, x * sin_r + y * cos_r };
 	}
 
 	/*
