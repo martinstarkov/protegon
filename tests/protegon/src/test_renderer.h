@@ -17,6 +17,7 @@ constexpr const std::size_t batch_count = 10000;
 int renderer_test						= 0;
 
 enum class RenderTest {
+	Texture,
 	RectangleFilled,
 	RectangleHollow,
 	Transparency,
@@ -36,8 +37,8 @@ enum class RenderTest {
 template <typename T, typename... Ts>
 void TestRenderingLoop(const T& function, const std::string& name, const Ts&... message) {
 	TestLoop(
-			test_instructions, renderer_test, (int)RenderTest::Count, test_switch_keys, function,
-			name, message...
+		test_instructions, renderer_test, (int)RenderTest::Count, test_switch_keys, function, name,
+		message...
 	);
 }
 
@@ -92,31 +93,31 @@ void TestBatchTextureSDL(const std::vector<path>& texture_paths) {
 
 void TestViewportExtentsAndOrigin() {
 	TestRenderingLoop(
-			[&]() {
-				game.renderer.DrawRectangleFilled(
-						V2_float{ 0, 0 }, V2_float{ 50, 50 }, color::Blue, 0.0f, 0.0f,
-						Origin::TopLeft
-				);
-				game.renderer.DrawRectangleFilled(
-						V2_float{ ws.x, 0 }, V2_float{ 50, 50 }, color::Magenta, 0.0f, 0.0f,
-						Origin::TopRight
-				);
-				game.renderer.DrawRectangleFilled(
-						ws, V2_float{ 50, 50 }, color::Red, 0.0f, 0.0f, Origin::BottomRight
-				);
-				game.renderer.DrawRectangleFilled(
-						V2_float{ 0, ws.y }, V2_float{ 50, 50 }, color::Orange, 0.0f, 0.0f,
-						Origin::BottomLeft
-				);
-			},
-			PTGN_FUNCTION_NAME()
+		[&]() {
+			game.renderer.DrawRectangleFilled(
+				V2_float{ 0, 0 }, V2_float{ 50, 50 }, color::Blue, 0.0f, { 0.5f, 0.5f }, 0.0f,
+				Origin::TopLeft
+			);
+			game.renderer.DrawRectangleFilled(
+				V2_float{ ws.x, 0 }, V2_float{ 50, 50 }, color::Magenta, 0.0f, { 0.5f, 0.5f }, 0.0f,
+				Origin::TopRight
+			);
+			game.renderer.DrawRectangleFilled(
+				ws, V2_float{ 50, 50 }, color::Red, 0.0f, { 0.5f, 0.5f }, 0.0f, Origin::BottomRight
+			);
+			game.renderer.DrawRectangleFilled(
+				V2_float{ 0, ws.y }, V2_float{ 50, 50 }, color::Orange, 0.0f, { 0.5f, 0.5f }, 0.0f,
+				Origin::BottomLeft
+			);
+		},
+		PTGN_FUNCTION_NAME()
 	);
 }
 
 void TestRectangleFilled() {
 	TestRenderingLoop(
-			[&]() { game.renderer.DrawRectangleFilled(center, ws / 2.0f, color::Blue); },
-			PTGN_FUNCTION_NAME()
+		[&]() { game.renderer.DrawRectangleFilled(center, ws / 2.0f, color::Blue); },
+		PTGN_FUNCTION_NAME()
 	);
 }
 
@@ -124,17 +125,78 @@ void TestRectangleHollow() {
 	game.renderer.SetLineWidth(5.0f);
 
 	TestRenderingLoop(
-			[&]() { game.renderer.DrawRectangleHollow(center, ws / 2.0f, color::Green); },
-			PTGN_FUNCTION_NAME()
+		[&]() { game.renderer.DrawRectangleHollow(center, ws / 2.0f, color::Green); },
+		PTGN_FUNCTION_NAME()
 	);
 }
 
 void TestTexture(const path& texture) {
 	Texture t{ texture };
 
+	V2_float size{ ws / 5.0f };
+	Color circle_color{ color::Gold };
+
+	float rotation{ 45.0f };
+
 	TestRenderingLoop(
-			[&]() { game.renderer.DrawTexture(center, ws / 2.0f, t); }, PTGN_FUNCTION_NAME(), " (",
-			texture.extension().string(), ")"
+		[&](float dt) {
+			if (game.input.KeyPressed(Key::R)) {
+				rotation += 5.0f * dt;
+			}
+			if (game.input.KeyPressed(Key::T)) {
+				rotation -= 5.0f * dt;
+			}
+
+			game.renderer.DrawCircleSolid({ 200, 200 }, size.x, circle_color);
+			game.renderer.DrawCircleSolid({ 400, 200 }, size.x, circle_color);
+			game.renderer.DrawCircleSolid({ 600, 200 }, size.x, circle_color);
+			game.renderer.DrawCircleSolid({ 200, 400 }, size.x, circle_color);
+			game.renderer.DrawCircleSolid({ 400, 400 }, size.x, circle_color);
+			game.renderer.DrawCircleSolid({ 600, 400 }, size.x, circle_color);
+			game.renderer.DrawCircleSolid({ 200, 600 }, size.x, circle_color);
+			game.renderer.DrawCircleSolid({ 400, 600 }, size.x, circle_color);
+			game.renderer.DrawCircleSolid({ 600, 600 }, size.x * 0.7f, circle_color);
+			game.renderer.DrawCircleSolid({ 600, 600 }, size.x * 0.5f, circle_color);
+			game.renderer.DrawCircleSolid({ 600, 600 }, size.x, circle_color);
+
+			game.renderer.Flush();
+
+			game.renderer.DrawTexture({ 200, 200 }, size / 2.0f, t);
+			game.renderer.DrawTexture({ 400, 200 }, size, t, t.GetSize() / 2.0f);
+			game.renderer.DrawTexture({ 600, 200 }, size, t, {}, t.GetSize() / 2.0f);
+			game.renderer.DrawTexture({ 200, 400 }, size, t, {}, {}, rotation);
+			game.renderer.DrawTexture({ 400, 400 }, size, t, {}, {}, -rotation);
+			game.renderer.DrawTexture(
+				{ 600, 400 }, size, t, {}, {}, rotation, { 1.0f, 1.0f }, Flip::None, 0.0f,
+				Origin::Center
+			);
+			game.renderer.DrawTexture(
+				{ 200, 600 }, size, t, {}, {}, 0.0f, { 0.5f, 0.5f }, Flip::Horizontal
+			);
+			game.renderer.DrawTexture(
+				{ 400, 600 }, size, t, {}, {}, 0.0f, { 0.5f, 0.5f }, Flip::Vertical
+			);
+			// TODO: Fix z_index.
+			game.renderer.DrawTexture(
+				{ 600, 600 }, size * 0.5f, t, {}, {}, 0.0f, { 0.5f, 0.5f }, Flip::None, 0.8f
+			);
+			game.renderer.DrawTexture(
+				{ 600, 600 }, size * 0.7f, t, {}, {}, 0.0f, { 0.5f, 0.5f }, Flip::None, 0.5f
+			);
+			game.renderer.DrawTexture(
+				{ 600, 600 }, size, t, {}, {}, 0.0f, { 0.5f, 0.5f }, Flip::None, 0.2f
+			);
+		},
+		PTGN_FUNCTION_NAME()
+	);
+}
+
+void TestTextureFormat(const path& texture) {
+	Texture t{ texture };
+
+	TestRenderingLoop(
+		[&]() { game.renderer.DrawTexture(center, ws / 2.0f, t); }, PTGN_FUNCTION_NAME(), " (",
+		texture.extension().string(), ")"
 	);
 }
 
@@ -147,13 +209,13 @@ void TestTransparency() {
 	V2_float size{ ws * 0.4f };
 
 	TestRenderingLoop(
-			[&]() {
-				game.renderer.DrawRectangleFilled(pos1, size, Color{ 255, 0, 0, 128 });
-				game.renderer.DrawRectangleFilled(pos2, size, Color{ 0, 0, 255, 128 });
-				game.renderer.DrawRectangleFilled(pos3, size, Color{ 0, 255, 255, 128 });
-				game.renderer.DrawRectangleFilled(pos4, size, Color{ 255, 255, 0, 128 });
-			},
-			PTGN_FUNCTION_NAME()
+		[&]() {
+			game.renderer.DrawRectangleFilled(pos1, size, Color{ 255, 0, 0, 128 });
+			game.renderer.DrawRectangleFilled(pos2, size, Color{ 0, 0, 255, 128 });
+			game.renderer.DrawRectangleFilled(pos3, size, Color{ 0, 255, 255, 128 });
+			game.renderer.DrawRectangleFilled(pos4, size, Color{ 255, 255, 0, 128 });
+		},
+		PTGN_FUNCTION_NAME()
 	);
 }
 
@@ -161,15 +223,14 @@ void TestBatchCircle() {
 	RNG<float> rng{ 0.03f, 0.1f };
 
 	TestRenderingLoop(
-			[&]() {
-				for (std::size_t i = 0; i < batch_count; i++) {
-					game.renderer.DrawCircleSolid(
-							V2_float::Random(V2_float{}, ws), rng() * ws.x,
-							Color::RandomTransparent()
-					);
-				}
-			},
-			PTGN_FUNCTION_NAME(), " (batch_count=", batch_count, ")"
+		[&]() {
+			for (std::size_t i = 0; i < batch_count; i++) {
+				game.renderer.DrawCircleSolid(
+					V2_float::Random(V2_float{}, ws), rng() * ws.x, Color::RandomTransparent()
+				);
+			}
+		},
+		PTGN_FUNCTION_NAME(), " (batch_count=", batch_count, ")"
 	);
 }
 
@@ -177,43 +238,43 @@ void TestBatchLine() {
 	game.renderer.SetLineWidth(5.0f);
 
 	TestRenderingLoop(
-			[&]() {
-				for (std::size_t i = 0; i < batch_count; i++) {
-					game.renderer.DrawLine(
-							V2_float::Random(V2_float{}, ws), V2_float::Random(V2_float{}, ws),
-							Color::RandomTransparent()
-					);
-				}
-			},
-			PTGN_FUNCTION_NAME(), " (batch_count=", batch_count, ")"
+		[&]() {
+			for (std::size_t i = 0; i < batch_count; i++) {
+				game.renderer.DrawLine(
+					V2_float::Random(V2_float{}, ws), V2_float::Random(V2_float{}, ws),
+					Color::RandomTransparent()
+				);
+			}
+		},
+		PTGN_FUNCTION_NAME(), " (batch_count=", batch_count, ")"
 	);
 }
 
 void TestBatchRectangleFilled() {
 	TestRenderingLoop(
-			[&]() {
-				for (std::size_t i = 0; i < batch_count; i++) {
-					game.renderer.DrawRectangleFilled(
-							V2_float::Random(V2_float{}, ws), V2_float::Random(0.015f, 0.05f) * ws,
-							Color::RandomTransparent()
-					);
-				}
-			},
-			PTGN_FUNCTION_NAME(), " (batch_count=", batch_count, ")"
+		[&]() {
+			for (std::size_t i = 0; i < batch_count; i++) {
+				game.renderer.DrawRectangleFilled(
+					V2_float::Random(V2_float{}, ws), V2_float::Random(0.015f, 0.05f) * ws,
+					Color::RandomTransparent()
+				);
+			}
+		},
+		PTGN_FUNCTION_NAME(), " (batch_count=", batch_count, ")"
 	);
 }
 
 void TestBatchRectangleHollow() {
 	TestRenderingLoop(
-			[&]() {
-				for (std::size_t i = 0; i < batch_count; i++) {
-					game.renderer.DrawRectangleHollow(
-							V2_float::Random(V2_float{}, ws), V2_float::Random(0.015f, 0.05f) * ws,
-							Color::RandomTransparent()
-					);
-				}
-			},
-			PTGN_FUNCTION_NAME(), " (batch_count=", batch_count, ")"
+		[&]() {
+			for (std::size_t i = 0; i < batch_count; i++) {
+				game.renderer.DrawRectangleHollow(
+					V2_float::Random(V2_float{}, ws), V2_float::Random(0.015f, 0.05f) * ws,
+					Color::RandomTransparent()
+				);
+			}
+		},
+		PTGN_FUNCTION_NAME(), " (batch_count=", batch_count, ")"
 	);
 }
 
@@ -224,19 +285,18 @@ void TestBatchTexture(const std::vector<Texture>& textures) {
 	RNG<int> rng_index{ 0, static_cast<int>(textures.size()) - 1 };
 
 	TestRenderingLoop(
-			[&]() {
-				// PTGN_PROFILE_FUNCTION();
+		[&]() {
+			// PTGN_PROFILE_FUNCTION();
 
-				for (size_t i = 0; i < batch_count; i++) {
-					float size = rng_size() * ws.x;
-					game.renderer.DrawTexture(
-							V2_float::Random(V2_float{}, ws), { size, size }, textures[rng_index()]
-					);
-				}
-				// game.profiler.PrintAll<seconds>();
-			},
-			PTGN_FUNCTION_NAME(), " (textures=", textures.size(), ") (batch_count=", batch_count,
-			")"
+			for (size_t i = 0; i < batch_count; i++) {
+				float size = rng_size() * ws.x;
+				game.renderer.DrawTexture(
+					V2_float::Random(V2_float{}, ws), { size, size }, textures[rng_index()]
+				);
+			}
+			// game.profiler.PrintAll<seconds>();
+		},
+		PTGN_FUNCTION_NAME(), " (textures=", textures.size(), ") (batch_count=", batch_count, ")"
 	);
 }
 
@@ -321,8 +381,7 @@ void TestVertexBuffers() {
 	std::vector<TestVertex3> v3;
 	v3.push_back({});
 
-	VertexBuffer b3{ v3,
-					 BufferLayout<
+	VertexBuffer b3{ v3, BufferLayout<
 							 glsl::vec4, glsl::double_, glsl::ivec3, glsl::dvec2, glsl::int_,
 							 glsl::float_, glsl::bool_, glsl::uint_, glsl::bvec3, glsl::uvec4>{} };
 	const auto& layout3{ b3.GetInstance()->layout_ };
@@ -330,10 +389,10 @@ void TestVertexBuffers() {
 
 	PTGN_ASSERT(e3.size() == 10);
 	PTGN_ASSERT(
-			layout3.GetStride() ==
-			4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) + 2 * sizeof(double) +
-					1 * sizeof(int) + 1 * sizeof(float) + 1 * sizeof(bool) +
-					1 * sizeof(unsigned int) + 3 * sizeof(bool) + 4 * sizeof(unsigned int)
+		layout3.GetStride() == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) +
+								   2 * sizeof(double) + 1 * sizeof(int) + 1 * sizeof(float) +
+								   1 * sizeof(bool) + 1 * sizeof(unsigned int) + 3 * sizeof(bool) +
+								   4 * sizeof(unsigned int)
 	);
 
 	PTGN_ASSERT(e3.at(0).offset == 0);
@@ -348,42 +407,41 @@ void TestVertexBuffers() {
 	PTGN_ASSERT(e3.at(3).offset == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int));
 	PTGN_ASSERT(e3.at(3).size == 2 * sizeof(double));
 	PTGN_ASSERT(
-			e3.at(4).offset ==
-			4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) + 2 * sizeof(double)
+		e3.at(4).offset ==
+		4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) + 2 * sizeof(double)
 	);
 	PTGN_ASSERT(e3.at(4).size == 1 * sizeof(int));
 
 	PTGN_ASSERT(
-			e3.at(5).offset == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) +
-									   2 * sizeof(double) + 1 * sizeof(int)
+		e3.at(5).offset == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) +
+							   2 * sizeof(double) + 1 * sizeof(int)
 	);
 	PTGN_ASSERT(e3.at(5).size == 1 * sizeof(float));
 
 	PTGN_ASSERT(
-			e3.at(6).offset == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) +
-									   2 * sizeof(double) + 1 * sizeof(int) + 1 * sizeof(float)
+		e3.at(6).offset == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) +
+							   2 * sizeof(double) + 1 * sizeof(int) + 1 * sizeof(float)
 	);
 	PTGN_ASSERT(e3.at(6).size == 1 * sizeof(bool));
 
 	PTGN_ASSERT(
-			e3.at(7).offset == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) +
-									   2 * sizeof(double) + 1 * sizeof(int) + 1 * sizeof(float) +
-									   1 * sizeof(bool)
+		e3.at(7).offset == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) +
+							   2 * sizeof(double) + 1 * sizeof(int) + 1 * sizeof(float) +
+							   1 * sizeof(bool)
 	);
 	PTGN_ASSERT(e3.at(7).size == 1 * sizeof(unsigned int));
 
 	PTGN_ASSERT(
-			e3.at(8).offset == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) +
-									   2 * sizeof(double) + 1 * sizeof(int) + 1 * sizeof(float) +
-									   1 * sizeof(bool) + 1 * sizeof(unsigned int)
+		e3.at(8).offset == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) +
+							   2 * sizeof(double) + 1 * sizeof(int) + 1 * sizeof(float) +
+							   1 * sizeof(bool) + 1 * sizeof(unsigned int)
 	);
 	PTGN_ASSERT(e3.at(8).size == 3 * sizeof(bool));
 
 	PTGN_ASSERT(
-			e3.at(9).offset == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) +
-									   2 * sizeof(double) + 1 * sizeof(int) + 1 * sizeof(float) +
-									   1 * sizeof(bool) + 1 * sizeof(unsigned int) +
-									   3 * sizeof(bool)
+		e3.at(9).offset == 4 * sizeof(float) + 1 * sizeof(double) + 3 * sizeof(int) +
+							   2 * sizeof(double) + 1 * sizeof(int) + 1 * sizeof(float) +
+							   1 * sizeof(bool) + 1 * sizeof(unsigned int) + 3 * sizeof(bool)
 	);
 	PTGN_ASSERT(e3.at(9).size == 4 * sizeof(unsigned int));
 
@@ -572,9 +630,9 @@ void TestShaders() {
 	// failure to compile due to gl_Position.
 	// Shader shader2 = Shader(f_source, v_source);
 
-	Shader shader3 =
-			Shader("resources/shader/renderer_quad_vertex.glsl",
-				   "resources/shader/renderer_quad_fragment.glsl");
+	Shader shader3 = Shader(
+		"resources/shader/renderer_quad_vertex.glsl", "resources/shader/renderer_quad_fragment.glsl"
+	);
 
 	shader3.Bind();
 
@@ -714,9 +772,10 @@ void TestRendering() {
 			case RenderTest::BatchRectangleHollow:	   TestBatchRectangleHollow(); break;
 			case RenderTest::BatchCircle:			   TestBatchCircle(); break;
 			case RenderTest::BatchLine:				   TestBatchLine(); break;
-			case RenderTest::TextureJPG:			   TestTexture("resources/sprites/test1.jpg"); break;
-			case RenderTest::TexturePNG:			   TestTexture("resources/sprites/test2.png"); break;
-			case RenderTest::TextureBMP:			   TestTexture("resources/sprites/test3.bmp"); break;
+			case RenderTest::TextureJPG:			   TestTextureFormat("resources/sprites/test1.jpg"); break;
+			case RenderTest::TexturePNG:			   TestTextureFormat("resources/sprites/test2.png"); break;
+			case RenderTest::TextureBMP:			   TestTextureFormat("resources/sprites/test3.bmp"); break;
+			case RenderTest::Texture:				   TestTexture("resources/sprites/test2.png"); break;
 			case RenderTest::ViewportExtentsAndOrigin: TestViewportExtentsAndOrigin(); break;
 			case RenderTest::RectangleFilled:		   TestRectangleFilled(); break;
 			case RenderTest::RectangleHollow:		   TestRectangleHollow(); break;

@@ -31,8 +31,8 @@ public:
 		TestRNG();
 		TestVector2();
 
-		TestCamera();
 		TestRenderer();
+		TestCamera();
 		TestText();
 		TestShapes();
 		TestEvents();
