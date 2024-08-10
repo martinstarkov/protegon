@@ -1,4 +1,5 @@
 #version 330 core
+#extension GL_ARB_separate_shader_objects : require
 
 layout (location = 0) in vec3 a_Position;
 layout (location = 1) in vec4 a_Color;

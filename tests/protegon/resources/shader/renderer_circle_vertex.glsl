@@ -1,6 +1,7 @@
 #version 330 core
+#extension GL_ARB_separate_shader_objects : require
 
-layout (location = 0) in vec3 a_WorldPosition;
+layout (location = 0) in vec3 a_Position;
 layout (location = 1) in vec3 a_LocalPosition;
 layout (location = 2) in vec4 a_Color;
 layout (location = 3) in float a_Thickness;
@@ -20,5 +21,5 @@ void main()
 	v_Thickness = a_Thickness;
 	v_Fade = a_Fade;
 
-	gl_Position = u_ViewProjection * vec4(a_WorldPosition, 1.0);
+	gl_Position = u_ViewProjection * vec4(a_Position, 1.0);
 }
