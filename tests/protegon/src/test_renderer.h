@@ -17,6 +17,7 @@ constexpr const std::size_t batch_count = 10000;
 int renderer_test						= 0;
 
 enum class RenderTest {
+	Shapes,
 	Texture,
 	RectangleFilled,
 	RectangleHollow,
@@ -95,19 +96,19 @@ void TestViewportExtentsAndOrigin() {
 	TestRenderingLoop(
 		[&]() {
 			game.renderer.DrawRectangleFilled(
-				V2_float{ 0, 0 }, V2_float{ 50, 50 }, color::Blue, 0.0f, { 0.5f, 0.5f }, 0.0f,
-				Origin::TopLeft
+				V2_float{ 0, 0 }, V2_float{ 50, 50 }, color::Blue, 0.0f, { 0.5f, 0.5f },
+				Origin::TopLeft, 0.0f
 			);
 			game.renderer.DrawRectangleFilled(
-				V2_float{ ws.x, 0 }, V2_float{ 50, 50 }, color::Magenta, 0.0f, { 0.5f, 0.5f }, 0.0f,
-				Origin::TopRight
+				V2_float{ ws.x, 0 }, V2_float{ 50, 50 }, color::Magenta, 0.0f, { 0.5f, 0.5f },
+				Origin::TopRight, 0.0f
 			);
 			game.renderer.DrawRectangleFilled(
-				ws, V2_float{ 50, 50 }, color::Red, 0.0f, { 0.5f, 0.5f }, 0.0f, Origin::BottomRight
+				ws, V2_float{ 50, 50 }, color::Red, 0.0f, { 0.5f, 0.5f }, Origin::BottomRight, 0.0f
 			);
 			game.renderer.DrawRectangleFilled(
-				V2_float{ 0, ws.y }, V2_float{ 50, 50 }, color::Orange, 0.0f, { 0.5f, 0.5f }, 0.0f,
-				Origin::BottomLeft
+				V2_float{ 0, ws.y }, V2_float{ 50, 50 }, color::Orange, 0.0f, { 0.5f, 0.5f },
+				Origin::BottomLeft, 0.0f
 			);
 		},
 		PTGN_FUNCTION_NAME()
@@ -115,17 +116,40 @@ void TestViewportExtentsAndOrigin() {
 }
 
 void TestRectangleFilled() {
+	float rotation{ 0.0f };
+
 	TestRenderingLoop(
-		[&]() { game.renderer.DrawRectangleFilled(center, ws / 2.0f, color::Blue); },
+		[&](float dt) {
+			if (game.input.KeyPressed(Key::R)) {
+				rotation += 5.0f * dt;
+			}
+			if (game.input.KeyPressed(Key::T)) {
+				rotation -= 5.0f * dt;
+			}
+			game.renderer.DrawRectangleFilled(
+				center, ws / 2.0f, color::Blue, rotation, { 0.5f, 0.5f }, Origin::Center
+			);
+		},
 		PTGN_FUNCTION_NAME()
 	);
 }
 
 void TestRectangleHollow() {
-	game.renderer.SetLineWidth(5.0f);
+	float rotation{ 0.0f };
 
 	TestRenderingLoop(
-		[&]() { game.renderer.DrawRectangleHollow(center, ws / 2.0f, color::Green); },
+		[&](float dt) {
+			if (game.input.KeyPressed(Key::R)) {
+				rotation += 5.0f * dt;
+			}
+			if (game.input.KeyPressed(Key::T)) {
+				rotation -= 5.0f * dt;
+			}
+
+			game.renderer.DrawRectangleHollow(
+				center, ws / 2.0f, color::Green, rotation, { 0.5f, 0.5f }, 5.0f, Origin::Center
+			);
+		},
 		PTGN_FUNCTION_NAME()
 	);
 }
@@ -147,17 +171,17 @@ void TestTexture(const path& texture) {
 				rotation -= 5.0f * dt;
 			}
 
-			game.renderer.DrawCircleSolid({ 200, 200 }, size.x, circle_color);
-			game.renderer.DrawCircleSolid({ 400, 200 }, size.x, circle_color);
-			game.renderer.DrawCircleSolid({ 600, 200 }, size.x, circle_color);
-			game.renderer.DrawCircleSolid({ 200, 400 }, size.x, circle_color);
-			game.renderer.DrawCircleSolid({ 400, 400 }, size.x, circle_color);
-			game.renderer.DrawCircleSolid({ 600, 400 }, size.x, circle_color);
-			game.renderer.DrawCircleSolid({ 200, 600 }, size.x, circle_color);
-			game.renderer.DrawCircleSolid({ 400, 600 }, size.x, circle_color);
-			game.renderer.DrawCircleSolid({ 600, 600 }, size.x * 0.7f, circle_color);
-			game.renderer.DrawCircleSolid({ 600, 600 }, size.x * 0.5f, circle_color);
-			game.renderer.DrawCircleSolid({ 600, 600 }, size.x, circle_color);
+			game.renderer.DrawCircleFilled({ 200, 200 }, size.x / 2.0f, circle_color);
+			game.renderer.DrawCircleFilled({ 400, 200 }, size.x / 2.0f, circle_color);
+			game.renderer.DrawCircleFilled({ 600, 200 }, size.x / 2.0f, circle_color);
+			game.renderer.DrawCircleFilled({ 200, 400 }, size.x / 2.0f, circle_color);
+			game.renderer.DrawCircleFilled({ 400, 400 }, size.x / 2.0f, circle_color);
+			game.renderer.DrawCircleFilled({ 600, 400 }, size.x / 2.0f, circle_color);
+			game.renderer.DrawCircleFilled({ 200, 600 }, size.x / 2.0f, circle_color);
+			game.renderer.DrawCircleFilled({ 400, 600 }, size.x / 2.0f, circle_color);
+			game.renderer.DrawCircleFilled({ 600, 600 }, size.x / 2.0f * 0.7f, circle_color);
+			game.renderer.DrawCircleFilled({ 600, 600 }, size.x / 2.0f * 0.5f, circle_color);
+			game.renderer.DrawCircleFilled({ 600, 600 }, size.x / 2.0f, circle_color);
 
 			game.renderer.Flush();
 
@@ -167,8 +191,8 @@ void TestTexture(const path& texture) {
 			game.renderer.DrawTexture({ 200, 400 }, size, t, {}, {}, rotation);
 			game.renderer.DrawTexture({ 400, 400 }, size, t, {}, {}, -rotation);
 			game.renderer.DrawTexture(
-				{ 600, 400 }, size, t, {}, {}, rotation, { 1.0f, 1.0f }, Flip::None, 0.0f,
-				Origin::Center
+				{ 600, 400 }, size, t, {}, {}, rotation, { 1.0f, 1.0f }, Flip::None, Origin::Center,
+				0.0f
 			);
 			game.renderer.DrawTexture(
 				{ 200, 600 }, size, t, {}, {}, rotation, { 0.5f, 0.5f }, Flip::Horizontal
@@ -177,13 +201,16 @@ void TestTexture(const path& texture) {
 				{ 400, 600 }, size, t, {}, {}, rotation, { 0.5f, 0.5f }, Flip::Vertical
 			);
 			game.renderer.DrawTexture(
-				{ 600, 600 }, size * 0.5f, t, {}, {}, 0.0f, { 0.5f, 0.5f }, Flip::None, 0.8f
+				{ 600, 600 }, size * 0.5f, t, {}, {}, 0.0f, { 0.5f, 0.5f }, Flip::None,
+				Origin::Center, 0.8f
 			);
 			game.renderer.DrawTexture(
-				{ 600, 600 }, size * 0.7f, t, {}, {}, 0.0f, { 0.5f, 0.5f }, Flip::None, 0.5f
+				{ 600, 600 }, size * 0.7f, t, {}, {}, 0.0f, { 0.5f, 0.5f }, Flip::None,
+				Origin::Center, 0.5f
 			);
 			game.renderer.DrawTexture(
-				{ 600, 600 }, size, t, {}, {}, 0.0f, { 0.5f, 0.5f }, Flip::None, 0.2f
+				{ 600, 600 }, size, t, {}, {}, 0.0f, { 0.5f, 0.5f }, Flip::None, Origin::Center,
+				0.2f
 			);
 		},
 		PTGN_FUNCTION_NAME()
@@ -196,6 +223,156 @@ void TestTextureFormat(const path& texture) {
 	TestRenderingLoop(
 		[&]() { game.renderer.DrawTexture(center, ws / 2.0f, t); }, PTGN_FUNCTION_NAME(), " (",
 		texture.extension().string(), ")"
+	);
+}
+
+void TestShapes() {
+	Point<float> test01{ 30, 10 };
+	Point<float> test02{ 10, 10 };
+
+	Rectangle<float> test11{ { 20, 20 }, { 30, 20 } };
+	Rectangle<float> test12{ { 60, 20 }, { 40, 20 } };
+	Rectangle<float> test13{ { 110, 20 }, { 50, 20 } };
+
+	RoundedRectangle<float> test21{ { 20, 50 }, { 30, 20 }, 5 };
+	RoundedRectangle<float> test22{ { 60, 50 }, { 40, 20 }, 8 };
+	RoundedRectangle<float> test23{ { 110, 50 }, { 50, 20 }, 10 };
+	RoundedRectangle<float> test24{ { 30, 180 }, { 160, 50 }, 10 };
+
+	std::vector<V2_float> star1{
+		V2_float{ 550, 60 },
+		V2_float{ 650 - 44, 60 },
+		V2_float{ 650, 60 - 44 },
+		V2_float{ 650 + 44, 60 },
+		V2_float{ 750, 60 },
+		V2_float{ 750 - 44, 60 + 44 },
+		V2_float{ 750 - 44, 60 + 44 + 44 },
+		V2_float{ 650, 60 + 44 },
+		V2_float{ 550 + 44, 60 + 44 + 44 },
+		V2_float{ 550 + 44, 60 + 44 },
+	};
+
+	std::vector<V2_float> star2;
+	std::vector<V2_float> star3;
+
+	for (const auto& s : star1) {
+		star2.push_back({ s.x, s.y + 100 });
+	}
+
+	for (const auto& s : star1) {
+		star3.push_back({ s.x, s.y + 200 });
+	}
+
+	Polygon test41{ star1 };
+	Polygon test42{ star2 };
+	Polygon test43{ star3 };
+
+	Circle<float> test51{ { 30, 130 }, 15 };
+	Circle<float> test52{ { 100, 130 }, 30 };
+	Circle<float> test53{ { 180, 130 }, 20 };
+
+	Capsule<float> test61{ { V2_float{ 240, 130 }, V2_float{ 350, 200 } }, 10 };
+	Capsule<float> test62{ { V2_float{ 230, 170 }, V2_float{ 340, 250 } }, 20 };
+	Capsule<float> test63{ { V2_float{ 400, 230 }, V2_float{ 530, 200 } }, 20 };
+	Capsule<float> test64{ { V2_float{ 350, 130 }, V2_float{ 500, 100 } }, 15 };
+	Capsule<float> test65{ { V2_float{ 300, 320 }, V2_float{ 150, 250 } }, 15 };
+
+	Line<float> test71{ V2_float{ 370, 160 }, V2_float{ 500, 130 } };
+	Line<float> test72{ V2_float{ 370, 180 }, V2_float{ 500, 150 } };
+
+	Arc<float> test81{ V2_float{ 40, 300 }, 15, 0, 90 };
+	Arc<float> test82{ V2_float{ 40 + 50, 300 }, 10, 180, 360 };
+	Arc<float> test83{ V2_float{ 40 + 50 + 50, 300 }, 20, -90, 180 };
+
+	Ellipse<float> test91{ { 380, 300 }, { 10, 30 } };
+	Ellipse<float> test92{ { 440, 300 }, { 40, 15 } };
+	Ellipse<float> test93{ { 510, 300 }, { 5, 40 } };
+
+	TestRenderingLoop(
+		[&]() {
+			game.renderer.DrawPoint(test01, color::Black);
+			game.renderer.DrawPoint(test02, color::Black, 6);
+
+			game.renderer.DrawRectangleHollow(
+				test11.pos, test11.size, color::Red, 0.0f, { 0.5f, 0.5f }, 1.0f, Origin::TopLeft
+			);
+			game.renderer.DrawRectangleHollow(
+				test12.pos, test12.size, color::Red, 0.0f, { 0.5f, 0.5f }, 4.0f, Origin::TopLeft
+			);
+			game.renderer.DrawRectangleFilled(
+				test13.pos, test13.size, color::Red, 0.0f, { 0.5f, 0.5f }, Origin::TopLeft
+			);
+
+			// TODO: Fix
+			game.renderer.DrawRoundedRectangleHollow(
+				test21.pos, test21.size, test21.radius, color::Green, 0.0f, { 0.5f, 0.5f }, 1.0f,
+				Origin::TopLeft
+			);
+			game.renderer.DrawRoundedRectangleHollow(
+				test22.pos, test22.size, test22.radius, color::Green, 0.0f, { 0.5f, 0.5f }, 5.0f,
+				Origin::TopLeft
+			);
+			game.renderer.DrawRoundedRectangleFilled(
+				test23.pos, test23.size, test23.radius, color::Green, 0.0f, { 0.5f, 0.5f },
+				Origin::TopLeft
+			);
+			game.renderer.DrawRoundedRectangleHollow(
+				test24.pos, test24.size, test24.radius, color::Green, 0.0f, { 0.5f, 0.5f }, 4.0f,
+				Origin::TopLeft
+			);
+
+			game.renderer.DrawPolygonHollow(
+				test41.vertices.data(), test41.vertices.size(), color::DarkBlue
+			);
+			game.renderer.DrawPolygonHollow(
+				test42.vertices.data(), test42.vertices.size(), color::DarkBlue, 5.0f
+			);
+			game.renderer.DrawPolygonFilled(
+				test43.vertices.data(), test43.vertices.size(), color::DarkBlue
+			);
+
+			game.renderer.DrawCircleHollow(test51.center, test51.radius, color::DarkGrey);
+			game.renderer.DrawCircleHollow(test52.center, test52.radius, color::DarkGrey, 5.0f);
+			game.renderer.DrawCircleFilled(test53.center, test53.radius, color::DarkGrey);
+
+			// TODO: Fix
+			game.renderer.DrawCapsuleHollow(
+				test61.segment.a, test61.segment.b, test61.radius, color::Brown
+			);
+			game.renderer.DrawCapsuleHollow(
+				test62.segment.a, test62.segment.b, test62.radius, color::Brown, 8.0f
+			);
+			game.renderer.DrawCapsuleHollow(
+				test63.segment.a, test63.segment.b, test63.radius, color::Brown, 5.0f
+			);
+			game.renderer.DrawCapsuleFilled(
+				test64.segment.a, test64.segment.b, test64.radius, color::Brown
+			);
+			game.renderer.DrawCapsuleHollow(
+				test65.segment.a, test65.segment.b, test65.radius, color::Brown, 3.0f
+			);
+
+			game.renderer.DrawLine(test71.a, test71.b, color::Black);
+			game.renderer.DrawLine(test72.a, test72.b, color::Black, 5.0f);
+
+			// TODO: Fix
+			game.renderer.DrawArcHollow(
+				test81.center, test81.radius, color::DarkGreen, test81.start_angle, test81.end_angle
+			);
+			game.renderer.DrawArcHollow(
+				test82.center, test82.radius, color::DarkGreen, test82.start_angle,
+				test82.end_angle, 3.0f
+			);
+			game.renderer.DrawArcFilled(
+				test83.center, test83.radius, color::DarkGreen, test83.start_angle, test83.end_angle
+			);
+
+			// TODO: Fix
+			game.renderer.DrawEllipseHollow(test91.center, test91.radius, color::Magenta);
+			game.renderer.DrawEllipseHollow(test92.center, test92.radius, color::Magenta, 5.0f);
+			game.renderer.DrawEllipseFilled(test93.center, test93.radius, color::Magenta);
+		},
+		PTGN_FUNCTION_NAME()
 	);
 }
 
@@ -219,12 +396,12 @@ void TestTransparency() {
 }
 
 void TestBatchCircle() {
-	RNG<float> rng{ 0.03f, 0.1f };
+	RNG<float> rng{ 0.0075f, 0.025f };
 
 	TestRenderingLoop(
 		[&]() {
 			for (std::size_t i = 0; i < batch_count; i++) {
-				game.renderer.DrawCircleSolid(
+				game.renderer.DrawCircleFilled(
 					V2_float::Random(V2_float{}, ws), rng() * ws.x, Color::RandomTransparent()
 				);
 			}
@@ -234,14 +411,12 @@ void TestBatchCircle() {
 }
 
 void TestBatchLine() {
-	game.renderer.SetLineWidth(5.0f);
-
 	TestRenderingLoop(
 		[&]() {
 			for (std::size_t i = 0; i < batch_count; i++) {
 				game.renderer.DrawLine(
 					V2_float::Random(V2_float{}, ws), V2_float::Random(V2_float{}, ws),
-					Color::RandomTransparent()
+					Color::RandomTransparent(), 5.0f
 				);
 			}
 		},
@@ -765,6 +940,7 @@ void TestRendering() {
 
 	game.LoopUntilQuit([&](float dt) {
 		switch (static_cast<RenderTest>(renderer_test)) {
+			case RenderTest::Shapes:				   TestShapes(); break;
 			case RenderTest::BatchTexture:			   TestBatchTexture(textures); break;
 			case RenderTest::BatchTextureMore:		   TestBatchTexture(textures_further); break;
 			case RenderTest::BatchRectangleFilled:	   TestBatchRectangleFilled(); break;

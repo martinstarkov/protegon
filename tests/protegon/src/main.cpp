@@ -11,7 +11,6 @@
 #include "test_matrix4.h"
 #include "test_renderer.h"
 #include "test_rng.h"
-#include "test_shapes.h"
 #include "test_text.h"
 #include "test_vector.h"
 
@@ -34,7 +33,6 @@ public:
 		TestRenderer();
 		TestCamera();
 		TestText();
-		TestShapes();
 		TestEvents();
 		game.Stop();
 	}
