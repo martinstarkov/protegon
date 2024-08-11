@@ -1,56 +1,13 @@
 #pragma once
 
-#include <array>
 #include <vector>
 
-#include "color.h"
-#include "utility/debug.h"
-#include "vector2.h"
-
-struct SDL_Renderer;
-struct SDL_Rect;
+#include "protegon/vector2.h"
 
 namespace ptgn {
 
-namespace impl {
-
-void DrawRectangle(int x, int y, int w, int h, const Color& color);
-void DrawSolidRectangle(int x, int y, int w, int h, const Color& color);
-void DrawThickRectangle(int x, int y, int w, int h, double pixel_thickness, const Color& color);
-
-void DrawRoundedRectangle(int x, int y, int w, int h, int r, const Color& color);
-void DrawSolidRoundedRectangle(int x, int y, int w, int h, int r, const Color& color);
-void DrawThickRoundedRectangle(
-	int x, int y, int w, int h, int r, double pixel_thickness, const Color& color
-);
-
-void DrawPolygon(const std::vector<V2_int>& v, const Color& color);
-void DrawSolidPolygon(const std::vector<V2_int>& v, const Color& color);
-void DrawThickPolygon(const std::vector<V2_int>& v, double pixel_thickness, const Color& color);
-
-// Taken from:
-// https://github.com/rtrussell/BBCSDL/blob/master/src/SDL2_gfxPrimitives.c
-// (with some modifications)
-void DrawRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, int h);
-void DrawSolidRectangleImpl(SDL_Renderer* renderer, int x1, int y1, int x2, int y2);
-void DrawThickRectangleImpl(
-	SDL_Renderer* renderer, int x1, int y1, int x2, int y2, double pixel_thickness
-);
-void DrawRoundedRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, int h, int r);
-void DrawSolidRoundedRectangleImpl(SDL_Renderer* renderer, int x, int y, int w, int h, int r);
-void DrawThickRoundedRectangleImpl(
-	SDL_Renderer* renderer, int x, int y, int w, int h, int r, double pixel_thickness
-);
-void DrawPolygonImpl(SDL_Renderer* renderer, const std::vector<V2_int>& v);
-void DrawSolidPolygonImpl(SDL_Renderer* renderer, const std::vector<V2_int>& v);
-void DrawThickPolygonImpl(
-	SDL_Renderer* renderer, const std::vector<V2_int>& v, double pixel_thickness
-);
-
-} // namespace impl
-
 // Rectangles are axis aligned bounding boxes (AABBs).
-template <typename T = int>
+template <typename T = float>
 struct Rectangle {
 	// Position taken from top left.
 	Point<T> pos;
@@ -58,8 +15,6 @@ struct Rectangle {
 	Rectangle() = default;
 
 	Rectangle(const Point<T>& pos, const Vector2<T>& size) : pos{ pos }, size{ size } {}
-
-	operator SDL_Rect() const;
 
 	[[nodiscard]] Vector2<T> Half() const {
 		return size / T{ 2 };
@@ -98,7 +53,7 @@ struct Rectangle {
 		return { pos, size * size_scale };
 	}
 
-	[[nodiscard]] bool IsEmpty() const {
+	[[nodiscard]] bool IsZero() const {
 		return pos.IsZero() && size.IsZero();
 	}
 
@@ -106,30 +61,9 @@ struct Rectangle {
 	operator Rectangle<U>() const {
 		return Rectangle<U>{ static_cast<Point<U>>(pos), static_cast<Vector2<U>>(size) };
 	}
-
-	void Draw(const Color& color, double pixel_thickness = 1) const {
-		if (pixel_thickness <= 1) {
-			impl::DrawRectangle(
-				static_cast<int>(pos.x), static_cast<int>(pos.y), static_cast<int>(size.x),
-				static_cast<int>(size.y), color
-			);
-		} else {
-			impl::DrawThickRectangle(
-				static_cast<int>(pos.x), static_cast<int>(pos.y), static_cast<int>(size.x),
-				static_cast<int>(size.y), pixel_thickness, color
-			);
-		}
-	}
-
-	void DrawSolid(const Color& color) const {
-		impl::DrawSolidRectangle(
-			static_cast<int>(pos.x), static_cast<int>(pos.y), static_cast<int>(size.x),
-			static_cast<int>(size.y), color
-		);
-	}
 };
 
-template <typename T = int>
+template <typename T = float>
 struct RoundedRectangle : public Rectangle<T> {
 	using Rectangle<T>::pos;
 	using Rectangle<T>::size;
@@ -140,73 +74,30 @@ struct RoundedRectangle : public Rectangle<T> {
 		Rectangle<T>{ pos, size }, radius{ radius } {}
 
 	T radius{ 0 };
-
-	void Draw(const Color& color, double pixel_thickness = 1) const {
-		if (pixel_thickness <= 1) {
-			impl::DrawRoundedRectangle(
-				static_cast<int>(pos.x), static_cast<int>(pos.y), static_cast<int>(size.x),
-				static_cast<int>(size.y), static_cast<int>(radius), color
-			);
-		} else {
-			impl::DrawThickRoundedRectangle(
-				static_cast<int>(pos.x), static_cast<int>(pos.y), static_cast<int>(size.x),
-				static_cast<int>(size.y), static_cast<int>(radius), pixel_thickness, color
-			);
-		}
-	}
-
-	void DrawSolid(const Color& color) const {
-		impl::DrawSolidRoundedRectangle(
-			static_cast<int>(pos.x), static_cast<int>(pos.y), static_cast<int>(size.x),
-			static_cast<int>(size.y), static_cast<int>(radius), color
-		);
-	}
 };
 
 struct Polygon {
 	Polygon() = default;
 
-	Polygon(const std::vector<V2_int>& vertices) : vertices{ vertices } {}
+	Polygon(const std::vector<V2_float>& vertices) : vertices{ vertices } {}
 
-	std::vector<V2_int> vertices;
-
-	void Draw(const Color& color, double pixel_thickness = 1) const {
-		PTGN_ASSERT(vertices.size() >= 3, "Cannot draw a polygon with less than 3 vertices");
-		if (pixel_thickness <= 1) {
-			impl::DrawPolygon(vertices, color);
-		} else {
-			impl::DrawThickPolygon(vertices, pixel_thickness, color);
-		}
-	}
-
-	void DrawSolid(const Color& color) const {
-		PTGN_ASSERT(vertices.size() >= 3, "Cannot draw a polygon with less than 3 vertices");
-		impl::DrawSolidPolygon(vertices, color);
-	}
+	std::vector<V2_float> vertices;
 };
 
-struct Triangle : protected Polygon {
-public:
+template <typename T = float>
+struct Triangle {
 	Triangle() = default;
 
-	Triangle(const std::array<V2_int, 3>& points) :
-		Polygon{
-			{points.at(0), points.at(1), points.at(2)}
-	} {}
+	Triangle(const Point<T>& a, const Point<T>& b, const Point<T>& c) : a{ a }, b{ b }, c{ c } {}
 
-	void Draw(const Color& color, double pixel_thickness = 1) const {
-		PTGN_ASSERT(
-			vertices.size() == 3, "Cannot draw a triangle that has more or less than 3 vertices"
-		);
-		Polygon::Draw(color, pixel_thickness);
-	}
+	Point<T> a{};
+	Point<T> b{};
+	Point<T> c{};
 
-	void DrawSolid(const Color& color) const {
-		PTGN_ASSERT(
-			vertices.size() == 3,
-			"Cannot draw a solid triangle that has more or less than 3 vertices"
-		);
-		Polygon::DrawSolid(color);
+	template <typename U>
+	operator Triangle<U>() const {
+		return { static_cast<Triangle<U>>(a), static_cast<Triangle<U>>(b),
+				 static_cast<Triangle<U>>(c) };
 	}
 };
 

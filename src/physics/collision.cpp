@@ -225,9 +225,7 @@ bool RectangleRectangle(const Rectangle<float>& a, const Rectangle<float>& b, Co
 	const V2_float a_h{ a.Half() };
 	const V2_float b_h{ b.Half() };
 	const V2_float d{ b.pos + b_h - (a.pos + a_h) };
-	const V2_float pen{
-		a_h + b_h - V2_float{FastAbs(d.x), FastAbs(d.y)}
-	};
+	const V2_float pen{ a_h + b_h - V2_float{ FastAbs(d.x), FastAbs(d.y) } };
 
 	if (pen.x < 0 || pen.y < 0 || NearlyEqual(pen.x, 0.0f) || NearlyEqual(pen.y, 0.0f)) {
 		return false;
@@ -497,50 +495,26 @@ bool CircleRectangle(
 	}
 
 	Collision col_min{ c };
+	if (SegmentCapsule(seg, { { b.pos, V2_float{ b.pos.x + b.size.x, b.pos.y } }, a.radius }, c)) {
+		if (c.t < col_min.t) {
+			col_min = c;
+		}
+	}
 	if (SegmentCapsule(
-			seg,
-			{
-				{b.pos, V2_float{ b.pos.x + b.size.x, b.pos.y }},
-				a.radius
-	 },
-			c
+			seg, { { V2_float{ b.pos.x + b.size.x, b.pos.y }, b.pos + b.size }, a.radius }, c
 		)) {
 		if (c.t < col_min.t) {
 			col_min = c;
 		}
 	}
 	if (SegmentCapsule(
-			seg,
-			{
-				{V2_float{ b.pos.x + b.size.x, b.pos.y }, b.pos + b.size},
-				 a.radius
-	  },
-			c
+			seg, { { b.pos + b.size, V2_float{ b.pos.x, b.pos.y + b.size.y } }, a.radius }, c
 		)) {
 		if (c.t < col_min.t) {
 			col_min = c;
 		}
 	}
-	if (SegmentCapsule(
-			seg,
-			{
-				{b.pos + b.size, V2_float{ b.pos.x, b.pos.y + b.size.y }},
-				 a.radius
-	  },
-			c
-		)) {
-		if (c.t < col_min.t) {
-			col_min = c;
-		}
-	}
-	if (SegmentCapsule(
-			seg,
-			{
-				{V2_float{ b.pos.x, b.pos.y + b.size.y }, b.pos},
-				a.radius
-	 },
-			c
-		)) {
+	if (SegmentCapsule(seg, { { V2_float{ b.pos.x, b.pos.y + b.size.y }, b.pos }, a.radius }, c)) {
 		if (c.t < col_min.t) {
 			col_min = c;
 		}

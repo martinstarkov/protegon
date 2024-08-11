@@ -12,8 +12,6 @@
 #include "utility/debug.h"
 #include "utility/type_traits.h"
 
-struct SDL_Point;
-
 namespace ptgn {
 
 template <typename T, type_traits::arithmetic<T> = true>
@@ -27,8 +25,6 @@ struct Vector2 {
 	Vector2(Vector2&&)				   = default;
 	Vector2& operator=(const Vector2&) = default;
 	Vector2& operator=(Vector2&&)	   = default;
-
-	operator SDL_Point() const;
 
 	explicit constexpr Vector2(T all) : x{ all }, y{ all } {}
 
