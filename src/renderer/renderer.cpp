@@ -717,6 +717,11 @@ void Renderer::DrawRoundedRectangleFilled(
 	float rotation, const V2_float& rotation_center, Origin origin, float z_index
 ) {
 	// TODO: Implement.
+	// TODO: Batch a filled quad, and 4 filled capsules.
+	//  o -  o
+	//  l [] l
+	//  o -  o
+	// ...
 }
 
 void Renderer::DrawRoundedRectangleHollow(
@@ -724,6 +729,73 @@ void Renderer::DrawRoundedRectangleHollow(
 	float rotation, const V2_float& rotation_center, float line_width, Origin origin, float z_index
 ) {
 	// TODO: Implement.
+	/*int tmp;
+	int xx1, xx2;
+	int yy1, yy2;
+
+	PTGN_ASSERT(r >= 0, "Cannot draw thick rounded rectangle with negative radius");
+
+	if (r <= 1) {
+		DrawThickRectangleImpl(renderer, x, y, x + w, y + h, pixel_thickness);
+		return;
+	}
+
+	int x2 = x + w;
+	int y2 = y + h;
+
+	if (x == x2) {
+		if (y == y2) {
+			DrawPointImpl(renderer, x, y);
+			return;
+		} else {
+			DrawThickVerticalLineImpl(renderer, x, y, y2, pixel_thickness);
+			return;
+		}
+	} else {
+		if (y == y2) {
+			DrawThickHorizontalLineImpl(renderer, x, x2, y, pixel_thickness);
+			return;
+		}
+	}
+
+	if (x > x2) {
+		tmp = x;
+		x	= x2;
+		x2	= tmp;
+	}
+
+	if (y > y2) {
+		tmp = y;
+		y	= y2;
+		y2	= tmp;
+	}
+
+	if (2 * r > w) {
+		r = w / 2;
+	}
+	if (2 * r > h) {
+		r = h / 2;
+	}
+
+	xx1 = x + r;
+	xx2 = x2 - r;
+	yy1 = y + r;
+	yy2 = y2 - r;
+
+	DrawThickArcImpl(renderer, xx1, yy1, r, 180, 270, pixel_thickness + 1);
+	DrawThickArcImpl(renderer, xx2, yy1, r, 270, 360, pixel_thickness + 1);
+	DrawThickArcImpl(renderer, xx1, yy2, r, 90, 180, pixel_thickness + 1);
+	DrawThickArcImpl(renderer, xx2, yy2, r, 0, 90, pixel_thickness + 1);
+
+	if (xx1 <= xx2) {
+		DrawThickHorizontalLineImpl(renderer, xx1, xx2, y, pixel_thickness);
+		DrawThickHorizontalLineImpl(renderer, xx1, xx2, y2, pixel_thickness);
+	}
+
+	if (yy1 <= yy2) {
+		DrawThickVerticalLineImpl(renderer, x, yy1, yy2, pixel_thickness);
+		DrawThickVerticalLineImpl(renderer, x2, yy1, yy2, pixel_thickness);
+	}*/
 }
 
 void Renderer::DrawPoint(
@@ -735,31 +807,14 @@ void Renderer::DrawPoint(
 void Renderer::DrawCircleFilled(
 	const V2_float& position, float radius, const Color& color, float fade, float z_index
 ) {
-	DrawCircleHollow(position, radius, color, 0.0f, fade, z_index);
+	DrawEllipseFilled(position, { radius, radius }, color, fade, z_index);
 }
 
 void Renderer::DrawCircleHollow(
 	const V2_float& position, float radius, const Color& color, float line_width, float fade,
 	float z_index
 ) {
-	PTGN_ASSERT(line_width >= 0.0f, "Cannot draw negative line width");
-
-	data_.circle_.AdvanceBatch();
-
-	const V2_float size{ radius * 2.0f, radius * 2.0f };
-
-	auto vertices = impl::GetQuadVertices(position, size, Origin::Center, 0.0f, { 0.5f, 0.5f });
-
-	PTGN_ASSERT(data_.circle_.index_ != -1);
-	PTGN_ASSERT(data_.circle_.index_ < data_.circle_.batch_.size());
-
-	// Internally line width for a filled rectangle is 1.0f and a completely hollow one is 0.0f, but
-	// in the API the line width is expected in pixels.
-	line_width = NearlyEqual(line_width, 0.0f) ? 1.0f : fade + line_width / radius;
-
-	data_.circle_.batch_[data_.circle_.index_].Add(vertices, z_index, color, line_width, fade);
-
-	data_.stats_.circle_count++;
+	DrawEllipseHollow(position, { radius, radius }, color, line_width, fade, z_index);
 }
 
 void Renderer::DrawLine(
@@ -788,45 +843,174 @@ void Renderer::DrawLine(
 }
 
 void Renderer::DrawEllipseFilled(
-	const V2_float& position, const V2_float& radius, const Color& color, float z_index
+	const V2_float& position, const V2_float& radius, const Color& color, float fade, float z_index
 ) {
-	// TODO: Implement.
+	DrawEllipseHollow(position, radius, color, 0.0f, fade, z_index);
 }
 
 void Renderer::DrawEllipseHollow(
 	const V2_float& position, const V2_float& radius, const Color& color, float line_width,
-	float z_index
+	float fade, float z_index
 ) {
-	// TODO: Implement.
+	PTGN_ASSERT(line_width >= 0.0f, "Cannot draw negative line width");
+
+	data_.circle_.AdvanceBatch();
+
+	const V2_float size{ radius.x * 2.0f, radius.y * 2.0f };
+
+	auto vertices = impl::GetQuadVertices(position, size, Origin::Center, 0.0f, { 0.5f, 0.5f });
+
+	PTGN_ASSERT(data_.circle_.index_ != -1);
+	PTGN_ASSERT(data_.circle_.index_ < data_.circle_.batch_.size());
+
+	// Internally line width for a filled rectangle is 1.0f and a completely hollow one is 0.0f, but
+	// in the API the line width is expected in pixels.
+	// TODO: Check that dividing by std::max(radius.x, radius.y) does not cause any unexpected bugs.
+	line_width =
+		NearlyEqual(line_width, 0.0f) ? 1.0f : fade + line_width / std::min(radius.x, radius.y);
+
+	data_.circle_.batch_[data_.circle_.index_].Add(vertices, z_index, color, line_width, fade);
+
+	data_.stats_.circle_count++;
 }
 
 void Renderer::DrawArcFilled(
 	const V2_float& position, float arc_radius, const Color& color, float start_angle,
 	float end_angle, float z_index
 ) {
-	// TODO: Implement.
+	PTGN_ASSERT(arc_radius >= 0.0f, "Cannot draw solid arc with negative radius");
+
+	float angle;
+	float delta_angle;
+	float dr;
+	int numpoints, i;
+
+	start_angle = RestrictAngle360(start_angle);
+	end_angle	= RestrictAngle360(end_angle);
+
+	if (NearlyEqual(arc_radius, 0.0f)) {
+		DrawPoint(position, color, 1.0f, z_index);
+		return;
+	}
+
+	dr			= arc_radius;
+	delta_angle = 3.0f / dr;
+	start_angle = DegToRad(start_angle);
+	end_angle	= DegToRad(end_angle);
+	if (start_angle > end_angle) {
+		end_angle += two_pi<float>;
+	}
+
+	numpoints = 2;
+
+	angle = start_angle;
+	while (angle < end_angle) {
+		angle += delta_angle;
+		numpoints++;
+	}
+
+	std::vector<V2_float> v(numpoints);
+	v.at(0) = position;
+	angle	= start_angle;
+	v.at(1) = position + dr * V2_float{ std::cos(angle), std::sin(angle) };
+
+	if (numpoints < 3) {
+		DrawLine(v.at(0), v.at(1), color, 1.0f, z_index);
+	} else {
+		i	  = 2;
+		angle = start_angle;
+		while (angle < end_angle) {
+			angle += delta_angle;
+			angle  = std::min(angle, end_angle);
+			v[i]   = position + dr * V2_float{ std::cos(angle), std::sin(angle) };
+			i++;
+		}
+
+		DrawPolygonFilled(v.data(), v.size(), color, z_index);
+	}
 }
 
 void Renderer::DrawArcHollow(
 	const V2_float& position, float arc_radius, const Color& color, float start_angle,
 	float end_angle, float line_width, float z_index
 ) {
-	// TODO: Implement.
+	PTGN_ASSERT(arc_radius >= 0.0f, "Cannot draw thick arc with negative radius");
+
+	start_angle = RestrictAngle360(start_angle);
+	end_angle	= RestrictAngle360(end_angle);
+
+	if (NearlyEqual(arc_radius, 0.0f)) {
+		DrawPoint(position, color, 1.0f, z_index);
+		return;
+	}
+
+	float delta_angle = two_pi<float> / arc_radius;
+
+	start_angle = DegToRad(start_angle);
+	end_angle	= DegToRad(end_angle);
+
+	if (start_angle > end_angle) {
+		end_angle += two_pi<float>;
+	}
+
+	float arc = end_angle - start_angle;
+
+	PTGN_ASSERT(arc >= 0.0f);
+
+	std::size_t n = static_cast<std::size_t>(FastCeil(arc / delta_angle)) + 1;
+
+	if (n > 1) {
+		std::vector<V2_float> v(n);
+
+		for (std::size_t i{ 0 }; i < n; i++) {
+			float angle = start_angle + i * delta_angle;
+			V2_float p{ position.x + arc_radius * std::cos(angle),
+						position.y + arc_radius * std::sin(angle) };
+			v[i] = p;
+		}
+
+		// Final line is skipped to prevent connecting the arc.
+		for (std::size_t i{ 0 }; i < v.size() - 1; i++) {
+			DrawLine(v[i], v[i + 1], color, line_width, z_index);
+		}
+	}
 }
 
 void Renderer::DrawCapsuleFilled(
-	const V2_float& p0, const V2_float& p1, float radius, const Color& color, float z_index
+	const V2_float& p0, const V2_float& p1, float radius, const Color& color, float fade,
+	float z_index
 ) {
-	DrawCircleFilled(p0, radius, color, 0.005f, z_index);
-	DrawCircleFilled(p1, radius, color, 0.005f, z_index);
+	DrawCircleFilled(p0, radius, color, fade, z_index);
+	DrawCircleFilled(p1, radius, color, fade, z_index);
 	DrawLine(p0, p1, color, radius * 2.0f, z_index);
 }
 
 void Renderer::DrawCapsuleHollow(
 	const V2_float& p0, const V2_float& p1, float radius, const Color& color, float line_width,
-	float z_index
+	float fade, float z_index
 ) {
-	// TODO: Implement.
+	V2_float dir{ p1 - p0 };
+	const float angle{ RadToDeg(RestrictAngle2Pi(dir.Angle() + half_pi<float>)) };
+	const float dir2{ dir.Dot(dir) };
+
+	V2_float tangent_r;
+
+	// Note that dir2 is an int.
+	if (NearlyEqual(dir2, 0.0f)) {
+		DrawCircleHollow(p0, radius, color, line_width, fade, z_index);
+		return;
+	} else {
+		V2_float tmp = dir.Skewed() / std::sqrt(dir2) * radius;
+		tangent_r	 = { FastFloor(tmp.x), FastFloor(tmp.y) };
+	}
+
+	// Draw edge lines.
+	DrawLine(p0 + tangent_r, p1 + tangent_r, color, line_width, z_index);
+	DrawLine(p0 - tangent_r, p1 - tangent_r, color, line_width, z_index);
+
+	// Draw edge arcs.
+	DrawArcHollow(p0, radius, color, angle, angle + 180.0f, line_width, z_index);
+	DrawArcHollow(p1, radius, color, angle + 180.0f, angle, line_width, z_index);
 }
 
 void Renderer::DrawPolygonFilled(

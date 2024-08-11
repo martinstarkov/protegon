@@ -317,12 +317,13 @@ public:
 	// (with modifications)
 
 	void DrawEllipseFilled(
-		const V2_float& position, const V2_float& radius, const Color& color, float z_index = 0.0f
+		const V2_float& position, const V2_float& radius, const Color& color, float fade = 0.005f,
+		float z_index = 0.0f
 	);
 
 	void DrawEllipseHollow(
 		const V2_float& position, const V2_float& radius, const Color& color,
-		float line_width = 1.0f, float z_index = 0.0f
+		float line_width = 1.0f, float fade = 0.005f, float z_index = 0.0f
 	);
 
 	// Angles in degrees.
@@ -339,12 +340,12 @@ public:
 
 	void DrawCapsuleFilled(
 		const V2_float& p0, const V2_float& p1, float radius, const Color& color,
-		float z_index = 0.0f
+		float fade = 0.005f, float z_index = 0.0f
 	);
 
 	void DrawCapsuleHollow(
 		const V2_float& p0, const V2_float& p1, float radius, const Color& color,
-		float line_width = 1.0f, float z_index = 0.0f
+		float line_width = 1.0f, float fade = 0.005f, float z_index = 0.0f
 	);
 
 	void DrawPolygonFilled(
