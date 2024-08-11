@@ -107,7 +107,7 @@ template <typename T, type_traits::arithmetic<T> = true>
 		deg += 360;
 	}
 	if constexpr (std::is_floating_point_v<T>) {
-		return std::fmod(deg, 360);
+		return static_cast<T>(std::fmod(deg, 360));
 	} else {
 		return Mod(deg, T{ 360 });
 	}

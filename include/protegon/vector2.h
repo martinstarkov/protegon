@@ -172,7 +172,7 @@ struct Vector2 {
 	 *               |
 	 *            -1.5708
 	 */
-	template <typename U = double, type_traits::not_narrowing<T, U> = true>
+	template <typename U = float, type_traits::not_narrowing<T, U> = true>
 	[[nodiscard]] U Angle() const {
 		return static_cast<U>(std::atan2(y, x));
 	}
