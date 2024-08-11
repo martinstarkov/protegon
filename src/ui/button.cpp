@@ -3,8 +3,8 @@
 #include <functional>
 #include <utility>
 
-#include "protegon/game.h"
 #include "protegon/collision.h"
+#include "protegon/game.h"
 #include "utility/debug.h"
 
 namespace ptgn {
@@ -257,10 +257,11 @@ const Rectangle<float>& Button::GetRectangle() const {
 }
 
 void Button::RecheckState() {
-	OnMouseEvent(MouseEvent::Move, MouseMoveEvent{
-		V2_int{std::numeric_limits<int>().max(), std::numeric_limits<int>().max()},
-		game.input.GetMousePosition()
-	});
+	OnMouseEvent(
+		MouseEvent::Move, MouseMoveEvent{ V2_int{ std::numeric_limits<int>().max(),
+												  std::numeric_limits<int>().max() },
+										  game.input.GetMousePosition() }
+	);
 }
 
 void Button::SetRectangle(const Rectangle<float>& new_rectangle) {
@@ -329,7 +330,7 @@ SolidButton::SolidButton(
 
 void SolidButton::DrawImpl(std::size_t color_array_index) const {
 	const Color& color = GetCurrentColorImpl(GetState(), color_array_index);
-	rect_.DrawSolid(color);
+	game.renderer.DrawRectangleFilled(rect_.pos, rect_.size, color);
 }
 
 void SolidButton::Draw() const {

@@ -1,5 +1,6 @@
 #include "protegon/a_star.h"
 
+#include "protegon/game.h"
 #include "utility/debug.h"
 
 namespace ptgn {
@@ -47,9 +48,7 @@ bool AStarGrid::IsVisited(const V2_int& coordinate) const {
 	return Has(coordinate) && Get(coordinate).visited;
 }
 
-std::deque<V2_int> AStarGrid::FindWaypoints(
-	const V2_int& start, const V2_int& end
-) {
+std::deque<V2_int> AStarGrid::FindWaypoints(const V2_int& start, const V2_int& end) {
 	std::deque<V2_int> waypoints;
 	if (!Has(end) || !Has(start)) {
 		return waypoints;
@@ -64,9 +63,7 @@ std::deque<V2_int> AStarGrid::FindWaypoints(
 	return waypoints;
 }
 
-int AStarGrid::FindWaypointIndex(
-	const std::deque<V2_int>& waypoints, const V2_int& position
-) {
+int AStarGrid::FindWaypointIndex(const std::deque<V2_int>& waypoints, const V2_int& position) {
 	for (int i = 0; i < waypoints.size(); ++i) {
 		if (position == waypoints[i]) {
 			return i;
@@ -76,13 +73,12 @@ int AStarGrid::FindWaypointIndex(
 };
 
 void AStarGrid::DisplayWaypoints(
-	const std::deque<V2_int>& waypoints, const V2_int& tile_size,
-	const Color& color
+	const std::deque<V2_int>& waypoints, const V2_int& tile_size, const Color& color
 ) {
 	for (int i = 0; i + 1 < waypoints.size(); ++i) {
 		Line<int> path{ waypoints[i] * tile_size + tile_size / 2,
 						waypoints[i + 1] * tile_size + tile_size / 2 };
-		path.Draw(color);
+		game.renderer.DrawLine(path.a, path.b, color);
 	}
 }
 
@@ -103,13 +99,11 @@ void AStarGrid::SolvePath(const V2_int& start, const V2_int& end) {
 
 	while (!node_candidates.empty() && current_node.first != end_node) {
 		node_candidates.sort([](const std::pair<impl::AStarNode*, V2_int>& lhs,
-								const std::pair<impl::AStarNode*, V2_int>& rhs
-							 ) {
+								const std::pair<impl::AStarNode*, V2_int>& rhs) {
 			return lhs.first->global_goal < rhs.first->global_goal;
 		});
 
-		while (!node_candidates.empty() &&
-			   node_candidates.front().first->visited) {
+		while (!node_candidates.empty() && node_candidates.front().first->visited) {
 			node_candidates.pop_front();
 		}
 
@@ -129,17 +123,15 @@ void AStarGrid::SolvePath(const V2_int& start, const V2_int& end) {
 					node_candidates.emplace_back(neighbor_node, coordinate);
 				}
 
-				float new_goal{
-					current_node.first->local_goal +
-					(current_node.second - coordinate).Magnitude()
-				};
+				float new_goal{ current_node.first->local_goal +
+								(current_node.second - coordinate).Magnitude() };
 
 				if (new_goal < neighbor_node->local_goal) {
 					neighbor_node->parent	  = current_node;
 					neighbor_node->local_goal = new_goal;
 
-					neighbor_node->global_goal = neighbor_node->local_goal +
-												 (coordinate - end).Magnitude();
+					neighbor_node->global_goal =
+						neighbor_node->local_goal + (coordinate - end).Magnitude();
 				}
 			}
 		}

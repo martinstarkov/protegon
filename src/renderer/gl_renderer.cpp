@@ -15,7 +15,7 @@ void GLRenderer::DisableLineSmoothing() {
 	gl::glDisable(GL_LINE_SMOOTH);
 }
 
-void GLRenderer::SetBlendMode(BlendMode mode/* = BlendMode::Blend*/) {
+void GLRenderer::SetBlendMode(BlendMode mode /* = BlendMode::Blend*/) {
 	if (mode == BlendMode::None) {
 		gl::glDisable(GL_BLEND);
 		gl::glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
@@ -25,15 +25,9 @@ void GLRenderer::SetBlendMode(BlendMode mode/* = BlendMode::Blend*/) {
 		gl::glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
 		switch (mode) {
-			case BlendMode::Blend:
-				gl::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-				break;
-			case BlendMode::Add:
-				gl::glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-				break;
-			case BlendMode::Modulate:
-				gl::glBlendFunc(GL_ZERO, GL_SRC_COLOR);
-				break;
+			case BlendMode::Blend:	  gl::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); break;
+			case BlendMode::Add:	  gl::glBlendFunc(GL_SRC_ALPHA, GL_ONE); break;
+			case BlendMode::Modulate: gl::glBlendFunc(GL_ZERO, GL_SRC_COLOR); break;
 			case BlendMode::Multiply:
 				// TODO: Check that this works correctly.
 				gl::glBlendFunc(GL_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -69,10 +63,6 @@ void GLRenderer::DrawArrays(const VertexArray& va, std::size_t vertex_count) {
 	gl::glDrawArrays(
 		static_cast<gl::GLenum>(va.GetPrimitiveMode()), 0, static_cast<std::uint32_t>(vertex_count)
 	);
-}
-
-void GLRenderer::SetLineWidth(float width) {
-	gl::glLineWidth(width);
 }
 
 std::int32_t GLRenderer::GetMaxTextureSlots() {

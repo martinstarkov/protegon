@@ -18,8 +18,6 @@ public:
 	static void SetClearColor(const Color& color);
 	static void DrawElements(const VertexArray& va, std::size_t index_count = 0);
 	static void DrawArrays(const VertexArray& va, std::size_t vertex_count);
-	// @param width Line width in pixels.
-	static void SetLineWidth(float width);
 	static std::int32_t GetMaxTextureSlots();
 };
 
