@@ -12,12 +12,13 @@
 #include "test_renderer.h"
 #include "test_rng.h"
 #include "test_text.h"
+#include "test_tween.h"
 #include "test_vector.h"
 
 using namespace ptgn;
 
-V2_float ws		= {};
-V2_float center = {};
+V2_float ws;
+V2_float center;
 
 class Tests : public Scene {
 public:
@@ -29,6 +30,8 @@ public:
 		TestMath();
 		TestRNG();
 		TestVector2();
+
+		TestTween();
 
 		TestRenderer();
 		TestCamera();
