@@ -7,11 +7,38 @@
 #include "protegon/shader.h"
 #include "protegon/text.h"
 #include "protegon/texture.h"
+#include "protegon/tween.h"
 #include "utility/time.h"
 
 namespace ptgn {
 
 class Game;
+
+class TweenManager : public Manager<Tween> {
+private:
+	TweenManager()								 = default;
+	~TweenManager()								 = default;
+	TweenManager(const TweenManager&)			 = delete;
+	TweenManager(TweenManager&&)				 = default;
+	TweenManager& operator=(const TweenManager&) = delete;
+	TweenManager& operator=(TweenManager&&)		 = default;
+
+public:
+private:
+	void Update(float dt) {
+		auto& m{ GetMap() };
+		for (auto it = m.begin(); it != m.end();) {
+			auto& tween{ it->second };
+			tween.Step(dt);
+			if (tween.IsCompleted()) {
+				it = m.erase(it);
+			} else {
+				++it;
+			}
+		}
+	}
+	friend class Game;
+};
 
 class FontManager : public Manager<Font> {
 private:

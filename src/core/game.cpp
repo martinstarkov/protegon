@@ -149,6 +149,7 @@ void Game::Update(const UpdateFunction& loop_function, int& condition) {
 		start = end;
 
 		input.Update();
+		tween.Update(dt);
 		scene.GetTopActive().camera.Update();
 		// For debugging:
 		// PTGN_LOG("Updating ", counter);

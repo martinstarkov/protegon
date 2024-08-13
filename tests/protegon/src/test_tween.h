@@ -6,6 +6,7 @@
 int tween_test = 0;
 
 enum class TweenTest {
+	Manager,
 	Callbacks,
 	Count
 };
@@ -15,6 +16,49 @@ void TestTweenLoop(const T& function, const std::string& name, const Ts&... mess
 	TestLoop(
 		test_instructions, tween_test, (int)TweenTest::Count, test_switch_keys, function, name,
 		message...
+	);
+}
+
+void TestTweenManager() {
+	TweenConfig config;
+	config.on_start =
+		std::function([](Tween& t, TweenType v) { PTGN_LOG("Starting tween with value ", v); });
+	config.on_complete =
+		std::function([](Tween& t, TweenType v) { PTGN_LOG("Completed tween with value ", v); });
+
+	game.tween.Clear();
+
+	PTGN_ASSERT(game.tween.Count() == 0);
+
+	std::size_t key{ Hash("test_tween") };
+
+	V2_float pos;
+	Color color = color::Red;
+
+	config.on_update = [&](auto& tween, auto v) {
+		pos = { v, v };
+	};
+	config.on_complete = [&](auto& tween, auto v) {
+		color = color::Green;
+	};
+
+	game.tween.Load(key, 0.0f, 800.0f, milliseconds{ 5000 }, config);
+
+	PTGN_ASSERT(game.tween.Count() == 1);
+
+	Timer timer;
+	timer.Start();
+
+	TestTweenLoop(
+		[&]() {
+			game.renderer.DrawRectangleFilled(pos, { 40, 40 }, color);
+
+			if (timer.Elapsed() >= milliseconds{ 5000 }) {
+				// Check that tween was automatically cleaned up.
+				PTGN_ASSERT(game.tween.Count() == 0);
+			}
+		},
+		PTGN_FUNCTION_NAME()
 	);
 }
 
@@ -169,6 +213,7 @@ void TestTween() {
 	game.LoopUntilQuit([&](float dt) {
 		switch (static_cast<TweenTest>(tween_test)) {
 			case TweenTest::Callbacks: TestTweenConfig(); break;
+			case TweenTest::Manager:   TestTweenManager(); break;
 			default:				   PTGN_ERROR("Failed to find a valid tween test");
 		}
 	});

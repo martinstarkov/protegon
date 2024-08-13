@@ -75,6 +75,7 @@ struct TweenInstance {
 	bool paused_{ false };
 	bool reversed_{ false };
 	bool running_{ false };
+	bool completed_{ false };
 };
 
 using TweenEaseFunction = std::function<TweenType(float, TweenType, TweenType)>;
@@ -258,13 +259,13 @@ public:
 		return UpdateImpl();
 	}
 
-	TweenType GetValue() const {
+	[[nodiscard]] TweenType GetValue() const {
 		return GetValueImpl(GetProgress());
 	}
 
 	// Returns value in range [0.0f, 1.0f] depending on how much of the total tween duration has
 	// elapsed.
-	float GetProgress() const {
+	[[nodiscard]] float GetProgress() const {
 		PTGN_ASSERT(IsValid(), "Cannot get progress of uninitialized or destroyed tween");
 		duration<float, decltype(instance_->duration_)::period> duration_progress{
 			std::chrono::duration_cast<duration<float, decltype(instance_->duration_)::period>>(
@@ -281,12 +282,12 @@ public:
 		return progress;
 	}
 
-	TweenType GetFrom() const {
+	[[nodiscard]] TweenType GetFrom() const {
 		PTGN_ASSERT(IsValid(), "Cannot get from value of uninitialized or destroyed tween");
 		return instance_->from_;
 	}
 
-	TweenType GetTo() const {
+	[[nodiscard]] TweenType GetTo() const {
 		PTGN_ASSERT(IsValid(), "Cannot get to value of uninitialized or destroyed tween");
 		return instance_->to_;
 	}
@@ -303,33 +304,32 @@ public:
 		UpdateImpl();
 	}
 
-	TweenConfig& GetConfig() {
+	[[nodiscard]] const TweenConfig& GetConfig() const {
 		PTGN_ASSERT(IsValid(), "Cannot get config of uninitialized or destroyed tween");
 		return instance_->config_;
 	}
 
-	const TweenConfig& GetConfig() const {
-		PTGN_ASSERT(IsValid(), "Cannot get config of uninitialized or destroyed tween");
-		return instance_->config_;
+	[[nodiscard]] bool IsCompleted() const {
+		return IsValid() && instance_->completed_;
 	}
 
-	bool IsRunning() const {
+	[[nodiscard]] bool IsRunning() const {
 		return IsValid() && instance_->running_;
 	}
 
 	template <typename Duration = milliseconds>
-	Duration GetElapsed() const {
+	[[nodiscard]] Duration GetElapsed() const {
 		PTGN_ASSERT(IsValid(), "Cannot get elapsed time of uninitialized or destroyed tween");
 		return std::chrono::duration_cast<Duration>(instance_->elapsed_);
 	}
 
 	template <typename Duration = milliseconds>
-	Duration GetDuration() const {
+	[[nodiscard]] Duration GetDuration() const {
 		PTGN_ASSERT(IsValid(), "Cannot get duration of uninitialized or destroyed tween");
 		return std::chrono::duration_cast<Duration>(instance_->duration_);
 	}
 
-	std::int64_t GetRepeats() const {
+	[[nodiscard]] std::int64_t GetRepeats() const {
 		PTGN_ASSERT(IsValid(), "Cannot get repeats of uninitialized or destroyed tween");
 		return instance_->repeats_;
 	}
@@ -356,14 +356,21 @@ public:
 		instance_->repeats_ = 0;
 		instance_->elapsed_ =
 			instance_->reversed_ ? instance_->duration_ : decltype(instance_->elapsed_){ 0 };
-		instance_->running_ = false;
+		instance_->running_	  = false;
+		instance_->completed_ = false;
 	}
 
-	// Stops and destroys the tween.
 	void Stop() {
 		PTGN_ASSERT(IsValid(), "Cannot stop uninitialized or destroyed tween");
-		PTGN_ASSERT(instance_->running_, "Cannot stop tween which has not been started");
-		ActivateCallback(instance_->config_.on_stop, GetValue());
+		if (instance_->running_) {
+			ActivateCallback(instance_->config_.on_stop, GetValue());
+			instance_->running_ = false;
+			// TODO: Consider destroying tween instance.
+			// Destroy();
+		}
+	}
+
+	void Destroy() {
 		instance_.reset();
 	}
 
@@ -377,7 +384,7 @@ private:
 		}
 	}
 
-	TweenType GetValueImpl(float progress) const {
+	[[nodiscard]] TweenType GetValueImpl(float progress) const {
 		PTGN_ASSERT(IsValid(), "Cannot get value of uninitialized or destroyed tween");
 		auto it = impl::tween_ease_functions_.find(instance_->config_.ease);
 		PTGN_ASSERT(it != impl::tween_ease_functions_.end(), "Failed to recognize easing type");
@@ -403,7 +410,7 @@ private:
 
 		PTGN_ASSERT(instance_->repeats_ <= instance_->config_.repeat || infinite_loop);
 
-		TweenType value{ GetValueImpl(progress) };
+		auto value{ GetValueImpl(progress) };
 
 		if (instance_->running_ && !instance_->paused_) {
 			if (call_update) {
@@ -411,7 +418,8 @@ private:
 			}
 			if (end_value) {
 				if (completed) {
-					instance_->running_ = false;
+					instance_->running_	  = false;
+					instance_->completed_ = true;
 					ActivateCallback(instance_->config_.on_complete, value);
 				} else {
 					if (instance_->config_.yoyo) {
