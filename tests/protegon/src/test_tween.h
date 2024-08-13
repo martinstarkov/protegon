@@ -3,6 +3,18 @@
 #include "common.h"
 #include "protegon/tween.h"
 
+// TODO: Add tests for tween easing
+// TODO: Add tests for the following functions:
+// tween.Backward();
+// tween.Forward();
+// tween.Destroy();
+// tween.Stop();
+// tween.Complete();
+// tween.Rewind(dt);
+// tween.Seek(0.5);
+// tween.SetToValue(300);
+// tween.SetFromValue(100);
+
 int tween_test = 0;
 
 enum class TweenTest {

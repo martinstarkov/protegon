@@ -282,23 +282,23 @@ public:
 		return progress;
 	}
 
-	[[nodiscard]] TweenType GetFrom() const {
+	[[nodiscard]] TweenType GetFromValue() const {
 		PTGN_ASSERT(IsValid(), "Cannot get from value of uninitialized or destroyed tween");
 		return instance_->from_;
 	}
 
-	[[nodiscard]] TweenType GetTo() const {
+	[[nodiscard]] TweenType GetToValue() const {
 		PTGN_ASSERT(IsValid(), "Cannot get to value of uninitialized or destroyed tween");
 		return instance_->to_;
 	}
 
-	void SetFrom(TweenType from) {
+	void SetFromValue(TweenType from) {
 		PTGN_ASSERT(IsValid(), "Cannot set from value of uninitialized or destroyed tween");
 		instance_->from_ = from;
 		UpdateImpl();
 	}
 
-	void SetTo(TweenType to) {
+	void SetToValue(TweenType to) {
 		PTGN_ASSERT(IsValid(), "Cannot set to value of uninitialized or destroyed tween");
 		instance_->to_ = to;
 		UpdateImpl();
