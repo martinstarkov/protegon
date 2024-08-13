@@ -79,6 +79,14 @@ public:
 	 */
 	void Clear() {
 		map_.clear();
+		PTGN_ASSERT(Count() == 0);
+	}
+
+	/*
+	 * @return Number of items in the manager.
+	 */
+	[[nodiscard]] std::size_t Count() const {
+		return map_.size();
 	}
 
 protected:
