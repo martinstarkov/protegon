@@ -25,19 +25,9 @@ private:
 
 public:
 private:
-	void Update(float dt) {
-		auto& m{ GetMap() };
-		for (auto it = m.begin(); it != m.end();) {
-			auto& tween{ it->second };
-			tween.Step(dt);
-			if (tween.IsCompleted()) {
-				it = m.erase(it);
-			} else {
-				++it;
-			}
-		}
-	}
 	friend class Game;
+
+	void Update(float dt);
 };
 
 class FontManager : public Manager<Font> {

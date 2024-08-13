@@ -143,13 +143,14 @@ void Game::Update(const UpdateFunction& loop_function, int& condition) {
 
 	while (running_ && condition) {
 		// Calculate time elapsed during previous frame.
-		end = std::chrono::system_clock::now();
 		duration<float> elapsed{ end - start };
 		float dt{ elapsed.count() };
 		start = end;
 
 		input.Update();
+
 		tween.Update(dt);
+
 		scene.GetTopActive().camera.Update();
 		// For debugging:
 		// PTGN_LOG("Updating ", counter);
@@ -160,6 +161,7 @@ void Game::Update(const UpdateFunction& loop_function, int& condition) {
 			std::get<std::function<void(void)>>(loop_function)();
 		}
 		++counter;
+		end = std::chrono::system_clock::now();
 	}
 
 	// Important to clear previous info from input cache (e.g. first time key presses).
