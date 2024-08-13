@@ -4,6 +4,10 @@ namespace ptgn {
 
 enum class Origin {
 	Center,
+	CenterTop,
+	CenterBottom,
+	CenterRight,
+	CenterLeft,
 	TopLeft,
 	TopRight,
 	BottomRight,

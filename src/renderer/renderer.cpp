@@ -407,6 +407,14 @@ V2_float GetDrawOffset(const V2_float& size, Origin draw_origin) {
 			offset = -half;
 			break;
 		};
+		case Origin::CenterBottom: {
+			offset = { 0.0f, half.y };
+			break;
+		};
+		case Origin::CenterTop: {
+			offset = { 0.0f, -half.y };
+			break;
+		};
 		case Origin::BottomRight: {
 			offset = half;
 			break;
@@ -417,6 +425,14 @@ V2_float GetDrawOffset(const V2_float& size, Origin draw_origin) {
 		};
 		case Origin::TopRight: {
 			offset = V2_float{ half.x, -half.y };
+			break;
+		};
+		case Origin::CenterLeft: {
+			offset = { -half.x, 0.0f };
+			break;
+		};
+		case Origin::CenterRight: {
+			offset = { half.x, 0.0f };
 			break;
 		};
 		default: PTGN_ERROR("Failed to identify draw origin");
