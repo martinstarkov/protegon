@@ -34,25 +34,27 @@ using TweenType = float;
 
 class Tween;
 
-struct TweenConfig {
-	TweenEase ease{ TweenEase::Linear };
-	milliseconds delay{ 0 }; // before starting
-	// TODO: Add -1 for infinite repeats.
-	std::int64_t repeat{ 1 }; // number of repetitions of the tween (-1 for infinite tween)
-	bool yoyo{ false };		  // whether or not to go back and fourth (both ways take duration time)
-	bool reverse{ false };
-	bool paused{ false };	  // whether to start it paused
+using TweenCallback = std::function<void(Tween&, TweenType)>;
 
-	std::function<void(Tween&, TweenType)> on_complete;
-	std::function<void(Tween&, TweenType)> on_repeat;
-	std::function<void(Tween&, TweenType)> on_start;
-	std::function<void(Tween&, TweenType)> on_stop;
-	std::function<void(Tween&, TweenType)> on_update;
-	std::function<void(Tween&, TweenType)> on_yoyo;
-	std::function<void(Tween&, TweenType)> on_pause;
-	std::function<void(Tween&, TweenType)> on_resume;
+struct TweenConfig {
+	TweenEase ease{ TweenEase::Linear }; // easing function between tween start and end value.
+	std::int64_t repeat{ 0 }; // number of repetitions of the tween (-1 for infinite tween).
+	bool yoyo{ false }; // go back and fourth between values (requires repeat != 0) (both directions
+						// take duration time).
+	bool reversed{ false }; // start reversed.
+	bool paused{ false };	// start paused.
+
+	TweenCallback on_complete;
+	TweenCallback on_repeat;
+	TweenCallback on_start;
+	TweenCallback on_stop;
+	TweenCallback on_update;
+	TweenCallback on_yoyo;
+	TweenCallback on_pause;
+	TweenCallback on_resume;
 
 	// TODO: Implement delays.
+	// milliseconds start_delay{ 0 }; // before starting
 	// milliseconds yoyo_hold_time{ 0 }; // time before continuing yoyo
 	// milliseconds repeat_delay;		  // time before repeating
 	// milliseconds complete_delay{ 0 }; // time before calling complete callback
@@ -70,6 +72,8 @@ struct TweenInstance {
 	microseconds duration_;
 	microseconds elapsed_{ 0 };
 
+	bool paused_{ false };
+	bool reversed_{ false };
 	bool running_{ false };
 };
 
@@ -153,43 +157,41 @@ public:
 	Tween() = default;
 
 	Tween(TweenType from, TweenType to, milliseconds duration, const TweenConfig& config = {}) {
-		instance_			 = std::make_shared<impl::TweenInstance>();
-		instance_->from_	 = from;
-		instance_->to_		 = to;
-		instance_->config_	 = config;
+		instance_		   = std::make_shared<impl::TweenInstance>();
+		instance_->from_   = from;
+		instance_->to_	   = to;
+		instance_->config_ = config;
+		if (instance_->config_.yoyo) {
+			PTGN_ASSERT(instance_->config_.repeat != 0, "Yoyoing a tween requires repeat != 0");
+		}
 		instance_->duration_ = duration;
-		if (!instance_->config_.paused) {
+		instance_->reversed_ = instance_->config_.reversed;
+		instance_->paused_	 = instance_->config_.paused;
+		if (!instance_->paused_) {
 			Start();
 		}
 	}
 
 	void Start() {
 		PTGN_ASSERT(IsValid(), "Cannot start uninitialized or destroyed tween");
-		PTGN_ASSERT(!instance_->running_, "Cannot start tween which has already been started");
 		Reset();
 		instance_->running_ = true;
-		if (const auto& f = instance_->config_.on_start; f != nullptr) {
-			f(*this, GetValue());
-		}
+		ActivateCallback(instance_->config_.on_start, GetValue());
 	}
 
 	void Pause() {
 		PTGN_ASSERT(IsValid(), "Cannot pause uninitialized or destroyed tween");
-		if (!instance_->config_.paused) {
-			instance_->config_.paused = true;
-			if (const auto& f = instance_->config_.on_pause; f != nullptr) {
-				f(*this, GetValue());
-			}
+		if (!instance_->paused_) {
+			instance_->paused_ = true;
+			ActivateCallback(instance_->config_.on_pause, GetValue());
 		}
 	}
 
 	void Resume() {
 		PTGN_ASSERT(IsValid(), "Cannot pause uninitialized or destroyed tween");
-		if (instance_->config_.paused) {
-			instance_->config_.paused = false;
-			if (const auto& f = instance_->config_.on_resume; f != nullptr) {
-				f(*this, GetValue());
-			}
+		if (instance_->paused_) {
+			instance_->paused_ = false;
+			ActivateCallback(instance_->config_.on_resume, GetValue());
 		}
 	}
 
@@ -210,12 +212,32 @@ public:
 	// dt in seconds.
 	TweenType Step(float dt) {
 		PTGN_ASSERT(IsValid(), "Cannot update uninitialized or destroyed tween");
-		if (!instance_->running_ || instance_->config_.paused) {
+		if (!instance_->running_ || instance_->paused_) {
 			return GetValue();
 		}
-		instance_->elapsed_ += std::chrono::round<milliseconds>(
-			duration<float>(dt) * (instance_->config_.reverse ? -1 : 1)
-		);
+
+		auto time{ duration<float>(dt) };
+
+		auto add_time = [&](duration<float> t) {
+			instance_->elapsed_ +=
+				std::chrono::round<milliseconds>(t * (instance_->reversed_ ? -1 : 1));
+		};
+
+		if (time >= instance_->duration_) {
+			auto diff{ instance_->duration_ - instance_->elapsed_ };
+			PTGN_ASSERT(diff >= decltype(instance_->duration_){ 0 });
+			add_time(diff);
+			time -= diff;
+			UpdateImpl(false);
+		}
+
+		while (time >= instance_->duration_) {
+			add_time(instance_->duration_);
+			time -= instance_->duration_;
+			UpdateImpl(false);
+		}
+
+		add_time(time);
 		return UpdateImpl();
 	}
 
@@ -229,7 +251,7 @@ public:
 			time >= milliseconds{ 0 } && time <= instance_->duration_,
 			"Cannot seek outside the range of tween duration"
 		);
-		if (!instance_->running_ || instance_->config_.paused) {
+		if (!instance_->running_ || instance_->paused_) {
 			return GetValue();
 		}
 		instance_->elapsed_ = time;
@@ -314,7 +336,7 @@ public:
 
 	void SetReversed(bool reversed = true) {
 		PTGN_ASSERT(IsValid(), "Cannot reverse uninitialized or destroyed tween");
-		instance_->config_.reverse = reversed;
+		instance_->reversed_ = reversed;
 	}
 
 	void Forward() {
@@ -326,13 +348,14 @@ public:
 	}
 
 	void Complete() {
-		Seek(1.0f);
+		Seek(instance_->reversed_ ? 0.0f : 1.0f);
 	}
 
 	void Reset() {
 		PTGN_ASSERT(IsValid(), "Cannot reset uninitialized or destroyed tween");
 		instance_->repeats_ = 0;
-		instance_->elapsed_ = decltype(instance_->elapsed_){ 0 };
+		instance_->elapsed_ =
+			instance_->reversed_ ? instance_->duration_ : decltype(instance_->elapsed_){ 0 };
 		instance_->running_ = false;
 	}
 
@@ -340,9 +363,7 @@ public:
 	void Stop() {
 		PTGN_ASSERT(IsValid(), "Cannot stop uninitialized or destroyed tween");
 		PTGN_ASSERT(instance_->running_, "Cannot stop tween which has not been started");
-		if (const auto& f = instance_->config_.on_stop; f != nullptr) {
-			f(*this, GetValue());
-		}
+		ActivateCallback(instance_->config_.on_stop, GetValue());
 		instance_.reset();
 	}
 
@@ -350,6 +371,12 @@ public:
 
 	// TODO: setTimeScale(0.5) - runs at half speed
 private:
+	void ActivateCallback(const TweenCallback& callback, TweenType value) {
+		if (callback != nullptr) {
+			callback(*this, value);
+		}
+	}
+
 	TweenType GetValueImpl(float progress) const {
 		PTGN_ASSERT(IsValid(), "Cannot get value of uninitialized or destroyed tween");
 		auto it = impl::tween_ease_functions_.find(instance_->config_.ease);
@@ -358,32 +385,48 @@ private:
 		return ease_func(progress, instance_->from_, instance_->to_);
 	}
 
-	TweenType UpdateImpl() {
+	TweenType UpdateImpl(bool call_update = true) {
 		auto progress{ GetProgress() };
 
-		bool end_value{ progress >= 1.0f };
+		bool infinite_loop{ instance_->config_.repeat == -1 };
+		bool repeated{ instance_->repeats_ > 0 };
 
-		if (end_value && instance_->repeats_ != -1) {
+		bool end_value{ progress >= 1.0f && !instance_->reversed_ ||
+						progress <= 0.0f && instance_->reversed_ };
+
+		bool completed{ instance_->repeats_ == instance_->config_.repeat };
+
+		if (end_value &&
+			(!completed && instance_->repeats_ <= instance_->config_.repeat || infinite_loop)) {
 			instance_->repeats_++;
 		}
 
-		PTGN_ASSERT(instance_->repeats_ <= instance_->config_.repeat);
-
-		bool completed{ instance_->repeats_ == instance_->config_.repeat && end_value };
+		PTGN_ASSERT(instance_->repeats_ <= instance_->config_.repeat || infinite_loop);
 
 		TweenType value{ GetValueImpl(progress) };
 
-		if (instance_->running_ && !instance_->config_.paused) {
-			if (const auto& f = instance_->config_.on_update; f != nullptr) {
-				f(*this, value);
+		if (instance_->running_ && !instance_->paused_) {
+			if (call_update) {
+				ActivateCallback(instance_->config_.on_update, value);
 			}
-			if (completed) {
-				instance_->running_ = false;
-				if (const auto& f = instance_->config_.on_complete; f != nullptr) {
-					f(*this, value);
+			if (end_value) {
+				if (completed) {
+					instance_->running_ = false;
+					ActivateCallback(instance_->config_.on_complete, value);
+				} else {
+					if (instance_->config_.yoyo) {
+						SetReversed(!instance_->reversed_);
+						ActivateCallback(instance_->config_.on_yoyo, value);
+					} else {
+						instance_->elapsed_ = instance_->reversed_
+												? instance_->duration_
+												: decltype(instance_->elapsed_){ 0 };
+					}
+					ActivateCallback(instance_->config_.on_repeat, value);
 				}
 			}
 		}
+
 		return value;
 	}
 };
