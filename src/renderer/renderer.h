@@ -5,7 +5,6 @@
 #include "protegon/buffer.h"
 #include "protegon/color.h"
 #include "protegon/matrix4.h"
-#include "protegon/polygon.h"
 #include "protegon/shader.h"
 #include "protegon/texture.h"
 #include "protegon/vector2.h"
@@ -14,10 +13,46 @@
 #include "protegon/vertex_array.h"
 #include "renderer/origin.h"
 
+// TODO: Currently z_index is not a reliable way of layering drawn objects as it only pertains to a
+// single batch type (i.e. quads and circles have their own z_indexs). This can result in unexpected
+// behavior if for example the user tries to draw a hollow and filled triangle with varying
+// z_indexes as one uses the line batch and one uses the triangle batch. Not sure how to fix this
+// while maintaining batching and permitting alpha blending (depth testing requires turning alpha
+// blending off).
+
 #define PTGN_OPENGL_MAJOR_VERSION 3
 #define PTGN_OPENGL_MINOR_VERSION 3
 
 namespace ptgn {
+
+template <typename T>
+struct Triangle;
+
+template <typename T>
+struct Circle;
+
+template <typename T>
+struct Arc;
+
+template <typename T>
+struct Ellipse;
+
+template <typename T>
+struct Segment;
+
+template <typename T>
+struct Capsule;
+
+template <typename T>
+struct Line;
+
+template <typename T>
+struct Rectangle;
+
+template <typename T>
+struct RoundedRectangle;
+
+struct Polygon;
 
 class CameraManager;
 
@@ -37,7 +72,7 @@ struct CircleVertex {
 	glsl::float_ fade;
 };
 
-struct LineVertex {
+struct ColorVertex {
 	glsl::vec3 position;
 	glsl::vec4 color;
 };
@@ -90,8 +125,6 @@ struct QuadData : public ShapeData<QuadVertex, 4, 6> {
 	);
 };
 
-struct TriangleData : public ShapeData<LineVertex, 3, 3> {};
-
 struct CircleData : public ShapeData<CircleVertex, 4, 6> {
 	void Add(
 		const std::array<V2_float, vertex_count>& vertices, float z_index, const V4_float& color,
@@ -99,9 +132,11 @@ struct CircleData : public ShapeData<CircleVertex, 4, 6> {
 	);
 };
 
-struct LineData : public ShapeData<LineVertex, 2, 2> {};
+struct PointData : public ShapeData<ColorVertex, 1, 1> {};
 
-[[nodiscard]] V2_float GetDrawOffset(const V2_float& size, Origin draw_origin);
+struct LineData : public ShapeData<ColorVertex, 2, 2> {};
+
+struct TriangleData : public ShapeData<ColorVertex, 3, 3> {};
 
 [[nodiscard]] void OffsetVertices(
 	std::array<V2_float, QuadData::vertex_count>& vertices, const V2_float& size, Origin draw_origin
@@ -172,9 +207,10 @@ public:
 	std::uint32_t texture_index_{ 1 }; // 0 reserved for white texture
 
 	BatchData<QuadData> quad_;
-	BatchData<TriangleData> triangle_;
 	BatchData<CircleData> circle_;
+	BatchData<PointData> point_;
 	BatchData<LineData> line_;
+	BatchData<TriangleData> triangle_;
 
 	float line_width_{ 2.0f };
 
@@ -201,9 +237,11 @@ public:
 
 	struct Stats {
 		std::int64_t quad_count{ 0 };
-		std::int64_t triangle_count{ 0 };
 		std::int64_t circle_count{ 0 };
+		std::int64_t point_count{ 0 };
 		std::int64_t line_count{ 0 };
+		std::int64_t triangle_count{ 0 };
+
 		std::int64_t draw_calls{ 0 };
 
 		void Reset();
@@ -232,6 +270,8 @@ public:
 
 	void Flush();
 
+	void DrawArray(const VertexArray& vertex_array);
+
 	/*
 	 * @param source_position Top left pixel to start drawing texture from within the texture
 	 * (defaults to { 0, 0 }).
@@ -253,12 +293,18 @@ public:
 		float tiling_factor = 1.0f, const Color& tint_color = color::White
 	);
 
+	void DrawPoint(
+		const V2_float& position, const Color& color, float radius = 1.0f, float z_index = 0.0f
+	);
+
 	void DrawLine(
 		const V2_float& p0, const V2_float& p1, const Color& color, float line_width = 1.0f,
 		float z_index = 0.0f
 	);
 
-	void DrawArray(const VertexArray& vertex_array);
+	void DrawLine(
+		const Line<float>& line, const Color& color, float line_width = 1.0f, float z_index = 0.0f
+	);
 
 	void DrawTriangleFilled(
 		const V2_float& a, const V2_float& b, const V2_float& c, const Color& color,
@@ -270,18 +316,74 @@ public:
 		float line_width = 1.0f, float z_index = 0.0f
 	);
 
+	void DrawTriangleFilled(
+		const Triangle<float>& triangle, const Color& color, float z_index = 0.0f
+	);
+
+	void DrawTriangleHollow(
+		const Triangle<float>& triangle, const Color& color, float line_width = 1.0f,
+		float z_index = 0.0f
+	);
+
 	// Rotation in degrees.
 	void DrawRectangleFilled(
 		const V2_float& position, const V2_float& size, const Color& color, float rotation = 0.0f,
-		const V2_float& rotation_center = { 0.5f, 0.5f }, Origin origin = Origin::Center,
+		const V2_float& rotation_center = { 0.5f, 0.5f }, Origin draw_origin = Origin::Center,
 		float z_index = 0.0f
+	);
+
+	// Rotation in degrees.
+	void DrawRectangleFilled(
+		const Rectangle<float>& rectangle, const Color& color, float rotation = 0.0f,
+		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
 	);
 
 	// Rotation in degrees.
 	void DrawRectangleHollow(
 		const V2_float& position, const V2_float& size, const Color& color, float rotation = 0.0f,
 		const V2_float& rotation_center = { 0.5f, 0.5f }, float line_width = 1.0f,
-		Origin origin = Origin::Center, float z_index = 0.0f
+		Origin draw_origin = Origin::Center, float z_index = 0.0f
+	);
+
+	// Rotation in degrees.
+	void DrawRectangleHollow(
+		const Rectangle<float>& rectangle, const Color& color, float rotation = 0.0f,
+		const V2_float& rotation_center = { 0.5f, 0.5f }, float line_width = 1.0f,
+		float z_index = 0.0f
+	);
+
+	void DrawPolygonFilled(
+		const V2_float* vertices, std::size_t vertex_count, const Color& color, float z_index = 0.0f
+	);
+
+	void DrawPolygonFilled(const Polygon& polygon, const Color& color, float z_index = 0.0f);
+
+	void DrawPolygonHollow(
+		const V2_float* vertices, std::size_t vertex_count, const Color& color,
+		float line_width = 1.0f, float z_index = 0.0f
+	);
+
+	void DrawPolygonHollow(
+		const Polygon& polygon, const Color& color, float line_width = 1.0f, float z_index = 0.0f
+	);
+
+	void DrawCircleFilled(
+		const V2_float& position, float radius, const Color& color, float fade = 0.005f,
+		float z_index = 0.0f
+	);
+
+	void DrawCircleFilled(
+		const Circle<float>& circle, const Color& color, float fade = 0.005f, float z_index = 0.0f
+	);
+
+	void DrawCircleHollow(
+		const V2_float& position, float radius, const Color& color, float line_width = 1.0f,
+		float fade = 0.005f, float z_index = 0.0f
+	);
+
+	void DrawCircleHollow(
+		const Circle<float>& circle, const Color& color, float line_width = 1.0f,
+		float fade = 0.005f, float z_index = 0.0f
 	);
 
 	// Rotation in degrees.
@@ -292,24 +394,23 @@ public:
 	);
 
 	// Rotation in degrees.
+	void DrawRoundedRectangleFilled(
+		const RoundedRectangle<float>& rounded_rectangle, const Color& color, float rotation = 0.0f,
+		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
+	);
+
+	// Rotation in degrees.
 	void DrawRoundedRectangleHollow(
 		const V2_float& position, const V2_float& size, float radius, const Color& color,
 		float rotation = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
 		float line_width = 1.0f, Origin origin = Origin::Center, float z_index = 0.0f
 	);
 
-	void DrawPoint(
-		const V2_float& position, const Color& color, float radius = 1.0f, float z_index = 0.0f
-	);
-
-	void DrawCircleFilled(
-		const V2_float& position, float radius, const Color& color, float fade = 0.005f,
+	// Rotation in degrees.
+	void DrawRoundedRectangleHollow(
+		const RoundedRectangle<float>& rounded_rectangle, const Color& color, float rotation = 0.0f,
+		const V2_float& rotation_center = { 0.5f, 0.5f }, float line_width = 1.0f,
 		float z_index = 0.0f
-	);
-
-	void DrawCircleHollow(
-		const V2_float& position, float radius, const Color& color, float line_width = 1.0f,
-		float fade = 0.005f, float z_index = 0.0f
 	);
 
 	// Following functions Taken from:
@@ -321,21 +422,36 @@ public:
 		float z_index = 0.0f
 	);
 
+	void DrawEllipseFilled(
+		const Ellipse<float>& ellipse, const Color& color, float fade = 0.005f, float z_index = 0.0f
+	);
+
 	void DrawEllipseHollow(
 		const V2_float& position, const V2_float& radius, const Color& color,
 		float line_width = 1.0f, float fade = 0.005f, float z_index = 0.0f
 	);
 
-	// Angles in degrees.
-	void DrawArcFilled(
-		const V2_float& position, float arc_radius, const Color& color, float start_angle,
-		float end_angle, float z_index = 0.0f
+	void DrawEllipseHollow(
+		const Ellipse<float>& ellipse, const Color& color, float line_width = 1.0f,
+		float fade = 0.005f, float z_index = 0.0f
 	);
 
 	// Angles in degrees.
+	void DrawArcFilled(
+		const V2_float& position, float arc_radius, float start_angle, float end_angle,
+		const Color& color, float z_index = 0.0f
+	);
+
+	void DrawArcFilled(const Arc<float>& arc, const Color& color, float z_index = 0.0f);
+
+	// Angles in degrees.
 	void DrawArcHollow(
-		const V2_float& position, float arc_radius, const Color& color, float start_angle,
-		float end_angle, float line_width = 1.0f, float z_index = 0.0f
+		const V2_float& position, float arc_radius, float start_angle, float end_angle,
+		const Color& color, float line_width = 1.0f, float z_index = 0.0f
+	);
+
+	void DrawArcHollow(
+		const Arc<float>& arc, const Color& color, float line_width = 1.0f, float z_index = 0.0f
 	);
 
 	void DrawCapsuleFilled(
@@ -343,18 +459,18 @@ public:
 		float fade = 0.005f, float z_index = 0.0f
 	);
 
+	void DrawCapsuleFilled(
+		const Capsule<float>& capsule, const Color& color, float fade = 0.005f, float z_index = 0.0f
+	);
+
 	void DrawCapsuleHollow(
 		const V2_float& p0, const V2_float& p1, float radius, const Color& color,
 		float line_width = 1.0f, float fade = 0.005f, float z_index = 0.0f
 	);
 
-	void DrawPolygonFilled(
-		const V2_float* vertices, std::size_t vertex_count, const Color& color, float z_index = 0.0f
-	);
-
-	void DrawPolygonHollow(
-		const V2_float* vertices, std::size_t vertex_count, const Color& color,
-		float line_width = 1.0f, float z_index = 0.0f
+	void DrawCapsuleHollow(
+		const Capsule<float>& capsule, const Color& color, float line_width = 1.0f,
+		float fade = 0.005f, float z_index = 0.0f
 	);
 
 	void SetBlendMode(BlendMode mode);

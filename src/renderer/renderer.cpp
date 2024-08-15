@@ -2,7 +2,10 @@
 
 #include <numeric>
 
+#include "protegon/circle.h"
 #include "protegon/game.h"
+#include "protegon/line.h"
+#include "protegon/polygon.h"
 #include "protegon/texture.h"
 #include "renderer/gl_renderer.h"
 #include "utility/debug.h"
@@ -227,6 +230,11 @@ void RendererData::SetupBuffers() {
 		quad_.max_indices_, QuadData::vertex_count, QuadData::index_count
 	) };
 
+	IndexBuffer point_index_buffer{ GetIndices(
+		[](auto& indices, auto i, auto offset) { indices[i] = offset; }, point_.max_indices_,
+		PointData::vertex_count, PointData::index_count
+	) };
+
 	IndexBuffer line_index_buffer{ GetIndices(
 		[](auto& indices, auto i, auto offset) {
 			indices[i + 0] = offset + 0;
@@ -246,6 +254,7 @@ void RendererData::SetupBuffers() {
 
 	quad_.batch_.resize(quad_.max_vertices_);
 	circle_.batch_.resize(circle_.max_vertices_);
+	point_.batch_.resize(point_.max_vertices_);
 	line_.batch_.resize(line_.max_vertices_);
 	triangle_.batch_.resize(triangle_.max_vertices_);
 
@@ -255,22 +264,24 @@ void RendererData::SetupBuffers() {
 		BufferUsage::DynamicDraw
 	);
 
-	triangle_.buffer_ = VertexBuffer(
-		triangle_.batch_, BufferLayout<glsl::vec3, glsl::vec4>{}, BufferUsage::DynamicDraw
-	);
-
 	circle_.buffer_ = VertexBuffer(
 		circle_.batch_,
 		BufferLayout<glsl::vec3, glsl::vec3, glsl::vec4, glsl::float_, glsl::float_>{},
 		BufferUsage::DynamicDraw
 	);
 
-	line_.buffer_ = VertexBuffer(
-		line_.batch_, BufferLayout<glsl::vec3, glsl::vec4>{}, BufferUsage::DynamicDraw
-	);
+	auto color_vertex_layout{ BufferLayout<glsl::vec3, glsl::vec4>{} };
+
+	point_.buffer_ = VertexBuffer(point_.batch_, color_vertex_layout, BufferUsage::DynamicDraw);
+
+	triangle_.buffer_ =
+		VertexBuffer(triangle_.batch_, color_vertex_layout, BufferUsage::DynamicDraw);
+
+	line_.buffer_ = VertexBuffer(line_.batch_, color_vertex_layout, BufferUsage::DynamicDraw);
 
 	quad_.array_	 = { PrimitiveMode::Triangles, quad_.buffer_, quad_index_buffer };
 	circle_.array_	 = { PrimitiveMode::Triangles, circle_.buffer_, quad_index_buffer };
+	point_.array_	 = { PrimitiveMode::Points, point_.buffer_, point_index_buffer };
 	line_.array_	 = { PrimitiveMode::Lines, line_.buffer_, line_index_buffer };
 	triangle_.array_ = { PrimitiveMode::Triangles, triangle_.buffer_, triangle_index_buffer };
 }
@@ -288,20 +299,37 @@ void RendererData::SetupTextureSlots() {
 void RendererData::SetupShaders() {
 	PTGN_ASSERT(max_texture_slots_ > 0, "Max texture slots must be set before setting up shaders");
 
+	// This strange way of including files allows for them to be packed into the library binary.
+
 	quad_.shader_ = Shader(
-		"resources/shader/renderer_quad_vertex.glsl", "resources/shader/renderer_quad_fragment.glsl"
+		ShaderSource{
+#include "shaders/quad.vert"
+		},
+		ShaderSource{
+#include "shaders/quad.frag"
+		}
 	);
 
 	circle_.shader_ = Shader(
-		"resources/shader/renderer_circle_vertex.glsl",
-		"resources/shader/renderer_circle_fragment.glsl"
+		ShaderSource{
+#include "shaders/circle.vert"
+		},
+		ShaderSource{
+#include "shaders/circle.frag"
+		}
 	);
 
-	line_.shader_ = Shader(
-		"resources/shader/renderer_line_vertex.glsl", "resources/shader/renderer_line_fragment.glsl"
+	point_.shader_ = Shader(
+		ShaderSource{
+#include "shaders/color.vert"
+		},
+		ShaderSource{
+#include "shaders/color.frag"
+		}
 	);
 
-	triangle_.shader_ = line_.shader_;
+	line_.shader_	  = point_.shader_;
+	triangle_.shader_ = point_.shader_;
 
 	std::vector<std::int32_t> samplers(max_texture_slots_);
 
@@ -319,16 +347,20 @@ void RendererData::Flush() {
 		quad_.Draw();
 		stats_.draw_calls++;
 	}
-	if (!triangle_.IsFlushed()) {
-		triangle_.Draw();
-		stats_.draw_calls++;
-	}
 	if (!circle_.IsFlushed()) {
 		circle_.Draw();
 		stats_.draw_calls++;
 	}
+	if (!point_.IsFlushed()) {
+		point_.Draw();
+		stats_.draw_calls++;
+	}
 	if (!line_.IsFlushed()) {
 		line_.Draw();
+		stats_.draw_calls++;
+	}
+	if (!triangle_.IsFlushed()) {
+		triangle_.Draw();
 		stats_.draw_calls++;
 	}
 }
@@ -392,53 +424,6 @@ void RendererData::Stats::Print() {
 		"Draw Calls: ", draw_calls, ", Quads: ", quad_count, ", Triangles: ", triangle_count,
 		", Circles: ", circle_count, ", Lines: ", line_count
 	);
-}
-
-V2_float GetDrawOffset(const V2_float& size, Origin draw_origin) {
-	if (draw_origin == Origin::Center) {
-		return {};
-	}
-
-	V2_float half{ size * 0.5f };
-	V2_float offset;
-
-	switch (draw_origin) {
-		case Origin::TopLeft: {
-			offset = -half;
-			break;
-		};
-		case Origin::CenterBottom: {
-			offset = { 0.0f, half.y };
-			break;
-		};
-		case Origin::CenterTop: {
-			offset = { 0.0f, -half.y };
-			break;
-		};
-		case Origin::BottomRight: {
-			offset = half;
-			break;
-		};
-		case Origin::BottomLeft: {
-			offset = V2_float{ -half.x, half.y };
-			break;
-		};
-		case Origin::TopRight: {
-			offset = V2_float{ half.x, -half.y };
-			break;
-		};
-		case Origin::CenterLeft: {
-			offset = { -half.x, 0.0f };
-			break;
-		};
-		case Origin::CenterRight: {
-			offset = { half.x, 0.0f };
-			break;
-		};
-		default: PTGN_ERROR("Failed to identify draw origin");
-	}
-
-	return offset;
 }
 
 void OffsetVertices(
@@ -585,8 +570,10 @@ void Renderer::UpdateViewProjection(const M4_float& view_projection) {
 	data_.circle_.shader_.Bind();
 	data_.circle_.shader_.SetUniform("u_ViewProjection", view_projection);
 
-	data_.line_.shader_.Bind();
-	data_.line_.shader_.SetUniform("u_ViewProjection", view_projection);
+	data_.point_.shader_.Bind();
+	data_.point_.shader_.SetUniform("u_ViewProjection", view_projection);
+
+	// triangle_ and line_ share the shader point_ so no need to set them.
 }
 
 void Renderer::SetViewport(const V2_int& size) {
@@ -602,9 +589,11 @@ void Renderer::SetViewport(const V2_int& size) {
 }
 
 void Renderer::StartBatch() {
-	data_.quad_.index_	 = -1;
-	data_.circle_.index_ = -1;
-	data_.line_.index_	 = -1;
+	data_.quad_.index_	   = -1;
+	data_.circle_.index_   = -1;
+	data_.line_.index_	   = -1;
+	data_.triangle_.index_ = -1;
+	data_.point_.index_	   = -1;
 
 	data_.texture_index_ = 1;
 }
@@ -642,6 +631,18 @@ void Renderer::DrawTriangleHollow(
 	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
 		DrawLine(vertices[i], vertices[(i + 1) % vertices.size()], color, line_width, z_index);
 	}
+}
+
+void Renderer::DrawTriangleFilled(
+	const Triangle<float>& triangle, const Color& color, float z_index
+) {
+	DrawTriangleFilled(triangle.a, triangle.b, triangle.c, color, z_index);
+}
+
+void Renderer::DrawTriangleHollow(
+	const Triangle<float>& triangle, const Color& color, float line_width, float z_index
+) {
+	DrawTriangleHollow(triangle.a, triangle.b, triangle.c, color, z_index);
 }
 
 void Renderer::DrawTexture(
@@ -717,6 +718,15 @@ void Renderer::DrawRectangleFilled(
 	data_.stats_.quad_count++;
 }
 
+void Renderer::DrawRectangleFilled(
+	const Rectangle<float>& rectangle, const Color& color, float rotation,
+	const V2_float& rotation_center, float z_index
+) {
+	DrawRectangleFilled(
+		rectangle.pos, rectangle.size, color, rotation, rotation_center, rectangle.origin, z_index
+	);
+}
+
 void Renderer::DrawRectangleHollow(
 	const V2_float& position, const V2_float& size, const Color& color, float rotation,
 	const V2_float& rotation_center, float line_width, Origin draw_origin, float z_index
@@ -730,7 +740,7 @@ void Renderer::DrawRectangleHollow(
 
 void Renderer::DrawRoundedRectangleFilled(
 	const V2_float& position, const V2_float& size, float radius, const Color& color,
-	float rotation, const V2_float& rotation_center, Origin origin, float z_index
+	float rotation, const V2_float& rotation_center, Origin draw_origin, float z_index
 ) {
 	// TODO: Implement.
 	// TODO: Batch a filled quad, and 4 filled capsules.
@@ -740,9 +750,20 @@ void Renderer::DrawRoundedRectangleFilled(
 	// ...
 }
 
+void Renderer::DrawRoundedRectangleFilled(
+	const RoundedRectangle<float>& rounded_rectangle, const Color& color, float rotation,
+	const V2_float& rotation_center, float z_index
+) {
+	DrawRoundedRectangleFilled(
+		rounded_rectangle.pos, rounded_rectangle.size, rounded_rectangle.radius, color, rotation,
+		rotation_center, rounded_rectangle.origin, z_index
+	);
+}
+
 void Renderer::DrawRoundedRectangleHollow(
 	const V2_float& position, const V2_float& size, float radius, const Color& color,
-	float rotation, const V2_float& rotation_center, float line_width, Origin origin, float z_index
+	float rotation, const V2_float& rotation_center, float line_width, Origin draw_origin,
+	float z_index
 ) {
 	// TODO: Implement.
 	/*int tmp;
@@ -814,10 +835,31 @@ void Renderer::DrawRoundedRectangleHollow(
 	}*/
 }
 
+void Renderer::DrawRoundedRectangleHollow(
+	const RoundedRectangle<float>& rounded_rectangle, const Color& color, float rotation,
+	const V2_float& rotation_center, float line_width, float z_index
+) {
+	DrawRoundedRectangleHollow(
+		rounded_rectangle.pos, rounded_rectangle.size, rounded_rectangle.radius, color, rotation,
+		rotation_center, line_width, rounded_rectangle.origin, z_index
+	);
+}
+
 void Renderer::DrawPoint(
 	const V2_float& position, const Color& color, float radius, float z_index
 ) {
-	DrawCircleFilled(position, radius, color, 0.005f, z_index);
+	if (radius <= 1.0f) {
+		data_.point_.AdvanceBatch();
+
+		PTGN_ASSERT(data_.point_.index_ != -1);
+		PTGN_ASSERT(data_.point_.index_ < data_.point_.batch_.size());
+
+		data_.point_.batch_[data_.point_.index_].Add({ position }, z_index, color);
+
+		data_.stats_.point_count++;
+	} else {
+		DrawCircleFilled(position, radius, color, 0.005f, z_index);
+	}
 }
 
 void Renderer::DrawCircleFilled(
@@ -826,11 +868,23 @@ void Renderer::DrawCircleFilled(
 	DrawEllipseFilled(position, { radius, radius }, color, fade, z_index);
 }
 
+void Renderer::DrawCircleFilled(
+	const Circle<float>& circle, const Color& color, float fade, float z_index
+) {
+	DrawCircleFilled(circle.center, circle.radius, color, fade, z_index);
+}
+
 void Renderer::DrawCircleHollow(
 	const V2_float& position, float radius, const Color& color, float line_width, float fade,
 	float z_index
 ) {
 	DrawEllipseHollow(position, { radius, radius }, color, line_width, fade, z_index);
+}
+
+void Renderer::DrawCircleHollow(
+	const Circle<float>& circle, const Color& color, float line_width, float fade, float z_index
+) {
+	DrawCircleHollow(circle.center, circle.radius, color, line_width, fade, z_index);
 }
 
 void Renderer::DrawLine(
@@ -858,10 +912,22 @@ void Renderer::DrawLine(
 	data_.stats_.line_count++;
 }
 
+void Renderer::DrawLine(
+	const Line<float>& line, const Color& color, float line_width, float z_index
+) {
+	DrawLine(line.a, line.b, color, line_width, z_index);
+}
+
 void Renderer::DrawEllipseFilled(
 	const V2_float& position, const V2_float& radius, const Color& color, float fade, float z_index
 ) {
 	DrawEllipseHollow(position, radius, color, 0.0f, fade, z_index);
+}
+
+void Renderer::DrawEllipseFilled(
+	const Ellipse<float>& ellipse, const Color& color, float fade, float z_index
+) {
+	DrawEllipseFilled(ellipse.center, ellipse.radius, color, fade, z_index);
 }
 
 void Renderer::DrawEllipseHollow(
@@ -890,9 +956,15 @@ void Renderer::DrawEllipseHollow(
 	data_.stats_.circle_count++;
 }
 
+void Renderer::DrawEllipseHollow(
+	const Ellipse<float>& ellipse, const Color& color, float line_width, float fade, float z_index
+) {
+	DrawEllipseHollow(ellipse.center, ellipse.radius, color, line_width, fade, z_index);
+}
+
 void Renderer::DrawArcFilled(
-	const V2_float& position, float arc_radius, const Color& color, float start_angle,
-	float end_angle, float z_index
+	const V2_float& position, float arc_radius, float start_angle, float end_angle,
+	const Color& color, float z_index
 ) {
 	PTGN_ASSERT(arc_radius >= 0.0f, "Cannot draw solid arc with negative radius");
 
@@ -946,9 +1018,13 @@ void Renderer::DrawArcFilled(
 	}
 }
 
+void Renderer::DrawArcFilled(const Arc<float>& arc, const Color& color, float z_index) {
+	DrawArcFilled(arc.center, arc.radius, arc.start_angle, arc.end_angle, color, z_index);
+}
+
 void Renderer::DrawArcHollow(
-	const V2_float& position, float arc_radius, const Color& color, float start_angle,
-	float end_angle, float line_width, float z_index
+	const V2_float& position, float arc_radius, float start_angle, float end_angle,
+	const Color& color, float line_width, float z_index
 ) {
 	PTGN_ASSERT(arc_radius >= 0.0f, "Cannot draw thick arc with negative radius");
 
@@ -992,6 +1068,14 @@ void Renderer::DrawArcHollow(
 	}
 }
 
+void Renderer::DrawArcHollow(
+	const Arc<float>& arc, const Color& color, float line_width, float z_index
+) {
+	DrawArcHollow(
+		arc.center, arc.radius, arc.start_angle, arc.end_angle, color, line_width, z_index
+	);
+}
+
 void Renderer::DrawCapsuleFilled(
 	const V2_float& p0, const V2_float& p1, float radius, const Color& color, float fade,
 	float z_index
@@ -999,6 +1083,12 @@ void Renderer::DrawCapsuleFilled(
 	DrawCircleFilled(p0, radius, color, fade, z_index);
 	DrawCircleFilled(p1, radius, color, fade, z_index);
 	DrawLine(p0, p1, color, radius * 2.0f, z_index);
+}
+
+void Renderer::DrawCapsuleFilled(
+	const Capsule<float>& capsule, const Color& color, float fade, float z_index
+) {
+	DrawCapsuleFilled(capsule.segment.a, capsule.segment.b, capsule.radius, color, fade, z_index);
 }
 
 void Renderer::DrawCapsuleHollow(
@@ -1025,8 +1115,26 @@ void Renderer::DrawCapsuleHollow(
 	DrawLine(p0 - tangent_r, p1 - tangent_r, color, line_width, z_index);
 
 	// Draw edge arcs.
-	DrawArcHollow(p0, radius, color, angle, angle + 180.0f, line_width, z_index);
-	DrawArcHollow(p1, radius, color, angle + 180.0f, angle, line_width, z_index);
+	DrawArcHollow(p0, radius, angle, angle + 180.0f, color, line_width, z_index);
+	DrawArcHollow(p1, radius, angle + 180.0f, angle, color, line_width, z_index);
+}
+
+void Renderer::DrawCapsuleHollow(
+	const Capsule<float>& capsule, const Color& color, float line_width, float fade, float z_index
+) {
+	DrawCapsuleHollow(
+		capsule.segment.a, capsule.segment.b, capsule.radius, color, line_width, fade, z_index
+	);
+}
+
+void Renderer::DrawRectangleHollow(
+	const Rectangle<float>& rectangle, const Color& color, float rotation,
+	const V2_float& rotation_center, float line_width, float z_index
+) {
+	DrawRectangleHollow(
+		rectangle.pos, rectangle.size, color, rotation, rotation_center, line_width,
+		rectangle.origin, z_index
+	);
 }
 
 void Renderer::DrawPolygonFilled(
@@ -1044,6 +1152,10 @@ void Renderer::DrawPolygonFilled(
 	data_.stats_.triangle_count++;
 }
 
+void Renderer::DrawPolygonFilled(const Polygon& polygon, const Color& color, float z_index) {
+	DrawPolygonFilled(polygon.vertices.data(), polygon.vertices.size(), color, z_index);
+}
+
 void Renderer::DrawPolygonHollow(
 	const V2_float* vertices, std::size_t vertex_count, const Color& color, float line_width,
 	float z_index
@@ -1051,6 +1163,12 @@ void Renderer::DrawPolygonHollow(
 	for (std::size_t i{ 0 }; i < vertex_count; i++) {
 		DrawLine(vertices[i], vertices[(i + 1) % vertex_count], color, line_width, z_index);
 	}
+}
+
+void Renderer::DrawPolygonHollow(
+	const Polygon& polygon, const Color& color, float line_width, float z_index
+) {
+	DrawPolygonHollow(polygon.vertices.data(), polygon.vertices.size(), color, line_width, z_index);
 }
 
 Color Renderer::GetClearColor() const {
