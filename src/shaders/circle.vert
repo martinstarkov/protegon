@@ -1,3 +1,4 @@
+R"(
 #version 330 core
 #extension GL_ARB_separate_shader_objects : require
 
@@ -23,3 +24,4 @@ void main()
 
 	gl_Position = u_ViewProjection * vec4(a_Position, 1.0);
 }
+)"

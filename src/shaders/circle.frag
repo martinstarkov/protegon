@@ -1,3 +1,4 @@
+R"(
 #version 330 core
 #extension GL_ARB_separate_shader_objects : require
 
@@ -22,3 +23,4 @@ void main()
     o_Color = v_Color;
 	o_Color.a *= circle;
 }
+)"

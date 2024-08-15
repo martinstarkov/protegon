@@ -805,7 +805,12 @@ void TestShaders() {
 	// Shader shader2 = Shader(f_source, v_source);
 
 	Shader shader3 = Shader(
-		"resources/shader/renderer_quad_vertex.glsl", "resources/shader/renderer_quad_fragment.glsl"
+		ShaderSource{
+#include "shaders/quad.vert"
+		},
+		ShaderSource{
+#include "shaders/quad.frag"
+		}
 	);
 
 	shader3.Bind();
@@ -815,6 +820,16 @@ void TestShaders() {
 	shader3.SetUniform("u_ViewProjection", M4_float{ 1.0f });
 
 	PTGN_ASSERT(shader3.GetInstance()->location_cache_.size() == 1);
+
+	Shader shader4 = Shader("resources/shaders/test.vert", "resources/shaders/test.frag");
+
+	shader4.Bind();
+
+	PTGN_ASSERT(shader4.GetInstance()->location_cache_.size() == 0);
+
+	shader4.SetUniform("u_ViewProjection", M4_float{ 1.0f });
+
+	PTGN_ASSERT(shader4.GetInstance()->location_cache_.size() == 1);
 }
 
 void TestTextures() {
