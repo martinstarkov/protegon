@@ -12,10 +12,11 @@ namespace impl {
 float SquareDistancePointRectangle(const Point<float>& a, const Rectangle<float>& b) {
 	float dist2{ 0.0f };
 	const V2_float max{ b.Max() };
+	const V2_float min{ b.Min() };
 	for (std::size_t i{ 0 }; i < 2; ++i) {
 		const float v{ a[i] };
-		if (v < b.pos[i]) {
-			dist2 += (b.pos[i] - v) * (b.pos[i] - v);
+		if (v < min[i]) {
+			dist2 += (min[i] - v) * (min[i] - v);
 		}
 		if (v > max[i]) {
 			dist2 += (v - max[i]) * (v - max[i]);
@@ -33,10 +34,15 @@ float ParallelogramArea(const Point<float>& a, const Point<float>& b, const Poin
 namespace overlap {
 
 bool RectangleRectangle(const Rectangle<float>& a, const Rectangle<float>& b) {
-	if (a.pos.x + a.size.x < b.pos.x || a.pos.x > b.pos.x + b.size.x) {
+	const V2_float a_max{ a.Max() };
+	const V2_float a_min{ a.Min() };
+	const V2_float b_max{ b.Max() };
+	const V2_float b_min{ b.Min() };
+
+	if (a_max.x < b_min.x || a_min.x > b_max.x) {
 		return false;
 	}
-	if (a.pos.y + a.size.y < b.pos.y || a.pos.y > b.pos.y + b.size.y) {
+	if (a_max.y < b_min.y || a_min.y > b_max.y) {
 		return false;
 	}
 	return true;
@@ -57,7 +63,7 @@ bool CircleRectangle(const Circle<float>& a, const Rectangle<float>& b) {
 }
 
 bool PointRectangle(const Point<float>& a, const Rectangle<float>& b) {
-	return RectangleRectangle({ a, {} }, b);
+	return RectangleRectangle(Rectangle<float>{ a, {}, Origin::Center }, b);
 }
 
 bool PointCircle(const Point<float>& a, const Circle<float>& b) {
@@ -85,32 +91,33 @@ bool PointSegment(const Point<float>& a, const Segment<float>& b) {
 }
 
 bool SegmentRectangle(const Segment<float>& a, const Rectangle<float>& b) {
-	const Vector2<float> e{ b.size };
-	const Vector2<float> d{ a.Direction() };
-	const Vector2<float> m{ a.a + a.b - 2 * b.pos - b.size };
+	const V2_float b_max{ b.Max() };
+	const V2_float b_min{ b.Min() };
 
+	Point<float> c = (b_min + b_max) * 0.5f; // Box center-point
+	V2_float e	   = b_max - c;				 // Box halflength extents
+	Point<float> m = (a.a + a.b) * 0.5f;	 // Segment midpoint
+	V2_float d	   = a.b - m;				 // Segment halflength vector
+	m			   = m - c;					 // Translate box and segment to origin
 	// Try world coordinate axes as separating axes
-	float adx{ FastAbs(d.x) };
+	float adx = FastAbs(d.x);
 	if (FastAbs(m.x) > e.x + adx) {
 		return false;
 	}
-
-	float ady{ FastAbs(d.y) };
+	float ady = FastAbs(d.y);
 	if (FastAbs(m.y) > e.y + ady) {
 		return false;
 	}
-
 	// Add in an epsilon term to counteract arithmetic errors when segment is
-	// (near) parallel to a coordinate axis (see text for detail)
+	// (near) parallel to a coordinate axis.
 	adx += epsilon<float>;
 	ady += epsilon<float>;
 
-	// Try cross products of segment direction vector with coordinate axes
-	if (FastAbs(m.x * d.y - m.y * d.x) > e.x * ady + e.y * adx) {
+	// Try cross products of segment direction vector with coordinate axes.
+	if (FastAbs(m.Cross(d)) > e.x * ady + e.y * adx) {
 		return false;
 	}
-
-	// No separating axis found; segment must be overlapping AABB
+	// No separating axis found; segment must be overlapping AABB.
 	return true;
 
 	// Alternative method:
@@ -224,7 +231,7 @@ bool RectangleRectangle(const Rectangle<float>& a, const Rectangle<float>& b, Co
 
 	const V2_float a_h{ a.Half() };
 	const V2_float b_h{ b.Half() };
-	const V2_float d{ b.pos + b_h - (a.pos + a_h) };
+	const V2_float d{ b.Center() - a.Center() };
 	const V2_float pen{ a_h + b_h - V2_float{ FastAbs(d.x), FastAbs(d.y) } };
 
 	if (pen.x < 0 || pen.y < 0 || NearlyEqual(pen.x, 0.0f) || NearlyEqual(pen.y, 0.0f)) {
@@ -249,8 +256,10 @@ bool CircleRectangle(const Circle<float>& a, const Rectangle<float>& b, Collisio
 	c = {};
 
 	const V2_float half{ b.Half() };
-	const V2_float clamped{ std::clamp(a.center.x, b.pos.x, b.pos.x + b.size.x),
-							std::clamp(a.center.y, b.pos.y, b.pos.y + b.size.y) };
+	const V2_float b_max{ b.Max() };
+	const V2_float b_min{ b.Min() };
+	const V2_float clamped{ std::clamp(a.center.x, b_min.x, b_max.x),
+							std::clamp(a.center.y, b_min.y, b_max.y) };
 	const V2_float ab{ a.center - clamped };
 
 	const float d2{ ab.Dot(ab) };
@@ -260,12 +269,11 @@ bool CircleRectangle(const Circle<float>& a, const Rectangle<float>& b, Collisio
 		if (NearlyEqual(d2, 0.0f)) { // deep (center of circle inside of AABB)
 
 			// clamp circle's center to edge of AABB, then form the manifold
-			const V2_float mid{ b.pos + half };
+			const V2_float mid{ b.Center() };
 			const V2_float d{ mid - a.center };
-			const V2_float abs_d{ FastAbs(d.x), FastAbs(d.y) };
 
-			const float x_overlap{ half.x - abs_d.x };
-			const float y_overlap{ half.y - abs_d.y };
+			const float x_overlap{ half.x - FastAbs(d.x) };
+			const float y_overlap{ half.y - FastAbs(d.y) };
 
 			if (x_overlap < y_overlap) {
 				c.depth	 = a.radius + x_overlap;
@@ -386,9 +394,10 @@ bool SegmentRectangle(const Segment<float>& a, const Rectangle<float>& b, Collis
 		return false;
 	}
 
-	const V2_float inv{ 1.0f / d.x, 1.0f / d.y };
+	const V2_float b_min{ b.Min() };
 	const V2_float b_max{ b.Max() };
-	const V2_float d0{ (b.Min() - a.a) * inv };
+	const V2_float inv{ 1.0f / d.x, 1.0f / d.y };
+	const V2_float d0{ (b_min - a.a) * inv };
 	const V2_float d1{ (b_max - a.a) * inv };
 	const V2_float v0{ std::min(d0.x, d1.x), std::min(d0.y, d1.y) };
 	const V2_float v1{ std::max(d0.x, d1.x), std::max(d0.y, d1.y) };
@@ -411,7 +420,7 @@ bool SegmentRectangle(const Segment<float>& a, const Rectangle<float>& b, Collis
 			return false;
 		}
 
-		const V2_float coeff{ a.a + d * c.t - (b.Min() + b_max) * 0.5f };
+		const V2_float coeff{ a.a + d * c.t - (b_min + b_max) * 0.5f };
 		const V2_float abs_coeff{ FastAbs(coeff.x), FastAbs(coeff.y) };
 
 		if (abs_coeff.x > abs_coeff.y) {
@@ -437,10 +446,12 @@ bool SegmentCapsule(const Segment<float>& a, const Capsule<float>& b, Collision&
 
 	const float mag{ std::sqrt(mag2) };
 	const V2_float cu{ cv / mag };
+	// Normal to b.segment
 	const V2_float ncu{ cu.Skewed() };
+	const V2_float ncu_dist{ ncu * b.radius };
 
-	const Segment<float> p1{ b.segment.a + ncu * b.radius, b.segment.b + ncu * b.radius };
-	const Segment<float> p3{ b.segment.a + ncu * -b.radius, b.segment.b + ncu * -b.radius };
+	const Segment<float> p1{ b.segment.a + ncu_dist, b.segment.b + ncu_dist };
+	const Segment<float> p2{ b.segment.a - ncu_dist, b.segment.b - ncu_dist };
 
 	Collision col_min{ c };
 	if (SegmentSegment(a, p1, c)) {
@@ -448,7 +459,7 @@ bool SegmentCapsule(const Segment<float>& a, const Capsule<float>& b, Collision&
 			col_min = c;
 		}
 	}
-	if (SegmentSegment(a, p3, c)) {
+	if (SegmentSegment(a, p2, c)) {
 		if (c.t < col_min.t) {
 			col_min = c;
 		}
@@ -464,7 +475,7 @@ bool SegmentCapsule(const Segment<float>& a, const Capsule<float>& b, Collision&
 		}
 	}
 
-	if (col_min.t == 1.0f) {
+	if (NearlyEqual(col_min.t, 1.0f)) {
 		c = {};
 		return false;
 	}
@@ -482,50 +493,72 @@ bool CircleCircle(
 bool CircleRectangle(
 	const Circle<float>& a, const Vector2<float>& vel, const Rectangle<float>& b, Collision& c
 ) {
-	const Segment<float> seg{ a.center, a.center + vel };
+	Segment<float> seg{ a.center, a.center + vel };
+
+	bool start_inside{ overlap::CircleRectangle(a, b) };
+	bool end_inside{ overlap::CircleRectangle({ seg.b, a.radius }, b) };
+
+	if (start_inside && end_inside) {
+		c = {};
+		return false;
+	}
+
+	if (start_inside) {
+		// Circle inside rectangle, flip segment direction.
+		std::swap(seg.a, seg.b);
+	}
 
 	// Compute the rectangle resulting from expanding b by circle radius.
-	Rectangle<float> e{ b };
-	e.pos  -= V2_float{ a.radius, a.radius };
-	e.size += V2_float{ a.radius * 2.0f, a.radius * 2.0f };
+	Rectangle<float> e;
+	e.pos	 = b.Min() - V2_float{ a.radius, a.radius };
+	e.size	 = b.size + V2_float{ a.radius * 2.0f, a.radius * 2.0f };
+	e.origin = Origin::TopLeft;
 
 	if (!overlap::SegmentRectangle(seg, e)) {
 		c = {};
 		return false;
 	}
 
+	V2_float b_min{ b.Min() };
+	V2_float b_max{ b.Max() };
+
 	Collision col_min{ c };
-	if (SegmentCapsule(seg, { { b.pos, V2_float{ b.pos.x + b.size.x, b.pos.y } }, a.radius }, c)) {
+	// Top segment.
+	if (SegmentCapsule(seg, { { b_min, V2_float{ b_max.x, b_min.y } }, a.radius }, c)) {
 		if (c.t < col_min.t) {
 			col_min = c;
 		}
 	}
-	if (SegmentCapsule(
-			seg, { { V2_float{ b.pos.x + b.size.x, b.pos.y }, b.pos + b.size }, a.radius }, c
-		)) {
+	// Right segment.
+	if (SegmentCapsule(seg, { { V2_float{ b_max.x, b_min.y }, b_max }, a.radius }, c)) {
 		if (c.t < col_min.t) {
 			col_min = c;
 		}
 	}
-	if (SegmentCapsule(
-			seg, { { b.pos + b.size, V2_float{ b.pos.x, b.pos.y + b.size.y } }, a.radius }, c
-		)) {
+	// Bottom segment.
+	if (SegmentCapsule(seg, { { b_max, V2_float{ b_min.x, b_max.y } }, a.radius }, c)) {
 		if (c.t < col_min.t) {
 			col_min = c;
 		}
 	}
-	if (SegmentCapsule(seg, { { V2_float{ b.pos.x, b.pos.y + b.size.y }, b.pos }, a.radius }, c)) {
+	// Left segment.
+	if (SegmentCapsule(seg, { { V2_float{ b_min.x, b_max.y }, b_min }, a.radius }, c)) {
 		if (c.t < col_min.t) {
 			col_min = c;
 		}
 	}
 
-	if (col_min.t == 1.0f) {
+	if (NearlyEqual(col_min.t, 1.0f)) {
 		c = {};
 		return false;
 	}
 
+	if (start_inside) {
+		col_min.t = 1.0f - col_min.t;
+	}
+
 	c = col_min;
+
 	return true;
 }
 
@@ -534,7 +567,7 @@ bool RectangleRectangle(
 ) {
 	const V2_float a_center{ a.Center() };
 	return SegmentRectangle(
-		{ a_center, a_center + vel }, { b.pos - a.size / 2.0f, b.size + a.size }, c
+		{ a_center, a_center + vel }, { b.Min() - a.Half(), b.size + a.size, Origin::TopLeft }, c
 	);
 }
 
