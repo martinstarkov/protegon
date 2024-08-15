@@ -3,33 +3,39 @@
 #include <vector>
 
 #include "protegon/vector2.h"
+#include "renderer/origin.h"
 
 namespace ptgn {
 
 // Rectangles are axis aligned bounding boxes (AABBs).
 template <typename T = float>
 struct Rectangle {
-	// Position taken from top left.
 	Point<T> pos;
 	Vector2<T> size;
+	Origin origin{ Origin::Center };
+
 	Rectangle() = default;
 
-	Rectangle(const Point<T>& pos, const Vector2<T>& size) : pos{ pos }, size{ size } {}
+	Rectangle(const Point<T>& pos, const Vector2<T>& size, Origin origin = Origin::Center) :
+		pos{ pos }, size{ size }, origin{ origin } {}
 
 	[[nodiscard]] Vector2<T> Half() const {
 		return size / T{ 2 };
 	}
 
+	// @return Center position of rectangle.
 	[[nodiscard]] Point<T> Center() const {
-		return pos + Half();
+		return pos - GetDrawOffset(size, origin);
 	}
 
+	// @return Bottom right position of rectangle.
 	[[nodiscard]] Point<T> Max() const {
-		return pos + size;
+		return Center() + Half();
 	}
 
+	// @return Top left position of rectangle.
 	[[nodiscard]] Point<T> Min() const {
-		return pos;
+		return Center() - Half();
 	}
 
 	[[nodiscard]] Rectangle<T> Offset(
@@ -41,16 +47,6 @@ struct Rectangle {
 	template <typename U>
 	[[nodiscard]] Rectangle<T> Scale(const Vector2<U>& scale) const {
 		return { pos * scale, size * scale };
-	}
-
-	template <typename U>
-	[[nodiscard]] Rectangle<T> ScalePos(const Vector2<U>& pos_scale) const {
-		return { pos * pos_scale, size };
-	}
-
-	template <typename U>
-	[[nodiscard]] Rectangle<T> ScaleSize(const Vector2<U>& size_scale) const {
-		return { pos, size * size_scale };
 	}
 
 	[[nodiscard]] bool IsZero() const {
@@ -70,8 +66,10 @@ struct RoundedRectangle : public Rectangle<T> {
 
 	RoundedRectangle() = default;
 
-	RoundedRectangle(const Point<T>& pos, const Vector2<T>& size, T radius) :
-		Rectangle<T>{ pos, size }, radius{ radius } {}
+	RoundedRectangle(
+		const Point<T>& pos, const Vector2<T>& size, T radius, Origin origin = Origin::Center
+	) :
+		Rectangle<T>{ pos, size, origin }, radius{ radius } {}
 
 	T radius{ 0 };
 };
