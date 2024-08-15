@@ -1,5 +1,7 @@
 #pragma once
 
+#include "protegon/vector2.h"
+
 namespace ptgn {
 
 enum class Origin {
@@ -13,5 +15,7 @@ enum class Origin {
 	BottomRight,
 	BottomLeft,
 };
+
+[[nodiscard]] V2_float GetDrawOffset(const V2_float& size, Origin draw_origin);
 
 } // namespace ptgn
