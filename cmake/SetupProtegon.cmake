@@ -1,6 +1,6 @@
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/SourcesAndHeaders.cmake")
 
-add_library(protegon STATIC ${PROTEGON_SOURCES} ${PROTEGON_HEADERS})
+add_library(protegon STATIC ${PROTEGON_SOURCES} ${PROTEGON_HEADERS} ${PROTEGON_SHADERS})
 
 target_compile_features(protegon PUBLIC cxx_std_17)
 
@@ -29,7 +29,7 @@ target_include_directories(protegon
          "${CMAKE_CURRENT_SOURCE_DIR}/modules/ecs/include"
          "${CMAKE_CURRENT_SOURCE_DIR}/modules/json/single_include"
          "${CMAKE_CURRENT_SOURCE_DIR}/modules/luple/include"
-  PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+  PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 # Add d to debug static lib files to differentiate them from release
 set_target_properties(protegon PROPERTIES DEBUG_POSTFIX d)
