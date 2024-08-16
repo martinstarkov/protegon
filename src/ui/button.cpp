@@ -9,7 +9,7 @@
 
 namespace ptgn {
 
-Button::Button(const Rectangle<float>& rect, std::function<void()> on_activate_function) :
+Button::Button(const Rectangle<float>& rect, const ButtonActivateFunction& on_activate_function) :
 	on_activate_{ on_activate_function } {
 	SetRectangle(rect);
 	SubscribeToMouseEvents();
@@ -21,6 +21,10 @@ Button::~Button() {
 
 bool Button::GetInteractable() const {
 	return enabled_;
+}
+
+void Button::Draw() const {
+	game.renderer.DrawRectangleHollow(rect_, color::Black);
 }
 
 void Button::SetInteractable(bool interactable) {
@@ -76,12 +80,12 @@ void Button::StopHover() {
 	on_hover_stop_();
 }
 
-void Button::SetOnActivate(std::function<void()> function) {
+void Button::SetOnActivate(const ButtonActivateFunction& function) {
 	on_activate_ = function;
 }
 
 void Button::SetOnHover(
-	std::function<void()> start_hover_function, std::function<void()> stop_hover_function
+	const ButtonHoverFunction& start_hover_function, const ButtonHoverFunction& stop_hover_function
 ) {
 	on_hover_start_ = start_hover_function;
 	on_hover_stop_	= stop_hover_function;
@@ -280,7 +284,8 @@ ButtonState Button::GetState() const {
 }
 
 ToggleButton::ToggleButton(
-	const Rectangle<float>& rect, std::function<void()> on_activate_function, bool initially_toggled
+	const Rectangle<float>& rect, const ButtonActivateFunction& on_activate_function,
+	bool initially_toggled
 ) :
 	Button{ rect, on_activate_function } {
 	toggled_ = initially_toggled;
@@ -319,18 +324,42 @@ void ToggleButton::Toggle() {
 }
 
 SolidButton::SolidButton(
-	const Rectangle<float>& rect, Color default_color, Color hover_color, Color pressed_color,
-	std::function<void()> on_activate_function
+	const Rectangle<float>& rect, const Color& default_color, const Color& hover_color,
+	const Color& pressed_color, const ButtonActivateFunction& on_activate_function
 ) :
 	Button{ rect, on_activate_function } {
+	SetColor(default_color);
+	SetHoverColor(hover_color);
+	SetPressedColor(pressed_color);
+}
+
+void SolidButton::SetColor(const Color& default_color) {
 	colors_.data.at(static_cast<std::size_t>(ButtonState::Default)).at(0) = default_color;
-	colors_.data.at(static_cast<std::size_t>(ButtonState::Hover)).at(0)	  = hover_color;
+}
+
+void SolidButton::SetHoverColor(const Color& hover_color) {
+	colors_.data.at(static_cast<std::size_t>(ButtonState::Hover)).at(0) = hover_color;
+}
+
+void SolidButton::SetPressedColor(const Color& pressed_color) {
 	colors_.data.at(static_cast<std::size_t>(ButtonState::Pressed)).at(0) = pressed_color;
+}
+
+const Color& SolidButton::GetColor() const {
+	return colors_.data.at(static_cast<std::size_t>(ButtonState::Default)).at(0);
+}
+
+const Color& SolidButton::GetHoverColor() const {
+	return colors_.data.at(static_cast<std::size_t>(ButtonState::Hover)).at(0);
+}
+
+const Color& SolidButton::GetPressedColor() const {
+	return colors_.data.at(static_cast<std::size_t>(ButtonState::Pressed)).at(0);
 }
 
 void SolidButton::DrawImpl(std::size_t color_array_index) const {
 	const Color& color = GetCurrentColorImpl(GetState(), color_array_index);
-	game.renderer.DrawRectangleFilled(rect_.pos, rect_.size, color);
+	game.renderer.DrawRectangleFilled(rect_, color);
 }
 
 void SolidButton::Draw() const {
@@ -351,7 +380,7 @@ const Color& SolidButton::GetCurrentColor() const {
 TexturedButton::TexturedButton(
 	const Rectangle<float>& rect, const TextureOrKey& default_texture,
 	const TextureOrKey& hover_texture, const TextureOrKey& pressed_texture,
-	std::function<void()> on_activate_function
+	const ButtonActivateFunction& on_activate_function
 ) :
 	Button{ rect, on_activate_function } {
 	textures_.data.at(static_cast<std::size_t>(ButtonState::Default)).at(0) = default_texture;
@@ -363,7 +392,7 @@ bool TexturedButton::GetVisibility() const {
 	return !hidden_;
 }
 
-void TexturedButton::ForEachTexture(std::function<void(Texture)> func) {
+void TexturedButton::ForEachTexture(const std::function<void(Texture)>& func) {
 	for (std::size_t state = 0; state < 3; state++) {
 		for (std::size_t texture_array_index = 0; texture_array_index < 2; texture_array_index++) {
 			Texture texture =
@@ -426,9 +455,10 @@ Texture TexturedButton::GetCurrentTexture() {
 }
 
 TexturedToggleButton::TexturedToggleButton(
-	const Rectangle<float>& rect, std::initializer_list<TextureOrKey> default_textures,
-	std::initializer_list<TextureOrKey> hover_textures,
-	std::initializer_list<TextureOrKey> pressed_textures, std::function<void()> on_activate_function
+	const Rectangle<float>& rect, const std::initializer_list<TextureOrKey>& default_textures,
+	const std::initializer_list<TextureOrKey>& hover_textures,
+	const std::initializer_list<TextureOrKey>& pressed_textures,
+	const ButtonActivateFunction& on_activate_function
 ) {
 	rect_		 = rect;
 	on_activate_ = on_activate_function;

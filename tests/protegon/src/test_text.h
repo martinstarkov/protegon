@@ -82,18 +82,18 @@ bool TestText() {
 		int yoffset = 4;
 		int ystride = ysize + yoffset;
 
-		test002.Draw(Rectangle<int>{ { 0, ystride * 0 }, { ws_x, ysize } });
+		test002.Draw(Rectangle<int>{ { 0, ystride * 0 }, { ws_x, ysize }, Origin::TopLeft });
 		test003.Draw(Rectangle<int>{ { 0, ystride * 1 }, text_size }
 		); // Actual size needed to render font without stretching.
-		test004.Draw(Rectangle<int>{ { 0, ystride * 2 }, { ws_x, ysize } });
-		test005.Draw(Rectangle<int>{ { 0, ystride * 3 }, { ws_x, ysize } });
-		test006.Draw(Rectangle<int>{ { 0, ystride * 4 }, { ws_x, ysize } });
-		test007.Draw(Rectangle<int>{ { 0, ystride * 5 }, { ws_x, ysize } });
-		test008.Draw(Rectangle<int>{ { 0, ystride * 6 }, { ws_x, ysize } });
-		test009.Draw(Rectangle<int>{ { 0, ystride * 7 }, { ws_x, ysize } });
-		test010.Draw(Rectangle<int>{ { 0, ystride * 8 }, { ws_x, ysize } });
-		test011.Draw(Rectangle<int>{ { 0, ystride * 9 }, { ws_x, ysize } });
-		test012.Draw(Rectangle<int>{ { 0, ystride * 10 }, { ws_x, ysize } });
+		test004.Draw(Rectangle<int>{ { 0, ystride * 2 }, { ws_x, ysize }, Origin::TopLeft });
+		test005.Draw(Rectangle<int>{ { 0, ystride * 3 }, { ws_x, ysize }, Origin::TopLeft });
+		test006.Draw(Rectangle<int>{ { 0, ystride * 4 }, { ws_x, ysize }, Origin::TopLeft });
+		test007.Draw(Rectangle<int>{ { 0, ystride * 5 }, { ws_x, ysize }, Origin::TopLeft });
+		test008.Draw(Rectangle<int>{ { 0, ystride * 6 }, { ws_x, ysize }, Origin::TopLeft });
+		test009.Draw(Rectangle<int>{ { 0, ystride * 7 }, { ws_x, ysize }, Origin::TopLeft });
+		test010.Draw(Rectangle<int>{ { 0, ystride * 8 }, { ws_x, ysize }, Origin::TopLeft });
+		test011.Draw(Rectangle<int>{ { 0, ystride * 9 }, { ws_x, ysize }, Origin::TopLeft });
+		test012.Draw(Rectangle<int>{ { 0, ystride * 10 }, { ws_x, ysize }, Origin::TopLeft });
 
 		if (game.input.KeyDown(Key::T)) {
 			test011.SetVisibility(!test011.GetVisibility());
