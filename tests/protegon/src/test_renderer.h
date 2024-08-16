@@ -357,14 +357,14 @@ void TestShapes() {
 
 			// TODO: Fix
 			game.renderer.DrawArcHollow(
-				test81.center, test81.radius, color::DarkGreen, test81.start_angle, test81.end_angle
+				test81.center, test81.radius, test81.start_angle, test81.end_angle, color::DarkGreen
 			);
 			game.renderer.DrawArcHollow(
-				test82.center, test82.radius, color::DarkGreen, test82.start_angle,
-				test82.end_angle, 3.0f
+				test82.center, test82.radius, test82.start_angle, test82.end_angle,
+				color::DarkGreen, 3.0f
 			);
 			game.renderer.DrawArcFilled(
-				test83.center, test83.radius, color::DarkGreen, test83.start_angle, test83.end_angle
+				test83.center, test83.radius, test83.start_angle, test83.end_angle, color::DarkGreen
 			);
 
 			// TODO: Fix

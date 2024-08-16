@@ -90,19 +90,6 @@ void Game::Stop() {
 	running_ = false;
 }
 
-void Game::Loop() {
-	// Design decision: Latest possible point to show window is right before
-	// loop starts. Comment this if you wish the window to appear hidden for an
-	// indefinite period of time.
-	window.Show();
-	LoopUntilQuit([&](float dt) {
-		renderer.Clear();
-		scene.Update(dt);
-		renderer.Present();
-	});
-	Reset();
-}
-
 void Game::Reset() {
 	window = {};
 	gl_context_.~GLContext();
@@ -121,54 +108,38 @@ void Game::Reset() {
 	profiler = {};
 }
 
-void Game::Update(const UpdateFunction& loop_function, int& condition) {
-	// Always quit on window quit.
-	event.window.Subscribe(
-		WindowEvent::Quit, (void*)&condition,
-		std::function([&](const WindowQuitEvent& e) { condition = false; })
-	);
+void Game::MainLoop() {
+	static UpdateFunction main = std::function([&](float dt) {
+		renderer.Clear();
+		scene.Update(dt);
+		renderer.Present();
+	});
+	LoopFunction(main);
+}
 
-	// Optional: Update window while it is being dragged. Upside: No rendering artefacts;
-	// Downside: window dragging becomes laggier. If enabling this, it is adviseable to change
-	// Renderer constructor such that the renderer viewport is updated during window resizing
-	// instead of after it has been resized.
-	/*event.window.Subscribe(
-		WindowEvent::Drag, (void*)&condition,
-		std::function([&](const WindowDragEvent& e) { loop_function(); })
-	);*/
+void Game::LoopFunction(const UpdateFunction& loop_function) {
+	static std::size_t counter{ 0 };
+	static auto start{ std::chrono::system_clock::now() };
+	static auto end{ std::chrono::system_clock::now() };
+	// Calculate time elapsed during previous frame.
+	duration<float> elapsed{ end - start };
+	float dt{ elapsed.count() };
+	start = end;
 
-	std::size_t counter{ 0 };
-	auto start{ std::chrono::system_clock::now() };
-	auto end{ std::chrono::system_clock::now() };
+	input.Update();
 
-	while (running_ && condition) {
-		// Calculate time elapsed during previous frame.
-		duration<float> elapsed{ end - start };
-		float dt{ elapsed.count() };
-		start = end;
+	tween.Update(dt);
 
-		input.Update();
+	scene.GetTopActive().camera.Update();
+	// PTGN_LOG("Loop #", counter);
 
-		tween.Update(dt);
-
-		scene.GetTopActive().camera.Update();
-		// For debugging:
-		// PTGN_LOG("Updating ", counter);
-
-		if (std::holds_alternative<std::function<void(float)>>(loop_function)) {
-			std::get<std::function<void(float)>>(loop_function)(dt);
-		} else {
-			std::get<std::function<void(void)>>(loop_function)();
-		}
-		++counter;
-		end = std::chrono::system_clock::now();
+	if (std::holds_alternative<std::function<void(float)>>(loop_function)) {
+		std::get<std::function<void(float)>>(loop_function)(dt);
+	} else {
+		std::get<std::function<void(void)>>(loop_function)();
 	}
-
-	// Important to clear previous info from input cache (e.g. first time key presses).
-	// Otherwise they might trigger again in the next input.Update().
-	input.Reset();
-
-	event.window.Unsubscribe((void*)&condition);
+	++counter;
+	end = std::chrono::system_clock::now();
 }
 
 } // namespace ptgn

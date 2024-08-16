@@ -71,7 +71,14 @@ public:
 		scene.StartScene<TStartScene>(
 			impl::start_scene_key, std::forward<TArgs>(constructor_args)...
 		);
-		Loop();
+		// Design decision: Latest possible point to show window is right before
+		// loop starts. Comment this if you wish the window to appear hidden for an
+		// indefinite period of time.
+		window.Show();
+		while (running_) {
+			MainLoop();
+		}
+		Reset();
 	}
 
 	void Stop();
@@ -79,7 +86,8 @@ public:
 private:
 	void Reset();
 
-	void Loop();
+	void MainLoop();
+	void LoopFunction(const UpdateFunction& loop_function);
 	void Update(const UpdateFunction& loop_function, int& condition);
 
 	template <typename EventEnum, typename EventType>
@@ -104,7 +112,34 @@ private:
 			}
 		}
 
-		Update(loop_function, condition);
+		// Always quit on window quit.
+		event.window.Subscribe(
+			WindowEvent::Quit, (void*)&condition,
+			std::function([&](const WindowQuitEvent& e) { condition = false; })
+		);
+
+		// Optional: Update window while it is being dragged. Upside: No rendering artefacts;
+		// Downside: window dragging becomes laggier. If enabling this, it is adviseable to change
+		// Renderer constructor such that the renderer viewport is updated during window resizing
+		// instead of after it has been resized.
+		/*event.window.Subscribe(
+			WindowEvent::Drag, (void*)&condition,
+			std::function([&](const WindowDragEvent& e) { loop_function(); })
+		);*/
+
+		std::size_t counter{ 0 };
+		auto start{ std::chrono::system_clock::now() };
+		auto end{ std::chrono::system_clock::now() };
+
+		while (running_ && condition) {
+			LoopFunction(loop_function);
+		}
+
+		// Important to clear previous info from input cache (e.g. first time key presses).
+		// Otherwise they might trigger again in the next input.Update().
+		input.Reset();
+
+		event.window.Unsubscribe((void*)&condition);
 
 		if constexpr (!is_window_quit) {
 			dispatcher.Unsubscribe((void*)&condition);
