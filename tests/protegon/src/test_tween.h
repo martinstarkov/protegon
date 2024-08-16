@@ -26,44 +26,47 @@ enum class TweenTest {
 };
 
 template <typename T, typename... Ts>
-void TestTweenLoop(const T& function, const std::string& name, const Ts&... message) {
+void TestTweenLoop(float dt, const T& function, const std::string& name, const Ts&... message) {
 	TestLoop(
-		test_instructions, tween_test, (int)TweenTest::Count, test_switch_keys, function, name,
+		dt, test_instructions, tween_test, (int)TweenTest::Count, test_switch_keys, function, name,
 		message...
 	);
 }
 
-void TestTweenManager() {
-	TweenConfig config;
-	config.on_start =
-		std::function([](Tween& t, TweenType v) { PTGN_LOG("Starting tween with value ", v); });
-	config.on_complete =
-		std::function([](Tween& t, TweenType v) { PTGN_LOG("Completed tween with value ", v); });
+void TestTweenManager(float dt) {
+	static V2_float pos;
+	static Color color = [&]() {
+		TweenConfig config;
+		config.on_start =
+			std::function([](Tween& t, TweenType v) { PTGN_LOG("Starting tween with value ", v); });
+		config.on_complete = std::function([](Tween& t, TweenType v) {
+			PTGN_LOG("Completed tween with value ", v);
+		});
 
-	game.tween.Clear();
+		game.tween.Clear();
 
-	PTGN_ASSERT(game.tween.Count() == 0);
+		PTGN_ASSERT(game.tween.Count() == 0);
 
-	std::size_t key{ Hash("test_tween") };
+		std::size_t key{ Hash("test_tween") };
 
-	V2_float pos;
-	Color color = color::Red;
+		config.on_update = [&](auto& tween, auto v) {
+			pos = { v, v };
+		};
+		config.on_complete = [&](auto& tween, auto v) {
+			color = color::Green;
+		};
 
-	config.on_update = [&](auto& tween, auto v) {
-		pos = { v, v };
-	};
-	config.on_complete = [&](auto& tween, auto v) {
-		color = color::Green;
-	};
+		game.tween.Load(key, 0.0f, 800.0f, milliseconds{ 2000 }, config);
 
-	game.tween.Load(key, 0.0f, 800.0f, milliseconds{ 2000 }, config);
+		PTGN_ASSERT(game.tween.Count() == 1);
 
-	PTGN_ASSERT(game.tween.Count() == 1);
+		return color::Red;
+	}();
 
-	Timer timer;
-	timer.Start();
+	static Timer timer{ true };
 
 	TestTweenLoop(
+		dt,
 		[&]() {
 			game.renderer.DrawRectangleFilled(pos, { 40, 40 }, color);
 
@@ -76,13 +79,15 @@ void TestTweenManager() {
 	);
 }
 
-void TestTweenConfig() {
-	struct TweenInfo {
-		V2_float pos;
-		Color color;
-		Tween tween;
-	};
+struct TweenInfo {
+	V2_float pos;
+	Color color;
+	Tween tween;
+};
 
+constexpr const int tween_count = 12;
+
+void TestTweenConfigSetup(V2_float& size, std::array<TweenInfo, tween_count>& tweens) {
 	TweenConfig config0;
 	config0.paused = true;
 	config0.on_update =
@@ -201,9 +206,7 @@ void TestTweenConfig() {
 	// Infinitely repeated yoyo easing tweens.
 	configs.push_back(config11);
 
-	constexpr const int tween_count = 12;
-
-	V2_float size{ 0, ws.y / static_cast<float>(configs.size()) };
+	size   = { 0, ws.y / static_cast<float>(configs.size()) };
 	size.x = std::clamp(size.y, 5.0f, 30.0f);
 
 	auto get_pos = [&](std::size_t i) {
@@ -215,8 +218,6 @@ void TestTweenConfig() {
 		color::Black, color::Brown, color::Grey,  color::LightGrey, color::Yellow,	color::Pink,
 	};
 
-	std::array<TweenInfo, tween_count> tweens;
-
 	PTGN_ASSERT(configs.size() <= tween_count);
 
 	for (std::size_t i = 0; i < configs.size(); ++i) {
@@ -226,12 +227,24 @@ void TestTweenConfig() {
 	}
 
 	PTGN_ASSERT(tweens.size() > 0);
+}
+
+void TestTweenConfig(float dt) {
+	static V2_float size;
+	static auto get_tweens = []() {
+		std::array<TweenInfo, tween_count> tweens;
+		TestTweenConfigSetup(size, tweens);
+		return tweens;
+	};
+
+	static auto tweens = get_tweens();
 
 	TestTweenLoop(
-		[&](float dt) {
+		dt,
+		[&](float dt_) {
 			for (auto& t : tweens) {
 				if (t.tween.IsValid()) {
-					t.tween.Step(dt);
+					t.tween.Step(dt_);
 				}
 			}
 
@@ -282,15 +295,13 @@ void TestTween() {
 	game.window.Show();
 	game.renderer.SetClearColor(color::White);
 
-	game.LoopUntilQuit([&](float dt) {
+	game.PushLoopFunction([&](float dt) {
 		switch (static_cast<TweenTest>(tween_test)) {
-			case TweenTest::Callbacks: TestTweenConfig(); break;
-			case TweenTest::Manager:   TestTweenManager(); break;
+			case TweenTest::Callbacks: TestTweenConfig(dt); break;
+			case TweenTest::Manager:   TestTweenManager(dt); break;
 			default:				   PTGN_ERROR("Failed to find a valid tween test");
 		}
 	});
-
-	game.window.SetTitle("");
 
 	PTGN_INFO("All tween tests passed!");
 }

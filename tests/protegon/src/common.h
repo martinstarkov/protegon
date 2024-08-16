@@ -20,31 +20,27 @@ void CheckForTestSwitch(int& current_test, int test_count, const std::vector<Key
 		current_test++;
 		current_test = Mod(current_test, test_count);
 	}
+	if (game.input.KeyDown(Key::ESCAPE)) {
+		game.PopLoopFunction();
+	}
 }
 
 template <typename T, typename... Ts>
 void TestLoop(
-		const std::string& instructions, int& current_test, int test_count,
-		const std::vector<Key>& keys, const T& function, const std::string& name,
-		const Ts&... message
+	float dt, const std::string& instructions, int& current_test, int test_count,
+	const std::vector<Key>& keys, const T& function, const std::string& name, const Ts&... message
 ) {
 	game.window.SetTitle((instructions + ": [" + std::to_string(current_test) + "] " + name).c_str()
 	);
-	PTGN_LOG("[", current_test, "] ", name, message...);
+	// PTGN_LOG("[", current_test, "] ", name, message...);
 
 	Game::UpdateFunction loop_function{ std::function(function) };
 
-	game.LoopUntilKeyDown(keys, [&](float dt) {
-		CheckForTestSwitch(current_test, (int)test_count, keys);
+	CheckForTestSwitch(current_test, (int)test_count, keys);
 
-		game.renderer.Clear();
-
-		if (std::holds_alternative<std::function<void(float)>>(loop_function)) {
-			std::get<std::function<void(float)>>(loop_function)(dt);
-		} else {
-			std::get<std::function<void(void)>>(loop_function)();
-		}
-
-		game.renderer.Present();
-	});
+	if (std::holds_alternative<std::function<void(float)>>(loop_function)) {
+		std::get<std::function<void(float)>>(loop_function)(dt);
+	} else {
+		std::get<std::function<void(void)>>(loop_function)();
+	}
 }

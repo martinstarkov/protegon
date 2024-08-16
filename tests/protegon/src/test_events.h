@@ -92,15 +92,15 @@ bool TestEvents() {
 	game.window.SetResizeable(true);
 
 	game.renderer.SetClearColor(color::Black);
-	game.LoopUntilQuit([&]() {
-		game.renderer.Clear();
-		game.renderer.Present();
+	game.PushLoopFunction([&]() {
+		if (game.input.KeyDown(Key::ESCAPE)) {
+			game.PopLoopFunction();
+		}
+		/* listening for events */
 	});
 
-	game.event.UnsubscribeAll((void*)&event_observer);
-	game.window.SetResizeable(false);
-	game.window.SetSize({ 800, 800 });
-	game.renderer.SetClearColor(color::White);
+	// game.event.UnsubscribeAll((void*)&event_observer);
+	// game.window.SetResizeable(false);
 
 	PTGN_INFO("All event tests passed!");
 	return true;

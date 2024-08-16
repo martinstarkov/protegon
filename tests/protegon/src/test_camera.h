@@ -18,32 +18,36 @@ enum class CameraTest {
 };
 
 template <typename T, typename... Ts>
-void TestCameraLoop(const T& function, const std::string& name, const Ts&... message) {
+void TestCameraLoop(float dt, const T& function, const std::string& name, const Ts&... message) {
 	TestLoop(
-		camera_test_instructions, camera_test, (int)CameraTest::Count, camera_test_switch_keys,
+		dt, camera_test_instructions, camera_test, (int)CameraTest::Count, camera_test_switch_keys,
 		function, name, message...
 	);
 }
 
-void TestCameraSwitching() {
+void TestCameraSwitching(float dt) {
 	ws	   = game.window.GetSize();
 	center = game.window.GetCenter();
 
-	auto& camera1{ game.camera.Load(1) };
-	auto& camera2{ game.camera.Load(2) };
-	auto& camera3{ game.camera.Load(3) };
-	auto& camera4{ game.camera.Load(4) };
-	auto& camera5{ game.camera.Load(5) };
+	static auto& camera1{ game.camera.Load(1) };
+	static auto& camera2{ game.camera.Load(2) };
+	static auto& camera3{ game.camera.Load(3) };
+	static auto& camera4{ game.camera.Load(4) };
+	static auto& camera5{ game.camera.Load(5) };
 
-	camera1.SetPosition(V2_float{ 0, 0 });
-	camera2.SetPosition(V2_float{ ws.x, 0 });
-	camera3.SetPosition(ws);
-	camera4.SetPosition(V2_float{ 0, ws.y });
-	camera5.SetPosition(center);
+	static auto v = []() {
+		camera1.SetPosition(V2_float{ 0, 0 });
+		camera2.SetPosition(V2_float{ ws.x, 0 });
+		camera3.SetPosition(ws);
+		camera4.SetPosition(V2_float{ 0, ws.y });
+		camera5.SetPosition(center);
 
-	game.camera.SetPrimary(1);
+		game.camera.SetPrimary(1);
+		return 0;
+	}();
 
 	TestCameraLoop(
+		dt,
 		[&](float dt) {
 			game.renderer.DrawRectangleFilled(center, ws * 0.5f, color::DarkGreen);
 
@@ -67,8 +71,9 @@ void TestCameraSwitching() {
 	);
 }
 
-void TestCameraMovement() {
+void TestCameraMovement(float dt) {
 	TestCameraLoop(
+		dt,
 		[&](float dt) {
 			game.renderer.DrawRectangleFilled(center, game.window.GetSize() * 0.5f, color::DarkRed);
 
@@ -163,15 +168,19 @@ void TestCamera() {
 	center = game.window.GetCenter();
 	game.renderer.SetClearColor(color::DarkGrey);
 
-	game.LoopUntilQuit([&]() {
+	game.PushLoopFunction([&](float dt) {
+		static std::size_t count{ game.LoopFunctionCount() };
 		switch (static_cast<CameraTest>(camera_test)) {
-			case CameraTest::Movement:	TestCameraMovement(); break;
-			case CameraTest::Switching: TestCameraSwitching(); break;
+			case CameraTest::Movement:	TestCameraMovement(dt); break;
+			case CameraTest::Switching: TestCameraSwitching(dt); break;
 			default:					PTGN_ERROR("Failed to find a valid camera test");
+		}
+		if (count != game.LoopFunctionCount()) {
+			game.scene.GetTopActive().camera.ResetPrimaryToWindow();
 		}
 	});
 
-	game.scene.GetTopActive().camera.ResetPrimaryToWindow();
+	// game.window.SetTitle("");
 
 	PTGN_INFO("All camera tests passed!");
 }
