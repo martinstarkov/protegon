@@ -36,11 +36,13 @@ Shader::Shader(const ShaderSource& vertex_shader, const ShaderSource& fragment_s
 
 Shader::Shader(const path& vertex_shader_path, const path& fragment_shader_path) {
 	PTGN_ASSERT(
-		FileExists(vertex_shader_path), "Cannot create shader from nonexistent vertex shader path"
+		FileExists(vertex_shader_path),
+		"Cannot create shader from nonexistent vertex shader path: ", vertex_shader_path.string()
 	);
 	PTGN_ASSERT(
 		FileExists(fragment_shader_path),
-		"Cannot create shader from nonexistent fragment shader path"
+		"Cannot create shader from nonexistent fragment shader path: ",
+		fragment_shader_path.string()
 	);
 	CompileProgram(FileToString(vertex_shader_path), FileToString(fragment_shader_path));
 }
@@ -66,7 +68,9 @@ std::uint32_t Shader::CompileShader(std::uint32_t type, const std::string& sourc
 
 		gl::DeleteShader(id);
 
-		PTGN_ERROR("Failed to compile ", impl::GetShaderTypeName(type), " shader: ", log);
+		PTGN_ERROR(
+			"Failed to compile ", impl::GetShaderTypeName(type), " shader: \n", source, "\n", log
+		);
 	}
 
 	return id;

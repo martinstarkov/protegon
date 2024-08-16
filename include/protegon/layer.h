@@ -2,10 +2,10 @@
 
 #include "ecs/ecs.h"
 #include "protegon/file.h"
+#include "protegon/game.h"
 #include "protegon/grid.h"
 #include "protegon/hash.h"
 #include "protegon/polygon.h"
-#include "protegon/game.h"
 #include "protegon/texture.h"
 #include "protegon/vector2.h"
 #include "utility/debug.h"
@@ -50,6 +50,7 @@ private:
 
 class TileLayer : public Grid<impl::Tile> {
 public:
+	// TOOD: Change to take path.
 	TileLayer(
 		const char* tileset_path, const V2_int& tile_size, const V2_int& grid_size,
 		const V2_float& scale

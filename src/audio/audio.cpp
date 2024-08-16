@@ -6,7 +6,10 @@
 namespace ptgn {
 
 Music::Music(const path& music_path) {
-	PTGN_ASSERT(FileExists(music_path), "Cannot create music from a nonexistent music path");
+	PTGN_ASSERT(
+		FileExists(music_path),
+		"Cannot create music from a nonexistent music path: ", music_path.string()
+	);
 	instance_ = { Mix_LoadMUS(music_path.string().c_str()), Mix_FreeMusic };
 	PTGN_ASSERT(IsValid(), Mix_GetError());
 }
@@ -23,7 +26,10 @@ void Music::FadeIn(int loops, milliseconds time) const {
 }
 
 Sound::Sound(const path& sound_path) {
-	PTGN_ASSERT(FileExists(sound_path), "Cannot create sound from a nonexistent sound path");
+	PTGN_ASSERT(
+		FileExists(sound_path),
+		"Cannot create sound from a nonexistent sound path: ", sound_path.string()
+	);
 	instance_ = { Mix_LoadWAV(sound_path.string().c_str()), Mix_FreeChunk };
 	PTGN_ASSERT(IsValid(), Mix_GetError());
 }

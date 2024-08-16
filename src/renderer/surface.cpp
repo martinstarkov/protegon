@@ -74,7 +74,10 @@ Surface::Surface(const std::shared_ptr<SDL_Surface>& raw_surface, ImageFormat fo
 
 Surface::Surface(const path& image_path) :
 	Surface{ [&]() -> std::shared_ptr<SDL_Surface> {
-		PTGN_ASSERT(FileExists(image_path), "Cannot create surface from a nonexistent image path");
+		PTGN_ASSERT(
+			FileExists(image_path),
+			"Cannot create surface from a nonexistent image path: ", image_path.string()
+		);
 		std::shared_ptr<SDL_Surface> raw_surface = { IMG_Load(image_path.string().c_str()),
 													 SDL_FreeSurface };
 		PTGN_ASSERT(raw_surface != nullptr, IMG_GetError());
@@ -111,9 +114,9 @@ V2_int Surface::GetSize() const {
 void Surface::ForEachPixel(std::function<void(const V2_int&, const Color&)> function) {
 	PTGN_ASSERT(IsValid(), "Cannot loop through each pixel of uninitialized or destroyed surface");
 
-	for (std::size_t j = 0; j < instance_->size_.y; j++) {
-		std::size_t idx_row = j * instance_->size_.x;
-		for (std::size_t i = 0; i < instance_->size_.x; i++) {
+	for (int j = 0; j < instance_->size_.y; j++) {
+		int idx_row = j * instance_->size_.x;
+		for (int i = 0; i < instance_->size_.x; i++) {
 			V2_int coordinate{ i, j };
 			std::size_t index = idx_row + i;
 			PTGN_ASSERT(index < instance_->data_.size());
