@@ -14,16 +14,25 @@
 #define PTGN_DEBUG
 #endif
 
+#define PTGN_DEBUGBREAK() ((void)0)
+
 #ifdef PTGN_DEBUG
-#if defined(PTGN_PLATFORM_WINDOWS)
-#define PTGN_DEBUGBREAK() __debugbreak()
-#elif defined(PTGN_PLATFORM_LINUX)
-#include <signal.h>
-#define PTGN_DEBUGBREAK() raise(SIGTRAP)
-#endif
+
 #define PTGN_ENABLE_ASSERTS
-#else
-#define PTGN_DEBUGBREAK()
+
+#if defined(PTGN_PLATFORM_WINDOWS)
+
+#undef PTGN_DEBUGBREAK
+#define PTGN_DEBUGBREAK() __debugbreak()
+
+#elif defined(PTGN_PLATFORM_LINUX)
+
+#include <signal.h>
+#undef PTGN_DEBUGBREAK
+#define PTGN_DEBUGBREAK() raise(SIGTRAP)
+
+#endif
+
 #endif
 
 #define PTGN_EXPAND_MACRO(x)	x
@@ -31,14 +40,14 @@
 
 // Function signature macro: PTGN_FULL_FUNCTION_SIGNATURE
 #if defined(__GNUC__) || (defined(__MWERKS__) && (__MWERKS__ >= 0x3000)) || \
-		(defined(__ICC) && (__ICC >= 600)) || defined(__ghs__)
+	(defined(__ICC) && (__ICC >= 600)) || defined(__ghs__)
 #define PTGN_FULL_FUNCTION_SIGNATURE __PRETTY_FUNCTION__
 #elif defined(__DMC__) && (__DMC__ >= 0x810)
 #define PTGN_FULL_FUNCTION_SIGNATURE __PRETTY_FUNCTION__
 #elif (defined(__FUNCSIG__) || (_MSC_VER))
 #define PTGN_FULL_FUNCTION_SIGNATURE __FUNCSIG__
 #elif (defined(__INTEL_COMPILER) && (__INTEL_COMPILER >= 600)) || \
-		(defined(__IBMCPP__) && (__IBMCPP__ >= 500))
+	(defined(__IBMCPP__) && (__IBMCPP__ >= 500))
 #define PTGN_FULL_FUNCTION_SIGNATURE __FUNCTION__
 #elif defined(__BORLANDC__) && (__BORLANDC__ >= 0x550)
 #define PTGN_FULL_FUNCTION_SIGNATURE __FUNC__

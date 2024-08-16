@@ -35,8 +35,6 @@ using duration = std::enable_if_t<is_duration_v<T>, bool>;
 
 } // namespace type_traits
 
-} // namespace ptgn
-
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const ptgn::duration<T, std::nano>& v) {
 	return os << v.count() << "ns";
@@ -66,3 +64,5 @@ template <typename T>
 std::ostream& operator<<(std::ostream& os, const ptgn::duration<T, ptgn::hours::period>& v) {
 	return os << v.count() << "h";
 }
+
+} // namespace ptgn

@@ -58,11 +58,11 @@ public:
 	~OrthographicCamera();
 
 	OrthographicCamera(
-			float left, float right, float bottom, float top, float near = -1.0f, float far = 1.0f
+		float left, float right, float bottom, float top, float near = -1.0f, float far = 1.0f
 	);
 
 	void SetProjection(
-			float left, float right, float bottom, float top, float near = -1.0f, float far = 1.0f
+		float left, float right, float bottom, float top, float near = -1.0f, float far = 1.0f
 	);
 };
 
@@ -70,9 +70,9 @@ class CameraManager : public Manager<OrthographicCamera> {
 public:
 	CameraManager();
 	~CameraManager();
-	CameraManager(const CameraManager&)			   = default;
+	CameraManager(const CameraManager&)			   = delete;
 	CameraManager(CameraManager&&)				   = default;
-	CameraManager& operator=(const CameraManager&) = default;
+	CameraManager& operator=(const CameraManager&) = delete;
 	CameraManager& operator=(CameraManager&&)	   = default;
 
 	void SetPrimary(const Key& key);
@@ -114,13 +114,13 @@ public:
 	}
 
 	static void Unload(const Key& key);
-	static [[nodiscard]] bool Has(const Key& key);
-	static [[nodiscard]] Item& Get(const Key& key);
+	[[nodiscard]] static bool Has(const Key& key);
+	[[nodiscard]] static Item& Get(const Key& key);
 	static void Clear();
 
 	static void SetPrimary(const Key& key);
 
-	static [[nodiscard]] OrthographicCamera& GetPrimary();
+	[[nodiscard]] static OrthographicCamera& GetPrimary();
 
 	static void ResetPrimaryToWindow();
 

@@ -82,9 +82,7 @@ private:
 
 	[[nodiscard]] std::int32_t GetUniformLocation(const std::string& name) const;
 
-	[[nodiscard]] void CompileProgram(
-		const std::string& vertex_shader, const std::string& fragment_shader
-	);
+	void CompileProgram(const std::string& vertex_shader, const std::string& fragment_shader);
 
 	// Returns shader id.
 	[[nodiscard]] std::uint32_t CompileShader(std::uint32_t type, const std::string& source);

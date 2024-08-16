@@ -43,8 +43,8 @@ V2_int Screen::GetSize() {
 }
 
 void Window::SetupSize(
-		const V2_int& resolution, const V2_int& minimum_resolution, bool fullscreen,
-		bool borderless, bool resizeable, const V2_float& scale
+	const V2_int& resolution, const V2_int& minimum_resolution, bool fullscreen, bool borderless,
+	bool resizeable, const V2_float& scale
 ) {
 	SetMinimumSize(minimum_resolution);
 	SetFullscreen(fullscreen);

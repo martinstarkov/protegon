@@ -17,8 +17,8 @@ namespace ptgn {
 template <typename ItemType, typename KeyType = std::size_t>
 class Manager {
 public:
-	using Item = typename ItemType;
-	using Key  = typename KeyType;
+	using Item = ItemType;
+	using Key  = KeyType;
 
 	Manager()						   = default;
 	virtual ~Manager()				   = default;

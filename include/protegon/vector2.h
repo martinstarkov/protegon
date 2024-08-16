@@ -246,13 +246,13 @@ constexpr inline Vector2<S> operator/(const Vector2<T>& lhs, U rhs) {
 	return { lhs.x / rhs, lhs.y / rhs };
 }
 
-} // namespace ptgn
-
 template <typename T, ptgn::type_traits::stream_writable<std::ostream, T> = true>
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector2<T>& v) {
 	os << "(" << v.x << ", " << v.y << ")";
 	return os;
 }
+
+} // namespace ptgn
 
 // Custom hashing function for Vector2 class.
 // This allows for use of unordered maps and sets with Vector2s as keys.

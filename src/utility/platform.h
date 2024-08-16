@@ -38,5 +38,5 @@
 #define PTGN_PLATFORM_LINUX
 #else
 /* Unknown compiler/platform */
-#error "Unknown compiler/platform!"
+// #error "Unknown compiler/platform!"
 #endif
