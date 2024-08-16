@@ -52,12 +52,12 @@ public:
 	void SetFontRenderMode(FontRenderMode render_mode);
 	void SetShadingColor(const Color& shading_color);
 
-	const Font& GetFont() const;
-	const std::string& GetContent() const;
-	const Color GetColor() const;
-	FontStyle GetFontStyle() const;
-	FontRenderMode GetFontRenderMode() const;
-	const Color GetShadingColor() const;
+	[[nodiscard]] const Font& GetFont() const;
+	[[nodiscard]] const std::string& GetContent() const;
+	[[nodiscard]] const Color& GetColor() const;
+	[[nodiscard]] FontStyle GetFontStyle() const;
+	[[nodiscard]] FontRenderMode GetFontRenderMode() const;
+	[[nodiscard]] const Color& GetShadingColor() const;
 
 	void SetVisibility(bool visibility);
 	[[nodiscard]] bool GetVisibility() const;

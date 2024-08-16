@@ -151,7 +151,7 @@ const std::string& Text::GetContent() const {
 	return instance_->content_;
 }
 
-const Color Text::GetColor() const {
+const Color& Text::GetColor() const {
 	PTGN_ASSERT(IsValid(), "Cannot get color of uninitialized or destroyed texture");
 	return instance_->text_color_;
 }
@@ -166,7 +166,7 @@ FontRenderMode Text::GetFontRenderMode() const {
 	return instance_->render_mode_;
 }
 
-const Color Text::GetShadingColor() const {
+const Color& Text::GetShadingColor() const {
 	PTGN_ASSERT(IsValid(), "Cannot get shading color of uninitialized or destroyed texture");
 	return instance_->shading_color_;
 }
@@ -209,7 +209,7 @@ void Text::Draw(const Rectangle<int>& destination) const {
 	}
 	game.renderer.DrawTexture(
 		destination.pos, destination.size, instance_->texture_, {}, {}, 0.0f, { 0.5f, 0.5f },
-		Flip::None, Origin::TopLeft, 0.0f
+		Flip::None, destination.origin, 0.0f
 	);
 }
 
