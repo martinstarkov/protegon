@@ -8,21 +8,25 @@ namespace ptgn {
 
 void GLRenderer::EnableLineSmoothing() {
 	gl::glEnable(GL_BLEND);
+#ifndef __EMSCRIPTEN__
 	gl::glEnable(GL_LINE_SMOOTH);
+#endif
 }
 
 void GLRenderer::DisableLineSmoothing() {
+#ifndef __EMSCRIPTEN__
 	gl::glDisable(GL_LINE_SMOOTH);
+#endif
 }
 
 void GLRenderer::SetBlendMode(BlendMode mode /* = BlendMode::Blend*/) {
 	if (mode == BlendMode::None) {
 		gl::glDisable(GL_BLEND);
-		gl::glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+		// gl::glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 	} else {
 		DisableDepthTesting();
 		gl::glEnable(GL_BLEND);
-		gl::glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+		// gl::glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
 		switch (mode) {
 			case BlendMode::Blend:	  gl::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); break;
@@ -38,7 +42,11 @@ void GLRenderer::SetBlendMode(BlendMode mode /* = BlendMode::Blend*/) {
 }
 
 void GLRenderer::EnableDepthTesting() {
+#ifdef __EMSCRIPTEN__
+	gl::glClearDepthf(1.0);
+#else
 	gl::glClearDepth(1.0); /* Enables Clearing Of The Depth Buffer */
+#endif
 	gl::glEnable(GL_DEPTH_TEST);
 	gl::glDepthFunc(GL_LESS);
 }

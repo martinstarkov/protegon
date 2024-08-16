@@ -2,8 +2,6 @@
 
 namespace ptgn {
 
-class Game;
-
 namespace impl {
 
 struct GLVersion {
@@ -15,7 +13,7 @@ struct GLVersion {
 
 // Must be constructed after SDL_Window has been created.
 class GLContext {
-private:
+public:
 	GLContext();
 	~GLContext();
 	GLContext(const GLContext&)			   = delete;
@@ -24,8 +22,6 @@ private:
 	GLContext& operator=(GLContext&&)	   = default;
 
 private:
-	friend class Game;
-
 	static void LoadGLFunctions();
 
 	void* context_{ nullptr };

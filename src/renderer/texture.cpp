@@ -30,6 +30,18 @@ static GLFormats GetGLFormats(ImageFormat format) {
 	// Possible internal format options:
 	// GL_R#size, GL_RG#size, GL_RGB#size, GL_RGBA#size
 	switch (format) {
+#ifdef __EMSCRIPTEN__
+		case ImageFormat::RGBA8888: {
+			return { GL_RGBA8_OES, GL_RGBA };
+		}
+		case ImageFormat::RGB888: {
+			return { GL_RGB8_OES, GL_RGB };
+		}
+		case ImageFormat::BGRA8888:
+		case ImageFormat::BGR888:	{
+			PTGN_ERROR("OpenGL ES3.0 does not support BGR(A) texture formats in glTexImage2D");
+		}
+#else
 		case ImageFormat::RGBA8888: {
 			return { GL_RGBA8, GL_RGBA };
 		}
@@ -42,6 +54,7 @@ static GLFormats GetGLFormats(ImageFormat format) {
 		case ImageFormat::BGR888: {
 			return { GL_RGB8, GL_BGR };
 		}
+#endif
 		default: break;
 	}
 	PTGN_ERROR("Could not determine OpenGL formats for given ImageFormat");
@@ -55,7 +68,8 @@ Texture::Texture(const path& image_path, ImageFormat format) :
 			format != ImageFormat::Unknown, "Cannot create texture with unknown image format"
 		);
 		PTGN_ASSERT(
-			FileExists(image_path), "Cannot create texture from file path which does not exist"
+			FileExists(image_path),
+			"Cannot create texture from file path which does not exist: ", image_path.string()
 		);
 		return Surface{ image_path };
 	}() } {}

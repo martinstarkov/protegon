@@ -27,20 +27,43 @@ inline std::ostream& operator<<(std::ostream& os, const GLVersion& v) {
 void GLContext::LoadGLFunctions() {
 #define GLE(name, caps_name) \
 	gl::name = (gl::PFNGL##caps_name##PROC)SDL_GL_GetProcAddress(PTGN_STRINGIFY_MACRO(gl##name));
-	GL_LIST
+	GL_LIST_1
 #undef GLE
-	
-	//PTGN_LOG("OpenGL Build: ", gl::glGetString(GL_VERSION));
+
+#ifdef __EMSCRIPTEN__
+
+#define GLE(name, caps_name) \
+	gl::name = (gl::PFNGL##caps_name##OESPROC)SDL_GL_GetProcAddress(PTGN_STRINGIFY_MACRO(gl##name));
+	GL_LIST_2
+#undef GLE
+#define GLE(name, caps_name) \
+	gl::name = (gl::PFNGL##caps_name##EXTPROC)SDL_GL_GetProcAddress(PTGN_STRINGIFY_MACRO(gl##name));
+	GL_LIST_3
+#undef GLE
+
+#else
+
+#define GLE(name, caps_name) \
+	gl::name = (gl::PFNGL##caps_name##PROC)SDL_GL_GetProcAddress(PTGN_STRINGIFY_MACRO(gl##name));
+	GL_LIST_2
+	GL_LIST_3
+#undef GLE
+
+#endif
+
+	// PTGN_LOG("OpenGL Build: ", gl::glGetString(GL_VERSION));
 
 // For debugging which commands were not initialized.
 #define GLE(name, caps_name) \
 	PTGN_ASSERT(gl::name, "Failed to load ", PTGN_STRINGIFY_MACRO(gl::name));
-	GL_LIST
+	GL_LIST_1
+	GL_LIST_2
+	GL_LIST_3
 #undef GLE
 
 // Check that each of the loaded gl functions was found.
 #define GLE(name, caps_name) gl::name&&
-	bool gl_init = GL_LIST true;
+	bool gl_init = GL_LIST_1 GL_LIST_2 GL_LIST_3 true;
 #undef GLE
 	PTGN_ASSERT(gl_init, "Failed to load OpenGL functions");
 	PTGN_INFO("Loaded all OpenGL functions");

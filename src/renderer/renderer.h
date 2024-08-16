@@ -20,8 +20,15 @@
 // while maintaining batching and permitting alpha blending (depth testing requires turning alpha
 // blending off).
 
-#define PTGN_OPENGL_MAJOR_VERSION 3
-#define PTGN_OPENGL_MINOR_VERSION 3
+// clang-format off
+#define PTGN_SHADER_STRINGIFY_MACRO(x) PTGN_STRINGIFY_MACRO(x)
+
+#ifdef __EMSCRIPTEN__
+#define PTGN_SHADER_PATH(file) PTGN_SHADER_STRINGIFY_MACRO(PTGN_EXPAND_MACRO(shader/es/)PTGN_EXPAND_MACRO(file))
+#else
+#define PTGN_SHADER_PATH(file) PTGN_SHADER_STRINGIFY_MACRO(PTGN_EXPAND_MACRO(shader/core/)PTGN_EXPAND_MACRO(file))
+#endif
+// clang-format on
 
 namespace ptgn {
 
@@ -138,15 +145,15 @@ struct LineData : public ShapeData<ColorVertex, 2, 2> {};
 
 struct TriangleData : public ShapeData<ColorVertex, 3, 3> {};
 
-[[nodiscard]] void OffsetVertices(
+void OffsetVertices(
 	std::array<V2_float, QuadData::vertex_count>& vertices, const V2_float& size, Origin draw_origin
 );
 
-[[nodiscard]] void FlipTextureCoordinates(
+void FlipTextureCoordinates(
 	std::array<V2_float, QuadData::vertex_count>& texture_coords, Flip flip
 );
 
-[[nodiscard]] void RotateVertices(
+void RotateVertices(
 	std::array<V2_float, QuadData::vertex_count>& vertices, const V2_float& position,
 	const V2_float& size, float rotation, const V2_float& rotation_center
 );
@@ -165,7 +172,7 @@ public:
 	std::vector<T> batch_;
 	std::int32_t index_{ -1 };
 
-	constexpr static const std::size_t batch_count_	 = 20000;
+	constexpr static const std::size_t batch_count_	 = 2000;
 	constexpr static const std::size_t max_vertices_ = batch_count_ * T::vertex_count;
 	constexpr static const std::size_t max_indices_	 = batch_count_ * T::index_count;
 
@@ -181,17 +188,7 @@ public:
 		return index_ == -1;
 	}
 
-	void Draw() {
-		PTGN_ASSERT(index_ != -1);
-		// Sort by z-index before sending to GPU.
-		std::sort(batch_.begin(), batch_.begin() + index_ + 1, [](const T& a, const T& b) {
-			return a.GetZIndex() < b.GetZIndex();
-		});
-		buffer_.SetSubData(batch_.data(), static_cast<std::uint32_t>(index_ + 1) * sizeof(T));
-		shader_.Bind();
-		GLRenderer::DrawElements(array_, (index_ + 1) * T::index_count);
-		index_ = -1;
-	}
+	void Draw();
 };
 
 class RendererData {

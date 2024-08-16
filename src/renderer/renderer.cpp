@@ -94,6 +94,7 @@ std::vector<Triangle<float>> TriangulateProcess(const V2_float* contour, std::si
 		return result;
 	}
 
+	// TODO: Move to using std::vector.
 	int* V = new int[n];
 
 	/* we want a counter-clockwise polygon in V */
@@ -158,7 +159,8 @@ std::vector<Triangle<float>> TriangulateProcess(const V2_float* contour, std::si
 		}
 	}
 
-	delete V;
+	// TODO: Move to using std::vector.
+	delete[] V;
 
 	return result;
 }
@@ -191,6 +193,47 @@ void CircleData::Add(
 		vertices_[i].line_width		= { line_width };
 		vertices_[i].fade			= { fade };
 	}
+}
+
+template <typename T>
+void DrawImpl(
+	std::vector<T>& batch_, std::int32_t& index_, const VertexArray& array_, VertexBuffer& buffer_,
+	const Shader& shader_
+) {
+	PTGN_ASSERT(index_ != -1);
+	// Sort by z-index before sending to GPU.
+	std::sort(batch_.begin(), batch_.begin() + index_ + 1, [](const T& a, const T& b) {
+		return a.GetZIndex() < b.GetZIndex();
+	});
+	buffer_.SetSubData(batch_.data(), static_cast<std::uint32_t>(index_ + 1) * sizeof(T));
+	shader_.Bind();
+	GLRenderer::DrawElements(array_, (index_ + 1) * T::index_count);
+	index_ = -1;
+}
+
+template <>
+inline void BatchData<QuadData>::Draw() {
+	DrawImpl(batch_, index_, array_, buffer_, shader_);
+}
+
+template <>
+inline void BatchData<CircleData>::Draw() {
+	DrawImpl(batch_, index_, array_, buffer_, shader_);
+}
+
+template <>
+inline void BatchData<PointData>::Draw() {
+	DrawImpl(batch_, index_, array_, buffer_, shader_);
+}
+
+template <>
+inline void BatchData<LineData>::Draw() {
+	DrawImpl(batch_, index_, array_, buffer_, shader_);
+}
+
+template <>
+inline void BatchData<TriangleData>::Draw() {
+	DrawImpl(batch_, index_, array_, buffer_, shader_);
 }
 
 RendererData::RendererData() {
@@ -303,28 +346,28 @@ void RendererData::SetupShaders() {
 
 	quad_.shader_ = Shader(
 		ShaderSource{
-#include "shaders/quad.vert"
+#include PTGN_SHADER_PATH(quad.vert)
 		},
 		ShaderSource{
-#include "shaders/quad.frag"
+#include PTGN_SHADER_PATH(quad.frag)
 		}
 	);
 
 	circle_.shader_ = Shader(
 		ShaderSource{
-#include "shaders/circle.vert"
+#include PTGN_SHADER_PATH(circle.vert)
 		},
 		ShaderSource{
-#include "shaders/circle.frag"
+#include PTGN_SHADER_PATH(circle.frag)
 		}
 	);
 
 	point_.shader_ = Shader(
 		ShaderSource{
-#include "shaders/color.vert"
+#include PTGN_SHADER_PATH(color.vert)
 		},
 		ShaderSource{
-#include "shaders/color.frag"
+#include PTGN_SHADER_PATH(color.frag)
 		}
 	);
 

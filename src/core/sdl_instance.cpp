@@ -6,7 +6,7 @@
 #include "SDL_image.h"
 #include "SDL_mixer.h"
 #include "SDL_ttf.h"
-#include "renderer/renderer.h"
+#include "renderer/gl_renderer.h"
 #include "utility/debug.h"
 
 inline std::ostream& operator<<(std::ostream& os, const SDL_version& v) {
@@ -40,8 +40,7 @@ SDLInstance::~SDLInstance() {
 }
 
 void SDLInstance::InitSDL() {
-	std::uint32_t sdl_flags{ SDL_INIT_AUDIO | SDL_INIT_EVENTS | SDL_INIT_TIMER | SDL_INIT_VIDEO |
-							 SDL_VIDEO_OPENGL };
+	std::uint32_t sdl_flags{ SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS | SDL_INIT_TIMER };
 	if (SDL_WasInit(sdl_flags) == sdl_flags) {
 		// TODO: Temporary message.
 		PTGN_INFO("Not going to try to initialize SDL2 again");
@@ -65,7 +64,7 @@ void SDLInstance::InitSDL() {
 
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, PTGN_OPENGL_MAJOR_VERSION);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, PTGN_OPENGL_MINOR_VERSION);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, PTGN_OPENGL_CONTEXT_PROFILE);
 }
 
 void SDLInstance::InitSDLImage() {
@@ -102,6 +101,10 @@ void SDLInstance::InitSDLTTF() {
 void SDLInstance::InitSDLMixer() {
 	int mixer_flags{ MIX_INIT_MP3 | MIX_INIT_OGG | MIX_INIT_OPUS |
 					 MIX_INIT_WAVPACK /* | MIX_INIT_FLAC | MIX_INIT_MOD | MIX_INIT_MID*/ };
+
+#ifdef __EMSCRIPTEN__
+	mixer_flags = { MIX_INIT_OGG };
+#endif
 
 	if (Mix_Init(0) == mixer_flags) {
 		// TODO: Temporary message.

@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <variant>
+#include <vector>
 
 #include "core/gl_context.h"
 #include "core/resource_managers.h"
@@ -14,6 +15,12 @@
 #include "utility/profiling.h"
 
 namespace ptgn {
+
+namespace impl {
+
+static void EmscriptenLoop(void* data);
+
+} // namespace impl
 
 class Game {
 public:
@@ -61,90 +68,46 @@ public:
 public:
 	using UpdateFunction = std::variant<std::function<void()>, std::function<void(float dt)>>;
 
-	void LoopUntilKeyDown(const std::vector<Key>& any_of_keys, const UpdateFunction& loop_function);
-	void LoopUntilQuit(const UpdateFunction& loop_function);
+	void PushLoopFunction(const UpdateFunction& loop_function);
+	void PopLoopFunction();
+
+	[[nodiscard]] std::size_t LoopFunctionCount() const {
+		return update_stack_.size();
+	}
 
 	// Optional: pass in constructor arguments for the TStartScene.
 	template <typename TStartScene, typename... TArgs>
 	void Start(TArgs&&... constructor_args) {
 		running_ = true;
+
+		// Always quit on window quit.
+		event.window.Subscribe(
+			WindowEvent::Quit, (void*)this,
+			std::function([&](const WindowQuitEvent& e) { PopLoopFunction(); })
+		);
+
 		scene.StartScene<TStartScene>(
 			impl::start_scene_key, std::forward<TArgs>(constructor_args)...
 		);
-		// Design decision: Latest possible point to show window is right before
-		// loop starts. Comment this if you wish the window to appear hidden for an
-		// indefinite period of time.
-		window.Show();
-		while (running_) {
-			MainLoop();
-		}
+
+		PushLoopFunction([&](float dt) { scene.Update(dt); });
+
+		MainLoop();
+
+		event.window.Unsubscribe((void*)this);
 		Reset();
 	}
 
 	void Stop();
 
 private:
-	void Reset();
+	friend void impl::EmscriptenLoop(void* data);
 
 	void MainLoop();
-	void LoopFunction(const UpdateFunction& loop_function);
-	void Update(const UpdateFunction& loop_function, int& condition);
+	void Update();
+	void Reset();
 
-	template <typename EventEnum, typename EventType>
-	void LoopUntilEvent(
-		EventDispatcher<EventEnum>& dispatcher, const std::vector<EventEnum>& events,
-		const std::function<bool(const EventType&)> exit_condition_function,
-		const UpdateFunction& loop_function
-	) {
-		int condition = true;
-
-		constexpr bool is_window_quit{ std::is_same_v<EventType, WindowQuitEvent> };
-
-		if constexpr (!is_window_quit) {
-			for (const EventEnum& event_enum : events) {
-				dispatcher.Subscribe(
-					event_enum, (void*)&condition, std::function([&](const EventType& e) {
-						if (exit_condition_function(e)) {
-							condition = false;
-						}
-					})
-				);
-			}
-		}
-
-		// Always quit on window quit.
-		event.window.Subscribe(
-			WindowEvent::Quit, (void*)&condition,
-			std::function([&](const WindowQuitEvent& e) { condition = false; })
-		);
-
-		// Optional: Update window while it is being dragged. Upside: No rendering artefacts;
-		// Downside: window dragging becomes laggier. If enabling this, it is adviseable to change
-		// Renderer constructor such that the renderer viewport is updated during window resizing
-		// instead of after it has been resized.
-		/*event.window.Subscribe(
-			WindowEvent::Drag, (void*)&condition,
-			std::function([&](const WindowDragEvent& e) { loop_function(); })
-		);*/
-
-		std::size_t counter{ 0 };
-		auto start{ std::chrono::system_clock::now() };
-		auto end{ std::chrono::system_clock::now() };
-
-		while (running_ && condition) {
-			LoopFunction(loop_function);
-		}
-
-		// Important to clear previous info from input cache (e.g. first time key presses).
-		// Otherwise they might trigger again in the next input.Update().
-		input.Reset();
-
-		event.window.Unsubscribe((void*)&condition);
-
-		if constexpr (!is_window_quit) {
-			dispatcher.Unsubscribe((void*)&condition);
-		}
-	}
+	std::vector<UpdateFunction> update_stack_;
 
 	bool running_{ false };
 };

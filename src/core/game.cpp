@@ -3,6 +3,13 @@
 #include "utility/debug.h"
 #include "utility/platform.h"
 
+#ifdef __EMSCRIPTEN__
+
+#include <emscripten.h>
+#include <emscripten/html5.h>
+
+#endif
+
 #ifdef PTGN_PLATFORM_MACOS
 
 #include <mach-o/dyld.h>
@@ -63,30 +70,22 @@ Game::Game() {
 #endif
 }
 
-void Game::LoopUntilKeyDown(
-	const std::vector<Key>& any_of_keys, const UpdateFunction& loop_function
-) {
-	LoopUntilEvent(
-		game.event.key, { KeyEvent::Down }, std::function([&](const KeyDownEvent& e) -> bool {
-			for (const Key& key : any_of_keys) {
-				if (e.key == key) {
-					return true;
-				}
-			}
-			return false;
-		}),
-		loop_function
-	);
+void Game::PushLoopFunction(const UpdateFunction& loop_function) {
+	// Important to clear previous info from input cache (e.g. first time key presses).
+	// Otherwise they might trigger again in the next input.Update().
+	input.Reset();
+
+	update_stack_.emplace(update_stack_.begin(), loop_function);
 }
 
-void Game::LoopUntilQuit(const UpdateFunction& loop_function) {
-	LoopUntilEvent(
-		game.event.window, { WindowEvent::Quit },
-		std::function([&](const WindowQuitEvent& e) -> bool { return true; }), loop_function
-	);
+void Game::PopLoopFunction() {
+	input.Reset();
+
+	update_stack_.pop_back();
 }
 
 void Game::Stop() {
+	update_stack_.clear();
 	running_ = false;
 }
 
@@ -102,22 +101,44 @@ void Game::Reset() {
 	music	 = {};
 	sound	 = {};
 	font	 = {};
+	tween	 = {};
 	text	 = {};
 	texture	 = {};
 	shader	 = {};
 	profiler = {};
 }
 
-void Game::MainLoop() {
-	static UpdateFunction main = std::function([&](float dt) {
-		renderer.Clear();
-		scene.Update(dt);
-		renderer.Present();
-	});
-	LoopFunction(main);
+namespace impl {
+
+#ifdef __EMSCRIPTEN__
+
+void EmscriptenLoop(void* data) {
+	Game* g = static_cast<Game*>(data);
+	g->Update();
+	if (!g->running_) {
+		emscripten_cancel_main_loop();
+	}
 }
 
-void Game::LoopFunction(const UpdateFunction& loop_function) {
+#endif
+
+} // namespace impl
+
+void Game::MainLoop() {
+	// Design decision: Latest possible point to show window is right before
+	// loop starts. Comment this if you wish the window to appear hidden for an
+	// indefinite period of time.
+	window.Show();
+#ifdef __EMSCRIPTEN__
+	emscripten_set_main_loop_arg(impl::EmscriptenLoop, static_cast<void*>(this), 0, 1);
+#else
+	while (running_) {
+		Update();
+	}
+#endif
+}
+
+void Game::Update() {
 	static std::size_t counter{ 0 };
 	static auto start{ std::chrono::system_clock::now() };
 	static auto end{ std::chrono::system_clock::now() };
@@ -133,11 +154,23 @@ void Game::LoopFunction(const UpdateFunction& loop_function) {
 	scene.GetTopActive().camera.Update();
 	// PTGN_LOG("Loop #", counter);
 
+	if (update_stack_.size() == 0) {
+		running_ = false;
+		return;
+	}
+
+	const auto& loop_function = update_stack_.back();
+
+	game.renderer.Clear();
+
 	if (std::holds_alternative<std::function<void(float)>>(loop_function)) {
 		std::get<std::function<void(float)>>(loop_function)(dt);
 	} else {
 		std::get<std::function<void(void)>>(loop_function)();
 	}
+
+	game.renderer.Present();
+
 	++counter;
 	end = std::chrono::system_clock::now();
 }

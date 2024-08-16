@@ -40,7 +40,11 @@ VertexArray::VertexArray(
 
 std::int32_t VertexArray::BoundId() {
 	std::int32_t id{ 0 };
+#ifdef __EMSCRIPTEN__
+	gl::glGetIntegerv(GL_VERTEX_ARRAY_BINDING_OES, &id);
+#else
 	gl::glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &id);
+#endif
 	PTGN_ASSERT(id >= 0);
 	return id;
 }
