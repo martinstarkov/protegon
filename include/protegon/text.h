@@ -3,11 +3,11 @@
 #include <string>
 #include <variant>
 
-#include "color.h"
-#include "font.h"
-#include "handle.h"
-#include "polygon.h"
-#include "texture.h"
+#include "protegon/color.h"
+#include "protegon/font.h"
+#include "protegon/polygon.h"
+#include "protegon/texture.h"
+#include "utility/handle.h"
 
 struct SDL_Texture;
 
@@ -16,21 +16,15 @@ namespace ptgn {
 namespace impl {
 
 struct TextInstance {
-	TextInstance() = default;
-	TextInstance(
-		const Font& font, const std::string& content, const Color& text_color, FontStyle font_style,
-		FontRenderMode render_mode, const Color& shading_color
-	);
+	TextInstance()	= default;
 	~TextInstance() = default;
 
-	void RecreateTexture();
-
-	std::shared_ptr<SDL_Texture> texture_;
+	Texture texture_;
 	Font font_;
 	std::string content_;
 	Color text_color_;
-	FontStyle font_style_;
-	FontRenderMode render_mode_;
+	FontStyle font_style_{ FontStyle::Normal };
+	FontRenderMode render_mode_{ FontRenderMode::Solid };
 	Color shading_color_;
 	bool visible_{ true };
 };
@@ -73,6 +67,8 @@ public:
 	[[nodiscard]] static V2_int GetSize(const FontOrKey& font, const std::string& content);
 
 private:
+	Texture RecreateTexture();
+
 	[[nodiscard]] static Font GetFont(const FontOrKey& font);
 };
 

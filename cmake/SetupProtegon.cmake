@@ -1,34 +1,48 @@
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/SourcesAndHeaders.cmake")
 
-add_library(protegon STATIC ${PROTEGON_SOURCES} ${PROTEGON_HEADERS})
+if (EMSCRIPTEN)
+add_library(protegon STATIC ${PROTEGON_SOURCES} ${PROTEGON_HEADERS} ${PROTEGON_ES_SHADERS})
+else()
+add_library(protegon STATIC ${PROTEGON_SOURCES} ${PROTEGON_HEADERS} ${PROTEGON_CORE_SHADERS})
+endif()
 
 target_compile_features(protegon PUBLIC cxx_std_17)
 
-include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/ClangFormat.cmake")
-include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CompilerWarnings.cmake")
-include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/SetupSDL2.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CreateSymlink.cmake")
-if (MSVC)
-  include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/MSVCSetup.cmake")
+
+if (NOT EMSCRIPTEN)
+  include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/SetupSDL2.cmake")
+  if (MSVC)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/MSVCSetup.cmake")
+  endif()
+  include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CompilerWarnings.cmake")
+  include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CompilerSettings.cmake")
+  set_project_warnings(protegon)
+  set_compiler_settings(protegon)
 endif()
 
-add_clang_format_target(${PROTEGON_SOURCES} ${PROTEGON_HEADERS})
 
-find_package(OpenGL REQUIRED)
+if (NOT EMSCRIPTEN)
+  find_package(OpenGL REQUIRED)
 
-target_link_libraries(protegon
-  PRIVATE ${OPENGL_LIBRARIES}
-          SDL2::SDL2
-          SDL2_image::SDL2_image
-          SDL2_ttf::SDL2_ttf
-          SDL2_mixer::SDL2_mixer)
+  target_link_libraries(protegon
+    PRIVATE ${OPENGL_LIBRARIES}
+            SDL2::SDL2
+            SDL2_image::SDL2_image
+            SDL2_ttf::SDL2_ttf
+            SDL2_mixer::SDL2_mixer)
+else()
+  set(ECXXFLAGS "-O3 -std=c++17 --use-port=sdl2 --use-port=sdl2_image:formats=bmp,png,xpm,jpg --use-port=sdl2_mixer --use-port=sdl2_ttf")
+  set_target_properties(protegon PROPERTIES LINK_FLAGS "${ECXXFLAGS} -s FULL_ES3=1 -s ALLOW_MEMORY_GROWTH=1 -s WARN_ON_UNDEFINED_SYMBOLS=1 -s NO_EXIT_RUNTIME=1 -s AGGRESSIVE_VARIABLE_ELIMINATION=1")
+  set_target_properties(protegon PROPERTIES COMPILE_FLAGS "${ECXXFLAGS}")
+endif()
 
 target_include_directories(protegon
   PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
          "${CMAKE_CURRENT_SOURCE_DIR}/modules/ecs/include"
          "${CMAKE_CURRENT_SOURCE_DIR}/modules/json/single_include"
          "${CMAKE_CURRENT_SOURCE_DIR}/modules/luple/include"
-  PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+  PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 # Add d to debug static lib files to differentiate them from release
 set_target_properties(protegon PROPERTIES DEBUG_POSTFIX d)
@@ -42,7 +56,7 @@ function(add_protegon_to TARGET)
   #     XCODE_SCHEME_WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
   # endif()
   # Commands for copying dlls to executable directory on Windows.
-  if(WIN32 AND NOT LINK_STATIC_SDL)
+  if(WIN32 AND NOT LINK_STATIC_SDL AND NOT EMSCRIPTEN)
     add_sdl_dll_copy(${TARGET})
   endif()
 

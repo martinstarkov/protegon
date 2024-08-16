@@ -1,19 +1,19 @@
 #include "protegon/vertex_array.h"
 
-#include "gl_loader.h"
-#include "protegon/debug.h"
-#include "protegon/renderer.h"
+#include "renderer/gl_loader.h"
+#include "utility/debug.h"
 
 namespace ptgn {
 
 namespace impl {
 
-VertexArrayInstance::~VertexArrayInstance() {
-	glDeleteVertexArrays(1, &id_);
+VertexArrayInstance::VertexArrayInstance() {
+	gl::GenVertexArrays(1, &id_);
+	PTGN_ASSERT(id_ != 0, "Failed to generate vertex array using OpenGL context");
 }
 
-VertexArrayInstance::VertexArrayInstance(PrimitiveMode mode) : mode_{ mode } {
-	glGenVertexArrays(1, &id_);
+VertexArrayInstance::~VertexArrayInstance() {
+	gl::DeleteVertexArrays(1, &id_);
 }
 
 } // namespace impl
@@ -21,80 +21,127 @@ VertexArrayInstance::VertexArrayInstance(PrimitiveMode mode) : mode_{ mode } {
 VertexArray::VertexArray(
 	PrimitiveMode mode, const VertexBuffer& vertex_buffer, const IndexBuffer& index_buffer
 ) {
-	instance_ = std::shared_ptr<impl::VertexArrayInstance>(new impl::VertexArrayInstance(mode));
-	if (vertex_buffer.IsValid()) {
-		SetVertexBuffer(vertex_buffer);
+	if (!IsValid()) {
+		instance_ = std::make_shared<impl::VertexArrayInstance>();
 	}
+
+	SetPrimitiveMode(mode);
+
+	Bind();
+
+	if (vertex_buffer.IsValid()) {
+		SetVertexBufferImpl(vertex_buffer);
+	}
+
 	if (index_buffer.IsValid()) {
-		SetIndexBuffer(index_buffer);
+		SetIndexBufferImpl(index_buffer);
 	}
 }
 
-VertexArray::VertexArray(const std::shared_ptr<impl::VertexArrayInstance>& instance) :
-	Handle<impl::VertexArrayInstance>{ instance } {}
+std::int32_t VertexArray::BoundId() {
+	std::int32_t id{ 0 };
+#ifdef __EMSCRIPTEN__
+	gl::glGetIntegerv(GL_VERTEX_ARRAY_BINDING_OES, &id);
+#else
+	gl::glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &id);
+#endif
+	PTGN_ASSERT(id >= 0);
+	return id;
+}
 
 void VertexArray::Bind() const {
-	PTGN_CHECK(IsValid(), "Cannot bind uninitialized or destroyed vertex array");
-	glBindVertexArray(instance_->id_);
+	PTGN_ASSERT(IsValid(), "Cannot bind uninitialized or destroyed vertex array");
+	gl::BindVertexArray(instance_->id_);
 }
 
-void VertexArray::Unbind() const {
-	glBindVertexArray(0);
+void VertexArray::Unbind() {
+	gl::BindVertexArray(0);
 }
 
 void VertexArray::SetVertexBuffer(const VertexBuffer& vertex_buffer) {
-	PTGN_CHECK(IsValid(), "Cannot add vertex buffer to uninitialized or destroyed vertex array");
-	const BufferLayout& layout = vertex_buffer.GetLayout();
+	if (!IsValid()) {
+		instance_ = std::make_shared<impl::VertexArrayInstance>();
+	}
+
+	Bind();
+
+	SetVertexBufferImpl(vertex_buffer);
+}
+
+void VertexArray::SetVertexBufferImpl(const VertexBuffer& vertex_buffer) {
+	PTGN_ASSERT(IsValid(), "Cannot add vertex buffer to uninitialized or destroyed vertex array");
+	PTGN_ASSERT(static_cast<std::uint32_t>(BoundId()) == instance_->id_);
 	PTGN_ASSERT(
-		!layout.IsEmpty(),
+		vertex_buffer.IsValid(), "Cannot set vertex buffer which is uninitialized or destroyed"
+	);
+	PTGN_ASSERT(
+		!vertex_buffer.instance_->layout_.IsEmpty(),
 		"Cannot add a vertex buffer with an empty (unset) layout to a vertex array"
 	);
 
-	glBindVertexArray(instance_->id_);
 	vertex_buffer.Bind();
 
-	const std::vector<BufferElement>& elements = layout.GetElements();
-	for (std::uint32_t i = 0; i < elements.size(); ++i) {
-		const BufferElement& element{ elements[i] };
-		glEnableVertexAttribArray(i);
-		glVertexAttribPointer(
-			i, element.GetCount(), static_cast<GLenum>(element.GetType()),
-			element.IsNormalized() ? GL_TRUE : GL_FALSE, layout.GetStride(),
-			(const void*)element.GetOffset()
-		);
-		// Not required according to: https://stackoverflow.com/a/12428035
-		// glDisableVertexAttribArray(i);
-	}
+	const std::vector<impl::BufferElement>& elements =
+		vertex_buffer.instance_->layout_.GetElements();
 
-	vertex_buffer.Unbind();
+	std::int32_t max_attributes{ 0 };
+	gl::glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max_attributes);
+
+	PTGN_ASSERT(elements.size() < max_attributes, "Too many vertex attributes");
+
+	for (std::uint32_t i = 0; i < elements.size(); ++i) {
+		const impl::BufferElement& element{ elements[i] };
+		gl::EnableVertexAttribArray(i);
+		gl::VertexAttribPointer(
+			i, element.count, static_cast<gl::GLenum>(element.type),
+			element.normalized ? GL_TRUE : GL_FALSE, vertex_buffer.instance_->layout_.GetStride(),
+			(const void*)element.offset
+		);
+	}
 
 	instance_->vertex_buffer_ = vertex_buffer;
 }
 
 void VertexArray::SetIndexBuffer(const IndexBuffer& index_buffer) {
-	PTGN_CHECK(IsValid(), "Cannot set vertex buffer of uninitialized or destroyed vertex array");
-	glBindVertexArray(instance_->id_);
+	if (!IsValid()) {
+		instance_ = std::make_shared<impl::VertexArrayInstance>();
+	}
+
+	Bind();
+
+	SetIndexBufferImpl(index_buffer);
+}
+
+void VertexArray::SetIndexBufferImpl(const IndexBuffer& index_buffer) {
+	PTGN_ASSERT(IsValid(), "Cannot set index buffer of uninitialized or destroyed vertex array");
+	PTGN_ASSERT(
+		index_buffer.IsValid(), "Cannot set index buffer which is uninitialized or destroyed"
+	);
+	PTGN_ASSERT(static_cast<std::uint32_t>(BoundId()) == instance_->id_);
 	index_buffer.Bind();
 	instance_->index_buffer_ = index_buffer;
 }
 
+void VertexArray::SetPrimitiveMode(PrimitiveMode mode) {
+	if (!IsValid()) {
+		instance_ = std::make_shared<impl::VertexArrayInstance>();
+	}
+	PTGN_ASSERT(IsValid(), "Cannot set primitive mode of uninitialized or destroyed vertex array");
+	instance_->mode_ = mode;
+}
+
 const VertexBuffer& VertexArray::GetVertexBuffer() const {
-	PTGN_CHECK(IsValid(), "Cannot get vertex buffer of uninitialized or destroyed vertex array");
+	PTGN_ASSERT(IsValid(), "Cannot get vertex buffer of uninitialized or destroyed vertex array");
 	return instance_->vertex_buffer_;
 }
 
 const IndexBuffer& VertexArray::GetIndexBuffer() const {
-	PTGN_CHECK(IsValid(), "Cannot get index buffer of uninitialized or destroyed vertex array");
+	PTGN_ASSERT(IsValid(), "Cannot get index buffer of uninitialized or destroyed vertex array");
 	return instance_->index_buffer_;
 }
 
-void VertexArray::SetPrimitiveMode(PrimitiveMode mode) {
-	PTGN_CHECK(IsValid(), "Cannot set primitive mode of uninitialized or destroyed vertex array");
-	instance_->mode_ = mode;
-}
-
 PrimitiveMode VertexArray::GetPrimitiveMode() const {
-	PTGN_CHECK(IsValid(), "Cannot get primitive mode of uninitialized or destroyed vertex array");
+	PTGN_ASSERT(IsValid(), "Cannot get primitive mode of uninitialized or destroyed vertex array");
 	return instance_->mode_;
 }
 

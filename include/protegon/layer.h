@@ -1,14 +1,14 @@
 #pragma once
 
 #include "ecs/ecs.h"
-#include "file.h"
-#include "grid.h"
-#include "hash.h"
-#include "polygon.h"
-#include "protegon/debug.h"
-#include "resources.h"
-#include "texture.h"
-#include "vector2.h"
+#include "protegon/file.h"
+#include "protegon/game.h"
+#include "protegon/grid.h"
+#include "protegon/hash.h"
+#include "protegon/polygon.h"
+#include "protegon/texture.h"
+#include "protegon/vector2.h"
+#include "utility/debug.h"
 
 namespace ptgn {
 
@@ -28,15 +28,15 @@ public:
 
 	Tile(const Rectangle<int>& rect) : rect{ rect } {}
 
-	Tile(std::size_t texture_key, const Rectangle<int>& source) :
-		source{ source } {
-		PTGN_CHECK(texture::Has(texture_key));
-		texture = texture::Get(texture_key);
+	Tile(std::size_t texture_key, const Rectangle<int>& source) : source{ source } {
+		PTGN_ASSERT(game.texture.Has(texture_key));
+		texture = game.texture.Get(texture_key);
 	}
 
 	void Draw() const {
 		if (texture.IsValid()) {
-			texture.Draw(rect, source);
+			// TODO: Fix
+			// texture.Draw(rect, source);
 		}
 	}
 
@@ -50,22 +50,23 @@ private:
 
 class TileLayer : public Grid<impl::Tile> {
 public:
+	// TOOD: Change to take path.
 	TileLayer(
-		const char* tileset_path, const V2_int& tile_size,
-		const V2_int& grid_size, const V2_float& scale
+		const char* tileset_path, const V2_int& tile_size, const V2_int& grid_size,
+		const V2_float& scale
 	) :
 		Grid<impl::Tile>{ grid_size },
 		texture_key{ Hash(tileset_path) },
 		tile_size{ tile_size },
 		scale{ scale },
 		scaled_tile_size{ scale * tile_size } {
-		PTGN_CHECK(FileExists(tileset_path));
-		texture::Load(texture_key, tileset_path);
+		PTGN_ASSERT(FileExists(tileset_path));
+		// TODO: Fix
+		// texture::Load(texture_key, tileset_path);
 		for (int i = 0; i < size.x; i++) {
 			for (int j = 0; j < size.y; j++) {
 				V2_int tile{ i, j };
-				Rectangle<int> rect{ tile * grid_size * scaled_tile_size,
-									 scaled_tile_size };
+				Rectangle<int> rect{ tile * grid_size * scaled_tile_size, scaled_tile_size };
 				Set(tile, impl::Tile{ rect });
 			}
 		}

@@ -3,10 +3,25 @@
 #include <cstdint>
 
 #include "file.h"
-#include "handle.h"
+#include "utility/handle.h"
 
 struct _TTF_Font;
 using TTF_Font = _TTF_Font;
+
+// class Font
+//	{
+//	public:
+//		Font(const std::filesystem::path& font);
+//		~Font();
+//
+//		const MSDFData* GetMSDFData() const { return m_Data; }
+//		Ref<Texture2D> GetAtlasTexture() const { return m_AtlasTexture; }
+//
+//		static Ref<Font> GetDefault();
+//	private:
+//		MSDFData* m_Data;
+//		Ref<Texture2D> m_AtlasTexture;
+//	};
 
 namespace ptgn {
 
@@ -27,9 +42,7 @@ enum class FontRenderMode : int {
 class Font : public Handle<TTF_Font> {
 public:
 	Font() = default;
-	Font(
-		const path& font_path, std::int32_t point_size, std::int32_t index = 0
-	);
+	Font(const path& font_path, std::int32_t point_size, std::int32_t index = 0);
 
 	[[nodiscard]] std::int32_t GetHeight() const;
 };

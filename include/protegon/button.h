@@ -4,21 +4,21 @@
 #include <tuple>
 #include <variant>
 
-#include "event.h"
-#include "events.h"
-#include "polygon.h"
-#include "resources.h"
-#include "texture.h"
-#include "type_traits.h"
+#include "protegon/event.h"
+#include "protegon/events.h"
+#include "protegon/polygon.h"
+#include "protegon/texture.h"
+#include "protegon/game.h"
+#include "utility/type_traits.h"
 
 namespace ptgn {
 
 using TextureOrKey = std::variant<Texture, TextureKey>;
 
 enum class ButtonState : std::size_t {
-	DEFAULT = 0,
-	HOVER	= 1,
-	PRESSED = 2
+	Default = 0,
+	Hover	= 1,
+	Pressed = 2
 };
 
 template <size_t I>
@@ -59,7 +59,7 @@ public:
 	virtual void SubscribeToMouseEvents() final;
 	virtual void UnsubscribeFromMouseEvents() final;
 
-	virtual void OnMouseEvent(const Event<MouseEvent>& event);
+	virtual void OnMouseEvent(MouseEvent type, const Event& event);
 	virtual void OnMouseMove(const MouseMoveEvent& e);
 	virtual void OnMouseMoveOutside(const MouseMoveEvent& e);
 	virtual void OnMouseEnter(const MouseMoveEvent& e);
@@ -78,19 +78,19 @@ public:
 
 protected:
 	enum class InternalButtonState : std::size_t {
-		IDLE_UP		  = 0,
-		HOVER		  = 1,
-		PRESSED		  = 2,
-		HELD_OUTSIDE  = 3,
-		IDLE_DOWN	  = 4,
-		HOVER_PRESSED = 5
+		IdleUp		 = 0,
+		Hover		 = 1,
+		Pressed		 = 2,
+		HeldOutside  = 3,
+		IdleDown	 = 4,
+		HoverPressed = 5
 	};
 
 	Rectangle<float> rect_;
 	std::function<void()> on_activate_;
 	std::function<void()> on_hover_start_;
 	std::function<void()> on_hover_stop_;
-	InternalButtonState button_state_{ InternalButtonState::IDLE_UP };
+	InternalButtonState button_state_{ InternalButtonState::IdleUp };
 	bool enabled_{ true };
 };
 

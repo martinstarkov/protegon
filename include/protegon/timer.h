@@ -2,7 +2,8 @@
 
 #include <algorithm>
 
-#include "time.h"
+#include "utility/time.h"
+#include "utility/type_traits.h"
 
 namespace ptgn {
 
@@ -42,15 +43,15 @@ public:
 		type_traits::duration<Duration>						= true,
 		std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
 	[[nodiscard]] T ElapsedPercentage(Duration compared_to) const {
-		std::chrono::duration<T, typename Duration::period> elapsed_time{
-			Elapsed<std::chrono::duration<T, typename Duration::period>>() /
+		duration<T, typename Duration::period> elapsed_time{
+			Elapsed<duration<T, typename Duration::period>>() /
 			compared_to
 		};
 		T percentage{ std::clamp(
-			elapsed_time.count(), static_cast<T>(0), static_cast<T>(1)
+			elapsed_time.count(), T{ 0 }, T{ 1 }
 		) };
 		PTGN_ASSERT(
-			percentage >= static_cast<T>(0) && percentage <= static_cast<T>(1),
+			percentage >= T{ 0 } && percentage <= T{ 1 },
 			"Elapsed countdown percentage cannot be outside the 0.0 to 1.0 "
 			"range"
 		);

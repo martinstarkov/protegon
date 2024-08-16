@@ -1,220 +1,156 @@
-#include "protegon/window.h"
+#include "core/window.h"
 
-#include <SDL.h>
-
-#include "core/game.h"
-#include "protegon/input.h"
+#include "SDL.h"
+#include "utility/debug.h"
 
 namespace ptgn {
 
-namespace screen {
+namespace impl {
 
-V2_int GetSize() {
-	SDL_DisplayMode dm;
-	if (SDL_GetDesktopDisplayMode(0, &dm) != 0) {
-		SDL_Log("SDL_GetDesktopDisplayMode failed: %s", SDL_GetError());
-		PTGN_ASSERT(!"Failed to retrieve screen size");
-	}
-	return V2_int{ dm.w, dm.h };
+void WindowDeleter::operator()(SDL_Window* window) {
+	SDL_DestroyWindow(window);
+	PTGN_INFO("Destroyed SDL2 window");
 }
 
-} // namespace screen
+} // namespace impl
 
-namespace window {
-
-void SwapBuffers() {
-	SDL_GL_SwapWindow(global::GetGame().sdl.GetWindow().get());
+Window::Window() {
+	window_.reset(SDL_CreateWindow("", 0, 0, 0, 0, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN));
+	PTGN_ASSERT(window_ != nullptr, SDL_GetError());
+	PTGN_INFO("Created SDL2 window");
 }
 
-void SetupSize(
-	const V2_int& resolution, const V2_int& minimum_resolution, bool fullscreen, bool borderless,
-	bool resizeable, const V2_float& scale
-) {
-	window::SetMinimumSize(minimum_resolution);
-	window::SetFullscreen(fullscreen);
-	window::SetScale(scale);
-	window::SetResolution(resolution);
-
-	if (!fullscreen) {
-		window::SetBorderless(borderless);
-		if (borderless) {
-			window::SetSize(screen::GetSize());
-		} else {
-			window::SetSize(resolution);
-			window::SetResizeable(resizeable);
-		}
-	}
+void Window::SwapBuffers() {
+	SDL_GL_SwapWindow(window_.get());
 }
 
-void SetScale(const V2_float& scale) {
-	auto& sdl{ global::GetGame().sdl };
-	sdl.SetScale(scale);
-	// Ensure mouse position matches latest window scale.
-	global::GetGame().input.ForceUpdateMousePosition();
-}
-
-V2_float GetScale() {
-	PTGN_ASSERT(Exists(), "Cannot get scale of nonexistent window");
-	return global::GetGame().sdl.GetScale();
-}
-
-bool Exists() {
-	return global::GetGame().sdl.WindowExists();
-}
-
-void Clear() {
-	SDL_RenderClear(global::GetGame().sdl.GetRenderer().get());
-}
-
-void SetResolution(const V2_int& resolution) {
-	auto& sdl{ global::GetGame().sdl };
-	sdl.SetResolution(resolution);
-	// SDL_RenderSetIntegerScale(renderer,
-	// static_cast<SDL_bool>(integer_scaling));
-	SDL_RenderSetLogicalSize(sdl.GetRenderer().get(), resolution.x, resolution.y);
-	// Ensure mouse position matches latest window scale.
-	global::GetGame().input.ForceUpdateMousePosition();
-}
-
-void SetMinimumSize(const V2_int& minimum_size) {
-	PTGN_ASSERT(Exists(), "Cannot set minimum size of nonexistent window");
-	SDL_SetWindowMinimumSize(
-		global::GetGame().sdl.GetWindow().get(), minimum_size.x, minimum_size.y
-	);
-}
-
-V2_int GetMinimumSize() {
-	PTGN_ASSERT(Exists(), "Cannot get minimum size of nonexistent window");
-	V2_int minimum_size;
-	SDL_GetWindowMinimumSize(
-		global::GetGame().sdl.GetWindow().get(), &minimum_size.x, &minimum_size.y
-	);
-	return minimum_size;
-}
-
-V2_int GetResolution() {
-	V2_int logical_size;
-	SDL_RenderGetLogicalSize(
-		global::GetGame().sdl.GetRenderer().get(), &logical_size.x, &logical_size.y
-	);
-	return logical_size;
-}
-
-V2_int GetSize() {
+V2_int Window::GetSize() {
 	PTGN_ASSERT(Exists(), "Cannot get size of nonexistent window");
 	V2_int size;
-	SDL_GL_GetDrawableSize(global::GetGame().sdl.GetWindow().get(), &size.x, &size.y);
+	SDL_GL_GetDrawableSize(window_.get(), &size.x, &size.y);
 	return size;
 }
 
-V2_int GetOriginPosition() {
+V2_float Window::GetCenter() {
+	return GetSize() / 2.0f;
+}
+
+V2_int Screen::GetSize() {
+	SDL_DisplayMode dm;
+	int result = SDL_GetDesktopDisplayMode(0, &dm);
+	PTGN_ASSERT(result == 0, "Failed to retrieve screen size: ", SDL_GetError());
+	return V2_int{ dm.w, dm.h };
+}
+
+void Window::SetupSize(
+	const V2_int& resolution, const V2_int& minimum_resolution, bool fullscreen, bool borderless,
+	bool resizeable, const V2_float& scale
+) {
+	SetMinimumSize(minimum_resolution);
+	SetFullscreen(fullscreen);
+
+	if (fullscreen) {
+		return;
+	}
+
+	SetBorderless(borderless);
+
+	if (borderless) {
+		SetSize(Screen::GetSize());
+	} else {
+		SetSize(resolution);
+		SetResizeable(resizeable);
+	}
+}
+
+bool Window::Exists() {
+	return window_ != nullptr;
+}
+
+void Window::SetMinimumSize(const V2_int& minimum_size) {
+	PTGN_ASSERT(Exists(), "Cannot set minimum size of nonexistent window");
+	SDL_SetWindowMinimumSize(window_.get(), minimum_size.x, minimum_size.y);
+}
+
+V2_int Window::GetMinimumSize() {
+	PTGN_ASSERT(Exists(), "Cannot get minimum size of nonexistent window");
+	V2_int minimum_size;
+	SDL_GetWindowMinimumSize(window_.get(), &minimum_size.x, &minimum_size.y);
+	return minimum_size;
+}
+
+V2_int Window::GetOriginPosition() {
 	PTGN_ASSERT(Exists(), "Cannot get origin position of nonexistent window");
 	V2_int origin;
-	SDL_GetWindowPosition(global::GetGame().sdl.GetWindow().get(), &origin.x, &origin.y);
+	SDL_GetWindowPosition(window_.get(), &origin.x, &origin.y);
 	return origin;
 }
 
-const char* GetTitle() {
+const char* Window::GetTitle() {
 	PTGN_ASSERT(Exists(), "Cannot get title of nonexistent window");
-	return SDL_GetWindowTitle(global::GetGame().sdl.GetWindow().get());
+	return SDL_GetWindowTitle(window_.get());
 }
 
-Color GetColor() {
-	PTGN_ASSERT(Exists(), "Cannot get color of nonexistent window");
-	return global::GetGame().sdl.GetWindowBackgroundColor();
-}
-
-void SetSize(const V2_int& new_size, bool centered) {
+void Window::SetSize(const V2_int& new_size, bool centered) {
 	PTGN_ASSERT(Exists(), "Cannot set size of nonexistent window");
-	SDL_SetWindowSize(global::GetGame().sdl.GetWindow().get(), new_size.x, new_size.y);
+	SDL_SetWindowSize(window_.get(), new_size.x, new_size.y);
 	// Important to center after resizing.
 	if (centered) {
 		Center();
 	}
 }
 
-void SetPosition(const V2_int& new_origin) {
+void Window::SetPosition(const V2_int& new_origin) {
 	PTGN_ASSERT(Exists(), "Cannot set origin position of nonexistent window");
-	SDL_SetWindowPosition(global::GetGame().sdl.GetWindow().get(), new_origin.x, new_origin.y);
+	SDL_SetWindowPosition(window_.get(), new_origin.x, new_origin.y);
 }
 
-void Center() {
+void Window::Center() {
 	SetPosition({ SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED });
 }
 
-void SetTitle(const char* new_title) {
+void Window::SetTitle(const char* new_title) {
 	PTGN_ASSERT(Exists(), "Cannot set title of nonexistent window");
-	return SDL_SetWindowTitle(global::GetGame().sdl.GetWindow().get(), new_title);
+	return SDL_SetWindowTitle(window_.get(), new_title);
 }
 
-void SetFullscreen(bool on) {
+void Window::SetFullscreen(bool on) {
 	PTGN_ASSERT(Exists(), "Cannot toggle nonexistent window fullscreen");
 	if (on) {
-		SDL_SetWindowFullscreen(
-			global::GetGame().sdl.GetWindow().get(), SDL_WINDOW_FULLSCREEN_DESKTOP
-		);
+		SDL_SetWindowFullscreen(window_.get(), SDL_WINDOW_FULLSCREEN_DESKTOP);
 	} else {
-		SDL_SetWindowFullscreen(global::GetGame().sdl.GetWindow().get(), 0); // windowed mode.
+		SDL_SetWindowFullscreen(window_.get(), 0); // windowed mode.
 	}
 }
 
-void SetResizeable(bool on) {
+void Window::SetResizeable(bool on) {
 	PTGN_ASSERT(Exists(), "Cannot toggle nonexistent window resizeability");
-	SDL_SetWindowResizable(global::GetGame().sdl.GetWindow().get(), static_cast<SDL_bool>(on));
+	SDL_SetWindowResizable(window_.get(), static_cast<SDL_bool>(on));
 }
 
-void SetBorderless(bool on) {
+void Window::SetBorderless(bool on) {
 	PTGN_ASSERT(Exists(), "Cannot toggle nonexistent window bordered");
-	SDL_SetWindowBordered(global::GetGame().sdl.GetWindow().get(), static_cast<SDL_bool>(!on));
+	SDL_SetWindowBordered(window_.get(), static_cast<SDL_bool>(!on));
 }
 
-void SetColor(const Color& new_color) {
-	PTGN_ASSERT(Exists(), "Cannot set color of nonexistent window");
-	global::GetGame().sdl.SetWindowBackgroundColor(new_color);
-}
-
-void Maximize() {
+void Window::Maximize() {
 	PTGN_ASSERT(Exists(), "Cannot maximize nonexistent window");
-	auto& sdl{ global::GetGame().sdl };
-	SDL_MaximizeWindow(sdl.GetWindow().get());
-	// TODO: Check if this is necessary.
-	sdl.SetScale(sdl.GetScale());
+	SDL_MaximizeWindow(window_.get());
 }
 
-void Minimize() {
+void Window::Minimize() {
 	PTGN_ASSERT(Exists(), "Cannot minimize nonexistent window");
-	SDL_MinimizeWindow(global::GetGame().sdl.GetWindow().get());
+	SDL_MinimizeWindow(window_.get());
 }
 
-void Show() {
+void Window::Show() {
 	PTGN_ASSERT(Exists(), "Cannot show nonexistent window");
-	SDL_ShowWindow(global::GetGame().sdl.GetWindow().get());
+	SDL_ShowWindow(window_.get());
 }
 
-void Hide() {
+void Window::Hide() {
 	PTGN_ASSERT(Exists(), "Cannot hide nonexistent window");
-	SDL_HideWindow(global::GetGame().sdl.GetWindow().get());
+	SDL_HideWindow(window_.get());
 }
-
-void RepeatUntilQuit(std::function<void()> while_not_quit) {
-	Game& game = global::GetGame();
-
-	bool running = true;
-
-	game.event.window_event.Subscribe((void*)&running, [&](const Event<WindowEvent>& event) {
-		if (event.Type() == WindowEvent::QUIT) {
-			running = false;
-		}
-	});
-
-	while (running) {
-		input::Update();
-		while_not_quit();
-	}
-
-	game.event.window_event.Unsubscribe((void*)&running);
-}
-
-} // namespace window
 
 } // namespace ptgn

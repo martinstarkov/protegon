@@ -3,14 +3,15 @@
 #include <fstream>
 #include <sstream>
 
-#include "protegon/debug.h"
+#include "utility/debug.h"
 
 namespace ptgn {
 
 std::string FileToString(const path& file) {
 	// Source: https://stackoverflow.com/a/2602258
 	std::ifstream f(file, std::ios::in | std::ios::binary);
-	PTGN_CHECK(f, "Could not open file to convert it to string");
+	// TODO: Add further checks for file being opened correctly.
+	PTGN_ASSERT(f, "Could not open file to convert it to string");
 	std::stringstream buffer;
 	buffer << f.rdbuf();
 	return buffer.str();

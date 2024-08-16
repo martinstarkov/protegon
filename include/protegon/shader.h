@@ -3,13 +3,13 @@
 #include <cstdint>
 #include <functional>
 #include <string>
-#include <string_view>
 #include <unordered_map>
 
-#include "protegon/debug.h"
 #include "protegon/file.h"
-#include "protegon/handle.h"
-#include "protegon/type_traits.h"
+#include "protegon/matrix4.h"
+#include "utility/debug.h"
+#include "utility/handle.h"
+#include "utility/type_traits.h"
 
 namespace ptgn {
 
@@ -17,17 +17,14 @@ class Shader;
 
 namespace impl {
 
-std::string_view GetShaderTypeName(std::uint32_t type);
-
-using Id = std::uint32_t;
+std::string GetShaderTypeName(std::uint32_t type);
 
 struct ShaderInstance {
-	ShaderInstance() = default;
+	ShaderInstance();
 	~ShaderInstance();
-	ShaderInstance(Id program_id);
-	// Cache should not prevent const calls.
+	// Location cache should not prevent const calls.
 	mutable std::unordered_map<std::string, std::int32_t> location_cache_;
-	Id program_id_{ 0 };
+	std::uint32_t id_{ 0 };
 };
 
 } // namespace impl
@@ -46,38 +43,47 @@ struct ShaderSource {
 
 class Shader : public Handle<impl::ShaderInstance> {
 public:
-	Shader() = default;
+	Shader()  = default;
+	~Shader() = default;
 
 	Shader(const ShaderSource& vertex_shader, const ShaderSource& fragment_shader);
 	Shader(const path& vertex_shader_path, const path& fragment_shader_path);
 
-	void WhileBound(std::function<void()> func);
+	// void WhileBound(const std::function<void()>& func) const;
 
-	void SetUniform(const std::string& name, float v0);
-	void SetUniform(const std::string& name, float v0, float v1);
-	void SetUniform(const std::string& name, float v0, float v1, float v2);
-	void SetUniform(const std::string& name, float v0, float v1, float v2, float v3);
-	void SetUniform(const std::string& name, std::int32_t v0);
+	void SetUniform(const std::string& name, const std::int32_t* data, std::size_t count) const;
+	void SetUniform(const std::string& name, const float* data, std::size_t count) const;
+	void SetUniform(const std::string& name, const Vector2<float>& v) const;
+	void SetUniform(const std::string& name, const Vector3<float>& v) const;
+	void SetUniform(const std::string& name, const Vector4<float>& v) const;
+	void SetUniform(const std::string& name, const Matrix4<float>& m) const;
+	void SetUniform(const std::string& name, float v0) const;
+	void SetUniform(const std::string& name, float v0, float v1) const;
+	void SetUniform(const std::string& name, float v0, float v1, float v2) const;
+	void SetUniform(const std::string& name, float v0, float v1, float v2, float v3) const;
+	void SetUniform(const std::string& name, const Vector2<std::int32_t>& v) const;
+	void SetUniform(const std::string& name, const Vector3<std::int32_t>& v) const;
+	void SetUniform(const std::string& name, const Vector4<std::int32_t>& v) const;
+	void SetUniform(const std::string& name, std::int32_t v0) const;
 	// Behaves identically to SetUniform(name, std::int32_t).
-	void SetUniform(const std::string& name, bool value);
-	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1);
-	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2);
+	void SetUniform(const std::string& name, bool value) const;
+	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1) const;
+	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2)
+		const;
 	void SetUniform(
 		const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2, std::int32_t v3
-	);
+	) const;
+
+	void Bind() const;
+
+private:
+	static std::int32_t BoundId();
+	// static void Unbind();
 
 	[[nodiscard]] std::int32_t GetUniformLocation(const std::string& name) const;
 
-	void Bind() const;
-	void Unbind() const;
+	void CompileProgram(const std::string& vertex_shader, const std::string& fragment_shader);
 
-private:
-	void Create(const std::string& vertex_shader_source, const std::string& fragment_shader_source);
-	[[nodiscard]] impl::Id GetProgramId() const;
-	// Returns program id.
-	[[nodiscard]] impl::Id CompileProgram(
-		const std::string& vertex_shader, const std::string& fragment_shader
-	);
 	// Returns shader id.
 	[[nodiscard]] std::uint32_t CompileShader(std::uint32_t type, const std::string& source);
 };

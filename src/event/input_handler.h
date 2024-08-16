@@ -5,14 +5,26 @@
 #include <cstdlib>
 #include <tuple>
 
-#include "protegon/key.h"
-#include "protegon/mouse.h"
+#include "event/key.h"
+#include "event/mouse.h"
 #include "protegon/timer.h"
 #include "protegon/vector2.h"
 
+union SDL_Event;
+
 namespace ptgn {
 
-struct InputHandler {
+class Game;
+
+class InputHandler {
+private:
+	InputHandler();
+	~InputHandler();
+	InputHandler(const InputHandler&)			 = delete;
+	InputHandler(InputHandler&&)				 = default;
+	InputHandler& operator=(const InputHandler&) = delete;
+	InputHandler& operator=(InputHandler&&)		 = default;
+
 	// Updates previous mouse states for mouse up and down check.
 	void UpdateMouseState(Mouse button);
 
@@ -21,9 +33,7 @@ struct InputHandler {
 	 * @return Pair of pointers to the mouse state and timer for a given button,
 	 * pair of nullptrs if no such button exists.
 	 */
-	[[nodiscard]] std::pair<MouseState&, Timer&> GetMouseStateAndTimer(
-		Mouse button
-	);
+	[[nodiscard]] std::pair<MouseState&, Timer&> GetMouseStateAndTimer(Mouse button);
 
 	/*
 	 * @param button Mouse enum corresponding to the desired button.
@@ -31,15 +41,28 @@ struct InputHandler {
 	 */
 	[[nodiscard]] MouseState GetMouseState(Mouse button) const;
 
+	void Update();
+	void ForceUpdateMousePosition();
+
+public:
 	[[nodiscard]] milliseconds GetMouseHeldTime(Mouse button);
 
-	void Update();
+	/*
+	 * @tparam Duration The unit of time measurement.
+	 * @return True if the mouse button has been held for the given amount of time.
+	 */
+	template <typename Duration, type_traits::duration<Duration> = true>
+	[[nodiscard]] inline bool MouseHeld(Mouse button, Duration time) {
+		const auto held_time{ GetMouseHeldTime(button) };
+		return held_time > time;
+	}
 
-	void ForceUpdateMousePosition();
+	void SetRelativeMouseMode(bool on);
+
 	[[nodiscard]] V2_int GetMousePosition();
 
 	// @return The amount scrolled by the mouse vertically in the current frame,
-	// positive upward, negative downward.
+	// positive upward, negative downward. Zero if no scroll occurred.
 	[[nodiscard]] int GetMouseScroll() const;
 
 	[[nodiscard]] bool MousePressed(Mouse button) const;
@@ -59,20 +82,25 @@ struct InputHandler {
 	[[nodiscard]] bool KeyUp(Key key);
 
 private:
+	friend class Game;
+
+	void Reset();
+
 	// Number of keys stored in the SDL key states array. For creating previous
 	// key states array.
-	static constexpr std::size_t KEY_COUNT{ 512 };
+	static constexpr std::size_t key_count_{ 512 };
 
 	// Previous loop cycle key states for comparison with current.
-	std::bitset<KEY_COUNT> key_states_{};
-	std::bitset<KEY_COUNT> first_time_{};
+	std::bitset<key_count_> key_states_;
+	std::bitset<key_count_> first_time_down_;
+	std::bitset<key_count_> first_time_up_;
 
 	// Mouse states.
-	MouseState left_mouse_{ MouseState::RELEASED };
-	MouseState right_mouse_{ MouseState::RELEASED };
-	MouseState middle_mouse_{ MouseState::RELEASED };
-	V2_int mouse_position;
-	V2_int mouse_scroll;
+	MouseState left_mouse_{ MouseState::Released };
+	MouseState right_mouse_{ MouseState::Released };
+	MouseState middle_mouse_{ MouseState::Released };
+	V2_int mouse_position_;
+	V2_int mouse_scroll_;
 
 	// Mouse button held for timers.
 

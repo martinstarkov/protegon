@@ -2,8 +2,8 @@
 
 #include <cmath>
 
-#include "protegon/debug.h"
 #include "protegon/math.h"
+#include "utility/debug.h"
 
 using namespace ptgn;
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "type_traits.h"
-#include "vector2.h"
+#include "protegon/vector2.h"
+#include "utility/type_traits.h"
 
 namespace ptgn {
 
@@ -18,8 +18,7 @@ public:
 		PTGN_ASSERT(length == cells.size(), "Failed to construct grid");
 	}
 
-	Grid(const Vector2<int>& size) :
-		size{ size }, length{ size.x * size.y }, cells(length, T{}) {
+	Grid(const Vector2<int>& size) : size{ size }, length{ size.x * size.y }, cells(length, T{}) {
 		PTGN_ASSERT(length == cells.size(), "Failed to construct grid");
 	}
 
@@ -60,23 +59,17 @@ public:
 	}
 
 	[[nodiscard]] const T& Get(std::size_t index) const {
-		PTGN_CHECK(
-			Has(index), "Cannot get grid element which is outside the grid"
-		);
+		PTGN_ASSERT(Has(index), "Cannot get grid element which is outside the grid");
 		return cells[index];
 	}
 
 	[[nodiscard]] T& Get(std::size_t index) {
-		PTGN_CHECK(
-			Has(index), "Cannot get grid element which is outside the grid"
-		);
+		PTGN_ASSERT(Has(index), "Cannot get grid element which is outside the grid");
 		return cells[index];
 	}
 
 	T& Set(std::size_t index, T&& object) {
-		PTGN_CHECK(
-			Has(index), "Cannot set grid element which is outside the grid"
-		);
+		PTGN_ASSERT(Has(index), "Cannot set grid element which is outside the grid");
 		auto& value = cells[index];
 		value		= std::move(object);
 		return value;

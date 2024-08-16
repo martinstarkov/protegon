@@ -6,9 +6,9 @@
 #include <list>
 #include <tuple>
 
-#include "grid.h"
-#include "line.h"
-#include "vector2.h"
+#include "protegon/grid.h"
+#include "protegon/line.h"
+#include "protegon/vector2.h"
 
 namespace ptgn {
 

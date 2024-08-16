@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <tuple>
 
-#include "type_traits.h"
+#include "utility/type_traits.h"
 
 namespace ptgn {
 
@@ -83,17 +83,18 @@ inline constexpr T epsilon2{ epsilon<T> * epsilon<T> };
 
 // Convert degrees to radians.
 template <typename T, type_traits::floating_point<T> = true>
-[[nodiscard]] T DegToRad(T deg) {
-	return deg * pi<T> / 180;
+[[nodiscard]] constexpr T DegToRad(T deg) {
+	return deg * pi<T> / T{ 180 };
 }
 
 // Convert radians to degrees.
 template <typename T, type_traits::floating_point<T> = true>
-[[nodiscard]] T RadToDeg(T rad) {
-	return rad / pi<T> * 180;
+[[nodiscard]] constexpr T RadToDeg(T rad) {
+	return rad / pi<T> * T{ 180 };
 }
 
 // Modulo operator which supports wrapping negative numbers.
+// e.g. Mod(-1, 2) returns 1.
 template <typename T, type_traits::integral<T> = true>
 [[nodiscard]] T Mod(T a, T b) {
 	return (a % b + b) % b;
@@ -106,9 +107,9 @@ template <typename T, type_traits::arithmetic<T> = true>
 		deg += 360;
 	}
 	if constexpr (std::is_floating_point_v<T>) {
-		return std::fmod(deg, 360);
+		return static_cast<T>(std::fmod(deg, 360));
 	} else {
-		return Mod(deg, static_cast<T>(360));
+		return Mod(deg, T{ 360 });
 	}
 }
 
@@ -169,15 +170,11 @@ template <typename T>
 // relative tolerance test fails when x and y become small.
 template <typename T>
 [[nodiscard]] bool NearlyEqual(
-	T a, T b, T rel_tol = static_cast<T>(10.0f * epsilon<float>),
-	T abs_tol = static_cast<T>(0.005)
+	T a, T b, T rel_tol = static_cast<T>(10.0f * epsilon<float>), T abs_tol = static_cast<T>(0.005)
 ) {
 	if constexpr (std::is_floating_point_v<T>) {
 		return a == b ||
-			   FastAbs(a - b) <=
-				   std::max(
-					   abs_tol, rel_tol * std::max(FastAbs(a), FastAbs(b))
-				   );
+			   FastAbs(a - b) <= std::max(abs_tol, rel_tol * std::max(FastAbs(a), FastAbs(b)));
 	} else {
 		return a == b;
 	}
@@ -191,14 +188,13 @@ template <typename T, type_traits::floating_point<T> = true>
 	if (disc < 0.0f) {
 		// Imaginary roots.
 		return { false, 0.0f, 0.0f };
-	} else if (NearlyEqual(disc, static_cast<T>(0))) {
+	} else if (NearlyEqual(disc, T{ 0 })) {
 		// Repeated roots.
 		const T root{ -0.5f * b / a };
 		return { true, root, root };
 	}
 	// Real roots.
-	const T q = (b > 0.0f) ? -0.5f * (b + std::sqrt(disc))
-						   : -0.5f * (b - std::sqrt(disc));
+	const T q = (b > 0.0f) ? -0.5f * (b + std::sqrt(disc)) : -0.5f * (b - std::sqrt(disc));
 	// This may look weird but the algebra checks out here (I checked).
 	return { true, q / a, c / q };
 }
@@ -214,9 +210,7 @@ template <
 	typename T, typename U, type_traits::arithmetic<T> = true,
 	type_traits::floating_point<U> = true>
 [[nodiscard]] U CosineInterpolate(T a, T b, U t) {
-	return Lerp(
-		a, b, static_cast<U>(0.5) * (static_cast<U>(1) - std::cos(t * pi<U>))
-	);
+	return Lerp(a, b, static_cast<U>(0.5) * (static_cast<U>(1) - std::cos(t * pi<U>)));
 }
 
 // From https://paulbourke.net/miscellaneous/interpolation/

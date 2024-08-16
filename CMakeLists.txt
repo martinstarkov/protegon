@@ -11,8 +11,10 @@ if (WIN32)
   option(ENABLE_CONSOLE "Enable console executable" ON)
 endif()
 
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/SetupProtegon.cmake)
+set(PROTEGON_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}" CACHE BOOL "")
+
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/SetupProtegon.cmake")
 
 if(PROTEGON_TESTS)
-  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/tests)
+  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/tests")
 endif()

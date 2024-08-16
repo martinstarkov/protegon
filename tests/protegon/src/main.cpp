@@ -1,32 +1,69 @@
+#define SDL_MAIN_HANDLED
+
+#include <iostream>
+
 #include "../tests/test_ecs.h"
+#include "common.h"
 #include "protegon/protegon.h"
+#include "test_camera.h"
+#include "test_events.h"
 #include "test_math.h"
+#include "test_matrix4.h"
+#include "test_renderer.h"
 #include "test_rng.h"
-#include "test_shader.h"
-#include "test_shapes.h"
 #include "test_text.h"
-#include "test_vector2.h"
+#include "test_tween.h"
+#include "test_vector.h"
 
 using namespace ptgn;
 
+V2_float ws;
+V2_float center;
+
 class Tests : public Scene {
 public:
-	Tests() {
-		TestShader();
+	Tests() {}
+
+	void Init() final {
+		game.window.SetSize({ 960, 540 });
+		game.window.Show();
+		ws = game.window.GetSize();
+		game.renderer.SetClearColor(color::DarkRed);
+
+		TestMatrix4();
 		TestECS();
 		TestMath();
 		TestRNG();
 		TestVector2();
+
+		TestTween();
+
+		TestRenderer();
+		TestCamera();
 		TestText();
-		TestShapes();
+		TestEvents();
 	}
 
 	void Update() final {
-		game::Stop();
+		game.renderer.DrawRectangleFilled(
+			V2_float{ 0, 0 }, V2_float{ 50, 50 }, color::Blue, 0.0f, { 0.5f, 0.5f },
+			Origin::TopLeft, 0.0f
+		);
+		game.renderer.DrawRectangleFilled(
+			V2_float{ ws.x, 0 }, V2_float{ 50, 50 }, color::Magenta, 0.0f, { 0.5f, 0.5f },
+			Origin::TopRight, 0.0f
+		);
+		game.renderer.DrawRectangleFilled(
+			ws, V2_float{ 50, 50 }, color::Red, 0.0f, { 0.5f, 0.5f }, Origin::BottomRight, 0.0f
+		);
+		game.renderer.DrawRectangleFilled(
+			V2_float{ 0, ws.y }, V2_float{ 50, 50 }, color::Orange, 0.0f, { 0.5f, 0.5f },
+			Origin::BottomLeft, 0.0f
+		);
 	}
 };
 
 int main() {
-	ptgn::game::Start<Tests>();
+	game.Start<Tests>();
 	return 0;
 }

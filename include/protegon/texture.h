@@ -1,49 +1,72 @@
 #pragma once
 
-#include "color.h"
-#include "file.h"
-#include "handle.h"
-#include "polygon.h"
-#include "renderer.h"
-#include "vector2.h"
+#include <cstdint>
 
-struct SDL_Texture;
-struct SDL_Surface;
+#include "protegon/file.h"
+#include "protegon/surface.h"
+#include "protegon/vector2.h"
+#include "utility/handle.h"
 
 namespace ptgn {
 
-class Texture : public Handle<SDL_Texture> {
+enum class Flip {
+	// Source: https://wiki.libsdl.org/SDL2/SDL_RendererFlip
+
+	None	   = 0x00000000,
+	Horizontal = 0x00000001,
+	Vertical   = 0x00000002
+};
+
+class Renderer;
+
+namespace impl {
+
+class RendererData;
+
+struct GLFormats {
+	// first
+	std::int32_t internal_{ 0 };
+	// second
+	std::uint32_t format_{ 0 };
+};
+
+struct TextureInstance {
+	TextureInstance();
+	~TextureInstance();
+
+	std::uint32_t id_{ 0 };
+	V2_int size_;
+};
+
+} // namespace impl
+
+class Texture : public Handle<impl::TextureInstance> {
 public:
-	enum class AccessType : int {
-		STATIC = 0, // SDL_TEXTUREACCESS_STATIC    /* Changes rarely, not
-					// lockable */
-		STREAMING = 1, // SDL_TEXTUREACCESS_STREAMING /* Changes frequently,
-					   // lockable */
-		TARGET = 2, // SDL_TEXTUREACCESS_TARGET
-	};
+	Texture()  = default;
+	~Texture() = default;
 
-	Texture() = default;
-	Texture(const path& image_path);
-	Texture(AccessType access, const V2_int& size);
+	Texture(const path& image_path, ImageFormat format = ImageFormat::RGBA8888);
+	Texture(const Surface& surface);
+	Texture(const void* pixel_data, const V2_int& size, ImageFormat format);
+	Texture(const std::vector<Color>& pixels, const V2_int& size);
 
-	// Rotation in degrees. Positive clockwise.
-	void Draw(
-		const Rectangle<float>& destination, const Rectangle<int>& source = {},
-		float angle = 0.0f, Flip flip = Flip::None,
-		V2_int* center_of_rotation = nullptr
-	) const;
+	void SetSubData(const void* pixel_data, ImageFormat format);
+	void SetSubData(const std::vector<Color>& pixels);
 
-	[[nodiscard]] V2_int GetSize() const;
+	V2_int GetSize() const;
 
-	void SetBlendMode(BlendMode mode);
+	void Bind() const;
+	void Bind(std::uint32_t slot) const;
 
-	void SetAlpha(std::uint8_t alpha);
+private:
+	friend class impl::RendererData;
+	friend class Renderer;
 
-	void SetColor(const Color& color);
+	static std::int32_t BoundId();
 
-	AccessType GetAccessType() const;
+	// static void Unbind();
 
-	Texture(const std::shared_ptr<SDL_Surface>& surface);
+	void SetDataImpl(const void* pixel_data, const V2_int& size, ImageFormat format);
 };
 
 } // namespace ptgn
