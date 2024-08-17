@@ -121,6 +121,10 @@ struct Vector2 {
 		return { -y, x };
 	}
 
+	[[nodiscard]] constexpr Vector2 Swapped() const {
+		return { y, x };
+	}
+
 	template <typename S = typename std::common_type_t<T, float>>
 	[[nodiscard]] constexpr S Magnitude() const {
 		return std::sqrt(static_cast<S>(MagnitudeSquared()));

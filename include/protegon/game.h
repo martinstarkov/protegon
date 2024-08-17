@@ -10,6 +10,7 @@
 #include "core/window.h"
 #include "event/event_handler.h"
 #include "event/input_handler.h"
+#include "protegon/collision.h"
 #include "renderer/renderer.h"
 #include "scene/scene_manager.h"
 #include "utility/profiling.h"
@@ -50,6 +51,7 @@ public:
 	Renderer renderer;
 	SceneManager scene;
 	ActiveSceneCameraManager camera;
+	const CollisionHandler collision;
 
 	// Resources
 

@@ -92,7 +92,7 @@ void Button::SetOnHover(
 }
 
 bool Button::InsideRectangle(const V2_int& position) const {
-	return overlap::PointRectangle(position, rect_);
+	return game.collision.overlap.PointRectangle(position, rect_);
 }
 
 void Button::OnMouseEvent(MouseEvent type, const Event& event) {

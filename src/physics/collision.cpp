@@ -7,9 +7,9 @@
 
 namespace ptgn {
 
-namespace impl {
-
-float SquareDistancePointRectangle(const Point<float>& a, const Rectangle<float>& b) {
+float OverlapCollision::SquareDistancePointRectangle(
+	const Point<float>& a, const Rectangle<float>& b
+) {
 	float dist2{ 0.0f };
 	const V2_float max{ b.Max() };
 	const V2_float min{ b.Min() };
@@ -25,15 +25,13 @@ float SquareDistancePointRectangle(const Point<float>& a, const Rectangle<float>
 	return dist2;
 }
 
-float ParallelogramArea(const Point<float>& a, const Point<float>& b, const Point<float>& c) {
+float OverlapCollision::ParallelogramArea(
+	const Point<float>& a, const Point<float>& b, const Point<float>& c
+) {
 	return (a - c).Cross(b - c);
 }
 
-} // namespace impl
-
-namespace overlap {
-
-bool RectangleRectangle(const Rectangle<float>& a, const Rectangle<float>& b) {
+bool OverlapCollision::RectangleRectangle(const Rectangle<float>& a, const Rectangle<float>& b) {
 	const V2_float a_max{ a.Max() };
 	const V2_float a_min{ a.Min() };
 	const V2_float b_max{ b.Max() };
@@ -48,7 +46,7 @@ bool RectangleRectangle(const Rectangle<float>& a, const Rectangle<float>& b) {
 	return true;
 }
 
-bool CircleCircle(const Circle<float>& a, const Circle<float>& b) {
+bool OverlapCollision::CircleCircle(const Circle<float>& a, const Circle<float>& b) {
 	const V2_float dist{ a.center - b.center };
 	const float dist2{ dist.Dot(dist) };
 	const float rad_sum{ a.radius + b.radius };
@@ -56,21 +54,21 @@ bool CircleCircle(const Circle<float>& a, const Circle<float>& b) {
 	return dist2 < rad_sum2 || NearlyEqual(dist2, rad_sum2);
 }
 
-bool CircleRectangle(const Circle<float>& a, const Rectangle<float>& b) {
-	const float dist2{ impl::SquareDistancePointRectangle(a.center, b) };
+bool OverlapCollision::CircleRectangle(const Circle<float>& a, const Rectangle<float>& b) {
+	const float dist2{ SquareDistancePointRectangle(a.center, b) };
 	const float rad2{ a.radius * a.radius };
 	return dist2 < rad2 || NearlyEqual(dist2, rad2);
 }
 
-bool PointRectangle(const Point<float>& a, const Rectangle<float>& b) {
+bool OverlapCollision::PointRectangle(const Point<float>& a, const Rectangle<float>& b) {
 	return RectangleRectangle(Rectangle<float>{ a, {}, Origin::Center }, b);
 }
 
-bool PointCircle(const Point<float>& a, const Circle<float>& b) {
+bool OverlapCollision::PointCircle(const Point<float>& a, const Circle<float>& b) {
 	return CircleCircle({ a, 0.0f }, b);
 }
 
-bool PointSegment(const Point<float>& a, const Segment<float>& b) {
+bool OverlapCollision::PointSegment(const Point<float>& a, const Segment<float>& b) {
 	const V2_float ab{ b.Direction() };
 	const V2_float ac{ a - b.a };
 	const V2_float bc{ a - b.b };
@@ -90,7 +88,7 @@ bool PointSegment(const Point<float>& a, const Segment<float>& b) {
 	return NearlyEqual(ac.Dot(ac) * f, e * e);
 }
 
-bool SegmentRectangle(const Segment<float>& a, const Rectangle<float>& b) {
+bool OverlapCollision::SegmentRectangle(const Segment<float>& a, const Rectangle<float>& b) {
 	const V2_float b_max{ b.Max() };
 	const V2_float b_min{ b.Min() };
 
@@ -124,7 +122,7 @@ bool SegmentRectangle(const Segment<float>& a, const Rectangle<float>& b) {
 	// Source: https://en.wikipedia.org/wiki/Cohen%E2%80%93Sutherland_algorithm
 }
 
-bool SegmentCircle(const Segment<float>& a, const Circle<float>& b) {
+bool OverlapCollision::SegmentCircle(const Segment<float>& a, const Circle<float>& b) {
 	// If the line is inside the circle entirely, exit early.
 	if (PointCircle(a.a, b) && PointCircle(a.b, b)) {
 		return true;
@@ -143,7 +141,7 @@ bool SegmentCircle(const Segment<float>& a, const Circle<float>& b) {
 	const float max_dist2{ std::max(OP_dist2, OQ_dist2) };
 
 	if (OP.Dot(-PQ) > 0.0f && OQ.Dot(PQ) > 0.0f) {
-		const float triangle_area{ FastAbs(impl::ParallelogramArea(b.center, a.a, a.b)) / 2.0f };
+		const float triangle_area{ FastAbs(ParallelogramArea(b.center, a.a, a.b)) / 2.0f };
 		min_dist2 = 4.0f * triangle_area * triangle_area / PQ.Dot(PQ);
 	} else {
 		min_dist2 = std::min(OP_dist2, OQ_dist2);
@@ -152,11 +150,11 @@ bool SegmentCircle(const Segment<float>& a, const Circle<float>& b) {
 		   (max_dist2 > rad2 || NearlyEqual(max_dist2, rad2));
 }
 
-bool SegmentSegment(const Segment<float>& a, const Segment<float>& b) {
+bool OverlapCollision::SegmentSegment(const Segment<float>& a, const Segment<float>& b) {
 	// Sign of areas correspond to which side of ab points c and d are
-	const float a1{ impl::ParallelogramArea(a.a, a.b, b.b) }; // Compute winding of abd (+ or -)
+	const float a1{ ParallelogramArea(a.a, a.b, b.b) }; // Compute winding of abd (+ or -)
 	const float a2{
-		impl::ParallelogramArea(a.a, a.b, b.a)
+		ParallelogramArea(a.a, a.b, b.a)
 	}; // To intersect, must have sign opposite of a1
 	// If c and d are on different sides of ab, areas have different signs
 	bool polarity_diff{ false };
@@ -172,7 +170,7 @@ bool SegmentSegment(const Segment<float>& a, const Segment<float>& b) {
 	//}
 	if (!collinear && polarity_diff) {
 		// Compute signs for a and b with respect to segment cd
-		const float a3{ impl::ParallelogramArea(b.a, b.b, a.a) }; // Compute winding of cda (+ or -)
+		const float a3{ ParallelogramArea(b.a, b.b, a.a) }; // Compute winding of cda (+ or -)
 		// Since area is constant a1 - a2 = a3 - a4, or a4 = a3 + a2 - a1
 		// const T a4 = math::ParallelogramArea(c, d, b); // Must have opposite
 		// sign of a3
@@ -198,11 +196,9 @@ bool SegmentSegment(const Segment<float>& a, const Segment<float>& b) {
 						 PointSegment(a.b, b));
 }
 
-} // namespace overlap
-
-namespace intersect {
-
-bool CircleCircle(const Circle<float>& a, const Circle<float>& b, Collision& c) {
+bool IntersectCollisionHandler::CircleCircle(
+	const Circle<float>& a, const Circle<float>& b, IntersectCollision& c
+) {
 	c = {};
 
 	const V2_float d{ b.center - a.center };
@@ -226,7 +222,9 @@ bool CircleCircle(const Circle<float>& a, const Circle<float>& b, Collision& c) 
 	return true;
 }
 
-bool RectangleRectangle(const Rectangle<float>& a, const Rectangle<float>& b, Collision& c) {
+bool IntersectCollisionHandler::RectangleRectangle(
+	const Rectangle<float>& a, const Rectangle<float>& b, IntersectCollision& c
+) {
 	c = {};
 
 	const V2_float a_h{ a.Half() };
@@ -252,7 +250,9 @@ bool RectangleRectangle(const Rectangle<float>& a, const Rectangle<float>& b, Co
 	return true;
 }
 
-bool CircleRectangle(const Circle<float>& a, const Rectangle<float>& b, Collision& c) {
+bool IntersectCollisionHandler::CircleRectangle(
+	const Circle<float>& a, const Rectangle<float>& b, IntersectCollision& c
+) {
 	c = {};
 
 	const V2_float half{ b.Half() };
@@ -295,11 +295,9 @@ bool CircleRectangle(const Circle<float>& a, const Rectangle<float>& b, Collisio
 	return false;
 }
 
-} // namespace intersect
-
-namespace dynamic {
-
-bool SegmentSegment(const Segment<float>& a, const Segment<float>& b, Collision& c) {
+bool DynamicCollisionHandler::SegmentSegment(
+	const Segment<float>& a, const Segment<float>& b, DynamicCollision& c
+) {
 	c = {};
 
 	const Point<float> r{ a.Direction() };
@@ -343,7 +341,9 @@ bool SegmentSegment(const Segment<float>& a, const Segment<float>& b, Collision&
 	return true;
 }
 
-bool SegmentCircle(const Segment<float>& a, const Circle<float>& b, Collision& c) {
+bool DynamicCollisionHandler::SegmentCircle(
+	const Segment<float>& a, const Circle<float>& b, DynamicCollision& c
+) {
 	c = {};
 
 	const Point<float> d{ -a.Direction() };
@@ -385,7 +385,89 @@ bool SegmentCircle(const Segment<float>& a, const Circle<float>& b, Collision& c
 	return true;
 }
 
-bool SegmentRectangle(const Segment<float>& a, const Rectangle<float>& b, Collision& c) {
+bool DynamicCollisionHandler::SegmentRectangle(
+	const Segment<float>& a, const Rectangle<float>& b, DynamicCollision& c
+) {
+	c = {};
+
+	const V2_float d{ a.Direction() };
+
+	if (NearlyEqual(d.Dot(d), 0.0f)) {
+		return false;
+	}
+
+	// Cache division.
+	V2_float inv_dir = 1.0f / d;
+
+	// Calculate intersections with rectangle bounding axes.
+	V2_float t_near = (b.Min() - a.a) * inv_dir;
+	V2_float t_far	= (b.Max() - a.a) * inv_dir;
+
+	// Discard 0 / 0 divisions.
+	if (std::isnan(t_far.y) || std::isnan(t_far.x)) {
+		return false;
+	}
+	if (std::isnan(t_near.y) || std::isnan(t_near.x)) {
+		return false;
+	}
+
+	// Sort axis collision times so t_near contains the shorter time.
+	if (t_near.x > t_far.x) {
+		std::swap(t_near.x, t_far.x);
+	}
+	if (t_near.y > t_far.y) {
+		std::swap(t_near.y, t_far.y);
+	}
+
+	// Early rejection.
+	if (t_near.x > t_far.y || t_near.y > t_far.x) {
+		return false;
+	}
+
+	// Closest time will be the first contact.
+	c.t = std::max(t_near.x, t_near.y);
+
+	// Furthest time is contact on opposite side of target.
+	float t_hit_far = std::min(t_far.x, t_far.y);
+
+	// Reject if furthest time is negative, meaning the object is travelling away from the target.
+	if (t_hit_far < 0.0f) {
+		return false;
+	}
+
+	// Contact point of collision from parametric line equation.
+	// c.point = a.a + c.time * d;
+
+	// Find which axis collides further along the movement time.
+
+	// TODO: Figure out how to fix biasing of one direction from one side and another on the other
+	// side.
+	if (NearlyEqual(t_near.x, t_near.y) && NearlyEqual(
+											   FastAbs(inv_dir.x), FastAbs(inv_dir.y)
+										   )) { // Both axes collide at the same time.
+		// Diagonal collision, set normal to opposite of direction of movement.
+		c.normal = { -Sign(d.x), -Sign(d.y) };
+	}
+	if (t_near.x > t_near.y) { // X-axis.
+		// Direction of movement.
+		if (inv_dir.x < 0.0f) {
+			c.normal = { 1.0f, 0.0f };
+		} else {
+			c.normal = { -1.0f, 0.0f };
+		}
+	} else if (t_near.x < t_near.y) { // Y-axis.
+		// Direction of movement.
+		if (inv_dir.y < 0.0f) {
+			c.normal = { 0.0f, 1.0f };
+		} else {
+			c.normal = { 0.0f, -1.0f };
+		}
+	}
+
+	// Raycast collision occurred.
+	return true;
+
+	/*
 	c = {};
 
 	const V2_float d{ a.Direction() };
@@ -429,12 +511,15 @@ bool SegmentRectangle(const Segment<float>& a, const Rectangle<float>& b, Collis
 			c.normal = { 0.0f, Sign(coeff.y) };
 		}
 
-		return true;
+		return c.t < 1.0f && (c.t > 0.0f || NearlyEqual(c.t, 0.0f)) && !c.normal.IsZero();
 	}
 	return false;
+	*/
 }
 
-bool SegmentCapsule(const Segment<float>& a, const Capsule<float>& b, Collision& c) {
+bool DynamicCollisionHandler::SegmentCapsule(
+	const Segment<float>& a, const Capsule<float>& b, DynamicCollision& c
+) {
 	c = {};
 
 	const Point<float> cv{ b.segment.Direction() };
@@ -453,7 +538,7 @@ bool SegmentCapsule(const Segment<float>& a, const Capsule<float>& b, Collision&
 	const Segment<float> p1{ b.segment.a + ncu_dist, b.segment.b + ncu_dist };
 	const Segment<float> p2{ b.segment.a - ncu_dist, b.segment.b - ncu_dist };
 
-	Collision col_min{ c };
+	auto col_min{ c };
 	if (SegmentSegment(a, p1, c)) {
 		if (c.t < col_min.t) {
 			col_min = c;
@@ -484,19 +569,19 @@ bool SegmentCapsule(const Segment<float>& a, const Capsule<float>& b, Collision&
 	return true;
 }
 
-bool CircleCircle(
-	const Circle<float>& a, const Vector2<float>& vel, const Circle<float>& b, Collision& c
+bool DynamicCollisionHandler::CircleCircle(
+	const Circle<float>& a, const V2_float& vel, const Circle<float>& b, DynamicCollision& c
 ) {
 	return SegmentCircle({ a.center, a.center + vel }, { b.center, b.radius + a.radius }, c);
 }
 
-bool CircleRectangle(
-	const Circle<float>& a, const Vector2<float>& vel, const Rectangle<float>& b, Collision& c
+bool DynamicCollisionHandler::CircleRectangle(
+	const Circle<float>& a, const V2_float& vel, const Rectangle<float>& b, DynamicCollision& c
 ) {
 	Segment<float> seg{ a.center, a.center + vel };
 
-	bool start_inside{ overlap::CircleRectangle(a, b) };
-	bool end_inside{ overlap::CircleRectangle({ seg.b, a.radius }, b) };
+	bool start_inside{ OverlapCollision::CircleRectangle(a, b) };
+	bool end_inside{ OverlapCollision::CircleRectangle({ seg.b, a.radius }, b) };
 
 	if (start_inside && end_inside) {
 		c = {};
@@ -514,7 +599,7 @@ bool CircleRectangle(
 	e.size	 = b.size + V2_float{ a.radius * 2.0f, a.radius * 2.0f };
 	e.origin = Origin::TopLeft;
 
-	if (!overlap::SegmentRectangle(seg, e)) {
+	if (!OverlapCollision::SegmentRectangle(seg, e)) {
 		c = {};
 		return false;
 	}
@@ -522,7 +607,7 @@ bool CircleRectangle(
 	V2_float b_min{ b.Min() };
 	V2_float b_max{ b.Max() };
 
-	Collision col_min{ c };
+	auto col_min{ c };
 	// Top segment.
 	if (SegmentCapsule(seg, { { b_min, V2_float{ b_max.x, b_min.y } }, a.radius }, c)) {
 		if (c.t < col_min.t) {
@@ -562,15 +647,15 @@ bool CircleRectangle(
 	return true;
 }
 
-bool RectangleRectangle(
-	const Rectangle<float>& a, const Vector2<float>& vel, const Rectangle<float>& b, Collision& c
+bool DynamicCollisionHandler::RectangleRectangle(
+	const Rectangle<float>& a, const V2_float& vel, const Rectangle<float>& b, DynamicCollision& c
 ) {
 	const V2_float a_center{ a.Center() };
-	return SegmentRectangle(
+	bool occured = SegmentRectangle(
 		{ a_center, a_center + vel }, { b.Min() - a.Half(), b.size + a.size, Origin::TopLeft }, c
 	);
+	bool collide_on_next_frame{ c.t < 1.0 && (c.t > 0.0f || NearlyEqual(c.t, 0.0f)) };
+	return occured && collide_on_next_frame && !c.normal.IsZero();
 }
-
-} // namespace dynamic
 
 } // namespace ptgn
