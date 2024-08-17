@@ -184,4 +184,12 @@ V2_int Texture::GetSize() const {
 	return instance_->size_;
 }
 
+bool Texture::operator==(const Texture& o) const {
+	return GetInstance() == o.GetInstance();
+}
+
+bool Texture::operator!=(const Texture& o) const {
+	return !(*this == o);
+}
+
 } // namespace ptgn

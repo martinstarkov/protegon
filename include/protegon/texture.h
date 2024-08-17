@@ -53,6 +53,9 @@ public:
 	void SetSubData(const void* pixel_data, ImageFormat format);
 	void SetSubData(const std::vector<Color>& pixels);
 
+	bool operator==(const Texture& o) const;
+	bool operator!=(const Texture& o) const;
+
 	V2_int GetSize() const;
 
 	void Bind() const;
