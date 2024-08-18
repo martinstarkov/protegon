@@ -39,8 +39,9 @@ void InputHandler::Update() {
 		switch (e.type) {
 			case SDL_MOUSEMOTION: {
 				V2_int previous{ mouse_position_ };
-				mouse_position_.x = e.button.x;
-				mouse_position_.y = e.button.y;
+				SDL_MouseMotionEvent* m = (SDL_MouseMotionEvent*)&e;
+				mouse_position_.x		= m->x;
+				mouse_position_.y		= m->y;
 				game.event.mouse.Post(
 					MouseEvent::Move, MouseMoveEvent{ previous, mouse_position_ }
 				);
@@ -126,16 +127,9 @@ void InputHandler::SetRelativeMouseMode(bool on) {
 void InputHandler::ForceUpdateMousePosition() {
 	// Grab latest mouse events from queue.
 	SDL_PumpEvents();
-	// Update mouse position.
+	// TODO: Confirm whether or not mouse scaling is required when on different window DPIs.
+	// Maybe an SDL hint? Update mouse position.
 	SDL_GetMouseState(&mouse_position_.x, &mouse_position_.y);
-	// float x, y;
-	///*SDL_RenderWindowToLogical(
-	//	game.sdl.GetRenderer().get(), mouse_position.x,
-	//	mouse_position.y, &x, &y
-	//);*/
-
-	// mouse_position.x = static_cast<int>(x);
-	// mouse_position.y = static_cast<int>(y);
 }
 
 V2_int InputHandler::GetMousePosition() {
