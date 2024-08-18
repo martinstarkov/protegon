@@ -42,25 +42,22 @@ V2_int Screen::GetSize() {
 	return V2_int{ dm.w, dm.h };
 }
 
-void Window::SetupSize(
-	const V2_int& resolution, const V2_int& minimum_resolution, bool fullscreen, bool borderless,
-	bool resizeable, const V2_float& scale
-) {
-	SetMinimumSize(minimum_resolution);
-	SetFullscreen(fullscreen);
+void Window::SetRelativeMouseMode(bool on) {
+	SDL_SetRelativeMouseMode(static_cast<SDL_bool>(on));
+}
 
-	if (fullscreen) {
-		return;
-	}
+void Window::SetMouseGrab(bool on) {
+	PTGN_ASSERT(Exists(), "Cannot set grab of nonexistent window");
+	SDL_SetWindowMouseGrab(window_.get(), static_cast<SDL_bool>(on));
+}
 
-	SetBorderless(borderless);
+void Window::CaptureMouse(bool on) {
+	SDL_CaptureMouse(static_cast<SDL_bool>(on));
+}
 
-	if (borderless) {
-		SetSize(Screen::GetSize());
-	} else {
-		SetSize(resolution);
-		SetResizeable(resizeable);
-	}
+void Window::SetAlwaysOnTop(bool on) {
+	PTGN_ASSERT(Exists(), "Cannot set always on top for nonexistent window");
+	SDL_SetWindowAlwaysOnTop(window_.get(), static_cast<SDL_bool>(on));
 }
 
 bool Window::Exists() {
@@ -114,13 +111,9 @@ void Window::SetTitle(const char* new_title) {
 	return SDL_SetWindowTitle(window_.get(), new_title);
 }
 
-void Window::SetFullscreen(bool on) {
+void Window::SetFullscreen(FullscreenMode mode) {
 	PTGN_ASSERT(Exists(), "Cannot toggle nonexistent window fullscreen");
-	if (on) {
-		SDL_SetWindowFullscreen(window_.get(), SDL_WINDOW_FULLSCREEN_DESKTOP);
-	} else {
-		SDL_SetWindowFullscreen(window_.get(), 0); // windowed mode.
-	}
+	SDL_SetWindowFullscreen(window_.get(), static_cast<std::uint32_t>(mode));
 }
 
 void Window::SetResizeable(bool on) {
