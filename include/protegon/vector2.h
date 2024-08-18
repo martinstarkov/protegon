@@ -156,6 +156,13 @@ struct Vector2 {
 		return *this / std::sqrt(m);
 	}
 
+	// Returns a normalized (unit) direction vector toward a target position.
+	template <typename U = float, type_traits::not_narrowing<T, U> = true>
+	[[nodiscard]] Vector2<float> DirectionTowards(const Vector2<U>& target) const {
+		Vector2<float> dir{ target - *this };
+		return dir.Normalized();
+	}
+
 	// Returns a new vector rotated by the radian angle in the clockwise
 	// direction. See https://en.wikipedia.org/wiki/Rotation_matrix for details
 	template <typename U, type_traits::not_narrowing<T, U> = true>
