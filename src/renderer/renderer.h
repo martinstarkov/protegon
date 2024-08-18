@@ -19,6 +19,8 @@
 // z_indexes as one uses the line batch and one uses the triangle batch. Not sure how to fix this
 // while maintaining batching and permitting alpha blending (depth testing requires turning alpha
 // blending off).
+// TODO: If batch size is very small, z_indexes get drawn in 2 calls which completely defeats the
+// purpose of it.
 
 // clang-format off
 #define PTGN_SHADER_STRINGIFY_MACRO(x) PTGN_STRINGIFY_MACRO(x)
@@ -172,7 +174,7 @@ public:
 	std::vector<T> batch_;
 	std::int32_t index_{ -1 };
 
-	constexpr static const std::size_t batch_count_	 = 2000;
+	constexpr static const std::size_t batch_count_	 = 5000;
 	constexpr static const std::size_t max_vertices_ = batch_count_ * T::vertex_count;
 	constexpr static const std::size_t max_indices_	 = batch_count_ * T::index_count;
 
