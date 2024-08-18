@@ -32,6 +32,7 @@ enum class TweenEase {
 	// TODO: Implement Custom ease
 };
 
+// TODO: Add more tween types.
 using TweenType = float;
 
 class Tween;
@@ -158,6 +159,17 @@ const static std::unordered_map<TweenEase, TweenEaseFunction> tween_ease_functio
 
 } // namespace impl
 
+enum class TweenEvent {
+	Complete,
+	Repeat,
+	Start,
+	Stop,
+	Update,
+	Yoyo,
+	Pause,
+	Resume
+};
+
 class Tween : public Handle<impl::TweenInstance> {
 public:
 	Tween() = default;
@@ -178,6 +190,8 @@ public:
 		easing_function
 	}
 	*/
+
+	void SetCallback(TweenEvent event, const TweenCallback& callback);
 
 	[[nodiscard]] TweenType GetValue() const;
 	// @return Value in range [0.0f, 1.0f] depending on how much of the total tween duration has

@@ -20,6 +20,45 @@ Tween::Tween(
 	}
 }
 
+void Tween::SetCallback(TweenEvent event, const TweenCallback& callback) {
+	PTGN_ASSERT(IsValid(), "Cannot set tween callback of uninitialized or destroyed tween");
+	switch (event) {
+		case TweenEvent::Complete: {
+			instance_->config_.on_complete = callback;
+			break;
+		}
+		case TweenEvent::Pause: {
+			instance_->config_.on_pause = callback;
+			break;
+		}
+		case TweenEvent::Repeat: {
+			instance_->config_.on_repeat = callback;
+			break;
+		}
+		case TweenEvent::Resume: {
+			instance_->config_.on_resume = callback;
+			break;
+		}
+		case TweenEvent::Start: {
+			instance_->config_.on_start = callback;
+			break;
+		}
+		case TweenEvent::Stop: {
+			instance_->config_.on_stop = callback;
+			break;
+		}
+		case TweenEvent::Update: {
+			instance_->config_.on_update = callback;
+			break;
+		}
+		case TweenEvent::Yoyo: {
+			instance_->config_.on_yoyo = callback;
+			break;
+		}
+		default: PTGN_ERROR("Failed to identify tween event for setting tween callback");
+	}
+}
+
 void Tween::Start() {
 	PTGN_ASSERT(IsValid(), "Cannot start uninitialized or destroyed tween");
 	Reset();
