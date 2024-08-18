@@ -90,22 +90,24 @@ void Game::Stop() {
 }
 
 void Game::Reset() {
+	// TODO: Figure out a better way to do this.
 	window = {};
 	gl_context_.~GLContext();
 	new (&gl_context_) impl::GLContext();
-	event	 = {};
-	input	 = {};
-	renderer = {};
-	scene	 = {};
-	camera	 = {};
-	music	 = {};
-	sound	 = {};
-	font	 = {};
-	tween	 = {};
-	text	 = {};
-	texture	 = {};
-	shader	 = {};
-	profiler = {};
+	event	  = {};
+	input	  = {};
+	renderer  = {};
+	scene	  = {};
+	camera	  = {};
+	collision = {};
+	music	  = {};
+	sound	  = {};
+	font	  = {};
+	tween	  = {};
+	text	  = {};
+	texture	  = {};
+	shader	  = {};
+	profiler  = {};
 }
 
 namespace impl {

@@ -51,7 +51,7 @@ public:
 	Renderer renderer;
 	SceneManager scene;
 	ActiveSceneCameraManager camera;
-	const CollisionHandler collision;
+	CollisionHandler collision{};
 
 	// Resources
 
