@@ -62,21 +62,27 @@ static GLFormats GetGLFormats(ImageFormat format) {
 
 } // namespace impl
 
-Texture::Texture(const path& image_path, ImageFormat format) :
-	Texture{ [&]() -> Surface {
-		PTGN_ASSERT(
-			format != ImageFormat::Unknown, "Cannot create texture with unknown image format"
-		);
-		PTGN_ASSERT(
-			FileExists(image_path),
-			"Cannot create texture from file path which does not exist: ", image_path.string()
-		);
-		return Surface{ image_path };
-	}() } {}
+Texture::Texture(const path& image_path, ImageFormat format, TextureSmoothing smoothing) :
+	Texture{
+		[&]() -> Surface {
+			PTGN_ASSERT(
+				format != ImageFormat::Unknown, "Cannot create texture with unknown image format"
+			);
+			PTGN_ASSERT(
+				FileExists(image_path),
+				"Cannot create texture from file path which does not exist: ", image_path.string()
+			);
+			return Surface{ image_path };
+		}(),
+		smoothing
+	} {}
 
-Texture::Texture(const Surface& surface) : Texture{ surface.GetData(), surface.GetSize() } {}
+Texture::Texture(const Surface& surface, TextureSmoothing smoothing) :
+	Texture{ surface.GetData(), surface.GetSize(), smoothing } {}
 
-Texture::Texture(const void* pixel_data, const V2_int& size, ImageFormat format) {
+Texture::Texture(
+	const void* pixel_data, const V2_int& size, ImageFormat format, TextureSmoothing smoothing
+) {
 	PUSHSTATE();
 
 	if (!IsValid()) {
@@ -89,20 +95,20 @@ Texture::Texture(const void* pixel_data, const V2_int& size, ImageFormat format)
 
 	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, static_cast<gl::GLint>(smoothing));
+	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, static_cast<gl::GLint>(smoothing));
 
 	POPSTATE();
 }
 
-Texture::Texture(const std::vector<Color>& pixels, const V2_int& size) :
+Texture::Texture(const std::vector<Color>& pixels, const V2_int& size, TextureSmoothing smoothing) :
 	Texture{ [&]() -> void* {
 				PTGN_ASSERT(
 					pixels.size() == size.x * size.y, "Provided pixel array must match texture size"
 				);
 				return (void*)pixels.data();
 			}(),
-			 size, ImageFormat::RGBA8888 } {}
+			 size, ImageFormat::RGBA8888, smoothing } {}
 
 void Texture::Bind() const {
 	PTGN_ASSERT(IsValid(), "Cannot bind texture which is destroyed or uninitialized");

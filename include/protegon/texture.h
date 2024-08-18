@@ -17,6 +17,11 @@ enum class Flip {
 	Vertical   = 0x00000002
 };
 
+enum class TextureSmoothing {
+	Linear	= 0x2601, // GL_LINEAR
+	Nearest = 0x2600  // GL_NEAREST
+};
+
 class Renderer;
 
 namespace impl {
@@ -45,10 +50,23 @@ public:
 	Texture()  = default;
 	~Texture() = default;
 
-	Texture(const path& image_path, ImageFormat format = ImageFormat::RGBA8888);
-	Texture(const Surface& surface);
-	Texture(const void* pixel_data, const V2_int& size, ImageFormat format);
-	Texture(const std::vector<Color>& pixels, const V2_int& size);
+private:
+	constexpr const static TextureSmoothing default_smoothing{ TextureSmoothing::Nearest };
+
+public:
+	Texture(
+		const path& image_path, ImageFormat format = ImageFormat::RGBA8888,
+		TextureSmoothing smoothing = default_smoothing
+	);
+	Texture(const Surface& surface, TextureSmoothing smoothing = default_smoothing);
+	Texture(
+		const void* pixel_data, const V2_int& size, ImageFormat format,
+		TextureSmoothing smoothing = default_smoothing
+	);
+	Texture(
+		const std::vector<Color>& pixels, const V2_int& size,
+		TextureSmoothing smoothing = default_smoothing
+	);
 
 	void SetSubData(const void* pixel_data, ImageFormat format);
 	void SetSubData(const std::vector<Color>& pixels);
