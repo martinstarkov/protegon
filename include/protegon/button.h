@@ -44,8 +44,11 @@ public:
 	virtual ~Button();
 
 	// Draws a black hollow rectangle around the button rectangle.
-	// Use SolidButton for more advanced colored buttons or TexturedButton for textured buttons.
+	// Use ColorButton for more advanced colored buttons or TexturedButton for textured buttons.
 	virtual void Draw() const;
+
+	virtual void DrawHollow(float line_width = 1.0f) const;
+	virtual void DrawFilled() const;
 
 	virtual void RecheckState() final;
 
@@ -107,10 +110,10 @@ protected:
 	bool enabled_{ true };
 };
 
-class SolidButton : public virtual Button {
+class ColorButton : public virtual Button {
 public:
-	SolidButton() = default;
-	SolidButton(
+	ColorButton() = default;
+	ColorButton(
 		const Rectangle<float>& rect, const Color& default_color, const Color& hover_color,
 		const Color& pressed_color, const ButtonActivateFunction& on_active_function = nullptr
 	);
@@ -123,7 +126,11 @@ public:
 	const Color& GetHoverColor() const;
 	const Color& GetPressedColor() const;
 
+	// Draws a filled button.
 	virtual void Draw() const;
+
+	virtual void DrawHollow(float line_width = 1.0f) const;
+	virtual void DrawFilled() const;
 
 	[[nodiscard]] virtual const Color& GetCurrentColor() const;
 

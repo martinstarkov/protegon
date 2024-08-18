@@ -24,7 +24,15 @@ bool Button::GetInteractable() const {
 }
 
 void Button::Draw() const {
-	game.renderer.DrawRectangleHollow(rect_, color::Black);
+	DrawHollow();
+}
+
+void Button::DrawHollow(float line_width) const {
+	game.renderer.DrawRectangleHollow(rect_, color::Black, 0.0f, { 0.5f, 0.5f }, line_width);
+}
+
+void Button::DrawFilled() const {
+	game.renderer.DrawRectangleFilled(rect_, color::Black);
 }
 
 void Button::SetInteractable(bool interactable) {
@@ -323,7 +331,7 @@ void ToggleButton::Toggle() {
 	toggled_ = !toggled_;
 }
 
-SolidButton::SolidButton(
+ColorButton::ColorButton(
 	const Rectangle<float>& rect, const Color& default_color, const Color& hover_color,
 	const Color& pressed_color, const ButtonActivateFunction& on_activate_function
 ) :
@@ -333,47 +341,54 @@ SolidButton::SolidButton(
 	SetPressedColor(pressed_color);
 }
 
-void SolidButton::SetColor(const Color& default_color) {
+void ColorButton::SetColor(const Color& default_color) {
 	colors_.data.at(static_cast<std::size_t>(ButtonState::Default)).at(0) = default_color;
 }
 
-void SolidButton::SetHoverColor(const Color& hover_color) {
+void ColorButton::SetHoverColor(const Color& hover_color) {
 	colors_.data.at(static_cast<std::size_t>(ButtonState::Hover)).at(0) = hover_color;
 }
 
-void SolidButton::SetPressedColor(const Color& pressed_color) {
+void ColorButton::SetPressedColor(const Color& pressed_color) {
 	colors_.data.at(static_cast<std::size_t>(ButtonState::Pressed)).at(0) = pressed_color;
 }
 
-const Color& SolidButton::GetColor() const {
+const Color& ColorButton::GetColor() const {
 	return colors_.data.at(static_cast<std::size_t>(ButtonState::Default)).at(0);
 }
 
-const Color& SolidButton::GetHoverColor() const {
+const Color& ColorButton::GetHoverColor() const {
 	return colors_.data.at(static_cast<std::size_t>(ButtonState::Hover)).at(0);
 }
 
-const Color& SolidButton::GetPressedColor() const {
+const Color& ColorButton::GetPressedColor() const {
 	return colors_.data.at(static_cast<std::size_t>(ButtonState::Pressed)).at(0);
 }
 
-void SolidButton::DrawImpl(std::size_t color_array_index) const {
-	const Color& color = GetCurrentColorImpl(GetState(), color_array_index);
+void ColorButton::DrawImpl(std::size_t color_array_index) const {}
+
+void ColorButton::Draw() const {
+	DrawFilled();
+}
+
+void ColorButton::DrawHollow(float line_width) const {
+	const Color& color = GetCurrentColorImpl(GetState(), 0);
+	game.renderer.DrawRectangleHollow(rect_, color, 0.0f, { 0.5f, 0.5f }, line_width);
+}
+
+void ColorButton::DrawFilled() const {
+	const Color& color = GetCurrentColorImpl(GetState(), 0);
 	game.renderer.DrawRectangleFilled(rect_, color);
 }
 
-void SolidButton::Draw() const {
-	DrawImpl(0);
-}
-
-const Color& SolidButton::GetCurrentColorImpl(ButtonState state, std::size_t color_array_index)
+const Color& ColorButton::GetCurrentColorImpl(ButtonState state, std::size_t color_array_index)
 	const {
 	auto& color_array  = colors_.data.at(static_cast<std::size_t>(state));
 	const Color& color = color_array.at(color_array_index);
 	return color;
 }
 
-const Color& SolidButton::GetCurrentColor() const {
+const Color& ColorButton::GetCurrentColor() const {
 	return GetCurrentColorImpl(GetState(), 0);
 }
 
