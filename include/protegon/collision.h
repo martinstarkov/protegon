@@ -163,69 +163,52 @@ public:
 		PTGN_ERROR("Unrecognized shape for target object");
 	}
 
-	template <typename Return, typename Component>
-	using GetCallback = std::function<Return(const Component& component)>;
+	template <typename Return>
+	using GetCallback = std::function<Return(ecs::Entity)>;
 
 	// The point of the callback functions is so the user can pass targets with more complex
 	// components.
 	// @return Position that needs to be added to the player position to offset them out of any
 	// potential collisions.
-	template <
-		typename TPosition, typename TSize, typename TVelocity, typename TOrigin, typename TShape>
+	template <typename... Ts>
 	static V2_float Sweep(
 		float dt, const ecs::Entity& object,
-		const ecs::EntityContainer<
-			ecs::LoopCriterion::WithComponents, TPosition, TSize, TOrigin, TShape>& targets,
-		const GetCallback<V2_float, TPosition>& get_position,
-		const GetCallback<V2_float, TSize>& get_size,
-		const GetCallback<V2_float, TVelocity>& get_velocity,
-		const GetCallback<Origin, TOrigin>& get_origin,
-		const GetCallback<DynamicCollisionShape, TShape>& get_shape,
-		DynamicCollisionResponse response
+		const ecs::EntityContainer<ecs::LoopCriterion::WithComponents, Ts...>& targets,
+		const GetCallback<V2_float>& get_position, const GetCallback<V2_float>& get_size,
+		const GetCallback<V2_float>& get_velocity, const GetCallback<Origin>& get_origin,
+		const GetCallback<DynamicCollisionShape>& get_shape, DynamicCollisionResponse response
 	) {
-		PTGN_ASSERT(object.Has<TPosition>(), "Swept object must have a position component");
-		PTGN_ASSERT(object.Has<TSize>(), "Swept object must have a size component");
-		PTGN_ASSERT(object.Has<TOrigin>(), "Swept object must have a origin component");
-		PTGN_ASSERT(object.Has<TShape>(), "Swept object must have a shape component");
-
-		if (!object.Has<TVelocity>()) { // object is static
-			// TODO: Consider adding a static intersect check here.
-			return {};
-		}
-
-		const auto v1 = get_velocity(object.Get<TVelocity>()) * dt;
+		const auto v1 = get_velocity(object) * dt;
 
 		if (v1.IsZero()) {
 			// TODO: Consider adding a static intersect check here.
 			return {};
 		}
 
-		const auto p1	  = get_position(object.Get<TPosition>());
-		const auto s1	  = get_size(object.Get<TSize>());
-		const auto o1	  = get_origin(object.Get<TOrigin>());
-		const auto shape1 = get_shape(object.Get<TShape>());
+		const auto p1	  = get_position(object);
+		const auto s1	  = get_size(object);
+		const auto o1	  = get_origin(object);
+		const auto shape1 = get_shape(object);
 
 		DynamicCollision c;
 
 		auto get_sorted_collisions = [&](const auto& pos, const auto& vel) {
 			std::vector<SweepCollision> collisions;
 
-			for (auto [e2, p2, s2, o2, shape2] : targets) {
+			targets.ForEach([&](ecs::Entity e2) {
 				if (e2 == object) {
-					continue;
+					return;
 				}
-				auto rel_vel{ vel };
-				if (e2.Has<TVelocity>()) { // target object is dynamic
-					rel_vel -= get_velocity(e2.Get<TVelocity>()) * dt;
-				}
+				auto rel_vel{ vel - get_velocity(e2) * dt };
 				float dist2{ 0.0f };
 				if (GeneralShape(
-						pos, s1, o1, shape1, get_position(p2), get_size(s2), get_origin(o2),
-						get_shape(shape2), rel_vel, c, dist2
+						pos, s1, o1, shape1, get_position(e2), get_size(e2), get_origin(e2),
+						get_shape(e2), rel_vel, c, dist2
 					)) {
 					collisions.emplace_back(c, dist2);
 				}
-			}
+			});
+
 			SortCollisions(collisions);
 			return collisions;
 		};
