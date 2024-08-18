@@ -3,6 +3,8 @@
 #include "protegon/rng.h"
 #include "utility/debug.h"
 
+// TODO: Add tests for Gaussian.
+
 using namespace ptgn;
 
 bool TestRNG() {
