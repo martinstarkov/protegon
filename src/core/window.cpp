@@ -76,8 +76,8 @@ V2_int Window::GetMinimumSize() {
 	return minimum_size;
 }
 
-V2_int Window::GetOriginPosition() {
-	PTGN_ASSERT(Exists(), "Cannot get origin position of nonexistent window");
+V2_int Window::GetPosition() {
+	PTGN_ASSERT(Exists(), "Cannot get position of nonexistent window");
 	V2_int origin;
 	SDL_GetWindowPosition(window_.get(), &origin.x, &origin.y);
 	return origin;

@@ -48,7 +48,7 @@ public:
 	// Returns the center coordinate of the window.
 	[[nodiscard]] V2_float GetCenter();
 
-	[[nodiscard]] V2_int GetOriginPosition();
+	[[nodiscard]] V2_int GetPosition();
 
 	void SetTitle(const char* new_title);
 	[[nodiscard]] const char* GetTitle();

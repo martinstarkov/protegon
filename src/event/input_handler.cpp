@@ -120,20 +120,32 @@ void InputHandler::Update() {
 	}
 }
 
+#ifndef __EMSCRIPTEN__
+bool InputHandler::MouseWithinWindow() {
+	return game.collision.overlap.PointRectangle(
+		game.input.GetMousePositionGlobal(),
+		{ game.window.GetPosition(), game.window.GetSize(), Origin::TopLeft }
+	);
+}
+#endif
+
 void InputHandler::SetRelativeMouseMode(bool on) {
 	SDL_SetRelativeMouseMode(static_cast<SDL_bool>(on));
 }
 
-void InputHandler::ForceUpdateMousePosition() {
+V2_int InputHandler::GetMousePositionGlobal() {
+	V2_int pos;
+	// SDL_PumpEvents not required as this function queries the OS directly.
+	SDL_GetGlobalMouseState(&pos.x, &pos.y);
+	return pos;
+}
+
+V2_int InputHandler::GetMousePosition() {
 	// Grab latest mouse events from queue.
 	SDL_PumpEvents();
 	// TODO: Confirm whether or not mouse scaling is required when on different window DPIs.
 	// Maybe an SDL hint? Update mouse position.
 	SDL_GetMouseState(&mouse_position_.x, &mouse_position_.y);
-}
-
-V2_int InputHandler::GetMousePosition() {
-	ForceUpdateMousePosition();
 	return mouse_position_;
 }
 
