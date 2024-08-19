@@ -55,7 +55,7 @@ struct Rectangle {
 
 	template <typename U>
 	operator Rectangle<U>() const {
-		return Rectangle<U>{ static_cast<Point<U>>(pos), static_cast<Vector2<U>>(size) };
+		return Rectangle<U>{ static_cast<Point<U>>(pos), static_cast<Vector2<U>>(size), origin };
 	}
 };
 
