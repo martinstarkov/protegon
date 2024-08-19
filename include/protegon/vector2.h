@@ -145,6 +145,15 @@ struct Vector2 {
 		return { rng_x(), rng_y() };
 	}
 
+	// @return Random unit vector in a heading within the given range of angles (radians).
+	[[nodiscard]] static Vector2<T> RandomHeading(
+		T min_angle_rad = T{ 0 }, T max_angle_rad = T{ two_pi<T> }
+	) {
+		RNG<T> heading_rng{ ClampAngle2Pi(min_angle_rad), ClampAngle2Pi(max_angle_rad) };
+		T heading{ heading_rng() };
+		return { std::cos(heading), std::sin(heading) };
+	}
+
 	// Returns a unit vector (magnitude = 1) except for zero vectors (magnitude
 	// = 0).
 	template <typename U = float, type_traits::not_narrowing<T, U> = true>
@@ -261,6 +270,11 @@ template <typename T, ptgn::type_traits::stream_writable<std::ostream, T> = true
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector2<T>& v) {
 	os << "(" << v.x << ", " << v.y << ")";
 	return os;
+}
+
+template <typename T>
+[[nodiscard]] inline Vector2<T> Lerp(const Vector2<T>& lhs, const Vector2<T>& rhs, T t) {
+	return Vector2<T>{ Lerp(lhs.x, rhs.x, t), Lerp(lhs.y, rhs.y, t) };
 }
 
 } // namespace ptgn
