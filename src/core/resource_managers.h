@@ -137,6 +137,7 @@ private:
 public:
 	void HaltChannel(int channel);
 	void ResumeChannel(int channel);
+	void FadeOut(int channel, milliseconds time) const;
 
 private:
 	friend class Game;

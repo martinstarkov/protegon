@@ -103,4 +103,9 @@ void SoundManager::ResumeChannel(int channel) {
 	Mix_Resume(channel);
 }
 
+void SoundManager::FadeOut(int channel, milliseconds time) const {
+	const auto time_int = std::chrono::duration_cast<duration<int, std::milli>>(time);
+	Mix_FadeOutChannel(channel, time_int.count());
+}
+
 } // namespace ptgn
