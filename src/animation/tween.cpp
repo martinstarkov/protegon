@@ -2,9 +2,7 @@
 
 namespace ptgn {
 
-Tween::Tween(
-	TweenType from, TweenType to, milliseconds duration, const TweenConfig& config, bool start
-) {
+Tween::Tween(TweenType from, TweenType to, milliseconds duration, const TweenConfig& config) {
 	instance_		   = std::make_shared<impl::TweenInstance>();
 	instance_->from_   = from;
 	instance_->to_	   = to;
@@ -13,11 +11,9 @@ Tween::Tween(
 		PTGN_ASSERT(instance_->config_.repeat != 0, "Yoyoing a tween requires repeat != 0");
 	}
 	instance_->duration_ = duration;
+	PTGN_ASSERT(instance_->duration_ > nanoseconds{ 250 });
 	instance_->reversed_ = instance_->config_.reversed;
 	instance_->paused_	 = instance_->config_.paused;
-	if (start) {
-		Start();
-	}
 }
 
 void Tween::SetCallback(TweenEvent event, const TweenCallback& callback) {
@@ -82,17 +78,20 @@ void Tween::Resume() {
 	}
 }
 
-TweenType Tween::Rewind(float dt) {
+/*TweenType Tween::Rewind(float dt) {
 	return Step(-dt);
-}
+}*/
 
 float Tween::GetNewProgress(duration<float, Time::period> time) const {
 	PTGN_ASSERT(IsValid(), "Cannot get new progress for uninitialized or destroyed tween");
-	PTGN_ASSERT(IsValid(), "Cannot convert time to progress for uninitialized or destroyed tween");
 	duration<float, Time::period> progress{
 		time / std::chrono::duration_cast<duration<float, Time::period>>(instance_->duration_)
 	};
-	return instance_->progress_ + progress.count();
+	float p{ progress.count() };
+	if (std::isinf(p) || std::isnan(p)) {
+		return 1.0f;
+	}
+	return instance_->progress_ + p;
 }
 
 TweenType Tween::StepImpl(float dt, bool accumulate_progress) {
@@ -126,19 +125,25 @@ TweenType Tween::Seek(float new_progress) {
 }
 
 float Tween::AccumulateProgress(float new_progress) {
+	PTGN_ASSERT(new_progress >= 0.0f);
+	PTGN_ASSERT(!std::isnan(new_progress));
+	PTGN_ASSERT(!std::isinf(new_progress));
+
 	if (new_progress < 1.0f) {
 		return new_progress;
 	}
 
-	std::int64_t loops{ static_cast<std::int64_t>(new_progress) };
+	float loops{ std::floorf(new_progress) };
 
-	for (std::int64_t i = 0; i < loops; i++) {
+	for (float i = 0; i < loops; i++) {
 		instance_->progress_ = 1.0f;
 		UpdateImpl(true);
 		if (IsCompleted()) {
 			return 1.0f;
 		}
 	}
+
+	PTGN_ASSERT(new_progress >= loops);
 
 	new_progress -= loops;
 
@@ -195,6 +200,13 @@ TweenType Tween::GetFromValue() const {
 TweenType Tween::GetToValue() const {
 	PTGN_ASSERT(IsValid(), "Cannot get to value of uninitialized or destroyed tween");
 	return instance_->to_;
+}
+
+void Tween::SetDuration(milliseconds duration) {
+	PTGN_ASSERT(IsValid(), "Cannot set duration of uninitialized or destroyed tween");
+	instance_->duration_ = duration;
+	PTGN_ASSERT(instance_->duration_ > nanoseconds{ 250 });
+	UpdateImpl();
 }
 
 void Tween::SetFromValue(TweenType from) {

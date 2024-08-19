@@ -72,7 +72,7 @@ struct TweenInstance {
 	TweenConfig config_;
 
 	std::int64_t repeats_{ 0 };
-	microseconds duration_;
+	milliseconds duration_;
 	// Value between [0.0f, 1.0f] indicating how much of the total duration the tween has passed in
 	// the current repetition. Note: This value remains 0.0f to 1.0f even when the tween is reversed
 	// or yoyoing.
@@ -174,11 +174,9 @@ class Tween : public Handle<impl::TweenInstance> {
 public:
 	Tween() = default;
 
-	Tween(
-		TweenType from, TweenType to, milliseconds duration, const TweenConfig& config = {},
-		bool start = true
-	);
+	Tween(TweenType from, TweenType to, milliseconds duration, const TweenConfig& config = {});
 
+	void SetDuration(milliseconds duration);
 	void SetFromValue(TweenType from);
 	void SetToValue(TweenType to);
 
@@ -206,8 +204,10 @@ public:
 	[[nodiscard]] bool IsStarted() const;
 	[[nodiscard]] bool IsPaused() const;
 
+	// TODO: Implement and test.
 	// dt in seconds.
-	TweenType Rewind(float dt);
+	// TweenType Rewind(float dt);
+
 	// dt in seconds.
 	TweenType Step(float dt);
 	TweenType Seek(float new_progress);
