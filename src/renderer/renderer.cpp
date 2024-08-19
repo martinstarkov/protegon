@@ -446,6 +446,8 @@ std::array<V2_float, QuadData::vertex_count> RendererData::GetTextureCoordinates
 	V2_float src_pos{ source_position / texture_size };
 	V2_float src_size{ source_size / texture_size };
 
+	// PTGN_LOG_PRECISE("Precise src_size: ", src_size);
+
 	if (src_size.x > 1.0f || src_size.y > 1.0f) {
 		PTGN_WARN("Drawing source size from outside of texture size");
 	}
