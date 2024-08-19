@@ -50,6 +50,8 @@ public:
 	void SetSizeToWindow();
 	void SetSize(const V2_float& size);
 
+	[[nodiscard]] V2_float GetTopLeftPosition() const;
+	[[nodiscard]] const V2_float& GetSize() const;
 	[[nodiscard]] const V3_float& GetPosition() const;
 	[[nodiscard]] const Quaternion& GetOrientation() const;
 	[[nodiscard]] V3_float GetEulerOrientation() const;

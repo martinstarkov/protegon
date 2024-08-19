@@ -10,6 +10,15 @@ const V3_float& OrthographicCamera::GetPosition() const {
 	return instance_->position;
 }
 
+V2_float OrthographicCamera::GetTopLeftPosition() const {
+	return V2_float{ instance_->position.x, instance_->position.y } - instance_->size / 2.0f;
+}
+
+const V2_float& OrthographicCamera::GetSize() const {
+	PTGN_ASSERT(IsValid());
+	return instance_->size;
+}
+
 const Quaternion& OrthographicCamera::GetOrientation() const {
 	PTGN_ASSERT(IsValid());
 	return instance_->orientation;
