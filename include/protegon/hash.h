@@ -25,6 +25,10 @@ namespace ptgn {
 	return std::hash<std::string_view>()(std::string_view(c_string, std::strlen(c_string)));
 }
 
+[[nodiscard]] inline std::size_t Hash(const ecs::Entity& e) {
+	return std::hash<ecs::Entity>()(e);
+}
+
 template <typename T>
 [[nodiscard]] inline std::size_t Hash(const Vector2<T>& vector) {
 	return std::hash<Vector2<T>>()(vector);

@@ -1016,8 +1016,8 @@ void Renderer::DrawArcFilled(
 	float dr;
 	int numpoints, i;
 
-	start_angle = RestrictAngle360(start_angle);
-	end_angle	= RestrictAngle360(end_angle);
+	start_angle = ClampAngle360(start_angle);
+	end_angle	= ClampAngle360(end_angle);
 
 	if (NearlyEqual(arc_radius, 0.0f)) {
 		DrawPoint(position, color, 1.0f, z_index);
@@ -1071,8 +1071,8 @@ void Renderer::DrawArcHollow(
 ) {
 	PTGN_ASSERT(arc_radius >= 0.0f, "Cannot draw thick arc with negative radius");
 
-	start_angle = RestrictAngle360(start_angle);
-	end_angle	= RestrictAngle360(end_angle);
+	start_angle = ClampAngle360(start_angle);
+	end_angle	= ClampAngle360(end_angle);
 
 	if (NearlyEqual(arc_radius, 0.0f)) {
 		DrawPoint(position, color, 1.0f, z_index);
@@ -1139,7 +1139,7 @@ void Renderer::DrawCapsuleHollow(
 	float fade, float z_index
 ) {
 	V2_float dir{ p1 - p0 };
-	const float angle{ RadToDeg(RestrictAngle2Pi(dir.Angle() + half_pi<float>)) };
+	const float angle{ RadToDeg(ClampAngle2Pi(dir.Angle() + half_pi<float>)) };
 	const float dir2{ dir.Dot(dir) };
 
 	V2_float tangent_r;

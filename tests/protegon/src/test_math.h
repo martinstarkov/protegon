@@ -148,8 +148,8 @@ bool TestMath() {
 	// TODO: Add tests for:
 	// ToRad()
 	// ToDeg()
-	// RestrictAngle360()
-	// RestrictAngle2Pi()
+	// ClampAngle360()
+	// ClampAngle2Pi()
 	// QuadraticFormula()
 
 	PTGN_INFO("All math tests passed!");

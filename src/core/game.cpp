@@ -154,6 +154,7 @@ void Game::Update() {
 	tween.Update(dt);
 
 	scene.GetTopActive().camera.Update();
+
 	// PTGN_LOG("Loop #", counter);
 
 	if (update_stack_.size() == 0) {
