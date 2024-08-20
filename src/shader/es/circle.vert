@@ -1,5 +1,5 @@
 R"(#version 300 es
-precision mediump float;
+precision highp float;
 
 in vec3 a_Position;
 in vec3 a_LocalPosition;
