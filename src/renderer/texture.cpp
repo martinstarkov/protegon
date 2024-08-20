@@ -97,7 +97,9 @@ Texture::Texture(const void* pixel_data, const V2_int& size, ImageFormat format)
 		GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, static_cast<int>(default_magnifying_filter)
 	);
 
-	gl::GenerateMipmap(GL_TEXTURE_2D);
+	if constexpr ((default_minifying_filter != TextureFilter::Linear && default_minifying_filter != TextureFilter::Nearest) || (default_magnifying_filter != TextureFilter::Linear && default_magnifying_filter != TextureFilter::Nearest)) {
+		gl::GenerateMipmap(GL_TEXTURE_2D);
+	}
 
 	POPSTATE();
 }

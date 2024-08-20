@@ -32,12 +32,11 @@ struct Color {
 	Type g{ 0 };
 	Type b{ 0 };
 	Type a{ 255 };
-	operator SDL_Color() const;
 
-	template <typename T>
+	/*template <typename T>
 	operator Vector4<T>() const {
 		return { static_cast<T>(r), static_cast<T>(g), static_cast<T>(b), static_cast<T>(a) };
-	}
+	}*/
 
 	// Default color is black.
 	constexpr Color() = default;

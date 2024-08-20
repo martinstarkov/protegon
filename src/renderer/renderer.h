@@ -113,9 +113,12 @@ public:
 		return vertices_[0].position[2];
 	}
 
+	// Takes in normalized color.
 	void Add(
 		const std::array<V2_float, vertex_count>& vertices, float z_index, const V4_float& color
 	) {
+		PTGN_ASSERT(color.x >= 0.0f && color.y >= 0.0f && color.z >= 0.0f && color.w >= 0.0f);
+		PTGN_ASSERT(color.x <= 1.0f && color.y <= 1.0f && color.z <= 1.0f && color.w <= 1.0f);
 		for (std::size_t i{ 0 }; i < vertices_.size(); i++) {
 			vertices_[i].position = { vertices[i].x, vertices[i].y, z_index };
 			vertices_[i].color	  = { color.x, color.y, color.z, color.w };
@@ -127,6 +130,7 @@ protected:
 };
 
 struct QuadData : public ShapeData<QuadVertex, 4, 6> {
+	// Takes in normalized color.
 	void Add(
 		const std::array<V2_float, vertex_count>& vertices, float z_index, const V4_float& color,
 		const std::array<V2_float, vertex_count>& tex_coords, float texture_index,
@@ -135,6 +139,7 @@ struct QuadData : public ShapeData<QuadVertex, 4, 6> {
 };
 
 struct CircleData : public ShapeData<CircleVertex, 4, 6> {
+	// Takes in normalized color.
 	void Add(
 		const std::array<V2_float, vertex_count>& vertices, float z_index, const V4_float& color,
 		float line_width, float fade
@@ -276,20 +281,20 @@ public:
 	 * (defaults to { 0, 0 }).
 	 * @param source_size Number of pixels of the texture to draw (defaults to {} which corresponds
 	 * to the remaining texture size to the bottom right of source_position).
+	 * @param draw_origin Relative to destination_position the direction from which the texture is
+	 * @param flip Mirror the texture along an axis (default to Flip::None).
 	 * @param rotation Degrees to rotate the texture (defaults to 0).
 	 * @param rotation_center Fraction of the source_size around which the texture is rotated
 	 * (defaults to { 0.5f, 0.5f } which corresponds to the center of the texture).
-	 * @param flip Mirror the texture along an axis (default to Flip::None).
 	 * @param z_index Z-coordinate to draw the texture at (-1.0f to 1.0f).
-	 * @param draw_origin Relative to destination_position the direction from which the texture is
 	 * drawn.
 	 */
 	void DrawTexture(
-		const V2_float& destination_position, const V2_float& destination_size,
-		const Texture& texture, const V2_float& source_position = {}, V2_float source_size = {},
+		const Texture& texture, const V2_float& destination_position,
+		const V2_float& destination_size, const V2_float& source_position = {},
+		V2_float source_size = {}, Origin draw_origin = Origin::Center, Flip flip = Flip::None,
 		float rotation = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
-		Flip flip = Flip::None, Origin draw_origin = Origin::Center, float z_index = 0.0f,
-		float tiling_factor = 1.0f, const Color& tint_color = color::White
+		float z_index = 0.0f, const Color& tint_color = color::White, float tiling_factor = 1.0f
 	);
 
 	void DrawPoint(
@@ -326,9 +331,9 @@ public:
 
 	// Rotation in degrees.
 	void DrawRectangleFilled(
-		const V2_float& position, const V2_float& size, const Color& color, float rotation = 0.0f,
-		const V2_float& rotation_center = { 0.5f, 0.5f }, Origin draw_origin = Origin::Center,
-		float z_index = 0.0f
+		const V2_float& position, const V2_float& size, const Color& color,
+		Origin draw_origin = Origin::Center, float rotation = 0.0f,
+		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
 	);
 
 	// Rotation in degrees.
@@ -339,15 +344,15 @@ public:
 
 	// Rotation in degrees.
 	void DrawRectangleHollow(
-		const V2_float& position, const V2_float& size, const Color& color, float rotation = 0.0f,
-		const V2_float& rotation_center = { 0.5f, 0.5f }, float line_width = 1.0f,
-		Origin draw_origin = Origin::Center, float z_index = 0.0f
+		const V2_float& position, const V2_float& size, const Color& color,
+		Origin draw_origin = Origin::Center, float line_width = 1.0f, float rotation = 0.0f,
+		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
 	);
 
 	// Rotation in degrees.
 	void DrawRectangleHollow(
-		const Rectangle<float>& rectangle, const Color& color, float rotation = 0.0f,
-		const V2_float& rotation_center = { 0.5f, 0.5f }, float line_width = 1.0f,
+		const Rectangle<float>& rectangle, const Color& color, float line_width = 1.0f,
+		float rotation = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
 		float z_index = 0.0f
 	);
 
@@ -388,8 +393,8 @@ public:
 	// Rotation in degrees.
 	void DrawRoundedRectangleFilled(
 		const V2_float& position, const V2_float& size, float radius, const Color& color,
-		float rotation = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
-		Origin origin = Origin::Center, float z_index = 0.0f
+		Origin draw_origin = Origin::Center, float rotation = 0.0f,
+		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
 	);
 
 	// Rotation in degrees.
@@ -401,20 +406,16 @@ public:
 	// Rotation in degrees.
 	void DrawRoundedRectangleHollow(
 		const V2_float& position, const V2_float& size, float radius, const Color& color,
-		float rotation = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
-		float line_width = 1.0f, Origin origin = Origin::Center, float z_index = 0.0f
+		Origin draw_origin = Origin::Center, float line_width = 1.0f, float rotation = 0.0f,
+		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
 	);
 
 	// Rotation in degrees.
 	void DrawRoundedRectangleHollow(
-		const RoundedRectangle<float>& rounded_rectangle, const Color& color, float rotation = 0.0f,
-		const V2_float& rotation_center = { 0.5f, 0.5f }, float line_width = 1.0f,
-		float z_index = 0.0f
+		const RoundedRectangle<float>& rounded_rectangle, const Color& color,
+		float line_width = 1.0f, float rotation = 0.0f,
+		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
 	);
-
-	// Following functions Taken from:
-	// https://github.com/rtrussell/BBCSDL/blob/master/src/SDL2_gfxPrimitives.c
-	// (with modifications)
 
 	void DrawEllipseFilled(
 		const V2_float& position, const V2_float& radius, const Color& color, float fade = 0.005f,
@@ -480,13 +481,101 @@ public:
 
 	void SetViewport(const V2_int& size);
 
+	void UpdateViewProjection(const M4_float& view_projection);
+
 private:
 	friend class CameraManager;
 	friend class Game;
 
-	void StartBatch();
+	void DrawTextureImpl(
+		const Texture& texture, const V2_float& destination_position,
+		const V2_float& destination_size, const V2_float& source_position, V2_float source_size,
+		Origin draw_origin, Flip flip, float rotation, const V2_float& rotation_center,
+		float z_index, const V4_float& tint_color, float tiling_factor
+	);
 
-	void UpdateViewProjection(const M4_float& view_projection);
+	void DrawPointImpl(
+		const V2_float& position, const V4_float& color, float radius, float z_index
+	);
+
+	void DrawLineImpl(
+		const V2_float& p0, const V2_float& p1, const V4_float& color, float line_width,
+		float z_index
+	);
+
+	void DrawTriangleFilledImpl(
+		const V2_float& a, const V2_float& b, const V2_float& c, const V4_float& color,
+		float z_index
+	);
+
+	void DrawTriangleHollowImpl(
+		const V2_float& a, const V2_float& b, const V2_float& c, const V4_float& color,
+		float line_width, float z_index
+	);
+
+	void DrawRectangleFilledImpl(
+		const V2_float& position, const V2_float& size, const V4_float& color, Origin draw_origin,
+		float rotation, const V2_float& rotation_center, float z_index
+	);
+
+	void DrawRectangleHollowImpl(
+		const V2_float& position, const V2_float& size, const V4_float& color, Origin draw_origin,
+		float line_width, float rotation, const V2_float& rotation_center, float z_index
+	);
+
+	void DrawPolygonFilledImpl(
+		const V2_float* vertices, std::size_t vertex_count, const V4_float& color, float z_index
+	);
+
+	void DrawPolygonHollowImpl(
+		const V2_float* vertices, std::size_t vertex_count, const V4_float& color, float line_width,
+		float z_index
+	);
+
+	// TODO: Implement.
+	void DrawRoundedRectangleFilledImpl(
+		const V2_float& position, const V2_float& size, float radius, const V4_float& color,
+		Origin origin, float rotation, const V2_float& rotation_center, float z_index
+	);
+
+	// TODO: Implement.
+	void DrawRoundedRectangleHollowImpl(
+		const V2_float& position, const V2_float& size, float radius, const V4_float& color,
+		Origin origin, float line_width, float rotation, const V2_float& rotation_center,
+		float z_index
+	);
+
+	void DrawEllipseFilledImpl(
+		const V2_float& position, const V2_float& radius, const V4_float& color, float fade,
+		float z_index
+	);
+
+	void DrawEllipseHollowImpl(
+		const V2_float& position, const V2_float& radius, const V4_float& color, float line_width,
+		float fade, float z_index
+	);
+
+	void DrawArcFilledImpl(
+		const V2_float& position, float arc_radius, float start_angle, float end_angle,
+		const V4_float& color, float z_index
+	);
+
+	void DrawArcHollowImpl(
+		const V2_float& position, float arc_radius, float start_angle, float end_angle,
+		const V4_float& color, float line_width, float z_index
+	);
+
+	void DrawCapsuleFilledImpl(
+		const V2_float& p0, const V2_float& p1, float radius, const V4_float& color, float fade,
+		float z_index
+	);
+
+	void DrawCapsuleHollowImpl(
+		const V2_float& p0, const V2_float& p1, float radius, const V4_float& color,
+		float line_width, float fade, float z_index
+	);
+
+	void StartBatch();
 
 	Color clear_color_;
 	BlendMode blend_mode_;

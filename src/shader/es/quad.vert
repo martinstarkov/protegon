@@ -16,7 +16,7 @@ out float v_TilingFactor;
 
 void main()
 {
-	v_Color = a_Color / vec4(255.0);
+	v_Color = a_Color;
 	v_TexCoord = a_TexCoord;
 	v_TexIndex = a_TexIndex;
 	v_TilingFactor = a_TilingFactor;

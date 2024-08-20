@@ -28,7 +28,7 @@ void Button::Draw() const {
 }
 
 void Button::DrawHollow(float line_width) const {
-	game.renderer.DrawRectangleHollow(rect_, color::Black, 0.0f, { 0.5f, 0.5f }, line_width);
+	game.renderer.DrawRectangleHollow(rect_, color::Black, line_width);
 }
 
 void Button::DrawFilled() const {
@@ -373,7 +373,7 @@ void ColorButton::Draw() const {
 
 void ColorButton::DrawHollow(float line_width) const {
 	const Color& color = GetCurrentColorImpl(GetState(), 0);
-	game.renderer.DrawRectangleHollow(rect_, color, 0.0f, { 0.5f, 0.5f }, line_width);
+	game.renderer.DrawRectangleHollow(rect_, color, line_width);
 }
 
 void ColorButton::DrawFilled() const {

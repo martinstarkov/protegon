@@ -25,27 +25,27 @@ Texture Text::RecreateTexture() {
 
 	std::shared_ptr<SDL_Surface> surface;
 
+	SDL_Color tc{ instance_->text_color_.r, instance_->text_color_.g, instance_->text_color_.b,
+				  instance_->text_color_.a };
+
 	switch (instance_->render_mode_) {
 		case FontRenderMode::Solid:
 			surface = std::shared_ptr<SDL_Surface>{
-				TTF_RenderUTF8_Solid(f.get(), instance_->content_.c_str(), instance_->text_color_),
-				SDL_FreeSurface
+				TTF_RenderUTF8_Solid(f.get(), instance_->content_.c_str(), tc), SDL_FreeSurface
 			};
 			break;
-		case FontRenderMode::Shaded:
-			surface =
-				std::shared_ptr<SDL_Surface>{ TTF_RenderUTF8_Shaded(
-												  f.get(), instance_->content_.c_str(),
-												  instance_->text_color_, instance_->shading_color_
-											  ),
-											  SDL_FreeSurface };
+		case FontRenderMode::Shaded: {
+			SDL_Color sc{ instance_->shading_color_.r, instance_->shading_color_.g,
+						  instance_->shading_color_.b, instance_->shading_color_.a };
+			surface = std::shared_ptr<SDL_Surface>{
+				TTF_RenderUTF8_Shaded(f.get(), instance_->content_.c_str(), tc, sc), SDL_FreeSurface
+			};
 			break;
+		}
 		case FontRenderMode::Blended:
-			surface = std::shared_ptr<SDL_Surface>{ TTF_RenderUTF8_Blended(
-														f.get(), instance_->content_.c_str(),
-														instance_->text_color_
-													),
-													SDL_FreeSurface };
+			surface = std::shared_ptr<SDL_Surface>{
+				TTF_RenderUTF8_Blended(f.get(), instance_->content_.c_str(), tc), SDL_FreeSurface
+			};
 			break;
 		default: PTGN_ERROR("Unrecognized render mode given when creating text");
 	}
@@ -208,8 +208,8 @@ void Text::Draw(const Rectangle<int>& destination) const {
 		return;
 	}
 	game.renderer.DrawTexture(
-		destination.pos, destination.size, instance_->texture_, {}, {}, 0.0f, { 0.5f, 0.5f },
-		Flip::None, destination.origin, 0.0f
+		instance_->texture_, destination.pos, destination.size, {}, {}, destination.origin,
+		Flip::None
 	);
 }
 

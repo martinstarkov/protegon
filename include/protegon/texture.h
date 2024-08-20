@@ -62,9 +62,7 @@ public:
 	~Texture() = default;
 
 private:
-	constexpr const static TextureFilter default_minifying_filter{
-		TextureFilter::NearestMipmapNearest
-	};
+	constexpr const static TextureFilter default_minifying_filter{ TextureFilter::Nearest };
 	constexpr const static TextureFilter default_magnifying_filter{ TextureFilter::Nearest };
 	constexpr const static TextureWrapping default_wrapping{ TextureWrapping::ClampEdge };
 

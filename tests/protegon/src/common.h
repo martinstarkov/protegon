@@ -5,7 +5,7 @@
 
 using namespace ptgn;
 
-const static std::string test_instructions{ "'1' (cycle back); '2' (cycle forward)" };
+const static std::string test_instructions{ "'1' (--test); '2' (++test), 'ESC' (++category)" };
 const static std::vector<Key> test_switch_keys{ Key::ONE, Key::TWO };
 extern V2_float ws;
 extern V2_float center;

@@ -18,7 +18,7 @@ layout (location = 3) out float v_Fade;
 void main()
 {
 	v_LocalPosition = a_LocalPosition;
-	v_Color = a_Color / vec4(255.0);
+	v_Color = a_Color;
 	v_Thickness = a_Thickness;
 	v_Fade = a_Fade;
 

@@ -600,6 +600,14 @@ Renderer::~Renderer() {
 	game.event.window.Unsubscribe((void*)this);
 }
 
+Color Renderer::GetClearColor() const {
+	return clear_color_;
+}
+
+BlendMode Renderer::GetBlendMode() const {
+	return blend_mode_;
+}
+
 void Renderer::SetBlendMode(BlendMode mode) {
 	if (blend_mode_ == mode) {
 		return;
@@ -677,53 +685,38 @@ void Renderer::DrawArray(const VertexArray& vertex_array) {
 	data_.stats_.draw_calls++;
 }
 
-void Renderer::DrawTriangleFilled(
-	const V2_float& a, const V2_float& b, const V2_float& c, const Color& color, float z_index
+void Renderer::DrawTriangleFilledImpl(
+	const V2_float& a, const V2_float& b, const V2_float& c, const V4_float& col, float z
 ) {
 	data_.triangle_.AdvanceBatch();
 
 	PTGN_ASSERT(data_.triangle_.index_ != -1);
 	PTGN_ASSERT(data_.triangle_.index_ < data_.triangle_.batch_.size());
 
-	data_.triangle_.batch_[data_.triangle_.index_].Add({ a, b, c }, z_index, color);
+	data_.triangle_.batch_[data_.triangle_.index_].Add({ a, b, c }, z, col);
 
 	data_.stats_.triangle_count++;
 }
 
-void Renderer::DrawTriangleHollow(
-	const V2_float& a, const V2_float& b, const V2_float& c, const Color& color, float line_width,
-	float z_index
+void Renderer::DrawTriangleHollowImpl(
+	const V2_float& a, const V2_float& b, const V2_float& c, const V4_float& col, float lw, float z
 ) {
 	std::array<V2_float, impl::TriangleData::vertex_count> vertices{ a, b, c };
 
 	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
-		DrawLine(vertices[i], vertices[(i + 1) % vertices.size()], color, line_width, z_index);
+		DrawLineImpl(vertices[i], vertices[(i + 1) % vertices.size()], col, lw, z);
 	}
 }
 
-void Renderer::DrawTriangleFilled(
-	const Triangle<float>& triangle, const Color& color, float z_index
-) {
-	DrawTriangleFilled(triangle.a, triangle.b, triangle.c, color, z_index);
-}
-
-void Renderer::DrawTriangleHollow(
-	const Triangle<float>& triangle, const Color& color, float line_width, float z_index
-) {
-	DrawTriangleHollow(triangle.a, triangle.b, triangle.c, color, z_index);
-}
-
-void Renderer::DrawTexture(
-	const V2_float& destination_position, const V2_float& destination_size, const Texture& texture,
-	const V2_float& source_position, V2_float source_size, float rotation,
-	const V2_float& rotation_center, Flip flip, Origin draw_origin, float z_index,
-	float tiling_factor, const Color& tint_color
+void Renderer::DrawTextureImpl(
+	const Texture& t, const V2_float& dp, const V2_float& ds, const V2_float& sp, V2_float ss,
+	Origin o, Flip f, float r, const V2_float& rc, float z, const V4_float& tc, float tf
 ) {
 	data_.quad_.AdvanceBatch();
 
-	float texture_index{ data_.GetTextureIndex(texture) };
+	float index{ data_.GetTextureIndex(t) };
 
-	if (texture_index == 0.0f) {
+	if (index == 0.0f) {
 		// TODO: Optimize this if you have time. Instead of flushing the batch when the slot
 		// index is beyond the slots, keep a separate texture buffer and just split that one
 		// into two or more batches. This should reduce draw calls drastically.
@@ -733,82 +726,67 @@ void Renderer::DrawTexture(
 			data_.texture_index_ = 1;
 		}
 
-		texture_index = (float)data_.texture_index_;
+		index = (float)data_.texture_index_;
 
-		data_.texture_slots_[data_.texture_index_] = texture;
+		data_.texture_slots_[data_.texture_index_] = t;
 		data_.texture_index_++;
 	}
 
-	PTGN_ASSERT(texture_index != 0.0f);
+	PTGN_ASSERT(index != 0.0f);
 
-	auto texture_coords{
-		impl::RendererData::GetTextureCoordinates(source_position, source_size, texture.GetSize())
-	};
+	auto texcoords{ impl::RendererData::GetTextureCoordinates(sp, ss, t.GetSize()) };
 
-	impl::FlipTextureCoordinates(texture_coords, flip);
+	impl::FlipTextureCoordinates(texcoords, f);
 
-	auto vertices = impl::GetQuadVertices(
-		destination_position, destination_size, draw_origin, rotation, rotation_center
-	);
+	auto vertices = impl::GetQuadVertices(dp, ds, o, r, rc);
 
 	PTGN_ASSERT(data_.quad_.index_ != -1);
 	PTGN_ASSERT(data_.quad_.index_ < data_.quad_.batch_.size());
 
-	data_.quad_.batch_[data_.quad_.index_].Add(
-		vertices, z_index, tint_color, texture_coords, texture_index, tiling_factor
-	);
+	data_.quad_.batch_[data_.quad_.index_].Add(vertices, z, tc, texcoords, index, tf);
 
 	data_.stats_.quad_count++;
 }
 
-void Renderer::DrawRectangleFilled(
-	const V2_float& position, const V2_float& size, const Color& color, float rotation,
-	const V2_float& rotation_center, Origin draw_origin, float z_index
+void Renderer::DrawRectangleFilledImpl(
+	const V2_float& p, const V2_float& s, const V4_float& col, Origin o, float r,
+	const V2_float& rc, float z
 ) {
 	data_.quad_.AdvanceBatch();
 
-	std::array<V2_float, impl::QuadData::vertex_count> texture_coords{
+	std::array<V2_float, impl::QuadData::vertex_count> texcoords{
 		V2_float{ 0.0f, 0.0f },
 		V2_float{ 1.0f, 0.0f },
 		V2_float{ 1.0f, 1.0f },
 		V2_float{ 0.0f, 1.0f },
 	};
 
-	auto vertices = impl::GetQuadVertices(position, size, draw_origin, rotation, rotation_center);
+	auto vertices = impl::GetQuadVertices(p, s, o, r, rc);
 
 	PTGN_ASSERT(data_.quad_.index_ != -1);
 	PTGN_ASSERT(data_.quad_.index_ < data_.quad_.batch_.size());
 
 	data_.quad_.batch_[data_.quad_.index_].Add(
-		vertices, z_index, color, texture_coords, 0.0f /* white texture */, 1.0f
+		vertices, z, col, texcoords, 0.0f /* white texture */, 1.0f
 	);
 
 	data_.stats_.quad_count++;
 }
 
-void Renderer::DrawRectangleFilled(
-	const Rectangle<float>& rectangle, const Color& color, float rotation,
-	const V2_float& rotation_center, float z_index
+void Renderer::DrawRectangleHollowImpl(
+	const V2_float& p, const V2_float& s, const V4_float& col, Origin o, float lw, float r,
+	const V2_float& rc, float z
 ) {
-	DrawRectangleFilled(
-		rectangle.pos, rectangle.size, color, rotation, rotation_center, rectangle.origin, z_index
-	);
-}
+	auto v{ impl::GetQuadVertices(p, s, o, r, rc) };
 
-void Renderer::DrawRectangleHollow(
-	const V2_float& position, const V2_float& size, const Color& color, float rotation,
-	const V2_float& rotation_center, float line_width, Origin draw_origin, float z_index
-) {
-	auto vertices = impl::GetQuadVertices(position, size, draw_origin, rotation, rotation_center);
-
-	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
-		DrawLine(vertices[i], vertices[(i + 1) % vertices.size()], color, line_width, z_index);
+	for (std::size_t i{ 0 }; i < v.size(); i++) {
+		DrawLineImpl(v[i], v[(i + 1) % v.size()], col, lw, z);
 	}
 }
 
-void Renderer::DrawRoundedRectangleFilled(
-	const V2_float& position, const V2_float& size, float radius, const Color& color,
-	float rotation, const V2_float& rotation_center, Origin draw_origin, float z_index
+void Renderer::DrawRoundedRectangleFilledImpl(
+	const V2_float& p, const V2_float& s, float r, const V4_float& col, Origin o, float rot,
+	const V2_float& rc, float z
 ) {
 	// TODO: Implement.
 	// TODO: Batch a filled quad, and 4 filled capsules.
@@ -818,20 +796,9 @@ void Renderer::DrawRoundedRectangleFilled(
 	// ...
 }
 
-void Renderer::DrawRoundedRectangleFilled(
-	const RoundedRectangle<float>& rounded_rectangle, const Color& color, float rotation,
-	const V2_float& rotation_center, float z_index
-) {
-	DrawRoundedRectangleFilled(
-		rounded_rectangle.pos, rounded_rectangle.size, rounded_rectangle.radius, color, rotation,
-		rotation_center, rounded_rectangle.origin, z_index
-	);
-}
-
-void Renderer::DrawRoundedRectangleHollow(
-	const V2_float& position, const V2_float& size, float radius, const Color& color,
-	float rotation, const V2_float& rotation_center, float line_width, Origin draw_origin,
-	float z_index
+void Renderer::DrawRoundedRectangleHollowImpl(
+	const V2_float& p, const V2_float& s, float r, const V4_float& col, Origin o, float lw,
+	float rot, const V2_float& rc, float z
 ) {
 	// TODO: Implement.
 	/*int tmp;
@@ -903,70 +870,33 @@ void Renderer::DrawRoundedRectangleHollow(
 	}*/
 }
 
-void Renderer::DrawRoundedRectangleHollow(
-	const RoundedRectangle<float>& rounded_rectangle, const Color& color, float rotation,
-	const V2_float& rotation_center, float line_width, float z_index
-) {
-	DrawRoundedRectangleHollow(
-		rounded_rectangle.pos, rounded_rectangle.size, rounded_rectangle.radius, color, rotation,
-		rotation_center, line_width, rounded_rectangle.origin, z_index
-	);
-}
-
-void Renderer::DrawPoint(
-	const V2_float& position, const Color& color, float radius, float z_index
-) {
-	if (radius <= 1.0f) {
+void Renderer::DrawPointImpl(const V2_float& p, const V4_float& col, float r, float z) {
+	if (r <= 1.0f) {
 		data_.point_.AdvanceBatch();
 
 		PTGN_ASSERT(data_.point_.index_ != -1);
 		PTGN_ASSERT(data_.point_.index_ < data_.point_.batch_.size());
 
-		data_.point_.batch_[data_.point_.index_].Add({ position }, z_index, color);
+		data_.point_.batch_[data_.point_.index_].Add({ p }, z, col);
 
 		data_.stats_.point_count++;
 	} else {
-		DrawCircleFilled(position, radius, color, 0.005f, z_index);
+		DrawEllipseFilledImpl(p, { r, r }, col, 0.005f, z);
 	}
 }
 
-void Renderer::DrawCircleFilled(
-	const V2_float& position, float radius, const Color& color, float fade, float z_index
+void Renderer::DrawLineImpl(
+	const V2_float& p0, const V2_float& p1, const V4_float& col, float lw, float z
 ) {
-	DrawEllipseFilled(position, { radius, radius }, color, fade, z_index);
-}
+	PTGN_ASSERT(lw >= 0.0f, "Cannot draw negative line width");
 
-void Renderer::DrawCircleFilled(
-	const Circle<float>& circle, const Color& color, float fade, float z_index
-) {
-	DrawCircleFilled(circle.center, circle.radius, color, fade, z_index);
-}
-
-void Renderer::DrawCircleHollow(
-	const V2_float& position, float radius, const Color& color, float line_width, float fade,
-	float z_index
-) {
-	DrawEllipseHollow(position, { radius, radius }, color, line_width, fade, z_index);
-}
-
-void Renderer::DrawCircleHollow(
-	const Circle<float>& circle, const Color& color, float line_width, float fade, float z_index
-) {
-	DrawCircleHollow(circle.center, circle.radius, color, line_width, fade, z_index);
-}
-
-void Renderer::DrawLine(
-	const V2_float& p0, const V2_float& p1, const Color& color, float line_width, float z_index
-) {
-	PTGN_ASSERT(line_width >= 0.0f, "Cannot draw negative line width");
-
-	if (line_width > 1.0f) {
+	if (lw > 1.0f) {
 		V2_float d{ p1 - p0 };
 		float angle{ static_cast<float>(d.Angle()) };
 		// TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
 		V2_float center{ p0 + d * 0.5f };
-		V2_float size{ d.Magnitude(), line_width };
-		DrawRectangleFilled(center, size, color, angle, { 0.5f, 0.5f }, Origin::Center, z_index);
+		V2_float size{ d.Magnitude(), lw };
+		DrawRectangleFilledImpl(center, size, col, Origin::Center, angle, { 0.5f, 0.5f }, z);
 		return;
 	}
 
@@ -975,40 +905,27 @@ void Renderer::DrawLine(
 	PTGN_ASSERT(data_.line_.index_ != -1);
 	PTGN_ASSERT(data_.line_.index_ < data_.line_.batch_.size());
 
-	data_.line_.batch_[data_.line_.index_].Add({ p0, p1 }, z_index, color);
+	data_.line_.batch_[data_.line_.index_].Add({ p0, p1 }, z, col);
 
 	data_.stats_.line_count++;
 }
 
-void Renderer::DrawLine(
-	const Line<float>& line, const Color& color, float line_width, float z_index
+void Renderer::DrawEllipseFilledImpl(
+	const V2_float& p, const V2_float& r, const V4_float& col, float fade, float z
 ) {
-	DrawLine(line.a, line.b, color, line_width, z_index);
+	DrawEllipseHollowImpl(p, r, col, 0.0f, fade, z);
 }
 
-void Renderer::DrawEllipseFilled(
-	const V2_float& position, const V2_float& radius, const Color& color, float fade, float z_index
+void Renderer::DrawEllipseHollowImpl(
+	const V2_float& p, const V2_float& r, const V4_float& col, float lw, float fade, float z
 ) {
-	DrawEllipseHollow(position, radius, color, 0.0f, fade, z_index);
-}
-
-void Renderer::DrawEllipseFilled(
-	const Ellipse<float>& ellipse, const Color& color, float fade, float z_index
-) {
-	DrawEllipseFilled(ellipse.center, ellipse.radius, color, fade, z_index);
-}
-
-void Renderer::DrawEllipseHollow(
-	const V2_float& position, const V2_float& radius, const Color& color, float line_width,
-	float fade, float z_index
-) {
-	PTGN_ASSERT(line_width >= 0.0f, "Cannot draw negative line width");
+	PTGN_ASSERT(lw >= 0.0f, "Cannot draw negative line width");
 
 	data_.circle_.AdvanceBatch();
 
-	const V2_float size{ radius.x * 2.0f, radius.y * 2.0f };
+	const V2_float size{ r.x * 2.0f, r.y * 2.0f };
 
-	auto vertices = impl::GetQuadVertices(position, size, Origin::Center, 0.0f, { 0.5f, 0.5f });
+	auto vertices = impl::GetQuadVertices(p, size, Origin::Center, 0.0f, { 0.5f, 0.5f });
 
 	PTGN_ASSERT(data_.circle_.index_ != -1);
 	PTGN_ASSERT(data_.circle_.index_ < data_.circle_.batch_.size());
@@ -1016,23 +933,16 @@ void Renderer::DrawEllipseHollow(
 	// Internally line width for a filled rectangle is 1.0f and a completely hollow one is 0.0f, but
 	// in the API the line width is expected in pixels.
 	// TODO: Check that dividing by std::max(radius.x, radius.y) does not cause any unexpected bugs.
-	line_width =
-		NearlyEqual(line_width, 0.0f) ? 1.0f : fade + line_width / std::min(radius.x, radius.y);
+	lw = NearlyEqual(lw, 0.0f) ? 1.0f : fade + lw / std::min(r.x, r.y);
 
-	data_.circle_.batch_[data_.circle_.index_].Add(vertices, z_index, color, line_width, fade);
+	data_.circle_.batch_[data_.circle_.index_].Add(vertices, z, col, lw, fade);
 
 	data_.stats_.circle_count++;
 }
 
-void Renderer::DrawEllipseHollow(
-	const Ellipse<float>& ellipse, const Color& color, float line_width, float fade, float z_index
-) {
-	DrawEllipseHollow(ellipse.center, ellipse.radius, color, line_width, fade, z_index);
-}
-
-void Renderer::DrawArcFilled(
-	const V2_float& position, float arc_radius, float start_angle, float end_angle,
-	const Color& color, float z_index
+void Renderer::DrawArcFilledImpl(
+	const V2_float& p, float arc_radius, float start_angle, float end_angle, const V4_float& col,
+	float z
 ) {
 	PTGN_ASSERT(arc_radius >= 0.0f, "Cannot draw solid arc with negative radius");
 
@@ -1045,7 +955,7 @@ void Renderer::DrawArcFilled(
 	end_angle	= ClampAngle360(end_angle);
 
 	if (NearlyEqual(arc_radius, 0.0f)) {
-		DrawPoint(position, color, 1.0f, z_index);
+		DrawPointImpl(p, col, 1.0f, z);
 		return;
 	}
 
@@ -1066,33 +976,29 @@ void Renderer::DrawArcFilled(
 	}
 
 	std::vector<V2_float> v(numpoints);
-	v.at(0) = position;
+	v.at(0) = p;
 	angle	= start_angle;
-	v.at(1) = position + dr * V2_float{ std::cos(angle), std::sin(angle) };
+	v.at(1) = p + dr * V2_float{ std::cos(angle), std::sin(angle) };
 
 	if (numpoints < 3) {
-		DrawLine(v.at(0), v.at(1), color, 1.0f, z_index);
+		DrawLineImpl(v.at(0), v.at(1), col, 1.0f, z);
 	} else {
 		i	  = 2;
 		angle = start_angle;
 		while (angle < end_angle) {
 			angle += delta_angle;
 			angle  = std::min(angle, end_angle);
-			v[i]   = position + dr * V2_float{ std::cos(angle), std::sin(angle) };
+			v[i]   = p + dr * V2_float{ std::cos(angle), std::sin(angle) };
 			i++;
 		}
 
-		DrawPolygonFilled(v.data(), v.size(), color, z_index);
+		DrawPolygonFilledImpl(v.data(), v.size(), col, z);
 	}
 }
 
-void Renderer::DrawArcFilled(const Arc<float>& arc, const Color& color, float z_index) {
-	DrawArcFilled(arc.center, arc.radius, arc.start_angle, arc.end_angle, color, z_index);
-}
-
-void Renderer::DrawArcHollow(
-	const V2_float& position, float arc_radius, float start_angle, float end_angle,
-	const Color& color, float line_width, float z_index
+void Renderer::DrawArcHollowImpl(
+	const V2_float& p, float arc_radius, float start_angle, float end_angle, const V4_float& col,
+	float lw, float z
 ) {
 	PTGN_ASSERT(arc_radius >= 0.0f, "Cannot draw thick arc with negative radius");
 
@@ -1100,7 +1006,7 @@ void Renderer::DrawArcHollow(
 	end_angle	= ClampAngle360(end_angle);
 
 	if (NearlyEqual(arc_radius, 0.0f)) {
-		DrawPoint(position, color, 1.0f, z_index);
+		DrawPointImpl(p, col, 1.0f, z);
 		return;
 	}
 
@@ -1124,44 +1030,27 @@ void Renderer::DrawArcHollow(
 
 		for (std::size_t i{ 0 }; i < n; i++) {
 			float angle = start_angle + i * delta_angle;
-			V2_float p{ position.x + arc_radius * std::cos(angle),
-						position.y + arc_radius * std::sin(angle) };
-			v[i] = p;
+			v[i] = { p.x + arc_radius * std::cos(angle), p.y + arc_radius * std::sin(angle) };
 		}
 
 		// Final line is skipped to prevent connecting the arc.
 		for (std::size_t i{ 0 }; i < v.size() - 1; i++) {
-			DrawLine(v[i], v[i + 1], color, line_width, z_index);
+			DrawLineImpl(v[i], v[i + 1], col, lw, z);
 		}
 	}
 }
 
-void Renderer::DrawArcHollow(
-	const Arc<float>& arc, const Color& color, float line_width, float z_index
+void Renderer::DrawCapsuleFilledImpl(
+	const V2_float& p0, const V2_float& p1, float r, const V4_float& col, float fade, float z
 ) {
-	DrawArcHollow(
-		arc.center, arc.radius, arc.start_angle, arc.end_angle, color, line_width, z_index
-	);
+	DrawEllipseFilledImpl(p0, { r, r }, col, fade, z);
+	DrawEllipseFilledImpl(p1, { r, r }, col, fade, z);
+	DrawLineImpl(p0, p1, col, r * 2.0f, z);
 }
 
-void Renderer::DrawCapsuleFilled(
-	const V2_float& p0, const V2_float& p1, float radius, const Color& color, float fade,
-	float z_index
-) {
-	DrawCircleFilled(p0, radius, color, fade, z_index);
-	DrawCircleFilled(p1, radius, color, fade, z_index);
-	DrawLine(p0, p1, color, radius * 2.0f, z_index);
-}
-
-void Renderer::DrawCapsuleFilled(
-	const Capsule<float>& capsule, const Color& color, float fade, float z_index
-) {
-	DrawCapsuleFilled(capsule.segment.a, capsule.segment.b, capsule.radius, color, fade, z_index);
-}
-
-void Renderer::DrawCapsuleHollow(
-	const V2_float& p0, const V2_float& p1, float radius, const Color& color, float line_width,
-	float fade, float z_index
+void Renderer::DrawCapsuleHollowImpl(
+	const V2_float& p0, const V2_float& p1, float r, const V4_float& col, float lw, float fade,
+	float z
 ) {
 	V2_float dir{ p1 - p0 };
 	const float angle{ RadToDeg(ClampAngle2Pi(dir.Angle() + half_pi<float>)) };
@@ -1171,42 +1060,24 @@ void Renderer::DrawCapsuleHollow(
 
 	// Note that dir2 is an int.
 	if (NearlyEqual(dir2, 0.0f)) {
-		DrawCircleHollow(p0, radius, color, line_width, fade, z_index);
+		DrawEllipseHollowImpl(p0, { r, r }, col, lw, fade, z);
 		return;
 	} else {
-		V2_float tmp = dir.Skewed() / std::sqrt(dir2) * radius;
+		V2_float tmp = dir.Skewed() / std::sqrt(dir2) * r;
 		tangent_r	 = { FastFloor(tmp.x), FastFloor(tmp.y) };
 	}
 
 	// Draw edge lines.
-	DrawLine(p0 + tangent_r, p1 + tangent_r, color, line_width, z_index);
-	DrawLine(p0 - tangent_r, p1 - tangent_r, color, line_width, z_index);
+	DrawLineImpl(p0 + tangent_r, p1 + tangent_r, col, lw, z);
+	DrawLineImpl(p0 - tangent_r, p1 - tangent_r, col, lw, z);
 
 	// Draw edge arcs.
-	DrawArcHollow(p0, radius, angle, angle + 180.0f, color, line_width, z_index);
-	DrawArcHollow(p1, radius, angle + 180.0f, angle, color, line_width, z_index);
+	DrawArcHollowImpl(p0, r, angle, angle + 180.0f, col, lw, z);
+	DrawArcHollowImpl(p1, r, angle + 180.0f, angle, col, lw, z);
 }
 
-void Renderer::DrawCapsuleHollow(
-	const Capsule<float>& capsule, const Color& color, float line_width, float fade, float z_index
-) {
-	DrawCapsuleHollow(
-		capsule.segment.a, capsule.segment.b, capsule.radius, color, line_width, fade, z_index
-	);
-}
-
-void Renderer::DrawRectangleHollow(
-	const Rectangle<float>& rectangle, const Color& color, float rotation,
-	const V2_float& rotation_center, float line_width, float z_index
-) {
-	DrawRectangleHollow(
-		rectangle.pos, rectangle.size, color, rotation, rotation_center, line_width,
-		rectangle.origin, z_index
-	);
-}
-
-void Renderer::DrawPolygonFilled(
-	const V2_float* vertices, std::size_t vertex_count, const Color& color, float z_index
+void Renderer::DrawPolygonFilledImpl(
+	const V2_float* vertices, std::size_t vertex_count, const V4_float& col, float z
 ) {
 	auto triangles = impl::TriangulateProcess(vertices, vertex_count);
 
@@ -1214,37 +1085,312 @@ void Renderer::DrawPolygonFilled(
 		data_.triangle_.AdvanceBatch();
 		PTGN_ASSERT(data_.triangle_.index_ != -1);
 		PTGN_ASSERT(data_.triangle_.index_ < data_.triangle_.batch_.size());
-		data_.triangle_.batch_[data_.triangle_.index_].Add({ t.a, t.b, t.c }, z_index, color);
+		data_.triangle_.batch_[data_.triangle_.index_].Add({ t.a, t.b, t.c }, z, col);
 	}
 
 	data_.stats_.triangle_count++;
 }
 
+void Renderer::DrawPolygonHollowImpl(
+	const V2_float* vertices, std::size_t vertex_count, const V4_float& col, float lw, float z
+) {
+	for (std::size_t i{ 0 }; i < vertex_count; i++) {
+		DrawLineImpl(vertices[i], vertices[(i + 1) % vertex_count], col, lw, z);
+	}
+}
+
+void Renderer::DrawTexture(
+	const Texture& texture, const V2_float& destination_position, const V2_float& destination_size,
+	const V2_float& source_position, V2_float source_size, Origin draw_origin, Flip flip,
+	float rotation, const V2_float& rotation_center, float z_index, const Color& tint_color,
+	float tiling_factor
+) {
+	DrawTextureImpl(
+		texture, destination_position, destination_size, source_position, source_size, draw_origin,
+		flip, rotation, rotation_center, z_index, tint_color.Normalized(), tiling_factor
+	);
+}
+
+void Renderer::DrawPoint(
+	const V2_float& position, const Color& color, float radius, float z_index
+) {
+	DrawPointImpl(position, color.Normalized(), radius, z_index);
+}
+
+void Renderer::DrawLine(
+	const V2_float& p0, const V2_float& p1, const Color& color, float line_width, float z_index
+) {
+	DrawLineImpl(p0, p1, color.Normalized(), line_width, z_index);
+}
+
+void Renderer::DrawLine(
+	const Line<float>& line, const Color& color, float line_width, float z_index
+) {
+	DrawLineImpl(line.a, line.b, color.Normalized(), line_width, z_index);
+}
+
+void Renderer::DrawTriangleFilled(
+	const V2_float& a, const V2_float& b, const V2_float& c, const Color& color, float z_index
+) {
+	DrawTriangleFilledImpl(a, b, c, color.Normalized(), z_index);
+}
+
+void Renderer::DrawTriangleHollow(
+	const V2_float& a, const V2_float& b, const V2_float& c, const Color& color, float line_width,
+	float z_index
+) {
+	DrawTriangleHollowImpl(a, b, c, color.Normalized(), line_width, z_index);
+}
+
+void Renderer::DrawTriangleFilled(
+	const Triangle<float>& triangle, const Color& color, float z_index
+) {
+	DrawTriangleFilledImpl(triangle.a, triangle.b, triangle.c, color.Normalized(), z_index);
+}
+
+void Renderer::DrawTriangleHollow(
+	const Triangle<float>& triangle, const Color& color, float line_width, float z_index
+) {
+	DrawTriangleHollowImpl(
+		triangle.a, triangle.b, triangle.c, color.Normalized(), line_width, z_index
+	);
+}
+
+// Rotation in degrees.
+void Renderer::DrawRectangleFilled(
+	const V2_float& position, const V2_float& size, const Color& color, Origin draw_origin,
+	float rotation, const V2_float& rotation_center, float z_index
+) {
+	DrawRectangleFilledImpl(
+		position, size, color.Normalized(), draw_origin, rotation, rotation_center, z_index
+	);
+}
+
+// Rotation in degrees.
+void Renderer::DrawRectangleFilled(
+	const Rectangle<float>& rectangle, const Color& color, float rotation,
+	const V2_float& rotation_center, float z_index
+) {
+	DrawRectangleFilledImpl(
+		rectangle.pos, rectangle.size, color.Normalized(), rectangle.origin, rotation,
+		rotation_center, z_index
+	);
+}
+
+// Rotation in degrees.
+void Renderer::DrawRectangleHollow(
+	const V2_float& position, const V2_float& size, const Color& color, Origin draw_origin,
+	float line_width, float rotation, const V2_float& rotation_center, float z_index
+) {
+	DrawRectangleHollowImpl(
+		position, size, color.Normalized(), draw_origin, line_width, rotation, rotation_center,
+		z_index
+	);
+}
+
+// Rotation in degrees.
+void Renderer::DrawRectangleHollow(
+	const Rectangle<float>& rectangle, const Color& color, float line_width, float rotation,
+	const V2_float& rotation_center, float z_index
+) {
+	DrawRectangleHollowImpl(
+		rectangle.pos, rectangle.size, color.Normalized(), rectangle.origin, line_width, rotation,
+		rotation_center, z_index
+	);
+}
+
+void Renderer::DrawPolygonFilled(
+	const V2_float* vertices, std::size_t vertex_count, const Color& color, float z_index
+) {
+	DrawPolygonFilledImpl(vertices, vertex_count, color.Normalized(), z_index);
+}
+
 void Renderer::DrawPolygonFilled(const Polygon& polygon, const Color& color, float z_index) {
-	DrawPolygonFilled(polygon.vertices.data(), polygon.vertices.size(), color, z_index);
+	DrawPolygonFilledImpl(
+		polygon.vertices.data(), polygon.vertices.size(), color.Normalized(), z_index
+	);
 }
 
 void Renderer::DrawPolygonHollow(
 	const V2_float* vertices, std::size_t vertex_count, const Color& color, float line_width,
 	float z_index
 ) {
-	for (std::size_t i{ 0 }; i < vertex_count; i++) {
-		DrawLine(vertices[i], vertices[(i + 1) % vertex_count], color, line_width, z_index);
-	}
+	DrawPolygonHollowImpl(vertices, vertex_count, color.Normalized(), line_width, z_index);
 }
 
 void Renderer::DrawPolygonHollow(
 	const Polygon& polygon, const Color& color, float line_width, float z_index
 ) {
-	DrawPolygonHollow(polygon.vertices.data(), polygon.vertices.size(), color, line_width, z_index);
+	DrawPolygonHollowImpl(
+		polygon.vertices.data(), polygon.vertices.size(), color.Normalized(), line_width, z_index
+	);
 }
 
-Color Renderer::GetClearColor() const {
-	return clear_color_;
+void Renderer::DrawCircleFilled(
+	const V2_float& position, float radius, const Color& color, float fade, float z_index
+) {
+	DrawEllipseFilledImpl(position, { radius, radius }, color.Normalized(), fade, z_index);
 }
 
-BlendMode Renderer::GetBlendMode() const {
-	return blend_mode_;
+void Renderer::DrawCircleFilled(
+	const Circle<float>& circle, const Color& color, float fade, float z_index
+) {
+	DrawEllipseFilledImpl(
+		circle.center, { circle.radius, circle.radius }, color.Normalized(), fade, z_index
+	);
+}
+
+void Renderer::DrawCircleHollow(
+	const V2_float& position, float radius, const Color& color, float line_width, float fade,
+	float z_index
+) {
+	DrawEllipseHollowImpl(
+		position, { radius, radius }, color.Normalized(), line_width, fade, z_index
+	);
+}
+
+void Renderer::DrawCircleHollow(
+	const Circle<float>& circle, const Color& color, float line_width, float fade, float z_index
+) {
+	DrawEllipseHollowImpl(
+		circle.center, { circle.radius, circle.radius }, color.Normalized(), line_width, fade,
+		z_index
+	);
+}
+
+// Rotation in degrees.
+void Renderer::DrawRoundedRectangleFilled(
+	const V2_float& position, const V2_float& size, float radius, const Color& color,
+	Origin draw_origin, float rotation, const V2_float& rotation_center, float z_index
+) {
+	DrawRoundedRectangleFilledImpl(
+		position, size, radius, color.Normalized(), draw_origin, rotation, rotation_center, z_index
+	);
+}
+
+// Rotation in degrees.
+void Renderer::DrawRoundedRectangleFilled(
+	const RoundedRectangle<float>& rounded_rectangle, const Color& color, float rotation,
+	const V2_float& rotation_center, float z_index
+) {
+	DrawRoundedRectangleFilledImpl(
+		rounded_rectangle.pos, rounded_rectangle.size, rounded_rectangle.radius, color.Normalized(),
+		rounded_rectangle.origin, rotation, rotation_center, z_index
+	);
+}
+
+// Rotation in degrees.
+void Renderer::DrawRoundedRectangleHollow(
+	const V2_float& position, const V2_float& size, float radius, const Color& color,
+	Origin draw_origin, float line_width, float rotation, const V2_float& rotation_center,
+	float z_index
+) {
+	DrawRoundedRectangleHollowImpl(
+		position, size, radius, color.Normalized(), draw_origin, line_width, rotation,
+		rotation_center, z_index
+	);
+}
+
+// Rotation in degrees.
+void Renderer::DrawRoundedRectangleHollow(
+	const RoundedRectangle<float>& rounded_rectangle, const Color& color, float line_width,
+	float rotation, const V2_float& rotation_center, float z_index
+) {
+	DrawRoundedRectangleHollowImpl(
+		rounded_rectangle.pos, rounded_rectangle.size, rounded_rectangle.radius, color.Normalized(),
+		rounded_rectangle.origin, line_width, rotation, rotation_center, z_index
+	);
+}
+
+void Renderer::DrawEllipseFilled(
+	const V2_float& position, const V2_float& radius, const Color& color, float fade, float z_index
+) {
+	DrawEllipseFilledImpl(position, radius, color.Normalized(), fade, z_index);
+}
+
+void Renderer::DrawEllipseFilled(
+	const Ellipse<float>& ellipse, const Color& color, float fade, float z_index
+) {
+	DrawEllipseFilledImpl(ellipse.center, ellipse.radius, color.Normalized(), fade, z_index);
+}
+
+void Renderer::DrawEllipseHollow(
+	const V2_float& position, const V2_float& radius, const Color& color, float line_width,
+	float fade, float z_index
+) {
+	DrawEllipseHollowImpl(position, radius, color.Normalized(), line_width, fade, z_index);
+}
+
+void Renderer::DrawEllipseHollow(
+	const Ellipse<float>& ellipse, const Color& color, float line_width, float fade, float z_index
+) {
+	DrawEllipseHollowImpl(
+		ellipse.center, ellipse.radius, color.Normalized(), line_width, fade, z_index
+	);
+}
+
+// Angles in degrees.
+void Renderer::DrawArcFilled(
+	const V2_float& position, float arc_radius, float start_angle, float end_angle,
+	const Color& color, float z_index
+) {
+	DrawArcFilledImpl(position, arc_radius, start_angle, end_angle, color.Normalized(), z_index);
+}
+
+void Renderer::DrawArcFilled(const Arc<float>& arc, const Color& color, float z_index) {
+	DrawArcFilledImpl(
+		arc.center, arc.radius, arc.start_angle, arc.end_angle, color.Normalized(), z_index
+	);
+}
+
+// Angles in degrees.
+void Renderer::DrawArcHollow(
+	const V2_float& position, float arc_radius, float start_angle, float end_angle,
+	const Color& color, float line_width, float z_index
+) {
+	DrawArcHollowImpl(
+		position, arc_radius, start_angle, end_angle, color.Normalized(), line_width, z_index
+	);
+}
+
+void Renderer::DrawArcHollow(
+	const Arc<float>& arc, const Color& color, float line_width, float z_index
+) {
+	DrawArcHollowImpl(
+		arc.center, arc.radius, arc.start_angle, arc.end_angle, color.Normalized(), line_width,
+		z_index
+	);
+}
+
+void Renderer::DrawCapsuleFilled(
+	const V2_float& p0, const V2_float& p1, float radius, const Color& color, float fade,
+	float z_index
+) {
+	DrawCapsuleFilledImpl(p0, p1, radius, color.Normalized(), fade, z_index);
+}
+
+void Renderer::DrawCapsuleFilled(
+	const Capsule<float>& capsule, const Color& color, float fade, float z_index
+) {
+	DrawCapsuleFilledImpl(
+		capsule.segment.a, capsule.segment.b, capsule.radius, color.Normalized(), fade, z_index
+	);
+}
+
+void Renderer::DrawCapsuleHollow(
+	const V2_float& p0, const V2_float& p1, float radius, const Color& color, float line_width,
+	float fade, float z_index
+) {
+	DrawCapsuleHollowImpl(p0, p1, radius, color.Normalized(), line_width, fade, z_index);
+}
+
+void Renderer::DrawCapsuleHollow(
+	const Capsule<float>& capsule, const Color& color, float line_width, float fade, float z_index
+) {
+	DrawCapsuleHollowImpl(
+		capsule.segment.a, capsule.segment.b, capsule.radius, color.Normalized(), line_width, fade,
+		z_index
+	);
 }
 
 } // namespace ptgn
