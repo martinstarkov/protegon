@@ -39,11 +39,14 @@ inline void PrintImpl(std::ostream& ostream, int precision, bool scientific, TAr
 	);
 	std::ios state{ nullptr };
 	state.copyfmt(ostream);
-	if (precision != -1) {
-		ostream << std::setprecision(precision);
-	}
 	if (scientific) {
-		ostream << std::scientific;
+		if (precision != -1) {
+			ostream << std::scientific << std::setprecision(precision);
+		} else {
+			ostream << std::scientific;
+		}
+	} else if (precision != -1) {
+		ostream << std::fixed << std::setprecision(precision);
 	}
 	((ostream << std::forward<TArgs>(items)), ...);
 	std::cout.copyfmt(state);
@@ -133,8 +136,9 @@ inline void PrintPreciseLine() {
 
 } // namespace ptgn
 
-#define PTGN_LOG(...)					 ptgn::PrintLine(__VA_ARGS__);
-#define PTGN_LOG_PRECISE(precision, ...) ptgn::PrintLine(precision, true, __VA_ARGS__);
+#define PTGN_LOG(...) ptgn::PrintLine(__VA_ARGS__);
+#define PTGN_LOG_PRECISE(precision, scientific, ...) \
+	ptgn::PrintPreciseLine(precision, scientific, __VA_ARGS__);
 #define PTGN_INFO(...)                \
 	{                                 \
 		ptgn::Print("INFO: ");        \
