@@ -342,15 +342,31 @@ void RendererData::SetupTextureSlots() {
 void RendererData::SetupShaders() {
 	PTGN_ASSERT(max_texture_slots_ > 0, "Max texture slots must be set before setting up shaders");
 
+	PTGN_INFO("Renderer Texture Slots: ", max_texture_slots_);
 	// This strange way of including files allows for them to be packed into the library binary.
+	ShaderSource quad_frag;
+
+	if (max_texture_slots_ == 8) {
+		quad_frag = ShaderSource{
+#include PTGN_SHADER_PATH(quad_8.frag)
+		};
+	} else if (max_texture_slots_ == 16) {
+		quad_frag = ShaderSource{
+#include PTGN_SHADER_PATH(quad_16.frag)
+		};
+	} else if (max_texture_slots_ == 32) {
+		quad_frag = ShaderSource{
+#include PTGN_SHADER_PATH(quad_32.frag)
+		};
+	} else {
+		PTGN_ERROR("Unsupported Texture Slot Size: ", max_texture_slots_);
+	}
 
 	quad_.shader_ = Shader(
 		ShaderSource{
 #include PTGN_SHADER_PATH(quad.vert)
 		},
-		ShaderSource{
-#include PTGN_SHADER_PATH(quad.frag)
-		}
+		quad_frag
 	);
 
 	circle_.shader_ = Shader(
@@ -443,17 +459,24 @@ std::array<V2_float, QuadData::vertex_count> RendererData::GetTextureCoordinates
 		source_size = texture_size - source_position;
 	}
 
+	// Convert to 0 -> 1 range.
 	V2_float src_pos{ source_position / texture_size };
 	V2_float src_size{ source_size / texture_size };
-
-	// PTGN_LOG_PRECISE("Precise src_size: ", src_size);
 
 	if (src_size.x > 1.0f || src_size.y > 1.0f) {
 		PTGN_WARN("Drawing source size from outside of texture size");
 	}
 
-	return { src_pos, V2_float{ src_pos.x + src_size.x, src_pos.y }, src_pos + src_size,
-			 V2_float{ src_pos.x, src_pos.y + src_size.y } };
+	V2_float half_pixel{ 0.5f / texture_size };
+
+	std::array<V2_float, QuadData::vertex_count> texture_coordinates{
+		src_pos + half_pixel,
+		V2_float{ src_pos.x + src_size.x - half_pixel.x, src_pos.y + half_pixel.y },
+		src_pos + src_size - half_pixel,
+		V2_float{ src_pos.x + half_pixel.x, src_pos.y + src_size.y - half_pixel.y },
+	};
+
+	return texture_coordinates;
 }
 
 void RendererData::Stats::Reset() {
