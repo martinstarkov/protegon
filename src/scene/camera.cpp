@@ -133,15 +133,11 @@ void OrthographicCamera::RecalculateViewProjection() {
 
 void OrthographicCamera::RecalculateView() {
 	PTGN_ASSERT(IsValid());
-	V2_float ws{ game.window.GetSize() };
 
-	// TODO: Instead of subtracting half the window size, incorporate this into the projection
-	// matrix.
-	instance_->view = M4_float::Translate(
-		instance_->orientation.ToMatrix4(),
-		V3_float{ -instance_->position.x, -instance_->position.y, instance_->position.z } +
-			V3_float{ instance_->size.x * 0.5f, instance_->size.y * 0.5f, 0.0f }
-	);
+	V3_float translate{ instance_->size.x * 0.5f - instance_->position.x,
+						instance_->size.y * 0.5f - instance_->position.y, instance_->position.z };
+
+	instance_->view = M4_float::Translate(instance_->orientation.ToMatrix4(), translate);
 
 	RecalculateViewProjection();
 }
