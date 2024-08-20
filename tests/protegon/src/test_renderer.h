@@ -7,10 +7,15 @@
 #include "protegon/shader.h"
 #include "protegon/texture.h"
 #include "protegon/vertex_array.h"
+#include "renderer/gl_renderer.h" // for texture slot count
 #include "utility/utility.h"
 
 // #define SDL_RENDERER_TESTS
 
+// TODO: Add texture border color test.
+// TODO: Add texture mipmap test.
+// TODO: Add texture wrapping test.
+// TODO: Add texture filtering test.
 // TODO: Add rotated rectangle tests.
 
 constexpr const std::size_t batch_count = 10000;
@@ -97,19 +102,16 @@ void TestViewportExtentsAndOrigin(float dt) {
 		dt,
 		[&]() {
 			game.renderer.DrawRectangleFilled(
-				V2_float{ 0, 0 }, V2_float{ 50, 50 }, color::Blue, 0.0f, { 0.5f, 0.5f },
-				Origin::TopLeft, 0.0f
+				V2_float{ 0, 0 }, V2_float{ 50, 50 }, color::Blue, Origin::TopLeft
 			);
 			game.renderer.DrawRectangleFilled(
-				V2_float{ ws.x, 0 }, V2_float{ 50, 50 }, color::Magenta, 0.0f, { 0.5f, 0.5f },
-				Origin::TopRight, 0.0f
+				V2_float{ ws.x, 0 }, V2_float{ 50, 50 }, color::Magenta, Origin::TopRight
 			);
 			game.renderer.DrawRectangleFilled(
-				ws, V2_float{ 50, 50 }, color::Red, 0.0f, { 0.5f, 0.5f }, Origin::BottomRight, 0.0f
+				ws, V2_float{ 50, 50 }, color::Red, Origin::BottomRight
 			);
 			game.renderer.DrawRectangleFilled(
-				V2_float{ 0, ws.y }, V2_float{ 50, 50 }, color::Orange, 0.0f, { 0.5f, 0.5f },
-				Origin::BottomLeft, 0.0f
+				V2_float{ 0, ws.y }, V2_float{ 50, 50 }, color::Orange, Origin::BottomLeft
 			);
 		},
 		PTGN_FUNCTION_NAME()
@@ -129,7 +131,7 @@ void TestRectangleFilled(float dt) {
 				rotation -= 5.0f * dt_;
 			}
 			game.renderer.DrawRectangleFilled(
-				center, ws / 2.0f, color::Blue, rotation, { 0.5f, 0.5f }, Origin::Center
+				center, ws / 2.0f, color::Blue, Origin::Center, rotation, { 0.5f, 0.5f }
 			);
 		},
 		PTGN_FUNCTION_NAME()
@@ -150,7 +152,7 @@ void TestRectangleHollow(float dt) {
 			}
 
 			game.renderer.DrawRectangleHollow(
-				center, ws / 2.0f, color::Green, rotation, { 0.5f, 0.5f }, 5.0f, Origin::Center
+				center, ws / 2.0f, color::Green, Origin::Center, 5.0f, rotation, { 0.5f, 0.5f }
 			);
 		},
 		PTGN_FUNCTION_NAME()
@@ -189,31 +191,37 @@ void TestTexture(float dt, const path& texture) {
 
 			game.renderer.Flush();
 
-			game.renderer.DrawTexture({ 200, 200 }, size / 2.0f, t);
-			game.renderer.DrawTexture({ 400, 200 }, size, t, t.GetSize() / 2.0f);
-			game.renderer.DrawTexture({ 600, 200 }, size, t, {}, t.GetSize() / 2.0f);
-			game.renderer.DrawTexture({ 200, 400 }, size, t, {}, {}, rotation);
-			game.renderer.DrawTexture({ 400, 400 }, size, t, {}, {}, -rotation);
+			game.renderer.DrawTexture(t, { 200, 200 }, size / 2.0f);
+			game.renderer.DrawTexture(t, { 400, 200 }, size, t.GetSize() / 2.0f);
+			game.renderer.DrawTexture(t, { 600, 200 }, size, {}, t.GetSize() / 2.0f);
 			game.renderer.DrawTexture(
-				{ 600, 400 }, size, t, {}, {}, rotation, { 1.0f, 1.0f }, Flip::None, Origin::Center,
+				t, { 200, 400 }, size, {}, {}, Origin::Center, Flip::None, rotation
+			);
+			game.renderer.DrawTexture(
+				t, { 400, 400 }, size, {}, {}, Origin::Center, Flip::None, -rotation
+			);
+			game.renderer.DrawTexture(
+				t, { 600, 400 }, size, {}, {}, Origin::Center, Flip::None, rotation, { 1.0f, 1.0f },
 				0.0f
 			);
 			game.renderer.DrawTexture(
-				{ 200, 600 }, size, t, {}, {}, rotation, { 0.5f, 0.5f }, Flip::Horizontal
+				t, { 200, 600 }, size, {}, {}, Origin::Center, Flip::Horizontal, rotation,
+				{ 0.5f, 0.5f }
 			);
 			game.renderer.DrawTexture(
-				{ 400, 600 }, size, t, {}, {}, rotation, { 0.5f, 0.5f }, Flip::Vertical
+				t, { 400, 600 }, size, {}, {}, Origin::Center, Flip::Vertical, rotation,
+				{ 0.5f, 0.5f }
 			);
 			game.renderer.DrawTexture(
-				{ 600, 600 }, size * 0.5f, t, {}, {}, 0.0f, { 0.5f, 0.5f }, Flip::None,
-				Origin::Center, 0.8f
+				t, { 600, 600 }, size * 0.5f, {}, {}, Origin::Center, Flip::None, 0.0f,
+				{ 0.5f, 0.5f }, 0.8f
 			);
 			game.renderer.DrawTexture(
-				{ 600, 600 }, size * 0.7f, t, {}, {}, 0.0f, { 0.5f, 0.5f }, Flip::None,
-				Origin::Center, 0.5f
+				t, { 600, 600 }, size * 0.7f, {}, {}, Origin::Center, Flip::None, 0.0f,
+				{ 0.5f, 0.5f }, 0.5f
 			);
 			game.renderer.DrawTexture(
-				{ 600, 600 }, size, t, {}, {}, 0.0f, { 0.5f, 0.5f }, Flip::None, Origin::Center,
+				t, { 600, 600 }, size, {}, {}, Origin::Center, Flip::None, 0.0f, { 0.5f, 0.5f },
 				0.2f
 			);
 		},
@@ -225,7 +233,7 @@ void TestTextureFormat(float dt, const path& texture) {
 	Texture t{ texture };
 
 	TestRenderingLoop(
-		dt, [&]() { game.renderer.DrawTexture(center, ws / 2.0f, t); }, PTGN_FUNCTION_NAME(), " (",
+		dt, [&]() { game.renderer.DrawTexture(t, center, ws / 2.0f); }, PTGN_FUNCTION_NAME(), " (",
 		texture.extension().string(), ")"
 	);
 }
@@ -299,31 +307,25 @@ void TestShapes(float dt) {
 			game.renderer.DrawPoint(test02, color::Black, 6);
 
 			game.renderer.DrawRectangleHollow(
-				test11.pos, test11.size, color::Red, 0.0f, { 0.5f, 0.5f }, 1.0f, Origin::TopLeft
+				test11.pos, test11.size, color::Red, Origin::TopLeft, 1.0f
 			);
 			game.renderer.DrawRectangleHollow(
-				test12.pos, test12.size, color::Red, 0.0f, { 0.5f, 0.5f }, 4.0f, Origin::TopLeft
+				test12.pos, test12.size, color::Red, Origin::TopLeft, 4.0f
 			);
-			game.renderer.DrawRectangleFilled(
-				test13.pos, test13.size, color::Red, 0.0f, { 0.5f, 0.5f }, Origin::TopLeft
-			);
+			game.renderer.DrawRectangleFilled(test13.pos, test13.size, color::Red, Origin::TopLeft);
 
 			// TODO: Fix
 			game.renderer.DrawRoundedRectangleHollow(
-				test21.pos, test21.size, test21.radius, color::Green, 0.0f, { 0.5f, 0.5f }, 1.0f,
-				Origin::TopLeft
+				test21.pos, test21.size, test21.radius, color::Green, Origin::TopLeft, 1.0f
 			);
 			game.renderer.DrawRoundedRectangleHollow(
-				test22.pos, test22.size, test22.radius, color::Green, 0.0f, { 0.5f, 0.5f }, 5.0f,
-				Origin::TopLeft
+				test22.pos, test22.size, test22.radius, color::Green, Origin::TopLeft, 5.0f
 			);
 			game.renderer.DrawRoundedRectangleFilled(
-				test23.pos, test23.size, test23.radius, color::Green, 0.0f, { 0.5f, 0.5f },
-				Origin::TopLeft
+				test23.pos, test23.size, test23.radius, color::Green, Origin::TopLeft
 			);
 			game.renderer.DrawRoundedRectangleHollow(
-				test24.pos, test24.size, test24.radius, color::Green, 0.0f, { 0.5f, 0.5f }, 4.0f,
-				Origin::TopLeft
+				test24.pos, test24.size, test24.radius, color::Green, Origin::TopLeft, 4.0f
 			);
 
 			game.renderer.DrawPolygonHollow(
@@ -476,7 +478,7 @@ void TestBatchTexture(float dt, const std::vector<Texture>& textures) {
 			for (size_t i = 0; i < batch_count; i++) {
 				float size = rng_size() * ws.x;
 				game.renderer.DrawTexture(
-					V2_float::Random(V2_float{}, ws), { size, size }, textures[rng_index()]
+					textures[rng_index()], V2_float::Random(V2_float{}, ws), { size, size }
 				);
 			}
 			// game.profiler.PrintAll<seconds>();
@@ -818,13 +820,31 @@ void TestShaders() {
 	// failure to compile due to gl_Position.
 	// Shader shader2 = Shader(f_source, v_source);
 
+	std::int32_t max_texture_slots{ GLRenderer::GetMaxTextureSlots() };
+
+	ShaderSource quad_frag;
+
+	if (max_texture_slots == 8) {
+		quad_frag = ShaderSource{
+#include PTGN_SHADER_PATH(quad_8.frag)
+		};
+	} else if (max_texture_slots == 16) {
+		quad_frag = ShaderSource{
+#include PTGN_SHADER_PATH(quad_16.frag)
+		};
+	} else if (max_texture_slots == 32) {
+		quad_frag = ShaderSource{
+#include PTGN_SHADER_PATH(quad_32.frag)
+		};
+	} else {
+		PTGN_ERROR("Unsupported Texture Slot Size: ", max_texture_slots);
+	}
+
 	Shader shader3 = Shader(
 		ShaderSource{
 #include PTGN_SHADER_PATH(quad.vert)
 		},
-		ShaderSource{
-#include PTGN_SHADER_PATH(quad.frag)
-		}
+		quad_frag
 	);
 
 	shader3.Bind();
@@ -944,10 +964,7 @@ void GetTextures(std::vector<Texture>& textures, std::vector<Texture>& textures_
 		}
 		return paths;
 	};
-	auto paths = paths_from_int(31);
-#ifdef SDL_RENDERER_TESTS
-	SDLTextureBatchTest(paths);
-#else
+	auto paths				 = paths_from_int(31);
 	auto textures_from_paths = [](const std::vector<path>& paths) {
 		std::vector<Texture> textures;
 		textures.resize(paths.size());
@@ -965,12 +982,6 @@ void GetTextures(std::vector<Texture>& textures, std::vector<Texture>& textures_
 }
 
 void TestRendering() {
-	game.window.SetSize({ 800, 800 });
-	ws = game.window.GetSize();
-	center = game.window.GetCenter();
-	game.window.Show();
-	game.renderer.SetClearColor(color::Silver);
-
 	static std::vector<Texture> textures;
 	static std::vector<Texture> textures_further;
 	static auto r = [&]() {
@@ -979,6 +990,11 @@ void TestRendering() {
 	}();
 
 	game.PushLoopFunction([&](float dt) {
+		game.window.SetSize({ 800, 800 });
+		ws	   = game.window.GetSize();
+		center = game.window.GetCenter();
+		game.renderer.SetClearColor(color::Silver);
+
 		switch (static_cast<RenderTest>(renderer_test)) {
 			case RenderTest::Shapes:			   TestShapes(dt); break;
 			case RenderTest::BatchTexture:		   TestBatchTexture(dt, textures); break;
@@ -1004,20 +1020,18 @@ void TestRendering() {
 			default:								   PTGN_ERROR("Failed to find a valid renderer test");
 		}
 	});
-#endif
-
-	// game.window.SetTitle("");
 }
 
 void TestRenderer() {
-	PTGN_INFO("Starting renderer tests...");
+	PTGN_INFO("Starting renderer object tests...");
 
 	TestVertexBuffers();
 	TestIndexBuffers();
 	TestVertexArrays();
 	TestShaders();
 	TestTextures();
-	TestRendering();
 
-	PTGN_INFO("All renderer tests passed!");
+	PTGN_INFO("All renderer object tests passed!");
+
+	TestRendering();
 }

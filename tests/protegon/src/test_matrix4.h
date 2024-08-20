@@ -6,7 +6,7 @@
 
 using namespace ptgn;
 
-bool TestMatrix4() {
+void TestMatrix4() {
 	PTGN_INFO("Starting Matrix4 tests...");
 
 	M4_int test1;
@@ -276,5 +276,4 @@ bool TestMatrix4() {
 	PTGN_ASSERT(test26(3, 3) == 27);
 
 	PTGN_INFO("All Matrix4 tests passed!");
-	return true;
 }

@@ -6,14 +6,11 @@
 
 using namespace ptgn;
 
-std::size_t font_key = Hash("different_font");
+void TestText() {
+	static int ysize = 40;
 
-std::string content = "The quick brown fox jumps over the lazy dog";
-
-int ysize = 40;
-
-bool TestText() {
-	PTGN_INFO("Starting text tests...");
+	static std::size_t font_key = Hash("different_font");
+	static std::string content	= "The quick brown fox jumps over the lazy dog";
 
 	static Font font{ "resources/fonts/Arial.ttf", ysize };
 	game.font.Load(font_key, "resources/fonts/retro_gaming.ttf", ysize);
@@ -62,19 +59,18 @@ bool TestText() {
 						 FontRenderMode::Shaded,
 						 color::Cyan };
 
-	game.window.SetSize({ 800, 660 });
-	game.window.Show();
-
 	/*const FontOrKey& font,
 	const std::string& content,
 	const Color& text_color,
 	FontStyle font_style = FontStyle::Normal,
 	FontRenderMode render_mode = FontRenderMode::Solid,
 	const Color& shading_color = color::White*/
-	game.renderer.SetClearColor(color::White);
 
 	game.PushLoopFunction([&]() {
+		game.window.SetTitle("Text Tests");
+		game.window.SetSize({ 800, 660 });
 		game.scene.GetTopActive().camera.ResetPrimaryToWindow();
+		game.renderer.SetClearColor(color::White);
 		// test001.Draw({ { 0, 0 }, { 30, 30 } });
 
 		int ws_x = game.window.GetSize().x;
@@ -83,7 +79,7 @@ bool TestText() {
 		int ystride = ysize + yoffset;
 
 		test002.Draw(Rectangle<int>{ { 0, ystride * 0 }, { ws_x, ysize }, Origin::TopLeft });
-		test003.Draw(Rectangle<int>{ { 0, ystride * 1 }, text_size }
+		test003.Draw(Rectangle<int>{ { 0, ystride * 1 }, text_size, Origin::TopLeft }
 		); // Actual size needed to render font without stretching.
 		test004.Draw(Rectangle<int>{ { 0, ystride * 2 }, { ws_x, ysize }, Origin::TopLeft });
 		test005.Draw(Rectangle<int>{ { 0, ystride * 3 }, { ws_x, ysize }, Origin::TopLeft });
@@ -102,15 +98,4 @@ bool TestText() {
 			game.PopLoopFunction();
 		}
 	});
-
-	/*game.window.SetTitle("");
-
-	PTGN_ASSERT(game.font.Has(font_key));
-
-	game.font.Unload(font_key);
-
-	PTGN_ASSERT(!game.font.Has(font_key));*/
-
-	PTGN_INFO("All text tests passed!");
-	return true;
 }

@@ -7,7 +7,7 @@
 
 using namespace ptgn;
 
-bool TestRNG() {
+void TestRNG() {
 	PTGN_INFO("Starting RNG tests...");
 
 	int test_amount = 100000;
@@ -227,5 +227,4 @@ bool TestRNG() {
 	*/
 
 	PTGN_INFO("All RNG tests passed!");
-	return true;
 }

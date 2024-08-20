@@ -160,15 +160,11 @@ void TestCameraMovement(float dt) {
 }
 
 void TestCamera() {
-	PTGN_INFO("Starting camera tests...");
-
-	game.window.SetSize({ 800, 800 });
-	game.window.Show();
-	ws	   = game.window.GetSize();
-	center = game.window.GetCenter();
-	game.renderer.SetClearColor(color::DarkGrey);
-
 	game.PushLoopFunction([&](float dt) {
+		ws	   = game.window.GetSize();
+		center = game.window.GetCenter();
+		game.window.SetSize({ 800, 800 });
+		game.renderer.SetClearColor(color::DarkGrey);
 		static std::size_t count{ game.LoopFunctionCount() };
 		switch (static_cast<CameraTest>(camera_test)) {
 			case CameraTest::Movement:	TestCameraMovement(dt); break;
@@ -179,8 +175,4 @@ void TestCamera() {
 			game.scene.GetTopActive().camera.ResetPrimaryToWindow();
 		}
 	});
-
-	// game.window.SetTitle("");
-
-	PTGN_INFO("All camera tests passed!");
 }

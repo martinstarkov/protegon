@@ -56,7 +56,8 @@ void TestTweenManager(float dt) {
 			color = color::Green;
 		};
 
-		game.tween.Load(key, 0.0f, 800.0f, milliseconds{ 2000 }, config);
+		auto& t = game.tween.Load(key, 0.0f, 800.0f, milliseconds{ 2000 }, config);
+		t.Start();
 
 		PTGN_ASSERT(game.tween.Count() == 1);
 
@@ -276,9 +277,7 @@ void TestTweenConfig(float dt) {
 			for (auto& t : tweens) {
 				if (t.tween.IsValid()) {
 					t.pos.x = ws.x * t.tween.GetValue();
-					game.renderer.DrawRectangleFilled(
-						t.pos, size, t.color, 0.0f, { 0.5f, 0.5f }, Origin::CenterTop
-					);
+					game.renderer.DrawRectangleFilled(t.pos, size, t.color, Origin::CenterTop);
 				}
 			}
 		},
@@ -287,21 +286,15 @@ void TestTweenConfig(float dt) {
 }
 
 void TestTween() {
-	PTGN_INFO("Starting tween tests...");
-
-	game.window.SetSize({ 800, 800 });
-	ws	   = game.window.GetSize();
-	center = game.window.GetCenter();
-	game.window.Show();
-	game.renderer.SetClearColor(color::White);
-
 	game.PushLoopFunction([&](float dt) {
+		game.window.SetSize({ 800, 800 });
+		ws	   = game.window.GetSize();
+		center = game.window.GetCenter();
+		game.renderer.SetClearColor(color::White);
 		switch (static_cast<TweenTest>(tween_test)) {
 			case TweenTest::Callbacks: TestTweenConfig(dt); break;
 			case TweenTest::Manager:   TestTweenManager(dt); break;
 			default:				   PTGN_ERROR("Failed to find a valid tween test");
 		}
 	});
-
-	PTGN_INFO("All tween tests passed!");
 }

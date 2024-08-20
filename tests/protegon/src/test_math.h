@@ -7,7 +7,7 @@
 
 using namespace ptgn;
 
-bool TestMath() {
+void TestMath() {
 	PTGN_INFO("Starting math tests...");
 
 	// Sign tests.
@@ -153,5 +153,4 @@ bool TestMath() {
 	// QuadraticFormula()
 
 	PTGN_INFO("All math tests passed!");
-	return true;
 }

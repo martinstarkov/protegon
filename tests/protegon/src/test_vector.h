@@ -8,7 +8,7 @@
 
 using namespace ptgn;
 
-bool TestVector2() {
+void TestVector2() {
 	PTGN_INFO("Starting Vector2 tests...");
 
 	// Implicit / explicit construction and copy tests.
@@ -348,5 +348,4 @@ bool TestVector2() {
 	// Skewed() Add tests for Identity() Add tests for Clamped()
 
 	PTGN_INFO("All Vector2 tests passed!");
-	return true;
 }
