@@ -52,6 +52,7 @@ namespace gl {
 	GLE(BindFramebuffer, BINDFRAMEBUFFER)                   \
 	GLE(GetBufferParameteriv, GETBUFFERPARAMETERIV)         \
 	GLE(VertexAttribPointer, VERTEXATTRIBPOINTER)           \
+	GLE(GenerateMipmap, GENERATEMIPMAP)                     \
 	GLE(BufferData, BUFFERDATA)                             \
 	GLE(ActiveTexture, ACTIVETEXTURE)                       \
 	GLE(BufferSubData, BUFFERSUBDATA)                       \

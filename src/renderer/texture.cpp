@@ -1,10 +1,8 @@
 #include "protegon/texture.h"
 
-#include "SDL.h"
-#include "SDL_image.h"
-#include "protegon/game.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
+#include "renderer/gl_renderer.h"
 #include "utility/debug.h"
 
 namespace ptgn {
@@ -31,6 +29,7 @@ static GLFormats GetGLFormats(ImageFormat format) {
 	// GL_R#size, GL_RG#size, GL_RGB#size, GL_RGBA#size
 	switch (format) {
 #ifdef __EMSCRIPTEN__
+		// TODO: Make an enum with shared definition of GL_RGBA8_OES.
 		case ImageFormat::RGBA8888: {
 			return { GL_RGBA8_OES, GL_RGBA };
 		}
@@ -62,7 +61,7 @@ static GLFormats GetGLFormats(ImageFormat format) {
 
 } // namespace impl
 
-Texture::Texture(const path& image_path, ImageFormat format, TextureSmoothing smoothing) :
+Texture::Texture(const path& image_path, ImageFormat format) :
 	Texture{
 		[&]() -> Surface {
 			PTGN_ASSERT(
@@ -74,15 +73,11 @@ Texture::Texture(const path& image_path, ImageFormat format, TextureSmoothing sm
 			);
 			return Surface{ image_path };
 		}(),
-		smoothing
 	} {}
 
-Texture::Texture(const Surface& surface, TextureSmoothing smoothing) :
-	Texture{ surface.GetData(), surface.GetSize(), smoothing } {}
+Texture::Texture(const Surface& surface) : Texture{ surface.GetData(), surface.GetSize() } {}
 
-Texture::Texture(
-	const void* pixel_data, const V2_int& size, ImageFormat format, TextureSmoothing smoothing
-) {
+Texture::Texture(const void* pixel_data, const V2_int& size, ImageFormat format) {
 	PUSHSTATE();
 
 	if (!IsValid()) {
@@ -93,22 +88,28 @@ Texture::Texture(
 
 	SetDataImpl(pixel_data, size, format);
 
-	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, static_cast<gl::GLint>(smoothing));
-	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, static_cast<gl::GLint>(smoothing));
+	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, static_cast<int>(default_wrapping));
+	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, static_cast<int>(default_wrapping));
+	gl::glTexParameteri(
+		GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, static_cast<int>(default_minifying_filter)
+	);
+	gl::glTexParameteri(
+		GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, static_cast<int>(default_magnifying_filter)
+	);
+
+	gl::GenerateMipmap(GL_TEXTURE_2D);
 
 	POPSTATE();
 }
 
-Texture::Texture(const std::vector<Color>& pixels, const V2_int& size, TextureSmoothing smoothing) :
+Texture::Texture(const std::vector<Color>& pixels, const V2_int& size) :
 	Texture{ [&]() -> void* {
 				PTGN_ASSERT(
 					pixels.size() == size.x * size.y, "Provided pixel array must match texture size"
 				);
 				return (void*)pixels.data();
 			}(),
-			 size, ImageFormat::RGBA8888, smoothing } {}
+			 size, ImageFormat::RGBA8888 } {}
 
 void Texture::Bind() const {
 	PTGN_ASSERT(IsValid(), "Cannot bind texture which is destroyed or uninitialized");
@@ -117,12 +118,7 @@ void Texture::Bind() const {
 
 void Texture::Bind(std::uint32_t slot) const {
 	PTGN_ASSERT(
-		[&]() -> bool {
-			std::int32_t max_texture_slots{ 0 };
-			gl::glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_texture_slots);
-			PTGN_ASSERT(max_texture_slots != 0);
-			return slot < static_cast<std::uint32_t>(max_texture_slots);
-		}(),
+		slot < static_cast<std::uint32_t>(GLRenderer::GetMaxTextureSlots()),
 		"Attempting to bind a slot outside of OpenGL texture slot maximum"
 	);
 	gl::ActiveTexture(GL_TEXTURE0 + slot);
@@ -196,6 +192,86 @@ bool Texture::operator==(const Texture& o) const {
 
 bool Texture::operator!=(const Texture& o) const {
 	return !(*this == o);
+}
+
+// TODO: Impelement. Dont forget push and pop state.
+
+void Texture::SetWrapping(TextureWrapping s) {
+	PUSHSTATE();
+
+	Bind();
+
+	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, static_cast<int>(s));
+
+	POPSTATE();
+}
+
+void Texture::SetWrapping(TextureWrapping s, TextureWrapping t) {
+	PUSHSTATE();
+
+	Bind();
+
+	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, static_cast<int>(s));
+	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, static_cast<int>(t));
+
+	POPSTATE();
+}
+
+void Texture::SetWrapping(TextureWrapping s, TextureWrapping t, TextureWrapping r) {
+	PUSHSTATE();
+
+	Bind();
+
+	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, static_cast<int>(s));
+	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, static_cast<int>(t));
+	// TODO: Make an enum where GL_TEXTURE_WRAP_R and GL_TEXTURE_WRAP_R_OES are the same?
+#ifdef __EMSCRIPTEN__
+	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R_OES, static_cast<int>(r));
+#else
+	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, static_cast<int>(r));
+#endif
+
+	POPSTATE();
+}
+
+void Texture::SetFilters(TextureFilter minifying, TextureFilter magnifying) {
+	PUSHSTATE();
+
+	Bind();
+
+	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, static_cast<int>(minifying));
+	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, static_cast<int>(magnifying));
+
+	POPSTATE();
+}
+
+void Texture::SetBorderColor(const Color& color) {
+	PUSHSTATE();
+
+	Bind();
+
+	V4_float c{ color.Normalized() };
+	float border_color[4]{ c.x, c.y, c.z, c.w };
+
+	// TODO: It seems like GL_TEXTURE_BORDER_COLOR_OES and GL_TEXTURE_BORDER_COLOR are the same so
+	// maybe switch all instances of these emscripten ifdefs to custom enums.
+#ifdef __EMSCRIPTEN__
+	gl::glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR_OES, border_color);
+#else
+	gl::glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border_color);
+#endif
+
+	POPSTATE();
+}
+
+void Texture::GenerateMipmaps() {
+	PUSHSTATE();
+
+	Bind();
+
+	gl::GenerateMipmap(GL_TEXTURE_2D);
+
+	POPSTATE();
 }
 
 } // namespace ptgn

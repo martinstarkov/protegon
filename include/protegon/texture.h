@@ -17,9 +17,20 @@ enum class Flip {
 	Vertical   = 0x00000002
 };
 
-enum class TextureSmoothing {
-	Linear	= 0x2601, // GL_LINEAR
-	Nearest = 0x2600  // GL_NEAREST
+enum class TextureWrapping {
+	ClampEdge	   = 0x812F, // GL_CLAMP_TO_EDGE,
+	ClampBorder	   = 0x812D, // GL_CLAMP_TO_BORDER,
+	Repeat		   = 0x2901, // GL_REPEAT,
+	MirroredRepeat = 0x8370	 // GL_MIRRORED_REPEAT
+};
+
+enum class TextureFilter {
+	Nearest				 = 0x2600, // GL_NEAREST
+	Linear				 = 0x2601, // GL_LINEAR
+	NearestMipmapNearest = 0x2700, // GL_NEAREST_MIPMAP_NEAREST
+	NearestMipmapLinear	 = 0x2702, // GL_NEAREST_MIPMAP_LINEAR
+	LinearMipmapNearest	 = 0x2701, // GL_LINEAR_MIPMAP_NEAREST
+	LinearMipmapLinear	 = 0x2703, // GL_LINEAR_MIPMAP_LINEAR
 };
 
 class Renderer;
@@ -51,22 +62,26 @@ public:
 	~Texture() = default;
 
 private:
-	constexpr const static TextureSmoothing default_smoothing{ TextureSmoothing::Nearest };
+	constexpr const static TextureFilter default_minifying_filter{
+		TextureFilter::NearestMipmapNearest
+	};
+	constexpr const static TextureFilter default_magnifying_filter{ TextureFilter::Nearest };
+	constexpr const static TextureWrapping default_wrapping{ TextureWrapping::ClampEdge };
 
 public:
-	Texture(
-		const path& image_path, ImageFormat format = ImageFormat::RGBA8888,
-		TextureSmoothing smoothing = default_smoothing
-	);
-	Texture(const Surface& surface, TextureSmoothing smoothing = default_smoothing);
-	Texture(
-		const void* pixel_data, const V2_int& size, ImageFormat format,
-		TextureSmoothing smoothing = default_smoothing
-	);
-	Texture(
-		const std::vector<Color>& pixels, const V2_int& size,
-		TextureSmoothing smoothing = default_smoothing
-	);
+	Texture(const path& image_path, ImageFormat format = ImageFormat::RGBA8888);
+	Texture(const Surface& surface);
+	Texture(const void* pixel_data, const V2_int& size, ImageFormat format);
+	Texture(const std::vector<Color>& pixels, const V2_int& size);
+
+	void SetWrapping(TextureWrapping s);
+	void SetWrapping(TextureWrapping s, TextureWrapping t);
+	void SetWrapping(TextureWrapping s, TextureWrapping t, TextureWrapping r);
+
+	void SetFilters(TextureFilter minifying, TextureFilter magnifying);
+	void SetBorderColor(const Color& color);
+
+	void GenerateMipmaps();
 
 	void SetSubData(const void* pixel_data, ImageFormat format);
 	void SetSubData(const std::vector<Color>& pixels);
