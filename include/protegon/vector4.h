@@ -232,13 +232,13 @@ constexpr inline Vector4<S> operator/(const Vector4<T>& lhs, U rhs) {
 	return { lhs.x / rhs, lhs.y / rhs, lhs.z / rhs, lhs.w / rhs };
 }
 
-} // namespace ptgn
-
 template <typename T, ptgn::type_traits::stream_writable<std::ostream, T> = true>
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector4<T>& v) {
 	os << "(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")";
 	return os;
 }
+
+} // namespace ptgn
 
 // Custom hashing function for Vector4 class.
 // This allows for use of unordered maps and sets with Vector2s as keys.

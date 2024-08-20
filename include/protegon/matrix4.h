@@ -400,8 +400,6 @@ inline bool operator!=(const Matrix4<T>& lhs, const Matrix4<T>& rhs) {
 	return !operator==(lhs, rhs);
 }
 
-} // namespace ptgn
-
 template <typename T, ptgn::type_traits::stream_writable<std::ostream, T> = true>
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Matrix4<T>& m) {
 	os << "\n";
@@ -428,3 +426,5 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::Matrix4<T>& m) {
 	os << "]";
 	return os;
 }
+
+} // namespace ptgn

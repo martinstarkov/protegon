@@ -232,13 +232,13 @@ constexpr inline Vector3<S> operator/(const Vector3<T>& lhs, U rhs) {
 	return { lhs.x / rhs, lhs.y / rhs, lhs.z / rhs };
 }
 
-} // namespace ptgn
-
 template <typename T, ptgn::type_traits::stream_writable<std::ostream, T> = true>
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector3<T>& v) {
 	os << "(" << v.x << ", " << v.y << ", " << v.z << ")";
 	return os;
 }
+
+} // namespace ptgn
 
 // Custom hashing function for Vector3 class.
 // This allows for use of unordered maps and sets with Vector2s as keys.
