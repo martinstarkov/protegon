@@ -497,7 +497,7 @@ void RendererData::Stats::Print() {
 void OffsetVertices(
 	std::array<V2_float, QuadData::vertex_count>& vertices, const V2_float& size, Origin draw_origin
 ) {
-	auto draw_offset = GetDrawOffset(size, draw_origin);
+	auto draw_offset = GetOffsetFromCenter(size, draw_origin);
 
 	// Offset each vertex by based on draw origin.
 	if (!draw_offset.IsZero()) {
@@ -679,11 +679,11 @@ void Renderer::Flush() {
 	StartBatch();
 }
 
-void Renderer::DrawArray(const VertexArray& vertex_array) {
-	PTGN_ASSERT(vertex_array.IsValid(), "Cannot submit invalid vertex array for rendering");
-	GLRenderer::DrawElements(vertex_array);
-	data_.stats_.draw_calls++;
-}
+// void Renderer::DrawArray(const VertexArray& vertex_array) {
+//	PTGN_ASSERT(vertex_array.IsValid(), "Cannot submit invalid vertex array for rendering");
+//	GLRenderer::DrawElements(vertex_array);
+//	data_.stats_.draw_calls++;
+// }
 
 void Renderer::DrawTriangleFilledImpl(
 	const V2_float& a, const V2_float& b, const V2_float& c, const V4_float& col, float z

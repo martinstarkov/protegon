@@ -20,6 +20,12 @@
 
 namespace ptgn {
 
+enum class PolygonMode {
+	Point = 0x1B00, // GL_POINT
+	Line  = 0x1B01, // GL_LINE
+	Fill  = 0x1B02, // GL_FILL
+};
+
 class GLRenderer {
 public:
 	static void SetBlendMode(BlendMode mode = BlendMode::Blend);
@@ -29,8 +35,9 @@ public:
 	static void DisableDepthTesting();
 	static void SetViewport(const V2_int& position, const V2_int& size);
 	static void Clear();
+	static void SetPolygonMode(PolygonMode mode);
 	static void SetClearColor(const Color& color);
-	static void DrawElements(const VertexArray& va, std::size_t index_count = 0);
+	static void DrawElements(const VertexArray& va, std::size_t index_count);
 	static void DrawArrays(const VertexArray& va, std::size_t vertex_count);
 	static std::int32_t GetMaxTextureSlots();
 };

@@ -274,7 +274,8 @@ public:
 
 	void Flush();
 
-	void DrawArray(const VertexArray& vertex_array);
+	// TODO: Reimplement.
+	// void DrawArray(const VertexArray& vertex_array);
 
 	/*
 	 * @param source_position Top left pixel to start drawing texture from within the texture

@@ -247,7 +247,7 @@ void Texture::SetFilters(TextureFilter minifying, TextureFilter magnifying) {
 	POPSTATE();
 }
 
-void Texture::SetBorderColor(const Color& color) {
+void Texture::SetClampBorderColor(const Color& color) {
 	PUSHSTATE();
 
 	Bind();

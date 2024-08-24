@@ -11,18 +11,6 @@
 
 namespace ptgn {
 
-enum BufferUsage {
-	StreamDraw	= 0x88E0, // GL_STREAM_DRAW
-	StreamRead	= 0x88E1, // GL_STREAM_READ
-	StreamCopy	= 0x88E2, // GL_STREAM_COPY
-	StaticDraw	= 0x88E4, // GL_STATIC_DRAW
-	StaticRead	= 0x88E5, // GL_STATIC_READ
-	StaticCopy	= 0x88E6, // GL_STATIC_COPY
-	DynamicDraw = 0x88E8, // GL_DYNAMIC_DRAW
-	DynamicRead = 0x88E9, // GL_DYNAMIC_READ
-	DynamicCopy = 0x88EA  // GL_DYNAMIC_COPY
-};
-
 // Vertex Types
 
 namespace glsl {
@@ -64,15 +52,28 @@ enum class PrimitiveMode : std::uint32_t {
 	TriangleFan	  = 0x0006, // GL_TRIANGLE_FAN
 };
 
-namespace impl {
-
-enum class BufferType {
-	Vertex = 0x8892, // GL_ARRAY_BUFFER
-	Index  = 0x8893	 // GL_ELEMENT_ARRAY_BUFFER
+enum class BufferUsage {
+	StreamDraw	= 0x88E0, // GL_STREAM_DRAW
+	StreamRead	= 0x88E1, // GL_STREAM_READ
+	StreamCopy	= 0x88E2, // GL_STREAM_COPY
+	StaticDraw	= 0x88E4, // GL_STATIC_DRAW
+	StaticRead	= 0x88E5, // GL_STATIC_READ
+	StaticCopy	= 0x88E6, // GL_STATIC_COPY
+	DynamicDraw = 0x88E8, // GL_DYNAMIC_DRAW
+	DynamicRead = 0x88E9, // GL_DYNAMIC_READ
+	DynamicCopy = 0x88EA  // GL_DYNAMIC_COPY
 };
 
+enum class BufferType {
+	Vertex	= 0x8892, // GL_ARRAY_BUFFER
+	Index	= 0x8893, // GL_ELEMENT_ARRAY_BUFFER
+	Uniform = 0x8A11  // GL_UNIFORM_BUFFER
+};
+
+namespace impl {
+
 template <typename T>
-inline constexpr bool is_vertex_data_type{ type_traits::is_any_of_v<
+inline constexpr bool is_vertex_data_type{ tt::is_any_of_v<
 	T, glsl::float_, glsl::vec2, glsl::vec3, glsl::vec4, glsl::double_, glsl::dvec2, glsl::dvec3,
 	glsl::dvec4, glsl::bool_, glsl::bvec2, glsl::bvec3, glsl::bvec4, glsl::int_, glsl::ivec2,
 	glsl::ivec3, glsl::ivec4, glsl::uint_, glsl::uvec2, glsl::uvec3, glsl::uvec4> };
@@ -92,7 +93,7 @@ enum class GLType : std::uint32_t {
 template <typename T>
 [[nodiscard]] constexpr GLType GetType() {
 	static_assert(
-		type_traits::is_any_of_v<
+		tt::is_any_of_v<
 			T, float, double, std::int32_t, std::uint32_t, std::int16_t, std::uint16_t, std::int8_t,
 			std::uint8_t, bool>,
 		"Cannot retrieve type which is not supported by OpenGL"
