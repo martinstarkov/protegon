@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <functional>
-#include <type_traits>
 #include <unordered_map>
 
 #include "protegon/events.h"

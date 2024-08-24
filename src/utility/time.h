@@ -15,7 +15,7 @@ using milliseconds = std::chrono::milliseconds;
 using microseconds = std::chrono::microseconds;
 using nanoseconds  = std::chrono::nanoseconds;
 
-namespace type_traits {
+namespace tt {
 
 namespace impl {
 
@@ -33,7 +33,7 @@ inline constexpr bool is_duration_v{ impl::is_duration<T>::value };
 template <typename T>
 using duration = std::enable_if_t<is_duration_v<T>, bool>;
 
-} // namespace type_traits
+} // namespace tt
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const ptgn::duration<T, std::nano>& v) {

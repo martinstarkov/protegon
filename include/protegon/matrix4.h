@@ -4,17 +4,17 @@
 #include <iomanip>
 #include <ostream>
 
-#include "math.h"
+#include "protegon/math.h"
+#include "protegon/vector2.h"
+#include "protegon/vector3.h"
+#include "protegon/vector4.h"
 #include "utility/type_traits.h"
-#include "vector2.h"
-#include "vector3.h"
-#include "vector4.h"
 
 namespace ptgn {
 
 class Quaternion;
 
-template <typename T, type_traits::arithmetic<T> = true>
+template <typename T, tt::arithmetic<T> = true>
 struct Matrix4 {
 public:
 	constexpr static V2_int size{ 4, 4 };
@@ -118,9 +118,10 @@ public:
 	[[nodiscard]] static Matrix4 LookAt(
 		const Vector3<T>& position, const Vector3<T>& target, const Vector3<T>& up
 	) {
-		Vector3<T> dir		   = (target - position).Normalized();
-		const Vector3<T> right = (dir.Cross(up)).Normalized();
-		const Vector3<T> up_n  = right.Cross(dir);
+		static_assert(std::is_floating_point_v<T>, "Function requires floating point type");
+		Vector3<T> dir	 = (target - position).Normalized();
+		Vector3<T> right = (dir.Cross(up)).Normalized();
+		Vector3<T> up_n	 = right.Cross(dir);
 
 		Matrix4<T> result{ T{ 1 } };
 		result[0]  = right.x;
@@ -222,6 +223,7 @@ public:
 	// Example usage: M4_float proj = M4_float::Perspective(DegToRad(45.0f),
 	// (float)game.window.GetSize().x / (float)game.window.GetSize().y, 0.1f, 100.0f);
 	[[nodiscard]] static Matrix4 Perspective(T fov_x, T aspect_ratio, T front, T back) {
+		static_assert(std::is_floating_point_v<T>, "Function requires floating point type");
 		T tangent = std::tan(fov_x / T{ 2 }); // tangent of half fovX
 		T right	  = front * tangent;		  // half width of near plane
 		T top	  = right / aspect_ratio;	  // half height of near plane
@@ -246,6 +248,7 @@ public:
 	}
 
 	[[nodiscard]] static Matrix4 Rotate(const Matrix4& m, T angle, const Vector3<T>& axes) {
+		static_assert(std::is_floating_point_v<T>, "Function requires floating point type");
 		const T a = angle;
 		const T c = std::cos(a);
 		const T s = std::sin(a);
@@ -310,6 +313,7 @@ public:
 };
 
 using M4_int	= Matrix4<int>;
+using M4_uint	= Matrix4<unsigned int>;
 using M4_float	= Matrix4<float>;
 using M4_double = Matrix4<double>;
 
@@ -400,7 +404,7 @@ inline bool operator!=(const Matrix4<T>& lhs, const Matrix4<T>& rhs) {
 	return !operator==(lhs, rhs);
 }
 
-template <typename T, ptgn::type_traits::stream_writable<std::ostream, T> = true>
+template <typename T, ptgn::tt::stream_writable<std::ostream, T> = true>
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Matrix4<T>& m) {
 	os << "\n";
 	os << std::fixed << std::right << std::setprecision(static_cast<std::streamsize>(3))

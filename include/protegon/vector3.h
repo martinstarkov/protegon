@@ -6,13 +6,13 @@
 #include <functional>
 #include <ostream>
 
-#include "math.h"
+#include "protegon/math.h"
 #include "utility/debug.h"
 #include "utility/type_traits.h"
 
 namespace ptgn {
 
-template <typename T, type_traits::arithmetic<T> = true>
+template <typename T, tt::arithmetic<T> = true>
 struct Vector3 {
 	T x{ 0 };
 	T y{ 0 };
@@ -30,17 +30,17 @@ struct Vector3 {
 	constexpr Vector3(T x, T y, T z) : x{ x }, y{ y }, z{ z } {}
 
 	// TODO: Check that not_narrowing actually works as intended and static cast is not narrowing.
-	template <typename U, type_traits::not_narrowing<U, T> = true>
+	template <typename U, tt::not_narrowing<U, T> = true>
 	constexpr Vector3(const Vector3<U>& o) :
 		x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) }, z{ static_cast<T>(o.z) } {}
 
 	// Note: use of explicit keyword for narrowing constructors.
 
-	template <typename U, type_traits::narrowing<U, T> = true>
+	template <typename U, tt::narrowing<U, T> = true>
 	explicit constexpr Vector3(U x, U y, U z) :
 		x{ static_cast<T>(x) }, y{ static_cast<T>(y) }, z{ static_cast<T>(z) } {}
 
-	template <typename U, type_traits::narrowing<U, T> = true>
+	template <typename U, tt::narrowing<U, T> = true>
 	explicit constexpr Vector3(const Vector3<U>& o) :
 		x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) }, z{ static_cast<T>(o.z) } {}
 
@@ -70,7 +70,7 @@ struct Vector3 {
 		return { -x, -y, -z };
 	}
 
-	template <typename U, type_traits::not_narrowing<U, T> = true>
+	template <typename U, tt::not_narrowing<U, T> = true>
 	constexpr Vector3& operator+=(const Vector3<U>& rhs) {
 		x += rhs.x;
 		y += rhs.y;
@@ -78,7 +78,7 @@ struct Vector3 {
 		return *this;
 	}
 
-	template <typename U, type_traits::not_narrowing<U, T> = true>
+	template <typename U, tt::not_narrowing<U, T> = true>
 	constexpr Vector3& operator-=(const Vector3<U>& rhs) {
 		x -= rhs.x;
 		y -= rhs.y;
@@ -86,7 +86,7 @@ struct Vector3 {
 		return *this;
 	}
 
-	template <typename U, type_traits::not_narrowing<U, T> = true>
+	template <typename U, tt::not_narrowing<U, T> = true>
 	constexpr Vector3& operator*=(const Vector3<U>& rhs) {
 		x *= rhs.x;
 		y *= rhs.y;
@@ -94,7 +94,7 @@ struct Vector3 {
 		return *this;
 	}
 
-	template <typename U, type_traits::not_narrowing<U, T> = true>
+	template <typename U, tt::not_narrowing<U, T> = true>
 	constexpr Vector3& operator/=(const Vector3<U>& rhs) {
 		x /= rhs.x;
 		y /= rhs.y;
@@ -102,7 +102,7 @@ struct Vector3 {
 		return *this;
 	}
 
-	template <typename U, type_traits::not_narrowing<U, T> = true>
+	template <typename U, tt::not_narrowing<U, T> = true>
 	constexpr Vector3& operator*=(U rhs) {
 		x *= rhs;
 		y *= rhs;
@@ -110,7 +110,7 @@ struct Vector3 {
 		return *this;
 	}
 
-	template <typename U, type_traits::not_narrowing<U, T> = true>
+	template <typename U, tt::not_narrowing<U, T> = true>
 	constexpr Vector3& operator/=(U rhs) {
 		x /= rhs;
 		y /= rhs;
@@ -128,9 +128,10 @@ struct Vector3 {
 		return { y * o.z - z * o.y, z * o.x - x * o.z, x * o.y - y * o.z };
 	}
 
-	template <typename U = float>
-	[[nodiscard]] U Magnitude() const {
-		return std::sqrt(MagnitudeSquared());
+	template <typename S = typename std::common_type_t<T, float>>
+	[[nodiscard]] constexpr S Magnitude() const {
+		static_assert(std::is_floating_point_v<S>, "Function requires floating point type");
+		return std::sqrt(static_cast<S>(MagnitudeSquared()));
 	}
 
 	[[nodiscard]] constexpr T MagnitudeSquared() const {
@@ -139,25 +140,27 @@ struct Vector3 {
 
 	// Returns a unit vector (magnitude = 1) except for zero vectors (magnitude
 	// = 0).
-	template <typename U = float, type_traits::not_narrowing<T, U> = true>
-	[[nodiscard]] Vector3<U> Normalized() const {
+	template <typename S = typename std::common_type_t<T, float>>
+	[[nodiscard]] Vector3<S> Normalized() const {
+		static_assert(std::is_floating_point_v<S>, "Function requires floating point type");
 		T m{ MagnitudeSquared() };
 		if (NearlyEqual(m, T{ 0 })) {
 			return *this;
 		}
-		return *this / std::sqrt(m);
+		return *this / std::sqrt(static_cast<S>(m));
 	}
 
 	// See https://en.wikipedia.org/wiki/Rotation_matrix for details
 	// Note: This is Euler angles and not Tait-Bryan angles.
-	template <typename U, type_traits::not_narrowing<T, U> = true>
-	[[nodiscard]] Vector3<U> Rotated(U yaw, U pitch, U roll) const {
-		const U sin_a = std::sin(yaw);
-		const U cos_a = std::cos(yaw);
-		const U sin_B = std::sin(pitch);
-		const U cos_B = std::cos(pitch);
-		const U sin_y = std::sin(roll);
-		const U cos_y = std::cos(roll);
+	template <typename S = typename std::common_type_t<T, float>>
+	[[nodiscard]] Vector3<S> Rotated(S yaw, S pitch, S roll) const {
+		static_assert(std::is_floating_point_v<S>, "Function requires floating point type");
+		auto sin_a = std::sin(yaw);
+		auto cos_a = std::cos(yaw);
+		auto sin_B = std::sin(pitch);
+		auto cos_B = std::cos(pitch);
+		auto sin_y = std::sin(roll);
+		auto cos_y = std::cos(roll);
 		return { x * (cos_B * cos_y) + y * (sin_a * sin_B * cos_y - cos_a * sin_y) +
 					 z * (cos_a * sin_B * cos_y + sin_a * sin_y),
 				 x * (cos_B * sin_y) + y * (sin_a * sin_B * sin_y + cos_a * cos_y) +
@@ -171,6 +174,7 @@ struct Vector3 {
 };
 
 using V3_int	= Vector3<int>;
+using V3_uint	= Vector3<unsigned int>;
 using V3_float	= Vector3<float>;
 using V3_double = Vector3<double>;
 
@@ -205,34 +209,34 @@ constexpr inline Vector3<S> operator/(const Vector3<T>& lhs, const Vector3<U>& r
 }
 
 template <
-	typename T, typename U, type_traits::arithmetic<T> = true,
+	typename T, typename U, tt::arithmetic<T> = true,
 	typename S = typename std::common_type_t<T, U>>
 constexpr inline Vector3<S> operator*(T lhs, const Vector3<U>& rhs) {
 	return { lhs * rhs.x, lhs * rhs.y, lhs * rhs.z };
 }
 
 template <
-	typename T, typename U, type_traits::arithmetic<U> = true,
+	typename T, typename U, tt::arithmetic<U> = true,
 	typename S = typename std::common_type_t<T, U>>
 constexpr inline Vector3<S> operator*(const Vector3<T>& lhs, U rhs) {
 	return { lhs.x * rhs, lhs.y * rhs, lhs.z * rhs };
 }
 
 template <
-	typename T, typename U, type_traits::arithmetic<T> = true,
+	typename T, typename U, tt::arithmetic<T> = true,
 	typename S = typename std::common_type_t<T, U>>
 constexpr inline Vector3<S> operator/(T lhs, const Vector3<U>& rhs) {
 	return { lhs / rhs.x, lhs / rhs.y, lhs / rhs.z };
 }
 
 template <
-	typename T, typename U, type_traits::arithmetic<T> = true,
+	typename T, typename U, tt::arithmetic<T> = true,
 	typename S = typename std::common_type_t<T, U>>
 constexpr inline Vector3<S> operator/(const Vector3<T>& lhs, U rhs) {
 	return { lhs.x / rhs, lhs.y / rhs, lhs.z / rhs };
 }
 
-template <typename T, ptgn::type_traits::stream_writable<std::ostream, T> = true>
+template <typename T, ptgn::tt::stream_writable<std::ostream, T> = true>
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector3<T>& v) {
 	os << "(" << v.x << ", " << v.y << ", " << v.z << ")";
 	return os;

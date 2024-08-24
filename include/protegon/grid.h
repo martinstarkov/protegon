@@ -95,7 +95,7 @@ public:
 		return coordinate.x + coordinate.y * size.x;
 	}
 
-	template <type_traits::copy_constructible<T> = true>
+	template <tt::copy_constructible<T> = true>
 	void Fill(const T& object) {
 		std::fill(cells.begin(), cells.end(), object);
 	}

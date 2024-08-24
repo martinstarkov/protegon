@@ -57,7 +57,7 @@ private:
 
 	template <typename T>
 	void PrintInfo(const std::string& name, const Timer& timer) const {
-		static_assert(type_traits::is_duration_v<T>, "Type must be duration");
+		static_assert(tt::is_duration_v<T>, "Type must be duration");
 		// TODO: Fix. There was an error about not finding the << operator inside the log.h
 		// StringStreamWriter PTGN_LOG("PROFILING: ", impl::TrimFunctionSignature(name), ": ",
 		// timer.Elapsed<duration<double, typename T::period>>());

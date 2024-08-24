@@ -39,6 +39,8 @@ class Tween;
 
 using TweenCallback = std::function<void(Tween&, TweenType)>;
 
+// TODO: Move away from using a config and instead just use the Tween functions and then call start
+// after.
 struct TweenConfig {
 	TweenEase ease{ TweenEase::Linear }; // easing function between tween start and end value.
 	std::int64_t repeat{ 0 }; // number of repetitions of the tween (-1 for infinite tween).

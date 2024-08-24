@@ -2,9 +2,10 @@
 
 #include <vector>
 
-#include "file.h"
+#include "protegon/color.h"
+#include "protegon/file.h"
+#include "protegon/vector2.h"
 #include "utility/handle.h"
-#include "vector2.h"
 
 struct SDL_Surface;
 

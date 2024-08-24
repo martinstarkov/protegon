@@ -36,9 +36,9 @@ public:
 		TestRNG();
 		TestVector2();
 
-		TestTween();
-
 		TestRenderer();
+
+		TestTween();
 		TestCamera();
 		TestText();
 		TestEvents();

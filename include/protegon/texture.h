@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+#include "protegon/color.h"
 #include "protegon/file.h"
 #include "protegon/surface.h"
 #include "protegon/vector2.h"
@@ -77,7 +78,9 @@ public:
 	void SetWrapping(TextureWrapping s, TextureWrapping t, TextureWrapping r);
 
 	void SetFilters(TextureFilter minifying, TextureFilter magnifying);
-	void SetBorderColor(const Color& color);
+
+	// Sets the "out of bounds" texture color when using TextureWrapping::ClampBorder
+	void SetClampBorderColor(const Color& color);
 
 	void GenerateMipmaps();
 

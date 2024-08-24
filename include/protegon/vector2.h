@@ -6,7 +6,6 @@
 #include <functional>
 #include <ostream>
 
-#include "protegon/color.h"
 #include "protegon/math.h"
 #include "protegon/rng.h"
 #include "utility/debug.h"
@@ -17,7 +16,7 @@
 
 namespace ptgn {
 
-template <typename T, type_traits::arithmetic<T> = true>
+template <typename T, tt::arithmetic<T> = true>
 struct Vector2 {
 	T x{ 0 };
 	T y{ 0 };
@@ -34,15 +33,15 @@ struct Vector2 {
 	constexpr Vector2(T x, T y) : x{ x }, y{ y } {}
 
 	// TODO: Check that not_narrowing actually works as intended and static cast is not narrowing.
-	template <typename U, type_traits::not_narrowing<U, T> = true>
+	template <typename U, tt::not_narrowing<U, T> = true>
 	constexpr Vector2(const Vector2<U>& o) : x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
 
 	// Note: use of explicit keyword for narrowing constructors.
 
-	template <typename U, type_traits::narrowing<U, T> = true>
+	template <typename U, tt::narrowing<U, T> = true>
 	explicit constexpr Vector2(U x, U y) : x{ static_cast<T>(x) }, y{ static_cast<T>(y) } {}
 
-	template <typename U, type_traits::narrowing<U, T> = true>
+	template <typename U, tt::narrowing<U, T> = true>
 	explicit constexpr Vector2(const Vector2<U>& o) :
 		x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
 
@@ -68,42 +67,42 @@ struct Vector2 {
 		return { -x, -y };
 	}
 
-	template <typename U, type_traits::not_narrowing<U, T> = true>
+	template <typename U, tt::not_narrowing<U, T> = true>
 	constexpr Vector2& operator+=(const Vector2<U>& rhs) {
 		x += rhs.x;
 		y += rhs.y;
 		return *this;
 	}
 
-	template <typename U, type_traits::not_narrowing<U, T> = true>
+	template <typename U, tt::not_narrowing<U, T> = true>
 	constexpr Vector2& operator-=(const Vector2<U>& rhs) {
 		x -= rhs.x;
 		y -= rhs.y;
 		return *this;
 	}
 
-	template <typename U, type_traits::not_narrowing<U, T> = true>
+	template <typename U, tt::not_narrowing<U, T> = true>
 	constexpr Vector2& operator*=(const Vector2<U>& rhs) {
 		x *= rhs.x;
 		y *= rhs.y;
 		return *this;
 	}
 
-	template <typename U, type_traits::not_narrowing<U, T> = true>
+	template <typename U, tt::not_narrowing<U, T> = true>
 	constexpr Vector2& operator/=(const Vector2<U>& rhs) {
 		x /= rhs.x;
 		y /= rhs.y;
 		return *this;
 	}
 
-	template <typename U, type_traits::not_narrowing<U, T> = true>
+	template <typename U, tt::not_narrowing<U, T> = true>
 	constexpr Vector2& operator*=(U rhs) {
 		x *= rhs;
 		y *= rhs;
 		return *this;
 	}
 
-	template <typename U, type_traits::not_narrowing<U, T> = true>
+	template <typename U, tt::not_narrowing<U, T> = true>
 	constexpr Vector2& operator/=(U rhs) {
 		x /= rhs;
 		y /= rhs;
@@ -130,6 +129,7 @@ struct Vector2 {
 
 	template <typename S = typename std::common_type_t<T, float>>
 	[[nodiscard]] constexpr S Magnitude() const {
+		static_assert(std::is_floating_point_v<S>, "Function requires floating point type");
 		return std::sqrt(static_cast<S>(MagnitudeSquared()));
 	}
 
@@ -137,21 +137,22 @@ struct Vector2 {
 		return Dot(*this);
 	}
 
-	[[nodiscard]] static Vector2<T> Random(T min, T max) {
+	[[nodiscard]] static Vector2 Random(T min, T max) {
 		RNG<T> rng{ min, max };
 		return { rng(), rng() };
 	}
 
-	[[nodiscard]] static Vector2<T> Random(const Vector2<T>& min, const Vector2<T>& max) {
+	[[nodiscard]] static Vector2 Random(const Vector2& min, const Vector2& max) {
 		RNG<T> rng_x{ min.x, max.x };
 		RNG<T> rng_y{ min.y, max.y };
 		return { rng_x(), rng_y() };
 	}
 
 	// @return Random unit vector in a heading within the given range of angles (radians).
-	[[nodiscard]] static Vector2<T> RandomHeading(
+	[[nodiscard]] static Vector2 RandomHeading(
 		T min_angle_rad = T{ 0 }, T max_angle_rad = T{ two_pi<T> }
 	) {
+		static_assert(std::is_floating_point_v<T>, "Function requires floating point type");
 		RNG<T> heading_rng{ ClampAngle2Pi(min_angle_rad), ClampAngle2Pi(max_angle_rad) };
 		T heading{ heading_rng() };
 		return { std::cos(heading), std::sin(heading) };
@@ -159,26 +160,29 @@ struct Vector2 {
 
 	// Returns a unit vector (magnitude = 1) except for zero vectors (magnitude
 	// = 0).
-	template <typename U = float, type_traits::not_narrowing<T, U> = true>
-	[[nodiscard]] Vector2<U> Normalized() const {
+	template <typename S = typename std::common_type_t<T, float>>
+	[[nodiscard]] Vector2<S> Normalized() const {
+		static_assert(std::is_floating_point_v<S>, "Function requires floating point type");
 		T m{ MagnitudeSquared() };
 		if (NearlyEqual(m, T{ 0 })) {
 			return *this;
 		}
-		return *this / std::sqrt(m);
+		return *this / std::sqrt(static_cast<S>(m));
 	}
 
 	// Returns a normalized (unit) direction vector toward a target position.
-	template <typename U = float, type_traits::not_narrowing<T, U> = true>
-	[[nodiscard]] Vector2<float> DirectionTowards(const Vector2<U>& target) const {
-		Vector2<float> dir{ target - *this };
+	template <typename S = typename std::common_type_t<T, float>>
+	[[nodiscard]] Vector2<S> DirectionTowards(const Vector2& target) const {
+		static_assert(std::is_floating_point_v<S>, "Function requires floating point type");
+		Vector2<S> dir{ target - *this };
 		return dir.Normalized();
 	}
 
 	// Returns a new vector rotated by the radian angle in the clockwise
 	// direction. See https://en.wikipedia.org/wiki/Rotation_matrix for details
-	template <typename U, type_traits::not_narrowing<T, U> = true>
-	[[nodiscard]] Vector2<U> Rotated(U rad) const {
+	template <typename S = typename std::common_type_t<T, float>>
+	[[nodiscard]] Vector2<S> Rotated(S rad) const {
+		static_assert(std::is_floating_point_v<S>, "Function requires floating point type");
 		auto cos_r{ std::cos(rad) };
 		auto sin_r{ std::sin(rad) };
 		return { x * cos_r - y * sin_r, x * sin_r + y * cos_r };
@@ -195,9 +199,10 @@ struct Vector2 {
 	 *               |
 	 *            -1.5708
 	 */
-	template <typename U = float, type_traits::not_narrowing<T, U> = true>
-	[[nodiscard]] U Angle() const {
-		return static_cast<U>(std::atan2(y, x));
+	template <typename S = typename std::common_type_t<T, float>>
+	[[nodiscard]] S Angle() const {
+		static_assert(std::is_floating_point_v<S>, "Function requires floating point type");
+		return std::atan2(static_cast<S>(y), static_cast<S>(x));
 	}
 
 	[[nodiscard]] bool IsZero() const {
@@ -206,8 +211,10 @@ struct Vector2 {
 };
 
 using V2_int	= Vector2<int>;
+using V2_uint	= Vector2<unsigned int>;
 using V2_float	= Vector2<float>;
 using V2_double = Vector2<double>;
+
 template <typename T>
 using Point = Vector2<T>;
 
@@ -242,34 +249,34 @@ constexpr inline Vector2<S> operator/(const Vector2<T>& lhs, const Vector2<U>& r
 }
 
 template <
-	typename T, typename U, type_traits::arithmetic<T> = true,
+	typename T, typename U, tt::arithmetic<T> = true,
 	typename S = typename std::common_type_t<T, U>>
 constexpr inline Vector2<S> operator*(T lhs, const Vector2<U>& rhs) {
 	return { lhs * rhs.x, lhs * rhs.y };
 }
 
 template <
-	typename T, typename U, type_traits::arithmetic<U> = true,
+	typename T, typename U, tt::arithmetic<U> = true,
 	typename S = typename std::common_type_t<T, U>>
 constexpr inline Vector2<S> operator*(const Vector2<T>& lhs, U rhs) {
 	return { lhs.x * rhs, lhs.y * rhs };
 }
 
 template <
-	typename T, typename U, type_traits::arithmetic<T> = true,
+	typename T, typename U, tt::arithmetic<T> = true,
 	typename S = typename std::common_type_t<T, U>>
 constexpr inline Vector2<S> operator/(T lhs, const Vector2<U>& rhs) {
 	return { lhs / rhs.x, lhs / rhs.y };
 }
 
 template <
-	typename T, typename U, type_traits::arithmetic<T> = true,
+	typename T, typename U, tt::arithmetic<T> = true,
 	typename S = typename std::common_type_t<T, U>>
 constexpr inline Vector2<S> operator/(const Vector2<T>& lhs, U rhs) {
 	return { lhs.x / rhs, lhs.y / rhs };
 }
 
-template <typename T, ptgn::type_traits::stream_writable<std::ostream, T> = true>
+template <typename T, ptgn::tt::stream_writable<std::ostream, T> = true>
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector2<T>& v) {
 	os << "(" << v.x << ", " << v.y << ")";
 	return os;

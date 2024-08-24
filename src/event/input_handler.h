@@ -50,7 +50,7 @@ public:
 	 * @tparam Duration The unit of time measurement.
 	 * @return True if the mouse button has been held for the given amount of time.
 	 */
-	template <typename Duration, type_traits::duration<Duration> = true>
+	template <typename Duration, tt::duration<Duration> = true>
 	[[nodiscard]] inline bool MouseHeld(Mouse button, Duration time) {
 		const auto held_time{ GetMouseHeldTime(button) };
 		return held_time > time;

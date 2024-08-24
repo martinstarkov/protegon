@@ -31,7 +31,7 @@ public:
 	 */
 	template <
 		typename Duration				= milliseconds,
-		type_traits::duration<Duration> = true>
+		tt::duration<Duration> = true>
 	[[nodiscard]] Duration Elapsed() const {
 		auto end_time =
 			running_ ? std::chrono::steady_clock::now() : stop_time_;
@@ -40,7 +40,7 @@ public:
 
 	template <
 		typename Duration = milliseconds, typename T = float,
-		type_traits::duration<Duration>						= true,
+		tt::duration<Duration>						= true,
 		std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
 	[[nodiscard]] T ElapsedPercentage(Duration compared_to) const {
 		duration<T, typename Duration::period> elapsed_time{

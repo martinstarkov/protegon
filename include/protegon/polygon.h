@@ -25,7 +25,7 @@ struct Rectangle {
 
 	// @return Center position of rectangle.
 	[[nodiscard]] Point<T> Center() const {
-		return pos - GetDrawOffset(size, origin);
+		return pos - GetOffsetFromCenter(size, origin);
 	}
 
 	// @return Bottom right position of rectangle.

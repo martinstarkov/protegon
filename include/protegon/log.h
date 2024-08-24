@@ -34,7 +34,7 @@ inline void PrintImpl(std::ostream& ostream, int precision, bool scientific, TAr
 	// TODO: Figure out how to add this since PTGN_ASSERT requires print.
 	// PTGN_ASSERT(precision == -1 || precision >= 0, "Invalid print precision");
 	static_assert(
-		(type_traits::is_stream_writable_v<std::ostream, TArgs> && ...),
+		(tt::is_stream_writable_v<std::ostream, TArgs> && ...),
 		"PTGN_* argument must be stream writeable"
 	);
 	std::ios state{ nullptr };
@@ -96,14 +96,14 @@ namespace debug {
 
 // Print desired items to the console. If a newline is desired, use PrintLine()
 // instead.
-template <typename... TArgs, type_traits::stream_writable<std::ostream, TArgs...> = true>
+template <typename... TArgs, tt::stream_writable<std::ostream, TArgs...> = true>
 inline void Print(TArgs&&... items) {
 	ptgn::impl::PrintImpl(std::cerr, -1, false, std::forward<TArgs>(items)...);
 }
 
 // Print desired items to the console and add a newline. If no newline is
 // desired, use Print() instead.
-template <typename... TArgs, type_traits::stream_writable<std::ostream, TArgs...> = true>
+template <typename... TArgs, tt::stream_writable<std::ostream, TArgs...> = true>
 inline void PrintLine(TArgs&&... items) {
 	Print(std::forward<TArgs>(items)...);
 	std::cerr << "\n";
@@ -115,14 +115,14 @@ inline void PrintLine() {
 
 // Print desired items to the console. If a newline is desired, use PrintLine()
 // instead.
-template <typename... TArgs, type_traits::stream_writable<std::ostream, TArgs...> = true>
+template <typename... TArgs, tt::stream_writable<std::ostream, TArgs...> = true>
 inline void PrintPrecise(int precision, bool scientific, TArgs&&... items) {
 	ptgn::impl::PrintImpl(std::cerr, precision, scientific, std::forward<TArgs>(items)...);
 }
 
 // Print desired items to the console and add a newline. If no newline is
 // desired, use Print() instead.
-template <typename... TArgs, type_traits::stream_writable<std::ostream, TArgs...> = true>
+template <typename... TArgs, tt::stream_writable<std::ostream, TArgs...> = true>
 inline void PrintPreciseLine(int precision, bool scientific, TArgs&&... items) {
 	PrintPrecise(precision, scientific, std::forward<TArgs>(items)...);
 	std::cerr << "\n";
