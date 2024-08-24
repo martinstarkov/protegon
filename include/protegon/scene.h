@@ -15,6 +15,9 @@ public:
 	// Called when the scene is set to active.
 	virtual void Init() {}
 
+	// Called when the scene is removed from active scenes.
+	virtual void Shutdown() {}
+
 	CameraManager camera;
 
 	/*template <typename T>

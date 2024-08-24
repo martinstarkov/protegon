@@ -15,9 +15,9 @@ void SceneManager::Unload(std::size_t scene_key) {
 void SceneManager::SetActive(std::size_t scene_key) {
 	// ExitAllExcept(scene_key);
 	PTGN_ASSERT(
-			Has(scene_key) || scene_key == impl::start_scene_key,
-			"Cannot set active scene if it has not been loaded into the scene "
-			"manager"
+		Has(scene_key) || scene_key == impl::start_scene_key,
+		"Cannot set active scene if it has not been loaded into the scene "
+		"manager"
 	);
 	active_scenes_.clear();
 	AddActive(scene_key);
@@ -25,8 +25,8 @@ void SceneManager::SetActive(std::size_t scene_key) {
 
 void SceneManager::InitScene(std::size_t scene_key) {
 	PTGN_ASSERT(
-			Has(scene_key) || scene_key == impl::start_scene_key,
-			"Cannot init scene unless it has been loaded first"
+		Has(scene_key) || scene_key == impl::start_scene_key,
+		"Cannot init scene unless it has been loaded first"
 	);
 	auto scene = Get(scene_key);
 	scene->Init();
@@ -34,8 +34,8 @@ void SceneManager::InitScene(std::size_t scene_key) {
 
 void SceneManager::AddActive(std::size_t scene_key) {
 	PTGN_ASSERT(
-			Has(scene_key) || scene_key == impl::start_scene_key,
-			"Cannot set scene to active unless it has been loaded first"
+		Has(scene_key) || scene_key == impl::start_scene_key,
+		"Cannot set scene to active unless it has been loaded first"
 	);
 	active_scenes_.emplace_back(scene_key);
 	// Start scene is initialized manually in the game.
@@ -46,15 +46,15 @@ void SceneManager::AddActive(std::size_t scene_key) {
 
 void SceneManager::RemoveActive(std::size_t scene_key) {
 	PTGN_ASSERT(
-			Has(scene_key), "Cannot remove active scene if it has not been loaded into "
-							"the scene manager"
+		Has(scene_key), "Cannot remove active scene if it has not been loaded into "
+						"the scene manager"
 	);
 	for (auto it = active_scenes_.begin(); it != active_scenes_.end();) {
 		if (*it == scene_key) {
-			/*if (Has(scene_key)) {
+			if (Has(scene_key)) {
 				auto scene = Get(scene_key);
-				scene->Exit();
-			}*/
+				scene->Shutdown();
+			}
 			it = active_scenes_.erase(it);
 		} else {
 			++it;
