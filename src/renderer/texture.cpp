@@ -120,7 +120,7 @@ void Texture::Bind() const {
 
 void Texture::Bind(std::uint32_t slot) const {
 	PTGN_ASSERT(
-		slot < static_cast<std::uint32_t>(GLRenderer::GetMaxTextureSlots()),
+		static_cast<std::int32_t>(slot) < GLRenderer::GetMaxTextureSlots(),
 		"Attempting to bind a slot outside of OpenGL texture slot maximum"
 	);
 	gl::ActiveTexture(GL_TEXTURE0 + slot);
@@ -145,7 +145,7 @@ void Texture::SetDataImpl(const void* pixel_data, const V2_int& size, ImageForma
 		format != ImageFormat::Unknown, "Cannot set data of texture with unknown image format"
 	);
 	PTGN_ASSERT(IsValid(), "Cannot set data of uninitialized or destroyed texture");
-	PTGN_ASSERT(static_cast<std::uint32_t>(BoundId()) == instance_->id_);
+	PTGN_ASSERT(BoundId() == static_cast<std::int32_t>(instance_->id_));
 	PTGN_ASSERT(pixel_data != nullptr);
 
 	instance_->size_ = size;

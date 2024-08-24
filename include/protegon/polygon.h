@@ -69,7 +69,15 @@ struct RoundedRectangle : public Rectangle<T> {
 	RoundedRectangle(
 		const Point<T>& pos, const Vector2<T>& size, T radius, Origin origin = Origin::Center
 	) :
-		Rectangle<T>{ pos, size, origin }, radius{ radius } {}
+		Rectangle<T>{ pos, size, origin }, radius{ radius } {
+		PTGN_ASSERT(
+			radius < size.x / T{ 2 }, "Radius of rounded rectangle must be less than half its width"
+		);
+		PTGN_ASSERT(
+			radius < size.y / T{ 2 },
+			"Radius of rounded rectangle must be less than half its height"
+		);
+	}
 
 	T radius{ 0 };
 };
