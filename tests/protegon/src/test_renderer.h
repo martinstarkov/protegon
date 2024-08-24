@@ -16,7 +16,7 @@
 // TODO: Add texture mipmap test.
 // TODO: Add texture wrapping test.
 // TODO: Add texture filtering test.
-// TODO: Add rotated rectangle tests.
+// TODO: Add rotated rectangle test.
 
 constexpr const std::size_t batch_count = 10000;
 int renderer_test						= 0;
@@ -25,12 +25,12 @@ constexpr const float test_line_width{ 4.0f };
 enum class RenderTest {
 	Point,
 	LineThin,
-	LineThick,
-	TriangleFilled,
 	TriangleHollowThin,
-	TriangleHollowThick,
-	RectangleFilled,
 	RectangleHollowThin,
+	TriangleFilled,
+	RectangleFilled,
+	LineThick,
+	TriangleHollowThick,
 	RectangleHollowThick,
 	Shapes,
 	TextureJPG,
@@ -350,7 +350,7 @@ void TestShapes(float dt) {
 
 	RoundedRectangle<float> test21{ { 20, 50 }, { 30, 20 }, 5 };
 	RoundedRectangle<float> test22{ { 60, 50 }, { 40, 20 }, 8 };
-	RoundedRectangle<float> test23{ { 110, 50 }, { 50, 20 }, 10 };
+	RoundedRectangle<float> test23{ { 110, 50 }, { 50, 22 }, 10 };
 	RoundedRectangle<float> test24{ { 30, 180 }, { 160, 50 }, 10 };
 
 	std::vector<V2_float> star1{
@@ -402,84 +402,88 @@ void TestShapes(float dt) {
 	Ellipse<float> test92{ { 440, 300 }, { 40, 15 } };
 	Ellipse<float> test93{ { 510, 300 }, { 5, 40 } };
 
+	Color c1{ color::Black };
+	Color c2{ color::Red };
+	Color c3{ color::Green };
+	Color c4{ color::DarkBlue };
+	Color c5{ color::DarkGrey };
+	Color c6{ color::Brown };
+	Color c7{ color::Black };
+	Color c8{ color::DarkGreen };
+	Color c9{ color::Magenta };
+
+	// Set opacity values to ensure shapes are not being drawn via overlapping subshapes.
+	c1.a = 128;
+	c2.a = 128;
+	c3.a = 128;
+	c4.a = 128;
+	c5.a = 128;
+	c6.a = 128;
+	c7.a = 128;
+	c8.a = 128;
+	c9.a = 128;
+
 	TestRenderingLoop(
 		dt,
 		[&]() {
-			game.renderer.DrawPoint(test01, color::Black);
-			game.renderer.DrawPoint(test02, color::Black, 6);
+			game.renderer.DrawPoint(test01, c1);
+			game.renderer.DrawPoint(test02, c1, 6);
 
-			game.renderer.DrawRectangleHollow(
-				test11.pos, test11.size, color::Red, Origin::TopLeft, 1.0f
-			);
-			game.renderer.DrawRectangleHollow(
-				test12.pos, test12.size, color::Red, Origin::TopLeft, 4.0f
-			);
-			game.renderer.DrawRectangleFilled(test13.pos, test13.size, color::Red, Origin::TopLeft);
+			game.renderer.DrawRectangleHollow(test11.pos, test11.size, c2, Origin::TopLeft, 1.0f);
+			game.renderer.DrawRectangleHollow(test12.pos, test12.size, c2, Origin::TopLeft, 4.0f);
+			game.renderer.DrawRectangleFilled(test13.pos, test13.size, c2, Origin::TopLeft);
 
-			// TODO: Fix
 			game.renderer.DrawRoundedRectangleHollow(
-				test21.pos, test21.size, test21.radius, color::Green, Origin::TopLeft, 1.0f
+				test21.pos, test21.size, test21.radius, c3, Origin::TopLeft, 1.0f
 			);
 			game.renderer.DrawRoundedRectangleHollow(
-				test22.pos, test22.size, test22.radius, color::Green, Origin::TopLeft, 5.0f
+				test22.pos, test22.size, test22.radius, c3, Origin::TopLeft, 5.0f
 			);
 			game.renderer.DrawRoundedRectangleFilled(
-				test23.pos, test23.size, test23.radius, color::Green, Origin::TopLeft
+				test23.pos, test23.size, test23.radius, c3, Origin::TopLeft
 			);
 			game.renderer.DrawRoundedRectangleHollow(
-				test24.pos, test24.size, test24.radius, color::Green, Origin::TopLeft, 4.0f
+				test24.pos, test24.size, test24.radius, c3, Origin::TopLeft, 4.0f
 			);
 
+			game.renderer.DrawPolygonHollow(test41.vertices.data(), test41.vertices.size(), c4);
 			game.renderer.DrawPolygonHollow(
-				test41.vertices.data(), test41.vertices.size(), color::DarkBlue
+				test42.vertices.data(), test42.vertices.size(), c4, 5.0f
 			);
-			game.renderer.DrawPolygonHollow(
-				test42.vertices.data(), test42.vertices.size(), color::DarkBlue, 5.0f
-			);
-			game.renderer.DrawPolygonFilled(
-				test43.vertices.data(), test43.vertices.size(), color::DarkBlue
-			);
+			game.renderer.DrawPolygonFilled(test43.vertices.data(), test43.vertices.size(), c4);
 
-			game.renderer.DrawCircleHollow(test51.center, test51.radius, color::DarkGrey);
-			game.renderer.DrawCircleHollow(test52.center, test52.radius, color::DarkGrey, 5.0f);
-			game.renderer.DrawCircleFilled(test53.center, test53.radius, color::DarkGrey);
+			game.renderer.DrawCircleHollow(test51.center, test51.radius, c5);
+			game.renderer.DrawCircleHollow(test52.center, test52.radius, c5, 5.0f);
+			game.renderer.DrawCircleFilled(test53.center, test53.radius, c5);
 
-			// TODO: Fix
+			game.renderer.DrawCapsuleHollow(test61.segment.a, test61.segment.b, test61.radius, c6);
 			game.renderer.DrawCapsuleHollow(
-				test61.segment.a, test61.segment.b, test61.radius, color::Brown
+				test62.segment.a, test62.segment.b, test62.radius, c6, 8.0f
 			);
 			game.renderer.DrawCapsuleHollow(
-				test62.segment.a, test62.segment.b, test62.radius, color::Brown, 8.0f
+				test63.segment.a, test63.segment.b, test63.radius, c6, 5.0f
 			);
+			game.renderer.DrawCapsuleFilled(test64.segment.a, test64.segment.b, test64.radius, c6);
 			game.renderer.DrawCapsuleHollow(
-				test63.segment.a, test63.segment.b, test63.radius, color::Brown, 5.0f
-			);
-			game.renderer.DrawCapsuleFilled(
-				test64.segment.a, test64.segment.b, test64.radius, color::Brown
-			);
-			game.renderer.DrawCapsuleHollow(
-				test65.segment.a, test65.segment.b, test65.radius, color::Brown, 3.0f
+				test65.segment.a, test65.segment.b, test65.radius, c6, 3.0f
 			);
 
-			game.renderer.DrawLine(test71.a, test71.b, color::Black);
-			game.renderer.DrawLine(test72.a, test72.b, color::Black, 5.0f);
+			game.renderer.DrawLine(test71.a, test71.b, c7);
+			game.renderer.DrawLine(test72.a, test72.b, c7, 5.0f);
 
-			// TODO: Fix
 			game.renderer.DrawArcHollow(
-				test81.center, test81.radius, test81.start_angle, test81.end_angle, color::DarkGreen
+				test81.center, test81.radius, test81.start_angle, test81.end_angle, c8
 			);
 			game.renderer.DrawArcHollow(
-				test82.center, test82.radius, test82.start_angle, test82.end_angle,
-				color::DarkGreen, 3.0f
+				test82.center, test82.radius, test82.start_angle, test82.end_angle, c8, 3.0f
 			);
 			game.renderer.DrawArcFilled(
-				test83.center, test83.radius, test83.start_angle, test83.end_angle, color::DarkGreen
+				test83.center, test83.radius, test83.start_angle, test83.end_angle, c8
 			);
 
-			// TODO: Fix
-			game.renderer.DrawEllipseHollow(test91.center, test91.radius, color::Magenta);
-			game.renderer.DrawEllipseHollow(test92.center, test92.radius, color::Magenta, 5.0f);
-			game.renderer.DrawEllipseFilled(test93.center, test93.radius, color::Magenta);
+			game.renderer.DrawEllipseHollow(test91.center, test91.radius, c9);
+			game.renderer.DrawEllipseHollow(test92.center, test92.radius, c9, 5.0f);
+			game.renderer.DrawEllipseFilled(test93.center, test93.radius, c9);
 		},
 		PTGN_FUNCTION_NAME()
 	);
