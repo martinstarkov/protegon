@@ -9,12 +9,11 @@ void TweenManager::Update(float dt) {
 
 	for (auto it = m.begin(); it != m.end();) {
 		auto& tween{ it->second };
-
-		// TODO: Figure out how to do timestep accumulation outside of tweens, using StepImpl(dt,
-		// false) and some added logic outside of this loop. This is important because currently
-		// tween internal timestep accumulation causes all callbacks to be triggered sequentially
-		// for each tween before moving onto the next tween.
-		// Desired callback behavior:
+		// TODO: Figure out how to do timestep accumulation outside of tweens, using
+		// StepImpl(dt, false) and some added logic outside of this loop. This is important
+		// because currently tween internal timestep accumulation causes all callbacks to be
+		// triggered sequentially for each tween before moving onto the next tween. Desired
+		// callback behavior:
 		// 1. Tween1Repeat#1 2. Tween2Repeat#1 3. Tween1Repeat#2 4. Tween2Repeat#2.
 		// Current callback behavior:
 		// 1. Tween1Repeat#1 2. Tween1Repeat#2 3. Tween2Repeat#1 4. Tween2Repeat#2.
