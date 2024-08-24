@@ -167,13 +167,12 @@ std::vector<Triangle<float>> TriangulateProcess(const V2_float* contour, std::si
 
 void QuadData::Add(
 	const std::array<V2_float, vertex_count>& vertices, float z_index, const V4_float& color,
-	const std::array<V2_float, vertex_count>& tex_coords, float texture_index, float tiling_factor
+	const std::array<V2_float, vertex_count>& tex_coords, float texture_index
 ) {
 	ShapeData::Add(vertices, z_index, color);
 	for (std::size_t i{ 0 }; i < vertices_.size(); i++) {
-		vertices_[i].tex_coord	   = { tex_coords[i].x, tex_coords[i].y };
-		vertices_[i].tex_index	   = { texture_index };
-		vertices_[i].tiling_factor = { tiling_factor };
+		vertices_[i].tex_coord = { tex_coords[i].x, tex_coords[i].y };
+		vertices_[i].tex_index = { texture_index };
 	}
 }
 
@@ -710,7 +709,7 @@ void Renderer::DrawTriangleHollowImpl(
 
 void Renderer::DrawTextureImpl(
 	const Texture& t, const V2_float& dp, const V2_float& ds, const V2_float& sp, V2_float ss,
-	Origin o, Flip f, float r, const V2_float& rc, float z, const V4_float& tc, float tf
+	Origin o, Flip f, float r, const V2_float& rc, float z, const V4_float& tc
 ) {
 	data_.quad_.AdvanceBatch();
 
@@ -743,7 +742,7 @@ void Renderer::DrawTextureImpl(
 	PTGN_ASSERT(data_.quad_.index_ != -1);
 	PTGN_ASSERT(data_.quad_.index_ < data_.quad_.batch_.size());
 
-	data_.quad_.batch_[data_.quad_.index_].Add(vertices, z, tc, texcoords, index, tf);
+	data_.quad_.batch_[data_.quad_.index_].Add(vertices, z, tc, texcoords, index);
 
 	data_.stats_.quad_count++;
 }
@@ -767,7 +766,7 @@ void Renderer::DrawRectangleFilledImpl(
 	PTGN_ASSERT(data_.quad_.index_ < data_.quad_.batch_.size());
 
 	data_.quad_.batch_[data_.quad_.index_].Add(
-		vertices, z, col, texcoords, 0.0f /* white texture */, 1.0f
+		vertices, z, col, texcoords, 0.0f /* white texture */
 	);
 
 	data_.stats_.quad_count++;
@@ -1102,12 +1101,11 @@ void Renderer::DrawPolygonHollowImpl(
 void Renderer::DrawTexture(
 	const Texture& texture, const V2_float& destination_position, const V2_float& destination_size,
 	const V2_float& source_position, V2_float source_size, Origin draw_origin, Flip flip,
-	float rotation, const V2_float& rotation_center, float z_index, const Color& tint_color,
-	float tiling_factor
+	float rotation, const V2_float& rotation_center, float z_index, const Color& tint_color
 ) {
 	DrawTextureImpl(
 		texture, destination_position, destination_size, source_position, source_size, draw_origin,
-		flip, rotation, rotation_center, z_index, tint_color.Normalized(), tiling_factor
+		flip, rotation, rotation_center, z_index, tint_color.Normalized()
 	);
 }
 

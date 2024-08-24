@@ -133,8 +133,7 @@ struct QuadData : public ShapeData<QuadVertex, 4, 6> {
 	// Takes in normalized color.
 	void Add(
 		const std::array<V2_float, vertex_count>& vertices, float z_index, const V4_float& color,
-		const std::array<V2_float, vertex_count>& tex_coords, float texture_index,
-		float tiling_factor
+		const std::array<V2_float, vertex_count>& tex_coords, float texture_index
 	);
 };
 
@@ -295,7 +294,7 @@ public:
 		const V2_float& destination_size, const V2_float& source_position = {},
 		V2_float source_size = {}, Origin draw_origin = Origin::Center, Flip flip = Flip::None,
 		float rotation = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
-		float z_index = 0.0f, const Color& tint_color = color::White, float tiling_factor = 1.0f
+		float z_index = 0.0f, const Color& tint_color = color::White
 	);
 
 	void DrawPoint(
@@ -492,7 +491,7 @@ private:
 		const Texture& texture, const V2_float& destination_position,
 		const V2_float& destination_size, const V2_float& source_position, V2_float source_size,
 		Origin draw_origin, Flip flip, float rotation, const V2_float& rotation_center,
-		float z_index, const V4_float& tint_color, float tiling_factor
+		float z_index, const V4_float& tint_color
 	);
 
 	void DrawPointImpl(
