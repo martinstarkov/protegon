@@ -15,6 +15,7 @@ namespace ptgn {
 namespace impl {
 
 float TriangulateArea(const V2_float* contour, std::size_t count) {
+	PTGN_ASSERT(contour != nullptr);
 	int n = static_cast<int>(count);
 
 	float A = 0.0f;
@@ -52,6 +53,7 @@ bool TriangulateInsideTriangle(
 };
 
 bool TriangulateSnip(const V2_float* contour, int u, int v, int w, int n, int* V) {
+	PTGN_ASSERT(contour != nullptr);
 	int p;
 	float Ax, Ay, Bx, By, Cx, Cy, Px, Py;
 
@@ -86,6 +88,7 @@ bool TriangulateSnip(const V2_float* contour, int u, int v, int w, int n, int* V
 
 // From: https://www.flipcode.com/archives/Efficient_Polygon_Triangulation.shtml
 std::vector<Triangle<float>> TriangulateProcess(const V2_float* contour, std::size_t count) {
+	PTGN_ASSERT(contour != nullptr);
 	/* allocate and initialize list of Vertices in polygon */
 	std::vector<Triangle<float>> result;
 
@@ -200,10 +203,11 @@ void DrawImpl(
 	const Shader& shader_
 ) {
 	PTGN_ASSERT(index_ != -1);
+	// TODO: Fix.
 	// Sort by z-index before sending to GPU.
-	std::sort(batch_.begin(), batch_.begin() + index_ + 1, [](const T& a, const T& b) {
+	/*std::sort(batch_.begin(), batch_.begin() + index_ + 1, [](const T& a, const T& b) {
 		return a.GetZIndex() < b.GetZIndex();
-	});
+	});*/
 	buffer_.SetSubData(batch_.data(), static_cast<std::uint32_t>(index_ + 1) * sizeof(T));
 	shader_.Bind();
 	GLRenderer::DrawElements(array_, (index_ + 1) * T::index_count);
@@ -241,12 +245,11 @@ RendererData::RendererData() {
 	SetupShaders();
 }
 
-std::vector<IndexBuffer::IndexType> RendererData::GetIndices(
-	const std::function<void(std::vector<IndexBuffer::IndexType>&, std::size_t, std::uint32_t)>&
-		func,
+std::vector<std::uint32_t> RendererData::GetIndices(
+	const std::function<void(std::vector<std::uint32_t>&, std::size_t, std::uint32_t)>& func,
 	std::size_t max_indices, std::size_t vertex_count, std::size_t index_count
 ) {
-	std::vector<IndexBuffer::IndexType> indices;
+	std::vector<std::uint32_t> indices;
 	indices.resize(max_indices);
 	std::uint32_t offset{ 0 };
 
@@ -277,14 +280,6 @@ void RendererData::SetupBuffers() {
 		PointData::vertex_count, PointData::index_count
 	) };
 
-	IndexBuffer line_index_buffer{ GetIndices(
-		[](auto& indices, auto i, auto offset) {
-			indices[i + 0] = offset + 0;
-			indices[i + 1] = offset + 1;
-		},
-		line_.max_indices_, LineData::vertex_count, LineData::index_count
-	) };
-
 	IndexBuffer triangle_index_buffer{ GetIndices(
 		[](auto& indices, auto i, auto offset) {
 			indices[i + 0] = offset + 0;
@@ -294,38 +289,47 @@ void RendererData::SetupBuffers() {
 		triangle_.max_indices_, TriangleData::vertex_count, TriangleData::index_count
 	) };
 
+	IndexBuffer line_index_buffer{ GetIndices(
+		[](auto& indices, auto i, auto offset) {
+			indices[i + 0] = offset + 0;
+			indices[i + 1] = offset + 1;
+		},
+		line_.max_indices_, LineData::vertex_count, LineData::index_count
+	) };
+
 	quad_.batch_.resize(quad_.max_vertices_);
 	circle_.batch_.resize(circle_.max_vertices_);
 	point_.batch_.resize(point_.max_vertices_);
-	line_.batch_.resize(line_.max_vertices_);
 	triangle_.batch_.resize(triangle_.max_vertices_);
+	line_.batch_.resize(line_.max_vertices_);
 
-	quad_.buffer_ = VertexBuffer(
-		quad_.batch_,
-		BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_, glsl::float_>{},
-		BufferUsage::DynamicDraw
-	);
+	auto quad_vertex_layout{ BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_>{} };
 
-	circle_.buffer_ = VertexBuffer(
-		circle_.batch_,
-		BufferLayout<glsl::vec3, glsl::vec3, glsl::vec4, glsl::float_, glsl::float_>{},
-		BufferUsage::DynamicDraw
-	);
+	auto circle_vertex_layout{
+		BufferLayout<glsl::vec3, glsl::vec3, glsl::vec4, glsl::float_, glsl::float_>{}
+	};
 
 	auto color_vertex_layout{ BufferLayout<glsl::vec3, glsl::vec4>{} };
 
-	point_.buffer_ = VertexBuffer(point_.batch_, color_vertex_layout, BufferUsage::DynamicDraw);
+	quad_.buffer_	  = VertexBuffer(quad_.batch_, BufferUsage::DynamicDraw);
+	circle_.buffer_	  = VertexBuffer(circle_.batch_, BufferUsage::DynamicDraw);
+	point_.buffer_	  = VertexBuffer(point_.batch_, BufferUsage::DynamicDraw);
+	triangle_.buffer_ = VertexBuffer(triangle_.batch_, BufferUsage::DynamicDraw);
+	line_.buffer_	  = VertexBuffer(line_.batch_, BufferUsage::DynamicDraw);
 
-	triangle_.buffer_ =
-		VertexBuffer(triangle_.batch_, color_vertex_layout, BufferUsage::DynamicDraw);
+	quad_.array_ = { PrimitiveMode::Triangles, quad_.buffer_, quad_vertex_layout,
+					 quad_index_buffer };
 
-	line_.buffer_ = VertexBuffer(line_.batch_, color_vertex_layout, BufferUsage::DynamicDraw);
+	circle_.array_ = { PrimitiveMode::Triangles, circle_.buffer_, circle_vertex_layout,
+					   quad_index_buffer };
 
-	quad_.array_	 = { PrimitiveMode::Triangles, quad_.buffer_, quad_index_buffer };
-	circle_.array_	 = { PrimitiveMode::Triangles, circle_.buffer_, quad_index_buffer };
-	point_.array_	 = { PrimitiveMode::Points, point_.buffer_, point_index_buffer };
-	line_.array_	 = { PrimitiveMode::Lines, line_.buffer_, line_index_buffer };
-	triangle_.array_ = { PrimitiveMode::Triangles, triangle_.buffer_, triangle_index_buffer };
+	point_.array_ = { PrimitiveMode::Points, point_.buffer_, color_vertex_layout,
+					  point_index_buffer };
+
+	line_.array_ = { PrimitiveMode::Lines, line_.buffer_, color_vertex_layout, line_index_buffer };
+
+	triangle_.array_ = { PrimitiveMode::Triangles, triangle_.buffer_, color_vertex_layout,
+						 triangle_index_buffer };
 }
 
 void RendererData::SetupTextureSlots() {
@@ -748,8 +752,7 @@ void Renderer::DrawTextureImpl(
 }
 
 void Renderer::DrawRectangleFilledImpl(
-	const V2_float& p, const V2_float& s, const V4_float& col, Origin o, float r,
-	const V2_float& rc, float z
+	const std::array<V2_float, 4>& vertices, const V4_float& col, float z
 ) {
 	data_.quad_.AdvanceBatch();
 
@@ -759,8 +762,6 @@ void Renderer::DrawRectangleFilledImpl(
 		V2_float{ 1.0f, 1.0f },
 		V2_float{ 0.0f, 1.0f },
 	};
-
-	auto vertices = impl::GetQuadVertices(p, s, o, r, rc);
 
 	PTGN_ASSERT(data_.quad_.index_ != -1);
 	PTGN_ASSERT(data_.quad_.index_ < data_.quad_.batch_.size());
@@ -773,100 +774,77 @@ void Renderer::DrawRectangleFilledImpl(
 }
 
 void Renderer::DrawRectangleHollowImpl(
-	const V2_float& p, const V2_float& s, const V4_float& col, Origin o, float lw, float r,
-	const V2_float& rc, float z
+	const std::array<V2_float, 4>& vertices, const V4_float& col, float lw, float z
 ) {
-	auto v{ impl::GetQuadVertices(p, s, o, r, rc) };
-
-	for (std::size_t i{ 0 }; i < v.size(); i++) {
-		DrawLineImpl(v[i], v[(i + 1) % v.size()], col, lw, z);
+	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
+		DrawLineImpl(vertices[i], vertices[(i + 1) % vertices.size()], col, lw, z);
 	}
 }
 
 void Renderer::DrawRoundedRectangleFilledImpl(
-	const V2_float& p, const V2_float& s, float r, const V4_float& col, Origin o, float rot,
+	const V2_float& p, const V2_float& s, float rad, const V4_float& col, Origin o, float rot,
 	const V2_float& rc, float z
 ) {
-	// TODO: Implement.
-	// TODO: Batch a filled quad, and 4 filled capsules.
-	//  o -  o
-	//  l [] l
-	//  o -  o
-	// ...
+	PTGN_ASSERT(
+		2.0f * rad < s.x, "Cannot draw rounded rectangle with larger radius than half its width"
+	);
+	PTGN_ASSERT(
+		2.0f * rad < s.y, "Cannot draw rounded rectangle with larger radius than half its height"
+	);
+
+	V2_float offset = GetOffsetFromCenter(s, o);
+
+	auto inner_vertices =
+		impl::GetQuadVertices(p - offset, s - V2_float{ rad * 2 }, Origin::Center, rot, rc);
+
+	DrawRectangleFilledImpl(inner_vertices, col, z);
+
+	DrawArcFilledImpl(inner_vertices[0], rad, rot - 180.0f, rot - 90.0f, col, z);
+	DrawArcFilledImpl(inner_vertices[1], rad, rot - 90.0f, rot + 0.0f, col, z);
+	DrawArcFilledImpl(inner_vertices[2], rad, rot + 0.0f, rot + 90.0f, col, z);
+	DrawArcFilledImpl(inner_vertices[3], rad, rot + 90.0f, rot + 180.0f, col, z);
+
+	V2_float t = V2_float(rad / 2.0f, 0.0f).Rotated(DegToRad(rot - 90.0f));
+	V2_float r = V2_float(rad / 2.0f, 0.0f).Rotated(DegToRad(rot + 0.0f));
+	V2_float b = V2_float(rad / 2.0f, 0.0f).Rotated(DegToRad(rot + 90.0f));
+	V2_float l = V2_float(rad / 2.0f, 0.0f).Rotated(DegToRad(rot - 180.0f));
+
+	DrawLineImpl(inner_vertices[0] + t, inner_vertices[1] + t, col, rad, z);
+	DrawLineImpl(inner_vertices[1] + r, inner_vertices[2] + r, col, rad, z);
+	DrawLineImpl(inner_vertices[2] + b, inner_vertices[3] + b, col, rad, z);
+	DrawLineImpl(inner_vertices[3] + l, inner_vertices[0] + l, col, rad, z);
 }
 
 void Renderer::DrawRoundedRectangleHollowImpl(
-	const V2_float& p, const V2_float& s, float r, const V4_float& col, Origin o, float lw,
+	const V2_float& p, const V2_float& s, float rad, const V4_float& col, Origin o, float lw,
 	float rot, const V2_float& rc, float z
 ) {
-	// TODO: Implement.
-	/*int tmp;
-	int xx1, xx2;
-	int yy1, yy2;
+	PTGN_ASSERT(
+		2.0f * rad < s.x, "Cannot draw rounded rectangle with larger radius than half its width"
+	);
+	PTGN_ASSERT(
+		2.0f * rad < s.y, "Cannot draw rounded rectangle with larger radius than half its height"
+	);
 
-	PTGN_ASSERT(r >= 0, "Cannot draw thick rounded rectangle with negative radius");
+	V2_float offset = GetOffsetFromCenter(s, o);
 
-	if (r <= 1) {
-		DrawThickRectangleImpl(renderer, x, y, x + w, y + h, pixel_thickness);
-		return;
-	}
+	auto inner_vertices =
+		impl::GetQuadVertices(p - offset, s - V2_float{ rad * 2 }, Origin::Center, rot, rc);
 
-	int x2 = x + w;
-	int y2 = y + h;
+	DrawArcHollowImpl(inner_vertices[0], rad, rot - 180.0f, rot - 90.0f, col, lw, z);
+	DrawArcHollowImpl(inner_vertices[1], rad, rot - 90.0f, rot + 0.0f, col, lw, z);
+	DrawArcHollowImpl(inner_vertices[2], rad, rot + 0.0f, rot + 90.0f, col, lw, z);
+	DrawArcHollowImpl(inner_vertices[3], rad, rot + 90.0f, rot + 180.0f, col, lw, z);
 
-	if (x == x2) {
-		if (y == y2) {
-			DrawPointImpl(renderer, x, y);
-			return;
-		} else {
-			DrawThickVerticalLineImpl(renderer, x, y, y2, pixel_thickness);
-			return;
-		}
-	} else {
-		if (y == y2) {
-			DrawThickHorizontalLineImpl(renderer, x, x2, y, pixel_thickness);
-			return;
-		}
-	}
+	V2_float t = V2_float(rad, 0.0f).Rotated(DegToRad(rot - 90.0f));
+	V2_float r = V2_float(rad, 0.0f).Rotated(DegToRad(rot + 0.0f));
+	V2_float b = V2_float(rad, 0.0f).Rotated(DegToRad(rot + 90.0f));
+	V2_float l = V2_float(rad, 0.0f).Rotated(DegToRad(rot - 180.0f));
 
-	if (x > x2) {
-		tmp = x;
-		x	= x2;
-		x2	= tmp;
-	}
-
-	if (y > y2) {
-		tmp = y;
-		y	= y2;
-		y2	= tmp;
-	}
-
-	if (2 * r > w) {
-		r = w / 2;
-	}
-	if (2 * r > h) {
-		r = h / 2;
-	}
-
-	xx1 = x + r;
-	xx2 = x2 - r;
-	yy1 = y + r;
-	yy2 = y2 - r;
-
-	DrawThickArcImpl(renderer, xx1, yy1, r, 180, 270, pixel_thickness + 1);
-	DrawThickArcImpl(renderer, xx2, yy1, r, 270, 360, pixel_thickness + 1);
-	DrawThickArcImpl(renderer, xx1, yy2, r, 90, 180, pixel_thickness + 1);
-	DrawThickArcImpl(renderer, xx2, yy2, r, 0, 90, pixel_thickness + 1);
-
-	if (xx1 <= xx2) {
-		DrawThickHorizontalLineImpl(renderer, xx1, xx2, y, pixel_thickness);
-		DrawThickHorizontalLineImpl(renderer, xx1, xx2, y2, pixel_thickness);
-	}
-
-	if (yy1 <= yy2) {
-		DrawThickVerticalLineImpl(renderer, x, yy1, yy2, pixel_thickness);
-		DrawThickVerticalLineImpl(renderer, x2, yy1, yy2, pixel_thickness);
-	}*/
+	DrawLineImpl(inner_vertices[0] + t, inner_vertices[1] + t, col, lw, z);
+	DrawLineImpl(inner_vertices[1] + r, inner_vertices[2] + r, col, lw, z);
+	DrawLineImpl(inner_vertices[2] + b, inner_vertices[3] + b, col, lw, z);
+	DrawLineImpl(inner_vertices[3] + l, inner_vertices[0] + l, col, lw, z);
 }
 
 void Renderer::DrawPointImpl(const V2_float& p, const V4_float& col, float r, float z) {
@@ -895,7 +873,8 @@ void Renderer::DrawLineImpl(
 		// TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
 		V2_float center{ p0 + d * 0.5f };
 		V2_float size{ d.Magnitude(), lw };
-		DrawRectangleFilledImpl(center, size, col, Origin::Center, angle, { 0.5f, 0.5f }, z);
+		auto vertices = impl::GetQuadVertices(center, size, Origin::Center, angle, { 0.5f, 0.5f });
+		DrawRectangleFilledImpl(vertices, col, z);
 		return;
 	}
 
@@ -939,16 +918,11 @@ void Renderer::DrawEllipseHollowImpl(
 	data_.stats_.circle_count++;
 }
 
-void Renderer::DrawArcFilledImpl(
+void Renderer::DrawArcImpl(
 	const V2_float& p, float arc_radius, float start_angle, float end_angle, const V4_float& col,
-	float z
+	float lw, float z, bool filled
 ) {
-	PTGN_ASSERT(arc_radius >= 0.0f, "Cannot draw solid arc with negative radius");
-
-	float angle;
-	float delta_angle;
-	float dr;
-	int numpoints, i;
+	PTGN_ASSERT(arc_radius >= 0.0f, "Cannot draw filled arc with negative radius");
 
 	start_angle = ClampAngle360(start_angle);
 	end_angle	= ClampAngle360(end_angle);
@@ -958,58 +932,7 @@ void Renderer::DrawArcFilledImpl(
 		return;
 	}
 
-	dr			= arc_radius;
-	delta_angle = 3.0f / dr;
-	start_angle = DegToRad(start_angle);
-	end_angle	= DegToRad(end_angle);
-	if (start_angle > end_angle) {
-		end_angle += two_pi<float>;
-	}
-
-	numpoints = 2;
-
-	angle = start_angle;
-	while (angle < end_angle) {
-		angle += delta_angle;
-		numpoints++;
-	}
-
-	std::vector<V2_float> v(numpoints);
-	v.at(0) = p;
-	angle	= start_angle;
-	v.at(1) = p + dr * V2_float{ std::cos(angle), std::sin(angle) };
-
-	if (numpoints < 3) {
-		DrawLineImpl(v.at(0), v.at(1), col, 1.0f, z);
-	} else {
-		i	  = 2;
-		angle = start_angle;
-		while (angle < end_angle) {
-			angle += delta_angle;
-			angle  = std::min(angle, end_angle);
-			v[i]   = p + dr * V2_float{ std::cos(angle), std::sin(angle) };
-			i++;
-		}
-
-		DrawPolygonFilledImpl(v.data(), v.size(), col, z);
-	}
-}
-
-void Renderer::DrawArcHollowImpl(
-	const V2_float& p, float arc_radius, float start_angle, float end_angle, const V4_float& col,
-	float lw, float z
-) {
-	PTGN_ASSERT(arc_radius >= 0.0f, "Cannot draw thick arc with negative radius");
-
-	start_angle = ClampAngle360(start_angle);
-	end_angle	= ClampAngle360(end_angle);
-
-	if (NearlyEqual(arc_radius, 0.0f)) {
-		DrawPointImpl(p, col, 1.0f, z);
-		return;
-	}
-
-	float delta_angle = two_pi<float> / arc_radius;
+	// float delta_angle = two_pi<float> / arc_radius;
 
 	start_angle = DegToRad(start_angle);
 	end_angle	= DegToRad(end_angle);
@@ -1020,9 +943,15 @@ void Renderer::DrawArcHollowImpl(
 
 	float arc = end_angle - start_angle;
 
-	PTGN_ASSERT(arc >= 0.0f);
+	// Number of triangles the arc is divided into.
+	std::size_t resolution =
+		std::max(static_cast<std::size_t>(360), static_cast<std::size_t>(30.0f * arc_radius));
 
-	std::size_t n = static_cast<std::size_t>(FastCeil(arc / delta_angle)) + 1;
+	std::size_t n{ resolution };
+
+	float delta_angle{ arc / static_cast<float>(n) };
+
+	PTGN_ASSERT(arc >= 0.0f);
 
 	if (n > 1) {
 		std::vector<V2_float> v(n);
@@ -1032,19 +961,60 @@ void Renderer::DrawArcHollowImpl(
 			v[i] = { p.x + arc_radius * std::cos(angle), p.y + arc_radius * std::sin(angle) };
 		}
 
-		// Final line is skipped to prevent connecting the arc.
-		for (std::size_t i{ 0 }; i < v.size() - 1; i++) {
-			DrawLineImpl(v[i], v[i + 1], col, lw, z);
+		if (filled) {
+			for (std::size_t i{ 0 }; i < v.size() - 1; i++) {
+				DrawTriangleFilledImpl(p, v[i], v[i + 1], col, z);
+			}
+		} else {
+			PTGN_ASSERT(lw >= 0.0f, "Must provide valid line width when drawing hollow arc");
+			for (std::size_t i{ 0 }; i < v.size() - 1; i++) {
+				DrawLineImpl(v[i], v[i + 1], col, lw, z);
+			}
 		}
+	} else {
+		DrawPointImpl(p, col, 1.0f, z);
 	}
+}
+
+void Renderer::DrawArcFilledImpl(
+	const V2_float& p, float arc_radius, float start_angle, float end_angle, const V4_float& col,
+	float z
+) {
+	DrawArcImpl(p, arc_radius, start_angle, end_angle, col, 0.0f, z, true);
+}
+
+void Renderer::DrawArcHollowImpl(
+	const V2_float& p, float arc_radius, float start_angle, float end_angle, const V4_float& col,
+	float lw, float z
+) {
+	DrawArcImpl(p, arc_radius, start_angle, end_angle, col, lw, z, false);
 }
 
 void Renderer::DrawCapsuleFilledImpl(
 	const V2_float& p0, const V2_float& p1, float r, const V4_float& col, float fade, float z
 ) {
-	DrawEllipseFilledImpl(p0, { r, r }, col, fade, z);
-	DrawEllipseFilledImpl(p1, { r, r }, col, fade, z);
+	V2_float dir{ p1 - p0 };
+	const float angle{ RadToDeg(ClampAngle2Pi(dir.Angle() + half_pi<float>)) };
+	const float dir2{ dir.Dot(dir) };
+
+	V2_float tangent_r;
+
+	// Note that dir2 is an int.
+	if (NearlyEqual(dir2, 0.0f)) {
+		DrawEllipseFilledImpl(p0, { r, r }, col, fade, z);
+		return;
+	} else {
+		V2_float tmp = dir.Skewed() / std::sqrt(dir2) * r;
+		tangent_r	 = { FastFloor(tmp.x), FastFloor(tmp.y) };
+	}
+
+	// Draw central line.
 	DrawLineImpl(p0, p1, col, r * 2.0f, z);
+
+	// Draw edge arcs.
+	float delta{ 0.5f };
+	DrawArcFilledImpl(p0, r, angle - delta, angle + 180.0f + delta, col, z);
+	DrawArcFilledImpl(p1, r, angle + 180.0f - delta, angle + delta, col, z);
 }
 
 void Renderer::DrawCapsuleHollowImpl(
@@ -1076,11 +1046,12 @@ void Renderer::DrawCapsuleHollowImpl(
 }
 
 void Renderer::DrawPolygonFilledImpl(
-	const V2_float* vertices, std::size_t vertex_count, const V4_float& col, float z
+	const Triangle<float>* triangles, std::size_t triangle_count, const V4_float& col, float z
 ) {
-	auto triangles = impl::TriangulateProcess(vertices, vertex_count);
+	PTGN_ASSERT(triangles != nullptr);
 
-	for (const Triangle<float>& t : triangles) {
+	for (std::size_t i{ 0 }; i < triangle_count; ++i) {
+		const Triangle<float>& t{ triangles[i] };
 		data_.triangle_.AdvanceBatch();
 		PTGN_ASSERT(data_.triangle_.index_ != -1);
 		PTGN_ASSERT(data_.triangle_.index_ < data_.triangle_.batch_.size());
@@ -1093,6 +1064,7 @@ void Renderer::DrawPolygonFilledImpl(
 void Renderer::DrawPolygonHollowImpl(
 	const V2_float* vertices, std::size_t vertex_count, const V4_float& col, float lw, float z
 ) {
+	PTGN_ASSERT(vertices != nullptr);
 	for (std::size_t i{ 0 }; i < vertex_count; i++) {
 		DrawLineImpl(vertices[i], vertices[(i + 1) % vertex_count], col, lw, z);
 	}
@@ -1159,9 +1131,8 @@ void Renderer::DrawRectangleFilled(
 	const V2_float& position, const V2_float& size, const Color& color, Origin draw_origin,
 	float rotation, const V2_float& rotation_center, float z_index
 ) {
-	DrawRectangleFilledImpl(
-		position, size, color.Normalized(), draw_origin, rotation, rotation_center, z_index
-	);
+	auto vertices = impl::GetQuadVertices(position, size, draw_origin, rotation, rotation_center);
+	DrawRectangleFilledImpl(vertices, color.Normalized(), z_index);
 }
 
 // Rotation in degrees.
@@ -1169,10 +1140,10 @@ void Renderer::DrawRectangleFilled(
 	const Rectangle<float>& rectangle, const Color& color, float rotation,
 	const V2_float& rotation_center, float z_index
 ) {
-	DrawRectangleFilledImpl(
-		rectangle.pos, rectangle.size, color.Normalized(), rectangle.origin, rotation,
-		rotation_center, z_index
+	auto vertices = impl::GetQuadVertices(
+		rectangle.pos, rectangle.size, rectangle.origin, rotation, rotation_center
 	);
+	DrawRectangleFilledImpl(vertices, color.Normalized(), z_index);
 }
 
 // Rotation in degrees.
@@ -1180,10 +1151,8 @@ void Renderer::DrawRectangleHollow(
 	const V2_float& position, const V2_float& size, const Color& color, Origin draw_origin,
 	float line_width, float rotation, const V2_float& rotation_center, float z_index
 ) {
-	DrawRectangleHollowImpl(
-		position, size, color.Normalized(), draw_origin, line_width, rotation, rotation_center,
-		z_index
-	);
+	auto vertices{ impl::GetQuadVertices(position, size, draw_origin, rotation, rotation_center) };
+	DrawRectangleHollowImpl(vertices, color.Normalized(), line_width, z_index);
 }
 
 // Rotation in degrees.
@@ -1191,28 +1160,30 @@ void Renderer::DrawRectangleHollow(
 	const Rectangle<float>& rectangle, const Color& color, float line_width, float rotation,
 	const V2_float& rotation_center, float z_index
 ) {
-	DrawRectangleHollowImpl(
-		rectangle.pos, rectangle.size, color.Normalized(), rectangle.origin, line_width, rotation,
-		rotation_center, z_index
-	);
+	auto vertices{ impl::GetQuadVertices(
+		rectangle.pos, rectangle.size, rectangle.origin, rotation, rotation_center
+	) };
+	DrawRectangleHollowImpl(vertices, color.Normalized(), line_width, z_index);
 }
 
 void Renderer::DrawPolygonFilled(
 	const V2_float* vertices, std::size_t vertex_count, const Color& color, float z_index
 ) {
-	DrawPolygonFilledImpl(vertices, vertex_count, color.Normalized(), z_index);
+	PTGN_ASSERT(vertices != nullptr);
+	auto triangles = impl::TriangulateProcess(vertices, vertex_count);
+	DrawPolygonFilledImpl(triangles.data(), triangles.size(), color.Normalized(), z_index);
 }
 
 void Renderer::DrawPolygonFilled(const Polygon& polygon, const Color& color, float z_index) {
-	DrawPolygonFilledImpl(
-		polygon.vertices.data(), polygon.vertices.size(), color.Normalized(), z_index
-	);
+	auto triangles = impl::TriangulateProcess(polygon.vertices.data(), polygon.vertices.size());
+	DrawPolygonFilledImpl(triangles.data(), triangles.size(), color.Normalized(), z_index);
 }
 
 void Renderer::DrawPolygonHollow(
 	const V2_float* vertices, std::size_t vertex_count, const Color& color, float line_width,
 	float z_index
 ) {
+	PTGN_ASSERT(vertices != nullptr);
 	DrawPolygonHollowImpl(vertices, vertex_count, color.Normalized(), line_width, z_index);
 }
 

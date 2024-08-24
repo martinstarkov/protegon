@@ -70,7 +70,6 @@ struct QuadVertex {
 	glsl::vec4 color;
 	glsl::vec2 tex_coord;
 	glsl::float_ tex_index;
-	glsl::float_ tiling_factor;
 };
 
 struct CircleVertex {
@@ -178,7 +177,7 @@ public:
 	std::vector<T> batch_;
 	std::int32_t index_{ -1 };
 
-	constexpr static const std::size_t batch_count_	 = 5000;
+	constexpr static const std::size_t batch_count_	 = 2000;
 	constexpr static const std::size_t max_vertices_ = batch_count_ * T::vertex_count;
 	constexpr static const std::size_t max_indices_	 = batch_count_ * T::index_count;
 
@@ -212,10 +211,8 @@ public:
 	BatchData<QuadData> quad_;
 	BatchData<CircleData> circle_;
 	BatchData<PointData> point_;
-	BatchData<LineData> line_;
 	BatchData<TriangleData> triangle_;
-
-	float line_width_{ 2.0f };
+	BatchData<LineData> line_;
 
 	void SetupBuffers();
 	void SetupTextureSlots();
@@ -232,9 +229,8 @@ public:
 		const V2_float& source_position, V2_float source_size, const V2_float& texture_size
 	);
 
-	[[nodiscard]] static std::vector<IndexBuffer::IndexType> GetIndices(
-		const std::function<void(std::vector<IndexBuffer::IndexType>&, std::size_t, std::uint32_t)>&
-			func,
+	[[nodiscard]] static std::vector<std::uint32_t> GetIndices(
+		const std::function<void(std::vector<std::uint32_t>&, std::size_t, std::uint32_t)>& func,
 		std::size_t max_indices, std::size_t vertex_count, std::size_t index_count
 	);
 
@@ -514,17 +510,16 @@ private:
 	);
 
 	void DrawRectangleFilledImpl(
-		const V2_float& position, const V2_float& size, const V4_float& color, Origin draw_origin,
-		float rotation, const V2_float& rotation_center, float z_index
+		const std::array<V2_float, 4>& vertices, const V4_float& color, float z_index
 	);
 
 	void DrawRectangleHollowImpl(
-		const V2_float& position, const V2_float& size, const V4_float& color, Origin draw_origin,
-		float line_width, float rotation, const V2_float& rotation_center, float z_index
+		const std::array<V2_float, 4>& vertices, const V4_float& color, float line_width,
+		float z_index
 	);
 
 	void DrawPolygonFilledImpl(
-		const V2_float* vertices, std::size_t vertex_count, const V4_float& color, float z_index
+		const Triangle<float>* triangles, std::size_t triangle_count, const V4_float& col, float z
 	);
 
 	void DrawPolygonHollowImpl(
@@ -550,9 +545,16 @@ private:
 		float z_index
 	);
 
+	// TODO: Fix ellipse line width being uneven between x and y axes (currently it chooses the
+	// smaller radius axis as the relative radius).
 	void DrawEllipseHollowImpl(
 		const V2_float& position, const V2_float& radius, const V4_float& color, float line_width,
 		float fade, float z_index
+	);
+
+	void DrawArcImpl(
+		const V2_float& p, float arc_radius, float start_angle, float end_angle,
+		const V4_float& col, float lw, float z, bool filled
 	);
 
 	void DrawArcFilledImpl(
@@ -570,6 +572,7 @@ private:
 		float z_index
 	);
 
+	// TODO: Fix artefacts in capsule line width at larger radii.
 	void DrawCapsuleHollowImpl(
 		const V2_float& p0, const V2_float& p1, float radius, const V4_float& color,
 		float line_width, float fade, float z_index
@@ -577,8 +580,8 @@ private:
 
 	void StartBatch();
 
-	Color clear_color_;
-	BlendMode blend_mode_;
+	Color clear_color_{ color::White };
+	BlendMode blend_mode_{ BlendMode::Blend };
 	V2_int viewport_size_;
 	impl::RendererData data_;
 };
