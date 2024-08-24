@@ -57,16 +57,30 @@ void GLRenderer::DisableDepthTesting() {
 
 void GLRenderer::DrawElements(const VertexArray& va, std::size_t index_count) {
 	PTGN_ASSERT(va.IsValid(), "Cannot draw uninitialized or destroyed vertex array");
+	PTGN_ASSERT(
+		va.HasVertexBuffer(),
+		"Cannot draw vertex array with uninitialized or destroyed vertex buffer"
+	);
+	PTGN_ASSERT(
+		va.HasIndexBuffer(), "Cannot draw vertex array with uninitialized or destroyed index buffer"
+	);
 	va.Bind();
+	PTGN_ASSERT(
+		VertexArray::BoundId() == static_cast<std::int32_t>(va.GetInstance()->id_),
+		"Failed to bind vertex array id"
+	);
 	gl::glDrawElements(
-		static_cast<gl::GLenum>(va.GetPrimitiveMode()),
-		index_count == 0 ? va.GetIndexBuffer().GetCount() : static_cast<std::uint32_t>(index_count),
-		static_cast<gl::GLenum>(IndexBuffer::GetType()), nullptr
+		static_cast<gl::GLenum>(va.GetPrimitiveMode()), static_cast<std::uint32_t>(index_count),
+		static_cast<gl::GLenum>(impl::GetType<std::uint32_t>()), nullptr
 	);
 }
 
 void GLRenderer::DrawArrays(const VertexArray& va, std::size_t vertex_count) {
 	PTGN_ASSERT(va.IsValid(), "Cannot draw uninitialized or destroyed vertex array");
+	PTGN_ASSERT(
+		va.HasVertexBuffer(),
+		"Cannot draw vertex array with uninitialized or destroyed vertex buffer"
+	);
 	va.Bind();
 	gl::glDrawArrays(
 		static_cast<gl::GLenum>(va.GetPrimitiveMode()), 0, static_cast<std::uint32_t>(vertex_count)
@@ -74,8 +88,9 @@ void GLRenderer::DrawArrays(const VertexArray& va, std::size_t vertex_count) {
 }
 
 std::int32_t GLRenderer::GetMaxTextureSlots() {
-	std::int32_t max_texture_slots{ 0 };
+	std::int32_t max_texture_slots{ -1 };
 	gl::glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_texture_slots);
+	PTGN_ASSERT(max_texture_slots >= 0, "Failed to retrieve device maximum texture slots");
 	return max_texture_slots;
 }
 
