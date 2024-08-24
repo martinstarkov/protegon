@@ -88,10 +88,12 @@ public:
 	CameraManager& operator=(CameraManager&&)	   = default;
 
 	void SetPrimary(const Key& key);
+	void SetPrimary(const OrthographicCamera& camera);
 
 	[[nodiscard]] const OrthographicCamera& GetPrimary() const;
 	[[nodiscard]] OrthographicCamera& GetPrimary();
 
+	// TODO: Fix this allowing window_camera_ to be modified (seemingly?).
 	void ResetPrimaryToWindow();
 
 private:
@@ -120,7 +122,7 @@ public:
 	using Item = CameraManager::Item;
 	using Key  = CameraManager::Key;
 
-	template <typename... TArgs, type_traits::constructible<Item, TArgs...> = true>
+	template <typename... TArgs, tt::constructible<Item, TArgs...> = true>
 	static Item& Load(const Key& key, TArgs&&... constructor_args) {
 		return LoadImpl(key, std::move(Item(constructor_args...)));
 	}
@@ -131,6 +133,7 @@ public:
 	static void Clear();
 
 	static void SetPrimary(const Key& key);
+	static void SetPrimary(const OrthographicCamera& camera);
 
 	[[nodiscard]] static OrthographicCamera& GetPrimary();
 

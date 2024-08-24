@@ -250,6 +250,11 @@ void CameraManager::SetPrimary(const Key& key) {
 	game.renderer.UpdateViewProjection(primary_camera_.GetViewProjection());
 }
 
+void CameraManager::SetPrimary(const OrthographicCamera& camera) {
+	primary_camera_ = camera;
+	game.renderer.UpdateViewProjection(primary_camera_.GetViewProjection());
+}
+
 const OrthographicCamera& CameraManager::GetPrimary() const {
 	return primary_camera_;
 }
@@ -306,6 +311,10 @@ void ActiveSceneCameraManager::Clear() {
 
 void ActiveSceneCameraManager::SetPrimary(const Key& key) {
 	game.scene.GetTopActive().camera.SetPrimary(key);
+}
+
+void ActiveSceneCameraManager::SetPrimary(const OrthographicCamera& camera) {
+	game.scene.GetTopActive().camera.SetPrimary(camera);
 }
 
 OrthographicCamera& ActiveSceneCameraManager::GetPrimary() {
