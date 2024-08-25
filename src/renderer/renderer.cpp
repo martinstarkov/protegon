@@ -198,7 +198,7 @@ void CircleData::Add(
 template <typename T>
 void BatchData<T>::Draw() {
 	PTGN_ASSERT(index_ != -1);
-	// TODO: Fix.
+	// TODO: Fix sorting.
 	// Sort by z-index before sending to GPU.
 	/*std::sort(batch_.begin(), batch_.begin() + index_ + 1, [](const T& a, const T& b) {
 		return a.GetZIndex() < b.GetZIndex();
@@ -646,11 +646,26 @@ void Renderer::Flush() {
 	StartBatch();
 }
 
-// void Renderer::DrawArray(const VertexArray& vertex_array) {
-//	PTGN_ASSERT(vertex_array.IsValid(), "Cannot submit invalid vertex array for rendering");
-//	GLRenderer::DrawElements(vertex_array);
-//	data_.stats_.draw_calls++;
-// }
+void Renderer::DrawElements(const VertexArray& va, std::size_t index_count) {
+	PTGN_ASSERT(va.IsValid(), "Cannot submit invalid vertex array for rendering");
+	PTGN_ASSERT(
+		va.HasVertexBuffer(), "Cannot submit vertex array without a set vertex buffer for rendering"
+	);
+	PTGN_ASSERT(
+		va.HasIndexBuffer(), "Cannot submit vertex array without a set index buffer for rendering"
+	);
+	GLRenderer::DrawElements(va, index_count);
+	data_.draw_calls++;
+}
+
+void Renderer::DrawArrays(const VertexArray& va, std::size_t vertex_count) {
+	PTGN_ASSERT(va.IsValid(), "Cannot submit invalid vertex array for rendering");
+	PTGN_ASSERT(
+		va.HasVertexBuffer(), "Cannot submit vertex array without a set vertex buffer for rendering"
+	);
+	GLRenderer::DrawArrays(va, vertex_count);
+	data_.draw_calls++;
+}
 
 void Renderer::DrawTextureImpl(
 	const std::array<V2_float, 4>& vertices, float texture_index,

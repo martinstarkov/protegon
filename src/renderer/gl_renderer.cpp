@@ -21,21 +21,21 @@ void GLRenderer::SetBlendMode(BlendMode mode /* = BlendMode::Blend*/) {
 	if (mode == BlendMode::None) {
 		gl::glDisable(GL_BLEND);
 		// gl::glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-	} else {
-		DisableDepthTesting();
-		gl::glEnable(GL_BLEND);
-		// gl::glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+		return;
+	}
+	DisableDepthTesting();
+	gl::glEnable(GL_BLEND);
+	// gl::glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
-		switch (mode) {
-			case BlendMode::Blend:	  gl::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); break;
-			case BlendMode::Add:	  gl::glBlendFunc(GL_SRC_ALPHA, GL_ONE); break;
-			case BlendMode::Modulate: gl::glBlendFunc(GL_ZERO, GL_SRC_COLOR); break;
-			case BlendMode::Multiply:
-				// TODO: Check that this works correctly.
-				gl::glBlendFunc(GL_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-				break;
-			default: PTGN_ERROR("Failed to identify blend mode");
-		}
+	switch (mode) {
+		case BlendMode::Blend:	  gl::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); break;
+		case BlendMode::Add:	  gl::glBlendFunc(GL_SRC_ALPHA, GL_ONE); break;
+		case BlendMode::Modulate: gl::glBlendFunc(GL_ZERO, GL_SRC_COLOR); break;
+		case BlendMode::Multiply:
+			// TODO: Check that this works correctly.
+			gl::glBlendFunc(GL_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			break;
+		default: PTGN_ERROR("Failed to identify blend mode");
 	}
 }
 

@@ -256,8 +256,8 @@ public:
 
 	void Flush();
 
-	// TODO: Reimplement.
-	// void DrawArray(const VertexArray& vertex_array);
+	void DrawElements(const VertexArray& va, std::size_t index_count);
+	void DrawArrays(const VertexArray& va, std::size_t vertex_count);
 
 	/*
 	 * @param source_position Top left pixel to start drawing texture from within the texture
@@ -512,13 +512,11 @@ private:
 		float z_index
 	);
 
-	// TODO: Implement.
 	void DrawRoundedRectangleFilledImpl(
 		const V2_float& position, const V2_float& size, float radius, const V4_float& color,
 		Origin origin, float rotation, const V2_float& rotation_center, float z_index
 	);
 
-	// TODO: Implement.
 	void DrawRoundedRectangleHollowImpl(
 		const V2_float& position, const V2_float& size, float radius, const V4_float& color,
 		Origin origin, float line_width, float rotation, const V2_float& rotation_center,

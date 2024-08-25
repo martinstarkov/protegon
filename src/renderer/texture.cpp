@@ -198,8 +198,6 @@ bool Texture::operator!=(const Texture& o) const {
 	return !(*this == o);
 }
 
-// TODO: Impelement. Dont forget push and pop state.
-
 void Texture::SetWrapping(TextureWrapping s) {
 	PUSHSTATE();
 
