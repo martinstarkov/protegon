@@ -114,8 +114,10 @@ public:
 		return vertices_[0].position[2];
 	}
 
+	ShapeData() = default;
+
 	// Takes in normalized color.
-	void Add(
+	ShapeData(
 		const std::array<V2_float, vertex_count>& vertices, float z_index, const V4_float& color
 	) {
 		PTGN_ASSERT(color.x >= 0.0f && color.y >= 0.0f && color.z >= 0.0f && color.w >= 0.0f);
@@ -127,30 +129,51 @@ public:
 	}
 
 protected:
-	std::array<TVertex, V> vertices_;
+	std::array<TVertex, V> vertices_{};
 };
 
 struct QuadData : public ShapeData<QuadVertex, 4, 6> {
-	// Takes in normalized color.
-	void Add(
+	QuadData() = default;
+	QuadData(
 		const std::array<V2_float, vertex_count>& vertices, float z_index, const V4_float& color,
 		const std::array<V2_float, vertex_count>& tex_coords, float texture_index
 	);
 };
 
 struct CircleData : public ShapeData<CircleVertex, 4, 6> {
-	// Takes in normalized color.
-	void Add(
+	CircleData() = default;
+	CircleData(
 		const std::array<V2_float, vertex_count>& vertices, float z_index, const V4_float& color,
 		float line_width, float fade
 	);
 };
 
-struct PointData : public ShapeData<ColorVertex, 1, 1> {};
+struct TriangleData : public ShapeData<ColorVertex, 3, 3> {
+	TriangleData() = default;
 
-struct LineData : public ShapeData<ColorVertex, 2, 2> {};
+	TriangleData(
+		const std::array<V2_float, vertex_count>& vertices, float z_index, const V4_float& color
+	) :
+		ShapeData{ vertices, z_index, color } {}
+};
 
-struct TriangleData : public ShapeData<ColorVertex, 3, 3> {};
+struct LineData : public ShapeData<ColorVertex, 2, 2> {
+	LineData() = default;
+
+	LineData(
+		const std::array<V2_float, vertex_count>& vertices, float z_index, const V4_float& color
+	) :
+		ShapeData{ vertices, z_index, color } {}
+};
+
+struct PointData : public ShapeData<ColorVertex, 1, 1> {
+	PointData() = default;
+
+	PointData(
+		const std::array<V2_float, vertex_count>& vertices, float z_index, const V4_float& color
+	) :
+		ShapeData{ vertices, z_index, color } {}
+};
 
 void OffsetVertices(
 	std::array<V2_float, QuadData::vertex_count>& vertices, const V2_float& size, Origin draw_origin

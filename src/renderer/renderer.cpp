@@ -166,35 +166,6 @@ std::vector<Triangle<float>> TriangulateProcess(const V2_float* contour, std::si
 	return result;
 }
 
-void QuadData::Add(
-	const std::array<V2_float, vertex_count>& vertices, float z_index, const V4_float& color,
-	const std::array<V2_float, vertex_count>& tex_coords, float texture_index
-) {
-	ShapeData::Add(vertices, z_index, color);
-	for (std::size_t i{ 0 }; i < vertices_.size(); i++) {
-		vertices_[i].tex_coord = { tex_coords[i].x, tex_coords[i].y };
-		vertices_[i].tex_index = { texture_index };
-	}
-}
-
-void CircleData::Add(
-	const std::array<V2_float, vertex_count>& vertices, float z_index, const V4_float& color,
-	float line_width, float fade
-) {
-	ShapeData::Add(vertices, z_index, color);
-	constexpr auto local = std::array<V2_float, vertex_count>{
-		V2_float{ -1.0f, -1.0f },
-		V2_float{ 1.0f, -1.0f },
-		V2_float{ 1.0f, 1.0f },
-		V2_float{ -1.0f, 1.0f },
-	};
-	for (std::size_t i{ 0 }; i < vertices_.size(); i++) {
-		vertices_[i].local_position = { local[i].x, local[i].y, z_index };
-		vertices_[i].line_width		= { line_width };
-		vertices_[i].fade			= { fade };
-	}
-}
-
 template <typename T>
 void BatchData<T>::Draw() {
 	PTGN_ASSERT(index_ != -1);
@@ -539,6 +510,35 @@ template class BatchData<LineData>;
 template class BatchData<TriangleData>;
 template class BatchData<PointData>;
 
+QuadData::QuadData(
+	const std::array<V2_float, vertex_count>& vertices, float z_index, const V4_float& color,
+	const std::array<V2_float, vertex_count>& tex_coords, float texture_index
+) :
+	ShapeData{ vertices, z_index, color } {
+	for (std::size_t i{ 0 }; i < vertices_.size(); i++) {
+		vertices_[i].tex_coord = { tex_coords[i].x, tex_coords[i].y };
+		vertices_[i].tex_index = { texture_index };
+	}
+}
+
+CircleData::CircleData(
+	const std::array<V2_float, vertex_count>& vertices, float z_index, const V4_float& color,
+	float line_width, float fade
+) :
+	ShapeData{ vertices, z_index, color } {
+	constexpr auto local = std::array<V2_float, vertex_count>{
+		V2_float{ -1.0f, -1.0f },
+		V2_float{ 1.0f, -1.0f },
+		V2_float{ 1.0f, 1.0f },
+		V2_float{ -1.0f, 1.0f },
+	};
+	for (std::size_t i{ 0 }; i < vertices_.size(); i++) {
+		vertices_[i].local_position = { local[i].x, local[i].y, z_index };
+		vertices_[i].line_width		= { line_width };
+		vertices_[i].fade			= { fade };
+	}
+}
+
 } // namespace impl
 
 Renderer::Renderer() {
@@ -671,7 +671,7 @@ void Renderer::DrawTextureImpl(
 	const std::array<V2_float, 4>& vertices, float texture_index,
 	const std::array<V2_float, 4>& tex_coords, const V4_float& tint_color, float z
 ) {
-	data_.quad_.Get().Add(vertices, z, tint_color, tex_coords, texture_index);
+	data_.quad_.Get() = impl::QuadData(vertices, z, tint_color, tex_coords, texture_index);
 }
 
 void Renderer::DrawEllipseHollowImpl(
@@ -687,13 +687,13 @@ void Renderer::DrawEllipseHollowImpl(
 	// TODO: Check that dividing by std::max(radius.x, radius.y) does not cause any unexpected bugs.
 	lw = NearlyEqual(lw, 0.0f) ? 1.0f : fade + lw / std::min(r.x, r.y);
 
-	data_.circle_.Get().Add(vertices, z, col, lw, fade);
+	data_.circle_.Get() = impl::CircleData(vertices, z, col, lw, fade);
 }
 
 void Renderer::DrawTriangleFilledImpl(
 	const V2_float& a, const V2_float& b, const V2_float& c, const V4_float& col, float z
 ) {
-	data_.triangle_.Get().Add({ a, b, c }, z, col);
+	data_.triangle_.Get() = impl::TriangleData({ a, b, c }, z, col);
 }
 
 void Renderer::DrawLineImpl(
@@ -711,12 +711,12 @@ void Renderer::DrawLineImpl(
 		return;
 	}
 
-	data_.line_.Get().Add({ p0, p1 }, z, col);
+	data_.line_.Get() = impl::LineData({ p0, p1 }, z, col);
 }
 
 void Renderer::DrawPointImpl(const V2_float& p, const V4_float& col, float r, float z) {
 	if (r <= 1.0f) {
-		data_.point_.Get().Add({ p }, z, col);
+		data_.point_.Get() = impl::PointData({ p }, z, col);
 	} else {
 		DrawEllipseFilledImpl(p, { r, r }, col, 0.005f, z);
 	}
