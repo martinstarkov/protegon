@@ -35,13 +35,14 @@ public:
 
 	void Draw() const {
 		if (texture.IsValid()) {
-			// TODO: Fix
-			// texture.Draw(rect, source);
+			game.renderer.DrawTexture(
+				texture, rect.pos, rect.size, source.pos, source.size, rect.origin
+			);
 		}
 	}
 
 private:
-	Rectangle<int> rect;
+	Rectangle<int> rect{ {}, {}, Origin::TopLeft };
 	Rectangle<int> source;
 	Texture texture;
 };
@@ -61,8 +62,7 @@ public:
 		scale{ scale },
 		scaled_tile_size{ scale * tile_size } {
 		PTGN_ASSERT(FileExists(tileset_path));
-		// TODO: Fix
-		// texture::Load(texture_key, tileset_path);
+		game.texture.Load(texture_key, tileset_path);
 		for (int i = 0; i < size.x; i++) {
 			for (int j = 0; j < size.y; j++) {
 				V2_int tile{ i, j };
