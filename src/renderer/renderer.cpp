@@ -52,7 +52,9 @@ bool TriangulateInsideTriangle(
 	return ((aCROSSbp >= 0.0f) && (bCROSScp >= 0.0f) && (cCROSSap >= 0.0f));
 };
 
-bool TriangulateSnip(const V2_float* contour, int u, int v, int w, int n, int* V) {
+bool TriangulateSnip(
+	const V2_float* contour, int u, int v, int w, int n, const std::vector<int>& V
+) {
 	PTGN_ASSERT(contour != nullptr);
 	int p;
 	float Ax, Ay, Bx, By, Cx, Cy, Px, Py;
@@ -97,8 +99,7 @@ std::vector<Triangle<float>> TriangulateProcess(const V2_float* contour, std::si
 		return result;
 	}
 
-	// TODO: Move to using std::vector.
-	int* V = new int[n];
+	std::vector<int> V(n);
 
 	/* we want a counter-clockwise polygon in V */
 
@@ -161,9 +162,6 @@ std::vector<Triangle<float>> TriangulateProcess(const V2_float* contour, std::si
 			r_count = 2 * nv;
 		}
 	}
-
-	// TODO: Move to using std::vector.
-	delete[] V;
 
 	return result;
 }
