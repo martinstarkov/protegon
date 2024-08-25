@@ -231,7 +231,8 @@ public:
 	float GetTextureIndex(const Texture& texture);
 
 	[[nodiscard]] static std::array<V2_float, QuadData::vertex_count> GetTextureCoordinates(
-		const V2_float& source_position, V2_float source_size, const V2_float& texture_size
+		const V2_float& source_position, V2_float source_size, const V2_float& texture_size,
+		Flip flip
 	);
 
 	std::int64_t draw_calls{ 0 };
@@ -470,10 +471,8 @@ private:
 	friend class Game;
 
 	void DrawTextureImpl(
-		const Texture& texture, const V2_float& destination_position,
-		const V2_float& destination_size, const V2_float& source_position, V2_float source_size,
-		Origin draw_origin, Flip flip, float rotation, const V2_float& rotation_center,
-		float z_index, const V4_float& tint_color
+		const std::array<V2_float, 4>& vertices, float texture_index,
+		const std::array<V2_float, 4>& tex_coords, const V4_float& tint_color, float z
 	);
 
 	void DrawPointImpl(

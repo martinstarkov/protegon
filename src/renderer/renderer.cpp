@@ -410,7 +410,7 @@ float RendererData::GetTextureIndex(const Texture& texture) {
 }
 
 std::array<V2_float, QuadData::vertex_count> RendererData::GetTextureCoordinates(
-	const V2_float& source_position, V2_float source_size, const V2_float& texture_size
+	const V2_float& source_position, V2_float source_size, const V2_float& texture_size, Flip flip
 ) {
 	PTGN_ASSERT(!NearlyEqual(texture_size.x, 0.0f), "Texture must have width > 0");
 	PTGN_ASSERT(!NearlyEqual(texture_size.y, 0.0f), "Texture must have height > 0");
@@ -442,6 +442,8 @@ std::array<V2_float, QuadData::vertex_count> RendererData::GetTextureCoordinates
 		src_pos + src_size - half_pixel,
 		V2_float{ src_pos.x + half_pixel.x, src_pos.y + src_size.y - half_pixel.y },
 	};
+
+	FlipTextureCoordinates(texture_coordinates, flip);
 
 	return texture_coordinates;
 }
@@ -650,10 +652,74 @@ void Renderer::Flush() {
 //	data_.stats_.draw_calls++;
 // }
 
+void Renderer::DrawTextureImpl(
+	const std::array<V2_float, 4>& vertices, float texture_index,
+	const std::array<V2_float, 4>& tex_coords, const V4_float& tint_color, float z
+) {
+	data_.quad_.Get().Add(vertices, z, tint_color, tex_coords, texture_index);
+}
+
+void Renderer::DrawEllipseHollowImpl(
+	const V2_float& p, const V2_float& r, const V4_float& col, float lw, float fade, float z
+) {
+	PTGN_ASSERT(lw >= 0.0f, "Cannot draw negative line width");
+
+	auto vertices =
+		impl::GetQuadVertices(p, { r.x * 2.0f, r.y * 2.0f }, Origin::Center, 0.0f, { 0.5f, 0.5f });
+
+	// Internally line width for a filled rectangle is 1.0f and a completely hollow one is 0.0f, but
+	// in the API the line width is expected in pixels.
+	// TODO: Check that dividing by std::max(radius.x, radius.y) does not cause any unexpected bugs.
+	lw = NearlyEqual(lw, 0.0f) ? 1.0f : fade + lw / std::min(r.x, r.y);
+
+	data_.circle_.Get().Add(vertices, z, col, lw, fade);
+}
+
 void Renderer::DrawTriangleFilledImpl(
 	const V2_float& a, const V2_float& b, const V2_float& c, const V4_float& col, float z
 ) {
 	data_.triangle_.Get().Add({ a, b, c }, z, col);
+}
+
+void Renderer::DrawLineImpl(
+	const V2_float& p0, const V2_float& p1, const V4_float& col, float lw, float z
+) {
+	PTGN_ASSERT(lw >= 0.0f, "Cannot draw negative line width");
+
+	if (lw > 1.0f) {
+		V2_float d{ p1 - p0 };
+		// TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
+		auto vertices = impl::GetQuadVertices(
+			p0 + d * 0.5f, { d.Magnitude(), lw }, Origin::Center, d.Angle(), { 0.5f, 0.5f }
+		);
+		DrawRectangleFilledImpl(vertices, col, z);
+		return;
+	}
+
+	data_.line_.Get().Add({ p0, p1 }, z, col);
+}
+
+void Renderer::DrawPointImpl(const V2_float& p, const V4_float& col, float r, float z) {
+	if (r <= 1.0f) {
+		data_.point_.Get().Add({ p }, z, col);
+	} else {
+		DrawEllipseFilledImpl(p, { r, r }, col, 0.005f, z);
+	}
+}
+
+void Renderer::DrawRectangleFilledImpl(
+	const std::array<V2_float, 4>& vertices, const V4_float& col, float z
+) {
+	DrawTextureImpl(
+		vertices, 0.0f,
+		{
+			V2_float{ 0.0f, 0.0f },
+			V2_float{ 1.0f, 0.0f },
+			V2_float{ 1.0f, 1.0f },
+			V2_float{ 0.0f, 1.0f },
+		},
+		col, z
+	);
 }
 
 void Renderer::DrawTriangleHollowImpl(
@@ -661,36 +727,6 @@ void Renderer::DrawTriangleHollowImpl(
 ) {
 	std::array<V2_float, impl::TriangleData::vertex_count> vertices{ a, b, c };
 	DrawPolygonHollowImpl(vertices.data(), vertices.size(), col, lw, z);
-}
-
-void Renderer::DrawTextureImpl(
-	const Texture& t, const V2_float& dp, const V2_float& ds, const V2_float& sp, V2_float ss,
-	Origin o, Flip f, float r, const V2_float& rc, float z, const V4_float& tc
-) {
-	float index{ data_.GetTextureIndex(t) };
-
-	auto tex_coords{ impl::RendererData::GetTextureCoordinates(sp, ss, t.GetSize()) };
-
-	impl::FlipTextureCoordinates(tex_coords, f);
-
-	auto vertices = impl::GetQuadVertices(dp, ds, o, r, rc);
-
-	data_.quad_.Get().Add(vertices, z, tc, tex_coords, index);
-}
-
-void Renderer::DrawRectangleFilledImpl(
-	const std::array<V2_float, 4>& vertices, const V4_float& col, float z
-) {
-	data_.quad_.Get().Add(
-		vertices, z, col,
-		{
-			V2_float{ 0.0f, 0.0f },
-			V2_float{ 1.0f, 0.0f },
-			V2_float{ 1.0f, 1.0f },
-			V2_float{ 0.0f, 1.0f },
-		},
-		0.0f
-	);
 }
 
 void Renderer::DrawRectangleHollowImpl(
@@ -767,52 +803,10 @@ void Renderer::DrawRoundedRectangleHollowImpl(
 	DrawLineImpl(inner_vertices[3] + l, inner_vertices[0] + l, col, lw, z);
 }
 
-void Renderer::DrawPointImpl(const V2_float& p, const V4_float& col, float r, float z) {
-	if (r <= 1.0f) {
-		data_.point_.Get().Add({ p }, z, col);
-	} else {
-		DrawEllipseFilledImpl(p, { r, r }, col, 0.005f, z);
-	}
-}
-
-void Renderer::DrawLineImpl(
-	const V2_float& p0, const V2_float& p1, const V4_float& col, float lw, float z
-) {
-	PTGN_ASSERT(lw >= 0.0f, "Cannot draw negative line width");
-
-	if (lw > 1.0f) {
-		V2_float d{ p1 - p0 };
-		// TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
-		auto vertices = impl::GetQuadVertices(
-			p0 + d * 0.5f, { d.Magnitude(), lw }, Origin::Center, d.Angle(), { 0.5f, 0.5f }
-		);
-		DrawRectangleFilledImpl(vertices, col, z);
-		return;
-	}
-
-	data_.line_.Get().Add({ p0, p1 }, z, col);
-}
-
 void Renderer::DrawEllipseFilledImpl(
 	const V2_float& p, const V2_float& r, const V4_float& col, float fade, float z
 ) {
 	DrawEllipseHollowImpl(p, r, col, 0.0f, fade, z);
-}
-
-void Renderer::DrawEllipseHollowImpl(
-	const V2_float& p, const V2_float& r, const V4_float& col, float lw, float fade, float z
-) {
-	PTGN_ASSERT(lw >= 0.0f, "Cannot draw negative line width");
-
-	auto vertices =
-		impl::GetQuadVertices(p, { r.x * 2.0f, r.y * 2.0f }, Origin::Center, 0.0f, { 0.5f, 0.5f });
-
-	// Internally line width for a filled rectangle is 1.0f and a completely hollow one is 0.0f, but
-	// in the API the line width is expected in pixels.
-	// TODO: Check that dividing by std::max(radius.x, radius.y) does not cause any unexpected bugs.
-	lw = NearlyEqual(lw, 0.0f) ? 1.0f : fade + lw / std::min(r.x, r.y);
-
-	data_.circle_.Get().Add(vertices, z, col, lw, fade);
 }
 
 void Renderer::DrawArcImpl(
@@ -967,10 +961,17 @@ void Renderer::DrawTexture(
 	const V2_float& source_position, V2_float source_size, Origin draw_origin, Flip flip,
 	float rotation, const V2_float& rotation_center, float z_index, const Color& tint_color
 ) {
-	DrawTextureImpl(
-		texture, destination_position, destination_size, source_position, source_size, draw_origin,
-		flip, rotation, rotation_center, z_index, tint_color.Normalized()
+	float texture_index{ data_.GetTextureIndex(texture) };
+
+	auto tex_coords{ impl::RendererData::GetTextureCoordinates(
+		source_position, source_size, texture.GetSize(), flip
+	) };
+
+	auto vertices = impl::GetQuadVertices(
+		destination_position, destination_size, draw_origin, rotation, rotation_center
 	);
+
+	DrawTextureImpl(vertices, texture_index, tex_coords, tint_color.Normalized(), z_index);
 }
 
 void Renderer::DrawPoint(
