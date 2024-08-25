@@ -117,6 +117,16 @@ bool VertexArray::HasIndexBuffer() const {
 	return IsValid() && instance_->index_buffer_.IsValid();
 }
 
+VertexBuffer VertexArray::GetVertexBuffer() {
+	PTGN_ASSERT(IsValid(), "Cannot get vertex buffer of uninitialized or destroyed vertex array");
+	return instance_->vertex_buffer_;
+}
+
+IndexBuffer VertexArray::GetIndexBuffer() {
+	PTGN_ASSERT(IsValid(), "Cannot get index buffer of uninitialized or destroyed vertex array");
+	return instance_->index_buffer_;
+}
+
 PrimitiveMode VertexArray::GetPrimitiveMode() const {
 	PTGN_ASSERT(IsValid(), "Cannot get primitive mode of uninitialized or destroyed vertex array");
 	return instance_->mode_;

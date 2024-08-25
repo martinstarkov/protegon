@@ -79,6 +79,11 @@ public:
 
 	[[nodiscard]] bool HasIndexBuffer() const;
 
+	// Note, returning by copy is okay since they are handles.
+
+	[[nodiscard]] VertexBuffer GetVertexBuffer();
+	[[nodiscard]] IndexBuffer GetIndexBuffer();
+
 	[[nodiscard]] PrimitiveMode GetPrimitiveMode() const;
 
 private:
