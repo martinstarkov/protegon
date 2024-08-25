@@ -182,19 +182,23 @@ public:
 	constexpr static const std::size_t max_vertices_ = batch_count_ * T::vertex_count;
 	constexpr static const std::size_t max_indices_	 = batch_count_ * T::index_count;
 
-	void AdvanceBatch() {
+	[[nodiscard]] bool IsFlushed() const {
+		return index_ == -1;
+	}
+
+	void Flush(RendererData& data);
+
+	void Draw();
+
+	T& Get() {
 		index_++;
 		if (index_ + 1 >= batch_count_) {
 			Draw();
 			index_ = 0;
 		}
+		PTGN_ASSERT(index_ < batch_.size());
+		return batch_[index_];
 	}
-
-	[[nodiscard]] bool IsFlushed() const {
-		return index_ == -1;
-	}
-
-	void Draw();
 };
 
 class RendererData {

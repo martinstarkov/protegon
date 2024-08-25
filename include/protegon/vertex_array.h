@@ -12,6 +12,8 @@ class GLRenderer;
 
 namespace impl {
 
+class RendererData;
+
 struct VertexArrayInstance {
 	VertexArrayInstance();
 	~VertexArrayInstance();
@@ -33,26 +35,13 @@ public:
 	VertexArray(
 		PrimitiveMode mode, const VertexBuffer& vertex_buffer, const BufferLayout<Ts...>& layout,
 		const IndexBuffer& index_buffer
-	) {
+	) :
+		VertexArray{ mode, vertex_buffer, layout, index_buffer } {
 		static_assert(
 			(impl::is_vertex_data_type<Ts> && ...),
 			"Provided vertex type should only contain ptgn::glsl:: types"
 		);
 		static_assert(sizeof...(Ts) > 0, "Must provide layout types as template arguments");
-
-		if (!IsValid()) {
-			instance_ = std::make_shared<impl::VertexArrayInstance>();
-		}
-
-		SetPrimitiveMode(mode);
-
-		Bind();
-
-		SetVertexBufferImpl(vertex_buffer);
-
-		SetIndexBufferImpl(index_buffer);
-
-		SetLayoutImpl(layout);
 	}
 
 	void SetPrimitiveMode(PrimitiveMode mode);
@@ -66,6 +55,7 @@ public:
 			"Provided vertex type should only contain ptgn::glsl:: types"
 		);
 		static_assert(sizeof...(Ts) > 0, "Must provide layout types as template arguments");
+
 		if (!IsValid()) {
 			instance_ = std::make_shared<impl::VertexArrayInstance>();
 		}
@@ -86,10 +76,16 @@ public:
 
 	[[nodiscard]] PrimitiveMode GetPrimitiveMode() const;
 
+	VertexArray(
+		PrimitiveMode mode, const VertexBuffer& vertex_buffer,
+		const impl::InternalBufferLayout& layout, const IndexBuffer& index_buffer
+	);
+
 private:
 	template <BufferType BT>
 	friend class Buffer;
 	friend class GLRenderer;
+	friend class RendererData;
 
 	static std::int32_t BoundId();
 

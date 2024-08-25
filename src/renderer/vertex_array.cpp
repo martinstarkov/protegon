@@ -18,6 +18,25 @@ VertexArrayInstance::~VertexArrayInstance() {
 
 } // namespace impl
 
+VertexArray::VertexArray(
+	PrimitiveMode mode, const VertexBuffer& vertex_buffer, const impl::InternalBufferLayout& layout,
+	const IndexBuffer& index_buffer
+) {
+	if (!IsValid()) {
+		instance_ = std::make_shared<impl::VertexArrayInstance>();
+	}
+
+	SetPrimitiveMode(mode);
+
+	Bind();
+
+	SetVertexBufferImpl(vertex_buffer);
+
+	SetIndexBufferImpl(index_buffer);
+
+	SetLayoutImpl(layout);
+}
+
 std::int32_t VertexArray::BoundId() {
 	std::int32_t id{ -1 };
 	// TODO: Add enum where tpyes are the same.

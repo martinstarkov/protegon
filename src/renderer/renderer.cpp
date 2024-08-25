@@ -225,7 +225,9 @@ void RendererData::SetupBuffers() {
 		return indices;
 	};
 
-	std::array<std::uint32_t, QuadData::index_count> quad_index_pattern{ 0, 1, 2, 2, 3, 0 };
+	constexpr std::array<std::uint32_t, QuadData::index_count> quad_index_pattern{
+		0, 1, 2, 2, 3, 0
+	};
 
 	auto quad_generator = [&, offset = 0, pattern_index = 0]() mutable {
 		auto index = offset + quad_index_pattern[pattern_index];
@@ -241,41 +243,35 @@ void RendererData::SetupBuffers() {
 		return i++;
 	};
 
-	IndexBuffer quad_index_buffer{ get_indices(BatchData<QuadData>::max_indices_, quad_generator) };
-	IndexBuffer point_index_buffer{ get_indices(BatchData<PointData>::max_indices_, iota) };
-	IndexBuffer line_index_buffer{ get_indices(BatchData<LineData>::max_indices_, iota) };
-	IndexBuffer triangle_index_buffer{ get_indices(BatchData<TriangleData>::max_indices_, iota) };
+	IndexBuffer quad_ib{ get_indices(BatchData<QuadData>::max_indices_, quad_generator) };
+	IndexBuffer triangle_ib{ get_indices(BatchData<TriangleData>::max_indices_, iota) };
+	IndexBuffer line_ib{ get_indices(BatchData<LineData>::max_indices_, iota) };
+	IndexBuffer point_ib{ get_indices(BatchData<PointData>::max_indices_, iota) };
 
 	quad_.batch_.resize(quad_.max_vertices_);
 	circle_.batch_.resize(circle_.max_vertices_);
-	point_.batch_.resize(point_.max_vertices_);
 	triangle_.batch_.resize(triangle_.max_vertices_);
 	line_.batch_.resize(line_.max_vertices_);
+	point_.batch_.resize(point_.max_vertices_);
 
-	auto quad_vertex_layout{ BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_>{} };
+	auto set_array = [&](auto& data, PrimitiveMode p, const impl::InternalBufferLayout& layout,
+						 const IndexBuffer& ib) {
+		data.array_ = { p, VertexBuffer(data.batch_, BufferUsage::DynamicDraw), layout, ib };
+	};
 
-	auto circle_vertex_layout{
+	auto quad_vert{ BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_>{} };
+
+	auto circle_vert{
 		BufferLayout<glsl::vec3, glsl::vec3, glsl::vec4, glsl::float_, glsl::float_>{}
 	};
 
-	auto color_vertex_layout{ BufferLayout<glsl::vec3, glsl::vec4>{} };
+	auto color_vert{ BufferLayout<glsl::vec3, glsl::vec4>{} };
 
-	quad_.array_ = { PrimitiveMode::Triangles, VertexBuffer(quad_.batch_, BufferUsage::DynamicDraw),
-					 quad_vertex_layout, quad_index_buffer };
-
-	circle_.array_ = { PrimitiveMode::Triangles,
-					   VertexBuffer(circle_.batch_, BufferUsage::DynamicDraw), circle_vertex_layout,
-					   quad_index_buffer };
-
-	point_.array_ = { PrimitiveMode::Points, VertexBuffer(point_.batch_, BufferUsage::DynamicDraw),
-					  color_vertex_layout, point_index_buffer };
-
-	triangle_.array_ = { PrimitiveMode::Triangles,
-						 VertexBuffer(triangle_.batch_, BufferUsage::DynamicDraw),
-						 color_vertex_layout, triangle_index_buffer };
-
-	line_.array_ = { PrimitiveMode::Lines, VertexBuffer(line_.batch_, BufferUsage::DynamicDraw),
-					 color_vertex_layout, line_index_buffer };
+	set_array(quad_, PrimitiveMode::Triangles, quad_vert, quad_ib);
+	set_array(circle_, PrimitiveMode::Triangles, circle_vert, quad_ib);
+	set_array(triangle_, PrimitiveMode::Triangles, color_vert, triangle_ib);
+	set_array(line_, PrimitiveMode::Lines, color_vert, line_ib);
+	set_array(point_, PrimitiveMode::Points, color_vert, point_ib);
 }
 
 void RendererData::SetupTextureSlots() {
@@ -349,28 +345,29 @@ void RendererData::SetupShaders() {
 	quad_.shader_.SetUniform("u_Textures", samplers.data(), samplers.size());
 }
 
+template <typename T>
+void BatchData<T>::Flush(RendererData& data) {
+	if (!IsFlushed()) {
+		Draw();
+		data.draw_calls++;
+	}
+}
+
+template <>
+void BatchData<QuadData>::Flush(RendererData& data) {
+	if (!IsFlushed()) {
+		data.BindTextures();
+		Draw();
+		data.draw_calls++;
+	}
+}
+
 void RendererData::Flush() {
-	if (!quad_.IsFlushed()) {
-		BindTextures();
-		quad_.Draw();
-		draw_calls++;
-	}
-	if (!circle_.IsFlushed()) {
-		circle_.Draw();
-		draw_calls++;
-	}
-	if (!point_.IsFlushed()) {
-		point_.Draw();
-		draw_calls++;
-	}
-	if (!line_.IsFlushed()) {
-		line_.Draw();
-		draw_calls++;
-	}
-	if (!triangle_.IsFlushed()) {
-		triangle_.Draw();
-		draw_calls++;
-	}
+	quad_.Flush(*this);
+	circle_.Flush(*this);
+	triangle_.Flush(*this);
+	line_.Flush(*this);
+	point_.Flush(*this);
 }
 
 void RendererData::BindTextures() const {
@@ -388,6 +385,27 @@ float RendererData::GetTextureIndex(const Texture& texture) {
 			break;
 		}
 	}
+	if (texture_index == 0.0f) {
+		// TODO: Add new batch once texture slots fill up on the current batch.
+
+		// TODO: Optimize this if you have time. Instead of flushing the batch when the slot
+		// index is beyond the slots, keep a separate texture buffer and just split that one
+		// into two or more batches. This should reduce draw calls drastically.
+		if (texture_index_ >= max_texture_slots_) {
+			quad_.Draw();
+			draw_calls++;
+			quad_.index_   = 0;
+			texture_index_ = 1;
+		}
+
+		texture_index = (float)texture_index_;
+
+		texture_slots_[texture_index_] = texture;
+		texture_index_++;
+	}
+
+	PTGN_ASSERT(texture_index != 0.0f);
+
 	return texture_index;
 }
 
@@ -635,18 +653,14 @@ void Renderer::Flush() {
 void Renderer::DrawTriangleFilledImpl(
 	const V2_float& a, const V2_float& b, const V2_float& c, const V4_float& col, float z
 ) {
-	data_.triangle_.AdvanceBatch();
-	data_.triangle_.batch_[data_.triangle_.index_].Add({ a, b, c }, z, col);
+	data_.triangle_.Get().Add({ a, b, c }, z, col);
 }
 
 void Renderer::DrawTriangleHollowImpl(
 	const V2_float& a, const V2_float& b, const V2_float& c, const V4_float& col, float lw, float z
 ) {
 	std::array<V2_float, impl::TriangleData::vertex_count> vertices{ a, b, c };
-
-	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
-		DrawLineImpl(vertices[i], vertices[(i + 1) % vertices.size()], col, lw, z);
-	}
+	DrawPolygonHollowImpl(vertices.data(), vertices.size(), col, lw, z);
 }
 
 void Renderer::DrawTextureImpl(
@@ -655,47 +669,28 @@ void Renderer::DrawTextureImpl(
 ) {
 	float index{ data_.GetTextureIndex(t) };
 
-	if (index == 0.0f) {
-		// TODO: Optimize this if you have time. Instead of flushing the batch when the slot
-		// index is beyond the slots, keep a separate texture buffer and just split that one
-		// into two or more batches. This should reduce draw calls drastically.
-		if (data_.texture_index_ >= data_.max_texture_slots_) {
-			data_.quad_.Draw();
-			data_.draw_calls++;
-			data_.quad_.index_	 = 0;
-			data_.texture_index_ = 1;
-		}
+	auto tex_coords{ impl::RendererData::GetTextureCoordinates(sp, ss, t.GetSize()) };
 
-		index = (float)data_.texture_index_;
-
-		data_.texture_slots_[data_.texture_index_] = t;
-		data_.texture_index_++;
-	}
-
-	PTGN_ASSERT(index != 0.0f);
-
-	auto texcoords{ impl::RendererData::GetTextureCoordinates(sp, ss, t.GetSize()) };
-
-	impl::FlipTextureCoordinates(texcoords, f);
+	impl::FlipTextureCoordinates(tex_coords, f);
 
 	auto vertices = impl::GetQuadVertices(dp, ds, o, r, rc);
 
-	data_.quad_.AdvanceBatch();
-	data_.quad_.batch_[data_.quad_.index_].Add(vertices, z, tc, texcoords, index);
+	data_.quad_.Get().Add(vertices, z, tc, tex_coords, index);
 }
 
 void Renderer::DrawRectangleFilledImpl(
 	const std::array<V2_float, 4>& vertices, const V4_float& col, float z
 ) {
-	std::array<V2_float, impl::QuadData::vertex_count> texcoords{
-		V2_float{ 0.0f, 0.0f },
-		V2_float{ 1.0f, 0.0f },
-		V2_float{ 1.0f, 1.0f },
-		V2_float{ 0.0f, 1.0f },
-	};
-
-	data_.quad_.AdvanceBatch();
-	data_.quad_.batch_[data_.quad_.index_].Add(vertices, z, col, texcoords, 0.0f);
+	data_.quad_.Get().Add(
+		vertices, z, col,
+		{
+			V2_float{ 0.0f, 0.0f },
+			V2_float{ 1.0f, 0.0f },
+			V2_float{ 1.0f, 1.0f },
+			V2_float{ 0.0f, 1.0f },
+		},
+		0.0f
+	);
 }
 
 void Renderer::DrawRectangleHollowImpl(
@@ -774,8 +769,7 @@ void Renderer::DrawRoundedRectangleHollowImpl(
 
 void Renderer::DrawPointImpl(const V2_float& p, const V4_float& col, float r, float z) {
 	if (r <= 1.0f) {
-		data_.point_.AdvanceBatch();
-		data_.point_.batch_[data_.point_.index_].Add({ p }, z, col);
+		data_.point_.Get().Add({ p }, z, col);
 	} else {
 		DrawEllipseFilledImpl(p, { r, r }, col, 0.005f, z);
 	}
@@ -788,17 +782,15 @@ void Renderer::DrawLineImpl(
 
 	if (lw > 1.0f) {
 		V2_float d{ p1 - p0 };
-		float angle{ static_cast<float>(d.Angle()) };
 		// TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
-		V2_float center{ p0 + d * 0.5f };
-		V2_float size{ d.Magnitude(), lw };
-		auto vertices = impl::GetQuadVertices(center, size, Origin::Center, angle, { 0.5f, 0.5f });
+		auto vertices = impl::GetQuadVertices(
+			p0 + d * 0.5f, { d.Magnitude(), lw }, Origin::Center, d.Angle(), { 0.5f, 0.5f }
+		);
 		DrawRectangleFilledImpl(vertices, col, z);
 		return;
 	}
 
-	data_.line_.AdvanceBatch();
-	data_.line_.batch_[data_.line_.index_].Add({ p0, p1 }, z, col);
+	data_.line_.Get().Add({ p0, p1 }, z, col);
 }
 
 void Renderer::DrawEllipseFilledImpl(
@@ -812,17 +804,15 @@ void Renderer::DrawEllipseHollowImpl(
 ) {
 	PTGN_ASSERT(lw >= 0.0f, "Cannot draw negative line width");
 
-	const V2_float size{ r.x * 2.0f, r.y * 2.0f };
-
-	auto vertices = impl::GetQuadVertices(p, size, Origin::Center, 0.0f, { 0.5f, 0.5f });
+	auto vertices =
+		impl::GetQuadVertices(p, { r.x * 2.0f, r.y * 2.0f }, Origin::Center, 0.0f, { 0.5f, 0.5f });
 
 	// Internally line width for a filled rectangle is 1.0f and a completely hollow one is 0.0f, but
 	// in the API the line width is expected in pixels.
 	// TODO: Check that dividing by std::max(radius.x, radius.y) does not cause any unexpected bugs.
 	lw = NearlyEqual(lw, 0.0f) ? 1.0f : fade + lw / std::min(r.x, r.y);
 
-	data_.circle_.AdvanceBatch();
-	data_.circle_.batch_[data_.circle_.index_].Add(vertices, z, col, lw, fade);
+	data_.circle_.Get().Add(vertices, z, col, lw, fade);
 }
 
 void Renderer::DrawArcImpl(
