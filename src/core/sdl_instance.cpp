@@ -42,8 +42,6 @@ SDLInstance::~SDLInstance() {
 void SDLInstance::InitSDL() {
 	std::uint32_t sdl_flags{ SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS | SDL_INIT_TIMER };
 	if (SDL_WasInit(sdl_flags) == sdl_flags) {
-		// TODO: Temporary message.
-		PTGN_INFO("Not going to try to initialize SDL2 again");
 		return;
 	}
 
@@ -71,8 +69,6 @@ void SDLInstance::InitSDLImage() {
 	int img_flags{ IMG_INIT_PNG | IMG_INIT_JPG };
 
 	if (IMG_Init(0) == img_flags) {
-		// TODO: Temporary message.
-		PTGN_INFO("Not going to try to initialize SDL2_image again");
 		return;
 	}
 
@@ -86,8 +82,6 @@ void SDLInstance::InitSDLImage() {
 
 void SDLInstance::InitSDLTTF() {
 	if (TTF_WasInit()) {
-		// TODO: Temporary message.
-		PTGN_INFO("Not going to try to initialize SDL2_ttf again");
 		return;
 	}
 
@@ -107,8 +101,6 @@ void SDLInstance::InitSDLMixer() {
 #endif
 
 	if (Mix_Init(0) == mixer_flags) {
-		// TODO: Temporary message.
-		PTGN_INFO("Not going to try to initialize SDL2_mixer again");
 		return;
 	}
 
