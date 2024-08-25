@@ -5,8 +5,6 @@
 #include "protegon/line.h"
 #include "protegon/polygon.h"
 #include "protegon/vector2.h"
-// TODO: Move into cpp.
-#include "utility/debug.h"
 
 namespace ptgn {
 
@@ -137,34 +135,7 @@ public:
 		const V2_float& pos1, const V2_float& size1, Origin origin1, DynamicCollisionShape shape1,
 		const V2_float& pos2, const V2_float& size2, Origin origin2, DynamicCollisionShape shape2,
 		const V2_float& relative_velocity, DynamicCollision& c, float& distance_squared
-	) {
-		if (shape1 == DynamicCollisionShape::Rectangle) {
-			Rectangle<float> r1{ pos1, size1, origin1 };
-			if (shape2 == DynamicCollisionShape::Rectangle) {
-				Rectangle<float> r2{ pos2, size2, origin2 };
-				distance_squared = (r1.Center() - r2.Center()).MagnitudeSquared();
-				return RectangleRectangle(r1, relative_velocity, r2, c);
-			} else if (shape2 == DynamicCollisionShape::Circle) {
-				Circle<float> c2{ pos2, size2.x };
-				distance_squared = (r1.Center() - c2.center).MagnitudeSquared();
-				return CircleRectangle(c2, -relative_velocity, r1, c);
-			}
-			PTGN_ERROR("Unrecognized shape for collision target object");
-		} else if (shape1 == DynamicCollisionShape::Circle) {
-			Circle<float> c1{ pos1, size1.x };
-			if (shape2 == DynamicCollisionShape::Rectangle) {
-				Rectangle<float> r2{ pos2, size2, origin2 };
-				distance_squared = (c1.center - r2.Center()).MagnitudeSquared();
-				return CircleRectangle(c1, relative_velocity, r2, c);
-			} else if (shape2 == DynamicCollisionShape::Circle) {
-				Circle<float> c2{ pos2, size2.x };
-				distance_squared = (c1.center - c2.center).MagnitudeSquared();
-				return CircleCircle(c1, -relative_velocity, c2, c);
-			}
-			PTGN_ERROR("Unrecognized shape for collision target object");
-		}
-		PTGN_ERROR("Unrecognized shape for target object");
-	}
+	);
 
 	template <typename Return>
 	using GetCallback = std::function<Return(ecs::Entity)>;
@@ -262,64 +233,11 @@ private:
 		float dist2{ 0.0f };
 	};
 
-	static void SortCollisions(std::vector<SweepCollision>& collisions) {
-		/*
-		 * Initial sort based on distances of collision manifolds to the collider.
-		 * This is required for RectangleVsRectangle collisions to prevent sticking
-		 * to corners in certain configurations, such as if the player (o) gives
-		 * a bottom right velocity into the following rectangle (x) configuration:
-		 *       x
-		 *     o x
-		 *   x   x
-		 * (player would stay still instead of moving down if this distance sort did not exist).
-		 */
-		std::sort(
-			collisions.begin(), collisions.end(),
-			[](const SweepCollision& a, const SweepCollision& b) { return a.dist2 < b.dist2; }
-		);
-		// Sort based on collision times, and if they are equal, by collision normal magnitudes.
-		std::sort(
-			collisions.begin(), collisions.end(),
-			[](const SweepCollision& a, const SweepCollision& b) {
-				// If time of collision are equal, prioritize walls to corners, i.e. normals
-				// (1,0) come before (1,1).
-				if (NearlyEqual(a.c.t, b.c.t)) {
-					return a.c.normal.MagnitudeSquared() < b.c.normal.MagnitudeSquared();
-				}
-				// If collision times are not equal, sort by collision time.
-				return a.c.t < b.c.t;
-			}
-		);
-	}
+	static void SortCollisions(std::vector<SweepCollision>& collisions);
 
-	static V2_float GetRemainingVelocity(
+	[[nodiscard]] static V2_float GetRemainingVelocity(
 		const V2_float& velocity, const DynamicCollision& c, DynamicCollisionResponse response
-	) {
-		float remaining_time = 1.0f - c.t;
-
-		switch (response) {
-			case DynamicCollisionResponse::Slide: {
-				V2_float tangent{ -c.normal.Skewed() };
-				return velocity.Dot(tangent) * tangent * remaining_time;
-			};
-			case DynamicCollisionResponse::Push: {
-				return Sign(velocity.Dot(-c.normal.Skewed())) * c.normal.Swapped() *
-					   remaining_time * velocity.Magnitude();
-			};
-			case DynamicCollisionResponse::Bounce: {
-				V2_float new_velocity = velocity * remaining_time;
-				if (!NearlyEqual(FastAbs(c.normal.x), 0.0f)) {
-					new_velocity.x *= -1.0f;
-				}
-				if (!NearlyEqual(FastAbs(c.normal.y), 0.0f)) {
-					new_velocity.y *= -1.0f;
-				}
-				return new_velocity;
-			};
-			default: break;
-		}
-		PTGN_ERROR("Failed to identify DynamicCollisionResponse type");
-	}
+	);
 };
 
 class CollisionHandler {
