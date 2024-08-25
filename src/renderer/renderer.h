@@ -230,21 +230,7 @@ public:
 		const V2_float& source_position, V2_float source_size, const V2_float& texture_size
 	);
 
-	struct Stats {
-		std::int64_t quad_count{ 0 };
-		std::int64_t circle_count{ 0 };
-		std::int64_t point_count{ 0 };
-		std::int64_t line_count{ 0 };
-		std::int64_t triangle_count{ 0 };
-
-		std::int64_t draw_calls{ 0 };
-
-		void Reset();
-
-		void Print();
-	};
-
-	Stats stats_;
+	std::int64_t draw_calls{ 0 };
 };
 
 } // namespace impl
@@ -261,7 +247,7 @@ private:
 public:
 	void Clear() const;
 
-	void Present(bool print_stats = false);
+	void Present();
 
 	void Flush();
 

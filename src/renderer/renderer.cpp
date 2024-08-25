@@ -353,23 +353,23 @@ void RendererData::Flush() {
 	if (!quad_.IsFlushed()) {
 		BindTextures();
 		quad_.Draw();
-		stats_.draw_calls++;
+		draw_calls++;
 	}
 	if (!circle_.IsFlushed()) {
 		circle_.Draw();
-		stats_.draw_calls++;
+		draw_calls++;
 	}
 	if (!point_.IsFlushed()) {
 		point_.Draw();
-		stats_.draw_calls++;
+		draw_calls++;
 	}
 	if (!line_.IsFlushed()) {
 		line_.Draw();
-		stats_.draw_calls++;
+		draw_calls++;
 	}
 	if (!triangle_.IsFlushed()) {
 		triangle_.Draw();
-		stats_.draw_calls++;
+		draw_calls++;
 	}
 }
 
@@ -426,21 +426,6 @@ std::array<V2_float, QuadData::vertex_count> RendererData::GetTextureCoordinates
 	};
 
 	return texture_coordinates;
-}
-
-void RendererData::Stats::Reset() {
-	quad_count	   = 0;
-	triangle_count = 0;
-	circle_count   = 0;
-	line_count	   = 0;
-	draw_calls	   = 0;
-};
-
-void RendererData::Stats::Print() {
-	PTGN_INFO(
-		"Draw Calls: ", draw_calls, ", Quads: ", quad_count, ", Triangles: ", triangle_count,
-		", Circles: ", circle_count, ", Lines: ", line_count
-	);
 }
 
 void OffsetVertices(
@@ -583,13 +568,20 @@ void Renderer::Clear() const {
 	GLRenderer::Clear();
 }
 
-void Renderer::Present(bool print_stats) {
+void Renderer::Present() {
+	std::int32_t quad_count{ data_.quad_.index_ + 1 };
+	std::int32_t circle_count{ data_.circle_.index_ + 1 };
+	std::int32_t triangle_count{ data_.triangle_.index_ + 1 };
+	std::int32_t line_count{ data_.line_.index_ + 1 };
+	std::int32_t point_count{ data_.point_.index_ + 1 };
+
 	Flush();
 
-	if (print_stats) {
-		data_.stats_.Print();
-	}
-	data_.stats_.Reset();
+	PTGN_INFO(
+		"Draw Calls: ", data_.draw_calls, ", Quads: ", quad_count, ", Triangles: ", triangle_count,
+		", Circles: ", circle_count, ", Lines: ", line_count, ", Points: ", point_count
+	);
+	data_.draw_calls = 0;
 
 	game.window.SwapBuffers();
 }
@@ -644,13 +636,7 @@ void Renderer::DrawTriangleFilledImpl(
 	const V2_float& a, const V2_float& b, const V2_float& c, const V4_float& col, float z
 ) {
 	data_.triangle_.AdvanceBatch();
-
-	PTGN_ASSERT(data_.triangle_.index_ != -1);
-	PTGN_ASSERT(data_.triangle_.index_ < data_.triangle_.batch_.size());
-
 	data_.triangle_.batch_[data_.triangle_.index_].Add({ a, b, c }, z, col);
-
-	data_.stats_.triangle_count++;
 }
 
 void Renderer::DrawTriangleHollowImpl(
@@ -667,8 +653,6 @@ void Renderer::DrawTextureImpl(
 	const Texture& t, const V2_float& dp, const V2_float& ds, const V2_float& sp, V2_float ss,
 	Origin o, Flip f, float r, const V2_float& rc, float z, const V4_float& tc
 ) {
-	data_.quad_.AdvanceBatch();
-
 	float index{ data_.GetTextureIndex(t) };
 
 	if (index == 0.0f) {
@@ -677,6 +661,7 @@ void Renderer::DrawTextureImpl(
 		// into two or more batches. This should reduce draw calls drastically.
 		if (data_.texture_index_ >= data_.max_texture_slots_) {
 			data_.quad_.Draw();
+			data_.draw_calls++;
 			data_.quad_.index_	 = 0;
 			data_.texture_index_ = 1;
 		}
@@ -695,19 +680,13 @@ void Renderer::DrawTextureImpl(
 
 	auto vertices = impl::GetQuadVertices(dp, ds, o, r, rc);
 
-	PTGN_ASSERT(data_.quad_.index_ != -1);
-	PTGN_ASSERT(data_.quad_.index_ < data_.quad_.batch_.size());
-
+	data_.quad_.AdvanceBatch();
 	data_.quad_.batch_[data_.quad_.index_].Add(vertices, z, tc, texcoords, index);
-
-	data_.stats_.quad_count++;
 }
 
 void Renderer::DrawRectangleFilledImpl(
 	const std::array<V2_float, 4>& vertices, const V4_float& col, float z
 ) {
-	data_.quad_.AdvanceBatch();
-
 	std::array<V2_float, impl::QuadData::vertex_count> texcoords{
 		V2_float{ 0.0f, 0.0f },
 		V2_float{ 1.0f, 0.0f },
@@ -715,14 +694,8 @@ void Renderer::DrawRectangleFilledImpl(
 		V2_float{ 0.0f, 1.0f },
 	};
 
-	PTGN_ASSERT(data_.quad_.index_ != -1);
-	PTGN_ASSERT(data_.quad_.index_ < data_.quad_.batch_.size());
-
-	data_.quad_.batch_[data_.quad_.index_].Add(
-		vertices, z, col, texcoords, 0.0f /* white texture */
-	);
-
-	data_.stats_.quad_count++;
+	data_.quad_.AdvanceBatch();
+	data_.quad_.batch_[data_.quad_.index_].Add(vertices, z, col, texcoords, 0.0f);
 }
 
 void Renderer::DrawRectangleHollowImpl(
@@ -802,13 +775,7 @@ void Renderer::DrawRoundedRectangleHollowImpl(
 void Renderer::DrawPointImpl(const V2_float& p, const V4_float& col, float r, float z) {
 	if (r <= 1.0f) {
 		data_.point_.AdvanceBatch();
-
-		PTGN_ASSERT(data_.point_.index_ != -1);
-		PTGN_ASSERT(data_.point_.index_ < data_.point_.batch_.size());
-
 		data_.point_.batch_[data_.point_.index_].Add({ p }, z, col);
-
-		data_.stats_.point_count++;
 	} else {
 		DrawEllipseFilledImpl(p, { r, r }, col, 0.005f, z);
 	}
@@ -831,13 +798,7 @@ void Renderer::DrawLineImpl(
 	}
 
 	data_.line_.AdvanceBatch();
-
-	PTGN_ASSERT(data_.line_.index_ != -1);
-	PTGN_ASSERT(data_.line_.index_ < data_.line_.batch_.size());
-
 	data_.line_.batch_[data_.line_.index_].Add({ p0, p1 }, z, col);
-
-	data_.stats_.line_count++;
 }
 
 void Renderer::DrawEllipseFilledImpl(
@@ -851,23 +812,17 @@ void Renderer::DrawEllipseHollowImpl(
 ) {
 	PTGN_ASSERT(lw >= 0.0f, "Cannot draw negative line width");
 
-	data_.circle_.AdvanceBatch();
-
 	const V2_float size{ r.x * 2.0f, r.y * 2.0f };
 
 	auto vertices = impl::GetQuadVertices(p, size, Origin::Center, 0.0f, { 0.5f, 0.5f });
-
-	PTGN_ASSERT(data_.circle_.index_ != -1);
-	PTGN_ASSERT(data_.circle_.index_ < data_.circle_.batch_.size());
 
 	// Internally line width for a filled rectangle is 1.0f and a completely hollow one is 0.0f, but
 	// in the API the line width is expected in pixels.
 	// TODO: Check that dividing by std::max(radius.x, radius.y) does not cause any unexpected bugs.
 	lw = NearlyEqual(lw, 0.0f) ? 1.0f : fade + lw / std::min(r.x, r.y);
 
+	data_.circle_.AdvanceBatch();
 	data_.circle_.batch_[data_.circle_.index_].Add(vertices, z, col, lw, fade);
-
-	data_.stats_.circle_count++;
 }
 
 void Renderer::DrawArcImpl(
@@ -1006,8 +961,6 @@ void Renderer::DrawPolygonFilledImpl(
 		const Triangle<float>& t{ triangles[i] };
 		DrawTriangleFilledImpl(t.a, t.b, t.c, col, z);
 	}
-
-	data_.stats_.triangle_count++;
 }
 
 void Renderer::DrawPolygonHollowImpl(
