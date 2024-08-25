@@ -275,7 +275,7 @@ void Shader::SetUniform(const std::string& name, bool value) const {
 	SetUniform(name, static_cast<std::int32_t>(value));
 }
 
-std::int32_t Shader::BoundId() {
+std::int32_t Shader::GetBoundId() {
 	std::int32_t id{ 0 };
 	gl::glGetIntegerv(GL_CURRENT_PROGRAM, &id);
 	PTGN_ASSERT(id >= 0);

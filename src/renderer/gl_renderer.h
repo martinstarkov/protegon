@@ -29,8 +29,10 @@ enum class PolygonMode {
 class GLRenderer {
 public:
 	static void SetBlendMode(BlendMode mode = BlendMode::Blend);
+#ifndef __EMSCRIPTEN__
 	static void EnableLineSmoothing();
 	static void DisableLineSmoothing();
+#endif
 	static void EnableDepthTesting();
 	static void DisableDepthTesting();
 	static void SetViewport(const V2_int& position, const V2_int& size);

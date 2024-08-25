@@ -77,7 +77,7 @@ public:
 	void Bind() const;
 
 private:
-	static std::int32_t BoundId();
+	static std::int32_t GetBoundId();
 	// static void Unbind();
 
 	[[nodiscard]] std::int32_t GetUniformLocation(const std::string& name) const;

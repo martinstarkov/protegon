@@ -46,17 +46,27 @@ void Buffer<BT>::SetSubData(const void* data, std::uint32_t size) {
 }
 
 template <BufferType BT>
-std::int32_t Buffer<BT>::BoundId() {
+std::int32_t Buffer<BT>::GetBoundId() {
 	std::int32_t id{ -1 };
-	if constexpr (BT == BufferType::Vertex) {
-		gl::glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &id);
-	} else if constexpr (BT == BufferType::Index) {
-		gl::glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &id);
-	} else if constexpr (BT == BufferType::Uniform) {
-		gl::glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &id);
-	}
+	gl::glGetIntegerv(static_cast<gl::GLenum>(impl::GetGLBinding<BT>()), &id);
 	PTGN_ASSERT(id >= 0, "Unrecognized type for bound id check");
 	return id;
+}
+
+template <BufferType BT>
+std::int32_t Buffer<BT>::GetBoundSize() {
+	std::int32_t size{ -1 };
+	gl::GetBufferParameteriv(static_cast<gl::GLenum>(BT), GL_BUFFER_SIZE, &size);
+	PTGN_ASSERT(size >= 0, "Could not determine bound buffer size correctly");
+	return size;
+}
+
+template <BufferType BT>
+BufferUsage Buffer<BT>::GetBoundUsage() {
+	std::int32_t usage{ -1 };
+	gl::GetBufferParameteriv(static_cast<gl::GLenum>(BT), GL_BUFFER_SIZE, &usage);
+	PTGN_ASSERT(usage >= 0, "Could not determine bound buffer usage correctly");
+	return static_cast<BufferUsage>(usage);
 }
 
 template <BufferType BT>

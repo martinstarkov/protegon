@@ -37,14 +37,9 @@ VertexArray::VertexArray(
 	SetLayoutImpl(layout);
 }
 
-std::int32_t VertexArray::BoundId() {
+std::int32_t VertexArray::GetBoundId() {
 	std::int32_t id{ -1 };
-	// TODO: Add enum where tpyes are the same.
-#ifdef __EMSCRIPTEN__
-	gl::glGetIntegerv(GL_VERTEX_ARRAY_BINDING_OES, &id);
-#else
-	gl::glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &id);
-#endif
+	gl::glGetIntegerv(static_cast<gl::GLenum>(impl::GLBinding::VertexArray), &id);
 	PTGN_ASSERT(id >= 0);
 	return id;
 }
@@ -80,7 +75,7 @@ void VertexArray::SetIndexBuffer(const IndexBuffer& index_buffer) {
 
 void VertexArray::SetVertexBufferImpl(const VertexBuffer& vertex_buffer) {
 	PTGN_ASSERT(IsValid(), "Cannot add vertex buffer to uninitialized or destroyed vertex array");
-	PTGN_ASSERT(BoundId() == static_cast<std::int32_t>(instance_->id_));
+	PTGN_ASSERT(GetBoundId() == static_cast<std::int32_t>(instance_->id_));
 	PTGN_ASSERT(
 		vertex_buffer.IsValid(), "Cannot set vertex buffer which is uninitialized or destroyed"
 	);
@@ -90,7 +85,7 @@ void VertexArray::SetVertexBufferImpl(const VertexBuffer& vertex_buffer) {
 
 void VertexArray::SetIndexBufferImpl(const IndexBuffer& index_buffer) {
 	PTGN_ASSERT(IsValid(), "Cannot set index buffer of uninitialized or destroyed vertex array");
-	PTGN_ASSERT(BoundId() == static_cast<std::int32_t>(instance_->id_));
+	PTGN_ASSERT(GetBoundId() == static_cast<std::int32_t>(instance_->id_));
 	PTGN_ASSERT(
 		index_buffer.IsValid(), "Cannot set index buffer which is uninitialized or destroyed"
 	);

@@ -87,7 +87,7 @@ private:
 	friend class GLRenderer;
 	friend class RendererData;
 
-	static std::int32_t BoundId();
+	static std::int32_t GetBoundId();
 
 	void SetVertexBufferImpl(const VertexBuffer& vertex_buffer);
 	void SetIndexBufferImpl(const IndexBuffer& index_buffer);

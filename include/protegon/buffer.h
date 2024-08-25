@@ -61,7 +61,9 @@ public:
 private:
 	friend class VertexArray;
 
-	static std::int32_t BoundId();
+	[[nodiscard]] static std::int32_t GetBoundId();
+	[[nodiscard]] static std::int32_t GetBoundSize();
+	[[nodiscard]] static BufferUsage GetBoundUsage();
 
 	void Bind() const;
 	// static void Unbind();

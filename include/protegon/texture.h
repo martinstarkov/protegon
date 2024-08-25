@@ -38,11 +38,27 @@ class Renderer;
 
 namespace impl {
 
+enum class InternalGLFormat {
+	RGB8  = 0x8051, // GL_RGB8
+	RGBA8 = 0x8058, // GL_RGBA8
+};
+
+enum class TextureParameter {
+	BorderColor = 0x1004, // GL_TEXTURE_BORDER_COLOR
+	Width		= 0x1000, // GL_TEXTURE_WIDTH
+	Height		= 0x1001, // GL_TEXTURE_HEIGHT
+	WrapS		= 0x2802, // GL_TEXTURE_WRAP_S
+	WrapT		= 0x2803, // GL_TEXTURE_WRAP_T
+	WrapR		= 0x8072, // GL_TEXTURE_WRAP_R
+	MagFilter	= 0x2800, // GL_TEXTURE_MAG_FILTER
+	MinFilter	= 0x2801, // GL_TEXTURE_MIN_FILTER
+};
+
 class RendererData;
 
 struct GLFormats {
 	// first
-	std::int32_t internal_{ 0 };
+	InternalGLFormat internal_{ InternalGLFormat::RGBA8 };
 	// second
 	std::uint32_t format_{ 0 };
 };
@@ -99,7 +115,7 @@ private:
 	friend class impl::RendererData;
 	friend class Renderer;
 
-	static std::int32_t BoundId();
+	static std::int32_t GetBoundId();
 
 	// static void Unbind();
 

@@ -6,18 +6,16 @@
 
 namespace ptgn {
 
+#ifndef __EMSCRIPTEN__
 void GLRenderer::EnableLineSmoothing() {
 	gl::glEnable(GL_BLEND);
-#ifndef __EMSCRIPTEN__
 	gl::glEnable(GL_LINE_SMOOTH);
-#endif
 }
 
 void GLRenderer::DisableLineSmoothing() {
-#ifndef __EMSCRIPTEN__
 	gl::glDisable(GL_LINE_SMOOTH);
-#endif
 }
+#endif
 
 void GLRenderer::SetBlendMode(BlendMode mode /* = BlendMode::Blend*/) {
 	if (mode == BlendMode::None) {
@@ -66,7 +64,7 @@ void GLRenderer::DrawElements(const VertexArray& va, std::size_t index_count) {
 	);
 	va.Bind();
 	PTGN_ASSERT(
-		VertexArray::BoundId() == static_cast<std::int32_t>(va.GetInstance()->id_),
+		VertexArray::GetBoundId() == static_cast<std::int32_t>(va.GetInstance()->id_),
 		"Failed to bind vertex array id"
 	);
 	gl::glDrawElements(

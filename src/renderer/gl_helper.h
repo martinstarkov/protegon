@@ -67,10 +67,29 @@ enum class BufferUsage {
 enum class BufferType {
 	Vertex	= 0x8892, // GL_ARRAY_BUFFER
 	Index	= 0x8893, // GL_ELEMENT_ARRAY_BUFFER
-	Uniform = 0x8A11  // GL_UNIFORM_BUFFER
+	Uniform = 0x8A11, // GL_UNIFORM_BUFFER
 };
 
 namespace impl {
+
+enum class GLBinding {
+	VertexArray	  = 0x85B5, // GL_VERTEX_ARRAY_BINDING
+	VertexBuffer  = 0x8894, // GL_ARRAY_BUFFER_BINDING
+	IndexBuffer	  = 0x8895, // GL_ELEMENT_ARRAY_BUFFER_BINDING
+	UniformBuffer = 0x8A28, // GL_UNIFORM_BUFFER_BINDING
+	Texture2D	  = 0x8069	// GL_TEXTURE_BINDING_2D
+};
+
+template <BufferType T>
+inline constexpr GLBinding GetGLBinding() {
+	if constexpr (T == BufferType::Vertex) {
+		return GLBinding::VertexBuffer;
+	} else if constexpr (T == BufferType::Index) {
+		return GLBinding::IndexBuffer;
+	} else if constexpr (T == BufferType::Uniform) {
+		return GLBinding::UniformBuffer;
+	}
+}
 
 template <typename T>
 inline constexpr bool is_vertex_data_type{ tt::is_any_of_v<
