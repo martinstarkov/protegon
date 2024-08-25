@@ -199,28 +199,27 @@ public:
 	VertexArray array_;
 	Shader shader_;
 	std::vector<T> batch_;
-	std::int32_t index_{ -1 };
+	std::size_t count_{ 0 };
 
 	constexpr static const std::size_t batch_count_	 = 2000;
 	constexpr static const std::size_t max_vertices_ = batch_count_ * T::vertex_count;
 	constexpr static const std::size_t max_indices_	 = batch_count_ * T::index_count;
 
 	[[nodiscard]] bool IsFlushed() const {
-		return index_ == -1;
+		return batch_.size() == 0;
 	}
 
 	void Flush(RendererData& data);
 
-	void Draw();
+	void Draw(RendererData& data);
 
-	T& Get() {
-		index_++;
-		if (index_ + 1 >= batch_count_) {
-			Draw();
-			index_ = 0;
+	T& Get(RendererData& data) {
+		if (batch_.size() + 1 >= batch_count_) {
+			Draw(data);
 		}
-		PTGN_ASSERT(index_ < batch_.size());
-		return batch_[index_];
+		batch_.push_back(T{});
+		count_++;
+		return batch_.back();
 	}
 };
 
@@ -242,6 +241,8 @@ public:
 	BatchData<TriangleData> triangle_;
 	BatchData<LineData> line_;
 
+	std::size_t draw_calls_{ 0 };
+
 	void SetupBuffers();
 	void SetupTextureSlots();
 	void SetupShaders();
@@ -257,8 +258,6 @@ public:
 		const V2_float& source_position, V2_float source_size, const V2_float& texture_size,
 		Flip flip
 	);
-
-	std::int64_t draw_calls{ 0 };
 };
 
 } // namespace impl

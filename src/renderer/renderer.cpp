@@ -167,19 +167,20 @@ std::vector<Triangle<float>> TriangulateProcess(const V2_float* contour, std::si
 }
 
 template <typename T>
-void BatchData<T>::Draw() {
-	PTGN_ASSERT(index_ != -1);
+void BatchData<T>::Draw(RendererData& data) {
+	PTGN_ASSERT(batch_.size() != 0);
 	// TODO: Fix sorting.
 	// Sort by z-index before sending to GPU.
-	/*std::sort(batch_.begin(), batch_.begin() + index_ + 1, [](const T& a, const T& b) {
+	/*std::sort(batch_.begin(), batch_.end(), [](const T& a, const T& b) {
 		return a.GetZIndex() < b.GetZIndex();
 	});*/
 	array_.GetVertexBuffer().SetSubData(
-		batch_.data(), static_cast<std::uint32_t>(index_ + 1) * sizeof(T)
+		batch_.data(), static_cast<std::uint32_t>(batch_.size()) * sizeof(T)
 	);
 	shader_.Bind();
-	GLRenderer::DrawElements(array_, (index_ + 1) * T::index_count);
-	index_ = -1;
+	GLRenderer::DrawElements(array_, batch_.size() * T::index_count);
+	data.draw_calls_++;
+	batch_.clear();
 }
 
 RendererData::RendererData() {
@@ -219,15 +220,21 @@ void RendererData::SetupBuffers() {
 	IndexBuffer line_ib{ get_indices(BatchData<LineData>::max_indices_, iota) };
 	IndexBuffer point_ib{ get_indices(BatchData<PointData>::max_indices_, iota) };
 
-	quad_.batch_.resize(quad_.max_vertices_);
-	circle_.batch_.resize(circle_.max_vertices_);
-	triangle_.batch_.resize(triangle_.max_vertices_);
-	line_.batch_.resize(line_.max_vertices_);
-	point_.batch_.resize(point_.max_vertices_);
+	quad_.batch_.reserve(quad_.max_vertices_);
+	circle_.batch_.reserve(circle_.max_vertices_);
+	triangle_.batch_.reserve(triangle_.max_vertices_);
+	line_.batch_.reserve(line_.max_vertices_);
+	point_.batch_.reserve(point_.max_vertices_);
 
 	auto set_array = [&](auto& data, PrimitiveMode p, const impl::InternalBufferLayout& layout,
 						 const IndexBuffer& ib) {
-		data.array_ = { p, VertexBuffer(data.batch_, BufferUsage::DynamicDraw), layout, ib };
+		data.array_ = { p,
+						VertexBuffer(
+							data.batch_.data(),
+							static_cast<std::uint32_t>(data.batch_.capacity() * layout.GetStride()),
+							BufferUsage::DynamicDraw
+						),
+						layout, ib };
 	};
 
 	auto quad_vert{ BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_>{} };
@@ -319,8 +326,7 @@ void RendererData::SetupShaders() {
 template <typename T>
 void BatchData<T>::Flush(RendererData& data) {
 	if (!IsFlushed()) {
-		Draw();
-		data.draw_calls++;
+		Draw(data);
 	}
 }
 
@@ -328,8 +334,7 @@ template <>
 void BatchData<QuadData>::Flush(RendererData& data) {
 	if (!IsFlushed()) {
 		data.BindTextures();
-		Draw();
-		data.draw_calls++;
+		Draw(data);
 	}
 }
 
@@ -363,9 +368,7 @@ float RendererData::GetTextureIndex(const Texture& texture) {
 		// index is beyond the slots, keep a separate texture buffer and just split that one
 		// into two or more batches. This should reduce draw calls drastically.
 		if (texture_index_ >= max_texture_slots_) {
-			quad_.Draw();
-			draw_calls++;
-			quad_.index_   = 0;
+			quad_.Draw(*this);
 			texture_index_ = 1;
 		}
 
@@ -589,19 +592,21 @@ void Renderer::Clear() const {
 }
 
 void Renderer::Present() {
-	std::int32_t quad_count{ data_.quad_.index_ + 1 };
-	std::int32_t circle_count{ data_.circle_.index_ + 1 };
-	std::int32_t triangle_count{ data_.triangle_.index_ + 1 };
-	std::int32_t line_count{ data_.line_.index_ + 1 };
-	std::int32_t point_count{ data_.point_.index_ + 1 };
-
 	Flush();
 
 	PTGN_INFO(
-		"Draw Calls: ", data_.draw_calls, ", Quads: ", quad_count, ", Triangles: ", triangle_count,
-		", Circles: ", circle_count, ", Lines: ", line_count, ", Points: ", point_count
+		"Draw Calls: ", data_.draw_calls_, ", Quads: ", data_.quad_.count_,
+		", Triangles: ", data_.triangle_.count_, ", Circles: ", data_.circle_.count_,
+		", Lines: ", data_.line_.count_, ", Points: ", data_.point_.count_
 	);
-	data_.draw_calls = 0;
+
+	data_.quad_.count_	   = 0;
+	data_.circle_.count_   = 0;
+	data_.triangle_.count_ = 0;
+	data_.line_.count_	   = 0;
+	data_.point_.count_	   = 0;
+
+	data_.draw_calls_ = 0;
 
 	game.window.SwapBuffers();
 }
@@ -632,18 +637,18 @@ void Renderer::SetViewport(const V2_int& size) {
 }
 
 void Renderer::StartBatch() {
-	data_.quad_.index_	   = -1;
-	data_.circle_.index_   = -1;
-	data_.line_.index_	   = -1;
-	data_.triangle_.index_ = -1;
-	data_.point_.index_	   = -1;
+	data_.quad_.batch_.clear();
+	data_.circle_.batch_.clear();
+	data_.line_.batch_.clear();
+	data_.triangle_.batch_.clear();
+	data_.point_.batch_.clear();
 
 	data_.texture_index_ = 1;
 }
 
 void Renderer::Flush() {
 	data_.Flush();
-	StartBatch();
+	data_.texture_index_ = 1;
 }
 
 void Renderer::DrawElements(const VertexArray& va, std::size_t index_count) {
@@ -655,7 +660,7 @@ void Renderer::DrawElements(const VertexArray& va, std::size_t index_count) {
 		va.HasIndexBuffer(), "Cannot submit vertex array without a set index buffer for rendering"
 	);
 	GLRenderer::DrawElements(va, index_count);
-	data_.draw_calls++;
+	data_.draw_calls_++;
 }
 
 void Renderer::DrawArrays(const VertexArray& va, std::size_t vertex_count) {
@@ -664,14 +669,14 @@ void Renderer::DrawArrays(const VertexArray& va, std::size_t vertex_count) {
 		va.HasVertexBuffer(), "Cannot submit vertex array without a set vertex buffer for rendering"
 	);
 	GLRenderer::DrawArrays(va, vertex_count);
-	data_.draw_calls++;
+	data_.draw_calls_++;
 }
 
 void Renderer::DrawTextureImpl(
 	const std::array<V2_float, 4>& vertices, float texture_index,
 	const std::array<V2_float, 4>& tex_coords, const V4_float& tint_color, float z
 ) {
-	data_.quad_.Get() = impl::QuadData(vertices, z, tint_color, tex_coords, texture_index);
+	data_.quad_.Get(data_) = impl::QuadData(vertices, z, tint_color, tex_coords, texture_index);
 }
 
 void Renderer::DrawEllipseHollowImpl(
@@ -687,13 +692,13 @@ void Renderer::DrawEllipseHollowImpl(
 	// TODO: Check that dividing by std::max(radius.x, radius.y) does not cause any unexpected bugs.
 	lw = NearlyEqual(lw, 0.0f) ? 1.0f : fade + lw / std::min(r.x, r.y);
 
-	data_.circle_.Get() = impl::CircleData(vertices, z, col, lw, fade);
+	data_.circle_.Get(data_) = impl::CircleData(vertices, z, col, lw, fade);
 }
 
 void Renderer::DrawTriangleFilledImpl(
 	const V2_float& a, const V2_float& b, const V2_float& c, const V4_float& col, float z
 ) {
-	data_.triangle_.Get() = impl::TriangleData({ a, b, c }, z, col);
+	data_.triangle_.Get(data_) = impl::TriangleData({ a, b, c }, z, col);
 }
 
 void Renderer::DrawLineImpl(
@@ -711,12 +716,12 @@ void Renderer::DrawLineImpl(
 		return;
 	}
 
-	data_.line_.Get() = impl::LineData({ p0, p1 }, z, col);
+	data_.line_.Get(data_) = impl::LineData({ p0, p1 }, z, col);
 }
 
 void Renderer::DrawPointImpl(const V2_float& p, const V4_float& col, float r, float z) {
 	if (r <= 1.0f) {
-		data_.point_.Get() = impl::PointData({ p }, z, col);
+		data_.point_.Get(data_) = impl::PointData({ p }, z, col);
 	} else {
 		DrawEllipseFilledImpl(p, { r, r }, col, 0.005f, z);
 	}
