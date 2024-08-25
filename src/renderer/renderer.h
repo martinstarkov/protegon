@@ -94,7 +94,9 @@ namespace impl {
 	float Ax, float Ay, float Bx, float By, float Cx, float Cy, float Px, float Py
 );
 
-[[nodiscard]] bool TriangulateSnip(const V2_float* contour, int u, int v, int w, int n, int* V);
+[[nodiscard]] bool TriangulateSnip(
+	const V2_float* contour, int u, int v, int w, int n, const std::vector<int>& V
+);
 
 [[nodiscard]] std::vector<Triangle<float>> TriangulateProcess(
 	const V2_float* contour, std::size_t count
@@ -172,7 +174,6 @@ template <typename T>
 class BatchData {
 public:
 	VertexArray array_;
-	VertexBuffer buffer_;
 	Shader shader_;
 	std::vector<T> batch_;
 	std::int32_t index_{ -1 };
@@ -227,11 +228,6 @@ public:
 
 	[[nodiscard]] static std::array<V2_float, QuadData::vertex_count> GetTextureCoordinates(
 		const V2_float& source_position, V2_float source_size, const V2_float& texture_size
-	);
-
-	[[nodiscard]] static std::vector<std::uint32_t> GetIndices(
-		const std::function<void(std::vector<std::uint32_t>&, std::size_t, std::uint32_t)>& func,
-		std::size_t max_indices, std::size_t vertex_count, std::size_t index_count
 	);
 
 	struct Stats {

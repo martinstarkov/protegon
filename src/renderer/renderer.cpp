@@ -196,45 +196,19 @@ void CircleData::Add(
 }
 
 template <typename T>
-void DrawImpl(
-	std::vector<T>& batch_, std::int32_t& index_, const VertexArray& array_, VertexBuffer& buffer_,
-	const Shader& shader_
-) {
+void BatchData<T>::Draw() {
 	PTGN_ASSERT(index_ != -1);
 	// TODO: Fix.
 	// Sort by z-index before sending to GPU.
 	/*std::sort(batch_.begin(), batch_.begin() + index_ + 1, [](const T& a, const T& b) {
 		return a.GetZIndex() < b.GetZIndex();
 	});*/
-	buffer_.SetSubData(batch_.data(), static_cast<std::uint32_t>(index_ + 1) * sizeof(T));
+	array_.GetVertexBuffer().SetSubData(
+		batch_.data(), static_cast<std::uint32_t>(index_ + 1) * sizeof(T)
+	);
 	shader_.Bind();
 	GLRenderer::DrawElements(array_, (index_ + 1) * T::index_count);
 	index_ = -1;
-}
-
-template <>
-inline void BatchData<QuadData>::Draw() {
-	DrawImpl(batch_, index_, array_, buffer_, shader_);
-}
-
-template <>
-inline void BatchData<CircleData>::Draw() {
-	DrawImpl(batch_, index_, array_, buffer_, shader_);
-}
-
-template <>
-inline void BatchData<PointData>::Draw() {
-	DrawImpl(batch_, index_, array_, buffer_, shader_);
-}
-
-template <>
-inline void BatchData<LineData>::Draw() {
-	DrawImpl(batch_, index_, array_, buffer_, shader_);
-}
-
-template <>
-inline void BatchData<TriangleData>::Draw() {
-	DrawImpl(batch_, index_, array_, buffer_, shader_);
 }
 
 RendererData::RendererData() {
@@ -243,57 +217,47 @@ RendererData::RendererData() {
 	SetupShaders();
 }
 
-std::vector<std::uint32_t> RendererData::GetIndices(
-	const std::function<void(std::vector<std::uint32_t>&, std::size_t, std::uint32_t)>& func,
-	std::size_t max_indices, std::size_t vertex_count, std::size_t index_count
-) {
-	std::vector<std::uint32_t> indices;
-	indices.resize(max_indices);
-	std::uint32_t offset{ 0 };
+template <typename T, std::size_t I>
+struct IndexGenerator {
+	std::uint32_t pattern_index_{ 0 };
+	std::uint32_t offset_{ 0 };
 
-	for (std::size_t i{ 0 }; i < indices.size(); i += index_count) {
-		func(indices, i, offset);
+	std::array<std::uint32_t, I> index_pattern_;
 
-		offset += static_cast<std::uint32_t>(vertex_count);
+	IndexGenerator(const std::array<std::uint32_t, I>& index_pattern) :
+		index_pattern_{ index_pattern } {}
+
+	std::uint32_t operator()() {
+		auto index = offset_ + index_pattern_[pattern_index_];
+		pattern_index_++;
+		if (pattern_index_ % T::index_count == 0) {
+			offset_		   += T::vertex_count;
+			pattern_index_	= 0;
+		}
+		return index;
 	}
 
-	return indices;
-}
+	static std::vector<std::uint32_t> Get(const std::array<std::uint32_t, I>& index_pattern) {
+		std::vector<std::uint32_t> indices;
+		indices.resize(BatchData<T>::max_indices_);
+		IndexGenerator<T, I> g(index_pattern);
+		std::generate(indices.begin(), indices.end(), g);
+		return indices;
+	}
+};
 
 void RendererData::SetupBuffers() {
-	IndexBuffer quad_index_buffer{ GetIndices(
-		[](auto& indices, auto i, auto offset) {
-			indices[i + 0] = offset + 0;
-			indices[i + 1] = offset + 1;
-			indices[i + 2] = offset + 2;
-			indices[i + 3] = offset + 2;
-			indices[i + 4] = offset + 3;
-			indices[i + 5] = offset + 0;
-		},
-		quad_.max_indices_, QuadData::vertex_count, QuadData::index_count
-	) };
+	auto get_indices = [](std::size_t max_indices) {
+		std::vector<std::uint32_t> indices;
+		indices.resize(max_indices);
+		std::iota(indices.begin(), indices.end(), 0);
+		return indices;
+	};
 
-	IndexBuffer point_index_buffer{ GetIndices(
-		[](auto& indices, auto i, auto offset) { indices[i] = offset; }, point_.max_indices_,
-		PointData::vertex_count, PointData::index_count
-	) };
-
-	IndexBuffer triangle_index_buffer{ GetIndices(
-		[](auto& indices, auto i, auto offset) {
-			indices[i + 0] = offset + 0;
-			indices[i + 1] = offset + 1;
-			indices[i + 2] = offset + 2;
-		},
-		triangle_.max_indices_, TriangleData::vertex_count, TriangleData::index_count
-	) };
-
-	IndexBuffer line_index_buffer{ GetIndices(
-		[](auto& indices, auto i, auto offset) {
-			indices[i + 0] = offset + 0;
-			indices[i + 1] = offset + 1;
-		},
-		line_.max_indices_, LineData::vertex_count, LineData::index_count
-	) };
+	IndexBuffer quad_index_buffer{ IndexGenerator<QuadData, 6>::Get({ 0, 1, 2, 2, 3, 0 }) };
+	IndexBuffer point_index_buffer{ get_indices(BatchData<PointData>::max_indices_) };
+	IndexBuffer line_index_buffer{ get_indices(BatchData<LineData>::max_indices_) };
+	IndexBuffer triangle_index_buffer{ get_indices(BatchData<TriangleData>::max_indices_) };
 
 	quad_.batch_.resize(quad_.max_vertices_);
 	circle_.batch_.resize(circle_.max_vertices_);
@@ -309,25 +273,22 @@ void RendererData::SetupBuffers() {
 
 	auto color_vertex_layout{ BufferLayout<glsl::vec3, glsl::vec4>{} };
 
-	quad_.buffer_	  = VertexBuffer(quad_.batch_, BufferUsage::DynamicDraw);
-	circle_.buffer_	  = VertexBuffer(circle_.batch_, BufferUsage::DynamicDraw);
-	point_.buffer_	  = VertexBuffer(point_.batch_, BufferUsage::DynamicDraw);
-	triangle_.buffer_ = VertexBuffer(triangle_.batch_, BufferUsage::DynamicDraw);
-	line_.buffer_	  = VertexBuffer(line_.batch_, BufferUsage::DynamicDraw);
+	quad_.array_ = { PrimitiveMode::Triangles, VertexBuffer(quad_.batch_, BufferUsage::DynamicDraw),
+					 quad_vertex_layout, quad_index_buffer };
 
-	quad_.array_ = { PrimitiveMode::Triangles, quad_.buffer_, quad_vertex_layout,
-					 quad_index_buffer };
-
-	circle_.array_ = { PrimitiveMode::Triangles, circle_.buffer_, circle_vertex_layout,
+	circle_.array_ = { PrimitiveMode::Triangles,
+					   VertexBuffer(circle_.batch_, BufferUsage::DynamicDraw), circle_vertex_layout,
 					   quad_index_buffer };
 
-	point_.array_ = { PrimitiveMode::Points, point_.buffer_, color_vertex_layout,
-					  point_index_buffer };
+	point_.array_ = { PrimitiveMode::Points, VertexBuffer(point_.batch_, BufferUsage::DynamicDraw),
+					  color_vertex_layout, point_index_buffer };
 
-	line_.array_ = { PrimitiveMode::Lines, line_.buffer_, color_vertex_layout, line_index_buffer };
+	triangle_.array_ = { PrimitiveMode::Triangles,
+						 VertexBuffer(triangle_.batch_, BufferUsage::DynamicDraw),
+						 color_vertex_layout, triangle_index_buffer };
 
-	triangle_.array_ = { PrimitiveMode::Triangles, triangle_.buffer_, color_vertex_layout,
-						 triangle_index_buffer };
+	line_.array_ = { PrimitiveMode::Lines, VertexBuffer(line_.batch_, BufferUsage::DynamicDraw),
+					 color_vertex_layout, line_index_buffer };
 }
 
 void RendererData::SetupTextureSlots() {
@@ -579,6 +540,12 @@ std::array<V2_float, QuadData::vertex_count> GetQuadVertices(
 
 	return vertices;
 }
+
+template class BatchData<QuadData>;
+template class BatchData<CircleData>;
+template class BatchData<LineData>;
+template class BatchData<TriangleData>;
+template class BatchData<PointData>;
 
 } // namespace impl
 
