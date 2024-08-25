@@ -36,13 +36,7 @@ public:
 		PrimitiveMode mode, const VertexBuffer& vertex_buffer, const BufferLayout<Ts...>& layout,
 		const IndexBuffer& index_buffer
 	) :
-		VertexArray{ mode, vertex_buffer, layout, index_buffer } {
-		static_assert(
-			(impl::is_vertex_data_type<Ts> && ...),
-			"Provided vertex type should only contain ptgn::glsl:: types"
-		);
-		static_assert(sizeof...(Ts) > 0, "Must provide layout types as template arguments");
-	}
+		VertexArray{ mode, vertex_buffer, layout, index_buffer } {}
 
 	void SetPrimitiveMode(PrimitiveMode mode);
 	void SetVertexBuffer(const VertexBuffer& vertex_buffer);

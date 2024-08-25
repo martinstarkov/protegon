@@ -617,8 +617,6 @@ void TestBatchTexture60(float dt, const std::vector<Texture>& textures) {
 }
 
 void TestVertexBuffers() {
-	// TODO: Readd test.
-	/*
 	// Construction
 
 	VertexBuffer b0;
@@ -797,10 +795,8 @@ void TestVertexBuffers() {
 	// std::array<TestVertex1, 0> v9;
 	// b4.SetSubData(v9);
 
-	// TODO: Check that this fails to compile due to float type.
+	// This fails to compile due to incorrect float type.
 	// BufferLayout<float, glsl::ivec3, glsl::dvec4> failed_layout{};
-
-	*/
 }
 
 void TestIndexBuffers() {

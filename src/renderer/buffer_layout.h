@@ -29,18 +29,20 @@ struct BufferElement {
 
 } // namespace impl
 
-// TODO: Add checks for valid buffer elements.
 template <typename... Ts>
 class BufferLayout {
+	static_assert(
+		(impl::is_vertex_data_type<Ts> && ...),
+		"Provided vertex type should only contain ptgn::glsl:: types"
+	);
+	static_assert(sizeof...(Ts) > 0, "Must provide layout types as template arguments");
+
 public:
 	BufferLayout() {
 		elements_.reserve(sizeof...(Ts));
-		elements_ = {
-			impl::BufferElement{static_cast<std::uint16_t>(sizeof(Ts)),
-								 static_cast<std::uint16_t>(std::tuple_size<Ts>::value),
-								 impl::GetType<typename Ts::value_type>()}
-			   ...
-		};
+		elements_ = { impl::BufferElement{ static_cast<std::uint16_t>(sizeof(Ts)),
+										   static_cast<std::uint16_t>(std::tuple_size<Ts>::value),
+										   impl::GetType<typename Ts::value_type>() }... };
 	}
 
 private:
