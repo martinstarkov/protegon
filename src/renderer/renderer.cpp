@@ -217,47 +217,34 @@ RendererData::RendererData() {
 	SetupShaders();
 }
 
-template <typename T, std::size_t I>
-struct IndexGenerator {
-	std::uint32_t pattern_index_{ 0 };
-	std::uint32_t offset_{ 0 };
-
-	std::array<std::uint32_t, I> index_pattern_;
-
-	IndexGenerator(const std::array<std::uint32_t, I>& index_pattern) :
-		index_pattern_{ index_pattern } {}
-
-	std::uint32_t operator()() {
-		auto index = offset_ + index_pattern_[pattern_index_];
-		pattern_index_++;
-		if (pattern_index_ % T::index_count == 0) {
-			offset_		   += T::vertex_count;
-			pattern_index_	= 0;
-		}
-		return index;
-	}
-
-	static std::vector<std::uint32_t> Get(const std::array<std::uint32_t, I>& index_pattern) {
-		std::vector<std::uint32_t> indices;
-		indices.resize(BatchData<T>::max_indices_);
-		IndexGenerator<T, I> g(index_pattern);
-		std::generate(indices.begin(), indices.end(), g);
-		return indices;
-	}
-};
-
 void RendererData::SetupBuffers() {
-	auto get_indices = [](std::size_t max_indices) {
+	auto get_indices = [](std::size_t max_indices, const auto& generator) {
 		std::vector<std::uint32_t> indices;
 		indices.resize(max_indices);
-		std::iota(indices.begin(), indices.end(), 0);
+		std::generate(indices.begin(), indices.end(), generator);
 		return indices;
 	};
 
-	IndexBuffer quad_index_buffer{ IndexGenerator<QuadData, 6>::Get({ 0, 1, 2, 2, 3, 0 }) };
-	IndexBuffer point_index_buffer{ get_indices(BatchData<PointData>::max_indices_) };
-	IndexBuffer line_index_buffer{ get_indices(BatchData<LineData>::max_indices_) };
-	IndexBuffer triangle_index_buffer{ get_indices(BatchData<TriangleData>::max_indices_) };
+	std::array<std::uint32_t, QuadData::index_count> quad_index_pattern{ 0, 1, 2, 2, 3, 0 };
+
+	auto quad_generator = [&, offset = 0, pattern_index = 0]() mutable {
+		auto index = offset + quad_index_pattern[pattern_index];
+		pattern_index++;
+		if (pattern_index % QuadData::index_count == 0) {
+			offset		  += QuadData::vertex_count;
+			pattern_index  = 0;
+		}
+		return index;
+	};
+
+	auto iota = [i = 0]() mutable {
+		return i++;
+	};
+
+	IndexBuffer quad_index_buffer{ get_indices(BatchData<QuadData>::max_indices_, quad_generator) };
+	IndexBuffer point_index_buffer{ get_indices(BatchData<PointData>::max_indices_, iota) };
+	IndexBuffer line_index_buffer{ get_indices(BatchData<LineData>::max_indices_, iota) };
+	IndexBuffer triangle_index_buffer{ get_indices(BatchData<TriangleData>::max_indices_, iota) };
 
 	quad_.batch_.resize(quad_.max_vertices_);
 	circle_.batch_.resize(circle_.max_vertices_);
@@ -1017,10 +1004,7 @@ void Renderer::DrawPolygonFilledImpl(
 
 	for (std::size_t i{ 0 }; i < triangle_count; ++i) {
 		const Triangle<float>& t{ triangles[i] };
-		data_.triangle_.AdvanceBatch();
-		PTGN_ASSERT(data_.triangle_.index_ != -1);
-		PTGN_ASSERT(data_.triangle_.index_ < data_.triangle_.batch_.size());
-		data_.triangle_.batch_[data_.triangle_.index_].Add({ t.a, t.b, t.c }, z, col);
+		DrawTriangleFilledImpl(t.a, t.b, t.c, col, z);
 	}
 
 	data_.stats_.triangle_count++;
