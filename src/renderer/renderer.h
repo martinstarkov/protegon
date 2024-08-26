@@ -458,12 +458,15 @@ private:
 	void FlushBatches(std::vector<Batch>& batches);
 
 	[[nodiscard]] std::vector<Batch>& GetBatchGroup(float alpha, float z_index) {
+		// TODO: Add opaque batches back once you figure out how to do it using depth testing.
+		/*
 		if (NearlyEqual(alpha, 1.0f)) { // opaque object
 			if (opaque_batches_.size() == 0) {
 				opaque_batches_.emplace_back(this);
 			}
 			return opaque_batches_;
 		}
+		*/
 		// transparent object
 		auto z_index_key{ static_cast<std::int64_t>(z_index) };
 		auto it = transparent_batches_.find(z_index_key);

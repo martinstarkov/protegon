@@ -285,11 +285,25 @@ void RendererData::SetupShaders() {
 }
 
 void RendererData::Flush() {
+	white_texture_.Bind(0);
+	// TODO: Add opaque batches back once you figure out how to do it using depth testing.
 	// GLRenderer::EnableDepthTesting();
 	// GLRenderer::EnableDepthWriting();
-	white_texture_.Bind(0);
-	FlushOpaqueBatches();
+	// FlushOpaqueBatches();
 	// GLRenderer::DisableDepthWriting();
+	// TODO: Remove once opaque batches are back:
+	// TODO: Add a check for this for each shader.
+	if (new_view_projection_) {
+		quad_shader_.Bind();
+		quad_shader_.SetUniform("u_ViewProjection", view_projection_);
+		circle_shader_.Bind();
+		circle_shader_.SetUniform("u_ViewProjection", view_projection_);
+		color_shader_.Bind();
+		color_shader_.SetUniform("u_ViewProjection", view_projection_);
+
+		new_view_projection_ = false;
+	}
+
 	FlushTransparentBatches();
 }
 
@@ -308,6 +322,7 @@ void RendererData::FlushBatches(std::vector<Batch>& batches) {
 		if (shader.IsValid()) {
 			// TODO: Add a check for if there is even anything in the batch of the type.
 			shader.Bind();
+			// TODO: Add a check for this for each shader.
 			if (new_view_projection_) {
 				shader.SetUniform("u_ViewProjection", view_projection_);
 			}
