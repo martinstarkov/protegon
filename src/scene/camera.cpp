@@ -50,7 +50,9 @@ void OrthographicCamera::SetPosition(const V2_float& new_position) {
 }
 
 void OrthographicCamera::SetPosition(const V3_float& new_position) {
-	PTGN_ASSERT(IsValid());
+	if (!IsValid()) {
+		instance_ = std::make_shared<Camera>();
+	}
 	// TODO: Add model matrix here to offset by half the projection (screen).
 	instance_->position = new_position;
 	// Draw camera position before clamping.
