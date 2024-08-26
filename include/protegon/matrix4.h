@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <functional>
 #include <iomanip>
 #include <ostream>
 
@@ -150,6 +151,10 @@ public:
 	) {
 		Matrix4<T> o;
 
+		PTGN_ASSERT(right != left, "Orthographic matrix division by zero");
+		PTGN_ASSERT(bottom != top, "Orthographic matrix division by zero");
+		PTGN_ASSERT(far != near, "Orthographic matrix division by zero");
+
 		o[0]  = T{ 2 } / (right - left);
 		o[5]  = T{ 2 } / (top - bottom);
 		o[10] = -T{ 2 } / (far - near); // -1 by default
@@ -157,6 +162,19 @@ public:
 		o[13] = -(top + bottom) / (top - bottom);
 		o[14] = -(far + near) / (far - near); // 0 by default
 		o[15] = T{ 1 };
+
+		PTGN_ASSERT(
+			std::invoke([&]() -> bool {
+				for (std::size_t i = 0; i < o.length; i++) {
+					if (std::isnan(o[i]) || std::isinf(o[i])) {
+						return false;
+					}
+				}
+				return true;
+			}),
+			"Failed to create valid orthographic matrix"
+		);
+
 		return o;
 	}
 
