@@ -23,6 +23,7 @@ int renderer_test						= 0;
 constexpr const float test_line_width{ 4.0f };
 
 enum class RenderTest {
+	Texture,
 	Point,
 	LineThin,
 	TriangleHollowThin,
@@ -36,7 +37,6 @@ enum class RenderTest {
 	TextureJPG,
 	TexturePNG,
 	TextureBMP,
-	Texture,
 	Transparency,
 	ViewportExtentsAndOrigin,
 	BatchLine,
@@ -315,16 +315,24 @@ void TestTexture(float dt, const path& texture) {
 				{ 0.5f, 0.5f }
 			);
 			game.renderer.DrawTexture(
-				t, { 600, 600 }, size * 0.5f, {}, {}, Origin::Center, Flip::None, 0.0f,
-				{ 0.5f, 0.5f }, 0.8f
+				t, { 600, 600 }, size * 0.2f, {}, {}, Origin::Center, Flip::None, 0.0f,
+				{ 0.5f, 0.5f }, 200.0f
 			);
 			game.renderer.DrawTexture(
-				t, { 600, 600 }, size * 0.7f, {}, {}, Origin::Center, Flip::None, 0.0f,
-				{ 0.5f, 0.5f }, 0.5f
+				t, { 600, 600 }, size * 0.4f, {}, {}, Origin::Center, Flip::None, 0.0f,
+				{ 0.5f, 0.5f }, 100.0f
+			);
+			game.renderer.DrawTexture(
+				t, { 600, 600 }, size * 0.6f, {}, {}, Origin::Center, Flip::None, 0.0f,
+				{ 0.5f, 0.5f }, 0.0f
+			);
+			game.renderer.DrawTexture(
+				t, { 600, 600 }, size * 0.8f, {}, {}, Origin::Center, Flip::None, 0.0f,
+				{ 0.5f, 0.5f }, -100.0f
 			);
 			game.renderer.DrawTexture(
 				t, { 600, 600 }, size, {}, {}, Origin::Center, Flip::None, 0.0f, { 0.5f, 0.5f },
-				0.2f
+				-200.0f
 			);
 		},
 		PTGN_FUNCTION_NAME()

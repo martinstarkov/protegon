@@ -26,9 +26,9 @@ public:
 
 	void Init() final {
 		game.window.SetSize({ 800, 800 });
-		game.window.Show();
 		ws = game.window.GetSize();
-		game.renderer.SetClearColor(color::DarkRed);
+		game.renderer.SetClearColor(color::White);
+		game.window.Show();
 
 		TestMatrix4();
 		TestECS();
