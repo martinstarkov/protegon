@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <limits>
 
 #include "core/manager.h"
 #include "protegon/event.h"
@@ -38,11 +39,15 @@ public:
 	~OrthographicCamera();
 
 	OrthographicCamera(
-		float left, float right, float bottom, float top, float near = -1.0f, float far = 1.0f
+		float left, float right, float bottom, float top,
+		float near = -std::numeric_limits<float>::max(),
+		float far  = std::numeric_limits<float>::max()
 	);
 
 	void SetProjection(
-		float left, float right, float bottom, float top, float near = -1.0f, float far = 1.0f
+		float left, float right, float bottom, float top,
+		float near = -std::numeric_limits<float>::max(),
+		float far  = std::numeric_limits<float>::max()
 	);
 
 	void SetClampBounds(const Rectangle<float>& bounding_box);
