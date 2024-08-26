@@ -28,6 +28,8 @@ enum class PolygonMode {
 
 class GLRenderer {
 public:
+	static void EnableDepthWriting();
+	static void DisableDepthWriting();
 	static void SetBlendMode(BlendMode mode = BlendMode::Blend);
 #ifndef __EMSCRIPTEN__
 	static void EnableLineSmoothing();

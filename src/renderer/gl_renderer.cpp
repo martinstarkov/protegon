@@ -39,6 +39,14 @@ void GLRenderer::SetBlendMode(BlendMode mode /* = BlendMode::Blend*/) {
 	}
 }
 
+void GLRenderer::EnableDepthWriting() {
+	gl::glDepthMask(GL_TRUE);
+}
+
+void GLRenderer::DisableDepthWriting() {
+	gl::glDepthMask(GL_FALSE);
+}
+
 void GLRenderer::EnableDepthTesting() {
 #ifdef __EMSCRIPTEN__
 	gl::glClearDepthf(1.0);
