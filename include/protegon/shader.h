@@ -17,6 +17,8 @@ class Shader;
 
 namespace impl {
 
+class RendererData;
+
 std::string GetShaderTypeName(std::uint32_t type);
 
 struct ShaderInstance {
@@ -77,6 +79,8 @@ public:
 	void Bind() const;
 
 private:
+	friend class impl::RendererData;
+
 	static std::int32_t GetBoundId();
 	// static void Unbind();
 
