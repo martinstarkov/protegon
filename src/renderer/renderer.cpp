@@ -509,7 +509,9 @@ CircleVertices::CircleVertices(
 
 Renderer::Renderer() {
 	GLRenderer::SetBlendMode(BlendMode::Blend);
+#ifndef __EMSCRIPTEN__
 	GLRenderer::EnableLineSmoothing();
+#endif
 
 	// Only update viewport after resizing finishes, not during (saves a few GPU calls).
 	// If desired, changing the word Resized . Resizing will make the viewport update during

@@ -20,11 +20,13 @@
 
 namespace ptgn {
 
+#ifndef __EMSCRIPTEN__
 enum class PolygonMode {
 	Point = 0x1B00, // GL_POINT
 	Line  = 0x1B01, // GL_LINE
 	Fill  = 0x1B02, // GL_FILL
 };
+#endif
 
 class GLRenderer {
 public:
@@ -34,12 +36,12 @@ public:
 #ifndef __EMSCRIPTEN__
 	static void EnableLineSmoothing();
 	static void DisableLineSmoothing();
+	static void SetPolygonMode(PolygonMode mode);
 #endif
 	static void EnableDepthTesting();
 	static void DisableDepthTesting();
 	static void SetViewport(const V2_int& position, const V2_int& size);
 	static void Clear();
-	static void SetPolygonMode(PolygonMode mode);
 	static void SetClearColor(const Color& color);
 	static void DrawElements(const VertexArray& va, std::size_t index_count);
 	static void DrawArrays(const VertexArray& va, std::size_t vertex_count);

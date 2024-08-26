@@ -15,6 +15,10 @@ void GLRenderer::EnableLineSmoothing() {
 void GLRenderer::DisableLineSmoothing() {
 	gl::glDisable(GL_LINE_SMOOTH);
 }
+
+void GLRenderer::SetPolygonMode(PolygonMode mode) {
+	gl::glPolygonMode(GL_FRONT_AND_BACK, static_cast<gl::GLenum>(mode));
+}
 #endif
 
 void GLRenderer::SetBlendMode(BlendMode mode /* = BlendMode::Blend*/) {
@@ -112,10 +116,6 @@ void GLRenderer::SetViewport(const V2_int& position, const V2_int& size) {
 
 void GLRenderer::Clear() {
 	gl::glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-}
-
-void GLRenderer::SetPolygonMode(PolygonMode mode) {
-	gl::glPolygonMode(GL_FRONT_AND_BACK, static_cast<gl::GLenum>(mode));
 }
 
 } // namespace ptgn
