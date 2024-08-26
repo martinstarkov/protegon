@@ -40,8 +40,11 @@ void Buffer<BT>::SetSubData(const void* data, std::uint32_t size) {
 	PTGN_ASSERT(data != nullptr);
 	VertexArray::Unbind();
 	Bind();
-	// assert check must be done after buffer is bound
-	PTGN_ASSERT(size <= impl::GetMaxBufferSize(BT));
+	// This buffer size check must be done after the buffer is bound.
+	PTGN_ASSERT(
+		size <= impl::GetMaxBufferSize(BT),
+		"Attempting to bind data outside of allocated buffer size"
+	);
 	gl::BufferSubData(static_cast<gl::GLenum>(BT), 0, size, data);
 }
 
