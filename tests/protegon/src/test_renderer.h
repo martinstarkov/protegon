@@ -23,7 +23,6 @@ int renderer_test						= 0;
 constexpr const float test_line_width{ 4.0f };
 
 enum class RenderTest {
-	Texture,
 	Point,
 	LineThin,
 	TriangleHollowThin,
@@ -37,6 +36,7 @@ enum class RenderTest {
 	TextureJPG,
 	TexturePNG,
 	TextureBMP,
+	Texture,
 	Transparency,
 	ViewportExtentsAndOrigin,
 	BatchLine,
