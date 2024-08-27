@@ -63,7 +63,7 @@ static void InitApplePath() {
 #endif
 
 Game::Game() {
-#ifdef PTGN_PLATFORM_MACOS
+#if defined(PTGN_PLATFORM_MACOS) && !defined(__EMSCRIPTEN__)
 	impl::InitApplePath();
 #endif
 }
