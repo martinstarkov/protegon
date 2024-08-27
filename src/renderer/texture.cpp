@@ -120,14 +120,16 @@ void Texture::Bind() const {
 }
 
 void Texture::Bind(std::uint32_t slot) const {
+	SetActiveSlot(slot);
+	Bind();
+}
+
+void Texture::SetActiveSlot(std::uint32_t slot) const {
 	PTGN_ASSERT(
 		static_cast<std::int32_t>(slot) < GLRenderer::GetMaxTextureSlots(),
 		"Attempting to bind a slot outside of OpenGL texture slot maximum"
 	);
 	GLCall(gl::ActiveTexture(GL_TEXTURE0 + slot));
-	Bind();
-	// For newer versions of OpenGL:
-	// GLCall(gl::BindTextureUnit(slot, instance_->id_));
 }
 
 // void Texture::Unbind() {
@@ -135,8 +137,15 @@ void Texture::Bind(std::uint32_t slot) const {
 // }
 
 std::int32_t Texture::GetBoundId() {
-	std::int32_t id{ 0 };
+	std::int32_t id{ -1 };
 	GLCall(gl::glGetIntegerv(static_cast<gl::GLenum>(impl::GLBinding::Texture2D), &id));
+	PTGN_ASSERT(id >= 0);
+	return id;
+}
+
+std::int32_t Texture::GetActiveSlot() {
+	std::int32_t id{ -1 };
+	GLCall(gl::glGetIntegerv(GL_ACTIVE_TEXTURE, &id));
 	PTGN_ASSERT(id >= 0);
 	return id;
 }

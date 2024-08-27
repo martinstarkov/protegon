@@ -38,6 +38,9 @@ class Renderer;
 
 namespace impl {
 
+class RendererData;
+class TextureBatchData;
+
 enum class InternalGLFormat {
 	RGB8  = 0x8051, // GL_RGB8
 	RGBA8 = 0x8058, // GL_RGBA8
@@ -53,8 +56,6 @@ enum class TextureParameter {
 	MagFilter	= 0x2800, // GL_TEXTURE_MAG_FILTER
 	MinFilter	= 0x2801, // GL_TEXTURE_MIN_FILTER
 };
-
-class RendererData;
 
 struct GLFormats {
 	// first
@@ -106,16 +107,19 @@ public:
 	bool operator==(const Texture& o) const;
 	bool operator!=(const Texture& o) const;
 
-	V2_int GetSize() const;
+	[[nodiscard]] V2_int GetSize() const;
 
 	void Bind() const;
 	void Bind(std::uint32_t slot) const;
+	void SetActiveSlot(std::uint32_t slot) const;
 
 private:
+	friend class impl::TextureBatchData;
 	friend class impl::RendererData;
 	friend class Renderer;
 
-	static std::int32_t GetBoundId();
+	[[nodiscard]] static std::int32_t GetBoundId();
+	[[nodiscard]] static std::int32_t GetActiveSlot();
 
 	// static void Unbind();
 

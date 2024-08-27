@@ -228,6 +228,10 @@ public:
 			// Save first texture slot for empty white texture.
 			auto slot{ i + 1 };
 			textures_[i].Bind(slot);
+			/*PTGN_LOG(
+				"Active Slot: ", Texture::GetActiveSlot(),
+				", Bound Texture: ", Texture::GetBoundId()
+			);*/
 		}
 	}
 

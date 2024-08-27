@@ -281,7 +281,7 @@ void Shader::SetUniform(const std::string& name, bool value) const {
 }
 
 std::int32_t Shader::GetBoundId() {
-	std::int32_t id{ 0 };
+	std::int32_t id{ -1 };
 	GLCall(gl::glGetIntegerv(GL_CURRENT_PROGRAM, &id));
 	PTGN_ASSERT(id >= 0);
 	return id;
