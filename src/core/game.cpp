@@ -63,8 +63,6 @@ static void InitApplePath() {
 #endif
 
 Game::Game() {
-	// dummy_camera_{ std::make_unique<CameraManager>() } {
-	//  camera{ *dummy_camera_ } {
 #ifdef PTGN_PLATFORM_MACOS
 	impl::InitApplePath();
 #endif
