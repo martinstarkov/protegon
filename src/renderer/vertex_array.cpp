@@ -8,12 +8,12 @@ namespace ptgn {
 namespace impl {
 
 VertexArrayInstance::VertexArrayInstance() {
-	gl::GenVertexArrays(1, &id_);
+	GLCall(gl::GenVertexArrays(1, &id_));
 	PTGN_ASSERT(id_ != 0, "Failed to generate vertex array using OpenGL context");
 }
 
 VertexArrayInstance::~VertexArrayInstance() {
-	gl::DeleteVertexArrays(1, &id_);
+	GLCall(gl::DeleteVertexArrays(1, &id_));
 }
 
 } // namespace impl
@@ -39,18 +39,18 @@ VertexArray::VertexArray(
 
 std::int32_t VertexArray::GetBoundId() {
 	std::int32_t id{ -1 };
-	gl::glGetIntegerv(static_cast<gl::GLenum>(impl::GLBinding::VertexArray), &id);
+	GLCall(gl::glGetIntegerv(static_cast<gl::GLenum>(impl::GLBinding::VertexArray), &id));
 	PTGN_ASSERT(id >= 0);
 	return id;
 }
 
 void VertexArray::Bind() const {
 	PTGN_ASSERT(IsValid(), "Cannot bind uninitialized or destroyed vertex array");
-	gl::BindVertexArray(instance_->id_);
+	GLCall(gl::BindVertexArray(instance_->id_));
 }
 
 void VertexArray::Unbind() {
-	gl::BindVertexArray(0);
+	GLCall(gl::BindVertexArray(0));
 }
 
 void VertexArray::SetVertexBuffer(const VertexBuffer& vertex_buffer) {
@@ -102,17 +102,17 @@ void VertexArray::SetLayoutImpl(const impl::InternalBufferLayout& layout) {
 	const std::vector<impl::BufferElement>& elements = layout.GetElements();
 
 	std::int32_t max_attributes{ 0 };
-	gl::glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max_attributes);
+	GLCall(gl::glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max_attributes));
 
 	PTGN_ASSERT(elements.size() < max_attributes, "Too many vertex attributes");
 
 	for (std::uint32_t i = 0; i < elements.size(); ++i) {
 		const impl::BufferElement& element{ elements[i] };
-		gl::EnableVertexAttribArray(i);
-		gl::VertexAttribPointer(
+		GLCall(gl::EnableVertexAttribArray(i));
+		GLCall(gl::VertexAttribPointer(
 			i, element.count, static_cast<gl::GLenum>(element.type),
 			element.normalized ? GL_TRUE : GL_FALSE, layout.GetStride(), (const void*)element.offset
-		);
+		));
 	}
 }
 

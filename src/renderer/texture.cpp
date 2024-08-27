@@ -13,15 +13,15 @@ namespace impl {
 	std::int32_t restore_id { \
 		Texture::GetBoundId() \
 	}
-#define POPSTATE() gl::glBindTexture(GL_TEXTURE_2D, restore_id)
+#define POPSTATE() GLCall(gl::glBindTexture(GL_TEXTURE_2D, restore_id))
 
 TextureInstance::TextureInstance() {
-	gl::glGenTextures(1, &id_);
+	GLCall(gl::glGenTextures(1, &id_));
 	PTGN_ASSERT(id_ != 0, "Failed to generate texture using OpenGL context");
 }
 
 TextureInstance::~TextureInstance() {
-	gl::glDeleteTextures(1, &id_);
+	GLCall(gl::glDeleteTextures(1, &id_));
 }
 
 static GLFormats GetGLFormats(ImageFormat format) {
@@ -81,25 +81,25 @@ Texture::Texture(const void* pixel_data, const V2_int& size, ImageFormat format)
 
 	SetDataImpl(pixel_data, size, format);
 
-	gl::glTexParameteri(
+	GLCall(gl::glTexParameteri(
 		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapS),
 		static_cast<int>(default_wrapping)
-	);
-	gl::glTexParameteri(
+	));
+	GLCall(gl::glTexParameteri(
 		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapT),
 		static_cast<int>(default_wrapping)
-	);
-	gl::glTexParameteri(
+	));
+	GLCall(gl::glTexParameteri(
 		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::MinFilter),
 		static_cast<int>(default_minifying_filter)
-	);
-	gl::glTexParameteri(
+	));
+	GLCall(gl::glTexParameteri(
 		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::MagFilter),
 		static_cast<int>(default_magnifying_filter)
-	);
+	));
 
 	if constexpr ((default_minifying_filter != TextureFilter::Linear && default_minifying_filter != TextureFilter::Nearest) || (default_magnifying_filter != TextureFilter::Linear && default_magnifying_filter != TextureFilter::Nearest)) {
-		gl::GenerateMipmap(GL_TEXTURE_2D);
+		GLCall(gl::GenerateMipmap(GL_TEXTURE_2D));
 	}
 
 	POPSTATE();
@@ -116,7 +116,7 @@ Texture::Texture(const std::vector<Color>& pixels, const V2_int& size) :
 
 void Texture::Bind() const {
 	PTGN_ASSERT(IsValid(), "Cannot bind texture which is destroyed or uninitialized");
-	gl::glBindTexture(GL_TEXTURE_2D, instance_->id_);
+	GLCall(gl::glBindTexture(GL_TEXTURE_2D, instance_->id_));
 }
 
 void Texture::Bind(std::uint32_t slot) const {
@@ -124,19 +124,19 @@ void Texture::Bind(std::uint32_t slot) const {
 		static_cast<std::int32_t>(slot) < GLRenderer::GetMaxTextureSlots(),
 		"Attempting to bind a slot outside of OpenGL texture slot maximum"
 	);
-	gl::ActiveTexture(GL_TEXTURE0 + slot);
+	GLCall(gl::ActiveTexture(GL_TEXTURE0 + slot));
 	Bind();
 	// For newer versions of OpenGL:
-	// gl::BindTextureUnit(slot, instance_->id_);
+	// GLCall(gl::BindTextureUnit(slot, instance_->id_));
 }
 
 // void Texture::Unbind() {
-//	gl::glBindTexture(GL_TEXTURE_2D, 0);
+//	GLCall(gl::glBindTexture(GL_TEXTURE_2D, 0));
 // }
 
 std::int32_t Texture::GetBoundId() {
 	std::int32_t id{ 0 };
-	gl::glGetIntegerv(static_cast<gl::GLenum>(impl::GLBinding::Texture2D), &id);
+	GLCall(gl::glGetIntegerv(static_cast<gl::GLenum>(impl::GLBinding::Texture2D), &id));
 	PTGN_ASSERT(id >= 0);
 	return id;
 }
@@ -153,11 +153,11 @@ void Texture::SetDataImpl(const void* pixel_data, const V2_int& size, ImageForma
 
 	auto formats = impl::GetGLFormats(format);
 
-	gl::glTexImage2D(
+	GLCall(gl::glTexImage2D(
 		GL_TEXTURE_2D, 0, static_cast<gl::GLint>(formats.internal_), instance_->size_.x,
 		instance_->size_.y, 0, formats.format_, static_cast<gl::GLenum>(impl::GLType::UnsignedByte),
 		pixel_data
-	);
+	));
 }
 
 void Texture::SetSubData(const void* pixel_data, ImageFormat format) {
@@ -170,10 +170,10 @@ void Texture::SetSubData(const void* pixel_data, ImageFormat format) {
 
 	Bind();
 
-	gl::glTexSubImage2D(
+	GLCall(gl::glTexSubImage2D(
 		GL_TEXTURE_2D, 0, 0, 0, instance_->size_.x, instance_->size_.y, formats.format_,
 		static_cast<gl::GLenum>(impl::GLType::UnsignedByte), pixel_data
-	);
+	));
 
 	POPSTATE();
 }
@@ -203,9 +203,9 @@ void Texture::SetWrapping(TextureWrapping s) {
 
 	Bind();
 
-	gl::glTexParameteri(
+	GLCall(gl::glTexParameteri(
 		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapS), static_cast<int>(s)
-	);
+	));
 
 	POPSTATE();
 }
@@ -215,12 +215,12 @@ void Texture::SetWrapping(TextureWrapping s, TextureWrapping t) {
 
 	Bind();
 
-	gl::glTexParameteri(
+	GLCall(gl::glTexParameteri(
 		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapS), static_cast<int>(s)
-	);
-	gl::glTexParameteri(
+	));
+	GLCall(gl::glTexParameteri(
 		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapT), static_cast<int>(t)
-	);
+	));
 
 	POPSTATE();
 }
@@ -230,15 +230,15 @@ void Texture::SetWrapping(TextureWrapping s, TextureWrapping t, TextureWrapping 
 
 	Bind();
 
-	gl::glTexParameteri(
+	GLCall(gl::glTexParameteri(
 		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapS), static_cast<int>(s)
-	);
-	gl::glTexParameteri(
+	));
+	GLCall(gl::glTexParameteri(
 		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapT), static_cast<int>(t)
-	);
-	gl::glTexParameteri(
+	));
+	GLCall(gl::glTexParameteri(
 		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapR), static_cast<int>(r)
-	);
+	));
 
 	POPSTATE();
 }
@@ -248,14 +248,14 @@ void Texture::SetFilters(TextureFilter minifying, TextureFilter magnifying) {
 
 	Bind();
 
-	gl::glTexParameteri(
+	GLCall(gl::glTexParameteri(
 		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::MinFilter),
 		static_cast<int>(minifying)
-	);
-	gl::glTexParameteri(
+	));
+	GLCall(gl::glTexParameteri(
 		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::MagFilter),
 		static_cast<int>(magnifying)
-	);
+	));
 
 	POPSTATE();
 }
@@ -268,9 +268,9 @@ void Texture::SetClampBorderColor(const Color& color) {
 	V4_float c{ color.Normalized() };
 	float border_color[4]{ c.x, c.y, c.z, c.w };
 
-	gl::glTexParameterfv(
+	GLCall(gl::glTexParameterfv(
 		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::BorderColor), border_color
-	);
+	));
 
 	POPSTATE();
 }
@@ -280,7 +280,7 @@ void Texture::GenerateMipmaps() {
 
 	Bind();
 
-	gl::GenerateMipmap(GL_TEXTURE_2D);
+	GLCall(gl::GenerateMipmap(GL_TEXTURE_2D));
 
 	POPSTATE();
 }
