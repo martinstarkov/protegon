@@ -14,8 +14,8 @@ namespace impl {
 class InternalBufferLayout;
 
 struct BufferElement {
-	BufferElement(std::uint16_t size, std::uint16_t count, impl::GLType type) :
-		size{ size }, count{ count }, type{ type } {}
+	BufferElement(std::uint16_t size, std::uint16_t count, impl::GLType type, bool is_integer) :
+		size{ size }, count{ count }, type{ type }, is_integer{ is_integer } {}
 
 	std::uint16_t size{ 0 };  // Number of elements x Size of element.
 	std::uint16_t count{ 0 }; // Number of elements
@@ -24,6 +24,7 @@ struct BufferElement {
 	std::size_t offset{ 0 }; // Number of bytes from start of buffer.
 	// Whether or not the buffer elements are normalized. See here for more info:
 	// https://registry.khronos.org/OpenGL-Refpages/es3.0/html/glVertexAttribPointer.xhtml
+	bool is_integer{ false };
 	bool normalized{ false };
 };
 
@@ -42,11 +43,23 @@ public:
 		elements_.reserve(sizeof...(Ts));
 		elements_ = { impl::BufferElement{ static_cast<std::uint16_t>(sizeof(Ts)),
 										   static_cast<std::uint16_t>(std::tuple_size<Ts>::value),
-										   impl::GetType<typename Ts::value_type>() }... };
+										   impl::GetType<typename Ts::value_type>(),
+										   IsInteger<Ts>() }... };
 	}
 
 private:
 	friend class impl::InternalBufferLayout;
+
+	template <typename T>
+	[[nodiscard]] constexpr static bool IsInteger() {
+		static_assert(
+			impl::is_vertex_data_type<T>,
+			"Provided vertex type should only contain ptgn::glsl:: types"
+		);
+		using V = typename T::value_type;
+		return std::is_same_v<V, bool> || std::is_same_v<V, std::int32_t> ||
+			   std::is_same_v<V, std::uint32_t>;
+	}
 
 	const std::vector<impl::BufferElement>& GetElements() const {
 		return elements_;

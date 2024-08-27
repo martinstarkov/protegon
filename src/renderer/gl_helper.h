@@ -83,15 +83,15 @@ using bvec2 = std::array<bool, 2>;
 using bvec3 = std::array<bool, 3>;
 using bvec4 = std::array<bool, 4>;
 
-using int_	= std::array<int, 1>;
-using ivec2 = std::array<int, 2>;
-using ivec3 = std::array<int, 3>;
-using ivec4 = std::array<int, 4>;
+using int_	= std::array<std::int32_t, 1>;
+using ivec2 = std::array<std::int32_t, 2>;
+using ivec3 = std::array<std::int32_t, 3>;
+using ivec4 = std::array<std::int32_t, 4>;
 
-using uint_ = std::array<unsigned int, 1>;
-using uvec2 = std::array<unsigned int, 2>;
-using uvec3 = std::array<unsigned int, 3>;
-using uvec4 = std::array<unsigned int, 4>;
+using uint_ = std::array<std::uint32_t, 1>;
+using uvec2 = std::array<std::uint32_t, 2>;
+using uvec3 = std::array<std::uint32_t, 3>;
+using uvec4 = std::array<std::uint32_t, 4>;
 
 } // namespace glsl
 

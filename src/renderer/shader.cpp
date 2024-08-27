@@ -91,9 +91,6 @@ void Shader::CompileProgram(const std::string& vertex_source, const std::string&
 		GLCall(gl::AttachShader(instance_->id_, vertex));
 		GLCall(gl::AttachShader(instance_->id_, fragment));
 		GLCall(gl::LinkProgram(instance_->id_));
-#ifndef PTGN_PLATFORM_MACOS
-		GLCall(gl::ValidateProgram(instance_->id_));
-#endif
 
 		// Check for shader link errors.
 		std::int32_t linked = GL_FALSE;
@@ -111,8 +108,13 @@ void Shader::CompileProgram(const std::string& vertex_source, const std::string&
 			GLCall(gl::DeleteShader(vertex));
 			GLCall(gl::DeleteShader(fragment));
 
-			PTGN_ERROR("Failed to link shaders to program: ", log);
+			PTGN_ERROR(
+				"Failed to link shaders to program: \n", vertex_source, "\n", fragment_source, "\n",
+				log
+			);
 		}
+
+		GLCall(gl::ValidateProgram(instance_->id_));
 	}
 
 	if (vertex) {

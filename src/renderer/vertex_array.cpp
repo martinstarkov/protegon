@@ -109,10 +109,18 @@ void VertexArray::SetLayoutImpl(const impl::InternalBufferLayout& layout) {
 	for (std::uint32_t i = 0; i < elements.size(); ++i) {
 		const impl::BufferElement& element{ elements[i] };
 		GLCall(gl::EnableVertexAttribArray(i));
-		GLCall(gl::VertexAttribPointer(
-			i, element.count, static_cast<gl::GLenum>(element.type),
-			element.normalized ? GL_TRUE : GL_FALSE, layout.GetStride(), (const void*)element.offset
-		));
+		if (element.is_integer) {
+			GLCall(gl::VertexAttribIPointer(
+				i, element.count, static_cast<gl::GLenum>(element.type), layout.GetStride(),
+				(const void*)element.offset
+			));
+		} else {
+			GLCall(gl::VertexAttribPointer(
+				i, element.count, static_cast<gl::GLenum>(element.type),
+				element.normalized ? GL_TRUE : GL_FALSE, layout.GetStride(),
+				(const void*)element.offset
+			));
+		}
 	}
 }
 
