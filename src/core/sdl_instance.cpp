@@ -20,6 +20,11 @@ namespace ptgn {
 namespace impl {
 
 SDLInstance::SDLInstance() {
+#ifdef PTGN_DEBUG
+	PTGN_INFO("Build Type: Debug");
+#else
+	PTGN_INFO("Build Type: Release");
+#endif
 	InitSDL();
 	InitSDLImage();
 	InitSDLTTF();

@@ -5,11 +5,64 @@
 #include <functional>
 #include <variant>
 
+#include "protegon/file.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
 #include "utility/type_traits.h"
 
 namespace ptgn {
+
+namespace impl {
+
+enum class GLError {
+	None			 = 0,	   // GL_NO_ERROR
+	InvalidEnum		 = 0x0500, // GL_INVALID_ENUM
+	InvalidValue	 = 0x0501, // GL_INVALID_VALUE
+	InvalidOperation = 0x0502, // GL_INVALID_OPERATION
+	StackOverflow	 = 0x0503, // GL_STACK_OVERFLOW
+	StackUnderflow	 = 0x0504, // GL_STACK_UNDERFLOW
+	OutOfMemory		 = 0x0505, // GL_OUT_OF_MEMORY
+};
+
+void GLClearErrors();
+
+[[nodiscard]] std::vector<GLError> GLGetErrors();
+
+[[nodiscard]] std::string GLGetErrorString(GLError error);
+
+void GLPrintErrors(
+	const std::string& function_name, const path& filepath, std::size_t line,
+	const std::vector<GLError>& errors
+);
+
+#ifdef PTGN_DEBUG
+#define GLCall(x)                                                                             \
+	std::invoke([&, fn = PTGN_FUNCTION_NAME()]() {                                            \
+		ptgn::impl::GLClearErrors();                                                          \
+		x;                                                                                    \
+		auto errors = ptgn::impl::GLGetErrors();                                              \
+		if (errors.size() > 0) {                                                              \
+			ptgn::impl::GLPrintErrors(fn, std::filesystem::path(__FILE__), __LINE__, errors); \
+			PTGN_EXCEPTION("OpenGL Error");                                                   \
+		}                                                                                     \
+	})
+#define GLCallReturn(x)                                                                       \
+	std::invoke([&, fn = PTGN_FUNCTION_NAME()]() {                                            \
+		ptgn::impl::GLClearErrors();                                                          \
+		auto value	= x;                                                                      \
+		auto errors = ptgn::impl::GLGetErrors();                                              \
+		if (errors.size() > 0) {                                                              \
+			ptgn::impl::GLPrintErrors(fn, std::filesystem::path(__FILE__), __LINE__, errors); \
+			PTGN_EXCEPTION("OpenGL Error");                                                   \
+		}                                                                                     \
+		return value;                                                                         \
+	})
+#else
+#define GLCall(x)		x
+#define GLCallReturn(x) x
+#endif
+
+} // namespace impl
 
 // Vertex Types
 

@@ -51,7 +51,7 @@ void GLContext::LoadGLFunctions() {
 
 #endif
 
-	// PTGN_LOG("OpenGL Build: ", gl::glGetString(GL_VERSION));
+	// PTGN_LOG("OpenGL Build: ", GLCall(gl::glGetString(GL_VERSION)));
 
 // For debugging which commands were not initialized.
 #define GLE(name, caps_name) \
