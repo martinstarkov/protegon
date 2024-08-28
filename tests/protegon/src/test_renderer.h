@@ -128,7 +128,21 @@ void TestViewportExtentsAndOrigin(float dt) {
 
 void TestPoint(float dt) {
 	TestRenderingLoop(
-		dt, [&](float dt_) { game.renderer.DrawPoint(center, color::Black); }, PTGN_FUNCTION_NAME()
+		dt,
+		[&](float dt_) {
+			game.renderer.DrawPoint(center - ws * 0.25f, color::Blue);
+			game.renderer.DrawPoint(center + ws * 0.25f, color::DarkBlue);
+			game.renderer.DrawPoint(center - V2_float{ ws.x * 0.25f, 0.0f }, color::DarkBrown);
+			game.renderer.DrawPoint(center + V2_float{ ws.x * 0.25f, 0.0f }, color::DarkGreen);
+			game.renderer.DrawPoint(center - V2_float{ 0.0f, ws.y * 0.25f }, color::DarkGrey);
+			game.renderer.DrawPoint(center + V2_float{ 0.0f, ws.y * 0.25f }, color::DarkRed);
+			game.renderer.DrawPoint(center - V2_float{ ws.x * 0.25f, -ws.y * 0.25f }, color::Red);
+			game.renderer.DrawPoint(
+				center + V2_float{ ws.x * 0.25f, -ws.y * 0.25f }, color::Magenta
+			);
+			game.renderer.DrawPoint(center, color::Black);
+		},
+		PTGN_FUNCTION_NAME()
 	);
 }
 
