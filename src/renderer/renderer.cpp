@@ -319,14 +319,26 @@ void RendererData::FlushTransparentBatches() {
 
 void RendererData::FlushBatches(std::vector<Batch>& batches) {
 	auto flush_batch_group = [&](const Shader& shader, BatchType type) {
+		bool requires_flush{ false };
+
+		for (auto& batch : batches) {
+			if (!batch.IsFlushed(type)) {
+				requires_flush = true;
+			}
+		}
+
+		if (!requires_flush) {
+			return;
+		}
+
 		if (shader.IsValid()) {
-			// TODO: Add a check for if there is even anything in the batch of the type.
 			shader.Bind();
 			// TODO: Add a check for this for each shader.
 			if (new_view_projection_) {
 				shader.SetUniform("u_ViewProjection", view_projection_);
 			}
 		}
+
 		PTGN_ASSERT(Shader::GetBoundId() != 0);
 		for (auto& batch : batches) {
 			batch.Flush(type);

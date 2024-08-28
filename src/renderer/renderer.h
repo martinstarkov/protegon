@@ -285,6 +285,17 @@ public:
 	Batch() = default;
 	Batch(RendererData* renderer);
 
+	[[nodiscard]] bool IsFlushed(BatchType type) {
+		switch (type) {
+			case BatchType::Quad:	  return quad_.IsFlushed();
+			case BatchType::Triangle: return triangle_.IsFlushed();
+			case BatchType::Line:	  return line_.IsFlushed();
+			case BatchType::Circle:	  return circle_.IsFlushed();
+			case BatchType::Point:	  return point_.IsFlushed();
+			default:				  PTGN_ERROR("Failed to recognize batch type when checking IsFlushed");
+		}
+	}
+
 	void Flush(BatchType type) {
 		switch (type) {
 			case BatchType::Quad: {
