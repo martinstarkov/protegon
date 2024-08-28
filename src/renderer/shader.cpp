@@ -48,6 +48,14 @@ Shader::Shader(const path& vertex_shader_path, const path& fragment_shader_path)
 	CompileProgram(FileToString(vertex_shader_path), FileToString(fragment_shader_path));
 }
 
+bool Shader::operator==(const Shader& o) const {
+	return GetInstance() == o.GetInstance();
+}
+
+bool Shader::operator!=(const Shader& o) const {
+	return !(*this == o);
+}
+
 std::uint32_t Shader::CompileShader(std::uint32_t type, const std::string& source) {
 	std::uint32_t id = GLCallReturn(gl::CreateShader(type));
 

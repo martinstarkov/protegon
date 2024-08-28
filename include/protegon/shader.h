@@ -51,6 +51,9 @@ public:
 	Shader(const ShaderSource& vertex_shader, const ShaderSource& fragment_shader);
 	Shader(const path& vertex_shader_path, const path& fragment_shader_path);
 
+	bool operator==(const Shader& o) const;
+	bool operator!=(const Shader& o) const;
+
 	// void WhileBound(const std::function<void()>& func) const;
 
 	void SetUniform(const std::string& name, const std::int32_t* data, std::size_t count) const;
