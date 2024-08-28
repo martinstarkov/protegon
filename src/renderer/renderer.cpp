@@ -318,6 +318,8 @@ void RendererData::FlushTransparentBatches() {
 }
 
 void RendererData::FlushBatches(std::vector<Batch>& batches) {
+	Shader bound_shader;
+
 	auto flush_batch_group = [&](const Shader& shader, BatchType type) {
 		bool requires_flush{ false };
 
@@ -331,15 +333,18 @@ void RendererData::FlushBatches(std::vector<Batch>& batches) {
 			return;
 		}
 
-		if (shader.IsValid()) {
+		PTGN_ASSERT(shader.IsValid(), "Cannot bind invalid shader");
+
+		if (shader != bound_shader) {
 			shader.Bind();
-			// TODO: Add a check for this for each shader.
+			bound_shader = shader;
 			if (new_view_projection_) {
 				shader.SetUniform("u_ViewProjection", view_projection_);
 			}
 		}
 
 		PTGN_ASSERT(Shader::GetBoundId() != 0);
+
 		for (auto& batch : batches) {
 			batch.Flush(type);
 		}
@@ -348,9 +353,8 @@ void RendererData::FlushBatches(std::vector<Batch>& batches) {
 	flush_batch_group(quad_shader_, BatchType::Quad);
 	flush_batch_group(circle_shader_, BatchType::Circle);
 	flush_batch_group(color_shader_, BatchType::Triangle);
-	// No need to rebind the color shader again.
-	flush_batch_group({}, BatchType::Line);
-	flush_batch_group({}, BatchType::Point);
+	flush_batch_group(color_shader_, BatchType::Line);
+	flush_batch_group(color_shader_, BatchType::Point);
 }
 
 void RendererData::FlushOpaqueBatches() {
@@ -661,7 +665,7 @@ void Renderer::DrawLineImpl(
 }
 
 void Renderer::DrawPointImpl(const V2_float& p, const V4_float& col, float r, float z) {
-	if (r <= 1.0f) {
+	if (r < 1.0f || NearlyEqual(r, 1.0f)) {
 		data_.AddPoint(p, z, col);
 	} else {
 		DrawEllipseFilledImpl(p, { r, r }, col, 0.005f, z);
