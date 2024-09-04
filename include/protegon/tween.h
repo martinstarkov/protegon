@@ -199,8 +199,8 @@ public:
 	float Seek(float new_progress);
 	float Seek(milliseconds time);
 
-	void Start();
-	void Pause();
+	Tween& Start();
+	Tween& Pause();
 	void Resume();
 	void Reset();
 	void Stop();
@@ -209,17 +209,23 @@ public:
 	void Forward();
 	void Backward();
 
-	// template <typename Duration = milliseconds>
-	//[[nodiscard]] Duration GetElapsed() const {
-	//	PTGN_ASSERT(IsValid(), "Cannot get elapsed time of uninitialized or destroyed tween");
-	//	return std::chrono::duration_cast<Duration>(GetProgress() * instance_->duration_);
-	// }
+	// Clears previously assigned tween points.
+	void Clear();
 
-	// template <typename Duration = milliseconds>
-	//[[nodiscard]] Duration GetDuration() const {
-	//	PTGN_ASSERT(IsValid(), "Cannot get duration of uninitialized or destroyed tween");
-	//	return std::chrono::duration_cast<Duration>(instance_->duration_);
-	// }
+	template <typename Duration = milliseconds>
+	[[nodiscard]] Duration GetDuration(std::size_t tween_point_index = 0) const {
+		PTGN_ASSERT(IsValid(), "Cannot get duration of uninitialized or destroyed tween");
+		PTGN_ASSERT(
+			tween_point_index < instance_->tweens_points_.size(),
+			"Specified tween point index is out of range. Ensure tween points has been added "
+			"beforehand"
+		);
+		return std::chrono::duration_cast<Duration>(
+			instance_->tweens_points_[tween_point_index].duration_
+		);
+	}
+
+	void SetDuration(milliseconds duration, std::size_t tween_point_index = 0);
 
 private:
 	friend class TweenManager;
@@ -237,8 +243,7 @@ private:
 
 	void ActivateCallback(const TweenCallback& callback, float value);
 
-	void HandleCallbacks(float value, bool suppress_update);
-	void HandleRepeats();
+	void HandleCallbacks(bool suppress_update);
 	float UpdateImpl(bool suppress_update = false);
 };
 

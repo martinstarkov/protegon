@@ -38,11 +38,12 @@ impl::TweenPoint& Tween::GetCurrentTweenPoint() {
 	return const_cast<impl::TweenPoint&>(const_cast<const Tween&>(*this).GetCurrentTweenPoint());
 }
 
-void Tween::Start() {
+Tween& Tween::Start() {
 	PTGN_ASSERT(IsValid(), "Cannot start uninitialized or destroyed tween");
 	Reset();
 	instance_->started_ = true;
 	ActivateCallback(GetCurrentTweenPoint().on_start_, GetProgress());
+	return *this;
 }
 
 void Tween::Reset() {
@@ -56,12 +57,13 @@ void Tween::Reset() {
 	}
 }
 
-void Tween::Pause() {
+Tween& Tween::Pause() {
 	PTGN_ASSERT(IsValid(), "Cannot pause uninitialized or destroyed tween");
 	if (!instance_->paused_) {
 		instance_->paused_ = true;
 		ActivateCallback(GetCurrentTweenPoint().on_pause_, GetProgress());
 	}
+	return *this;
 }
 
 void Tween::Resume() {
@@ -88,34 +90,37 @@ float Tween::GetNewProgress(duration<float> time) const {
 	return instance_->progress_ + p;
 }
 
-float Tween::StepImpl(float dt, bool accumulate_progress) {
-	PTGN_ASSERT(IsValid(), "Cannot step uninitialized or destroyed tween");
-
-	if (!instance_->started_ || instance_->paused_) {
-		return GetProgress();
-	}
-
-	float new_progress = GetNewProgress(duration<float, seconds::period>(dt));
-
-	if (accumulate_progress) {
-		new_progress = AccumulateProgress(new_progress);
-	}
-
-	return SeekImpl(new_progress);
-}
-
 float Tween::Step(float dt) {
 	return StepImpl(dt, true);
 }
 
+float Tween::StepImpl(float dt, bool accumulate_progress) {
+	return SeekImpl(
+		accumulate_progress ? AccumulateProgress(GetNewProgress(duration<float>(dt)))
+							: GetNewProgress(duration<float>(dt))
+	);
+}
+
 float Tween::Seek(float new_progress) {
+	return SeekImpl(AccumulateProgress(new_progress));
+}
+
+float Tween::Seek(milliseconds time) {
+	return SeekImpl(AccumulateProgress(GetNewProgress(time)));
+}
+
+float Tween::SeekImpl(float new_progress) {
 	PTGN_ASSERT(IsValid(), "Cannot seek uninitialized or destroyed tween");
+
+	PTGN_ASSERT(new_progress >= 0.0f && new_progress <= 1.0f, "Progress accumulator failed");
 
 	if (!instance_->started_ || instance_->paused_) {
 		return GetProgress();
 	}
 
-	return SeekImpl(AccumulateProgress(new_progress));
+	instance_->progress_ = new_progress;
+
+	return UpdateImpl(false);
 }
 
 float Tween::AccumulateProgress(float new_progress) {
@@ -123,21 +128,18 @@ float Tween::AccumulateProgress(float new_progress) {
 	PTGN_ASSERT(!std::isnan(new_progress));
 	PTGN_ASSERT(!std::isinf(new_progress));
 
-	return std::clamp(new_progress, 0.0f, 1.0f);
-
-	/*
-	// TODO: Fix progress accumulation.
-	if (new_progress <= 1.0f) {
+	if (new_progress < 1.0f) {
 		return new_progress;
+	}
+
+	if (!instance_->started_ || instance_->paused_) {
+		return GetProgress();
 	}
 
 	float loops{ std::floorf(new_progress) };
 
 	for (float i = 0; i < loops; i++) {
-		// TODO: Check that this function behaves as intended. It should go through as many tween
-		// points as are available for the duration of new progress.
 		instance_->progress_ = 1.0f;
-		PointCompleted();
 		UpdateImpl(true);
 		if (IsCompleted()) {
 			return 1.0f;
@@ -149,28 +151,6 @@ float Tween::AccumulateProgress(float new_progress) {
 	new_progress -= loops;
 
 	return new_progress;
-	*/
-}
-
-float Tween::SeekImpl(float new_progress) {
-	PTGN_ASSERT(IsValid(), "Cannot seek uninitialized or destroyed tween");
-	PTGN_ASSERT(new_progress >= 0.0f && new_progress <= 1.0f, "Progress accumulator failed");
-
-	instance_->progress_ = new_progress;
-
-	return UpdateImpl(false);
-}
-
-float Tween::Seek(milliseconds time) {
-	PTGN_ASSERT(IsValid(), "Cannot seek uninitialized or destroyed tween");
-
-	if (!instance_->started_ || instance_->paused_) {
-		return GetProgress();
-	}
-
-	float new_progress = GetNewProgress(time);
-
-	return SeekImpl(AccumulateProgress(new_progress));
 }
 
 float Tween::GetProgress() const {
@@ -186,8 +166,8 @@ float Tween::GetProgress() const {
 }
 
 bool Tween::IsCompleted() const {
-	return IsValid() && instance_->index_ >= instance_->tweens_points_.size() - 1 &&
-		   instance_->progress_ >= 1.0f;
+	return IsValid() && instance_->progress_ >= 1.0f &&
+		   (instance_->index_ >= instance_->tweens_points_.size() - 1 || !instance_->started_);
 }
 
 bool Tween::IsStarted() const {
@@ -247,6 +227,12 @@ void Tween::Backward() {
 	Reverse(true);
 }
 
+void Tween::Clear() {
+	PTGN_ASSERT(IsValid(), "Cannot clear uninitialized or destroyed tween");
+	Reset();
+	instance_->tweens_points_.clear();
+}
+
 void Tween::Complete() {
 	Seek(GetCurrentTweenPoint().reversed_ ? 0.0f : 1.0f);
 }
@@ -287,15 +273,16 @@ void Tween::ActivateCallback(const TweenCallback& callback, float value) {
 	}
 }
 
-void Tween::HandleRepeats() {
-	PTGN_ASSERT(instance_->progress_ <= 1.0f);
-
-	auto& current{ GetCurrentTweenPoint() };
-
-	if (instance_->progress_ >= 1.0f &&
-		(current.current_repeat_ < current.total_repeats_ || current.total_repeats_ == -1)) {
-		current.current_repeat_++;
-	}
+void Tween::SetDuration(milliseconds duration, std::size_t tween_point_index) {
+	PTGN_ASSERT(duration > nanoseconds{ 250 });
+	PTGN_ASSERT(IsValid(), "Cannot set duration of uninitialized or destroyed tween");
+	PTGN_ASSERT(
+		tween_point_index < instance_->tweens_points_.size(),
+		"Specified tween point index is out of range. Ensure tween points has been added "
+		"beforehand"
+	);
+	instance_->tweens_points_[tween_point_index].duration_ = duration;
+	UpdateImpl();
 }
 
 void Tween::PointCompleted() {
@@ -310,7 +297,7 @@ void Tween::PointCompleted() {
 	}
 }
 
-void Tween::HandleCallbacks(float value, bool suppress_update) {
+void Tween::HandleCallbacks(bool suppress_update) {
 	if (!instance_->started_ || instance_->paused_) {
 		return;
 	}
@@ -318,7 +305,7 @@ void Tween::HandleCallbacks(float value, bool suppress_update) {
 	auto& current{ GetCurrentTweenPoint() };
 
 	if (!suppress_update) {
-		ActivateCallback(current.on_update_, value);
+		ActivateCallback(current.on_update_, GetProgress());
 	}
 
 	PTGN_ASSERT(instance_->progress_ <= 1.0f);
@@ -331,7 +318,7 @@ void Tween::HandleCallbacks(float value, bool suppress_update) {
 	// Completed tween.
 	if (current.current_repeat_ == current.total_repeats_) {
 		if (suppress_update) {
-			ActivateCallback(current.on_update_, value);
+			ActivateCallback(current.on_update_, GetProgress());
 		}
 		PointCompleted();
 		return;
@@ -339,24 +326,30 @@ void Tween::HandleCallbacks(float value, bool suppress_update) {
 
 	// Reverse yoyoing tweens.
 	if (current.yoyo_) {
-		Reverse(!current.reversed_);
-		ActivateCallback(current.on_yoyo_, value);
+		current.reversed_ = !current.reversed_;
+		ActivateCallback(current.on_yoyo_, GetProgress());
 	}
 
 	// Repeat the tween.
 	instance_->progress_ = 0.0f;
-	ActivateCallback(current.on_repeat_, value);
+	ActivateCallback(current.on_repeat_, GetProgress());
 }
 
 float Tween::UpdateImpl(bool suppress_update) {
 	PTGN_ASSERT(IsValid(), "Cannot update uninitialized or destroyed tween");
-	auto value{ GetProgress() };
-	if (instance_->index_ >= instance_->tweens_points_.size()) {
-		return value;
+
+	PTGN_ASSERT(instance_->progress_ <= 1.0f);
+
+	auto& current{ GetCurrentTweenPoint() };
+
+	if (instance_->progress_ >= 1.0f &&
+		(current.current_repeat_ < current.total_repeats_ || current.total_repeats_ == -1)) {
+		current.current_repeat_++;
 	}
-	HandleRepeats();
-	HandleCallbacks(value, suppress_update);
-	return value;
+
+	HandleCallbacks(suppress_update);
+
+	return GetProgress();
 }
 
 Tween& Tween::OnUpdate(const TweenCallback& callback) {
