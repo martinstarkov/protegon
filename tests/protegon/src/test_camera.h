@@ -49,7 +49,11 @@ void TestCameraSwitching(float dt) {
 	camera4.SetPosition(V2_float{ 0, ws.y });
 	camera5.SetPosition(center);
 
-	game.camera.SetPrimary(1);
+	auto primary = game.camera.GetPrimary();
+	if (primary != camera1 && primary != camera2 && primary != camera3 && primary != camera4 &&
+		primary != camera5) {
+		game.camera.SetPrimary(1);
+	}
 
 	TestCameraLoop(
 		dt,
