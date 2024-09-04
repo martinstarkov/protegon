@@ -2,71 +2,65 @@
 
 namespace ptgn {
 
-Tween::Tween(TweenType from, TweenType to, milliseconds duration, const TweenConfig& config) {
-	instance_		   = std::make_shared<impl::TweenInstance>();
-	instance_->from_   = from;
-	instance_->to_	   = to;
-	instance_->config_ = config;
-	if (instance_->config_.yoyo) {
-		PTGN_ASSERT(instance_->config_.repeat != 0, "Yoyoing a tween requires repeat != 0");
-	}
-	instance_->duration_ = duration;
-	PTGN_ASSERT(instance_->duration_ > nanoseconds{ 250 });
-	instance_->reversed_ = instance_->config_.reversed;
-	instance_->paused_	 = instance_->config_.paused;
+Tween::Tween(milliseconds duration) {
+	During(duration);
 }
 
-void Tween::SetCallback(TweenEvent event, const TweenCallback& callback) {
-	PTGN_ASSERT(IsValid(), "Cannot set tween callback of uninitialized or destroyed tween");
-	switch (event) {
-		case TweenEvent::Complete: {
-			instance_->config_.on_complete = callback;
-			break;
-		}
-		case TweenEvent::Pause: {
-			instance_->config_.on_pause = callback;
-			break;
-		}
-		case TweenEvent::Repeat: {
-			instance_->config_.on_repeat = callback;
-			break;
-		}
-		case TweenEvent::Resume: {
-			instance_->config_.on_resume = callback;
-			break;
-		}
-		case TweenEvent::Start: {
-			instance_->config_.on_start = callback;
-			break;
-		}
-		case TweenEvent::Stop: {
-			instance_->config_.on_stop = callback;
-			break;
-		}
-		case TweenEvent::Update: {
-			instance_->config_.on_update = callback;
-			break;
-		}
-		case TweenEvent::Yoyo: {
-			instance_->config_.on_yoyo = callback;
-			break;
-		}
-		default: PTGN_ERROR("Failed to identify tween event for setting tween callback");
+Tween& Tween::During(milliseconds duration) {
+	PTGN_ASSERT(duration > nanoseconds{ 250 });
+	if (!Handle::IsValid()) {
+		instance_ = std::make_shared<impl::TweenInstance>();
 	}
+	instance_->tweens_points_.emplace_back(duration);
+	return *this;
+}
+
+impl::TweenPoint& Tween::GetLastTweenPoint() {
+	PTGN_ASSERT(IsValid(), "Cannot get last tween point of uninitialized or destroyed tween");
+	PTGN_ASSERT(
+		instance_->tweens_points_.size() > 0,
+		"Tween must be given duration before setting properties"
+	);
+	return instance_->tweens_points_.back();
+}
+
+const impl::TweenPoint& Tween::GetCurrentTweenPoint() const {
+	PTGN_ASSERT(IsValid(), "Cannot get current tween point of uninitialized or destroyed tween");
+	PTGN_ASSERT(instance_->tweens_points_.size() > 0);
+	PTGN_ASSERT(instance_->index_ <= instance_->tweens_points_.size());
+	if (instance_->index_ == instance_->tweens_points_.size()) {
+		return instance_->tweens_points_.back();
+	}
+	return instance_->tweens_points_[instance_->index_];
+}
+
+impl::TweenPoint& Tween::GetCurrentTweenPoint() {
+	return const_cast<impl::TweenPoint&>(const_cast<const Tween&>(*this).GetCurrentTweenPoint());
 }
 
 void Tween::Start() {
 	PTGN_ASSERT(IsValid(), "Cannot start uninitialized or destroyed tween");
 	Reset();
-	instance_->running_ = true;
-	ActivateCallback(instance_->config_.on_start, GetValue());
+	instance_->started_ = true;
+	ActivateCallback(GetCurrentTweenPoint().on_start_, GetProgress());
+}
+
+void Tween::Reset() {
+	PTGN_ASSERT(IsValid(), "Cannot reset uninitialized or destroyed tween");
+	instance_->index_	 = 0;
+	instance_->progress_ = 0.0f;
+	instance_->started_	 = false;
+	instance_->paused_	 = false;
+	for (auto& point : instance_->tweens_points_) {
+		point.current_repeat_ = 0;
+	}
 }
 
 void Tween::Pause() {
 	PTGN_ASSERT(IsValid(), "Cannot pause uninitialized or destroyed tween");
 	if (!instance_->paused_) {
 		instance_->paused_ = true;
-		ActivateCallback(instance_->config_.on_pause, GetValue());
+		ActivateCallback(GetCurrentTweenPoint().on_pause_, GetProgress());
 	}
 }
 
@@ -74,18 +68,18 @@ void Tween::Resume() {
 	PTGN_ASSERT(IsValid(), "Cannot pause uninitialized or destroyed tween");
 	if (instance_->paused_) {
 		instance_->paused_ = false;
-		ActivateCallback(instance_->config_.on_resume, GetValue());
+		ActivateCallback(GetCurrentTweenPoint().on_resume_, GetProgress());
 	}
 }
 
-/*TweenType Tween::Rewind(float dt) {
+/*float Tween::Rewind(float dt) {
 	return Step(-dt);
 }*/
 
-float Tween::GetNewProgress(duration<float, Time::period> time) const {
+float Tween::GetNewProgress(duration<float> time) const {
 	PTGN_ASSERT(IsValid(), "Cannot get new progress for uninitialized or destroyed tween");
-	duration<float, Time::period> progress{
-		time / std::chrono::duration_cast<duration<float, Time::period>>(instance_->duration_)
+	duration<float> progress{
+		time / std::chrono::duration_cast<duration<float>>(GetCurrentTweenPoint().duration_)
 	};
 	float p{ progress.count() };
 	if (std::isinf(p) || std::isnan(p)) {
@@ -94,11 +88,11 @@ float Tween::GetNewProgress(duration<float, Time::period> time) const {
 	return instance_->progress_ + p;
 }
 
-TweenType Tween::StepImpl(float dt, bool accumulate_progress) {
+float Tween::StepImpl(float dt, bool accumulate_progress) {
 	PTGN_ASSERT(IsValid(), "Cannot step uninitialized or destroyed tween");
 
-	if (!instance_->running_ || instance_->paused_) {
-		return GetValue();
+	if (!instance_->started_ || instance_->paused_) {
+		return GetProgress();
 	}
 
 	float new_progress = GetNewProgress(duration<float, seconds::period>(dt));
@@ -110,15 +104,15 @@ TweenType Tween::StepImpl(float dt, bool accumulate_progress) {
 	return SeekImpl(new_progress);
 }
 
-TweenType Tween::Step(float dt) {
+float Tween::Step(float dt) {
 	return StepImpl(dt, true);
 }
 
-TweenType Tween::Seek(float new_progress) {
+float Tween::Seek(float new_progress) {
 	PTGN_ASSERT(IsValid(), "Cannot seek uninitialized or destroyed tween");
 
-	if (!instance_->running_ || instance_->paused_) {
-		return GetValue();
+	if (!instance_->started_ || instance_->paused_) {
+		return GetProgress();
 	}
 
 	return SeekImpl(AccumulateProgress(new_progress));
@@ -129,14 +123,21 @@ float Tween::AccumulateProgress(float new_progress) {
 	PTGN_ASSERT(!std::isnan(new_progress));
 	PTGN_ASSERT(!std::isinf(new_progress));
 
-	if (new_progress < 1.0f) {
+	return std::clamp(new_progress, 0.0f, 1.0f);
+
+	/*
+	// TODO: Fix progress accumulation.
+	if (new_progress <= 1.0f) {
 		return new_progress;
 	}
 
 	float loops{ std::floorf(new_progress) };
 
 	for (float i = 0; i < loops; i++) {
+		// TODO: Check that this function behaves as intended. It should go through as many tween
+		// points as are available for the duration of new progress.
 		instance_->progress_ = 1.0f;
+		PointCompleted();
 		UpdateImpl(true);
 		if (IsCompleted()) {
 			return 1.0f;
@@ -148,9 +149,10 @@ float Tween::AccumulateProgress(float new_progress) {
 	new_progress -= loops;
 
 	return new_progress;
+	*/
 }
 
-TweenType Tween::SeekImpl(float new_progress) {
+float Tween::SeekImpl(float new_progress) {
 	PTGN_ASSERT(IsValid(), "Cannot seek uninitialized or destroyed tween");
 	PTGN_ASSERT(new_progress >= 0.0f && new_progress <= 1.0f, "Progress accumulator failed");
 
@@ -159,11 +161,11 @@ TweenType Tween::SeekImpl(float new_progress) {
 	return UpdateImpl(false);
 }
 
-TweenType Tween::Seek(milliseconds time) {
+float Tween::Seek(milliseconds time) {
 	PTGN_ASSERT(IsValid(), "Cannot seek uninitialized or destroyed tween");
 
-	if (!instance_->running_ || instance_->paused_) {
-		return GetValue();
+	if (!instance_->started_ || instance_->paused_) {
+		return GetProgress();
 	}
 
 	float new_progress = GetNewProgress(time);
@@ -174,107 +176,86 @@ TweenType Tween::Seek(milliseconds time) {
 float Tween::GetProgress() const {
 	PTGN_ASSERT(IsValid(), "Cannot get progress of uninitialized or destroyed tween");
 
-	float progress = instance_->reversed_ ? 1.0f - instance_->progress_ : instance_->progress_;
+	auto& current{ GetCurrentTweenPoint() };
+
+	float progress = current.reversed_ ? 1.0f - instance_->progress_ : instance_->progress_;
 
 	PTGN_ASSERT(progress >= 0.0f && progress <= 1.0f, "Progress updating failed");
 
-	return progress;
-}
-
-TweenType Tween::GetValue() const {
-	PTGN_ASSERT(IsValid(), "Cannot get value of uninitialized or destroyed tween");
-
-	auto it = impl::tween_ease_functions_.find(instance_->config_.ease);
-
-	PTGN_ASSERT(it != impl::tween_ease_functions_.end(), "Failed to recognize easing type");
-
-	const auto& ease_func = it->second;
-	return ease_func(GetProgress(), instance_->from_, instance_->to_);
-}
-
-TweenType Tween::GetFromValue() const {
-	PTGN_ASSERT(IsValid(), "Cannot get from value of uninitialized or destroyed tween");
-	return instance_->from_;
-}
-
-TweenType Tween::GetToValue() const {
-	PTGN_ASSERT(IsValid(), "Cannot get to value of uninitialized or destroyed tween");
-	return instance_->to_;
-}
-
-void Tween::SetDuration(milliseconds duration) {
-	PTGN_ASSERT(IsValid(), "Cannot set duration of uninitialized or destroyed tween");
-	instance_->duration_ = duration;
-	PTGN_ASSERT(instance_->duration_ > nanoseconds{ 250 });
-	UpdateImpl();
-}
-
-void Tween::SetFromValue(TweenType from) {
-	PTGN_ASSERT(IsValid(), "Cannot set from value of uninitialized or destroyed tween");
-	instance_->from_ = from;
-	UpdateImpl();
-}
-
-void Tween::SetToValue(TweenType to) {
-	PTGN_ASSERT(IsValid(), "Cannot set to value of uninitialized or destroyed tween");
-	instance_->to_ = to;
-	UpdateImpl();
-}
-
-const TweenConfig& Tween::GetConfig() const {
-	PTGN_ASSERT(IsValid(), "Cannot get config of uninitialized or destroyed tween");
-	return instance_->config_;
+	return std::invoke(current.easing_func_, progress, 0.0f, 1.0f);
 }
 
 bool Tween::IsCompleted() const {
-	return IsValid() && instance_->completed_;
+	return IsValid() && instance_->index_ >= instance_->tweens_points_.size() - 1 &&
+		   instance_->progress_ >= 1.0f;
 }
 
 bool Tween::IsStarted() const {
-	return IsValid() && instance_->running_;
+	return IsValid() && instance_->started_;
 }
 
 bool Tween::IsPaused() const {
 	return IsValid() && instance_->paused_;
 }
 
-std::int64_t Tween::GetRepeats() const {
-	PTGN_ASSERT(IsValid(), "Cannot get repeats of uninitialized or destroyed tween");
-	return instance_->repeats_;
+bool Tween::IsValid() const {
+	return Handle::IsValid() && instance_->tweens_points_.size() > 0;
 }
 
-void Tween::SetReversed(bool reversed) {
+std::int64_t Tween::GetRepeats() const {
+	PTGN_ASSERT(IsValid(), "Cannot get repeats of uninitialized or destroyed tween");
+	return GetCurrentTweenPoint().current_repeat_;
+}
+
+Tween& Tween::Repeat(std::int64_t repeats) {
+	PTGN_ASSERT(IsValid(), "Cannot set repeats of uninitialized or destroyed tween");
+	PTGN_ASSERT(repeats == -1 || repeats > 0);
+	auto& total_repeats{ GetLastTweenPoint().total_repeats_ };
+	total_repeats = repeats;
+	if (total_repeats != -1) {
+		// +1 because the first pass is not counted as a repeat.
+		total_repeats += 1;
+	}
+	return *this;
+}
+
+Tween& Tween::Ease(TweenEase ease) {
+	PTGN_ASSERT(IsValid(), "Cannot set easing function of uninitialized or destroyed tween");
+	auto it = impl::tween_ease_functions_.find(ease);
+	PTGN_ASSERT(it != impl::tween_ease_functions_.end(), "Could not identify tween easing type");
+	GetLastTweenPoint().easing_func_ = it->second;
+	return *this;
+}
+
+Tween& Tween::Reverse(bool reversed) {
 	PTGN_ASSERT(IsValid(), "Cannot reverse uninitialized or destroyed tween");
-	instance_->reversed_ = reversed;
+	GetLastTweenPoint().reversed_ = reversed;
+	return *this;
+}
+
+Tween& Tween::Yoyo(bool yoyo) {
+	PTGN_ASSERT(IsValid(), "Cannot yoyo uninitialized or destroyed tween");
+	GetLastTweenPoint().yoyo_ = yoyo;
+	return *this;
 }
 
 void Tween::Forward() {
-	SetReversed(false);
+	Reverse(false);
 }
 
 void Tween::Backward() {
-	SetReversed(true);
+	Reverse(true);
 }
 
 void Tween::Complete() {
-	Seek(instance_->reversed_ ? 0.0f : 1.0f);
-}
-
-void Tween::Reset() {
-	PTGN_ASSERT(IsValid(), "Cannot reset uninitialized or destroyed tween");
-	instance_->repeats_	  = 0;
-	instance_->progress_  = 0.0f;
-	instance_->running_	  = false;
-	instance_->completed_ = false;
-	instance_->reversed_  = instance_->config_.reversed;
-	instance_->paused_	  = instance_->config_.paused;
+	Seek(GetCurrentTweenPoint().reversed_ ? 0.0f : 1.0f);
 }
 
 void Tween::Stop() {
 	PTGN_ASSERT(IsValid(), "Cannot stop uninitialized or destroyed tween");
-	if (instance_->running_) {
-		ActivateCallback(instance_->config_.on_stop, GetValue());
-		instance_->running_ = false;
+	if (instance_->started_) {
+		ActivateCallback(GetCurrentTweenPoint().on_stop_, GetProgress());
+		instance_->started_ = false;
 		// TODO: Consider destroying tween instance.
 		// Destroy();
 	}
@@ -284,32 +265,60 @@ void Tween::Destroy() {
 	instance_.reset();
 }
 
-void Tween::ActivateCallback(const TweenCallback& callback, TweenType value) {
-	if (callback != nullptr) {
-		callback(*this, value);
+template <typename T, typename... TArgs>
+inline void InvokeCallback(const TweenCallback& callback, TArgs&&... args) {
+	auto& f = std::get<T>(callback);
+	if (f) {
+		std::invoke(f, std::forward<TArgs>(args)...);
+	}
+}
+
+void Tween::ActivateCallback(const TweenCallback& callback, float value) {
+	if (std::holds_alternative<std::function<void()>>(callback)) {
+		InvokeCallback<std::function<void()>>(callback);
+	} else if (std::holds_alternative<std::function<void(float)>>(callback)) {
+		InvokeCallback<std::function<void(float)>>(callback, value);
+	} else if (std::holds_alternative<std::function<void(Tween&)>>(callback)) {
+		InvokeCallback<std::function<void(Tween&)>>(callback, *this);
+	} else if (std::holds_alternative<std::function<void(Tween&, float)>>(callback)) {
+		InvokeCallback<std::function<void(Tween&, float)>>(callback, *this, value);
+	} else {
+		PTGN_ERROR("Failed to identify tween callback function");
 	}
 }
 
 void Tween::HandleRepeats() {
 	PTGN_ASSERT(instance_->progress_ <= 1.0f);
 
-	if (instance_->progress_ >= 1.0f &&
-		(instance_->repeats_ < instance_->config_.repeat || instance_->config_.repeat == -1)) {
-		instance_->repeats_++;
-	}
+	auto& current{ GetCurrentTweenPoint() };
 
-	PTGN_ASSERT(
-		instance_->repeats_ <= instance_->config_.repeat || instance_->config_.repeat == -1
-	);
+	if (instance_->progress_ >= 1.0f &&
+		(current.current_repeat_ < current.total_repeats_ || current.total_repeats_ == -1)) {
+		current.current_repeat_++;
+	}
 }
 
-void Tween::HandleCallbacks(TweenType value, bool suppress_update) {
-	if (!instance_->running_ || instance_->paused_) {
+void Tween::PointCompleted() {
+	ActivateCallback(GetCurrentTweenPoint().on_complete_, GetProgress());
+	if (instance_->index_ < instance_->tweens_points_.size() - 1) {
+		instance_->index_++;
+		instance_->progress_ = 0.0f;
+		ActivateCallback(GetCurrentTweenPoint().on_start_, GetProgress());
+	} else {
+		instance_->progress_ = 1.0f;
+		instance_->started_	 = false;
+	}
+}
+
+void Tween::HandleCallbacks(float value, bool suppress_update) {
+	if (!instance_->started_ || instance_->paused_) {
 		return;
 	}
 
+	auto& current{ GetCurrentTweenPoint() };
+
 	if (!suppress_update) {
-		ActivateCallback(instance_->config_.on_update, value);
+		ActivateCallback(current.on_update_, value);
 	}
 
 	PTGN_ASSERT(instance_->progress_ <= 1.0f);
@@ -320,32 +329,82 @@ void Tween::HandleCallbacks(TweenType value, bool suppress_update) {
 	}
 
 	// Completed tween.
-	if (instance_->repeats_ == instance_->config_.repeat) {
-		instance_->running_	  = false;
-		instance_->completed_ = true;
+	if (current.current_repeat_ == current.total_repeats_) {
 		if (suppress_update) {
-			ActivateCallback(instance_->config_.on_update, value);
+			ActivateCallback(current.on_update_, value);
 		}
-		ActivateCallback(instance_->config_.on_complete, value);
+		PointCompleted();
 		return;
 	}
 
 	// Reverse yoyoing tweens.
-	if (instance_->config_.yoyo) {
-		SetReversed(!instance_->reversed_);
-		ActivateCallback(instance_->config_.on_yoyo, value);
+	if (current.yoyo_) {
+		Reverse(!current.reversed_);
+		ActivateCallback(current.on_yoyo_, value);
 	}
 
 	// Repeat the tween.
 	instance_->progress_ = 0.0f;
-	ActivateCallback(instance_->config_.on_repeat, value);
+	ActivateCallback(current.on_repeat_, value);
 }
 
-TweenType Tween::UpdateImpl(bool suppress_update) {
+float Tween::UpdateImpl(bool suppress_update) {
+	PTGN_ASSERT(IsValid(), "Cannot update uninitialized or destroyed tween");
+	auto value{ GetProgress() };
+	if (instance_->index_ >= instance_->tweens_points_.size()) {
+		return value;
+	}
 	HandleRepeats();
-	auto value{ GetValue() };
 	HandleCallbacks(value, suppress_update);
 	return value;
+}
+
+Tween& Tween::OnUpdate(const TweenCallback& callback) {
+	PTGN_ASSERT(IsValid(), "Cannot set tween callback of uninitialized or destroyed tween");
+	GetLastTweenPoint().on_update_ = callback;
+	return *this;
+}
+
+Tween& Tween::OnStart(const TweenCallback& callback) {
+	PTGN_ASSERT(IsValid(), "Cannot set tween callback of uninitialized or destroyed tween");
+	GetLastTweenPoint().on_start_ = callback;
+	return *this;
+}
+
+Tween& Tween::OnComplete(const TweenCallback& callback) {
+	PTGN_ASSERT(IsValid(), "Cannot set tween callback of uninitialized or destroyed tween");
+	GetLastTweenPoint().on_complete_ = callback;
+	return *this;
+}
+
+Tween& Tween::OnStop(const TweenCallback& callback) {
+	PTGN_ASSERT(IsValid(), "Cannot set tween callback of uninitialized or destroyed tween");
+	GetLastTweenPoint().on_stop_ = callback;
+	return *this;
+}
+
+Tween& Tween::OnPause(const TweenCallback& callback) {
+	PTGN_ASSERT(IsValid(), "Cannot set tween callback of uninitialized or destroyed tween");
+	GetLastTweenPoint().on_pause_ = callback;
+	return *this;
+}
+
+Tween& Tween::OnResume(const TweenCallback& callback) {
+	PTGN_ASSERT(IsValid(), "Cannot set tween callback of uninitialized or destroyed tween");
+	GetLastTweenPoint().on_resume_ = callback;
+	return *this;
+}
+
+Tween& Tween::OnRepeat(const TweenCallback& callback) {
+	PTGN_ASSERT(IsValid(), "Cannot set tween callback of uninitialized or destroyed tween");
+	GetLastTweenPoint().on_repeat_ = callback;
+	return *this;
+}
+
+Tween& Tween::OnYoyo(const TweenCallback& callback) {
+	PTGN_ASSERT(IsValid(), "Cannot set tween callback of uninitialized or destroyed tween");
+	GetLastTweenPoint().on_yoyo_ = callback;
+	return *this;
 }
 
 } // namespace ptgn
