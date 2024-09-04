@@ -31,7 +31,7 @@ struct Screen {
 
 class Window {
 private:
-	Window();
+	Window()						 = default;
 	~Window()						 = default;
 	Window(const Window&)			 = delete;
 	Window(Window&&)				 = default;
@@ -87,12 +87,15 @@ private:
 	friend class impl::GLContext;
 	friend class Game;
 
+	void Init();
+	void Shutdown();
+
 	void SetRelativeMouseMode(bool on);
 	void SetMouseGrab(bool on);
 	void CaptureMouse(bool on);
 	void SetAlwaysOnTop(bool on);
 
-	[[nodiscard]] bool Exists();
+	[[nodiscard]] bool Exists() const;
 
 	std::unique_ptr<SDL_Window, impl::WindowDeleter> window_;
 };

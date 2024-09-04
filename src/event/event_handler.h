@@ -116,6 +116,9 @@ public:
 
 private:
 	friend class Game;
+
+	void Init();
+	void Shutdown();
 };
 
 } // namespace ptgn

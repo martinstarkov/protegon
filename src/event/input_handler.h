@@ -18,8 +18,8 @@ class Game;
 
 class InputHandler {
 private:
-	InputHandler();
-	~InputHandler();
+	InputHandler()								 = default;
+	~InputHandler()								 = default;
 	InputHandler(const InputHandler&)			 = delete;
 	InputHandler(InputHandler&&)				 = default;
 	InputHandler& operator=(const InputHandler&) = delete;
@@ -42,6 +42,9 @@ private:
 	[[nodiscard]] MouseState GetMouseState(Mouse button) const;
 
 	void Update();
+
+	void Init();
+	void Shutdown();
 
 public:
 	[[nodiscard]] milliseconds GetMouseHeldTime(Mouse button);

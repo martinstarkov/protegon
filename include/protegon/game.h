@@ -19,14 +19,20 @@ namespace ptgn {
 
 namespace impl {
 
+struct WindowDeleter;
+struct MixMusicDeleter;
+struct MixChunkDeleter;
+struct SDL_SurfaceDeleter;
+struct TTF_FontDeleter;
+
 static void EmscriptenLoop(void* data);
 
 } // namespace impl
 
 class Game {
 public:
-	Game();
-	~Game() = default;
+	Game() = default;
+	~Game();
 
 private:
 	Game(const Game&)			 = delete;
@@ -77,10 +83,12 @@ public:
 		return update_stack_.size();
 	}
 
-	// Optional: pass in constructor arguments for the TStartScene.
+	// Optional: pass in constructor arguments for the start scene.
 	template <typename TStartScene, typename... TArgs>
 	void Start(TArgs&&... constructor_args) {
 		running_ = true;
+
+		Init();
 
 		// Always quit on window quit.
 		event.window.Subscribe(
@@ -88,26 +96,32 @@ public:
 			std::function([&](const WindowQuitEvent& e) { PopLoopFunction(); })
 		);
 
-		scene.StartScene<TStartScene>(
-			impl::start_scene_key, std::forward<TArgs>(constructor_args)...
-		);
+		scene.Init<TStartScene>(impl::start_scene_key, std::forward<TArgs>(constructor_args)...);
 
 		PushLoopFunction([&](float dt) { scene.Update(dt); });
 
 		MainLoop();
 
-		event.window.Unsubscribe((void*)this);
-		Reset();
+		Stop();
 	}
 
 	void Stop();
 
+	[[nodiscard]] bool IsRunning() const;
+
 private:
+	friend struct impl::WindowDeleter;
+	friend struct impl::MixMusicDeleter;
+	friend struct impl::MixChunkDeleter;
+	friend struct impl::SDL_SurfaceDeleter;
+	friend struct impl::TTF_FontDeleter;
+	friend class impl::GLContext;
 	friend void impl::EmscriptenLoop(void* data);
 
 	void MainLoop();
 	void Update();
-	void Reset();
+	void Init();
+	void Shutdown();
 
 	std::vector<UpdateFunction> update_stack_;
 

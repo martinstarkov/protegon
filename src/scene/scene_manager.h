@@ -63,7 +63,7 @@ private:
 	friend class Game;
 
 	template <typename TStartScene, typename... TArgs>
-	void StartScene(SceneKey scene_key, TArgs&&... constructor_args) {
+	void Init(SceneKey scene_key, TArgs&&... constructor_args) {
 		static_assert(
 			std::is_constructible_v<TStartScene, TArgs...>,
 			"Start scene must be constructible from given arguments, check that start scene "
@@ -83,6 +83,9 @@ private:
 		);
 		InitScene(scene_key);
 	}
+
+	void Reset();
+	void Shutdown();
 
 	void Update(float dt);
 	void UnloadFlagged();

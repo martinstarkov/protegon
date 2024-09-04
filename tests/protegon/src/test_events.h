@@ -7,15 +7,12 @@
 using namespace ptgn;
 
 void TestEvents() {
+	void* event_observer = (void*)&(game.event);
+
 	game.PushLoopFunction([&]() {
-		static bool init{ false };
-		if (!init) {
-			init = true;
-
-			bool event_observer{ false };
-
+		if (!game.event.window.IsSubscribed(event_observer)) {
 			game.event.window.Subscribe(
-				(void*)&event_observer, std::function([&](WindowEvent type, const Event& e) {
+				event_observer, std::function([&](WindowEvent type, const Event& e) {
 					switch (type) {
 						case WindowEvent::Resizing: {
 							const auto& es{ static_cast<const WindowResizingEvent&>(e) };
@@ -37,7 +34,7 @@ void TestEvents() {
 				})
 			);
 			game.event.mouse.Subscribe(
-				(void*)&event_observer, std::function([&](MouseEvent type, const Event& e) {
+				event_observer, std::function([&](MouseEvent type, const Event& e) {
 					switch (type) {
 						case MouseEvent::Down: {
 							const auto& es{ static_cast<const MouseDownEvent&>(e) };
@@ -70,7 +67,7 @@ void TestEvents() {
 				})
 			);
 			game.event.key.Subscribe(
-				(void*)&event_observer, std::function([&](KeyEvent type, const Event& e) {
+				event_observer, std::function([&](KeyEvent type, const Event& e) {
 					switch (type) {
 						case KeyEvent::Pressed: {
 							const auto& es{ static_cast<const KeyPressedEvent&>(e) };

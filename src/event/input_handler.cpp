@@ -2,9 +2,9 @@
 
 #include <algorithm>
 
-#include "SDL.h"
 #include "protegon/game.h"
 #include "protegon/log.h"
+#include "SDL.h"
 #include "utility/debug.h"
 
 namespace ptgn {
@@ -177,12 +177,13 @@ inline int WindowEventWatcher(void* data, SDL_Event* event) {
 	return 0;
 }
 
-InputHandler::InputHandler() {
+void InputHandler::Init() {
 	SDL_AddEventWatch(WindowEventWatcher, game.window.GetSDLWindow());
 }
 
-InputHandler::~InputHandler() {
+void InputHandler::Shutdown() {
 	SDL_DelEventWatch(WindowEventWatcher, game.window.GetSDLWindow());
+	Reset();
 }
 
 void InputHandler::UpdateMouseState(Mouse button) {

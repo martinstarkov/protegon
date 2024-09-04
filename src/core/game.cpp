@@ -62,10 +62,9 @@ static void InitApplePath() {
 
 #endif
 
-Game::Game() {
-#if defined(PTGN_PLATFORM_MACOS) && !defined(__EMSCRIPTEN__)
-	impl::InitApplePath();
-#endif
+Game::~Game() {
+	gl_context_.Shutdown();
+	sdl_instance_.Shutdown();
 }
 
 void Game::PushLoopFunction(const UpdateFunction& loop_function) {
@@ -83,29 +82,72 @@ void Game::PopLoopFunction() {
 }
 
 void Game::Stop() {
-	update_stack_.clear();
-	running_ = false;
+	Shutdown();
+	update_stack_ = {};
+	running_	  = false;
 }
 
-void Game::Reset() {
+bool Game::IsRunning() const {
+	// Ensure that if game is running, SDL is initialized.
+	PTGN_ASSERT(std::invoke([&]() {
+		if (running_) {
+			return sdl_instance_.IsInitialized();
+		}
+		return true;
+	}));
+	return running_;
+}
+
+void Game::Init() {
+#if defined(PTGN_PLATFORM_MACOS) && !defined(__EMSCRIPTEN__)
+	impl::InitApplePath();
+#endif
+
+	if (!sdl_instance_.IsInitialized()) {
+		sdl_instance_.Init();
+	}
+	window.Init();
+	gl_context_.Init();
+	event.Init();
+	input.Init();
+	renderer.Init();
+	collision.Init();
+}
+
+void Game::Shutdown() {
 	// TODO: Figure out a better way to do this.
-	window = {};
-	gl_context_.~GLContext();
-	new (&gl_context_) impl::GLContext();
-	event	  = {};
-	input	  = {};
-	renderer  = {};
-	scene	  = {};
-	camera	  = {};
-	collision = {};
-	music	  = {};
-	sound	  = {};
-	font	  = {};
-	tween	  = {};
-	text	  = {};
-	texture	  = {};
-	shader	  = {};
-	profiler  = {};
+	profiler.Reset();
+	shader.Reset();
+	texture.Reset();
+	text.Reset();
+	tween.Reset();
+	font.Reset();
+	sound.Reset();
+	music.Reset();
+
+	collision.Shutdown();
+	scene.Shutdown();
+	renderer.Shutdown();
+	input.Shutdown();
+	event.Shutdown();
+	window.Shutdown();
+
+	// Keep SDL2 instance and OpenGL context alive to ensure SDL2 objects such as TTF_Font are
+	// consistent across game instances. For instance: If the user does the following:
+	//
+	// game.Start<StartScene>();
+	// // Inside StartScene:
+	// static Font test_font;
+	// Text test_text{ test_font };
+	// // After window quit start again:
+	// game.Start<StartScene>();
+	// static Font test_font; // handle already created in the previous SDL initialization.
+	// Text test_text{ test_font }; // if SDL has been shutdown, this would not work due to
+	// inconsistent SDL versions.
+	//
+	// Instead, these are called in the Game destructor, which is called upon main() termination.
+	// gl_context_.Shutdown();
+	// sdl_instance_.Shutdown();
 }
 
 namespace impl {

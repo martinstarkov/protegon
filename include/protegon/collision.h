@@ -8,9 +8,17 @@
 
 namespace ptgn {
 
+class Game;
+
 class OverlapCollision {
 public:
-	OverlapCollision() = default;
+	OverlapCollision()									 = default;
+	~OverlapCollision()									 = default;
+	OverlapCollision(const OverlapCollision&)			 = delete;
+	OverlapCollision(OverlapCollision&&)				 = default;
+	OverlapCollision& operator=(const OverlapCollision&) = delete;
+	OverlapCollision& operator=(OverlapCollision&&)		 = default;
+
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 	// Page 79.
@@ -63,7 +71,13 @@ struct IntersectCollision {
 
 class IntersectCollisionHandler {
 public:
-	IntersectCollisionHandler() = default;
+	IntersectCollisionHandler()											   = default;
+	~IntersectCollisionHandler()										   = default;
+	IntersectCollisionHandler(const IntersectCollisionHandler&)			   = delete;
+	IntersectCollisionHandler(IntersectCollisionHandler&&)				   = default;
+	IntersectCollisionHandler& operator=(const IntersectCollisionHandler&) = delete;
+	IntersectCollisionHandler& operator=(IntersectCollisionHandler&&)	   = default;
+
 	static bool RectangleRectangle(
 		const Rectangle<float>& a, const Rectangle<float>& b, IntersectCollision& c
 	);
@@ -95,7 +109,13 @@ enum class DynamicCollisionShape {
 
 class DynamicCollisionHandler {
 public:
-	DynamicCollisionHandler() = default;
+	DynamicCollisionHandler()										   = default;
+	~DynamicCollisionHandler()										   = default;
+	DynamicCollisionHandler(const DynamicCollisionHandler&)			   = delete;
+	DynamicCollisionHandler(DynamicCollisionHandler&&)				   = default;
+	DynamicCollisionHandler& operator=(const DynamicCollisionHandler&) = delete;
+	DynamicCollisionHandler& operator=(DynamicCollisionHandler&&)	   = default;
+
 	// Source:
 	// https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect/565282#565282
 	static bool SegmentSegment(
@@ -242,10 +262,22 @@ private:
 
 class CollisionHandler {
 public:
-	CollisionHandler() = default;
 	OverlapCollision overlap{};
 	IntersectCollisionHandler intersect{};
 	DynamicCollisionHandler dynamic{};
+
+private:
+	friend class Game;
+
+	CollisionHandler()									 = default;
+	~CollisionHandler()									 = default;
+	CollisionHandler(const CollisionHandler&)			 = delete;
+	CollisionHandler(CollisionHandler&&)				 = default;
+	CollisionHandler& operator=(const CollisionHandler&) = delete;
+	CollisionHandler& operator=(CollisionHandler&&)		 = default;
+
+	void Init();
+	void Shutdown();
 };
 
 } // namespace ptgn

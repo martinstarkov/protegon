@@ -38,6 +38,8 @@ void TestLoop(
 
 	CheckForTestSwitch(current_test, (int)test_count, keys);
 
+	game.renderer.DrawPoint(game.input.GetMousePosition(), color::Red, 2.0f);
+
 	if (std::holds_alternative<std::function<void(float)>>(loop_function)) {
 		std::invoke(std::get<std::function<void(float)>>(loop_function), dt);
 	} else {

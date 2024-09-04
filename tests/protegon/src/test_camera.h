@@ -29,22 +29,31 @@ void TestCameraSwitching(float dt) {
 	ws	   = game.window.GetSize();
 	center = game.window.GetCenter();
 
-	static auto& camera1{ game.camera.Load(1) };
-	static auto& camera2{ game.camera.Load(2) };
-	static auto& camera3{ game.camera.Load(3) };
-	static auto& camera4{ game.camera.Load(4) };
-	static auto& camera5{ game.camera.Load(5) };
+	auto get_camera = [](std::size_t key) {
+		if (!game.camera.Has(key)) {
+			return game.camera.Load(key);
+		} else {
+			return game.camera.Get(key);
+		}
+	};
 
-	static auto v = std::invoke([]() {
-		camera1.SetPosition(V2_float{ 0, 0 });
-		camera2.SetPosition(V2_float{ ws.x, 0 });
-		camera3.SetPosition(ws);
-		camera4.SetPosition(V2_float{ 0, ws.y });
-		camera5.SetPosition(center);
+	OrthographicCamera camera1{ get_camera(1) };
+	OrthographicCamera camera2{ get_camera(2) };
+	OrthographicCamera camera3{ get_camera(3) };
+	OrthographicCamera camera4{ get_camera(4) };
+	OrthographicCamera camera5{ get_camera(5) };
 
+	camera1.SetPosition(V2_float{ 0, 0 });
+	camera2.SetPosition(V2_float{ ws.x, 0 });
+	camera3.SetPosition(ws);
+	camera4.SetPosition(V2_float{ 0, ws.y });
+	camera5.SetPosition(center);
+
+	auto primary = game.camera.GetPrimary();
+	if (primary != camera1 && primary != camera2 && primary != camera3 && primary != camera4 &&
+		primary != camera5) {
 		game.camera.SetPrimary(1);
-		return 0;
-	});
+	}
 
 	TestCameraLoop(
 		dt,

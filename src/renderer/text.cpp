@@ -1,9 +1,8 @@
 #include "protegon/text.h"
 
-#include "SDL.h"
-#include "SDL_ttf.h"
 #include "protegon/font.h"
 #include "protegon/game.h"
+#include "protegon/surface.h"
 #include "utility/debug.h"
 
 namespace ptgn {
@@ -21,36 +20,8 @@ Texture Text::RecreateTexture() {
 
 	const auto& f = instance_->font_.GetInstance();
 
-	TTF_SetFontStyle(f.get(), static_cast<int>(instance_->font_style_));
-
-	std::shared_ptr<SDL_Surface> surface;
-
-	SDL_Color tc{ instance_->text_color_.r, instance_->text_color_.g, instance_->text_color_.b,
-				  instance_->text_color_.a };
-
-	switch (instance_->render_mode_) {
-		case FontRenderMode::Solid:
-			surface = std::shared_ptr<SDL_Surface>{
-				TTF_RenderUTF8_Solid(f.get(), instance_->content_.c_str(), tc), SDL_FreeSurface
-			};
-			break;
-		case FontRenderMode::Shaded: {
-			SDL_Color sc{ instance_->shading_color_.r, instance_->shading_color_.g,
-						  instance_->shading_color_.b, instance_->shading_color_.a };
-			surface = std::shared_ptr<SDL_Surface>{
-				TTF_RenderUTF8_Shaded(f.get(), instance_->content_.c_str(), tc, sc), SDL_FreeSurface
-			};
-			break;
-		}
-		case FontRenderMode::Blended:
-			surface = std::shared_ptr<SDL_Surface>{
-				TTF_RenderUTF8_Blended(f.get(), instance_->content_.c_str(), tc), SDL_FreeSurface
-			};
-			break;
-		default: PTGN_ERROR("Unrecognized render mode given when creating text");
-	}
-
-	PTGN_ASSERT(surface != nullptr, "Failed to create surface for given text information");
+	Surface surface{ instance_->font_,		  instance_->font_style_, instance_->text_color_,
+					 instance_->render_mode_, instance_->content_,	  instance_->shading_color_ };
 
 	return Texture(surface);
 }
@@ -214,9 +185,7 @@ void Text::Draw(const Rectangle<int>& destination) const {
 }
 
 V2_int Text::GetSize(const FontOrKey& font, const std::string& content) {
-	V2_int size;
-	TTF_SizeUTF8(GetFont(font).GetInstance().get(), content.c_str(), &size.x, &size.y);
-	return size;
+	return Surface::GetSize(GetFont(font), content);
 }
 
 } // namespace ptgn
