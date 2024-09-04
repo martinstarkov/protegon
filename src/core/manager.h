@@ -89,6 +89,10 @@ public:
 		return map_.size();
 	}
 
+	void Reset() {
+		map_ = {};
+	}
+
 protected:
 	using Map = std::unordered_map<Key, Item>;
 

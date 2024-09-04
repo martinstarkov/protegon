@@ -9,8 +9,6 @@
 #include "protegon/texture.h"
 #include "utility/handle.h"
 
-struct SDL_Texture;
-
 namespace ptgn {
 
 namespace impl {

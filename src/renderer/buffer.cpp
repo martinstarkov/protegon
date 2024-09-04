@@ -28,7 +28,7 @@ BufferInstance::~BufferInstance() {
 template <BufferType BT>
 void Buffer<BT>::SetDataImpl(const void* data, std::uint32_t size, BufferUsage usage) {
 	PTGN_ASSERT(size != 0, "Must provide more than one element when creating buffer");
-	PTGN_ASSERT(data != nullptr);
+	// PTGN_ASSERT(data != nullptr);
 	VertexArray::Unbind();
 	Bind();
 	GLCall(gl::BufferData(static_cast<gl::GLenum>(BT), size, data, static_cast<gl::GLenum>(usage)));

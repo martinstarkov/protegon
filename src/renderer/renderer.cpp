@@ -14,6 +14,8 @@ namespace ptgn {
 
 namespace impl {
 
+static constexpr std::size_t batch_capacity{ 2000 };
+
 float TriangulateArea(const V2_float* contour, std::size_t count) {
 	PTGN_ASSERT(contour != nullptr);
 	int n = static_cast<int>(count);
@@ -170,17 +172,60 @@ Batch::Batch(RendererData* renderer) : renderer_{ renderer } {
 	PTGN_ASSERT(renderer_ != nullptr);
 
 	quad_ = { renderer_->max_texture_slots_ };
-	quad_.data_.reserve(renderer_->batch_capacity_);
-	circle_.data_.reserve(renderer_->batch_capacity_);
-	triangle_.data_.reserve(renderer_->batch_capacity_);
-	line_.data_.reserve(renderer_->batch_capacity_);
-	point_.data_.reserve(renderer_->batch_capacity_);
 
-	SetArray(quad_, PrimitiveMode::Triangles, renderer_->quad_layout, renderer_->quad_ib_);
-	SetArray(circle_, PrimitiveMode::Triangles, renderer_->circle_layout, renderer_->quad_ib_);
-	SetArray(triangle_, PrimitiveMode::Triangles, renderer_->color_layout, renderer_->triangle_ib_);
-	SetArray(line_, PrimitiveMode::Lines, renderer_->color_layout, renderer_->line_ib_);
-	SetArray(point_, PrimitiveMode::Points, renderer_->color_layout, renderer_->point_ib_);
+	quad_.data_.reserve(batch_capacity);
+	circle_.data_.reserve(batch_capacity);
+	triangle_.data_.reserve(batch_capacity);
+	line_.data_.reserve(batch_capacity);
+	point_.data_.reserve(batch_capacity);
+
+	SetArray(
+		batch_capacity, quad_, PrimitiveMode::Triangles, renderer_->quad_layout, renderer_->quad_ib_
+	);
+	SetArray(
+		batch_capacity, circle_, PrimitiveMode::Triangles, renderer_->circle_layout,
+		renderer_->quad_ib_
+	);
+	SetArray(
+		batch_capacity, triangle_, PrimitiveMode::Triangles, renderer_->color_layout,
+		renderer_->triangle_ib_
+	);
+	SetArray(
+		batch_capacity, line_, PrimitiveMode::Lines, renderer_->color_layout, renderer_->line_ib_
+	);
+	SetArray(
+		batch_capacity, point_, PrimitiveMode::Points, renderer_->color_layout, renderer_->point_ib_
+	);
+}
+
+template <typename TVertices, std::size_t IndexCount>
+bool BatchData<TVertices, IndexCount>::IsAvailable() const {
+	return data_.size() != batch_capacity;
+}
+
+template <typename TVertices, std::size_t IndexCount>
+TVertices& BatchData<TVertices, IndexCount>::Get() {
+	PTGN_ASSERT(data_.size() + 1 <= batch_capacity);
+	return data_.emplace_back(TVertices{});
+}
+
+template <typename TVertices, std::size_t IndexCount>
+void BatchData<TVertices, IndexCount>::Flush() {
+	if (!IsFlushed()) {
+		Draw();
+	}
+}
+
+template <typename TVertices, std::size_t IndexCount>
+void BatchData<TVertices, IndexCount>::UpdateBuffer() {
+	array_.GetVertexBuffer().SetSubData(
+		data_.data(), static_cast<std::uint32_t>(data_.size()) * sizeof(TVertices)
+	);
+}
+
+template <typename TVertices, std::size_t IndexCount>
+bool BatchData<TVertices, IndexCount>::IsFlushed() const {
+	return data_.size() == 0;
 }
 
 template <typename TVertices, std::size_t IndexCount>
@@ -192,7 +237,103 @@ void BatchData<TVertices, IndexCount>::Draw() {
 	data_.clear();
 }
 
-RendererData::RendererData() {
+TextureBatchData::TextureBatchData(std::size_t max_texture_slots) {
+	// First texture slot is reserved for the empty white texture.
+	textures_.reserve(max_texture_slots - 1);
+}
+
+void TextureBatchData::BindTextures() {
+	for (std::uint32_t i{ 0 }; i < textures_.size(); i++) {
+		// Save first texture slot for empty white texture.
+		auto slot{ i + 1 };
+		textures_[i].Bind(slot);
+		/*PTGN_LOG(
+			"Active Slot: ", Texture::GetActiveSlot(),
+			", Bound Texture: ", Texture::GetBoundId()
+		);*/
+	}
+}
+
+bool TextureBatchData::IsAvailable() const {
+	return data_.size() != batch_capacity;
+}
+
+std::pair<std::size_t, bool> TextureBatchData::GetTextureIndex(const Texture& t) {
+	// Texture exists in batch, therefore do not readd it.
+	for (std::size_t i = 0; i < textures_.size(); i++) {
+		if (textures_[i] == t) {
+			// First texture index is white texture.
+			return { i + 1, true };
+		}
+	}
+	// Texture does not exist in batch but can be added.
+	if (HasAvailableTextureSlot()) {
+		auto index{ textures_.size() + 1 };
+		textures_.emplace_back(t);
+		return { index, true };
+	}
+	// Texture does not exist in batch and batch is full.
+	return { 0, false };
+}
+
+std::size_t TextureBatchData::GetTextureSlotCapacity() const {
+	return textures_.capacity();
+}
+
+bool TextureBatchData::HasAvailableTextureSlot() const {
+	return textures_.size() != textures_.capacity();
+}
+
+bool Batch::IsFlushed(BatchType type) {
+	switch (type) {
+		case BatchType::Quad:	  return quad_.IsFlushed();
+		case BatchType::Triangle: return triangle_.IsFlushed();
+		case BatchType::Line:	  return line_.IsFlushed();
+		case BatchType::Circle:	  return circle_.IsFlushed();
+		case BatchType::Point:	  return point_.IsFlushed();
+		default:				  PTGN_ERROR("Failed to recognize batch type when checking IsFlushed");
+	}
+}
+
+void Batch::Flush(BatchType type) {
+	switch (type) {
+		case BatchType::Quad: {
+			quad_.BindTextures();
+			quad_.Flush();
+			break;
+		}
+		case BatchType::Triangle: {
+			triangle_.Flush();
+			break;
+		}
+		case BatchType::Line: {
+			line_.Flush();
+			break;
+		}
+		case BatchType::Circle: {
+			circle_.Flush();
+			break;
+		}
+		case BatchType::Point: {
+			point_.Flush();
+			break;
+		}
+		default: PTGN_ERROR("Failed to recognize batch type when flushing");
+	}
+}
+
+bool Batch::IsAvailable(BatchType type) const {
+	switch (type) {
+		case BatchType::Quad:	  return quad_.IsAvailable();
+		case BatchType::Triangle: return triangle_.IsAvailable();
+		case BatchType::Line:	  return line_.IsAvailable();
+		case BatchType::Circle:	  return circle_.IsAvailable();
+		case BatchType::Point:	  return point_.IsAvailable();
+		default:				  PTGN_ERROR("Failed to identify batch type when checking availability");
+	}
+}
+
+void RendererData::Init() {
 	auto get_indices = [](std::size_t max_indices, const auto& generator) {
 		std::vector<std::uint32_t> indices;
 		indices.resize(max_indices);
@@ -216,10 +357,10 @@ RendererData::RendererData() {
 		return i++;
 	};
 
-	quad_ib_	 = { get_indices(batch_capacity_ * 6, quad_generator) };
-	triangle_ib_ = { get_indices(batch_capacity_ * 3, iota) };
-	line_ib_	 = { get_indices(batch_capacity_ * 2, iota) };
-	point_ib_	 = { get_indices(batch_capacity_ * 1, iota) };
+	quad_ib_	 = { get_indices(batch_capacity * 6, quad_generator) };
+	triangle_ib_ = { get_indices(batch_capacity * 3, iota) };
+	line_ib_	 = { get_indices(batch_capacity * 2, iota) };
+	point_ib_	 = { get_indices(batch_capacity * 1, iota) };
 
 	// First texture slot is occupied by white texture
 	white_texture_ = Texture({ color::White }, { 1, 1 });
@@ -406,6 +547,121 @@ std::array<V2_float, 4> RendererData::GetTextureCoordinates(
 	return texture_coordinates;
 }
 
+Shader& RendererData::GetShader(BatchType type) {
+	switch (type) {
+		case BatchType::Quad:	  return quad_shader_;
+		case BatchType::Triangle:
+		case BatchType::Line:
+		case BatchType::Point:	  return color_shader_;
+		case BatchType::Circle:	  return circle_shader_;
+		default:				  PTGN_ERROR("Failed to recognize shader batch type");
+	}
+}
+
+void RendererData::AddQuad(
+	const std::array<V2_float, 4>& vertices, float z_index, const V4_float& color,
+	const std::array<V2_float, 4>& tex_coords, const Texture& t
+) {
+	if (t == white_texture_) {
+		auto& batch_group = GetBatchGroup(color.w, z_index);
+		GetBatch(BatchType::Quad, batch_group).quad_.Get() =
+			impl::QuadVertices(vertices, z_index, color, tex_coords, 0.0f);
+		return;
+	}
+
+	// Textures are always considered as part of the transparent batch groups.
+	// In the future one could do a t.HasTransparency() check here to determine batch group.
+	auto& batch_group			= GetBatchGroup(0.0f, z_index);
+	auto [batch, texture_index] = GetTextureBatch(BatchType::Quad, batch_group, t);
+	batch.quad_.Get() =
+		impl::QuadVertices(vertices, z_index, color, tex_coords, static_cast<float>(texture_index));
+}
+
+void RendererData::AddCircle(
+	const std::array<V2_float, 4>& vertices, float z_index, const V4_float& color, float line_width,
+	float fade
+) {
+	auto& batch_group = GetBatchGroup(color.w, z_index);
+	GetBatch(BatchType::Circle, batch_group).circle_.Get() =
+		impl::CircleVertices(vertices, z_index, color, line_width, fade);
+}
+
+void RendererData::AddTriangle(
+	const V2_float& a, const V2_float& b, const V2_float& c, float z_index, const V4_float& color
+) {
+	auto& batch_group = GetBatchGroup(color.w, z_index);
+	GetBatch(BatchType::Triangle, batch_group).triangle_.Get() =
+		impl::TriangleVertices({ a, b, c }, z_index, color);
+}
+
+void RendererData::AddLine(
+	const V2_float& p0, const V2_float& p1, float z_index, const V4_float& color
+) {
+	auto& batch_group = GetBatchGroup(color.w, z_index);
+	GetBatch(BatchType::Line, batch_group).line_.Get() =
+		impl::LineVertices({ p0, p1 }, z_index, color);
+}
+
+void RendererData::AddPoint(const V2_float& position, float z_index, const V4_float& color) {
+	auto& batch_group = GetBatchGroup(color.w, z_index);
+	GetBatch(BatchType::Point, batch_group).point_.Get() =
+		impl::PointVertices({ position }, z_index, color);
+}
+
+std::vector<Batch>& RendererData::GetBatchGroup(float alpha, float z_index) {
+	// TODO: Add opaque batches back once you figure out how to do it using depth testing.
+	/*
+	if (NearlyEqual(alpha, 1.0f)) { // opaque object
+		if (opaque_batches_.size() == 0) {
+			opaque_batches_.emplace_back(this);
+		}
+		return opaque_batches_;
+	}
+	*/
+	// transparent object
+	auto z_index_key{ static_cast<std::int64_t>(z_index) };
+	auto it = transparent_batches_.find(z_index_key);
+	if (it != transparent_batches_.end()) {
+		return it->second;
+	}
+	std::vector<Batch> new_batch_group;
+	new_batch_group.emplace_back(this);
+	auto new_it = transparent_batches_.emplace(z_index_key, std::move(new_batch_group)).first;
+	PTGN_ASSERT(new_it->second.size() > 0);
+	PTGN_ASSERT(new_it->second.at(0).quad_.GetTextureSlotCapacity() == max_texture_slots_ - 1);
+	return new_it->second;
+}
+
+Batch& RendererData::GetBatch(BatchType type, std::vector<Batch>& batch_group) {
+	PTGN_ASSERT(batch_group.size() > 0);
+	auto& latest_batch = batch_group.back();
+	if (latest_batch.IsAvailable(type)) {
+		return latest_batch;
+	}
+	return batch_group.emplace_back(this);
+}
+
+std::pair<Batch&, std::size_t> RendererData::GetTextureBatch(
+	BatchType type, std::vector<Batch>& batch_group, const Texture& t
+) {
+	PTGN_ASSERT(batch_group.size() > 0);
+	PTGN_ASSERT(t.IsValid());
+	for (std::size_t i = 0; i < batch_group.size(); i++) {
+		auto& batch = batch_group[i];
+		if (batch.quad_.IsAvailable()) {
+			auto [texture_index, has_available_index] = batch.quad_.GetTextureIndex(t);
+			if (has_available_index) {
+				return { batch, texture_index };
+			}
+		}
+	}
+	auto& new_batch{ batch_group.emplace_back(this) };
+	auto [texture_index, has_available_index] = new_batch.quad_.GetTextureIndex(t);
+	PTGN_ASSERT(has_available_index);
+	PTGN_ASSERT(texture_index == 1);
+	return { new_batch, texture_index };
+}
+
 void OffsetVertices(std::array<V2_float, 4>& vertices, const V2_float& size, Origin draw_origin) {
 	auto draw_offset = GetOffsetFromCenter(size, draw_origin);
 
@@ -523,7 +779,7 @@ CircleVertices::CircleVertices(
 
 } // namespace impl
 
-Renderer::Renderer() {
+void Renderer::Init() {
 	GLRenderer::SetBlendMode(BlendMode::Blend);
 	GLRenderer::EnableLineSmoothing();
 
@@ -534,10 +790,20 @@ Renderer::Renderer() {
 		WindowEvent::Resized, (void*)this,
 		std::function([&](const WindowResizedEvent& e) { SetViewport(e.size); })
 	);
+
+	data_.Init();
 }
 
-Renderer::~Renderer() {
+void Renderer::Reset() {
+	clear_color_   = color::White;
+	blend_mode_	   = BlendMode::Blend;
+	viewport_size_ = {};
+	data_		   = {};
+}
+
+void Renderer::Shutdown() {
 	game.event.window.Unsubscribe((void*)this);
+	Reset();
 }
 
 Color Renderer::GetClearColor() const {

@@ -7,10 +7,10 @@
 using namespace ptgn;
 
 void TestText() {
-	static int ysize = 40;
+	int ysize = 40;
 
-	static std::size_t font_key = Hash("different_font");
-	static std::string content	= "The quick brown fox jumps over the lazy dog";
+	std::size_t font_key = Hash("different_font");
+	std::string content	 = "The quick brown fox jumps over the lazy dog";
 
 	static Font font{ "resources/fonts/Arial.ttf", ysize };
 	game.font.Load(font_key, "resources/fonts/retro_gaming.ttf", ysize);
@@ -23,41 +23,38 @@ void TestText() {
 
 	// PTGN_ASSERT(game.font.Has(font_key));
 
-	static Text test001; // empty text
+	Text test001; // empty text
 
 	// Different colored texts
 
-	static Text test002{ font, content, color::Black };
+	Text test002{ font, content, color::Black };
 
 	// PTGN_ASSERT(test002.IsValid());
 	// PTGN_ASSERT(test002.GetVisibility() == true);
 
 	// Actual size needed to render font without stretching.
-	static V2_int text_size = Text::GetSize(font, content);
-	static Text test003{ font, content, color::Pink };
-	static Text test004{ font, content, color::Pink, FontStyle::Bold };
-	static Text test005{ font, content, color::Black, FontStyle::Italic };
-	static Text test006{ font, content, color::Black, FontStyle::Strikethrough };
-	static Text test007{ font, content, color::Black, FontStyle::Underline };
-	static Text test008{ font, content, color::Black,
-						 FontStyle::Bold && FontStyle::Italic && FontStyle::Strikethrough &&
-							 FontStyle::Underline };
-	static Text test009{
-		font, content, color::Black, FontStyle::Normal, FontRenderMode::Shaded, color::Gold
-	};
+	V2_int text_size = Text::GetSize(font, content);
+	Text test003{ font, content, color::Pink };
+	Text test004{ font, content, color::Pink, FontStyle::Bold };
+	Text test005{ font, content, color::Black, FontStyle::Italic };
+	Text test006{ font, content, color::Black, FontStyle::Strikethrough };
+	Text test007{ font, content, color::Black, FontStyle::Underline };
+	Text test008{ font, content, color::Black,
+				  FontStyle::Bold && FontStyle::Italic && FontStyle::Strikethrough &&
+					  FontStyle::Underline };
+	Text test009{ font,		  content, color::Black, FontStyle::Normal, FontRenderMode::Shaded,
+				  color::Gold };
 	// Visually this should be bright blue but isnt due to alpha blending (i.e.
 	// this works as intended).
-	static Text test010{
-		font, content, { 0, 0, 255, 50 }, FontStyle::Normal, FontRenderMode::Blended
-	};
+	Text test010{ font, content, { 0, 0, 255, 50 }, FontStyle::Normal, FontRenderMode::Blended };
 	static Text test011{ font_key, "Press T to toggle my visibility!", color::Black };
-	static Text test012{ font_key,
-						 content + "!",
-						 color::Red,
-						 FontStyle::Bold && FontStyle::Italic && FontStyle::Strikethrough &&
-							 FontStyle::Underline,
-						 FontRenderMode::Shaded,
-						 color::Cyan };
+	Text test012{ font_key,
+				  content + "!",
+				  color::Red,
+				  FontStyle::Bold && FontStyle::Italic && FontStyle::Strikethrough &&
+					  FontStyle::Underline,
+				  FontRenderMode::Shaded,
+				  color::Cyan };
 
 	/*const FontOrKey& font,
 	const std::string& content,
@@ -66,7 +63,7 @@ void TestText() {
 	FontRenderMode render_mode = FontRenderMode::Solid,
 	const Color& shading_color = color::White*/
 
-	game.PushLoopFunction([&]() {
+	game.PushLoopFunction([=]() {
 		game.window.SetTitle("Text Tests");
 		game.window.SetSize({ 800, 660 });
 		game.scene.GetTopActive().camera.ResetPrimaryToWindow();

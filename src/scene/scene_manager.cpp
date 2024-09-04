@@ -80,6 +80,16 @@ Scene& SceneManager::GetTopActive() {
 	return *scene;
 }
 
+void SceneManager::Reset() {
+	flagged_	   = 0;
+	active_scenes_ = {};
+	Manager::Reset();
+}
+
+void SceneManager::Shutdown() {
+	Reset();
+}
+
 void SceneManager::Update(float dt) {
 	for (auto scene_key : active_scenes_) {
 		PTGN_ASSERT(Has(scene_key));

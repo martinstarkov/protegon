@@ -1,10 +1,10 @@
-#include "gl_context.h"
+#include "core/gl_context.h"
 
 #include <ostream>
 
-#include "SDL.h"
 #include "protegon/game.h"
 #include "renderer/gl_loader.h"
+#include "SDL.h"
 #include "utility/debug.h"
 
 namespace ptgn {
@@ -69,13 +69,23 @@ void GLContext::LoadGLFunctions() {
 	PTGN_INFO("Loaded all OpenGL functions");
 }
 
-GLContext::GLContext() {
+bool GLContext::IsInitialized() const {
+	return context_ != nullptr;
+}
+
+void GLContext::Init() {
 	PTGN_ASSERT(
 		game.window.Exists(), "GLContext must be constructed after SDL window construction"
 	);
 
+	if (IsInitialized()) {
+		int result = SDL_GL_MakeCurrent(game.window.GetSDLWindow(), context_);
+		PTGN_ASSERT(result == 0, SDL_GetError());
+		return;
+	}
+
 	context_ = SDL_GL_CreateContext(game.window.GetSDLWindow());
-	PTGN_ASSERT(context_ != nullptr, SDL_GetError());
+	PTGN_ASSERT(IsInitialized(), SDL_GetError());
 
 	GLVersion gl_version;
 
@@ -89,9 +99,54 @@ GLContext::GLContext() {
 	LoadGLFunctions();
 }
 
-GLContext::~GLContext() {
+void GLContext::Shutdown() {
 	SDL_GL_DeleteContext(context_);
+	context_ = nullptr;
 	PTGN_INFO("Destroyed OpenGL context");
+}
+
+void GLContext::ClearErrors() {
+	while (game.gl_context_.IsInitialized() && game.IsRunning() &&
+		   gl::glGetError() != static_cast<gl::GLenum>(GLError::None)) {}
+}
+
+std::vector<GLError> GLContext::GetErrors() {
+	std::vector<GLError> errors;
+	while (game.gl_context_.IsInitialized() && game.IsRunning()) {
+		gl::GLenum error = gl::glGetError();
+		GLError e		 = static_cast<GLError>(error);
+		if (e == GLError::None) {
+			break;
+		}
+		errors.push_back(e);
+	}
+	return errors;
+}
+
+std::string GLContext::GetErrorString(GLError error) {
+	PTGN_ASSERT(error != GLError::None, "Cannot retrieve error string for none type error");
+	switch (error) {
+		case GLError::InvalidEnum:		return "Invalid Enum";
+		case GLError::InvalidValue:		return "Invalid Value";
+		case GLError::InvalidOperation: return "Invalid Operation";
+		case GLError::StackOverflow:	return "Stack Overflow";
+		case GLError::StackUnderflow:	return "Stack Underflow";
+		case GLError::OutOfMemory:		return "Out of Memory";
+		case GLError::None:
+		default:						PTGN_ERROR("Failed to recognize GL error code");
+	}
+}
+
+void GLContext::PrintErrors(
+	const std::string& function_name, const path& filepath, std::size_t line,
+	const std::vector<GLError>& errors
+) {
+	for (auto error : errors) {
+		ptgn::debug::Print(
+			"OpenGL Error: ", filepath.filename().string(), ":", line, ": ", function_name, ": ",
+			GetErrorString(error)
+		);
+	}
 }
 
 } // namespace impl

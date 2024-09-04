@@ -751,4 +751,12 @@ V2_float DynamicCollisionHandler::GetRemainingVelocity(
 	PTGN_ERROR("Failed to identify DynamicCollisionResponse type");
 }
 
+void CollisionHandler::Init() {}
+
+void CollisionHandler::Shutdown() {
+	overlap	  = {};
+	intersect = {};
+	dynamic	  = {};
+}
+
 } // namespace ptgn

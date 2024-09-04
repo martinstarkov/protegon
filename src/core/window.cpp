@@ -1,5 +1,6 @@
 #include "core/window.h"
 
+#include "protegon/game.h"
 #include "SDL.h"
 #include "utility/debug.h"
 
@@ -8,16 +9,23 @@ namespace ptgn {
 namespace impl {
 
 void WindowDeleter::operator()(SDL_Window* window) {
-	SDL_DestroyWindow(window);
-	PTGN_INFO("Destroyed SDL2 window");
+	if (game.sdl_instance_.SDLIsInitialized()) {
+		SDL_DestroyWindow(window);
+		PTGN_INFO("Destroyed SDL2 window");
+	}
 }
 
 } // namespace impl
 
-Window::Window() {
+void Window::Init() {
+	PTGN_ASSERT(!Exists(), "Previous window must be destroyed before initializing a new one");
 	window_.reset(SDL_CreateWindow("", 0, 0, 0, 0, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN));
-	PTGN_ASSERT(window_ != nullptr, SDL_GetError());
+	PTGN_ASSERT(Exists(), SDL_GetError());
 	PTGN_INFO("Created SDL2 window");
+}
+
+void Window::Shutdown() {
+	window_.reset(nullptr);
 }
 
 void Window::SwapBuffers() {
@@ -60,7 +68,7 @@ void Window::SetAlwaysOnTop(bool on) {
 	SDL_SetWindowAlwaysOnTop(window_.get(), static_cast<SDL_bool>(on));
 }
 
-bool Window::Exists() {
+bool Window::Exists() const {
 	return window_ != nullptr;
 }
 
