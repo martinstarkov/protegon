@@ -56,7 +56,7 @@ static GLFormats GetGLFormats(ImageFormat format) {
 
 Texture::Texture(const path& image_path, ImageFormat format) :
 	Texture{
-		[&]() -> Surface {
+		std::invoke([&]() -> Surface {
 			PTGN_ASSERT(
 				format != ImageFormat::Unknown, "Cannot create texture with unknown image format"
 			);
@@ -65,7 +65,7 @@ Texture::Texture(const path& image_path, ImageFormat format) :
 				"Cannot create texture from file path which does not exist: ", image_path.string()
 			);
 			return Surface{ image_path };
-		}(),
+		}),
 	} {}
 
 Texture::Texture(const Surface& surface) : Texture{ surface.GetData(), surface.GetSize() } {}
@@ -106,12 +106,13 @@ Texture::Texture(const void* pixel_data, const V2_int& size, ImageFormat format)
 }
 
 Texture::Texture(const std::vector<Color>& pixels, const V2_int& size) :
-	Texture{ [&]() -> void* {
-				PTGN_ASSERT(
-					pixels.size() == size.x * size.y, "Provided pixel array must match texture size"
-				);
-				return (void*)pixels.data();
-			}(),
+	Texture{ std::invoke([&]() -> void* {
+				 PTGN_ASSERT(
+					 pixels.size() == size.x * size.y,
+					 "Provided pixel array must match texture size"
+				 );
+				 return (void*)pixels.data();
+			 }),
 			 size, ImageFormat::RGBA8888 } {}
 
 void Texture::Bind() const {

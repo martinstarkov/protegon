@@ -66,17 +66,16 @@ private:
 
 } // namespace ptgn
 
-#define PTGN_PROFILE_FUNCTION(...)                                    \
-	ptgn::impl::ProfileInstance ptgn_profile_instance_##__LINE__(     \
-			PTGN_EXPAND_MACRO(PTGN_FULL_FUNCTION_SIGNATURE),          \
-			[&]() -> const char* {                                    \
-				if constexpr (PTGN_NUMBER_OF_ARGS(__VA_ARGS__) > 0) { \
-					return __VA_ARGS__;                               \
-				} else {                                              \
-					return "";                                        \
-				}                                                     \
-			}()                                                       \
-                                                                      \
+#define PTGN_PROFILE_FUNCTION(...)                                                          \
+	ptgn::impl::ProfileInstance ptgn_profile_instance_##__LINE__(                           \
+		PTGN_EXPAND_MACRO(PTGN_FULL_FUNCTION_SIGNATURE), std::invoke([&]() -> const char* { \
+			if constexpr (PTGN_NUMBER_OF_ARGS(__VA_ARGS__) > 0) {                           \
+				return __VA_ARGS__;                                                         \
+			} else {                                                                        \
+				return "";                                                                  \
+			}                                                                               \
+		})                                                                                  \
+                                                                                            \
 	)
 
 // Optional: Disable profiling in Release builds

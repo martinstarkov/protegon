@@ -149,13 +149,13 @@ inline void PrintPreciseLine() {
 	{                                                                                   \
 		ptgn::debug::Print(                                                             \
 			prefix, std::filesystem::path(__FILE__).filename().string(), ":", __LINE__, \
-			[&]() -> const char* {                                                      \
+			std::invoke([&]() -> const char* {                                          \
 				if (PTGN_NUMBER_OF_ARGS(__VA_ARGS__) > 0) {                             \
 					return ": ";                                                        \
 				} else {                                                                \
 					return "";                                                          \
 				}                                                                       \
-			}()                                                                         \
+			})                                                                          \
 		);                                                                              \
 		ptgn::debug::PrintLine(__VA_ARGS__);                                            \
 	}

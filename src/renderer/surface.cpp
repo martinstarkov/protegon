@@ -73,7 +73,7 @@ Surface::Surface(const std::shared_ptr<SDL_Surface>& raw_surface, ImageFormat fo
 }
 
 Surface::Surface(const path& image_path) :
-	Surface{ [&]() -> std::shared_ptr<SDL_Surface> {
+	Surface{ std::invoke([&]() -> std::shared_ptr<SDL_Surface> {
 		PTGN_ASSERT(
 			FileExists(image_path),
 			"Cannot create surface from a nonexistent image path: ", image_path.string()
@@ -82,7 +82,7 @@ Surface::Surface(const path& image_path) :
 													 SDL_FreeSurface };
 		PTGN_ASSERT(raw_surface != nullptr, IMG_GetError());
 		return raw_surface;
-	}() } {}
+	}) } {}
 
 void Surface::FlipVertically() {
 	PTGN_ASSERT(IsValid(), "Cannot flip surface vertically if it is uninitialized or destroyed");

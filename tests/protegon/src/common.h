@@ -39,8 +39,8 @@ void TestLoop(
 	CheckForTestSwitch(current_test, (int)test_count, keys);
 
 	if (std::holds_alternative<std::function<void(float)>>(loop_function)) {
-		std::get<std::function<void(float)>>(loop_function)(dt);
+		std::invoke(std::get<std::function<void(float)>>(loop_function), dt);
 	} else {
-		std::get<std::function<void(void)>>(loop_function)();
+		std::invoke(std::get<std::function<void(void)>>(loop_function));
 	}
 }

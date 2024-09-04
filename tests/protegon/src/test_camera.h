@@ -35,7 +35,7 @@ void TestCameraSwitching(float dt) {
 	static auto& camera4{ game.camera.Load(4) };
 	static auto& camera5{ game.camera.Load(5) };
 
-	static auto v = []() {
+	static auto v = std::invoke([]() {
 		camera1.SetPosition(V2_float{ 0, 0 });
 		camera2.SetPosition(V2_float{ ws.x, 0 });
 		camera3.SetPosition(ws);
@@ -44,7 +44,7 @@ void TestCameraSwitching(float dt) {
 
 		game.camera.SetPrimary(1);
 		return 0;
-	}();
+	});
 
 	TestCameraLoop(
 		dt,

@@ -1,13 +1,13 @@
 #pragma once
 
-#include "SDL.h"
-#include "SDL_image.h"
 #include "common.h"
 #include "protegon/buffer.h"
 #include "protegon/shader.h"
 #include "protegon/texture.h"
 #include "protegon/vertex_array.h"
 #include "renderer/gl_renderer.h" // for texture slot count
+#include "SDL.h"
+#include "SDL_image.h"
 #include "utility/utility.h"
 
 // #define SDL_RENDERER_TESTS
@@ -1160,10 +1160,10 @@ void GetTextures(std::vector<Texture>& textures, std::vector<Texture>& textures_
 void TestRendering() {
 	static std::vector<Texture> textures;
 	static std::vector<Texture> textures_further;
-	static auto r = [&]() {
+	static auto r = std::invoke([&]() {
 		GetTextures(textures, textures_further);
 		return 0;
-	}();
+	});
 
 	game.PushLoopFunction([&](float dt) {
 		game.window.SetSize({ 800, 800 });

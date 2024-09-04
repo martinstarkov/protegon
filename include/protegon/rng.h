@@ -67,7 +67,7 @@ public:
 
 	// Custom range seedless distribution.
 	// Range: [min, max] (inclusive).
-	RNG(T min, T max) : RNG{ std::random_device{}(), min, max } {}
+	RNG(T min, T max) : RNG{ std::invoke(std::random_device{}), min, max } {}
 
 	// Generate a new random number in the specified range.
 	T operator()() {
@@ -116,7 +116,7 @@ private:
 	T max_{};
 
 	// Internal random number generator.
-	E generator_{ std::random_device{}() };
+	E generator_{ std::invoke(std::random_device{}) };
 
 	// Defined internal distribution.
 	// Range: [0, 1] (inclusive).
