@@ -61,6 +61,5 @@ public:
 
 int main() {
 	game.Start<Tests>();
-	game.Start<Tests>();
 	return 0;
 }

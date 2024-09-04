@@ -145,6 +145,7 @@ void Game::Shutdown() {
 	// Text test_text{ test_font }; // if SDL has been shutdown, this would not work due to
 	// inconsistent SDL versions.
 	//
+	// Instead, these are called in the Game destructor, which is called upon main() termination.
 	// gl_context_.Shutdown();
 	// sdl_instance_.Shutdown();
 }
