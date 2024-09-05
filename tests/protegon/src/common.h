@@ -10,6 +10,33 @@ const static std::vector<Key> test_switch_keys{ Key::ONE, Key::TWO };
 extern V2_float ws;
 extern V2_float center;
 
+namespace ptgn {
+
+struct Test {
+	virtual ~Test() = default;
+
+	virtual void Init() {}
+
+	virtual void Update(float dt) {}
+
+	virtual void Update() {}
+
+	virtual void Draw() {}
+
+	virtual void Run(float dt) final {
+		if (!initialized_) {
+			Init();
+			initialized_ = true;
+		}
+		Update(dt);
+		Update();
+		Draw();
+	}
+
+private:
+	bool initialized_{ false };
+};
+
 // TODO: Make this a template to get count.
 void CheckForTestSwitch(int& current_test, int test_count, const std::vector<Key>& keys) {
 	PTGN_ASSERT(keys.size() == 2);
@@ -46,3 +73,5 @@ void TestLoop(
 		std::invoke(std::get<std::function<void(void)>>(loop_function));
 	}
 }
+
+} // namespace ptgn
