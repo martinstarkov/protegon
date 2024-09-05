@@ -32,12 +32,11 @@ struct Color {
 	Type g{ 0 };
 	Type b{ 0 };
 	Type a{ 255 };
-	operator SDL_Color() const;
 
-	template <typename T>
+	/*template <typename T>
 	operator Vector4<T>() const {
 		return { static_cast<T>(r), static_cast<T>(g), static_cast<T>(b), static_cast<T>(a) };
-	}
+	}*/
 
 	// Default color is black.
 	constexpr Color() = default;
@@ -59,7 +58,7 @@ inline bool operator!=(const Color& lhs, const Color& rhs) {
 	return !operator==(lhs, rhs);
 }
 
-template <typename U, type_traits::floating_point<U> = true>
+template <typename U, tt::floating_point<U> = true>
 [[nodiscard]] inline Color Lerp(const Color& lhs, const Color& rhs, U t) {
 	return Color{ static_cast<Color::Type>(Lerp(lhs.r, rhs.r, t)),
 				  static_cast<Color::Type>(Lerp(lhs.g, rhs.g, t)),
@@ -67,7 +66,7 @@ template <typename U, type_traits::floating_point<U> = true>
 				  static_cast<Color::Type>(Lerp(lhs.a, rhs.a, t)) };
 }
 
-template <typename U, type_traits::floating_point<U> = true>
+template <typename U, tt::floating_point<U> = true>
 [[nodiscard]] inline Color Lerp(const Color& lhs, const Color& rhs, U t_r, U t_g, U t_b, U t_a) {
 	return Color{ static_cast<Color::Type>(Lerp(lhs.r, rhs.r, t_r)),
 				  static_cast<Color::Type>(Lerp(lhs.g, rhs.g, t_g)),
@@ -105,8 +104,6 @@ inline constexpr Color Silver{ 192, 192, 192, 255 };
 
 } // namespace color
 
-} // namespace ptgn
-
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Color& color) {
 	os << "[";
 	os << static_cast<int>(color.r) << ", ";
@@ -116,3 +113,4 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::Color& color) {
 	os << "]";
 	return os;
 }
+} // namespace ptgn

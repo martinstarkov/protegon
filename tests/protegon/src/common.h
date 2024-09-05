@@ -5,7 +5,7 @@
 
 using namespace ptgn;
 
-const static std::string test_instructions{ "'1' (cycle back); '2' (cycle forward)" };
+const static std::string test_instructions{ "'1' (--test); '2' (++test), 'ESC' (++category)" };
 const static std::vector<Key> test_switch_keys{ Key::ONE, Key::TWO };
 extern V2_float ws;
 extern V2_float center;
@@ -38,9 +38,11 @@ void TestLoop(
 
 	CheckForTestSwitch(current_test, (int)test_count, keys);
 
+	game.renderer.DrawPoint(game.input.GetMousePosition(), color::Red, 2.0f);
+
 	if (std::holds_alternative<std::function<void(float)>>(loop_function)) {
-		std::get<std::function<void(float)>>(loop_function)(dt);
+		std::invoke(std::get<std::function<void(float)>>(loop_function), dt);
 	} else {
-		std::get<std::function<void(void)>>(loop_function)();
+		std::invoke(std::get<std::function<void(void)>>(loop_function));
 	}
 }

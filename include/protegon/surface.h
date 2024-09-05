@@ -2,9 +2,11 @@
 
 #include <vector>
 
-#include "file.h"
+#include "protegon/color.h"
+#include "protegon/file.h"
+#include "protegon/font.h"
+#include "protegon/vector2.h"
 #include "utility/handle.h"
-#include "vector2.h"
 
 struct SDL_Surface;
 
@@ -22,6 +24,10 @@ enum class ImageFormat {
 
 namespace impl {
 
+struct SDL_SurfaceDeleter {
+	void operator()(SDL_Surface* surface);
+};
+
 struct SurfaceInstance {
 	SurfaceInstance()  = default;
 	~SurfaceInstance() = default;
@@ -36,6 +42,11 @@ class Surface : public Handle<impl::SurfaceInstance> {
 public:
 	Surface() = default;
 	Surface(const path& image_path);
+	// Create text surface from font information.
+	Surface(
+		const Font& font, FontStyle style, const Color& text_color, FontRenderMode mode,
+		const std::string& content, const Color& shading_color
+	);
 
 	void FlipVertically();
 
@@ -47,6 +58,8 @@ public:
 
 private:
 	friend class Text;
+
+	[[nodiscard]] static V2_int GetSize(const Font& font, const std::string& content);
 
 	Surface(
 		const std::shared_ptr<SDL_Surface>& surface, ImageFormat format = ImageFormat::RGBA8888

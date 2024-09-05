@@ -25,7 +25,7 @@ struct Rectangle {
 
 	// @return Center position of rectangle.
 	[[nodiscard]] Point<T> Center() const {
-		return pos - GetDrawOffset(size, origin);
+		return pos - GetOffsetFromCenter(size, origin);
 	}
 
 	// @return Bottom right position of rectangle.
@@ -55,7 +55,7 @@ struct Rectangle {
 
 	template <typename U>
 	operator Rectangle<U>() const {
-		return Rectangle<U>{ static_cast<Point<U>>(pos), static_cast<Vector2<U>>(size) };
+		return Rectangle<U>{ static_cast<Point<U>>(pos), static_cast<Vector2<U>>(size), origin };
 	}
 };
 
@@ -69,7 +69,15 @@ struct RoundedRectangle : public Rectangle<T> {
 	RoundedRectangle(
 		const Point<T>& pos, const Vector2<T>& size, T radius, Origin origin = Origin::Center
 	) :
-		Rectangle<T>{ pos, size, origin }, radius{ radius } {}
+		Rectangle<T>{ pos, size, origin }, radius{ radius } {
+		PTGN_ASSERT(
+			radius < size.x / T{ 2 }, "Radius of rounded rectangle must be less than half its width"
+		);
+		PTGN_ASSERT(
+			radius < size.y / T{ 2 },
+			"Radius of rounded rectangle must be less than half its height"
+		);
+	}
 
 	T radius{ 0 };
 };

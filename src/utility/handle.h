@@ -11,7 +11,7 @@ public:
 
 	Handle(const std::shared_ptr<T>& instance) : instance_{ instance } {}
 
-	~Handle() = default;
+	virtual ~Handle() = default;
 
 	bool IsValid() const {
 		return instance_ != nullptr;

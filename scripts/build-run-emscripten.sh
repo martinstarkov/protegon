@@ -1,4 +1,4 @@
 #!/bin/bash
 
-./build-emscripten.sh
+./build-emscripten.sh "$1"
 ./run-emscripten.sh

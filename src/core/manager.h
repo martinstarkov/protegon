@@ -31,7 +31,7 @@ public:
 	 * @param key Unique id of the item to be loaded.
 	 * @return Reference to the loaded item.
 	 */
-	template <typename... TArgs, type_traits::constructible<Item, TArgs...> = true>
+	template <typename... TArgs, tt::constructible<Item, TArgs...> = true>
 	Item& Load(const Key& key, TArgs&&... constructor_args) {
 		auto& item{ map_[key] };
 		item = std::move(Item{ std::forward<TArgs>(constructor_args)... });
@@ -87,6 +87,10 @@ public:
 	 */
 	[[nodiscard]] std::size_t Count() const {
 		return map_.size();
+	}
+
+	void Reset() {
+		map_ = {};
 	}
 
 protected:

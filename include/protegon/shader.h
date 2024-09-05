@@ -17,6 +17,8 @@ class Shader;
 
 namespace impl {
 
+class RendererData;
+
 std::string GetShaderTypeName(std::uint32_t type);
 
 struct ShaderInstance {
@@ -32,13 +34,13 @@ struct ShaderInstance {
 // Wrapper for distinguishing between Shader from path construction and Shader
 // from source construction.
 struct ShaderSource {
-	ShaderSource() = delete;
+	ShaderSource() = default;
 
 	// Explicit prevents conflict with Shader path construction.
 	explicit ShaderSource(const std::string& source) : source_{ source } {}
 
 	~ShaderSource() = default;
-	const std::string source_;
+	std::string source_;
 };
 
 class Shader : public Handle<impl::ShaderInstance> {
@@ -48,6 +50,9 @@ public:
 
 	Shader(const ShaderSource& vertex_shader, const ShaderSource& fragment_shader);
 	Shader(const path& vertex_shader_path, const path& fragment_shader_path);
+
+	bool operator==(const Shader& o) const;
+	bool operator!=(const Shader& o) const;
 
 	// void WhileBound(const std::function<void()>& func) const;
 
@@ -77,7 +82,9 @@ public:
 	void Bind() const;
 
 private:
-	static std::int32_t BoundId();
+	friend class impl::RendererData;
+
+	static std::int32_t GetBoundId();
 	// static void Unbind();
 
 	[[nodiscard]] std::int32_t GetUniformLocation(const std::string& name) const;

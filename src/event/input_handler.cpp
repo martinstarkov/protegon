@@ -2,9 +2,9 @@
 
 #include <algorithm>
 
-#include "SDL.h"
 #include "protegon/game.h"
 #include "protegon/log.h"
+#include "SDL.h"
 #include "utility/debug.h"
 
 namespace ptgn {
@@ -39,8 +39,9 @@ void InputHandler::Update() {
 		switch (e.type) {
 			case SDL_MOUSEMOTION: {
 				V2_int previous{ mouse_position_ };
-				mouse_position_.x = e.button.x;
-				mouse_position_.y = e.button.y;
+				SDL_MouseMotionEvent* m = (SDL_MouseMotionEvent*)&e;
+				mouse_position_.x		= m->x;
+				mouse_position_.y		= m->y;
 				game.event.mouse.Post(
 					MouseEvent::Move, MouseMoveEvent{ previous, mouse_position_ }
 				);
@@ -119,27 +120,32 @@ void InputHandler::Update() {
 	}
 }
 
+#ifndef __EMSCRIPTEN__
+bool InputHandler::MouseWithinWindow() {
+	return game.collision.overlap.PointRectangle(
+		game.input.GetMousePositionGlobal(),
+		{ game.window.GetPosition(), game.window.GetSize(), Origin::TopLeft }
+	);
+}
+#endif
+
 void InputHandler::SetRelativeMouseMode(bool on) {
 	SDL_SetRelativeMouseMode(static_cast<SDL_bool>(on));
 }
 
-void InputHandler::ForceUpdateMousePosition() {
-	// Grab latest mouse events from queue.
-	SDL_PumpEvents();
-	// Update mouse position.
-	SDL_GetMouseState(&mouse_position_.x, &mouse_position_.y);
-	// float x, y;
-	///*SDL_RenderWindowToLogical(
-	//	game.sdl.GetRenderer().get(), mouse_position.x,
-	//	mouse_position.y, &x, &y
-	//);*/
-
-	// mouse_position.x = static_cast<int>(x);
-	// mouse_position.y = static_cast<int>(y);
+V2_int InputHandler::GetMousePositionGlobal() {
+	V2_int pos;
+	// SDL_PumpEvents not required as this function queries the OS directly.
+	SDL_GetGlobalMouseState(&pos.x, &pos.y);
+	return pos;
 }
 
 V2_int InputHandler::GetMousePosition() {
-	ForceUpdateMousePosition();
+	// Grab latest mouse events from queue.
+	SDL_PumpEvents();
+	// TODO: Confirm whether or not mouse scaling is required when on different window DPIs.
+	// Maybe an SDL hint? Update mouse position.
+	SDL_GetMouseState(&mouse_position_.x, &mouse_position_.y);
 	return mouse_position_;
 }
 
@@ -171,12 +177,13 @@ inline int WindowEventWatcher(void* data, SDL_Event* event) {
 	return 0;
 }
 
-InputHandler::InputHandler() {
+void InputHandler::Init() {
 	SDL_AddEventWatch(WindowEventWatcher, game.window.GetSDLWindow());
 }
 
-InputHandler::~InputHandler() {
+void InputHandler::Shutdown() {
 	SDL_DelEventWatch(WindowEventWatcher, game.window.GetSDLWindow());
+	Reset();
 }
 
 void InputHandler::UpdateMouseState(Mouse button) {

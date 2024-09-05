@@ -2,26 +2,47 @@
 
 #include <array>
 #include <cstdint>
-#include <functional>
-#include <variant>
 
+#include "core/gl_context.h"
 #include "utility/debug.h"
-#include "utility/handle.h"
 #include "utility/type_traits.h"
 
 namespace ptgn {
 
-enum BufferUsage {
-	StreamDraw	= 0x88E0, // GL_STREAM_DRAW
-	StreamRead	= 0x88E1, // GL_STREAM_READ
-	StreamCopy	= 0x88E2, // GL_STREAM_COPY
-	StaticDraw	= 0x88E4, // GL_STATIC_DRAW
-	StaticRead	= 0x88E5, // GL_STATIC_READ
-	StaticCopy	= 0x88E6, // GL_STATIC_COPY
-	DynamicDraw = 0x88E8, // GL_DYNAMIC_DRAW
-	DynamicRead = 0x88E9, // GL_DYNAMIC_READ
-	DynamicCopy = 0x88EA  // GL_DYNAMIC_COPY
-};
+namespace impl {
+
+#ifdef PTGN_DEBUG
+#define GLCall(x)                                                     \
+	std::invoke([&, fn = PTGN_FUNCTION_NAME()]() {                    \
+		ptgn::impl::GLContext::ClearErrors();                         \
+		x;                                                            \
+		auto errors = ptgn::impl::GLContext::GetErrors();             \
+		if (errors.size() > 0) {                                      \
+			ptgn::impl::GLContext::PrintErrors(                       \
+				fn, std::filesystem::path(__FILE__), __LINE__, errors \
+			);                                                        \
+			PTGN_EXCEPTION("OpenGL Error");                           \
+		}                                                             \
+	})
+#define GLCallReturn(x)                                               \
+	std::invoke([&, fn = PTGN_FUNCTION_NAME()]() {                    \
+		ptgn::impl::GLContext::ClearErrors();                         \
+		auto value	= x;                                              \
+		auto errors = ptgn::impl::GLContext::GetErrors();             \
+		if (errors.size() > 0) {                                      \
+			ptgn::impl::GLContext::PrintErrors(                       \
+				fn, std::filesystem::path(__FILE__), __LINE__, errors \
+			);                                                        \
+			PTGN_EXCEPTION("OpenGL Error");                           \
+		}                                                             \
+		return value;                                                 \
+	})
+#else
+#define GLCall(x)		x
+#define GLCallReturn(x) x
+#endif
+
+} // namespace impl
 
 // Vertex Types
 
@@ -42,15 +63,15 @@ using bvec2 = std::array<bool, 2>;
 using bvec3 = std::array<bool, 3>;
 using bvec4 = std::array<bool, 4>;
 
-using int_	= std::array<int, 1>;
-using ivec2 = std::array<int, 2>;
-using ivec3 = std::array<int, 3>;
-using ivec4 = std::array<int, 4>;
+using int_	= std::array<std::int32_t, 1>;
+using ivec2 = std::array<std::int32_t, 2>;
+using ivec3 = std::array<std::int32_t, 3>;
+using ivec4 = std::array<std::int32_t, 4>;
 
-using uint_ = std::array<unsigned int, 1>;
-using uvec2 = std::array<unsigned int, 2>;
-using uvec3 = std::array<unsigned int, 3>;
-using uvec4 = std::array<unsigned int, 4>;
+using uint_ = std::array<std::uint32_t, 1>;
+using uvec2 = std::array<std::uint32_t, 2>;
+using uvec3 = std::array<std::uint32_t, 3>;
+using uvec4 = std::array<std::uint32_t, 4>;
 
 } // namespace glsl
 
@@ -64,15 +85,47 @@ enum class PrimitiveMode : std::uint32_t {
 	TriangleFan	  = 0x0006, // GL_TRIANGLE_FAN
 };
 
-namespace impl {
-
-enum class BufferType {
-	Vertex = 0x8892, // GL_ARRAY_BUFFER
-	Index  = 0x8893	 // GL_ELEMENT_ARRAY_BUFFER
+enum class BufferUsage {
+	StreamDraw	= 0x88E0, // GL_STREAM_DRAW
+	StreamRead	= 0x88E1, // GL_STREAM_READ
+	StreamCopy	= 0x88E2, // GL_STREAM_COPY
+	StaticDraw	= 0x88E4, // GL_STATIC_DRAW
+	StaticRead	= 0x88E5, // GL_STATIC_READ
+	StaticCopy	= 0x88E6, // GL_STATIC_COPY
+	DynamicDraw = 0x88E8, // GL_DYNAMIC_DRAW
+	DynamicRead = 0x88E9, // GL_DYNAMIC_READ
+	DynamicCopy = 0x88EA  // GL_DYNAMIC_COPY
 };
 
+enum class BufferType {
+	Vertex	= 0x8892, // GL_ARRAY_BUFFER
+	Index	= 0x8893, // GL_ELEMENT_ARRAY_BUFFER
+	Uniform = 0x8A11, // GL_UNIFORM_BUFFER
+};
+
+namespace impl {
+
+enum class GLBinding {
+	VertexArray	  = 0x85B5, // GL_VERTEX_ARRAY_BINDING
+	VertexBuffer  = 0x8894, // GL_ARRAY_BUFFER_BINDING
+	IndexBuffer	  = 0x8895, // GL_ELEMENT_ARRAY_BUFFER_BINDING
+	UniformBuffer = 0x8A28, // GL_UNIFORM_BUFFER_BINDING
+	Texture2D	  = 0x8069	// GL_TEXTURE_BINDING_2D
+};
+
+template <BufferType T>
+inline constexpr GLBinding GetGLBinding() {
+	if constexpr (T == BufferType::Vertex) {
+		return GLBinding::VertexBuffer;
+	} else if constexpr (T == BufferType::Index) {
+		return GLBinding::IndexBuffer;
+	} else if constexpr (T == BufferType::Uniform) {
+		return GLBinding::UniformBuffer;
+	}
+}
+
 template <typename T>
-inline constexpr bool is_vertex_data_type{ type_traits::is_any_of_v<
+inline constexpr bool is_vertex_data_type{ tt::is_any_of_v<
 	T, glsl::float_, glsl::vec2, glsl::vec3, glsl::vec4, glsl::double_, glsl::dvec2, glsl::dvec3,
 	glsl::dvec4, glsl::bool_, glsl::bvec2, glsl::bvec3, glsl::bvec4, glsl::int_, glsl::ivec2,
 	glsl::ivec3, glsl::ivec4, glsl::uint_, glsl::uvec2, glsl::uvec3, glsl::uvec4> };
@@ -92,7 +145,7 @@ enum class GLType : std::uint32_t {
 template <typename T>
 [[nodiscard]] constexpr GLType GetType() {
 	static_assert(
-		type_traits::is_any_of_v<
+		tt::is_any_of_v<
 			T, float, double, std::int32_t, std::uint32_t, std::int16_t, std::uint16_t, std::int8_t,
 			std::uint8_t, bool>,
 		"Cannot retrieve type which is not supported by OpenGL"

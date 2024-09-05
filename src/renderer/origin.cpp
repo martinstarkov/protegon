@@ -2,7 +2,7 @@
 
 namespace ptgn {
 
-V2_float GetDrawOffset(const V2_float& size, Origin draw_origin) {
+V2_float GetOffsetFromCenter(const V2_float& size, Origin draw_origin) {
 	// Not in the switch to skip half calculation.
 	if (draw_origin == Origin::Center) {
 		return {};

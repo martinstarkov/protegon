@@ -11,13 +11,13 @@ namespace ptgn {
 
 namespace impl {
 
-template <typename T, type_traits::floating_point<T> = true>
+template <typename T, tt::floating_point<T> = true>
 class Pi {};
 
-template <typename T, type_traits::floating_point<T> = true>
+template <typename T, tt::floating_point<T> = true>
 class TwoPi {};
 
-template <typename T, type_traits::floating_point<T> = true>
+template <typename T, tt::floating_point<T> = true>
 class HalfPi {};
 
 template <>
@@ -70,11 +70,11 @@ public:
 
 } // namespace impl
 
-template <typename T = float, type_traits::floating_point<T> = true>
+template <typename T = float, tt::floating_point<T> = true>
 inline constexpr T pi{ impl::Pi<T>::value() };
-template <typename T = float, type_traits::floating_point<T> = true>
+template <typename T = float, tt::floating_point<T> = true>
 inline constexpr T two_pi{ impl::TwoPi<T>::value() };
-template <typename T = float, type_traits::floating_point<T> = true>
+template <typename T = float, tt::floating_point<T> = true>
 inline constexpr T half_pi{ impl::HalfPi<T>::value() };
 template <typename T = float>
 inline constexpr T epsilon{ std::numeric_limits<T>::epsilon() };
@@ -82,27 +82,27 @@ template <typename T = float>
 inline constexpr T epsilon2{ epsilon<T> * epsilon<T> };
 
 // Convert degrees to radians.
-template <typename T, type_traits::floating_point<T> = true>
+template <typename T, tt::floating_point<T> = true>
 [[nodiscard]] constexpr T DegToRad(T deg) {
 	return deg * pi<T> / T{ 180 };
 }
 
 // Convert radians to degrees.
-template <typename T, type_traits::floating_point<T> = true>
+template <typename T, tt::floating_point<T> = true>
 [[nodiscard]] constexpr T RadToDeg(T rad) {
 	return rad / pi<T> * T{ 180 };
 }
 
 // Modulo operator which supports wrapping negative numbers.
 // e.g. Mod(-1, 2) returns 1.
-template <typename T, type_traits::integral<T> = true>
+template <typename T, tt::integral<T> = true>
 [[nodiscard]] T Mod(T a, T b) {
 	return (a % b + b) % b;
 }
 
 // Angle in degrees from 0 to 360.
-template <typename T, type_traits::arithmetic<T> = true>
-[[nodiscard]] T RestrictAngle360(T deg) {
+template <typename T, tt::arithmetic<T> = true>
+[[nodiscard]] T ClampAngle360(T deg) {
 	while (deg < 0) {
 		deg += 360;
 	}
@@ -114,12 +114,12 @@ template <typename T, type_traits::arithmetic<T> = true>
 }
 
 // Angle in radians from 0 to 2 pi.
-template <typename T, type_traits::floating_point<T> = true>
-[[nodiscard]] T RestrictAngle2Pi(T rad) {
+template <typename T, tt::floating_point<T> = true>
+[[nodiscard]] T ClampAngle2Pi(T rad) {
 	while (rad < 0) {
 		rad += two_pi<T>;
 	}
-	return std::fmod(rad, two_pi<T>);
+	return std::fmod(rad, two_pi<T> + 0.00001f);
 }
 
 // Signum function.
@@ -182,7 +182,7 @@ template <typename T>
 
 // Returns true if there is a real solution followed by both roots
 // (equal if repeated), false and roots of 0 if imaginary.
-template <typename T, type_traits::floating_point<T> = true>
+template <typename T, tt::floating_point<T> = true>
 [[nodiscard]] std::tuple<bool, T, T> QuadraticFormula(T a, T b, T c) {
 	const T disc{ b * b - 4.0f * a * c };
 	if (disc < 0.0f) {
@@ -200,23 +200,23 @@ template <typename T, type_traits::floating_point<T> = true>
 }
 
 template <
-	typename T, typename U, type_traits::arithmetic<T> = true,
-	type_traits::floating_point<U> = true>
+	typename T, typename U, tt::arithmetic<T> = true,
+	tt::floating_point<U> = true>
 [[nodiscard]] U Lerp(T a, T b, U t) {
 	return a + t * (b - a);
 }
 
 template <
-	typename T, typename U, type_traits::arithmetic<T> = true,
-	type_traits::floating_point<U> = true>
+	typename T, typename U, tt::arithmetic<T> = true,
+	tt::floating_point<U> = true>
 [[nodiscard]] U CosineInterpolate(T a, T b, U t) {
 	return Lerp(a, b, static_cast<U>(0.5) * (static_cast<U>(1) - std::cos(t * pi<U>)));
 }
 
 // From https://paulbourke.net/miscellaneous/interpolation/
 template <
-	typename T, typename U, type_traits::arithmetic<T> = true,
-	type_traits::floating_point<U> = true>
+	typename T, typename U, tt::arithmetic<T> = true,
+	tt::floating_point<U> = true>
 [[nodiscard]] U CubicInterpolate(T y0, T y1, T y2, T y3, U t) {
 	U mu2 = t * t;
 	U a0  = y3 - y2 - y0 + y1;
@@ -227,7 +227,7 @@ template <
 }
 
 // From: https://en.wikipedia.org/wiki/Smoothstep
-template <typename U, type_traits::floating_point<U> = true>
+template <typename U, tt::floating_point<U> = true>
 [[nodiscard]] U SmoothStepInterpolate(U a, U b, U t) {
 	return Lerp(a, b, t * t * (3.0f - 2.0f * t));
 }

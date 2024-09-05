@@ -1,10 +1,8 @@
 #include "protegon/texture.h"
 
-#include "SDL.h"
-#include "SDL_image.h"
-#include "protegon/game.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
+#include "renderer/gl_renderer.h"
 #include "utility/debug.h"
 
 namespace ptgn {
@@ -13,46 +11,40 @@ namespace impl {
 
 #define PUSHSTATE()           \
 	std::int32_t restore_id { \
-		Texture::BoundId()    \
+		Texture::GetBoundId() \
 	}
-#define POPSTATE() gl::glBindTexture(GL_TEXTURE_2D, restore_id)
+#define POPSTATE() GLCall(gl::glBindTexture(GL_TEXTURE_2D, restore_id))
 
 TextureInstance::TextureInstance() {
-	gl::glGenTextures(1, &id_);
+	GLCall(gl::glGenTextures(1, &id_));
 	PTGN_ASSERT(id_ != 0, "Failed to generate texture using OpenGL context");
 }
 
 TextureInstance::~TextureInstance() {
-	gl::glDeleteTextures(1, &id_);
+	GLCall(gl::glDeleteTextures(1, &id_));
 }
 
 static GLFormats GetGLFormats(ImageFormat format) {
 	// Possible internal format options:
 	// GL_R#size, GL_RG#size, GL_RGB#size, GL_RGBA#size
 	switch (format) {
-#ifdef __EMSCRIPTEN__
 		case ImageFormat::RGBA8888: {
-			return { GL_RGBA8_OES, GL_RGBA };
+			return { InternalGLFormat::RGBA8, GL_RGBA };
 		}
 		case ImageFormat::RGB888: {
-			return { GL_RGB8_OES, GL_RGB };
+			return { InternalGLFormat::RGB8, GL_RGB };
 		}
+#ifdef __EMSCRIPTEN__
 		case ImageFormat::BGRA8888:
 		case ImageFormat::BGR888:	{
 			PTGN_ERROR("OpenGL ES3.0 does not support BGR(A) texture formats in glTexImage2D");
 		}
 #else
-		case ImageFormat::RGBA8888: {
-			return { GL_RGBA8, GL_RGBA };
-		}
-		case ImageFormat::RGB888: {
-			return { GL_RGB8, GL_RGB };
-		}
 		case ImageFormat::BGRA8888: {
-			return { GL_RGBA8, GL_BGRA };
+			return { InternalGLFormat::RGBA8, GL_BGRA };
 		}
 		case ImageFormat::BGR888: {
-			return { GL_RGB8, GL_BGR };
+			return { InternalGLFormat::RGB8, GL_BGR };
 		}
 #endif
 		default: break;
@@ -63,16 +55,18 @@ static GLFormats GetGLFormats(ImageFormat format) {
 } // namespace impl
 
 Texture::Texture(const path& image_path, ImageFormat format) :
-	Texture{ [&]() -> Surface {
-		PTGN_ASSERT(
-			format != ImageFormat::Unknown, "Cannot create texture with unknown image format"
-		);
-		PTGN_ASSERT(
-			FileExists(image_path),
-			"Cannot create texture from file path which does not exist: ", image_path.string()
-		);
-		return Surface{ image_path };
-	}() } {}
+	Texture{
+		std::invoke([&]() -> Surface {
+			PTGN_ASSERT(
+				format != ImageFormat::Unknown, "Cannot create texture with unknown image format"
+			);
+			PTGN_ASSERT(
+				FileExists(image_path),
+				"Cannot create texture from file path which does not exist: ", image_path.string()
+			);
+			return Surface{ image_path };
+		}),
+	} {}
 
 Texture::Texture(const Surface& surface) : Texture{ surface.GetData(), surface.GetSize() } {}
 
@@ -87,51 +81,72 @@ Texture::Texture(const void* pixel_data, const V2_int& size, ImageFormat format)
 
 	SetDataImpl(pixel_data, size, format);
 
-	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	gl::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	GLCall(gl::glTexParameteri(
+		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapS),
+		static_cast<int>(default_wrapping)
+	));
+	GLCall(gl::glTexParameteri(
+		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapT),
+		static_cast<int>(default_wrapping)
+	));
+	GLCall(gl::glTexParameteri(
+		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::MinFilter),
+		static_cast<int>(default_minifying_filter)
+	));
+	GLCall(gl::glTexParameteri(
+		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::MagFilter),
+		static_cast<int>(default_magnifying_filter)
+	));
+
+	if constexpr ((default_minifying_filter != TextureFilter::Linear && default_minifying_filter != TextureFilter::Nearest) || (default_magnifying_filter != TextureFilter::Linear && default_magnifying_filter != TextureFilter::Nearest)) {
+		GLCall(gl::GenerateMipmap(GL_TEXTURE_2D));
+	}
 
 	POPSTATE();
 }
 
 Texture::Texture(const std::vector<Color>& pixels, const V2_int& size) :
-	Texture{ [&]() -> void* {
-				PTGN_ASSERT(
-					pixels.size() == size.x * size.y, "Provided pixel array must match texture size"
-				);
-				return (void*)pixels.data();
-			}(),
+	Texture{ std::invoke([&]() -> void* {
+				 PTGN_ASSERT(
+					 pixels.size() == size.x * size.y,
+					 "Provided pixel array must match texture size"
+				 );
+				 return (void*)pixels.data();
+			 }),
 			 size, ImageFormat::RGBA8888 } {}
 
 void Texture::Bind() const {
 	PTGN_ASSERT(IsValid(), "Cannot bind texture which is destroyed or uninitialized");
-	gl::glBindTexture(GL_TEXTURE_2D, instance_->id_);
+	GLCall(gl::glBindTexture(GL_TEXTURE_2D, instance_->id_));
 }
 
 void Texture::Bind(std::uint32_t slot) const {
+	SetActiveSlot(slot);
+	Bind();
+}
+
+void Texture::SetActiveSlot(std::uint32_t slot) const {
 	PTGN_ASSERT(
-		[&]() -> bool {
-			std::int32_t max_texture_slots{ 0 };
-			gl::glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_texture_slots);
-			PTGN_ASSERT(max_texture_slots != 0);
-			return slot < static_cast<std::uint32_t>(max_texture_slots);
-		}(),
+		static_cast<std::int32_t>(slot) < GLRenderer::GetMaxTextureSlots(),
 		"Attempting to bind a slot outside of OpenGL texture slot maximum"
 	);
-	gl::ActiveTexture(GL_TEXTURE0 + slot);
-	Bind();
-	// For newer versions of OpenGL:
-	// gl::BindTextureUnit(slot, instance_->id_);
+	GLCall(gl::ActiveTexture(GL_TEXTURE0 + slot));
 }
 
 // void Texture::Unbind() {
-//	gl::glBindTexture(GL_TEXTURE_2D, 0);
+//	GLCall(gl::glBindTexture(GL_TEXTURE_2D, 0));
 // }
 
-std::int32_t Texture::BoundId() {
-	std::int32_t id{ 0 };
-	gl::glGetIntegerv(GL_TEXTURE_BINDING_2D, &id);
+std::int32_t Texture::GetBoundId() {
+	std::int32_t id{ -1 };
+	GLCall(gl::glGetIntegerv(static_cast<gl::GLenum>(impl::GLBinding::Texture2D), &id));
+	PTGN_ASSERT(id >= 0);
+	return id;
+}
+
+std::int32_t Texture::GetActiveSlot() {
+	std::int32_t id{ -1 };
+	GLCall(gl::glGetIntegerv(GL_ACTIVE_TEXTURE, &id));
 	PTGN_ASSERT(id >= 0);
 	return id;
 }
@@ -141,17 +156,18 @@ void Texture::SetDataImpl(const void* pixel_data, const V2_int& size, ImageForma
 		format != ImageFormat::Unknown, "Cannot set data of texture with unknown image format"
 	);
 	PTGN_ASSERT(IsValid(), "Cannot set data of uninitialized or destroyed texture");
-	PTGN_ASSERT(static_cast<std::uint32_t>(BoundId()) == instance_->id_);
+	PTGN_ASSERT(GetBoundId() == static_cast<std::int32_t>(instance_->id_));
 	PTGN_ASSERT(pixel_data != nullptr);
 
 	instance_->size_ = size;
 
 	auto formats = impl::GetGLFormats(format);
 
-	gl::glTexImage2D(
-		GL_TEXTURE_2D, 0, formats.internal_, instance_->size_.x, instance_->size_.y, 0,
-		formats.format_, static_cast<gl::GLenum>(impl::GLType::UnsignedByte), pixel_data
-	);
+	GLCall(gl::glTexImage2D(
+		GL_TEXTURE_2D, 0, static_cast<gl::GLint>(formats.internal_), instance_->size_.x,
+		instance_->size_.y, 0, formats.format_, static_cast<gl::GLenum>(impl::GLType::UnsignedByte),
+		pixel_data
+	));
 }
 
 void Texture::SetSubData(const void* pixel_data, ImageFormat format) {
@@ -164,10 +180,10 @@ void Texture::SetSubData(const void* pixel_data, ImageFormat format) {
 
 	Bind();
 
-	gl::glTexSubImage2D(
+	GLCall(gl::glTexSubImage2D(
 		GL_TEXTURE_2D, 0, 0, 0, instance_->size_.x, instance_->size_.y, formats.format_,
 		static_cast<gl::GLenum>(impl::GLType::UnsignedByte), pixel_data
-	);
+	));
 
 	POPSTATE();
 }
@@ -182,6 +198,101 @@ void Texture::SetSubData(const std::vector<Color>& pixels) {
 V2_int Texture::GetSize() const {
 	PTGN_ASSERT(IsValid(), "Cannot get size of texture which is destroyed or uninitialized");
 	return instance_->size_;
+}
+
+bool Texture::operator==(const Texture& o) const {
+	return GetInstance() == o.GetInstance();
+}
+
+bool Texture::operator!=(const Texture& o) const {
+	return !(*this == o);
+}
+
+void Texture::SetWrapping(TextureWrapping s) {
+	PUSHSTATE();
+
+	Bind();
+
+	GLCall(gl::glTexParameteri(
+		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapS), static_cast<int>(s)
+	));
+
+	POPSTATE();
+}
+
+void Texture::SetWrapping(TextureWrapping s, TextureWrapping t) {
+	PUSHSTATE();
+
+	Bind();
+
+	GLCall(gl::glTexParameteri(
+		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapS), static_cast<int>(s)
+	));
+	GLCall(gl::glTexParameteri(
+		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapT), static_cast<int>(t)
+	));
+
+	POPSTATE();
+}
+
+void Texture::SetWrapping(TextureWrapping s, TextureWrapping t, TextureWrapping r) {
+	PUSHSTATE();
+
+	Bind();
+
+	GLCall(gl::glTexParameteri(
+		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapS), static_cast<int>(s)
+	));
+	GLCall(gl::glTexParameteri(
+		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapT), static_cast<int>(t)
+	));
+	GLCall(gl::glTexParameteri(
+		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapR), static_cast<int>(r)
+	));
+
+	POPSTATE();
+}
+
+void Texture::SetFilters(TextureFilter minifying, TextureFilter magnifying) {
+	PUSHSTATE();
+
+	Bind();
+
+	GLCall(gl::glTexParameteri(
+		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::MinFilter),
+		static_cast<int>(minifying)
+	));
+	GLCall(gl::glTexParameteri(
+		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::MagFilter),
+		static_cast<int>(magnifying)
+	));
+
+	POPSTATE();
+}
+
+void Texture::SetClampBorderColor(const Color& color) {
+	PUSHSTATE();
+
+	Bind();
+
+	V4_float c{ color.Normalized() };
+	float border_color[4]{ c.x, c.y, c.z, c.w };
+
+	GLCall(gl::glTexParameterfv(
+		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::BorderColor), border_color
+	));
+
+	POPSTATE();
+}
+
+void Texture::GenerateMipmaps() {
+	PUSHSTATE();
+
+	Bind();
+
+	GLCall(gl::GenerateMipmap(GL_TEXTURE_2D));
+
+	POPSTATE();
 }
 
 } // namespace ptgn

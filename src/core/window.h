@@ -7,6 +7,12 @@ struct SDL_Window;
 
 namespace ptgn {
 
+enum class FullscreenMode {
+	Windowed		  = 0,
+	Fullscreen		  = 1,
+	DesktopFullscreen = 4096
+};
+
 class InputHandler;
 
 namespace impl {
@@ -25,7 +31,7 @@ struct Screen {
 
 class Window {
 private:
-	Window();
+	Window()						 = default;
 	~Window()						 = default;
 	Window(const Window&)			 = delete;
 	Window(Window&&)				 = default;
@@ -42,7 +48,7 @@ public:
 	// Returns the center coordinate of the window.
 	[[nodiscard]] V2_float GetCenter();
 
-	[[nodiscard]] V2_int GetOriginPosition();
+	[[nodiscard]] V2_int GetPosition();
 
 	void SetTitle(const char* new_title);
 	[[nodiscard]] const char* GetTitle();
@@ -51,7 +57,7 @@ public:
 
 	void SetPosition(const V2_int& new_origin);
 
-	void SetFullscreen(bool on);
+	void SetFullscreen(FullscreenMode mode);
 
 	// Note: The effect of Maximimize() is cancelled after calling
 	// SetResizeable(true).
@@ -81,14 +87,15 @@ private:
 	friend class impl::GLContext;
 	friend class Game;
 
-	// Setting fullscreen to true invalidates borderless and resizeable.
-	// Setting borderless to true invalidates resizeable.
-	void SetupSize(
-		const V2_int& resolution, const V2_int& minimum_resolution, bool fullscreen = false,
-		bool borderless = false, bool resizeable = true, const V2_float& scale = { 1.0f, 1.0f }
-	);
+	void Init();
+	void Shutdown();
 
-	[[nodiscard]] bool Exists();
+	void SetRelativeMouseMode(bool on);
+	void SetMouseGrab(bool on);
+	void CaptureMouse(bool on);
+	void SetAlwaysOnTop(bool on);
+
+	[[nodiscard]] bool Exists() const;
 
 	std::unique_ptr<SDL_Window, impl::WindowDeleter> window_;
 };

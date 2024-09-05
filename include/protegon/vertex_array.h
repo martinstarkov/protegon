@@ -4,12 +4,15 @@
 #include <vector>
 
 #include "protegon/buffer.h"
+#include "renderer/buffer_layout.h"
 
 namespace ptgn {
 
 class GLRenderer;
 
 namespace impl {
+
+class RendererData;
 
 struct VertexArrayInstance {
 	VertexArrayInstance();
@@ -28,31 +31,61 @@ public:
 	VertexArray()  = default;
 	~VertexArray() = default;
 
+	template <typename... Ts>
 	VertexArray(
-		PrimitiveMode mode, const VertexBuffer& vertex_buffer, const IndexBuffer& index_buffer = {}
-	);
+		PrimitiveMode mode, const VertexBuffer& vertex_buffer, const BufferLayout<Ts...>& layout,
+		const IndexBuffer& index_buffer
+	) :
+		VertexArray{ mode, vertex_buffer, layout, index_buffer } {}
 
 	void SetPrimitiveMode(PrimitiveMode mode);
 	void SetVertexBuffer(const VertexBuffer& vertex_buffer);
 	void SetIndexBuffer(const IndexBuffer& index_buffer);
 
-	// Does not check VertexBuffer validity.
-	[[nodiscard]] const VertexBuffer& GetVertexBuffer() const;
+	template <typename... Ts>
+	void SetLayout(const BufferLayout<Ts...>& layout) {
+		static_assert(
+			(impl::is_vertex_data_type<Ts> && ...),
+			"Provided vertex type should only contain ptgn::glsl:: types"
+		);
+		static_assert(sizeof...(Ts) > 0, "Must provide layout types as template arguments");
 
-	// Does not check IndexBuffer validity.
-	[[nodiscard]] const IndexBuffer& GetIndexBuffer() const;
+		if (!IsValid()) {
+			instance_ = std::make_shared<impl::VertexArrayInstance>();
+		}
+
+		Bind();
+
+		SetLayoutImpl(layout);
+	}
+
+	[[nodiscard]] bool HasVertexBuffer() const;
+
+	[[nodiscard]] bool HasIndexBuffer() const;
+
+	// Note, returning by copy is okay since they are handles.
+
+	[[nodiscard]] VertexBuffer GetVertexBuffer();
+	[[nodiscard]] IndexBuffer GetIndexBuffer();
 
 	[[nodiscard]] PrimitiveMode GetPrimitiveMode() const;
 
-private:
-	friend class VertexBuffer;
-	friend class IndexBuffer;
-	friend class GLRenderer;
+	VertexArray(
+		PrimitiveMode mode, const VertexBuffer& vertex_buffer,
+		const impl::InternalBufferLayout& layout, const IndexBuffer& index_buffer
+	);
 
-	static std::int32_t BoundId();
+private:
+	template <BufferType BT>
+	friend class Buffer;
+	friend class GLRenderer;
+	friend class RendererData;
+
+	static std::int32_t GetBoundId();
 
 	void SetVertexBufferImpl(const VertexBuffer& vertex_buffer);
 	void SetIndexBufferImpl(const IndexBuffer& index_buffer);
+	void SetLayoutImpl(const impl::InternalBufferLayout& layout);
 
 	void Bind() const;
 	static void Unbind();

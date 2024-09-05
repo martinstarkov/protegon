@@ -28,23 +28,24 @@ private:
 
 public:
 	template <
-			typename T, typename... TArgs, type_traits::constructible<T, TArgs...> = true,
-			type_traits::convertible<T*, Scene*> = true>
+		typename T, typename... TArgs, tt::constructible<T, TArgs...> = true,
+		tt::convertible<T*, Scene*> = true>
 	std::shared_ptr<T> Load(SceneKey scene_key, TArgs&&... constructor_args) {
 		PTGN_ASSERT(
-				scene_key != impl::start_scene_key,
-				"Cannot load scene with key == 0, it is reserved for the starting scene"
+			scene_key != impl::start_scene_key,
+			"Cannot load scene with key == 0, it is reserved for the starting scene"
 		);
 		return std::static_pointer_cast<T>(Manager<std::shared_ptr<Scene>>::Load(
-				scene_key, std::make_shared<T>(std::forward<TArgs>(constructor_args)...)
+			scene_key, std::make_shared<T>(std::forward<TArgs>(constructor_args)...)
 		));
 	}
 
-	template <
-			typename TScene = Scene,
-			type_traits::enable<
-					(std::is_base_of_v<TScene, Scene> || std::is_same_v<TScene, Scene>)> = true>
+	template <typename TScene = Scene>
 	[[nodiscard]] std::shared_ptr<TScene> Get(SceneKey scene_key) {
+		static_assert(
+			std::is_base_of_v<Scene, TScene> || std::is_same_v<TScene, Scene>,
+			"Cannot cast retrieved scene to type which does not inherit from the Scene class"
+		);
 		return std::static_pointer_cast<TScene>(Manager<std::shared_ptr<Scene>>::Get(scene_key));
 	}
 
@@ -62,15 +63,14 @@ private:
 	friend class Game;
 
 	template <typename TStartScene, typename... TArgs>
-	void StartScene(SceneKey scene_key, TArgs&&... constructor_args) {
+	void Init(SceneKey scene_key, TArgs&&... constructor_args) {
 		static_assert(
-				std::is_constructible_v<TStartScene, TArgs...>,
-				"Start scene must be constructible from given arguments, check that start scene "
-				"constructor is not private"
+			std::is_constructible_v<TStartScene, TArgs...>,
+			"Start scene must be constructible from given arguments, check that start scene "
+			"constructor is not private"
 		);
 		static_assert(
-				std::is_convertible_v<TStartScene*, Scene*>,
-				"Start scene must inherit from ptgn::Scene"
+			std::is_convertible_v<TStartScene*, Scene*>, "Start scene must inherit from ptgn::Scene"
 		);
 		PTGN_ASSERT(!Has(impl::start_scene_key), "Cannot load more than one start scene");
 		PTGN_ASSERT(scene_key == impl::start_scene_key);
@@ -79,10 +79,13 @@ private:
 		// active scene in the list.
 		SetActive(impl::start_scene_key);
 		Manager<std::shared_ptr<Scene>>::Load(
-				scene_key, std::make_shared<TStartScene>(std::forward<TArgs>(constructor_args)...)
+			scene_key, std::make_shared<TStartScene>(std::forward<TArgs>(constructor_args)...)
 		);
 		InitScene(scene_key);
 	}
+
+	void Reset();
+	void Shutdown();
 
 	void Update(float dt);
 	void UnloadFlagged();

@@ -16,6 +16,6 @@ enum class Origin {
 	BottomLeft,
 };
 
-[[nodiscard]] V2_float GetDrawOffset(const V2_float& size, Origin draw_origin);
+[[nodiscard]] V2_float GetOffsetFromCenter(const V2_float& size, Origin draw_origin);
 
 } // namespace ptgn

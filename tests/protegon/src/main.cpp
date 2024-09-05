@@ -25,10 +25,10 @@ public:
 	Tests() {}
 
 	void Init() final {
-		game.window.SetSize({ 960, 540 });
-		game.window.Show();
+		game.window.SetSize({ 800, 800 });
 		ws = game.window.GetSize();
-		game.renderer.SetClearColor(color::DarkRed);
+		game.renderer.SetClearColor(color::White);
+		game.window.Show();
 
 		TestMatrix4();
 		TestECS();
@@ -36,29 +36,25 @@ public:
 		TestRNG();
 		TestVector2();
 
-		TestTween();
-
 		TestRenderer();
+
+		TestTween();
 		TestCamera();
 		TestText();
 		TestEvents();
+		game.window.SetTitle("Update Loop");
 	}
 
 	void Update() final {
 		game.renderer.DrawRectangleFilled(
-			V2_float{ 0, 0 }, V2_float{ 50, 50 }, color::Blue, 0.0f, { 0.5f, 0.5f },
-			Origin::TopLeft, 0.0f
+			V2_float{ 0, 0 }, V2_float{ 50, 50 }, color::Blue, Origin::TopLeft
 		);
 		game.renderer.DrawRectangleFilled(
-			V2_float{ ws.x, 0 }, V2_float{ 50, 50 }, color::Magenta, 0.0f, { 0.5f, 0.5f },
-			Origin::TopRight, 0.0f
+			V2_float{ ws.x, 0 }, V2_float{ 50, 50 }, color::Magenta, Origin::TopRight
 		);
+		game.renderer.DrawRectangleFilled(ws, V2_float{ 50, 50 }, color::Red, Origin::BottomRight);
 		game.renderer.DrawRectangleFilled(
-			ws, V2_float{ 50, 50 }, color::Red, 0.0f, { 0.5f, 0.5f }, Origin::BottomRight, 0.0f
-		);
-		game.renderer.DrawRectangleFilled(
-			V2_float{ 0, ws.y }, V2_float{ 50, 50 }, color::Orange, 0.0f, { 0.5f, 0.5f },
-			Origin::BottomLeft, 0.0f
+			V2_float{ 0, ws.y }, V2_float{ 50, 50 }, color::Orange, Origin::BottomLeft
 		);
 	}
 };

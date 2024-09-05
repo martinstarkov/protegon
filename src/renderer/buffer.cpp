@@ -7,123 +7,84 @@ namespace ptgn {
 
 namespace impl {
 
-VertexBufferInstance::VertexBufferInstance() {
-	gl::GenBuffers(1, &id_);
-	PTGN_ASSERT(id_ != 0, "Failed to generate vertex buffer using OpenGL context");
+BufferInstance::BufferInstance() {
+	GLCall(gl::GenBuffers(1, &id_));
+	PTGN_ASSERT(id_ != 0, "Failed to generate buffer using OpenGL context");
 }
 
-VertexBufferInstance::~VertexBufferInstance() {
-	gl::DeleteBuffers(1, &id_);
-}
-
-IndexBufferInstance::IndexBufferInstance() {
-	gl::GenBuffers(1, &id_);
-	PTGN_ASSERT(id_ != 0, "Failed to generate index buffer using OpenGL context");
-}
-
-IndexBufferInstance::~IndexBufferInstance() {
-	gl::DeleteBuffers(1, &id_);
+BufferInstance::~BufferInstance() {
+	GLCall(gl::DeleteBuffers(1, &id_));
 }
 
 // Returns the max buffer size (as set by glBufferData) of the currently bound buffer.
 [[nodiscard]] inline static std::uint32_t GetMaxBufferSize(BufferType type) {
 	std::int32_t max_size{ 0 };
-	gl::GetBufferParameteriv(static_cast<gl::GLenum>(type), GL_BUFFER_SIZE, &max_size);
+	GLCall(gl::GetBufferParameteriv(static_cast<gl::GLenum>(type), GL_BUFFER_SIZE, &max_size));
 	return static_cast<std::uint32_t>(max_size);
 }
 
 } // namespace impl
 
-void VertexBuffer::SetDataImpl(const void* vertex_data, std::uint32_t size, BufferUsage usage) {
-	PTGN_ASSERT(size != 0, "Must provide more than one element when creating vertex buffer");
-	PTGN_ASSERT(vertex_data != nullptr);
+template <BufferType BT>
+void Buffer<BT>::SetDataImpl(const void* data, std::uint32_t size, BufferUsage usage) {
+	PTGN_ASSERT(size != 0, "Must provide more than one element when creating buffer");
+	// PTGN_ASSERT(data != nullptr);
 	VertexArray::Unbind();
 	Bind();
-	gl::BufferData(
-		static_cast<gl::GLenum>(impl::BufferType::Vertex), size, vertex_data,
-		static_cast<gl::GLenum>(usage)
+	GLCall(gl::BufferData(static_cast<gl::GLenum>(BT), size, data, static_cast<gl::GLenum>(usage)));
+}
+
+template <BufferType BT>
+void Buffer<BT>::SetSubData(const void* data, std::uint32_t size) {
+	PTGN_ASSERT(size != 0, "Must provide more than one element when setting buffer subdata");
+	PTGN_ASSERT(data != nullptr);
+	VertexArray::Unbind();
+	Bind();
+	// This buffer size check must be done after the buffer is bound.
+	PTGN_ASSERT(
+		size <= impl::GetMaxBufferSize(BT),
+		"Attempting to bind data outside of allocated buffer size"
 	);
+	GLCall(gl::BufferSubData(static_cast<gl::GLenum>(BT), 0, size, data));
 }
 
-void VertexBuffer::SetSubData(const void* vertex_data, std::uint32_t size) {
-	PTGN_ASSERT(size != 0, "Must provide more than one element when setting vertex buffer subdata");
-	PTGN_ASSERT(vertex_data != nullptr);
-	VertexArray::Unbind();
-	Bind();
-	// assert check must be done after buffer is bound
-	PTGN_ASSERT(size <= impl::GetMaxBufferSize(impl::BufferType::Vertex));
-	gl::BufferSubData(static_cast<gl::GLenum>(impl::BufferType::Vertex), 0, size, vertex_data);
-}
-
-std::int32_t VertexBuffer::BoundId() {
-	std::int32_t id{ 0 };
-	gl::glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &id);
-	PTGN_ASSERT(id >= 0);
+template <BufferType BT>
+std::int32_t Buffer<BT>::GetBoundId() {
+	std::int32_t id{ -1 };
+	GLCall(gl::glGetIntegerv(static_cast<gl::GLenum>(impl::GetGLBinding<BT>()), &id));
+	PTGN_ASSERT(id >= 0, "Unrecognized type for bound id check");
 	return id;
 }
 
-void VertexBuffer::Bind() const {
-	PTGN_ASSERT(IsValid(), "Cannot bind uninitialized or destroyed vertex buffer");
-	gl::BindBuffer(static_cast<gl::GLenum>(impl::BufferType::Vertex), instance_->id_);
+template <BufferType BT>
+std::int32_t Buffer<BT>::GetBoundSize() {
+	std::int32_t size{ -1 };
+	GLCall(gl::GetBufferParameteriv(static_cast<gl::GLenum>(BT), GL_BUFFER_SIZE, &size));
+	PTGN_ASSERT(size >= 0, "Could not determine bound buffer size correctly");
+	return size;
 }
 
-// void VertexBuffer::Unbind() {
-//	gl::BindBuffer(static_cast<gl::GLenum>(impl::BufferType::Vertex), 0);
+template <BufferType BT>
+BufferUsage Buffer<BT>::GetBoundUsage() {
+	std::int32_t usage{ -1 };
+	GLCall(gl::GetBufferParameteriv(static_cast<gl::GLenum>(BT), GL_BUFFER_SIZE, &usage));
+	PTGN_ASSERT(usage >= 0, "Could not determine bound buffer usage correctly");
+	return static_cast<BufferUsage>(usage);
+}
+
+template <BufferType BT>
+void Buffer<BT>::Bind() const {
+	PTGN_ASSERT(IsValid(), "Cannot bind uninitialized or destroyed buffer");
+	GLCall(gl::BindBuffer(static_cast<gl::GLenum>(BT), instance_->id_));
+}
+
+// template <BufferType BT>
+// void Buffer<BT>::Unbind() {
+//	GLCall(gl::BindBuffer(static_cast<gl::GLenum>(BT), 0));
 // }
 
-const impl::InternalBufferLayout& VertexBuffer::GetLayout() const {
-	PTGN_ASSERT(IsValid(), "Cannot get layout of uninitialized or destroyed vertex buffer");
-	return instance_->layout_;
-}
-
-IndexBuffer::IndexBuffer(const void* index_data, std::uint32_t size) {
-	if (!IsValid()) {
-		instance_ = std::make_shared<impl::IndexBufferInstance>();
-	}
-	count_ = size / sizeof(IndexType);
-	SetDataImpl(index_data, size);
-}
-
-void IndexBuffer::SetDataImpl(const void* index_data, std::uint32_t size) {
-	PTGN_ASSERT(size != 0, "Must provide more than one element when creating index buffer");
-	PTGN_ASSERT(index_data != nullptr);
-	VertexArray::Unbind();
-	Bind();
-	gl::BufferData(
-		static_cast<gl::GLenum>(impl::BufferType::Index), size, index_data,
-		static_cast<gl::GLenum>(BufferUsage::StaticDraw)
-	);
-}
-
-void IndexBuffer::SetSubData(const void* index_data, std::uint32_t size) {
-	PTGN_ASSERT(size != 0, "Must provide more than one element when setting index buffer subdata");
-	PTGN_ASSERT(index_data != nullptr);
-	VertexArray::Unbind();
-	Bind();
-	PTGN_ASSERT(size <= count_ * sizeof(IndexType));
-	// assert check must be done after buffer is bound
-	PTGN_ASSERT(size <= impl::GetMaxBufferSize(impl::BufferType::Index));
-	gl::BufferSubData(static_cast<gl::GLenum>(impl::BufferType::Index), 0, size, index_data);
-}
-
-std::int32_t IndexBuffer::BoundId() {
-	std::int32_t id{ 0 };
-	gl::glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &id);
-	PTGN_ASSERT(id >= 0);
-	return id;
-}
-
-void IndexBuffer::Bind() const {
-	PTGN_ASSERT(IsValid(), "Cannot bind uninitialized or destroyed index buffer");
-	gl::BindBuffer(static_cast<gl::GLenum>(impl::BufferType::Index), instance_->id_);
-}
-
-// void IndexBuffer::Unbind() {
-//	gl::BindBuffer(static_cast<gl::GLenum>(impl::BufferType::Index), 0);
-// }
-
-std::uint32_t IndexBuffer::GetCount() const {
-	return count_;
-}
+template class Buffer<BufferType::Vertex>;
+template class Buffer<BufferType::Index>;
+template class Buffer<BufferType::Uniform>;
 
 } // namespace ptgn

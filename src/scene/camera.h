@@ -1,69 +1,86 @@
 #pragma once
 
 #include <algorithm>
+#include <limits>
 
 #include "core/manager.h"
 #include "protegon/event.h"
 #include "protegon/events.h"
 #include "protegon/matrix4.h"
+#include "protegon/polygon.h"
 #include "protegon/quaternion.h"
 #include "protegon/vector2.h"
 #include "protegon/vector3.h"
+#include "utility/handle.h"
 
 namespace ptgn {
 
 class Game;
+class OrthographicCamera;
 
-class Camera {
-protected:
-	M4_float view_{ 1.0f };
-	M4_float projection_{ 1.0f };
-	M4_float view_projection_{ 1.0f };
+struct Camera {
+	M4_float view{ 1.0f };
+	M4_float projection{ 1.0f };
+	M4_float view_projection{ 1.0f };
 
-	V3_float position_;
-	Quaternion orientation_;
+	V3_float position;
+	V2_float size;
+	Quaternion orientation;
 
-public:
-	Camera()		  = default;
-	virtual ~Camera() = default;
-
-	[[nodiscard]] virtual const V3_float& GetPosition() const;
-	[[nodiscard]] virtual const Quaternion& GetOrientation() const;
-	[[nodiscard]] virtual V3_float GetEulerOrientation() const;
-	[[nodiscard]] virtual const M4_float& GetView() const;
-	[[nodiscard]] virtual const M4_float& GetProjection() const;
-	[[nodiscard]] virtual const M4_float& GetViewProjection() const;
-
-	virtual void SetPosition(const V2_float& new_position);
-	virtual void SetPosition(const V3_float& new_position);
-	// Yaw, Pitch, Roll
-	virtual void SetRotation(const V3_float& new_angles);
-	virtual void Translate(const V3_float& amount);
-	virtual void Rotate(float angle_amount, const V3_float& axis);
-	virtual void Yaw(float angle_amount);
-	virtual void Pitch(float angle_amount);
-	virtual void Roll(float angle_amount);
-
-	virtual bool operator==(const Camera& o) const;
-	virtual bool operator!=(const Camera& o) const;
-
-protected:
-	virtual void RecalculateView();
-	virtual void RecalculateViewProjection();
+	// If rectangle IsZero(), no position bounds are enforced.
+	Rectangle<float> bounding_box;
 };
 
-class OrthographicCamera : public Camera {
+// TODO: Make cameras handles so the internal reference is shared across the manager.
+
+class OrthographicCamera : public Handle<Camera> {
 public:
 	OrthographicCamera();
 	~OrthographicCamera();
 
 	OrthographicCamera(
-		float left, float right, float bottom, float top, float near = -1.0f, float far = 1.0f
+		float left, float right, float bottom, float top,
+		float near = -std::numeric_limits<float>::max(),
+		float far  = std::numeric_limits<float>::max()
 	);
 
 	void SetProjection(
-		float left, float right, float bottom, float top, float near = -1.0f, float far = 1.0f
+		float left, float right, float bottom, float top,
+		float near = -std::numeric_limits<float>::max(),
+		float far  = std::numeric_limits<float>::max()
 	);
+
+	void SetClampBounds(const Rectangle<float>& bounding_box);
+
+	void SetSizeToWindow();
+	void SetSize(const V2_float& size);
+
+	[[nodiscard]] V2_float GetTopLeftPosition() const;
+	[[nodiscard]] const V2_float& GetSize() const;
+	[[nodiscard]] const V3_float& GetPosition() const;
+	[[nodiscard]] const Quaternion& GetOrientation() const;
+	[[nodiscard]] V3_float GetEulerOrientation() const;
+	[[nodiscard]] const M4_float& GetView() const;
+	[[nodiscard]] const M4_float& GetProjection() const;
+	[[nodiscard]] const M4_float& GetViewProjection() const;
+
+	void SetPosition(const V2_float& new_position);
+	void SetPosition(const V3_float& new_position);
+
+	// Yaw, Pitch, Roll
+	void SetRotation(const V3_float& new_angles);
+	void Translate(const V3_float& amount);
+	void Rotate(float angle_amount, const V3_float& axis);
+	void Yaw(float angle_amount);
+	void Pitch(float angle_amount);
+	void Roll(float angle_amount);
+
+	bool operator==(const OrthographicCamera& o) const;
+	bool operator!=(const OrthographicCamera& o) const;
+
+protected:
+	void RecalculateView();
+	void RecalculateViewProjection();
 };
 
 class CameraManager : public Manager<OrthographicCamera> {
@@ -76,10 +93,12 @@ public:
 	CameraManager& operator=(CameraManager&&)	   = default;
 
 	void SetPrimary(const Key& key);
+	void SetPrimary(const OrthographicCamera& camera);
 
 	[[nodiscard]] const OrthographicCamera& GetPrimary() const;
 	[[nodiscard]] OrthographicCamera& GetPrimary();
 
+	// TODO: Fix this allowing window_camera_ to be modified (seemingly?).
 	void ResetPrimaryToWindow();
 
 private:
@@ -108,7 +127,7 @@ public:
 	using Item = CameraManager::Item;
 	using Key  = CameraManager::Key;
 
-	template <typename... TArgs, type_traits::constructible<Item, TArgs...> = true>
+	template <typename... TArgs, tt::constructible<Item, TArgs...> = true>
 	static Item& Load(const Key& key, TArgs&&... constructor_args) {
 		return LoadImpl(key, std::move(Item(constructor_args...)));
 	}
@@ -119,6 +138,7 @@ public:
 	static void Clear();
 
 	static void SetPrimary(const Key& key);
+	static void SetPrimary(const OrthographicCamera& camera);
 
 	[[nodiscard]] static OrthographicCamera& GetPrimary();
 

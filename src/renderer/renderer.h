@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <map>
 
 #include "protegon/buffer.h"
 #include "protegon/color.h"
@@ -19,6 +20,8 @@
 // z_indexes as one uses the line batch and one uses the triangle batch. Not sure how to fix this
 // while maintaining batching and permitting alpha blending (depth testing requires turning alpha
 // blending off).
+// TODO: If batch size is very small, z_indexes get drawn in 2 calls which completely defeats the
+// purpose of it.
 
 // clang-format off
 #define PTGN_SHADER_STRINGIFY_MACRO(x) PTGN_STRINGIFY_MACRO(x)
@@ -68,7 +71,6 @@ struct QuadVertex {
 	glsl::vec4 color;
 	glsl::vec2 tex_coord;
 	glsl::float_ tex_index;
-	glsl::float_ tiling_factor;
 };
 
 struct CircleVertex {
@@ -93,7 +95,9 @@ namespace impl {
 	float Ax, float Ay, float Bx, float By, float Cx, float Cy, float Px, float Py
 );
 
-[[nodiscard]] bool TriangulateSnip(const V2_float* contour, int u, int v, int w, int n, int* V);
+[[nodiscard]] bool TriangulateSnip(
+	const V2_float* contour, int u, int v, int w, int n, const std::vector<int>& V
+);
 
 [[nodiscard]] std::vector<Triangle<float>> TriangulateProcess(
 	const V2_float* contour, std::size_t count
@@ -101,160 +105,259 @@ namespace impl {
 
 class RendererData;
 
-template <typename TVertex, std::size_t V, std::size_t I>
-struct ShapeData {
+template <typename TVertex, std::size_t V>
+struct ShapeVertices {
 public:
-	constexpr static std::size_t vertex_count{ V };
-	constexpr static std::size_t index_count{ I };
+	constexpr static std::size_t count{ V };
 
-	[[nodiscard]] float GetZIndex() const {
-		return vertices_[0].position[2];
-	}
+	ShapeVertices() = default;
 
-	void Add(
-		const std::array<V2_float, vertex_count>& vertices, float z_index, const V4_float& color
+	// Takes in normalized color.
+	ShapeVertices(
+		const std::array<V2_float, count>& positions, float z_index, const V4_float& color
 	) {
+		PTGN_ASSERT(color.x >= 0.0f && color.y >= 0.0f && color.z >= 0.0f && color.w >= 0.0f);
+		PTGN_ASSERT(color.x <= 1.0f && color.y <= 1.0f && color.z <= 1.0f && color.w <= 1.0f);
 		for (std::size_t i{ 0 }; i < vertices_.size(); i++) {
-			vertices_[i].position = { vertices[i].x, vertices[i].y, z_index };
+			vertices_[i].position = { positions[i].x, positions[i].y, z_index };
 			vertices_[i].color	  = { color.x, color.y, color.z, color.w };
 		}
 	}
 
 protected:
-	std::array<TVertex, V> vertices_;
+	std::array<TVertex, count> vertices_{};
 };
 
-struct QuadData : public ShapeData<QuadVertex, 4, 6> {
-	void Add(
-		const std::array<V2_float, vertex_count>& vertices, float z_index, const V4_float& color,
-		const std::array<V2_float, vertex_count>& tex_coords, float texture_index,
-		float tiling_factor
+struct QuadVertices : public ShapeVertices<QuadVertex, 4> {
+	using ShapeVertices::ShapeVertices;
+
+	QuadVertices(
+		const std::array<V2_float, count>& positions, float z_index, const V4_float& color,
+		const std::array<V2_float, count>& tex_coords, float texture_index
 	);
 };
 
-struct CircleData : public ShapeData<CircleVertex, 4, 6> {
-	void Add(
-		const std::array<V2_float, vertex_count>& vertices, float z_index, const V4_float& color,
+struct CircleVertices : public ShapeVertices<CircleVertex, 4> {
+	using ShapeVertices::ShapeVertices;
+
+	CircleVertices(
+		const std::array<V2_float, count>& positions, float z_index, const V4_float& color,
 		float line_width, float fade
 	);
 };
 
-struct PointData : public ShapeData<ColorVertex, 1, 1> {};
+struct TriangleVertices : public ShapeVertices<ColorVertex, 3> {
+	using ShapeVertices::ShapeVertices;
+};
 
-struct LineData : public ShapeData<ColorVertex, 2, 2> {};
+struct LineVertices : public ShapeVertices<ColorVertex, 2> {
+	using ShapeVertices::ShapeVertices;
+};
 
-struct TriangleData : public ShapeData<ColorVertex, 3, 3> {};
+struct PointVertices : public ShapeVertices<ColorVertex, 1> {
+	using ShapeVertices::ShapeVertices;
+};
 
-void OffsetVertices(
-	std::array<V2_float, QuadData::vertex_count>& vertices, const V2_float& size, Origin draw_origin
-);
+void OffsetVertices(std::array<V2_float, 4>& vertices, const V2_float& size, Origin draw_origin);
 
-void FlipTextureCoordinates(
-	std::array<V2_float, QuadData::vertex_count>& texture_coords, Flip flip
-);
+void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip);
 
 void RotateVertices(
-	std::array<V2_float, QuadData::vertex_count>& vertices, const V2_float& position,
-	const V2_float& size, float rotation, const V2_float& rotation_center
+	std::array<V2_float, 4>& vertices, const V2_float& position, const V2_float& size,
+	float rotation, const V2_float& rotation_center
 );
 
-[[nodiscard]] std::array<V2_float, QuadData::vertex_count> GetQuadVertices(
+[[nodiscard]] std::array<V2_float, 4> GetQuadVertices(
 	const V2_float& position, const V2_float& size, Origin draw_origin, float rotation,
 	const V2_float& rotation_center
 );
 
-template <typename T>
+class Batch;
+
+template <typename TVertices, std::size_t IndexCount>
 class BatchData {
 public:
-	VertexArray array_;
-	VertexBuffer buffer_;
-	Shader shader_;
-	std::vector<T> batch_;
-	std::int32_t index_{ -1 };
+	using vertices = TVertices;
 
-	constexpr static const std::size_t batch_count_	 = 2000;
-	constexpr static const std::size_t max_vertices_ = batch_count_ * T::vertex_count;
-	constexpr static const std::size_t max_indices_	 = batch_count_ * T::index_count;
+	[[nodiscard]] bool IsAvailable() const;
 
-	void AdvanceBatch() {
-		index_++;
-		if (index_ + 1 >= batch_count_) {
-			Draw();
-			index_ = 0;
-		}
-	}
+	[[nodiscard]] TVertices& Get();
 
-	[[nodiscard]] bool IsFlushed() const {
-		return index_ == -1;
-	}
+	void Flush();
+
+private:
+	friend class Batch;
+
+	void UpdateBuffer();
+
+	[[nodiscard]] bool IsFlushed() const;
 
 	void Draw();
+
+protected:
+	VertexArray array_;
+	std::vector<TVertices> data_;
+};
+
+class TextureBatchData : public BatchData<QuadVertices, 6> {
+public:
+	TextureBatchData() = default;
+
+	TextureBatchData(std::size_t max_texture_slots);
+
+	void BindTextures();
+
+	[[nodiscard]] bool IsAvailable() const;
+
+	// @return pair<texture_index, texture_index_found>
+	// If texture_index_found == false, texture_index will be 0.
+	// Otherwise, texture index returned is always > 0.
+	[[nodiscard]] std::pair<std::size_t, bool> GetTextureIndex(const Texture& t);
+
+	[[nodiscard]] std::size_t GetTextureSlotCapacity() const;
+
+private:
+	[[nodiscard]] bool HasAvailableTextureSlot() const;
+
+	std::vector<Texture> textures_;
+};
+
+enum class BatchType {
+	Quad,
+	Circle,
+	Triangle,
+	Line,
+	Point,
+};
+
+class Batch {
+public:
+	Batch() = default;
+	Batch(RendererData* renderer);
+
+	[[nodiscard]] bool IsFlushed(BatchType type);
+
+	void Flush(BatchType type);
+
+	[[nodiscard]] bool IsAvailable(BatchType type) const;
+
+	TextureBatchData quad_;
+	BatchData<CircleVertices, 6> circle_;
+	BatchData<TriangleVertices, 3> triangle_;
+	BatchData<LineVertices, 2> line_;
+	BatchData<PointVertices, 1> point_;
+
+private:
+	template <typename T>
+	void SetArray(
+		std::uint32_t batch_capacity, T& data, PrimitiveMode p,
+		const impl::InternalBufferLayout& layout, const IndexBuffer& ib
+	) {
+		PTGN_ASSERT(batch_capacity > 0);
+		data.array_ = { p,
+						VertexBuffer(
+							data.data_.data(),
+							static_cast<std::uint32_t>(
+								batch_capacity * layout.GetStride() * T::vertices::count
+							),
+							BufferUsage::DynamicDraw
+						),
+						layout, ib };
+	}
+
+	RendererData* renderer_{ nullptr };
 };
 
 class RendererData {
 public:
-	RendererData();
-	~RendererData() = default;
+	RendererData()								 = default;
+	~RendererData()								 = default;
+	RendererData(const RendererData&)			 = delete;
+	RendererData(RendererData&&)				 = default;
+	RendererData& operator=(const RendererData&) = delete;
+	RendererData& operator=(RendererData&&)		 = default;
+
+	void Init();
+
+	M4_float view_projection_{ 1.0f };
+
+	bool new_view_projection_{ false };
+
+	Shader quad_shader_;
+	Shader circle_shader_;
+	Shader color_shader_;
+
+	IndexBuffer quad_ib_;
+	IndexBuffer triangle_ib_;
+	IndexBuffer line_ib_;
+	IndexBuffer point_ib_;
+
+	impl::InternalBufferLayout quad_layout{
+		BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_>{}
+	};
+
+	impl::InternalBufferLayout circle_layout{
+		BufferLayout<glsl::vec3, glsl::vec3, glsl::vec4, glsl::float_, glsl::float_>{}
+	};
+
+	impl::InternalBufferLayout color_layout{ BufferLayout<glsl::vec3, glsl::vec4>{} };
 
 	std::uint32_t max_texture_slots_{ 0 };
-
 	Texture white_texture_;
 
-	std::vector<Texture> texture_slots_;
-	std::uint32_t texture_index_{ 1 }; // 0 reserved for white texture
+	std::vector<Batch> opaque_batches_;
 
-	BatchData<QuadData> quad_;
-	BatchData<CircleData> circle_;
-	BatchData<PointData> point_;
-	BatchData<LineData> line_;
-	BatchData<TriangleData> triangle_;
+	// Key: z_index, Value: Batches for that z_index.
+	std::map<std::int64_t, std::vector<Batch>> transparent_batches_;
 
-	float line_width_{ 2.0f };
+	[[nodiscard]] Shader& GetShader(BatchType type);
 
-	void SetupBuffers();
-	void SetupTextureSlots();
+	void AddQuad(
+		const std::array<V2_float, 4>& vertices, float z_index, const V4_float& color,
+		const std::array<V2_float, 4>& tex_coords, const Texture& t
+	);
+	void AddCircle(
+		const std::array<V2_float, 4>& vertices, float z_index, const V4_float& color,
+		float line_width, float fade
+	);
+	void AddTriangle(
+		const V2_float& a, const V2_float& b, const V2_float& c, float z_index,
+		const V4_float& color
+	);
+	void AddLine(const V2_float& p0, const V2_float& p1, float z_index, const V4_float& color);
+	void AddPoint(const V2_float& position, float z_index, const V4_float& color);
+
 	void SetupShaders();
 
 	void Flush();
 
-	void BindTextures() const;
-
-	// @return Slot index of the texture or 0.0f if texture index is currently not in texture slots.
-	float GetTextureIndex(const Texture& texture);
-
-	[[nodiscard]] static std::array<V2_float, QuadData::vertex_count> GetTextureCoordinates(
-		const V2_float& source_position, V2_float source_size, const V2_float& texture_size
+	[[nodiscard]] static std::array<V2_float, 4> GetTextureCoordinates(
+		const V2_float& source_position, V2_float source_size, const V2_float& texture_size,
+		Flip flip
 	);
 
-	[[nodiscard]] static std::vector<IndexBuffer::IndexType> GetIndices(
-		const std::function<void(std::vector<IndexBuffer::IndexType>&, std::size_t, std::uint32_t)>&
-			func,
-		std::size_t max_indices, std::size_t vertex_count, std::size_t index_count
+private:
+	void FlushTransparentBatches();
+	void FlushOpaqueBatches();
+
+	void FlushBatches(std::vector<Batch>& batches);
+
+	[[nodiscard]] std::vector<Batch>& GetBatchGroup(float alpha, float z_index);
+
+	[[nodiscard]] Batch& GetBatch(BatchType type, std::vector<Batch>& batch_group);
+
+	// @return pair<batch reference, texture index>
+	[[nodiscard]] std::pair<Batch&, std::size_t> GetTextureBatch(
+		BatchType type, std::vector<Batch>& batch_group, const Texture& t
 	);
-
-	struct Stats {
-		std::int64_t quad_count{ 0 };
-		std::int64_t circle_count{ 0 };
-		std::int64_t point_count{ 0 };
-		std::int64_t line_count{ 0 };
-		std::int64_t triangle_count{ 0 };
-
-		std::int64_t draw_calls{ 0 };
-
-		void Reset();
-
-		void Print();
-	};
-
-	Stats stats_;
 };
 
 } // namespace impl
 
 class Renderer {
 private:
-	Renderer();
-	~Renderer();
+	Renderer()							 = default;
+	~Renderer()							 = default;
 	Renderer(const Renderer&)			 = delete;
 	Renderer(Renderer&&)				 = default;
 	Renderer& operator=(const Renderer&) = delete;
@@ -263,31 +366,32 @@ private:
 public:
 	void Clear() const;
 
-	void Present(bool print_stats = false);
+	void Present();
 
 	void Flush();
 
-	void DrawArray(const VertexArray& vertex_array);
+	void DrawElements(const VertexArray& va, std::size_t index_count);
+	void DrawArrays(const VertexArray& va, std::size_t vertex_count);
 
 	/*
 	 * @param source_position Top left pixel to start drawing texture from within the texture
 	 * (defaults to { 0, 0 }).
 	 * @param source_size Number of pixels of the texture to draw (defaults to {} which corresponds
 	 * to the remaining texture size to the bottom right of source_position).
+	 * @param draw_origin Relative to destination_position the direction from which the texture is
+	 * @param flip Mirror the texture along an axis (default to Flip::None).
 	 * @param rotation Degrees to rotate the texture (defaults to 0).
 	 * @param rotation_center Fraction of the source_size around which the texture is rotated
 	 * (defaults to { 0.5f, 0.5f } which corresponds to the center of the texture).
-	 * @param flip Mirror the texture along an axis (default to Flip::None).
 	 * @param z_index Z-coordinate to draw the texture at (-1.0f to 1.0f).
-	 * @param draw_origin Relative to destination_position the direction from which the texture is
 	 * drawn.
 	 */
 	void DrawTexture(
-		const V2_float& destination_position, const V2_float& destination_size,
-		const Texture& texture, const V2_float& source_position = {}, V2_float source_size = {},
+		const Texture& texture, const V2_float& destination_position,
+		const V2_float& destination_size, const V2_float& source_position = {},
+		V2_float source_size = {}, Origin draw_origin = Origin::Center, Flip flip = Flip::None,
 		float rotation = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
-		Flip flip = Flip::None, Origin draw_origin = Origin::Center, float z_index = 0.0f,
-		float tiling_factor = 1.0f, const Color& tint_color = color::White
+		float z_index = 0.0f, const Color& tint_color = color::White
 	);
 
 	void DrawPoint(
@@ -324,9 +428,9 @@ public:
 
 	// Rotation in degrees.
 	void DrawRectangleFilled(
-		const V2_float& position, const V2_float& size, const Color& color, float rotation = 0.0f,
-		const V2_float& rotation_center = { 0.5f, 0.5f }, Origin draw_origin = Origin::Center,
-		float z_index = 0.0f
+		const V2_float& position, const V2_float& size, const Color& color,
+		Origin draw_origin = Origin::Center, float rotation = 0.0f,
+		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
 	);
 
 	// Rotation in degrees.
@@ -337,15 +441,15 @@ public:
 
 	// Rotation in degrees.
 	void DrawRectangleHollow(
-		const V2_float& position, const V2_float& size, const Color& color, float rotation = 0.0f,
-		const V2_float& rotation_center = { 0.5f, 0.5f }, float line_width = 1.0f,
-		Origin draw_origin = Origin::Center, float z_index = 0.0f
+		const V2_float& position, const V2_float& size, const Color& color,
+		Origin draw_origin = Origin::Center, float line_width = 1.0f, float rotation = 0.0f,
+		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
 	);
 
 	// Rotation in degrees.
 	void DrawRectangleHollow(
-		const Rectangle<float>& rectangle, const Color& color, float rotation = 0.0f,
-		const V2_float& rotation_center = { 0.5f, 0.5f }, float line_width = 1.0f,
+		const Rectangle<float>& rectangle, const Color& color, float line_width = 1.0f,
+		float rotation = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
 		float z_index = 0.0f
 	);
 
@@ -386,8 +490,8 @@ public:
 	// Rotation in degrees.
 	void DrawRoundedRectangleFilled(
 		const V2_float& position, const V2_float& size, float radius, const Color& color,
-		float rotation = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
-		Origin origin = Origin::Center, float z_index = 0.0f
+		Origin draw_origin = Origin::Center, float rotation = 0.0f,
+		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
 	);
 
 	// Rotation in degrees.
@@ -399,20 +503,16 @@ public:
 	// Rotation in degrees.
 	void DrawRoundedRectangleHollow(
 		const V2_float& position, const V2_float& size, float radius, const Color& color,
-		float rotation = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
-		float line_width = 1.0f, Origin origin = Origin::Center, float z_index = 0.0f
+		Origin draw_origin = Origin::Center, float line_width = 1.0f, float rotation = 0.0f,
+		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
 	);
 
 	// Rotation in degrees.
 	void DrawRoundedRectangleHollow(
-		const RoundedRectangle<float>& rounded_rectangle, const Color& color, float rotation = 0.0f,
-		const V2_float& rotation_center = { 0.5f, 0.5f }, float line_width = 1.0f,
-		float z_index = 0.0f
+		const RoundedRectangle<float>& rounded_rectangle, const Color& color,
+		float line_width = 1.0f, float rotation = 0.0f,
+		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
 	);
-
-	// Following functions Taken from:
-	// https://github.com/rtrussell/BBCSDL/blob/master/src/SDL2_gfxPrimitives.c
-	// (with modifications)
 
 	void DrawEllipseFilled(
 		const V2_float& position, const V2_float& radius, const Color& color, float fade = 0.005f,
@@ -478,16 +578,109 @@ public:
 
 	void SetViewport(const V2_int& size);
 
+	void UpdateViewProjection(const M4_float& view_projection);
+
 private:
 	friend class CameraManager;
 	friend class Game;
 
-	void StartBatch();
+	void Init();
+	void Shutdown();
+	void Reset();
 
-	void UpdateViewProjection(const M4_float& view_projection);
+	void DrawTextureImpl(
+		const std::array<V2_float, 4>& vertices, const Texture& t,
+		const std::array<V2_float, 4>& tex_coords, const V4_float& tint_color, float z
+	);
 
-	Color clear_color_;
-	BlendMode blend_mode_;
+	void DrawPointImpl(
+		const V2_float& position, const V4_float& color, float radius, float z_index
+	);
+
+	void DrawLineImpl(
+		const V2_float& p0, const V2_float& p1, const V4_float& color, float line_width,
+		float z_index
+	);
+
+	void DrawTriangleFilledImpl(
+		const V2_float& a, const V2_float& b, const V2_float& c, const V4_float& color,
+		float z_index
+	);
+
+	void DrawTriangleHollowImpl(
+		const V2_float& a, const V2_float& b, const V2_float& c, const V4_float& color,
+		float line_width, float z_index
+	);
+
+	void DrawRectangleFilledImpl(
+		const std::array<V2_float, 4>& vertices, const V4_float& color, float z_index
+	);
+
+	void DrawRectangleHollowImpl(
+		const std::array<V2_float, 4>& vertices, const V4_float& color, float line_width,
+		float z_index
+	);
+
+	void DrawPolygonFilledImpl(
+		const Triangle<float>* triangles, std::size_t triangle_count, const V4_float& col, float z
+	);
+
+	void DrawPolygonHollowImpl(
+		const V2_float* vertices, std::size_t vertex_count, const V4_float& color, float line_width,
+		float z_index
+	);
+
+	void DrawRoundedRectangleFilledImpl(
+		const V2_float& position, const V2_float& size, float radius, const V4_float& color,
+		Origin origin, float rotation, const V2_float& rotation_center, float z_index
+	);
+
+	void DrawRoundedRectangleHollowImpl(
+		const V2_float& position, const V2_float& size, float radius, const V4_float& color,
+		Origin origin, float line_width, float rotation, const V2_float& rotation_center,
+		float z_index
+	);
+
+	void DrawEllipseFilledImpl(
+		const V2_float& position, const V2_float& radius, const V4_float& color, float fade,
+		float z_index
+	);
+
+	// TODO: Fix ellipse line width being uneven between x and y axes (currently it chooses the
+	// smaller radius axis as the relative radius).
+	void DrawEllipseHollowImpl(
+		const V2_float& position, const V2_float& radius, const V4_float& color, float line_width,
+		float fade, float z_index
+	);
+
+	void DrawArcImpl(
+		const V2_float& p, float arc_radius, float start_angle, float end_angle,
+		const V4_float& col, float lw, float z, bool filled
+	);
+
+	void DrawArcFilledImpl(
+		const V2_float& position, float arc_radius, float start_angle, float end_angle,
+		const V4_float& color, float z_index
+	);
+
+	void DrawArcHollowImpl(
+		const V2_float& position, float arc_radius, float start_angle, float end_angle,
+		const V4_float& color, float line_width, float z_index
+	);
+
+	void DrawCapsuleFilledImpl(
+		const V2_float& p0, const V2_float& p1, float radius, const V4_float& color, float fade,
+		float z_index
+	);
+
+	// TODO: Fix artefacts in capsule line width at larger radii.
+	void DrawCapsuleHollowImpl(
+		const V2_float& p0, const V2_float& p1, float radius, const V4_float& color,
+		float line_width, float fade, float z_index
+	);
+
+	Color clear_color_{ color::White };
+	BlendMode blend_mode_{ BlendMode::Blend };
 	V2_int viewport_size_;
 	impl::RendererData data_;
 };

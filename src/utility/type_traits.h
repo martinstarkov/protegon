@@ -4,7 +4,7 @@
 
 namespace ptgn {
 
-namespace type_traits {
+namespace tt {
 
 namespace impl {
 
@@ -234,6 +234,6 @@ using is_safely_castable_to_one_of =
 template <bool CONDITION>
 using enable = std::enable_if_t<(CONDITION), bool>;
 
-} // namespace type_traits
+} // namespace tt
 
 } // namespace ptgn

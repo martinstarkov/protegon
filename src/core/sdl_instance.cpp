@@ -2,11 +2,11 @@
 
 #include <ostream>
 
+#include "renderer/gl_renderer.h"
 #include "SDL.h"
 #include "SDL_image.h"
 #include "SDL_mixer.h"
 #include "SDL_ttf.h"
-#include "renderer/gl_renderer.h"
 #include "utility/debug.h"
 
 inline std::ostream& operator<<(std::ostream& os, const SDL_version& v) {
@@ -19,33 +19,63 @@ namespace ptgn {
 
 namespace impl {
 
-SDLInstance::SDLInstance() {
+bool SDLInstance::IsInitialized() const {
+	return SDLIsInitialized() && SDLImageIsInitialized() && SDLTTFIsInitialized() &&
+		   SDLMixerIsInitialized();
+}
+
+bool SDLInstance::SDLMixerIsInitialized() const {
+	return sdl_mixer_init_;
+}
+
+bool SDLInstance::SDLTTFIsInitialized() const {
+	return sdl_ttf_init_;
+}
+
+bool SDLInstance::SDLIsInitialized() const {
+	return sdl_init_;
+}
+
+bool SDLInstance::SDLImageIsInitialized() const {
+	return sdl_image_init_;
+}
+
+void SDLInstance::Init() {
+#ifdef PTGN_DEBUG
+	PTGN_INFO("Build Type: Debug");
+#else
+	PTGN_INFO("Build Type: Release");
+#endif
+	PTGN_ASSERT(!IsInitialized());
 	InitSDL();
 	InitSDLImage();
 	InitSDLTTF();
 	InitSDLMixer();
+	PTGN_ASSERT(IsInitialized());
 }
 
-SDLInstance::~SDLInstance() {
+void SDLInstance::Shutdown() {
 	Mix_CloseAudio();
 	PTGN_INFO("Closed SDL2_mixer audio");
 	Mix_Quit();
 	PTGN_INFO("Deinitialized SDL2_mixer");
+	sdl_mixer_init_ = false;
 	TTF_Quit();
 	PTGN_INFO("Deinitialized SDL2_ttf");
+	sdl_ttf_init_ = false;
 	IMG_Quit();
 	PTGN_INFO("Deinitialized SDL2_image");
+	sdl_image_init_ = false;
 	SDL_Quit();
 	PTGN_INFO("Deinitialized SDL2");
+	sdl_init_ = false;
 }
 
 void SDLInstance::InitSDL() {
 	std::uint32_t sdl_flags{ SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS | SDL_INIT_TIMER };
-	if (SDL_WasInit(sdl_flags) == sdl_flags) {
-		// TODO: Temporary message.
-		PTGN_INFO("Not going to try to initialize SDL2 again");
-		return;
-	}
+	PTGN_ASSERT(
+		SDL_WasInit(sdl_flags) != sdl_flags, "Cannot reinitialize SDL instance before shutting down"
+	);
 
 	SDL_SetHint(SDL_HINT_MOUSE_RELATIVE_SCALING, "1");
 	// Ensures window and elements scale by monitor zoom level for constant
@@ -65,16 +95,16 @@ void SDLInstance::InitSDL() {
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, PTGN_OPENGL_MAJOR_VERSION);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, PTGN_OPENGL_MINOR_VERSION);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, PTGN_OPENGL_CONTEXT_PROFILE);
+
+	sdl_init_ = true;
 }
 
 void SDLInstance::InitSDLImage() {
 	int img_flags{ IMG_INIT_PNG | IMG_INIT_JPG };
 
-	if (IMG_Init(0) == img_flags) {
-		// TODO: Temporary message.
-		PTGN_INFO("Not going to try to initialize SDL2_image again");
-		return;
-	}
+	PTGN_ASSERT(
+		IMG_Init(0) != img_flags, "Cannot reinitialize SDL_image instance before shutting down"
+	);
 
 	int img_init{ IMG_Init(img_flags) };
 
@@ -82,20 +112,20 @@ void SDLInstance::InitSDLImage() {
 
 	const SDL_version* linked = IMG_Linked_Version();
 	PTGN_INFO("Initialized SDL2_image version: ", *linked);
+
+	sdl_image_init_ = true;
 }
 
 void SDLInstance::InitSDLTTF() {
-	if (TTF_WasInit()) {
-		// TODO: Temporary message.
-		PTGN_INFO("Not going to try to initialize SDL2_ttf again");
-		return;
-	}
+	PTGN_ASSERT(TTF_WasInit() == 0, "Cannot reinitialize SDL_ttf instance before shutting down");
 
 	int ttf_init{ TTF_Init() };
 	PTGN_ASSERT(ttf_init != -1, TTF_GetError());
 
 	const SDL_version* linked = TTF_Linked_Version();
 	PTGN_INFO("Initialized SDL2_ttf version: ", *linked);
+
+	sdl_ttf_init_ = true;
 }
 
 void SDLInstance::InitSDLMixer() {
@@ -106,11 +136,9 @@ void SDLInstance::InitSDLMixer() {
 	mixer_flags = { MIX_INIT_OGG };
 #endif
 
-	if (Mix_Init(0) == mixer_flags) {
-		// TODO: Temporary message.
-		PTGN_INFO("Not going to try to initialize SDL2_mixer again");
-		return;
-	}
+	PTGN_ASSERT(
+		Mix_Init(0) != mixer_flags, "Cannot reinitialize SDL_mixer instance before shutting down"
+	);
 
 	int mixer_init{ Mix_Init(mixer_flags) };
 	PTGN_ASSERT(mixer_init == mixer_flags, Mix_GetError());
@@ -120,6 +148,8 @@ void SDLInstance::InitSDLMixer() {
 
 	const SDL_version* linked = Mix_Linked_Version();
 	PTGN_INFO("Initialized SDL2_mixer version: ", *linked);
+
+	sdl_mixer_init_ = true;
 }
 
 } // namespace impl

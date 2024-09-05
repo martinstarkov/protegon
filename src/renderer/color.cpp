@@ -1,13 +1,8 @@
 #include "protegon/color.h"
 
-#include "SDL.h"
 #include "protegon/rng.h"
 
 namespace ptgn {
-
-Color::operator SDL_Color() const {
-	return SDL_Color{ r, g, b, a };
-}
 
 Vector4<float> Color::Normalized() const {
 	return { static_cast<float>(r) / 255.0f, static_cast<float>(g) / 255.0f,

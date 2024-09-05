@@ -6,6 +6,7 @@
 #include <list>
 #include <tuple>
 
+#include "protegon/color.h"
 #include "protegon/grid.h"
 #include "protegon/line.h"
 #include "protegon/vector2.h"
@@ -25,10 +26,10 @@ struct AStarNode {
 };
 
 inline constexpr std::array<V2_int, 4> neighbors{
-	V2_int{ 0,  1},
-	V2_int{ 0, -1},
-	V2_int{ 1,  0},
-	V2_int{-1,	0},
+	V2_int{ 0, 1 },
+	V2_int{ 0, -1 },
+	V2_int{ 1, 0 },
+	V2_int{ -1, 0 },
 };
 
 } // namespace impl
@@ -52,17 +53,14 @@ public:
 
 	[[nodiscard]] bool IsVisited(const V2_int& coordinate) const;
 
-	[[nodiscard]] std::deque<V2_int> FindWaypoints(
-		const V2_int& start, const V2_int& end
-	);
+	[[nodiscard]] std::deque<V2_int> FindWaypoints(const V2_int& start, const V2_int& end);
 
 	[[nodiscard]] static int FindWaypointIndex(
 		const std::deque<V2_int>& waypoints, const V2_int& position
 	);
 
 	static void DisplayWaypoints(
-		const std::deque<V2_int>& waypoints, const V2_int& tile_size,
-		const Color& color
+		const std::deque<V2_int>& waypoints, const V2_int& tile_size, const Color& color
 	);
 
 private:

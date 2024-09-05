@@ -2,11 +2,29 @@
 
 #include <algorithm>
 
+#include "protegon/game.h"
 #include "SDL.h"
 #include "SDL_image.h"
+#include "SDL_ttf.h"
 #include "utility/debug.h"
 
 namespace ptgn {
+
+namespace impl {
+
+void SDL_SurfaceDeleter::operator()(SDL_Surface* surface) {
+	if (game.sdl_instance_.SDLIsInitialized()) {
+		SDL_FreeSurface(surface);
+	}
+}
+
+} // namespace impl
+
+V2_int Surface::GetSize(const Font& font, const std::string& content) {
+	V2_int size;
+	TTF_SizeUTF8(font.GetInstance().get(), content.c_str(), &size.x, &size.y);
+	return size;
+}
 
 Surface::Surface(const std::shared_ptr<SDL_Surface>& raw_surface, ImageFormat format) {
 	PTGN_ASSERT(format != ImageFormat::Unknown, "Cannot create surface with unknown image format");
@@ -20,7 +38,7 @@ Surface::Surface(const std::shared_ptr<SDL_Surface>& raw_surface, ImageFormat fo
 												 raw_surface.get(),
 												 static_cast<std::uint32_t>(instance_->format_), 0
 											 ),
-											 SDL_FreeSurface };
+											 impl::SDL_SurfaceDeleter{} };
 	PTGN_ASSERT(surface != nullptr, SDL_GetError());
 
 	int lock = SDL_LockSurface(surface.get());
@@ -73,16 +91,58 @@ Surface::Surface(const std::shared_ptr<SDL_Surface>& raw_surface, ImageFormat fo
 }
 
 Surface::Surface(const path& image_path) :
-	Surface{ [&]() -> std::shared_ptr<SDL_Surface> {
+	Surface{ std::invoke([&]() -> std::shared_ptr<SDL_Surface> {
 		PTGN_ASSERT(
 			FileExists(image_path),
 			"Cannot create surface from a nonexistent image path: ", image_path.string()
 		);
 		std::shared_ptr<SDL_Surface> raw_surface = { IMG_Load(image_path.string().c_str()),
-													 SDL_FreeSurface };
+													 impl::SDL_SurfaceDeleter{} };
 		PTGN_ASSERT(raw_surface != nullptr, IMG_GetError());
 		return raw_surface;
-	}() } {}
+	}) } {}
+
+Surface::Surface(
+	const Font& font, FontStyle style, const Color& text_color, FontRenderMode mode,
+	const std::string& content, const Color& shading_color
+) :
+	Surface{ std::invoke([&]() {
+		auto f = font.GetInstance().get();
+
+		TTF_SetFontStyle(f, static_cast<int>(style));
+
+		std::shared_ptr<SDL_Surface> surface;
+
+		SDL_Color tc{ text_color.r, text_color.g, text_color.b, text_color.a };
+
+		switch (mode) {
+			case FontRenderMode::Solid:
+				surface =
+					std::shared_ptr<SDL_Surface>{ TTF_RenderUTF8_Solid(f, content.c_str(), tc),
+												  impl::SDL_SurfaceDeleter{} };
+				break;
+			case FontRenderMode::Shaded: {
+				SDL_Color sc{ shading_color.r, shading_color.g, shading_color.b, shading_color.a };
+				surface =
+					std::shared_ptr<SDL_Surface>{ TTF_RenderUTF8_Shaded(f, content.c_str(), tc, sc),
+												  impl::SDL_SurfaceDeleter{} };
+				break;
+			}
+			case FontRenderMode::Blended:
+				surface =
+					std::shared_ptr<SDL_Surface>{ TTF_RenderUTF8_Blended(f, content.c_str(), tc),
+												  impl::SDL_SurfaceDeleter{} };
+				break;
+			default:
+				PTGN_ERROR(
+					"Unrecognized render mode given when creating surface from font information"
+				);
+		}
+
+		PTGN_ASSERT(surface != nullptr, "Failed to create surface for given font information");
+
+		return surface;
+	}) } {}
 
 void Surface::FlipVertically() {
 	PTGN_ASSERT(IsValid(), "Cannot flip surface vertically if it is uninitialized or destroyed");

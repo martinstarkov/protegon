@@ -1,9 +1,8 @@
 #include "protegon/text.h"
 
-#include "SDL.h"
-#include "SDL_ttf.h"
 #include "protegon/font.h"
 #include "protegon/game.h"
+#include "protegon/surface.h"
 #include "utility/debug.h"
 
 namespace ptgn {
@@ -21,36 +20,8 @@ Texture Text::RecreateTexture() {
 
 	const auto& f = instance_->font_.GetInstance();
 
-	TTF_SetFontStyle(f.get(), static_cast<int>(instance_->font_style_));
-
-	std::shared_ptr<SDL_Surface> surface;
-
-	switch (instance_->render_mode_) {
-		case FontRenderMode::Solid:
-			surface = std::shared_ptr<SDL_Surface>{
-				TTF_RenderUTF8_Solid(f.get(), instance_->content_.c_str(), instance_->text_color_),
-				SDL_FreeSurface
-			};
-			break;
-		case FontRenderMode::Shaded:
-			surface =
-				std::shared_ptr<SDL_Surface>{ TTF_RenderUTF8_Shaded(
-												  f.get(), instance_->content_.c_str(),
-												  instance_->text_color_, instance_->shading_color_
-											  ),
-											  SDL_FreeSurface };
-			break;
-		case FontRenderMode::Blended:
-			surface = std::shared_ptr<SDL_Surface>{ TTF_RenderUTF8_Blended(
-														f.get(), instance_->content_.c_str(),
-														instance_->text_color_
-													),
-													SDL_FreeSurface };
-			break;
-		default: PTGN_ERROR("Unrecognized render mode given when creating text");
-	}
-
-	PTGN_ASSERT(surface != nullptr, "Failed to create surface for given text information");
+	Surface surface{ instance_->font_,		  instance_->font_style_, instance_->text_color_,
+					 instance_->render_mode_, instance_->content_,	  instance_->shading_color_ };
 
 	return Texture(surface);
 }
@@ -151,7 +122,7 @@ const std::string& Text::GetContent() const {
 	return instance_->content_;
 }
 
-const Color Text::GetColor() const {
+const Color& Text::GetColor() const {
 	PTGN_ASSERT(IsValid(), "Cannot get color of uninitialized or destroyed texture");
 	return instance_->text_color_;
 }
@@ -166,7 +137,7 @@ FontRenderMode Text::GetFontRenderMode() const {
 	return instance_->render_mode_;
 }
 
-const Color Text::GetShadingColor() const {
+const Color& Text::GetShadingColor() const {
 	PTGN_ASSERT(IsValid(), "Cannot get shading color of uninitialized or destroyed texture");
 	return instance_->shading_color_;
 }
@@ -208,15 +179,13 @@ void Text::Draw(const Rectangle<int>& destination) const {
 		return;
 	}
 	game.renderer.DrawTexture(
-		destination.pos, destination.size, instance_->texture_, {}, {}, 0.0f, { 0.5f, 0.5f },
-		Flip::None, Origin::TopLeft, 0.0f
+		instance_->texture_, destination.pos, destination.size, {}, {}, destination.origin,
+		Flip::None
 	);
 }
 
 V2_int Text::GetSize(const FontOrKey& font, const std::string& content) {
-	V2_int size;
-	TTF_SizeUTF8(GetFont(font).GetInstance().get(), content.c_str(), &size.x, &size.y);
-	return size;
+	return Surface::GetSize(GetFont(font), content);
 }
 
 } // namespace ptgn

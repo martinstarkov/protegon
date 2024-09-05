@@ -7,7 +7,7 @@
 
 using namespace ptgn;
 
-bool TestMath() {
+void TestMath() {
 	PTGN_INFO("Starting math tests...");
 
 	// Sign tests.
@@ -148,10 +148,9 @@ bool TestMath() {
 	// TODO: Add tests for:
 	// ToRad()
 	// ToDeg()
-	// RestrictAngle360()
-	// RestrictAngle2Pi()
+	// ClampAngle360()
+	// ClampAngle2Pi()
 	// QuadraticFormula()
 
 	PTGN_INFO("All math tests passed!");
-	return true;
 }

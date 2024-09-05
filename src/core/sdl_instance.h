@@ -6,18 +6,32 @@ namespace impl {
 
 class SDLInstance {
 public:
-	SDLInstance();
-	~SDLInstance();
+	SDLInstance()							   = default;
+	~SDLInstance()							   = default;
 	SDLInstance(SDLInstance&&)				   = default;
 	SDLInstance& operator=(SDLInstance&&)	   = default;
 	SDLInstance(const SDLInstance&)			   = delete;
 	SDLInstance& operator=(const SDLInstance&) = delete;
 
+	[[nodiscard]] bool IsInitialized() const;
+	[[nodiscard]] bool SDLMixerIsInitialized() const;
+	[[nodiscard]] bool SDLTTFIsInitialized() const;
+	[[nodiscard]] bool SDLIsInitialized() const;
+	[[nodiscard]] bool SDLImageIsInitialized() const;
+
+	void Init();
+	void Shutdown();
+
 private:
-	static void InitSDL();
-	static void InitSDLImage();
-	static void InitSDLTTF();
-	static void InitSDLMixer();
+	void InitSDL();
+	void InitSDLImage();
+	void InitSDLTTF();
+	void InitSDLMixer();
+
+	bool sdl_mixer_init_{ false };
+	bool sdl_ttf_init_{ false };
+	bool sdl_image_init_{ false };
+	bool sdl_init_{ false };
 };
 
 } // namespace impl

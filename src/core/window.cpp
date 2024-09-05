@@ -1,5 +1,6 @@
 #include "core/window.h"
 
+#include "protegon/game.h"
 #include "SDL.h"
 #include "utility/debug.h"
 
@@ -8,16 +9,23 @@ namespace ptgn {
 namespace impl {
 
 void WindowDeleter::operator()(SDL_Window* window) {
-	SDL_DestroyWindow(window);
-	PTGN_INFO("Destroyed SDL2 window");
+	if (game.sdl_instance_.SDLIsInitialized()) {
+		SDL_DestroyWindow(window);
+		PTGN_INFO("Destroyed SDL2 window");
+	}
 }
 
 } // namespace impl
 
-Window::Window() {
+void Window::Init() {
+	PTGN_ASSERT(!Exists(), "Previous window must be destroyed before initializing a new one");
 	window_.reset(SDL_CreateWindow("", 0, 0, 0, 0, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN));
-	PTGN_ASSERT(window_ != nullptr, SDL_GetError());
+	PTGN_ASSERT(Exists(), SDL_GetError());
 	PTGN_INFO("Created SDL2 window");
+}
+
+void Window::Shutdown() {
+	window_.reset(nullptr);
 }
 
 void Window::SwapBuffers() {
@@ -42,28 +50,25 @@ V2_int Screen::GetSize() {
 	return V2_int{ dm.w, dm.h };
 }
 
-void Window::SetupSize(
-	const V2_int& resolution, const V2_int& minimum_resolution, bool fullscreen, bool borderless,
-	bool resizeable, const V2_float& scale
-) {
-	SetMinimumSize(minimum_resolution);
-	SetFullscreen(fullscreen);
-
-	if (fullscreen) {
-		return;
-	}
-
-	SetBorderless(borderless);
-
-	if (borderless) {
-		SetSize(Screen::GetSize());
-	} else {
-		SetSize(resolution);
-		SetResizeable(resizeable);
-	}
+void Window::SetRelativeMouseMode(bool on) {
+	SDL_SetRelativeMouseMode(static_cast<SDL_bool>(on));
 }
 
-bool Window::Exists() {
+void Window::SetMouseGrab(bool on) {
+	PTGN_ASSERT(Exists(), "Cannot set grab of nonexistent window");
+	SDL_SetWindowMouseGrab(window_.get(), static_cast<SDL_bool>(on));
+}
+
+void Window::CaptureMouse(bool on) {
+	SDL_CaptureMouse(static_cast<SDL_bool>(on));
+}
+
+void Window::SetAlwaysOnTop(bool on) {
+	PTGN_ASSERT(Exists(), "Cannot set always on top for nonexistent window");
+	SDL_SetWindowAlwaysOnTop(window_.get(), static_cast<SDL_bool>(on));
+}
+
+bool Window::Exists() const {
 	return window_ != nullptr;
 }
 
@@ -79,8 +84,8 @@ V2_int Window::GetMinimumSize() {
 	return minimum_size;
 }
 
-V2_int Window::GetOriginPosition() {
-	PTGN_ASSERT(Exists(), "Cannot get origin position of nonexistent window");
+V2_int Window::GetPosition() {
+	PTGN_ASSERT(Exists(), "Cannot get position of nonexistent window");
 	V2_int origin;
 	SDL_GetWindowPosition(window_.get(), &origin.x, &origin.y);
 	return origin;
@@ -114,13 +119,9 @@ void Window::SetTitle(const char* new_title) {
 	return SDL_SetWindowTitle(window_.get(), new_title);
 }
 
-void Window::SetFullscreen(bool on) {
+void Window::SetFullscreen(FullscreenMode mode) {
 	PTGN_ASSERT(Exists(), "Cannot toggle nonexistent window fullscreen");
-	if (on) {
-		SDL_SetWindowFullscreen(window_.get(), SDL_WINDOW_FULLSCREEN_DESKTOP);
-	} else {
-		SDL_SetWindowFullscreen(window_.get(), 0); // windowed mode.
-	}
+	SDL_SetWindowFullscreen(window_.get(), static_cast<std::uint32_t>(mode));
 }
 
 void Window::SetResizeable(bool on) {

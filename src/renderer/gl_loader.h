@@ -13,6 +13,10 @@ namespace gl {
 
 #include "SDL_opengles2.h"
 
+typedef void(GL_APIENTRYP PFNGLVERTEXATTRIBIPOINTERPROC)(
+	GLuint index, GLint size, GLenum type, GLsizei stride, const void* pointer
+);
+
 #else
 
 #ifdef PTGN_PLATFORM_MACOS
@@ -52,6 +56,8 @@ namespace gl {
 	GLE(BindFramebuffer, BINDFRAMEBUFFER)                   \
 	GLE(GetBufferParameteriv, GETBUFFERPARAMETERIV)         \
 	GLE(VertexAttribPointer, VERTEXATTRIBPOINTER)           \
+	GLE(VertexAttribIPointer, VERTEXATTRIBIPOINTER)         \
+	GLE(GenerateMipmap, GENERATEMIPMAP)                     \
 	GLE(BufferData, BUFFERDATA)                             \
 	GLE(ActiveTexture, ACTIVETEXTURE)                       \
 	GLE(BufferSubData, BUFFERSUBDATA)                       \
