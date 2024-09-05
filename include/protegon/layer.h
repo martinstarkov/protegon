@@ -12,6 +12,8 @@
 
 namespace ptgn {
 
+// TODO: Come back to this.
+/*
 class EntityLayer {
 public:
 	EntityLayer() = default;
@@ -88,5 +90,6 @@ class GridLayer : public Grid<T> {
 public:
 private:
 };
+*/
 
 } // namespace ptgn

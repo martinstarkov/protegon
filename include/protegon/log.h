@@ -7,6 +7,7 @@
 #include <sstream>
 #include <string>
 
+#include "utility/time.h"
 #include "utility/type_traits.h"
 
 namespace ptgn {
