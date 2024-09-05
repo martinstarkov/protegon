@@ -19,9 +19,9 @@ template <typename T = float>
 struct Arc {
 	Point<T> center{};
 	T radius{ 0 };
-	// Degrees from east (right) direction (clockwise positive)
+	// Radians counter-clockwise from the right.
 	T start_angle{ 0 };
-	// Degrees from east (right) direction (clockwise positive)
+	// Radians counter-clockwise from the right.
 	T end_angle{ 0 };
 
 	template <typename U>

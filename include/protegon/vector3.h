@@ -152,15 +152,16 @@ struct Vector3 {
 
 	// See https://en.wikipedia.org/wiki/Rotation_matrix for details
 	// Note: This is Euler angles and not Tait-Bryan angles.
+	// Angles in radians.
 	template <typename S = typename std::common_type_t<T, float>>
-	[[nodiscard]] Vector3<S> Rotated(S yaw, S pitch, S roll) const {
+	[[nodiscard]] Vector3<S> Rotated(S yaw_radians, S pitch_radians, S roll_radians) const {
 		static_assert(std::is_floating_point_v<S>, "Function requires floating point type");
-		auto sin_a = std::sin(yaw);
-		auto cos_a = std::cos(yaw);
-		auto sin_B = std::sin(pitch);
-		auto cos_B = std::cos(pitch);
-		auto sin_y = std::sin(roll);
-		auto cos_y = std::cos(roll);
+		auto sin_a = std::sin(yaw_radians);
+		auto cos_a = std::cos(yaw_radians);
+		auto sin_B = std::sin(pitch_radians);
+		auto cos_B = std::cos(pitch_radians);
+		auto sin_y = std::sin(roll_radians);
+		auto cos_y = std::cos(roll_radians);
 		return { x * (cos_B * cos_y) + y * (sin_a * sin_B * cos_y - cos_a * sin_y) +
 					 z * (cos_a * sin_B * cos_y + sin_a * sin_y),
 				 x * (cos_B * sin_y) + y * (sin_a * sin_B * sin_y + cos_a * cos_y) +

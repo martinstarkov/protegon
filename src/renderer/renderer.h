@@ -162,13 +162,15 @@ void OffsetVertices(std::array<V2_float, 4>& vertices, const V2_float& size, Ori
 
 void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip);
 
+// Rotation angle in radians.
 void RotateVertices(
 	std::array<V2_float, 4>& vertices, const V2_float& position, const V2_float& size,
-	float rotation, const V2_float& rotation_center
+	float rotation_radians, const V2_float& rotation_center
 );
 
+// Rotation angle in radians.
 [[nodiscard]] std::array<V2_float, 4> GetQuadVertices(
-	const V2_float& position, const V2_float& size, Origin draw_origin, float rotation,
+	const V2_float& position, const V2_float& size, Origin draw_origin, float rotation_radians,
 	const V2_float& rotation_center
 );
 
@@ -386,9 +388,9 @@ public:
 	 * to the remaining texture size to the bottom right of source_position).
 	 * @param draw_origin Relative to destination_position the direction from which the texture is
 	 * @param flip Mirror the texture along an axis (default to Flip::None).
-	 * @param rotation Degrees to rotate the texture (defaults to 0).
-	 * @param rotation_center Fraction of the source_size around which the texture is rotated
-	 * (defaults to { 0.5f, 0.5f } which corresponds to the center of the texture).
+	 * @param rotation_radians Angle in radians to rotate the texture (defaults to 0).
+	 * @param rotation_center Fraction of the source_size around which the texture is rotated.
+	 * (Defaults to { 0.5f, 0.5f } which corresponds to the center of the texture).
 	 * @param z_index Z-coordinate to draw the texture at (-1.0f to 1.0f).
 	 * drawn.
 	 */
@@ -396,7 +398,7 @@ public:
 		const Texture& texture, const V2_float& destination_position,
 		const V2_float& destination_size, const V2_float& source_position = {},
 		V2_float source_size = {}, Origin draw_origin = Origin::Center, Flip flip = Flip::None,
-		float rotation = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
+		float rotation_radians = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
 		float z_index = 0.0f, const Color& tint_color = color::White
 	);
 
@@ -432,30 +434,30 @@ public:
 		float z_index = 0.0f
 	);
 
-	// Rotation in degrees.
+	// Rotation angle in radians.
 	void DrawRectangleFilled(
 		const V2_float& position, const V2_float& size, const Color& color,
-		Origin draw_origin = Origin::Center, float rotation = 0.0f,
+		Origin draw_origin = Origin::Center, float rotation_radians = 0.0f,
 		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
 	);
 
-	// Rotation in degrees.
+	// Rotation angle in radians.
 	void DrawRectangleFilled(
-		const Rectangle<float>& rectangle, const Color& color, float rotation = 0.0f,
+		const Rectangle<float>& rectangle, const Color& color, float rotation_radians = 0.0f,
 		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
 	);
 
-	// Rotation in degrees.
+	// Rotation angle in radians.
 	void DrawRectangleHollow(
 		const V2_float& position, const V2_float& size, const Color& color,
-		Origin draw_origin = Origin::Center, float line_width = 1.0f, float rotation = 0.0f,
+		Origin draw_origin = Origin::Center, float line_width = 1.0f, float rotation_radians = 0.0f,
 		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
 	);
 
-	// Rotation in degrees.
+	// Rotation angle in radians.
 	void DrawRectangleHollow(
 		const Rectangle<float>& rectangle, const Color& color, float line_width = 1.0f,
-		float rotation = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
+		float rotation_radians = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
 		float z_index = 0.0f
 	);
 
@@ -493,30 +495,31 @@ public:
 		float fade = 0.005f, float z_index = 0.0f
 	);
 
-	// Rotation in degrees.
+	// Rotation angle in radians.
 	void DrawRoundedRectangleFilled(
 		const V2_float& position, const V2_float& size, float radius, const Color& color,
-		Origin draw_origin = Origin::Center, float rotation = 0.0f,
+		Origin draw_origin = Origin::Center, float rotation_radians = 0.0f,
 		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
 	);
 
-	// Rotation in degrees.
+	// Rotation angle in radians.
 	void DrawRoundedRectangleFilled(
-		const RoundedRectangle<float>& rounded_rectangle, const Color& color, float rotation = 0.0f,
-		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
+		const RoundedRectangle<float>& rounded_rectangle, const Color& color,
+		float rotation_radians = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
+		float z_index = 0.0f
 	);
 
-	// Rotation in degrees.
+	// Rotation angle in radians.
 	void DrawRoundedRectangleHollow(
 		const V2_float& position, const V2_float& size, float radius, const Color& color,
-		Origin draw_origin = Origin::Center, float line_width = 1.0f, float rotation = 0.0f,
+		Origin draw_origin = Origin::Center, float line_width = 1.0f, float rotation_radians = 0.0f,
 		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
 	);
 
-	// Rotation in degrees.
+	// Rotation angle in radians.
 	void DrawRoundedRectangleHollow(
 		const RoundedRectangle<float>& rounded_rectangle, const Color& color,
-		float line_width = 1.0f, float rotation = 0.0f,
+		float line_width = 1.0f, float rotation_radians = 0.0f,
 		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
 	);
 
@@ -539,7 +542,7 @@ public:
 		float fade = 0.005f, float z_index = 0.0f
 	);
 
-	// Angles in degrees.
+	// Angles in radians, counter-clockwise from the right.
 	void DrawArcFilled(
 		const V2_float& position, float arc_radius, float start_angle, float end_angle,
 		const Color& color, float z_index = 0.0f
@@ -547,7 +550,7 @@ public:
 
 	void DrawArcFilled(const Arc<float>& arc, const Color& color, float z_index = 0.0f);
 
-	// Angles in degrees.
+	// Angles in radians, counter-clockwise from the right.
 	void DrawArcHollow(
 		const V2_float& position, float arc_radius, float start_angle, float end_angle,
 		const Color& color, float line_width = 1.0f, float z_index = 0.0f
@@ -638,12 +641,12 @@ private:
 
 	void DrawRoundedRectangleFilledImpl(
 		const V2_float& position, const V2_float& size, float radius, const V4_float& color,
-		Origin origin, float rotation, const V2_float& rotation_center, float z_index
+		Origin origin, float rotation_radians, const V2_float& rotation_center, float z_index
 	);
 
 	void DrawRoundedRectangleHollowImpl(
 		const V2_float& position, const V2_float& size, float radius, const V4_float& color,
-		Origin origin, float line_width, float rotation, const V2_float& rotation_center,
+		Origin origin, float line_width, float rotation_radians, const V2_float& rotation_center,
 		float z_index
 	);
 

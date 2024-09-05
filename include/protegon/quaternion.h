@@ -1,8 +1,8 @@
 #pragma once
 
-#include "matrix4.h"
-#include "vector3.h"
-#include "vector4.h"
+#include "protegon/matrix4.h"
+#include "protegon/vector3.h"
+#include "protegon/vector4.h"
 
 namespace ptgn {
 
@@ -24,14 +24,16 @@ public:
 		return Quaternion(Conjugate() / dot);
 	}
 
-	[[nodiscard]] static Quaternion GetAngleAxis(float angle, const V3_float& v) {
-		float h = angle * 0.5f;
+	// @return New quaternion rotated by the given angle in radians along the given axes.
+	[[nodiscard]] static Quaternion GetAngleAxis(float angle_radians, const V3_float& axes) {
+		float h = angle_radians * 0.5f;
 		float s = std::sin(h);
-		return { std::cos(h), v.x * s, v.y * s, v.z * s };
+		return { std::cos(h), axes.x * s, axes.y * s, axes.z * s };
 	}
 
+	// @return The euler angle of the quaternion in radians.
 	[[nodiscard]] float GetAngle() const {
-		if (std::abs(w) > cos_one_over_two) {
+		if (std::abs(w) > cos_of_half) {
 			float a = std::asin(std::sqrt(x * x + y * y + z * z)) * 2.0f;
 			if (w < 0.0f) {
 				return two_pi<float> - a;
@@ -51,6 +53,7 @@ public:
 		return V3_float{ x * tmp2, y * tmp2, z * tmp2 };
 	}
 
+	// Angle in radians.
 	[[nodiscard]] float GetRoll() const {
 		float b = 2.0f * (x * y + w * z);
 		float a = w * w + x * x - y * y - z * z;
@@ -62,6 +65,7 @@ public:
 		return std::atan2(b, a);
 	}
 
+	// Angle in radians.
 	[[nodiscard]] float GetPitch() const {
 		float b = 2.0f * (y * z + w * x);
 		float a = w * w - x * x - y * y + z * z;
@@ -73,11 +77,12 @@ public:
 		return std::atan2(b, a);
 	}
 
+	// Angle in radians.
 	[[nodiscard]] float GetYaw() const {
 		return std::asin(std::clamp(-2.0f * (x * z - w * y), -1.0f, 1.0f));
 	}
 
-	M4_float ToMatrix4() const {
+	[[nodiscard]] M4_float ToMatrix4() const {
 		M4_float result;
 		float qxx{ x * x };
 		float qyy{ y * y };
@@ -113,7 +118,8 @@ public:
 	}
 
 private:
-	constexpr static float cos_one_over_two{ 0.877582561890372716130286068203503191f };
+	// Angle in radians.
+	constexpr static float cos_of_half{ 0.877582561890372716130286068203503191f };
 };
 
 constexpr inline V3_float operator*(const Quaternion& q, const V3_float& v) {

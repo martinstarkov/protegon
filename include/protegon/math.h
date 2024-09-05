@@ -83,14 +83,14 @@ inline constexpr T epsilon2{ epsilon<T> * epsilon<T> };
 
 // Convert degrees to radians.
 template <typename T, tt::floating_point<T> = true>
-[[nodiscard]] constexpr T DegToRad(T deg) {
-	return deg * pi<T> / T{ 180 };
+[[nodiscard]] constexpr T DegToRad(T angle_degrees) {
+	return angle_degrees * pi<T> / T{ 180 };
 }
 
 // Convert radians to degrees.
 template <typename T, tt::floating_point<T> = true>
-[[nodiscard]] constexpr T RadToDeg(T rad) {
-	return rad / pi<T> * T{ 180 };
+[[nodiscard]] constexpr T RadToDeg(T angle_radians) {
+	return angle_radians / pi<T> * T{ 180 };
 }
 
 // Modulo operator which supports wrapping negative numbers.
@@ -102,24 +102,24 @@ template <typename T, tt::integral<T> = true>
 
 // Angle in degrees from 0 to 360.
 template <typename T, tt::arithmetic<T> = true>
-[[nodiscard]] T ClampAngle360(T deg) {
-	while (deg < 0) {
-		deg += 360;
+[[nodiscard]] T ClampAngle360(T angle_degrees) {
+	while (angle_degrees < 0) {
+		angle_degrees += 360;
 	}
 	if constexpr (std::is_floating_point_v<T>) {
-		return static_cast<T>(std::fmod(deg, 360));
+		return static_cast<T>(std::fmod(angle_degrees, 360));
 	} else {
-		return Mod(deg, T{ 360 });
+		return Mod(angle_degrees, T{ 360 });
 	}
 }
 
 // Angle in radians from 0 to 2 pi.
 template <typename T, tt::floating_point<T> = true>
-[[nodiscard]] T ClampAngle2Pi(T rad) {
-	while (rad < 0) {
-		rad += two_pi<T>;
+[[nodiscard]] T ClampAngle2Pi(T angle_radians) {
+	while (angle_radians < 0) {
+		angle_radians += two_pi<T>;
 	}
-	return std::fmod(rad, two_pi<T> + 0.00001f);
+	return std::fmod(angle_radians, two_pi<T> + 0.00001f);
 }
 
 // Signum function.
@@ -199,24 +199,18 @@ template <typename T, tt::floating_point<T> = true>
 	return { true, q / a, c / q };
 }
 
-template <
-	typename T, typename U, tt::arithmetic<T> = true,
-	tt::floating_point<U> = true>
+template <typename T, typename U, tt::arithmetic<T> = true, tt::floating_point<U> = true>
 [[nodiscard]] U Lerp(T a, T b, U t) {
 	return a + t * (b - a);
 }
 
-template <
-	typename T, typename U, tt::arithmetic<T> = true,
-	tt::floating_point<U> = true>
+template <typename T, typename U, tt::arithmetic<T> = true, tt::floating_point<U> = true>
 [[nodiscard]] U CosineInterpolate(T a, T b, U t) {
 	return Lerp(a, b, static_cast<U>(0.5) * (static_cast<U>(1) - std::cos(t * pi<U>)));
 }
 
 // From https://paulbourke.net/miscellaneous/interpolation/
-template <
-	typename T, typename U, tt::arithmetic<T> = true,
-	tt::floating_point<U> = true>
+template <typename T, typename U, tt::arithmetic<T> = true, tt::floating_point<U> = true>
 [[nodiscard]] U CubicInterpolate(T y0, T y1, T y2, T y3, U t) {
 	U mu2 = t * t;
 	U a0  = y3 - y2 - y0 + y1;

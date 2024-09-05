@@ -150,10 +150,10 @@ struct Vector2 {
 
 	// @return Random unit vector in a heading within the given range of angles (radians).
 	[[nodiscard]] static Vector2 RandomHeading(
-		T min_angle_rad = T{ 0 }, T max_angle_rad = T{ two_pi<T> }
+		T min_angle_radians = T{ 0 }, T max_angle_radians = T{ two_pi<T> }
 	) {
 		static_assert(std::is_floating_point_v<T>, "Function requires floating point type");
-		RNG<T> heading_rng{ ClampAngle2Pi(min_angle_rad), ClampAngle2Pi(max_angle_rad) };
+		RNG<T> heading_rng{ ClampAngle2Pi(min_angle_radians), ClampAngle2Pi(max_angle_radians) };
 		T heading{ heading_rng() };
 		return { std::cos(heading), std::sin(heading) };
 	}
@@ -178,18 +178,19 @@ struct Vector2 {
 		return dir.Normalized();
 	}
 
-	// Returns a new vector rotated by the radian angle in the clockwise
-	// direction. See https://en.wikipedia.org/wiki/Rotation_matrix for details
+	// @return New vector rotated counter-clockwise by the given angle.
+	// See https://en.wikipedia.org/wiki/Rotation_matrix for details.
+	// Angle in radians.
 	template <typename S = typename std::common_type_t<T, float>>
-	[[nodiscard]] Vector2<S> Rotated(S rad) const {
+	[[nodiscard]] Vector2<S> Rotated(S angle_radians) const {
 		static_assert(std::is_floating_point_v<S>, "Function requires floating point type");
-		auto cos_r{ std::cos(rad) };
-		auto sin_r{ std::sin(rad) };
-		return { x * cos_r - y * sin_r, x * sin_r + y * cos_r };
+		auto c{ std::cos(angle_radians) };
+		auto s{ std::sin(angle_radians) };
+		return { x * c - y * s, x * s + y * c };
 	}
 
 	/*
-	 * Returns angle between vector x and y components in radians.
+	 * @return Angle in radians between vector x and y components in radians.
 	 * Relative to the horizontal x-axis.
 	 * Range: [-3.14159, 3.14159).
 	 * (counter-clockwise positive).

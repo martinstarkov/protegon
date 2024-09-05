@@ -67,13 +67,19 @@ public:
 	void SetPosition(const V2_float& new_position);
 	void SetPosition(const V3_float& new_position);
 
-	// Yaw, Pitch, Roll
+	// Yaw, Pitch, Roll respectively in radians.
 	void SetRotation(const V3_float& new_angles);
+
 	void Translate(const V3_float& amount);
-	void Rotate(float angle_amount, const V3_float& axis);
-	void Yaw(float angle_amount);
-	void Pitch(float angle_amount);
-	void Roll(float angle_amount);
+
+	// Angle in radians.
+	void Rotate(float angle_amount_radians, const V3_float& axis);
+	// Angle in radians.
+	void Yaw(float angle_amount_radians);
+	// Angle in radians.
+	void Pitch(float angle_amount_radians);
+	// Angle in radians.
+	void Roll(float angle_amount_radians);
 
 	bool operator==(const OrthographicCamera& o) const;
 	bool operator!=(const OrthographicCamera& o) const;

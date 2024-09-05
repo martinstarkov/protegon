@@ -237,14 +237,14 @@ public:
 		return Inverse * OneOverDeterminant;
 	}
 
-	// fov_x in radians
+	// Field of view angle fov_x in radians.
 	// Example usage: M4_float proj = M4_float::Perspective(DegToRad(45.0f),
 	// (float)game.window.GetSize().x / (float)game.window.GetSize().y, 0.1f, 100.0f);
-	[[nodiscard]] static Matrix4 Perspective(T fov_x, T aspect_ratio, T front, T back) {
+	[[nodiscard]] static Matrix4 Perspective(T fov_x_radians, T aspect_ratio, T front, T back) {
 		static_assert(std::is_floating_point_v<T>, "Function requires floating point type");
-		T tangent = std::tan(fov_x / T{ 2 }); // tangent of half fovX
-		T right	  = front * tangent;		  // half width of near plane
-		T top	  = right / aspect_ratio;	  // half height of near plane
+		T tangent = std::tan(fov_x_radians / T{ 2 }); // tangent of half fovX
+		T right	  = front * tangent;				  // half width of near plane
+		T top	  = right / aspect_ratio;			  // half height of near plane
 
 		// params: left, right, bottom, top, near(front), far(back)
 		Matrix4<T> p;
@@ -265,9 +265,12 @@ public:
 		return result;
 	}
 
-	[[nodiscard]] static Matrix4 Rotate(const Matrix4& m, T angle, const Vector3<T>& axes) {
+	// Angle in radians.
+	[[nodiscard]] static Matrix4 Rotate(
+		const Matrix4& matrix, T angle_radians, const Vector3<T>& axes
+	) {
 		static_assert(std::is_floating_point_v<T>, "Function requires floating point type");
-		const T a = angle;
+		const T a = angle_radians;
 		const T c = std::cos(a);
 		const T s = std::sin(a);
 
@@ -301,10 +304,13 @@ public:
 		Matrix4<T> result;
 
 		for (std::size_t i = 0; i < result.size.x; i++) {
-			result[i + 0]  = m[i + 0] * rotate[0] + m[i + 4] * rotate[4] + m[i + 8] * rotate[8];
-			result[i + 4]  = m[i + 0] * rotate[1] + m[i + 4] * rotate[5] + m[i + 8] * rotate[5];
-			result[i + 8]  = m[i + 0] * rotate[2] + m[i + 4] * rotate[6] + m[i + 8] * rotate[10];
-			result[i + 12] = m[i + 12];
+			result[i + 0] =
+				matrix[i + 0] * rotate[0] + matrix[i + 4] * rotate[4] + matrix[i + 8] * rotate[8];
+			result[i + 4] =
+				matrix[i + 0] * rotate[1] + matrix[i + 4] * rotate[5] + matrix[i + 8] * rotate[5];
+			result[i + 8] =
+				matrix[i + 0] * rotate[2] + matrix[i + 4] * rotate[6] + matrix[i + 8] * rotate[10];
+			result[i + 12] = matrix[i + 12];
 		}
 		return result;
 	}

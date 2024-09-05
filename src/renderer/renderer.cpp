@@ -722,7 +722,7 @@ void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip) 
 
 void RotateVertices(
 	std::array<V2_float, 4>& vertices, const V2_float& position, const V2_float& size,
-	float rotation, const V2_float& rotation_center
+	float rotation_radians, const V2_float& rotation_center
 ) {
 	PTGN_ASSERT(
 		rotation_center.x >= 0.0f && rotation_center.x <= 1.0f,
@@ -745,9 +745,9 @@ void RotateVertices(
 	float c{ 1.0f };
 	float s{ 0.0f };
 
-	if (!NearlyEqual(rotation, 0.0f)) {
-		c = std::cos(rotation);
-		s = std::sin(rotation);
+	if (!NearlyEqual(rotation_radians, 0.0f)) {
+		c = std::cos(rotation_radians);
+		s = std::sin(rotation_radians);
 	}
 
 	auto rotated = [&](const V2_float& coordinate) -> V2_float {
@@ -762,12 +762,12 @@ void RotateVertices(
 }
 
 std::array<V2_float, 4> GetQuadVertices(
-	const V2_float& position, const V2_float& size, Origin draw_origin, float rotation,
+	const V2_float& position, const V2_float& size, Origin draw_origin, float rotation_radians,
 	const V2_float& rotation_center
 ) {
 	std::array<V2_float, 4> vertices;
 
-	RotateVertices(vertices, position, size, rotation, rotation_center);
+	RotateVertices(vertices, position, size, rotation_radians, rotation_center);
 	OffsetVertices(vertices, size, draw_origin);
 
 	return vertices;
@@ -999,8 +999,8 @@ void Renderer::DrawRectangleHollowImpl(
 }
 
 void Renderer::DrawRoundedRectangleFilledImpl(
-	const V2_float& p, const V2_float& s, float rad, const V4_float& col, Origin o, float rot,
-	const V2_float& rc, float z
+	const V2_float& p, const V2_float& s, float rad, const V4_float& col, Origin o,
+	float rotation_radians, const V2_float& rc, float z
 ) {
 	PTGN_ASSERT(
 		2.0f * rad < s.x, "Cannot draw rounded rectangle with larger radius than half its width"
@@ -1011,20 +1011,22 @@ void Renderer::DrawRoundedRectangleFilledImpl(
 
 	V2_float offset = GetOffsetFromCenter(s, o);
 
+	float rot{ rotation_radians };
+
 	auto inner_vertices =
 		impl::GetQuadVertices(p - offset, s - V2_float{ rad * 2 }, Origin::Center, rot, rc);
 
 	DrawRectangleFilledImpl(inner_vertices, col, z);
 
-	DrawArcFilledImpl(inner_vertices[0], rad, rot - 180.0f, rot - 90.0f, col, z);
-	DrawArcFilledImpl(inner_vertices[1], rad, rot - 90.0f, rot + 0.0f, col, z);
-	DrawArcFilledImpl(inner_vertices[2], rad, rot + 0.0f, rot + 90.0f, col, z);
-	DrawArcFilledImpl(inner_vertices[3], rad, rot + 90.0f, rot + 180.0f, col, z);
+	DrawArcFilledImpl(inner_vertices[0], rad, rot - pi<float>, rot - half_pi<float>, col, z);
+	DrawArcFilledImpl(inner_vertices[1], rad, rot - half_pi<float>, rot + 0.0f, col, z);
+	DrawArcFilledImpl(inner_vertices[2], rad, rot + 0.0f, rot + half_pi<float>, col, z);
+	DrawArcFilledImpl(inner_vertices[3], rad, rot + half_pi<float>, rot + pi<float>, col, z);
 
-	V2_float t = V2_float(rad / 2.0f, 0.0f).Rotated(DegToRad(rot - 90.0f));
-	V2_float r = V2_float(rad / 2.0f, 0.0f).Rotated(DegToRad(rot + 0.0f));
-	V2_float b = V2_float(rad / 2.0f, 0.0f).Rotated(DegToRad(rot + 90.0f));
-	V2_float l = V2_float(rad / 2.0f, 0.0f).Rotated(DegToRad(rot - 180.0f));
+	V2_float t = V2_float(rad / 2.0f, 0.0f).Rotated(rot - half_pi<float>);
+	V2_float r = V2_float(rad / 2.0f, 0.0f).Rotated(rot + 0.0f);
+	V2_float b = V2_float(rad / 2.0f, 0.0f).Rotated(rot + half_pi<float>);
+	V2_float l = V2_float(rad / 2.0f, 0.0f).Rotated(rot - pi<float>);
 
 	DrawLineImpl(inner_vertices[0] + t, inner_vertices[1] + t, col, rad, z);
 	DrawLineImpl(inner_vertices[1] + r, inner_vertices[2] + r, col, rad, z);
@@ -1034,7 +1036,7 @@ void Renderer::DrawRoundedRectangleFilledImpl(
 
 void Renderer::DrawRoundedRectangleHollowImpl(
 	const V2_float& p, const V2_float& s, float rad, const V4_float& col, Origin o, float lw,
-	float rot, const V2_float& rc, float z
+	float rotation_radians, const V2_float& rc, float z
 ) {
 	PTGN_ASSERT(
 		2.0f * rad < s.x, "Cannot draw rounded rectangle with larger radius than half its width"
@@ -1045,18 +1047,20 @@ void Renderer::DrawRoundedRectangleHollowImpl(
 
 	V2_float offset = GetOffsetFromCenter(s, o);
 
+	float rot{ rotation_radians };
+
 	auto inner_vertices =
 		impl::GetQuadVertices(p - offset, s - V2_float{ rad * 2 }, Origin::Center, rot, rc);
 
-	DrawArcHollowImpl(inner_vertices[0], rad, rot - 180.0f, rot - 90.0f, col, lw, z);
-	DrawArcHollowImpl(inner_vertices[1], rad, rot - 90.0f, rot + 0.0f, col, lw, z);
-	DrawArcHollowImpl(inner_vertices[2], rad, rot + 0.0f, rot + 90.0f, col, lw, z);
-	DrawArcHollowImpl(inner_vertices[3], rad, rot + 90.0f, rot + 180.0f, col, lw, z);
+	DrawArcHollowImpl(inner_vertices[0], rad, rot - pi<float>, rot - half_pi<float>, col, lw, z);
+	DrawArcHollowImpl(inner_vertices[1], rad, rot - half_pi<float>, rot + 0.0f, col, lw, z);
+	DrawArcHollowImpl(inner_vertices[2], rad, rot + 0.0f, rot + half_pi<float>, col, lw, z);
+	DrawArcHollowImpl(inner_vertices[3], rad, rot + half_pi<float>, rot + pi<float>, col, lw, z);
 
-	V2_float t = V2_float(rad, 0.0f).Rotated(DegToRad(rot - 90.0f));
-	V2_float r = V2_float(rad, 0.0f).Rotated(DegToRad(rot + 0.0f));
-	V2_float b = V2_float(rad, 0.0f).Rotated(DegToRad(rot + 90.0f));
-	V2_float l = V2_float(rad, 0.0f).Rotated(DegToRad(rot - 180.0f));
+	V2_float t = V2_float(rad, 0.0f).Rotated(rot - half_pi<float>);
+	V2_float r = V2_float(rad, 0.0f).Rotated(rot + 0.0f);
+	V2_float b = V2_float(rad, 0.0f).Rotated(rot + half_pi<float>);
+	V2_float l = V2_float(rad, 0.0f).Rotated(rot - pi<float>);
 
 	DrawLineImpl(inner_vertices[0] + t, inner_vertices[1] + t, col, lw, z);
 	DrawLineImpl(inner_vertices[1] + r, inner_vertices[2] + r, col, lw, z);
@@ -1071,23 +1075,30 @@ void Renderer::DrawEllipseFilledImpl(
 }
 
 void Renderer::DrawArcImpl(
-	const V2_float& p, float arc_radius, float start_angle, float end_angle, const V4_float& col,
-	float lw, float z, bool filled
+	const V2_float& p, float arc_radius, float start_angle_radians, float end_angle_radians,
+	const V4_float& col, float lw, float z, bool filled
 ) {
 	PTGN_ASSERT(arc_radius >= 0.0f, "Cannot draw filled arc with negative radius");
 
-	start_angle = ClampAngle360(start_angle);
-	end_angle	= ClampAngle360(end_angle);
+	float start_angle = ClampAngle2Pi(start_angle_radians);
+	float end_angle	  = ClampAngle2Pi(end_angle_radians);
 
+	// Edge case where arc is a point.
 	if (NearlyEqual(arc_radius, 0.0f)) {
 		DrawPointImpl(p, col, 1.0f, z);
 		return;
 	}
 
-	// float delta_angle = two_pi<float> / arc_radius;
+	float range{ start_angle - end_angle };
 
-	start_angle = DegToRad(start_angle);
-	end_angle	= DegToRad(end_angle);
+	// Edge case where start and end angles match (considered a full rotation).
+	if (NearlyEqual(range, 0.0f) || NearlyEqual(range, two_pi<float>)) {
+		if (filled) {
+			DrawEllipseFilledImpl(p, { arc_radius, arc_radius }, col, 0.005f, z);
+		} else {
+			DrawEllipseHollowImpl(p, { arc_radius, arc_radius }, col, lw, 0.005f, z);
+		}
+	}
 
 	if (start_angle > end_angle) {
 		end_angle += two_pi<float>;
@@ -1101,6 +1112,8 @@ void Renderer::DrawArcImpl(
 
 	std::size_t n{ resolution };
 
+	// float delta_angle = two_pi<float> / arc_radius;
+
 	float delta_angle{ arc / static_cast<float>(n) };
 
 	PTGN_ASSERT(arc >= 0.0f);
@@ -1109,8 +1122,10 @@ void Renderer::DrawArcImpl(
 		std::vector<V2_float> v(n);
 
 		for (std::size_t i{ 0 }; i < n; i++) {
-			float angle = start_angle + i * delta_angle;
-			v[i] = { p.x + arc_radius * std::cos(angle), p.y + arc_radius * std::sin(angle) };
+			float angle_radians = start_angle + i * delta_angle;
+
+			v[i] = { p.x + arc_radius * std::cos(angle_radians),
+					 p.y + arc_radius * std::sin(angle_radians) };
 		}
 
 		if (filled) {
@@ -1129,24 +1144,24 @@ void Renderer::DrawArcImpl(
 }
 
 void Renderer::DrawArcFilledImpl(
-	const V2_float& p, float arc_radius, float start_angle, float end_angle, const V4_float& col,
-	float z
+	const V2_float& p, float arc_radius, float start_angle_radians, float end_angle_radians,
+	const V4_float& col, float z
 ) {
-	DrawArcImpl(p, arc_radius, start_angle, end_angle, col, 0.0f, z, true);
+	DrawArcImpl(p, arc_radius, start_angle_radians, end_angle_radians, col, 0.0f, z, true);
 }
 
 void Renderer::DrawArcHollowImpl(
-	const V2_float& p, float arc_radius, float start_angle, float end_angle, const V4_float& col,
-	float lw, float z
+	const V2_float& p, float arc_radius, float start_angle_radians, float end_angle_radians,
+	const V4_float& col, float lw, float z
 ) {
-	DrawArcImpl(p, arc_radius, start_angle, end_angle, col, lw, z, false);
+	DrawArcImpl(p, arc_radius, start_angle_radians, end_angle_radians, col, lw, z, false);
 }
 
 void Renderer::DrawCapsuleFilledImpl(
 	const V2_float& p0, const V2_float& p1, float r, const V4_float& col, float fade, float z
 ) {
 	V2_float dir{ p1 - p0 };
-	const float angle{ RadToDeg(ClampAngle2Pi(dir.Angle() + half_pi<float>)) };
+	const float angle_radians{ dir.Angle() + half_pi<float> };
 	const float dir2{ dir.Dot(dir) };
 
 	V2_float tangent_r;
@@ -1163,10 +1178,12 @@ void Renderer::DrawCapsuleFilledImpl(
 	// Draw central line.
 	DrawLineImpl(p0, p1, col, r * 2.0f, z);
 
+	// How many radians into the line the arc protrudes.
+	constexpr float delta{ DegToRad(0.5f) }; // 0.0087 radians roughly equivalent to 0.5 degrees.
+
 	// Draw edge arcs.
-	float delta{ 0.5f };
-	DrawArcFilledImpl(p0, r, angle - delta, angle + 180.0f + delta, col, z);
-	DrawArcFilledImpl(p1, r, angle + 180.0f - delta, angle + delta, col, z);
+	DrawArcFilledImpl(p0, r, angle_radians - delta, angle_radians + delta + pi<float>, col, z);
+	DrawArcFilledImpl(p1, r, angle_radians - delta + pi<float>, angle_radians + delta, col, z);
 }
 
 void Renderer::DrawCapsuleHollowImpl(
@@ -1174,7 +1191,7 @@ void Renderer::DrawCapsuleHollowImpl(
 	float z
 ) {
 	V2_float dir{ p1 - p0 };
-	const float angle{ RadToDeg(ClampAngle2Pi(dir.Angle() + half_pi<float>)) };
+	const float angle_radians{ dir.Angle() + half_pi<float> };
 	const float dir2{ dir.Dot(dir) };
 
 	V2_float tangent_r;
@@ -1193,8 +1210,8 @@ void Renderer::DrawCapsuleHollowImpl(
 	DrawLineImpl(p0 - tangent_r, p1 - tangent_r, col, lw, z);
 
 	// Draw edge arcs.
-	DrawArcHollowImpl(p0, r, angle, angle + 180.0f, col, lw, z);
-	DrawArcHollowImpl(p1, r, angle + 180.0f, angle, col, lw, z);
+	DrawArcHollowImpl(p0, r, angle_radians, angle_radians + pi<float>, col, lw, z);
+	DrawArcHollowImpl(p1, r, angle_radians + pi<float>, angle_radians, col, lw, z);
 }
 
 void Renderer::DrawPolygonFilledImpl(
@@ -1220,7 +1237,7 @@ void Renderer::DrawPolygonHollowImpl(
 void Renderer::DrawTexture(
 	const Texture& texture, const V2_float& destination_position, const V2_float& destination_size,
 	const V2_float& source_position, V2_float source_size, Origin draw_origin, Flip flip,
-	float rotation, const V2_float& rotation_center, float z_index, const Color& tint_color
+	float rotation_radians, const V2_float& rotation_center, float z_index, const Color& tint_color
 ) {
 	PTGN_ASSERT(texture.IsValid(), "Cannot draw uninitialized or destroyed texture");
 
@@ -1229,7 +1246,7 @@ void Renderer::DrawTexture(
 	) };
 
 	auto vertices = impl::GetQuadVertices(
-		destination_position, destination_size, draw_origin, rotation, rotation_center
+		destination_position, destination_size, draw_origin, rotation_radians, rotation_center
 	);
 
 	DrawTextureImpl(vertices, texture, tex_coords, tint_color.Normalized(), z_index);
@@ -1280,42 +1297,41 @@ void Renderer::DrawTriangleHollow(
 	);
 }
 
-// Rotation in degrees.
 void Renderer::DrawRectangleFilled(
 	const V2_float& position, const V2_float& size, const Color& color, Origin draw_origin,
-	float rotation, const V2_float& rotation_center, float z_index
+	float rotation_radians, const V2_float& rotation_center, float z_index
 ) {
-	auto vertices = impl::GetQuadVertices(position, size, draw_origin, rotation, rotation_center);
+	auto vertices =
+		impl::GetQuadVertices(position, size, draw_origin, rotation_radians, rotation_center);
 	DrawRectangleFilledImpl(vertices, color.Normalized(), z_index);
 }
 
-// Rotation in degrees.
 void Renderer::DrawRectangleFilled(
-	const Rectangle<float>& rectangle, const Color& color, float rotation,
+	const Rectangle<float>& rectangle, const Color& color, float rotation_radians,
 	const V2_float& rotation_center, float z_index
 ) {
 	auto vertices = impl::GetQuadVertices(
-		rectangle.pos, rectangle.size, rectangle.origin, rotation, rotation_center
+		rectangle.pos, rectangle.size, rectangle.origin, rotation_radians, rotation_center
 	);
 	DrawRectangleFilledImpl(vertices, color.Normalized(), z_index);
 }
 
-// Rotation in degrees.
 void Renderer::DrawRectangleHollow(
 	const V2_float& position, const V2_float& size, const Color& color, Origin draw_origin,
-	float line_width, float rotation, const V2_float& rotation_center, float z_index
+	float line_width, float rotation_radians, const V2_float& rotation_center, float z_index
 ) {
-	auto vertices{ impl::GetQuadVertices(position, size, draw_origin, rotation, rotation_center) };
+	auto vertices{
+		impl::GetQuadVertices(position, size, draw_origin, rotation_radians, rotation_center)
+	};
 	DrawRectangleHollowImpl(vertices, color.Normalized(), line_width, z_index);
 }
 
-// Rotation in degrees.
 void Renderer::DrawRectangleHollow(
-	const Rectangle<float>& rectangle, const Color& color, float line_width, float rotation,
+	const Rectangle<float>& rectangle, const Color& color, float line_width, float rotation_radians,
 	const V2_float& rotation_center, float z_index
 ) {
 	auto vertices{ impl::GetQuadVertices(
-		rectangle.pos, rectangle.size, rectangle.origin, rotation, rotation_center
+		rectangle.pos, rectangle.size, rectangle.origin, rotation_radians, rotation_center
 	) };
 	DrawRectangleHollowImpl(vertices, color.Normalized(), line_width, z_index);
 }
@@ -1381,47 +1397,44 @@ void Renderer::DrawCircleHollow(
 	);
 }
 
-// Rotation in degrees.
 void Renderer::DrawRoundedRectangleFilled(
 	const V2_float& position, const V2_float& size, float radius, const Color& color,
-	Origin draw_origin, float rotation, const V2_float& rotation_center, float z_index
+	Origin draw_origin, float rotation_radians, const V2_float& rotation_center, float z_index
 ) {
 	DrawRoundedRectangleFilledImpl(
-		position, size, radius, color.Normalized(), draw_origin, rotation, rotation_center, z_index
+		position, size, radius, color.Normalized(), draw_origin, rotation_radians, rotation_center,
+		z_index
 	);
 }
 
-// Rotation in degrees.
 void Renderer::DrawRoundedRectangleFilled(
-	const RoundedRectangle<float>& rounded_rectangle, const Color& color, float rotation,
+	const RoundedRectangle<float>& rounded_rectangle, const Color& color, float rotation_radians,
 	const V2_float& rotation_center, float z_index
 ) {
 	DrawRoundedRectangleFilledImpl(
 		rounded_rectangle.pos, rounded_rectangle.size, rounded_rectangle.radius, color.Normalized(),
-		rounded_rectangle.origin, rotation, rotation_center, z_index
+		rounded_rectangle.origin, rotation_radians, rotation_center, z_index
 	);
 }
 
-// Rotation in degrees.
 void Renderer::DrawRoundedRectangleHollow(
 	const V2_float& position, const V2_float& size, float radius, const Color& color,
-	Origin draw_origin, float line_width, float rotation, const V2_float& rotation_center,
+	Origin draw_origin, float line_width, float rotation_radians, const V2_float& rotation_center,
 	float z_index
 ) {
 	DrawRoundedRectangleHollowImpl(
-		position, size, radius, color.Normalized(), draw_origin, line_width, rotation,
+		position, size, radius, color.Normalized(), draw_origin, line_width, rotation_radians,
 		rotation_center, z_index
 	);
 }
 
-// Rotation in degrees.
 void Renderer::DrawRoundedRectangleHollow(
 	const RoundedRectangle<float>& rounded_rectangle, const Color& color, float line_width,
-	float rotation, const V2_float& rotation_center, float z_index
+	float rotation_radians, const V2_float& rotation_center, float z_index
 ) {
 	DrawRoundedRectangleHollowImpl(
 		rounded_rectangle.pos, rounded_rectangle.size, rounded_rectangle.radius, color.Normalized(),
-		rounded_rectangle.origin, line_width, rotation, rotation_center, z_index
+		rounded_rectangle.origin, line_width, rotation_radians, rotation_center, z_index
 	);
 }
 
@@ -1452,12 +1465,13 @@ void Renderer::DrawEllipseHollow(
 	);
 }
 
-// Angles in degrees.
 void Renderer::DrawArcFilled(
-	const V2_float& position, float arc_radius, float start_angle, float end_angle,
+	const V2_float& position, float arc_radius, float start_angle_radians, float end_angle_radians,
 	const Color& color, float z_index
 ) {
-	DrawArcFilledImpl(position, arc_radius, start_angle, end_angle, color.Normalized(), z_index);
+	DrawArcFilledImpl(
+		position, arc_radius, start_angle_radians, end_angle_radians, color.Normalized(), z_index
+	);
 }
 
 void Renderer::DrawArcFilled(const Arc<float>& arc, const Color& color, float z_index) {
@@ -1466,13 +1480,13 @@ void Renderer::DrawArcFilled(const Arc<float>& arc, const Color& color, float z_
 	);
 }
 
-// Angles in degrees.
 void Renderer::DrawArcHollow(
-	const V2_float& position, float arc_radius, float start_angle, float end_angle,
+	const V2_float& position, float arc_radius, float start_angle_radians, float end_angle_radians,
 	const Color& color, float line_width, float z_index
 ) {
 	DrawArcHollowImpl(
-		position, arc_radius, start_angle, end_angle, color.Normalized(), line_width, z_index
+		position, arc_radius, start_angle_radians, end_angle_radians, color.Normalized(),
+		line_width, z_index
 	);
 }
 
