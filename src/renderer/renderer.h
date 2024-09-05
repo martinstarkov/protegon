@@ -185,6 +185,8 @@ public:
 
 	void Flush();
 
+	void Clear();
+
 private:
 	friend class Batch;
 
@@ -216,6 +218,8 @@ public:
 
 	[[nodiscard]] std::size_t GetTextureSlotCapacity() const;
 
+	void Clear();
+
 private:
 	[[nodiscard]] bool HasAvailableTextureSlot() const;
 
@@ -240,6 +244,8 @@ public:
 	void Flush(BatchType type);
 
 	[[nodiscard]] bool IsAvailable(BatchType type) const;
+
+	void Clear();
 
 	TextureBatchData quad_;
 	BatchData<CircleVertices, 6> circle_;

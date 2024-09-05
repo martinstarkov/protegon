@@ -217,6 +217,11 @@ void BatchData<TVertices, IndexCount>::Flush() {
 }
 
 template <typename TVertices, std::size_t IndexCount>
+void BatchData<TVertices, IndexCount>::Clear() {
+	data_.clear();
+}
+
+template <typename TVertices, std::size_t IndexCount>
 void BatchData<TVertices, IndexCount>::UpdateBuffer() {
 	array_.GetVertexBuffer().SetSubData(
 		data_.data(), static_cast<std::uint32_t>(data_.size()) * sizeof(TVertices)
@@ -280,6 +285,11 @@ std::size_t TextureBatchData::GetTextureSlotCapacity() const {
 	return textures_.capacity();
 }
 
+void TextureBatchData::Clear() {
+	BatchData::Clear();
+	textures_.clear();
+}
+
 bool TextureBatchData::HasAvailableTextureSlot() const {
 	return textures_.size() != textures_.capacity();
 }
@@ -331,6 +341,14 @@ bool Batch::IsAvailable(BatchType type) const {
 		case BatchType::Point:	  return point_.IsAvailable();
 		default:				  PTGN_ERROR("Failed to identify batch type when checking availability");
 	}
+}
+
+void Batch::Clear() {
+	quad_.Clear();
+	circle_.Clear();
+	triangle_.Clear();
+	line_.Clear();
+	point_.Clear();
 }
 
 void RendererData::Init() {
@@ -455,6 +473,18 @@ void RendererData::FlushTransparentBatches() {
 		FlushBatches(batches);
 	}
 
+	// TODO: Look into caching part of the batch, keeping around VAOs.
+	// Confirm that this works as intended.
+	// for (auto it = transparent_batches_.begin(); it != transparent_batches_.end();) {
+	//	if (it->first == 0) {	  // z_index == 0
+	//		it->second.resize(1); // shrink batch to only first batch.
+	//		it->second.back().Clear();
+	//		++it;
+	//	} else {
+	//		it = transparent_batches_.erase(it);
+	//	}
+	//}
+
 	transparent_batches_.clear();
 }
 
@@ -491,11 +521,11 @@ void RendererData::FlushBatches(std::vector<Batch>& batches) {
 		}
 	};
 
-	flush_batch_group(quad_shader_, BatchType::Quad);
-	flush_batch_group(circle_shader_, BatchType::Circle);
-	flush_batch_group(color_shader_, BatchType::Triangle);
-	flush_batch_group(color_shader_, BatchType::Line);
-	flush_batch_group(color_shader_, BatchType::Point);
+	std::invoke([&]() { flush_batch_group(quad_shader_, BatchType::Quad); });
+	std::invoke([&]() { flush_batch_group(circle_shader_, BatchType::Circle); });
+	std::invoke([&]() { flush_batch_group(color_shader_, BatchType::Triangle); });
+	std::invoke([&]() { flush_batch_group(color_shader_, BatchType::Line); });
+	std::invoke([&]() { flush_batch_group(color_shader_, BatchType::Point); });
 }
 
 void RendererData::FlushOpaqueBatches() {
