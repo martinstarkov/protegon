@@ -33,12 +33,14 @@ public:
 		TestMatrix4();
 		TestECS();
 		TestMath();
-		TestRNG();
 		TestVector2();
+
+		TestRNG();
 
 		TestRenderer();
 
 		TestTween();
+
 		TestCamera();
 		TestText();
 		TestEvents();

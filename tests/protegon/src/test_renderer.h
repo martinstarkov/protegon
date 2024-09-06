@@ -773,6 +773,8 @@ struct TestBatch : public Test {
 
 	RNG<int> shape_only_rng{ 0, 4 };
 	RNG<int> all_rng{ 0, 5 };
+	RNG<float> circle_radius_rng{ 5.0f, 30.0f };
+	RNG<float> rectangle_size_rng{ 10.0f, 60.0f };
 
 	std::size_t batch_size{ 0 };
 
@@ -826,18 +828,19 @@ struct TestBatch : public Test {
 				break;
 			case TestBatchType::Circle:
 				game.renderer.DrawCircleFilled(
-					{ rng_x(), rng_y() }, rng_x(), Color::RandomTransparent()
+					{ rng_x(), rng_y() }, circle_radius_rng(), Color::RandomTransparent()
 				);
 				break;
 			case TestBatchType::Rectangle:
 				game.renderer.DrawRectangleFilled(
-					{ rng_x(), rng_y() }, { rng_x(), rng_y() }, Color::RandomTransparent()
+					{ rng_x(), rng_y() }, { rectangle_size_rng(), rectangle_size_rng() },
+					Color::RandomTransparent()
 				);
 				break;
 			case TestBatchType::Texture: {
 				std::size_t idx{ texture_index_rng() };
 				Texture& t{ textures[idx] };
-				game.renderer.DrawTexture(t, { rng_x(), rng_y() }, t.GetSize());
+				game.renderer.DrawTexture(t, { rng_x(), rng_y() }, t.GetSize() / 4.0f);
 				break;
 			}
 			default: PTGN_ERROR("Unrecognized TestBatchType");
@@ -1477,13 +1480,13 @@ void TestRendering() {
 		game.window.SetSize({ 800, 800 });
 		game.renderer.SetClearColor(color::Silver);
 
-		CheckForTestSwitch(render_test, (int)render_tests.size(), test_switch_keys);
-
 		PTGN_ASSERT(render_test < render_tests.size());
 
 		auto& current_render_test = render_tests[render_test];
 
 		current_render_test->Run(dt);
+
+		CheckForTestSwitch(render_test, (int)render_tests.size(), test_switch_keys);
 	});
 }
 

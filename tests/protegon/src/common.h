@@ -63,8 +63,6 @@ void TestLoop(
 
 	Game::UpdateFunction loop_function{ std::function(function) };
 
-	CheckForTestSwitch(current_test, (int)test_count, keys);
-
 	game.renderer.DrawPoint(game.input.GetMousePosition(), color::Red, 2.0f);
 
 	if (std::holds_alternative<std::function<void(float)>>(loop_function)) {
@@ -72,6 +70,8 @@ void TestLoop(
 	} else {
 		std::invoke(std::get<std::function<void(void)>>(loop_function));
 	}
+
+	CheckForTestSwitch(current_test, (int)test_count, keys);
 }
 
 } // namespace ptgn
