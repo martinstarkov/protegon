@@ -220,10 +220,15 @@ template <typename T, typename U, tt::arithmetic<T> = true, tt::floating_point<U
 	return (a0 * t * mu2 + a1 * mu2 + a2 * t + a3);
 }
 
+template <typename U, tt::floating_point<U> = true>
+[[nodiscard]] U Smoothstep(U t) {
+	return t * t * (3.0f - 2.0f * t);
+}
+
 // From: https://en.wikipedia.org/wiki/Smoothstep
 template <typename U, tt::floating_point<U> = true>
-[[nodiscard]] U SmoothStepInterpolate(U a, U b, U t) {
-	return Lerp(a, b, t * t * (3.0f - 2.0f * t));
+[[nodiscard]] U SmoothstepInterpolate(U a, U b, U t) {
+	return Lerp(a, b, Smoothstep(t));
 }
 
 } // namespace ptgn

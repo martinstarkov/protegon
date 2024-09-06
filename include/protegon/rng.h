@@ -28,11 +28,11 @@ enum class Distribution {
  * Use operator() on the RNG object to obtain new random numbers.
  * @tparam T Type of number to generate
  * @tparam D Distribution to use for generating values
- * @tparam E Type of rng engine to use (std::minstd_rand [default],
+ * @tparam E Type of rng engine to use (std::minstd_rand,
  * std::mt19937, etc)
  */
 template <
-	typename T, Distribution D = Distribution::Uniform, typename E = std::minstd_rand,
+	typename T, Distribution D = Distribution::Uniform, typename E = std::mt19937,
 	typename std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
 class RNG {
 private:
