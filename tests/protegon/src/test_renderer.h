@@ -813,7 +813,7 @@ struct TestBatch : public Test {
 				break;
 			}
 			case TestBatchType::Point:
-				game.renderer.DrawPoint({ rng_x(), rng_y() }, Color::RandomTransparent());
+				game.renderer.DrawPoint({ rng_x(), rng_y() }, Color::RandomOpaque());
 				break;
 			case TestBatchType::Line:
 				game.renderer.DrawLine(
