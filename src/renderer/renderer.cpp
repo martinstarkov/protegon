@@ -14,6 +14,12 @@ namespace ptgn {
 
 namespace impl {
 
+template class BatchData<QuadVertices, 6>;
+template class BatchData<CircleVertices, 4>;
+template class BatchData<TriangleVertices, 3>;
+template class BatchData<LineVertices, 2>;
+template class BatchData<PointVertices, 1>;
+
 static constexpr std::size_t batch_capacity{ 2000 };
 
 float TriangulateArea(const V2_float* contour, std::size_t count) {
@@ -168,35 +174,19 @@ std::vector<Triangle<float>> TriangulateProcess(const V2_float* contour, std::si
 	return result;
 }
 
-Batch::Batch(RendererData* renderer) : renderer_{ renderer } {
-	PTGN_ASSERT(renderer_ != nullptr);
+Batch::Batch(RendererData* renderer) :
+	quad_{ std::invoke([&]() {
+			   PTGN_ASSERT(renderer != nullptr);
+			   return renderer;
+		   }),
+		   renderer->max_texture_slots_ },
+	circle_{ renderer },
+	triangle_{ renderer },
+	line_{ renderer },
+	point_{ renderer } {}
 
-	quad_ = { renderer_->max_texture_slots_ };
-
-	quad_.data_.reserve(batch_capacity);
-	circle_.data_.reserve(batch_capacity);
-	triangle_.data_.reserve(batch_capacity);
-	line_.data_.reserve(batch_capacity);
-	point_.data_.reserve(batch_capacity);
-
-	SetArray(
-		batch_capacity, quad_, PrimitiveMode::Triangles, renderer_->quad_layout, renderer_->quad_ib_
-	);
-	SetArray(
-		batch_capacity, circle_, PrimitiveMode::Triangles, renderer_->circle_layout,
-		renderer_->quad_ib_
-	);
-	SetArray(
-		batch_capacity, triangle_, PrimitiveMode::Triangles, renderer_->color_layout,
-		renderer_->triangle_ib_
-	);
-	SetArray(
-		batch_capacity, line_, PrimitiveMode::Lines, renderer_->color_layout, renderer_->line_ib_
-	);
-	SetArray(
-		batch_capacity, point_, PrimitiveMode::Points, renderer_->color_layout, renderer_->point_ib_
-	);
-}
+template <typename TVertices, std::size_t IndexCount>
+BatchData<TVertices, IndexCount>::BatchData(RendererData* renderer) : renderer_{ renderer } {}
 
 template <typename TVertices, std::size_t IndexCount>
 bool BatchData<TVertices, IndexCount>::IsAvailable() const {
@@ -222,7 +212,58 @@ void BatchData<TVertices, IndexCount>::Clear() {
 }
 
 template <typename TVertices, std::size_t IndexCount>
+void BatchData<TVertices, IndexCount>::SetupBuffer(
+	PrimitiveMode type, const impl::InternalBufferLayout& layout, std::size_t vertex_count,
+	const IndexBuffer& index_buffer
+) {
+	if (!array_.IsValid()) {
+		data_.reserve(batch_capacity);
+		array_ = {
+			type,
+			VertexBuffer(
+				data_.data(),
+				static_cast<std::uint32_t>(batch_capacity * layout.GetStride() * vertex_count),
+				BufferUsage::DynamicDraw
+			),
+			layout, index_buffer
+		};
+	}
+}
+
+template <typename TVertices, std::size_t IndexCount>
+void BatchData<TVertices, IndexCount>::PrepareBuffer() {
+	if constexpr (std::is_same_v<TVertices, QuadVertices>) {
+		SetupBuffer(
+			PrimitiveMode::Triangles, renderer_->quad_layout, QuadVertices::count,
+			renderer_->quad_ib_
+		);
+	} else if constexpr (std::is_same_v<TVertices, CircleVertices>) {
+		SetupBuffer(
+			PrimitiveMode::Triangles, renderer_->circle_layout, CircleVertices::count,
+			renderer_->quad_ib_
+		);
+	} else if constexpr (std::is_same_v<TVertices, TriangleVertices>) {
+		SetupBuffer(
+			PrimitiveMode::Triangles, renderer_->color_layout, TriangleVertices::count,
+			renderer_->triangle_ib_
+		);
+	} else if constexpr (std::is_same_v<TVertices, LineVertices>) {
+		SetupBuffer(
+			PrimitiveMode::Lines, renderer_->color_layout, LineVertices::count, renderer_->line_ib_
+		);
+	} else if constexpr (std::is_same_v<TVertices, PointVertices>) {
+		SetupBuffer(
+			PrimitiveMode::Points, renderer_->color_layout, PointVertices::count,
+			renderer_->point_ib_
+		);
+	} else {
+		PTGN_ERROR("Failed to recognize batch buffer type");
+	}
+}
+
+template <typename TVertices, std::size_t IndexCount>
 void BatchData<TVertices, IndexCount>::UpdateBuffer() {
+	PrepareBuffer();
 	array_.GetVertexBuffer().SetSubData(
 		data_.data(), static_cast<std::uint32_t>(data_.size()) * sizeof(TVertices)
 	);
@@ -242,7 +283,8 @@ void BatchData<TVertices, IndexCount>::Draw() {
 	data_.clear();
 }
 
-TextureBatchData::TextureBatchData(std::size_t max_texture_slots) {
+TextureBatchData::TextureBatchData(RendererData* renderer, std::size_t max_texture_slots) :
+	BatchData{ renderer } {
 	// First texture slot is reserved for the empty white texture.
 	textures_.reserve(max_texture_slots - 1);
 }
@@ -469,7 +511,7 @@ void RendererData::Flush() {
 void RendererData::FlushTransparentBatches() {
 	PTGN_ASSERT(!new_view_projection_, "Opaque batch should have handled view projection reset");
 	// Flush batches in order of z_index.
-	for (auto [z_index, batches] : transparent_batches_) {
+	for (auto& [z_index, batches] : transparent_batches_) {
 		FlushBatches(batches);
 	}
 
@@ -772,11 +814,6 @@ std::array<V2_float, 4> GetQuadVertices(
 
 	return vertices;
 }
-
-template class BatchData<CircleVertices, 4>;
-template class BatchData<TriangleVertices, 3>;
-template class BatchData<LineVertices, 2>;
-template class BatchData<PointVertices, 1>;
 
 QuadVertices::QuadVertices(
 	const std::array<V2_float, 4>& vertices, float z_index, const V4_float& color,

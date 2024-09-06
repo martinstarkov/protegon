@@ -179,6 +179,8 @@ class Batch;
 template <typename TVertices, std::size_t IndexCount>
 class BatchData {
 public:
+	BatchData(RendererData* renderer);
+
 	using vertices = TVertices;
 
 	[[nodiscard]] bool IsAvailable() const;
@@ -192,13 +194,20 @@ public:
 private:
 	friend class Batch;
 
+	void SetupBuffer(
+		PrimitiveMode type, const impl::InternalBufferLayout& layout, std::size_t vertex_count,
+		const IndexBuffer& index_buffer
+	);
 	void UpdateBuffer();
+
+	void PrepareBuffer();
 
 	[[nodiscard]] bool IsFlushed() const;
 
 	void Draw();
 
 protected:
+	RendererData* renderer_{ nullptr };
 	VertexArray array_;
 	std::vector<TVertices> data_;
 };
@@ -207,7 +216,7 @@ class TextureBatchData : public BatchData<QuadVertices, 6> {
 public:
 	TextureBatchData() = default;
 
-	TextureBatchData(std::size_t max_texture_slots);
+	TextureBatchData(RendererData* renderer, std::size_t max_texture_slots);
 
 	void BindTextures();
 
@@ -254,26 +263,6 @@ public:
 	BatchData<TriangleVertices, 3> triangle_;
 	BatchData<LineVertices, 2> line_;
 	BatchData<PointVertices, 1> point_;
-
-private:
-	template <typename T>
-	void SetArray(
-		std::uint32_t batch_capacity, T& data, PrimitiveMode p,
-		const impl::InternalBufferLayout& layout, const IndexBuffer& ib
-	) {
-		PTGN_ASSERT(batch_capacity > 0);
-		data.array_ = { p,
-						VertexBuffer(
-							data.data_.data(),
-							static_cast<std::uint32_t>(
-								batch_capacity * layout.GetStride() * T::vertices::count
-							),
-							BufferUsage::DynamicDraw
-						),
-						layout, ib };
-	}
-
-	RendererData* renderer_{ nullptr };
 };
 
 class RendererData {
