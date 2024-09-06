@@ -17,13 +17,14 @@ You will also need a build system and a C++ compiler (see CMake Build Instructio
 - Event system
 - UI (buttons)
 - Timers
+- Fractal noise and RNG
 - Tweens
 - Math library (Vector2-4, Matrix4, Quaternions)
 - Collision detection and resolution
 - Mouse and keyboard input handling
 - Music and sound playback
 - Function profiling
-- Other useful debugging utilites
+- Other useful debugging utilities
 
 # Adding to a CMake project
 
