@@ -141,7 +141,10 @@ void SDLInstance::InitSDLMixer() {
 	);
 
 	int mixer_init{ Mix_Init(mixer_flags) };
-	PTGN_ASSERT(mixer_init == mixer_flags, Mix_GetError());
+
+	if (mixer_init != mixer_flags) {
+		PTGN_WARN(Mix_GetError());
+	}
 
 	int audio_open{ Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) };
 	PTGN_ASSERT(audio_open != -1, Mix_GetError());
