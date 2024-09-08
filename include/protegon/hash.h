@@ -12,17 +12,8 @@ namespace ptgn {
  * @param string The string to hash.
  * @return Unique positive integer corresponding to the string.
  */
-[[nodiscard]] inline std::size_t Hash(const std::string_view& string) {
+[[nodiscard]] inline std::size_t Hash(std::string_view string) {
 	return std::hash<std::string_view>()(string);
-}
-
-/*
- * Hash a C string into a number.
- * @param c_string The string to hash.
- * @return Unique positive integer corresponding to the string.
- */
-[[nodiscard]] inline std::size_t Hash(const char* c_string) {
-	return std::hash<std::string_view>()(std::string_view(c_string, std::strlen(c_string)));
 }
 
 [[nodiscard]] inline std::size_t Hash(const ecs::Entity& e) {

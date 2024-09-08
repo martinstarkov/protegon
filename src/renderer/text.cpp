@@ -117,7 +117,7 @@ const Font& Text::GetFont() const {
 	return instance_->font_;
 }
 
-const std::string& Text::GetContent() const {
+std::string_view Text::GetContent() const {
 	PTGN_ASSERT(IsValid(), "Cannot get content of uninitialized or destroyed texture");
 	return instance_->content_;
 }

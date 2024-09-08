@@ -6,6 +6,7 @@
 #include <ostream>
 #include <sstream>
 #include <string>
+#include <string_view>
 
 #include "utility/time.h"
 #include "utility/type_traits.h"
@@ -150,7 +151,7 @@ inline void PrintPreciseLine() {
 	{                                                                                   \
 		ptgn::debug::Print(                                                             \
 			prefix, std::filesystem::path(__FILE__).filename().string(), ":", __LINE__, \
-			std::invoke([&]() -> const char* {                                          \
+			std::invoke([&]() -> std::string_view {                                     \
 				if (PTGN_NUMBER_OF_ARGS(__VA_ARGS__) > 0) {                             \
 					return ": ";                                                        \
 				} else {                                                                \
@@ -161,7 +162,11 @@ inline void PrintPreciseLine() {
 		ptgn::debug::PrintLine(__VA_ARGS__);                                            \
 	}
 
-#define PTGN_WARN(...) PTGN_INTERNAL_DEBUG_MESSAGE("WARN: ", __VA_ARGS__)
+#define PTGN_WARN(...)                \
+	{                                 \
+		ptgn::Print("WARN: ");        \
+		ptgn::PrintLine(__VA_ARGS__); \
+	}
 
 #define PTGN_ERROR(...)                                      \
 	{                                                        \

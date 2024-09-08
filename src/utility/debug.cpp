@@ -4,7 +4,7 @@ namespace ptgn {
 
 namespace impl {
 
-std::string TrimFunctionSignature(const std::string& signature) {
+std::string TrimFunctionSignature(std::string_view signature) {
 	const std::string begin{ "__cdecl" }; // trim return type
 	const std::string end{ "(" };		  // trim function parameter list
 	std::string new_signature{ signature };

@@ -91,7 +91,7 @@ V2_int Window::GetPosition() {
 	return origin;
 }
 
-const char* Window::GetTitle() {
+std::string_view Window::GetTitle() {
 	PTGN_ASSERT(Exists(), "Cannot get title of nonexistent window");
 	return SDL_GetWindowTitle(window_.get());
 }
@@ -114,9 +114,9 @@ void Window::Center() {
 	SetPosition({ SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED });
 }
 
-void Window::SetTitle(const char* new_title) {
+void Window::SetTitle(const std::string& new_title) {
 	PTGN_ASSERT(Exists(), "Cannot set title of nonexistent window");
-	return SDL_SetWindowTitle(window_.get(), new_title);
+	return SDL_SetWindowTitle(window_.get(), new_title.c_str());
 }
 
 void Window::SetFullscreen(FullscreenMode mode) {

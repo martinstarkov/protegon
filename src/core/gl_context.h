@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "protegon/file.h"
@@ -45,10 +46,10 @@ public:
 
 	[[nodiscard]] static std::vector<GLError> GetErrors();
 
-	[[nodiscard]] static std::string GetErrorString(GLError error);
+	[[nodiscard]] static std::string_view GetErrorString(GLError error);
 
 	static void PrintErrors(
-		const std::string& function_name, const path& filepath, std::size_t line,
+		std::string_view function_name, const path& filepath, std::size_t line,
 		const std::vector<GLError>& errors
 	);
 

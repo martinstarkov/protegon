@@ -8,7 +8,7 @@ namespace ptgn {
 
 namespace impl {
 
-std::string GetShaderTypeName(std::uint32_t type) {
+std::string_view GetShaderTypeName(std::uint32_t type) {
 	switch (type) {
 		case GL_VERTEX_SHADER:	 return "vertex";
 		case GL_FRAGMENT_SHADER: return "fragment";
@@ -59,7 +59,7 @@ bool Shader::operator!=(const Shader& o) const {
 std::uint32_t Shader::CompileShader(std::uint32_t type, const std::string& source) {
 	std::uint32_t id = GLCallReturn(gl::CreateShader(type));
 
-	const char* src = source.c_str();
+	auto src{ source.c_str() };
 
 	GLCall(gl::ShaderSource(id, 1, &src, NULL));
 	GLCall(gl::CompileShader(id));

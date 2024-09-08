@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <functional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 
 #include "protegon/file.h"
@@ -19,7 +20,7 @@ namespace impl {
 
 class RendererData;
 
-std::string GetShaderTypeName(std::uint32_t type);
+std::string_view GetShaderTypeName(std::uint32_t type);
 
 struct ShaderInstance {
 	ShaderInstance();

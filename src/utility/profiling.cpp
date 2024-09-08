@@ -7,7 +7,7 @@ namespace ptgn {
 
 namespace impl {
 
-ProfileInstance::ProfileInstance(const std::string& function_name, const std::string& custom_name) :
+ProfileInstance::ProfileInstance(std::string_view function_name, std::string_view custom_name) :
 	name_{ custom_name.empty() ? function_name : custom_name } {
 	game.profiler.Load(name_).Start();
 }

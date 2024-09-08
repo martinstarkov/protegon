@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <variant>
 
 #include "protegon/color.h"
@@ -51,7 +52,7 @@ public:
 	void SetShadingColor(const Color& shading_color);
 
 	[[nodiscard]] const Font& GetFont() const;
-	[[nodiscard]] const std::string& GetContent() const;
+	[[nodiscard]] std::string_view GetContent() const;
 	[[nodiscard]] const Color& GetColor() const;
 	[[nodiscard]] FontStyle GetFontStyle() const;
 	[[nodiscard]] FontRenderMode GetFontRenderMode() const;

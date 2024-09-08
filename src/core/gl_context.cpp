@@ -123,7 +123,7 @@ std::vector<GLError> GLContext::GetErrors() {
 	return errors;
 }
 
-std::string GLContext::GetErrorString(GLError error) {
+std::string_view GLContext::GetErrorString(GLError error) {
 	PTGN_ASSERT(error != GLError::None, "Cannot retrieve error string for none type error");
 	switch (error) {
 		case GLError::InvalidEnum:		return "Invalid Enum";
@@ -138,7 +138,7 @@ std::string GLContext::GetErrorString(GLError error) {
 }
 
 void GLContext::PrintErrors(
-	const std::string& function_name, const path& filepath, std::size_t line,
+	std::string_view function_name, const path& filepath, std::size_t line,
 	const std::vector<GLError>& errors
 ) {
 	for (auto error : errors) {

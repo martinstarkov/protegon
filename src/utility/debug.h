@@ -64,7 +64,7 @@ namespace ptgn {
 namespace impl {
 
 // Returns the name of the function with the return type and function parameter list trimmed away.
-[[nodiscard]] std::string TrimFunctionSignature(const std::string& signature);
+[[nodiscard]] std::string TrimFunctionSignature(std::string_view signature);
 
 } // namespace impl
 

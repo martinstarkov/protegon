@@ -1,5 +1,8 @@
 #pragma once
 
+#include <string>
+#include <string_view>
+
 #include "protegon/color.h"
 #include "protegon/vector2.h"
 
@@ -50,8 +53,8 @@ public:
 
 	[[nodiscard]] V2_int GetPosition();
 
-	void SetTitle(const char* new_title);
-	[[nodiscard]] const char* GetTitle();
+	void SetTitle(const std::string& title);
+	[[nodiscard]] std::string_view GetTitle();
 
 	void Center();
 
