@@ -17,271 +17,21 @@
 // tween.SetToValue(300);
 // tween.SetFromValue(100);
 
-int tween_test = 0;
+struct TestTweenManager : public Test {
+	Color color;
+	V2_float pos;
 
-enum class TweenTest {
-	Callbacks,
-	Manager,
-	Points,
-	RepeatPoints,
-	YoyoPoints,
-	Count
-};
+	const V2_float size{ 40, 40 }; // rectangle size.
 
-template <typename T, typename... Ts>
-void TestTweenLoop(float dt, const T& function, const std::string& name, const Ts&... message) {
-	TestLoop(
-		dt, test_instructions, tween_test, (int)TweenTest::Count, test_switch_keys, function, name,
-		message...
-	);
-}
+	const milliseconds duration{ 500 };
 
-void TestTweenPoints(float dt) {
-	static V2_float pos;
-	static Color color = std::invoke([&]() {
+	const std::size_t key{ Hash("test_tween") };
+
+	void Init() {
 		game.tween.Clear();
-
-		std::size_t key{ Hash("test_tween_point") };
-
-		const milliseconds duration{ 1000 };
-
-		auto& tween =
-			game.tween.Load(key)
-				.During(duration)
-				.OnStart([](float v) { PTGN_LOG("Starting top tween with value ", v); })
-				.OnComplete([&](float v) {
-					PTGN_LOG("Completed top tween with value ", v);
-					color = color::Green;
-				})
-				.OnUpdate([&](float v) {
-					pos = { v * 800.0f, 0.0f };
-				})
-				.During(duration)
-				.OnStart([](float v) { PTGN_LOG("Starting right tween with value ", v); })
-				.OnComplete([&](float v) {
-					PTGN_LOG("Completed right tween with value ", v);
-					color = color::Purple;
-				})
-				.OnUpdate([&](float v) {
-					pos = { 800.0f, v * 800.0f };
-				})
-				.During(duration)
-				.OnStart([](float v) { PTGN_LOG("Starting bottom tween with value ", v); })
-				.OnComplete([&](float v) {
-					PTGN_LOG("Completed bottom tween with value ", v);
-					color = color::Orange;
-				})
-				.Reverse()
-				.OnUpdate([&](float v) {
-					pos = { v * 800.0f, 800.0f };
-				})
-				.During(duration)
-				.OnStart([](float v) { PTGN_LOG("Starting left tween with value ", v); })
-				.OnComplete([&](float v) {
-					PTGN_LOG("Completed left tween with value ", v);
-					color = color::Red;
-				})
-				.Reverse()
-				.OnUpdate([&](float v) {
-					pos = { 0.0f, v * 800.0f };
-				});
-		tween.Start();
-
-		PTGN_ASSERT(game.tween.Count() == 1);
-
-		return color::Red;
-	});
-
-	static Timer timer{ true };
-
-	TestTweenLoop(
-		dt,
-		[&]() {
-			game.renderer.DrawRectangleFilled(pos, { 40, 40 }, color);
-
-			// if (timer.Elapsed() >= milliseconds{ 2000 }) {
-			//	// Check that tween was automatically cleaned up.
-			//	PTGN_ASSERT(game.tween.Count() == 0);
-			// }
-		},
-		PTGN_FUNCTION_NAME()
-	);
-}
-
-void TestTweenRepeatPoints(float dt) {
-	static V2_float pos;
-	static Color color = std::invoke([&]() {
-		game.tween.Clear();
-
-		std::size_t key{ Hash("test_tween_point") };
-
-		const milliseconds duration{ 500 };
-		const std::int64_t repeats{ 2 };
-
-		auto& tween =
-			game.tween.Load(key)
-				.During(duration)
-				.OnStart([](float v) { PTGN_LOG("Starting top tween with value ", v); })
-				.OnComplete([&](float v) {
-					PTGN_LOG("Completed top tween with value ", v);
-					color = color::Green;
-				})
-				.OnUpdate([&](float v) {
-					pos = { v * 800.0f, 0.0f };
-				})
-				.Repeat(repeats)
-				.During(duration)
-				.OnStart([](float v) { PTGN_LOG("Starting right tween with value ", v); })
-				.OnComplete([&](float v) {
-					PTGN_LOG("Completed right tween with value ", v);
-					color = color::Purple;
-				})
-				.OnUpdate([&](float v) {
-					pos = { 800.0f, v * 800.0f };
-				})
-				.Repeat(repeats)
-				.During(duration)
-				.OnStart([](float v) { PTGN_LOG("Starting bottom tween with value ", v); })
-				.OnComplete([&](float v) {
-					PTGN_LOG("Completed bottom tween with value ", v);
-					color = color::Orange;
-				})
-				.Repeat(repeats)
-				.Reverse()
-				.OnUpdate([&](float v) {
-					pos = { v * 800.0f, 800.0f };
-				})
-				.During(duration)
-				.OnStart([](float v) { PTGN_LOG("Starting left tween with value ", v); })
-				.OnComplete([&](float v) {
-					PTGN_LOG("Completed left tween with value ", v);
-					color = color::Red;
-				})
-				.Repeat(repeats)
-				.Reverse()
-				.OnUpdate([&](float v) {
-					pos = { 0.0f, v * 800.0f };
-				});
-		tween.Start();
-
-		PTGN_ASSERT(game.tween.Count() == 1);
-
-		return color::Red;
-	});
-
-	static Timer timer{ true };
-
-	TestTweenLoop(
-		dt,
-		[&]() {
-			game.renderer.DrawRectangleFilled(pos, { 40, 40 }, color);
-
-			// if (timer.Elapsed() >= milliseconds{ 2000 }) {
-			//	// Check that tween was automatically cleaned up.
-			//	PTGN_ASSERT(game.tween.Count() == 0);
-			// }
-		},
-		PTGN_FUNCTION_NAME()
-	);
-}
-
-void TestTweenYoyoPoints(float dt) {
-	static V2_float pos;
-	static Color color = std::invoke([&]() {
-		game.tween.Clear();
-
-		std::size_t key{ Hash("test_tween_point") };
-
-		const milliseconds duration{ 1000 };
-		const std::int64_t repeats{ 2 };
-
-		auto& tween =
-			game.tween
-				.Load(key)
-
-				.During(duration)
-				.OnStart([](float v) { PTGN_LOG("Starting top tween with value ", v); })
-				.OnComplete([&](float v) {
-					PTGN_LOG("Completed top tween with value ", v);
-					color = color::Green;
-				})
-				.OnUpdate([&](float v) {
-					pos = { v * 800.0f, 0.0f };
-				})
-				.Repeat(repeats)
-				.Yoyo()
-
-				.During(duration)
-				.OnStart([](float v) { PTGN_LOG("Starting right tween with value ", v); })
-				.OnComplete([&](float v) {
-					PTGN_LOG("Completed right tween with value ", v);
-					color = color::Purple;
-				})
-				.OnUpdate([&](float v) {
-					pos = { 800.0f, v * 800.0f };
-				})
-				.Repeat(repeats)
-				.Yoyo()
-
-				.During(duration)
-				.OnStart([](float v) { PTGN_LOG("Starting bottom tween with value ", v); })
-				.OnComplete([&](float v) {
-					PTGN_LOG("Completed bottom tween with value ", v);
-					color = color::Orange;
-				})
-				.OnUpdate([&](float v) {
-					pos = { v * 800.0f, 800.0f };
-				})
-				.Reverse()
-				.Repeat(repeats)
-				.Yoyo()
-
-				.During(duration)
-				.OnStart([](float v) { PTGN_LOG("Starting left tween with value ", v); })
-				.OnComplete([&](float v) {
-					PTGN_LOG("Completed left tween with value ", v);
-					color = color::Red;
-				})
-				.OnUpdate([&](float v) {
-					pos = { 0.0f, v * 800.0f };
-				})
-				.Reverse()
-				.Repeat(repeats)
-				.Yoyo();
-
-		tween.Start();
-
-		PTGN_ASSERT(game.tween.Count() == 1);
-
-		return color::Red;
-	});
-
-	static Timer timer{ true };
-
-	TestTweenLoop(
-		dt,
-		[&]() {
-			game.renderer.DrawRectangleFilled(pos, { 40, 40 }, color);
-
-			// if (timer.Elapsed() >= milliseconds{ 2000 }) {
-			//	// Check that tween was automatically cleaned up.
-			//	PTGN_ASSERT(game.tween.Count() == 0);
-			// }
-		},
-		PTGN_FUNCTION_NAME()
-	);
-}
-
-void TestTweenManager(float dt) {
-	static V2_float pos;
-	static std::size_t key{ Hash("test_tween") };
-	static Color color = std::invoke([&]() {
-		game.tween.Clear();
-
-		PTGN_ASSERT(game.tween.Count() == 0);
 
 		game.tween.Load(key)
-			.During(milliseconds{ 2000 })
+			.During(duration)
 			.OnStart([](float v) { PTGN_LOG("Starting tween with value ", v); })
 			.OnComplete([&](float v) {
 				PTGN_LOG("Completed tween with value ", v);
@@ -293,24 +43,197 @@ void TestTweenManager(float dt) {
 			.Start();
 
 		PTGN_ASSERT(game.tween.Count() == 1);
+	}
 
-		return color::Red;
-	});
+	void Draw() {
+		game.renderer.DrawRectangleFilled(pos, size, color);
+	}
+};
 
-	static Timer timer{ true };
+struct TestTweenPoints : public TestTweenManager {
+	void Init() {
+		game.tween.Clear();
 
-	TestTweenLoop(
-		dt,
-		[&]() {
-			game.renderer.DrawRectangleFilled(pos, { 40, 40 }, color);
+		game.tween.Load(key)
+			.During(duration)
+			.OnStart([](float v) { PTGN_LOG("Starting top tween with value ", v); })
+			.OnComplete([&](float v) {
+				PTGN_LOG("Completed top tween with value ", v);
+				color = color::Green;
+			})
+			.OnUpdate([&](float v) {
+				pos = { v * 800.0f, 0.0f };
+			})
+			.During(duration)
+			.OnStart([](float v) { PTGN_LOG("Starting right tween with value ", v); })
+			.OnComplete([&](float v) {
+				PTGN_LOG("Completed right tween with value ", v);
+				color = color::Purple;
+			})
+			.OnUpdate([&](float v) {
+				pos = { 800.0f, v * 800.0f };
+			})
+			.During(duration)
+			.OnStart([](float v) { PTGN_LOG("Starting bottom tween with value ", v); })
+			.OnComplete([&](float v) {
+				PTGN_LOG("Completed bottom tween with value ", v);
+				color = color::Orange;
+			})
+			.Reverse()
+			.OnUpdate([&](float v) {
+				pos = { v * 800.0f, 800.0f };
+			})
+			.During(duration)
+			.OnStart([](float v) { PTGN_LOG("Starting left tween with value ", v); })
+			.OnComplete([&](float v) {
+				PTGN_LOG("Completed left tween with value ", v);
+				color = color::Red;
+			})
+			.Reverse()
+			.OnUpdate([&](float v) {
+				pos = { 0.0f, v * 800.0f };
+			})
+			.Start();
+	}
+};
 
-			// if (timer.Elapsed() >= milliseconds{ 2000 }) {
-			//	// Check that tween was automatically cleaned up.
-			//	PTGN_ASSERT(!game.tween.Has(key));
-			// }
-		},
-		PTGN_FUNCTION_NAME()
-	);
+struct TestTweenRepeatPoints : public TestTweenPoints {
+	const std::int64_t repeats{ 2 };
+
+	void Init() {
+		game.tween.Clear();
+
+		game.tween.Load(key)
+			.During(duration)
+			.OnStart([](float v) { PTGN_LOG("Starting top tween with value ", v); })
+			.OnComplete([&](float v) {
+				PTGN_LOG("Completed top tween with value ", v);
+				color = color::Green;
+			})
+			.OnUpdate([&](float v) {
+				pos = { v * 800.0f, 0.0f };
+			})
+			.Repeat(repeats)
+			.During(duration)
+			.OnStart([](float v) { PTGN_LOG("Starting right tween with value ", v); })
+			.OnComplete([&](float v) {
+				PTGN_LOG("Completed right tween with value ", v);
+				color = color::Purple;
+			})
+			.OnUpdate([&](float v) {
+				pos = { 800.0f, v * 800.0f };
+			})
+			.Repeat(repeats)
+			.During(duration)
+			.OnStart([](float v) { PTGN_LOG("Starting bottom tween with value ", v); })
+			.OnComplete([&](float v) {
+				PTGN_LOG("Completed bottom tween with value ", v);
+				color = color::Orange;
+			})
+			.Repeat(repeats)
+			.Reverse()
+			.OnUpdate([&](float v) {
+				pos = { v * 800.0f, 800.0f };
+			})
+			.During(duration)
+			.OnStart([](float v) { PTGN_LOG("Starting left tween with value ", v); })
+			.OnComplete([&](float v) {
+				PTGN_LOG("Completed left tween with value ", v);
+				color = color::Red;
+			})
+			.Repeat(repeats)
+			.Reverse()
+			.OnUpdate([&](float v) {
+				pos = { 0.0f, v * 800.0f };
+			})
+			.Start();
+
+		PTGN_ASSERT(game.tween.Count() == 1);
+	}
+};
+
+struct TestTweenYoyoPoints : public TestTweenRepeatPoints {
+	void Init() {
+		game.tween.Clear();
+
+		game.tween
+			.Load(key)
+
+			.During(duration)
+			.OnStart([](float v) { PTGN_LOG("Starting top tween with value ", v); })
+			.OnComplete([&](float v) {
+				PTGN_LOG("Completed top tween with value ", v);
+				color = color::Green;
+			})
+			.OnUpdate([&](float v) {
+				pos = { v * 800.0f, 0.0f };
+			})
+			.Repeat(repeats)
+			.Yoyo()
+
+			.During(duration)
+			.OnStart([](float v) { PTGN_LOG("Starting right tween with value ", v); })
+			.OnComplete([&](float v) {
+				PTGN_LOG("Completed right tween with value ", v);
+				color = color::Purple;
+			})
+			.OnUpdate([&](float v) {
+				pos = { 800.0f, v * 800.0f };
+			})
+			.Repeat(repeats)
+			.Yoyo()
+
+			.During(duration)
+			.OnStart([](float v) { PTGN_LOG("Starting bottom tween with value ", v); })
+			.OnComplete([&](float v) {
+				PTGN_LOG("Completed bottom tween with value ", v);
+				color = color::Orange;
+			})
+			.OnUpdate([&](float v) {
+				pos = { v * 800.0f, 800.0f };
+			})
+			.Reverse()
+			.Repeat(repeats)
+			.Yoyo()
+
+			.During(duration)
+			.OnStart([](float v) { PTGN_LOG("Starting left tween with value ", v); })
+			.OnComplete([&](float v) {
+				PTGN_LOG("Completed left tween with value ", v);
+				color = color::Red;
+			})
+			.OnUpdate([&](float v) {
+				pos = { 0.0f, v * 800.0f };
+			})
+			.Reverse()
+			.Repeat(repeats)
+			.Yoyo()
+			.Start();
+
+		PTGN_ASSERT(game.tween.Count() == 1);
+	}
+};
+
+void TestTweenManager(float dt) {
+	PTGN_ASSERT(game.tween.Count() == 0);
+
+	return color::Red;
+});
+
+static Timer timer{ true };
+
+TestTweenLoop(
+	dt,
+	[&]() {
+		game.renderer.DrawRectangleFilled(pos, { 40, 40 }, color);
+
+		// if (timer.Elapsed() >= milliseconds{ 2000 }) {
+		//	// Check that tween was automatically cleaned up.
+		//	PTGN_ASSERT(!game.tween.Has(key));
+		// }
+	},
+	PTGN_FUNCTION_NAME()
+);
 }
 
 struct TweenInfo {

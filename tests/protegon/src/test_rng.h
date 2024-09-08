@@ -160,18 +160,7 @@ void TestNoise() {
 
 	noise_tests.emplace_back(new TestFractalNoise());
 
-	game.PushLoopFunction([=](float dt) {
-		game.window.SetSize({ 800, 800 });
-		game.renderer.SetClearColor(color::Silver);
-
-		PTGN_ASSERT(noise_test < noise_tests.size());
-
-		auto& current_render_test = noise_tests[noise_test];
-
-		current_render_test->Run(dt);
-
-		CheckForTestSwitch(noise_test, (int)noise_tests.size(), test_switch_keys);
-	});
+	AddTests(noise_tests);
 }
 
 void TestRNG() {

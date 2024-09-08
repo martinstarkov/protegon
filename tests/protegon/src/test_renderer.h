@@ -22,6 +22,8 @@ void TestBatchTextureSDL(std::size_t batch_size, float dt, const std::vector<pat
 	std::vector<SDL_Texture*> textures;
 	textures.resize(texture_paths.size(), nullptr);
 
+	V2_float ws = game.window.GetSize();
+
 	SDL_Renderer* r = SDL_CreateRenderer(game.window.GetSDLWindow(), -1, 0);
 
 	for (std::size_t i = 0; i < textures.size(); i++) {
@@ -64,8 +66,6 @@ void TestBatchTextureSDL(std::size_t batch_size, float dt, const std::vector<pat
 }
 
 struct TestViewportExtentsAndOrigin : public Test {
-	V2_float ws;
-
 	V2_float top_left;
 	V2_float top_right;
 	V2_float bottom_right;
@@ -74,8 +74,6 @@ struct TestViewportExtentsAndOrigin : public Test {
 	V2_float s; // rectangle size.
 
 	void Init() {
-		ws = game.window.GetSize();
-
 		top_left	 = V2_float{ 0, 0 };
 		top_right	 = V2_float{ ws.x, 0 };
 		bottom_right = V2_float{ ws.x, ws.y };
@@ -93,14 +91,6 @@ struct TestViewportExtentsAndOrigin : public Test {
 };
 
 struct TestPoint : public Test {
-	V2_float ws;
-	V2_float center;
-
-	void Init() {
-		ws	   = game.window.GetSize();
-		center = game.window.GetCenter();
-	}
-
 	void Draw() {
 		game.renderer.DrawPoint(center - ws * 0.25f, color::Blue);
 		game.renderer.DrawPoint(center + ws * 0.25f, color::DarkBlue);
@@ -114,9 +104,14 @@ struct TestPoint : public Test {
 	}
 };
 
-struct TestLine : public Test {
-	V2_float ws;
-	V2_float center;
+struct DrawTest : public Test {
+	const float line_width{ 1.0f };
+
+	DrawTest(float line_width) : line_width{ line_width } {}
+};
+
+struct TestLine : public DrawTest {
+	using DrawTest::DrawTest;
 
 	V2_float p0;
 	V2_float p1;
@@ -127,14 +122,7 @@ struct TestLine : public Test {
 	V2_float p6;
 	V2_float p7;
 
-	const float line_width{ 1.0f };
-
-	TestLine(float line_width) : line_width{ line_width } {}
-
 	void Init() {
-		ws	   = game.window.GetSize();
-		center = game.window.GetCenter();
-
 		p0 = { center.x - 200, center.y - 200 };
 		p1 = { center.x + 200, center.y + 200 };
 		p2 = { center.x - 200, center.y + 200 };
@@ -161,9 +149,8 @@ struct TestLineThick : public TestLine {
 	TestLineThick(float line_width) : TestLine{ line_width } {}
 };
 
-struct TestTriangle : public Test {
-	V2_float ws;
-	V2_float center;
+struct TestTriangle : public DrawTest {
+	using DrawTest::DrawTest;
 
 	V2_float p0;
 	V2_float p1;
@@ -172,14 +159,7 @@ struct TestTriangle : public Test {
 	V2_float p4;
 	V2_float p5;
 
-	const float line_width{ 1.0f };
-
-	TestTriangle(float line_width) : line_width{ line_width } {}
-
 	void Init() {
-		ws	   = game.window.GetSize();
-		center = game.window.GetCenter();
-
 		p0 = { center.x - 200, center.y };
 		p1 = { center.x + 200, center.y };
 		p2 = { center.x, center.y - 200 };
@@ -214,10 +194,7 @@ struct TestTriangleFilled : public TestTriangle {
 	TestTriangleFilled() : TestTriangle{ -1 } {}
 };
 
-struct TestRectangle : public Test {
-	V2_float ws;
-	V2_float center;
-
+struct TestRectangle : public DrawTest {
 	V2_float p0;
 	V2_float p1;
 	V2_float p2;
@@ -232,15 +209,11 @@ struct TestRectangle : public Test {
 
 	float rounding_radius{ 0.0f };
 
-	const float line_width{ 1.0f };
-
-	TestRectangle(float line_width, float rounding_radius) :
-		line_width{ line_width }, rounding_radius{ rounding_radius } {}
+	TestRectangle(float line_width, float rounding_radius) : DrawTest{ line_width } {
+		this->rounding_radius = rounding_radius;
+	}
 
 	void Init() {
-		ws	   = game.window.GetSize();
-		center = game.window.GetCenter();
-
 		p0 = center;
 		p1 = center + V2_float{ 100.0f, 100.0f };
 		p2 = center + V2_float{ 100.0f, -100.0f };
@@ -349,21 +322,13 @@ struct TestRoundedRectangleFilled : public TestRectangle {
 	TestRoundedRectangleFilled(float radius) : TestRectangle{ -1, radius } {}
 };
 
-struct TestPolygon : public Test {
-	V2_float ws;
-	V2_float center;
+struct TestPolygon : public DrawTest {
+	using DrawTest::DrawTest;
 
 	std::vector<V2_float> vertices0;
 	std::vector<V2_float> vertices1;
 
-	const float line_width{ 1.0f };
-
-	TestPolygon(float line_width) : line_width{ line_width } {}
-
 	void Init() {
-		ws	   = game.window.GetSize();
-		center = game.window.GetCenter();
-
 		vertices0 = {
 			V2_float{ 550, 60 },
 			V2_float{ 650 - 44, 60 },
@@ -416,10 +381,7 @@ struct TestPolygonFilled : public TestPolygon {
 	TestPolygonFilled() : TestPolygon{ -1 } {}
 };
 
-struct TestEllipse : public Test {
-	V2_float ws;
-	V2_float center;
-
+struct TestEllipse : public DrawTest {
 	V2_float p0;
 	V2_float p1;
 	V2_float p2;
@@ -428,15 +390,11 @@ struct TestEllipse : public Test {
 
 	V2_float radius;
 
-	const float line_width{ 1.0f };
-
-	TestEllipse(const V2_float& radius, float line_width) :
-		radius{ radius }, line_width{ line_width } {}
+	TestEllipse(const V2_float& radius, float line_width) : DrawTest{ line_width } {
+		this->radius = radius;
+	}
 
 	void Init() {
-		ws	   = game.window.GetSize();
-		center = game.window.GetCenter();
-
 		p0 = center;
 		p1 = center + V2_float{ 200.0f, 200.0f };
 		p2 = center + V2_float{ 200.0f, -200.0f };
@@ -537,10 +495,7 @@ struct TestCapsuleFilled : public TestCapsule {
 	TestCapsuleFilled(float radius) : TestCapsule{ radius, -1 } {}
 };
 
-struct TestArc : public Test {
-	V2_float ws;
-	V2_float center;
-
+struct TestArc : public DrawTest {
 	V2_float bottom_right;
 	V2_float bottom_left;
 	V2_float top_right;
@@ -548,14 +503,11 @@ struct TestArc : public Test {
 
 	float radius;
 
-	const float line_width{ 1.0f };
-
-	TestArc(float radius, float line_width) : radius{ radius }, line_width{ line_width } {}
+	TestArc(float radius, float line_width) : DrawTest{ line_width } {
+		this->radius = radius;
+	}
 
 	void Init() {
-		ws	   = game.window.GetSize();
-		center = game.window.GetCenter();
-
 		bottom_right = center + V2_float{ 200.0f, 200.0f };
 		top_right	 = center + V2_float{ 200.0f, -200.0f };
 		top_left	 = center + V2_float{ -200.0f, -200.0f };
@@ -634,9 +586,6 @@ struct TestArcFilled : public TestArc {
 };
 
 struct TestTransparency : public Test {
-	V2_float ws;
-	V2_float center;
-
 	V2_float p1;
 	V2_float p2;
 	V2_float p3;
@@ -645,9 +594,6 @@ struct TestTransparency : public Test {
 	V2_float s; // size
 
 	void Init() {
-		ws	   = game.window.GetSize();
-		center = game.window.GetCenter();
-
 		float corner_distance{ 0.05f };
 
 		p1 = { center - V2_float{ ws.x * corner_distance, 0.0f } };
@@ -673,8 +619,7 @@ struct TestTexture : public Test {
 
 	float rotation{ 0.0f };
 
-	V2_float size;
-	V2_float ws;
+	V2_float size;				 // rectangle size
 
 	V2_float cr;				 // center of rotation.
 
@@ -683,7 +628,6 @@ struct TestTexture : public Test {
 	TestTexture(const Texture& texture) : texture{ texture } {}
 
 	void Init() {
-		ws	 = game.window.GetSize();
 		size = ws / 5.0f;
 
 		circle_radius = size.x / 2.0f;
@@ -763,8 +707,6 @@ enum class TestBatchType {
 };
 
 struct TestBatch : public Test {
-	V2_float ws;
-
 	// Random position generators.
 	RNG<float> rng_x;
 	RNG<float> rng_y;
@@ -792,8 +734,6 @@ struct TestBatch : public Test {
 	}
 
 	void Init() {
-		ws = game.window.GetSize();
-
 		rng_x = { 0.0f, ws.x };
 		rng_y = { 0.0f, ws.y };
 
@@ -1410,8 +1350,6 @@ void GetTextures(std::vector<Texture>& textures, std::vector<Texture>& textures_
 }
 
 void TestRendering() {
-	static int render_test{ 0 };
-
 	std::vector<Texture> textures30;
 	std::vector<Texture> textures60;
 	GetTextures(textures30, textures60);
@@ -1476,18 +1414,7 @@ void TestRendering() {
 	render_tests.emplace_back(new TestShapesOnlyBatch(batch_size));
 	render_tests.emplace_back(new TestAllBatch(batch_size, textures60));
 
-	game.PushLoopFunction([=](float dt) {
-		game.window.SetSize({ 800, 800 });
-		game.renderer.SetClearColor(color::Silver);
-
-		PTGN_ASSERT(render_test < render_tests.size());
-
-		auto& current_render_test = render_tests[render_test];
-
-		current_render_test->Run(dt);
-
-		CheckForTestSwitch(render_test, (int)render_tests.size(), test_switch_keys);
-	});
+	AddTests(render_tests);
 }
 
 void TestRenderer() {

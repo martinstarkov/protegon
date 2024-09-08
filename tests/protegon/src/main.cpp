@@ -5,15 +5,16 @@
 #include "../tests/test_ecs.h"
 #include "common.h"
 #include "protegon/protegon.h"
-#include "test_camera.h"
-#include "test_events.h"
 #include "test_math.h"
 #include "test_matrix4.h"
 #include "test_renderer.h"
 #include "test_rng.h"
-#include "test_text.h"
-#include "test_tween.h"
 #include "test_vector.h"
+
+// #include "test_events.h"
+// #include "test_text.h"
+// #include "test_camera.h"
+// #include "test_tween.h"
 
 using namespace ptgn;
 
@@ -39,11 +40,11 @@ public:
 
 		TestRenderer();
 
-		TestTween();
+		// TestTween();
 
-		TestCamera();
-		TestText();
-		TestEvents();
+		// TestCamera();
+		// TestText();
+		// TestEvents();
 		game.window.SetTitle("Update Loop");
 	}
 

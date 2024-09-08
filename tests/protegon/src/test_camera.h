@@ -18,14 +18,6 @@ enum class CameraTest {
 	Count
 };
 
-template <typename T, typename... Ts>
-void TestCameraLoop(float dt, const T& function, const std::string& name, const Ts&... message) {
-	TestLoop(
-		dt, camera_test_instructions, camera_test, (int)CameraTest::Count, camera_test_switch_keys,
-		function, name, message...
-	);
-}
-
 void TestCameraSwitching(float dt) {
 	ws	   = game.window.GetSize();
 	center = game.window.GetCenter();
