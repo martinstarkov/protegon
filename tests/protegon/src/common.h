@@ -18,10 +18,6 @@ namespace ptgn {
 struct Test {
 	virtual ~Test() = default;
 
-	virtual std::string_view GetName() const final {
-		return PTGN_FULL_FUNCTION_SIGNATURE;
-	}
-
 	void Setup() {
 		ws	   = game.window.GetSize();
 		center = game.window.GetCenter();
@@ -34,6 +30,8 @@ struct Test {
 	virtual void Update() {}
 
 	virtual void Draw() {}
+
+	virtual void Shutdown() {}
 
 	virtual void Run(float dt) final {
 		if (!initialized_) {
@@ -54,42 +52,39 @@ private:
 };
 
 // TODO: Make this a template to get count.
-void CheckForTestSwitch(int& current_test, int test_count) {
+void CheckForTestSwitch(
+	const std::vector<std::shared_ptr<Test>>& tests, int& current_test, int test_count
+) {
 	PTGN_ASSERT(test_switch_keys.size() == 2);
 	if (game.input.KeyDown(test_switch_keys[0])) {
+		tests[current_test]->Shutdown();
 		current_test--;
 		current_test = Mod(current_test, test_count);
 	} else if (game.input.KeyDown(test_switch_keys[1])) {
+		tests[current_test]->Shutdown();
 		current_test++;
 		current_test = Mod(current_test, test_count);
 	}
 	if (game.input.KeyDown(test_category_switch_key)) {
+		tests[current_test]->Shutdown();
 		game.PopLoopFunction();
 	}
 }
 
-void AddTests(
-	const std::vector<std::shared_ptr<Test>>& tests, const V2_int& window_size = { 800, 800 },
-	const Color& window_color = color::White
-) {
+void AddTests(const std::vector<std::shared_ptr<Test>>& tests) {
 	// Lambda capture will keep this alive as long as is necessary.
 	std::shared_ptr<int> test_idx = std::make_shared<int>(0);
 
 	game.PushLoopFunction([=](float dt) {
-		game.window.SetSize(window_size);
-		game.renderer.SetClearColor(window_color);
-
 		PTGN_ASSERT(*test_idx < tests.size());
 
 		auto& current_test = tests[*test_idx];
 
-		game.window.SetTitle(
-			test_instructions + std::string(": ") + std::string(current_test->GetName())
-		);
+		game.window.SetTitle(test_instructions + std::string(": ") + std::to_string(*test_idx));
 
 		current_test->Run(dt);
 
-		CheckForTestSwitch(*test_idx, static_cast<int>(tests.size()));
+		CheckForTestSwitch(tests, *test_idx, static_cast<int>(tests.size()));
 	});
 }
 

@@ -90,7 +90,7 @@ void TestEvents() {
 			);
 		}
 
-		game.renderer.SetClearColor(color::Black);
+		game.renderer.SetClearColor(color::White);
 		game.window.SetSize({ 800, 800 });
 		game.window.SetTitle("Event Tests");
 		game.window.SetResizeable(true);

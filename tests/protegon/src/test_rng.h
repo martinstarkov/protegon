@@ -9,12 +9,7 @@
 using namespace ptgn;
 
 struct TestFractalNoise : public Test {
-	V2_float ws;
-
-	std::size_t octaves{ 0 };
-	float frequency{ 0.0f };
-	float bias{ 0.0f };
-	float persistence{ 0.0f };
+	NoiseProperties properties;
 
 	std::vector<float> noise_map;
 
@@ -22,77 +17,66 @@ struct TestFractalNoise : public Test {
 
 	ValueNoise noise{ 256, 0 };
 
-	V2_float pixel_size;
-	V2_float grid_size;
-	V2_int grid_pos;
+	V2_int pixel_size;
+	V2_int grid_size;
 
 	TestFractalNoise(int fractal_preset = 0) {
 		if (fractal_preset == 0) {
-			octaves		= 5;
-			frequency	= 0.03f;
-			bias		= 2.4f;
-			persistence = 0.7f;
+			properties.octaves	   = 5;
+			properties.frequency   = 0.03f;
+			properties.bias		   = 2.4f;
+			properties.persistence = 0.7f;
 		} else {
-			octaves		= 5;
-			frequency	= 0.02f;
-			bias		= 1.8f;
-			persistence = 0.35f;
+			properties.octaves	   = 5;
+			properties.frequency   = 0.02f;
+			properties.bias		   = 1.8f;
+			properties.persistence = 0.35f;
 		}
 	}
 
 	void Init() {
-		ws	= game.window.GetSize();
 		pos = {};
 
 		pixel_size = { 8, 8 };
 		grid_size  = ws / pixel_size;
-		grid_pos   = pos / grid_size;
 
-		noise_map = FractalNoise::Generate(
-			noise, grid_pos, grid_size, octaves, frequency, bias, persistence
-		);
+		noise_map = FractalNoise::Generate(noise, pos, grid_size, properties);
 	}
 
 	void Update(float dt) {
-		bool change{ false };
+		static NoiseProperties prev_properties = properties;
 
 		if (game.input.KeyDown(Key::R)) {
-			octaves++;
-			change = true;
+			properties.octaves++;
 		}
 		if (game.input.KeyDown(Key::F)) {
-			octaves--;
-			change = true;
+			properties.octaves--;
 		}
 
 		if (game.input.KeyDown(Key::T)) {
-			frequency += 0.01f;
-			change	   = true;
+			properties.frequency += 0.01f;
 		}
 		if (game.input.KeyDown(Key::G)) {
-			frequency -= 0.01f;
-			change	   = true;
+			properties.frequency -= 0.01f;
 		}
 
 		if (game.input.KeyDown(Key::Y)) {
-			bias   += 0.2f;
-			change	= true;
+			properties.bias += 0.2f;
 		}
 		if (game.input.KeyDown(Key::H)) {
-			bias   -= 0.2f;
-			change	= true;
+			properties.bias -= 0.2f;
 		}
 
 		if (game.input.KeyDown(Key::U)) {
-			persistence += 0.05f;
-			change		 = true;
+			properties.persistence += 0.05f;
 		}
 		if (game.input.KeyDown(Key::J)) {
-			persistence -= 0.05f;
-			change		 = true;
+			properties.persistence -= 0.05f;
 		}
 
 		const float pan_speed{ 100.0f };
+
+		bool change{ false };
 
 		if (game.input.KeyPressed(Key::W)) {
 			pos.y  -= pan_speed * dt;
@@ -112,36 +96,29 @@ struct TestFractalNoise : public Test {
 		}
 
 		if (game.input.KeyDown(Key::P)) {
-			PTGN_LOG("octaves = ", octaves, ";");
-			PTGN_LOG("frequency = ", frequency, "f;");
-			PTGN_LOG("bias = ", bias, ";");
-			PTGN_LOG("persistence = ", persistence, "f;");
+			PTGN_LOG("octaves = ", properties.octaves, ";");
+			PTGN_LOG("frequency = ", properties.frequency, "f;");
+			PTGN_LOG("bias = ", properties.bias, ";");
+			PTGN_LOG("persistence = ", properties.persistence, "f;");
 		}
 
-		if (change) {
-			octaves		= std::clamp((int)octaves, 1, 10);
-			frequency	= std::clamp(frequency, 0.01f, 0.3f);
-			bias		= std::clamp(bias, 0.2f, 4.0f);
-			persistence = std::clamp(persistence, 0.05f, 1.0f);
-			/*V2_int new_grid_pos = pos / ws * grid_size;
-			if (new_grid_pos != grid_pos) {
-				grid_pos = new_grid_pos;
-				noise	 = ValueNoise(256, Hash(new_grid_pos));
-			}*/
-			noise_map = FractalNoise::Generate(
-				noise, (V2_int)pos, grid_size, octaves, frequency, bias, persistence
-			);
+		if (change || properties != prev_properties) {
+			properties.octaves	   = std::clamp((int)properties.octaves, 1, 10);
+			properties.frequency   = std::clamp(properties.frequency, 0.01f, 0.3f);
+			properties.bias		   = std::clamp(properties.bias, 0.2f, 4.0f);
+			properties.persistence = std::clamp(properties.persistence, 0.05f, 1.0f);
+			noise_map = FractalNoise::Generate(noise, (V2_int)pos, grid_size, properties);
 		}
 	}
 
 	void Draw() {
-		for (std::size_t i{ 0 }; i < grid_size.x; i++) {
-			for (std::size_t j{ 0 }; j < grid_size.y; j++) {
-				V2_float p{ static_cast<float>(i), static_cast<float>(j) };
+		for (int i{ 0 }; i < grid_size.x; i++) {
+			for (int j{ 0 }; j < grid_size.y; j++) {
+				V2_int p{ i, j };
 				Color color = color::Black;
 
-				std::size_t index{ i + static_cast<std::size_t>(grid_size.x) * j };
-				PTGN_ASSERT(index < noise_map.size());
+				int index{ i + grid_size.x * j };
+				PTGN_ASSERT(index < (int)noise_map.size());
 				float opacity = noise_map[index] * 255.0f;
 				color.a		  = static_cast<std::uint8_t>(opacity);
 
@@ -154,8 +131,6 @@ struct TestFractalNoise : public Test {
 };
 
 void TestNoise() {
-	static int noise_test{ 0 };
-
 	std::vector<std::shared_ptr<Test>> noise_tests;
 
 	noise_tests.emplace_back(new TestFractalNoise());
