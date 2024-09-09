@@ -24,7 +24,7 @@ public:
 		}
 	}
 
-	float Evaluate(const V2_float& pos) const {
+	[[nodiscard]] float Evaluate(const V2_float& pos) const {
 		int xi = static_cast<int>(FastFloor(pos.x));
 		int yi = static_cast<int>(FastFloor(pos.y));
 
@@ -63,41 +63,60 @@ private:
 	std::vector<std::size_t> permutations; // size: noise.size() * 2
 };
 
+struct NoiseProperties {
+	// TODO: Add comments explaining what each of these does to the noise.
+
+	std::size_t octaves{ 5 };
+	float frequency{ 0.03f };
+	float bias{ 2.4f };
+	float persistence{ 0.7f };
+
+	inline bool operator==(const NoiseProperties& o) {
+		return octaves == o.octaves && NearlyEqual(frequency, o.frequency) &&
+			   NearlyEqual(bias, o.bias) && NearlyEqual(persistence, o.persistence);
+	}
+
+	inline bool operator!=(const NoiseProperties& o) {
+		return !(*this == o);
+	}
+};
+
 class FractalNoise {
 public:
-	static std::vector<float> Generate(
-		const ValueNoise& noise, const V2_float& pos, const V2_int& size, std::size_t octaves,
-		float frequency, float bias, float persistence
+	[[nodiscard]] static std::vector<float> Generate(
+		const ValueNoise& noise, const V2_float& pos, const V2_int& size,
+		const NoiseProperties& properties
 	) {
 		int length{ size.x * size.y };
 
 		PTGN_ASSERT(length > 0);
-		PTGN_ASSERT(octaves > 0);
-		PTGN_ASSERT(frequency > 0);
-		PTGN_ASSERT(bias > 0);
-		PTGN_ASSERT(persistence > 0);
+		PTGN_ASSERT(properties.octaves > 0);
+		PTGN_ASSERT(properties.frequency > 0);
+		PTGN_ASSERT(properties.bias > 0);
+		PTGN_ASSERT(properties.persistence > 0);
 
 		float max_noise{ 0.0f };
 		float amplitude{ 1.0f };
 
 		std::vector<float> noise_map(length);
 
-		for (std::size_t octave{ 0 }; octave < octaves; ++octave) {
+		for (std::size_t octave{ 0 }; octave < properties.octaves; ++octave) {
 			max_noise += amplitude;
-			amplitude *= persistence;
+			amplitude *= properties.persistence;
 		}
 
 		for (std::size_t j{ 0 }; j < size.y; ++j) {
 			for (std::size_t i{ 0 }; i < size.x; ++i) {
 				V2_float noise_pos =
-					(pos + V2_float{ static_cast<float>(i), static_cast<float>(j) }) * frequency;
+					(pos + V2_float{ static_cast<float>(i), static_cast<float>(j) }) *
+					properties.frequency;
 				amplitude = 1.0f;
 				auto& local_noise{ noise_map[j * size.x + i] };
 
-				for (std::size_t octave{ 0 }; octave < octaves; ++octave) {
+				for (std::size_t octave{ 0 }; octave < properties.octaves; ++octave) {
 					local_noise += noise.Evaluate(noise_pos) * amplitude;
-					noise_pos	*= bias;
-					amplitude	*= persistence;
+					noise_pos	*= properties.bias;
+					amplitude	*= properties.persistence;
 				}
 			}
 		}
