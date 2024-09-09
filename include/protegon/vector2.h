@@ -220,6 +220,28 @@ template <typename T>
 using Point = Vector2<T>;
 
 template <typename T>
+inline Vector2<T> Clamp(const Vector2<T>& vector, const Vector2<T>& min, const Vector2<T>& max) {
+	return { std::clamp(vector.x, min.x, max.x), std::clamp(vector.y, min.y, max.y) };
+}
+
+template <typename T>
+inline Vector2<T> Clamp(const Vector2<T>& vector, T min, T max) {
+	Vector2<T> dir{ vector.Normalized() };
+	Vector2<T> dir_min{ dir * Vector2<T>{ min, min } };
+	Vector2<T> dir_max{ dir * Vector2<T>{ max, max } };
+
+	Vector2<T> min_v{ std::min(dir_min.x, dir_max.x), std::min(dir_min.y, dir_max.y) };
+	Vector2<T> max_v{ std::max(dir_min.x, dir_max.x), std::max(dir_min.y, dir_max.y) };
+
+	return Clamp(vector, min_v, max_v);
+}
+
+template <typename T>
+inline Vector2<T> Round(const Vector2<T>& vector) {
+	return { std::round(vector.x), std::round(vector.y) };
+}
+
+template <typename T>
 inline bool operator==(const Vector2<T>& lhs, const Vector2<T>& rhs) {
 	return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y);
 }
