@@ -147,6 +147,12 @@ struct TweenInstance {
 	std::size_t index_{ 0 };
 	std::vector<TweenPoint> tweens_points_;
 
+	~TweenInstance();
+
+	impl::TweenPoint& GetCurrentTweenPoint();
+	const impl::TweenPoint& GetCurrentTweenPoint() const;
+	impl::TweenPoint& GetLastTweenPoint();
+
 	// Value between [0.0f, 1.0f] indicating how much of the total duration the tween has passed in
 	// the current repetition. Note: This value remains 0.0f to 1.0f even when the tween is reversed
 	// or yoyoing.
@@ -229,12 +235,9 @@ public:
 
 private:
 	friend class TweenManager;
+	friend struct impl::TweenInstance;
 
 	void PointCompleted();
-
-	impl::TweenPoint& GetCurrentTweenPoint();
-	impl::TweenPoint& GetLastTweenPoint();
-	const impl::TweenPoint& GetCurrentTweenPoint() const;
 
 	float GetNewProgress(duration<float> time) const;
 	float SeekImpl(float new_progress);
