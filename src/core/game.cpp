@@ -212,6 +212,10 @@ void Game::Update() {
 		std::invoke(std::get<std::function<void(void)>>(loop_function));
 	}
 
+	if (!running_) {
+		return;
+	}
+
 	game.renderer.Present();
 
 	++counter;
