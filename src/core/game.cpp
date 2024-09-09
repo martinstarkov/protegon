@@ -187,6 +187,11 @@ void Game::Update() {
 	// Calculate time elapsed during previous frame.
 	duration<float> elapsed{ end - start };
 	float dt{ elapsed.count() };
+
+	// TODO: Consider fixed FPS vs dynamic: https://gafferongames.com/post/fix_your_timestep/.
+	constexpr const float fps{ 30.0f };
+	dt = 1.0f / fps;
+
 	start = end;
 
 	input.Update();
