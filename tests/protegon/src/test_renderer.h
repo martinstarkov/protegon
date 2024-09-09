@@ -632,7 +632,7 @@ struct TestTexture : public Test {
 
 		circle_radius = size.x / 2.0f;
 
-		cr = cr;
+		cr = { 0.5f, 0.5f };
 	}
 
 	void Update(float dt) {
