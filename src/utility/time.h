@@ -36,32 +36,32 @@ using duration = std::enable_if_t<is_duration_v<T>, bool>;
 } // namespace tt
 
 template <typename T>
-std::ostream& operator<<(std::ostream& os, const ptgn::duration<T, std::nano>& v) {
+std::ostream& operator<<(std::ostream& os, ptgn::duration<T, std::nano> v) {
 	return os << v.count() << "ns";
 }
 
 template <typename T>
-std::ostream& operator<<(std::ostream& os, const ptgn::duration<T, std::micro>& v) {
+std::ostream& operator<<(std::ostream& os, ptgn::duration<T, std::micro> v) {
 	return os << v.count() << "us";
 }
 
 template <typename T>
-std::ostream& operator<<(std::ostream& os, const ptgn::duration<T, std::milli>& v) {
+std::ostream& operator<<(std::ostream& os, ptgn::duration<T, std::milli> v) {
 	return os << v.count() << "ms";
 }
 
 template <typename T>
-std::ostream& operator<<(std::ostream& os, const ptgn::duration<T, ptgn::seconds::period>& v) {
+std::ostream& operator<<(std::ostream& os, ptgn::duration<T, ptgn::seconds::period> v) {
 	return os << v.count() << "s";
 }
 
 template <typename T>
-std::ostream& operator<<(std::ostream& os, const ptgn::duration<T, ptgn::minutes::period>& v) {
+std::ostream& operator<<(std::ostream& os, ptgn::duration<T, ptgn::minutes::period> v) {
 	return os << v.count() << "min";
 }
 
 template <typename T>
-std::ostream& operator<<(std::ostream& os, const ptgn::duration<T, ptgn::hours::period>& v) {
+std::ostream& operator<<(std::ostream& os, ptgn::duration<T, ptgn::hours::period> v) {
 	return os << v.count() << "h";
 }
 
