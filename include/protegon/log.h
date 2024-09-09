@@ -35,10 +35,11 @@ template <typename... TArgs>
 inline void PrintImpl(std::ostream& ostream, int precision, bool scientific, TArgs&&... items) {
 	// TODO: Figure out how to add this since PTGN_ASSERT requires print.
 	// PTGN_ASSERT(precision == -1 || precision >= 0, "Invalid print precision");
-	static_assert(
+	using ptgn::operator<<;
+	/*static_assert(
 		(tt::is_stream_writable_v<std::ostream, TArgs> && ...),
 		"PTGN_* argument must be stream writeable"
-	);
+	);*/
 	std::ios state{ nullptr };
 	state.copyfmt(ostream);
 	if (scientific) {
