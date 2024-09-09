@@ -179,6 +179,7 @@ class Batch;
 template <typename TVertices, std::size_t IndexCount>
 class BatchData {
 public:
+	BatchData() = default;
 	BatchData(RendererData* renderer);
 
 	using vertices = TVertices;
