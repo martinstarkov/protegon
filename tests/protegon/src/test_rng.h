@@ -98,7 +98,7 @@ struct TestFractalNoise : public Test {
 		if (game.input.KeyDown(Key::P)) {
 			PTGN_LOG("octaves = ", properties.octaves, ";");
 			PTGN_LOG("frequency = ", properties.frequency, "f;");
-			PTGN_LOG("bias = ", properties.bias, ";");
+			PTGN_LOG("bias = ", properties.bias, "f;");
 			PTGN_LOG("persistence = ", properties.persistence, "f;");
 		}
 
