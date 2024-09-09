@@ -55,7 +55,11 @@ public:
 	void SetSizeToWindow();
 	void SetSize(const V2_float& size);
 
+	// Origin at the top left.
+	[[nodiscard]] Rectangle<float> GetRectangle() const;
 	[[nodiscard]] V2_float GetTopLeftPosition() const;
+	// @return Same as GetTopLeftPosition.
+	[[nodiscard]] V2_float GetOffset() const;
 	[[nodiscard]] const V2_float& GetSize() const;
 	[[nodiscard]] const V3_float& GetPosition() const;
 	[[nodiscard]] const Quaternion& GetOrientation() const;
@@ -71,6 +75,7 @@ public:
 	void SetRotation(const V3_float& new_angles);
 
 	void Translate(const V3_float& amount);
+	void Translate(const V2_float& amount);
 
 	// Angle in radians.
 	void Rotate(float angle_amount_radians, const V3_float& axis);

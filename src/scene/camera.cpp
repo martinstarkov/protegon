@@ -10,8 +10,16 @@ const V3_float& OrthographicCamera::GetPosition() const {
 	return instance_->position;
 }
 
+Rectangle<float> OrthographicCamera::GetRectangle() const {
+	return Rectangle<float>{ GetTopLeftPosition(), GetSize(), Origin::TopLeft };
+}
+
 V2_float OrthographicCamera::GetTopLeftPosition() const {
 	return V2_float{ instance_->position.x, instance_->position.y } - instance_->size / 2.0f;
+}
+
+V2_float OrthographicCamera::GetOffset() const {
+	return GetTopLeftPosition();
 }
 
 const V2_float& OrthographicCamera::GetSize() const {
@@ -105,9 +113,11 @@ void OrthographicCamera::SetRotation(const V3_float& new_angles) {
 }
 
 void OrthographicCamera::Translate(const V3_float& v) {
-	PTGN_ASSERT(IsValid());
-	instance_->position += v * instance_->orientation;
-	RecalculateView();
+	SetPosition(instance_->position + v * instance_->orientation);
+}
+
+void OrthographicCamera::Translate(const V2_float& v) {
+	SetPosition(instance_->position + V3_float{ v.x, v.y, 0.0f } * instance_->orientation);
 }
 
 void OrthographicCamera::Rotate(float angle, const V3_float& axis) {
@@ -271,12 +281,7 @@ void CameraManager::ResetPrimaryToWindow() {
 }
 
 void CameraManager::Update() {
-	static M4_float prev_vp = primary_camera_.GetViewProjection();
-	const M4_float& vp		= primary_camera_.GetViewProjection();
-	if (vp != prev_vp) {
-		prev_vp = vp;
-		game.renderer.UpdateViewProjection(vp);
-	}
+	game.renderer.UpdateViewProjection(primary_camera_.GetViewProjection());
 }
 
 void CameraManager::OnWindowResize(const V2_float& size) {

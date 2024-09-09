@@ -908,10 +908,8 @@ void Renderer::Present() {
 }
 
 void Renderer::UpdateViewProjection(const M4_float& view_projection) {
-	if (view_projection != data_.view_projection_) {
-		data_.view_projection_	   = view_projection;
-		data_.new_view_projection_ = true;
-	}
+	data_.view_projection_	   = view_projection;
+	data_.new_view_projection_ = true;
 }
 
 void Renderer::SetViewport(const V2_int& size) {

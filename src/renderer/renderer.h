@@ -677,7 +677,7 @@ private:
 		float line_width, float fade, float z_index
 	);
 
-	Color clear_color_{ color::White };
+	Color clear_color_{ color::Transparent };
 	BlendMode blend_mode_{ BlendMode::Blend };
 	V2_int viewport_size_;
 	impl::RendererData data_;
