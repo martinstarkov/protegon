@@ -70,7 +70,7 @@ public:
 	RNG(T min, T max) : RNG{ std::invoke(std::random_device{}), min, max } {}
 
 	// Generate a new random number in the specified range.
-	T operator()() {
+	[[nodiscard]] T operator()() {
 		auto v = distribution_(generator_);
 		// TODO: Check if this assert triggers occasionally for normal distributions. I saw a
 		// PTGN_ASSERT(v <= min_ && v >= max_, "RNG failed to generate number in the correct
