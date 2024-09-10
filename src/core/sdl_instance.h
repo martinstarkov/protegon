@@ -1,5 +1,7 @@
 #pragma once
 
+#include "utility/time.h"
+
 namespace ptgn {
 
 namespace impl {
@@ -21,6 +23,8 @@ public:
 
 	void Init();
 	void Shutdown();
+
+	static void Delay(milliseconds time);
 
 private:
 	void InitSDL();

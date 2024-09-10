@@ -71,6 +71,11 @@ void SDLInstance::Shutdown() {
 	sdl_init_ = false;
 }
 
+void SDLInstance::Delay(milliseconds time) {
+	SDL_Delay(std::chrono::duration_cast<duration<std::uint32_t, milliseconds::period>>(time).count(
+	));
+}
+
 void SDLInstance::InitSDL() {
 	std::uint32_t sdl_flags{ SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS | SDL_INIT_TIMER };
 	PTGN_ASSERT(
