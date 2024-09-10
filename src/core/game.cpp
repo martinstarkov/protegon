@@ -196,7 +196,7 @@ void Game::Update() {
 	if (elapsed < dt) {
 		impl::SDLInstance::Delay(std::chrono::duration_cast<milliseconds>(duration<float>{
 			dt - elapsed }));
-	}
+	} // TODO: Add case for when elapsed > dt (such as in Debug mode).
 
 	start = end;
 
