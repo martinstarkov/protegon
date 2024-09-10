@@ -838,7 +838,7 @@ CircleVertices::CircleVertices(
 		V2_float{ -1.0f, 1.0f },
 	};
 	for (std::size_t i{ 0 }; i < vertices_.size(); i++) {
-		vertices_[i].local_position = { local[i].x, local[i].y, z_index };
+		vertices_[i].local_position = { local[i].x, local[i].y, 0.0f };
 		vertices_[i].line_width		= { line_width };
 		vertices_[i].fade			= { fade };
 	}
