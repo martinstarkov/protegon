@@ -185,12 +185,18 @@ void Game::Update() {
 	static auto start{ std::chrono::system_clock::now() };
 	static auto end{ std::chrono::system_clock::now() };
 	// Calculate time elapsed during previous frame.
-	duration<float> elapsed{ end - start };
-	float dt{ elapsed.count() };
+	duration<float> elapsed_time{ end - start };
+
+	float elapsed{ elapsed_time.count() };
 
 	// TODO: Consider fixed FPS vs dynamic: https://gafferongames.com/post/fix_your_timestep/.
-	constexpr const float fps{ 30.0f };
-	dt = 1.0f / fps;
+	constexpr const float fps{ 60.0f };
+	float dt = 1.0f / fps;
+
+	if (elapsed < dt) {
+		impl::SDLInstance::Delay(std::chrono::duration_cast<milliseconds>(duration<float>{
+			dt - elapsed }));
+	}
 
 	start = end;
 
