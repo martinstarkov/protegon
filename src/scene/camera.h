@@ -38,19 +38,7 @@ public:
 	OrthographicCamera();
 	~OrthographicCamera();
 
-	OrthographicCamera(
-		float left, float right, float bottom, float top,
-		float near = -std::numeric_limits<float>::max(),
-		float far  = std::numeric_limits<float>::max()
-	);
-
-	void SetProjection(
-		float left, float right, float bottom, float top,
-		float near = -std::numeric_limits<float>::max(),
-		float far  = std::numeric_limits<float>::max()
-	);
-
-	void SetClampBounds(const Rectangle<float>& bounding_box);
+	void SetBounds(const Rectangle<float>& bounding_box);
 
 	void SetSizeToWindow();
 	void SetSize(const V2_float& size);
@@ -58,15 +46,10 @@ public:
 	// Origin at the top left.
 	[[nodiscard]] Rectangle<float> GetRectangle() const;
 	[[nodiscard]] V2_float GetTopLeftPosition() const;
-	// @return Same as GetTopLeftPosition.
-	[[nodiscard]] V2_float GetOffset() const;
-	[[nodiscard]] const V2_float& GetSize() const;
-	[[nodiscard]] const V3_float& GetPosition() const;
-	[[nodiscard]] const Quaternion& GetOrientation() const;
+	[[nodiscard]] V2_float GetSize() const;
+	[[nodiscard]] V2_float GetPosition() const;
+	[[nodiscard]] V3_float GetPosition3D() const;
 	[[nodiscard]] V3_float GetEulerOrientation() const;
-	[[nodiscard]] const M4_float& GetView() const;
-	[[nodiscard]] const M4_float& GetProjection() const;
-	[[nodiscard]] const M4_float& GetViewProjection() const;
 
 	void SetPosition(const V2_float& new_position);
 	void SetPosition(const V3_float& new_position);
@@ -78,7 +61,8 @@ public:
 	void Translate(const V2_float& amount);
 
 	// Angle in radians.
-	void Rotate(float angle_amount_radians, const V3_float& axis);
+	void Rotate(float angle_amount_radians, const V3_float& axis = { 1.0f, 0.0f, 0.0f });
+
 	// Angle in radians.
 	void Yaw(float angle_amount_radians);
 	// Angle in radians.
@@ -90,8 +74,27 @@ public:
 	bool operator!=(const OrthographicCamera& o) const;
 
 protected:
+	friend class CameraManager;
+
+	[[nodiscard]] Quaternion GetOrientation() const;
+	[[nodiscard]] const M4_float& GetView() const;
+	[[nodiscard]] const M4_float& GetProjection() const;
+	[[nodiscard]] const M4_float& GetViewProjection() const;
+
 	void RecalculateView();
 	void RecalculateViewProjection();
+
+	void SetProjection(
+		float left, float right, float bottom, float top,
+		float near = -std::numeric_limits<float>::max(),
+		float far  = std::numeric_limits<float>::max()
+	);
+
+	OrthographicCamera(
+		float left, float right, float bottom, float top,
+		float near = -std::numeric_limits<float>::max(),
+		float far  = std::numeric_limits<float>::max()
+	);
 };
 
 class CameraManager : public Manager<OrthographicCamera> {
@@ -106,11 +109,11 @@ public:
 	void SetPrimary(const Key& key);
 	void SetPrimary(const OrthographicCamera& camera);
 
-	[[nodiscard]] const OrthographicCamera& GetPrimary() const;
-	[[nodiscard]] OrthographicCamera& GetPrimary();
+	[[nodiscard]] const OrthographicCamera& GetCurrent() const;
+	[[nodiscard]] OrthographicCamera& GetCurrent();
 
-	// TODO: Fix this allowing window_camera_ to be modified (seemingly?).
-	void ResetPrimaryToWindow();
+	void SetCameraWindow();
+	void SetCameraPrimary();
 
 private:
 	friend class Game;
@@ -118,6 +121,8 @@ private:
 	void Update();
 
 	void OnWindowResize(const V2_float& size);
+
+	bool primary_{ true };
 
 	OrthographicCamera window_camera_;
 	OrthographicCamera primary_camera_;
@@ -153,7 +158,8 @@ public:
 
 	[[nodiscard]] static OrthographicCamera& GetPrimary();
 
-	static void ResetPrimaryToWindow();
+	static void SetCameraWindow();
+	static void SetCameraPrimary();
 
 private:
 	static Item& LoadImpl(const Key& key, Item&& item);

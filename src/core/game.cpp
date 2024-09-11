@@ -235,6 +235,10 @@ void Game::Update() {
 
 	++counter;
 	end = std::chrono::system_clock::now();
+
+	if (game.profiler.IsEnabled()) {
+		game.profiler.PrintAll();
+	}
 }
 
 } // namespace ptgn

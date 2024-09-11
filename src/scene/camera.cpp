@@ -5,7 +5,12 @@
 
 namespace ptgn {
 
-const V3_float& OrthographicCamera::GetPosition() const {
+V2_float OrthographicCamera::GetPosition() const {
+	PTGN_ASSERT(IsValid());
+	return { instance_->position.x, instance_->position.y };
+}
+
+V3_float OrthographicCamera::GetPosition3D() const {
 	PTGN_ASSERT(IsValid());
 	return instance_->position;
 }
@@ -15,19 +20,15 @@ Rectangle<float> OrthographicCamera::GetRectangle() const {
 }
 
 V2_float OrthographicCamera::GetTopLeftPosition() const {
-	return V2_float{ instance_->position.x, instance_->position.y } - instance_->size / 2.0f;
+	return GetPosition() - GetSize() / 2.0f;
 }
 
-V2_float OrthographicCamera::GetOffset() const {
-	return GetTopLeftPosition();
-}
-
-const V2_float& OrthographicCamera::GetSize() const {
+V2_float OrthographicCamera::GetSize() const {
 	PTGN_ASSERT(IsValid());
 	return instance_->size;
 }
 
-const Quaternion& OrthographicCamera::GetOrientation() const {
+Quaternion OrthographicCamera::GetOrientation() const {
 	PTGN_ASSERT(IsValid());
 	return instance_->orientation;
 }
@@ -204,7 +205,7 @@ void OrthographicCamera::SetProjection(
 	RecalculateViewProjection();
 }
 
-void OrthographicCamera::SetClampBounds(const Rectangle<float>& bounding_box) {
+void OrthographicCamera::SetBounds(const Rectangle<float>& bounding_box) {
 	PTGN_ASSERT(IsValid(), "Cannot set clamp bounds of uninitialized or destroyed camera");
 	instance_->bounding_box = bounding_box;
 	// Reset position to ensure it is within the new bounds.
@@ -267,25 +268,47 @@ void CameraManager::SetPrimary(const OrthographicCamera& camera) {
 	game.renderer.UpdateViewProjection(primary_camera_.GetViewProjection());
 }
 
-const OrthographicCamera& CameraManager::GetPrimary() const {
+const OrthographicCamera& CameraManager::GetCurrent() const {
+	if (primary_) {
+		return primary_camera_;
+	}
+	return window_camera_;
+}
+
+OrthographicCamera& CameraManager::GetCurrent() {
+	PTGN_ASSERT(
+		primary_, "Cannot retrieve non-const current camera from camera manager when it is set to "
+				  "window camera"
+	);
 	return primary_camera_;
 }
 
-OrthographicCamera& CameraManager::GetPrimary() {
-	return primary_camera_;
+void CameraManager::SetCameraPrimary() {
+	primary_ = true;
+	Update();
 }
 
-void CameraManager::ResetPrimaryToWindow() {
-	primary_camera_ = window_camera_;
+void CameraManager::SetCameraWindow() {
+	primary_ = false;
 	Update();
 }
 
 void CameraManager::Update() {
-	game.renderer.UpdateViewProjection(primary_camera_.GetViewProjection());
+	if (primary_) {
+		game.renderer.UpdateViewProjection(primary_camera_.GetViewProjection());
+	} else {
+		game.renderer.UpdateViewProjection(window_camera_.GetViewProjection());
+	}
 }
 
 void CameraManager::OnWindowResize(const V2_float& size) {
-	bool reset_primary{ primary_camera_ == window_camera_ };
+	if (primary_) {
+		return;
+	}
+
+	window_camera_.
+
+		bool reset_primary{ primary_camera_ == window_camera_ };
 	window_camera_ = {};
 	window_camera_.SetSizeToWindow();
 	if (reset_primary) {
@@ -328,8 +351,12 @@ OrthographicCamera& ActiveSceneCameraManager::GetPrimary() {
 	return game.scene.GetTopActive().camera.GetPrimary();
 }
 
-void ActiveSceneCameraManager::ResetPrimaryToWindow() {
-	game.scene.GetTopActive().camera.ResetPrimaryToWindow();
+void ActiveSceneCameraManager::SetCameraWindow() {
+	game.scene.GetTopActive().camera.SetCameraWindow();
+}
+
+void ActiveSceneCameraManager::SetCameraPrimary() {
+	game.scene.GetTopActive().camera.SetCameraPrimary();
 }
 
 } // namespace ptgn

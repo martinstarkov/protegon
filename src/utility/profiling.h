@@ -34,6 +34,18 @@ private:
 	Profiler& operator=(Profiler&&)		 = default;
 
 public:
+	void Enable() {
+		enabled_ = true;
+	}
+
+	void Disable() {
+		enabled_ = false;
+	}
+
+	[[nodiscard]] bool IsEnabled() const {
+		return enabled_;
+	}
+
 	void PrintAll() const {
 		PrintAll<>();
 	}
@@ -55,6 +67,8 @@ public:
 private:
 	friend class impl::ProfileInstance;
 	friend class Game;
+
+	bool enabled_{ false };
 
 	template <typename T>
 	void PrintInfo(std::string_view name, const Timer& timer) const {
