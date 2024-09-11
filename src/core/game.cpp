@@ -189,14 +189,18 @@ void Game::Update() {
 
 	float elapsed{ elapsed_time.count() };
 
-	// TODO: Consider fixed FPS vs dynamic: https://gafferongames.com/post/fix_your_timestep/.
-	constexpr const float fps{ 60.0f };
-	float dt = 1.0f / fps;
+	float dt{ elapsed };
 
-	if (elapsed < dt) {
-		impl::SDLInstance::Delay(std::chrono::duration_cast<milliseconds>(duration<float>{
-			dt - elapsed }));
-	} // TODO: Add case for when elapsed > dt (such as in Debug mode).
+	// TODO: Consider fixed FPS vs dynamic: https://gafferongames.com/post/fix_your_timestep/.
+	// constexpr const float fps{ 60.0f };
+	// float frame_time = 1.0f / fps;
+	// float dt{ frame_time };
+
+	// if (elapsed < frame_time) {
+	//	impl::SDLInstance::Delay(std::chrono::duration_cast<milliseconds>(duration<float>{
+	//		frame_time - elapsed }));
+	// } // TODO: Add case for when elapsed > dt (such as in Debug mode).
+	// PTGN_LOG("Dt: ", dt);
 
 	start = end;
 
