@@ -746,19 +746,30 @@ void OffsetVertices(std::array<V2_float, 4>& vertices, const V2_float& size, Ori
 }
 
 void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip) {
+	const auto flip_x = [&]() {
+		std::swap(texture_coords[0].x, texture_coords[1].x);
+		std::swap(texture_coords[2].x, texture_coords[3].x);
+	};
+	const auto flip_y = [&]() {
+		std::swap(texture_coords[0].y, texture_coords[3].y);
+		std::swap(texture_coords[1].y, texture_coords[2].y);
+	};
 	switch (flip) {
 		case Flip::None:	   break;
 		case Flip::Horizontal: {
-			std::swap(texture_coords[0].x, texture_coords[1].x);
-			std::swap(texture_coords[2].x, texture_coords[3].x);
+			flip_x();
 			break;
 		}
 		case Flip::Vertical: {
-			std::swap(texture_coords[0].y, texture_coords[3].y);
-			std::swap(texture_coords[1].y, texture_coords[2].y);
+			flip_y();
 			break;
 		}
-		default: PTGN_ERROR("Failed to identify texture flip");
+		case Flip::Both: {
+			flip_x();
+			flip_y();
+			break;
+		}
+		default: PTGN_ERROR("Unrecognized flip state");
 	}
 }
 
