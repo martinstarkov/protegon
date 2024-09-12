@@ -33,10 +33,6 @@ struct TestCameraSwitching : public Test {
 		game.camera.SetPrimary(camera);
 	}
 
-	void Shutdown() final {
-		game.camera.ResetPrimaryToWindow();
-	}
-
 	void Update() {
 		if (game.input.KeyDown(Key::E)) {
 			camera++;
@@ -55,96 +51,87 @@ struct TestCameraSwitching : public Test {
 	}
 };
 
-struct TestCameraMovement : public Test {
-	void Init() {}
+struct TestCameraControls : public Test {
+	Texture texture{ "resources/sprites/test1.jpg" };
+
+	const float pan_speed	   = 200.0f;
+	const float rotation_speed = 1.0f;
+	const float zoom_speed{ 0.4f };
 
 	void Update(float dt) {
-		auto& camera{ game.camera.GetPrimary() };
-
-		float speed = 200.5f * dt;
-
-		V3_float velocity;
-
-		// TODO: Add rotation and zoom.
-		// TODO: Move this stuff into camera controller class.
+		auto& camera{ game.camera.GetCurrent() };
 
 		if (game.input.KeyPressed(Key::W)) {
-			velocity.y = -speed;
+			camera.Translate({ 0, -pan_speed * dt });
 		}
 		if (game.input.KeyPressed(Key::S)) {
-			velocity.y = +speed;
+			camera.Translate({ 0, pan_speed * dt });
 		}
 		if (game.input.KeyPressed(Key::A)) {
-			velocity.x = -speed;
+			camera.Translate({ -pan_speed * dt, 0 });
 		}
 		if (game.input.KeyPressed(Key::D)) {
-			velocity.x = speed;
+			camera.Translate({ pan_speed * dt, 0 });
 		}
-		camera.Translate(velocity);
+
+		if (game.input.KeyPressed(Key::Z)) {
+			camera.Yaw(rotation_speed * dt);
+		}
+
+		if (game.input.KeyPressed(Key::X)) {
+			camera.Yaw(-rotation_speed * dt);
+		}
+
+		if (game.input.KeyPressed(Key::C)) {
+			camera.Pitch(rotation_speed * dt);
+		}
+
+		if (game.input.KeyPressed(Key::V)) {
+			camera.Pitch(-rotation_speed * dt);
+		}
+
+		if (game.input.KeyPressed(Key::B)) {
+			camera.Roll(rotation_speed * dt);
+		}
+
+		if (game.input.KeyPressed(Key::N)) {
+			camera.Roll(-rotation_speed * dt);
+		}
+
+		if (game.input.KeyPressed(Key::E)) {
+			camera.Zoom(zoom_speed * dt);
+		}
+		if (game.input.KeyPressed(Key::Q)) {
+			camera.Zoom(-zoom_speed * dt);
+		}
 
 		if (game.input.KeyDown(Key::R)) {
 			camera.SetPosition({ center.x, center.y, 0.0f });
 		}
 
-		// TODO: Add zoom.
-		/*
-		game.input.SetRelativeMouseMode(true);
-
-		std::size_t font_key = 0;
-		game.font.Load(font_key, "resources/fonts/retro_gaming.ttf", 30);
-
-		M4_float projection = M4_float::Orthographic(0.0f, (float)game.window.size.x, 0.0f,
-		(float)game.window.size.y);
-		M4_float projection = M4_float::Perspective(DegToRad(45.0f),
-		(float)game.window.size.x / (float)game.window.size.y, 0.1f, 100.0f); M4_float
-		projection = M4_float::Perspective(DegToRad(camera.zoom), (float)game.window.size.x
-		/ (float)game.window.size.y, 0.1f, 100.0f);
-		model = M4_float::Rotate(model, DegToRad(-55.0f), 1.0f, 0.0f, 0.0f);
-		view = M4_float::Translate(view, 0.0f, 0.0f, -3.0f);
-
-		int scroll = game.input.MouseScroll();
-
-		if (scroll != 0) {
-			camera.Zoom(scroll);
-		}
-		if (game.input.KeyPressed(Key::X)) {
-			camera.Move(CameraDirection::Down, dt);
-		}
-		if (game.input.KeyPressed(Key::SPACE)) {
-			camera.Move(CameraDirection::Up, dt);
-		}
-		if (game.input.KeyPressed(Key::A)) {
-			view = M4_float::Translate(view, -0.05f, 0.0f, 0.0f);
-		}
-		if (game.input.KeyPressed(Key::D)) {
-			view = M4_float::Translate(view, 0.05f, 0.0f, 0.0f);
-		}
-		if (game.input.KeyPressed(Key::W)) {
-			view = M4_float::Translate(view, 0.0f, 0.05f, 0.0f);
-		}
-		if (game.input.KeyPressed(Key::S)) {
-			view = M4_float::Translate(view, 0.0f, -0.05f, 0.0f);
-		}
-		if (game.input.KeyPressed(Key::Q)) {
-			model = M4_float::Rotate(model, DegToRad(5.0f), 0.0f, 1.0f, 0.0f);
-		}
-		if (game.input.KeyPressed(Key::E)) {
-			model = M4_float::Rotate(model, DegToRad(-5.0f), 0.0f, 1.0f, 0.0f);
-		}
-		if (game.input.KeyPressed(Key::Z)) {
-			model = M4_float::Rotate(model, DegToRad(5.0f), 1.0f, 0.0f, 0.0f);
-		}
-		if (game.input.KeyPressed(Key::C)) {
-			model = M4_float::Rotate(model, DegToRad(-5.0f), 1.0f, 0.0f, 0.0f);
-		}*/
-	}
-
-	void Shutdown() final {
-		game.camera.ResetPrimaryToWindow();
+		camera.PrintInfo();
 	}
 
 	void Draw() {
-		game.renderer.DrawRectangleFilled(center, game.window.GetSize() * 0.5f, color::DarkRed);
+		game.renderer.DrawTexture(texture, center, texture.GetSize());
+	}
+};
+
+struct TestCameraBounds : public TestCameraControls {
+	const float bound_width{ 3.0f };
+
+	void Init() {
+		auto& camera{ game.camera.GetCurrent() };
+
+		Rectangle<float> bounds{ {}, { 800, 800 }, Origin::TopLeft };
+
+		camera.SetBounds(bounds);
+	}
+
+	void Draw() {
+		TestCameraControls::Draw();
+		auto& camera{ game.camera.GetCurrent() };
+		game.renderer.DrawRectangleHollow(camera.GetBounds(), color::Red, bound_width);
 	}
 };
 
@@ -182,12 +169,8 @@ struct TestParallax : public Test {
 		bg_aspect_ratio = background_size.x / background_size.y;
 	}
 
-	void Shutdown() final {
-		game.camera.ResetPrimaryToWindow();
-	}
-
 	void Update(float dt) {
-		auto& camera{ game.camera.GetPrimary() };
+		auto& camera{ game.camera.GetCurrent() };
 
 		camera.SetSize(ws);
 
@@ -220,10 +203,10 @@ struct TestParallax : public Test {
 	}
 
 	void Draw() {
-		auto& camera{ game.camera.GetPrimary() };
-		V3_float pos = camera.GetPosition();
+		auto& camera{ game.camera.GetCurrent() };
+		V2_float pos = camera.GetPosition();
 
-		camera.SetPosition({ 0.0f, 0.0f, 0.0f });
+		camera.SetPosition({ 0.0f, 0.0f });
 
 		game.renderer.DrawTexture(background, bg_pos, { size.x * bg_aspect_ratio, size.y });
 		game.renderer.DrawTexture(stars, stars_pos, { size.x * bg_aspect_ratio, size.y });
@@ -238,8 +221,9 @@ struct TestParallax : public Test {
 void TestCamera() {
 	std::vector<std::shared_ptr<Test>> camera_tests;
 
+	camera_tests.emplace_back(new TestCameraBounds());
+	camera_tests.emplace_back(new TestCameraControls());
 	camera_tests.emplace_back(new TestCameraSwitching());
-	camera_tests.emplace_back(new TestCameraMovement());
 	camera_tests.emplace_back(new TestParallax());
 
 	AddTests(camera_tests);

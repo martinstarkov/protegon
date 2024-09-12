@@ -54,6 +54,7 @@ void SceneManager::RemoveActive(std::size_t scene_key) {
 			if (Has(scene_key)) {
 				auto scene = Get(scene_key);
 				scene->Shutdown();
+				scene->camera.SetCameraWindow();
 			}
 			it = active_scenes_.erase(it);
 		} else {

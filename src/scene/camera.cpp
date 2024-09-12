@@ -5,6 +5,21 @@
 
 namespace ptgn {
 
+namespace impl {
+
+Camera::~Camera() {
+	if (game.event.window.IsSubscribed((void*)this)) {
+		game.event.window.Unsubscribe((void*)this);
+	}
+}
+
+} // namespace impl
+
+Rectangle<float> OrthographicCamera::GetBounds() const {
+	PTGN_ASSERT(IsValid());
+	return instance_->bounding_box;
+}
+
 V2_float OrthographicCamera::GetPosition() const {
 	PTGN_ASSERT(IsValid());
 	return { instance_->position.x, instance_->position.y };
@@ -28,43 +43,73 @@ V2_float OrthographicCamera::GetSize() const {
 	return instance_->size;
 }
 
-Quaternion OrthographicCamera::GetOrientation() const {
+float OrthographicCamera::GetZoom() const {
+	PTGN_ASSERT(IsValid());
+	return instance_->zoom;
+}
+
+V3_float OrthographicCamera::GetOrientation() const {
 	PTGN_ASSERT(IsValid());
 	return instance_->orientation;
 }
 
-V3_float OrthographicCamera::GetEulerOrientation() const {
+Quaternion OrthographicCamera::GetQuaternion() const {
 	PTGN_ASSERT(IsValid());
-	return { instance_->orientation.GetYaw(), instance_->orientation.GetPitch(),
-			 instance_->orientation.GetRoll() };
+	return Quaternion::FromEuler(instance_->orientation);
 }
 
-const M4_float& OrthographicCamera::GetView() const {
+void OrthographicCamera::CenterOnWindow(bool continuously) {
+	if (continuously) {
+		instance_->center_to_window = true;
+		SubscribeToWindowResize();
+	} else {
+		SetSize(game.window.GetSize());
+	}
+}
+
+void OrthographicCamera::SubscribeToWindowResize() {
+	CreateInstance();
+	if (!game.event.window.IsSubscribed((void*)instance_.get())) {
+		game.event.window.Subscribe(
+			WindowEvent::Resized, (void*)instance_.get(),
+			std::function([=](const WindowResizedEvent& e) { OnWindowResize(e.size); })
+		);
+	}
+	OnWindowResize(game.window.GetSize());
+}
+
+void OrthographicCamera::UnsubscribeFromWindowResize() {
+	if (IsValid() && game.event.window.IsSubscribed((void*)instance_.get())) {
+		game.event.window.Unsubscribe((void*)instance_.get());
+	}
+}
+
+const M4_float& OrthographicCamera::GetView() {
 	PTGN_ASSERT(IsValid());
-	if (recalculate_view_) {
+	if (instance_->recalculate_view) {
 		RecalculateView();
 	}
 	return instance_->view;
 }
 
-const M4_float& OrthographicCamera::GetProjection() const {
+const M4_float& OrthographicCamera::GetProjection() {
 	PTGN_ASSERT(IsValid());
-	if (recalculate_projection_) {
+	if (instance_->recalculate_projection) {
 		RecalculateProjection();
 	}
 	return instance_->projection;
 }
 
-const M4_float& OrthographicCamera::GetViewProjection() const {
+const M4_float& OrthographicCamera::GetViewProjection() {
 	PTGN_ASSERT(IsValid());
-	bool updated_matrix{ recalculate_view_ || recalculate_projection_ };
-	if (recalculate_view_) {
+	bool updated_matrix{ instance_->recalculate_view || instance_->recalculate_projection };
+	if (instance_->recalculate_view) {
 		RecalculateView();
-		recalculate_view_ = false;
+		instance_->recalculate_view = false;
 	}
-	if (recalculate_projection_) {
+	if (instance_->recalculate_projection) {
 		RecalculateProjection();
-		recalculate_projection_ = false;
+		instance_->recalculate_projection = false;
 	}
 	if (updated_matrix) {
 		RecalculateViewProjection();
@@ -72,19 +117,28 @@ const M4_float& OrthographicCamera::GetViewProjection() const {
 	return instance_->view_projection;
 }
 
-void OrthographicCamera::SetPosition(const V2_float& new_position) {
-	SetPosition({ new_position.x, new_position.y, 0.0f });
+void OrthographicCamera::OnWindowResize(const V2_float& size) {
+	PTGN_ASSERT(IsValid());
+	if (instance_->resize_to_window) {
+		SetSizeImpl(size);
+	}
+	if (instance_->center_to_window) {
+		SetPositionImpl({ size.x / 2.0f, size.y / 2.0f, instance_->position.z });
+	}
 }
 
-void OrthographicCamera::SetPosition(const V3_float& new_position) {
+void OrthographicCamera::CreateInstance() {
 	if (!IsValid()) {
-		instance_ = std::make_shared<Camera>();
+		instance_ = std::make_shared<impl::Camera>();
 	}
-	// TODO: Add model matrix here to offset by half the projection (screen).
-	instance_->position = new_position;
-	// Draw camera position before clamping.
-	// game.renderer.DrawPoint({ instance_->position.x, instance_->position.y }, color::Blue, 5.0f);
-	// Zero bounding box means no bounding box is enforced.
+}
+
+void OrthographicCamera::SetPosition(const V2_float& new_position) {
+	CreateInstance();
+	SetPosition({ new_position.x, new_position.y, instance_->position.z });
+}
+
+void OrthographicCamera::RefreshBounds() {
 	if (!instance_->bounding_box.IsZero()) {
 		V2_float min{ instance_->bounding_box.Min() };
 		V2_float max{ instance_->bounding_box.Max() };
@@ -94,14 +148,15 @@ void OrthographicCamera::SetPosition(const V3_float& new_position) {
 		// game.renderer.DrawPoint(center, color::Red, 5.0f);
 		// Draw bounding box.
 		// game.renderer.DrawRectangleHollow(instance_->bounding_box, color::Red);
-		V2_float half{ instance_->size * 0.5f };
-		if (instance_->size.x > instance_->bounding_box.size.x) {
+		V2_float size{ instance_->size / instance_->zoom };
+		V2_float half{ size * 0.5f };
+		if (size.x > instance_->bounding_box.size.x) {
 			instance_->position.x = center.x;
 		} else {
 			instance_->position.x =
 				std::clamp(instance_->position.x, min.x + half.x, max.x - half.x);
 		}
-		if (instance_->size.y > instance_->bounding_box.size.y) {
+		if (size.y > instance_->bounding_box.size.y) {
 			instance_->position.y = center.y;
 		} else {
 			instance_->position.y =
@@ -111,56 +166,122 @@ void OrthographicCamera::SetPosition(const V3_float& new_position) {
 		/*game.renderer.DrawPoint(
 			{ instance_->position.x, instance_->position.y }, color::Yellow, 5.0f
 		);*/
+		instance_->recalculate_view = true;
 	}
-	recalculate_view_ = true;
 }
 
-void OrthographicCamera::SetRotation(const V3_float& new_angles) {
+void OrthographicCamera::SetPositionImpl(const V3_float& new_position) {
 	PTGN_ASSERT(IsValid());
-	instance_->orientation = {};
-	// TODO: Check that this works as intended (may need to flip x and y components).
-	instance_->orientation *= Quaternion::GetAngleAxis(
-		new_angles.x, V3_float{ 0.0f, 1.0f, 0.0f } * instance_->orientation
-	);
-	instance_->orientation *= Quaternion::GetAngleAxis(
-		new_angles.y, V3_float{ 1.0f, 0.0f, 0.0f } * instance_->orientation
-	);
-	instance_->orientation *= Quaternion::GetAngleAxis(
-		new_angles.z, V3_float{ 0.0f, 0.0f, 1.0f } * instance_->orientation
-	);
-	recalculate_view_ = true;
+	instance_->position			= new_position;
+	instance_->recalculate_view = true;
+	RefreshBounds();
 }
 
-void OrthographicCamera::Translate(const V3_float& v) {
-	SetPosition(instance_->position + v * instance_->orientation);
+void OrthographicCamera::SetPosition(const V3_float& new_position) {
+	CreateInstance();
+	instance_->center_to_window = false;
+	SetPositionImpl(new_position);
 }
 
-void OrthographicCamera::Translate(const V2_float& v) {
-	SetPosition(instance_->position + V3_float{ v.x, v.y, 0.0f } * instance_->orientation);
+void OrthographicCamera::Translate(const V3_float& position_change) {
+	CreateInstance();
+	SetPosition(instance_->position + position_change * GetQuaternion());
 }
 
-void OrthographicCamera::SetZoom(float new_zoom_level) {
+void OrthographicCamera::Translate(const V2_float& position_change) {
+	CreateInstance();
+	SetPosition(
+		instance_->position +
+		V3_float{ position_change.x, position_change.y, 0.0f } * GetQuaternion()
+	);
+}
+
+void OrthographicCamera::SetZoom(float new_zoom) {
+	CreateInstance();
+	instance_->zoom = new_zoom;
+	instance_->zoom = std::clamp(new_zoom, epsilon<float>, std::numeric_limits<float>::max());
+	instance_->recalculate_projection = true;
+	RefreshBounds();
+}
+
+void OrthographicCamera::Zoom(float zoom_change) {
+	CreateInstance();
+	SetZoom(instance_->zoom + zoom_change);
+}
+
+void OrthographicCamera::SetRotation(const V3_float& new_angle_radians) {
+	CreateInstance();
+	instance_->orientation		= new_angle_radians;
+	instance_->recalculate_view = true;
+}
+
+void OrthographicCamera::Rotate(const V3_float& angle_change_radians) {
+	CreateInstance();
+	SetRotation(instance_->orientation + angle_change_radians);
+}
+
+void OrthographicCamera::SetRotation(float yaw_radians) {
+	SetYaw(yaw_radians);
+}
+
+void OrthographicCamera::Rotate(float yaw_change_radians) {
+	Yaw(yaw_change_radians);
+}
+
+void OrthographicCamera::SetYaw(float angle_radians) {
+	CreateInstance();
+	instance_->orientation.x = angle_radians;
+}
+
+void OrthographicCamera::SetPitch(float angle_radians) {
+	CreateInstance();
+	instance_->orientation.y = angle_radians;
+}
+
+void OrthographicCamera::SetRoll(float angle_radians) {
+	CreateInstance();
+	instance_->orientation.z = angle_radians;
+}
+
+void OrthographicCamera::Yaw(float angle_change) {
+	Rotate({ angle_change, 0.0f, 0.0f });
+}
+
+void OrthographicCamera::Pitch(float angle_change) {
+	Rotate({ 0.0f, angle_change, 0.0f });
+}
+
+void OrthographicCamera::Roll(float angle_change) {
+	Rotate({ 0.0f, 0.0f, angle_change });
+}
+
+void OrthographicCamera::SetSizeToWindow(bool continuously) {
+	if (continuously) {
+		instance_->resize_to_window = true;
+		SubscribeToWindowResize();
+	} else {
+		SetSize(game.window.GetSize());
+	}
+}
+
+void OrthographicCamera::SetSizeImpl(const V2_float& size) {
 	PTGN_ASSERT(IsValid());
-	instance_->zoom			= new_zoom_level;
-	recalculate_projection_ = true;
+	instance_->size					  = size;
+	instance_->recalculate_projection = true;
+	RefreshBounds();
 }
 
-void OrthographicCamera::Rotate(float angle, const V3_float& axis) {
-	PTGN_ASSERT(IsValid());
-	instance_->orientation *= Quaternion::GetAngleAxis(angle, axis * instance_->orientation);
-	recalculate_view_		= true;
+void OrthographicCamera::SetSize(const V2_float& size) {
+	CreateInstance();
+	instance_->resize_to_window = false;
+	SetSizeImpl(size);
 }
 
-void OrthographicCamera::Yaw(float angle) {
-	Rotate(angle, { 0.0f, 1.0f, 0.0f });
-}
-
-void OrthographicCamera::Pitch(float angle) {
-	Rotate(angle, { 1.0f, 0.0f, 0.0f });
-}
-
-void OrthographicCamera::Roll(float angle) {
-	Rotate(angle, { 0.0f, 0.0f, 1.0f });
+void OrthographicCamera::SetBounds(const Rectangle<float>& bounding_box) {
+	CreateInstance();
+	instance_->bounding_box = bounding_box;
+	// Reset position to ensure it is within the new bounds.
+	RefreshBounds();
 }
 
 void OrthographicCamera::RecalculateViewProjection() {
@@ -171,10 +292,10 @@ void OrthographicCamera::RecalculateViewProjection() {
 void OrthographicCamera::RecalculateView() {
 	PTGN_ASSERT(IsValid());
 
-	V3_float translate{ instance_->size.x * 0.5f - instance_->position.x,
-						instance_->size.y * 0.5f - instance_->position.y, instance_->position.z };
+	V3_float pos{ -instance_->position.x, -instance_->position.y, instance_->position.z };
 
-	instance_->view = M4_float::Translate(instance_->orientation.ToMatrix4(), translate);
+	Quaternion orientation = GetQuaternion();
+	instance_->view		   = M4_float::Translate(orientation.ToMatrix4(), pos);
 }
 
 bool OrthographicCamera::operator==(const OrthographicCamera& o) const {
@@ -186,44 +307,33 @@ bool OrthographicCamera::operator!=(const OrthographicCamera& o) const {
 	return !(*this == o);
 }
 
-OrthographicCamera::OrthographicCamera() {
-	game.event.window.Subscribe(
-		WindowEvent::Resized, (void*)this,
-		std::function([&](const WindowResizedEvent& e) { SetSize(e.size); })
+void OrthographicCamera::PrintInfo() const {
+	auto bounds		 = GetBounds();
+	auto orientation = GetOrientation();
+	Print(
+		"Position: ", GetPosition(), ", Size: ", GetSize(), ", Zoom: ", GetZoom(),
+		", Orientation (yaw/pitch/roll) (deg): (", RadToDeg(orientation.x), ", ",
+		RadToDeg(orientation.y), ", ", RadToDeg(orientation.z), "), Bounds: "
 	);
-}
-
-OrthographicCamera::~OrthographicCamera() {
-	game.event.window.Unsubscribe((void*)this);
-}
-
-void OrthographicCamera::SetSizeToWindow() {
-	SetSize(game.window.GetSize());
-}
-
-void OrthographicCamera::SetSize(const V2_float& size) {
-	instance_->size = size;
+	if (bounds.IsZero()) {
+		PrintLine("none");
+	} else {
+		PrintLine(bounds.Min(), "->", bounds.Max());
+	}
 }
 
 void OrthographicCamera::RecalculateProjection() {
-	if (!IsValid()) {
-		instance_ = std::make_shared<Camera>();
-	}
+	PTGN_ASSERT(instance_->zoom > 0.0f);
+	V2_float extents{ instance_->size / 2.0f / instance_->zoom };
 
 	instance_->projection = M4_float::Orthographic(
-		0.0f, instance_->size.x * instance_->zoom, instance_->size.y * instance_->zoom, 0.0f,
-		-std::numeric_limits<float>::max(), std::numeric_limits<float>::max()
+		-extents.x, extents.x, extents.y, -extents.y, -std::numeric_limits<float>::max(),
+		std::numeric_limits<float>::max()
 	);
 }
 
-void OrthographicCamera::SetBounds(const Rectangle<float>& bounding_box) {
-	PTGN_ASSERT(IsValid(), "Cannot set clamp bounds of uninitialized or destroyed camera");
-	instance_->bounding_box = bounding_box;
-	// Reset position to ensure it is within the new bounds.
-	SetPosition(instance_->position);
-}
-
 /*
+// To move camera according to mouse drag (in 3D):
 void CameraController::OnMouseMoveEvent([[maybe_unused]] const MouseMoveEvent& e) {
 
 	static bool first_mouse = true;
@@ -257,26 +367,19 @@ void CameraController::UnsubscribeFromMouseEvents() {
 */
 
 CameraManager::CameraManager() {
-	game.event.window.Subscribe(
-		WindowEvent::Resized, (void*)this,
-		std::function([&](const WindowResizedEvent& e) { OnWindowResize(e.size); })
-	);
-	OnWindowResize(game.window.GetSize());
+	primary_camera_.SubscribeToWindowResize();
+	window_camera_.SubscribeToWindowResize();
 }
 
-CameraManager::~CameraManager() {
-	game.event.window.Unsubscribe((void*)this);
-}
+CameraManager::~CameraManager() {}
 
 void CameraManager::SetPrimary(const Key& key) {
 	PTGN_ASSERT(Has(key), "Cannot set camera which has not been loaded as the primary camera");
 	primary_camera_ = Get(key);
-	game.renderer.UpdateViewProjection(primary_camera_.GetViewProjection());
 }
 
 void CameraManager::SetPrimary(const OrthographicCamera& camera) {
 	primary_camera_ = camera;
-	game.renderer.UpdateViewProjection(primary_camera_.GetViewProjection());
 }
 
 const OrthographicCamera& CameraManager::GetCurrent() const {
@@ -296,34 +399,18 @@ OrthographicCamera& CameraManager::GetCurrent() {
 
 void CameraManager::SetCameraPrimary() {
 	primary_ = true;
-	Update();
 }
 
 void CameraManager::SetCameraWindow() {
 	primary_ = false;
-	Update();
 }
 
 void CameraManager::Update() {
-	if (primary_) {
+	if (primary_ && primary_camera_.IsValid()) {
 		game.renderer.UpdateViewProjection(primary_camera_.GetViewProjection());
 	} else {
+		PTGN_ASSERT(window_camera_.IsValid());
 		game.renderer.UpdateViewProjection(window_camera_.GetViewProjection());
-	}
-}
-
-void CameraManager::OnWindowResize(const V2_float& size) {
-	if (primary_) {
-		return;
-	}
-
-	window_camera_.
-
-		bool reset_primary{ primary_camera_ == window_camera_ };
-	window_camera_ = {};
-	window_camera_.SetSizeToWindow();
-	if (reset_primary) {
-		ResetPrimaryToWindow();
 	}
 }
 
@@ -358,8 +445,12 @@ void ActiveSceneCameraManager::SetPrimary(const OrthographicCamera& camera) {
 	game.scene.GetTopActive().camera.SetPrimary(camera);
 }
 
-OrthographicCamera& ActiveSceneCameraManager::GetPrimary() {
-	return game.scene.GetTopActive().camera.GetPrimary();
+const OrthographicCamera& ActiveSceneCameraManager::GetCurrent() const {
+	return game.scene.GetTopActive().camera.GetCurrent();
+}
+
+OrthographicCamera& ActiveSceneCameraManager::GetCurrent() {
+	return game.scene.GetTopActive().camera.GetCurrent();
 }
 
 void ActiveSceneCameraManager::SetCameraWindow() {

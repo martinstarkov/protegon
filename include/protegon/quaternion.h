@@ -20,15 +20,39 @@ public:
 
 	[[nodiscard]] Quaternion Inverse() const {
 		float dot{ Dot(*this) };
-		PTGN_ASSERT(!NearlyEqual(dot, 0.0f));
+		PTGN_ASSERT(dot > 0.0f);
 		return Quaternion(Conjugate() / dot);
+	}
+
+	// From: https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
+	// orientation is (yaw, pitch, roll) in radians.
+	[[nodiscard]] static Quaternion FromEuler(const V3_float& orientation) {
+		float half_yaw	 = orientation.x * 0.5f;
+		float half_pitch = orientation.y * 0.5f;
+		float half_roll	 = orientation.z * 0.5f;
+
+		float cr = std::cos(half_roll);
+		float sr = std::sin(half_roll);
+		float cp = std::cos(half_pitch);
+		float sp = std::sin(half_pitch);
+		float cy = std::cos(half_yaw);
+		float sy = std::sin(half_yaw);
+
+		Quaternion q;
+		q.x = sr * cp * cy - cr * sp * sy;
+		q.y = cr * sp * cy + sr * cp * sy;
+		q.z = cr * cp * sy - sr * sp * cy;
+		q.w = cr * cp * cy + sr * sp * sy;
+
+		return q;
 	}
 
 	// @return New quaternion rotated by the given angle in radians along the given axes.
 	[[nodiscard]] static Quaternion GetAngleAxis(float angle_radians, const V3_float& axes) {
-		float h = angle_radians * 0.5f;
-		float s = std::sin(h);
-		return { std::cos(h), axes.x * s, axes.y * s, axes.z * s };
+		const float a{ angle_radians * 0.5f };
+		const float s = std::sin(a);
+
+		return Quaternion(axes.x * s, axes.y * s, axes.z * s, std::cos(a));
 	}
 
 	// @return The euler angle of the quaternion in radians.
