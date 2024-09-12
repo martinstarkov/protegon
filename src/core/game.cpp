@@ -229,8 +229,6 @@ void Game::Update() {
 		return;
 	}
 
-	scene.GetTopActive().camera.Update();
-
 	game.renderer.Present();
 
 	++counter;
