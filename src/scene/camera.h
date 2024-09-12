@@ -19,29 +19,23 @@ class Game;
 class OrthographicCamera;
 
 struct Camera {
-	M4_float view{ 1.0f };
-	M4_float projection{ 1.0f };
-	M4_float view_projection{ 1.0f };
-
 	V3_float position;
 	V2_float size;
+	float zoom{ 1.0f };
 	Quaternion orientation;
 
 	// If rectangle IsZero(), no position bounds are enforced.
 	Rectangle<float> bounding_box;
-};
 
-// TODO: Make cameras handles so the internal reference is shared across the manager.
+	M4_float view{ 1.0f };
+	M4_float projection{ 1.0f };
+	M4_float view_projection{ 1.0f };
+};
 
 class OrthographicCamera : public Handle<Camera> {
 public:
 	OrthographicCamera();
 	~OrthographicCamera();
-
-	void SetBounds(const Rectangle<float>& bounding_box);
-
-	void SetSizeToWindow();
-	void SetSize(const V2_float& size);
 
 	// Origin at the top left.
 	[[nodiscard]] Rectangle<float> GetRectangle() const;
@@ -50,18 +44,25 @@ public:
 	[[nodiscard]] V2_float GetPosition() const;
 	[[nodiscard]] V3_float GetPosition3D() const;
 	[[nodiscard]] V3_float GetEulerOrientation() const;
+	[[nodiscard]] Quaternion GetOrientation() const;
 
 	void SetPosition(const V2_float& new_position);
 	void SetPosition(const V3_float& new_position);
 
-	// Yaw, Pitch, Roll respectively in radians.
-	void SetRotation(const V3_float& new_angles);
+	void SetBounds(const Rectangle<float>& bounding_box);
+
+	void SetSizeToWindow();
+	void SetSize(const V2_float& size);
+
+	void SetZoom(float new_zoom_level);
 
 	void Translate(const V3_float& amount);
 	void Translate(const V2_float& amount);
 
+	// Yaw, Pitch, Roll respectively in radians.
+	void SetRotation(const V3_float& new_angles);
 	// Angle in radians.
-	void Rotate(float angle_amount_radians, const V3_float& axis = { 1.0f, 0.0f, 0.0f });
+	void Rotate(float angle_amount_radians, const V3_float& axis = { 0.0f, 0.0f, 1.0f });
 
 	// Angle in radians.
 	void Yaw(float angle_amount_radians);
@@ -76,25 +77,16 @@ public:
 protected:
 	friend class CameraManager;
 
-	[[nodiscard]] Quaternion GetOrientation() const;
 	[[nodiscard]] const M4_float& GetView() const;
 	[[nodiscard]] const M4_float& GetProjection() const;
 	[[nodiscard]] const M4_float& GetViewProjection() const;
 
 	void RecalculateView();
+	void RecalculateProjection();
 	void RecalculateViewProjection();
 
-	void SetProjection(
-		float left, float right, float bottom, float top,
-		float near = -std::numeric_limits<float>::max(),
-		float far  = std::numeric_limits<float>::max()
-	);
-
-	OrthographicCamera(
-		float left, float right, float bottom, float top,
-		float near = -std::numeric_limits<float>::max(),
-		float far  = std::numeric_limits<float>::max()
-	);
+	bool recalculate_view_{ false };
+	bool recalculate_projection_{ false };
 };
 
 class CameraManager : public Manager<OrthographicCamera> {

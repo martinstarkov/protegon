@@ -41,16 +41,34 @@ V3_float OrthographicCamera::GetEulerOrientation() const {
 
 const M4_float& OrthographicCamera::GetView() const {
 	PTGN_ASSERT(IsValid());
+	if (recalculate_view_) {
+		RecalculateView();
+	}
 	return instance_->view;
 }
 
 const M4_float& OrthographicCamera::GetProjection() const {
 	PTGN_ASSERT(IsValid());
+	if (recalculate_projection_) {
+		RecalculateProjection();
+	}
 	return instance_->projection;
 }
 
 const M4_float& OrthographicCamera::GetViewProjection() const {
 	PTGN_ASSERT(IsValid());
+	bool updated_matrix{ recalculate_view_ || recalculate_projection_ };
+	if (recalculate_view_) {
+		RecalculateView();
+		recalculate_view_ = false;
+	}
+	if (recalculate_projection_) {
+		RecalculateProjection();
+		recalculate_projection_ = false;
+	}
+	if (updated_matrix) {
+		RecalculateViewProjection();
+	}
 	return instance_->view_projection;
 }
 
@@ -94,7 +112,7 @@ void OrthographicCamera::SetPosition(const V3_float& new_position) {
 			{ instance_->position.x, instance_->position.y }, color::Yellow, 5.0f
 		);*/
 	}
-	RecalculateView();
+	recalculate_view_ = true;
 }
 
 void OrthographicCamera::SetRotation(const V3_float& new_angles) {
@@ -110,7 +128,7 @@ void OrthographicCamera::SetRotation(const V3_float& new_angles) {
 	instance_->orientation *= Quaternion::GetAngleAxis(
 		new_angles.z, V3_float{ 0.0f, 0.0f, 1.0f } * instance_->orientation
 	);
-	RecalculateView();
+	recalculate_view_ = true;
 }
 
 void OrthographicCamera::Translate(const V3_float& v) {
@@ -121,10 +139,16 @@ void OrthographicCamera::Translate(const V2_float& v) {
 	SetPosition(instance_->position + V3_float{ v.x, v.y, 0.0f } * instance_->orientation);
 }
 
+void OrthographicCamera::SetZoom(float new_zoom_level) {
+	PTGN_ASSERT(IsValid());
+	instance_->zoom			= new_zoom_level;
+	recalculate_projection_ = true;
+}
+
 void OrthographicCamera::Rotate(float angle, const V3_float& axis) {
 	PTGN_ASSERT(IsValid());
 	instance_->orientation *= Quaternion::GetAngleAxis(angle, axis * instance_->orientation);
-	RecalculateView();
+	recalculate_view_		= true;
 }
 
 void OrthographicCamera::Yaw(float angle) {
@@ -151,8 +175,6 @@ void OrthographicCamera::RecalculateView() {
 						instance_->size.y * 0.5f - instance_->position.y, instance_->position.z };
 
 	instance_->view = M4_float::Translate(instance_->orientation.ToMatrix4(), translate);
-
-	RecalculateViewProjection();
 }
 
 bool OrthographicCamera::operator==(const OrthographicCamera& o) const {
@@ -175,34 +197,23 @@ OrthographicCamera::~OrthographicCamera() {
 	game.event.window.Unsubscribe((void*)this);
 }
 
-OrthographicCamera::OrthographicCamera(
-	float left, float right, float bottom, float top, float near /* = -1.0f*/, float far /* = 1.0f*/
-) {
-	if (!IsValid()) {
-		instance_ = std::make_shared<Camera>();
-	}
-	SetProjection(left, right, bottom, top, near, far);
-}
-
 void OrthographicCamera::SetSizeToWindow() {
 	SetSize(game.window.GetSize());
 }
 
 void OrthographicCamera::SetSize(const V2_float& size) {
-	// TODO: Incorporate camera centering here?
-	SetProjection(0.0f, size.x, size.y, 0.0f);
+	instance_->size = size;
 }
 
-void OrthographicCamera::SetProjection(
-	float left, float right, float bottom, float top, float near /* = -1.0f*/, float far /*= 1.0f*/
-) {
+void OrthographicCamera::RecalculateProjection() {
 	if (!IsValid()) {
 		instance_ = std::make_shared<Camera>();
 	}
-	PTGN_ASSERT(IsValid(), "Cannot set projection matrix of uninitialized or destroyed camera");
-	instance_->size		  = { right - left, bottom - top };
-	instance_->projection = M4_float::Orthographic(left, right, bottom, top, near, far);
-	RecalculateViewProjection();
+
+	instance_->projection = M4_float::Orthographic(
+		0.0f, instance_->size.x * instance_->zoom, instance_->size.y * instance_->zoom, 0.0f,
+		-std::numeric_limits<float>::max(), std::numeric_limits<float>::max()
+	);
 }
 
 void OrthographicCamera::SetBounds(const Rectangle<float>& bounding_box) {
