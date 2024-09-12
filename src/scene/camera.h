@@ -11,6 +11,7 @@
 #include "protegon/quaternion.h"
 #include "protegon/vector2.h"
 #include "protegon/vector3.h"
+#include "renderer/flip.h"
 #include "utility/handle.h"
 
 namespace ptgn {
@@ -31,6 +32,8 @@ struct Camera {
 
 	// If rectangle IsZero(), no position bounds are enforced.
 	Rectangle<float> bounding_box;
+
+	Flip flip{ Flip::None };
 
 	M4_float view{ 1.0f };
 	M4_float projection{ 1.0f };
@@ -62,6 +65,9 @@ public:
 	[[nodiscard]] V3_float GetOrientation() const;
 	// Orientation as a quaternion.
 	[[nodiscard]] Quaternion GetQuaternion() const;
+	[[nodiscard]] Flip GetFlip() const;
+
+	void SetFlip(Flip flip);
 
 	// If continuously is true, camera will subscribe to window resize event.
 	void CenterOnWindow(bool continuously = false);

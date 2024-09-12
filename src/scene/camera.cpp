@@ -58,6 +58,16 @@ Quaternion OrthographicCamera::GetQuaternion() const {
 	return Quaternion::FromEuler(instance_->orientation);
 }
 
+Flip OrthographicCamera::GetFlip() const {
+	PTGN_ASSERT(IsValid());
+	return instance_->flip;
+}
+
+void OrthographicCamera::SetFlip(Flip flip) {
+	CreateInstance();
+	instance_->flip = flip;
+}
+
 void OrthographicCamera::CenterOnWindow(bool continuously) {
 	if (continuously) {
 		instance_->center_to_window = true;
@@ -325,10 +335,27 @@ void OrthographicCamera::PrintInfo() const {
 void OrthographicCamera::RecalculateProjection() {
 	PTGN_ASSERT(instance_->zoom > 0.0f);
 	V2_float extents{ instance_->size / 2.0f / instance_->zoom };
-
+	V2_float flip{ 1.0f, 1.0f };
+	switch (instance_->flip) {
+		case Flip::None:	 break;
+		case Flip::Vertical: {
+			flip.y = -1.0f;
+			break;
+		}
+		case Flip::Horizontal: {
+			flip.x = -1.0f;
+			break;
+		}
+		case Flip::Both: {
+			flip.x = -1.0f;
+			flip.y = -1.0f;
+			break;
+		}
+		default: PTGN_ERROR("Unrecognized flip state");
+	}
 	instance_->projection = M4_float::Orthographic(
-		-extents.x, extents.x, extents.y, -extents.y, -std::numeric_limits<float>::max(),
-		std::numeric_limits<float>::max()
+		flip.x * -extents.x, flip.x * extents.x, flip.y * extents.y, flip.y * -extents.y,
+		-std::numeric_limits<float>::max(), std::numeric_limits<float>::max()
 	);
 }
 
