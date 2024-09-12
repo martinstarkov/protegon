@@ -17,6 +17,7 @@ namespace ptgn {
 
 class Game;
 class OrthographicCamera;
+class Renderer;
 
 namespace impl {
 
@@ -151,8 +152,9 @@ public:
 
 private:
 	friend class Game;
+	friend class Renderer;
 
-	void Update();
+	M4_float GetViewProjection();
 
 	bool primary_{ true };
 

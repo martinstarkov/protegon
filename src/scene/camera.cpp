@@ -405,13 +405,12 @@ void CameraManager::SetCameraWindow() {
 	primary_ = false;
 }
 
-void CameraManager::Update() {
+M4_float CameraManager::GetViewProjection() {
 	if (primary_ && primary_camera_.IsValid()) {
-		game.renderer.UpdateViewProjection(primary_camera_.GetViewProjection());
-	} else {
-		PTGN_ASSERT(window_camera_.IsValid());
-		game.renderer.UpdateViewProjection(window_camera_.GetViewProjection());
+		return primary_camera_.GetViewProjection();
 	}
+	PTGN_ASSERT(window_camera_.IsValid());
+	return window_camera_.GetViewProjection();
 }
 
 CameraManager::Item& ActiveSceneCameraManager::LoadImpl(const Key& key, Item&& item) {
