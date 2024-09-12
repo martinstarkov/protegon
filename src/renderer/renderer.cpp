@@ -925,6 +925,7 @@ void Renderer::SetViewport(const V2_int& size) {
 }
 
 void Renderer::Flush() {
+	UpdateViewProjection(game.scene.GetTopActive().camera.GetViewProjection());
 	data_.Flush();
 }
 
