@@ -158,6 +158,8 @@ void OrthographicCamera::RefreshBounds() {
 		// game.renderer.DrawPoint(center, color::Red, 5.0f);
 		// Draw bounding box.
 		// game.renderer.DrawRectangleHollow(instance_->bounding_box, color::Red);
+
+		// TODO: Incoporate yaw, i.e. instance_->orientation.x into the bounds using sin and cos.
 		V2_float size{ instance_->size / instance_->zoom };
 		V2_float half{ size * 0.5f };
 		if (size.x > instance_->bounding_box.size.x) {
