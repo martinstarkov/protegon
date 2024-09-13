@@ -12,17 +12,6 @@ void SceneManager::Unload(std::size_t scene_key) {
 	}
 }
 
-void SceneManager::SetActive(std::size_t scene_key) {
-	// ExitAllExcept(scene_key);
-	PTGN_ASSERT(
-		Has(scene_key) || scene_key == impl::start_scene_key,
-		"Cannot set active scene if it has not been loaded into the scene "
-		"manager"
-	);
-	active_scenes_.clear();
-	AddActive(scene_key);
-}
-
 void SceneManager::InitScene(std::size_t scene_key) {
 	PTGN_ASSERT(
 		Has(scene_key) || scene_key == impl::start_scene_key,
@@ -49,6 +38,7 @@ void SceneManager::RemoveActive(std::size_t scene_key) {
 		Has(scene_key), "Cannot remove active scene if it has not been loaded into "
 						"the scene manager"
 	);
+	// TODO: Instead of immediately removing the active scene, flag it anad remove after update.
 	for (auto it = active_scenes_.begin(); it != active_scenes_.end();) {
 		if (*it == scene_key) {
 			if (Has(scene_key)) {

@@ -243,9 +243,9 @@ void Button::OnMouseUp(const MouseUpEvent& e) {
 			button_state_ = InternalButtonState::Hover;
 			if (on_activate_ != nullptr) {
 				Activate();
-			} else if (button_state_ == InternalButtonState::HoverPressed) {
-				button_state_ = InternalButtonState::Hover;
 			}
+		} else if (button_state_ == InternalButtonState::HoverPressed) {
+			button_state_ = InternalButtonState::Hover;
 		}
 	}
 	RecheckState();

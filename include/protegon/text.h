@@ -25,6 +25,8 @@ struct TextInstance {
 	FontStyle font_style_{ FontStyle::Normal };
 	FontRenderMode render_mode_{ FontRenderMode::Solid };
 	Color shading_color_;
+	// 0 indicates only wrapping on newline characters.
+	std::uint32_t wrap_after_pixels_{ 0 };
 	bool visible_{ true };
 };
 
@@ -50,6 +52,9 @@ public:
 	void SetFontStyle(FontStyle font_style);
 	void SetFontRenderMode(FontRenderMode render_mode);
 	void SetShadingColor(const Color& shading_color);
+	// text wrapped to multiple lines on line endings and on word boundaries if it extends beyond
+	// this pixel value. Setting pixels = 0 (default) will wrap only after newlines.
+	void SetWrapAfter(std::uint32_t pixels);
 
 	[[nodiscard]] const Font& GetFont() const;
 	[[nodiscard]] std::string_view GetContent() const;

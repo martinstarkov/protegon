@@ -180,7 +180,7 @@ template <typename TVertices, std::size_t IndexCount>
 class BatchData {
 public:
 	BatchData() = default;
-	BatchData(RendererData* renderer);
+	explicit BatchData(RendererData* renderer);
 
 	using vertices = TVertices;
 
@@ -249,7 +249,7 @@ enum class BatchType {
 class Batch {
 public:
 	Batch() = default;
-	Batch(RendererData* renderer);
+	explicit Batch(RendererData* renderer);
 
 	[[nodiscard]] bool IsFlushed(BatchType type);
 

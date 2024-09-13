@@ -2,10 +2,10 @@
 
 #include <algorithm>
 
-#include "protegon/game.h"
 #include "SDL.h"
 #include "SDL_image.h"
 #include "SDL_ttf.h"
+#include "protegon/game.h"
 #include "utility/debug.h"
 
 namespace ptgn {
@@ -104,7 +104,7 @@ Surface::Surface(const path& image_path) :
 
 Surface::Surface(
 	const Font& font, FontStyle style, const Color& text_color, FontRenderMode mode,
-	const std::string& content, const Color& shading_color
+	const std::string& content, const Color& shading_color, std::uint32_t wrap_after_pixels
 ) :
 	Surface{ std::invoke([&]() {
 		auto f = font.GetInstance().get();
@@ -117,21 +117,24 @@ Surface::Surface(
 
 		switch (mode) {
 			case FontRenderMode::Solid:
-				surface =
-					std::shared_ptr<SDL_Surface>{ TTF_RenderUTF8_Solid(f, content.c_str(), tc),
-												  impl::SDL_SurfaceDeleter{} };
+				surface = std::shared_ptr<SDL_Surface>{
+					TTF_RenderUTF8_Solid_Wrapped(f, content.c_str(), tc, wrap_after_pixels),
+					impl::SDL_SurfaceDeleter{}
+				};
 				break;
 			case FontRenderMode::Shaded: {
 				SDL_Color sc{ shading_color.r, shading_color.g, shading_color.b, shading_color.a };
-				surface =
-					std::shared_ptr<SDL_Surface>{ TTF_RenderUTF8_Shaded(f, content.c_str(), tc, sc),
-												  impl::SDL_SurfaceDeleter{} };
+				surface = std::shared_ptr<SDL_Surface>{
+					TTF_RenderUTF8_Shaded_Wrapped(f, content.c_str(), tc, sc, wrap_after_pixels),
+					impl::SDL_SurfaceDeleter{}
+				};
 				break;
 			}
 			case FontRenderMode::Blended:
-				surface =
-					std::shared_ptr<SDL_Surface>{ TTF_RenderUTF8_Blended(f, content.c_str(), tc),
-												  impl::SDL_SurfaceDeleter{} };
+				surface = std::shared_ptr<SDL_Surface>{
+					TTF_RenderUTF8_Blended_Wrapped(f, content.c_str(), tc, wrap_after_pixels),
+					impl::SDL_SurfaceDeleter{}
+				};
 				break;
 			default:
 				PTGN_ERROR(

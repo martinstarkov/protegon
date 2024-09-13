@@ -20,8 +20,13 @@ Texture Text::RecreateTexture() {
 
 	const auto& f = instance_->font_.GetInstance();
 
-	Surface surface{ instance_->font_,		  instance_->font_style_, instance_->text_color_,
-					 instance_->render_mode_, instance_->content_,	  instance_->shading_color_ };
+	Surface surface{ instance_->font_,
+					 instance_->font_style_,
+					 instance_->text_color_,
+					 instance_->render_mode_,
+					 instance_->content_,
+					 instance_->shading_color_,
+					 instance_->wrap_after_pixels_ };
 
 	return Texture(surface);
 }
@@ -65,6 +70,17 @@ void Text::SetContent(const std::string& content) {
 	}
 	instance_->content_ = content;
 	instance_->texture_ = RecreateTexture();
+}
+
+void Text::SetWrapAfter(std::uint32_t wrap_after_pixels) {
+	if (!IsValid()) {
+		instance_ = std::make_shared<impl::TextInstance>();
+	}
+	if (wrap_after_pixels == instance_->wrap_after_pixels_) {
+		return;
+	}
+	instance_->wrap_after_pixels_ = wrap_after_pixels;
+	instance_->texture_			  = RecreateTexture();
 }
 
 void Text::SetColor(const Color& text_color) {

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <unordered_set>
+
 #include "core/manager.h"
 #include "protegon/audio.h"
 #include "protegon/font.h"
@@ -16,16 +18,52 @@ class Game;
 
 class TweenManager : public Manager<Tween> {
 private:
-	TweenManager()								 = default;
-	~TweenManager()								 = default;
+	TweenManager() = default;
+
+	~TweenManager() {
+		DestroyTweens();
+	}
+
 	TweenManager(const TweenManager&)			 = delete;
 	TweenManager(TweenManager&&)				 = default;
 	TweenManager& operator=(const TweenManager&) = delete;
 	TweenManager& operator=(TweenManager&&)		 = default;
 
 public:
+	void KeepAlive(const Key& key) {
+		keep_alive_tweens_.insert(key);
+	}
+
+	void Unload(const Key& key) {
+		if (Has(key)) {
+			Get(key).Destroy();
+			Manager::Unload(key);
+		}
+		keep_alive_tweens_.erase(key);
+	}
+
+	void Clear() {
+		DestroyTweens();
+		Manager::Clear();
+		keep_alive_tweens_ = {};
+	}
+
+	void Reset() {
+		DestroyTweens();
+		Manager::Reset();
+		keep_alive_tweens_ = {};
+	}
+
 private:
 	friend class Game;
+
+	void DestroyTweens() {
+		for (auto& [key, tween] : GetMap()) {
+			tween.Destroy();
+		}
+	}
+
+	std::unordered_set<Key> keep_alive_tweens_;
 
 	void Update(float dt);
 };

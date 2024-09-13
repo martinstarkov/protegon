@@ -45,7 +45,7 @@ public:
 	// Create text surface from font information.
 	Surface(
 		const Font& font, FontStyle style, const Color& text_color, FontRenderMode mode,
-		const std::string& content, const Color& shading_color
+		const std::string& content, const Color& shading_color, std::uint32_t wrap_after_pixels
 	);
 
 	void FlipVertically();

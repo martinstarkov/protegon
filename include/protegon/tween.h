@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <memory>
 #include <unordered_map>
 #include <variant>
 
@@ -36,7 +37,7 @@ enum class TweenEase {
 class Tween;
 
 using TweenCallback = std::variant<
-	std::function<void(Tween&, float)>, std::function<void(Tween&)>, std::function<void(float)>,
+	std::function<void(Tween, float)>, std::function<void(Tween)>, std::function<void(float)>,
 	std::function<void()>>;
 
 namespace impl {
@@ -143,20 +144,105 @@ struct TweenPoint {
 	TweenCallback on_resume_;
 };
 
-struct TweenInstance {
-	std::size_t index_{ 0 };
-	std::vector<TweenPoint> tweens_points_;
+class TweenInstance : public std::enable_shared_from_this<TweenInstance> {
+public:
+	TweenInstance() = default;
+	TweenInstance(milliseconds duration);
+	~TweenInstance() = default;
 
-	~TweenInstance();
+	std::shared_ptr<TweenInstance> getptr() {
+		return shared_from_this();
+	}
 
-	impl::TweenPoint& GetCurrentTweenPoint();
-	const impl::TweenPoint& GetCurrentTweenPoint() const;
-	impl::TweenPoint& GetLastTweenPoint();
+	void During(milliseconds duration);
+	void Ease(TweenEase ease);
+
+	// -1 for infinite repeats.
+	void Repeat(std::int64_t repeats);
+	void Reverse(bool reversed = true);
+	void Yoyo(bool yoyo = true);
+
+	void OnUpdate(const TweenCallback& callback);
+	void OnStart(const TweenCallback& callback);
+	void OnComplete(const TweenCallback& callback);
+
+	void OnStop(const TweenCallback& callback);
+	void OnPause(const TweenCallback& callback);
+	void OnResume(const TweenCallback& callback);
+	void OnRepeat(const TweenCallback& callback);
+	void OnYoyo(const TweenCallback& callback);
+	void OnDestroy(const TweenCallback& callback);
+
+	[[nodiscard]] float GetProgress() const;
+	[[nodiscard]] std::int64_t GetRepeats() const;
+
+	[[nodiscard]] bool IsCompleted() const;
+	[[nodiscard]] bool IsStarted() const;
+	[[nodiscard]] bool IsPaused() const;
+
+	// TODO: Implement and test.
+	// dt in seconds.
+	// float Rewind(float dt);
+
+	// dt in seconds.
+	float Step(float dt);
+	float Seek(float new_progress);
+	float Seek(milliseconds time);
+
+	void ActivateDestroyCallback();
+	void Start();
+	void Pause();
+	void Resume();
+	void Reset();
+	void Stop();
+	void Complete();
+	void Forward();
+	void Backward();
+
+	// Clears previously assigned tween points.
+	void Clear();
+
+	template <typename Duration = milliseconds>
+	[[nodiscard]] Duration GetDuration(std::size_t tween_point_index = 0) const {
+		PTGN_ASSERT(
+			tween_point_index < tweens_points_.size(),
+			"Specified tween point index is out of range. Ensure tween points has been added "
+			"beforehand"
+		);
+		return std::chrono::duration_cast<Duration>(tweens_points_[tween_point_index].duration_);
+	}
+
+	void SetDuration(milliseconds duration, std::size_t tween_point_index = 0);
+
+private:
+	friend class TweenManager;
+	friend class impl::TweenInstance;
+
+	void PointCompleted();
+
+	float GetNewProgress(duration<float> time) const;
+	float SeekImpl(float new_progress);
+	float StepImpl(float dt, bool accumulate_progress);
+	float AccumulateProgress(float new_progress);
+
+	void ActivateCallback(const TweenCallback& callback);
+
+	void HandleCallbacks(bool suppress_update);
+	float UpdateImpl(bool suppress_update = false);
+
+	TweenPoint& GetCurrentTweenPoint();
+	const TweenPoint& GetCurrentTweenPoint() const;
+	TweenPoint& GetLastTweenPoint();
 
 	// Value between [0.0f, 1.0f] indicating how much of the total duration the tween has passed in
 	// the current repetition. Note: This value remains 0.0f to 1.0f even when the tween is reversed
 	// or yoyoing.
 	float progress_{ 0.0f };
+
+	std::size_t index_{ 0 };
+	std::vector<TweenPoint> tweens_points_;
+
+	TweenCallback on_destroy_;
 
 	bool paused_{ false };
 	bool started_{ false };
@@ -186,6 +272,7 @@ public:
 	Tween& OnResume(const TweenCallback& callback);
 	Tween& OnRepeat(const TweenCallback& callback);
 	Tween& OnYoyo(const TweenCallback& callback);
+	Tween& OnDestroy(const TweenCallback& callback);
 
 	[[nodiscard]] float GetProgress() const;
 	[[nodiscard]] std::int64_t GetRepeats() const;
@@ -193,8 +280,6 @@ public:
 	[[nodiscard]] bool IsCompleted() const;
 	[[nodiscard]] bool IsStarted() const;
 	[[nodiscard]] bool IsPaused() const;
-
-	[[nodiscard]] bool IsValid() const;
 
 	// TODO: Implement and test.
 	// dt in seconds.
@@ -208,6 +293,7 @@ public:
 	Tween& Start();
 	Tween& Pause();
 	void Resume();
+	// Will trigger OnStop callback if tween was started or completed.
 	void Reset();
 	void Stop();
 	void Destroy();
@@ -221,33 +307,15 @@ public:
 	template <typename Duration = milliseconds>
 	[[nodiscard]] Duration GetDuration(std::size_t tween_point_index = 0) const {
 		PTGN_ASSERT(IsValid(), "Cannot get duration of uninitialized or destroyed tween");
-		PTGN_ASSERT(
-			tween_point_index < instance_->tweens_points_.size(),
-			"Specified tween point index is out of range. Ensure tween points has been added "
-			"beforehand"
-		);
-		return std::chrono::duration_cast<Duration>(
-			instance_->tweens_points_[tween_point_index].duration_
-		);
+		return instance_->GetDuration(tween_point_index);
 	}
 
 	void SetDuration(milliseconds duration, std::size_t tween_point_index = 0);
 
 private:
-	friend class TweenManager;
-	friend struct impl::TweenInstance;
+	friend class impl::TweenInstance;
 
-	void PointCompleted();
-
-	float GetNewProgress(duration<float> time) const;
-	float SeekImpl(float new_progress);
-	float StepImpl(float dt, bool accumulate_progress);
-	float AccumulateProgress(float new_progress);
-
-	void ActivateCallback(const TweenCallback& callback, float value);
-
-	void HandleCallbacks(bool suppress_update);
-	float UpdateImpl(bool suppress_update = false);
+	Tween(std::shared_ptr<impl::TweenInstance> instance);
 };
 
 } // namespace ptgn
