@@ -214,27 +214,7 @@ struct TestTweenYoyoPoints : public TestTweenRepeatPoints {
 	}
 };
 
-void TestTweenManager(float dt) {
-	PTGN_ASSERT(game.tween.Count() == 0);
-
-	return color::Red;
-});
-
 static Timer timer{ true };
-
-TestTweenLoop(
-	dt,
-	[&]() {
-		game.renderer.DrawRectangleFilled(pos, { 40, 40 }, color);
-
-		// if (timer.Elapsed() >= milliseconds{ 2000 }) {
-		//	// Check that tween was automatically cleaned up.
-		//	PTGN_ASSERT(!game.tween.Has(key));
-		// }
-	},
-	PTGN_FUNCTION_NAME()
-);
-}
 
 struct TweenInfo {
 	V2_float pos;
@@ -266,7 +246,7 @@ void TestTweenConfigSetup(V2_float& size, std::array<TweenInfo, tween_count>& tw
 
 	Tween config3{ duration };
 	config3.Repeat(4);
-	config3.OnRepeat([](Tween& t) { PTGN_LOG("Repeating tween3 (repeat #", t.GetRepeats(), ")"); });
+	config3.OnRepeat([](Tween t) { PTGN_LOG("Repeating tween3 (repeat #", t.GetRepeats(), ")"); });
 	config3.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
 
 	Tween config4{ duration };
@@ -277,7 +257,7 @@ void TestTweenConfigSetup(V2_float& size, std::array<TweenInfo, tween_count>& tw
 	Tween config5{ duration };
 	config5.Yoyo();
 	config5.Repeat(4);
-	config5.OnYoyo([](Tween& t) { PTGN_LOG("Yoyoing tween5 (repeat #", t.GetRepeats(), ")"); });
+	config5.OnYoyo([](Tween t) { PTGN_LOG("Yoyoing tween5 (repeat #", t.GetRepeats(), ")"); });
 	config5.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
 
 	Tween config6{ duration };
@@ -288,7 +268,7 @@ void TestTweenConfigSetup(V2_float& size, std::array<TweenInfo, tween_count>& tw
 
 	Tween config7{ duration };
 	config7.Repeat(-1);
-	config7.OnRepeat([](Tween& t) {
+	config7.OnRepeat([](Tween t) {
 		PTGN_LOG("Infinitely repeating tween7 (repeat #", t.GetRepeats(), ")");
 	});
 	config7.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
@@ -341,6 +321,9 @@ void TestTweenConfigSetup(V2_float& size, std::array<TweenInfo, tween_count>& tw
 
 	// Infinitely repeated yoyo easing tweens.
 	configs.push_back(config11);
+
+	V2_float ws		= game.window.GetSize();
+	V2_float center = game.window.GetCenter();
 
 	size   = { 0, ws.y / static_cast<float>(configs.size()) };
 	size.x = std::clamp(size.y, 5.0f, 30.0f);

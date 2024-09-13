@@ -8,6 +8,7 @@ void TweenManager::Update(float dt) {
 	auto& m{ GetMap() };
 
 	for (auto it = m.begin(); it != m.end();) {
+		const auto& key{ it->first };
 		auto& tween{ it->second };
 		// TODO: Figure out how to do timestep accumulation outside of tweens, using
 		// StepImpl(dt, false) and some added logic outside of this loop. This is important
@@ -20,7 +21,8 @@ void TweenManager::Update(float dt) {
 
 		tween.Step(dt);
 
-		if (tween.IsCompleted()) {
+		if (tween.IsCompleted() && keep_alive_tweens_.count(key) == 0) {
+			tween.Destroy();
 			it = m.erase(it);
 		} else {
 			++it;
