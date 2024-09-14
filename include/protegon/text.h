@@ -58,6 +58,8 @@ public:
 	// this pixel value. Setting pixels = 0 (default) will wrap only after newlines.
 	void SetWrapAfter(std::uint32_t pixels);
 
+	// TODO: Add https://wiki.libsdl.org/SDL2_ttf/TTF_SetFontWrappedAlign to set wrap alignment.
+
 	[[nodiscard]] const Font& GetFont() const;
 	[[nodiscard]] std::string_view GetContent() const;
 	[[nodiscard]] const Color& GetColor() const;
@@ -70,6 +72,7 @@ public:
 
 	void Draw(const Rectangle<float>& destination) const;
 
+	[[nodiscard]] V2_int GetSize() const;
 	[[nodiscard]] static V2_int GetSize(const FontOrKey& font, const std::string& content);
 
 private:

@@ -189,6 +189,10 @@ void Text::Draw(const Rectangle<float>& destination) const {
 	);
 }
 
+V2_int Text::GetSize() const {
+	return GetSize(GetFont(), std::string(GetContent()));
+}
+
 V2_int Text::GetSize(const FontOrKey& font, const std::string& content) {
 	return Surface::GetSize(GetFont(font), content);
 }

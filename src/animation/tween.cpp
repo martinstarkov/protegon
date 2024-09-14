@@ -250,10 +250,10 @@ void Tween::ActivateCallback(const TweenCallback& callback) {
 		impl::InvokeCallback<std::function<void()>>(callback);
 	} else if (std::holds_alternative<std::function<void(float)>>(callback)) {
 		impl::InvokeCallback<std::function<void(float)>>(callback, GetProgress());
-	} else if (std::holds_alternative<std::function<void(Tween)>>(callback)) {
-		impl::InvokeCallback<std::function<void(Tween)>>(callback, *this);
-	} else if (std::holds_alternative<std::function<void(Tween, float)>>(callback)) {
-		impl::InvokeCallback<std::function<void(Tween, float)>>(callback, *this, GetProgress());
+	} else if (std::holds_alternative<std::function<void(Tween&)>>(callback)) {
+		impl::InvokeCallback<std::function<void(Tween&)>>(callback, *this);
+	} else if (std::holds_alternative<std::function<void(Tween&, float)>>(callback)) {
+		impl::InvokeCallback<std::function<void(Tween&, float)>>(callback, *this, GetProgress());
 	} else {
 		PTGN_ERROR("Failed to identify tween callback function");
 	}

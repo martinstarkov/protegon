@@ -42,7 +42,7 @@ enum class TweenEase {
 class Tween;
 
 using TweenCallback = std::variant<
-	std::function<void(Tween, float)>, std::function<void(Tween)>, std::function<void(float)>,
+	std::function<void(Tween&, float)>, std::function<void(Tween&)>, std::function<void(float)>,
 	std::function<void()>>;
 
 namespace impl {
