@@ -446,6 +446,14 @@ void TexturedButton::ForEachTexture(const std::function<void(Texture)>& func) co
 	}
 }
 
+void TexturedButton::SetTintColor(const Color& color) {
+	tint_color_ = color;
+}
+
+Color TexturedButton::GetTintColor() const {
+	return tint_color_;
+}
+
 void TexturedButton::SetVisibility(bool visibility) {
 	hidden_ = !visibility;
 }
@@ -459,7 +467,10 @@ void TexturedButton::DrawImpl(std::size_t texture_array_index) const {
 		texture = GetCurrentTextureImpl(ButtonState::Default, 0);
 	}
 	PTGN_ASSERT(texture.IsValid(), "Button state texture (or default texture) must be valid");
-	game.renderer.DrawTexture(texture, rect_.pos, rect_.size);
+	game.renderer.DrawTexture(
+		texture, rect_.pos, rect_.size, {}, {}, rect_.origin, Flip::None, 0.0f, {}, 0.0f,
+		tint_color_
+	);
 }
 
 void TexturedButton::Draw() const {
@@ -490,9 +501,9 @@ Texture TexturedButton::GetCurrentTexture() {
 }
 
 TexturedToggleButton::TexturedToggleButton(
-	const Rectangle<float>& rect, const std::initializer_list<TextureOrKey>& default_textures,
-	const std::initializer_list<TextureOrKey>& hover_textures,
-	const std::initializer_list<TextureOrKey>& pressed_textures,
+	const Rectangle<float>& rect, const std::vector<TextureOrKey>& default_textures,
+	const std::vector<TextureOrKey>& hover_textures,
+	const std::vector<TextureOrKey>& pressed_textures,
 	const ButtonActivateFunction& on_activate_function
 ) {
 	rect_		 = rect;

@@ -2,8 +2,8 @@
 
 #include <array>
 #include <functional>
-#include <initializer_list>
 #include <variant>
+#include <vector>
 
 #include "core/resource_managers.h"
 #include "protegon/color.h"
@@ -184,6 +184,9 @@ public:
 
 	void ForEachTexture(const std::function<void(Texture)>& func) const;
 
+	void SetTintColor(const Color& color);
+	[[nodiscard]] Color GetTintColor() const;
+
 protected:
 	// This function does not check for the validity of the returned texture.
 	[[nodiscard]] Texture GetCurrentTextureImpl(
@@ -198,6 +201,7 @@ protected:
 	// (temporary object).
 	// TODO: Figure out a way to store 1 here and 2 in the toggle button class
 	TextureArray<2> textures_;
+	Color tint_color_{ color::White };
 	bool hidden_{ false };
 };
 
@@ -205,10 +209,10 @@ class TexturedToggleButton : public virtual ToggleButton, public virtual Texture
 public:
 	TexturedToggleButton() = default;
 	TexturedToggleButton(
-		const Rectangle<float>& rect, const std::initializer_list<TextureOrKey>& default_textures,
-		const std::initializer_list<TextureOrKey>& hover_textures,
-		const std::initializer_list<TextureOrKey>& pressed_textures,
-		const ButtonActivateFunction& on_active_function = nullptr
+		const Rectangle<float>& rect, const std::vector<TextureOrKey>& default_textures,
+		const std::vector<TextureOrKey>& hover_textures	  = {},
+		const std::vector<TextureOrKey>& pressed_textures = {},
+		const ButtonActivateFunction& on_active_function  = nullptr
 	);
 
 	void OnMouseUp(const MouseUpEvent& e) override;
