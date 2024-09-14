@@ -1,8 +1,17 @@
-#include "gl_renderer.h"
+#include "renderer/gl_renderer.h"
 
+#include <cstdint>
+
+#include "protegon/color.h"
 #include "protegon/game.h"
+#include "protegon/log.h"
+#include "protegon/vector2.h"
+#include "protegon/vector4.h"
+#include "protegon/vertex_array.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
+#include "utility/debug.h"
+#include "utility/handle.h"
 
 namespace ptgn {
 
@@ -80,7 +89,7 @@ void GLRenderer::DrawElements(const VertexArray& va, std::size_t index_count) {
 	);
 	va.Bind();
 	PTGN_ASSERT(
-		VertexArray::GetBoundId() == static_cast<std::int32_t>(va.GetInstance()->id_),
+		VertexArray::GetBoundId() == static_cast<std::int32_t>(va.Get().id_),
 		"Failed to bind vertex array id"
 	);
 	GLCall(gl::glDrawElements(

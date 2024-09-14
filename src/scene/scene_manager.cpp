@@ -1,5 +1,14 @@
-#include "scene_manager.h"
+#include "scene/scene_manager.h"
 
+#include <algorithm>
+#include <list>
+#include <memory>
+#include <utility>
+#include <vector>
+
+#include "core/manager.h"
+#include "protegon/scene.h"
+#include "scene/camera.h"
 #include "utility/debug.h"
 
 namespace ptgn {
@@ -111,12 +120,9 @@ void SceneManager::UnloadFlagged() {
 }
 
 bool SceneManager::ActiveScenesContain(std::size_t key) const {
-	for (auto k : active_scenes_) {
-		if (k == key) {
-			return true;
-		}
-	}
-	return false;
+	return std::any_of(active_scenes_.begin(), active_scenes_.end(), [key](std::size_t i) {
+		return i == key;
+	});
 }
 
 } // namespace ptgn

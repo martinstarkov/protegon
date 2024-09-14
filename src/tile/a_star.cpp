@@ -1,6 +1,16 @@
 #include "protegon/a_star.h"
 
+#include <deque>
+#include <limits>
+#include <list>
+#include <utility>
+
+#include "protegon/color.h"
 #include "protegon/game.h"
+#include "protegon/grid.h"
+#include "protegon/line.h"
+#include "protegon/vector2.h"
+#include "renderer/renderer.h"
 #include "utility/debug.h"
 
 namespace ptgn {
@@ -75,7 +85,7 @@ int AStarGrid::FindWaypointIndex(const std::deque<V2_int>& waypoints, const V2_i
 void AStarGrid::DisplayWaypoints(
 	const std::deque<V2_int>& waypoints, const V2_int& tile_size, const Color& color
 ) {
-	for (int i = 0; i + 1 < waypoints.size(); ++i) {
+	for (std::size_t i = 0; i + 1 < waypoints.size(); ++i) {
 		Line<int> path{ waypoints[i] * tile_size + tile_size / 2,
 						waypoints[i + 1] * tile_size + tile_size / 2 };
 		game.renderer.DrawLine(path.a, path.b, color);
@@ -86,7 +96,7 @@ void AStarGrid::SolvePath(const V2_int& start, const V2_int& end) {
 	PTGN_ASSERT(Has(start));
 	PTGN_ASSERT(Has(end));
 	impl::AStarNode* start_node{ &Get(start) };
-	impl::AStarNode* end_node{ &Get(end) };
+	const impl::AStarNode* end_node{ &Get(end) };
 
 	ForEachElement([](impl::AStarNode& node) { node.Reset(); });
 
@@ -116,23 +126,25 @@ void AStarGrid::SolvePath(const V2_int& start, const V2_int& end) {
 
 		for (const V2_int& dir : impl::neighbors) {
 			auto coordinate = current_node.second + dir;
-			if (Has(coordinate)) {
-				impl::AStarNode* neighbor_node{ &Get(coordinate) };
+			if (!Has(coordinate)) {
+				continue;
+			}
 
-				if (!neighbor_node->visited && neighbor_node->obstacle == 0) {
-					node_candidates.emplace_back(neighbor_node, coordinate);
-				}
+			impl::AStarNode* neighbor_node{ &Get(coordinate) };
 
-				float new_goal{ current_node.first->local_goal +
-								(current_node.second - coordinate).Magnitude() };
+			if (!neighbor_node->visited && neighbor_node->obstacle == 0) {
+				node_candidates.emplace_back(neighbor_node, coordinate);
+			}
 
-				if (new_goal < neighbor_node->local_goal) {
-					neighbor_node->parent	  = current_node;
-					neighbor_node->local_goal = new_goal;
+			float new_goal{ current_node.first->local_goal +
+							(current_node.second - coordinate).Magnitude() };
 
-					neighbor_node->global_goal =
-						neighbor_node->local_goal + (coordinate - end).Magnitude();
-				}
+			if (new_goal < neighbor_node->local_goal) {
+				neighbor_node->parent	  = current_node;
+				neighbor_node->local_goal = new_goal;
+
+				neighbor_node->global_goal =
+					neighbor_node->local_goal + (coordinate - end).Magnitude();
 			}
 		}
 	}

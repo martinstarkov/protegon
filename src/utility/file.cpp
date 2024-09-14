@@ -1,7 +1,12 @@
 #include "protegon/file.h"
 
+#include <filesystem>
 #include <fstream>
+#include <ios>
+#include <iosfwd>
+#include <ostream>
 #include <sstream>
+#include <string>
 
 #include "utility/debug.h"
 

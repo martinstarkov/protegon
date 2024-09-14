@@ -1,19 +1,21 @@
 #pragma once
 
+#include <cstdint>
+
 #include "protegon/color.h"
 #include "protegon/vector2.h"
 #include "protegon/vertex_array.h"
 
 #ifdef __EMSCRIPTEN__
 
-#define PTGN_OPENGL_MAJOR_VERSION	3
-#define PTGN_OPENGL_MINOR_VERSION	0
+constexpr auto PTGN_OPENGL_MAJOR_VERSION = 3;
+constexpr auto PTGN_OPENGL_MINOR_VERSION = 0;
 #define PTGN_OPENGL_CONTEXT_PROFILE SDL_GL_CONTEXT_PROFILE_ES
 
 #else
 
-#define PTGN_OPENGL_MAJOR_VERSION	3
-#define PTGN_OPENGL_MINOR_VERSION	3
+constexpr auto PTGN_OPENGL_MAJOR_VERSION = 3;
+constexpr auto PTGN_OPENGL_MINOR_VERSION = 3;
 #define PTGN_OPENGL_CONTEXT_PROFILE SDL_GL_CONTEXT_PROFILE_CORE
 
 #endif

@@ -1,14 +1,43 @@
-#include "renderer.h"
+#include "renderer/renderer.h"
 
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <functional>
+#include <map>
 #include <numeric>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
+#include "core/window.h"
+#include "event/event_handler.h"
+#include "protegon/buffer.h"
 #include "protegon/circle.h"
+#include "protegon/color.h"
+#include "protegon/events.h"
 #include "protegon/game.h"
 #include "protegon/line.h"
+#include "protegon/log.h"
+#include "protegon/math.h"
+#include "protegon/matrix4.h"
 #include "protegon/polygon.h"
+#include "protegon/scene.h"
+#include "protegon/shader.h"
 #include "protegon/texture.h"
+#include "protegon/vector2.h"
+#include "protegon/vector4.h"
+#include "protegon/vertex_array.h"
+#include "renderer/buffer_layout.h"
+#include "renderer/flip.h"
+#include "renderer/gl_helper.h"
 #include "renderer/gl_renderer.h"
+#include "renderer/origin.h"
+#include "scene/camera.h"
+#include "scene/scene_manager.h"
 #include "utility/debug.h"
+#include "utility/handle.h"
 
 namespace ptgn {
 
@@ -24,7 +53,7 @@ static constexpr std::size_t batch_capacity{ 2000 };
 
 float TriangulateArea(const V2_float* contour, std::size_t count) {
 	PTGN_ASSERT(contour != nullptr);
-	int n = static_cast<int>(count);
+	auto n = static_cast<int>(count);
 
 	float A = 0.0f;
 
@@ -37,25 +66,22 @@ float TriangulateArea(const V2_float* contour, std::size_t count) {
 bool TriangulateInsideTriangle(
 	float Ax, float Ay, float Bx, float By, float Cx, float Cy, float Px, float Py
 ) {
-	float ax, ay, bx, by, cx, cy, apx, apy, bpx, bpy, cpx, cpy;
-	float cCROSSap, bCROSScp, aCROSSbp;
+	float ax  = Cx - Bx;
+	float ay  = Cy - By;
+	float bx  = Ax - Cx;
+	float by  = Ay - Cy;
+	float cx  = Bx - Ax;
+	float cy  = By - Ay;
+	float apx = Px - Ax;
+	float apy = Py - Ay;
+	float bpx = Px - Bx;
+	float bpy = Py - By;
+	float cpx = Px - Cx;
+	float cpy = Py - Cy;
 
-	ax	= Cx - Bx;
-	ay	= Cy - By;
-	bx	= Ax - Cx;
-	by	= Ay - Cy;
-	cx	= Bx - Ax;
-	cy	= By - Ay;
-	apx = Px - Ax;
-	apy = Py - Ay;
-	bpx = Px - Bx;
-	bpy = Py - By;
-	cpx = Px - Cx;
-	cpy = Py - Cy;
-
-	aCROSSbp = ax * bpy - ay * bpx;
-	cCROSSap = cx * apy - cy * apx;
-	bCROSScp = bx * cpy - by * cpx;
+	float aCROSSbp = ax * bpy - ay * bpx;
+	float cCROSSap = cx * apy - cy * apx;
+	float bCROSScp = bx * cpy - by * cpx;
 
 	return ((aCROSSbp >= 0.0f) && (bCROSScp >= 0.0f) && (cCROSSap >= 0.0f));
 };
@@ -64,30 +90,25 @@ bool TriangulateSnip(
 	const V2_float* contour, int u, int v, int w, int n, const std::vector<int>& V
 ) {
 	PTGN_ASSERT(contour != nullptr);
-	int p;
-	float Ax, Ay, Bx, By, Cx, Cy, Px, Py;
+	float Ax = contour[V[u]].x;
+	float Ay = contour[V[u]].y;
 
-	Ax = contour[V[u]].x;
-	Ay = contour[V[u]].y;
+	float Bx = contour[V[v]].x;
+	float By = contour[V[v]].y;
 
-	Bx = contour[V[v]].x;
-	By = contour[V[v]].y;
+	float Cx = contour[V[w]].x;
+	float Cy = contour[V[w]].y;
 
-	Cx = contour[V[w]].x;
-	Cy = contour[V[w]].y;
-
-	float res = (Bx - Ax) * (Cy - Ay) - (By - Ay) * (Cx - Ax);
-
-	if (NearlyEqual(res, 0.0f)) {
+	if (float res = (Bx - Ax) * (Cy - Ay) - (By - Ay) * (Cx - Ax); NearlyEqual(res, 0.0f)) {
 		return false;
 	}
 
-	for (p = 0; p < n; p++) {
+	for (int p = 0; p < n; p++) {
 		if ((p == u) || (p == v) || (p == w)) {
 			continue;
 		}
-		Px = contour[V[p]].x;
-		Py = contour[V[p]].y;
+		float Px = contour[V[p]].x;
+		float Py = contour[V[p]].y;
 		if (TriangulateInsideTriangle(Ax, Ay, Bx, By, Cx, Cy, Px, Py)) {
 			return false;
 		}
@@ -102,7 +123,7 @@ std::vector<Triangle<float>> TriangulateProcess(const V2_float* contour, std::si
 	/* allocate and initialize list of Vertices in polygon */
 	std::vector<Triangle<float>> result;
 
-	int n = static_cast<int>(count);
+	auto n = static_cast<int>(count);
 	if (n < 3) {
 		return result;
 	}
@@ -148,20 +169,20 @@ std::vector<Triangle<float>> TriangulateProcess(const V2_float* contour, std::si
 		}
 
 		if (TriangulateSnip(contour, u, v, w, nv, V)) {
-			int a, b, c, s, t;
-
 			/* true names of the vertices */
-			a = V[u];
-			b = V[v];
-			c = V[w];
+			int a = V[u];
+			int b = V[v];
+			int c = V[w];
 
-			/* output Triangle */
-			result.push_back({ contour[a], contour[b], contour[c] });
+			result.emplace_back(contour[a], contour[b], contour[c]);
 
 			m++;
 
 			/* remove v from remaining polygon */
-			for (s = v, t = v + 1; t < nv; s++, t++) {
+			for (int t = v + 1; t < nv; t++) {
+				int s = t - 1;
+				PTGN_ASSERT(s < V.size());
+				PTGN_ASSERT(t < V.size());
 				V[s] = V[t];
 			}
 			nv--;
@@ -196,7 +217,7 @@ bool BatchData<TVertices, IndexCount>::IsAvailable() const {
 template <typename TVertices, std::size_t IndexCount>
 TVertices& BatchData<TVertices, IndexCount>::Get() {
 	PTGN_ASSERT(data_.size() + 1 <= batch_capacity);
-	return data_.emplace_back(TVertices{});
+	return data_.emplace_back();
 }
 
 template <typename TVertices, std::size_t IndexCount>
@@ -278,7 +299,6 @@ template <typename TVertices, std::size_t IndexCount>
 void BatchData<TVertices, IndexCount>::Draw() {
 	PTGN_ASSERT(data_.size() != 0);
 	UpdateBuffer();
-	// TODO: Add check that correct shader is bound?
 	GLRenderer::DrawElements(array_, data_.size() * IndexCount);
 	data_.clear();
 }
@@ -294,15 +314,7 @@ void TextureBatchData::BindTextures() {
 		// Save first texture slot for empty white texture.
 		auto slot{ i + 1 };
 		textures_[i].Bind(slot);
-		/*PTGN_LOG(
-			"Active Slot: ", Texture::GetActiveSlot(),
-			", Bound Texture: ", Texture::GetBoundId()
-		);*/
 	}
-}
-
-bool TextureBatchData::IsAvailable() const {
-	return data_.size() != batch_capacity;
 }
 
 std::pair<std::size_t, bool> TextureBatchData::GetTextureIndex(const Texture& t) {
@@ -336,7 +348,7 @@ bool TextureBatchData::HasAvailableTextureSlot() const {
 	return textures_.size() != textures_.capacity();
 }
 
-bool Batch::IsFlushed(BatchType type) {
+bool Batch::IsFlushed(BatchType type) const {
 	switch (type) {
 		case BatchType::Quad:	  return quad_.IsFlushed();
 		case BatchType::Triangle: return triangle_.IsFlushed();
@@ -349,28 +361,15 @@ bool Batch::IsFlushed(BatchType type) {
 
 void Batch::Flush(BatchType type) {
 	switch (type) {
-		case BatchType::Quad: {
+		case BatchType::Quad:
 			quad_.BindTextures();
 			quad_.Flush();
 			break;
-		}
-		case BatchType::Triangle: {
-			triangle_.Flush();
-			break;
-		}
-		case BatchType::Line: {
-			line_.Flush();
-			break;
-		}
-		case BatchType::Circle: {
-			circle_.Flush();
-			break;
-		}
-		case BatchType::Point: {
-			point_.Flush();
-			break;
-		}
-		default: PTGN_ERROR("Failed to recognize batch type when flushing");
+		case BatchType::Triangle: triangle_.Flush(); break;
+		case BatchType::Line:	  line_.Flush(); break;
+		case BatchType::Circle:	  circle_.Flush(); break;
+		case BatchType::Point:	  point_.Flush(); break;
+		default:				  PTGN_ERROR("Failed to recognize batch type when flushing");
 	}
 }
 
@@ -403,7 +402,7 @@ void RendererData::Init() {
 
 	constexpr std::array<std::uint32_t, 6> quad_index_pattern{ 0, 1, 2, 2, 3, 0 };
 
-	auto quad_generator = [&, offset = 0, pattern_index = 0]() mutable {
+	auto quad_generator = [&quad_index_pattern, offset = 0, pattern_index = 0]() mutable {
 		auto index = offset + quad_index_pattern[pattern_index];
 		pattern_index++;
 		if (pattern_index % quad_index_pattern.size() == 0) {
@@ -644,7 +643,7 @@ void RendererData::AddQuad(
 	// Textures are always considered as part of the transparent batch groups.
 	// In the future one could do a t.HasTransparency() check here to determine batch group.
 	auto& batch_group			= GetBatchGroup(0.0f, z_index);
-	auto [batch, texture_index] = GetTextureBatch(BatchType::Quad, batch_group, t);
+	auto [batch, texture_index] = GetTextureBatch(batch_group, t);
 	batch.quad_.Get() =
 		impl::QuadVertices(vertices, z_index, color, tex_coords, static_cast<float>(texture_index));
 }
@@ -692,33 +691,32 @@ std::vector<Batch>& RendererData::GetBatchGroup(float alpha, float z_index) {
 	*/
 	// transparent object
 	auto z_index_key{ static_cast<std::int64_t>(z_index) };
-	auto it = transparent_batches_.find(z_index_key);
-	if (it != transparent_batches_.end()) {
+	if (auto it = transparent_batches_.find(z_index_key); it != transparent_batches_.end()) {
 		return it->second;
 	}
 	std::vector<Batch> new_batch_group;
 	new_batch_group.emplace_back(this);
 	auto new_it = transparent_batches_.emplace(z_index_key, std::move(new_batch_group)).first;
-	PTGN_ASSERT(new_it->second.size() > 0);
+	PTGN_ASSERT(!new_it->second.empty());
 	PTGN_ASSERT(new_it->second.at(0).quad_.GetTextureSlotCapacity() == max_texture_slots_ - 1);
 	return new_it->second;
 }
 
 Batch& RendererData::GetBatch(BatchType type, std::vector<Batch>& batch_group) {
-	PTGN_ASSERT(batch_group.size() > 0);
-	auto& latest_batch = batch_group.back();
-	if (latest_batch.IsAvailable(type)) {
+	PTGN_ASSERT(!batch_group.empty());
+	if (auto& latest_batch = batch_group.back(); latest_batch.IsAvailable(type)) {
 		return latest_batch;
 	}
 	return batch_group.emplace_back(this);
 }
 
 std::pair<Batch&, std::size_t> RendererData::GetTextureBatch(
-	BatchType type, std::vector<Batch>& batch_group, const Texture& t
+
+	std::vector<Batch>& batch_group, const Texture& t
 ) {
 	PTGN_ASSERT(batch_group.size() > 0);
 	PTGN_ASSERT(t.IsValid());
-	for (std::size_t i = 0; i < batch_group.size(); i++) {
+	for (std::size_t i{ 0 }; i < batch_group.size(); i++) {
 		auto& batch = batch_group[i];
 		if (batch.quad_.IsAvailable()) {
 			auto [texture_index, has_available_index] = batch.quad_.GetTextureIndex(t);
@@ -756,19 +754,12 @@ void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip) 
 	};
 	switch (flip) {
 		case Flip::None:	   break;
-		case Flip::Horizontal: {
-			flip_x();
-			break;
-		}
-		case Flip::Vertical: {
-			flip_y();
-			break;
-		}
-		case Flip::Both: {
+		case Flip::Horizontal: flip_x(); break;
+		case Flip::Vertical:   flip_y(); break;
+		case Flip::Both:
 			flip_x();
 			flip_y();
 			break;
-		}
 		default: PTGN_ERROR("Unrecognized flip state");
 	}
 }
@@ -803,7 +794,7 @@ void RotateVertices(
 		s = std::sin(rotation_radians);
 	}
 
-	auto rotated = [&](const V2_float& coordinate) -> V2_float {
+	auto rotated = [&](const V2_float& coordinate) {
 		return position - rot - half +
 			   V2_float{ c * coordinate.x - s * coordinate.y, s * coordinate.x + c * coordinate.y };
 	};
@@ -865,8 +856,8 @@ void Renderer::Init() {
 	// If desired, changing the word Resized . Resizing will make the viewport update during
 	// resizing.
 	game.event.window.Subscribe(
-		WindowEvent::Resized, (void*)this,
-		std::function([&](const WindowResizedEvent& e) { SetViewport(e.size); })
+		WindowEvent::Resized, this,
+		std::function([this](const WindowResizedEvent& e) { SetViewport(e.size); })
 	);
 
 	data_.Init();
@@ -880,7 +871,7 @@ void Renderer::Reset() {
 }
 
 void Renderer::Shutdown() {
-	game.event.window.Unsubscribe((void*)this);
+	game.event.window.Unsubscribe(this);
 	Reset();
 }
 
@@ -1136,10 +1127,9 @@ void Renderer::DrawArcImpl(
 		return;
 	}
 
-	float range{ start_angle - end_angle };
-
 	// Edge case where start and end angles match (considered a full rotation).
-	if (NearlyEqual(range, 0.0f) || NearlyEqual(range, two_pi<float>)) {
+	if (float range{ start_angle - end_angle };
+		NearlyEqual(range, 0.0f) || NearlyEqual(range, two_pi<float>)) {
 		if (filled) {
 			DrawEllipseFilledImpl(p, { arc_radius, arc_radius }, col, 0.005f, z);
 		} else {
@@ -1159,8 +1149,6 @@ void Renderer::DrawArcImpl(
 
 	std::size_t n{ resolution };
 
-	// float delta_angle = two_pi<float> / arc_radius;
-
 	float delta_angle{ arc / static_cast<float>(n) };
 
 	PTGN_ASSERT(arc >= 0.0f);
@@ -1169,7 +1157,7 @@ void Renderer::DrawArcImpl(
 		std::vector<V2_float> v(n);
 
 		for (std::size_t i{ 0 }; i < n; i++) {
-			float angle_radians = start_angle + i * delta_angle;
+			float angle_radians = start_angle + static_cast<float>(i) * delta_angle;
 
 			v[i] = { p.x + arc_radius * std::cos(angle_radians),
 					 p.y + arc_radius * std::sin(angle_radians) };

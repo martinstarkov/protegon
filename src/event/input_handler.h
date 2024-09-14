@@ -1,14 +1,13 @@
 #pragma once
 
 #include <bitset>
-#include <cstdint>
-#include <cstdlib>
-#include <tuple>
+#include <utility>
 
 #include "event/key.h"
 #include "event/mouse.h"
 #include "protegon/timer.h"
 #include "protegon/vector2.h"
+#include "utility/time.h"
 
 union SDL_Event;
 
@@ -68,7 +67,7 @@ public:
 	void SetRelativeMouseMode(bool on);
 
 	// @return Mouse position relative to the top left of the window.
-	[[nodiscard]] V2_int GetMousePosition();
+	[[nodiscard]] V2_int GetMousePosition() const;
 	// @return In desktop mode: mouse position relative to the screen (display). In browser: same as
 	// GetMousePosition().
 	[[nodiscard]] V2_int GetMousePositionGlobal();

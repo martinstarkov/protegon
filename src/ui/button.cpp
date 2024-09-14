@@ -1,11 +1,28 @@
 #include "protegon/button.h"
 
+#include <array>
 #include <functional>
-#include <utility>
+#include <initializer_list>
+#include <limits>
+#include <type_traits>
+#include <variant>
 
+#include "core/manager.h"
+#include "core/resource_managers.h"
+#include "event/event_handler.h"
+#include "event/input_handler.h"
+#include "event/mouse.h"
 #include "protegon/collision.h"
+#include "protegon/color.h"
+#include "protegon/event.h"
+#include "protegon/events.h"
 #include "protegon/game.h"
+#include "protegon/polygon.h"
+#include "protegon/texture.h"
+#include "protegon/vector2.h"
+#include "renderer/renderer.h"
 #include "utility/debug.h"
+#include "utility/handle.h"
 
 namespace ptgn {
 
@@ -109,15 +126,14 @@ void Button::OnMouseEvent(MouseEvent type, const Event& event) {
 	}
 	switch (type) {
 		case MouseEvent::Move: {
-			const MouseMoveEvent& e = static_cast<const MouseMoveEvent&>(event);
+			const auto& e = static_cast<const MouseMoveEvent&>(event);
 			bool is_in{ InsideRectangle(e.current) };
 			if (is_in) {
 				OnMouseMove(e);
 			} else {
 				OnMouseMoveOutside(e);
 			}
-			bool was_in{ InsideRectangle(e.previous) };
-			if (!was_in && is_in) {
+			if (bool was_in{ InsideRectangle(e.previous) }; !was_in && is_in) {
 				OnMouseEnter(e);
 			} else if (was_in && !is_in) {
 				OnMouseLeave(e);
@@ -125,8 +141,8 @@ void Button::OnMouseEvent(MouseEvent type, const Event& event) {
 			break;
 		}
 		case MouseEvent::Down: {
-			const MouseDownEvent& e = static_cast<const MouseDownEvent&>(event);
-			if (InsideRectangle(e.current)) {
+			if (const auto& e = static_cast<const MouseDownEvent&>(event);
+				InsideRectangle(e.current)) {
 				OnMouseDown(e);
 			} else {
 				OnMouseDownOutside(e);
@@ -134,8 +150,8 @@ void Button::OnMouseEvent(MouseEvent type, const Event& event) {
 			break;
 		}
 		case MouseEvent::Up: {
-			const MouseUpEvent& e = static_cast<const MouseUpEvent&>(event);
-			if (InsideRectangle(e.current)) {
+			if (const auto& e = static_cast<const MouseUpEvent&>(event);
+				InsideRectangle(e.current)) {
 				OnMouseUp(e);
 			} else {
 				OnMouseUpOutside(e);
@@ -147,17 +163,15 @@ void Button::OnMouseEvent(MouseEvent type, const Event& event) {
 }
 
 bool Button::IsSubscribedToMouseEvents() const {
-	return game.event.mouse.IsSubscribed((void*)this);
+	return game.event.mouse.IsSubscribed(this);
 }
 
 void Button::SubscribeToMouseEvents() {
-	game.event.mouse.Subscribe((void*)this, [&](MouseEvent t, const Event& e) {
-		OnMouseEvent(t, e);
-	});
+	game.event.mouse.Subscribe(this, [this](MouseEvent t, const Event& e) { OnMouseEvent(t, e); });
 }
 
 void Button::UnsubscribeFromMouseEvents() {
-	game.event.mouse.Unsubscribe((void*)this);
+	game.event.mouse.Unsubscribe(this);
 }
 
 void Button::OnMouseMove([[maybe_unused]] const MouseMoveEvent& e) {
@@ -270,9 +284,9 @@ const Rectangle<float>& Button::GetRectangle() const {
 
 void Button::RecheckState() {
 	OnMouseEvent(
-		MouseEvent::Move, MouseMoveEvent{ V2_int{ std::numeric_limits<int>().max(),
-												  std::numeric_limits<int>().max() },
-										  game.input.GetMousePosition() }
+		MouseEvent::Move,
+		MouseMoveEvent{ V2_int{ std::numeric_limits<int>::max(), std::numeric_limits<int>::max() },
+						game.input.GetMousePosition() }
 	);
 }
 
@@ -323,7 +337,6 @@ bool ToggleButton::IsToggled() const {
 
 void ToggleButton::SetToggleState(bool toggled) {
 	toggled_ = toggled;
-	// RecheckState();
 }
 
 void ToggleButton::Toggle() {
@@ -365,8 +378,6 @@ const Color& ColorButton::GetPressedColor() const {
 	return colors_.data.at(static_cast<std::size_t>(ButtonState::Pressed)).at(0);
 }
 
-void ColorButton::DrawImpl(std::size_t color_array_index) const {}
-
 void ColorButton::Draw() const {
 	DrawFilled();
 }
@@ -407,19 +418,29 @@ bool TexturedButton::GetVisibility() const {
 	return !hidden_;
 }
 
-void TexturedButton::ForEachTexture(const std::function<void(Texture)>& func) {
+void TexturedButton::ForEachTexture(const std::function<void(Texture)>& func) const {
 	for (std::size_t state = 0; state < 3; state++) {
 		for (std::size_t texture_array_index = 0; texture_array_index < 2; texture_array_index++) {
 			Texture texture =
 				GetCurrentTextureImpl(static_cast<ButtonState>(state), texture_array_index);
-			if (!texture.IsValid()) {
-				texture = GetCurrentTextureImpl(ButtonState::Default, texture_array_index);
-				if (!texture.IsValid()) {
-					texture = GetCurrentTextureImpl(ButtonState::Default, 0);
-				}
-			}
+
 			if (texture.IsValid()) {
-				func(texture);
+				std::invoke(func, texture);
+				continue;
+			}
+
+			texture = GetCurrentTextureImpl(ButtonState::Default, texture_array_index);
+
+			if (texture.IsValid()) {
+				std::invoke(func, texture);
+				continue;
+			}
+
+			texture = GetCurrentTextureImpl(ButtonState::Default, 0);
+
+			if (texture.IsValid()) {
+				std::invoke(func, texture);
+				continue;
 			}
 		}
 	}
@@ -438,8 +459,7 @@ void TexturedButton::DrawImpl(std::size_t texture_array_index) const {
 		texture = GetCurrentTextureImpl(ButtonState::Default, 0);
 	}
 	PTGN_ASSERT(texture.IsValid(), "Button state texture (or default texture) must be valid");
-	// TODO: Fix
-	// texture.Draw(rect_);
+	game.renderer.DrawTexture(texture, rect_.pos, rect_.size);
 }
 
 void TexturedButton::Draw() const {
@@ -484,7 +504,7 @@ TexturedToggleButton::TexturedToggleButton(
 	PTGN_ASSERT(hover_textures.size() <= 2);
 	PTGN_ASSERT(pressed_textures.size() <= 2);
 
-	auto set_textures = [&](const auto& list, const ButtonState state) -> void {
+	auto set_textures = [&](const auto& list, const ButtonState state) {
 		std::size_t i = 0;
 		for (auto it = list.begin(); it != list.end(); ++it) {
 			textures_.data.at(static_cast<std::size_t>(state)).at(i) = *it;

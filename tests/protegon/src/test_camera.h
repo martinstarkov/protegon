@@ -1,11 +1,24 @@
 #pragma once
 
-#include "common.h"
-#include "protegon/circle.h"
-#include "protegon/line.h"
-#include "protegon/polygon.h"
+#include <memory>
+#include <new>
+#include <vector>
 
-using namespace ptgn;
+#include "common.h"
+#include "core/window.h"
+#include "event/input_handler.h"
+#include "event/key.h"
+#include "protegon/circle.h"
+#include "protegon/color.h"
+#include "protegon/game.h"
+#include "protegon/line.h"
+#include "protegon/math.h"
+#include "protegon/polygon.h"
+#include "protegon/texture.h"
+#include "protegon/vector2.h"
+#include "renderer/origin.h"
+#include "renderer/renderer.h"
+#include "scene/camera.h"
 
 struct TestCameraSwitching : public Test {
 	OrthographicCamera camera0;
@@ -17,7 +30,7 @@ struct TestCameraSwitching : public Test {
 	int camera{ 0 };
 	const int cameras{ 5 };
 
-	void Init() {
+	void Init() override {
 		camera0 = game.camera.Load(0);
 		camera1 = game.camera.Load(1);
 		camera2 = game.camera.Load(2);
@@ -33,7 +46,7 @@ struct TestCameraSwitching : public Test {
 		game.camera.SetPrimary(camera);
 	}
 
-	void Update() {
+	void Update() override {
 		if (game.input.KeyDown(Key::E)) {
 			camera++;
 			camera = Mod(camera, cameras);
@@ -46,7 +59,7 @@ struct TestCameraSwitching : public Test {
 		}
 	}
 
-	void Draw() {
+	void Draw() override {
 		game.renderer.DrawRectangleFilled(center, ws * 0.5f, color::DarkGreen);
 	}
 };
@@ -58,7 +71,7 @@ struct TestCameraControls : public Test {
 	const float rotation_speed = 1.0f;
 	const float zoom_speed{ 0.4f };
 
-	void Update(float dt) {
+	void Update(float dt) override {
 		auto& camera{ game.camera.GetCurrent() };
 
 		if (game.input.KeyPressed(Key::W)) {
@@ -112,7 +125,7 @@ struct TestCameraControls : public Test {
 		camera.PrintInfo();
 	}
 
-	void Draw() {
+	void Draw() override {
 		game.renderer.DrawTexture(texture, center, texture.GetSize());
 	}
 };
@@ -120,7 +133,7 @@ struct TestCameraControls : public Test {
 struct TestCameraBounds : public TestCameraControls {
 	const float bound_width{ 3.0f };
 
-	void Init() {
+	void Init() override {
 		auto& camera{ game.camera.GetCurrent() };
 
 		Rectangle<float> bounds{ {}, { 800, 800 }, Origin::TopLeft };
@@ -128,9 +141,9 @@ struct TestCameraBounds : public TestCameraControls {
 		camera.SetBounds(bounds);
 	}
 
-	void Draw() {
+	void Draw() override {
 		TestCameraControls::Draw();
-		auto& camera{ game.camera.GetCurrent() };
+		const auto& camera{ game.camera.GetCurrent() };
 		game.renderer.DrawRectangleHollow(camera.GetBounds(), color::Red, bound_width);
 	}
 };
@@ -153,7 +166,7 @@ struct TestParallax : public Test {
 	V2_float background_size;
 	float bg_aspect_ratio{ 0.0f };
 
-	void Init() {
+	void Init() override {
 		background = { "resources/sprites/parallax/background.png" };
 		planet_b   = { "resources/sprites/parallax/planet_b.png" };
 		planet_s   = { "resources/sprites/parallax/planet_s.png" };
@@ -169,7 +182,7 @@ struct TestParallax : public Test {
 		bg_aspect_ratio = background_size.x / background_size.y;
 	}
 
-	void Update(float dt) {
+	void Update(float dt) override {
 		auto& camera{ game.camera.GetCurrent() };
 
 		camera.SetSize(ws);
@@ -202,7 +215,7 @@ struct TestParallax : public Test {
 		planet_b_pos += velocity / 2.0f;
 	}
 
-	void Draw() {
+	void Draw() override {
 		auto& camera{ game.camera.GetCurrent() };
 		V2_float pos = camera.GetPosition();
 
@@ -219,12 +232,12 @@ struct TestParallax : public Test {
 };
 
 void TestCamera() {
-	std::vector<std::shared_ptr<Test>> camera_tests;
+	std::vector<std::shared_ptr<Test>> tests;
 
-	camera_tests.emplace_back(new TestCameraBounds());
-	camera_tests.emplace_back(new TestCameraControls());
-	camera_tests.emplace_back(new TestCameraSwitching());
-	camera_tests.emplace_back(new TestParallax());
+	tests.emplace_back(new TestCameraBounds());
+	tests.emplace_back(new TestCameraControls());
+	tests.emplace_back(new TestCameraSwitching());
+	tests.emplace_back(new TestParallax());
 
-	AddTests(camera_tests);
+	AddTests(tests);
 }

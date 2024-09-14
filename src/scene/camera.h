@@ -1,11 +1,6 @@
 #pragma once
 
-#include <algorithm>
-#include <limits>
-
 #include "core/manager.h"
-#include "protegon/event.h"
-#include "protegon/events.h"
 #include "protegon/matrix4.h"
 #include "protegon/polygon.h"
 #include "protegon/quaternion.h"
@@ -13,6 +8,7 @@
 #include "protegon/vector3.h"
 #include "renderer/flip.h"
 #include "utility/handle.h"
+#include "utility/type_traits.h"
 
 namespace ptgn {
 
@@ -49,8 +45,8 @@ struct Camera {
 
 class OrthographicCamera : public Handle<impl::Camera> {
 public:
-	OrthographicCamera()  = default;
-	~OrthographicCamera() = default;
+	OrthographicCamera()		   = default;
+	~OrthographicCamera() override = default;
 
 	// Origin at the top left.
 	[[nodiscard]] Rectangle<float> GetRectangle() const;
@@ -73,7 +69,7 @@ public:
 	void CenterOnWindow(bool continuously = false);
 
 	void SubscribeToWindowResize();
-	void UnsubscribeFromWindowResize();
+	void UnsubscribeFromWindowResize() const;
 
 	void SetBounds(const Rectangle<float>& bounding_box);
 
@@ -112,9 +108,6 @@ public:
 	// Angle in radians.
 	void Roll(float angle_change_radians);
 
-	bool operator==(const OrthographicCamera& o) const;
-	bool operator!=(const OrthographicCamera& o) const;
-
 	void PrintInfo() const;
 
 protected:
@@ -131,8 +124,6 @@ protected:
 
 	void OnWindowResize(const V2_float& size);
 
-	void CreateInstance();
-
 	void RecalculateView();
 	void RecalculateProjection();
 	void RecalculateViewProjection();
@@ -141,7 +132,7 @@ protected:
 class CameraManager : public Manager<OrthographicCamera> {
 public:
 	CameraManager();
-	~CameraManager();
+	~CameraManager() override					   = default;
 	CameraManager(const CameraManager&)			   = delete;
 	CameraManager(CameraManager&&)				   = default;
 	CameraManager& operator=(const CameraManager&) = delete;
@@ -155,6 +146,8 @@ public:
 
 	void SetCameraWindow();
 	void SetCameraPrimary();
+
+	void Reset();
 
 private:
 	friend class Game;
@@ -201,6 +194,8 @@ public:
 
 	static void SetCameraWindow();
 	static void SetCameraPrimary();
+
+	static void Reset();
 
 private:
 	static Item& LoadImpl(const Key& key, Item&& item);

@@ -1,15 +1,22 @@
 #include "core/gl_context.h"
 
+#include <filesystem>
+#include <iosfwd>
 #include <ostream>
+#include <string_view>
+#include <vector>
 
+#include "core/window.h"
+#include "protegon/file.h"
 #include "protegon/game.h"
+#include "protegon/log.h"
 #include "renderer/gl_loader.h"
-#include "SDL.h"
+#include "SDL_error.h"
+#include "SDL_opengl.h"
+#include "SDL_video.h"
 #include "utility/debug.h"
 
-namespace ptgn {
-
-namespace impl {
+namespace ptgn::impl {
 
 GLVersion::GLVersion() {
 	int r = SDL_GL_GetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, &major);
@@ -79,12 +86,12 @@ void GLContext::Init() {
 	);
 
 	if (IsInitialized()) {
-		int result = SDL_GL_MakeCurrent(game.window.GetSDLWindow(), context_);
+		int result = SDL_GL_MakeCurrent(game.window.window_.get(), context_);
 		PTGN_ASSERT(result == 0, SDL_GetError());
 		return;
 	}
 
-	context_ = SDL_GL_CreateContext(game.window.GetSDLWindow());
+	context_ = SDL_GL_CreateContext(game.window.window_.get());
 	PTGN_ASSERT(IsInitialized(), SDL_GetError());
 
 	GLVersion gl_version;
@@ -107,14 +114,16 @@ void GLContext::Shutdown() {
 
 void GLContext::ClearErrors() {
 	while (game.gl_context_.IsInitialized() && game.IsRunning() &&
-		   gl::glGetError() != static_cast<gl::GLenum>(GLError::None)) {}
+		   gl::glGetError() != static_cast<gl::GLenum>(GLError::None)
+	) { /* glGetError clears the error queue */
+	}
 }
 
 std::vector<GLError> GLContext::GetErrors() {
 	std::vector<GLError> errors;
 	while (game.gl_context_.IsInitialized() && game.IsRunning()) {
 		gl::GLenum error = gl::glGetError();
-		GLError e		 = static_cast<GLError>(error);
+		auto e			 = static_cast<GLError>(error);
 		if (e == GLError::None) {
 			break;
 		}
@@ -132,7 +141,6 @@ std::string_view GLContext::GetErrorString(GLError error) {
 		case GLError::StackOverflow:	return "Stack Overflow";
 		case GLError::StackUnderflow:	return "Stack Underflow";
 		case GLError::OutOfMemory:		return "Out of Memory";
-		case GLError::None:
 		default:						PTGN_ERROR("Failed to recognize GL error code");
 	}
 }
@@ -149,6 +157,4 @@ void GLContext::PrintErrors(
 	}
 }
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

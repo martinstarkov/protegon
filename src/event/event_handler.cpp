@@ -1,8 +1,6 @@
-#include "event_handler.h"
+#include "event/event_handler.h"
 
 namespace ptgn {
-
-void EventHandler::Init() {}
 
 void EventHandler::Shutdown() {
 	key	   = {};

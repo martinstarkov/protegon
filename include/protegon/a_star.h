@@ -3,12 +3,10 @@
 #include <array>
 #include <deque>
 #include <limits>
-#include <list>
-#include <tuple>
+#include <utility>
 
 #include "protegon/color.h"
 #include "protegon/grid.h"
-#include "protegon/line.h"
 #include "protegon/vector2.h"
 
 namespace ptgn {

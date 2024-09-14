@@ -1,8 +1,9 @@
 #include "renderer/buffer_layout.h"
 
-namespace ptgn {
+#include <cstdint>
+#include <vector>
 
-namespace impl {
+namespace ptgn::impl {
 
 const std::vector<BufferElement>& InternalBufferLayout::GetElements() const {
 	return elements_;
@@ -13,7 +14,7 @@ std::int32_t InternalBufferLayout::GetStride() const {
 }
 
 bool InternalBufferLayout::IsEmpty() const {
-	return elements_.size() == 0;
+	return elements_.empty();
 }
 
 void InternalBufferLayout::CalculateOffsets() {
@@ -26,6 +27,4 @@ void InternalBufferLayout::CalculateOffsets() {
 	stride_ = offset;
 }
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

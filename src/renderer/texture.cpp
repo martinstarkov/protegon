@@ -1,9 +1,22 @@
 #include "protegon/texture.h"
 
+#include <array>
+#include <cstdint>
+#include <filesystem>
+#include <type_traits>
+#include <vector>
+
+#include "protegon/color.h"
+#include "protegon/file.h"
+#include "protegon/log.h"
+#include "protegon/surface.h"
+#include "protegon/vector2.h"
+#include "protegon/vector4.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
 #include "utility/debug.h"
+#include "utility/handle.h"
 
 namespace ptgn {
 
@@ -56,7 +69,7 @@ static GLFormats GetGLFormats(ImageFormat format) {
 
 Texture::Texture(const path& image_path, ImageFormat format) :
 	Texture{
-		std::invoke([&]() -> Surface {
+		std::invoke([&]() {
 			PTGN_ASSERT(
 				format != ImageFormat::Unknown, "Cannot create texture with unknown image format"
 			);
@@ -73,9 +86,7 @@ Texture::Texture(const Surface& surface) : Texture{ surface.GetData(), surface.G
 Texture::Texture(const void* pixel_data, const V2_int& size, ImageFormat format) {
 	PUSHSTATE();
 
-	if (!IsValid()) {
-		instance_ = std::make_shared<impl::TextureInstance>();
-	}
+	Create();
 
 	Bind();
 
@@ -106,7 +117,7 @@ Texture::Texture(const void* pixel_data, const V2_int& size, ImageFormat format)
 }
 
 Texture::Texture(const std::vector<Color>& pixels, const V2_int& size) :
-	Texture{ std::invoke([&]() -> void* {
+	Texture{ std::invoke([&]() {
 				 PTGN_ASSERT(
 					 pixels.size() == size.x * size.y,
 					 "Provided pixel array must match texture size"
@@ -116,8 +127,7 @@ Texture::Texture(const std::vector<Color>& pixels, const V2_int& size) :
 			 size, ImageFormat::RGBA8888 } {}
 
 void Texture::Bind() const {
-	PTGN_ASSERT(IsValid(), "Cannot bind texture which is destroyed or uninitialized");
-	GLCall(gl::glBindTexture(GL_TEXTURE_2D, instance_->id_));
+	GLCall(gl::glBindTexture(GL_TEXTURE_2D, Get().id_));
 }
 
 void Texture::Bind(std::uint32_t slot) const {
@@ -132,10 +142,6 @@ void Texture::SetActiveSlot(std::uint32_t slot) const {
 	);
 	GLCall(gl::ActiveTexture(GL_TEXTURE0 + slot));
 }
-
-// void Texture::Unbind() {
-//	GLCall(gl::glBindTexture(GL_TEXTURE_2D, 0));
-// }
 
 std::int32_t Texture::GetBoundId() {
 	std::int32_t id{ -1 };
@@ -152,27 +158,27 @@ std::int32_t Texture::GetActiveSlot() {
 }
 
 void Texture::SetDataImpl(const void* pixel_data, const V2_int& size, ImageFormat format) {
+	PTGN_ASSERT(pixel_data != nullptr);
 	PTGN_ASSERT(
 		format != ImageFormat::Unknown, "Cannot set data of texture with unknown image format"
 	);
-	PTGN_ASSERT(IsValid(), "Cannot set data of uninitialized or destroyed texture");
-	PTGN_ASSERT(GetBoundId() == static_cast<std::int32_t>(instance_->id_));
-	PTGN_ASSERT(pixel_data != nullptr);
+	auto& t{ Get() };
 
-	instance_->size_ = size;
+	PTGN_ASSERT(GetBoundId() == static_cast<std::int32_t>(t.id_));
+
+	t.size_ = size;
 
 	auto formats = impl::GetGLFormats(format);
 
 	GLCall(gl::glTexImage2D(
-		GL_TEXTURE_2D, 0, static_cast<gl::GLint>(formats.internal_), instance_->size_.x,
-		instance_->size_.y, 0, formats.format_, static_cast<gl::GLenum>(impl::GLType::UnsignedByte),
-		pixel_data
+		GL_TEXTURE_2D, 0, static_cast<gl::GLint>(formats.internal_), t.size_.x, t.size_.y, 0,
+		formats.format_, static_cast<gl::GLenum>(impl::GLType::UnsignedByte), pixel_data
 	));
 }
 
 void Texture::SetSubData(const void* pixel_data, ImageFormat format) {
-	PTGN_ASSERT(IsValid(), "Cannot set subdata of uninitialized or destroyed texture instance");
 	PTGN_ASSERT(pixel_data != nullptr);
+	const auto& t{ Get() };
 
 	PUSHSTATE();
 
@@ -181,7 +187,7 @@ void Texture::SetSubData(const void* pixel_data, ImageFormat format) {
 	Bind();
 
 	GLCall(gl::glTexSubImage2D(
-		GL_TEXTURE_2D, 0, 0, 0, instance_->size_.x, instance_->size_.y, formats.format_,
+		GL_TEXTURE_2D, 0, 0, 0, t.size_.x, t.size_.y, formats.format_,
 		static_cast<gl::GLenum>(impl::GLType::UnsignedByte), pixel_data
 	));
 
@@ -196,19 +202,10 @@ void Texture::SetSubData(const std::vector<Color>& pixels) {
 }
 
 V2_int Texture::GetSize() const {
-	PTGN_ASSERT(IsValid(), "Cannot get size of texture which is destroyed or uninitialized");
-	return instance_->size_;
+	return Get().size_;
 }
 
-bool Texture::operator==(const Texture& o) const {
-	return GetInstance() == o.GetInstance();
-}
-
-bool Texture::operator!=(const Texture& o) const {
-	return !(*this == o);
-}
-
-void Texture::SetWrapping(TextureWrapping s) {
+void Texture::SetWrapping(TextureWrapping s) const {
 	PUSHSTATE();
 
 	Bind();
@@ -220,7 +217,7 @@ void Texture::SetWrapping(TextureWrapping s) {
 	POPSTATE();
 }
 
-void Texture::SetWrapping(TextureWrapping s, TextureWrapping t) {
+void Texture::SetWrapping(TextureWrapping s, TextureWrapping t) const {
 	PUSHSTATE();
 
 	Bind();
@@ -235,7 +232,7 @@ void Texture::SetWrapping(TextureWrapping s, TextureWrapping t) {
 	POPSTATE();
 }
 
-void Texture::SetWrapping(TextureWrapping s, TextureWrapping t, TextureWrapping r) {
+void Texture::SetWrapping(TextureWrapping s, TextureWrapping t, TextureWrapping r) const {
 	PUSHSTATE();
 
 	Bind();
@@ -253,7 +250,7 @@ void Texture::SetWrapping(TextureWrapping s, TextureWrapping t, TextureWrapping 
 	POPSTATE();
 }
 
-void Texture::SetFilters(TextureFilter minifying, TextureFilter magnifying) {
+void Texture::SetFilters(TextureFilter minifying, TextureFilter magnifying) const {
 	PUSHSTATE();
 
 	Bind();
@@ -270,22 +267,23 @@ void Texture::SetFilters(TextureFilter minifying, TextureFilter magnifying) {
 	POPSTATE();
 }
 
-void Texture::SetClampBorderColor(const Color& color) {
+void Texture::SetClampBorderColor(const Color& color) const {
 	PUSHSTATE();
 
 	Bind();
 
 	V4_float c{ color.Normalized() };
-	float border_color[4]{ c.x, c.y, c.z, c.w };
+	std::array<float, 4> border_color{ c.x, c.y, c.z, c.w };
 
 	GLCall(gl::glTexParameterfv(
-		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::BorderColor), border_color
+		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::BorderColor),
+		border_color.data()
 	));
 
 	POPSTATE();
 }
 
-void Texture::GenerateMipmaps() {
+void Texture::GenerateMipmaps() const {
 	PUSHSTATE();
 
 	Bind();

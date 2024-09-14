@@ -1,7 +1,24 @@
 #include "protegon/game.h"
 
+#include <chrono>
+#include <functional>
+#include <type_traits>
+#include <variant>
+#include <vector>
+
+#include "core/gl_context.h"
+#include "core/manager.h"
+#include "core/sdl_instance.h"
+#include "core/window.h"
+#include "event/event_handler.h"
+#include "event/input_handler.h"
+#include "protegon/collision.h"
+#include "renderer/renderer.h"
+#include "resource_managers.h"
+#include "scene/scene_manager.h"
 #include "utility/debug.h"
-#include "utility/platform.h"
+#include "utility/profiling.h"
+#include "utility/time.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -210,7 +227,7 @@ void Game::Update() {
 
 	// PTGN_LOG("Loop #", counter);
 
-	if (update_stack_.size() == 0) {
+	if (update_stack_.empty()) {
 		running_ = false;
 		return;
 	}

@@ -8,22 +8,9 @@
 struct _TTF_Font;
 using TTF_Font = _TTF_Font;
 
-// class Font
-//	{
-//	public:
-//		Font(const std::filesystem::path& font);
-//		~Font();
-//
-//		const MSDFData* GetMSDFData() const { return m_Data; }
-//		Ref<Texture2D> GetAtlasTexture() const { return m_AtlasTexture; }
-//
-//		static Ref<Font> GetDefault();
-//	private:
-//		MSDFData* m_Data;
-//		Ref<Texture2D> m_AtlasTexture;
-//	};
-
 namespace ptgn {
+
+class Surface;
 
 enum class FontStyle : int {
 	Normal		  = 0, // TTF_STYLE_NORMAL
@@ -45,17 +32,16 @@ public:
 	Font(const path& font_path, std::int32_t point_size, std::int32_t index = 0);
 
 	[[nodiscard]] std::int32_t GetHeight() const;
+
+private:
+	friend class Surface;
 };
 
-inline FontStyle operator&(FontStyle a, FontStyle b) {
+[[nodiscard]] inline FontStyle operator&(FontStyle a, FontStyle b) {
 	return static_cast<FontStyle>(static_cast<int>(a) | static_cast<int>(b));
 }
 
-inline FontStyle operator&&(FontStyle a, FontStyle b) {
-	return static_cast<FontStyle>(static_cast<int>(a) | static_cast<int>(b));
-}
-
-inline FontStyle operator|(FontStyle a, FontStyle b) {
+[[nodiscard]] inline FontStyle operator|(FontStyle a, FontStyle b) {
 	return static_cast<FontStyle>(static_cast<int>(a) | static_cast<int>(b));
 }
 

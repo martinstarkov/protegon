@@ -1,11 +1,26 @@
-#include "input_handler.h"
+#include "event/input_handler.h"
 
-#include <algorithm>
+#include <bitset>
+#include <utility>
 
+#include "core/window.h"
+#include "event/event_handler.h"
+#include "event/key.h"
+#include "event/mouse.h"
+#include "protegon/collision.h"
+#include "protegon/events.h"
 #include "protegon/game.h"
 #include "protegon/log.h"
-#include "SDL.h"
+#include "protegon/timer.h"
+#include "protegon/vector2.h"
+#include "renderer/origin.h"
+#include "SDL_events.h"
+#include "SDL_keyboard.h"
+#include "SDL_mouse.h"
+#include "SDL_stdinc.h"
+#include "SDL_video.h"
 #include "utility/debug.h"
+#include "utility/time.h"
 
 namespace ptgn {
 
@@ -39,19 +54,19 @@ void InputHandler::Update() {
 		switch (e.type) {
 			case SDL_MOUSEMOTION: {
 				V2_int previous{ mouse_position_ };
-				SDL_MouseMotionEvent* m = (SDL_MouseMotionEvent*)&e;
-				mouse_position_.x		= m->x;
-				mouse_position_.y		= m->y;
+				const auto* m	  = (SDL_MouseMotionEvent*)&e;
+				mouse_position_.x = m->x;
+				mouse_position_.y = m->y;
 				game.event.mouse.Post(
 					MouseEvent::Move, MouseMoveEvent{ previous, mouse_position_ }
 				);
 				break;
 			}
 			case SDL_MOUSEBUTTONDOWN: {
-				std::pair<MouseState&, Timer&> pair =
+				auto [mouse_state, timer] =
 					GetMouseStateAndTimer(static_cast<Mouse>(e.button.button));
-				pair.second.Start();
-				pair.first = MouseState::Down;
+				timer.Start();
+				mouse_state = MouseState::Down;
 				game.event.mouse.Post(
 					MouseEvent::Down,
 					MouseDownEvent{ static_cast<Mouse>(e.button.button), mouse_position_ }
@@ -59,10 +74,10 @@ void InputHandler::Update() {
 				break;
 			}
 			case SDL_MOUSEBUTTONUP: {
-				std::pair<MouseState&, Timer&> pair =
+				auto [mouse_state, timer] =
 					GetMouseStateAndTimer(static_cast<Mouse>(e.button.button));
-				pair.second.Reset();
-				pair.first = MouseState::Up;
+				timer.Stop();
+				mouse_state = MouseState::Up;
 				game.event.mouse.Post(
 					MouseEvent::Up,
 					MouseUpEvent{ static_cast<Mouse>(e.button.button), mouse_position_ }
@@ -140,12 +155,7 @@ V2_int InputHandler::GetMousePositionGlobal() {
 	return pos;
 }
 
-V2_int InputHandler::GetMousePosition() {
-	// Grab latest mouse events from queue.
-	SDL_PumpEvents();
-	// TODO: Confirm whether or not mouse scaling is required when on different window DPIs.
-	// Maybe an SDL hint? Update mouse position.
-	SDL_GetMouseState(&mouse_position_.x, &mouse_position_.y);
+V2_int InputHandler::GetMousePosition() const {
 	return mouse_position_;
 }
 
@@ -154,18 +164,18 @@ int InputHandler::GetMouseScroll() const {
 }
 
 milliseconds InputHandler::GetMouseHeldTime(Mouse button) {
-	std::pair<MouseState&, Timer&> pair = GetMouseStateAndTimer(button);
+	auto [state, timer] = GetMouseStateAndTimer(button);
 	// Retrieve held time in nanoseconds for maximum precision.
-	const auto held_time{ pair.second.Elapsed<milliseconds>() };
+	const auto held_time{ timer.Elapsed<milliseconds>() };
 	// Comparison units handled by chrono.
 	return held_time;
 }
 
-inline int WindowEventWatcher(void* data, SDL_Event* event) {
+inline static int WindowEventWatcher(void* data, SDL_Event* event) {
 	if (event->type == SDL_WINDOWEVENT) {
 		if (event->window.event == SDL_WINDOWEVENT_RESIZED ||
 			event->window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
-			SDL_Window* win = SDL_GetWindowFromID(event->window.windowID);
+			const SDL_Window* win = SDL_GetWindowFromID(event->window.windowID);
 			if (win == (SDL_Window*)data) {
 				V2_int window_size{ event->window.data1, event->window.data2 };
 				game.event.window.Post(WindowEvent::Resizing, WindowResizingEvent{ window_size });
@@ -178,20 +188,20 @@ inline int WindowEventWatcher(void* data, SDL_Event* event) {
 }
 
 void InputHandler::Init() {
-	SDL_AddEventWatch(WindowEventWatcher, game.window.GetSDLWindow());
+	SDL_AddEventWatch(WindowEventWatcher, game.window.window_.get());
 }
 
 void InputHandler::Shutdown() {
-	SDL_DelEventWatch(WindowEventWatcher, game.window.GetSDLWindow());
+	SDL_DelEventWatch(WindowEventWatcher, game.window.window_.get());
 	Reset();
 }
 
 void InputHandler::UpdateMouseState(Mouse button) {
-	std::pair<MouseState&, Timer&> pair = GetMouseStateAndTimer(button);
-	if (pair.second.IsRunning() && pair.first == MouseState::Down) {
-		pair.first = MouseState::Pressed;
-	} else if (!pair.second.IsRunning() && pair.first == MouseState::Up) {
-		pair.first = MouseState::Released;
+	auto [state, timer] = GetMouseStateAndTimer(button);
+	if (timer.IsRunning() && state == MouseState::Down) {
+		state = MouseState::Pressed;
+	} else if (!timer.IsRunning() && state == MouseState::Up) {
+		state = MouseState::Released;
 	}
 }
 

@@ -1,14 +1,17 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <string_view>
 
-#include "protegon/color.h"
 #include "protegon/vector2.h"
 
 struct SDL_Window;
 
 namespace ptgn {
+
+class Renderer;
+class InputHandler;
 
 enum class FullscreenMode {
 	Windowed		  = 0,
@@ -23,7 +26,7 @@ namespace impl {
 class GLContext;
 
 struct WindowDeleter {
-	void operator()(SDL_Window* window);
+	void operator()(SDL_Window* window) const;
 };
 
 } // namespace impl
@@ -42,61 +45,56 @@ private:
 	Window& operator=(Window&&)		 = default;
 
 public:
-	void SetMinimumSize(const V2_int& minimum_size);
-	[[nodiscard]] V2_int GetMinimumSize();
+	void SetMinimumSize(const V2_int& minimum_size) const;
+	[[nodiscard]] V2_int GetMinimumSize() const;
 
-	void SetSize(const V2_int& new_size, bool centered = true);
-	[[nodiscard]] V2_int GetSize();
+	void SetSize(const V2_int& new_size, bool centered = true) const;
+	[[nodiscard]] V2_int GetSize() const;
 
 	// Returns the center coordinate of the window.
-	[[nodiscard]] V2_float GetCenter();
+	[[nodiscard]] V2_float GetCenter() const;
 
-	[[nodiscard]] V2_int GetPosition();
+	[[nodiscard]] V2_int GetPosition() const;
 
-	void SetTitle(const std::string& title);
-	[[nodiscard]] std::string_view GetTitle();
+	void SetTitle(const std::string& title) const;
+	[[nodiscard]] std::string_view GetTitle() const;
 
-	void Center();
+	void Center() const;
 
-	void SetPosition(const V2_int& new_origin);
+	void SetPosition(const V2_int& new_origin) const;
 
-	void SetFullscreen(FullscreenMode mode);
-
-	// Note: The effect of Maximimize() is cancelled after calling
-	// SetResizeable(true).
-	void SetResizeable(bool on);
-
-	void SetBorderless(bool on);
+	void SetFullscreen(FullscreenMode mode) const;
 
 	// Note: The effect of Maximimize() is cancelled after calling
 	// SetResizeable(true).
-	void Maximize();
+	void SetResizeable(bool on) const;
 
-	void Minimize();
+	void SetBorderless(bool on) const;
 
-	void Show();
+	// Note: The effect of Maximimize() is cancelled after calling
+	// SetResizeable(true).
+	void Maximize() const;
+	void Minimize() const;
 
-	void Hide();
+	void Show() const;
 
-	// TODO: Move to private?
-	void SwapBuffers();
-
-	// TODO: Move to private
-	SDL_Window* GetSDLWindow() {
-		return window_.get();
-	}
+	void Hide() const;
 
 private:
 	friend class impl::GLContext;
 	friend class Game;
+	friend class Renderer;
+	friend class InputHandler;
+
+	void SwapBuffers() const;
 
 	void Init();
 	void Shutdown();
 
-	void SetRelativeMouseMode(bool on);
-	void SetMouseGrab(bool on);
-	void CaptureMouse(bool on);
-	void SetAlwaysOnTop(bool on);
+	void SetRelativeMouseMode(bool on) const;
+	void SetMouseGrab(bool on) const;
+	void CaptureMouse(bool on) const;
+	void SetAlwaysOnTop(bool on) const;
 
 	[[nodiscard]] bool Exists() const;
 

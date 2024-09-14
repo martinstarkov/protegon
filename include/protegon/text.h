@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <variant>
@@ -8,6 +9,7 @@
 #include "protegon/font.h"
 #include "protegon/polygon.h"
 #include "protegon/texture.h"
+#include "protegon/vector2.h"
 #include "utility/handle.h"
 
 namespace ptgn {
@@ -40,14 +42,14 @@ public:
 	// To create text with multiple FontStyles, simply use &&, e.g.
 	// FontStyle::Italic && FontStyle::Bold
 	Text(
-		const FontOrKey& font, const std::string& content, const Color& text_color,
+		const FontOrKey& font, const std::string_view& content, const Color& text_color,
 		FontStyle font_style	   = FontStyle::Normal,
 		FontRenderMode render_mode = FontRenderMode::Solid,
 		const Color& shading_color = color::White
 	);
 
 	void SetFont(const FontOrKey& font);
-	void SetContent(const std::string& content);
+	void SetContent(const std::string_view& content);
 	void SetColor(const Color& text_color);
 	void SetFontStyle(FontStyle font_style);
 	void SetFontRenderMode(FontRenderMode render_mode);
@@ -66,12 +68,12 @@ public:
 	void SetVisibility(bool visibility);
 	[[nodiscard]] bool GetVisibility() const;
 
-	void Draw(const Rectangle<int>& destination) const;
+	void Draw(const Rectangle<float>& destination) const;
 
 	[[nodiscard]] static V2_int GetSize(const FontOrKey& font, const std::string& content);
 
 private:
-	Texture RecreateTexture();
+	[[nodiscard]] Texture RecreateTexture();
 
 	[[nodiscard]] static Font GetFont(const FontOrKey& font);
 };

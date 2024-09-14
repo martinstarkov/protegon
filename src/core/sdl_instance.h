@@ -2,9 +2,7 @@
 
 #include "utility/time.h"
 
-namespace ptgn {
-
-namespace impl {
+namespace ptgn::impl {
 
 class SDLInstance {
 public:
@@ -38,6 +36,4 @@ private:
 	bool sdl_init_{ false };
 };
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

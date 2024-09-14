@@ -4,8 +4,6 @@
 #include "protegon/matrix4.h"
 #include "utility/debug.h"
 
-using namespace ptgn;
-
 void TestMatrix4() {
 	PTGN_INFO("Starting Matrix4 tests...");
 
@@ -73,8 +71,6 @@ void TestMatrix4() {
 	test5(3, 3) = 1;
 
 	M4_int test6 = M4_int::Identity();
-
-	// PTGN_LOG(test6);
 
 	PTGN_ASSERT(test5 == test6);
 
@@ -175,11 +171,11 @@ void TestMatrix4() {
 
 	M4_int test16;
 
-	test16 = { 0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15 };
+	test16 = M4_int{ 0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15 };
 
 	M4_int test17;
 
-	test17 = { 15, 11, 7, 3, 14, 10, 6, 2, 13, 9, 5, 1, 12, 8, 4, 0 };
+	test17 = M4_int{ 15, 11, 7, 3, 14, 10, 6, 2, 13, 9, 5, 1, 12, 8, 4, 0 };
 
 	M4_int test18 = test16 * test17;
 
@@ -201,7 +197,7 @@ void TestMatrix4() {
 	PTGN_ASSERT(test18(3, 3) == 304);
 
 	M4_int test19;
-	test19 = { -5, -1, 2, -3, -9, 6, 6, 3, -3, 9, -6, -3, 6, 2, 4, -2 };
+	test19 = M4_int{ -5, -1, 2, -3, -9, 6, 6, 3, -3, 9, -6, -3, 6, 2, 4, -2 };
 
 	M4_int test20 = test19;
 	PTGN_ASSERT(test20 == test19);
@@ -229,12 +225,10 @@ void TestMatrix4() {
 	PTGN_ASSERT(test21(3, 3) == -20);
 
 	M4_int test23;
-	test23 = { -8, -4, -7, 6, -6, -8, 9, -5, -3, -8, 8, -8, 4, 3, -8, -3 };
-
-	// PTGN_LOG(test23);
+	test23 = M4_int{ -8, -4, -7, 6, -6, -8, 9, -5, -3, -8, 8, -8, 4, 3, -8, -3 };
 
 	M4_int test24;
-	test24 = { -5, -1, 2, -3, -9, 6, 6, 3, -3, 9, -6, -3, 6, 2, 4, -2 };
+	test24 = M4_int{ -5, -1, 2, -3, -9, 6, 6, 3, -3, 9, -6, -3, 6, 2, 4, -2 };
 
 	M4_int test25 = test23 * test24;
 	M4_int test26 = test24 * test23;

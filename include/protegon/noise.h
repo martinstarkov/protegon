@@ -1,17 +1,26 @@
 #pragma once
 
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <numeric>
+#include <utility>
+#include <vector>
+
 #include "protegon/math.h"
 #include "protegon/rng.h"
+#include "protegon/vector2.h"
+#include "utility/debug.h"
 
 namespace ptgn {
 
 class ValueNoise {
 public:
 	ValueNoise(std::size_t size, std::uint32_t seed = 2021) :
-		noise(size),
-		permutations(size * 2),
 		float_rng{ seed },
-		permutation_rng{ seed, 0, size - 1 } {
+		permutation_rng{ seed, 0, size - 1 },
+		noise(size),
+		permutations(size * 2) {
 		std::generate(noise.begin(), noise.end(), [&]() { return float_rng(); });
 
 		std::iota(permutations.begin(), permutations.end(), 0);
@@ -25,11 +34,11 @@ public:
 	}
 
 	[[nodiscard]] float Evaluate(const V2_float& pos) const {
-		int xi = static_cast<int>(FastFloor(pos.x));
-		int yi = static_cast<int>(FastFloor(pos.y));
+		auto xi = static_cast<int>(FastFloor(pos.x));
+		auto yi = static_cast<int>(FastFloor(pos.y));
 
-		float tx = pos.x - xi;
-		float ty = pos.y - yi;
+		float tx = pos.x - static_cast<float>(xi);
+		float ty = pos.y - static_cast<float>(yi);
 
 		int mask{ static_cast<int>(noise.size()) - 1 };
 		int rx0 = xi & mask;
@@ -64,20 +73,26 @@ private:
 };
 
 struct NoiseProperties {
-	// TODO: Add comments explaining what each of these does to the noise.
-
+	// Number of layers of noise added on top of each other.
+	// Lower value means less higher frequency noise layers.
 	std::size_t octaves{ 5 };
+	// Sampling rate of the first layer of noise as a % of the provided noise array.
+	// Lower value means the initial noise layer has a higher noise frequency.
 	float frequency{ 0.03f };
+	// Amount by which the sampling rate of each successive layer of noise is multiplied.
+	// Lower value means the noise frequency of each noise layer increases slower.
 	float bias{ 2.4f };
+	// Amount by which the amplitude of each successive layer of noise is multiplied.
+	// Lower value means less high frequency noise.
 	float persistence{ 0.7f };
 
-	inline bool operator==(const NoiseProperties& o) {
-		return octaves == o.octaves && NearlyEqual(frequency, o.frequency) &&
-			   NearlyEqual(bias, o.bias) && NearlyEqual(persistence, o.persistence);
+	[[nodiscard]] friend bool operator==(const NoiseProperties& a, const NoiseProperties& b) {
+		return a.octaves == b.octaves && NearlyEqual(a.frequency, b.frequency) &&
+			   NearlyEqual(a.bias, b.bias) && NearlyEqual(a.persistence, b.persistence);
 	}
 
-	inline bool operator!=(const NoiseProperties& o) {
-		return !(*this == o);
+	[[nodiscard]] friend bool operator!=(const NoiseProperties& a, const NoiseProperties& b) {
+		return !(a == b);
 	}
 };
 

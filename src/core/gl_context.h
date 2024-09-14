@@ -1,14 +1,12 @@
 #pragma once
 
-#include <string>
+#include <iosfwd>
 #include <string_view>
 #include <vector>
 
 #include "protegon/file.h"
 
-namespace ptgn {
-
-namespace impl {
+namespace ptgn::impl {
 
 enum class GLError {
 	None			 = 0,	   // GL_NO_ERROR
@@ -59,6 +57,4 @@ private:
 	void* context_{ nullptr };
 };
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

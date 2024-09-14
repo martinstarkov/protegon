@@ -1,7 +1,11 @@
 #include "protegon/buffer.h"
 
+#include <cstdint>
+
 #include "protegon/vertex_array.h"
+#include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
+#include "utility/debug.h"
 
 namespace ptgn {
 
@@ -74,14 +78,8 @@ BufferUsage Buffer<BT>::GetBoundUsage() {
 
 template <BufferType BT>
 void Buffer<BT>::Bind() const {
-	PTGN_ASSERT(IsValid(), "Cannot bind uninitialized or destroyed buffer");
-	GLCall(gl::BindBuffer(static_cast<gl::GLenum>(BT), instance_->id_));
+	GLCall(gl::BindBuffer(static_cast<gl::GLenum>(BT), Get().id_));
 }
-
-// template <BufferType BT>
-// void Buffer<BT>::Unbind() {
-//	GLCall(gl::BindBuffer(static_cast<gl::GLenum>(BT), 0));
-// }
 
 template class Buffer<BufferType::Vertex>;
 template class Buffer<BufferType::Index>;

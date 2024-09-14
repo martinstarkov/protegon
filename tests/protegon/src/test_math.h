@@ -1,11 +1,11 @@
 #pragma once
 
 #include <cmath>
+#include <cstdlib>
 
+#include "protegon/log.h"
 #include "protegon/math.h"
 #include "utility/debug.h"
-
-using namespace ptgn;
 
 void TestMath() {
 	PTGN_INFO("Starting math tests...");

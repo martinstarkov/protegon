@@ -1,13 +1,23 @@
-#include "sdl_instance.h"
+#include "core/sdl_instance.h"
 
+#include <chrono>
+#include <cstdint>
+#include <iosfwd>
 #include <ostream>
 
+#include "protegon/log.h"
 #include "renderer/gl_renderer.h"
 #include "SDL.h"
+#include "SDL_error.h"
+#include "SDL_hints.h"
 #include "SDL_image.h"
 #include "SDL_mixer.h"
+#include "SDL_timer.h"
 #include "SDL_ttf.h"
+#include "SDL_version.h"
+#include "SDL_video.h"
 #include "utility/debug.h"
+#include "utility/time.h"
 
 inline std::ostream& operator<<(std::ostream& os, const SDL_version& v) {
 	os << static_cast<int>(v.major) << "." << static_cast<int>(v.minor) << "."
@@ -15,9 +25,7 @@ inline std::ostream& operator<<(std::ostream& os, const SDL_version& v) {
 	return os;
 }
 
-namespace ptgn {
-
-namespace impl {
+namespace ptgn::impl {
 
 bool SDLInstance::IsInitialized() const {
 	return SDLIsInitialized() && SDLImageIsInitialized() && SDLTTFIsInitialized() &&
@@ -145,9 +153,7 @@ void SDLInstance::InitSDLMixer() {
 		Mix_Init(0) != mixer_flags, "Cannot reinitialize SDL_mixer instance before shutting down"
 	);
 
-	int mixer_init{ Mix_Init(mixer_flags) };
-
-	if (mixer_init != mixer_flags) {
+	if (int mixer_init{ Mix_Init(mixer_flags) }; mixer_init != mixer_flags) {
 		PTGN_WARN(Mix_GetError());
 	}
 
@@ -160,6 +166,4 @@ void SDLInstance::InitSDLMixer() {
 	sdl_mixer_init_ = true;
 }
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

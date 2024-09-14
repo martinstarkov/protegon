@@ -1,13 +1,37 @@
 #pragma once
 
+#include <array>
+#include <cstdint>
+#include <filesystem>
+#include <memory>
+#include <new>
+#include <string>
+#include <vector>
+
 #include "common.h"
+#include "event/input_handler.h"
+#include "event/key.h"
 #include "protegon/buffer.h"
+#include "protegon/color.h"
+#include "protegon/file.h"
+#include "protegon/game.h"
+#include "protegon/log.h"
+#include "protegon/math.h"
+#include "protegon/matrix4.h"
+#include "protegon/polygon.h"
+#include "protegon/rng.h"
 #include "protegon/shader.h"
 #include "protegon/texture.h"
+#include "protegon/vector2.h"
 #include "protegon/vertex_array.h"
+#include "renderer/buffer_layout.h"
+#include "renderer/flip.h"
+#include "renderer/gl_helper.h"
 #include "renderer/gl_renderer.h" // for texture slot count
-#include "SDL.h"
-#include "SDL_image.h"
+#include "renderer/origin.h"
+#include "renderer/renderer.h"
+#include "utility/debug.h"
+#include "utility/handle.h"
 #include "utility/utility.h"
 
 // #define SDL_RENDERER_TESTS
@@ -17,6 +41,7 @@
 // TODO: Add texture wrapping test.
 // TODO: Add texture filtering test.
 
+/*
 void TestBatchTextureSDL(std::size_t batch_size, float dt, const std::vector<path>& texture_paths) {
 	PTGN_ASSERT(texture_paths.size() > 0);
 	std::vector<SDL_Texture*> textures;
@@ -63,7 +88,7 @@ void TestBatchTextureSDL(std::size_t batch_size, float dt, const std::vector<pat
 	}
 
 	SDL_DestroyRenderer(r);
-}
+}*/
 
 struct TestViewportExtentsAndOrigin : public Test {
 	V2_float top_left;
@@ -73,7 +98,7 @@ struct TestViewportExtentsAndOrigin : public Test {
 
 	V2_float s; // rectangle size.
 
-	void Init() {
+	void Init() override {
 		top_left	 = V2_float{ 0, 0 };
 		top_right	 = V2_float{ ws.x, 0 };
 		bottom_right = V2_float{ ws.x, ws.y };
@@ -82,7 +107,7 @@ struct TestViewportExtentsAndOrigin : public Test {
 		s = V2_float{ 50, 50 };
 	}
 
-	void Draw() {
+	void Draw() override {
 		game.renderer.DrawRectangleFilled(top_left, s, color::Blue, Origin::TopLeft);
 		game.renderer.DrawRectangleFilled(top_right, s, color::Magenta, Origin::TopRight);
 		game.renderer.DrawRectangleFilled(bottom_right, s, color::Red, Origin::BottomRight);
@@ -91,7 +116,7 @@ struct TestViewportExtentsAndOrigin : public Test {
 };
 
 struct TestPoint : public Test {
-	void Draw() {
+	void Draw() override {
 		game.renderer.DrawPoint(center - ws * 0.25f, color::Blue);
 		game.renderer.DrawPoint(center + ws * 0.25f, color::DarkBlue);
 		game.renderer.DrawPoint(center - V2_float{ ws.x * 0.25f, 0.0f }, color::DarkBrown);
@@ -107,7 +132,7 @@ struct TestPoint : public Test {
 struct DrawTest : public Test {
 	const float line_width{ 1.0f };
 
-	DrawTest(float line_width) : line_width{ line_width } {}
+	explicit DrawTest(float line_width) : line_width{ line_width } {}
 };
 
 struct TestLine : public DrawTest {
@@ -122,7 +147,7 @@ struct TestLine : public DrawTest {
 	V2_float p6;
 	V2_float p7;
 
-	void Init() {
+	void Init() override {
 		p0 = { center.x - 200, center.y - 200 };
 		p1 = { center.x + 200, center.y + 200 };
 		p2 = { center.x - 200, center.y + 200 };
@@ -133,7 +158,7 @@ struct TestLine : public DrawTest {
 		p7 = { center.x + 200, center.y };
 	}
 
-	void Draw() {
+	void Draw() override {
 		game.renderer.DrawLine(p6, p7, color::Red, line_width);
 		game.renderer.DrawLine(p0, p1, color::Purple, line_width);
 		game.renderer.DrawLine(p2, p3, color::Blue, line_width);
@@ -146,7 +171,7 @@ struct TestLineThin : public TestLine {
 };
 
 struct TestLineThick : public TestLine {
-	TestLineThick(float line_width) : TestLine{ line_width } {}
+	using TestLine::TestLine;
 };
 
 struct TestTriangle : public DrawTest {
@@ -159,7 +184,7 @@ struct TestTriangle : public DrawTest {
 	V2_float p4;
 	V2_float p5;
 
-	void Init() {
+	void Init() override {
 		p0 = { center.x - 200, center.y };
 		p1 = { center.x + 200, center.y };
 		p2 = { center.x, center.y - 200 };
@@ -171,7 +196,7 @@ struct TestTriangle : public DrawTest {
 		p5 = { center.x, center.y + 200 + y_offset };
 	}
 
-	void Draw() {
+	void Draw() override {
 		if (line_width == -1) {
 			game.renderer.DrawTriangleFilled(p0, p1, p2, color::Green);
 			game.renderer.DrawTriangleFilled(p3, p4, p5, color::Blue);
@@ -187,7 +212,7 @@ struct TestTriangleThin : public TestTriangle {
 };
 
 struct TestTriangleThick : public TestTriangle {
-	TestTriangleThick(float line_width) : TestTriangle{ line_width } {}
+	using TestTriangle::TestTriangle;
 };
 
 struct TestTriangleFilled : public TestTriangle {
@@ -213,7 +238,7 @@ struct TestRectangle : public DrawTest {
 		this->rounding_radius = rounding_radius;
 	}
 
-	void Init() {
+	void Init() override {
 		p0 = center;
 		p1 = center + V2_float{ 100.0f, 100.0f };
 		p2 = center + V2_float{ 100.0f, -100.0f };
@@ -225,7 +250,7 @@ struct TestRectangle : public DrawTest {
 		cr = { 0.5f, 0.5f };
 	}
 
-	void Update(float dt) {
+	void Update(float dt) override {
 		if (game.input.KeyPressed(Key::R)) {
 			rotation += 5.0f * dt;
 		}
@@ -234,7 +259,7 @@ struct TestRectangle : public DrawTest {
 		}
 	}
 
-	void Draw() {
+	void Draw() override {
 		if (NearlyEqual(rounding_radius, 0.0f)) {
 			if (line_width == -1) {
 				game.renderer.DrawRectangleFilled(p0, s, color::Blue, Origin::Center, rotation, cr);
@@ -302,7 +327,7 @@ struct TestRectangleThin : public TestRectangle {
 };
 
 struct TestRectangleThick : public TestRectangle {
-	TestRectangleThick(float line_width) : TestRectangle{ line_width, 0.0f } {}
+	explicit TestRectangleThick(float line_width) : TestRectangle{ line_width, 0.0f } {}
 };
 
 struct TestRectangleFilled : public TestRectangle {
@@ -310,7 +335,7 @@ struct TestRectangleFilled : public TestRectangle {
 };
 
 struct TestRoundedRectangleThin : public TestRectangle {
-	TestRoundedRectangleThin(float radius) : TestRectangle{ 1.0f, radius } {}
+	explicit TestRoundedRectangleThin(float radius) : TestRectangle{ 1.0f, radius } {}
 };
 
 struct TestRoundedRectangleThick : public TestRectangle {
@@ -319,7 +344,7 @@ struct TestRoundedRectangleThick : public TestRectangle {
 };
 
 struct TestRoundedRectangleFilled : public TestRectangle {
-	TestRoundedRectangleFilled(float radius) : TestRectangle{ -1, radius } {}
+	explicit TestRoundedRectangleFilled(float radius) : TestRectangle{ -1, radius } {}
 };
 
 struct TestPolygon : public DrawTest {
@@ -328,7 +353,7 @@ struct TestPolygon : public DrawTest {
 	std::vector<V2_float> vertices0;
 	std::vector<V2_float> vertices1;
 
-	void Init() {
+	void Init() override {
 		vertices0 = {
 			V2_float{ 550, 60 },
 			V2_float{ 650 - 44, 60 },
@@ -358,13 +383,13 @@ struct TestPolygon : public DrawTest {
 		};
 	}
 
-	void Draw() {
+	void Draw() override {
 		if (line_width == -1) {
-			game.renderer.DrawPolygonFilled(vertices0, color::DarkBlue);
-			game.renderer.DrawPolygonFilled(vertices1, color::DarkRed);
+			game.renderer.DrawPolygonFilled(Polygon{ vertices0 }, color::DarkBlue);
+			game.renderer.DrawPolygonFilled(Polygon{ vertices1 }, color::DarkRed);
 		} else {
-			game.renderer.DrawPolygonHollow(vertices0, color::DarkBlue, line_width);
-			game.renderer.DrawPolygonHollow(vertices1, color::DarkRed, line_width);
+			game.renderer.DrawPolygonHollow(Polygon{ vertices0 }, color::DarkBlue, line_width);
+			game.renderer.DrawPolygonHollow(Polygon{ vertices1 }, color::DarkRed, line_width);
 		}
 	}
 };
@@ -374,7 +399,7 @@ struct TestPolygonThin : public TestPolygon {
 };
 
 struct TestPolygonThick : public TestPolygon {
-	TestPolygonThick(float line_width) : TestPolygon{ line_width } {}
+	using TestPolygon::TestPolygon;
 };
 
 struct TestPolygonFilled : public TestPolygon {
@@ -394,7 +419,7 @@ struct TestEllipse : public DrawTest {
 		this->radius = radius;
 	}
 
-	void Init() {
+	void Init() override {
 		p0 = center;
 		p1 = center + V2_float{ 200.0f, 200.0f };
 		p2 = center + V2_float{ 200.0f, -200.0f };
@@ -402,7 +427,7 @@ struct TestEllipse : public DrawTest {
 		p4 = center + V2_float{ -200.0f, 200.0f };
 	}
 
-	void Draw() {
+	void Draw() override {
 		if (NearlyEqual(radius.x, radius.y)) {
 			if (line_width == -1) {
 				game.renderer.DrawCircleFilled(p0, radius.x, color::Blue);
@@ -436,7 +461,7 @@ struct TestEllipse : public DrawTest {
 };
 
 struct TestCircleThin : public TestEllipse {
-	TestCircleThin(float radius) : TestEllipse{ { radius, radius }, 1.0f } {}
+	explicit TestCircleThin(float radius) : TestEllipse{ { radius, radius }, 1.0f } {}
 };
 
 struct TestCircleThick : public TestEllipse {
@@ -445,20 +470,19 @@ struct TestCircleThick : public TestEllipse {
 };
 
 struct TestCircleFilled : public TestEllipse {
-	TestCircleFilled(float radius) : TestEllipse{ { radius, radius }, -1 } {}
+	explicit TestCircleFilled(float radius) : TestEllipse{ { radius, radius }, -1 } {}
 };
 
 struct TestEllipseThin : public TestEllipse {
-	TestEllipseThin(const V2_float& radius) : TestEllipse{ radius, 1.0f } {}
+	explicit TestEllipseThin(const V2_float& radius) : TestEllipse{ radius, 1.0f } {}
 };
 
 struct TestEllipseThick : public TestEllipse {
-	TestEllipseThick(const V2_float& radius, float line_width) :
-		TestEllipse{ radius, line_width } {}
+	using TestEllipse::TestEllipse;
 };
 
 struct TestEllipseFilled : public TestEllipse {
-	TestEllipseFilled(const V2_float& radius) : TestEllipse{ radius, -1 } {}
+	explicit TestEllipseFilled(const V2_float& radius) : TestEllipse{ radius, -1 } {}
 };
 
 struct TestCapsule : public TestLine {
@@ -468,7 +492,7 @@ struct TestCapsule : public TestLine {
 		this->radius = radius;
 	}
 
-	void Draw() {
+	void Draw() override {
 		if (line_width == -1) {
 			game.renderer.DrawCapsuleFilled(p6, p7, radius, color::Red);
 			game.renderer.DrawCapsuleFilled(p0, p1, radius, color::Purple);
@@ -484,15 +508,15 @@ struct TestCapsule : public TestLine {
 };
 
 struct TestCapsuleThin : public TestCapsule {
-	TestCapsuleThin(float radius) : TestCapsule{ radius, 1.0f } {}
+	explicit TestCapsuleThin(float radius) : TestCapsule{ radius, 1.0f } {}
 };
 
 struct TestCapsuleThick : public TestCapsule {
-	TestCapsuleThick(float radius, float line_width) : TestCapsule{ radius, line_width } {}
+	using TestCapsule::TestCapsule;
 };
 
 struct TestCapsuleFilled : public TestCapsule {
-	TestCapsuleFilled(float radius) : TestCapsule{ radius, -1 } {}
+	explicit TestCapsuleFilled(float radius) : TestCapsule{ radius, -1 } {}
 };
 
 struct TestArc : public DrawTest {
@@ -507,14 +531,14 @@ struct TestArc : public DrawTest {
 		this->radius = radius;
 	}
 
-	void Init() {
+	void Init() override {
 		bottom_right = center + V2_float{ 200.0f, 200.0f };
 		top_right	 = center + V2_float{ 200.0f, -200.0f };
 		top_left	 = center + V2_float{ -200.0f, -200.0f };
 		bottom_left	 = center + V2_float{ -200.0f, 200.0f };
 	}
 
-	void Draw() {
+	void Draw() override {
 		if (line_width == -1) {
 			game.renderer.DrawArcFilled(center, radius, 0.0f, two_pi<float>, color::Blue);
 
@@ -574,15 +598,15 @@ struct TestArc : public DrawTest {
 };
 
 struct TestArcThin : public TestArc {
-	TestArcThin(float radius) : TestArc{ radius, 1.0f } {}
+	explicit TestArcThin(float radius) : TestArc{ radius, 1.0f } {}
 };
 
 struct TestArcThick : public TestArc {
-	TestArcThick(float radius, float line_width) : TestArc{ radius, line_width } {}
+	using TestArc::TestArc;
 };
 
 struct TestArcFilled : public TestArc {
-	TestArcFilled(float radius) : TestArc{ radius, -1 } {}
+	explicit TestArcFilled(float radius) : TestArc{ radius, -1 } {}
 };
 
 struct TestTransparency : public Test {
@@ -593,7 +617,7 @@ struct TestTransparency : public Test {
 
 	V2_float s; // size
 
-	void Init() {
+	void Init() override {
 		float corner_distance{ 0.05f };
 
 		p1 = { center - V2_float{ ws.x * corner_distance, 0.0f } };
@@ -604,7 +628,7 @@ struct TestTransparency : public Test {
 		s = { ws * 0.4f };
 	}
 
-	void Draw() {
+	void Draw() override {
 		game.renderer.DrawRectangleFilled(p1, s, Color{ 255, 0, 0, 128 });
 		game.renderer.DrawRectangleFilled(p2, s, Color{ 0, 0, 255, 128 });
 		game.renderer.DrawRectangleFilled(p3, s, Color{ 0, 255, 255, 128 });
@@ -625,9 +649,9 @@ struct TestTexture : public Test {
 
 	float circle_radius{ 0.0f }; // radius of circles behind textures (to test transparency).
 
-	TestTexture(const Texture& texture) : texture{ texture } {}
+	explicit TestTexture(const Texture& texture) : texture{ texture } {}
 
-	void Init() {
+	void Init() override {
 		size = ws / 5.0f;
 
 		circle_radius = size.x / 2.0f;
@@ -635,7 +659,7 @@ struct TestTexture : public Test {
 		cr = { 0.5f, 0.5f };
 	}
 
-	void Update(float dt) {
+	void Update(float dt) override {
 		if (game.input.KeyPressed(Key::R)) {
 			rotation += 5.0f * dt;
 		}
@@ -644,7 +668,7 @@ struct TestTexture : public Test {
 		}
 	}
 
-	void Draw() {
+	void Draw() override {
 		game.renderer.DrawCircleFilled({ 200, 200 }, circle_radius, circle_color);
 		game.renderer.DrawCircleFilled({ 400, 200 }, circle_radius, circle_color);
 		game.renderer.DrawCircleFilled({ 600, 200 }, circle_radius, circle_color);
@@ -733,7 +757,7 @@ struct TestBatch : public Test {
 		}
 	}
 
-	void Init() {
+	void Init() override {
 		rng_x = { 0.0f, ws.x };
 		rng_y = { 0.0f, ws.y };
 
@@ -779,7 +803,7 @@ struct TestBatch : public Test {
 				break;
 			case TestBatchType::Texture: {
 				std::size_t idx{ texture_index_rng() };
-				Texture& t{ textures[idx] };
+				const Texture& t{ textures[idx] };
 				game.renderer.DrawTexture(t, { rng_x(), rng_y() }, t.GetSize() / 4.0f);
 				break;
 			}
@@ -787,7 +811,7 @@ struct TestBatch : public Test {
 		}
 	}
 
-	void Draw() {
+	void Draw() override {
 		for (std::size_t i = 0; i < batch_size; i++) {
 			DrawType(type);
 		}
@@ -795,23 +819,26 @@ struct TestBatch : public Test {
 };
 
 struct TestPointBatch : public TestBatch {
-	TestPointBatch(std::size_t batch_size) : TestBatch{ batch_size, TestBatchType::Point } {}
+	explicit TestPointBatch(std::size_t batch_size) :
+		TestBatch{ batch_size, TestBatchType::Point } {}
 };
 
 struct TestLineBatch : public TestBatch {
-	TestLineBatch(std::size_t batch_size) : TestBatch{ batch_size, TestBatchType::Line } {}
+	explicit TestLineBatch(std::size_t batch_size) : TestBatch{ batch_size, TestBatchType::Line } {}
 };
 
 struct TestTriangleBatch : public TestBatch {
-	TestTriangleBatch(std::size_t batch_size) : TestBatch{ batch_size, TestBatchType::Triangle } {}
+	explicit TestTriangleBatch(std::size_t batch_size) :
+		TestBatch{ batch_size, TestBatchType::Triangle } {}
 };
 
 struct TestCircleBatch : public TestBatch {
-	TestCircleBatch(std::size_t batch_size) : TestBatch{ batch_size, TestBatchType::Circle } {}
+	explicit TestCircleBatch(std::size_t batch_size) :
+		TestBatch{ batch_size, TestBatchType::Circle } {}
 };
 
 struct TestRectangleBatch : public TestBatch {
-	TestRectangleBatch(std::size_t batch_size) :
+	explicit TestRectangleBatch(std::size_t batch_size) :
 		TestBatch{ batch_size, TestBatchType::Rectangle } {}
 };
 
@@ -821,7 +848,7 @@ struct TestTextureBatch : public TestBatch {
 };
 
 struct TestShapesOnlyBatch : public TestBatch {
-	TestShapesOnlyBatch(std::size_t batch_size) :
+	explicit TestShapesOnlyBatch(std::size_t batch_size) :
 		TestBatch{ batch_size, TestBatchType::ShapesOnly } {}
 };
 
@@ -842,11 +869,10 @@ void TestVertexBuffers() {
 	};
 
 	VertexBuffer b0_5{ std::array<TestVertex1, 5>{} };
-	const impl::InternalBufferLayout& layout0{ BufferLayout<glsl::vec3>{} };
+	const impl::InternalBufferLayout layout0{ BufferLayout<glsl::vec3>{} };
 
 	PTGN_ASSERT(b0_5.IsValid());
 	PTGN_ASSERT(!layout0.IsEmpty());
-	PTGN_ASSERT(b0_5.GetInstance()->id_ != 0);
 
 	std::vector<TestVertex1> v1;
 	v1.push_back({});
@@ -854,12 +880,11 @@ void TestVertexBuffers() {
 	VertexBuffer b1{ v1 };
 
 	PTGN_ASSERT(b1.IsValid());
-	PTGN_ASSERT(b1.GetInstance()->id_ != 0);
-	PTGN_ASSERT(b1.GetInstance()->id_ != b0_5.GetInstance()->id_);
+	PTGN_ASSERT(b1 != b0_5);
 
 	// Layout 1
 
-	const impl::InternalBufferLayout& layout1{ BufferLayout<glsl::vec3>{} };
+	const impl::InternalBufferLayout layout1{ BufferLayout<glsl::vec3>{} };
 	const auto& e1{ layout1.GetElements() };
 	PTGN_ASSERT(e1.size() == 1);
 	PTGN_ASSERT(layout1.GetStride() == 3 * sizeof(float));
@@ -876,10 +901,10 @@ void TestVertexBuffers() {
 	};
 
 	std::vector<TestVertex2> v2;
-	v2.push_back({});
+	v2.emplace_back();
 
 	VertexBuffer b2{ v2 };
-	const impl::InternalBufferLayout& layout2{ BufferLayout<glsl::vec3, glsl::vec4, glsl::vec3>{} };
+	const impl::InternalBufferLayout layout2{ BufferLayout<glsl::vec3, glsl::vec4, glsl::vec3>{} };
 	const auto& e2{ layout2.GetElements() };
 
 	PTGN_ASSERT(e2.size() == 3);
@@ -910,10 +935,10 @@ void TestVertexBuffers() {
 	};
 
 	std::vector<TestVertex3> v3;
-	v3.push_back({});
+	v3.emplace_back();
 
 	VertexBuffer b3{ v3 };
-	const impl::InternalBufferLayout& layout3{ BufferLayout<
+	const impl::InternalBufferLayout layout3{ BufferLayout<
 		glsl::vec4, glsl::double_, glsl::ivec3, glsl::dvec2, glsl::int_, glsl::float_, glsl::bool_,
 		glsl::uint_, glsl::bvec3, glsl::uvec4>{} };
 	const auto& e3{ layout3.GetElements() };
@@ -983,7 +1008,7 @@ void TestVertexBuffers() {
 	v4.push_back({ { 3.0f, 4.0f, 5.0f } });
 
 	VertexBuffer b4{ v4 };
-	const impl::InternalBufferLayout& layout4{ BufferLayout<glsl::vec3>{} };
+	const impl::InternalBufferLayout layout4{ BufferLayout<glsl::vec3>{} };
 
 	std::vector<TestVertex1> v5;
 	v5.push_back({ { 6.0f, 7.0f, 8.0f } });
@@ -1023,14 +1048,10 @@ void TestIndexBuffers() {
 	IndexBuffer ib1{ std::array<std::uint32_t, 5>{ 0, 1, 2, 2, 3 } };
 
 	PTGN_ASSERT(ib1.IsValid());
-	PTGN_ASSERT(ib1.GetInstance()->id_ != 0);
-	// PTGN_ASSERT(ib1.GetCount() == 5);
 
 	IndexBuffer ib2{ std::vector<std::uint32_t>{ 0, 1, 2, 2, 3, 0 } };
 
-	// PTGN_ASSERT(ib2.GetCount() == 6);
-	PTGN_ASSERT(ib2.GetInstance()->id_ != 0);
-	PTGN_ASSERT(ib2.GetInstance()->id_ != ib1.GetInstance()->id_);
+	PTGN_ASSERT(ib2 != ib1);
 	PTGN_ASSERT(ib1.IsValid());
 
 	// SetSubData
@@ -1053,8 +1074,6 @@ void TestIndexBuffers() {
 }
 
 void TestVertexArrays() {
-	// TODO: Readd test.
-	/*
 	struct TestVertex {
 		glsl::vec3 pos{ 1.0f, 2.0f, 3.0f };
 		glsl::vec4 col{ 4.0f, 5.0f, 6.0f, 7.0f };
@@ -1082,11 +1101,8 @@ void TestVertexArrays() {
 	PTGN_ASSERT(vao0.IsValid());
 	PTGN_ASSERT(!vao0.HasVertexBuffer());
 	PTGN_ASSERT(!vao0.HasIndexBuffer());
-	PTGN_ASSERT(vao0.GetInstance()->id_ != 0);
 
 	PTGN_ASSERT(vao0.GetPrimitiveMode() == PrimitiveMode::Lines);
-	// PTGN_ASSERT(vao0.GetIndexBuffer().GetInstance() == nullptr);
-	// PTGN_ASSERT(vao0.GetVertexBuffer().GetInstance() == nullptr);
 
 	VertexArray vao1;
 
@@ -1095,10 +1111,7 @@ void TestVertexArrays() {
 	PTGN_ASSERT(vao1.IsValid());
 	PTGN_ASSERT(!vao1.HasVertexBuffer());
 	PTGN_ASSERT(vao1.HasIndexBuffer());
-	PTGN_ASSERT(vao1.GetInstance()->id_ != 0);
-	PTGN_ASSERT(vao1.GetInstance()->id_ != vao0.GetInstance()->id_);
-
-	// PTGN_ASSERT(vao1.GetIndexBuffer().GetInstance() == vi.GetInstance());
+	PTGN_ASSERT(vao1 != vao0);
 
 	VertexArray vao2;
 
@@ -1107,9 +1120,6 @@ void TestVertexArrays() {
 	PTGN_ASSERT(vao2.IsValid());
 	PTGN_ASSERT(vao2.HasVertexBuffer());
 	PTGN_ASSERT(!vao2.HasIndexBuffer());
-	PTGN_ASSERT(vao2.GetInstance()->id_ != 0);
-
-	// PTGN_ASSERT(vao2.GetVertexBuffer().GetInstance() == vb.GetInstance());
 
 	VertexArray vao3{ PrimitiveMode::Triangles, vb, BufferLayout<glsl::vec3, glsl::vec4>{}, vi };
 
@@ -1117,10 +1127,6 @@ void TestVertexArrays() {
 	PTGN_ASSERT(vao3.HasVertexBuffer());
 	PTGN_ASSERT(vao3.HasIndexBuffer());
 	PTGN_ASSERT(vao3.GetPrimitiveMode() == PrimitiveMode::Triangles);
-	// PTGN_ASSERT(vao3.GetIndexBuffer().GetInstance() == vi.GetInstance());
-	// PTGN_ASSERT(vao3.GetVertexBuffer().GetInstance() == vb.GetInstance());
-
-	PTGN_ASSERT(vao3.GetInstance()->id_ != 0);
 
 	// Commented out draw calls trigger asserts due to unset vertex or index buffers.
 
@@ -1130,13 +1136,11 @@ void TestVertexArrays() {
 	// game.renderer.DrawElements(vao1, 6);
 	// game.renderer.DrawElements(vao2, 6);
 
-	// TODO: Fix.
-	// game.renderer.DrawArrays(vao2, 4);
-	// game.renderer.DrawArrays(vao3, 4);
-	// game.renderer.DrawElements(vao3, 6);
+	game.renderer.DrawArrays(vao2, 4);
+	game.renderer.DrawArrays(vao3, 4);
+	game.renderer.DrawElements(vao3, 6);
 
 	game.renderer.Present();
-	*/
 }
 
 void TestShaders() {
@@ -1204,7 +1208,7 @@ void TestShaders() {
 		PTGN_ERROR("Unsupported Texture Slot Size: ", max_texture_slots);
 	}
 
-	Shader shader3 = Shader(
+	auto shader3 = Shader(
 		ShaderSource{
 #include PTGN_SHADER_PATH(quad.vert)
 		},
@@ -1213,22 +1217,22 @@ void TestShaders() {
 
 	shader3.Bind();
 
-	PTGN_ASSERT(shader3.GetInstance()->location_cache_.size() == 0);
+	// PTGN_ASSERT(shader3.Get().location_cache_.empty());
 
 	shader3.SetUniform("u_ViewProjection", M4_float{ 1.0f });
 
-	PTGN_ASSERT(shader3.GetInstance()->location_cache_.size() == 1);
+	// PTGN_ASSERT(shader3.Get().location_cache_.size() == 1);
 
 #ifndef __EMSCRIPTEN__
-	Shader shader4 = Shader("resources/shader/test.vert", "resources/shader/test.frag");
+	auto shader4 = Shader("resources/shader/test.vert", "resources/shader/test.frag");
 
 	shader4.Bind();
 
-	PTGN_ASSERT(shader4.GetInstance()->location_cache_.size() == 0);
+	// PTGN_ASSERT(shader4.Get().location_cache_.empty());
 
 	shader4.SetUniform("u_ViewProjection", M4_float{ 1.0f });
 
-	PTGN_ASSERT(shader4.GetInstance()->location_cache_.size() == 1);
+	// PTGN_ASSERT(shader4.Get().location_cache_.size() == 1);
 #endif
 }
 
@@ -1244,22 +1248,19 @@ void TestTextures() {
 	Texture t0{ "resources/sprites/test1.jpg" };
 
 	PTGN_ASSERT(t0.IsValid());
-	PTGN_ASSERT(t0.GetInstance()->id_ != 0);
 
 	PTGN_ASSERT((t0.GetSize() == V2_int{ 320, 240 }));
 
 	Texture t1{ "resources/sprites/test3.bmp" };
 
 	PTGN_ASSERT(t1.IsValid());
-	PTGN_ASSERT(t1.GetInstance()->id_ != 0);
 
 	PTGN_ASSERT((t1.GetSize() == V2_int{ 32, 32 }));
 
 	Texture t2{ "resources/sprites/test2.png" };
 
 	PTGN_ASSERT(t2.IsValid());
-	PTGN_ASSERT(t2.GetInstance()->id_ != 0);
-	PTGN_ASSERT(t2.GetInstance()->id_ != t1.GetInstance()->id_);
+	PTGN_ASSERT(t2 != t1);
 	PTGN_ASSERT((t2.GetSize() == V2_int{ 502, 239 }));
 	PTGN_ASSERT(t2.GetSize() != t1.GetSize());
 
@@ -1333,13 +1334,13 @@ void GetTextures(std::vector<Texture>& textures, std::vector<Texture>& textures_
 		return paths;
 	};
 	auto paths				 = paths_from_int(30, false);
-	auto textures_from_paths = [](const std::vector<path>& paths) {
-		std::vector<Texture> textures;
-		textures.resize(paths.size());
-		for (size_t i = 0; i < textures.size(); i++) {
-			textures[i] = Texture(paths[i]);
+	auto textures_from_paths = [](const std::vector<path>& p) {
+		std::vector<Texture> ts;
+		ts.resize(p.size());
+		for (size_t i = 0; i < ts.size(); i++) {
+			ts[i] = Texture(p[i]);
 		}
-		return textures;
+		return ts;
 	};
 	textures = textures_from_paths(paths);
 
@@ -1353,8 +1354,6 @@ void TestRendering() {
 	std::vector<Texture> textures30;
 	std::vector<Texture> textures60;
 	GetTextures(textures30, textures60);
-
-	std::vector<std::shared_ptr<Test>> render_tests;
 
 	constexpr const float rounded_rect_radius{ 30.0f };
 	constexpr const float circle_radius{ 30.0f };
@@ -1370,51 +1369,53 @@ void TestRendering() {
 	const path png_texture_path{ "resources/sprites/test2.png" };
 	const path bmp_texture_path{ "resources/sprites/test3.bmp" };
 
-	render_tests.emplace_back(new TestPoint());
-	render_tests.emplace_back(new TestLineThin());
-	render_tests.emplace_back(new TestLineThick(test_line_width));
-	render_tests.emplace_back(new TestTriangleThin());
-	render_tests.emplace_back(new TestTriangleThick(test_line_width));
-	render_tests.emplace_back(new TestTriangleFilled());
-	render_tests.emplace_back(new TestRectangleThin());
-	render_tests.emplace_back(new TestRectangleThick(test_line_width));
-	render_tests.emplace_back(new TestRectangleFilled());
-	render_tests.emplace_back(new TestRoundedRectangleThin(rounded_rect_radius));
-	render_tests.emplace_back(new TestRoundedRectangleThick(rounded_rect_radius, test_line_width));
-	render_tests.emplace_back(new TestRoundedRectangleFilled(rounded_rect_radius));
-	render_tests.emplace_back(new TestPolygonThin());
-	render_tests.emplace_back(new TestPolygonThick(test_line_width));
-	render_tests.emplace_back(new TestPolygonFilled());
-	render_tests.emplace_back(new TestCircleThin(circle_radius));
-	render_tests.emplace_back(new TestCircleThick(circle_radius, test_line_width));
-	render_tests.emplace_back(new TestCircleFilled(circle_radius));
-	render_tests.emplace_back(new TestEllipseThin(ellipse_radius));
-	render_tests.emplace_back(new TestEllipseThick(ellipse_radius, test_line_width));
-	render_tests.emplace_back(new TestEllipseFilled(ellipse_radius));
-	render_tests.emplace_back(new TestCapsuleThin(capsule_radius));
-	render_tests.emplace_back(new TestCapsuleThick(capsule_radius, test_line_width));
-	render_tests.emplace_back(new TestCapsuleFilled(capsule_radius));
-	render_tests.emplace_back(new TestArcThin(arc_radius));
-	render_tests.emplace_back(new TestArcThick(arc_radius, test_line_width));
-	render_tests.emplace_back(new TestArcFilled(arc_radius));
+	std::vector<std::shared_ptr<Test>> tests;
 
-	render_tests.emplace_back(new TestViewportExtentsAndOrigin());
-	render_tests.emplace_back(new TestTransparency());
-	render_tests.emplace_back(new TestTexture(jpg_texture_path));
-	render_tests.emplace_back(new TestTexture(png_texture_path));
-	render_tests.emplace_back(new TestTexture(bmp_texture_path));
+	tests.emplace_back(new TestPoint());
+	tests.emplace_back(new TestLineThin());
+	tests.emplace_back(new TestLineThick(test_line_width));
+	tests.emplace_back(new TestTriangleThin());
+	tests.emplace_back(new TestTriangleThick(test_line_width));
+	tests.emplace_back(new TestTriangleFilled());
+	tests.emplace_back(new TestRectangleThin());
+	tests.emplace_back(new TestRectangleThick(test_line_width));
+	tests.emplace_back(new TestRectangleFilled());
+	tests.emplace_back(new TestRoundedRectangleThin(rounded_rect_radius));
+	tests.emplace_back(new TestRoundedRectangleThick(rounded_rect_radius, test_line_width));
+	tests.emplace_back(new TestRoundedRectangleFilled(rounded_rect_radius));
+	tests.emplace_back(new TestPolygonThin());
+	tests.emplace_back(new TestPolygonThick(test_line_width));
+	tests.emplace_back(new TestPolygonFilled());
+	tests.emplace_back(new TestCircleThin(circle_radius));
+	tests.emplace_back(new TestCircleThick(circle_radius, test_line_width));
+	tests.emplace_back(new TestCircleFilled(circle_radius));
+	tests.emplace_back(new TestEllipseThin(ellipse_radius));
+	tests.emplace_back(new TestEllipseThick(ellipse_radius, test_line_width));
+	tests.emplace_back(new TestEllipseFilled(ellipse_radius));
+	tests.emplace_back(new TestCapsuleThin(capsule_radius));
+	tests.emplace_back(new TestCapsuleThick(capsule_radius, test_line_width));
+	tests.emplace_back(new TestCapsuleFilled(capsule_radius));
+	tests.emplace_back(new TestArcThin(arc_radius));
+	tests.emplace_back(new TestArcThick(arc_radius, test_line_width));
+	tests.emplace_back(new TestArcFilled(arc_radius));
 
-	render_tests.emplace_back(new TestPointBatch(batch_size));
-	render_tests.emplace_back(new TestLineBatch(batch_size));
-	render_tests.emplace_back(new TestTriangleBatch(batch_size));
-	render_tests.emplace_back(new TestCircleBatch(batch_size));
-	render_tests.emplace_back(new TestRectangleBatch(batch_size));
-	render_tests.emplace_back(new TestTextureBatch(batch_size, textures30));
-	render_tests.emplace_back(new TestTextureBatch(batch_size, textures60));
-	render_tests.emplace_back(new TestShapesOnlyBatch(batch_size));
-	render_tests.emplace_back(new TestAllBatch(batch_size, textures60));
+	tests.emplace_back(new TestViewportExtentsAndOrigin());
+	tests.emplace_back(new TestTransparency());
+	tests.emplace_back(new TestTexture(jpg_texture_path));
+	tests.emplace_back(new TestTexture(png_texture_path));
+	tests.emplace_back(new TestTexture(bmp_texture_path));
 
-	AddTests(render_tests);
+	tests.emplace_back(new TestPointBatch(batch_size));
+	tests.emplace_back(new TestLineBatch(batch_size));
+	tests.emplace_back(new TestTriangleBatch(batch_size));
+	tests.emplace_back(new TestCircleBatch(batch_size));
+	tests.emplace_back(new TestRectangleBatch(batch_size));
+	tests.emplace_back(new TestTextureBatch(batch_size, textures30));
+	tests.emplace_back(new TestTextureBatch(batch_size, textures60));
+	tests.emplace_back(new TestShapesOnlyBatch(batch_size));
+	tests.emplace_back(new TestAllBatch(batch_size, textures60));
+
+	AddTests(tests);
 }
 
 void TestRenderer() {

@@ -1,12 +1,27 @@
 #pragma once
 
+#include <algorithm>
+#include <cstdint>
+#include <iostream>
+#include <memory>
+#include <new>
+#include <ostream>
+#include <vector>
+
 #include "common.h"
+#include "event/input_handler.h"
+#include "event/key.h"
+#include "protegon/color.h"
+#include "protegon/game.h"
+#include "protegon/log.h"
+#include "protegon/noise.h"
 #include "protegon/rng.h"
+#include "protegon/vector2.h"
+#include "renderer/origin.h"
+#include "renderer/renderer.h"
 #include "utility/debug.h"
 
 // TODO: Add tests for Gaussian.
-
-using namespace ptgn;
 
 struct TestFractalNoise : public Test {
 	NoiseProperties properties;
@@ -24,7 +39,7 @@ struct TestFractalNoise : public Test {
 
 	bool thresholding{ false };
 
-	TestFractalNoise(int fractal_preset = 0) {
+	explicit TestFractalNoise(int fractal_preset = 0) {
 		if (fractal_preset == 0) {
 			properties.octaves	   = 5;
 			properties.frequency   = 0.03f;
@@ -38,7 +53,7 @@ struct TestFractalNoise : public Test {
 		}
 	}
 
-	void Init() {
+	void Init() override {
 		pos = {};
 
 		pixel_size = { 32, 32 };
@@ -47,7 +62,7 @@ struct TestFractalNoise : public Test {
 		noise_map = FractalNoise::Generate(noise, pos, grid_size, properties);
 	}
 
-	void Update(float dt) {
+	void Update(float dt) override {
 		static NoiseProperties prev_properties = properties;
 
 		if (game.input.KeyDown(Key::R)) {
@@ -134,7 +149,7 @@ struct TestFractalNoise : public Test {
 		}
 	}
 
-	void Draw() {
+	void Draw() override {
 		for (int i{ 0 }; i < grid_size.x; i++) {
 			for (int j{ 0 }; j < grid_size.y; j++) {
 				V2_int p{ i, j };
@@ -147,11 +162,13 @@ struct TestFractalNoise : public Test {
 				if (thresholding) {
 					Color color = color::Black;
 
-					float opacity_range = 1.0f / divisions;
+					float opacity_range = 1.0f / static_cast<float>(divisions);
 
-					int range = static_cast<int>(noise_value / opacity_range);
+					auto range = static_cast<int>(noise_value / opacity_range);
 
-					color.a = static_cast<std::uint8_t>(255.0f * range * opacity_range);
+					color.a = static_cast<std::uint8_t>(
+						255.0f * static_cast<float>(range) * opacity_range
+					);
 
 					game.renderer.DrawRectangleFilled(
 						p * pixel_size, pixel_size, color, Origin::TopLeft
@@ -170,11 +187,11 @@ struct TestFractalNoise : public Test {
 };
 
 void TestNoise() {
-	std::vector<std::shared_ptr<Test>> noise_tests;
+	std::vector<std::shared_ptr<Test>> tests;
 
-	noise_tests.emplace_back(new TestFractalNoise());
+	tests.emplace_back(new TestFractalNoise());
 
-	AddTests(noise_tests);
+	AddTests(tests);
 }
 
 void TestRNG() {

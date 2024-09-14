@@ -1,9 +1,10 @@
 #pragma once
 
-#include <cstdlib>
-#include <cstring>
-#include <functional>
-#include <string>
+#include <string_view>
+#include <type_traits>
+
+#include "ecs/ecs.h"
+#include "protegon/vector2.h"
 
 namespace ptgn {
 

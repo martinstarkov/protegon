@@ -1,7 +1,12 @@
 #include "profiling.h"
 
+#include <string>
+#include <string_view>
+
+#include "core/manager.h"
 #include "protegon/game.h"
 #include "protegon/hash.h"
+#include "protegon/timer.h"
 
 namespace ptgn {
 

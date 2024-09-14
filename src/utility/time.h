@@ -1,7 +1,8 @@
 #pragma once
 
 #include <chrono>
-#include <ostream>
+#include <iosfwd>
+#include <ratio>
 #include <type_traits>
 
 namespace ptgn {

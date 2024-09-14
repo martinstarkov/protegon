@@ -1,10 +1,8 @@
 #pragma once
 
-#include <cstdlib>
-
 namespace ptgn {
 
-enum class Key : std::size_t {
+enum class Key {
 	K_0 = 39,				// Key 0 // SDL_SCANCODE_0
 	K_1 = 30,				// Key 1 // SDL_SCANCODE_1
 	K_2 = 31,				// Key 2 // SDL_SCANCODE_2

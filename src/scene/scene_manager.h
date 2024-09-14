@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstdint>
+#include <memory>
+#include <type_traits>
 #include <vector>
 
 #include "core/manager.h"
@@ -20,7 +23,7 @@ inline constexpr std::size_t start_scene_key{ 0 };
 class SceneManager : public Manager<std::shared_ptr<Scene>> {
 private:
 	SceneManager()								 = default;
-	~SceneManager()								 = default;
+	~SceneManager() override					 = default;
 	SceneManager(const SceneManager&)			 = delete;
 	SceneManager(SceneManager&&)				 = default;
 	SceneManager& operator=(const SceneManager&) = delete;

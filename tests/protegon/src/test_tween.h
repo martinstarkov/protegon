@@ -1,9 +1,26 @@
 #pragma once
 
-#include <array>
+#include <algorithm>
+#include <cstdint>
+#include <tuple>
+#include <vector>
 
 #include "common.h"
+#include "core/manager.h"
+#include "core/resource_managers.h"
+#include "event/input_handler.h"
+#include "event/key.h"
+#include "protegon/color.h"
+#include "protegon/game.h"
+#include "protegon/hash.h"
+#include "protegon/log.h"
 #include "protegon/tween.h"
+#include "protegon/vector2.h"
+#include "renderer/origin.h"
+#include "renderer/renderer.h"
+#include "utility/debug.h"
+#include "utility/handle.h"
+#include "utility/time.h"
 
 // TODO: Add tests for tween easing
 // TODO: Add tests for the following functions:
@@ -27,7 +44,7 @@ struct TestTweenManager : public Test {
 
 	const std::size_t key{ Hash("test_tween") };
 
-	void Init() {
+	void Init() override {
 		game.tween.Clear();
 
 		game.tween.Load(key)
@@ -45,13 +62,13 @@ struct TestTweenManager : public Test {
 		PTGN_ASSERT(game.tween.Count() == 1);
 	}
 
-	void Draw() {
+	void Draw() override {
 		game.renderer.DrawRectangleFilled(pos, size, color);
 	}
 };
 
 struct TestTweenPoints : public TestTweenManager {
-	void Init() {
+	void Init() override {
 		game.tween.Clear();
 
 		game.tween.Load(key)
@@ -100,7 +117,7 @@ struct TestTweenPoints : public TestTweenManager {
 struct TestTweenRepeatPoints : public TestTweenPoints {
 	const std::int64_t repeats{ 2 };
 
-	void Init() {
+	void Init() override {
 		game.tween.Clear();
 
 		game.tween.Load(key)
@@ -153,7 +170,7 @@ struct TestTweenRepeatPoints : public TestTweenPoints {
 };
 
 struct TestTweenYoyoPoints : public TestTweenRepeatPoints {
-	void Init() {
+	void Init() override {
 		game.tween.Clear();
 
 		game.tween
@@ -214,208 +231,184 @@ struct TestTweenYoyoPoints : public TestTweenRepeatPoints {
 	}
 };
 
-static Timer timer{ true };
-
-struct TweenInfo {
-	V2_float pos;
-	Color color;
-	Tween tween;
-};
-
-constexpr const int tween_count = 12;
-
-void TestTweenConfigSetup(V2_float& size, std::array<TweenInfo, tween_count>& tweens) {
+struct TestTweenTypes : public Test {
 	const milliseconds duration{ 1000 };
 
-	Tween config0{ duration };
-	config0.Pause();
-	config0.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
+	// Size of tween rectangles.
+	V2_float size;
 
-	Tween config1{ duration };
-	config1.OnStart([](float v) { PTGN_LOG("Starting tween1 with value ", v); });
-	config1.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
-	config1.OnComplete([](float v) { PTGN_LOG("Completed tween1 with value ", v); });
-	config1.OnStop([](float v) { PTGN_LOG("Stopped tween1 with value ", v); });
-	config1.OnPause([](float v) { PTGN_LOG("Paused tween1 with value ", v); });
-	config1.OnResume([](float v) { PTGN_LOG("Resumed tween1 with value ", v); });
-	config1.OnRepeat([](float v) { PTGN_ERROR("This repeat should never be triggered"); });
+	// Tween, Color, Position
+	std::vector<std::tuple<Tween, Color, V2_float>> tweens;
 
-	Tween config2{ duration };
-	config2.Reverse();
-	config2.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
+	void Init() override {
+		Tween config0{
+			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Red, V2_float{}))
+		};
+		Tween config1{
+			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Blue, V2_float{}))
+		};
+		Tween config2{
+			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Green, V2_float{}))
+		};
+		Tween config3{
+			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Cyan, V2_float{}))
+		};
+		Tween config4{
+			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Magenta, V2_float{}))
+		};
+		Tween config5{
+			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Orange, V2_float{}))
+		};
+		Tween config6{
+			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Lime, V2_float{}))
+		};
+		Tween config7{
+			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Brown, V2_float{}))
+		};
+		Tween config8{
+			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Grey, V2_float{}))
+		};
+		Tween config9{
+			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::LightGrey, V2_float{}))
+		};
+		Tween config10{
+			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Yellow, V2_float{}))
+		};
+		Tween config11{
+			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Pink, V2_float{}))
+		};
 
-	Tween config3{ duration };
-	config3.Repeat(4);
-	config3.OnRepeat([](Tween t) { PTGN_LOG("Repeating tween3 (repeat #", t.GetRepeats(), ")"); });
-	config3.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
+		config0.Pause();
+		config0.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
 
-	Tween config4{ duration };
-	config4.Repeat(4);
-	config4.Reverse();
-	config4.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
+		config1.OnStart([](float v) { PTGN_LOG("Starting tween1 with value ", v); });
+		config1.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
+		config1.OnComplete([](float v) { PTGN_LOG("Completed tween1 with value ", v); });
+		config1.OnStop([](float v) { PTGN_LOG("Stopped tween1 with value ", v); });
+		config1.OnPause([](float v) { PTGN_LOG("Paused tween1 with value ", v); });
+		config1.OnResume([](float v) { PTGN_LOG("Resumed tween1 with value ", v); });
+		config1.OnRepeat([](float v) { PTGN_ERROR("This repeat should never be triggered"); });
 
-	Tween config5{ duration };
-	config5.Yoyo();
-	config5.Repeat(4);
-	config5.OnYoyo([](Tween t) { PTGN_LOG("Yoyoing tween5 (repeat #", t.GetRepeats(), ")"); });
-	config5.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
+		config2.Reverse();
+		config2.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
 
-	Tween config6{ duration };
-	config6.Yoyo();
-	config6.Repeat(4);
-	config6.Reverse();
-	config6.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
+		config3.Repeat(4);
+		config3.OnRepeat([](Tween t) {
+			PTGN_LOG("Repeating tween3 (repeat #", t.GetRepeats(), ")");
+		});
+		config3.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
 
-	Tween config7{ duration };
-	config7.Repeat(-1);
-	config7.OnRepeat([](Tween t) {
-		PTGN_LOG("Infinitely repeating tween7 (repeat #", t.GetRepeats(), ")");
-	});
-	config7.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
+		config4.Repeat(4);
+		config4.Reverse();
+		config4.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
 
-	Tween config8{ duration };
-	config8.Repeat(-1);
-	config8.Reverse();
-	config8.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
+		config5.Yoyo();
+		config5.Repeat(4);
+		config5.OnYoyo([](Tween t) { PTGN_LOG("Yoyoing tween5 (repeat #", t.GetRepeats(), ")"); });
+		config5.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
 
-	Tween config9{ duration };
-	config9.Yoyo();
-	config9.Repeat(-1);
-	config9.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
+		config6.Yoyo();
+		config6.Repeat(4);
+		config6.Reverse();
+		config6.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
 
-	Tween config10{ duration };
-	config10.Yoyo();
-	config10.Repeat(-1);
-	config10.Reverse();
-	config10.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
+		config7.Repeat(-1);
+		config7.OnRepeat([](Tween t) {
+			PTGN_LOG("Infinitely repeating tween7 (repeat #", t.GetRepeats(), ")");
+		});
+		config7.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
 
-	Tween config11{ duration };
-	config11.Ease(TweenEase::OutSine);
-	config11.Yoyo();
-	config11.Repeat(-1);
-	config11.Reverse();
-	config11.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
+		config8.Repeat(-1);
+		config8.Reverse();
+		config8.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
 
-	std::vector<Tween> configs;
+		config9.Yoyo();
+		config9.Repeat(-1);
+		config9.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
 
-	// Non repeated tweens.
-	configs.push_back(config0);
-	configs.push_back(config1);
-	configs.push_back(config2);
+		config10.Yoyo();
+		config10.Repeat(-1);
+		config10.Reverse();
+		config10.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
 
-	// Finitely repeated tweens.
-	configs.push_back(config3);
-	configs.push_back(config4);
+		config11.Ease(TweenEase::OutSine);
+		config11.Yoyo();
+		config11.Repeat(-1);
+		config11.Reverse();
+		config11.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
 
-	// Finitely repeated yoyo tweens.
-	configs.push_back(config5);
-	configs.push_back(config6);
+		size   = { 0, ws.y / static_cast<float>(tweens.size()) };
+		size.x = std::clamp(size.y, 5.0f, 30.0f);
 
-	// Infinitely repeated tweens.
-	configs.push_back(config7);
-	configs.push_back(config8);
+		auto get_pos = [&](std::size_t i) {
+			return V2_float{ center.x, size.y * static_cast<float>(i) };
+		};
 
-	// Infinitely repeated yoyo tweens.
-	configs.push_back(config9);
-	configs.push_back(config10);
-
-	// Infinitely repeated yoyo easing tweens.
-	configs.push_back(config11);
-
-	V2_float ws		= game.window.GetSize();
-	V2_float center = game.window.GetCenter();
-
-	size   = { 0, ws.y / static_cast<float>(configs.size()) };
-	size.x = std::clamp(size.y, 5.0f, 30.0f);
-
-	auto get_pos = [&](std::size_t i) {
-		return V2_float{ center.x, size.y * i };
-	};
-
-	std::array<Color, 12> colors{
-		color::Red,	 color::Blue,  color::Green, color::Cyan,	   color::Magenta, color::Orange,
-		color::Lime, color::Brown, color::Grey,	 color::LightGrey, color::Yellow,  color::Pink,
-	};
-
-	PTGN_ASSERT(configs.size() <= tween_count);
-
-	for (std::size_t i = 0; i < configs.size(); ++i) {
-		tweens[i].color = colors[i];
-		tweens[i].pos	= get_pos(i);
-		tweens[i].tween = configs[i];
+		for (std::size_t i = 0; i < tweens.size(); ++i) {
+			std::get<V2_float>(tweens[i]) = get_pos(i);
+		}
 	}
 
-	PTGN_ASSERT(tweens.size() > 0);
-}
+	void Update(float dt) override {
+		for (auto& [t, c, p] : tweens) {
+			if (!t.IsValid()) {
+				continue;
+			}
+			t.Step(dt);
+		}
 
-void TestTweenConfig(float dt) {
-	static V2_float size;
-	static auto get_tweens = []() {
-		std::array<TweenInfo, tween_count> tweens;
-		TestTweenConfigSetup(size, tweens);
-		return tweens;
-	};
+		if (game.input.KeyDown(Key::P)) {
+			for (auto& [t, c, p] : tweens) {
+				if (!t.IsValid()) {
+					continue;
+				}
 
-	static auto tweens = get_tweens();
-
-	TestTweenLoop(
-		dt,
-		[&](float dt_) {
-			for (auto& t : tweens) {
-				if (t.tween.IsValid()) {
-					t.tween.Step(dt_);
+				if (t.IsPaused()) {
+					t.Resume();
+				} else {
+					t.Pause();
 				}
 			}
+		}
 
-			if (game.input.KeyDown(Key::P)) {
-				for (auto& t : tweens) {
-					if (t.tween.IsValid()) {
-						if (t.tween.IsPaused()) {
-							t.tween.Resume();
-						} else {
-							t.tween.Pause();
-						}
-					}
+		if (game.input.KeyDown(Key::R)) {
+			for (auto& [t, c, p] : tweens) {
+				if (!t.IsValid()) {
+					continue;
 				}
+
+				t.Start();
+			}
+		}
+
+		if (game.input.KeyDown(Key::S)) {
+			PTGN_ASSERT(!tweens.empty())
+			auto& [t, c, p] = tweens[0];
+			PTGN_ASSERT(t.IsValid());
+			t.Stop();
+		}
+	}
+
+	void Draw() override {
+		for (auto& [t, c, p] : tweens) {
+			if (!t.IsValid()) {
+				continue;
 			}
 
-			if (game.input.KeyDown(Key::R)) {
-				for (auto& t : tweens) {
-					if (t.tween.IsValid()) {
-						t.tween.Start();
-					}
-				}
-			}
-
-			if (game.input.KeyDown(Key::S)) {
-				PTGN_ASSERT(tweens[0].tween.IsValid());
-				tweens[0].tween.Stop();
-			}
-
-			for (auto& t : tweens) {
-				if (t.tween.IsValid()) {
-					t.pos.x = ws.x * t.tween.GetProgress();
-					game.renderer.DrawRectangleFilled(t.pos, size, t.color, Origin::CenterTop);
-				}
-			}
-		},
-		PTGN_FUNCTION_NAME()
-	);
-}
+			p.x = ws.x * t.GetProgress();
+			game.renderer.DrawRectangleFilled(p, size, c, Origin::CenterTop);
+		}
+	}
+};
 
 void TestTween() {
-	game.PushLoopFunction([&](float dt) {
-		game.window.SetSize({ 800, 800 });
-		ws	   = game.window.GetSize();
-		center = game.window.GetCenter();
-		game.renderer.SetClearColor(color::White);
-		switch (static_cast<TweenTest>(tween_test)) {
-			case TweenTest::Callbacks:	  TestTweenConfig(dt); break;
-			case TweenTest::Manager:	  TestTweenManager(dt); break;
-			case TweenTest::Points:		  TestTweenPoints(dt); break;
-			case TweenTest::RepeatPoints: TestTweenRepeatPoints(dt); break;
-			case TweenTest::YoyoPoints:	  TestTweenYoyoPoints(dt); break;
-			default:					  PTGN_ERROR("Failed to find a valid tween test");
-		}
-	});
+	std::vector<std::shared_ptr<Test>> tests;
+
+	tests.emplace_back(new TestTweenTypes());
+	tests.emplace_back(new TestTweenManager());
+	tests.emplace_back(new TestTweenPoints());
+	tests.emplace_back(new TestTweenRepeatPoints());
+	tests.emplace_back(new TestTweenYoyoPoints());
+
+	AddTests(tests);
 }

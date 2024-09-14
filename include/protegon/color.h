@@ -1,7 +1,7 @@
 #pragma once
 
-#include <array>
 #include <cstdint>
+#include <iosfwd>
 #include <ostream>
 
 #include "protegon/math.h"
@@ -33,11 +33,6 @@ struct Color {
 	Type b{ 0 };
 	Type a{ 255 };
 
-	/*template <typename T>
-	operator Vector4<T>() const {
-		return { static_cast<T>(r), static_cast<T>(g), static_cast<T>(b), static_cast<T>(a) };
-	}*/
-
 	// Default color is black.
 	constexpr Color() = default;
 
@@ -48,15 +43,15 @@ struct Color {
 
 	[[nodiscard]] static Color RandomOpaque();
 	[[nodiscard]] static Color RandomTransparent();
+
+	[[nodiscard]] friend bool operator==(const Color& lhs, const Color& rhs) {
+		return lhs.r == rhs.r && lhs.g == rhs.g && lhs.b == rhs.b && lhs.a == rhs.a;
+	}
+
+	[[nodiscard]] friend bool operator!=(const Color& lhs, const Color& rhs) {
+		return !operator==(lhs, rhs);
+	}
 };
-
-inline bool operator==(const Color& lhs, const Color& rhs) {
-	return lhs.r == rhs.r && lhs.g == rhs.g && lhs.b == rhs.b && lhs.a == rhs.a;
-}
-
-inline bool operator!=(const Color& lhs, const Color& rhs) {
-	return !operator==(lhs, rhs);
-}
 
 template <typename U, tt::floating_point<U> = true>
 [[nodiscard]] inline Color Lerp(const Color& lhs, const Color& rhs, U t) {
@@ -113,4 +108,5 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::Color& color) {
 	os << "]";
 	return os;
 }
+
 } // namespace ptgn

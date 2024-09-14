@@ -1,8 +1,14 @@
 #pragma once
 
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdlib>
+
 #include "protegon/matrix4.h"
 #include "protegon/vector3.h"
 #include "protegon/vector4.h"
+#include "utility/debug.h"
 
 namespace ptgn {
 
@@ -12,7 +18,7 @@ public:
 
 	constexpr Quaternion() : V4_float{ 0.0f, 0.0f, 0.0f, 1.0f } {}
 
-	constexpr Quaternion(const V4_float& v) : V4_float{ v } {}
+	explicit constexpr Quaternion(const V4_float& v) : V4_float{ v } {}
 
 	[[nodiscard]] constexpr Quaternion Conjugate() const {
 		return Quaternion(-x, -y, -z, w);
@@ -118,44 +124,44 @@ public:
 		float qwy{ w * y };
 		float qwz{ w * z };
 
-		result.m[0] = 1.0f - 2.0f * (qyy + qzz);
-		result.m[1] = 2.0f * (qxy + qwz);
-		result.m[2] = 2.0f * (qxz - qwy);
-		result.m[3] = 0.0f;
+		result.m_[0] = 1.0f - 2.0f * (qyy + qzz);
+		result.m_[1] = 2.0f * (qxy + qwz);
+		result.m_[2] = 2.0f * (qxz - qwy);
+		result.m_[3] = 0.0f;
 
-		result.m[4] = 2.0f * (qxy - qwz);
-		result.m[5] = 1.0f - 2.0f * (qxx + qzz);
-		result.m[6] = 2.0f * (qyz + qwx);
-		result.m[7] = 0.0f;
+		result.m_[4] = 2.0f * (qxy - qwz);
+		result.m_[5] = 1.0f - 2.0f * (qxx + qzz);
+		result.m_[6] = 2.0f * (qyz + qwx);
+		result.m_[7] = 0.0f;
 
-		result.m[8]	 = 2.0f * (qxz + qwy);
-		result.m[9]	 = 2.0f * (qyz - qwx);
-		result.m[10] = 1.0f - 2.0f * (qxx + qyy);
-		result.m[11] = 0.0f;
+		result.m_[8]  = 2.0f * (qxz + qwy);
+		result.m_[9]  = 2.0f * (qyz - qwx);
+		result.m_[10] = 1.0f - 2.0f * (qxx + qyy);
+		result.m_[11] = 0.0f;
 
-		result.m[12] = 0.0f;
-		result.m[13] = 0.0f;
-		result.m[14] = 0.0f;
-		result.m[15] = 1.0f;
+		result.m_[12] = 0.0f;
+		result.m_[13] = 0.0f;
+		result.m_[14] = 0.0f;
+		result.m_[15] = 1.0f;
 
 		return result;
+	}
+
+	constexpr friend V3_float operator*(const Quaternion& q, const V3_float& v) {
+		const V3_float QuatVector(q.x, q.y, q.z);
+		const V3_float uv(QuatVector.Cross(v));
+		const V3_float uuv(QuatVector.Cross(uv));
+
+		return v + ((uv * q.w) + uuv) * 2.0f;
+	}
+
+	constexpr friend V3_float operator*(const V3_float& v, const Quaternion& q) {
+		return q.Inverse() * v;
 	}
 
 private:
 	// Angle in radians.
 	constexpr static float cos_of_half{ 0.877582561890372716130286068203503191f };
 };
-
-constexpr inline V3_float operator*(const Quaternion& q, const V3_float& v) {
-	const V3_float QuatVector(q.x, q.y, q.z);
-	const V3_float uv(QuatVector.Cross(v));
-	const V3_float uuv(QuatVector.Cross(uv));
-
-	return v + ((uv * q.w) + uuv) * 2.0f;
-}
-
-constexpr inline V3_float operator*(const V3_float& v, const Quaternion& q) {
-	return q.Inverse() * v;
-}
 
 } // namespace ptgn

@@ -1,6 +1,11 @@
 #pragma once
 
+#include <functional>
+#include <type_traits>
+#include <vector>
+
 #include "protegon/vector2.h"
+#include "utility/debug.h"
 #include "utility/type_traits.h"
 
 namespace ptgn {
@@ -13,32 +18,35 @@ class Grid {
 public:
 	Grid() = delete;
 
-	Grid(const Vector2<int>& size, const std::vector<T>& cells) :
-		size{ size }, length{ size.x * size.y }, cells{ cells } {
+	explicit Grid(const Vector2<int>& size, const std::vector<T>& cells) :
+		size{ size },
+		length{ static_cast<std::size_t>(size.x) * static_cast<std::size_t>(size.y) },
+		cells{ cells } {
 		PTGN_ASSERT(length == cells.size(), "Failed to construct grid");
 	}
 
-	Grid(const Vector2<int>& size) : size{ size }, length{ size.x * size.y }, cells(length, T{}) {
+	explicit Grid(const Vector2<int>& size) :
+		size{ size }, length{ size.x * size.y }, cells(length, T{}) {
 		PTGN_ASSERT(length == cells.size(), "Failed to construct grid");
 	}
 
-	void ForEachCoordinate(std::function<void(V2_int)> function) {
+	void ForEachCoordinate(const std::function<void(V2_int)>& function) const {
 		for (int i = 0; i < size.x; i++) {
 			for (int j = 0; j < size.y; j++) {
-				function(V2_int{ i, j });
+				std::invoke(function, V2_int{ i, j });
 			}
 		}
 	}
 
-	void ForEachIndex(std::function<void(std::size_t)> function) {
+	void ForEachIndex(const std::function<void(std::size_t)>& function) const {
 		for (std::size_t i = 0; i < length; i++) {
-			function(i);
+			std::invoke(function, i);
 		}
 	}
 
-	void ForEachElement(std::function<void(T&)> function) {
+	void ForEachElement(const std::function<void(T&)>& function) {
 		for (auto& cell : cells) {
-			function(cell);
+			std::invoke(function, cell);
 		}
 	}
 
@@ -87,7 +95,7 @@ public:
 		return size;
 	}
 
-	[[nodiscard]] int GetLength() const {
+	[[nodiscard]] std::size_t GetLength() const {
 		return length;
 	}
 
@@ -101,7 +109,7 @@ public:
 	}
 
 protected:
-	int length{ 0 };
+	std::size_t length{ 0 };
 	V2_int size;
 	std::vector<T> cells;
 };

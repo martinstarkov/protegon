@@ -4,19 +4,20 @@
 
 #include "protegon/vector2.h"
 #include "renderer/origin.h"
+#include "utility/debug.h"
 
 namespace ptgn {
 
 // Rectangles are axis aligned bounding boxes (AABBs).
 template <typename T = float>
 struct Rectangle {
-	Point<T> pos;
+	Vector2<T> pos;
 	Vector2<T> size;
 	Origin origin{ Origin::Center };
 
 	Rectangle() = default;
 
-	Rectangle(const Point<T>& pos, const Vector2<T>& size, Origin origin = Origin::Center) :
+	Rectangle(const Vector2<T>& pos, const Vector2<T>& size, Origin origin = Origin::Center) :
 		pos{ pos }, size{ size }, origin{ origin } {}
 
 	[[nodiscard]] Vector2<T> Half() const {
@@ -24,17 +25,17 @@ struct Rectangle {
 	}
 
 	// @return Center position of rectangle.
-	[[nodiscard]] Point<T> Center() const {
+	[[nodiscard]] Vector2<T> Center() const {
 		return pos - GetOffsetFromCenter(size, origin);
 	}
 
 	// @return Bottom right position of rectangle.
-	[[nodiscard]] Point<T> Max() const {
+	[[nodiscard]] Vector2<T> Max() const {
 		return Center() + Half();
 	}
 
 	// @return Top left position of rectangle.
-	[[nodiscard]] Point<T> Min() const {
+	[[nodiscard]] Vector2<T> Min() const {
 		return Center() - Half();
 	}
 
@@ -55,7 +56,7 @@ struct Rectangle {
 
 	template <typename U>
 	operator Rectangle<U>() const {
-		return Rectangle<U>{ static_cast<Point<U>>(pos), static_cast<Vector2<U>>(size), origin };
+		return Rectangle<U>{ static_cast<Vector2<U>>(pos), static_cast<Vector2<U>>(size), origin };
 	}
 };
 
@@ -67,7 +68,7 @@ struct RoundedRectangle : public Rectangle<T> {
 	RoundedRectangle() = default;
 
 	RoundedRectangle(
-		const Point<T>& pos, const Vector2<T>& size, T radius, Origin origin = Origin::Center
+		const Vector2<T>& pos, const Vector2<T>& size, T radius, Origin origin = Origin::Center
 	) :
 		Rectangle<T>{ pos, size, origin }, radius{ radius } {
 		PTGN_ASSERT(
@@ -85,7 +86,7 @@ struct RoundedRectangle : public Rectangle<T> {
 struct Polygon {
 	Polygon() = default;
 
-	Polygon(const std::vector<V2_float>& vertices) : vertices{ vertices } {}
+	explicit Polygon(const std::vector<V2_float>& vertices) : vertices{ vertices } {}
 
 	std::vector<V2_float> vertices;
 };
@@ -94,11 +95,12 @@ template <typename T = float>
 struct Triangle {
 	Triangle() = default;
 
-	Triangle(const Point<T>& a, const Point<T>& b, const Point<T>& c) : a{ a }, b{ b }, c{ c } {}
+	Triangle(const Vector2<T>& a, const Vector2<T>& b, const Vector2<T>& c) :
+		a{ a }, b{ b }, c{ c } {}
 
-	Point<T> a{};
-	Point<T> b{};
-	Point<T> c{};
+	Vector2<T> a;
+	Vector2<T> b;
+	Vector2<T> c;
 
 	template <typename U>
 	operator Triangle<U>() const {

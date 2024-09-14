@@ -1,9 +1,10 @@
 #pragma once
 
-#include <algorithm>
+#include <chrono>
+#include <type_traits>
 
+#include "utility/debug.h"
 #include "utility/time.h"
-#include "utility/type_traits.h"
 
 namespace ptgn {
 
@@ -11,7 +12,8 @@ namespace ptgn {
 // With modifications to: https://gist.github.com/mcleary/b0bf4fa88830ff7c882d
 class Timer {
 public:
-	Timer(bool start = false);
+	Timer() = default;
+	explicit Timer(bool start);
 	~Timer() = default;
 	// Acts as a reset.
 	void Start();
@@ -20,36 +22,25 @@ public:
 	void Unpause();
 	[[nodiscard]] bool IsPaused() const;
 	[[nodiscard]] bool IsRunning() const;
-	// This does not actually start the timer, just sets it to original
-	// configuration.
-	// TODO: POSSIBLE CHANGE: Change this to start the timer?
-	void Reset();
 
 	/*
 	 * @tparam Duration The unit of time. Default: milliseconds.
 	 * @return Elapsed duration of time since timer start.
 	 */
-	template <
-		typename Duration				= milliseconds,
-		tt::duration<Duration> = true>
+	template <typename Duration = milliseconds, tt::duration<Duration> = true>
 	[[nodiscard]] Duration Elapsed() const {
-		auto end_time =
-			running_ ? std::chrono::steady_clock::now() : stop_time_;
+		auto end_time = running_ ? std::chrono::steady_clock::now() : stop_time_;
 		return std::chrono::duration_cast<Duration>(end_time - start_time_);
 	}
 
 	template <
-		typename Duration = milliseconds, typename T = float,
-		tt::duration<Duration>						= true,
+		typename Duration = milliseconds, typename T = float, tt::duration<Duration> = true,
 		std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
 	[[nodiscard]] T ElapsedPercentage(Duration compared_to) const {
 		duration<T, typename Duration::period> elapsed_time{
-			Elapsed<duration<T, typename Duration::period>>() /
-			compared_to
+			Elapsed<duration<T, typename Duration::period>>() / compared_to
 		};
-		T percentage{ std::clamp(
-			elapsed_time.count(), T{ 0 }, T{ 1 }
-		) };
+		T percentage{ std::clamp(elapsed_time.count(), T{ 0 }, T{ 1 }) };
 		PTGN_ASSERT(
 			percentage >= T{ 0 } && percentage <= T{ 1 },
 			"Elapsed countdown percentage cannot be outside the 0.0 to 1.0 "

@@ -1,18 +1,28 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <map>
+#include <utility>
+#include <vector>
 
 #include "protegon/buffer.h"
+#include "protegon/circle.h"
 #include "protegon/color.h"
+#include "protegon/line.h"
 #include "protegon/matrix4.h"
+#include "protegon/polygon.h"
 #include "protegon/shader.h"
 #include "protegon/texture.h"
 #include "protegon/vector2.h"
 #include "protegon/vector3.h"
 #include "protegon/vector4.h"
 #include "protegon/vertex_array.h"
+#include "renderer/buffer_layout.h"
+#include "renderer/flip.h"
+#include "renderer/gl_helper.h"
 #include "renderer/origin.h"
+#include "utility/debug.h"
 
 // TODO: Currently z_index is not a reliable way of layering drawn objects as it only pertains to a
 // single batch type (i.e. quads and circles have their own z_indexs). This can result in unexpected
@@ -207,7 +217,7 @@ private:
 
 	void Draw();
 
-protected:
+private:
 	RendererData* renderer_{ nullptr };
 	VertexArray array_;
 	std::vector<TVertices> data_;
@@ -220,8 +230,6 @@ public:
 	TextureBatchData(RendererData* renderer, std::size_t max_texture_slots);
 
 	void BindTextures();
-
-	[[nodiscard]] bool IsAvailable() const;
 
 	// @return pair<texture_index, texture_index_found>
 	// If texture_index_found == false, texture_index will be 0.
@@ -251,7 +259,7 @@ public:
 	Batch() = default;
 	explicit Batch(RendererData* renderer);
 
-	[[nodiscard]] bool IsFlushed(BatchType type);
+	[[nodiscard]] bool IsFlushed(BatchType type) const;
 
 	void Flush(BatchType type);
 
@@ -346,7 +354,7 @@ private:
 
 	// @return pair<batch reference, texture index>
 	[[nodiscard]] std::pair<Batch&, std::size_t> GetTextureBatch(
-		BatchType type, std::vector<Batch>& batch_group, const Texture& t
+		std::vector<Batch>& batch_group, const Texture& t
 	);
 };
 

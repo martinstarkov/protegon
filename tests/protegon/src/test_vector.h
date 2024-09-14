@@ -1,12 +1,14 @@
 #pragma once
 
 #include <limits>
+#include <list>
 #include <unordered_map>
+#include <utility>
 
+#include "protegon/log.h"
+#include "protegon/math.h"
 #include "protegon/vector2.h"
 #include "utility/debug.h"
-
-using namespace ptgn;
 
 void TestVector2() {
 	PTGN_INFO("Starting Vector2 tests...");
@@ -193,9 +195,9 @@ void TestVector2() {
 	PTGN_ASSERT(q2.y == 4.0 / 5 / 6.0);
 	PTGN_ASSERT(q4 == 6.0);
 
-	// Rounded() tests.
+	// Round() tests.
 
-	/*V2_double r1r{ 1.3, 1.3 };
+	V2_double r1r{ 1.3, 1.3 };
 	V2_double r2r{ 2.6, 2.6 };
 	V2_double r3r{ 3.5, 3.5 };
 	V2_double r4r{ 1.0, 1.0 };
@@ -205,15 +207,15 @@ void TestVector2() {
 	V2_double r8r{ -3.5, -3.5 };
 	V2_double r9r{ -1.0, -1.0 };
 
-	r1r = r1r.Rounded();
-	r2r = r2r.Rounded();
-	r3r = r3r.Rounded();
-	r4r = r4r.Rounded();
-	r5r = r5r.Rounded();
-	r6r = r6r.Rounded();
-	r7r = r7r.Rounded();
-	r8r = r8r.Rounded();
-	r9r = r9r.Rounded();
+	r1r = Round(r1r);
+	r2r = Round(r2r);
+	r3r = Round(r3r);
+	r4r = Round(r4r);
+	r5r = Round(r5r);
+	r6r = Round(r6r);
+	r7r = Round(r7r);
+	r8r = Round(r8r);
+	r9r = Round(r9r);
 
 	PTGN_ASSERT(r1r.x == 1.0);
 	PTGN_ASSERT(r2r.x == 3.0);
@@ -233,7 +235,7 @@ void TestVector2() {
 	PTGN_ASSERT(r6r.y == -1.0);
 	PTGN_ASSERT(r7r.y == -3.0);
 	PTGN_ASSERT(r8r.y == -4.0);
-	PTGN_ASSERT(r9r.y == -1.0);*/
+	PTGN_ASSERT(r9r.y == -1.0);
 
 	// Angle() tests.
 

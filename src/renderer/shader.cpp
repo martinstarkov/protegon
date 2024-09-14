@@ -1,8 +1,23 @@
 #include "protegon/shader.h"
 
+#include <cstdint>
+#include <filesystem>
+#include <list>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <utility>
+
+#include "protegon/file.h"
+#include "protegon/log.h"
+#include "protegon/matrix4.h"
+#include "protegon/vector2.h"
+#include "protegon/vector3.h"
+#include "protegon/vector4.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "utility/debug.h"
+#include "utility/handle.h"
 
 namespace ptgn {
 
@@ -48,20 +63,12 @@ Shader::Shader(const path& vertex_shader_path, const path& fragment_shader_path)
 	CompileProgram(FileToString(vertex_shader_path), FileToString(fragment_shader_path));
 }
 
-bool Shader::operator==(const Shader& o) const {
-	return GetInstance() == o.GetInstance();
-}
-
-bool Shader::operator!=(const Shader& o) const {
-	return !(*this == o);
-}
-
 std::uint32_t Shader::CompileShader(std::uint32_t type, const std::string& source) {
 	std::uint32_t id = GLCallReturn(gl::CreateShader(type));
 
 	auto src{ source.c_str() };
 
-	GLCall(gl::ShaderSource(id, 1, &src, NULL));
+	GLCall(gl::ShaderSource(id, 1, &src, nullptr));
 	GLCall(gl::CompileShader(id));
 
 	// Check for shader compilation errors.
@@ -86,32 +93,37 @@ std::uint32_t Shader::CompileShader(std::uint32_t type, const std::string& sourc
 }
 
 void Shader::CompileProgram(const std::string& vertex_source, const std::string& fragment_source) {
-	if (!IsValid()) {
-		instance_ = std::make_shared<impl::ShaderInstance>();
-	} else {
-		instance_->location_cache_.clear();
+	bool was_valid{ IsValid() };
+	if (!was_valid) {
+		Create();
+	}
+
+	auto& s{ Get() };
+
+	if (was_valid) {
+		s.location_cache_.clear();
 	}
 
 	std::uint32_t vertex   = CompileShader(GL_VERTEX_SHADER, vertex_source);
 	std::uint32_t fragment = CompileShader(GL_FRAGMENT_SHADER, fragment_source);
 
 	if (vertex && fragment) {
-		GLCall(gl::AttachShader(instance_->id_, vertex));
-		GLCall(gl::AttachShader(instance_->id_, fragment));
-		GLCall(gl::LinkProgram(instance_->id_));
+		GLCall(gl::AttachShader(s.id_, vertex));
+		GLCall(gl::AttachShader(s.id_, fragment));
+		GLCall(gl::LinkProgram(s.id_));
 
 		// Check for shader link errors.
 		std::int32_t linked = GL_FALSE;
-		GLCall(gl::GetProgramiv(instance_->id_, GL_LINK_STATUS, &linked));
+		GLCall(gl::GetProgramiv(s.id_, GL_LINK_STATUS, &linked));
 
 		if (linked == GL_FALSE) {
 			std::int32_t length{ 0 };
-			GLCall(gl::GetProgramiv(instance_->id_, GL_INFO_LOG_LENGTH, &length));
+			GLCall(gl::GetProgramiv(s.id_, GL_INFO_LOG_LENGTH, &length));
 			std::string log;
 			log.resize(length);
-			GLCall(gl::GetProgramInfoLog(instance_->id_, length, &length, &log[0]));
+			GLCall(gl::GetProgramInfoLog(s.id_, length, &length, &log[0]));
 
-			GLCall(gl::DeleteProgram(instance_->id_));
+			GLCall(gl::DeleteProgram(s.id_));
 
 			GLCall(gl::DeleteShader(vertex));
 			GLCall(gl::DeleteShader(fragment));
@@ -122,7 +134,7 @@ void Shader::CompileProgram(const std::string& vertex_source, const std::string&
 			);
 		}
 
-		GLCall(gl::ValidateProgram(instance_->id_));
+		GLCall(gl::ValidateProgram(s.id_));
 	}
 
 	if (vertex) {
@@ -135,27 +147,17 @@ void Shader::CompileProgram(const std::string& vertex_source, const std::string&
 }
 
 void Shader::Bind() const {
-	PTGN_ASSERT(IsValid(), "Attempting to bind shader which has not been initialized");
-	GLCall(gl::UseProgram(instance_->id_));
+	GLCall(gl::UseProgram(Get().id_));
 }
 
-// void Shader::Unbind() {
-//	GLCall(gl::UseProgram(0));
-// }
-
 std::int32_t Shader::GetUniformLocation(const std::string& name) const {
-	PTGN_ASSERT(
-		IsValid(), "Attempting to get uniform location of shader "
-				   "which has not been initialized"
-	);
-	// if (instance_ == nullptr) return -1;
-	auto& location_cache{ instance_->location_cache_ };
-	auto it = location_cache.find(name);
-	if (it != location_cache.end()) {
+	auto& s{ Get() };
+	auto& location_cache{ s.location_cache_ };
+	if (auto it = location_cache.find(name); it != location_cache.end()) {
 		return it->second;
 	}
 
-	std::int32_t location = GLCallReturn(gl::GetUniformLocation(instance_->id_, name.c_str()));
+	std::int32_t location = GLCallReturn(gl::GetUniformLocation(s.id_, name.c_str()));
 	// TODO: Consider not adding uniform to cache if it is -1.
 	location_cache.emplace(name, location);
 	return location;

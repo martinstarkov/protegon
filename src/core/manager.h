@@ -1,9 +1,6 @@
 #pragma once
 
-#include <cstdlib>
-#include <memory>
 #include <unordered_map>
-#include <utility>
 
 #include "utility/debug.h"
 #include "utility/type_traits.h"
@@ -20,12 +17,12 @@ public:
 	using Item = ItemType;
 	using Key  = KeyType;
 
-	Manager()						   = default;
-	virtual ~Manager()				   = default;
-	Manager(Manager&&)				   = default;
-	Manager& operator=(Manager&&)	   = default;
-	Manager(const Manager&)			   = delete;
-	Manager& operator=(const Manager&) = delete;
+	Manager()							   = default;
+	virtual ~Manager()					   = default;
+	Manager(Manager&&) noexcept			   = default;
+	Manager& operator=(Manager&&) noexcept = default;
+	Manager(const Manager&)				   = delete;
+	Manager& operator=(const Manager&)	   = delete;
 
 	/*
 	 * @param key Unique id of the item to be loaded.

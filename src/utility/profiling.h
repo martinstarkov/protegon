@@ -1,10 +1,12 @@
 #pragma once
 
+#include <ctime>
 #include <string>
 #include <string_view>
-#include <unordered_map>
+#include <type_traits>
 
 #include "core/manager.h"
+#include "protegon/log.h"
 #include "protegon/timer.h"
 #include "utility/debug.h"
 
@@ -27,7 +29,7 @@ private:
 class Profiler : protected Manager<Timer, std::string> {
 private:
 	Profiler()							 = default;
-	~Profiler()							 = default;
+	~Profiler() override				 = default;
 	Profiler(const Profiler&)			 = delete;
 	Profiler(Profiler&&)				 = default;
 	Profiler& operator=(const Profiler&) = delete;
@@ -94,8 +96,8 @@ private:
                                                                                                  \
 	)
 
-// Optional: Disable profiling in Release builds
-// #ifndef PTGN_DEBUG
+// Optional: In the future profiling could be disabled for distribution builds.
+// #ifdef PTGN_DISTRIBUTION
 //
 // #define PTGN_PROFILE_FUNCTION(...) ((void)0)
 //

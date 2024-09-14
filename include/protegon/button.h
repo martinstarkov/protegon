@@ -1,15 +1,17 @@
 #pragma once
 
 #include <array>
-#include <tuple>
+#include <functional>
+#include <initializer_list>
 #include <variant>
 
+#include "core/resource_managers.h"
+#include "protegon/color.h"
 #include "protegon/event.h"
 #include "protegon/events.h"
-#include "protegon/game.h"
 #include "protegon/polygon.h"
 #include "protegon/texture.h"
-#include "utility/type_traits.h"
+#include "protegon/vector2.h"
 
 namespace ptgn {
 
@@ -75,7 +77,7 @@ public:
 	virtual void SubscribeToMouseEvents() final;
 	virtual void UnsubscribeFromMouseEvents() final;
 
-	virtual void OnMouseEvent(MouseEvent type, const Event& event);
+	void OnMouseEvent(MouseEvent type, const Event& event);
 	virtual void OnMouseMove(const MouseMoveEvent& e);
 	virtual void OnMouseMoveOutside(const MouseMoveEvent& e);
 	virtual void OnMouseEnter(const MouseMoveEvent& e);
@@ -127,10 +129,10 @@ public:
 	const Color& GetPressedColor() const;
 
 	// Draws a filled button.
-	virtual void Draw() const;
+	void Draw() const override;
 
-	virtual void DrawHollow(float line_width = 1.0f) const;
-	virtual void DrawFilled() const;
+	void DrawHollow(float line_width = 1.0f) const override;
+	void DrawFilled() const override;
 
 	[[nodiscard]] virtual const Color& GetCurrentColor() const;
 
@@ -138,8 +140,6 @@ protected:
 	[[nodiscard]] const Color& GetCurrentColorImpl(
 		ButtonState state, std::size_t color_array_index = 0
 	) const;
-
-	void DrawImpl(std::size_t color_array_index = 0) const;
 
 protected:
 	ColorArray<2> colors_{};
@@ -153,10 +153,10 @@ public:
 		const Rectangle<float>& rect, const ButtonActivateFunction& on_active_function = nullptr,
 		bool initially_toggled = false
 	);
-	~ToggleButton();
+	~ToggleButton() override;
 
 	// Start in non toggled state.
-	virtual void OnMouseUp(const MouseUpEvent& e) override;
+	void OnMouseUp(const MouseUpEvent& e) override;
 
 	[[nodiscard]] bool IsToggled() const;
 	void Toggle();
@@ -178,11 +178,11 @@ public:
 	[[nodiscard]] virtual bool GetVisibility() const final;
 	virtual void SetVisibility(bool visibility);
 
-	virtual void Draw() const;
+	void Draw() const override;
 
 	[[nodiscard]] virtual Texture GetCurrentTexture();
 
-	void ForEachTexture(const std::function<void(Texture)>& func);
+	void ForEachTexture(const std::function<void(Texture)>& func) const;
 
 protected:
 	// This function does not check for the validity of the returned texture.
@@ -211,10 +211,10 @@ public:
 		const ButtonActivateFunction& on_active_function = nullptr
 	);
 
-	virtual void OnMouseUp(const MouseUpEvent& e) override;
+	void OnMouseUp(const MouseUpEvent& e) override;
 
-	[[nodiscard]] virtual Texture GetCurrentTexture() override;
-	virtual void Draw() const override;
+	[[nodiscard]] Texture GetCurrentTexture() override;
+	void Draw() const override;
 };
 
 } // namespace ptgn

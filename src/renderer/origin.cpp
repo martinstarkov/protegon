@@ -1,5 +1,8 @@
 #include "renderer/origin.h"
 
+#include "protegon/log.h"
+#include "protegon/vector2.h"
+
 namespace ptgn {
 
 V2_float GetOffsetFromCenter(const V2_float& size, Origin draw_origin) {
@@ -12,39 +15,23 @@ V2_float GetOffsetFromCenter(const V2_float& size, Origin draw_origin) {
 	V2_float offset;
 
 	switch (draw_origin) {
-		case Origin::TopLeft: {
-			offset = -half;
-			break;
-		};
-		case Origin::CenterBottom: {
-			offset = { 0.0f, half.y };
-			break;
-		};
-		case Origin::CenterTop: {
-			offset = { 0.0f, -half.y };
-			break;
-		};
-		case Origin::BottomRight: {
-			offset = half;
-			break;
-		};
-		case Origin::BottomLeft: {
-			offset = V2_float{ -half.x, half.y };
-			break;
-		};
-		case Origin::TopRight: {
-			offset = V2_float{ half.x, -half.y };
-			break;
-		};
-		case Origin::CenterLeft: {
-			offset = { -half.x, 0.0f };
-			break;
-		};
-		case Origin::CenterRight: {
-			offset = { half.x, 0.0f };
-			break;
-		};
-		default: PTGN_ERROR("Failed to identify draw origin");
+		case Origin::TopLeft:	   offset = -half; break;
+
+		case Origin::CenterBottom: offset = { 0.0f, half.y }; break;
+
+		case Origin::CenterTop:	   offset = { 0.0f, -half.y }; break;
+
+		case Origin::BottomRight:  offset = half; break;
+
+		case Origin::BottomLeft:   offset = V2_float{ -half.x, half.y }; break;
+
+		case Origin::TopRight:	   offset = V2_float{ half.x, -half.y }; break;
+
+		case Origin::CenterLeft:   offset = { -half.x, 0.0f }; break;
+
+		case Origin::CenterRight:  offset = { half.x, 0.0f }; break;
+
+		default:				   PTGN_ERROR("Failed to identify draw origin");
 	}
 
 	return offset;
