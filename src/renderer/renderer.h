@@ -543,19 +543,22 @@ public:
 	// Angles in radians, counter-clockwise from the right.
 	void DrawArcFilled(
 		const V2_float& position, float arc_radius, float start_angle, float end_angle,
-		const Color& color, float z_index = 0.0f
+		bool clockwise, const Color& color, float z_index = 0.0f
 	);
 
-	void DrawArcFilled(const Arc<float>& arc, const Color& color, float z_index = 0.0f);
+	void DrawArcFilled(
+		const Arc<float>& arc, bool clockwise, const Color& color, float z_index = 0.0f
+	);
 
 	// Angles in radians, counter-clockwise from the right.
 	void DrawArcHollow(
 		const V2_float& position, float arc_radius, float start_angle, float end_angle,
-		const Color& color, float line_width = 1.0f, float z_index = 0.0f
+		bool clockwise, const Color& color, float line_width = 1.0f, float z_index = 0.0f
 	);
 
 	void DrawArcHollow(
-		const Arc<float>& arc, const Color& color, float line_width = 1.0f, float z_index = 0.0f
+		const Arc<float>& arc, bool clockwise, const Color& color, float line_width = 1.0f,
+		float z_index = 0.0f
 	);
 
 	void DrawCapsuleFilled(
@@ -661,18 +664,18 @@ private:
 	);
 
 	void DrawArcImpl(
-		const V2_float& p, float arc_radius, float start_angle, float end_angle,
+		const V2_float& p, float arc_radius, float start_angle, float end_angle, bool clockwise,
 		const V4_float& col, float lw, float z, bool filled
 	);
 
 	void DrawArcFilledImpl(
 		const V2_float& position, float arc_radius, float start_angle, float end_angle,
-		const V4_float& color, float z_index
+		bool clockwise, const V4_float& color, float z_index
 	);
 
 	void DrawArcHollowImpl(
 		const V2_float& position, float arc_radius, float start_angle, float end_angle,
-		const V4_float& color, float line_width, float z_index
+		bool clockwise, const V4_float& color, float line_width, float z_index
 	);
 
 	void DrawCapsuleFilledImpl(

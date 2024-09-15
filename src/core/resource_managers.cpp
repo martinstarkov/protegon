@@ -117,4 +117,8 @@ void SoundManager::FadeOut(int channel, milliseconds time) const {
 	Mix_FadeOutChannel(channel, time_int.count());
 }
 
+bool SoundManager::IsPlayingChannel(int channel) const {
+	return Mix_Playing(channel);
+}
+
 } // namespace ptgn

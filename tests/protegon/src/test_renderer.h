@@ -540,58 +540,64 @@ struct TestArc : public DrawTest {
 
 	void Draw() override {
 		if (line_width == -1) {
-			game.renderer.DrawArcFilled(center, radius, 0.0f, two_pi<float>, color::Blue);
+			game.renderer.DrawArcFilled(center, radius, 0.0f, two_pi<float>, false, color::Blue);
 
 			game.renderer.DrawArcFilled(
-				bottom_right, radius, -half_pi<float>, 0.0f, color::DarkRed
+				bottom_right, radius, -half_pi<float>, 0.0f, false, color::DarkRed
 			);
 			game.renderer.DrawArcFilled(
-				bottom_right, radius, half_pi<float>, pi<float>, color::Red
-			);
-
-			game.renderer.DrawArcFilled(top_right, radius, 0.0f, half_pi<float>, color::Gold);
-			game.renderer.DrawArcFilled(
-				top_right, radius, pi<float>, -half_pi<float>, color::Orange
+				bottom_right, radius, half_pi<float>, pi<float>, false, color::Red
 			);
 
 			game.renderer.DrawArcFilled(
-				top_left, radius, half_pi<float>, pi<float>, color::DarkGreen
+				top_right, radius, 0.0f, half_pi<float>, false, color::Gold
 			);
-			game.renderer.DrawArcFilled(top_left, radius, -half_pi<float>, 0.0f, color::Green);
+			game.renderer.DrawArcFilled(
+				top_right, radius, pi<float>, -half_pi<float>, false, color::Orange
+			);
 
 			game.renderer.DrawArcFilled(
-				bottom_left, radius, pi<float>, -half_pi<float>, color::Magenta
+				top_left, radius, half_pi<float>, pi<float>, false, color::DarkGreen
 			);
-			game.renderer.DrawArcFilled(bottom_left, radius, 0.0f, half_pi<float>, color::Purple);
+			game.renderer.DrawArcFilled(
+				top_left, radius, -half_pi<float>, 0.0f, false, color::Green
+			);
+
+			game.renderer.DrawArcFilled(
+				bottom_left, radius, pi<float>, -half_pi<float>, false, color::Magenta
+			);
+			game.renderer.DrawArcFilled(
+				bottom_left, radius, 0.0f, half_pi<float>, false, color::Purple
+			);
 		} else {
-			game.renderer.DrawArcHollow(center, radius, 0.0f, two_pi<float>, color::Blue);
+			game.renderer.DrawArcHollow(center, radius, 0.0f, two_pi<float>, false, color::Blue);
 
 			game.renderer.DrawArcHollow(
-				bottom_right, radius, -half_pi<float>, 0.0f, color::DarkRed, line_width
+				bottom_right, radius, -half_pi<float>, 0.0f, false, color::DarkRed, line_width
 			);
 			game.renderer.DrawArcHollow(
-				bottom_right, radius, half_pi<float>, pi<float>, color::Red, line_width
-			);
-
-			game.renderer.DrawArcHollow(
-				top_right, radius, 0.0f, half_pi<float>, color::Gold, line_width, line_width
-			);
-			game.renderer.DrawArcHollow(
-				top_right, radius, pi<float>, -half_pi<float>, color::Orange, line_width
+				bottom_right, radius, half_pi<float>, pi<float>, false, color::Red, line_width
 			);
 
 			game.renderer.DrawArcHollow(
-				top_left, radius, half_pi<float>, pi<float>, color::DarkGreen, line_width
+				top_right, radius, 0.0f, half_pi<float>, false, color::Gold, line_width, line_width
 			);
 			game.renderer.DrawArcHollow(
-				top_left, radius, -half_pi<float>, 0.0f, color::Green, line_width
+				top_right, radius, pi<float>, -half_pi<float>, false, color::Orange, line_width
 			);
 
 			game.renderer.DrawArcHollow(
-				bottom_left, radius, pi<float>, -half_pi<float>, color::Magenta, line_width
+				top_left, radius, half_pi<float>, pi<float>, false, color::DarkGreen, line_width
 			);
 			game.renderer.DrawArcHollow(
-				bottom_left, radius, 0.0f, half_pi<float>, color::Purple, line_width
+				top_left, radius, -half_pi<float>, 0.0f, false, color::Green, line_width
+			);
+
+			game.renderer.DrawArcHollow(
+				bottom_left, radius, pi<float>, -half_pi<float>, false, color::Magenta, line_width
+			);
+			game.renderer.DrawArcHollow(
+				bottom_left, radius, 0.0f, half_pi<float>, false, color::Purple, line_width
 			);
 		}
 	}

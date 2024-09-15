@@ -26,7 +26,9 @@ public:
 	}
 
 	explicit Grid(const Vector2<int>& size) :
-		size{ size }, length{ size.x * size.y }, cells(length, T{}) {
+		size{ size },
+		length{ static_cast<std::size_t>(size.x) * static_cast<std::size_t>(size.y) },
+		cells(length, T{}) {
 		PTGN_ASSERT(length == cells.size(), "Failed to construct grid");
 	}
 

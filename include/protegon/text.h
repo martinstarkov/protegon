@@ -66,11 +66,12 @@ public:
 	[[nodiscard]] FontStyle GetFontStyle() const;
 	[[nodiscard]] FontRenderMode GetFontRenderMode() const;
 	[[nodiscard]] const Color& GetShadingColor() const;
+	[[nodiscard]] const Texture& GetTexture() const;
 
 	void SetVisibility(bool visibility);
 	[[nodiscard]] bool GetVisibility() const;
 
-	void Draw(const Rectangle<float>& destination) const;
+	void Draw(const Rectangle<float>& destination, float z_index = 0.0f) const;
 
 	[[nodiscard]] V2_int GetSize() const;
 	[[nodiscard]] static V2_int GetSize(const FontOrKey& font, const std::string& content);

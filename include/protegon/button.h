@@ -35,6 +35,8 @@ struct ColorArray {
 
 using ButtonActivateFunction = std::function<void()>;
 using ButtonHoverFunction	 = std::function<void()>;
+using ButtonEnableFunction	 = std::function<void()>;
+using ButtonDisableFunction	 = std::function<void()>;
 
 class Button {
 public:
@@ -67,9 +69,12 @@ public:
 	virtual void SetOnActivate(const ButtonActivateFunction& function);
 	// Ensure to subscribe to mouse events for this function to be called.
 	virtual void SetOnHover(
-		const ButtonHoverFunction& start_hover_function = nullptr,
-		const ButtonHoverFunction& stop_hover_function	= nullptr
+		const ButtonHoverFunction& start_hover_function,
+		const ButtonHoverFunction& stop_hover_function = nullptr
 	);
+
+	virtual void SetOnEnable(const ButtonEnableFunction& enable_function);
+	virtual void SetOnDisable(const ButtonDisableFunction& disable_function);
 
 	[[nodiscard]] virtual bool IsSubscribedToMouseEvents() const final;
 
@@ -108,6 +113,8 @@ protected:
 	ButtonActivateFunction on_activate_;
 	ButtonHoverFunction on_hover_start_;
 	ButtonHoverFunction on_hover_stop_;
+	ButtonEnableFunction on_enable_;
+	ButtonDisableFunction on_disable_;
 	InternalButtonState button_state_{ InternalButtonState::IdleUp };
 	bool enabled_{ true };
 };

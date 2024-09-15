@@ -158,6 +158,8 @@ public:
 	void HaltChannel(int channel) const;
 	void ResumeChannel(int channel) const;
 	void FadeOut(int channel, milliseconds time) const;
+	// if channel = -1, check if any channel is playing.
+	[[nodiscard]] bool IsPlayingChannel(int channel) const;
 
 private:
 	friend class Game;

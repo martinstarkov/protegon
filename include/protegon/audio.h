@@ -24,12 +24,18 @@ public:
 	Sound() = default;
 	explicit Sound(const path& sound_path);
 
+	// if channel = -1, check if any channel is playing.
+	[[nodiscard]] bool IsPlaying(int channel) const;
 	// @param channel The channel on which to play the sound on.
 	// @param loops Number of times to loop sound (-1 for infinite looping).
 	void Play(int channel, int loops = 0);
 	// @param loops Number of times to loop sound (-1 for infinite looping).
 	// @param time Time over which to fade the sound in.
 	void FadeIn(int channel, int loops, milliseconds time);
+	void Stop(int channel);
+	// volume 0 to 128.
+	void SetVolume(int volume);
+	[[nodiscard]] int GetVolume();
 };
 
 } // namespace ptgn

@@ -25,8 +25,8 @@ struct BufferInstance {
 template <BufferType BT>
 class Buffer : public Handle<impl::BufferInstance> {
 public:
-	Buffer()		= default;
-	~Buffer() final = default;
+	Buffer()		   = default;
+	~Buffer() override = default;
 
 	Buffer(const void* data, std::uint32_t size, BufferUsage usage = BufferUsage::StaticDraw) {
 		Create();

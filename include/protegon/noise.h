@@ -16,7 +16,9 @@ namespace ptgn {
 
 class ValueNoise {
 public:
-	ValueNoise(std::size_t size, std::uint32_t seed = 2021) :
+	ValueNoise() = default;
+
+	ValueNoise(std::size_t size, std::uint32_t seed = 0) :
 		float_rng{ seed },
 		permutation_rng{ seed, 0, size - 1 },
 		noise(size),

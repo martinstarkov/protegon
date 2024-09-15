@@ -62,6 +62,10 @@ Sound::Sound(const path& sound_path) {
 	PTGN_ASSERT(IsValid(), Mix_GetError());
 }
 
+bool Sound::IsPlaying(int channel) const {
+	return Mix_Playing(channel);
+}
+
 void Sound::Play(int channel, int loops) {
 	Mix_PlayChannel(channel, &Get(), loops);
 }
@@ -69,6 +73,18 @@ void Sound::Play(int channel, int loops) {
 void Sound::FadeIn(int channel, int loops, milliseconds time) {
 	const auto time_int = std::chrono::duration_cast<duration<int, std::milli>>(time);
 	Mix_FadeInChannel(channel, &Get(), loops, time_int.count());
+}
+
+void Sound::Stop(int channel) {
+	Mix_HaltChannel(channel);
+}
+
+void Sound::SetVolume(int volume) {
+	Mix_VolumeChunk(&Get(), volume);
+}
+
+int Sound::GetVolume() {
+	return Mix_VolumeChunk(&Get(), -1);
 }
 
 } // namespace ptgn

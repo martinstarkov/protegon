@@ -1056,10 +1056,10 @@ void Renderer::DrawRoundedRectangleFilledImpl(
 
 	DrawRectangleFilledImpl(inner_vertices, col, z);
 
-	DrawArcFilledImpl(inner_vertices[0], rad, rot - pi<float>, rot - half_pi<float>, col, z);
-	DrawArcFilledImpl(inner_vertices[1], rad, rot - half_pi<float>, rot + 0.0f, col, z);
-	DrawArcFilledImpl(inner_vertices[2], rad, rot + 0.0f, rot + half_pi<float>, col, z);
-	DrawArcFilledImpl(inner_vertices[3], rad, rot + half_pi<float>, rot + pi<float>, col, z);
+	DrawArcFilledImpl(inner_vertices[0], rad, rot - pi<float>, rot - half_pi<float>, false, col, z);
+	DrawArcFilledImpl(inner_vertices[1], rad, rot - half_pi<float>, rot + 0.0f, false, col, z);
+	DrawArcFilledImpl(inner_vertices[2], rad, rot + 0.0f, rot + half_pi<float>, false, col, z);
+	DrawArcFilledImpl(inner_vertices[3], rad, rot + half_pi<float>, rot + pi<float>, false, col, z);
 
 	V2_float t = V2_float(rad / 2.0f, 0.0f).Rotated(rot - half_pi<float>);
 	V2_float r = V2_float(rad / 2.0f, 0.0f).Rotated(rot + 0.0f);
@@ -1090,10 +1090,14 @@ void Renderer::DrawRoundedRectangleHollowImpl(
 	auto inner_vertices =
 		impl::GetQuadVertices(p - offset, s - V2_float{ rad * 2 }, Origin::Center, rot, rc);
 
-	DrawArcHollowImpl(inner_vertices[0], rad, rot - pi<float>, rot - half_pi<float>, col, lw, z);
-	DrawArcHollowImpl(inner_vertices[1], rad, rot - half_pi<float>, rot + 0.0f, col, lw, z);
-	DrawArcHollowImpl(inner_vertices[2], rad, rot + 0.0f, rot + half_pi<float>, col, lw, z);
-	DrawArcHollowImpl(inner_vertices[3], rad, rot + half_pi<float>, rot + pi<float>, col, lw, z);
+	DrawArcHollowImpl(
+		inner_vertices[0], rad, rot - pi<float>, rot - half_pi<float>, false, col, lw, z
+	);
+	DrawArcHollowImpl(inner_vertices[1], rad, rot - half_pi<float>, rot + 0.0f, false, col, lw, z);
+	DrawArcHollowImpl(inner_vertices[2], rad, rot + 0.0f, rot + half_pi<float>, false, col, lw, z);
+	DrawArcHollowImpl(
+		inner_vertices[3], rad, rot + half_pi<float>, rot + pi<float>, false, col, lw, z
+	);
 
 	V2_float t = V2_float(rad, 0.0f).Rotated(rot - half_pi<float>);
 	V2_float r = V2_float(rad, 0.0f).Rotated(rot + 0.0f);
@@ -1114,7 +1118,7 @@ void Renderer::DrawEllipseFilledImpl(
 
 void Renderer::DrawArcImpl(
 	const V2_float& p, float arc_radius, float start_angle_radians, float end_angle_radians,
-	const V4_float& col, float lw, float z, bool filled
+	bool clockwise, const V4_float& col, float lw, float z, bool filled
 ) {
 	PTGN_ASSERT(arc_radius >= 0.0f, "Cannot draw filled arc with negative radius");
 
@@ -1157,7 +1161,13 @@ void Renderer::DrawArcImpl(
 		std::vector<V2_float> v(n);
 
 		for (std::size_t i{ 0 }; i < n; i++) {
-			float angle_radians = start_angle + static_cast<float>(i) * delta_angle;
+			float angle_radians{ start_angle };
+			float delta{ static_cast<float>(i) * delta_angle };
+			if (clockwise) {
+				angle_radians -= delta;
+			} else {
+				angle_radians += delta;
+			}
 
 			v[i] = { p.x + arc_radius * std::cos(angle_radians),
 					 p.y + arc_radius * std::sin(angle_radians) };
@@ -1180,16 +1190,20 @@ void Renderer::DrawArcImpl(
 
 void Renderer::DrawArcFilledImpl(
 	const V2_float& p, float arc_radius, float start_angle_radians, float end_angle_radians,
-	const V4_float& col, float z
+	bool clockwise, const V4_float& col, float z
 ) {
-	DrawArcImpl(p, arc_radius, start_angle_radians, end_angle_radians, col, 0.0f, z, true);
+	DrawArcImpl(
+		p, arc_radius, start_angle_radians, end_angle_radians, clockwise, col, 0.0f, z, true
+	);
 }
 
 void Renderer::DrawArcHollowImpl(
 	const V2_float& p, float arc_radius, float start_angle_radians, float end_angle_radians,
-	const V4_float& col, float lw, float z
+	bool clockwise, const V4_float& col, float lw, float z
 ) {
-	DrawArcImpl(p, arc_radius, start_angle_radians, end_angle_radians, col, lw, z, false);
+	DrawArcImpl(
+		p, arc_radius, start_angle_radians, end_angle_radians, clockwise, col, lw, z, false
+	);
 }
 
 void Renderer::DrawCapsuleFilledImpl(
@@ -1217,8 +1231,12 @@ void Renderer::DrawCapsuleFilledImpl(
 	constexpr float delta{ DegToRad(0.5f) }; // 0.0087 radians roughly equivalent to 0.5 degrees.
 
 	// Draw edge arcs.
-	DrawArcFilledImpl(p0, r, angle_radians - delta, angle_radians + delta + pi<float>, col, z);
-	DrawArcFilledImpl(p1, r, angle_radians - delta + pi<float>, angle_radians + delta, col, z);
+	DrawArcFilledImpl(
+		p0, r, angle_radians - delta, angle_radians + delta + pi<float>, false, col, z
+	);
+	DrawArcFilledImpl(
+		p1, r, angle_radians - delta + pi<float>, angle_radians + delta, false, col, z
+	);
 }
 
 void Renderer::DrawCapsuleHollowImpl(
@@ -1245,8 +1263,8 @@ void Renderer::DrawCapsuleHollowImpl(
 	DrawLineImpl(p0 - tangent_r, p1 - tangent_r, col, lw, z);
 
 	// Draw edge arcs.
-	DrawArcHollowImpl(p0, r, angle_radians, angle_radians + pi<float>, col, lw, z);
-	DrawArcHollowImpl(p1, r, angle_radians + pi<float>, angle_radians, col, lw, z);
+	DrawArcHollowImpl(p0, r, angle_radians, angle_radians + pi<float>, false, col, lw, z);
+	DrawArcHollowImpl(p1, r, angle_radians + pi<float>, angle_radians, false, col, lw, z);
 }
 
 void Renderer::DrawPolygonFilledImpl(
@@ -1502,35 +1520,39 @@ void Renderer::DrawEllipseHollow(
 
 void Renderer::DrawArcFilled(
 	const V2_float& position, float arc_radius, float start_angle_radians, float end_angle_radians,
-	const Color& color, float z_index
+	bool clockwise, const Color& color, float z_index
 ) {
 	DrawArcFilledImpl(
-		position, arc_radius, start_angle_radians, end_angle_radians, color.Normalized(), z_index
+		position, arc_radius, start_angle_radians, end_angle_radians, clockwise, color.Normalized(),
+		z_index
 	);
 }
 
-void Renderer::DrawArcFilled(const Arc<float>& arc, const Color& color, float z_index) {
+void Renderer::DrawArcFilled(
+	const Arc<float>& arc, bool clockwise, const Color& color, float z_index
+) {
 	DrawArcFilledImpl(
-		arc.center, arc.radius, arc.start_angle, arc.end_angle, color.Normalized(), z_index
+		arc.center, arc.radius, arc.start_angle, arc.end_angle, clockwise, color.Normalized(),
+		z_index
 	);
 }
 
 void Renderer::DrawArcHollow(
 	const V2_float& position, float arc_radius, float start_angle_radians, float end_angle_radians,
-	const Color& color, float line_width, float z_index
+	bool clockwise, const Color& color, float line_width, float z_index
 ) {
 	DrawArcHollowImpl(
-		position, arc_radius, start_angle_radians, end_angle_radians, color.Normalized(),
+		position, arc_radius, start_angle_radians, end_angle_radians, clockwise, color.Normalized(),
 		line_width, z_index
 	);
 }
 
 void Renderer::DrawArcHollow(
-	const Arc<float>& arc, const Color& color, float line_width, float z_index
+	const Arc<float>& arc, bool clockwise, const Color& color, float line_width, float z_index
 ) {
 	DrawArcHollowImpl(
-		arc.center, arc.radius, arc.start_angle, arc.end_angle, color.Normalized(), line_width,
-		z_index
+		arc.center, arc.radius, arc.start_angle, arc.end_angle, clockwise, color.Normalized(),
+		line_width, z_index
 	);
 }
 

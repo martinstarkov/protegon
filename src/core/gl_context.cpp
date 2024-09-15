@@ -12,7 +12,6 @@
 #include "protegon/log.h"
 #include "renderer/gl_loader.h"
 #include "SDL_error.h"
-#include "SDL_opengl.h"
 #include "SDL_video.h"
 #include "utility/debug.h"
 

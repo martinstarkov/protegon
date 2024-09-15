@@ -382,7 +382,7 @@ struct TestTweenTypes : public Test {
 		}
 
 		if (game.input.KeyDown(Key::S)) {
-			PTGN_ASSERT(!tweens.empty())
+			PTGN_ASSERT(!tweens.empty());
 			auto& [t, c, p] = tweens[0];
 			PTGN_ASSERT(t.IsValid());
 			t.Stop();

@@ -60,15 +60,21 @@ void Button::SetInteractable(bool interactable) {
 		enabled_ = interactable;
 		SubscribeToMouseEvents();
 		RecheckState();
+		if (on_enable_) {
+			std::invoke(on_enable_);
+		}
 	} else if (!interactable && subscribed) {
 		UnsubscribeFromMouseEvents();
 		button_state_ = InternalButtonState::IdleUp;
-		if (on_hover_start_ != nullptr) {
+		if (on_hover_stop_ != nullptr) {
 			StopHover();
 		}
 		// This needs to happen after StopHover as it will not trigger if
 		// enabled_ == true.
 		enabled_ = interactable;
+		if (on_disable_) {
+			std::invoke(on_disable_);
+		}
 	}
 }
 
@@ -114,6 +120,14 @@ void Button::SetOnHover(
 ) {
 	on_hover_start_ = start_hover_function;
 	on_hover_stop_	= stop_hover_function;
+}
+
+void Button::SetOnEnable(const ButtonEnableFunction& enable_function) {
+	on_enable_ = enable_function;
+}
+
+void Button::SetOnDisable(const ButtonDisableFunction& disable_function) {
+	on_disable_ = disable_function;
 }
 
 bool Button::InsideRectangle(const V2_int& position) const {
