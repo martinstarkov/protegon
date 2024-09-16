@@ -1,5 +1,7 @@
 #include "protegon/timer.h"
 
+#include <chrono>
+
 namespace ptgn {
 
 Timer::Timer(bool start) {
@@ -11,11 +13,13 @@ Timer::Timer(bool start) {
 void Timer::Start() {
 	start_time_ = std::chrono::steady_clock::now();
 	running_	= true;
+	paused_		= false;
 }
 
 void Timer::Stop() {
 	stop_time_ = std::chrono::steady_clock::now();
 	running_   = false;
+	paused_	   = false;
 }
 
 void Timer::Pause() {
@@ -35,9 +39,8 @@ void Timer::Unpause() {
 		start_time_ += pause_duration;
 		running_	 = true;
 		paused_		 = false;
-		pause_time_	 = std::chrono::steady_clock::time_point(
-		 ); // Reset paused time on unpause
-		stop_time_ = start_time_;
+		pause_time_	 = std::chrono::steady_clock::time_point(); // Reset paused time on unpause
+		stop_time_	 = start_time_;
 	}
 }
 
@@ -47,11 +50,6 @@ bool Timer::IsPaused() const {
 
 bool Timer::IsRunning() const {
 	return running_;
-}
-
-void Timer::Reset() {
-	stop_time_ = start_time_;
-	running_   = false;
 }
 
 } // namespace ptgn

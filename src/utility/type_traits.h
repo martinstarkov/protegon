@@ -2,9 +2,7 @@
 
 #include <type_traits>
 
-namespace ptgn {
-
-namespace tt {
+namespace ptgn::tt {
 
 namespace impl {
 
@@ -86,11 +84,11 @@ struct pred_base<true> : std::true_type {};
 // different types and using std::decay all over the place gets really verbose
 template <class T, class O>
 struct same_decayed :
-	pred_base<std::is_same<typename std::decay<T>::type, typename std::decay<O>::type>::value> {};
+	pred_base<std::is_same_v<typename std::decay_t<T>, typename std::decay_t<O>>> {};
 
 // is_numeric, i.e. true for floats and integrals but not bool
 template <class T>
-struct is_numeric : pred_base<std::is_arithmetic<T>::value && !same_decayed<bool, T>::value> {};
+struct is_numeric : pred_base<std::is_arithmetic_v<T> && !same_decayed<bool, T>::value> {};
 
 // both - less verbose way to determine if two types both meet a single
 // predicate
@@ -125,8 +123,7 @@ struct same_signage : pred_base<(both_signed<T, F>::value) || (both_unsigned<T, 
 template <class T, class F>
 struct is_safe_numeric_cast :
 	pred_base<
-		(both_numeric<T, F>::value && std::is_floating_point<T>::value && std::is_integral<F>::value
-		) ||
+		(both_numeric<T, F>::value && std::is_floating_point_v<T> && std::is_integral_v<F>) ||
 		(sizeof(T) >= sizeof(F)) ||
 		(both_integral<T, F>::value && ((sizeof(T) > sizeof(F)) || (sizeof(T) == sizeof(F))) &&
 		 same_signage<T, F>::value)> {};
@@ -232,8 +229,6 @@ template <typename T, typename... Ts>
 using is_safely_castable_to_one_of =
 	std::enable_if_t<is_safely_castable_to_one_of_v<T, Ts...>, bool>;
 template <bool CONDITION>
-using enable = std::enable_if_t<(CONDITION), bool>;
+using enable = std::enable_if_t<CONDITION, bool>;
 
-} // namespace tt
-
-} // namespace ptgn
+} // namespace ptgn::tt

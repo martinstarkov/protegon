@@ -1,8 +1,14 @@
 #pragma once
 
+#include <chrono>
+#include <cmath>
+#include <cstdint>
 #include <functional>
+#include <list>
 #include <unordered_map>
+#include <utility>
 #include <variant>
+#include <vector>
 
 #include "protegon/math.h"
 #include "utility/debug.h"
@@ -45,77 +51,66 @@ using TweenEaseFunction = std::function<float(float, float, float)>;
 
 const static std::unordered_map<TweenEase, TweenEaseFunction> tween_ease_functions_{
 	{ TweenEase::Linear,
-	  [](float t, float a, float b) -> float {
+	  [](float t, float a, float b) {
 		  float c{ b - a };
 		  return a + t * c;
 	  } },
 	{ TweenEase::InSine,
-	  [](float t, float a, float b) -> float {
+	  [](float t, float a, float b) {
 		  float c{ b - a };
 		  return -c * std::cos(t * half_pi<float>) + b;
 	  } },
 	{ TweenEase::OutSine,
-	  [](float t, float a, float b) -> float {
+	  [](float t, float a, float b) {
 		  float c{ b - a };
 		  return c * std::sin(t * half_pi<float>) + a;
 	  } },
 	{ TweenEase::InOutSine,
-	  [](float t, float a, float b) -> float {
+	  [](float t, float a, float b) {
 		  float c{ b - a };
 		  return -c / float{ 2 } * (std::cos(pi<float> * t) - float{ 1 }) + a;
 	  } },
+	// TODO: Implement these.
 	//{ TweenEase::InQuad,
-	//  [](float t, float a, float b) -> float {
-	//	  return a; // TODO: Implement.
+	//  [](float t, float a, float b) {
 	//  } },
 	//{ TweenEase::OutQuad,
-	//  [](float t, float a, float b) -> float {
-	//	  return a; // TODO: Implement.
+	//  [](float t, float a, float b) {
 	//  } },
 	//{ TweenEase::InOutQuad,
-	//  [](float t, float a, float b) -> float {
-	//	  return a; // TODO: Implement.
+	//  [](float t, float a, float b) {
 	//  } },
 	//{ TweenEase::InCubic,
-	//  [](float t, float a, float b) -> float {
-	//	  return a; // TODO: Implement.
+	//  [](float t, float a, float b) {
 	//  } },
 	//{ TweenEase::OutCubic,
-	//  [](float t, float a, float b) -> float {
-	//	  return a; // TODO: Implement.
+	//  [](float t, float a, float b) {
 	//  } },
 	//{ TweenEase::InOutCubic,
-	//  [](float t, float a, float b) -> float {
-	//	  return a; // TODO: Implement.
+	//  [](float t, float a, float b) {
 	//  } },
 	//{ TweenEase::InExponential,
-	//  [](float t, float a, float b) -> float {
-	//	  return a; // TODO: Implement.
+	//  [](float t, float a, float b) {
 	//  } },
 	//{ TweenEase::OutExponential,
-	//  [](float t, float a, float b) -> float {
-	//	  return a; // TODO: Implement.
+	//  [](float t, float a, float b) {
 	//  } },
 	//{ TweenEase::InOutExponential,
-	//  [](float t, float a, float b) -> float {
-	//	  return a; // TODO: Implement.
+	//  [](float t, float a, float b) {
 	//  } },
 	//{ TweenEase::InCircular,
-	//  [](float t, float a, float b) -> float {
-	//	  return a; // TODO: Implement.
+	//  [](float t, float a, float b) {
 	//  } },
 	//{ TweenEase::OutCircular,
-	//  [](float t, float a, float b) -> float {
-	//	  return a; // TODO: Implement.
+	//  [](float t, float a, float b) {
 	//  } },
 	//{ TweenEase::InOutCircular,
-	//  [](float t, float a, float b) -> float {
-	//	  return a; // TODO: Implement.
+	//  [](float t, float a, float b) {
 	//  } },
 };
 
 struct TweenPoint {
-	TweenPoint(milliseconds duration) : duration_{ duration } {}
+	explicit TweenPoint(milliseconds duration) : duration_{ duration } {}
 
 	milliseconds duration_{ 0 };
 
@@ -144,13 +139,13 @@ struct TweenPoint {
 };
 
 struct TweenInstance {
-	std::size_t index_{ 0 };
-	std::vector<TweenPoint> tweens_points_;
-
 	// Value between [0.0f, 1.0f] indicating how much of the total duration the tween has passed in
 	// the current repetition. Note: This value remains 0.0f to 1.0f even when the tween is reversed
 	// or yoyoing.
 	float progress_{ 0.0f };
+
+	std::size_t index_{ 0 };
+	std::vector<TweenPoint> tweens_points_;
 
 	bool paused_{ false };
 	bool started_{ false };
@@ -161,7 +156,7 @@ struct TweenInstance {
 class Tween : public Handle<impl::TweenInstance> {
 public:
 	Tween() = default;
-	Tween(milliseconds duration);
+	explicit Tween(milliseconds duration);
 
 	Tween& During(milliseconds duration);
 	Tween& Ease(TweenEase ease);
@@ -180,6 +175,7 @@ public:
 	Tween& OnResume(const TweenCallback& callback);
 	Tween& OnRepeat(const TweenCallback& callback);
 	Tween& OnYoyo(const TweenCallback& callback);
+	Tween& OnDestroy(const TweenCallback& callback);
 
 	[[nodiscard]] float GetProgress() const;
 	[[nodiscard]] std::int64_t GetRepeats() const;
@@ -187,8 +183,6 @@ public:
 	[[nodiscard]] bool IsCompleted() const;
 	[[nodiscard]] bool IsStarted() const;
 	[[nodiscard]] bool IsPaused() const;
-
-	[[nodiscard]] bool IsValid() const;
 
 	// TODO: Implement and test.
 	// dt in seconds.
@@ -201,50 +195,48 @@ public:
 
 	Tween& Start();
 	Tween& Pause();
-	void Resume();
-	void Reset();
-	void Stop();
-	void Destroy();
-	void Complete();
-	void Forward();
-	void Backward();
+	Tween& Resume();
+	// Will trigger OnStop callback if tween was started or completed.
+	Tween& Reset();
+	Tween& Stop();
+	Tween& Complete();
+	Tween& Forward();
+	Tween& Backward();
 
 	// Clears previously assigned tween points.
-	void Clear();
+	Tween& Clear();
 
 	template <typename Duration = milliseconds>
 	[[nodiscard]] Duration GetDuration(std::size_t tween_point_index = 0) const {
-		PTGN_ASSERT(IsValid(), "Cannot get duration of uninitialized or destroyed tween");
+		const auto& t{ Get() };
 		PTGN_ASSERT(
-			tween_point_index < instance_->tweens_points_.size(),
+			tween_point_index < t.tweens_points_.size(),
 			"Specified tween point index is out of range. Ensure tween points has been added "
 			"beforehand"
 		);
-		return std::chrono::duration_cast<Duration>(
-			instance_->tweens_points_[tween_point_index].duration_
-		);
+		return std::chrono::duration_cast<Duration>(t.tweens_points_[tween_point_index].duration_);
 	}
 
-	void SetDuration(milliseconds duration, std::size_t tween_point_index = 0);
+	Tween& SetDuration(milliseconds duration, std::size_t tween_point_index = 0);
 
 private:
 	friend class TweenManager;
 
 	void PointCompleted();
 
-	impl::TweenPoint& GetCurrentTweenPoint();
-	impl::TweenPoint& GetLastTweenPoint();
-	const impl::TweenPoint& GetCurrentTweenPoint() const;
-
 	float GetNewProgress(duration<float> time) const;
 	float SeekImpl(float new_progress);
 	float StepImpl(float dt, bool accumulate_progress);
 	float AccumulateProgress(float new_progress);
 
-	void ActivateCallback(const TweenCallback& callback, float value);
+	void ActivateCallback(const TweenCallback& callback);
 
 	void HandleCallbacks(bool suppress_update);
 	float UpdateImpl(bool suppress_update = false);
+
+	impl::TweenPoint& GetCurrentTweenPoint();
+	const impl::TweenPoint& GetCurrentTweenPoint() const;
+	impl::TweenPoint& GetLastTweenPoint();
 };
 
 } // namespace ptgn

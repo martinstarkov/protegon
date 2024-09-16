@@ -1,15 +1,17 @@
 #pragma once
 
 #include <array>
-#include <tuple>
+#include <functional>
 #include <variant>
+#include <vector>
 
+#include "core/resource_managers.h"
+#include "protegon/color.h"
 #include "protegon/event.h"
 #include "protegon/events.h"
-#include "protegon/game.h"
 #include "protegon/polygon.h"
 #include "protegon/texture.h"
-#include "utility/type_traits.h"
+#include "protegon/vector2.h"
 
 namespace ptgn {
 
@@ -33,6 +35,8 @@ struct ColorArray {
 
 using ButtonActivateFunction = std::function<void()>;
 using ButtonHoverFunction	 = std::function<void()>;
+using ButtonEnableFunction	 = std::function<void()>;
+using ButtonDisableFunction	 = std::function<void()>;
 
 class Button {
 public:
@@ -65,9 +69,12 @@ public:
 	virtual void SetOnActivate(const ButtonActivateFunction& function);
 	// Ensure to subscribe to mouse events for this function to be called.
 	virtual void SetOnHover(
-		const ButtonHoverFunction& start_hover_function = nullptr,
-		const ButtonHoverFunction& stop_hover_function	= nullptr
+		const ButtonHoverFunction& start_hover_function,
+		const ButtonHoverFunction& stop_hover_function = nullptr
 	);
+
+	virtual void SetOnEnable(const ButtonEnableFunction& enable_function);
+	virtual void SetOnDisable(const ButtonDisableFunction& disable_function);
 
 	[[nodiscard]] virtual bool IsSubscribedToMouseEvents() const final;
 
@@ -75,7 +82,7 @@ public:
 	virtual void SubscribeToMouseEvents() final;
 	virtual void UnsubscribeFromMouseEvents() final;
 
-	virtual void OnMouseEvent(MouseEvent type, const Event& event);
+	void OnMouseEvent(MouseEvent type, const Event& event);
 	virtual void OnMouseMove(const MouseMoveEvent& e);
 	virtual void OnMouseMoveOutside(const MouseMoveEvent& e);
 	virtual void OnMouseEnter(const MouseMoveEvent& e);
@@ -106,6 +113,8 @@ protected:
 	ButtonActivateFunction on_activate_;
 	ButtonHoverFunction on_hover_start_;
 	ButtonHoverFunction on_hover_stop_;
+	ButtonEnableFunction on_enable_;
+	ButtonDisableFunction on_disable_;
 	InternalButtonState button_state_{ InternalButtonState::IdleUp };
 	bool enabled_{ true };
 };
@@ -127,10 +136,10 @@ public:
 	const Color& GetPressedColor() const;
 
 	// Draws a filled button.
-	virtual void Draw() const;
+	void Draw() const override;
 
-	virtual void DrawHollow(float line_width = 1.0f) const;
-	virtual void DrawFilled() const;
+	void DrawHollow(float line_width = 1.0f) const override;
+	void DrawFilled() const override;
 
 	[[nodiscard]] virtual const Color& GetCurrentColor() const;
 
@@ -138,8 +147,6 @@ protected:
 	[[nodiscard]] const Color& GetCurrentColorImpl(
 		ButtonState state, std::size_t color_array_index = 0
 	) const;
-
-	void DrawImpl(std::size_t color_array_index = 0) const;
 
 protected:
 	ColorArray<2> colors_{};
@@ -153,10 +160,10 @@ public:
 		const Rectangle<float>& rect, const ButtonActivateFunction& on_active_function = nullptr,
 		bool initially_toggled = false
 	);
-	~ToggleButton();
+	~ToggleButton() override;
 
 	// Start in non toggled state.
-	virtual void OnMouseUp(const MouseUpEvent& e) override;
+	void OnMouseUp(const MouseUpEvent& e) override;
 
 	[[nodiscard]] bool IsToggled() const;
 	void Toggle();
@@ -178,11 +185,14 @@ public:
 	[[nodiscard]] virtual bool GetVisibility() const final;
 	virtual void SetVisibility(bool visibility);
 
-	virtual void Draw() const;
+	void Draw() const override;
 
 	[[nodiscard]] virtual Texture GetCurrentTexture();
 
-	void ForEachTexture(const std::function<void(Texture)>& func);
+	void ForEachTexture(const std::function<void(Texture)>& func) const;
+
+	void SetTintColor(const Color& color);
+	[[nodiscard]] Color GetTintColor() const;
 
 protected:
 	// This function does not check for the validity of the returned texture.
@@ -198,6 +208,7 @@ protected:
 	// (temporary object).
 	// TODO: Figure out a way to store 1 here and 2 in the toggle button class
 	TextureArray<2> textures_;
+	Color tint_color_{ color::White };
 	bool hidden_{ false };
 };
 
@@ -205,16 +216,16 @@ class TexturedToggleButton : public virtual ToggleButton, public virtual Texture
 public:
 	TexturedToggleButton() = default;
 	TexturedToggleButton(
-		const Rectangle<float>& rect, const std::initializer_list<TextureOrKey>& default_textures,
-		const std::initializer_list<TextureOrKey>& hover_textures,
-		const std::initializer_list<TextureOrKey>& pressed_textures,
-		const ButtonActivateFunction& on_active_function = nullptr
+		const Rectangle<float>& rect, const std::vector<TextureOrKey>& default_textures,
+		const std::vector<TextureOrKey>& hover_textures	  = {},
+		const std::vector<TextureOrKey>& pressed_textures = {},
+		const ButtonActivateFunction& on_active_function  = nullptr
 	);
 
-	virtual void OnMouseUp(const MouseUpEvent& e) override;
+	void OnMouseUp(const MouseUpEvent& e) override;
 
-	[[nodiscard]] virtual Texture GetCurrentTexture() override;
-	virtual void Draw() const override;
+	[[nodiscard]] Texture GetCurrentTexture() override;
+	void Draw() const override;
 };
 
 } // namespace ptgn

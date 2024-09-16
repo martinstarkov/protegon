@@ -1,8 +1,8 @@
 #pragma once
 
-#include <array>
 #include <cstdint>
-#include <initializer_list>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "renderer/gl_helper.h"
@@ -39,13 +39,7 @@ class BufferLayout {
 	static_assert(sizeof...(Ts) > 0, "Must provide layout types as template arguments");
 
 public:
-	BufferLayout() {
-		elements_.reserve(sizeof...(Ts));
-		elements_ = { impl::BufferElement{ static_cast<std::uint16_t>(sizeof(Ts)),
-										   static_cast<std::uint16_t>(std::tuple_size<Ts>::value),
-										   impl::GetType<typename Ts::value_type>(),
-										   IsInteger<Ts>() }... };
-	}
+	BufferLayout() = default;
 
 private:
 	friend class impl::InternalBufferLayout;
@@ -65,7 +59,15 @@ private:
 		return elements_;
 	}
 
-	std::vector<impl::BufferElement> elements_;
+	std::vector<impl::BufferElement> elements_{ std::invoke([]() {
+		std::vector<impl::BufferElement> elements;
+		elements.reserve(sizeof...(Ts));
+		elements = { impl::BufferElement{ static_cast<std::uint16_t>(sizeof(Ts)),
+										  static_cast<std::uint16_t>(std::tuple_size<Ts>::value),
+										  impl::GetType<typename Ts::value_type>(),
+										  IsInteger<Ts>() }... };
+		return elements;
+	}) };
 };
 
 namespace impl {
@@ -75,7 +77,7 @@ public:
 	InternalBufferLayout() = default;
 
 	template <typename... BufferElements>
-	InternalBufferLayout(const BufferLayout<BufferElements...>& layout) :
+	explicit InternalBufferLayout(const BufferLayout<BufferElements...>& layout) :
 		elements_{ layout.GetElements() } {
 		CalculateOffsets();
 	}

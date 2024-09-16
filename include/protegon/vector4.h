@@ -1,12 +1,9 @@
 #pragma once
 
-#include <algorithm>
-#include <cmath>
-#include <cstdlib>
-#include <functional>
+#include <iosfwd>
 #include <ostream>
+#include <type_traits>
 
-#include "protegon/math.h"
 #include "utility/debug.h"
 #include "utility/type_traits.h"
 
@@ -19,12 +16,12 @@ struct Vector4 {
 	T z{ 0 };
 	T w{ 0 };
 
-	constexpr Vector4()				   = default;
-	~Vector4()						   = default;
-	Vector4(const Vector4&)			   = default;
-	Vector4(Vector4&&)				   = default;
-	Vector4& operator=(const Vector4&) = default;
-	Vector4& operator=(Vector4&&)	   = default;
+	constexpr Vector4()					   = default;
+	~Vector4()							   = default;
+	Vector4(const Vector4&)				   = default;
+	Vector4(Vector4&&) noexcept			   = default;
+	Vector4& operator=(const Vector4&)	   = default;
+	Vector4& operator=(Vector4&&) noexcept = default;
 
 	explicit constexpr Vector4(T all) : x{ all }, y{ all }, z{ all }, w{ all } {}
 
@@ -55,7 +52,7 @@ struct Vector4 {
 		w{ static_cast<T>(o.w) } {}
 
 	// Access vector elements by index, 0 for x, 1 for y, 2 for z, 3 for w.
-	constexpr T& operator[](std::size_t idx) {
+	[[nodiscard]] constexpr T& operator[](std::size_t idx) {
 		PTGN_ASSERT(idx >= 0 && idx < 4, "Vector4 subscript out of range");
 		if (idx == 0) {
 			return x;
@@ -68,7 +65,7 @@ struct Vector4 {
 	}
 
 	// Access vector elements by index, 0 for x, 1 for y, 2 for z, 3 for w.
-	constexpr T operator[](std::size_t idx) const {
+	[[nodiscard]] constexpr T operator[](std::size_t idx) const {
 		PTGN_ASSERT(idx >= 0 && idx < 4, "Vector4 subscript out of range");
 		if (idx == 0) {
 			return x;
@@ -80,7 +77,7 @@ struct Vector4 {
 		return w; // idx == 3
 	}
 
-	constexpr Vector4 operator-() const {
+	[[nodiscard]] constexpr Vector4 operator-() const {
 		return { -x, -y, -z, -w };
 	}
 
@@ -176,69 +173,69 @@ using V4_uint	= Vector4<unsigned int>;
 using V4_float	= Vector4<float>;
 using V4_double = Vector4<double>;
 
-template <typename T>
-inline bool operator==(const Vector4<T>& lhs, const Vector4<T>& rhs) {
+template <typename V>
+[[nodiscard]] inline bool operator==(const Vector4<V>& lhs, const Vector4<V>& rhs) {
 	return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y) && NearlyEqual(lhs.z, rhs.z) &&
 		   NearlyEqual(lhs.w, rhs.w);
 }
 
-template <typename T>
-inline bool operator!=(const Vector4<T>& lhs, const Vector4<T>& rhs) {
+template <typename V>
+[[nodiscard]] inline bool operator!=(const Vector4<V>& lhs, const Vector4<V>& rhs) {
 	return !operator==(lhs, rhs);
 }
 
-template <typename T, typename U, typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector4<S> operator+(const Vector4<T>& lhs, const Vector4<U>& rhs) {
+template <typename V, ptgn::tt::stream_writable<std::ostream, V> = true>
+inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector4<V>& v) {
+	os << "(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")";
+	return os;
+}
+
+template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector4<S> operator+(const Vector4<V>& lhs, const Vector4<U>& rhs) {
 	return { lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z, lhs.w + rhs.w };
 }
 
-template <typename T, typename U, typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector4<S> operator-(const Vector4<T>& lhs, const Vector4<U>& rhs) {
+template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector4<S> operator-(const Vector4<V>& lhs, const Vector4<U>& rhs) {
 	return { lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z, lhs.w - rhs.w };
 }
 
-template <typename T, typename U, typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector4<S> operator*(const Vector4<T>& lhs, const Vector4<U>& rhs) {
+template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector4<S> operator*(const Vector4<V>& lhs, const Vector4<U>& rhs) {
 	return { lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z, lhs.w * rhs.w };
 }
 
-template <typename T, typename U, typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector4<S> operator/(const Vector4<T>& lhs, const Vector4<U>& rhs) {
+template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector4<S> operator/(const Vector4<V>& lhs, const Vector4<U>& rhs) {
 	return { lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z, lhs.w / rhs.w };
 }
 
 template <
-	typename T, typename U, tt::arithmetic<T> = true,
-	typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector4<S> operator*(T lhs, const Vector4<U>& rhs) {
+	typename V, typename U, tt::arithmetic<V> = true,
+	typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector4<S> operator*(V lhs, const Vector4<U>& rhs) {
 	return { lhs * rhs.x, lhs * rhs.y, lhs * rhs.z, lhs * rhs.w };
 }
 
 template <
-	typename T, typename U, tt::arithmetic<U> = true,
-	typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector4<S> operator*(const Vector4<T>& lhs, U rhs) {
+	typename V, typename U, tt::arithmetic<U> = true,
+	typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector4<S> operator*(const Vector4<V>& lhs, U rhs) {
 	return { lhs.x * rhs, lhs.y * rhs, lhs.z * rhs, lhs.w * rhs };
 }
 
 template <
-	typename T, typename U, tt::arithmetic<T> = true,
-	typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector4<S> operator/(T lhs, const Vector4<U>& rhs) {
+	typename V, typename U, tt::arithmetic<V> = true,
+	typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector4<S> operator/(V lhs, const Vector4<U>& rhs) {
 	return { lhs / rhs.x, lhs / rhs.y, lhs / rhs.z, lhs / rhs.w };
 }
 
 template <
-	typename T, typename U, tt::arithmetic<T> = true,
-	typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector4<S> operator/(const Vector4<T>& lhs, U rhs) {
+	typename V, typename U, tt::arithmetic<U> = true,
+	typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector4<S> operator/(const Vector4<V>& lhs, U rhs) {
 	return { lhs.x / rhs, lhs.y / rhs, lhs.z / rhs, lhs.w / rhs };
-}
-
-template <typename T, ptgn::tt::stream_writable<std::ostream, T> = true>
-inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector4<T>& v) {
-	os << "(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")";
-	return os;
 }
 
 } // namespace ptgn

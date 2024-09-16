@@ -1,187 +1,243 @@
 #pragma once
 
+#include <memory>
+#include <new>
+#include <vector>
+
 #include "common.h"
+#include "core/window.h"
+#include "event/input_handler.h"
+#include "event/key.h"
 #include "protegon/circle.h"
+#include "protegon/color.h"
+#include "protegon/game.h"
 #include "protegon/line.h"
+#include "protegon/math.h"
 #include "protegon/polygon.h"
+#include "protegon/texture.h"
+#include "protegon/vector2.h"
+#include "renderer/origin.h"
+#include "renderer/renderer.h"
+#include "scene/camera.h"
 
-using namespace ptgn;
+struct TestCameraSwitching : public Test {
+	OrthographicCamera camera0;
+	OrthographicCamera camera1;
+	OrthographicCamera camera2;
+	OrthographicCamera camera3;
+	OrthographicCamera camera4;
 
-int camera_test = 0;
-const std::vector<Key> camera_test_switch_keys{ Key::Q, Key::E };
-const std::string camera_test_instructions{ "'Q' (cycle back); 'E' (cycle forward)" };
+	int camera{ 0 };
+	const int cameras{ 5 };
 
-enum class CameraTest {
-	Switching,
-	Movement,
-	Count
+	void Init() override {
+		camera0 = game.camera.Load(0);
+		camera1 = game.camera.Load(1);
+		camera2 = game.camera.Load(2);
+		camera3 = game.camera.Load(3);
+		camera4 = game.camera.Load(4);
+
+		camera0.SetPosition(V2_float{ 0, 0 });
+		camera1.SetPosition(V2_float{ ws.x, 0 });
+		camera2.SetPosition(ws);
+		camera3.SetPosition(V2_float{ 0, ws.y });
+		camera4.SetPosition(center);
+
+		game.camera.SetPrimary(camera);
+	}
+
+	void Update() override {
+		if (game.input.KeyDown(Key::E)) {
+			camera++;
+			camera = Mod(camera, cameras);
+			game.camera.SetPrimary(camera);
+		}
+		if (game.input.KeyDown(Key::Q)) {
+			camera--;
+			camera = Mod(camera, cameras);
+			game.camera.SetPrimary(camera);
+		}
+	}
+
+	void Draw() override {
+		game.renderer.DrawRectangleFilled(center, ws * 0.5f, color::DarkGreen);
+	}
 };
 
-template <typename T, typename... Ts>
-void TestCameraLoop(float dt, const T& function, const std::string& name, const Ts&... message) {
-	TestLoop(
-		dt, camera_test_instructions, camera_test, (int)CameraTest::Count, camera_test_switch_keys,
-		function, name, message...
-	);
-}
+struct TestCameraControls : public Test {
+	Texture texture{ "resources/sprites/test1.jpg" };
 
-void TestCameraSwitching(float dt) {
-	ws	   = game.window.GetSize();
-	center = game.window.GetCenter();
+	const float pan_speed	   = 200.0f;
+	const float rotation_speed = 1.0f;
+	const float zoom_speed{ 0.4f };
 
-	auto get_camera = [](std::size_t key) {
-		if (!game.camera.Has(key)) {
-			return game.camera.Load(key);
-		} else {
-			return game.camera.Get(key);
+	void Update(float dt) override {
+		auto& camera{ game.camera.GetCurrent() };
+
+		if (game.input.KeyPressed(Key::W)) {
+			camera.Translate({ 0, -pan_speed * dt });
 		}
-	};
+		if (game.input.KeyPressed(Key::S)) {
+			camera.Translate({ 0, pan_speed * dt });
+		}
+		if (game.input.KeyPressed(Key::A)) {
+			camera.Translate({ -pan_speed * dt, 0 });
+		}
+		if (game.input.KeyPressed(Key::D)) {
+			camera.Translate({ pan_speed * dt, 0 });
+		}
 
-	OrthographicCamera camera1{ get_camera(1) };
-	OrthographicCamera camera2{ get_camera(2) };
-	OrthographicCamera camera3{ get_camera(3) };
-	OrthographicCamera camera4{ get_camera(4) };
-	OrthographicCamera camera5{ get_camera(5) };
+		if (game.input.KeyPressed(Key::Z)) {
+			camera.Yaw(rotation_speed * dt);
+		}
 
-	camera1.SetPosition(V2_float{ 0, 0 });
-	camera2.SetPosition(V2_float{ ws.x, 0 });
-	camera3.SetPosition(ws);
-	camera4.SetPosition(V2_float{ 0, ws.y });
-	camera5.SetPosition(center);
+		if (game.input.KeyPressed(Key::X)) {
+			camera.Yaw(-rotation_speed * dt);
+		}
 
-	auto primary = game.camera.GetPrimary();
-	if (primary != camera1 && primary != camera2 && primary != camera3 && primary != camera4 &&
-		primary != camera5) {
-		game.camera.SetPrimary(1);
+		if (game.input.KeyPressed(Key::C)) {
+			camera.Pitch(rotation_speed * dt);
+		}
+
+		if (game.input.KeyPressed(Key::V)) {
+			camera.Pitch(-rotation_speed * dt);
+		}
+
+		if (game.input.KeyPressed(Key::B)) {
+			camera.Roll(rotation_speed * dt);
+		}
+
+		if (game.input.KeyPressed(Key::N)) {
+			camera.Roll(-rotation_speed * dt);
+		}
+
+		if (game.input.KeyPressed(Key::E)) {
+			camera.Zoom(zoom_speed * dt);
+		}
+		if (game.input.KeyPressed(Key::Q)) {
+			camera.Zoom(-zoom_speed * dt);
+		}
+
+		if (game.input.KeyDown(Key::R)) {
+			camera.SetPosition({ center.x, center.y, 0.0f });
+		}
+
+		camera.PrintInfo();
 	}
 
-	TestCameraLoop(
-		dt,
-		[&](float dt) {
-			game.renderer.DrawRectangleFilled(center, ws * 0.5f, color::DarkGreen);
-
-			if (game.input.KeyDown(Key::K_1)) {
-				game.camera.SetPrimary(1);
-			}
-			if (game.input.KeyDown(Key::K_2)) {
-				game.camera.SetPrimary(2);
-			}
-			if (game.input.KeyDown(Key::K_3)) {
-				game.camera.SetPrimary(3);
-			}
-			if (game.input.KeyDown(Key::K_4)) {
-				game.camera.SetPrimary(4);
-			}
-			if (game.input.KeyDown(Key::K_5)) {
-				game.camera.SetPrimary(5);
-			}
-		},
-		PTGN_FUNCTION_NAME()
-	);
-}
-
-void TestCameraMovement(float dt) {
-	TestCameraLoop(
-		dt,
-		[&](float dt) {
-			game.renderer.DrawRectangleFilled(center, game.window.GetSize() * 0.5f, color::DarkRed);
-
-			auto& camera{ game.camera.GetPrimary() };
-
-			float speed = 200.5f * dt;
-
-			V3_float velocity;
-
-			// TODO: Add rotation and zoom.
-			// TODO: Move this stuff into camera controller class.
-
-			if (game.input.KeyPressed(Key::W)) {
-				velocity.y = +speed;
-			}
-			if (game.input.KeyPressed(Key::S)) {
-				velocity.y = -speed;
-			}
-			if (game.input.KeyPressed(Key::A)) {
-				velocity.x = +speed;
-			}
-			if (game.input.KeyPressed(Key::D)) {
-				velocity.x = -speed;
-			}
-			camera.Translate(velocity);
-
-			if (game.input.KeyDown(Key::R)) {
-				camera.SetPosition({ center.x, center.y, 0.0f });
-			}
-		},
-		PTGN_FUNCTION_NAME()
-	);
-
-	/*
-	game.input.SetRelativeMouseMode(true);
-
-	std::size_t font_key = 0;
-	game.font.Load(font_key, "resources/fonts/retro_gaming.ttf", 30);
-
-	M4_float projection = M4_float::Orthographic(0.0f, (float)game.window.size.x, 0.0f,
-	(float)game.window.size.y);
-	M4_float projection = M4_float::Perspective(DegToRad(45.0f),
-	(float)game.window.size.x / (float)game.window.size.y, 0.1f, 100.0f); M4_float
-	projection = M4_float::Perspective(DegToRad(camera.zoom), (float)game.window.size.x
-	/ (float)game.window.size.y, 0.1f, 100.0f);
-	model = M4_float::Rotate(model, DegToRad(-55.0f), 1.0f, 0.0f, 0.0f);
-	view = M4_float::Translate(view, 0.0f, 0.0f, -3.0f);
-
-	int scroll = game.input.MouseScroll();
-
-	if (scroll != 0) {
-		camera.Zoom(scroll);
+	void Draw() override {
+		game.renderer.DrawTexture(texture, center, texture.GetSize());
 	}
-	if (game.input.KeyPressed(Key::X)) {
-		camera.Move(CameraDirection::Down, dt);
+};
+
+struct TestCameraBounds : public TestCameraControls {
+	const float bound_width{ 3.0f };
+
+	void Init() override {
+		auto& camera{ game.camera.GetCurrent() };
+
+		Rectangle<float> bounds{ {}, { 800, 800 }, Origin::TopLeft };
+
+		camera.SetBounds(bounds);
 	}
-	if (game.input.KeyPressed(Key::SPACE)) {
-		camera.Move(CameraDirection::Up, dt);
+
+	void Draw() override {
+		TestCameraControls::Draw();
+		const auto& camera{ game.camera.GetCurrent() };
+		game.renderer.DrawRectangleHollow(camera.GetBounds(), color::Red, bound_width);
 	}
-	if (game.input.KeyPressed(Key::A)) {
-		view = M4_float::Translate(view, -0.05f, 0.0f, 0.0f);
+};
+
+struct TestParallax : public Test {
+	V2_float bg_pos;
+	V2_float planet_b_pos;
+	V2_float planet_s_pos;
+	V2_float stars_pos;
+
+	Texture background;
+	Texture planet_b;
+	Texture planet_s;
+	Texture stars;
+
+	float scale{ 2.0f };
+
+	V2_float size;
+
+	V2_float background_size;
+	float bg_aspect_ratio{ 0.0f };
+
+	void Init() override {
+		background = { "resources/sprites/parallax/background.png" };
+		planet_b   = { "resources/sprites/parallax/planet_b.png" };
+		planet_s   = { "resources/sprites/parallax/planet_s.png" };
+		stars	   = { "resources/sprites/parallax/stars.png" };
+
+		bg_pos		 = game.window.GetCenter();
+		planet_b_pos = game.window.GetCenter() - V2_float{ 200, 200 };
+		planet_s_pos = game.window.GetCenter() + V2_float{ 200, 200 };
+		stars_pos	 = game.window.GetCenter();
+
+		size			= ws * scale;
+		background_size = background.GetSize();
+		bg_aspect_ratio = background_size.x / background_size.y;
 	}
-	if (game.input.KeyPressed(Key::D)) {
-		view = M4_float::Translate(view, 0.05f, 0.0f, 0.0f);
+
+	void Update(float dt) override {
+		auto& camera{ game.camera.GetCurrent() };
+
+		camera.SetSize(ws);
+
+		float speed = 200.5f * dt;
+
+		V2_float velocity;
+
+		if (game.input.KeyPressed(Key::W)) {
+			velocity.y = -speed;
+		}
+		if (game.input.KeyPressed(Key::S)) {
+			velocity.y = +speed;
+		}
+		if (game.input.KeyPressed(Key::A)) {
+			velocity.x = -speed;
+		}
+		if (game.input.KeyPressed(Key::D)) {
+			velocity.x = +speed;
+		}
+		camera.Translate({ velocity.x, velocity.y, 0.0f });
+
+		if (game.input.KeyDown(Key::R)) {
+			camera.SetPosition({ center.x, center.y, 0.0f });
+		}
+
+		stars_pos	 += velocity / 6.0f;
+		bg_pos		 += velocity / 4.0f;
+		planet_s_pos += velocity / 3.0f;
+		planet_b_pos += velocity / 2.0f;
 	}
-	if (game.input.KeyPressed(Key::W)) {
-		view = M4_float::Translate(view, 0.0f, 0.05f, 0.0f);
+
+	void Draw() override {
+		auto& camera{ game.camera.GetCurrent() };
+		V2_float pos = camera.GetPosition();
+
+		camera.SetPosition({ 0.0f, 0.0f });
+
+		game.renderer.DrawTexture(background, bg_pos, { size.x * bg_aspect_ratio, size.y });
+		game.renderer.DrawTexture(stars, stars_pos, { size.x * bg_aspect_ratio, size.y });
+
+		game.renderer.DrawTexture(planet_b, planet_b_pos, planet_b.GetSize() * scale);
+		game.renderer.DrawTexture(planet_s, planet_s_pos, planet_s.GetSize() * scale);
+
+		camera.SetPosition(pos);
 	}
-	if (game.input.KeyPressed(Key::S)) {
-		view = M4_float::Translate(view, 0.0f, -0.05f, 0.0f);
-	}
-	if (game.input.KeyPressed(Key::Q)) {
-		model = M4_float::Rotate(model, DegToRad(5.0f), 0.0f, 1.0f, 0.0f);
-	}
-	if (game.input.KeyPressed(Key::E)) {
-		model = M4_float::Rotate(model, DegToRad(-5.0f), 0.0f, 1.0f, 0.0f);
-	}
-	if (game.input.KeyPressed(Key::Z)) {
-		model = M4_float::Rotate(model, DegToRad(5.0f), 1.0f, 0.0f, 0.0f);
-	}
-	if (game.input.KeyPressed(Key::C)) {
-		model = M4_float::Rotate(model, DegToRad(-5.0f), 1.0f, 0.0f, 0.0f);
-	}*/
-}
+};
 
 void TestCamera() {
-	game.PushLoopFunction([&](float dt) {
-		ws	   = game.window.GetSize();
-		center = game.window.GetCenter();
-		game.window.SetSize({ 800, 800 });
-		game.renderer.SetClearColor(color::DarkGrey);
-		static std::size_t count{ game.LoopFunctionCount() };
-		switch (static_cast<CameraTest>(camera_test)) {
-			case CameraTest::Movement:	TestCameraMovement(dt); break;
-			case CameraTest::Switching: TestCameraSwitching(dt); break;
-			default:					PTGN_ERROR("Failed to find a valid camera test");
-		}
-		if (count != game.LoopFunctionCount()) {
-			game.scene.GetTopActive().camera.ResetPrimaryToWindow();
-		}
-	});
+	std::vector<std::shared_ptr<Test>> tests;
+
+	tests.emplace_back(new TestCameraBounds());
+	tests.emplace_back(new TestCameraControls());
+	tests.emplace_back(new TestCameraSwitching());
+	tests.emplace_back(new TestParallax());
+
+	AddTests(tests);
 }

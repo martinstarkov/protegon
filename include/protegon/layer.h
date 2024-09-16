@@ -12,6 +12,8 @@
 
 namespace ptgn {
 
+// TODO: Come back to this.
+/*
 class EntityLayer {
 public:
 	EntityLayer() = default;
@@ -53,7 +55,7 @@ class TileLayer : public Grid<impl::Tile> {
 public:
 	// TOOD: Change to take path.
 	TileLayer(
-		const char* tileset_path, const V2_int& tile_size, const V2_int& grid_size,
+		const path& tileset_path, const V2_int& tile_size, const V2_int& grid_size,
 		const V2_float& scale
 	) :
 		Grid<impl::Tile>{ grid_size },
@@ -88,5 +90,6 @@ class GridLayer : public Grid<T> {
 public:
 private:
 };
+*/
 
 } // namespace ptgn

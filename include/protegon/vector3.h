@@ -1,12 +1,9 @@
 #pragma once
 
-#include <algorithm>
-#include <cmath>
-#include <cstdlib>
-#include <functional>
+#include <iosfwd>
 #include <ostream>
+#include <type_traits>
 
-#include "protegon/math.h"
 #include "utility/debug.h"
 #include "utility/type_traits.h"
 
@@ -18,12 +15,12 @@ struct Vector3 {
 	T y{ 0 };
 	T z{ 0 };
 
-	constexpr Vector3()				   = default;
-	~Vector3()						   = default;
-	Vector3(const Vector3&)			   = default;
-	Vector3(Vector3&&)				   = default;
-	Vector3& operator=(const Vector3&) = default;
-	Vector3& operator=(Vector3&&)	   = default;
+	constexpr Vector3()					   = default;
+	~Vector3()							   = default;
+	Vector3(const Vector3&)				   = default;
+	Vector3(Vector3&&) noexcept			   = default;
+	Vector3& operator=(const Vector3&)	   = default;
+	Vector3& operator=(Vector3&&) noexcept = default;
 
 	explicit constexpr Vector3(T all) : x{ all }, y{ all }, z{ all } {}
 
@@ -45,7 +42,7 @@ struct Vector3 {
 		x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) }, z{ static_cast<T>(o.z) } {}
 
 	// Access vector elements by index, 0 for x, 1 for y, 2 for z.
-	constexpr T& operator[](std::size_t idx) {
+	[[nodiscard]] constexpr T& operator[](std::size_t idx) {
 		PTGN_ASSERT(idx >= 0 && idx < 3, "Vector3 subscript out of range");
 		if (idx == 0) {
 			return x;
@@ -56,7 +53,7 @@ struct Vector3 {
 	}
 
 	// Access vector elements by index, 0 for x, 1 for y, 2 for z.
-	constexpr T operator[](std::size_t idx) const {
+	[[nodiscard]] constexpr T operator[](std::size_t idx) const {
 		PTGN_ASSERT(idx >= 0 && idx < 3, "Vector3 subscript out of range");
 		if (idx == 0) {
 			return x;
@@ -66,7 +63,7 @@ struct Vector3 {
 		return z; // idx == 2
 	}
 
-	constexpr Vector3 operator-() const {
+	[[nodiscard]] constexpr Vector3 operator-() const {
 		return { -x, -y, -z };
 	}
 
@@ -152,15 +149,16 @@ struct Vector3 {
 
 	// See https://en.wikipedia.org/wiki/Rotation_matrix for details
 	// Note: This is Euler angles and not Tait-Bryan angles.
+	// Angles in radians.
 	template <typename S = typename std::common_type_t<T, float>>
-	[[nodiscard]] Vector3<S> Rotated(S yaw, S pitch, S roll) const {
+	[[nodiscard]] Vector3<S> Rotated(S yaw_radians, S pitch_radians, S roll_radians) const {
 		static_assert(std::is_floating_point_v<S>, "Function requires floating point type");
-		auto sin_a = std::sin(yaw);
-		auto cos_a = std::cos(yaw);
-		auto sin_B = std::sin(pitch);
-		auto cos_B = std::cos(pitch);
-		auto sin_y = std::sin(roll);
-		auto cos_y = std::cos(roll);
+		auto sin_a = std::sin(yaw_radians);
+		auto cos_a = std::cos(yaw_radians);
+		auto sin_B = std::sin(pitch_radians);
+		auto cos_B = std::cos(pitch_radians);
+		auto sin_y = std::sin(roll_radians);
+		auto cos_y = std::cos(roll_radians);
 		return { x * (cos_B * cos_y) + y * (sin_a * sin_B * cos_y - cos_a * sin_y) +
 					 z * (cos_a * sin_B * cos_y + sin_a * sin_y),
 				 x * (cos_B * sin_y) + y * (sin_a * sin_B * sin_y + cos_a * cos_y) +
@@ -178,68 +176,68 @@ using V3_uint	= Vector3<unsigned int>;
 using V3_float	= Vector3<float>;
 using V3_double = Vector3<double>;
 
-template <typename T>
-inline bool operator==(const Vector3<T>& lhs, const Vector3<T>& rhs) {
+template <typename V>
+[[nodiscard]] inline bool operator==(const Vector3<V>& lhs, const Vector3<V>& rhs) {
 	return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y) && NearlyEqual(lhs.z, rhs.z);
 }
 
-template <typename T>
-inline bool operator!=(const Vector3<T>& lhs, const Vector3<T>& rhs) {
+template <typename V>
+[[nodiscard]] inline bool operator!=(const Vector3<V>& lhs, const Vector3<V>& rhs) {
 	return !operator==(lhs, rhs);
 }
 
-template <typename T, typename U, typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector3<S> operator+(const Vector3<T>& lhs, const Vector3<U>& rhs) {
+template <typename V, ptgn::tt::stream_writable<std::ostream, V> = true>
+inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector3<V>& v) {
+	os << "(" << v.x << ", " << v.y << ", " << v.z << ")";
+	return os;
+}
+
+template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector3<S> operator+(const Vector3<V>& lhs, const Vector3<U>& rhs) {
 	return { lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z };
 }
 
-template <typename T, typename U, typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector3<S> operator-(const Vector3<T>& lhs, const Vector3<U>& rhs) {
+template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector3<S> operator-(const Vector3<V>& lhs, const Vector3<U>& rhs) {
 	return { lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z };
 }
 
-template <typename T, typename U, typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector3<S> operator*(const Vector3<T>& lhs, const Vector3<U>& rhs) {
+template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector3<S> operator*(const Vector3<V>& lhs, const Vector3<U>& rhs) {
 	return { lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z };
 }
 
-template <typename T, typename U, typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector3<S> operator/(const Vector3<T>& lhs, const Vector3<U>& rhs) {
+template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector3<S> operator/(const Vector3<V>& lhs, const Vector3<U>& rhs) {
 	return { lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z };
 }
 
 template <
-	typename T, typename U, tt::arithmetic<T> = true,
-	typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector3<S> operator*(T lhs, const Vector3<U>& rhs) {
+	typename V, typename U, tt::arithmetic<V> = true,
+	typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector3<S> operator*(V lhs, const Vector3<U>& rhs) {
 	return { lhs * rhs.x, lhs * rhs.y, lhs * rhs.z };
 }
 
 template <
-	typename T, typename U, tt::arithmetic<U> = true,
-	typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector3<S> operator*(const Vector3<T>& lhs, U rhs) {
+	typename V, typename U, tt::arithmetic<U> = true,
+	typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector3<S> operator*(const Vector3<V>& lhs, U rhs) {
 	return { lhs.x * rhs, lhs.y * rhs, lhs.z * rhs };
 }
 
 template <
-	typename T, typename U, tt::arithmetic<T> = true,
-	typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector3<S> operator/(T lhs, const Vector3<U>& rhs) {
+	typename V, typename U, tt::arithmetic<V> = true,
+	typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector3<S> operator/(V lhs, const Vector3<U>& rhs) {
 	return { lhs / rhs.x, lhs / rhs.y, lhs / rhs.z };
 }
 
 template <
-	typename T, typename U, tt::arithmetic<T> = true,
-	typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector3<S> operator/(const Vector3<T>& lhs, U rhs) {
+	typename V, typename U, tt::arithmetic<U> = true,
+	typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector3<S> operator/(const Vector3<V>& lhs, U rhs) {
 	return { lhs.x / rhs, lhs.y / rhs, lhs.z / rhs };
-}
-
-template <typename T, ptgn::tt::stream_writable<std::ostream, T> = true>
-inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector3<T>& v) {
-	os << "(" << v.x << ", " << v.y << ", " << v.z << ")";
-	return os;
 }
 
 } // namespace ptgn

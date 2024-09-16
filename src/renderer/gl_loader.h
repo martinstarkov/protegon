@@ -5,9 +5,7 @@
 // IMPORTANT: This file is not meant to be included outside the protegon library
 // so keep it in .cpp files only!
 
-namespace ptgn {
-
-namespace gl {
+namespace ptgn::gl {
 
 #ifdef __EMSCRIPTEN__
 
@@ -146,6 +144,4 @@ GL_LIST_3
 
 #endif
 
-} // namespace gl
-
-} // namespace ptgn
+} // namespace ptgn::gl

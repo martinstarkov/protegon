@@ -1,48 +1,106 @@
 #pragma once
 
+#include <array>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "core/window.h"
+#include "event/input_handler.h"
+#include "event/key.h"
 #include "protegon/game.h"
+#include "protegon/math.h"
+#include "protegon/vector2.h"
 #include "utility/debug.h"
 
 using namespace ptgn;
 
 const static std::string test_instructions{ "'1' (--test); '2' (++test), 'ESC' (++category)" };
-const static std::vector<Key> test_switch_keys{ Key::ONE, Key::TWO };
-extern V2_float ws;
-extern V2_float center;
+const static std::array<Key, 2> test_switch_keys{ Key::ONE, Key::TWO };
+const static Key test_category_switch_key{ Key::ESCAPE };
 
-// TODO: Make this a template to get count.
-void CheckForTestSwitch(int& current_test, int test_count, const std::vector<Key>& keys) {
-	PTGN_ASSERT(keys.size() == 2);
-	if (game.input.KeyDown(keys[0])) {
+namespace ptgn {
+
+struct Test {
+	virtual ~Test() = default;
+
+	void Setup() {
+		ws	   = game.window.GetSize();
+		center = game.window.GetCenter();
+	}
+
+	virtual void Init() { /**/
+	}
+
+	virtual void Update(float dt) { /**/
+	}
+
+	virtual void Update() { /**/
+	}
+
+	virtual void Draw() { /**/
+	}
+
+	virtual void Shutdown() { /**/
+	}
+
+	virtual void Run(float dt) final {
+		if (!initialized_) {
+			Setup();
+			Init();
+			initialized_ = true;
+		}
+		Update(dt);
+		Update();
+		Draw();
+	}
+
+protected:
+	V2_float ws;	 // window size
+	V2_float center; // window center
+private:
+	bool initialized_{ false };
+};
+
+void CheckForTestSwitch(const std::vector<std::shared_ptr<Test>>& tests, int& current_test) {
+	PTGN_ASSERT(test_switch_keys.size() == 2);
+	int test_count{ static_cast<int>(tests.size()) };
+	auto shutdown = [&]() {
+		game.camera.Reset();
+		tests[current_test]->Shutdown();
+	};
+
+	if (game.input.KeyDown(test_switch_keys[0])) {
+		shutdown();
 		current_test--;
 		current_test = Mod(current_test, test_count);
-	} else if (game.input.KeyDown(keys[1])) {
+	} else if (game.input.KeyDown(test_switch_keys[1])) {
+		shutdown();
 		current_test++;
 		current_test = Mod(current_test, test_count);
 	}
-	if (game.input.KeyDown(Key::ESCAPE)) {
+	if (game.input.KeyDown(test_category_switch_key)) {
+		shutdown();
 		game.PopLoopFunction();
 	}
 }
 
-template <typename T, typename... Ts>
-void TestLoop(
-	float dt, const std::string& instructions, int& current_test, int test_count,
-	const std::vector<Key>& keys, const T& function, const std::string& name, const Ts&... message
-) {
-	game.window.SetTitle((instructions + ": [" + std::to_string(current_test) + "] " + name).c_str()
-	);
-	// PTGN_LOG("[", current_test, "] ", name, message...);
+void AddTests(const std::vector<std::shared_ptr<Test>>& tests) {
+	// Lambda capture will keep this alive as long as is necessary.
+	auto test_idx = std::make_shared<int>(0);
 
-	Game::UpdateFunction loop_function{ std::function(function) };
+	game.PushLoopFunction([tests, test_idx](float dt) {
+		PTGN_ASSERT(*test_idx < tests.size());
 
-	CheckForTestSwitch(current_test, (int)test_count, keys);
+		auto& current_test = tests[*test_idx];
 
-	game.renderer.DrawPoint(game.input.GetMousePosition(), color::Red, 2.0f);
+		game.window.SetTitle(test_instructions + std::string(": ") + std::to_string(*test_idx));
 
-	if (std::holds_alternative<std::function<void(float)>>(loop_function)) {
-		std::invoke(std::get<std::function<void(float)>>(loop_function), dt);
-	} else {
-		std::invoke(std::get<std::function<void(void)>>(loop_function));
-	}
+		current_test->Run(dt);
+
+		CheckForTestSwitch(tests, *test_idx);
+	});
 }
+
+} // namespace ptgn

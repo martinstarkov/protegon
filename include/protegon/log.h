@@ -2,25 +2,24 @@
 
 #include <filesystem>
 #include <iomanip>
+#include <ios>
+#include <iosfwd>
 #include <iostream>
 #include <ostream>
-#include <sstream>
-#include <string>
+#include <string_view>
+#include <type_traits>
 
+#include "utility/time.h"
 #include "utility/type_traits.h"
 
-namespace ptgn {
-
-namespace impl {
+namespace ptgn::impl {
 
 template <typename... T>
-inline constexpr size_t NumberOfArgs(T... a) {
+constexpr size_t NumberOfArgs(T... a) {
 	return sizeof...(a);
 }
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl
 
 #define PTGN_NUMBER_OF_ARGS(...) ptgn::impl::NumberOfArgs(__VA_ARGS__)
 
@@ -33,10 +32,11 @@ template <typename... TArgs>
 inline void PrintImpl(std::ostream& ostream, int precision, bool scientific, TArgs&&... items) {
 	// TODO: Figure out how to add this since PTGN_ASSERT requires print.
 	// PTGN_ASSERT(precision == -1 || precision >= 0, "Invalid print precision");
-	static_assert(
+	using ptgn::operator<<;
+	/*static_assert(
 		(tt::is_stream_writable_v<std::ostream, TArgs> && ...),
 		"PTGN_* argument must be stream writeable"
-	);
+	);*/
 	std::ios state{ nullptr };
 	state.copyfmt(ostream);
 	if (scientific) {
@@ -88,7 +88,9 @@ inline void PrintPreciseLine(int precision, bool scientific, TArgs&&... items) {
 	std::cout << "\n";
 }
 
-inline void PrintPreciseLine(int precision = -1, bool scientific = false) {
+inline void PrintPreciseLine(
+	[[maybe_unused]] int precision = -1, [[maybe_unused]] bool scientific = false
+) {
 	std::cout << "\n";
 }
 
@@ -149,7 +151,7 @@ inline void PrintPreciseLine() {
 	{                                                                                   \
 		ptgn::debug::Print(                                                             \
 			prefix, std::filesystem::path(__FILE__).filename().string(), ":", __LINE__, \
-			std::invoke([&]() -> const char* {                                          \
+			std::invoke([&]() -> std::string_view {                                     \
 				if (PTGN_NUMBER_OF_ARGS(__VA_ARGS__) > 0) {                             \
 					return ": ";                                                        \
 				} else {                                                                \
@@ -160,7 +162,11 @@ inline void PrintPreciseLine() {
 		ptgn::debug::PrintLine(__VA_ARGS__);                                            \
 	}
 
-#define PTGN_WARN(...) PTGN_INTERNAL_DEBUG_MESSAGE("WARN: ", __VA_ARGS__)
+#define PTGN_WARN(...)                \
+	{                                 \
+		ptgn::Print("WARN: ");        \
+		ptgn::PrintLine(__VA_ARGS__); \
+	}
 
 #define PTGN_ERROR(...)                                      \
 	{                                                        \

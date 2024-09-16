@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <memory>
 #include <vector>
 
 #include "renderer/gl_helper.h"
@@ -24,13 +25,11 @@ struct BufferInstance {
 template <BufferType BT>
 class Buffer : public Handle<impl::BufferInstance> {
 public:
-	Buffer()  = default;
-	~Buffer() = default;
+	Buffer()		   = default;
+	~Buffer() override = default;
 
 	Buffer(const void* data, std::uint32_t size, BufferUsage usage = BufferUsage::StaticDraw) {
-		if (!IsValid()) {
-			instance_ = std::make_shared<impl::BufferInstance>();
-		}
+		Create();
 		SetDataImpl(data, size, usage);
 	}
 
@@ -66,7 +65,6 @@ private:
 	[[nodiscard]] static BufferUsage GetBoundUsage();
 
 	void Bind() const;
-	// static void Unbind();
 
 	void SetDataImpl(const void* data, std::uint32_t size, BufferUsage usage);
 };

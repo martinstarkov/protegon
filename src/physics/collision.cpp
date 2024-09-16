@@ -1,16 +1,23 @@
 #include "protegon/collision.h"
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
+#include <utility>
+#include <vector>
 
+#include "protegon/circle.h"
+#include "protegon/line.h"
+#include "protegon/log.h"
 #include "protegon/math.h"
+#include "protegon/polygon.h"
+#include "protegon/vector2.h"
+#include "renderer/origin.h"
 #include "utility/debug.h"
 
 namespace ptgn {
 
-float OverlapCollision::SquareDistancePointRectangle(
-	const Point<float>& a, const Rectangle<float>& b
-) {
+float OverlapCollision::SquareDistancePointRectangle(const V2_float& a, const Rectangle<float>& b) {
 	float dist2{ 0.0f };
 	const V2_float max{ b.Max() };
 	const V2_float min{ b.Min() };
@@ -26,9 +33,7 @@ float OverlapCollision::SquareDistancePointRectangle(
 	return dist2;
 }
 
-float OverlapCollision::ParallelogramArea(
-	const Point<float>& a, const Point<float>& b, const Point<float>& c
-) {
+float OverlapCollision::ParallelogramArea(const V2_float& a, const V2_float& b, const V2_float& c) {
 	return (a - c).Cross(b - c);
 }
 
@@ -61,15 +66,15 @@ bool OverlapCollision::CircleRectangle(const Circle<float>& a, const Rectangle<f
 	return dist2 < rad2 || NearlyEqual(dist2, rad2);
 }
 
-bool OverlapCollision::PointRectangle(const Point<float>& a, const Rectangle<float>& b) {
+bool OverlapCollision::PointRectangle(const V2_float& a, const Rectangle<float>& b) {
 	return RectangleRectangle(Rectangle<float>{ a, {}, Origin::Center }, b);
 }
 
-bool OverlapCollision::PointCircle(const Point<float>& a, const Circle<float>& b) {
+bool OverlapCollision::PointCircle(const V2_float& a, const Circle<float>& b) {
 	return CircleCircle({ a, 0.0f }, b);
 }
 
-bool OverlapCollision::PointSegment(const Point<float>& a, const Segment<float>& b) {
+bool OverlapCollision::PointSegment(const V2_float& a, const Segment<float>& b) {
 	const V2_float ab{ b.Direction() };
 	const V2_float ac{ a - b.a };
 	const V2_float bc{ a - b.b };
@@ -93,11 +98,11 @@ bool OverlapCollision::SegmentRectangle(const Segment<float>& a, const Rectangle
 	const V2_float b_max{ b.Max() };
 	const V2_float b_min{ b.Min() };
 
-	Point<float> c = (b_min + b_max) * 0.5f; // Box center-point
-	V2_float e	   = b_max - c;				 // Box halflength extents
-	Point<float> m = (a.a + a.b) * 0.5f;	 // Segment midpoint
-	V2_float d	   = a.b - m;				 // Segment halflength vector
-	m			   = m - c;					 // Translate box and segment to origin
+	V2_float c = (b_min + b_max) * 0.5f; // Box center-point
+	V2_float e = b_max - c;				 // Box halflength extents
+	V2_float m = (a.a + a.b) * 0.5f;	 // Segment midpoint
+	V2_float d = a.b - m;				 // Segment halflength vector
+	m		   = m - c;					 // Translate box and segment to origin
 	// Try world coordinate axes as separating axes
 	float adx = FastAbs(d.x);
 	if (FastAbs(m.x) > e.x + adx) {
@@ -264,9 +269,8 @@ bool IntersectCollisionHandler::CircleRectangle(
 	const V2_float ab{ a.center - clamped };
 
 	const float d2{ ab.Dot(ab) };
-	const float r2{ a.radius * a.radius };
 
-	if (d2 < r2) {
+	if (const float r2{ a.radius * a.radius }; d2 < r2) {
 		if (NearlyEqual(d2, 0.0f)) { // deep (center of circle inside of AABB)
 
 			// clamp circle's center to edge of AABB, then form the manifold
@@ -301,23 +305,22 @@ bool DynamicCollisionHandler::SegmentSegment(
 ) {
 	c = {};
 
-	const Point<float> r{ a.Direction() };
-	const Point<float> s{ b.Direction() };
+	const V2_float r{ a.Direction() };
+	const V2_float s{ b.Direction() };
 
 	const float sr{ s.Cross(r) };
 	if (NearlyEqual(sr, 0.0f)) {
 		return false;
 	}
 
-	const Point<float> ab{ a.a - b.a };
+	const V2_float ab{ a.a - b.a };
 	const float abr{ ab.Cross(r) };
 
-	const float u{ abr / sr };
-	if (u < 0.0f || u > 1.0f) {
+	if (const float u{ abr / sr }; u < 0.0f || u > 1.0f) {
 		return false;
 	}
 
-	const Point<float> ba{ b.a - a.a };
+	const V2_float ba{ b.a - a.a };
 	const float rs{ r.Cross(s) };
 	if (NearlyEqual(rs, 0.0f)) {
 		return false;
@@ -347,8 +350,8 @@ bool DynamicCollisionHandler::SegmentCircle(
 ) {
 	c = {};
 
-	const Point<float> d{ -a.Direction() };
-	const Point<float> f{ b.center - a.a };
+	const V2_float d{ -a.Direction() };
+	const V2_float f{ b.center - a.a };
 
 	// bool (roots exist), float (root 1), float (root 2).
 	const auto [real, t1, t2] =
@@ -429,10 +432,8 @@ bool DynamicCollisionHandler::SegmentRectangle(
 	c.t = std::max(t_near.x, t_near.y);
 
 	// Furthest time is contact on opposite side of target.
-	float t_hit_far = std::min(t_far.x, t_far.y);
-
 	// Reject if furthest time is negative, meaning the object is travelling away from the target.
-	if (t_hit_far < 0.0f) {
+	if (float t_hit_far = std::min(t_far.x, t_far.y); t_hit_far < 0.0f) {
 		return false;
 	}
 
@@ -523,7 +524,7 @@ bool DynamicCollisionHandler::SegmentCapsule(
 ) {
 	c = {};
 
-	const Point<float> cv{ b.segment.Direction() };
+	const V2_float cv{ b.segment.Direction() };
 	const float mag2{ cv.Dot(cv) };
 
 	if (NearlyEqual(mag2, 0.0f)) {
@@ -539,26 +540,18 @@ bool DynamicCollisionHandler::SegmentCapsule(
 	const Segment<float> p1{ b.segment.a + ncu_dist, b.segment.b + ncu_dist };
 	const Segment<float> p2{ b.segment.a - ncu_dist, b.segment.b - ncu_dist };
 
-	auto col_min{ c };
-	if (SegmentSegment(a, p1, c)) {
-		if (c.t < col_min.t) {
-			col_min = c;
-		}
+	auto& col_min{ c };
+	if (SegmentSegment(a, p1, c) && c.t < col_min.t) {
+		col_min = c;
 	}
-	if (SegmentSegment(a, p2, c)) {
-		if (c.t < col_min.t) {
-			col_min = c;
-		}
+	if (SegmentSegment(a, p2, c) && c.t < col_min.t) {
+		col_min = c;
 	}
-	if (SegmentCircle(a, { b.segment.a, b.radius }, c)) {
-		if (c.t < col_min.t) {
-			col_min = c;
-		}
+	if (SegmentCircle(a, { b.segment.a, b.radius }, c) && c.t < col_min.t) {
+		col_min = c;
 	}
-	if (SegmentCircle(a, { b.segment.b, b.radius }, c)) {
-		if (c.t < col_min.t) {
-			col_min = c;
-		}
+	if (SegmentCircle(a, { b.segment.b, b.radius }, c) && c.t < col_min.t) {
+		col_min = c;
 	}
 
 	if (NearlyEqual(col_min.t, 1.0f)) {
@@ -582,9 +575,9 @@ bool DynamicCollisionHandler::CircleRectangle(
 	Segment<float> seg{ a.center, a.center + vel };
 
 	bool start_inside{ OverlapCollision::CircleRectangle(a, b) };
-	bool end_inside{ OverlapCollision::CircleRectangle({ seg.b, a.radius }, b) };
 
-	if (start_inside && end_inside) {
+	if (bool end_inside{ OverlapCollision::CircleRectangle({ seg.b, a.radius }, b) };
+		start_inside && end_inside) {
 		c = {};
 		return false;
 	}
@@ -608,30 +601,26 @@ bool DynamicCollisionHandler::CircleRectangle(
 	V2_float b_min{ b.Min() };
 	V2_float b_max{ b.Max() };
 
-	auto col_min{ c };
+	auto& col_min{ c };
 	// Top segment.
-	if (SegmentCapsule(seg, { { b_min, V2_float{ b_max.x, b_min.y } }, a.radius }, c)) {
-		if (c.t < col_min.t) {
-			col_min = c;
-		}
+	if (SegmentCapsule(seg, { { b_min, V2_float{ b_max.x, b_min.y } }, a.radius }, c) &&
+		c.t < col_min.t) {
+		col_min = c;
 	}
 	// Right segment.
-	if (SegmentCapsule(seg, { { V2_float{ b_max.x, b_min.y }, b_max }, a.radius }, c)) {
-		if (c.t < col_min.t) {
-			col_min = c;
-		}
+	if (SegmentCapsule(seg, { { V2_float{ b_max.x, b_min.y }, b_max }, a.radius }, c) &&
+		c.t < col_min.t) {
+		col_min = c;
 	}
 	// Bottom segment.
-	if (SegmentCapsule(seg, { { b_max, V2_float{ b_min.x, b_max.y } }, a.radius }, c)) {
-		if (c.t < col_min.t) {
-			col_min = c;
-		}
+	if (SegmentCapsule(seg, { { b_max, V2_float{ b_min.x, b_max.y } }, a.radius }, c) &&
+		c.t < col_min.t) {
+		col_min = c;
 	}
 	// Left segment.
-	if (SegmentCapsule(seg, { { V2_float{ b_min.x, b_max.y }, b_min }, a.radius }, c)) {
-		if (c.t < col_min.t) {
-			col_min = c;
-		}
+	if (SegmentCapsule(seg, { { V2_float{ b_min.x, b_max.y }, b_min }, a.radius }, c) &&
+		c.t < col_min.t) {
+		col_min = c;
 	}
 
 	if (NearlyEqual(col_min.t, 1.0f)) {
@@ -665,25 +654,25 @@ bool DynamicCollisionHandler::GeneralShape(
 	const V2_float& relative_velocity, DynamicCollision& c, float& distance_squared
 ) {
 	if (shape1 == DynamicCollisionShape::Rectangle) {
-		Rectangle<float> r1{ pos1, size1, origin1 };
+		Rectangle r1{ pos1, size1, origin1 };
 		if (shape2 == DynamicCollisionShape::Rectangle) {
-			Rectangle<float> r2{ pos2, size2, origin2 };
+			Rectangle r2{ pos2, size2, origin2 };
 			distance_squared = (r1.Center() - r2.Center()).MagnitudeSquared();
 			return RectangleRectangle(r1, relative_velocity, r2, c);
 		} else if (shape2 == DynamicCollisionShape::Circle) {
-			Circle<float> c2{ pos2, size2.x };
+			Circle c2{ pos2, size2.x };
 			distance_squared = (r1.Center() - c2.center).MagnitudeSquared();
 			return CircleRectangle(c2, -relative_velocity, r1, c);
 		}
 		PTGN_ERROR("Unrecognized shape for collision target object");
 	} else if (shape1 == DynamicCollisionShape::Circle) {
-		Circle<float> c1{ pos1, size1.x };
+		Circle c1{ pos1, size1.x };
 		if (shape2 == DynamicCollisionShape::Rectangle) {
-			Rectangle<float> r2{ pos2, size2, origin2 };
+			Rectangle r2{ pos2, size2, origin2 };
 			distance_squared = (c1.center - r2.Center()).MagnitudeSquared();
 			return CircleRectangle(c1, relative_velocity, r2, c);
 		} else if (shape2 == DynamicCollisionShape::Circle) {
-			Circle<float> c2{ pos2, size2.x };
+			Circle c2{ pos2, size2.x };
 			distance_squared = (c1.center - c2.center).MagnitudeSquared();
 			return CircleCircle(c1, -relative_velocity, c2, c);
 		}
@@ -750,8 +739,6 @@ V2_float DynamicCollisionHandler::GetRemainingVelocity(
 	}
 	PTGN_ERROR("Failed to identify DynamicCollisionResponse type");
 }
-
-void CollisionHandler::Init() {}
 
 void CollisionHandler::Shutdown() {
 	overlap	  = {};

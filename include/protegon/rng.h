@@ -1,7 +1,5 @@
 #pragma once
 
-#include <algorithm>
-#include <cmath>
 #include <cstdint>
 #include <limits>
 #include <random>
@@ -24,27 +22,26 @@ enum class Distribution {
 /*
  * Define RNG object by giving it a type to generate from
  * and a range or seed for the distribution.
- * Upper and lower bounds of RNG range are both inclusive: [min, max]
+ * Upper and lower bounds of RNG range are both inclusive: [min, max].
  * Use operator() on the RNG object to obtain new random numbers.
- * @tparam T Type of number to generate
- * @tparam D Distribution to use for generating values
- * @tparam E Type of rng engine to use (std::minstd_rand [default],
- * std::mt19937, etc)
+ * @tparam T Type of number to generate.
+ * @tparam D Distribution to use for generating values.
+ * @tparam E Type of rng engine to use (std::minstd_rand,
+ * std::mt19937, etc).
  */
 template <
-	typename T, Distribution D = Distribution::Uniform, typename E = std::minstd_rand,
+	typename T, Distribution D = Distribution::Uniform, typename E = std::mt19937,
 	typename std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
 class RNG {
 private:
-	using uniform_type = typename std::conditional<
+	using uniform_type = typename std::conditional_t<
 		std::is_floating_point_v<T>, std::uniform_real_distribution<T>,
-		typename std::conditional<
-			std::is_integral_v<T>, std::uniform_int_distribution<T>, void>::type>::type;
+		typename std::conditional_t<std::is_integral_v<T>, std::uniform_int_distribution<T>, void>>;
 	using normal_type = std::normal_distribution<T>;
 	// Template which picks correct distribution based on the provided type.
-	using distribution = typename std::conditional<
+	using distribution = typename std::conditional_t<
 		(D == Distribution::Uniform), uniform_type,
-		typename std::conditional<(D == Distribution::Normal), normal_type, void>::type>::type;
+		typename std::conditional_t<(D == Distribution::Normal), normal_type, void>>;
 
 public:
 	static_assert(
@@ -57,7 +54,7 @@ public:
 
 	// Default range seeded distribution.
 	// Range: [0, 1] (inclusive).
-	RNG(std::uint32_t seed) : RNG{ seed, T{ 0 }, T{ 1 } } {}
+	explicit RNG(std::uint32_t seed) : RNG{ seed, T{ 0 }, T{ 1 } } {}
 
 	// Custom range seeded distribution.
 	// Range: [min, max] (inclusive).
@@ -70,7 +67,7 @@ public:
 	RNG(T min, T max) : RNG{ std::invoke(std::random_device{}), min, max } {}
 
 	// Generate a new random number in the specified range.
-	T operator()() {
+	[[nodiscard]] T operator()() {
 		auto v = distribution_(generator_);
 		// TODO: Check if this assert triggers occasionally for normal distributions. I saw a
 		// PTGN_ASSERT(v <= min_ && v >= max_, "RNG failed to generate number in the correct

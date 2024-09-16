@@ -8,10 +8,10 @@ template <typename T = float>
 struct Line {
 	Line() = default;
 
-	Line(const Point<T>& a, const Point<T>& b) : a{ a }, b{ b } {}
+	Line(const Vector2<T>& a, const Vector2<T>& b) : a{ a }, b{ b } {}
 
-	Point<T> a{};
-	Point<T> b{};
+	Vector2<T> a;
+	Vector2<T> b;
 
 	// p is the penetration vector.
 	[[nodiscard]] Line<T> Resolve(const Vector2<T>& p) const {
@@ -24,7 +24,7 @@ struct Line {
 
 	template <typename U>
 	operator Line<U>() const {
-		return { static_cast<Point<U>>(a), static_cast<Point<U>>(b) };
+		return { static_cast<Vector2<U>>(a), static_cast<Vector2<U>>(b) };
 	}
 };
 
@@ -34,7 +34,7 @@ struct Segment : public Line<T> {
 
 	template <typename U>
 	operator Segment<U>() const {
-		return { static_cast<Point<U>>(this->a), static_cast<Point<U>>(this->b) };
+		return { static_cast<Vector2<U>>(this->a), static_cast<Vector2<U>>(this->b) };
 	}
 };
 
@@ -45,7 +45,7 @@ struct Capsule {
 	Capsule(const Line<T>& segment, T radius) : segment{ segment }, radius{ radius } {}
 
 	Line<T> segment;
-	T radius{};
+	T radius{ 0 };
 
 	template <typename U>
 	operator Capsule<U>() const {

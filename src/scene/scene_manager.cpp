@@ -1,5 +1,14 @@
-#include "scene_manager.h"
+#include "scene/scene_manager.h"
 
+#include <algorithm>
+#include <list>
+#include <memory>
+#include <utility>
+#include <vector>
+
+#include "core/manager.h"
+#include "protegon/scene.h"
+#include "scene/camera.h"
 #include "utility/debug.h"
 
 namespace ptgn {
@@ -10,17 +19,6 @@ void SceneManager::Unload(std::size_t scene_key) {
 		scene->status_ = Scene::Status::Delete;
 		flagged_++;
 	}
-}
-
-void SceneManager::SetActive(std::size_t scene_key) {
-	// ExitAllExcept(scene_key);
-	PTGN_ASSERT(
-		Has(scene_key) || scene_key == impl::start_scene_key,
-		"Cannot set active scene if it has not been loaded into the scene "
-		"manager"
-	);
-	active_scenes_.clear();
-	AddActive(scene_key);
 }
 
 void SceneManager::InitScene(std::size_t scene_key) {
@@ -49,11 +47,13 @@ void SceneManager::RemoveActive(std::size_t scene_key) {
 		Has(scene_key), "Cannot remove active scene if it has not been loaded into "
 						"the scene manager"
 	);
+	// TODO: Instead of immediately removing the active scene, flag it anad remove after update.
 	for (auto it = active_scenes_.begin(); it != active_scenes_.end();) {
 		if (*it == scene_key) {
 			if (Has(scene_key)) {
 				auto scene = Get(scene_key);
 				scene->Shutdown();
+				scene->camera.SetCameraWindow();
 			}
 			it = active_scenes_.erase(it);
 		} else {
@@ -120,12 +120,9 @@ void SceneManager::UnloadFlagged() {
 }
 
 bool SceneManager::ActiveScenesContain(std::size_t key) const {
-	for (auto k : active_scenes_) {
-		if (k == key) {
-			return true;
-		}
-	}
-	return false;
+	return std::any_of(active_scenes_.begin(), active_scenes_.end(), [key](std::size_t i) {
+		return i == key;
+	});
 }
 
 } // namespace ptgn

@@ -1,11 +1,198 @@
 #pragma once
 
+#include <algorithm>
+#include <cstdint>
+#include <iostream>
+#include <memory>
+#include <new>
+#include <ostream>
+#include <vector>
+
+#include "common.h"
+#include "event/input_handler.h"
+#include "event/key.h"
+#include "protegon/color.h"
+#include "protegon/game.h"
+#include "protegon/log.h"
+#include "protegon/noise.h"
 #include "protegon/rng.h"
+#include "protegon/vector2.h"
+#include "renderer/origin.h"
+#include "renderer/renderer.h"
 #include "utility/debug.h"
 
 // TODO: Add tests for Gaussian.
 
-using namespace ptgn;
+struct TestFractalNoise : public Test {
+	NoiseProperties properties;
+
+	std::vector<float> noise_map;
+
+	std::size_t divisions{ 10 };
+
+	V2_float pos;
+
+	ValueNoise noise{ 256, 0 };
+
+	V2_int pixel_size;
+	V2_int grid_size;
+
+	bool thresholding{ false };
+
+	explicit TestFractalNoise(int fractal_preset = 0) {
+		if (fractal_preset == 0) {
+			properties.octaves	   = 5;
+			properties.frequency   = 0.03f;
+			properties.bias		   = 2.4f;
+			properties.persistence = 0.7f;
+		} else {
+			properties.octaves	   = 5;
+			properties.frequency   = 0.02f;
+			properties.bias		   = 1.8f;
+			properties.persistence = 0.35f;
+		}
+	}
+
+	void Init() override {
+		pos = {};
+
+		pixel_size = { 32, 32 };
+		grid_size  = ws / pixel_size + V2_int{ 1, 1 };
+
+		noise_map = FractalNoise::Generate(noise, pos, grid_size, properties);
+	}
+
+	void Update(float dt) override {
+		static NoiseProperties prev_properties = properties;
+
+		if (game.input.KeyDown(Key::R)) {
+			properties.octaves++;
+		}
+		if (game.input.KeyDown(Key::F)) {
+			properties.octaves--;
+		}
+
+		if (game.input.KeyDown(Key::T)) {
+			properties.frequency += 0.01f;
+		}
+		if (game.input.KeyDown(Key::G)) {
+			properties.frequency -= 0.01f;
+		}
+
+		if (game.input.KeyDown(Key::Y)) {
+			properties.bias += 0.1f;
+		}
+		if (game.input.KeyDown(Key::H)) {
+			properties.bias -= 0.1f;
+		}
+
+		if (game.input.KeyDown(Key::U)) {
+			properties.persistence += 0.05f;
+		}
+		if (game.input.KeyDown(Key::J)) {
+			properties.persistence -= 0.05f;
+		}
+
+		auto cap_divisions = [&]() {
+			divisions = std::clamp((int)divisions, 1, 32);
+		};
+
+		if (game.input.KeyDown(Key::Q)) {
+			divisions--;
+			cap_divisions();
+		}
+		if (game.input.KeyDown(Key::E)) {
+			divisions++;
+			cap_divisions();
+		}
+
+		if (game.input.KeyDown(Key::Z)) {
+			thresholding = !thresholding;
+		}
+
+		const float pan_speed{ 25.0f };
+
+		bool change{ false };
+
+		if (game.input.KeyPressed(Key::W)) {
+			pos.y  -= pan_speed * dt;
+			change	= true;
+		}
+		if (game.input.KeyPressed(Key::S)) {
+			pos.y  += pan_speed * dt;
+			change	= true;
+		}
+		if (game.input.KeyPressed(Key::A)) {
+			pos.x  -= pan_speed * dt;
+			change	= true;
+		}
+		if (game.input.KeyPressed(Key::D)) {
+			pos.x  += pan_speed * dt;
+			change	= true;
+		}
+
+		if (game.input.KeyDown(Key::P)) {
+			PTGN_LOG("--------------------------------")
+			PTGN_LOG("properties.octaves = ", properties.octaves, ";");
+			PTGN_LOG("properties.frequency = ", properties.frequency, "f;");
+			PTGN_LOG("properties.bias = ", properties.bias, "f;");
+			PTGN_LOG("properties.persistence = ", properties.persistence, "f;");
+			PTGN_LOG("divisions = ", divisions, ";");
+		}
+
+		if (change || properties != prev_properties) {
+			properties.octaves	   = std::clamp((int)properties.octaves, 1, 15);
+			properties.frequency   = std::clamp(properties.frequency, 0.005f, 1.0f);
+			properties.bias		   = std::clamp(properties.bias, 0.01f, 5.0f);
+			properties.persistence = std::clamp(properties.persistence, 0.01f, 3.0f);
+			noise_map = FractalNoise::Generate(noise, (V2_int)pos, grid_size, properties);
+		}
+	}
+
+	void Draw() override {
+		for (int i{ 0 }; i < grid_size.x; i++) {
+			for (int j{ 0 }; j < grid_size.y; j++) {
+				V2_int p{ i, j };
+
+				int index{ i + grid_size.x * j };
+				PTGN_ASSERT(index < (int)noise_map.size());
+
+				float noise_value{ noise_map[index] };
+
+				if (thresholding) {
+					Color color = color::Black;
+
+					float opacity_range = 1.0f / static_cast<float>(divisions);
+
+					auto range = static_cast<int>(noise_value / opacity_range);
+
+					color.a = static_cast<std::uint8_t>(
+						255.0f * static_cast<float>(range) * opacity_range
+					);
+
+					game.renderer.DrawRectangleFilled(
+						p * pixel_size, pixel_size, color, Origin::TopLeft
+					);
+				} else {
+					Color color	  = color::Black;
+					float opacity = noise_value * 255.0f;
+					color.a		  = static_cast<std::uint8_t>(opacity);
+					game.renderer.DrawRectangleFilled(
+						p * pixel_size, pixel_size, color, Origin::TopLeft
+					);
+				}
+			}
+		}
+	}
+};
+
+void TestNoise() {
+	std::vector<std::shared_ptr<Test>> tests;
+
+	tests.emplace_back(new TestFractalNoise());
+
+	AddTests(tests);
+}
 
 void TestRNG() {
 	PTGN_INFO("Starting RNG tests...");
@@ -225,6 +412,8 @@ void TestRNG() {
 		PTGN_ASSERT(value <= 255);
 	}
 	*/
+
+	TestNoise();
 
 	PTGN_INFO("All RNG tests passed!");
 }

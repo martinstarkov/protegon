@@ -1,17 +1,18 @@
 #pragma once
 
-#include <memory>
+#include <functional>
 #include <variant>
 #include <vector>
 
-#include "core/gl_context.h"
 #include "core/resource_managers.h"
 #include "core/sdl_instance.h"
 #include "core/window.h"
 #include "event/event_handler.h"
 #include "event/input_handler.h"
 #include "protegon/collision.h"
+#include "protegon/events.h"
 #include "renderer/renderer.h"
+#include "scene/camera.h"
 #include "scene/scene_manager.h"
 #include "utility/profiling.h"
 
@@ -57,7 +58,7 @@ public:
 	Renderer renderer;
 	SceneManager scene;
 	ActiveSceneCameraManager camera;
-	CollisionHandler collision{};
+	CollisionHandler collision;
 
 	// Resources
 
@@ -92,8 +93,8 @@ public:
 
 		// Always quit on window quit.
 		event.window.Subscribe(
-			WindowEvent::Quit, (void*)this,
-			std::function([&](const WindowQuitEvent& e) { PopLoopFunction(); })
+			WindowEvent::Quit, this,
+			std::function([this](const WindowQuitEvent&) { PopLoopFunction(); })
 		);
 
 		scene.Init<TStartScene>(impl::start_scene_key, std::forward<TArgs>(constructor_args)...);

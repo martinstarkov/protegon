@@ -1,145 +1,156 @@
 #include "protegon/text.h"
 
+#include <cstdint>
+#include <string>
+#include <string_view>
+#include <variant>
+
+#include "core/manager.h"
+#include "protegon/color.h"
 #include "protegon/font.h"
 #include "protegon/game.h"
+#include "protegon/polygon.h"
 #include "protegon/surface.h"
+#include "protegon/texture.h"
+#include "protegon/vector2.h"
+#include "renderer/flip.h"
+#include "renderer/renderer.h"
 #include "utility/debug.h"
+#include "utility/handle.h"
 
 namespace ptgn {
 
 Texture Text::RecreateTexture() {
-	PTGN_ASSERT(IsValid(), "Cannot recreate texture for text which is uninitialized or destroyed");
+	auto& t{ Get() };
 	PTGN_ASSERT(
-		instance_->font_.IsValid(),
-		"Cannot recreate texture for font which is uninitialized or destroyed"
+		t.font_.IsValid(), "Cannot recreate texture for font which is uninitialized or destroyed"
 	);
 
-	if (instance_->content_.empty()) {
+	if (t.content_.empty()) {
 		return {}; // Skip creating texture for empty text.
 	}
 
-	const auto& f = instance_->font_.GetInstance();
-
-	Surface surface{ instance_->font_,		  instance_->font_style_, instance_->text_color_,
-					 instance_->render_mode_, instance_->content_,	  instance_->shading_color_ };
+	Surface surface{ t.font_,	 t.font_style_,	   t.text_color_,		t.render_mode_,
+					 t.content_, t.shading_color_, t.wrap_after_pixels_ };
 
 	return Texture(surface);
 }
 
 Text::Text(
-	const FontOrKey& font, const std::string& content, const Color& text_color,
+	const FontOrKey& font, const std::string_view& content, const Color& text_color,
 	FontStyle font_style /*= FontStyle::Normal*/,
 	FontRenderMode render_mode /*= FontRenderMode::Solid*/,
 	const Color& shading_color /*= color::White*/
 ) {
-	if (!IsValid()) {
-		instance_ = std::make_shared<impl::TextInstance>();
-	}
-	instance_->font_		  = GetFont(font);
-	instance_->content_		  = content;
-	instance_->text_color_	  = text_color;
-	instance_->font_style_	  = font_style;
-	instance_->render_mode_	  = render_mode;
-	instance_->shading_color_ = shading_color;
-	instance_->texture_		  = RecreateTexture();
+	Create();
+	auto& t{ Get() };
+	t.font_			 = GetFont(font);
+	t.content_		 = content;
+	t.text_color_	 = text_color;
+	t.font_style_	 = font_style;
+	t.render_mode_	 = render_mode;
+	t.shading_color_ = shading_color;
+	t.texture_		 = RecreateTexture();
 }
 
 void Text::SetFont(const FontOrKey& font) {
-	if (!IsValid()) {
-		instance_ = std::make_shared<impl::TextInstance>();
-	}
+	Create();
 	auto f = GetFont(font);
-	if (f.GetInstance() == instance_->font_.GetInstance()) {
+	auto& t{ Get() };
+	if (f == t.font_) {
 		return;
 	}
-	instance_->font_	= f;
-	instance_->texture_ = RecreateTexture();
+	t.font_	   = f;
+	t.texture_ = RecreateTexture();
 }
 
-void Text::SetContent(const std::string& content) {
-	if (!IsValid()) {
-		instance_ = std::make_shared<impl::TextInstance>();
-	}
-	if (content == instance_->content_) {
+void Text::SetContent(const std::string_view& content) {
+	Create();
+	auto& t{ Get() };
+	if (content == t.content_) {
 		return;
 	}
-	instance_->content_ = content;
-	instance_->texture_ = RecreateTexture();
+	t.content_ = content;
+	t.texture_ = RecreateTexture();
+}
+
+void Text::SetWrapAfter(std::uint32_t wrap_after_pixels) {
+	Create();
+	auto& t{ Get() };
+	if (wrap_after_pixels == t.wrap_after_pixels_) {
+		return;
+	}
+	t.wrap_after_pixels_ = wrap_after_pixels;
+	t.texture_			 = RecreateTexture();
 }
 
 void Text::SetColor(const Color& text_color) {
-	if (!IsValid()) {
-		instance_ = std::make_shared<impl::TextInstance>();
-	}
-	if (text_color == instance_->text_color_) {
+	Create();
+	auto& t{ Get() };
+	if (text_color == t.text_color_) {
 		return;
 	}
-	instance_->text_color_ = text_color;
-	instance_->texture_	   = RecreateTexture();
+	t.text_color_ = text_color;
+	t.texture_	  = RecreateTexture();
 }
 
 void Text::SetFontStyle(FontStyle font_style) {
-	if (!IsValid()) {
-		instance_ = std::make_shared<impl::TextInstance>();
-	}
-	if (font_style == instance_->font_style_) {
+	Create();
+	auto& t{ Get() };
+	if (font_style == t.font_style_) {
 		return;
 	}
-	instance_->font_style_ = font_style;
-	instance_->texture_	   = RecreateTexture();
+	t.font_style_ = font_style;
+	t.texture_	  = RecreateTexture();
 }
 
 void Text::SetFontRenderMode(FontRenderMode render_mode) {
-	if (!IsValid()) {
-		instance_ = std::make_shared<impl::TextInstance>();
-	}
-	if (render_mode == instance_->render_mode_) {
+	Create();
+	auto& t{ Get() };
+	if (render_mode == t.render_mode_) {
 		return;
 	}
-	instance_->render_mode_ = render_mode;
-	instance_->texture_		= RecreateTexture();
+	t.render_mode_ = render_mode;
+	t.texture_	   = RecreateTexture();
 }
 
 void Text::SetShadingColor(const Color& shading_color) {
-	if (!IsValid()) {
-		instance_ = std::make_shared<impl::TextInstance>();
-	}
-	if (shading_color == instance_->shading_color_) {
+	Create();
+	auto& t{ Get() };
+	if (shading_color == t.shading_color_) {
 		return;
 	}
-	instance_->render_mode_	  = FontRenderMode::Shaded;
-	instance_->shading_color_ = shading_color;
-	instance_->texture_		  = RecreateTexture();
+	t.render_mode_	 = FontRenderMode::Shaded;
+	t.shading_color_ = shading_color;
+	t.texture_		 = RecreateTexture();
 }
 
 const Font& Text::GetFont() const {
-	PTGN_ASSERT(IsValid(), "Cannot get font of uninitialized or destroyed texture");
-	return instance_->font_;
+	return Get().font_;
 }
 
-const std::string& Text::GetContent() const {
-	PTGN_ASSERT(IsValid(), "Cannot get content of uninitialized or destroyed texture");
-	return instance_->content_;
+std::string_view Text::GetContent() const {
+	return Get().content_;
 }
 
 const Color& Text::GetColor() const {
-	PTGN_ASSERT(IsValid(), "Cannot get color of uninitialized or destroyed texture");
-	return instance_->text_color_;
+	return Get().text_color_;
 }
 
 FontStyle Text::GetFontStyle() const {
-	PTGN_ASSERT(IsValid(), "Cannot get font style of uninitialized or destroyed texture");
-	return instance_->font_style_;
+	return Get().font_style_;
 }
 
 FontRenderMode Text::GetFontRenderMode() const {
-	PTGN_ASSERT(IsValid(), "Cannot get font render mode of uninitialized or destroyed texture");
-	return instance_->render_mode_;
+	return Get().render_mode_;
 }
 
 const Color& Text::GetShadingColor() const {
-	PTGN_ASSERT(IsValid(), "Cannot get shading color of uninitialized or destroyed texture");
-	return instance_->shading_color_;
+	return Get().shading_color_;
+}
+
+const Texture& Text::GetTexture() const {
+	return Get().texture_;
 }
 
 Font Text::GetFont(const FontOrKey& font) {
@@ -156,32 +167,35 @@ Font Text::GetFont(const FontOrKey& font) {
 }
 
 void Text::SetVisibility(bool visibility) {
-	PTGN_ASSERT(IsValid(), "Cannot set visibility of text which is uninitialized or destroyed");
-	instance_->visible_ = visibility;
+	Get().visible_ = visibility;
 }
 
 bool Text::GetVisibility() const {
-	PTGN_ASSERT(IsValid(), "Cannot get visibility of text which is uninitialized or destroyed");
-	return instance_->visible_;
+	return Get().visible_;
 }
 
-void Text::Draw(const Rectangle<int>& destination) const {
+void Text::Draw(const Rectangle<float>& destination, float z_index) const {
 	if (!IsValid()) {
 		return;
 	}
-	if (!instance_->visible_) {
+	auto& t{ Get() };
+	if (!t.visible_) {
 		return;
 	}
-	if (instance_->content_.empty()) {
+	if (t.content_.empty()) {
 		return;
 	}
-	if (!instance_->texture_.IsValid()) {
+	if (!t.texture_.IsValid()) {
 		return;
 	}
 	game.renderer.DrawTexture(
-		instance_->texture_, destination.pos, destination.size, {}, {}, destination.origin,
-		Flip::None
+		t.texture_, destination.pos, destination.size, {}, {}, destination.origin, Flip::None, 0.0f,
+		{}, z_index
 	);
+}
+
+V2_int Text::GetSize() const {
+	return GetSize(GetFont(), std::string(GetContent()));
 }
 
 V2_int Text::GetSize(const FontOrKey& font, const std::string& content) {

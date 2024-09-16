@@ -1,10 +1,9 @@
 #pragma once
 
-#include <algorithm>
 #include <cmath>
-#include <cstdlib>
-#include <functional>
+#include <iosfwd>
 #include <ostream>
+#include <type_traits>
 
 #include "protegon/math.h"
 #include "protegon/rng.h"
@@ -21,12 +20,12 @@ struct Vector2 {
 	T x{ 0 };
 	T y{ 0 };
 
-	constexpr Vector2()				   = default;
-	~Vector2()						   = default;
-	Vector2(const Vector2&)			   = default;
-	Vector2(Vector2&&)				   = default;
-	Vector2& operator=(const Vector2&) = default;
-	Vector2& operator=(Vector2&&)	   = default;
+	constexpr Vector2()					   = default;
+	~Vector2()							   = default;
+	Vector2(const Vector2&)				   = default;
+	Vector2(Vector2&&) noexcept			   = default;
+	Vector2& operator=(const Vector2&)	   = default;
+	Vector2& operator=(Vector2&&) noexcept = default;
 
 	explicit constexpr Vector2(T all) : x{ all }, y{ all } {}
 
@@ -46,7 +45,7 @@ struct Vector2 {
 		x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
 
 	// Access vector elements by index, 0 for x, 1 for y.
-	constexpr T& operator[](std::size_t idx) {
+	[[nodiscard]] constexpr T& operator[](std::size_t idx) {
 		PTGN_ASSERT(idx >= 0 && idx < 2, "Vector2 subscript out of range");
 		if (idx == 1) {
 			return y;
@@ -55,7 +54,7 @@ struct Vector2 {
 	}
 
 	// Access vector elements by index, 0 for x, 1 for y.
-	constexpr T operator[](std::size_t idx) const {
+	[[nodiscard]] constexpr T operator[](std::size_t idx) const {
 		PTGN_ASSERT(idx >= 0 && idx < 2, "Vector2 subscript out of range");
 		if (idx == 1) {
 			return y;
@@ -63,7 +62,7 @@ struct Vector2 {
 		return x; // idx == 0
 	}
 
-	constexpr Vector2 operator-() const {
+	[[nodiscard]] constexpr Vector2 operator-() const {
 		return { -x, -y };
 	}
 
@@ -150,10 +149,10 @@ struct Vector2 {
 
 	// @return Random unit vector in a heading within the given range of angles (radians).
 	[[nodiscard]] static Vector2 RandomHeading(
-		T min_angle_rad = T{ 0 }, T max_angle_rad = T{ two_pi<T> }
+		T min_angle_radians = T{ 0 }, T max_angle_radians = T{ two_pi<T> }
 	) {
 		static_assert(std::is_floating_point_v<T>, "Function requires floating point type");
-		RNG<T> heading_rng{ ClampAngle2Pi(min_angle_rad), ClampAngle2Pi(max_angle_rad) };
+		RNG<T> heading_rng{ ClampAngle2Pi(min_angle_radians), ClampAngle2Pi(max_angle_radians) };
 		T heading{ heading_rng() };
 		return { std::cos(heading), std::sin(heading) };
 	}
@@ -178,18 +177,19 @@ struct Vector2 {
 		return dir.Normalized();
 	}
 
-	// Returns a new vector rotated by the radian angle in the clockwise
-	// direction. See https://en.wikipedia.org/wiki/Rotation_matrix for details
+	// @return New vector rotated counter-clockwise by the given angle.
+	// See https://en.wikipedia.org/wiki/Rotation_matrix for details.
+	// Angle in radians.
 	template <typename S = typename std::common_type_t<T, float>>
-	[[nodiscard]] Vector2<S> Rotated(S rad) const {
+	[[nodiscard]] Vector2<S> Rotated(S angle_radians) const {
 		static_assert(std::is_floating_point_v<S>, "Function requires floating point type");
-		auto cos_r{ std::cos(rad) };
-		auto sin_r{ std::sin(rad) };
-		return { x * cos_r - y * sin_r, x * sin_r + y * cos_r };
+		auto c{ std::cos(angle_radians) };
+		auto s{ std::sin(angle_radians) };
+		return { x * c - y * s, x * s + y * c };
 	}
 
 	/*
-	 * Returns angle between vector x and y components in radians.
+	 * @return Angle in radians between vector x and y components in radians.
 	 * Relative to the horizontal x-axis.
 	 * Range: [-3.14159, 3.14159).
 	 * (counter-clockwise positive).
@@ -215,71 +215,92 @@ using V2_uint	= Vector2<unsigned int>;
 using V2_float	= Vector2<float>;
 using V2_double = Vector2<double>;
 
-template <typename T>
-using Point = Vector2<T>;
-
-template <typename T>
-inline bool operator==(const Vector2<T>& lhs, const Vector2<T>& rhs) {
+template <typename S>
+[[nodiscard]] inline bool operator==(const Vector2<S>& lhs, const Vector2<S>& rhs) {
 	return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y);
 }
 
-template <typename T>
-inline bool operator!=(const Vector2<T>& lhs, const Vector2<T>& rhs) {
+template <typename S>
+[[nodiscard]] inline bool operator!=(const Vector2<S>& lhs, const Vector2<S>& rhs) {
 	return !operator==(lhs, rhs);
 }
 
-template <typename T, typename U, typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector2<S> operator+(const Vector2<T>& lhs, const Vector2<U>& rhs) {
+template <typename S, ptgn::tt::stream_writable<std::ostream, S> = true>
+inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector2<S>& v) {
+	os << "(" << v.x << ", " << v.y << ")";
+	return os;
+}
+
+template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector2<S> operator+(const Vector2<V>& lhs, const Vector2<U>& rhs) {
 	return { lhs.x + rhs.x, lhs.y + rhs.y };
 }
 
-template <typename T, typename U, typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector2<S> operator-(const Vector2<T>& lhs, const Vector2<U>& rhs) {
+template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector2<S> operator-(const Vector2<V>& lhs, const Vector2<U>& rhs) {
 	return { lhs.x - rhs.x, lhs.y - rhs.y };
 }
 
-template <typename T, typename U, typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector2<S> operator*(const Vector2<T>& lhs, const Vector2<U>& rhs) {
+template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector2<S> operator*(const Vector2<V>& lhs, const Vector2<U>& rhs) {
 	return { lhs.x * rhs.x, lhs.y * rhs.y };
 }
 
-template <typename T, typename U, typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector2<S> operator/(const Vector2<T>& lhs, const Vector2<U>& rhs) {
+template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector2<S> operator/(const Vector2<V>& lhs, const Vector2<U>& rhs) {
 	return { lhs.x / rhs.x, lhs.y / rhs.y };
 }
 
 template <
-	typename T, typename U, tt::arithmetic<T> = true,
-	typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector2<S> operator*(T lhs, const Vector2<U>& rhs) {
+	typename V, typename U, tt::arithmetic<V> = true,
+	typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector2<S> operator*(V lhs, const Vector2<U>& rhs) {
 	return { lhs * rhs.x, lhs * rhs.y };
 }
 
 template <
-	typename T, typename U, tt::arithmetic<U> = true,
-	typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector2<S> operator*(const Vector2<T>& lhs, U rhs) {
+	typename V, typename U, tt::arithmetic<U> = true,
+	typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector2<S> operator*(const Vector2<V>& lhs, U rhs) {
 	return { lhs.x * rhs, lhs.y * rhs };
 }
 
 template <
-	typename T, typename U, tt::arithmetic<T> = true,
-	typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector2<S> operator/(T lhs, const Vector2<U>& rhs) {
+	typename V, typename U, tt::arithmetic<V> = true,
+	typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector2<S> operator/(V lhs, const Vector2<U>& rhs) {
 	return { lhs / rhs.x, lhs / rhs.y };
 }
 
 template <
-	typename T, typename U, tt::arithmetic<T> = true,
-	typename S = typename std::common_type_t<T, U>>
-constexpr inline Vector2<S> operator/(const Vector2<T>& lhs, U rhs) {
+	typename V, typename U, tt::arithmetic<U> = true,
+	typename S = typename std::common_type_t<V, U>>
+[[nodiscard]] constexpr Vector2<S> operator/(const Vector2<V>& lhs, U rhs) {
 	return { lhs.x / rhs, lhs.y / rhs };
 }
 
-template <typename T, ptgn::tt::stream_writable<std::ostream, T> = true>
-inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector2<T>& v) {
-	os << "(" << v.x << ", " << v.y << ")";
-	return os;
+template <typename T>
+[[nodiscard]] inline Vector2<T> Clamp(
+	const Vector2<T>& vector, const Vector2<T>& min, const Vector2<T>& max
+) {
+	return { std::clamp(vector.x, min.x, max.x), std::clamp(vector.y, min.y, max.y) };
+}
+
+template <typename T>
+[[nodiscard]] inline Vector2<T> Clamp(const Vector2<T>& vector, T min, T max) {
+	Vector2<T> dir{ vector.Normalized() };
+	Vector2<T> dir_min{ dir * Vector2<T>{ min, min } };
+	Vector2<T> dir_max{ dir * Vector2<T>{ max, max } };
+
+	Vector2<T> min_v{ std::min(dir_min.x, dir_max.x), std::min(dir_min.y, dir_max.y) };
+	Vector2<T> max_v{ std::max(dir_min.x, dir_max.x), std::max(dir_min.y, dir_max.y) };
+
+	return Clamp(vector, min_v, max_v);
+}
+
+template <typename T>
+[[nodiscard]] inline Vector2<T> Round(const Vector2<T>& vector) {
+	return { std::round(vector.x), std::round(vector.y) };
 }
 
 template <typename T>

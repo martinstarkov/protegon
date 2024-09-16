@@ -1,8 +1,6 @@
-#include "gl_loader.h"
+#include "renderer/gl_loader.h"
 
-namespace ptgn {
-
-namespace gl {
+namespace ptgn::gl {
 
 #define GLE(name, caps_name) PFNGL##caps_name##PROC name;
 GL_LIST_1
@@ -26,6 +24,4 @@ GL_LIST_3
 
 #endif
 
-} // namespace gl
-
-} // namespace ptgn
+} // namespace ptgn::gl

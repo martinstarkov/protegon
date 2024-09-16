@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
 #include "protegon/color.h"
 #include "protegon/file.h"
@@ -10,18 +11,10 @@
 
 namespace ptgn {
 
-enum class Flip {
-	// Source: https://wiki.libsdl.org/SDL2/SDL_RendererFlip
-
-	None	   = 0x00000000,
-	Horizontal = 0x00000001,
-	Vertical   = 0x00000002
-};
-
 enum class TextureWrapping {
-	ClampEdge	   = 0x812F, // GL_CLAMP_TO_EDGE,
-	ClampBorder	   = 0x812D, // GL_CLAMP_TO_BORDER,
-	Repeat		   = 0x2901, // GL_REPEAT,
+	ClampEdge	   = 0x812F, // GL_CLAMP_TO_EDGE
+	ClampBorder	   = 0x812D, // GL_CLAMP_TO_BORDER
+	Repeat		   = 0x2901, // GL_REPEAT
 	MirroredRepeat = 0x8370	 // GL_MIRRORED_REPEAT
 };
 
@@ -76,8 +69,8 @@ struct TextureInstance {
 
 class Texture : public Handle<impl::TextureInstance> {
 public:
-	Texture()  = default;
-	~Texture() = default;
+	Texture()			= default;
+	~Texture() override = default;
 
 private:
 	constexpr const static TextureFilter default_minifying_filter{ TextureFilter::Nearest };
@@ -86,26 +79,23 @@ private:
 
 public:
 	Texture(const path& image_path, ImageFormat format = ImageFormat::RGBA8888);
-	Texture(const Surface& surface);
+	explicit Texture(const Surface& surface);
 	Texture(const void* pixel_data, const V2_int& size, ImageFormat format);
 	Texture(const std::vector<Color>& pixels, const V2_int& size);
 
-	void SetWrapping(TextureWrapping s);
-	void SetWrapping(TextureWrapping s, TextureWrapping t);
-	void SetWrapping(TextureWrapping s, TextureWrapping t, TextureWrapping r);
+	void SetWrapping(TextureWrapping s) const;
+	void SetWrapping(TextureWrapping s, TextureWrapping t) const;
+	void SetWrapping(TextureWrapping s, TextureWrapping t, TextureWrapping r) const;
 
-	void SetFilters(TextureFilter minifying, TextureFilter magnifying);
+	void SetFilters(TextureFilter minifying, TextureFilter magnifying) const;
 
 	// Sets the "out of bounds" texture color when using TextureWrapping::ClampBorder
-	void SetClampBorderColor(const Color& color);
+	void SetClampBorderColor(const Color& color) const;
 
-	void GenerateMipmaps();
+	void GenerateMipmaps() const;
 
 	void SetSubData(const void* pixel_data, ImageFormat format);
 	void SetSubData(const std::vector<Color>& pixels);
-
-	bool operator==(const Texture& o) const;
-	bool operator!=(const Texture& o) const;
 
 	[[nodiscard]] V2_int GetSize() const;
 
@@ -120,8 +110,6 @@ private:
 
 	[[nodiscard]] static std::int32_t GetBoundId();
 	[[nodiscard]] static std::int32_t GetActiveSlot();
-
-	// static void Unbind();
 
 	void SetDataImpl(const void* pixel_data, const V2_int& size, ImageFormat format);
 };

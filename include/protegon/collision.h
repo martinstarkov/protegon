@@ -1,10 +1,14 @@
 #pragma once
 
+#include <functional>
+#include <vector>
+
 #include "ecs/ecs.h"
 #include "protegon/circle.h"
 #include "protegon/line.h"
 #include "protegon/polygon.h"
 #include "protegon/vector2.h"
+#include "renderer/origin.h"
 
 namespace ptgn {
 
@@ -36,14 +40,14 @@ public:
 	// Page 165-166.
 	[[nodiscard]] static bool CircleRectangle(const Circle<float>& a, const Rectangle<float>& b);
 
-	[[nodiscard]] static bool PointRectangle(const Point<float>& a, const Rectangle<float>& b);
+	[[nodiscard]] static bool PointRectangle(const V2_float& a, const Rectangle<float>& b);
 
-	[[nodiscard]] static bool PointCircle(const Point<float>& a, const Circle<float>& b);
+	[[nodiscard]] static bool PointCircle(const V2_float& a, const Circle<float>& b);
 
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 	// Page 130. (SqDistPointSegment == 0) but optimized.
-	[[nodiscard]] static bool PointSegment(const Point<float>& a, const Segment<float>& b);
+	[[nodiscard]] static bool PointSegment(const V2_float& a, const Segment<float>& b);
 
 	[[nodiscard]] static bool SegmentRectangle(const Segment<float>& a, const Rectangle<float>& b);
 
@@ -56,11 +60,11 @@ public:
 
 private:
 	[[nodiscard]] static float SquareDistancePointRectangle(
-		const Point<float>& a, const Rectangle<float>& b
+		const V2_float& a, const Rectangle<float>& b
 	);
 
 	[[nodiscard]] static float ParallelogramArea(
-		const Point<float>& a, const Point<float>& b, const Point<float>& c
+		const V2_float& a, const V2_float& b, const V2_float& c
 	);
 };
 
@@ -166,7 +170,7 @@ public:
 	// potential collisions.
 	template <typename... Ts>
 	static V2_float Sweep(
-		float dt, const ecs::Entity& object,
+		float dt, ecs::Entity object,
 		const ecs::EntityContainer<ecs::LoopCriterion::WithComponents, Ts...>& targets,
 		const GetCallback<V2_float>& get_position, const GetCallback<V2_float>& get_size,
 		const GetCallback<V2_float>& get_velocity, const GetCallback<Origin>& get_origin,
@@ -276,7 +280,10 @@ private:
 	CollisionHandler& operator=(const CollisionHandler&) = delete;
 	CollisionHandler& operator=(CollisionHandler&&)		 = default;
 
-	void Init();
+	void Init() {
+		/* Possibly add stuff here in the future. */
+	}
+
 	void Shutdown();
 };
 

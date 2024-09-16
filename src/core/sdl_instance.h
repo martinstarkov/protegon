@@ -1,8 +1,8 @@
 #pragma once
 
-namespace ptgn {
+#include "utility/time.h"
 
-namespace impl {
+namespace ptgn::impl {
 
 class SDLInstance {
 public:
@@ -22,6 +22,8 @@ public:
 	void Init();
 	void Shutdown();
 
+	static void Delay(milliseconds time);
+
 private:
 	void InitSDL();
 	void InitSDLImage();
@@ -34,6 +36,4 @@ private:
 	bool sdl_init_{ false };
 };
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

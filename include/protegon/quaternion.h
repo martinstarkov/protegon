@@ -1,8 +1,14 @@
 #pragma once
 
-#include "matrix4.h"
-#include "vector3.h"
-#include "vector4.h"
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdlib>
+
+#include "protegon/matrix4.h"
+#include "protegon/vector3.h"
+#include "protegon/vector4.h"
+#include "utility/debug.h"
 
 namespace ptgn {
 
@@ -12,7 +18,7 @@ public:
 
 	constexpr Quaternion() : V4_float{ 0.0f, 0.0f, 0.0f, 1.0f } {}
 
-	constexpr Quaternion(const V4_float& v) : V4_float{ v } {}
+	explicit constexpr Quaternion(const V4_float& v) : V4_float{ v } {}
 
 	[[nodiscard]] constexpr Quaternion Conjugate() const {
 		return Quaternion(-x, -y, -z, w);
@@ -20,18 +26,44 @@ public:
 
 	[[nodiscard]] Quaternion Inverse() const {
 		float dot{ Dot(*this) };
-		PTGN_ASSERT(!NearlyEqual(dot, 0.0f));
+		PTGN_ASSERT(dot > 0.0f);
 		return Quaternion(Conjugate() / dot);
 	}
 
-	[[nodiscard]] static Quaternion GetAngleAxis(float angle, const V3_float& v) {
-		float h = angle * 0.5f;
-		float s = std::sin(h);
-		return { std::cos(h), v.x * s, v.y * s, v.z * s };
+	// From: https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
+	// orientation is (yaw, pitch, roll) in radians.
+	[[nodiscard]] static Quaternion FromEuler(const V3_float& orientation) {
+		float half_yaw	 = orientation.x * 0.5f;
+		float half_pitch = orientation.y * 0.5f;
+		float half_roll	 = orientation.z * 0.5f;
+
+		float cr = std::cos(half_roll);
+		float sr = std::sin(half_roll);
+		float cp = std::cos(half_pitch);
+		float sp = std::sin(half_pitch);
+		float cy = std::cos(half_yaw);
+		float sy = std::sin(half_yaw);
+
+		Quaternion q;
+		q.x = sr * cp * cy - cr * sp * sy;
+		q.y = cr * sp * cy + sr * cp * sy;
+		q.z = cr * cp * sy - sr * sp * cy;
+		q.w = cr * cp * cy + sr * sp * sy;
+
+		return q;
 	}
 
+	// @return New quaternion rotated by the given angle in radians along the given axes.
+	[[nodiscard]] static Quaternion GetAngleAxis(float angle_radians, const V3_float& axes) {
+		const float a{ angle_radians * 0.5f };
+		const float s = std::sin(a);
+
+		return Quaternion(axes.x * s, axes.y * s, axes.z * s, std::cos(a));
+	}
+
+	// @return The euler angle of the quaternion in radians.
 	[[nodiscard]] float GetAngle() const {
-		if (std::abs(w) > cos_one_over_two) {
+		if (std::abs(w) > cos_of_half) {
 			float a = std::asin(std::sqrt(x * x + y * y + z * z)) * 2.0f;
 			if (w < 0.0f) {
 				return two_pi<float> - a;
@@ -51,6 +83,7 @@ public:
 		return V3_float{ x * tmp2, y * tmp2, z * tmp2 };
 	}
 
+	// Angle in radians.
 	[[nodiscard]] float GetRoll() const {
 		float b = 2.0f * (x * y + w * z);
 		float a = w * w + x * x - y * y - z * z;
@@ -62,6 +95,7 @@ public:
 		return std::atan2(b, a);
 	}
 
+	// Angle in radians.
 	[[nodiscard]] float GetPitch() const {
 		float b = 2.0f * (y * z + w * x);
 		float a = w * w - x * x - y * y + z * z;
@@ -73,11 +107,12 @@ public:
 		return std::atan2(b, a);
 	}
 
+	// Angle in radians.
 	[[nodiscard]] float GetYaw() const {
 		return std::asin(std::clamp(-2.0f * (x * z - w * y), -1.0f, 1.0f));
 	}
 
-	M4_float ToMatrix4() const {
+	[[nodiscard]] M4_float ToMatrix4() const {
 		M4_float result;
 		float qxx{ x * x };
 		float qyy{ y * y };
@@ -89,43 +124,44 @@ public:
 		float qwy{ w * y };
 		float qwz{ w * z };
 
-		result.m[0] = 1.0f - 2.0f * (qyy + qzz);
-		result.m[1] = 2.0f * (qxy + qwz);
-		result.m[2] = 2.0f * (qxz - qwy);
-		result.m[3] = 0.0f;
+		result.m_[0] = 1.0f - 2.0f * (qyy + qzz);
+		result.m_[1] = 2.0f * (qxy + qwz);
+		result.m_[2] = 2.0f * (qxz - qwy);
+		result.m_[3] = 0.0f;
 
-		result.m[4] = 2.0f * (qxy - qwz);
-		result.m[5] = 1.0f - 2.0f * (qxx + qzz);
-		result.m[6] = 2.0f * (qyz + qwx);
-		result.m[7] = 0.0f;
+		result.m_[4] = 2.0f * (qxy - qwz);
+		result.m_[5] = 1.0f - 2.0f * (qxx + qzz);
+		result.m_[6] = 2.0f * (qyz + qwx);
+		result.m_[7] = 0.0f;
 
-		result.m[8]	 = 2.0f * (qxz + qwy);
-		result.m[9]	 = 2.0f * (qyz - qwx);
-		result.m[10] = 1.0f - 2.0f * (qxx + qyy);
-		result.m[11] = 0.0f;
+		result.m_[8]  = 2.0f * (qxz + qwy);
+		result.m_[9]  = 2.0f * (qyz - qwx);
+		result.m_[10] = 1.0f - 2.0f * (qxx + qyy);
+		result.m_[11] = 0.0f;
 
-		result.m[12] = 0.0f;
-		result.m[13] = 0.0f;
-		result.m[14] = 0.0f;
-		result.m[15] = 1.0f;
+		result.m_[12] = 0.0f;
+		result.m_[13] = 0.0f;
+		result.m_[14] = 0.0f;
+		result.m_[15] = 1.0f;
 
 		return result;
 	}
 
+	constexpr friend V3_float operator*(const Quaternion& q, const V3_float& v) {
+		const V3_float QuatVector(q.x, q.y, q.z);
+		const V3_float uv(QuatVector.Cross(v));
+		const V3_float uuv(QuatVector.Cross(uv));
+
+		return v + ((uv * q.w) + uuv) * 2.0f;
+	}
+
+	constexpr friend V3_float operator*(const V3_float& v, const Quaternion& q) {
+		return q.Inverse() * v;
+	}
+
 private:
-	constexpr static float cos_one_over_two{ 0.877582561890372716130286068203503191f };
+	// Angle in radians.
+	constexpr static float cos_of_half{ 0.877582561890372716130286068203503191f };
 };
-
-constexpr inline V3_float operator*(const Quaternion& q, const V3_float& v) {
-	const V3_float QuatVector(q.x, q.y, q.z);
-	const V3_float uv(QuatVector.Cross(v));
-	const V3_float uuv(QuatVector.Cross(uv));
-
-	return v + ((uv * q.w) + uuv) * 2.0f;
-}
-
-constexpr inline V3_float operator*(const V3_float& v, const Quaternion& q) {
-	return q.Inverse() * v;
-}
 
 } // namespace ptgn

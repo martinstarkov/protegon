@@ -14,19 +14,19 @@ enum class KeyEvent {
 };
 
 struct KeyDownEvent : public Event {
-	KeyDownEvent(Key key) : key{ key } {}
+	explicit KeyDownEvent(Key key) : key{ key } {}
 
 	Key key;
 };
 
 struct KeyUpEvent : public Event {
-	KeyUpEvent(Key key) : key{ key } {}
+	explicit KeyUpEvent(Key key) : key{ key } {}
 
 	Key key;
 };
 
 struct KeyPressedEvent : public Event {
-	KeyPressedEvent(Key key) : key{ key } {}
+	explicit KeyPressedEvent(Key key) : key{ key } {}
 
 	Key key;
 };
@@ -39,7 +39,7 @@ enum class MouseEvent {
 };
 
 struct MouseMoveEvent : public Event {
-	MouseMoveEvent(const V2_int& previous, const V2_int& current) :
+	explicit MouseMoveEvent(const V2_int& previous, const V2_int& current) :
 		previous{ previous }, current{ current } {}
 
 	V2_int previous;
@@ -48,7 +48,8 @@ struct MouseMoveEvent : public Event {
 
 class MouseDownEvent : public Event {
 public:
-	MouseDownEvent(Mouse mouse, const V2_int& current) : mouse{ mouse }, current{ current } {}
+	explicit MouseDownEvent(Mouse mouse, const V2_int& current) :
+		mouse{ mouse }, current{ current } {}
 
 	Mouse mouse;
 	V2_int current;
@@ -56,14 +57,15 @@ public:
 
 class MouseUpEvent : public Event {
 public:
-	MouseUpEvent(Mouse mouse, const V2_int& current) : mouse{ mouse }, current{ current } {}
+	explicit MouseUpEvent(Mouse mouse, const V2_int& current) :
+		mouse{ mouse }, current{ current } {}
 
 	Mouse mouse;
 	V2_int current;
 };
 
 struct MouseScrollEvent : public Event {
-	MouseScrollEvent(const V2_int& scroll) : scroll{ scroll } {}
+	explicit MouseScrollEvent(const V2_int& scroll) : scroll{ scroll } {}
 
 	V2_int scroll;
 };
@@ -88,7 +90,7 @@ public:
 
 class WindowResizedEvent : public Event {
 public:
-	WindowResizedEvent(const V2_int& size) : size{ size } {}
+	explicit WindowResizedEvent(const V2_int& size) : size{ size } {}
 
 	V2_int size;
 };

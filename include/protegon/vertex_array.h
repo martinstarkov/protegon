@@ -1,10 +1,12 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
-#include <vector>
 
 #include "protegon/buffer.h"
 #include "renderer/buffer_layout.h"
+#include "renderer/gl_helper.h"
+#include "utility/handle.h"
 
 namespace ptgn {
 
@@ -28,15 +30,15 @@ struct VertexArrayInstance {
 
 class VertexArray : public Handle<impl::VertexArrayInstance> {
 public:
-	VertexArray()  = default;
-	~VertexArray() = default;
+	VertexArray()			= default;
+	~VertexArray() override = default;
 
 	template <typename... Ts>
 	VertexArray(
 		PrimitiveMode mode, const VertexBuffer& vertex_buffer, const BufferLayout<Ts...>& layout,
 		const IndexBuffer& index_buffer
 	) :
-		VertexArray{ mode, vertex_buffer, layout, index_buffer } {}
+		VertexArray{ mode, vertex_buffer, impl::InternalBufferLayout{ layout }, index_buffer } {}
 
 	void SetPrimitiveMode(PrimitiveMode mode);
 	void SetVertexBuffer(const VertexBuffer& vertex_buffer);
@@ -50,9 +52,7 @@ public:
 		);
 		static_assert(sizeof...(Ts) > 0, "Must provide layout types as template arguments");
 
-		if (!IsValid()) {
-			instance_ = std::make_shared<impl::VertexArrayInstance>();
-		}
+		Create();
 
 		Bind();
 
@@ -71,8 +71,8 @@ public:
 	[[nodiscard]] PrimitiveMode GetPrimitiveMode() const;
 
 	VertexArray(
-		PrimitiveMode mode, const VertexBuffer& vertex_buffer,
-		const impl::InternalBufferLayout& layout, const IndexBuffer& index_buffer
+		PrimitiveMode mode, const VertexBuffer& vertex_buffer, impl::InternalBufferLayout layout,
+		const IndexBuffer& index_buffer
 	);
 
 private:
@@ -81,11 +81,11 @@ private:
 	friend class GLRenderer;
 	friend class RendererData;
 
-	static std::int32_t GetBoundId();
+	[[nodiscard]] static std::int32_t GetBoundId();
 
 	void SetVertexBufferImpl(const VertexBuffer& vertex_buffer);
 	void SetIndexBufferImpl(const IndexBuffer& index_buffer);
-	void SetLayoutImpl(const impl::InternalBufferLayout& layout);
+	void SetLayoutImpl(const impl::InternalBufferLayout& layout) const;
 
 	void Bind() const;
 	static void Unbind();

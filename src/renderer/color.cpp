@@ -1,6 +1,7 @@
 #include "protegon/color.h"
 
 #include "protegon/rng.h"
+#include "protegon/vector4.h"
 
 namespace ptgn {
 

@@ -1,15 +1,16 @@
 #pragma once
 
 #include <cstdint>
-#include <functional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 
 #include "protegon/file.h"
 #include "protegon/matrix4.h"
-#include "utility/debug.h"
+#include "protegon/vector2.h"
+#include "protegon/vector3.h"
+#include "protegon/vector4.h"
 #include "utility/handle.h"
-#include "utility/type_traits.h"
 
 namespace ptgn {
 
@@ -19,7 +20,7 @@ namespace impl {
 
 class RendererData;
 
-std::string GetShaderTypeName(std::uint32_t type);
+[[nodiscard]] std::string_view GetShaderTypeName(std::uint32_t type);
 
 struct ShaderInstance {
 	ShaderInstance();
@@ -45,16 +46,11 @@ struct ShaderSource {
 
 class Shader : public Handle<impl::ShaderInstance> {
 public:
-	Shader()  = default;
-	~Shader() = default;
+	Shader()		   = default;
+	~Shader() override = default;
 
 	Shader(const ShaderSource& vertex_shader, const ShaderSource& fragment_shader);
 	Shader(const path& vertex_shader_path, const path& fragment_shader_path);
-
-	bool operator==(const Shader& o) const;
-	bool operator!=(const Shader& o) const;
-
-	// void WhileBound(const std::function<void()>& func) const;
 
 	void SetUniform(const std::string& name, const std::int32_t* data, std::size_t count) const;
 	void SetUniform(const std::string& name, const float* data, std::size_t count) const;
@@ -84,15 +80,14 @@ public:
 private:
 	friend class impl::RendererData;
 
-	static std::int32_t GetBoundId();
-	// static void Unbind();
+	[[nodiscard]] static std::int32_t GetBoundId();
 
 	[[nodiscard]] std::int32_t GetUniformLocation(const std::string& name) const;
 
 	void CompileProgram(const std::string& vertex_shader, const std::string& fragment_shader);
 
 	// Returns shader id.
-	[[nodiscard]] std::uint32_t CompileShader(std::uint32_t type, const std::string& source);
+	[[nodiscard]] static std::uint32_t CompileShader(std::uint32_t type, const std::string& source);
 };
 
 } // namespace ptgn

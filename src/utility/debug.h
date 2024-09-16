@@ -1,14 +1,11 @@
 #pragma once
 
 #include <cstdint>
-#include <cstdlib>
-#include <exception>
 #include <string>
-#include <tuple>
+#include <string_view>
 
 #include "protegon/log.h"
 #include "utility/platform.h"
-#include "utility/type_traits.h"
 
 #ifndef NDEBUG
 #define PTGN_DEBUG
@@ -59,16 +56,12 @@
 #define PTGN_FULL_FUNCTION_SIGNATURE "PTGN_FULL_FUNCTION_SIGNATURE unknown!"
 #endif
 
-namespace ptgn {
-
-namespace impl {
+namespace ptgn::impl {
 
 // Returns the name of the function with the return type and function parameter list trimmed away.
-[[nodiscard]] std::string TrimFunctionSignature(const std::string& signature);
+[[nodiscard]] std::string TrimFunctionSignature(std::string_view signature);
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl
 
 #define PTGN_FUNCTION_NAME() ptgn::impl::TrimFunctionSignature(PTGN_FULL_FUNCTION_SIGNATURE)
 
@@ -97,9 +90,7 @@ namespace impl {
 		}                                                               \
 	}
 
-namespace ptgn {
-
-namespace debug {
+namespace ptgn::debug {
 
 namespace impl {
 
@@ -110,12 +101,12 @@ struct Allocations {
 
 // Notifies AllocationMetrics that an allocation has been made.
 inline void Allocation(const std::size_t& size) {
-	Allocations::total_allocated_ += static_cast<std::uint64_t>(size);
+	Allocations::total_allocated_ += size;
 }
 
 // Notifies AllocationMetrics that a deallocation has been made.
 inline void Deallocation(const std::size_t& size) {
-	Allocations::total_freed_ += static_cast<std::uint64_t>(size);
+	Allocations::total_freed_ += size;
 }
 
 } // namespace impl
@@ -138,6 +129,4 @@ inline std::uint64_t Freed() {
 }
 */
 
-} // namespace debug
-
-} // namespace ptgn
+} // namespace ptgn::debug

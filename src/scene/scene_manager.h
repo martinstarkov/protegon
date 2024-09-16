@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstdint>
+#include <memory>
+#include <type_traits>
 #include <vector>
 
 #include "core/manager.h"
@@ -20,7 +23,7 @@ inline constexpr std::size_t start_scene_key{ 0 };
 class SceneManager : public Manager<std::shared_ptr<Scene>> {
 private:
 	SceneManager()								 = default;
-	~SceneManager()								 = default;
+	~SceneManager() override					 = default;
 	SceneManager(const SceneManager&)			 = delete;
 	SceneManager(SceneManager&&)				 = default;
 	SceneManager& operator=(const SceneManager&) = delete;
@@ -51,7 +54,6 @@ public:
 
 	void Unload(std::size_t scene_key);
 
-	void SetActive(std::size_t scene_key);
 	void AddActive(std::size_t scene_key);
 	void RemoveActive(std::size_t scene_key);
 	[[nodiscard]] std::vector<std::shared_ptr<Scene>> GetActive();
@@ -74,10 +76,7 @@ private:
 		);
 		PTGN_ASSERT(!Has(impl::start_scene_key), "Cannot load more than one start scene");
 		PTGN_ASSERT(scene_key == impl::start_scene_key);
-		// This may be unintuitive order but since the starting scene may set other
-		// active scenes, it is important to set it first so it is the "earliest"
-		// active scene in the list.
-		SetActive(impl::start_scene_key);
+		AddActive(impl::start_scene_key);
 		Manager<std::shared_ptr<Scene>>::Load(
 			scene_key, std::make_shared<TStartScene>(std::forward<TArgs>(constructor_args)...)
 		);

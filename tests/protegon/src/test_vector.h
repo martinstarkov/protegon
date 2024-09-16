@@ -1,66 +1,68 @@
 #pragma once
 
 #include <limits>
+#include <list>
 #include <unordered_map>
+#include <utility>
 
+#include "protegon/log.h"
+#include "protegon/math.h"
 #include "protegon/vector2.h"
 #include "utility/debug.h"
-
-using namespace ptgn;
 
 void TestVector2() {
 	PTGN_INFO("Starting Vector2 tests...");
 
 	// Implicit / explicit construction and copy tests.
 
-	Vector2<int> t0{ 5, -2 };
+	V2_int t0{ 5, -2 };
 	PTGN_ASSERT(t0.x == 5);
 	PTGN_ASSERT(t0.y == -2);
 
-	Vector2<int> t0b = -t0;
+	V2_int t0b = -t0;
 	PTGN_ASSERT(t0b.x == -5);
 	PTGN_ASSERT(t0b.y == 2);
 	PTGN_ASSERT(t0b == -t0);
 
-	Vector2<int> t1{ 2, -1 };
+	V2_int t1{ 2, -1 };
 	PTGN_ASSERT(t1.x == 2);
 	PTGN_ASSERT(t1.y == -1);
-	PTGN_ASSERT((t1 == Vector2<int>{ 2, -1 }));
+	PTGN_ASSERT((t1 == V2_int{ 2, -1 }));
 
-	Vector2<double> t2{ 0, 1 };
+	V2_double t2{ 0, 1 };
 	PTGN_ASSERT(t2.x == 0.0);
 	PTGN_ASSERT(t2.y == 1.0);
-	PTGN_ASSERT((t2 == Vector2<double>{ 0, 1 }));
+	PTGN_ASSERT((t2 == V2_double{ 0, 1 }));
 
-	Vector2<double> t2b = -t2;
+	V2_double t2b = -t2;
 	PTGN_ASSERT(t2b.x == -0.0);
 	PTGN_ASSERT(t2b.y == -1.0);
 	PTGN_ASSERT(t2b == -t2);
-	PTGN_ASSERT((t2b == Vector2<double>{ -0.0, -1.0 }));
+	PTGN_ASSERT((t2b == V2_double{ -0.0, -1.0 }));
 
-	constexpr Vector2<double> t3{ -2.0, 3.0 };
+	constexpr V2_double t3{ -2.0, 3.0 };
 	PTGN_ASSERT(t3.x == -2.0);
 	PTGN_ASSERT(t3.y == 3.0);
-	PTGN_ASSERT((t3 == Vector2<double>{ -2.0, 3.0 }));
+	PTGN_ASSERT((t3 == V2_double{ -2.0, 3.0 }));
 
-	Vector2<float> t3a{ 0.0, 1.0 };
-	Vector2<float> t3b = Vector2<float>{ 0.0, 1.0 };
-	// Vector2<float> t3c = { 0.0, 1.0 }; // implicit narrowing
-	Vector2<double> t3d{ 0.0f, 1.0f };
-	Vector2<double> t3e = Vector2<double>{ 0.0f, 1.0f };
-	Vector2<double> t3f = { 0.0f, 1.0f };
+	V2_float t3a{ 0.0, 1.0 };
+	V2_float t3b = V2_float{ 0.0, 1.0 };
+	// V2_float t3c = { 0.0, 1.0 }; // implicit narrowing
+	V2_double t3d{ 0.0f, 1.0f };
+	V2_double t3e = V2_double{ 0.0f, 1.0f };
+	V2_double t3f = { 0.0f, 1.0f };
 
-	Vector2<float> t4{ 0.0f, 1.0f };
-	Vector2<double> t5{ 0.0, 1.0 };
+	V2_float t4{ 0.0f, 1.0f };
+	V2_double t5{ 0.0, 1.0 };
 
-	Vector2<float> t6a = t4;
-	Vector2<float> t6b{ t4 };
-	Vector2<double> t6c = t4;
-	Vector2<double> t6e{ t4 };
-	// Vector2<float>  t6f = t5; // implicit narrowing
-	Vector2<float> t6g{ t5 };
-	Vector2<double> t6h = t5;
-	Vector2<double> t6i{ t5 };
+	V2_float t6a = t4;
+	V2_float t6b{ t4 };
+	V2_double t6c = t4;
+	V2_double t6e{ t4 };
+	// V2_float  t6f = t5; // implicit narrowing
+	V2_float t6g{ t5 };
+	V2_double t6h = t5;
+	V2_double t6i{ t5 };
 
 	// Dot() tests.
 
@@ -74,13 +76,13 @@ void TestVector2() {
 
 	// Use in hashed container as keys test.
 
-	std::unordered_map<Vector2<int>, int> map1;
+	std::unordered_map<V2_int, int> map1;
 	map1.emplace(t1, 3);
 	PTGN_ASSERT(map1.find(t1)->second == 3);
 	map1.emplace(t0, 2);
 	PTGN_ASSERT(map1.find(t0)->second == 2);
 
-	std::unordered_map<Vector2<double>, int> map2;
+	std::unordered_map<V2_double, int> map2;
 	map2.emplace(t2, 1);
 	PTGN_ASSERT(map2.find(t2)->second == 1);
 	map2.emplace(t2b, 5);
@@ -89,16 +91,16 @@ void TestVector2() {
 
 	// += | -= | *= | /= operator tests.
 
-	Vector2<double> s1{ 1.0, 2.0 };
-	Vector2<double> s2{ 3.0, 4.0 };
+	V2_double s1{ 1.0, 2.0 };
+	V2_double s2{ 3.0, 4.0 };
 	s1 *= s2;
 	PTGN_ASSERT(s1.x == 1.0 * 3.0);
 	PTGN_ASSERT(s1.y == 2.0 * 4.0);
 	PTGN_ASSERT(s2.x == 3.0);
 	PTGN_ASSERT(s2.y == 4.0);
 
-	Vector2<int> s3{ 3, 4 };
-	Vector2<double> s4{ 5.0, 6.0 };
+	V2_int s3{ 3, 4 };
+	V2_double s4{ 5.0, 6.0 };
 	// s3 *= s4; // implicit narrowing
 	s4 *= s3;
 	PTGN_ASSERT(s4.x == 3 * 5.0);
@@ -106,16 +108,16 @@ void TestVector2() {
 	PTGN_ASSERT(s3.x == 3);
 	PTGN_ASSERT(s3.y == 4);
 
-	Vector2<double> s5{ 1.0, 2.0 };
-	Vector2<double> s6{ 3.0, 4.0 };
+	V2_double s5{ 1.0, 2.0 };
+	V2_double s6{ 3.0, 4.0 };
 	s5 /= s6;
 	PTGN_ASSERT(s5.x == 1.0 / 3.0);
 	PTGN_ASSERT(s5.y == 2.0 / 4.0);
 	PTGN_ASSERT(s6.x == 3.0);
 	PTGN_ASSERT(s6.y == 4.0);
 
-	Vector2<int> s7{ 3, 4 };
-	Vector2<double> s8{ 5.0, 6.0 };
+	V2_int s7{ 3, 4 };
+	V2_double s8{ 5.0, 6.0 };
 	// s7 /= s8; // implicit narrowing
 	s8 /= s7;
 	PTGN_ASSERT(s8.x == 5.0 / 3);
@@ -123,16 +125,16 @@ void TestVector2() {
 	PTGN_ASSERT(s7.x == 3);
 	PTGN_ASSERT(s7.y == 4);
 
-	Vector2<double> s9{ 1.0, 2.0 };
-	Vector2<double> s10{ 3.0, 4.0 };
+	V2_double s9{ 1.0, 2.0 };
+	V2_double s10{ 3.0, 4.0 };
 	s9 -= s10;
 	PTGN_ASSERT(s9.x == 1.0 - 3.0);
 	PTGN_ASSERT(s9.y == 2.0 - 4.0);
 	PTGN_ASSERT(s10.x == 3.0);
 	PTGN_ASSERT(s10.y == 4.0);
 
-	Vector2<int> s11{ 3, 4 };
-	Vector2<double> s12{ 5.0, 6.0 };
+	V2_int s11{ 3, 4 };
+	V2_double s12{ 5.0, 6.0 };
 	// s11 -= s12; // implicit narrowing
 	s12 -= s11;
 	PTGN_ASSERT(s12.x == 5.0 - 3);
@@ -140,16 +142,16 @@ void TestVector2() {
 	PTGN_ASSERT(s11.x == 3);
 	PTGN_ASSERT(s11.y == 4);
 
-	Vector2<double> s13{ 1.0, 2.0 };
-	Vector2<double> s14{ 3.0, 4.0 };
+	V2_double s13{ 1.0, 2.0 };
+	V2_double s14{ 3.0, 4.0 };
 	s13 += s14;
 	PTGN_ASSERT(s13.x == 1.0 + 3.0);
 	PTGN_ASSERT(s13.y == 2.0 + 4.0);
 	PTGN_ASSERT(s14.x == 3.0);
 	PTGN_ASSERT(s14.y == 4.0);
 
-	Vector2<int> s15{ 3, 4 };
-	Vector2<double> s16{ 5.0, 6.0 };
+	V2_int s15{ 3, 4 };
+	V2_double s16{ 5.0, 6.0 };
 	// s15 += s16; // implicit narrowing
 	s16 += s15;
 	PTGN_ASSERT(s16.x == 5.0 + 3);
@@ -157,8 +159,8 @@ void TestVector2() {
 	PTGN_ASSERT(s15.x == 3);
 	PTGN_ASSERT(s15.y == 4);
 
-	Vector2<int> p1{ 3, 4 };
-	Vector2<double> p2{ 3.0, 4.0 };
+	V2_int p1{ 3, 4 };
+	V2_double p2{ 3.0, 4.0 };
 	int p3{ 5 };
 	double p4{ 6.0 };
 	p1 *= p3;
@@ -175,8 +177,8 @@ void TestVector2() {
 	PTGN_ASSERT(p2.y == 4.0 * 5 * 6.0);
 	PTGN_ASSERT(p4 == 6.0);
 
-	Vector2<int> q1{ 3, 4 };
-	Vector2<double> q2{ 3.0, 4.0 };
+	V2_int q1{ 3, 4 };
+	V2_double q2{ 3.0, 4.0 };
 	int q3{ 5 };
 	double q4{ 6.0 };
 	q1 /= q3;
@@ -193,27 +195,27 @@ void TestVector2() {
 	PTGN_ASSERT(q2.y == 4.0 / 5 / 6.0);
 	PTGN_ASSERT(q4 == 6.0);
 
-	// Rounded() tests.
+	// Round() tests.
 
-	/*Vector2<double> r1r{ 1.3, 1.3 };
-	Vector2<double> r2r{ 2.6, 2.6 };
-	Vector2<double> r3r{ 3.5, 3.5 };
-	Vector2<double> r4r{ 1.0, 1.0 };
-	Vector2<double> r5r{ 0.0, 0.0 };
-	Vector2<double> r6r{ -1.3, -1.3 };
-	Vector2<double> r7r{ -2.6, -2.6 };
-	Vector2<double> r8r{ -3.5, -3.5 };
-	Vector2<double> r9r{ -1.0, -1.0 };
+	V2_double r1r{ 1.3, 1.3 };
+	V2_double r2r{ 2.6, 2.6 };
+	V2_double r3r{ 3.5, 3.5 };
+	V2_double r4r{ 1.0, 1.0 };
+	V2_double r5r{ 0.0, 0.0 };
+	V2_double r6r{ -1.3, -1.3 };
+	V2_double r7r{ -2.6, -2.6 };
+	V2_double r8r{ -3.5, -3.5 };
+	V2_double r9r{ -1.0, -1.0 };
 
-	r1r = r1r.Rounded();
-	r2r = r2r.Rounded();
-	r3r = r3r.Rounded();
-	r4r = r4r.Rounded();
-	r5r = r5r.Rounded();
-	r6r = r6r.Rounded();
-	r7r = r7r.Rounded();
-	r8r = r8r.Rounded();
-	r9r = r9r.Rounded();
+	r1r = Round(r1r);
+	r2r = Round(r2r);
+	r3r = Round(r3r);
+	r4r = Round(r4r);
+	r5r = Round(r5r);
+	r6r = Round(r6r);
+	r7r = Round(r7r);
+	r8r = Round(r8r);
+	r9r = Round(r9r);
 
 	PTGN_ASSERT(r1r.x == 1.0);
 	PTGN_ASSERT(r2r.x == 3.0);
@@ -233,16 +235,16 @@ void TestVector2() {
 	PTGN_ASSERT(r6r.y == -1.0);
 	PTGN_ASSERT(r7r.y == -3.0);
 	PTGN_ASSERT(r8r.y == -4.0);
-	PTGN_ASSERT(r9r.y == -1.0);*/
+	PTGN_ASSERT(r9r.y == -1.0);
 
 	// Angle() tests.
 
-	Vector2<int> rot1{ 1, 0 };
-	Vector2<int> rot2{ -1, 0 };
-	Vector2<int> rot3{ 0, 1 };
-	Vector2<int> rot4{ 0, -1 };
-	Vector2<int> rot5{ 1, 1 };
-	Vector2<int> rot6{ -1, -1 };
+	V2_int rot1{ 1, 0 };
+	V2_int rot2{ -1, 0 };
+	V2_int rot3{ 0, 1 };
+	V2_int rot4{ 0, -1 };
+	V2_int rot5{ 1, 1 };
+	V2_int rot6{ -1, -1 };
 
 	PTGN_ASSERT(NearlyEqual(rot1.Angle<float>(), 0.0f));
 	PTGN_ASSERT(NearlyEqual(rot2.Angle<float>(), 3.14159f));
@@ -253,16 +255,16 @@ void TestVector2() {
 
 	// Rotated() tests.
 
-	Vector2<int> rotate_me{ 1, 0 };
-	Vector2<int> rotated_90{ rotate_me.Rotated(1.5708f) };
-	Vector2<int> rotated_180{ rotate_me.Rotated(3.14159f) };
-	Vector2<int> rotated_270{ rotate_me.Rotated(-1.5708f) };
-	Vector2<int> rotated_360{ rotate_me.Rotated(0.0f) };
+	V2_int rotate_me{ 1, 0 };
+	V2_int rotated_90{ rotate_me.Rotated(1.5708f) };
+	V2_int rotated_180{ rotate_me.Rotated(3.14159f) };
+	V2_int rotated_270{ rotate_me.Rotated(-1.5708f) };
+	V2_int rotated_360{ rotate_me.Rotated(0.0f) };
 
-	Vector2<double> drotated_90{ rotate_me.Rotated(1.5708f) };
-	Vector2<double> drotated_180{ rotate_me.Rotated(3.14159f) };
-	Vector2<double> drotated_270{ rotate_me.Rotated(-1.5708f) };
-	Vector2<double> drotated_360{ rotate_me.Rotated(0.0f) };
+	V2_double drotated_90{ rotate_me.Rotated(1.5708f) };
+	V2_double drotated_180{ rotate_me.Rotated(3.14159f) };
+	V2_double drotated_270{ rotate_me.Rotated(-1.5708f) };
+	V2_double drotated_360{ rotate_me.Rotated(0.0f) };
 
 	PTGN_ASSERT(rotated_90.x == 0);
 	PTGN_ASSERT(rotated_90.y == 1);
@@ -284,20 +286,20 @@ void TestVector2() {
 
 	// IsZero() tests.
 
-	Vector2<double> test1{ 0.0, 0.0 };
-	Vector2<float> test2{ 0.0f, 0.0f };
-	Vector2<int> test3{ 0, 0 };
+	V2_double test1{ 0.0, 0.0 };
+	V2_float test2{ 0.0f, 0.0f };
+	V2_int test3{ 0, 0 };
 
-	Vector2<double> test1a{ 1.0, 1.0 };
-	Vector2<float> test2a{ 1.0f, 1.0f };
-	Vector2<int> test3a{ 1, 1 };
+	V2_double test1a{ 1.0, 1.0 };
+	V2_float test2a{ 1.0f, 1.0f };
+	V2_int test3a{ 1, 1 };
 
 	test1a *= 2.0;
 	test2a *= 2.0f;
 	test3a *= 2;
-	test1a -= Vector2<double>{ 2.0, 2.0 };
-	test2a -= Vector2<float>{ 2.0f, 2.0f };
-	test3a -= Vector2<int>{ 2, 2 };
+	test1a -= V2_double{ 2.0, 2.0 };
+	test2a -= V2_float{ 2.0f, 2.0f };
+	test3a -= V2_int{ 2, 2 };
 
 	PTGN_ASSERT(test1.IsZero());
 	PTGN_ASSERT(test2.IsZero());
@@ -308,9 +310,9 @@ void TestVector2() {
 
 	// [] access operator tests.
 
-	Vector2<int> access1{ 56, -73 };
-	Vector2<float> access2{ -51.0f, 72.0f };
-	Vector2<double> access3{ 32.0, -54.0 };
+	V2_int access1{ 56, -73 };
+	V2_float access2{ -51.0f, 72.0f };
+	V2_double access3{ 32.0, -54.0 };
 
 	PTGN_ASSERT(access1[0] == 56);
 	PTGN_ASSERT(access1[1] == -73);

@@ -1,9 +1,12 @@
 #pragma once
 
+#include <ctime>
 #include <string>
-#include <unordered_map>
+#include <string_view>
+#include <type_traits>
 
 #include "core/manager.h"
+#include "protegon/log.h"
 #include "protegon/timer.h"
 #include "utility/debug.h"
 
@@ -14,7 +17,7 @@ namespace impl {
 class ProfileInstance {
 public:
 	ProfileInstance() = default;
-	ProfileInstance(const std::string& function_name, const std::string& custom_name);
+	ProfileInstance(std::string_view function_name, std::string_view custom_name);
 	~ProfileInstance();
 
 private:
@@ -26,13 +29,25 @@ private:
 class Profiler : protected Manager<Timer, std::string> {
 private:
 	Profiler()							 = default;
-	~Profiler()							 = default;
+	~Profiler() override				 = default;
 	Profiler(const Profiler&)			 = delete;
 	Profiler(Profiler&&)				 = default;
 	Profiler& operator=(const Profiler&) = delete;
 	Profiler& operator=(Profiler&&)		 = default;
 
 public:
+	void Enable() {
+		enabled_ = true;
+	}
+
+	void Disable() {
+		enabled_ = false;
+	}
+
+	[[nodiscard]] bool IsEnabled() const {
+		return enabled_;
+	}
+
 	void PrintAll() const {
 		PrintAll<>();
 	}
@@ -55,31 +70,34 @@ private:
 	friend class impl::ProfileInstance;
 	friend class Game;
 
+	bool enabled_{ false };
+
 	template <typename T>
-	void PrintInfo(const std::string& name, const Timer& timer) const {
+	void PrintInfo(std::string_view name, const Timer& timer) const {
 		static_assert(tt::is_duration_v<T>, "Type must be duration");
-		// TODO: Fix. There was an error about not finding the << operator inside the log.h
-		// StringStreamWriter PTGN_LOG("PROFILING: ", impl::TrimFunctionSignature(name), ": ",
-		// timer.Elapsed<duration<double, typename T::period>>());
+		PTGN_LOG(
+			"PROFILING: ", impl::TrimFunctionSignature(name), ": ",
+			timer.Elapsed<duration<double, typename T::period>>()
+		);
 	}
 };
 
 } // namespace ptgn
 
-#define PTGN_PROFILE_FUNCTION(...)                                                          \
-	ptgn::impl::ProfileInstance ptgn_profile_instance_##__LINE__(                           \
-		PTGN_EXPAND_MACRO(PTGN_FULL_FUNCTION_SIGNATURE), std::invoke([&]() -> const char* { \
-			if constexpr (PTGN_NUMBER_OF_ARGS(__VA_ARGS__) > 0) {                           \
-				return __VA_ARGS__;                                                         \
-			} else {                                                                        \
-				return "";                                                                  \
-			}                                                                               \
-		})                                                                                  \
-                                                                                            \
+#define PTGN_PROFILE_FUNCTION(...)                                                               \
+	ptgn::impl::ProfileInstance ptgn_profile_instance_##__LINE__(                                \
+		PTGN_EXPAND_MACRO(PTGN_FULL_FUNCTION_SIGNATURE), std::invoke([&]() -> std::string_view { \
+			if constexpr (PTGN_NUMBER_OF_ARGS(__VA_ARGS__) > 0) {                                \
+				return __VA_ARGS__;                                                              \
+			} else {                                                                             \
+				return "";                                                                       \
+			}                                                                                    \
+		})                                                                                       \
+                                                                                                 \
 	)
 
-// Optional: Disable profiling in Release builds
-// #ifndef PTGN_DEBUG
+// Optional: In the future profiling could be disabled for distribution builds.
+// #ifdef PTGN_DISTRIBUTION
 //
 // #define PTGN_PROFILE_FUNCTION(...) ((void)0)
 //

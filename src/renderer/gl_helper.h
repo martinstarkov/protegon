@@ -12,6 +12,7 @@ namespace ptgn {
 namespace impl {
 
 #ifdef PTGN_DEBUG
+
 #define GLCall(x)                                                     \
 	std::invoke([&, fn = PTGN_FUNCTION_NAME()]() {                    \
 		ptgn::impl::GLContext::ClearErrors();                         \
@@ -37,9 +38,12 @@ namespace impl {
 		}                                                             \
 		return value;                                                 \
 	})
+
 #else
+
 #define GLCall(x)		x
 #define GLCallReturn(x) x
+
 #endif
 
 } // namespace impl
@@ -114,7 +118,7 @@ enum class GLBinding {
 };
 
 template <BufferType T>
-inline constexpr GLBinding GetGLBinding() {
+constexpr GLBinding GetGLBinding() {
 	if constexpr (T == BufferType::Vertex) {
 		return GLBinding::VertexBuffer;
 	} else if constexpr (T == BufferType::Index) {

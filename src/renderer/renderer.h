@@ -1,18 +1,28 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <map>
+#include <utility>
+#include <vector>
 
 #include "protegon/buffer.h"
+#include "protegon/circle.h"
 #include "protegon/color.h"
+#include "protegon/line.h"
 #include "protegon/matrix4.h"
+#include "protegon/polygon.h"
 #include "protegon/shader.h"
 #include "protegon/texture.h"
 #include "protegon/vector2.h"
 #include "protegon/vector3.h"
 #include "protegon/vector4.h"
 #include "protegon/vertex_array.h"
+#include "renderer/buffer_layout.h"
+#include "renderer/flip.h"
+#include "renderer/gl_helper.h"
 #include "renderer/origin.h"
+#include "utility/debug.h"
 
 // TODO: Currently z_index is not a reliable way of layering drawn objects as it only pertains to a
 // single batch type (i.e. quads and circles have their own z_indexs). This can result in unexpected
@@ -162,13 +172,15 @@ void OffsetVertices(std::array<V2_float, 4>& vertices, const V2_float& size, Ori
 
 void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip);
 
+// Rotation angle in radians.
 void RotateVertices(
 	std::array<V2_float, 4>& vertices, const V2_float& position, const V2_float& size,
-	float rotation, const V2_float& rotation_center
+	float rotation_radians, const V2_float& rotation_center
 );
 
+// Rotation angle in radians.
 [[nodiscard]] std::array<V2_float, 4> GetQuadVertices(
-	const V2_float& position, const V2_float& size, Origin draw_origin, float rotation,
+	const V2_float& position, const V2_float& size, Origin draw_origin, float rotation_radians,
 	const V2_float& rotation_center
 );
 
@@ -177,6 +189,9 @@ class Batch;
 template <typename TVertices, std::size_t IndexCount>
 class BatchData {
 public:
+	BatchData() = default;
+	explicit BatchData(RendererData* renderer);
+
 	using vertices = TVertices;
 
 	[[nodiscard]] bool IsAvailable() const;
@@ -185,16 +200,25 @@ public:
 
 	void Flush();
 
+	void Clear();
+
 private:
 	friend class Batch;
 
+	void SetupBuffer(
+		PrimitiveMode type, const impl::InternalBufferLayout& layout, std::size_t vertex_count,
+		const IndexBuffer& index_buffer
+	);
 	void UpdateBuffer();
+
+	void PrepareBuffer();
 
 	[[nodiscard]] bool IsFlushed() const;
 
 	void Draw();
 
-protected:
+private:
+	RendererData* renderer_{ nullptr };
 	VertexArray array_;
 	std::vector<TVertices> data_;
 };
@@ -203,11 +227,9 @@ class TextureBatchData : public BatchData<QuadVertices, 6> {
 public:
 	TextureBatchData() = default;
 
-	TextureBatchData(std::size_t max_texture_slots);
+	TextureBatchData(RendererData* renderer, std::size_t max_texture_slots);
 
 	void BindTextures();
-
-	[[nodiscard]] bool IsAvailable() const;
 
 	// @return pair<texture_index, texture_index_found>
 	// If texture_index_found == false, texture_index will be 0.
@@ -215,6 +237,8 @@ public:
 	[[nodiscard]] std::pair<std::size_t, bool> GetTextureIndex(const Texture& t);
 
 	[[nodiscard]] std::size_t GetTextureSlotCapacity() const;
+
+	void Clear();
 
 private:
 	[[nodiscard]] bool HasAvailableTextureSlot() const;
@@ -233,39 +257,21 @@ enum class BatchType {
 class Batch {
 public:
 	Batch() = default;
-	Batch(RendererData* renderer);
+	explicit Batch(RendererData* renderer);
 
-	[[nodiscard]] bool IsFlushed(BatchType type);
+	[[nodiscard]] bool IsFlushed(BatchType type) const;
 
 	void Flush(BatchType type);
 
 	[[nodiscard]] bool IsAvailable(BatchType type) const;
+
+	void Clear();
 
 	TextureBatchData quad_;
 	BatchData<CircleVertices, 6> circle_;
 	BatchData<TriangleVertices, 3> triangle_;
 	BatchData<LineVertices, 2> line_;
 	BatchData<PointVertices, 1> point_;
-
-private:
-	template <typename T>
-	void SetArray(
-		std::uint32_t batch_capacity, T& data, PrimitiveMode p,
-		const impl::InternalBufferLayout& layout, const IndexBuffer& ib
-	) {
-		PTGN_ASSERT(batch_capacity > 0);
-		data.array_ = { p,
-						VertexBuffer(
-							data.data_.data(),
-							static_cast<std::uint32_t>(
-								batch_capacity * layout.GetStride() * T::vertices::count
-							),
-							BufferUsage::DynamicDraw
-						),
-						layout, ib };
-	}
-
-	RendererData* renderer_{ nullptr };
 };
 
 class RendererData {
@@ -348,7 +354,7 @@ private:
 
 	// @return pair<batch reference, texture index>
 	[[nodiscard]] std::pair<Batch&, std::size_t> GetTextureBatch(
-		BatchType type, std::vector<Batch>& batch_group, const Texture& t
+		std::vector<Batch>& batch_group, const Texture& t
 	);
 };
 
@@ -380,9 +386,9 @@ public:
 	 * to the remaining texture size to the bottom right of source_position).
 	 * @param draw_origin Relative to destination_position the direction from which the texture is
 	 * @param flip Mirror the texture along an axis (default to Flip::None).
-	 * @param rotation Degrees to rotate the texture (defaults to 0).
-	 * @param rotation_center Fraction of the source_size around which the texture is rotated
-	 * (defaults to { 0.5f, 0.5f } which corresponds to the center of the texture).
+	 * @param rotation_radians Angle in radians to rotate the texture (defaults to 0).
+	 * @param rotation_center Fraction of the source_size around which the texture is rotated.
+	 * (Defaults to { 0.5f, 0.5f } which corresponds to the center of the texture).
 	 * @param z_index Z-coordinate to draw the texture at (-1.0f to 1.0f).
 	 * drawn.
 	 */
@@ -390,7 +396,7 @@ public:
 		const Texture& texture, const V2_float& destination_position,
 		const V2_float& destination_size, const V2_float& source_position = {},
 		V2_float source_size = {}, Origin draw_origin = Origin::Center, Flip flip = Flip::None,
-		float rotation = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
+		float rotation_radians = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
 		float z_index = 0.0f, const Color& tint_color = color::White
 	);
 
@@ -426,30 +432,30 @@ public:
 		float z_index = 0.0f
 	);
 
-	// Rotation in degrees.
+	// Rotation angle in radians.
 	void DrawRectangleFilled(
 		const V2_float& position, const V2_float& size, const Color& color,
-		Origin draw_origin = Origin::Center, float rotation = 0.0f,
+		Origin draw_origin = Origin::Center, float rotation_radians = 0.0f,
 		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
 	);
 
-	// Rotation in degrees.
+	// Rotation angle in radians.
 	void DrawRectangleFilled(
-		const Rectangle<float>& rectangle, const Color& color, float rotation = 0.0f,
+		const Rectangle<float>& rectangle, const Color& color, float rotation_radians = 0.0f,
 		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
 	);
 
-	// Rotation in degrees.
+	// Rotation angle in radians.
 	void DrawRectangleHollow(
 		const V2_float& position, const V2_float& size, const Color& color,
-		Origin draw_origin = Origin::Center, float line_width = 1.0f, float rotation = 0.0f,
+		Origin draw_origin = Origin::Center, float line_width = 1.0f, float rotation_radians = 0.0f,
 		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
 	);
 
-	// Rotation in degrees.
+	// Rotation angle in radians.
 	void DrawRectangleHollow(
 		const Rectangle<float>& rectangle, const Color& color, float line_width = 1.0f,
-		float rotation = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
+		float rotation_radians = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
 		float z_index = 0.0f
 	);
 
@@ -487,30 +493,31 @@ public:
 		float fade = 0.005f, float z_index = 0.0f
 	);
 
-	// Rotation in degrees.
+	// Rotation angle in radians.
 	void DrawRoundedRectangleFilled(
 		const V2_float& position, const V2_float& size, float radius, const Color& color,
-		Origin draw_origin = Origin::Center, float rotation = 0.0f,
+		Origin draw_origin = Origin::Center, float rotation_radians = 0.0f,
 		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
 	);
 
-	// Rotation in degrees.
+	// Rotation angle in radians.
 	void DrawRoundedRectangleFilled(
-		const RoundedRectangle<float>& rounded_rectangle, const Color& color, float rotation = 0.0f,
-		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
+		const RoundedRectangle<float>& rounded_rectangle, const Color& color,
+		float rotation_radians = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
+		float z_index = 0.0f
 	);
 
-	// Rotation in degrees.
+	// Rotation angle in radians.
 	void DrawRoundedRectangleHollow(
 		const V2_float& position, const V2_float& size, float radius, const Color& color,
-		Origin draw_origin = Origin::Center, float line_width = 1.0f, float rotation = 0.0f,
+		Origin draw_origin = Origin::Center, float line_width = 1.0f, float rotation_radians = 0.0f,
 		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
 	);
 
-	// Rotation in degrees.
+	// Rotation angle in radians.
 	void DrawRoundedRectangleHollow(
 		const RoundedRectangle<float>& rounded_rectangle, const Color& color,
-		float line_width = 1.0f, float rotation = 0.0f,
+		float line_width = 1.0f, float rotation_radians = 0.0f,
 		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f
 	);
 
@@ -533,22 +540,25 @@ public:
 		float fade = 0.005f, float z_index = 0.0f
 	);
 
-	// Angles in degrees.
+	// Angles in radians, counter-clockwise from the right.
 	void DrawArcFilled(
 		const V2_float& position, float arc_radius, float start_angle, float end_angle,
-		const Color& color, float z_index = 0.0f
+		bool clockwise, const Color& color, float z_index = 0.0f
 	);
 
-	void DrawArcFilled(const Arc<float>& arc, const Color& color, float z_index = 0.0f);
+	void DrawArcFilled(
+		const Arc<float>& arc, bool clockwise, const Color& color, float z_index = 0.0f
+	);
 
-	// Angles in degrees.
+	// Angles in radians, counter-clockwise from the right.
 	void DrawArcHollow(
 		const V2_float& position, float arc_radius, float start_angle, float end_angle,
-		const Color& color, float line_width = 1.0f, float z_index = 0.0f
+		bool clockwise, const Color& color, float line_width = 1.0f, float z_index = 0.0f
 	);
 
 	void DrawArcHollow(
-		const Arc<float>& arc, const Color& color, float line_width = 1.0f, float z_index = 0.0f
+		const Arc<float>& arc, bool clockwise, const Color& color, float line_width = 1.0f,
+		float z_index = 0.0f
 	);
 
 	void DrawCapsuleFilled(
@@ -632,12 +642,12 @@ private:
 
 	void DrawRoundedRectangleFilledImpl(
 		const V2_float& position, const V2_float& size, float radius, const V4_float& color,
-		Origin origin, float rotation, const V2_float& rotation_center, float z_index
+		Origin origin, float rotation_radians, const V2_float& rotation_center, float z_index
 	);
 
 	void DrawRoundedRectangleHollowImpl(
 		const V2_float& position, const V2_float& size, float radius, const V4_float& color,
-		Origin origin, float line_width, float rotation, const V2_float& rotation_center,
+		Origin origin, float line_width, float rotation_radians, const V2_float& rotation_center,
 		float z_index
 	);
 
@@ -654,18 +664,18 @@ private:
 	);
 
 	void DrawArcImpl(
-		const V2_float& p, float arc_radius, float start_angle, float end_angle,
+		const V2_float& p, float arc_radius, float start_angle, float end_angle, bool clockwise,
 		const V4_float& col, float lw, float z, bool filled
 	);
 
 	void DrawArcFilledImpl(
 		const V2_float& position, float arc_radius, float start_angle, float end_angle,
-		const V4_float& color, float z_index
+		bool clockwise, const V4_float& color, float z_index
 	);
 
 	void DrawArcHollowImpl(
 		const V2_float& position, float arc_radius, float start_angle, float end_angle,
-		const V4_float& color, float line_width, float z_index
+		bool clockwise, const V4_float& color, float line_width, float z_index
 	);
 
 	void DrawCapsuleFilledImpl(
@@ -679,7 +689,7 @@ private:
 		float line_width, float fade, float z_index
 	);
 
-	Color clear_color_{ color::White };
+	Color clear_color_{ color::Transparent };
 	BlendMode blend_mode_{ BlendMode::Blend };
 	V2_int viewport_size_;
 	impl::RendererData data_;
