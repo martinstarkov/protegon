@@ -5,6 +5,11 @@
 
 using json = nlohmann::json;
 
+#include "components/collider.h"
+#include "components/lifetime.h"
+#include "components/rigid_body.h"
+#include "components/sprite.h"
+#include "components/transform.h"
 #include "ecs/ecs.h"
 #include "protegon/a_star.h"
 #include "protegon/audio.h"
