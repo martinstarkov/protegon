@@ -19,16 +19,12 @@ public:
 	Grid() = delete;
 
 	explicit Grid(const Vector2<int>& size, const std::vector<T>& cells) :
-		size{ size },
-		length{ static_cast<std::size_t>(size.x) * static_cast<std::size_t>(size.y) },
-		cells{ cells } {
+		size{ size }, length{ size.x * size.y }, cells{ cells } {
 		PTGN_ASSERT(length == cells.size(), "Failed to construct grid");
 	}
 
 	explicit Grid(const Vector2<int>& size) :
-		size{ size },
-		length{ static_cast<std::size_t>(size.x) * static_cast<std::size_t>(size.y) },
-		cells(length, T{}) {
+		size{ size }, length{ size.x * size.y }, cells(length, T{}) {
 		PTGN_ASSERT(length == cells.size(), "Failed to construct grid");
 	}
 
@@ -40,8 +36,8 @@ public:
 		}
 	}
 
-	void ForEachIndex(const std::function<void(std::size_t)>& function) const {
-		for (std::size_t i = 0; i < length; i++) {
+	void ForEachIndex(const std::function<void(int)>& function) const {
+		for (int i = 0; i < length; i++) {
 			std::invoke(function, i);
 		}
 	}
@@ -68,24 +64,24 @@ public:
 		return Get(OneDimensionalize(coordinate));
 	}
 
-	[[nodiscard]] const T& Get(std::size_t index) const {
+	[[nodiscard]] const T& Get(int index) const {
 		PTGN_ASSERT(Has(index), "Cannot get grid element which is outside the grid");
 		return cells[index];
 	}
 
-	[[nodiscard]] T& Get(std::size_t index) {
+	[[nodiscard]] T& Get(int index) {
 		PTGN_ASSERT(Has(index), "Cannot get grid element which is outside the grid");
 		return cells[index];
 	}
 
-	T& Set(std::size_t index, T&& object) {
+	T& Set(int index, T&& object) {
 		PTGN_ASSERT(Has(index), "Cannot set grid element which is outside the grid");
 		auto& value = cells[index];
 		value		= std::move(object);
 		return value;
 	}
 
-	[[nodiscard]] bool Has(std::size_t index) const {
+	[[nodiscard]] bool Has(int index) const {
 		return index >= 0 && index < length;
 	}
 
@@ -97,11 +93,14 @@ public:
 		return size;
 	}
 
-	[[nodiscard]] std::size_t GetLength() const {
+	[[nodiscard]] int GetLength() const {
 		return length;
 	}
 
 	[[nodiscard]] int OneDimensionalize(const V2_int& coordinate) const {
+		if (coordinate.x < 0 || coordinate.y < 0) {
+			return -1;
+		}
 		return coordinate.x + coordinate.y * size.x;
 	}
 
@@ -111,7 +110,7 @@ public:
 	}
 
 protected:
-	std::size_t length{ 0 };
+	int length{ 0 };
 	V2_int size;
 	std::vector<T> cells;
 };

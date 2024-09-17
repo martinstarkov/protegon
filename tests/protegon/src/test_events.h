@@ -18,7 +18,8 @@ struct TestGameEvents : public Test {
 	}
 
 	void Init() override {
-		game.window.SetTitle("Event Tests");
+		game.window.SetTitle("'ESC' (++category), Event Tests");
+
 		game.window.SetResizeable(true);
 
 		auto event_observer = &game.event;
