@@ -8,9 +8,11 @@
 #include "protegon/vector2.h"
 #include "renderer/renderer.h"
 #include "test_camera.h"
+#include "test_collision.h"
 #include "test_events.h"
 #include "test_math.h"
 #include "test_matrix4.h"
+#include "test_path_finding.h"
 #include "test_renderer.h"
 #include "test_rng.h"
 #include "test_text.h"
@@ -37,6 +39,8 @@ public:
 
 		// Visual tests.
 
+		TestPathFinding();
+		TestCollisions();
 		TestTween();
 		TestCamera();
 		TestRNG();

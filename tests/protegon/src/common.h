@@ -16,7 +16,7 @@
 
 using namespace ptgn;
 
-const static std::string test_instructions{ "'1' (--test); '2' (++test), 'ESC' (++category)" };
+const static std::string test_instructions{ "'ESC' (++category), '1' (--test); '2' (++test)" };
 const static std::array<Key, 2> test_switch_keys{ Key::ONE, Key::TWO };
 const static Key test_category_switch_key{ Key::ESCAPE };
 
@@ -69,6 +69,7 @@ void CheckForTestSwitch(const std::vector<std::shared_ptr<Test>>& tests, int& cu
 	auto shutdown = [&]() {
 		game.camera.Reset();
 		tests[current_test]->Shutdown();
+		game.window.SetTitle("");
 	};
 
 	if (game.input.KeyDown(test_switch_keys[0])) {
@@ -95,7 +96,9 @@ void AddTests(const std::vector<std::shared_ptr<Test>>& tests) {
 
 		auto& current_test = tests[*test_idx];
 
-		game.window.SetTitle(test_instructions + std::string(": ") + std::to_string(*test_idx));
+		if (game.window.GetTitle() == "") {
+			game.window.SetTitle(test_instructions + std::string(": ") + std::to_string(*test_idx));
+		}
 
 		current_test->Run(dt);
 

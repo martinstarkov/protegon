@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -400,12 +401,53 @@ bool DynamicCollisionHandler::SegmentRectangle(
 		return false;
 	}
 
-	// Cache division.
-	V2_float inv_dir = 1.0f / d;
+	auto occurred = [](const DynamicCollision& c) {
+		return (c.t >= 0.0f && c.t < 1.0 || c.t > -1.0 && c.t < 0.0f) && !c.normal.IsZero();
+	};
 
-	// Calculate intersections with rectangle bounding axes.
-	V2_float t_near = (b.Min() - a.a) * inv_dir;
-	V2_float t_far	= (b.Max() - a.a) * inv_dir;
+	const V2_float b_min{ b.Min() };
+	const V2_float b_max{ b.Max() };
+
+	V2_float inv_dir = 1.0f / d;
+	V2_float t_near	 = (b_min - a.a) * inv_dir;
+	V2_float t_far	 = (b_max - a.a) * inv_dir;
+
+	if (OverlapCollision::PointRectangle(a.a, b)) {
+		const float lo{ std::max(std::min(t_near.x, t_far.x), std::min(t_near.y, t_far.y)) };
+		const float hi{ std::min(std::max(t_near.x, t_far.x), std::max(t_near.y, t_far.y)) };
+
+		if (hi < 0.0f || hi < lo || lo > 1.0f) {
+			return false;
+		}
+
+		// Pick the lowest collision time that is in the [0, 1] range.
+		bool w1{ hi >= 0.0f && hi <= 1.0f };
+		bool w2{ lo >= 0.0f && lo <= 1.0f };
+
+		if (w1 && w2) {
+			c.t = std::min(hi, lo);
+		} else if (w1) {
+			c.t = hi;
+		} else if (w2) {
+			c.t = lo;
+		} else {
+			return false;
+		}
+
+		const V2_float coeff{ a.a + d * c.t - (b_min + b_max) * 0.5f };
+		const V2_float abs_coeff{ FastAbs(coeff.x), FastAbs(coeff.y) };
+
+		if (NearlyEqual(abs_coeff.x, abs_coeff.y) &&
+			NearlyEqual(FastAbs(inv_dir.x), FastAbs(inv_dir.y))) {
+			c.normal = { Sign(coeff.x), Sign(coeff.y) };
+		} else if (abs_coeff.x > abs_coeff.y) {
+			c.normal = { Sign(coeff.x), 0.0f };
+		} else {
+			c.normal = { 0.0f, Sign(coeff.y) };
+		}
+
+		return std::invoke(occurred, c);
+	}
 
 	// Discard 0 / 0 divisions.
 	if (std::isnan(t_far.y) || std::isnan(t_far.x)) {
@@ -432,7 +474,8 @@ bool DynamicCollisionHandler::SegmentRectangle(
 	c.t = std::max(t_near.x, t_near.y);
 
 	// Furthest time is contact on opposite side of target.
-	// Reject if furthest time is negative, meaning the object is travelling away from the target.
+	// Reject if furthest time is negative, meaning the object is travelling away from the
+	// target.
 	if (float t_hit_far = std::min(t_far.x, t_far.y); t_hit_far < 0.0f) {
 		return false;
 	}
@@ -442,15 +485,14 @@ bool DynamicCollisionHandler::SegmentRectangle(
 
 	// Find which axis collides further along the movement time.
 
-	// TODO: Figure out how to fix biasing of one direction from one side and another on the other
-	// side.
+	// TODO: Figure out how to fix biasing of one direction from one side and another on the
+	// other side.
 	if (NearlyEqual(t_near.x, t_near.y) && NearlyEqual(
 											   FastAbs(inv_dir.x), FastAbs(inv_dir.y)
 										   )) { // Both axes collide at the same time.
 		// Diagonal collision, set normal to opposite of direction of movement.
 		c.normal = { -Sign(d.x), -Sign(d.y) };
-	}
-	if (t_near.x > t_near.y) { // X-axis.
+	} else if (t_near.x > t_near.y) { // X-axis.
 		// Direction of movement.
 		if (inv_dir.x < 0.0f) {
 			c.normal = { 1.0f, 0.0f };
@@ -466,57 +508,7 @@ bool DynamicCollisionHandler::SegmentRectangle(
 		}
 	}
 
-	// Raycast collision occurred.
-	return true;
-
-	/*
-	c = {};
-
-	const V2_float d{ a.Direction() };
-
-	if (NearlyEqual(d.Dot(d), 0.0f)) {
-		return false;
-	}
-
-	const V2_float b_min{ b.Min() };
-	const V2_float b_max{ b.Max() };
-	const V2_float inv{ 1.0f / d.x, 1.0f / d.y };
-	const V2_float d0{ (b_min - a.a) * inv };
-	const V2_float d1{ (b_max - a.a) * inv };
-	const V2_float v0{ std::min(d0.x, d1.x), std::min(d0.y, d1.y) };
-	const V2_float v1{ std::max(d0.x, d1.x), std::max(d0.y, d1.y) };
-
-	const float lo{ std::max(v0.x, v0.y) };
-	const float hi{ std::min(v1.x, v1.y) };
-
-	if (hi >= 0.0f && hi >= lo && lo <= 1.0f) {
-		// Pick the lowest collision time that is in the [0, 1] range.
-		bool w1{ hi >= 0.0f && hi <= 1.0f };
-		bool w2{ lo >= 0.0f && lo <= 1.0f };
-
-		if (w1 && w2) {
-			c.t = std::min(hi, lo);
-		} else if (w1) {
-			c.t = hi;
-		} else if (w2) {
-			c.t = lo;
-		} else {
-			return false;
-		}
-
-		const V2_float coeff{ a.a + d * c.t - (b_min + b_max) * 0.5f };
-		const V2_float abs_coeff{ FastAbs(coeff.x), FastAbs(coeff.y) };
-
-		if (abs_coeff.x > abs_coeff.y) {
-			c.normal = { Sign(coeff.x), 0.0f };
-		} else {
-			c.normal = { 0.0f, Sign(coeff.y) };
-		}
-
-		return c.t < 1.0f && (c.t > 0.0f || NearlyEqual(c.t, 0.0f)) && !c.normal.IsZero();
-	}
-	return false;
-	*/
+	return std::invoke(occurred, c);
 }
 
 bool DynamicCollisionHandler::SegmentCapsule(
@@ -540,7 +532,7 @@ bool DynamicCollisionHandler::SegmentCapsule(
 	const Segment<float> p1{ b.segment.a + ncu_dist, b.segment.b + ncu_dist };
 	const Segment<float> p2{ b.segment.a - ncu_dist, b.segment.b - ncu_dist };
 
-	auto& col_min{ c };
+	DynamicCollision col_min{ c };
 	if (SegmentSegment(a, p1, c) && c.t < col_min.t) {
 		col_min = c;
 	}
@@ -601,7 +593,7 @@ bool DynamicCollisionHandler::CircleRectangle(
 	V2_float b_min{ b.Min() };
 	V2_float b_max{ b.Max() };
 
-	auto& col_min{ c };
+	DynamicCollision col_min{ c };
 	// Top segment.
 	if (SegmentCapsule(seg, { { b_min, V2_float{ b_max.x, b_min.y } }, a.radius }, c) &&
 		c.t < col_min.t) {
@@ -641,11 +633,9 @@ bool DynamicCollisionHandler::RectangleRectangle(
 	const Rectangle<float>& a, const V2_float& vel, const Rectangle<float>& b, DynamicCollision& c
 ) {
 	const V2_float a_center{ a.Center() };
-	bool occured = SegmentRectangle(
+	return SegmentRectangle(
 		{ a_center, a_center + vel }, { b.Min() - a.Half(), b.size + a.size, Origin::TopLeft }, c
 	);
-	bool collide_on_next_frame{ c.t < 1.0 && (c.t > 0.0f || NearlyEqual(c.t, 0.0f)) };
-	return occured && collide_on_next_frame && !c.normal.IsZero();
 }
 
 bool DynamicCollisionHandler::GeneralShape(
