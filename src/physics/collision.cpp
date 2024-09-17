@@ -401,8 +401,8 @@ bool DynamicCollisionHandler::SegmentRectangle(
 		return false;
 	}
 
-	auto occurred = [](const DynamicCollision& c) {
-		return (c.t >= 0.0f && c.t < 1.0 || c.t > -1.0 && c.t < 0.0f) && !c.normal.IsZero();
+	auto occurred = [](const DynamicCollision& cn) {
+		return (cn.t >= 0.0f && cn.t < 1.0 || cn.t > -1.0 && cn.t < 0.0f) && !cn.normal.IsZero();
 	};
 
 	const V2_float b_min{ b.Min() };
