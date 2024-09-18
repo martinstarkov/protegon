@@ -39,8 +39,8 @@ public:
 
 		// Visual tests.
 
-		TestPathFinding();
 		TestCollisions();
+		TestPathFinding();
 		TestTween();
 		TestCamera();
 		TestRNG();

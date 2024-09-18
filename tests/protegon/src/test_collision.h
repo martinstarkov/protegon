@@ -1,5 +1,13 @@
+#include <memory>
+#include <new>
+#include <vector>
+
 #include "common.h"
+#include "components/collider.h"
+#include "components/rigid_body.h"
+#include "components/transform.h"
 #include "core/window.h"
+#include "ecs/ecs.h"
 #include "event/input_handler.h"
 #include "event/key.h"
 #include "protegon/circle.h"
@@ -10,6 +18,7 @@
 #include "protegon/log.h"
 #include "protegon/polygon.h"
 #include "protegon/vector2.h"
+#include "renderer/origin.h"
 #include "renderer/renderer.h"
 
 class CollisionTest : public Test {
@@ -394,9 +403,78 @@ public:
 	}
 };
 
+struct SweepTest : public Test {
+	ecs::Manager manager;
+
+	ecs::Entity player;
+
+	V2_float player_size{ 50, 50 };
+	V2_float size{ 50, 50 };
+
+	void Init() override {
+		auto add_collision_object = [&](const V2_float& p, const V2_float& s,
+										const V2_float& v = {}) {
+			ecs::Entity entity = manager.CreateEntity();
+			auto& t			   = entity.Add<Transform>();
+			t.position		   = p;
+
+			auto& box = entity.Add<BoxCollider>();
+			box.size  = s;
+
+			if (!v.IsZero()) {
+				auto& rb	= entity.Add<RigidBody>();
+				rb.velocity = v;
+			}
+			return entity;
+		};
+
+		V2_float vel{ 1, 1 };
+
+		player = add_collision_object({ 100, 100 }, player_size, vel);
+
+		add_collision_object({ 300, 300 }, size, { 0, 0 });
+		add_collision_object({ 250, 300 }, size, { 0, 0 });
+		add_collision_object({ 300, 250 }, size, { 0, 0 });
+
+		manager.Refresh();
+	}
+
+	float speed{ 1200.0f };
+
+	void Update(float dt) override {
+		auto& rb		= player.Get<RigidBody>();
+		auto& transform = player.Get<Transform>();
+
+		if (game.input.KeyPressed(Key::A)) {
+			rb.velocity.x -= speed * dt;
+		}
+		if (game.input.KeyPressed(Key::D)) {
+			rb.velocity.x += speed * dt;
+		}
+		if (game.input.KeyPressed(Key::W)) {
+			rb.velocity.y -= speed * dt;
+		}
+		if (game.input.KeyPressed(Key::S)) {
+			rb.velocity.y += speed * dt;
+		}
+
+		rb.velocity =
+			game.collision.dynamic.Sweep(dt, player, manager, DynamicCollisionResponse::Slide);
+
+		transform.position += rb.velocity * dt;
+	}
+
+	void Draw() override {
+		for (auto [e, p, b] : manager.EntitiesWith<Transform, BoxCollider>()) {
+			game.renderer.DrawRectangleHollow(p.position, b.size, color::Blue);
+		}
+	}
+};
+
 void TestCollisions() {
 	std::vector<std::shared_ptr<Test>> tests;
 
+	tests.emplace_back(new SweepTest());
 	tests.emplace_back(new CollisionTest());
 
 	AddTests(tests);
