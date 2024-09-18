@@ -1,12 +1,10 @@
 #pragma once
 
-#include "ecs/ecs.h"
 #include "protegon/vector2.h"
 
 namespace ptgn {
 
 struct RigidBody {
-	ecs::Entity entity;
 	V2_float velocity;
 	V2_float acceleration;
 	float max_velocity{ 0.0f };

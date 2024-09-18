@@ -2,7 +2,6 @@
 
 #include <vector>
 
-#include "ecs/ecs.h"
 #include "protegon/color.h"
 #include "protegon/polygon.h"
 #include "protegon/texture.h"
@@ -13,13 +12,11 @@
 namespace ptgn {
 
 struct Sprite {
-	ecs::Entity entity;
 	Texture texture;
 	Rectangle<float> rect;
 };
 
 struct SpriteSheet {
-	ecs::Entity entity;
 	std::vector<Sprite> sprites;
 };
 
@@ -33,8 +30,6 @@ struct SpriteTint : public Color {
 };
 
 using SpriteFlip = Flip;
-
-using SpriteOrigin = Origin;
 
 using SpriteZ = float;
 
