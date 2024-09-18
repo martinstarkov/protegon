@@ -47,8 +47,6 @@ public:
 		TestRenderer();
 		TestText();
 		TestEvents();
-
-		game.window.SetTitle("Update Loop");
 	}
 
 	void Update() final {
