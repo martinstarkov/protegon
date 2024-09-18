@@ -3,9 +3,13 @@
 #include <functional>
 #include <vector>
 
+#include "components/collider.h"
+#include "components/rigid_body.h"
+#include "components/transform.h"
 #include "ecs/ecs.h"
 #include "protegon/circle.h"
 #include "protegon/line.h"
+#include "protegon/log.h"
 #include "protegon/polygon.h"
 #include "protegon/vector2.h"
 #include "renderer/origin.h"
@@ -155,97 +159,10 @@ public:
 		DynamicCollision& c
 	);
 
-	static bool GeneralShape(
-		const V2_float& pos1, const V2_float& size1, Origin origin1, DynamicCollisionShape shape1,
-		const V2_float& pos2, const V2_float& size2, Origin origin2, DynamicCollisionShape shape2,
-		const V2_float& relative_velocity, DynamicCollision& c, float& distance_squared
-	);
-
-	template <typename Return>
-	using GetCallback = std::function<Return(ecs::Entity)>;
-
-	// The point of the callback functions is so the user can pass targets with more complex
-	// components.
-	// @return Position that needs to be added to the player position to offset them out of any
-	// potential collisions.
-	template <typename... Ts>
+	// @return Final velocity of the object to prevent them from colliding with the manager objects.
 	static V2_float Sweep(
-		float dt, ecs::Entity object,
-		const ecs::EntityContainer<ecs::LoopCriterion::WithComponents, Ts...>& targets,
-		const GetCallback<V2_float>& get_position, const GetCallback<V2_float>& get_size,
-		const GetCallback<V2_float>& get_velocity, const GetCallback<Origin>& get_origin,
-		const GetCallback<DynamicCollisionShape>& get_shape, DynamicCollisionResponse response
-	) {
-		const auto v1 = get_velocity(object) * dt;
-
-		if (v1.IsZero()) {
-			// TODO: Consider adding a static intersect check here.
-			return {};
-		}
-
-		const auto p1	  = get_position(object);
-		const auto s1	  = get_size(object);
-		const auto o1	  = get_origin(object);
-		const auto shape1 = get_shape(object);
-
-		DynamicCollision c;
-
-		auto get_sorted_collisions = [&](const auto& pos, const auto& vel) {
-			std::vector<SweepCollision> collisions;
-
-			targets.ForEach([&](ecs::Entity e2) {
-				if (e2 == object) {
-					return;
-				}
-				auto rel_vel{ vel - get_velocity(e2) * dt };
-				float dist2{ 0.0f };
-				if (GeneralShape(
-						pos, s1, o1, shape1, get_position(e2), get_size(e2), get_origin(e2),
-						get_shape(e2), rel_vel, c, dist2
-					)) {
-					collisions.emplace_back(c, dist2);
-				}
-			});
-
-			SortCollisions(collisions);
-			return collisions;
-		};
-
-		auto collisions = get_sorted_collisions(p1, v1);
-
-		if (collisions.size() == 0) { // no collisions occured.
-			return {};
-		}
-
-		const auto new_velocity = GetRemainingVelocity(v1, collisions[0].c, response);
-		auto final_velocity		= v1 * collisions[0].c.t;
-
-		if (new_velocity.IsZero()) {
-			return final_velocity - v1;
-		}
-
-		// Potential alternative solution to corner clipping:
-		// new_origin = origin + (velocity * collisions[0].c.t - velocity.Unit() * epsilon);
-		const auto new_p1 = p1 + final_velocity;
-		// game.renderer.DrawLine(p1, new_p1, color::Blue);
-		// game.renderer.DrawCircleHollow(new_p1, s1, color::Blue);
-
-		auto collisions2 = get_sorted_collisions(new_p1, new_velocity);
-
-		if (collisions2.size() > 0) {
-			final_velocity += new_velocity * collisions2[0].c.t;
-			// game.renderer.DrawLine(new_p1, new_p1 + new_velocity * collisions2[0].c.t,
-			// color::Red);
-			// game.renderer.DrawCircleHollow(new_p1 + new_velocity * collisions2[0].c.t, s1,
-			// color::Red);
-		} else {
-			final_velocity += new_velocity;
-			// game.renderer.DrawCircleHollow(p1 + new_v1, s1,
-			// color::Red);
-		}
-
-		return final_velocity - v1;
-	}
+		float dt, ecs::Entity entity, ecs::Manager& manager, DynamicCollisionResponse response
+	);
 
 private:
 	struct SweepCollision {
@@ -266,9 +183,9 @@ private:
 
 class CollisionHandler {
 public:
-	OverlapCollision overlap{};
-	IntersectCollisionHandler intersect{};
-	DynamicCollisionHandler dynamic{};
+	OverlapCollision overlap;
+	IntersectCollisionHandler intersect;
+	DynamicCollisionHandler dynamic;
 
 private:
 	friend class Game;
