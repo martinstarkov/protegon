@@ -4,13 +4,18 @@
 #include <variant>
 #include <vector>
 
-#include "core/resource_managers.h"
 #include "core/sdl_instance.h"
 #include "core/window.h"
 #include "event/event_handler.h"
 #include "event/input_handler.h"
+#include "protegon/audio.h"
 #include "protegon/collision.h"
 #include "protegon/events.h"
+#include "protegon/font.h"
+#include "protegon/shader.h"
+#include "protegon/text.h"
+#include "protegon/texture.h"
+#include "protegon/tween.h"
 #include "renderer/renderer.h"
 #include "scene/camera.h"
 #include "scene/scene_manager.h"
@@ -52,35 +57,42 @@ private:
 	impl::GLContext gl_context_;
 
 public:
+	// @return Previous frame time in milliseconds
+	[[nodiscard]] float dt() const;
+
 	// Core Subsystems
+
+	// TODO: Make these all inside impl namespace instead of hiding constructors.
 
 	EventHandler event;
 	InputHandler input;
 	Renderer renderer;
-	SceneManager scene;
-	ActiveSceneCameraManager camera;
+	impl::SceneManager scene;
+	impl::ActiveSceneCameraManager camera;
 	CollisionHandler collision;
-	UserInterface ui;
+	impl::UserInterface ui;
 
 	// Resources
 
-	TweenManager tween;
-	MusicManager music;
-	SoundManager sound;
-	FontManager font;
-	TextManager text;
-	TextureManager texture;
-	ShaderManager shader;
+	impl::TweenManager tween;
+	impl::MusicManager music;
+	impl::SoundManager sound;
+	impl::FontManager font;
+	impl::TextManager text;
+	impl::TextureManager texture;
+	impl::ShaderManager shader;
 
 	// Debug
 
 	Profiler profiler;
 
 public:
-	using UpdateFunction = std::variant<std::function<void()>, std::function<void(float dt)>>;
+	using UpdateFunction = std::function<void()>;
 
-	void PushLoopFunction(const UpdateFunction& loop_function);
-	void PopLoopFunction();
+	void PushBackLoopFunction(const UpdateFunction& loop_function);
+	void PushFrontLoopFunction(const UpdateFunction& loop_function);
+	void PopBackLoopFunction();
+	void PopFrontLoopFunction();
 
 	[[nodiscard]] std::size_t LoopFunctionCount() const {
 		return update_stack_.size();
@@ -89,19 +101,9 @@ public:
 	// Optional: pass in constructor arguments for the start scene.
 	template <typename TStartScene, typename... TArgs>
 	void Start(TArgs&&... constructor_args) {
-		running_ = true;
-
 		Init();
 
-		// Always quit on window quit.
-		event.window.Subscribe(
-			WindowEvent::Quit, this,
-			std::function([this](const WindowQuitEvent&) { PopLoopFunction(); })
-		);
-
 		scene.Init<TStartScene>(impl::start_scene_key, std::forward<TArgs>(constructor_args)...);
-
-		PushLoopFunction([&](float dt) { scene.Update(dt); });
 
 		MainLoop();
 
@@ -129,6 +131,7 @@ private:
 	std::vector<UpdateFunction> update_stack_;
 
 	bool running_{ false };
+	float dt_{ 0.0f };
 };
 
 extern Game game;
