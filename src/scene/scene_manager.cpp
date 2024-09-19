@@ -7,33 +7,33 @@
 #include <vector>
 
 #include "core/manager.h"
+#include "protegon/game.h"
 #include "protegon/scene.h"
 #include "scene/camera.h"
 #include "utility/debug.h"
 
-namespace ptgn {
+namespace ptgn::impl {
 
-void SceneManager::Unload(SceneKey scene_key) {
+void SceneManager::UnloadImpl(const InternalKey& scene_key) {
 	if (Has(scene_key)) {
-		auto scene	   = Get(scene_key);
-		scene->status_ = Scene::Status::Delete;
-		flagged_++;
+		auto scene = Get(scene_key);
+		scene->Add(Scene::Action::Unload);
 	}
 }
 
-void SceneManager::InitScene(SceneKey scene_key) {
+void SceneManager::InitScene(const InternalKey& scene_key) {
 	PTGN_ASSERT(
 		Has(scene_key) || scene_key == impl::start_scene_key,
 		"Cannot init scene unless it has been loaded first"
 	);
 	auto scene = Get(scene_key);
-	scene->Init();
+	scene->Add(Scene::Action::Init);
 }
 
-void SceneManager::AddActive(SceneKey scene_key) {
+void SceneManager::AddActiveImpl(const InternalKey& scene_key) {
 	PTGN_ASSERT(
 		Has(scene_key) || scene_key == impl::start_scene_key,
-		"Cannot set scene to active unless it has been loaded first"
+		"Cannot add scene to active unless it has been loaded first"
 	);
 	active_scenes_.emplace_back(scene_key);
 	// Start scene is initialized manually in the game.
@@ -42,19 +42,29 @@ void SceneManager::AddActive(SceneKey scene_key) {
 	}
 }
 
-void SceneManager::RemoveActive(SceneKey scene_key) {
+void SceneManager::ClearActive() {
+	for (auto it = active_scenes_.begin(); it != active_scenes_.end();) {
+		Get(*it)->Add(Scene::Action::Shutdown);
+		it = active_scenes_.erase(it);
+	}
+	PTGN_ASSERT(active_scenes_.empty());
+}
+
+void SceneManager::UnloadAll() {
+	auto& map{ GetMap() };
+	for (auto it = map.begin(); it != map.end(); ++it) {
+		it->second->Add(Scene::Action::Unload);
+	}
+}
+
+void SceneManager::RemoveActiveImpl(const InternalKey& scene_key) {
 	PTGN_ASSERT(
 		Has(scene_key), "Cannot remove active scene if it has not been loaded into "
 						"the scene manager"
 	);
-	// TODO: Instead of immediately removing the active scene, flag it anad remove after update.
 	for (auto it = active_scenes_.begin(); it != active_scenes_.end();) {
 		if (*it == scene_key) {
-			if (Has(scene_key)) {
-				auto scene = Get(scene_key);
-				scene->Shutdown();
-				scene->camera.SetCameraWindow();
-			}
+			Get(scene_key)->Add(Scene::Action::Shutdown);
 			it = active_scenes_.erase(it);
 		} else {
 			++it;
@@ -66,8 +76,7 @@ std::vector<std::shared_ptr<Scene>> SceneManager::GetActive() {
 	std::vector<std::shared_ptr<Scene>> active{};
 	for (auto scene_key : active_scenes_) {
 		PTGN_ASSERT(Has(scene_key));
-		auto scene = Get(scene_key);
-		active.emplace_back(scene);
+		active.emplace_back(Get(scene_key));
 	}
 
 	return active;
@@ -81,7 +90,9 @@ Scene& SceneManager::GetTopActive() {
 }
 
 void SceneManager::Reset() {
-	flagged_	   = 0;
+	ClearActive();
+	UnloadAll();
+	UpdateFlagged();
 	active_scenes_ = {};
 	Manager::Reset();
 }
@@ -90,39 +101,73 @@ void SceneManager::Shutdown() {
 	Reset();
 }
 
-void SceneManager::Update(float dt) {
+void SceneManager::Update() {
 	for (auto scene_key : active_scenes_) {
 		PTGN_ASSERT(Has(scene_key));
 		auto scene = Get(scene_key);
-		if (scene->status_ != Scene::Status::Delete) {
+		scene->dt  = game.dt();
+		if (scene->actions_.empty()) {
 			scene->Update();
-			scene->Update(dt);
 		}
 	}
-	UnloadFlagged();
 }
 
-void SceneManager::UnloadFlagged() {
+bool SceneManager::UpdateFlagged() {
+	bool scene_change{ false };
 	auto& map{ GetMap() };
-	PTGN_ASSERT(flagged_ >= 0);
-	while (flagged_ > 0) {
-		for (auto it = map.begin(); it != map.end();) {
-			if (it->second->status_ == Scene::Status::Delete) {
-				RemoveActive(it->first);
-				it = map.erase(it);
-				flagged_--;
-			} else {
-				++it;
+	for (auto it = map.begin(); it != map.end();) {
+		// Intentional reference counter increment to maintain scene during scene function calls.
+		auto [key, scene] = *it;
+
+		bool unload{ false };
+
+		while (!scene->actions_.empty()) {
+			auto action = scene->actions_.begin();
+			switch (*action) {
+				case Scene::Action::Preload:
+					game.input.Reset();
+					scene->Preload();
+					break;
+				case Scene::Action::Init:
+					// Input is reset to ensure no previously pressed keys are considered held.
+					game.input.Reset();
+					// Each scene starts with a refreshed camera.
+					scene->camera.Reset();
+					scene->Init();
+					scene_change = true;
+					break;
+				case Scene::Action::Shutdown:
+					scene->Shutdown();
+					scene_change = true;
+					break;
+				case Scene::Action::Unload:
+					if (ActiveScenesContain(key)) {
+						RemoveActiveImpl(key);
+						PTGN_ASSERT(!ActiveScenesContain(key));
+						continue;
+					} else {
+						scene->Unload();
+						unload		 = true;
+						scene_change = true;
+					}
+					break;
 			}
+			scene->actions_.erase(action);
+		}
+
+		if (unload) {
+			it = map.erase(it);
+		} else {
+			++it;
 		}
 	}
-	PTGN_ASSERT(flagged_ == 0, "Could not delete a flagged scene");
+	return scene_change;
 }
 
-bool SceneManager::ActiveScenesContain(SceneKey key) const {
-	return std::any_of(active_scenes_.begin(), active_scenes_.end(), [key](SceneKey i) {
+bool SceneManager::ActiveScenesContain(const InternalKey& key) const {
+	return std::any_of(active_scenes_.begin(), active_scenes_.end(), [key](const InternalKey& i) {
 		return i == key;
 	});
 }
 
-} // namespace ptgn
+} // namespace ptgn::impl
