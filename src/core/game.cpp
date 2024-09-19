@@ -13,8 +13,6 @@
 #include "event/event_handler.h"
 #include "event/input_handler.h"
 #include "protegon/collision.h"
-#include "renderer/renderer.h"
-#include "resource_managers.h"
 #include "scene/scene_manager.h"
 #include "utility/debug.h"
 #include "utility/profiling.h"
@@ -84,7 +82,11 @@ Game::~Game() {
 	sdl_instance_.Shutdown();
 }
 
-void Game::PushLoopFunction(const UpdateFunction& loop_function) {
+float Game::dt() const {
+	return dt_;
+}
+
+void Game::PushFrontLoopFunction(const UpdateFunction& loop_function) {
 	// Important to clear previous info from input cache (e.g. first time key presses).
 	// Otherwise they might trigger again in the next input.Update().
 	input.Reset();
@@ -92,10 +94,32 @@ void Game::PushLoopFunction(const UpdateFunction& loop_function) {
 	update_stack_.emplace(update_stack_.begin(), loop_function);
 }
 
-void Game::PopLoopFunction() {
+void Game::PushBackLoopFunction(const UpdateFunction& loop_function) {
+	// Important to clear previous info from input cache (e.g. first time key presses).
+	// Otherwise they might trigger again in the next input.Update().
+	input.Reset();
+
+	update_stack_.emplace_back(loop_function);
+}
+
+void Game::PopBackLoopFunction() {
+	if (update_stack_.empty()) {
+		return;
+	}
+
 	input.Reset();
 
 	update_stack_.pop_back();
+}
+
+void Game::PopFrontLoopFunction() {
+	if (update_stack_.empty()) {
+		return;
+	}
+
+	input.Reset();
+
+	update_stack_.erase(update_stack_.begin());
 }
 
 void Game::Stop() {
@@ -119,7 +143,7 @@ void Game::Init() {
 #if defined(PTGN_PLATFORM_MACOS) && !defined(__EMSCRIPTEN__)
 	impl::InitApplePath();
 #endif
-
+	running_ = true;
 	if (!sdl_instance_.IsInitialized()) {
 		sdl_instance_.Init();
 	}
@@ -132,6 +156,8 @@ void Game::Init() {
 }
 
 void Game::Shutdown() {
+	scene.Shutdown();
+
 	// TODO: Figure out a better way to do this.
 	profiler.Reset();
 	shader.Reset();
@@ -143,7 +169,6 @@ void Game::Shutdown() {
 	music.Reset();
 
 	collision.Shutdown();
-	scene.Shutdown();
 	renderer.Shutdown();
 	input.Shutdown();
 	event.Shutdown();
@@ -206,7 +231,7 @@ void Game::Update() {
 
 	float elapsed{ elapsed_time.count() };
 
-	float dt{ elapsed };
+	dt_ = elapsed;
 
 	// TODO: Consider fixed FPS vs dynamic: https://gafferongames.com/post/fix_your_timestep/.
 	// constexpr const float fps{ 60.0f };
@@ -223,37 +248,40 @@ void Game::Update() {
 
 	input.Update();
 
-	tween.Update(dt);
-
-	// PTGN_LOG("Loop #", counter);
-
-	if (update_stack_.empty()) {
-		running_ = false;
+	if (!running_) {
 		return;
 	}
 
-	const auto& loop_function = update_stack_.back();
-
-	game.renderer.Clear();
-
-	if (std::holds_alternative<std::function<void(float)>>(loop_function)) {
-		std::invoke(std::get<std::function<void(float)>>(loop_function), dt);
-	} else {
-		std::invoke(std::get<std::function<void(void)>>(loop_function));
-	}
+	tween.Update();
 
 	if (!running_) {
 		return;
 	}
 
-	game.renderer.Present();
+	// PTGN_LOG("Loop #", counter);
+
+	game.renderer.Clear();
+
+	bool scene_change{ false };
+
+	if (update_stack_.empty()) {
+		scene.Update();
+		scene_change = scene.UpdateFlagged();
+	} else {
+		const auto& loop_function = update_stack_.back();
+		std::invoke(loop_function);
+	}
+
+	if (running_ && game.profiler.IsEnabled()) {
+		game.profiler.PrintAll();
+	}
+
+	if (running_ && !scene_change) {
+		game.renderer.Present();
+	}
 
 	++counter;
 	end = std::chrono::system_clock::now();
-
-	if (game.profiler.IsEnabled()) {
-		game.profiler.PrintAll();
-	}
 }
 
 } // namespace ptgn

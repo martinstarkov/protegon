@@ -161,7 +161,7 @@ public:
 
 	// @return Final velocity of the object to prevent them from colliding with the manager objects.
 	static V2_float Sweep(
-		float dt, ecs::Entity entity, ecs::Manager& manager, DynamicCollisionResponse response
+		ecs::Entity entity, ecs::Manager& manager, DynamicCollisionResponse response
 	);
 
 private:
