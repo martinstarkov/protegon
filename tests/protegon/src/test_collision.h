@@ -46,7 +46,7 @@ public:
 		game.window.SetTitle("'ESC' (++category), 't' (++shape), 'g' (++mode), 'r' (reset pos)");
 	}
 
-	void Update(float dt) final {
+	void Update() override {
 		auto mouse = game.input.GetMousePosition();
 
 		if (game.input.KeyDown(Key::T)) {
@@ -444,7 +444,7 @@ struct SweepTest : public Test {
 		manager.Refresh();
 	}
 
-	void Update(float dt) override {
+	void Update() override {
 		auto& rb		= player.Get<RigidBody>();
 		auto& transform = player.Get<Transform>();
 
@@ -462,7 +462,7 @@ struct SweepTest : public Test {
 		}
 
 		rb.velocity =
-			game.collision.dynamic.Sweep(dt, player, manager, DynamicCollisionResponse::Slide);
+			game.collision.dynamic.Sweep(player, manager, DynamicCollisionResponse::Slide);
 
 		transform.position += rb.velocity * dt;
 

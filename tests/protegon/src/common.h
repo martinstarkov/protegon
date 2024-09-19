@@ -33,9 +33,6 @@ struct Test {
 	virtual void Init() { /**/
 	}
 
-	virtual void Update(float dt) { /**/
-	}
-
 	virtual void Update() { /**/
 	}
 
@@ -45,16 +42,27 @@ struct Test {
 	virtual void Shutdown() { /**/
 	}
 
-	virtual void Run(float dt) final {
+	virtual void Run() final {
+		dt = game.dt();
 		if (!initialized_) {
+			game.event.window.Subscribe(
+				WindowEvent::Quit, this, std::function([this](const WindowQuitEvent&) {
+					game.camera.Reset();
+					Shutdown();
+					game.window.SetTitle("");
+					game.event.window.Unsubscribe(this);
+					game.PopBackLoopFunction();
+				})
+			);
 			Setup();
 			Init();
 			initialized_ = true;
 		}
-		Update(dt);
 		Update();
 		Draw();
 	}
+
+	float dt{ 0.0f };
 
 protected:
 	V2_float ws;	 // window size
@@ -70,6 +78,7 @@ void CheckForTestSwitch(const std::vector<std::shared_ptr<Test>>& tests, int& cu
 		game.camera.Reset();
 		tests[current_test]->Shutdown();
 		game.window.SetTitle("");
+		game.event.window.Unsubscribe(tests[current_test].get());
 	};
 
 	if (game.input.KeyDown(test_switch_keys[0])) {
@@ -83,7 +92,7 @@ void CheckForTestSwitch(const std::vector<std::shared_ptr<Test>>& tests, int& cu
 	}
 	if (game.input.KeyDown(test_category_switch_key)) {
 		shutdown();
-		game.PopLoopFunction();
+		game.PopBackLoopFunction();
 	}
 }
 
@@ -91,16 +100,16 @@ void AddTests(const std::vector<std::shared_ptr<Test>>& tests) {
 	// Lambda capture will keep this alive as long as is necessary.
 	auto test_idx = std::make_shared<int>(0);
 
-	game.PushLoopFunction([tests, test_idx](float dt) {
+	game.PushFrontLoopFunction([tests, test_idx]() {
 		PTGN_ASSERT(*test_idx < tests.size());
 
 		auto& current_test = tests[*test_idx];
 
-		if (game.window.GetTitle() == "") {
+		if (game.window.GetTitle().empty()) {
 			game.window.SetTitle(test_instructions + std::string(": ") + std::to_string(*test_idx));
 		}
 
-		current_test->Run(dt);
+		current_test->Run();
 
 		CheckForTestSwitch(tests, *test_idx);
 	});

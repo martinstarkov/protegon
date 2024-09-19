@@ -62,7 +62,7 @@ struct TestFractalNoise : public Test {
 		noise_map = FractalNoise::Generate(noise, pos, grid_size, properties);
 	}
 
-	void Update(float dt) override {
+	void Update() override {
 		static NoiseProperties prev_properties = properties;
 
 		if (game.input.KeyDown(Key::R)) {

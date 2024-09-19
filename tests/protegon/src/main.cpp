@@ -25,6 +25,10 @@ class Tests : public Scene {
 public:
 	Tests() = default;
 
+	void Preload() final {
+		PTGN_INFO("Preloaded test scene");
+	}
+
 	void Init() final {
 		game.renderer.SetClearColor(color::White);
 		game.window.SetSize(V2_int{ 800, 800 });
@@ -47,10 +51,21 @@ public:
 		TestRenderer();
 		TestText();
 		TestEvents();
+
+		PTGN_INFO("Initialized test scene");
 	}
 
 	void Update() final {
-		game.Stop();
+		PTGN_INFO("Updated test scene");
+		// game.Stop();
+	}
+
+	void Shutdown() final {
+		PTGN_INFO("Shutdown test scene");
+	}
+
+	void Unload() final {
+		PTGN_INFO("Unloaded test scene");
 	}
 };
 

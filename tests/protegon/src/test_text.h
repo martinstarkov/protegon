@@ -21,8 +21,8 @@ struct TestTextStyles : public Test {
 	float ysize	  = 40.0f;
 	float yoffset = 4.0f;
 
-	std::size_t font_key = Hash("different_font");
-	std::string content	 = "The quick brown fox jumps over the lazy dog";
+	std::string_view font_key = "different_font";
+	std::string content		  = "The quick brown fox jumps over the lazy dog";
 
 	Font font{ "resources/fonts/Arial.ttf", static_cast<int>(ysize) };
 

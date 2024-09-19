@@ -14,6 +14,7 @@
 
 struct TestGameEvents : public Test {
 	void Shutdown() override {
+		game.event.UnsubscribeAll();
 		game.window.SetResizeable(false);
 	}
 
@@ -40,7 +41,7 @@ struct TestGameEvents : public Test {
 					}
 					case WindowEvent::Quit: {
 						const auto& es{ static_cast<const WindowQuitEvent&>(e) };
-						PTGN_LOG("Quit window");
+						PTGN_LOG("Quit window event");
 						break;
 					}
 					default: break;

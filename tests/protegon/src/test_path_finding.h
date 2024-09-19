@@ -37,7 +37,7 @@ class PathFindingTest : public Test {
 		end	  = { grid.GetSize().x - 2, grid.GetSize().y / 2 };
 	}
 
-	void Update(float dt) final {
+	void Update() final {
 		V2_float mouse_pos	= game.input.GetMousePosition();
 		V2_float mouse_tile = mouse_pos / tile_size;
 		Rectangle<int> mouse_box{ mouse_tile * tile_size, tile_size, Origin::Center };

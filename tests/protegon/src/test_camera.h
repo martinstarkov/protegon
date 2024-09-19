@@ -28,14 +28,15 @@ struct TestCameraSwitching : public Test {
 	OrthographicCamera camera4;
 
 	int camera{ 0 };
+
 	const int cameras{ 5 };
 
 	void Init() override {
-		camera0 = game.camera.Load(0);
-		camera1 = game.camera.Load(1);
-		camera2 = game.camera.Load(2);
-		camera3 = game.camera.Load(3);
-		camera4 = game.camera.Load(4);
+		camera0 = game.camera.Load("0");
+		camera1 = game.camera.Load("1");
+		camera2 = game.camera.Load("2");
+		camera3 = game.camera.Load("3");
+		camera4 = game.camera.Load("4");
 
 		camera0.SetPosition(V2_float{ 0, 0 });
 		camera1.SetPosition(V2_float{ ws.x, 0 });
@@ -43,19 +44,19 @@ struct TestCameraSwitching : public Test {
 		camera3.SetPosition(V2_float{ 0, ws.y });
 		camera4.SetPosition(center);
 
-		game.camera.SetPrimary(camera);
+		game.camera.SetPrimary(std::to_string(camera));
 	}
 
 	void Update() override {
 		if (game.input.KeyDown(Key::E)) {
 			camera++;
 			camera = Mod(camera, cameras);
-			game.camera.SetPrimary(camera);
+			game.camera.SetPrimary(std::to_string(camera));
 		}
 		if (game.input.KeyDown(Key::Q)) {
 			camera--;
 			camera = Mod(camera, cameras);
-			game.camera.SetPrimary(camera);
+			game.camera.SetPrimary(std::to_string(camera));
 		}
 	}
 
@@ -71,7 +72,7 @@ struct TestCameraControls : public Test {
 	const float rotation_speed = 1.0f;
 	const float zoom_speed{ 0.4f };
 
-	void Update(float dt) override {
+	void Update() override {
 		auto& camera{ game.camera.GetCurrent() };
 
 		if (game.input.KeyPressed(Key::W)) {
@@ -182,7 +183,7 @@ struct TestParallax : public Test {
 		bg_aspect_ratio = background_size.x / background_size.y;
 	}
 
-	void Update(float dt) override {
+	void Update() override {
 		auto& camera{ game.camera.GetCurrent() };
 
 		camera.SetSize(ws);

@@ -42,7 +42,7 @@
 // TODO: Add texture filtering test.
 
 /*
-void TestBatchTextureSDL(std::size_t batch_size, float dt, const std::vector<path>& texture_paths) {
+void TestBatchTextureSDL(std::size_t batch_size, const std::vector<path>& texture_paths) {
 	PTGN_ASSERT(texture_paths.size() > 0);
 	std::vector<SDL_Texture*> textures;
 	textures.resize(texture_paths.size(), nullptr);
@@ -61,7 +61,7 @@ void TestBatchTextureSDL(std::size_t batch_size, float dt, const std::vector<pat
 	RNG<int> rng_index{ 0, static_cast<int>(textures.size()) - 1 };
 	RNG<float> rng_size{ 0.02f, 0.07f };
 
-	auto draw_func = [&](float dt) {
+	auto draw_func = [&]() {
 		// PTGN_PROFILE_FUNCTION();
 
 		SDL_RenderClear(r);
@@ -78,7 +78,7 @@ void TestBatchTextureSDL(std::size_t batch_size, float dt, const std::vector<pat
 		SDL_RenderPresent(r);
 	};
 
-	game.PushLoopFunction([&](float dt) {
+	game.PushLoopFunction([&]() {
 		draw_func(dt);
 		// game.profiler.PrintAll<seconds>();
 	});
@@ -250,7 +250,7 @@ struct TestRectangle : public DrawTest {
 		cr = { 0.5f, 0.5f };
 	}
 
-	void Update(float dt) override {
+	void Update() override {
 		if (game.input.KeyPressed(Key::R)) {
 			rotation += 5.0f * dt;
 		}
@@ -665,7 +665,7 @@ struct TestTexture : public Test {
 		cr = { 0.5f, 0.5f };
 	}
 
-	void Update(float dt) override {
+	void Update() override {
 		if (game.input.KeyPressed(Key::R)) {
 			rotation += 5.0f * dt;
 		}

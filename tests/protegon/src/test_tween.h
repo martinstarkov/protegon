@@ -7,7 +7,6 @@
 
 #include "common.h"
 #include "core/manager.h"
-#include "core/resource_managers.h"
 #include "event/input_handler.h"
 #include "event/key.h"
 #include "protegon/color.h"
@@ -349,7 +348,7 @@ struct TestTweenTypes : public Test {
 		}
 	}
 
-	void Update(float dt) override {
+	void Update() override {
 		for (auto& [t, c, p] : tweens) {
 			if (!t.IsValid()) {
 				continue;
