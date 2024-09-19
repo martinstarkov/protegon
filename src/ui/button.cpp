@@ -8,7 +8,6 @@
 #include <variant>
 
 #include "core/manager.h"
-#include "core/resource_managers.h"
 #include "event/event_handler.h"
 #include "event/input_handler.h"
 #include "event/mouse.h"
@@ -85,7 +84,7 @@ void Button::Activate() {
 	PTGN_ASSERT(
 		on_activate_ != nullptr, "Cannot activate button which has no activate function set"
 	);
-	on_activate_();
+	std::invoke(on_activate_);
 	RecheckState();
 }
 
@@ -97,7 +96,7 @@ void Button::StartHover() {
 		on_hover_start_ != nullptr,
 		"Cannot start hover for button which has no hover start function set"
 	);
-	on_hover_start_();
+	std::invoke(on_hover_start_);
 }
 
 void Button::StopHover() {
@@ -108,7 +107,7 @@ void Button::StopHover() {
 		on_hover_stop_ != nullptr,
 		"Cannot stop hover for button which has no hover stop function set"
 	);
-	on_hover_stop_();
+	std::invoke(on_hover_stop_);
 }
 
 void Button::SetOnActivate(const ButtonActivateFunction& function) {
@@ -319,6 +318,22 @@ ButtonState Button::GetState() const {
 	}
 }
 
+void TextButton::SetBorder(bool draw_border) {
+	draw_border_ = draw_border;
+}
+
+bool TextButton::HasBorder() const {
+	return draw_border_;
+}
+
+void TextButton::SetTextSize(const V2_float& text_size) {
+	text_size_ = text_size;
+}
+
+V2_float TextButton::GetTextSize() const {
+	return text_size_;
+}
+
 void TextButton::SetText(const Text& text) {
 	PTGN_ASSERT(text.IsValid(), "Cannot set text button to invalid text");
 	text_ = text;
@@ -341,13 +356,31 @@ void TextButton::Draw() const {
 }
 
 void TextButton::DrawHollow(float line_width) const {
-	ColorButton::DrawHollow(line_width);
-	text_.Draw({ rect_.pos, rect_.size, text_alignment_ }, 1.0f);
+	if (draw_border_) {
+		ColorButton::DrawHollow(line_width);
+	}
+	V2_float size{ rect_.size };
+	if (!NearlyEqual(text_size_.x, 0.0f)) {
+		size.x = text_size_.x;
+	}
+	if (!NearlyEqual(text_size_.y, 0.0f)) {
+		size.y = text_size_.y;
+	}
+	text_.Draw({ rect_.Center(), size, text_alignment_ }, 1.0f);
 }
 
 void TextButton::DrawFilled() const {
-	ColorButton::DrawFilled();
-	text_.Draw({ rect_.pos, rect_.size, text_alignment_ }, 1.0f);
+	if (draw_border_) {
+		ColorButton::DrawFilled();
+	}
+	V2_float size{ rect_.size };
+	if (!NearlyEqual(text_size_.x, 0.0f)) {
+		size.x = text_size_.x;
+	}
+	if (!NearlyEqual(text_size_.y, 0.0f)) {
+		size.y = text_size_.y;
+	}
+	text_.Draw({ rect_.Center(), size, text_alignment_ }, 1.0f);
 }
 
 ToggleButton::ToggleButton(
@@ -530,8 +563,12 @@ Texture TexturedButton::GetCurrentTextureImpl(ButtonState state, std::size_t tex
 
 	Texture texture;
 
-	if (std::holds_alternative<TextureKey>(texture_state)) {
-		const TextureKey key{ std::get<TextureKey>(texture_state) };
+	if (std::holds_alternative<impl::TextureManager::Key>(texture_state)) {
+		const auto& key{ std::get<impl::TextureManager::Key>(texture_state) };
+		PTGN_ASSERT(game.texture.Has(key), "Cannot get button texture which has not been loaded");
+		texture = game.texture.Get(key);
+	} else if (std::holds_alternative<impl::TextureManager::InternalKey>(texture_state)) {
+		const auto& key{ std::get<impl::TextureManager::InternalKey>(texture_state) };
 		PTGN_ASSERT(game.texture.Has(key), "Cannot get button texture which has not been loaded");
 		texture = game.texture.Get(key);
 	} else if (std::holds_alternative<Texture>(texture_state)) {

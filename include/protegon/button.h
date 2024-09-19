@@ -5,17 +5,15 @@
 #include <variant>
 #include <vector>
 
-#include "core/resource_managers.h"
 #include "protegon/color.h"
 #include "protegon/event.h"
 #include "protegon/events.h"
 #include "protegon/polygon.h"
+#include "protegon/text.h"
 #include "protegon/texture.h"
 #include "protegon/vector2.h"
 
 namespace ptgn {
-
-using TextureOrKey = std::variant<Texture, TextureKey>;
 
 enum class ButtonState : std::size_t {
 	Default = 0,
@@ -156,6 +154,14 @@ using TextAlignment = Origin;
 
 class TextButton : public virtual ColorButton {
 public:
+	void SetBorder(bool draw_border);
+	[[nodiscard]] bool HasBorder() const;
+
+	// If either axis of the text size is zero, it is stretched to fit the entire size of the button
+	// rectangle (along that axis).
+	void SetTextSize(const V2_float& text_size = {});
+	[[nodiscard]] V2_float GetTextSize() const;
+
 	void SetText(const Text& text);
 	[[nodiscard]] const Text& GetText() const;
 
@@ -169,6 +175,8 @@ public:
 	void DrawFilled() const override;
 
 protected:
+	V2_float text_size_;
+	bool draw_border_{ true };
 	Text text_;
 	TextAlignment text_alignment_{ TextAlignment::Center };
 };

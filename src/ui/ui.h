@@ -7,43 +7,66 @@
 #include "protegon/button.h"
 #include "utility/type_traits.h"
 
-namespace ptgn {
+namespace ptgn::impl {
 
-class Game;
 class UserInterface;
 
-using ButtonKey = std::size_t;
-
 class ButtonManager : public Manager<std::shared_ptr<Button>> {
-private:
-	ButtonManager()									   = default;
-	~ButtonManager() override						   = default;
-	ButtonManager(const ButtonManager&)				   = delete;
-	ButtonManager(ButtonManager&&) noexcept			   = default;
-	ButtonManager& operator=(const ButtonManager&)	   = delete;
-	ButtonManager& operator=(ButtonManager&&) noexcept = default;
-
 public:
-	template <typename T, tt::convertible<T*, Button*> = true>
-	std::shared_ptr<Button> Load(ButtonKey button_key, T&& button) {
-		auto button_ptr{ Manager::Load(button_key, std::make_shared<T>(std::move(button))) };
+	using Manager::Manager;
+
+	template <typename TKey, typename T, tt::convertible<T*, Button*> = true>
+	std::shared_ptr<Button> Load(const TKey& button_key, T&& button) {
+		auto button_ptr{
+			Manager::Load(GetInternalKey(button_key), std::make_shared<T>(std::move(button)))
+		};
 		button_ptr->SubscribeToMouseEvents();
 		return button_ptr;
 	}
 
-	template <typename TButton = Button>
-	[[nodiscard]] std::shared_ptr<TButton> Get(ButtonKey button_key) {
+	template <typename TButton = Button, typename TKey = Key>
+	[[nodiscard]] std::shared_ptr<TButton> Get(const TKey& button_key) {
 		static_assert(
 			std::is_base_of_v<Button, TButton> || std::is_same_v<TButton, Button>,
 			"Cannot cast retrieved button to type which does not inherit from the Button class"
 		);
-		return std::static_pointer_cast<TButton>(Manager::Get(button_key));
+		return std::static_pointer_cast<TButton>(Manager::Get(GetInternalKey(button_key)));
 	}
 
-	void DrawFilled(ButtonKey button_key) const;
-	void DrawHollow(ButtonKey button_key, float line_width) const;
+	template <typename TKey>
+	void DrawFilled(const TKey& button_key) const {
+		DrawFilledImpl(GetInternalKey(button_key));
+	}
+
+	template <typename TKey>
+	void DrawHollow(const TKey& button_key, float line_width) const {
+		DrawHollowImpl(GetInternalKey(button_key), line_width);
+	}
+
 	void DrawAllFilled() const;
 	void DrawAllHollow(float line_width) const;
+
+	using ForEachFunction = std::variant<
+		std::function<void(InternalKey, std::shared_ptr<Button>)>,
+		std::function<void(std::shared_ptr<Button>)>, std::function<void(InternalKey)>>;
+
+	void ForEach(const ForEachFunction& function) {
+		for (auto& [key, button] : GetMap()) {
+			if (std::holds_alternative<std::function<void(std::shared_ptr<Button>)>>(function)) {
+				std::invoke(
+					std::get<std::function<void(std::shared_ptr<Button>)>>(function), button
+				);
+			} else if (std::holds_alternative<std::function<void(InternalKey)>>(function)) {
+				std::invoke(std::get<std::function<void(InternalKey)>>(function), key);
+			} else if (std::holds_alternative<
+						   std::function<void(InternalKey, std::shared_ptr<Button>)>>(function)) {
+				std::invoke(
+					std::get<std::function<void(InternalKey, std::shared_ptr<Button>)>>(function),
+					key, button
+				);
+			}
+		}
+	}
 
 	// TODO: Figure out button click crash.
 
@@ -59,14 +82,16 @@ public:
 	}*/
 
 private:
-	std::vector<ButtonKey> flagged_;
+	void DrawFilledImpl(const InternalKey& button_key) const;
+	void DrawHollowImpl(const InternalKey& button_key, float line_width) const;
 
-	friend class Game;
+	std::vector<InternalKey> flagged_;
+
 	friend class UserInterface;
 };
 
 class UserInterface {
-private:
+public:
 	UserInterface()									   = default;
 	~UserInterface()								   = default;
 	UserInterface(const UserInterface&)				   = delete;
@@ -76,9 +101,6 @@ private:
 
 public:
 	ButtonManager button;
-
-private:
-	friend class Game;
 };
 
-} // namespace ptgn
+} // namespace ptgn::impl
