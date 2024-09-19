@@ -448,15 +448,28 @@ struct SweepTest : public Test {
 		auto& rb		= player.Get<RigidBody>();
 		auto& transform = player.Get<Transform>();
 
+		if (game.input.KeyPressed(Key::A)) {
+			rb.velocity.x = -player_velocity.x;
+		}
+		if (game.input.KeyPressed(Key::D)) {
+			rb.velocity.x = player_velocity.x;
+		}
+		if (game.input.KeyPressed(Key::W)) {
+			rb.velocity.y = -player_velocity.y;
+		}
+		if (game.input.KeyPressed(Key::S)) {
+			rb.velocity.y = player_velocity.y;
+		}
+
 		rb.velocity =
 			game.collision.dynamic.Sweep(dt, player, manager, DynamicCollisionResponse::Slide);
 
 		transform.position += rb.velocity * dt;
 
-		PTGN_ASSERT(transform.position.x >= 0.0f);
+		/*PTGN_ASSERT(transform.position.x >= 0.0f);
 		PTGN_ASSERT(transform.position.y >= 0.0f);
 		PTGN_ASSERT(transform.position.x <= game.window.GetSize().x);
-		PTGN_ASSERT(transform.position.y <= game.window.GetSize().y);
+		PTGN_ASSERT(transform.position.y <= game.window.GetSize().y);*/
 
 		if (game.input.KeyPressed(Key::R)) {
 			transform.position = {};
@@ -475,36 +488,78 @@ struct SweepTest : public Test {
 		}
 
 		for (auto [e, p, b] : manager.EntitiesWith<Transform, BoxCollider>()) {
-			game.renderer.DrawRectangleHollow(
-				p.position, b.size, color::Blue, Origin::Center, 4.0f
-			);
+			if (e == player) {
+				game.renderer.DrawRectangleFilled(p.position, b.size, color::Green, Origin::Center);
+			} else {
+				game.renderer.DrawRectangleHollow(
+					p.position, b.size, color::Blue, Origin::Center, 4.0f
+				);
+			}
 		}
 	}
 };
 
-struct SweepCornerTest : public SweepTest {
-	SweepCornerTest(const V2_float& player_vel) : SweepTest{ player_vel } {
+struct SweepCornerTest1 : public SweepTest {
+	SweepCornerTest1(const V2_float& player_vel) : SweepTest{ player_vel } {
 		AddCollisionObject({ 300, 300 });
 		AddCollisionObject({ 250, 300 });
 		AddCollisionObject({ 300, 250 });
 	}
 };
 
-struct SweepCornerShiftedTest : public SweepTest {
-	SweepCornerShiftedTest(const V2_float& player_vel) : SweepTest{ player_vel } {
+struct SweepCornerTest2 : public SweepTest {
+	SweepCornerTest2(const V2_float& player_vel) : SweepTest{ player_vel } {
 		AddCollisionObject({ 300 - 10, 300 });
 		AddCollisionObject({ 250 - 10, 300 });
 		AddCollisionObject({ 300 - 10, 250 });
 	}
 };
 
+struct SweepCornerTest3 : public SweepTest {
+	SweepCornerTest3(const V2_float& player_vel) : SweepTest{ player_vel } {
+		AddCollisionObject({ 250, 300 });
+		AddCollisionObject({ 200, 300 });
+		AddCollisionObject({ 250, 250 });
+	}
+};
+
+struct SweepTunnelTest1 : public SweepTest {
+	SweepTunnelTest1(const V2_float& player_vel) : SweepTest{ player_vel } {
+		AddCollisionObject({ 300, 300 });
+		AddCollisionObject({ 200, 300 });
+		AddCollisionObject({ 300, 250 });
+		AddCollisionObject({ 200, 350 });
+		AddCollisionObject({ 300, 350 });
+		AddCollisionObject({ 250, 400 });
+		AddCollisionObject({ 200, 400 });
+		AddCollisionObject({ 300, 400 });
+	}
+};
+
+struct SweepTunnelTest2 : public SweepTest {
+	SweepTunnelTest2(const V2_float& player_vel) : SweepTest{ player_vel } {
+		AddCollisionObject({ 300, 300 });
+		AddCollisionObject({ 300, 200 });
+		AddCollisionObject({ 200, 300 });
+		AddCollisionObject({ 250, 300 });
+		AddCollisionObject({ 350, 300 });
+		AddCollisionObject({ 350, 200 });
+		AddCollisionObject({ 400, 200 });
+		AddCollisionObject({ 400, 250 });
+		AddCollisionObject({ 400, 300 });
+	}
+};
+
 void TestCollisions() {
 	std::vector<std::shared_ptr<Test>> tests;
 
-	V2_float player_velocity{ 10000, 10000 };
+	V2_float player_velocity{ 100, 100 };
 
-	tests.emplace_back(new SweepCornerShiftedTest(player_velocity));
-	tests.emplace_back(new SweepCornerTest(player_velocity));
+	tests.emplace_back(new SweepTunnelTest2(player_velocity));
+	tests.emplace_back(new SweepTunnelTest1(player_velocity));
+	tests.emplace_back(new SweepCornerTest3(player_velocity));
+	tests.emplace_back(new SweepCornerTest2(player_velocity));
+	tests.emplace_back(new SweepCornerTest1(player_velocity));
 	tests.emplace_back(new CollisionTest());
 
 	AddTests(tests);

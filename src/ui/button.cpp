@@ -319,6 +319,37 @@ ButtonState Button::GetState() const {
 	}
 }
 
+void TextButton::SetText(const Text& text) {
+	PTGN_ASSERT(text.IsValid(), "Cannot set text button to invalid text");
+	text_ = text;
+}
+
+const Text& TextButton::GetText() const {
+	return text_;
+}
+
+void TextButton::SetTextAlignment(const TextAlignment& text_alignment) {
+	text_alignment_ = text_alignment;
+}
+
+const TextAlignment& TextButton::GetTextAlignment() const {
+	return text_alignment_;
+}
+
+void TextButton::Draw() const {
+	DrawFilled();
+}
+
+void TextButton::DrawHollow(float line_width) const {
+	ColorButton::DrawHollow(line_width);
+	text_.Draw({ rect_.pos, rect_.size, text_alignment_ }, 1.0f);
+}
+
+void TextButton::DrawFilled() const {
+	ColorButton::DrawFilled();
+	text_.Draw({ rect_.pos, rect_.size, text_alignment_ }, 1.0f);
+}
+
 ToggleButton::ToggleButton(
 	const Rectangle<float>& rect, const ButtonActivateFunction& on_activate_function,
 	bool initially_toggled

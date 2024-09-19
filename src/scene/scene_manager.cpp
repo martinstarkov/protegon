@@ -13,7 +13,7 @@
 
 namespace ptgn {
 
-void SceneManager::Unload(std::size_t scene_key) {
+void SceneManager::Unload(SceneKey scene_key) {
 	if (Has(scene_key)) {
 		auto scene	   = Get(scene_key);
 		scene->status_ = Scene::Status::Delete;
@@ -21,7 +21,7 @@ void SceneManager::Unload(std::size_t scene_key) {
 	}
 }
 
-void SceneManager::InitScene(std::size_t scene_key) {
+void SceneManager::InitScene(SceneKey scene_key) {
 	PTGN_ASSERT(
 		Has(scene_key) || scene_key == impl::start_scene_key,
 		"Cannot init scene unless it has been loaded first"
@@ -30,7 +30,7 @@ void SceneManager::InitScene(std::size_t scene_key) {
 	scene->Init();
 }
 
-void SceneManager::AddActive(std::size_t scene_key) {
+void SceneManager::AddActive(SceneKey scene_key) {
 	PTGN_ASSERT(
 		Has(scene_key) || scene_key == impl::start_scene_key,
 		"Cannot set scene to active unless it has been loaded first"
@@ -42,7 +42,7 @@ void SceneManager::AddActive(std::size_t scene_key) {
 	}
 }
 
-void SceneManager::RemoveActive(std::size_t scene_key) {
+void SceneManager::RemoveActive(SceneKey scene_key) {
 	PTGN_ASSERT(
 		Has(scene_key), "Cannot remove active scene if it has not been loaded into "
 						"the scene manager"
@@ -119,8 +119,8 @@ void SceneManager::UnloadFlagged() {
 	PTGN_ASSERT(flagged_ == 0, "Could not delete a flagged scene");
 }
 
-bool SceneManager::ActiveScenesContain(std::size_t key) const {
-	return std::any_of(active_scenes_.begin(), active_scenes_.end(), [key](std::size_t i) {
+bool SceneManager::ActiveScenesContain(SceneKey key) const {
+	return std::any_of(active_scenes_.begin(), active_scenes_.end(), [key](SceneKey i) {
 		return i == key;
 	});
 }

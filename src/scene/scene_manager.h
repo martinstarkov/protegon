@@ -52,15 +52,15 @@ public:
 		return std::static_pointer_cast<TScene>(Manager<std::shared_ptr<Scene>>::Get(scene_key));
 	}
 
-	void Unload(std::size_t scene_key);
+	void Unload(SceneKey scene_key);
 
-	void AddActive(std::size_t scene_key);
-	void RemoveActive(std::size_t scene_key);
+	void AddActive(SceneKey scene_key);
+	void RemoveActive(SceneKey scene_key);
 	[[nodiscard]] std::vector<std::shared_ptr<Scene>> GetActive();
 	[[nodiscard]] Scene& GetTopActive();
 
 private:
-	void InitScene(std::size_t scene_key);
+	void InitScene(SceneKey scene_key);
 
 	friend class Game;
 
@@ -88,7 +88,7 @@ private:
 
 	void Update(float dt);
 	void UnloadFlagged();
-	/*void ExitAllExcept(std::size_t scene_key) {
+	/*void ExitAllExcept(SceneKey scene_key) {
 		for (auto other_key : active_scenes_) {
 			if (other_key != scene_key && Has(other_key)) {
 				auto scene = Get(other_key);
@@ -96,11 +96,11 @@ private:
 			}
 		}
 	}*/
-	[[nodiscard]] bool ActiveScenesContain(std::size_t key) const;
+	[[nodiscard]] bool ActiveScenesContain(SceneKey key) const;
 
 private:
 	std::int64_t flagged_{ 0 };
-	std::vector<std::size_t> active_scenes_;
+	std::vector<SceneKey> active_scenes_;
 };
 
 } // namespace ptgn

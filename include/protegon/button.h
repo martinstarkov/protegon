@@ -152,6 +152,27 @@ protected:
 	ColorArray<2> colors_{};
 };
 
+using TextAlignment = Origin;
+
+class TextButton : public virtual ColorButton {
+public:
+	void SetText(const Text& text);
+	[[nodiscard]] const Text& GetText() const;
+
+	void SetTextAlignment(const TextAlignment& text_alignment);
+	[[nodiscard]] const TextAlignment& GetTextAlignment() const;
+
+	// Draws a filled button.
+	void Draw() const override;
+
+	void DrawHollow(float line_width = 1.0f) const override;
+	void DrawFilled() const override;
+
+protected:
+	Text text_;
+	TextAlignment text_alignment_{ TextAlignment::Center };
+};
+
 class ToggleButton : public virtual Button {
 public:
 	using Button::Button;

@@ -14,6 +14,7 @@
 #include "renderer/renderer.h"
 #include "scene/camera.h"
 #include "scene/scene_manager.h"
+#include "ui/ui.h"
 #include "utility/profiling.h"
 
 namespace ptgn {
@@ -59,6 +60,7 @@ public:
 	SceneManager scene;
 	ActiveSceneCameraManager camera;
 	CollisionHandler collision;
+	UserInterface ui;
 
 	// Resources
 

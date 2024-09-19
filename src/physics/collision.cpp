@@ -12,6 +12,7 @@
 #include "components/transform.h"
 #include "ecs/ecs.h"
 #include "protegon/circle.h"
+#include "protegon/game.h"
 #include "protegon/line.h"
 #include "protegon/log.h"
 #include "protegon/math.h"
@@ -749,6 +750,13 @@ V2_float DynamicCollisionHandler::Sweep(
 	if (collisions.empty()) { // no collisions occured.
 		return rigid_body.velocity;
 	}
+
+	/*for (auto& collision : collisions) {
+		Segment<float> normal{ transform.position + rigid_body.velocity * collisions[0].c.t,
+							   transform.position + rigid_body.velocity * collisions[0].c.t +
+								   50 * c.normal };
+		game.renderer.DrawLine(normal, color::Orange);
+	}*/
 
 	const auto new_velocity = GetRemainingVelocity(velocity, collisions[0].c, response);
 
