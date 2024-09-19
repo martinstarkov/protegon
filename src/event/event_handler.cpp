@@ -2,10 +2,18 @@
 
 namespace ptgn {
 
-void EventHandler::Shutdown() {
+void EventHandler::UnsubscribeAll() {
+	Reset();
+}
+
+void EventHandler::Reset() {
 	key	   = {};
 	mouse  = {};
 	window = {};
+}
+
+void EventHandler::Shutdown() {
+	Reset();
 }
 
 } // namespace ptgn

@@ -18,6 +18,9 @@ class Renderer;
 
 namespace impl {
 
+class CameraManager;
+class ActiveSceneCameraManager;
+
 struct Camera {
 	V3_float position;
 	V2_float size;
@@ -111,7 +114,7 @@ public:
 	void PrintInfo() const;
 
 protected:
-	friend class CameraManager;
+	friend class impl::CameraManager;
 
 	void RefreshBounds();
 
@@ -129,16 +132,18 @@ protected:
 	void RecalculateViewProjection();
 };
 
+namespace impl {
+
 class CameraManager : public Manager<OrthographicCamera> {
 public:
+	using Manager::Manager;
 	CameraManager();
-	~CameraManager() override					   = default;
-	CameraManager(const CameraManager&)			   = delete;
-	CameraManager(CameraManager&&)				   = default;
-	CameraManager& operator=(const CameraManager&) = delete;
-	CameraManager& operator=(CameraManager&&)	   = default;
 
-	void SetPrimary(const Key& key);
+	template <typename TKey>
+	void SetPrimary(const TKey& key) {
+		SetPrimaryImpl(GetInternalKey(key));
+	}
+
 	void SetPrimary(const OrthographicCamera& camera);
 
 	[[nodiscard]] const OrthographicCamera& GetCurrent() const;
@@ -151,7 +156,10 @@ public:
 
 private:
 	friend class Game;
+	friend class ActiveSceneCameraManager;
 	friend class Renderer;
+
+	void SetPrimaryImpl(const InternalKey& key);
 
 	M4_float GetViewProjection();
 
@@ -164,29 +172,36 @@ private:
 // This class provides quick access to the current top active scene.
 // i.e. using this is class equivalent to game.scene.GetTopActive().camera
 class ActiveSceneCameraManager {
-private:
-	ActiveSceneCameraManager()											 = default;
-	~ActiveSceneCameraManager()											 = default;
-	ActiveSceneCameraManager(const ActiveSceneCameraManager&)			 = delete;
-	ActiveSceneCameraManager(ActiveSceneCameraManager&&)				 = default;
-	ActiveSceneCameraManager& operator=(const ActiveSceneCameraManager&) = delete;
-	ActiveSceneCameraManager& operator=(ActiveSceneCameraManager&&)		 = default;
-
 public:
 	using Item = CameraManager::Item;
-	using Key  = CameraManager::Key;
 
-	template <typename... TArgs, tt::constructible<Item, TArgs...> = true>
-	static Item& Load(const Key& key, TArgs&&... constructor_args) {
-		return LoadImpl(key, std::move(Item(constructor_args...)));
+	template <typename TKey, typename... TArgs, tt::constructible<Item, TArgs...> = true>
+	static Item& Load(const TKey& key, TArgs&&... constructor_args) {
+		return LoadImpl(CameraManager::GetInternalKey(key), std::move(Item(constructor_args...)));
 	}
 
-	static void Unload(const Key& key);
-	[[nodiscard]] static bool Has(const Key& key);
-	[[nodiscard]] static Item& Get(const Key& key);
+	template <typename TKey>
+	static void Unload(const TKey& key) {
+		UnloadImpl(CameraManager::GetInternalKey(key));
+	}
+
+	template <typename TKey>
+	[[nodiscard]] static bool Has(const TKey& key) {
+		return HasImpl(CameraManager::GetInternalKey(key));
+	}
+
+	template <typename TKey>
+	[[nodiscard]] static Item& Get(const TKey& key) {
+		return GetImpl(CameraManager::GetInternalKey(key));
+	}
+
 	static void Clear();
 
-	static void SetPrimary(const Key& key);
+	template <typename TKey>
+	static void SetPrimary(const TKey& key) {
+		SetPrimaryImpl(CameraManager::GetInternalKey(key));
+	}
+
 	static void SetPrimary(const OrthographicCamera& camera);
 
 	[[nodiscard]] const OrthographicCamera& GetCurrent() const;
@@ -198,10 +213,17 @@ public:
 	static void Reset();
 
 private:
-	static Item& LoadImpl(const Key& key, Item&& item);
+	using InternalKey = CameraManager::InternalKey;
 
-	friend class Game;
+	static Item& LoadImpl(const InternalKey& key, Item&& item);
+	static void UnloadImpl(const InternalKey& key);
+	[[nodiscard]] static bool HasImpl(const InternalKey& key);
+	[[nodiscard]] static Item& GetImpl(const InternalKey& key);
+
+	static void SetPrimaryImpl(const InternalKey& key);
 };
+
+} // namespace impl
 
 /*
 class CameraController;

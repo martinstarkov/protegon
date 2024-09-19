@@ -3,6 +3,11 @@
 #include <bitset>
 #include <utility>
 
+#include "SDL_events.h"
+#include "SDL_keyboard.h"
+#include "SDL_mouse.h"
+#include "SDL_stdinc.h"
+#include "SDL_video.h"
 #include "core/window.h"
 #include "event/event_handler.h"
 #include "event/key.h"
@@ -14,11 +19,6 @@
 #include "protegon/timer.h"
 #include "protegon/vector2.h"
 #include "renderer/origin.h"
-#include "SDL_events.h"
-#include "SDL_keyboard.h"
-#include "SDL_mouse.h"
-#include "SDL_stdinc.h"
-#include "SDL_video.h"
 #include "utility/debug.h"
 #include "utility/time.h"
 
@@ -113,7 +113,11 @@ void InputHandler::Update() {
 				break;
 			}
 			case SDL_QUIT: {
-				game.event.window.Post(WindowEvent::Quit, WindowQuitEvent{});
+				if (game.LoopFunctionCount() == 0) {
+					game.Stop();
+				} else {
+					game.event.window.Post(WindowEvent::Quit, WindowQuitEvent{});
+				}
 				break;
 			}
 			case SDL_WINDOWEVENT: {
@@ -136,7 +140,7 @@ void InputHandler::Update() {
 }
 
 #ifndef __EMSCRIPTEN__
-bool InputHandler::MouseWithinWindow() {
+bool InputHandler::MouseWithinWindow() const {
 	return game.collision.overlap.PointRectangle(
 		game.input.GetMousePositionGlobal(),
 		{ game.window.GetPosition(), game.window.GetSize(), Origin::TopLeft }
@@ -144,11 +148,11 @@ bool InputHandler::MouseWithinWindow() {
 }
 #endif
 
-void InputHandler::SetRelativeMouseMode(bool on) {
+void InputHandler::SetRelativeMouseMode(bool on) const {
 	SDL_SetRelativeMouseMode(static_cast<SDL_bool>(on));
 }
 
-V2_int InputHandler::GetMousePositionGlobal() {
+V2_int InputHandler::GetMousePositionGlobal() const {
 	V2_int pos;
 	// SDL_PumpEvents not required as this function queries the OS directly.
 	SDL_GetGlobalMouseState(&pos.x, &pos.y);

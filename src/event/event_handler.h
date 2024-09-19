@@ -70,15 +70,14 @@ public:
 		auto observers		   = observers_;
 		auto general_observers = general_observers_;
 		for (auto&& [key, callback] : general_observers) {
-			callback(type, event);
+			std::invoke(callback, type, event);
 		}
 		for (auto&& [key, callbacks] : observers) {
 			auto it = callbacks.find(type);
 			if (it == std::end(callbacks)) {
 				continue;
 			}
-			auto func = it->second;
-			func(event);
+			std::invoke(it->second, event);
 		}
 	};
 
@@ -130,8 +129,12 @@ public:
 		window.Unsubscribe(ptr);
 	}
 
+	void UnsubscribeAll();
+
 private:
 	friend class Game;
+
+	void Reset();
 
 	void Init() const {
 		/* Possibly add things here in the future */

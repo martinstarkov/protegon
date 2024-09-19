@@ -15,6 +15,12 @@ namespace ptgn {
 
 class Game;
 
+namespace impl {
+
+class SceneManager;
+
+} // namespace impl
+
 class InputHandler {
 private:
 	InputHandler()								 = default;
@@ -61,38 +67,33 @@ public:
 #ifndef __EMSCRIPTEN__
 	// Does not work on the web browser as GetMousePositionGlobal returns relative to the canvas.
 	// @return True if mouse position is within window bounds, false otherwise.
-	bool MouseWithinWindow();
+	bool MouseWithinWindow() const;
 #endif
 
-	void SetRelativeMouseMode(bool on);
+	void SetRelativeMouseMode(bool on) const;
 
 	// @return Mouse position relative to the top left of the window.
 	[[nodiscard]] V2_int GetMousePosition() const;
 	// @return In desktop mode: mouse position relative to the screen (display). In browser: same as
 	// GetMousePosition().
-	[[nodiscard]] V2_int GetMousePositionGlobal();
+	[[nodiscard]] V2_int GetMousePositionGlobal() const;
 
 	// @return The amount scrolled by the mouse vertically in the current frame,
 	// positive upward, negative downward. Zero if no scroll occurred.
 	[[nodiscard]] int GetMouseScroll() const;
 
 	[[nodiscard]] bool MousePressed(Mouse button) const;
-
 	[[nodiscard]] bool MouseReleased(Mouse button) const;
-
 	[[nodiscard]] bool MouseDown(Mouse button) const;
-
 	[[nodiscard]] bool MouseUp(Mouse button) const;
 
 	[[nodiscard]] bool KeyPressed(Key key) const;
-
 	[[nodiscard]] bool KeyReleased(Key key) const;
-
 	[[nodiscard]] bool KeyDown(Key key);
-
 	[[nodiscard]] bool KeyUp(Key key);
 
 private:
+	friend class impl::SceneManager;
 	friend class Game;
 
 	void Reset();

@@ -392,14 +392,11 @@ void CameraController::UnsubscribeFromMouseEvents() {
 }
 */
 
+namespace impl {
+
 CameraManager::CameraManager() {
 	primary_camera_.SubscribeToWindowResize();
 	window_camera_.SubscribeToWindowResize();
-}
-
-void CameraManager::SetPrimary(const Key& key) {
-	PTGN_ASSERT(Has(key), "Cannot set camera which has not been loaded as the primary camera");
-	primary_camera_ = Get(key);
 }
 
 void CameraManager::SetPrimary(const OrthographicCamera& camera) {
@@ -429,6 +426,11 @@ void CameraManager::SetCameraWindow() {
 	primary_ = false;
 }
 
+void CameraManager::SetPrimaryImpl(const InternalKey& key) {
+	PTGN_ASSERT(Has(key), "Cannot set camera which has not been loaded as the primary camera");
+	primary_camera_ = Get(key);
+}
+
 M4_float CameraManager::GetViewProjection() {
 	if (primary_ && primary_camera_.IsValid()) {
 		return primary_camera_.GetViewProjection();
@@ -441,28 +443,29 @@ void CameraManager::Reset() {
 	Manager::Reset();
 	primary_camera_.UnsubscribeFromWindowResize();
 	window_camera_.UnsubscribeFromWindowResize();
+	primary_		= true;
 	primary_camera_ = {};
 	window_camera_	= {};
 	primary_camera_.SubscribeToWindowResize();
 	window_camera_.SubscribeToWindowResize();
 }
 
-CameraManager::Item& ActiveSceneCameraManager::LoadImpl(const Key& key, Item&& item) {
+CameraManager::Item& ActiveSceneCameraManager::LoadImpl(const InternalKey& key, Item&& item) {
 	if (!item.IsValid()) {
 		item.SetSizeToWindow();
 	}
 	return game.scene.GetTopActive().camera.Load(key, std::move(item));
 }
 
-void ActiveSceneCameraManager::Unload(const Key& key) {
+void ActiveSceneCameraManager::UnloadImpl(const InternalKey& key) {
 	game.scene.GetTopActive().camera.Unload(key);
 }
 
-bool ActiveSceneCameraManager::Has(const Key& key) {
+bool ActiveSceneCameraManager::HasImpl(const InternalKey& key) {
 	return game.scene.GetTopActive().camera.Has(key);
 }
 
-CameraManager::Item& ActiveSceneCameraManager::Get(const Key& key) {
+CameraManager::Item& ActiveSceneCameraManager::GetImpl(const InternalKey& key) {
 	return game.scene.GetTopActive().camera.Get(key);
 }
 
@@ -470,7 +473,7 @@ void ActiveSceneCameraManager::Clear() {
 	game.scene.GetTopActive().camera.Clear();
 }
 
-void ActiveSceneCameraManager::SetPrimary(const Key& key) {
+void ActiveSceneCameraManager::SetPrimaryImpl(const InternalKey& key) {
 	game.scene.GetTopActive().camera.SetPrimary(key);
 }
 
@@ -497,5 +500,7 @@ void ActiveSceneCameraManager::SetCameraPrimary() {
 void ActiveSceneCameraManager::Reset() {
 	game.scene.GetTopActive().camera.Reset();
 }
+
+} // namespace impl
 
 } // namespace ptgn

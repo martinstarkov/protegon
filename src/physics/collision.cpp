@@ -656,9 +656,11 @@ bool DynamicCollisionHandler::RectangleRectangle(
 }
 
 V2_float DynamicCollisionHandler::Sweep(
-	float dt, ecs::Entity entity, ecs::Manager& manager,
+	ecs::Entity entity, ecs::Manager& manager,
 	DynamicCollisionResponse response = DynamicCollisionResponse::Slide
 ) {
+	float dt = game.dt();
+
 	PTGN_ASSERT(dt > 0.0f);
 
 	if (!entity.Has<Transform, RigidBody>()) {

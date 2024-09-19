@@ -155,11 +155,15 @@ const Texture& Text::GetTexture() const {
 
 Font Text::GetFont(const FontOrKey& font) {
 	Font f;
-	if (std::holds_alternative<std::size_t>(font)) {
-		std::size_t font_key{ std::get<std::size_t>(font) };
+	if (std::holds_alternative<impl::FontManager::Key>(font)) {
+		const auto& font_key{ std::get<impl::FontManager::Key>(font) };
 		PTGN_ASSERT(game.font.Has(font_key), "game.font.Load() into manager before creating text");
 		f = game.font.Get(font_key);
-	} else {
+	} else if (std::holds_alternative<impl::FontManager::InternalKey>(font)) {
+		const auto& font_key{ std::get<impl::FontManager::InternalKey>(font) };
+		PTGN_ASSERT(game.font.Has(font_key), "game.font.Load() into manager before creating text");
+		f = game.font.Get(font_key);
+	} else if (std::holds_alternative<Font>(font)) {
 		f = std::get<Font>(font);
 	}
 	PTGN_ASSERT(f.IsValid(), "Cannot create text with an invalid font");
