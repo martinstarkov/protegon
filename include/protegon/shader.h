@@ -5,6 +5,7 @@
 #include <string_view>
 #include <unordered_map>
 
+#include "core/manager.h"
 #include "protegon/file.h"
 #include "protegon/matrix4.h"
 #include "protegon/vector2.h"
@@ -14,6 +15,7 @@
 
 namespace ptgn {
 
+class Game;
 class Shader;
 
 namespace impl {
@@ -89,5 +91,14 @@ private:
 	// Returns shader id.
 	[[nodiscard]] static std::uint32_t CompileShader(std::uint32_t type, const std::string& source);
 };
+
+namespace impl {
+
+class ShaderManager : public Manager<Shader> {
+public:
+	using Manager::Manager;
+};
+
+} // namespace impl
 
 } // namespace ptgn

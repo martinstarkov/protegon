@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <variant>
 
+#include "core/manager.h"
 #include "protegon/file.h"
 #include "utility/handle.h"
 
@@ -11,6 +13,7 @@ using TTF_Font = _TTF_Font;
 namespace ptgn {
 
 class Surface;
+class Game;
 
 enum class FontStyle : int {
 	Normal		  = 0, // TTF_STYLE_NORMAL
@@ -44,5 +47,16 @@ private:
 [[nodiscard]] inline FontStyle operator|(FontStyle a, FontStyle b) {
 	return static_cast<FontStyle>(static_cast<int>(a) | static_cast<int>(b));
 }
+
+namespace impl {
+
+class FontManager : public Manager<Font> {
+public:
+	using Manager::Manager;
+};
+
+} // namespace impl
+
+using FontOrKey = std::variant<Font, impl::FontManager::Key, impl::FontManager::InternalKey>;
 
 } // namespace ptgn

@@ -1,8 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <variant>
 #include <vector>
 
+#include "core/manager.h"
 #include "protegon/color.h"
 #include "protegon/file.h"
 #include "protegon/surface.h"
@@ -113,5 +115,17 @@ private:
 
 	void SetDataImpl(const void* pixel_data, const V2_int& size, ImageFormat format);
 };
+
+namespace impl {
+
+class TextureManager : public Manager<Texture> {
+public:
+	using Manager::Manager;
+};
+
+} // namespace impl
+
+using TextureOrKey =
+	std::variant<Texture, impl::TextureManager::Key, impl::TextureManager::InternalKey>;
 
 } // namespace ptgn

@@ -5,6 +5,7 @@
 #include <string_view>
 #include <variant>
 
+#include "core/manager.h"
 #include "protegon/color.h"
 #include "protegon/font.h"
 #include "protegon/polygon.h"
@@ -36,8 +37,6 @@ struct TextInstance {
 
 class Text : public Handle<impl::TextInstance> {
 public:
-	using FontOrKey = std::variant<std::size_t, Font>;
-
 	Text() = default;
 	// To create text with multiple FontStyles, simply use &&, e.g.
 	// FontStyle::Italic && FontStyle::Bold
@@ -81,5 +80,14 @@ private:
 
 	[[nodiscard]] static Font GetFont(const FontOrKey& font);
 };
+
+namespace impl {
+
+class TextManager : public Manager<Text> {
+public:
+	using Manager::Manager;
+};
+
+} // namespace impl
 
 } // namespace ptgn
