@@ -1305,6 +1305,17 @@ void Renderer::DrawTexture(
 	DrawTextureImpl(vertices, texture, tex_coords, tint_color.Normalized(), z_index);
 }
 
+void Renderer::DrawTexture(
+	const Texture& texture, const Rectangle<float>& destination, const Rectangle<float>& source,
+	Flip flip, float rotation_radians, const V2_float& rotation_center, float z_index,
+	const Color& tint_color
+) {
+	DrawTexture(
+		texture, destination.pos, destination.size, source.pos, source.size, destination.origin,
+		flip, rotation_radians, rotation_center, z_index, tint_color
+	);
+}
+
 void Renderer::DrawPoint(
 	const V2_float& position, const Color& color, float radius, float z_index
 ) {

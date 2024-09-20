@@ -400,6 +400,14 @@ public:
 		float z_index = 0.0f, const Color& tint_color = color::White
 	);
 
+	// source.origin is ignored.
+	void DrawTexture(
+		const Texture& texture, const Rectangle<float>& destination,
+		const Rectangle<float>& source = {}, Flip flip = Flip::None, float rotation_radians = 0.0f,
+		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f,
+		const Color& tint_color = color::White
+	);
+
 	void DrawPoint(
 		const V2_float& position, const Color& color, float radius = 1.0f, float z_index = 0.0f
 	);
