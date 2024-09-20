@@ -27,6 +27,9 @@ struct Animation : public SpriteSheet {
 
 struct SpriteTint : public Color {
 	using Color::Color;
+	using Color::operator=;
+
+	SpriteTint(const Color& c) : Color{ c } {}
 };
 
 using SpriteFlip = Flip;

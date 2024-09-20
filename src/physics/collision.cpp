@@ -311,6 +311,10 @@ bool DynamicCollisionHandler::SegmentSegment(
 ) {
 	c = {};
 
+	if (!OverlapCollision::SegmentSegment(a, b)) {
+		return false;
+	}
+
 	const V2_float r{ a.Direction() };
 	const V2_float s{ b.Direction() };
 
@@ -356,6 +360,10 @@ bool DynamicCollisionHandler::SegmentCircle(
 ) {
 	c = {};
 
+	if (!OverlapCollision::SegmentCircle(a, b)) {
+		return false;
+	}
+
 	const V2_float d{ -a.Direction() };
 	const V2_float f{ b.center - a.a };
 
@@ -399,6 +407,10 @@ bool DynamicCollisionHandler::SegmentRectangle(
 	const Segment<float>& a, const Rectangle<float>& b, DynamicCollision& c
 ) {
 	c = {};
+
+	if (!OverlapCollision::SegmentRectangle(a, b)) {
+		return false;
+	}
 
 	const V2_float d{ a.Direction() };
 
@@ -531,6 +543,8 @@ bool DynamicCollisionHandler::SegmentCapsule(
 	const Segment<float>& a, const Capsule<float>& b, DynamicCollision& c
 ) {
 	c = {};
+
+	// TODO: Add early exit if overlap test fails.
 
 	const V2_float cv{ b.segment.Direction() };
 	const float mag2{ cv.Dot(cv) };
@@ -762,10 +776,10 @@ V2_float DynamicCollisionHandler::Sweep(
 
 	const auto new_velocity = GetRemainingVelocity(velocity, collisions[0].c, response);
 
-	PTGN_LOG("RemainingVel: ", new_velocity);
+	// PTGN_LOG("RemainingVel: ", new_velocity);
 
 	if (new_velocity.IsZero()) {
-		PTGN_LOG("Collision: ", rigid_body.velocity, " * ", collisions[0].c.t);
+		// PTGN_LOG("Collision: ", rigid_body.velocity, " * ", collisions[0].c.t);
 		return rigid_body.velocity * collisions[0].c.t;
 	}
 
@@ -777,19 +791,19 @@ V2_float DynamicCollisionHandler::Sweep(
 
 	if (const auto collisions2 = get_sorted_collisions(new_p1, new_velocity);
 		!collisions2.empty()) {
-		PTGN_LOG(
+		/*PTGN_LOG(
 			"Collision2: ", rigid_body.velocity, " * ", collisions[0].c.t, " + ", new_velocity / dt,
 			" * ", collisions2[0].c.t / dt
-		);
+		);*/
 		return rigid_body.velocity * collisions[0].c.t + new_velocity * collisions2[0].c.t / dt;
 		// game.renderer.DrawLine(new_p1, new_p1 + new_velocity * collisions2[0].c.t,
 		// color::Red);
 		// game.renderer.DrawCircleHollow(new_p1 + new_velocity * collisions2[0].c.t, s1,
 		// color::Red);
 	}
-	PTGN_LOG(
+	/*PTGN_LOG(
 		"Collision2: ", rigid_body.velocity, " * ", collisions[0].c.t, " + ", new_velocity / dt
-	);
+	);*/
 	return rigid_body.velocity * collisions[0].c.t + new_velocity / dt;
 	// game.renderer.DrawCircleHollow(p1 + new_v1, s1,
 	// color::Red);
