@@ -11,6 +11,7 @@
 #include "protegon/scene.h"
 #include "scene/camera.h"
 #include "utility/debug.h"
+#include "utility/utility.h"
 
 namespace ptgn::impl {
 
@@ -165,9 +166,7 @@ bool SceneManager::UpdateFlagged() {
 }
 
 bool SceneManager::ActiveScenesContain(const InternalKey& key) const {
-	return std::any_of(active_scenes_.begin(), active_scenes_.end(), [key](const InternalKey& i) {
-		return i == key;
-	});
+	return VectorContains(active_scenes_, key);
 }
 
 } // namespace ptgn::impl

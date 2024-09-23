@@ -13,11 +13,12 @@ namespace ptgn {
 
 struct Sprite {
 	Texture texture;
-	Rectangle<float> rect;
+	Rectangle<float> source;
 };
 
 struct SpriteSheet {
-	std::vector<Sprite> sprites;
+	Texture texture;
+	std::vector<Rectangle<float>> sprites; // Source rectangles.
 };
 
 struct Animation : public SpriteSheet {
