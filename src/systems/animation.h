@@ -1,12 +1,6 @@
 #pragma once
 
-#include <vector>
-
-#include "components/sprite.h"
-
 namespace ptgn {
-
-void Animate() {}
 
 // Sprite
 // SpriteSheet

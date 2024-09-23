@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include <vector>
 
 #include "protegon/color.h"
@@ -17,13 +18,24 @@ struct Sprite {
 };
 
 struct SpriteSheet {
+	SpriteSheet() = default;
+
+	SpriteSheet(const Texture& texture) : texture{ texture } {}
+
+	void AddSprite() {}
+
 	Texture texture;
 	std::vector<Rectangle<float>> sprites; // Source rectangles.
 };
 
 struct Animation : public SpriteSheet {
+	Animation(const std::string& name, const Texture& texture, milliseconds duration) :
+		name{ name }, duration{ duration }, texture{ texture } {}
+
+	std::string name;
 	milliseconds duration{ 0 };
-	std::size_t current{ 0 };
+	std::size_t column{ 0 };
+	std::size_t row{ 0 };
 };
 
 struct SpriteTint : public Color {
