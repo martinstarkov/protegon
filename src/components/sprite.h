@@ -30,7 +30,7 @@ struct SpriteSheet {
 
 struct Animation : public SpriteSheet {
 	Animation(const std::string& name, const Texture& texture, milliseconds duration) :
-		name{ name }, duration{ duration }, texture{ texture } {}
+		name{ name }, duration{ duration } {}
 
 	std::string name;
 	milliseconds duration{ 0 };
