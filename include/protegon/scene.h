@@ -58,6 +58,7 @@ private:
 	void Add(Action new_action);
 
 	// Each scene must be preloaded initially.
+
 	std::set<Action> actions_{ Action::Preload };
 };
 

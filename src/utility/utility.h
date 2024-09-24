@@ -1,6 +1,5 @@
 #pragma once
 
-#include <algorithm>
 #include <array>
 #include <vector>
 
@@ -8,9 +7,7 @@ namespace ptgn {
 
 template <typename T>
 static bool VectorContains(const std::vector<T>& container, const T& value) {
-	return std::any_of(container.begin(), container.end(), [value](const T& i) {
-		return i == value;
-	});
+	return std::find(container.begin(), container.end(), value) != container.end();
 }
 
 template <typename Type, std::size_t... sizes>

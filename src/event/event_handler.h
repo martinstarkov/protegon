@@ -11,8 +11,6 @@
 
 namespace ptgn {
 
-class EventHandler;
-
 template <typename T>
 class EventDispatcher {
 	static_assert(std::is_enum_v<T>);
@@ -105,8 +103,10 @@ private:
 	std::unordered_map<Key, GeneralEventCallback> general_observers_;
 };
 
+namespace impl {
+
 class EventHandler {
-private:
+public:
 	EventHandler()								 = default;
 	~EventHandler()								 = default;
 	EventHandler(const EventHandler&)			 = delete;
@@ -114,7 +114,6 @@ private:
 	EventHandler& operator=(const EventHandler&) = delete;
 	EventHandler& operator=(EventHandler&&)		 = default;
 
-public:
 	EventDispatcher<KeyEvent> key;
 	EventDispatcher<MouseEvent> mouse;
 	EventDispatcher<WindowEvent> window;
@@ -131,9 +130,6 @@ public:
 
 	void UnsubscribeAll();
 
-private:
-	friend class Game;
-
 	void Reset();
 
 	void Init() const {
@@ -142,5 +138,7 @@ private:
 
 	void Shutdown();
 };
+
+} // namespace impl
 
 } // namespace ptgn

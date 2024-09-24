@@ -134,9 +134,10 @@ protected:
 
 namespace impl {
 
-class CameraManager : public Manager<OrthographicCamera> {
+class CameraManager : public MapManager<OrthographicCamera> {
 public:
-	using Manager::Manager;
+	using MapManager::MapManager;
+
 	CameraManager();
 
 	template <typename TKey>

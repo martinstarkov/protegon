@@ -1,6 +1,6 @@
 #include "event/event_handler.h"
 
-namespace ptgn {
+namespace ptgn::impl {
 
 void EventHandler::UnsubscribeAll() {
 	Reset();
@@ -16,4 +16,4 @@ void EventHandler::Shutdown() {
 	Reset();
 }
 
-} // namespace ptgn
+} // namespace ptgn::impl

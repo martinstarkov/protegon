@@ -15,7 +15,6 @@
 
 namespace ptgn {
 
-class Game;
 class Shader;
 
 namespace impl {
@@ -94,9 +93,9 @@ private:
 
 namespace impl {
 
-class ShaderManager : public Manager<Shader> {
+class ShaderManager : public MapManager<Shader> {
 public:
-	using Manager::Manager;
+	using MapManager::MapManager;
 };
 
 } // namespace impl

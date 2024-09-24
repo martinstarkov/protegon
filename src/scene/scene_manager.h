@@ -14,9 +14,9 @@ namespace ptgn::impl {
 
 inline constexpr std::size_t start_scene_key{ 0 };
 
-class SceneManager : public Manager<std::shared_ptr<Scene>> {
+class SceneManager : public MapManager<std::shared_ptr<Scene>> {
 public:
-	using Manager::Manager;
+	using MapManager::MapManager;
 
 	template <
 		typename T, typename TKey, typename... TArgs, tt::constructible<T, TArgs...> = true,
@@ -31,7 +31,7 @@ public:
 		auto scene{ std::make_shared<T>(std::forward<TArgs>(constructor_args)...) };
 		PTGN_ASSERT(!scene->actions_.empty());
 		return std::static_pointer_cast<T>(
-			Manager<std::shared_ptr<Scene>>::Load(k, std::move(scene))
+			MapManager<std::shared_ptr<Scene>>::Load(k, std::move(scene))
 		);
 	}
 
@@ -41,7 +41,7 @@ public:
 			std::is_base_of_v<Scene, TScene> || std::is_same_v<TScene, Scene>,
 			"Cannot cast retrieved scene to type which does not inherit from the Scene class"
 		);
-		return std::static_pointer_cast<TScene>(Manager<std::shared_ptr<Scene>>::Get(scene_key));
+		return std::static_pointer_cast<TScene>(MapManager<std::shared_ptr<Scene>>::Get(scene_key));
 	}
 
 	template <typename TKey>
@@ -88,7 +88,7 @@ private:
 		);
 		PTGN_ASSERT(!Has(impl::start_scene_key), "Cannot load more than one start scene");
 		PTGN_ASSERT(scene_key == impl::start_scene_key);
-		auto& start_scene = Manager<std::shared_ptr<Scene>>::Load(
+		auto& start_scene = MapManager<std::shared_ptr<Scene>>::Load(
 			scene_key, std::make_shared<TStartScene>(std::forward<TArgs>(constructor_args)...)
 		);
 		AddActive(impl::start_scene_key);

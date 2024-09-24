@@ -8,11 +8,11 @@
 namespace ptgn::impl {
 
 void ButtonManager::DrawFilledImpl(const InternalKey& button_key) const {
-	Manager<std::shared_ptr<Button>>::Get(button_key)->DrawFilled();
+	MapManager<std::shared_ptr<Button>>::Get(button_key)->DrawFilled();
 }
 
 void ButtonManager::DrawHollowImpl(const InternalKey& button_key, float line_width) const {
-	Manager<std::shared_ptr<Button>>::Get(button_key)->DrawHollow(line_width);
+	MapManager<std::shared_ptr<Button>>::Get(button_key)->DrawHollow(line_width);
 }
 
 void ButtonManager::DrawAllFilled() const {

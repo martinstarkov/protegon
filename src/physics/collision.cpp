@@ -21,7 +21,7 @@
 #include "renderer/origin.h"
 #include "utility/debug.h"
 
-namespace ptgn {
+namespace ptgn::impl {
 
 float OverlapCollision::SquareDistancePointRectangle(const V2_float& a, const Rectangle<float>& b) {
 	float dist2{ 0.0f };
@@ -874,4 +874,4 @@ void CollisionHandler::Shutdown() {
 	dynamic	  = {};
 }
 
-} // namespace ptgn
+} // namespace ptgn::impl

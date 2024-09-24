@@ -11,14 +11,14 @@ namespace ptgn::impl {
 
 class UserInterface;
 
-class ButtonManager : public Manager<std::shared_ptr<Button>> {
+class ButtonManager : public MapManager<std::shared_ptr<Button>> {
 public:
-	using Manager::Manager;
+	using MapManager::MapManager;
 
 	template <typename TKey, typename T, tt::convertible<T*, Button*> = true>
 	std::shared_ptr<Button> Load(const TKey& button_key, T&& button) {
 		auto button_ptr{
-			Manager::Load(GetInternalKey(button_key), std::make_shared<T>(std::move(button)))
+			MapManager::Load(GetInternalKey(button_key), std::make_shared<T>(std::move(button)))
 		};
 		button_ptr->SubscribeToMouseEvents();
 		return button_ptr;
@@ -30,7 +30,7 @@ public:
 			std::is_base_of_v<Button, TButton> || std::is_same_v<TButton, Button>,
 			"Cannot cast retrieved button to type which does not inherit from the Button class"
 		);
-		return std::static_pointer_cast<TButton>(Manager::Get(GetInternalKey(button_key)));
+		return std::static_pointer_cast<TButton>(MapManager::Get(GetInternalKey(button_key)));
 	}
 
 	template <typename TKey>
@@ -74,7 +74,7 @@ public:
 
 	/*void Reset() {
 		flagged_ = {};
-		Manager::Reset();
+		MapManager::Reset();
 	}*/
 
 	/*void Clear() {

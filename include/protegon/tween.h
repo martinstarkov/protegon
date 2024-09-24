@@ -19,9 +19,6 @@
 
 namespace ptgn {
 
-class TweenManager;
-class Game;
-
 enum class TweenEase {
 	Linear,
 	InSine,
@@ -151,6 +148,8 @@ struct TweenInstance {
 	// or yoyoing.
 	float progress_{ 0.0f };
 
+	bool destroy_on_complete_{ false };
+
 	std::size_t index_{ 0 };
 	std::vector<TweenPoint> tweens_points_;
 
@@ -198,6 +197,9 @@ public:
 
 	[[nodiscard]] float GetProgress() const;
 	[[nodiscard]] std::int64_t GetRepeats() const;
+
+	Tween& KeepAlive(bool keep_alive = true);
+	bool DestroyOnCompletion() const;
 
 	[[nodiscard]] bool IsCompleted() const;
 	[[nodiscard]] bool IsStarted() const;
@@ -254,30 +256,45 @@ private:
 
 namespace impl {
 
-class TweenManager : public Manager<Tween> {
+class TweenManager : public MapManager<Tween>, public VectorManager<Tween> {
 public:
-	using Manager::Manager;
+	using MapManager::MapManager;
 
-	template <typename TKey>
-	void KeepAlive(const TKey& key) {
-		auto k{ GetInternalKey(key) };
-		keep_alive_tweens_.insert(k);
+	template <typename TKey, typename... TArgs, tt::constructible<Tween, TArgs...> = true>
+	Tween& Load(const TKey& key, TArgs&&... constructor_args) {
+		Tween tween{ std::forward<TArgs>(constructor_args)... };
+		// By default tweens loaded into tween manager are unloaded upon completion.
+		tween.KeepAlive(false);
+		return MapManager::Load(key, std::move(tween));
 	}
 
-	template <typename TKey>
-	void Unload(const TKey& key) {
-		auto k{ GetInternalKey(key) };
-		Manager::Unload(k);
-		keep_alive_tweens_.erase(k);
+	template <typename... TArgs, tt::constructible<Tween, TArgs...> = true>
+	Tween& Add(TArgs&&... constructor_args) {
+		Tween tween{ std::forward<TArgs>(constructor_args)... };
+		// By default tweens loaded into tween manager are unloaded upon completion.
+		tween.KeepAlive(false);
+		return VectorManager::Add(tween);
 	}
 
-	void Clear();
-	void Reset();
+	void Clear() {
+		MapManager::Clear();
+		VectorManager::Clear();
+	}
+
+	void Reset() {
+		MapManager::Reset();
+		VectorManager::Reset();
+	}
+
+	[[nodiscard]] std::size_t Size() const {
+		return MapManager::Size() + VectorManager::Size();
+	}
+
+	[[nodiscard]] bool Empty() const {
+		return MapManager::Empty() && VectorManager::Empty();
+	}
 
 	void Update();
-
-private:
-	std::unordered_set<InternalKey> keep_alive_tweens_;
 };
 
 } // namespace impl

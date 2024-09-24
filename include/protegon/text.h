@@ -83,9 +83,9 @@ private:
 
 namespace impl {
 
-class TextManager : public Manager<Text> {
+class TextManager : public MapManager<Text> {
 public:
-	using Manager::Manager;
+	using MapManager::MapManager;
 };
 
 } // namespace impl

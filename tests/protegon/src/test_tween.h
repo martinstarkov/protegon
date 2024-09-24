@@ -58,7 +58,7 @@ struct TestTweenManager : public Test {
 			})
 			.Start();
 
-		PTGN_ASSERT(game.tween.Count() == 1);
+		PTGN_ASSERT(game.tween.Size() == 1);
 	}
 
 	void Draw() override {
@@ -164,7 +164,7 @@ struct TestTweenRepeatPoints : public TestTweenPoints {
 			})
 			.Start();
 
-		PTGN_ASSERT(game.tween.Count() == 1);
+		PTGN_ASSERT(game.tween.Size() == 1);
 	}
 };
 
@@ -226,7 +226,7 @@ struct TestTweenYoyoPoints : public TestTweenRepeatPoints {
 			.Yoyo()
 			.Start();
 
-		PTGN_ASSERT(game.tween.Count() == 1);
+		PTGN_ASSERT(game.tween.Size() == 1);
 	}
 };
 

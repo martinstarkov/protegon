@@ -440,7 +440,7 @@ M4_float CameraManager::GetViewProjection() {
 }
 
 void CameraManager::Reset() {
-	Manager::Reset();
+	MapManager::Reset();
 	primary_camera_.UnsubscribeFromWindowResize();
 	window_camera_.UnsubscribeFromWindowResize();
 	primary_		= true;

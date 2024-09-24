@@ -52,6 +52,10 @@ protected:
 		instance_ = instance;
 	}
 
+	void Destroy() {
+		instance_ = nullptr;
+	}
+
 private:
 	std::shared_ptr<T> instance_;
 };

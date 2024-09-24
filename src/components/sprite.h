@@ -38,6 +38,8 @@ struct Animation : public SpriteSheet {
 	std::size_t row{ 0 };
 };
 
+struct AnimationMap : public MapManager<Animation> {};
+
 struct SpriteTint : public Color {
 	using Color::Color;
 	using Color::operator=;

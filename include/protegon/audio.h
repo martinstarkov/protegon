@@ -41,9 +41,9 @@ public:
 
 namespace impl {
 
-class MusicManager : public Manager<Music> {
+class MusicManager : public MapManager<Music> {
 public:
-	using Manager::Manager;
+	using MapManager::MapManager;
 
 	void Pause() const;
 	void Resume() const;
@@ -64,9 +64,9 @@ public:
 	[[nodiscard]] bool IsFading() const;
 };
 
-class SoundManager : public Manager<Sound> {
+class SoundManager : public MapManager<Sound> {
 public:
-	using Manager::Manager;
+	using MapManager::MapManager;
 
 	// if, channel = -1, all channels are stopped.
 	void Stop(int channel) const;

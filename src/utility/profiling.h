@@ -26,7 +26,7 @@ private:
 
 } // namespace impl
 
-class Profiler : protected Manager<Timer, std::string, std::string, false> {
+class Profiler : protected MapManager<Timer, std::string, std::string, false> {
 private:
 	Profiler()							 = default;
 	~Profiler() override				 = default;

@@ -95,7 +95,7 @@ void SceneManager::Reset() {
 	UnloadAll();
 	UpdateFlagged();
 	active_scenes_ = {};
-	Manager::Reset();
+	MapManager::Reset();
 }
 
 void SceneManager::Shutdown() {

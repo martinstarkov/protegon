@@ -50,9 +50,9 @@ private:
 
 namespace impl {
 
-class FontManager : public Manager<Font> {
+class FontManager : public MapManager<Font> {
 public:
-	using Manager::Manager;
+	using MapManager::MapManager;
 };
 
 } // namespace impl

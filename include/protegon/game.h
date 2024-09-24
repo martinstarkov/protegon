@@ -64,12 +64,12 @@ public:
 
 	// TODO: Make these all inside impl namespace instead of hiding constructors.
 
-	EventHandler event;
+	impl::EventHandler event;
 	InputHandler input;
 	Renderer renderer;
 	impl::SceneManager scene;
 	impl::ActiveSceneCameraManager camera;
-	CollisionHandler collision;
+	impl::CollisionHandler collision;
 	impl::UserInterface ui;
 
 	// Resources

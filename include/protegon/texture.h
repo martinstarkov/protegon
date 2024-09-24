@@ -118,9 +118,9 @@ private:
 
 namespace impl {
 
-class TextureManager : public Manager<Texture> {
+class TextureManager : public MapManager<Texture> {
 public:
-	using Manager::Manager;
+	using MapManager::MapManager;
 };
 
 } // namespace impl

@@ -1,7 +1,9 @@
 #pragma once
 
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
+#include <vector>
 
 #include "protegon/hash.h"
 #include "utility/debug.h"
@@ -9,14 +11,10 @@
 
 namespace ptgn {
 
-/*
- * @tparam Item Type of item stored in the manager.
- * @tparam Key Type of key used to uniquely identify items.
- */
 template <
 	typename ItemType, typename ExternalKeyType = std::string_view,
 	typename InternalKeyType = std::size_t, bool use_hash = true>
-class Manager {
+class MapManager {
 public:
 	using Item		  = ItemType;
 	using Key		  = ExternalKeyType;
@@ -31,12 +29,12 @@ public:
 	// TODO: Add check that provided keys are hashable.
 	// static_assert(use_hash ? tt::is_hashable<Key, InternalKey> : true);
 
-	Manager()							   = default;
-	virtual ~Manager()					   = default;
-	Manager(Manager&&) noexcept			   = default;
-	Manager& operator=(Manager&&) noexcept = default;
-	Manager(const Manager&)				   = delete;
-	Manager& operator=(const Manager&)	   = delete;
+	MapManager()								 = default;
+	virtual ~MapManager()						 = default;
+	MapManager(MapManager&&) noexcept			 = default;
+	MapManager& operator=(MapManager&&) noexcept = default;
+	MapManager(const MapManager&)				 = delete;
+	MapManager& operator=(const MapManager&)	 = delete;
 
 	/*
 	 * @param key Unique id of the item to be loaded.
@@ -61,7 +59,7 @@ public:
 
 	/*
 	 * @param key Id of the item to be checked for.
-	 * @return True if manager contains key, false otherwise
+	 * @return True if manager contains key, false otherwise.
 	 */
 	template <typename TKey>
 	[[nodiscard]] bool Has(const TKey& key) const {
@@ -78,7 +76,7 @@ public:
 	[[nodiscard]] Item& Get(const TKey& key) {
 		auto k{ GetInternalKey(key) };
 		auto it{ map_.find(k) };
-		PTGN_ASSERT(it != std::end(map_), "Entry does not exist in resource manager");
+		PTGN_ASSERT(it != std::end(map_), "Entry does not exist in manager");
 		return it->second;
 	}
 
@@ -90,7 +88,7 @@ public:
 	[[nodiscard]] const Item& Get(const TKey& key) const {
 		auto k{ GetInternalKey(key) };
 		auto it{ map_.find(k) };
-		PTGN_ASSERT(it != std::end(map_), "Entry does not exist in resource manager");
+		PTGN_ASSERT(it != std::end(map_), "Entry does not exist in manager");
 		return it->second;
 	}
 
@@ -99,13 +97,12 @@ public:
 	 */
 	void Clear() {
 		map_.clear();
-		PTGN_ASSERT(Count() == 0);
 	}
 
 	/*
 	 * @return Number of items in the manager.
 	 */
-	[[nodiscard]] std::size_t Count() const {
+	[[nodiscard]] std::size_t Size() const {
 		return map_.size();
 	}
 
@@ -145,6 +142,84 @@ protected:
 
 private:
 	Map map_;
+};
+
+template <typename ItemType>
+class VectorManager {
+public:
+	using Item = ItemType;
+
+public:
+	VectorManager()									   = default;
+	virtual ~VectorManager()						   = default;
+	VectorManager(VectorManager&&) noexcept			   = default;
+	VectorManager& operator=(VectorManager&&) noexcept = default;
+	VectorManager(const VectorManager&)				   = delete;
+	VectorManager& operator=(const VectorManager&)	   = delete;
+
+	// If item exists in manager, it is returned, otherwise a copy of the item is added.
+	Item& Add(const Item& item) {
+		for (auto& i : vector_) {
+			if (i == item) {
+				return i;
+			}
+		}
+		return *vector_.emplace_back(item);
+	}
+
+	/*
+	 * @param item Item to be unloaded.
+	 */
+	void Remove(const Item& item) {
+		vector_.erase(std::remove(vector_.begin(), vector_.end(), item), vector_.end());
+	}
+
+	/*
+	 * @return True if manager contains the item, false otherwise.
+	 */
+	template <typename TKey>
+	[[nodiscard]] bool Contains(const Item& item) const {
+		return std::find(vector_.begin(), vector_.end(), item) != vector_.end();
+	}
+
+	/*
+	 * Clears the manager.
+	 */
+	void Clear() {
+		vector_.clear();
+	}
+
+	/*
+	 * @return Number of items in the manager.
+	 */
+	[[nodiscard]] std::size_t Size() const {
+		return vector_.size();
+	}
+
+	/*
+	 * @return True if the manager has no loaded items, false otherwise.
+	 */
+	[[nodiscard]] bool Empty() const {
+		return vector_.empty();
+	}
+
+	void Reset() {
+		vector_ = {};
+	}
+
+protected:
+	using Vector = std::vector<Item>;
+
+	[[nodiscard]] Vector& GetVector() {
+		return vector_;
+	}
+
+	[[nodiscard]] const Vector& GetVector() const {
+		return vector_;
+	}
+
+private:
+	Vector vector_;
 };
 
 } // namespace ptgn

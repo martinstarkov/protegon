@@ -110,6 +110,16 @@ float Tween::GetProgress() const {
 	return t.GetProgress();
 }
 
+Tween& Tween::KeepAlive(bool keep_alive) {
+	Create();
+	Get().destroy_on_complete_ = !keep_alive;
+	return *this;
+}
+
+bool Tween::DestroyOnCompletion() const {
+	return Get().destroy_on_complete_;
+}
+
 bool Tween::IsCompleted() const {
 	return IsValid() && Get().IsCompleted();
 }
@@ -185,6 +195,7 @@ Tween& Tween::SetDuration(milliseconds duration, std::size_t tween_point_index) 
 	);
 	t.tweens_points_[tween_point_index].duration_ = duration;
 	UpdateImpl();
+	PTGN_ASSERT(IsValid(), "Duration causes tween to be instantly completed and destroyed");
 	return *this;
 }
 
@@ -262,6 +273,9 @@ void Tween::PointCompleted() {
 	} else {
 		t.progress_ = 1.0f;
 		t.started_	= false;
+		if (t.destroy_on_complete_) {
+			Destroy();
+		}
 	}
 }
 
@@ -317,6 +331,11 @@ float Tween::UpdateImpl(bool suppress_update) {
 	}
 
 	HandleCallbacks(suppress_update);
+
+	// After completion and destruction.
+	if (!IsValid()) {
+		return 1.0f;
+	}
 
 	return t.GetProgress();
 }
@@ -379,6 +398,11 @@ float Tween::StepImpl(float dt, bool accumulate_progress) {
 float Tween::SeekImpl(float new_progress) {
 	PTGN_ASSERT(new_progress >= 0.0f && new_progress <= 1.0f, "Progress accumulator failed");
 
+	// After completion and destruction.
+	if (!IsValid()) {
+		return 1.0f;
+	}
+
 	auto& t{ Get() };
 
 	if (!t.started_ || t.paused_) {
@@ -410,7 +434,7 @@ float Tween::AccumulateProgress(float new_progress) {
 	for (std::size_t i{ 0 }; i < loops; i++) {
 		t.progress_ = 1.0f;
 		UpdateImpl(true);
-		if (IsCompleted()) {
+		if (IsCompleted() || !IsValid()) {
 			return 1.0f;
 		}
 	}
@@ -424,35 +448,46 @@ float Tween::AccumulateProgress(float new_progress) {
 
 namespace impl {
 
-void TweenManager::Clear() {
-	Manager::Clear();
-	keep_alive_tweens_ = {};
-}
-
-void TweenManager::Reset() {
-	Manager::Reset();
-	keep_alive_tweens_ = {};
-}
-
 void TweenManager::Update() {
-	auto& m{ GetMap() };
+	// TODO: Figure out how to do timestep accumulation outside of tweens, using
+	// StepImpl(dt, false) and some added logic outside of this loop. This is important
+	// because currently tween internal timestep accumulation causes all callbacks to be
+	// triggered sequentially for each tween before moving onto the next tween. Desired
+	// callback behavior:
+	// 1. Tween1Repeat#1 2. Tween2Repeat#1 3. Tween1Repeat#2 4. Tween2Repeat#2.
+	// Current callback behavior:
+	// 1. Tween1Repeat#1 2. Tween1Repeat#2 3. Tween2Repeat#1 4. Tween2Repeat#2.
 
 	float dt = game.dt();
 
+	auto& v{ GetVector() };
+
+	for (auto it = v.begin(); it != v.end();) {
+		auto& tween = *it;
+		bool is_valid{ tween.IsValid() };
+
+		if (is_valid) {
+			tween.Step(dt);
+		}
+
+		if (!is_valid || tween.IsCompleted() && tween.DestroyOnCompletion()) {
+			it = v.erase(it);
+		} else {
+			++it;
+		}
+	}
+
+	auto& m{ GetMap() };
+
 	for (auto it = m.begin(); it != m.end();) {
 		auto& [internal_key, tween] = *it;
-		// TODO: Figure out how to do timestep accumulation outside of tweens, using
-		// StepImpl(dt, false) and some added logic outside of this loop. This is important
-		// because currently tween internal timestep accumulation causes all callbacks to be
-		// triggered sequentially for each tween before moving onto the next tween. Desired
-		// callback behavior:
-		// 1. Tween1Repeat#1 2. Tween2Repeat#1 3. Tween1Repeat#2 4. Tween2Repeat#2.
-		// Current callback behavior:
-		// 1. Tween1Repeat#1 2. Tween1Repeat#2 3. Tween2Repeat#1 4. Tween2Repeat#2.
+		bool is_valid{ tween.IsValid() };
 
-		tween.Step(dt);
+		if (is_valid) {
+			tween.Step(dt);
+		}
 
-		if (tween.IsCompleted() && keep_alive_tweens_.count(internal_key) == 0) {
+		if (!is_valid || tween.IsCompleted() && tween.DestroyOnCompletion()) {
 			it = m.erase(it);
 		} else {
 			++it;

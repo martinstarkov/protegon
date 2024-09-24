@@ -16,7 +16,23 @@
 
 namespace ptgn {
 
-class Game;
+struct IntersectCollision {
+	float depth{ 0.0f };
+	V2_float normal{ 0.0f, 0.0f };
+};
+
+struct DynamicCollision {
+	float t{ 1.0f }; // time of impact.
+	V2_float normal; // normal of impact (normalised).
+};
+
+enum class DynamicCollisionResponse {
+	Slide,
+	Bounce,
+	Push
+};
+
+namespace impl {
 
 class OverlapCollision {
 public:
@@ -72,11 +88,6 @@ private:
 	);
 };
 
-struct IntersectCollision {
-	float depth{ 0.0f };
-	V2_float normal{ 0.0f, 0.0f };
-};
-
 class IntersectCollisionHandler {
 public:
 	IntersectCollisionHandler()											   = default;
@@ -97,22 +108,6 @@ public:
 	static bool CircleRectangle(
 		const Circle<float>& a, const Rectangle<float>& b, IntersectCollision& c
 	);
-};
-
-struct DynamicCollision {
-	float t{ 1.0f }; // time of impact.
-	V2_float normal; // normal of impact (normalised).
-};
-
-enum class DynamicCollisionResponse {
-	Slide,
-	Bounce,
-	Push
-};
-
-enum class DynamicCollisionShape {
-	Circle,
-	Rectangle
 };
 
 class DynamicCollisionHandler {
@@ -183,13 +178,6 @@ private:
 
 class CollisionHandler {
 public:
-	OverlapCollision overlap;
-	IntersectCollisionHandler intersect;
-	DynamicCollisionHandler dynamic;
-
-private:
-	friend class Game;
-
 	CollisionHandler()									 = default;
 	~CollisionHandler()									 = default;
 	CollisionHandler(const CollisionHandler&)			 = delete;
@@ -197,11 +185,17 @@ private:
 	CollisionHandler& operator=(const CollisionHandler&) = delete;
 	CollisionHandler& operator=(CollisionHandler&&)		 = default;
 
+	OverlapCollision overlap;
+	IntersectCollisionHandler intersect;
+	DynamicCollisionHandler dynamic;
+
 	void Init() {
 		/* Possibly add stuff here in the future. */
 	}
 
 	void Shutdown();
 };
+
+} // namespace impl
 
 } // namespace ptgn
