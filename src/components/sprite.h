@@ -22,9 +22,49 @@
 namespace ptgn {
 
 struct Sprite {
+	// sprite_size = {} results in full texture size being used.
+	Sprite(
+		const Texture& texture, V2_float draw_offset = {}, Origin origin = Origin::Center,
+		const V2_float& sprite_size = {}, const V2_float& start_pixel = {}
+	) :
+		texture{ texture }, draw_offset{ draw_offset } {
+		source.pos = start_pixel;
+		if (sprite_size.IsZero()) {
+			source.size = texture.GetSize();
+		} else {
+			source.size = sprite_size;
+		}
+		source.origin = origin;
+
+		PTGN_ASSERT(texture.GetSize().x > 0.0f, "Texture must have width > 0");
+		PTGN_ASSERT(texture.GetSize().y > 0.0f, "Texture must have height > 0");
+
+		PTGN_ASSERT(
+			source.pos.x < texture.GetSize().x, "Source position X must be within texture width"
+		);
+		PTGN_ASSERT(
+			source.pos.y < texture.GetSize().y, "Source position Y must be within texture height"
+		);
+		PTGN_ASSERT(
+			source.pos.x + source.size.x < texture.GetSize().x,
+			"Source width must be within texture width"
+		);
+		PTGN_ASSERT(
+			source.pos.y + source.size.y < texture.GetSize().y,
+			"Source height must be within texture height"
+		);
+	}
+
+	void Draw(ecs::Entity entity, const Transform& transform);
+
 	Texture texture;
+
+private:
 	Rectangle<float> source;
+	V2_float draw_offset; // Offset of sprite relative to entity transform.
 };
+
+namespace impl {
 
 struct SpriteSheet {
 	SpriteSheet() = default;
@@ -48,7 +88,10 @@ struct SpriteSheet {
 	V2_float sprite_size;					// Size of an individual sprite.
 };
 
-struct Animation : public SpriteSheet {
+} // namespace impl
+
+struct Animation : public impl::SpriteSheet {
+	// TODO: Make animation info struct.
 	Animation(
 		const Texture& texture, const V2_float& frame_size, std::size_t frames,
 		milliseconds animation_duration, const V2_float& draw_offset = {},
@@ -94,7 +137,7 @@ struct Animation : public SpriteSheet {
 		}
 	}
 
-	static void Draw(ecs::Entity entity);
+	void Draw(ecs::Entity entity, const Transform& transform);
 
 	Tween tween;
 
@@ -129,15 +172,21 @@ using SpriteFlip = Flip;
 
 using SpriteZ = float;
 
-void Animation::Draw(ecs::Entity entity) {
-	PTGN_ASSERT(entity.Has<Animation>());
-	PTGN_ASSERT(entity.Has<Transform>());
-	const auto& anim{ entity.Get<Animation>() };
-	const auto& transform{ entity.Get<Transform>() };
-	const auto& source{ anim.GetSource() };
+void Sprite::Draw(ecs::Entity entity, const Transform& transform) {
 	game.renderer.DrawTexture(
-		anim.texture, transform.position + anim.draw_offset, anim.sprite_size * transform.scale,
-		source.pos, source.size, source.origin,
+		texture, transform.position + draw_offset, source.size * transform.scale, source.pos,
+		source.size, source.origin,
+		entity.Has<SpriteFlip>() ? entity.Get<SpriteFlip>() : Flip::None, transform.rotation,
+		V2_float{ 0.5f, 0.5f }, entity.Has<SpriteZ>() ? entity.Get<SpriteZ>() : 0.0f,
+		entity.Has<SpriteTint>() ? entity.Get<SpriteTint>() : color::White
+	);
+}
+
+void Animation::Draw(ecs::Entity entity, const Transform& transform) {
+	const auto& source{ GetSource() };
+	game.renderer.DrawTexture(
+		texture, transform.position + draw_offset, sprite_size * transform.scale, source.pos,
+		source.size, source.origin,
 		entity.Has<SpriteFlip>() ? entity.Get<SpriteFlip>() : Flip::None, transform.rotation,
 		V2_float{ 0.5f, 0.5f }, entity.Has<SpriteZ>() ? entity.Get<SpriteZ>() : 0.0f,
 		entity.Has<SpriteTint>() ? entity.Get<SpriteTint>() : color::White
