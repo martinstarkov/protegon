@@ -582,8 +582,8 @@ void RendererData::FlushOpaqueBatches() {
 std::array<V2_float, 4> RendererData::GetTextureCoordinates(
 	const V2_float& source_position, V2_float source_size, const V2_float& texture_size, Flip flip
 ) {
-	PTGN_ASSERT(!NearlyEqual(texture_size.x, 0.0f), "Texture must have width > 0");
-	PTGN_ASSERT(!NearlyEqual(texture_size.y, 0.0f), "Texture must have height > 0");
+	PTGN_ASSERT(texture_size.x > 0.0f, "Texture must have width > 0");
+	PTGN_ASSERT(texture_size.y > 0.0f, "Texture must have height > 0");
 
 	PTGN_ASSERT(
 		source_position.x < texture_size.x, "Source position X must be within texture width"
