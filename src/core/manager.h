@@ -164,7 +164,7 @@ public:
 				return i;
 			}
 		}
-		return *vector_.emplace_back(item);
+		return vector_.emplace_back(item);
 	}
 
 	/*
