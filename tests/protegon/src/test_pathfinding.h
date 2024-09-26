@@ -17,7 +17,7 @@
 #include "protegon/vector2.h"
 #include "renderer/renderer.h"
 
-class PathFindingTest : public Test {
+class AStarTest : public Test {
 	V2_int tile_size{ 20, 20 };
 	AStarGrid grid{ { 40, 40 } };
 	V2_int start;
@@ -136,10 +136,10 @@ class PathFindingTest : public Test {
 	}
 };
 
-void TestPathFinding() {
+void TestPathfinding() {
 	std::vector<std::shared_ptr<Test>> tests;
 
-	tests.emplace_back(new PathFindingTest());
+	tests.emplace_back(new AStarTest());
 
 	AddTests(tests);
 }

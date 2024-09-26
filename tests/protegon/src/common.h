@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "core/window.h"
+#include "ecs/ecs.h"
 #include "event/input_handler.h"
 #include "event/key.h"
 #include "protegon/game.h"
@@ -30,16 +31,20 @@ struct Test {
 		center = game.window.GetCenter();
 	}
 
-	virtual void Init() { /**/
+	virtual void Init() {
+		/**/
 	}
 
-	virtual void Update() { /**/
+	virtual void Update() {
+		/**/
 	}
 
-	virtual void Draw() { /**/
+	virtual void Draw() {
+		/**/
 	}
 
-	virtual void Shutdown() { /**/
+	virtual void Shutdown() {
+		/**/
 	}
 
 	virtual void Run() final {
@@ -69,6 +74,17 @@ protected:
 	V2_float center; // window center
 private:
 	bool initialized_{ false };
+};
+
+struct EntityTest : public Test {
+public:
+	ecs::Manager manager;
+	ecs::Entity entity;
+
+	EntityTest() {
+		entity = manager.CreateEntity();
+		manager.Refresh();
+	}
 };
 
 void CheckForTestSwitch(const std::vector<std::shared_ptr<Test>>& tests, int& current_test) {

@@ -55,7 +55,7 @@ struct Sprite {
 		);
 	}
 
-	void Draw(ecs::Entity entity, const Transform& transform);
+	void Draw(ecs::Entity entity, const Transform& transform) const;
 
 	Texture texture;
 
@@ -137,7 +137,7 @@ struct Animation : public impl::SpriteSheet {
 		}
 	}
 
-	void Draw(ecs::Entity entity, const Transform& transform);
+	void Draw(ecs::Entity entity, const Transform& transform) const;
 
 	Tween tween;
 
@@ -172,7 +172,7 @@ using SpriteFlip = Flip;
 
 using SpriteZ = float;
 
-void Sprite::Draw(ecs::Entity entity, const Transform& transform) {
+void Sprite::Draw(ecs::Entity entity, const Transform& transform) const {
 	game.renderer.DrawTexture(
 		texture, transform.position + draw_offset, source.size * transform.scale, source.pos,
 		source.size, source.origin,
@@ -182,7 +182,7 @@ void Sprite::Draw(ecs::Entity entity, const Transform& transform) {
 	);
 }
 
-void Animation::Draw(ecs::Entity entity, const Transform& transform) {
+void Animation::Draw(ecs::Entity entity, const Transform& transform) const {
 	const auto& source{ GetSource() };
 	game.renderer.DrawTexture(
 		texture, transform.position + draw_offset, sprite_size * transform.scale, source.pos,
