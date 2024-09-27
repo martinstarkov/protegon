@@ -22,7 +22,7 @@
 #include "utility/debug.h"
 #include "utility/time.h"
 
-namespace ptgn {
+namespace ptgn::impl {
 
 void InputHandler::Reset() {
 	key_states_.reset();
@@ -284,4 +284,4 @@ bool InputHandler::KeyUp(Key key) {
 	return false;
 }
 
-} // namespace ptgn
+} // namespace ptgn::impl

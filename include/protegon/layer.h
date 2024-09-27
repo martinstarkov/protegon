@@ -37,8 +37,8 @@ public:
 
 	void Draw() const {
 		if (texture.IsValid()) {
-			game.renderer.DrawTexture(
-				texture, rect.pos, rect.size, source.pos, source.size, rect.origin
+			game.draw.Texture(
+				texture, rect.pos, rect.size, { source.pos, source.size, rect.origin }
 			);
 		}
 	}

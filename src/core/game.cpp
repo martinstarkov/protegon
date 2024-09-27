@@ -38,11 +38,11 @@
 
 namespace ptgn {
 
-Game game;
-
-#ifdef PTGN_PLATFORM_MACOS
+impl::Game game;
 
 namespace impl {
+
+#ifdef PTGN_PLATFORM_MACOS
 
 // When using AppleClang, the working directory for the executable is set to $HOME instead of the
 // executable directory. Therefore, the C++ code corrects the working directory using
@@ -72,8 +72,6 @@ static void InitApplePath() {
 	CFRelease(resources_url);
 	chdir(path);*/
 }
-
-} // namespace impl
 
 #endif
 
@@ -151,7 +149,7 @@ void Game::Init() {
 	gl_context_.Init();
 	event.Init();
 	input.Init();
-	renderer.Init();
+	draw.Init();
 	collision.Init();
 }
 
@@ -169,7 +167,7 @@ void Game::Shutdown() {
 	music.Reset();
 
 	collision.Shutdown();
-	renderer.Shutdown();
+	draw.Shutdown();
 	input.Shutdown();
 	event.Shutdown();
 	window.Shutdown();
@@ -192,8 +190,6 @@ void Game::Shutdown() {
 	// sdl_instance_.Shutdown();
 }
 
-namespace impl {
-
 #ifdef __EMSCRIPTEN__
 
 void EmscriptenLoop(void* data) {
@@ -205,8 +201,6 @@ void EmscriptenLoop(void* data) {
 }
 
 #endif
-
-} // namespace impl
 
 void Game::MainLoop() {
 	// Design decision: Latest possible point to show window is right before
@@ -260,7 +254,7 @@ void Game::Update() {
 
 	// PTGN_LOG("Loop #", counter);
 
-	game.renderer.Clear();
+	game.draw.Clear();
 
 	bool scene_change{ false };
 
@@ -277,11 +271,13 @@ void Game::Update() {
 	}
 
 	if (running_ && !scene_change) {
-		game.renderer.Present();
+		game.draw.Present();
 	}
 
 	++counter;
 	end = std::chrono::system_clock::now();
 }
+
+} // namespace impl
 
 } // namespace ptgn

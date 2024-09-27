@@ -34,8 +34,6 @@ struct TTF_FontDeleter;
 
 static void EmscriptenLoop(void* data);
 
-} // namespace impl
-
 class Game {
 public:
 	Game() = default;
@@ -48,13 +46,13 @@ private:
 	Game& operator=(Game&&)		 = delete;
 
 private:
-	impl::SDLInstance sdl_instance_;
+	SDLInstance sdl_instance_;
 
 public:
 	Window window;
 
 private:
-	impl::GLContext gl_context_;
+	GLContext gl_context_;
 
 public:
 	// @return Previous frame time in milliseconds
@@ -64,23 +62,23 @@ public:
 
 	// TODO: Make these all inside impl namespace instead of hiding constructors.
 
-	impl::EventHandler event;
+	EventHandler event;
 	InputHandler input;
-	Renderer renderer;
-	impl::SceneManager scene;
-	impl::ActiveSceneCameraManager camera;
-	impl::CollisionHandler collision;
-	impl::UserInterface ui;
+	Renderer draw;
+	SceneManager scene;
+	ActiveSceneCameraManager camera;
+	CollisionHandler collision;
+	UserInterface ui;
 
 	// Resources
 
-	impl::TweenManager tween;
-	impl::MusicManager music;
-	impl::SoundManager sound;
-	impl::FontManager font;
-	impl::TextManager text;
-	impl::TextureManager texture;
-	impl::ShaderManager shader;
+	TweenManager tween;
+	MusicManager music;
+	SoundManager sound;
+	FontManager font;
+	TextManager text;
+	TextureManager texture;
+	ShaderManager shader;
 
 	// Debug
 
@@ -103,7 +101,7 @@ public:
 	void Start(TArgs&&... constructor_args) {
 		Init();
 
-		scene.Init<TStartScene>(impl::start_scene_key, std::forward<TArgs>(constructor_args)...);
+		scene.Init<TStartScene>(start_scene_key, std::forward<TArgs>(constructor_args)...);
 
 		MainLoop();
 
@@ -115,13 +113,13 @@ public:
 	[[nodiscard]] bool IsRunning() const;
 
 private:
-	friend struct impl::WindowDeleter;
-	friend struct impl::MixMusicDeleter;
-	friend struct impl::MixChunkDeleter;
-	friend struct impl::SDL_SurfaceDeleter;
-	friend struct impl::TTF_FontDeleter;
-	friend class impl::GLContext;
-	friend void impl::EmscriptenLoop(void* data);
+	friend struct WindowDeleter;
+	friend struct MixMusicDeleter;
+	friend struct MixChunkDeleter;
+	friend struct SDL_SurfaceDeleter;
+	friend struct TTF_FontDeleter;
+	friend class GLContext;
+	friend void EmscriptenLoop(void* data);
 
 	void MainLoop();
 	void Update();
@@ -134,6 +132,8 @@ private:
 	float dt_{ 0.0f };
 };
 
-extern Game game;
+} // namespace impl
+
+extern impl::Game game;
 
 } // namespace ptgn

@@ -771,7 +771,7 @@ V2_float DynamicCollisionHandler::Sweep(
 		Segment<float> normal{ transform.position + rigid_body.velocity * collisions[0].c.t,
 							   transform.position + rigid_body.velocity * collisions[0].c.t +
 								   50 * c.normal };
-		game.renderer.DrawLine(normal, color::Orange);
+		game.draw.Line(normal, color::Orange);
 	}*/
 
 	const auto new_velocity = GetRemainingVelocity(velocity, collisions[0].c, response);
@@ -786,8 +786,8 @@ V2_float DynamicCollisionHandler::Sweep(
 	// Potential alternative solution to corner clipping:
 	// new_origin = origin + (velocity * collisions[0].c.t - velocity.Unit() * epsilon);
 	const auto new_p1 = transform.position + velocity * collisions[0].c.t;
-	// game.renderer.DrawLine(p1, new_p1, color::Blue);
-	// game.renderer.DrawCircleHollow(new_p1, s1, color::Blue);
+	// game.draw.Line(p1, new_p1, color::Blue);
+	// game.draw.CircleHollow(new_p1, s1, color::Blue);
 
 	if (const auto collisions2 = get_sorted_collisions(new_p1, new_velocity);
 		!collisions2.empty()) {
@@ -796,16 +796,16 @@ V2_float DynamicCollisionHandler::Sweep(
 			" * ", collisions2[0].c.t / dt
 		);*/
 		return rigid_body.velocity * collisions[0].c.t + new_velocity * collisions2[0].c.t / dt;
-		// game.renderer.DrawLine(new_p1, new_p1 + new_velocity * collisions2[0].c.t,
+		// game.draw.Line(new_p1, new_p1 + new_velocity * collisions2[0].c.t,
 		// color::Red);
-		// game.renderer.DrawCircleHollow(new_p1 + new_velocity * collisions2[0].c.t, s1,
+		// game.draw.CircleHollow(new_p1 + new_velocity * collisions2[0].c.t, s1,
 		// color::Red);
 	}
 	/*PTGN_LOG(
 		"Collision2: ", rigid_body.velocity, " * ", collisions[0].c.t, " + ", new_velocity / dt
 	);*/
 	return rigid_body.velocity * collisions[0].c.t + new_velocity / dt;
-	// game.renderer.DrawCircleHollow(p1 + new_v1, s1,
+	// game.draw.CircleHollow(p1 + new_v1, s1,
 	// color::Red);
 }
 

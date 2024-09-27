@@ -177,7 +177,7 @@ private:
 };
 
 class CollisionHandler {
-public:
+private:
 	CollisionHandler()									 = default;
 	~CollisionHandler()									 = default;
 	CollisionHandler(const CollisionHandler&)			 = delete;
@@ -185,6 +185,7 @@ public:
 	CollisionHandler& operator=(const CollisionHandler&) = delete;
 	CollisionHandler& operator=(CollisionHandler&&)		 = default;
 
+public:
 	OverlapCollision overlap;
 	IntersectCollisionHandler intersect;
 	DynamicCollisionHandler dynamic;
@@ -194,6 +195,9 @@ public:
 	}
 
 	void Shutdown();
+
+private:
+	friend class Game;
 };
 
 } // namespace impl

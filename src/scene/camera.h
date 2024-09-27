@@ -16,6 +16,13 @@ class Game;
 class OrthographicCamera;
 class Renderer;
 
+V2_float WorldToScreen(const V2_float& world_position);
+V2_float ScaleToScreen(const V2_float& world_size);
+float ScaleToScreen(float world_size);
+V2_float ScreenToWorld(const V2_float& screen_position);
+V2_float ScaleToWorld(const V2_float& screen_size);
+float ScaleToWorld(float screen_size);
+
 namespace impl {
 
 class CameraManager;
@@ -134,6 +141,8 @@ protected:
 
 namespace impl {
 
+class Game;
+
 class CameraManager : public MapManager<OrthographicCamera> {
 public:
 	using MapManager::MapManager;
@@ -147,13 +156,11 @@ public:
 
 	void SetPrimary(const OrthographicCamera& camera);
 
-	[[nodiscard]] const OrthographicCamera& GetCurrent() const;
-	[[nodiscard]] OrthographicCamera& GetCurrent();
-
-	void SetCameraWindow();
-	void SetCameraPrimary();
+	[[nodiscard]] const OrthographicCamera& GetPrimary() const;
+	[[nodiscard]] OrthographicCamera& GetPrimary();
 
 	void Reset();
+	void ResetPrimary();
 
 private:
 	friend class Game;
@@ -164,15 +171,20 @@ private:
 
 	M4_float GetViewProjection();
 
-	bool primary_{ true };
-
-	OrthographicCamera window_camera_;
-	OrthographicCamera primary_camera_;
+	OrthographicCamera primary_;
 };
 
 // This class provides quick access to the current top active scene.
 // i.e. using this is class equivalent to game.scene.GetTopActive().camera
 class ActiveSceneCameraManager {
+private:
+	ActiveSceneCameraManager()											 = default;
+	~ActiveSceneCameraManager()											 = default;
+	ActiveSceneCameraManager(const ActiveSceneCameraManager&)			 = delete;
+	ActiveSceneCameraManager(ActiveSceneCameraManager&&)				 = default;
+	ActiveSceneCameraManager& operator=(const ActiveSceneCameraManager&) = delete;
+	ActiveSceneCameraManager& operator=(ActiveSceneCameraManager&&)		 = default;
+
 public:
 	using Item = CameraManager::Item;
 
@@ -205,15 +217,15 @@ public:
 
 	static void SetPrimary(const OrthographicCamera& camera);
 
-	[[nodiscard]] const OrthographicCamera& GetCurrent() const;
-	[[nodiscard]] OrthographicCamera& GetCurrent();
-
-	static void SetCameraWindow();
-	static void SetCameraPrimary();
+	[[nodiscard]] const OrthographicCamera& GetPrimary() const;
+	[[nodiscard]] OrthographicCamera& GetPrimary();
 
 	static void Reset();
+	static void ResetPrimary();
 
 private:
+	friend class Game;
+
 	using InternalKey = CameraManager::InternalKey;
 
 	static Item& LoadImpl(const InternalKey& key, Item&& item);

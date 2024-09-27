@@ -78,10 +78,12 @@ class AStarTest : public Test {
 				c = color::Gold;
 			}
 			Rectangle<int> r{ tile * tile_size, tile_size, Origin::TopLeft };
-			game.renderer.DrawRectangleFilled(r, c);
+			game.draw.Rectangle(r.pos, r.size, c, r.origin);
 		});
 		if (grid.Has(mouse_tile)) {
-			game.renderer.DrawRectangleHollow(mouse_box, color::Yellow);
+			game.draw.Rectangle(
+				mouse_box.pos, mouse_box.size, color::Yellow, mouse_box.origin, 1.0f
+			);
 		}
 
 		local_waypoints = global_waypoints;
@@ -132,7 +134,7 @@ class AStarTest : public Test {
 		} else {
 			enemy = { pos * tile_size, tile_size, Origin::TopLeft };
 		}
-		game.renderer.DrawRectangleFilled(enemy, color::Purple);
+		game.draw.Rectangle(enemy.pos, enemy.size, color::Purple, enemy.origin);
 	}
 };
 

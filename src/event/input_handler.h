@@ -11,15 +11,10 @@
 
 union SDL_Event;
 
-namespace ptgn {
+namespace ptgn::impl {
 
 class Game;
-
-namespace impl {
-
 class SceneManager;
-
-} // namespace impl
 
 class InputHandler {
 private:
@@ -93,7 +88,7 @@ public:
 	[[nodiscard]] bool KeyUp(Key key);
 
 private:
-	friend class impl::SceneManager;
+	friend class SceneManager;
 	friend class Game;
 
 	void Reset();
@@ -121,4 +116,4 @@ private:
 	Timer middle_mouse_timer_;
 };
 
-} // namespace ptgn
+} // namespace ptgn::impl

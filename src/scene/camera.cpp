@@ -26,6 +26,50 @@
 
 namespace ptgn {
 
+V2_float WorldToScreen(const V2_float& world_position) {
+	const auto& primary{ game.camera.GetPrimary() };
+	V2_float offset{ primary.GetTopLeftPosition() };
+	float scale{ primary.GetZoom() };
+	PTGN_ASSERT(scale != 0.0f);
+	return (world_position - offset) * scale;
+}
+
+V2_float ScreenToWorld(const V2_float& screen_position) {
+	const auto& primary{ game.camera.GetPrimary() };
+	float scale{ primary.GetZoom() };
+	PTGN_ASSERT(scale != 0.0f);
+	V2_float offset{ primary.GetTopLeftPosition() };
+	return (screen_position - primary.GetSize() / 2.0f) / scale + primary.GetPosition();
+}
+
+V2_float ScaleToWorld(const V2_float& screen_size) {
+	const auto& primary{ game.camera.GetPrimary() };
+	float scale{ primary.GetZoom() };
+	PTGN_ASSERT(scale != 0.0f);
+	return screen_size / scale;
+}
+
+float ScaleToWorld(float screen_size) {
+	const auto& primary{ game.camera.GetPrimary() };
+	float scale{ primary.GetZoom() };
+	PTGN_ASSERT(scale != 0.0f);
+	return screen_size / scale;
+}
+
+V2_float ScaleToScreen(const V2_float& world_size) {
+	const auto& primary{ game.camera.GetPrimary() };
+	float scale{ primary.GetZoom() };
+	PTGN_ASSERT(scale != 0.0f);
+	return world_size * scale;
+}
+
+float ScaleToScreen(float world_size) {
+	const auto& primary{ game.camera.GetPrimary() };
+	float scale{ primary.GetZoom() };
+	PTGN_ASSERT(scale != 0.0f);
+	return world_size * scale;
+}
+
 namespace impl {
 
 Camera::~Camera() {
@@ -168,9 +212,9 @@ void OrthographicCamera::RefreshBounds() {
 		PTGN_ASSERT(min.x < max.x && min.y < max.y, "Bounding box min must be below maximum");
 		V2_float center{ o.bounding_box.Center() };
 		// Draw bounding box center.
-		// game.renderer.DrawPoint(center, color::Red, 5.0f);
+		// game.draw.Point(center, color::Red, 5.0f);
 		// Draw bounding box.
-		// game.renderer.DrawRectangleHollow(o.bounding_box, color::Red);
+		// game.draw.RectangleHollow(o.bounding_box, color::Red);
 
 		// TODO: Incoporate yaw, i.e. o.orientation.x into the bounds using sin and cos.
 		V2_float size{ o.size / o.zoom };
@@ -186,7 +230,7 @@ void OrthographicCamera::RefreshBounds() {
 			o.position.y = std::clamp(o.position.y, min.y + half.y, max.y - half.y);
 		}
 		// Draw clamped camera position.
-		/*game.renderer.DrawPoint(
+		/*game.draw.Point(
 			{ o.position.x, o.position.y }, color::Yellow, 5.0f
 		);*/
 		o.recalculate_view = true;
@@ -395,59 +439,40 @@ void CameraController::UnsubscribeFromMouseEvents() {
 namespace impl {
 
 CameraManager::CameraManager() {
-	primary_camera_.SubscribeToWindowResize();
-	window_camera_.SubscribeToWindowResize();
+	primary_.SubscribeToWindowResize();
 }
 
 void CameraManager::SetPrimary(const OrthographicCamera& camera) {
-	primary_camera_ = camera;
+	primary_ = camera;
 }
 
-const OrthographicCamera& CameraManager::GetCurrent() const {
-	if (primary_) {
-		return primary_camera_;
-	}
-	return window_camera_;
+const OrthographicCamera& CameraManager::GetPrimary() const {
+	return primary_;
 }
 
-OrthographicCamera& CameraManager::GetCurrent() {
-	PTGN_ASSERT(
-		primary_, "Cannot retrieve non-const current camera from camera manager when it is set to "
-				  "window camera"
-	);
-	return primary_camera_;
-}
-
-void CameraManager::SetCameraPrimary() {
-	primary_ = true;
-}
-
-void CameraManager::SetCameraWindow() {
-	primary_ = false;
+OrthographicCamera& CameraManager::GetPrimary() {
+	return primary_;
 }
 
 void CameraManager::SetPrimaryImpl(const InternalKey& key) {
 	PTGN_ASSERT(Has(key), "Cannot set camera which has not been loaded as the primary camera");
-	primary_camera_ = Get(key);
+	primary_ = Get(key);
 }
 
 M4_float CameraManager::GetViewProjection() {
-	if (primary_ && primary_camera_.IsValid()) {
-		return primary_camera_.GetViewProjection();
-	}
-	PTGN_ASSERT(window_camera_.IsValid());
-	return window_camera_.GetViewProjection();
+	PTGN_ASSERT(primary_.IsValid(), "Could not retrieve view projection of invalid primary camera");
+	return primary_.GetViewProjection();
 }
 
 void CameraManager::Reset() {
 	MapManager::Reset();
-	primary_camera_.UnsubscribeFromWindowResize();
-	window_camera_.UnsubscribeFromWindowResize();
-	primary_		= true;
-	primary_camera_ = {};
-	window_camera_	= {};
-	primary_camera_.SubscribeToWindowResize();
-	window_camera_.SubscribeToWindowResize();
+	ResetPrimary();
+}
+
+void CameraManager::ResetPrimary() {
+	primary_.UnsubscribeFromWindowResize();
+	primary_ = {};
+	primary_.SubscribeToWindowResize();
 }
 
 CameraManager::Item& ActiveSceneCameraManager::LoadImpl(const InternalKey& key, Item&& item) {
@@ -481,24 +506,20 @@ void ActiveSceneCameraManager::SetPrimary(const OrthographicCamera& camera) {
 	game.scene.GetTopActive().camera.SetPrimary(camera);
 }
 
-const OrthographicCamera& ActiveSceneCameraManager::GetCurrent() const {
-	return game.scene.GetTopActive().camera.GetCurrent();
+const OrthographicCamera& ActiveSceneCameraManager::GetPrimary() const {
+	return game.scene.GetTopActive().camera.GetPrimary();
 }
 
-OrthographicCamera& ActiveSceneCameraManager::GetCurrent() {
-	return game.scene.GetTopActive().camera.GetCurrent();
-}
-
-void ActiveSceneCameraManager::SetCameraWindow() {
-	game.scene.GetTopActive().camera.SetCameraWindow();
-}
-
-void ActiveSceneCameraManager::SetCameraPrimary() {
-	game.scene.GetTopActive().camera.SetCameraPrimary();
+OrthographicCamera& ActiveSceneCameraManager::GetPrimary() {
+	return game.scene.GetTopActive().camera.GetPrimary();
 }
 
 void ActiveSceneCameraManager::Reset() {
 	game.scene.GetTopActive().camera.Reset();
+}
+
+void ActiveSceneCameraManager::ResetPrimary() {
+	game.scene.GetTopActive().camera.ResetPrimary();
 }
 
 } // namespace impl

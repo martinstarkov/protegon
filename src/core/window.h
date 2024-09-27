@@ -10,29 +10,24 @@ struct SDL_Window;
 
 namespace ptgn {
 
-class Renderer;
-class InputHandler;
-
 enum class FullscreenMode {
 	Windowed		  = 0,
 	Fullscreen		  = 1,
 	DesktopFullscreen = 4096
 };
 
-class InputHandler;
+struct Screen {
+	[[nodiscard]] static V2_int GetSize();
+};
 
 namespace impl {
 
+class Renderer;
+class InputHandler;
 class GLContext;
 
 struct WindowDeleter {
 	void operator()(SDL_Window* window) const;
-};
-
-} // namespace impl
-
-struct Screen {
-	[[nodiscard]] static V2_int GetSize();
 };
 
 class Window {
@@ -81,8 +76,8 @@ public:
 	void Hide() const;
 
 private:
-	friend class impl::GLContext;
 	friend class Game;
+	friend class GLContext;
 	friend class Renderer;
 	friend class InputHandler;
 
@@ -100,5 +95,7 @@ private:
 
 	std::unique_ptr<SDL_Window, impl::WindowDeleter> window_;
 };
+
+} // namespace impl
 
 } // namespace ptgn

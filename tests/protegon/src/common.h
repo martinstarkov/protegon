@@ -52,11 +52,12 @@ struct Test {
 		if (!initialized_) {
 			game.event.window.Subscribe(
 				WindowEvent::Quit, this, std::function([this](const WindowQuitEvent&) {
-					game.camera.Reset();
+					game.camera.ResetPrimary();
 					Shutdown();
 					game.window.SetTitle("");
 					game.event.window.Unsubscribe(this);
 					game.PopBackLoopFunction();
+					Deinit();
 				})
 			);
 			Setup();
@@ -69,10 +70,18 @@ struct Test {
 
 	float dt{ 0.0f };
 
+	void Deinit() {
+		initialized_ = false;
+	}
+
 protected:
 	V2_float ws;	 // window size
 	V2_float center; // window center
 private:
+	friend void CheckForTestSwitch(
+		const std::vector<std::shared_ptr<Test>>& tests, int& current_test
+	);
+
 	bool initialized_{ false };
 };
 
@@ -91,8 +100,9 @@ void CheckForTestSwitch(const std::vector<std::shared_ptr<Test>>& tests, int& cu
 	PTGN_ASSERT(test_switch_keys.size() == 2);
 	int test_count{ static_cast<int>(tests.size()) };
 	auto shutdown = [&]() {
-		game.camera.Reset();
+		game.camera.ResetPrimary();
 		tests[current_test]->Shutdown();
+		tests[current_test]->Deinit();
 		game.window.SetTitle("");
 		game.event.window.Unsubscribe(tests[current_test].get());
 	};

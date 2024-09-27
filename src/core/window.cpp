@@ -5,17 +5,24 @@
 #include <string>
 #include <string_view>
 
-#include "core/sdl_instance.h"
-#include "protegon/game.h"
-#include "protegon/log.h"
-#include "protegon/vector2.h"
 #include "SDL_error.h"
 #include "SDL_mouse.h"
 #include "SDL_stdinc.h"
 #include "SDL_video.h"
+#include "core/sdl_instance.h"
+#include "protegon/game.h"
+#include "protegon/log.h"
+#include "protegon/vector2.h"
 #include "utility/debug.h"
 
 namespace ptgn {
+
+V2_int Screen::GetSize() {
+	SDL_DisplayMode dm;
+	int result = SDL_GetDesktopDisplayMode(0, &dm);
+	PTGN_ASSERT(result == 0, "Failed to retrieve screen size: ", SDL_GetError());
+	return V2_int{ dm.w, dm.h };
+}
 
 namespace impl {
 
@@ -25,8 +32,6 @@ void WindowDeleter::operator()(SDL_Window* window) const {
 		PTGN_INFO("Destroyed SDL2 window");
 	}
 }
-
-} // namespace impl
 
 void Window::Init() {
 	PTGN_ASSERT(!Exists(), "Previous window must be destroyed before initializing a new one");
@@ -52,13 +57,6 @@ V2_int Window::GetSize() const {
 
 V2_float Window::GetCenter() const {
 	return GetSize() / 2.0f;
-}
-
-V2_int Screen::GetSize() {
-	SDL_DisplayMode dm;
-	int result = SDL_GetDesktopDisplayMode(0, &dm);
-	PTGN_ASSERT(result == 0, "Failed to retrieve screen size: ", SDL_GetError());
-	return V2_int{ dm.w, dm.h };
 }
 
 void Window::SetRelativeMouseMode(bool on) const {
@@ -164,5 +162,7 @@ void Window::Hide() const {
 	PTGN_ASSERT(Exists(), "Cannot hide nonexistent window");
 	SDL_HideWindow(window_.get());
 }
+
+} // namespace impl
 
 } // namespace ptgn

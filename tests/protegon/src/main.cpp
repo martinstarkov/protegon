@@ -31,7 +31,7 @@ public:
 	}
 
 	void Init() final {
-		game.renderer.SetClearColor(color::White);
+		game.draw.SetClearColor(color::White);
 		game.window.SetSize(V2_int{ 800, 800 });
 		game.window.Show();
 
@@ -44,13 +44,13 @@ public:
 
 		// Visual tests.
 
-		TestAnimations();
 		TestCollisions();
+		TestAnimations();
+		TestRenderer();
 		TestPathfinding();
 		TestTween();
 		TestCamera();
 		TestRNG();
-		TestRenderer();
 		TestText();
 		TestEvents();
 

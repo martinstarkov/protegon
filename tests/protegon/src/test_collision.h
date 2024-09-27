@@ -42,6 +42,8 @@ public:
 	int type{ 2 };
 	int types{ 3 };
 
+	const float line_thickness{ 3.0f };
+
 	void Init() override {
 		game.window.SetTitle("'ESC' (++category), 't' (++shape), 'g' (++mode), 'r' (reset pos)");
 	}
@@ -84,66 +86,66 @@ public:
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
-				game.renderer.DrawLine(line1, acolor1);
-				game.renderer.DrawPoint(position2, acolor2);
+				game.draw.Line(line1.a, line1.b, acolor1);
+				game.draw.Point(position2, acolor2);
 			} else if (option == 1) {
 				if (game.collision.overlap.PointCircle(position2, circle1)) {
 					bool test = game.collision.overlap.PointCircle(position2, circle1);
 					acolor1	  = color::Red;
 					acolor2	  = color::Red;
 				}
-				game.renderer.DrawCircleHollow(circle1, acolor1);
-				game.renderer.DrawPoint(position2, acolor2);
+				game.draw.Circle(circle1.center, circle1.radius, acolor1, line_thickness);
+				game.draw.Point(position2, acolor2);
 			} else if (option == 2) {
 				if (game.collision.overlap.PointRectangle(position2, aabb1)) {
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
-				game.renderer.DrawRectangleHollow(aabb1, acolor1);
-				game.renderer.DrawPoint(position2, acolor2);
+				game.draw.Rectangle(aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness);
+				game.draw.Point(position2, acolor2);
 			} else if (option == 3) {
 				if (game.collision.overlap.SegmentSegment(line2, line1)) {
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
-				game.renderer.DrawLine(line1, acolor1);
-				game.renderer.DrawLine(line2, acolor2);
+				game.draw.Line(line1.a, line1.b, acolor1);
+				game.draw.Line(line2.a, line2.b, acolor2);
 			} else if (option == 4) {
 				if (game.collision.overlap.SegmentCircle(line2, circle1)) {
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
-				game.renderer.DrawLine(line2, acolor2);
-				game.renderer.DrawCircleHollow(circle1, acolor1);
+				game.draw.Line(line2.a, line2.b, acolor2);
+				game.draw.Circle(circle1.center, circle1.radius, acolor1, line_thickness);
 			} else if (option == 5) {
 				if (game.collision.overlap.SegmentRectangle(line2, aabb1)) {
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
-				game.renderer.DrawLine(line2, acolor2);
-				game.renderer.DrawRectangleHollow(aabb1, acolor1);
+				game.draw.Line(line2.a, line2.b, acolor2);
+				game.draw.Rectangle(aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness);
 			} else if (option == 6) {
 				if (game.collision.overlap.CircleCircle(circle2, circle1)) {
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
-				game.renderer.DrawCircleHollow(circle2, acolor2);
-				game.renderer.DrawCircleHollow(circle1, acolor1);
+				game.draw.Circle(circle2.center, circle2.radius, acolor2, line_thickness);
+				game.draw.Circle(circle1.center, circle1.radius, acolor1, line_thickness);
 			} else if (option == 7) {
 				if (game.collision.overlap.CircleRectangle(circle2, aabb1)) {
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
-				game.renderer.DrawRectangleHollow(aabb1, acolor1);
-				game.renderer.DrawCircleHollow(circle2, acolor2);
+				game.draw.Rectangle(aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness);
+				game.draw.Circle(circle2.center, circle2.radius, acolor2, line_thickness);
 			} else if (option == 8) {
 				aabb2.pos = mouse;
 				if (game.collision.overlap.RectangleRectangle(aabb1, aabb2)) {
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
-				game.renderer.DrawRectangleHollow(aabb2, acolor2);
-				game.renderer.DrawRectangleHollow(aabb1, acolor1);
+				game.draw.Rectangle(aabb2.pos, aabb2.size, acolor2, aabb2.origin, line_thickness);
+				game.draw.Rectangle(aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness);
 			}
 		} else if (type == 1) { // intersect
 			options = 3;
@@ -156,14 +158,14 @@ public:
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
-				game.renderer.DrawCircleHollow(circle2, acolor2);
-				game.renderer.DrawCircleHollow(circle1, acolor1);
+				game.draw.Circle(circle2.center, circle2.radius, acolor2, line_thickness);
+				game.draw.Circle(circle1.center, circle1.radius, acolor1, line_thickness);
 				if (occured) {
 					Circle<float> new_circle{ circle2.center + c.normal * (c.depth + slop),
 											  circle2.radius };
-					game.renderer.DrawCircleHollow(new_circle, color2);
+					game.draw.Circle(new_circle.center, new_circle.radius, color2, line_thickness);
 					Segment<float> l{ circle2.center, new_circle.center };
-					game.renderer.DrawLine(l, color::Gold);
+					game.draw.Line(l.a, l.b, color::Gold);
 					if (game.collision.overlap.CircleCircle(new_circle, circle1)) {
 						occured = game.collision.intersect.CircleCircle(new_circle, circle1, c);
 						bool overlap{ game.collision.overlap.CircleCircle(new_circle, circle1) };
@@ -183,14 +185,14 @@ public:
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
-				game.renderer.DrawRectangleHollow(aabb1, acolor1);
-				game.renderer.DrawCircleHollow(circle2, acolor2);
+				game.draw.Rectangle(aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness);
+				game.draw.Circle(circle2.center, circle2.radius, acolor2, line_thickness);
 				if (occured) {
 					Circle<float> new_circle{ circle2.center + c.normal * (c.depth + slop),
 											  circle2.radius };
-					game.renderer.DrawCircleHollow(new_circle, color2);
+					game.draw.Circle(new_circle.center, new_circle.radius, color2, line_thickness);
 					Segment<float> l{ circle2.center, new_circle.center };
-					game.renderer.DrawLine(l, color::Gold);
+					game.draw.Line(l.a, l.b, color::Gold);
 					if (game.collision.overlap.CircleRectangle(new_circle, aabb1)) {
 						occured = game.collision.intersect.CircleRectangle(new_circle, aabb1, c);
 						bool overlap{ game.collision.overlap.CircleRectangle(new_circle, aabb1) };
@@ -210,14 +212,16 @@ public:
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
-				game.renderer.DrawRectangleHollow(aabb2, acolor2);
-				game.renderer.DrawRectangleHollow(aabb1, acolor1);
+				game.draw.Rectangle(aabb2.pos, aabb2.size, acolor2, aabb2.origin, line_thickness);
+				game.draw.Rectangle(aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness);
 				if (occured) {
 					Rectangle<float> new_aabb{ aabb2.pos + c.normal * (c.depth + slop), aabb2.size,
 											   aabb2.origin };
-					game.renderer.DrawRectangleHollow(new_aabb, color2);
+					game.draw.Rectangle(
+						new_aabb.pos, new_aabb.size, color2, new_aabb.origin, line_thickness
+					);
 					Segment<float> l{ aabb2.Center(), new_aabb.Center() };
-					game.renderer.DrawLine(l, color::Gold);
+					game.draw.Line(l.a, l.b, color::Gold);
 					if (game.collision.overlap.RectangleRectangle(new_aabb, aabb1)) {
 						occured = game.collision.intersect.RectangleRectangle(new_aabb, aabb1, c);
 						bool overlap{ game.collision.overlap.RectangleRectangle(new_aabb, aabb1) };
@@ -238,45 +242,45 @@ public:
 				circle2.center = position4;
 				V2_float vel{ mouse - circle2.center };
 				Circle<float> potential{ circle2.center + vel, circle2.radius };
-				game.renderer.DrawCircleHollow(potential, color::Grey);
+				game.draw.Circle(potential.center, potential.radius, color::Grey, line_thickness);
 				Segment<float> l{ circle2.center, potential.center };
-				game.renderer.DrawLine(l, color::Grey);
+				game.draw.Line(l.a, l.b, color::Grey);
 				bool occured{ game.collision.dynamic.CircleRectangle(circle2, vel, aabb1, c) };
 				if (occured) {
 					Circle<float> swept{ circle2.center + vel * c.t, circle2.radius };
 					Segment<float> normal{ swept.center, swept.center + 50 * c.normal };
-					game.renderer.DrawLine(normal, color::Orange);
-					game.renderer.DrawCircleHollow(swept, color::Green);
+					game.draw.Line(normal.a, normal.b, color::Orange);
+					game.draw.Circle(swept.center, swept.radius, color::Green, line_thickness);
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
-				game.renderer.DrawCircleHollow(circle2, acolor1);
-				game.renderer.DrawRectangleHollow(aabb1, acolor1);
+				game.draw.Circle(circle2.center, circle2.radius, acolor2, line_thickness);
+				game.draw.Rectangle(aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness);
 			} else if (option == 1) {
 				circle2.center = position4;
 				V2_float vel{ mouse - circle2.center };
 				Circle<float> potential{ circle2.center + vel, circle2.radius };
-				game.renderer.DrawCircleHollow(potential, color::Grey);
+				game.draw.Circle(potential.center, potential.radius, color::Grey, line_thickness);
 				Segment<float> l{ circle2.center, potential.center };
-				game.renderer.DrawLine(l, color::Grey);
+				game.draw.Line(l.a, l.b, color::Grey);
 				bool occured{ game.collision.dynamic.CircleCircle(circle2, vel, circle1, c) };
 				if (occured) {
 					Circle<float> swept{ circle2.center + vel * c.t, circle2.radius };
 					Segment<float> normal{ swept.center, swept.center + 50 * c.normal };
-					game.renderer.DrawLine(normal, color::Orange);
-					game.renderer.DrawCircleHollow(swept, color::Green);
+					game.draw.Line(normal.a, normal.b, color::Orange);
+					game.draw.Circle(swept.center, swept.radius, color::Green, line_thickness);
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
-				game.renderer.DrawCircleHollow(circle2, acolor1);
-				game.renderer.DrawCircleHollow(circle1, acolor1);
+				game.draw.Circle(circle2.center, circle2.radius, acolor2, line_thickness);
+				game.draw.Circle(circle1.center, circle1.radius, acolor1, line_thickness);
 			} else if (option == 2) {
 				V2_float pos = position4;
 				V2_float vel{ mouse - pos };
 				Segment<float> l{ pos, pos + vel };
 				const float point_radius{ 5.0f };
-				game.renderer.DrawCircleFilled(pos + vel, point_radius, color::Grey);
-				game.renderer.DrawLine(l, color::Grey);
+				game.draw.Circle(pos + vel, point_radius, color::Grey, line_thickness);
+				game.draw.Line(l.a, l.b, color::Grey);
 				bool occured = game.collision.dynamic.SegmentRectangle(
 					l, { aabb1.Min(), aabb1.size, Origin::TopLeft }, c
 				);
@@ -284,30 +288,34 @@ public:
 				if (occured) {
 					V2_float point{ pos + vel * c.t };
 					Segment<float> normal{ point, point + 50 * c.normal };
-					game.renderer.DrawLine(normal, color::Orange);
-					game.renderer.DrawCircleFilled(point, point_radius, color::Green);
+					game.draw.Line(normal.a, normal.b, color::Orange);
+					game.draw.Circle(point, point_radius, color::Green, line_thickness);
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
-				game.renderer.DrawRectangleHollow(aabb1, acolor1);
+				game.draw.Rectangle(aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness);
 			} else if (option == 3) {
 				aabb2.pos = position4;
 				V2_float vel{ mouse - aabb2.pos };
 				Rectangle<float> potential{ aabb2.pos + vel, aabb2.size, aabb2.origin };
-				game.renderer.DrawRectangleHollow(potential, color::Grey);
+				game.draw.Rectangle(
+					potential.pos, potential.size, color::Grey, potential.origin, line_thickness
+				);
 				Segment<float> l{ aabb2.Center(), potential.Center() };
-				game.renderer.DrawLine(l, color::Grey);
+				game.draw.Line(l.a, l.b, color::Grey);
 				bool occured{ game.collision.dynamic.RectangleRectangle(aabb2, vel, aabb1, c) };
 				if (occured) {
 					Rectangle<float> swept{ aabb2.pos + vel * c.t, aabb2.size, aabb2.origin };
 					Segment<float> normal{ swept.Center(), swept.Center() + 50 * c.normal };
-					game.renderer.DrawLine(normal, color::Orange);
-					game.renderer.DrawRectangleHollow(swept, color::Green);
+					game.draw.Line(normal.a, normal.b, color::Orange);
+					game.draw.Rectangle(
+						swept.pos, swept.size, color::Green, swept.origin, line_thickness
+					);
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
-				game.renderer.DrawRectangleHollow(aabb2, acolor1);
-				game.renderer.DrawRectangleHollow(aabb1, acolor1);
+				game.draw.Rectangle(aabb2.pos, aabb2.size, acolor2, aabb2.origin, line_thickness);
+				game.draw.Rectangle(aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness);
 			}
 
 			/*
@@ -318,14 +326,14 @@ public:
 				acolor1 = color::Red;
 				acolor2 = color::Red;
 			  }
-			  game.renderer.DrawLine(line2, acolor2);
-			  game.renderer.DrawCircleHollow(circle2, acolor2);
-			  game.renderer.DrawCircleHollow(circle1, acolor1);
+			  game.draw.Line(l.a, l.bine2, acolor2);
+			  game.draw.Circle(circle2.center, circle2.radius, acolor2, line_thickness);
+			  game.draw.Circle(circle1.center, circle1.radius, acolor1, line_thickness);
 			  if (occured) {
 				Circle<float> new_circle{circle2.center + line2.Direction() * c.t,
 										 circle2.radius};
-				game.renderer.DrawCircleHollow(new_circle,
-											   acolor2);
+				game.draw.Circle(new_circle.center, new_circle.radius,
+											   acolor2, line_thickness);
 			  }
 			}
 			if (option == 0) {
@@ -335,20 +343,21 @@ public:
 				acolor1 = color::Red;
 				acolor2 = color::Red;
 			  }
-			  game.renderer.DrawCircleHollow(circle2, acolor2);
-			  game.renderer.DrawCircleHollow(circle1, acolor1);
+			  game.draw.Circle(circle2.center, circle2.radius, acolor2, line_thickness);
+			  game.draw.Circle(circle1.center, circle1.radius, acolor1, line_thickness);
 			  if (occured) {
 				Circle<float> new_circle{circle2.center + c.normal * (c.depth + slop),
 										 circle2.radius};
-				game.renderer.DrawCircleHollow(new_circle,
-											   color2);
+				game.draw.Circle(new_circle.center, new_circle.radius,
+											   color2, line_thickness);
 				Segment<float> l{circle2.center, new_circle.center};
-				game.renderer.DrawLine(l, color::Gold);
-				if (game.collision.overlap.CircleCircle(new_circle, circle1)) {
-				  occured = game.collision.intersect.CircleCircle(new_circle, circle1, c);
-				  bool overlap{game.collision.overlap.CircleCircle(new_circle, circle1)};
-				  if (overlap) PrintLine("Slop insufficient, overlap reoccurs");
-				  if (occured) PrintLine("Slop insufficient, intersect reoccurs");
+				game.draw.Line(l.a, l.b, color::Gold);
+				if (game.collision.overlap.CircleCircle(new_circle.center, new_circle.radius,
+			circle1)) { occured = game.collision.intersect.CircleCircle(new_circle.center,
+			new_circle.radius, circle1, c); bool
+			overlap{game.collision.overlap.CircleCircle(new_circle.center, new_circle.radius,
+			circle1)}; if (overlap) PrintLine("Slop insufficient, overlap reoccurs"); if (occured)
+			PrintLine("Slop insufficient, intersect reoccurs");
 				}
 			  }
 			} else if (option == 1) {
@@ -359,15 +368,15 @@ public:
 				acolor1 = color::Red;
 				acolor2 = color::Red;
 			  }
-			  game.renderer.DrawRectangleHollow(aabb1, acolor1);
-			  game.renderer.DrawCircleHollow(circle2, acolor2);
+			  game.draw.Rectangle(aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness);
+			  game.draw.Circle(circle2.center, circle2.radius, acolor2, line_thickness);
 			  if (occured) {
 				Circle<float> new_circle{circle2.center + c.normal * (c.depth + slop),
 										 circle2.radius};
-				game.renderer.DrawCircleHollow(new_circle,
+				game.draw.Circle(new_circle.center, new_circle.radius,
 											   color2);
 				Segment<float> l{circle2.center, new_circle.center};
-				game.renderer.DrawLine(l, color::Gold);
+				game.draw.Line(l.a, l.b, color::Gold);
 				if (game.collision.overlap.CircleRectangle(new_circle, aabb1)) {
 				  occured = game.collision.intersect.CircleRectangle(new_circle, aabb1, c);
 				  bool overlap{game.collision.overlap.CircleRectangle(new_circle, aabb1)};
@@ -383,19 +392,19 @@ public:
 				acolor1 = color::Red;
 				acolor2 = color::Red;
 			  }
-			  game.renderer.DrawRectangleHollow(aabb2, acolor2);
-			  game.renderer.DrawRectangleHollow(aabb1, acolor1);
+			  game.draw.Rectangle(aabb2.pos, aabb2.size, acolor2, aabb2.origin, line_thickness);
+			  game.draw.Rectangle(aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness);
 			  if (occured) {
 				Rectangle<float> new_aabb{aabb2.pos + c.normal * (c.depth + slop),
 										  aabb2.size, Origin::TopLeft};
-				game.renderer.DrawRectangleHollow(new_aabb,
-			color2); Segment<float> l{aabb2.Center(), new_aabb.Center()};
-				game.renderer.DrawLine(l, color::Gold);
-				if (game.collision.overlap.RectangleRectangle(new_aabb, aabb1)) {
-				  occured = game.collision.intersect.RectangleRectangle(new_aabb, aabb1, c);
-				  bool overlap{game.collision.overlap.RectangleRectangle(new_aabb, aabb1)};
-				  if (overlap) PrintLine("Slop insufficient, overlap reoccurs");
-				  if (occured) PrintLine("Slop insufficient, intersect reoccurs");
+				game.draw.Rectangle(new_aabb.pos, new_aabb.size,
+			color2, new_aabb.origin, line_thickness); Segment<float> l{aabb2.Center(),
+			new_aabb.Center()}; game.draw.Line(l.a, l.b, color::Gold); if
+			(game.collision.overlap.RectangleRectangle(new_aabb, aabb1)) { occured =
+			game.collision.intersect.RectangleRectangle(new_aabb, aabb1, c); bool
+			overlap{game.collision.overlap.RectangleRectangle(new_aabb, aabb1)}; if (overlap)
+			PrintLine("Slop insufficient, overlap reoccurs"); if (occured) PrintLine("Slop
+			insufficient, intersect reoccurs");
 				}
 			  }
 			}*/
@@ -483,17 +492,15 @@ struct SweepTest : public Test {
 		for (std::size_t i = 0; i < grid_size.x; i++) {
 			for (std::size_t j = 0; j < grid_size.y; j++) {
 				V2_float pos{ i * size.x, j * size.y };
-				game.renderer.DrawRectangleHollow(pos, size, color::Black, Origin::Center);
+				game.draw.Rectangle(pos, size, color::Black, Origin::Center, 1.0f);
 			}
 		}
 
 		for (auto [e, p, b] : manager.EntitiesWith<Transform, BoxCollider>()) {
 			if (e == player) {
-				game.renderer.DrawRectangleFilled(p.position, b.size, color::Green, Origin::Center);
+				game.draw.Rectangle(p.position, b.size, color::Green, Origin::Center);
 			} else {
-				game.renderer.DrawRectangleHollow(
-					p.position, b.size, color::Blue, Origin::Center, 4.0f
-				);
+				game.draw.Rectangle(p.position, b.size, color::Blue, Origin::Center, 4.0f);
 			}
 		}
 	}

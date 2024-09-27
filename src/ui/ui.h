@@ -9,6 +9,7 @@
 
 namespace ptgn::impl {
 
+class Game;
 class UserInterface;
 
 class ButtonManager : public MapManager<std::shared_ptr<Button>> {
@@ -91,7 +92,7 @@ private:
 };
 
 class UserInterface {
-public:
+private:
 	UserInterface()									   = default;
 	~UserInterface()								   = default;
 	UserInterface(const UserInterface&)				   = delete;
@@ -101,6 +102,9 @@ public:
 
 public:
 	ButtonManager button;
+
+private:
+	friend class Game;
 };
 
 } // namespace ptgn::impl

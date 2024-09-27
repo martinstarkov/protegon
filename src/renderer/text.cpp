@@ -192,9 +192,9 @@ void Text::Draw(const Rectangle<float>& destination, float z_index) const {
 	if (!t.texture_.IsValid()) {
 		return;
 	}
-	game.renderer.DrawTexture(
-		t.texture_, destination.pos, destination.size, {}, {}, destination.origin, Flip::None, 0.0f,
-		{}, z_index
+	game.draw.Texture(
+		t.texture_, destination.pos, destination.size,
+		{ {}, {}, destination.origin, Flip::None, 0.0f, {}, z_index }
 	);
 }
 

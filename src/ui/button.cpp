@@ -44,11 +44,11 @@ void Button::Draw() const {
 }
 
 void Button::DrawHollow(float line_width) const {
-	game.renderer.DrawRectangleHollow(rect_, color::Black, line_width);
+	game.draw.Rectangle(rect_.pos, rect_.size, color::Black, rect_.origin, line_width);
 }
 
 void Button::DrawFilled() const {
-	game.renderer.DrawRectangleFilled(rect_, color::Black);
+	game.draw.Rectangle(rect_.pos, rect_.size, color::Black, rect_.origin);
 }
 
 void Button::SetInteractable(bool interactable) {
@@ -462,12 +462,12 @@ void ColorButton::Draw() const {
 
 void ColorButton::DrawHollow(float line_width) const {
 	const Color& color = GetCurrentColorImpl(GetState(), 0);
-	game.renderer.DrawRectangleHollow(rect_, color, line_width);
+	game.draw.Rectangle(rect_.pos, rect_.size, color, rect_.origin, line_width);
 }
 
 void ColorButton::DrawFilled() const {
 	const Color& color = GetCurrentColorImpl(GetState(), 0);
-	game.renderer.DrawRectangleFilled(rect_, color);
+	game.draw.Rectangle(rect_.pos, rect_.size, color, rect_.origin);
 }
 
 const Color& ColorButton::GetCurrentColorImpl(ButtonState state, std::size_t color_array_index)
@@ -545,10 +545,10 @@ void TexturedButton::DrawImpl(std::size_t texture_array_index) const {
 		texture = GetCurrentTextureImpl(ButtonState::Default, 0);
 	}
 	PTGN_ASSERT(texture.IsValid(), "Button state texture (or default texture) must be valid");
-	game.renderer.DrawTexture(
-		texture, rect_.pos, rect_.size, {}, {}, rect_.origin, Flip::None, 0.0f, {}, 0.0f,
-		tint_color_
-	);
+	TextureInfo i;
+	i.source.origin = rect_.origin;
+	i.tint			= tint_color_;
+	game.draw.Texture(texture, rect_.pos, rect_.size, i);
 }
 
 void TexturedButton::Draw() const {

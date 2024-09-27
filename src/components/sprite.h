@@ -173,23 +173,23 @@ using SpriteFlip = Flip;
 using SpriteZ = float;
 
 void Sprite::Draw(ecs::Entity entity, const Transform& transform) const {
-	game.renderer.DrawTexture(
-		texture, transform.position + draw_offset, source.size * transform.scale, source.pos,
-		source.size, source.origin,
-		entity.Has<SpriteFlip>() ? entity.Get<SpriteFlip>() : Flip::None, transform.rotation,
-		V2_float{ 0.5f, 0.5f }, entity.Has<SpriteZ>() ? entity.Get<SpriteZ>() : 0.0f,
-		entity.Has<SpriteTint>() ? entity.Get<SpriteTint>() : color::White
+	game.draw.Texture(
+		texture, transform.position + draw_offset, source.size * transform.scale,
+		{ source.pos, source.size, source.origin,
+		  entity.Has<SpriteFlip>() ? entity.Get<SpriteFlip>() : Flip::None, transform.rotation,
+		  V2_float{ 0.5f, 0.5f }, entity.Has<SpriteZ>() ? entity.Get<SpriteZ>() : 0.0f,
+		  entity.Has<SpriteTint>() ? entity.Get<SpriteTint>() : color::White }
 	);
 }
 
 void Animation::Draw(ecs::Entity entity, const Transform& transform) const {
 	const auto& source{ GetSource() };
-	game.renderer.DrawTexture(
-		texture, transform.position + draw_offset, sprite_size * transform.scale, source.pos,
-		source.size, source.origin,
-		entity.Has<SpriteFlip>() ? entity.Get<SpriteFlip>() : Flip::None, transform.rotation,
-		V2_float{ 0.5f, 0.5f }, entity.Has<SpriteZ>() ? entity.Get<SpriteZ>() : 0.0f,
-		entity.Has<SpriteTint>() ? entity.Get<SpriteTint>() : color::White
+	game.draw.Texture(
+		texture, transform.position + draw_offset, sprite_size * transform.scale,
+		{ source.pos, source.size, source.origin,
+		  entity.Has<SpriteFlip>() ? entity.Get<SpriteFlip>() : Flip::None, transform.rotation,
+		  V2_float{ 0.5f, 0.5f }, entity.Has<SpriteZ>() ? entity.Get<SpriteZ>() : 0.0f,
+		  entity.Has<SpriteTint>() ? entity.Get<SpriteTint>() : color::White }
 	);
 }
 

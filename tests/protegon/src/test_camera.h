@@ -32,6 +32,8 @@ struct TestCameraSwitching : public Test {
 	const int cameras{ 5 };
 
 	void Init() override {
+		camera = 0;
+
 		camera0 = game.camera.Load("0");
 		camera1 = game.camera.Load("1");
 		camera2 = game.camera.Load("2");
@@ -61,7 +63,7 @@ struct TestCameraSwitching : public Test {
 	}
 
 	void Draw() override {
-		game.renderer.DrawRectangleFilled(center, ws * 0.5f, color::DarkGreen);
+		game.draw.Rectangle(center, ws * 0.5f, color::DarkGreen);
 	}
 };
 
@@ -73,7 +75,7 @@ struct TestCameraControls : public Test {
 	const float zoom_speed{ 0.4f };
 
 	void Update() override {
-		auto& camera{ game.camera.GetCurrent() };
+		auto& camera{ game.camera.GetPrimary() };
 
 		if (game.input.KeyPressed(Key::W)) {
 			camera.Translate({ 0, -pan_speed * dt });
@@ -127,7 +129,7 @@ struct TestCameraControls : public Test {
 	}
 
 	void Draw() override {
-		game.renderer.DrawTexture(texture, center, texture.GetSize());
+		game.draw.Texture(texture, center, texture.GetSize());
 	}
 };
 
@@ -135,7 +137,7 @@ struct TestCameraBounds : public TestCameraControls {
 	const float bound_width{ 3.0f };
 
 	void Init() override {
-		auto& camera{ game.camera.GetCurrent() };
+		auto& camera{ game.camera.GetPrimary() };
 
 		Rectangle<float> bounds{ {}, { 800, 800 }, Origin::TopLeft };
 
@@ -144,8 +146,9 @@ struct TestCameraBounds : public TestCameraControls {
 
 	void Draw() override {
 		TestCameraControls::Draw();
-		const auto& camera{ game.camera.GetCurrent() };
-		game.renderer.DrawRectangleHollow(camera.GetBounds(), color::Red, bound_width);
+		const auto& camera{ game.camera.GetPrimary() };
+		const auto& bounds{ camera.GetBounds() };
+		game.draw.Rectangle(bounds.pos, bounds.size, color::Red, bounds.origin, bound_width);
 	}
 };
 
@@ -184,7 +187,7 @@ struct TestParallax : public Test {
 	}
 
 	void Update() override {
-		auto& camera{ game.camera.GetCurrent() };
+		auto& camera{ game.camera.GetPrimary() };
 
 		camera.SetSize(ws);
 
@@ -217,16 +220,16 @@ struct TestParallax : public Test {
 	}
 
 	void Draw() override {
-		auto& camera{ game.camera.GetCurrent() };
+		auto& camera{ game.camera.GetPrimary() };
 		V2_float pos = camera.GetPosition();
 
 		camera.SetPosition({ 0.0f, 0.0f });
 
-		game.renderer.DrawTexture(background, bg_pos, { size.x * bg_aspect_ratio, size.y });
-		game.renderer.DrawTexture(stars, stars_pos, { size.x * bg_aspect_ratio, size.y });
+		game.draw.Texture(background, bg_pos, { size.x * bg_aspect_ratio, size.y });
+		game.draw.Texture(stars, stars_pos, { size.x * bg_aspect_ratio, size.y });
 
-		game.renderer.DrawTexture(planet_b, planet_b_pos, planet_b.GetSize() * scale);
-		game.renderer.DrawTexture(planet_s, planet_s_pos, planet_s.GetSize() * scale);
+		game.draw.Texture(planet_b, planet_b_pos, planet_b.GetSize() * scale);
+		game.draw.Texture(planet_s, planet_s_pos, planet_s.GetSize() * scale);
 
 		camera.SetPosition(pos);
 	}

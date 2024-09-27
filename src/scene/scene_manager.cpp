@@ -133,7 +133,7 @@ bool SceneManager::UpdateFlagged() {
 					// Input is reset to ensure no previously pressed keys are considered held.
 					game.input.Reset();
 					// Each scene starts with a refreshed camera.
-					scene->camera.Reset();
+					scene->camera.ResetPrimary();
 					scene->Init();
 					scene_change = true;
 					break;

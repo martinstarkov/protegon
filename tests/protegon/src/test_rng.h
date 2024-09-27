@@ -170,16 +170,12 @@ struct TestFractalNoise : public Test {
 						255.0f * static_cast<float>(range) * opacity_range
 					);
 
-					game.renderer.DrawRectangleFilled(
-						p * pixel_size, pixel_size, color, Origin::TopLeft
-					);
+					game.draw.Rectangle(p * pixel_size, pixel_size, color, Origin::TopLeft);
 				} else {
 					Color color	  = color::Black;
 					float opacity = noise_value * 255.0f;
 					color.a		  = static_cast<std::uint8_t>(opacity);
-					game.renderer.DrawRectangleFilled(
-						p * pixel_size, pixel_size, color, Origin::TopLeft
-					);
+					game.draw.Rectangle(p * pixel_size, pixel_size, color, Origin::TopLeft);
 				}
 			}
 		}
