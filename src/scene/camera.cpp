@@ -28,17 +28,15 @@ namespace ptgn {
 
 V2_float WorldToScreen(const V2_float& world_position) {
 	const auto& primary{ game.camera.GetPrimary() };
-	V2_float offset{ primary.GetTopLeftPosition() };
 	float scale{ primary.GetZoom() };
 	PTGN_ASSERT(scale != 0.0f);
-	return (world_position - offset) * scale;
+	return (world_position - primary.GetPosition()) * scale + primary.GetSize() / 2.0f;
 }
 
 V2_float ScreenToWorld(const V2_float& screen_position) {
 	const auto& primary{ game.camera.GetPrimary() };
 	float scale{ primary.GetZoom() };
 	PTGN_ASSERT(scale != 0.0f);
-	V2_float offset{ primary.GetTopLeftPosition() };
 	return (screen_position - primary.GetSize() / 2.0f) / scale + primary.GetPosition();
 }
 
@@ -127,11 +125,13 @@ void OrthographicCamera::SetFlip(Flip flip) {
 }
 
 void OrthographicCamera::CenterOnWindow(bool continuously) {
+	Create();
 	if (continuously) {
 		Get().center_to_window = true;
 		SubscribeToWindowResize();
 	} else {
-		SetSize(game.window.GetSize());
+		V2_float s = game.window.GetSize();
+		SetPositionImpl({ s.x / 2.0f, s.y / 2.0f, Get().position.z });
 	}
 }
 
@@ -324,6 +324,7 @@ void OrthographicCamera::Roll(float angle_change) {
 }
 
 void OrthographicCamera::SetSizeToWindow(bool continuously) {
+	Create();
 	if (continuously) {
 		Get().resize_to_window = true;
 		SubscribeToWindowResize();
@@ -439,29 +440,36 @@ void CameraController::UnsubscribeFromMouseEvents() {
 namespace impl {
 
 CameraManager::CameraManager() {
-	primary_.SubscribeToWindowResize();
+	OrthographicCamera c;
+	c.SubscribeToWindowResize();
+	primary_cameras_.emplace(0, c);
 }
 
-void CameraManager::SetPrimary(const OrthographicCamera& camera) {
-	primary_ = camera;
+void CameraManager::SetPrimary(const OrthographicCamera& camera, std::size_t render_layer) {
+	primary_cameras_[render_layer] = camera;
 }
 
-const OrthographicCamera& CameraManager::GetPrimary() const {
-	return primary_;
+const OrthographicCamera& CameraManager::GetPrimary(std::size_t render_layer) const {
+	auto it = primary_cameras_.find(render_layer);
+	PTGN_ASSERT(
+		it != primary_cameras_.end(), "Primary camera does not exist for the given render layer"
+	);
+	return it->second;
 }
 
-OrthographicCamera& CameraManager::GetPrimary() {
-	return primary_;
+OrthographicCamera& CameraManager::GetPrimary(std::size_t render_layer) {
+	if (auto it = primary_cameras_.find(render_layer); it != primary_cameras_.end()) {
+		return it->second;
+	}
+	OrthographicCamera c;
+	c.SubscribeToWindowResize();
+	auto new_it = primary_cameras_.emplace(render_layer, c);
+	return new_it.first->second;
 }
 
-void CameraManager::SetPrimaryImpl(const InternalKey& key) {
+void CameraManager::SetPrimaryImpl(const InternalKey& key, std::size_t render_layer) {
 	PTGN_ASSERT(Has(key), "Cannot set camera which has not been loaded as the primary camera");
-	primary_ = Get(key);
-}
-
-M4_float CameraManager::GetViewProjection() {
-	PTGN_ASSERT(primary_.IsValid(), "Could not retrieve view projection of invalid primary camera");
-	return primary_.GetViewProjection();
+	SetPrimary(Get(key), render_layer);
 }
 
 void CameraManager::Reset() {
@@ -470,9 +478,11 @@ void CameraManager::Reset() {
 }
 
 void CameraManager::ResetPrimary() {
-	primary_.UnsubscribeFromWindowResize();
-	primary_ = {};
-	primary_.SubscribeToWindowResize();
+	for (auto& [layer, camera] : primary_cameras_) {
+		camera.UnsubscribeFromWindowResize();
+		camera = {};
+		camera.SubscribeToWindowResize();
+	}
 }
 
 CameraManager::Item& ActiveSceneCameraManager::LoadImpl(const InternalKey& key, Item&& item) {
@@ -498,20 +508,22 @@ void ActiveSceneCameraManager::Clear() {
 	game.scene.GetTopActive().camera.Clear();
 }
 
-void ActiveSceneCameraManager::SetPrimaryImpl(const InternalKey& key) {
-	game.scene.GetTopActive().camera.SetPrimary(key);
+void ActiveSceneCameraManager::SetPrimaryImpl(const InternalKey& key, std::size_t render_layer) {
+	game.scene.GetTopActive().camera.SetPrimary(key, render_layer);
 }
 
-void ActiveSceneCameraManager::SetPrimary(const OrthographicCamera& camera) {
-	game.scene.GetTopActive().camera.SetPrimary(camera);
+void ActiveSceneCameraManager::SetPrimary(
+	const OrthographicCamera& camera, std::size_t render_layer
+) {
+	game.scene.GetTopActive().camera.SetPrimary(camera, render_layer);
 }
 
-const OrthographicCamera& ActiveSceneCameraManager::GetPrimary() const {
-	return game.scene.GetTopActive().camera.GetPrimary();
+const OrthographicCamera& ActiveSceneCameraManager::GetPrimary(std::size_t render_layer) const {
+	return game.scene.GetTopActive().camera.GetPrimary(render_layer);
 }
 
-OrthographicCamera& ActiveSceneCameraManager::GetPrimary() {
-	return game.scene.GetTopActive().camera.GetPrimary();
+OrthographicCamera& ActiveSceneCameraManager::GetPrimary(std::size_t render_layer) {
+	return game.scene.GetTopActive().camera.GetPrimary(render_layer);
 }
 
 void ActiveSceneCameraManager::Reset() {

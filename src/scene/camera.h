@@ -1,5 +1,7 @@
 #pragma once
 
+#include <map>
+
 #include "core/manager.h"
 #include "protegon/matrix4.h"
 #include "protegon/polygon.h"
@@ -24,9 +26,6 @@ V2_float ScaleToWorld(const V2_float& screen_size);
 float ScaleToWorld(float screen_size);
 
 namespace impl {
-
-class CameraManager;
-class ActiveSceneCameraManager;
 
 struct Camera {
 	V3_float position;
@@ -120,9 +119,9 @@ public:
 
 	void PrintInfo() const;
 
-protected:
-	friend class impl::CameraManager;
+	[[nodiscard]] const M4_float& GetViewProjection();
 
+protected:
 	void RefreshBounds();
 
 	void SetPositionImpl(const V3_float& new_position);
@@ -130,7 +129,6 @@ protected:
 
 	[[nodiscard]] const M4_float& GetView();
 	[[nodiscard]] const M4_float& GetProjection();
-	[[nodiscard]] const M4_float& GetViewProjection();
 
 	void OnWindowResize(const V2_float& size);
 
@@ -142,6 +140,8 @@ protected:
 namespace impl {
 
 class Game;
+class Renderer;
+class ActiveSceneCameraManager;
 
 class CameraManager : public MapManager<OrthographicCamera> {
 public:
@@ -150,28 +150,31 @@ public:
 	CameraManager();
 
 	template <typename TKey>
-	void SetPrimary(const TKey& key) {
-		SetPrimaryImpl(GetInternalKey(key));
+	void SetPrimary(const TKey& key, std::size_t render_layer = 0) {
+		SetPrimaryImpl(GetInternalKey(key), render_layer);
 	}
 
-	void SetPrimary(const OrthographicCamera& camera);
+	void SetPrimary(const OrthographicCamera& camera, std::size_t render_layer = 0);
 
-	[[nodiscard]] const OrthographicCamera& GetPrimary() const;
-	[[nodiscard]] OrthographicCamera& GetPrimary();
+	[[nodiscard]] const OrthographicCamera& GetPrimary(std::size_t render_layer = 0) const;
+
+	// If primary camera does not exist for the given layer, it will be
+	[[nodiscard]] OrthographicCamera& GetPrimary(std::size_t render_layer = 0);
 
 	void Reset();
+
+	// Resets all render layer primary cameras.
 	void ResetPrimary();
 
 private:
-	friend class Game;
 	friend class ActiveSceneCameraManager;
+	friend class Game;
 	friend class Renderer;
 
-	void SetPrimaryImpl(const InternalKey& key);
+	void SetPrimaryImpl(const InternalKey& key, std::size_t render_layer);
 
-	M4_float GetViewProjection();
-
-	OrthographicCamera primary_;
+	// Key: render_layer, Value: camera.
+	std::map<std::size_t, OrthographicCamera> primary_cameras_;
 };
 
 // This class provides quick access to the current top active scene.
@@ -211,14 +214,14 @@ public:
 	static void Clear();
 
 	template <typename TKey>
-	static void SetPrimary(const TKey& key) {
-		SetPrimaryImpl(CameraManager::GetInternalKey(key));
+	static void SetPrimary(const TKey& key, std::size_t render_layer = 0) {
+		SetPrimaryImpl(CameraManager::GetInternalKey(key), render_layer);
 	}
 
-	static void SetPrimary(const OrthographicCamera& camera);
+	static void SetPrimary(const OrthographicCamera& camera, std::size_t render_layer = 0);
 
-	[[nodiscard]] const OrthographicCamera& GetPrimary() const;
-	[[nodiscard]] OrthographicCamera& GetPrimary();
+	[[nodiscard]] const OrthographicCamera& GetPrimary(std::size_t render_layer = 0) const;
+	[[nodiscard]] OrthographicCamera& GetPrimary(std::size_t render_layer = 0);
 
 	static void Reset();
 	static void ResetPrimary();
@@ -233,7 +236,7 @@ private:
 	[[nodiscard]] static bool HasImpl(const InternalKey& key);
 	[[nodiscard]] static Item& GetImpl(const InternalKey& key);
 
-	static void SetPrimaryImpl(const InternalKey& key);
+	static void SetPrimaryImpl(const InternalKey& key, std::size_t render_layer);
 };
 
 } // namespace impl
