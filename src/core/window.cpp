@@ -35,7 +35,10 @@ void WindowDeleter::operator()(SDL_Window* window) const {
 
 void Window::Init() {
 	PTGN_ASSERT(!Exists(), "Previous window must be destroyed before initializing a new one");
-	window_.reset(SDL_CreateWindow("", 0, 0, 0, 0, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN));
+	window_.reset(SDL_CreateWindow(
+		"", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 0, 0,
+		SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN | SDL_WINDOW_ALLOW_HIGHDPI
+	));
 	PTGN_ASSERT(Exists(), SDL_GetError());
 	PTGN_INFO("Created SDL2 window");
 }
@@ -48,10 +51,19 @@ void Window::SwapBuffers() const {
 	SDL_GL_SwapWindow(window_.get());
 }
 
-V2_int Window::GetSize() const {
+V2_int Window::GetSize(int type) const {
 	PTGN_ASSERT(Exists(), "Cannot get size of nonexistent window");
 	V2_int size;
-	SDL_GL_GetDrawableSize(window_.get(), &size.x, &size.y);
+	PTGN_ASSERT(
+		type == 0 || type == 1 || type == 2, "Unrecognized type provided to window.GetSize"
+	);
+	if (type == 0) {
+		SDL_GL_GetDrawableSize(window_.get(), &size.x, &size.y);
+	} else if (type == 1) {
+		SDL_GetWindowSizeInPixels(window_.get(), &size.x, &size.y);
+	} else if (type == 2) {
+		SDL_GetWindowSize(window_.get(), &size.x, &size.y);
+	}
 	return size;
 }
 
@@ -93,6 +105,18 @@ V2_int Window::GetMinimumSize() const {
 	return minimum_size;
 }
 
+void Window::SetMaximumSize(const V2_int& maximum_size) const {
+	PTGN_ASSERT(Exists(), "Cannot set maximum size of nonexistent window");
+	SDL_SetWindowMaximumSize(window_.get(), maximum_size.x, maximum_size.y);
+}
+
+V2_int Window::GetMaximumSize() const {
+	PTGN_ASSERT(Exists(), "Cannot get maximum size of nonexistent window");
+	V2_int maximum_size;
+	SDL_GetWindowMinimumSize(window_.get(), &maximum_size.x, &maximum_size.y);
+	return maximum_size;
+}
+
 V2_int Window::GetPosition() const {
 	PTGN_ASSERT(Exists(), "Cannot get position of nonexistent window");
 	V2_int origin;
@@ -128,39 +152,75 @@ void Window::SetTitle(const std::string& new_title) const {
 	return SDL_SetWindowTitle(window_.get(), new_title.c_str());
 }
 
-void Window::SetFullscreen(FullscreenMode mode) const {
-	PTGN_ASSERT(Exists(), "Cannot toggle nonexistent window fullscreen");
-	SDL_SetWindowFullscreen(window_.get(), static_cast<std::uint32_t>(mode));
+void Window::SetSetting(WindowSetting setting) const {
+	const auto set_windowed = [](SDL_Window* window, int x, int y, int w, int h,
+								 SDL_bool resizeable, SDL_bool bordered) {
+		int flags = SDL_GetWindowFlags(window);
+		if ((flags & SDL_WINDOW_FULLSCREEN) == 0) {
+			return;
+		}
+		SDL_SetWindowSize(window, w, h);
+		SDL_SetWindowFullscreen(window, 0);
+		SDL_SetWindowResizable(window, resizeable);
+		SDL_SetWindowBordered(window, bordered);
+		SDL_SetWindowPosition(window, x, y);
+	};
+
+	const auto set_fullscreen = [](SDL_Window* window) {
+		int flags = SDL_GetWindowFlags(window);
+		if ((flags & SDL_WINDOW_FULLSCREEN) == SDL_WINDOW_FULLSCREEN) {
+			return;
+		}
+		SDL_DisplayMode mode;
+		SDL_Rect rect;
+		SDL_GetCurrentDisplayMode(0, &mode);
+		SDL_GetDisplayBounds(0, &rect);
+		SDL_SetWindowPosition(window, rect.x, rect.y);
+		SDL_SetWindowSize(window, rect.w, rect.h);
+		SDL_SetWindowDisplayMode(window, &mode);
+		SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
+	};
+
+	PTGN_ASSERT(Exists(), "Cannot set setting of nonexistent window");
+	switch (setting) {
+		case WindowSetting::Shown:	SDL_ShowWindow(window_.get()); break;
+		case WindowSetting::Hidden: SDL_HideWindow(window_.get()); break;
+		case WindowSetting::Windowed:
+			set_windowed(
+				window_.get(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 800, SDL_FALSE,
+				SDL_TRUE
+			);
+			break;
+		// TODO: Include sequence outlined in:
+		// https://github.com/libsdl-org/SDL/issues/8544#issuecomment-1891013313
+		case WindowSetting::Fullscreen: set_fullscreen(window_.get()); break;
+		case WindowSetting::Borderless: SDL_SetWindowBordered(window_.get(), SDL_FALSE); break;
+		case WindowSetting::Bordered:	SDL_SetWindowBordered(window_.get(), SDL_TRUE); break;
+		case WindowSetting::Resizable:	SDL_SetWindowResizable(window_.get(), SDL_TRUE); break;
+		case WindowSetting::FixedSize:	SDL_SetWindowResizable(window_.get(), SDL_FALSE); break;
+		case WindowSetting::Maximized:	SDL_MaximizeWindow(window_.get()); break;
+		case WindowSetting::Minimized:	SDL_MinimizeWindow(window_.get()); break;
+		default:						PTGN_ERROR("Cannot set unrecognized window setting");
+	}
 }
 
-void Window::SetResizeable(bool on) const {
-	PTGN_ASSERT(Exists(), "Cannot toggle nonexistent window resizeability");
-	SDL_SetWindowResizable(window_.get(), static_cast<SDL_bool>(on));
-}
-
-void Window::SetBorderless(bool on) const {
-	PTGN_ASSERT(Exists(), "Cannot toggle nonexistent window bordered");
-	SDL_SetWindowBordered(window_.get(), static_cast<SDL_bool>(!on));
-}
-
-void Window::Maximize() const {
-	PTGN_ASSERT(Exists(), "Cannot maximize nonexistent window");
-	SDL_MaximizeWindow(window_.get());
-}
-
-void Window::Minimize() const {
-	PTGN_ASSERT(Exists(), "Cannot minimize nonexistent window");
-	SDL_MinimizeWindow(window_.get());
-}
-
-void Window::Show() const {
-	PTGN_ASSERT(Exists(), "Cannot show nonexistent window");
-	SDL_ShowWindow(window_.get());
-}
-
-void Window::Hide() const {
-	PTGN_ASSERT(Exists(), "Cannot hide nonexistent window");
-	SDL_HideWindow(window_.get());
+bool Window::GetSetting(WindowSetting setting) const {
+	PTGN_ASSERT(Exists(), "Cannot get setting of nonexistent window");
+	int flags = SDL_GetWindowFlags(window_.get());
+	switch (setting) {
+		case WindowSetting::Shown:	  return flags & SDL_WINDOW_SHOWN;
+		case WindowSetting::Hidden:	  return !(flags & SDL_WINDOW_SHOWN);
+		case WindowSetting::Windowed: return (flags & SDL_WINDOW_FULLSCREEN) == 0;
+		case WindowSetting::Fullscreen:
+			return (flags & SDL_WINDOW_FULLSCREEN) == SDL_WINDOW_FULLSCREEN;
+		case WindowSetting::Borderless: return flags & SDL_WINDOW_BORDERLESS;
+		case WindowSetting::Bordered:	return !(flags & SDL_WINDOW_BORDERLESS);
+		case WindowSetting::Resizable:	return flags & SDL_WINDOW_RESIZABLE;
+		case WindowSetting::FixedSize:	return !(flags & SDL_WINDOW_RESIZABLE);
+		case WindowSetting::Maximized:	return flags & SDL_WINDOW_MAXIMIZED;
+		case WindowSetting::Minimized:	return flags & SDL_WINDOW_MINIMIZED;
+		default:						PTGN_ERROR("Cannot retrieve unrecognized window setting");
+	}
 }
 
 } // namespace impl

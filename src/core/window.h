@@ -10,10 +10,18 @@ struct SDL_Window;
 
 namespace ptgn {
 
-enum class FullscreenMode {
-	Windowed		  = 0,
-	Fullscreen		  = 1,
-	DesktopFullscreen = 4096
+enum class WindowSetting {
+	Windowed,
+	Fullscreen,
+	Borderless,
+	Bordered,
+	// Note: The Maximized and Minimized settings are cancelled by setting Resizeable.
+	Resizable,
+	FixedSize,
+	Maximized,
+	Minimized,
+	Shown,
+	Hidden
 };
 
 struct Screen {
@@ -43,8 +51,12 @@ public:
 	void SetMinimumSize(const V2_int& minimum_size) const;
 	[[nodiscard]] V2_int GetMinimumSize() const;
 
+	void SetMaximumSize(const V2_int& maximum_size) const;
+	[[nodiscard]] V2_int GetMaximumSize() const;
+
 	void SetSize(const V2_int& new_size, bool centered = true) const;
-	[[nodiscard]] V2_int GetSize() const;
+	// TODO: Get rid of this.
+	[[nodiscard]] V2_int GetSize(int type = 0) const;
 
 	// Returns the center coordinate of the window.
 	[[nodiscard]] V2_float GetCenter() const;
@@ -58,22 +70,10 @@ public:
 
 	void SetPosition(const V2_int& new_origin) const;
 
-	void SetFullscreen(FullscreenMode mode) const;
+	void SetSetting(WindowSetting setting) const;
 
-	// Note: The effect of Maximimize() is cancelled after calling
-	// SetResizeable(true).
-	void SetResizeable(bool on) const;
-
-	void SetBorderless(bool on) const;
-
-	// Note: The effect of Maximimize() is cancelled after calling
-	// SetResizeable(true).
-	void Maximize() const;
-	void Minimize() const;
-
-	void Show() const;
-
-	void Hide() const;
+	// Get the current state of a window setting.
+	[[nodiscard]] bool GetSetting(WindowSetting setting) const;
 
 private:
 	friend class Game;
