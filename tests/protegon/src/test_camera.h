@@ -69,10 +69,16 @@ struct TestCameraSwitching : public Test {
 
 struct TestCameraControls : public Test {
 	Texture texture{ "resources/sprites/test1.jpg" };
+	Texture ui_texture{ "resources/sprites/ui.jpg" };
 
 	const float pan_speed	   = 200.0f;
 	const float rotation_speed = 1.0f;
 	const float zoom_speed{ 0.4f };
+
+	void Init() override {
+		auto& camera2{ game.camera.GetPrimary(2) };
+		camera2.SetPosition({ 0, 0 });
+	}
 
 	void Update() override {
 		auto& camera{ game.camera.GetPrimary() };
@@ -130,6 +136,14 @@ struct TestCameraControls : public Test {
 
 	void Draw() override {
 		game.draw.Texture(texture, center, texture.GetSize());
+		TextureInfo ui_info;
+		ui_info.source.origin = Origin::TopLeft;
+		ui_info.render_layer  = 1;
+		game.draw.Texture(ui_texture, { 0, 0 }, ui_texture.GetSize(), ui_info);
+		TextureInfo ui_info2;
+		ui_info2.source.origin = Origin::Center;
+		ui_info2.render_layer  = 2;
+		game.draw.Texture(ui_texture, { 0, 0 }, 3 * ui_texture.GetSize(), ui_info2);
 	}
 };
 
@@ -137,6 +151,8 @@ struct TestCameraBounds : public TestCameraControls {
 	const float bound_width{ 3.0f };
 
 	void Init() override {
+		TestCameraControls::Init();
+
 		auto& camera{ game.camera.GetPrimary() };
 
 		Rectangle<float> bounds{ {}, { 800, 800 }, Origin::TopLeft };
@@ -238,8 +254,8 @@ struct TestParallax : public Test {
 void TestCamera() {
 	std::vector<std::shared_ptr<Test>> tests;
 
-	tests.emplace_back(new TestCameraBounds());
 	tests.emplace_back(new TestCameraControls());
+	tests.emplace_back(new TestCameraBounds());
 	tests.emplace_back(new TestCameraSwitching());
 	tests.emplace_back(new TestParallax());
 
