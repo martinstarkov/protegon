@@ -37,8 +37,8 @@ public:
 
 		// Non-visual tests.
 
-		TestMatrix4();
 		TestECS();
+		TestMatrix4();
 		TestMath();
 		TestVector2();
 
