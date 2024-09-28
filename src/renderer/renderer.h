@@ -1,10 +1,14 @@
 #pragma once
 
+#include "protegon/color.h"
+#include "protegon/matrix4.h"
+#include "protegon/polygon.h"
+#include "protegon/texture.h"
+#include "protegon/vector2.h"
+#include "protegon/vertex_array.h"
 #include "renderer/batch.h"
+#include "renderer/flip.h"
 #include "renderer/origin.h"
-
-// TODO: If batch size is very small, z_indexes get drawn in 2 calls which completely defeats the
-// purpose of it.
 
 namespace ptgn {
 
@@ -14,27 +18,29 @@ struct TextureInfo {
 	TextureInfo(
 		const Rectangle<float>& source, Flip flip = Flip::None, float rotation = 0.0f,
 		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f,
-		const Color& tint = color::White
+		const Color& tint = color::White, std::size_t render_layer = 0
 	) :
 		source{ source },
 		flip{ flip },
 		rotation{ rotation },
 		rotation_center{ rotation_center },
 		z_index{ z_index },
-		tint{ tint } {}
+		tint{ tint },
+		render_layer{ render_layer } {}
 
 	TextureInfo(
 		const V2_float& source_pos, const V2_float& source_size,
 		Origin draw_origin = Origin::Center, Flip flip = Flip::None, float rotation = 0.0f,
 		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f,
-		const Color& tint = color::White
+		const Color& tint = color::White, std::size_t render_layer = 0
 	) :
 		TextureInfo{ Rectangle<float>{ source_pos, source_size, draw_origin },
 					 flip,
 					 rotation,
 					 rotation_center,
 					 z_index,
-					 tint } {}
+					 tint,
+					 render_layer } {}
 
 	/*
 	source.pos Top left pixel to start drawing texture from within the texture (defaults to { 0, 0
@@ -55,9 +61,14 @@ struct TextureInfo {
 	// Color to tint the texture. Allows to change the transparency of a texture. (Default:
 	// color::White corresponds to no tint effect ).
 	Color tint{ color::White };
+	std::size_t render_layer{ 0 };
 };
 
 namespace impl {
+
+class CameraManager;
+class Game;
+struct RenderLayer;
 
 class Renderer {
 public:
@@ -70,9 +81,15 @@ public:
 
 	void Clear() const;
 
+	// Flushes all render layers.
 	void Present();
 
+	// Flush all render layers.
 	void Flush();
+
+	// Flush only a specific render layer. If the specified render layer does not have a primary
+	// camera, the model view projection matrix will be an identity matrix.
+	void Flush(std::size_t render_layer);
 
 	void VertexElements(const VertexArray& va, std::size_t index_count) const;
 	void VertexArray(const VertexArray& va, std::size_t vertex_count) const;
@@ -83,17 +100,19 @@ public:
 	);
 
 	void Point(
-		const V2_float& position, const Color& color, float radius = 1.0f, float z_index = 0.0f
+		const V2_float& position, const Color& color, float radius = 1.0f, float z_index = 0.0f,
+		std::size_t render_layer = 0
 	);
 
 	void Line(
 		const V2_float& p0, const V2_float& p1, const Color& color, float line_width = 1.0f,
-		float z_index = 0.0f
+		float z_index = 0.0f, std::size_t render_layer = 0
 	);
 
 	void Triangle(
 		const V2_float& vertex1, const V2_float& vertex2, const V2_float& vertex3,
-		const Color& color, float line_width = -1.0f, float z_index = 0.0f
+		const Color& color, float line_width = -1.0f, float z_index = 0.0f,
+		std::size_t render_layer = 0
 	);
 
 	// Rotation angle in radians.
@@ -101,17 +120,17 @@ public:
 		const V2_float& position, const V2_float& size, const Color& color,
 		Origin draw_origin = Origin::Center, float line_width = -1.0f,
 		float rotation_radians = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
-		float z_index = 0.0f
+		float z_index = 0.0f, std::size_t render_layer = 0
 	);
 
 	void Polygon(
 		const V2_float* vertices, std::size_t vertex_count, const Color& color,
-		float line_width = -1.0f, float z_index = 0.0f
+		float line_width = -1.0f, float z_index = 0.0f, std::size_t render_layer = 0
 	);
 
 	void Circle(
 		const V2_float& position, float radius, const Color& color, float line_width = -1.0f,
-		float z_index = 0.0f, float fade = 0.005f
+		float z_index = 0.0f, std::size_t render_layer = 0, float fade = 0.005f
 	);
 
 	// Rotation angle in radians.
@@ -119,23 +138,26 @@ public:
 		const V2_float& position, const V2_float& size, float radius, const Color& color,
 		Origin draw_origin = Origin::Center, float line_width = -1.0f,
 		float rotation_radians = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
-		float z_index = 0.0f
+		float z_index = 0.0f, std::size_t render_layer = 0
 	);
 
 	void Ellipse(
 		const V2_float& position, const V2_float& radius, const Color& color,
-		float line_width = -1.0f, float z_index = 0.0f, float fade = 0.005f
+		float line_width = -1.0f, float z_index = 0.0f, std::size_t render_layer = 0,
+		float fade = 0.005f
 	);
 
 	// Angles in radians, counter-clockwise from the right.
 	void Arc(
 		const V2_float& position, float arc_radius, float start_angle, float end_angle,
-		bool clockwise, const Color& color, float line_width = -1.0f, float z_index = 0.0f
+		bool clockwise, const Color& color, float line_width = -1.0f, float z_index = 0.0f,
+		std::size_t render_layer = 0
 	);
 
 	void Capsule(
 		const V2_float& p0, const V2_float& p1, float radius, const Color& color,
-		float line_width = -1.0f, float z_index = 0.0f, float fade = 0.005f
+		float line_width = -1.0f, float z_index = 0.0f, std::size_t render_layer = 0,
+		float fade = 0.005f
 	);
 
 	void SetBlendMode(BlendMode mode);
@@ -146,11 +168,11 @@ public:
 
 	void SetViewport(const V2_int& size);
 
-	void UpdateViewProjection(const M4_float& view_projection);
-
 private:
 	friend class CameraManager;
 	friend class Game;
+
+	void UpdateLayer(std::size_t layer_number, RenderLayer& layer, CameraManager& camera_manager);
 
 	void Init();
 	void Shutdown();

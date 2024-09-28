@@ -37,6 +37,7 @@
 #include "scene/scene_manager.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
+#include "utility/triangulation.h"
 
 namespace ptgn::impl {
 
@@ -48,163 +49,7 @@ template class BatchData<PointVertices, 1>;
 
 static constexpr std::size_t batch_capacity{ 2000 };
 
-float TriangulateArea(const V2_float* contour, std::size_t count) {
-	PTGN_ASSERT(contour != nullptr);
-	auto n = static_cast<int>(count);
-
-	float A = 0.0f;
-
-	for (int p = n - 1, q = 0; q < n; p = q++) {
-		A += contour[p].x * contour[q].y - contour[q].x * contour[p].y;
-	}
-	return A * 0.5f;
-}
-
-bool TriangulateInsideTriangle(
-	float Ax, float Ay, float Bx, float By, float Cx, float Cy, float Px, float Py
-) {
-	float ax  = Cx - Bx;
-	float ay  = Cy - By;
-	float bx  = Ax - Cx;
-	float by  = Ay - Cy;
-	float cx  = Bx - Ax;
-	float cy  = By - Ay;
-	float apx = Px - Ax;
-	float apy = Py - Ay;
-	float bpx = Px - Bx;
-	float bpy = Py - By;
-	float cpx = Px - Cx;
-	float cpy = Py - Cy;
-
-	float aCROSSbp = ax * bpy - ay * bpx;
-	float cCROSSap = cx * apy - cy * apx;
-	float bCROSScp = bx * cpy - by * cpx;
-
-	return ((aCROSSbp >= 0.0f) && (bCROSScp >= 0.0f) && (cCROSSap >= 0.0f));
-};
-
-bool TriangulateSnip(
-	const V2_float* contour, int u, int v, int w, int n, const std::vector<int>& V
-) {
-	PTGN_ASSERT(contour != nullptr);
-	float Ax = contour[V[u]].x;
-	float Ay = contour[V[u]].y;
-
-	float Bx = contour[V[v]].x;
-	float By = contour[V[v]].y;
-
-	float Cx = contour[V[w]].x;
-	float Cy = contour[V[w]].y;
-
-	if (float res = (Bx - Ax) * (Cy - Ay) - (By - Ay) * (Cx - Ax); NearlyEqual(res, 0.0f)) {
-		return false;
-	}
-
-	for (int p = 0; p < n; p++) {
-		if ((p == u) || (p == v) || (p == w)) {
-			continue;
-		}
-		float Px = contour[V[p]].x;
-		float Py = contour[V[p]].y;
-		if (TriangulateInsideTriangle(Ax, Ay, Bx, By, Cx, Cy, Px, Py)) {
-			return false;
-		}
-	}
-
-	return true;
-}
-
-// From: https://www.flipcode.com/archives/Efficient_Polygon_Triangulation.shtml
-std::vector<Triangle<float>> TriangulateProcess(const V2_float* contour, std::size_t count) {
-	PTGN_ASSERT(contour != nullptr);
-	/* allocate and initialize list of Vertices in polygon */
-	std::vector<Triangle<float>> result;
-
-	auto n = static_cast<int>(count);
-	if (n < 3) {
-		return result;
-	}
-
-	std::vector<int> V(n);
-
-	/* we want a counter-clockwise polygon in V */
-
-	if (0.0f < TriangulateArea(contour, count)) {
-		for (int v = 0; v < n; v++) {
-			V[v] = v;
-		}
-	} else {
-		for (int v = 0; v < n; v++) {
-			V[v] = (n - 1) - v;
-		}
-	}
-
-	int nv = n;
-
-	/*  remove nv-2 Vertices, creating 1 triangle every time */
-	int r_count = 2 * nv; /* error detection */
-
-	for (int m = 0, v = nv - 1; nv > 2;) {
-		/* if we loop, it is probably a non-simple polygon */
-		if (0 >= (r_count--)) {
-			//** Triangulate: ERROR - probable bad polygon!
-			return result;
-		}
-
-		/* three consecutive vertices in current polygon, <u,v,w> */
-		int u = v;
-		if (nv <= u) {
-			u = 0; /* previous */
-		}
-		v = u + 1;
-		if (nv <= v) {
-			v = 0; /* new v    */
-		}
-		int w = v + 1;
-		if (nv <= w) {
-			w = 0; /* next     */
-		}
-
-		if (TriangulateSnip(contour, u, v, w, nv, V)) {
-			/* true names of the vertices */
-			int a = V[u];
-			int b = V[v];
-			int c = V[w];
-
-			result.emplace_back(contour[a], contour[b], contour[c]);
-
-			m++;
-
-			/* remove v from remaining polygon */
-			for (int t = v + 1; t < nv; t++) {
-				int s = t - 1;
-				PTGN_ASSERT(s < V.size());
-				PTGN_ASSERT(t < V.size());
-				V[s] = V[t];
-			}
-			nv--;
-
-			/* resest error detection counter */
-			r_count = 2 * nv;
-		}
-	}
-
-	return result;
-}
-
-Batch::Batch(RendererData* renderer) :
-	quad_{ std::invoke([&]() {
-			   PTGN_ASSERT(renderer != nullptr);
-			   return renderer;
-		   }),
-		   renderer->max_texture_slots_ },
-	circle_{ renderer },
-	triangle_{ renderer },
-	line_{ renderer },
-	point_{ renderer } {}
-
-template <typename TVertices, std::size_t IndexCount>
-BatchData<TVertices, IndexCount>::BatchData(RendererData* renderer) : renderer_{ renderer } {}
+Batch::Batch(std::size_t max_texture_slots) : quad_{ max_texture_slots } {}
 
 template <typename TVertices, std::size_t IndexCount>
 bool BatchData<TVertices, IndexCount>::IsAvailable() const {
@@ -218,9 +63,14 @@ TVertices& BatchData<TVertices, IndexCount>::Get() {
 }
 
 template <typename TVertices, std::size_t IndexCount>
-void BatchData<TVertices, IndexCount>::Flush() {
+void BatchData<TVertices, IndexCount>::Flush(const RendererData& renderer) {
 	if (!IsFlushed()) {
-		Draw();
+		PrepareBuffer(renderer);
+		array_.GetVertexBuffer().SetSubData(
+			data_.data(), static_cast<std::uint32_t>(data_.size()) * sizeof(TVertices)
+		);
+		GLRenderer::DrawElements(array_, data_.size() * IndexCount);
+		data_.clear();
 	}
 }
 
@@ -249,30 +99,28 @@ void BatchData<TVertices, IndexCount>::SetupBuffer(
 }
 
 template <typename TVertices, std::size_t IndexCount>
-void BatchData<TVertices, IndexCount>::PrepareBuffer() {
+void BatchData<TVertices, IndexCount>::PrepareBuffer(const RendererData& renderer) {
 	if constexpr (std::is_same_v<TVertices, QuadVertices>) {
 		SetupBuffer(
-			PrimitiveMode::Triangles, renderer_->quad_layout, QuadVertices::count,
-			renderer_->quad_ib_
+			PrimitiveMode::Triangles, renderer.quad_layout, QuadVertices::count, renderer.quad_ib_
 		);
 	} else if constexpr (std::is_same_v<TVertices, CircleVertices>) {
 		SetupBuffer(
-			PrimitiveMode::Triangles, renderer_->circle_layout, CircleVertices::count,
-			renderer_->quad_ib_
+			PrimitiveMode::Triangles, renderer.circle_layout, CircleVertices::count,
+			renderer.quad_ib_
 		);
 	} else if constexpr (std::is_same_v<TVertices, TriangleVertices>) {
 		SetupBuffer(
-			PrimitiveMode::Triangles, renderer_->color_layout, TriangleVertices::count,
-			renderer_->triangle_ib_
+			PrimitiveMode::Triangles, renderer.color_layout, TriangleVertices::count,
+			renderer.triangle_ib_
 		);
 	} else if constexpr (std::is_same_v<TVertices, LineVertices>) {
 		SetupBuffer(
-			PrimitiveMode::Lines, renderer_->color_layout, LineVertices::count, renderer_->line_ib_
+			PrimitiveMode::Lines, renderer.color_layout, LineVertices::count, renderer.line_ib_
 		);
 	} else if constexpr (std::is_same_v<TVertices, PointVertices>) {
 		SetupBuffer(
-			PrimitiveMode::Points, renderer_->color_layout, PointVertices::count,
-			renderer_->point_ib_
+			PrimitiveMode::Points, renderer.color_layout, PointVertices::count, renderer.point_ib_
 		);
 	} else {
 		PTGN_ERROR("Failed to recognize batch buffer type");
@@ -280,28 +128,11 @@ void BatchData<TVertices, IndexCount>::PrepareBuffer() {
 }
 
 template <typename TVertices, std::size_t IndexCount>
-void BatchData<TVertices, IndexCount>::UpdateBuffer() {
-	PrepareBuffer();
-	array_.GetVertexBuffer().SetSubData(
-		data_.data(), static_cast<std::uint32_t>(data_.size()) * sizeof(TVertices)
-	);
-}
-
-template <typename TVertices, std::size_t IndexCount>
 bool BatchData<TVertices, IndexCount>::IsFlushed() const {
 	return data_.empty();
 }
 
-template <typename TVertices, std::size_t IndexCount>
-void BatchData<TVertices, IndexCount>::Draw() {
-	PTGN_ASSERT(!IsFlushed());
-	UpdateBuffer();
-	GLRenderer::DrawElements(array_, data_.size() * IndexCount);
-	data_.clear();
-}
-
-TextureBatchData::TextureBatchData(RendererData* renderer, std::size_t max_texture_slots) :
-	BatchData{ renderer } {
+TextureBatchData::TextureBatchData(std::size_t max_texture_slots) {
 	// First texture slot is reserved for the empty white texture.
 	textures_.reserve(max_texture_slots - 1);
 }
@@ -356,16 +187,16 @@ bool Batch::IsFlushed(BatchType type) const {
 	}
 }
 
-void Batch::Flush(BatchType type) {
+void Batch::Flush(const RendererData& renderer, BatchType type) {
 	switch (type) {
 		case BatchType::Quad:
 			quad_.BindTextures();
-			quad_.Flush();
+			quad_.Flush(renderer);
 			break;
-		case BatchType::Triangle: triangle_.Flush(); break;
-		case BatchType::Line:	  line_.Flush(); break;
-		case BatchType::Circle:	  circle_.Flush(); break;
-		case BatchType::Point:	  point_.Flush(); break;
+		case BatchType::Triangle: triangle_.Flush(renderer); break;
+		case BatchType::Line:	  line_.Flush(renderer); break;
+		case BatchType::Circle:	  circle_.Flush(renderer); break;
+		case BatchType::Point:	  point_.Flush(renderer); break;
 		default:				  PTGN_ERROR("Failed to recognize batch type when flushing");
 	}
 }
@@ -481,18 +312,17 @@ void RendererData::SetupShaders() {
 	quad_shader_.SetUniform("u_Textures", samplers.data(), samplers.size());
 }
 
-void RendererData::Flush() {
-	white_texture_.Bind(0);
+void RendererData::FlushLayer(RenderLayer& layer) {
 	// TODO: Reduce shader rebinding by drawing all batches after binding.
-	if (new_view_projection_) {
+	if (layer.new_view_projection) {
 		quad_shader_.Bind();
-		quad_shader_.SetUniform("u_ViewProjection", view_projection_);
+		quad_shader_.SetUniform("u_ViewProjection", layer.view_projection);
 		circle_shader_.Bind();
-		circle_shader_.SetUniform("u_ViewProjection", view_projection_);
+		circle_shader_.SetUniform("u_ViewProjection", layer.view_projection);
 		color_shader_.Bind();
-		color_shader_.SetUniform("u_ViewProjection", view_projection_);
+		color_shader_.SetUniform("u_ViewProjection", layer.view_projection);
 
-		new_view_projection_ = false;
+		layer.new_view_projection = false;
 	}
 
 	// TODO: Add opaque batches back once you figure out how to do it using depth testing.
@@ -502,25 +332,27 @@ void RendererData::Flush() {
 	// opaque_batches_.clear();
 	// GLRenderer::DisableDepthWriting();
 
-	PTGN_ASSERT(!new_view_projection_, "Opaque batch should have handled view projection reset");
+	PTGN_ASSERT(
+		!layer.new_view_projection, "Opaque batch should have handled view projection reset"
+	);
 	// Flush batches in order of z_index.
-	for (auto& [z_index, batches] : transparent_batches_) {
+	for (auto& [z_index, batches] : layer.batch_map) {
 		FlushBatches(batches);
 	}
 
 	// TODO: Look into caching part of the batch, keeping around VAOs.
 	// Confirm that this works as intended.
-	// for (auto it = transparent_batches_.begin(); it != transparent_batches_.end();) {
+	// for (auto it = layer.batch_map.begin(); it != layer.batch_map.end();) {
 	//	if (it->first == 0) {	  // z_index == 0
 	//		it->second.resize(1); // shrink batch to only first batch.
 	//		it->second.back().Clear();
 	//		++it;
 	//	} else {
-	//		it = transparent_batches_.erase(it);
+	//		it = layer.batch_map.erase(it);
 	//	}
 	//}
 
-	transparent_batches_.clear();
+	layer.batch_map.clear();
 }
 
 void RendererData::FlushBatches(std::vector<Batch>& batches) {
@@ -544,15 +376,15 @@ void RendererData::FlushBatches(std::vector<Batch>& batches) {
 		if (shader != bound_shader) {
 			shader.Bind();
 			bound_shader = shader;
-			if (new_view_projection_) {
+			/*if (new_view_projection_) {
 				shader.SetUniform("u_ViewProjection", view_projection_);
-			}
+			}*/
 		}
 
 		PTGN_ASSERT(Shader::GetBoundId() != 0);
 
 		for (auto& batch : batches) {
-			batch.Flush(type);
+			batch.Flush(*this, type);
 		}
 	};
 
@@ -561,6 +393,13 @@ void RendererData::FlushBatches(std::vector<Batch>& batches) {
 	std::invoke([&]() { flush_batch_group(color_shader_, BatchType::Triangle); });
 	std::invoke([&]() { flush_batch_group(color_shader_, BatchType::Line); });
 	std::invoke([&]() { flush_batch_group(color_shader_, BatchType::Point); });
+}
+
+void RendererData::Flush() {
+	white_texture_.Bind(0);
+	for (auto& [key, layer] : render_layers_) {
+		FlushLayer(layer);
+	}
 }
 
 std::array<V2_float, 4> RendererData::GetTextureCoordinates(
@@ -613,12 +452,20 @@ Shader& RendererData::GetShader(BatchType type) {
 	}
 }
 
+RenderLayer& RendererData::GetRenderLayer(std::size_t render_layer) {
+	if (auto it = render_layers_.find(render_layer); it != render_layers_.end()) {
+		return it->second;
+	}
+	auto [new_it, _] = render_layers_.emplace(render_layer, RenderLayer{});
+	return new_it->second;
+}
+
 void RendererData::AddQuad(
 	const std::array<V2_float, 4>& vertices, float z_index, const V4_float& color,
-	const std::array<V2_float, 4>& tex_coords, const ptgn::Texture& t
+	const std::array<V2_float, 4>& tex_coords, const ptgn::Texture& t, std::size_t render_layer
 ) {
 	if (t == white_texture_) {
-		auto& batch_group = GetBatchGroup(color.w, z_index);
+		auto& batch_group = GetBatchGroup(GetRenderLayer(render_layer).batch_map, color.w, z_index);
 		GetBatch(BatchType::Quad, batch_group).quad_.Get() =
 			QuadVertices(vertices, z_index, color, tex_coords, 0.0f);
 		return;
@@ -626,7 +473,7 @@ void RendererData::AddQuad(
 
 	// Textures are always considered as part of the transparent batch groups.
 	// In the future one could do a t.HasTransparency() check here to determine batch group.
-	auto& batch_group			= GetBatchGroup(0.0f, z_index);
+	auto& batch_group = GetBatchGroup(GetRenderLayer(render_layer).batch_map, 0.0f, z_index);
 	auto [batch, texture_index] = GetTextureBatch(batch_group, t);
 	batch.quad_.Get() =
 		QuadVertices(vertices, z_index, color, tex_coords, static_cast<float>(texture_index));
@@ -634,52 +481,56 @@ void RendererData::AddQuad(
 
 void RendererData::AddCircle(
 	const std::array<V2_float, 4>& vertices, float z_index, const V4_float& color, float line_width,
-	float fade
+	float fade, std::size_t render_layer
 ) {
-	auto& batch_group = GetBatchGroup(color.w, z_index);
+	auto& batch_group = GetBatchGroup(GetRenderLayer(render_layer).batch_map, color.w, z_index);
 	GetBatch(BatchType::Circle, batch_group).circle_.Get() =
 		CircleVertices(vertices, z_index, color, line_width, fade);
 }
 
 void RendererData::AddTriangle(
-	const V2_float& a, const V2_float& b, const V2_float& c, float z_index, const V4_float& color
+	const V2_float& a, const V2_float& b, const V2_float& c, float z_index, const V4_float& color,
+	std::size_t render_layer
 ) {
-	auto& batch_group = GetBatchGroup(color.w, z_index);
+	auto& batch_group = GetBatchGroup(GetRenderLayer(render_layer).batch_map, color.w, z_index);
 	GetBatch(BatchType::Triangle, batch_group).triangle_.Get() =
 		TriangleVertices({ a, b, c }, z_index, color);
 }
 
 void RendererData::AddLine(
-	const V2_float& p0, const V2_float& p1, float z_index, const V4_float& color
+	const V2_float& p0, const V2_float& p1, float z_index, const V4_float& color,
+	std::size_t render_layer
 ) {
-	auto& batch_group								   = GetBatchGroup(color.w, z_index);
+	auto& batch_group = GetBatchGroup(GetRenderLayer(render_layer).batch_map, color.w, z_index);
 	GetBatch(BatchType::Line, batch_group).line_.Get() = LineVertices({ p0, p1 }, z_index, color);
 }
 
-void RendererData::AddPoint(const V2_float& position, float z_index, const V4_float& color) {
-	auto& batch_group = GetBatchGroup(color.w, z_index);
+void RendererData::AddPoint(
+	const V2_float& position, float z_index, const V4_float& color, std::size_t render_layer
+) {
+	auto& batch_group = GetBatchGroup(GetRenderLayer(render_layer).batch_map, color.w, z_index);
 	GetBatch(BatchType::Point, batch_group).point_.Get() =
 		PointVertices({ position }, z_index, color);
 }
 
-std::vector<Batch>& RendererData::GetBatchGroup(float alpha, float z_index) {
+std::vector<Batch>& RendererData::GetBatchGroup(BatchMap& batch_map, float alpha, float z_index) {
 	// TODO: Add opaque batches back once you figure out how to do it using depth testing.
 	/*
 	if (NearlyEqual(alpha, 1.0f)) { // opaque object
 		if (opaque_batches_.size() == 0) {
-			opaque_batches_.emplace_back(this);
+			opaque_batches_.emplace_back(max_texture_slots_);
 		}
 		return opaque_batches_;
 	}
 	*/
 	// transparent object
 	auto z_index_key{ static_cast<std::int64_t>(z_index) };
-	if (auto it = transparent_batches_.find(z_index_key); it != transparent_batches_.end()) {
+	if (auto it = batch_map.find(z_index_key); it != batch_map.end()) {
 		return it->second;
 	}
 	std::vector<Batch> new_batch_group;
-	new_batch_group.emplace_back(this);
-	auto new_it = transparent_batches_.emplace(z_index_key, std::move(new_batch_group)).first;
+	new_batch_group.emplace_back(max_texture_slots_);
+	auto new_it = batch_map.emplace(z_index_key, std::move(new_batch_group)).first;
 	PTGN_ASSERT(!new_it->second.empty());
 	PTGN_ASSERT(new_it->second.at(0).quad_.GetTextureSlotCapacity() == max_texture_slots_ - 1);
 	return new_it->second;
@@ -690,7 +541,7 @@ Batch& RendererData::GetBatch(BatchType type, std::vector<Batch>& batch_group) {
 	if (auto& latest_batch = batch_group.back(); latest_batch.IsAvailable(type)) {
 		return latest_batch;
 	}
-	return batch_group.emplace_back(this);
+	return batch_group.emplace_back(max_texture_slots_);
 }
 
 std::pair<Batch&, std::size_t> RendererData::GetTextureBatch(
@@ -708,22 +559,11 @@ std::pair<Batch&, std::size_t> RendererData::GetTextureBatch(
 			}
 		}
 	}
-	auto& new_batch{ batch_group.emplace_back(this) };
+	auto& new_batch{ batch_group.emplace_back(max_texture_slots_) };
 	auto [texture_index, has_available_index] = new_batch.quad_.GetTextureIndex(t);
 	PTGN_ASSERT(has_available_index);
 	PTGN_ASSERT(texture_index == 1);
 	return { new_batch, texture_index };
-}
-
-void OffsetVertices(std::array<V2_float, 4>& vertices, const V2_float& size, Origin draw_origin) {
-	auto draw_offset = GetOffsetFromCenter(size, draw_origin);
-
-	// Offset each vertex by based on draw origin.
-	if (!draw_offset.IsZero()) {
-		for (auto& v : vertices) {
-			v -= draw_offset;
-		}
-	}
 }
 
 void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip) {
@@ -747,98 +587,18 @@ void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip) 
 	}
 }
 
-void RotateVertices(
-	std::array<V2_float, 4>& vertices, const V2_float& position, const V2_float& size,
-	float rotation_radians, const V2_float& rotation_center
-) {
-	PTGN_ASSERT(
-		rotation_center.x >= 0.0f && rotation_center.x <= 1.0f,
-		"Rotation center must be within 0.0f and 1.0f"
-	);
-	PTGN_ASSERT(
-		rotation_center.y >= 0.0f && rotation_center.y <= 1.0f,
-		"Rotation center must be within 0.0f and 1.0f"
-	);
-
-	V2_float half{ size * 0.5f };
-
-	V2_float rot{ -size * rotation_center };
-
-	V2_float s0{ rot };
-	V2_float s1{ size.x + rot.x, rot.y };
-	V2_float s2{ size + rot };
-	V2_float s3{ rot.x, size.y + rot.y };
-
-	float c{ 1.0f };
-	float s{ 0.0f };
-
-	if (!NearlyEqual(rotation_radians, 0.0f)) {
-		c = std::cos(rotation_radians);
-		s = std::sin(rotation_radians);
-	}
-
-	auto rotated = [&](const V2_float& coordinate) {
-		return position - rot - half +
-			   V2_float{ c * coordinate.x - s * coordinate.y, s * coordinate.x + c * coordinate.y };
-	};
-
-	vertices[0] = rotated(s0);
-	vertices[1] = rotated(s1);
-	vertices[2] = rotated(s2);
-	vertices[3] = rotated(s3);
-}
-
-std::array<V2_float, 4> GetQuadVertices(
-	const V2_float& position, const V2_float& size, Origin draw_origin, float rotation_radians,
-	const V2_float& rotation_center
-) {
-	std::array<V2_float, 4> vertices;
-
-	RotateVertices(vertices, position, size, rotation_radians, rotation_center);
-	OffsetVertices(vertices, size, draw_origin);
-
-	return vertices;
-}
-
-QuadVertices::QuadVertices(
-	const std::array<V2_float, 4>& vertices, float z_index, const V4_float& color,
-	const std::array<V2_float, 4>& tex_coords, float texture_index
-) :
-	ShapeVertices{ vertices, z_index, color } {
-	for (std::size_t i{ 0 }; i < vertices_.size(); i++) {
-		vertices_[i].tex_coord = { tex_coords[i].x, tex_coords[i].y };
-		vertices_[i].tex_index = { texture_index };
-	}
-}
-
-CircleVertices::CircleVertices(
-	const std::array<V2_float, 4>& vertices, float z_index, const V4_float& color, float line_width,
-	float fade
-) :
-	ShapeVertices{ vertices, z_index, color } {
-	constexpr auto local = std::array<V2_float, 4>{
-		V2_float{ -1.0f, -1.0f },
-		V2_float{ 1.0f, -1.0f },
-		V2_float{ 1.0f, 1.0f },
-		V2_float{ -1.0f, 1.0f },
-	};
-	for (std::size_t i{ 0 }; i < vertices_.size(); i++) {
-		vertices_[i].local_position = { local[i].x, local[i].y, 0.0f };
-		vertices_[i].line_width		= { line_width };
-		vertices_[i].fade			= { fade };
-	}
-}
-
 void RendererData::Texture(
 	const std::array<V2_float, 4>& vertices, const ptgn::Texture& t,
-	const std::array<V2_float, 4>& tex_coords, const V4_float& tint_color, float z
+	const std::array<V2_float, 4>& tex_coords, const V4_float& tint_color, float z,
+	std::size_t render_layer
 ) {
 	PTGN_ASSERT(t.IsValid(), "Cannot draw uninitialized or destroyed texture");
-	AddQuad(vertices, z, tint_color, tex_coords, t);
+	AddQuad(vertices, z, tint_color, tex_coords, t, render_layer);
 }
 
 void RendererData::Ellipse(
-	const V2_float& p, const V2_float& r, const V4_float& col, float lw, float z, float fade
+	const V2_float& p, const V2_float& r, const V4_float& col, float lw, float z, float fade,
+	std::size_t render_layer
 ) {
 	PTGN_ASSERT(lw >= 0.0f || lw == -1.0f, "Cannot draw negative line width");
 
@@ -850,11 +610,12 @@ void RendererData::Ellipse(
 	// TODO: Check that dividing by std::max(radius.x, radius.y) does not cause any unexpected bugs.
 	lw = NearlyEqual(lw, -1.0f) ? 1.0f : fade + lw / std::min(r.x, r.y);
 
-	AddCircle(vertices, z, col, lw, fade);
+	AddCircle(vertices, z, col, lw, fade, render_layer);
 }
 
 void RendererData::Line(
-	const V2_float& p0, const V2_float& p1, const V4_float& col, float lw, float z
+	const V2_float& p0, const V2_float& p1, const V4_float& col, float lw, float z,
+	std::size_t render_layer
 ) {
 	PTGN_ASSERT(lw >= 0.0f, "Cannot draw negative line width");
 
@@ -864,35 +625,39 @@ void RendererData::Line(
 		auto vertices = GetQuadVertices(
 			p0 + d * 0.5f, { d.Magnitude(), lw }, Origin::Center, d.Angle(), { 0.5f, 0.5f }
 		);
-		Rectangle(vertices, col, -1.0f, z);
+		Rectangle(vertices, col, -1.0f, z, render_layer);
 		return;
 	}
 
-	AddLine(p0, p1, z, col);
+	AddLine(p0, p1, z, col, render_layer);
 }
 
-void RendererData::Point(const V2_float& p, const V4_float& col, float r, float z) {
+void RendererData::Point(
+	const V2_float& p, const V4_float& col, float r, float z, std::size_t render_layer
+) {
 	if (r < 1.0f || NearlyEqual(r, 1.0f)) {
-		AddPoint(p, z, col);
+		AddPoint(p, z, col, render_layer);
 	} else {
-		Ellipse(p, { r, r }, col, -1.0f, z, 0.005f);
+		Ellipse(p, { r, r }, col, -1.0f, z, 0.005f, render_layer);
 	}
 }
 
 void RendererData::Triangle(
-	const V2_float& a, const V2_float& b, const V2_float& c, const V4_float& col, float lw, float z
+	const V2_float& a, const V2_float& b, const V2_float& c, const V4_float& col, float lw, float z,
+	std::size_t render_layer
 ) {
 	if (lw == -1.0f) {
-		AddTriangle(a, b, c, z, col);
+		AddTriangle(a, b, c, z, col, render_layer);
 	} else {
 		PTGN_ASSERT(lw >= 0.0f, "Cannot draw negative thickness triangle");
 		std::array<V2_float, 3> vertices{ a, b, c };
-		Polygon(vertices.data(), vertices.size(), col, lw, z);
+		Polygon(vertices.data(), vertices.size(), col, lw, z, render_layer);
 	}
 }
 
 void RendererData::Rectangle(
-	const std::array<V2_float, 4>& vertices, const V4_float& col, float lw, float z
+	const std::array<V2_float, 4>& vertices, const V4_float& col, float lw, float z,
+	std::size_t render_layer
 ) {
 	if (lw == -1.0f) {
 		Texture(
@@ -903,18 +668,18 @@ void RendererData::Rectangle(
 				V2_float{ 1.0f, 1.0f },
 				V2_float{ 0.0f, 1.0f },
 			},
-			col, z
+			col, z, render_layer
 		);
 	} else {
 		for (std::size_t i{ 0 }; i < vertices.size(); i++) {
-			Line(vertices[i], vertices[(i + 1) % vertices.size()], col, lw, z);
+			Line(vertices[i], vertices[(i + 1) % vertices.size()], col, lw, z, render_layer);
 		}
 	}
 }
 
 void RendererData::RoundedRectangle(
 	const V2_float& p, const V2_float& s, float rad, const V4_float& col, Origin o, float lw,
-	float rotation_radians, const V2_float& rc, float z
+	float rotation_radians, const V2_float& rc, float z, std::size_t render_layer
 ) {
 	PTGN_ASSERT(
 		2.0f * rad < s.x, "Cannot draw rounded rectangle with larger radius than half its width"
@@ -943,27 +708,29 @@ void RendererData::RoundedRectangle(
 	V2_float b = V2_float(length, 0.0f).Rotated(rot + half_pi<float>);
 	V2_float l = V2_float(length, 0.0f).Rotated(rot - pi<float>);
 
-	Arc(inner_vertices[0], rad, rot - pi<float>, rot - half_pi<float>, false, col, lw, z);
-	Arc(inner_vertices[1], rad, rot - half_pi<float>, rot + 0.0f, false, col, lw, z);
-	Arc(inner_vertices[2], rad, rot + 0.0f, rot + half_pi<float>, false, col, lw, z);
-	Arc(inner_vertices[3], rad, rot + half_pi<float>, rot + pi<float>, false, col, lw, z);
+	Arc(inner_vertices[0], rad, rot - pi<float>, rot - half_pi<float>, false, col, lw, z,
+		render_layer);
+	Arc(inner_vertices[1], rad, rot - half_pi<float>, rot + 0.0f, false, col, lw, z, render_layer);
+	Arc(inner_vertices[2], rad, rot + 0.0f, rot + half_pi<float>, false, col, lw, z, render_layer);
+	Arc(inner_vertices[3], rad, rot + half_pi<float>, rot + pi<float>, false, col, lw, z,
+		render_layer);
 
 	float line_thickness{ lw };
 
 	if (filled) {
-		Rectangle(inner_vertices, col, lw, z);
+		Rectangle(inner_vertices, col, lw, z, render_layer);
 		line_thickness = rad;
 	}
 
-	Line(inner_vertices[0] + t, inner_vertices[1] + t, col, line_thickness, z);
-	Line(inner_vertices[1] + r, inner_vertices[2] + r, col, line_thickness, z);
-	Line(inner_vertices[2] + b, inner_vertices[3] + b, col, line_thickness, z);
-	Line(inner_vertices[3] + l, inner_vertices[0] + l, col, line_thickness, z);
+	Line(inner_vertices[0] + t, inner_vertices[1] + t, col, line_thickness, z, render_layer);
+	Line(inner_vertices[1] + r, inner_vertices[2] + r, col, line_thickness, z, render_layer);
+	Line(inner_vertices[2] + b, inner_vertices[3] + b, col, line_thickness, z, render_layer);
+	Line(inner_vertices[3] + l, inner_vertices[0] + l, col, line_thickness, z, render_layer);
 }
 
 void RendererData::Arc(
 	const V2_float& p, float arc_radius, float start_angle_radians, float end_angle_radians,
-	bool clockwise, const V4_float& col, float lw, float z
+	bool clockwise, const V4_float& col, float lw, float z, std::size_t render_layer
 ) {
 	PTGN_ASSERT(arc_radius >= 0.0f, "Cannot draw filled arc with negative radius");
 
@@ -972,7 +739,7 @@ void RendererData::Arc(
 
 	// Edge case where arc is a point.
 	if (NearlyEqual(arc_radius, 0.0f)) {
-		Point(p, col, 1.0f, z);
+		Point(p, col, 1.0f, z, render_layer);
 		return;
 	}
 
@@ -983,7 +750,7 @@ void RendererData::Arc(
 	// Edge case where start and end angles match (considered a full rotation).
 	if (float range{ start_angle - end_angle };
 		NearlyEqual(range, 0.0f) || NearlyEqual(range, two_pi<float>)) {
-		Ellipse(p, { arc_radius, arc_radius }, col, lw, z, 0.005f);
+		Ellipse(p, { arc_radius, arc_radius }, col, lw, z, 0.005f, render_layer);
 	}
 
 	if (start_angle > end_angle) {
@@ -1020,22 +787,22 @@ void RendererData::Arc(
 
 		if (filled) {
 			for (std::size_t i{ 0 }; i < v.size() - 1; i++) {
-				Triangle(p, v[i], v[i + 1], col, lw, z);
+				Triangle(p, v[i], v[i + 1], col, lw, z, render_layer);
 			}
 		} else {
 			PTGN_ASSERT(lw >= 0.0f, "Must provide valid line width when drawing hollow arc");
 			for (std::size_t i{ 0 }; i < v.size() - 1; i++) {
-				Line(v[i], v[i + 1], col, lw, z);
+				Line(v[i], v[i + 1], col, lw, z, render_layer);
 			}
 		}
 	} else {
-		Point(p, col, 1.0f, z);
+		Point(p, col, 1.0f, z, render_layer);
 	}
 }
 
 void RendererData::Capsule(
 	const V2_float& p0, const V2_float& p1, float r, const V4_float& col, float lw, float z,
-	float fade
+	float fade, std::size_t render_layer
 ) {
 	V2_float dir{ p1 - p0 };
 	const float angle_radians{ dir.Angle() + half_pi<float> };
@@ -1045,7 +812,7 @@ void RendererData::Capsule(
 
 	// Note that dir2 is an int.
 	if (NearlyEqual(dir2, 0.0f)) {
-		Ellipse(p0, { r, r }, col, lw, z, fade);
+		Ellipse(p0, { r, r }, col, lw, z, fade, render_layer);
 		return;
 	} else {
 		V2_float tmp = dir.Skewed() / std::sqrt(dir2) * r;
@@ -1057,7 +824,7 @@ void RendererData::Capsule(
 
 	if (lw == -1.0f) {
 		// Draw central line.
-		Line(p0, p1, col, r * 2.0f, z);
+		Line(p0, p1, col, r * 2.0f, z, render_layer);
 
 		// How many radians into the line the arc protrudes.
 		constexpr float delta{ DegToRad(0.5f) };
@@ -1065,28 +832,29 @@ void RendererData::Capsule(
 		end_angle	+= delta;
 	} else {
 		// Draw edge lines.
-		Line(p0 + tangent_r, p1 + tangent_r, col, lw, z);
-		Line(p0 - tangent_r, p1 - tangent_r, col, lw, z);
+		Line(p0 + tangent_r, p1 + tangent_r, col, lw, z, render_layer);
+		Line(p0 - tangent_r, p1 - tangent_r, col, lw, z, render_layer);
 	}
 
 	// Draw edge arcs.
-	Arc(p0, r, start_angle, end_angle + pi<float>, false, col, lw, z);
-	Arc(p1, r, start_angle + pi<float>, end_angle, false, col, lw, z);
+	Arc(p0, r, start_angle, end_angle + pi<float>, false, col, lw, z, render_layer);
+	Arc(p1, r, start_angle + pi<float>, end_angle, false, col, lw, z, render_layer);
 }
 
 void RendererData::Polygon(
-	const V2_float* vertices, std::size_t vertex_count, const V4_float& col, float lw, float z
+	const V2_float* vertices, std::size_t vertex_count, const V4_float& col, float lw, float z,
+	std::size_t render_layer
 ) {
 	PTGN_ASSERT(vertices != nullptr);
 	if (lw == -1.0f) {
-		auto triangles = TriangulateProcess(vertices, vertex_count);
+		auto triangles = Triangulate(vertices, vertex_count);
 
 		for (const auto& t : triangles) {
-			Triangle(t.a, t.b, t.c, col, lw, z);
+			Triangle(t.a, t.b, t.c, col, lw, z, render_layer);
 		}
 	} else {
 		for (std::size_t i{ 0 }; i < vertex_count; i++) {
-			Line(vertices[i], vertices[(i + 1) % vertex_count], col, lw, z);
+			Line(vertices[i], vertices[(i + 1) % vertex_count], col, lw, z, render_layer);
 		}
 	}
 }
