@@ -9,6 +9,7 @@
 #include <string_view>
 #include <type_traits>
 
+#include "utility/string.h"
 #include "utility/time.h"
 #include "utility/type_traits.h"
 

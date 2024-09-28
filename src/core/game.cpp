@@ -206,7 +206,7 @@ void Game::MainLoop() {
 	// Design decision: Latest possible point to show window is right before
 	// loop starts. Comment this if you wish the window to appear hidden for an
 	// indefinite period of time.
-	window.Show();
+	window.SetSetting(WindowSetting::Shown);
 #ifdef __EMSCRIPTEN__
 	emscripten_set_main_loop_arg(impl::EmscriptenLoop, static_cast<void*>(this), 0, 1);
 #else

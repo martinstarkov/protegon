@@ -5,8 +5,6 @@
 #include <iosfwd>
 #include <ostream>
 
-#include "protegon/log.h"
-#include "renderer/gl_renderer.h"
 #include "SDL.h"
 #include "SDL_error.h"
 #include "SDL_hints.h"
@@ -16,6 +14,8 @@
 #include "SDL_ttf.h"
 #include "SDL_version.h"
 #include "SDL_video.h"
+#include "protegon/log.h"
+#include "renderer/gl_renderer.h"
 #include "utility/debug.h"
 #include "utility/time.h"
 
