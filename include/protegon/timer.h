@@ -33,6 +33,11 @@ public:
 		return std::chrono::duration_cast<Duration>(end_time - start_time_);
 	}
 
+	template <typename Duration = milliseconds, tt::duration<Duration> = true>
+	[[nodiscard]] bool Completed(Duration compared_to) const {
+		return ElapsedPercentage(compared_to) >= 1.0f;
+	}
+
 	template <
 		typename Duration = milliseconds, typename T = float, tt::duration<Duration> = true,
 		std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
