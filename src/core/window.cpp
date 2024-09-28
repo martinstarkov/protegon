@@ -152,48 +152,32 @@ void Window::SetTitle(const std::string& new_title) const {
 	return SDL_SetWindowTitle(window_.get(), new_title.c_str());
 }
 
+void Window::SetWindowed() const {
+	int flags = SDL_GetWindowFlags(window_.get());
+	if ((flags & SDL_WINDOW_FULLSCREEN) == 0) {
+		return;
+	}
+	SDL_SetWindowFullscreen(window_.get(), 0);
+}
+
+void Window::SetFullscreen() const {
+	int flags = SDL_GetWindowFlags(window_.get());
+	if ((flags & SDL_WINDOW_FULLSCREEN) == SDL_WINDOW_FULLSCREEN) {
+		return;
+	}
+	SDL_DisplayMode mode;
+	SDL_GetCurrentDisplayMode(0, &mode);
+	SDL_SetWindowDisplayMode(window_.get(), &mode);
+	SDL_SetWindowFullscreen(window_.get(), SDL_WINDOW_FULLSCREEN);
+}
+
 void Window::SetSetting(WindowSetting setting) const {
-	const auto set_windowed = [](SDL_Window* window, int x, int y, int w, int h,
-								 SDL_bool resizeable, SDL_bool bordered) {
-		int flags = SDL_GetWindowFlags(window);
-		if ((flags & SDL_WINDOW_FULLSCREEN) == 0) {
-			return;
-		}
-		SDL_SetWindowSize(window, w, h);
-		SDL_SetWindowFullscreen(window, 0);
-		SDL_SetWindowResizable(window, resizeable);
-		SDL_SetWindowBordered(window, bordered);
-		SDL_SetWindowPosition(window, x, y);
-	};
-
-	const auto set_fullscreen = [](SDL_Window* window) {
-		int flags = SDL_GetWindowFlags(window);
-		if ((flags & SDL_WINDOW_FULLSCREEN) == SDL_WINDOW_FULLSCREEN) {
-			return;
-		}
-		SDL_DisplayMode mode;
-		SDL_Rect rect;
-		SDL_GetCurrentDisplayMode(0, &mode);
-		SDL_GetDisplayBounds(0, &rect);
-		SDL_SetWindowPosition(window, rect.x, rect.y);
-		SDL_SetWindowSize(window, rect.w, rect.h);
-		SDL_SetWindowDisplayMode(window, &mode);
-		SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
-	};
-
 	PTGN_ASSERT(Exists(), "Cannot set setting of nonexistent window");
 	switch (setting) {
-		case WindowSetting::Shown:	SDL_ShowWindow(window_.get()); break;
-		case WindowSetting::Hidden: SDL_HideWindow(window_.get()); break;
-		case WindowSetting::Windowed:
-			set_windowed(
-				window_.get(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 800, SDL_FALSE,
-				SDL_TRUE
-			);
-			break;
-		// TODO: Include sequence outlined in:
-		// https://github.com/libsdl-org/SDL/issues/8544#issuecomment-1891013313
-		case WindowSetting::Fullscreen: set_fullscreen(window_.get()); break;
+		case WindowSetting::Shown:		SDL_ShowWindow(window_.get()); break;
+		case WindowSetting::Hidden:		SDL_HideWindow(window_.get()); break;
+		case WindowSetting::Windowed:	SetWindowed(); break;
+		case WindowSetting::Fullscreen: SetFullscreen(); break;
 		case WindowSetting::Borderless: SDL_SetWindowBordered(window_.get(), SDL_FALSE); break;
 		case WindowSetting::Bordered:	SDL_SetWindowBordered(window_.get(), SDL_TRUE); break;
 		case WindowSetting::Resizable:	SDL_SetWindowResizable(window_.get(), SDL_TRUE); break;

@@ -41,6 +41,7 @@ class WindowSettingTest : public Test {
 	V2_float og_window_size;
 
 	void Init() final {
+		game.draw.SetClearColor(color::Silver);
 		og_window_size = ws;
 		game.window.SetSize(og_window_size);
 

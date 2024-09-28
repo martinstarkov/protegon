@@ -86,6 +86,8 @@ private:
 	void Init();
 	void Shutdown();
 
+	void SetWindowed() const;
+	void SetFullscreen() const;
 	void SetRelativeMouseMode(bool on) const;
 	void SetMouseGrab(bool on) const;
 	void CaptureMouse(bool on) const;
