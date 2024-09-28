@@ -75,7 +75,9 @@ enum class WindowEvent {
 	Resized,  /* fires one or more times (consult SDL_PollEvent rate and game FPS) after size change
 				 occurs or resizing  is finished (window is released) */
 	Resizing, /* fires repeatedly while window is being resized */
-	Drag	  /* fires while window is being dragged (moved around) */
+	Drag,	  /* fires while window is being dragged (moved around) */
+	Minimized,
+	Maximized
 };
 
 class WindowQuitEvent : public Event {
@@ -96,6 +98,16 @@ public:
 };
 
 class WindowResizingEvent : public WindowResizedEvent {
+public:
+	using WindowResizedEvent::WindowResizedEvent;
+};
+
+class WindowMaximizedEvent : public WindowResizedEvent {
+public:
+	using WindowResizedEvent::WindowResizedEvent;
+};
+
+class WindowMinimizedEvent : public WindowResizedEvent {
 public:
 	using WindowResizedEvent::WindowResizedEvent;
 };

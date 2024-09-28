@@ -15,13 +15,13 @@
 struct TestGameEvents : public Test {
 	void Shutdown() override {
 		game.event.UnsubscribeAll();
-		game.window.SetResizeable(false);
+		game.window.SetSetting(WindowSetting::FixedSize);
 	}
 
 	void Init() override {
 		game.window.SetTitle("'ESC' (++category), Event Tests");
 
-		game.window.SetResizeable(true);
+		game.window.SetSetting(WindowSetting::Resizable);
 
 		auto event_observer = &game.event;
 

@@ -125,8 +125,25 @@ void InputHandler::Update() {
 					case SDL_WINDOWEVENT_SIZE_CHANGED:
 					case SDL_WINDOWEVENT_RESIZED:	   {
 						V2_int window_size{ e.window.data1, e.window.data2 };
+						PTGN_LOG("Window resized/changed to: ", window_size);
 						game.event.window.Post(
 							WindowEvent::Resized, WindowResizedEvent{ window_size }
+						);
+						break;
+					}
+					case SDL_WINDOWEVENT_MAXIMIZED: {
+						V2_int window_size{ e.window.data1, e.window.data2 };
+						PTGN_LOG("Window maximized to: ", window_size);
+						game.event.window.Post(
+							WindowEvent::Maximized, WindowMaximizedEvent{ window_size }
+						);
+						break;
+					}
+					case SDL_WINDOWEVENT_MINIMIZED: {
+						V2_int window_size{ e.window.data1, e.window.data2 };
+						PTGN_LOG("Window minimized to: ", window_size);
+						game.event.window.Post(
+							WindowEvent::Minimized, WindowMinimizedEvent{ window_size }
 						);
 						break;
 					}
@@ -182,6 +199,7 @@ inline static int WindowEventWatcher(void* data, SDL_Event* event) {
 			const SDL_Window* win = SDL_GetWindowFromID(event->window.windowID);
 			if (win == (SDL_Window*)data) {
 				V2_int window_size{ event->window.data1, event->window.data2 };
+				PTGN_LOG("Window event watcher size: ", window_size);
 				game.event.window.Post(WindowEvent::Resizing, WindowResizingEvent{ window_size });
 			}
 		} else if (event->window.event == SDL_WINDOWEVENT_EXPOSED) {
