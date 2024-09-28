@@ -19,6 +19,7 @@
 #include "test_text.h"
 #include "test_tween.h"
 #include "test_vector.h"
+#include "test_window.h"
 
 using namespace ptgn;
 
@@ -33,7 +34,6 @@ public:
 	void Init() final {
 		game.draw.SetClearColor(color::White);
 		game.window.SetSize(V2_int{ 800, 800 });
-		game.window.Show();
 
 		// Non-visual tests.
 
@@ -44,6 +44,7 @@ public:
 
 		// Visual tests.
 
+		TestWindow();
 		TestRenderer();
 		TestCamera();
 		TestCollisions();
