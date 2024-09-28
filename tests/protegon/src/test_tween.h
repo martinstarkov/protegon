@@ -240,6 +240,8 @@ struct TestTweenTypes : public Test {
 	std::vector<std::tuple<Tween, Color, V2_float>> tweens;
 
 	void Init() override {
+		tweens.clear();
+
 		Tween config0{
 			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Red, V2_float{}))
 		};
@@ -345,6 +347,11 @@ struct TestTweenTypes : public Test {
 
 		for (std::size_t i = 0; i < tweens.size(); ++i) {
 			std::get<V2_float>(tweens[i]) = get_pos(i);
+			auto& t						  = std::get<Tween>(tweens[i]);
+			if (!t.IsValid()) {
+				continue;
+			}
+			t.Start();
 		}
 	}
 
