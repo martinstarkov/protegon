@@ -124,7 +124,6 @@ void GLRenderer::SetClearColor(const Color& color) {
 
 void GLRenderer::SetViewport(const V2_int& position, const V2_int& size) {
 	GLCall(gl::glViewport(position.x, position.y, size.x, size.y));
-	// PTGN_LOG("Setting OpenGL Viewport to ", size);
 }
 
 void GLRenderer::Clear() {
