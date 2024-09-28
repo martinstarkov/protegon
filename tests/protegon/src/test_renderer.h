@@ -18,7 +18,6 @@
 #include "protegon/log.h"
 #include "protegon/math.h"
 #include "protegon/matrix4.h"
-#include "protegon/polygon.h"
 #include "protegon/rng.h"
 #include "protegon/shader.h"
 #include "protegon/texture.h"
