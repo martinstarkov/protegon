@@ -23,6 +23,9 @@
 #include <emscripten.h>
 #include <emscripten/html5.h>
 
+EM_JS(int, get_screen_width, (), { return screen.width; });
+EM_JS(int, get_screen_height, (), { return screen.height; });
+
 #endif
 
 #ifdef PTGN_PLATFORM_MACOS
@@ -41,6 +44,36 @@ namespace ptgn {
 impl::Game game;
 
 namespace impl {
+
+#ifdef __EMSCRIPTEN__
+
+static EM_BOOL EmscriptenResize(
+	int event_type, const EmscriptenUiEvent* ui_event, void* user_data
+) {
+	V2_int window_size{ ui_event->windowInnerWidth, ui_event->windowInnerHeight };
+	// TODO: Figure out how to deal with itch.io fullscreen button not changing SDL status to
+	// fullscreen.
+	/*V2_int screen_size{ get_screen_width(), get_screen_height() };
+	if (window_size == screen_size) {
+		// Update fullscreen status? This seems to screw up the camera somehow. Investigate further.
+	}*/
+	game.window.SetSize(window_size);
+	return 0;
+}
+
+void EmscriptenInit() {
+	emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, 0, EmscriptenResize);
+}
+
+void EmscriptenLoop() {
+	game.Update();
+
+	if (!game.running_) {
+		emscripten_cancel_main_loop();
+	}
+}
+
+#endif
 
 #ifdef PTGN_PLATFORM_MACOS
 
@@ -190,26 +223,16 @@ void Game::Shutdown() {
 	// sdl_instance_.Shutdown();
 }
 
-#ifdef __EMSCRIPTEN__
-
-void EmscriptenLoop(void* data) {
-	Game* g = static_cast<Game*>(data);
-	g->Update();
-	if (!g->running_) {
-		emscripten_cancel_main_loop();
-	}
-}
-
-#endif
-
 void Game::MainLoop() {
 	// Design decision: Latest possible point to show window is right before
 	// loop starts. Comment this if you wish the window to appear hidden for an
 	// indefinite period of time.
 	window.SetSetting(WindowSetting::Shown);
 #ifdef __EMSCRIPTEN__
-	emscripten_set_main_loop_arg(impl::EmscriptenLoop, static_cast<void*>(this), 0, 1);
+	EmscriptenInit();
+	emscripten_set_main_loop(EmscriptenLoop, 0, 1);
 #else
+	window.SetSetting(WindowSetting::FixedSize);
 	while (running_) {
 		Update();
 	}

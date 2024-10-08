@@ -32,7 +32,12 @@ struct MixChunkDeleter;
 struct SDL_SurfaceDeleter;
 struct TTF_FontDeleter;
 
-static void EmscriptenLoop(void* data);
+#ifdef __EMSCRIPTEN__
+
+static void EmscriptenInit();
+static void EmscriptenLoop();
+
+#endif
 
 class Game {
 public:
@@ -60,14 +65,12 @@ public:
 
 	// Core Subsystems
 
-	// TODO: Make these all inside impl namespace instead of hiding constructors.
-
 	EventHandler event;
 	InputHandler input;
 	Renderer draw;
 	SceneManager scene;
 	ActiveSceneCameraManager camera;
-	CollisionHandler collision;
+	CollisionHandler collision{};
 	UserInterface ui;
 
 	// Resources
@@ -108,6 +111,8 @@ public:
 		Stop();
 	}
 
+	// TODO: Make this flag game for shutdown on next loop (exit) instead of immediately shutting
+	// down.
 	void Stop();
 
 	[[nodiscard]] bool IsRunning() const;
@@ -119,7 +124,9 @@ private:
 	friend struct SDL_SurfaceDeleter;
 	friend struct TTF_FontDeleter;
 	friend class GLContext;
-	friend void EmscriptenLoop(void* data);
+#ifdef __EMSCRIPTEN__
+	friend void EmscriptenLoop();
+#endif
 
 	void MainLoop();
 	void Update();
