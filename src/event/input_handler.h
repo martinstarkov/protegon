@@ -59,11 +59,8 @@ public:
 		return held_time > time;
 	}
 
-#ifndef __EMSCRIPTEN__
-	// Does not work on the web browser as GetMousePositionGlobal returns relative to the canvas.
 	// @return True if mouse position is within window bounds, false otherwise.
 	bool MouseWithinWindow() const;
-#endif
 
 	void SetRelativeMouseMode(bool on) const;
 

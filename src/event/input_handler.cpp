@@ -122,10 +122,9 @@ void InputHandler::Update() {
 			}
 			case SDL_WINDOWEVENT: {
 				switch (e.window.event) {
-					case SDL_WINDOWEVENT_SIZE_CHANGED:
-					case SDL_WINDOWEVENT_RESIZED:	   {
+					case SDL_WINDOWEVENT_RESIZED:
+					case SDL_WINDOWEVENT_SIZE_CHANGED: {
 						V2_int window_size{ e.window.data1, e.window.data2 };
-						PTGN_LOG("Window resized/changed to: ", window_size);
 						game.event.window.Post(
 							WindowEvent::Resized, WindowResizedEvent{ window_size }
 						);
@@ -133,7 +132,6 @@ void InputHandler::Update() {
 					}
 					case SDL_WINDOWEVENT_MAXIMIZED: {
 						V2_int window_size{ e.window.data1, e.window.data2 };
-						PTGN_LOG("Window maximized to: ", window_size);
 						game.event.window.Post(
 							WindowEvent::Maximized, WindowMaximizedEvent{ window_size }
 						);
@@ -141,10 +139,13 @@ void InputHandler::Update() {
 					}
 					case SDL_WINDOWEVENT_MINIMIZED: {
 						V2_int window_size{ e.window.data1, e.window.data2 };
-						PTGN_LOG("Window minimized to: ", window_size);
 						game.event.window.Post(
 							WindowEvent::Minimized, WindowMinimizedEvent{ window_size }
 						);
+						break;
+					}
+					case SDL_WINDOWEVENT_MOVED: {
+						V2_int window_pos{ e.window.data1, e.window.data2 };
 						break;
 					}
 					default: break;
@@ -156,14 +157,12 @@ void InputHandler::Update() {
 	}
 }
 
-#ifndef __EMSCRIPTEN__
 bool InputHandler::MouseWithinWindow() const {
 	return game.collision.overlap.PointRectangle(
 		game.input.GetMousePositionGlobal(),
 		{ game.window.GetPosition(), game.window.GetSize(), Origin::TopLeft }
 	);
 }
-#endif
 
 void InputHandler::SetRelativeMouseMode(bool on) const {
 	SDL_SetRelativeMouseMode(static_cast<SDL_bool>(on));
@@ -196,12 +195,8 @@ inline static int WindowEventWatcher(void* data, SDL_Event* event) {
 	if (event->type == SDL_WINDOWEVENT) {
 		if (event->window.event == SDL_WINDOWEVENT_RESIZED ||
 			event->window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
-			const SDL_Window* win = SDL_GetWindowFromID(event->window.windowID);
-			if (win == (SDL_Window*)data) {
-				V2_int window_size{ event->window.data1, event->window.data2 };
-				PTGN_LOG("Window event watcher size: ", window_size);
-				game.event.window.Post(WindowEvent::Resizing, WindowResizingEvent{ window_size });
-			}
+			V2_int window_size{ event->window.data1, event->window.data2 };
+			game.event.window.Post(WindowEvent::Resizing, WindowResizingEvent{ window_size });
 		} else if (event->window.event == SDL_WINDOWEVENT_EXPOSED) {
 			game.event.window.Post(WindowEvent::Drag, WindowDragEvent{});
 		}
@@ -210,11 +205,11 @@ inline static int WindowEventWatcher(void* data, SDL_Event* event) {
 }
 
 void InputHandler::Init() {
-	SDL_AddEventWatch(WindowEventWatcher, game.window.window_.get());
+	SDL_AddEventWatch(WindowEventWatcher, nullptr);
 }
 
 void InputHandler::Shutdown() {
-	SDL_DelEventWatch(WindowEventWatcher, game.window.window_.get());
+	SDL_DelEventWatch(WindowEventWatcher, nullptr);
 	Reset();
 }
 
