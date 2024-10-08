@@ -6,13 +6,13 @@
 #include <string_view>
 #include <vector>
 
+#include "SDL_error.h"
+#include "SDL_video.h"
 #include "core/window.h"
 #include "protegon/file.h"
 #include "protegon/game.h"
 #include "protegon/log.h"
 #include "renderer/gl_loader.h"
-#include "SDL_error.h"
-#include "SDL_video.h"
 #include "utility/debug.h"
 
 namespace ptgn::impl {
@@ -81,16 +81,16 @@ bool GLContext::IsInitialized() const {
 
 void GLContext::Init() {
 	PTGN_ASSERT(
-		game.window.Exists(), "GLContext must be constructed after SDL window construction"
+		game.window.IsValid(), "GLContext must be constructed after SDL window construction"
 	);
 
 	if (IsInitialized()) {
-		int result = SDL_GL_MakeCurrent(game.window.window_.get(), context_);
+		int result = game.window.MakeGLContextCurrent(context_);
 		PTGN_ASSERT(result == 0, SDL_GetError());
 		return;
 	}
 
-	context_ = SDL_GL_CreateContext(game.window.window_.get());
+	context_ = game.window.CreateGLContext();
 	PTGN_ASSERT(IsInitialized(), SDL_GetError());
 
 	GLVersion gl_version;
@@ -126,7 +126,7 @@ std::vector<GLError> GLContext::GetErrors() {
 		if (e == GLError::None) {
 			break;
 		}
-		errors.push_back(e);
+		errors.emplace_back(e);
 	}
 	return errors;
 }
