@@ -161,12 +161,13 @@ public:
 	);
 
 	void SetBlendMode(BlendMode mode);
-	BlendMode GetBlendMode() const;
+	[[nodiscard]] BlendMode GetBlendMode() const;
 
 	void SetClearColor(const Color& color);
-	Color GetClearColor() const;
+	[[nodiscard]] Color GetClearColor() const;
 
-	void SetViewport(const V2_int& size);
+	void SetViewportSize(const V2_int& viewport_size);
+	[[nodiscard]] V2_int GetViewportSize() const;
 
 private:
 	friend class CameraManager;

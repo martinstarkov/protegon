@@ -7,6 +7,7 @@
 #include "protegon/events.h"
 #include "protegon/game.h"
 #include "protegon/matrix4.h"
+#include "protegon/polygon.h"
 #include "protegon/texture.h"
 #include "protegon/vector2.h"
 #include "protegon/vertex_array.h"
@@ -27,7 +28,7 @@ void Renderer::Init() {
 	// resizing.
 	game.event.window.Subscribe(
 		WindowEvent::Resized, this,
-		std::function([this](const WindowResizedEvent& e) { SetViewport(e.size); })
+		std::function([this](const WindowResizedEvent& e) { SetViewportSize(e.size); })
 	);
 
 	data_.Init();
@@ -69,19 +70,20 @@ void Renderer::SetClearColor(const Color& color) {
 	GLRenderer::SetClearColor(color);
 }
 
-void Renderer::SetViewport(const V2_int& size) {
-	PTGN_ASSERT(size.x > 0 && "Cannot set viewport width below 1");
-	PTGN_ASSERT(size.y > 0 && "Cannot set viewport height below 1");
+void Renderer::SetViewportSize(const V2_int& viewport_size) {
+	PTGN_ASSERT(viewport_size.x > 0 && "Cannot set viewport width below 1");
+	PTGN_ASSERT(viewport_size.y > 0 && "Cannot set viewport height below 1");
 
-	if (viewport_size_ == size) {
-		return;
-	}
+	viewport_size_ = viewport_size;
+}
 
-	viewport_size_ = size;
-	GLRenderer::SetViewport({}, viewport_size_);
+V2_int Renderer::GetViewportSize() const {
+	return viewport_size_;
 }
 
 void Renderer::Clear() const {
+	V2_int window_size{ game.window.GetSize() };
+	GLRenderer::SetViewport(V2_int{ 0, window_size.y - viewport_size_.y }, viewport_size_);
 	GLRenderer::Clear();
 }
 
