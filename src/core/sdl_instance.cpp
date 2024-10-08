@@ -90,13 +90,9 @@ void SDLInstance::InitSDL() {
 		SDL_WasInit(sdl_flags) != sdl_flags, "Cannot reinitialize SDL instance before shutting down"
 	);
 
-	SDL_SetHint(SDL_HINT_MOUSE_RELATIVE_SCALING, "1");
 	// Ensures window and elements scale by monitor zoom level for constant
 	// appearance.
 	SDL_SetHint(SDL_HINT_WINDOWS_DPI_AWARENESS, "permonitorv2");
-	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
-	SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
-	SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
 
 	int sdl_init{ SDL_Init(sdl_flags) };
 	PTGN_ASSERT(sdl_init == 0, SDL_GetError());
