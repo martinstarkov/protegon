@@ -10,6 +10,7 @@
 #include "protegon/font.h"
 #include "protegon/game.h"
 #include "protegon/log.h"
+#include "protegon/math.h"
 #include "protegon/polygon.h"
 #include "protegon/text.h"
 #include "protegon/timer.h"
@@ -23,10 +24,11 @@ class WindowSettingTest : public Test {
 
 	std::vector<Text> texts;
 
-	Text window_resize_hint;
-	Text window_size_1;
-	Text window_size_2;
-	Text window_size_3;
+	Text window_position_text;
+	Text viewport_size_text;
+	Text window_size_text;
+	Text camera_size_text;
+	Text camera_pos_text;
 	Text window_mode;
 	Text border_mode;
 	Text resize_mode;
@@ -36,40 +38,56 @@ class WindowSettingTest : public Test {
 
 	Timer show_timer;
 
-	const V2_float text_offset{ 30.0f, 30.0f };
+	std::string origin_string;
+	int origin{ 0 };
 
-	V2_float og_window_size;
+	const V2_float text_offset{ 30.0f, 450.0f - 30.0f };
 
-	void Init() final {
+	const V2_float og_window_size{ 800, 450 };
+
+	void Init() override {
 		game.draw.SetClearColor(color::Silver);
-		og_window_size = ws;
 		game.window.SetSize(og_window_size);
+		game.window.Center();
 
 		texts.clear();
 
-		window_resize_hint = texts.emplace_back(font, "", color::Black);
-		window_size_1	   = texts.emplace_back(font, "", color::Black);
-		window_size_2	   = texts.emplace_back(font, "", color::Black);
-		window_size_3	   = texts.emplace_back(font, "", color::Black);
-		window_mode		   = texts.emplace_back(font, "", color::Black);
-		border_mode		   = texts.emplace_back(font, "", color::Black);
-		resize_mode		   = texts.emplace_back(font, "", color::Black);
-		maximized		   = texts.emplace_back(font, "", color::Black);
-		minimized		   = texts.emplace_back(font, "", color::Black);
-		window_visible	   = texts.emplace_back(font, "", color::Black);
+		camera_size_text	 = texts.emplace_back(font, "", color::Black);
+		camera_pos_text		 = texts.emplace_back(font, "", color::Black);
+		window_position_text = texts.emplace_back(font, "", color::Black);
+		viewport_size_text	 = texts.emplace_back(font, "", color::Black);
+		window_size_text	 = texts.emplace_back(font, "", color::Black);
+		window_mode			 = texts.emplace_back(font, "", color::Black);
+		border_mode			 = texts.emplace_back(font, "", color::Black);
+		resize_mode			 = texts.emplace_back(font, "", color::Black);
+		maximized			 = texts.emplace_back(font, "", color::Black);
+		minimized			 = texts.emplace_back(font, "", color::Black);
+		window_visible		 = texts.emplace_back(font, "", color::Black);
 	}
 
-	void Shutdown() {
+	void Shutdown() override {
 		game.window.SetSetting(WindowSetting::Windowed);
 		game.window.SetSetting(WindowSetting::Bordered);
 		game.window.SetSetting(WindowSetting::FixedSize);
 		game.window.SetSetting(WindowSetting::Shown);
+		game.draw.SetViewportSize(og_window_size);
 		game.window.SetSize(og_window_size);
 	}
 
 	void Update() final {
+		auto& p = game.camera.GetPrimary();
 		if (game.input.KeyDown(Key::Z)) {
-			game.window.SetSize(og_window_size);
+			p.SetSize(og_window_size);
+			p.SetPosition(og_window_size / 2.0f);
+		}
+		if (game.input.KeyDown(Key::X)) {
+			game.camera.ResetPrimary();
+		}
+		if (game.input.KeyDown(Key::V)) {
+			game.window.SetPosition({ 0, 0 });
+		}
+		if (game.input.KeyDown(Key::C)) {
+			game.window.Center();
 		}
 		if (game.input.KeyDown(Key::Q)) {
 			game.window.SetSetting(WindowSetting::Windowed);
@@ -77,28 +95,28 @@ class WindowSettingTest : public Test {
 		if (game.input.KeyDown(Key::W)) {
 			game.window.SetSetting(WindowSetting::Fullscreen);
 		}
-		if (game.input.KeyDown(Key::E)) {
+		if (game.input.KeyDown(Key::R)) {
 			game.window.SetSetting(WindowSetting::Borderless);
 		}
-		if (game.input.KeyDown(Key::R)) {
+		if (game.input.KeyDown(Key::T)) {
 			game.window.SetSetting(WindowSetting::Bordered);
 		}
-		if (game.input.KeyDown(Key::T)) {
+		if (game.input.KeyDown(Key::Y)) {
 			game.window.SetSetting(WindowSetting::Resizable);
 		}
-		if (game.input.KeyDown(Key::Y)) {
+		if (game.input.KeyDown(Key::U)) {
 			game.window.SetSetting(WindowSetting::FixedSize);
 		}
-		if (game.input.KeyDown(Key::U)) {
+		if (game.input.KeyDown(Key::I)) {
 			game.window.SetSetting(WindowSetting::Maximized);
 		}
-		if (game.input.KeyDown(Key::I)) {
+		if (game.input.KeyDown(Key::O)) {
 			game.window.SetSetting(WindowSetting::Minimized);
 		}
-		if (game.input.KeyDown(Key::O)) {
+		if (game.input.KeyDown(Key::P)) {
 			game.window.SetSetting(WindowSetting::Shown);
 		}
-		if (game.input.KeyDown(Key::P)) {
+		if (game.input.KeyDown(Key::L)) {
 			game.window.SetSetting(WindowSetting::Hidden);
 			show_timer.Start();
 		}
@@ -122,27 +140,34 @@ class WindowSettingTest : public Test {
 	};
 
 	void Draw() final {
-		window_resize_hint.SetContent("Z to Force Window Size to " + ToString(og_window_size));
-		window_size_1.SetContent("Window Drawable Size: " + ToString(game.window.GetSize(0)));
-		window_size_2.SetContent("Window Pixel Size: " + ToString(game.window.GetSize(1)));
-		window_size_3.SetContent("Window Size: " + ToString(game.window.GetSize(2)));
+		game.draw.Rectangle({}, game.window.GetSize(), { 0, 0, 255, 10 }, Origin::TopLeft);
+		game.draw.Rectangle({}, og_window_size, { 255, 0, 0, 40 }, Origin::TopLeft);
+		game.draw.Rectangle({}, og_window_size, { 0, 255, 0, 20 }, Origin::TopLeft, 10.0f);
+
+		camera_pos_text.SetContent(
+			"Camera Position: " + ToString(game.camera.GetPrimary().GetPosition())
+		);
+		camera_size_text.SetContent("Camera Size: " + ToString(game.camera.GetPrimary().GetSize()));
+		window_position_text.SetContent("Window Position: " + ToString(game.window.GetPosition()));
+		viewport_size_text.SetContent("Viewport Size: " + ToString(game.draw.GetViewportSize()));
+		window_size_text.SetContent("Window Size: " + ToString(game.window.GetSize()));
 
 		UpdateOptions(
 			window_mode, "Window Mode (Q/W): ",
 			{ { WindowSetting::Windowed, "Windowed" }, { WindowSetting::Fullscreen, "Fullscreen" } }
 		);
 		UpdateOptions(
-			border_mode, "Border Mode (E/R): ",
+			border_mode, "Border Mode (R/T): ",
 			{ { WindowSetting::Borderless, "Borderless" }, { WindowSetting::Bordered, "Bordered" } }
 		);
 		UpdateOptions(
-			resize_mode, "Resize Mode (T/Y): ",
+			resize_mode, "Resize Mode (Y/U): ",
 			{ { WindowSetting::Resizable, "Resizable" }, { WindowSetting::FixedSize, "FixedSize" } }
 		);
-		UpdateOptions(maximized, "Maximized (U): ", { { WindowSetting::Maximized, "True" } });
-		UpdateOptions(minimized, "Minimized (I): ", { { WindowSetting::Minimized, "True" } });
+		UpdateOptions(maximized, "Maximized (I): ", { { WindowSetting::Maximized, "True" } });
+		UpdateOptions(minimized, "Minimized (O): ", { { WindowSetting::Minimized, "True" } });
 		UpdateOptions(
-			window_visible, "Window Visible (O/P): ",
+			window_visible, "Window Visible (P/L): ",
 			{ { WindowSetting::Shown, "Shown" }, { WindowSetting::Hidden, "Hidden" } }
 		);
 
@@ -150,9 +175,9 @@ class WindowSettingTest : public Test {
 		for (std::size_t i = 0; i < texts.size(); i++) {
 			const auto& t = texts[i];
 			Rectangle<float> rect;
-			rect.origin = Origin::TopLeft;
+			rect.origin = Origin::BottomLeft;
 			rect.pos.x	= text_offset.x;
-			rect.pos.y	= text_offset.y + offset.y;
+			rect.pos.y	= text_offset.y - offset.y;
 			rect.size	= t.GetSize();
 			t.Draw(rect);
 			offset += rect.size;

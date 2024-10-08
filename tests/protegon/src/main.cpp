@@ -33,7 +33,9 @@ public:
 
 	void Init() final {
 		game.draw.SetClearColor(color::White);
-		game.window.SetSize(V2_int{ 800, 800 });
+		V2_int window_size{ 800, 800 };
+		game.window.SetSize(window_size);
+		game.draw.SetViewportSize(window_size);
 
 		// Non-visual tests.
 
