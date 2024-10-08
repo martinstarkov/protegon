@@ -105,7 +105,7 @@ void AStarGrid::SolvePath(const V2_int& start, const V2_int& end) {
 	start_node->global_goal = (start - end).Magnitude();
 
 	std::list<std::pair<impl::AStarNode*, V2_int>> node_candidates;
-	node_candidates.push_back(current_node);
+	node_candidates.emplace_back(current_node);
 
 	while (!node_candidates.empty() && current_node.first != end_node) {
 		node_candidates.sort([](const std::pair<impl::AStarNode*, V2_int>& lhs,

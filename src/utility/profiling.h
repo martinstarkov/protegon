@@ -68,7 +68,7 @@ private:
 	template <typename T>
 	void PrintInfo(std::string_view name, const Timer& timer) const {
 		static_assert(tt::is_duration_v<T>, "Type must be duration");
-		PTGN_LOG(
+		PrintLine(
 			"PROFILING: ", impl::TrimFunctionSignature(name), ": ",
 			timer.Elapsed<duration<double, typename T::period>>()
 		);
