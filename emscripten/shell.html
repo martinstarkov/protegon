@@ -1,153 +1,157 @@
 <!doctype html>
 <html lang="en-us">
-  <head>
+
+<head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <link rel="shortcut icon" href="#">
     <style>
-      html, body {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-      }
-      .center {
-        padding-left: 0;
-        padding-right: 0;
-        margin-left: auto;
-        margin-right: auto;
-        display: block;
-      }
-      #status {
-        width: 100%;
-        height: 100%;
-        margin: auto;
-        text-align: center;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        align-content: center;
-        font-weight: bold;
-        font-size: 3.2vw;
-        color: rgb(255, 0, 0);
-        position: absolute;
-        z-index: -1;
-      }
-      #output {
-        width: 100%;
-        height: 200px;
-        margin: 0 auto;
-        margin-top: 10px;
-        border-left: 0px;
-        border-right: 0px;
-        padding-left: 0px;
-        padding-right: 0px;
-        display: block;
-        background-color: black;
-        color: white;
-        font-family: 'Lucida Console', Monaco, monospace;
-        outline: none;
-      }
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        #canvas {
+            padding: 0;
+            margin: 0;
+            max-width: 100%;
+            max-height: 100%;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .center {
+            padding-left: 0;
+            padding-right: 0;
+            margin-left: auto;
+            margin-right: auto;
+            display: block;
+        }
+
+        #status {
+            width: 100%;
+            height: 100%;
+            margin: auto;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            align-content: center;
+            font-weight: bold;
+            font-size: 3.2vw;
+            color: rgb(0, 110, 255);
+            position: absolute;
+            z-index: -1;
+        }
+
+        #output {
+            width: 100%;
+            height: 200px;
+            margin: 0 auto;
+            margin-top: 10px;
+            border-left: 0px;
+            border-right: 0px;
+            padding-left: 0px;
+            padding-right: 0px;
+            display: block;
+            background-color: black;
+            color: white;
+            font-family: 'Lucida Console', Monaco, monospace;
+            outline: none;
+        }
     </style>
-  </head>
-  <body>
-    <div class="status" id="status">Downloading...</div>
-    <canvas class="center" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
+</head>
+
+<body>
+    <div class="status" id="status">Loading...</div>
+    <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
     <textarea class="center" id="output" rows="8"></textarea>
 
     <script type='text/javascript'>
-      var show_console = false;
+        var show_console = false;
 
-      var outputElement = document.getElementById('output');
-      var statusElement = document.getElementById('status');
+        var outputElement = document.getElementById('output');
+        var statusElement = document.getElementById('status');
 
-      if (show_console) {
-        outputElement.style.display = 'flex';
-      } else {
-        outputElement.style.display = 'none';
-      }
-
-      var Module = {
-        print: (function() {
-          if (outputElement) outputElement.value = ''; // clear browser cache
-          return (...args) => {
-            var text = args.join(' ');
-            console.log(text);
-            if (outputElement) {
-              outputElement.value += text + "\n";
-              outputElement.scrollTop = outputElement.scrollHeight; // focus on bottom
-            }
-          };
-        })(),
-        canvas: (() => {
-          var canvas = document.getElementById('canvas');
-
-          // As a default initial behavior, pop up an alert when webgl context is lost. To make your
-          // application robust, you may want to override this behavior before shipping!
-          // See http://www.khronos.org/registry/webgl/specs/latest/1.0/#5.15.2
-          canvas.addEventListener("webglcontextlost", (e) => { alert('WebGL context lost. You will need to reload the page.'); e.preventDefault(); }, false);
-
-          return canvas;
-        })(),
-        setStatus: (text) => {
-          // if (text != '') {
-          //   Module.print(text);
-          // }
-          if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '', display: 'block' };
-          if (text === Module.setStatus.last.text) return;
-          var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
-          var now = Date.now();
-          if (m && now - Module.setStatus.last.time < 30) return; // if this is a progress update, skip it if too soon
-          Module.setStatus.last.time = now;
-          Module.setStatus.last.text = text;
-          if (m) {
-            text = m[1];
-          }
-          if (text == '') {
-            Module.setStatus.last.display = 'flex';
-          } else {
-            Module.setStatus.last.display = 'block';
-          }
-          statusElement.innerHTML = text;
-          statusElement.style.display = Module.setStatus.last.display;
-        },
-        totalDependencies: 0,
-        monitorRunDependencies: (remaining) => {
-          if (!isNaN(remaining) && !isNaN(this.totalDependencies)) {
-            this.totalDependencies = Math.max(this.totalDependencies, remaining);
-            Module.setStatus(remaining ? 'Preparing... (' + (this.totalDependencies-remaining) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
-          }
+        if (show_console) {
+            outputElement.style.display = 'flex';
+        } else {
+            outputElement.style.display = 'none';
         }
-      };
-      Module.setStatus('Downloading...');
 
-      const canvas = Module.canvas;
+        var Module = {
+            print: (function () {
+                if (outputElement) outputElement.value = ''; // clear browser cache
+                return (...args) => {
+                    var text = args.join(' ');
+                    console.log(text);
+                    if (outputElement) {
+                        outputElement.value += text + "\n";
+                        outputElement.scrollTop = outputElement.scrollHeight; // focus on bottom
+                    }
+                };
+            })(),
+            canvas: (() => {
+                var canvas = document.getElementById('canvas');
 
-      function resizeCanvas() {
-        let vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
-        let vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+                // As a default initial behavior, pop up an alert when webgl context is lost. To make your
+                // application robust, you may want to override this behavior before shipping!
+                // See http://www.khronos.org/registry/webgl/specs/latest/1.0/#5.15.2
+                canvas.addEventListener("webglcontextlost", (e) => {
+                    alert('WebGL context lost. Please reload the page.');
+                    e.preventDefault();
+                }, false);
 
-        let aspectRatio = 16 / 9;
-
-        let width = vh * aspectRatio / vw * 100;
-
-        canvas.style.width = width.toString() + "%";
-        canvas.style.height = '100%';
-      }
-
-      // Call the resize function initially.
-      resizeCanvas();
-
-      // Listen for window resize events to adjust canvas accordingly.
-      window.addEventListener('resize', resizeCanvas);
-      
-      window.onerror = (event) => {
-        Module.setStatus('Exception thrown, see JavaScript console');
-        Module.setStatus = (text) => {
-          if (text) console.error('[post-exception status] ' + text);
+                return canvas;
+            })(),
+            setStatus: (text) => {
+                // if (text != '') {
+                //   Module.print(text);
+                // }
+                if (!Module.setStatus.last) Module.setStatus.last = {
+                    time: Date.now(),
+                    text: '',
+                    display: 'block'
+                };
+                if (text === Module.setStatus.last.text) return;
+                var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+                var now = Date.now();
+                if (m && now - Module.setStatus.last.time < 30) return; // if this is a progress update, skip it if too soon
+                Module.setStatus.last.time = now;
+                Module.setStatus.last.text = text;
+                if (m) {
+                    text = m[1];
+                }
+                if (text == '') {
+                    Module.setStatus.last.display = 'flex';
+                } else {
+                    Module.setStatus.last.display = 'block';
+                }
+                statusElement.innerHTML = text;
+                statusElement.style.display = Module.setStatus.last.display;
+            },
+            totalDependencies: 0,
+            monitorRunDependencies: (remaining) => {
+                if (!isNaN(remaining) && !isNaN(this.totalDependencies)) {
+                    this.totalDependencies = Math.max(this.totalDependencies, remaining);
+                    Module.setStatus(remaining ? 'Preparing... (' + (this.totalDependencies - remaining) + '/' + this.totalDependencies + ')' : 'Loading complete.');
+                }
+            }
         };
-      };
+        Module.setStatus('Loading...');
+
+        window.onerror = (event) => {
+            Module.setStatus('Exception thrown, see JavaScript console');
+            Module.setStatus = (text) => {
+                if (text) console.error('[post-exception status] ' + text);
+            };
+        };
     </script>
     {{{ SCRIPT }}}
-  </body>
+</body>
+
 </html>
