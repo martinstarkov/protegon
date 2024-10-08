@@ -104,6 +104,8 @@ void CheckForTestSwitch(const std::vector<std::shared_ptr<Test>>& tests, int& cu
 		tests[current_test]->Shutdown();
 		tests[current_test]->Deinit();
 		game.window.SetTitle("");
+		game.window.SetSize({ 800, 800 });
+		game.window.Center();
 		game.event.window.Unsubscribe(tests[current_test].get());
 	};
 
