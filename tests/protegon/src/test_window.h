@@ -77,11 +77,10 @@ class WindowSettingTest : public Test {
 	void Update() final {
 		auto& p = game.camera.GetPrimary();
 		if (game.input.KeyDown(Key::Z)) {
-			p.SetSize(og_window_size);
-			p.SetPosition(og_window_size / 2.0f);
+			p.CenterOnArea(og_window_size);
 		}
 		if (game.input.KeyDown(Key::X)) {
-			game.camera.ResetPrimary();
+			p.SetToWindow();
 		}
 		if (game.input.KeyDown(Key::V)) {
 			game.window.SetPosition({ 0, 0 });

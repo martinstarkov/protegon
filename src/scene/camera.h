@@ -57,6 +57,10 @@ public:
 	OrthographicCamera()		   = default;
 	~OrthographicCamera() override = default;
 
+	// Set the camera to be centered on the window.
+	void SetToWindow();
+	void CenterOnArea(const V2_float& size);
+
 	// Origin at the top left.
 	[[nodiscard]] Rectangle<float> GetRectangle() const;
 	[[nodiscard]] V2_float GetTopLeftPosition() const;
@@ -76,9 +80,6 @@ public:
 
 	// If continuously is true, camera will subscribe to window resize event.
 	void CenterOnWindow(bool continuously = false);
-
-	void SubscribeToWindowResize();
-	void UnsubscribeFromWindowResize() const;
 
 	void SetBounds(const Rectangle<float>& bounding_box);
 
@@ -135,6 +136,9 @@ protected:
 	void RecalculateView();
 	void RecalculateProjection();
 	void RecalculateViewProjection();
+
+	void SubscribeToWindowResize();
+	void UnsubscribeFromWindowResize() const;
 };
 
 namespace impl {

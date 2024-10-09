@@ -91,6 +91,20 @@ V3_float OrthographicCamera::GetPosition3D() const {
 	return Get().position;
 }
 
+void OrthographicCamera::SetToWindow() {
+	UnsubscribeFromWindowResize();
+	if (IsValid()) {
+		Get() = {};
+	}
+	CenterOnWindow(true);
+	SetSizeToWindow(true);
+}
+
+void OrthographicCamera::CenterOnArea(const V2_float& size) {
+	SetSize(size);
+	SetPosition(size / 2.0f);
+}
+
 Rectangle<float> OrthographicCamera::GetRectangle() const {
 	return Rectangle<float>{ GetTopLeftPosition(), GetSize(), Origin::TopLeft };
 }
@@ -441,7 +455,7 @@ namespace impl {
 
 CameraManager::CameraManager() {
 	OrthographicCamera c;
-	c.SubscribeToWindowResize();
+	c.SetToWindow();
 	primary_cameras_.emplace(0, c);
 }
 
@@ -462,7 +476,7 @@ OrthographicCamera& CameraManager::GetPrimary(std::size_t render_layer) {
 		return it->second;
 	}
 	OrthographicCamera c;
-	c.SubscribeToWindowResize();
+	c.SetToWindow();
 	auto new_it = primary_cameras_.emplace(render_layer, c);
 	return new_it.first->second;
 }
@@ -479,9 +493,7 @@ void CameraManager::Reset() {
 
 void CameraManager::ResetPrimary() {
 	for (auto& [layer, camera] : primary_cameras_) {
-		camera.UnsubscribeFromWindowResize();
-		camera = {};
-		camera.SubscribeToWindowResize();
+		camera.SetToWindow();
 	}
 }
 
