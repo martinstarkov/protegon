@@ -48,7 +48,6 @@ class WindowSettingTest : public Test {
 	void Init() override {
 		game.draw.SetClearColor(color::Silver);
 		game.window.SetSize(og_window_size);
-		game.window.Center();
 
 		texts.clear();
 

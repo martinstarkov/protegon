@@ -137,11 +137,15 @@ std::string_view Window::GetTitle() const {
 	return SDL_GetWindowTitle(Get());
 }
 
-void Window::SetSize(const V2_int& new_size) const {
+void Window::SetSize(const V2_int& new_size, bool centered) const {
 #ifdef __EMSCRIPTEN__
 	SetCanvasSize(new_size);
 #endif
 	SDL_SetWindowSize(Get(), new_size.x, new_size.y);
+	// Important to center after resizing.
+	if (centered) {
+		Center();
+	}
 }
 
 void Window::SetPosition(const V2_int& new_origin) const {

@@ -56,7 +56,7 @@ public:
 	void SetMaximumSize(const V2_int& maximum_size) const;
 	[[nodiscard]] V2_int GetMaximumSize() const;
 
-	void SetSize(const V2_int& new_size) const;
+	void SetSize(const V2_int& new_size, bool centered = true) const;
 	[[nodiscard]] V2_int GetSize() const;
 
 #ifdef __EMSCRIPTEN__

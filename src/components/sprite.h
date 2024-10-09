@@ -172,7 +172,7 @@ using SpriteFlip = Flip;
 
 using SpriteZ = float;
 
-void Sprite::Draw(ecs::Entity entity, const Transform& transform) const {
+inline void Sprite::Draw(ecs::Entity entity, const Transform& transform) const {
 	game.draw.Texture(
 		texture, transform.position + draw_offset, source.size * transform.scale,
 		{ source.pos, source.size, source.origin,
@@ -182,7 +182,7 @@ void Sprite::Draw(ecs::Entity entity, const Transform& transform) const {
 	);
 }
 
-void Animation::Draw(ecs::Entity entity, const Transform& transform) const {
+inline void Animation::Draw(ecs::Entity entity, const Transform& transform) const {
 	const auto& source{ GetSource() };
 	game.draw.Texture(
 		texture, transform.position + draw_offset, sprite_size * transform.scale,
