@@ -175,8 +175,14 @@ V2_int InputHandler::GetMousePositionGlobal() const {
 	return pos;
 }
 
-V2_int InputHandler::GetMousePosition() const {
-	return mouse_position_ / game.draw.GetViewportScale();
+V2_int InputHandler::GetMousePositionWindow() const {
+	return mouse_position_;
+}
+
+V2_int InputHandler::GetMousePosition(std::size_t render_layer) const {
+	V2_float size  = game.camera.GetPrimary(render_layer).GetSize();
+	V2_float scale = game.window.GetSize() / size;
+	return GetMousePositionWindow() / scale;
 }
 
 int InputHandler::GetMouseScroll() const {

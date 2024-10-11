@@ -76,6 +76,24 @@ Camera::~Camera() {
 	}
 }
 
+void Camera::Reset() {
+	position	 = {};
+	size		 = {};
+	zoom		 = 1.0f;
+	orientation	 = {};
+	bounding_box = {};
+	flip		 = Flip::None;
+
+	view			= M4_float{ 1.0f };
+	projection		= M4_float{ 1.0f };
+	view_projection = M4_float{ 1.0f };
+
+	recalculate_view	   = false;
+	recalculate_projection = false;
+	center_to_window	   = true;
+	resize_to_window	   = true;
+}
+
 } // namespace impl
 
 Rectangle<float> OrthographicCamera::GetBounds() const {
@@ -94,7 +112,7 @@ V3_float OrthographicCamera::GetPosition3D() const {
 void OrthographicCamera::SetToWindow() {
 	UnsubscribeFromWindowResize();
 	if (IsValid()) {
-		Get() = {};
+		Get().Reset();
 	}
 	CenterOnWindow(true);
 	SetSizeToWindow(true);
@@ -151,9 +169,9 @@ void OrthographicCamera::CenterOnWindow(bool continuously) {
 
 void OrthographicCamera::SubscribeToWindowResize() {
 	Create();
-	if (auto o{ GetPtr() }; !game.event.window.IsSubscribed(o)) {
+	if (!game.event.window.IsSubscribed(&Get())) {
 		game.event.window.Subscribe(
-			WindowEvent::Resized, o,
+			WindowEvent::Resized, &Get(),
 			std::function([this](const WindowResizedEvent& e) { OnWindowResize(e.size); })
 		);
 	}
@@ -165,8 +183,8 @@ void OrthographicCamera::UnsubscribeFromWindowResize() const {
 		return;
 	}
 
-	if (auto o{ GetPtr() }; game.event.window.IsSubscribed(o)) {
-		game.event.window.Unsubscribe(o);
+	if (game.event.window.IsSubscribed(&Get())) {
+		game.event.window.Unsubscribe(&Get());
 	}
 }
 
@@ -475,10 +493,8 @@ OrthographicCamera& CameraManager::GetPrimary(std::size_t render_layer) {
 	if (auto it = primary_cameras_.find(render_layer); it != primary_cameras_.end()) {
 		return it->second;
 	}
-	OrthographicCamera c;
-	c.SetToWindow();
-	auto new_it = primary_cameras_.emplace(render_layer, c);
-	return new_it.first->second;
+	primary_cameras_[render_layer].SetToWindow();
+	return primary_cameras_[render_layer];
 }
 
 void CameraManager::SetPrimaryImpl(const InternalKey& key, std::size_t render_layer) {

@@ -77,12 +77,12 @@ class WindowSettingTest : public Test {
 		auto& p = game.camera.GetPrimary();
 		if (game.input.KeyDown(Key::Z)) {
 			V2_float scale = game.window.GetSize() / og_window_size;
-			game.draw.SetViewportScale(scale);
-			// p.CenterOnArea(og_window_size);
+			// game.draw.SetViewportScale(scale);
+			p.CenterOnArea(og_window_size);
 		}
 		if (game.input.KeyDown(Key::X)) {
-			// p.SetToWindow();
-			game.draw.SetViewportScale({ 1.0f, 1.0f });
+			p.SetToWindow();
+			// game.draw.SetViewportScale({ 1.0f, 1.0f });
 		}
 		if (game.input.KeyDown(Key::V)) {
 			game.window.SetPosition({ 0, 0 });
@@ -144,10 +144,21 @@ class WindowSettingTest : public Test {
 		game.draw.Rectangle({}, game.window.GetSize(), { 0, 0, 255, 10 }, Origin::TopLeft);
 		game.draw.Rectangle({}, og_window_size, { 255, 0, 0, 40 }, Origin::TopLeft);
 		game.draw.Rectangle({}, og_window_size, { 0, 255, 0, 40 }, Origin::TopLeft, 10.0f);
-		game.draw.Rectangle(
-			og_window_size, { 30.0f, 30.0f }, { 0, 255, 0, 255 }, Origin::BottomRight, -1.0f, 0.0f,
-			{}, 0.0f, 1
-		);
+
+		Color color_0 = color::Green;
+		Color color_1 = color::Blue;
+
+		Rectangle<float> rect_0{ V2_float{ og_window_size.x, 0.0f }, V2_float{ 30.0f, 30.0f },
+								 Origin::TopRight };
+		Rectangle<float> rect_1{ V2_int{ 0, game.window.GetSize().y }, V2_float{ 30.0f, 30.0f },
+								 Origin::BottomLeft };
+
+		if (game.collision.overlap.PointRectangle(game.input.GetMousePosition(0), rect_0)) {
+			color_0 = color::Red;
+		}
+		if (game.collision.overlap.PointRectangle(game.input.GetMousePosition(1), rect_1)) {
+			color_1 = color::Red;
+		}
 
 		camera_pos_text.SetContent(
 			"Camera Position: " + ToString(game.camera.GetPrimary().GetPosition())
@@ -188,7 +199,15 @@ class WindowSettingTest : public Test {
 			offset += rect.size;
 		}
 
-		game.draw.Point(game.input.GetMousePosition(), color::Cyan, 3.0f);
+		game.draw.Rectangle(
+			rect_0.pos, rect_0.size, color_0, rect_0.origin, -1.0f, 0.0f, {}, 0.0f, 0
+		);
+		game.draw.Rectangle(
+			rect_1.pos, rect_1.size, color_1, rect_1.origin, -1.0f, 0.0f, {}, 0.0f, 1
+		);
+
+		game.draw.Point(game.input.GetMousePosition(0), { 128, 128, 0, 128 }, 4.0f, 0.0f, 0);
+		game.draw.Point(game.input.GetMousePosition(1), { 128, 0, 128, 128 }, 4.0f, 0.0f, 1);
 	}
 };
 

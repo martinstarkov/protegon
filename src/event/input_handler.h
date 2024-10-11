@@ -65,7 +65,11 @@ public:
 	void SetRelativeMouseMode(bool on) const;
 
 	// @return Mouse position relative to the top left of the window.
-	[[nodiscard]] V2_int GetMousePosition() const;
+	[[nodiscard]] V2_int GetMousePositionWindow() const;
+
+	// @return Mouse position scaled relative to the camera size of the specified render layer.
+	[[nodiscard]] V2_int GetMousePosition(std::size_t render_layer = 0) const;
+
 	// @return In desktop mode: mouse position relative to the screen (display). In browser: same as
 	// GetMousePosition().
 	[[nodiscard]] V2_int GetMousePositionGlobal() const;

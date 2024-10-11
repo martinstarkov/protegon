@@ -35,11 +35,6 @@ protected:
 		return *instance_;
 	}
 
-	const T* GetPtr() const {
-		PTGN_ASSERT(IsValid());
-		return instance_.get();
-	}
-
 	template <typename... TArgs>
 	void Create(TArgs&&... args) {
 		if (!IsValid()) {

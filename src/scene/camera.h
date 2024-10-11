@@ -34,6 +34,7 @@ struct Camera {
 	V3_float orientation;
 
 	~Camera();
+	void Reset();
 
 	// If rectangle IsZero(), no position bounds are enforced.
 	Rectangle<float> bounding_box;
