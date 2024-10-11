@@ -11,6 +11,10 @@ struct SDL_Window;
 
 namespace ptgn {
 
+struct Screen {
+	[[nodiscard]] static V2_int GetSize();
+};
+
 enum class WindowSetting {
 	Windowed,
 	Fullscreen, /* borderless fullscreen window (desktop fullscreen) */

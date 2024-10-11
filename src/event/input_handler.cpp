@@ -3,11 +3,6 @@
 #include <bitset>
 #include <utility>
 
-#include "SDL_events.h"
-#include "SDL_keyboard.h"
-#include "SDL_mouse.h"
-#include "SDL_stdinc.h"
-#include "SDL_video.h"
 #include "core/window.h"
 #include "event/event_handler.h"
 #include "event/key.h"
@@ -19,6 +14,11 @@
 #include "protegon/timer.h"
 #include "protegon/vector2.h"
 #include "renderer/origin.h"
+#include "SDL_events.h"
+#include "SDL_keyboard.h"
+#include "SDL_mouse.h"
+#include "SDL_stdinc.h"
+#include "SDL_video.h"
 #include "utility/debug.h"
 #include "utility/time.h"
 
@@ -176,7 +176,7 @@ V2_int InputHandler::GetMousePositionGlobal() const {
 }
 
 V2_int InputHandler::GetMousePosition() const {
-	return mouse_position_;
+	return mouse_position_ / game.draw.GetViewportScale();
 }
 
 int InputHandler::GetMouseScroll() const {

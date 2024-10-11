@@ -81,9 +81,23 @@ V2_int Renderer::GetViewportSize() const {
 	return viewport_size_;
 }
 
+void Renderer::SetViewportScale(const V2_float& viewport_scale) {
+	PTGN_ASSERT(viewport_scale.x != 0 && "Cannot set viewport scale x to 0");
+	PTGN_ASSERT(viewport_scale.y != 0 && "Cannot set viewport scale y to 0");
+
+	viewport_scale_ = viewport_scale;
+}
+
+V2_float Renderer::GetViewportScale() const {
+	return viewport_scale_;
+}
+
 void Renderer::Clear() const {
-	V2_int window_size{ game.window.GetSize() };
-	GLRenderer::SetViewport(V2_int{ 0, window_size.y - viewport_size_.y }, viewport_size_);
+	V2_float window_size{ game.window.GetSize() };
+	GLRenderer::SetViewport(
+		V2_float{ 0.0f, window_size.y - static_cast<float>(viewport_size_.y) * viewport_scale_.y },
+		viewport_size_ * viewport_scale_
+	);
 	GLRenderer::Clear();
 }
 

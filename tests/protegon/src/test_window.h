@@ -76,10 +76,13 @@ class WindowSettingTest : public Test {
 	void Update() final {
 		auto& p = game.camera.GetPrimary();
 		if (game.input.KeyDown(Key::Z)) {
-			p.CenterOnArea(og_window_size);
+			V2_float scale = game.window.GetSize() / og_window_size;
+			game.draw.SetViewportScale(scale);
+			// p.CenterOnArea(og_window_size);
 		}
 		if (game.input.KeyDown(Key::X)) {
-			p.SetToWindow();
+			// p.SetToWindow();
+			game.draw.SetViewportScale({ 1.0f, 1.0f });
 		}
 		if (game.input.KeyDown(Key::V)) {
 			game.window.SetPosition({ 0, 0 });
@@ -140,7 +143,11 @@ class WindowSettingTest : public Test {
 	void Draw() final {
 		game.draw.Rectangle({}, game.window.GetSize(), { 0, 0, 255, 10 }, Origin::TopLeft);
 		game.draw.Rectangle({}, og_window_size, { 255, 0, 0, 40 }, Origin::TopLeft);
-		game.draw.Rectangle({}, og_window_size, { 0, 255, 0, 20 }, Origin::TopLeft, 10.0f);
+		game.draw.Rectangle({}, og_window_size, { 0, 255, 0, 40 }, Origin::TopLeft, 10.0f);
+		game.draw.Rectangle(
+			og_window_size, { 30.0f, 30.0f }, { 0, 255, 0, 255 }, Origin::BottomRight, -1.0f, 0.0f,
+			{}, 0.0f, 1
+		);
 
 		camera_pos_text.SetContent(
 			"Camera Position: " + ToString(game.camera.GetPrimary().GetPosition())
@@ -180,6 +187,8 @@ class WindowSettingTest : public Test {
 			t.Draw(rect);
 			offset += rect.size;
 		}
+
+		game.draw.Point(game.input.GetMousePosition(), color::Cyan, 3.0f);
 	}
 };
 

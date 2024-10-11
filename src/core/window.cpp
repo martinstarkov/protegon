@@ -5,14 +5,14 @@
 #include <string>
 #include <string_view>
 
-#include "SDL_error.h"
-#include "SDL_mouse.h"
-#include "SDL_stdinc.h"
-#include "SDL_video.h"
 #include "core/sdl_instance.h"
 #include "protegon/game.h"
 #include "protegon/log.h"
 #include "protegon/vector2.h"
+#include "SDL_error.h"
+#include "SDL_mouse.h"
+#include "SDL_stdinc.h"
+#include "SDL_video.h"
 #include "utility/debug.h"
 
 #ifdef __EMSCRIPTEN__
@@ -25,7 +25,18 @@ EM_JS(int, get_canvas_height, (), { return Module.canvas.height; });
 
 #endif
 
-namespace ptgn::impl {
+namespace ptgn {
+
+V2_int Screen::GetSize() {
+	SDL_DisplayMode dm;
+	if (SDL_GetDesktopDisplayMode(0, &dm) != 0) {
+		PTGN_LOG("SDL_GetDesktopDisplayMode failed: %s", SDL_GetError());
+		return {};
+	}
+	return { dm.w, dm.h };
+}
+
+namespace impl {
 
 #ifdef __EMSCRIPTEN__
 
@@ -199,4 +210,6 @@ bool Window::GetSetting(WindowSetting setting) const {
 	}
 }
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn

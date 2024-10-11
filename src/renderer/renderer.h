@@ -169,6 +169,9 @@ public:
 	void SetViewportSize(const V2_int& viewport_size);
 	[[nodiscard]] V2_int GetViewportSize() const;
 
+	void SetViewportScale(const V2_float& viewport_scale);
+	[[nodiscard]] V2_float GetViewportScale() const;
+
 private:
 	friend class CameraManager;
 	friend class Game;
@@ -182,6 +185,7 @@ private:
 	Color clear_color_{ color::Transparent };
 	BlendMode blend_mode_{ BlendMode::Blend };
 	V2_int viewport_size_;
+	V2_float viewport_scale_{ 1.0f, 1.0f };
 	RendererData data_;
 };
 
