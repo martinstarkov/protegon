@@ -164,6 +164,16 @@ template <typename T>
 	return value >= 0 ? value : -value;
 }
 
+template <typename T>
+[[nodiscard]] T FastMin(T a, T b) {
+	return a < b ? a : b;
+}
+
+template <typename T>
+[[nodiscard]] T FastMax(T a, T b) {
+	return a > b ? a : b;
+}
+
 // Source: https://stackoverflow.com/a/65015333
 // Compare two floating point numbers using relative tolerance and absolute
 // tolerances. The absolute tolerance test fails when x and y become large. The
@@ -218,6 +228,16 @@ template <typename T, typename U, tt::arithmetic<T> = true, tt::floating_point<U
 	U a2  = y2 - y0;
 	U a3  = y1;
 	return (a0 * t * mu2 + a1 * mu2 + a2 * t + a3);
+}
+
+template <typename U, tt::floating_point<U> = true>
+[[nodiscard]] U Quintic(U t) {
+	return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
+}
+
+template <typename U, tt::floating_point<U> = true>
+[[nodiscard]] U QuinticInterpolate(U a, U b, U t) {
+	return Lerp(a, b, Quintic(t));
 }
 
 template <typename U, tt::floating_point<U> = true>
