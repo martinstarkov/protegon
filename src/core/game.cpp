@@ -6,6 +6,7 @@
 #include <variant>
 #include <vector>
 
+#include "SDL.h"
 #include "core/gl_context.h"
 #include "core/manager.h"
 #include "core/sdl_instance.h"
@@ -115,6 +116,11 @@ Game::~Game() {
 
 float Game::dt() const {
 	return dt_;
+}
+
+float Game::time() const {
+	// TODO: Consider casting to chrono duration instead.
+	return static_cast<float>(SDL_GetTicks64());
 }
 
 void Game::PushFrontLoopFunction(const UpdateFunction& loop_function) {

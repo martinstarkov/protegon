@@ -62,6 +62,10 @@ private:
 public:
 	// @return Previous frame time in milliseconds
 	[[nodiscard]] float dt() const;
+	// @return Milliseconds since the game was started.
+	// Note: Technically this is the time since the SDL2 library was initialized, which is done when
+	// starting the game.
+	[[nodiscard]] float time() const;
 
 	// Core Subsystems
 
