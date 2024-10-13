@@ -46,6 +46,7 @@ public:
 
 		// Visual tests.
 
+		TestRNG();
 		TestWindow();
 		TestRenderer();
 		TestCamera();
@@ -53,7 +54,6 @@ public:
 		TestAnimations();
 		TestPathfinding();
 		TestTween();
-		TestRNG();
 		TestText();
 		TestEvents();
 
