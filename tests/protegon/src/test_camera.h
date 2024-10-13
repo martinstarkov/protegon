@@ -2,10 +2,15 @@
 
 #include <memory>
 #include <new>
+#include <string>
 #include <vector>
 
 #include "common.h"
+#include "components/camera_shake.h"
+#include "components/sprite.h"
+#include "components/transform.h"
 #include "core/window.h"
+#include "ecs/ecs.h"
 #include "event/input_handler.h"
 #include "event/key.h"
 #include "protegon/circle.h"
@@ -251,9 +256,85 @@ struct TestParallax : public Test {
 	}
 };
 
+struct TestCameraShake : public Test {
+	Texture texture{ "resources/sprites/test1.jpg" };
+
+	TestCameraShake() {}
+
+	ecs::Manager manager;
+	ecs::Entity player;
+
+	float speed{ 50.0f };
+
+	void Init() override {
+		manager.Reset();
+
+		player = manager.CreateEntity();
+
+		player.Add<Transform>(V2_float{ 60.0f, 60.0f });
+		player.Add<CameraShake>();
+
+		manager.Refresh();
+	}
+
+	void Shutdown() override {}
+
+	void Update() override {
+		auto& cam_shake = player.Get<CameraShake>();
+		if (game.input.KeyDown(Key::R)) {
+			cam_shake.Reset();
+		}
+		if (game.input.KeyDown(Key::T)) {
+			cam_shake.Induce(0.1f);
+		}
+		if (game.input.KeyDown(Key::Y)) {
+			cam_shake.Induce(0.15f);
+		}
+		if (game.input.KeyDown(Key::U)) {
+			cam_shake.Induce(0.25f);
+		}
+		if (game.input.KeyDown(Key::I)) {
+			cam_shake.Induce(0.5f);
+		}
+		if (game.input.KeyDown(Key::O)) {
+			cam_shake.Induce(0.75f);
+		}
+		if (game.input.KeyDown(Key::P)) {
+			cam_shake.Induce(1.0f);
+		}
+
+		cam_shake.Update();
+
+		auto& p = player.Get<Transform>().position;
+		if (game.input.KeyPressed(Key::W)) {
+			p.y -= speed * dt;
+		}
+		if (game.input.KeyPressed(Key::S)) {
+			p.y += speed * dt;
+		}
+		if (game.input.KeyPressed(Key::A)) {
+			p.x -= speed * dt;
+		}
+		if (game.input.KeyPressed(Key::D)) {
+			p.x += speed * dt;
+		}
+
+		auto& cam = game.camera.GetPrimary();
+		cam.SetPosition(p + cam_shake.local_position);
+		cam.SetRotation(cam_shake.local_rotation);
+	}
+
+	void Draw() override {
+		game.draw.Texture(texture, { 0, 0 }, texture.GetSize());
+		DrawRectangle(player, player.Get<Transform>(), V2_float{ 30.0f, 30.0f });
+		game.draw.Rectangle({ 0, 0 }, { 50.0f, 50.0f }, color::Orange, Origin::TopLeft);
+	}
+};
+
 void TestCamera() {
 	std::vector<std::shared_ptr<Test>> tests;
 
+	tests.emplace_back(new TestCameraShake());
 	tests.emplace_back(new TestCameraControls());
 	tests.emplace_back(new TestCameraBounds());
 	tests.emplace_back(new TestCameraSwitching());
