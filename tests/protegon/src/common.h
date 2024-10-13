@@ -29,6 +29,7 @@ struct Test {
 	void Setup() {
 		ws	   = game.window.GetSize();
 		center = game.window.GetCenter();
+		game.window.Center();
 	}
 
 	virtual void Init() {
@@ -55,6 +56,7 @@ struct Test {
 					game.camera.ResetPrimary();
 					Shutdown();
 					game.window.SetTitle("");
+					game.window.Center();
 					game.event.window.Unsubscribe(this);
 					game.PopBackLoopFunction();
 					Deinit();
