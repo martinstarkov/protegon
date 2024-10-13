@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <numeric>
@@ -14,138 +15,246 @@
 
 namespace ptgn {
 
-class ValueNoise {
+namespace impl {
+
+class Noise {
 public:
-	ValueNoise() = default;
+	virtual ~Noise() = default;
 
-	ValueNoise(std::size_t size, std::uint32_t seed = 0) :
-		float_rng{ seed },
-		permutation_rng{ seed, 0, size - 1 },
-		noise(size),
-		permutations(size * 2) {
-		std::generate(noise.begin(), noise.end(), [&]() { return float_rng(); });
+	void SetFrequency(float frequency);
+	[[nodiscard]] float GetFrequency() const;
 
-		std::iota(permutations.begin(), permutations.end(), 0);
+	void SetSeed(std::int32_t seed);
+	[[nodiscard]] std::int32_t GetSeed() const;
 
-		for (std::size_t k{ 0 }; k < noise.size(); ++k) {
-			std::size_t idx{ permutation_rng() };
-			PTGN_ASSERT(idx < permutations.size(), idx);
-			std::swap(permutations[k], permutations[idx]);
-			permutations[k + noise.size()] = permutations[k];
-		}
+	[[nodiscard]] virtual float Get(float x, float y) const = 0;
+	[[nodiscard]] virtual float Get(float x) const			= 0;
+
+protected:
+	[[nodiscard]] static float ValueCoordinate(
+		std::int32_t seed, std::int32_t xPrimed, std::int32_t yPrimed
+	) {
+		std::int32_t hash  = Hash(seed, xPrimed, yPrimed);
+		hash			  *= hash;
+		hash			  ^= hash << 19;
+		return static_cast<float>(hash) * (1.0f / 2147483648.0f);
 	}
 
-	[[nodiscard]] float Evaluate(const V2_float& pos) const {
-		auto xi = static_cast<int>(FastFloor(pos.x));
-		auto yi = static_cast<int>(FastFloor(pos.y));
+	[[nodiscard]] static float GradientCoordinate(
+		std::int32_t seed, std::int32_t xPrimed, std::int32_t yPrimed, float xd, float yd
+	) {
+		std::int32_t hash  = Hash(seed, xPrimed, yPrimed);
+		hash			  ^= hash >> 15;
+		hash			  &= 127 << 1;
 
-		float tx = pos.x - static_cast<float>(xi);
-		float ty = pos.y - static_cast<float>(yi);
+		PTGN_ASSERT(hash < gradients.size() && (hash | 1) < gradients.size());
 
-		int mask{ static_cast<int>(noise.size()) - 1 };
-		int rx0 = xi & mask;
-		int rx1 = (rx0 + 1) & mask;
-		int ry0 = yi & mask;
-		int ry1 = (ry0 + 1) & mask;
+		float xg = gradients[hash];
+		float yg = gradients[hash | 1];
 
-		// random values at the corners of the cell using permutation table
-		const float& c00 = noise[permutations[permutations[rx0] + ry0]];
-		const float& c10 = noise[permutations[permutations[rx1] + ry0]];
-		const float& c01 = noise[permutations[permutations[rx0] + ry1]];
-		const float& c11 = noise[permutations[permutations[rx1] + ry1]];
-
-		// remapping of tx and ty using the Smoothstep function
-		float sx = Smoothstep(tx);
-		float sy = Smoothstep(ty);
-
-		// linearly interpolate values along the x axis
-		float nx0 = Lerp(c00, c10, sx);
-		float nx1 = Lerp(c01, c11, sx);
-
-		// linearly interpolate the nx0/nx1 along they y axis
-		return Lerp(nx0, nx1, sy);
+		return xd * xg + yd * yg;
 	}
+
+	static constexpr std::int32_t prime_x = 501125321;
+	static constexpr std::int32_t prime_y = 1136930381;
+	static constexpr std::int32_t prime_z = 1720413743;
+
+	static constexpr float default_y = 0.12345f; /* default y for 1D noise */
 
 private:
-	RNG<float> float_rng;
-	RNG<std::size_t> permutation_rng;
+	static constexpr std::array<float, 256> gradients{
+		0.130526192220052f,	 0.99144486137381f,	  0.38268343236509f,   0.923879532511287f,
+		0.608761429008721f,	 0.793353340291235f,  0.793353340291235f,  0.608761429008721f,
+		0.923879532511287f,	 0.38268343236509f,	  0.99144486137381f,   0.130526192220051f,
+		0.99144486137381f,	 -0.130526192220051f, 0.923879532511287f,  -0.38268343236509f,
+		0.793353340291235f,	 -0.60876142900872f,  0.608761429008721f,  -0.793353340291235f,
+		0.38268343236509f,	 -0.923879532511287f, 0.130526192220052f,  -0.99144486137381f,
+		-0.130526192220052f, -0.99144486137381f,  -0.38268343236509f,  -0.923879532511287f,
+		-0.608761429008721f, -0.793353340291235f, -0.793353340291235f, -0.608761429008721f,
+		-0.923879532511287f, -0.38268343236509f,  -0.99144486137381f,  -0.130526192220052f,
+		-0.99144486137381f,	 0.130526192220051f,  -0.923879532511287f, 0.38268343236509f,
+		-0.793353340291235f, 0.608761429008721f,  -0.608761429008721f, 0.793353340291235f,
+		-0.38268343236509f,	 0.923879532511287f,  -0.130526192220052f, 0.99144486137381f,
+		0.130526192220052f,	 0.99144486137381f,	  0.38268343236509f,   0.923879532511287f,
+		0.608761429008721f,	 0.793353340291235f,  0.793353340291235f,  0.608761429008721f,
+		0.923879532511287f,	 0.38268343236509f,	  0.99144486137381f,   0.130526192220051f,
+		0.99144486137381f,	 -0.130526192220051f, 0.923879532511287f,  -0.38268343236509f,
+		0.793353340291235f,	 -0.60876142900872f,  0.608761429008721f,  -0.793353340291235f,
+		0.38268343236509f,	 -0.923879532511287f, 0.130526192220052f,  -0.99144486137381f,
+		-0.130526192220052f, -0.99144486137381f,  -0.38268343236509f,  -0.923879532511287f,
+		-0.608761429008721f, -0.793353340291235f, -0.793353340291235f, -0.608761429008721f,
+		-0.923879532511287f, -0.38268343236509f,  -0.99144486137381f,  -0.130526192220052f,
+		-0.99144486137381f,	 0.130526192220051f,  -0.923879532511287f, 0.38268343236509f,
+		-0.793353340291235f, 0.608761429008721f,  -0.608761429008721f, 0.793353340291235f,
+		-0.38268343236509f,	 0.923879532511287f,  -0.130526192220052f, 0.99144486137381f,
+		0.130526192220052f,	 0.99144486137381f,	  0.38268343236509f,   0.923879532511287f,
+		0.608761429008721f,	 0.793353340291235f,  0.793353340291235f,  0.608761429008721f,
+		0.923879532511287f,	 0.38268343236509f,	  0.99144486137381f,   0.130526192220051f,
+		0.99144486137381f,	 -0.130526192220051f, 0.923879532511287f,  -0.38268343236509f,
+		0.793353340291235f,	 -0.60876142900872f,  0.608761429008721f,  -0.793353340291235f,
+		0.38268343236509f,	 -0.923879532511287f, 0.130526192220052f,  -0.99144486137381f,
+		-0.130526192220052f, -0.99144486137381f,  -0.38268343236509f,  -0.923879532511287f,
+		-0.608761429008721f, -0.793353340291235f, -0.793353340291235f, -0.608761429008721f,
+		-0.923879532511287f, -0.38268343236509f,  -0.99144486137381f,  -0.130526192220052f,
+		-0.99144486137381f,	 0.130526192220051f,  -0.923879532511287f, 0.38268343236509f,
+		-0.793353340291235f, 0.608761429008721f,  -0.608761429008721f, 0.793353340291235f,
+		-0.38268343236509f,	 0.923879532511287f,  -0.130526192220052f, 0.99144486137381f,
+		0.130526192220052f,	 0.99144486137381f,	  0.38268343236509f,   0.923879532511287f,
+		0.608761429008721f,	 0.793353340291235f,  0.793353340291235f,  0.608761429008721f,
+		0.923879532511287f,	 0.38268343236509f,	  0.99144486137381f,   0.130526192220051f,
+		0.99144486137381f,	 -0.130526192220051f, 0.923879532511287f,  -0.38268343236509f,
+		0.793353340291235f,	 -0.60876142900872f,  0.608761429008721f,  -0.793353340291235f,
+		0.38268343236509f,	 -0.923879532511287f, 0.130526192220052f,  -0.99144486137381f,
+		-0.130526192220052f, -0.99144486137381f,  -0.38268343236509f,  -0.923879532511287f,
+		-0.608761429008721f, -0.793353340291235f, -0.793353340291235f, -0.608761429008721f,
+		-0.923879532511287f, -0.38268343236509f,  -0.99144486137381f,  -0.130526192220052f,
+		-0.99144486137381f,	 0.130526192220051f,  -0.923879532511287f, 0.38268343236509f,
+		-0.793353340291235f, 0.608761429008721f,  -0.608761429008721f, 0.793353340291235f,
+		-0.38268343236509f,	 0.923879532511287f,  -0.130526192220052f, 0.99144486137381f,
+		0.130526192220052f,	 0.99144486137381f,	  0.38268343236509f,   0.923879532511287f,
+		0.608761429008721f,	 0.793353340291235f,  0.793353340291235f,  0.608761429008721f,
+		0.923879532511287f,	 0.38268343236509f,	  0.99144486137381f,   0.130526192220051f,
+		0.99144486137381f,	 -0.130526192220051f, 0.923879532511287f,  -0.38268343236509f,
+		0.793353340291235f,	 -0.60876142900872f,  0.608761429008721f,  -0.793353340291235f,
+		0.38268343236509f,	 -0.923879532511287f, 0.130526192220052f,  -0.99144486137381f,
+		-0.130526192220052f, -0.99144486137381f,  -0.38268343236509f,  -0.923879532511287f,
+		-0.608761429008721f, -0.793353340291235f, -0.793353340291235f, -0.608761429008721f,
+		-0.923879532511287f, -0.38268343236509f,  -0.99144486137381f,  -0.130526192220052f,
+		-0.99144486137381f,	 0.130526192220051f,  -0.923879532511287f, 0.38268343236509f,
+		-0.793353340291235f, 0.608761429008721f,  -0.608761429008721f, 0.793353340291235f,
+		-0.38268343236509f,	 0.923879532511287f,  -0.130526192220052f, 0.99144486137381f,
+		0.38268343236509f,	 0.923879532511287f,  0.923879532511287f,  0.38268343236509f,
+		0.923879532511287f,	 -0.38268343236509f,  0.38268343236509f,   -0.923879532511287f,
+		-0.38268343236509f,	 -0.923879532511287f, -0.923879532511287f, -0.38268343236509f,
+		-0.923879532511287f, 0.38268343236509f,	  -0.38268343236509f,  0.923879532511287f,
+	};
 
-	std::vector<float> noise;
-	std::vector<std::size_t> permutations; // size: noise.size() * 2
-};
+	[[nodiscard]] static std::int32_t Hash(
+		std::int32_t seed, std::int32_t xPrimed, std::int32_t yPrimed
+	) {
+		std::int32_t hash = seed ^ xPrimed ^ yPrimed;
 
-struct NoiseProperties {
-	// Number of layers of noise added on top of each other.
-	// Lower value means less higher frequency noise layers.
-	std::size_t octaves{ 5 };
+		hash *= 0x27d4eb2d;
+		return hash;
+	}
+
+	std::int32_t seed_{ 0 };
 	// Sampling rate of the first layer of noise as a % of the provided noise array.
 	// Lower value means the initial noise layer has a higher noise frequency.
-	float frequency{ 0.03f };
-	// Amount by which the sampling rate of each successive layer of noise is multiplied.
-	// Lower value means the noise frequency of each noise layer increases slower.
-	float bias{ 2.4f };
-	// Amount by which the amplitude of each successive layer of noise is multiplied.
-	// Lower value means less high frequency noise.
-	float persistence{ 0.7f };
-
-	[[nodiscard]] friend bool operator==(const NoiseProperties& a, const NoiseProperties& b) {
-		return a.octaves == b.octaves && NearlyEqual(a.frequency, b.frequency) &&
-			   NearlyEqual(a.bias, b.bias) && NearlyEqual(a.persistence, b.persistence);
-	}
-
-	[[nodiscard]] friend bool operator!=(const NoiseProperties& a, const NoiseProperties& b) {
-		return !(a == b);
-	}
+	float frequency_{ 0.01f };
 };
 
-class FractalNoise {
+} // namespace impl
+
+class PerlinNoise : public impl::Noise {
 public:
-	[[nodiscard]] static std::vector<float> Generate(
-		const ValueNoise& noise, const V2_float& pos, const V2_int& size,
-		const NoiseProperties& properties
-	) {
-		int length{ size.x * size.y };
+	[[nodiscard]] float Get(float x, float y) const final;
+	[[nodiscard]] float Get(float x) const final;
+	[[nodiscard]] static float GetValue(
+		float x, float y, std::int32_t seed = 0, float frequency = 0.01f
+	);
 
-		PTGN_ASSERT(length > 0);
-		PTGN_ASSERT(properties.octaves > 0);
-		PTGN_ASSERT(properties.frequency > 0);
-		PTGN_ASSERT(properties.bias > 0);
-		PTGN_ASSERT(properties.persistence > 0);
+private:
+	friend class FractalNoise;
+	// x and y already multiplied by frequency.
+	[[nodiscard]] static float GetImpl(float x, float y, std::int32_t seed);
+};
 
-		float max_noise{ 0.0f };
-		float amplitude{ 1.0f };
+class ValueNoise : public impl::Noise {
+public:
+	[[nodiscard]] float Get(float x, float y) const final;
+	[[nodiscard]] float Get(float x) const final;
+	[[nodiscard]] static float GetValue(
+		float x, float y, std::int32_t seed = 0, float frequency = 0.01f
+	);
 
-		std::vector<float> noise_map(length);
+private:
+	friend class FractalNoise;
+	// x and y already multiplied by frequency.
+	[[nodiscard]] static float GetImpl(float x, float y, std::int32_t seed);
+};
 
-		for (std::size_t octave{ 0 }; octave < properties.octaves; ++octave) {
-			max_noise += amplitude;
-			amplitude *= properties.persistence;
-		}
+// Technically OpenSimplex noise but "Open" removed for brevity.
+class SimplexNoise : public impl::Noise {
+public:
+	[[nodiscard]] float Get(float x, float y) const final;
+	[[nodiscard]] float Get(float x) const final;
+	[[nodiscard]] static float GetValue(
+		float x, float y, std::int32_t seed = 0, float frequency = 0.01f
+	);
 
-		for (std::size_t j{ 0 }; j < size.y; ++j) {
-			for (std::size_t i{ 0 }; i < size.x; ++i) {
-				V2_float noise_pos =
-					(pos + V2_float{ static_cast<float>(i), static_cast<float>(j) }) *
-					properties.frequency;
-				amplitude = 1.0f;
-				auto& local_noise{ noise_map[j * size.x + i] };
+private:
+	friend class FractalNoise;
+	// x and y already multiplied by frequency.
+	[[nodiscard]] static float GetImpl(float x, float y, std::int32_t seed);
+};
 
-				for (std::size_t octave{ 0 }; octave < properties.octaves; ++octave) {
-					local_noise += noise.Evaluate(noise_pos) * amplitude;
-					noise_pos	*= properties.bias;
-					amplitude	*= properties.persistence;
-				}
-			}
-		}
+enum class NoiseType {
+	Perlin,
+	Value,
+	Simplex // Technically OpenSimplex noise but "Open" removed for brevity.
+};
 
-		PTGN_ASSERT(max_noise >= 0);
+class FractalNoise : public impl::Noise {
+public:
+	FractalNoise();
 
-		for (std::size_t i{ 0 }; i < length; ++i) {
-			noise_map[i] /= max_noise;
-		}
+	void SetNoiseType(NoiseType type);
+	[[nodiscard]] NoiseType GetNoiseType() const;
 
-		return noise_map;
-	}
+	void SetOctaves(std::size_t octaves);
+	[[nodiscard]] std::size_t GetOctaves() const;
+
+	void SetPersistence(float persistence);
+	[[nodiscard]] float GetPersistence() const;
+
+	void SetWeightedStrength(float weighted_strength);
+	[[nodiscard]] float GetWeightedStrength() const;
+
+	void SetLacunarity(float lacunarity);
+	[[nodiscard]] float GetLacunarity() const;
+
+	[[nodiscard]] float Get(float x, float y) const final;
+	[[nodiscard]] float Get(float x) const final;
+
+	[[nodiscard]] static float GetValue(
+		float x, float y, std::int32_t seed = 0, float frequency = 0.01f,
+		NoiseType noise_type = NoiseType::Perlin, std::size_t octaves = 3, float lacunarity = 2.0f,
+		float persistence = 0.5f, float weighted_strength = 0.0f
+	);
+
+private:
+	// x and y already multiplied by frequency.
+	[[nodiscard]] static float GetImpl(
+		float x, float y, std::int32_t seed, NoiseType noise_type, std::size_t octaves,
+		float lacunarity, float persistence, float weighted_strength, float noise_bounding
+	);
+
+	[[nodiscard]] static float GetNoiseImpl(
+		float x, float y, std::int32_t seed, NoiseType noise_type
+	);
+
+	[[nodiscard]] static float GetNoiseBounding(std::size_t octaves, float persistence);
+
+	// 1 / maximum value of noise possible with given fractal properties.
+	float noise_bounding_{ 1.0f / 1.75f };
+
+	// Number of layers of noise added on top of each other. Lower value means less higher frequency
+	// noise layers.
+	std::size_t octaves_{ 3 };
+
+	// Amount by which the sampling rate of each successive layer of noise is multiplied.Lower value
+	// means the noise frequency of each noise layer increases slower.
+	float lacunarity_{ 2.0f };
+
+	// Amount by which the amplitude of each successive layer of noise is multiplied. Lower value
+	// means less high frequency noise.Also sometimes called fractal gain.
+	float persistence_{ 0.5f };
+
+	// Higher values mean higher octaves have less impact if lower octaves have a large impact.
+	float weighted_strength_{ 0.0f };
+
+	NoiseType noise_type_{ NoiseType::Perlin };
 };
 
 } // namespace ptgn
