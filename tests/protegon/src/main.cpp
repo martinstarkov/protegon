@@ -46,11 +46,11 @@ public:
 
 		// Visual tests.
 
+		TestCollisions();
 		TestCamera();
 		TestRNG();
 		TestWindow();
 		TestRenderer();
-		TestCollisions();
 		TestAnimations();
 		TestPathfinding();
 		TestTween();
