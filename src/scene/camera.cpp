@@ -175,7 +175,8 @@ void OrthographicCamera::SubscribeToWindowResize() {
 			SetSizeImpl(e.size);
 		}
 		if (camera.center_to_window) {
-			SetPositionImpl({ e.size.x / 2.0f, e.size.y / 2.0f, GetPosition3D().z });
+			SetPositionImpl({ static_cast<float>(e.size.x) / 2.0f,
+							  static_cast<float>(e.size.y) / 2.0f, GetPosition3D().z });
 		}
 	});
 	window_resize(WindowResizedEvent{ game.window.GetSize() });
