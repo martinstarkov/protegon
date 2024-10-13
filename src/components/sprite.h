@@ -21,6 +21,38 @@
 
 namespace ptgn {
 
+struct SpriteTint : public Color {
+	using Color::Color;
+	using Color::operator=;
+
+	SpriteTint(const Color& c) : Color{ c } {}
+};
+
+struct DrawColor : public Color {
+	using Color::Color;
+	using Color::operator=;
+
+	DrawColor(const Color& c) : Color{ c } {}
+};
+
+using DrawOrigin = Origin;
+
+using DrawLineWidth = float;
+
+using ZIndex = float;
+
+using RenderLayer = std::size_t;
+
+inline void DrawRectangle(ecs::Entity entity, const Transform& transform, const V2_float& size) {
+	game.draw.Rectangle(
+		transform.position, size, entity.Has<DrawColor>() ? entity.Get<DrawColor>() : color::Black,
+		entity.Has<DrawOrigin>() ? entity.Get<DrawOrigin>() : Origin::Center,
+		entity.Has<DrawLineWidth>() ? entity.Get<DrawLineWidth>() : -1.0f, transform.rotation,
+		V2_float{ 0.5f, 0.5f }, entity.Has<ZIndex>() ? entity.Get<ZIndex>() : 0.0f,
+		entity.Has<RenderLayer>() ? entity.Get<RenderLayer>() : 0
+	);
+}
+
 struct Sprite {
 	// sprite_size = {} results in full texture size being used.
 	Sprite(
@@ -161,13 +193,6 @@ struct AnimationMap : public MapManager<Animation> {
 	// TODO: Add current animation key and draw function.
 };
 
-struct SpriteTint : public Color {
-	using Color::Color;
-	using Color::operator=;
-
-	SpriteTint(const Color& c) : Color{ c } {}
-};
-
 using SpriteFlip = Flip;
 
 using SpriteZ = float;
@@ -178,7 +203,8 @@ inline void Sprite::Draw(ecs::Entity entity, const Transform& transform) const {
 		{ source.pos, source.size, source.origin,
 		  entity.Has<SpriteFlip>() ? entity.Get<SpriteFlip>() : Flip::None, transform.rotation,
 		  V2_float{ 0.5f, 0.5f }, entity.Has<SpriteZ>() ? entity.Get<SpriteZ>() : 0.0f,
-		  entity.Has<SpriteTint>() ? entity.Get<SpriteTint>() : color::White }
+		  entity.Has<SpriteTint>() ? entity.Get<SpriteTint>() : color::White,
+		  entity.Has<RenderLayer>() ? entity.Get<RenderLayer>() : 0 }
 	);
 }
 
@@ -189,7 +215,8 @@ inline void Animation::Draw(ecs::Entity entity, const Transform& transform) cons
 		{ source.pos, source.size, source.origin,
 		  entity.Has<SpriteFlip>() ? entity.Get<SpriteFlip>() : Flip::None, transform.rotation,
 		  V2_float{ 0.5f, 0.5f }, entity.Has<SpriteZ>() ? entity.Get<SpriteZ>() : 0.0f,
-		  entity.Has<SpriteTint>() ? entity.Get<SpriteTint>() : color::White }
+		  entity.Has<SpriteTint>() ? entity.Get<SpriteTint>() : color::White,
+		  entity.Has<RenderLayer>() ? entity.Get<RenderLayer>() : 0 }
 	);
 }
 
