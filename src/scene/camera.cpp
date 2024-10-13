@@ -169,13 +169,22 @@ void OrthographicCamera::CenterOnWindow(bool continuously) {
 
 void OrthographicCamera::SubscribeToWindowResize() {
 	Create();
+	auto window_resize = std::function([*this](const WindowResizedEvent& e) mutable {
+		const auto& camera = Get();
+		if (camera.resize_to_window) {
+			SetSizeImpl(e.size);
+		}
+		if (camera.center_to_window) {
+			SetPositionImpl({ e.size.x / 2.0f, e.size.y / 2.0f, GetPosition3D().z });
+		}
+	});
+	window_resize(WindowResizedEvent{ game.window.GetSize() });
 	if (!game.event.window.IsSubscribed(&Get())) {
 		game.event.window.Subscribe(
-			WindowEvent::Resized, &Get(),
-			std::function([this](const WindowResizedEvent& e) { OnWindowResize(e.size); })
+			WindowEvent::Resized, &Get(), std::move(window_resize)
+
 		);
 	}
-	OnWindowResize(game.window.GetSize());
 }
 
 void OrthographicCamera::UnsubscribeFromWindowResize() const {
@@ -219,16 +228,6 @@ const M4_float& OrthographicCamera::GetViewProjection() {
 		RecalculateViewProjection();
 	}
 	return o.view_projection;
-}
-
-void OrthographicCamera::OnWindowResize(const V2_float& size) {
-	const auto& o{ Get() };
-	if (o.resize_to_window) {
-		SetSizeImpl(size);
-	}
-	if (o.center_to_window) {
-		SetPositionImpl({ size.x / 2.0f, size.y / 2.0f, o.position.z });
-	}
 }
 
 void OrthographicCamera::SetPosition(const V2_float& new_position) {

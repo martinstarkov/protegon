@@ -132,8 +132,6 @@ protected:
 	[[nodiscard]] const M4_float& GetView();
 	[[nodiscard]] const M4_float& GetProjection();
 
-	void OnWindowResize(const V2_float& size);
-
 	void RecalculateView();
 	void RecalculateProjection();
 	void RecalculateViewProjection();
