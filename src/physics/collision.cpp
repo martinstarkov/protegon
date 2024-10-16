@@ -412,7 +412,14 @@ bool DynamicCollisionHandler::SegmentRectangle(
 		return false;
 	}
 
-	const V2_float d{ a.Direction() };
+	bool start_in{ OverlapCollision::PointRectangle(a.a, b) };
+	bool end_in{ OverlapCollision::PointRectangle(a.b, b) };
+
+	if (start_in && end_in) {
+		return false;
+	}
+
+	V2_float d{ a.Direction() };
 
 	if (d.Dot(d) == 0.0f) {
 		return false;
@@ -448,15 +455,29 @@ bool DynamicCollisionHandler::SegmentRectangle(
 		return false;
 	}
 
-	// Closest time will be the first contact.
-	c.t = std::max(t_near.x, t_near.y);
-
 	// Furthest time is contact on opposite side of target.
 	// Reject if furthest time is negative, meaning the object is travelling away from the target.
-	if (float t_hit_far = std::min(t_far.x, t_far.y); t_hit_far < 0.0f) {
+	float t_hit_far = std::min(t_far.x, t_far.y);
+	if (t_hit_far < 0.0f) {
 		return false;
 	}
 
+	if (NearlyEqual(t_near.x, t_near.y) && t_near.x == 1.0f) {
+		return false;
+	}
+
+	// Closest time will be the first contact.
+	bool interal{ start_in && !end_in };
+
+	if (interal) {
+		std::swap(t_near.x, t_far.x);
+		std::swap(t_near.y, t_far.y);
+		std::swap(inv_dir.x, inv_dir.y);
+		c.t	 = std::min(t_near.x, t_near.y);
+		d	*= -1.0f;
+	} else {
+		c.t = std::max(t_near.x, t_near.y);
+	}
 	// Contact point of collision from parametric line equation.
 	// c.point = a.a + c.time * d;
 
@@ -484,6 +505,11 @@ bool DynamicCollisionHandler::SegmentRectangle(
 		} else {
 			c.normal = { 0.0f, -1.0f };
 		}
+	}
+
+	if (interal) {
+		std::swap(c.normal.x, c.normal.y);
+		c.normal *= -1.0f;
 	}
 
 	// Raycast collision occurred.

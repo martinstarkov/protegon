@@ -287,7 +287,6 @@ public:
 				bool occured = game.collision.dynamic.SegmentRectangle(
 					l, { aabb1.Min(), aabb1.size, Origin::TopLeft }, c
 				);
-
 				if (occured) {
 					V2_float point{ pos + vel * c.t };
 					Segment<float> normal{ point, point + 50 * c.normal };
@@ -412,6 +411,89 @@ public:
 			  }
 			}*/
 		}
+	}
+};
+
+struct SegmentRectangleTest : public Test {
+	void Init() {
+		game.camera.GetPrimary().CenterOnArea({ 200.0f, 200.0f });
+	}
+
+	Rectangle<float> aabb{ { 60.0f, 30.0f }, { 30.0f, 30.0f }, Origin::TopLeft };
+
+	void Line(V2_float p1, V2_float p2, Color color) {
+		Segment<float> l1{ p1, p2 };
+		game.draw.Line(l1.a, l1.b, color::Grey);
+		DynamicCollision c;
+		bool occured{ game.collision.dynamic.SegmentRectangle(l1, aabb, c) };
+		if (occured) {
+			V2_float point = l1.a + c.t * l1.Direction();
+			game.draw.Point(point, color, 2.0f);
+		}
+	}
+
+	void Update() {
+		game.draw.Rectangle(aabb.pos, aabb.size, color::Cyan, aabb.origin, 1.0f);
+
+		// lines which are inside the rectangle
+
+		// top left corner
+		Line({ 40.0f, 10.0f }, { 70.0f, 40.0f }, color::Green);
+		// top right corner
+		Line({ 110.0f, 10.0f }, { 80.0f, 40.0f }, color::Green);
+		// bottom left corner
+		Line({ 40.0f, 80.0f }, { 70.0f, 50.0f }, color::Green);
+		// bottom right corner
+		Line({ 110.0f, 80.0f }, { 80.0f, 50.0f }, color::Green);
+		// top left to right
+		Line({ 30.0f, 31.0f }, { 70.0f, 31.0f }, color::Green);
+		// bottom left to right
+		Line({ 30.0f, 59.0f }, { 70.0f, 59.0f }, color::Green);
+
+		// top right to left
+		Line({ 120.0f, 31.0f }, { 80.0f, 31.0f }, color::Green);
+		// bottom right to left
+		Line({ 120.0f, 59.0f }, { 80.0f, 59.0f }, color::Green);
+
+		// top left to bottom
+		Line({ 61.0f, 10.0f }, { 61.0f, 40.0f }, color::Green);
+		// bottom left to top
+		Line({ 61.0f, 80.0f }, { 61.0f, 50.0f }, color::Green);
+
+		// top right to bottom
+		Line({ 89.0f, 10.0f }, { 89.0f, 40.0f }, color::Green);
+		// bottom right to top
+		Line({ 89.0f, 80.0f }, { 89.0f, 50.0f }, color::Green);
+
+		// lines which overlap the edges of the rectangle
+
+		// top left corner - overlapping
+		Line({ 40.0f, 10.0f }, { 60.0f, 30.0f }, color::Red);
+		// top right corner - overlapping
+		Line({ 110.0f, 10.0f }, { 90.0f, 30.0f }, color::Red);
+		// bottom left corner - overlapping
+		Line({ 40.0f, 80.0f }, { 60.0f, 60.0f }, color::Red);
+		// bottom right corner - overlapping
+		Line({ 110.0f, 80.0f }, { 90.0f, 60.0f }, color::Red);
+		// top left to right - overlapping
+		Line({ 30.0f, 30.0f }, { 70.0f, 30.0f }, color::Red);
+		// bottom left to right - overlapping
+		Line({ 30.0f, 60.0f }, { 70.0f, 60.0f }, color::Red);
+
+		// top right to left - overlapping
+		Line({ 120.0f, 30.0f }, { 80.0f, 30.0f }, color::Red);
+		// bottom right to left - overlapping
+		Line({ 120.0f, 60.0f }, { 80.0f, 60.0f }, color::Red);
+
+		// top left to bottom - overlapping
+		Line({ 60.0f, 10.0f }, { 60.0f, 40.0f }, color::Red);
+		// bottom left to top - overlapping
+		Line({ 60.0f, 80.0f }, { 60.0f, 50.0f }, color::Red);
+
+		// top right to bottom - overlapping
+		Line({ 90.0f, 10.0f }, { 90.0f, 40.0f }, color::Red);
+		// bottom right to top - overlapping
+		Line({ 90.0f, 80.0f }, { 90.0f, 50.0f }, color::Red);
 	}
 };
 
@@ -627,6 +709,7 @@ void TestCollisions() {
 
 	V2_float player_velocity{ 100000.0f };
 
+	tests.emplace_back(new SegmentRectangleTest());
 	tests.emplace_back(new RectangleCollisionTest());
 	tests.emplace_back(new SweepTunnelTest2(player_velocity));
 	tests.emplace_back(new SweepTunnelTest1(player_velocity));
