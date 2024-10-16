@@ -24,258 +24,6 @@
 #include "renderer/origin.h"
 #include "renderer/renderer.h"
 
-struct rect {
-	V2_float pos;
-	V2_float size;
-	V2_float vel;
-
-	std::array<rect*, 4> contact;
-};
-
-bool PointVsRect(const V2_float& p, const rect* r) {
-	return (
-		p.x >= r->pos.x && p.y >= r->pos.y && p.x < r->pos.x + r->size.x &&
-		p.y < r->pos.y + r->size.y
-	);
-}
-
-bool RectVsRect(const rect* r1, const rect* r2) {
-	return (
-		r1->pos.x < r2->pos.x + r2->size.x && r1->pos.x + r1->size.x > r2->pos.x &&
-		r1->pos.y < r2->pos.y + r2->size.y && r1->pos.y + r1->size.y > r2->pos.y
-	);
-}
-
-bool RayVsRect(
-	const V2_float& ray_origin, const V2_float& ray_dir, const rect* target,
-	V2_float& contact_point, V2_float& contact_normal, float& t_hit_near
-) {
-	contact_normal = { 0, 0 };
-	contact_point  = { 0, 0 };
-
-	// Cache division
-	V2_float invdir = 1.0f / ray_dir;
-
-	// Calculate intersections with rectangle bounding axes
-	V2_float t_near = (target->pos - ray_origin) * invdir;
-	V2_float t_far	= (target->pos + target->size - ray_origin) * invdir;
-
-	if (std::isnan(t_far.y) || std::isnan(t_far.x)) {
-		return false;
-	}
-	if (std::isnan(t_near.y) || std::isnan(t_near.x)) {
-		return false;
-	}
-
-	// Sort distances
-	if (t_near.x > t_far.x) {
-		std::swap(t_near.x, t_far.x);
-	}
-	if (t_near.y > t_far.y) {
-		std::swap(t_near.y, t_far.y);
-	}
-
-	// Early rejection
-	if (t_near.x > t_far.y || t_near.y > t_far.x) {
-		return false;
-	}
-
-	// Closest 'time' will be the first contact
-	t_hit_near = std::max(t_near.x, t_near.y);
-
-	// Furthest 'time' is contact on opposite side of target
-	float t_hit_far = std::min(t_far.x, t_far.y);
-
-	// Reject if ray direction is pointing away from object
-	if (t_hit_far < -1.0f) {
-		return false;
-	}
-
-	// Contact point of collision from parametric line equation
-	contact_point = ray_origin + t_hit_near * ray_dir;
-
-	if (t_near.x > t_near.y) {
-		if (invdir.x < 0) {
-			contact_normal = { 1, 0 };
-		} else {
-			contact_normal = { -1, 0 };
-		}
-	} else if (t_near.x < t_near.y) {
-		if (invdir.y < 0) {
-			contact_normal = { 0, 1 };
-		} else {
-			contact_normal = { 0, -1 };
-		}
-	}
-
-	// Note if t_near == t_far, collision is principly in a diagonal
-	// so pointless to resolve. By returning a CN={0,0} even though its
-	// considered a hit, the resolver wont change anything.
-	return true;
-}
-
-bool DynamicRectVsRect(
-	const rect* r_dynamic, const float fTimeStep, const rect& r_static, V2_float& contact_point,
-	V2_float& contact_normal, float& contact_time
-) {
-	// Check if dynamic rectangle is actually moving - we assume rectangles are NOT in collision to
-	// start
-	if (r_dynamic->vel.x == 0 && r_dynamic->vel.y == 0) {
-		return false;
-	}
-
-	// Expand target rectangle by source dimensions
-	rect expanded_target;
-	expanded_target.pos	 = r_static.pos - r_dynamic->size / 2;
-	expanded_target.size = r_static.size + r_dynamic->size;
-
-	if (RayVsRect(
-			r_dynamic->pos + r_dynamic->size / 2, r_dynamic->vel * fTimeStep, &expanded_target,
-			contact_point, contact_normal, contact_time
-		)) {
-		return (contact_time >= 0.0f && contact_time < 1.0f);
-	} else {
-		return false;
-	}
-}
-
-bool ResolveDynamicRectVsRect(rect* r_dynamic, const float fTimeStep, rect* r_static) {
-	V2_float contact_point, contact_normal;
-	float contact_time = 0.0f;
-	if (DynamicRectVsRect(
-			r_dynamic, fTimeStep, *r_static, contact_point, contact_normal, contact_time
-		)) {
-		if (contact_normal.y > 0) {
-			r_dynamic->contact[0] = r_static;
-		} else {
-			nullptr;
-		}
-		if (contact_normal.x < 0) {
-			r_dynamic->contact[1] = r_static;
-		} else {
-			nullptr;
-		}
-		if (contact_normal.y < 0) {
-			r_dynamic->contact[2] = r_static;
-		} else {
-			nullptr;
-		}
-		if (contact_normal.x > 0) {
-			r_dynamic->contact[3] = r_static;
-		} else {
-			nullptr;
-		}
-
-		r_dynamic->vel += contact_normal *
-						  V2_float(std::abs(r_dynamic->vel.x), std::abs(r_dynamic->vel.y)) *
-						  (1 - contact_time);
-		return true;
-	}
-
-	return false;
-}
-
-class RectangleCollisionTestJavidx : public Test {
-public:
-	std::vector<rect> vRects;
-
-	void Init() override {
-		game.camera.GetPrimary().CenterOnArea({ 256 / 4, 240 / 4 });
-		vRects.clear();
-		vRects.push_back({ { 170.0f / 4, 70.0f / 4 }, { 10.0f / 4, 40.0f / 4 } });
-		vRects.push_back({ { 150.0f / 4, 50.0f / 4 }, { 20.0f / 4, 20.0f / 4 } });
-		vRects.push_back({ { 150.0f / 4, 150.0f / 4 }, { 75.0f / 4, 20.0f / 4 } });
-		vRects.push_back({ { 170.0f / 4, 50.0f / 4 }, { 20.0f / 4, 20.0f / 4 } });
-		vRects.push_back({ { 190.0f / 4, 50.0f / 4 }, { 20.0f / 4, 20.0f / 4 } });
-		vRects.push_back({ { 110.0f / 4, 50.0f / 4 }, { 20.0f / 4, 20.0f / 4 } });
-		vRects.push_back({ { 50.0f / 4, 130.0f / 4 }, { 20.0f / 4, 20.0f / 4 } });
-		vRects.push_back({ { 50.0f / 4, 150.0f / 4 }, { 20.0f / 4, 20.0f / 4 } });
-		vRects.push_back({ { 50.0f / 4, 170.0f / 4 }, { 20.0f / 4, 20.0f / 4 } });
-		vRects.push_back({ { 150.0f / 4, 100.0f / 4 }, { 10.0f / 4, 1.0f / 4 } });
-		vRects.push_back({ { 200.0f / 4, 100.0f / 4 }, { 20.0f / 4, 60.0f / 4 } });
-	}
-
-	void Update() override {
-		float fElapsedTime = game.dt();
-		game.draw.SetClearColor(color::DarkBlue);
-		game.draw.Clear();
-
-		V2_float vMouse = { game.input.GetMousePosition() };
-		V2_float vPoint = { 128.0f, 120.0f };
-
-		float speed{ 1000.0f };
-
-		if (game.input.KeyPressed(Key::W)) {
-			vRects[0].vel.y = -speed;
-		}
-		if (game.input.KeyPressed(Key::S)) {
-			vRects[0].vel.y = +speed;
-		}
-		if (game.input.KeyPressed(Key::A)) {
-			vRects[0].vel.x = -speed;
-		}
-		if (game.input.KeyPressed(Key::D)) {
-			vRects[0].vel.x = +speed;
-		}
-
-		if (game.input.MousePressed(Mouse::Left)) {
-			vRects[0].vel += (vMouse - vRects[0].pos).Normalized() * 100.0f * fElapsedTime;
-		}
-
-		// Draw all rectangles
-		for (const auto& r : vRects) {
-			game.draw.Rectangle(r.pos, r.size, color::White, Origin::TopLeft);
-		}
-
-		// Sort collisions in order of distance
-		V2_float cp, cn;
-		float t = 0, min_t = INFINITY;
-		std::vector<std::pair<int, float>> z;
-
-		// Work out collision point, add it to vector along with rect ID
-		for (size_t i = 1; i < vRects.size(); i++) {
-			if (DynamicRectVsRect(&vRects[0], fElapsedTime, vRects[i], cp, cn, t)) {
-				z.push_back({ i, t });
-			}
-		}
-
-		// Do the sort
-		std::sort(
-			z.begin(), z.end(),
-			[](const std::pair<int, float>& a, const std::pair<int, float>& b) {
-				return a.second < b.second;
-			}
-		);
-
-		// Now resolve the collision in correct order
-		for (auto j : z) {
-			ResolveDynamicRectVsRect(&vRects[0], fElapsedTime, &vRects[j.first]);
-		}
-
-		// Embellish the "in contact" rectangles in yellow
-		for (int i = 0; i < 4; i++) {
-			if (vRects[0].contact[i]) {
-				game.draw.Rectangle(
-					vRects[0].contact[i]->pos, vRects[0].contact[i]->size, color::Yellow,
-					Origin::TopLeft
-				);
-			}
-			vRects[0].contact[i] = nullptr;
-		}
-
-		// UPdate the player rectangles position, with its modified velocity
-		vRects[0].pos += vRects[0].vel * fElapsedTime;
-
-		// Draw players velocity vector
-		if (vRects[0].vel.MagnitudeSquared() > 0) {
-			game.draw.Line(
-				vRects[0].pos + vRects[0].size / 2,
-				vRects[0].pos + vRects[0].size / 2 + vRects[0].vel.Normalized() * 20, color::Red
-			);
-		}
-	}
-};
-
 class CollisionTest : public Test {
 public:
 	V2_float position1{ 200, 200 };
@@ -711,6 +459,9 @@ struct SweepTest : public Test {
 	void Update() override {
 		auto& rb		= player.Get<RigidBody>();
 		auto& transform = player.Get<Transform>();
+		auto& box		= player.Get<BoxCollider>();
+
+		rb.velocity = {};
 
 		if (game.input.KeyPressed(Key::A)) {
 			rb.velocity.x = -player_velocity.x;
@@ -728,7 +479,13 @@ struct SweepTest : public Test {
 		rb.velocity =
 			game.collision.dynamic.Sweep(player, manager, DynamicCollisionResponse::Slide);
 
-		transform.position += rb.velocity * dt;
+		if (game.input.KeyDown(Key::SPACE)) {
+			transform.position += rb.velocity * dt;
+		} else {
+			game.draw.Rectangle(
+				transform.position + rb.velocity * dt, box.size, color::DarkGreen, Origin::Center
+			);
+		}
 
 		const auto edge_exclusive_overlap = [](const Rectangle<float>& a,
 											   const Rectangle<float>& b) {
@@ -755,7 +512,7 @@ struct SweepTest : public Test {
 						  player.Get<BoxCollider>().origin },
 						{ p.position, b.size, b.origin }
 					)) {
-					PTGN_LOG("Dynamic sweep collision resolution failed");
+					// PTGN_LOG("Dynamic sweep collision resolution failed");
 				}
 			}
 		}
@@ -767,19 +524,19 @@ struct SweepTest : public Test {
 
 		if (game.input.KeyPressed(Key::R)) {
 			transform.position = {};
-			rb.velocity		   = player_velocity;
+			rb.velocity		   = {};
 		}
 	}
 
 	void Draw() override {
 		V2_int grid_size = game.window.GetSize() / size;
 
-		for (std::size_t i = 0; i < grid_size.x; i++) {
+		/*for (std::size_t i = 0; i < grid_size.x; i++) {
 			for (std::size_t j = 0; j < grid_size.y; j++) {
 				V2_float pos{ i * size.x, j * size.y };
 				game.draw.Rectangle(pos, size, color::Black, Origin::Center, 1.0f);
 			}
-		}
+		}*/
 
 		for (auto [e, p, b] : manager.EntitiesWith<Transform, BoxCollider>()) {
 			if (e == player) {
@@ -793,7 +550,7 @@ struct SweepTest : public Test {
 
 struct RectangleCollisionTest : public SweepTest {
 	RectangleCollisionTest() :
-		SweepTest{ { 1000.0f, 1000.0f }, { 10.0f, 30.0f }, { 170.0f, 70.0f } } {
+		SweepTest{ { 100000.0f, 100000.0f }, { 30.0f, 30.0f }, { 170.0f, 100.0f } } {
 		AddCollisionObject({ 150.0f, 50.0f }, { 20.0f, 20.0f });
 		AddCollisionObject({ 150.0f, 150.0f }, { 75.0f, 20.0f });
 		AddCollisionObject({ 170.0f, 50.0f }, { 20.0f, 20.0f });
@@ -804,6 +561,8 @@ struct RectangleCollisionTest : public SweepTest {
 		AddCollisionObject({ 50.0f, 170.0f }, { 20.0f, 20.0f });
 		AddCollisionObject({ 150.0f, 100.0f }, { 10.0f, 1.0f });
 		AddCollisionObject({ 200.0f, 100.0f }, { 20.0f, 60.0f });
+		AddCollisionObject({ 50.0f, 200.0f }, { 40.0f, 20.0f });
+		AddCollisionObject({ 50.0f, 50.0f }, { 20.0f, 20.0f });
 	}
 
 	void Init() {
@@ -866,10 +625,9 @@ struct SweepTunnelTest2 : public SweepTest {
 void TestCollisions() {
 	std::vector<std::shared_ptr<Test>> tests;
 
-	V2_float player_velocity{ 100, 100 };
+	V2_float player_velocity{ 100000.0f };
 
 	tests.emplace_back(new RectangleCollisionTest());
-	tests.emplace_back(new RectangleCollisionTestJavidx());
 	tests.emplace_back(new SweepTunnelTest2(player_velocity));
 	tests.emplace_back(new SweepTunnelTest1(player_velocity));
 	tests.emplace_back(new SweepCornerTest3(player_velocity));
