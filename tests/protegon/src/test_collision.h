@@ -672,6 +672,7 @@ struct SweepTest : public Test {
 	ecs::Manager manager;
 
 	ecs::Entity player;
+	V2_float player_start_pos;
 	V2_float player_velocity;
 	V2_float fixed_velocity;
 
@@ -703,11 +704,17 @@ struct SweepTest : public Test {
 		const V2_float& player_pos = { 0, 0 }, const V2_float& obstacle_size = { 50, 50 },
 		const V2_float& fixed_velocity = {}
 	) :
-		player_velocity{ player_vel }, size{ obstacle_size }, fixed_velocity{ fixed_velocity } {
+		player_velocity{ player_vel },
+		size{ obstacle_size },
+		fixed_velocity{ fixed_velocity },
+		player_start_pos{ player_pos } {
 		player = AddCollisionObject(player_pos, player_size, player_vel);
 	}
 
 	void Init() override {
+		PTGN_ASSERT(player.Has<Transform>());
+		auto& t	   = player.Get<Transform>();
+		t.position = player_start_pos;
 		manager.Refresh();
 	}
 
