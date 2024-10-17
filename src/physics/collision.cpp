@@ -466,8 +466,7 @@ bool DynamicCollisionHandler::SegmentRectangle(
 	}
 
 	// Early rejection.
-	if (t_near.x > t_far.y || t_near.y > t_far.x || NearlyEqual(t_near.x, t_far.y) ||
-		NearlyEqual(t_near.y, t_far.x)) {
+	if (t_near.x >= t_far.y || t_near.y >= t_far.x) {
 		return false;
 	}
 
@@ -707,7 +706,7 @@ bool DynamicCollisionHandler::RectangleRectangle(
 	bool occured = SegmentRectangle(
 		{ a_center, a_center + vel }, { b.Min() - a.Half(), b.size + a.size, Origin::TopLeft }, c
 	);
-	bool collide_on_next_frame{ c.t < 1.0 && (c.t > 0.0f || NearlyEqual(c.t, 0.0f)) };
+	bool collide_on_next_frame{ c.t < 1.0 && c.t >= 0.0f };
 	if (collide_on_next_frame) {
 		bool occured = SegmentRectangle(
 			{ a_center, a_center + vel }, { b.Min() - a.Half(), b.size + a.size, Origin::TopLeft },
@@ -810,7 +809,7 @@ V2_float DynamicCollisionHandler::Sweep(
 				collisions.emplace_back(c, dist2);
 			}
 			if (debug_flag) {
-				bool test = collision_occurred(pos, vel, e, dist2);
+				// bool test = collision_occurred(pos, vel, e, dist2);
 				if (c.t < 1.0f) {
 					PTGN_LOG("t: ", c.t, ", normal: ", c.normal);
 					PTGN_LOG("pos: ", pos, ", vel: ", vel);
@@ -821,7 +820,7 @@ V2_float DynamicCollisionHandler::Sweep(
 		return collisions;
 	};
 
-	const auto collisions = get_sorted_collisions(transform.position, velocity);
+	const auto collisions = get_sorted_collisions(transform.position, velocity, true);
 
 	if (collisions.empty()) { // no collisions occured.
 		const auto new_p1 = transform.position + velocity;
@@ -856,7 +855,7 @@ V2_float DynamicCollisionHandler::Sweep(
 	// new_origin = origin + (velocity * collisions[0].c.t - velocity.Unit() * epsilon);
 	// game.draw.CircleHollow(new_p1, s1, color::Blue);
 
-	if (const auto collisions2 = get_sorted_collisions(new_p1, new_velocity, true);
+	if (const auto collisions2 = get_sorted_collisions(new_p1, new_velocity, false);
 		!collisions2.empty()) {
 		/*PTGN_LOG(
 			"Collision2: ", rigid_body.velocity, " * ", collisions[0].c.t, " + ", new_velocity / dt,
