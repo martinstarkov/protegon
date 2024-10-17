@@ -493,6 +493,7 @@ bool DynamicCollisionHandler::SegmentRectangle(
 	} else {
 		c.t = std::max(t_near.x, t_near.y);
 	}
+
 	// Contact point of collision from parametric line equation.
 	// c.point = a.a + c.time * d;
 
@@ -529,55 +530,6 @@ bool DynamicCollisionHandler::SegmentRectangle(
 
 	// Raycast collision occurred.
 	return true;
-
-	/*
-	c = {};
-
-	const V2_float d{ a.Direction() };
-
-	if (NearlyEqual(d.Dot(d), 0.0f)) {
-		return false;
-	}
-
-	const V2_float b_min{ b.Min() };
-	const V2_float b_max{ b.Max() };
-	const V2_float inv{ 1.0f / d.x, 1.0f / d.y };
-	const V2_float d0{ (b_min - a.a) * inv };
-	const V2_float d1{ (b_max - a.a) * inv };
-	const V2_float v0{ std::min(d0.x, d1.x), std::min(d0.y, d1.y) };
-	const V2_float v1{ std::max(d0.x, d1.x), std::max(d0.y, d1.y) };
-
-	const float lo{ std::max(v0.x, v0.y) };
-	const float hi{ std::min(v1.x, v1.y) };
-
-	if (hi >= 0.0f && hi >= lo && lo <= 1.0f) {
-		// Pick the lowest collision time that is in the [0, 1] range.
-		bool w1{ hi >= 0.0f && hi <= 1.0f };
-		bool w2{ lo >= 0.0f && lo <= 1.0f };
-
-		if (w1 && w2) {
-			c.t = std::min(hi, lo);
-		} else if (w1) {
-			c.t = hi;
-		} else if (w2) {
-			c.t = lo;
-		} else {
-			return false;
-		}
-
-		const V2_float coeff{ a.a + d * c.t - (b_min + b_max) * 0.5f };
-		const V2_float abs_coeff{ FastAbs(coeff.x), FastAbs(coeff.y) };
-
-		if (abs_coeff.x > abs_coeff.y) {
-			c.normal = { Sign(coeff.x), 0.0f };
-		} else {
-			c.normal = { 0.0f, Sign(coeff.y) };
-		}
-
-		return c.t < 1.0f && (c.t > 0.0f || NearlyEqual(c.t, 0.0f)) && !c.normal.IsZero();
-	}
-	return false;
-	*/
 }
 
 bool DynamicCollisionHandler::SegmentCapsule(
@@ -707,12 +659,6 @@ bool DynamicCollisionHandler::RectangleRectangle(
 		{ a_center, a_center + vel }, { b.Min() - a.Half(), b.size + a.size, Origin::TopLeft }, c
 	);
 	bool collide_on_next_frame{ c.t < 1.0 && c.t >= 0.0f };
-	if (collide_on_next_frame) {
-		bool occured = SegmentRectangle(
-			{ a_center, a_center + vel }, { b.Min() - a.Half(), b.size + a.size, Origin::TopLeft },
-			c
-		);
-	}
 	return occured && collide_on_next_frame && !c.normal.IsZero();
 }
 
@@ -767,12 +713,8 @@ V2_float DynamicCollisionHandler::Sweep(
 			if (e.Has<BoxCollider>()) {
 				const auto& box2 = e.Get<BoxCollider>();
 				Rectangle rect2{ transform2.position + box2.offset, box2.size, box2.origin };
-				dist2		  = (rect.Center() - rect2.Center()).MagnitudeSquared();
-				bool occurred = RectangleRectangle(rect, relative_velocity, rect2, c);
-				if (occurred) {
-					game.draw.Rectangle(rect2.pos, rect2.size, color::Red, rect2.origin);
-				}
-				return occurred;
+				dist2 = (rect.Center() - rect2.Center()).MagnitudeSquared();
+				return RectangleRectangle(rect, relative_velocity, rect2, c);
 			} else if (e.Has<CircleCollider>()) {
 				const auto& circle2 = e.Get<CircleCollider>();
 				Circle c2{ transform2.position + circle2.offset, circle2.radius };
@@ -797,8 +739,7 @@ V2_float DynamicCollisionHandler::Sweep(
 		PTGN_ERROR("Unrecognized shape for collision check");
 	};
 
-	auto get_sorted_collisions = [&](const V2_float& pos, const V2_float& vel,
-									 bool debug_flag = false) {
+	auto get_sorted_collisions = [&](const V2_float& pos, const V2_float& vel) {
 		std::vector<SweepCollision> collisions;
 		targets.ForEach([&](ecs::Entity e) {
 			if (entity == e) {
@@ -808,19 +749,12 @@ V2_float DynamicCollisionHandler::Sweep(
 			if (collision_occurred(pos, vel, e, dist2)) {
 				collisions.emplace_back(c, dist2);
 			}
-			if (debug_flag) {
-				// bool test = collision_occurred(pos, vel, e, dist2);
-				if (c.t < 1.0f) {
-					PTGN_LOG("t: ", c.t, ", normal: ", c.normal);
-					PTGN_LOG("pos: ", pos, ", vel: ", vel);
-				}
-			}
 		});
 		SortCollisions(collisions);
 		return collisions;
 	};
 
-	const auto collisions = get_sorted_collisions(transform.position, velocity, true);
+	const auto collisions = get_sorted_collisions(transform.position, velocity);
 
 	if (collisions.empty()) { // no collisions occured.
 		const auto new_p1 = transform.position + velocity;
@@ -828,18 +762,12 @@ V2_float DynamicCollisionHandler::Sweep(
 		return rigid_body.velocity;
 	}
 
-	/*for (auto& collision : collisions) {
-		Segment<float> normal{ transform.position + rigid_body.velocity * collisions[0].c.t,
-							   transform.position + rigid_body.velocity * collisions[0].c.t +
-								   50 * c.normal };
-		game.draw.Line(normal, color::Orange);
-	}*/
-
 	const auto new_velocity = GetRemainingVelocity(velocity, collisions[0].c, response);
 
-	// PTGN_LOG("RemainingVel: ", new_velocity);
 	const auto new_p1 = transform.position + velocity * collisions[0].c.t;
+
 	PTGN_ASSERT(entity.Has<BoxCollider>());
+
 	game.draw.Line(transform.position, new_p1, color::Blue);
 	game.draw.Rectangle(
 		new_p1, entity.Get<BoxCollider>().size, color::Purple, entity.Get<BoxCollider>().origin,
@@ -847,36 +775,16 @@ V2_float DynamicCollisionHandler::Sweep(
 	);
 
 	if (new_velocity.IsZero()) {
-		// PTGN_LOG("Collision: ", rigid_body.velocity, " * ", collisions[0].c.t);
 		return rigid_body.velocity * collisions[0].c.t;
 	}
 
-	// Potential alternative solution to corner clipping:
-	// new_origin = origin + (velocity * collisions[0].c.t - velocity.Unit() * epsilon);
-	// game.draw.CircleHollow(new_p1, s1, color::Blue);
-
-	if (const auto collisions2 = get_sorted_collisions(new_p1, new_velocity, false);
+	if (const auto collisions2 = get_sorted_collisions(new_p1, new_velocity);
 		!collisions2.empty()) {
-		/*PTGN_LOG(
-			"Collision2: ", rigid_body.velocity, " * ", collisions[0].c.t, " + ", new_velocity / dt,
-			" * ", collisions2[0].c.t / dt
-		);*/
-
 		game.draw.Line(new_p1, new_p1 + new_velocity * collisions2[0].c.t, color::Green);
-		// game.draw.Present();
-		// const auto collisionsdebug1 = get_sorted_collisions(transform.position, velocity, true);
-		// const auto collisionsdebug2 = get_sorted_collisions(new_p1, new_velocity, true);
 		return rigid_body.velocity * collisions[0].c.t + new_velocity * collisions2[0].c.t / dt;
-		// game.draw.CircleHollow(new_p1 + new_velocity * collisions2[0].c.t, s1,
-		// color::Red);
 	}
 	game.draw.Line(new_p1, new_p1 + new_velocity, color::Orange);
-	/*PTGN_LOG(
-		"Collision2: ", rigid_body.velocity, " * ", collisions[0].c.t, " + ", new_velocity / dt
-	);*/
 	return rigid_body.velocity * collisions[0].c.t + new_velocity / dt;
-	// game.draw.CircleHollow(p1 + new_v1, s1,
-	// color::Red);
 }
 
 void DynamicCollisionHandler::SortCollisions(std::vector<SweepCollision>& collisions) {
