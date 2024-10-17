@@ -183,6 +183,9 @@ template <typename T>
 	T a, T b, T rel_tol = static_cast<T>(10.0f * epsilon<float>), T abs_tol = static_cast<T>(0.005)
 ) {
 	if constexpr (std::is_floating_point_v<T>) {
+		if (std::isinf(a) || std::isinf(b)) {
+			return a == b;
+		}
 		return a == b ||
 			   FastAbs(a - b) <= std::max(abs_tol, rel_tol * std::max(FastAbs(a), FastAbs(b)));
 	} else {

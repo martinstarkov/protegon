@@ -49,10 +49,12 @@ bool OverlapCollision::RectangleRectangle(const Rectangle<float>& a, const Recta
 	const V2_float b_max{ b.Max() };
 	const V2_float b_min{ b.Min() };
 
-	if (a_max.x < b_min.x || a_min.x > b_max.x) {
+	if (a_max.x < b_min.x || a_min.x > b_max.x || NearlyEqual(a_max.x, b_min.x) ||
+		NearlyEqual(a_min.x, b_max.x)) {
 		return false;
 	}
-	if (a_max.y < b_min.y || a_min.y > b_max.y) {
+	if (a_max.y < b_min.y || a_min.y > b_max.y || NearlyEqual(a_max.y, b_min.y) ||
+		NearlyEqual(a_min.y, b_max.y)) {
 		return false;
 	}
 	return true;
@@ -101,21 +103,18 @@ bool OverlapCollision::PointSegment(const V2_float& a, const Segment<float>& b) 
 }
 
 bool OverlapCollision::SegmentRectangle(const Segment<float>& a, const Rectangle<float>& b) {
-	const V2_float b_max{ b.Max() };
-	const V2_float b_min{ b.Min() };
-
-	V2_float c = (b_min + b_max) * 0.5f; // Box center-point
-	V2_float e = b_max - c;				 // Box halflength extents
-	V2_float m = (a.a + a.b) * 0.5f;	 // Segment midpoint
-	V2_float d = a.b - m;				 // Segment halflength vector
-	m		   = m - c;					 // Translate box and segment to origin
+	V2_float c = b.Center();		 // Box center-point
+	V2_float e = b.Half();			 // Box halflength extents
+	V2_float m = (a.a + a.b) * 0.5f; // Segment midpoint
+	V2_float d = a.b - m;			 // Segment halflength vector
+	m		   = m - c;				 // Translate box and segment to origin
 	// Try world coordinate axes as separating axes
 	float adx = FastAbs(d.x);
-	if (FastAbs(m.x) > e.x + adx) {
+	if (FastAbs(m.x) >= e.x + adx) {
 		return false;
 	}
 	float ady = FastAbs(d.y);
-	if (FastAbs(m.y) > e.y + ady) {
+	if (FastAbs(m.y) >= e.y + ady) {
 		return false;
 	}
 	// Add in an epsilon term to counteract arithmetic errors when segment is
@@ -124,7 +123,10 @@ bool OverlapCollision::SegmentRectangle(const Segment<float>& a, const Rectangle
 	ady += epsilon<float>;
 
 	// Try cross products of segment direction vector with coordinate axes.
-	if (FastAbs(m.Cross(d)) > e.x * ady + e.y * adx) {
+	float cross = m.Cross(d);
+	float dot	= e.x * ady + e.y * adx;
+
+	if (FastAbs(cross) > dot) {
 		return false;
 	}
 	// No separating axis found; segment must be overlapping AABB.
@@ -408,10 +410,6 @@ bool DynamicCollisionHandler::SegmentRectangle(
 ) {
 	c = {};
 
-	if (!OverlapCollision::SegmentRectangle(a, b)) {
-		return false;
-	}
-
 	bool start_in{ OverlapCollision::PointRectangle(a.a, b) };
 	bool end_in{ OverlapCollision::PointRectangle(a.b, b) };
 
@@ -431,8 +429,25 @@ bool DynamicCollisionHandler::SegmentRectangle(
 	V2_float inv_dir = 1.0f / d;
 
 	// Calculate intersections with rectangle bounding axes.
-	V2_float t_near = (b.Min() - a.a) * inv_dir;
-	V2_float t_far	= (b.Max() - a.a) * inv_dir;
+	V2_float near = b.Min() - a.a;
+	V2_float far  = b.Max() - a.a;
+
+	// Handle edge cases where the segment line is parallel with the edge of the rectangle.
+	if (NearlyEqual(near.x, 0.0f)) {
+		near.x = 0.0f;
+	}
+	if (NearlyEqual(near.y, 0.0f)) {
+		near.y = 0.0f;
+	}
+	if (NearlyEqual(far.x, 0.0f)) {
+		far.x = 0.0f;
+	}
+	if (NearlyEqual(far.y, 0.0f)) {
+		far.y = 0.0f;
+	}
+
+	V2_float t_near = near * inv_dir;
+	V2_float t_far	= far * inv_dir;
 
 	// Discard 0 / 0 divisions.
 	if (std::isnan(t_far.y) || std::isnan(t_far.x)) {
@@ -451,7 +466,8 @@ bool DynamicCollisionHandler::SegmentRectangle(
 	}
 
 	// Early rejection.
-	if (t_near.x > t_far.y || t_near.y > t_far.x) {
+	if (t_near.x > t_far.y || t_near.y > t_far.x || NearlyEqual(t_near.x, t_far.y) ||
+		NearlyEqual(t_near.y, t_far.x)) {
 		return false;
 	}
 
@@ -692,6 +708,12 @@ bool DynamicCollisionHandler::RectangleRectangle(
 		{ a_center, a_center + vel }, { b.Min() - a.Half(), b.size + a.size, Origin::TopLeft }, c
 	);
 	bool collide_on_next_frame{ c.t < 1.0 && (c.t > 0.0f || NearlyEqual(c.t, 0.0f)) };
+	if (collide_on_next_frame) {
+		bool occured = SegmentRectangle(
+			{ a_center, a_center + vel }, { b.Min() - a.Half(), b.size + a.size, Origin::TopLeft },
+			c
+		);
+	}
 	return occured && collide_on_next_frame && !c.normal.IsZero();
 }
 
@@ -746,8 +768,12 @@ V2_float DynamicCollisionHandler::Sweep(
 			if (e.Has<BoxCollider>()) {
 				const auto& box2 = e.Get<BoxCollider>();
 				Rectangle rect2{ transform2.position + box2.offset, box2.size, box2.origin };
-				dist2 = (rect.Center() - rect2.Center()).MagnitudeSquared();
-				return RectangleRectangle(rect, relative_velocity, rect2, c);
+				dist2		  = (rect.Center() - rect2.Center()).MagnitudeSquared();
+				bool occurred = RectangleRectangle(rect, relative_velocity, rect2, c);
+				if (occurred) {
+					game.draw.Rectangle(rect2.pos, rect2.size, color::Red, rect2.origin);
+				}
+				return occurred;
 			} else if (e.Has<CircleCollider>()) {
 				const auto& circle2 = e.Get<CircleCollider>();
 				Circle c2{ transform2.position + circle2.offset, circle2.radius };
@@ -772,7 +798,8 @@ V2_float DynamicCollisionHandler::Sweep(
 		PTGN_ERROR("Unrecognized shape for collision check");
 	};
 
-	auto get_sorted_collisions = [&](const V2_float& pos, const V2_float& vel) {
+	auto get_sorted_collisions = [&](const V2_float& pos, const V2_float& vel,
+									 bool debug_flag = false) {
 		std::vector<SweepCollision> collisions;
 		targets.ForEach([&](ecs::Entity e) {
 			if (entity == e) {
@@ -782,6 +809,13 @@ V2_float DynamicCollisionHandler::Sweep(
 			if (collision_occurred(pos, vel, e, dist2)) {
 				collisions.emplace_back(c, dist2);
 			}
+			if (debug_flag) {
+				bool test = collision_occurred(pos, vel, e, dist2);
+				if (c.t < 1.0f) {
+					PTGN_LOG("t: ", c.t, ", normal: ", c.normal);
+					PTGN_LOG("pos: ", pos, ", vel: ", vel);
+				}
+			}
 		});
 		SortCollisions(collisions);
 		return collisions;
@@ -790,6 +824,8 @@ V2_float DynamicCollisionHandler::Sweep(
 	const auto collisions = get_sorted_collisions(transform.position, velocity);
 
 	if (collisions.empty()) { // no collisions occured.
+		const auto new_p1 = transform.position + velocity;
+		game.draw.Line(transform.position, new_p1, color::Grey);
 		return rigid_body.velocity;
 	}
 
@@ -803,6 +839,13 @@ V2_float DynamicCollisionHandler::Sweep(
 	const auto new_velocity = GetRemainingVelocity(velocity, collisions[0].c, response);
 
 	// PTGN_LOG("RemainingVel: ", new_velocity);
+	const auto new_p1 = transform.position + velocity * collisions[0].c.t;
+	PTGN_ASSERT(entity.Has<BoxCollider>());
+	game.draw.Line(transform.position, new_p1, color::Blue);
+	game.draw.Rectangle(
+		new_p1, entity.Get<BoxCollider>().size, color::Purple, entity.Get<BoxCollider>().origin,
+		1.0f
+	);
 
 	if (new_velocity.IsZero()) {
 		// PTGN_LOG("Collision: ", rigid_body.velocity, " * ", collisions[0].c.t);
@@ -811,21 +854,24 @@ V2_float DynamicCollisionHandler::Sweep(
 
 	// Potential alternative solution to corner clipping:
 	// new_origin = origin + (velocity * collisions[0].c.t - velocity.Unit() * epsilon);
-	const auto new_p1 = transform.position + velocity * collisions[0].c.t;
-	game.draw.Line(transform.position, new_p1, color::Blue);
 	// game.draw.CircleHollow(new_p1, s1, color::Blue);
 
-	if (const auto collisions2 = get_sorted_collisions(new_p1, new_velocity);
+	if (const auto collisions2 = get_sorted_collisions(new_p1, new_velocity, true);
 		!collisions2.empty()) {
 		/*PTGN_LOG(
 			"Collision2: ", rigid_body.velocity, " * ", collisions[0].c.t, " + ", new_velocity / dt,
 			" * ", collisions2[0].c.t / dt
 		);*/
+
+		game.draw.Line(new_p1, new_p1 + new_velocity * collisions2[0].c.t, color::Green);
+		// game.draw.Present();
+		// const auto collisionsdebug1 = get_sorted_collisions(transform.position, velocity, true);
+		// const auto collisionsdebug2 = get_sorted_collisions(new_p1, new_velocity, true);
 		return rigid_body.velocity * collisions[0].c.t + new_velocity * collisions2[0].c.t / dt;
-		game.draw.Line(new_p1, new_p1 + new_velocity * collisions2[0].c.t, color::Red);
 		// game.draw.CircleHollow(new_p1 + new_velocity * collisions2[0].c.t, s1,
 		// color::Red);
 	}
+	game.draw.Line(new_p1, new_p1 + new_velocity, color::Orange);
 	/*PTGN_LOG(
 		"Collision2: ", rigid_body.velocity, " * ", collisions[0].c.t, " + ", new_velocity / dt
 	);*/
@@ -855,7 +901,7 @@ void DynamicCollisionHandler::SortCollisions(std::vector<SweepCollision>& collis
 		[](const SweepCollision& a, const SweepCollision& b) {
 			// If time of collision are equal, prioritize walls to corners, i.e. normals
 			// (1,0) come before (1,1).
-			if (NearlyEqual(a.c.t, b.c.t)) {
+			if (a.c.t == b.c.t) {
 				return a.c.normal.MagnitudeSquared() < b.c.normal.MagnitudeSquared();
 			}
 			// If collision times are not equal, sort by collision time.
