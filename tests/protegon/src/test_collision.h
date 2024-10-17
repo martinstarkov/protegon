@@ -436,65 +436,59 @@ struct SegmentRectangleOverlapTest : public Test {
 	void Update() {
 		game.draw.Rectangle(aabb.pos, aabb.size, color::Cyan, aabb.origin, 1.0f);
 
-		// lines which are inside the rectangle
+		// Lines which are inside the rectangle.
 
-		// top left corner
-		LineOverlap({ 40.0f, 10.0f }, { 70.0f, 40.0f }, color::Green);
-		// top right corner
-		LineOverlap({ 110.0f, 10.0f }, { 80.0f, 40.0f }, color::Green);
-		// bottom left corner
-		LineOverlap({ 40.0f, 80.0f }, { 70.0f, 50.0f }, color::Green);
-		// bottom right corner
-		LineOverlap({ 110.0f, 80.0f }, { 80.0f, 50.0f }, color::Green);
-		// top left to right
-		LineOverlap({ 30.0f, 31.0f }, { 70.0f, 31.0f }, color::Green);
-		// bottom left to right
-		LineOverlap({ 30.0f, 59.0f }, { 70.0f, 59.0f }, color::Green);
+		LineOverlap({ 40.0f, 10.0f }, { 70.0f, 40.0f }, color::Green);	// top left corner
+		LineOverlap({ 110.0f, 10.0f }, { 80.0f, 40.0f }, color::Green); // top right corner
+		LineOverlap({ 40.0f, 80.0f }, { 70.0f, 50.0f }, color::Green);	// bottom left corner
+		LineOverlap({ 110.0f, 80.0f }, { 80.0f, 50.0f }, color::Green); // bottom right corner
+		LineOverlap({ 30.0f, 31.0f }, { 70.0f, 31.0f }, color::Green);	// top left to right
+		LineOverlap({ 30.0f, 59.0f }, { 70.0f, 59.0f }, color::Green);	// bottom left to right
+		LineOverlap({ 120.0f, 31.0f }, { 80.0f, 31.0f }, color::Green); // top right to left
+		LineOverlap({ 120.0f, 59.0f }, { 80.0f, 59.0f }, color::Green); // bottom right to left
+		LineOverlap({ 61.0f, 10.0f }, { 61.0f, 40.0f }, color::Green);	// top left to bottom
+		LineOverlap({ 61.0f, 80.0f }, { 61.0f, 50.0f }, color::Green);	// bottom left to top
+		LineOverlap({ 89.0f, 10.0f }, { 89.0f, 40.0f }, color::Green);	// top right to bottom
+		LineOverlap({ 89.0f, 80.0f }, { 89.0f, 50.0f }, color::Green);	// bottom right to top
 
-		// top right to left
-		LineOverlap({ 120.0f, 31.0f }, { 80.0f, 31.0f }, color::Green);
-		// bottom right to left
-		LineOverlap({ 120.0f, 59.0f }, { 80.0f, 59.0f }, color::Green);
+		// Lines which overlap the edges of the rectangle.
 
-		// top left to bottom
-		LineOverlap({ 61.0f, 10.0f }, { 61.0f, 40.0f }, color::Green);
-		// bottom left to top
-		LineOverlap({ 61.0f, 80.0f }, { 61.0f, 50.0f }, color::Green);
-
-		// top right to bottom
-		LineOverlap({ 89.0f, 10.0f }, { 89.0f, 40.0f }, color::Green);
-		// bottom right to top
-		LineOverlap({ 89.0f, 80.0f }, { 89.0f, 50.0f }, color::Green);
-
-		// LineOverlaps which overlap the edges of the rectangle
-
-		// top left corner - overlapping
-		LineOverlap({ 40.0f, 10.0f }, { 60.0f, 30.0f }, color::Red);
-		// top right corner - overlapping
-		LineOverlap({ 110.0f, 10.0f }, { 90.0f, 30.0f }, color::Red);
-		// bottom left corner - overlapping
-		LineOverlap({ 40.0f, 80.0f }, { 60.0f, 60.0f }, color::Red);
-		// bottom right corner - overlapping
-		LineOverlap({ 110.0f, 80.0f }, { 90.0f, 60.0f }, color::Red);
-		// top left to right - overlapping
-		LineOverlap({ 30.0f, 30.0f }, { 70.0f, 30.0f }, color::Red);
-		// bottom left to right - overlapping
-		LineOverlap({ 30.0f, 60.0f }, { 70.0f, 60.0f }, color::Red);
-
-		// top right to left - overlapping
-		LineOverlap({ 120.0f, 30.0f }, { 80.0f, 30.0f }, color::Red);
-		// bottom right to left - overlapping
-		LineOverlap({ 120.0f, 60.0f }, { 80.0f, 60.0f }, color::Red);
-
-		// top left to bottom - overlapping
-		LineOverlap({ 60.0f, 10.0f }, { 60.0f, 40.0f }, color::Red);
-		// bottom left to top - overlapping
-		LineOverlap({ 60.0f, 80.0f }, { 60.0f, 50.0f }, color::Red);
-
-		// top right to bottom - overlapping
-		LineOverlap({ 90.0f, 10.0f }, { 90.0f, 40.0f }, color::Red);
-		// bottom right to top - overlapping
-		LineOverlap({ 90.0f, 80.0f }, { 90.0f, 50.0f }, color::Red);
+		LineOverlap(
+			{ 40.0f, 10.0f }, { 60.0f, 30.0f }, color::Red
+		); // top left corner - overlapping
+		LineOverlap(
+			{ 110.0f, 10.0f }, { 90.0f, 30.0f }, color::Red
+		); // top right corner - overlapping
+		LineOverlap(
+			{ 40.0f, 80.0f }, { 60.0f, 60.0f }, color::Red
+		); // bottom left corner - overlapping
+		LineOverlap(
+			{ 110.0f, 80.0f }, { 90.0f, 60.0f }, color::Red
+		); // bottom right corner - overlapping
+		LineOverlap(
+			{ 30.0f, 30.0f }, { 70.0f, 30.0f }, color::Red
+		); // top left to right - overlapping
+		LineOverlap(
+			{ 30.0f, 60.0f }, { 70.0f, 60.0f }, color::Red
+		); // bottom left to right - overlapping
+		LineOverlap(
+			{ 120.0f, 30.0f }, { 80.0f, 30.0f }, color::Red
+		); // top right to left - overlapping
+		LineOverlap(
+			{ 120.0f, 60.0f }, { 80.0f, 60.0f }, color::Red
+		); // bottom right to left - overlapping
+		LineOverlap(
+			{ 60.0f, 10.0f }, { 60.0f, 40.0f }, color::Red
+		); // top left to bottom - overlapping
+		LineOverlap(
+			{ 60.0f, 80.0f }, { 60.0f, 50.0f }, color::Red
+		); // bottom left to top - overlapping
+		LineOverlap(
+			{ 90.0f, 10.0f }, { 90.0f, 40.0f }, color::Red
+		); // top right to bottom - overlapping
+		LineOverlap(
+			{ 90.0f, 80.0f }, { 90.0f, 50.0f }, color::Red
+		); // bottom right to top - overlapping
 	}
 };
 
@@ -519,65 +513,57 @@ struct SegmentRectangleDynamicTest : public Test {
 	void Update() {
 		game.draw.Rectangle(aabb.pos, aabb.size, color::Cyan, aabb.origin, 1.0f);
 
-		// lines which are inside the rectangle
+		// Lines which are inside the rectangle.
 
-		// top left corner
-		LineSweep({ 40.0f, 10.0f }, { 70.0f, 40.0f }, color::Green);
-		// top right corner
-		LineSweep({ 110.0f, 10.0f }, { 80.0f, 40.0f }, color::Green);
-		// bottom left corner
-		LineSweep({ 40.0f, 80.0f }, { 70.0f, 50.0f }, color::Green);
-		// bottom right corner
-		LineSweep({ 110.0f, 80.0f }, { 80.0f, 50.0f }, color::Green);
-		// top left to right
-		LineSweep({ 30.0f, 31.0f }, { 70.0f, 31.0f }, color::Green);
-		// bottom left to right
-		LineSweep({ 30.0f, 59.0f }, { 70.0f, 59.0f }, color::Green);
+		LineSweep({ 40.0f, 10.0f }, { 70.0f, 40.0f }, color::Green);  // top left corner
+		LineSweep({ 110.0f, 10.0f }, { 80.0f, 40.0f }, color::Green); // top right corner
+		LineSweep({ 40.0f, 80.0f }, { 70.0f, 50.0f }, color::Green);  // bottom left corner
+		LineSweep({ 110.0f, 80.0f }, { 80.0f, 50.0f }, color::Green); // bottom right corner
+		LineSweep({ 30.0f, 31.0f }, { 70.0f, 31.0f }, color::Green);  // top left to right
+		LineSweep({ 30.0f, 59.0f }, { 70.0f, 59.0f }, color::Green);  // bottom left to right
+		LineSweep({ 120.0f, 31.0f }, { 80.0f, 31.0f }, color::Green); // top right to left
+		LineSweep({ 120.0f, 59.0f }, { 80.0f, 59.0f }, color::Green); // bottom right to left
+		LineSweep({ 61.0f, 10.0f }, { 61.0f, 40.0f }, color::Green);  // top left to bottom
+		LineSweep({ 61.0f, 80.0f }, { 61.0f, 50.0f }, color::Green);  // bottom left to top
+		LineSweep({ 89.0f, 10.0f }, { 89.0f, 40.0f }, color::Green);  // top right to bottom
+		LineSweep({ 89.0f, 80.0f }, { 89.0f, 50.0f }, color::Green);  // bottom right to top
 
-		// top right to left
-		LineSweep({ 120.0f, 31.0f }, { 80.0f, 31.0f }, color::Green);
-		// bottom right to left
-		LineSweep({ 120.0f, 59.0f }, { 80.0f, 59.0f }, color::Green);
+		// LineSweeps which overlap the edges of the rectangle.
 
-		// top left to bottom
-		LineSweep({ 61.0f, 10.0f }, { 61.0f, 40.0f }, color::Green);
-		// bottom left to top
-		LineSweep({ 61.0f, 80.0f }, { 61.0f, 50.0f }, color::Green);
-
-		// top right to bottom
-		LineSweep({ 89.0f, 10.0f }, { 89.0f, 40.0f }, color::Green);
-		// bottom right to top
-		LineSweep({ 89.0f, 80.0f }, { 89.0f, 50.0f }, color::Green);
-
-		// LineSweeps which overlap the edges of the rectangle
-
-		// top left corner - overlapping
-		LineSweep({ 40.0f, 10.0f }, { 60.0f, 30.0f }, color::Red);
-		// top right corner - overlapping
-		LineSweep({ 110.0f, 10.0f }, { 90.0f, 30.0f }, color::Red);
-		// bottom left corner - overlapping
-		LineSweep({ 40.0f, 80.0f }, { 60.0f, 60.0f }, color::Red);
-		// bottom right corner - overlapping
-		LineSweep({ 110.0f, 80.0f }, { 90.0f, 60.0f }, color::Red);
-		// top left to right - overlapping
-		LineSweep({ 30.0f, 30.0f }, { 70.0f, 30.0f }, color::Red);
-		// bottom left to right - overlapping
-		LineSweep({ 30.0f, 60.0f }, { 70.0f, 60.0f }, color::Red);
-
-		// top right to left - overlapping
-		LineSweep({ 120.0f, 30.0f }, { 80.0f, 30.0f }, color::Red);
-		// bottom right to left - overlapping
-		LineSweep({ 120.0f, 60.0f }, { 80.0f, 60.0f }, color::Red);
-
-		// top left to bottom - overlapping
-		LineSweep({ 60.0f, 10.0f }, { 60.0f, 40.0f }, color::Red);
-		// bottom left to top - overlapping
-		LineSweep({ 60.0f, 80.0f }, { 60.0f, 50.0f }, color::Red);
-
-		// top right to bottom - overlapping
-		LineSweep({ 90.0f, 10.0f }, { 90.0f, 40.0f }, color::Red);
-		// bottom right to top - overlapping
-		LineSweep({ 90.0f, 80.0f }, { 90.0f, 50.0f }, color::Red);
+		LineSweep({ 40.0f, 10.0f }, { 60.0f, 30.0f }, color::Red); // top left corner - overlapping
+		LineSweep(
+			{ 110.0f, 10.0f }, { 90.0f, 30.0f }, color::Red
+		); // top right corner - overlapping
+		LineSweep(
+			{ 40.0f, 80.0f }, { 60.0f, 60.0f }, color::Red
+		); // bottom left corner - overlapping
+		LineSweep(
+			{ 110.0f, 80.0f }, { 90.0f, 60.0f }, color::Red
+		); // bottom right corner - overlapping
+		LineSweep(
+			{ 30.0f, 30.0f }, { 70.0f, 30.0f }, color::Red
+		); // top left to right - overlapping
+		LineSweep(
+			{ 30.0f, 60.0f }, { 70.0f, 60.0f }, color::Red
+		); // bottom left to right - overlapping
+		LineSweep(
+			{ 120.0f, 30.0f }, { 80.0f, 30.0f }, color::Red
+		); // top right to left - overlapping
+		LineSweep(
+			{ 120.0f, 60.0f }, { 80.0f, 60.0f }, color::Red
+		); // bottom right to left - overlapping
+		LineSweep(
+			{ 60.0f, 10.0f }, { 60.0f, 40.0f }, color::Red
+		); // top left to bottom - overlapping
+		LineSweep(
+			{ 60.0f, 80.0f }, { 60.0f, 50.0f }, color::Red
+		); // bottom left to top - overlapping
+		LineSweep(
+			{ 90.0f, 10.0f }, { 90.0f, 40.0f }, color::Red
+		); // top right to bottom - overlapping
+		LineSweep(
+			{ 90.0f, 80.0f }, { 90.0f, 50.0f }, color::Red
+		); // bottom right to top - overlapping
 	}
 };
 
@@ -687,6 +673,7 @@ struct SweepTest : public Test {
 
 	ecs::Entity player;
 	V2_float player_velocity;
+	V2_float fixed_velocity;
 
 	V2_float size;
 
@@ -713,9 +700,10 @@ struct SweepTest : public Test {
 
 	SweepTest(
 		const V2_float& player_vel, const V2_float& player_size = { 50, 50 },
-		const V2_float& player_pos = { 0, 0 }, const V2_float obstacle_size = { 50, 50 }
+		const V2_float& player_pos = { 0, 0 }, const V2_float& obstacle_size = { 50, 50 },
+		const V2_float& fixed_velocity = {}
 	) :
-		player_velocity{ player_vel }, size{ obstacle_size } {
+		player_velocity{ player_vel }, size{ obstacle_size }, fixed_velocity{ fixed_velocity } {
 		player = AddCollisionObject(player_pos, player_size, player_vel);
 	}
 
@@ -728,7 +716,24 @@ struct SweepTest : public Test {
 		auto& transform = player.Get<Transform>();
 		auto& box		= player.Get<BoxCollider>();
 
-		rb.velocity = {};
+		for (auto [e, p, b] : manager.EntitiesWith<Transform, BoxCollider>()) {
+			if (e == player) {
+				game.draw.Rectangle(p.position, b.size, color::Green, Origin::Center, 1.0f);
+			} else {
+				game.draw.Rectangle(p.position, b.size, color::Blue, Origin::Center, 1.0f);
+			}
+		}
+		game.draw.Rectangle(
+			transform.position + rb.velocity * dt, box.size, color::DarkGreen, Origin::Center, 1.0f
+		);
+
+		if (!fixed_velocity.IsZero() && !game.input.KeyPressed(Key::A) &&
+			!game.input.KeyPressed(Key::D) && !game.input.KeyPressed(Key::S) &&
+			!game.input.KeyPressed(Key::W)) {
+			rb.velocity = fixed_velocity;
+		} else {
+			rb.velocity = {};
+		}
 
 		if (game.input.KeyPressed(Key::A)) {
 			rb.velocity.x = -player_velocity.x;
@@ -748,11 +753,6 @@ struct SweepTest : public Test {
 
 		if (game.input.KeyDown(Key::SPACE)) {
 			transform.position += rb.velocity * dt;
-		} else {
-			game.draw.Rectangle(
-				transform.position + rb.velocity * dt, box.size, color::DarkGreen, Origin::Center,
-				1.0f
-			);
 		}
 
 		const auto edge_exclusive_overlap = [](const Rectangle<float>& a,
@@ -797,28 +797,21 @@ struct SweepTest : public Test {
 	}
 
 	void Draw() override {
+		/*
 		V2_int grid_size = game.window.GetSize() / size;
 
-		/*for (std::size_t i = 0; i < grid_size.x; i++) {
+		for (std::size_t i = 0; i < grid_size.x; i++) {
 			for (std::size_t j = 0; j < grid_size.y; j++) {
 				V2_float pos{ i * size.x, j * size.y };
 				game.draw.Rectangle(pos, size, color::Black, Origin::Center, 1.0f);
 			}
 		}*/
-
-		for (auto [e, p, b] : manager.EntitiesWith<Transform, BoxCollider>()) {
-			if (e == player) {
-				game.draw.Rectangle(p.position, b.size, color::Green, Origin::Center, 1.0f);
-			} else {
-				game.draw.Rectangle(p.position, b.size, color::Blue, Origin::Center, 1.0f);
-			}
-		}
 	}
 };
 
 struct RectangleCollisionTest : public SweepTest {
 	RectangleCollisionTest() :
-		SweepTest{ { 100000.0f, 100000.0f }, { 30.0f, 30.0f }, { 170.0f, 100.0f } } {
+		SweepTest{ { 100000.0f, 100000.0f }, { 30.0f, 30.0f }, { 45.0f, 84.5f } } {
 		AddCollisionObject({ 150.0f, 50.0f }, { 20.0f, 20.0f });
 		AddCollisionObject({ 150.0f, 150.0f }, { 75.0f, 20.0f });
 		AddCollisionObject({ 170.0f, 50.0f }, { 20.0f, 20.0f });
@@ -833,6 +826,42 @@ struct RectangleCollisionTest : public SweepTest {
 		AddCollisionObject({ 50.0f, 200.0f }, { 40.0f, 20.0f });
 		AddCollisionObject({ 50.0f, 50.0f }, { 20.0f, 20.0f });
 		AddCollisionObject({ 200.0f, 10.0f }, { 20.0f, 20.0f });
+	}
+
+	void Init() {
+		game.camera.GetPrimary().CenterOnArea({ 256, 240 });
+		SweepTest::Init();
+	}
+};
+
+struct RectangleCollisionTest1 : public SweepTest {
+	RectangleCollisionTest1() :
+		SweepTest{ { 100000.0f, 100000.0f },
+				   { 30.0f, 30.0f },
+				   { 45.0f, 84.5f },
+				   { 50, 50 },
+				   { 100000.0f, 100000.0f } } {
+		AddCollisionObject({ 150.0f, 150.0f }, { 75.0f, 20.0f });
+		AddCollisionObject({ 50.0f, 130.0f }, { 20.0f, 20.0f });
+		AddCollisionObject({ 150.0f, 100.0f }, { 10.0f, 1.0f });
+		AddCollisionObject({ 200.0f, 100.0f }, { 20.0f, 60.0f });
+	}
+
+	void Init() {
+		game.camera.GetPrimary().CenterOnArea({ 256, 240 });
+		SweepTest::Init();
+	}
+};
+
+struct RectangleCollisionTest2 : public SweepTest {
+	RectangleCollisionTest2() :
+		SweepTest{ { 100000.0f, 100000.0f },
+				   { 30.0f, 30.0f },
+				   { 25.0f, 30.0f },
+				   { 50, 50 },
+				   { -100000.0f, 100000.0f } } {
+		AddCollisionObject({ 20.0f, 90.0f }, { 20.0f, 90.0f });
+		AddCollisionObject({ 50.0f, 50.0f }, { 20.0f, 20.0f });
 	}
 
 	void Init() {
@@ -897,8 +926,10 @@ void TestCollisions() {
 
 	V2_float player_velocity{ 100000.0f };
 
-	tests.emplace_back(new SegmentRectangleOverlapTest());
 	tests.emplace_back(new RectangleCollisionTest());
+	tests.emplace_back(new RectangleCollisionTest1());
+	tests.emplace_back(new RectangleCollisionTest2());
+	tests.emplace_back(new SegmentRectangleOverlapTest());
 	tests.emplace_back(new RectangleRectangleDynamicTest());
 	tests.emplace_back(new SegmentRectangleDynamicTest());
 	tests.emplace_back(new SweepTunnelTest2(player_velocity));
