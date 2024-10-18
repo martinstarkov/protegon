@@ -91,6 +91,11 @@ public:
 			   general_observers_.find(key) != general_observers_.end();
 	}
 
+	void Reset() {
+		general_observers_.clear();
+		observers_.clear();
+	}
+
 private:
 	template <typename S>
 	[[nodiscard]] static Key GetKey(const S* ptr) {

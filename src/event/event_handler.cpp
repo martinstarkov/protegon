@@ -7,9 +7,9 @@ void EventHandler::UnsubscribeAll() {
 }
 
 void EventHandler::Reset() {
-	key	   = {};
-	mouse  = {};
-	window = {};
+	key.Reset();
+	mouse.Reset();
+	window.Reset();
 }
 
 void EventHandler::Shutdown() {
