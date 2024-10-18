@@ -179,9 +179,8 @@ template <typename T>
 // tolerances. The absolute tolerance test fails when x and y become large. The
 // relative tolerance test fails when x and y become small.
 template <typename T>
-[[nodiscard]] bool NearlyEqual(
-	T a, T b, T rel_tol = static_cast<T>(10.0f * epsilon<float>), T abs_tol = static_cast<T>(0.005)
-) {
+[[nodiscard]] bool
+NearlyEqual(T a, T b, T abs_tol = static_cast<T>(0.00005), T rel_tol = T{ 10 } * epsilon<T>) {
 	if constexpr (std::is_floating_point_v<T>) {
 		if (std::isinf(a) || std::isinf(b)) {
 			return a == b;
