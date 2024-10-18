@@ -129,9 +129,7 @@ public:
 	// https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm/1084899#1084899
 	static bool SegmentCircle(const Segment<float>& a, const Circle<float>& b, DynamicCollision& c);
 
-	static bool SegmentRectangle(
-		const Segment<float>& a, const Rectangle<float>& b, DynamicCollision& c
-	);
+	static bool SegmentRectangle(const Segment<float>& a, Rectangle<float> b, DynamicCollision& c);
 
 	// Source: https://stackoverflow.com/a/52462458
 	static bool SegmentCapsule(
@@ -156,7 +154,8 @@ public:
 
 	// @return Final velocity of the object to prevent them from colliding with the manager objects.
 	static V2_float Sweep(
-		ecs::Entity entity, ecs::Manager& manager, DynamicCollisionResponse response
+		ecs::Entity entity, ecs::Manager& manager, DynamicCollisionResponse response,
+		bool debug_draw = false
 	);
 
 private:
@@ -177,7 +176,7 @@ private:
 };
 
 class CollisionHandler {
-private:
+public:
 	CollisionHandler()									 = default;
 	~CollisionHandler()									 = default;
 	CollisionHandler(const CollisionHandler&)			 = delete;
@@ -185,7 +184,6 @@ private:
 	CollisionHandler& operator=(const CollisionHandler&) = delete;
 	CollisionHandler& operator=(CollisionHandler&&)		 = default;
 
-public:
 	OverlapCollision overlap;
 	IntersectCollisionHandler intersect;
 	DynamicCollisionHandler dynamic;
@@ -195,9 +193,6 @@ public:
 	}
 
 	void Shutdown();
-
-private:
-	friend class Game;
 };
 
 } // namespace impl

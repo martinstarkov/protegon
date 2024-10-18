@@ -725,6 +725,7 @@ struct SweepTest : public Test {
 
 		for (auto [e, p, b] : manager.EntitiesWith<Transform, BoxCollider>()) {
 			if (e == player) {
+				PTGN_LOG_PRECISE(7, false, p.position);
 				game.draw.Rectangle(p.position, b.size, color::Green, Origin::Center, 1.0f);
 			} else {
 				game.draw.Rectangle(p.position, b.size, color::Blue, Origin::Center, 1.0f);
@@ -756,7 +757,7 @@ struct SweepTest : public Test {
 		}
 
 		rb.velocity =
-			game.collision.dynamic.Sweep(player, manager, DynamicCollisionResponse::Slide);
+			game.collision.dynamic.Sweep(player, manager, DynamicCollisionResponse::Slide, true);
 
 		if (game.input.KeyDown(Key::SPACE)) {
 			transform.position += rb.velocity * dt;
@@ -877,6 +878,160 @@ struct RectangleCollisionTest2 : public SweepTest {
 	}
 };
 
+struct RectangleCollisionTest3 : public SweepTest {
+	RectangleCollisionTest3() :
+		SweepTest{ { 100000.0f, 100000.0f },
+				   { 30.0f, 30.0f },
+				   { 175.0f, 75.0f },
+				   { 50, 50 },
+				   { -100000.0f, 100000.0f } } {
+		AddCollisionObject({ 150.0f, 100.0f }, { 10.0f, 1.0f });
+	}
+
+	void Init() {
+		game.camera.GetPrimary().CenterOnArea({ 256, 240 });
+		SweepTest::Init();
+	}
+};
+
+struct RectangleCollisionTest4 : public SweepTest {
+	RectangleCollisionTest4() :
+		SweepTest{ { 100000.0f, 100000.0f },
+				   { 30.0f, 30.0f },
+				   { 97.5000000f, 74.9999924f },
+				   { 50, 50 },
+				   { 100000.0f, -100000.0f } } {
+		AddCollisionObject({ 150.0f, 50.0f }, { 20.0f, 20.0f });
+		AddCollisionObject({ 110.0f, 50.0f }, { 20.0f, 20.0f });
+	}
+
+	void Init() {
+		game.camera.GetPrimary().CenterOnArea({ 256, 240 });
+		SweepTest::Init();
+	}
+};
+
+struct DynamicRectangleCollisionTest : public Test {
+	ecs::Manager manager;
+
+	float speed{ 0.0f };
+
+	struct DynamicData {
+		V2_float pos;
+		V2_float size;
+		Origin origin;
+		V2_float velocity;
+	};
+
+	std::vector<DynamicData> entity_data;
+
+	using Id = std::size_t;
+
+	DynamicRectangleCollisionTest(float speed) : speed{ speed } {
+		game.window.SetSize({ 800, 800 });
+		ws	   = game.window.GetSize();
+		center = game.window.GetCenter();
+	}
+
+	void CreateDynamicEntity(
+		const V2_float& pos, const V2_float& size, Origin origin, const V2_float& velocity_direction
+	) {
+		DynamicData data;
+		data.pos	  = pos;
+		data.size	  = size;
+		data.origin	  = origin;
+		data.velocity = velocity_direction * speed;
+		entity_data.push_back(data);
+	}
+
+	using NextVel = V2_float;
+
+	void Init() override {
+		manager.Clear();
+		for (std::size_t i = 0; i < entity_data.size(); ++i) {
+			ecs::Entity entity = manager.CreateEntity();
+			auto& data		   = entity_data[i];
+			auto& t			   = entity.Add<Transform>();
+			t.position		   = data.pos;
+
+			auto& box  = entity.Add<BoxCollider>();
+			box.size   = data.size;
+			box.origin = data.origin;
+
+			auto& rb	= entity.Add<RigidBody>();
+			rb.velocity = data.velocity;
+
+			entity.Add<NextVel>();
+
+			entity.Add<Id>(i);
+		}
+		manager.Refresh();
+	}
+
+	void Update() override {
+		bool space_down = game.input.KeyDown(Key::SPACE);
+		for (auto [e, rb, id] : manager.EntitiesWith<RigidBody, Id>()) {
+			PTGN_ASSERT(id < entity_data.size());
+			rb.velocity = entity_data[id].velocity;
+		}
+		for (auto [e, t, b, rb, id, nv] :
+			 manager.EntitiesWith<Transform, BoxCollider, RigidBody, Id, NextVel>()) {
+			nv = game.collision.dynamic.Sweep(e, manager, DynamicCollisionResponse::Slide, true);
+		}
+
+		for (auto [e, t, b, rb, id, nv] :
+			 manager.EntitiesWith<Transform, BoxCollider, RigidBody, Id, NextVel>()) {
+			rb.velocity = nv;
+			if (space_down) {
+				t.position += rb.velocity * dt;
+			}
+			for (auto [e2, t2, b2, rb2] :
+				 manager.EntitiesWith<Transform, BoxCollider, RigidBody>()) {
+				if (e2 == e) {
+					continue;
+				}
+				Rectangle<float> r1{ t.position + b.offset, b.size, b.origin };
+				Rectangle<float> r2{ t2.position + b2.offset, b2.size, b2.origin };
+				IntersectCollision c;
+				if (game.collision.intersect.RectangleRectangle(r1, r2, c)) {
+					t.position += c.normal * c.depth;
+				}
+				if (game.collision.overlap.RectangleRectangle(r1, r2)) {
+					PTGN_LOG("Failed to resolve dynamic collision");
+				}
+			}
+		}
+	}
+
+	void Draw() override {
+		for (auto [e, t, b] : manager.EntitiesWith<Transform, BoxCollider>()) {
+			game.draw.Rectangle(t.position + b.offset, b.size, color::Green, b.origin, 1.0f);
+		}
+	}
+};
+
+struct HeadOnDynamicRectangleTest1 : public DynamicRectangleCollisionTest {
+	HeadOnDynamicRectangleTest1(float speed) : DynamicRectangleCollisionTest{ speed } {
+		CreateDynamicEntity({ 0, center.y }, { 40.0f, 40.0f }, Origin::CenterLeft, { 1.0f, 0.0f });
+		CreateDynamicEntity(
+			{ ws.x, center.y }, { 40.0f, 40.0f }, Origin::CenterRight, { -1.0f, 0.0f }
+		);
+	}
+};
+
+struct HeadOnDynamicRectangleTest2 : public DynamicRectangleCollisionTest {
+	HeadOnDynamicRectangleTest2(float speed) : DynamicRectangleCollisionTest{ speed } {
+		CreateDynamicEntity({ center.x, 0 }, { 40.0f, 40.0f }, Origin::CenterTop, { 0, 1.0f });
+		CreateDynamicEntity(
+			{ center.x, ws.y }, { 40.0f, 40.0f }, Origin::CenterBottom, { 0, -1.0f }
+		);
+		CreateDynamicEntity({ 0, center.y }, { 40.0f, 40.0f }, Origin::CenterLeft, { 1.0f, 0.0f });
+		CreateDynamicEntity(
+			{ ws.x, center.y }, { 40.0f, 40.0f }, Origin::CenterRight, { -1.0f, 0.0f }
+		);
+	}
+};
+
 struct SweepCornerTest1 : public SweepTest {
 	SweepCornerTest1(const V2_float& player_vel) : SweepTest{ player_vel } {
 		AddCollisionObject({ 300, 300 });
@@ -931,19 +1086,24 @@ struct SweepTunnelTest2 : public SweepTest {
 void TestCollisions() {
 	std::vector<std::shared_ptr<Test>> tests;
 
-	V2_float player_velocity{ 100000.0f };
+	V2_float velocity{ 100000.0f };
+	float speed{ 7000.0f };
 
+	tests.emplace_back(new RectangleCollisionTest4());
+	tests.emplace_back(new RectangleCollisionTest3());
+	tests.emplace_back(new HeadOnDynamicRectangleTest1(speed));
+	tests.emplace_back(new HeadOnDynamicRectangleTest2(speed));
 	tests.emplace_back(new RectangleCollisionTest());
 	tests.emplace_back(new RectangleCollisionTest1());
 	tests.emplace_back(new RectangleCollisionTest2());
 	tests.emplace_back(new SegmentRectangleOverlapTest());
 	tests.emplace_back(new RectangleRectangleDynamicTest());
 	tests.emplace_back(new SegmentRectangleDynamicTest());
-	tests.emplace_back(new SweepTunnelTest2(player_velocity));
-	tests.emplace_back(new SweepTunnelTest1(player_velocity));
-	tests.emplace_back(new SweepCornerTest3(player_velocity));
-	tests.emplace_back(new SweepCornerTest2(player_velocity));
-	tests.emplace_back(new SweepCornerTest1(player_velocity));
+	tests.emplace_back(new SweepTunnelTest2(velocity));
+	tests.emplace_back(new SweepTunnelTest1(velocity));
+	tests.emplace_back(new SweepCornerTest3(velocity));
+	tests.emplace_back(new SweepCornerTest2(velocity));
+	tests.emplace_back(new SweepCornerTest1(velocity));
 	tests.emplace_back(new CollisionTest());
 
 	AddTests(tests);

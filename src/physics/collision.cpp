@@ -19,6 +19,7 @@
 #include "protegon/polygon.h"
 #include "protegon/vector2.h"
 #include "renderer/origin.h"
+#include "renderer/renderer.h"
 #include "utility/debug.h"
 
 namespace ptgn::impl {
@@ -406,7 +407,7 @@ bool DynamicCollisionHandler::SegmentCircle(
 }
 
 bool DynamicCollisionHandler::SegmentRectangle(
-	const Segment<float>& a, const Rectangle<float>& b, DynamicCollision& c
+	const Segment<float>& a, Rectangle<float> b, DynamicCollision& c
 ) {
 	c = {};
 
@@ -494,6 +495,11 @@ bool DynamicCollisionHandler::SegmentRectangle(
 		c.t = std::max(t_near.x, t_near.y);
 	}
 
+	if (c.t > 1.0f) {
+		c = {};
+		return false;
+	}
+
 	// Contact point of collision from parametric line equation.
 	// c.point = a.a + c.time * d;
 
@@ -501,25 +507,28 @@ bool DynamicCollisionHandler::SegmentRectangle(
 
 	// TODO: Figure out how to fix biasing of one direction from one side and another on the other
 	// side.
-	if (NearlyEqual(t_near.x, t_near.y) && NearlyEqual(
-											   FastAbs(inv_dir.x), FastAbs(inv_dir.y)
-										   )) { // Both axes collide at the same time.
+	bool equal_times{ NearlyEqual(t_near.x, t_near.y) };
+	bool diagonal{ NearlyEqual(FastAbs(inv_dir.x), FastAbs(inv_dir.y)) };
+
+	if (equal_times && diagonal) { // Both axes collide at the same time.
 		// Diagonal collision, set normal to opposite of direction of movement.
 		c.normal = { -Sign(d.x), -Sign(d.y) };
 	}
-	if (t_near.x > t_near.y) { // X-axis.
-		// Direction of movement.
-		if (inv_dir.x < 0.0f) {
-			c.normal = { 1.0f, 0.0f };
-		} else {
-			c.normal = { -1.0f, 0.0f };
-		}
-	} else if (t_near.x < t_near.y) { // Y-axis.
-		// Direction of movement.
-		if (inv_dir.y < 0.0f) {
-			c.normal = { 0.0f, 1.0f };
-		} else {
-			c.normal = { 0.0f, -1.0f };
+	if (c.normal.IsZero()) {
+		if (t_near.x > t_near.y) { // X-axis.
+			// Direction of movement.
+			if (inv_dir.x < 0.0f) {
+				c.normal = { 1.0f, 0.0f };
+			} else {
+				c.normal = { -1.0f, 0.0f };
+			}
+		} else if (t_near.x < t_near.y) { // Y-axis.
+			// Direction of movement.
+			if (inv_dir.y < 0.0f) {
+				c.normal = { 0.0f, 1.0f };
+			} else {
+				c.normal = { 0.0f, -1.0f };
+			}
 		}
 	}
 
@@ -664,7 +673,7 @@ bool DynamicCollisionHandler::RectangleRectangle(
 
 V2_float DynamicCollisionHandler::Sweep(
 	ecs::Entity entity, ecs::Manager& manager,
-	DynamicCollisionResponse response = DynamicCollisionResponse::Slide
+	DynamicCollisionResponse response = DynamicCollisionResponse::Slide, bool debug_draw
 ) {
 	float dt = game.dt();
 
@@ -758,7 +767,9 @@ V2_float DynamicCollisionHandler::Sweep(
 
 	if (collisions.empty()) { // no collisions occured.
 		const auto new_p1 = transform.position + velocity;
-		game.draw.Line(transform.position, new_p1, color::Grey);
+		if (debug_draw) {
+			game.draw.Line(transform.position, new_p1, color::Grey);
+		}
 		return rigid_body.velocity;
 	}
 
@@ -768,11 +779,13 @@ V2_float DynamicCollisionHandler::Sweep(
 
 	PTGN_ASSERT(entity.Has<BoxCollider>());
 
-	game.draw.Line(transform.position, new_p1, color::Blue);
-	game.draw.Rectangle(
-		new_p1, entity.Get<BoxCollider>().size, color::Purple, entity.Get<BoxCollider>().origin,
-		1.0f
-	);
+	if (debug_draw) {
+		game.draw.Line(transform.position, new_p1, color::Blue);
+		game.draw.Rectangle(
+			new_p1, entity.Get<BoxCollider>().size, color::Purple, entity.Get<BoxCollider>().origin,
+			1.0f
+		);
+	}
 
 	if (new_velocity.IsZero()) {
 		return rigid_body.velocity * collisions[0].c.t;
@@ -780,10 +793,14 @@ V2_float DynamicCollisionHandler::Sweep(
 
 	if (const auto collisions2 = get_sorted_collisions(new_p1, new_velocity);
 		!collisions2.empty()) {
-		game.draw.Line(new_p1, new_p1 + new_velocity * collisions2[0].c.t, color::Green);
+		if (debug_draw) {
+			game.draw.Line(new_p1, new_p1 + new_velocity * collisions2[0].c.t, color::Green);
+		}
 		return rigid_body.velocity * collisions[0].c.t + new_velocity * collisions2[0].c.t / dt;
 	}
-	game.draw.Line(new_p1, new_p1 + new_velocity, color::Orange);
+	if (debug_draw) {
+		game.draw.Line(new_p1, new_p1 + new_velocity, color::Orange);
+	}
 	return rigid_body.velocity * collisions[0].c.t + new_velocity / dt;
 }
 
