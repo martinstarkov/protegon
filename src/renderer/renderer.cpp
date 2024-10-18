@@ -2,6 +2,7 @@
 
 #include <functional>
 
+#include "core/window.h"
 #include "event/event_handler.h"
 #include "protegon/color.h"
 #include "protegon/events.h"

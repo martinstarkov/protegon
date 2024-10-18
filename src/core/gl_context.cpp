@@ -112,7 +112,7 @@ void GLContext::Shutdown() {
 }
 
 void GLContext::ClearErrors() {
-	while (game.gl_context_.IsInitialized() && game.IsRunning() &&
+	while (game.gl_context_->IsInitialized() && game.IsRunning() &&
 		   gl::glGetError() != static_cast<gl::GLenum>(GLError::None)
 	) { /* glGetError clears the error queue */
 	}
@@ -120,7 +120,7 @@ void GLContext::ClearErrors() {
 
 std::vector<GLError> GLContext::GetErrors() {
 	std::vector<GLError> errors;
-	while (game.gl_context_.IsInitialized() && game.IsRunning()) {
+	while (game.gl_context_->IsInitialized() && game.IsRunning()) {
 		gl::GLenum error = gl::glGetError();
 		auto e			 = static_cast<GLError>(error);
 		if (e == GLError::None) {

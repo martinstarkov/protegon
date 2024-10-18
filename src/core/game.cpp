@@ -1,20 +1,27 @@
 #include "protegon/game.h"
 
 #include <chrono>
-#include <functional>
 #include <type_traits>
-#include <variant>
 #include <vector>
 
-#include "SDL.h"
+#include "SDL_timer.h"
 #include "core/gl_context.h"
 #include "core/manager.h"
 #include "core/sdl_instance.h"
 #include "core/window.h"
 #include "event/event_handler.h"
 #include "event/input_handler.h"
+#include "protegon/audio.h"
 #include "protegon/collision.h"
+#include "protegon/font.h"
+#include "protegon/shader.h"
+#include "protegon/text.h"
+#include "protegon/texture.h"
+#include "protegon/tween.h"
+#include "renderer/renderer.h"
+#include "scene/camera.h"
 #include "scene/scene_manager.h"
+#include "ui/ui.h"
 #include "utility/debug.h"
 #include "utility/profiling.h"
 #include "utility/time.h"
@@ -39,6 +46,7 @@ EM_JS(int, get_screen_height, (), { return screen.height; });
 #include "CoreFoundation/CoreFoundation.h"
 
 #endif
+#include <memory>
 
 namespace ptgn {
 
@@ -109,13 +117,49 @@ static void InitApplePath() {
 
 #endif
 
+Game::Game() :
+	sdl_instance_{ std::make_unique<SDLInstance>() },
+	window_{ std::make_unique<Window>() },
+	gl_context_{ std::make_unique<GLContext>() },
+	event_{ std::make_unique<EventHandler>() },
+	input_{ std::make_unique<InputHandler>() },
+	draw_{ std::make_unique<Renderer>() },
+	scene_{ std::make_unique<SceneManager>() },
+	camera_{ std::make_unique<ActiveSceneCameraManager>() },
+	collision_{ std::make_unique<CollisionHandler>() },
+	ui_{ std::make_unique<UserInterface>() },
+	tween_{ std::make_unique<TweenManager>() },
+	music_{ std::make_unique<MusicManager>() },
+	sound_{ std::make_unique<SoundManager>() },
+	font_{ std::make_unique<FontManager>() },
+	text_{ std::make_unique<TextManager>() },
+	texture_{ std::make_unique<TextureManager>() },
+	shader_{ std::make_unique<ShaderManager>() },
+	profiler_{ std::make_unique<Profiler>() },
+	window{ *window_ },
+	event{ *event_ },
+	input{ *input_ },
+	draw{ *draw_ },
+	scene{ *scene_ },
+	camera{ *camera_ },
+	collision{ *collision_ },
+	ui{ *ui_ },
+	tween{ *tween_ },
+	music{ *music_ },
+	sound{ *sound_ },
+	font{ *font_ },
+	text{ *text_ },
+	texture{ *texture_ },
+	shader{ *shader_ },
+	profiler{ *profiler_ } {}
+
 Game::~Game() {
-	gl_context_.Shutdown();
-	sdl_instance_.Shutdown();
+	gl_context_->Shutdown();
+	sdl_instance_->Shutdown();
 }
 
 float Game::dt() const {
-	return dt_;
+	return 1.0f / 60.0f; // dt_;
 }
 
 float Game::time() const {
@@ -169,7 +213,7 @@ bool Game::IsRunning() const {
 	// Ensure that if game is running, SDL is initialized.
 	PTGN_ASSERT(std::invoke([&]() {
 		if (running_) {
-			return sdl_instance_.IsInitialized();
+			return sdl_instance_->IsInitialized();
 		}
 		return true;
 	}));
@@ -181,11 +225,11 @@ void Game::Init() {
 	impl::InitApplePath();
 #endif
 	running_ = true;
-	if (!sdl_instance_.IsInitialized()) {
-		sdl_instance_.Init();
+	if (!sdl_instance_->IsInitialized()) {
+		sdl_instance_->Init();
 	}
 	window.Init();
-	gl_context_.Init();
+	gl_context_->Init();
 	event.Init();
 	input.Init();
 	draw.Init();
@@ -195,7 +239,7 @@ void Game::Init() {
 void Game::Shutdown() {
 	scene.Shutdown();
 
-	// TODO: Figure out a better way to do this.
+	// TODO: Simply reset all the unique pointers instead of doing this.
 	profiler.Reset();
 	shader.Reset();
 	texture.Reset();

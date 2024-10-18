@@ -105,10 +105,8 @@ private:
 
 namespace impl {
 
-class Game;
-
 class EventHandler {
-private:
+public:
 	EventHandler()								 = default;
 	~EventHandler()								 = default;
 	EventHandler(const EventHandler&)			 = delete;
@@ -116,7 +114,6 @@ private:
 	EventHandler& operator=(const EventHandler&) = delete;
 	EventHandler& operator=(EventHandler&&)		 = default;
 
-public:
 	EventDispatcher<KeyEvent> key;
 	EventDispatcher<MouseEvent> mouse;
 	EventDispatcher<WindowEvent> window;
@@ -140,9 +137,6 @@ public:
 	}
 
 	void Shutdown();
-
-private:
-	friend class Game;
 };
 
 } // namespace impl

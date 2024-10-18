@@ -19,7 +19,7 @@ namespace impl {
 
 struct MixMusicDeleter {
 	void operator()(Mix_Music* music) const {
-		if (game.sdl_instance_.SDLMixerIsInitialized()) {
+		if (game.sdl_instance_->SDLMixerIsInitialized()) {
 			Mix_FreeMusic(music);
 		}
 	}
@@ -27,7 +27,7 @@ struct MixMusicDeleter {
 
 struct MixChunkDeleter {
 	void operator()(Mix_Chunk* sound) const {
-		if (game.sdl_instance_.SDLMixerIsInitialized()) {
+		if (game.sdl_instance_->SDLMixerIsInitialized()) {
 			Mix_FreeChunk(sound);
 		}
 	}

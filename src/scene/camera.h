@@ -183,7 +183,7 @@ private:
 // This class provides quick access to the current top active scene.
 // i.e. using this is class equivalent to game.scene.GetTopActive().camera
 class ActiveSceneCameraManager {
-private:
+public:
 	ActiveSceneCameraManager()											 = default;
 	~ActiveSceneCameraManager()											 = default;
 	ActiveSceneCameraManager(const ActiveSceneCameraManager&)			 = delete;
@@ -191,7 +191,6 @@ private:
 	ActiveSceneCameraManager& operator=(const ActiveSceneCameraManager&) = delete;
 	ActiveSceneCameraManager& operator=(ActiveSceneCameraManager&&)		 = default;
 
-public:
 	using Item = CameraManager::Item;
 
 	template <typename TKey, typename... TArgs, tt::constructible<Item, TArgs...> = true>

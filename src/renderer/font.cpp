@@ -4,10 +4,10 @@
 #include <filesystem>
 #include <string>
 
+#include "SDL_ttf.h"
 #include "core/sdl_instance.h"
 #include "protegon/file.h"
 #include "protegon/game.h"
-#include "SDL_ttf.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
 
@@ -17,7 +17,7 @@ namespace impl {
 
 struct TTF_FontDeleter {
 	void operator()(TTF_Font* font) const {
-		if (game.sdl_instance_.SDLTTFIsInitialized()) {
+		if (game.sdl_instance_->SDLTTFIsInitialized()) {
 			TTF_CloseFont(font);
 		}
 	}

@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "components/transform.h"
 #include "core/manager.h"
 #include "ecs/ecs.h"
 #include "protegon/color.h"
@@ -16,6 +17,7 @@
 #include "protegon/vector2.h"
 #include "renderer/flip.h"
 #include "renderer/origin.h"
+#include "renderer/renderer.h"
 #include "utility/debug.h"
 #include "utility/time.h"
 

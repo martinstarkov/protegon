@@ -9,6 +9,11 @@
 #include <type_traits>
 #include <vector>
 
+#include "SDL_error.h"
+#include "SDL_image.h"
+#include "SDL_pixels.h"
+#include "SDL_surface.h"
+#include "SDL_ttf.h"
 #include "core/sdl_instance.h"
 #include "protegon/color.h"
 #include "protegon/file.h"
@@ -16,11 +21,6 @@
 #include "protegon/game.h"
 #include "protegon/log.h"
 #include "protegon/vector2.h"
-#include "SDL_error.h"
-#include "SDL_image.h"
-#include "SDL_pixels.h"
-#include "SDL_surface.h"
-#include "SDL_ttf.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
 
@@ -29,7 +29,7 @@ namespace ptgn {
 namespace impl {
 
 void SDL_SurfaceDeleter::operator()(SDL_Surface* surface) const {
-	if (game.sdl_instance_.SDLIsInitialized()) {
+	if (game.sdl_instance_->SDLIsInitialized()) {
 		SDL_FreeSurface(surface);
 	}
 }

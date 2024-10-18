@@ -5,14 +5,14 @@
 #include <string>
 #include <string_view>
 
-#include "core/sdl_instance.h"
-#include "protegon/game.h"
-#include "protegon/log.h"
-#include "protegon/vector2.h"
 #include "SDL_error.h"
 #include "SDL_mouse.h"
 #include "SDL_stdinc.h"
 #include "SDL_video.h"
+#include "core/sdl_instance.h"
+#include "protegon/game.h"
+#include "protegon/log.h"
+#include "protegon/vector2.h"
 #include "utility/debug.h"
 
 #ifdef __EMSCRIPTEN__
@@ -51,7 +51,7 @@ V2_int Window::GetCanvasSize() const {
 #endif
 
 void WindowDeleter::operator()(SDL_Window* window) const {
-	if (game.sdl_instance_.SDLIsInitialized()) {
+	if (game.sdl_instance_->SDLIsInitialized()) {
 		SDL_DestroyWindow(window);
 		PTGN_INFO("Destroyed SDL2 window");
 	}

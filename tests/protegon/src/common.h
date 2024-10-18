@@ -8,8 +8,10 @@
 
 #include "core/window.h"
 #include "ecs/ecs.h"
+#include "event/event_handler.h"
 #include "event/input_handler.h"
 #include "event/key.h"
+#include "protegon/events.h"
 #include "protegon/game.h"
 #include "protegon/math.h"
 #include "protegon/vector2.h"

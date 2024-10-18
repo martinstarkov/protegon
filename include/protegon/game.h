@@ -1,30 +1,33 @@
 #pragma once
 
 #include <functional>
-#include <variant>
+#include <memory>
 #include <vector>
 
-#include "core/sdl_instance.h"
-#include "core/window.h"
-#include "event/event_handler.h"
-#include "event/input_handler.h"
-#include "protegon/audio.h"
-#include "protegon/collision.h"
-#include "protegon/events.h"
-#include "protegon/font.h"
-#include "protegon/shader.h"
-#include "protegon/text.h"
-#include "protegon/texture.h"
-#include "protegon/tween.h"
-#include "renderer/renderer.h"
-#include "scene/camera.h"
 #include "scene/scene_manager.h"
-#include "ui/ui.h"
-#include "utility/profiling.h"
 
 namespace ptgn {
 
 namespace impl {
+
+class SDLInstance;
+class GLContext;
+class Window;
+class EventHandler;
+class InputHandler;
+class Renderer;
+class SceneManager;
+class ActiveSceneCameraManager;
+class CollisionHandler;
+class UserInterface;
+class TweenManager;
+class MusicManager;
+class SoundManager;
+class FontManager;
+class TextManager;
+class TextureManager;
+class ShaderManager;
+class Profiler;
 
 struct WindowDeleter;
 struct MixMusicDeleter;
@@ -41,7 +44,7 @@ static void EmscriptenLoop();
 
 class Game {
 public:
-	Game() = default;
+	Game();
 	~Game();
 
 private:
@@ -50,15 +53,6 @@ private:
 	Game& operator=(const Game&) = delete;
 	Game& operator=(Game&&)		 = delete;
 
-private:
-	SDLInstance sdl_instance_;
-
-public:
-	Window window;
-
-private:
-	GLContext gl_context_;
-
 public:
 	// @return Previous frame time in milliseconds
 	[[nodiscard]] float dt() const;
@@ -66,30 +60,6 @@ public:
 	// Note: Technically this is the time since the SDL2 library was initialized, which is done when
 	// starting the game.
 	[[nodiscard]] float time() const;
-
-	// Core Subsystems
-
-	EventHandler event;
-	InputHandler input;
-	Renderer draw;
-	SceneManager scene;
-	ActiveSceneCameraManager camera;
-	CollisionHandler collision{};
-	UserInterface ui;
-
-	// Resources
-
-	TweenManager tween;
-	MusicManager music;
-	SoundManager sound;
-	FontManager font;
-	TextManager text;
-	TextureManager texture;
-	ShaderManager shader;
-
-	// Debug
-
-	Profiler profiler;
 
 public:
 	using UpdateFunction = std::function<void()>;
@@ -137,10 +107,58 @@ private:
 	void Init();
 	void Shutdown();
 
+	std::unique_ptr<SDLInstance> sdl_instance_;
+	std::unique_ptr<Window> window_;
+	std::unique_ptr<GLContext> gl_context_;
+
+	std::unique_ptr<EventHandler> event_;
+	std::unique_ptr<InputHandler> input_;
+	std::unique_ptr<Renderer> draw_;
+	std::unique_ptr<SceneManager> scene_;
+	std::unique_ptr<ActiveSceneCameraManager> camera_;
+	std::unique_ptr<CollisionHandler> collision_;
+	std::unique_ptr<UserInterface> ui_;
+
+	std::unique_ptr<TweenManager> tween_;
+	std::unique_ptr<MusicManager> music_;
+	std::unique_ptr<SoundManager> sound_;
+	std::unique_ptr<FontManager> font_;
+	std::unique_ptr<TextManager> text_;
+	std::unique_ptr<TextureManager> texture_;
+	std::unique_ptr<ShaderManager> shader_;
+
+	std::unique_ptr<Profiler> profiler_;
+
 	std::vector<UpdateFunction> update_stack_;
 
 	bool running_{ false };
 	float dt_{ 0.0f };
+
+public:
+	// Core Subsystems
+
+	Window& window;
+	EventHandler& event;
+	InputHandler& input;
+	Renderer& draw;
+	SceneManager& scene;
+	ActiveSceneCameraManager& camera;
+	CollisionHandler& collision;
+	UserInterface& ui;
+
+	// Resources
+
+	TweenManager& tween;
+	MusicManager& music;
+	SoundManager& sound;
+	FontManager& font;
+	TextManager& text;
+	TextureManager& texture;
+	ShaderManager& shader;
+
+	// Debug
+
+	Profiler& profiler;
 };
 
 } // namespace impl

@@ -17,7 +17,7 @@ class Game;
 class SceneManager;
 
 class InputHandler {
-private:
+public:
 	InputHandler()								 = default;
 	~InputHandler()								 = default;
 	InputHandler(const InputHandler&)			 = delete;
@@ -25,6 +25,7 @@ private:
 	InputHandler& operator=(const InputHandler&) = delete;
 	InputHandler& operator=(InputHandler&&)		 = default;
 
+private:
 	// Updates previous mouse states for mouse up and down check.
 	void UpdateMouseState(Mouse button);
 

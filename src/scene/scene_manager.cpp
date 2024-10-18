@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "core/manager.h"
+#include "event/input_handler.h"
 #include "protegon/game.h"
 #include "protegon/scene.h"
 #include "scene/camera.h"

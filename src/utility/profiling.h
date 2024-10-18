@@ -25,10 +25,9 @@ private:
 };
 
 class Profiler : protected MapManager<Timer, std::string, std::string, false> {
-private:
+public:
 	using MapManager::MapManager;
 
-public:
 	void Enable() {
 		enabled_ = true;
 	}
