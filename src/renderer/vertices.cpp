@@ -3,9 +3,9 @@
 #include <array>
 #include <cmath>
 
-#include "protegon/math.h"
-#include "protegon/vector2.h"
-#include "protegon/vector4.h"
+#include "math/math.h"
+#include "math/vector2.h"
+#include "math/vector4.h"
 #include "renderer/origin.h"
 #include "utility/debug.h"
 

@@ -5,67 +5,67 @@
 #include <limits>
 #include <type_traits>
 
+#include "core/game.h"
 #include "core/manager.h"
 #include "core/window.h"
 #include "event/event_handler.h"
-#include "protegon/events.h"
-#include "protegon/game.h"
-#include "protegon/log.h"
-#include "protegon/math.h"
-#include "protegon/matrix4.h"
-#include "protegon/polygon.h"
-#include "protegon/quaternion.h"
-#include "protegon/scene.h"
-#include "protegon/vector2.h"
-#include "protegon/vector3.h"
+#include "event/events.h"
+#include "math/geometry/polygon.h"
+#include "math/math.h"
+#include "math/matrix4.h"
+#include "math/quaternion.h"
+#include "math/vector2.h"
+#include "math/vector3.h"
 #include "renderer/flip.h"
 #include "renderer/origin.h"
+#include "scene/scene.h"
 #include "scene_manager.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
+#include "utility/log.h"
 
 namespace ptgn {
 
-V2_float WorldToScreen(const V2_float& world_position) {
-	const auto& primary{ game.camera.GetPrimary() };
+V2_float WorldToScreen(const V2_float& position, std::size_t render_layer) {
+	const auto& primary{ game.camera.GetPrimary(render_layer) };
 	float scale{ primary.GetZoom() };
 	PTGN_ASSERT(scale != 0.0f);
-	return (world_position - primary.GetPosition()) * scale + primary.GetSize() / 2.0f;
+	return (position - primary.GetPosition()) * scale + primary.GetSize() / 2.0f;
 }
 
-V2_float ScreenToWorld(const V2_float& screen_position) {
-	const auto& primary{ game.camera.GetPrimary() };
+V2_float ScreenToWorld(const V2_float& position, std::size_t render_layer) {
+	const auto& primary{ game.camera.GetPrimary(render_layer) };
 	float scale{ primary.GetZoom() };
 	PTGN_ASSERT(scale != 0.0f);
-	return (screen_position - primary.GetSize() / 2.0f) / scale + primary.GetPosition();
+	return (position - primary.GetSize() * 0.5f) / scale + primary.GetPosition();
 }
 
-V2_float ScaleToWorld(const V2_float& screen_size) {
-	const auto& primary{ game.camera.GetPrimary() };
+V2_float ScaleToWorld(const V2_float& size, std::size_t render_layer) {
+	const auto& primary{ game.camera.GetPrimary(render_layer) };
 	float scale{ primary.GetZoom() };
 	PTGN_ASSERT(scale != 0.0f);
-	return screen_size / scale;
+	return size / scale;
 }
 
-float ScaleToWorld(float screen_size) {
-	const auto& primary{ game.camera.GetPrimary() };
+float ScaleToWorld(float size, std::size_t render_layer) {
+	const auto& primary{ game.camera.GetPrimary(render_layer) };
 	float scale{ primary.GetZoom() };
 	PTGN_ASSERT(scale != 0.0f);
-	return screen_size / scale;
+	return size / scale;
 }
 
-V2_float ScaleToScreen(const V2_float& world_size) {
-	const auto& primary{ game.camera.GetPrimary() };
+V2_float ScaleToScreen(const V2_float& size, std::size_t render_layer) {
+	const auto& primary{ game.camera.GetPrimary(render_layer) };
 	float scale{ primary.GetZoom() };
 	PTGN_ASSERT(scale != 0.0f);
-	return world_size * scale;
+	return size * scale;
 }
 
-float ScaleToScreen(float world_size) {
-	const auto& primary{ game.camera.GetPrimary() };
+float ScaleToScreen(float size, std::size_t render_layer) {
+	const auto& primary{ game.camera.GetPrimary(render_layer) };
 	float scale{ primary.GetZoom() };
 	PTGN_ASSERT(scale != 0.0f);
-	return world_size * scale;
+	return size * scale;
 }
 
 namespace impl {
@@ -96,7 +96,7 @@ void Camera::Reset() {
 
 } // namespace impl
 
-Rectangle<float> OrthographicCamera::GetBounds() const {
+Rect OrthographicCamera::GetBounds() const {
 	return Get().bounding_box;
 }
 
@@ -123,8 +123,8 @@ void OrthographicCamera::CenterOnArea(const V2_float& size) {
 	SetPosition(size / 2.0f);
 }
 
-Rectangle<float> OrthographicCamera::GetRectangle() const {
-	return Rectangle<float>{ GetTopLeftPosition(), GetSize(), Origin::TopLeft };
+Rect OrthographicCamera::GetRectangle() const {
+	return Rect{ GetTopLeftPosition(), GetSize(), Origin::TopLeft };
 }
 
 V2_float OrthographicCamera::GetTopLeftPosition() const {
@@ -378,7 +378,7 @@ void OrthographicCamera::SetSize(const V2_float& size) {
 	SetSizeImpl(size);
 }
 
-void OrthographicCamera::SetBounds(const Rectangle<float>& bounding_box) {
+void OrthographicCamera::SetBounds(const Rect& bounding_box) {
 	Create();
 	Get().bounding_box = bounding_box;
 	// Reset position to ensure it is within the new bounds.
@@ -444,7 +444,7 @@ void CameraController::OnMouseMoveEvent([[maybe_unused]] const MouseMoveEvent& e
 	if (game.input.MousePressed(Mouse::Left)) {
 		const MouseMoveEvent& mouse = static_cast<const MouseMoveEvent&>(e);
 		if (!first_mouse) {
-			V2_float offset = mouse.current - mouse.previous;
+			V2_float offset = mouse.GetDifference();
 
 			V2_float size = game.window.GetSize();
 

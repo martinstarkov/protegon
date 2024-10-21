@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "core/manager.h"
-#include "protegon/scene.h"
+#include "scene/scene.h"
 #include "utility/debug.h"
 #include "utility/type_traits.h"
 

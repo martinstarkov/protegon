@@ -6,20 +6,19 @@
 #include <vector>
 
 #include "common.h"
-#include "core/manager.h"
+#include "core/game.h"
 #include "event/input_handler.h"
 #include "event/key.h"
-#include "protegon/color.h"
-#include "protegon/game.h"
-#include "protegon/hash.h"
-#include "protegon/log.h"
-#include "protegon/tween.h"
-#include "protegon/vector2.h"
+#include "math/hash.h"
+#include "math/vector2.h"
+#include "renderer/color.h"
 #include "renderer/origin.h"
 #include "renderer/renderer.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
+#include "utility/log.h"
 #include "utility/time.h"
+#include "utility/tween.h"
 
 // TODO: Add tests for tween easing
 // TODO: Add tests for the following functions:

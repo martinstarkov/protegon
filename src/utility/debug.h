@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-#include "protegon/log.h"
+#include "utility/log.h"
 #include "utility/platform.h"
 
 #ifndef NDEBUG

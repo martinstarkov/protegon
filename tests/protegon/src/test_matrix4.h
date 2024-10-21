@@ -1,8 +1,8 @@
 #pragma once
 
-#include "protegon/log.h"
-#include "protegon/matrix4.h"
+#include "math/matrix4.h"
 #include "utility/debug.h"
+#include "utility/log.h"
 
 void TestMatrix4() {
 	PTGN_INFO("Starting Matrix4 tests...");

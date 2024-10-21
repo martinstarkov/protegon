@@ -9,20 +9,20 @@
 #include "components/camera_shake.h"
 #include "components/sprite.h"
 #include "components/transform.h"
+#include "core/game.h"
 #include "core/window.h"
 #include "ecs/ecs.h"
 #include "event/input_handler.h"
 #include "event/key.h"
-#include "protegon/circle.h"
-#include "protegon/color.h"
-#include "protegon/game.h"
-#include "protegon/line.h"
-#include "protegon/math.h"
-#include "protegon/polygon.h"
-#include "protegon/texture.h"
-#include "protegon/vector2.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/line.h"
+#include "math/geometry/polygon.h"
+#include "math/math.h"
+#include "math/vector2.h"
+#include "renderer/color.h"
 #include "renderer/origin.h"
 #include "renderer/renderer.h"
+#include "renderer/texture.h"
 #include "scene/camera.h"
 
 struct TestCameraSwitching : public Test {
@@ -160,7 +160,7 @@ struct TestCameraBounds : public TestCameraControls {
 
 		auto& camera{ game.camera.GetPrimary() };
 
-		Rectangle<float> bounds{ {}, { 800, 800 }, Origin::TopLeft };
+		Rect bounds{ {}, { 800, 800 }, Origin::TopLeft };
 
 		camera.SetBounds(bounds);
 	}

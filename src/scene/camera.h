@@ -3,11 +3,11 @@
 #include <map>
 
 #include "core/manager.h"
-#include "protegon/matrix4.h"
-#include "protegon/polygon.h"
-#include "protegon/quaternion.h"
-#include "protegon/vector2.h"
-#include "protegon/vector3.h"
+#include "math/geometry/polygon.h"
+#include "math/matrix4.h"
+#include "math/quaternion.h"
+#include "math/vector2.h"
+#include "math/vector3.h"
 #include "renderer/flip.h"
 #include "utility/handle.h"
 #include "utility/type_traits.h"
@@ -18,12 +18,12 @@ class Game;
 class OrthographicCamera;
 class Renderer;
 
-V2_float WorldToScreen(const V2_float& world_position);
-V2_float ScaleToScreen(const V2_float& world_size);
-float ScaleToScreen(float world_size);
-V2_float ScreenToWorld(const V2_float& screen_position);
-V2_float ScaleToWorld(const V2_float& screen_size);
-float ScaleToWorld(float screen_size);
+V2_float WorldToScreen(const V2_float& position, std::size_t render_layer = 0);
+V2_float ScaleToScreen(const V2_float& size, std::size_t render_layer = 0);
+float ScaleToScreen(float size, std::size_t render_layer = 0);
+V2_float ScreenToWorld(const V2_float& position, std::size_t render_layer = 0);
+V2_float ScaleToWorld(const V2_float& size, std::size_t render_layer = 0);
+float ScaleToWorld(float size, std::size_t render_layer = 0);
 
 namespace impl {
 
@@ -37,7 +37,7 @@ struct Camera {
 	void Reset();
 
 	// If rectangle IsZero(), no position bounds are enforced.
-	Rectangle<float> bounding_box;
+	Rect bounding_box;
 
 	Flip flip{ Flip::None };
 
@@ -63,12 +63,12 @@ public:
 	void CenterOnArea(const V2_float& size);
 
 	// Origin at the top left.
-	[[nodiscard]] Rectangle<float> GetRectangle() const;
+	[[nodiscard]] Rect GetRectangle() const;
 	[[nodiscard]] V2_float GetTopLeftPosition() const;
 	[[nodiscard]] V2_float GetSize() const;
 	[[nodiscard]] float GetZoom() const;
 	// Use Min() and Max() of rectangle to find top left and bottom right bounds of camera.
-	[[nodiscard]] Rectangle<float> GetBounds() const;
+	[[nodiscard]] Rect GetBounds() const;
 	[[nodiscard]] V2_float GetPosition() const;
 	[[nodiscard]] V3_float GetPosition3D() const;
 	// (yaw, pitch, roll) (radians).
@@ -82,7 +82,7 @@ public:
 	// If continuously is true, camera will subscribe to window resize event.
 	void CenterOnWindow(bool continuously = false);
 
-	void SetBounds(const Rectangle<float>& bounding_box);
+	void SetBounds(const Rect& bounding_box);
 
 	// If continuously is true, camera will subscribe to window resize event.
 	void SetSizeToWindow(bool continuously = false);

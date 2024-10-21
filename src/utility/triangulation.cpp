@@ -2,8 +2,8 @@
 
 #include <vector>
 
-#include "protegon/polygon.h"
-#include "protegon/vector2.h"
+#include "math/geometry/polygon.h"
+#include "math/vector2.h"
 #include "utility/debug.h"
 
 namespace ptgn::impl {
@@ -75,10 +75,10 @@ bool TriangulateSnip(
 }
 
 // From: https://www.flipcode.com/archives/Efficient_Polygon_Triangulation.shtml
-std::vector<Triangle<float>> Triangulate(const V2_float* contour, std::size_t count) {
+std::vector<Triangle> Triangulate(const V2_float* contour, std::size_t count) {
 	PTGN_ASSERT(contour != nullptr);
 	/* allocate and initialize list of Vertices in polygon */
-	std::vector<Triangle<float>> result;
+	std::vector<Triangle> result;
 
 	auto n = static_cast<int>(count);
 	if (n < 3) {

@@ -6,7 +6,7 @@
 
 #include "components/collider.h"
 #include "components/transform.h"
-#include "protegon/collision.h"
+#include "math/collision.h"
 
 namespace ptgn {
 

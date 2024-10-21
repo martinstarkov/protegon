@@ -1,6 +1,6 @@
 #pragma once
 
-#include "protegon/timer.h"
+#include "utility/timer.h"
 #include "utility/time.h"
 
 namespace ptgn {

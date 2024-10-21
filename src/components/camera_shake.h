@@ -5,11 +5,11 @@
 #include <cstdint>
 #include <limits>
 
-#include "protegon/game.h"
-#include "protegon/math.h"
-#include "protegon/noise.h"
-#include "protegon/rng.h"
-#include "protegon/vector2.h"
+#include "core/game.h"
+#include "math/math.h"
+#include "math/noise.h"
+#include "math/rng.h"
+#include "math/vector2.h"
 
 namespace ptgn {
 

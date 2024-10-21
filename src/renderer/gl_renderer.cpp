@@ -2,12 +2,12 @@
 
 #include <cstdint>
 
-#include "protegon/color.h"
-#include "protegon/game.h"
-#include "protegon/log.h"
-#include "protegon/vector2.h"
-#include "protegon/vector4.h"
-#include "protegon/vertex_array.h"
+#include "renderer/color.h"
+#include "core/game.h"
+#include "utility/log.h"
+#include "math/vector2.h"
+#include "math/vector4.h"
+#include "renderer/vertex_array.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "utility/debug.h"

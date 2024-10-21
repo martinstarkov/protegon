@@ -8,13 +8,13 @@
 #include "components/transform.h"
 #include "core/manager.h"
 #include "ecs/ecs.h"
-#include "protegon/color.h"
-#include "protegon/game.h"
-#include "protegon/math.h"
-#include "protegon/polygon.h"
-#include "protegon/texture.h"
-#include "protegon/tween.h"
-#include "protegon/vector2.h"
+#include "renderer/color.h"
+#include "core/game.h"
+#include "math/math.h"
+#include "math/geometry/polygon.h"
+#include "renderer/texture.h"
+#include "utility/tween.h"
+#include "math/vector2.h"
 #include "renderer/flip.h"
 #include "renderer/origin.h"
 #include "renderer/renderer.h"
@@ -94,7 +94,7 @@ struct Sprite {
 	Texture texture;
 
 private:
-	Rectangle<float> source;
+	Rect source;
 	V2_float draw_offset; // Offset of sprite relative to entity transform.
 };
 
@@ -125,6 +125,13 @@ struct SpriteSheet {
 } // namespace impl
 
 struct Animation : public impl::SpriteSheet {
+	Animation() = default;
+
+	Animation(Animation&&)				   = default;
+	Animation& operator=(Animation&&)	   = default;
+	Animation(const Animation&)			   = default;
+	Animation& operator=(const Animation&) = default;
+
 	// TODO: Make animation info struct.
 	Animation(
 		const Texture& texture, const V2_float& frame_size, std::size_t frames,
@@ -176,7 +183,7 @@ struct Animation : public impl::SpriteSheet {
 	Tween tween;
 
 private:
-	Rectangle<float> GetSource() const {
+	Rect GetSource() const {
 		auto& f{ *frame };
 		PTGN_ASSERT(f < sprite_positions.size());
 		return { sprite_positions[f], sprite_size, origin };
@@ -192,7 +199,37 @@ private:
 };
 
 struct AnimationMap : public MapManager<Animation> {
-	// TODO: Add current animation key and draw function.
+	using MapManager::MapManager;
+
+	AnimationMap(const Key& animation_key, const Animation& starting_animation) {
+		Load(animation_key, starting_animation);
+		SetCurrent(animation_key);
+	}
+
+	void DrawCurrent(ecs::Entity entity, const Transform& transform) const {
+		GetCurrent().Draw(entity, transform);
+	}
+
+	const Animation& GetCurrent() const {
+		PTGN_ASSERT(Has(current_animation_));
+		return Get(current_animation_);
+	}
+
+	Animation& GetCurrent() {
+		PTGN_ASSERT(Has(current_animation_));
+		return Get(current_animation_);
+	}
+
+	void SetCurrent(const Key& animation) {
+		PTGN_ASSERT(
+			Has(animation),
+			"Animation must be loaded into animation map before setting it as current"
+		);
+		current_animation_ = Hash(animation);
+	}
+
+private:
+	InternalKey current_animation_{ 0 };
 };
 
 using SpriteFlip = Flip;

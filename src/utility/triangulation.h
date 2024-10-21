@@ -2,8 +2,8 @@
 
 #include <vector>
 
-#include "protegon/polygon.h"
-#include "protegon/vector2.h"
+#include "math/geometry/polygon.h"
+#include "math/vector2.h"
 
 namespace ptgn::impl {
 
@@ -18,6 +18,6 @@ namespace ptgn::impl {
 	const V2_float* contour, int u, int v, int w, int n, const std::vector<int>& V
 );
 
-[[nodiscard]] std::vector<Triangle<float>> Triangulate(const V2_float* contour, std::size_t count);
+[[nodiscard]] std::vector<Triangle> Triangulate(const V2_float* contour, std::size_t count);
 
 } // namespace ptgn::impl

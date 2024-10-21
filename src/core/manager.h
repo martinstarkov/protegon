@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "protegon/hash.h"
+#include "math/hash.h"
 #include "utility/debug.h"
 #include "utility/type_traits.h"
 

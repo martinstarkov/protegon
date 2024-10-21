@@ -1,4 +1,4 @@
-#include "protegon/surface.h"
+#include "renderer/surface.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -15,12 +15,12 @@
 #include "SDL_surface.h"
 #include "SDL_ttf.h"
 #include "core/sdl_instance.h"
-#include "protegon/color.h"
-#include "protegon/file.h"
-#include "protegon/font.h"
-#include "protegon/game.h"
-#include "protegon/log.h"
-#include "protegon/vector2.h"
+#include "renderer/color.h"
+#include "utility/file.h"
+#include "renderer/font.h"
+#include "core/game.h"
+#include "utility/log.h"
+#include "math/vector2.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
 

@@ -6,8 +6,8 @@
 #include <type_traits>
 
 #include "core/manager.h"
-#include "protegon/log.h"
-#include "protegon/timer.h"
+#include "utility/log.h"
+#include "utility/timer.h"
 #include "utility/debug.h"
 
 namespace ptgn::impl {

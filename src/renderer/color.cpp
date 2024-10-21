@@ -1,7 +1,7 @@
-#include "protegon/color.h"
+#include "renderer/color.h"
 
-#include "protegon/rng.h"
-#include "protegon/vector4.h"
+#include "math/rng.h"
+#include "math/vector4.h"
 
 namespace ptgn {
 

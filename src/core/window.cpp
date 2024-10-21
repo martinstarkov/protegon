@@ -10,9 +10,9 @@
 #include "SDL_stdinc.h"
 #include "SDL_video.h"
 #include "core/sdl_instance.h"
-#include "protegon/game.h"
-#include "protegon/log.h"
-#include "protegon/vector2.h"
+#include "core/game.h"
+#include "utility/log.h"
+#include "math/vector2.h"
 #include "utility/debug.h"
 
 #ifdef __EMSCRIPTEN__

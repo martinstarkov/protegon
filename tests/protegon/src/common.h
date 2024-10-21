@@ -11,10 +11,10 @@
 #include "event/event_handler.h"
 #include "event/input_handler.h"
 #include "event/key.h"
-#include "protegon/events.h"
-#include "protegon/game.h"
-#include "protegon/math.h"
-#include "protegon/vector2.h"
+#include "event/events.h"
+#include "core/game.h"
+#include "math/math.h"
+#include "math/vector2.h"
 #include "utility/debug.h"
 
 using namespace ptgn;

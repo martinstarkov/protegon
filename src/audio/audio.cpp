@@ -1,4 +1,4 @@
-#include "protegon/audio.h"
+#include "audio/audio.h"
 
 #include <chrono>
 #include <filesystem>
@@ -7,8 +7,8 @@
 
 #include "SDL_mixer.h"
 #include "core/sdl_instance.h"
-#include "protegon/file.h"
-#include "protegon/game.h"
+#include "utility/file.h"
+#include "core/game.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
 #include "utility/time.h"

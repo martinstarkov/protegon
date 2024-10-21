@@ -5,8 +5,8 @@
 #include <unordered_map>
 #include <utility>
 
-#include "protegon/event.h"
-#include "protegon/events.h"
+#include "event/event.h"
+#include "event/events.h"
 #include "utility/debug.h"
 
 namespace ptgn {

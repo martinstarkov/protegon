@@ -5,17 +5,17 @@
 #include <vector>
 
 #include "common.h"
+#include "core/game.h"
 #include "core/window.h"
 #include "event/input_handler.h"
 #include "event/key.h"
 #include "event/mouse.h"
-#include "protegon/a_star.h"
-#include "protegon/color.h"
-#include "protegon/game.h"
-#include "protegon/grid.h"
-#include "protegon/polygon.h"
-#include "protegon/vector2.h"
+#include "math/geometry/polygon.h"
+#include "math/vector2.h"
+#include "renderer/color.h"
 #include "renderer/renderer.h"
+#include "tile/a_star.h"
+#include "tile/grid.h"
 
 class AStarTest : public Test {
 	V2_int tile_size{ 20, 20 };
@@ -40,7 +40,7 @@ class AStarTest : public Test {
 	void Update() final {
 		V2_float mouse_pos	= game.input.GetMousePosition();
 		V2_float mouse_tile = mouse_pos / tile_size;
-		Rectangle<int> mouse_box{ mouse_tile * tile_size, tile_size, Origin::Center };
+		Rect mouse_box{ mouse_tile * tile_size, tile_size, Origin::Center };
 
 		if (game.input.MousePressed(Mouse::Right)) {
 			if (game.input.KeyPressed(Key::LEFT_CTRL)) {
@@ -77,7 +77,7 @@ class AStarTest : public Test {
 			} else if (tile == end) {
 				c = color::Gold;
 			}
-			Rectangle<int> r{ tile * tile_size, tile_size, Origin::TopLeft };
+			Rect r{ tile * tile_size, tile_size, Origin::TopLeft };
 			game.draw.Rectangle(r.pos, r.size, c, r.origin);
 		});
 		if (grid.Has(mouse_tile)) {
@@ -116,7 +116,7 @@ class AStarTest : public Test {
 				idx++;
 			}
 		}
-		Rectangle<float> enemy;
+		Rect enemy;
 		if (path_exists && idx + 1 < local_waypoints.size()) {
 			assert(current_waypoint <= 1.0f);
 			assert(current_waypoint >= 0.0f);

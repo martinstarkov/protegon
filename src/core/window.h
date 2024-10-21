@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-#include "protegon/vector2.h"
+#include "math/vector2.h"
 #include "utility/handle.h"
 
 struct SDL_Window;

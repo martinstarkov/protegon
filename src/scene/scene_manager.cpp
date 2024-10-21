@@ -8,8 +8,8 @@
 
 #include "core/manager.h"
 #include "event/input_handler.h"
-#include "protegon/game.h"
-#include "protegon/scene.h"
+#include "core/game.h"
+#include "scene/scene.h"
 #include "scene/camera.h"
 #include "utility/debug.h"
 #include "utility/utility.h"

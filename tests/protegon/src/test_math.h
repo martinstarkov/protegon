@@ -3,8 +3,8 @@
 #include <cmath>
 #include <cstdlib>
 
-#include "protegon/log.h"
-#include "protegon/math.h"
+#include "utility/log.h"
+#include "math/math.h"
 #include "utility/debug.h"
 
 void TestMath() {

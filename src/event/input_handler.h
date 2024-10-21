@@ -5,9 +5,9 @@
 
 #include "event/key.h"
 #include "event/mouse.h"
-#include "protegon/timer.h"
-#include "protegon/vector2.h"
+#include "math/vector2.h"
 #include "utility/time.h"
+#include "utility/timer.h"
 
 union SDL_Event;
 
@@ -68,8 +68,23 @@ public:
 	// @return Mouse position relative to the top left of the window.
 	[[nodiscard]] V2_int GetMousePositionWindow() const;
 
+	// @return Mouse position during the previous frame relative to the top left of the window.
+	[[nodiscard]] V2_int GetMousePositionPreviousWindow() const;
+
+	// @return Mouse position difference between the current and previous frames relative to the top
+	// left of the window.
+	[[nodiscard]] V2_int GetMouseDifferenceWindow() const;
+
 	// @return Mouse position scaled relative to the camera size of the specified render layer.
 	[[nodiscard]] V2_int GetMousePosition(std::size_t render_layer = 0) const;
+
+	// @return Mouse position during the previous frame scaled relative to the camera size of the
+	// specified render layer.
+	[[nodiscard]] V2_int GetMousePositionPrevious(std::size_t render_layer = 0) const;
+
+	// @return Mouse position difference between the current and previous frames scaled relative to
+	// the camera size of the specified render layer.
+	[[nodiscard]] V2_int GetMouseDifference(std::size_t render_layer = 0) const;
 
 	// @return In desktop mode: mouse position relative to the screen (display). In browser: same as
 	// GetMousePosition().
@@ -90,6 +105,8 @@ public:
 	[[nodiscard]] bool KeyUp(Key key);
 
 private:
+	[[nodiscard]] V2_int ScaledToRenderLayer(const V2_int& pos, std::size_t render_layer) const;
+
 	friend class SceneManager;
 	friend class Game;
 
@@ -108,7 +125,8 @@ private:
 	MouseState left_mouse_{ MouseState::Released };
 	MouseState right_mouse_{ MouseState::Released };
 	MouseState middle_mouse_{ MouseState::Released };
-	V2_int mouse_position_;
+	V2_int mouse_pos_;
+	V2_int prev_mouse_pos_;
 	V2_int mouse_scroll_;
 
 	// Mouse button held for timers.

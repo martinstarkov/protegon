@@ -9,34 +9,34 @@
 #include <utility>
 #include <vector>
 
+#include "core/game.h"
 #include "core/window.h"
 #include "event/event_handler.h"
-#include "protegon/buffer.h"
-#include "protegon/circle.h"
-#include "protegon/color.h"
-#include "protegon/events.h"
-#include "protegon/game.h"
-#include "protegon/line.h"
-#include "protegon/log.h"
-#include "protegon/math.h"
-#include "protegon/matrix4.h"
-#include "protegon/polygon.h"
-#include "protegon/scene.h"
-#include "protegon/shader.h"
-#include "protegon/texture.h"
-#include "protegon/vector2.h"
-#include "protegon/vector4.h"
-#include "protegon/vertex_array.h"
+#include "event/events.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/line.h"
+#include "math/geometry/polygon.h"
+#include "math/math.h"
+#include "math/matrix4.h"
+#include "math/vector2.h"
+#include "math/vector4.h"
+#include "renderer/buffer.h"
 #include "renderer/buffer_layout.h"
+#include "renderer/color.h"
 #include "renderer/flip.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_renderer.h"
 #include "renderer/origin.h"
 #include "renderer/renderer.h"
+#include "renderer/shader.h"
+#include "renderer/texture.h"
+#include "renderer/vertex_array.h"
 #include "scene/camera.h"
+#include "scene/scene.h"
 #include "scene/scene_manager.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
+#include "utility/log.h"
 #include "utility/triangulation.h"
 
 namespace ptgn::impl {
@@ -625,7 +625,7 @@ void RendererData::Line(
 		auto vertices = GetQuadVertices(
 			p0 + d * 0.5f, { d.Magnitude(), lw }, Origin::Center, d.Angle(), { 0.5f, 0.5f }
 		);
-		Rectangle(vertices, col, -1.0f, z, render_layer);
+		RendererData::Rectangle(vertices, col, -1.0f, z, render_layer);
 		return;
 	}
 
@@ -638,7 +638,7 @@ void RendererData::Point(
 	if (r < 1.0f || NearlyEqual(r, 1.0f)) {
 		AddPoint(p, z, col, render_layer);
 	} else {
-		Ellipse(p, { r, r }, col, -1.0f, z, 0.005f, render_layer);
+		RendererData::Ellipse(p, { r, r }, col, -1.0f, z, 0.005f, render_layer);
 	}
 }
 
@@ -651,7 +651,7 @@ void RendererData::Triangle(
 	} else {
 		PTGN_ASSERT(lw >= 0.0f, "Cannot draw negative thickness triangle");
 		std::array<V2_float, 3> vertices{ a, b, c };
-		Polygon(vertices.data(), vertices.size(), col, lw, z, render_layer);
+		RendererData::Polygon(vertices.data(), vertices.size(), col, lw, z, render_layer);
 	}
 }
 
@@ -660,7 +660,7 @@ void RendererData::Rectangle(
 	std::size_t render_layer
 ) {
 	if (lw == -1.0f) {
-		Texture(
+		RendererData::Texture(
 			vertices, white_texture_,
 			{
 				V2_float{ 0.0f, 0.0f },
@@ -672,7 +672,9 @@ void RendererData::Rectangle(
 		);
 	} else {
 		for (std::size_t i{ 0 }; i < vertices.size(); i++) {
-			Line(vertices[i], vertices[(i + 1) % vertices.size()], col, lw, z, render_layer);
+			RendererData::Line(
+				vertices[i], vertices[(i + 1) % vertices.size()], col, lw, z, render_layer
+			);
 		}
 	}
 }
@@ -708,24 +710,40 @@ void RendererData::RoundedRectangle(
 	V2_float b = V2_float(length, 0.0f).Rotated(rot + half_pi<float>);
 	V2_float l = V2_float(length, 0.0f).Rotated(rot - pi<float>);
 
-	Arc(inner_vertices[0], rad, rot - pi<float>, rot - half_pi<float>, false, col, lw, z,
-		render_layer);
-	Arc(inner_vertices[1], rad, rot - half_pi<float>, rot + 0.0f, false, col, lw, z, render_layer);
-	Arc(inner_vertices[2], rad, rot + 0.0f, rot + half_pi<float>, false, col, lw, z, render_layer);
-	Arc(inner_vertices[3], rad, rot + half_pi<float>, rot + pi<float>, false, col, lw, z,
-		render_layer);
+	RendererData::Arc(
+		inner_vertices[0], rad, rot - pi<float>, rot - half_pi<float>, false, col, lw, z,
+		render_layer
+	);
+	RendererData::Arc(
+		inner_vertices[1], rad, rot - half_pi<float>, rot + 0.0f, false, col, lw, z, render_layer
+	);
+	RendererData::Arc(
+		inner_vertices[2], rad, rot + 0.0f, rot + half_pi<float>, false, col, lw, z, render_layer
+	);
+	RendererData::Arc(
+		inner_vertices[3], rad, rot + half_pi<float>, rot + pi<float>, false, col, lw, z,
+		render_layer
+	);
 
 	float line_thickness{ lw };
 
 	if (filled) {
-		Rectangle(inner_vertices, col, lw, z, render_layer);
+		RendererData::Rectangle(inner_vertices, col, lw, z, render_layer);
 		line_thickness = rad;
 	}
 
-	Line(inner_vertices[0] + t, inner_vertices[1] + t, col, line_thickness, z, render_layer);
-	Line(inner_vertices[1] + r, inner_vertices[2] + r, col, line_thickness, z, render_layer);
-	Line(inner_vertices[2] + b, inner_vertices[3] + b, col, line_thickness, z, render_layer);
-	Line(inner_vertices[3] + l, inner_vertices[0] + l, col, line_thickness, z, render_layer);
+	RendererData::Line(
+		inner_vertices[0] + t, inner_vertices[1] + t, col, line_thickness, z, render_layer
+	);
+	RendererData::Line(
+		inner_vertices[1] + r, inner_vertices[2] + r, col, line_thickness, z, render_layer
+	);
+	RendererData::Line(
+		inner_vertices[2] + b, inner_vertices[3] + b, col, line_thickness, z, render_layer
+	);
+	RendererData::Line(
+		inner_vertices[3] + l, inner_vertices[0] + l, col, line_thickness, z, render_layer
+	);
 }
 
 void RendererData::Arc(
@@ -739,7 +757,7 @@ void RendererData::Arc(
 
 	// Edge case where arc is a point.
 	if (NearlyEqual(arc_radius, 0.0f)) {
-		Point(p, col, 1.0f, z, render_layer);
+		RendererData::Point(p, col, 1.0f, z, render_layer);
 		return;
 	}
 
@@ -750,7 +768,7 @@ void RendererData::Arc(
 	// Edge case where start and end angles match (considered a full rotation).
 	if (float range{ start_angle - end_angle };
 		NearlyEqual(range, 0.0f) || NearlyEqual(range, two_pi<float>)) {
-		Ellipse(p, { arc_radius, arc_radius }, col, lw, z, 0.005f, render_layer);
+		RendererData::Ellipse(p, { arc_radius, arc_radius }, col, lw, z, 0.005f, render_layer);
 	}
 
 	if (start_angle > end_angle) {
@@ -787,16 +805,16 @@ void RendererData::Arc(
 
 		if (filled) {
 			for (std::size_t i{ 0 }; i < v.size() - 1; i++) {
-				Triangle(p, v[i], v[i + 1], col, lw, z, render_layer);
+				RendererData::Triangle(p, v[i], v[i + 1], col, lw, z, render_layer);
 			}
 		} else {
 			PTGN_ASSERT(lw >= 0.0f, "Must provide valid line width when drawing hollow arc");
 			for (std::size_t i{ 0 }; i < v.size() - 1; i++) {
-				Line(v[i], v[i + 1], col, lw, z, render_layer);
+				RendererData::Line(v[i], v[i + 1], col, lw, z, render_layer);
 			}
 		}
 	} else {
-		Point(p, col, 1.0f, z, render_layer);
+		RendererData::Point(p, col, 1.0f, z, render_layer);
 	}
 }
 
@@ -812,7 +830,7 @@ void RendererData::Capsule(
 
 	// Note that dir2 is an int.
 	if (NearlyEqual(dir2, 0.0f)) {
-		Ellipse(p0, { r, r }, col, lw, z, fade, render_layer);
+		RendererData::Ellipse(p0, { r, r }, col, lw, z, fade, render_layer);
 		return;
 	} else {
 		V2_float tmp = dir.Skewed() / std::sqrt(dir2) * r;
@@ -824,7 +842,7 @@ void RendererData::Capsule(
 
 	if (lw == -1.0f) {
 		// Draw central line.
-		Line(p0, p1, col, r * 2.0f, z, render_layer);
+		RendererData::Line(p0, p1, col, r * 2.0f, z, render_layer);
 
 		// How many radians into the line the arc protrudes.
 		constexpr float delta{ DegToRad(0.5f) };
@@ -832,13 +850,13 @@ void RendererData::Capsule(
 		end_angle	+= delta;
 	} else {
 		// Draw edge lines.
-		Line(p0 + tangent_r, p1 + tangent_r, col, lw, z, render_layer);
-		Line(p0 - tangent_r, p1 - tangent_r, col, lw, z, render_layer);
+		RendererData::Line(p0 + tangent_r, p1 + tangent_r, col, lw, z, render_layer);
+		RendererData::Line(p0 - tangent_r, p1 - tangent_r, col, lw, z, render_layer);
 	}
 
 	// Draw edge arcs.
-	Arc(p0, r, start_angle, end_angle + pi<float>, false, col, lw, z, render_layer);
-	Arc(p1, r, start_angle + pi<float>, end_angle, false, col, lw, z, render_layer);
+	RendererData::Arc(p0, r, start_angle, end_angle + pi<float>, false, col, lw, z, render_layer);
+	RendererData::Arc(p1, r, start_angle + pi<float>, end_angle, false, col, lw, z, render_layer);
 }
 
 void RendererData::Polygon(
@@ -850,11 +868,13 @@ void RendererData::Polygon(
 		auto triangles = Triangulate(vertices, vertex_count);
 
 		for (const auto& t : triangles) {
-			Triangle(t.a, t.b, t.c, col, lw, z, render_layer);
+			RendererData::Triangle(t.a, t.b, t.c, col, lw, z, render_layer);
 		}
 	} else {
 		for (std::size_t i{ 0 }; i < vertex_count; i++) {
-			Line(vertices[i], vertices[(i + 1) % vertex_count], col, lw, z, render_layer);
+			RendererData::Line(
+				vertices[i], vertices[(i + 1) % vertex_count], col, lw, z, render_layer
+			);
 		}
 	}
 }

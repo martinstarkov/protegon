@@ -1,8 +1,8 @@
-#include "protegon/buffer.h"
+#include "renderer/buffer.h"
 
 #include <cstdint>
 
-#include "protegon/vertex_array.h"
+#include "renderer/vertex_array.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "utility/debug.h"

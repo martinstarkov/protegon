@@ -1,4 +1,4 @@
-#include "protegon/scene.h"
+#include "scene/scene.h"
 
 namespace ptgn {
 

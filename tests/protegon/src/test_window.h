@@ -4,20 +4,18 @@
 #include <vector>
 
 #include "common.h"
+#include "core/game.h"
 #include "core/window.h"
 #include "event/key.h"
-#include "protegon/color.h"
-#include "protegon/font.h"
-#include "protegon/game.h"
-#include "protegon/log.h"
-#include "protegon/math.h"
-#include "protegon/polygon.h"
-#include "protegon/text.h"
-#include "protegon/timer.h"
-#include "protegon/vector2.h"
+#include "math/geometry/polygon.h"
+#include "math/vector2.h"
+#include "renderer/color.h"
+#include "renderer/font.h"
 #include "renderer/origin.h"
+#include "renderer/text.h"
 #include "utility/string.h"
 #include "utility/time.h"
+#include "utility/timer.h"
 
 class WindowSettingTest : public Test {
 	Font font{ "resources/fonts/retro_gaming.ttf", 18 };
@@ -51,17 +49,17 @@ class WindowSettingTest : public Test {
 
 		texts.clear();
 
-		camera_size_text	 = texts.emplace_back(font, "", color::Black);
-		camera_pos_text		 = texts.emplace_back(font, "", color::Black);
-		window_position_text = texts.emplace_back(font, "", color::Black);
-		viewport_size_text	 = texts.emplace_back(font, "", color::Black);
-		window_size_text	 = texts.emplace_back(font, "", color::Black);
-		window_mode			 = texts.emplace_back(font, "", color::Black);
-		border_mode			 = texts.emplace_back(font, "", color::Black);
-		resize_mode			 = texts.emplace_back(font, "", color::Black);
-		maximized			 = texts.emplace_back(font, "", color::Black);
-		minimized			 = texts.emplace_back(font, "", color::Black);
-		window_visible		 = texts.emplace_back(font, "", color::Black);
+		camera_size_text	 = texts.emplace_back("", color::Black, font);
+		camera_pos_text		 = texts.emplace_back("", color::Black, font);
+		window_position_text = texts.emplace_back("", color::Black, font);
+		viewport_size_text	 = texts.emplace_back("", color::Black, font);
+		window_size_text	 = texts.emplace_back("", color::Black, font);
+		window_mode			 = texts.emplace_back("", color::Black, font);
+		border_mode			 = texts.emplace_back("", color::Black, font);
+		resize_mode			 = texts.emplace_back("", color::Black, font);
+		maximized			 = texts.emplace_back("", color::Black, font);
+		minimized			 = texts.emplace_back("", color::Black, font);
+		window_visible		 = texts.emplace_back("", color::Black, font);
 	}
 
 	void Shutdown() override {
@@ -148,15 +146,15 @@ class WindowSettingTest : public Test {
 		Color color_0 = color::Green;
 		Color color_1 = color::Blue;
 
-		Rectangle<float> rect_0{ V2_float{ og_window_size.x, 0.0f }, V2_float{ 30.0f, 30.0f },
-								 Origin::TopRight };
-		Rectangle<float> rect_1{ V2_int{ 0, game.window.GetSize().y }, V2_float{ 30.0f, 30.0f },
-								 Origin::BottomLeft };
+		Rect rect_0{ V2_float{ og_window_size.x, 0.0f }, V2_float{ 30.0f, 30.0f },
+					 Origin::TopRight };
+		Rect rect_1{ V2_int{ 0, game.window.GetSize().y }, V2_float{ 30.0f, 30.0f },
+					 Origin::BottomLeft };
 
-		if (game.collision.overlap.PointRectangle(game.input.GetMousePosition(0), rect_0)) {
+		if (rect_0.Overlaps(game.input.GetMousePosition(0))) {
 			color_0 = color::Red;
 		}
-		if (game.collision.overlap.PointRectangle(game.input.GetMousePosition(1), rect_1)) {
+		if (rect_1.Overlaps(game.input.GetMousePosition(1))) {
 			color_1 = color::Red;
 		}
 
@@ -188,15 +186,9 @@ class WindowSettingTest : public Test {
 		);
 
 		V2_float offset;
-		for (std::size_t i = 0; i < texts.size(); i++) {
-			const auto& t = texts[i];
-			Rectangle<float> rect;
-			rect.origin = Origin::BottomLeft;
-			rect.pos.x	= text_offset.x;
-			rect.pos.y	= text_offset.y - offset.y;
-			rect.size	= t.GetSize();
-			t.Draw(rect);
-			offset += rect.size;
+		for (const auto& t : texts) {
+			game.draw.Text(t, { text_offset.x, text_offset.y - offset.y }, Origin::BottomLeft);
+			offset += t.GetSize();
 		}
 
 		game.draw.Rectangle(

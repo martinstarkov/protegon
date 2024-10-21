@@ -1,4 +1,4 @@
-#include "protegon/button.h"
+#include "ui/button.h"
 
 #include <array>
 #include <functional>
@@ -7,25 +7,25 @@
 #include <type_traits>
 #include <variant>
 
+#include "core/game.h"
 #include "core/manager.h"
+#include "event/event.h"
 #include "event/event_handler.h"
+#include "event/events.h"
 #include "event/input_handler.h"
 #include "event/mouse.h"
-#include "protegon/collision.h"
-#include "protegon/color.h"
-#include "protegon/event.h"
-#include "protegon/events.h"
-#include "protegon/game.h"
-#include "protegon/polygon.h"
-#include "protegon/texture.h"
-#include "protegon/vector2.h"
+#include "math/collision.h"
+#include "math/geometry/polygon.h"
+#include "math/vector2.h"
+#include "renderer/color.h"
 #include "renderer/renderer.h"
+#include "renderer/texture.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
 
 namespace ptgn {
 
-Button::Button(const Rectangle<float>& rect, const ButtonActivateFunction& on_activate_function) :
+Button::Button(const Rect& rect, const ButtonActivateFunction& on_activate_function) :
 	on_activate_{ on_activate_function } {
 	SetRectangle(rect);
 	SubscribeToMouseEvents();
@@ -44,11 +44,17 @@ void Button::Draw() const {
 }
 
 void Button::DrawHollow(float line_width) const {
-	game.draw.Rectangle(rect_.pos, rect_.size, color::Black, rect_.origin, line_width);
+	game.draw.Rectangle(
+		rect_.pos, rect_.size, color::Black, rect_.origin, line_width, 0.0f, { 0.5f, 0.5f }, 0.0f,
+		render_layer_
+	);
 }
 
 void Button::DrawFilled() const {
-	game.draw.Rectangle(rect_.pos, rect_.size, color::Black, rect_.origin);
+	game.draw.Rectangle(
+		rect_.pos, rect_.size, color::Black, rect_.origin, -1.0f, 0.0f, { 0.5f, 0.5f }, 0.0f,
+		render_layer_
+	);
 }
 
 void Button::SetInteractable(bool interactable) {
@@ -130,7 +136,23 @@ void Button::SetOnDisable(const ButtonDisableFunction& disable_function) {
 }
 
 bool Button::InsideRectangle(const V2_int& position) const {
-	return game.collision.overlap.PointRectangle(position, rect_);
+	return rect_.Overlaps(position);
+}
+
+void Button::MouseMotionUpdate(
+	const V2_int& current, const V2_int& previous, const MouseMoveEvent& e
+) {
+	bool is_in{ InsideRectangle(current) };
+	if (is_in) {
+		OnMouseMove(e);
+	} else {
+		OnMouseMoveOutside(e);
+	}
+	if (bool was_in{ InsideRectangle(previous) }; !was_in && is_in) {
+		OnMouseEnter(e);
+	} else if (was_in && !is_in) {
+		OnMouseLeave(e);
+	}
 }
 
 void Button::OnMouseEvent(MouseEvent type, const Event& event) {
@@ -140,22 +162,12 @@ void Button::OnMouseEvent(MouseEvent type, const Event& event) {
 	switch (type) {
 		case MouseEvent::Move: {
 			const auto& e = static_cast<const MouseMoveEvent&>(event);
-			bool is_in{ InsideRectangle(e.current) };
-			if (is_in) {
-				OnMouseMove(e);
-			} else {
-				OnMouseMoveOutside(e);
-			}
-			if (bool was_in{ InsideRectangle(e.previous) }; !was_in && is_in) {
-				OnMouseEnter(e);
-			} else if (was_in && !is_in) {
-				OnMouseLeave(e);
-			}
+			MouseMotionUpdate(e.GetCurrent(render_layer_), e.GetPrevious(render_layer_), e);
 			break;
 		}
 		case MouseEvent::Down: {
-			if (const auto& e = static_cast<const MouseDownEvent&>(event);
-				InsideRectangle(e.current)) {
+			const auto& e = static_cast<const MouseDownEvent&>(event);
+			if (InsideRectangle(e.GetCurrent(render_layer_))) {
 				OnMouseDown(e);
 			} else {
 				OnMouseDownOutside(e);
@@ -164,7 +176,7 @@ void Button::OnMouseEvent(MouseEvent type, const Event& event) {
 		}
 		case MouseEvent::Up: {
 			if (const auto& e = static_cast<const MouseUpEvent&>(event);
-				InsideRectangle(e.current)) {
+				InsideRectangle(e.GetCurrent(render_layer_))) {
 				OnMouseUp(e);
 			} else {
 				OnMouseUpOutside(e);
@@ -291,20 +303,33 @@ void Button::OnMouseUpOutside(const MouseUpEvent& e) {
 	}
 }
 
-const Rectangle<float>& Button::GetRectangle() const {
+const Rect& Button::GetRectangle() const {
 	return rect_;
 }
 
 void Button::RecheckState() {
-	OnMouseEvent(
-		MouseEvent::Move,
-		MouseMoveEvent{ V2_int{ std::numeric_limits<int>::max(), std::numeric_limits<int>::max() },
-						game.input.GetMousePosition() }
+	if (!enabled_) {
+		return;
+	}
+	// Simulate a mouse move event to refresh button state.
+	MouseMoveEvent e{};
+	MouseMotionUpdate(
+		V2_int{ std::numeric_limits<int>::max(), std::numeric_limits<int>::max() },
+		e.GetCurrent(render_layer_), e
 	);
 }
 
-void Button::SetRectangle(const Rectangle<float>& new_rectangle) {
+void Button::SetRectangle(const Rect& new_rectangle) {
 	rect_ = new_rectangle;
+	RecheckState();
+}
+
+std::size_t Button::GetRenderLayer() const {
+	return render_layer_;
+}
+
+void Button::SetRenderLayer(std::size_t render_layer) {
+	render_layer_ = render_layer;
 	RecheckState();
 }
 
@@ -366,7 +391,9 @@ void TextButton::DrawHollow(float line_width) const {
 	if (!NearlyEqual(text_size_.y, 0.0f)) {
 		size.y = text_size_.y;
 	}
-	text_.Draw({ rect_.Center(), size, text_alignment_ }, 1.0f);
+	TextDrawInfo info;
+	info.render_layer = render_layer_;
+	game.draw.Text(text_, rect_.Center(), text_alignment_, size, info);
 }
 
 void TextButton::DrawFilled() const {
@@ -380,12 +407,13 @@ void TextButton::DrawFilled() const {
 	if (!NearlyEqual(text_size_.y, 0.0f)) {
 		size.y = text_size_.y;
 	}
-	text_.Draw({ rect_.Center(), size, text_alignment_ }, 1.0f);
+	TextDrawInfo info;
+	info.render_layer = render_layer_;
+	game.draw.Text(text_, rect_.Center(), text_alignment_, size, info);
 }
 
 ToggleButton::ToggleButton(
-	const Rectangle<float>& rect, const ButtonActivateFunction& on_activate_function,
-	bool initially_toggled
+	const Rect& rect, const ButtonActivateFunction& on_activate_function, bool initially_toggled
 ) :
 	Button{ rect, on_activate_function } {
 	toggled_ = initially_toggled;
@@ -423,7 +451,7 @@ void ToggleButton::Toggle() {
 }
 
 ColorButton::ColorButton(
-	const Rectangle<float>& rect, const Color& default_color, const Color& hover_color,
+	const Rect& rect, const Color& default_color, const Color& hover_color,
 	const Color& pressed_color, const ButtonActivateFunction& on_activate_function
 ) :
 	Button{ rect, on_activate_function } {
@@ -462,12 +490,17 @@ void ColorButton::Draw() const {
 
 void ColorButton::DrawHollow(float line_width) const {
 	const Color& color = GetCurrentColorImpl(GetState(), 0);
-	game.draw.Rectangle(rect_.pos, rect_.size, color, rect_.origin, line_width);
+	game.draw.Rectangle(
+		rect_.pos, rect_.size, color, rect_.origin, line_width, 0.0f, { 0.5f, 0.5f }, 0.0f,
+		render_layer_
+	);
 }
 
 void ColorButton::DrawFilled() const {
 	const Color& color = GetCurrentColorImpl(GetState(), 0);
-	game.draw.Rectangle(rect_.pos, rect_.size, color, rect_.origin);
+	game.draw.Rectangle(
+		rect_.pos, rect_.size, color, rect_.origin, -1.0f, 0.0f, { 0.5f, 0.5f }, 0.0f, render_layer_
+	);
 }
 
 const Color& ColorButton::GetCurrentColorImpl(ButtonState state, std::size_t color_array_index)
@@ -482,9 +515,8 @@ const Color& ColorButton::GetCurrentColor() const {
 }
 
 TexturedButton::TexturedButton(
-	const Rectangle<float>& rect, const TextureOrKey& default_texture,
-	const TextureOrKey& hover_texture, const TextureOrKey& pressed_texture,
-	const ButtonActivateFunction& on_activate_function
+	const Rect& rect, const TextureOrKey& default_texture, const TextureOrKey& hover_texture,
+	const TextureOrKey& pressed_texture, const ButtonActivateFunction& on_activate_function
 ) :
 	Button{ rect, on_activate_function } {
 	textures_.data.at(static_cast<std::size_t>(ButtonState::Default)).at(0) = default_texture;
@@ -548,6 +580,7 @@ void TexturedButton::DrawImpl(std::size_t texture_array_index) const {
 	TextureInfo i;
 	i.source.origin = rect_.origin;
 	i.tint			= tint_color_;
+	i.render_layer	= render_layer_;
 	game.draw.Texture(texture, rect_.pos, rect_.size, i);
 }
 
@@ -583,7 +616,7 @@ Texture TexturedButton::GetCurrentTexture() {
 }
 
 TexturedToggleButton::TexturedToggleButton(
-	const Rectangle<float>& rect, const std::vector<TextureOrKey>& default_textures,
+	const Rect& rect, const std::vector<TextureOrKey>& default_textures,
 	const std::vector<TextureOrKey>& hover_textures,
 	const std::vector<TextureOrKey>& pressed_textures,
 	const ButtonActivateFunction& on_activate_function

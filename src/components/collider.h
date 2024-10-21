@@ -2,15 +2,15 @@
 
 #include <vector>
 
-#include "protegon/polygon.h"
-#include "protegon/vector2.h"
+#include "math/geometry/polygon.h"
+#include "math/vector2.h"
 #include "renderer/origin.h"
 
 namespace ptgn {
 
 struct Collider {
 	V2_float offset;
-	Rectangle<float> bounds;
+	Rect bounds;
 };
 
 struct BoxCollider : public Collider {

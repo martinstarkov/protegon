@@ -1,5 +1,8 @@
+#include <memory>
+#include <vector>
+
 #include "common.h"
-#include "protegon/game.h"
+#include "core/game.h"
 
 class TemplateTest : public Test {
 	void Init() final {}

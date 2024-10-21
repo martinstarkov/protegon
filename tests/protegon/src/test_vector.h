@@ -5,10 +5,10 @@
 #include <unordered_map>
 #include <utility>
 
-#include "protegon/log.h"
-#include "protegon/math.h"
-#include "protegon/vector2.h"
+#include "math/math.h"
+#include "math/vector2.h"
 #include "utility/debug.h"
+#include "utility/log.h"
 
 void TestVector2() {
 	PTGN_INFO("Starting Vector2 tests...");

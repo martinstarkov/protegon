@@ -6,22 +6,21 @@
 #include <memory>
 #include <new>
 #include <ostream>
-#include <unordered_map>
 #include <vector>
 
 #include "common.h"
+#include "core/game.h"
 #include "core/window.h"
 #include "event/input_handler.h"
 #include "event/key.h"
-#include "protegon/color.h"
-#include "protegon/game.h"
-#include "protegon/log.h"
-#include "protegon/noise.h"
-#include "protegon/rng.h"
-#include "protegon/vector2.h"
+#include "math/noise.h"
+#include "math/rng.h"
+#include "math/vector2.h"
+#include "renderer/color.h"
 #include "renderer/origin.h"
 #include "renderer/renderer.h"
 #include "utility/debug.h"
+#include "utility/log.h"
 
 struct TestNoise : public Test {
 	ValueNoise value_noise;

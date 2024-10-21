@@ -1,30 +1,30 @@
-#include "protegon/game.h"
+#include "core/game.h"
 
 #include <chrono>
 #include <type_traits>
 #include <vector>
 
 #include "SDL_timer.h"
+#include "audio/audio.h"
 #include "core/gl_context.h"
 #include "core/manager.h"
 #include "core/sdl_instance.h"
 #include "core/window.h"
 #include "event/event_handler.h"
 #include "event/input_handler.h"
-#include "protegon/audio.h"
-#include "protegon/collision.h"
-#include "protegon/font.h"
-#include "protegon/shader.h"
-#include "protegon/text.h"
-#include "protegon/texture.h"
-#include "protegon/tween.h"
+#include "math/collision.h"
+#include "renderer/font.h"
 #include "renderer/renderer.h"
+#include "renderer/shader.h"
+#include "renderer/text.h"
+#include "renderer/texture.h"
 #include "scene/camera.h"
 #include "scene/scene_manager.h"
 #include "ui/ui.h"
 #include "utility/debug.h"
 #include "utility/profiling.h"
 #include "utility/time.h"
+#include "utility/tween.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -159,7 +159,7 @@ Game::~Game() {
 }
 
 float Game::dt() const {
-	return 1.0f / 60.0f; // dt_;
+	return dt_; // 1.0f / 60.0f; // dt_;
 }
 
 float Game::time() const {
@@ -228,6 +228,7 @@ void Game::Init() {
 	if (!sdl_instance_->IsInitialized()) {
 		sdl_instance_->Init();
 	}
+	font.Init();
 	window.Init();
 	gl_context_->Init();
 	event.Init();

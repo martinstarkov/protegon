@@ -1,21 +1,25 @@
 #include "renderer/renderer.h"
 
 #include <functional>
+#include <vector>
 
 #include "core/window.h"
 #include "event/event_handler.h"
-#include "protegon/color.h"
-#include "protegon/events.h"
-#include "protegon/game.h"
-#include "protegon/matrix4.h"
-#include "protegon/polygon.h"
-#include "protegon/texture.h"
-#include "protegon/vector2.h"
-#include "protegon/vertex_array.h"
+#include "renderer/color.h"
+#include "event/events.h"
+#include "renderer/font.h"
+#include "core/game.h"
+#include "math/matrix4.h"
+#include "math/geometry/polygon.h"
+#include "renderer/text.h"
+#include "renderer/texture.h"
+#include "math/vector2.h"
+#include "renderer/vertex_array.h"
 #include "renderer/batch.h"
 #include "renderer/gl_renderer.h"
 #include "renderer/origin.h"
 #include "renderer/vertices.h"
+#include "scene/camera.h"
 #include "utility/debug.h"
 
 namespace ptgn::impl {
@@ -162,6 +166,73 @@ void Renderer::VertexArray(const ptgn::VertexArray& va, std::size_t vertex_count
 	GLRenderer::DrawArrays(va, vertex_count);
 }
 
+void Renderer::Text(
+	const std::string_view& text_content, const V2_float& destination_position,
+	const Color& text_color, Origin draw_origin, V2_float destination_size, const FontOrKey& font,
+	const TextInfo& info
+) {
+	if (!info.visible) {
+		return;
+	}
+
+	Font f;
+
+	if (font == FontOrKey{}) {
+		f = game.font.GetDefault();
+	} else {
+		f = game.font.GetFontOrKey(font);
+	}
+
+	PTGN_ASSERT(f.IsValid(), "Cannot draw text with invalid font");
+
+	ptgn::Text temp_text{ text_content,			 text_color,	   font,
+						  info.font_style,		 info.render_mode, info.shading_color,
+						  info.wrap_after_pixels };
+
+	TextDrawInfo draw_info{ info.rotation, info.flip, info.rotation_center, info.z_index,
+							info.render_layer };
+
+	Renderer::Text(temp_text, destination_position, draw_origin, destination_size, draw_info);
+}
+
+void Renderer::Text(
+	const ptgn::Text& text, const V2_float& destination_position, Origin draw_origin,
+	V2_float destination_size, const TextDrawInfo& info
+) {
+	if (!text.IsValid()) {
+		return;
+	}
+	if (!text.GetVisibility()) {
+		return;
+	}
+	if (text.GetContent().empty()) {
+		return;
+	}
+
+	const ptgn::Texture& texture{ text.GetTexture() };
+
+	if (!texture.IsValid()) {
+		return;
+	}
+
+	if (destination_size.IsZero()) {
+		destination_size = text.GetSize();
+	}
+
+	game.draw.Texture(
+		texture, destination_position, destination_size,
+		{ {},
+		  {},
+		  draw_origin,
+		  info.flip,
+		  info.rotation,
+		  info.rotation_center,
+		  info.z_index,
+		  color::White,
+		  info.render_layer }
+	);
+}
+
 void Renderer::Texture(
 	const ptgn::Texture& texture, const V2_float& position, const V2_float& size,
 	const TextureInfo& info
@@ -187,10 +258,32 @@ void Renderer::Point(
 	data_.Point(position, color.Normalized(), radius, z_index, render_layer);
 }
 
+void Renderer::Points(
+	const std::vector<V2_float>& points, const Color& color, float radius, float z_index,
+	std::size_t render_layer
+) {
+	for (const auto& p : points) {
+		Point(p, color, radius, z_index, render_layer);
+	}
+}
+
 void Renderer::Line(
 	const V2_float& p0, const V2_float& p1, const Color& color, float line_width, float z_index,
 	std::size_t render_layer
 ) {
+	data_.Line(p0, p1, color.Normalized(), line_width, z_index, render_layer);
+}
+
+void Renderer::Axis(
+	const V2_float& point, const V2_float& direction, const Color& color, float line_width,
+	float z_index, std::size_t render_layer
+) {
+	V2_float ws{ game.window.GetSize() };
+	float mag{ ws.MagnitudeSquared() };
+	// Find line points on the window extents.
+	V2_float p0{ point + direction * mag };
+	V2_float p1{ point - direction * mag };
+
 	data_.Line(p0, p1, color.Normalized(), line_width, z_index, render_layer);
 }
 

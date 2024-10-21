@@ -3,14 +3,13 @@
 #include <functional>
 
 #include "common.h"
+#include "core/game.h"
 #include "core/window.h"
+#include "event/event.h"
 #include "event/event_handler.h"
-#include "protegon/event.h"
-#include "protegon/events.h"
-#include "protegon/game.h"
-#include "protegon/log.h"
-#include "protegon/text.h"
+#include "event/events.h"
 #include "utility/debug.h"
+#include "utility/log.h"
 
 struct TestGameEvents : public Test {
 	void Shutdown() override {
@@ -53,16 +52,12 @@ struct TestGameEvents : public Test {
 				switch (type) {
 					case MouseEvent::Down: {
 						const auto& es{ static_cast<const MouseDownEvent&>(e) };
-						PTGN_LOG(
-							"Mouse down, mouse: ", static_cast<int>(es.mouse), ", pos: ", es.current
-						);
+						PTGN_LOG("Mouse down, mouse: ", static_cast<int>(es.mouse));
 						break;
 					}
 					case MouseEvent::Up: {
 						const auto& es{ static_cast<const MouseUpEvent&>(e) };
-						PTGN_LOG(
-							"Mouse up, mouse: ", static_cast<int>(es.mouse), ", pos: ", es.current
-						);
+						PTGN_LOG("Mouse up, mouse: ", static_cast<int>(es.mouse));
 						break;
 					}
 					case MouseEvent::Scroll: {
@@ -72,7 +67,10 @@ struct TestGameEvents : public Test {
 					}
 					case MouseEvent::Move: {
 						const auto& es{ static_cast<const MouseMoveEvent&>(e) };
-						PTGN_LOG("Mouse move, current: ", es.current, ", prev: ", es.previous);
+						PTGN_LOG(
+							"Mouse move, current: ", es.GetCurrent(), ", prev: ", es.GetPrevious(),
+							", diff: ", es.GetDifference()
+						);
 						break;
 					}
 					default: break;

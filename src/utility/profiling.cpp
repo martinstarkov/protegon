@@ -4,9 +4,9 @@
 #include <string_view>
 
 #include "core/manager.h"
-#include "protegon/game.h"
-#include "protegon/hash.h"
-#include "protegon/timer.h"
+#include "core/game.h"
+#include "math/hash.h"
+#include "utility/timer.h"
 
 namespace ptgn::impl {
 

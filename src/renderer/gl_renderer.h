@@ -2,9 +2,9 @@
 
 #include <cstdint>
 
-#include "protegon/color.h"
-#include "protegon/vector2.h"
-#include "protegon/vertex_array.h"
+#include "renderer/color.h"
+#include "math/vector2.h"
+#include "renderer/vertex_array.h"
 
 #ifdef __EMSCRIPTEN__
 

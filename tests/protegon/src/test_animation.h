@@ -1,7 +1,15 @@
+#include <memory>
+#include <vector>
+
 #include "common.h"
 #include "components/sprite.h"
 #include "components/transform.h"
-#include "protegon/game.h"
+#include "core/game.h"
+#include "ecs/ecs.h"
+#include "math/vector2.h"
+#include "renderer/origin.h"
+#include "renderer/texture.h"
+#include "utility/time.h"
 
 class SpriteTest : public EntityTest {
 	Texture texture{ "resources/sprites/animation.png" };

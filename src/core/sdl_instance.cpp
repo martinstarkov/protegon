@@ -14,7 +14,7 @@
 #include "SDL_ttf.h"
 #include "SDL_version.h"
 #include "SDL_video.h"
-#include "protegon/log.h"
+#include "utility/log.h"
 #include "renderer/gl_renderer.h"
 #include "utility/debug.h"
 #include "utility/time.h"

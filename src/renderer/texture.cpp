@@ -1,4 +1,4 @@
-#include "protegon/texture.h"
+#include "renderer/texture.h"
 
 #include <array>
 #include <cstdint>
@@ -6,12 +6,12 @@
 #include <type_traits>
 #include <vector>
 
-#include "protegon/color.h"
-#include "protegon/file.h"
-#include "protegon/log.h"
-#include "protegon/surface.h"
-#include "protegon/vector2.h"
-#include "protegon/vector4.h"
+#include "renderer/color.h"
+#include "utility/file.h"
+#include "utility/log.h"
+#include "renderer/surface.h"
+#include "math/vector2.h"
+#include "math/vector4.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"

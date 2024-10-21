@@ -4,7 +4,7 @@
 #include <type_traits>
 
 #include "core/manager.h"
-#include "protegon/button.h"
+#include "ui/button.h"
 #include "utility/type_traits.h"
 
 namespace ptgn::impl {

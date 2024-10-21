@@ -9,9 +9,9 @@
 #include "SDL_error.h"
 #include "SDL_video.h"
 #include "core/window.h"
-#include "protegon/file.h"
-#include "protegon/game.h"
-#include "protegon/log.h"
+#include "utility/file.h"
+#include "core/game.h"
+#include "utility/log.h"
 #include "renderer/gl_loader.h"
 #include "utility/debug.h"
 

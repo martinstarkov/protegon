@@ -6,13 +6,13 @@
 #include <utility>
 #include <vector>
 
-#include "protegon/buffer.h"
-#include "protegon/matrix4.h"
-#include "protegon/shader.h"
-#include "protegon/texture.h"
-#include "protegon/vector2.h"
-#include "protegon/vector4.h"
-#include "protegon/vertex_array.h"
+#include "renderer/buffer.h"
+#include "math/matrix4.h"
+#include "renderer/shader.h"
+#include "renderer/texture.h"
+#include "math/vector2.h"
+#include "math/vector4.h"
+#include "renderer/vertex_array.h"
 #include "renderer/buffer_layout.h"
 #include "renderer/flip.h"
 #include "renderer/gl_helper.h"
@@ -33,9 +33,9 @@
 #define PTGN_SHADER_STRINGIFY_MACRO(x) PTGN_STRINGIFY_MACRO(x)
 
 #ifdef __EMSCRIPTEN__
-#define PTGN_SHADER_PATH(file) PTGN_SHADER_STRINGIFY_MACRO(PTGN_EXPAND_MACRO(shader/es/)PTGN_EXPAND_MACRO(file))
+#define PTGN_SHADER_PATH(file) PTGN_SHADER_STRINGIFY_MACRO(PTGN_EXPAND_MACRO(resources/shader/es/)PTGN_EXPAND_MACRO(file))
 #else
-#define PTGN_SHADER_PATH(file) PTGN_SHADER_STRINGIFY_MACRO(PTGN_EXPAND_MACRO(shader/core/)PTGN_EXPAND_MACRO(file))
+#define PTGN_SHADER_PATH(file) PTGN_SHADER_STRINGIFY_MACRO(PTGN_EXPAND_MACRO(resources/shader/core/)PTGN_EXPAND_MACRO(file))
 #endif
 // clang-format on
 

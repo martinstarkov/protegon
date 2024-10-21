@@ -3,7 +3,7 @@
 #include <memory>
 
 #include "core/manager.h"
-#include "protegon/button.h"
+#include "ui/button.h"
 
 namespace ptgn::impl {
 

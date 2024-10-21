@@ -3,24 +3,24 @@
 #include <bitset>
 #include <utility>
 
-#include "core/window.h"
-#include "event/event_handler.h"
-#include "event/key.h"
-#include "event/mouse.h"
-#include "protegon/collision.h"
-#include "protegon/events.h"
-#include "protegon/game.h"
-#include "protegon/log.h"
-#include "protegon/timer.h"
-#include "protegon/vector2.h"
-#include "renderer/origin.h"
 #include "SDL_events.h"
 #include "SDL_keyboard.h"
 #include "SDL_mouse.h"
 #include "SDL_stdinc.h"
 #include "SDL_video.h"
+#include "core/game.h"
+#include "core/window.h"
+#include "event/event_handler.h"
+#include "event/events.h"
+#include "event/key.h"
+#include "event/mouse.h"
+#include "math/geometry/polygon.h"
+#include "math/vector2.h"
+#include "renderer/origin.h"
 #include "utility/debug.h"
+#include "utility/log.h"
 #include "utility/time.h"
+#include "utility/timer.h"
 
 namespace ptgn::impl {
 
@@ -33,7 +33,8 @@ void InputHandler::Reset() {
 	left_mouse_		= MouseState::Released;
 	right_mouse_	= MouseState::Released;
 	middle_mouse_	= MouseState::Released;
-	mouse_position_ = {};
+	mouse_pos_		= {};
+	prev_mouse_pos_ = {};
 	mouse_scroll_	= {};
 
 	// Mouse button held for timers.
@@ -44,6 +45,7 @@ void InputHandler::Reset() {
 }
 
 void InputHandler::Update() {
+	prev_mouse_pos_ = mouse_pos_;
 	// Update mouse states.
 	UpdateMouseState(Mouse::Left);
 	UpdateMouseState(Mouse::Right);
@@ -53,13 +55,9 @@ void InputHandler::Update() {
 	while (SDL_PollEvent(&e)) {
 		switch (e.type) {
 			case SDL_MOUSEMOTION: {
-				V2_int previous{ mouse_position_ };
-				const auto* m	  = (SDL_MouseMotionEvent*)&e;
-				mouse_position_.x = m->x;
-				mouse_position_.y = m->y;
-				game.event.mouse.Post(
-					MouseEvent::Move, MouseMoveEvent{ previous, mouse_position_ }
-				);
+				mouse_pos_.x = e.motion.x;
+				mouse_pos_.y = e.motion.y;
+				game.event.mouse.Post(MouseEvent::Move, MouseMoveEvent{});
 				break;
 			}
 			case SDL_MOUSEBUTTONDOWN: {
@@ -68,8 +66,7 @@ void InputHandler::Update() {
 				timer.Start();
 				mouse_state = MouseState::Down;
 				game.event.mouse.Post(
-					MouseEvent::Down,
-					MouseDownEvent{ static_cast<Mouse>(e.button.button), mouse_position_ }
+					MouseEvent::Down, MouseDownEvent{ static_cast<Mouse>(e.button.button) }
 				);
 				break;
 			}
@@ -79,8 +76,7 @@ void InputHandler::Update() {
 				timer.Stop();
 				mouse_state = MouseState::Up;
 				game.event.mouse.Post(
-					MouseEvent::Up,
-					MouseUpEvent{ static_cast<Mouse>(e.button.button), mouse_position_ }
+					MouseEvent::Up, MouseUpEvent{ static_cast<Mouse>(e.button.button) }
 				);
 				break;
 			}
@@ -158,10 +154,9 @@ void InputHandler::Update() {
 }
 
 bool InputHandler::MouseWithinWindow() const {
-	return game.collision.overlap.PointRectangle(
-		game.input.GetMousePositionGlobal(),
-		{ game.window.GetPosition(), game.window.GetSize(), Origin::TopLeft }
-	);
+	Rect window{ game.window.GetPosition(), game.window.GetSize(), Origin::TopLeft };
+
+	return window.Overlaps(game.input.GetMousePositionGlobal());
 }
 
 void InputHandler::SetRelativeMouseMode(bool on) const {
@@ -176,13 +171,34 @@ V2_int InputHandler::GetMousePositionGlobal() const {
 }
 
 V2_int InputHandler::GetMousePositionWindow() const {
-	return mouse_position_;
+	return mouse_pos_;
+}
+
+V2_int InputHandler::GetMousePositionPreviousWindow() const {
+	return prev_mouse_pos_;
+}
+
+V2_int InputHandler::GetMouseDifferenceWindow() const {
+	return mouse_pos_ - prev_mouse_pos_;
+}
+
+V2_int InputHandler::GetMouseDifference(std::size_t render_layer) const {
+	return ScaledToRenderLayer(GetMouseDifferenceWindow(), render_layer);
 }
 
 V2_int InputHandler::GetMousePosition(std::size_t render_layer) const {
-	V2_float size  = game.camera.GetPrimary(render_layer).GetSize();
-	V2_float scale = game.window.GetSize() / size;
-	return GetMousePositionWindow() / scale;
+	return ScaledToRenderLayer(GetMousePositionWindow(), render_layer);
+}
+
+V2_int InputHandler::GetMousePositionPrevious(std::size_t render_layer) const {
+	return ScaledToRenderLayer(GetMousePositionPreviousWindow(), render_layer);
+}
+
+V2_int InputHandler::ScaledToRenderLayer(const V2_int& pos, std::size_t render_layer) const {
+	V2_int w{ game.window.GetSize() };
+	PTGN_ASSERT(w.x != 0 && w.y != 0, "Cannot scale position relative to a dimensionless window");
+	return game.camera.GetPrimary(render_layer).GetSize() * pos / w;
+	;
 }
 
 int InputHandler::GetMouseScroll() const {

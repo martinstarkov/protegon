@@ -1,9 +1,9 @@
-#include "protegon/noise.h"
+#include "math/noise.h"
 
 #include <cstdint>
 
-#include "protegon/log.h"
-#include "protegon/math.h"
+#include "utility/log.h"
+#include "math/math.h"
 #include "utility/debug.h"
 
 namespace ptgn {

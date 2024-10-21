@@ -2,8 +2,8 @@
 
 #include <array>
 
-#include "protegon/vector2.h"
-#include "protegon/vector4.h"
+#include "math/vector2.h"
+#include "math/vector4.h"
 #include "renderer/gl_helper.h"
 #include "renderer/origin.h"
 #include "utility/debug.h"

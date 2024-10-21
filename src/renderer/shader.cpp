@@ -1,4 +1,4 @@
-#include "protegon/shader.h"
+#include "renderer/shader.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -8,12 +8,12 @@
 #include <unordered_map>
 #include <utility>
 
-#include "protegon/file.h"
-#include "protegon/log.h"
-#include "protegon/matrix4.h"
-#include "protegon/vector2.h"
-#include "protegon/vector3.h"
-#include "protegon/vector4.h"
+#include "utility/file.h"
+#include "utility/log.h"
+#include "math/matrix4.h"
+#include "math/vector2.h"
+#include "math/vector3.h"
+#include "math/vector4.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "utility/debug.h"

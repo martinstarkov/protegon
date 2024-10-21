@@ -1,7 +1,7 @@
 #include "renderer/origin.h"
 
-#include "protegon/log.h"
-#include "protegon/vector2.h"
+#include "utility/log.h"
+#include "math/vector2.h"
 
 namespace ptgn {
 
