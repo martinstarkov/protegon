@@ -26,12 +26,12 @@ public:
 
 protected:
 	const T& Get() const {
-		PTGN_ASSERT(IsValid());
+		PTGN_ASSERT(IsValid(), "Uninitialized instance");
 		return *instance_;
 	}
 
 	T& Get() {
-		PTGN_ASSERT(IsValid());
+		PTGN_ASSERT(IsValid(), "Uninitialized instance");
 		return *instance_;
 	}
 
@@ -43,7 +43,7 @@ protected:
 	}
 
 	void Create(std::shared_ptr<T> instance) {
-		PTGN_ASSERT(!IsValid());
+		PTGN_ASSERT(!IsValid(), "Cannot recreate instance");
 		instance_ = instance;
 	}
 
