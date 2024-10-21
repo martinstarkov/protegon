@@ -144,7 +144,7 @@ namespace impl {
 
 class Game;
 class Renderer;
-class ActiveSceneCameraManager;
+class SceneCamera;
 
 class CameraManager : public MapManager<OrthographicCamera> {
 public:
@@ -170,7 +170,7 @@ public:
 	void ResetPrimary();
 
 private:
-	friend class ActiveSceneCameraManager;
+	friend class SceneCamera;
 	friend class Game;
 	friend class Renderer;
 
@@ -182,14 +182,14 @@ private:
 
 // This class provides quick access to the current top active scene.
 // i.e. using this is class equivalent to game.scene.GetTopActive().camera
-class ActiveSceneCameraManager {
+class SceneCamera {
 public:
-	ActiveSceneCameraManager()											 = default;
-	~ActiveSceneCameraManager()											 = default;
-	ActiveSceneCameraManager(const ActiveSceneCameraManager&)			 = delete;
-	ActiveSceneCameraManager(ActiveSceneCameraManager&&)				 = default;
-	ActiveSceneCameraManager& operator=(const ActiveSceneCameraManager&) = delete;
-	ActiveSceneCameraManager& operator=(ActiveSceneCameraManager&&)		 = default;
+	SceneCamera()											 = default;
+	~SceneCamera()											 = default;
+	SceneCamera(const SceneCamera&)			 = delete;
+	SceneCamera(SceneCamera&&)				 = default;
+	SceneCamera& operator=(const SceneCamera&) = delete;
+	SceneCamera& operator=(SceneCamera&&)		 = default;
 
 	using Item = CameraManager::Item;
 

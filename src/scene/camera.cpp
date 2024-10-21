@@ -513,52 +513,52 @@ void CameraManager::ResetPrimary() {
 	}
 }
 
-CameraManager::Item& ActiveSceneCameraManager::LoadImpl(const InternalKey& key, Item&& item) {
+CameraManager::Item& SceneCamera::LoadImpl(const InternalKey& key, Item&& item) {
 	if (!item.IsValid()) {
 		item.SetSizeToWindow();
 	}
 	return game.scene.GetTopActive().camera.Load(key, std::move(item));
 }
 
-void ActiveSceneCameraManager::UnloadImpl(const InternalKey& key) {
+void SceneCamera::UnloadImpl(const InternalKey& key) {
 	game.scene.GetTopActive().camera.Unload(key);
 }
 
-bool ActiveSceneCameraManager::HasImpl(const InternalKey& key) {
+bool SceneCamera::HasImpl(const InternalKey& key) {
 	return game.scene.GetTopActive().camera.Has(key);
 }
 
-CameraManager::Item& ActiveSceneCameraManager::GetImpl(const InternalKey& key) {
+CameraManager::Item& SceneCamera::GetImpl(const InternalKey& key) {
 	return game.scene.GetTopActive().camera.Get(key);
 }
 
-void ActiveSceneCameraManager::Clear() {
+void SceneCamera::Clear() {
 	game.scene.GetTopActive().camera.Clear();
 }
 
-void ActiveSceneCameraManager::SetPrimaryImpl(const InternalKey& key, std::size_t render_layer) {
+void SceneCamera::SetPrimaryImpl(const InternalKey& key, std::size_t render_layer) {
 	game.scene.GetTopActive().camera.SetPrimary(key, render_layer);
 }
 
-void ActiveSceneCameraManager::SetPrimary(
+void SceneCamera::SetPrimary(
 	const OrthographicCamera& camera, std::size_t render_layer
 ) {
 	game.scene.GetTopActive().camera.SetPrimary(camera, render_layer);
 }
 
-const OrthographicCamera& ActiveSceneCameraManager::GetPrimary(std::size_t render_layer) const {
+const OrthographicCamera& SceneCamera::GetPrimary(std::size_t render_layer) const {
 	return game.scene.GetTopActive().camera.GetPrimary(render_layer);
 }
 
-OrthographicCamera& ActiveSceneCameraManager::GetPrimary(std::size_t render_layer) {
+OrthographicCamera& SceneCamera::GetPrimary(std::size_t render_layer) {
 	return game.scene.GetTopActive().camera.GetPrimary(render_layer);
 }
 
-void ActiveSceneCameraManager::Reset() {
+void SceneCamera::Reset() {
 	game.scene.GetTopActive().camera.Reset();
 }
 
-void ActiveSceneCameraManager::ResetPrimary() {
+void SceneCamera::ResetPrimary() {
 	game.scene.GetTopActive().camera.ResetPrimary();
 }
 

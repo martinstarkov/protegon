@@ -125,7 +125,7 @@ Game::Game() :
 	input_{ std::make_unique<InputHandler>() },
 	draw_{ std::make_unique<Renderer>() },
 	scene_{ std::make_unique<SceneManager>() },
-	camera_{ std::make_unique<ActiveSceneCameraManager>() },
+	camera_{ std::make_unique<SceneCamera>() },
 	collision_{ std::make_unique<CollisionHandler>() },
 	ui_{ std::make_unique<UserInterface>() },
 	tween_{ std::make_unique<TweenManager>() },
