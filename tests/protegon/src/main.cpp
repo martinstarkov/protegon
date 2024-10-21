@@ -1,12 +1,12 @@
 #define SDL_MAIN_HANDLED
 
 #include "../tests/test_ecs.h"
-#include "core/window.h"
-#include "renderer/color.h"
 #include "core/game.h"
-#include "scene/scene.h"
+#include "core/window.h"
 #include "math/vector2.h"
+#include "renderer/color.h"
 #include "renderer/renderer.h"
+#include "scene/scene.h"
 #include "test_animation.h"
 #include "test_camera.h"
 #include "test_collision.h"
