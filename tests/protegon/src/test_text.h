@@ -38,6 +38,8 @@ struct TestTextStyles : public Test {
 	}
 
 	void Init() override {
+		texts.clear();
+
 		// PTGN_ASSERT(font.IsValid());
 		// PTGN_ASSERT(font.GetHeight() > 0);
 		// PTGN_ASSERT(!game.font.Has(font_key));
