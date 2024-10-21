@@ -41,9 +41,8 @@ public:
 		using TEventType = std::decay_t<TEvent>;
 		static_assert(std::is_base_of_v<Event, TEventType>, "Events must inherit from Event class");
 		auto it = observers_.find(key);
-		std::pair<T, EventCallback> entry{ type, [&, func](const Event& event) {
-											  const TEventType& e =
-												  static_cast<const TEventType&>(event);
+		std::pair<T, EventCallback> entry{ type, [func](const Event& event) {
+											  const auto& e = static_cast<const TEventType&>(event);
 											  func(e);
 										  } };
 		if (it == observers_.end()) {
@@ -92,6 +91,8 @@ public:
 	}
 
 	void Reset() {
+		// TODO: Fix this function sometimes crashing. I think it has something to do with the
+		// capturing lambdas stored inside the observer maps.
 		general_observers_.clear();
 		observers_.clear();
 	}
