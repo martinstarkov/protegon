@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <unordered_set>
 #include <vector>
 
 namespace ptgn {

@@ -63,7 +63,7 @@ public:
 	void CenterOnArea(const V2_float& size);
 
 	// Origin at the top left.
-	[[nodiscard]] Rect GetRectangle() const;
+	[[nodiscard]] Rect GetRect() const;
 	[[nodiscard]] V2_float GetTopLeftPosition() const;
 	[[nodiscard]] V2_float GetSize() const;
 	[[nodiscard]] float GetZoom() const;

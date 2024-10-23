@@ -45,7 +45,7 @@ struct TextureInfo {
 					 render_layer } {}
 
 	/*
-	source.pos Top left pixel to start drawing texture from within the texture (defaults to { 0, 0
+	source.position Top left pixel to start drawing texture from within the texture (defaults to { 0, 0
 	}). source.size Number of pixels of the texture to draw (defaults to {} which corresponds to the
 	remaining texture size to the bottom right of source_position). source.origin Relative  to
 	destination_position the direction from which the texture is.
@@ -212,7 +212,7 @@ public:
 	);
 
 	// Rotation angle in radians.
-	void Rectangle(
+	void Rect(
 		const V2_float& position, const V2_float& size, const Color& color,
 		Origin draw_origin = Origin::Center, float line_width = -1.0f,
 		float rotation_radians = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
@@ -230,7 +230,7 @@ public:
 	);
 
 	// Rotation angle in radians.
-	void RoundedRectangle(
+	void RoundedRect(
 		const V2_float& position, const V2_float& size, float radius, const Color& color,
 		Origin draw_origin = Origin::Center, float line_width = -1.0f,
 		float rotation_radians = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },

@@ -92,8 +92,8 @@ public:
 		Color acolor1 = color1;
 		Color acolor2 = color2;
 
-		Rect aabb1{ position1, size1, Origin::Center };
-		Rect aabb2{ position2, size2, Origin::Center };
+		Rect aabb1{ position1, size1, Origin::Center, rot_1 };
+		Rect aabb2{ position2, size2, Origin::Center, rot_2 };
 
 		Circle circle1{ position1, radius1 };
 		Circle circle2{ position2, radius2 };
@@ -122,7 +122,9 @@ public:
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
-				game.draw.Rectangle(aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness);
+				game.draw.Rectangle(
+					aabb1.position, aabb1.size, acolor1, aabb1.origin, line_thickness
+				);
 				game.draw.Point(position2, acolor2);
 			} else if (option == 3) {
 				if (line2.Overlaps(line1)) {
@@ -144,7 +146,9 @@ public:
 					acolor2 = color::Red;
 				}
 				game.draw.Line(line2.a, line2.b, acolor2);
-				game.draw.Rectangle(aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness);
+				game.draw.Rectangle(
+					aabb1.position, aabb1.size, acolor1, aabb1.origin, line_thickness
+				);
 			} else if (option == 6) {
 				if (circle2.Overlaps(circle1)) {
 					acolor1 = color::Red;
@@ -157,27 +161,36 @@ public:
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
-				game.draw.Rectangle(aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness);
+				game.draw.Rectangle(
+					aabb1.position, aabb1.size, acolor1, aabb1.origin, line_thickness
+				);
 				game.draw.Circle(circle2.center, circle2.radius, acolor2, line_thickness);
 			} else if (option == 8) {
-				aabb2.pos = mouse;
+				aabb2.position = mouse;
+				// no rotation case uses different overlap code.
+				aabb1.rotation = 0.0f;
+				aabb2.rotation = 0.0f;
 				if (aabb1.Overlaps(aabb2)) {
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
-				game.draw.Rectangle(aabb2.pos, aabb2.size, acolor2, aabb2.origin, line_thickness);
-				game.draw.Rectangle(aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness);
+				game.draw.Rectangle(
+					aabb2.position, aabb2.size, acolor2, aabb2.origin, line_thickness
+				);
+				game.draw.Rectangle(
+					aabb1.position, aabb1.size, acolor1, aabb1.origin, line_thickness
+				);
 			} else if (option == 9) {
-				aabb2.pos = mouse;
-				if (aabb1.Overlaps(aabb2, rot_1, rot_2)) {
+				aabb2.position = mouse;
+				if (aabb1.Overlaps(aabb2)) {
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
 				game.draw.Rectangle(
-					aabb2.pos, aabb2.size, acolor2, aabb2.origin, line_thickness, rot_2
+					aabb2.position, aabb2.size, acolor2, aabb2.origin, line_thickness, rot_2
 				);
 				game.draw.Rectangle(
-					aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness, rot_1
+					aabb1.position, aabb1.size, acolor1, aabb1.origin, line_thickness, rot_1
 				);
 			}
 		} else if (type == 1) { // intersect
@@ -215,7 +228,9 @@ public:
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
-				game.draw.Rectangle(aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness);
+				game.draw.Rectangle(
+					aabb1.position, aabb1.size, acolor1, aabb1.origin, line_thickness
+				);
 				game.draw.Circle(circle2.center, circle2.radius, acolor2, line_thickness);
 				if (c.Occurred()) {
 					Circle new_circle{ circle2.center + c.normal * (c.depth + slop),
@@ -232,20 +247,27 @@ public:
 					}
 				}
 			} else if (option == 2) {
-				aabb2.pos = mouse;
+				aabb2.position = mouse;
+				// no rotation case uses different intersection code.
+				aabb1.rotation = 0.0f;
+				aabb2.rotation = 0.0f;
 				// aabb2.position = aabb1.Center() - aabb2.Half();
 				c = aabb2.Intersects(aabb1);
 				if (c.Occurred()) {
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
-				game.draw.Rectangle(aabb2.pos, aabb2.size, acolor2, aabb2.origin, line_thickness);
-				game.draw.Rectangle(aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness);
+				game.draw.Rectangle(
+					aabb2.position, aabb2.size, acolor2, aabb2.origin, line_thickness
+				);
+				game.draw.Rectangle(
+					aabb1.position, aabb1.size, acolor1, aabb1.origin, line_thickness
+				);
 				if (c.Occurred()) {
-					Rect new_aabb{ aabb2.pos + c.normal * (c.depth + slop), aabb2.size,
+					Rect new_aabb{ aabb2.position + c.normal * (c.depth + slop), aabb2.size,
 								   aabb2.origin };
 					game.draw.Rectangle(
-						new_aabb.pos, new_aabb.size, color2, new_aabb.origin, line_thickness
+						new_aabb.position, new_aabb.size, color2, new_aabb.origin, line_thickness
 					);
 					Line l{ aabb2.Center(), new_aabb.Center() };
 					game.draw.Line(l.a, l.b, color::Gold);
@@ -258,18 +280,18 @@ public:
 					}
 				}
 			} else if (option == 3) {
-				aabb2.pos = mouse;
+				aabb2.position = mouse;
 				// aabb2.position = aabb1.Center() - aabb2.Half();
-				c = aabb2.Intersects(aabb1, rot_2, rot_1);
+				c = aabb2.Intersects(aabb1);
 				if (c.Occurred()) {
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
 				game.draw.Rectangle(
-					aabb2.pos, aabb2.size, acolor2, aabb2.origin, line_thickness, rot_2
+					aabb2.position, aabb2.size, acolor2, aabb2.origin, line_thickness, rot_2
 				);
 				game.draw.Rectangle(
-					aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness, rot_1
+					aabb1.position, aabb1.size, acolor1, aabb1.origin, line_thickness, rot_1
 				);
 				if (c.Occurred()) {
 					if (game.input.KeyPressed(Key::D)) {
@@ -278,10 +300,11 @@ public:
 					if (game.input.KeyPressed(Key::S)) {
 						c.normal = c.normal.Skewed();
 					}
-					Rect new_aabb{ aabb2.pos + c.normal * (c.depth + slop), aabb2.size,
+					Rect new_aabb{ aabb2.position + c.normal * (c.depth + slop), aabb2.size,
 								   aabb2.origin };
 					game.draw.Rectangle(
-						new_aabb.pos, new_aabb.size, color2, new_aabb.origin, line_thickness, rot_2
+						new_aabb.position, new_aabb.size, color2, new_aabb.origin, line_thickness,
+						rot_2
 					);
 					Line l{ aabb2.Center(), new_aabb.Center() };
 					game.draw.Line(l.a, l.b, color::Gold);
@@ -323,7 +346,9 @@ public:
 					acolor2 = color::Red;
 				}
 				game.draw.Circle(circle2.center, circle2.radius, acolor2, line_thickness);
-				game.draw.Rectangle(aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness);
+				game.draw.Rectangle(
+					aabb1.position, aabb1.size, acolor1, aabb1.origin, line_thickness
+				);
 			} else if (option == 1) {
 				circle2.center = position4;
 				V2_float vel{ mouse - circle2.center };
@@ -360,29 +385,36 @@ public:
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
-				game.draw.Rectangle(aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness);
-			} else if (option == 3) {
-				aabb2.pos = position4;
-				V2_float vel{ mouse - aabb2.pos };
-				Rect potential{ aabb2.pos + vel, aabb2.size, aabb2.origin };
 				game.draw.Rectangle(
-					potential.pos, potential.size, color::Grey, potential.origin, line_thickness
+					aabb1.position, aabb1.size, acolor1, aabb1.origin, line_thickness
+				);
+			} else if (option == 3) {
+				aabb2.position = position4;
+				V2_float vel{ mouse - aabb2.position };
+				Rect potential{ aabb2.position + vel, aabb2.size, aabb2.origin };
+				game.draw.Rectangle(
+					potential.position, potential.size, color::Grey, potential.origin,
+					line_thickness
 				);
 				Line l{ aabb2.Center(), potential.Center() };
 				game.draw.Line(l.a, l.b, color::Grey);
 				bool occurred{ game.collision.dynamic.RectangleRectangle(aabb2, vel, aabb1, c) };
 				if (occurred) {
-					Rect swept{ aabb2.pos + vel * c.t, aabb2.size, aabb2.origin };
+					Rect swept{ aabb2.position + vel * c.t, aabb2.size, aabb2.origin };
 					Line normal{ swept.Center(), swept.Center() + 50 * c.normal };
 					game.draw.Line(normal.a, normal.b, color::Orange);
 					game.draw.Rectangle(
-						swept.pos, swept.size, color::Green, swept.origin, line_thickness
+						swept.position, swept.size, color::Green, swept.origin, line_thickness
 					);
 					acolor1 = color::Red;
 					acolor2 = color::Red;
 				}
-				game.draw.Rectangle(aabb2.pos, aabb2.size, acolor2, aabb2.origin, line_thickness);
-				game.draw.Rectangle(aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness);
+				game.draw.Rectangle(
+					aabb2.position, aabb2.size, acolor2, aabb2.origin, line_thickness
+				);
+				game.draw.Rectangle(
+					aabb1.position, aabb1.size, acolor1, aabb1.origin, line_thickness
+				);
 			}
 
 			/*
@@ -435,12 +467,10 @@ public:
 				acolor1 = color::Red;
 				acolor2 = color::Red;
 			  }
-			  game.draw.Rectangle(aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness);
-			  game.draw.Circle(circle2.center, circle2.radius, acolor2, line_thickness);
-			  if (occurred) {
-				Circle new_circle{circle2.center + c.normal * (c.depth + slop),
-										 circle2.radius};
-				game.draw.Circle(new_circle.center, new_circle.radius,
+			  game.draw.Rectangle(aabb1.position, aabb1.size, acolor1, aabb1.origin,
+			line_thickness); game.draw.Circle(circle2.center, circle2.radius, acolor2,
+			line_thickness); if (occurred) { Circle new_circle{circle2.center + c.normal * (c.depth
+			+ slop), circle2.radius}; game.draw.Circle(new_circle.center, new_circle.radius,
 											   color2);
 				Line l{circle2.center, new_circle.center};
 				game.draw.Line(l.a, l.b, color::Gold);
@@ -452,20 +482,18 @@ public:
 				}
 			  }
 			} else if (option == 2) {
-			  aabb2.pos = mouse - aabb2.Half();
+			  aabb2.position = mouse - aabb2.Half();
 			  // aabb2.position = aabb1.Center() - aabb2.Half();
 			  bool occurred{game.collision.intersect.RectangleRectangle(aabb2, aabb1, c)};
 			  if (occurred) {
 				acolor1 = color::Red;
 				acolor2 = color::Red;
 			  }
-			  game.draw.Rectangle(aabb2.pos, aabb2.size, acolor2, aabb2.origin, line_thickness);
-			  game.draw.Rectangle(aabb1.pos, aabb1.size, acolor1, aabb1.origin, line_thickness);
-			  if (occurred) {
-				Rect new_aabb{aabb2.pos + c.normal * (c.depth + slop),
-										  aabb2.size, Origin::TopLeft};
-				game.draw.Rectangle(new_aabb.pos, new_aabb.size,
-			color2, new_aabb.origin, line_thickness); Line l{aabb2.Center(),
+			  game.draw.Rectangle(aabb2.position, aabb2.size, acolor2, aabb2.origin,
+			line_thickness); game.draw.Rectangle(aabb1.position, aabb1.size, acolor1, aabb1.origin,
+			line_thickness); if (occurred) { Rect new_aabb{aabb2.position + c.normal * (c.depth +
+			slop), aabb2.size, Origin::TopLeft}; game.draw.Rectangle(new_aabb.position,
+			new_aabb.size, color2, new_aabb.origin, line_thickness); Line l{aabb2.Center(),
 			new_aabb.Center()}; game.draw.Line(l.a, l.b, color::Gold); if
 			(game.collision.overlap.RectangleRectangle(new_aabb, aabb1)) { occurred =
 			game.collision.intersect.RectangleRectangle(new_aabb, aabb1, c); bool
@@ -499,7 +527,7 @@ struct SegmentRectangleOverlapTest : public Test {
 	}
 
 	void Update() override {
-		game.draw.Rectangle(aabb.pos, aabb.size, color::Cyan, aabb.origin, 1.0f);
+		game.draw.Rectangle(aabb.position, aabb.size, color::Cyan, aabb.origin, 1.0f);
 
 		// Lines which are inside the rectangle.
 
@@ -576,7 +604,7 @@ struct SegmentRectangleDynamicTest : public Test {
 	}
 
 	void Update() {
-		game.draw.Rectangle(aabb.pos, aabb.size, color::Cyan, aabb.origin, 1.0f);
+		game.draw.Rectangle(aabb.position, aabb.size, color::Cyan, aabb.origin, 1.0f);
 
 		// Lines which are inside the rectangle.
 
@@ -641,23 +669,25 @@ struct RectangleRectangleDynamicTest : public Test {
 	Rect target{ {}, { 10.0f, 10.0f }, Origin::Center };
 
 	void RectangleSweep(V2_float p1, V2_float p2, Color color, bool debug_flag = false) {
-		target.pos = p1;
-		game.draw.Rectangle(target.pos, target.size, color::Grey, target.origin, 1.0f);
+		target.position = p1;
+		game.draw.Rectangle(target.position, target.size, color::Grey, target.origin, 1.0f);
 		game.draw.Line(p1, p2, color::Grey);
 		DynamicCollision c;
 		V2_float vel = p2 - p1;
 		bool occurred{ game.collision.dynamic.RectangleRectangle(target, vel, aabb, c) };
 		if (occurred) {
-			Rect new_rect = target;
-			new_rect.pos  = p1 + c.t * vel;
-			game.draw.Rectangle(new_rect.pos, new_rect.size, color, new_rect.origin, 1.0f);
+			Rect new_rect	  = target;
+			new_rect.position = p1 + c.t * vel;
+			game.draw.Rectangle(new_rect.position, new_rect.size, color, new_rect.origin, 1.0f);
 			if (new_rect.Overlaps(aabb)) {
 				PTGN_LOG("still overlapping");
 			}
 		} else {
-			Rect new_rect = target;
-			new_rect.pos  = p1 + vel;
-			game.draw.Rectangle(new_rect.pos, new_rect.size, color::Grey, new_rect.origin, 1.0f);
+			Rect new_rect	  = target;
+			new_rect.position = p1 + vel;
+			game.draw.Rectangle(
+				new_rect.position, new_rect.size, color::Grey, new_rect.origin, 1.0f
+			);
 		}
 		if (debug_flag) {
 			PTGN_LOG("t: ", c.t);
@@ -665,7 +695,7 @@ struct RectangleRectangleDynamicTest : public Test {
 	}
 
 	void Update() override {
-		game.draw.Rectangle(aabb.pos, aabb.size, color::Cyan, aabb.origin, 1.0f);
+		game.draw.Rectangle(aabb.position, aabb.size, color::Cyan, aabb.origin, 1.0f);
 
 		// Rectangles which are inside the rectangle.
 
@@ -981,7 +1011,7 @@ struct DynamicRectangleCollisionTest : public Test {
 	float speed{ 0.0f };
 
 	struct DynamicData {
-		V2_float pos;
+		V2_float position;
 		V2_float size;
 		Origin origin;
 		V2_float velocity;
@@ -1001,7 +1031,7 @@ struct DynamicRectangleCollisionTest : public Test {
 		const V2_float& pos, const V2_float& size, Origin origin, const V2_float& velocity_direction
 	) {
 		DynamicData data;
-		data.pos	  = pos;
+		data.position = pos;
 		data.size	  = size;
 		data.origin	  = origin;
 		data.velocity = velocity_direction * speed;
@@ -1016,7 +1046,7 @@ struct DynamicRectangleCollisionTest : public Test {
 			ecs::Entity entity = manager.CreateEntity();
 			const auto& data   = entity_data[i];
 			auto& t			   = entity.Add<Transform>();
-			t.position		   = data.pos;
+			t.position		   = data.position;
 
 			auto& box  = entity.Add<BoxCollider>();
 			box.size   = data.size;

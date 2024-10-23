@@ -169,7 +169,7 @@ struct TestCameraBounds : public TestCameraControls {
 		TestCameraControls::Draw();
 		const auto& camera{ game.camera.GetPrimary() };
 		const auto& bounds{ camera.GetBounds() };
-		game.draw.Rectangle(bounds.pos, bounds.size, color::Red, bounds.origin, bound_width);
+		game.draw.Rectangle(bounds.position, bounds.size, color::Red, bounds.origin, bound_width);
 	}
 };
 

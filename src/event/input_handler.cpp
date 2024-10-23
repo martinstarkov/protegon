@@ -164,10 +164,10 @@ void InputHandler::SetRelativeMouseMode(bool on) const {
 }
 
 V2_int InputHandler::GetMousePositionGlobal() const {
-	V2_int pos;
+	V2_int position;
 	// SDL_PumpEvents not required as this function queries the OS directly.
-	SDL_GetGlobalMouseState(&pos.x, &pos.y);
-	return pos;
+	SDL_GetGlobalMouseState(&position.x, &position.y);
+	return position;
 }
 
 V2_int InputHandler::GetMousePositionWindow() const {
@@ -194,10 +194,10 @@ V2_int InputHandler::GetMousePositionPrevious(std::size_t render_layer) const {
 	return ScaledToRenderLayer(GetMousePositionPreviousWindow(), render_layer);
 }
 
-V2_int InputHandler::ScaledToRenderLayer(const V2_int& pos, std::size_t render_layer) const {
+V2_int InputHandler::ScaledToRenderLayer(const V2_int& position, std::size_t render_layer) const {
 	V2_int w{ game.window.GetSize() };
 	PTGN_ASSERT(w.x != 0 && w.y != 0, "Cannot scale position relative to a dimensionless window");
-	return game.camera.GetPrimary(render_layer).GetSize() * pos / w;
+	return game.camera.GetPrimary(render_layer).GetSize() * position / w;
 	;
 }
 

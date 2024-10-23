@@ -240,7 +240,7 @@ void Renderer::Texture(
 	PTGN_ASSERT(texture.IsValid(), "Cannot draw uninitialized or destroyed texture");
 
 	auto tex_coords{ RendererData::GetTextureCoordinates(
-		info.source.pos, info.source.size, texture.GetSize(), info.flip
+		info.source.position, info.source.size, texture.GetSize(), info.flip
 	) };
 
 	auto vertices =
@@ -294,7 +294,7 @@ void Renderer::Triangle(
 	data_.Triangle(a, b, c, color.Normalized(), line_width, z_index, render_layer);
 }
 
-void Renderer::Rectangle(
+void Renderer::Rect(
 	const V2_float& position, const V2_float& size, const Color& color, Origin draw_origin,
 	float line_width, float rotation_radians, const V2_float& rotation_center, float z_index,
 	std::size_t render_layer
@@ -302,7 +302,7 @@ void Renderer::Rectangle(
 	auto vertices{
 		impl::GetQuadVertices(position, size, draw_origin, rotation_radians, rotation_center)
 	};
-	data_.Rectangle(vertices, color.Normalized(), line_width, z_index, render_layer);
+	data_.Rect(vertices, color.Normalized(), line_width, z_index, render_layer);
 }
 
 void Renderer::Polygon(
@@ -321,12 +321,12 @@ void Renderer::Circle(
 	);
 }
 
-void Renderer::RoundedRectangle(
+void Renderer::RoundedRect(
 	const V2_float& position, const V2_float& size, float radius, const Color& color,
 	Origin draw_origin, float line_width, float rotation_radians, const V2_float& rotation_center,
 	float z_index, std::size_t render_layer
 ) {
-	data_.RoundedRectangle(
+	data_.RoundedRect(
 		position, size, radius, color.Normalized(), draw_origin, line_width, rotation_radians,
 		rotation_center, z_index, render_layer
 	);

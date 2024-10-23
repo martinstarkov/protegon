@@ -192,10 +192,10 @@ class WindowSettingTest : public Test {
 		}
 
 		game.draw.Rectangle(
-			rect_0.pos, rect_0.size, color_0, rect_0.origin, -1.0f, 0.0f, {}, 0.0f, 0
+			rect_0.position, rect_0.size, color_0, rect_0.origin, -1.0f, 0.0f, {}, 0.0f, 0
 		);
 		game.draw.Rectangle(
-			rect_1.pos, rect_1.size, color_1, rect_1.origin, -1.0f, 0.0f, {}, 0.0f, 1
+			rect_1.position, rect_1.size, color_1, rect_1.origin, -1.0f, 0.0f, {}, 0.0f, 1
 		);
 
 		game.draw.Point(game.input.GetMousePosition(0), { 128, 128, 0, 128 }, 4.0f, 0.0f, 0);

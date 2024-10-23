@@ -1,25 +1,27 @@
 #pragma once
 
 #include <chrono>
+#include <functional>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "components/transform.h"
+#include "core/game.h"
 #include "core/manager.h"
 #include "ecs/ecs.h"
-#include "renderer/color.h"
-#include "core/game.h"
-#include "math/math.h"
 #include "math/geometry/polygon.h"
-#include "renderer/texture.h"
-#include "utility/tween.h"
+#include "math/math.h"
 #include "math/vector2.h"
+#include "renderer/color.h"
 #include "renderer/flip.h"
 #include "renderer/origin.h"
 #include "renderer/renderer.h"
+#include "renderer/texture.h"
 #include "utility/debug.h"
 #include "utility/time.h"
+#include "utility/tween.h"
 
 namespace ptgn {
 
@@ -37,20 +39,17 @@ struct DrawColor : public Color {
 	DrawColor(const Color& c) : Color{ c } {}
 };
 
-using DrawOrigin = Origin;
-
 using DrawLineWidth = float;
 
 using ZIndex = float;
 
 using RenderLayer = std::size_t;
 
-inline void DrawRectangle(ecs::Entity entity, const Transform& transform, const V2_float& size) {
-	game.draw.Rectangle(
-		transform.position, size, entity.Has<DrawColor>() ? entity.Get<DrawColor>() : color::Black,
-		entity.Has<DrawOrigin>() ? entity.Get<DrawOrigin>() : Origin::Center,
-		entity.Has<DrawLineWidth>() ? entity.Get<DrawLineWidth>() : -1.0f, transform.rotation,
-		V2_float{ 0.5f, 0.5f }, entity.Has<ZIndex>() ? entity.Get<ZIndex>() : 0.0f,
+inline void DrawRect(ecs::Entity entity, const Rect& rect) {
+	game.draw.Rect(
+		rect.position, rect.size, entity.Has<DrawColor>() ? entity.Get<DrawColor>() : color::Black,
+		rect.origin, entity.Has<DrawLineWidth>() ? entity.Get<DrawLineWidth>() : 1.0f,
+		rect.rotation, V2_float{ 0.5f, 0.5f }, entity.Has<ZIndex>() ? entity.Get<ZIndex>() : 0.0f,
 		entity.Has<RenderLayer>() ? entity.Get<RenderLayer>() : 0
 	);
 }
@@ -62,7 +61,7 @@ struct Sprite {
 		const V2_float& sprite_size = {}, const V2_float& start_pixel = {}
 	) :
 		texture{ texture }, draw_offset{ draw_offset } {
-		source.pos = start_pixel;
+		source.position = start_pixel;
 		if (sprite_size.IsZero()) {
 			source.size = texture.GetSize();
 		} else {
@@ -74,17 +73,19 @@ struct Sprite {
 		PTGN_ASSERT(texture.GetSize().y > 0.0f, "Texture must have height > 0");
 
 		PTGN_ASSERT(
-			source.pos.x < texture.GetSize().x, "Source position X must be within texture width"
+			source.position.x < texture.GetSize().x,
+			"Source position X must be within texture width"
 		);
 		PTGN_ASSERT(
-			source.pos.y < texture.GetSize().y, "Source position Y must be within texture height"
+			source.position.y < texture.GetSize().y,
+			"Source position Y must be within texture height"
 		);
 		PTGN_ASSERT(
-			source.pos.x + source.size.x < texture.GetSize().x,
+			source.position.x + source.size.x < texture.GetSize().x,
 			"Source width must be within texture width"
 		);
 		PTGN_ASSERT(
-			source.pos.y + source.size.y < texture.GetSize().y,
+			source.position.y + source.size.y < texture.GetSize().y,
 			"Source height must be within texture height"
 		);
 	}
@@ -92,6 +93,10 @@ struct Sprite {
 	void Draw(ecs::Entity entity, const Transform& transform) const;
 
 	Texture texture;
+
+	Rect GetSource() const {
+		return source;
+	}
 
 private:
 	Rect source;
@@ -115,6 +120,10 @@ struct SpriteSheet {
 			PTGN_ASSERT(x < texture.GetSize().x, "Source position X must be within texture width");
 			sprite_positions.emplace_back(x, start_pixel.y);
 		}
+	}
+
+	[[nodiscard]] std::size_t GetCount() const {
+		return sprite_positions.size();
 	}
 
 	Texture texture;
@@ -144,8 +153,7 @@ struct Animation : public impl::SpriteSheet {
 		this->draw_offset = draw_offset;
 		this->origin	  = origin;
 		PTGN_ASSERT(
-			start_frame < sprite_positions.size(),
-			"Start frame must be within sprite sheet frame count"
+			start_frame < GetCount(), "Start frame must be within sprite sheet frame count"
 		);
 		frame = std::make_shared<std::size_t>(start_frame);
 	}
@@ -159,13 +167,26 @@ struct Animation : public impl::SpriteSheet {
 	}
 
 	void Start() {
-		std::size_t frame_count{ sprite_positions.size() };
+		std::size_t frame_count{ GetCount() };
 		milliseconds frame_duration{ duration / frame_count };
 		tween = game.tween.Add(frame_duration)
 					.Repeat(-1)
+					.OnStart([=]() {
+						if (on_start != nullptr) {
+							std::invoke(on_start);
+						}
+					})
 					.OnRepeat([=]() {
+						if (on_repeat != nullptr) {
+							std::invoke(on_repeat);
+						}
 						auto& f{ *frame };
 						f = Mod(++f, frame_count);
+					})
+					.OnUpdate([=](float t) {
+						if (on_update != nullptr) {
+							std::invoke(on_update, t);
+						}
 					})
 					.Start();
 	}
@@ -180,66 +201,44 @@ struct Animation : public impl::SpriteSheet {
 
 	void Draw(ecs::Entity entity, const Transform& transform) const;
 
+	std::function<void()> on_start;
+	std::function<void()> on_repeat;
+	std::function<void(float)> on_update;
+
 	Tween tween;
 
-private:
-	Rect GetSource() const {
-		auto& f{ *frame };
-		PTGN_ASSERT(f < sprite_positions.size());
-		return { sprite_positions[f], sprite_size, origin };
+	[[nodiscard]] std::size_t GetCurrentFrame() const {
+		PTGN_ASSERT(frame != nullptr, "Cannot retrieve current frame of uninitialized animation");
+		std::size_t f{ *frame };
+		PTGN_ASSERT(f < GetCount(), "Frame outside of animation sprite count");
+		return f;
 	}
 
-	V2_float draw_offset; // Offset of sprite relative to entity transform.
+	Rect GetSource() const {
+		return { sprite_positions[GetCurrentFrame()], sprite_size, origin };
+	}
 
 	Origin origin{ Origin::Center };
+
+private:
+	V2_float draw_offset;		// Offset of sprite relative to entity transform.
 
 	milliseconds duration{ 0 }; // Duration of the entire animation.
 
 	std::shared_ptr<std::size_t> frame;
 };
 
-struct AnimationMap : public MapManager<Animation> {
-	using MapManager::MapManager;
-
-	AnimationMap(const Key& animation_key, const Animation& starting_animation) {
-		Load(animation_key, starting_animation);
-		SetCurrent(animation_key);
-	}
-
-	void DrawCurrent(ecs::Entity entity, const Transform& transform) const {
-		GetCurrent().Draw(entity, transform);
-	}
-
-	const Animation& GetCurrent() const {
-		PTGN_ASSERT(Has(current_animation_));
-		return Get(current_animation_);
-	}
-
-	Animation& GetCurrent() {
-		PTGN_ASSERT(Has(current_animation_));
-		return Get(current_animation_);
-	}
-
-	void SetCurrent(const Key& animation) {
-		PTGN_ASSERT(
-			Has(animation),
-			"Animation must be loaded into animation map before setting it as current"
-		);
-		current_animation_ = Hash(animation);
-	}
-
-private:
-	InternalKey current_animation_{ 0 };
-};
-
 using SpriteFlip = Flip;
 
 using SpriteZ = float;
 
-inline void Sprite::Draw(ecs::Entity entity, const Transform& transform) const {
+inline void DrawTexture(
+	ecs::Entity entity, const Texture& texture, const Transform& transform,
+	const V2_float& draw_offset = {}, const Rect& source = {}
+) {
 	game.draw.Texture(
 		texture, transform.position + draw_offset, source.size * transform.scale,
-		{ source.pos, source.size, source.origin,
+		{ source.position, source.size, source.origin,
 		  entity.Has<SpriteFlip>() ? entity.Get<SpriteFlip>() : Flip::None, transform.rotation,
 		  V2_float{ 0.5f, 0.5f }, entity.Has<SpriteZ>() ? entity.Get<SpriteZ>() : 0.0f,
 		  entity.Has<SpriteTint>() ? entity.Get<SpriteTint>() : color::White,
@@ -247,16 +246,12 @@ inline void Sprite::Draw(ecs::Entity entity, const Transform& transform) const {
 	);
 }
 
+inline void Sprite::Draw(ecs::Entity entity, const Transform& transform) const {
+	DrawTexture(entity, texture, transform, draw_offset, source);
+}
+
 inline void Animation::Draw(ecs::Entity entity, const Transform& transform) const {
-	const auto& source{ GetSource() };
-	game.draw.Texture(
-		texture, transform.position + draw_offset, sprite_size * transform.scale,
-		{ source.pos, source.size, source.origin,
-		  entity.Has<SpriteFlip>() ? entity.Get<SpriteFlip>() : Flip::None, transform.rotation,
-		  V2_float{ 0.5f, 0.5f }, entity.Has<SpriteZ>() ? entity.Get<SpriteZ>() : 0.0f,
-		  entity.Has<SpriteTint>() ? entity.Get<SpriteTint>() : color::White,
-		  entity.Has<RenderLayer>() ? entity.Get<RenderLayer>() : 0 }
-	);
+	DrawTexture(entity, texture, transform, draw_offset, GetSource());
 }
 
 } // namespace ptgn

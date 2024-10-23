@@ -90,15 +90,15 @@ public:
 	virtual void OnMouseUp(const MouseUpEvent& e);
 	virtual void OnMouseUpOutside(const MouseUpEvent& e);
 
-	[[nodiscard]] const Rect& GetRectangle() const;
-	void SetRectangle(const Rect& new_rectangle);
+	[[nodiscard]] const Rect& GetRect() const;
+	void SetRect(const Rect& new_rectangle);
 
 	[[nodiscard]] std::size_t GetRenderLayer() const;
 	void SetRenderLayer(std::size_t render_layer);
 
 	[[nodiscard]] ButtonState GetState() const;
 
-	[[nodiscard]] bool InsideRectangle(const V2_int& position) const;
+	[[nodiscard]] bool InsideRect(const V2_int& position) const;
 
 protected:
 	enum class InternalButtonState : std::size_t {

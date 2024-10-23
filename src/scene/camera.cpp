@@ -123,7 +123,7 @@ void OrthographicCamera::CenterOnArea(const V2_float& size) {
 	SetPosition(size / 2.0f);
 }
 
-Rect OrthographicCamera::GetRectangle() const {
+Rect OrthographicCamera::GetRect() const {
 	return Rect{ GetTopLeftPosition(), GetSize(), Origin::TopLeft };
 }
 
@@ -246,7 +246,7 @@ void OrthographicCamera::RefreshBounds() {
 		// Draw bounding box center.
 		// game.draw.Point(center, color::Red, 5.0f);
 		// Draw bounding box.
-		// game.draw.RectangleHollow(o.bounding_box, color::Red);
+		// game.draw.RectHollow(o.bounding_box, color::Red);
 
 		// TODO: Incoporate yaw, i.e. o.orientation.x into the bounds using sin and cos.
 		V2_float size{ o.size / o.zoom };
@@ -393,10 +393,10 @@ void OrthographicCamera::RecalculateViewProjection() {
 void OrthographicCamera::RecalculateView() {
 	auto& o{ Get() };
 
-	V3_float pos{ -o.position.x, -o.position.y, o.position.z };
+	V3_float position{ -o.position.x, -o.position.y, o.position.z };
 
 	Quaternion orientation = GetQuaternion();
-	o.view				   = M4_float::Translate(orientation.ToMatrix4(), pos);
+	o.view				   = M4_float::Translate(orientation.ToMatrix4(), position);
 }
 
 void OrthographicCamera::PrintInfo() const {

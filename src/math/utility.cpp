@@ -15,7 +15,7 @@ namespace ptgn {
 
 namespace impl {
 
-float SquareDistancePointRectangle(const V2_float& a, const Rect& b) {
+float SquareDistancePointRect(const V2_float& a, const Rect& b) {
 	float dist2{ 0.0f };
 	V2_float max{ b.Max() };
 	V2_float min{ b.Min() };

@@ -222,4 +222,50 @@ private:
 	Vector vector_;
 };
 
+// Same as MapManager but has some functions for tracking an active item.
+template <
+	typename ItemType, typename ExternalKeyType = std::string_view,
+	typename InternalKeyType = std::size_t, bool use_hash = true>
+class ActiveMapManager : public MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash> {
+public:
+	using Key  = typename MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::Key;
+	using Item = typename MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::Item;
+	using InternalKey =
+		typename MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::InternalKey;
+	using MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::MapManager;
+
+	ActiveMapManager(const Key& active_key, const Item& active_item) {
+		MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::Load(
+			active_key, active_item
+		);
+		SetActive(active_key);
+	}
+
+	const Item& GetActive() const {
+		PTGN_ASSERT(
+			(MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::Has(active_key_))
+		);
+		return MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::Get(active_key_);
+	}
+
+	Item& GetActive() {
+		PTGN_ASSERT(
+			(MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::Has(active_key_))
+		);
+		return MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::Get(active_key_);
+	}
+
+	void SetActive(const Key& key) {
+		PTGN_ASSERT(
+			(MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::Has(key)),
+			"Key must be loaded into the manager before setting it as active"
+		);
+		active_key_ =
+			MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::GetInternalKey(key);
+	}
+
+private:
+	InternalKey active_key_{ 0 };
+};
+
 } // namespace ptgn

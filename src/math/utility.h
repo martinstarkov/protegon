@@ -16,7 +16,7 @@ namespace impl {
 // Source:
 // http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 // Page 79.
-[[nodiscard]] float SquareDistancePointRectangle(const V2_float& a, const Rect& b);
+[[nodiscard]] float SquareDistancePointRect(const V2_float& a, const Rect& b);
 
 [[nodiscard]] float ParallelogramArea(const V2_float& a, const V2_float& b, const V2_float& c);
 

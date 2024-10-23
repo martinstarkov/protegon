@@ -121,7 +121,7 @@ bool DynamicCollisionHandler::LineCircle(const Line& a, const Circle& b, Dynamic
 	return true;
 }
 
-bool DynamicCollisionHandler::LineRectangle(const Line& a, Rect b, DynamicCollision& c) {
+bool DynamicCollisionHandler::LineRect(const Line& a, Rect b, DynamicCollision& c) {
 	c = {};
 
 	bool start_in{ b.Overlaps(a.a) };
@@ -307,7 +307,7 @@ bool DynamicCollisionHandler::CircleCircle(
 	return LineCircle({ a.center, a.center + vel }, { b.center, b.radius + a.radius }, c);
 }
 
-bool DynamicCollisionHandler::CircleRectangle(
+bool DynamicCollisionHandler::CircleRect(
 	const Circle& a, const V2_float& vel, const Rect& b, DynamicCollision& c
 ) {
 	c = {};
@@ -328,9 +328,9 @@ bool DynamicCollisionHandler::CircleRectangle(
 
 	// Compute the rectangle resulting from expanding b by circle radius.
 	Rect e;
-	e.pos	 = b.Min() - V2_float{ a.radius, a.radius };
-	e.size	 = b.size + V2_float{ a.radius * 2.0f, a.radius * 2.0f };
-	e.origin = Origin::TopLeft;
+	e.position = b.Min() - V2_float{ a.radius, a.radius };
+	e.size	   = b.size + V2_float{ a.radius * 2.0f, a.radius * 2.0f };
+	e.origin   = Origin::TopLeft;
 
 	if (!seg.Overlaps(e)) {
 		return false;
@@ -374,11 +374,11 @@ bool DynamicCollisionHandler::CircleRectangle(
 	return true;
 }
 
-bool DynamicCollisionHandler::RectangleRectangle(
+bool DynamicCollisionHandler::RectRect(
 	const Rect& a, const V2_float& vel, const Rect& b, DynamicCollision& c
 ) {
 	V2_float a_center{ a.Center() };
-	bool occured = LineRectangle(
+	bool occured = LineRect(
 		{ a_center, a_center + vel }, { b.Min() - a.Half(), b.size + a.size, Origin::TopLeft }, c
 	);
 	bool collide_on_next_frame{ c.t < 1.0 && c.t >= 0.0f };
@@ -419,9 +419,8 @@ V2_float DynamicCollisionHandler::Sweep(
 
 	auto targets = manager.EntitiesWith<Transform>();
 
-	auto collision_occurred = [&](const V2_float& pos, const V2_float& vel, ecs::Entity e,
+	auto collision_occurred = [&](const V2_float& position, const V2_float& vel, ecs::Entity e,
 								  float& dist2) {
-		PTGN_ASSERT(e.Has<Transform>());
 		if (!e.HasAny<BoxCollider, CircleCollider>()) {
 			return false;
 		}
@@ -432,26 +431,26 @@ V2_float DynamicCollisionHandler::Sweep(
 		const auto& transform2 = e.Get<Transform>();
 		if (is_rectangle) {
 			const auto& box = entity.Get<BoxCollider>();
-			Rect rect{ pos + box.offset, box.size, box.origin };
+			Rect rect{ position + box.offset, box.size, box.origin };
 			if (e.Has<BoxCollider>()) {
 				const auto& box2 = e.Get<BoxCollider>();
 				Rect rect2{ transform2.position + box2.offset, box2.size, box2.origin };
 				dist2 = (rect.Center() - rect2.Center()).MagnitudeSquared();
-				return RectangleRectangle(rect, relative_velocity, rect2, c);
+				return RectRect(rect, relative_velocity, rect2, c);
 			} else if (e.Has<CircleCollider>()) {
 				const auto& circle2 = e.Get<CircleCollider>();
 				Circle c2{ transform2.position + circle2.offset, circle2.radius };
 				dist2 = (rect.Center() - c2.center).MagnitudeSquared();
-				return CircleRectangle(c2, -relative_velocity, rect, c);
+				return CircleRect(c2, -relative_velocity, rect, c);
 			}
 		} else if (is_circle) {
 			const auto& circle = entity.Get<CircleCollider>();
-			Circle c1{ pos + circle.offset, circle.radius };
+			Circle c1{ position + circle.offset, circle.radius };
 			if (e.Has<BoxCollider>()) {
 				const auto& box2 = e.Get<BoxCollider>();
 				Rect rect2{ transform2.position + box2.offset, box2.size, box2.origin };
 				dist2 = (c1.center - rect2.Center()).MagnitudeSquared();
-				return CircleRectangle(c1, relative_velocity, rect2, c);
+				return CircleRect(c1, relative_velocity, rect2, c);
 			} else if (e.Has<CircleCollider>()) {
 				const auto& circle2 = e.Get<CircleCollider>();
 				Circle c2{ transform2.position + circle2.offset, circle2.radius };
@@ -462,14 +461,14 @@ V2_float DynamicCollisionHandler::Sweep(
 		PTGN_ERROR("Unrecognized shape for collision check");
 	};
 
-	auto get_sorted_collisions = [&](const V2_float& pos, const V2_float& vel) {
+	auto get_sorted_collisions = [&](const V2_float& position, const V2_float& vel) {
 		std::vector<SweepCollision> collisions;
 		targets.ForEach([&](ecs::Entity e) {
 			if (entity == e) {
 				return;
 			}
 			float dist2{ 0.0f };
-			if (collision_occurred(pos, vel, e, dist2)) {
+			if (collision_occurred(position, vel, e, dist2)) {
 				collisions.emplace_back(c, dist2);
 			}
 		});
@@ -495,7 +494,7 @@ V2_float DynamicCollisionHandler::Sweep(
 
 	if (debug_draw) {
 		game.draw.Line(transform.position, new_p1, color::Blue);
-		game.draw.Rectangle(
+		game.draw.Rect(
 			new_p1, entity.Get<BoxCollider>().size, color::Purple, entity.Get<BoxCollider>().origin,
 			1.0f
 		);
@@ -521,7 +520,7 @@ V2_float DynamicCollisionHandler::Sweep(
 void DynamicCollisionHandler::SortCollisions(std::vector<SweepCollision>& collisions) {
 	/*
 	 * Initial sort based on distances of collision manifolds to the collider.
-	 * This is required for RectangleVsRectangle collisions to prevent sticking
+	 * This is required for RectVsRect collisions to prevent sticking
 	 * to corners in certain configurations, such as if the player (o) gives
 	 * a bottom right velocity into the following rectangle (x) configuration:
 	 *       x
@@ -579,6 +578,46 @@ V2_float DynamicCollisionHandler::GetRemainingVelocity(
 
 void CollisionHandler::Shutdown() {
 	dynamic = {};
+}
+
+void CollisionHandler::Update(ecs::Manager& manager) {
+	auto box_colliders = manager.EntitiesWith<BoxCollider>();
+	for (auto [e1, b1] : box_colliders) {
+		auto prev_overlaps{ b1.overlaps };
+		b1.overlaps.clear();
+		for (auto [e2, b2] : box_colliders) {
+			if (!CanCollide(e1, e2, b1, b2)) {
+				continue;
+			}
+			Rect r1{ b1.GetAbsoluteRect() };
+			Rect r2{ b2.GetAbsoluteRect() };
+			if (r1.Overlaps(r2)) {
+				b1.overlaps.insert(e2);
+			}
+		}
+		bool has_on_stop{ b1.on_overlap_stop != nullptr };
+		bool has_on_overlap{ b1.on_overlap != nullptr };
+		if (has_on_overlap || has_on_stop) {
+			for (const auto& e : prev_overlaps) {
+				PTGN_ASSERT(e1 != e);
+				if (b1.overlaps.count(e) == 0) {
+					if (has_on_stop) {
+						std::invoke(b1.on_overlap_stop, e1, e);
+					}
+				} else if (has_on_overlap) {
+					std::invoke(b1.on_overlap, e1, e);
+				}
+			}
+		}
+		if (b1.on_overlap_start != nullptr) {
+			for (const auto& e : b1.overlaps) {
+				PTGN_ASSERT(e1 != e);
+				if (prev_overlaps.count(e) == 0) {
+					std::invoke(b1.on_overlap_start, e1, e);
+				}
+			}
+		}
+	}
 }
 
 } // namespace ptgn::impl

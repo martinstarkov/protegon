@@ -227,7 +227,7 @@ public:
 		float line_width, float z_index, std::size_t render_layer
 	);
 
-	void Rectangle(
+	void Rect(
 		const std::array<V2_float, 4>& vertices, const V4_float& color, float line_width,
 		float z_index, std::size_t render_layer
 	);
@@ -237,7 +237,7 @@ public:
 		float z_index, std::size_t render_layer
 	);
 
-	void RoundedRectangle(
+	void RoundedRect(
 		const V2_float& position, const V2_float& size, float radius, const V4_float& color,
 		Origin origin, float line_width, float rotation_radians, const V2_float& rotation_center,
 		float z_index, std::size_t render_layer

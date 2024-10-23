@@ -625,7 +625,7 @@ void RendererData::Line(
 		auto vertices = GetQuadVertices(
 			p0 + d * 0.5f, { d.Magnitude(), lw }, Origin::Center, d.Angle(), { 0.5f, 0.5f }
 		);
-		RendererData::Rectangle(vertices, col, -1.0f, z, render_layer);
+		RendererData::Rect(vertices, col, -1.0f, z, render_layer);
 		return;
 	}
 
@@ -655,7 +655,7 @@ void RendererData::Triangle(
 	}
 }
 
-void RendererData::Rectangle(
+void RendererData::Rect(
 	const std::array<V2_float, 4>& vertices, const V4_float& col, float lw, float z,
 	std::size_t render_layer
 ) {
@@ -679,7 +679,7 @@ void RendererData::Rectangle(
 	}
 }
 
-void RendererData::RoundedRectangle(
+void RendererData::RoundedRect(
 	const V2_float& p, const V2_float& s, float rad, const V4_float& col, Origin o, float lw,
 	float rotation_radians, const V2_float& rc, float z, std::size_t render_layer
 ) {
@@ -728,7 +728,7 @@ void RendererData::RoundedRectangle(
 	float line_thickness{ lw };
 
 	if (filled) {
-		RendererData::Rectangle(inner_vertices, col, lw, z, render_layer);
+		RendererData::Rect(inner_vertices, col, lw, z, render_layer);
 		line_thickness = rad;
 	}
 

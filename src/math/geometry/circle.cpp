@@ -32,7 +32,7 @@ bool Circle::Overlaps(const Rect& rect) const {
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 	// Page 165-166.
-	return WithinPerimeter(radius, impl::SquareDistancePointRectangle(center, rect));
+	return WithinPerimeter(radius, impl::SquareDistancePointRect(center, rect));
 }
 
 bool Circle::Overlaps(const Line& line) const {

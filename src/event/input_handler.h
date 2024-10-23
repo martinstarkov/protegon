@@ -105,7 +105,7 @@ public:
 	[[nodiscard]] bool KeyUp(Key key);
 
 private:
-	[[nodiscard]] V2_int ScaledToRenderLayer(const V2_int& pos, std::size_t render_layer) const;
+	[[nodiscard]] V2_int ScaledToRenderLayer(const V2_int& position, std::size_t render_layer) const;
 
 	friend class SceneManager;
 	friend class Game;

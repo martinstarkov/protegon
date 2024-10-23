@@ -20,8 +20,8 @@
 
 namespace ptgn {
 
-Rect::Rect(const V2_float& pos, const V2_float& size, Origin origin) :
-	pos{ pos }, size{ size }, origin{ origin } {}
+Rect::Rect(const V2_float& position, const V2_float& size, Origin origin, float rotation) :
+	position{ position }, size{ size }, origin{ origin }, rotation{ rotation } {}
 
 V2_float Rect::Half() const {
 	return size * 0.5f;
@@ -29,7 +29,7 @@ V2_float Rect::Half() const {
 
 // @return Center position of rectangle.
 V2_float Rect::Center() const {
-	return pos - GetOffsetFromCenter(size, origin);
+	return position - GetOffsetFromCenter(size, origin);
 }
 
 // @return Bottom right position of rectangle.
@@ -42,16 +42,8 @@ V2_float Rect::Min() const {
 	return Center() - Half();
 }
 
-Rect Rect::Offset(const V2_float& pos_amount, const V2_float& size_amount) const {
-	return { pos + pos_amount, size + size_amount };
-}
-
-Rect Rect::Scale(const V2_float& scale) const {
-	return { pos * scale, size * scale };
-}
-
 bool Rect::IsZero() const {
-	return pos.IsZero() && size.IsZero();
+	return position.IsZero() && size.IsZero();
 }
 
 bool Rect::Overlaps(const V2_float& point) const {
@@ -119,10 +111,10 @@ bool Rect::Overlaps(const Circle& circle) const {
 	return circle.Overlaps(*this);
 }
 
-bool Rect::Overlaps(const Rect& o_rect, float rotation, float o_rotation) const {
-	if (rotation != 0.0f || o_rotation != 0.0f) {
-		Polygon poly_a{ *this, rotation };
-		Polygon poly_b{ o_rect, o_rotation };
+bool Rect::Overlaps(const Rect& o_rect) const {
+	if (rotation != 0.0f || o_rect.rotation != 0.0f) {
+		Polygon poly_a{ *this };
+		Polygon poly_b{ o_rect };
 
 		return poly_a.Overlaps(poly_b);
 	}
@@ -153,10 +145,10 @@ bool Rect::Overlaps(const Rect& o_rect, float rotation, float o_rotation) const 
 	return true;
 }
 
-Intersection Rect::Intersects(const Rect& o_rect, float rotation, float o_rotation) const {
-	if (rotation != 0.0f || o_rotation != 0.0f) {
-		Polygon poly_a{ *this, rotation };
-		Polygon poly_b{ o_rect, o_rotation };
+Intersection Rect::Intersects(const Rect& o_rect) const {
+	if (rotation != 0.0f || o_rect.rotation != 0.0f) {
+		Polygon poly_a{ *this };
+		Polygon poly_b{ o_rect };
 
 		return poly_a.Intersects(poly_b);
 	}
@@ -197,9 +189,9 @@ Intersection Rect::Intersects(const Circle& circle) const {
 	return c;
 }
 
-Polygon::Polygon(const Rect& rect, float rotation) {
-	float c_a{ std::cos(rotation) };
-	float s_a{ std::sin(rotation) };
+Polygon::Polygon(const Rect& rect) {
+	float c_a{ std::cos(rect.rotation) };
+	float s_a{ std::sin(rect.rotation) };
 
 	const auto rotated = [c_a, s_a](const V2_float& v) {
 		return V2_float{ v.x * c_a - v.y * s_a, v.x * s_a + v.y * c_a };

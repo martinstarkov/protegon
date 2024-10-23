@@ -27,7 +27,7 @@ namespace ptgn {
 
 Button::Button(const Rect& rect, const ButtonActivateFunction& on_activate_function) :
 	on_activate_{ on_activate_function } {
-	SetRectangle(rect);
+	SetRect(rect);
 	SubscribeToMouseEvents();
 }
 
@@ -44,15 +44,15 @@ void Button::Draw() const {
 }
 
 void Button::DrawHollow(float line_width) const {
-	game.draw.Rectangle(
-		rect_.pos, rect_.size, color::Black, rect_.origin, line_width, 0.0f, { 0.5f, 0.5f }, 0.0f,
+	game.draw.Rect(
+		rect_.position, rect_.size, color::Black, rect_.origin, line_width, 0.0f, { 0.5f, 0.5f }, 0.0f,
 		render_layer_
 	);
 }
 
 void Button::DrawFilled() const {
-	game.draw.Rectangle(
-		rect_.pos, rect_.size, color::Black, rect_.origin, -1.0f, 0.0f, { 0.5f, 0.5f }, 0.0f,
+	game.draw.Rect(
+		rect_.position, rect_.size, color::Black, rect_.origin, -1.0f, 0.0f, { 0.5f, 0.5f }, 0.0f,
 		render_layer_
 	);
 }
@@ -135,20 +135,20 @@ void Button::SetOnDisable(const ButtonDisableFunction& disable_function) {
 	on_disable_ = disable_function;
 }
 
-bool Button::InsideRectangle(const V2_int& position) const {
+bool Button::InsideRect(const V2_int& position) const {
 	return rect_.Overlaps(position);
 }
 
 void Button::MouseMotionUpdate(
 	const V2_int& current, const V2_int& previous, const MouseMoveEvent& e
 ) {
-	bool is_in{ InsideRectangle(current) };
+	bool is_in{ InsideRect(current) };
 	if (is_in) {
 		OnMouseMove(e);
 	} else {
 		OnMouseMoveOutside(e);
 	}
-	if (bool was_in{ InsideRectangle(previous) }; !was_in && is_in) {
+	if (bool was_in{ InsideRect(previous) }; !was_in && is_in) {
 		OnMouseEnter(e);
 	} else if (was_in && !is_in) {
 		OnMouseLeave(e);
@@ -167,7 +167,7 @@ void Button::OnMouseEvent(MouseEvent type, const Event& event) {
 		}
 		case MouseEvent::Down: {
 			const auto& e = static_cast<const MouseDownEvent&>(event);
-			if (InsideRectangle(e.GetCurrent(render_layer_))) {
+			if (InsideRect(e.GetCurrent(render_layer_))) {
 				OnMouseDown(e);
 			} else {
 				OnMouseDownOutside(e);
@@ -176,7 +176,7 @@ void Button::OnMouseEvent(MouseEvent type, const Event& event) {
 		}
 		case MouseEvent::Up: {
 			if (const auto& e = static_cast<const MouseUpEvent&>(event);
-				InsideRectangle(e.GetCurrent(render_layer_))) {
+				InsideRect(e.GetCurrent(render_layer_))) {
 				OnMouseUp(e);
 			} else {
 				OnMouseUpOutside(e);
@@ -303,7 +303,7 @@ void Button::OnMouseUpOutside(const MouseUpEvent& e) {
 	}
 }
 
-const Rect& Button::GetRectangle() const {
+const Rect& Button::GetRect() const {
 	return rect_;
 }
 
@@ -319,7 +319,7 @@ void Button::RecheckState() {
 	);
 }
 
-void Button::SetRectangle(const Rect& new_rectangle) {
+void Button::SetRect(const Rect& new_rectangle) {
 	rect_ = new_rectangle;
 	RecheckState();
 }
@@ -490,16 +490,16 @@ void ColorButton::Draw() const {
 
 void ColorButton::DrawHollow(float line_width) const {
 	const Color& color = GetCurrentColorImpl(GetState(), 0);
-	game.draw.Rectangle(
-		rect_.pos, rect_.size, color, rect_.origin, line_width, 0.0f, { 0.5f, 0.5f }, 0.0f,
+	game.draw.Rect(
+		rect_.position, rect_.size, color, rect_.origin, line_width, 0.0f, { 0.5f, 0.5f }, 0.0f,
 		render_layer_
 	);
 }
 
 void ColorButton::DrawFilled() const {
 	const Color& color = GetCurrentColorImpl(GetState(), 0);
-	game.draw.Rectangle(
-		rect_.pos, rect_.size, color, rect_.origin, -1.0f, 0.0f, { 0.5f, 0.5f }, 0.0f, render_layer_
+	game.draw.Rect(
+		rect_.position, rect_.size, color, rect_.origin, -1.0f, 0.0f, { 0.5f, 0.5f }, 0.0f, render_layer_
 	);
 }
 
@@ -581,7 +581,7 @@ void TexturedButton::DrawImpl(std::size_t texture_array_index) const {
 	i.source.origin = rect_.origin;
 	i.tint			= tint_color_;
 	i.render_layer	= render_layer_;
-	game.draw.Texture(texture, rect_.pos, rect_.size, i);
+	game.draw.Texture(texture, rect_.position, rect_.size, i);
 }
 
 void TexturedButton::Draw() const {

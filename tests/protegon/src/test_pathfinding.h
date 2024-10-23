@@ -78,11 +78,11 @@ class AStarTest : public Test {
 				c = color::Gold;
 			}
 			Rect r{ tile * tile_size, tile_size, Origin::TopLeft };
-			game.draw.Rectangle(r.pos, r.size, c, r.origin);
+			game.draw.Rectangle(r.position, r.size, c, r.origin);
 		});
 		if (grid.Has(mouse_tile)) {
 			game.draw.Rectangle(
-				mouse_box.pos, mouse_box.size, color::Yellow, mouse_box.origin, 1.0f
+				mouse_box.position, mouse_box.size, color::Yellow, mouse_box.origin, 1.0f
 			);
 		}
 
@@ -134,7 +134,7 @@ class AStarTest : public Test {
 		} else {
 			enemy = { pos * tile_size, tile_size, Origin::TopLeft };
 		}
-		game.draw.Rectangle(enemy.pos, enemy.size, color::Purple, enemy.origin);
+		game.draw.Rectangle(enemy.position, enemy.size, color::Purple, enemy.origin);
 	}
 };
 
