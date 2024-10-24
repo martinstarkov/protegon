@@ -57,7 +57,7 @@ public:
 	// @return Final velocity of the object to prevent them from colliding with the manager objects.
 	V2_float Sweep(
 		const std::vector<ecs::Entity>& excluded_entities, const RigidBody& rigid_body,
-		const Transform& transform, const BoxCollider& box, ecs::Manager& manager,
+		const Transform& transform, BoxCollider& box, ecs::Manager& manager,
 		CollisionResponse response = CollisionResponse::Slide, bool debug_draw = false
 	);
 
@@ -65,8 +65,11 @@ private:
 	struct SweepCollision {
 		SweepCollision() = default;
 
-		SweepCollision(const DynamicCollision& c, float dist2) : c{ c }, dist2{ dist2 } {}
+		SweepCollision(const DynamicCollision& c, float dist2, ecs::Entity e) :
+			e{ e }, c{ c }, dist2{ dist2 } {}
 
+		// Collision entity.
+		ecs::Entity e;
 		DynamicCollision c;
 		float dist2{ 0.0f };
 	};

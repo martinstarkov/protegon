@@ -96,6 +96,9 @@ void Movement::Slide(RigidBody& rb) const {
 }
 
 void Movement::Update(Transform& transform, RigidBody& rb) {
+	// TODO: Split this function into smaller functions.
+	// TODO: Simplify and debug one feature at a time.
+
 	float dt{ game.physics.dt() };
 	float time{ game.time() };
 

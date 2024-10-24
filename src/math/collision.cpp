@@ -12,12 +12,12 @@
 #include "core/game.h"
 #include "ecs/ecs.h"
 #include "geometry/intersection.h"
+#include "math.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
 #include "math/math.h"
 #include "math/vector2.h"
-#include "physics/physics.h"
 #include "renderer/color.h"
 #include "renderer/origin.h"
 #include "renderer/renderer.h"
@@ -391,12 +391,12 @@ bool DynamicCollisionHandler::RectRect(
 
 V2_float DynamicCollisionHandler::Sweep(
 	const std::vector<ecs::Entity>& excluded_entities, const RigidBody& rigid_body,
-	const Transform& transform, const BoxCollider& box, ecs::Manager& manager,
-	CollisionResponse response, bool debug_draw
+	const Transform& transform, BoxCollider& box, ecs::Manager& manager, CollisionResponse response,
+	bool debug_draw
 ) {
-	PTGN_ASSERT(game.physics.dt() > 0.0f);
+	PTGN_ASSERT(game.dt() > 0.0f);
 
-	const auto velocity = rigid_body.velocity * game.physics.dt();
+	const auto velocity = rigid_body.velocity * game.dt();
 
 	if (velocity.IsZero()) {
 		// TODO: Consider adding a static intersect check here.
@@ -414,7 +414,7 @@ V2_float DynamicCollisionHandler::Sweep(
 		}
 		V2_float relative_velocity = vel;
 		if (e.Has<RigidBody>()) {
-			relative_velocity -= e.Get<RigidBody>().velocity * game.physics.dt();
+			relative_velocity -= e.Get<RigidBody>().velocity * game.dt();
 		}
 		const auto& transform2 = e.Get<Transform>();
 		Rect rect{ box.GetAbsoluteRect() };
@@ -441,7 +441,7 @@ V2_float DynamicCollisionHandler::Sweep(
 			}
 			float dist2{ 0.0f };
 			if (collision_occurred(offset, vel, e, dist2)) {
-				collisions.emplace_back(c, dist2);
+				collisions.emplace_back(c, dist2, e);
 			}
 		});
 		SortCollisions(collisions);
@@ -458,31 +458,36 @@ V2_float DynamicCollisionHandler::Sweep(
 		return rigid_body.velocity;
 	}
 
-	const auto new_velocity = GetRemainingVelocity(velocity, collisions[0].c, response);
+	const auto& earliest{ collisions.front() };
 
-	const auto new_p1 = transform.position + velocity * collisions[0].c.t;
+	const auto new_velocity = GetRemainingVelocity(velocity, earliest.c, response);
+
+	const auto new_p1 = transform.position + velocity * earliest.c.t;
 
 	if (debug_draw) {
 		game.draw.Line(transform.position, new_p1, color::Blue);
 		game.draw.Rect(new_p1, box.size, color::Purple, box.origin, 1.0f);
 	}
 
+	box.collisions.insert(earliest.e);
+
 	if (new_velocity.IsZero()) {
-		return rigid_body.velocity * collisions[0].c.t;
+		return rigid_body.velocity * earliest.c.t;
 	}
 
-	if (const auto collisions2 = get_sorted_collisions(velocity * collisions[0].c.t, new_velocity);
+	if (const auto collisions2 = get_sorted_collisions(velocity * earliest.c.t, new_velocity);
 		!collisions2.empty()) {
+		const auto& earliest2{ collisions2[0] };
 		if (debug_draw) {
-			game.draw.Line(new_p1, new_p1 + new_velocity * collisions2[0].c.t, color::Green);
+			game.draw.Line(new_p1, new_p1 + new_velocity * earliest2.c.t, color::Green);
 		}
-		return rigid_body.velocity * collisions[0].c.t +
-			   new_velocity * collisions2[0].c.t / game.physics.dt();
+		box.collisions.insert(earliest2.e);
+		return rigid_body.velocity * earliest.c.t + new_velocity * earliest2.c.t / game.dt();
 	}
 	if (debug_draw) {
 		game.draw.Line(new_p1, new_p1 + new_velocity, color::Orange);
 	}
-	return rigid_body.velocity * collisions[0].c.t + new_velocity / game.physics.dt();
+	return rigid_body.velocity * earliest.c.t + new_velocity / game.dt();
 }
 
 void DynamicCollisionHandler::SortCollisions(std::vector<SweepCollision>& collisions) {
