@@ -6,11 +6,11 @@
 #include <utility>
 #include <vector>
 
+#include "core/game.h"
 #include "core/manager.h"
 #include "event/input_handler.h"
-#include "core/game.h"
-#include "scene/scene.h"
 #include "scene/camera.h"
+#include "scene/scene.h"
 #include "utility/debug.h"
 #include "utility/utility.h"
 
@@ -107,7 +107,6 @@ void SceneManager::Update() {
 	for (auto scene_key : active_scenes_) {
 		PTGN_ASSERT(Has(scene_key));
 		auto scene = Get(scene_key);
-		scene->dt  = game.dt();
 		if (scene->actions_.empty()) {
 			scene->Update();
 		}

@@ -42,8 +42,6 @@ public:
 
 	impl::CameraManager camera;
 
-	float dt{ 0.0f };
-
 private:
 	friend class impl::SceneManager;
 
