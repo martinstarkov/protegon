@@ -18,6 +18,7 @@ class InputHandler;
 class Renderer;
 class SceneManager;
 class SceneCamera;
+class Physics;
 class CollisionHandler;
 class UserInterface;
 class TweenManager;
@@ -116,6 +117,7 @@ private:
 	std::unique_ptr<Renderer> draw_;
 	std::unique_ptr<SceneManager> scene_;
 	std::unique_ptr<SceneCamera> camera_;
+	std::unique_ptr<Physics> physics_;
 	std::unique_ptr<CollisionHandler> collision_;
 	std::unique_ptr<UserInterface> ui_;
 
@@ -143,6 +145,7 @@ public:
 	Renderer& draw;
 	SceneManager& scene;
 	SceneCamera& camera;
+	Physics& physics;
 	CollisionHandler& collision;
 	UserInterface& ui;
 

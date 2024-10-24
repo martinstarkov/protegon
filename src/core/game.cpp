@@ -13,6 +13,7 @@
 #include "event/event_handler.h"
 #include "event/input_handler.h"
 #include "math/collision.h"
+#include "physics/physics.h"
 #include "renderer/font.h"
 #include "renderer/renderer.h"
 #include "renderer/shader.h"
@@ -126,6 +127,7 @@ Game::Game() :
 	draw_{ std::make_unique<Renderer>() },
 	scene_{ std::make_unique<SceneManager>() },
 	camera_{ std::make_unique<SceneCamera>() },
+	physics_{ std::make_unique<Physics>() },
 	collision_{ std::make_unique<CollisionHandler>() },
 	ui_{ std::make_unique<UserInterface>() },
 	tween_{ std::make_unique<TweenManager>() },
@@ -142,6 +144,7 @@ Game::Game() :
 	draw{ *draw_ },
 	scene{ *scene_ },
 	camera{ *camera_ },
+	physics{ *physics_ },
 	collision{ *collision_ },
 	ui{ *ui_ },
 	tween{ *tween_ },
@@ -159,7 +162,7 @@ Game::~Game() {
 }
 
 float Game::dt() const {
-	return dt_; // 1.0f / 60.0f; // dt_;
+	return 1.0f / 60.0f; // dt_;
 }
 
 float Game::time() const {
@@ -234,6 +237,7 @@ void Game::Init() {
 	event.Init();
 	input.Init();
 	draw.Init();
+	physics.Init();
 	collision.Init();
 }
 
@@ -251,6 +255,7 @@ void Game::Shutdown() {
 	music.Reset();
 
 	collision.Shutdown();
+	physics.Shutdown();
 	draw.Shutdown();
 	input.Shutdown();
 	event.Shutdown();
