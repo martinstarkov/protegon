@@ -45,8 +45,8 @@ void Button::Draw() const {
 
 void Button::DrawHollow(float line_width) const {
 	game.draw.Rect(
-		rect_.position, rect_.size, color::Black, rect_.origin, line_width, 0.0f, { 0.5f, 0.5f }, 0.0f,
-		render_layer_
+		rect_.position, rect_.size, color::Black, rect_.origin, line_width, 0.0f, { 0.5f, 0.5f },
+		0.0f, render_layer_
 	);
 }
 
@@ -499,7 +499,8 @@ void ColorButton::DrawHollow(float line_width) const {
 void ColorButton::DrawFilled() const {
 	const Color& color = GetCurrentColorImpl(GetState(), 0);
 	game.draw.Rect(
-		rect_.position, rect_.size, color, rect_.origin, -1.0f, 0.0f, { 0.5f, 0.5f }, 0.0f, render_layer_
+		rect_.position, rect_.size, color, rect_.origin, -1.0f, 0.0f, { 0.5f, 0.5f }, 0.0f,
+		render_layer_
 	);
 }
 
