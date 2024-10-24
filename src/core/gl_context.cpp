@@ -8,12 +8,12 @@
 
 #include "SDL_error.h"
 #include "SDL_video.h"
-#include "core/window.h"
-#include "utility/file.h"
 #include "core/game.h"
-#include "utility/log.h"
+#include "core/window.h"
 #include "renderer/gl_loader.h"
 #include "utility/debug.h"
+#include "utility/file.h"
+#include "utility/log.h"
 
 namespace ptgn::impl {
 
