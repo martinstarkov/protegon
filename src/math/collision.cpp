@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -10,16 +11,19 @@
 #include "components/transform.h"
 #include "core/game.h"
 #include "ecs/ecs.h"
+#include "geometry/intersection.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
 #include "math/math.h"
 #include "math/vector2.h"
+#include "physics/physics.h"
 #include "renderer/color.h"
 #include "renderer/origin.h"
 #include "renderer/renderer.h"
 #include "utility/debug.h"
 #include "utility/log.h"
+#include "utility/utility.h"
 
 namespace ptgn::impl {
 
@@ -386,89 +390,57 @@ bool DynamicCollisionHandler::RectRect(
 }
 
 V2_float DynamicCollisionHandler::Sweep(
-	ecs::Entity entity, ecs::Manager& manager,
-	DynamicCollisionResponse response = DynamicCollisionResponse::Slide, bool debug_draw
+	const std::vector<ecs::Entity>& excluded_entities, const RigidBody& rigid_body,
+	const Transform& transform, const BoxCollider& box, ecs::Manager& manager,
+	CollisionResponse response, bool debug_draw
 ) {
-	float dt = game.dt();
+	PTGN_ASSERT(game.physics.dt() > 0.0f);
 
-	PTGN_ASSERT(dt > 0.0f);
-
-	if (!entity.Has<Transform, RigidBody>()) {
-		return {};
-	}
-
-	bool is_circle{ entity.Has<CircleCollider>() };
-	bool is_rectangle{ entity.Has<BoxCollider>() };
-
-	if (!is_circle && !is_rectangle) {
-		return {};
-	}
-
-	const auto& rigid_body = entity.Get<RigidBody>();
-
-	const auto velocity = rigid_body.velocity * dt;
+	const auto velocity = rigid_body.velocity * game.physics.dt();
 
 	if (velocity.IsZero()) {
 		// TODO: Consider adding a static intersect check here.
 		return rigid_body.velocity;
 	}
 
-	const auto& transform = entity.Get<Transform>();
-
 	DynamicCollision c;
 
 	auto targets = manager.EntitiesWith<Transform>();
 
-	auto collision_occurred = [&](const V2_float& position, const V2_float& vel, ecs::Entity e,
+	auto collision_occurred = [&](const V2_float& offset, const V2_float& vel, ecs::Entity e,
 								  float& dist2) {
 		if (!e.HasAny<BoxCollider, CircleCollider>()) {
 			return false;
 		}
 		V2_float relative_velocity = vel;
 		if (e.Has<RigidBody>()) {
-			relative_velocity -= e.Get<RigidBody>().velocity * dt;
+			relative_velocity -= e.Get<RigidBody>().velocity * game.physics.dt();
 		}
 		const auto& transform2 = e.Get<Transform>();
-		if (is_rectangle) {
-			const auto& box = entity.Get<BoxCollider>();
-			Rect rect{ position + box.offset, box.size, box.origin };
-			if (e.Has<BoxCollider>()) {
-				const auto& box2 = e.Get<BoxCollider>();
-				Rect rect2{ transform2.position + box2.offset, box2.size, box2.origin };
-				dist2 = (rect.Center() - rect2.Center()).MagnitudeSquared();
-				return RectRect(rect, relative_velocity, rect2, c);
-			} else if (e.Has<CircleCollider>()) {
-				const auto& circle2 = e.Get<CircleCollider>();
-				Circle c2{ transform2.position + circle2.offset, circle2.radius };
-				dist2 = (rect.Center() - c2.center).MagnitudeSquared();
-				return CircleRect(c2, -relative_velocity, rect, c);
-			}
-		} else if (is_circle) {
-			const auto& circle = entity.Get<CircleCollider>();
-			Circle c1{ position + circle.offset, circle.radius };
-			if (e.Has<BoxCollider>()) {
-				const auto& box2 = e.Get<BoxCollider>();
-				Rect rect2{ transform2.position + box2.offset, box2.size, box2.origin };
-				dist2 = (c1.center - rect2.Center()).MagnitudeSquared();
-				return CircleRect(c1, relative_velocity, rect2, c);
-			} else if (e.Has<CircleCollider>()) {
-				const auto& circle2 = e.Get<CircleCollider>();
-				Circle c2{ transform2.position + circle2.offset, circle2.radius };
-				dist2 = (c1.center - c2.center).MagnitudeSquared();
-				return CircleCircle(c1, -relative_velocity, c2, c);
-			}
+		Rect rect{ box.GetAbsoluteRect() };
+		rect.position += offset;
+		if (e.Has<BoxCollider>()) {
+			const auto& box2 = e.Get<BoxCollider>();
+			Rect rect2{ box2.GetAbsoluteRect() };
+			dist2 = (rect.Center() - rect2.Center()).MagnitudeSquared();
+			return RectRect(rect, relative_velocity, rect2, c);
+		} else if (e.Has<CircleCollider>()) {
+			const auto& circle2 = e.Get<CircleCollider>();
+			Circle c2{ transform2.position + circle2.offset, circle2.radius };
+			dist2 = (rect.Center() - c2.center).MagnitudeSquared();
+			return CircleRect(c2, -relative_velocity, rect, c);
 		}
 		PTGN_ERROR("Unrecognized shape for collision check");
 	};
 
-	auto get_sorted_collisions = [&](const V2_float& position, const V2_float& vel) {
+	auto get_sorted_collisions = [&](const V2_float& offset, const V2_float& vel) {
 		std::vector<SweepCollision> collisions;
 		targets.ForEach([&](ecs::Entity e) {
-			if (entity == e) {
+			if (VectorContains(excluded_entities, e)) {
 				return;
 			}
 			float dist2{ 0.0f };
-			if (collision_occurred(position, vel, e, dist2)) {
+			if (collision_occurred(offset, vel, e, dist2)) {
 				collisions.emplace_back(c, dist2);
 			}
 		});
@@ -476,7 +448,7 @@ V2_float DynamicCollisionHandler::Sweep(
 		return collisions;
 	};
 
-	const auto collisions = get_sorted_collisions(transform.position, velocity);
+	const auto collisions = get_sorted_collisions({}, velocity);
 
 	if (collisions.empty()) { // no collisions occured.
 		const auto new_p1 = transform.position + velocity;
@@ -490,31 +462,27 @@ V2_float DynamicCollisionHandler::Sweep(
 
 	const auto new_p1 = transform.position + velocity * collisions[0].c.t;
 
-	PTGN_ASSERT(entity.Has<BoxCollider>());
-
 	if (debug_draw) {
 		game.draw.Line(transform.position, new_p1, color::Blue);
-		game.draw.Rect(
-			new_p1, entity.Get<BoxCollider>().size, color::Purple, entity.Get<BoxCollider>().origin,
-			1.0f
-		);
+		game.draw.Rect(new_p1, box.size, color::Purple, box.origin, 1.0f);
 	}
 
 	if (new_velocity.IsZero()) {
 		return rigid_body.velocity * collisions[0].c.t;
 	}
 
-	if (const auto collisions2 = get_sorted_collisions(new_p1, new_velocity);
+	if (const auto collisions2 = get_sorted_collisions(velocity * collisions[0].c.t, new_velocity);
 		!collisions2.empty()) {
 		if (debug_draw) {
 			game.draw.Line(new_p1, new_p1 + new_velocity * collisions2[0].c.t, color::Green);
 		}
-		return rigid_body.velocity * collisions[0].c.t + new_velocity * collisions2[0].c.t / dt;
+		return rigid_body.velocity * collisions[0].c.t +
+			   new_velocity * collisions2[0].c.t / game.physics.dt();
 	}
 	if (debug_draw) {
 		game.draw.Line(new_p1, new_p1 + new_velocity, color::Orange);
 	}
-	return rigid_body.velocity * collisions[0].c.t + new_velocity / dt;
+	return rigid_body.velocity * collisions[0].c.t + new_velocity / game.physics.dt();
 }
 
 void DynamicCollisionHandler::SortCollisions(std::vector<SweepCollision>& collisions) {
@@ -548,20 +516,20 @@ void DynamicCollisionHandler::SortCollisions(std::vector<SweepCollision>& collis
 }
 
 V2_float DynamicCollisionHandler::GetRemainingVelocity(
-	const V2_float& velocity, const DynamicCollision& c, DynamicCollisionResponse response
+	const V2_float& velocity, const DynamicCollision& c, CollisionResponse response
 ) {
 	float remaining_time{ 1.0f - c.t };
 
 	switch (response) {
-		case DynamicCollisionResponse::Slide: {
+		case CollisionResponse::Slide: {
 			V2_float tangent{ -c.normal.Skewed() };
 			return velocity.Dot(tangent) * tangent * remaining_time;
 		}
-		case DynamicCollisionResponse::Push: {
+		case CollisionResponse::Push: {
 			return Sign(velocity.Dot(-c.normal.Skewed())) * c.normal.Swapped() * remaining_time *
 				   velocity.Magnitude();
 		}
-		case DynamicCollisionResponse::Bounce: {
+		case CollisionResponse::Bounce: {
 			V2_float new_velocity = velocity * remaining_time;
 			if (!NearlyEqual(FastAbs(c.normal.x), 0.0f)) {
 				new_velocity.x *= -1.0f;
@@ -581,40 +549,71 @@ void CollisionHandler::Shutdown() {
 }
 
 void CollisionHandler::Update(ecs::Manager& manager) {
+	PTGN_LOG("Updating box colliders");
 	auto box_colliders = manager.EntitiesWith<BoxCollider>();
 	for (auto [e1, b1] : box_colliders) {
-		auto prev_overlaps{ b1.overlaps };
-		b1.overlaps.clear();
+		Rect r1{ b1.GetAbsoluteRect() };
+		auto prev_collisions{ b1.collisions };
+		b1.collisions.clear();
+		ecs::Entity e{ b1.parent };
+		bool child{ e != ecs::Entity{} };
+		if (!child) {
+			e = e1;
+		}
+		std::vector<ecs::Entity> excluded{ e };
+		if (child && e.Has<ColliderGroup>()) {
+			excluded = ConcatenateVectors(excluded, e.Get<ColliderGroup>().GetAll());
+		}
+		bool continuous{ !b1.overlap_only && b1.continuous && e.Has<RigidBody>() &&
+						 e.Has<Transform>() };
+		if (continuous) {
+			V2_float sweep_vel = dynamic.Sweep(
+				excluded, e.Get<RigidBody>(), e.Get<Transform>(), b1, manager, b1.response
+			);
+			e.Get<RigidBody>().velocity = sweep_vel;
+			PTGN_LOG("Sweeping entity ", e.GetId(), ", final velocity: ", sweep_vel);
+		}
 		for (auto [e2, b2] : box_colliders) {
-			if (!CanCollide(e1, e2, b1, b2)) {
+			if (!CanCollide(b1, b2) || VectorContains(excluded, e2)) {
 				continue;
 			}
-			Rect r1{ b1.GetAbsoluteRect() };
 			Rect r2{ b2.GetAbsoluteRect() };
 			if (r1.Overlaps(r2)) {
-				b1.overlaps.insert(e2);
+				b1.collisions.insert(e);
+			}
+			if (!b1.overlap_only) {
+				Intersection c{ r1.Intersects(r2) };
+				if (c.Occurred()) {
+					PTGN_LOG(
+						"Entity ", e.GetId(), " intersected with entity ", e2.GetId(),
+						", normal: ", c.normal, ", depth: ", c.depth
+					);
+					PTGN_ASSERT(e.Has<Transform>());
+					e.Get<Transform>().position += c.normal * (c.depth + slop);
+				}
 			}
 		}
-		bool has_on_stop{ b1.on_overlap_stop != nullptr };
-		bool has_on_overlap{ b1.on_overlap != nullptr };
-		if (has_on_overlap || has_on_stop) {
-			for (const auto& e : prev_overlaps) {
-				PTGN_ASSERT(e1 != e);
-				if (b1.overlaps.count(e) == 0) {
+		bool has_on_stop{ b1.on_collision_stop != nullptr };
+		bool has_on_collision{ b1.on_collision != nullptr };
+		if (has_on_collision || has_on_stop) {
+			for (const auto& e_prev : prev_collisions) {
+				PTGN_ASSERT(e != e_prev);
+				if (b1.collisions.count(e_prev) == 0) {
 					if (has_on_stop) {
-						std::invoke(b1.on_overlap_stop, e1, e);
+						std::invoke(b1.on_collision_stop, e, e_prev);
 					}
-				} else if (has_on_overlap) {
-					std::invoke(b1.on_overlap, e1, e);
+				} else if (has_on_collision) {
+					std::invoke(b1.on_collision, e, e_prev);
 				}
 			}
 		}
-		if (b1.on_overlap_start != nullptr) {
-			for (const auto& e : b1.overlaps) {
-				PTGN_ASSERT(e1 != e);
-				if (prev_overlaps.count(e) == 0) {
-					std::invoke(b1.on_overlap_start, e1, e);
-				}
+		if (b1.on_collision_start == nullptr) {
+			continue;
+		}
+		for (const auto& e_prev : b1.collisions) {
+			PTGN_ASSERT(e != e_prev);
+			if (prev_collisions.count(e_prev) == 0) {
+				std::invoke(b1.on_collision_start, e, e_prev);
 			}
 		}
 	}

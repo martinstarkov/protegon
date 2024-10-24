@@ -3,6 +3,8 @@
 #include <vector>
 
 #include "components/collider.h"
+#include "components/rigid_body.h"
+#include "components/transform.h"
 #include "ecs/ecs.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/line.h"
@@ -14,12 +16,6 @@ namespace ptgn {
 struct DynamicCollision {
 	float t{ 1.0f }; // time of impact.
 	V2_float normal; // normal of impact (normalised).
-};
-
-enum class DynamicCollisionResponse {
-	Slide,
-	Bounce,
-	Push
 };
 
 namespace impl {
@@ -56,10 +52,13 @@ public:
 	// Velocity is taken relative to a, b is seen as static.
 	static bool RectRect(const Rect& a, const V2_float& vel, const Rect& b, DynamicCollision& c);
 
+	// @return Updates the velocity of the object to prevent them from colliding with the other
+	// objects in the manager.
 	// @return Final velocity of the object to prevent them from colliding with the manager objects.
-	static V2_float Sweep(
-		ecs::Entity entity, ecs::Manager& manager, DynamicCollisionResponse response,
-		bool debug_draw = false
+	V2_float Sweep(
+		const std::vector<ecs::Entity>& excluded_entities, const RigidBody& rigid_body,
+		const Transform& transform, const BoxCollider& box, ecs::Manager& manager,
+		CollisionResponse response = CollisionResponse::Slide, bool debug_draw = false
 	);
 
 private:
@@ -72,10 +71,14 @@ private:
 		float dist2{ 0.0f };
 	};
 
+	[[nodiscard]] static DynamicCollision GetEarliestCollision(
+		ecs::Entity e, const Rect& rect1, const V2_float& vel1, ecs::Manager& manager
+	);
+
 	static void SortCollisions(std::vector<SweepCollision>& collisions);
 
 	[[nodiscard]] static V2_float GetRemainingVelocity(
-		const V2_float& velocity, const DynamicCollision& c, DynamicCollisionResponse response
+		const V2_float& velocity, const DynamicCollision& c, CollisionResponse response
 	);
 };
 
@@ -99,26 +102,26 @@ public:
 	void Update(ecs::Manager& manager);
 
 private:
-	[[nodiscard]] static bool CanCollide(
-		ecs::Entity e1, ecs::Entity e2, const BoxCollider& b1, const BoxCollider& b2
-	) {
+	[[nodiscard]] static bool CanCollide(const BoxCollider& b1, const BoxCollider& b2) {
 		if (!b1.enabled) {
 			return false;
 		}
 		if (!b2.enabled) {
 			return false;
 		}
-		if (e1 == e2) {
+		if (b1.parent == b2.parent) {
 			return false;
 		}
-		if (!e1.IsAlive()) {
+		if (!b1.parent.IsAlive()) {
 			return false;
 		}
-		if (!e2.IsAlive()) {
+		if (!b2.parent.IsAlive()) {
 			return false;
 		}
 		return (b1.mask & b2.category) == b1.mask && (b2.mask & b1.category) == b2.mask;
 	}
+
+	constexpr static float slop{ 0.005f };
 };
 
 } // namespace impl

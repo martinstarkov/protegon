@@ -3,17 +3,16 @@
 #include <cstdint>
 #include <functional>
 #include <string>
-#include <string_view>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
-#include "components/transform.h"
 #include "ecs/ecs.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/origin.h"
 #include "utility/debug.h"
-#include "utility/log.h"
+#include "utility/utility.h"
 
 namespace ptgn {
 
@@ -21,25 +20,37 @@ using CollisionCategory = std::int64_t;
 using CollisionMask		= std::int64_t;
 using CollisionCallback = std::function<void(ecs::Entity, ecs::Entity)>;
 
+enum class CollisionResponse {
+	Slide,
+	Bounce,
+	Push
+};
+
 struct Collider {
 	ecs::Entity parent;
 	V2_float offset;
 	Rect bounds;
 	CollisionMask mask{ 0 };
 	CollisionCategory category{ 0 };
-	std::unordered_set<ecs::Entity> overlaps;
-	CollisionCallback on_overlap_start;
-	CollisionCallback on_overlap;
-	CollisionCallback on_overlap_stop;
+	std::unordered_set<ecs::Entity> collisions;
+	// Must return true for collisions to be checked.
+	std::function<bool(ecs::Entity, ecs::Entity)> before_collision;
+	CollisionCallback on_collision_start;
+	CollisionCallback on_collision;
+	CollisionCallback on_collision_stop;
 	bool enabled{ true };
-	bool sweep{ false };
+	bool overlap_only{ false };
+	// Continuous collision detection for high velocity colliders.
+	bool continuous{ false };
+	// How the velocity of the sweep should respond to obstacles.
+	CollisionResponse response{ CollisionResponse::Slide };
 };
 
 struct BoxCollider : public Collider {
-	BoxCollider() = default;
+	BoxCollider() = delete;
 
 	BoxCollider(
-		ecs::Entity parent, const V2_float& size, Origin origin = Origin::Center,
+		ecs::Entity parent, const V2_float& size = {}, Origin origin = Origin::Center,
 		float rotation = 0.0f
 	) :
 		size{ size }, origin{ origin }, rotation{ rotation } {
@@ -93,17 +104,22 @@ struct ColliderGroup {
 	ecs::Entity AddBox(
 		const Name& name, const V2_float& position, float rotation, const V2_float& size,
 		Origin origin = Origin::Center, bool enabled = true,
-		const CollisionCallback& on_overlap_start = nullptr,
-		const CollisionCallback& on_overlap		  = nullptr,
-		const CollisionCallback& on_overlap_stop  = nullptr
+		const CollisionCallback& on_collision_start							  = nullptr,
+		const CollisionCallback& on_collision								  = nullptr,
+		const CollisionCallback& on_collision_stop							  = nullptr,
+		const std::function<bool(ecs::Entity, ecs::Entity)>& before_collision = nullptr,
+		bool overlap_only = false, bool continuous = false
 	) {
-		auto entity			 = group.CreateEntity();
-		auto& box			 = entity.Add<BoxCollider>(parent, size, origin, rotation);
-		box.offset			 = position;
-		box.enabled			 = enabled;
-		box.on_overlap_start = on_overlap_start;
-		box.on_overlap		 = on_overlap;
-		box.on_overlap_stop	 = on_overlap_stop;
+		auto entity			   = group.CreateEntity();
+		auto& box			   = entity.Add<BoxCollider>(parent, size, origin, rotation);
+		box.offset			   = position;
+		box.enabled			   = enabled;
+		box.on_collision_start = on_collision_start;
+		box.on_collision	   = on_collision;
+		box.on_collision_stop  = on_collision_stop;
+		box.before_collision   = before_collision;
+		box.overlap_only	   = overlap_only;
+		box.continuous		   = continuous;
 		names.emplace(name, entity);
 		group.Refresh();
 		return entity;
@@ -113,6 +129,11 @@ struct ColliderGroup {
 		auto e = Get(name);
 		PTGN_ASSERT(e.Has<BoxCollider>());
 		return e.Get<BoxCollider>();
+	}
+
+	// @return All child colliders (parent not included).
+	std::vector<ecs::Entity> GetAll() const {
+		return GetValues(names);
 	}
 
 	ecs::Entity Get(const Name& name) const {
