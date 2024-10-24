@@ -71,9 +71,7 @@ float ScaleToScreen(float size, std::size_t render_layer) {
 namespace impl {
 
 Camera::~Camera() {
-	if (game.event.window.IsSubscribed(this)) {
-		game.event.window.Unsubscribe(this);
-	}
+	game.event.window.Unsubscribe(this);
 }
 
 void Camera::Reset() {
@@ -193,9 +191,7 @@ void OrthographicCamera::UnsubscribeFromWindowResize() const {
 		return;
 	}
 
-	if (game.event.window.IsSubscribed(&Get())) {
-		game.event.window.Unsubscribe(&Get());
-	}
+	game.event.window.Unsubscribe(&Get());
 }
 
 const M4_float& OrthographicCamera::GetView() {
@@ -540,9 +536,7 @@ void SceneCamera::SetPrimaryImpl(const InternalKey& key, std::size_t render_laye
 	game.scene.GetTopActive().camera.SetPrimary(key, render_layer);
 }
 
-void SceneCamera::SetPrimary(
-	const OrthographicCamera& camera, std::size_t render_layer
-) {
+void SceneCamera::SetPrimary(const OrthographicCamera& camera, std::size_t render_layer) {
 	game.scene.GetTopActive().camera.SetPrimary(camera, render_layer);
 }
 

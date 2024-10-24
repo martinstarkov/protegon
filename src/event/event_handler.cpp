@@ -2,10 +2,6 @@
 
 namespace ptgn::impl {
 
-void EventHandler::UnsubscribeAll() {
-	Reset();
-}
-
 void EventHandler::Reset() {
 	key.Reset();
 	mouse.Reset();

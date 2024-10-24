@@ -27,7 +27,7 @@ private:
 public:
 	// General event observation where type is passed to callback.
 	template <typename S>
-	void Subscribe(const S* ptr, GeneralEventCallback&& func) {
+	void Subscribe(const S* ptr, const GeneralEventCallback& func) {
 		PTGN_ASSERT(ptr != nullptr);
 		auto key{ GetKey(ptr) };
 		general_observers_[key] = func;
@@ -35,16 +35,17 @@ public:
 
 	// Specific event observation.
 	template <typename TEvent, typename S>
-	void Subscribe(T type, const S* ptr, TEventCallback<TEvent>&& func) {
+	void Subscribe(T type, const S* ptr, const TEventCallback<TEvent>& func) {
 		PTGN_ASSERT(ptr != nullptr);
 		auto key{ GetKey(ptr) };
 		using TEventType = std::decay_t<TEvent>;
 		static_assert(std::is_base_of_v<Event, TEventType>, "Events must inherit from Event class");
 		auto it = observers_.find(key);
-		std::pair<T, EventCallback> entry{ type, [func](const Event& event) {
-											  const auto& e = static_cast<const TEventType&>(event);
-											  func(e);
-										  } };
+		std::pair<T, EventCallback> entry{ type, std::function([func](const Event& event) {
+											   const auto& e =
+												   static_cast<const TEventType&>(event);
+											   func(e);
+										   }) };
 		if (it == observers_.end()) {
 			observers_[key] = EventCallbacks{ entry };
 		} else {
@@ -54,22 +55,22 @@ public:
 
 	template <typename S>
 	void Unsubscribe(const S* ptr) {
-		PTGN_ASSERT(ptr != nullptr);
-		auto key{ GetKey(ptr) };
-		observers_.erase(key);
-		general_observers_.erase(key);
+		if (ptr == nullptr) {
+			return;
+		}
+		Unsubscribe(GetKey(ptr));
 	}
 
 	template <typename TEvent>
-	void Post(T type, TEvent&& event) const {
+	void Post(T type, const TEvent& event) const {
 		// This ensures that if a posted function modified observers, it does
 		// not invalidate the iterators.
 		auto observers		   = observers_;
 		auto general_observers = general_observers_;
-		for (auto&& [key, callback] : general_observers) {
+		for (const auto& [key, callback] : general_observers) {
 			std::invoke(callback, type, event);
 		}
-		for (auto&& [key, callbacks] : observers) {
+		for (const auto& [key, callbacks] : observers) {
 			auto it = callbacks.find(type);
 			if (it == std::end(callbacks)) {
 				continue;
@@ -91,16 +92,35 @@ public:
 	}
 
 	void Reset() {
-		// TODO: Fix this function sometimes crashing. I think it has something to do with the
-		// capturing lambdas stored inside the observer maps.
-		general_observers_.clear();
-		observers_.clear();
+		// Cannot use map.clear() because the destructors of observer objects may themselves call
+		// unsubscribe which causes a deallocation exception to be thrown.
+		for (; observers_.size() > 0;) {
+			auto it = observers_.begin();
+			// Unsubscribe can invalidate the iterator if the callback function stores a shared ptr
+			// the destructor of which calls Unsubscribe().
+			Unsubscribe(it->first);
+		}
+		for (; general_observers_.size() > 0;) {
+			auto it = general_observers_.begin();
+			Unsubscribe(it->first);
+		}
+		PTGN_ASSERT(observers_.size() == 0);
+		PTGN_ASSERT(general_observers_.size() == 0);
 	}
 
 private:
 	template <typename S>
 	[[nodiscard]] static Key GetKey(const S* ptr) {
 		return std::hash<const void*>()(ptr);
+	}
+
+	void Unsubscribe(std::size_t key) {
+		if (auto it = observers_.find(key); it != observers_.end()) {
+			observers_.erase(it);
+		}
+		if (auto it = general_observers_.find(key); it != general_observers_.end()) {
+			general_observers_.erase(it);
+		}
 	}
 
 	// void* are used as general object keys, it does not own memory.
@@ -133,8 +153,6 @@ public:
 		mouse.Unsubscribe(ptr);
 		window.Unsubscribe(ptr);
 	}
-
-	void UnsubscribeAll();
 
 	void Reset();
 
