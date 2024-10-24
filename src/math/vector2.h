@@ -147,6 +147,22 @@ struct Vector2 {
 		return { rng_x(), rng_y() };
 	}
 
+	[[nodiscard]] static Vector2 Right() {
+		return { T{ 1 }, T{ 0 } };
+	}
+
+	[[nodiscard]] static Vector2 Left() {
+		return { T{ -1 }, T{ 0 } };
+	}
+
+	[[nodiscard]] static Vector2 Up() {
+		return { T{ 0 }, T{ 1 } };
+	}
+
+	[[nodiscard]] static Vector2 Down() {
+		return { T{ 0 }, T{ -1 } };
+	}
+
 	// @return Random unit vector in a heading within the given range of angles (radians).
 	[[nodiscard]] static Vector2 RandomHeading(
 		T min_angle_radians = T{ 0 }, T max_angle_radians = T{ two_pi<T> }
