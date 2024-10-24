@@ -68,7 +68,7 @@ struct TestCameraSwitching : public Test {
 	}
 
 	void Draw() override {
-		game.draw.Rectangle(center, ws * 0.5f, color::DarkGreen);
+		game.draw.Rect(center, ws * 0.5f, color::DarkGreen);
 	}
 };
 
@@ -169,7 +169,7 @@ struct TestCameraBounds : public TestCameraControls {
 		TestCameraControls::Draw();
 		const auto& camera{ game.camera.GetPrimary() };
 		const auto& bounds{ camera.GetBounds() };
-		game.draw.Rectangle(bounds.position, bounds.size, color::Red, bounds.origin, bound_width);
+		game.draw.Rect(bounds.position, bounds.size, color::Red, bounds.origin, bound_width);
 	}
 };
 
@@ -326,8 +326,10 @@ struct TestCameraShake : public Test {
 
 	void Draw() override {
 		game.draw.Texture(texture, { 0, 0 }, texture.GetSize());
-		DrawRectangle(player, player.Get<Transform>(), V2_float{ 30.0f, 30.0f });
-		game.draw.Rectangle({ 0, 0 }, { 50.0f, 50.0f }, color::Orange, Origin::TopLeft);
+		DrawRect(
+			player, { player.Get<Transform>().position, V2_float{ 30.0f, 30.0f }, Origin::Center }
+		);
+		game.draw.Rect({ 0, 0 }, { 50.0f, 50.0f }, color::Orange, Origin::TopLeft);
 	}
 };
 

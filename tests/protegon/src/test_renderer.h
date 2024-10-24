@@ -107,10 +107,10 @@ struct TestViewportExtentsAndOrigin : public Test {
 	}
 
 	void Draw() override {
-		game.draw.Rectangle(top_left, s, color::Blue, Origin::TopLeft);
-		game.draw.Rectangle(top_right, s, color::Magenta, Origin::TopRight);
-		game.draw.Rectangle(bottom_right, s, color::Red, Origin::BottomRight);
-		game.draw.Rectangle(bottom_left, s, color::Orange, Origin::BottomLeft);
+		game.draw.Rect(top_left, s, color::Blue, Origin::TopLeft);
+		game.draw.Rect(top_right, s, color::Magenta, Origin::TopRight);
+		game.draw.Rect(bottom_right, s, color::Red, Origin::BottomRight);
+		game.draw.Rect(bottom_left, s, color::Orange, Origin::BottomLeft);
 	}
 };
 
@@ -259,25 +259,25 @@ struct TestRectangle : public DrawTest {
 
 	void Draw() override {
 		if (NearlyEqual(rounding_radius, 0.0f)) {
-			game.draw.Rectangle(p0, s, color::Blue, Origin::Center, line_width, rotation, cr);
-			game.draw.Rectangle(p1, s, color::Red, Origin::Center, line_width, rotation, cr);
-			game.draw.Rectangle(p2, s, color::Red, Origin::Center, line_width, rotation, cr);
-			game.draw.Rectangle(p3, s, color::Red, Origin::Center, line_width, rotation, cr);
-			game.draw.Rectangle(p4, s, color::Red, Origin::Center, line_width, rotation, cr);
+			game.draw.Rect(p0, s, color::Blue, Origin::Center, line_width, rotation, cr);
+			game.draw.Rect(p1, s, color::Red, Origin::Center, line_width, rotation, cr);
+			game.draw.Rect(p2, s, color::Red, Origin::Center, line_width, rotation, cr);
+			game.draw.Rect(p3, s, color::Red, Origin::Center, line_width, rotation, cr);
+			game.draw.Rect(p4, s, color::Red, Origin::Center, line_width, rotation, cr);
 		} else {
-			game.draw.RoundedRectangle(
+			game.draw.RoundedRect(
 				p0, s, rounding_radius, color::Blue, Origin::Center, line_width, rotation, cr
 			);
-			game.draw.RoundedRectangle(
+			game.draw.RoundedRect(
 				p1, s, rounding_radius, color::Red, Origin::Center, line_width, rotation, cr
 			);
-			game.draw.RoundedRectangle(
+			game.draw.RoundedRect(
 				p2, s, rounding_radius, color::Red, Origin::Center, line_width, rotation, cr
 			);
-			game.draw.RoundedRectangle(
+			game.draw.RoundedRect(
 				p3, s, rounding_radius, color::Red, Origin::Center, line_width, rotation, cr
 			);
-			game.draw.RoundedRectangle(
+			game.draw.RoundedRect(
 				p4, s, rounding_radius, color::Red, Origin::Center, line_width, rotation, cr
 			);
 		}
@@ -518,10 +518,10 @@ struct TestTransparency : public Test {
 	}
 
 	void Draw() override {
-		game.draw.Rectangle(p1, s, Color{ 255, 0, 0, 128 });
-		game.draw.Rectangle(p2, s, Color{ 0, 0, 255, 128 });
-		game.draw.Rectangle(p3, s, Color{ 0, 255, 255, 128 });
-		game.draw.Rectangle(p4, s, Color{ 255, 255, 0, 128 });
+		game.draw.Rect(p1, s, Color{ 255, 0, 0, 128 });
+		game.draw.Rect(p2, s, Color{ 0, 0, 255, 128 });
+		game.draw.Rect(p3, s, Color{ 0, 255, 255, 128 });
+		game.draw.Rect(p4, s, Color{ 255, 255, 0, 128 });
 	}
 };
 
@@ -688,7 +688,7 @@ struct TestBatch : public Test {
 				);
 				break;
 			case TestBatchType::Rectangle:
-				game.draw.Rectangle(
+				game.draw.Rect(
 					{ rng_x(), rng_y() }, { rectangle_size_rng(), rectangle_size_rng() },
 					Color::RandomTransparent()
 				);

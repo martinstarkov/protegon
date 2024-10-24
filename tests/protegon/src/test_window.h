@@ -139,9 +139,9 @@ class WindowSettingTest : public Test {
 	};
 
 	void Draw() final {
-		game.draw.Rectangle({}, game.window.GetSize(), { 0, 0, 255, 10 }, Origin::TopLeft);
-		game.draw.Rectangle({}, og_window_size, { 255, 0, 0, 40 }, Origin::TopLeft);
-		game.draw.Rectangle({}, og_window_size, { 0, 255, 0, 40 }, Origin::TopLeft, 10.0f);
+		game.draw.Rect({}, game.window.GetSize(), { 0, 0, 255, 10 }, Origin::TopLeft);
+		game.draw.Rect({}, og_window_size, { 255, 0, 0, 40 }, Origin::TopLeft);
+		game.draw.Rect({}, og_window_size, { 0, 255, 0, 40 }, Origin::TopLeft, 10.0f);
 
 		Color color_0 = color::Green;
 		Color color_1 = color::Blue;
@@ -167,7 +167,7 @@ class WindowSettingTest : public Test {
 		window_size_text.SetContent("Window Size: " + ToString(game.window.GetSize()));
 
 		UpdateOptions(
-			window_mode, "Window Mode (Q/W): ",
+			window_mode, "Window Mode (Q/W/Z/X): ",
 			{ { WindowSetting::Windowed, "Windowed" }, { WindowSetting::Fullscreen, "Fullscreen" } }
 		);
 		UpdateOptions(
@@ -191,10 +191,10 @@ class WindowSettingTest : public Test {
 			offset += t.GetSize();
 		}
 
-		game.draw.Rectangle(
+		game.draw.Rect(
 			rect_0.position, rect_0.size, color_0, rect_0.origin, -1.0f, 0.0f, {}, 0.0f, 0
 		);
-		game.draw.Rectangle(
+		game.draw.Rect(
 			rect_1.position, rect_1.size, color_1, rect_1.origin, -1.0f, 0.0f, {}, 0.0f, 1
 		);
 

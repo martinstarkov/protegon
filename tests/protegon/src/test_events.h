@@ -13,7 +13,7 @@
 
 struct TestGameEvents : public Test {
 	void Shutdown() override {
-		game.event.UnsubscribeAll();
+		game.event.UnsubscribeAll(&game.event);
 		game.window.SetSetting(WindowSetting::FixedSize);
 	}
 

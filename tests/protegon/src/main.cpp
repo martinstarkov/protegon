@@ -49,12 +49,12 @@ public:
 		TestCollisions();
 		TestCamera();
 		TestRNG();
-		TestWindow();
 		TestRenderer();
 		TestAnimations();
 		TestPathfinding();
 		TestTween();
 		TestText();
+		TestWindow();
 		TestEvents();
 
 		PTGN_INFO("Initialized test scene");

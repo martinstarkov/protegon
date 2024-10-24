@@ -177,7 +177,7 @@ struct TestNoise : public Test {
 	void Draw() override {
 		const auto& cam = game.camera.GetPrimary();
 
-		auto rect = cam.GetRectangle();
+		auto rect = cam.GetRect();
 
 		V2_int min{ rect.Min() / pixel_size - V2_int{ 1 } };
 		V2_int max{ rect.Max() / pixel_size + V2_int{ 1 } };
@@ -232,17 +232,17 @@ struct TestNoise : public Test {
 						255.0f * static_cast<float>(range) * opacity_range
 					);
 
-					game.draw.Rectangle(p * pixel_size, pixel_size, color, Origin::TopLeft);
+					game.draw.Rect(p * pixel_size, pixel_size, color, Origin::TopLeft);
 				} else {
 					Color color	  = color::Black;
 					float opacity = noise_value * 255.0f;
 					color.a		  = static_cast<std::uint8_t>(opacity);
-					game.draw.Rectangle(p * pixel_size, pixel_size, color, Origin::TopLeft);
+					game.draw.Rect(p * pixel_size, pixel_size, color, Origin::TopLeft);
 				}
 			}
 		}
 
-		game.draw.Rectangle({}, { 30.0f, 30.0f }, color::Red, Origin::TopLeft);
+		game.draw.Rect({}, { 30.0f, 30.0f }, color::Red, Origin::TopLeft);
 	}
 };
 
