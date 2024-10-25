@@ -56,8 +56,8 @@ public:
 	// objects in the manager.
 	// @return Final velocity of the object to prevent them from colliding with the manager objects.
 	V2_float Sweep(
-		const std::vector<ecs::Entity>& excluded_entities, const RigidBody& rigid_body,
-		const Transform& transform, BoxCollider& box, ecs::Manager& manager,
+		ecs::Entity entity, const RigidBody& rigid_body, const Transform& transform,
+		BoxCollider& box, ecs::Manager& manager,
 		CollisionResponse response = CollisionResponse::Slide, bool debug_draw = false
 	);
 
@@ -73,10 +73,6 @@ private:
 		DynamicCollision c;
 		float dist2{ 0.0f };
 	};
-
-	[[nodiscard]] static DynamicCollision GetEarliestCollision(
-		ecs::Entity e, const Rect& rect1, const V2_float& vel1, ecs::Manager& manager
-	);
 
 	static void SortCollisions(std::vector<SweepCollision>& collisions);
 
