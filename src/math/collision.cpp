@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <type_traits>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -421,11 +422,17 @@ V2_float DynamicCollisionHandler::Sweep(
 		rect.position += offset;
 		if (e.Has<BoxCollider>()) {
 			const auto& box2 = e.Get<BoxCollider>();
+			if (!box.CanCollideWith(box2)) {
+				return false;
+			}
 			Rect rect2{ box2.GetAbsoluteRect() };
 			dist2 = (rect.Center() - rect2.Center()).MagnitudeSquared();
 			return RectRect(rect, relative_velocity, rect2, c);
 		} else if (e.Has<CircleCollider>()) {
 			const auto& circle2 = e.Get<CircleCollider>();
+			if (!box.CanCollideWith(circle2)) {
+				return false;
+			}
 			Circle c2{ transform2.position + circle2.offset, circle2.radius };
 			dist2 = (rect.Center() - c2.center).MagnitudeSquared();
 			return CircleRect(c2, -relative_velocity, rect, c);
@@ -458,36 +465,49 @@ V2_float DynamicCollisionHandler::Sweep(
 		return rigid_body.velocity;
 	}
 
-	const auto& earliest{ collisions.front() };
+	const auto& earliest{ collisions.front().c };
 
-	const auto new_velocity = GetRemainingVelocity(velocity, earliest.c, response);
+	const auto new_velocity = GetRemainingVelocity(velocity, earliest, response);
 
-	const auto new_p1 = transform.position + velocity * earliest.c.t;
+	const auto new_p1 = transform.position + velocity * earliest.t;
 
 	if (debug_draw) {
 		game.draw.Line(transform.position, new_p1, color::Blue);
 		game.draw.Rect(new_p1, box.size, color::Purple, box.origin, 1.0f);
 	}
 
-	box.collisions.insert(earliest.e);
+	const auto add_earliest_collisions = [](const std::vector<SweepCollision>& sweep_collisions,
+											std::unordered_set<ecs::Entity>& entities) {
+		PTGN_ASSERT(sweep_collisions.size() > 0);
+		const auto& first_collision{ sweep_collisions.front() };
+		entities.insert(first_collision.e);
+		for (std::size_t i = 1; i < sweep_collisions.size(); ++i) {
+			const auto& collision{ sweep_collisions[i] };
+			if (collision.c.t == first_collision.c.t) {
+				entities.insert(collision.e);
+			}
+		}
+	};
+
+	add_earliest_collisions(collisions, box.collisions);
 
 	if (new_velocity.IsZero()) {
-		return rigid_body.velocity * earliest.c.t;
+		return rigid_body.velocity * earliest.t;
 	}
 
-	if (const auto collisions2 = get_sorted_collisions(velocity * earliest.c.t, new_velocity);
+	if (const auto collisions2 = get_sorted_collisions(velocity * earliest.t, new_velocity);
 		!collisions2.empty()) {
-		const auto& earliest2{ collisions2[0] };
+		const auto& earliest2{ collisions2.front().c };
 		if (debug_draw) {
-			game.draw.Line(new_p1, new_p1 + new_velocity * earliest2.c.t, color::Green);
+			game.draw.Line(new_p1, new_p1 + new_velocity * earliest2.t, color::Green);
 		}
-		box.collisions.insert(earliest2.e);
-		return rigid_body.velocity * earliest.c.t + new_velocity * earliest2.c.t / game.dt();
+		add_earliest_collisions(collisions2, box.collisions);
+		return rigid_body.velocity * earliest.t + new_velocity * earliest2.t / game.dt();
 	}
 	if (debug_draw) {
 		game.draw.Line(new_p1, new_p1 + new_velocity, color::Orange);
 	}
-	return rigid_body.velocity * earliest.c.t + new_velocity / game.dt();
+	return rigid_body.velocity * earliest.t + new_velocity / game.dt();
 }
 
 void DynamicCollisionHandler::SortCollisions(std::vector<SweepCollision>& collisions) {
@@ -554,7 +574,6 @@ void CollisionHandler::Shutdown() {
 }
 
 void CollisionHandler::Update(ecs::Manager& manager) {
-	PTGN_LOG("Updating box colliders");
 	auto box_colliders = manager.EntitiesWith<BoxCollider>();
 	for (auto [e1, b1] : box_colliders) {
 		Rect r1{ b1.GetAbsoluteRect() };
@@ -569,30 +588,25 @@ void CollisionHandler::Update(ecs::Manager& manager) {
 		if (child && e.Has<ColliderGroup>()) {
 			excluded = ConcatenateVectors(excluded, e.Get<ColliderGroup>().GetAll());
 		}
-		bool continuous{ !b1.overlap_only && b1.continuous && e.Has<RigidBody>() &&
-						 e.Has<Transform>() };
-		if (continuous) {
+		if (b1.continuous && !b1.overlap_only && e.Has<RigidBody>() && e.Has<Transform>()) {
 			V2_float sweep_vel = dynamic.Sweep(
 				excluded, e.Get<RigidBody>(), e.Get<Transform>(), b1, manager, b1.response
 			);
 			e.Get<RigidBody>().velocity = sweep_vel;
-			PTGN_LOG("Sweeping entity ", e.GetId(), ", final velocity: ", sweep_vel);
 		}
 		for (auto [e2, b2] : box_colliders) {
-			if (!CanCollide(b1, b2) || VectorContains(excluded, e2)) {
+			if (!b1.CanCollideWith(b2) || VectorContains(excluded, e2)) {
 				continue;
 			}
 			Rect r2{ b2.GetAbsoluteRect() };
 			if (r1.Overlaps(r2)) {
 				b1.collisions.insert(e);
 			}
-			if (!b1.overlap_only) {
+			// TODO: Check that this immovable is reasonable. Are there situations where we want an
+			// intersection collision without a rigid body?
+			if (!b1.overlap_only && e.Has<RigidBody>() && !e.Get<RigidBody>().immovable) {
 				Intersection c{ r1.Intersects(r2) };
 				if (c.Occurred()) {
-					PTGN_LOG(
-						"Entity ", e.GetId(), " intersected with entity ", e2.GetId(),
-						", normal: ", c.normal, ", depth: ", c.depth
-					);
 					PTGN_ASSERT(e.Has<Transform>());
 					e.Get<Transform>().position += c.normal * (c.depth + slop);
 				}

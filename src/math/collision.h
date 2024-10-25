@@ -105,25 +105,6 @@ public:
 	void Update(ecs::Manager& manager);
 
 private:
-	[[nodiscard]] static bool CanCollide(const BoxCollider& b1, const BoxCollider& b2) {
-		if (!b1.enabled) {
-			return false;
-		}
-		if (!b2.enabled) {
-			return false;
-		}
-		if (b1.parent == b2.parent) {
-			return false;
-		}
-		if (!b1.parent.IsAlive()) {
-			return false;
-		}
-		if (!b2.parent.IsAlive()) {
-			return false;
-		}
-		return (b1.mask & b2.category) == b1.mask && (b2.mask & b1.category) == b2.mask;
-	}
-
 	constexpr static float slop{ 0.005f };
 };
 

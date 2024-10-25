@@ -5,6 +5,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <variant>
 #include <vector>
 
 #include "ecs/ecs.h"
@@ -16,9 +17,9 @@
 
 namespace ptgn {
 
-using CollisionCategory = std::int64_t;
-using CollisionMask		= std::int64_t;
-using CollisionCallback = std::function<void(ecs::Entity, ecs::Entity)>;
+using CollisionCategory		 = std::int64_t;
+using CollidesWithCategories = std::vector<CollisionCategory>;
+using CollisionCallback		 = std::function<void(ecs::Entity, ecs::Entity)>;
 
 enum class CollisionResponse {
 	Slide,
@@ -30,8 +31,6 @@ struct Collider {
 	ecs::Entity parent;
 	V2_float offset;
 	Rect bounds;
-	CollisionMask mask{ 0 };
-	CollisionCategory category{ 0 };
 	std::unordered_set<ecs::Entity> collisions;
 	// Must return true for collisions to be checked.
 	std::function<bool(ecs::Entity, ecs::Entity)> before_collision;
@@ -39,11 +38,78 @@ struct Collider {
 	CollisionCallback on_collision;
 	CollisionCallback on_collision_stop;
 	bool enabled{ true };
+	// Overwrites continuous/regular collision in favor of overlap checks.
 	bool overlap_only{ false };
 	// Continuous collision detection for high velocity colliders.
 	bool continuous{ false };
 	// How the velocity of the sweep should respond to obstacles.
+	// Not applicable if continuous is set to false.
 	CollisionResponse response{ CollisionResponse::Slide };
+
+	[[nodiscard]] CollisionCategory GetCollisionCategory() const {
+		return category_;
+	}
+
+	void SetCollisionCategory(const CollisionCategory& category) {
+		category_ = category;
+	}
+
+	void ResetCollisionCategory() {
+		category_ = 0;
+	}
+
+	// Allow collider to collide with anything.
+	void ResetCollidesWith() {
+		mask_ = {};
+	}
+
+	[[nodiscard]] bool CanCollideWith(const Collider& c) const {
+		if (!enabled) {
+			return false;
+		}
+		if (!c.enabled) {
+			return false;
+		}
+		if (parent == c.parent) {
+			return false;
+		}
+		if (!parent.IsAlive()) {
+			return false;
+		}
+		if (!c.parent.IsAlive()) {
+			return false;
+		}
+		return CanCollideWith(c.GetCollisionCategory());
+	}
+
+	[[nodiscard]] bool CanCollideWith(const CollisionCategory& category) const {
+		return mask_.empty() || mask_.count(category) > 0;
+	}
+
+	[[nodiscard]] bool IsCategory(const CollisionCategory& category) const {
+		return category_ == category;
+	}
+
+	void AddCollidesWith(const CollisionCategory& category) {
+		mask_.insert(category);
+	}
+
+	void RemoveCollidesWith(const CollisionCategory& category) {
+		mask_.erase(category);
+	}
+
+	void SetCollidesWith(const CollidesWithCategories& categories) {
+		mask_.reserve(mask_.size() + categories.size());
+		for (const auto& category : categories) {
+			AddCollidesWith(category);
+		}
+	}
+
+private:
+	// Which categories this collider collides with.
+	std::unordered_set<CollisionCategory> mask_;
+	// Which category this collider is a part of.
+	CollisionCategory category_{ 0 };
 };
 
 struct BoxCollider : public Collider {
@@ -103,17 +169,20 @@ struct ColliderGroup {
 	// @param enabled Enable/disable collider by default.
 	ecs::Entity AddBox(
 		const Name& name, const V2_float& position, float rotation, const V2_float& size,
-		Origin origin = Origin::Center, bool enabled = true,
+		Origin origin = Origin::Center, bool enabled = true, CollisionCategory category = 0,
+		const CollidesWithCategories& categories							  = {},
 		const CollisionCallback& on_collision_start							  = nullptr,
 		const CollisionCallback& on_collision								  = nullptr,
 		const CollisionCallback& on_collision_stop							  = nullptr,
 		const std::function<bool(ecs::Entity, ecs::Entity)>& before_collision = nullptr,
 		bool overlap_only = false, bool continuous = false
 	) {
-		auto entity			   = group.CreateEntity();
-		auto& box			   = entity.Add<BoxCollider>(parent, size, origin, rotation);
-		box.offset			   = position;
-		box.enabled			   = enabled;
+		auto entity = group.CreateEntity();
+		auto& box	= entity.Add<BoxCollider>(parent, size, origin, rotation);
+		box.offset	= position;
+		box.enabled = enabled;
+		box.SetCollisionCategory(category);
+		box.SetCollidesWith(categories);
 		box.on_collision_start = on_collision_start;
 		box.on_collision	   = on_collision;
 		box.on_collision_stop  = on_collision_stop;

@@ -11,6 +11,7 @@ struct RigidBody {
 	float drag{ 0.0f };
 	// Gravity relative to game.physics.GetGravity().
 	float gravity{ 1.0f };
+	bool immovable{ false };
 
 	// vel += accel * dt
 	void AddAcceleration(const V2_float& acceleration);
