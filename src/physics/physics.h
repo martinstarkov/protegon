@@ -27,7 +27,7 @@ private:
 		/* Add stuff here in the future? */
 	}
 
-	V2_float gravity_{ 0.0f, 30.0f };
+	V2_float gravity_{ 0.0f, 30.0f * 60.0f };
 };
 
 } // namespace impl

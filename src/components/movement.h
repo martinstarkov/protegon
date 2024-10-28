@@ -1,12 +1,19 @@
 #pragma once
 
+#include <cmath>
+#include <utility>
+
+#include "algorithm"
 #include "components/rigid_body.h"
 #include "components/transform.h"
 #include "core/game.h"
 #include "event/input_handler.h"
+#include "event/key.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "physics/physics.h"
+#include "utility/time.h"
+#include "utility/timer.h"
 
 namespace ptgn {
 
@@ -124,8 +131,118 @@ struct PlatformerMovement {
 };
 
 struct PlatformerJump {
+public:
+	Key jump_key{ Key::W };
+	milliseconds jump_buffer_time{ 250 };
+	milliseconds coyote_time{ 150 };
+
+private:
+	Timer jump_buffer_;
+	Timer coyote_timer_;
+
+	float gravMultiplier{ 0.0f };
+	float defaultGravityScale{ 1.0f };
+	float upwardMovementMultiplier{ 1.0f };
+	float downwardMovementMultiplier{ 1.0f };
+	bool variablejumpHeight{ true };
+	float jumpCutOff{ 1.0f };
+	float speedLimit{ 60.0f * 600.0f };
+	float jumpHeight{ 360.0f };
+	float timeToJumpApex{ 5.0f };
+	bool jumping = false;
+
+public:
+	void Jump(RigidBody& rb) {
+		jumping = true;
+
+		jump_buffer_.Stop();
+		coyote_timer_.Stop();
+
+		// If we have double jump on, allow us to jump again (but only once)
+		// canJumpAgain = (maxAirJumps == 1 && canJumpAgain == false);
+
+		// Determine the power of the jump, based on our gravity and stats
+		float jumpSpeed = std::sqrt(2.0f * game.physics.GetGravity().y * rb.gravity * jumpHeight);
+
+		// If Kit is moving up or down when she jumps (such as when doing a double jump), change
+		// the jumpSpeed; This will ensure the jump is the exact same strength, no matter your
+		// velocity.
+		if (rb.velocity.y < 0.0f) {
+			jumpSpeed = std::max(jumpSpeed - rb.velocity.y, 0.0f);
+		} else if (rb.velocity.y > 0.0f) {
+			jumpSpeed += FastAbs(rb.velocity.y);
+		}
+
+		// Apply the new jumpSpeed to the velocity. It will be sent to the Rigidbody in
+		// FixedUpdate;
+		rb.velocity.y -= jumpSpeed;
+
+		// if (juice != null) {
+		//	// Apply the jumping effects on the juice script
+		//	juice.jumpEffects();
+		// }
+	}
+
+	void Update(RigidBody& rb, bool onGround) {
+		bool pressed_jump = game.input.KeyDown(jump_key);
+
+		if (onGround) {
+			coyote_timer_.Start();
+			jumping = false;
+		}
+
+		if (pressed_jump && !onGround) {
+			// Player desires to jump but currently cant.
+			jump_buffer_.Start();
+		}
+
+		bool jump_buffered = jump_buffer_.IsRunning() && !jump_buffer_.Completed(jump_buffer_time);
+		bool in_coyote	   = coyote_timer_.IsRunning() && !coyote_timer_.Completed(coyote_time);
+
+		// Situations where pressing jump triggers a jump:
+		// 1. On ground.
+		// 2. During coyote time.
+		// 3. During jump buffer time.
+		if (pressed_jump && onGround || onGround && jump_buffered ||
+			pressed_jump && in_coyote && !onGround) {
+			Jump(rb);
+		}
+
+		if (game.input.KeyPressed(Key::G)) {
+			rb.velocity.y -= 5000.0f * game.physics.dt();
+		}
+	}
+
+	void CalculateGravity(RigidBody& rb, bool onGround) {
+		if (onGround || rb.velocity.y > -0.01f && rb.velocity.y < 0.01f) {
+			gravMultiplier = defaultGravityScale;
+		} else if (rb.velocity.y < -0.01f) {
+			if (!variablejumpHeight ||
+				variablejumpHeight && game.input.KeyPressed(jump_key) && jumping) {
+				gravMultiplier = upwardMovementMultiplier;
+			} else if (variablejumpHeight) {
+				gravMultiplier = jumpCutOff;
+			}
+		} else if (rb.velocity.y > 0.01f) {
+			gravMultiplier = downwardMovementMultiplier;
+		}
+
+		// Set the character's Rigidbody's velocity
+		// But clamp the Y variable within the bounds of the speed limit, for the terminal velocity
+		// assist option
+		rb.velocity.y = std::clamp(rb.velocity.y, -speedLimit, speedLimit);
+		// Determine the character's gravity scale, using the stats provided. Multiply it by a
+		// gravMultiplier, used later
+		rb.gravity =
+			((2 * jumpHeight) / (timeToJumpApex * timeToJumpApex) / game.physics.GetGravity().y) *
+			gravMultiplier;
+	}
+};
+
+/*
+struct PlatformerJump {
 	// Maximum jump height
-	float jumpHeight{ 7.3f };
+	float jumpHeight{ 7.3f * 60.0f };
 
 	// If you're using your stats from Platformer Toolkit with this character controller, please
 	// note that the number on the Jump Duration handle does not match this stat It is re-scaled,
@@ -134,7 +251,7 @@ struct PlatformerJump {
 
 	// How long it takes to reach that height before
 	// coming back down
-	float timeToJumpApex{ 1.0f };
+	float timeToJumpApex{ 0.7f };
 	// Gravity multiplier to apply when going up
 	float upwardMovementMultiplier{ 1.0f };
 	// Gravity multiplier to apply when coming down
@@ -148,7 +265,7 @@ struct PlatformerJump {
 	// Gravity multiplier when you let go of jump
 	float jumpCutOff{ 2.0f };
 	// The fastest speed the character can fall
-	float speedLimit{ 30.0f };
+	float speedLimit{ 30.0f * 60.0f };
 	// How long should coyote time last?
 	float coyoteTime{ 0.15f };
 	// How far from ground should we cache your jump?
@@ -157,7 +274,7 @@ struct PlatformerJump {
 	// Internal
 	float jumpSpeed{ 0.0f };
 	float defaultGravityScale{ 1.0f };
-	float gravMultiplier{ 0.0f };
+	float gravMultiplier{ 1.0f };
 
 	// State
 	bool canJumpAgain{ false };
@@ -169,9 +286,17 @@ struct PlatformerJump {
 
 	void Update(RigidBody& rb, bool onGround) {
 		// Keep trying to do a jump, for as long as desiredJump is true
-		if (game.input.KeyDown(Key::SPACE)) {
+		if (game.input.KeyPressed(Key::SPACE) || game.input.KeyPressed(Key::W)) {
+			desiredJump	 = true;
+			pressingJump = true;
+		} else {
+			pressingJump = false;
+		}
+
+		if (desiredJump) {
 			DoAJump(rb, onGround);
 
+			// TODO: Consider:
 			// Skip gravity calculations this frame, so currentlyJumping doesn't turn off
 			// This makes sure you can't do the coyote time double jump bug
 			return;
@@ -181,9 +306,9 @@ struct PlatformerJump {
 
 		setPhysics(rb);
 
-		float dt = game.physics.dt();
-
 		// Jump buffer allows us to queue up a jump, which will play when we next hit the ground
+
+		float dt = game.physics.dt();
 		if (jumpBuffer > 0) {
 			// Instead of immediately turning off "desireJump", start counting up...
 			// All the while, the DoAJump function will repeatedly be fired off
@@ -211,7 +336,7 @@ struct PlatformerJump {
 	void setPhysics(RigidBody& rb) {
 		// Determine the character's gravity scale, using the stats provided. Multiply it by a
 		// gravMultiplier, used later
-		float new_gravity_y = (2 * jumpHeight) / (timeToJumpApex * timeToJumpApex);
+		float new_gravity_y = (2.0f * jumpHeight) / (timeToJumpApex * timeToJumpApex);
 		rb.gravity			= (new_gravity_y / game.physics.GetGravity().y) * gravMultiplier;
 	}
 
@@ -264,14 +389,15 @@ struct PlatformerJump {
 		// Set the character's Rigidbody's velocity
 		// But clamp the Y variable within the bounds of the speed limit, for the terminal velocity
 		// assist option
-		rb.velocity.y = std::clamp(rb.velocity.y, -speedLimit, 100.0f);
+		// rb.velocity.y = std::clamp(rb.velocity.y, -speedLimit, 100.0f * 60.0f);
 	}
 
 	void DoAJump(RigidBody& rb, bool onGround) {
 		// Create the jump, provided we are on the ground, in coyote time, or have a double jump
 		// available
-		if (onGround || (coyoteTimeCounter > 0.03f && coyoteTimeCounter < coyoteTime) ||
-			canJumpAgain) {
+		if (onGround ||
+			canJumpAgain (coyoteTimeCounter > 0.03f && coyoteTimeCounter < coyoteTime) ||
+		) {
 			desiredJump		  = false;
 			jumpBufferCounter = 0;
 			coyoteTimeCounter = 0;
@@ -280,25 +406,27 @@ struct PlatformerJump {
 			canJumpAgain = (maxAirJumps == 1 && canJumpAgain == false);
 
 			// Determine the power of the jump, based on our gravity and stats
-			jumpSpeed = std::sqrt(-2.0f * game.physics.GetGravity().y * rb.gravity * jumpHeight);
+			jumpSpeed = std::sqrt(2.0f * game.physics.GetGravity().y * rb.gravity * jumpHeight);
 
 			// If Kit is moving up or down when she jumps (such as when doing a double jump), change
 			// the jumpSpeed; This will ensure the jump is the exact same strength, no matter your
 			// velocity.
 			if (rb.velocity.y > 0.0f) {
-				jumpSpeed = std::max(jumpSpeed - rb.velocity.y, 0.0f);
-			} else if (rb.velocity.y < 0.0f) {
 				jumpSpeed += FastAbs(rb.velocity.y);
+			} else if (rb.velocity.y < 0.0f) {
+				jumpSpeed = std::max(jumpSpeed - rb.velocity.y, 0.0f);
 			}
 
 			// Apply the new jumpSpeed to the velocity. It will be sent to the Rigidbody in
 			// FixedUpdate;
-			rb.velocity.y	 += jumpSpeed; // TODO: Consider adding dt multiplier here.
+			rb.velocity.y	 += -jumpSpeed; // TODO: Consider adding dt multiplier here.
 			currentlyJumping  = true;
 
 			// TODO: Apply the jumping effects on the juice script
 			// juice.jumpEffects();
 		}
+		// TODO: Remove in favor of jump buffering.
+		// desiredJump = false;
 
 		if (jumpBuffer == 0) {
 			// If we don't have a jump buffer, then turn off desiredJump immediately after hitting
@@ -312,5 +440,6 @@ struct PlatformerJump {
 		rb.AddImpulse(V2_float::Up() * bounceAmount);
 	}
 };
+*/
 
 } // namespace ptgn

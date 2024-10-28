@@ -6,11 +6,11 @@ namespace ptgn {
 
 struct RigidBody {
 	V2_float velocity;
-	// -1.0f means no enforcement of maximum velocity.
+	// -1 means no enforcement of maximum velocity.
 	float max_velocity{ -1.0f };
 	float drag{ 0.0f };
 	// Gravity relative to game.physics.GetGravity().
-	float gravity{ 1.0f };
+	float gravity{ 0.0f };
 	bool immovable{ false };
 
 	// vel += accel * dt
