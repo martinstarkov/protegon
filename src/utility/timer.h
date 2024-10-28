@@ -38,10 +38,14 @@ public:
 		return ElapsedPercentage(compared_to) >= 1.0f;
 	}
 
+	// @return Elapsed percentage of compared_to time duration. Returns 1.0f if compared_to is 0.
 	template <
 		typename Duration = milliseconds, typename T = float, tt::duration<Duration> = true,
 		std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
 	[[nodiscard]] T ElapsedPercentage(Duration compared_to) const {
+		if (compared_to == Duration{ 0 }) {
+			return 1.0f;
+		}
 		duration<T, typename Duration::period> elapsed_time{
 			Elapsed<duration<T, typename Duration::period>>() / compared_to
 		};
