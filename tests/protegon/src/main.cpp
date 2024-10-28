@@ -11,6 +11,7 @@
 #include "test_camera.h"
 #include "test_collision.h"
 #include "test_events.h"
+#include "test_lighting.h"
 #include "test_math.h"
 #include "test_matrix4.h"
 #include "test_pathfinding.h"
@@ -46,6 +47,7 @@ public:
 
 		// Visual tests.
 
+		TestLighting();
 		TestCollisions();
 		TestCamera();
 		TestRNG();
