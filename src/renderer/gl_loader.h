@@ -68,6 +68,11 @@ typedef void(GL_APIENTRYP PFNGLVERTEXATTRIBIPOINTERPROC)(
 	GLE(EnableVertexAttribArray, ENABLEVERTEXATTRIBARRAY)   \
 	GLE(FramebufferTexture2D, FRAMEBUFFERTEXTURE2D)         \
 	GLE(GenBuffers, GENBUFFERS)                             \
+	GLE(GenRenderbuffers, GENRENDERBUFFERS)                 \
+	GLE(DeleteRenderbuffers, DELETERENDERBUFFERS)           \
+	GLE(FramebufferRenderbuffer, FRAMEBUFFERRENDERBUFFER)   \
+	GLE(RenderbufferStorage, RENDERBUFFERSTORAGE)           \
+	GLE(BindRenderbuffer, BINDRENDERBUFFER)                 \
 	GLE(GenFramebuffers, GENFRAMEBUFFERS)                   \
 	GLE(GetAttribLocation, GETATTRIBLOCATION)               \
 	GLE(GetShaderInfoLog, GETSHADERINFOLOG)                 \
