@@ -1,5 +1,6 @@
 #include "math/geometry/polygon.h"
 
+#include <array>
 #include <cmath>
 #include <limits>
 #include <string>
@@ -16,6 +17,7 @@
 #include "renderer/color.h"
 #include "renderer/origin.h"
 #include "renderer/renderer.h"
+#include "renderer/vertices.h"
 #include "utility/debug.h"
 
 namespace ptgn {
@@ -40,6 +42,10 @@ V2_float Rect::Max() const {
 // @return Top left position of rectangle.
 V2_float Rect::Min() const {
 	return Center() - Half();
+}
+
+std::array<V2_float, 4> Rect::GetVertices() const {
+	return impl::GetQuadVertices(position, size, origin, rotation, { 0.5f, 0.5f });
 }
 
 bool Rect::IsZero() const {

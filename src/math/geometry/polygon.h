@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <vector>
 
 #include "math/geometry/axis.h"
@@ -37,6 +38,8 @@ struct Rect {
 
 	// @return Top left position of the unrotated rectangle.
 	[[nodiscard]] V2_float Min() const;
+
+	[[nodiscard]] std::array<V2_float, 4> GetVertices() const;
 
 	[[nodiscard]] bool IsZero() const;
 
