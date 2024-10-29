@@ -11,9 +11,9 @@
 #include <vector>
 
 #include "core/game.h"
-#include "utility/log.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
+#include "utility/log.h"
 #include "utility/time.h"
 
 namespace ptgn {
@@ -61,7 +61,7 @@ float TweenInstance::GetProgress() const {
 }
 
 const TweenPoint& TweenInstance::GetCurrentTweenPoint() const {
-	PTGN_ASSERT(tweens_points_.size() > 0);
+	PTGN_ASSERT(!tweens_points_.empty());
 	PTGN_ASSERT(index_ <= tweens_points_.size());
 	if (index_ == tweens_points_.size()) {
 		return tweens_points_.back();
@@ -75,7 +75,7 @@ TweenPoint& TweenInstance::GetCurrentTweenPoint() {
 
 TweenPoint& TweenInstance::GetLastTweenPoint() {
 	PTGN_ASSERT(
-		tweens_points_.size() > 0, "TweenInstance must be given duration before setting properties"
+		!tweens_points_.empty(), "TweenInstance must be given duration before setting properties"
 	);
 	return tweens_points_.back();
 }
