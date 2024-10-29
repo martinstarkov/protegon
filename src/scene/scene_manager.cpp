@@ -85,6 +85,7 @@ std::vector<std::shared_ptr<Scene>> SceneManager::GetActive() {
 }
 
 Scene& SceneManager::GetTopActive() {
+	PTGN_ASSERT(!active_scenes_.empty());
 	auto scene_key = active_scenes_.back();
 	PTGN_ASSERT(Has(scene_key));
 	auto scene = Get(scene_key);
