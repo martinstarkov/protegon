@@ -477,7 +477,7 @@ V2_float DynamicCollisionHandler::Sweep(
 	const auto add_earliest_collisions = [](ecs::Entity e,
 											const std::vector<SweepCollision>& sweep_collisions,
 											std::unordered_set<Collision>& entities) {
-		PTGN_ASSERT(sweep_collisions.size() > 0);
+		PTGN_ASSERT(!sweep_collisions.empty());
 		const auto& first_collision{ sweep_collisions.front() };
 		PTGN_ASSERT(e != first_collision.e, "Self collision not possible");
 		entities.emplace(e, first_collision.e, first_collision.c.normal);

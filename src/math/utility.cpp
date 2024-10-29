@@ -77,7 +77,7 @@ std::vector<Axis> GetAxes(const Polygon& polygon, bool intersection_info) {
 }
 
 std::pair<float, float> GetProjectionMinMax(const Polygon& polygon, const Axis& axis) {
-	PTGN_ASSERT(polygon.vertices.size() > 0);
+	PTGN_ASSERT(!polygon.vertices.empty());
 	PTGN_ASSERT(
 		std::invoke([&]() {
 			float mag2{ axis.direction.MagnitudeSquared() };

@@ -18,7 +18,7 @@ namespace impl {
 		ptgn::impl::GLContext::ClearErrors();                         \
 		x;                                                            \
 		auto errors = ptgn::impl::GLContext::GetErrors();             \
-		if (errors.size() > 0) {                                      \
+		if (!errors.empty()) {                                        \
 			ptgn::impl::GLContext::PrintErrors(                       \
 				fn, std::filesystem::path(__FILE__), __LINE__, errors \
 			);                                                        \
@@ -30,7 +30,7 @@ namespace impl {
 		ptgn::impl::GLContext::ClearErrors();                         \
 		auto value	= x;                                              \
 		auto errors = ptgn::impl::GLContext::GetErrors();             \
-		if (errors.size() > 0) {                                      \
+		if (!errors.empty()) {                                        \
 			ptgn::impl::GLContext::PrintErrors(                       \
 				fn, std::filesystem::path(__FILE__), __LINE__, errors \
 			);                                                        \

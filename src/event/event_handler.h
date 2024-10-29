@@ -94,18 +94,18 @@ public:
 	void Reset() {
 		// Cannot use map.clear() because the destructors of observer objects may themselves call
 		// unsubscribe which causes a deallocation exception to be thrown.
-		for (; observers_.size() > 0;) {
+		for (; !observers_.empty();) {
 			auto it = observers_.begin();
 			// Unsubscribe can invalidate the iterator if the callback function stores a shared ptr
 			// the destructor of which calls Unsubscribe().
 			Unsubscribe(it->first);
 		}
-		for (; general_observers_.size() > 0;) {
+		for (; !general_observers_.empty();) {
 			auto it = general_observers_.begin();
 			Unsubscribe(it->first);
 		}
-		PTGN_ASSERT(observers_.size() == 0);
-		PTGN_ASSERT(general_observers_.size() == 0);
+		PTGN_ASSERT(observers_.empty());
+		PTGN_ASSERT(general_observers_.empty());
 	}
 
 private:
