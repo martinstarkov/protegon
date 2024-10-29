@@ -2,16 +2,16 @@
 
 #include <cstdint>
 
-#include "renderer/color.h"
 #include "core/game.h"
-#include "utility/log.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
-#include "renderer/vertex_array.h"
+#include "renderer/color.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
+#include "renderer/vertex_array.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
+#include "utility/log.h"
 
 namespace ptgn {
 
@@ -117,7 +117,7 @@ std::int32_t GLRenderer::GetMaxTextureSlots() {
 	return max_texture_slots;
 }
 
-void GLRenderer::SetClearColor(const Color& color) {
+void GLRenderer::ClearColor(const Color& color) {
 	auto c = color.Normalized();
 	GLCall(gl::glClearColor(c[0], c[1], c[2], c[3]));
 }

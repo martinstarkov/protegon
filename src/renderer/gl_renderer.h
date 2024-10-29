@@ -2,8 +2,8 @@
 
 #include <cstdint>
 
-#include "renderer/color.h"
 #include "math/vector2.h"
+#include "renderer/color.h"
 #include "renderer/vertex_array.h"
 
 #ifdef __EMSCRIPTEN__
@@ -40,7 +40,7 @@ public:
 	static void DisableDepthTesting();
 	static void SetViewport(const V2_int& position, const V2_int& size);
 	static void Clear();
-	static void SetClearColor(const Color& color);
+	static void ClearColor(const Color& color);
 	static void DrawElements(const VertexArray& va, std::size_t index_count);
 	static void DrawArrays(const VertexArray& va, std::size_t vertex_count);
 	static std::int32_t GetMaxTextureSlots();
