@@ -80,48 +80,26 @@ void BatchData<TVertices, IndexCount>::Clear() {
 }
 
 template <typename TVertices, std::size_t IndexCount>
-void BatchData<TVertices, IndexCount>::SetupBuffer(
-	PrimitiveMode type, const InternalBufferLayout& layout, std::size_t vertex_count,
-	const IndexBuffer& index_buffer
-) {
+void BatchData<TVertices, IndexCount>::SetupBuffer(const IndexBuffer& index_buffer) {
 	if (!array_.IsValid()) {
 		data_.reserve(batch_capacity);
-		array_ = {
-			type,
-			VertexBuffer(
-				data_.data(),
-				static_cast<std::uint32_t>(batch_capacity * layout.GetStride() * vertex_count),
-				BufferUsage::DynamicDraw
-			),
-			layout, index_buffer
-		};
+		array_ = { TVertices::mode, VertexBuffer(data_, BufferUsage::DynamicDraw, true),
+				   TVertices::layout, index_buffer };
 	}
 }
 
 template <typename TVertices, std::size_t IndexCount>
 void BatchData<TVertices, IndexCount>::PrepareBuffer(const RendererData& renderer) {
 	if constexpr (std::is_same_v<TVertices, QuadVertices>) {
-		SetupBuffer(
-			PrimitiveMode::Triangles, renderer.quad_layout, QuadVertices::count, renderer.quad_ib_
-		);
+		SetupBuffer(renderer.quad_ib_);
 	} else if constexpr (std::is_same_v<TVertices, CircleVertices>) {
-		SetupBuffer(
-			PrimitiveMode::Triangles, renderer.circle_layout, CircleVertices::count,
-			renderer.quad_ib_
-		);
+		SetupBuffer(renderer.quad_ib_);
 	} else if constexpr (std::is_same_v<TVertices, TriangleVertices>) {
-		SetupBuffer(
-			PrimitiveMode::Triangles, renderer.color_layout, TriangleVertices::count,
-			renderer.triangle_ib_
-		);
+		SetupBuffer(renderer.triangle_ib_);
 	} else if constexpr (std::is_same_v<TVertices, LineVertices>) {
-		SetupBuffer(
-			PrimitiveMode::Lines, renderer.color_layout, LineVertices::count, renderer.line_ib_
-		);
+		SetupBuffer(renderer.line_ib_);
 	} else if constexpr (std::is_same_v<TVertices, PointVertices>) {
-		SetupBuffer(
-			PrimitiveMode::Points, renderer.color_layout, PointVertices::count, renderer.point_ib_
-		);
+		SetupBuffer(renderer.point_ib_);
 	} else {
 		PTGN_ERROR("Failed to recognize batch buffer type");
 	}
@@ -258,52 +236,13 @@ void RendererData::Init() {
 }
 
 void RendererData::SetupShaders() {
-	PTGN_ASSERT(max_texture_slots_ > 0, "Max texture slots must be set before setting up shaders");
+	quad_shader_   = game.shader.Get(PresetShader::Quad);
+	circle_shader_ = game.shader.Get(PresetShader::Circle);
+	color_shader_  = game.shader.Get(PresetShader::Color);
 
-	PTGN_INFO("Renderer Texture Slots: ", max_texture_slots_);
-	// This strange way of including files allows for them to be packed into the library binary.
-	ShaderSource quad_frag;
-
-	if (max_texture_slots_ == 8) {
-		quad_frag = ShaderSource{
-#include PTGN_SHADER_PATH(quad_8.frag)
-		};
-	} else if (max_texture_slots_ == 16) {
-		quad_frag = ShaderSource{
-#include PTGN_SHADER_PATH(quad_16.frag)
-		};
-	} else if (max_texture_slots_ == 32) {
-		quad_frag = ShaderSource{
-#include PTGN_SHADER_PATH(quad_32.frag)
-		};
-	} else {
-		PTGN_ERROR("Unsupported Texture Slot Size: ", max_texture_slots_);
-	}
-
-	quad_shader_ = Shader(
-		ShaderSource{
-#include PTGN_SHADER_PATH(quad.vert)
-		},
-		quad_frag
-	);
-
-	circle_shader_ = Shader(
-		ShaderSource{
-#include PTGN_SHADER_PATH(circle.vert)
-		},
-		ShaderSource{
-#include PTGN_SHADER_PATH(circle.frag)
-		}
-	);
-
-	color_shader_ = Shader(
-		ShaderSource{
-#include PTGN_SHADER_PATH(color.vert)
-		},
-		ShaderSource{
-#include PTGN_SHADER_PATH(color.frag)
-		}
-	);
+	PTGN_ASSERT(quad_shader_.IsValid());
+	PTGN_ASSERT(circle_shader_.IsValid());
+	PTGN_ASSERT(color_shader_.IsValid());
 
 	std::vector<std::int32_t> samplers(max_texture_slots_);
 	std::iota(samplers.begin(), samplers.end(), 0);
@@ -393,13 +332,6 @@ void RendererData::FlushBatches(std::vector<Batch>& batches) {
 	std::invoke([&]() { flush_batch_group(color_shader_, BatchType::Triangle); });
 	std::invoke([&]() { flush_batch_group(color_shader_, BatchType::Line); });
 	std::invoke([&]() { flush_batch_group(color_shader_, BatchType::Point); });
-}
-
-void RendererData::Flush() {
-	white_texture_.Bind(0);
-	for (auto& [key, layer] : render_layers_) {
-		FlushLayer(layer);
-	}
 }
 
 std::array<V2_float, 4> RendererData::GetTextureCoordinates(
@@ -548,7 +480,7 @@ std::pair<Batch&, std::size_t> RendererData::GetTextureBatch(
 
 	std::vector<Batch>& batch_group, const ptgn::Texture& t
 ) {
-	PTGN_ASSERT(batch_group.size() > 0);
+	PTGN_ASSERT(!batch_group.empty());
 	PTGN_ASSERT(t.IsValid());
 	for (std::size_t i{ 0 }; i < batch_group.size(); i++) {
 		auto& batch = batch_group[i];
@@ -602,15 +534,14 @@ void RendererData::Ellipse(
 ) {
 	PTGN_ASSERT(lw >= 0.0f || lw == -1.0f, "Cannot draw negative line width");
 
-	auto vertices =
-		GetQuadVertices(p, { r.x * 2.0f, r.y * 2.0f }, Origin::Center, 0.0f, { 0.5f, 0.5f });
+	ptgn::Rect rect{ p, { r.x * 2.0f, r.y * 2.0f }, Origin::Center, 0.0f };
 
 	// Internally line width for a filled ellipse is 1.0f and a completely hollow one is 0.0f, but
 	// in the API the line width is expected in pixels.
 	// TODO: Check that dividing by std::max(radius.x, radius.y) does not cause any unexpected bugs.
 	lw = NearlyEqual(lw, -1.0f) ? 1.0f : fade + lw / std::min(r.x, r.y);
 
-	AddCircle(vertices, z, col, lw, fade, render_layer);
+	AddCircle(rect.GetVertices({ 0.5f, 0.5f }), z, col, lw, fade, render_layer);
 }
 
 void RendererData::Line(
@@ -622,10 +553,8 @@ void RendererData::Line(
 	if (lw > 1.0f) {
 		V2_float d{ p1 - p0 };
 		// TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
-		auto vertices = GetQuadVertices(
-			p0 + d * 0.5f, { d.Magnitude(), lw }, Origin::Center, d.Angle(), { 0.5f, 0.5f }
-		);
-		RendererData::Rect(vertices, col, -1.0f, z, render_layer);
+		ptgn::Rect rect{ p0 + d * 0.5f, { d.Magnitude(), lw }, Origin::Center, d.Angle() };
+		RendererData::Rect(rect.GetVertices({ 0.5f, 0.5f }), col, -1.0f, z, render_layer);
 		return;
 	}
 
@@ -694,8 +623,7 @@ void RendererData::RoundedRect(
 
 	float rot{ rotation_radians };
 
-	auto inner_vertices =
-		GetQuadVertices(p - offset, s - V2_float{ rad * 2 }, Origin::Center, rot, rc);
+	ptgn::Rect inner_rect{ p - offset, s - V2_float{ rad * 2 }, Origin::Center, rot };
 
 	bool filled{ lw == -1.0f };
 
@@ -709,6 +637,8 @@ void RendererData::RoundedRect(
 	V2_float r = V2_float(length, 0.0f).Rotated(rot + 0.0f);
 	V2_float b = V2_float(length, 0.0f).Rotated(rot + half_pi<float>);
 	V2_float l = V2_float(length, 0.0f).Rotated(rot - pi<float>);
+
+	auto inner_vertices = inner_rect.GetVertices(rc);
 
 	RendererData::Arc(
 		inner_vertices[0], rad, rot - pi<float>, rot - half_pi<float>, false, col, lw, z,

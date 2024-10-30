@@ -6,38 +6,25 @@
 #include <utility>
 #include <vector>
 
-#include "renderer/buffer.h"
 #include "math/matrix4.h"
-#include "renderer/shader.h"
-#include "renderer/texture.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
-#include "renderer/vertex_array.h"
-#include "renderer/buffer_layout.h"
+#include "renderer/buffer.h"
 #include "renderer/flip.h"
-#include "renderer/gl_helper.h"
 #include "renderer/origin.h"
+#include "renderer/shader.h"
+#include "renderer/texture.h"
+#include "renderer/vertex_array.h"
 #include "renderer/vertices.h"
-#include "utility/debug.h"
 
 // TODO: Currently z_index is not a reliable way of layering drawn objects as it only pertains to a
 // single batch type (i.e. quads and circles have their own z_indexs). This can result in unexpected
 // behavior if for example the user tries to draw a hollow and filled triangle with varying
 // z_indexes as one uses the line batch and one uses the triangle batch. Not sure how to fix this
 // while maintaining batching and permitting alpha blending (depth testing requires turning alpha
-// blending off).
+// blending off). Might be an outdated TODO?
 // TODO: If batch size is very small, z_indexes get drawn in 2 calls which completely defeats the
-// purpose of it.
-
-// clang-format off
-#define PTGN_SHADER_STRINGIFY_MACRO(x) PTGN_STRINGIFY_MACRO(x)
-
-#ifdef __EMSCRIPTEN__
-#define PTGN_SHADER_PATH(file) PTGN_SHADER_STRINGIFY_MACRO(PTGN_EXPAND_MACRO(resources/shader/es/)PTGN_EXPAND_MACRO(file))
-#else
-#define PTGN_SHADER_PATH(file) PTGN_SHADER_STRINGIFY_MACRO(PTGN_EXPAND_MACRO(resources/shader/core/)PTGN_EXPAND_MACRO(file))
-#endif
-// clang-format on
+// purpose of it. Might be an outdated TODO?
 
 namespace ptgn::impl {
 
@@ -62,10 +49,7 @@ public:
 private:
 	friend class Batch;
 
-	void SetupBuffer(
-		PrimitiveMode type, const impl::InternalBufferLayout& layout, std::size_t vertex_count,
-		const IndexBuffer& index_buffer
-	);
+	void SetupBuffer(const IndexBuffer& index_buffer);
 
 	void PrepareBuffer(const RendererData& renderer);
 
@@ -158,16 +142,6 @@ public:
 	IndexBuffer line_ib_;
 	IndexBuffer point_ib_;
 
-	impl::InternalBufferLayout quad_layout{
-		BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_>{}
-	};
-
-	impl::InternalBufferLayout circle_layout{
-		BufferLayout<glsl::vec3, glsl::vec3, glsl::vec4, glsl::float_, glsl::float_>{}
-	};
-
-	impl::InternalBufferLayout color_layout{ BufferLayout<glsl::vec3, glsl::vec4>{} };
-
 	std::uint32_t max_texture_slots_{ 0 };
 	Texture white_texture_;
 
@@ -197,9 +171,7 @@ public:
 
 	void SetupShaders();
 
-	// Flush all render layers.
-	void Flush();
-	// Flush only a specific render layer. It must exist in render_layers_.
+	// Flush a specific render layer. It must exist in render_layers_.
 	void FlushLayer(RenderLayer& layer);
 
 	[[nodiscard]] static std::array<V2_float, 4> GetTextureCoordinates(
