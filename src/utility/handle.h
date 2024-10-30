@@ -9,7 +9,10 @@ namespace ptgn {
 template <typename T>
 class Handle {
 public:
-	Handle()		  = default;
+	Handle() = default;
+
+	Handle(const std::shared_ptr<T>& copy) : instance_{ copy } {}
+
 	virtual ~Handle() = default;
 
 	bool IsValid() const {
@@ -22,6 +25,11 @@ public:
 
 	friend bool operator!=(const Handle& a, const Handle& b) {
 		return !(a == b);
+	}
+
+	std::shared_ptr<T> Copy() const {
+		PTGN_ASSERT(IsValid(), "Cannot copy invalid handle");
+		return std::make_shared<T>(*instance_);
 	}
 
 protected:
