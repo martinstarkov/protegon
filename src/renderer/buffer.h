@@ -1,7 +1,7 @@
 #pragma once
 
 #include <array>
-#include <memory>
+#include <cstdint>
 #include <vector>
 
 #include "renderer/gl_helper.h"
@@ -15,9 +15,11 @@ class VertexArray;
 namespace impl {
 
 struct BufferInstance {
-	BufferInstance();
+	BufferInstance() = default;
+	BufferInstance(std::uint32_t count);
 	~BufferInstance();
 	std::uint32_t id_{ 0 };
+	std::uint32_t count_{ 0 }; // max number of items in the buffer.
 };
 
 } // namespace impl
@@ -28,18 +30,23 @@ public:
 	Buffer()		   = default;
 	~Buffer() override = default;
 
-	Buffer(const void* data, std::uint32_t size, BufferUsage usage = BufferUsage::StaticDraw) {
-		Create();
-		SetDataImpl(data, size, usage);
+	template <typename T>
+	Buffer(const T* data, std::size_t count, BufferUsage usage = BufferUsage::StaticDraw) {
+		PTGN_ASSERT(count > 0, "Cannot create buffer with count 0");
+		Create(static_cast<std::uint32_t>(count));
+		SetDataImpl((void*)data, static_cast<std::uint32_t>(count * sizeof(T)), usage);
 	}
 
 	template <typename T>
-	Buffer(const std::vector<T>& data, BufferUsage usage = BufferUsage::StaticDraw) :
-		Buffer{ data.data(), static_cast<std::uint32_t>(data.size() * sizeof(T)), usage } {}
+	Buffer(
+		const std::vector<T>& data, BufferUsage usage = BufferUsage::StaticDraw,
+		bool use_capacity = false
+	) :
+		Buffer{ data.data(), use_capacity ? data.capacity() : data.size(), usage } {}
 
 	template <typename T, std::size_t I>
 	Buffer(const std::array<T, I>& data, BufferUsage usage = BufferUsage::StaticDraw) :
-		Buffer{ data.data(), static_cast<std::uint32_t>(data.size() * sizeof(T)), usage } {
+		Buffer{ data.data(), data.size(), usage } {
 		static_assert(I > 0, "Must provide at least one buffer element");
 	}
 
@@ -47,7 +54,7 @@ public:
 
 	template <typename T>
 	void SetSubData(const std::vector<T>& data) {
-		PTGN_ASSERT(data.size() > 0, "Must provide at least one buffer element");
+		PTGN_ASSERT(!data.empty(), "Must provide at least one buffer element");
 		SetSubData(data.data(), static_cast<std::uint32_t>(data.size() * sizeof(T)));
 	}
 
@@ -57,7 +64,9 @@ public:
 		SetSubData(data.data(), static_cast<std::uint32_t>(data.size() * sizeof(T)));
 	}
 
-private:
+	[[nodiscard]] std::uint32_t GetCount() const;
+
+protected:
 	friend class VertexArray;
 
 	[[nodiscard]] static std::int32_t GetBoundId();

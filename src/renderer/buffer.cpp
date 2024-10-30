@@ -2,16 +2,16 @@
 
 #include <cstdint>
 
-#include "renderer/vertex_array.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
+#include "renderer/vertex_array.h"
 #include "utility/debug.h"
 
 namespace ptgn {
 
 namespace impl {
 
-BufferInstance::BufferInstance() {
+BufferInstance::BufferInstance(std::uint32_t count) : count_{ count } {
 	GLCall(gl::GenBuffers(1, &id_));
 	PTGN_ASSERT(id_ != 0, "Failed to generate buffer using OpenGL context");
 }
@@ -50,6 +50,12 @@ void Buffer<BT>::SetSubData(const void* data, std::uint32_t size) {
 		"Attempting to bind data outside of allocated buffer size"
 	);
 	GLCall(gl::BufferSubData(static_cast<gl::GLenum>(BT), 0, size, data));
+}
+
+template <BufferType BT>
+std::uint32_t Buffer<BT>::GetCount() const {
+	PTGN_ASSERT(IsValid(), "Cannot get count of invalid buffer");
+	return Get().count_;
 }
 
 template <BufferType BT>
