@@ -1,12 +1,6 @@
 #define SDL_MAIN_HANDLED
 
 #include "../tests/test_ecs.h"
-#include "core/game.h"
-#include "core/window.h"
-#include "math/vector2.h"
-#include "renderer/color.h"
-#include "renderer/renderer.h"
-#include "scene/scene.h"
 #include "test_animation.h"
 #include "test_camera.h"
 #include "test_collision.h"
@@ -36,7 +30,6 @@ public:
 		game.draw.SetClearColor(color::White);
 		V2_int window_size{ 800, 800 };
 		game.window.SetSize(window_size);
-		game.draw.SetViewportSize(window_size);
 
 		// Non-visual tests.
 
@@ -47,11 +40,11 @@ public:
 
 		// Visual tests.
 
+		TestRenderer();
 		TestLighting();
 		TestCollisions();
 		TestCamera();
 		TestRNG();
-		TestRenderer();
 		TestAnimations();
 		TestPathfinding();
 		TestTween();
