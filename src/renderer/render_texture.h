@@ -34,12 +34,16 @@ public:
 	[[nodiscard]] Color GetClearColor() const;
 	void SetClearColor(const Color& clear_color);
 
+	[[nodiscard]] BlendMode GetBlendMode() const;
+	void SetBlendMode(BlendMode blend_mode);
+
 	OrthographicCamera camera;
 
 private:
 	friend class impl::Renderer;
 
 	Color clear_color_{ color::Transparent };
+	BlendMode blend_mode_{ BlendMode::Add };
 	Shader shader_;
 	VertexArray vertex_array_;
 	FrameBuffer frame_buffer_;

@@ -566,11 +566,6 @@ struct TestRenderTargets : public DrawTest {
 		render_texture6 = RenderTexture{ ScreenShader::InverseColor };
 
 		game.draw.SetClearColor(color::Transparent);
-		render_texture1.SetClearColor(color::Transparent);
-		render_texture2.SetClearColor(color::Transparent);
-		render_texture3.SetClearColor(color::Transparent);
-		render_texture4.SetClearColor(color::Transparent);
-		render_texture5.SetClearColor(color::Transparent);
 		render_texture6.SetClearColor(color::White);
 	}
 

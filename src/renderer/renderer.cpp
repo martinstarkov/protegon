@@ -88,7 +88,7 @@ void Renderer::SetTarget(const RenderTexture& target) {
 	// If old render target is a render texture, draw it onto the screen additively.
 	if (render_target_ != RenderTexture{}) {
 		auto blend_mode = blend_mode_;
-		SetBlendMode(BlendMode::Add);
+		SetBlendMode(render_target_.GetBlendMode());
 		render_target_.Draw();
 		SetBlendMode(blend_mode);
 	}
@@ -126,26 +126,37 @@ void Renderer::UpdateViewport() const {
 
 void Renderer::Clear() {
 	UpdateViewport();
-	RenderTexture target = render_target_;
 	FrameBuffer::Unbind();
 	GLRenderer::ClearColor(clear_color_);
 	GLRenderer::Clear();
-	if (target != RenderTexture{}) {
-		target.Bind();
-		GLRenderer::ClearColor(target.GetClearColor());
+	if (render_target_ != RenderTexture{}) {
+		render_target_.Bind();
+		GLRenderer::ClearColor(render_target_.GetClearColor());
 		GLRenderer::Clear();
 	}
 }
 
 void Renderer::Present() {
-	RenderTexture target = render_target_;
+	bool target{ render_target_ != RenderTexture{} };
 
-	SetTarget();
+	Flush();
+
+	// If old render target is a render texture, draw it onto the screen additively.
+	if (render_target_ != RenderTexture{}) {
+		auto blend_mode = blend_mode_;
+		SetBlendMode(render_target_.GetBlendMode());
+		render_target_.Draw();
+		SetBlendMode(blend_mode);
+	}
 
 	game.window.SwapBuffers();
 
-	if (target != RenderTexture{}) {
-		SetTarget(target);
+	if (target) {
+		render_target_.Bind();
+		GLRenderer::ClearColor(render_target_.GetClearColor());
+		GLRenderer::Clear();
+	} else {
+		FrameBuffer::Unbind();
 	}
 }
 

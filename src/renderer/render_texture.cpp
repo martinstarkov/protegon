@@ -78,4 +78,12 @@ void RenderTexture::SetClearColor(const Color& clear_color) {
 	clear_color_ = clear_color;
 }
 
+BlendMode RenderTexture::GetBlendMode() const {
+	return blend_mode_;
+}
+
+void RenderTexture::SetBlendMode(BlendMode blend_mode) {
+	blend_mode_ = blend_mode;
+}
+
 } // namespace ptgn
