@@ -3,8 +3,8 @@ precision highp float;
 
 out vec4 o_Color;
 
-in vec3 v_LocalPosition;
 in vec4 v_Color;
+in vec3 v_LocalPosition;
 in float v_Thickness;
 in float v_Fade;
 
