@@ -6,9 +6,14 @@
 #include "renderer/buffer.h"
 #include "renderer/buffer_layout.h"
 #include "renderer/gl_helper.h"
+#include "utility/debug.h"
 #include "utility/handle.h"
 
 namespace ptgn {
+
+struct Color;
+struct Rect;
+class RenderTexture;
 
 class GLRenderer;
 
@@ -37,8 +42,24 @@ public:
 	VertexArray(
 		PrimitiveMode mode, const VertexBuffer& vertex_buffer, const BufferLayout<Ts...>& layout,
 		const IndexBuffer& index_buffer
-	) :
-		VertexArray{ mode, vertex_buffer, impl::InternalBufferLayout{ layout }, index_buffer } {}
+	) {
+		Create();
+
+		SetPrimitiveMode(mode);
+
+		Bind();
+
+		SetVertexBufferImpl(vertex_buffer);
+
+		SetIndexBufferImpl(index_buffer);
+
+		SetBufferLayoutImpl(layout);
+	}
+
+	VertexArray(const Rect& rect, const Color& color);
+	explicit VertexArray(const RenderTexture& render_texture);
+
+	void Draw() const;
 
 	void SetPrimitiveMode(PrimitiveMode mode);
 	void SetVertexBuffer(const VertexBuffer& vertex_buffer);
@@ -56,7 +77,7 @@ public:
 
 		Bind();
 
-		SetLayoutImpl(layout);
+		SetBufferLayoutImpl(layout);
 	}
 
 	[[nodiscard]] bool HasVertexBuffer() const;
@@ -65,15 +86,13 @@ public:
 
 	// Note, returning by copy is okay since they are handles.
 
-	[[nodiscard]] VertexBuffer GetVertexBuffer();
-	[[nodiscard]] IndexBuffer GetIndexBuffer();
+	[[nodiscard]] VertexBuffer GetVertexBuffer() const;
+	[[nodiscard]] IndexBuffer GetIndexBuffer() const;
 
 	[[nodiscard]] PrimitiveMode GetPrimitiveMode() const;
 
-	VertexArray(
-		PrimitiveMode mode, const VertexBuffer& vertex_buffer, impl::InternalBufferLayout layout,
-		const IndexBuffer& index_buffer
-	);
+	// TODO: Move to private.
+	void Bind() const;
 
 private:
 	template <BufferType BT>
@@ -82,12 +101,33 @@ private:
 	friend class RendererData;
 
 	[[nodiscard]] static std::int32_t GetBoundId();
+	[[nodiscard]] static bool WithinMaxAttributes(std::size_t attribute_count);
 
 	void SetVertexBufferImpl(const VertexBuffer& vertex_buffer);
 	void SetIndexBufferImpl(const IndexBuffer& index_buffer);
-	void SetLayoutImpl(const impl::InternalBufferLayout& layout) const;
 
-	void Bind() const;
+	void SetBufferElement(
+		std::uint32_t index, const impl::BufferElement& element, std::int32_t stride
+	);
+
+	template <typename... Ts>
+	void SetBufferLayoutImpl(const BufferLayout<Ts...>& layout) {
+		PTGN_ASSERT(
+			!layout.IsEmpty(),
+			"Cannot add a vertex buffer with an empty (unset) layout to a vertex array"
+		);
+
+		const auto& elements = layout.GetElements();
+		PTGN_ASSERT(WithinMaxAttributes(elements.size()), "Too many vertex attributes");
+
+		auto stride{ layout.GetStride() };
+		PTGN_ASSERT(stride > 0, "Failed to calculate buffer layout stride");
+
+		for (std::uint32_t i{ 0 }; i < elements.size(); ++i) {
+			SetBufferElement(i, elements[i], stride);
+		}
+	}
+
 	static void Unbind();
 };
 
