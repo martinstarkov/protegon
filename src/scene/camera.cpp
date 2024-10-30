@@ -107,13 +107,15 @@ V3_float OrthographicCamera::GetPosition3D() const {
 	return Get().position;
 }
 
-void OrthographicCamera::SetToWindow() {
-	UnsubscribeFromWindowResize();
+void OrthographicCamera::SetToWindow(bool continuously) {
+	if (continuously) {
+		UnsubscribeFromWindowResize();
+	}
 	if (IsValid()) {
 		Get().Reset();
 	}
-	CenterOnWindow(true);
-	SetSizeToWindow(true);
+	CenterOnWindow(continuously);
+	SetSizeToWindow(continuously);
 }
 
 void OrthographicCamera::CenterOnArea(const V2_float& size) {

@@ -58,8 +58,8 @@ public:
 	OrthographicCamera()		   = default;
 	~OrthographicCamera() override = default;
 
-	// Set the camera to be centered on the window.
-	void SetToWindow();
+	// Set the camera to be the size of the window and centered on the window.
+	void SetToWindow(bool continuously = true);
 	void CenterOnArea(const V2_float& size);
 
 	// Origin at the top left.
@@ -88,8 +88,10 @@ public:
 	void SetSizeToWindow(bool continuously = false);
 	void SetSize(const V2_float& size);
 
+	// Set point which is at the center of the camera view.
 	void SetPosition(const V3_float& new_position);
 	void Translate(const V3_float& position_change);
+	// Set point which is at the center of the camera view.
 	void SetPosition(const V2_float& new_position);
 	void Translate(const V2_float& position_change);
 
@@ -184,12 +186,12 @@ private:
 // i.e. using this is class equivalent to game.scene.GetTopActive().camera
 class SceneCamera {
 public:
-	SceneCamera()											 = default;
-	~SceneCamera()											 = default;
-	SceneCamera(const SceneCamera&)			 = delete;
-	SceneCamera(SceneCamera&&)				 = default;
+	SceneCamera()							   = default;
+	~SceneCamera()							   = default;
+	SceneCamera(const SceneCamera&)			   = delete;
+	SceneCamera(SceneCamera&&)				   = default;
 	SceneCamera& operator=(const SceneCamera&) = delete;
-	SceneCamera& operator=(SceneCamera&&)		 = default;
+	SceneCamera& operator=(SceneCamera&&)	   = default;
 
 	using Item = CameraManager::Item;
 
