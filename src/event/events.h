@@ -82,6 +82,7 @@ enum class WindowEvent {
 				 occurs or resizing  is finished (window is released) */
 	Resizing, /* fires repeatedly while window is being resized */
 	Drag,	  /* fires while window is being dragged (moved around) */
+	Moved,
 	Minimized,
 	Maximized
 };
@@ -94,6 +95,11 @@ public:
 class WindowDragEvent : public Event {
 public:
 	WindowDragEvent() = default;
+};
+
+class WindowMovedEvent : public Event {
+public:
+	WindowMovedEvent() = default;
 };
 
 class WindowResizedEvent : public Event {

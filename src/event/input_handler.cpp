@@ -142,6 +142,7 @@ void InputHandler::Update() {
 					}
 					case SDL_WINDOWEVENT_MOVED: {
 						V2_int window_pos{ e.window.data1, e.window.data2 };
+						game.event.window.Post(WindowEvent::Moved, WindowMovedEvent{});
 						break;
 					}
 					default: break;
