@@ -49,7 +49,7 @@ public:
 
 private:
 	friend class Surface;
-	friend class FontManager;
+	friend class impl::FontManager;
 };
 
 [[nodiscard]] inline FontStyle operator&(FontStyle a, FontStyle b) {
