@@ -39,7 +39,10 @@ struct Rect {
 	// @return Top left position of the unrotated rectangle.
 	[[nodiscard]] V2_float Min() const;
 
-	[[nodiscard]] std::array<V2_float, 4> GetVertices() const;
+	// @param rotation_center {0, 0} is top left, { 0.5, 0.5 } is center, { 1, 1 } is bottom right.
+	[[nodiscard]] std::array<V2_float, 4> GetVertices(
+		const V2_float& rotation_center = { 0.5f, 0.5f }
+	) const;
 
 	[[nodiscard]] bool IsZero() const;
 
@@ -50,6 +53,17 @@ struct Rect {
 
 	[[nodiscard]] Intersection Intersects(const Rect& o_rect) const;
 	[[nodiscard]] Intersection Intersects(const Circle& circle) const;
+
+private:
+	static void OffsetVertices(
+		std::array<V2_float, 4>& vertices, const V2_float& size, Origin draw_origin
+	);
+
+	// Rotation angle in radians.
+	static void RotateVertices(
+		std::array<V2_float, 4>& vertices, const V2_float& position, const V2_float& size,
+		float rotation_radians, const V2_float& rotation_center
+	);
 };
 
 struct Polygon {
