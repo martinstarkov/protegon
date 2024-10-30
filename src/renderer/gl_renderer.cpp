@@ -64,6 +64,12 @@ void GLRenderer::DisableDepthWriting() {
 	GLCall(gl::glDepthMask(GL_FALSE));
 }
 
+bool GLRenderer::IsDepthTestingEnabled() {
+	gl::GLboolean enabled{ GL_FALSE };
+	GLCall(gl::glGetBooleanv(GL_DEPTH_TEST, &enabled));
+	return static_cast<bool>(enabled);
+}
+
 void GLRenderer::EnableDepthTesting() {
 #ifdef __EMSCRIPTEN__
 	GLCall(gl::glClearDepthf(1.0));

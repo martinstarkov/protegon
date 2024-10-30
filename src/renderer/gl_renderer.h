@@ -43,7 +43,8 @@ public:
 	static void ClearColor(const Color& color);
 	static void DrawElements(const VertexArray& va, std::size_t index_count);
 	static void DrawArrays(const VertexArray& va, std::size_t vertex_count);
-	static std::int32_t GetMaxTextureSlots();
+	[[nodiscard]] static std::int32_t GetMaxTextureSlots();
+	[[nodiscard]] static bool IsDepthTestingEnabled();
 };
 
 } // namespace ptgn
