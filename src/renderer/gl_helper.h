@@ -110,11 +110,14 @@ enum class BufferType {
 namespace impl {
 
 enum class GLBinding {
-	VertexArray	  = 0x85B5, // GL_VERTEX_ARRAY_BINDING
-	VertexBuffer  = 0x8894, // GL_ARRAY_BUFFER_BINDING
-	IndexBuffer	  = 0x8895, // GL_ELEMENT_ARRAY_BUFFER_BINDING
-	UniformBuffer = 0x8A28, // GL_UNIFORM_BUFFER_BINDING
-	Texture2D	  = 0x8069	// GL_TEXTURE_BINDING_2D
+	VertexArray		= 0x85B5, // GL_VERTEX_ARRAY_BINDING
+	VertexBuffer	= 0x8894, // GL_ARRAY_BUFFER_BINDING
+	IndexBuffer		= 0x8895, // GL_ELEMENT_ARRAY_BUFFER_BINDING
+	UniformBuffer	= 0x8A28, // GL_UNIFORM_BUFFER_BINDING
+	FrameBufferDraw = 0x8CA6, // GL_DRAW_FRAMEBUFFER_BINDING
+	FrameBufferRead = 0x8CAA, // GL_READ_FRAMEBUFFER_BINDING
+	RenderBuffer	= 0x8CA7, // GL_RENDERBUFFER_BINDING
+	Texture2D		= 0x8069  // GL_TEXTURE_BINDING_2D
 };
 
 template <BufferType T>
