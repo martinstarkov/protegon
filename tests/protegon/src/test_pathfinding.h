@@ -65,7 +65,7 @@ class AStarTest : public Test {
 		}
 
 		grid.ForEachCoordinate([&](const V2_int& tile) {
-			Color c = color::Grey;
+			Color c = color::Gray;
 			if (game.input.KeyPressed(Key::V) && grid.IsVisited(tile)) {
 				c = color::Cyan;
 			}

@@ -307,9 +307,9 @@ public:
 				circle2.center = position4;
 				V2_float vel{ mouse - circle2.center };
 				Circle potential{ circle2.center + vel, circle2.radius };
-				game.draw.Circle(potential.center, potential.radius, color::Grey, line_thickness);
+				game.draw.Circle(potential.center, potential.radius, color::Gray, line_thickness);
 				Line l{ circle2.center, potential.center };
-				game.draw.Line(l.a, l.b, color::Grey);
+				game.draw.Line(l.a, l.b, color::Gray);
 				bool occurred{ game.collision.dynamic.CircleRect(circle2, vel, aabb1, c) };
 				if (occurred) {
 					Circle swept{ circle2.center + vel * c.t, circle2.radius };
@@ -325,9 +325,9 @@ public:
 				circle2.center = position4;
 				V2_float vel{ mouse - circle2.center };
 				Circle potential{ circle2.center + vel, circle2.radius };
-				game.draw.Circle(potential.center, potential.radius, color::Grey, line_thickness);
+				game.draw.Circle(potential.center, potential.radius, color::Gray, line_thickness);
 				Line l{ circle2.center, potential.center };
-				game.draw.Line(l.a, l.b, color::Grey);
+				game.draw.Line(l.a, l.b, color::Gray);
 				bool occurred{ game.collision.dynamic.CircleCircle(circle2, vel, circle1, c) };
 				if (occurred) {
 					Circle swept{ circle2.center + vel * c.t, circle2.radius };
@@ -344,8 +344,8 @@ public:
 				V2_float vel{ mouse - pos };
 				Line l{ pos, pos + vel };
 				const float point_radius{ 5.0f };
-				game.draw.Circle(pos + vel, point_radius, color::Grey, line_thickness);
-				game.draw.Line(l.a, l.b, color::Grey);
+				game.draw.Circle(pos + vel, point_radius, color::Gray, line_thickness);
+				game.draw.Line(l.a, l.b, color::Gray);
 				bool occurred = game.collision.dynamic.LineRect(
 					l, { aabb1.Min(), aabb1.size, Origin::TopLeft }, c
 				);
@@ -363,11 +363,11 @@ public:
 				V2_float vel{ mouse - aabb2.position };
 				Rect potential{ aabb2.position + vel, aabb2.size, aabb2.origin };
 				game.draw.Rect(
-					potential.position, potential.size, color::Grey, potential.origin,
+					potential.position, potential.size, color::Gray, potential.origin,
 					line_thickness
 				);
 				Line l{ aabb2.Center(), potential.Center() };
-				game.draw.Line(l.a, l.b, color::Grey);
+				game.draw.Line(l.a, l.b, color::Gray);
 				bool occurred{ game.collision.dynamic.RectRect(aabb2, vel, aabb1, c) };
 				if (occurred) {
 					Rect swept{ aabb2.position + vel * c.t, aabb2.size, aabb2.origin };
@@ -487,7 +487,7 @@ struct SegmentRectOverlapTest : public Test {
 		if (l1.Overlaps(aabb)) {
 			c = color;
 		} else {
-			c = color::Grey;
+			c = color::Gray;
 		}
 		game.draw.Line(l1.a, l1.b, c);
 	}
@@ -560,7 +560,7 @@ struct SegmentRectDynamicTest : public Test {
 
 	void LineSweep(V2_float p1, V2_float p2, Color color) const {
 		Line l1{ p1, p2 };
-		game.draw.Line(l1.a, l1.b, color::Grey);
+		game.draw.Line(l1.a, l1.b, color::Gray);
 		DynamicCollision c;
 		bool occurred{ game.collision.dynamic.LineRect(l1, aabb, c) };
 		if (occurred) {
@@ -636,8 +636,8 @@ struct RectRectDynamicTest : public Test {
 
 	void RectSweep(V2_float p1, V2_float p2, Color color, bool debug_flag = false) {
 		target.position = p1;
-		game.draw.Rect(target.position, target.size, color::Grey, target.origin, 1.0f);
-		game.draw.Line(p1, p2, color::Grey);
+		game.draw.Rect(target.position, target.size, color::Gray, target.origin, 1.0f);
+		game.draw.Line(p1, p2, color::Gray);
 		DynamicCollision c;
 		V2_float vel = p2 - p1;
 		bool occurred{ game.collision.dynamic.RectRect(target, vel, aabb, c) };
@@ -651,7 +651,7 @@ struct RectRectDynamicTest : public Test {
 		} else {
 			Rect new_rect	  = target;
 			new_rect.position = p1 + vel;
-			game.draw.Rect(new_rect.position, new_rect.size, color::Grey, new_rect.origin, 1.0f);
+			game.draw.Rect(new_rect.position, new_rect.size, color::Gray, new_rect.origin, 1.0f);
 		}
 		if (debug_flag) {
 			PTGN_LOG("t: ", c.t);

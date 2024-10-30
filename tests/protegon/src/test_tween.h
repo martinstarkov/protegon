@@ -266,10 +266,10 @@ struct TestTweenTypes : public Test {
 			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Brown, V2_float{}))
 		};
 		Tween config8{
-			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Grey, V2_float{}))
+			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Gray, V2_float{}))
 		};
 		Tween config9{
-			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::LightGrey, V2_float{}))
+			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::LightGray, V2_float{}))
 		};
 		Tween config10{
 			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Yellow, V2_float{}))

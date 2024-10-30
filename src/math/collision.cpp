@@ -458,7 +458,7 @@ V2_float DynamicCollisionHandler::Sweep(
 	if (collisions.empty()) { // no collisions occured.
 		const auto new_p1 = transform.position + velocity;
 		if (debug_draw) {
-			game.draw.Line(transform.position, new_p1, color::Grey);
+			game.draw.Line(transform.position, new_p1, color::Gray);
 		}
 		return rigid_body.velocity;
 	}
