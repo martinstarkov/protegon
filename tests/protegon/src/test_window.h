@@ -12,6 +12,7 @@
 #include "renderer/color.h"
 #include "renderer/font.h"
 #include "renderer/origin.h"
+#include "renderer/renderer.h"
 #include "renderer/text.h"
 #include "utility/string.h"
 #include "utility/time.h"
@@ -23,7 +24,6 @@ class WindowSettingTest : public Test {
 	std::vector<Text> texts;
 
 	Text window_position_text;
-	Text viewport_size_text;
 	Text window_size_text;
 	Text camera_size_text;
 	Text camera_pos_text;
@@ -52,7 +52,6 @@ class WindowSettingTest : public Test {
 		camera_size_text	 = texts.emplace_back("", color::Black, font);
 		camera_pos_text		 = texts.emplace_back("", color::Black, font);
 		window_position_text = texts.emplace_back("", color::Black, font);
-		viewport_size_text	 = texts.emplace_back("", color::Black, font);
 		window_size_text	 = texts.emplace_back("", color::Black, font);
 		window_mode			 = texts.emplace_back("", color::Black, font);
 		border_mode			 = texts.emplace_back("", color::Black, font);
@@ -67,7 +66,6 @@ class WindowSettingTest : public Test {
 		game.window.SetSetting(WindowSetting::Bordered);
 		game.window.SetSetting(WindowSetting::FixedSize);
 		game.window.SetSetting(WindowSetting::Shown);
-		game.draw.SetViewportSize(og_window_size);
 		game.window.SetSize(og_window_size);
 	}
 
@@ -75,12 +73,10 @@ class WindowSettingTest : public Test {
 		auto& p = game.camera.GetPrimary();
 		if (game.input.KeyDown(Key::Z)) {
 			V2_float scale = game.window.GetSize() / og_window_size;
-			// game.draw.SetViewportScale(scale);
 			p.CenterOnArea(og_window_size);
 		}
 		if (game.input.KeyDown(Key::X)) {
 			p.SetToWindow();
-			// game.draw.SetViewportScale({ 1.0f, 1.0f });
 		}
 		if (game.input.KeyDown(Key::V)) {
 			game.window.SetPosition({ 0, 0 });
@@ -163,7 +159,6 @@ class WindowSettingTest : public Test {
 		);
 		camera_size_text.SetContent("Camera Size: " + ToString(game.camera.GetPrimary().GetSize()));
 		window_position_text.SetContent("Window Position: " + ToString(game.window.GetPosition()));
-		viewport_size_text.SetContent("Viewport Size: " + ToString(game.draw.GetViewportSize()));
 		window_size_text.SetContent("Window Size: " + ToString(game.window.GetSize()));
 
 		UpdateOptions(
