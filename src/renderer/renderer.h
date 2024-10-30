@@ -1,15 +1,15 @@
 #pragma once
 
+#include <string_view>
 #include <vector>
 
-#include "math/matrix4.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/batch.h"
 #include "renderer/color.h"
 #include "renderer/flip.h"
 #include "renderer/origin.h"
-#include "renderer/texture.h"
+#include "renderer/render_texture.h"
 #include "renderer/vertex_array.h"
 
 namespace ptgn {
@@ -45,7 +45,8 @@ struct TextureInfo {
 					 render_layer } {}
 
 	/*
-	source.position Top left pixel to start drawing texture from within the texture (defaults to { 0, 0
+	source.position Top left pixel to start drawing texture from within the texture (defaults to {
+	0, 0
 	}). source.size Number of pixels of the texture to draw (defaults to {} which corresponds to the
 	remaining texture size to the bottom right of source_position). source.origin Relative  to
 	destination_position the direction from which the texture is.
@@ -148,7 +149,7 @@ public:
 	Renderer& operator=(const Renderer&) = delete;
 	Renderer& operator=(Renderer&&)		 = default;
 
-	void Clear() const;
+	void Clear();
 
 	// Flushes all render layers.
 	void Present();
@@ -160,8 +161,7 @@ public:
 	// camera, the model view projection matrix will be an identity matrix.
 	void Flush(std::size_t render_layer);
 
-	void VertexElements(const VertexArray& va, std::size_t index_count) const;
-	void VertexArray(const VertexArray& va, std::size_t vertex_count) const;
+	void VertexArray(const VertexArray& vertex_array) const;
 
 	// @param destination_size Default: {}, which corresponds to the unscaled size of the text.
 	// @param font Default: {}, which corresponds to the default font (use game.font.SetDefault(...)
@@ -256,21 +256,21 @@ public:
 		float fade = 0.005f
 	);
 
+	// Calling with default argument {} will reset render target to window
+	void SetTarget(const RenderTexture& render_target = {});
+	[[nodiscard]] RenderTexture GetTarget() const;
+
 	void SetBlendMode(BlendMode mode);
 	[[nodiscard]] BlendMode GetBlendMode() const;
 
 	void SetClearColor(const Color& color);
 	[[nodiscard]] Color GetClearColor() const;
 
-	void SetViewportSize(const V2_int& viewport_size);
-	[[nodiscard]] V2_int GetViewportSize() const;
-
-	void SetViewportScale(const V2_float& viewport_scale);
-	[[nodiscard]] V2_float GetViewportScale() const;
-
 private:
 	friend class CameraManager;
 	friend class Game;
+
+	void UpdateViewport() const;
 
 	void UpdateLayer(std::size_t layer_number, RenderLayer& layer, CameraManager& camera_manager);
 
@@ -278,10 +278,9 @@ private:
 	void Shutdown();
 	void Reset();
 
+	RenderTexture render_target_;
 	Color clear_color_{ color::Transparent };
 	BlendMode blend_mode_{ BlendMode::Blend };
-	V2_int viewport_size_;
-	V2_float viewport_scale_{ 1.0f, 1.0f };
 	RendererData data_;
 };
 
