@@ -5,13 +5,15 @@
 #include <vector>
 
 #include "core/manager.h"
-#include "renderer/color.h"
-#include "utility/file.h"
-#include "renderer/surface.h"
 #include "math/vector2.h"
+#include "renderer/color.h"
+#include "renderer/surface.h"
+#include "utility/file.h"
 #include "utility/handle.h"
 
 namespace ptgn {
+
+struct Rect;
 
 enum class TextureWrapping {
 	ClampEdge	   = 0x812F, // GL_CLAMP_TO_EDGE
@@ -29,10 +31,9 @@ enum class TextureFilter {
 	LinearMipmapLinear	 = 0x2703, // GL_LINEAR_MIPMAP_LINEAR
 };
 
-class Renderer;
-
 namespace impl {
 
+class Renderer;
 class RendererData;
 class TextureBatchData;
 
@@ -82,7 +83,12 @@ private:
 public:
 	Texture(const path& image_path, ImageFormat format = ImageFormat::RGBA8888);
 	explicit Texture(const Surface& surface);
-	Texture(const void* pixel_data, const V2_int& size, ImageFormat format);
+	Texture(
+		const void* pixel_data, const V2_int& size, ImageFormat format,
+		TextureWrapping wrapping = default_wrapping,
+		TextureFilter minifying	 = default_minifying_filter,
+		TextureFilter magnifying = default_minifying_filter, bool mipmaps = true
+	);
 	Texture(const std::vector<Color>& pixels, const V2_int& size);
 
 	void SetWrapping(TextureWrapping s) const;
@@ -109,6 +115,7 @@ private:
 	friend class impl::TextureBatchData;
 	friend class impl::RendererData;
 	friend class Renderer;
+	friend class FrameBuffer;
 
 	[[nodiscard]] static std::int32_t GetBoundId();
 	[[nodiscard]] static std::int32_t GetActiveSlot();

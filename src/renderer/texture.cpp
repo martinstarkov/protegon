@@ -6,17 +6,17 @@
 #include <type_traits>
 #include <vector>
 
-#include "renderer/color.h"
-#include "utility/file.h"
-#include "utility/log.h"
-#include "renderer/surface.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
+#include "renderer/color.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
+#include "renderer/surface.h"
 #include "utility/debug.h"
+#include "utility/file.h"
 #include "utility/handle.h"
+#include "utility/log.h"
 
 namespace ptgn {
 
@@ -83,7 +83,10 @@ Texture::Texture(const path& image_path, ImageFormat format) :
 
 Texture::Texture(const Surface& surface) : Texture{ surface.GetData(), surface.GetSize() } {}
 
-Texture::Texture(const void* pixel_data, const V2_int& size, ImageFormat format) {
+Texture::Texture(
+	const void* pixel_data, const V2_int& size, ImageFormat format, TextureWrapping wrapping,
+	TextureFilter minifying, TextureFilter magnifying, bool mipmaps
+) {
 	PUSHSTATE();
 
 	Create();
@@ -94,22 +97,26 @@ Texture::Texture(const void* pixel_data, const V2_int& size, ImageFormat format)
 
 	GLCall(gl::glTexParameteri(
 		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapS),
-		static_cast<int>(default_wrapping)
+		static_cast<int>(wrapping)
 	));
 	GLCall(gl::glTexParameteri(
 		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapT),
-		static_cast<int>(default_wrapping)
+		static_cast<int>(wrapping)
 	));
 	GLCall(gl::glTexParameteri(
 		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::MinFilter),
-		static_cast<int>(default_minifying_filter)
+		static_cast<int>(minifying)
 	));
 	GLCall(gl::glTexParameteri(
 		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::MagFilter),
-		static_cast<int>(default_magnifying_filter)
+		static_cast<int>(magnifying)
 	));
 
-	if constexpr ((default_minifying_filter != TextureFilter::Linear && default_minifying_filter != TextureFilter::Nearest) || (default_magnifying_filter != TextureFilter::Linear && default_magnifying_filter != TextureFilter::Nearest)) {
+	mipmaps =
+		mipmaps && (minifying != TextureFilter::Linear && minifying != TextureFilter::Nearest ||
+					magnifying != TextureFilter::Linear && magnifying != TextureFilter::Nearest);
+
+	if (mipmaps) {
 		GLCall(gl::GenerateMipmap(GL_TEXTURE_2D));
 	}
 
@@ -158,7 +165,6 @@ std::int32_t Texture::GetActiveSlot() {
 }
 
 void Texture::SetDataImpl(const void* pixel_data, const V2_int& size, ImageFormat format) {
-	PTGN_ASSERT(pixel_data != nullptr);
 	PTGN_ASSERT(
 		format != ImageFormat::Unknown, "Cannot set data of texture with unknown image format"
 	);
