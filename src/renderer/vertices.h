@@ -4,11 +4,26 @@
 
 #include "math/vector2.h"
 #include "math/vector4.h"
+#include "renderer/buffer_layout.h"
 #include "renderer/gl_helper.h"
 #include "renderer/origin.h"
 #include "utility/debug.h"
 
-namespace ptgn::impl {
+namespace ptgn {
+
+struct ColorVertex {
+	glsl::vec3 position;
+	glsl::vec4 color;
+};
+
+constexpr inline const BufferLayout<glsl::vec3, glsl::vec4> color_vertex_layout;
+
+struct TextureVertex {
+	glsl::vec3 position;
+	glsl::vec2 tex_coord;
+};
+
+constexpr inline const BufferLayout<glsl::vec3, glsl::vec2> texture_vertex_layout;
 
 struct QuadVertex {
 	glsl::vec3 position;
@@ -17,23 +32,28 @@ struct QuadVertex {
 	glsl::float_ tex_index;
 };
 
+constexpr inline const BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_>
+	quad_vertex_layout;
+
 struct CircleVertex {
 	glsl::vec3 position;
-	glsl::vec3 local_position;
 	glsl::vec4 color;
+	glsl::vec3 local_position;
 	glsl::float_ line_width;
 	glsl::float_ fade;
 };
 
-struct ColorVertex {
-	glsl::vec3 position;
-	glsl::vec4 color;
-};
+constexpr inline const BufferLayout<glsl::vec3, glsl::vec4, glsl::vec3, glsl::float_, glsl::float_>
+	circle_vertex_layout;
 
-template <typename TVertex, std::size_t V>
+namespace impl {
+
+template <typename TVertex, std::size_t V, PrimitiveMode M, typename TLayout>
 struct ShapeVertices {
 public:
 	constexpr static std::size_t count{ V };
+	constexpr static PrimitiveMode mode{ M };
+	constexpr static TLayout layout{};
 
 	ShapeVertices() = default;
 
@@ -49,11 +69,20 @@ public:
 		}
 	}
 
+	[[nodiscard]] const std::array<TVertex, count>& Get() const {
+		return vertices_;
+	}
+
+	[[nodiscard]] static constexpr TLayout GetLayout() {
+		return TLayout{};
+	}
+
 protected:
 	std::array<TVertex, count> vertices_{};
 };
 
-struct QuadVertices : public ShapeVertices<QuadVertex, 4> {
+struct QuadVertices :
+	public ShapeVertices<QuadVertex, 4, PrimitiveMode::Triangles, decltype(quad_vertex_layout)> {
 	using ShapeVertices::ShapeVertices;
 
 	QuadVertices(
@@ -62,7 +91,18 @@ struct QuadVertices : public ShapeVertices<QuadVertex, 4> {
 	);
 };
 
-struct CircleVertices : public ShapeVertices<CircleVertex, 4> {
+struct TextureVertices :
+	public ShapeVertices<
+		TextureVertex, 4, PrimitiveMode::Triangles, decltype(texture_vertex_layout)> {
+	TextureVertices(
+		const std::array<V2_float, count>& positions, const std::array<V2_float, count>& tex_coords,
+		float z_index
+	);
+};
+
+struct CircleVertices :
+	public ShapeVertices<
+		CircleVertex, 4, PrimitiveMode::Triangles, decltype(circle_vertex_layout)> {
 	using ShapeVertices::ShapeVertices;
 
 	CircleVertices(
@@ -71,30 +111,26 @@ struct CircleVertices : public ShapeVertices<CircleVertex, 4> {
 	);
 };
 
-struct TriangleVertices : public ShapeVertices<ColorVertex, 3> {
+struct TriangleVertices :
+	public ShapeVertices<ColorVertex, 3, PrimitiveMode::Triangles, decltype(color_vertex_layout)> {
 	using ShapeVertices::ShapeVertices;
 };
 
-struct LineVertices : public ShapeVertices<ColorVertex, 2> {
+struct LineVertices :
+	public ShapeVertices<ColorVertex, 2, PrimitiveMode::Lines, decltype(color_vertex_layout)> {
 	using ShapeVertices::ShapeVertices;
 };
 
-struct PointVertices : public ShapeVertices<ColorVertex, 1> {
+struct PointVertices :
+	public ShapeVertices<ColorVertex, 1, PrimitiveMode::Points, decltype(color_vertex_layout)> {
 	using ShapeVertices::ShapeVertices;
 };
 
-void OffsetVertices(std::array<V2_float, 4>& vertices, const V2_float& size, Origin draw_origin);
+struct ColorQuadVertices :
+	public ShapeVertices<ColorVertex, 4, PrimitiveMode::Triangles, decltype(color_vertex_layout)> {
+	using ShapeVertices::ShapeVertices;
+};
 
-// Rotation angle in radians.
-void RotateVertices(
-	std::array<V2_float, 4>& vertices, const V2_float& position, const V2_float& size,
-	float rotation_radians, const V2_float& rotation_center
-);
+} // namespace impl
 
-// Rotation angle in radians.
-[[nodiscard]] std::array<V2_float, 4> GetQuadVertices(
-	const V2_float& position, const V2_float& size, Origin draw_origin, float rotation_radians,
-	const V2_float& rotation_center
-);
-
-} // namespace ptgn::impl
+} // namespace ptgn
