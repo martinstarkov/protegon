@@ -23,6 +23,7 @@
 #include "renderer/gl_helper.h"
 #include "renderer/gl_renderer.h" // for texture slot count
 #include "renderer/origin.h"
+#include "renderer/render_texture.h"
 #include "renderer/renderer.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
@@ -42,7 +43,7 @@
 
 /*
 void TestBatchTextureSDL(std::size_t batch_size, const std::vector<path>& texture_paths) {
-	PTGN_ASSERT(texture_paths.size() > 0);
+	PTGN_ASSERT(!texture_paths.empty());
 	std::vector<SDL_Texture*> textures;
 	textures.resize(texture_paths.size(), nullptr);
 
@@ -89,7 +90,15 @@ void TestBatchTextureSDL(std::size_t batch_size, const std::vector<path>& textur
 	SDL_DestroyRenderer(r);
 }*/
 
-struct TestViewportExtentsAndOrigin : public Test {
+struct DrawTest : public Test {
+	const float line_width{ 1.0f };
+
+	DrawTest() = default;
+
+	explicit DrawTest(float line_width) : line_width{ line_width } {}
+};
+
+struct TestViewportExtentsAndOrigin : public DrawTest {
 	V2_float top_left;
 	V2_float top_right;
 	V2_float bottom_right;
@@ -98,6 +107,7 @@ struct TestViewportExtentsAndOrigin : public Test {
 	V2_float s; // rectangle size.
 
 	void Init() override {
+		DrawTest::Init();
 		top_left	 = V2_float{ 0, 0 };
 		top_right	 = V2_float{ ws.x, 0 };
 		bottom_right = V2_float{ ws.x, ws.y };
@@ -114,8 +124,12 @@ struct TestViewportExtentsAndOrigin : public Test {
 	}
 };
 
-struct TestPoint : public Test {
+struct TestPoint : public DrawTest {
 	const float point_radius{ 3.0f };
+
+	void Init() {
+		DrawTest::Init();
+	}
 
 	void Draw() override {
 		game.draw.Point(center - ws * 0.25f, color::Blue, point_radius);
@@ -132,12 +146,6 @@ struct TestPoint : public Test {
 	}
 };
 
-struct DrawTest : public Test {
-	const float line_width{ 1.0f };
-
-	explicit DrawTest(float line_width) : line_width{ line_width } {}
-};
-
 struct TestLine : public DrawTest {
 	using DrawTest::DrawTest;
 
@@ -151,6 +159,7 @@ struct TestLine : public DrawTest {
 	V2_float p7;
 
 	void Init() override {
+		DrawTest::Init();
 		p0 = { center.x - 200, center.y - 200 };
 		p1 = { center.x + 200, center.y + 200 };
 		p2 = { center.x - 200, center.y + 200 };
@@ -188,6 +197,7 @@ struct TestTriangle : public DrawTest {
 	V2_float p5;
 
 	void Init() override {
+		DrawTest::Init();
 		p0 = { center.x - 200, center.y };
 		p1 = { center.x + 200, center.y };
 		p2 = { center.x, center.y - 200 };
@@ -237,6 +247,7 @@ struct TestRectangle : public DrawTest {
 	}
 
 	void Init() override {
+		DrawTest::Init();
 		p0 = center;
 		p1 = center + V2_float{ 100.0f, 100.0f };
 		p2 = center + V2_float{ 100.0f, -100.0f };
@@ -317,6 +328,7 @@ struct TestPolygon : public DrawTest {
 	const float relative_to{ 35.0f };
 
 	void Init() override {
+		DrawTest::Init();
 		vertices = {
 			V2_float{ 17, 3 },	V2_float{ 20, 13 }, V2_float{ 31, 13 }, V2_float{ 23, 19 },
 			V2_float{ 26, 30 }, V2_float{ 17, 24 }, V2_float{ 8, 30 },	V2_float{ 11, 19 },
@@ -362,6 +374,7 @@ struct TestEllipse : public DrawTest {
 	}
 
 	void Init() override {
+		DrawTest::Init();
 		p0 = center;
 		p1 = center + V2_float{ 200.0f, 200.0f };
 		p2 = center + V2_float{ 200.0f, -200.0f };
@@ -451,6 +464,7 @@ struct TestArc : public DrawTest {
 	}
 
 	void Init() override {
+		DrawTest::Init();
 		bottom_right = center + V2_float{ 200.0f, 200.0f };
 		top_right	 = center + V2_float{ 200.0f, -200.0f };
 		top_left	 = center + V2_float{ -200.0f, -200.0f };
@@ -498,7 +512,7 @@ struct TestArcFilled : public TestArc {
 	explicit TestArcFilled(float radius) : TestArc{ radius, -1.0f } {}
 };
 
-struct TestTransparency : public Test {
+struct TestTransparency : public DrawTest {
 	V2_float p1;
 	V2_float p2;
 	V2_float p3;
@@ -507,6 +521,8 @@ struct TestTransparency : public Test {
 	V2_float s; // size
 
 	void Init() override {
+		DrawTest::Init();
+
 		float corner_distance{ 0.05f };
 
 		p1 = { center - V2_float{ ws.x * corner_distance, 0.0f } };
@@ -525,7 +541,95 @@ struct TestTransparency : public Test {
 	}
 };
 
-struct TestTexture : public Test {
+struct TestRenderTargets : public DrawTest {
+	RenderTexture render_texture1;
+	RenderTexture render_texture2;
+	RenderTexture render_texture3;
+	RenderTexture render_texture4;
+	RenderTexture render_texture5;
+	RenderTexture render_texture6;
+
+	Texture test{ "resources/sprites/test1.jpg" };
+
+	V2_float s;
+
+	void Init() override {
+		DrawTest::Init();
+		s = test.GetSize();
+		game.window.SetSize(s * 3);
+
+		render_texture1 = RenderTexture{ ScreenShader::Default };
+		render_texture2 = RenderTexture{ ScreenShader::Blur };
+		render_texture3 = RenderTexture{ ScreenShader::EdgeDetection };
+		render_texture4 = RenderTexture{ ScreenShader::Grayscale };
+		render_texture5 = RenderTexture{ ScreenShader::Sharpen };
+		render_texture6 = RenderTexture{ ScreenShader::InverseColor };
+
+		game.draw.SetClearColor(color::Transparent);
+		render_texture1.SetClearColor(color::Transparent);
+		render_texture2.SetClearColor(color::Transparent);
+		render_texture3.SetClearColor(color::Transparent);
+		render_texture4.SetClearColor(color::Transparent);
+		render_texture5.SetClearColor(color::Transparent);
+		render_texture6.SetClearColor(color::White);
+	}
+
+	void Shutdown() override {
+		game.window.SetSize({ 800, 800 });
+		game.draw.SetTarget();
+		game.draw.SetClearColor(color::White);
+	}
+
+	const float speed{ 300.0f };
+
+	void Update() override {
+		if (game.input.KeyPressed(Key::A)) {
+			render_texture1.camera.Translate({ speed * dt, 0.0f });
+		}
+		if (game.input.KeyPressed(Key::D)) {
+			render_texture1.camera.Translate({ -speed * dt, 0.0f });
+		}
+		if (game.input.KeyPressed(Key::W)) {
+			render_texture1.camera.Translate({ 0.0f, speed * dt });
+		}
+		if (game.input.KeyPressed(Key::S)) {
+			render_texture1.camera.Translate({ 0.0f, -speed * dt });
+		}
+		if (game.input.KeyPressed(Key::LEFT)) {
+			render_texture2.camera.Translate({ speed * dt, 0.0f });
+		}
+		if (game.input.KeyPressed(Key::RIGHT)) {
+			render_texture2.camera.Translate({ -speed * dt, 0.0f });
+		}
+		if (game.input.KeyPressed(Key::UP)) {
+			render_texture2.camera.Translate({ 0.0f, speed * dt });
+		}
+		if (game.input.KeyPressed(Key::DOWN)) {
+			render_texture2.camera.Translate({ 0.0f, -speed * dt });
+		}
+	}
+
+	void Draw() override {
+		TextureInfo i;
+		i.source.origin = Origin::TopLeft;
+		game.draw.SetTarget();
+		game.draw.Rect({ 0, 0 }, s, color::Magenta, Origin::TopLeft);
+		game.draw.SetTarget(render_texture1);
+		game.draw.Texture(test, { 0, s.y * 1.0f }, s, i);
+		game.draw.SetTarget(render_texture2);
+		game.draw.Texture(test, { s.x, s.y * 2.0f }, s, i);
+		game.draw.SetTarget(render_texture3);
+		game.draw.Texture(test, { s.x * 1.0f, 0 }, s, i);
+		game.draw.SetTarget(render_texture4);
+		game.draw.Texture(test, s, s, i);
+		game.draw.SetTarget(render_texture5);
+		game.draw.Texture(test, { 0, s.y * 2.0f }, s, i);
+		game.draw.SetTarget(render_texture6);
+		game.draw.Texture(test, { s.x * 2.0f, 0 }, s, i);
+	}
+};
+
+struct TestTexture : public DrawTest {
 	Texture texture;
 
 	Color circle_color{ color::Gold };
@@ -541,6 +645,8 @@ struct TestTexture : public Test {
 	explicit TestTexture(const Texture& texture) : texture{ texture } {}
 
 	void Init() override {
+		DrawTest::Init();
+
 		size = ws / 5.0f;
 
 		circle_radius = size.x / 2.0f;
@@ -622,7 +728,7 @@ enum class TestBatchType {
 	All
 };
 
-struct TestBatch : public Test {
+struct TestBatch : public DrawTest {
 	// Random position generators.
 	RNG<float> rng_x;
 	RNG<float> rng_y;
@@ -650,6 +756,8 @@ struct TestBatch : public Test {
 	}
 
 	void Init() override {
+		DrawTest::Init();
+
 		rng_x = { 0.0f, ws.x };
 		rng_y = { 0.0f, ws.y };
 
@@ -761,7 +869,7 @@ void TestVertexBuffers() {
 	};
 
 	VertexBuffer b0_5{ std::array<TestVertex1, 5>{} };
-	const impl::InternalBufferLayout layout0{ BufferLayout<glsl::vec3>{} };
+	const BufferLayout layout0{ BufferLayout<glsl::vec3>{} };
 
 	PTGN_ASSERT(b0_5.IsValid());
 	PTGN_ASSERT(!layout0.IsEmpty());
@@ -776,7 +884,7 @@ void TestVertexBuffers() {
 
 	// Layout 1
 
-	const impl::InternalBufferLayout layout1{ BufferLayout<glsl::vec3>{} };
+	const BufferLayout layout1{ BufferLayout<glsl::vec3>{} };
 	const auto& e1{ layout1.GetElements() };
 	PTGN_ASSERT(e1.size() == 1);
 	PTGN_ASSERT(layout1.GetStride() == 3 * sizeof(float));
@@ -796,7 +904,7 @@ void TestVertexBuffers() {
 	v2.emplace_back();
 
 	VertexBuffer b2{ v2 };
-	const impl::InternalBufferLayout layout2{ BufferLayout<glsl::vec3, glsl::vec4, glsl::vec3>{} };
+	const BufferLayout layout2{ BufferLayout<glsl::vec3, glsl::vec4, glsl::vec3>{} };
 	const auto& e2{ layout2.GetElements() };
 
 	PTGN_ASSERT(e2.size() == 3);
@@ -830,7 +938,7 @@ void TestVertexBuffers() {
 	v3.emplace_back();
 
 	VertexBuffer b3{ v3 };
-	const impl::InternalBufferLayout layout3{ BufferLayout<
+	const BufferLayout layout3{ BufferLayout<
 		glsl::vec4, glsl::double_, glsl::ivec3, glsl::dvec2, glsl::int_, glsl::float_, glsl::bool_,
 		glsl::uint_, glsl::bvec3, glsl::uvec4>{} };
 	const auto& e3{ layout3.GetElements() };
@@ -900,7 +1008,7 @@ void TestVertexBuffers() {
 	v4.push_back({ { 3.0f, 4.0f, 5.0f } });
 
 	VertexBuffer b4{ v4 };
-	const impl::InternalBufferLayout layout4{ BufferLayout<glsl::vec3>{} };
+	const BufferLayout layout4{ BufferLayout<glsl::vec3>{} };
 
 	std::vector<TestVertex1> v5;
 	v5.push_back({ { 6.0f, 7.0f, 8.0f } });
@@ -1022,15 +1130,11 @@ void TestVertexArrays() {
 
 	// Commented out draw calls trigger asserts due to unset vertex or index buffers.
 
-	// game.draw.VertexArray(vao0, 4);
-	// game.draw.VertexElements(vao0, 6);
-	// game.draw.VertexArray(vao1, 4);
-	// game.draw.VertexElements(vao1, 6);
-	// game.draw.VertexElements(vao2, 6);
+	// game.draw.VertexArray(vao0);
+	// game.draw.VertexArray(vao1);
 
-	game.draw.VertexArray(vao2, 4);
-	game.draw.VertexArray(vao3, 4);
-	game.draw.VertexElements(vao3, 6);
+	game.draw.VertexArray(vao2);
+	game.draw.VertexArray(vao3);
 
 	game.draw.Present();
 }
@@ -1263,6 +1367,7 @@ void TestRendering() {
 
 	std::vector<std::shared_ptr<Test>> tests;
 
+	tests.emplace_back(new TestRenderTargets());
 	tests.emplace_back(new TestPoint());
 	tests.emplace_back(new TestLineThin());
 	tests.emplace_back(new TestLineThick(test_line_width));
