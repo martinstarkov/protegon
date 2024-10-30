@@ -4,8 +4,8 @@ R"(
 
 layout (location = 0) out vec4 o_Color;
 
-layout (location = 0) in vec3 v_LocalPosition;
-layout (location = 1) in vec4 v_Color;
+layout (location = 0) in vec4 v_Color;
+layout (location = 1) in vec3 v_LocalPosition;
 layout (location = 2) in float v_Thickness;
 layout (location = 3) in float v_Fade;
 

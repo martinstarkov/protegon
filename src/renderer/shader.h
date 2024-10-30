@@ -6,12 +6,23 @@
 #include <unordered_map>
 
 #include "core/manager.h"
-#include "utility/file.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
+#include "utility/debug.h"
+#include "utility/file.h"
 #include "utility/handle.h"
+
+// clang-format off
+#define PTGN_SHADER_STRINGIFY_MACRO(x) PTGN_STRINGIFY_MACRO(x)
+
+#ifdef __EMSCRIPTEN__
+#define PTGN_SHADER_PATH(file) PTGN_SHADER_STRINGIFY_MACRO(PTGN_EXPAND_MACRO(resources/shader/es/)PTGN_EXPAND_MACRO(file))
+#else
+#define PTGN_SHADER_PATH(file) PTGN_SHADER_STRINGIFY_MACRO(PTGN_EXPAND_MACRO(resources/shader/core/)PTGN_EXPAND_MACRO(file))
+#endif
+// clang-format on
 
 namespace ptgn {
 
@@ -19,6 +30,7 @@ class Shader;
 
 namespace impl {
 
+class Game;
 class RendererData;
 
 [[nodiscard]] std::string_view GetShaderTypeName(std::uint32_t type);
@@ -47,6 +59,8 @@ struct ShaderSource {
 
 class Shader : public Handle<impl::ShaderInstance> {
 public:
+	using Handle::Handle;
+
 	Shader()		   = default;
 	~Shader() override = default;
 
@@ -91,11 +105,49 @@ private:
 	[[nodiscard]] static std::uint32_t CompileShader(std::uint32_t type, const std::string& source);
 };
 
+enum class ScreenShader {
+	Default,
+	Blur,
+	EdgeDetection,
+	Grayscale,
+	InverseColor,
+	Sharpen,
+};
+
+enum class PresetShader {
+	Quad,
+	Circle,
+	Color
+};
+
 namespace impl {
 
 class ShaderManager : public MapManager<Shader> {
 public:
 	using MapManager::MapManager;
+
+	Shader Get(ScreenShader screen_shader) const;
+
+private:
+	friend class Game;
+	friend class RendererData;
+
+	Shader Get(PresetShader shader) const;
+
+	void Init();
+
+	// Screen shaders.
+	Shader default_;
+	Shader blur_;
+	Shader grayscale_;
+	Shader inverse_color_;
+	Shader edge_detection_;
+	Shader sharpen_;
+
+	// Preset shaders.
+	Shader quad_;
+	Shader circle_;
+	Shader color_;
 };
 
 } // namespace impl
