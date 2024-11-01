@@ -1,73 +1,50 @@
 #include "renderer/render_texture.h"
 
 #include "core/game.h"
-#include "core/window.h"
-#include "math/geometry/polygon.h"
 #include "math/vector2.h"
+#include "renderer/color.h"
 #include "renderer/frame_buffer.h"
 #include "renderer/gl_renderer.h"
 #include "renderer/renderer.h"
 #include "renderer/shader.h"
 #include "renderer/surface.h"
 #include "renderer/texture.h"
-#include "renderer/vertex_array.h"
-#include "scene/camera.h"
 #include "utility/debug.h"
 
 namespace ptgn {
 
-RenderTexture::RenderTexture(const Shader& shader) :
+RenderTexture::RenderTexture(const V2_float& size, const Color& clear_color, BlendMode blend_mode) :
 	Texture{ nullptr,
-			 game.window.GetSize(),
+			 size,
 			 ImageFormat::RGB888,
 			 TextureWrapping::ClampEdge,
 			 TextureFilter::Nearest,
 			 TextureFilter::Nearest,
 			 false } {
+	clear_color_ = clear_color;
+	blend_mode_	 = blend_mode;
 	PTGN_ASSERT(Texture::IsValid(), "Failed to create render texture");
-	frame_buffer_ = FrameBuffer{ *this, RenderBuffer{ GetSize() } };
-	vertex_array_ = VertexArray{ *this };
-	camera.SetToWindow(false);
-	shader_ = shader;
-	PTGN_ASSERT(shader_.IsValid(), "Cannot set invalid shader");
+	frame_buffer_ = FrameBuffer{ *this, RenderBuffer{ size } };
+	PTGN_ASSERT(frame_buffer_.IsValid(), "Failed to create frame buffer for render texture");
 }
 
-RenderTexture::RenderTexture(ScreenShader screen_shader) :
-	RenderTexture{ game.shader.Get(screen_shader) } {}
-
-const VertexArray& RenderTexture::GetVertexArray() const {
-	return vertex_array_;
-}
-
-const Shader& RenderTexture::GetShader() const {
-	return shader_;
-}
-
-void RenderTexture::Draw() {
-	PTGN_ASSERT(shader_.IsValid(), "Cannot draw render texture without setting a valid shader");
-	PTGN_ASSERT(
-		vertex_array_.IsValid(), "Cannot draw render texture without setting a valid vertex array"
-	);
+void RenderTexture::DrawAndUnbind() const {
 	FrameBuffer::Unbind();
-	V2_float size{ GetSize() };
-	shader_.Bind();
-	shader_.SetUniform("u_Texture", 0);
-	shader_.SetUniform("u_Resolution", size);
-	shader_.SetUniform("u_ViewProjection", camera.GetViewProjection());
-	vertex_array_.Bind();
-	Texture::Bind(0);
-	bool depth_testing_enabled = GLRenderer::IsDepthTestingEnabled();
-	if (depth_testing_enabled) {
-		GLRenderer::DisableDepthTesting();
-	}
-	game.draw.VertexArray(vertex_array_);
-	if (depth_testing_enabled) {
-		GLRenderer::EnableDepthTesting();
-	}
+	GLRenderer::SetBlendMode(blend_mode_);
+	game.draw.Shader(ScreenShader::Default);
+	game.draw.Flush();
+}
+
+void RenderTexture::Clear() const {
+	PTGN_ASSERT(frame_buffer_.IsBound(), "Cannot clear unbound render texture");
+	GLRenderer::ClearColor(clear_color_);
+	GLRenderer::Clear();
 }
 
 void RenderTexture::Bind() const {
+	PTGN_ASSERT(frame_buffer_.IsValid());
 	frame_buffer_.Bind();
+	Clear();
 }
 
 Color RenderTexture::GetClearColor() const {

@@ -3,6 +3,7 @@
 #include <array>
 
 #include "math/vector2.h"
+#include "renderer/texture.h"
 #include "utility/handle.h"
 
 namespace ptgn {
@@ -11,12 +12,6 @@ class FrameBuffer;
 class Texture;
 
 namespace impl {
-
-struct FrameBufferInstance {
-	FrameBufferInstance();
-	~FrameBufferInstance();
-	std::uint32_t id_{ 0 };
-};
 
 struct RenderBufferInstance {
 	RenderBufferInstance();
@@ -42,6 +37,18 @@ private:
 	static void Unbind();
 };
 
+namespace impl {
+
+struct FrameBufferInstance {
+	FrameBufferInstance();
+	~FrameBufferInstance();
+	std::uint32_t id_{ 0 };
+	Texture texture_;
+	RenderBuffer render_buffer_;
+};
+
+} // namespace impl
+
 class FrameBuffer : public Handle<impl::FrameBufferInstance> {
 public:
 	FrameBuffer()			= default;
@@ -51,11 +58,15 @@ public:
 	explicit FrameBuffer(const RenderBuffer& render_buffer);
 	FrameBuffer(const Texture& texture, const RenderBuffer& render_buffer);
 
-	void AttachTexture(const Texture& texture) const;
-	void AttachRenderBuffer(const RenderBuffer& render_buffer) const;
+	void AttachTexture(const Texture& texture);
+	void AttachRenderBuffer(const RenderBuffer& render_buffer);
 
-	// Calls PTGN_ERROR if incomplete.
+	[[nodiscard]] Texture GetTexture() const;
+	[[nodiscard]] RenderBuffer GetRenderBuffer() const;
+
 	[[nodiscard]] bool IsComplete() const;
+
+	[[nodiscard]] bool IsBound() const;
 
 	void Bind() const;
 	static void Unbind();
@@ -63,8 +74,8 @@ public:
 private:
 	[[nodiscard]] static std::int32_t GetBoundId();
 
-	void AttachTextureImpl(const Texture& texture) const;
-	void AttachRenderBufferImpl(const RenderBuffer& render_buffer) const;
+	void AttachTextureImpl(const Texture& texture);
+	void AttachRenderBufferImpl(const RenderBuffer& render_buffer);
 };
 
 } // namespace ptgn

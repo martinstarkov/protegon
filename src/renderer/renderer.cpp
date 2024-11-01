@@ -13,10 +13,13 @@
 #include "math/vector2.h"
 #include "renderer/batch.h"
 #include "renderer/color.h"
+#include "renderer/flip.h"
 #include "renderer/font.h"
 #include "renderer/frame_buffer.h"
 #include "renderer/gl_renderer.h"
 #include "renderer/origin.h"
+#include "renderer/render_texture.h"
+#include "renderer/shader.h"
 #include "renderer/text.h"
 #include "renderer/texture.h"
 #include "renderer/vertex_array.h"
@@ -26,7 +29,6 @@
 namespace ptgn::impl {
 
 void Renderer::Init() {
-	GLRenderer::SetBlendMode(BlendMode::Blend);
 	GLRenderer::EnableLineSmoothing();
 
 	// Only update viewport after resizing finishes, not during (saves a few GPU calls).
@@ -34,21 +36,24 @@ void Renderer::Init() {
 	// resizing.
 	game.event.window.Subscribe(
 		WindowEvent::Resized, this,
-		std::function([this](const WindowResizedEvent&) { UpdateViewport(); })
+		std::function([this](const WindowResizedEvent&) { UpdateDefaultFrameBuffer(); })
 	);
 	game.event.window.Subscribe(
 		WindowEvent::Moved, this,
-		std::function([this](const WindowMovedEvent&) { UpdateViewport(); })
+		std::function([this](const WindowMovedEvent&) { UpdateDefaultFrameBuffer(); })
 	);
 
+	UpdateDefaultFrameBuffer();
+
 	data_.Init();
+
+	current_target_ = default_target_;
+	current_target_.Bind();
 }
 
 void Renderer::Reset() {
-	render_target_ = {};
-	clear_color_   = color::Transparent;
-	blend_mode_	   = BlendMode::Blend;
-	data_		   = {};
+	default_target_ = {};
+	data_			= {};
 }
 
 void Renderer::Shutdown() {
@@ -57,112 +62,68 @@ void Renderer::Shutdown() {
 }
 
 Color Renderer::GetClearColor() const {
-	if (render_target_ != RenderTexture{}) {
-		return render_target_.GetClearColor();
-	}
-	return clear_color_;
+	return current_target_.GetClearColor();
 }
 
 BlendMode Renderer::GetBlendMode() const {
-	return blend_mode_;
+	return current_target_.GetBlendMode();
 }
 
 void Renderer::SetBlendMode(BlendMode mode) {
-	if (blend_mode_ == mode) {
-		return;
-	}
-	blend_mode_ = mode;
-	GLRenderer::SetBlendMode(mode);
+	current_target_.SetBlendMode(mode);
 }
 
 void Renderer::SetTarget(const RenderTexture& target) {
-	if (target == render_target_) {
-		return;
-	}
-
-	// New render target.
-
-	// Flush old contents onto old render target.
+	// Flush old render target to the default frame buffer.
 	Flush();
-
-	// If old render target is a render texture, draw it onto the screen additively.
-	if (render_target_ != RenderTexture{}) {
-		auto blend_mode = blend_mode_;
-		SetBlendMode(render_target_.GetBlendMode());
-		render_target_.Draw();
-		SetBlendMode(blend_mode);
-	}
-
-	render_target_ = target;
-
-	if (render_target_ != RenderTexture{}) {
-		render_target_.Bind();
-		GLRenderer::ClearColor(render_target_.GetClearColor());
-		GLRenderer::Clear();
+	current_target_.DrawAndUnbind();
+	// Set and bind new render target.
+	if (target.IsValid()) {
+		current_target_ = target;
 	} else {
-		FrameBuffer::Unbind();
+		current_target_ = default_target_;
 	}
+	current_target_.Bind();
 }
 
 RenderTexture Renderer::GetTarget() const {
-	return render_target_;
+	return current_target_;
 }
 
 void Renderer::SetClearColor(const Color& color) {
-	if (render_target_ != RenderTexture{}) {
-		render_target_.SetClearColor(color);
-		return;
-	}
-	if (clear_color_ == color) {
-		return;
-	}
-	clear_color_ = color;
-}
-
-void Renderer::UpdateViewport() const {
-	V2_float window_size{ game.window.GetSize() };
-	GLRenderer::SetViewport(V2_float{ 0.0f, 0.0f }, window_size);
+	current_target_.SetClearColor(color);
 }
 
 void Renderer::Clear() {
-	UpdateViewport();
-	FrameBuffer::Unbind();
-	GLRenderer::ClearColor(clear_color_);
-	GLRenderer::Clear();
-	if (render_target_ != RenderTexture{}) {
-		render_target_.Bind();
-		GLRenderer::ClearColor(render_target_.GetClearColor());
-		GLRenderer::Clear();
-	}
+	current_target_.Clear();
 }
 
 void Renderer::Present() {
-	bool target{ render_target_ != RenderTexture{} };
-
 	Flush();
 
-	// If old render target is a render texture, draw it onto the screen additively.
-	if (render_target_ != RenderTexture{}) {
-		auto blend_mode = blend_mode_;
-		SetBlendMode(render_target_.GetBlendMode());
-		render_target_.Draw();
-		SetBlendMode(blend_mode);
-	}
+	current_target_.DrawAndUnbind();
 
 	game.window.SwapBuffers();
 
-	if (target) {
-		render_target_.Bind();
-		GLRenderer::ClearColor(render_target_.GetClearColor());
-		GLRenderer::Clear();
-	} else {
-		FrameBuffer::Unbind();
+	// Clear the default frame buffer.
+	GLRenderer::ClearColor(color::Transparent);
+	GLRenderer::Clear();
+
+	current_target_.Bind();
+}
+
+void Renderer::UpdateDefaultFrameBuffer() {
+	bool was_current{ current_target_ == default_target_ };
+	default_target_ = RenderTexture{ game.window.GetSize(), color::Transparent, BlendMode::Blend };
+	if (was_current) {
+		current_target_ = default_target_;
+		current_target_.Bind();
 	}
 }
 
 void Renderer::UpdateLayer(
 	std::size_t layer_number, RenderLayer& layer, CameraManager& camera_manager
-) {
+) const {
 	if (auto it = camera_manager.primary_cameras_.find(layer_number);
 		it != camera_manager.primary_cameras_.end()) {
 		layer.view_projection = it->second.GetViewProjection();
@@ -280,21 +241,50 @@ void Renderer::Text(
 	);
 }
 
+void Renderer::Shader(ScreenShader screen_shader, float z_index, std::size_t render_layer) {
+	Shader(
+		game.shader.Get(screen_shader), {}, {}, Origin::Center, Flip::None, 0.0f, { 0.5f, 0.5f },
+		z_index, render_layer
+	);
+}
+
+void Renderer::Shader(
+	const ptgn::Shader& shader, const V2_float& position, V2_float size, Origin draw_origin,
+	Flip flip, float rotation_radians, const V2_float& rotation_center, float z_index,
+	std::size_t render_layer
+) {
+	// Fullscreen shader.
+	if (size.IsZero()) {
+		size		= game.window.GetSize();
+		draw_origin = Origin::TopLeft;
+	}
+
+	ptgn::Rect rect{ position, size, draw_origin, rotation_radians };
+
+	auto tex_coords{ RendererData::GetTextureCoordinates({}, {}, rect.size, flip) };
+	// Since this engine uses top left as origin, shaders must all be flipped vertically.
+	RendererData::FlipTextureCoordinates(tex_coords, Flip::Vertical);
+
+	data_.Shader(
+		shader, rect.GetVertices(rotation_center), current_target_, tex_coords, z_index,
+		render_layer
+	);
+}
+
 void Renderer::Texture(
 	const ptgn::Texture& texture, const V2_float& position, const V2_float& size,
 	const TextureInfo& info
 ) {
 	PTGN_ASSERT(texture.IsValid(), "Cannot draw uninitialized or destroyed texture");
 
-	auto tex_coords{ RendererData::GetTextureCoordinates(
-		info.source.position, info.source.size, texture.GetSize(), info.flip
-	) };
-
-	ptgn::Rect rect{ position, size, info.source.origin, info.rotation };
-
 	data_.Texture(
-		rect.GetVertices(info.rotation_center), texture, tex_coords, info.tint.Normalized(),
-		info.z_index, info.render_layer
+		ptgn::Rect(position, size, info.source.origin, info.rotation)
+			.GetVertices(info.rotation_center),
+		texture,
+		RendererData::GetTextureCoordinates(
+			info.source.position, info.source.size, texture.GetSize(), info.flip
+		),
+		info.tint.Normalized(), info.z_index, info.render_layer
 	);
 }
 
@@ -306,11 +296,11 @@ void Renderer::Point(
 }
 
 void Renderer::Points(
-	const std::vector<V2_float>& points, const Color& color, float radius, float z_index,
-	std::size_t render_layer
+	const V2_float* points, std::size_t point_count, const Color& color, float radius,
+	float z_index, std::size_t render_layer
 ) {
-	for (const auto& p : points) {
-		Point(p, color, radius, z_index, render_layer);
+	for (std::size_t i{ 0 }; i < point_count; ++i) {
+		Point(points[i], color, radius, z_index, render_layer);
 	}
 }
 

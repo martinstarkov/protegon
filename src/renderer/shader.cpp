@@ -4,8 +4,6 @@
 #include <filesystem>
 #include <list>
 #include <string>
-#include <string_view>
-#include <unordered_map>
 #include <utility>
 
 #include "math/matrix4.h"
@@ -152,7 +150,12 @@ void Shader::Bind() const {
 }
 
 std::int32_t Shader::GetUniformLocation(const std::string& name) const {
+	PTGN_ASSERT(IsValid(), "Cannot get uniform location of invalid shader");
 	auto& s{ Get() };
+	PTGN_ASSERT(
+		GetBoundId() == static_cast<std::int32_t>(s.id_),
+		"Cannot get uniform location of shader which is not currently bound"
+	);
 	auto& location_cache{ s.location_cache_ };
 	if (auto it = location_cache.find(name); it != location_cache.end()) {
 		return it->second;

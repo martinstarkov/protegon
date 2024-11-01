@@ -8,11 +8,16 @@
 #include "renderer/batch.h"
 #include "renderer/color.h"
 #include "renderer/flip.h"
+#include "renderer/font.h"
 #include "renderer/origin.h"
 #include "renderer/render_texture.h"
+#include "renderer/shader.h"
 #include "renderer/vertex_array.h"
 
 namespace ptgn {
+
+class Texture;
+class Text;
 
 struct TextureInfo {
 	TextureInfo() = default;
@@ -179,6 +184,16 @@ public:
 		const TextDrawInfo& info = {}
 	);
 
+	void Shader(ScreenShader screen_shader, float z_index = 0.0f, std::size_t render_layer = 0);
+
+	// Default size results in fullscreen shader.
+	void Shader(
+		const ptgn::Shader& shader, const V2_float& position = {}, V2_float size = {},
+		Origin draw_origin = Origin::Center, Flip flip = Flip::None, float rotation_radians = 0.0f,
+		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f,
+		std::size_t render_layer = 0
+	);
+
 	void Texture(
 		const Texture& texture, const V2_float& destination_position,
 		const V2_float& destination_size, const TextureInfo& info = {}
@@ -190,7 +205,7 @@ public:
 	);
 
 	void Points(
-		const std::vector<V2_float>& points, const Color& color, float radius = 1.0f,
+		const V2_float* points, std::size_t point_count, const Color& color, float radius = 1.0f,
 		float z_index = 0.0f, std::size_t render_layer = 0
 	);
 
@@ -256,9 +271,11 @@ public:
 		float fade = 0.005f
 	);
 
-	// Calling with default argument {} will reset render target to window
-	void SetTarget(const RenderTexture& render_target = {});
-	[[nodiscard]] RenderTexture GetTarget() const;
+	// Calling with default argument {} will reset render target to window.
+	// Keep in mind that calling this function will draw the previously set render target to the
+	// screen. This can lead to shaders being drawn twice.
+	void SetTarget(const ptgn::RenderTexture& render_target = {});
+	[[nodiscard]] ptgn::RenderTexture GetTarget() const;
 
 	void SetBlendMode(BlendMode mode);
 	[[nodiscard]] BlendMode GetBlendMode() const;
@@ -270,17 +287,17 @@ private:
 	friend class CameraManager;
 	friend class Game;
 
-	void UpdateViewport() const;
+	void UpdateDefaultFrameBuffer();
 
-	void UpdateLayer(std::size_t layer_number, RenderLayer& layer, CameraManager& camera_manager);
+	void UpdateLayer(std::size_t layer_number, RenderLayer& layer, CameraManager& camera_manager)
+		const;
 
 	void Init();
 	void Shutdown();
 	void Reset();
 
-	RenderTexture render_target_;
-	Color clear_color_{ color::Transparent };
-	BlendMode blend_mode_{ BlendMode::Blend };
+	ptgn::RenderTexture default_target_;
+	ptgn::RenderTexture current_target_;
 	RendererData data_;
 };
 

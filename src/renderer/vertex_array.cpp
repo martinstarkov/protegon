@@ -2,18 +2,17 @@
 
 #include <array>
 #include <cstdint>
-#include <memory>
-#include <vector>
 
 #include "core/game.h"
 #include "math/geometry/polygon.h"
+#include "math/vector2.h"
+#include "renderer/batch.h"
 #include "renderer/buffer.h"
 #include "renderer/buffer_layout.h"
 #include "renderer/color.h"
 #include "renderer/flip.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
-#include "renderer/render_texture.h"
 #include "renderer/renderer.h"
 #include "renderer/vertices.h"
 #include "utility/debug.h"
@@ -93,7 +92,7 @@ void VertexArray::SetIndexBufferImpl(const IndexBuffer& index_buffer) {
 
 void VertexArray::SetBufferElement(
 	std::uint32_t i, const impl::BufferElement& element, std::int32_t stride
-) {
+) const {
 	GLCall(gl::EnableVertexAttribArray(i));
 	if (element.is_integer) {
 		GLCall(gl::VertexAttribIPointer(
@@ -115,19 +114,11 @@ VertexArray::VertexArray(const Rect& rect, const Color& color) :
 				 impl::ColorQuadVertices::layout,
 				 IndexBuffer{ std::array<std::uint32_t, 6>{ 0, 1, 2, 2, 3, 0 } } } {}
 
-VertexArray::VertexArray(const RenderTexture& render_texture) :
-	VertexArray{ PrimitiveMode::Triangles,
-				 VertexBuffer{
-					 impl::TextureVertices(
-						 Rect({}, render_texture.GetSize(), Origin::TopLeft).GetVertices(),
-						 impl::RendererData::GetTextureCoordinates(
-							 {}, {}, render_texture.GetSize(), Flip::Vertical
-						 ),
-						 0.0f
-					 )
-						 .Get() },
-				 impl::TextureVertices::layout,
-				 IndexBuffer{ std::array<std::uint32_t, 6>{ 0, 1, 2, 2, 3, 0 } } } {}
+VertexArray::VertexArray(
+	const impl::TextureVertices& texture_vertices, const IndexBuffer& index_buffer
+) :
+	VertexArray{ PrimitiveMode::Triangles, VertexBuffer{ texture_vertices.Get() },
+				 impl::TextureVertices::layout, index_buffer } {}
 
 void VertexArray::Draw() const {
 	game.draw.VertexArray(*this);

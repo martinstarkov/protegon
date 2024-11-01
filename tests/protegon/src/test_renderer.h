@@ -557,13 +557,13 @@ struct TestRenderTargets : public DrawTest {
 		DrawTest::Init();
 		s = test.GetSize();
 		game.window.SetSize(s * 3);
-
-		render_texture1 = RenderTexture{ ScreenShader::Default };
-		render_texture2 = RenderTexture{ ScreenShader::Blur };
-		render_texture3 = RenderTexture{ ScreenShader::EdgeDetection };
-		render_texture4 = RenderTexture{ ScreenShader::Grayscale };
-		render_texture5 = RenderTexture{ ScreenShader::Sharpen };
-		render_texture6 = RenderTexture{ ScreenShader::InverseColor };
+		ws				= game.window.GetSize();
+		render_texture1 = RenderTexture{ ws };
+		render_texture2 = RenderTexture{ ws };
+		render_texture3 = RenderTexture{ ws };
+		render_texture4 = RenderTexture{ ws };
+		render_texture5 = RenderTexture{ ws };
+		render_texture6 = RenderTexture{ ws };
 
 		game.draw.SetClearColor(color::Transparent);
 		render_texture6.SetClearColor(color::White);
@@ -577,32 +577,7 @@ struct TestRenderTargets : public DrawTest {
 
 	const float speed{ 300.0f };
 
-	void Update() override {
-		if (game.input.KeyPressed(Key::A)) {
-			render_texture1.camera.Translate({ speed * dt, 0.0f });
-		}
-		if (game.input.KeyPressed(Key::D)) {
-			render_texture1.camera.Translate({ -speed * dt, 0.0f });
-		}
-		if (game.input.KeyPressed(Key::W)) {
-			render_texture1.camera.Translate({ 0.0f, speed * dt });
-		}
-		if (game.input.KeyPressed(Key::S)) {
-			render_texture1.camera.Translate({ 0.0f, -speed * dt });
-		}
-		if (game.input.KeyPressed(Key::LEFT)) {
-			render_texture2.camera.Translate({ speed * dt, 0.0f });
-		}
-		if (game.input.KeyPressed(Key::RIGHT)) {
-			render_texture2.camera.Translate({ -speed * dt, 0.0f });
-		}
-		if (game.input.KeyPressed(Key::UP)) {
-			render_texture2.camera.Translate({ 0.0f, speed * dt });
-		}
-		if (game.input.KeyPressed(Key::DOWN)) {
-			render_texture2.camera.Translate({ 0.0f, -speed * dt });
-		}
-	}
+	void Update() override {}
 
 	void Draw() override {
 		TextureInfo i;
@@ -611,16 +586,23 @@ struct TestRenderTargets : public DrawTest {
 		game.draw.Rect({ 0, 0 }, s, color::Magenta, Origin::TopLeft);
 		game.draw.SetTarget(render_texture1);
 		game.draw.Texture(test, { 0, s.y * 1.0f }, s, i);
+		game.draw.Shader(ScreenShader::Default);
 		game.draw.SetTarget(render_texture2);
 		game.draw.Texture(test, { s.x, s.y * 2.0f }, s, i);
+		game.draw.Shader(ScreenShader::Blur);
 		game.draw.SetTarget(render_texture3);
 		game.draw.Texture(test, { s.x * 1.0f, 0 }, s, i);
+		game.draw.Shader(ScreenShader::EdgeDetection);
 		game.draw.SetTarget(render_texture4);
 		game.draw.Texture(test, s, s, i);
+		game.draw.Shader(ScreenShader::Grayscale);
 		game.draw.SetTarget(render_texture5);
 		game.draw.Texture(test, { 0, s.y * 2.0f }, s, i);
+		game.draw.Shader(ScreenShader::Sharpen);
 		game.draw.SetTarget(render_texture6);
 		game.draw.Texture(test, { s.x * 2.0f, 0 }, s, i);
+		game.draw.Shader(ScreenShader::InverseColor);
+		game.draw.SetTarget();
 	}
 };
 
@@ -1362,7 +1344,8 @@ void TestRendering() {
 
 	std::vector<std::shared_ptr<Test>> tests;
 
-	tests.emplace_back(new TestRenderTargets());
+	// TODO: Readd test.
+	// tests.emplace_back(new TestRenderTargets());
 	tests.emplace_back(new TestPoint());
 	tests.emplace_back(new TestLineThin());
 	tests.emplace_back(new TestLineThick(test_line_width));

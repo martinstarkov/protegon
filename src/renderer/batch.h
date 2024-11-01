@@ -12,6 +12,7 @@
 #include "renderer/buffer.h"
 #include "renderer/flip.h"
 #include "renderer/origin.h"
+#include "renderer/render_texture.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "renderer/vertex_array.h"
@@ -31,7 +32,37 @@ namespace ptgn::impl {
 class RendererData;
 class Batch;
 
-void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip);
+struct ShaderVertex {
+	ShaderVertex() = default;
+
+	ShaderVertex(
+		const VertexArray& vertex_array, const Shader& shader, const RenderTexture& render_texture
+	) :
+		vertex_array{ vertex_array }, shader{ shader }, render_texture{ render_texture } {}
+
+	VertexArray vertex_array;
+	Shader shader;
+	RenderTexture render_texture;
+};
+
+class ShaderBatchData {
+public:
+	[[nodiscard]] bool IsAvailable() const;
+
+	[[nodiscard]] ShaderVertex& Get();
+
+	void Flush(const M4_float& view_projection);
+
+	void Clear();
+
+private:
+	friend class Batch;
+	friend class RendererData;
+
+	[[nodiscard]] bool IsFlushed() const;
+
+	std::vector<ShaderVertex> data_;
+};
 
 template <typename TVertices, std::size_t IndexCount>
 class BatchData {
@@ -88,6 +119,7 @@ enum class BatchType {
 	Triangle,
 	Line,
 	Point,
+	Shader
 };
 
 class Batch {
@@ -97,12 +129,13 @@ public:
 
 	[[nodiscard]] bool IsFlushed(BatchType type) const;
 
-	void Flush(const RendererData& renderer, BatchType type);
+	void Flush(const RendererData& renderer, BatchType type, const M4_float& view_projection);
 
 	[[nodiscard]] bool IsAvailable(BatchType type) const;
 
 	void Clear();
 
+	ShaderBatchData shader_;
 	TextureBatchData quad_;
 	BatchData<CircleVertices, 6> circle_;
 	BatchData<TriangleVertices, 3> triangle_;
@@ -133,22 +166,26 @@ public:
 
 	void Init();
 
-	Shader quad_shader_;
-	Shader circle_shader_;
-	Shader color_shader_;
+	ptgn::Shader quad_shader_;
+	ptgn::Shader circle_shader_;
+	ptgn::Shader color_shader_;
 
 	IndexBuffer quad_ib_;
 	IndexBuffer triangle_ib_;
 	IndexBuffer line_ib_;
 	IndexBuffer point_ib_;
+	IndexBuffer shader_ib_; // One set of quad indices.
 
 	std::uint32_t max_texture_slots_{ 0 };
 	Texture white_texture_;
 
 	std::map<std::size_t, RenderLayer> render_layers_;
 
-	[[nodiscard]] Shader& GetShader(BatchType type);
-
+	void AddShader(
+		const ptgn::Shader& shader, const std::array<V2_float, 4>& vertices,
+		RenderTexture render_target, const std::array<V2_float, 4>& tex_coords, float z_index,
+		std::size_t render_layer
+	);
 	void AddQuad(
 		const std::array<V2_float, 4>& vertices, float z_index, const V4_float& color,
 		const std::array<V2_float, 4>& tex_coords, const Texture& t, std::size_t render_layer
@@ -178,6 +215,17 @@ public:
 		const V2_float& source_position, V2_float source_size, const V2_float& texture_size,
 		Flip flip
 	);
+
+	[[nodiscard]] static void FlipTextureCoordinates(
+		std::array<V2_float, 4>& texture_coords, Flip flip
+	);
+
+	void Shader(
+		const ptgn::Shader& shader, const std::array<V2_float, 4>& vertices,
+		RenderTexture render_target, const std::array<V2_float, 4>& tex_coords, float z_index,
+		std::size_t render_layer
+	);
+
 	void Texture(
 		const std::array<V2_float, 4>& vertices, const Texture& t,
 		const std::array<V2_float, 4>& tex_coords, const V4_float& tint_color, float z,
@@ -237,7 +285,12 @@ public:
 	RenderLayer& GetRenderLayer(std::size_t render_layer);
 
 private:
-	void FlushBatches(std::vector<Batch>& batches);
+	void FlushType(
+		std::vector<Batch>& batches, const ptgn::Shader& shader, BatchType type,
+		const M4_float& view_projection
+	);
+
+	void FlushBatches(std::vector<Batch>& batches, const M4_float& view_projection);
 
 	[[nodiscard]] std::vector<Batch>& GetBatchGroup(
 		BatchMap& batch_map, float alpha, float z_index

@@ -1,10 +1,11 @@
 #pragma once
 
 #include <cstdint>
-#include <memory>
 
+#include "math/vector2.h"
 #include "renderer/buffer.h"
 #include "renderer/buffer_layout.h"
+#include "renderer/flip.h"
 #include "renderer/gl_helper.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
@@ -13,12 +14,12 @@ namespace ptgn {
 
 struct Color;
 struct Rect;
-class RenderTexture;
 
 class GLRenderer;
 
 namespace impl {
 
+struct TextureVertices;
 class RendererData;
 
 struct VertexArrayInstance {
@@ -57,7 +58,7 @@ public:
 	}
 
 	VertexArray(const Rect& rect, const Color& color);
-	explicit VertexArray(const RenderTexture& render_texture);
+	VertexArray(const impl::TextureVertices& texture_vertices, const IndexBuffer& index_buffer);
 
 	void Draw() const;
 
@@ -108,7 +109,7 @@ private:
 
 	void SetBufferElement(
 		std::uint32_t index, const impl::BufferElement& element, std::int32_t stride
-	);
+	) const;
 
 	template <typename... Ts>
 	void SetBufferLayoutImpl(const BufferLayout<Ts...>& layout) {

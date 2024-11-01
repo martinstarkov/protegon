@@ -3,6 +3,7 @@
 #include "math/vector2.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
+#include "renderer/gl_renderer.h"
 #include "renderer/texture.h"
 #include "utility/debug.h"
 
@@ -105,29 +106,27 @@ FrameBuffer::FrameBuffer(const Texture& texture, const RenderBuffer& render_buff
 	POPSTATE_FB();
 }
 
-void FrameBuffer::AttachTextureImpl(const Texture& texture) const {
+void FrameBuffer::AttachTextureImpl(const Texture& texture) {
 	PTGN_ASSERT(texture.IsValid(), "Cannot attach invalid texture to frame buffer");
-	PTGN_ASSERT(
-		GetBoundId() == static_cast<std::int32_t>(Get().id_),
-		"Cannot attach texture until frame buffer is bound"
-	);
+	auto& i{ Get() };
+	PTGN_ASSERT(IsBound(), "Cannot attach texture until frame buffer is bound");
+	i.texture_ = texture;
 	GLCall(gl::FramebufferTexture2D(
 		GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture.Get().id_, 0
 	));
 }
 
-void FrameBuffer::AttachRenderBufferImpl(const RenderBuffer& render_buffer) const {
+void FrameBuffer::AttachRenderBufferImpl(const RenderBuffer& render_buffer) {
 	PTGN_ASSERT(render_buffer.IsValid(), "Cannot attach invalid render buffer to frame buffer");
-	PTGN_ASSERT(
-		GetBoundId() == static_cast<std::int32_t>(Get().id_),
-		"Cannot attach render buffer until frame buffer is bound"
-	);
+	auto& i{ Get() };
+	PTGN_ASSERT(IsBound(), "Cannot attach render buffer until frame buffer is bound");
+	i.render_buffer_ = render_buffer;
 	GLCall(gl::FramebufferRenderbuffer(
 		GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, render_buffer.Get().id_
 	));
 }
 
-void FrameBuffer::AttachTexture(const Texture& texture) const {
+void FrameBuffer::AttachTexture(const Texture& texture) {
 	PUSHSTATE_FB();
 
 	Bind();
@@ -136,7 +135,7 @@ void FrameBuffer::AttachTexture(const Texture& texture) const {
 	POPSTATE_FB();
 }
 
-void FrameBuffer::AttachRenderBuffer(const RenderBuffer& render_buffer) const {
+void FrameBuffer::AttachRenderBuffer(const RenderBuffer& render_buffer) {
 	PUSHSTATE_FB();
 
 	Bind();
@@ -145,20 +144,41 @@ void FrameBuffer::AttachRenderBuffer(const RenderBuffer& render_buffer) const {
 	POPSTATE_FB();
 }
 
-bool FrameBuffer::IsComplete() const {
+Texture FrameBuffer::GetTexture() const {
+	PTGN_ASSERT(IsValid(), "Cannot get texture attached to uninitialized frame buffer");
+	auto& i{ Get() };
+	PTGN_ASSERT(i.texture_.IsValid(), "Cannot get frame buffer texture which has not been set");
+	return i.texture_;
+}
+
+RenderBuffer FrameBuffer::GetRenderBuffer() const {
+	PTGN_ASSERT(IsValid(), "Cannot get render buffer attached to uninitialized frame buffer");
+	auto& i{ Get() };
 	PTGN_ASSERT(
-		GetBoundId() == static_cast<std::int32_t>(Get().id_),
-		"Cannot checkk status of frame buffer until it is bound"
+		i.render_buffer_.IsValid(), "Cannot get frame buffer render buffer which has not been set"
 	);
+	return i.render_buffer_;
+}
+
+bool FrameBuffer::IsComplete() const {
+	PTGN_ASSERT(IsBound(), "Cannot checkk status of frame buffer until it is bound");
 	auto status{ GLCallReturn(gl::CheckFramebufferStatus(GL_FRAMEBUFFER)) };
 	return status == GL_FRAMEBUFFER_COMPLETE;
-	// TODO: Consider adding a way to query status.
+	// TODO: Consider adding a way to query frame buffer status.
 	// PTGN_ERROR("Incomplete FrameBuffer: ", status);
+}
+
+bool FrameBuffer::IsBound() const {
+	return IsValid() && GetBoundId() == static_cast<std::int32_t>(Get().id_);
 }
 
 void FrameBuffer::Bind() const {
 	PTGN_ASSERT(IsValid(), "Cannot bind invalid frame buffer");
-	GLCall(gl::BindFramebuffer(GL_FRAMEBUFFER, Get().id_));
+	auto& i{ Get() };
+	GLCall(gl::BindFramebuffer(GL_FRAMEBUFFER, i.id_));
+	if (i.texture_.IsValid()) {
+		GLRenderer::SetViewport({}, i.texture_.GetSize());
+	}
 }
 
 void FrameBuffer::Unbind() {
