@@ -117,6 +117,27 @@ public:
 		map_ = {};
 	}
 
+	template <typename TFunc>
+	void ForEachValue(const TFunc& func) {
+		for (auto& [key, value] : map_) {
+			std::invoke(func, value);
+		}
+	}
+
+	template <typename TFunc>
+	void ForEachKey(const TFunc& func) {
+		for (auto& [key, value] : map_) {
+			std::invoke(func, key);
+		}
+	}
+
+	template <typename TFunc>
+	void ForEachKeyValue(const TFunc& func) {
+		for (auto& [key, value] : map_) {
+			std::invoke(func, key, value);
+		}
+	}
+
 protected:
 	template <typename TKey>
 	[[nodiscard]] static InternalKey GetInternalKey(const TKey& key) {
