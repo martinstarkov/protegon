@@ -1,36 +1,43 @@
 #pragma once
 
+#include <cmath>
 #include <memory>
-#include <string>
 #include <vector>
 
 #include "common.h"
 #include "core/game.h"
-#include "event/input_handler.h"
+#include "core/manager.h"
 #include "math/vector2.h"
+#include "math/vector3.h"
 #include "renderer/color.h"
-#include "renderer/gl_renderer.h"
+#include "renderer/origin.h"
 #include "renderer/shader.h"
+#include "renderer/texture.h"
 
 class Light {
 public:
 	Light() = default;
 
-	Light(const V2_float& position, const Color& color, float intensity, bool dynamic) :
-		position{ position }, color{ color }, intensity{ intensity }, dynamic{ dynamic } {}
+	Light(const V2_float& position, const Color& color, float intensity = 10.0f) :
+		position{ position }, intensity{ intensity }, color_rgba_{ color } {
+		auto n		  = color_rgba_.Normalized();
+		this->color.x = n.x;
+		this->color.y = n.y;
+		this->color.z = n.z;
+	}
 
 	V2_float position;
-	Color color{ color::Transparent };
-	float intensity{ 0.0f };
-	bool dynamic{ false };
+	V3_float color;
+	float intensity{ 10.0f };
+
+private:
+	Color color_rgba_;
 };
 
 class LightEngine : public MapManager<Light> {
 public:
-	LightEngine() = default;
-
-	LightEngine(const V2_float& size, const Color& color) : size_{ size }, color_{ color } {
-		shader = Shader(
+	LightEngine() {
+		shader_ = Shader(
 			ShaderSource{
 #include PTGN_SHADER_PATH(screen_default.vert)
 			},
@@ -40,22 +47,20 @@ public:
 		);
 	}
 
-	Shader shader;
-	V2_float size_;
-	Color color_;
-};
-
-struct TLight {
-	TLight(const V2_float& pos, const Color& color) : pos{ pos } {
-		auto n		  = color.Normalized();
-		this->color.x = n.x;
-		this->color.y = n.y;
-		this->color.z = n.z;
+	void Draw() {
+		ForEachValue([&](const auto& light) {
+			shader_.Bind();
+			shader_.SetUniform("u_LightPos", light.position);
+			shader_.SetUniform("u_LightColor", light.color);
+			shader_.SetUniform("u_LightIntensity", light.intensity);
+			game.draw.Shader(shader_, {}, {}, Origin::Center, BlendMode::Add);
+			game.draw.Flush();
+		});
+		// game.draw.Shader(ScreenShader::Blur, BlendMode::Add);
 	}
 
-	V2_float pos;
-	V3_float color;
-	float intensity{ 10.0f };
+private:
+	Shader shader_;
 };
 
 struct TestMouseLight : public Test {
@@ -65,7 +70,6 @@ struct TestMouseLight : public Test {
 
 	// RenderTexture blur{ ScreenShader::Blur };
 	bool draw_blur{ true };
-	std::vector<std::pair<TLight, int>> lights;
 	const float speed{ 300.0f };
 
 	void Shutdown() override {
@@ -73,22 +77,29 @@ struct TestMouseLight : public Test {
 		game.draw.SetClearColor(color::White);
 	}
 
+	std::unordered_map<LightEngine::InternalKey, float> radii;
+
 	void Init() override {
 		game.window.SetSize({ 800, 800 });
 		game.draw.SetClearColor(color::Transparent);
 
-		light_engine = { V2_float{ 800, 800 }, Color{ 32, 32, 32, 255 } };
+		light_engine = {};
 		// light_engine.SetSoftShadow(true);
-		light_engine.Load("mouse light", Light{ V2_float{ 400, 400 }, color::White, 5, true });
+		light_engine.Load(0, Light{ V2_float{ 0, 0 }, color::White });
+		light_engine.Load(1, Light{ V2_float{ 0, 0 }, color::Green });
+		light_engine.Load(2, Light{ V2_float{ 0, 0 }, color::Blue });
+		light_engine.Load(3, Light{ V2_float{ 0, 0 }, color::Magenta });
+		light_engine.Load(4, Light{ V2_float{ 0, 0 }, color::Yellow });
+		light_engine.Load(5, Light{ V2_float{ 0, 0 }, color::Cyan });
+		light_engine.Load(6, Light{ V2_float{ 0, 0 }, color::Red });
 
-		lights.clear();
-		lights.emplace_back(TLight{ V2_float{ 0, 0 }, color::White }, 0);
-		lights.emplace_back(TLight{ V2_float{ 0, 0 }, color::Green }, 50);
-		lights.emplace_back(TLight{ V2_float{ 0, 0 }, color::Blue }, 100);
-		lights.emplace_back(TLight{ V2_float{ 0, 0 }, color::Magenta }, 150);
-		lights.emplace_back(TLight{ V2_float{ 0, 0 }, color::Yellow }, 200);
-		lights.emplace_back(TLight{ V2_float{ 0, 0 }, color::Cyan }, 250);
-		lights.emplace_back(TLight{ V2_float{ 0, 0 }, color::Red }, 300);
+		radii.clear();
+		radii.reserve(light_engine.Size());
+		float i{ 0.0f };
+		light_engine.ForEachKey([&](auto key) {
+			radii.emplace(key, i * 50.0f);
+			i++;
+		});
 	}
 
 	void Update() override {
@@ -111,24 +122,21 @@ struct TestMouseLight : public Test {
 		auto t		   = game.time();
 		auto frequency = 0.001f;
 		V2_float c	   = game.window.GetSize() / 2.0f;
-		for (auto& [l, r] : lights) {
-			l.pos.x = (float)r * std::sin(frequency * t) + c.x;
-			l.pos.y = (float)r * std::cos(frequency * t) + c.y;
-		}
+
+		light_engine.ForEachKeyValue([&](auto key, auto& light) {
+			auto it = radii.find(key);
+			PTGN_ASSERT(it != radii.end());
+			float r{ it->second };
+			light.position.x = r * std::sin(frequency * t) + c.x;
+			light.position.y = r * std::cos(frequency * t) + c.y;
+		});
 	}
 
 	void Draw() override {
-		auto& shader = light_engine.shader;
-
-		for (const auto& [l, r] : lights) {
-			shader.Bind();
-			shader.SetUniform("u_LightPos", l.pos);
-			shader.SetUniform("u_LightColor", l.color);
-			shader.SetUniform("u_LightIntensity", l.intensity);
-			game.draw.Shader(shader);
-		}
 		game.draw.Rect({ 100, 100 }, { 100, 100 }, color::Blue, Origin::TopLeft);
 		game.draw.Texture(test, game.window.GetSize() / 2, test.GetSize());
+
+		light_engine.Draw();
 	}
 };
 
