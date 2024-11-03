@@ -182,12 +182,16 @@ public:
 		const TextDrawInfo& info = {}
 	);
 
-	void Shader(ScreenShader screen_shader, float z_index = 0.0f, std::size_t render_layer = 0);
+	void Shader(
+		ScreenShader screen_shader, BlendMode blend_mode = BlendMode::Blend, float z_index = 0.0f,
+		std::size_t render_layer = 0
+	);
 
 	// Default size results in fullscreen shader.
 	void Shader(
 		const ptgn::Shader& shader, const V2_float& position = {}, V2_float size = {},
-		Origin draw_origin = Origin::Center, Flip flip = Flip::None, float rotation_radians = 0.0f,
+		Origin draw_origin = Origin::Center, BlendMode blend_mode = BlendMode::Blend,
+		Flip flip = Flip::None, float rotation_radians = 0.0f,
 		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f,
 		std::size_t render_layer = 0
 	);

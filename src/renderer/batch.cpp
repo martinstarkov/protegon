@@ -23,6 +23,7 @@
 #include "renderer/gl_renderer.h"
 #include "renderer/origin.h"
 #include "renderer/render_texture.h"
+#include "renderer/renderer.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "renderer/vertex_array.h"
@@ -57,6 +58,8 @@ void ShaderBatchData::Flush(const M4_float& view_projection) {
 	PTGN_ASSERT(!IsFlushed());
 
 	V2_float window_size{ game.window.GetSize() };
+	BlendMode og_blend_mode{ game.draw.GetBlendMode() };
+	BlendMode current_blend_mode{ og_blend_mode };
 
 	for (const auto& s : data_) {
 		s.shader.Bind();
@@ -64,8 +67,13 @@ void ShaderBatchData::Flush(const M4_float& view_projection) {
 		s.shader.SetUniform("u_Texture", 1);
 		s.shader.SetUniform("u_Resolution", window_size);
 		s.render_texture.Texture::Bind(1);
+		if (s.blend_mode != current_blend_mode) {
+			GLRenderer::SetBlendMode(s.blend_mode);
+			current_blend_mode = s.blend_mode;
+		}
 		GLRenderer::DrawElements(s.vertex_array, s.vertex_array.GetIndexBuffer().GetCount());
 	}
+	GLRenderer::SetBlendMode(og_blend_mode);
 	data_.clear();
 }
 
@@ -435,14 +443,14 @@ RenderLayer& RendererData::GetRenderLayer(std::size_t render_layer) {
 
 void RendererData::AddShader(
 	const ptgn::Shader& shader, const std::array<V2_float, 4>& vertices,
-	RenderTexture render_target, const std::array<V2_float, 4>& tex_coords, float z_index,
-	std::size_t render_layer
+	RenderTexture render_target, BlendMode blend_mode, const std::array<V2_float, 4>& tex_coords,
+	float z_index, std::size_t render_layer
 ) {
 	// TODO: Consider if the shader draw is counted as opaque or transparent.
 	auto& batch_group = GetBatchGroup(GetRenderLayer(render_layer).batch_map, 1.0f, z_index);
 	VertexArray vertex_array{ TextureVertices(vertices, tex_coords, z_index), shader_ib_ };
 	GetBatch(BatchType::Shader, batch_group).shader_.Get() =
-		ShaderVertex(vertex_array, shader, render_target);
+		ShaderVertex(vertex_array, shader, render_target, blend_mode);
 }
 
 void RendererData::AddQuad(
@@ -575,10 +583,10 @@ void RendererData::FlipTextureCoordinates(std::array<V2_float, 4>& texture_coord
 
 void RendererData::Shader(
 	const ptgn::Shader& shader, const std::array<V2_float, 4>& vertices,
-	RenderTexture render_target, const std::array<V2_float, 4>& tex_coords, float z_index,
-	std::size_t render_layer
+	RenderTexture render_target, BlendMode blend_mode, const std::array<V2_float, 4>& tex_coords,
+	float z_index, std::size_t render_layer
 ) {
-	AddShader(shader, vertices, render_target, tex_coords, z_index, render_layer);
+	AddShader(shader, vertices, render_target, blend_mode, tex_coords, z_index, render_layer);
 }
 
 void RendererData::Texture(

@@ -10,6 +10,7 @@
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/buffer.h"
+#include "renderer/color.h"
 #include "renderer/flip.h"
 #include "renderer/origin.h"
 #include "renderer/render_texture.h"
@@ -36,13 +37,18 @@ struct ShaderVertex {
 	ShaderVertex() = default;
 
 	ShaderVertex(
-		const VertexArray& vertex_array, const Shader& shader, const RenderTexture& render_texture
+		const VertexArray& vertex_array, const Shader& shader, const RenderTexture& render_texture,
+		BlendMode blend_mode
 	) :
-		vertex_array{ vertex_array }, shader{ shader }, render_texture{ render_texture } {}
+		vertex_array{ vertex_array },
+		shader{ shader },
+		render_texture{ render_texture },
+		blend_mode{ blend_mode } {}
 
 	VertexArray vertex_array;
 	Shader shader;
 	RenderTexture render_texture;
+	BlendMode blend_mode{ BlendMode::Blend };
 };
 
 class ShaderBatchData {
@@ -185,8 +191,8 @@ public:
 
 	void AddShader(
 		const ptgn::Shader& shader, const std::array<V2_float, 4>& vertices,
-		RenderTexture render_target, const std::array<V2_float, 4>& tex_coords, float z_index,
-		std::size_t render_layer
+		RenderTexture render_target, BlendMode blend_mode,
+		const std::array<V2_float, 4>& tex_coords, float z_index, std::size_t render_layer
 	);
 	void AddQuad(
 		const std::array<V2_float, 4>& vertices, float z_index, const V4_float& color,
@@ -224,8 +230,8 @@ public:
 
 	void Shader(
 		const ptgn::Shader& shader, const std::array<V2_float, 4>& vertices,
-		RenderTexture render_target, const std::array<V2_float, 4>& tex_coords, float z_index,
-		std::size_t render_layer
+		RenderTexture render_target, BlendMode blend_mode,
+		const std::array<V2_float, 4>& tex_coords, float z_index, std::size_t render_layer
 	);
 
 	void Texture(

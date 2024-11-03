@@ -256,17 +256,19 @@ void Renderer::Text(
 	);
 }
 
-void Renderer::Shader(ScreenShader screen_shader, float z_index, std::size_t render_layer) {
+void Renderer::Shader(
+	ScreenShader screen_shader, BlendMode blend_mode, float z_index, std::size_t render_layer
+) {
 	Shader(
-		game.shader.Get(screen_shader), {}, {}, Origin::Center, Flip::None, 0.0f, { 0.5f, 0.5f },
-		z_index, render_layer
+		game.shader.Get(screen_shader), {}, {}, Origin::Center, blend_mode, Flip::None, 0.0f,
+		{ 0.5f, 0.5f }, z_index, render_layer
 	);
 }
 
 void Renderer::Shader(
 	const ptgn::Shader& shader, const V2_float& position, V2_float size, Origin draw_origin,
-	Flip flip, float rotation_radians, const V2_float& rotation_center, float z_index,
-	std::size_t render_layer
+	BlendMode blend_mode, Flip flip, float rotation_radians, const V2_float& rotation_center,
+	float z_index, std::size_t render_layer
 ) {
 	// Fullscreen shader.
 	if (size.IsZero()) {
@@ -281,7 +283,7 @@ void Renderer::Shader(
 	RendererData::FlipTextureCoordinates(tex_coords, Flip::Vertical);
 
 	data_.Shader(
-		shader, rect.GetVertices(rotation_center), current_target_, tex_coords, z_index,
+		shader, rect.GetVertices(rotation_center), current_target_, blend_mode, tex_coords, z_index,
 		render_layer
 	);
 }
