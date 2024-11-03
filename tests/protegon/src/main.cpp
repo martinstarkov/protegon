@@ -40,10 +40,10 @@ public:
 
 		// Visual tests.
 
+		TestCamera();
 		TestRenderer();
 		TestLighting();
 		TestCollisions();
-		TestCamera();
 		TestRNG();
 		TestAnimations();
 		TestPathfinding();

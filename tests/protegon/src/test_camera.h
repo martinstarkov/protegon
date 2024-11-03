@@ -136,7 +136,7 @@ struct TestCameraControls : public Test {
 			camera.SetPosition({ center.x, center.y, 0.0f });
 		}
 
-		camera.PrintInfo();
+		// camera.PrintInfo();
 	}
 
 	void Draw() override {
@@ -336,8 +336,8 @@ struct TestCameraShake : public Test {
 void TestCamera() {
 	std::vector<std::shared_ptr<Test>> tests;
 
-	tests.emplace_back(new TestCameraShake());
 	tests.emplace_back(new TestCameraControls());
+	tests.emplace_back(new TestCameraShake());
 	tests.emplace_back(new TestCameraBounds());
 	tests.emplace_back(new TestCameraSwitching());
 	tests.emplace_back(new TestParallax());
