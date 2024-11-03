@@ -26,13 +26,14 @@ RenderTexture::RenderTexture(const V2_float& size, const Color& clear_color, Ble
 	PTGN_ASSERT(Texture::IsValid(), "Failed to create render texture");
 	frame_buffer_ = FrameBuffer{ *this, RenderBuffer{ size } };
 	PTGN_ASSERT(frame_buffer_.IsValid(), "Failed to create frame buffer for render texture");
+	window_camera_.SetToWindow(true);
 }
 
-void RenderTexture::DrawAndUnbind() const {
+void RenderTexture::DrawAndUnbind() {
 	FrameBuffer::Unbind();
 	GLRenderer::SetBlendMode(blend_mode_);
 	game.draw.Shader(ScreenShader::Default);
-	game.draw.Flush();
+	game.draw.FlushImpl(window_camera_.GetViewProjection());
 }
 
 void RenderTexture::Clear() const {

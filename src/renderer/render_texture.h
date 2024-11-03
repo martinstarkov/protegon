@@ -4,6 +4,7 @@
 #include "renderer/color.h"
 #include "renderer/frame_buffer.h"
 #include "renderer/texture.h"
+#include "scene/camera.h"
 
 namespace ptgn {
 
@@ -21,7 +22,7 @@ public:
 	void Clear() const;
 
 	// TODO: Move to private.
-	void DrawAndUnbind() const;
+	void DrawAndUnbind();
 
 	// TODO: Move to private.
 	void Bind() const;
@@ -35,6 +36,8 @@ public:
 private:
 	friend class impl::Renderer;
 
+	// TODO: Make this be a global camera variable.
+	OrthographicCamera window_camera_;
 	Color clear_color_{ color::Transparent };
 	BlendMode blend_mode_{ BlendMode::Add };
 	FrameBuffer frame_buffer_;
