@@ -91,11 +91,14 @@ TVertices& BatchData<TVertices, IndexCount>::Get() {
 template <typename TVertices, std::size_t IndexCount>
 void BatchData<TVertices, IndexCount>::Flush(const RendererData& renderer) {
 	PTGN_ASSERT(!IsFlushed());
-	PrepareBuffer(renderer);
+	bool bound = PrepareBuffer(renderer);
+	if (!bound) {
+		array_.Bind();
+	}
 	array_.GetVertexBuffer().SetSubData(
-		data_.data(), static_cast<std::uint32_t>(data_.size()) * sizeof(TVertices)
+		data_.data(), static_cast<std::uint32_t>(data_.size()) * sizeof(TVertices), false
 	);
-	GLRenderer::DrawElements(array_, data_.size() * IndexCount);
+	GLRenderer::DrawElements(array_, data_.size() * IndexCount, false);
 	data_.clear();
 }
 
@@ -105,29 +108,30 @@ void BatchData<TVertices, IndexCount>::Clear() {
 }
 
 template <typename TVertices, std::size_t IndexCount>
-void BatchData<TVertices, IndexCount>::SetupBuffer(const IndexBuffer& index_buffer) {
+bool BatchData<TVertices, IndexCount>::SetupBuffer(const IndexBuffer& index_buffer) {
 	if (array_.IsValid()) {
 		// Array has been created already so its creation can be skipped.
-		return;
+		return false;
 	}
 
 	data_.reserve(batch_capacity);
 	array_ = { TVertices::mode, VertexBuffer(data_, BufferUsage::DynamicDraw, true),
 			   TVertices::layout, index_buffer };
+	return true;
 }
 
 template <typename TVertices, std::size_t IndexCount>
-void BatchData<TVertices, IndexCount>::PrepareBuffer(const RendererData& renderer) {
+bool BatchData<TVertices, IndexCount>::PrepareBuffer(const RendererData& renderer) {
 	if constexpr (std::is_same_v<TVertices, QuadVertices>) {
-		SetupBuffer(renderer.quad_ib_);
+		return SetupBuffer(renderer.quad_ib_);
 	} else if constexpr (std::is_same_v<TVertices, CircleVertices>) {
-		SetupBuffer(renderer.quad_ib_);
+		return SetupBuffer(renderer.quad_ib_);
 	} else if constexpr (std::is_same_v<TVertices, TriangleVertices>) {
-		SetupBuffer(renderer.triangle_ib_);
+		return SetupBuffer(renderer.triangle_ib_);
 	} else if constexpr (std::is_same_v<TVertices, LineVertices>) {
-		SetupBuffer(renderer.line_ib_);
+		return SetupBuffer(renderer.line_ib_);
 	} else if constexpr (std::is_same_v<TVertices, PointVertices>) {
-		SetupBuffer(renderer.point_ib_);
+		return SetupBuffer(renderer.point_ib_);
 	} else {
 		PTGN_ERROR("Failed to recognize batch buffer type");
 	}
@@ -285,14 +289,17 @@ void RendererData::SetupShaders() {
 	quad_shader_.SetUniform("u_Textures", samplers.data(), samplers.size());
 }
 
-void RendererData::FlushLayer(RenderLayer& layer) {
+void RendererData::FlushLayer(RenderLayer& layer, const M4_float& shader_view_projection) {
+	ptgn::Shader bound_shader;
+
 	if (layer.new_view_projection) {
-		quad_shader_.Bind();
-		quad_shader_.SetUniform("u_ViewProjection", layer.view_projection);
 		circle_shader_.Bind();
 		circle_shader_.SetUniform("u_ViewProjection", layer.view_projection);
 		color_shader_.Bind();
 		color_shader_.SetUniform("u_ViewProjection", layer.view_projection);
+		quad_shader_.Bind();
+		quad_shader_.SetUniform("u_ViewProjection", layer.view_projection);
+		bound_shader			  = color_shader_;
 		layer.new_view_projection = false;
 	}
 
@@ -317,9 +324,14 @@ void RendererData::FlushLayer(RenderLayer& layer) {
 	PTGN_ASSERT(
 		!layer.new_view_projection, "Opaque batch should have handled view projection reset"
 	);
+
+	bool default_vp{ shader_view_projection.IsZero() };
+
 	// Flush batches in order of z_index.
 	for (auto& [z_index, batches] : layer.batch_map) {
-		FlushBatches(batches, layer.view_projection);
+		FlushBatches(
+			batches, default_vp ? layer.view_projection : shader_view_projection, bound_shader
+		);
 	}
 
 	// TODO: Re-enable when opaque batching is figured out
@@ -348,30 +360,34 @@ void RendererData::FlushLayer(RenderLayer& layer) {
 
 void RendererData::FlushType(
 	std::vector<Batch>& batches, const ptgn::Shader& shader, BatchType type,
-	const M4_float& view_projection
+	const M4_float& view_projection, ptgn::Shader& bound_shader
 ) {
 	for (auto& batch : batches) {
 		if (batch.IsFlushed(type)) {
 			continue;
 		}
-		if (shader.IsValid()) {
+		if (shader.IsValid() && shader != bound_shader) {
 			shader.Bind();
+			bound_shader = shader;
 		}
 		batch.Flush(*this, type, view_projection);
 	}
 };
 
-void RendererData::FlushBatches(std::vector<Batch>& batches, const M4_float& view_projection) {
-	FlushType(batches, quad_shader_, BatchType::Quad, view_projection);
-	FlushType(batches, circle_shader_, BatchType::Circle, view_projection);
-	FlushType(batches, color_shader_, BatchType::Triangle, view_projection);
-	FlushType(batches, color_shader_, BatchType::Line, view_projection);
-	FlushType(batches, color_shader_, BatchType::Point, view_projection);
-	FlushType(batches, {}, BatchType::Shader, view_projection);
+void RendererData::FlushBatches(
+	std::vector<Batch>& batches, const M4_float& view_projection, ptgn::Shader& bound_shader
+) {
+	FlushType(batches, quad_shader_, BatchType::Quad, view_projection, bound_shader);
+	FlushType(batches, circle_shader_, BatchType::Circle, view_projection, bound_shader);
+	FlushType(batches, color_shader_, BatchType::Triangle, view_projection, bound_shader);
+	FlushType(batches, color_shader_, BatchType::Line, view_projection, bound_shader);
+	FlushType(batches, color_shader_, BatchType::Point, view_projection, bound_shader);
+	FlushType(batches, {}, BatchType::Shader, view_projection, bound_shader);
 }
 
 std::array<V2_float, 4> RendererData::GetTextureCoordinates(
-	const V2_float& source_position, V2_float source_size, const V2_float& texture_size, Flip flip
+	const V2_float& source_position, V2_float source_size, const V2_float& texture_size, Flip flip,
+	bool offset_texels
 ) {
 	PTGN_ASSERT(texture_size.x > 0.0f, "Texture must have width > 0");
 	PTGN_ASSERT(texture_size.y > 0.0f, "Texture must have height > 0");
@@ -395,7 +411,7 @@ std::array<V2_float, 4> RendererData::GetTextureCoordinates(
 		PTGN_WARN("Drawing source size from outside of texture size");
 	}
 
-	V2_float half_pixel{ 0.5f / texture_size };
+	V2_float half_pixel{ (offset_texels ? 0.5f : 0.0f) / texture_size };
 
 	std::array<V2_float, 4> texture_coordinates{
 		src_pos + half_pixel,

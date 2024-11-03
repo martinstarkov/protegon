@@ -80,9 +80,11 @@ public:
 private:
 	friend class Batch;
 
-	void SetupBuffer(const IndexBuffer& index_buffer);
+	// @return True if buffer was bound during call, false otherwise.
+	bool SetupBuffer(const IndexBuffer& index_buffer);
 
-	void PrepareBuffer(const RendererData& renderer);
+	// @return True if buffer was bound during call, false otherwise.
+	bool PrepareBuffer(const RendererData& renderer);
 
 	[[nodiscard]] bool IsFlushed() const;
 
@@ -209,11 +211,11 @@ public:
 	void SetupShaders();
 
 	// Flush a specific render layer. It must exist in render_layers_.
-	void FlushLayer(RenderLayer& layer);
+	void FlushLayer(RenderLayer& layer, const M4_float& shader_view_projection);
 
 	[[nodiscard]] static std::array<V2_float, 4> GetTextureCoordinates(
 		const V2_float& source_position, V2_float source_size, const V2_float& texture_size,
-		Flip flip
+		Flip flip, bool offset_texels = false
 	);
 
 	[[nodiscard]] static void FlipTextureCoordinates(
@@ -287,10 +289,12 @@ public:
 private:
 	void FlushType(
 		std::vector<Batch>& batches, const ptgn::Shader& shader, BatchType type,
-		const M4_float& view_projection
+		const M4_float& view_projection, ptgn::Shader& bound_shader
 	);
 
-	void FlushBatches(std::vector<Batch>& batches, const M4_float& view_projection);
+	void FlushBatches(
+		std::vector<Batch>& batches, const M4_float& view_projection, ptgn::Shader& bound_shader
+	);
 
 	[[nodiscard]] std::vector<Batch>& GetBatchGroup(
 		BatchMap& batch_map, float alpha, float z_index

@@ -50,18 +50,22 @@ public:
 		static_assert(I > 0, "Must provide at least one buffer element");
 	}
 
-	void SetSubData(const void* data, std::uint32_t size);
+	void SetSubData(const void* data, std::uint32_t size, bool unbind_vertex_array = true);
 
 	template <typename T>
-	void SetSubData(const std::vector<T>& data) {
+	void SetSubData(const std::vector<T>& data, bool unbind_vertex_array = true) {
 		PTGN_ASSERT(!data.empty(), "Must provide at least one buffer element");
-		SetSubData(data.data(), static_cast<std::uint32_t>(data.size() * sizeof(T)));
+		SetSubData(
+			data.data(), static_cast<std::uint32_t>(data.size() * sizeof(T)), unbind_vertex_array
+		);
 	}
 
 	template <typename T, std::size_t I>
-	void SetSubData(const std::array<T, I>& data) {
+	void SetSubData(const std::array<T, I>& data, bool unbind_vertex_array = true) {
 		static_assert(I > 0, "Must provide at least one buffer element");
-		SetSubData(data.data(), static_cast<std::uint32_t>(data.size() * sizeof(T)));
+		SetSubData(
+			data.data(), static_cast<std::uint32_t>(data.size() * sizeof(T)), unbind_vertex_array
+		);
 	}
 
 	[[nodiscard]] std::uint32_t GetCount() const;
