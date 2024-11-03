@@ -429,7 +429,7 @@ void OrthographicCamera::RecalculateProjection() {
 	}
 	o.projection = M4_float::Orthographic(
 		flip.x * -extents.x, flip.x * extents.x, flip.y * extents.y, flip.y * -extents.y,
-		-std::numeric_limits<float>::max(), std::numeric_limits<float>::max()
+		-std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()
 	);
 }
 
