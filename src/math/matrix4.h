@@ -157,12 +157,18 @@ public:
 		PTGN_ASSERT(bottom != top, "Orthographic matrix division by zero");
 		PTGN_ASSERT(far != near, "Orthographic matrix division by zero");
 
+		T plane_dist{ far - near };
+
 		o[0]  = T{ 2 } / (right - left);
 		o[5]  = T{ 2 } / (top - bottom);
-		o[10] = -T{ 2 } / (far - near); // -1 by default
+		o[10] = -T{ 2 } / plane_dist; // -1 by default
 		o[12] = -(right + left) / (right - left);
 		o[13] = -(top + bottom) / (top - bottom);
-		o[14] = -(far + near) / (far - near); // 0 by default
+		T plane_sum{ far + near };
+		if (std::isnan(plane_sum)) {
+			plane_sum = 0.0f;
+		}
+		o[14] = -plane_sum / plane_dist; // 0 by default
 		o[15] = T{ 1 };
 
 		PTGN_ASSERT(
@@ -317,7 +323,7 @@ public:
 
 	[[nodiscard]] static Matrix4 Scale(const Matrix4& m, const Vector3<T>& axes) {
 		Matrix4<T> result;
-		for (std::size_t i = 0; i < result.size.x; i++) {
+		for (std::size_t i{ 0 }; i < result.size.x; i++) {
 			result[i + 0]  = m[i + 0] * axes.x;
 			result[i + 4]  = m[i + 4] * axes.y;
 			result[i + 8]  = m[i + 8] * axes.z;
@@ -327,8 +333,17 @@ public:
 	}
 
 	[[nodiscard]] bool IsZero() const {
-		for (std::size_t i = 0; i < length; i++) {
+		for (std::size_t i{ 0 }; i < length; i++) {
 			if (!NearlyEqual(m_[i], T{ 0 })) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	[[nodiscard]] bool ExactlyEquals(const Matrix4& o) const {
+		for (std::size_t i{ 0 }; i < length; i++) {
+			if (m_[i] != o[i]) {
 				return false;
 			}
 		}
@@ -343,7 +358,7 @@ using M4_double = Matrix4<double>;
 
 template <typename V>
 [[nodiscard]] inline bool operator==(const Matrix4<V>& lhs, const Matrix4<V>& rhs) {
-	for (std::size_t i = 0; i < lhs.length; i++) {
+	for (std::size_t i{ 0 }; i < lhs.length; i++) {
 		if (!NearlyEqual(lhs[i], rhs[i])) {
 			return false;
 		}
@@ -386,7 +401,7 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::Matrix4<V>& m) {
 template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
 [[nodiscard]] inline Matrix4<S> operator+(const Matrix4<V>& lhs, const Matrix4<U>& rhs) {
 	Matrix4<S> result;
-	for (std::size_t i = 0; i < result.length; i++) {
+	for (std::size_t i{ 0 }; i < result.length; i++) {
 		result[i] = lhs[i] + rhs[i];
 	}
 	return result;
@@ -395,7 +410,7 @@ template <typename V, typename U, typename S = typename std::common_type_t<V, U>
 template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
 [[nodiscard]] inline Matrix4<S> operator-(const Matrix4<V>& lhs, const Matrix4<U>& rhs) {
 	Matrix4<S> result;
-	for (std::size_t i = 0; i < result.length; i++) {
+	for (std::size_t i{ 0 }; i < result.length; i++) {
 		result[i] = lhs[i] - rhs[i];
 	}
 	return result;
@@ -410,7 +425,7 @@ template <typename V, typename U, typename S = typename std::common_type_t<V, U>
 		std::size_t B_stride{ col * B.size.x };
 		for (std::size_t row = 0; row < A.size.x; ++row) {
 			std::size_t res_index{ row + res_stride };
-			for (std::size_t i = 0; i < B.size.x; ++i) {
+			for (std::size_t i{ 0 }; i < B.size.x; ++i) {
 				res[res_index] += A[row + i * A.size.x] * B[i + B_stride];
 			}
 		}
@@ -423,7 +438,7 @@ template <typename V, typename U, typename S = typename std::common_type_t<V, U>
 	Vector4<S> res;
 
 	for (std::size_t row = 0; row < A.size.x; ++row) {
-		for (std::size_t i = 0; i < 4; ++i) {
+		for (std::size_t i{ 0 }; i < 4; ++i) {
 			res[row] += A[row + i * A.size.x] * B[i];
 		}
 	}
@@ -436,7 +451,7 @@ template <
 [[nodiscard]] inline Matrix4<S> operator*(const Matrix4<V>& A, U B) {
 	Matrix4<S> res;
 
-	for (std::size_t i = 0; i < A.length; ++i) {
+	for (std::size_t i{ 0 }; i < A.length; ++i) {
 		res[i] = A[i] * B;
 	}
 	return res;
@@ -455,7 +470,7 @@ template <
 [[nodiscard]] inline Matrix4<S> operator/(const Matrix4<V>& A, U B) {
 	Matrix4<S> res;
 
-	for (std::size_t i = 0; i < res.length; ++i) {
+	for (std::size_t i{ 0 }; i < res.length; ++i) {
 		res[i] = static_cast<S>(A[i]) / static_cast<S>(B);
 	}
 	return res;
