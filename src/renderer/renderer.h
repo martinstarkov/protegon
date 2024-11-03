@@ -1,9 +1,7 @@
 #pragma once
 
-#include <string_view>
-#include <vector>
-
 #include "math/geometry/polygon.h"
+#include "math/matrix4.h"
 #include "math/vector2.h"
 #include "renderer/batch.h"
 #include "renderer/color.h"
@@ -12,12 +10,12 @@
 #include "renderer/origin.h"
 #include "renderer/render_texture.h"
 #include "renderer/shader.h"
-#include "renderer/vertex_array.h"
 
 namespace ptgn {
 
 class Texture;
 class Text;
+class RenderTexture;
 
 struct TextureInfo {
 	TextureInfo() = default;
@@ -286,6 +284,10 @@ public:
 private:
 	friend class CameraManager;
 	friend class Game;
+	friend class RenderTexture;
+
+	void FlushImpl(std::size_t render_layer, const M4_float& shader_view_projection);
+	void FlushImpl(const M4_float& shader_view_projection);
 
 	void UpdateDefaultFrameBuffer();
 

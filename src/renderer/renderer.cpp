@@ -25,6 +25,7 @@
 #include "renderer/vertex_array.h"
 #include "scene/camera.h"
 #include "utility/debug.h"
+#include "utility/log.h"
 
 namespace ptgn::impl {
 
@@ -37,10 +38,6 @@ void Renderer::Init() {
 	game.event.window.Subscribe(
 		WindowEvent::Resized, this,
 		std::function([this](const WindowResizedEvent&) { UpdateDefaultFrameBuffer(); })
-	);
-	game.event.window.Subscribe(
-		WindowEvent::Moved, this,
-		std::function([this](const WindowMovedEvent&) { UpdateDefaultFrameBuffer(); })
 	);
 
 	UpdateDefaultFrameBuffer();
@@ -110,6 +107,12 @@ void Renderer::Present() {
 	GLRenderer::Clear();
 
 	current_target_.Bind();
+
+	// PTGN_LOG("Renderer Stats: \n", game.stats);
+	// PTGN_LOG("--------------------------------------");
+#ifdef PTGN_DEBUG
+	game.stats.ResetRendererRelated();
+#endif
 }
 
 void Renderer::UpdateDefaultFrameBuffer() {
@@ -129,14 +132,26 @@ void Renderer::UpdateLayer(
 		layer.view_projection = it->second.GetViewProjection();
 	} else {
 		// If no camera specified, use screen camera.
+		// TODO: Store window camera somewhere.
 		OrthographicCamera c;
 		c.SetToWindow(false);
 		layer.view_projection = c.GetViewProjection();
 	}
+	// TODO: Figure out how to check if view projection has been updated.
+	// I tried comparing with previous view projection but that seems to cause strange issues with
+	// the camera not following a position. Perhaps due to floating point issues?
 	layer.new_view_projection = true;
 }
 
 void Renderer::Flush(std::size_t render_layer) {
+	FlushImpl(render_layer, M4_float{});
+}
+
+void Renderer::Flush() {
+	FlushImpl(M4_float{});
+}
+
+void Renderer::FlushImpl(std::size_t render_layer, const M4_float& shader_view_projection) {
 	auto it = data_.render_layers_.find(render_layer);
 	PTGN_ASSERT(
 		it != data_.render_layers_.end(),
@@ -146,15 +161,15 @@ void Renderer::Flush(std::size_t render_layer) {
 	auto& camera_manager{ game.scene.GetTopActive().camera };
 	data_.white_texture_.Bind(0);
 	UpdateLayer(render_layer, layer, camera_manager);
-	data_.FlushLayer(layer);
+	data_.FlushLayer(layer, shader_view_projection);
 }
 
-void Renderer::Flush() {
+void Renderer::FlushImpl(const M4_float& shader_view_projection) {
 	auto& camera_manager{ game.scene.GetTopActive().camera };
 	data_.white_texture_.Bind(0);
 	for (auto& [render_layer, layer] : data_.render_layers_) {
 		UpdateLayer(render_layer, layer, camera_manager);
-		data_.FlushLayer(layer);
+		data_.FlushLayer(layer, shader_view_projection);
 	}
 }
 
