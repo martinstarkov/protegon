@@ -1,5 +1,6 @@
 #include "renderer/frame_buffer.h"
 
+#include "core/game.h"
 #include "math/vector2.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
@@ -176,6 +177,9 @@ void FrameBuffer::Bind() const {
 	PTGN_ASSERT(IsValid(), "Cannot bind invalid frame buffer");
 	auto& i{ Get() };
 	GLCall(gl::BindFramebuffer(GL_FRAMEBUFFER, i.id_));
+#ifdef PTGN_DEBUG
+	++game.stats.frame_buffer_binds;
+#endif
 	if (i.texture_.IsValid()) {
 		GLRenderer::SetViewport({}, i.texture_.GetSize());
 	}
@@ -183,6 +187,9 @@ void FrameBuffer::Bind() const {
 
 void FrameBuffer::Unbind() {
 	GLCall(gl::BindFramebuffer(GL_FRAMEBUFFER, 0));
+#ifdef PTGN_DEBUG
+	++game.stats.frame_buffer_unbinds;
+#endif
 }
 
 std::int32_t FrameBuffer::GetBoundId() {

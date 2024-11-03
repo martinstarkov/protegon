@@ -39,10 +39,12 @@ void Buffer<BT>::SetDataImpl(const void* data, std::uint32_t size, BufferUsage u
 }
 
 template <BufferType BT>
-void Buffer<BT>::SetSubData(const void* data, std::uint32_t size) {
+void Buffer<BT>::SetSubData(const void* data, std::uint32_t size, bool unbind_vertex_array) {
 	PTGN_ASSERT(size != 0, "Must provide more than one element when setting buffer subdata");
 	PTGN_ASSERT(data != nullptr);
-	VertexArray::Unbind();
+	if (unbind_vertex_array) {
+		VertexArray::Unbind();
+	}
 	Bind();
 	// This buffer size check must be done after the buffer is bound.
 	PTGN_ASSERT(
@@ -85,6 +87,9 @@ BufferUsage Buffer<BT>::GetBoundUsage() {
 template <BufferType BT>
 void Buffer<BT>::Bind() const {
 	GLCall(gl::BindBuffer(static_cast<gl::GLenum>(BT), Get().id_));
+#ifdef PTGN_DEBUG
+	++game.stats.buffer_binds;
+#endif
 }
 
 template class Buffer<BufferType::Vertex>;

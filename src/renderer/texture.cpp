@@ -6,6 +6,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "core/game.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/color.h"
@@ -135,6 +136,9 @@ Texture::Texture(const std::vector<Color>& pixels, const V2_int& size) :
 
 void Texture::Bind() const {
 	GLCall(gl::glBindTexture(GL_TEXTURE_2D, Get().id_));
+#ifdef PTGN_DEBUG
+	++game.stats.texture_binds;
+#endif
 }
 
 void Texture::Bind(std::uint32_t slot) const {

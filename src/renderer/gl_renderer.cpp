@@ -35,6 +35,9 @@ void GLRenderer::SetPolygonMode(PolygonMode mode) {
 }
 
 void GLRenderer::SetBlendMode(BlendMode mode /* = BlendMode::Blend*/) {
+#ifdef PTGN_DEBUG
+	++game.stats.blend_mode_changes;
+#endif
 	if (mode == BlendMode::None) {
 		GLCall(gl::glDisable(GL_BLEND));
 		// GLCall(gl::glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE));
@@ -84,7 +87,9 @@ void GLRenderer::DisableDepthTesting() {
 	GLCall(gl::glDisable(GL_DEPTH_TEST));
 }
 
-void GLRenderer::DrawElements(const VertexArray& va, std::size_t index_count) {
+void GLRenderer::DrawElements(
+	const VertexArray& va, std::size_t index_count, bool bind_vertex_array
+) {
 	PTGN_ASSERT(va.IsValid(), "Cannot draw uninitialized or destroyed vertex array");
 	PTGN_ASSERT(
 		va.HasVertexBuffer(),
@@ -93,7 +98,9 @@ void GLRenderer::DrawElements(const VertexArray& va, std::size_t index_count) {
 	PTGN_ASSERT(
 		va.HasIndexBuffer(), "Cannot draw vertex array with uninitialized or destroyed index buffer"
 	);
-	va.Bind();
+	if (bind_vertex_array) {
+		va.Bind();
+	}
 	PTGN_ASSERT(
 		VertexArray::GetBoundId() == static_cast<std::int32_t>(va.Get().id_),
 		"Failed to bind vertex array id"
@@ -102,18 +109,28 @@ void GLRenderer::DrawElements(const VertexArray& va, std::size_t index_count) {
 		static_cast<gl::GLenum>(va.GetPrimitiveMode()), static_cast<std::uint32_t>(index_count),
 		static_cast<gl::GLenum>(impl::GetType<std::uint32_t>()), nullptr
 	));
+#ifdef PTGN_DEBUG
+	++game.stats.draw_calls;
+#endif
 }
 
-void GLRenderer::DrawArrays(const VertexArray& va, std::size_t vertex_count) {
+void GLRenderer::DrawArrays(
+	const VertexArray& va, std::size_t vertex_count, bool bind_vertex_array
+) {
 	PTGN_ASSERT(va.IsValid(), "Cannot draw uninitialized or destroyed vertex array");
 	PTGN_ASSERT(
 		va.HasVertexBuffer(),
 		"Cannot draw vertex array with uninitialized or destroyed vertex buffer"
 	);
-	va.Bind();
+	if (bind_vertex_array) {
+		va.Bind();
+	}
 	GLCall(gl::glDrawArrays(
 		static_cast<gl::GLenum>(va.GetPrimitiveMode()), 0, static_cast<std::uint32_t>(vertex_count)
 	));
+#ifdef PTGN_DEBUG
+	++game.stats.draw_calls;
+#endif
 }
 
 std::int32_t GLRenderer::GetMaxTextureSlots() {
@@ -126,14 +143,23 @@ std::int32_t GLRenderer::GetMaxTextureSlots() {
 void GLRenderer::ClearColor(const Color& color) {
 	auto c = color.Normalized();
 	GLCall(gl::glClearColor(c[0], c[1], c[2], c[3]));
+#ifdef PTGN_DEBUG
+	++game.stats.clear_colors;
+#endif
 }
 
 void GLRenderer::SetViewport(const V2_int& position, const V2_int& size) {
 	GLCall(gl::glViewport(position.x, position.y, size.x, size.y));
+#ifdef PTGN_DEBUG
+	++game.stats.viewport_changes;
+#endif
 }
 
 void GLRenderer::Clear() {
 	GLCall(gl::glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+#ifdef PTGN_DEBUG
+	++game.stats.clears;
+#endif
 }
 
 } // namespace ptgn

@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 
+#include "core/game.h"
 #include "core/gl_context.h"
 #include "utility/debug.h"
 #include "utility/type_traits.h"
@@ -15,6 +16,7 @@ namespace impl {
 
 #define GLCall(x)                                                     \
 	std::invoke([&, fn = PTGN_FUNCTION_NAME()]() {                    \
+		++game.stats.gl_calls;                                        \
 		ptgn::impl::GLContext::ClearErrors();                         \
 		x;                                                            \
 		auto errors = ptgn::impl::GLContext::GetErrors();             \
@@ -27,6 +29,7 @@ namespace impl {
 	})
 #define GLCallReturn(x)                                               \
 	std::invoke([&, fn = PTGN_FUNCTION_NAME()]() {                    \
+		++game.stats.gl_calls;                                        \
 		ptgn::impl::GLContext::ClearErrors();                         \
 		auto value	= x;                                              \
 		auto errors = ptgn::impl::GLContext::GetErrors();             \

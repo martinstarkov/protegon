@@ -6,6 +6,7 @@
 #include <string>
 #include <utility>
 
+#include "core/game.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
@@ -147,6 +148,9 @@ void Shader::CompileProgram(const std::string& vertex_source, const std::string&
 
 void Shader::Bind() const {
 	GLCall(gl::UseProgram(Get().id_));
+#ifdef PTGN_DEBUG
+	++game.stats.shader_binds;
+#endif
 }
 
 std::int32_t Shader::GetUniformLocation(const std::string& name) const {

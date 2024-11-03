@@ -48,10 +48,16 @@ bool VertexArray::WithinMaxAttributes(std::size_t attribute_count) {
 
 void VertexArray::Bind() const {
 	GLCall(gl::BindVertexArray(Get().id_));
+#ifdef PTGN_DEBUG
+	++game.stats.vertex_array_binds;
+#endif
 }
 
 void VertexArray::Unbind() {
 	GLCall(gl::BindVertexArray(0));
+#ifdef PTGN_DEBUG
+	++game.stats.vertex_array_unbinds;
+#endif
 }
 
 void VertexArray::SetVertexBuffer(const VertexBuffer& vertex_buffer) {

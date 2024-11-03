@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "scene/scene_manager.h"
+#include "utility/stats.h"
 
 namespace ptgn {
 
@@ -162,6 +163,9 @@ public:
 	// Debug
 
 	Profiler& profiler;
+#ifdef PTGN_DEBUG
+	Stats stats;
+#endif
 };
 
 } // namespace impl
