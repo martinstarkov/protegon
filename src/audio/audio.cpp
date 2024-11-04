@@ -5,11 +5,12 @@
 #include <ratio>
 #include <string>
 
-#include "SDL_mixer.h"
-#include "core/sdl_instance.h"
-#include "utility/file.h"
 #include "core/game.h"
+#include "core/manager.h"
+#include "core/sdl_instance.h"
+#include "SDL_mixer.h"
 #include "utility/debug.h"
+#include "utility/file.h"
 #include "utility/handle.h"
 #include "utility/time.h"
 
@@ -147,6 +148,11 @@ bool MusicManager::IsFading() const {
 	}
 }
 
+void MusicManager::Reset() {
+	Stop();
+	MapManager::Reset();
+}
+
 void SoundManager::Stop(int channel) const {
 	Mix_HaltChannel(channel);
 }
@@ -162,6 +168,11 @@ void SoundManager::FadeOut(int channel, milliseconds time) const {
 
 bool SoundManager::IsPlaying(int channel) const {
 	return Mix_Playing(channel);
+}
+
+void SoundManager::Reset() {
+	Stop(-1);
+	MapManager::Reset();
 }
 
 } // namespace impl

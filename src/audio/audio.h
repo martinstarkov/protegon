@@ -62,6 +62,8 @@ public:
 	[[nodiscard]] bool IsPlaying() const;
 	[[nodiscard]] bool IsPaused() const;
 	[[nodiscard]] bool IsFading() const;
+
+	void Reset();
 };
 
 class SoundManager : public MapManager<Sound> {
@@ -74,6 +76,8 @@ public:
 	void FadeOut(int channel, milliseconds time) const;
 	// if channel = -1, check if any channel is playing.
 	[[nodiscard]] bool IsPlaying(int channel) const;
+
+	void Reset();
 };
 
 } // namespace impl
