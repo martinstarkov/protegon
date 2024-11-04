@@ -9,7 +9,9 @@
 #include "renderer/shader.h"
 #include "renderer/surface.h"
 #include "renderer/texture.h"
+#include "scene/camera.h"
 #include "utility/debug.h"
+#include "utility/handle.h"
 
 namespace ptgn {
 
@@ -26,13 +28,12 @@ RenderTexture::RenderTexture(const V2_float& size, const Color& clear_color, Ble
 	PTGN_ASSERT(Texture::IsValid(), "Failed to create render texture");
 	frame_buffer_ = FrameBuffer{ *this, RenderBuffer{ size } };
 	PTGN_ASSERT(frame_buffer_.IsValid(), "Failed to create frame buffer for render texture");
-	window_camera_.SetToWindow(true);
 }
 
-void RenderTexture::DrawAndUnbind() {
+void RenderTexture::DrawAndUnbind() const {
 	FrameBuffer::Unbind();
 	game.draw.Shader(ScreenShader::Default, blend_mode_);
-	game.draw.FlushImpl(window_camera_.GetViewProjection());
+	game.draw.FlushImpl(game.camera.GetWindow().GetViewProjection());
 }
 
 void RenderTexture::Clear() const {

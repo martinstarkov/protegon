@@ -4,6 +4,7 @@
 #include <functional>
 #include <limits>
 #include <type_traits>
+#include <utility>
 
 #include "core/game.h"
 #include "core/manager.h"
@@ -27,42 +28,42 @@
 namespace ptgn {
 
 V2_float WorldToScreen(const V2_float& position, std::size_t render_layer) {
-	const auto& primary{ game.camera.GetPrimary(render_layer) };
+	auto primary{ game.camera.GetPrimary(render_layer) };
 	float scale{ primary.GetZoom() };
 	PTGN_ASSERT(scale != 0.0f);
 	return (position - primary.GetPosition()) * scale + primary.GetSize() / 2.0f;
 }
 
 V2_float ScreenToWorld(const V2_float& position, std::size_t render_layer) {
-	const auto& primary{ game.camera.GetPrimary(render_layer) };
+	auto primary{ game.camera.GetPrimary(render_layer) };
 	float scale{ primary.GetZoom() };
 	PTGN_ASSERT(scale != 0.0f);
 	return (position - primary.GetSize() * 0.5f) / scale + primary.GetPosition();
 }
 
 V2_float ScaleToWorld(const V2_float& size, std::size_t render_layer) {
-	const auto& primary{ game.camera.GetPrimary(render_layer) };
+	auto primary{ game.camera.GetPrimary(render_layer) };
 	float scale{ primary.GetZoom() };
 	PTGN_ASSERT(scale != 0.0f);
 	return size / scale;
 }
 
 float ScaleToWorld(float size, std::size_t render_layer) {
-	const auto& primary{ game.camera.GetPrimary(render_layer) };
+	auto primary{ game.camera.GetPrimary(render_layer) };
 	float scale{ primary.GetZoom() };
 	PTGN_ASSERT(scale != 0.0f);
 	return size / scale;
 }
 
 V2_float ScaleToScreen(const V2_float& size, std::size_t render_layer) {
-	const auto& primary{ game.camera.GetPrimary(render_layer) };
+	auto primary{ game.camera.GetPrimary(render_layer) };
 	float scale{ primary.GetZoom() };
 	PTGN_ASSERT(scale != 0.0f);
 	return size * scale;
 }
 
 float ScaleToScreen(float size, std::size_t render_layer) {
-	const auto& primary{ game.camera.GetPrimary(render_layer) };
+	auto primary{ game.camera.GetPrimary(render_layer) };
 	float scale{ primary.GetZoom() };
 	PTGN_ASSERT(scale != 0.0f);
 	return size * scale;
@@ -196,7 +197,7 @@ void OrthographicCamera::UnsubscribeFromWindowResize() const {
 	game.event.window.Unsubscribe(&Get());
 }
 
-const M4_float& OrthographicCamera::GetView() {
+const M4_float& OrthographicCamera::GetView() const {
 	const auto& o{ Get() };
 	if (o.recalculate_view) {
 		RecalculateView();
@@ -204,7 +205,7 @@ const M4_float& OrthographicCamera::GetView() {
 	return o.view;
 }
 
-const M4_float& OrthographicCamera::GetProjection() {
+const M4_float& OrthographicCamera::GetProjection() const {
 	const auto& o{ Get() };
 	if (o.recalculate_projection) {
 		RecalculateProjection();
@@ -212,7 +213,7 @@ const M4_float& OrthographicCamera::GetProjection() {
 	return o.projection;
 }
 
-const M4_float& OrthographicCamera::GetViewProjection() {
+const M4_float& OrthographicCamera::GetViewProjection() const {
 	auto& o{ Get() };
 	bool updated_matrix{ o.recalculate_view || o.recalculate_projection };
 	if (o.recalculate_view) {
@@ -236,35 +237,36 @@ void OrthographicCamera::SetPosition(const V2_float& new_position) {
 
 void OrthographicCamera::RefreshBounds() {
 	auto& o{ Get() };
-	if (!o.bounding_box.IsZero()) {
-		V2_float min{ o.bounding_box.Min() };
-		V2_float max{ o.bounding_box.Max() };
-		PTGN_ASSERT(min.x < max.x && min.y < max.y, "Bounding box min must be below maximum");
-		V2_float center{ o.bounding_box.Center() };
-		// Draw bounding box center.
-		// game.draw.Point(center, color::Red, 5.0f);
-		// Draw bounding box.
-		// game.draw.RectHollow(o.bounding_box, color::Red);
-
-		// TODO: Incoporate yaw, i.e. o.orientation.x into the bounds using sin and cos.
-		V2_float size{ o.size / o.zoom };
-		V2_float half{ size * 0.5f };
-		if (size.x > o.bounding_box.size.x) {
-			o.position.x = center.x;
-		} else {
-			o.position.x = std::clamp(o.position.x, min.x + half.x, max.x - half.x);
-		}
-		if (size.y > o.bounding_box.size.y) {
-			o.position.y = center.y;
-		} else {
-			o.position.y = std::clamp(o.position.y, min.y + half.y, max.y - half.y);
-		}
-		// Draw clamped camera position.
-		/*game.draw.Point(
-			{ o.position.x, o.position.y }, color::Yellow, 5.0f
-		);*/
-		o.recalculate_view = true;
+	if (o.bounding_box.IsZero()) {
+		return;
 	}
+	V2_float min{ o.bounding_box.Min() };
+	V2_float max{ o.bounding_box.Max() };
+	PTGN_ASSERT(min.x < max.x && min.y < max.y, "Bounding box min must be below maximum");
+	V2_float center{ o.bounding_box.Center() };
+	// Draw bounding box center.
+	// game.draw.Point(center, color::Red, 5.0f);
+	// Draw bounding box.
+	// game.draw.RectHollow(o.bounding_box, color::Red);
+
+	// TODO: Incoporate yaw, i.e. o.orientation.x into the bounds using sin and cos.
+	V2_float size{ o.size / o.zoom };
+	V2_float half{ size * 0.5f };
+	if (size.x > o.bounding_box.size.x) {
+		o.position.x = center.x;
+	} else {
+		o.position.x = std::clamp(o.position.x, min.x + half.x, max.x - half.x);
+	}
+	if (size.y > o.bounding_box.size.y) {
+		o.position.y = center.y;
+	} else {
+		o.position.y = std::clamp(o.position.y, min.y + half.y, max.y - half.y);
+	}
+	// Draw clamped camera position.
+	/*game.draw.Point(
+		{ o.position.x, o.position.y }, color::Yellow, 5.0f
+	);*/
+	o.recalculate_view = true;
 }
 
 void OrthographicCamera::SetPositionImpl(const V3_float& new_position) {
@@ -383,12 +385,12 @@ void OrthographicCamera::SetBounds(const Rect& bounding_box) {
 	RefreshBounds();
 }
 
-void OrthographicCamera::RecalculateViewProjection() {
+void OrthographicCamera::RecalculateViewProjection() const {
 	auto& o{ Get() };
 	o.view_projection = o.projection * o.view;
 }
 
-void OrthographicCamera::RecalculateView() {
+void OrthographicCamera::RecalculateView() const {
 	auto& o{ Get() };
 
 	V3_float position{ -o.position.x, -o.position.y, o.position.z };
@@ -397,22 +399,7 @@ void OrthographicCamera::RecalculateView() {
 	o.view				   = M4_float::Translate(orientation.ToMatrix4(), position);
 }
 
-void OrthographicCamera::PrintInfo() const {
-	auto bounds		 = GetBounds();
-	auto orientation = GetOrientation();
-	Print(
-		"Position: ", GetPosition(), ", Size: ", GetSize(), ", Zoom: ", GetZoom(),
-		", Orientation (yaw/pitch/roll) (deg): (", RadToDeg(orientation.x), ", ",
-		RadToDeg(orientation.y), ", ", RadToDeg(orientation.z), "), Bounds: "
-	);
-	if (bounds.IsZero()) {
-		PrintLine("none");
-	} else {
-		PrintLine(bounds.Min(), "->", bounds.Max());
-	}
-}
-
-void OrthographicCamera::RecalculateProjection() {
+void OrthographicCamera::RecalculateProjection() const {
 	auto& o{ Get() };
 	PTGN_ASSERT(o.zoom > 0.0f);
 	V2_float extents{ o.size / 2.0f / o.zoom };
@@ -431,6 +418,21 @@ void OrthographicCamera::RecalculateProjection() {
 		flip.x * -extents.x, flip.x * extents.x, flip.y * extents.y, flip.y * -extents.y,
 		-std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()
 	);
+}
+
+void OrthographicCamera::PrintInfo() const {
+	auto bounds		 = GetBounds();
+	auto orientation = GetOrientation();
+	Print(
+		"Position: ", GetPosition(), ", Size: ", GetSize(), ", Zoom: ", GetZoom(),
+		", Orientation (yaw/pitch/roll) (deg): (", RadToDeg(orientation.x), ", ",
+		RadToDeg(orientation.y), ", ", RadToDeg(orientation.z), "), Bounds: "
+	);
+	if (bounds.IsZero()) {
+		PrintLine("none");
+	} else {
+		PrintLine(bounds.Min(), "->", bounds.Max());
+	}
 }
 
 /*
@@ -469,25 +471,11 @@ void CameraController::UnsubscribeFromMouseEvents() {
 
 namespace impl {
 
-CameraManager::CameraManager() {
-	OrthographicCamera c;
-	c.SetToWindow();
-	primary_cameras_.emplace(0, c);
-}
-
 void CameraManager::SetPrimary(const OrthographicCamera& camera, std::size_t render_layer) {
 	primary_cameras_[render_layer] = camera;
 }
 
-const OrthographicCamera& CameraManager::GetPrimary(std::size_t render_layer) const {
-	auto it = primary_cameras_.find(render_layer);
-	PTGN_ASSERT(
-		it != primary_cameras_.end(), "Primary camera does not exist for the given render layer"
-	);
-	return it->second;
-}
-
-OrthographicCamera& CameraManager::GetPrimary(std::size_t render_layer) {
+OrthographicCamera CameraManager::GetPrimary(std::size_t render_layer) {
 	if (auto it = primary_cameras_.find(render_layer); it != primary_cameras_.end()) {
 		return it->second;
 	}
@@ -506,9 +494,11 @@ void CameraManager::Reset() {
 }
 
 void CameraManager::ResetPrimary() {
-	for (auto& [layer, camera] : primary_cameras_) {
-		camera.SetToWindow();
-	}
+	primary_cameras_.clear();
+}
+
+const OrthographicCamera& CameraManager::GetWindow() {
+	return game.camera.GetWindow();
 }
 
 CameraManager::Item& SceneCamera::LoadImpl(const InternalKey& key, Item&& item) {
@@ -538,15 +528,19 @@ void SceneCamera::SetPrimaryImpl(const InternalKey& key, std::size_t render_laye
 	game.scene.GetTopActive().camera.SetPrimary(key, render_layer);
 }
 
+void SceneCamera::Init() {
+	window_camera_.SetToWindow(true);
+}
+
+const OrthographicCamera& SceneCamera::GetWindow() const {
+	return window_camera_;
+}
+
 void SceneCamera::SetPrimary(const OrthographicCamera& camera, std::size_t render_layer) {
 	game.scene.GetTopActive().camera.SetPrimary(camera, render_layer);
 }
 
-const OrthographicCamera& SceneCamera::GetPrimary(std::size_t render_layer) const {
-	return game.scene.GetTopActive().camera.GetPrimary(render_layer);
-}
-
-OrthographicCamera& SceneCamera::GetPrimary(std::size_t render_layer) {
+OrthographicCamera SceneCamera::GetPrimary(std::size_t render_layer) {
 	return game.scene.GetTopActive().camera.GetPrimary(render_layer);
 }
 

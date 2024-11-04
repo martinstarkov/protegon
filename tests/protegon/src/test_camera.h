@@ -81,12 +81,12 @@ struct TestCameraControls : public Test {
 	const float zoom_speed{ 0.4f };
 
 	void Init() override {
-		auto& camera2{ game.camera.GetPrimary(2) };
+		auto camera2{ game.camera.GetPrimary(2) };
 		camera2.SetPosition({ 0, 0 });
 	}
 
 	void Update() override {
-		auto& camera{ game.camera.GetPrimary() };
+		auto camera{ game.camera.GetPrimary() };
 
 		if (game.input.KeyPressed(Key::W)) {
 			camera.Translate({ 0, -pan_speed * dt });
@@ -158,7 +158,7 @@ struct TestCameraBounds : public TestCameraControls {
 	void Init() override {
 		TestCameraControls::Init();
 
-		auto& camera{ game.camera.GetPrimary() };
+		auto camera{ game.camera.GetPrimary() };
 
 		Rect bounds{ {}, { 800, 800 }, Origin::TopLeft };
 
@@ -167,7 +167,7 @@ struct TestCameraBounds : public TestCameraControls {
 
 	void Draw() override {
 		TestCameraControls::Draw();
-		const auto& camera{ game.camera.GetPrimary() };
+		auto camera{ game.camera.GetPrimary() };
 		const auto& bounds{ camera.GetBounds() };
 		game.draw.Rect(bounds.position, bounds.size, color::Red, bounds.origin, bound_width);
 	}
@@ -208,7 +208,7 @@ struct TestParallax : public Test {
 	}
 
 	void Update() override {
-		auto& camera{ game.camera.GetPrimary() };
+		auto camera{ game.camera.GetPrimary() };
 
 		camera.SetSize(ws);
 
@@ -241,7 +241,7 @@ struct TestParallax : public Test {
 	}
 
 	void Draw() override {
-		auto& camera{ game.camera.GetPrimary() };
+		auto camera{ game.camera.GetPrimary() };
 		V2_float pos = camera.GetPosition();
 
 		camera.SetPosition({ 0.0f, 0.0f });
@@ -319,7 +319,7 @@ struct TestCameraShake : public Test {
 			p.x += speed * dt;
 		}
 
-		auto& cam = game.camera.GetPrimary();
+		auto cam = game.camera.GetPrimary();
 		cam.SetPosition(p + cam_shake.local_position);
 		cam.SetRotation(cam_shake.local_rotation);
 	}

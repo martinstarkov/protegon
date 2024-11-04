@@ -70,7 +70,7 @@ class WindowSettingTest : public Test {
 	}
 
 	void Update() final {
-		auto& p = game.camera.GetPrimary();
+		auto p = game.camera.GetPrimary();
 		if (game.input.KeyDown(Key::Z)) {
 			V2_float scale = game.window.GetSize() / og_window_size;
 			p.CenterOnArea(og_window_size);

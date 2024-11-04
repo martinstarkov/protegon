@@ -132,11 +132,8 @@ void Renderer::UpdateLayer(
 		it != camera_manager.primary_cameras_.end()) {
 		layer.view_projection = it->second.GetViewProjection();
 	} else {
-		// If no camera specified, use screen camera.
-		// TODO: Store window camera somewhere.
-		OrthographicCamera c;
-		c.SetToWindow(false);
-		layer.view_projection = c.GetViewProjection();
+		// If no camera specified, use window camera.
+		layer.view_projection = game.camera.GetWindow().GetViewProjection();
 	}
 	// TODO: Figure out how to check if view projection has been updated.
 	// I tried comparing with previous view projection but that seems to cause strange issues with

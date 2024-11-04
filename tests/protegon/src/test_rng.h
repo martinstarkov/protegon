@@ -124,7 +124,7 @@ struct TestNoise : public Test {
 			thresholding = !thresholding;
 		}
 
-		auto& camera{ game.camera.GetPrimary() };
+		auto camera{ game.camera.GetPrimary() };
 
 		const float pan_speed{ 200.0f };
 
@@ -175,7 +175,7 @@ struct TestNoise : public Test {
 	}
 
 	void Draw() override {
-		const auto& cam = game.camera.GetPrimary();
+		auto cam = game.camera.GetPrimary();
 
 		auto rect = cam.GetRect();
 

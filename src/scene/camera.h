@@ -41,12 +41,14 @@ struct Camera {
 
 	Flip flip{ Flip::None };
 
-	M4_float view{ 1.0f };
-	M4_float projection{ 1.0f };
-	M4_float view_projection{ 1.0f };
+	// Mutable used because view projection is recalculated only upon retrieval to reduce matrix
+	// multiplications.
+	mutable M4_float view{ 1.0f };
+	mutable M4_float projection{ 1.0f };
+	mutable M4_float view_projection{ 1.0f };
+	mutable bool recalculate_view{ false };
+	mutable bool recalculate_projection{ false };
 
-	bool recalculate_view{ false };
-	bool recalculate_projection{ false };
 	bool center_to_window{ true };
 	bool resize_to_window{ true };
 };
@@ -123,7 +125,7 @@ public:
 
 	void PrintInfo() const;
 
-	[[nodiscard]] const M4_float& GetViewProjection();
+	[[nodiscard]] const M4_float& GetViewProjection() const;
 
 protected:
 	void RefreshBounds();
@@ -131,12 +133,12 @@ protected:
 	void SetPositionImpl(const V3_float& new_position);
 	void SetSizeImpl(const V2_float& size);
 
-	[[nodiscard]] const M4_float& GetView();
-	[[nodiscard]] const M4_float& GetProjection();
+	[[nodiscard]] const M4_float& GetView() const;
+	[[nodiscard]] const M4_float& GetProjection() const;
 
-	void RecalculateView();
-	void RecalculateProjection();
-	void RecalculateViewProjection();
+	void RecalculateView() const;
+	void RecalculateProjection() const;
+	void RecalculateViewProjection() const;
 
 	void SubscribeToWindowResize();
 	void UnsubscribeFromWindowResize() const;
@@ -152,8 +154,6 @@ class CameraManager : public MapManager<OrthographicCamera> {
 public:
 	using MapManager::MapManager;
 
-	CameraManager();
-
 	template <typename TKey>
 	void SetPrimary(const TKey& key, std::size_t render_layer = 0) {
 		SetPrimaryImpl(GetInternalKey(key), render_layer);
@@ -161,15 +161,16 @@ public:
 
 	void SetPrimary(const OrthographicCamera& camera, std::size_t render_layer = 0);
 
-	[[nodiscard]] const OrthographicCamera& GetPrimary(std::size_t render_layer = 0) const;
-
-	// If primary camera does not exist for the given layer, it will be
-	[[nodiscard]] OrthographicCamera& GetPrimary(std::size_t render_layer = 0);
+	// If primary camera does not exist for the given layer, it will add a primary camera centered
+	// on the given layer.
+	[[nodiscard]] OrthographicCamera GetPrimary(std::size_t render_layer = 0);
 
 	void Reset();
 
 	// Resets all render layer primary cameras.
 	void ResetPrimary();
+
+	[[nodiscard]] static const OrthographicCamera& GetWindow();
 
 private:
 	friend class SceneCamera;
@@ -223,12 +224,13 @@ public:
 	}
 
 	static void SetPrimary(const OrthographicCamera& camera, std::size_t render_layer = 0);
-
-	[[nodiscard]] const OrthographicCamera& GetPrimary(std::size_t render_layer = 0) const;
-	[[nodiscard]] OrthographicCamera& GetPrimary(std::size_t render_layer = 0);
+	;
+	[[nodiscard]] OrthographicCamera GetPrimary(std::size_t render_layer = 0);
 
 	static void Reset();
 	static void ResetPrimary();
+
+	[[nodiscard]] const OrthographicCamera& GetWindow() const;
 
 private:
 	friend class Game;
@@ -241,6 +243,10 @@ private:
 	[[nodiscard]] static Item& GetImpl(const InternalKey& key);
 
 	static void SetPrimaryImpl(const InternalKey& key, std::size_t render_layer);
+
+	void Init();
+
+	OrthographicCamera window_camera_;
 };
 
 } // namespace impl

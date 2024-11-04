@@ -236,6 +236,9 @@ void Game::Init() {
 	gl_context_->Init();
 	event.Init();
 	input.Init();
+
+	camera.Init();
+
 	shader.Init();
 	draw.Init();
 	physics.Init();
