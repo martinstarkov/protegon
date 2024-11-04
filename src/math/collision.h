@@ -14,8 +14,8 @@
 namespace ptgn {
 
 struct DynamicCollision {
-	float t{ 1.0f }; // time of impact.
-	V2_float normal; // normal of impact (normalised).
+	float t{ 1.0f }; // How far along the ray the impact occurred.
+	V2_float normal; // Normal of the impact (normalised).
 };
 
 namespace impl {

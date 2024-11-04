@@ -66,7 +66,7 @@ bool DynamicCollisionHandler::LineLine(const Line& a, const Line& b, DynamicColl
 	float bas{ ba.Cross(s) };
 	float t{ bas / rs };
 
-	if (t < 0.0f || t > 1.0f) {
+	if (t < 0.0f || t >= 1.0f) {
 		return false;
 	}
 
@@ -96,8 +96,8 @@ bool DynamicCollisionHandler::LineCircle(const Line& a, const Circle& b, Dynamic
 		return false;
 	}
 
-	bool w1{ t1 >= 0.0f && t1 <= 1.0f };
-	bool w2{ t2 >= 0.0f && t2 <= 1.0f };
+	bool w1{ t1 >= 0.0f && t1 < 1.0f };
+	bool w2{ t2 >= 0.0f && t2 < 1.0f };
 
 	// Pick the lowest collision time that is in the [0, 1] range.
 	if (w1 && w2) {
@@ -140,9 +140,6 @@ bool DynamicCollisionHandler::LineRect(const Line& a, Rect b, DynamicCollision& 
 		return false;
 	}
 
-	// TODO: Deal with situation where rectangle is inside the other rectangle.
-
-	// Cache division.
 	V2_float inv_dir{ 1.0f / d };
 
 	// Calculate intersections with rectangle bounding axes.
@@ -202,20 +199,23 @@ bool DynamicCollisionHandler::LineRect(const Line& a, Rect b, DynamicCollision& 
 	// Closest time will be the first contact.
 	bool interal{ start_in && !end_in };
 
+	float time{ 1.0f };
+
 	if (interal) {
 		std::swap(t_near.x, t_far.x);
 		std::swap(t_near.y, t_far.y);
 		std::swap(inv_dir.x, inv_dir.y);
-		c.t	 = std::min(t_near.x, t_near.y);
-		d	*= -1.0f;
+		time  = std::min(t_near.x, t_near.y);
+		d	 *= -1.0f;
 	} else {
-		c.t = std::max(t_near.x, t_near.y);
+		time = std::max(t_near.x, t_near.y);
 	}
 
-	if (c.t > 1.0f) {
-		c = {};
+	if (time > 1.0f) {
 		return false;
 	}
+
+	c.t = time;
 
 	// Contact point of collision from parametric line equation.
 	// c.point = a.a + c.time * d;
