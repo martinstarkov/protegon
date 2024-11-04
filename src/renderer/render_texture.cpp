@@ -31,8 +31,7 @@ RenderTexture::RenderTexture(const V2_float& size, const Color& clear_color, Ble
 
 void RenderTexture::DrawAndUnbind() {
 	FrameBuffer::Unbind();
-	GLRenderer::SetBlendMode(blend_mode_);
-	game.draw.Shader(ScreenShader::Default);
+	game.draw.Shader(ScreenShader::Default, blend_mode_);
 	game.draw.FlushImpl(window_camera_.GetViewProjection());
 }
 

@@ -58,7 +58,7 @@ void ShaderBatchData::Flush(const M4_float& view_projection) {
 	PTGN_ASSERT(!IsFlushed());
 
 	V2_float window_size{ game.window.GetSize() };
-	BlendMode og_blend_mode{ game.draw.GetBlendMode() };
+	const BlendMode og_blend_mode{ game.draw.GetBlendMode() };
 	BlendMode current_blend_mode{ og_blend_mode };
 
 	for (const auto& s : data_) {

@@ -10,6 +10,7 @@
 
 #include "common.h"
 #include "core/game.h"
+#include "core/window.h"
 #include "event/input_handler.h"
 #include "event/key.h"
 #include "math/math.h"

@@ -40,6 +40,7 @@ public:
 
 		// Visual tests.
 
+		TestWindow();
 		TestCamera();
 		TestRenderer();
 		TestLighting();
@@ -49,7 +50,6 @@ public:
 		TestPathfinding();
 		TestTween();
 		TestText();
-		TestWindow();
 		TestEvents();
 
 		PTGN_INFO("Initialized test scene");

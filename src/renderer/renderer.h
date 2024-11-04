@@ -8,7 +8,6 @@
 #include "renderer/flip.h"
 #include "renderer/font.h"
 #include "renderer/origin.h"
-#include "renderer/render_texture.h"
 #include "renderer/shader.h"
 
 namespace ptgn {
@@ -302,9 +301,10 @@ private:
 	void Shutdown();
 	void Reset();
 
+	RendererData data_;
+
 	ptgn::RenderTexture default_target_;
 	ptgn::RenderTexture current_target_;
-	RendererData data_;
 };
 
 } // namespace impl

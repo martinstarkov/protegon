@@ -4,7 +4,6 @@
 #include <type_traits>
 #include <vector>
 
-#include "SDL_timer.h"
 #include "audio/audio.h"
 #include "core/gl_context.h"
 #include "core/manager.h"
@@ -21,6 +20,7 @@
 #include "renderer/texture.h"
 #include "scene/camera.h"
 #include "scene/scene_manager.h"
+#include "SDL_timer.h"
 #include "ui/ui.h"
 #include "utility/debug.h"
 #include "utility/profiling.h"

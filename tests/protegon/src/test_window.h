@@ -44,7 +44,7 @@ class WindowSettingTest : public Test {
 	const V2_float og_window_size{ 800, 450 };
 
 	void Init() override {
-		game.draw.SetClearColor(color::Silver);
+		game.draw.SetClearColor(color::White);
 		game.window.SetSize(og_window_size);
 
 		texts.clear();

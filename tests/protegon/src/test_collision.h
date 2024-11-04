@@ -7,6 +7,7 @@
 #include "components/rigid_body.h"
 #include "components/transform.h"
 #include "ecs/ecs.h"
+#include "event/input_handler.h"
 #include "event/key.h"
 #include "math/collision.h"
 #include "math/geometry/circle.h"
@@ -17,6 +18,8 @@
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/origin.h"
+#include "renderer/renderer.h"
+#include "scene/camera.h"
 #include "utility/debug.h"
 #include "utility/log.h"
 

@@ -1,8 +1,7 @@
 #include "renderer/renderer.h"
 
 #include <functional>
-#include <string_view>
-#include <vector>
+#include <variant>
 
 #include "core/game.h"
 #include "core/window.h"
@@ -15,7 +14,6 @@
 #include "renderer/color.h"
 #include "renderer/flip.h"
 #include "renderer/font.h"
-#include "renderer/frame_buffer.h"
 #include "renderer/gl_renderer.h"
 #include "renderer/origin.h"
 #include "renderer/render_texture.h"
@@ -40,12 +38,12 @@ void Renderer::Init() {
 		std::function([this](const WindowResizedEvent&) { UpdateDefaultFrameBuffer(); })
 	);
 
+	current_target_.SetBlendMode(BlendMode::Blend);
+	current_target_.SetClearColor(color::Transparent);
+
 	UpdateDefaultFrameBuffer();
 
 	data_.Init();
-
-	current_target_ = default_target_;
-	current_target_.Bind();
 }
 
 void Renderer::Reset() {
@@ -116,12 +114,15 @@ void Renderer::Present() {
 }
 
 void Renderer::UpdateDefaultFrameBuffer() {
-	bool was_current{ current_target_ == default_target_ };
-	default_target_ = RenderTexture{ game.window.GetSize(), color::Transparent, BlendMode::Blend };
-	if (was_current) {
-		current_target_ = default_target_;
-		current_target_.Bind();
+	if (current_target_ != default_target_) {
+		default_target_ = RenderTexture{ game.window.GetSize(), default_target_.GetClearColor(),
+										 default_target_.GetBlendMode() };
+		return;
 	}
+	default_target_ = RenderTexture{ game.window.GetSize(), current_target_.GetClearColor(),
+									 current_target_.GetBlendMode() };
+	current_target_ = default_target_;
+	current_target_.Bind();
 }
 
 void Renderer::UpdateLayer(

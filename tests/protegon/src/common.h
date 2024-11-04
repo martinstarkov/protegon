@@ -6,13 +6,13 @@
 #include <string_view>
 #include <vector>
 
+#include "core/game.h"
 #include "core/window.h"
 #include "ecs/ecs.h"
 #include "event/event_handler.h"
+#include "event/events.h"
 #include "event/input_handler.h"
 #include "event/key.h"
-#include "event/events.h"
-#include "core/game.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "utility/debug.h"
