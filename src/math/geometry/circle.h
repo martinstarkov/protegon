@@ -1,12 +1,14 @@
 #pragma once
 
 #include "math/geometry/intersection.h"
+#include "math/raycast.h"
 #include "math/vector2.h"
 
 namespace ptgn {
 
 struct Rect;
 struct Line;
+struct Capsule;
 
 struct Circle {
 	V2_float center;
@@ -19,6 +21,10 @@ struct Circle {
 
 	[[nodiscard]] Intersection Intersects(const Circle& circle) const;
 	[[nodiscard]] Intersection Intersects(const Rect& rect) const;
+
+	[[nodiscard]] ptgn::Raycast Raycast(const V2_float& ray, const Circle& circle) const;
+	[[nodiscard]] ptgn::Raycast Raycast(const V2_float& ray, const Capsule& capsule) const;
+	[[nodiscard]] ptgn::Raycast Raycast(const V2_float& ray, const Rect& rect) const;
 
 private:
 	[[nodiscard]] static bool WithinPerimeter(float radius, float dist2);

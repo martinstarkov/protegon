@@ -10,6 +10,7 @@
 #include "math/geometry/intersection.h"
 #include "math/geometry/line.h"
 #include "math/math.h"
+#include "math/raycast.h"
 #include "math/utility.h"
 #include "math/vector2.h"
 #include "renderer/origin.h"
@@ -245,6 +246,16 @@ Intersection Rect::Intersects(const Circle& circle) const {
 	Intersection c{ circle.Intersects(*this) };
 	c.normal *= -1.0f;
 	return c;
+}
+
+ptgn::Raycast Rect::Raycast(const V2_float& ray, const Circle& circle) const {
+	return circle.Raycast(-ray, *this);
+}
+
+ptgn::Raycast Rect::Raycast(const V2_float& ray, const Rect& rect) const {
+	V2_float a_center{ Center() };
+	Line line{ a_center, a_center + ray };
+	return line.Raycast(Rect{ rect.Min() - Half(), rect.size + size, Origin::TopLeft });
 }
 
 Polygon::Polygon(const Rect& rect) {

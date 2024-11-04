@@ -5,6 +5,7 @@
 
 #include "math/geometry/axis.h"
 #include "math/geometry/intersection.h"
+#include "math/raycast.h"
 #include "math/vector2.h"
 #include "renderer/origin.h"
 
@@ -12,6 +13,7 @@ namespace ptgn {
 
 struct Line;
 struct Circle;
+struct Capsule;
 
 struct Rect {
 	V2_float position;
@@ -49,10 +51,13 @@ struct Rect {
 	[[nodiscard]] bool Overlaps(const V2_float& point) const;
 	[[nodiscard]] bool Overlaps(const Line& line) const;
 	[[nodiscard]] bool Overlaps(const Circle& circle) const;
-	[[nodiscard]] bool Overlaps(const Rect& o_rect) const;
+	[[nodiscard]] bool Overlaps(const Rect& rect) const;
 
-	[[nodiscard]] Intersection Intersects(const Rect& o_rect) const;
+	[[nodiscard]] Intersection Intersects(const Rect& rect) const;
 	[[nodiscard]] Intersection Intersects(const Circle& circle) const;
+
+	[[nodiscard]] ptgn::Raycast Raycast(const V2_float& ray, const Circle& circle) const;
+	[[nodiscard]] ptgn::Raycast Raycast(const V2_float& ray, const Rect& rect) const;
 
 private:
 	static void OffsetVertices(

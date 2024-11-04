@@ -6,19 +6,10 @@
 #include "components/rigid_body.h"
 #include "components/transform.h"
 #include "ecs/ecs.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/line.h"
-#include "math/geometry/polygon.h"
+#include "math/raycast.h"
 #include "math/vector2.h"
 
-namespace ptgn {
-
-struct DynamicCollision {
-	float t{ 1.0f }; // How far along the ray the impact occurred.
-	V2_float normal; // Normal of the impact (normalised).
-};
-
-namespace impl {
+namespace ptgn::impl {
 
 class DynamicCollisionHandler {
 public:
@@ -28,29 +19,6 @@ public:
 	DynamicCollisionHandler(DynamicCollisionHandler&&)				   = default;
 	DynamicCollisionHandler& operator=(const DynamicCollisionHandler&) = delete;
 	DynamicCollisionHandler& operator=(DynamicCollisionHandler&&)	   = default;
-
-	// TODO: Move dynamic collision tests into the geometry classes.
-
-	static bool LineLine(const Line& a, const Line& b, DynamicCollision& c);
-
-	static bool LineCircle(const Line& a, const Circle& b, DynamicCollision& c);
-
-	static bool LineRect(const Line& a, Rect b, DynamicCollision& c);
-
-	static bool LineCapsule(const Line& a, const Capsule& b, DynamicCollision& c);
-
-	// Velocity is taken relative to a, b is seen as static.
-	static bool CircleCircle(
-		const Circle& a, const V2_float& vel, const Circle& b, DynamicCollision& c
-	);
-
-	// Velocity is taken relative to a, b is seen as static.
-	static bool CircleRect(
-		const Circle& a, const V2_float& vel, const Rect& b, DynamicCollision& c
-	);
-
-	// Velocity is taken relative to a, b is seen as static.
-	static bool RectRect(const Rect& a, const V2_float& vel, const Rect& b, DynamicCollision& c);
 
 	// @return Updates the velocity of the object to prevent them from colliding with the other
 	// objects in the manager.
@@ -65,19 +33,19 @@ private:
 	struct SweepCollision {
 		SweepCollision() = default;
 
-		SweepCollision(const DynamicCollision& c, float dist2, ecs::Entity e) :
+		SweepCollision(const Raycast& c, float dist2, ecs::Entity e) :
 			e{ e }, c{ c }, dist2{ dist2 } {}
 
 		// Collision entity.
 		ecs::Entity e;
-		DynamicCollision c;
+		Raycast c;
 		float dist2{ 0.0f };
 	};
 
 	static void SortCollisions(std::vector<SweepCollision>& collisions);
 
 	[[nodiscard]] static V2_float GetRemainingVelocity(
-		const V2_float& velocity, const DynamicCollision& c, CollisionResponse response
+		const V2_float& velocity, const Raycast& c, CollisionResponse response
 	);
 };
 
@@ -104,6 +72,4 @@ private:
 	constexpr static float slop{ 0.005f };
 };
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

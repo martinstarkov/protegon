@@ -1,11 +1,13 @@
 #pragma once
 
+#include "math/raycast.h"
 #include "math/vector2.h"
 
 namespace ptgn {
 
 struct Circle;
 struct Rect;
+struct Capsule;
 
 struct Line {
 	V2_float a;
@@ -18,6 +20,11 @@ struct Line {
 	[[nodiscard]] bool Overlaps(const Line& line) const;
 	[[nodiscard]] bool Overlaps(const Circle& circle) const;
 	[[nodiscard]] bool Overlaps(const Rect& rect) const;
+
+	[[nodiscard]] ptgn::Raycast Raycast(const Line& line) const;
+	[[nodiscard]] ptgn::Raycast Raycast(const Circle& circle) const;
+	[[nodiscard]] ptgn::Raycast Raycast(const Rect& rect) const;
+	[[nodiscard]] ptgn::Raycast Raycast(const Capsule& capsule) const;
 };
 
 struct Capsule {

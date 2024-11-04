@@ -1,16 +1,18 @@
 #include "math/geometry/circle.h"
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <utility>
 
-#include "algorithm"
 #include "math/geometry/intersection.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
 #include "math/math.h"
+#include "math/raycast.h"
 #include "math/utility.h"
 #include "math/vector2.h"
+#include "renderer/origin.h"
 #include "utility/debug.h"
 
 namespace ptgn {
@@ -152,6 +154,81 @@ Intersection Circle::Intersects(const Rect& rect) const {
 	}
 
 	PTGN_ASSERT(c.depth >= 0.0f);
+
+	return c;
+}
+
+ptgn::Raycast Circle::Raycast(const V2_float& ray, const Circle& circle) const {
+	Line line{ center, center + ray };
+	return line.Raycast(Circle{ circle.center, circle.radius + radius });
+}
+
+ptgn::Raycast Circle::Raycast(const V2_float& ray, const Capsule& capsule) const {
+	Line line{ center, center + ray };
+	return line.Raycast(Capsule{ capsule.line, radius + capsule.radius });
+}
+
+ptgn::Raycast Circle::Raycast(const V2_float& ray, const Rect& rect) const {
+	ptgn::Raycast c;
+
+	Line seg{ center, center + ray };
+
+	bool start_inside{ Overlaps(rect) };
+	bool end_inside{ rect.Overlaps(Circle{ seg.b, radius }) };
+
+	if (start_inside && end_inside) {
+		return c;
+	}
+
+	if (start_inside) {
+		// Circle inside rectangle, flip segment direction.
+		std::swap(seg.a, seg.b);
+	}
+
+	// Compute the rectangle resulting from expanding b by circle radius.
+	Rect e;
+	e.position = rect.Min() - V2_float{ radius, radius };
+	e.size	   = rect.size + V2_float{ radius * 2.0f, radius * 2.0f };
+	e.origin   = Origin::TopLeft;
+
+	if (!seg.Overlaps(e)) {
+		return c;
+	}
+
+	V2_float b_min{ rect.Min() };
+	V2_float b_max{ rect.Max() };
+
+	ptgn::Raycast col_min{ c };
+	// Top segment.
+	auto c1{ seg.Raycast(Capsule{ { b_min, V2_float{ b_max.x, b_min.y } }, radius }) };
+	if (c1.Occurred() && c1.t < col_min.t) {
+		col_min = c1;
+	}
+	// Right segment.
+	auto c2{ seg.Raycast(Capsule{ { V2_float{ b_max.x, b_min.y }, b_max }, radius }) };
+	if (c2.Occurred() && c2.t < col_min.t) {
+		col_min = c2;
+	}
+	// Bottom segment.
+	auto c3{ seg.Raycast(Capsule{ { b_max, V2_float{ b_min.x, b_max.y } }, radius }) };
+	if (c3.Occurred() && c3.t < col_min.t) {
+		col_min = c3;
+	}
+	// Left segment.
+	auto c4{ seg.Raycast(Capsule{ { V2_float{ b_min.x, b_max.y }, b_min }, radius }) };
+	if (c4.Occurred() && c4.t < col_min.t) {
+		col_min = c4;
+	}
+
+	if (NearlyEqual(col_min.t, 1.0f)) {
+		return c;
+	}
+
+	if (start_inside) {
+		col_min.t = 1.0f - col_min.t;
+	}
+
+	c = col_min;
 
 	return c;
 }
