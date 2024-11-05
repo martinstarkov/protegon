@@ -13,23 +13,26 @@ namespace ptgn::impl {
 
 class Game;
 
-class DynamicCollisionHandler {
+class CollisionHandler {
 public:
-	DynamicCollisionHandler()										   = default;
-	~DynamicCollisionHandler()										   = default;
-	DynamicCollisionHandler(const DynamicCollisionHandler&)			   = delete;
-	DynamicCollisionHandler(DynamicCollisionHandler&&)				   = default;
-	DynamicCollisionHandler& operator=(const DynamicCollisionHandler&) = delete;
-	DynamicCollisionHandler& operator=(DynamicCollisionHandler&&)	   = default;
+	CollisionHandler()									 = default;
+	~CollisionHandler()									 = default;
+	CollisionHandler(const CollisionHandler&)			 = delete;
+	CollisionHandler(CollisionHandler&&)				 = default;
+	CollisionHandler& operator=(const CollisionHandler&) = delete;
+	CollisionHandler& operator=(CollisionHandler&&)		 = default;
 
-	// @return Final velocity of the object to prevent them from colliding with the manager objects.
-	V2_float Sweep(
-		ecs::Entity entity, const RigidBody& rigid_body, const Transform& transform,
-		BoxCollider& box, ecs::Manager& manager,
-		CollisionResponse response = CollisionResponse::Slide, bool debug_draw = false
-	);
+	void Update(ecs::Manager& manager) const;
+
+	// Updates the velocity of the object to prevent it from colliding with the target objects.
+	void Sweep(
+		ecs::Entity entity, BoxCollider& box, const ecs::EntitiesWith<Transform>& targets,
+		bool debug_draw = false
+	) const;
 
 private:
+	friend class Game;
+
 	struct SweepCollision {
 		SweepCollision() = default;
 
@@ -42,34 +45,23 @@ private:
 		float dist2{ 0.0f };
 	};
 
+	static void Overlap(
+		ecs::Entity entity, BoxCollider& box, const ecs::EntitiesWith<BoxCollider>& targets
+	);
+
+	static void Intersect(
+		ecs::Entity entity, BoxCollider& box, const ecs::EntitiesWith<BoxCollider>& targets
+	);
+
+	static void ProcessCallback(
+		BoxCollider& b1, ecs::Entity e1_parent, ecs::Entity e2_parent, const V2_float& normal
+	);
+
 	static void SortCollisions(std::vector<SweepCollision>& collisions);
 
 	[[nodiscard]] static V2_float GetRemainingVelocity(
 		const V2_float& velocity, const Raycast& c, CollisionResponse response
 	);
-};
-
-class CollisionHandler {
-public:
-	CollisionHandler()									 = default;
-	~CollisionHandler()									 = default;
-	CollisionHandler(const CollisionHandler&)			 = delete;
-	CollisionHandler(CollisionHandler&&)				 = default;
-	CollisionHandler& operator=(const CollisionHandler&) = delete;
-	CollisionHandler& operator=(CollisionHandler&&)		 = default;
-
-	DynamicCollisionHandler dynamic;
-
-	void Update(ecs::Manager& manager);
-
-private:
-	friend class Game;
-
-	void Init() {
-		/* Possibly add stuff here in the future. */
-	}
-
-	void Shutdown();
 
 	constexpr static float slop{ 0.005f };
 };

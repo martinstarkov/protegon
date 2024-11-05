@@ -86,6 +86,39 @@ void Collider::SetCollidesWith(const CollidesWithCategories& categories) {
 	}
 }
 
+ecs::Entity Collider::GetParent(ecs::Entity owner) const {
+	return parent == ecs::Entity{} ? owner : parent;
+}
+
+void Collider::InvokeCollisionCallbacks() {
+	bool has_on_stop{ on_collision_stop != nullptr };
+	bool has_on_collision{ on_collision != nullptr };
+	if (has_on_collision || has_on_stop) {
+		for (const auto& prev : prev_collisions) {
+			if (collisions.count(prev) == 0) {
+				if (has_on_stop) {
+					std::invoke(on_collision_stop, prev);
+				}
+			} else if (has_on_collision) {
+				std::invoke(on_collision, prev);
+			}
+		}
+	}
+	if (on_collision_start == nullptr) {
+		return;
+	}
+	for (const auto& current : collisions) {
+		if (prev_collisions.count(current) == 0) {
+			std::invoke(on_collision_start, current);
+		}
+	}
+}
+
+void Collider::ResetCollisions() {
+	prev_collisions = collisions;
+	collisions.clear();
+}
+
 Rect BoxCollider::GetAbsoluteRect() const {
 	PTGN_ASSERT(parent.IsAlive());
 	PTGN_ASSERT(parent.Has<Transform>());

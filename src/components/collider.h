@@ -14,6 +14,12 @@
 
 namespace ptgn {
 
+namespace impl {
+
+class CollisionHandler;
+
+} // namespace impl
+
 struct Collision {
 	Collision() = default;
 
@@ -65,7 +71,10 @@ struct Collider {
 	ecs::Entity parent;
 	V2_float offset;
 	Rect bounds;
+	// Collisions from the current frame (updated after calling game.collision.Update()).
 	std::unordered_set<Collision> collisions;
+	// Collisions from the previous frame.
+	std::unordered_set<Collision> prev_collisions;
 	// Must return true for collisions to be checked.
 	std::function<bool(ecs::Entity, ecs::Entity)> before_collision;
 	CollisionCallback on_collision_start;
@@ -103,7 +112,15 @@ struct Collider {
 
 	void SetCollidesWith(const CollidesWithCategories& categories);
 
+	[[nodiscard]] ecs::Entity GetParent(ecs::Entity owner) const;
+
+	void InvokeCollisionCallbacks();
+
 private:
+	friend class impl::CollisionHandler;
+
+	void ResetCollisions();
+
 	// Which categories this collider collides with.
 	std::unordered_set<CollisionCategory> mask_;
 	// Which category this collider is a part of.

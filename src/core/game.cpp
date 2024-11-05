@@ -242,7 +242,6 @@ void Game::Init() {
 	shader.Init();
 	draw.Init();
 	physics.Init();
-	collision.Init();
 }
 
 void Game::Shutdown() {
@@ -258,7 +257,6 @@ void Game::Shutdown() {
 	sound.Reset();
 	music.Reset();
 
-	collision.Shutdown();
 	physics.Shutdown();
 	draw.Shutdown();
 	input.Shutdown();

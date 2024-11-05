@@ -773,6 +773,12 @@ struct SweepTest : public Test {
 		PTGN_ASSERT(player.Has<Transform>());
 		auto& t	   = player.Get<Transform>();
 		t.position = player_start_pos;
+		auto& box  = player.Get<BoxCollider>();
+
+		box.response	 = CollisionResponse::Slide;
+		box.overlap_only = false;
+		box.continuous	 = true;
+
 		manager.Refresh();
 	}
 
@@ -814,9 +820,7 @@ struct SweepTest : public Test {
 			rb.velocity.y = player_velocity.y;
 		}
 
-		rb.velocity = game.collision.dynamic.Sweep(
-			{ player }, rb, transform, box, manager, CollisionResponse::Slide, true
-		);
+		game.collision.Sweep(player, box, manager.EntitiesWith<Transform>(), true);
 
 		if (game.input.KeyDown(Key::SPACE)) {
 			transform.position += rb.velocity * dt;
@@ -1012,9 +1016,12 @@ struct DynamicRectCollisionTest : public Test {
 			auto& t			   = entity.Add<Transform>();
 			t.position		   = data.position;
 
-			auto& box  = entity.Add<BoxCollider>(entity);
-			box.size   = data.size;
-			box.origin = data.origin;
+			auto& box		 = entity.Add<BoxCollider>(entity);
+			box.size		 = data.size;
+			box.origin		 = data.origin;
+			box.continuous	 = true;
+			box.overlap_only = false;
+			box.response	 = CollisionResponse::Slide;
 
 			auto& rb	= entity.Add<RigidBody>();
 			rb.velocity = data.velocity;
@@ -1034,9 +1041,7 @@ struct DynamicRectCollisionTest : public Test {
 		}
 		for (auto [e, t, b, rb, id, nv] :
 			 manager.EntitiesWith<Transform, BoxCollider, RigidBody, Id, NextVel>()) {
-			rb.velocity = game.collision.dynamic.Sweep(
-				{ e }, rb, t, b, manager, CollisionResponse::Slide, true
-			);
+			game.collision.Sweep(e, b, manager.EntitiesWith<Transform>(), true);
 		}
 
 		for (auto [e, t, b, rb, id, nv] :
