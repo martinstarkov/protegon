@@ -27,6 +27,8 @@ void CollisionHandler::Sweep(
 	ecs::Entity entity, BoxCollider& box, const ecs::EntitiesWith<Transform>& targets,
 	bool debug_draw
 ) const {
+	// TODO: Separate this code into functions.
+
 	PTGN_ASSERT(game.dt() > 0.0f);
 
 	if (!box.continuous || box.overlap_only || !entity.Has<RigidBody, Transform>()) {
@@ -113,6 +115,8 @@ void CollisionHandler::Sweep(
 		game.draw.Rect(new_p1, box.size, color::Purple, box.origin, 1.0f);
 	}
 
+	// Adds all collisions which occurred at the earliest time to box.collisions. This ensures all
+	// callbacks are called.
 	const auto add_earliest_collisions = [](ecs::Entity e,
 											const std::vector<SweepCollision>& sweep_collisions,
 											std::unordered_set<Collision>& entities) {
@@ -278,6 +282,8 @@ void CollisionHandler::ProcessCallback(
 void CollisionHandler::Update(ecs::Manager& manager) const {
 	auto box_colliders = manager.EntitiesWith<BoxCollider>();
 	auto targets	   = manager.EntitiesWith<Transform>();
+
+	// TODO: Add support for other collider types.
 
 	for (auto [e1, b1] : box_colliders) {
 		b1.ResetCollisions();
