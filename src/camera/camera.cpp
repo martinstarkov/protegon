@@ -1,4 +1,4 @@
-#include "scene/camera.h"
+#include "camera/camera.h"
 
 #include <algorithm>
 #include <functional>
@@ -20,7 +20,7 @@
 #include "renderer/flip.h"
 #include "renderer/origin.h"
 #include "scene/scene.h"
-#include "scene_manager.h"
+#include "scene/scene_manager.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
 #include "utility/log.h"

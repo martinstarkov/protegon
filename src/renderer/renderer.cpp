@@ -21,7 +21,7 @@
 #include "renderer/text.h"
 #include "renderer/texture.h"
 #include "renderer/vertex_array.h"
-#include "scene/camera.h"
+#include "camera/camera.h"
 #include "utility/debug.h"
 #include "utility/log.h"
 

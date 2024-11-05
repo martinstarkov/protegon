@@ -1,4 +1,4 @@
-#include "components/collider.h"
+#include "collision/collider.h"
 
 #include <functional>
 #include <type_traits>

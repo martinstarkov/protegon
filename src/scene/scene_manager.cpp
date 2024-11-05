@@ -9,7 +9,7 @@
 #include "core/game.h"
 #include "core/manager.h"
 #include "event/input_handler.h"
-#include "scene/camera.h"
+#include "camera/camera.h"
 #include "scene/scene.h"
 #include "utility/debug.h"
 #include "utility/utility.h"

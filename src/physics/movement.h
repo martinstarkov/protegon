@@ -1,10 +1,9 @@
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <utility>
 
-#include "algorithm"
-#include "components/rigid_body.h"
 #include "components/transform.h"
 #include "core/game.h"
 #include "event/input_handler.h"
@@ -12,8 +11,11 @@
 #include "math/math.h"
 #include "math/vector2.h"
 #include "physics/physics.h"
+#include "physics/rigid_body.h"
 #include "utility/time.h"
 #include "utility/timer.h"
+
+// TODO: Move functions to cpp file.
 
 namespace ptgn {
 

@@ -1,21 +1,19 @@
-#include "math/collision.h"
+#include "collision/collision.h"
 
 #include <algorithm>
-#include <cmath>
-#include <type_traits>
 #include <unordered_set>
 #include <vector>
 
-#include "components/collider.h"
-#include "components/rigid_body.h"
+#include "collision/collider.h"
+#include "collision/raycast.h"
 #include "components/transform.h"
 #include "core/game.h"
 #include "ecs/ecs.h"
-#include "geometry/intersection.h"
 #include "math/geometry/circle.h"
+#include "math/geometry/intersection.h"
 #include "math/geometry/polygon.h"
-#include "math/raycast.h"
 #include "math/vector2.h"
+#include "physics/rigid_body.h"
 #include "renderer/color.h"
 #include "renderer/renderer.h"
 #include "utility/debug.h"

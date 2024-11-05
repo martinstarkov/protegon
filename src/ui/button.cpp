@@ -14,7 +14,7 @@
 #include "event/events.h"
 #include "event/input_handler.h"
 #include "event/mouse.h"
-#include "math/collision.h"
+#include "collision/collision.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/color.h"

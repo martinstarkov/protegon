@@ -9,7 +9,7 @@
 #include "renderer/shader.h"
 #include "renderer/surface.h"
 #include "renderer/texture.h"
-#include "scene/camera.h"
+#include "camera/camera.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
 

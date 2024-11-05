@@ -3,9 +3,9 @@
 #include <array>
 #include <vector>
 
+#include "collision/raycast.h"
 #include "math/geometry/axis.h"
 #include "math/geometry/intersection.h"
-#include "math/raycast.h"
 #include "math/vector2.h"
 #include "renderer/origin.h"
 

@@ -5,8 +5,9 @@
 #include <string>
 #include <vector>
 
+#include "camera/camera.h"
+#include "camera/camera_shake.h"
 #include "common.h"
-#include "components/camera_shake.h"
 #include "components/sprite.h"
 #include "components/transform.h"
 #include "core/game.h"
@@ -14,8 +15,6 @@
 #include "ecs/ecs.h"
 #include "event/input_handler.h"
 #include "event/key.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
 #include "math/math.h"
 #include "math/vector2.h"
@@ -23,7 +22,6 @@
 #include "renderer/origin.h"
 #include "renderer/renderer.h"
 #include "renderer/texture.h"
-#include "scene/camera.h"
 
 struct TestCameraSwitching : public Test {
 	OrthographicCamera camera0;

@@ -2,7 +2,7 @@
 
 #include <set>
 
-#include "scene/camera.h"
+#include "camera/camera.h"
 
 namespace ptgn {
 

@@ -1,4 +1,4 @@
-#include "components/rigid_body.h"
+#include "physics/rigid_body.h"
 
 #include "core/game.h"
 #include "math/vector2.h"

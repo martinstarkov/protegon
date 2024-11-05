@@ -2,12 +2,12 @@
 
 #include <vector>
 
-#include "components/collider.h"
-#include "components/rigid_body.h"
+#include "collision/collider.h"
+#include "collision/raycast.h"
 #include "components/transform.h"
 #include "ecs/ecs.h"
-#include "math/raycast.h"
 #include "math/vector2.h"
+#include "physics/rigid_body.h"
 
 namespace ptgn::impl {
 
