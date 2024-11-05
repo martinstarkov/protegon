@@ -9,6 +9,8 @@
 
 namespace ptgn {
 
+class LightManager;
+
 namespace impl {
 
 class SDLInstance;
@@ -129,6 +131,7 @@ private:
 	std::unique_ptr<TextManager> text_;
 	std::unique_ptr<TextureManager> texture_;
 	std::unique_ptr<ShaderManager> shader_;
+	std::unique_ptr<LightManager> light_;
 
 	std::unique_ptr<Profiler> profiler_;
 
@@ -159,6 +162,7 @@ public:
 	TextManager& text;
 	TextureManager& texture;
 	ShaderManager& shader;
+	LightManager& light;
 
 	// Debug
 

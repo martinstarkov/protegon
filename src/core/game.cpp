@@ -26,6 +26,7 @@
 #include "utility/profiling.h"
 #include "utility/time.h"
 #include "utility/tween.h"
+#include "vfx/light.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -137,6 +138,7 @@ Game::Game() :
 	text_{ std::make_unique<TextManager>() },
 	texture_{ std::make_unique<TextureManager>() },
 	shader_{ std::make_unique<ShaderManager>() },
+	light_{ std::make_unique<LightManager>() },
 	profiler_{ std::make_unique<Profiler>() },
 	window{ *window_ },
 	event{ *event_ },
@@ -154,6 +156,7 @@ Game::Game() :
 	text{ *text_ },
 	texture{ *texture_ },
 	shader{ *shader_ },
+	light{ *light_ },
 	profiler{ *profiler_ } {}
 
 Game::~Game() {
@@ -242,6 +245,7 @@ void Game::Init() {
 	shader.Init();
 	draw.Init();
 	physics.Init();
+	light.Init();
 }
 
 void Game::Shutdown() {
