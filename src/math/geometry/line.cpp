@@ -290,7 +290,7 @@ ptgn::Raycast Line::Raycast(const Rect& rect) const {
 		time = std::max(t_near.x, t_near.y);
 	}
 
-	if (time >= 1.0f) {
+	if (time < 0.0f || time >= 1.0f) {
 		return c;
 	}
 

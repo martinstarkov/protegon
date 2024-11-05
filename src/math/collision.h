@@ -11,6 +11,8 @@
 
 namespace ptgn::impl {
 
+class Game;
+
 class DynamicCollisionHandler {
 public:
 	DynamicCollisionHandler()										   = default;
@@ -20,8 +22,6 @@ public:
 	DynamicCollisionHandler& operator=(const DynamicCollisionHandler&) = delete;
 	DynamicCollisionHandler& operator=(DynamicCollisionHandler&&)	   = default;
 
-	// @return Updates the velocity of the object to prevent them from colliding with the other
-	// objects in the manager.
 	// @return Final velocity of the object to prevent them from colliding with the manager objects.
 	V2_float Sweep(
 		ecs::Entity entity, const RigidBody& rigid_body, const Transform& transform,
@@ -60,15 +60,17 @@ public:
 
 	DynamicCollisionHandler dynamic;
 
+	void Update(ecs::Manager& manager);
+
+private:
+	friend class Game;
+
 	void Init() {
 		/* Possibly add stuff here in the future. */
 	}
 
 	void Shutdown();
 
-	void Update(ecs::Manager& manager);
-
-private:
 	constexpr static float slop{ 0.005f };
 };
 
