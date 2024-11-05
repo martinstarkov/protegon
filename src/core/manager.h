@@ -125,6 +125,13 @@ public:
 	}
 
 	template <typename TFunc>
+	void ForEachValue(const TFunc& func) const {
+		for (const auto& [key, value] : map_) {
+			std::invoke(func, value);
+		}
+	}
+
+	template <typename TFunc>
 	void ForEachKey(const TFunc& func) {
 		for (auto& [key, value] : map_) {
 			std::invoke(func, key);
@@ -132,8 +139,22 @@ public:
 	}
 
 	template <typename TFunc>
+	void ForEachKey(const TFunc& func) const {
+		for (const auto& [key, value] : map_) {
+			std::invoke(func, key);
+		}
+	}
+
+	template <typename TFunc>
 	void ForEachKeyValue(const TFunc& func) {
 		for (auto& [key, value] : map_) {
+			std::invoke(func, key, value);
+		}
+	}
+
+	template <typename TFunc>
+	void ForEachKeyValue(const TFunc& func) const {
+		for (const auto& [key, value] : map_) {
 			std::invoke(func, key, value);
 		}
 	}
