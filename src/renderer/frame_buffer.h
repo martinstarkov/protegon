@@ -1,8 +1,11 @@
 #pragma once
 
-#include <array>
+#include <cstdint>
+#include <functional>
 
 #include "math/vector2.h"
+#include "renderer/color.h"
+#include "renderer/surface.h"
 #include "renderer/texture.h"
 #include "utility/handle.h"
 
@@ -70,6 +73,14 @@ public:
 
 	void Bind() const;
 	static void Unbind();
+
+	[[nodiscard]] Color GetPixel(
+		const V2_int& coordinate, ImageFormat format = Texture::default_format
+	) const;
+
+	void ForEachPixel(
+		const std::function<void(V2_int, Color)>& func, ImageFormat format = Texture::default_format
+	) const;
 
 private:
 	[[nodiscard]] static std::int32_t GetBoundId();

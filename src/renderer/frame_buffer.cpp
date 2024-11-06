@@ -1,10 +1,17 @@
 #include "renderer/frame_buffer.h"
 
+#include <cstdint>
+#include <functional>
+#include <type_traits>
+#include <vector>
+
 #include "core/game.h"
 #include "math/vector2.h"
+#include "renderer/color.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
+#include "renderer/surface.h"
 #include "renderer/texture.h"
 #include "utility/debug.h"
 
@@ -190,6 +197,68 @@ void FrameBuffer::Unbind() {
 #ifdef PTGN_DEBUG
 	++game.stats.frame_buffer_unbinds;
 #endif
+}
+
+Color FrameBuffer::GetPixel(const V2_int& coordinate, ImageFormat format) const {
+	PTGN_ASSERT(IsValid(), "Cannot retrieve pixel of invalid frame buffer");
+	PTGN_ASSERT(
+		Get().texture_.IsValid(),
+		"Cannot retrieve pixel of frame buffer without an attached texture"
+	);
+	V2_int size{ Get().texture_.GetSize() };
+	PTGN_ASSERT(
+		coordinate.x >= 0 && coordinate.x < size.x,
+		"Cannot get pixel out of range of frame buffer texture"
+	);
+	PTGN_ASSERT(
+		coordinate.y >= 0 && coordinate.y < size.y,
+		"Cannot get pixel out of range of frame buffer texture"
+	);
+	auto formats{ impl::GetGLFormats(format) };
+	PTGN_ASSERT(formats.components_ >= 3);
+	std::vector<std::uint8_t> v(formats.components_ * 1 * 1);
+	PUSHSTATE_FB();
+	Bind();
+	int y{ size.y - 1 - coordinate.y };
+	PTGN_ASSERT(y >= 0);
+	GLCall(gl::glReadPixels(
+		coordinate.x, y, 1, 1, formats.format_, static_cast<gl::GLenum>(impl::GLType::UnsignedByte),
+		(void*)v.data()
+	));
+	POPSTATE_FB();
+	return Color{ v[0], v[1], v[2],
+				  formats.components_ == 4 ? v[3] : static_cast<std::uint8_t>(255) };
+}
+
+void FrameBuffer::ForEachPixel(const std::function<void(V2_int, Color)>& func, ImageFormat format)
+	const {
+	PTGN_ASSERT(IsValid(), "Cannot retrieve pixels of invalid frame buffer");
+	PTGN_ASSERT(
+		Get().texture_.IsValid(),
+		"Cannot retrieve pixels of frame buffer without an attached texture"
+	);
+	V2_int size{ Get().texture_.GetSize() };
+	auto formats{ impl::GetGLFormats(format) };
+	std::vector<std::uint8_t> v(formats.components_ * size.x * size.y);
+	PTGN_ASSERT(formats.components_ >= 3);
+	PUSHSTATE_FB();
+	Bind();
+	GLCall(gl::glReadPixels(
+		0, 0, size.x, size.y, formats.format_, static_cast<gl::GLenum>(impl::GLType::UnsignedByte),
+		(void*)v.data()
+	));
+	POPSTATE_FB();
+	for (int j{ size.y - 1 }; j >= 0; j--) {
+		int row{ j * (size.x - 1) };
+		int y{ size.y - 1 - j };
+		for (int i{ 0 }; i < size.x; i++) {
+			int idx{ row + i * formats.components_ };
+			PTGN_ASSERT(static_cast<std::size_t>(idx) < v.size());
+			Color color{ v[idx], v[idx + 1], v[idx + 2],
+						 formats.components_ == 4 ? v[idx + 3] : static_cast<std::uint8_t>(255) };
+			std::invoke(func, V2_int{ i, y }, color);
+		}
+	}
 }
 
 std::int32_t FrameBuffer::GetBoundId() {
