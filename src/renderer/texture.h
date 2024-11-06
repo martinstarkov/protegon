@@ -54,11 +54,12 @@ enum class TextureParameter {
 };
 
 struct GLFormats {
-	// first
 	InternalGLFormat internal_{ InternalGLFormat::RGBA8 };
-	// second
 	std::uint32_t format_{ 0 };
+	int components_{ 0 };
 };
+
+[[nodiscard]] GLFormats GetGLFormats(ImageFormat format);
 
 struct TextureInstance {
 	TextureInstance();
@@ -81,7 +82,10 @@ private:
 	constexpr const static TextureWrapping default_wrapping{ TextureWrapping::ClampEdge };
 
 public:
-	Texture(const path& image_path, ImageFormat format = ImageFormat::RGBA8888);
+	constexpr const static ImageFormat default_format{ ImageFormat::RGBA8888 };
+
+public:
+	Texture(const path& image_path, ImageFormat format = default_format);
 	explicit Texture(const Surface& surface);
 	Texture(
 		const void* pixel_data, const V2_int& size, ImageFormat format,

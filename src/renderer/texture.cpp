@@ -38,15 +38,15 @@ TextureInstance::~TextureInstance() {
 	GLCall(gl::glDeleteTextures(1, &id_));
 }
 
-static GLFormats GetGLFormats(ImageFormat format) {
+GLFormats GetGLFormats(ImageFormat format) {
 	// Possible internal format options:
 	// GL_R#size, GL_RG#size, GL_RGB#size, GL_RGBA#size
 	switch (format) {
 		case ImageFormat::RGBA8888: {
-			return { InternalGLFormat::RGBA8, GL_RGBA };
+			return { InternalGLFormat::RGBA8, GL_RGBA, 4 };
 		}
 		case ImageFormat::RGB888: {
-			return { InternalGLFormat::RGB8, GL_RGB };
+			return { InternalGLFormat::RGB8, GL_RGB, 3 };
 		}
 #ifdef __EMSCRIPTEN__
 		case ImageFormat::BGRA8888:
@@ -55,10 +55,10 @@ static GLFormats GetGLFormats(ImageFormat format) {
 		}
 #else
 		case ImageFormat::BGRA8888: {
-			return { InternalGLFormat::RGBA8, GL_BGRA };
+			return { InternalGLFormat::RGBA8, GL_BGRA, 4 };
 		}
 		case ImageFormat::BGR888: {
-			return { InternalGLFormat::RGB8, GL_BGR };
+			return { InternalGLFormat::RGB8, GL_BGR, 3 };
 		}
 #endif
 		default: break;
