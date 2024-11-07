@@ -6,7 +6,6 @@
 #include "math/vector4.h"
 #include "renderer/buffer_layout.h"
 #include "renderer/gl_helper.h"
-#include "renderer/origin.h"
 #include "utility/debug.h"
 
 namespace ptgn {

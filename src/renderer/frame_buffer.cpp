@@ -11,9 +11,9 @@
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
-#include "renderer/surface.h"
 #include "renderer/texture.h"
 #include "utility/debug.h"
+#include "utility/handle.h"
 
 namespace ptgn {
 
