@@ -176,7 +176,8 @@ void Texture::SetDataImpl(const void* pixel_data, const V2_int& size, ImageForma
 
 	PTGN_ASSERT(GetBoundId() == static_cast<std::int32_t>(t.id_));
 
-	t.size_ = size;
+	t.size_	  = size;
+	t.format_ = format;
 
 	auto formats = impl::GetGLFormats(format);
 
@@ -213,6 +214,10 @@ void Texture::SetSubData(const std::vector<Color>& pixels) {
 
 V2_int Texture::GetSize() const {
 	return Get().size_;
+}
+
+ImageFormat Texture::GetFormat() const {
+	return Get().format_;
 }
 
 void Texture::SetWrapping(TextureWrapping s) const {

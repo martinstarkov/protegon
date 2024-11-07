@@ -67,6 +67,7 @@ struct TextureInstance {
 
 	std::uint32_t id_{ 0 };
 	V2_int size_;
+	ImageFormat format_{ ImageFormat::RGBA8888 };
 };
 
 } // namespace impl
@@ -110,6 +111,7 @@ public:
 	void SetSubData(const std::vector<Color>& pixels);
 
 	[[nodiscard]] V2_int GetSize() const;
+	[[nodiscard]] ImageFormat GetFormat() const;
 
 	void Bind() const;
 	void Bind(std::uint32_t slot) const;
