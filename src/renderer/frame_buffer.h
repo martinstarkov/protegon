@@ -59,10 +59,15 @@ public:
 
 	explicit FrameBuffer(const Texture& texture);
 	explicit FrameBuffer(const RenderBuffer& render_buffer);
-	FrameBuffer(const Texture& texture, const RenderBuffer& render_buffer);
+	FrameBuffer(
+		const Texture& texture, const RenderBuffer& render_buffer,
+		const Color& clear_color = color::Transparent
+	);
 
 	void AttachTexture(const Texture& texture);
 	void AttachRenderBuffer(const RenderBuffer& render_buffer);
+
+	void Clear(const Color& color) const;
 
 	[[nodiscard]] Texture GetTexture() const;
 	[[nodiscard]] RenderBuffer GetRenderBuffer() const;
@@ -74,13 +79,9 @@ public:
 	void Bind() const;
 	static void Unbind();
 
-	[[nodiscard]] Color GetPixel(
-		const V2_int& coordinate, ImageFormat format = Texture::default_format
-	) const;
+	[[nodiscard]] Color GetPixel(const V2_int& coordinate) const;
 
-	void ForEachPixel(
-		const std::function<void(V2_int, Color)>& func, ImageFormat format = Texture::default_format
-	) const;
+	void ForEachPixel(const std::function<void(V2_int, Color)>& func) const;
 
 private:
 	[[nodiscard]] static std::int32_t GetBoundId();

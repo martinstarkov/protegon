@@ -2,16 +2,12 @@
 
 #include <array>
 #include <cstdint>
-#include <filesystem>
 #include <memory>
-#include <new>
 #include <string>
 #include <vector>
 
 #include "common.h"
 #include "core/game.h"
-#include "core/window.h"
-#include "event/input_handler.h"
 #include "event/key.h"
 #include "math/math.h"
 #include "math/matrix4.h"
@@ -21,6 +17,7 @@
 #include "renderer/buffer_layout.h"
 #include "renderer/color.h"
 #include "renderer/flip.h"
+#include "renderer/frame_buffer.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_renderer.h" // for texture slot count
 #include "renderer/origin.h"
@@ -564,10 +561,7 @@ struct TestRenderTargets : public DrawTest {
 		render_texture3 = RenderTexture{ ws };
 		render_texture4 = RenderTexture{ ws };
 		render_texture5 = RenderTexture{ ws };
-		render_texture6 = RenderTexture{ ws };
-
-		game.draw.SetClearColor(color::Transparent);
-		render_texture6.SetClearColor(color::White);
+		render_texture6 = RenderTexture{ ws, color::White };
 	}
 
 	void Shutdown() override {
@@ -583,27 +577,20 @@ struct TestRenderTargets : public DrawTest {
 	void Draw() override {
 		TextureInfo i;
 		i.source.origin = Origin::TopLeft;
-		game.draw.SetTarget();
-		game.draw.Rect({ 0, 0 }, s, color::Magenta, Origin::TopLeft);
-		game.draw.SetTarget(render_texture1);
-		game.draw.Texture(test, { 0, s.y * 1.0f }, s, i);
-		game.draw.Shader(ScreenShader::Default);
-		game.draw.SetTarget(render_texture2);
-		game.draw.Texture(test, { s.x, s.y * 2.0f }, s, i);
-		game.draw.Shader(ScreenShader::Blur);
-		game.draw.SetTarget(render_texture3);
-		game.draw.Texture(test, { s.x * 1.0f, 0 }, s, i);
-		game.draw.Shader(ScreenShader::EdgeDetection);
-		game.draw.SetTarget(render_texture4);
-		game.draw.Texture(test, s, s, i);
-		game.draw.Shader(ScreenShader::Grayscale);
-		game.draw.SetTarget(render_texture5);
-		game.draw.Texture(test, { 0, s.y * 2.0f }, s, i);
-		game.draw.Shader(ScreenShader::Sharpen);
-		game.draw.SetTarget(render_texture6);
-		game.draw.Texture(test, { s.x * 2.0f, 0 }, s, i);
-		game.draw.Shader(ScreenShader::InverseColor);
-		game.draw.SetTarget();
+
+		const auto draw_texture = [&](const RenderTexture& rt, const V2_float& pos,
+									  ScreenShader ss) {
+			game.draw.SetTarget(rt);
+			game.draw.Texture(test, pos, s, i);
+			game.draw.Shader(ss);
+		};
+
+		draw_texture(render_texture1, { 0, 0 }, ScreenShader::Default);
+		draw_texture(render_texture2, { s.x, 0 }, ScreenShader::Blur);
+		draw_texture(render_texture3, { s.x * 2, 0 }, ScreenShader::EdgeDetection);
+		draw_texture(render_texture4, { 0, s.y }, ScreenShader::Grayscale);
+		draw_texture(render_texture5, { s.x, s.y }, ScreenShader::Sharpen);
+		draw_texture(render_texture6, { s.x * 2, s.y }, ScreenShader::InverseColor);
 	}
 };
 
@@ -1051,6 +1038,62 @@ void TestIndexBuffers() {
 	ib2.SetSubData(indices4);
 }
 
+void TestFrameBuffers() {
+	V2_int size{ 800, 800 };
+	game.window.SetSize(size);
+	game.input.Update();
+	RenderTexture rt{ size, color::Yellow };
+	const auto& fb{ rt.GetFrameBuffer() };
+	PTGN_ASSERT(fb.GetPixel({ 0, 0 }) == color::Yellow);
+	const auto is_yellow = [&]() {
+		bool yellow{ true };
+		fb.ForEachPixel([&](V2_int p, Color c) {
+			if (c != color::Yellow) {
+				yellow = false;
+			}
+		});
+		return yellow;
+	};
+	PTGN_ASSERT(is_yellow());
+	game.draw.SetTarget(rt);
+	PTGN_ASSERT(is_yellow());
+	game.draw.Point(V2_int{ 0, 0 }, color::Red);
+	game.draw.Point(V2_int{ size.x - 1, 0 }, color::Green);
+	game.draw.Point(V2_int{ 0, size.y - 1 }, color::Blue);
+	game.draw.Point(V2_int{ size.x - 1, size.y - 1 }, color::Purple);
+	PTGN_ASSERT(is_yellow());
+	game.draw.Flush();
+	PTGN_ASSERT(!is_yellow());
+	PTGN_ASSERT(fb.GetPixel({ 0, 0 }) == color::Red);
+	PTGN_ASSERT(fb.GetPixel({ size.x - 1, 0 }) == color::Green);
+	PTGN_ASSERT(fb.GetPixel({ 0, size.y - 1 }) == color::Blue);
+	PTGN_ASSERT(fb.GetPixel(V2_int{ size } - V2_int{ 1, 1 }) == color::Purple);
+	fb.ForEachPixel([&](V2_int p, Color c) {
+		if (p == V2_int{ 0, 0 }) {
+			PTGN_ASSERT(c == color::Red);
+		} else if (p == V2_int{ size.x - 1, 0 }) {
+			PTGN_ASSERT(c == color::Green);
+		} else if (p == V2_int{ 0, size.y - 1 }) {
+			PTGN_ASSERT(c == color::Blue);
+		} else if (p == V2_int{ size } - V2_int{ 1, 1 }) {
+			PTGN_ASSERT(c == color::Purple);
+		}
+	});
+	game.draw.Clear();
+	PTGN_ASSERT(is_yellow());
+	game.draw.Point(V2_int{ 0, 0 }, color::Red);
+	game.draw.Flush();
+	PTGN_ASSERT(!is_yellow());
+	game.draw.SetTarget();
+	PTGN_ASSERT(!is_yellow());
+	game.draw.Clear();
+	PTGN_ASSERT(!is_yellow());
+	game.draw.SetTarget(rt);
+	PTGN_ASSERT(is_yellow());
+	game.draw.Clear();
+	PTGN_ASSERT(is_yellow());
+}
+
 void TestVertexArrays() {
 	struct TestVertex {
 		glsl::vec3 pos{ 1.0f, 2.0f, 3.0f };
@@ -1345,8 +1388,7 @@ void TestRendering() {
 
 	std::vector<std::shared_ptr<Test>> tests;
 
-	// TODO: Readd test.
-	// tests.emplace_back(new TestRenderTargets());
+	tests.emplace_back(new TestRenderTargets());
 	tests.emplace_back(new TestPoint());
 	tests.emplace_back(new TestLineThin());
 	tests.emplace_back(new TestLineThick(test_line_width));
@@ -1399,6 +1441,7 @@ void TestRenderer() {
 
 	TestVertexBuffers();
 	TestIndexBuffers();
+	TestFrameBuffers();
 	TestVertexArrays();
 	TestShaders();
 	TestTextures();

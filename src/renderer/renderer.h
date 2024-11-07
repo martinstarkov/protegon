@@ -181,18 +181,20 @@ public:
 		const TextDrawInfo& info = {}
 	);
 
+	// @param texture Setting texture to {} will use the entire current rendering target.
 	void Shader(
-		ScreenShader screen_shader, BlendMode blend_mode = BlendMode::Blend, float z_index = 0.0f,
-		std::size_t render_layer = 0
+		ScreenShader screen_shader, const ptgn::Texture& texture = {},
+		BlendMode blend_mode = BlendMode::Blend, float z_index = 0.0f, std::size_t render_layer = 0
 	);
 
 	// Default size results in fullscreen shader.
+	// @param texture Setting texture to {} will use the entire current rendering target.
 	void Shader(
-		const ptgn::Shader& shader, const V2_float& position = {}, V2_float size = {},
-		Origin draw_origin = Origin::Center, BlendMode blend_mode = BlendMode::Blend,
-		Flip flip = Flip::None, float rotation_radians = 0.0f,
-		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f,
-		std::size_t render_layer = 0
+		const ptgn::Shader& shader, const ptgn::Texture& texture = {},
+		const V2_float& position = {}, V2_float size = {}, Origin draw_origin = Origin::Center,
+		BlendMode blend_mode = BlendMode::Blend, Flip flip = Flip::None,
+		float rotation_radians = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
+		float z_index = 0.0f, std::size_t render_layer = 0
 	);
 
 	void Texture(
@@ -278,19 +280,19 @@ public:
 	void SetTarget(const ptgn::RenderTexture& render_target = {});
 	[[nodiscard]] ptgn::RenderTexture GetTarget() const;
 
-	void SetBlendMode(BlendMode mode);
+	void SetBlendMode(BlendMode blend_mode);
 	[[nodiscard]] BlendMode GetBlendMode() const;
 
 	void SetClearColor(const Color& color);
 	[[nodiscard]] Color GetClearColor() const;
 
+	void FlushImpl(std::size_t render_layer, const M4_float& shader_view_projection);
+	void FlushImpl(const M4_float& shader_view_projection);
+
 private:
 	friend class CameraManager;
 	friend class Game;
 	friend class RenderTexture;
-
-	void FlushImpl(std::size_t render_layer, const M4_float& shader_view_projection);
-	void FlushImpl(const M4_float& shader_view_projection);
 
 	void UpdateDefaultFrameBuffer();
 
@@ -303,6 +305,7 @@ private:
 
 	RendererData data_;
 
+	BlendMode blend_mode_{ BlendMode::Blend };
 	ptgn::RenderTexture default_target_;
 	ptgn::RenderTexture current_target_;
 };

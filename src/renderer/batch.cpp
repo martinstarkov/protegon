@@ -60,20 +60,24 @@ void ShaderBatchData::Flush(const M4_float& view_projection) {
 	V2_float window_size{ game.window.GetSize() };
 	const BlendMode og_blend_mode{ game.draw.GetBlendMode() };
 	BlendMode current_blend_mode{ og_blend_mode };
+	bool changed_blend{ false };
 
 	for (const auto& s : data_) {
 		s.shader.Bind();
 		s.shader.SetUniform("u_ViewProjection", view_projection);
 		s.shader.SetUniform("u_Texture", 1);
 		s.shader.SetUniform("u_Resolution", window_size);
-		s.render_texture.Texture::Bind(1);
+		s.texture.Bind(1);
 		if (s.blend_mode != current_blend_mode) {
+			changed_blend = true;
 			GLRenderer::SetBlendMode(s.blend_mode);
 			current_blend_mode = s.blend_mode;
 		}
 		GLRenderer::DrawElements(s.vertex_array, s.vertex_array.GetIndexBuffer().GetCount());
 	}
-	GLRenderer::SetBlendMode(og_blend_mode);
+	if (changed_blend) {
+		GLRenderer::SetBlendMode(og_blend_mode);
+	}
 	data_.clear();
 }
 
@@ -297,10 +301,16 @@ void RendererData::SetupShaders() {
 	quad_shader_.SetUniform("u_Textures", samplers.data(), samplers.size());
 }
 
-void RendererData::FlushLayer(RenderLayer& layer, const M4_float& shader_view_projection) {
+bool RendererData::FlushLayer(RenderLayer& layer, const M4_float& shader_view_projection) {
+	if (layer.batch_map.empty()) {
+		return false;
+	}
+
 	ptgn::Shader bound_shader;
 
-	if (layer.new_view_projection) {
+	bool default_vp{ shader_view_projection.IsZero() };
+
+	if (layer.new_view_projection && default_vp) {
 		circle_shader_.Bind();
 		circle_shader_.SetUniform("u_ViewProjection", layer.view_projection);
 		color_shader_.Bind();
@@ -328,12 +338,9 @@ void RendererData::FlushLayer(RenderLayer& layer, const M4_float& shader_view_pr
 	// GLRenderer::DisableDepthTesting();
 	// TODO: Make sure to uncomment re-enabling of depth writing after transparent batch is done
 	// flushing (see below).
-
-	PTGN_ASSERT(
+	/*PTGN_ASSERT(
 		!layer.new_view_projection, "Opaque batch should have handled view projection reset"
-	);
-
-	bool default_vp{ shader_view_projection.IsZero() };
+	);*/
 
 	// Flush batches in order of z_index.
 	for (auto& [z_index, batches] : layer.batch_map) {
@@ -364,6 +371,8 @@ void RendererData::FlushLayer(RenderLayer& layer, const M4_float& shader_view_pr
 	//}
 
 	layer.batch_map.clear();
+
+	return true;
 }
 
 void RendererData::FlushType(
@@ -443,14 +452,14 @@ RenderLayer& RendererData::GetRenderLayer(std::size_t render_layer) {
 
 void RendererData::AddShader(
 	const ptgn::Shader& shader, const std::array<V2_float, 4>& vertices,
-	RenderTexture render_target, BlendMode blend_mode, const std::array<V2_float, 4>& tex_coords,
+	const ptgn::Texture& texture, BlendMode blend_mode, const std::array<V2_float, 4>& tex_coords,
 	float z_index, std::size_t render_layer
 ) {
 	// TODO: Consider if the shader draw is counted as opaque or transparent.
 	auto& batch_group = GetBatchGroup(GetRenderLayer(render_layer).batch_map, 1.0f, z_index);
 	VertexArray vertex_array{ TextureVertices(vertices, tex_coords, z_index), shader_ib_ };
 	GetBatch(BatchType::Shader, batch_group).shader_.Get() =
-		ShaderVertex(vertex_array, shader, render_target, blend_mode);
+		ShaderVertex(vertex_array, shader, texture, blend_mode);
 }
 
 void RendererData::AddQuad(
@@ -583,10 +592,12 @@ void RendererData::FlipTextureCoordinates(std::array<V2_float, 4>& texture_coord
 
 void RendererData::Shader(
 	const ptgn::Shader& shader, const std::array<V2_float, 4>& vertices,
-	RenderTexture render_target, BlendMode blend_mode, const std::array<V2_float, 4>& tex_coords,
+	const ptgn::Texture& texture, BlendMode blend_mode, const std::array<V2_float, 4>& tex_coords,
 	float z_index, std::size_t render_layer
 ) {
-	AddShader(shader, vertices, render_target, blend_mode, tex_coords, z_index, render_layer);
+	PTGN_ASSERT(shader.IsValid(), "Cannot render invalid shader");
+	PTGN_ASSERT(texture.IsValid(), "Cannot render shader with invalid texture");
+	AddShader(shader, vertices, texture, blend_mode, tex_coords, z_index, render_layer);
 }
 
 void RendererData::Texture(

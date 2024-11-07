@@ -67,6 +67,7 @@ struct Test {
 			Setup();
 			Init();
 			initialized_ = true;
+			return;
 		}
 		Update();
 		Draw();

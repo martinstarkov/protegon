@@ -9,31 +9,35 @@ namespace ptgn {
 
 struct Rect;
 
-class RenderTexture : public Texture {
+class RenderTexture {
 public:
-	RenderTexture()			  = default;
-	~RenderTexture() override = default;
-	explicit RenderTexture(
-		const V2_float& size, const Color& clear_color = color::Transparent,
-		BlendMode blend_mode = BlendMode::Add
-	);
+	RenderTexture()	 = default;
+	~RenderTexture() = default;
 
-	void Clear() const;
+	explicit RenderTexture(const V2_float& size, const Color& clear_color = color::Transparent);
+
+	void Clear();
+
+	[[nodiscard]] bool IsValid() const;
+	bool operator==(const RenderTexture& o) const;
+	bool operator!=(const RenderTexture& o) const;
 
 	[[nodiscard]] Color GetClearColor() const;
 	void SetClearColor(const Color& clear_color);
 
-	[[nodiscard]] BlendMode GetBlendMode() const;
-	void SetBlendMode(BlendMode blend_mode);
-
-private:
-	friend class impl::Renderer;
+	[[nodiscard]] FrameBuffer GetFrameBuffer() const;
+	[[nodiscard]] Texture GetTexture() const;
 
 	void DrawAndUnbind() const;
 	void Bind() const;
 
+private:
+	friend class impl::Renderer;
+
+	// Set to false by the renderer when any draw calls are flushed to the current render target.
+	bool cleared_{ true };
+	Texture texture_;
 	Color clear_color_{ color::Transparent };
-	BlendMode blend_mode_{ BlendMode::Add };
 	FrameBuffer frame_buffer_;
 };
 

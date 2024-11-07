@@ -37,17 +37,17 @@ struct ShaderVertex {
 	ShaderVertex() = default;
 
 	ShaderVertex(
-		const VertexArray& vertex_array, const Shader& shader, const RenderTexture& render_texture,
+		const VertexArray& vertex_array, const Shader& shader, const Texture& texture,
 		BlendMode blend_mode
 	) :
 		vertex_array{ vertex_array },
 		shader{ shader },
-		render_texture{ render_texture },
+		texture{ texture },
 		blend_mode{ blend_mode } {}
 
 	VertexArray vertex_array;
 	Shader shader;
-	RenderTexture render_texture;
+	Texture texture;
 	BlendMode blend_mode{ BlendMode::Blend };
 };
 
@@ -191,7 +191,7 @@ public:
 
 	void AddShader(
 		const ptgn::Shader& shader, const std::array<V2_float, 4>& vertices,
-		RenderTexture render_target, BlendMode blend_mode,
+		const ptgn::Texture& texture, BlendMode blend_mode,
 		const std::array<V2_float, 4>& tex_coords, float z_index, std::size_t render_layer
 	);
 	void AddQuad(
@@ -217,7 +217,8 @@ public:
 	void SetupShaders();
 
 	// Flush a specific render layer. It must exist in render_layers_.
-	void FlushLayer(RenderLayer& layer, const M4_float& shader_view_projection);
+	// @return True if layer was flushed, false if layer batch map was empty.
+	bool FlushLayer(RenderLayer& layer, const M4_float& shader_view_projection);
 
 	[[nodiscard]] static std::array<V2_float, 4> GetTextureCoordinates(
 		const V2_float& source_position, V2_float source_size, const V2_float& texture_size,
@@ -230,7 +231,7 @@ public:
 
 	void Shader(
 		const ptgn::Shader& shader, const std::array<V2_float, 4>& vertices,
-		RenderTexture render_target, BlendMode blend_mode,
+		const ptgn::Texture& texture, BlendMode blend_mode,
 		const std::array<V2_float, 4>& tex_coords, float z_index, std::size_t render_layer
 	);
 

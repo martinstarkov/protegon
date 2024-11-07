@@ -101,13 +101,16 @@ FrameBuffer::FrameBuffer(const RenderBuffer& render_buffer) {
 	POPSTATE_FB();
 }
 
-FrameBuffer::FrameBuffer(const Texture& texture, const RenderBuffer& render_buffer) {
+FrameBuffer::FrameBuffer(
+	const Texture& texture, const RenderBuffer& render_buffer, const Color& clear_color
+) {
 	PUSHSTATE_FB();
 
 	Create();
 	Bind();
 	AttachTextureImpl(texture);
 	AttachRenderBufferImpl(render_buffer);
+	Clear(clear_color);
 
 	PTGN_ASSERT(IsComplete(), "Failed to complete frame buffer");
 
@@ -150,6 +153,12 @@ void FrameBuffer::AttachRenderBuffer(const RenderBuffer& render_buffer) {
 	AttachRenderBufferImpl(render_buffer);
 
 	POPSTATE_FB();
+}
+
+void FrameBuffer::Clear(const Color& clear_color) const {
+	PTGN_ASSERT(IsBound(), "Cannot clear unbound frame buffer");
+	GLRenderer::ClearColor(clear_color);
+	GLRenderer::Clear();
 }
 
 Texture FrameBuffer::GetTexture() const {
@@ -199,13 +208,13 @@ void FrameBuffer::Unbind() {
 #endif
 }
 
-Color FrameBuffer::GetPixel(const V2_int& coordinate, ImageFormat format) const {
+Color FrameBuffer::GetPixel(const V2_int& coordinate) const {
 	PTGN_ASSERT(IsValid(), "Cannot retrieve pixel of invalid frame buffer");
+	auto& texture{ Get().texture_ };
 	PTGN_ASSERT(
-		Get().texture_.IsValid(),
-		"Cannot retrieve pixel of frame buffer without an attached texture"
+		texture.IsValid(), "Cannot retrieve pixel of frame buffer without an attached texture"
 	);
-	V2_int size{ Get().texture_.GetSize() };
+	V2_int size{ texture.GetSize() };
 	PTGN_ASSERT(
 		coordinate.x >= 0 && coordinate.x < size.x,
 		"Cannot get pixel out of range of frame buffer texture"
@@ -214,7 +223,7 @@ Color FrameBuffer::GetPixel(const V2_int& coordinate, ImageFormat format) const 
 		coordinate.y >= 0 && coordinate.y < size.y,
 		"Cannot get pixel out of range of frame buffer texture"
 	);
-	auto formats{ impl::GetGLFormats(format) };
+	auto formats{ impl::GetGLFormats(texture.GetFormat()) };
 	PTGN_ASSERT(formats.components_ >= 3);
 	std::vector<std::uint8_t> v(formats.components_ * 1 * 1);
 	PUSHSTATE_FB();
@@ -230,15 +239,14 @@ Color FrameBuffer::GetPixel(const V2_int& coordinate, ImageFormat format) const 
 				  formats.components_ == 4 ? v[3] : static_cast<std::uint8_t>(255) };
 }
 
-void FrameBuffer::ForEachPixel(const std::function<void(V2_int, Color)>& func, ImageFormat format)
-	const {
+void FrameBuffer::ForEachPixel(const std::function<void(V2_int, Color)>& func) const {
 	PTGN_ASSERT(IsValid(), "Cannot retrieve pixels of invalid frame buffer");
+	auto& texture{ Get().texture_ };
 	PTGN_ASSERT(
-		Get().texture_.IsValid(),
-		"Cannot retrieve pixels of frame buffer without an attached texture"
+		texture.IsValid(), "Cannot retrieve pixels of frame buffer without an attached texture"
 	);
-	V2_int size{ Get().texture_.GetSize() };
-	auto formats{ impl::GetGLFormats(format) };
+	V2_int size{ texture.GetSize() };
+	auto formats{ impl::GetGLFormats(texture.GetFormat()) };
 	std::vector<std::uint8_t> v(formats.components_ * size.x * size.y);
 	PTGN_ASSERT(formats.components_ >= 3);
 	PUSHSTATE_FB();
@@ -248,15 +256,15 @@ void FrameBuffer::ForEachPixel(const std::function<void(V2_int, Color)>& func, I
 		(void*)v.data()
 	));
 	POPSTATE_FB();
-	for (int j{ size.y - 1 }; j >= 0; j--) {
-		int row{ j * (size.x - 1) };
-		int y{ size.y - 1 - j };
+	for (int j{ 0 }; j < size.y; j++) {
+		// Ensure left-to-right and top-to-bottom iteration.
+		int row{ (size.y - 1 - j) * size.x * formats.components_ };
 		for (int i{ 0 }; i < size.x; i++) {
 			int idx{ row + i * formats.components_ };
 			PTGN_ASSERT(static_cast<std::size_t>(idx) < v.size());
 			Color color{ v[idx], v[idx + 1], v[idx + 2],
 						 formats.components_ == 4 ? v[idx + 3] : static_cast<std::uint8_t>(255) };
-			std::invoke(func, V2_int{ i, y }, color);
+			std::invoke(func, V2_int{ i, j }, color);
 		}
 	}
 }
