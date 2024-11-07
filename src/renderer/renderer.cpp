@@ -291,10 +291,10 @@ void Renderer::Shader(
 	// Since this engine uses top left as origin, shaders must all be flipped vertically.
 	RendererData::FlipTextureCoordinates(tex_coords, Flip::Vertical);
 
+	ptgn::Texture t{ texture.IsValid() ? texture : current_target_.GetTexture() };
+
 	data_.Shader(
-		shader, rect.GetVertices(rotation_center),
-		texture.IsValid() ? texture : current_target_.GetTexture(), blend_mode, tex_coords, z_index,
-		render_layer
+		shader, rect.GetVertices(rotation_center), t, blend_mode, tex_coords, z_index, render_layer
 	);
 }
 
