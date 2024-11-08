@@ -40,16 +40,16 @@ public:
 
 		// Visual tests.
 
-		TestWindow();
-		TestCamera();
-		TestRenderer();
 		TestLighting();
+		TestRenderer();
 		TestCollisions();
+		TestCamera();
 		TestRNG();
 		TestAnimations();
 		TestPathfinding();
 		TestTween();
 		TestText();
+		TestWindow();
 		TestEvents();
 
 		PTGN_INFO("Initialized test scene");

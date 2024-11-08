@@ -311,6 +311,7 @@ Shader ShaderManager::Get(ScreenShader screen_shader) const {
 	switch (screen_shader) {
 		case ScreenShader::Default:		  return default_;
 		case ScreenShader::Blur:		  return blur_;
+		case ScreenShader::GaussianBlur:  return gaussian_blur_;
 		case ScreenShader::EdgeDetection: return edge_detection_;
 		case ScreenShader::InverseColor:  return inverse_color_;
 		case ScreenShader::Grayscale:	  return grayscale_;
@@ -372,49 +373,7 @@ void ShaderManager::Init() {
 #include PTGN_SHADER_PATH(color.frag)
 			   } };
 
-	// TODO: Add these shaders for emscripten OpenGL ES3.
-
-	default_ = { ShaderSource{
-#include PTGN_SHADER_PATH(screen_default.vert)
-				 },
-				 ShaderSource{
-#include PTGN_SHADER_PATH(screen_default.frag)
-				 } };
-
-	blur_ = { ShaderSource{
-#include PTGN_SHADER_PATH(screen_default.vert)
-			  },
-			  ShaderSource{
-#include PTGN_SHADER_PATH(screen_blur.frag)
-			  } };
-
-	edge_detection_ = { ShaderSource{
-#include PTGN_SHADER_PATH(screen_default.vert)
-						},
-						ShaderSource{
-#include PTGN_SHADER_PATH(screen_edge_detection.frag)
-						} };
-
-	grayscale_ = { ShaderSource{
-#include PTGN_SHADER_PATH(screen_default.vert)
-				   },
-				   ShaderSource{
-#include PTGN_SHADER_PATH(screen_grayscale.frag)
-				   } };
-
-	inverse_color_ = { ShaderSource{
-#include PTGN_SHADER_PATH(screen_default.vert)
-					   },
-					   ShaderSource{
-#include PTGN_SHADER_PATH(screen_inverse_color.frag)
-					   } };
-
-	sharpen_ = { ShaderSource{
-#include PTGN_SHADER_PATH(screen_default.vert)
-				 },
-				 ShaderSource{
-#include PTGN_SHADER_PATH(screen_sharpen.frag)
-				 } };
+	InitScreenShaders();
 }
 
 } // namespace impl

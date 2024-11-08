@@ -28,7 +28,7 @@ public:
 	[[nodiscard]] FrameBuffer GetFrameBuffer() const;
 	[[nodiscard]] Texture GetTexture() const;
 
-	void DrawAndUnbind() const;
+	void DrawAndUnbind(bool force_draw = false) const;
 	void Bind() const;
 
 private:

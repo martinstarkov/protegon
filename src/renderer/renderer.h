@@ -277,7 +277,9 @@ public:
 	// Calling with default argument {} will reset render target to window.
 	// Keep in mind that calling this function will draw the previously set render target to the
 	// screen. This can lead to shaders being drawn twice.
-	void SetTarget(const ptgn::RenderTexture& render_target = {});
+	void SetTarget(
+		const ptgn::RenderTexture& render_target = {}, bool draw_previously_bound_target = true
+	);
 	[[nodiscard]] ptgn::RenderTexture GetTarget() const;
 
 	void SetBlendMode(BlendMode blend_mode);

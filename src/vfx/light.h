@@ -4,6 +4,7 @@
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "renderer/color.h"
+#include "renderer/render_texture.h"
 #include "renderer/shader.h"
 
 namespace ptgn {
@@ -24,7 +25,7 @@ public:
 		position_{ position }, color_{ color }, intensity_{ intensity } {}
 
 	// Will flush the renderer.
-	void Draw() const;
+	void Draw(const Texture& texture) const;
 
 	void SetPosition(const V2_float& position);
 	[[nodiscard]] V2_float GetPosition() const;
@@ -51,15 +52,12 @@ public:
 	using MapManager::MapManager;
 
 	// Will flush the renderer.
-	void Draw() const;
+	void Draw();
 
 	void Reset();
 
 	void SetBlur(bool blur);
 	[[nodiscard]] bool GetBlur() const;
-
-	void SetBlendMode(BlendMode blend_mode);
-	[[nodiscard]] BlendMode GetBlendMode() const;
 
 private:
 	friend class Light;
@@ -67,10 +65,12 @@ private:
 
 	void Init();
 
+	void UpdateTarget();
+
 	[[nodiscard]] Shader GetShader() const;
 
+	RenderTexture target_;
 	Shader light_shader_;
-	BlendMode blend_mode_{ BlendMode::Add };
 	bool blur_{ false };
 };
 

@@ -29,9 +29,9 @@ RenderTexture::RenderTexture(const V2_float& size, const Color& clear_color) :
 	PTGN_ASSERT(frame_buffer_.IsValid(), "Failed to create frame buffer for render texture");
 }
 
-void RenderTexture::DrawAndUnbind() const {
+void RenderTexture::DrawAndUnbind(bool force_draw) const {
 	game.draw.Flush();
-	if (cleared_) {
+	if (cleared_ && !force_draw) {
 		// If nothing was flushed onto the render target, skip the draw and unbind. Prevents dual
 		// drawing of the final target.
 		return;

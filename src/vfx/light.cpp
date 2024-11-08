@@ -1,14 +1,21 @@
 #include "vfx/light.h"
 
+#include <functional>
+
 #include "core/game.h"
 #include "core/manager.h"
+#include "core/window.h"
+#include "event/event_handler.h"
+#include "event/events.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
 #include "renderer/color.h"
 #include "renderer/origin.h"
+#include "renderer/render_texture.h"
 #include "renderer/renderer.h"
 #include "renderer/shader.h"
+#include "renderer/texture.h"
 
 namespace ptgn {
 
@@ -41,13 +48,13 @@ V3_float Light::GetShaderColor() const {
 	return { n.x, n.y, n.z };
 }
 
-void Light::Draw() const {
+void Light::Draw(const Texture& texture) const {
 	auto shader{ game.light.GetShader() };
 	shader.Bind();
 	shader.SetUniform("u_LightPos", GetPosition());
 	shader.SetUniform("u_LightColor", GetShaderColor());
 	shader.SetUniform("u_LightIntensity", GetIntensity());
-	game.draw.Shader(shader, {}, {}, Origin::Center, game.light.GetBlendMode());
+	game.draw.Shader(shader, texture, {}, {}, Origin::Center, BlendMode::Add);
 	game.draw.Flush();
 }
 
@@ -60,19 +67,39 @@ void LightManager::Init() {
 #include PTGN_SHADER_PATH(lighting.frag)
 		}
 	);
+
+	game.event.window.Subscribe(
+		WindowEvent::Resized, this,
+		std::function([this](const WindowResizedEvent&) { UpdateTarget(); })
+	);
+
+	UpdateTarget();
 }
 
-void LightManager::Draw() const {
-	ForEachValue([&](const auto& light) { light.Draw(); });
-	if (blur_) {
-		game.draw.Shader(ScreenShader::Blur, BlendMode::Add);
+void LightManager::UpdateTarget() {
+	bool was_target{ game.draw.GetTarget() == target_ };
+	target_ = RenderTexture{ game.window.GetSize(), target_.GetClearColor() };
+	if (was_target) {
+		game.draw.SetTarget(target_);
 	}
+}
+
+void LightManager::Draw() {
+	auto target{ game.draw.GetTarget() };
+	game.draw.SetTarget(target_);
+	ForEachValue([&](const auto& light) { light.Draw(target_.GetTexture()); });
+	game.draw.SetTarget(RenderTexture{ game.window.GetSize() }, false);
+	if (blur_) {
+		game.draw.Shader(ScreenShader::GaussianBlur, target_.GetTexture());
+	} else {
+		game.draw.Shader(ScreenShader::Default, target_.GetTexture());
+	}
+	game.draw.SetTarget(target);
 }
 
 void LightManager::Reset() {
 	MapManager::Reset();
-	blur_		= false;
-	blend_mode_ = BlendMode::Add;
+	blur_ = false;
 }
 
 void LightManager::SetBlur(bool blur) {
@@ -81,14 +108,6 @@ void LightManager::SetBlur(bool blur) {
 
 bool LightManager::GetBlur() const {
 	return blur_;
-}
-
-void LightManager::SetBlendMode(BlendMode blend_mode) {
-	blend_mode_ = blend_mode;
-}
-
-BlendMode LightManager::GetBlendMode() const {
-	return blend_mode_;
 }
 
 Shader LightManager::GetShader() const {

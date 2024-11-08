@@ -108,6 +108,7 @@ private:
 enum class ScreenShader {
 	Default,
 	Blur,
+	GaussianBlur,
 	EdgeDetection,
 	Grayscale,
 	InverseColor,
@@ -136,9 +137,63 @@ private:
 
 	void Init();
 
+	void InitScreenShaders() {
+		// TODO: Add these shaders for emscripten OpenGL ES3.
+
+		default_ = { ShaderSource{
+#include PTGN_SHADER_PATH(screen_default.vert)
+					 },
+					 ShaderSource{
+#include PTGN_SHADER_PATH(screen_default.frag)
+					 } };
+
+		blur_ = { ShaderSource{
+#include PTGN_SHADER_PATH(screen_default.vert)
+				  },
+				  ShaderSource{
+#include PTGN_SHADER_PATH(screen_blur.frag)
+				  } };
+
+		gaussian_blur_ = { ShaderSource{
+#include PTGN_SHADER_PATH(screen_default.vert)
+						   },
+						   ShaderSource{
+#include PTGN_SHADER_PATH(screen_gaussian_blur.frag)
+						   } };
+
+		edge_detection_ = { ShaderSource{
+#include PTGN_SHADER_PATH(screen_default.vert)
+							},
+							ShaderSource{
+#include PTGN_SHADER_PATH(screen_edge_detection.frag)
+							} };
+
+		grayscale_ = { ShaderSource{
+#include PTGN_SHADER_PATH(screen_default.vert)
+					   },
+					   ShaderSource{
+#include PTGN_SHADER_PATH(screen_grayscale.frag)
+					   } };
+
+		inverse_color_ = { ShaderSource{
+#include PTGN_SHADER_PATH(screen_default.vert)
+						   },
+						   ShaderSource{
+#include PTGN_SHADER_PATH(screen_inverse_color.frag)
+						   } };
+
+		sharpen_ = { ShaderSource{
+#include PTGN_SHADER_PATH(screen_default.vert)
+					 },
+					 ShaderSource{
+#include PTGN_SHADER_PATH(screen_sharpen.frag)
+					 } };
+	}
+
 	// Screen shaders.
 	Shader default_;
 	Shader blur_;
+	Shader gaussian_blur_;
 	Shader grayscale_;
 	Shader inverse_color_;
 	Shader edge_detection_;

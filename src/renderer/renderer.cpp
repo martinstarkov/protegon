@@ -34,7 +34,7 @@ void Renderer::Init() {
 	current_target_.SetClearColor(color::Transparent);
 
 	// Only update viewport after resizing finishes, not during (saves a few GPU calls).
-	// If desired, changing the word Resized . Resizing will make the viewport update during
+	// If desired, changing the word Resized. Resizing will make the viewport update during
 	// resizing.
 	game.event.window.Subscribe(
 		WindowEvent::Resized, this,
@@ -72,12 +72,14 @@ void Renderer::SetBlendMode(BlendMode blend_mode) {
 	GLRenderer::SetBlendMode(blend_mode_);
 }
 
-void Renderer::SetTarget(const RenderTexture& target) {
+void Renderer::SetTarget(const RenderTexture& target, bool draw_previously_bound_target) {
 	if (current_target_ == target ||
 		current_target_ == default_target_ && target == RenderTexture{}) {
 		return;
 	}
-	current_target_.DrawAndUnbind();
+	if (draw_previously_bound_target) {
+		current_target_.DrawAndUnbind();
+	}
 	// Set and bind new render target.
 	if (target.IsValid()) {
 		current_target_ = target;
