@@ -1,6 +1,5 @@
 #include "core/window.h"
 
-#include <cstdint>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -9,11 +8,12 @@
 #include "SDL_mouse.h"
 #include "SDL_stdinc.h"
 #include "SDL_video.h"
-#include "core/sdl_instance.h"
 #include "core/game.h"
-#include "utility/log.h"
+#include "core/sdl_instance.h"
 #include "math/vector2.h"
+#include "renderer/gl_renderer.h"
 #include "utility/debug.h"
+#include "utility/log.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -153,6 +153,7 @@ void Window::SetSize(const V2_int& new_size, bool centered) const {
 	SetCanvasSize(new_size);
 #endif
 	SDL_SetWindowSize(Get(), new_size.x, new_size.y);
+	GLRenderer::SetViewport({}, new_size);
 	// Important to center after resizing.
 	if (centered) {
 		Center();
