@@ -7,6 +7,7 @@
 #include "collision/collision.h"
 #include "collision/raycast.h"
 #include "common.h"
+#include "components/sprite.h"
 #include "components/transform.h"
 #include "ecs/ecs.h"
 #include "event/input_handler.h"
@@ -17,12 +18,147 @@
 #include "math/geometry/polygon.h"
 #include "math/math.h"
 #include "math/vector2.h"
+#include "physics/movement.h"
 #include "physics/rigid_body.h"
 #include "renderer/color.h"
 #include "renderer/origin.h"
 #include "renderer/renderer.h"
 #include "utility/debug.h"
 #include "utility/log.h"
+
+class CollisionCallbackTest : public Test {
+public:
+	ecs::Manager manager;
+	ecs::Entity intersect;
+	ecs::Entity overlap;
+	ecs::Entity sweep;
+
+	void Init() override {
+		intersect = manager.CreateEntity();
+		sweep	  = manager.CreateEntity();
+		overlap	  = manager.CreateEntity();
+		intersect.Add<Transform>(V2_float{ 100, 100 });
+		overlap.Add<Transform>(V2_float{ 200, 200 });
+		sweep.Add<Transform>(V2_float{ 300, 300 });
+		intersect.Add<RigidBody>();
+		overlap.Add<RigidBody>();
+		sweep.Add<RigidBody>();
+		intersect.Add<BoxCollider>(intersect, V2_float{ 30, 30 });
+		overlap.Add<BoxCollider>(overlap, V2_float{ 30, 30 });
+		sweep.Add<BoxCollider>(sweep, V2_float{ 30, 30 });
+		auto& b1{ intersect.Get<BoxCollider>() };
+		auto& b2{ overlap.Get<BoxCollider>() };
+		auto& b3{ sweep.Get<BoxCollider>() };
+		b2.overlap_only = true;
+		b3.continuous	= true;
+
+		b1.on_collision_start = [](Collision c) {
+			PTGN_LOG(
+				"#", c.entity1.GetId(), " started intersect collision with #", c.entity2.GetId(),
+				", normal: ", c.normal
+			);
+		};
+		b1.on_collision = [](Collision c) {
+			PTGN_LOG(
+				"#", c.entity1.GetId(), " continued intersect collision with #", c.entity2.GetId(),
+				", normal: ", c.normal
+			);
+		};
+		b1.on_collision_stop = [](Collision c) {
+			PTGN_LOG(
+				"#", c.entity1.GetId(), " stopped intersect collision with #", c.entity2.GetId(),
+				", normal: ", c.normal
+			);
+		};
+
+		b2.on_collision_start = [](Collision c) {
+			PTGN_LOG(
+				"#", c.entity1.GetId(), " started overlap collision with #", c.entity2.GetId(),
+				", normal: ", c.normal
+			);
+		};
+		b2.on_collision = [](Collision c) {
+			PTGN_LOG(
+				"#", c.entity1.GetId(), " continued overlap collision with #", c.entity2.GetId(),
+				", normal: ", c.normal
+			);
+		};
+		b2.on_collision_stop = [](Collision c) {
+			PTGN_LOG(
+				"#", c.entity1.GetId(), " stopped overlap collision with #", c.entity2.GetId(),
+				", normal: ", c.normal
+			);
+		};
+
+		b3.on_collision_start = [](Collision c) {
+			PTGN_LOG(
+				"#", c.entity1.GetId(), " started sweep collision with #", c.entity2.GetId(),
+				", normal: ", c.normal
+			);
+		};
+		b3.on_collision = [](Collision c) {
+			PTGN_LOG(
+				"#", c.entity1.GetId(), " continued sweep collision with #", c.entity2.GetId(),
+				", normal: ", c.normal
+			);
+		};
+		b3.on_collision_stop = [](Collision c) {
+			PTGN_LOG(
+				"#", c.entity1.GetId(), " stopped sweep collision with #", c.entity2.GetId(),
+				", normal: ", c.normal
+			);
+		};
+
+		CreateObstacle(V2_float{ 50, 50 }, V2_float{ 10, 500 }, Origin::TopLeft);
+		CreateObstacle(V2_float{ 600, 200 }, V2_float{ 10, 500 }, Origin::TopLeft);
+		CreateObstacle(V2_float{ 50, 650 }, V2_float{ 500, 10 }, Origin::TopLeft);
+		CreateObstacle(V2_float{ 100, 70 }, V2_float{ 500, 10 }, Origin::TopLeft);
+
+		manager.Refresh();
+	}
+
+	void CreateObstacle(const V2_float& pos, const V2_float& size, Origin origin) {
+		auto obstacle = manager.CreateEntity();
+		obstacle.Add<Transform>(pos);
+		obstacle.Add<BoxCollider>(obstacle, size, origin);
+	}
+
+	const int move_entities{ 3 };
+	int move_entity{ 0 };
+	V2_float speed{ 300.0f };
+
+	void Update() override {
+		if (game.input.KeyDown(Key::E)) {
+			move_entity++;
+		}
+		if (game.input.KeyDown(Key::E)) {
+			move_entity--;
+		}
+		move_entity = Mod(move_entity, move_entities);
+
+		V2_float* vel{ nullptr };
+
+		if (move_entity == 0) {
+			vel = &intersect.Get<RigidBody>().velocity;
+		} else if (move_entity == 1) {
+			vel = &overlap.Get<RigidBody>().velocity;
+		} else if (move_entity == 2) {
+			vel = &sweep.Get<RigidBody>().velocity;
+		}
+
+		PTGN_ASSERT(vel != nullptr);
+
+		MoveWASD(*vel, speed * game.physics.dt());
+
+		game.physics.Update(manager);
+	}
+
+	void Draw() override {
+		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
+			DrawRect(e, b.GetAbsoluteRect());
+		}
+	}
+};
 
 class CollisionTest : public Test {
 public:
@@ -1153,6 +1289,7 @@ void TestCollisions() {
 	V2_float velocity{ 100000.0f };
 	float speed{ 7000.0f };
 
+	tests.emplace_back(new CollisionCallbackTest());
 	tests.emplace_back(new CollisionTest());
 	tests.emplace_back(new RectCollisionTest4());
 	tests.emplace_back(new RectCollisionTest3());
