@@ -19,6 +19,7 @@
 #include "math/math.h"
 #include "math/vector2.h"
 #include "physics/movement.h"
+#include "physics/physics.h"
 #include "physics/rigid_body.h"
 #include "renderer/color.h"
 #include "renderer/origin.h"
@@ -37,18 +38,23 @@ public:
 		intersect = manager.CreateEntity();
 		sweep	  = manager.CreateEntity();
 		overlap	  = manager.CreateEntity();
+
 		intersect.Add<Transform>(V2_float{ 100, 100 });
 		overlap.Add<Transform>(V2_float{ 200, 200 });
 		sweep.Add<Transform>(V2_float{ 300, 300 });
+
 		intersect.Add<RigidBody>();
 		overlap.Add<RigidBody>();
 		sweep.Add<RigidBody>();
+
 		intersect.Add<BoxCollider>(intersect, V2_float{ 30, 30 });
 		overlap.Add<BoxCollider>(overlap, V2_float{ 30, 30 });
 		sweep.Add<BoxCollider>(sweep, V2_float{ 30, 30 });
+
 		auto& b1{ intersect.Get<BoxCollider>() };
 		auto& b2{ overlap.Get<BoxCollider>() };
 		auto& b3{ sweep.Get<BoxCollider>() };
+
 		b2.overlap_only = true;
 		b3.continuous	= true;
 
