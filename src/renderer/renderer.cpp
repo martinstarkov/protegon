@@ -423,4 +423,12 @@ void Renderer::Capsule(
 	data_.Capsule(p0, p1, radius, color.Normalized(), line_width, fade, z_index, render_layer);
 }
 
+Color Renderer::GetPixel(const V2_int& coordinate) const {
+	return current_target_.GetFrameBuffer().GetPixel(coordinate);
+}
+
+void Renderer::ForEachPixel(const std::function<void(V2_int, Color)>& func) const {
+	return current_target_.GetFrameBuffer().ForEachPixel(func);
+}
+
 } // namespace ptgn::impl

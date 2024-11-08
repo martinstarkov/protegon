@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 #include "math/geometry/polygon.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
@@ -273,6 +275,12 @@ public:
 		float line_width = -1.0f, float z_index = 0.0f, std::size_t render_layer = 0,
 		float fade = 0.005f
 	);
+
+	// @return Pixel at a specific coordinate on the current render target.
+	[[nodiscard]] Color GetPixel(const V2_int& coordinate) const;
+
+	// Loop through each pixel on the current render target.
+	void ForEachPixel(const std::function<void(V2_int, Color)>& func) const;
 
 	// Calling with default argument {} will reset render target to window.
 	// Keep in mind that calling this function will draw the previously set render target to the
