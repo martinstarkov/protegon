@@ -21,14 +21,57 @@
 
 namespace ptgn::impl {
 
+std::vector<CollisionHandler::SweepCollision> CollisionHandler::GetSortedCollisions(
+	ecs::Entity entity, const BoxCollider& box, const ecs::EntitiesWith<BoxCollider>& targets,
+	const V2_float& offset, const V2_float& vel
+) {
+	std::vector<SweepCollision> collisions;
+	for (auto [e2, box2] : targets) {
+		if (box2.overlap_only || !box.CanCollideWith(box2)) {
+			continue;
+		}
+		V2_float relative_velocity{ vel };
+		if (e2.Has<RigidBody>()) {
+			relative_velocity -= e2.Get<RigidBody>().velocity * game.dt();
+		}
+		Rect rect{ box.GetAbsoluteRect() };
+		rect.position += offset;
+		Rect rect2{ box2.GetAbsoluteRect() };
+		Raycast c{ rect.Raycast(relative_velocity, rect2) };
+		if (c.Occurred() && box.ProcessCallback(entity, e2)) {
+			float dist2{ (rect.Center() - rect2.Center()).MagnitudeSquared() };
+			collisions.emplace_back(c, dist2, e2);
+		}
+	}
+	SortCollisions(collisions);
+	return collisions;
+};
+
+void CollisionHandler::AddEarliestCollisions(
+	ecs::Entity e, const std::vector<SweepCollision>& sweep_collisions,
+	std::unordered_set<Collision>& entities
+) {
+	PTGN_ASSERT(!sweep_collisions.empty());
+	const auto& first_collision{ sweep_collisions.front() };
+	PTGN_ASSERT(e != first_collision.e, "Self collision not possible");
+	entities.emplace(e, first_collision.e, first_collision.c.normal);
+	for (std::size_t i{ 1 }; i < sweep_collisions.size(); ++i) {
+		const auto& collision{ sweep_collisions[i] };
+		if (collision.c.t == first_collision.c.t) {
+			PTGN_ASSERT(e != collision.e, "Self collision not possible");
+			entities.emplace(e, collision.e, collision.c.normal);
+		}
+	}
+};
+
+static void DrawVelocity(const V2_float& start, const V2_float& vel, const Color& color) {
+	game.draw.Line(start, start + vel, color);
+}
+
 void CollisionHandler::Sweep(
-	ecs::Entity entity, BoxCollider& box, const ecs::EntitiesWith<Transform>& targets,
+	ecs::Entity entity, BoxCollider& box, const ecs::EntitiesWith<BoxCollider>& targets,
 	bool debug_draw
 ) const {
-	// TODO: Separate this code into functions.
-
-	PTGN_ASSERT(game.dt() > 0.0f);
-
 	if (!box.continuous || box.overlap_only || !entity.Has<RigidBody, Transform>()) {
 		return;
 	}
@@ -36,125 +79,65 @@ void CollisionHandler::Sweep(
 	const auto& transform{ entity.Get<Transform>() };
 	auto& rigid_body{ entity.Get<RigidBody>() };
 
-	const auto velocity = rigid_body.velocity * game.dt();
+	auto velocity{ rigid_body.velocity * game.dt() };
 
 	if (velocity.IsZero()) {
 		return;
 	}
 
-	Raycast c;
-
-	auto collision_occurred = [&](const V2_float& offset, const V2_float& vel, ecs::Entity e,
-								  float& dist2) {
-		if (!e.HasAny<BoxCollider, CircleCollider>()) {
-			return false;
-		}
-		V2_float relative_velocity = vel;
-		if (e.Has<RigidBody>()) {
-			relative_velocity -= e.Get<RigidBody>().velocity * game.dt();
-		}
-		const auto& transform2 = e.Get<Transform>();
-		Rect rect{ box.GetAbsoluteRect() };
-		rect.position += offset;
-		// game.draw.Rect(rect.position, rect.size, color::Purple, rect.origin, 1.0f);
-		if (e.Has<BoxCollider>()) {
-			const auto& box2 = e.Get<BoxCollider>();
-			if (box2.overlap_only || !box.CanCollideWith(box2)) {
-				return false;
-			}
-			Rect rect2{ box2.GetAbsoluteRect() };
-			// game.draw.Rect(rect2.position, rect2.size, color::Red, rect2.origin, 1.0f);
-			dist2 = (rect.Center() - rect2.Center()).MagnitudeSquared();
-			c	  = rect.Raycast(relative_velocity, rect2);
-			return c.Occurred() && box.ProcessCallback(entity, e);
-		} else if (e.Has<CircleCollider>()) {
-			const auto& circle2 = e.Get<CircleCollider>();
-			if (circle2.overlap_only || !box.CanCollideWith(circle2)) {
-				return false;
-			}
-			Circle c2{ transform2.position + circle2.offset, circle2.radius };
-			dist2 = (rect.Center() - c2.center).MagnitudeSquared();
-			c	  = c2.Raycast(-relative_velocity, rect);
-			return c.Occurred() && box.ProcessCallback(entity, e);
-		}
-		PTGN_ERROR("Unrecognized shape for collision check");
-	};
-
-	auto get_sorted_collisions = [&](const V2_float& offset, const V2_float& vel) {
-		std::vector<SweepCollision> collisions;
-		targets.ForEach([&](ecs::Entity e) {
-			float dist2{ 0.0f };
-			if (collision_occurred(offset, vel, e, dist2)) {
-				collisions.emplace_back(c, dist2, e);
-			}
-		});
-		SortCollisions(collisions);
-		return collisions;
-	};
-
-	const auto collisions = get_sorted_collisions({}, velocity);
+	auto collisions{ GetSortedCollisions(entity, box, targets, {}, velocity) };
 
 	if (collisions.empty()) { // no collisions occured.
-		const auto new_p1 = transform.position + velocity;
 		if (debug_draw) {
-			game.draw.Line(transform.position, new_p1, color::Gray);
+			DrawVelocity(transform.position, velocity, color::Gray);
 		}
 		return;
 	}
 
 	const auto& earliest{ collisions.front().c };
 
-	const auto new_velocity = GetRemainingVelocity(velocity, earliest, box.response);
-
-	const auto new_p1 = transform.position + velocity * earliest.t;
-
 	if (debug_draw) {
-		game.draw.Line(transform.position, new_p1, color::Blue);
-		game.draw.Rect(new_p1, box.size, color::Purple, box.origin, 1.0f);
+		DrawVelocity(transform.position, velocity * earliest.t, color::Blue);
+		game.draw.Rect(
+			transform.position + velocity * earliest.t, box.size, color::Purple, box.origin, 1.0f
+		);
 	}
 
-	// Adds all collisions which occurred at the earliest time to box.collisions. This ensures all
-	// callbacks are called.
-	const auto add_earliest_collisions = [](ecs::Entity e,
-											const std::vector<SweepCollision>& sweep_collisions,
-											std::unordered_set<Collision>& entities) {
-		PTGN_ASSERT(!sweep_collisions.empty());
-		const auto& first_collision{ sweep_collisions.front() };
-		PTGN_ASSERT(e != first_collision.e, "Self collision not possible");
-		entities.emplace(e, first_collision.e, first_collision.c.normal);
-		for (std::size_t i{ 1 }; i < sweep_collisions.size(); ++i) {
-			const auto& collision{ sweep_collisions[i] };
-			if (collision.c.t == first_collision.c.t) {
-				PTGN_ASSERT(e != collision.e, "Self collision not possible");
-				entities.emplace(e, collision.e, collision.c.normal);
-			}
-		}
-	};
-
-	add_earliest_collisions(entity, collisions, box.collisions);
+	AddEarliestCollisions(entity, collisions, box.collisions);
 
 	rigid_body.velocity *= earliest.t;
+
+	auto new_velocity{ GetRemainingVelocity(velocity, earliest, box.response) };
 
 	if (new_velocity.IsZero()) {
 		return;
 	}
 
-	const auto collisions2 = get_sorted_collisions(velocity * earliest.t, new_velocity);
+	auto collisions2{
+		GetSortedCollisions(entity, box, targets, velocity * earliest.t, new_velocity)
+	};
+
+	PTGN_ASSERT(game.dt() > 0.0f);
 
 	if (collisions2.empty()) {
 		if (debug_draw) {
-			game.draw.Line(new_p1, new_p1 + new_velocity, color::Orange);
+			DrawVelocity(transform.position + velocity * earliest.t, new_velocity, color::Orange);
 		}
-		rigid_body.velocity += new_velocity / game.dt();
+
+		rigid_body.AddImpulse(new_velocity / game.dt());
 		return;
 	}
 
 	const auto& earliest2{ collisions2.front().c };
+
 	if (debug_draw) {
-		game.draw.Line(new_p1, new_p1 + new_velocity * earliest2.t, color::Green);
+		DrawVelocity(
+			transform.position + velocity * earliest.t, new_velocity * earliest2.t, color::Green
+		);
 	}
-	add_earliest_collisions(entity, collisions2, box.collisions);
-	rigid_body.velocity += new_velocity / game.dt() * earliest2.t;
+
+	AddEarliestCollisions(entity, collisions2, box.collisions);
+	rigid_body.AddImpulse(new_velocity / game.dt() * earliest2.t);
 }
 
 void CollisionHandler::Overlap(
@@ -286,7 +269,6 @@ void CollisionHandler::ProcessCallback(
 
 void CollisionHandler::Update(ecs::Manager& manager) const {
 	auto box_colliders = manager.EntitiesWith<BoxCollider>();
-	auto targets	   = manager.EntitiesWith<Transform>();
 
 	// TODO: Add support for other collider types.
 
@@ -295,7 +277,7 @@ void CollisionHandler::Update(ecs::Manager& manager) const {
 
 		ecs::Entity e{ b1.GetParent(e1) };
 
-		Sweep(e, b1, targets);
+		Sweep(e, b1, box_colliders);
 		Overlap(e, b1, box_colliders);
 		Intersect(e, b1, box_colliders);
 

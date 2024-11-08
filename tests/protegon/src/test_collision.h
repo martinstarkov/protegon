@@ -35,6 +35,8 @@ public:
 	ecs::Entity sweep;
 
 	void Init() override {
+		manager.Clear();
+
 		intersect = manager.CreateEntity();
 		sweep	  = manager.CreateEntity();
 		overlap	  = manager.CreateEntity();
@@ -161,7 +163,15 @@ public:
 
 	void Draw() override {
 		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
-			DrawRect(e, b.GetAbsoluteRect());
+			Rect r{ b.GetAbsoluteRect() };
+			DrawRect(e, r);
+			if (e == intersect) {
+				game.draw.Text("Intersect", r.Center(), color::Black);
+			} else if (e == overlap) {
+				game.draw.Text("Overlap", r.Center(), color::Black);
+			} else if (e == sweep) {
+				game.draw.Text("Sweep", r.Center(), color::Black);
+			}
 		}
 	}
 };
@@ -962,7 +972,7 @@ struct SweepTest : public Test {
 			rb.velocity.y = player_velocity.y;
 		}
 
-		game.collision.Sweep(player, box, manager.EntitiesWith<Transform>(), true);
+		game.collision.Sweep(player, box, manager.EntitiesWith<BoxCollider>(), true);
 
 		if (game.input.KeyDown(Key::SPACE)) {
 			transform.position += rb.velocity * dt;
@@ -1183,7 +1193,7 @@ struct DynamicRectCollisionTest : public Test {
 		}
 		for (auto [e, t, b, rb, id, nv] :
 			 manager.EntitiesWith<Transform, BoxCollider, RigidBody, Id, NextVel>()) {
-			game.collision.Sweep(e, b, manager.EntitiesWith<Transform>(), true);
+			game.collision.Sweep(e, b, manager.EntitiesWith<BoxCollider>(), true);
 		}
 
 		for (auto [e, t, b, rb, id, nv] :
@@ -1198,7 +1208,7 @@ struct DynamicRectCollisionTest : public Test {
 				}
 				Rect r1{ t.position + b.offset, b.size, b.origin };
 				Rect r2{ t2.position + b2.offset, b2.size, b2.origin };
-				Intersection c = r1.Intersects(r2);
+				Intersection c{ r1.Intersects(r2) };
 				if (c.Occurred()) {
 					t.position += c.normal * c.depth;
 				}
