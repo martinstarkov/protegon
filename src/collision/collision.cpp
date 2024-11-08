@@ -59,7 +59,7 @@ void CollisionHandler::Sweep(
 		// game.draw.Rect(rect.position, rect.size, color::Purple, rect.origin, 1.0f);
 		if (e.Has<BoxCollider>()) {
 			const auto& box2 = e.Get<BoxCollider>();
-			if (!box.CanCollideWith(box2)) {
+			if (box2.overlap_only || !box.CanCollideWith(box2)) {
 				return false;
 			}
 			Rect rect2{ box2.GetAbsoluteRect() };
@@ -69,7 +69,7 @@ void CollisionHandler::Sweep(
 			return c.Occurred() && box.ProcessCallback(entity, e);
 		} else if (e.Has<CircleCollider>()) {
 			const auto& circle2 = e.Get<CircleCollider>();
-			if (!box.CanCollideWith(circle2)) {
+			if (circle2.overlap_only || !box.CanCollideWith(circle2)) {
 				return false;
 			}
 			Circle c2{ transform2.position + circle2.offset, circle2.radius };
@@ -187,6 +187,8 @@ void CollisionHandler::Intersect(
 		return;
 	}
 
+	auto& rb{ entity.Get<RigidBody>() };
+
 	Rect r1{ box.GetAbsoluteRect() };
 
 	Transform* transform{ nullptr };
@@ -195,7 +197,7 @@ void CollisionHandler::Intersect(
 	}
 
 	for (auto [e2, b2] : targets) {
-		if (!box.CanCollideWith(b2)) {
+		if (b2.overlap_only || !box.CanCollideWith(b2)) {
 			continue;
 		}
 		Rect r2{ b2.GetAbsoluteRect() };
@@ -205,7 +207,9 @@ void CollisionHandler::Intersect(
 		}
 		ProcessCallback(box, entity, b2.GetParent(e2), c.normal);
 		if (transform) {
-			transform->position += c.normal * (c.depth + slop);
+			transform->position += c.normal * (c.depth);
+			rb.velocity =
+				GetRemainingVelocity(rb.velocity, Raycast{ 0.0f, c.normal }, box.response);
 		}
 	}
 }
