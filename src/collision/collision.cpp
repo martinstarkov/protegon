@@ -181,13 +181,17 @@ void CollisionHandler::Intersect(
 	if (box.overlap_only) {
 		return;
 	}
-	// CONSIDER: Is this immovable criterion reasonable? Are there situations where we want an
+	// CONSIDER: Is this criterion reasonable? Are there situations where we want an
 	// intersection collision without a rigid body?
-	if (!entity.Has<RigidBody>() || entity.Get<RigidBody>().immovable) {
+	if (!entity.Has<RigidBody>()) {
 		return;
 	}
 
 	auto& rb{ entity.Get<RigidBody>() };
+
+	if (rb.immovable) {
+		return;
+	}
 
 	Rect r1{ box.GetAbsoluteRect() };
 
@@ -207,10 +211,9 @@ void CollisionHandler::Intersect(
 		}
 		ProcessCallback(box, entity, b2.GetParent(e2), c.normal);
 		if (transform) {
-			transform->position += c.normal * (c.depth);
-			rb.velocity =
-				GetRemainingVelocity(rb.velocity, Raycast{ 0.0f, c.normal }, box.response);
+			transform->position += c.normal * (c.depth + slop);
 		}
+		rb.velocity = GetRemainingVelocity(rb.velocity, Raycast{ 0.0f, c.normal }, box.response);
 	}
 }
 
