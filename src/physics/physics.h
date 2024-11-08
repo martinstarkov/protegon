@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ecs/ecs.h"
 #include "math/vector2.h"
 
 namespace ptgn {
@@ -15,6 +16,8 @@ public:
 
 	// @return Frame time in milliseconds
 	[[nodiscard]] float dt() const;
+
+	void Update(ecs::Manager& manager) const;
 
 private:
 	friend class Game;
