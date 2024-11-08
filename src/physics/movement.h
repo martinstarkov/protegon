@@ -10,7 +10,6 @@
 #include "event/key.h"
 #include "math/math.h"
 #include "math/vector2.h"
-#include "physics/physics.h"
 #include "physics/rigid_body.h"
 #include "utility/time.h"
 #include "utility/timer.h"
@@ -18,6 +17,19 @@
 // TODO: Move functions to cpp file.
 
 namespace ptgn {
+
+namespace impl {
+
+void MoveImpl(
+	V2_float& vel, const V2_float& amount, Key left_key, Key right_key, Key up_key, Key down_key,
+	bool cancel_velocity_if_unpressed
+);
+
+} // namespace impl
+
+void MoveWASD(V2_float& vel, const V2_float& amount, bool cancel_velocity_if_unpressed = true);
+
+void MoveArrowKeys(V2_float& vel, const V2_float& amount, bool cancel_velocity_if_unpressed = true);
 
 struct PlatformerMovement {
 	int directionX{ 1 };
@@ -51,9 +63,12 @@ struct PlatformerMovement {
 	bool useAcceleration{ true };
 	float friction{ 0.0f };
 
+	Key left_key{ Key::A };
+	Key right_key{ Key::D };
+
 	void Update(Transform& transform, RigidBody& rb) {
-		bool left{ game.input.KeyPressed(Key::A) };
-		bool right{ game.input.KeyPressed(Key::D) };
+		bool left{ game.input.KeyPressed(left_key) };
+		bool right{ game.input.KeyPressed(right_key) };
 		directionX = 0;
 		if (left && !right) {
 			directionX = -1;
@@ -99,8 +114,8 @@ struct PlatformerMovement {
 		deceleration = onGround ? maxDecceleration : maxAirDeceleration;
 		turnSpeed	 = onGround ? maxTurnSpeed : maxAirTurnSpeed;
 
-		bool left{ game.input.KeyPressed(Key::A) };
-		bool right{ game.input.KeyPressed(Key::D) };
+		bool left{ game.input.KeyPressed(left_key) };
+		bool right{ game.input.KeyPressed(right_key) };
 		bool pressingKey = left && !right || !left && right;
 
 		float dt{ game.physics.dt() };
@@ -208,10 +223,6 @@ public:
 		if (pressed_jump && onGround || onGround && jump_buffered ||
 			pressed_jump && in_coyote && !onGround) {
 			Jump(rb);
-		}
-
-		if (game.input.KeyPressed(Key::G)) {
-			rb.velocity.y -= 5000.0f * game.physics.dt();
 		}
 	}
 
