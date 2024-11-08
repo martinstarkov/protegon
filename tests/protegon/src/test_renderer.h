@@ -1095,6 +1095,7 @@ void TestFrameBuffers() {
 	PTGN_ASSERT(is_yellow());
 	game.draw.Clear();
 	PTGN_ASSERT(is_yellow());
+	game.draw.SetTarget();
 }
 
 void TestVertexArrays() {
