@@ -546,6 +546,7 @@ struct TestRenderTargets : public DrawTest {
 	RenderTexture render_texture4;
 	RenderTexture render_texture5;
 	RenderTexture render_texture6;
+	RenderTexture render_texture7;
 
 	Texture test{ "resources/sprites/test1.jpg" };
 
@@ -561,7 +562,8 @@ struct TestRenderTargets : public DrawTest {
 		render_texture3 = RenderTexture{ ws };
 		render_texture4 = RenderTexture{ ws };
 		render_texture5 = RenderTexture{ ws };
-		render_texture6 = RenderTexture{ ws, color::White };
+		render_texture6 = RenderTexture{ ws };
+		render_texture7 = RenderTexture{ ws, color::White };
 	}
 
 	void Shutdown() override {
@@ -587,10 +589,11 @@ struct TestRenderTargets : public DrawTest {
 
 		draw_texture(render_texture1, { 0, 0 }, ScreenShader::Default);
 		draw_texture(render_texture2, { s.x, 0 }, ScreenShader::Blur);
-		draw_texture(render_texture3, { s.x * 2, 0 }, ScreenShader::EdgeDetection);
+		draw_texture(render_texture3, { s.x * 2, 0 }, ScreenShader::GaussianBlur);
 		draw_texture(render_texture4, { 0, s.y }, ScreenShader::Grayscale);
-		draw_texture(render_texture5, { s.x, s.y }, ScreenShader::Sharpen);
-		draw_texture(render_texture6, { s.x * 2, s.y }, ScreenShader::InverseColor);
+		draw_texture(render_texture5, { s.x, s.y }, ScreenShader::EdgeDetection);
+		draw_texture(render_texture6, { s.x * 2, s.y }, ScreenShader::Sharpen);
+		draw_texture(render_texture7, { 0, s.y * 2 }, ScreenShader::InverseColor);
 	}
 };
 
