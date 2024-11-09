@@ -2,6 +2,7 @@
 
 #include <functional>
 
+#include "camera/camera.h"
 #include "math/geometry/polygon.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
@@ -14,6 +15,7 @@
 
 namespace ptgn {
 
+class Scene;
 class Texture;
 class Text;
 class RenderTexture;
@@ -286,7 +288,8 @@ public:
 	// Keep in mind that calling this function will draw the previously set render target to the
 	// screen. This can lead to shaders being drawn twice.
 	void SetTarget(
-		const ptgn::RenderTexture& render_target = {}, bool draw_previously_bound_target = true
+		const ptgn::RenderTexture& render_target = {}, bool draw_previously_bound_target = true,
+		bool force_draw = false
 	);
 	[[nodiscard]] ptgn::RenderTexture GetTarget() const;
 
@@ -303,8 +306,7 @@ private:
 	friend class CameraManager;
 	friend class Game;
 	friend class RenderTexture;
-
-	void UpdateDefaultFrameBuffer();
+	friend class Scene;
 
 	void UpdateLayer(std::size_t layer_number, RenderLayer& layer, CameraManager& camera_manager)
 		const;

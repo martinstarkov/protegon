@@ -1,13 +1,12 @@
 #include "renderer/renderer.h"
 
 #include <functional>
+#include <string_view>
 #include <variant>
 
 #include "camera/camera.h"
 #include "core/game.h"
 #include "core/window.h"
-#include "event/event_handler.h"
-#include "event/events.h"
 #include "frame_buffer.h"
 #include "math/geometry/polygon.h"
 #include "math/matrix4.h"
@@ -31,28 +30,19 @@ namespace ptgn::impl {
 void Renderer::Init() {
 	GLRenderer::EnableLineSmoothing();
 	GLRenderer::SetBlendMode(blend_mode_);
-	current_target_.SetClearColor(color::Transparent);
-
-	// Only update viewport after resizing finishes, not during (saves a few GPU calls).
-	// If desired, changing the word Resized. Resizing will make the viewport update during
-	// resizing.
-	game.event.window.Subscribe(
-		WindowEvent::Resized, this,
-		std::function([this](const WindowResizedEvent&) { UpdateDefaultFrameBuffer(); })
-	);
-
-	UpdateDefaultFrameBuffer();
-
+	default_target_ = RenderTexture{ true };
+	current_target_ = default_target_;
+	current_target_.Bind();
 	data_.Init();
 }
 
 void Renderer::Reset() {
+	current_target_ = {};
 	default_target_ = {};
 	data_			= {};
 }
 
 void Renderer::Shutdown() {
-	game.event.window.Unsubscribe(this);
 	Reset();
 }
 
@@ -72,13 +62,15 @@ void Renderer::SetBlendMode(BlendMode blend_mode) {
 	GLRenderer::SetBlendMode(blend_mode_);
 }
 
-void Renderer::SetTarget(const RenderTexture& target, bool draw_previously_bound_target) {
+void Renderer::SetTarget(
+	const RenderTexture& target, bool draw_previously_bound_target, bool force_draw
+) {
 	if (current_target_ == target ||
 		current_target_ == default_target_ && target == RenderTexture{}) {
 		return;
 	}
 	if (draw_previously_bound_target) {
-		current_target_.DrawAndUnbind();
+		current_target_.DrawAndUnbind(force_draw);
 	}
 	// Set and bind new render target.
 	if (target.IsValid()) {
@@ -107,7 +99,7 @@ void Renderer::Clear() {
 }
 
 void Renderer::Present() {
-	current_target_.DrawAndUnbind();
+	current_target_.DrawAndUnbind(true);
 
 	game.window.SwapBuffers();
 
@@ -119,16 +111,6 @@ void Renderer::Present() {
 #ifdef PTGN_DEBUG
 	game.stats.ResetRendererRelated();
 #endif
-}
-
-void Renderer::UpdateDefaultFrameBuffer() {
-	if (current_target_ != default_target_) {
-		default_target_ = RenderTexture{ game.window.GetSize(), default_target_.GetClearColor() };
-		return;
-	}
-	default_target_ = RenderTexture{ game.window.GetSize(), current_target_.GetClearColor() };
-	current_target_ = default_target_;
-	current_target_.Bind();
 }
 
 void Renderer::UpdateLayer(
@@ -167,7 +149,7 @@ void Renderer::FlushImpl(std::size_t render_layer, const M4_float& shader_view_p
 	UpdateLayer(render_layer, layer, camera_manager);
 	bool flushed{ data_.FlushLayer(layer, shader_view_projection) };
 	if (flushed) {
-		current_target_.cleared_ = false;
+		current_target_.SetCleared(false);
 	}
 }
 
@@ -178,7 +160,7 @@ void Renderer::FlushImpl(const M4_float& shader_view_projection) {
 		UpdateLayer(render_layer, layer, camera_manager);
 		bool flushed{ data_.FlushLayer(layer, shader_view_projection) };
 		if (flushed) {
-			current_target_.cleared_ = false;
+			current_target_.SetCleared(false);
 		}
 	}
 }
