@@ -310,6 +310,7 @@ namespace impl {
 Shader ShaderManager::Get(ScreenShader screen_shader) const {
 	switch (screen_shader) {
 		case ScreenShader::Default:		  return default_;
+		case ScreenShader::Opacity:		  return opacity_;
 		case ScreenShader::Blur:		  return blur_;
 		case ScreenShader::GaussianBlur:  return gaussian_blur_;
 		case ScreenShader::EdgeDetection: return edge_detection_;

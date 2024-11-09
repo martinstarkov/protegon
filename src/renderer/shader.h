@@ -107,6 +107,7 @@ private:
 
 enum class ScreenShader {
 	Default,
+	Opacity,
 	Blur,
 	GaussianBlur,
 	EdgeDetection,
@@ -145,6 +146,13 @@ private:
 					 },
 					 ShaderSource{
 #include PTGN_SHADER_PATH(screen_default.frag)
+					 } };
+
+		opacity_ = { ShaderSource{
+#include PTGN_SHADER_PATH(screen_default.vert)
+					 },
+					 ShaderSource{
+#include PTGN_SHADER_PATH(screen_opacity.frag)
 					 } };
 
 		blur_ = { ShaderSource{
@@ -192,6 +200,7 @@ private:
 
 	// Screen shaders.
 	Shader default_;
+	Shader opacity_;
 	Shader blur_;
 	Shader gaussian_blur_;
 	Shader grayscale_;
