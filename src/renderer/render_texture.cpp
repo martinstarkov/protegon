@@ -76,13 +76,21 @@ RenderTexture::RenderTexture(const V2_float& size, const Color& clear_color, Ble
 void RenderTexture::DrawAndUnbind(bool force_draw) const {
 	game.draw.Flush();
 	auto& i{ Get() };
-	if (i.cleared_ && !force_draw) {
+	if (i.cleared_ && !force_draw || i.opacity_ == 0) {
 		// If nothing was flushed onto the render target, skip the draw and unbind. Prevents dual
-		// drawing of the final target.
+		// drawing of the final target. Or render texture is set as completely transparent.
 		return;
 	}
 	FrameBuffer::Unbind();
-	game.draw.Shader(ScreenShader::Default, GetTexture(), i.blend_mode_);
+	if (i.opacity_ == 255) {
+		game.draw.Shader(ScreenShader::Default, GetTexture(), i.blend_mode_);
+	} else {
+		auto opacity_shader{ game.shader.Get(ScreenShader::Opacity) };
+		opacity_shader.Bind();
+		float normalized_opacity{ i.opacity_ / 255.0f };
+		opacity_shader.SetUniform("u_Opacity", normalized_opacity);
+		game.draw.Shader(opacity_shader, GetTexture(), {}, {}, Origin::TopLeft, i.blend_mode_);
+	}
 	game.draw.FlushImpl(i.camera_.GetViewProjection());
 }
 
@@ -116,6 +124,15 @@ Color RenderTexture::GetClearColor() const {
 
 void RenderTexture::SetClearColor(const Color& clear_color) {
 	Get().clear_color_ = clear_color;
+}
+
+std::uint8_t RenderTexture::GetOpacity() const {
+	return Get().opacity_;
+}
+
+void RenderTexture::SetOpacity(std::uint8_t opacity) {
+	PTGN_ASSERT(opacity >= 0, "Cannot set negative opacity");
+	Get().opacity_ = opacity;
 }
 
 BlendMode RenderTexture::GetBlendMode() const {

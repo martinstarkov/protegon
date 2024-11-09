@@ -33,6 +33,7 @@ struct RenderTextureInstance {
 	Texture texture_;
 	FrameBuffer frame_buffer_;
 	OrthographicCamera camera_;
+	std::uint8_t opacity_{ 255 };
 	BlendMode blend_mode_{ BlendMode::Add };
 };
 
@@ -58,6 +59,12 @@ public:
 
 	[[nodiscard]] Color GetClearColor() const;
 	void SetClearColor(const Color& clear_color);
+
+	// Value from 0 (transparent) to 255 (opaque).
+	[[nodiscard]] std::uint8_t GetOpacity() const;
+
+	// Value from 0 (transparent) to 255 (opaque).
+	void SetOpacity(std::uint8_t opacity);
 
 	[[nodiscard]] BlendMode GetBlendMode() const;
 	void SetBlendMode(BlendMode blend_mode);
