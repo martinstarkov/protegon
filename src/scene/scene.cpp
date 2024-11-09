@@ -33,15 +33,20 @@ SceneTransition& SceneTransition::SetDuration(milliseconds duration) {
 	return *this;
 }
 
-SceneTransition& SceneTransition::SetBlackFadeFraction(float black_fade_fraction) {
-	PTGN_ASSERT(black_fade_fraction >= 0.0f, "Invalid black fade fraction");
-	PTGN_ASSERT(black_fade_fraction <= 0.5f, "Invalid black fade fraction");
-	black_start_fraction_ = black_fade_fraction;
+SceneTransition& SceneTransition::SetColorFadeFraction(float color_fade_fraction) {
+	PTGN_ASSERT(color_fade_fraction >= 0.0f, "Invalid color fade fraction");
+	PTGN_ASSERT(color_fade_fraction <= 0.5f, "Invalid color fade fraction");
+	color_start_fraction_ = color_fade_fraction;
 	return *this;
 }
 
 SceneTransition& SceneTransition::SetType(TransitionType type) {
 	type_ = type;
+	return *this;
+}
+
+SceneTransition& SceneTransition::SetFadeThroughColor(const Color& color) {
+	fade_through_color_ = color;
 	return *this;
 }
 
@@ -53,9 +58,11 @@ void SceneTransition::Start(
 	Tween tween{ duration_ };
 	auto target{ scene->target_ };
 	auto camera{ target.GetCamera() };
+	auto clear_color{ target.GetClearColor() };
 
 	std::function<void(float)> update;
 	std::function<void()> start;
+	std::function<void()> stop;
 
 	V2_float s{ target.GetSize() };
 	// Camera starting position.
@@ -115,13 +122,16 @@ void SceneTransition::Start(
 			};
 		}
 	};
-	const auto fade_through_black = [&]() {
-		float start_frac{ black_start_fraction_ };
+	const auto fade_through_color = [&]() {
+		float start_frac{ color_start_fraction_ };
+		Color fade_color{ fade_through_color_ };
+		// TODO: Fix fade through color setting not working.
 		if (transition_in) {
 			start = [=]() mutable {
 				target.SetOpacity(0);
 			};
 			update = [=](float f) mutable {
+				target.SetClearColor(fade_color);
 				if (f >= 1.0f - start_frac) {
 					float p{ (f - (1.0f - start_frac)) / start_frac };
 					target.SetOpacity(static_cast<std::uint8_t>(255.0f * p));
@@ -134,6 +144,7 @@ void SceneTransition::Start(
 				target.SetOpacity(255);
 			};
 			update = [=](float f) mutable {
+				target.SetClearColor(fade_color);
 				if (f <= start_frac) {
 					float p{ 1.0f - f / start_frac };
 					target.SetOpacity(static_cast<std::uint8_t>(255.0f * p));
@@ -145,12 +156,23 @@ void SceneTransition::Start(
 	};
 
 	switch (type_) {
+		case TransitionType::Custom:
+			if (transition_in) {
+				start  = start_in;
+				update = update_in;
+				stop   = stop_in;
+			} else {
+				start  = start_out;
+				update = update_out;
+				stop   = stop_out;
+			}
+			break;
 		case TransitionType::UncoverDown:	   uncover({ 0, 1 }); break;
 		case TransitionType::UncoverUp:		   uncover({ 0, -1 }); break;
 		case TransitionType::UncoverLeft:	   uncover({ -1, 0 }); break;
 		case TransitionType::UncoverRight:	   uncover({ 1, 0 }); break;
 		case TransitionType::Fade:			   fade(); break;
-		case TransitionType::FadeThroughBlack: fade_through_black(); break;
+		case TransitionType::FadeThroughColor: fade_through_color(); break;
 		case TransitionType::PushDown:		   push({ 0, 1 }); break;
 		case TransitionType::PushUp:		   push({ 0, -1 }); break;
 		case TransitionType::PushLeft:		   push({ -1, 0 }); break;
@@ -182,7 +204,11 @@ void SceneTransition::Start(
 	});
 	tween.OnDestroy([=]() mutable {
 		camera.SetPosition(og_c);
+		target.SetClearColor(clear_color);
 		target.SetOpacity(og_opacity);
+		if (stop != nullptr) {
+			std::invoke(stop);
+		}
 	});
 	game.tween.Add(tween).Start();
 }

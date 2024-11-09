@@ -1,9 +1,11 @@
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <set>
 
 #include "camera/camera.h"
+#include "renderer/color.h"
 #include "renderer/render_texture.h"
 #include "utility/time.h"
 
@@ -20,8 +22,9 @@ class SceneManager;
 
 enum class TransitionType {
 	None,
+	Custom,
 	Fade,
-	FadeThroughBlack,
+	FadeThroughColor,
 	PushLeft,
 	PushRight,
 	PushUp,
@@ -46,10 +49,23 @@ public:
 
 	SceneTransition& SetType(TransitionType type);
 	SceneTransition& SetDuration(milliseconds duration);
+	SceneTransition& SetFadeThroughColor(const Color& color);
 
-	// Value from 0 to 0.5f which determines what fraction of the duration is spent in black screen
-	// when using TransitionType::FadeThroughBlack. Does not apply to other transitions.
-	SceneTransition& SetBlackFadeFraction(float black_fade_fraction);
+	// Value from 0 to 0.5f which determines what fraction of the duration is spent in color screen
+	// when using TransitionType::FadeThroughColor. Does not apply to other transitions.
+	SceneTransition& SetColorFadeFraction(float color_fade_fraction);
+
+	// Custom transition callbacks.
+
+	// float is fraction from 0 to 1 of the duration.
+	std::function<void(float)> update_in;
+	std::function<void()> start_in;
+	std::function<void()> stop_in;
+
+	// float is fraction from 0 to 1 of the duration.
+	std::function<void(float)> update_out;
+	std::function<void()> start_out;
+	std::function<void()> stop_out;
 
 private:
 	friend class impl::SceneManager;
@@ -63,9 +79,10 @@ private:
 		const std::shared_ptr<Scene>& scene
 	) const;
 
-	// Value from 0 to 0.5f which determines what fraction of the duration is spent in black screen
-	// when using TransitionType::FadeThroughBlack. Does not apply to other transitions.
-	float black_start_fraction_{ 0.3f };
+	Color fade_through_color_{ color::Black };
+	// Value from 0 to 0.5f which determines what fraction of the duration is spent in color screen
+	// when using TransitionType::FadeThroughColor. Does not apply to other transitions.
+	float color_start_fraction_{ 0.3f };
 	TransitionType type_{ TransitionType::None };
 	milliseconds duration_{ 1000 };
 };
