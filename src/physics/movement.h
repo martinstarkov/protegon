@@ -1,5 +1,6 @@
 #pragma once
 
+#include "collision/collider.h"
 #include "components/transform.h"
 #include "event/key.h"
 #include "math/vector2.h"
@@ -73,6 +74,8 @@ public:
 	Key jump_key{ Key::W };
 	milliseconds jump_buffer_time{ 250 };
 	milliseconds coyote_time{ 150 };
+
+	static void Ground(Collision c, CollisionCategory ground_category);
 
 private:
 	Timer jump_buffer_;

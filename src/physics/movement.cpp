@@ -4,14 +4,17 @@
 #include <cmath>
 #include <utility>
 
+#include "collision/collider.h"
 #include "components/transform.h"
 #include "core/game.h"
+#include "ecs/ecs.h"
 #include "event/input_handler.h"
 #include "event/key.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "physics/physics.h"
 #include "rigid_body.h"
+#include "utility/debug.h"
 #include "utility/timer.h"
 
 namespace ptgn {
@@ -131,6 +134,15 @@ void PlatformerMovement::RunWithoutAcceleration(RigidBody& rb) const {
 	// If we're not using acceleration and deceleration, just send our desired velocity
 	// (direction * max speed) to the Rigidbody
 	rb.velocity.x = desiredVelocity.x;
+}
+
+void PlatformerJump::Ground(Collision c, CollisionCategory ground_category) {
+	PTGN_ASSERT(c.entity2.Has<BoxCollider>());
+	if (c.entity2.Get<BoxCollider>().IsCategory(ground_category)) {
+		if (c.entity1.Has<PlatformerMovement>() && c.normal == V2_float{ 0.0f, -1.0f }) {
+			c.entity1.Get<PlatformerMovement>().onGround = true;
+		}
+	}
 }
 
 void PlatformerJump::Jump(RigidBody& rb) {
