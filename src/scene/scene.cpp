@@ -1,6 +1,7 @@
 #include "scene/scene.h"
 
 #include <chrono>
+#include <cstdint>
 #include <functional>
 #include <memory>
 
