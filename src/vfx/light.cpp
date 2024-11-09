@@ -1,12 +1,8 @@
 #include "vfx/light.h"
 
-#include <functional>
-
 #include "core/game.h"
 #include "core/manager.h"
 #include "core/window.h"
-#include "event/event_handler.h"
-#include "event/events.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
@@ -68,20 +64,7 @@ void LightManager::Init() {
 		}
 	);
 
-	game.event.window.Subscribe(
-		WindowEvent::Resized, this,
-		std::function([this](const WindowResizedEvent&) { UpdateTarget(); })
-	);
-
-	UpdateTarget();
-}
-
-void LightManager::UpdateTarget() {
-	bool was_target{ game.draw.GetTarget() == target_ };
-	target_ = RenderTexture{ game.window.GetSize(), target_.GetClearColor() };
-	if (was_target) {
-		game.draw.SetTarget(target_);
-	}
+	target_ = RenderTexture{ true };
 }
 
 void LightManager::Draw() {
