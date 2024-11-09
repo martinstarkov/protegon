@@ -153,7 +153,6 @@ void Window::SetSize(const V2_int& new_size, bool centered) const {
 	SetCanvasSize(new_size);
 #endif
 	SDL_SetWindowSize(Get(), new_size.x, new_size.y);
-	GLRenderer::SetViewport({}, new_size);
 	// Important to center after resizing.
 	if (centered) {
 		Center();

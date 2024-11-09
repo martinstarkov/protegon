@@ -15,6 +15,7 @@
 #include "event/key.h"
 #include "math/math.h"
 #include "math/vector2.h"
+#include "renderer/renderer.h"
 #include "utility/debug.h"
 
 using namespace ptgn;
@@ -32,6 +33,7 @@ struct Test {
 		ws	   = game.window.GetSize();
 		center = game.window.GetCenter();
 		game.window.Center();
+		game.draw.SetClearColor(color::White);
 	}
 
 	virtual void Init() {

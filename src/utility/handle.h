@@ -27,10 +27,10 @@ public:
 		return !(a == b);
 	}
 
-	std::shared_ptr<T> Copy() const {
+	/*std::shared_ptr<T> Copy() const {
 		PTGN_ASSERT(IsValid(), "Cannot copy invalid handle");
 		return std::make_shared<T>(*instance_);
-	}
+	}*/
 
 protected:
 	const T& Get() const {

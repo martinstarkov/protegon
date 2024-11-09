@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "core/game.h"
+#include "core/window.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/color.h"
@@ -150,6 +151,7 @@ void GLRenderer::ClearColor(const Color& color) {
 
 void GLRenderer::SetViewport(const V2_int& position, const V2_int& size) {
 	GLCall(gl::glViewport(position.x, position.y, size.x, size.y));
+	game.window.Center();
 #ifdef PTGN_DEBUG
 	++game.stats.viewport_changes;
 #endif

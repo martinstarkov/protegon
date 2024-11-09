@@ -347,7 +347,7 @@ void Game::Update() {
 		scene.Update();
 		scene_change = scene.UpdateFlagged();
 	} else {
-		const auto& loop_function = update_stack_.back();
+		const auto& loop_function{ update_stack_.back() };
 		std::invoke(loop_function);
 	}
 
