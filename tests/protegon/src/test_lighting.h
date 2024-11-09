@@ -59,6 +59,7 @@ struct TestRotatingLights : public Test {
 	std::unordered_map<LightManager::InternalKey, float> radii;
 
 	void Init() override {
+		game.draw.SetTarget();
 		game.draw.SetClearColor(color::Transparent);
 
 		game.light.Reset();
