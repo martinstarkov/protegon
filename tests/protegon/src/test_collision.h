@@ -804,9 +804,6 @@ struct RectRectDynamicTest : public Test {
 			new_rect.position = p1 + vel;
 			game.draw.Rect(new_rect.position, new_rect.size, color::Gray, new_rect.origin, 1.0f);
 		}
-		if (debug_flag) {
-			PTGN_LOG("t: ", c.t);
-		}
 	}
 
 	void Update() override {
@@ -941,7 +938,6 @@ struct SweepTest : public Test {
 
 		for (auto [e, p, b] : manager.EntitiesWith<Transform, BoxCollider>()) {
 			if (e == player) {
-				PTGN_LOG_PRECISE(7, false, p.position);
 				game.draw.Rect(p.position, b.size, color::Green, Origin::Center, 1.0f);
 			} else {
 				game.draw.Rect(p.position, b.size, color::Blue, Origin::Center, 1.0f);
@@ -1213,7 +1209,7 @@ struct DynamicRectCollisionTest : public Test {
 					t.position += c.normal * c.depth;
 				}
 				if (r1.Overlaps(r2)) {
-					PTGN_LOG("Failed to resolve dynamic collision");
+					PTGN_LOG("Intersection after sweep | normal: ", c.normal, ", depth: ", c.depth);
 				}
 			}
 		}
