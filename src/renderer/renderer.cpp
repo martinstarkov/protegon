@@ -259,14 +259,15 @@ void Renderer::Shader(
 }
 
 void Renderer::Shader(
-	const ptgn::Shader& shader, const ptgn::Texture& texture, const V2_float& position,
-	V2_float size, Origin draw_origin, BlendMode blend_mode, Flip flip, float rotation_radians,
+	const ptgn::Shader& shader, const ptgn::Texture& texture, V2_float position, V2_float size,
+	Origin draw_origin, BlendMode blend_mode, Flip flip, float rotation_radians,
 	const V2_float& rotation_center, float z_index, std::size_t render_layer
 ) {
 	// Fullscreen shader.
 	if (size.IsZero()) {
 		size		= game.window.GetSize();
 		draw_origin = Origin::TopLeft;
+		position	= {};
 	}
 
 	ptgn::Rect rect{ position, size, draw_origin, rotation_radians };
@@ -283,10 +284,16 @@ void Renderer::Shader(
 }
 
 void Renderer::Texture(
-	const ptgn::Texture& texture, const V2_float& position, const V2_float& size,
-	const TextureInfo& info
+	const ptgn::Texture& texture, V2_float position, V2_float size, TextureInfo info
 ) {
 	PTGN_ASSERT(texture.IsValid(), "Cannot draw uninitialized or destroyed texture");
+
+	// Fullscreen texture.
+	if (size.IsZero()) {
+		size			   = game.window.GetSize();
+		info.source.origin = Origin::TopLeft;
+		position		   = {};
+	}
 
 	data_.Texture(
 		ptgn::Rect(position, size, info.source.origin, info.rotation)

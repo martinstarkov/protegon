@@ -194,16 +194,17 @@ public:
 	// Default size results in fullscreen shader.
 	// @param texture Setting texture to {} will use the entire current rendering target.
 	void Shader(
-		const ptgn::Shader& shader, const ptgn::Texture& texture = {},
-		const V2_float& position = {}, V2_float size = {}, Origin draw_origin = Origin::Center,
+		const ptgn::Shader& shader, const ptgn::Texture& texture = {}, V2_float position = {},
+		V2_float size = {}, Origin draw_origin = Origin::Center,
 		BlendMode blend_mode = BlendMode::Blend, Flip flip = Flip::None,
 		float rotation_radians = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
 		float z_index = 0.0f, std::size_t render_layer = 0
 	);
 
+	// If destination_size is {} it will be fullscreen.
 	void Texture(
-		const Texture& texture, const V2_float& destination_position,
-		const V2_float& destination_size, const TextureInfo& info = {}
+		const Texture& texture, V2_float destination_position = {}, V2_float destination_size = {},
+		TextureInfo info = {}
 	);
 
 	void Point(
