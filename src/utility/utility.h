@@ -88,4 +88,15 @@ static auto ConcatenateVectors(const std::vector<T>& v1, const std::vector<T>& v
 	return result;
 }
 
+// Swaps vector elements if they both exist in the vector.
+template <typename T>
+static void SwapVectorElements(std::vector<T>& v, const T& e1, const T& e2) {
+	auto it1{ std::find(v.begin(), v.end(), e1) };
+	auto it2{ std::find(v.begin(), v.end(), e2) };
+	if (it1 == v.end() || it2 == v.end()) {
+		return;
+	}
+	std::swap(*it1, *it2);
+}
+
 } // namespace ptgn
