@@ -6,10 +6,11 @@
 #include <utility>
 #include <vector>
 
+#include "camera/camera.h"
 #include "core/game.h"
 #include "core/manager.h"
 #include "event/input_handler.h"
-#include "camera/camera.h"
+#include "renderer/renderer.h"
 #include "scene/scene.h"
 #include "utility/debug.h"
 #include "utility/utility.h"
@@ -33,6 +34,9 @@ void SceneManager::InitScene(const InternalKey& scene_key) {
 }
 
 void SceneManager::AddActiveImpl(const InternalKey& scene_key) {
+	if (HasActiveSceneImpl(scene_key)) {
+		return;
+	}
 	PTGN_ASSERT(
 		Has(scene_key) || scene_key == impl::start_scene_key,
 		"Cannot add scene to active unless it has been loaded first"
@@ -60,6 +64,9 @@ void SceneManager::UnloadAll() {
 }
 
 void SceneManager::RemoveActiveImpl(const InternalKey& scene_key) {
+	if (!HasActiveSceneImpl(scene_key)) {
+		return;
+	}
 	PTGN_ASSERT(
 		Has(scene_key), "Cannot remove active scene if it has not been loaded into "
 						"the scene manager"
@@ -72,6 +79,36 @@ void SceneManager::RemoveActiveImpl(const InternalKey& scene_key) {
 			++it;
 		}
 	}
+}
+
+void SceneManager::TransitionActiveImpl(
+	const InternalKey& from_scene_key, const InternalKey& to_scene_key,
+	const SceneTransition& transition
+) {
+	if (transition == SceneTransition{}) {
+		RemoveActiveImpl(from_scene_key);
+		AddActiveImpl(from_scene_key);
+		return;
+	}
+
+	if (HasActiveSceneImpl(to_scene_key)) {
+		return;
+	}
+
+	transition.Start(false, from_scene_key, to_scene_key, Get(from_scene_key));
+	transition.Start(true, to_scene_key, from_scene_key, Get(to_scene_key));
+}
+
+void SceneManager::SwitchActiveScenesImpl(const InternalKey& scene1, const InternalKey& scene2) {
+	PTGN_ASSERT(
+		HasActiveSceneImpl(scene1),
+		"Cannot switch scene which does not exist in the active scene vector"
+	);
+	PTGN_ASSERT(
+		HasActiveSceneImpl(scene2),
+		"Cannot switch scene which does not exist in the active scene vector"
+	);
+	SwapVectorElements(active_scenes_, scene1, scene2);
 }
 
 std::vector<std::shared_ptr<Scene>> SceneManager::GetActive() {
@@ -107,8 +144,9 @@ void SceneManager::Shutdown() {
 void SceneManager::Update() {
 	for (auto scene_key : active_scenes_) {
 		PTGN_ASSERT(Has(scene_key));
-		auto scene = Get(scene_key);
+		auto scene{ Get(scene_key) };
 		if (scene->actions_.empty()) {
+			game.draw.SetTarget(scene->target_, true, true);
 			scene->Update();
 		}
 	}
@@ -119,6 +157,7 @@ bool SceneManager::UpdateFlagged() {
 	auto& map{ GetMap() };
 	for (auto it = map.begin(); it != map.end();) {
 		// Intentional reference counter increment to maintain scene during scene function calls.
+
 		auto [key, scene] = *it;
 
 		bool unload{ false };
@@ -135,6 +174,7 @@ bool SceneManager::UpdateFlagged() {
 					game.input.Reset();
 					// Each scene starts with a refreshed camera.
 					scene->camera.ResetPrimary();
+					game.draw.SetTarget(scene->target_);
 					scene->Init();
 					scene_change = true;
 					break;
@@ -143,9 +183,9 @@ bool SceneManager::UpdateFlagged() {
 					scene_change = true;
 					break;
 				case Scene::Action::Unload:
-					if (ActiveScenesContain(key)) {
+					if (HasActiveSceneImpl(key)) {
 						RemoveActiveImpl(key);
-						PTGN_ASSERT(!ActiveScenesContain(key));
+						PTGN_ASSERT(!HasActiveSceneImpl(key));
 						continue;
 					} else {
 						scene->Unload();
@@ -166,7 +206,7 @@ bool SceneManager::UpdateFlagged() {
 	return scene_change;
 }
 
-bool SceneManager::ActiveScenesContain(const InternalKey& key) const {
+bool SceneManager::HasActiveSceneImpl(const InternalKey& key) const {
 	return VectorContains(active_scenes_, key);
 }
 

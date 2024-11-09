@@ -10,7 +10,11 @@
 #include "utility/debug.h"
 #include "utility/type_traits.h"
 
-namespace ptgn::impl {
+namespace ptgn {
+
+class SceneTransition;
+
+namespace impl {
 
 inline constexpr std::size_t start_scene_key{ 0 };
 
@@ -59,6 +63,15 @@ public:
 		RemoveActiveImpl(GetInternalKey(scene_key));
 	}
 
+	template <typename TKey>
+	void TransitionActive(
+		const TKey& from_scene_key, const TKey& to_scene_key, const SceneTransition& transition
+	) {
+		TransitionActiveImpl(
+			GetInternalKey(from_scene_key), GetInternalKey(to_scene_key), transition
+		);
+	}
+
 	void ClearActive();
 	void UnloadAll();
 
@@ -67,12 +80,20 @@ public:
 	[[nodiscard]] Scene& GetTopActive();
 
 private:
+	friend class SceneTransition;
+
 	void InitScene(const InternalKey& scene_key);
 
 	void UnloadImpl(const InternalKey& scene_key);
 
 	void AddActiveImpl(const InternalKey& scene_key);
 	void RemoveActiveImpl(const InternalKey& scene_key);
+	void TransitionActiveImpl(
+		const InternalKey& from_scene_key, const InternalKey& to_scene_key,
+		const SceneTransition& transition
+	);
+	// Switches the places of the two scenes in the scene array vector.
+	void SwitchActiveScenesImpl(const InternalKey& scene1, const InternalKey& scene2);
 
 	friend class Game;
 
@@ -103,10 +124,12 @@ private:
 	// @return True if scene was changed, false otherwise.
 	bool UpdateFlagged();
 
-	[[nodiscard]] bool ActiveScenesContain(const InternalKey& scene_key) const;
+	[[nodiscard]] bool HasActiveSceneImpl(const InternalKey& scene_key) const;
 
 private:
 	std::vector<InternalKey> active_scenes_;
 };
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn
