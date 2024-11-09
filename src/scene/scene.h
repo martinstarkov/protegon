@@ -47,6 +47,10 @@ public:
 	SceneTransition& SetType(TransitionType type);
 	SceneTransition& SetDuration(milliseconds duration);
 
+	// Value from 0 to 0.5f which determines what fraction of the duration is spent in black screen
+	// when using TransitionType::FadeThroughBlack. Does not apply to other transitions.
+	SceneTransition& SetBlackFadeFraction(float black_fade_fraction);
+
 private:
 	friend class impl::SceneManager;
 
@@ -59,6 +63,9 @@ private:
 		const std::shared_ptr<Scene>& scene
 	) const;
 
+	// Value from 0 to 0.5f which determines what fraction of the duration is spent in black screen
+	// when using TransitionType::FadeThroughBlack. Does not apply to other transitions.
+	float black_start_fraction_{ 0.3f };
 	TransitionType type_{ TransitionType::None };
 	milliseconds duration_{ 1000 };
 };

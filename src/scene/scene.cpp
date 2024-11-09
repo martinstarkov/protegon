@@ -32,6 +32,13 @@ SceneTransition& SceneTransition::SetDuration(milliseconds duration) {
 	return *this;
 }
 
+SceneTransition& SceneTransition::SetBlackFadeFraction(float black_fade_fraction) {
+	PTGN_ASSERT(black_fade_fraction >= 0.0f, "Invalid black fade fraction");
+	PTGN_ASSERT(black_fade_fraction <= 0.5f, "Invalid black fade fraction");
+	black_start_fraction_ = black_fade_fraction;
+	return *this;
+}
+
 SceneTransition& SceneTransition::SetType(TransitionType type) {
 	type_ = type;
 	return *this;
@@ -53,6 +60,7 @@ void SceneTransition::Start(
 	// Camera starting position.
 	V2_float c{ camera.GetPosition() };
 	const V2_float og_c{ c };
+	const std::uint8_t og_opacity{ target.GetOpacity() };
 
 	const auto push = [&](const V2_float& dir) {
 		if (transition_in) {
@@ -90,20 +98,49 @@ void SceneTransition::Start(
 	};
 
 	const auto fade = [&]() {
-		start = [=]() {
-			// TODO: Implement.
-		};
-		update = [=](float f) {
-			// TODO: Implement.
-		};
+		if (transition_in) {
+			start = [=]() mutable {
+				target.SetOpacity(0);
+			};
+			update = [=](float f) mutable {
+				target.SetOpacity(static_cast<std::uint8_t>(255.0f * f));
+			};
+		} else {
+			start = [=]() mutable {
+				target.SetOpacity(255);
+			};
+			update = [=](float f) mutable {
+				target.SetOpacity(static_cast<std::uint8_t>(255.0f * (1.0f - f)));
+			};
+		}
 	};
 	const auto fade_through_black = [&]() {
-		start = [=]() {
-			// TODO: Implement.
-		};
-		update = [=](float f) {
-			// TODO: Implement.
-		};
+		float start_frac{ black_start_fraction_ };
+		if (transition_in) {
+			start = [=]() mutable {
+				target.SetOpacity(0);
+			};
+			update = [=](float f) mutable {
+				if (f >= 1.0f - start_frac) {
+					float p{ (f - (1.0f - start_frac)) / start_frac };
+					target.SetOpacity(static_cast<std::uint8_t>(255.0f * p));
+				} else {
+					target.SetOpacity(0);
+				}
+			};
+		} else {
+			start = [=]() mutable {
+				target.SetOpacity(255);
+			};
+			update = [=](float f) mutable {
+				if (f <= start_frac) {
+					float p{ 1.0f - f / start_frac };
+					target.SetOpacity(static_cast<std::uint8_t>(255.0f * p));
+				} else {
+					target.SetOpacity(0);
+				}
+			};
+		}
 	};
 
 	switch (type_) {
@@ -142,7 +179,10 @@ void SceneTransition::Start(
 			std::invoke(update, f);
 		}
 	});
-	tween.OnDestroy([=]() mutable { camera.SetPosition(og_c); });
+	tween.OnDestroy([=]() mutable {
+		camera.SetPosition(og_c);
+		target.SetOpacity(og_opacity);
+	});
 	game.tween.Add(tween).Start();
 }
 
