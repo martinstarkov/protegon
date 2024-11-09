@@ -98,9 +98,11 @@ static void TransitionScene(
 	} else if (game.input.KeyDown(Key::RIGHT)) {
 		game.scene.TransitionActive(from, to, { TransitionType::PushRight, duration });
 	} else if (game.input.KeyDown(Key::Q)) {
-		game.scene.TransitionActive(from, to, { TransitionType::Fade, duration });
+		game.scene.TransitionActive(from, to, { TransitionType::Fade, milliseconds{ 1000 } });
 	} else if (game.input.KeyDown(Key::E)) {
-		game.scene.TransitionActive(from, to, { TransitionType::FadeThroughBlack, duration });
+		game.scene.TransitionActive(
+			from, to, { TransitionType::FadeThroughBlack, milliseconds{ 1000 } }
+		);
 	}
 }
 
