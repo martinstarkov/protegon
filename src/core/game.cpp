@@ -341,21 +341,18 @@ void Game::Update() {
 
 	game.draw.Clear();
 
-	bool scene_change{ false };
-
 	if (update_stack_.empty()) {
 		scene.Update();
-		scene_change = scene.UpdateFlagged();
 	} else {
-		const auto& loop_function{ update_stack_.back() };
-		std::invoke(loop_function);
+		game.scene.SetSceneChanged(false);
+		std::invoke(update_stack_.back());
 	}
 
 	if (running_ && game.profiler.IsEnabled()) {
 		game.profiler.PrintAll();
 	}
 
-	if (running_ && !scene_change) {
+	if (running_ && !game.scene.SceneChanged()) {
 		game.draw.Present();
 	}
 

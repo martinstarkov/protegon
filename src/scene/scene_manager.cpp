@@ -150,10 +150,19 @@ void SceneManager::Update() {
 			scene->Update();
 		}
 	}
+	UpdateFlagged();
 }
 
-bool SceneManager::UpdateFlagged() {
-	bool scene_change{ false };
+void SceneManager::SetSceneChanged(bool changed) {
+	scene_changed_ = changed;
+}
+
+bool SceneManager::SceneChanged() const {
+	return scene_changed_;
+}
+
+void SceneManager::UpdateFlagged() {
+	SetSceneChanged(false);
 	auto& map{ GetMap() };
 	for (auto it = map.begin(); it != map.end();) {
 		// Intentional reference counter increment to maintain scene during scene function calls.
@@ -176,11 +185,11 @@ bool SceneManager::UpdateFlagged() {
 					scene->camera.ResetPrimary();
 					game.draw.SetTarget(scene->target_);
 					scene->Init();
-					scene_change = true;
+					SetSceneChanged(true);
 					break;
 				case Scene::Action::Shutdown:
 					scene->Shutdown();
-					scene_change = true;
+					SetSceneChanged(true);
 					break;
 				case Scene::Action::Unload:
 					if (HasActiveSceneImpl(key)) {
@@ -189,8 +198,8 @@ bool SceneManager::UpdateFlagged() {
 						continue;
 					} else {
 						scene->Unload();
-						unload		 = true;
-						scene_change = true;
+						unload = true;
+						SetSceneChanged(true);
 					}
 					break;
 			}
@@ -203,7 +212,6 @@ bool SceneManager::UpdateFlagged() {
 			++it;
 		}
 	}
-	return scene_change;
 }
 
 bool SceneManager::HasActiveSceneImpl(const InternalKey& key) const {

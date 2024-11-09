@@ -16,6 +16,8 @@ class SceneTransition;
 
 namespace impl {
 
+class Game;
+
 inline constexpr std::size_t start_scene_key{ 0 };
 
 class SceneManager : public MapManager<std::shared_ptr<Scene>> {
@@ -79,8 +81,14 @@ public:
 
 	[[nodiscard]] Scene& GetTopActive();
 
+	void Update();
+
 private:
 	friend class SceneTransition;
+	friend class Game;
+
+	void SetSceneChanged(bool changed);
+	[[nodiscard]] bool SceneChanged() const;
 
 	void InitScene(const InternalKey& scene_key);
 
@@ -119,14 +127,13 @@ private:
 	void Reset();
 	void Shutdown();
 
-	void Update();
-
-	// @return True if scene was changed, false otherwise.
-	bool UpdateFlagged();
+	void UpdateFlagged();
 
 	[[nodiscard]] bool HasActiveSceneImpl(const InternalKey& scene_key) const;
 
 private:
+	bool scene_changed_{ false };
+
 	std::vector<InternalKey> active_scenes_;
 };
 
