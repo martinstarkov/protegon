@@ -39,7 +39,7 @@ class PlatformingTest : public Test {
 		auto ground_func = [](Collision c) {
 			PlatformerJump::Ground(c, ground_category);
 		};
-		auto& b				 = entity.Add<BoxCollider>(entity, V2_float{ 55, 129 }, Origin::Center);
+		auto& b				 = entity.Add<BoxCollider>(entity, V2_float{ 20, 40 }, Origin::Center);
 		b.on_collision_start = ground_func;
 		b.on_collision		 = ground_func;
 		b.continuous		 = true;
@@ -59,6 +59,7 @@ class PlatformingTest : public Test {
 		CreatePlatform({ { 0, ws.y - 10 }, { ws.x, 10 }, Origin::TopLeft });
 		CreatePlatform({ { 0, ws.y / 2.0f }, { 200, 10 }, Origin::TopLeft });
 		CreatePlatform({ { ws.x, ws.y / 2.0f }, { 200, 10 }, Origin::TopRight });
+		CreatePlatform({ { ws.x - 200, ws.y / 2.0f + 140 }, { ws.x - 400, 10 }, Origin::TopRight });
 		manager.Refresh();
 	}
 

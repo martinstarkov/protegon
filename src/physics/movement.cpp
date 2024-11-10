@@ -62,32 +62,34 @@ void PlatformerMovement::Update(Transform& transform, RigidBody& rb) {
 	bool left{ game.input.KeyPressed(left_key) };
 	bool right{ game.input.KeyPressed(right_key) };
 
-	dir_x = 0;
+	float dir_x{ 1.0f };
+
 	if (left && !right) {
-		dir_x = -1;
+		dir_x = -1.0f;
 	}
+
 	if (right && !left) {
-		dir_x = 1;
+		dir_x = 1.0f;
 	}
 
 	// Used to flip the character's sprite when she changes direction
 	// Also tells us that we are currently pressing a direction button
-	if (dir_x != 0) {
-		transform.scale.x = FastAbs(transform.scale.x) * (float)Sign(dir_x);
+	if (dir_x != 0.0f) {
+		transform.scale.x = FastAbs(transform.scale.x) * Sign(dir_x);
 	}
 
 	// Calculate's the character's desired velocity - which is the direction you are facing,
 	// multiplied by the character's maximum speed
-	desired_velocity = V2_float{ (float)dir_x * std::max(max_speed - friction, 0.0f), 0.0f };
+	V2_float desired_velocity{ dir_x * std::max(max_speed - friction, 0.0f), 0.0f };
 
 	// Calculate movement, depending on whether "Instant Movement" has been checked
 	if (use_acceleration) {
-		RunWithAcceleration(rb);
+		RunWithAcceleration(desired_velocity, dir_x, rb);
 	} else {
 		if (grounded) {
 			rb.velocity.x = desired_velocity.x;
 		} else {
-			RunWithAcceleration(rb);
+			RunWithAcceleration(desired_velocity, dir_x, rb);
 		}
 	}
 }
@@ -99,13 +101,15 @@ float PlatformerMovement::MoveTowards(float current, float target, float maxDelt
 	return current + Sign(target - current) * maxDelta;
 }
 
-void PlatformerMovement::RunWithAcceleration(RigidBody& rb) {
+void PlatformerMovement::RunWithAcceleration(
+	const V2_float& desired_velocity, float dir_x, RigidBody& rb
+) const {
 	// Set our acceleration, deceleration, and turn speed stats, based on whether we're on the
 	// ground on in the air
 
-	acceleration = grounded ? max_acceleration : max_air_acceleration;
-	deceleration = grounded ? max_deceleration : max_air_deceleration;
-	turn_speed	 = grounded ? max_turn_speed : max_air_turn_speed;
+	float acceleration{ grounded ? max_acceleration : max_air_acceleration };
+	float deceleration{ grounded ? max_deceleration : max_air_deceleration };
+	float turn_speed{ grounded ? max_turn_speed : max_air_turn_speed };
 
 	bool left{ game.input.KeyPressed(left_key) };
 	bool right{ game.input.KeyPressed(right_key) };
@@ -113,10 +117,12 @@ void PlatformerMovement::RunWithAcceleration(RigidBody& rb) {
 
 	float dt{ game.physics.dt() };
 
+	float max_speed_change{ 0.0f };
+
 	if (pressing_key) {
 		// If the sign (i.e. positive or negative) of our input direction doesn't match our
 		// movement, it means we're turning around and so should use the turn speed stat.
-		if (Sign(dir_x) != (int)Sign(rb.velocity.x)) {
+		if (!NearlyEqual(Sign(dir_x), Sign(rb.velocity.x))) {
 			max_speed_change = turn_speed * dt;
 		} else {
 			// If they match, it means we're simply running along and so should use the
@@ -148,7 +154,7 @@ void PlatformerJump::Update(RigidBody& rb, bool grounded) {
 
 	if (grounded) {
 		coyote_timer_.Start();
-		jumping = false;
+		jumping_ = false;
 	}
 
 	if (pressed_jump && !grounded) {
@@ -159,20 +165,21 @@ void PlatformerJump::Update(RigidBody& rb, bool grounded) {
 	bool jump_buffered{ jump_buffer_.IsRunning() && !jump_buffer_.Completed(jump_buffer_time) };
 	bool in_coyote{ coyote_timer_.IsRunning() && !coyote_timer_.Completed(coyote_time) };
 
+	CalculateGravity(rb, grounded);
+
 	// Situations where pressing jump triggers a jump:
 	// 1. On ground.
 	// 2. During coyote time.
 	// 3. During jump buffer time.
+
 	if (pressed_jump && grounded || grounded && jump_buffered ||
 		pressed_jump && in_coyote && !grounded) {
 		Jump(rb);
 	}
-
-	CalculateGravity(rb, grounded);
 }
 
 void PlatformerJump::Jump(RigidBody& rb) {
-	jumping = true;
+	jumping_ = true;
 
 	jump_buffer_.Stop();
 	coyote_timer_.Stop();
@@ -205,12 +212,14 @@ void PlatformerJump::CalculateGravity(RigidBody& rb, bool grounded) const {
 
 	if (grounded) {
 		gravity_multiplier = default_gravity_scale;
+	} else if (downward_key_speedup && game.input.KeyPressed(down_key)) {
+		gravity_multiplier = downward_speedup_gravity_multiplier;
 	} else if (rb.velocity.y < -0.01f) {
 		if (!variable_jump_height ||
-			variable_jump_height && game.input.KeyPressed(jump_key) && jumping) {
+			variable_jump_height && game.input.KeyPressed(jump_key) && jumping_) {
 			gravity_multiplier = upward_gravity_multiplier;
 		} else if (variable_jump_height) {
-			gravity_multiplier = jump_cut_off;
+			gravity_multiplier = jump_cut_off_gravity_multiplier;
 		}
 	} else if (rb.velocity.y > 0.01f) {
 		gravity_multiplier = downward_gravity_multiplier;
@@ -218,10 +227,9 @@ void PlatformerJump::CalculateGravity(RigidBody& rb, bool grounded) const {
 		gravity_multiplier = default_gravity_scale;
 	}
 
-	// Set the character's Rigidbody's velocity
-	// But clamp the Y variable within the bounds of the speed limit, for the terminal velocity
-	// assist option
-	rb.velocity.y = std::clamp(rb.velocity.y, -speed_limit, speed_limit);
+	if (rb.velocity.y > 0) {
+		rb.velocity.y = std::clamp(rb.velocity.y, 0.0f, terminal_velocity);
+	}
 	// TODO: Incorporate rb gravity.
 	rb.gravity = gravity_multiplier * 2 * jump_height /
 				 (time_to_jump_apex * time_to_jump_apex * game.physics.GetGravity().y);
