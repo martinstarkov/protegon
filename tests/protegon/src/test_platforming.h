@@ -42,7 +42,6 @@ class PlatformingTest : public Test {
 		auto& b				 = entity.Add<BoxCollider>(entity, V2_float{ 55, 129 }, Origin::Center);
 		b.on_collision_start = ground_func;
 		b.on_collision		 = ground_func;
-		b.on_collision_stop	 = ground_func;
 		b.continuous		 = true;
 
 		entity.Add<DrawColor>(color::DarkGreen);

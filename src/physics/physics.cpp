@@ -28,10 +28,13 @@ void Physics::Update(ecs::Manager& manager) const {
 	for (auto [e, t, rb, m, j] :
 		 manager.EntitiesWith<Transform, RigidBody, PlatformerMovement, PlatformerJump>()) {
 		m.Update(t, rb);
-		j.Update(rb, m.onGround);
+		j.Update(rb, m.grounded);
 	}
 	for (auto [e, rb] : manager.EntitiesWith<RigidBody>()) {
 		rb.Update();
+	}
+	for (auto [e, m] : manager.EntitiesWith<PlatformerMovement>()) {
+		m.grounded = false;
 	}
 	game.collision.Update(manager);
 	for (auto [e, t, rb] : manager.EntitiesWith<Transform, RigidBody>()) {
