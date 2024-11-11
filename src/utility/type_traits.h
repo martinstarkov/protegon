@@ -1,6 +1,7 @@
 #pragma once
 
 #include <type_traits>
+#include <utility>
 
 namespace ptgn::tt {
 
@@ -178,6 +179,11 @@ inline constexpr bool is_not_any_of_v{ (!std::is_same_v<T, Ts> && ...) };
 
 template <typename T, typename... Ts>
 inline constexpr bool is_safely_castable_to_one_of_v{ (is_safely_castable_v<T, Ts> || ...) };
+
+template <class MapTy>
+inline constexpr bool is_map_type_v{ std::is_same_v<
+	typename MapTy::value_type,
+	std::pair<const typename MapTy::key_type, typename MapTy::mapped_type>> };
 
 template <typename T, typename U>
 using equals_comparable = std::enable_if_t<is_equals_comparable_v<T, U>, bool>;
