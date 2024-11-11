@@ -32,7 +32,7 @@ struct Color {
 	Type r{ 0 };
 	Type g{ 0 };
 	Type b{ 0 };
-	Type a{ 255 };
+	Type a{ 0 };
 
 	// Default color is black.
 	constexpr Color() = default;
