@@ -1,269 +1,286 @@
 #pragma once
 
-#include <array>
 #include <functional>
-#include <variant>
-#include <vector>
+#include <type_traits>
+#include <unordered_map>
 
 #include "event/event.h"
 #include "event/events.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
+#include "renderer/origin.h"
 #include "renderer/text.h"
 #include "renderer/texture.h"
+#include "utility/handle.h"
+#include "utility/type_traits.h"
 
 namespace ptgn {
 
-enum class ButtonState : std::size_t {
+enum class ButtonState : std::uint8_t {
 	Default = 0,
 	Hover	= 1,
 	Pressed = 2
 };
 
-template <size_t I>
-struct TextureArray {
-	std::array<std::array<TextureOrKey, I>, 3> data;
-};
+using ButtonCallback = std::function<void()>;
 
-template <size_t I>
-struct ColorArray {
-	std::array<std::array<Color, I>, 3> data;
-};
-
-using ButtonActivateFunction = std::function<void()>;
-using ButtonHoverFunction	 = std::function<void()>;
-using ButtonEnableFunction	 = std::function<void()>;
-using ButtonDisableFunction	 = std::function<void()>;
-
-class Button {
-public:
-	Button() = default;
-	Button(const Rect& rect, const ButtonActivateFunction& on_activate_function = nullptr);
-
-	virtual ~Button();
-
-	// Draws a black hollow rectangle around the button rectangle.
-	// Use ColorButton for more advanced colored buttons or TexturedButton for textured buttons.
-	virtual void Draw() const;
-
-	virtual void DrawHollow(float line_width = 1.0f) const;
-	virtual void DrawFilled() const;
-
-	// Simulates a mouse move event from infinity to the current mouse position to refresh the
-	// button state.
-	virtual void RecheckState() final;
-
-	// These functions cause button to stop responding to events.
-	[[nodiscard]] virtual bool GetInteractable() const final;
-	virtual void SetInteractable(bool interactable);
-
-	// These allow for manually triggering button callback events.
-	virtual void Activate();
-	virtual void StartHover();
-	virtual void StopHover();
-
-	// Ensure to subscribe to mouse events for this function to be called.
-	virtual void SetOnActivate(const ButtonActivateFunction& function);
-	// Ensure to subscribe to mouse events for this function to be called.
-	virtual void SetOnHover(
-		const ButtonHoverFunction& start_hover_function,
-		const ButtonHoverFunction& stop_hover_function = nullptr
-	);
-
-	virtual void SetOnEnable(const ButtonEnableFunction& enable_function);
-	virtual void SetOnDisable(const ButtonDisableFunction& disable_function);
-
-	[[nodiscard]] virtual bool IsSubscribedToMouseEvents() const final;
-
-	// Copying a button will not preserve this.
-	virtual void SubscribeToMouseEvents() final;
-	virtual void UnsubscribeFromMouseEvents() final;
-
-	void OnMouseEvent(MouseEvent type, const Event& event);
-	virtual void OnMouseMove(const MouseMoveEvent& e);
-	virtual void OnMouseMoveOutside(const MouseMoveEvent& e);
-	virtual void OnMouseEnter(const MouseMoveEvent& e);
-	virtual void OnMouseLeave(const MouseMoveEvent& e);
-	virtual void OnMouseDown(const MouseDownEvent& e);
-	virtual void OnMouseDownOutside(const MouseDownEvent& e);
-	virtual void OnMouseUp(const MouseUpEvent& e);
-	virtual void OnMouseUpOutside(const MouseUpEvent& e);
-
-	[[nodiscard]] const Rect& GetRect() const;
-	void SetRect(const Rect& new_rectangle);
-
-	[[nodiscard]] std::size_t GetRenderLayer() const;
-	void SetRenderLayer(std::size_t render_layer);
-
-	[[nodiscard]] ButtonState GetState() const;
-
-	[[nodiscard]] bool InsideRect(const V2_int& position) const;
-
-protected:
-	enum class InternalButtonState : std::size_t {
-		IdleUp		 = 0,
-		Hover		 = 1,
-		Pressed		 = 2,
-		HeldOutside	 = 3,
-		IdleDown	 = 4,
-		HoverPressed = 5
-	};
-
-	Rect rect_;
-	// Different render layers have different cameras, which can cause mouse position scaling,
-	// therefore buttons must have an associated render layer.
-	std::size_t render_layer_{ 0 };
-	ButtonActivateFunction on_activate_;
-	ButtonHoverFunction on_hover_start_;
-	ButtonHoverFunction on_hover_stop_;
-	ButtonEnableFunction on_enable_;
-	ButtonDisableFunction on_disable_;
-	InternalButtonState button_state_{ InternalButtonState::IdleUp };
-	bool enabled_{ true };
-
-private:
-	void MouseMotionUpdate(const V2_int& current, const V2_int& previous, const MouseMoveEvent& e);
-};
-
-class ColorButton : public virtual Button {
-public:
-	ColorButton() = default;
-	ColorButton(
-		const Rect& rect, const Color& default_color, const Color& hover_color,
-		const Color& pressed_color, const ButtonActivateFunction& on_active_function = nullptr
-	);
-
-	void SetColor(const Color& default_color);
-	void SetHoverColor(const Color& hover_color);
-	void SetPressedColor(const Color& pressed_color);
-
-	const Color& GetColor() const;
-	const Color& GetHoverColor() const;
-	const Color& GetPressedColor() const;
-
-	// Draws a filled button.
-	void Draw() const override;
-
-	void DrawHollow(float line_width = 1.0f) const override;
-	void DrawFilled() const override;
-
-	[[nodiscard]] virtual const Color& GetCurrentColor() const;
-
-protected:
-	[[nodiscard]] const Color& GetCurrentColorImpl(
-		ButtonState state, std::size_t color_array_index = 0
-	) const;
-
-protected:
-	ColorArray<2> colors_{};
+enum class ButtonProperty : std::size_t {
+	Texture,		  // Type: Texture
+	BackgroundColor,  // Type: Color
+	TextureTintColor, // Type: Color
+	Text,			  // Type: Text
+	TextColor,		  // Type: Color
+	BorderColor,	  // Type: Color
+	TextAlignment,	  // Type: TextAlignment
+	TextSize,		  // Type: V2_float
+	RenderLayer,	  // Type: std::size_t
+	Visibility,		  // Type: bool
+	Toggleable,		  // Type: bool
+	Bordered,		  // Type: bool
+	Toggled,		  // Type: bool
+	LineThickness,	  // Type: float
+	BorderThickness,  // Type: float
+	OnHoverStart,	  // Type: ButtonCallback
+	OnHoverStop,	  // Type: ButtonCallback
+	OnActivate,		  // Type: ButtonCallback
+	OnDisable,		  // Type: ButtonCallback
+	OnEnable,		  // Type: ButtonCallback
+	OnToggle,		  // Type: ButtonCallback
 };
 
 using TextAlignment = Origin;
 
-class TextButton : public virtual ColorButton {
-public:
-	void SetBorder(bool draw_border);
-	[[nodiscard]] bool HasBorder() const;
+namespace impl {
 
-	// If either axis of the text size is zero, it is stretched to fit the entire size of the button
-	// rectangle (along that axis).
-	void SetTextSize(const V2_float& text_size = {});
-	[[nodiscard]] V2_float GetTextSize() const;
-
-	void SetText(const Text& text);
-	[[nodiscard]] const Text& GetText() const;
-
-	void SetTextAlignment(const TextAlignment& text_alignment);
-	[[nodiscard]] const TextAlignment& GetTextAlignment() const;
-
-	// Draws a filled button.
-	void Draw() const override;
-
-	void DrawHollow(float line_width = 1.0f) const override;
-	void DrawFilled() const override;
-
-protected:
-	V2_float text_size_;
-	bool draw_border_{ true };
-	Text text_;
-	TextAlignment text_alignment_{ TextAlignment::Center };
+enum class InternalButtonState : std::size_t {
+	IdleUp		 = 0,
+	Hover		 = 1,
+	Pressed		 = 2,
+	HeldOutside	 = 3,
+	IdleDown	 = 4,
+	HoverPressed = 5
 };
 
-class ToggleButton : public virtual Button {
+enum class ButtonResourceState : uint8_t {
+	Default			= 0b0000,
+	Hover			= 0b0001,
+	Pressed			= 0b0010,
+	Disabled		= 0b0100,
+	ToggledDefault	= 0b1000,
+	ToggledHover	= 0b1001,
+	ToggledPressed	= 0b1010,
+	ToggledDisabled = 0b1100,
+};
+
+[[nodiscard]] ButtonResourceState GetButtonResourceState(
+	ButtonState button_state, bool toggled, bool disabled
+);
+
+template <typename S>
+[[nodiscard]] static auto GetResource(
+	ButtonState state, bool toggled, bool disabled, const S& resource
+) {
+	if constexpr (tt::is_map_type_v<S>) {
+		auto s{ GetButtonResourceState(state, toggled, disabled) };
+		if (auto it{ resource.find(s) }; it != resource.end()) {
+			return it->second;
+		}
+		return typename decltype(resource)::mapped_type{};
+	} else {
+		return resource;
+	}
+}
+
+template <typename S>
+[[nodiscard]] static auto& GetResource(
+	ButtonState state, bool toggled, bool disabled, S& resource
+) {
+	if constexpr (tt::is_map_type_v<S>) {
+		auto s{ GetButtonResourceState(state, toggled, disabled) };
+		if (auto it{ resource.find(s) }; it != resource.end()) {
+			return it->second;
+		}
+		return resource[s];
+	} else {
+		return resource;
+	}
+}
+
+class ButtonInstance {
 public:
-	using Button::Button;
+	ButtonInstance();
+	~ButtonInstance();
 
-	ToggleButton(
-		const Rect& rect, const ButtonActivateFunction& on_active_function = nullptr,
-		bool initially_toggled = false
-	);
-	~ToggleButton() override;
-
-	// Start in non toggled state.
-	void OnMouseUp(const MouseUpEvent& e) override;
-
-	[[nodiscard]] bool IsToggled() const;
+	void Activate();
+	void StartHover();
+	void StopHover();
 	void Toggle();
-	void SetToggleState(bool toggled);
+	void Enable();
+	void Disable();
 
-protected:
+	[[nodiscard]] bool InsideRect(const V2_int& position) const;
+
+	void OnMouseEvent(MouseEvent type, const Event& event);
+	void OnMouseMove(const MouseMoveEvent& e);
+	void OnMouseMoveOutside(const MouseMoveEvent& e);
+	void OnMouseEnter(const MouseMoveEvent& e);
+	void OnMouseLeave(const MouseMoveEvent& e);
+	void OnMouseDown(const MouseDownEvent& e);
+	void OnMouseDownOutside(const MouseDownEvent& e);
+	void OnMouseUp(const MouseUpEvent& e);
+	void OnMouseUpOutside(const MouseUpEvent& e);
+
+	void MouseMotionUpdate(const V2_int& current, const V2_int& previous, const MouseMoveEvent& e);
+
+	// Simulates a mouse move event from infinity to the current mouse position to refresh the
+	// button state.
+	void RecheckState();
+
+	bool enabled_{ true };
+	Rect rect_;
+	InternalButtonState button_state_{ InternalButtonState::IdleUp };
+
+	ButtonCallback on_activate_;
+	ButtonCallback on_hover_start_;
+	ButtonCallback on_hover_stop_;
+	ButtonCallback on_enable_;
+	ButtonCallback on_disable_;
+	ButtonCallback on_toggle_;
+
+	std::size_t render_layer_{ 0 };
+
+	// -1 for solid button.
+	float line_thickness_{ -1.0f };
+	float border_thickness_{ 1.0f };
+
+	// If either axis of the text size is zero, it is stretched to fit the entire size of the
+	// button rectangle (along that axis).
+	V2_float text_size_;
+	TextAlignment text_alignment_{ TextAlignment::Center };
+
+	std::unordered_map<ButtonResourceState, Texture> textures_;
+	std::unordered_map<ButtonResourceState, Color> texture_tint_colors_;
+	std::unordered_map<ButtonResourceState, Color> bg_colors_;
+	std::unordered_map<ButtonResourceState, Text> texts_;
+	std::unordered_map<ButtonResourceState, Color> text_colors_;
+	std::unordered_map<ButtonResourceState, Color> border_colors_;
+
+	bool visibility_{ true };
+	bool toggleable_{ false };
+	bool bordered_{ false };
 	bool toggled_{ false };
+
+	template <ButtonProperty T>
+	auto& GetResource() {
+		if constexpr (T == ButtonProperty::Texture) {
+			return textures_;
+		} else if constexpr (T == ButtonProperty::Text) {
+			return texts_;
+		} else if constexpr (T == ButtonProperty::BackgroundColor) {
+			return bg_colors_;
+		} else if constexpr (T == ButtonProperty::TextColor) {
+			return text_colors_;
+		} else if constexpr (T == ButtonProperty::TextureTintColor) {
+			return texture_tint_colors_;
+		} else if constexpr (T == ButtonProperty::BorderColor) {
+			return border_colors_;
+		} else if constexpr (T == ButtonProperty::TextAlignment) {
+			return text_alignment_;
+		} else if constexpr (T == ButtonProperty::TextSize) {
+			return text_size_;
+		} else if constexpr (T == ButtonProperty::Visibility) {
+			return visibility_;
+		} else if constexpr (T == ButtonProperty::Toggleable) {
+			return toggleable_;
+		} else if constexpr (T == ButtonProperty::Bordered) {
+			return bordered_;
+		} else if constexpr (T == ButtonProperty::Toggled) {
+			return toggled_;
+		} else if constexpr (T == ButtonProperty::LineThickness) {
+			return line_thickness_;
+		} else if constexpr (T == ButtonProperty::BorderThickness) {
+			return border_thickness_;
+		} else if constexpr (T == ButtonProperty::RenderLayer) {
+			return render_layer_;
+		} else if constexpr (T == ButtonProperty::OnActivate) {
+			return on_activate_;
+		} else if constexpr (T == ButtonProperty::OnDisable) {
+			return on_disable_;
+		} else if constexpr (T == ButtonProperty::OnEnable) {
+			return on_enable_;
+		} else if constexpr (T == ButtonProperty::OnHoverStart) {
+			return on_hover_start_;
+		} else if constexpr (T == ButtonProperty::OnHoverStop) {
+			return on_hover_stop_;
+		} else if constexpr (T == ButtonProperty::OnToggle) {
+			return on_toggle_;
+		} else {
+			PTGN_ERROR("Invalid button property");
+		}
+	}
 };
 
-class TexturedButton : public virtual Button {
+} // namespace impl
+
+class Button : public Handle<impl::ButtonInstance> {
 public:
-	TexturedButton() = default;
-	TexturedButton(
-		const Rect& rect, const TextureOrKey& default_texture, const TextureOrKey& hover_texture,
-		const TextureOrKey& pressed_texture,
-		const ButtonActivateFunction& on_active_function = nullptr
-	);
+	Button();
+	explicit Button(const Rect& rect);
+	~Button() override = default;
 
-	[[nodiscard]] virtual bool GetVisibility() const final;
-	virtual void SetVisibility(bool visibility);
+	void Draw() const;
 
-	void Draw() const override;
+	// These functions cause button to stop responding to events.
+	[[nodiscard]] bool IsEnabled() const;
+	Button& SetEnabled(bool enabled);
 
-	[[nodiscard]] virtual Texture GetCurrentTexture();
+	// These allow for manually triggering button callback events.
+	Button& Activate();
+	Button& StartHover();
+	Button& StopHover();
+	Button& Toggle();
+	Button& Disable();
+	Button& Enable();
 
-	void ForEachTexture(const std::function<void(Texture)>& func) const;
+	[[nodiscard]] Rect GetRect() const;
+	Button& SetRect(const Rect& new_rect);
 
-	void SetTintColor(const Color& color);
-	[[nodiscard]] Color GetTintColor() const;
+	[[nodiscard]] ButtonState GetState() const;
+	[[nodiscard]] impl::InternalButtonState GetInternalState() const;
 
-protected:
-	// This function does not check for the validity of the returned texture.
-	[[nodiscard]] Texture GetCurrentTextureImpl(
-		ButtonState state, std::size_t texture_array_index = 0
-	) const;
+	template <ButtonProperty Property>
+	[[nodiscard]] auto Get(ButtonState state, bool toggled = false, bool disabled = false) const {
+		const auto& resource{ const_cast<Button&>(*this).Handle::Get().GetResource<Property>() };
+		return impl::GetResource(state, toggled, disabled, resource);
+	}
 
-	void DrawImpl(std::size_t texture_array_index = 0) const;
+	template <ButtonProperty Property>
+	[[nodiscard]] auto GetCurrent() const {
+		auto& i{ Handle::Get() };
+		return Get<Property>(GetState(), i.toggled_, !i.enabled_);
+	}
 
-protected:
-	// Must be initialized explicitly by a constructor.
-	// Can technically exist uninitialized if button is default constructed
-	// (temporary object).
-	// TODO: Figure out a way to store 1 here and 2 in the toggle button class
-	TextureArray<2> textures_;
-	Color tint_color_{ color::White };
-	bool hidden_{ false };
-};
-
-class TexturedToggleButton : public virtual ToggleButton, public virtual TexturedButton {
-public:
-	TexturedToggleButton() = default;
-	TexturedToggleButton(
-		const Rect& rect, const std::vector<TextureOrKey>& default_textures,
-		const std::vector<TextureOrKey>& hover_textures	  = {},
-		const std::vector<TextureOrKey>& pressed_textures = {},
-		const ButtonActivateFunction& on_active_function  = nullptr
-	);
-
-	void OnMouseUp(const MouseUpEvent& e) override;
-
-	[[nodiscard]] Texture GetCurrentTexture() override;
-	void Draw() const override;
+	template <ButtonProperty Property, typename T>
+	Button& Set(
+		const T& value, ButtonState state = ButtonState::Default, bool toggled = false,
+		bool disabled = false
+	) {
+		auto& i{ Handle::Get() };
+		auto& resource{ impl::GetResource(state, toggled, disabled, i.GetResource<Property>()) };
+		using S = std::remove_reference_t<decltype(resource)>;
+		if constexpr (std::is_constructible_v<ButtonCallback, S>) {
+			resource = ButtonCallback(value);
+		} else {
+			static_assert(
+				std::is_same_v<S, T>,
+				"Cannot set button value to type which does not match type of property"
+			);
+			resource = value;
+		}
+		i.RecheckState();
+		return *this;
+	}
 };
 
 } // namespace ptgn
