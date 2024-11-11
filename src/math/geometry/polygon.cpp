@@ -5,12 +5,12 @@
 #include <limits>
 #include <vector>
 
+#include "collision/raycast.h"
 #include "math/geometry/axis.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/intersection.h"
 #include "math/geometry/line.h"
 #include "math/math.h"
-#include "collision/raycast.h"
 #include "math/utility.h"
 #include "math/vector2.h"
 #include "renderer/origin.h"
@@ -106,6 +106,11 @@ bool Rect::IsZero() const {
 }
 
 bool Rect::Overlaps(const V2_float& point) const {
+	if (rotation != 0.0f) {
+		Polygon poly_a{ *this };
+		return poly_a.Overlaps(point);
+	}
+
 	V2_float max{ Max() };
 	V2_float min{ Min() };
 
@@ -131,6 +136,8 @@ bool Rect::Overlaps(const V2_float& point) const {
 }
 
 bool Rect::Overlaps(const Line& line) const {
+	// TODO: Add rotation check.
+
 	V2_float c{ Center() };
 	V2_float e{ Half() };
 	V2_float m{ line.Midpoint() };
@@ -167,6 +174,7 @@ bool Rect::Overlaps(const Line& line) const {
 }
 
 bool Rect::Overlaps(const Circle& circle) const {
+	// TODO: Add rotation check.
 	return circle.Overlaps(*this);
 }
 
