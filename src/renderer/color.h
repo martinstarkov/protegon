@@ -96,7 +96,7 @@ inline constexpr Color Purple{ 128, 0, 128, 255 };
 inline constexpr Color Pink{ 255, 192, 203, 255 };
 inline constexpr Color LightPink{ 255, 128, 255, 255 };
 inline constexpr Color Gray{ 128, 128, 128, 255 };
-inline constexpr Color DarkGrey{ 64, 64, 64, 255 };
+inline constexpr Color DarkGray{ 64, 64, 64, 255 };
 inline constexpr Color LightGray{ 83, 83, 83, 255 };
 inline constexpr Color Silver{ 192, 192, 192, 255 };
 

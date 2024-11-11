@@ -134,7 +134,7 @@ struct TestPoint : public DrawTest {
 		game.draw.Point(center + ws * 0.25f, color::DarkBlue, point_radius);
 		game.draw.Point(center - V2_float{ ws.x * 0.25f, 0.0f }, color::DarkBrown);
 		game.draw.Point(center + V2_float{ ws.x * 0.25f, 0.0f }, color::DarkGreen);
-		game.draw.Point(center - V2_float{ 0.0f, ws.y * 0.25f }, color::DarkGrey);
+		game.draw.Point(center - V2_float{ 0.0f, ws.y * 0.25f }, color::DarkGray);
 		game.draw.Point(center + V2_float{ 0.0f, ws.y * 0.25f }, color::DarkRed);
 		game.draw.Point(center - V2_float{ ws.x * 0.25f, -ws.y * 0.25f }, color::Red, point_radius);
 		game.draw.Point(
