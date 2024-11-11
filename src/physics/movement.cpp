@@ -62,7 +62,7 @@ void PlatformerMovement::Update(Transform& transform, RigidBody& rb) {
 	bool left{ game.input.KeyPressed(left_key) };
 	bool right{ game.input.KeyPressed(right_key) };
 
-	float dir_x{ 1.0f };
+	float dir_x{ 0.0f };
 
 	if (left && !right) {
 		dir_x = -1.0f;

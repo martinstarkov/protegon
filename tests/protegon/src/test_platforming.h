@@ -50,7 +50,7 @@ class PlatformingTest : public Test {
 		return entity;
 	}
 
-	void Init() final {
+	void Init() override {
 		manager.Clear();
 		game.window.SetSize({ 960, 540 });
 		ws = game.window.GetSize();
@@ -63,12 +63,16 @@ class PlatformingTest : public Test {
 		manager.Refresh();
 	}
 
-	void Update() final {
+	void Shutdown() override {
+		manager.Clear();
+	}
+
+	void Update() override {
 		game.physics.Update(manager);
 		Draw();
 	}
 
-	void Draw() {
+	void Draw() override {
 		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
 			DrawRect(e, b.GetAbsoluteRect());
 		}

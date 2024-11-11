@@ -26,10 +26,9 @@ void MoveWASD(V2_float& vel, const V2_float& amount, bool cancel_velocity_if_unp
 void MoveArrowKeys(V2_float& vel, const V2_float& amount, bool cancel_velocity_if_unpressed = true);
 
 struct PlatformerMovement {
-	// TODO: Move to PlatformerJump class.
-
 	// Whether or not the player is currently on the ground. Determines their acceleration (air or
 	// ground) and if they can jump or not.
+	// TODO: Move to PlatformerJump class?
 	bool grounded{ false };
 
 	// Parameters:
@@ -87,7 +86,7 @@ public:
 	// Gravity when jump key is released before reaching the jump apex.
 	float jump_cut_off_gravity_multiplier{ 12.0f };
 	// Gravity when down key is held.
-	float downward_speedup_gravity_multiplier{ 18.0f };
+	float downward_speedup_gravity_multiplier{ 12.0f };
 	// If player presses down_key, their downward gravity increases.
 	bool downward_key_speedup{ true };
 	// If player lets go of jump key, their downward gravity increases.
