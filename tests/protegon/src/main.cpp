@@ -15,6 +15,7 @@
 #include "test_scenes.h"
 #include "test_text.h"
 #include "test_tween.h"
+#include "test_ui.h"
 #include "test_vector.h"
 #include "test_window.h"
 
@@ -42,6 +43,7 @@ public:
 
 		// Visual tests.
 
+		TestUI();
 		TestPlatforming();
 		TestScenes();
 		TestCollisions();
