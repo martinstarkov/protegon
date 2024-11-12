@@ -8,6 +8,7 @@
 #include "test_lighting.h"
 #include "test_math.h"
 #include "test_matrix4.h"
+#include "test_particles.h"
 #include "test_pathfinding.h"
 #include "test_platforming.h"
 #include "test_renderer.h"
@@ -43,6 +44,7 @@ public:
 
 		// Visual tests.
 
+		TestParticles();
 		TestUI();
 		TestPlatforming();
 		TestScenes();
