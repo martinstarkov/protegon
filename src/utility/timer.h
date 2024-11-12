@@ -15,11 +15,15 @@ public:
 	Timer() = default;
 	explicit Timer(bool start);
 	~Timer() = default;
+
 	// Acts as a reset.
 	void Start();
+
 	void Stop();
+	void Toggle();
 	void Pause();
 	void Unpause();
+
 	[[nodiscard]] bool IsPaused() const;
 	[[nodiscard]] bool IsRunning() const;
 
@@ -62,6 +66,7 @@ private:
 	std::chrono::time_point<std::chrono::steady_clock> start_time_;
 	std::chrono::time_point<std::chrono::steady_clock> stop_time_;
 	std::chrono::time_point<std::chrono::steady_clock> pause_time_;
+
 	bool running_{ false };
 	bool paused_{ false };
 };

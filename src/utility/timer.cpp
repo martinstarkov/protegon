@@ -22,6 +22,14 @@ void Timer::Stop() {
 	paused_	   = false;
 }
 
+void Timer::Toggle() {
+	if (IsRunning()) {
+		Stop();
+	} else {
+		Start();
+	}
+}
+
 void Timer::Pause() {
 	if (running_ && !paused_) {
 		stop_time_	= std::chrono::steady_clock::now();
