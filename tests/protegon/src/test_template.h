@@ -5,6 +5,7 @@
 #include "core/game.h"
 
 class TemplateTest : public Test {
+public:
 	void Init() final {}
 
 	void Update() final {}

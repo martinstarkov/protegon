@@ -115,10 +115,10 @@ private:
 	}
 
 	void Unsubscribe(std::size_t key) {
-		if (auto it = observers_.find(key); it != observers_.end()) {
+		if (auto it{ observers_.find(key) }; it != observers_.end()) {
 			observers_.erase(it);
 		}
-		if (auto it = general_observers_.find(key); it != general_observers_.end()) {
+		if (auto it{ general_observers_.find(key) }; it != general_observers_.end()) {
 			general_observers_.erase(it);
 		}
 	}
