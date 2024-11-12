@@ -15,13 +15,8 @@
 #include "ui/ui.h"
 #include "utility/log.h"
 
-class TemplateUITest : public Test {
-	void Init() final {}
-
-	void Update() final {}
-};
-
 class ButtonTest : public Test {
+public:
 	std::string Str(ButtonState s) const {
 		switch (s) {
 			case ButtonState::Default: return "default";
@@ -54,8 +49,8 @@ class ButtonTest : public Test {
 
 	template <typename T>
 	Button CreateTexturedButton(
-		std::string_view text_content, const V2_float& pos, const V2_float& size, const T& activate,
-		Origin origin = Origin::TopLeft
+		std::string_view text_content, const V2_float& pos, const V2_float& size,
+		const T& activate = nullptr, Origin origin = Origin::TopLeft
 	) {
 		Button b;
 		b.SetRect(Rect{ pos, size, origin });
@@ -72,10 +67,10 @@ class ButtonTest : public Test {
 		return b;
 	}
 
-	template <typename T>
+	template <typename T = ButtonCallback>
 	Button CreateTexturedToggleButton(
-		std::string_view text_content, const V2_float& pos, const V2_float& size, const T& activate,
-		Origin origin = Origin::TopLeft
+		std::string_view text_content, const V2_float& pos, const V2_float& size,
+		const T& activate = nullptr, Origin origin = Origin::TopLeft
 	) {
 		Button b{ CreateTexturedButton(text_content, pos, size, activate, origin) };
 
@@ -91,8 +86,8 @@ class ButtonTest : public Test {
 
 	template <typename T>
 	Button CreateColorButton(
-		std::string_view text_content, const V2_float& pos, const V2_float& size, const T& activate,
-		Origin origin = Origin::TopLeft
+		std::string_view text_content, const V2_float& pos, const V2_float& size,
+		const T& activate = nullptr, Origin origin = Origin::TopLeft
 	) {
 		Button b;
 		b.SetRect(Rect{ pos, size, origin });
@@ -111,8 +106,8 @@ class ButtonTest : public Test {
 
 	template <typename T>
 	Button CreateColorToggleButton(
-		std::string_view text_content, const V2_float& pos, const V2_float& size, const T& activate,
-		Origin origin = Origin::TopLeft
+		std::string_view text_content, const V2_float& pos, const V2_float& size,
+		const T& activate = nullptr, Origin origin = Origin::TopLeft
 	) {
 		Button b{ CreateColorButton(text_content, pos, size, activate, origin) };
 		b.Set<ButtonProperty::Toggleable>(true);
@@ -142,7 +137,20 @@ class ButtonTest : public Test {
 	float y{ 50 };
 	float y_step{ 130 };
 
-	void Init() final {
+	void Shutdown() {
+		button							 = {};
+		toggle_button					 = {};
+		textured_button					 = {};
+		textured_toggle_button			 = {};
+		disabled_button					 = {};
+		disabled_toggle_button			 = {};
+		disabled_toggle_button2			 = {};
+		disabled_textured_button		 = {};
+		disabled_textured_toggle_button	 = {};
+		disabled_textured_toggle_button2 = {};
+	}
+
+	void Init() override {
 		button			= CreateColorButton("Color", V2_float{ x1, y }, size, []() {
 			 PTGN_LOG("Clicked regular button");
 		 });
@@ -215,7 +223,8 @@ class ButtonTest : public Test {
 		);
 	}
 
-	void Update() final {
+	void Update() override {
+		auto& m = game.event.mouse;
 		button.Draw();
 		toggle_button.Draw();
 		textured_button.Draw();
@@ -239,9 +248,43 @@ class ButtonTest : public Test {
 	}
 };
 
+class ButtonGroupTest : public ButtonTest {
+	ToggleButtonGroup g;
+
+	void Shutdown() override {
+		g.Clear();
+	}
+
+	void Init() override {
+		g.Clear();
+
+		size   = V2_float{ 200, 130 };
+		y_step = 180;
+
+		g.Load("1", CreateTexturedToggleButton("1", V2_float{ x1, y + y_step * 0 }, size, []() {
+				   PTGN_LOG("1");
+			   }));
+		g.Load("2", CreateTexturedToggleButton("2", V2_float{ x1, y + y_step * 1 }, size, []() {
+				   PTGN_LOG("2");
+			   }));
+		g.Load("3", CreateTexturedToggleButton("3", V2_float{ x1, y + y_step * 2 }, size, []() {
+				   PTGN_LOG("3");
+			   }));
+		g.Load("4", CreateTexturedToggleButton("4", V2_float{ x1, y + y_step * 3 }, size, []() {
+				   PTGN_LOG("4");
+			   }));
+	}
+
+	void Update() override {
+		auto& m = game.event.mouse;
+		g.Draw();
+	}
+};
+
 void TestUI() {
 	std::vector<std::shared_ptr<Test>> tests;
 
+	tests.emplace_back(new ButtonGroupTest());
 	tests.emplace_back(new ButtonTest());
 
 	AddTests(tests);

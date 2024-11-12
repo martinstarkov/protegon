@@ -17,6 +17,8 @@
 
 namespace ptgn {
 
+class ToggleButtonGroup;
+
 enum class ButtonState : std::uint8_t {
 	Default = 0,
 	Hover	= 1,
@@ -141,6 +143,7 @@ public:
 	Rect rect_;
 	InternalButtonState button_state_{ InternalButtonState::IdleUp };
 
+	ButtonCallback internal_on_activate_;
 	ButtonCallback on_activate_;
 	ButtonCallback on_hover_start_;
 	ButtonCallback on_hover_stop_;
@@ -281,6 +284,30 @@ public:
 		i.RecheckState();
 		return *this;
 	}
+
+private:
+	friend class ToggleButtonGroup;
+
+	void SetInternalOnActivate(const ButtonCallback& internal_on_activate);
+};
+
+class ToggleButtonGroup : public MapManager<Button> {
+public:
+	using MapManager::MapManager;
+
+	template <typename TKey, typename... TArgs, tt::constructible<Button, TArgs...> = true>
+	Button& Load(const TKey& key, TArgs&&... constructor_args) {
+		auto k{ GetInternalKey(key) };
+		Button& button{ MapManager::Load(key, Button{ std::forward<TArgs>(constructor_args)... }) };
+		// Toggle all other buttons when one is pressed.
+		button.SetInternalOnActivate([this, &button]() {
+			ForEachValue([](Button& b) { b.Set<ButtonProperty::Toggled>(false); });
+			button.Set<ButtonProperty::Toggled>(true);
+		});
+		return button;
+	}
+
+	void Draw() const;
 };
 
 } // namespace ptgn

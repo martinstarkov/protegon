@@ -64,8 +64,16 @@ void ButtonInstance::Activate() {
 	if (!enabled_) {
 		return;
 	}
+	bool recheck{ false };
+	if (internal_on_activate_ != nullptr) {
+		std::invoke(internal_on_activate_);
+		recheck = true;
+	}
 	if (on_activate_ != nullptr) {
 		std::invoke(on_activate_);
+		recheck = true;
+	}
+	if (recheck) {
 		RecheckState();
 	}
 }
@@ -92,9 +100,11 @@ void ButtonInstance::Toggle() {
 	if (!enabled_) {
 		return;
 	}
-	toggled_ = !toggled_;
-	if (on_toggle_ != nullptr) {
-		std::invoke(on_toggle_);
+	if (toggleable_) {
+		toggled_ = !toggled_;
+		if (on_toggle_ != nullptr) {
+			std::invoke(on_toggle_);
+		}
 	}
 	Activate();
 }
@@ -408,6 +418,10 @@ impl::InternalButtonState Button::GetInternalState() const {
 	return Handle::Get().button_state_;
 }
 
+void Button::SetInternalOnActivate(const ButtonCallback& internal_on_activate) {
+	Handle::Get().internal_on_activate_ = internal_on_activate;
+}
+
 ButtonState Button::GetState() const {
 	auto& i{ Handle::Get() };
 	if (i.button_state_ == impl::InternalButtonState::Hover) {
@@ -417,6 +431,10 @@ ButtonState Button::GetState() const {
 	} else {
 		return ButtonState::Default;
 	}
+}
+
+void ToggleButtonGroup::Draw() const {
+	ForEachValue([](const Button& button) { button.Draw(); });
 }
 
 } // namespace ptgn
