@@ -7,10 +7,12 @@
 #include "math/geometry/axis.h"
 #include "math/geometry/intersection.h"
 #include "math/vector2.h"
+#include "renderer/layer_info.h"
 #include "renderer/origin.h"
 
 namespace ptgn {
 
+struct Color;
 struct Line;
 struct Circle;
 struct Capsule;
@@ -25,9 +27,11 @@ struct Rect {
 	Rect() = default;
 
 	Rect(
-		const V2_float& position, const V2_float& size, Origin origin = Origin::Center,
+		const V2_float& position, const V2_float& size = {}, Origin origin = Origin::Center,
 		float rotation = 0.0f
 	);
+
+	void Draw(const Color& color, float line_width = 1.0f, const LayerInfo& layer_info = {}) const;
 
 	// position += offset
 	void Offset(const V2_float& offset);
@@ -55,6 +59,7 @@ struct Rect {
 	[[nodiscard]] bool Overlaps(const Line& line) const;
 	[[nodiscard]] bool Overlaps(const Circle& circle) const;
 	[[nodiscard]] bool Overlaps(const Rect& rect) const;
+	[[nodiscard]] bool Overlaps(const Capsule& capsule) const;
 
 	[[nodiscard]] Intersection Intersects(const Rect& rect) const;
 	[[nodiscard]] Intersection Intersects(const Circle& circle) const;
@@ -84,6 +89,8 @@ struct Polygon {
 
 	explicit Polygon(const std::vector<V2_float>& vertices);
 
+	void Draw(const Color& color, float line_width = 1.0f, const LayerInfo& layer_info = {}) const;
+
 	// @return Centroid of the polygon.
 	[[nodiscard]] V2_float Center() const;
 
@@ -112,9 +119,12 @@ private:
 struct Triangle {
 	Triangle() = default;
 	Triangle(const V2_float& a, const V2_float& b, const V2_float& c);
+
 	V2_float a;
 	V2_float b;
 	V2_float c;
+
+	void Draw(const Color& color, float line_width = 1.0f, const LayerInfo& layer_info = {}) const;
 };
 
 } // namespace ptgn

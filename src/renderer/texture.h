@@ -7,6 +7,8 @@
 #include "core/manager.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
+#include "renderer/flip.h"
+#include "renderer/layer_info.h"
 #include "renderer/surface.h"
 #include "utility/file.h"
 #include "utility/handle.h"
@@ -14,6 +16,40 @@
 namespace ptgn {
 
 struct Rect;
+
+struct TextureInfo {
+	TextureInfo() = default;
+
+	TextureInfo(
+		const V2_float& source_position, const V2_float& source_size, Flip flip = Flip::None,
+		const Color& tint = color::White, const V2_float& rotation_center = { 0.5f, 0.5f }
+	) :
+		source_position{ source_position },
+		source_size{ source_size },
+		flip{ flip },
+		tint{ tint },
+		rotation_center{ rotation_center } {}
+
+	/*
+	source_position Top left pixel to start drawing texture from within the texture (defaults to {
+	0, 0}).
+	*/
+	V2_float source_position;
+	/*
+	source.size Number of pixels of the texture to draw (defaults to {} which corresponds to the
+	remaining texture size to the bottom right of source_position). source.origin Relative  to
+	destination_position the direction from which the texture is.
+	*/
+	V2_float source_size;
+	// Mirror the texture along an axis (default to Flip::None).
+	Flip flip{ Flip::None };
+	// Color to tint the texture. Allows to change the transparency of a texture. (default:
+	// color::White corresponds to no tint effect ).
+	Color tint{ color::White };
+	// Fraction of the source_size around which the texture is rotated (defaults to{ 0.5f, 0.5f }
+	// which corresponds to the center of the texture).
+	V2_float rotation_center{ 0.5f, 0.5f };
+};
 
 enum class TextureWrapping {
 	ClampEdge	   = 0x812F, // GL_CLAMP_TO_EDGE
@@ -95,6 +131,11 @@ public:
 		TextureFilter magnifying = default_minifying_filter, bool mipmaps = true
 	);
 	Texture(const std::vector<Color>& pixels, const V2_int& size);
+
+	void Draw(
+		const Rect& destination, const TextureInfo& texture_info = {},
+		const LayerInfo& layer_info = {}
+	) const;
 
 	void SetWrapping(TextureWrapping s) const;
 	void SetWrapping(TextureWrapping s, TextureWrapping t) const;

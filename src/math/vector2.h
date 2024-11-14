@@ -15,8 +15,19 @@
 
 namespace ptgn {
 
-template <typename T, tt::arithmetic<T> = true>
+struct Color;
+struct LayerInfo;
+
+namespace impl {
+
+void DrawPoint(float x, float y, const Color& color, float radius, const LayerInfo& layer_info);
+
+} // namespace impl
+
+template <typename T>
 struct Vector2 {
+	static_assert(std::is_arithmetic_v<T>);
+
 	T x{ 0 };
 	T y{ 0 };
 
@@ -43,6 +54,10 @@ struct Vector2 {
 	template <typename U, tt::narrowing<U, T> = true>
 	explicit constexpr Vector2(const Vector2<U>& o) :
 		x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
+
+	void Draw(const Color& color, float radius = 1.0f, const LayerInfo& layer_info = {}) const {
+		impl::DrawPoint(static_cast<float>(x), static_cast<float>(y), color, radius, layer_info);
+	}
 
 	// Access vector elements by index, 0 for x, 1 for y.
 	[[nodiscard]] constexpr T& operator[](std::size_t idx) {

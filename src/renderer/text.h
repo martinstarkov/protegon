@@ -2,18 +2,39 @@
 
 #include <cstdint>
 #include <string>
-#include <string_view>
-#include <variant>
 
 #include "core/manager.h"
+#include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/font.h"
-#include "math/geometry/polygon.h"
+#include "renderer/layer_info.h"
 #include "renderer/texture.h"
-#include "math/vector2.h"
 #include "utility/handle.h"
 
 namespace ptgn {
+
+struct Rect;
+
+struct TextInfo {
+	TextInfo(
+		FontStyle font_style	   = FontStyle::Normal,
+		FontRenderMode render_mode = FontRenderMode::Solid,
+		const Color& shading_color = color::White, std::uint32_t wrap_after_pixels = 0,
+		bool visible = true
+	) :
+		font_style{ font_style },
+		render_mode{ render_mode },
+		shading_color{ shading_color },
+		wrap_after_pixels{ wrap_after_pixels },
+		visible{ visible } {}
+
+	FontStyle font_style{ FontStyle::Normal };
+	FontRenderMode render_mode{ FontRenderMode::Solid };
+	Color shading_color{ color::White };
+	// 0 indicates only wrapping on newline characters.
+	std::uint32_t wrap_after_pixels{ 0 };
+	bool visible{ true };
+};
 
 namespace impl {
 
@@ -48,6 +69,8 @@ public:
 		FontRenderMode render_mode = FontRenderMode::Solid,
 		const Color& shading_color = color::White, std::uint32_t wrap_after_pixels = 0
 	);
+
+	void Draw(const Rect& destination, const LayerInfo& layer_info = {}) const;
 
 	Text& SetFont(const FontOrKey& font);
 	Text& SetContent(const std::string_view& content);

@@ -4,13 +4,20 @@
 #include <utility>
 
 #include "collision/raycast.h"
+#include "core/game.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/polygon.h"
 #include "math/math.h"
 #include "math/utility.h"
 #include "math/vector2.h"
+#include "renderer/color.h"
+#include "renderer/renderer.h"
 
 namespace ptgn {
+
+void Line::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
+	game.draw.Line(a, b, color, line_width, layer_info);
+}
 
 V2_float Line::Direction() const {
 	return b - a;
@@ -41,7 +48,10 @@ bool Line::Overlaps(const V2_float& point) const {
 	}
 
 	// Handle cases where c projects onto ab.
-	return NearlyEqual(ac.Dot(ac) * f, e * e);
+	float ac2{ ac.Dot(ac) };
+	float proj{ ac2 * f };
+	float e2{ e * e };
+	return NearlyEqual(proj, e2);
 }
 
 bool Line::Overlaps(const Line& line) const {
@@ -105,13 +115,43 @@ bool Line::Overlaps(const Rect& rect) const {
 	return rect.Overlaps(*this);
 }
 
+bool Line::Overlaps(const Capsule& capsule) const {
+	// Source:
+	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
+	// Page 114-115.
+	float s{ 0.0f };
+	float t{ 0.0f };
+	V2_float c1, c2;
+	return impl::WithinPerimeter(
+		capsule.radius, impl::ClosestPointLineLine(*this, capsule.line, s, t, c1, c2)
+	);
+}
+
 ptgn::Raycast Line::Raycast(const Line& line) const {
 	// Source:
 	// https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect/565282#565282
 
 	ptgn::Raycast c;
 
-	if (!Overlaps(line)) {
+	V2_float c1;
+	V2_float c2;
+	float s{ 1.0f };
+	float t{ 1.0f };
+	float dist2{ impl::ClosestPointLineLine(*this, line, s, t, c1, c2) };
+
+	if (s < 0.0f || s >= 1.0f || !NearlyEqual(dist2, 0.0f)) {
+		return c;
+	}
+
+	c.t		 = s;
+	c.normal = (-line.Direction()).Skewed().Normalized();
+
+	if ((c1 - b).Dot(c.normal) < 0.0f) {
+		c.normal *= -1.0f;
+	}
+	return c;
+
+	/*if (!Overlaps(line)) {
 		return c;
 	}
 
@@ -151,7 +191,7 @@ ptgn::Raycast Line::Raycast(const Line& line) const {
 
 	c.t		 = t;
 	c.normal = skewed / std::sqrt(mag2);
-	return c;
+	return c;*/
 }
 
 ptgn::Raycast Line::Raycast(const Circle& circle) const {
@@ -342,7 +382,9 @@ ptgn::Raycast Line::Raycast(const Capsule& capsule) const {
 
 	ptgn::Raycast c;
 
-	// TODO: Add early exit if overlap test fails.
+	if (!Overlaps(capsule)) {
+		return c;
+	}
 
 	V2_float cv{ capsule.line.Direction() };
 	float mag2{ cv.Dot(cv) };
@@ -378,13 +420,74 @@ ptgn::Raycast Line::Raycast(const Capsule& capsule) const {
 		col_min = c4;
 	}
 
-	if (NearlyEqual(col_min.t, 1.0f)) {
-		c = {};
+	if (col_min.t < 0.0f || col_min.t >= 1.0f) {
 		return c;
 	}
 
 	c = col_min;
+
+	game.draw.Capsule(capsule.line.a, capsule.line.b, capsule.radius, color::Purple, 1.0f);
+
 	return c;
+}
+
+void Capsule::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
+	game.draw.Capsule(line.a, line.b, radius, color, line_width, layer_info);
+}
+
+bool Capsule::Overlaps(const V2_float& point) const {
+	// Source:
+	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
+	// Page 114.
+	return impl::WithinPerimeter(radius, impl::SquareDistancePointLine(line, point));
+}
+
+bool Capsule::Overlaps(const Line& o_line) const {
+	return o_line.Overlaps(*this);
+}
+
+bool Capsule::Overlaps(const Circle& circle) const {
+	return circle.Overlaps(*this);
+}
+
+bool Capsule::Overlaps(const Rect& rect) const {
+	if (rect.Overlaps(line.a)) {
+		return true;
+	}
+	if (rect.Overlaps(line.b)) {
+		return true;
+	}
+	V2_float min{ rect.Min() };
+	V2_float max{ rect.Max() };
+	Line l1{ min, { max.x, min.y } };
+	if (l1.Overlaps(*this)) {
+		return true;
+	}
+	Line l2{ { max.x, min.y }, max };
+	if (l2.Overlaps(*this)) {
+		return true;
+	}
+	Line l3{ max, { min.x, max.y } };
+	if (l3.Overlaps(*this)) {
+		return true;
+	}
+	Line l4{ { min.x, max.y }, min };
+	if (l4.Overlaps(*this)) {
+		return true;
+	}
+	return false;
+}
+
+bool Capsule::Overlaps(const Capsule& capsule) const {
+	// Source:
+	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
+	// Page 114-115.
+	float s{ 0.0f };
+	float t{ 0.0f };
+	V2_float c1, c2;
+	return impl::WithinPerimeter(
+		radius + capsule.radius, impl::ClosestPointLineLine(line, capsule.line, s, t, c1, c2)
+	);
 }
 
 } // namespace ptgn

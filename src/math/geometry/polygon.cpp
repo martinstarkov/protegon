@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "collision/raycast.h"
+#include "core/game.h"
 #include "math/geometry/axis.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/intersection.h"
@@ -13,13 +14,19 @@
 #include "math/math.h"
 #include "math/utility.h"
 #include "math/vector2.h"
+#include "renderer/color.h"
 #include "renderer/origin.h"
+#include "renderer/renderer.h"
 #include "utility/debug.h"
 
 namespace ptgn {
 
 Rect::Rect(const V2_float& position, const V2_float& size, Origin origin, float rotation) :
 	position{ position }, size{ size }, origin{ origin }, rotation{ rotation } {}
+
+void Rect::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
+	game.draw.Rect(*this, color, line_width, { 0.5f, 0.5f }, layer_info);
+}
 
 void Rect::Offset(const V2_float& offset) {
 	position += offset;
@@ -182,6 +189,11 @@ bool Rect::Overlaps(const Circle& circle) const {
 	return circle.Overlaps(*this);
 }
 
+bool Rect::Overlaps(const Capsule& capsule) const {
+	// TODO: Add rotation check.
+	return capsule.Overlaps(*this);
+}
+
 bool Rect::Overlaps(const Rect& o_rect) const {
 	if (rotation != 0.0f || o_rect.rotation != 0.0f) {
 		Polygon poly_a{ *this };
@@ -292,6 +304,10 @@ Polygon::Polygon(const Rect& rect) {
 }
 
 Polygon::Polygon(const std::vector<V2_float>& vertices) : vertices{ vertices } {}
+
+void Polygon::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
+	game.draw.Polygon(vertices.data(), vertices.size(), color, line_width, layer_info);
+}
 
 V2_float Polygon::Center() const {
 	// Source: https://stackoverflow.com/a/63901131
@@ -489,5 +505,9 @@ Intersection Polygon::Intersects(const Polygon& polygon) const {
 
 Triangle::Triangle(const V2_float& a, const V2_float& b, const V2_float& c) :
 	a{ a }, b{ b }, c{ c } {}
+
+void Triangle::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
+	game.draw.Triangle(a, b, c, color, line_width, layer_info);
+}
 
 } // namespace ptgn

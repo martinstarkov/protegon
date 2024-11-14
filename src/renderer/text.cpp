@@ -2,19 +2,16 @@
 
 #include <cstdint>
 #include <string>
-#include <string_view>
 #include <variant>
 
-#include "core/manager.h"
-#include "renderer/color.h"
-#include "renderer/font.h"
 #include "core/game.h"
 #include "math/geometry/polygon.h"
+#include "math/vector2.h"
+#include "renderer/color.h"
+#include "renderer/font.h"
+#include "renderer/renderer.h"
 #include "renderer/surface.h"
 #include "renderer/texture.h"
-#include "math/vector2.h"
-#include "renderer/flip.h"
-#include "renderer/renderer.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
 
@@ -62,6 +59,10 @@ Text::Text(
 	t.shading_color_	 = shading_color;
 	t.wrap_after_pixels_ = wrap_after_pixels;
 	t.texture_			 = RecreateTexture();
+}
+
+void Text::Draw(const Rect& destination, const LayerInfo& layer_info) const {
+	game.draw.Text(*this, destination, layer_info);
 }
 
 Text& Text::SetFont(const FontOrKey& font) {

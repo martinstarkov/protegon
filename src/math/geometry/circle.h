@@ -3,9 +3,11 @@
 #include "collision/raycast.h"
 #include "math/geometry/intersection.h"
 #include "math/vector2.h"
+#include "renderer/layer_info.h"
 
 namespace ptgn {
 
+struct Color;
 struct Rect;
 struct Line;
 struct Capsule;
@@ -13,6 +15,8 @@ struct Capsule;
 struct Circle {
 	V2_float center;
 	float radius{ 0.0f };
+
+	void Draw(const Color& color, float line_width = 1.0f, const LayerInfo& layer_info = {}) const;
 
 	// center += offset
 	void Offset(const V2_float& offset);
@@ -44,11 +48,18 @@ struct Arc {
 	float start_angle{ 0.0f };
 	// Radians counter-clockwise from the right.
 	float end_angle{ 0.0f };
+
+	void Draw(
+		bool clockwise, const Color& color, float line_width = 1.0f,
+		const LayerInfo& layer_info = {}
+	) const;
 };
 
 struct Ellipse {
 	V2_float center;
 	V2_float radius;
+
+	void Draw(const Color& color, float line_width = 1.0f, const LayerInfo& layer_info = {}) const;
 };
 
 } // namespace ptgn

@@ -7,12 +7,14 @@
 #include <vector>
 
 #include "core/game.h"
+#include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/color.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
+#include "renderer/renderer.h"
 #include "renderer/surface.h"
 #include "utility/debug.h"
 #include "utility/file.h"
@@ -133,6 +135,12 @@ Texture::Texture(const std::vector<Color>& pixels, const V2_int& size) :
 				 return (void*)pixels.data();
 			 }),
 			 size, ImageFormat::RGBA8888 } {}
+
+void Texture::Draw(
+	const Rect& destination, const TextureInfo& texture_info, const LayerInfo& layer_info
+) const {
+	game.draw.Texture(*this, destination, texture_info, layer_info);
+}
 
 void Texture::Bind() const {
 	GLCall(gl::glBindTexture(GL_TEXTURE_2D, Get().id_));
