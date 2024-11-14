@@ -33,32 +33,58 @@ public:
 	ecs::Entity intersect;
 	ecs::Entity overlap;
 	ecs::Entity sweep;
+	ecs::Entity intersect_circle;
+	ecs::Entity overlap_circle;
+	ecs::Entity sweep_circle;
+
+	// Total number.
+	const int move_entities{ 6 };
+	// Current move entity.
+	int move_entity{ 5 };
+	V2_float speed{ 300.0f };
 
 	void Init() override {
 		manager.Clear();
 
-		intersect = manager.CreateEntity();
-		sweep	  = manager.CreateEntity();
-		overlap	  = manager.CreateEntity();
+		intersect		 = manager.CreateEntity();
+		sweep			 = manager.CreateEntity();
+		overlap			 = manager.CreateEntity();
+		intersect_circle = manager.CreateEntity();
+		sweep_circle	 = manager.CreateEntity();
+		overlap_circle	 = manager.CreateEntity();
 
 		intersect.Add<Transform>(V2_float{ 100, 100 });
 		overlap.Add<Transform>(V2_float{ 200, 200 });
 		sweep.Add<Transform>(V2_float{ 300, 300 });
+		intersect_circle.Add<Transform>(V2_float{ 400, 400 });
+		overlap_circle.Add<Transform>(V2_float{ 500, 500 });
+		sweep_circle.Add<Transform>(V2_float{ 300, 600 });
 
 		intersect.Add<RigidBody>();
 		overlap.Add<RigidBody>();
 		sweep.Add<RigidBody>();
+		intersect_circle.Add<RigidBody>();
+		overlap_circle.Add<RigidBody>();
+		sweep_circle.Add<RigidBody>();
 
 		intersect.Add<BoxCollider>(intersect, V2_float{ 30, 30 });
 		overlap.Add<BoxCollider>(overlap, V2_float{ 30, 30 });
 		sweep.Add<BoxCollider>(sweep, V2_float{ 30, 30 });
+		intersect_circle.Add<CircleCollider>(intersect_circle, 30.0f);
+		overlap_circle.Add<CircleCollider>(overlap_circle, 30.0f);
+		sweep_circle.Add<CircleCollider>(sweep_circle, 30.0f);
 
 		auto& b1{ intersect.Get<BoxCollider>() };
 		auto& b2{ overlap.Get<BoxCollider>() };
 		auto& b3{ sweep.Get<BoxCollider>() };
+		auto& c1{ intersect_circle.Get<CircleCollider>() };
+		auto& c2{ overlap_circle.Get<CircleCollider>() };
+		auto& c3{ sweep_circle.Get<CircleCollider>() };
 
 		b2.overlap_only = true;
 		b3.continuous	= true;
+		c2.overlap_only = true;
+		c3.continuous	= true;
 
 		b1.on_collision_start = [](Collision c) {
 			PTGN_LOG(
@@ -116,6 +142,62 @@ public:
 				", normal: ", c.normal
 			);
 		};
+		c1.on_collision_start = [](Collision c) {
+			PTGN_LOG(
+				"#", c.entity1.GetId(), " started intersect collision with #", c.entity2.GetId(),
+				", normal: ", c.normal
+			);
+		};
+		c1.on_collision = [](Collision c) {
+			PTGN_LOG(
+				"#", c.entity1.GetId(), " continued intersect collision with #", c.entity2.GetId(),
+				", normal: ", c.normal
+			);
+		};
+		c1.on_collision_stop = [](Collision c) {
+			PTGN_LOG(
+				"#", c.entity1.GetId(), " stopped intersect collision with #", c.entity2.GetId(),
+				", normal: ", c.normal
+			);
+		};
+
+		c2.on_collision_start = [](Collision c) {
+			PTGN_LOG(
+				"#", c.entity1.GetId(), " started overlap collision with #", c.entity2.GetId(),
+				", normal: ", c.normal
+			);
+		};
+		c2.on_collision = [](Collision c) {
+			PTGN_LOG(
+				"#", c.entity1.GetId(), " continued overlap collision with #", c.entity2.GetId(),
+				", normal: ", c.normal
+			);
+		};
+		c2.on_collision_stop = [](Collision c) {
+			PTGN_LOG(
+				"#", c.entity1.GetId(), " stopped overlap collision with #", c.entity2.GetId(),
+				", normal: ", c.normal
+			);
+		};
+
+		c3.on_collision_start = [](Collision c) {
+			PTGN_LOG(
+				"#", c.entity1.GetId(), " started sweep collision with #", c.entity2.GetId(),
+				", normal: ", c.normal
+			);
+		};
+		c3.on_collision = [](Collision c) {
+			PTGN_LOG(
+				"#", c.entity1.GetId(), " continued sweep collision with #", c.entity2.GetId(),
+				", normal: ", c.normal
+			);
+		};
+		c3.on_collision_stop = [](Collision c) {
+			PTGN_LOG(
+				"#", c.entity1.GetId(), " stopped sweep collision with #", c.entity2.GetId(),
+				", normal: ", c.normal
+			);
+		};
 
 		CreateObstacle(V2_float{ 50, 50 }, V2_float{ 10, 500 }, Origin::TopLeft);
 		CreateObstacle(V2_float{ 600, 200 }, V2_float{ 10, 500 }, Origin::TopLeft);
@@ -130,10 +212,6 @@ public:
 		obstacle.Add<Transform>(pos);
 		obstacle.Add<BoxCollider>(obstacle, size, origin);
 	}
-
-	const int move_entities{ 3 };
-	int move_entity{ 0 };
-	V2_float speed{ 300.0f };
 
 	void Update() override {
 		if (game.input.KeyDown(Key::E)) {
@@ -152,6 +230,12 @@ public:
 			vel = &overlap.Get<RigidBody>().velocity;
 		} else if (move_entity == 2) {
 			vel = &sweep.Get<RigidBody>().velocity;
+		} else if (move_entity == 3) {
+			vel = &intersect_circle.Get<RigidBody>().velocity;
+		} else if (move_entity == 4) {
+			vel = &overlap_circle.Get<RigidBody>().velocity;
+		} else if (move_entity == 5) {
+			vel = &sweep_circle.Get<RigidBody>().velocity;
 		}
 
 		PTGN_ASSERT(vel != nullptr);
@@ -171,6 +255,17 @@ public:
 				game.draw.Text("Overlap", r.Center(), color::Black);
 			} else if (e == sweep) {
 				game.draw.Text("Sweep", r.Center(), color::Black);
+			}
+		}
+		for (auto [e, c] : manager.EntitiesWith<CircleCollider>()) {
+			Circle circ{ c.GetAbsoluteCircle() };
+			DrawCircle(e, circ);
+			if (e == intersect_circle) {
+				game.draw.Text("Intersect", circ.Center(), color::Black);
+			} else if (e == overlap_circle) {
+				game.draw.Text("Overlap", circ.Center(), color::Black);
+			} else if (e == sweep_circle) {
+				game.draw.Text("Sweep", circ.Center(), color::Black);
 			}
 		}
 	}
@@ -194,8 +289,8 @@ public:
 	int options{ 9 };
 	int types{ 3 };
 
-	int option{ 3 };
-	int type{ 1 };
+	int option{ 4 };
+	int type{ 2 };
 
 	const float line_thickness{ 3.0f };
 
@@ -456,7 +551,7 @@ public:
 				}
 			}
 		} else if (type == 2) { // dynamic
-			options = 4;
+			options = 7;
 			Raycast c;
 			if (option == 0) {
 				circle2.center = position4;
@@ -534,6 +629,59 @@ public:
 				}
 				game.draw.Rect(aabb2.position, aabb2.size, acolor2, aabb2.origin, line_thickness);
 				game.draw.Rect(aabb1.position, aabb1.size, acolor1, aabb1.origin, line_thickness);
+			} else if (option == 4) {
+				V2_float pos = position4;
+				V2_float vel{ mouse - pos };
+				Line l{ pos, pos + vel };
+				const float point_radius{ 5.0f };
+				game.draw.Circle(pos + vel, point_radius, color::Gray, line_thickness);
+				game.draw.Line(l.a, l.b, color::Gray);
+				c = l.Raycast(line1);
+				if (c.Occurred()) {
+					V2_float point{ pos + vel * c.t };
+					Line normal{ point, point + 50 * c.normal };
+					game.draw.Line(normal.a, normal.b, color::Orange);
+					game.draw.Circle(point, point_radius, color::Green, line_thickness);
+					acolor1 = color::Red;
+					acolor2 = color::Red;
+				}
+				game.draw.Line(line1.a, line1.b, acolor1, line_thickness);
+			} else if (option == 5) {
+				circle2.center = position4;
+				V2_float vel{ mouse - circle2.center };
+				Circle potential{ circle2.center + vel, circle2.radius };
+				game.draw.Circle(potential.center, potential.radius, color::Gray, line_thickness);
+				Line l{ circle2.center, potential.center };
+				game.draw.Line(l.a, l.b, color::Gray);
+				c = circle2.Raycast(vel, line1);
+				if (c.Occurred()) {
+					Circle swept{ circle2.center + vel * c.t, circle2.radius };
+					Line normal{ swept.center, swept.center + 50 * c.normal };
+					game.draw.Line(normal.a, normal.b, color::Orange);
+					game.draw.Circle(swept.center, swept.radius, color::Green, line_thickness);
+					acolor1 = color::Red;
+					acolor2 = color::Red;
+				}
+				game.draw.Circle(circle2.center, circle2.radius, acolor2, line_thickness);
+				game.draw.Line(line1.a, line1.b, acolor1, line_thickness);
+			} else if (option == 6) {
+				circle2.center = position4;
+				V2_float vel{ mouse - circle2.center };
+				Circle potential{ circle2.center + vel, circle2.radius };
+				game.draw.Circle(potential.center, potential.radius, color::Gray, line_thickness);
+				Line l{ circle2.center, potential.center };
+				game.draw.Line(l.a, l.b, color::Gray);
+				c = circle2.Raycast(vel, line1);
+				if (c.Occurred()) {
+					Circle swept{ circle2.center + vel * c.t, circle2.radius };
+					Line normal{ swept.center, swept.center + 50 * c.normal };
+					game.draw.Line(normal.a, normal.b, color::Orange);
+					game.draw.Circle(swept.center, swept.radius, color::Green, line_thickness);
+					acolor1 = color::Red;
+					acolor2 = color::Red;
+				}
+				game.draw.Circle(circle2.center, circle2.radius, acolor2, line_thickness);
+				game.draw.Line(line1.a, line1.b, acolor1, line_thickness);
 			}
 
 			/*
@@ -885,18 +1033,30 @@ struct SweepTest : public Test {
 
 	V2_float size;
 
+	// For circles, radius is set to s.x. Don't laugh.
 	ecs::Entity AddCollisionObject(
-		const V2_float& p, const V2_float& s = {}, const V2_float& v = {}
+		const V2_float& p, const V2_float& s = {}, const V2_float& v = {},
+		Origin o = Origin::Center, bool is_circle = false
 	) {
 		ecs::Entity entity = manager.CreateEntity();
 		auto& t			   = entity.Add<Transform>();
 		t.position		   = p;
 
-		auto& box = entity.Add<BoxCollider>(entity);
-		if (s.IsZero()) {
-			box.size = size;
+		if (!is_circle) {
+			auto& box = entity.Add<BoxCollider>(entity);
+			if (s.IsZero()) {
+				box.size = size;
+			} else {
+				box.size = s;
+			}
+			box.origin = o;
 		} else {
-			box.size = s;
+			auto& circle = entity.Add<CircleCollider>(entity);
+			if (s.IsZero()) {
+				circle.radius = size.x;
+			} else {
+				circle.radius = s.x;
+			}
 		}
 
 		if (!v.IsZero()) {
@@ -909,24 +1069,32 @@ struct SweepTest : public Test {
 	SweepTest(
 		const V2_float& player_vel, const V2_float& player_size = { 50, 50 },
 		const V2_float& player_pos = { 0, 0 }, const V2_float& obstacle_size = { 50, 50 },
-		const V2_float& fixed_velocity = {}
+		const V2_float& fixed_velocity = {}, Origin origin = Origin::Center,
+		bool player_is_circle = false
 	) :
 		player_velocity{ player_vel },
 		size{ obstacle_size },
 		fixed_velocity{ fixed_velocity },
 		player_start_pos{ player_pos } {
-		player = AddCollisionObject(player_pos, player_size, player_vel);
+		player = AddCollisionObject(player_pos, player_size, player_vel, origin, player_is_circle);
 	}
 
 	void Init() override {
 		PTGN_ASSERT(player.Has<Transform>());
 		auto& t	   = player.Get<Transform>();
 		t.position = player_start_pos;
-		auto& box  = player.Get<BoxCollider>();
 
-		box.response	 = CollisionResponse::Slide;
-		box.overlap_only = false;
-		box.continuous	 = true;
+		if (player.Has<BoxCollider>()) {
+			auto& box		 = player.Get<BoxCollider>();
+			box.response	 = CollisionResponse::Slide;
+			box.overlap_only = false;
+			box.continuous	 = true;
+		} else if (player.Has<CircleCollider>()) {
+			auto& circle		= player.Get<CircleCollider>();
+			circle.response		= CollisionResponse::Slide;
+			circle.overlap_only = false;
+			circle.continuous	= true;
+		}
 
 		manager.Refresh();
 	}
@@ -934,18 +1102,33 @@ struct SweepTest : public Test {
 	void Update() override {
 		auto& rb		= player.Get<RigidBody>();
 		auto& transform = player.Get<Transform>();
-		auto& box		= player.Get<BoxCollider>();
 
 		for (auto [e, p, b] : manager.EntitiesWith<Transform, BoxCollider>()) {
 			if (e == player) {
-				game.draw.Rect(p.position, b.size, color::Green, Origin::Center, 1.0f);
+				game.draw.Rect(p.position, b.size, color::Green, b.origin, 1.0f);
 			} else {
-				game.draw.Rect(p.position, b.size, color::Blue, Origin::Center, 1.0f);
+				game.draw.Rect(p.position, b.size, color::Blue, b.origin, 1.0f);
 			}
 		}
-		game.draw.Rect(
-			transform.position + rb.velocity * dt, box.size, color::DarkGreen, Origin::Center, 1.0f
-		);
+		for (auto [e, p, c] : manager.EntitiesWith<Transform, CircleCollider>()) {
+			if (e == player) {
+				game.draw.Circle(p.position, c.radius, color::Green, 1.0f);
+			} else {
+				game.draw.Circle(p.position, c.radius, color::Blue, 1.0f);
+			}
+		}
+
+		if (player.Has<BoxCollider>()) {
+			auto& box = player.Get<BoxCollider>();
+			game.draw.Rect(
+				transform.position + rb.velocity * dt, box.size, color::DarkGreen, box.origin, 1.0f
+			);
+		} else if (player.Has<CircleCollider>()) {
+			auto& circle = player.Get<CircleCollider>();
+			game.draw.Circle(
+				transform.position + rb.velocity * dt, circle.radius, color::DarkGreen, 1.0f
+			);
+		}
 
 		if (!fixed_velocity.IsZero() && !game.input.KeyPressed(Key::A) &&
 			!game.input.KeyPressed(Key::D) && !game.input.KeyPressed(Key::S) &&
@@ -968,7 +1151,14 @@ struct SweepTest : public Test {
 			rb.velocity.y = player_velocity.y;
 		}
 
-		game.collision.Sweep(player, box, manager.EntitiesWith<BoxCollider>(), true);
+		auto boxes	 = manager.EntitiesWith<BoxCollider>();
+		auto circles = manager.EntitiesWith<CircleCollider>();
+
+		if (player.Has<BoxCollider>()) {
+			game.collision.Sweep(player, player.Get<BoxCollider>(), boxes, circles, true);
+		} else if (player.Has<CircleCollider>()) {
+			game.collision.Sweep(player, player.Get<CircleCollider>(), boxes, circles, true);
+		}
 
 		if (game.input.KeyDown(Key::SPACE)) {
 			transform.position += rb.velocity * dt;
@@ -988,25 +1178,6 @@ struct SweepTest : public Test {
 			}
 			return true;
 		};
-
-		for (auto [e, p, b] : manager.EntitiesWith<Transform, BoxCollider>()) {
-			if (e == player) {
-				continue;
-			} else {
-				if (edge_exclusive_overlap(
-						{ player.Get<Transform>().position, player.Get<BoxCollider>().size,
-						  player.Get<BoxCollider>().origin },
-						{ p.position, b.size, b.origin }
-					)) {
-					// PTGN_LOG("Dynamic sweep collision resolution failed");
-				}
-			}
-		}
-
-		/*PTGN_ASSERT(transform.position.x >= 0.0f);
-		PTGN_ASSERT(transform.position.y >= 0.0f);
-		PTGN_ASSERT(transform.position.x <= game.window.GetSize().x);
-		PTGN_ASSERT(transform.position.y <= game.window.GetSize().y);*/
 
 		if (game.input.KeyPressed(Key::R)) {
 			transform.position = {};
@@ -1121,6 +1292,24 @@ struct RectCollisionTest4 : public SweepTest {
 	}
 };
 
+struct CircleRectCollisionTest1 : public SweepTest {
+	CircleRectCollisionTest1() :
+		SweepTest{ { 10000.0f, 10000.0f },
+				   { 30.0f, 30.0f },
+				   { 563.608337f, 623.264038f },
+				   { 50.0f, 50.0f },
+				   { 0.00000000f, 10000.0f },
+				   Origin::Center,
+				   true } {
+		AddCollisionObject(V2_float{ 50, 650 }, V2_float{ 500, 10 }, {}, Origin::TopLeft);
+	}
+
+	void Init() override {
+		game.camera.GetPrimary().CenterOnArea({ 800, 800 });
+		SweepTest::Init();
+	}
+};
+
 struct DynamicRectCollisionTest : public Test {
 	ecs::Manager manager;
 
@@ -1187,9 +1376,13 @@ struct DynamicRectCollisionTest : public Test {
 			PTGN_ASSERT(id < entity_data.size());
 			rb.velocity = entity_data[id].velocity;
 		}
+
+		auto boxes	 = manager.EntitiesWith<BoxCollider>();
+		auto circles = manager.EntitiesWith<CircleCollider>();
+
 		for (auto [e, t, b, rb, id, nv] :
 			 manager.EntitiesWith<Transform, BoxCollider, RigidBody, Id, NextVel>()) {
-			game.collision.Sweep(e, b, manager.EntitiesWith<BoxCollider>(), true);
+			game.collision.Sweep(e, b, boxes, circles, true);
 		}
 
 		for (auto [e, t, b, rb, id, nv] :
@@ -1301,6 +1494,7 @@ void TestCollisions() {
 	V2_float velocity{ 100000.0f };
 	float speed{ 7000.0f };
 
+	tests.emplace_back(new CircleRectCollisionTest1());
 	tests.emplace_back(new CollisionCallbackTest());
 	tests.emplace_back(new CollisionTest());
 	tests.emplace_back(new RectCollisionTest4());

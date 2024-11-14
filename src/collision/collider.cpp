@@ -2,11 +2,13 @@
 
 #include <functional>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "components/sprite.h"
 #include "components/transform.h"
 #include "ecs/ecs.h"
+#include "math/geometry/circle.h"
 #include "math/geometry/polygon.h"
 #include "math/math.h"
 #include "math/vector2.h"
@@ -34,8 +36,8 @@ bool Collider::CanCollideWith(const Collider& c) const {
 	}
 	PTGN_ASSERT(parent != ecs::Entity{});
 	std::vector<ecs::Entity> excluded{ parent };
-	if (parent.Has<ColliderGroup>()) {
-		excluded = ConcatenateVectors(excluded, parent.Get<ColliderGroup>().GetAll());
+	if (parent.Has<BoxColliderGroup>()) {
+		excluded = ConcatenateVectors(excluded, parent.Get<BoxColliderGroup>().GetAll());
 	}
 	if (VectorContains(excluded, c.parent)) {
 		return false;
@@ -119,11 +121,11 @@ void Collider::ResetCollisions() {
 	collisions.clear();
 }
 
-Rect BoxCollider::GetAbsoluteRect() const {
+Rect Collider::GetAbsolute(Rect relative_rect) const {
 	PTGN_ASSERT(parent.IsAlive());
 	PTGN_ASSERT(parent.Has<Transform>());
 
-	Transform transform = parent.Get<Transform>();
+	Transform transform{ parent.Get<Transform>() };
 
 	// If parent has an animation, use coordinate relative to top left.
 	if (parent.Has<Animation>()) {
@@ -137,11 +139,10 @@ Rect BoxCollider::GetAbsoluteRect() const {
 		transform.position = source.Min();
 	}
 
-	Rect rect	   = GetRelativeRect();
-	rect.position += transform.position;
-	rect.rotation += transform.rotation;
-	rect.size	  *= V2_float{ FastAbs(transform.scale.x), FastAbs(transform.scale.y) };
-	return rect;
+	relative_rect.position += transform.position;
+	relative_rect.rotation += transform.rotation;
+	relative_rect.size	   *= V2_float{ FastAbs(transform.scale.x), FastAbs(transform.scale.y) };
+	return relative_rect;
 }
 
 BoxCollider::BoxCollider(ecs::Entity parent, const V2_float& size, Origin origin, float rotation) :
@@ -153,7 +154,11 @@ Rect BoxCollider::GetRelativeRect() const {
 	return { offset, size, origin, rotation };
 }
 
-ColliderGroup::ColliderGroup(ecs::Entity parent, const ecs::Manager& group) :
+Rect BoxCollider::GetAbsoluteRect() const {
+	return Collider::GetAbsolute(GetRelativeRect());
+}
+
+BoxColliderGroup::BoxColliderGroup(ecs::Entity parent, const ecs::Manager& group) :
 	parent{ parent }, group{ group } {}
 
 // @param offset Relative position of the box collider.
@@ -161,7 +166,7 @@ ColliderGroup::ColliderGroup(ecs::Entity parent, const ecs::Manager& group) :
 // @param size Relative size of the box collider.
 // @param origin Origin of the box collider relative to its local position.
 // @param enabled Enable/disable collider by default.
-ecs::Entity ColliderGroup::AddBox(
+ecs::Entity BoxColliderGroup::AddBox(
 	const Name& name, const V2_float& position, float rotation, const V2_float& size, Origin origin,
 	bool enabled, CollisionCategory category, const CollidesWithCategories& categories,
 	const CollisionCallback& on_collision_start, const CollisionCallback& on_collision,
@@ -169,8 +174,8 @@ ecs::Entity ColliderGroup::AddBox(
 	const std::function<bool(ecs::Entity, ecs::Entity)>& before_collision, bool overlap_only,
 	bool continuous
 ) {
-	auto entity = group.CreateEntity();
-	auto& box	= entity.Add<BoxCollider>(parent, size, origin, rotation);
+	auto entity{ group.CreateEntity() };
+	auto& box{ entity.Add<BoxCollider>(parent, size, origin, rotation) };
 	box.offset	= position;
 	box.enabled = enabled;
 	box.SetCollisionCategory(category);
@@ -186,21 +191,35 @@ ecs::Entity ColliderGroup::AddBox(
 	return entity;
 }
 
-const BoxCollider& ColliderGroup::GetBox(const Name& name) const {
+const BoxCollider& BoxColliderGroup::GetBox(const Name& name) const {
 	auto e = Get(name);
 	PTGN_ASSERT(e.Has<BoxCollider>());
 	return e.Get<BoxCollider>();
 }
 
 // @return All child colliders (parent not included).
-std::vector<ecs::Entity> ColliderGroup::GetAll() const {
+std::vector<ecs::Entity> BoxColliderGroup::GetAll() const {
 	return GetValues(names);
 }
 
-ecs::Entity ColliderGroup::Get(const Name& name) const {
-	auto it = names.find(name);
+ecs::Entity BoxColliderGroup::Get(const Name& name) const {
+	auto it{ names.find(name) };
 	PTGN_ASSERT(it != names.end(), "Failed to retrieve entity with given name");
 	return it->second;
+}
+
+CircleCollider::CircleCollider(ecs::Entity parent, float radius) : radius{ radius } {
+	this->parent = parent;
+}
+
+Circle CircleCollider::GetRelativeCircle() const {
+	return Circle{ offset, radius };
+}
+
+Circle CircleCollider::GetAbsoluteCircle() const {
+	auto rect{ Collider::GetAbsolute(Rect{
+		offset, { 2.0f * radius, 2.0f * radius }, Origin::Center, 0.0f }) };
+	return Circle{ rect.Center(), radius };
 }
 
 } // namespace ptgn

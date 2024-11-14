@@ -14,20 +14,26 @@ struct Circle {
 	V2_float center;
 	float radius{ 0.0f };
 
+	// center += offset
+	void Offset(const V2_float& offset);
+
+	[[nodiscard]] V2_float Center() const;
+
 	[[nodiscard]] bool Overlaps(const V2_float& point) const;
 	[[nodiscard]] bool Overlaps(const Line& line) const;
 	[[nodiscard]] bool Overlaps(const Circle& circle) const;
 	[[nodiscard]] bool Overlaps(const Rect& rect) const;
+	[[nodiscard]] bool Overlaps(const Capsule& capsule) const;
 
 	[[nodiscard]] Intersection Intersects(const Circle& circle) const;
 	[[nodiscard]] Intersection Intersects(const Rect& rect) const;
 
+	[[nodiscard]] ptgn::Raycast Raycast(const V2_float& ray, const Line& line) const;
 	[[nodiscard]] ptgn::Raycast Raycast(const V2_float& ray, const Circle& circle) const;
 	[[nodiscard]] ptgn::Raycast Raycast(const V2_float& ray, const Capsule& capsule) const;
 	[[nodiscard]] ptgn::Raycast Raycast(const V2_float& ray, const Rect& rect) const;
 
 private:
-	[[nodiscard]] static bool WithinPerimeter(float radius, float dist2);
 };
 
 struct Arc {

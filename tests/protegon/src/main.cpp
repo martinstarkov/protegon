@@ -44,13 +44,13 @@ public:
 
 		// Visual tests.
 
+		TestCollisions();
+		TestRenderer();
 		TestParticles();
 		TestUI();
 		TestPlatforming();
 		TestScenes();
-		TestCollisions();
 		TestLighting();
-		TestRenderer();
 		TestCamera();
 		TestRNG();
 		TestAnimations();

@@ -140,9 +140,10 @@ void PlatformerMovement::RunWithAcceleration(
 }
 
 void PlatformerJump::Ground(Collision c, CollisionCategory ground_category) {
-	// TODO: Add circle collider option.
-	PTGN_ASSERT(c.entity2.Has<BoxCollider>());
-	if (c.entity2.Get<BoxCollider>().IsCategory(ground_category)) {
+	PTGN_ASSERT((c.entity2.HasAny<BoxCollider, CircleCollider>()));
+	if (c.entity2.Has<BoxCollider>() && c.entity2.Get<BoxCollider>().IsCategory(ground_category) ||
+		c.entity2.Has<CircleCollider>() &&
+			c.entity2.Get<CircleCollider>().IsCategory(ground_category)) {
 		if (c.entity1.Has<PlatformerMovement>() && c.normal == V2_float{ 0.0f, -1.0f }) {
 			c.entity1.Get<PlatformerMovement>().grounded = true;
 		}

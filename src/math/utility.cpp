@@ -1,11 +1,14 @@
 #pragma once
 
+#include "utility.h"
+
 #include <cmath>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
 #include "geometry/axis.h"
+#include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
 #include "math/math.h"
 #include "math/vector2.h"
@@ -14,6 +17,101 @@
 namespace ptgn {
 
 namespace impl {
+
+bool WithinPerimeter(float radius, float dist2) {
+	float rad2{ radius * radius };
+
+	if (dist2 < rad2) {
+		return true;
+	}
+
+	// Optional: Include perimeter:
+	/*if (NearlyEqual(dist2, rad2)) {
+		return true;
+	}*/
+
+	return false;
+}
+
+float ClosestPointLineLine(
+	const Line& line1, const Line& line2, float& s, float& t, V2_float& c1, V2_float& c2
+) {
+	V2_float d1 = line1.Direction(); // Direction vector of segment S1
+	V2_float d2 = line2.Direction(); // Direction vector of segment S2
+	V2_float r	= line1.a - line2.a;
+	float a		= d1.Dot(d1);		 // Squared length of segment S1, always nonnegative
+	float e		= d2.Dot(d2);		 // Squared length of segment S2, always nonnegative
+	float f		= d2.Dot(r);
+	// Checke if one or both segments degenerate into points.
+	if (a <= epsilon<float> && e <= epsilon<float>) {
+		// Both segments degenerate into points
+		s = t = 0.0f;
+		c1	  = line1.a;
+		c2	  = line2.a;
+		return (c1 - c2).Dot(c1 - c2);
+	}
+	if (a <= epsilon<float>) {
+		// First segment degenerates into a point
+		s = 0.0f;
+		t = f / e; // s = 0 => t = (b*s + f) / e = f / e
+		t = std::clamp(t, 0.0f, 1.0f);
+	} else {
+		float c = d1.Dot(r);
+		if (e <= epsilon<float>) {
+			// Second segment degenerates into a point
+			t = 0.0f;
+			s = std::clamp(-c / a, 0.0f, 1.0f); // t = 0 => s = (b*t - c) / a = -c / a
+		} else {
+			// The general nondegenerate case starts here
+			float b		= d1.Dot(d2);
+			float denom = a * e - b * b; // Always nonnegative
+			// If segments not parallel, compute closest point on L1 to L2 and
+			// clamp to segment S1. Else pick arbitrary s (here 0)
+			if (denom != 0.0f) {
+				s = std::clamp((b * f - c * e) / denom, 0.0f, 1.0f);
+			} else {
+				s = 0.0f;
+			}
+
+			// Compute point on L2 closest to S1(s) using
+			// t = Dot((P1 + D1*s) - P2,D2) / Dot(D2,D2) = (b*s + f) / e
+			float tnom = b * s + f;
+
+			if (tnom < 0.0f) {
+				t = 0.0f;
+				s = std::clamp(-c / a, 0.0f, 1.0f);
+			} else if (tnom > e) {
+				t = 1.0f;
+				s = std::clamp((b - c) / a, 0.0f, 1.0f);
+			} else {
+				t = tnom / e;
+			}
+		}
+	}
+	c1 = line1.a + d1 * s;
+	c2 = line2.a + d2 * t;
+	return (c1 - c2).Dot(c1 - c2);
+}
+
+float SquareDistancePointLine(const Line& line, const V2_float& c) {
+	// Source:
+	// https://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
+	// Page 130.
+	V2_float ab = line.b - line.a;
+	V2_float ac = c - line.a;
+	V2_float bc = c - line.b;
+	float e		= ac.Dot(ab);
+	// Handle cases where c projects outside ab
+	if (e <= 0.0f) {
+		return ac.Dot(ac);
+	}
+	float f = ab.Dot(ab);
+	if (e >= f) {
+		return bc.Dot(bc);
+	}
+	// Handle cases where c projects onto ab
+	return ac.Dot(ac) - e * e / f;
+}
 
 float SquareDistancePointRect(const V2_float& a, const Rect& b) {
 	float dist2{ 0.0f };

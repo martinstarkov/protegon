@@ -20,6 +20,7 @@ struct Line {
 	[[nodiscard]] bool Overlaps(const Line& line) const;
 	[[nodiscard]] bool Overlaps(const Circle& circle) const;
 	[[nodiscard]] bool Overlaps(const Rect& rect) const;
+	[[nodiscard]] bool Overlaps(const Capsule& capsule) const;
 
 	[[nodiscard]] ptgn::Raycast Raycast(const Line& line) const;
 	[[nodiscard]] ptgn::Raycast Raycast(const Circle& circle) const;
@@ -30,6 +31,11 @@ struct Line {
 struct Capsule {
 	Line line;
 	float radius{ 0.0f };
+
+	[[nodiscard]] bool Overlaps(const V2_float& point) const;
+	[[nodiscard]] bool Overlaps(const Line& line) const;
+	[[nodiscard]] bool Overlaps(const Circle& circle) const;
+	[[nodiscard]] bool Overlaps(const Capsule& capsule) const;
 };
 
 } // namespace ptgn

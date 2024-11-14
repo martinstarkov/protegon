@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "ecs/ecs.h"
+#include "math/geometry/circle.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/origin.h"
@@ -116,6 +117,12 @@ struct Collider {
 
 	void InvokeCollisionCallbacks();
 
+protected:
+	// @return Rect in absolute coordinates (relative to its parent entity's transform). If the
+	// parent entity has a Animation or Sprite component, this will be relative to the top left of
+	// that (plus the the transform as before).
+	[[nodiscard]] Rect GetAbsolute(Rect relative_rect) const;
+
 private:
 	friend class impl::CollisionHandler;
 
@@ -151,6 +158,18 @@ struct BoxCollider : public Collider {
 };
 
 struct CircleCollider : public Collider {
+	CircleCollider() = delete;
+
+	CircleCollider(ecs::Entity parent, float radius = 0.0f);
+
+	// @return Circle in relative coordinates.
+	[[nodiscard]] Circle GetRelativeCircle() const;
+
+	// @return Circle in absolute coordinates (relative to its parent entity's transform). If the
+	// parent entity has a Animation or Sprite component, this will be relative to the top left of
+	// that (plus the the transform as before).
+	[[nodiscard]] Circle GetAbsoluteCircle() const;
+
 	float radius{ 0.0f };
 };
 
@@ -160,7 +179,7 @@ struct CircleCollider : public Collider {
 
 // TODO: Add edge collider.
 
-struct ColliderGroup {
+struct BoxColliderGroup {
 	using Name = std::string;
 
 	ecs::Entity parent;
@@ -169,7 +188,7 @@ struct ColliderGroup {
 
 	std::unordered_map<Name, ecs::Entity> names;
 
-	explicit ColliderGroup(ecs::Entity parent, const ecs::Manager& group);
+	explicit BoxColliderGroup(ecs::Entity parent, const ecs::Manager& group);
 
 	// @param offset Relative position of the box collider.
 	// @param rotation Relative rotation of the box collider.
