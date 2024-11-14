@@ -29,6 +29,9 @@ struct Rect {
 		float rotation = 0.0f
 	);
 
+	// position += offset
+	void Offset(const V2_float& offset);
+
 	// @return Half the size of the rectangle.
 	[[nodiscard]] V2_float Half() const;
 

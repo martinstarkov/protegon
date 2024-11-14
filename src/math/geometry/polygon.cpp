@@ -21,6 +21,10 @@ namespace ptgn {
 Rect::Rect(const V2_float& position, const V2_float& size, Origin origin, float rotation) :
 	position{ position }, size{ size }, origin{ origin }, rotation{ rotation } {}
 
+void Rect::Offset(const V2_float& offset) {
+	position += offset;
+}
+
 V2_float Rect::Half() const {
 	return size * 0.5f;
 }
