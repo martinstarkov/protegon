@@ -221,9 +221,9 @@ struct TestNoise : public Test {
 					*/
 				}
 
+				Color color = color::Black;
+				Rect r{ p * pixel_size, pixel_size, Origin::TopLeft };
 				if (thresholding) {
-					Color color = color::Black;
-
 					float opacity_range = 1.0f / static_cast<float>(divisions);
 
 					auto range = static_cast<int>(noise_value / opacity_range);
@@ -231,18 +231,15 @@ struct TestNoise : public Test {
 					color.a = static_cast<std::uint8_t>(
 						255.0f * static_cast<float>(range) * opacity_range
 					);
-
-					game.draw.Rect(p * pixel_size, pixel_size, color, Origin::TopLeft);
 				} else {
-					Color color	  = color::Black;
 					float opacity = noise_value * 255.0f;
 					color.a		  = static_cast<std::uint8_t>(opacity);
-					game.draw.Rect(p * pixel_size, pixel_size, color, Origin::TopLeft);
 				}
+				r.Draw(color, -1.0f);
 			}
 		}
 
-		game.draw.Rect({}, { 30.0f, 30.0f }, color::Red, Origin::TopLeft);
+		game.draw.Rect({ {}, { 30.0f, 30.0f }, Origin::TopLeft }, color::Red);
 	}
 };
 

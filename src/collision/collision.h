@@ -15,7 +15,6 @@
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
 #include "renderer/color.h"
-#include "renderer/origin.h"
 #include "utility/debug.h"
 
 namespace ptgn::impl {
@@ -66,14 +65,12 @@ public:
 		if (debug_draw) {
 			DrawVelocity(transform.position, velocity * earliest.t, color::Blue);
 			if constexpr (std::is_same_v<T, BoxCollider>) {
-				DrawRect(
-					transform.position + velocity * earliest.t, collider.size, color::Purple,
-					collider.origin, 1.0f
-				);
+				Rect rect{ transform.position + velocity * earliest.t, collider.size,
+						   collider.origin };
+				rect.Draw(color::Purple);
 			} else if constexpr (std::is_same_v<T, CircleCollider>) {
-				DrawCircle(
-					transform.position + velocity * earliest.t, collider.radius, color::Purple, 1.0f
-				);
+				Circle circle{ transform.position + velocity * earliest.t, collider.radius };
+				circle.Draw(color::Purple);
 			}
 		}
 
@@ -120,15 +117,6 @@ private:
 	friend class Game;
 
 	static void DrawVelocity(const V2_float& start, const V2_float& vel, const Color& color);
-
-	static void DrawRect(
-		const V2_float& pos, const V2_float& size, const Color& color, Origin origin,
-		float line_thickness
-	);
-
-	static void DrawCircle(
-		const V2_float& pos, float radius, const Color& color, float line_thickness
-	);
 
 	struct SweepCollision {
 		SweepCollision() = default;
@@ -298,8 +286,9 @@ private:
 		ecs::Entity e{ collider.GetParent(entity) };
 
 		Sweep(e, collider, boxes, circles);
-		Overlap(e, collider, boxes, circles);
-		Intersect(e, collider, boxes, circles);
+		// TODO: Readd.
+		// Overlap(e, collider, boxes, circles);
+		// Intersect(e, collider, boxes, circles);
 
 		for (const auto& prev : collider.prev_collisions) {
 			PTGN_ASSERT(e == prev.entity1);

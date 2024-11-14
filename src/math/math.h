@@ -180,7 +180,7 @@ template <typename T>
 // relative tolerance test fails when x and y become small.
 template <typename T>
 [[nodiscard]] bool
-NearlyEqual(T a, T b, T abs_tol = static_cast<T>(0.00005), T rel_tol = T{ 10 } * epsilon<T>) {
+NearlyEqual(T a, T b, T abs_tol = static_cast<T>(0.0001), T rel_tol = T{ 10 } * epsilon<T>) {
 	if constexpr (std::is_floating_point_v<T>) {
 		// TODO: Fix this.
 		bool a_inf{ std::isinf(a) };

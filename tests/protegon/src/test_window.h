@@ -135,9 +135,9 @@ class WindowSettingTest : public Test {
 	};
 
 	void Draw() final {
-		game.draw.Rect({}, game.window.GetSize(), { 0, 0, 255, 10 }, Origin::TopLeft);
-		game.draw.Rect({}, og_window_size, { 255, 0, 0, 40 }, Origin::TopLeft);
-		game.draw.Rect({}, og_window_size, { 0, 255, 0, 40 }, Origin::TopLeft, 10.0f);
+		game.draw.Rect({ {}, game.window.GetSize(), Origin::TopLeft }, { 0, 0, 255, 10 });
+		game.draw.Rect({ {}, og_window_size, Origin::TopLeft }, { 255, 0, 0, 40 });
+		game.draw.Rect({ {}, og_window_size, Origin::TopLeft }, { 0, 255, 0, 40 }, 10.0f);
 
 		Color color_0 = color::Green;
 		Color color_1 = color::Blue;
@@ -182,19 +182,14 @@ class WindowSettingTest : public Test {
 
 		V2_float offset;
 		for (const auto& t : texts) {
-			game.draw.Text(t, { text_offset.x, text_offset.y - offset.y }, Origin::BottomLeft);
+			t.Draw({ { text_offset.x, text_offset.y - offset.y }, {}, Origin::BottomLeft });
 			offset += t.GetSize();
 		}
+		rect_0.Draw(color_0, -1.0f, { 0.0f, 0 });
+		rect_1.Draw(color_1, -1.0f, { 0.0f, 1 });
 
-		game.draw.Rect(
-			rect_0.position, rect_0.size, color_0, rect_0.origin, -1.0f, 0.0f, {}, 0.0f, 0
-		);
-		game.draw.Rect(
-			rect_1.position, rect_1.size, color_1, rect_1.origin, -1.0f, 0.0f, {}, 0.0f, 1
-		);
-
-		game.draw.Point(game.input.GetMousePosition(0), { 128, 128, 0, 128 }, 4.0f, 0.0f, 0);
-		game.draw.Point(game.input.GetMousePosition(1), { 128, 0, 128, 128 }, 4.0f, 0.0f, 1);
+		game.draw.Point(game.input.GetMousePosition(0), { 128, 128, 0, 128 }, 4.0f, { 0.0f, 0 });
+		game.draw.Point(game.input.GetMousePosition(1), { 128, 0, 128, 128 }, 4.0f, { 0.0f, 1 });
 	}
 };
 

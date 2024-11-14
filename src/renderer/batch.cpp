@@ -483,7 +483,7 @@ void RendererData::AddQuad(
 
 void RendererData::AddCircle(
 	const std::array<V2_float, 4>& vertices, float z_index, const V4_float& color, float line_width,
-	float fade, std::size_t render_layer
+	std::size_t render_layer, float fade
 ) {
 	auto& batch_group = GetBatchGroup(GetRenderLayer(render_layer).batch_map, color.w, z_index);
 	GetBatch(BatchType::Circle, batch_group).circle_.Get() =
@@ -610,8 +610,8 @@ void RendererData::Texture(
 }
 
 void RendererData::Ellipse(
-	const V2_float& p, const V2_float& r, const V4_float& col, float lw, float z, float fade,
-	std::size_t render_layer
+	const V2_float& p, const V2_float& r, const V4_float& col, float lw, float z,
+	std::size_t render_layer, float fade
 ) {
 	PTGN_ASSERT(lw >= 0.0f || lw == -1.0f, "Cannot draw negative line width");
 
@@ -622,7 +622,7 @@ void RendererData::Ellipse(
 	// TODO: Check that dividing by std::max(radius.x, radius.y) does not cause any unexpected bugs.
 	lw = NearlyEqual(lw, -1.0f) ? 1.0f : fade + lw / std::min(r.x, r.y);
 
-	AddCircle(rect.GetVertices({ 0.5f, 0.5f }), z, col, lw, fade, render_layer);
+	AddCircle(rect.GetVertices({ 0.5f, 0.5f }), z, col, lw, render_layer, fade);
 }
 
 void RendererData::Line(
@@ -643,12 +643,12 @@ void RendererData::Line(
 }
 
 void RendererData::Point(
-	const V2_float& p, const V4_float& col, float r, float z, std::size_t render_layer
+	const V2_float& p, const V4_float& col, float r, float z, std::size_t render_layer, float fade
 ) {
 	if (r < 1.0f || NearlyEqual(r, 1.0f)) {
 		AddPoint(p, z, col, render_layer);
 	} else {
-		RendererData::Ellipse(p, { r, r }, col, -1.0f, z, 0.005f, render_layer);
+		RendererData::Ellipse(p, { r, r }, col, -1.0f, z, render_layer, fade);
 	}
 }
 
@@ -691,7 +691,7 @@ void RendererData::Rect(
 
 void RendererData::RoundedRect(
 	const V2_float& p, const V2_float& s, float rad, const V4_float& col, Origin o, float lw,
-	float rotation_radians, const V2_float& rc, float z, std::size_t render_layer
+	float rotation_radians, const V2_float& rc, float z, std::size_t render_layer, float fade
 ) {
 	PTGN_ASSERT(
 		2.0f * rad < s.x, "Cannot draw rounded rectangle with larger radius than half its width"
@@ -723,17 +723,19 @@ void RendererData::RoundedRect(
 
 	RendererData::Arc(
 		inner_vertices[0], rad, rot - pi<float>, rot - half_pi<float>, false, col, lw, z,
-		render_layer
+		render_layer, fade
 	);
 	RendererData::Arc(
-		inner_vertices[1], rad, rot - half_pi<float>, rot + 0.0f, false, col, lw, z, render_layer
+		inner_vertices[1], rad, rot - half_pi<float>, rot + 0.0f, false, col, lw, z, render_layer,
+		fade
 	);
 	RendererData::Arc(
-		inner_vertices[2], rad, rot + 0.0f, rot + half_pi<float>, false, col, lw, z, render_layer
+		inner_vertices[2], rad, rot + 0.0f, rot + half_pi<float>, false, col, lw, z, render_layer,
+		fade
 	);
 	RendererData::Arc(
 		inner_vertices[3], rad, rot + half_pi<float>, rot + pi<float>, false, col, lw, z,
-		render_layer
+		render_layer, fade
 	);
 
 	float line_thickness{ lw };
@@ -759,7 +761,7 @@ void RendererData::RoundedRect(
 
 void RendererData::Arc(
 	const V2_float& p, float arc_radius, float start_angle_radians, float end_angle_radians,
-	bool clockwise, const V4_float& col, float lw, float z, std::size_t render_layer
+	bool clockwise, const V4_float& col, float lw, float z, std::size_t render_layer, float fade
 ) {
 	PTGN_ASSERT(arc_radius >= 0.0f, "Cannot draw filled arc with negative radius");
 
@@ -768,7 +770,7 @@ void RendererData::Arc(
 
 	// Edge case where arc is a point.
 	if (NearlyEqual(arc_radius, 0.0f)) {
-		RendererData::Point(p, col, 1.0f, z, render_layer);
+		RendererData::Point(p, col, 1.0f, z, render_layer, fade);
 		return;
 	}
 
@@ -779,7 +781,7 @@ void RendererData::Arc(
 	// Edge case where start and end angles match (considered a full rotation).
 	if (float range{ start_angle - end_angle };
 		NearlyEqual(range, 0.0f) || NearlyEqual(range, two_pi<float>)) {
-		RendererData::Ellipse(p, { arc_radius, arc_radius }, col, lw, z, 0.005f, render_layer);
+		RendererData::Ellipse(p, { arc_radius, arc_radius }, col, lw, z, render_layer, fade);
 	}
 
 	if (start_angle > end_angle) {
@@ -825,13 +827,13 @@ void RendererData::Arc(
 			}
 		}
 	} else {
-		RendererData::Point(p, col, 1.0f, z, render_layer);
+		RendererData::Point(p, col, 1.0f, z, render_layer, fade);
 	}
 }
 
 void RendererData::Capsule(
 	const V2_float& p0, const V2_float& p1, float r, const V4_float& col, float lw, float z,
-	float fade, std::size_t render_layer
+	std::size_t render_layer, float fade
 ) {
 	V2_float dir{ p1 - p0 };
 	const float angle_radians{ dir.Angle() + half_pi<float> };
@@ -841,7 +843,7 @@ void RendererData::Capsule(
 
 	// Note that dir2 is an int.
 	if (NearlyEqual(dir2, 0.0f)) {
-		RendererData::Ellipse(p0, { r, r }, col, lw, z, fade, render_layer);
+		RendererData::Ellipse(p0, { r, r }, col, lw, z, render_layer, fade);
 		return;
 	} else {
 		V2_float tmp = dir.Skewed() / std::sqrt(dir2) * r;
@@ -866,8 +868,12 @@ void RendererData::Capsule(
 	}
 
 	// Draw edge arcs.
-	RendererData::Arc(p0, r, start_angle, end_angle + pi<float>, false, col, lw, z, render_layer);
-	RendererData::Arc(p1, r, start_angle + pi<float>, end_angle, false, col, lw, z, render_layer);
+	RendererData::Arc(
+		p0, r, start_angle, end_angle + pi<float>, false, col, lw, z, render_layer, fade
+	);
+	RendererData::Arc(
+		p1, r, start_angle + pi<float>, end_angle, false, col, lw, z, render_layer, fade
+	);
 }
 
 void RendererData::Polygon(

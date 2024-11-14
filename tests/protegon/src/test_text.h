@@ -89,10 +89,9 @@ struct TestTextStyles : public Test {
 		V2_float size{ ws.x, ysize };
 
 		for (std::size_t i = 0; i < texts.size(); ++i) {
-			game.draw.Text(
-				texts[i], { 0.0f, ystride * static_cast<float>(i) }, Origin::TopLeft,
-				i == 1 ? V2_float{ text_size } : size
-			);
+			texts[i].Draw({ { 0.0f, ystride * static_cast<float>(i) },
+							i == 1 ? V2_float{ text_size } : size,
+							Origin::TopLeft });
 		}
 
 		if (game.input.KeyDown(Key::T)) {

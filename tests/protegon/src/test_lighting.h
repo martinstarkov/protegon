@@ -39,8 +39,8 @@ struct TestMouseLight : public Test {
 	}
 
 	void Draw() override {
-		game.draw.Rect({ 100, 100 }, { 100, 100 }, color::Red, Origin::TopLeft);
-		game.draw.Texture(test, game.window.GetSize() / 2, test.GetSize());
+		game.draw.Rect({ { 100, 100 }, { 100, 100 }, Origin::TopLeft }, color::Red);
+		game.draw.Texture(test, { game.window.GetSize() / 2, test.GetSize() });
 
 		game.light.Draw();
 	}
@@ -99,8 +99,8 @@ struct TestRotatingLights : public Test {
 	}
 
 	void Draw() override {
-		game.draw.Rect({ 100, 100 }, { 100, 100 }, color::Blue, Origin::TopLeft);
-		game.draw.Texture(test, game.window.GetSize() / 2, test.GetSize());
+		game.draw.Rect({ { 100, 100 }, { 100, 100 }, Origin::TopLeft }, color::Blue);
+		game.draw.Texture(test, { game.window.GetSize() / 2, test.GetSize() });
 
 		game.light.Draw();
 	}

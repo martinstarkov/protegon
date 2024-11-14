@@ -250,28 +250,199 @@ public:
 			Rect r{ b.GetAbsoluteRect() };
 			DrawRect(e, r);
 			if (e == intersect) {
-				game.draw.Text("Intersect", r.Center(), color::Black);
+				game.draw.Text("Intersect", color::Black, Rect{ r.Center() });
 			} else if (e == overlap) {
-				game.draw.Text("Overlap", r.Center(), color::Black);
+				game.draw.Text("Overlap", color::Black, Rect{ r.Center() });
 			} else if (e == sweep) {
-				game.draw.Text("Sweep", r.Center(), color::Black);
+				game.draw.Text("Sweep", color::Black, Rect{ r.Center() });
 			}
 		}
 		for (auto [e, c] : manager.EntitiesWith<CircleCollider>()) {
 			Circle circ{ c.GetAbsoluteCircle() };
 			DrawCircle(e, circ);
 			if (e == intersect_circle) {
-				game.draw.Text("Intersect", circ.Center(), color::Black);
+				game.draw.Text("Intersect", color::Black, Rect{ circ.Center() });
 			} else if (e == overlap_circle) {
-				game.draw.Text("Overlap", circ.Center(), color::Black);
+				game.draw.Text("Overlap", color::Black, Rect{ circ.Center() });
 			} else if (e == sweep_circle) {
-				game.draw.Text("Sweep", circ.Center(), color::Black);
+				game.draw.Text("Sweep", color::Black, Rect{ circ.Center() });
 			}
 		}
 	}
 };
 
-class CollisionTest : public Test {
+class ShapeCollisionTest : public Test {
+public:
+	V2_float p0{ 10, 10 };
+	V2_float p1{ 20, 20 };
+
+	Line l1{ { 3, 3 }, { 3, 10 } };
+	Line l2{ { 3, 3 }, { 10, 3 } };
+	Line l3{ { 3, 3 }, { 10, 10 } };
+
+	Circle c1{ { 15, 9 }, 7 };
+	Rect r1{ { 15, 40 }, { 20, 15 } };
+
+	Capsule ca1{ { 15, 30 }, { 15, 50 }, 7 };
+	Capsule ca2{ { 15, 30 }, { 50, 15 }, 7 };
+	Capsule ca3{ { 15, 30 }, { 50, 50 }, 7 };
+
+	void Init() override {
+		game.camera.GetPrimary().CenterOnArea({ 100.0f, 100.0f });
+	}
+
+	void Update() override {
+		if (game.input.MouseDown(Mouse::Left)) {
+			p0 = game.input.GetMousePosition();
+		}
+		if (game.input.MouseDown(Mouse::Right)) {
+			p1 = game.input.GetMousePosition();
+		}
+	}
+};
+
+class PointOverlapTest : public ShapeCollisionTest {
+public:
+	void Update() override {
+		p1 = game.input.GetMousePosition();
+
+		V2_float c0{ p1 };
+		c0.Draw(color::Green);
+
+		const auto overlap = [](auto s1, auto s2) {
+			if (s2.Overlaps(s1)) {
+				s1.Draw(color::Red);
+				s2.Draw(color::Red);
+			} else {
+				s2.Draw(color::Green);
+			}
+		};
+
+		overlap(c0, l1);
+		overlap(c0, l2);
+		overlap(c0, l3);
+		overlap(c0, c1);
+		overlap(c0, r1);
+		overlap(c0, ca1);
+		overlap(c0, ca2);
+		overlap(c0, ca3);
+	}
+};
+
+class LineOverlapTest : public ShapeCollisionTest {
+public:
+	void Update() override {
+		ShapeCollisionTest::Update();
+
+		Line c0{ p0, p1 };
+		c0.Draw(color::Green);
+
+		const auto overlap = [](auto s1, auto s2) {
+			if (s1.Overlaps(s2)) {
+				s1.Draw(color::Red);
+				s2.Draw(color::Red);
+			} else {
+				s2.Draw(color::Green);
+			}
+		};
+
+		overlap(c0, l1);
+		overlap(c0, l2);
+		overlap(c0, l3);
+		overlap(c0, c1);
+		overlap(c0, r1);
+		overlap(c0, ca1);
+		overlap(c0, ca2);
+		overlap(c0, ca3);
+	}
+};
+
+class CircleOverlapTest : public ShapeCollisionTest {
+public:
+	void Update() override {
+		p1 = game.input.GetMousePosition();
+
+		Circle c0{ p1, 10.0f };
+		c0.Draw(color::Green);
+
+		const auto overlap = [](auto s1, auto s2) {
+			if (s1.Overlaps(s2)) {
+				s1.Draw(color::Red);
+				s2.Draw(color::Red);
+			} else {
+				s2.Draw(color::Green);
+			}
+		};
+
+		overlap(c0, l1);
+		overlap(c0, l2);
+		overlap(c0, l3);
+		overlap(c0, c1);
+		overlap(c0, r1);
+		overlap(c0, ca1);
+		overlap(c0, ca2);
+		overlap(c0, ca3);
+	}
+};
+
+class RectOverlapTest : public ShapeCollisionTest {
+public:
+	void Update() override {
+		p1 = game.input.GetMousePosition();
+
+		Rect c0{ p1, { 20, 20 }, Origin::Center, 0.0f };
+		c0.Draw(color::Green);
+
+		const auto overlap = [](auto s1, auto s2) {
+			if (s1.Overlaps(s2)) {
+				s1.Draw(color::Red);
+				s2.Draw(color::Red);
+			} else {
+				s2.Draw(color::Green);
+			}
+		};
+
+		overlap(c0, l1);
+		overlap(c0, l2);
+		overlap(c0, l3);
+		overlap(c0, c1);
+		overlap(c0, r1);
+		overlap(c0, ca1);
+		overlap(c0, ca2);
+		overlap(c0, ca3);
+	}
+};
+
+class CapsuleOverlapTest : public ShapeCollisionTest {
+public:
+	void Update() override {
+		ShapeCollisionTest::Update();
+
+		Capsule c0{ p0, p1, 10.0f };
+		c0.Draw(color::Green);
+
+		const auto overlap = [](auto s1, auto s2) {
+			if (s1.Overlaps(s2)) {
+				s1.Draw(color::Red);
+				s2.Draw(color::Red);
+			} else {
+				s2.Draw(color::Green);
+			}
+		};
+
+		overlap(c0, l1);
+		overlap(c0, l2);
+		overlap(c0, l3);
+		overlap(c0, c1);
+		overlap(c0, r1);
+		overlap(c0, ca1);
+		overlap(c0, ca2);
+		overlap(c0, ca3);
+	}
+};
+
+/*
+class CollisionTest2 : public Test {
 public:
 	V2_float position1{ 200, 200 };
 	V2_float position3{ 300, 300 };
@@ -351,12 +522,6 @@ public:
 		if (type == 0) { // overlap
 			options = 10;
 			if (option == 0) {
-				if (line1.Overlaps(position2)) {
-					acolor1 = color::Red;
-					acolor2 = color::Red;
-				}
-				game.draw.Line(line1.a, line1.b, acolor1);
-				game.draw.Point(position2, acolor2);
 			} else if (option == 1) {
 				if (circle1.Overlaps(position2)) {
 					acolor1 = color::Red;
@@ -533,21 +698,6 @@ public:
 					);
 					Line l{ aabb2.Center(), new_aabb.Center() };
 					game.draw.Line(l.a, l.b, color::Gold);
-					/*
-					if (game.collision.overlap.RectRect(new_aabb, aabb1, rot_2, rot_1)) {
-						occurred = game.collision.intersect.RectRect(
-							new_aabb, aabb1, c, rot_2, rot_1
-						);
-						bool overlap{
-							game.collision.overlap.RectRect(new_aabb, aabb1, rot_2, rot_1)
-						};
-						if (overlap) {
-							PrintLine("Slop insufficient, overlap reoccurs");
-						}
-						if (occurred) {
-							PrintLine("Slop insufficient, intersect reoccurs");
-						}
-					}*/
 				}
 			}
 		} else if (type == 2) { // dynamic
@@ -683,97 +833,11 @@ public:
 				game.draw.Circle(circle2.center, circle2.radius, acolor2, line_thickness);
 				game.draw.Line(line1.a, line1.b, acolor1, line_thickness);
 			}
-
-			/*
-			if (option == 0) {
-			  // circle2.center = circle1.center;
-			  int occurred{game.collision.dynamic.LineCircle(line2, circle1, c)};
-			  if (occurred) {
-				acolor1 = color::Red;
-				acolor2 = color::Red;
-			  }
-			  game.draw.Line(l.a, l.bine2, acolor2);
-			  game.draw.Circle(circle2.center, circle2.radius, acolor2, line_thickness);
-			  game.draw.Circle(circle1.center, circle1.radius, acolor1, line_thickness);
-			  if (occurred) {
-				Circle new_circle{circle2.center + line2.Direction() * c.t,
-										 circle2.radius};
-				game.draw.Circle(new_circle.center, new_circle.radius,
-											   acolor2, line_thickness);
-			  }
-			}
-			if (option == 0) {
-			  // circle2.center = circle1.center;
-			  bool occurred{game.collision.dynamic.CircleCircle(circle2, circle1, c)};
-			  if (occurred) {
-				acolor1 = color::Red;
-				acolor2 = color::Red;
-			  }
-			  game.draw.Circle(circle2.center, circle2.radius, acolor2, line_thickness);
-			  game.draw.Circle(circle1.center, circle1.radius, acolor1, line_thickness);
-			  if (occurred) {
-				Circle new_circle{circle2.center + c.normal * (c.depth + slop),
-										 circle2.radius};
-				game.draw.Circle(new_circle.center, new_circle.radius,
-											   color2, line_thickness);
-				Line l{circle2.center, new_circle.center};
-				game.draw.Line(l.a, l.b, color::Gold);
-				if (game.collision.overlap.CircleCircle(new_circle.center, new_circle.radius,
-			circle1)) { occurred = game.collision.intersect.CircleCircle(new_circle.center,
-			new_circle.radius, circle1, c); bool
-			overlap{game.collision.overlap.CircleCircle(new_circle.center, new_circle.radius,
-			circle1)}; if (overlap) PrintLine("Slop insufficient, overlap reoccurs"); if (occurred)
-			PrintLine("Slop insufficient, intersect reoccurs");
-				}
-			  }
-			} else if (option == 1) {
-			  // circle2.center = aabb1.position;
-			  // circle2.center = aabb1.Center();
-			  bool occurred{game.collision.intersect.CircleRect(circle2, aabb1, c)};
-			  if (occurred) {
-				acolor1 = color::Red;
-				acolor2 = color::Red;
-			  }
-			  game.draw.Rect(aabb1.position, aabb1.size, acolor1, aabb1.origin,
-			line_thickness); game.draw.Circle(circle2.center, circle2.radius, acolor2,
-			line_thickness); if (occurred) { Circle new_circle{circle2.center + c.normal * (c.depth
-			+ slop), circle2.radius}; game.draw.Circle(new_circle.center, new_circle.radius,
-											   color2);
-				Line l{circle2.center, new_circle.center};
-				game.draw.Line(l.a, l.b, color::Gold);
-				if (game.collision.overlap.CircleRect(new_circle, aabb1)) {
-				  occurred = game.collision.intersect.CircleRect(new_circle, aabb1, c);
-				  bool overlap{game.collision.overlap.CircleRect(new_circle, aabb1)};
-				  if (overlap) PrintLine("Slop insufficient, overlap reoccurs");
-				  if (occurred) PrintLine("Slop insufficient, intersect reoccurs");
-				}
-			  }
-			} else if (option == 2) {
-			  aabb2.position = mouse - aabb2.Half();
-			  // aabb2.position = aabb1.Center() - aabb2.Half();
-			  bool occurred{game.collision.intersect.RectRect(aabb2, aabb1, c)};
-			  if (occurred) {
-				acolor1 = color::Red;
-				acolor2 = color::Red;
-			  }
-			  game.draw.Rect(aabb2.position, aabb2.size, acolor2, aabb2.origin,
-			line_thickness); game.draw.Rect(aabb1.position, aabb1.size, acolor1, aabb1.origin,
-			line_thickness); if (occurred) { Rect new_aabb{aabb2.position + c.normal * (c.depth +
-			slop), aabb2.size, Origin::TopLeft}; game.draw.Rect(new_aabb.position,
-			new_aabb.size, color2, new_aabb.origin, line_thickness); Line l{aabb2.Center(),
-			new_aabb.Center()}; game.draw.Line(l.a, l.b, color::Gold); if
-			(game.collision.overlap.RectRect(new_aabb, aabb1)) { occurred =
-			game.collision.intersect.RectRect(new_aabb, aabb1, c); bool
-			overlap{game.collision.overlap.RectRect(new_aabb, aabb1)}; if (overlap)
-			PrintLine("Slop insufficient, overlap reoccurs"); if (occurred) PrintLine("Slop
-			insufficient, intersect reoccurs");
-				}
-			  }
-			}*/
 		}
 		option = option % options;
 	}
 };
+*/
 
 struct SegmentRectOverlapTest : public Test {
 	void Init() override {
@@ -794,7 +858,7 @@ struct SegmentRectOverlapTest : public Test {
 	}
 
 	void Update() override {
-		game.draw.Rect(aabb.position, aabb.size, color::Cyan, aabb.origin, 1.0f);
+		aabb.Draw(color::Cyan);
 
 		// Lines which are inside the rectangle.
 
@@ -870,7 +934,7 @@ struct SegmentRectDynamicTest : public Test {
 	}
 
 	void Update() {
-		game.draw.Rect(aabb.position, aabb.size, color::Cyan, aabb.origin, 1.0f);
+		aabb.Draw(color::Cyan);
 
 		// Lines which are inside the rectangle.
 
@@ -936,26 +1000,26 @@ struct RectRectDynamicTest : public Test {
 
 	void RectSweep(V2_float p1, V2_float p2, Color color, bool debug_flag = false) {
 		target.position = p1;
-		game.draw.Rect(target.position, target.size, color::Gray, target.origin, 1.0f);
+		target.Draw(color::Gray);
 		game.draw.Line(p1, p2, color::Gray);
 		V2_float vel = p2 - p1;
 		auto c{ target.Raycast(vel, aabb) };
 		if (c.Occurred()) {
 			Rect new_rect	  = target;
 			new_rect.position = p1 + c.t * vel;
-			game.draw.Rect(new_rect.position, new_rect.size, color, new_rect.origin, 1.0f);
+			new_rect.Draw(color);
 			if (new_rect.Overlaps(aabb)) {
 				PTGN_LOG("still overlapping");
 			}
 		} else {
 			Rect new_rect	  = target;
 			new_rect.position = p1 + vel;
-			game.draw.Rect(new_rect.position, new_rect.size, color::Gray, new_rect.origin, 1.0f);
+			new_rect.Draw(color::Gray);
 		}
 	}
 
 	void Update() override {
-		game.draw.Rect(aabb.position, aabb.size, color::Cyan, aabb.origin, 1.0f);
+		aabb.Draw(color::Cyan);
 
 		// Rects which are inside the rectangle.
 
@@ -1105,23 +1169,23 @@ struct SweepTest : public Test {
 
 		for (auto [e, p, b] : manager.EntitiesWith<Transform, BoxCollider>()) {
 			if (e == player) {
-				game.draw.Rect(p.position, b.size, color::Green, b.origin, 1.0f);
+				game.draw.Rect({ p.position, b.size, b.origin }, color::Green);
 			} else {
-				game.draw.Rect(p.position, b.size, color::Blue, b.origin, 1.0f);
+				game.draw.Rect({ p.position, b.size, b.origin }, color::Blue);
 			}
 		}
 		for (auto [e, p, c] : manager.EntitiesWith<Transform, CircleCollider>()) {
 			if (e == player) {
-				game.draw.Circle(p.position, c.radius, color::Green, 1.0f);
+				game.draw.Circle(p.position, c.radius, color::Green);
 			} else {
-				game.draw.Circle(p.position, c.radius, color::Blue, 1.0f);
+				game.draw.Circle(p.position, c.radius, color::Blue);
 			}
 		}
 
 		if (player.Has<BoxCollider>()) {
 			auto& box = player.Get<BoxCollider>();
 			game.draw.Rect(
-				transform.position + rb.velocity * dt, box.size, color::DarkGreen, box.origin, 1.0f
+				{ transform.position + rb.velocity * dt, box.size, box.origin }, color::DarkGreen
 			);
 		} else if (player.Has<CircleCollider>()) {
 			auto& circle = player.Get<CircleCollider>();
@@ -1410,7 +1474,7 @@ struct DynamicRectCollisionTest : public Test {
 
 	void Draw() override {
 		for (auto [e, t, b] : manager.EntitiesWith<Transform, BoxCollider>()) {
-			game.draw.Rect(t.position + b.offset, b.size, color::Green, b.origin, 1.0f);
+			game.draw.Rect({ t.position + b.offset, b.size, b.origin }, color::Green);
 		}
 	}
 };
@@ -1494,9 +1558,14 @@ void TestCollisions() {
 	V2_float velocity{ 100000.0f };
 	float speed{ 7000.0f };
 
+	tests.emplace_back(new PointOverlapTest());
+	tests.emplace_back(new LineOverlapTest());
+	tests.emplace_back(new CircleOverlapTest());
+	tests.emplace_back(new RectOverlapTest());
+	tests.emplace_back(new CapsuleOverlapTest());
 	tests.emplace_back(new CircleRectCollisionTest1());
 	tests.emplace_back(new CollisionCallbackTest());
-	tests.emplace_back(new CollisionTest());
+	// tests.emplace_back(new CollisionTest2());
 	tests.emplace_back(new RectCollisionTest4());
 	tests.emplace_back(new RectCollisionTest3());
 	tests.emplace_back(new HeadOnDynamicRectTest1(speed));

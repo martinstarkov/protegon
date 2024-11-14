@@ -89,7 +89,7 @@ void RenderTexture::DrawAndUnbind(bool force_draw) const {
 		opacity_shader.Bind();
 		float normalized_opacity{ i.opacity_ / 255.0f };
 		opacity_shader.SetUniform("u_Opacity", normalized_opacity);
-		game.draw.Shader(opacity_shader, GetTexture(), {}, {}, Origin::TopLeft, i.blend_mode_);
+		game.draw.Shader(opacity_shader, GetTexture(), {}, i.blend_mode_);
 	}
 	game.draw.FlushImpl(i.camera_.GetViewProjection());
 }

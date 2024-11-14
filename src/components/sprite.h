@@ -12,11 +12,13 @@
 #include "core/manager.h"
 #include "ecs/ecs.h"
 #include "math/geometry/circle.h"
+#include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/flip.h"
+#include "renderer/layer_info.h"
 #include "renderer/origin.h"
 #include "renderer/renderer.h"
 #include "renderer/texture.h"
@@ -42,30 +44,36 @@ struct DrawColor : public Color {
 
 using DrawLineWidth = float;
 
-using ZIndex = float;
-
-using RenderLayer = std::size_t;
-
 using SpriteFlip = Flip;
 
-using SpriteZ = float;
-
 inline void DrawRect(ecs::Entity entity, const Rect& rect) {
-	game.draw.Rect(
-		rect.position, rect.size, entity.Has<DrawColor>() ? entity.Get<DrawColor>() : color::Black,
-		rect.origin, entity.Has<DrawLineWidth>() ? entity.Get<DrawLineWidth>() : 1.0f,
-		rect.rotation, V2_float{ 0.5f, 0.5f }, entity.Has<ZIndex>() ? entity.Get<ZIndex>() : 0.0f,
-		entity.Has<RenderLayer>() ? entity.Get<RenderLayer>() : 0
+	rect.Draw(
+		entity.Has<DrawColor>() ? entity.Get<DrawColor>() : color::Black,
+		entity.Has<DrawLineWidth>() ? entity.Get<DrawLineWidth>() : 1.0f,
+		entity.Has<LayerInfo>() ? entity.Get<LayerInfo>() : LayerInfo{}
+	);
+}
+
+inline void DrawPoint(ecs::Entity entity, const V2_float& point, float radius = 1.0f) {
+	point.Draw(
+		entity.Has<DrawColor>() ? entity.Get<DrawColor>() : color::Black, radius,
+		entity.Has<LayerInfo>() ? entity.Get<LayerInfo>() : LayerInfo{}
 	);
 }
 
 inline void DrawCircle(ecs::Entity entity, const Circle& circle) {
-	game.draw.Circle(
-		circle.center, circle.radius,
+	circle.Draw(
 		entity.Has<DrawColor>() ? entity.Get<DrawColor>() : color::Black,
 		entity.Has<DrawLineWidth>() ? entity.Get<DrawLineWidth>() : 1.0f,
-		entity.Has<ZIndex>() ? entity.Get<ZIndex>() : 0.0f,
-		entity.Has<RenderLayer>() ? entity.Get<RenderLayer>() : 0
+		entity.Has<LayerInfo>() ? entity.Get<LayerInfo>() : LayerInfo{}
+	);
+}
+
+inline void DrawLine(ecs::Entity entity, const Line& line) {
+	line.Draw(
+		entity.Has<DrawColor>() ? entity.Get<DrawColor>() : color::Black,
+		entity.Has<DrawLineWidth>() ? entity.Get<DrawLineWidth>() : 1.0f,
+		entity.Has<LayerInfo>() ? entity.Get<LayerInfo>() : LayerInfo{}
 	);
 }
 
@@ -74,12 +82,14 @@ inline void DrawTexture(
 	const V2_float& draw_offset = {}, const Rect& source = {}
 ) {
 	game.draw.Texture(
-		texture, transform.position + draw_offset, source.size * transform.scale,
-		{ source.position, source.size, source.origin,
-		  entity.Has<SpriteFlip>() ? entity.Get<SpriteFlip>() : Flip::None, transform.rotation,
-		  V2_float{ 0.5f, 0.5f }, entity.Has<SpriteZ>() ? entity.Get<SpriteZ>() : 0.0f,
+		texture,
+		{ transform.position + draw_offset, source.size * transform.scale, source.origin,
+		  transform.rotation },
+		{ source.position, source.size,
+		  entity.Has<SpriteFlip>() ? entity.Get<SpriteFlip>() : Flip::None,
 		  entity.Has<SpriteTint>() ? entity.Get<SpriteTint>() : color::White,
-		  entity.Has<RenderLayer>() ? entity.Get<RenderLayer>() : 0 }
+		  V2_float{ 0.5f, 0.5f } },
+		entity.Has<LayerInfo>() ? entity.Get<LayerInfo>() : LayerInfo{}
 	);
 }
 

@@ -216,10 +216,11 @@ public:
 
 	void DrawStateLabels(const Button& b) {
 		game.draw.Text(
-			Str(b.GetState()), b.GetRect().Center() - V2_float{ 0.0f, 50.0f }, color::Green
+			Str(b.GetState()), color::Green, { b.GetRect().Center() - V2_float{ 0.0f, 50.0f } }
 		);
 		game.draw.Text(
-			Str(b.GetInternalState()), b.GetRect().Center() + V2_float{ 0.0f, 50.0f }, color::Orange
+			Str(b.GetInternalState()), color::Orange,
+			{ b.GetRect().Center() + V2_float{ 0.0f, 50.0f } }
 		);
 	}
 

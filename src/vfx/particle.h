@@ -115,7 +115,6 @@ public:
 		// TOOD: Add blend mode
 		if (info.texture_enabled) {
 			TextureInfo i;
-			i.source.origin = Origin::Center;
 			PTGN_ASSERT(info.texture.IsValid());
 			for (const auto& [e, p] : manager_.EntitiesWith<Particle>()) {
 				if (info.tint_texture) {
@@ -124,7 +123,8 @@ public:
 					i.tint = color::White;
 				}
 				game.draw.Texture(
-					info.texture, p.position, { 2.0f * p.radius, 2.0f * p.radius }, i
+					info.texture,
+					{ p.position, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center }, i
 				);
 			}
 			return;
@@ -140,8 +140,8 @@ public:
 				for (const auto& [e, p] : manager_.EntitiesWith<Particle>()) {
 					// TODO: Add rect rotation.
 					game.draw.Rect(
-						p.position, { 2.0f * p.radius, 2.0f * p.radius }, p.color, Origin::Center,
-						info.line_thickness
+						{ p.position, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center },
+						p.color, info.line_thickness
 					);
 				}
 				break;

@@ -8,14 +8,11 @@
 #include "collision/raycast.h"
 #include "core/game.h"
 #include "ecs/ecs.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/polygon.h"
+#include "math/geometry/line.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
 #include "renderer/color.h"
-#include "renderer/origin.h"
-#include "renderer/renderer.h"
 #include "utility/debug.h"
 #include "utility/log.h"
 
@@ -121,20 +118,8 @@ void CollisionHandler::Update(ecs::Manager& manager) const {
 void CollisionHandler::DrawVelocity(
 	const V2_float& start, const V2_float& vel, const Color& color
 ) {
-	game.draw.Line(start, start + vel, color);
-}
-
-void CollisionHandler::DrawRect(
-	const V2_float& pos, const V2_float& size, const Color& color, Origin origin,
-	float line_thickness
-) {
-	game.draw.Rect(pos, size, color, origin, line_thickness);
-}
-
-void CollisionHandler::DrawCircle(
-	const V2_float& pos, float radius, const Color& color, float line_thickness
-) {
-	game.draw.Circle(pos, radius, color, line_thickness);
+	Line l{ start, start + vel };
+	l.Draw(color);
 }
 
 } // namespace ptgn::impl

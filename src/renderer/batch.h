@@ -13,7 +13,6 @@
 #include "renderer/color.h"
 #include "renderer/flip.h"
 #include "renderer/origin.h"
-#include "renderer/render_texture.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "renderer/vertex_array.h"
@@ -200,7 +199,7 @@ public:
 	);
 	void AddCircle(
 		const std::array<V2_float, 4>& vertices, float z_index, const V4_float& color,
-		float line_width, float fade, std::size_t render_layer
+		float line_width, std::size_t render_layer, float fade
 	);
 	void AddTriangle(
 		const V2_float& a, const V2_float& b, const V2_float& c, float z_index,
@@ -243,7 +242,7 @@ public:
 
 	void Point(
 		const V2_float& position, const V4_float& color, float radius, float z_index,
-		std::size_t render_layer
+		std::size_t render_layer, float fade
 	);
 
 	void Line(
@@ -269,26 +268,26 @@ public:
 	void RoundedRect(
 		const V2_float& position, const V2_float& size, float radius, const V4_float& color,
 		Origin origin, float line_width, float rotation_radians, const V2_float& rotation_center,
-		float z_index, std::size_t render_layer
+		float z_index, std::size_t render_layer, float fade
 	);
 
 	// TODO: Fix ellipse line width being uneven between x and y axes (currently it chooses the
 	// smaller radius axis as the relative radius).
 	void Ellipse(
 		const V2_float& position, const V2_float& radius, const V4_float& color, float line_width,
-		float z_index, float fade, std::size_t render_layer
+		float z_index, std::size_t render_layer, float fade
 	);
 
 	void Arc(
 		const V2_float& position, float arc_radius, float start_angle, float end_angle,
 		bool clockwise, const V4_float& color, float line_width, float z_index,
-		std::size_t render_layer
+		std::size_t render_layer, float fade
 	);
 
 	// TODO: Fix artefacts in capsule line width at larger radii.
 	void Capsule(
 		const V2_float& p0, const V2_float& p1, float radius, const V4_float& color,
-		float line_width, float z_index, float fade, std::size_t render_layer
+		float line_width, float z_index, std::size_t render_layer, float fade
 	);
 
 	RenderLayer& GetRenderLayer(std::size_t render_layer);

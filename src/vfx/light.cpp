@@ -50,7 +50,7 @@ void Light::Draw(const Texture& texture) const {
 	shader.SetUniform("u_LightPos", GetPosition());
 	shader.SetUniform("u_LightColor", GetShaderColor());
 	shader.SetUniform("u_LightIntensity", GetIntensity());
-	game.draw.Shader(shader, texture, {}, {}, Origin::Center, BlendMode::Add);
+	game.draw.Shader(shader, texture, {}, BlendMode::Add);
 	game.draw.Flush();
 }
 

@@ -66,7 +66,7 @@ struct TestCameraSwitching : public Test {
 	}
 
 	void Draw() override {
-		game.draw.Rect(center, ws * 0.5f, color::DarkGreen);
+		game.draw.Rect({ center, ws * 0.5f }, color::DarkGreen);
 	}
 };
 
@@ -138,15 +138,15 @@ struct TestCameraControls : public Test {
 	}
 
 	void Draw() override {
-		game.draw.Texture(texture, center, texture.GetSize());
-		TextureInfo ui_info;
-		ui_info.source.origin = Origin::TopLeft;
-		ui_info.render_layer  = 1;
-		game.draw.Texture(ui_texture, { 0, 0 }, ui_texture.GetSize(), ui_info);
-		TextureInfo ui_info2;
-		ui_info2.source.origin = Origin::Center;
-		ui_info2.render_layer  = 2;
-		game.draw.Texture(ui_texture, { 0, 0 }, 3 * ui_texture.GetSize(), ui_info2);
+		game.draw.Texture(texture, { center, texture.GetSize() });
+		LayerInfo l1;
+		l1.render_layer = 1;
+		game.draw.Texture(ui_texture, { { 0, 0 }, ui_texture.GetSize(), Origin::TopLeft }, {}, l1);
+		LayerInfo l2;
+		l2.render_layer = 2;
+		game.draw.Texture(
+			ui_texture, { { 0, 0 }, 3 * ui_texture.GetSize(), Origin::Center }, {}, l2
+		);
 	}
 };
 
@@ -167,7 +167,7 @@ struct TestCameraBounds : public TestCameraControls {
 		TestCameraControls::Draw();
 		auto camera{ game.camera.GetPrimary() };
 		const auto& bounds{ camera.GetBounds() };
-		game.draw.Rect(bounds.position, bounds.size, color::Red, bounds.origin, bound_width);
+		game.draw.Rect(bounds, color::Red, bound_width);
 	}
 };
 
@@ -244,11 +244,11 @@ struct TestParallax : public Test {
 
 		camera.SetPosition({ 0.0f, 0.0f });
 
-		game.draw.Texture(background, bg_pos, { size.x * bg_aspect_ratio, size.y });
-		game.draw.Texture(stars, stars_pos, { size.x * bg_aspect_ratio, size.y });
+		game.draw.Texture(background, { bg_pos, { size.x * bg_aspect_ratio, size.y } });
+		game.draw.Texture(stars, { stars_pos, { size.x * bg_aspect_ratio, size.y } });
 
-		game.draw.Texture(planet_b, planet_b_pos, planet_b.GetSize() * scale);
-		game.draw.Texture(planet_s, planet_s_pos, planet_s.GetSize() * scale);
+		game.draw.Texture(planet_b, { planet_b_pos, planet_b.GetSize() * scale });
+		game.draw.Texture(planet_s, { planet_s_pos, planet_s.GetSize() * scale });
 
 		camera.SetPosition(pos);
 	}
@@ -323,11 +323,11 @@ struct TestCameraShake : public Test {
 	}
 
 	void Draw() override {
-		game.draw.Texture(texture, { 0, 0 }, texture.GetSize());
+		texture.Draw({ {}, texture.GetSize() });
 		DrawRect(
 			player, { player.Get<Transform>().position, V2_float{ 30.0f, 30.0f }, Origin::Center }
 		);
-		game.draw.Rect({ 0, 0 }, { 50.0f, 50.0f }, color::Orange, Origin::TopLeft);
+		game.draw.Rect({ { 0, 0 }, { 50.0f, 50.0f }, Origin::TopLeft }, color::Orange);
 	}
 };
 

@@ -182,11 +182,10 @@ void Renderer::VertexArray(const ptgn::VertexArray& va) const {
 }
 
 void Renderer::Text(
-	const std::string_view& text_content, const V2_float& destination_position,
-	const Color& text_color, Origin draw_origin, V2_float destination_size, const FontOrKey& font,
-	const TextInfo& info
+	const std::string_view& text_content, const Color& text_color, const ptgn::Rect& destination,
+	const FontOrKey& font, TextInfo text_info, LayerInfo layer_info
 ) {
-	if (!info.visible) {
+	if (!text_info.visible) {
 		return;
 	}
 
@@ -200,20 +199,18 @@ void Renderer::Text(
 
 	PTGN_ASSERT(f.IsValid(), "Cannot draw text with invalid font");
 
-	ptgn::Text temp_text{ text_content,			 text_color,	   font,
-						  info.font_style,		 info.render_mode, info.shading_color,
-						  info.wrap_after_pixels };
+	ptgn::Text temp_text{ text_content,
+						  text_color,
+						  font,
+						  text_info.font_style,
+						  text_info.render_mode,
+						  text_info.shading_color,
+						  text_info.wrap_after_pixels };
 
-	TextDrawInfo draw_info{ info.rotation, info.flip, info.rotation_center, info.z_index,
-							info.render_layer };
-
-	Renderer::Text(temp_text, destination_position, draw_origin, destination_size, draw_info);
+	Renderer::Text(temp_text, destination, layer_info);
 }
 
-void Renderer::Text(
-	const ptgn::Text& text, const V2_float& destination_position, Origin draw_origin,
-	V2_float destination_size, const TextDrawInfo& info
-) {
+void Renderer::Text(const ptgn::Text& text, ptgn::Rect destination, LayerInfo layer_info) {
 	if (!text.IsValid()) {
 		return;
 	}
@@ -230,108 +227,97 @@ void Renderer::Text(
 		return;
 	}
 
-	if (destination_size.IsZero()) {
-		destination_size = text.GetSize();
+	if (destination.size.IsZero()) {
+		destination.size = text.GetSize();
 	}
 
-	game.draw.Texture(
-		texture, destination_position, destination_size,
-		{ {},
-		  {},
-		  draw_origin,
-		  info.flip,
-		  info.rotation,
-		  info.rotation_center,
-		  info.z_index,
-		  color::White,
-		  info.render_layer }
-	);
+	game.draw.Texture(texture, destination);
 }
 
 void Renderer::Shader(
-	ScreenShader screen_shader, const ptgn::Texture& texture, BlendMode blend_mode, float z_index,
-	std::size_t render_layer
+	ScreenShader screen_shader, const ptgn::Texture& texture, BlendMode blend_mode,
+	LayerInfo layer_info
 ) {
 	Shader(
-		game.shader.Get(screen_shader), texture, {}, {}, Origin::Center, blend_mode, Flip::None,
-		0.0f, { 0.5f, 0.5f }, z_index, render_layer
+		game.shader.Get(screen_shader), texture, {}, blend_mode, Flip::None, { 0.5f, 0.5f },
+		layer_info
 	);
 }
 
 void Renderer::Shader(
-	const ptgn::Shader& shader, const ptgn::Texture& texture, V2_float position, V2_float size,
-	Origin draw_origin, BlendMode blend_mode, Flip flip, float rotation_radians,
-	const V2_float& rotation_center, float z_index, std::size_t render_layer
+	const ptgn::Shader& shader, const ptgn::Texture& texture, ptgn::Rect destination,
+	BlendMode blend_mode, Flip flip, const V2_float& rotation_center, LayerInfo layer_info
 ) {
 	// Fullscreen shader.
-	if (size.IsZero()) {
-		size		= game.window.GetSize();
-		draw_origin = Origin::TopLeft;
-		position	= {};
+	if (destination.size.IsZero()) {
+		destination.size	 = game.window.GetSize();
+		destination.origin	 = Origin::TopLeft;
+		destination.position = {};
 	}
 
-	ptgn::Rect rect{ position, size, draw_origin, rotation_radians };
-
-	auto tex_coords{ RendererData::GetTextureCoordinates({}, {}, rect.size, flip) };
+	auto tex_coords{ RendererData::GetTextureCoordinates({}, {}, destination.size, flip) };
 	// Since this engine uses top left as origin, shaders must all be flipped vertically.
 	RendererData::FlipTextureCoordinates(tex_coords, Flip::Vertical);
 
 	ptgn::Texture t{ texture.IsValid() ? texture : current_target_.GetTexture() };
 
 	data_.Shader(
-		shader, rect.GetVertices(rotation_center), t, blend_mode, tex_coords, z_index, render_layer
+		shader, destination.GetVertices(rotation_center), t, blend_mode, tex_coords,
+		layer_info.z_index, layer_info.render_layer
 	);
 }
 
 void Renderer::Texture(
-	const ptgn::Texture& texture, V2_float position, V2_float size, TextureInfo info
+	const ptgn::Texture& texture, ptgn::Rect destination, TextureInfo texture_info,
+	LayerInfo layer_info
 ) {
 	PTGN_ASSERT(texture.IsValid(), "Cannot draw uninitialized or destroyed texture");
 
 	// Fullscreen texture.
-	if (size.IsZero()) {
-		size			   = game.window.GetSize();
-		info.source.origin = Origin::TopLeft;
-		position		   = {};
+	if (destination.size.IsZero()) {
+		destination.size	 = game.window.GetSize();
+		destination.origin	 = Origin::TopLeft;
+		destination.position = {};
 	}
 
 	data_.Texture(
-		ptgn::Rect(position, size, info.source.origin, info.rotation)
-			.GetVertices(info.rotation_center),
-		texture,
+		destination.GetVertices(texture_info.rotation_center), texture,
 		RendererData::GetTextureCoordinates(
-			info.source.position, info.source.size, texture.GetSize(), info.flip
+			texture_info.source_position, texture_info.source_size, texture.GetSize(),
+			texture_info.flip
 		),
-		info.tint.Normalized(), info.z_index, info.render_layer
+		texture_info.tint.Normalized(), layer_info.z_index, layer_info.render_layer
 	);
 }
 
 void Renderer::Point(
-	const V2_float& position, const Color& color, float radius, float z_index,
-	std::size_t render_layer
+	const V2_float& position, const Color& color, float radius, LayerInfo layer_info
 ) {
-	data_.Point(position, color.Normalized(), radius, z_index, render_layer);
+	data_.Point(
+		position, color.Normalized(), radius, layer_info.z_index, layer_info.render_layer,
+		default_fade_
+	);
 }
 
 void Renderer::Points(
 	const V2_float* points, std::size_t point_count, const Color& color, float radius,
-	float z_index, std::size_t render_layer
+	LayerInfo layer_info
 ) {
 	for (std::size_t i{ 0 }; i < point_count; ++i) {
-		Point(points[i], color, radius, z_index, render_layer);
+		Point(points[i], color, radius, layer_info);
 	}
 }
 
 void Renderer::Line(
-	const V2_float& p0, const V2_float& p1, const Color& color, float line_width, float z_index,
-	std::size_t render_layer
+	const V2_float& p0, const V2_float& p1, const Color& color, float line_width,
+	LayerInfo layer_info
 ) {
-	data_.Line(p0, p1, color.Normalized(), line_width, z_index, render_layer);
+	data_.Line(p0, p1, color.Normalized(), line_width, layer_info.z_index, layer_info.render_layer);
 }
 
 void Renderer::Axis(
 	const V2_float& point, const V2_float& direction, const Color& color, float line_width,
-	float z_index, std::size_t render_layer
+	LayerInfo layer_info
 ) {
 	V2_float ws{ game.window.GetSize() };
 	float mag{ ws.MagnitudeSquared() };
@@ -339,77 +325,86 @@ void Renderer::Axis(
 	V2_float p0{ point + direction * mag };
 	V2_float p1{ point - direction * mag };
 
-	data_.Line(p0, p1, color.Normalized(), line_width, z_index, render_layer);
+	data_.Line(p0, p1, color.Normalized(), line_width, layer_info.z_index, layer_info.render_layer);
 }
 
 void Renderer::Triangle(
 	const V2_float& a, const V2_float& b, const V2_float& c, const Color& color, float line_width,
-	float z_index, std::size_t render_layer
+	LayerInfo layer_info
 ) {
-	data_.Triangle(a, b, c, color.Normalized(), line_width, z_index, render_layer);
+	data_.Triangle(
+		a, b, c, color.Normalized(), line_width, layer_info.z_index, layer_info.render_layer
+	);
 }
 
 void Renderer::Rect(
-	const V2_float& position, const V2_float& size, const Color& color, Origin draw_origin,
-	float line_width, float rotation_radians, const V2_float& rotation_center, float z_index,
-	std::size_t render_layer
+	const ptgn::Rect& rect, const Color& color, float line_width, const V2_float& rotation_center,
+	LayerInfo layer_info
 ) {
-	ptgn::Rect rect{ position, size, draw_origin, rotation_radians };
-
 	data_.Rect(
-		rect.GetVertices(rotation_center), color.Normalized(), line_width, z_index, render_layer
+		rect.GetVertices(rotation_center), color.Normalized(), line_width, layer_info.z_index,
+		layer_info.render_layer
 	);
 }
 
 void Renderer::Polygon(
 	const V2_float* vertices, std::size_t vertex_count, const Color& color, float line_width,
-	float z_index, std::size_t render_layer
+	LayerInfo layer_info
 ) {
-	data_.Polygon(vertices, vertex_count, color.Normalized(), line_width, z_index, render_layer);
+	data_.Polygon(
+		vertices, vertex_count, color.Normalized(), line_width, layer_info.z_index,
+		layer_info.render_layer
+	);
 }
 
 void Renderer::Circle(
-	const V2_float& position, float radius, const Color& color, float line_width, float z_index,
-	std::size_t render_layer, float fade
+	const V2_float& position, float radius, const Color& color, float line_width,
+	LayerInfo layer_info
 ) {
 	data_.Ellipse(
-		position, { radius, radius }, color.Normalized(), line_width, z_index, fade, render_layer
+		position, { radius, radius }, color.Normalized(), line_width, layer_info.z_index,
+		layer_info.render_layer, default_fade_
 	);
 }
 
 void Renderer::RoundedRect(
-	const V2_float& position, const V2_float& size, float radius, const Color& color,
-	Origin draw_origin, float line_width, float rotation_radians, const V2_float& rotation_center,
-	float z_index, std::size_t render_layer
+	const ptgn::Rect& rect, float radius, const Color& color, float line_width,
+	const V2_float& rotation_center, LayerInfo layer_info
 ) {
 	data_.RoundedRect(
-		position, size, radius, color.Normalized(), draw_origin, line_width, rotation_radians,
-		rotation_center, z_index, render_layer
+		rect.position, rect.size, radius, color.Normalized(), rect.origin, line_width,
+		rect.rotation, rotation_center, layer_info.z_index, layer_info.render_layer, default_fade_
 	);
 }
 
 void Renderer::Ellipse(
 	const V2_float& position, const V2_float& radius, const Color& color, float line_width,
-	float z_index, std::size_t render_layer, float fade
+	LayerInfo layer_info
 ) {
-	data_.Ellipse(position, radius, color.Normalized(), line_width, z_index, fade, render_layer);
+	data_.Ellipse(
+		position, radius, color.Normalized(), line_width, layer_info.z_index,
+		layer_info.render_layer, default_fade_
+	);
 }
 
 void Renderer::Arc(
 	const V2_float& position, float arc_radius, float start_angle_radians, float end_angle_radians,
-	bool clockwise, const Color& color, float line_width, float z_index, std::size_t render_layer
+	bool clockwise, const Color& color, float line_width, LayerInfo layer_info
 ) {
 	data_.Arc(
 		position, arc_radius, start_angle_radians, end_angle_radians, clockwise, color.Normalized(),
-		line_width, z_index, render_layer
+		line_width, layer_info.z_index, layer_info.render_layer, default_fade_
 	);
 }
 
 void Renderer::Capsule(
 	const V2_float& p0, const V2_float& p1, float radius, const Color& color, float line_width,
-	float z_index, std::size_t render_layer, float fade
+	LayerInfo layer_info
 ) {
-	data_.Capsule(p0, p1, radius, color.Normalized(), line_width, fade, z_index, render_layer);
+	data_.Capsule(
+		p0, p1, radius, color.Normalized(), line_width, layer_info.z_index, layer_info.render_layer,
+		default_fade_
+	);
 }
 
 Color Renderer::GetPixel(const V2_int& coordinate) const {

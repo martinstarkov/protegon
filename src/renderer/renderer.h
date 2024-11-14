@@ -2,7 +2,6 @@
 
 #include <functional>
 
-#include "camera/camera.h"
 #include "math/geometry/polygon.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
@@ -10,8 +9,10 @@
 #include "renderer/color.h"
 #include "renderer/flip.h"
 #include "renderer/font.h"
-#include "renderer/origin.h"
+#include "renderer/layer_info.h"
 #include "renderer/shader.h"
+#include "renderer/text.h"
+#include "renderer/texture.h"
 
 namespace ptgn {
 
@@ -19,126 +20,7 @@ class Scene;
 class Texture;
 class Text;
 class RenderTexture;
-
-struct TextureInfo {
-	TextureInfo() = default;
-
-	TextureInfo(
-		const Rect& source, Flip flip = Flip::None, float rotation = 0.0f,
-		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f,
-		const Color& tint = color::White, std::size_t render_layer = 0
-	) :
-		source{ source },
-		flip{ flip },
-		rotation{ rotation },
-		rotation_center{ rotation_center },
-		z_index{ z_index },
-		tint{ tint },
-		render_layer{ render_layer } {}
-
-	TextureInfo(
-		const V2_float& source_pos, const V2_float& source_size,
-		Origin draw_origin = Origin::Center, Flip flip = Flip::None, float rotation = 0.0f,
-		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f,
-		const Color& tint = color::White, std::size_t render_layer = 0
-	) :
-		TextureInfo{ Rect{ source_pos, source_size, draw_origin },
-					 flip,
-					 rotation,
-					 rotation_center,
-					 z_index,
-					 tint,
-					 render_layer } {}
-
-	/*
-	source.position Top left pixel to start drawing texture from within the texture (defaults to {
-	0, 0
-	}). source.size Number of pixels of the texture to draw (defaults to {} which corresponds to the
-	remaining texture size to the bottom right of source_position). source.origin Relative  to
-	destination_position the direction from which the texture is.
-	*/
-	Rect source{ {}, {}, Origin::Center };
-	// Mirror the texture along an axis (default to Flip::None).
-	Flip flip{ Flip::None };
-	// Angle in radians to rotate the texture (defaults to 0).
-	float rotation{ 0.0f };
-	// Fraction of the source_size around which the texture is rotated (defaults to{ 0.5f, 0.5f }
-	// which corresponds to the center of the texture).
-	V2_float rotation_center{ 0.5f, 0.5f };
-	// Z-coordinate to draw the texture at.
-	float z_index{ 0.0f };
-	// Color to tint the texture. Allows to change the transparency of a texture. (default:
-	// color::White corresponds to no tint effect ).
-	Color tint{ color::White };
-	std::size_t render_layer{ 0 };
-};
-
-struct TextInfo {
-	TextInfo() = default;
-
-	TextInfo(
-		float rotation, FontStyle font_style = FontStyle::Normal,
-		FontRenderMode render_mode = FontRenderMode::Solid,
-		const Color& shading_color = color::White, std::uint32_t wrap_after_pixels = 0,
-		bool visible = true, Flip flip = Flip::None,
-		const V2_float& rotation_center = { 0.5f, 0.5f }, float z_index = 0.0f,
-		std::size_t render_layer = 0
-	) :
-		font_style{ font_style },
-		render_mode{ render_mode },
-		shading_color{ shading_color },
-		wrap_after_pixels{ wrap_after_pixels },
-		visible{ visible },
-		rotation{ rotation },
-		flip{ flip },
-		rotation_center{ rotation_center },
-		z_index{ z_index },
-		render_layer{ render_layer } {}
-
-	FontStyle font_style{ FontStyle::Normal };
-	FontRenderMode render_mode{ FontRenderMode::Solid };
-	Color shading_color{ color::White };
-	// 0 indicates only wrapping on newline characters.
-	std::uint32_t wrap_after_pixels{ 0 };
-	bool visible{ true };
-
-	// Angle in radians to rotate the text (defaults to 0).
-	float rotation{ 0.0f };
-	// Mirror the text along an axis (default to Flip::None).
-	Flip flip{ Flip::None };
-	// Fraction of the source_size around which the text is rotated (defaults to{ 0.5f, 0.5f }
-	// which corresponds to the center of the text).
-	V2_float rotation_center{ 0.5f, 0.5f };
-	// Z-coordinate to draw the text at.
-	float z_index{ 0.0f };
-	std::size_t render_layer{ 0 };
-};
-
-// Same as TextInfo but only includes draw related information.
-struct TextDrawInfo {
-	TextDrawInfo() = default;
-
-	TextDrawInfo(
-		float rotation, Flip flip = Flip::None, const V2_float& rotation_center = { 0.5f, 0.5f },
-		float z_index = 0.0f, std::size_t render_layer = 0
-	) :
-		rotation{ rotation },
-		flip{ flip },
-		rotation_center{ rotation_center },
-		z_index{ z_index },
-		render_layer{ render_layer } {}
-
-	// Angle in radians to rotate the text (defaults to 0).
-	float rotation{ 0.0f };
-	// Mirror the text along an axis (default to Flip::None).
-	Flip flip{ Flip::None };
-	// Fraction of the source_size around which the text is rotated (defaults to{ 0.5f, 0.5f }
-	// which corresponds to the center of the text).
-	V2_float rotation_center{ 0.5f, 0.5f };
-	// Z-coordinate to draw the text at.
-	float z_index{ 0.0f };
-	std::size_t render_layer{ 0 };
-};
+class VertexArray;
 
 namespace impl {
 
@@ -173,110 +55,93 @@ public:
 	// @param font Default: {}, which corresponds to the default font (use game.font.SetDefault(...)
 	// to change.
 	void Text(
-		const std::string_view& text_content, const V2_float& destination_position,
-		const Color& text_color, Origin draw_origin = Origin::Center,
-		V2_float destination_size = {}, const FontOrKey& font = {}, const TextInfo& info = {}
+		const std::string_view& text_content, const Color& text_color,
+		const ptgn::Rect& destination, const FontOrKey& font = {}, TextInfo text_info = {},
+		LayerInfo layer_info = {}
 	);
 
-	// @param destination_size Default: {}, which corresponds to the unscaled size of the text.
-	void Text(
-		const ptgn::Text& text, const V2_float& destination_position,
-		Origin draw_origin = Origin::Center, V2_float destination_size = {},
-		const TextDrawInfo& info = {}
-	);
+	// Setting destination.size {} corresponds to the unscaled size of the text.
+	void Text(const ptgn::Text& text, ptgn::Rect destination = {}, LayerInfo layer_info = {});
 
 	// @param texture Setting texture to {} will use the entire current rendering target.
 	void Shader(
 		ScreenShader screen_shader, const ptgn::Texture& texture = {},
-		BlendMode blend_mode = BlendMode::Blend, float z_index = 0.0f, std::size_t render_layer = 0
+		BlendMode blend_mode = BlendMode::Blend, LayerInfo layer_info = {}
 	);
 
 	// Default size results in fullscreen shader.
 	// @param texture Setting texture to {} will use the entire current rendering target.
 	void Shader(
-		const ptgn::Shader& shader, const ptgn::Texture& texture = {}, V2_float position = {},
-		V2_float size = {}, Origin draw_origin = Origin::Center,
+		const ptgn::Shader& shader, const ptgn::Texture& texture = {}, ptgn::Rect destination = {},
 		BlendMode blend_mode = BlendMode::Blend, Flip flip = Flip::None,
-		float rotation_radians = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
-		float z_index = 0.0f, std::size_t render_layer = 0
+		const V2_float& rotation_center = { 0.5f, 0.5f }, LayerInfo layer_info = {}
 	);
 
-	// If destination_size is {} it will be fullscreen.
+	// If destination.size is {} it will be fullscreen.
 	void Texture(
-		const Texture& texture, V2_float destination_position = {}, V2_float destination_size = {},
-		TextureInfo info = {}
+		const Texture& texture, ptgn::Rect destination = {}, TextureInfo texture_info = {},
+		LayerInfo layer_info = {}
 	);
 
 	void Point(
-		const V2_float& position, const Color& color, float radius = 1.0f, float z_index = 0.0f,
-		std::size_t render_layer = 0
+		const V2_float& position, const Color& color, float radius = 1.0f, LayerInfo layer_info = {}
 	);
 
 	void Points(
 		const V2_float* points, std::size_t point_count, const Color& color, float radius = 1.0f,
-		float z_index = 0.0f, std::size_t render_layer = 0
+		LayerInfo layer_info = {}
 	);
 
 	void Line(
 		const V2_float& p0, const V2_float& p1, const Color& color, float line_width = 1.0f,
-		float z_index = 0.0f, std::size_t render_layer = 0
+		LayerInfo layer_info = {}
 	);
 
 	// Draw an axis line (magnitude of window) along the given direction vector.
 	void Axis(
 		const V2_float& point, const V2_float& direction, const Color& color,
-		float line_width = 1.0f, float z_index = 0.0f, std::size_t render_layer = 0
+		float line_width = 1.0f, LayerInfo layer_info = {}
 	);
 
 	void Triangle(
 		const V2_float& vertex1, const V2_float& vertex2, const V2_float& vertex3,
-		const Color& color, float line_width = -1.0f, float z_index = 0.0f,
-		std::size_t render_layer = 0
+		const Color& color, float line_width = -1.0f, LayerInfo layer_info = {}
 	);
 
-	// Rotation angle in radians.
 	void Rect(
-		const V2_float& position, const V2_float& size, const Color& color,
-		Origin draw_origin = Origin::Center, float line_width = -1.0f,
-		float rotation_radians = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
-		float z_index = 0.0f, std::size_t render_layer = 0
+		const ptgn::Rect& rect, const Color& color, float line_width = -1.0f,
+		const V2_float& rotation_center = { 0.5f, 0.5f }, LayerInfo layer_info = {}
 	);
 
 	void Polygon(
 		const V2_float* vertices, std::size_t vertex_count, const Color& color,
-		float line_width = -1.0f, float z_index = 0.0f, std::size_t render_layer = 0
+		float line_width = -1.0f, LayerInfo layer_info = {}
 	);
 
 	void Circle(
 		const V2_float& position, float radius, const Color& color, float line_width = -1.0f,
-		float z_index = 0.0f, std::size_t render_layer = 0, float fade = 0.005f
+		LayerInfo layer_info = {}
 	);
 
-	// Rotation angle in radians.
 	void RoundedRect(
-		const V2_float& position, const V2_float& size, float radius, const Color& color,
-		Origin draw_origin = Origin::Center, float line_width = -1.0f,
-		float rotation_radians = 0.0f, const V2_float& rotation_center = { 0.5f, 0.5f },
-		float z_index = 0.0f, std::size_t render_layer = 0
+		const ptgn::Rect& rect, float radius, const Color& color, float line_width = -1.0f,
+		const V2_float& rotation_center = { 0.5f, 0.5f }, LayerInfo layer_info = {}
 	);
 
 	void Ellipse(
 		const V2_float& position, const V2_float& radius, const Color& color,
-		float line_width = -1.0f, float z_index = 0.0f, std::size_t render_layer = 0,
-		float fade = 0.005f
+		float line_width = -1.0f, LayerInfo layer_info = {}
 	);
 
 	// Angles in radians, counter-clockwise from the right.
 	void Arc(
 		const V2_float& position, float arc_radius, float start_angle, float end_angle,
-		bool clockwise, const Color& color, float line_width = -1.0f, float z_index = 0.0f,
-		std::size_t render_layer = 0
+		bool clockwise, const Color& color, float line_width = -1.0f, LayerInfo layer_info = {}
 	);
 
 	void Capsule(
 		const V2_float& p0, const V2_float& p1, float radius, const Color& color,
-		float line_width = -1.0f, float z_index = 0.0f, std::size_t render_layer = 0,
-		float fade = 0.005f
+		float line_width = -1.0f, LayerInfo layer_info = {}
 	);
 
 	// @return Pixel at a specific coordinate on the current render target.
@@ -308,6 +173,8 @@ private:
 	friend class Game;
 	friend class RenderTexture;
 	friend class Scene;
+
+	constexpr static const float default_fade_{ 0.005f };
 
 	void UpdateLayer(std::size_t layer_number, RenderLayer& layer, CameraManager& camera_manager)
 		const;

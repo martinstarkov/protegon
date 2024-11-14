@@ -115,10 +115,10 @@ struct TestViewportExtentsAndOrigin : public DrawTest {
 	}
 
 	void Draw() override {
-		game.draw.Rect(top_left, s, color::Blue, Origin::TopLeft);
-		game.draw.Rect(top_right, s, color::Magenta, Origin::TopRight);
-		game.draw.Rect(bottom_right, s, color::Red, Origin::BottomRight);
-		game.draw.Rect(bottom_left, s, color::Orange, Origin::BottomLeft);
+		game.draw.Rect({ top_left, s, Origin::TopLeft }, color::Blue);
+		game.draw.Rect({ top_right, s, Origin::TopRight }, color::Magenta);
+		game.draw.Rect({ bottom_right, s, Origin::BottomRight }, color::Red);
+		game.draw.Rect({ bottom_left, s, Origin::BottomLeft }, color::Orange);
 	}
 };
 
@@ -268,26 +268,26 @@ struct TestRectangle : public DrawTest {
 
 	void Draw() override {
 		if (NearlyEqual(rounding_radius, 0.0f)) {
-			game.draw.Rect(p0, s, color::Blue, Origin::Center, line_width, rotation, cr);
-			game.draw.Rect(p1, s, color::Red, Origin::Center, line_width, rotation, cr);
-			game.draw.Rect(p2, s, color::Red, Origin::Center, line_width, rotation, cr);
-			game.draw.Rect(p3, s, color::Red, Origin::Center, line_width, rotation, cr);
-			game.draw.Rect(p4, s, color::Red, Origin::Center, line_width, rotation, cr);
+			game.draw.Rect({ p0, s, Origin::Center, rotation }, color::Blue, line_width, cr);
+			game.draw.Rect({ p1, s, Origin::Center, rotation }, color::Red, line_width, cr);
+			game.draw.Rect({ p2, s, Origin::Center, rotation }, color::Red, line_width, cr);
+			game.draw.Rect({ p3, s, Origin::Center, rotation }, color::Red, line_width, cr);
+			game.draw.Rect({ p4, s, Origin::Center, rotation }, color::Red, line_width, cr);
 		} else {
 			game.draw.RoundedRect(
-				p0, s, rounding_radius, color::Blue, Origin::Center, line_width, rotation, cr
+				{ p0, s, Origin::Center, rotation }, rounding_radius, color::Blue, line_width, cr
 			);
 			game.draw.RoundedRect(
-				p1, s, rounding_radius, color::Red, Origin::Center, line_width, rotation, cr
+				{ p1, s, Origin::Center, rotation }, rounding_radius, color::Red, line_width, cr
 			);
 			game.draw.RoundedRect(
-				p2, s, rounding_radius, color::Red, Origin::Center, line_width, rotation, cr
+				{ p2, s, Origin::Center, rotation }, rounding_radius, color::Red, line_width, cr
 			);
 			game.draw.RoundedRect(
-				p3, s, rounding_radius, color::Red, Origin::Center, line_width, rotation, cr
+				{ p3, s, Origin::Center, rotation }, rounding_radius, color::Red, line_width, cr
 			);
 			game.draw.RoundedRect(
-				p4, s, rounding_radius, color::Red, Origin::Center, line_width, rotation, cr
+				{ p4, s, Origin::Center, rotation }, rounding_radius, color::Red, line_width, cr
 			);
 		}
 	}
@@ -479,9 +479,7 @@ struct TestArc : public DrawTest {
 			bottom_right, radius, half_pi<float>, pi<float>, false, color::Red, line_width
 		);
 
-		game.draw.Arc(
-			top_right, radius, 0.0f, half_pi<float>, false, color::Gold, line_width, line_width
-		);
+		game.draw.Arc(top_right, radius, 0.0f, half_pi<float>, false, color::Gold, line_width);
 		game.draw.Arc(
 			top_right, radius, pi<float>, -half_pi<float>, false, color::Orange, line_width
 		);
@@ -532,10 +530,10 @@ struct TestTransparency : public DrawTest {
 	}
 
 	void Draw() override {
-		game.draw.Rect(p1, s, Color{ 255, 0, 0, 128 });
-		game.draw.Rect(p2, s, Color{ 0, 0, 255, 128 });
-		game.draw.Rect(p3, s, Color{ 0, 255, 255, 128 });
-		game.draw.Rect(p4, s, Color{ 255, 255, 0, 128 });
+		game.draw.Rect({ p1, s }, Color{ 255, 0, 0, 128 });
+		game.draw.Rect({ p2, s }, Color{ 0, 0, 255, 128 });
+		game.draw.Rect({ p3, s }, Color{ 0, 255, 255, 128 });
+		game.draw.Rect({ p4, s }, Color{ 255, 255, 0, 128 });
 	}
 };
 
@@ -578,12 +576,11 @@ struct TestRenderTargets : public DrawTest {
 
 	void Draw() override {
 		TextureInfo i;
-		i.source.origin = Origin::TopLeft;
 
 		const auto draw_texture = [&](const RenderTexture& rt, const V2_float& pos,
 									  ScreenShader ss) {
 			game.draw.SetTarget(rt);
-			game.draw.Texture(test, pos, s, i);
+			test.Draw({ pos, s, Origin::TopLeft }, i);
 			game.draw.Shader(ss);
 		};
 
@@ -644,43 +641,77 @@ struct TestTexture : public DrawTest {
 
 		game.draw.Flush();
 
-		game.draw.Texture(texture, { 200, 200 }, size / 2.0f);
-		game.draw.Texture(texture, { 400, 200 }, size, { texture.GetSize() / 2.0f, {} });
-		game.draw.Texture(texture, { 600, 200 }, size, { {}, texture.GetSize() / 2.0f });
-		game.draw.Texture(
-			texture, { 200, 400 }, size, { {}, {}, Origin::Center, Flip::None, rotation }
+		texture.Draw({ { 200, 200 }, size / 2.0f });
+		texture.Draw({ { 400, 200 }, size }, { texture.GetSize() / 2.0f, {} });
+		texture.Draw({ { 600, 200 }, size }, { {}, texture.GetSize() / 2.0f });
+		texture.Draw({ { 200, 400 }, size, Origin::Center, rotation }, { {}, {}, Flip::None });
+		texture.Draw({ { 400, 400 }, size, Origin::Center, -rotation }, { {}, {}, Flip::None });
+		texture.Draw(
+			{ { 600, 400 }, size, Origin::Center, rotation },
+			{ {}, {}, Flip::None, color::Red, { 1.0f, 1.0f } }, { 0.0f, 0 }
 		);
-		game.draw.Texture(
-			texture, { 400, 400 }, size, { {}, {}, Origin::Center, Flip::None, -rotation }
+		texture.Draw(
+			{ { 200, 600 }, size, Origin::Center, rotation },
+			{ {}, {}, Flip::Horizontal, color::White, cr }
 		);
-		game.draw.Texture(
-			texture, { 600, 400 }, size,
-			{ {}, {}, Origin::Center, Flip::None, rotation, { 1.0f, 1.0f }, 0.0f }
+		texture.Draw(
+			{ { 400, 600 }, size, Origin::Center, rotation },
+			{ {}, {}, Flip::Vertical, color::White, cr }
 		);
-		game.draw.Texture(
-			texture, { 200, 600 }, size, { {}, {}, Origin::Center, Flip::Horizontal, rotation, cr }
+		texture.Draw(
+			{ { 600, 600 }, size * 0.2f, Origin::Center },
+			{
+				{},
+				{},
+				Flip::None,
+				color::White,
+				cr,
+			},
+			{ 200.0f, 0 }
 		);
-		game.draw.Texture(
-			texture, { 400, 600 }, size, { {}, {}, Origin::Center, Flip::Vertical, rotation, cr }
+		texture.Draw(
+			{ { 600, 600 }, size * 0.4f, Origin::Center },
+			{
+				{},
+				{},
+				Flip::None,
+				color::White,
+				cr,
+			},
+			{ 100.0f, 0 }
 		);
-		game.draw.Texture(
-			texture, { 600, 600 }, size * 0.2f,
-			{ {}, {}, Origin::Center, Flip::None, 0.0f, cr, 200.0f }
+		texture.Draw(
+			{ { 600, 600 }, size * 0.6f, Origin::Center },
+			{
+				{},
+				{},
+				Flip::None,
+				color::White,
+				cr,
+			},
+			{ 0.0f, 0 }
 		);
-		game.draw.Texture(
-			texture, { 600, 600 }, size * 0.4f,
-			{ {}, {}, Origin::Center, Flip::None, 0.0f, cr, 100.0f }
+		texture.Draw(
+			{ { 600, 600 }, size * 0.8f, Origin::Center },
+			{
+				{},
+				{},
+				Flip::None,
+				color::White,
+				cr,
+			},
+			{ -100.0f, 0 }
 		);
-		game.draw.Texture(
-			texture, { 600, 600 }, size * 0.6f,
-			{ {}, {}, Origin::Center, Flip::None, 0.0f, cr, 0.0f }
-		);
-		game.draw.Texture(
-			texture, { 600, 600 }, size * 0.8f,
-			{ {}, {}, Origin::Center, Flip::None, 0.0f, cr, -100.0f }
-		);
-		game.draw.Texture(
-			texture, { 600, 600 }, size, { {}, {}, Origin::Center, Flip::None, 0.0f, cr, -200.0f }
+		texture.Draw(
+			{ { 600, 600 }, size, Origin::Center },
+			{
+				{},
+				{},
+				Flip::None,
+				color::White,
+				cr,
+			},
+			{ -200.0f, 0 }
 		);
 	}
 };
@@ -765,14 +796,14 @@ struct TestBatch : public DrawTest {
 				break;
 			case TestBatchType::Rectangle:
 				game.draw.Rect(
-					{ rng_x(), rng_y() }, { rectangle_size_rng(), rectangle_size_rng() },
+					{ { rng_x(), rng_y() }, { rectangle_size_rng(), rectangle_size_rng() } },
 					Color::RandomTransparent()
 				);
 				break;
 			case TestBatchType::Texture: {
 				std::size_t idx{ texture_index_rng() };
 				const Texture& t{ textures[idx] };
-				game.draw.Texture(t, { rng_x(), rng_y() }, t.GetSize() / 4.0f);
+				game.draw.Texture(t, { { rng_x(), rng_y() }, t.GetSize() / 4.0f });
 				break;
 			}
 			default: PTGN_ERROR("Unrecognized TestBatchType");

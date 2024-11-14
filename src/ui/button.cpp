@@ -321,22 +321,13 @@ void Button::Draw() const {
 
 	if (auto texture{ GetFinalResource(c, d, i.textures_) }; texture.IsValid()) {
 		TextureInfo info;
-		info.source.origin = i.rect_.origin;
-		info.rotation	   = i.rect_.rotation;
-		info.render_layer  = i.render_layer_;
-		info.tint		   = GetFinalResource(c, d, i.texture_tint_colors_, color::White);
-		game.draw.Texture(texture, i.rect_.position, i.rect_.size, info);
+		info.tint = GetFinalResource(c, d, i.texture_tint_colors_, color::White);
+		game.draw.Texture(texture, i.rect_, info, { 0.0f, i.render_layer_ });
 	} else if (auto bg{ GetFinalResource(c, d, i.bg_colors_) }; bg != Color{}) {
-		game.draw.Rect(
-			i.rect_.position, i.rect_.size, bg, i.rect_.origin, i.line_thickness_, i.rect_.rotation,
-			{ 0.5f, 0.5f }, 0.0f, i.render_layer_
-		);
+		i.rect_.Draw(bg, i.line_thickness_, { 0.0f, i.render_layer_ });
 	}
 
 	if (auto text{ GetFinalResource(c, d, i.texts_) }; text.IsValid()) {
-		TextDrawInfo text_info;
-		text_info.rotation	   = i.rect_.rotation;
-		text_info.render_layer = i.render_layer_;
 		V2_float text_size{ i.text_size_ };
 		if (NearlyEqual(text_size.x, 0.0f)) {
 			text_size.x = i.rect_.size.x;
@@ -348,16 +339,16 @@ void Button::Draw() const {
 		if (auto text_color{ GetFinalResource(c, d, i.text_colors_) }; text_color != Color{}) {
 			text.SetColor(text_color);
 		}
-		game.draw.Text(text, i.rect_.Center(), i.text_alignment_, text_size, text_info);
+		text.Draw(
+			{ i.rect_.Center(), text_size, i.text_alignment_, i.rect_.rotation },
+			{ 0.0f, i.render_layer_ }
+		);
 		text.SetColor(og_text_color);
 	}
 	if (i.bordered_) {
 		if (auto border_color{ GetFinalResource(c, d, i.border_colors_) };
 			border_color != Color{}) {
-			game.draw.Rect(
-				i.rect_.position, i.rect_.size, border_color, i.rect_.origin, i.border_thickness_,
-				i.rect_.rotation, { 0.5f, 0.5f }, 0.0f, i.render_layer_
-			);
+			i.rect_.Draw(border_color, i.border_thickness_, { 0.0f, i.render_layer_ });
 		}
 	}
 }
