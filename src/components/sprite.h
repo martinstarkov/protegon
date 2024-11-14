@@ -11,6 +11,7 @@
 #include "core/game.h"
 #include "core/manager.h"
 #include "ecs/ecs.h"
+#include "math/geometry/circle.h"
 #include "math/geometry/polygon.h"
 #include "math/math.h"
 #include "math/vector2.h"
@@ -45,12 +46,40 @@ using ZIndex = float;
 
 using RenderLayer = std::size_t;
 
+using SpriteFlip = Flip;
+
+using SpriteZ = float;
+
 inline void DrawRect(ecs::Entity entity, const Rect& rect) {
 	game.draw.Rect(
 		rect.position, rect.size, entity.Has<DrawColor>() ? entity.Get<DrawColor>() : color::Black,
 		rect.origin, entity.Has<DrawLineWidth>() ? entity.Get<DrawLineWidth>() : 1.0f,
 		rect.rotation, V2_float{ 0.5f, 0.5f }, entity.Has<ZIndex>() ? entity.Get<ZIndex>() : 0.0f,
 		entity.Has<RenderLayer>() ? entity.Get<RenderLayer>() : 0
+	);
+}
+
+inline void DrawCircle(ecs::Entity entity, const Circle& circle) {
+	game.draw.Circle(
+		circle.center, circle.radius,
+		entity.Has<DrawColor>() ? entity.Get<DrawColor>() : color::Black,
+		entity.Has<DrawLineWidth>() ? entity.Get<DrawLineWidth>() : 1.0f,
+		entity.Has<ZIndex>() ? entity.Get<ZIndex>() : 0.0f,
+		entity.Has<RenderLayer>() ? entity.Get<RenderLayer>() : 0
+	);
+}
+
+inline void DrawTexture(
+	ecs::Entity entity, const Texture& texture, const Transform& transform,
+	const V2_float& draw_offset = {}, const Rect& source = {}
+) {
+	game.draw.Texture(
+		texture, transform.position + draw_offset, source.size * transform.scale,
+		{ source.position, source.size, source.origin,
+		  entity.Has<SpriteFlip>() ? entity.Get<SpriteFlip>() : Flip::None, transform.rotation,
+		  V2_float{ 0.5f, 0.5f }, entity.Has<SpriteZ>() ? entity.Get<SpriteZ>() : 0.0f,
+		  entity.Has<SpriteTint>() ? entity.Get<SpriteTint>() : color::White,
+		  entity.Has<RenderLayer>() ? entity.Get<RenderLayer>() : 0 }
 	);
 }
 
@@ -227,24 +256,6 @@ private:
 
 	std::shared_ptr<std::size_t> frame;
 };
-
-using SpriteFlip = Flip;
-
-using SpriteZ = float;
-
-inline void DrawTexture(
-	ecs::Entity entity, const Texture& texture, const Transform& transform,
-	const V2_float& draw_offset = {}, const Rect& source = {}
-) {
-	game.draw.Texture(
-		texture, transform.position + draw_offset, source.size * transform.scale,
-		{ source.position, source.size, source.origin,
-		  entity.Has<SpriteFlip>() ? entity.Get<SpriteFlip>() : Flip::None, transform.rotation,
-		  V2_float{ 0.5f, 0.5f }, entity.Has<SpriteZ>() ? entity.Get<SpriteZ>() : 0.0f,
-		  entity.Has<SpriteTint>() ? entity.Get<SpriteTint>() : color::White,
-		  entity.Has<RenderLayer>() ? entity.Get<RenderLayer>() : 0 }
-	);
-}
 
 inline void Sprite::Draw(ecs::Entity entity, const Transform& transform) const {
 	DrawTexture(entity, texture, transform, draw_offset, source);
