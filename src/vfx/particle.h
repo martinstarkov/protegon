@@ -123,7 +123,9 @@ public:
 				} else {
 					i.tint = color::White;
 				}
-				game.draw.Texture(info.texture, p.position, { p.radius, p.radius }, i);
+				game.draw.Texture(
+					info.texture, p.position, { 2.0f * p.radius, 2.0f * p.radius }, i
+				);
 			}
 			return;
 		}
@@ -138,7 +140,7 @@ public:
 				for (const auto& [e, p] : manager_.EntitiesWith<Particle>()) {
 					// TODO: Add rect rotation.
 					game.draw.Rect(
-						p.position, { p.radius, p.radius }, p.color, Origin::Center,
+						p.position, { 2.0f * p.radius, 2.0f * p.radius }, p.color, Origin::Center,
 						info.line_thickness
 					);
 				}
