@@ -298,8 +298,8 @@ private:
 		ecs::Entity e{ collider.GetParent(entity) };
 
 		Sweep(e, collider, boxes, circles);
-		// Overlap(e, collider, boxes, circles);
-		// Intersect(e, collider, boxes, circles);
+		Overlap(e, collider, boxes, circles);
+		Intersect(e, collider, boxes, circles);
 
 		for (const auto& prev : collider.prev_collisions) {
 			PTGN_ASSERT(e == prev.entity1);
