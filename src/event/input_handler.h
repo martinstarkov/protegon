@@ -67,29 +67,29 @@ public:
 	void SetRelativeMouseMode(bool on) const;
 
 	// @return Mouse position relative to the top left of the window.
-	[[nodiscard]] V2_int GetMousePositionWindow() const;
+	[[nodiscard]] V2_float GetMousePositionWindow() const;
 
 	// @return Mouse position during the previous frame relative to the top left of the window.
-	[[nodiscard]] V2_int GetMousePositionPreviousWindow() const;
+	[[nodiscard]] V2_float GetMousePositionPreviousWindow() const;
 
 	// @return Mouse position difference between the current and previous frames relative to the top
 	// left of the window.
-	[[nodiscard]] V2_int GetMouseDifferenceWindow() const;
+	[[nodiscard]] V2_float GetMouseDifferenceWindow() const;
 
 	// @return Mouse position scaled relative to the camera size of the specified render layer.
-	[[nodiscard]] V2_int GetMousePosition(std::size_t render_layer = 0) const;
+	[[nodiscard]] V2_float GetMousePosition(std::size_t render_layer = 0) const;
 
 	// @return Mouse position during the previous frame scaled relative to the camera size of the
 	// specified render layer.
-	[[nodiscard]] V2_int GetMousePositionPrevious(std::size_t render_layer = 0) const;
+	[[nodiscard]] V2_float GetMousePositionPrevious(std::size_t render_layer = 0) const;
 
 	// @return Mouse position difference between the current and previous frames scaled relative to
 	// the camera size of the specified render layer.
-	[[nodiscard]] V2_int GetMouseDifference(std::size_t render_layer = 0) const;
+	[[nodiscard]] V2_float GetMouseDifference(std::size_t render_layer = 0) const;
 
 	// @return In desktop mode: mouse position relative to the screen (display). In browser: same as
 	// GetMousePosition().
-	[[nodiscard]] V2_int GetMousePositionGlobal() const;
+	[[nodiscard]] V2_float GetMousePositionGlobal() const;
 
 	// @return The amount scrolled by the mouse vertically in the current frame,
 	// positive upward, negative downward. Zero if no scroll occurred.
@@ -106,7 +106,7 @@ public:
 	[[nodiscard]] bool KeyUp(Key key);
 
 private:
-	[[nodiscard]] V2_int ScaledToRenderLayer(const V2_int& position, std::size_t render_layer)
+	[[nodiscard]] V2_float ScaledToRenderLayer(const V2_float& position, std::size_t render_layer)
 		const;
 
 	friend class SceneManager;

@@ -3,11 +3,7 @@
 #include <bitset>
 #include <utility>
 
-#include "SDL_events.h"
-#include "SDL_keyboard.h"
-#include "SDL_mouse.h"
-#include "SDL_stdinc.h"
-#include "SDL_video.h"
+#include "camera/camera.h"
 #include "core/game.h"
 #include "core/window.h"
 #include "event/event_handler.h"
@@ -17,6 +13,11 @@
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/origin.h"
+#include "SDL_events.h"
+#include "SDL_keyboard.h"
+#include "SDL_mouse.h"
+#include "SDL_stdinc.h"
+#include "SDL_video.h"
 #include "utility/debug.h"
 #include "utility/log.h"
 #include "utility/time.h"
@@ -164,42 +165,43 @@ void InputHandler::SetRelativeMouseMode(bool on) const {
 	SDL_SetRelativeMouseMode(static_cast<SDL_bool>(on));
 }
 
-V2_int InputHandler::GetMousePositionGlobal() const {
+V2_float InputHandler::GetMousePositionGlobal() const {
 	V2_int position;
 	// SDL_PumpEvents not required as this function queries the OS directly.
 	SDL_GetGlobalMouseState(&position.x, &position.y);
 	return position;
 }
 
-V2_int InputHandler::GetMousePositionWindow() const {
+V2_float InputHandler::GetMousePositionWindow() const {
 	return mouse_pos_;
 }
 
-V2_int InputHandler::GetMousePositionPreviousWindow() const {
+V2_float InputHandler::GetMousePositionPreviousWindow() const {
 	return prev_mouse_pos_;
 }
 
-V2_int InputHandler::GetMouseDifferenceWindow() const {
+V2_float InputHandler::GetMouseDifferenceWindow() const {
 	return mouse_pos_ - prev_mouse_pos_;
 }
 
-V2_int InputHandler::GetMouseDifference(std::size_t render_layer) const {
+V2_float InputHandler::GetMouseDifference(std::size_t render_layer) const {
 	return ScaledToRenderLayer(GetMouseDifferenceWindow(), render_layer);
 }
 
-V2_int InputHandler::GetMousePosition(std::size_t render_layer) const {
+V2_float InputHandler::GetMousePosition(std::size_t render_layer) const {
 	return ScaledToRenderLayer(GetMousePositionWindow(), render_layer);
 }
 
-V2_int InputHandler::GetMousePositionPrevious(std::size_t render_layer) const {
+V2_float InputHandler::GetMousePositionPrevious(std::size_t render_layer) const {
 	return ScaledToRenderLayer(GetMousePositionPreviousWindow(), render_layer);
 }
 
-V2_int InputHandler::ScaledToRenderLayer(const V2_int& position, std::size_t render_layer) const {
-	V2_int w{ game.window.GetSize() };
+V2_float InputHandler::ScaledToRenderLayer(const V2_float& position, std::size_t render_layer)
+	const {
+	V2_float w{ game.window.GetSize() };
 	PTGN_ASSERT(w.x != 0 && w.y != 0, "Cannot scale position relative to a dimensionless window");
-	return game.camera.GetPrimary(render_layer).GetSize() * position / w;
-	;
+	V2_float p{ (game.camera.GetPrimary(render_layer).GetSize() * position) / w };
+	return p;
 }
 
 int InputHandler::GetMouseScroll() const {
