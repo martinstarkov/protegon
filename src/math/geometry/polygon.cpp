@@ -133,51 +133,36 @@ bool Rect::Overlaps(const V2_float& point) const {
 		return false;
 	}
 
-	// Optional: Ignore seam collisions:
-
-	if (NearlyEqual(point.x, max.x) || NearlyEqual(point.x, min.x)) {
-		return false;
-	}
-
-	if (NearlyEqual(point.y, min.y) || NearlyEqual(point.y, max.y)) {
-		return false;
-	}
-
 	return true;
 }
 
 bool Rect::Overlaps(const Line& line) const {
 	// TODO: Add rotation check.
 
-	V2_float c{ Center() };
-	V2_float e{ Half() };
-	V2_float m{ line.Midpoint() };
-	V2_float d{ line.b - m }; // Line halflength vector
+	V2_float center{ Center() };
+	V2_float Diff;
+	V2_float Dir;
+	V2_float fAWdU;
 
-	m = m - c;				  // Translate box and segment to origin
-
-	// Try world coordinate axes as separating axes.
-	float adx{ FastAbs(d.x) };
-	if (FastAbs(m.x) >= e.x + adx) {
+	Dir.x	= 0.5f * (line.b.x - line.a.x);
+	Diff.x	= (0.5f * (line.b.x + line.a.x)) - center.x;
+	fAWdU.x = FastAbs(Dir.x);
+	if (FastAbs(Diff.x) > size.x / 2 + fAWdU.x) {
 		return false;
 	}
-	float ady{ FastAbs(d.y) };
-	if (FastAbs(m.y) >= e.y + ady) {
+
+	Dir.y	= 0.5f * (line.b.y - line.a.y);
+	Diff.y	= (0.5f * (line.b.y + line.a.y)) - center.y;
+	fAWdU.y = FastAbs(Dir.y);
+	if (FastAbs(Diff.y) > size.y / 2 + fAWdU.y) {
 		return false;
 	}
-	// Add in an epsilon term to counteract arithmetic errors when segment is
-	// (near) parallel to a coordinate axis.
-	adx += epsilon<float>;
-	ady += epsilon<float>;
 
-	// Try cross products of segment direction vector with coordinate axes.
-	float cross{ m.Cross(d) };
-	float dot{ e.Dot({ ady, adx }) };
-
-	if (FastAbs(cross) > dot) {
+	float f = Dir.x * Diff.y - Dir.y * Diff.x;
+	if (FastAbs(f) > size.x / 2 * fAWdU.y + size.y / 2 * fAWdU.x) {
 		return false;
 	}
-	// No separating axis found; segment must be overlapping AABB.
+
 	return true;
 
 	// Alternative method:
@@ -215,16 +200,6 @@ bool Rect::Overlaps(const Rect& o_rect) const {
 		return false;
 	}
 
-	// Optional: Ignore seam collisions:
-
-	if (NearlyEqual(min.x, o_max.x) || NearlyEqual(max.x, o_min.x)) {
-		return false;
-	}
-
-	if (NearlyEqual(max.y, o_min.y) || NearlyEqual(min.y, o_max.y)) {
-		return false;
-	}
-
 	return true;
 }
 
@@ -245,7 +220,7 @@ Intersection Rect::Intersects(const Rect& o_rect) const {
 
 	// Optional: To include seams in collision, simply remove the NearlyEqual calls from this if
 	// statement.
-	if (pen.x < 0 || pen.y < 0 || NearlyEqual(pen.x, 0.0f) || NearlyEqual(pen.y, 0.0f)) {
+	if (pen.x < 0 || pen.y < 0) {
 		return c;
 	}
 
