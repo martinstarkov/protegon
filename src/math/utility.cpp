@@ -26,9 +26,9 @@ bool WithinPerimeter(float radius, float dist2) {
 	}
 
 	// Optional: Include perimeter:
-	/*if (NearlyEqual(dist2, rad2)) {
+	if (NearlyEqual(dist2, rad2)) {
 		return true;
-	}*/
+	}
 
 	return false;
 }

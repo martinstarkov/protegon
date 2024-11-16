@@ -273,22 +273,32 @@ public:
 
 class ShapeCollisionTest : public Test {
 public:
-	V2_float p0{ 10, 10 };
-	V2_float p1{ 20, 20 };
+	V2_float p0{ 11, 16 };
+	V2_float p1{ 14, 13 };
 
-	Line l1{ { 3, 3 }, { 3, 10 } };
-	Line l2{ { 3, 3 }, { 10, 3 } };
-	Line l3{ { 3, 3 }, { 10, 10 } };
+	// Horizontal lines
+	Line l1{ { 3, 1 }, { 27, 1 } };
+	Line l2{ { 3, 29 }, { 27, 29 } };
+	// Vertical lines
+	Line l3{ { 1, 3 }, { 1, 27 } };
+	Line l4{ { 29, 3 }, { 29, 27 } };
+	// Diagonal lines
+	Line l5{ { 3, 7 }, { 7, 3 } };
+	Line l6{ { 23, 3 }, { 27, 7 } };
+	Line l7{ { 27, 23 }, { 23, 27 } };
+	Line l8{ { 7, 27 }, { 3, 23 } };
 
-	Circle c1{ { 15, 9 }, 7 };
-	Rect r1{ { 15, 40 }, { 20, 15 } };
+	Circle c1{ { 15, 7 }, 4 };
+	Rect r1{ { 4, 11 }, { 6, 10 }, Origin::TopLeft };
 
-	Capsule ca1{ { 15, 30 }, { 15, 50 }, 7 };
-	Capsule ca2{ { 15, 30 }, { 50, 15 }, 7 };
-	Capsule ca3{ { 15, 30 }, { 50, 50 }, 7 };
+	Capsule ca1{ { 15, 23 }, { 23, 15 }, 4 };
+
+	V2_float rect_size{ 4.0f, 4.0f };
+	float circle_radius{ 4.0f };
+	float capsule_radius{ 4.0f };
 
 	void Init() override {
-		game.camera.GetPrimary().CenterOnArea({ 100.0f, 100.0f });
+		game.camera.GetPrimary().CenterOnArea({ 31, 31 });
 	}
 
 	void Update() override {
@@ -321,11 +331,14 @@ public:
 		overlap(c0, l1);
 		overlap(c0, l2);
 		overlap(c0, l3);
+		overlap(c0, l4);
+		overlap(c0, l5);
+		overlap(c0, l6);
+		overlap(c0, l7);
+		overlap(c0, l8);
 		overlap(c0, c1);
 		overlap(c0, r1);
 		overlap(c0, ca1);
-		overlap(c0, ca2);
-		overlap(c0, ca3);
 	}
 };
 
@@ -349,11 +362,14 @@ public:
 		overlap(c0, l1);
 		overlap(c0, l2);
 		overlap(c0, l3);
+		overlap(c0, l4);
+		overlap(c0, l5);
+		overlap(c0, l6);
+		overlap(c0, l7);
+		overlap(c0, l8);
 		overlap(c0, c1);
 		overlap(c0, r1);
 		overlap(c0, ca1);
-		overlap(c0, ca2);
-		overlap(c0, ca3);
 	}
 };
 
@@ -362,7 +378,7 @@ public:
 	void Update() override {
 		p1 = game.input.GetMousePosition();
 
-		Circle c0{ p1, 10.0f };
+		Circle c0{ p1, circle_radius };
 		c0.Draw(color::Green);
 
 		const auto overlap = [](auto s1, auto s2) {
@@ -377,11 +393,14 @@ public:
 		overlap(c0, l1);
 		overlap(c0, l2);
 		overlap(c0, l3);
+		overlap(c0, l4);
+		overlap(c0, l5);
+		overlap(c0, l6);
+		overlap(c0, l7);
+		overlap(c0, l8);
 		overlap(c0, c1);
 		overlap(c0, r1);
 		overlap(c0, ca1);
-		overlap(c0, ca2);
-		overlap(c0, ca3);
 	}
 };
 
@@ -390,7 +409,7 @@ public:
 	void Update() override {
 		p1 = game.input.GetMousePosition();
 
-		Rect c0{ p1, { 20, 20 }, Origin::Center, 0.0f };
+		Rect c0{ p1, rect_size, Origin::Center, 0.0f };
 		c0.Draw(color::Green);
 
 		const auto overlap = [](auto s1, auto s2) {
@@ -405,11 +424,14 @@ public:
 		overlap(c0, l1);
 		overlap(c0, l2);
 		overlap(c0, l3);
+		overlap(c0, l4);
+		overlap(c0, l5);
+		overlap(c0, l6);
+		overlap(c0, l7);
+		overlap(c0, l8);
 		overlap(c0, c1);
 		overlap(c0, r1);
 		overlap(c0, ca1);
-		overlap(c0, ca2);
-		overlap(c0, ca3);
 	}
 };
 
@@ -418,7 +440,7 @@ public:
 	void Update() override {
 		ShapeCollisionTest::Update();
 
-		Capsule c0{ p0, p1, 10.0f };
+		Capsule c0{ p0, p1, capsule_radius };
 		c0.Draw(color::Green);
 
 		const auto overlap = [](auto s1, auto s2) {
@@ -433,11 +455,14 @@ public:
 		overlap(c0, l1);
 		overlap(c0, l2);
 		overlap(c0, l3);
+		overlap(c0, l4);
+		overlap(c0, l5);
+		overlap(c0, l6);
+		overlap(c0, l7);
+		overlap(c0, l8);
 		overlap(c0, c1);
 		overlap(c0, r1);
 		overlap(c0, ca1);
-		overlap(c0, ca2);
-		overlap(c0, ca3);
 	}
 };
 
