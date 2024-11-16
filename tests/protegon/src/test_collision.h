@@ -295,18 +295,30 @@ public:
 
 	V2_float rect_size{ 4.0f, 4.0f };
 	float circle_radius{ 4.0f };
-	float capsule_radius{ 4.0f };
+	float capsule_radius{ 2.0f };
+
+	V2_int size{ 31, 31 };
 
 	void Init() override {
-		game.camera.GetPrimary().CenterOnArea({ 31, 31 });
+		game.camera.GetPrimary().CenterOnArea(size);
 	}
 
 	void Update() override {
-		if (game.input.MouseDown(Mouse::Left)) {
+		if (game.input.MousePressed(Mouse::Left)) {
 			p0 = game.input.GetMousePosition();
 		}
-		if (game.input.MouseDown(Mouse::Right)) {
+		if (game.input.MousePressed(Mouse::Right)) {
 			p1 = game.input.GetMousePosition();
+		}
+	}
+
+	void DrawGrid() {
+		V2_float tile_size{ 1, 1 };
+		for (int i = 0; i < size.x; i++) {
+			for (int j = 0; j < size.y; j++) {
+				Rect r{ V2_int{ i, j } * tile_size, tile_size, Origin::TopLeft };
+				r.Draw(color::Black);
+			}
 		}
 	}
 };
@@ -314,17 +326,26 @@ public:
 class PointOverlapTest : public ShapeCollisionTest {
 public:
 	void Update() override {
+		DrawGrid();
 		p1 = game.input.GetMousePosition();
 
 		V2_float c0{ p1 };
-		c0.Draw(color::Green);
+		c0.Draw(color::Green, 1.0f);
 
 		const auto overlap = [](auto s1, auto s2) {
 			if (s2.Overlaps(s1)) {
-				s1.Draw(color::Red);
-				s2.Draw(color::Red);
+				s1.Draw(color::Red, 1.0f);
+				if constexpr (std::is_same_v<decltype(s2), Line>) {
+					s2.Draw(color::Red, 1.0f);
+				} else {
+					s2.Draw(color::Red, -1.0f);
+				}
 			} else {
-				s2.Draw(color::Green);
+				if constexpr (std::is_same_v<decltype(s2), Line>) {
+					s2.Draw(color::Green, 1.0f);
+				} else {
+					s2.Draw(color::Green, -1.0f);
+				}
 			}
 		};
 
@@ -345,17 +366,26 @@ public:
 class LineOverlapTest : public ShapeCollisionTest {
 public:
 	void Update() override {
+		DrawGrid();
 		ShapeCollisionTest::Update();
 
 		Line c0{ p0, p1 };
 		c0.Draw(color::Green);
 
 		const auto overlap = [](auto s1, auto s2) {
-			if (s1.Overlaps(s2)) {
+			if (s2.Overlaps(s1)) {
 				s1.Draw(color::Red);
-				s2.Draw(color::Red);
+				if constexpr (std::is_same_v<decltype(s2), Line>) {
+					s2.Draw(color::Red, 1.0f);
+				} else {
+					s2.Draw(color::Red, -1.0f);
+				}
 			} else {
-				s2.Draw(color::Green);
+				if constexpr (std::is_same_v<decltype(s2), Line>) {
+					s2.Draw(color::Green, 1.0f);
+				} else {
+					s2.Draw(color::Green, -1.0f);
+				}
 			}
 		};
 
@@ -376,17 +406,26 @@ public:
 class CircleOverlapTest : public ShapeCollisionTest {
 public:
 	void Update() override {
+		DrawGrid();
 		p1 = game.input.GetMousePosition();
 
 		Circle c0{ p1, circle_radius };
-		c0.Draw(color::Green);
+		c0.Draw(color::Green, -1.0f);
 
 		const auto overlap = [](auto s1, auto s2) {
-			if (s1.Overlaps(s2)) {
-				s1.Draw(color::Red);
-				s2.Draw(color::Red);
+			if (s2.Overlaps(s1)) {
+				s1.Draw(color::Red, -1.0f);
+				if constexpr (std::is_same_v<decltype(s2), Line>) {
+					s2.Draw(color::Red, 1.0f);
+				} else {
+					s2.Draw(color::Red, -1.0f);
+				}
 			} else {
-				s2.Draw(color::Green);
+				if constexpr (std::is_same_v<decltype(s2), Line>) {
+					s2.Draw(color::Green, 1.0f);
+				} else {
+					s2.Draw(color::Green, -1.0f);
+				}
 			}
 		};
 
@@ -407,17 +446,26 @@ public:
 class RectOverlapTest : public ShapeCollisionTest {
 public:
 	void Update() override {
+		DrawGrid();
 		p1 = game.input.GetMousePosition();
 
 		Rect c0{ p1, rect_size, Origin::Center, 0.0f };
-		c0.Draw(color::Green);
+		c0.Draw(color::Green, -1.0f);
 
 		const auto overlap = [](auto s1, auto s2) {
-			if (s1.Overlaps(s2)) {
-				s1.Draw(color::Red);
-				s2.Draw(color::Red);
+			if (s2.Overlaps(s1)) {
+				s1.Draw(color::Red, -1.0f);
+				if constexpr (std::is_same_v<decltype(s2), Line>) {
+					s2.Draw(color::Red, 1.0f);
+				} else {
+					s2.Draw(color::Red, -1.0f);
+				}
 			} else {
-				s2.Draw(color::Green);
+				if constexpr (std::is_same_v<decltype(s2), Line>) {
+					s2.Draw(color::Green, 1.0f);
+				} else {
+					s2.Draw(color::Green, -1.0f);
+				}
 			}
 		};
 
@@ -438,17 +486,26 @@ public:
 class CapsuleOverlapTest : public ShapeCollisionTest {
 public:
 	void Update() override {
+		DrawGrid();
 		ShapeCollisionTest::Update();
 
 		Capsule c0{ p0, p1, capsule_radius };
-		c0.Draw(color::Green);
+		c0.Draw(color::Green, -1.0f);
 
 		const auto overlap = [](auto s1, auto s2) {
-			if (s1.Overlaps(s2)) {
-				s1.Draw(color::Red);
-				s2.Draw(color::Red);
+			if (s2.Overlaps(s1)) {
+				s1.Draw(color::Red, -1.0f);
+				if constexpr (std::is_same_v<decltype(s2), Line>) {
+					s2.Draw(color::Red, 1.0f);
+				} else {
+					s2.Draw(color::Red, -1.0f);
+				}
 			} else {
-				s2.Draw(color::Green);
+				if constexpr (std::is_same_v<decltype(s2), Line>) {
+					s2.Draw(color::Green, 1.0f);
+				} else {
+					s2.Draw(color::Green, -1.0f);
+				}
 			}
 		};
 
