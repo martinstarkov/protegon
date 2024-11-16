@@ -12,6 +12,7 @@
 #include "ecs/ecs.h"
 #include "event/input_handler.h"
 #include "event/key.h"
+#include "event/mouse.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/intersection.h"
 #include "math/geometry/line.h"
