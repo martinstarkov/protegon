@@ -60,6 +60,7 @@ public:
 			return;
 		}
 
+		auto collisions44{ GetSortedCollisions(entity, collider, boxes, circles, {}, velocity) };
 		const auto& earliest{ collisions.front().c };
 
 		if (debug_draw) {

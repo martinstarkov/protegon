@@ -272,6 +272,60 @@ public:
 	}
 };
 
+class EntityCollisionTest : public Test {
+public:
+	ecs::Manager manager;
+	ecs::Entity entity;
+
+	V2_float speed{ 300.0f };
+
+	void Init() override {
+		manager.Clear();
+		entity = manager.CreateEntity();
+		entity.Add<Transform>(V2_float{ 400, 100 });
+		entity.Add<RigidBody>();
+		entity.Add<BoxCollider>(entity, V2_float{ 30, 30 });
+
+		CreateObstacle(V2_float{ 400, 400 }, V2_float{ 50, 50 }, Origin::Center);
+
+		manager.Refresh();
+	}
+
+	void CreateObstacle(const V2_float& pos, const V2_float& size, Origin origin) {
+		auto obstacle = manager.CreateEntity();
+		obstacle.Add<Transform>(pos);
+		obstacle.Add<BoxCollider>(obstacle, size, origin);
+	}
+
+	void Update() override {
+		MoveWASD(entity.Get<RigidBody>().velocity, speed * game.physics.dt());
+
+		game.physics.Update(manager);
+
+		if (game.input.KeyDown(Key::R)) {
+			Init();
+		}
+	}
+
+	void Draw() override {
+		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
+			Rect r{ b.GetAbsoluteRect() };
+			DrawRect(e, r);
+			if (e == entity) {
+				game.draw.Text("Entity", color::Black, Rect{ r.Center() });
+			}
+		}
+	}
+};
+
+class SweepEntityCollisionTest : public EntityCollisionTest {
+public:
+	void Init() override {
+		EntityCollisionTest::Init();
+		entity.Get<BoxCollider>().continuous = true;
+	}
+};
+
 class ShapeCollisionTest : public Test {
 public:
 	V2_float p0{ 11, 16 };
@@ -1641,6 +1695,7 @@ void TestCollisions() {
 	V2_float velocity{ 100000.0f };
 	float speed{ 7000.0f };
 
+	tests.emplace_back(new SweepEntityCollisionTest());
 	tests.emplace_back(new PointOverlapTest());
 	tests.emplace_back(new LineOverlapTest());
 	tests.emplace_back(new CircleOverlapTest());

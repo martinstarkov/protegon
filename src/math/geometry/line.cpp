@@ -246,12 +246,12 @@ ptgn::Raycast Line::Raycast(const Circle& circle) const {
 ptgn::Raycast Line::Raycast(const Rect& rect) const {
 	ptgn::Raycast c;
 
-	bool start_in{ rect.Overlaps(a) };
-	bool end_in{ rect.Overlaps(b) };
+	/*bool start_in{ rect.Overlaps(a) };
+	bool end_in{ rect.Overlaps(b) };*/
 
-	if (start_in && end_in) {
+	/*if (start_in && end_in) {
 		return c;
-	}
+	}*/
 
 	V2_float d{ Direction() };
 
@@ -266,7 +266,7 @@ ptgn::Raycast Line::Raycast(const Rect& rect) const {
 	V2_float far{ rect.Max() - a };
 
 	// Handle edge cases where the segment line is parallel with the edge of the rectangle.
-	if (NearlyEqual(near.x, 0.0f)) {
+	/*if (NearlyEqual(near.x, 0.0f)) {
 		near.x = 0.0f;
 	}
 	if (NearlyEqual(near.y, 0.0f)) {
@@ -277,7 +277,7 @@ ptgn::Raycast Line::Raycast(const Rect& rect) const {
 	}
 	if (NearlyEqual(far.y, 0.0f)) {
 		far.y = 0.0f;
-	}
+	}*/
 
 	V2_float t_near{ near * inv_dir };
 	V2_float t_far{ far * inv_dir };
@@ -316,11 +316,11 @@ ptgn::Raycast Line::Raycast(const Rect& rect) const {
 	}
 
 	// Closest time will be the first contact.
-	bool interal{ start_in && !end_in };
+	// bool interal{ start_in && !end_in };
 
 	float time{ 1.0f };
 
-	if (interal) {
+	/*if (interal) {
 		std::swap(t_near.x, t_far.x);
 		std::swap(t_near.y, t_far.y);
 		std::swap(inv_dir.x, inv_dir.y);
@@ -328,7 +328,8 @@ ptgn::Raycast Line::Raycast(const Rect& rect) const {
 		d	 *= -1.0f;
 	} else {
 		time = std::max(t_near.x, t_near.y);
-	}
+	}*/
+	time = std::max(t_near.x, t_near.y);
 
 	if (time < 0.0f || time >= 1.0f) {
 		return c;
@@ -368,10 +369,10 @@ ptgn::Raycast Line::Raycast(const Rect& rect) const {
 		}
 	}
 
-	if (interal) {
+	/*if (interal) {
 		std::swap(c.normal.x, c.normal.y);
 		c.normal *= -1.0f;
-	}
+	}*/
 
 	// Raycast collision occurred.
 	return c;
