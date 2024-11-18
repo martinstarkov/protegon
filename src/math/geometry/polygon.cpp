@@ -133,12 +133,18 @@ bool Rect::Overlaps(const V2_float& point) const {
 		return false;
 	}
 
+	if (NearlyEqual(point.x, max.x) || NearlyEqual(point.x, min.x)) {
+		return false;
+	}
+
+	if (NearlyEqual(point.y, min.y) || NearlyEqual(point.y, max.y)) {
+		return false;
+	}
+
 	return true;
 }
 
 bool Rect::Overlaps(const Line& line) const {
-	// TODO: Add rotation check.
-
 	// TODO: Add rotation check.
 
 	V2_float c{ Center() };
@@ -150,11 +156,11 @@ bool Rect::Overlaps(const Line& line) const {
 
 	// Try world coordinate axes as separating axes.
 	float adx{ FastAbs(d.x) };
-	if (FastAbs(m.x) > e.x + adx) {
+	if (FastAbs(m.x) >= e.x + adx) {
 		return false;
 	}
 	float ady{ FastAbs(d.y) };
-	if (FastAbs(m.y) > e.y + ady) {
+	if (FastAbs(m.y) >= e.y + ady) {
 		return false;
 	}
 	// Add in an epsilon term to counteract arithmetic errors when segment is
@@ -171,34 +177,6 @@ bool Rect::Overlaps(const Line& line) const {
 	}
 	// No separating axis found; segment must be overlapping AABB.
 	return true;
-
-	/*
-	V2_float center{ Center() };
-	V2_float Diff;
-	V2_float Dir;
-	V2_float fAWdU;
-
-	Dir.x	= 0.5f * (line.b.x - line.a.x);
-	Diff.x	= (0.5f * (line.b.x + line.a.x)) - center.x;
-	fAWdU.x = FastAbs(Dir.x);
-	if (FastAbs(Diff.x) > size.x / 2 + fAWdU.x) {
-		return false;
-	}
-
-	Dir.y	= 0.5f * (line.b.y - line.a.y);
-	Diff.y	= (0.5f * (line.b.y + line.a.y)) - center.y;
-	fAWdU.y = FastAbs(Dir.y);
-	if (FastAbs(Diff.y) > size.y / 2 + fAWdU.y) {
-		return false;
-	}
-
-	float f = Dir.x * Diff.y - Dir.y * Diff.x;
-	if (FastAbs(f) > size.x / 2 * fAWdU.y + size.y / 2 * fAWdU.x) {
-		return false;
-	}
-
-	return true;
-	*/
 
 	// Alternative method:
 	// Source: https://en.wikipedia.org/wiki/Cohen%E2%80%93Sutherland_algorithm
@@ -235,6 +213,16 @@ bool Rect::Overlaps(const Rect& o_rect) const {
 		return false;
 	}
 
+	// Optional: Ignore seam collisions:
+
+	if (NearlyEqual(min.x, o_max.x) || NearlyEqual(max.x, o_min.x)) {
+		return false;
+	}
+
+	if (NearlyEqual(max.y, o_min.y) || NearlyEqual(min.y, o_max.y)) {
+		return false;
+	}
+
 	return true;
 }
 
@@ -255,7 +243,7 @@ Intersection Rect::Intersects(const Rect& o_rect) const {
 
 	// Optional: To include seams in collision, simply remove the NearlyEqual calls from this if
 	// statement.
-	if (pen.x < 0 || pen.y < 0) {
+	if (pen.x < 0 || pen.y < 0 || NearlyEqual(pen.x, 0.0f) || NearlyEqual(pen.y, 0.0f)) {
 		return c;
 	}
 

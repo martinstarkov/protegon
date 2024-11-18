@@ -48,10 +48,7 @@ bool Line::Overlaps(const V2_float& point) const {
 	}
 
 	// Handle cases where c projects onto ab.
-	float ac2{ ac.Dot(ac) };
-	float proj{ ac2 * f };
-	float e2{ e * e };
-	return NearlyEqual(proj, e2);
+	return NearlyEqual(ac.Dot(ac) * f, e * e);
 }
 
 bool Line::Overlaps(const Line& line) const {
@@ -104,7 +101,7 @@ bool Line::Overlaps(const Line& line) const {
 		(Overlaps(line.b) || Overlaps(line.a) || line.Overlaps(a) || line.Overlaps(b))
 	};
 
-	return collinear && point_overlap;
+	return false; // collinear && point_overlap;
 }
 
 bool Line::Overlaps(const Circle& circle) const {
@@ -133,26 +130,7 @@ ptgn::Raycast Line::Raycast(const Line& line) const {
 
 	ptgn::Raycast c;
 
-	V2_float c1;
-	V2_float c2;
-	float s{ 1.0f };
-	float t{ 1.0f };
-	float dist2{ impl::ClosestPointLineLine(*this, line, s, t, c1, c2) };
-
-	if (s < 0.0f || s >= 1.0f || !NearlyEqual(dist2, 0.0f) ||
-		NearlyEqual(dist2, 0.0f) && NearlyEqual(s, 0.0f)) {
-		return c;
-	}
-
-	c.t		 = s;
-	c.normal = (-line.Direction()).Skewed().Normalized();
-
-	if ((c1 - b).Dot(c.normal) < 0.0f) {
-		c.normal *= -1.0f;
-	}
-	return c;
-
-	/*if (!Overlaps(line)) {
+	if (!Overlaps(line)) {
 		return c;
 	}
 
@@ -192,7 +170,7 @@ ptgn::Raycast Line::Raycast(const Line& line) const {
 
 	c.t		 = t;
 	c.normal = skewed / std::sqrt(mag2);
-	return c;*/
+	return c;
 }
 
 ptgn::Raycast Line::Raycast(const Circle& circle) const {
@@ -234,7 +212,7 @@ ptgn::Raycast Line::Raycast(const Circle& circle) const {
 
 	float mag2{ impact.Dot(impact) };
 
-	if (NearlyEqual(mag2, 0.0f)) {
+	if (NearlyEqual(mag2, 0.0f) || NearlyEqual(mag2, circle.radius * circle.radius)) {
 		c = {};
 		return c;
 	}
@@ -266,19 +244,19 @@ ptgn::Raycast Line::Raycast(const Rect& rect) const {
 	V2_float near{ rect.Min() - a };
 	V2_float far{ rect.Max() - a };
 
-	// Allow a small margin for moving past a collinear seam.
-	/*if (NearlyEqual(near.x, 0.0f, 0.00005f)) {
+	// Handle edge cases where the segment line is parallel with the edge of the rectangle.
+	if (NearlyEqual(near.x, 0.0f)) {
 		near.x = 0.0f;
 	}
-	if (NearlyEqual(near.y, 0.0f, 0.00005f)) {
+	if (NearlyEqual(near.y, 0.0f)) {
 		near.y = 0.0f;
 	}
-	if (NearlyEqual(far.x, 0.0f, 0.00005f)) {
+	if (NearlyEqual(far.x, 0.0f)) {
 		far.x = 0.0f;
 	}
-	if (NearlyEqual(far.y, 0.0f, 0.00005f)) {
+	if (NearlyEqual(far.y, 0.0f)) {
 		far.y = 0.0f;
-	}*/
+	}
 
 	V2_float t_near{ near * inv_dir };
 	V2_float t_far{ far * inv_dir };
@@ -316,18 +294,20 @@ ptgn::Raycast Line::Raycast(const Rect& rect) const {
 		return c;
 	}
 
+	// Closest time will be the first contact.
+	bool interal{ start_in && !end_in };
+
 	float time{ 1.0f };
 
-	// bool interal{ start_in && !end_in };
-	/*if (interal) {
+	if (interal) {
 		std::swap(t_near.x, t_far.x);
 		std::swap(t_near.y, t_far.y);
 		std::swap(inv_dir.x, inv_dir.y);
 		time  = std::min(t_near.x, t_near.y);
 		d	 *= -1.0f;
 	} else {
-	}*/
-	time = std::max(t_near.x, t_near.y);
+		time = std::max(t_near.x, t_near.y);
+	}
 
 	if (time < 0.0f || time >= 1.0f) {
 		return c;
@@ -367,11 +347,12 @@ ptgn::Raycast Line::Raycast(const Rect& rect) const {
 		}
 	}
 
-	/*if (interal) {
+	if (interal) {
 		std::swap(c.normal.x, c.normal.y);
 		c.normal *= -1.0f;
-	}*/
+	}
 
+	// Raycast collision occurred.
 	return c;
 }
 
@@ -380,9 +361,7 @@ ptgn::Raycast Line::Raycast(const Capsule& capsule) const {
 
 	ptgn::Raycast c;
 
-	if (!Overlaps(capsule)) {
-		return c;
-	}
+	// TODO: Add early exit if overlap test fails.
 
 	V2_float cv{ capsule.line.Direction() };
 	float mag2{ cv.Dot(cv) };
@@ -418,7 +397,8 @@ ptgn::Raycast Line::Raycast(const Capsule& capsule) const {
 		col_min = c4;
 	}
 
-	if (col_min.t < 0.0f || col_min.t >= 1.0f) {
+	if (NearlyEqual(col_min.t, 1.0f)) {
+		c = {};
 		return c;
 	}
 

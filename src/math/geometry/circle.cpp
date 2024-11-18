@@ -253,10 +253,6 @@ ptgn::Raycast Circle::Raycast(const V2_float& ray, const Rect& rect) const {
 	// }
 
 	c = col_min;
-	auto c50{ seg.Raycast(Capsule{ { b_min, V2_float{ b_max.x, b_min.y } }, radius }) };
-	if (c50.Occurred() && c50.t < col_min.t) {
-		col_min = c50;
-	}
 
 	return c;
 }

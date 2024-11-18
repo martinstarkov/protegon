@@ -21,14 +21,14 @@ namespace impl {
 bool WithinPerimeter(float radius, float dist2) {
 	float rad2{ radius * radius };
 
-	if (dist2 < rad2) {
+	if (dist2 < rad2 && !NearlyEqual(dist2, rad2)) {
 		return true;
 	}
 
 	// Optional: Include perimeter:
-	if (NearlyEqual(dist2, rad2)) {
+	/*if (NearlyEqual(dist2, rad2)) {
 		return true;
-	}
+	}*/
 
 	return false;
 }

@@ -1714,6 +1714,7 @@ void TestCollisions() {
 	V2_float velocity{ 100000.0f };
 	float speed{ 7000.0f };
 
+	tests.emplace_back(new CollisionCallbackTest());
 	tests.emplace_back(new RectangleSweepTest());
 	tests.emplace_back(new GeneralCollisionTest());
 	tests.emplace_back(new SweepEntityCollisionTest());
@@ -1723,7 +1724,6 @@ void TestCollisions() {
 	tests.emplace_back(new RectOverlapTest());
 	tests.emplace_back(new CapsuleOverlapTest());
 	tests.emplace_back(new CircleRectCollisionTest1());
-	tests.emplace_back(new CollisionCallbackTest());
 	tests.emplace_back(new RectCollisionTest4());
 	tests.emplace_back(new RectCollisionTest3());
 	tests.emplace_back(new HeadOnDynamicRectTest1(speed));
