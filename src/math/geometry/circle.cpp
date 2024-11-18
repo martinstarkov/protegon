@@ -114,7 +114,7 @@ Intersection Circle::Intersects(const Circle& circle) const {
 		c.depth	   = r;
 	}
 
-	PTGN_ASSERT(c.depth >= 0.0f);
+	c.depth = std::max(c.depth, 0.0f);
 
 	return c;
 }
@@ -143,7 +143,7 @@ Intersection Circle::Intersects(const Rect& rect) const {
 		PTGN_ASSERT(!NearlyEqual(d, 0.0f));
 		c.normal = ab / d;
 		c.depth	 = radius - d;
-		PTGN_ASSERT(c.depth >= 0.0f);
+		c.depth	 = std::max(c.depth, 0.0f);
 		return c;
 	}
 
@@ -187,9 +187,9 @@ ptgn::Raycast Circle::Raycast(const V2_float& ray, const Rect& rect) const {
 	// TODO: Fix corner collisions.
 	// TODO: Consider
 	// https://www.geometrictools.com/Documentation/IntersectionMovingCircleRectangle.pdf
-	return Rect{ center, { 2.0f * radius, 2.0f * radius }, Origin::Center, 0.0f }.Raycast(
+	/*return Rect{ center, { 2.0f * radius, 2.0f * radius }, Origin::Center, 0.0f }.Raycast(
 		ray, rect
-	);
+	);*/
 	/*V2_float b_min{ rect.Min() };
 	V2_float b_max{ rect.Max() };
 	auto r1 = Raycast(ray, Circle{ b_min, radius });
@@ -197,13 +197,12 @@ ptgn::Raycast Circle::Raycast(const V2_float& ray, const Rect& rect) const {
 	auto r3 = Raycast(ray, Circle{ b_max, radius });
 	auto r4 = Raycast(ray, Circle{ V2_float{ b_min.x, b_max.y }, radius });*/
 
-	/*
 	ptgn::Raycast c;
 
 	Line seg{ center, center + ray };
 
-	bool start_inside{ Overlaps(rect) };
-	bool end_inside{ rect.Overlaps(Circle{ seg.b, radius }) };
+	/*bool start_inside{ Overlaps(rect) };
+	bool end_inside{ rect.Overlaps(Circle{ seg.b, radius }) };*/
 
 	// if (start_inside) {
 	//	// Circle inside rectangle, flip segment direction.
@@ -226,40 +225,40 @@ ptgn::Raycast Circle::Raycast(const V2_float& ray, const Rect& rect) const {
 	ptgn::Raycast col_min{ c };
 	// Top segment.
 	auto c1{ seg.Raycast(Capsule{ { b_min, V2_float{ b_max.x, b_min.y } }, radius }) };
-	game.draw.Point(center + seg.Direction() * c1.t, color::Gold, 4.0f);
 	if (c1.Occurred() && c1.t < col_min.t) {
 		col_min = c1;
 	}
 	// Right segment.
 	auto c2{ seg.Raycast(Capsule{ { V2_float{ b_max.x, b_min.y }, b_max }, radius }) };
-	game.draw.Point(center + seg.Direction() * c2.t, color::Green, 4.0f);
 	if (c2.Occurred() && c2.t < col_min.t) {
 		col_min = c2;
 	}
 	// Bottom segment.
 	auto c3{ seg.Raycast(Capsule{ { b_max, V2_float{ b_min.x, b_max.y } }, radius }) };
-	game.draw.Point(center + seg.Direction() * c3.t, color::Pink, 4.0f);
 	if (c3.Occurred() && c3.t < col_min.t) {
 		col_min = c3;
 	}
 	// Left segment.
 	auto c4{ seg.Raycast(Capsule{ { V2_float{ b_min.x, b_max.y }, b_min }, radius }) };
-	game.draw.Point(center + seg.Direction() * c4.t, color::Blue, 4.0f);
 	if (c4.Occurred() && c4.t < col_min.t) {
 		col_min = c4;
 	}
 
-	if (col_min.t >= 1.0f) {
+	if (col_min.t < 0.0f || col_min.t >= 1.0f) {
 		return c;
 	}
 
-	//if (start_inside) {
+	// if (start_inside) {
 	//	col_min.t = 1.0f - col_min.t;
-	//}
+	// }
 
 	c = col_min;
+	auto c50{ seg.Raycast(Capsule{ { b_min, V2_float{ b_max.x, b_min.y } }, radius }) };
+	if (c50.Occurred() && c50.t < col_min.t) {
+		col_min = c50;
+	}
 
-	return c;*/
+	return c;
 }
 
 void Arc::Draw(bool clockwise, const Color& color, float line_width, const LayerInfo& layer_info)

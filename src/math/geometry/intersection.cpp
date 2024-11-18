@@ -9,7 +9,7 @@ bool Intersection::Occurred() const {
 		depth >= 0.0f && depth != std::numeric_limits<float>::infinity(),
 		"Failed to identify correct intersection depth"
 	);
-	return depth != 0.0f;
+	return !normal.IsZero();
 }
 
 } // namespace ptgn

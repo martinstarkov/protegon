@@ -139,7 +139,8 @@ ptgn::Raycast Line::Raycast(const Line& line) const {
 	float t{ 1.0f };
 	float dist2{ impl::ClosestPointLineLine(*this, line, s, t, c1, c2) };
 
-	if (s < 0.0f || s >= 1.0f || !NearlyEqual(dist2, 0.0f)) {
+	if (s < 0.0f || s >= 1.0f || !NearlyEqual(dist2, 0.0f) ||
+		NearlyEqual(dist2, 0.0f) && NearlyEqual(s, 0.0f)) {
 		return c;
 	}
 
@@ -246,12 +247,12 @@ ptgn::Raycast Line::Raycast(const Circle& circle) const {
 ptgn::Raycast Line::Raycast(const Rect& rect) const {
 	ptgn::Raycast c;
 
-	/*bool start_in{ rect.Overlaps(a) };
-	bool end_in{ rect.Overlaps(b) };*/
+	bool start_in{ rect.Overlaps(a) };
+	bool end_in{ rect.Overlaps(b) };
 
-	/*if (start_in && end_in) {
+	if (start_in && end_in) {
 		return c;
-	}*/
+	}
 
 	V2_float d{ Direction() };
 
@@ -265,17 +266,17 @@ ptgn::Raycast Line::Raycast(const Rect& rect) const {
 	V2_float near{ rect.Min() - a };
 	V2_float far{ rect.Max() - a };
 
-	// Handle edge cases where the segment line is parallel with the edge of the rectangle.
-	/*if (NearlyEqual(near.x, 0.0f)) {
+	// Allow a small margin for moving past a collinear seam.
+	/*if (NearlyEqual(near.x, 0.0f, 0.00005f)) {
 		near.x = 0.0f;
 	}
-	if (NearlyEqual(near.y, 0.0f)) {
+	if (NearlyEqual(near.y, 0.0f, 0.00005f)) {
 		near.y = 0.0f;
 	}
-	if (NearlyEqual(far.x, 0.0f)) {
+	if (NearlyEqual(far.x, 0.0f, 0.00005f)) {
 		far.x = 0.0f;
 	}
-	if (NearlyEqual(far.y, 0.0f)) {
+	if (NearlyEqual(far.y, 0.0f, 0.00005f)) {
 		far.y = 0.0f;
 	}*/
 
@@ -315,11 +316,9 @@ ptgn::Raycast Line::Raycast(const Rect& rect) const {
 		return c;
 	}
 
-	// Closest time will be the first contact.
-	// bool interal{ start_in && !end_in };
-
 	float time{ 1.0f };
 
+	// bool interal{ start_in && !end_in };
 	/*if (interal) {
 		std::swap(t_near.x, t_far.x);
 		std::swap(t_near.y, t_far.y);
@@ -327,7 +326,6 @@ ptgn::Raycast Line::Raycast(const Rect& rect) const {
 		time  = std::min(t_near.x, t_near.y);
 		d	 *= -1.0f;
 	} else {
-		time = std::max(t_near.x, t_near.y);
 	}*/
 	time = std::max(t_near.x, t_near.y);
 
@@ -374,7 +372,6 @@ ptgn::Raycast Line::Raycast(const Rect& rect) const {
 		c.normal *= -1.0f;
 	}*/
 
-	// Raycast collision occurred.
 	return c;
 }
 
@@ -426,8 +423,6 @@ ptgn::Raycast Line::Raycast(const Capsule& capsule) const {
 	}
 
 	c = col_min;
-
-	game.draw.Capsule(capsule.line.a, capsule.line.b, capsule.radius, color::Purple, 1.0f);
 
 	return c;
 }

@@ -139,6 +139,40 @@ bool Rect::Overlaps(const V2_float& point) const {
 bool Rect::Overlaps(const Line& line) const {
 	// TODO: Add rotation check.
 
+	// TODO: Add rotation check.
+
+	V2_float c{ Center() };
+	V2_float e{ Half() };
+	V2_float m{ line.Midpoint() };
+	V2_float d{ line.b - m }; // Line halflength vector
+
+	m = m - c;				  // Translate box and segment to origin
+
+	// Try world coordinate axes as separating axes.
+	float adx{ FastAbs(d.x) };
+	if (FastAbs(m.x) > e.x + adx) {
+		return false;
+	}
+	float ady{ FastAbs(d.y) };
+	if (FastAbs(m.y) > e.y + ady) {
+		return false;
+	}
+	// Add in an epsilon term to counteract arithmetic errors when segment is
+	// (near) parallel to a coordinate axis.
+	adx += epsilon<float>;
+	ady += epsilon<float>;
+
+	// Try cross products of segment direction vector with coordinate axes.
+	float cross{ m.Cross(d) };
+	float dot{ e.Dot({ ady, adx }) };
+
+	if (FastAbs(cross) > dot) {
+		return false;
+	}
+	// No separating axis found; segment must be overlapping AABB.
+	return true;
+
+	/*
 	V2_float center{ Center() };
 	V2_float Diff;
 	V2_float Dir;
@@ -164,6 +198,7 @@ bool Rect::Overlaps(const Line& line) const {
 	}
 
 	return true;
+	*/
 
 	// Alternative method:
 	// Source: https://en.wikipedia.org/wiki/Cohen%E2%80%93Sutherland_algorithm
@@ -254,7 +289,9 @@ ptgn::Raycast Rect::Raycast(const V2_float& ray, const Circle& circle) const {
 ptgn::Raycast Rect::Raycast(const V2_float& ray, const Rect& rect) const {
 	V2_float a_center{ Center() };
 	Line line{ a_center, a_center + ray };
-	return line.Raycast(Rect{ rect.Min() - Half(), rect.size + size, Origin::TopLeft });
+	Rect expanded{ rect.Min() - Half(), rect.size + size, Origin::TopLeft };
+	auto raycast{ line.Raycast(expanded) };
+	return raycast;
 }
 
 Polygon::Polygon(const Rect& rect) {
