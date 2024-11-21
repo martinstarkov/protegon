@@ -5,6 +5,7 @@
 #include "test_camera.h"
 #include "test_collision.h"
 #include "test_events.h"
+#include "test_fluid.h"
 #include "test_lighting.h"
 #include "test_math.h"
 #include "test_matrix4.h"
@@ -44,6 +45,7 @@ public:
 
 		// Visual tests.
 
+		TestFluid();
 		TestCollisions();
 		TestRenderer();
 		TestParticles();
