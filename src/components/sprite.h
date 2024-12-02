@@ -25,6 +25,7 @@
 #include "utility/debug.h"
 #include "utility/time.h"
 #include "utility/tween.h"
+#include "utility/utility.h"
 
 namespace ptgn {
 
@@ -77,22 +78,6 @@ inline void DrawLine(ecs::Entity entity, const Line& line) {
 	);
 }
 
-inline void DrawTexture(
-	ecs::Entity entity, const Texture& texture, const Transform& transform,
-	const V2_float& draw_offset = {}, const Rect& source = {}
-) {
-	game.draw.Texture(
-		texture,
-		{ transform.position + draw_offset, source.size * transform.scale, source.origin,
-		  transform.rotation },
-		{ source.position, source.size,
-		  entity.Has<SpriteFlip>() ? entity.Get<SpriteFlip>() : Flip::None,
-		  entity.Has<SpriteTint>() ? entity.Get<SpriteTint>() : color::White,
-		  V2_float{ 0.5f, 0.5f } },
-		entity.Has<LayerInfo>() ? entity.Get<LayerInfo>() : LayerInfo{}
-	);
-}
-
 struct Sprite {
 	// sprite_size = {} results in full texture size being used.
 	Sprite(
@@ -129,7 +114,7 @@ struct Sprite {
 		);
 	}
 
-	void Draw(ecs::Entity entity, const Transform& transform) const;
+	void Draw(ecs::Entity entity) const;
 
 	Texture texture;
 
@@ -144,17 +129,18 @@ private:
 
 namespace impl {
 
+// Represents a row of sprites within a texture.
 struct SpriteSheet {
 	SpriteSheet() = default;
 
 	// Frames go from left to right.
 	SpriteSheet(
-		const Texture& texture, const V2_float& frame_size, std::size_t frames,
+		const Texture& texture, std::size_t frame_count, const V2_float& frame_size,
 		const V2_float& start_pixel = {}
 	) :
 		texture{ texture }, sprite_size{ frame_size } {
-		sprite_positions.reserve(frames);
-		for (std::size_t i = 0; i < frames; i++) {
+		sprite_positions.reserve(frame_count);
+		for (std::size_t i = 0; i < frame_count; i++) {
 			float x = start_pixel.x + frame_size.x * static_cast<float>(i);
 			PTGN_ASSERT(x < texture.GetSize().x, "Source position X must be within texture width");
 			sprite_positions.emplace_back(x, start_pixel.y);
@@ -170,8 +156,24 @@ struct SpriteSheet {
 	V2_float sprite_size;					// Size of an individual sprite.
 };
 
+inline void DrawTexture(
+	ecs::Entity entity, const Texture& texture, const V2_float& draw_offset, const Rect& source
+) {
+	PTGN_ASSERT(entity.Has<Transform>(), "Cannot draw entity with no transform component");
+	const auto& t{ entity.Get<Transform>() };
+	// Absolute value needed because scale can be negative for flipping.
+	V2_float scaled_size{ source.size * V2_float{ FastAbs(t.scale.x), FastAbs(t.scale.y) } };
+	Rect dest{ t.position + draw_offset, scaled_size, source.origin, t.rotation };
+	TextureInfo info{ source.position, source.size,
+					  entity.Has<SpriteFlip>() ? entity.Get<SpriteFlip>() : Flip::None,
+					  entity.Has<SpriteTint>() ? entity.Get<SpriteTint>() : color::White,
+					  V2_float{ 0.5f, 0.5f } };
+	texture.Draw(dest, info, entity.Has<LayerInfo>() ? entity.Get<LayerInfo>() : LayerInfo{});
+}
+
 } // namespace impl
 
+// Represents an animated row of sprites within a texture.
 struct Animation : public impl::SpriteSheet {
 	Animation() = default;
 
@@ -181,14 +183,15 @@ struct Animation : public impl::SpriteSheet {
 	Animation& operator=(const Animation&) = default;
 
 	// TODO: Make animation info struct.
+	// @param frame_size Size of an individual animation frame (single sprite).
+	// @param origin Relative to what the draw offset is
 	Animation(
-		const Texture& texture, const V2_float& frame_size, std::size_t frames,
-		milliseconds animation_duration, const V2_float& draw_offset = {},
-		Origin origin = Origin::Center, std::size_t start_frame = 0,
-		const V2_float& start_pixel = {}
+		const Texture& texture, std::size_t frame_count, const V2_float& frame_size,
+		milliseconds duration, const V2_float& draw_offset = {}, Origin origin = Origin::Center,
+		const V2_float& start_pixel = {}, std::size_t start_frame = 0
 	) :
-		SpriteSheet{ texture, frame_size, frames, start_pixel } {
-		duration		  = animation_duration;
+		SpriteSheet{ texture, frame_count, frame_size, start_pixel } {
+		this->duration	  = duration;
 		this->draw_offset = draw_offset;
 		this->origin	  = origin;
 		PTGN_ASSERT(
@@ -210,23 +213,13 @@ struct Animation : public impl::SpriteSheet {
 		milliseconds frame_duration{ duration / frame_count };
 		tween = game.tween.Add(frame_duration)
 					.Repeat(-1)
-					.OnStart([=]() {
-						if (on_start != nullptr) {
-							std::invoke(on_start);
-						}
-					})
+					.OnStart([=]() { Invoke(on_start); })
 					.OnRepeat([=]() {
-						if (on_repeat != nullptr) {
-							std::invoke(on_repeat);
-						}
+						Invoke(on_repeat);
 						auto& f{ *frame };
 						f = Mod(++f, frame_count);
 					})
-					.OnUpdate([=](float t) {
-						if (on_update != nullptr) {
-							std::invoke(on_update, t);
-						}
-					})
+					.OnUpdate([=](float t) { Invoke(on_update, t); })
 					.Start();
 	}
 
@@ -238,13 +231,11 @@ struct Animation : public impl::SpriteSheet {
 		}
 	}
 
-	void Draw(ecs::Entity entity, const Transform& transform) const;
+	void Draw(ecs::Entity entity) const;
 
 	std::function<void()> on_start;
 	std::function<void()> on_repeat;
 	std::function<void(float)> on_update;
-
-	Tween tween;
 
 	[[nodiscard]] std::size_t GetCurrentFrame() const {
 		PTGN_ASSERT(frame != nullptr, "Cannot retrieve current frame of uninitialized animation");
@@ -257,22 +248,35 @@ struct Animation : public impl::SpriteSheet {
 		return { sprite_positions[GetCurrentFrame()], sprite_size, origin };
 	}
 
-	Origin origin{ Origin::Center };
-
 private:
-	V2_float draw_offset;		// Offset of sprite relative to entity transform.
+	Tween tween;
 
-	milliseconds duration{ 0 }; // Duration of the entire animation.
+	Origin origin{ Origin::Center }; // Which origin of the sprite the draw offset is relative to.
+
+	V2_float draw_offset;			 // Offset of sprite relative to entity transform.
+
+	milliseconds duration{ 0 };		 // Duration of the entire animation.
 
 	std::shared_ptr<std::size_t> frame;
 };
 
-inline void Sprite::Draw(ecs::Entity entity, const Transform& transform) const {
-	DrawTexture(entity, texture, transform, draw_offset, source);
+struct AnimationMap : public ActiveMapManager<Animation> {
+public:
+	using ActiveMapManager::ActiveMapManager;
+
+	void Draw(ecs::Entity entity) const;
+};
+
+inline void Sprite::Draw(ecs::Entity entity) const {
+	impl::DrawTexture(entity, texture, draw_offset, source);
 }
 
-inline void Animation::Draw(ecs::Entity entity, const Transform& transform) const {
-	DrawTexture(entity, texture, transform, draw_offset, GetSource());
+inline void Animation::Draw(ecs::Entity entity) const {
+	impl::DrawTexture(entity, texture, draw_offset, GetSource());
+}
+
+inline void AnimationMap::Draw(ecs::Entity entity) const {
+	GetActive().Draw(entity);
 }
 
 } // namespace ptgn
