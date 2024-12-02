@@ -130,7 +130,8 @@ Rect Collider::GetAbsolute(Rect relative_rect) const {
 	// If parent has an animation, use coordinate relative to top left.
 	if (parent.Has<Animation>()) {
 		const Animation& anim = parent.Get<Animation>();
-		Rect r{ transform.position, anim.sprite_size, anim.origin };
+		Rect r{ anim.GetSource() };
+		r.position		   = transform.position;
 		transform.position = r.Min();
 	} else if (parent.Has<Sprite>()) { // Prioritize animations over sprites.
 		const Sprite& sprite = parent.Get<Sprite>();
@@ -141,7 +142,8 @@ Rect Collider::GetAbsolute(Rect relative_rect) const {
 
 	relative_rect.position += transform.position;
 	relative_rect.rotation += transform.rotation;
-	relative_rect.size	   *= V2_float{ FastAbs(transform.scale.x), FastAbs(transform.scale.y) };
+	// Absolute value needed because scale can be negative for flipping.
+	relative_rect.size *= V2_float{ FastAbs(transform.scale.x), FastAbs(transform.scale.y) };
 	return relative_rect;
 }
 
