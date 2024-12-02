@@ -87,7 +87,7 @@ void SceneManager::TransitionActiveImpl(
 ) {
 	if (transition == SceneTransition{}) {
 		RemoveActiveImpl(from_scene_key);
-		AddActiveImpl(from_scene_key);
+		AddActiveImpl(to_scene_key);
 		return;
 	}
 
