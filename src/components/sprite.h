@@ -205,7 +205,9 @@ struct Animation : public impl::SpriteSheet {
 	}
 
 	void Stop() {
-		tween.Stop();
+		if (tween.IsValid()) {
+			tween.Stop();
+		}
 	}
 
 	void Start() {
