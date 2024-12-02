@@ -65,9 +65,10 @@ public:
 		RemoveActiveImpl(GetInternalKey(scene_key));
 	}
 
-	template <typename TKey>
+	template <typename TKey1, typename TKey2>
 	void TransitionActive(
-		const TKey& from_scene_key, const TKey& to_scene_key, const SceneTransition& transition
+		const TKey1& from_scene_key, const TKey2& to_scene_key,
+		const SceneTransition& transition = {}
 	) {
 		TransitionActiveImpl(
 			GetInternalKey(from_scene_key), GetInternalKey(to_scene_key), transition
