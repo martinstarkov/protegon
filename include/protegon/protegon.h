@@ -31,6 +31,7 @@ using json = nlohmann::json;
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
+#include "physics/movement.h"
 #include "physics/physics.h"
 #include "physics/rigid_body.h"
 #include "renderer/buffer.h"
