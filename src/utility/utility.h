@@ -32,6 +32,13 @@ std::vector<ReturnType> GetElements(const Map& map) {
 
 } // namespace impl
 
+template <typename T, typename... TArgs>
+static auto Invoke(const T& function, TArgs&&... args) {
+	if (function != nullptr) {
+		std::invoke(function, std::forward<TArgs>(args)...);
+	}
+}
+
 template <typename Key, typename Value, typename Hash, typename Pred, typename Alloc>
 [[nodiscard]] static auto GetKeys(const std::unordered_map<Key, Value, Hash, Pred, Alloc>& map) {
 	return impl::GetElements<Key>(map);
