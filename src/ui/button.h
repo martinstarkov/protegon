@@ -88,7 +88,7 @@ template <typename S>
 		if (auto it{ resource.find(s) }; it != resource.end()) {
 			return it->second;
 		}
-		return typename decltype(resource)::mapped_type{};
+		return typename std::remove_reference_t<decltype(resource)>::mapped_type{};
 	} else {
 		return resource;
 	}
@@ -253,7 +253,9 @@ public:
 	[[nodiscard]] impl::InternalButtonState GetInternalState() const;
 
 	template <ButtonProperty Property>
-	[[nodiscard]] auto Get(ButtonState state, bool toggled = false, bool disabled = false) const {
+	[[nodiscard]] auto Get(
+		ButtonState state = ButtonState::Default, bool toggled = false, bool disabled = false
+	) const {
 		const auto& resource{ const_cast<Button&>(*this).Handle::Get().GetResource<Property>() };
 		return impl::GetResource(state, toggled, disabled, resource);
 	}
