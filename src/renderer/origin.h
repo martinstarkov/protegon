@@ -1,10 +1,10 @@
 #pragma once
 
 #include <iosfwd>
-#include <string>
+#include <ostream>
 
-#include "utility/log.h"
 #include "math/vector2.h"
+#include "utility/log.h"
 
 namespace ptgn {
 
@@ -20,6 +20,8 @@ enum class Origin {
 	BottomRight,
 };
 
+// @return If draw_origin is Origin::TopLeft, returned offset will be 0, if draw_origin is
+// Origin::Center, returned offset will be size / 2, etc.
 [[nodiscard]] V2_float GetOffsetFromCenter(const V2_float& size, Origin draw_origin);
 
 inline std::ostream& operator<<(std::ostream& os, Origin origin) {
