@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "core/manager.h"
+#include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/flip.h"
@@ -14,8 +15,6 @@
 #include "utility/handle.h"
 
 namespace ptgn {
-
-struct Rect;
 
 struct TextureInfo {
 	TextureInfo() = default;
@@ -132,8 +131,9 @@ public:
 	);
 	Texture(const std::vector<Color>& pixels, const V2_int& size);
 
+	// If destination.size is {}, fullscreen texture will be drawn.
 	void Draw(
-		const Rect& destination, const TextureInfo& texture_info = {},
+		const Rect& destination = {}, const TextureInfo& texture_info = {},
 		const LayerInfo& layer_info = {}
 	) const;
 
