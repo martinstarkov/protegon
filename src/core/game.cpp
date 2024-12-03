@@ -4,7 +4,6 @@
 #include <type_traits>
 #include <vector>
 
-#include "SDL_timer.h"
 #include "audio/audio.h"
 #include "camera/camera.h"
 #include "collision/collision.h"
@@ -21,6 +20,7 @@
 #include "renderer/text.h"
 #include "renderer/texture.h"
 #include "scene/scene_manager.h"
+#include "SDL_timer.h"
 #include "ui/ui.h"
 #include "utility/debug.h"
 #include "utility/profiling.h"
@@ -165,7 +165,7 @@ Game::~Game() {
 }
 
 float Game::dt() const {
-	return 1.0f / 60.0f; // dt_;
+	return dt_;
 }
 
 float Game::time() const {
@@ -313,15 +313,14 @@ void Game::Update() {
 	dt_ = elapsed;
 
 	// TODO: Consider fixed FPS vs dynamic: https://gafferongames.com/post/fix_your_timestep/.
-	// constexpr const float fps{ 60.0f };
-	// float frame_time = 1.0f / fps;
-	// float dt{ frame_time };
+	constexpr const float fps{ 60.0f };
+	dt_ = 1.0f / fps;
 
-	// if (elapsed < frame_time) {
-	//	impl::SDLInstance::Delay(std::chrono::duration_cast<milliseconds>(duration<float>{
-	//		frame_time - elapsed }));
-	// } // TODO: Add case for when elapsed > dt (such as in Debug mode).
-	// PTGN_LOG("Dt: ", dt);
+	if (elapsed < dt_) {
+		impl::SDLInstance::Delay(std::chrono::duration_cast<milliseconds>(duration<float>{
+			dt_ - elapsed }));
+	} // TODO: Add accumulator for when elapsed > dt (such as in Debug mode).
+	// PTGN_LOG("Dt: ", dt_);
 
 	start = end;
 
