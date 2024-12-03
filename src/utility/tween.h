@@ -200,6 +200,9 @@ public:
 	Tween& KeepAlive(bool keep_alive = true);
 	bool DestroyOnCompletion() const;
 
+	// @return True if the tween is started and not paused.
+	[[nodiscard]] bool IsRunning() const;
+
 	[[nodiscard]] bool IsCompleted() const;
 	[[nodiscard]] bool IsStarted() const;
 	[[nodiscard]] bool IsPaused() const;

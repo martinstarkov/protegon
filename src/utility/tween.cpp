@@ -124,6 +124,14 @@ bool Tween::IsCompleted() const {
 	return IsValid() && Get().IsCompleted();
 }
 
+bool Tween::IsRunning() const {
+	if (!IsValid()) {
+		return false;
+	}
+	auto& t{ Get() };
+	return t.started_ && !t.paused_;
+}
+
 bool Tween::IsStarted() const {
 	return IsValid() && Get().started_;
 }
