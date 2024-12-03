@@ -164,8 +164,18 @@ inline void DrawTexture(
 	// Absolute value needed because scale can be negative for flipping.
 	V2_float scaled_size{ source.size * V2_float{ FastAbs(t.scale.x), FastAbs(t.scale.y) } };
 	Rect dest{ t.position + draw_offset, scaled_size, source.origin, t.rotation };
+	Flip f{ Flip::None };
+	bool flip_x{ t.scale.x < 0.0f };
+	bool flip_y{ t.scale.y < 0.0f };
+	if (flip_x && flip_y) {
+		f = Flip::Both;
+	} else if (flip_x) {
+		f = Flip::Horizontal;
+	} else if (flip_y) {
+		f = Flip::Vertical;
+	}
 	TextureInfo info{ source.position, source.size,
-					  entity.Has<SpriteFlip>() ? entity.Get<SpriteFlip>() : Flip::None,
+					  entity.Has<SpriteFlip>() ? entity.Get<SpriteFlip>() : f,
 					  entity.Has<SpriteTint>() ? entity.Get<SpriteTint>() : color::White,
 					  V2_float{ 0.5f, 0.5f } };
 	texture.Draw(dest, info, entity.Has<LayerInfo>() ? entity.Get<LayerInfo>() : LayerInfo{});
@@ -173,6 +183,7 @@ inline void DrawTexture(
 
 } // namespace impl
 
+// TODO: Maybe just inherit from tween as well.
 // Represents an animated row of sprites within a texture.
 struct Animation : public impl::SpriteSheet {
 	Animation() = default;
@@ -187,13 +198,14 @@ struct Animation : public impl::SpriteSheet {
 	// @param origin Relative to what the draw offset is
 	Animation(
 		const Texture& texture, std::size_t frame_count, const V2_float& frame_size,
-		milliseconds duration, const V2_float& draw_offset = {}, Origin origin = Origin::Center,
-		const V2_float& start_pixel = {}, std::size_t start_frame = 0
+		milliseconds duration, const V2_float& start_pixel = {}, const V2_float& draw_offset = {},
+		Origin origin = Origin::Center, std::size_t start_frame = 0
 	) :
-		SpriteSheet{ texture, frame_count, frame_size, start_pixel } {
+		impl::SpriteSheet{ texture, frame_count, frame_size, start_pixel } {
 		this->duration	  = duration;
 		this->draw_offset = draw_offset;
 		this->origin	  = origin;
+		this->start_frame = start_frame;
 		PTGN_ASSERT(
 			start_frame < GetCount(), "Start frame must be within sprite sheet frame count"
 		);
@@ -204,13 +216,44 @@ struct Animation : public impl::SpriteSheet {
 		game.tween.Remove(tween);
 	}
 
+	void Pause() {
+		if (tween.IsValid()) {
+			tween.Pause();
+		}
+	}
+
+	void Resume() {
+		if (tween.IsValid()) {
+			tween.Resume();
+		}
+	}
+
+	void Reset() {
+		if (tween.IsValid()) {
+			tween.Reset();
+		}
+	}
+
 	void Stop() {
 		if (tween.IsValid()) {
 			tween.Stop();
 		}
 	}
 
+	[[nodiscard]] bool IsRunning() const {
+		return tween.IsRunning();
+	}
+
+	[[nodiscard]] bool IsStarted() const {
+		return tween.IsStarted();
+	}
+
+	[[nodiscard]] bool IsPaused() const {
+		return tween.IsPaused();
+	}
+
 	void Start() {
+		std::size_t start{ this->start_frame };
 		std::size_t frame_count{ GetCount() };
 		milliseconds frame_duration{ duration / frame_count };
 		tween = game.tween.Add(frame_duration)
@@ -220,6 +263,10 @@ struct Animation : public impl::SpriteSheet {
 						Invoke(on_repeat);
 						auto& f{ *frame };
 						f = Mod(++f, frame_count);
+					})
+					.OnReset([=]() {
+						auto& f{ *frame };
+						f = start;
 					})
 					.OnUpdate([=](float t) { Invoke(on_update, t); })
 					.Start();
@@ -259,12 +306,25 @@ private:
 
 	milliseconds duration{ 0 };		 // Duration of the entire animation.
 
+	std::size_t start_frame{ 0 };
+
 	std::shared_ptr<std::size_t> frame;
 };
 
 struct AnimationMap : public ActiveMapManager<Animation> {
 public:
 	using ActiveMapManager::ActiveMapManager;
+
+	// If the provided key is a not currently active, this function pauses the previously active
+	// animation.
+	void SetActive(const ActiveMapManager::Key& key) {
+		// Key already active, do nothing.
+		if (auto internal_key{ GetInternalKey(key) }; internal_key == active_key_) {
+			return;
+		}
+		GetActive().Pause();
+		ActiveMapManager::SetActive(key);
+	}
 
 	void Draw(ecs::Entity entity) const;
 };
