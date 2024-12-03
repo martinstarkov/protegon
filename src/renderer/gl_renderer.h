@@ -2,9 +2,9 @@
 
 #include <cstdint>
 
-#include "protegon/color.h"
-#include "protegon/vector2.h"
-#include "protegon/vertex_array.h"
+#include "math/vector2.h"
+#include "renderer/color.h"
+#include "renderer/vertex_array.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -40,10 +40,15 @@ public:
 	static void DisableDepthTesting();
 	static void SetViewport(const V2_int& position, const V2_int& size);
 	static void Clear();
-	static void SetClearColor(const Color& color);
-	static void DrawElements(const VertexArray& va, std::size_t index_count);
-	static void DrawArrays(const VertexArray& va, std::size_t vertex_count);
-	static std::int32_t GetMaxTextureSlots();
+	static void ClearColor(const Color& color);
+	static void DrawElements(
+		const VertexArray& va, std::size_t index_count, bool bind_vertex_array = true
+	);
+	static void DrawArrays(
+		const VertexArray& va, std::size_t vertex_count, bool bind_vertex_array = true
+	);
+	[[nodiscard]] static std::int32_t GetMaxTextureSlots();
+	[[nodiscard]] static bool IsDepthTestingEnabled();
 };
 
 } // namespace ptgn

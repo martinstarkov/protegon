@@ -9,88 +9,102 @@
 #include <vector>
 
 #include "common.h"
+#include "core/game.h"
+#include "core/window.h"
 #include "event/input_handler.h"
 #include "event/key.h"
-#include "protegon/color.h"
-#include "protegon/game.h"
-#include "protegon/log.h"
-#include "protegon/noise.h"
-#include "protegon/rng.h"
-#include "protegon/vector2.h"
+#include "math/noise.h"
+#include "math/rng.h"
+#include "math/vector2.h"
+#include "renderer/color.h"
 #include "renderer/origin.h"
 #include "renderer/renderer.h"
 #include "utility/debug.h"
+#include "utility/log.h"
 
-// TODO: Add tests for Gaussian.
-
-struct TestFractalNoise : public Test {
-	NoiseProperties properties;
-
-	std::vector<float> noise_map;
+struct TestNoise : public Test {
+	ValueNoise value_noise;
+	PerlinNoise perlin_noise;
+	SimplexNoise simplex_noise;
+	FractalNoise fractal_noise;
 
 	std::size_t divisions{ 10 };
 
-	V2_float pos;
-
-	ValueNoise noise{ 256, 0 };
-
 	V2_int pixel_size;
-	V2_int grid_size;
 
 	bool thresholding{ false };
 
-	explicit TestFractalNoise(int fractal_preset = 0) {
-		if (fractal_preset == 0) {
-			properties.octaves	   = 5;
-			properties.frequency   = 0.03f;
-			properties.bias		   = 2.4f;
-			properties.persistence = 0.7f;
-		} else {
-			properties.octaves	   = 5;
-			properties.frequency   = 0.02f;
-			properties.bias		   = 1.8f;
-			properties.persistence = 0.35f;
-		}
+	int type{ 0 };
+
+	explicit TestNoise(int type) : type{ type } {
+		PTGN_ASSERT(type == 0 || type == 1 || type == 2 || type == 3);
+	};
+
+	void Shutdown() override {
+		game.window.SetSetting(WindowSetting::Windowed);
 	}
 
 	void Init() override {
-		pos = {};
+		game.window.Center();
+		// game.window.SetSetting(WindowSetting::Fullscreen);
+		ws		   = game.window.GetSize();
+		pixel_size = { 8, 8 };
 
-		pixel_size = { 32, 32 };
-		grid_size  = ws / pixel_size + V2_int{ 1, 1 };
-
-		noise_map = FractalNoise::Generate(noise, pos, grid_size, properties);
+		if (type == 0) {
+			PTGN_LOG("TEST: Fractal noise");
+		} else if (type == 1) {
+			PTGN_LOG("TEST: Perlin noise");
+		} else if (type == 2) {
+			PTGN_LOG("TEST: Simplex noise");
+		} else if (type == 3) {
+			PTGN_LOG("TEST: Value noise");
+		}
 	}
 
-	void Update(float dt) override {
-		static NoiseProperties prev_properties = properties;
-
-		if (game.input.KeyDown(Key::R)) {
-			properties.octaves++;
-		}
-		if (game.input.KeyDown(Key::F)) {
-			properties.octaves--;
-		}
-
+	void Update() override {
 		if (game.input.KeyDown(Key::T)) {
-			properties.frequency += 0.01f;
+			if (type == 0) {
+				fractal_noise.SetFrequency(fractal_noise.GetFrequency() + 0.01f);
+			} else if (type == 1) {
+				perlin_noise.SetFrequency(perlin_noise.GetFrequency() + 0.01f);
+			} else if (type == 2) {
+				simplex_noise.SetFrequency(simplex_noise.GetFrequency() + 0.01f);
+			} else if (type == 3) {
+				value_noise.SetFrequency(value_noise.GetFrequency() + 0.01f);
+			}
 		}
 		if (game.input.KeyDown(Key::G)) {
-			properties.frequency -= 0.01f;
+			if (type == 0) {
+				fractal_noise.SetFrequency(fractal_noise.GetFrequency() - 0.01f);
+			} else if (type == 1) {
+				perlin_noise.SetFrequency(perlin_noise.GetFrequency() - 0.01f);
+			} else if (type == 2) {
+				simplex_noise.SetFrequency(simplex_noise.GetFrequency() - 0.01f);
+			} else if (type == 3) {
+				value_noise.SetFrequency(value_noise.GetFrequency() - 0.01f);
+			}
 		}
 
-		if (game.input.KeyDown(Key::Y)) {
-			properties.bias += 0.1f;
-		}
-		if (game.input.KeyDown(Key::H)) {
-			properties.bias -= 0.1f;
-		}
+		if (type == 0) {
+			if (game.input.KeyDown(Key::R)) {
+				fractal_noise.SetOctaves(fractal_noise.GetOctaves() + 1);
+			}
+			if (game.input.KeyDown(Key::F)) {
+				fractal_noise.SetOctaves(fractal_noise.GetOctaves() - 1);
+			}
+			if (game.input.KeyDown(Key::Y)) {
+				fractal_noise.SetLacunarity(fractal_noise.GetLacunarity() + 0.1f);
+			}
+			if (game.input.KeyDown(Key::H)) {
+				fractal_noise.SetLacunarity(fractal_noise.GetLacunarity() - 0.1f);
+			}
 
-		if (game.input.KeyDown(Key::U)) {
-			properties.persistence += 0.05f;
-		}
-		if (game.input.KeyDown(Key::J)) {
-			properties.persistence -= 0.05f;
+			if (game.input.KeyDown(Key::U)) {
+				fractal_noise.SetPersistence(fractal_noise.GetPersistence() + 0.05f);
+			}
+			if (game.input.KeyDown(Key::J)) {
+				fractal_noise.SetPersistence(fractal_noise.GetPersistence() - 0.05f);
+			}
 		}
 
 		auto cap_divisions = [&]() {
@@ -110,58 +124,106 @@ struct TestFractalNoise : public Test {
 			thresholding = !thresholding;
 		}
 
-		const float pan_speed{ 25.0f };
+		auto camera{ game.camera.GetPrimary() };
 
-		bool change{ false };
+		const float pan_speed{ 200.0f };
 
 		if (game.input.KeyPressed(Key::W)) {
-			pos.y  -= pan_speed * dt;
-			change	= true;
+			camera.Translate({ 0, -pan_speed * dt });
 		}
 		if (game.input.KeyPressed(Key::S)) {
-			pos.y  += pan_speed * dt;
-			change	= true;
+			camera.Translate({ 0, pan_speed * dt });
 		}
 		if (game.input.KeyPressed(Key::A)) {
-			pos.x  -= pan_speed * dt;
-			change	= true;
+			camera.Translate({ -pan_speed * dt, 0 });
 		}
 		if (game.input.KeyPressed(Key::D)) {
-			pos.x  += pan_speed * dt;
-			change	= true;
+			camera.Translate({ pan_speed * dt, 0 });
+		}
+
+		// Clamp fractal noise parameters.
+
+		if (type == 0) {
+			fractal_noise.SetOctaves(std::clamp((int)fractal_noise.GetOctaves(), 1, 15));
+			fractal_noise.SetFrequency(std::clamp(fractal_noise.GetFrequency(), 0.005f, 1.0f));
+			fractal_noise.SetLacunarity(std::clamp(fractal_noise.GetLacunarity(), 0.01f, 5.0f));
+			fractal_noise.SetPersistence(std::clamp(fractal_noise.GetPersistence(), 0.01f, 3.0f));
+		} else if (type == 1) {
+			perlin_noise.SetFrequency(std::clamp(perlin_noise.GetFrequency(), 0.005f, 1.0f));
+		} else if (type == 2) {
+			simplex_noise.SetFrequency(std::clamp(simplex_noise.GetFrequency(), 0.005f, 1.0f));
+		} else if (type == 3) {
+			value_noise.SetFrequency(std::clamp(value_noise.GetFrequency(), 0.005f, 1.0f));
 		}
 
 		if (game.input.KeyDown(Key::P)) {
-			PTGN_LOG("--------------------------------")
-			PTGN_LOG("properties.octaves = ", properties.octaves, ";");
-			PTGN_LOG("properties.frequency = ", properties.frequency, "f;");
-			PTGN_LOG("properties.bias = ", properties.bias, "f;");
-			PTGN_LOG("properties.persistence = ", properties.persistence, "f;");
-			PTGN_LOG("divisions = ", divisions, ";");
-		}
-
-		if (change || properties != prev_properties) {
-			properties.octaves	   = std::clamp((int)properties.octaves, 1, 15);
-			properties.frequency   = std::clamp(properties.frequency, 0.005f, 1.0f);
-			properties.bias		   = std::clamp(properties.bias, 0.01f, 5.0f);
-			properties.persistence = std::clamp(properties.persistence, 0.01f, 3.0f);
-			noise_map = FractalNoise::Generate(noise, (V2_int)pos, grid_size, properties);
+			PTGN_LOG("--------------------------------");
+			if (type == 0) {
+				PTGN_LOG("octaves: ", fractal_noise.GetOctaves());
+				PTGN_LOG("frequency: ", fractal_noise.GetFrequency());
+				PTGN_LOG("lacunarity: ", fractal_noise.GetLacunarity());
+				PTGN_LOG("persistence: ", fractal_noise.GetPersistence());
+			} else if (type == 1) {
+				PTGN_LOG("frequency: ", perlin_noise.GetFrequency());
+			} else if (type == 2) {
+				PTGN_LOG("frequency: ", simplex_noise.GetFrequency());
+			} else if (type == 3) {
+				PTGN_LOG("frequency: ", value_noise.GetFrequency());
+			}
+			PTGN_LOG("divisions: ", divisions);
 		}
 	}
 
 	void Draw() override {
-		for (int i{ 0 }; i < grid_size.x; i++) {
-			for (int j{ 0 }; j < grid_size.y; j++) {
+		auto cam = game.camera.GetPrimary();
+
+		auto rect = cam.GetRect();
+
+		V2_int min{ rect.Min() / pixel_size - V2_int{ 1 } };
+		V2_int max{ rect.Max() / pixel_size + V2_int{ 1 } };
+
+		for (int i{ min.x }; i < max.x; i++) {
+			for (int j{ min.y }; j < max.y; j++) {
 				V2_int p{ i, j };
 
-				int index{ i + grid_size.x * j };
-				PTGN_ASSERT(index < (int)noise_map.size());
+				float noise_value = 0.0f;
 
-				float noise_value{ noise_map[index] };
+				if (type == 0) {
+					noise_value = fractal_noise.Get((float)i, (float)j);
+					/*
+					// OR ALTERNATIVE:
+					noise_value = FractalNoise::GetValue(
+						(float)i, (float)j, 0, fractal_noise.GetFrequency(),
+						fractal_noise.GetNoiseType(), fractal_noise.GetOctaves(),
+						fractal_noise.GetLacunarity(), fractal_noise.GetPersistence(),
+						fractal_noise.GetWeightedStrength()
+					);*/
+				} else if (type == 1) {
+					noise_value = perlin_noise.Get((float)i, (float)j);
+					/*
+					// OR ALTERNATIVE:
+					noise_value =
+						PerlinNoise::GetValue((float)i, (float)j, 0, perlin_noise.GetFrequency());
+					*/
+				} else if (type == 2) {
+					noise_value = simplex_noise.Get((float)i, (float)j);
+					/*
+					// OR ALTERNATIVE:
+					noise_value =
+						SimplexNoise::GetValue((float)i, (float)j, 0, simplex_noise.GetFrequency());
+					*/
+				} else if (type == 3) {
+					noise_value = value_noise.Get((float)i, (float)j);
+					/*
+					// OR ALTERNATIVE:
+					noise_value =
+						ValueNoise::GetValue((float)i, (float)j, 0, value_noise.GetFrequency());
+					*/
+				}
 
+				Color color = color::Black;
+				Rect r{ p * pixel_size, pixel_size, Origin::TopLeft };
 				if (thresholding) {
-					Color color = color::Black;
-
 					float opacity_range = 1.0f / static_cast<float>(divisions);
 
 					auto range = static_cast<int>(noise_value / opacity_range);
@@ -169,27 +231,41 @@ struct TestFractalNoise : public Test {
 					color.a = static_cast<std::uint8_t>(
 						255.0f * static_cast<float>(range) * opacity_range
 					);
-
-					game.renderer.DrawRectangleFilled(
-						p * pixel_size, pixel_size, color, Origin::TopLeft
-					);
 				} else {
-					Color color	  = color::Black;
 					float opacity = noise_value * 255.0f;
 					color.a		  = static_cast<std::uint8_t>(opacity);
-					game.renderer.DrawRectangleFilled(
-						p * pixel_size, pixel_size, color, Origin::TopLeft
-					);
 				}
+				r.Draw(color, -1.0f);
 			}
 		}
+
+		game.draw.Rect({ {}, { 30.0f, 30.0f }, Origin::TopLeft }, color::Red);
 	}
+};
+
+struct TestFractalNoise : public TestNoise {
+	TestFractalNoise() : TestNoise{ 0 } {}
+};
+
+struct TestPerlinNoise : public TestNoise {
+	TestPerlinNoise() : TestNoise{ 1 } {}
+};
+
+struct TestSimplexNoise : public TestNoise {
+	TestSimplexNoise() : TestNoise{ 2 } {}
+};
+
+struct TestValueNoise : public TestNoise {
+	TestValueNoise() : TestNoise{ 3 } {}
 };
 
 void TestNoise() {
 	std::vector<std::shared_ptr<Test>> tests;
 
 	tests.emplace_back(new TestFractalNoise());
+	tests.emplace_back(new TestPerlinNoise());
+	tests.emplace_back(new TestSimplexNoise());
+	tests.emplace_back(new TestValueNoise());
 
 	AddTests(tests);
 }

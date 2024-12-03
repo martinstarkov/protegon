@@ -5,8 +5,6 @@
 #include <iosfwd>
 #include <ostream>
 
-#include "protegon/log.h"
-#include "renderer/gl_renderer.h"
 #include "SDL.h"
 #include "SDL_error.h"
 #include "SDL_hints.h"
@@ -16,6 +14,8 @@
 #include "SDL_ttf.h"
 #include "SDL_version.h"
 #include "SDL_video.h"
+#include "utility/log.h"
+#include "renderer/gl_renderer.h"
 #include "utility/debug.h"
 #include "utility/time.h"
 
@@ -90,13 +90,9 @@ void SDLInstance::InitSDL() {
 		SDL_WasInit(sdl_flags) != sdl_flags, "Cannot reinitialize SDL instance before shutting down"
 	);
 
-	SDL_SetHint(SDL_HINT_MOUSE_RELATIVE_SCALING, "1");
 	// Ensures window and elements scale by monitor zoom level for constant
 	// appearance.
 	SDL_SetHint(SDL_HINT_WINDOWS_DPI_AWARENESS, "permonitorv2");
-	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
-	SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
-	SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
 
 	int sdl_init{ SDL_Init(sdl_flags) };
 	PTGN_ASSERT(sdl_init == 0, SDL_GetError());

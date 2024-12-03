@@ -3,8 +3,8 @@
 #include <cmath>
 #include <cstdlib>
 
-#include "protegon/log.h"
-#include "protegon/math.h"
+#include "utility/log.h"
+#include "math/math.h"
 #include "utility/debug.h"
 
 void TestMath() {
@@ -121,25 +121,26 @@ void TestMath() {
 	PTGN_ASSERT(NearlyEqual(-1000.01f, -1000.01f));
 	PTGN_ASSERT(NearlyEqual(-1000.0001f, -1000.0001f));
 
-	PTGN_ASSERT(NearlyEqual(0.0, 0.0 + 0.0049));
-	PTGN_ASSERT(NearlyEqual(0.0f, 0.0f + 0.0049f));
-	PTGN_ASSERT(NearlyEqual(0.1f, 0.1f + 0.0049f));
-	PTGN_ASSERT(NearlyEqual(0.001f, 0.001f + 0.0049f));
-	PTGN_ASSERT(NearlyEqual(-0.0f, -0.0f - 0.0049f));
-	PTGN_ASSERT(NearlyEqual(-0.1f, -0.1f - 0.0049f));
-	PTGN_ASSERT(NearlyEqual(-0.001f, -0.001f - 0.0049f));
-	PTGN_ASSERT(NearlyEqual(-0.0f, -0.0f + 0.0049f));
-	PTGN_ASSERT(NearlyEqual(-0.1f, -0.1f + 0.0049f));
-	PTGN_ASSERT(NearlyEqual(-0.001f, -0.001f + 0.0049f));
-	PTGN_ASSERT(NearlyEqual(1000.0f, 1000.0f + 0.0049f));
-	PTGN_ASSERT(NearlyEqual(1000.01f, 1000.01f + 0.0049f));
-	PTGN_ASSERT(NearlyEqual(1000.0001f, 1000.0001f + 0.0049f));
-	PTGN_ASSERT(NearlyEqual(-1000.0f, -1000.0f - 0.0049f));
-	PTGN_ASSERT(NearlyEqual(-1000.01f, -1000.01f - 0.0049f));
-	PTGN_ASSERT(NearlyEqual(-1000.0001f, -1000.0001f - 0.0049f));
-	PTGN_ASSERT(NearlyEqual(-1000.0f, -1000.0f + 0.0049f));
-	PTGN_ASSERT(NearlyEqual(-1000.01f, -1000.01f + 0.0049f));
-	PTGN_ASSERT(NearlyEqual(-1000.0001f, -1000.0001f + 0.0049f));
+	float delta{ epsilon<float> };
+	PTGN_ASSERT(NearlyEqual(0.0, 0.0 + epsilon<double>));
+	PTGN_ASSERT(NearlyEqual(0.0f, 0.0f + delta));
+	PTGN_ASSERT(NearlyEqual(0.1f, 0.1f + delta));
+	PTGN_ASSERT(NearlyEqual(0.001f, 0.001f + delta));
+	PTGN_ASSERT(NearlyEqual(-0.0f, -0.0f - delta));
+	PTGN_ASSERT(NearlyEqual(-0.1f, -0.1f - delta));
+	PTGN_ASSERT(NearlyEqual(-0.001f, -0.001f - delta));
+	PTGN_ASSERT(NearlyEqual(-0.0f, -0.0f + delta));
+	PTGN_ASSERT(NearlyEqual(-0.1f, -0.1f + delta));
+	PTGN_ASSERT(NearlyEqual(-0.001f, -0.001f + delta));
+	PTGN_ASSERT(NearlyEqual(1000.0f, 1000.0f + delta));
+	PTGN_ASSERT(NearlyEqual(1000.01f, 1000.01f + delta));
+	PTGN_ASSERT(NearlyEqual(1000.0001f, 1000.0001f + delta));
+	PTGN_ASSERT(NearlyEqual(-1000.0f, -1000.0f - delta));
+	PTGN_ASSERT(NearlyEqual(-1000.01f, -1000.01f - delta));
+	PTGN_ASSERT(NearlyEqual(-1000.0001f, -1000.0001f - delta));
+	PTGN_ASSERT(NearlyEqual(-1000.0f, -1000.0f + delta));
+	PTGN_ASSERT(NearlyEqual(-1000.01f, -1000.01f + delta));
+	PTGN_ASSERT(NearlyEqual(-1000.0001f, -1000.0001f + delta));
 
 	PTGN_ASSERT(!NearlyEqual(0, 1));
 	PTGN_ASSERT(!NearlyEqual(0.0, 0.0 + 0.0065));

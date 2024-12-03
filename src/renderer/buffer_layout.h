@@ -9,12 +9,14 @@
 
 namespace ptgn {
 
+class VertexArray;
+
 namespace impl {
 
-class InternalBufferLayout;
-
 struct BufferElement {
-	BufferElement(std::uint16_t size, std::uint16_t count, impl::GLType type, bool is_integer) :
+	constexpr BufferElement(
+		std::uint16_t size, std::uint16_t count, impl::GLType type, bool is_integer
+	) :
 		size{ size }, count{ count }, type{ type }, is_integer{ is_integer } {}
 
 	std::uint16_t size{ 0 };  // Number of elements x Size of element.
@@ -39,10 +41,20 @@ class BufferLayout {
 	static_assert(sizeof...(Ts) > 0, "Must provide layout types as template arguments");
 
 public:
-	BufferLayout() = default;
+	constexpr BufferLayout() {
+		CalculateOffsets();
+	}
+
+	[[nodiscard]] constexpr std::int32_t GetStride() const {
+		return stride_;
+	}
+
+	[[nodiscard]] constexpr bool IsEmpty() const {
+		return elements_.empty();
+	}
 
 private:
-	friend class impl::InternalBufferLayout;
+	friend class VertexArray;
 
 	template <typename T>
 	[[nodiscard]] constexpr static bool IsInteger() {
@@ -55,44 +67,28 @@ private:
 			   std::is_same_v<V, std::uint32_t>;
 	}
 
-	const std::vector<impl::BufferElement>& GetElements() const {
+	std::int32_t stride_{ 0 };
+
+	std::array<impl::BufferElement, sizeof...(Ts)> elements_{ impl::BufferElement{
+		static_cast<std::uint16_t>(sizeof(Ts)),
+		static_cast<std::uint16_t>(std::tuple_size<Ts>::value),
+		impl::GetType<typename Ts::value_type>(), IsInteger<Ts>() }... };
+
+	constexpr void CalculateOffsets() {
+		std::int32_t offset{ 0 };
+		stride_ = 0;
+		for (impl::BufferElement& element : elements_) {
+			element.offset	= offset;
+			offset		   += element.size;
+		}
+		stride_ = offset;
+	}
+
+public:
+	[[nodiscard]] constexpr const std::array<impl::BufferElement, sizeof...(Ts)>& GetElements(
+	) const {
 		return elements_;
 	}
-
-	std::vector<impl::BufferElement> elements_{ std::invoke([]() {
-		std::vector<impl::BufferElement> elements;
-		elements.reserve(sizeof...(Ts));
-		elements = { impl::BufferElement{ static_cast<std::uint16_t>(sizeof(Ts)),
-										  static_cast<std::uint16_t>(std::tuple_size<Ts>::value),
-										  impl::GetType<typename Ts::value_type>(),
-										  IsInteger<Ts>() }... };
-		return elements;
-	}) };
 };
-
-namespace impl {
-
-class InternalBufferLayout {
-public:
-	InternalBufferLayout() = default;
-
-	template <typename... BufferElements>
-	explicit InternalBufferLayout(const BufferLayout<BufferElements...>& layout) :
-		elements_{ layout.GetElements() } {
-		CalculateOffsets();
-	}
-
-	[[nodiscard]] const std::vector<BufferElement>& GetElements() const;
-	[[nodiscard]] std::int32_t GetStride() const;
-	[[nodiscard]] bool IsEmpty() const;
-
-private:
-	void CalculateOffsets();
-
-	std::vector<BufferElement> elements_;
-	std::int32_t stride_{ 0 };
-};
-
-} // namespace impl
 
 } // namespace ptgn

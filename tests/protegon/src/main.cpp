@@ -1,21 +1,25 @@
 #define SDL_MAIN_HANDLED
 
 #include "../tests/test_ecs.h"
-#include "core/window.h"
-#include "protegon/color.h"
-#include "protegon/game.h"
-#include "protegon/scene.h"
-#include "protegon/vector2.h"
-#include "renderer/renderer.h"
+#include "test_animation.h"
 #include "test_camera.h"
+#include "test_collision.h"
 #include "test_events.h"
+#include "test_fluid.h"
+#include "test_lighting.h"
 #include "test_math.h"
 #include "test_matrix4.h"
+#include "test_particles.h"
+#include "test_pathfinding.h"
+#include "test_platforming.h"
 #include "test_renderer.h"
 #include "test_rng.h"
+#include "test_scenes.h"
 #include "test_text.h"
 #include "test_tween.h"
+#include "test_ui.h"
 #include "test_vector.h"
+#include "test_window.h"
 
 using namespace ptgn;
 
@@ -23,32 +27,52 @@ class Tests : public Scene {
 public:
 	Tests() = default;
 
+	void Preload() final {
+		PTGN_INFO("Preloaded test scene");
+	}
+
 	void Init() final {
-		game.renderer.SetClearColor(color::White);
-		game.window.SetSize(V2_int{ 800, 800 });
-		game.window.Show();
+		game.draw.SetClearColor(color::White);
+		V2_int window_size{ 800, 800 };
+		game.window.SetSize(window_size);
 
 		// Non-visual tests.
 
-		TestMatrix4();
 		TestECS();
+		TestMatrix4();
 		TestMath();
 		TestVector2();
 
 		// Visual tests.
 
-		TestTween();
+		TestFluid();
+		TestCollisions();
+		TestRenderer();
+		TestParticles();
+		TestUI();
+		TestPlatforming();
+		TestScenes();
+		TestLighting();
 		TestCamera();
 		TestRNG();
-		TestRenderer();
+		TestAnimations();
+		TestPathfinding();
+		TestTween();
 		TestText();
+		TestWindow();
 		TestEvents();
 
-		game.window.SetTitle("Update Loop");
+		PTGN_INFO("Initialized test scene");
 	}
 
-	void Update() final {
-		game.Stop();
+	void Update() final {}
+
+	void Shutdown() final {
+		PTGN_INFO("Shutdown test scene");
+	}
+
+	void Unload() final {
+		PTGN_INFO("Unloaded test scene");
 	}
 };
 

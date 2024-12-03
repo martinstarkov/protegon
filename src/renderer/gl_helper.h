@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 
+#include "core/game.h"
 #include "core/gl_context.h"
 #include "utility/debug.h"
 #include "utility/type_traits.h"
@@ -15,10 +16,11 @@ namespace impl {
 
 #define GLCall(x)                                                     \
 	std::invoke([&, fn = PTGN_FUNCTION_NAME()]() {                    \
+		++game.stats.gl_calls;                                        \
 		ptgn::impl::GLContext::ClearErrors();                         \
 		x;                                                            \
 		auto errors = ptgn::impl::GLContext::GetErrors();             \
-		if (errors.size() > 0) {                                      \
+		if (!errors.empty()) {                                        \
 			ptgn::impl::GLContext::PrintErrors(                       \
 				fn, std::filesystem::path(__FILE__), __LINE__, errors \
 			);                                                        \
@@ -27,10 +29,11 @@ namespace impl {
 	})
 #define GLCallReturn(x)                                               \
 	std::invoke([&, fn = PTGN_FUNCTION_NAME()]() {                    \
+		++game.stats.gl_calls;                                        \
 		ptgn::impl::GLContext::ClearErrors();                         \
 		auto value	= x;                                              \
 		auto errors = ptgn::impl::GLContext::GetErrors();             \
-		if (errors.size() > 0) {                                      \
+		if (!errors.empty()) {                                        \
 			ptgn::impl::GLContext::PrintErrors(                       \
 				fn, std::filesystem::path(__FILE__), __LINE__, errors \
 			);                                                        \
@@ -110,11 +113,14 @@ enum class BufferType {
 namespace impl {
 
 enum class GLBinding {
-	VertexArray	  = 0x85B5, // GL_VERTEX_ARRAY_BINDING
-	VertexBuffer  = 0x8894, // GL_ARRAY_BUFFER_BINDING
-	IndexBuffer	  = 0x8895, // GL_ELEMENT_ARRAY_BUFFER_BINDING
-	UniformBuffer = 0x8A28, // GL_UNIFORM_BUFFER_BINDING
-	Texture2D	  = 0x8069	// GL_TEXTURE_BINDING_2D
+	VertexArray		= 0x85B5, // GL_VERTEX_ARRAY_BINDING
+	VertexBuffer	= 0x8894, // GL_ARRAY_BUFFER_BINDING
+	IndexBuffer		= 0x8895, // GL_ELEMENT_ARRAY_BUFFER_BINDING
+	UniformBuffer	= 0x8A28, // GL_UNIFORM_BUFFER_BINDING
+	FrameBufferDraw = 0x8CA6, // GL_DRAW_FRAMEBUFFER_BINDING
+	FrameBufferRead = 0x8CAA, // GL_READ_FRAMEBUFFER_BINDING
+	RenderBuffer	= 0x8CA7, // GL_RENDERBUFFER_BINDING
+	Texture2D		= 0x8069  // GL_TEXTURE_BINDING_2D
 };
 
 template <BufferType T>

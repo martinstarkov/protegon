@@ -6,36 +6,28 @@
 #include <type_traits>
 
 #include "core/manager.h"
-#include "protegon/log.h"
-#include "protegon/timer.h"
+#include "utility/log.h"
+#include "utility/timer.h"
 #include "utility/debug.h"
 
-namespace ptgn {
+namespace ptgn::impl {
 
-namespace impl {
+class Game;
 
 class ProfileInstance {
 public:
 	ProfileInstance() = default;
-	ProfileInstance(std::string_view function_name, std::string_view custom_name);
 	~ProfileInstance();
+	ProfileInstance(std::string_view function_name, std::string_view custom_name);
 
 private:
 	std::string name_;
 };
 
-} // namespace impl
-
-class Profiler : protected Manager<Timer, std::string> {
-private:
-	Profiler()							 = default;
-	~Profiler() override				 = default;
-	Profiler(const Profiler&)			 = delete;
-	Profiler(Profiler&&)				 = default;
-	Profiler& operator=(const Profiler&) = delete;
-	Profiler& operator=(Profiler&&)		 = default;
-
+class Profiler : protected MapManager<Timer, std::string, std::string, false> {
 public:
+	using MapManager::MapManager;
+
 	void Enable() {
 		enabled_ = true;
 	}
@@ -67,22 +59,22 @@ public:
 	}
 
 private:
-	friend class impl::ProfileInstance;
 	friend class Game;
+	friend class ProfileInstance;
 
 	bool enabled_{ false };
 
 	template <typename T>
 	void PrintInfo(std::string_view name, const Timer& timer) const {
 		static_assert(tt::is_duration_v<T>, "Type must be duration");
-		PTGN_LOG(
+		PrintLine(
 			"PROFILING: ", impl::TrimFunctionSignature(name), ": ",
 			timer.Elapsed<duration<double, typename T::period>>()
 		);
 	}
 };
 
-} // namespace ptgn
+} // namespace ptgn::impl
 
 #define PTGN_PROFILE_FUNCTION(...)                                                               \
 	ptgn::impl::ProfileInstance ptgn_profile_instance_##__LINE__(                                \

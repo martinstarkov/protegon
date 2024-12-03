@@ -1,29 +1,40 @@
-#include "protegon/game.h"
+#include "core/game.h"
 
 #include <chrono>
-#include <functional>
 #include <type_traits>
-#include <variant>
 #include <vector>
 
+#include "audio/audio.h"
+#include "camera/camera.h"
+#include "collision/collision.h"
 #include "core/gl_context.h"
 #include "core/manager.h"
 #include "core/sdl_instance.h"
 #include "core/window.h"
 #include "event/event_handler.h"
 #include "event/input_handler.h"
-#include "protegon/collision.h"
+#include "physics/physics.h"
+#include "renderer/font.h"
 #include "renderer/renderer.h"
-#include "resource_managers.h"
+#include "renderer/shader.h"
+#include "renderer/text.h"
+#include "renderer/texture.h"
 #include "scene/scene_manager.h"
+#include "SDL_timer.h"
+#include "ui/ui.h"
 #include "utility/debug.h"
 #include "utility/profiling.h"
 #include "utility/time.h"
+#include "utility/tween.h"
+#include "vfx/light.h"
 
 #ifdef __EMSCRIPTEN__
 
 #include <emscripten.h>
 #include <emscripten/html5.h>
+
+EM_JS(int, get_screen_width, (), { return screen.width; });
+EM_JS(int, get_screen_height, (), { return screen.height; });
 
 #endif
 
@@ -37,14 +48,45 @@
 #include "CoreFoundation/CoreFoundation.h"
 
 #endif
+#include <memory>
 
 namespace ptgn {
 
-Game game;
-
-#ifdef PTGN_PLATFORM_MACOS
+impl::Game game;
 
 namespace impl {
+
+#ifdef __EMSCRIPTEN__
+
+static EM_BOOL EmscriptenResize(
+	int event_type, const EmscriptenUiEvent* ui_event, void* user_data
+) {
+	V2_int window_size{ ui_event->windowInnerWidth, ui_event->windowInnerHeight };
+	// TODO: Figure out how to deal with itch.io fullscreen button not changing SDL status to
+	// fullscreen.
+	/*V2_int screen_size{ get_screen_width(), get_screen_height() };
+	if (window_size == screen_size) {
+		// Update fullscreen status? This seems to screw up the camera somehow. Investigate further.
+	}*/
+	game.window.SetSize(window_size);
+	return 0;
+}
+
+void EmscriptenInit() {
+	emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, 0, EmscriptenResize);
+}
+
+void EmscriptenLoop() {
+	game.Update();
+
+	if (!game.running_) {
+		emscripten_cancel_main_loop();
+	}
+}
+
+#endif
+
+#ifdef PTGN_PLATFORM_MACOS
 
 // When using AppleClang, the working directory for the executable is set to $HOME instead of the
 // executable directory. Therefore, the C++ code corrects the working directory using
@@ -75,16 +117,63 @@ static void InitApplePath() {
 	chdir(path);*/
 }
 
-} // namespace impl
-
 #endif
 
+Game::Game() :
+	sdl_instance_{ std::make_unique<SDLInstance>() },
+	window_{ std::make_unique<Window>() },
+	gl_context_{ std::make_unique<GLContext>() },
+	event_{ std::make_unique<EventHandler>() },
+	input_{ std::make_unique<InputHandler>() },
+	draw_{ std::make_unique<Renderer>() },
+	scene_{ std::make_unique<SceneManager>() },
+	camera_{ std::make_unique<SceneCamera>() },
+	physics_{ std::make_unique<Physics>() },
+	collision_{ std::make_unique<CollisionHandler>() },
+	ui_{ std::make_unique<UserInterface>() },
+	tween_{ std::make_unique<TweenManager>() },
+	music_{ std::make_unique<MusicManager>() },
+	sound_{ std::make_unique<SoundManager>() },
+	font_{ std::make_unique<FontManager>() },
+	text_{ std::make_unique<TextManager>() },
+	texture_{ std::make_unique<TextureManager>() },
+	shader_{ std::make_unique<ShaderManager>() },
+	light_{ std::make_unique<LightManager>() },
+	profiler_{ std::make_unique<Profiler>() },
+	window{ *window_ },
+	event{ *event_ },
+	input{ *input_ },
+	draw{ *draw_ },
+	scene{ *scene_ },
+	camera{ *camera_ },
+	physics{ *physics_ },
+	collision{ *collision_ },
+	ui{ *ui_ },
+	tween{ *tween_ },
+	music{ *music_ },
+	sound{ *sound_ },
+	font{ *font_ },
+	text{ *text_ },
+	texture{ *texture_ },
+	shader{ *shader_ },
+	light{ *light_ },
+	profiler{ *profiler_ } {}
+
 Game::~Game() {
-	gl_context_.Shutdown();
-	sdl_instance_.Shutdown();
+	gl_context_->Shutdown();
+	sdl_instance_->Shutdown();
 }
 
-void Game::PushLoopFunction(const UpdateFunction& loop_function) {
+float Game::dt() const {
+	return dt_;
+}
+
+float Game::time() const {
+	// TODO: Consider casting to chrono duration instead.
+	return static_cast<float>(SDL_GetTicks64());
+}
+
+void Game::PushFrontLoopFunction(const UpdateFunction& loop_function) {
 	// Important to clear previous info from input cache (e.g. first time key presses).
 	// Otherwise they might trigger again in the next input.Update().
 	input.Reset();
@@ -92,10 +181,32 @@ void Game::PushLoopFunction(const UpdateFunction& loop_function) {
 	update_stack_.emplace(update_stack_.begin(), loop_function);
 }
 
-void Game::PopLoopFunction() {
+void Game::PushBackLoopFunction(const UpdateFunction& loop_function) {
+	// Important to clear previous info from input cache (e.g. first time key presses).
+	// Otherwise they might trigger again in the next input.Update().
+	input.Reset();
+
+	update_stack_.emplace_back(loop_function);
+}
+
+void Game::PopBackLoopFunction() {
+	if (update_stack_.empty()) {
+		return;
+	}
+
 	input.Reset();
 
 	update_stack_.pop_back();
+}
+
+void Game::PopFrontLoopFunction() {
+	if (update_stack_.empty()) {
+		return;
+	}
+
+	input.Reset();
+
+	update_stack_.erase(update_stack_.begin());
 }
 
 void Game::Stop() {
@@ -108,7 +219,7 @@ bool Game::IsRunning() const {
 	// Ensure that if game is running, SDL is initialized.
 	PTGN_ASSERT(std::invoke([&]() {
 		if (running_) {
-			return sdl_instance_.IsInitialized();
+			return sdl_instance_->IsInitialized();
 		}
 		return true;
 	}));
@@ -119,20 +230,28 @@ void Game::Init() {
 #if defined(PTGN_PLATFORM_MACOS) && !defined(__EMSCRIPTEN__)
 	impl::InitApplePath();
 #endif
-
-	if (!sdl_instance_.IsInitialized()) {
-		sdl_instance_.Init();
+	running_ = true;
+	if (!sdl_instance_->IsInitialized()) {
+		sdl_instance_->Init();
 	}
+	font.Init();
 	window.Init();
-	gl_context_.Init();
+	gl_context_->Init();
 	event.Init();
 	input.Init();
-	renderer.Init();
-	collision.Init();
+
+	camera.Init();
+
+	shader.Init();
+	draw.Init();
+	physics.Init();
+	light.Init();
 }
 
 void Game::Shutdown() {
-	// TODO: Figure out a better way to do this.
+	scene.Shutdown();
+
+	// TODO: Simply reset all the unique pointers instead of doing this.
 	profiler.Reset();
 	shader.Reset();
 	texture.Reset();
@@ -142,9 +261,8 @@ void Game::Shutdown() {
 	sound.Reset();
 	music.Reset();
 
-	collision.Shutdown();
-	scene.Shutdown();
-	renderer.Shutdown();
+	physics.Shutdown();
+	draw.Shutdown();
 	input.Shutdown();
 	event.Shutdown();
 	window.Shutdown();
@@ -167,30 +285,16 @@ void Game::Shutdown() {
 	// sdl_instance_.Shutdown();
 }
 
-namespace impl {
-
-#ifdef __EMSCRIPTEN__
-
-void EmscriptenLoop(void* data) {
-	Game* g = static_cast<Game*>(data);
-	g->Update();
-	if (!g->running_) {
-		emscripten_cancel_main_loop();
-	}
-}
-
-#endif
-
-} // namespace impl
-
 void Game::MainLoop() {
 	// Design decision: Latest possible point to show window is right before
 	// loop starts. Comment this if you wish the window to appear hidden for an
 	// indefinite period of time.
-	window.Show();
+	window.SetSetting(WindowSetting::Shown);
 #ifdef __EMSCRIPTEN__
-	emscripten_set_main_loop_arg(impl::EmscriptenLoop, static_cast<void*>(this), 0, 1);
+	EmscriptenInit();
+	emscripten_set_main_loop(EmscriptenLoop, 0, 1);
 #else
+	window.SetSetting(WindowSetting::FixedSize);
 	while (running_) {
 		Update();
 	}
@@ -206,54 +310,55 @@ void Game::Update() {
 
 	float elapsed{ elapsed_time.count() };
 
-	float dt{ elapsed };
+	dt_ = elapsed;
 
 	// TODO: Consider fixed FPS vs dynamic: https://gafferongames.com/post/fix_your_timestep/.
-	// constexpr const float fps{ 60.0f };
-	// float frame_time = 1.0f / fps;
-	// float dt{ frame_time };
+	constexpr const float fps{ 60.0f };
+	dt_ = 1.0f / fps;
 
-	// if (elapsed < frame_time) {
-	//	impl::SDLInstance::Delay(std::chrono::duration_cast<milliseconds>(duration<float>{
-	//		frame_time - elapsed }));
-	// } // TODO: Add case for when elapsed > dt (such as in Debug mode).
-	// PTGN_LOG("Dt: ", dt);
+	if (elapsed < dt_) {
+		impl::SDLInstance::Delay(std::chrono::duration_cast<milliseconds>(duration<float>{
+			dt_ - elapsed }));
+	} // TODO: Add accumulator for when elapsed > dt (such as in Debug mode).
+	// PTGN_LOG("Dt: ", dt_);
 
 	start = end;
 
 	input.Update();
 
-	tween.Update(dt);
-
-	// PTGN_LOG("Loop #", counter);
-
-	if (update_stack_.empty()) {
-		running_ = false;
+	if (!running_) {
 		return;
 	}
 
-	const auto& loop_function = update_stack_.back();
-
-	game.renderer.Clear();
-
-	if (std::holds_alternative<std::function<void(float)>>(loop_function)) {
-		std::invoke(std::get<std::function<void(float)>>(loop_function), dt);
-	} else {
-		std::invoke(std::get<std::function<void(void)>>(loop_function));
-	}
+	tween.Update();
 
 	if (!running_) {
 		return;
 	}
 
-	game.renderer.Present();
+	// PTGN_LOG("Loop #", counter);
+
+	game.draw.Clear();
+
+	if (update_stack_.empty()) {
+		scene.Update();
+	} else {
+		game.scene.SetSceneChanged(false);
+		std::invoke(update_stack_.back());
+	}
+
+	if (running_ && game.profiler.IsEnabled()) {
+		game.profiler.PrintAll();
+	}
+
+	if (running_ && !game.scene.SceneChanged()) {
+		game.draw.Present();
+	}
 
 	++counter;
 	end = std::chrono::system_clock::now();
-
-	if (game.profiler.IsEnabled()) {
-		game.profiler.PrintAll();
-	}
 }
+
+} // namespace impl
 
 } // namespace ptgn

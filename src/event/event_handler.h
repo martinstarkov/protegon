@@ -5,13 +5,11 @@
 #include <unordered_map>
 #include <utility>
 
-#include "protegon/event.h"
-#include "protegon/events.h"
+#include "event/event.h"
+#include "event/events.h"
 #include "utility/debug.h"
 
 namespace ptgn {
-
-class EventHandler;
 
 template <typename T>
 class EventDispatcher {
@@ -29,7 +27,7 @@ private:
 public:
 	// General event observation where type is passed to callback.
 	template <typename S>
-	void Subscribe(const S* ptr, GeneralEventCallback&& func) {
+	void Subscribe(const S* ptr, const GeneralEventCallback& func) {
 		PTGN_ASSERT(ptr != nullptr);
 		auto key{ GetKey(ptr) };
 		general_observers_[key] = func;
@@ -37,17 +35,17 @@ public:
 
 	// Specific event observation.
 	template <typename TEvent, typename S>
-	void Subscribe(T type, const S* ptr, TEventCallback<TEvent>&& func) {
+	void Subscribe(T type, const S* ptr, const TEventCallback<TEvent>& func) {
 		PTGN_ASSERT(ptr != nullptr);
 		auto key{ GetKey(ptr) };
 		using TEventType = std::decay_t<TEvent>;
 		static_assert(std::is_base_of_v<Event, TEventType>, "Events must inherit from Event class");
 		auto it = observers_.find(key);
-		std::pair<T, EventCallback> entry{ type, [&, func](const Event& event) {
-											  const TEventType& e =
-												  static_cast<const TEventType&>(event);
-											  func(e);
-										  } };
+		std::pair<T, EventCallback> entry{ type, std::function([func](const Event& event) {
+											   const auto& e =
+												   static_cast<const TEventType&>(event);
+											   func(e);
+										   }) };
 		if (it == observers_.end()) {
 			observers_[key] = EventCallbacks{ entry };
 		} else {
@@ -57,28 +55,27 @@ public:
 
 	template <typename S>
 	void Unsubscribe(const S* ptr) {
-		PTGN_ASSERT(ptr != nullptr);
-		auto key{ GetKey(ptr) };
-		observers_.erase(key);
-		general_observers_.erase(key);
+		if (ptr == nullptr) {
+			return;
+		}
+		Unsubscribe(GetKey(ptr));
 	}
 
 	template <typename TEvent>
-	void Post(T type, TEvent&& event) const {
+	void Post(T type, const TEvent& event) const {
 		// This ensures that if a posted function modified observers, it does
 		// not invalidate the iterators.
 		auto observers		   = observers_;
 		auto general_observers = general_observers_;
-		for (auto&& [key, callback] : general_observers) {
-			callback(type, event);
+		for (const auto& [key, callback] : general_observers) {
+			std::invoke(callback, type, event);
 		}
-		for (auto&& [key, callbacks] : observers) {
+		for (const auto& [key, callbacks] : observers) {
 			auto it = callbacks.find(type);
 			if (it == std::end(callbacks)) {
 				continue;
 			}
-			auto func = it->second;
-			func(event);
+			std::invoke(it->second, event);
 		}
 	};
 
@@ -94,10 +91,36 @@ public:
 			   general_observers_.find(key) != general_observers_.end();
 	}
 
+	void Reset() {
+		// Cannot use map.clear() because the destructors of observer objects may themselves call
+		// unsubscribe which causes a deallocation exception to be thrown.
+		for (; !observers_.empty();) {
+			auto it = observers_.begin();
+			// Unsubscribe can invalidate the iterator if the callback function stores a shared ptr
+			// the destructor of which calls Unsubscribe().
+			Unsubscribe(it->first);
+		}
+		for (; !general_observers_.empty();) {
+			auto it = general_observers_.begin();
+			Unsubscribe(it->first);
+		}
+		PTGN_ASSERT(observers_.empty());
+		PTGN_ASSERT(general_observers_.empty());
+	}
+
 private:
 	template <typename S>
 	[[nodiscard]] static Key GetKey(const S* ptr) {
 		return std::hash<const void*>()(ptr);
+	}
+
+	void Unsubscribe(std::size_t key) {
+		if (auto it{ observers_.find(key) }; it != observers_.end()) {
+			observers_.erase(it);
+		}
+		if (auto it{ general_observers_.find(key) }; it != general_observers_.end()) {
+			general_observers_.erase(it);
+		}
 	}
 
 	// void* are used as general object keys, it does not own memory.
@@ -106,8 +129,10 @@ private:
 	std::unordered_map<Key, GeneralEventCallback> general_observers_;
 };
 
+namespace impl {
+
 class EventHandler {
-private:
+public:
 	EventHandler()								 = default;
 	~EventHandler()								 = default;
 	EventHandler(const EventHandler&)			 = delete;
@@ -115,7 +140,6 @@ private:
 	EventHandler& operator=(const EventHandler&) = delete;
 	EventHandler& operator=(EventHandler&&)		 = default;
 
-public:
 	EventDispatcher<KeyEvent> key;
 	EventDispatcher<MouseEvent> mouse;
 	EventDispatcher<WindowEvent> window;
@@ -130,8 +154,7 @@ public:
 		window.Unsubscribe(ptr);
 	}
 
-private:
-	friend class Game;
+	void Reset();
 
 	void Init() const {
 		/* Possibly add things here in the future */
@@ -139,5 +162,7 @@ private:
 
 	void Shutdown();
 };
+
+} // namespace impl
 
 } // namespace ptgn

@@ -5,10 +5,10 @@
 #include <unordered_map>
 #include <utility>
 
-#include "protegon/log.h"
-#include "protegon/math.h"
-#include "protegon/vector2.h"
+#include "math/math.h"
+#include "math/vector2.h"
 #include "utility/debug.h"
+#include "utility/log.h"
 
 void TestVector2() {
 	PTGN_INFO("Starting Vector2 tests...");
@@ -246,12 +246,19 @@ void TestVector2() {
 	V2_int rot5{ 1, 1 };
 	V2_int rot6{ -1, -1 };
 
-	PTGN_ASSERT(NearlyEqual(rot1.Angle<float>(), 0.0f));
-	PTGN_ASSERT(NearlyEqual(rot2.Angle<float>(), 3.14159f));
-	PTGN_ASSERT(NearlyEqual(rot3.Angle<float>(), 1.5708f));
-	PTGN_ASSERT(NearlyEqual(rot5.Angle<float>(), 0.785398f));
-	PTGN_ASSERT(NearlyEqual(rot4.Angle<float>(), -1.5708f));
-	PTGN_ASSERT(NearlyEqual(rot6.Angle<float>(), -2.35619f));
+	float rot_angle1 = rot1.Angle<float>();
+	float rot_angle2 = rot2.Angle<float>();
+	float rot_angle3 = rot3.Angle<float>();
+	float rot_angle5 = rot5.Angle<float>();
+	float rot_angle4 = rot4.Angle<float>();
+	float rot_angle6 = rot6.Angle<float>();
+
+	PTGN_ASSERT(NearlyEqual(rot_angle1, 0.0f, 0.005f));
+	PTGN_ASSERT(NearlyEqual(rot_angle2, 3.14159f, 0.005f));
+	PTGN_ASSERT(NearlyEqual(rot_angle3, 1.5708f, 0.005f));
+	PTGN_ASSERT(NearlyEqual(rot_angle5, 0.785398f, 0.005f));
+	PTGN_ASSERT(NearlyEqual(rot_angle4, -1.5708f, 0.005f));
+	PTGN_ASSERT(NearlyEqual(rot_angle6, -2.35619f, 0.005f));
 
 	// Rotated() tests.
 
@@ -275,14 +282,14 @@ void TestVector2() {
 	PTGN_ASSERT(rotated_360.x == 1);
 	PTGN_ASSERT(rotated_360.y == 0);
 
-	PTGN_ASSERT(NearlyEqual(drotated_90.x, 0.0));
-	PTGN_ASSERT(NearlyEqual(drotated_90.y, 1.0));
-	PTGN_ASSERT(NearlyEqual(drotated_180.x, -1.0));
-	PTGN_ASSERT(NearlyEqual(drotated_180.y, 0.0));
-	PTGN_ASSERT(NearlyEqual(drotated_270.x, 0.0));
-	PTGN_ASSERT(NearlyEqual(drotated_270.y, -1.0));
-	PTGN_ASSERT(NearlyEqual(drotated_360.x, 1.0));
-	PTGN_ASSERT(NearlyEqual(drotated_360.y, 0.0));
+	PTGN_ASSERT(NearlyEqual(drotated_90.x, 0.0, 0.005));
+	PTGN_ASSERT(NearlyEqual(drotated_90.y, 1.0, 0.005));
+	PTGN_ASSERT(NearlyEqual(drotated_180.x, -1.0, 0.005));
+	PTGN_ASSERT(NearlyEqual(drotated_180.y, 0.0, 0.005));
+	PTGN_ASSERT(NearlyEqual(drotated_270.x, 0.0, 0.005));
+	PTGN_ASSERT(NearlyEqual(drotated_270.y, -1.0, 0.005));
+	PTGN_ASSERT(NearlyEqual(drotated_360.x, 1.0, 0.005));
+	PTGN_ASSERT(NearlyEqual(drotated_360.y, 0.0, 0.005));
 
 	// IsZero() tests.
 

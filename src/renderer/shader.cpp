@@ -1,23 +1,23 @@
-#include "protegon/shader.h"
+#include "renderer/shader.h"
 
 #include <cstdint>
 #include <filesystem>
 #include <list>
 #include <string>
-#include <string_view>
-#include <unordered_map>
 #include <utility>
 
-#include "protegon/file.h"
-#include "protegon/log.h"
-#include "protegon/matrix4.h"
-#include "protegon/vector2.h"
-#include "protegon/vector3.h"
-#include "protegon/vector4.h"
+#include "core/game.h"
+#include "math/matrix4.h"
+#include "math/vector2.h"
+#include "math/vector3.h"
+#include "math/vector4.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
+#include "renderer/gl_renderer.h"
 #include "utility/debug.h"
+#include "utility/file.h"
 #include "utility/handle.h"
+#include "utility/log.h"
 
 namespace ptgn {
 
@@ -148,17 +148,25 @@ void Shader::CompileProgram(const std::string& vertex_source, const std::string&
 
 void Shader::Bind() const {
 	GLCall(gl::UseProgram(Get().id_));
+#ifdef PTGN_DEBUG
+	++game.stats.shader_binds;
+#endif
 }
 
 std::int32_t Shader::GetUniformLocation(const std::string& name) const {
+	PTGN_ASSERT(IsValid(), "Cannot get uniform location of invalid shader");
 	auto& s{ Get() };
+	PTGN_ASSERT(
+		GetBoundId() == static_cast<std::int32_t>(s.id_),
+		"Cannot get uniform location of shader which is not currently bound"
+	);
 	auto& location_cache{ s.location_cache_ };
 	if (auto it = location_cache.find(name); it != location_cache.end()) {
 		return it->second;
 	}
 
 	std::int32_t location = GLCallReturn(gl::GetUniformLocation(s.id_, name.c_str()));
-	// TODO: Consider not adding uniform to cache if it is -1.
+
 	location_cache.emplace(name, location);
 	return location;
 }
@@ -296,5 +304,79 @@ std::int32_t Shader::GetBoundId() {
 	PTGN_ASSERT(id >= 0);
 	return id;
 }
+
+namespace impl {
+
+Shader ShaderManager::Get(ScreenShader screen_shader) const {
+	switch (screen_shader) {
+		case ScreenShader::Default:		  return default_;
+		case ScreenShader::Opacity:		  return opacity_;
+		case ScreenShader::Blur:		  return blur_;
+		case ScreenShader::GaussianBlur:  return gaussian_blur_;
+		case ScreenShader::EdgeDetection: return edge_detection_;
+		case ScreenShader::InverseColor:  return inverse_color_;
+		case ScreenShader::Grayscale:	  return grayscale_;
+		case ScreenShader::Sharpen:		  return sharpen_;
+		default:						  PTGN_ERROR("Cannot retrieve unrecognized screen shader");
+	}
+}
+
+Shader ShaderManager::Get(PresetShader shader) const {
+	switch (shader) {
+		case PresetShader::Quad:   return quad_;
+		case PresetShader::Circle: return circle_;
+		case PresetShader::Color:  return color_;
+		default:				   PTGN_ERROR("Cannot retrieve unrecognized preset shader");
+	}
+}
+
+void ShaderManager::Init() {
+	std::int32_t max_texture_slots{ GLRenderer::GetMaxTextureSlots() };
+
+	PTGN_ASSERT(max_texture_slots > 0, "Max texture slots must be set before initializing shaders");
+
+	PTGN_INFO("Renderer Texture Slots: ", max_texture_slots);
+	// This strange way of including files allows for them to be packed into the library binary.
+	ShaderSource quad_frag;
+
+	if (max_texture_slots == 8) {
+		quad_frag = ShaderSource{
+#include PTGN_SHADER_PATH(quad_8.frag)
+		};
+	} else if (max_texture_slots == 16) {
+		quad_frag = ShaderSource{
+#include PTGN_SHADER_PATH(quad_16.frag)
+		};
+	} else if (max_texture_slots == 32) {
+		quad_frag = ShaderSource{
+#include PTGN_SHADER_PATH(quad_32.frag)
+		};
+	} else {
+		PTGN_ERROR("Unsupported Texture Slot Size: ", max_texture_slots);
+	}
+
+	quad_ = { ShaderSource{
+#include PTGN_SHADER_PATH(quad.vert)
+			  },
+			  quad_frag };
+
+	circle_ = { ShaderSource{
+#include PTGN_SHADER_PATH(circle.vert)
+				},
+				ShaderSource{
+#include PTGN_SHADER_PATH(circle.frag)
+				} };
+
+	color_ = { ShaderSource{
+#include PTGN_SHADER_PATH(color.vert)
+			   },
+			   ShaderSource{
+#include PTGN_SHADER_PATH(color.frag)
+			   } };
+
+	InitScreenShaders();
+}
+
+} // namespace impl
 
 } // namespace ptgn

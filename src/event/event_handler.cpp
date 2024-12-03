@@ -1,11 +1,15 @@
 #include "event/event_handler.h"
 
-namespace ptgn {
+namespace ptgn::impl {
 
-void EventHandler::Shutdown() {
-	key	   = {};
-	mouse  = {};
-	window = {};
+void EventHandler::Reset() {
+	key.Reset();
+	mouse.Reset();
+	window.Reset();
 }
 
-} // namespace ptgn
+void EventHandler::Shutdown() {
+	Reset();
+}
+
+} // namespace ptgn::impl

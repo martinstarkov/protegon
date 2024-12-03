@@ -4,13 +4,11 @@
 #include <string_view>
 
 #include "core/manager.h"
-#include "protegon/game.h"
-#include "protegon/hash.h"
-#include "protegon/timer.h"
+#include "core/game.h"
+#include "math/hash.h"
+#include "utility/timer.h"
 
-namespace ptgn {
-
-namespace impl {
+namespace ptgn::impl {
 
 ProfileInstance::ProfileInstance(std::string_view function_name, std::string_view custom_name) :
 	name_{ custom_name.empty() ? function_name : custom_name } {
@@ -23,6 +21,4 @@ ProfileInstance::~ProfileInstance() {
 	}
 }
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

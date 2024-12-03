@@ -1,16 +1,16 @@
-#include "protegon/a_star.h"
+#include "tile/a_star.h"
 
 #include <deque>
 #include <limits>
 #include <list>
 #include <utility>
 
-#include "protegon/color.h"
-#include "protegon/game.h"
-#include "protegon/grid.h"
-#include "protegon/line.h"
-#include "protegon/vector2.h"
+#include "core/game.h"
+#include "math/geometry/line.h"
+#include "math/vector2.h"
+#include "renderer/color.h"
 #include "renderer/renderer.h"
+#include "tile/grid.h"
 #include "utility/debug.h"
 
 namespace ptgn {
@@ -86,9 +86,9 @@ void AStarGrid::DisplayWaypoints(
 	const std::deque<V2_int>& waypoints, const V2_int& tile_size, const Color& color
 ) {
 	for (std::size_t i = 0; i + 1 < waypoints.size(); ++i) {
-		Line<int> path{ waypoints[i] * tile_size + tile_size / 2,
-						waypoints[i + 1] * tile_size + tile_size / 2 };
-		game.renderer.DrawLine(path.a, path.b, color);
+		Line path{ waypoints[i] * tile_size + tile_size / 2.0f,
+				   waypoints[i + 1] * tile_size + tile_size / 2.0f };
+		game.draw.Line(path.a, path.b, color);
 	}
 }
 
@@ -105,7 +105,7 @@ void AStarGrid::SolvePath(const V2_int& start, const V2_int& end) {
 	start_node->global_goal = (start - end).Magnitude();
 
 	std::list<std::pair<impl::AStarNode*, V2_int>> node_candidates;
-	node_candidates.push_back(current_node);
+	node_candidates.emplace_back(current_node);
 
 	while (!node_candidates.empty() && current_node.first != end_node) {
 		node_candidates.sort([](const std::pair<impl::AStarNode*, V2_int>& lhs,

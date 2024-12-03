@@ -6,21 +6,19 @@
 #include <vector>
 
 #include "common.h"
-#include "core/manager.h"
-#include "core/resource_managers.h"
+#include "core/game.h"
 #include "event/input_handler.h"
 #include "event/key.h"
-#include "protegon/color.h"
-#include "protegon/game.h"
-#include "protegon/hash.h"
-#include "protegon/log.h"
-#include "protegon/tween.h"
-#include "protegon/vector2.h"
+#include "math/hash.h"
+#include "math/vector2.h"
+#include "renderer/color.h"
 #include "renderer/origin.h"
 #include "renderer/renderer.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
+#include "utility/log.h"
 #include "utility/time.h"
+#include "utility/tween.h"
 
 // TODO: Add tests for tween easing
 // TODO: Add tests for the following functions:
@@ -59,11 +57,11 @@ struct TestTweenManager : public Test {
 			})
 			.Start();
 
-		PTGN_ASSERT(game.tween.Count() == 1);
+		PTGN_ASSERT(game.tween.Size() == 1);
 	}
 
 	void Draw() override {
-		game.renderer.DrawRectangleFilled(pos, size, color);
+		game.draw.Rect({ pos, size }, color);
 	}
 };
 
@@ -165,7 +163,7 @@ struct TestTweenRepeatPoints : public TestTweenPoints {
 			})
 			.Start();
 
-		PTGN_ASSERT(game.tween.Count() == 1);
+		PTGN_ASSERT(game.tween.Size() == 1);
 	}
 };
 
@@ -227,7 +225,7 @@ struct TestTweenYoyoPoints : public TestTweenRepeatPoints {
 			.Yoyo()
 			.Start();
 
-		PTGN_ASSERT(game.tween.Count() == 1);
+		PTGN_ASSERT(game.tween.Size() == 1);
 	}
 };
 
@@ -241,6 +239,8 @@ struct TestTweenTypes : public Test {
 	std::vector<std::tuple<Tween, Color, V2_float>> tweens;
 
 	void Init() override {
+		tweens.clear();
+
 		Tween config0{
 			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Red, V2_float{}))
 		};
@@ -266,10 +266,10 @@ struct TestTweenTypes : public Test {
 			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Brown, V2_float{}))
 		};
 		Tween config8{
-			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Grey, V2_float{}))
+			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Gray, V2_float{}))
 		};
 		Tween config9{
-			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::LightGrey, V2_float{}))
+			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::LightGray, V2_float{}))
 		};
 		Tween config10{
 			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Yellow, V2_float{}))
@@ -346,10 +346,15 @@ struct TestTweenTypes : public Test {
 
 		for (std::size_t i = 0; i < tweens.size(); ++i) {
 			std::get<V2_float>(tweens[i]) = get_pos(i);
+			auto& t						  = std::get<Tween>(tweens[i]);
+			if (!t.IsValid()) {
+				continue;
+			}
+			t.Start();
 		}
 	}
 
-	void Update(float dt) override {
+	void Update() override {
 		for (auto& [t, c, p] : tweens) {
 			if (!t.IsValid()) {
 				continue;
@@ -396,7 +401,7 @@ struct TestTweenTypes : public Test {
 			}
 
 			p.x = ws.x * t.GetProgress();
-			game.renderer.DrawRectangleFilled(p, size, c, Origin::CenterTop);
+			game.draw.Rect({ p, size, Origin::CenterTop }, c);
 		}
 	}
 };

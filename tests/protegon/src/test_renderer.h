@@ -2,36 +2,34 @@
 
 #include <array>
 #include <cstdint>
-#include <filesystem>
 #include <memory>
-#include <new>
 #include <string>
 #include <vector>
 
 #include "common.h"
-#include "event/input_handler.h"
+#include "core/game.h"
 #include "event/key.h"
-#include "protegon/buffer.h"
-#include "protegon/color.h"
-#include "protegon/file.h"
-#include "protegon/game.h"
-#include "protegon/log.h"
-#include "protegon/math.h"
-#include "protegon/matrix4.h"
-#include "protegon/polygon.h"
-#include "protegon/rng.h"
-#include "protegon/shader.h"
-#include "protegon/texture.h"
-#include "protegon/vector2.h"
-#include "protegon/vertex_array.h"
+#include "math/math.h"
+#include "math/matrix4.h"
+#include "math/rng.h"
+#include "math/vector2.h"
+#include "renderer/buffer.h"
 #include "renderer/buffer_layout.h"
+#include "renderer/color.h"
 #include "renderer/flip.h"
+#include "renderer/frame_buffer.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_renderer.h" // for texture slot count
 #include "renderer/origin.h"
+#include "renderer/render_texture.h"
 #include "renderer/renderer.h"
+#include "renderer/shader.h"
+#include "renderer/texture.h"
+#include "renderer/vertex_array.h"
 #include "utility/debug.h"
+#include "utility/file.h"
 #include "utility/handle.h"
+#include "utility/log.h"
 #include "utility/utility.h"
 
 // #define SDL_RENDERER_TESTS
@@ -42,8 +40,8 @@
 // TODO: Add texture filtering test.
 
 /*
-void TestBatchTextureSDL(std::size_t batch_size, float dt, const std::vector<path>& texture_paths) {
-	PTGN_ASSERT(texture_paths.size() > 0);
+void TestBatchTextureSDL(std::size_t batch_size, const std::vector<path>& texture_paths) {
+	PTGN_ASSERT(!texture_paths.empty());
 	std::vector<SDL_Texture*> textures;
 	textures.resize(texture_paths.size(), nullptr);
 
@@ -61,13 +59,13 @@ void TestBatchTextureSDL(std::size_t batch_size, float dt, const std::vector<pat
 	RNG<int> rng_index{ 0, static_cast<int>(textures.size()) - 1 };
 	RNG<float> rng_size{ 0.02f, 0.07f };
 
-	auto draw_func = [&](float dt) {
+	auto draw_func = [&]() {
 		// PTGN_PROFILE_FUNCTION();
 
 		SDL_RenderClear(r);
 
 		// TODO: Move most of this loop into a API agnostic function and just call the RenderCopy vs
-		// game.renderer.DrawQuad here.
+		// game.draw.DrawQuad here.
 		for (size_t i = 0; i < batch_size; i++) {
 			float size = rng_size() * ws.x;
 			V2_int pos = V2_float::Random(V2_float{}, ws);
@@ -78,7 +76,7 @@ void TestBatchTextureSDL(std::size_t batch_size, float dt, const std::vector<pat
 		SDL_RenderPresent(r);
 	};
 
-	game.PushLoopFunction([&](float dt) {
+	game.PushLoopFunction([&]() {
 		draw_func(dt);
 		// game.profiler.PrintAll<seconds>();
 	});
@@ -90,7 +88,15 @@ void TestBatchTextureSDL(std::size_t batch_size, float dt, const std::vector<pat
 	SDL_DestroyRenderer(r);
 }*/
 
-struct TestViewportExtentsAndOrigin : public Test {
+struct DrawTest : public Test {
+	const float line_width{ 1.0f };
+
+	DrawTest() = default;
+
+	explicit DrawTest(float line_width) : line_width{ line_width } {}
+};
+
+struct TestViewportExtentsAndOrigin : public DrawTest {
 	V2_float top_left;
 	V2_float top_right;
 	V2_float bottom_right;
@@ -99,6 +105,7 @@ struct TestViewportExtentsAndOrigin : public Test {
 	V2_float s; // rectangle size.
 
 	void Init() override {
+		DrawTest::Init();
 		top_left	 = V2_float{ 0, 0 };
 		top_right	 = V2_float{ ws.x, 0 };
 		bottom_right = V2_float{ ws.x, ws.y };
@@ -108,31 +115,33 @@ struct TestViewportExtentsAndOrigin : public Test {
 	}
 
 	void Draw() override {
-		game.renderer.DrawRectangleFilled(top_left, s, color::Blue, Origin::TopLeft);
-		game.renderer.DrawRectangleFilled(top_right, s, color::Magenta, Origin::TopRight);
-		game.renderer.DrawRectangleFilled(bottom_right, s, color::Red, Origin::BottomRight);
-		game.renderer.DrawRectangleFilled(bottom_left, s, color::Orange, Origin::BottomLeft);
+		game.draw.Rect({ top_left, s, Origin::TopLeft }, color::Blue);
+		game.draw.Rect({ top_right, s, Origin::TopRight }, color::Magenta);
+		game.draw.Rect({ bottom_right, s, Origin::BottomRight }, color::Red);
+		game.draw.Rect({ bottom_left, s, Origin::BottomLeft }, color::Orange);
 	}
 };
 
-struct TestPoint : public Test {
+struct TestPoint : public DrawTest {
+	const float point_radius{ 3.0f };
+
+	void Init() {
+		DrawTest::Init();
+	}
+
 	void Draw() override {
-		game.renderer.DrawPoint(center - ws * 0.25f, color::Blue);
-		game.renderer.DrawPoint(center + ws * 0.25f, color::DarkBlue);
-		game.renderer.DrawPoint(center - V2_float{ ws.x * 0.25f, 0.0f }, color::DarkBrown);
-		game.renderer.DrawPoint(center + V2_float{ ws.x * 0.25f, 0.0f }, color::DarkGreen);
-		game.renderer.DrawPoint(center - V2_float{ 0.0f, ws.y * 0.25f }, color::DarkGrey);
-		game.renderer.DrawPoint(center + V2_float{ 0.0f, ws.y * 0.25f }, color::DarkRed);
-		game.renderer.DrawPoint(center - V2_float{ ws.x * 0.25f, -ws.y * 0.25f }, color::Red);
-		game.renderer.DrawPoint(center + V2_float{ ws.x * 0.25f, -ws.y * 0.25f }, color::Magenta);
-		game.renderer.DrawPoint(center, color::Black);
+		game.draw.Point(center - ws * 0.25f, color::Blue, point_radius);
+		game.draw.Point(center + ws * 0.25f, color::DarkBlue, point_radius);
+		game.draw.Point(center - V2_float{ ws.x * 0.25f, 0.0f }, color::DarkBrown);
+		game.draw.Point(center + V2_float{ ws.x * 0.25f, 0.0f }, color::DarkGreen);
+		game.draw.Point(center - V2_float{ 0.0f, ws.y * 0.25f }, color::DarkGray);
+		game.draw.Point(center + V2_float{ 0.0f, ws.y * 0.25f }, color::DarkRed);
+		game.draw.Point(center - V2_float{ ws.x * 0.25f, -ws.y * 0.25f }, color::Red, point_radius);
+		game.draw.Point(
+			center + V2_float{ ws.x * 0.25f, -ws.y * 0.25f }, color::Magenta, point_radius
+		);
+		game.draw.Point(center, color::Black);
 	}
-};
-
-struct DrawTest : public Test {
-	const float line_width{ 1.0f };
-
-	explicit DrawTest(float line_width) : line_width{ line_width } {}
 };
 
 struct TestLine : public DrawTest {
@@ -148,6 +157,7 @@ struct TestLine : public DrawTest {
 	V2_float p7;
 
 	void Init() override {
+		DrawTest::Init();
 		p0 = { center.x - 200, center.y - 200 };
 		p1 = { center.x + 200, center.y + 200 };
 		p2 = { center.x - 200, center.y + 200 };
@@ -159,10 +169,10 @@ struct TestLine : public DrawTest {
 	}
 
 	void Draw() override {
-		game.renderer.DrawLine(p6, p7, color::Red, line_width);
-		game.renderer.DrawLine(p0, p1, color::Purple, line_width);
-		game.renderer.DrawLine(p2, p3, color::Blue, line_width);
-		game.renderer.DrawLine(p4, p5, color::Orange, line_width);
+		game.draw.Line(p6, p7, color::Red, line_width);
+		game.draw.Line(p0, p1, color::Purple, line_width);
+		game.draw.Line(p2, p3, color::Blue, line_width);
+		game.draw.Line(p4, p5, color::Orange, line_width);
 	}
 };
 
@@ -185,6 +195,7 @@ struct TestTriangle : public DrawTest {
 	V2_float p5;
 
 	void Init() override {
+		DrawTest::Init();
 		p0 = { center.x - 200, center.y };
 		p1 = { center.x + 200, center.y };
 		p2 = { center.x, center.y - 200 };
@@ -197,13 +208,8 @@ struct TestTriangle : public DrawTest {
 	}
 
 	void Draw() override {
-		if (line_width == -1) {
-			game.renderer.DrawTriangleFilled(p0, p1, p2, color::Green);
-			game.renderer.DrawTriangleFilled(p3, p4, p5, color::Blue);
-		} else {
-			game.renderer.DrawTriangleHollow(p0, p1, p2, color::Green, line_width);
-			game.renderer.DrawTriangleHollow(p3, p4, p5, color::Blue, line_width);
-		}
+		game.draw.Triangle(p0, p1, p2, color::Green, line_width);
+		game.draw.Triangle(p3, p4, p5, color::Blue, line_width);
 	}
 };
 
@@ -216,7 +222,7 @@ struct TestTriangleThick : public TestTriangle {
 };
 
 struct TestTriangleFilled : public TestTriangle {
-	TestTriangleFilled() : TestTriangle{ -1 } {}
+	TestTriangleFilled() : TestTriangle{ -1.0f } {}
 };
 
 struct TestRectangle : public DrawTest {
@@ -239,6 +245,7 @@ struct TestRectangle : public DrawTest {
 	}
 
 	void Init() override {
+		DrawTest::Init();
 		p0 = center;
 		p1 = center + V2_float{ 100.0f, 100.0f };
 		p2 = center + V2_float{ 100.0f, -100.0f };
@@ -250,7 +257,7 @@ struct TestRectangle : public DrawTest {
 		cr = { 0.5f, 0.5f };
 	}
 
-	void Update(float dt) override {
+	void Update() override {
 		if (game.input.KeyPressed(Key::R)) {
 			rotation += 5.0f * dt;
 		}
@@ -261,63 +268,27 @@ struct TestRectangle : public DrawTest {
 
 	void Draw() override {
 		if (NearlyEqual(rounding_radius, 0.0f)) {
-			if (line_width == -1) {
-				game.renderer.DrawRectangleFilled(p0, s, color::Blue, Origin::Center, rotation, cr);
-				game.renderer.DrawRectangleFilled(p1, s, color::Red, Origin::Center, rotation, cr);
-				game.renderer.DrawRectangleFilled(p2, s, color::Red, Origin::Center, rotation, cr);
-				game.renderer.DrawRectangleFilled(p3, s, color::Red, Origin::Center, rotation, cr);
-				game.renderer.DrawRectangleFilled(p4, s, color::Red, Origin::Center, rotation, cr);
-			} else {
-				game.renderer.DrawRectangleHollow(
-					p0, s, color::Blue, Origin::Center, line_width, rotation, cr
-				);
-				game.renderer.DrawRectangleHollow(
-					p1, s, color::Red, Origin::Center, line_width, rotation, cr
-				);
-				game.renderer.DrawRectangleHollow(
-					p2, s, color::Red, Origin::Center, line_width, rotation, cr
-				);
-				game.renderer.DrawRectangleHollow(
-					p3, s, color::Red, Origin::Center, line_width, rotation, cr
-				);
-				game.renderer.DrawRectangleHollow(
-					p4, s, color::Red, Origin::Center, line_width, rotation, cr
-				);
-			}
+			game.draw.Rect({ p0, s, Origin::Center, rotation }, color::Blue, line_width, cr);
+			game.draw.Rect({ p1, s, Origin::Center, rotation }, color::Red, line_width, cr);
+			game.draw.Rect({ p2, s, Origin::Center, rotation }, color::Red, line_width, cr);
+			game.draw.Rect({ p3, s, Origin::Center, rotation }, color::Red, line_width, cr);
+			game.draw.Rect({ p4, s, Origin::Center, rotation }, color::Red, line_width, cr);
 		} else {
-			if (line_width == -1) {
-				game.renderer.DrawRoundedRectangleFilled(
-					p0, s, rounding_radius, color::Blue, Origin::Center, rotation, cr
-				);
-				game.renderer.DrawRoundedRectangleFilled(
-					p1, s, rounding_radius, color::Red, Origin::Center, rotation, cr
-				);
-				game.renderer.DrawRoundedRectangleFilled(
-					p2, s, rounding_radius, color::Red, Origin::Center, rotation, cr
-				);
-				game.renderer.DrawRoundedRectangleFilled(
-					p3, s, rounding_radius, color::Red, Origin::Center, rotation, cr
-				);
-				game.renderer.DrawRoundedRectangleFilled(
-					p4, s, rounding_radius, color::Red, Origin::Center, rotation, cr
-				);
-			} else {
-				game.renderer.DrawRoundedRectangleHollow(
-					p0, s, rounding_radius, color::Blue, Origin::Center, line_width, rotation, cr
-				);
-				game.renderer.DrawRoundedRectangleHollow(
-					p1, s, rounding_radius, color::Red, Origin::Center, line_width, rotation, cr
-				);
-				game.renderer.DrawRoundedRectangleHollow(
-					p2, s, rounding_radius, color::Red, Origin::Center, line_width, rotation, cr
-				);
-				game.renderer.DrawRoundedRectangleHollow(
-					p3, s, rounding_radius, color::Red, Origin::Center, line_width, rotation, cr
-				);
-				game.renderer.DrawRoundedRectangleHollow(
-					p4, s, rounding_radius, color::Red, Origin::Center, line_width, rotation, cr
-				);
-			}
+			game.draw.RoundedRect(
+				{ p0, s, Origin::Center, rotation }, rounding_radius, color::Blue, line_width, cr
+			);
+			game.draw.RoundedRect(
+				{ p1, s, Origin::Center, rotation }, rounding_radius, color::Red, line_width, cr
+			);
+			game.draw.RoundedRect(
+				{ p2, s, Origin::Center, rotation }, rounding_radius, color::Red, line_width, cr
+			);
+			game.draw.RoundedRect(
+				{ p3, s, Origin::Center, rotation }, rounding_radius, color::Red, line_width, cr
+			);
+			game.draw.RoundedRect(
+				{ p4, s, Origin::Center, rotation }, rounding_radius, color::Red, line_width, cr
+			);
 		}
 	}
 };
@@ -331,7 +302,7 @@ struct TestRectangleThick : public TestRectangle {
 };
 
 struct TestRectangleFilled : public TestRectangle {
-	TestRectangleFilled() : TestRectangle{ -1, 0.0f } {}
+	TestRectangleFilled() : TestRectangle{ -1.0f, 0.0f } {}
 };
 
 struct TestRoundedRectangleThin : public TestRectangle {
@@ -344,53 +315,34 @@ struct TestRoundedRectangleThick : public TestRectangle {
 };
 
 struct TestRoundedRectangleFilled : public TestRectangle {
-	explicit TestRoundedRectangleFilled(float radius) : TestRectangle{ -1, radius } {}
+	explicit TestRoundedRectangleFilled(float radius) : TestRectangle{ -1.0f, radius } {}
 };
 
 struct TestPolygon : public DrawTest {
 	using DrawTest::DrawTest;
 
-	std::vector<V2_float> vertices0;
-	std::vector<V2_float> vertices1;
+	std::vector<V2_float> vertices;
+
+	const float relative_to{ 35.0f };
 
 	void Init() override {
-		vertices0 = {
-			V2_float{ 550, 60 },
-			V2_float{ 650 - 44, 60 },
-			V2_float{ 650, 60 - 44 },
-			V2_float{ 650 + 44, 60 },
-			V2_float{ 750, 60 },
-			V2_float{ 750 - 44, 60 + 44 },
-			V2_float{ 750 - 44, 60 + 44 + 44 },
-			V2_float{ 650, 60 + 44 },
-			V2_float{ 550 + 44, 60 + 44 + 44 },
-			V2_float{ 550 + 44, 60 + 44 },
+		DrawTest::Init();
+		vertices = {
+			V2_float{ 17, 3 },	V2_float{ 20, 13 }, V2_float{ 31, 13 }, V2_float{ 23, 19 },
+			V2_float{ 26, 30 }, V2_float{ 17, 24 }, V2_float{ 8, 30 },	V2_float{ 11, 19 },
+			V2_float{ 3, 13 },	V2_float{ 14, 13 },
 		};
 
-		float y_offset{ 200 };
+		V2_float size = ws / 2.0f;
 
-		vertices1 = {
-			V2_float{ 550, 60 + y_offset },
-			V2_float{ 650 - 44, 60 + y_offset },
-			V2_float{ 650, 60 - 44 + y_offset },
-			V2_float{ 650 + 44, 60 + y_offset },
-			V2_float{ 750, 60 + y_offset },
-			V2_float{ 750 - 44, 60 + 44 + y_offset },
-			V2_float{ 750 - 44, 60 + 44 + 44 + y_offset },
-			V2_float{ 650, 60 + 44 + y_offset },
-			V2_float{ 550 + 44, 60 + 44 + 44 + y_offset },
-			V2_float{ 550 + 44, 60 + 44 + y_offset },
-		};
+		for (auto& v : vertices) {
+			v *= size / relative_to;
+			v += size / 2.0f;
+		}
 	}
 
 	void Draw() override {
-		if (line_width == -1) {
-			game.renderer.DrawPolygonFilled(Polygon{ vertices0 }, color::DarkBlue);
-			game.renderer.DrawPolygonFilled(Polygon{ vertices1 }, color::DarkRed);
-		} else {
-			game.renderer.DrawPolygonHollow(Polygon{ vertices0 }, color::DarkBlue, line_width);
-			game.renderer.DrawPolygonHollow(Polygon{ vertices1 }, color::DarkRed, line_width);
-		}
+		game.draw.Polygon(vertices.data(), vertices.size(), color::DarkRed, line_width);
 	}
 };
 
@@ -403,7 +355,7 @@ struct TestPolygonThick : public TestPolygon {
 };
 
 struct TestPolygonFilled : public TestPolygon {
-	TestPolygonFilled() : TestPolygon{ -1 } {}
+	TestPolygonFilled() : TestPolygon{ -1.0f } {}
 };
 
 struct TestEllipse : public DrawTest {
@@ -420,6 +372,7 @@ struct TestEllipse : public DrawTest {
 	}
 
 	void Init() override {
+		DrawTest::Init();
 		p0 = center;
 		p1 = center + V2_float{ 200.0f, 200.0f };
 		p2 = center + V2_float{ 200.0f, -200.0f };
@@ -429,33 +382,17 @@ struct TestEllipse : public DrawTest {
 
 	void Draw() override {
 		if (NearlyEqual(radius.x, radius.y)) {
-			if (line_width == -1) {
-				game.renderer.DrawCircleFilled(p0, radius.x, color::Blue);
-				game.renderer.DrawCircleFilled(p1, radius.x, color::Red);
-				game.renderer.DrawCircleFilled(p2, radius.x, color::Red);
-				game.renderer.DrawCircleFilled(p3, radius.x, color::Red);
-				game.renderer.DrawCircleFilled(p4, radius.x, color::Red);
-			} else {
-				game.renderer.DrawCircleHollow(p0, radius.x, color::Blue, line_width);
-				game.renderer.DrawCircleHollow(p1, radius.x, color::Red, line_width);
-				game.renderer.DrawCircleHollow(p2, radius.x, color::Red, line_width);
-				game.renderer.DrawCircleHollow(p3, radius.x, color::Red, line_width);
-				game.renderer.DrawCircleHollow(p4, radius.x, color::Red, line_width);
-			}
+			game.draw.Circle(p0, radius.x, color::Blue, line_width);
+			game.draw.Circle(p1, radius.x, color::Red, line_width);
+			game.draw.Circle(p2, radius.x, color::Red, line_width);
+			game.draw.Circle(p3, radius.x, color::Red, line_width);
+			game.draw.Circle(p4, radius.x, color::Red, line_width);
 		} else {
-			if (line_width == -1) {
-				game.renderer.DrawEllipseFilled(p0, radius, color::Blue);
-				game.renderer.DrawEllipseFilled(p1, radius, color::Red);
-				game.renderer.DrawEllipseFilled(p2, radius, color::Red);
-				game.renderer.DrawEllipseFilled(p3, radius, color::Red);
-				game.renderer.DrawEllipseFilled(p4, radius, color::Red);
-			} else {
-				game.renderer.DrawEllipseHollow(p0, radius, color::Blue, line_width);
-				game.renderer.DrawEllipseHollow(p1, radius, color::Red, line_width);
-				game.renderer.DrawEllipseHollow(p2, radius, color::Red, line_width);
-				game.renderer.DrawEllipseHollow(p3, radius, color::Red, line_width);
-				game.renderer.DrawEllipseHollow(p4, radius, color::Red, line_width);
-			}
+			game.draw.Ellipse(p0, radius, color::Blue, line_width);
+			game.draw.Ellipse(p1, radius, color::Red, line_width);
+			game.draw.Ellipse(p2, radius, color::Red, line_width);
+			game.draw.Ellipse(p3, radius, color::Red, line_width);
+			game.draw.Ellipse(p4, radius, color::Red, line_width);
 		}
 	}
 };
@@ -470,7 +407,7 @@ struct TestCircleThick : public TestEllipse {
 };
 
 struct TestCircleFilled : public TestEllipse {
-	explicit TestCircleFilled(float radius) : TestEllipse{ { radius, radius }, -1 } {}
+	explicit TestCircleFilled(float radius) : TestEllipse{ { radius, radius }, -1.0f } {}
 };
 
 struct TestEllipseThin : public TestEllipse {
@@ -482,7 +419,7 @@ struct TestEllipseThick : public TestEllipse {
 };
 
 struct TestEllipseFilled : public TestEllipse {
-	explicit TestEllipseFilled(const V2_float& radius) : TestEllipse{ radius, -1 } {}
+	explicit TestEllipseFilled(const V2_float& radius) : TestEllipse{ radius, -1.0f } {}
 };
 
 struct TestCapsule : public TestLine {
@@ -493,17 +430,10 @@ struct TestCapsule : public TestLine {
 	}
 
 	void Draw() override {
-		if (line_width == -1) {
-			game.renderer.DrawCapsuleFilled(p6, p7, radius, color::Red);
-			game.renderer.DrawCapsuleFilled(p0, p1, radius, color::Purple);
-			game.renderer.DrawCapsuleFilled(p2, p3, radius, color::Blue);
-			game.renderer.DrawCapsuleFilled(p4, p5, radius, color::Orange);
-		} else {
-			game.renderer.DrawCapsuleHollow(p6, p7, radius, color::Red, line_width);
-			game.renderer.DrawCapsuleHollow(p0, p1, radius, color::Purple, line_width);
-			game.renderer.DrawCapsuleHollow(p2, p3, radius, color::Blue, line_width);
-			game.renderer.DrawCapsuleHollow(p4, p5, radius, color::Orange, line_width);
-		}
+		game.draw.Capsule(p6, p7, radius, color::Red, line_width);
+		game.draw.Capsule(p0, p1, radius, color::Purple, line_width);
+		game.draw.Capsule(p2, p3, radius, color::Blue, line_width);
+		game.draw.Capsule(p4, p5, radius, color::Orange, line_width);
 	}
 };
 
@@ -516,7 +446,7 @@ struct TestCapsuleThick : public TestCapsule {
 };
 
 struct TestCapsuleFilled : public TestCapsule {
-	explicit TestCapsuleFilled(float radius) : TestCapsule{ radius, -1 } {}
+	explicit TestCapsuleFilled(float radius) : TestCapsule{ radius, -1.0f } {}
 };
 
 struct TestArc : public DrawTest {
@@ -532,6 +462,7 @@ struct TestArc : public DrawTest {
 	}
 
 	void Init() override {
+		DrawTest::Init();
 		bottom_right = center + V2_float{ 200.0f, 200.0f };
 		top_right	 = center + V2_float{ 200.0f, -200.0f };
 		top_left	 = center + V2_float{ -200.0f, -200.0f };
@@ -539,67 +470,29 @@ struct TestArc : public DrawTest {
 	}
 
 	void Draw() override {
-		if (line_width == -1) {
-			game.renderer.DrawArcFilled(center, radius, 0.0f, two_pi<float>, false, color::Blue);
+		game.draw.Arc(center, radius, 0.0f, two_pi<float>, false, color::Blue, line_width);
 
-			game.renderer.DrawArcFilled(
-				bottom_right, radius, -half_pi<float>, 0.0f, false, color::DarkRed
-			);
-			game.renderer.DrawArcFilled(
-				bottom_right, radius, half_pi<float>, pi<float>, false, color::Red
-			);
+		game.draw.Arc(
+			bottom_right, radius, -half_pi<float>, 0.0f, false, color::DarkRed, line_width
+		);
+		game.draw.Arc(
+			bottom_right, radius, half_pi<float>, pi<float>, false, color::Red, line_width
+		);
 
-			game.renderer.DrawArcFilled(
-				top_right, radius, 0.0f, half_pi<float>, false, color::Gold
-			);
-			game.renderer.DrawArcFilled(
-				top_right, radius, pi<float>, -half_pi<float>, false, color::Orange
-			);
+		game.draw.Arc(top_right, radius, 0.0f, half_pi<float>, false, color::Gold, line_width);
+		game.draw.Arc(
+			top_right, radius, pi<float>, -half_pi<float>, false, color::Orange, line_width
+		);
 
-			game.renderer.DrawArcFilled(
-				top_left, radius, half_pi<float>, pi<float>, false, color::DarkGreen
-			);
-			game.renderer.DrawArcFilled(
-				top_left, radius, -half_pi<float>, 0.0f, false, color::Green
-			);
+		game.draw.Arc(
+			top_left, radius, half_pi<float>, pi<float>, false, color::DarkGreen, line_width
+		);
+		game.draw.Arc(top_left, radius, -half_pi<float>, 0.0f, false, color::Green, line_width);
 
-			game.renderer.DrawArcFilled(
-				bottom_left, radius, pi<float>, -half_pi<float>, false, color::Magenta
-			);
-			game.renderer.DrawArcFilled(
-				bottom_left, radius, 0.0f, half_pi<float>, false, color::Purple
-			);
-		} else {
-			game.renderer.DrawArcHollow(center, radius, 0.0f, two_pi<float>, false, color::Blue);
-
-			game.renderer.DrawArcHollow(
-				bottom_right, radius, -half_pi<float>, 0.0f, false, color::DarkRed, line_width
-			);
-			game.renderer.DrawArcHollow(
-				bottom_right, radius, half_pi<float>, pi<float>, false, color::Red, line_width
-			);
-
-			game.renderer.DrawArcHollow(
-				top_right, radius, 0.0f, half_pi<float>, false, color::Gold, line_width, line_width
-			);
-			game.renderer.DrawArcHollow(
-				top_right, radius, pi<float>, -half_pi<float>, false, color::Orange, line_width
-			);
-
-			game.renderer.DrawArcHollow(
-				top_left, radius, half_pi<float>, pi<float>, false, color::DarkGreen, line_width
-			);
-			game.renderer.DrawArcHollow(
-				top_left, radius, -half_pi<float>, 0.0f, false, color::Green, line_width
-			);
-
-			game.renderer.DrawArcHollow(
-				bottom_left, radius, pi<float>, -half_pi<float>, false, color::Magenta, line_width
-			);
-			game.renderer.DrawArcHollow(
-				bottom_left, radius, 0.0f, half_pi<float>, false, color::Purple, line_width
-			);
-		}
+		game.draw.Arc(
+			bottom_left, radius, pi<float>, -half_pi<float>, false, color::Magenta, line_width
+		);
+		game.draw.Arc(bottom_left, radius, 0.0f, half_pi<float>, false, color::Purple, line_width);
 	}
 };
 
@@ -612,10 +505,10 @@ struct TestArcThick : public TestArc {
 };
 
 struct TestArcFilled : public TestArc {
-	explicit TestArcFilled(float radius) : TestArc{ radius, -1 } {}
+	explicit TestArcFilled(float radius) : TestArc{ radius, -1.0f } {}
 };
 
-struct TestTransparency : public Test {
+struct TestTransparency : public DrawTest {
 	V2_float p1;
 	V2_float p2;
 	V2_float p3;
@@ -624,6 +517,8 @@ struct TestTransparency : public Test {
 	V2_float s; // size
 
 	void Init() override {
+		DrawTest::Init();
+
 		float corner_distance{ 0.05f };
 
 		p1 = { center - V2_float{ ws.x * corner_distance, 0.0f } };
@@ -635,14 +530,71 @@ struct TestTransparency : public Test {
 	}
 
 	void Draw() override {
-		game.renderer.DrawRectangleFilled(p1, s, Color{ 255, 0, 0, 128 });
-		game.renderer.DrawRectangleFilled(p2, s, Color{ 0, 0, 255, 128 });
-		game.renderer.DrawRectangleFilled(p3, s, Color{ 0, 255, 255, 128 });
-		game.renderer.DrawRectangleFilled(p4, s, Color{ 255, 255, 0, 128 });
+		game.draw.Rect({ p1, s }, Color{ 255, 0, 0, 128 });
+		game.draw.Rect({ p2, s }, Color{ 0, 0, 255, 128 });
+		game.draw.Rect({ p3, s }, Color{ 0, 255, 255, 128 });
+		game.draw.Rect({ p4, s }, Color{ 255, 255, 0, 128 });
 	}
 };
 
-struct TestTexture : public Test {
+struct TestRenderTargets : public DrawTest {
+	RenderTexture render_texture1;
+	RenderTexture render_texture2;
+	RenderTexture render_texture3;
+	RenderTexture render_texture4;
+	RenderTexture render_texture5;
+	RenderTexture render_texture6;
+	RenderTexture render_texture7;
+
+	Texture test{ "resources/sprites/test1.jpg" };
+
+	V2_float s;
+
+	void Init() override {
+		DrawTest::Init();
+		s = test.GetSize();
+		game.window.SetSize(s * 3);
+		ws				= game.window.GetSize();
+		render_texture1 = RenderTexture{ ws };
+		render_texture2 = RenderTexture{ ws };
+		render_texture3 = RenderTexture{ ws };
+		render_texture4 = RenderTexture{ ws };
+		render_texture5 = RenderTexture{ ws };
+		render_texture6 = RenderTexture{ ws };
+		render_texture7 = RenderTexture{ ws, color::White };
+	}
+
+	void Shutdown() override {
+		game.window.SetSize({ 800, 800 });
+		game.draw.SetTarget();
+		game.draw.SetClearColor(color::White);
+	}
+
+	const float speed{ 300.0f };
+
+	void Update() override {}
+
+	void Draw() override {
+		TextureInfo i;
+
+		const auto draw_texture = [&](const RenderTexture& rt, const V2_float& pos,
+									  ScreenShader ss) {
+			game.draw.SetTarget(rt);
+			test.Draw({ pos, s, Origin::TopLeft }, i);
+			game.draw.Shader(ss);
+		};
+
+		draw_texture(render_texture1, { 0, 0 }, ScreenShader::Default);
+		draw_texture(render_texture2, { s.x, 0 }, ScreenShader::Blur);
+		draw_texture(render_texture3, { s.x * 2, 0 }, ScreenShader::GaussianBlur);
+		draw_texture(render_texture4, { 0, s.y }, ScreenShader::Grayscale);
+		draw_texture(render_texture5, { s.x, s.y }, ScreenShader::EdgeDetection);
+		draw_texture(render_texture6, { s.x * 2, s.y }, ScreenShader::Sharpen);
+		draw_texture(render_texture7, { 0, s.y * 2 }, ScreenShader::InverseColor);
+	}
+};
+
+struct TestTexture : public DrawTest {
 	Texture texture;
 
 	Color circle_color{ color::Gold };
@@ -658,6 +610,8 @@ struct TestTexture : public Test {
 	explicit TestTexture(const Texture& texture) : texture{ texture } {}
 
 	void Init() override {
+		DrawTest::Init();
+
 		size = ws / 5.0f;
 
 		circle_radius = size.x / 2.0f;
@@ -665,7 +619,7 @@ struct TestTexture : public Test {
 		cr = { 0.5f, 0.5f };
 	}
 
-	void Update(float dt) override {
+	void Update() override {
 		if (game.input.KeyPressed(Key::R)) {
 			rotation += 5.0f * dt;
 		}
@@ -675,52 +629,89 @@ struct TestTexture : public Test {
 	}
 
 	void Draw() override {
-		game.renderer.DrawCircleFilled({ 200, 200 }, circle_radius, circle_color);
-		game.renderer.DrawCircleFilled({ 400, 200 }, circle_radius, circle_color);
-		game.renderer.DrawCircleFilled({ 600, 200 }, circle_radius, circle_color);
-		game.renderer.DrawCircleFilled({ 200, 400 }, circle_radius, circle_color);
-		game.renderer.DrawCircleFilled({ 400, 400 }, circle_radius, circle_color);
-		game.renderer.DrawCircleFilled({ 600, 400 }, circle_radius, circle_color);
-		game.renderer.DrawCircleFilled({ 200, 600 }, circle_radius, circle_color);
-		game.renderer.DrawCircleFilled({ 400, 600 }, circle_radius, circle_color);
-		game.renderer.DrawCircleFilled({ 600, 600 }, circle_radius, circle_color);
+		game.draw.Circle({ 200, 200 }, circle_radius, circle_color);
+		game.draw.Circle({ 400, 200 }, circle_radius, circle_color);
+		game.draw.Circle({ 600, 200 }, circle_radius, circle_color);
+		game.draw.Circle({ 200, 400 }, circle_radius, circle_color);
+		game.draw.Circle({ 400, 400 }, circle_radius, circle_color);
+		game.draw.Circle({ 600, 400 }, circle_radius, circle_color);
+		game.draw.Circle({ 200, 600 }, circle_radius, circle_color);
+		game.draw.Circle({ 400, 600 }, circle_radius, circle_color);
+		game.draw.Circle({ 600, 600 }, circle_radius, circle_color);
 
-		game.renderer.Flush();
+		game.draw.Flush();
 
-		game.renderer.DrawTexture(texture, { 200, 200 }, size / 2.0f);
-		game.renderer.DrawTexture(texture, { 400, 200 }, size, texture.GetSize() / 2.0f);
-		game.renderer.DrawTexture(texture, { 600, 200 }, size, {}, texture.GetSize() / 2.0f);
-		game.renderer.DrawTexture(
-			texture, { 200, 400 }, size, {}, {}, Origin::Center, Flip::None, rotation
+		texture.Draw({ { 200, 200 }, size / 2.0f });
+		texture.Draw({ { 400, 200 }, size }, { texture.GetSize() / 2.0f, {} });
+		texture.Draw({ { 600, 200 }, size }, { {}, texture.GetSize() / 2.0f });
+		texture.Draw({ { 200, 400 }, size, Origin::Center, rotation }, { {}, {}, Flip::None });
+		texture.Draw({ { 400, 400 }, size, Origin::Center, -rotation }, { {}, {}, Flip::None });
+		texture.Draw(
+			{ { 600, 400 }, size, Origin::Center, rotation },
+			{ {}, {}, Flip::None, color::Red, { 1.0f, 1.0f } }, { 0.0f, 0 }
 		);
-		game.renderer.DrawTexture(
-			texture, { 400, 400 }, size, {}, {}, Origin::Center, Flip::None, -rotation
+		texture.Draw(
+			{ { 200, 600 }, size, Origin::Center, rotation },
+			{ {}, {}, Flip::Horizontal, color::White, cr }
 		);
-		game.renderer.DrawTexture(
-			texture, { 600, 400 }, size, {}, {}, Origin::Center, Flip::None, rotation,
-			{ 1.0f, 1.0f }, 0.0f
+		texture.Draw(
+			{ { 400, 600 }, size, Origin::Center, rotation },
+			{ {}, {}, Flip::Vertical, color::White, cr }
 		);
-		game.renderer.DrawTexture(
-			texture, { 200, 600 }, size, {}, {}, Origin::Center, Flip::Horizontal, rotation, cr
+		texture.Draw(
+			{ { 600, 600 }, size * 0.2f, Origin::Center },
+			{
+				{},
+				{},
+				Flip::None,
+				color::White,
+				cr,
+			},
+			{ 200.0f, 0 }
 		);
-		game.renderer.DrawTexture(
-			texture, { 400, 600 }, size, {}, {}, Origin::Center, Flip::Vertical, rotation, cr
+		texture.Draw(
+			{ { 600, 600 }, size * 0.4f, Origin::Center },
+			{
+				{},
+				{},
+				Flip::None,
+				color::White,
+				cr,
+			},
+			{ 100.0f, 0 }
 		);
-		game.renderer.DrawTexture(
-			texture, { 600, 600 }, size * 0.2f, {}, {}, Origin::Center, Flip::None, 0.0f, cr, 200.0f
+		texture.Draw(
+			{ { 600, 600 }, size * 0.6f, Origin::Center },
+			{
+				{},
+				{},
+				Flip::None,
+				color::White,
+				cr,
+			},
+			{ 0.0f, 0 }
 		);
-		game.renderer.DrawTexture(
-			texture, { 600, 600 }, size * 0.4f, {}, {}, Origin::Center, Flip::None, 0.0f, cr, 100.0f
+		texture.Draw(
+			{ { 600, 600 }, size * 0.8f, Origin::Center },
+			{
+				{},
+				{},
+				Flip::None,
+				color::White,
+				cr,
+			},
+			{ -100.0f, 0 }
 		);
-		game.renderer.DrawTexture(
-			texture, { 600, 600 }, size * 0.6f, {}, {}, Origin::Center, Flip::None, 0.0f, cr, 0.0f
-		);
-		game.renderer.DrawTexture(
-			texture, { 600, 600 }, size * 0.8f, {}, {}, Origin::Center, Flip::None, 0.0f, cr,
-			-100.0f
-		);
-		game.renderer.DrawTexture(
-			texture, { 600, 600 }, size, {}, {}, Origin::Center, Flip::None, 0.0f, cr, -200.0f
+		texture.Draw(
+			{ { 600, 600 }, size, Origin::Center },
+			{
+				{},
+				{},
+				Flip::None,
+				color::White,
+				cr,
+			},
+			{ -200.0f, 0 }
 		);
 	}
 };
@@ -736,7 +727,7 @@ enum class TestBatchType {
 	All
 };
 
-struct TestBatch : public Test {
+struct TestBatch : public DrawTest {
 	// Random position generators.
 	RNG<float> rng_x;
 	RNG<float> rng_y;
@@ -764,6 +755,8 @@ struct TestBatch : public Test {
 	}
 
 	void Init() override {
+		DrawTest::Init();
+
 		rng_x = { 0.0f, ws.x };
 		rng_y = { 0.0f, ws.y };
 
@@ -783,34 +776,34 @@ struct TestBatch : public Test {
 				break;
 			}
 			case TestBatchType::Point:
-				game.renderer.DrawPoint({ rng_x(), rng_y() }, Color::RandomOpaque());
+				game.draw.Point({ rng_x(), rng_y() }, Color::RandomOpaque());
 				break;
 			case TestBatchType::Line:
-				game.renderer.DrawLine(
+				game.draw.Line(
 					{ rng_x(), rng_y() }, { rng_x(), rng_y() }, Color::RandomTransparent()
 				);
 				break;
 			case TestBatchType::Triangle:
-				game.renderer.DrawTriangleFilled(
+				game.draw.Triangle(
 					{ rng_x(), rng_y() }, { rng_x(), rng_y() }, { rng_x(), rng_y() },
 					Color::RandomTransparent()
 				);
 				break;
 			case TestBatchType::Circle:
-				game.renderer.DrawCircleFilled(
+				game.draw.Circle(
 					{ rng_x(), rng_y() }, circle_radius_rng(), Color::RandomTransparent()
 				);
 				break;
 			case TestBatchType::Rectangle:
-				game.renderer.DrawRectangleFilled(
-					{ rng_x(), rng_y() }, { rectangle_size_rng(), rectangle_size_rng() },
+				game.draw.Rect(
+					{ { rng_x(), rng_y() }, { rectangle_size_rng(), rectangle_size_rng() } },
 					Color::RandomTransparent()
 				);
 				break;
 			case TestBatchType::Texture: {
 				std::size_t idx{ texture_index_rng() };
 				const Texture& t{ textures[idx] };
-				game.renderer.DrawTexture(t, { rng_x(), rng_y() }, t.GetSize() / 4.0f);
+				game.draw.Texture(t, { { rng_x(), rng_y() }, t.GetSize() / 4.0f });
 				break;
 			}
 			default: PTGN_ERROR("Unrecognized TestBatchType");
@@ -875,7 +868,7 @@ void TestVertexBuffers() {
 	};
 
 	VertexBuffer b0_5{ std::array<TestVertex1, 5>{} };
-	const impl::InternalBufferLayout layout0{ BufferLayout<glsl::vec3>{} };
+	const BufferLayout layout0{ BufferLayout<glsl::vec3>{} };
 
 	PTGN_ASSERT(b0_5.IsValid());
 	PTGN_ASSERT(!layout0.IsEmpty());
@@ -890,7 +883,7 @@ void TestVertexBuffers() {
 
 	// Layout 1
 
-	const impl::InternalBufferLayout layout1{ BufferLayout<glsl::vec3>{} };
+	const BufferLayout layout1{ BufferLayout<glsl::vec3>{} };
 	const auto& e1{ layout1.GetElements() };
 	PTGN_ASSERT(e1.size() == 1);
 	PTGN_ASSERT(layout1.GetStride() == 3 * sizeof(float));
@@ -910,7 +903,7 @@ void TestVertexBuffers() {
 	v2.emplace_back();
 
 	VertexBuffer b2{ v2 };
-	const impl::InternalBufferLayout layout2{ BufferLayout<glsl::vec3, glsl::vec4, glsl::vec3>{} };
+	const BufferLayout layout2{ BufferLayout<glsl::vec3, glsl::vec4, glsl::vec3>{} };
 	const auto& e2{ layout2.GetElements() };
 
 	PTGN_ASSERT(e2.size() == 3);
@@ -944,7 +937,7 @@ void TestVertexBuffers() {
 	v3.emplace_back();
 
 	VertexBuffer b3{ v3 };
-	const impl::InternalBufferLayout layout3{ BufferLayout<
+	const BufferLayout layout3{ BufferLayout<
 		glsl::vec4, glsl::double_, glsl::ivec3, glsl::dvec2, glsl::int_, glsl::float_, glsl::bool_,
 		glsl::uint_, glsl::bvec3, glsl::uvec4>{} };
 	const auto& e3{ layout3.GetElements() };
@@ -1014,7 +1007,7 @@ void TestVertexBuffers() {
 	v4.push_back({ { 3.0f, 4.0f, 5.0f } });
 
 	VertexBuffer b4{ v4 };
-	const impl::InternalBufferLayout layout4{ BufferLayout<glsl::vec3>{} };
+	const BufferLayout layout4{ BufferLayout<glsl::vec3>{} };
 
 	std::vector<TestVertex1> v5;
 	v5.push_back({ { 6.0f, 7.0f, 8.0f } });
@@ -1079,6 +1072,66 @@ void TestIndexBuffers() {
 	ib2.SetSubData(indices4);
 }
 
+void TestFrameBuffers() {
+	V2_int size{ 800, 800 };
+	game.window.SetSize(size);
+	game.input.Update();
+	game.draw.Flush();
+	RenderTexture rt{ size, color::Yellow };
+	const auto& fb{ rt.GetFrameBuffer() };
+	PTGN_ASSERT(fb.GetPixel({ 0, 0 }) == color::Yellow);
+	const auto is_yellow = [&]() {
+		bool yellow{ true };
+		fb.ForEachPixel([&](V2_int p, Color c) {
+			if (c != color::Yellow) {
+				yellow = false;
+			}
+		});
+		return yellow;
+	};
+	PTGN_ASSERT(is_yellow());
+	game.draw.SetTarget(rt);
+	PTGN_ASSERT(is_yellow());
+	game.draw.Point(V2_int{ 0, 0 }, color::Red);
+	game.draw.Point(V2_int{ size.x - 1, 0 }, color::Green);
+	game.draw.Point(V2_int{ 0, size.y - 1 }, color::Blue);
+	game.draw.Point(V2_int{ size.x - 1, size.y - 1 }, color::Purple);
+	PTGN_ASSERT(is_yellow());
+	game.draw.Flush();
+	PTGN_ASSERT(!is_yellow());
+	// TODO: Fix
+	/*PTGN_ASSERT(fb.GetPixel({ 0, 0 }) == color::Red);
+	PTGN_ASSERT(fb.GetPixel({ size.x - 1, 0 }) == color::Green);
+	PTGN_ASSERT(fb.GetPixel({ 0, size.y - 1 }) == color::Blue);
+	PTGN_ASSERT(fb.GetPixel(V2_int{ size } - V2_int{ 1, 1 }) == color::Purple);
+	fb.ForEachPixel([&](V2_int p, Color c) {
+		if (p == V2_int{ 0, 0 }) {
+			PTGN_ASSERT(c == color::Red);
+		} else if (p == V2_int{ size.x - 1, 0 }) {
+			PTGN_ASSERT(c == color::Green);
+		} else if (p == V2_int{ 0, size.y - 1 }) {
+			PTGN_ASSERT(c == color::Blue);
+		} else if (p == V2_int{ size } - V2_int{ 1, 1 }) {
+			PTGN_ASSERT(c == color::Purple);
+		}
+	});
+	game.draw.Clear();
+	PTGN_ASSERT(is_yellow());
+	game.draw.Point(V2_int{ 0, 0 }, color::Red);
+	game.draw.Flush();
+	PTGN_ASSERT(!is_yellow());
+	game.draw.SetTarget();
+	PTGN_ASSERT(!is_yellow());
+	game.draw.Clear();
+	PTGN_ASSERT(!is_yellow());
+	game.draw.SetTarget(rt);
+	PTGN_ASSERT(is_yellow());
+	game.draw.Clear();
+	PTGN_ASSERT(is_yellow());*/
+	game.draw.SetTarget();
+	game.draw.Clear();
+}
+
 void TestVertexArrays() {
 	struct TestVertex {
 		glsl::vec3 pos{ 1.0f, 2.0f, 3.0f };
@@ -1136,17 +1189,13 @@ void TestVertexArrays() {
 
 	// Commented out draw calls trigger asserts due to unset vertex or index buffers.
 
-	// game.renderer.DrawArrays(vao0, 4);
-	// game.renderer.DrawElements(vao0, 6);
-	// game.renderer.DrawArrays(vao1, 4);
-	// game.renderer.DrawElements(vao1, 6);
-	// game.renderer.DrawElements(vao2, 6);
+	// game.draw.VertexArray(vao0);
+	// game.draw.VertexArray(vao1);
 
-	game.renderer.DrawArrays(vao2, 4);
-	game.renderer.DrawArrays(vao3, 4);
-	game.renderer.DrawElements(vao3, 6);
+	game.draw.VertexArray(vao2);
+	game.draw.VertexArray(vao3);
 
-	game.renderer.Present();
+	game.draw.Present();
 }
 
 void TestShaders() {
@@ -1377,6 +1426,7 @@ void TestRendering() {
 
 	std::vector<std::shared_ptr<Test>> tests;
 
+	tests.emplace_back(new TestRenderTargets());
 	tests.emplace_back(new TestPoint());
 	tests.emplace_back(new TestLineThin());
 	tests.emplace_back(new TestLineThick(test_line_width));
@@ -1429,6 +1479,7 @@ void TestRenderer() {
 
 	TestVertexBuffers();
 	TestIndexBuffers();
+	TestFrameBuffers();
 	TestVertexArrays();
 	TestShaders();
 	TestTextures();

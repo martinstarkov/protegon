@@ -6,14 +6,14 @@
 #include <string_view>
 #include <vector>
 
-#include "core/window.h"
-#include "protegon/file.h"
-#include "protegon/game.h"
-#include "protegon/log.h"
-#include "renderer/gl_loader.h"
 #include "SDL_error.h"
 #include "SDL_video.h"
+#include "core/game.h"
+#include "core/window.h"
+#include "renderer/gl_loader.h"
 #include "utility/debug.h"
+#include "utility/file.h"
+#include "utility/log.h"
 
 namespace ptgn::impl {
 
@@ -81,16 +81,16 @@ bool GLContext::IsInitialized() const {
 
 void GLContext::Init() {
 	PTGN_ASSERT(
-		game.window.Exists(), "GLContext must be constructed after SDL window construction"
+		game.window.IsValid(), "GLContext must be constructed after SDL window construction"
 	);
 
 	if (IsInitialized()) {
-		int result = SDL_GL_MakeCurrent(game.window.window_.get(), context_);
+		int result = game.window.MakeGLContextCurrent(context_);
 		PTGN_ASSERT(result == 0, SDL_GetError());
 		return;
 	}
 
-	context_ = SDL_GL_CreateContext(game.window.window_.get());
+	context_ = game.window.CreateGLContext();
 	PTGN_ASSERT(IsInitialized(), SDL_GetError());
 
 	GLVersion gl_version;
@@ -112,7 +112,7 @@ void GLContext::Shutdown() {
 }
 
 void GLContext::ClearErrors() {
-	while (game.gl_context_.IsInitialized() && game.IsRunning() &&
+	while (game.gl_context_->IsInitialized() && game.IsRunning() &&
 		   gl::glGetError() != static_cast<gl::GLenum>(GLError::None)
 	) { /* glGetError clears the error queue */
 	}
@@ -120,13 +120,13 @@ void GLContext::ClearErrors() {
 
 std::vector<GLError> GLContext::GetErrors() {
 	std::vector<GLError> errors;
-	while (game.gl_context_.IsInitialized() && game.IsRunning()) {
+	while (game.gl_context_->IsInitialized() && game.IsRunning()) {
 		gl::GLenum error = gl::glGetError();
 		auto e			 = static_cast<GLError>(error);
 		if (e == GLError::None) {
 			break;
 		}
-		errors.push_back(e);
+		errors.emplace_back(e);
 	}
 	return errors;
 }

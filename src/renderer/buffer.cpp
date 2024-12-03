@@ -1,17 +1,17 @@
-#include "protegon/buffer.h"
+#include "renderer/buffer.h"
 
 #include <cstdint>
 
-#include "protegon/vertex_array.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
+#include "renderer/vertex_array.h"
 #include "utility/debug.h"
 
 namespace ptgn {
 
 namespace impl {
 
-BufferInstance::BufferInstance() {
+BufferInstance::BufferInstance(std::uint32_t count) : count_{ count } {
 	GLCall(gl::GenBuffers(1, &id_));
 	PTGN_ASSERT(id_ != 0, "Failed to generate buffer using OpenGL context");
 }
@@ -39,10 +39,12 @@ void Buffer<BT>::SetDataImpl(const void* data, std::uint32_t size, BufferUsage u
 }
 
 template <BufferType BT>
-void Buffer<BT>::SetSubData(const void* data, std::uint32_t size) {
+void Buffer<BT>::SetSubData(const void* data, std::uint32_t size, bool unbind_vertex_array) {
 	PTGN_ASSERT(size != 0, "Must provide more than one element when setting buffer subdata");
 	PTGN_ASSERT(data != nullptr);
-	VertexArray::Unbind();
+	if (unbind_vertex_array) {
+		VertexArray::Unbind();
+	}
 	Bind();
 	// This buffer size check must be done after the buffer is bound.
 	PTGN_ASSERT(
@@ -50,6 +52,12 @@ void Buffer<BT>::SetSubData(const void* data, std::uint32_t size) {
 		"Attempting to bind data outside of allocated buffer size"
 	);
 	GLCall(gl::BufferSubData(static_cast<gl::GLenum>(BT), 0, size, data));
+}
+
+template <BufferType BT>
+std::uint32_t Buffer<BT>::GetCount() const {
+	PTGN_ASSERT(IsValid(), "Cannot get count of invalid buffer");
+	return Get().count_;
 }
 
 template <BufferType BT>
@@ -79,6 +87,9 @@ BufferUsage Buffer<BT>::GetBoundUsage() {
 template <BufferType BT>
 void Buffer<BT>::Bind() const {
 	GLCall(gl::BindBuffer(static_cast<gl::GLenum>(BT), Get().id_));
+#ifdef PTGN_DEBUG
+	++game.stats.buffer_binds;
+#endif
 }
 
 template class Buffer<BufferType::Vertex>;

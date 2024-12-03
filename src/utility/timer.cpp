@@ -1,4 +1,4 @@
-#include "protegon/timer.h"
+#include "utility/timer.h"
 
 #include <chrono>
 
@@ -20,6 +20,14 @@ void Timer::Stop() {
 	stop_time_ = std::chrono::steady_clock::now();
 	running_   = false;
 	paused_	   = false;
+}
+
+void Timer::Toggle() {
+	if (IsRunning()) {
+		Stop();
+	} else {
+		Start();
+	}
 }
 
 void Timer::Pause() {

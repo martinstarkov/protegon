@@ -1,20 +1,17 @@
-#include "protegon/text.h"
+#include "renderer/text.h"
 
 #include <cstdint>
 #include <string>
-#include <string_view>
 #include <variant>
 
-#include "core/manager.h"
-#include "protegon/color.h"
-#include "protegon/font.h"
-#include "protegon/game.h"
-#include "protegon/polygon.h"
-#include "protegon/surface.h"
-#include "protegon/texture.h"
-#include "protegon/vector2.h"
-#include "renderer/flip.h"
+#include "core/game.h"
+#include "math/geometry/polygon.h"
+#include "math/vector2.h"
+#include "renderer/color.h"
+#include "renderer/font.h"
 #include "renderer/renderer.h"
+#include "renderer/surface.h"
+#include "renderer/texture.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
 
@@ -37,92 +34,136 @@ Texture Text::RecreateTexture() {
 }
 
 Text::Text(
-	const FontOrKey& font, const std::string_view& content, const Color& text_color,
-	FontStyle font_style /*= FontStyle::Normal*/,
-	FontRenderMode render_mode /*= FontRenderMode::Solid*/,
-	const Color& shading_color /*= color::White*/
+	const std::string_view& content, const Color& text_color, const FontOrKey& font,
+	FontStyle font_style, FontRenderMode render_mode, const Color& shading_color,
+	std::uint32_t wrap_after_pixels
 ) {
 	Create();
 	auto& t{ Get() };
-	t.font_			 = GetFont(font);
-	t.content_		 = content;
-	t.text_color_	 = text_color;
-	t.font_style_	 = font_style;
-	t.render_mode_	 = render_mode;
-	t.shading_color_ = shading_color;
-	t.texture_		 = RecreateTexture();
-}
 
-void Text::SetFont(const FontOrKey& font) {
-	Create();
-	auto f = GetFont(font);
-	auto& t{ Get() };
-	if (f == t.font_) {
-		return;
-	}
-	t.font_	   = f;
-	t.texture_ = RecreateTexture();
-}
+	Font f;
 
-void Text::SetContent(const std::string_view& content) {
-	Create();
-	auto& t{ Get() };
-	if (content == t.content_) {
-		return;
+	if (font == FontOrKey{}) {
+		f = game.font.GetDefault();
+	} else {
+		f = game.font.GetFontOrKey(font);
 	}
-	t.content_ = content;
-	t.texture_ = RecreateTexture();
-}
 
-void Text::SetWrapAfter(std::uint32_t wrap_after_pixels) {
-	Create();
-	auto& t{ Get() };
-	if (wrap_after_pixels == t.wrap_after_pixels_) {
-		return;
-	}
+	PTGN_ASSERT(f.IsValid(), "Cannot create text with invalid font");
+
+	t.font_				 = f;
+	t.content_			 = content;
+	t.text_color_		 = text_color;
+	t.font_style_		 = font_style;
+	t.render_mode_		 = render_mode;
+	t.shading_color_	 = shading_color;
 	t.wrap_after_pixels_ = wrap_after_pixels;
 	t.texture_			 = RecreateTexture();
 }
 
-void Text::SetColor(const Color& text_color) {
+void Text::Draw(const Rect& destination, const LayerInfo& layer_info) const {
+	game.draw.Text(*this, destination, layer_info);
+}
+
+Text& Text::SetFont(const FontOrKey& font) {
+	Create();
+
+	Font f;
+
+	if (font == FontOrKey{}) {
+		f = game.font.GetDefault();
+	} else {
+		f = game.font.GetFontOrKey(font);
+	}
+
+	auto& t{ Get() };
+	if (f == t.font_) {
+		return *this;
+	}
+
+	PTGN_ASSERT(f.IsValid(), "Cannot set text font to be invalid");
+
+	t.font_	   = f;
+	t.texture_ = RecreateTexture();
+	return *this;
+}
+
+Text& Text::SetContent(const std::string_view& content) {
+	Create();
+	auto& t{ Get() };
+	if (content == t.content_) {
+		return *this;
+	}
+	t.content_ = content;
+	t.texture_ = RecreateTexture();
+	return *this;
+}
+
+Text& Text::SetWrapAfter(std::uint32_t wrap_after_pixels) {
+	Create();
+	auto& t{ Get() };
+	if (wrap_after_pixels == t.wrap_after_pixels_) {
+		return *this;
+	}
+	t.wrap_after_pixels_ = wrap_after_pixels;
+	t.texture_			 = RecreateTexture();
+	return *this;
+}
+
+Text& Text::SetColor(const Color& text_color) {
 	Create();
 	auto& t{ Get() };
 	if (text_color == t.text_color_) {
-		return;
+		return *this;
 	}
 	t.text_color_ = text_color;
 	t.texture_	  = RecreateTexture();
+	return *this;
 }
 
-void Text::SetFontStyle(FontStyle font_style) {
+Text& Text::SetFontStyle(FontStyle font_style) {
 	Create();
 	auto& t{ Get() };
 	if (font_style == t.font_style_) {
-		return;
+		return *this;
 	}
 	t.font_style_ = font_style;
 	t.texture_	  = RecreateTexture();
+	return *this;
 }
 
-void Text::SetFontRenderMode(FontRenderMode render_mode) {
+Text& Text::SetFontRenderMode(FontRenderMode render_mode) {
 	Create();
 	auto& t{ Get() };
 	if (render_mode == t.render_mode_) {
-		return;
+		return *this;
 	}
 	t.render_mode_ = render_mode;
 	t.texture_	   = RecreateTexture();
+	return *this;
 }
 
-void Text::SetShadingColor(const Color& shading_color) {
+Text& Text::SetShadingColor(const Color& shading_color) {
 	Create();
 	auto& t{ Get() };
 	if (shading_color == t.shading_color_) {
-		return;
+		return *this;
 	}
 	t.render_mode_	 = FontRenderMode::Shaded;
 	t.shading_color_ = shading_color;
 	t.texture_		 = RecreateTexture();
+	return *this;
+}
+
+Text& Text::SetVisibility(bool visibility) {
+	Get().visible_ = visibility;
+	return *this;
+}
+
+Text& Text::ToggleVisibility() {
+	auto& t{ Get() };
+	t.visible_ = !t.visible_;
+	return *this;
 }
 
 const Font& Text::GetFont() const {
@@ -149,49 +190,12 @@ const Color& Text::GetShadingColor() const {
 	return Get().shading_color_;
 }
 
-const Texture& Text::GetTexture() const {
-	return Get().texture_;
-}
-
-Font Text::GetFont(const FontOrKey& font) {
-	Font f;
-	if (std::holds_alternative<std::size_t>(font)) {
-		std::size_t font_key{ std::get<std::size_t>(font) };
-		PTGN_ASSERT(game.font.Has(font_key), "game.font.Load() into manager before creating text");
-		f = game.font.Get(font_key);
-	} else {
-		f = std::get<Font>(font);
-	}
-	PTGN_ASSERT(f.IsValid(), "Cannot create text with an invalid font");
-	return f;
-}
-
-void Text::SetVisibility(bool visibility) {
-	Get().visible_ = visibility;
-}
-
 bool Text::GetVisibility() const {
 	return Get().visible_;
 }
 
-void Text::Draw(const Rectangle<float>& destination, float z_index) const {
-	if (!IsValid()) {
-		return;
-	}
-	auto& t{ Get() };
-	if (!t.visible_) {
-		return;
-	}
-	if (t.content_.empty()) {
-		return;
-	}
-	if (!t.texture_.IsValid()) {
-		return;
-	}
-	game.renderer.DrawTexture(
-		t.texture_, destination.pos, destination.size, {}, {}, destination.origin, Flip::None, 0.0f,
-		{}, z_index
-	);
+const Texture& Text::GetTexture() const {
+	return Get().texture_;
 }
 
 V2_int Text::GetSize() const {
@@ -199,7 +203,9 @@ V2_int Text::GetSize() const {
 }
 
 V2_int Text::GetSize(const FontOrKey& font, const std::string& content) {
-	return Surface::GetSize(GetFont(font), content);
+	Font f{ game.font.GetFontOrKey(font) };
+	PTGN_ASSERT(f.IsValid(), "Cannot get size of text with invalid font");
+	return Surface::GetSize(f, content);
 }
 
 } // namespace ptgn

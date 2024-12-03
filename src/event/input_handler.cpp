@@ -3,16 +3,15 @@
 #include <bitset>
 #include <utility>
 
+#include "camera/camera.h"
+#include "core/game.h"
 #include "core/window.h"
 #include "event/event_handler.h"
+#include "event/events.h"
 #include "event/key.h"
 #include "event/mouse.h"
-#include "protegon/collision.h"
-#include "protegon/events.h"
-#include "protegon/game.h"
-#include "protegon/log.h"
-#include "protegon/timer.h"
-#include "protegon/vector2.h"
+#include "math/geometry/polygon.h"
+#include "math/vector2.h"
 #include "renderer/origin.h"
 #include "SDL_events.h"
 #include "SDL_keyboard.h"
@@ -20,9 +19,11 @@
 #include "SDL_stdinc.h"
 #include "SDL_video.h"
 #include "utility/debug.h"
+#include "utility/log.h"
 #include "utility/time.h"
+#include "utility/timer.h"
 
-namespace ptgn {
+namespace ptgn::impl {
 
 void InputHandler::Reset() {
 	key_states_.reset();
@@ -33,7 +34,8 @@ void InputHandler::Reset() {
 	left_mouse_		= MouseState::Released;
 	right_mouse_	= MouseState::Released;
 	middle_mouse_	= MouseState::Released;
-	mouse_position_ = {};
+	mouse_pos_		= {};
+	prev_mouse_pos_ = {};
 	mouse_scroll_	= {};
 
 	// Mouse button held for timers.
@@ -44,6 +46,7 @@ void InputHandler::Reset() {
 }
 
 void InputHandler::Update() {
+	prev_mouse_pos_ = mouse_pos_;
 	// Update mouse states.
 	UpdateMouseState(Mouse::Left);
 	UpdateMouseState(Mouse::Right);
@@ -53,13 +56,9 @@ void InputHandler::Update() {
 	while (SDL_PollEvent(&e)) {
 		switch (e.type) {
 			case SDL_MOUSEMOTION: {
-				V2_int previous{ mouse_position_ };
-				const auto* m	  = (SDL_MouseMotionEvent*)&e;
-				mouse_position_.x = m->x;
-				mouse_position_.y = m->y;
-				game.event.mouse.Post(
-					MouseEvent::Move, MouseMoveEvent{ previous, mouse_position_ }
-				);
+				mouse_pos_.x = e.motion.x;
+				mouse_pos_.y = e.motion.y;
+				game.event.mouse.Post(MouseEvent::Move, MouseMoveEvent{});
 				break;
 			}
 			case SDL_MOUSEBUTTONDOWN: {
@@ -68,8 +67,7 @@ void InputHandler::Update() {
 				timer.Start();
 				mouse_state = MouseState::Down;
 				game.event.mouse.Post(
-					MouseEvent::Down,
-					MouseDownEvent{ static_cast<Mouse>(e.button.button), mouse_position_ }
+					MouseEvent::Down, MouseDownEvent{ static_cast<Mouse>(e.button.button) }
 				);
 				break;
 			}
@@ -79,8 +77,7 @@ void InputHandler::Update() {
 				timer.Stop();
 				mouse_state = MouseState::Up;
 				game.event.mouse.Post(
-					MouseEvent::Up,
-					MouseUpEvent{ static_cast<Mouse>(e.button.button), mouse_position_ }
+					MouseEvent::Up, MouseUpEvent{ static_cast<Mouse>(e.button.button) }
 				);
 				break;
 			}
@@ -113,17 +110,40 @@ void InputHandler::Update() {
 				break;
 			}
 			case SDL_QUIT: {
-				game.event.window.Post(WindowEvent::Quit, WindowQuitEvent{});
+				if (game.LoopFunctionCount() == 0) {
+					game.Stop();
+				} else {
+					game.event.window.Post(WindowEvent::Quit, WindowQuitEvent{});
+				}
 				break;
 			}
 			case SDL_WINDOWEVENT: {
 				switch (e.window.event) {
-					case SDL_WINDOWEVENT_SIZE_CHANGED:
-					case SDL_WINDOWEVENT_RESIZED:	   {
+					case SDL_WINDOWEVENT_RESIZED:
+					case SDL_WINDOWEVENT_SIZE_CHANGED: {
 						V2_int window_size{ e.window.data1, e.window.data2 };
 						game.event.window.Post(
 							WindowEvent::Resized, WindowResizedEvent{ window_size }
 						);
+						break;
+					}
+					case SDL_WINDOWEVENT_MAXIMIZED: {
+						V2_int window_size{ e.window.data1, e.window.data2 };
+						game.event.window.Post(
+							WindowEvent::Maximized, WindowMaximizedEvent{ window_size }
+						);
+						break;
+					}
+					case SDL_WINDOWEVENT_MINIMIZED: {
+						V2_int window_size{ e.window.data1, e.window.data2 };
+						game.event.window.Post(
+							WindowEvent::Minimized, WindowMinimizedEvent{ window_size }
+						);
+						break;
+					}
+					case SDL_WINDOWEVENT_MOVED: {
+						V2_int window_pos{ e.window.data1, e.window.data2 };
+						game.event.window.Post(WindowEvent::Moved, WindowMovedEvent{});
 						break;
 					}
 					default: break;
@@ -135,28 +155,53 @@ void InputHandler::Update() {
 	}
 }
 
-#ifndef __EMSCRIPTEN__
-bool InputHandler::MouseWithinWindow() {
-	return game.collision.overlap.PointRectangle(
-		game.input.GetMousePositionGlobal(),
-		{ game.window.GetPosition(), game.window.GetSize(), Origin::TopLeft }
-	);
-}
-#endif
+bool InputHandler::MouseWithinWindow() const {
+	Rect window{ game.window.GetPosition(), game.window.GetSize(), Origin::TopLeft };
 
-void InputHandler::SetRelativeMouseMode(bool on) {
+	return window.Overlaps(game.input.GetMousePositionGlobal());
+}
+
+void InputHandler::SetRelativeMouseMode(bool on) const {
 	SDL_SetRelativeMouseMode(static_cast<SDL_bool>(on));
 }
 
-V2_int InputHandler::GetMousePositionGlobal() {
-	V2_int pos;
+V2_float InputHandler::GetMousePositionGlobal() const {
+	V2_int position;
 	// SDL_PumpEvents not required as this function queries the OS directly.
-	SDL_GetGlobalMouseState(&pos.x, &pos.y);
-	return pos;
+	SDL_GetGlobalMouseState(&position.x, &position.y);
+	return position;
 }
 
-V2_int InputHandler::GetMousePosition() const {
-	return mouse_position_;
+V2_float InputHandler::GetMousePositionWindow() const {
+	return mouse_pos_;
+}
+
+V2_float InputHandler::GetMousePositionPreviousWindow() const {
+	return prev_mouse_pos_;
+}
+
+V2_float InputHandler::GetMouseDifferenceWindow() const {
+	return mouse_pos_ - prev_mouse_pos_;
+}
+
+V2_float InputHandler::GetMouseDifference(std::size_t render_layer) const {
+	return ScaledToRenderLayer(GetMouseDifferenceWindow(), render_layer);
+}
+
+V2_float InputHandler::GetMousePosition(std::size_t render_layer) const {
+	return ScaledToRenderLayer(GetMousePositionWindow(), render_layer);
+}
+
+V2_float InputHandler::GetMousePositionPrevious(std::size_t render_layer) const {
+	return ScaledToRenderLayer(GetMousePositionPreviousWindow(), render_layer);
+}
+
+V2_float InputHandler::ScaledToRenderLayer(const V2_float& position, std::size_t render_layer)
+	const {
+	V2_float w{ game.window.GetSize() };
+	PTGN_ASSERT(w.x != 0 && w.y != 0, "Cannot scale position relative to a dimensionless window");
+	V2_float p{ (game.camera.GetPrimary(render_layer).GetSize() * position) / w };
+	return p;
 }
 
 int InputHandler::GetMouseScroll() const {
@@ -175,11 +220,8 @@ inline static int WindowEventWatcher(void* data, SDL_Event* event) {
 	if (event->type == SDL_WINDOWEVENT) {
 		if (event->window.event == SDL_WINDOWEVENT_RESIZED ||
 			event->window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
-			const SDL_Window* win = SDL_GetWindowFromID(event->window.windowID);
-			if (win == (SDL_Window*)data) {
-				V2_int window_size{ event->window.data1, event->window.data2 };
-				game.event.window.Post(WindowEvent::Resizing, WindowResizingEvent{ window_size });
-			}
+			V2_int window_size{ event->window.data1, event->window.data2 };
+			game.event.window.Post(WindowEvent::Resizing, WindowResizingEvent{ window_size });
 		} else if (event->window.event == SDL_WINDOWEVENT_EXPOSED) {
 			game.event.window.Post(WindowEvent::Drag, WindowDragEvent{});
 		}
@@ -188,11 +230,11 @@ inline static int WindowEventWatcher(void* data, SDL_Event* event) {
 }
 
 void InputHandler::Init() {
-	SDL_AddEventWatch(WindowEventWatcher, game.window.window_.get());
+	SDL_AddEventWatch(WindowEventWatcher, nullptr);
 }
 
 void InputHandler::Shutdown() {
-	SDL_DelEventWatch(WindowEventWatcher, game.window.window_.get());
+	SDL_DelEventWatch(WindowEventWatcher, nullptr);
 	Reset();
 }
 
@@ -280,4 +322,4 @@ bool InputHandler::KeyUp(Key key) {
 	return false;
 }
 
-} // namespace ptgn
+} // namespace ptgn::impl
