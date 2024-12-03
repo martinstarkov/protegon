@@ -306,7 +306,7 @@ public:
 			MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::GetInternalKey(key);
 	}
 
-private:
+protected:
 	InternalKey active_key_{ 0 };
 };
 
