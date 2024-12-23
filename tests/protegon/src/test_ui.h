@@ -1,8 +1,8 @@
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
-#include "__msvc_string_view.hpp"
 #include "common.h"
 #include "core/game.h"
 #include "math/geometry/polygon.h"
