@@ -8,16 +8,16 @@ function(download_and_extract url output_dir flags)
     execute_process(COMMAND sh "${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_extract_file.sh" "${url}" "${output_dir}" "${flags}")
 endfunction()
 
+set(SDL_DOWNLOAD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external")
+
 if (WIN32 AND DOWNLOAD_SDL)
-
-  set(SDL_DOWNLOAD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external")
-
   if (MSVC)
     include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/DownloadSDL2MSVC.cmake")
   elseif(MINGW)
     include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/DownloadSDL2MinGW.cmake")
   endif()
-
+elseif (APPLE)
+  include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/DownloadSDL2Apple.cmake")
 endif()
 
 set(SDL2MAIN_LIBRARY FALSE)
