@@ -12,7 +12,7 @@ struct FontBinary {
 	FontBinary(unsigned char* buffer, unsigned int length) : buffer{ buffer }, length{ length } {}
 
 private:
-	friend class Font;
+	friend class ptgn::Font;
 
 	unsigned char* buffer{ nullptr };
 	unsigned int length{ 0 };
