@@ -1,6 +1,4 @@
-#pragma once
-
-#include "utility.h"
+#include "math/utility.h"
 
 #include <cmath>
 #include <type_traits>
@@ -133,7 +131,7 @@ float ParallelogramArea(const V2_float& a, const V2_float& b, const V2_float& c)
 	return (a - c).Cross(b - c);
 }
 
-std::vector<Axis> GetAxes(const Polygon& polygon, bool intersection_info) {
+std::vector<Axis> GetAxes(const Polygon& polygon, [[maybe_unused]] bool intersection_info) {
 	std::vector<Axis> axes;
 
 	const auto parallel_axis_exists = [&axes](const Axis& o_axis) {
