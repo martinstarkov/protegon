@@ -100,10 +100,10 @@ void SDLInstance::InitSDL() {
 	SDL_version linked;
 	SDL_GetVersion(&linked);
 	PTGN_INFO("Initialized SDL2 version: ", linked);
-
+    
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, PTGN_OPENGL_CONTEXT_PROFILE);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, PTGN_OPENGL_MAJOR_VERSION);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, PTGN_OPENGL_MINOR_VERSION);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, PTGN_OPENGL_CONTEXT_PROFILE);
 
 	sdl_init_ = true;
 }
