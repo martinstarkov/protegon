@@ -22,9 +22,12 @@ typedef void(GL_APIENTRYP PFNGLVERTEXATTRIBIPOINTERPROC)(
 #include <OpenGL/OpenGL.h>
 
 #if ESSENTIAL_GL_PRACTICES_SUPPORT_GL3
-#include <OpenGL/gl3.h>
+    #include <OpenGL/gl3.h>
+    #if defined(GLFW_INCLUDE_GLEXT)
+        #include <OpenGL/gl3ext.h>
+    #endif
 #else
-#include <OpenGL/gl.h>
+    #include <OpenGL/gl.h>
 #endif //! ESSENTIAL_GL_PRACTICES_SUPPORT_GL3
 
 #else
