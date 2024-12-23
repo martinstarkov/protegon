@@ -359,9 +359,7 @@ bool Polygon::IsConvex() const {
 		V2_float b{ vertices[(i + 1) % vertices.size()] };
 		V2_float c{ vertices[(i + 2) % vertices.size()] };
 
-		int new_sign{ static_cast<int>(Sign(get_cross(
-			vertices[i], vertices[(i + 1) % vertices.size()], vertices[(i + 2) % vertices.size()]
-		))) };
+		int new_sign{ static_cast<int>(Sign(get_cross(a, b, c))) };
 
 		if (new_sign != sign) {
 			// Polygon is concave.

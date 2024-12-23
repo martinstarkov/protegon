@@ -73,7 +73,7 @@ public:
 
 private:
 	friend class Game;
-	friend class Text;
+	friend class ptgn::Text;
 	friend class Renderer;
 
 	void Init();

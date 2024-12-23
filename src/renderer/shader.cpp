@@ -68,8 +68,13 @@ std::uint32_t Shader::CompileShader(std::uint32_t type, const std::string& sourc
 
 	auto src{ source.c_str() };
 
-	GLCall(gl::ShaderSource(id, 1, &src, nullptr));
-	GLCall(gl::CompileShader(id));
+#ifdef PTGN_PLATFORM_MACOS
+	GLCall(gl::glShaderSource(id, 1, &src, nullptr));
+    GLCall(gl::glCompileShader(id));
+#else
+    GLCall(gl::ShaderSource(id, 1, &src, nullptr));
+    GLCall(gl::CompileShader(id));
+#endif
 
 	// Check for shader compilation errors.
 	std::int32_t result{ GL_FALSE };
@@ -165,8 +170,12 @@ std::int32_t Shader::GetUniformLocation(const std::string& name) const {
 		return it->second;
 	}
 
-	std::int32_t location = GLCallReturn(gl::GetUniformLocation(s.id_, name.c_str()));
-
+#ifdef PTGN_PLATFORM_MACOS
+	std::int32_t location = GLCallReturn(gl::glGetUniformLocation(s.id_, name.c_str()));
+#else
+    std::int32_t location = GLCallReturn(gl::GetUniformLocation(s.id_, name.c_str()));
+#endif
+    
 	location_cache.emplace(name, location);
 	return location;
 }

@@ -9,6 +9,7 @@
 #include "math/rng.h"
 #include "utility/debug.h"
 #include "utility/type_traits.h"
+#include "renderer/layer_info.h"
 
 // TODO: Add xyz() and xyzw() functions.
 // TODO: Scrap support for int and stick to float/double. Do the same in all vectors and matrix4.

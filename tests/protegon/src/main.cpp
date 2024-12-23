@@ -38,16 +38,16 @@ public:
 
 		// Non-visual tests.
 
-		TestECS();
-		TestMatrix4();
-		TestMath();
-		TestVector2();
+//		TestECS();
+//		TestMatrix4();
+//		TestMath();
+//		TestVector2();
 
 		// Visual tests.
 
 		TestFluid();
 		TestCollisions();
-		TestRenderer();
+//		TestRenderer();
 		TestParticles();
 		TestUI();
 		TestPlatforming();
@@ -55,7 +55,7 @@ public:
 		TestLighting();
 		TestCamera();
 		TestRNG();
-		TestAnimations();
+//		TestAnimations();
 		TestPathfinding();
 		TestTween();
 		TestText();

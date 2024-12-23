@@ -22,7 +22,9 @@ public:
 
 public:
 	static_assert(
-		!use_hash ? std::is_convertible_v<Key, InternalKey> : true,
+		!use_hash
+			? (std::is_convertible_v<Key, InternalKey> || std::is_constructible_v<InternalKey, Key>)
+			: true,
 		"When not using hash function, manager template argument list must provide key which is "
 		"convertible to internal key"
 	);
@@ -40,8 +42,12 @@ public:
 	 * @param key Unique id of the item to be loaded.
 	 * @return Reference to the loaded item.
 	 */
-	template <typename TKey, typename... TArgs, tt::constructible<Item, TArgs...> = true>
+	template <typename TKey, typename... TArgs>
 	Item& Load(const TKey& key, TArgs&&... constructor_args) {
+		static_assert(
+			std::is_constructible_v<Item, TArgs...>,
+			"Manager item must be constructible from provided constructor arguments"
+		);
 		auto k{ GetInternalKey(key) };
 		auto& item = map_[k];
 		item	   = std::move(Item{ std::forward<TArgs>(constructor_args)... });

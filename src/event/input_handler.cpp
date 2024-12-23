@@ -216,7 +216,7 @@ milliseconds InputHandler::GetMouseHeldTime(Mouse button) {
 	return held_time;
 }
 
-inline static int WindowEventWatcher(void* data, SDL_Event* event) {
+inline static int WindowEventWatcher([[maybe_unused]] void* data, SDL_Event* event) {
 	if (event->type == SDL_WINDOWEVENT) {
 		if (event->window.event == SDL_WINDOWEVENT_RESIZED ||
 			event->window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {

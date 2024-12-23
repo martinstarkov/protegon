@@ -104,7 +104,7 @@ std::vector<Triangle> Triangulate(const V2_float* contour, std::size_t count) {
 	/*  remove nv-2 Vertices, creating 1 triangle every time */
 	int r_count = 2 * nv; /* error detection */
 
-	for (int m = 0, v = nv - 1; nv > 2;) {
+    for ([[maybe_unused]] int m = 0, v = nv - 1; nv > 2;) {
 		/* if we loop, it is probably a non-simple polygon */
 		if (0 >= (r_count--)) {
 			//** Triangulate: ERROR - probable bad polygon!
@@ -138,8 +138,8 @@ std::vector<Triangle> Triangulate(const V2_float* contour, std::size_t count) {
 			/* remove v from remaining polygon */
 			for (int t = v + 1; t < nv; t++) {
 				int s = t - 1;
-				PTGN_ASSERT(s < V.size());
-				PTGN_ASSERT(t < V.size());
+				PTGN_ASSERT(s < static_cast<int>(V.size()));
+				PTGN_ASSERT(t < static_cast<int>(V.size()));
 				V[s] = V[t];
 			}
 			nv--;

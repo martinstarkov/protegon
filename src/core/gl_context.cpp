@@ -31,11 +31,16 @@ inline std::ostream& operator<<(std::ostream& os, const GLVersion& v) {
 
 // Must be called after SDL and window have been initialized.
 void GLContext::LoadGLFunctions() {
+    
+#ifndef PTGN_PLATFORM_MACOS
+    
 #define GLE(name, caps_name) \
 	gl::name = (gl::PFNGL##caps_name##PROC)SDL_GL_GetProcAddress(PTGN_STRINGIFY_MACRO(gl##name));
 	GL_LIST_1
 #undef GLE
 
+#endif
+    
 #ifdef __EMSCRIPTEN__
 
 #define GLE(name, caps_name) \
@@ -48,17 +53,23 @@ void GLContext::LoadGLFunctions() {
 #undef GLE
 
 #else
+    
+#ifndef PTGN_PLATFORM_MACOS
 
 #define GLE(name, caps_name) \
 	gl::name = (gl::PFNGL##caps_name##PROC)SDL_GL_GetProcAddress(PTGN_STRINGIFY_MACRO(gl##name));
 	GL_LIST_2
 	GL_LIST_3
 #undef GLE
+    
+#endif
 
 #endif
 
-	// PTGN_LOG("OpenGL Build: ", GLCall(gl::glGetString(GL_VERSION)));
-
+// PTGN_LOG("OpenGL Build: ", GLCall(gl::glGetString(GL_VERSION)));
+    
+#ifndef PTGN_PLATFORM_MACOS
+    
 // For debugging which commands were not initialized.
 #define GLE(name, caps_name) \
 	PTGN_ASSERT(gl::name, "Failed to load ", PTGN_STRINGIFY_MACRO(gl::name));
@@ -72,7 +83,8 @@ void GLContext::LoadGLFunctions() {
 	bool gl_init = GL_LIST_1 GL_LIST_2 GL_LIST_3 true;
 #undef GLE
 	PTGN_ASSERT(gl_init, "Failed to load OpenGL functions");
-	PTGN_INFO("Loaded all OpenGL functions");
+    PTGN_INFO("Loaded all OpenGL functions");
+#endif
 }
 
 bool GLContext::IsInitialized() const {

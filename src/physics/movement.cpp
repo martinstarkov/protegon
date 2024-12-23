@@ -113,7 +113,7 @@ void PlatformerMovement::RunWithAcceleration(
 
 	bool left{ game.input.KeyPressed(left_key) };
 	bool right{ game.input.KeyPressed(right_key) };
-	bool pressing_key{ left && !right || !left && right };
+	bool pressing_key{ (left && !right) || (!left && right) };
 
 	float dt{ game.physics.dt() };
 
@@ -141,9 +141,9 @@ void PlatformerMovement::RunWithAcceleration(
 
 void PlatformerJump::Ground(Collision c, CollisionCategory ground_category) {
 	PTGN_ASSERT((c.entity2.HasAny<BoxCollider, CircleCollider>()));
-	if (c.entity2.Has<BoxCollider>() && c.entity2.Get<BoxCollider>().IsCategory(ground_category) ||
-		c.entity2.Has<CircleCollider>() &&
-			c.entity2.Get<CircleCollider>().IsCategory(ground_category)) {
+	if ((c.entity2.Has<BoxCollider>() && c.entity2.Get<BoxCollider>().IsCategory(ground_category)) ||
+		(c.entity2.Has<CircleCollider>() &&
+			c.entity2.Get<CircleCollider>().IsCategory(ground_category))) {
 		if (c.entity1.Has<PlatformerMovement>() && c.normal == V2_float{ 0.0f, -1.0f }) {
 			c.entity1.Get<PlatformerMovement>().grounded = true;
 		}
@@ -173,8 +173,8 @@ void PlatformerJump::Update(RigidBody& rb, bool grounded) {
 	// 2. During coyote time.
 	// 3. During jump buffer time.
 
-	if (pressed_jump && grounded || grounded && jump_buffered ||
-		pressed_jump && in_coyote && !grounded) {
+	if ((pressed_jump && grounded) || (grounded && jump_buffered) ||
+		(pressed_jump && in_coyote && !grounded)) {
 		Jump(rb);
 	}
 }
@@ -217,7 +217,7 @@ void PlatformerJump::CalculateGravity(RigidBody& rb, bool grounded) const {
 		gravity_multiplier = downward_speedup_gravity_multiplier;
 	} else if (rb.velocity.y < -0.01f) {
 		if (!variable_jump_height ||
-			variable_jump_height && game.input.KeyPressed(jump_key) && jumping_) {
+			(variable_jump_height && game.input.KeyPressed(jump_key) && jumping_)) {
 			gravity_multiplier = upward_gravity_multiplier;
 		} else if (variable_jump_height) {
 			gravity_multiplier = jump_cut_off_gravity_multiplier;

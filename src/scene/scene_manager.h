@@ -24,10 +24,15 @@ class SceneManager : public MapManager<std::shared_ptr<Scene>> {
 public:
 	using MapManager::MapManager;
 
-	template <
-		typename T, typename TKey, typename... TArgs, tt::constructible<T, TArgs...> = true,
-		tt::convertible<T*, Scene*> = true>
+	template <typename T, typename TKey, typename... TArgs>
 	std::shared_ptr<T> Load(const TKey& scene_key, TArgs&&... constructor_args) {
+		static_assert(
+			std::is_constructible_v<T, TArgs...>,
+			"Loaded scene type must be constructible from provided constructor arguments"
+		);
+		static_assert(
+			std::is_convertible_v<T*, Scene*>, "Loaded scene type must inherit from ptgn::Scene"
+		);
 		auto k{ GetInternalKey(scene_key) };
 		PTGN_ASSERT(
 			k != impl::start_scene_key,
@@ -85,7 +90,7 @@ public:
 	void Update();
 
 private:
-	friend class SceneTransition;
+	friend class ptgn::SceneTransition;
 	friend class Game;
 
 	void SetSceneChanged(bool changed);

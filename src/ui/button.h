@@ -293,7 +293,7 @@ private:
 	void SetInternalOnActivate(const ButtonCallback& internal_on_activate);
 };
 
-class ToggleButtonGroup : public MapManager<Button> {
+class ToggleButtonGroup : public MapManager<Button, std::string_view, std::string, false> {
 public:
 	using MapManager::MapManager;
 

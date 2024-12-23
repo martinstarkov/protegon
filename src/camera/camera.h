@@ -224,7 +224,6 @@ public:
 	}
 
 	static void SetPrimary(const OrthographicCamera& camera, std::size_t render_layer = 0);
-	;
 	[[nodiscard]] OrthographicCamera GetPrimary(std::size_t render_layer = 0);
 
 	static void Reset();

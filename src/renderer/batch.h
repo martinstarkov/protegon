@@ -224,7 +224,7 @@ public:
 		Flip flip, bool offset_texels = false
 	);
 
-	[[nodiscard]] static void FlipTextureCoordinates(
+	static void FlipTextureCoordinates(
 		std::array<V2_float, 4>& texture_coords, Flip flip
 	);
 
