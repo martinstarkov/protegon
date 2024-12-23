@@ -97,7 +97,7 @@ bool Line::Overlaps(const Line& line) const {
 		}
 	}
 
-	bool point_overlap{
+    [[maybe_unused]] bool point_overlap{
 		(Overlaps(line.b) || Overlaps(line.a) || line.Overlaps(a) || line.Overlaps(b))
 	};
 
