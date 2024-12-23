@@ -183,7 +183,7 @@ void SceneTransition::Start(
 		case TransitionType::CoverRight:	   cover({ 1, 0 }); break;
 		default:							   PTGN_ERROR("Invalid transition type");
 	}
-	tween.OnStart([=](float f) {
+    tween.OnStart([=]([[maybe_unused]] float f) {
 		// Important that this add active happens before start is invoked as in the case of the
 		// uncover transition, start will change the order of the active scenes to ensure that the
 		// new active scenes is not rendered on top of the covering scenes.
