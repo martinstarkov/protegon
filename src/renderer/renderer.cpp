@@ -5,7 +5,6 @@
 #include <variant>
 
 #include "camera/camera.h"
-#include "core/game.h"
 #include "core/window.h"
 #include "frame_buffer.h"
 #include "math/geometry/polygon.h"
@@ -231,7 +230,7 @@ void Renderer::Text(const ptgn::Text& text, ptgn::Rect destination, LayerInfo la
 		destination.size = text.GetSize();
 	}
 
-	game.draw.Texture(texture, destination);
+    Renderer::Texture(texture, destination);
 }
 
 void Renderer::Shader(
