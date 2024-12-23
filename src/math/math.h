@@ -142,7 +142,7 @@ template <typename T>
 template <typename T>
 [[nodiscard]] T FastFloor(T value) {
 	if constexpr (std::is_floating_point_v<T>) {
-		return static_cast<T>((int64_t)value - (value < (int64_t)value));
+		return static_cast<T>(static_cast<std::int64_t>(value) - (value < static_cast<std::int64_t>(value)));
 	} else {
 		return value;
 	}
@@ -152,7 +152,7 @@ template <typename T>
 template <typename T>
 [[nodiscard]] T FastCeil(T value) {
 	if constexpr (std::is_floating_point_v<T>) {
-		return static_cast<T>((int64_t)value + (value > (int64_t)value));
+		return static_cast<T>(static_cast<std::int64_t>(value) + (value > static_cast<std::int64_t>(value)));
 	} else {
 		return value;
 	}
