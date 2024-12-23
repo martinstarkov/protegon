@@ -54,9 +54,11 @@ void VertexArray::Bind() const {
 }
 
 void VertexArray::Unbind() {
+#ifndef PTGN_PLATFORM_MACOS
 	GLCall(gl::BindVertexArray(0));
 #ifdef PTGN_DEBUG
 	++game.stats.vertex_array_unbinds;
+#endif
 #endif
 }
 
