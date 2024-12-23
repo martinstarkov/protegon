@@ -31,6 +31,19 @@ downloaded_file_name="$(basename "$download_url")"
 downloaded_file="$output_dir/$downloaded_file_name"
 plain_name="${downloaded_file_name%%-*}"
 
+# Check file extension and extract accordingly
+file_extension="${downloaded_file_name##*.}"
+
+case "$file_extension" in
+  "dmg")
+    archive_name="$plain_name.framework"
+    output_name="$output_dir/$archive_name"
+    if [ -d "$output_name" ]; then
+      exit 1
+    fi
+    ;;
+esac
+
 # Download the file using curl
 echo "Downloading $plain_name from: $download_url"
 curl -L -o "$downloaded_file" "$download_url" || error_exit "Download failed: $download_url"
@@ -39,8 +52,6 @@ echo "Successfully downloaded $plain_name"
 
 echo "Extracting $plain_name from: $downloaded_file"
 
-# Check file extension and extract accordingly
-file_extension="${downloaded_file_name##*.}"
 case "$file_extension" in
   "zip")
     # Check if PowerShell can be executed (more reliable than just checking if it exists)
@@ -57,7 +68,6 @@ case "$file_extension" in
     if ! command -v hdiutil >/dev/null 2>&1; then
       echo "Warning: hdiutil not found. Skipping extraction."
     else
-      archive_name="$plain_name.framework"
       hdiutil attach "$downloaded_file" -quiet || error_exit "Failed to mount $downloaded_file"
       cp -r "/Volumes/$plain_name/$archive_name" "$output_dir/$archive_name"
       hdiutil detach "/Volumes/$plain_name" -quiet || error_exit "Failed to unmount $downloaded_file"
