@@ -116,8 +116,8 @@ Texture::Texture(
 	));
 
 	mipmaps =
-		mipmaps && (minifying != TextureFilter::Linear && minifying != TextureFilter::Nearest ||
-					magnifying != TextureFilter::Linear && magnifying != TextureFilter::Nearest);
+		mipmaps && ((minifying != TextureFilter::Linear && minifying != TextureFilter::Nearest) ||
+					(magnifying != TextureFilter::Linear && magnifying != TextureFilter::Nearest));
 
 	if (mipmaps) {
 		GLCall(gl::GenerateMipmap(GL_TEXTURE_2D));
