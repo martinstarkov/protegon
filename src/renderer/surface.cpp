@@ -66,12 +66,12 @@ Surface::Surface(const std::shared_ptr<SDL_Surface>& raw_surface, ImageFormat fo
 	bool r_mask{ surface->format->Rmask == 0x000000ff };
 
 	for (int y = 0; y < s.size_.y; ++y) {
-		const std::uint8_t* row = (std::uint8_t*)surface->pixels + y * surface->pitch;
-		std::size_t idx_row		= static_cast<std::size_t>(y) * s.size_.x;
+		const std::uint8_t* row = static_cast<std::uint8_t*>(surface->pixels) + y * surface->pitch;
+		int idx_row		= static_cast<std::size_t>(y) * s.size_.x;
 		for (int x = 0; x < s.size_.x; ++x) {
 			const std::uint8_t* pixel = row + x * surface->format->BytesPerPixel;
-			std::size_t index		  = idx_row + x;
-			PTGN_ASSERT(index < s.data_.size());
+			int index		  = idx_row + x;
+			PTGN_ASSERT(index < static_cast<int>(s.data_.size()));
 
 			switch (surface->format->BytesPerPixel) {
 				case 4: {
@@ -98,7 +98,7 @@ Surface::Surface(const std::shared_ptr<SDL_Surface>& raw_surface, ImageFormat fo
 			}
 		}
 	}
-	PTGN_ASSERT(s.data_.size() == s.size_.x * s.size_.y);
+	PTGN_ASSERT(static_cast<int>(s.data_.size()) == s.size_.x * s.size_.y);
 
 	SDL_UnlockSurface(surface.get());
 }
@@ -163,7 +163,7 @@ Surface::Surface(
 void Surface::FlipVertically() {
 	auto& s{ Get() };
 	// TODO: Check that this works as intended (i.e. middle row in odd height images is skipped).
-	for (std::size_t row = 0; row < s.size_.y / 2; ++row) {
+	for (int row = 0; row < s.size_.y / 2; ++row) {
 		std::swap_ranges(
 			s.data_.begin() + row * s.size_.x, s.data_.begin() + (row + 1) * s.size_.x,
 			s.data_.begin() + (s.size_.y - row - 1) * s.size_.x
@@ -186,11 +186,11 @@ V2_int Surface::GetSize() const {
 void Surface::ForEachPixel(const std::function<void(const V2_int&, const Color&)>& function) {
 	auto& s{ Get() };
 	for (int j = 0; j < s.size_.y; j++) {
-		std::size_t idx_row = static_cast<std::size_t>(j) * s.size_.x;
+		int idx_row = static_cast<std::size_t>(j) * s.size_.x;
 		for (int i = 0; i < s.size_.x; i++) {
 			V2_int coordinate{ i, j };
-			std::size_t index = idx_row + i;
-			PTGN_ASSERT(index < s.data_.size());
+			int index = idx_row + i;
+			PTGN_ASSERT(index < static_cast<int>(s.data_.size()));
 			std::invoke(function, coordinate, s.data_[index]);
 		}
 	}
