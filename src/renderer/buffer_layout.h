@@ -75,13 +75,13 @@ private:
 		impl::GetType<typename Ts::value_type>(), IsInteger<Ts>() }... };
 
 	constexpr void CalculateOffsets() {
-		std::int32_t offset{ 0 };
+		std::size_t offset{ 0 };
 		stride_ = 0;
 		for (impl::BufferElement& element : elements_) {
 			element.offset	= offset;
 			offset		   += element.size;
 		}
-		stride_ = offset;
+		stride_ = static_cast<std::int32_t>(offset);
 	}
 
 public:
