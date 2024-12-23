@@ -90,7 +90,7 @@ public:
 	void Update();
 
 private:
-	friend class SceneTransition;
+	friend class ptgn::SceneTransition;
 	friend class Game;
 
 	void SetSceneChanged(bool changed);
