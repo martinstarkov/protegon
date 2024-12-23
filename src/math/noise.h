@@ -47,7 +47,7 @@ protected:
 		hash			  ^= hash >> 15;
 		hash			  &= 127 << 1;
 
-		PTGN_ASSERT(hash < gradients.size() && (hash | 1) < gradients.size());
+		PTGN_ASSERT(hash < static_cast<std::int32_t>(gradients.size()) && (hash | 1) < static_cast<std::int32_t>(gradients.size()));
 
 		float xg = gradients[hash];
 		float yg = gradients[hash | 1];
