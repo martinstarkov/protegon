@@ -17,7 +17,7 @@ namespace ptgn {
 
 struct CameraShake {
 	CameraShake() {
-		using type = typename decltype(seed);
+		using type = decltype(seed);
 		RNG<type> rng_float{ std::numeric_limits<type>::min(), std::numeric_limits<type>::max() };
 		seed = rng_float();
 	}
