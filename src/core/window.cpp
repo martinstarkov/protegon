@@ -60,7 +60,7 @@ void WindowDeleter::operator()(SDL_Window* window) const {
 WindowInstance::WindowInstance() {
 	window_.reset(SDL_CreateWindow(
 		"", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 0, 0,
-		SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI
+		SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE
 	));
 }
 
