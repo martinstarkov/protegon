@@ -85,6 +85,7 @@ public:
 	// Get the current state of a window setting.
 	[[nodiscard]] bool GetSetting(WindowSetting setting) const;
 
+	void SwapBuffers() const;
 private:
 	friend class Game;
 	friend class GLContext;
@@ -92,8 +93,6 @@ private:
 
 	void* CreateGLContext();
 	int MakeGLContextCurrent(void* context);
-
-	void SwapBuffers() const;
 
 	void Init();
 	void Shutdown();
