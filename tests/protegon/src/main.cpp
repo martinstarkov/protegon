@@ -1,6 +1,7 @@
 #define SDL_MAIN_HANDLED
 
 #include "../tests/test_ecs.h"
+#include "test_framebuffer.h"
 #include "test_animation.h"
 #include "test_camera.h"
 #include "test_collision.h"
@@ -38,16 +39,16 @@ public:
 
 		// Non-visual tests.
 
-//		TestECS();
-//		TestMatrix4();
-//		TestMath();
-//		TestVector2();
+		TestECS();
+		TestMatrix4();
+		TestMath();
+		TestVector2();
 
 		// Visual tests.
 
 		TestFluid();
 		TestCollisions();
-//		TestRenderer();
+		TestRenderer();
 		TestParticles();
 		TestUI();
 		TestPlatforming();
@@ -55,7 +56,7 @@ public:
 		TestLighting();
 		TestCamera();
 		TestRNG();
-//		TestAnimations();
+		TestAnimations();
 		TestPathfinding();
 		TestTween();
 		TestText();
@@ -78,5 +79,6 @@ public:
 
 int main() {
 	game.Start<Tests>();
+	//TestFrameBuffer();
 	return 0;
 }
