@@ -156,7 +156,8 @@ public:
 
 	void Bind() const;
 	void Bind(std::uint32_t slot) const;
-	void SetActiveSlot(std::uint32_t slot) const;
+	static void Unbind(std::uint32_t slot = 0);
+	static void SetActiveSlot(std::uint32_t slot);
 
 private:
 	friend class impl::TextureBatchData;

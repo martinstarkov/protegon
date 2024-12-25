@@ -149,12 +149,17 @@ void Texture::Bind() const {
 #endif
 }
 
+void Texture::Unbind(std::uint32_t slot) {
+	SetActiveSlot(slot);
+	GLCall(gl::glBindTexture(GL_TEXTURE_2D, 0));
+}
+
 void Texture::Bind(std::uint32_t slot) const {
 	SetActiveSlot(slot);
 	Bind();
 }
 
-void Texture::SetActiveSlot(std::uint32_t slot) const {
+void Texture::SetActiveSlot(std::uint32_t slot) {
 	PTGN_ASSERT(
 		static_cast<std::int32_t>(slot) < GLRenderer::GetMaxTextureSlots(),
 		"Attempting to bind a slot outside of OpenGL texture slot maximum"
