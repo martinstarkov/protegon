@@ -160,9 +160,9 @@ TextureBatchData::TextureBatchData(std::size_t max_texture_slots) {
 }
 
 void TextureBatchData::BindTextures() {
-	for (std::uint32_t i{ 0 }; i < textures_.size(); i++) {
+	for (std::int32_t i{ 0 }; i < static_cast<std::int32_t>(textures_.size()); i++) {
 		// Save first texture slot for empty white texture.
-		auto slot{ i + 1 };
+		std::int32_t slot{ i + 1 };
 		textures_[i].Bind(slot);
 	}
 }
@@ -298,7 +298,7 @@ void RendererData::SetupShaders() {
 	std::iota(samplers.begin(), samplers.end(), 0);
 
 	quad_shader_.Bind();
-	quad_shader_.SetUniform("u_Textures", samplers.data(), samplers.size());
+	quad_shader_.SetUniform("u_Texture", samplers.data(), samplers.size());
 }
 
 bool RendererData::FlushLayer(RenderLayer& layer, const M4_float& shader_view_projection) {
@@ -317,7 +317,7 @@ bool RendererData::FlushLayer(RenderLayer& layer, const M4_float& shader_view_pr
 		color_shader_.SetUniform("u_ViewProjection", layer.view_projection);
 		quad_shader_.Bind();
 		quad_shader_.SetUniform("u_ViewProjection", layer.view_projection);
-		bound_shader			  = color_shader_;
+		bound_shader			  = quad_shader_;
 		layer.new_view_projection = false;
 	}
 
