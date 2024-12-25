@@ -31,6 +31,8 @@ void Renderer::Init() {
 	GLRenderer::SetBlendMode(blend_mode_);
 	default_target_ = RenderTexture{ true };
 	current_target_ = default_target_;
+	PTGN_ASSERT(FrameBuffer::GetBoundId() == 0);
+	PTGN_ASSERT(RenderBuffer::GetBoundId() == 0);
 	current_target_.Bind();
 	data_.Init();
 }
