@@ -77,6 +77,8 @@ public:
 		return update_stack_.size();
 	}
 
+	void Init();
+
 	// Optional: pass in constructor arguments for the start scene.
 	template <typename TStartScene, typename... TArgs>
 	void Start(TArgs&&... constructor_args) {
@@ -108,7 +110,6 @@ private:
 
 	void MainLoop();
 	void Update();
-	void Init();
 	void Shutdown();
 
 	std::unique_ptr<SDLInstance> sdl_instance_;
