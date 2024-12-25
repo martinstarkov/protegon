@@ -31,10 +31,9 @@ public:
 
 	explicit RenderBuffer(const V2_int& size);
 
+	[[nodiscard]] static std::int32_t GetBoundId();
 private:
 	friend class FrameBuffer;
-
-	[[nodiscard]] static std::int32_t GetBoundId();
 
 	void Bind() const;
 	static void Unbind();
@@ -83,8 +82,8 @@ public:
 
 	void ForEachPixel(const std::function<void(V2_int, Color)>& func) const;
 
-private:
 	[[nodiscard]] static std::int32_t GetBoundId();
+private:
 
 	void AttachTextureImpl(const Texture& texture);
 	void AttachRenderBufferImpl(const RenderBuffer& render_buffer);

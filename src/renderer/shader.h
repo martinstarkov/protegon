@@ -32,6 +32,7 @@ namespace impl {
 
 class Game;
 class RendererData;
+class TextureBatchData;
 
 [[nodiscard]] std::string_view GetShaderTypeName(std::uint32_t type);
 
@@ -130,11 +131,12 @@ public:
 
 	Shader Get(ScreenShader screen_shader) const;
 
+	Shader Get(PresetShader shader) const;
+
 private:
 	friend class Game;
 	friend class RendererData;
-
-	Shader Get(PresetShader shader) const;
+	friend class TextureBatchData;
 
 	void Init();
 
