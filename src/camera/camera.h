@@ -144,6 +144,11 @@ protected:
 	void UnsubscribeFromWindowResize() const;
 };
 
+inline std::ostream& operator<<(std::ostream& os, const ptgn::OrthographicCamera& c) {
+	os << "[size: " << c.GetSize() << ", position: " << c.GetPosition() << "]";
+	return os;
+}
+
 namespace impl {
 
 class Game;
