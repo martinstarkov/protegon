@@ -58,7 +58,7 @@ RenderBuffer::RenderBuffer(const V2_int& size) {
 	Bind();
 	GLCall(gl::RenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, size.x, size.y));
 
-	POPSTATE_FB();
+	POPSTATE_RB();
 }
 
 void RenderBuffer::Bind() const {
