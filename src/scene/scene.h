@@ -118,6 +118,7 @@ public:
 
 	impl::CameraManager camera;
 
+	[[nodiscard]] RenderTexture GetRenderTarget() const;
 private:
 	friend class impl::SceneManager;
 	friend class SceneTransition;

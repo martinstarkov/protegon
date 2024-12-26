@@ -217,6 +217,10 @@ Scene::Scene() {
 	target_ = RenderTexture{ true, color::Transparent, BlendMode::Blend };
 }
 
+RenderTexture Scene::GetRenderTarget() const {
+	return target_;
+}
+
 void Scene::Add(Action new_status) {
 	actions_.insert(new_status);
 }
