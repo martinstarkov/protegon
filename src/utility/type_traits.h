@@ -178,7 +178,11 @@ inline constexpr bool is_greater_than_or_equal_comparable_v{
 	impl::is_greater_than_or_equal_comparable<T, U>::value
 };
 template <typename From, typename To>
-inline constexpr bool is_narrowing_v{ !impl::is_safe_numeric_cast<To, From>::value };
+inline constexpr bool is_narrowing_v{ !impl::is_safe_numeric_cast<To, From>::value 
+									/* Or perhaps alternatively: std::is_convertible_v<From, To> &&
+                                      !std::is_same_v<From, To> &&
+                                      !std::is_constructible_v<To, From>*/ };
+									  
 template <typename Stream, typename Type>
 inline constexpr bool is_stream_writable_v{ impl::is_stream_writable<Stream, Type>::value };
 template <typename From, typename To>

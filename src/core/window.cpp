@@ -164,7 +164,7 @@ void Window::SetPosition(const V2_int& new_origin) const {
 }
 
 void Window::Center() const {
-	SetPosition({ SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED });
+	SetPosition(V2_int{ SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED });
 }
 
 void Window::SetTitle(const std::string& new_title) const {
