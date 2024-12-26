@@ -18,6 +18,10 @@ namespace ptgn {
 
 struct Color;
 struct LayerInfo;
+struct Rect;
+struct Line;
+struct Capsule;
+struct Circle;
 
 namespace impl {
 
@@ -41,17 +45,12 @@ struct Vector2 {
 
 	explicit constexpr Vector2(T all) : x{ all }, y{ all } {}
 
-	constexpr Vector2(T x, T y) : x{ x }, y{ y } {}
+	template <typename U, typename S>
+	constexpr Vector2(U x, S y) : x{ static_cast<T>(x) }, y{ static_cast<T>(y) } {}
 
-	// TODO: Check that not_narrowing actually works as intended and static cast is not narrowing.
 	template <typename U, tt::not_narrowing<U, T> = true>
 	constexpr Vector2(const Vector2<U>& o) : x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
-
-	// Note: use of explicit keyword for narrowing constructors.
-
-	template <typename U, tt::narrowing<U, T> = true>
-	explicit constexpr Vector2(U x, U y) : x{ static_cast<T>(x) }, y{ static_cast<T>(y) } {}
-
+	// Narrowing constructors are explicit.
 	template <typename U, tt::narrowing<U, T> = true>
 	explicit constexpr Vector2(const Vector2<U>& o) :
 		x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
@@ -142,12 +141,6 @@ struct Vector2 {
 		return { y, x };
 	}
 
-	template <typename S = typename std::common_type_t<T, float>>
-	[[nodiscard]] constexpr S Magnitude() const {
-		static_assert(std::is_floating_point_v<S>, "Function requires floating point type");
-		return std::sqrt(static_cast<S>(MagnitudeSquared()));
-	}
-
 	[[nodiscard]] constexpr T MagnitudeSquared() const {
 		return Dot(*this);
 	}
@@ -167,33 +160,37 @@ struct Vector2 {
 		return { T{ 1 }, T{ 0 } };
 	}
 
-	[[nodiscard]] static Vector2 Left() {
-		return { T{ -1 }, T{ 0 } };
-	}
-
 	[[nodiscard]] static Vector2 Up() {
 		return { T{ 0 }, T{ 1 } };
+	}
+
+	[[nodiscard]] static Vector2 Left() {
+		return { T{ -1 }, T{ 0 } };
 	}
 
 	[[nodiscard]] static Vector2 Down() {
 		return { T{ 0 }, T{ -1 } };
 	}
 
+	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
+	[[nodiscard]] constexpr S Magnitude() const {
+		return std::sqrt(static_cast<S>(MagnitudeSquared()));
+	}
+
 	// @return Random unit vector in a heading within the given range of angles (radians).
+	template <typename S, tt::floating_point<S> = true>
 	[[nodiscard]] static Vector2 RandomHeading(
-		T min_angle_radians = T{ 0 }, T max_angle_radians = T{ two_pi<T> }
+		S min_angle_radians = S{ 0 }, S max_angle_radians = S{ two_pi<S> }
 	) {
-		static_assert(std::is_floating_point_v<T>, "Function requires floating point type");
-		RNG<T> heading_rng{ ClampAngle2Pi(min_angle_radians), ClampAngle2Pi(max_angle_radians) };
-		T heading{ heading_rng() };
+		RNG<S> heading_rng{ ClampAngle2Pi(min_angle_radians), ClampAngle2Pi(max_angle_radians) };
+		S heading{ heading_rng() };
 		return { std::cos(heading), std::sin(heading) };
 	}
 
 	// Returns a unit vector (magnitude = 1) except for zero vectors (magnitude
 	// = 0).
-	template <typename S = typename std::common_type_t<T, float>>
+	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
 	[[nodiscard]] Vector2<S> Normalized() const {
-		static_assert(std::is_floating_point_v<S>, "Function requires floating point type");
 		T m{ MagnitudeSquared() };
 		if (NearlyEqual(m, T{ 0 })) {
 			return *this;
@@ -202,9 +199,8 @@ struct Vector2 {
 	}
 
 	// Returns a normalized (unit) direction vector toward a target position.
-	template <typename S = typename std::common_type_t<T, float>>
+	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
 	[[nodiscard]] Vector2<S> DirectionTowards(const Vector2& target) const {
-		static_assert(std::is_floating_point_v<S>, "Function requires floating point type");
 		Vector2<S> dir{ target - *this };
 		return dir.Normalized();
 	}
@@ -212,9 +208,8 @@ struct Vector2 {
 	// @return New vector rotated counter-clockwise by the given angle.
 	// See https://en.wikipedia.org/wiki/Rotation_matrix for details.
 	// Angle in radians.
-	template <typename S = typename std::common_type_t<T, float>>
+	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
 	[[nodiscard]] Vector2<S> Rotated(S angle_radians) const {
-		static_assert(std::is_floating_point_v<S>, "Function requires floating point type");
 		auto c{ std::cos(angle_radians) };
 		auto s{ std::sin(angle_radians) };
 		return { x * c - y * s, x * s + y * c };
@@ -231,15 +226,17 @@ struct Vector2 {
 	 *               |
 	 *            -1.5708
 	 */
-	template <typename S = typename std::common_type_t<T, float>>
+	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
 	[[nodiscard]] S Angle() const {
-		static_assert(std::is_floating_point_v<S>, "Function requires floating point type");
 		return std::atan2(static_cast<S>(y), static_cast<S>(x));
 	}
 
-	[[nodiscard]] bool IsZero() const {
-		return NearlyEqual(x, T{ 0 }) && NearlyEqual(y, T{ 0 });
-	}
+    [[nodiscard]] bool IsZero() const;
+    
+    [[nodiscard]] bool Overlaps(const Line& line) const;
+    [[nodiscard]] bool Overlaps(const Circle& circle) const;
+    [[nodiscard]] bool Overlaps(const Rect& rect) const;
+    [[nodiscard]] bool Overlaps(const Capsule& capsule) const;
 };
 
 using V2_int	= Vector2<int>;
