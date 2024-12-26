@@ -33,6 +33,7 @@ public:
 		static_assert(
 			std::is_convertible_v<T*, Scene*>, "Loaded scene type must inherit from ptgn::Scene"
 		);
+		PTGN_ASSERT(!active_scenes_.empty(), "Cannot load scene into scene manager in the constructor of the initial scene. Use the Init() function instead");
 		auto k{ GetInternalKey(scene_key) };
 		PTGN_ASSERT(
 			k != impl::start_scene_key,
