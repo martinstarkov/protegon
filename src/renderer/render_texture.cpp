@@ -51,7 +51,7 @@ void RenderTextureInstance::Recreate(
 	blend_mode_	 = blend_mode;
 	texture_	 = Texture{ nullptr,
 						size,
-						ImageFormat::RGB888,
+						ImageFormat::RGBA8888,
 						TextureWrapping::ClampEdge,
 						TextureFilter::Nearest,
 						TextureFilter::Nearest,
