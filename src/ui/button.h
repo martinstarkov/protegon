@@ -32,10 +32,10 @@ enum class ButtonProperty : std::size_t {
 	BackgroundColor,  // Type: Color
 	TextureTintColor, // Type: Color
 	Text,			  // Type: Text
-	TextColor,		  // Type: Color
+	TextColor,		  // Type: Color (takes priority over Text colors)
 	BorderColor,	  // Type: Color
-	TextAlignment,	  // Type: TextAlignment
-	TextSize,		  // Type: V2_float
+	TextAlignment,	  // Type: TextAlignment (same as Origin relative to button rect position)
+	TextSize,		  // Type: V2_float (default: unscaled text size)
 	RenderLayer,	  // Type: std::size_t
 	Visibility,		  // Type: bool
 	Toggleable,		  // Type: bool
@@ -278,7 +278,7 @@ public:
 			resource = ButtonCallback(value);
 		} else {
 			static_assert(
-				std::is_same_v<S, T>,
+				std::is_same_v<S, T> || std::is_convertible_v<S, T> || std::is_constructible_v<S, T>,
 				"Cannot set button value to type which does not match type of property"
 			);
 			resource = value;
