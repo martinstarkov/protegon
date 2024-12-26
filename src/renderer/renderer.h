@@ -162,6 +162,8 @@ public:
 	void SetBlendMode(BlendMode blend_mode);
 	[[nodiscard]] BlendMode GetBlendMode() const;
 
+	// Sets the clear color of the currently bound render target. 
+	// Hence, prefer to call this in the Init function of a scene rather than the constructor as this guarantees that the scene's render target is bound.
 	void SetClearColor(const Color& color);
 	[[nodiscard]] Color GetClearColor() const;
 
