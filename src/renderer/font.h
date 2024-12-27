@@ -41,7 +41,7 @@ struct FontBinary;
 class Font : public Handle<TTF_Font> {
 public:
 	Font() = default;
-	Font(const path& font_path, std::int32_t point_size, std::int32_t index = 0);
+	Font(const path& font_path, std::int32_t point_size = 20, std::int32_t index = 0);
 
 	explicit Font(const impl::FontBinary& binary, std::int32_t point_size = 20);
 
