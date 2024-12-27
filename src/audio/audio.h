@@ -16,7 +16,9 @@ public:
 	Music() = default;
 	explicit Music(const path& music_path);
 
+	// -1 for infinite loops.
 	void Play(int loops);
+	// -1 for infinite loops.
 	void FadeIn(int loops, milliseconds time);
 };
 
