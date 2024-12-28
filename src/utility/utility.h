@@ -32,6 +32,16 @@ std::vector<ReturnType> GetElements(const Map& map) {
 
 } // namespace impl
 
+template <typename Type, std::size_t Size>
+static std::vector<Type> ToVector(const std::array<Type, Size>& array) {
+	std::vector<Type> v;
+	v.reserve(Size);
+	for (std::size_t i{ 0 }; i < Size; ++i) {
+		v.push_back(array[Size - 1 - i]);
+	}
+	return v;
+}
+
 template <typename T, typename... TArgs>
 static auto Invoke(const T& function, TArgs&&... args) {
 	if (function != nullptr) {
