@@ -14,15 +14,15 @@
 #include "SDL_pixels.h"
 #include "SDL_surface.h"
 #include "SDL_ttf.h"
-#include "core/sdl_instance.h"
-#include "renderer/color.h"
-#include "utility/file.h"
-#include "renderer/font.h"
 #include "core/game.h"
-#include "utility/log.h"
+#include "core/sdl_instance.h"
 #include "math/vector2.h"
+#include "renderer/color.h"
+#include "renderer/font.h"
 #include "utility/debug.h"
+#include "utility/file.h"
 #include "utility/handle.h"
+#include "utility/log.h"
 
 namespace ptgn {
 
@@ -67,10 +67,10 @@ Surface::Surface(const std::shared_ptr<SDL_Surface>& raw_surface, ImageFormat fo
 
 	for (int y = 0; y < s.size_.y; ++y) {
 		const std::uint8_t* row = static_cast<std::uint8_t*>(surface->pixels) + y * surface->pitch;
-		int idx_row		= static_cast<std::size_t>(y) * s.size_.x;
+		int idx_row				= static_cast<std::size_t>(y) * s.size_.x;
 		for (int x = 0; x < s.size_.x; ++x) {
 			const std::uint8_t* pixel = row + x * surface->format->BytesPerPixel;
-			int index		  = idx_row + x;
+			int index				  = idx_row + x;
 			PTGN_ASSERT(index < static_cast<int>(s.data_.size()));
 
 			switch (surface->format->BytesPerPixel) {
@@ -181,6 +181,15 @@ ImageFormat Surface::GetImageFormat() const {
 
 V2_int Surface::GetSize() const {
 	return Get().size_;
+}
+
+Color Surface::GetPixel(const V2_int& coordinate) const {
+	auto& s{ Get() };
+	int index{ coordinate.y * s.size_.x + coordinate.x };
+	PTGN_ASSERT(coordinate.x >= 0, "Coordinate outside of range of grid");
+	PTGN_ASSERT(coordinate.y >= 0, "Coordinate outside of range of grid");
+	PTGN_ASSERT(index < static_cast<int>(s.data_.size()), "Coordinate outside of range of grid");
+	return s.data_[index];
 }
 
 void Surface::ForEachPixel(const std::function<void(const V2_int&, const Color&)>& function) {

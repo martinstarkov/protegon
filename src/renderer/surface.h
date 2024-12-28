@@ -6,10 +6,10 @@
 #include <string>
 #include <vector>
 
-#include "renderer/color.h"
-#include "utility/file.h"
-#include "renderer/font.h"
 #include "math/vector2.h"
+#include "renderer/color.h"
+#include "renderer/font.h"
+#include "utility/file.h"
 #include "utility/handle.h"
 
 struct SDL_Surface;
@@ -54,6 +54,7 @@ public:
 
 	void FlipVertically();
 
+	[[nodiscard]] Color GetPixel(const V2_int& coordinate) const;
 	void ForEachPixel(const std::function<void(const V2_int&, const Color&)>& function);
 
 	[[nodiscard]] V2_int GetSize() const;
