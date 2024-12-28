@@ -36,6 +36,10 @@ struct Rect {
 	// position += offset
 	void Offset(const V2_float& offset);
 
+	// @return Each of the line segments which make up the rectangle. Currently only works for
+	// unrotated rectangles. Order is clockwise.
+	[[nodiscard]] std::array<Line, 4> GetWalls() const;
+
 	// @return Half the size of the rectangle.
 	[[nodiscard]] V2_float Half() const;
 

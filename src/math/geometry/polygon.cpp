@@ -32,6 +32,13 @@ void Rect::Offset(const V2_float& offset) {
 	position += offset;
 }
 
+std::array<Line, 4> Rect::GetWalls() const {
+	V2_int min{ Min() };
+	V2_int max{ Max() };
+	return { Line{ min, { max.x, min.y } }, Line{ { max.x, min.y }, max },
+			 Line{ max, { min.x, max.y } }, Line{ { min.x, max.y }, min } };
+}
+
 V2_float Rect::Half() const {
 	return size * 0.5f;
 }
