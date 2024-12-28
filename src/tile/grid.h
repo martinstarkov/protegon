@@ -16,7 +16,7 @@ class Grid {
 	static_assert(std::is_move_constructible_v<T>);
 
 public:
-	Grid() = delete;
+	Grid() = default;
 
 	explicit Grid(const Vector2<int>& size, const std::vector<T>& cells) :
 		size{ size }, length{ size.x * size.y }, cells{ cells } {
