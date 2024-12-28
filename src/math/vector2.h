@@ -7,9 +7,9 @@
 
 #include "math/math.h"
 #include "math/rng.h"
+#include "renderer/layer_info.h"
 #include "utility/debug.h"
 #include "utility/type_traits.h"
-#include "renderer/layer_info.h"
 
 // TODO: Add xyz() and xyzw() functions.
 // TODO: Scrap support for int and stick to float/double. Do the same in all vectors and matrix4.
@@ -50,6 +50,7 @@ struct Vector2 {
 
 	template <typename U, tt::not_narrowing<U, T> = true>
 	constexpr Vector2(const Vector2<U>& o) : x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
+
 	// Narrowing constructors are explicit.
 	template <typename U, tt::narrowing<U, T> = true>
 	explicit constexpr Vector2(const Vector2<U>& o) :
@@ -231,12 +232,12 @@ struct Vector2 {
 		return std::atan2(static_cast<S>(y), static_cast<S>(x));
 	}
 
-    [[nodiscard]] bool IsZero() const;
-    
-    [[nodiscard]] bool Overlaps(const Line& line) const;
-    [[nodiscard]] bool Overlaps(const Circle& circle) const;
-    [[nodiscard]] bool Overlaps(const Rect& rect) const;
-    [[nodiscard]] bool Overlaps(const Capsule& capsule) const;
+	[[nodiscard]] bool IsZero() const;
+
+	[[nodiscard]] bool Overlaps(const Line& line) const;
+	[[nodiscard]] bool Overlaps(const Circle& circle) const;
+	[[nodiscard]] bool Overlaps(const Rect& rect) const;
+	[[nodiscard]] bool Overlaps(const Capsule& capsule) const;
 };
 
 using V2_int	= Vector2<int>;
@@ -330,6 +331,16 @@ template <typename T>
 template <typename T>
 [[nodiscard]] inline Vector2<T> Round(const Vector2<T>& vector) {
 	return { std::round(vector.x), std::round(vector.y) };
+}
+
+template <typename T>
+[[nodiscard]] inline Vector2<T> Ceil(const Vector2<T>& vector) {
+	return { std::ceil(vector.x), std::ceil(vector.y) };
+}
+
+template <typename T>
+[[nodiscard]] inline Vector2<T> Floor(const Vector2<T>& vector) {
+	return { std::floor(vector.x), std::floor(vector.y) };
 }
 
 template <typename T>
