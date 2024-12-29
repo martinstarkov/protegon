@@ -32,6 +32,16 @@ std::vector<ReturnType> GetElements(const Map& map) {
 
 } // namespace impl
 
+template <typename T>
+static std::vector<T> ToVector(const std::unordered_set<T>& set) {
+	std::vector<T> v;
+	v.reserve(set.size());
+	for (const auto& element : set) {
+		v.push_back(element);
+	}
+	return v;
+}
+
 template <typename Type, std::size_t Size>
 static std::vector<Type> ToVector(const std::array<Type, Size>& array) {
 	std::vector<Type> v;
