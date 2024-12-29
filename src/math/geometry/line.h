@@ -15,10 +15,20 @@ struct Line {
 	V2_float a;
 	V2_float b;
 
+	[[nodiscard]] bool operator==(const Line& o) const {
+		return a == o.a && b == o.b;
+	}
+
+	[[nodiscard]] bool operator!=(const Line& o) const {
+		return !(*this == o);
+	}
+
 	void Draw(const Color& color, float line_width = 1.0f, const LayerInfo& layer_info = {}) const;
 
 	[[nodiscard]] V2_float Direction() const;
 	[[nodiscard]] V2_float Midpoint() const;
+
+	[[nodiscard]] bool Contains(const Line& line) const;
 
 	[[nodiscard]] bool Overlaps(const V2_float& point) const;
 	[[nodiscard]] bool Overlaps(const Line& line) const;

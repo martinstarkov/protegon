@@ -27,6 +27,27 @@ V2_float Line::Midpoint() const {
 	return (a + b) * 0.5f;
 }
 
+bool Line::Contains(const Line& line) const {
+	auto d{ Direction().Cross(line.Direction()) };
+	if (!NearlyEqual(d, 0.0f)) {
+		return false;
+	}
+
+	float a1{ impl::ParallelogramArea(a, b, line.b) }; // Compute winding of abd (+ or -)
+	float a2{ impl::ParallelogramArea(a, b, line.a) };
+	bool collinear{ NearlyEqual(a1, 0.0f) || NearlyEqual(a2, 0.0f) };
+
+	if (!collinear) {
+		return false;
+	}
+
+	if (Overlaps(line.a) && Overlaps(line.b)) {
+		return true;
+	}
+
+	return false;
+}
+
 bool Line::Overlaps(const V2_float& point) const {
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
@@ -97,7 +118,7 @@ bool Line::Overlaps(const Line& line) const {
 		}
 	}
 
-    [[maybe_unused]] bool point_overlap{
+	[[maybe_unused]] bool point_overlap{
 		(Overlaps(line.b) || Overlaps(line.a) || line.Overlaps(a) || line.Overlaps(b))
 	};
 
