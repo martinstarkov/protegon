@@ -16,6 +16,34 @@ struct Color;
 struct Line;
 struct Circle;
 struct Capsule;
+struct Rect;
+
+struct Triangle {
+	Triangle() = default;
+	Triangle(const V2_float& a, const V2_float& b, const V2_float& c);
+
+	[[nodiscard]] bool operator==(const Triangle& o) const {
+		return a == o.a && b == o.b && c == o.c;
+	}
+
+	[[nodiscard]] bool operator!=(const Triangle& o) const {
+		return !(*this == o);
+	}
+
+	V2_float a;
+	V2_float b;
+	V2_float c;
+
+	// @return True if the point is inside the triangle.
+	[[nodiscard]] bool Overlaps(const V2_float& point) const;
+
+	[[nodiscard]] bool Overlaps(const Rect& rect) const;
+
+	// @return True if internal triangle is entirely contained by the triangle.
+	[[nodiscard]] bool Contains(const Triangle& internal) const;
+
+	void Draw(const Color& color, float line_width = 1.0f, const LayerInfo& layer_info = {}) const;
+};
 
 struct Rect {
 	V2_float position;
@@ -62,6 +90,7 @@ struct Rect {
 	[[nodiscard]] bool Overlaps(const V2_float& point) const;
 	[[nodiscard]] bool Overlaps(const Line& line) const;
 	[[nodiscard]] bool Overlaps(const Circle& circle) const;
+	[[nodiscard]] bool Overlaps(const Triangle& triangle) const;
 	[[nodiscard]] bool Overlaps(const Rect& rect) const;
 	[[nodiscard]] bool Overlaps(const Capsule& capsule) const;
 
@@ -112,23 +141,15 @@ struct Polygon {
 	// @return True if internal polygon is entirely contained by this polygon.
 	[[nodiscard]] bool Contains(const Polygon& internal) const;
 
+	// @return True if triangle is entirely contained by the polygon.
+	[[nodiscard]] bool Contains(const Triangle& triangle) const;
+
 	// Only works if both polygons are convex.
 	[[nodiscard]] Intersection Intersects(const Polygon& polygon) const;
 
 private:
 	[[nodiscard]] bool GetMinimumOverlap(const Polygon& polygon, float& depth, Axis& axis) const;
 	[[nodiscard]] bool HasOverlapAxis(const Polygon& polygon) const;
-};
-
-struct Triangle {
-	Triangle() = default;
-	Triangle(const V2_float& a, const V2_float& b, const V2_float& c);
-
-	V2_float a;
-	V2_float b;
-	V2_float c;
-
-	void Draw(const Color& color, float line_width = 1.0f, const LayerInfo& layer_info = {}) const;
 };
 
 } // namespace ptgn

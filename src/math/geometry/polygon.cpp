@@ -21,6 +21,27 @@
 
 namespace ptgn {
 
+bool Triangle::Overlaps(const V2_float& point) const {
+	// Using barycentric coordinates method.
+	float A{ 0.5f * (-b.y * c.x + a.y * (-b.x + c.x) + a.x * (b.y - c.y) + b.x * c.y) };
+	float z{ 1.0f / (2.0f * A) };
+	float s{ z * (a.y * c.x - a.x * c.y + (c.y - a.y) * point.x + (a.x - c.x) * point.y) };
+	float t{ z * (a.x * b.y - a.y * b.x + (a.y - b.y) * point.x + (b.x - a.x) * point.y) };
+
+	return s >= 0.0f && t >= 0.0f && (s + t) <= 1.0f;
+}
+
+bool Triangle::Overlaps(const Rect& rect) const {
+	V2_float min{ rect.Min() };
+	V2_float max{ rect.Max() };
+	return Polygon{ { a, b, c } }.Overlaps(Polygon{
+		{ min, { max.x, min.y }, max, { min.x, max.y } } });
+}
+
+bool Triangle::Contains(const Triangle& internal) const {
+	return Overlaps(internal.a) && Overlaps(internal.b) && Overlaps(internal.c);
+}
+
 Rect::Rect(const V2_float& position, const V2_float& size, Origin origin, float rotation) :
 	position{ position }, size{ size }, origin{ origin }, rotation{ rotation } {}
 
@@ -187,6 +208,11 @@ bool Rect::Overlaps(const Line& line) const {
 
 	// Alternative method:
 	// Source: https://en.wikipedia.org/wiki/Cohen%E2%80%93Sutherland_algorithm
+}
+
+bool Rect::Overlaps(const Triangle& triangle) const {
+	// TODO: Add rotation check.
+	return triangle.Overlaps(*this);
 }
 
 bool Rect::Overlaps(const Circle& circle) const {
@@ -418,6 +444,10 @@ bool Polygon::Overlaps(const V2_float& point) const {
 		}
 	}
 	return c;
+}
+
+bool Polygon::Contains(const Triangle& triangle) const {
+	return Overlaps(triangle.a) && Overlaps(triangle.b) && Overlaps(triangle.c);
 }
 
 bool Polygon::Contains(const Polygon& internal) const {
