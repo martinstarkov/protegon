@@ -155,7 +155,7 @@ BoxCollider::BoxCollider(ecs::Entity parent, const V2_float& size, Origin origin
 }
 
 Rect BoxCollider::GetRelativeRect() const {
-	return { offset, size, origin, rotation };
+	return Rect{ offset, size, origin, rotation };
 }
 
 Rect BoxCollider::GetAbsoluteRect() const {

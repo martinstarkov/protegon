@@ -118,7 +118,7 @@ private:
 
 	std::unique_ptr<EventHandler> event_;
 	std::unique_ptr<InputHandler> input_;
-	std::unique_ptr<Renderer> draw_;
+	std::unique_ptr<Renderer> renderer_;
 	std::unique_ptr<SceneManager> scene_;
 	std::unique_ptr<SceneCamera> camera_;
 	std::unique_ptr<Physics> physics_;
@@ -147,7 +147,7 @@ public:
 	Window& window;
 	EventHandler& event;
 	InputHandler& input;
-	Renderer& draw;
+	Renderer& renderer;
 	SceneManager& scene;
 	SceneCamera& camera;
 	Physics& physics;

@@ -6,10 +6,13 @@
 #include <unordered_map>
 
 #include "core/manager.h"
+#include "math/geometry/polygon.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
+#include "renderer/flip.h"
+#include "renderer/texture.h"
 #include "utility/debug.h"
 #include "utility/file.h"
 #include "utility/handle.h"
@@ -93,6 +96,13 @@ public:
 
 	void Bind() const;
 
+	// @param destination == {} results in fullscreen shader.
+	// If destination != {} and destination.size == {}, texture size is used.
+	void Draw(
+		const Texture& texture, const Rect& destination = {},
+		const M4_float& view_projection = M4_float{ 1.0f }, const TextureInfo& texture_info = {}
+	) const;
+
 private:
 	friend class impl::RendererData;
 
@@ -106,9 +116,9 @@ private:
 	[[nodiscard]] static std::uint32_t CompileShader(std::uint32_t type, const std::string& source);
 };
 
+// Note: Texture tint is applied after shader effect.
 enum class ScreenShader {
 	Default,
-	Opacity,
 	Blur,
 	GaussianBlur,
 	EdgeDetection,
@@ -148,13 +158,6 @@ private:
 					 },
 					 ShaderSource{
 #include PTGN_SHADER_PATH(screen_default.frag)
-					 } };
-
-		opacity_ = { ShaderSource{
-#include PTGN_SHADER_PATH(screen_default.vert)
-					 },
-					 ShaderSource{
-#include PTGN_SHADER_PATH(screen_opacity.frag)
 					 } };
 
 		blur_ = { ShaderSource{
@@ -202,7 +205,6 @@ private:
 
 	// Screen shaders.
 	Shader default_;
-	Shader opacity_;
 	Shader blur_;
 	Shader gaussian_blur_;
 	Shader grayscale_;

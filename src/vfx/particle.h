@@ -4,6 +4,7 @@
 
 #include "core/game.h"
 #include "ecs/ecs.h"
+#include "math/geometry/circle.h"
 #include "math/rng.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
@@ -122,9 +123,8 @@ public:
 				} else {
 					i.tint = color::White;
 				}
-				game.draw.Texture(
-					info.texture,
-					{ p.position, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center }, i
+				info.texture.Draw(
+					Rect{ p.position, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center }, i
 				);
 			}
 			return;
@@ -132,15 +132,14 @@ public:
 		switch (info.particle_shape) {
 			case ParticleShape::Circle: {
 				for (const auto& [e, p] : manager_.EntitiesWith<Particle>()) {
-					game.draw.Circle(p.position, p.radius, p.color, info.line_thickness);
+					Circle{ p.position, p.radius }.Draw(p.color, info.line_thickness);
 				}
 				break;
 			}
 			case ParticleShape::Square: {
 				for (const auto& [e, p] : manager_.EntitiesWith<Particle>()) {
 					// TODO: Add rect rotation.
-					game.draw.Rect(
-						{ p.position, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center },
+					Rect{ p.position, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center }.Draw(
 						p.color, info.line_thickness
 					);
 				}

@@ -21,7 +21,10 @@
 namespace ptgn {
 
 void Circle::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	game.draw.Circle(center, radius, color, line_width, layer_info);
+	game.renderer.data_.AddEllipse(
+		center, { radius, radius }, color.Normalized(), line_width, layer_info.z_index,
+		layer_info.render_layer, game.renderer.fade_
+	);
 }
 
 void Circle::Offset(const V2_float& offset) {
@@ -259,11 +262,17 @@ ptgn::Raycast Circle::Raycast(const V2_float& ray, const Rect& rect) const {
 
 void Arc::Draw(bool clockwise, const Color& color, float line_width, const LayerInfo& layer_info)
 	const {
-	game.draw.Arc(center, radius, start_angle, end_angle, clockwise, color, line_width, layer_info);
+	game.renderer.data_.AddArc(
+		center, radius, start_angle, end_angle, clockwise, color.Normalized(), line_width,
+		layer_info.z_index, layer_info.render_layer, game.renderer.fade_
+	);
 }
 
 void Ellipse::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	game.draw.Ellipse(center, radius, color, line_width, layer_info);
+	game.renderer.data_.AddEllipse(
+		center, radius, color.Normalized(), line_width, layer_info.z_index, layer_info.render_layer,
+		game.renderer.fade_
+	);
 }
 
 } // namespace ptgn

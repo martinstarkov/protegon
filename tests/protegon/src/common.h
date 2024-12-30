@@ -33,7 +33,7 @@ struct Test {
 		ws	   = game.window.GetSize();
 		center = game.window.GetCenter();
 		game.window.Center();
-		game.draw.SetClearColor(color::White);
+		game.renderer.SetClearColor(color::White);
 	}
 
 	virtual void Init() {

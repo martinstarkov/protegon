@@ -71,6 +71,7 @@ namespace impl {
 class Renderer;
 class RendererData;
 class TextureBatchData;
+struct FrameBufferInstance;
 
 enum class InternalGLFormat {
 	RGB8  = 0x8051, // GL_RGB8
@@ -122,16 +123,20 @@ public:
 
 public:
 	Texture(const path& image_path, ImageFormat format = default_format);
+
 	explicit Texture(const Surface& surface);
+
 	Texture(
 		const void* pixel_data, const V2_int& size, ImageFormat format,
 		TextureWrapping wrapping = default_wrapping,
 		TextureFilter minifying	 = default_minifying_filter,
 		TextureFilter magnifying = default_minifying_filter, bool mipmaps = true
 	);
+
 	Texture(const std::vector<Color>& pixels, const V2_int& size);
 
-	// If destination.size is {}, fullscreen texture will be drawn.
+	// If destination == {}, fullscreen texture will be drawn.
+	// If destination != {} and destination.size == {}, texture size is used.
 	void Draw(
 		const Rect& destination = {}, const TextureInfo& texture_info = {},
 		const LayerInfo& layer_info = {}
@@ -162,8 +167,8 @@ public:
 private:
 	friend class impl::TextureBatchData;
 	friend class impl::RendererData;
+	friend struct impl::FrameBufferInstance;
 	friend class Renderer;
-	friend class FrameBuffer;
 
 	[[nodiscard]] static std::int32_t GetBoundId();
 	[[nodiscard]] static std::int32_t GetActiveSlot();

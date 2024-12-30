@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "core/game.h"
+#include "core/window.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
@@ -139,7 +140,23 @@ Texture::Texture(const std::vector<Color>& pixels, const V2_int& size) :
 void Texture::Draw(
 	const Rect& destination, const TextureInfo& texture_info, const LayerInfo& layer_info
 ) const {
-	game.draw.Texture(*this, destination, texture_info, layer_info);
+	PTGN_ASSERT(IsValid(), "Cannot draw uninitialized or destroyed texture");
+
+	Rect dest{ destination };
+
+	if (dest.IsZero()) {
+		dest = Rect::Fullscreen();
+	} else if (dest.size.IsZero()) {
+		dest.size = GetSize();
+	}
+
+	game.renderer.data_.AddTexture(
+		dest.GetVertices(texture_info.rotation_center), *this,
+		impl::RenderData::GetTextureCoordinates(
+			texture_info.source_position, texture_info.source_size, GetSize(), texture_info.flip
+		),
+		texture_info.tint.Normalized(), layer_info.z_index, layer_info.render_layer
+	);
 }
 
 void Texture::Bind() const {

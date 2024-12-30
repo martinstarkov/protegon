@@ -4,7 +4,7 @@
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "renderer/color.h"
-#include "renderer/render_texture.h"
+#include "renderer/frame_buffer.h"
 #include "renderer/shader.h"
 
 namespace ptgn {
@@ -65,11 +65,9 @@ private:
 
 	void Init();
 
-	void UpdateTarget();
-
 	[[nodiscard]] Shader GetShader() const;
 
-	RenderTexture target_;
+	RenderTarget target_;
 	Shader light_shader_;
 	bool blur_{ false };
 };

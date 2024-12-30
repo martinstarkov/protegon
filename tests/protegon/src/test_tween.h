@@ -61,7 +61,7 @@ struct TestTweenManager : public Test {
 	}
 
 	void Draw() override {
-		game.draw.Rect({ pos, size }, color);
+		Rect{ pos, size }.Draw(color);
 	}
 };
 
@@ -401,7 +401,7 @@ struct TestTweenTypes : public Test {
 			}
 
 			p.x = ws.x * t.GetProgress();
-			game.draw.Rect({ p, size, Origin::CenterTop }, c);
+			Rect{ p, size, Origin::CenterTop }.Draw(c);
 		}
 	}
 };

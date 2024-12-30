@@ -70,6 +70,7 @@ public:
 		const Color& shading_color = color::White, std::uint32_t wrap_after_pixels = 0
 	);
 
+	// Setting destination.size == {} corresponds to the unscaled size of the text.
 	void Draw(const Rect& destination, const LayerInfo& layer_info = {}) const;
 
 	Text& SetFont(const FontOrKey& font);

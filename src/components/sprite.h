@@ -294,7 +294,7 @@ struct Animation : public impl::SpriteSheet {
 	}
 
 	Rect GetSource() const {
-		return { sprite_positions[GetCurrentFrame()], sprite_size, origin };
+		return Rect{ sprite_positions[GetCurrentFrame()], sprite_size, origin };
 	}
 
 private:

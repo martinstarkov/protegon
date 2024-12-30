@@ -37,11 +37,11 @@ CircleVertices::CircleVertices(
 }
 
 TextureVertices::TextureVertices(
-	const std::array<V2_float, count>& positions, const std::array<V2_float, count>& tex_coords,
-	float z_index
-) {
+	const std::array<V2_float, count>& vertices, const std::array<V2_float, count>& tex_coords,
+	float z_index, const V4_float& color
+) :
+	ShapeVertices{ vertices, z_index, color } {
 	for (std::size_t i{ 0 }; i < vertices_.size(); i++) {
-		vertices_[i].position  = { positions[i].x, positions[i].y, z_index };
 		vertices_[i].tex_coord = { tex_coords[i].x, tex_coords[i].y };
 	}
 }

@@ -25,7 +25,11 @@ struct Circle;
 
 namespace impl {
 
-void DrawPoint(float x, float y, const Color& color, float radius, const LayerInfo& layer_info);
+struct Point {
+	static void Draw(
+		float x, float y, const Color& color, float radius, const LayerInfo& layer_info
+	);
+};
 
 } // namespace impl
 
@@ -57,7 +61,7 @@ struct Vector2 {
 		x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
 
 	void Draw(const Color& color, float radius = 1.0f, const LayerInfo& layer_info = {}) const {
-		impl::DrawPoint(static_cast<float>(x), static_cast<float>(y), color, radius, layer_info);
+		impl::Point::Draw(static_cast<float>(x), static_cast<float>(y), color, radius, layer_info);
 	}
 
 	// Access vector elements by index, 0 for x, 1 for y.

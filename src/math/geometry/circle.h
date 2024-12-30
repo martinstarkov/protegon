@@ -16,7 +16,7 @@ struct Circle {
 	V2_float center;
 	float radius{ 0.0f };
 
-	void Draw(const Color& color, float line_width = 1.0f, const LayerInfo& layer_info = {}) const;
+	void Draw(const Color& color, float line_width = -1.0f, const LayerInfo& layer_info = {}) const;
 
 	// center += offset
 	void Offset(const V2_float& offset);
@@ -50,7 +50,7 @@ struct Arc {
 	float end_angle{ 0.0f };
 
 	void Draw(
-		bool clockwise, const Color& color, float line_width = 1.0f,
+		bool clockwise, const Color& color, float line_width = -1.0f,
 		const LayerInfo& layer_info = {}
 	) const;
 };
@@ -59,7 +59,7 @@ struct Ellipse {
 	V2_float center;
 	V2_float radius;
 
-	void Draw(const Color& color, float line_width = 1.0f, const LayerInfo& layer_info = {}) const;
+	void Draw(const Color& color, float line_width = -1.0f, const LayerInfo& layer_info = {}) const;
 };
 
 } // namespace ptgn

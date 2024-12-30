@@ -62,7 +62,29 @@ Text::Text(
 }
 
 void Text::Draw(const Rect& destination, const LayerInfo& layer_info) const {
-	game.draw.Text(*this, destination, layer_info);
+	if (!IsValid()) {
+		return;
+	}
+	if (!GetVisibility()) {
+		return;
+	}
+	if (GetContent().empty()) {
+		return;
+	}
+
+	const ptgn::Texture& texture{ GetTexture() };
+
+	if (!texture.IsValid()) {
+		return;
+	}
+
+	Rect dest{ destination };
+
+	if (dest.size.IsZero()) {
+		dest.size = GetSize();
+	}
+
+	texture.Draw(dest, {}, layer_info);
 }
 
 Text& Text::SetFont(const FontOrKey& font) {

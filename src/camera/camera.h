@@ -154,6 +154,7 @@ namespace impl {
 class Game;
 class Renderer;
 class SceneCamera;
+struct RenderLayer;
 
 class CameraManager : public MapManager<OrthographicCamera> {
 public:
@@ -181,6 +182,7 @@ private:
 	friend class SceneCamera;
 	friend class Game;
 	friend class Renderer;
+	friend struct impl::RenderLayer;
 
 	void SetPrimaryImpl(const InternalKey& key, std::size_t render_layer);
 

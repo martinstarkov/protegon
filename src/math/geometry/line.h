@@ -52,7 +52,7 @@ struct Capsule {
 	Line line;
 	float radius{ 0.0f };
 
-	void Draw(const Color& color, float line_width = 1.0f, const LayerInfo& layer_info = {}) const;
+	void Draw(const Color& color, float line_width = -1.0f, const LayerInfo& layer_info = {}) const;
 
 	[[nodiscard]] bool Overlaps(const V2_float& point) const;
 	[[nodiscard]] bool Overlaps(const Line& line) const;

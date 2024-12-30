@@ -13,6 +13,7 @@
 #include "renderer/flip.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
+#include "renderer/gl_renderer.h"
 #include "renderer/renderer.h"
 #include "renderer/vertices.h"
 #include "utility/debug.h"
@@ -129,7 +130,19 @@ VertexArray::VertexArray(
 				 impl::TextureVertices::layout, index_buffer } {}
 
 void VertexArray::Draw() const {
-	game.draw.VertexArray(*this);
+	PTGN_ASSERT(IsValid(), "Cannot submit invalid vertex array for rendering");
+	PTGN_ASSERT(
+		HasVertexBuffer(), "Cannot submit vertex array without a set vertex buffer for rendering"
+	);
+	if (HasIndexBuffer()) {
+		auto count{ GetIndexBuffer().GetCount() };
+		PTGN_ASSERT(count > 0, "Cannot draw vertex array with 0 indices");
+		GLRenderer::DrawElements(*this, count);
+	} else {
+		auto count{ GetVertexBuffer().GetCount() };
+		PTGN_ASSERT(count > 0, "Cannot draw vertex array with 0 vertices");
+		GLRenderer::DrawArrays(*this, count);
+	}
 }
 
 void VertexArray::SetPrimitiveMode(PrimitiveMode mode) {

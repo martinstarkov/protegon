@@ -49,7 +49,13 @@ public:
 	}
 
 	[[nodiscard]] bool Has(const V2_int& coordinate) const {
-		return Has(OneDimensionalize(coordinate));
+		if (coordinate.x < 0 || coordinate.y < 0) {
+			return false;
+		}
+		if (coordinate.x >= size.x || coordinate.y >= size.y) {
+			return false;
+		}
+		return true;
 	}
 
 	T& Set(const V2_int& coordinate, T&& object) {
@@ -97,8 +103,12 @@ public:
 		return length;
 	}
 
+	// @return -1 if coordinate is invalid, otherwise: coordinate.x + coordinate.y * size.x.
 	[[nodiscard]] int OneDimensionalize(const V2_int& coordinate) const {
 		if (coordinate.x < 0 || coordinate.y < 0) {
+			return -1;
+		}
+		if (coordinate.x >= size.x || coordinate.y >= size.y) {
 			return -1;
 		}
 		return coordinate.x + coordinate.y * size.x;

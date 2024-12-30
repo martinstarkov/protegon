@@ -322,7 +322,7 @@ void Button::Draw() const {
 	if (auto texture{ GetFinalResource(c, d, i.textures_) }; texture.IsValid()) {
 		TextureInfo info;
 		info.tint = GetFinalResource(c, d, i.texture_tint_colors_, color::White);
-		game.draw.Texture(texture, i.rect_, info, { 0.0f, i.render_layer_ });
+		texture.Draw(i.rect_, info, { 0.0f, i.render_layer_ });
 	} else if (auto bg{ GetFinalResource(c, d, i.bg_colors_) }; bg != Color{}) {
 		i.rect_.Draw(bg, i.line_thickness_, { 0.0f, i.render_layer_ });
 	}

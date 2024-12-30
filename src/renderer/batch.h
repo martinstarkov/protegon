@@ -29,56 +29,21 @@
 
 namespace ptgn::impl {
 
-class RendererData;
 class Batch;
-
-struct ShaderVertex {
-	ShaderVertex() = default;
-
-	ShaderVertex(
-		const VertexArray& vertex_array, const Shader& shader, const Texture& texture,
-		BlendMode blend_mode
-	) :
-		vertex_array{ vertex_array },
-		shader{ shader },
-		texture{ texture },
-		blend_mode{ blend_mode } {}
-
-	VertexArray vertex_array;
-	Shader shader;
-	Texture texture;
-	BlendMode blend_mode{ BlendMode::Blend };
-};
-
-class ShaderBatchData {
-public:
-	[[nodiscard]] bool IsAvailable() const;
-
-	[[nodiscard]] ShaderVertex& Get();
-
-	void Flush(const M4_float& view_projection);
-
-	void Clear();
-
-private:
-	friend class Batch;
-	friend class RendererData;
-
-	[[nodiscard]] bool IsFlushed() const;
-
-	std::vector<ShaderVertex> data_;
-};
+class CameraManager;
 
 template <typename TVertices, std::size_t IndexCount>
 class BatchData {
 public:
+	BatchData() = default;
+
 	using vertices = TVertices;
 
 	[[nodiscard]] bool IsAvailable() const;
 
 	[[nodiscard]] TVertices& Get();
 
-	void Flush(const RendererData& renderer);
+	void Flush();
 
 	void Clear();
 
@@ -89,7 +54,7 @@ private:
 	bool SetupBuffer(const IndexBuffer& index_buffer);
 
 	// @return True if buffer was bound during call, false otherwise.
-	bool PrepareBuffer(const RendererData& renderer);
+	bool PrepareBuffer();
 
 	[[nodiscard]] bool IsFlushed() const;
 
@@ -100,8 +65,7 @@ private:
 
 class TextureBatchData : public BatchData<QuadVertices, 6> {
 public:
-	TextureBatchData() = delete;
-	explicit TextureBatchData(std::size_t max_texture_slots);
+	TextureBatchData();
 
 	void BindTextures();
 
@@ -125,24 +89,21 @@ enum class BatchType {
 	Circle,
 	Triangle,
 	Line,
-	Point,
-	Shader
+	Point
 };
 
 class Batch {
 public:
-	Batch() = delete;
-	explicit Batch(std::size_t max_texture_slots);
+	Batch() = default;
 
 	[[nodiscard]] bool IsFlushed(BatchType type) const;
 
-	void Flush(const RendererData& renderer, BatchType type, const M4_float& view_projection);
+	void Flush(BatchType type);
 
 	[[nodiscard]] bool IsAvailable(BatchType type) const;
 
 	void Clear();
 
-	ShaderBatchData shader_;
 	TextureBatchData quad_;
 	BatchData<CircleVertices, 6> circle_;
 	BatchData<TriangleVertices, 3> triangle_;
@@ -156,116 +117,54 @@ struct RenderLayer {
 	// Key: z_index, Value: Transparent batches for that z_index.
 	BatchMap batch_map;
 
+	void Update(std::size_t layer_number, CameraManager& camera_manager);
+
 	// std::vector<Batch> batch_vector; // TODO: Readd opaque batches.
 
 	M4_float view_projection{ 1.0f };
 	bool new_view_projection{ false };
 };
 
-class RendererData {
-public:
-	RendererData()								 = default;
-	~RendererData()								 = default;
-	RendererData(const RendererData&)			 = delete;
-	RendererData(RendererData&&)				 = default;
-	RendererData& operator=(const RendererData&) = delete;
-	RendererData& operator=(RendererData&&)		 = default;
+struct RenderData {
+	RenderData()							 = default;
+	~RenderData()							 = default;
+	RenderData(const RenderData&)			 = delete;
+	RenderData(RenderData&&)				 = default;
+	RenderData& operator=(const RenderData&) = delete;
+	RenderData& operator=(RenderData&&)		 = default;
 
-	void Init();
-
-	ptgn::Shader quad_shader_;
-	ptgn::Shader circle_shader_;
-	ptgn::Shader color_shader_;
-
-	IndexBuffer quad_ib_;
-	IndexBuffer triangle_ib_;
-	IndexBuffer line_ib_;
-	IndexBuffer point_ib_;
-	IndexBuffer shader_ib_; // One set of quad indices.
-
-	std::uint32_t max_texture_slots_{ 0 };
-	Texture white_texture_;
-
-	std::map<std::size_t, RenderLayer> render_layers_;
-
-	void AddShader(
-		const ptgn::Shader& shader, const std::array<V2_float, 4>& vertices,
-		const ptgn::Texture& texture, BlendMode blend_mode,
-		const std::array<V2_float, 4>& tex_coords, float z_index, std::size_t render_layer
-	);
-	void AddQuad(
-		const std::array<V2_float, 4>& vertices, float z_index, const V4_float& color,
-		const std::array<V2_float, 4>& tex_coords, const Texture& t, std::size_t render_layer
-	);
-	void AddCircle(
-		const std::array<V2_float, 4>& vertices, float z_index, const V4_float& color,
-		float line_width, std::size_t render_layer, float fade
-	);
-	void AddTriangle(
-		const V2_float& a, const V2_float& b, const V2_float& c, float z_index,
-		const V4_float& color, std::size_t render_layer
-	);
-	void AddLine(
-		const V2_float& p0, const V2_float& p1, float z_index, const V4_float& color,
-		std::size_t render_layer
-	);
-	void AddPoint(
-		const V2_float& position, float z_index, const V4_float& color, std::size_t render_layer
-	);
-
-	void SetupShaders();
-
-	// Flush a specific render layer. It must exist in render_layers_.
-	// @return True if layer was flushed, false if layer batch map was empty.
-	bool FlushLayer(RenderLayer& layer, const M4_float& shader_view_projection);
-
-	[[nodiscard]] static std::array<V2_float, 4> GetTextureCoordinates(
-		const V2_float& source_position, V2_float source_size, const V2_float& texture_size,
-		Flip flip, bool offset_texels = false
-	);
-
-	static void FlipTextureCoordinates(
-		std::array<V2_float, 4>& texture_coords, Flip flip
-	);
-
-	void Shader(
-		const ptgn::Shader& shader, const std::array<V2_float, 4>& vertices,
-		const ptgn::Texture& texture, BlendMode blend_mode,
-		const std::array<V2_float, 4>& tex_coords, float z_index, std::size_t render_layer
-	);
-
-	void Texture(
+	void AddTexture(
 		const std::array<V2_float, 4>& vertices, const Texture& t,
 		const std::array<V2_float, 4>& tex_coords, const V4_float& tint_color, float z,
 		std::size_t render_layer
 	);
 
-	void Point(
+	void AddPoint(
 		const V2_float& position, const V4_float& color, float radius, float z_index,
 		std::size_t render_layer, float fade
 	);
 
-	void Line(
+	void AddLine(
 		const V2_float& p0, const V2_float& p1, const V4_float& color, float line_width,
 		float z_index, std::size_t render_layer
 	);
 
-	void Triangle(
+	void AddTriangle(
 		const V2_float& a, const V2_float& b, const V2_float& c, const V4_float& color,
 		float line_width, float z_index, std::size_t render_layer
 	);
 
-	void Rect(
+	void AddRect(
 		const std::array<V2_float, 4>& vertices, const V4_float& color, float line_width,
 		float z_index, std::size_t render_layer
 	);
 
-	void Polygon(
+	void AddPolygon(
 		const V2_float* vertices, std::size_t vertex_count, const V4_float& color, float line_width,
 		float z_index, std::size_t render_layer
 	);
 
-	void RoundedRect(
+	void AddRoundedRect(
 		const V2_float& position, const V2_float& size, float radius, const V4_float& color,
 		Origin origin, float line_width, float rotation_radians, const V2_float& rotation_center,
 		float z_index, std::size_t render_layer, float fade
@@ -273,34 +172,68 @@ public:
 
 	// TODO: Fix ellipse line width being uneven between x and y axes (currently it chooses the
 	// smaller radius axis as the relative radius).
-	void Ellipse(
+	void AddEllipse(
 		const V2_float& position, const V2_float& radius, const V4_float& color, float line_width,
 		float z_index, std::size_t render_layer, float fade
 	);
 
-	void Arc(
+	void AddArc(
 		const V2_float& position, float arc_radius, float start_angle, float end_angle,
 		bool clockwise, const V4_float& color, float line_width, float z_index,
 		std::size_t render_layer, float fade
 	);
 
 	// TODO: Fix artefacts in capsule line width at larger radii.
-	void Capsule(
+	void AddCapsule(
 		const V2_float& p0, const V2_float& p1, float radius, const V4_float& color,
 		float line_width, float z_index, std::size_t render_layer, float fade
 	);
 
-	RenderLayer& GetRenderLayer(std::size_t render_layer);
+	void SetViewProjection(const M4_float& view_projection);
+
+	void FlushLayers();
+
+	void FlushLayer(std::size_t render_layer);
+
+	[[nodiscard]] static std::array<V2_float, 4> GetTextureCoordinates(
+		const V2_float& source_position, V2_float source_size, const V2_float& texture_size,
+		Flip flip, bool offset_texels = false
+	);
+
+	static void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip);
 
 private:
-	void FlushType(
-		std::vector<Batch>& batches, const ptgn::Shader& shader, BatchType type,
-		const M4_float& view_projection, ptgn::Shader& bound_shader
+	void AddPrimitiveQuad(
+		const std::array<V2_float, 4>& vertices, float z_index, const V4_float& color,
+		const std::array<V2_float, 4>& tex_coords, const Texture& t, std::size_t render_layer
+	);
+	void AddPrimitiveCircle(
+		const std::array<V2_float, 4>& vertices, float z_index, const V4_float& color,
+		float line_width, std::size_t render_layer, float fade
+	);
+	void AddPrimitiveTriangle(
+		const V2_float& a, const V2_float& b, const V2_float& c, float z_index,
+		const V4_float& color, std::size_t render_layer
+	);
+	void AddPrimitiveLine(
+		const V2_float& p0, const V2_float& p1, float z_index, const V4_float& color,
+		std::size_t render_layer
+	);
+	void AddPrimitivePoint(
+		const V2_float& position, float z_index, const V4_float& color, std::size_t render_layer
 	);
 
-	void FlushBatches(
-		std::vector<Batch>& batches, const M4_float& view_projection, ptgn::Shader& bound_shader
+	RenderLayer& GetRenderLayer(std::size_t render_layer);
+
+	// Flush a specific render layer. It must exist in render_layers_.
+	void FlushLayer(RenderLayer& layer);
+
+	void FlushType(
+		std::vector<Batch>& batches, const ptgn::Shader& shader, BatchType type,
+		ptgn::Shader& bound_shader
 	);
+
+	void FlushBatches(std::vector<Batch>& batches, ptgn::Shader& bound_shader);
 
 	[[nodiscard]] std::vector<Batch>& GetBatchGroup(
 		BatchMap& batch_map, float alpha, float z_index
@@ -312,6 +245,8 @@ private:
 	[[nodiscard]] std::pair<Batch&, std::size_t> GetTextureBatch(
 		std::vector<Batch>& batch_group, const ptgn::Texture& t
 	);
+
+	std::map<std::size_t, RenderLayer> render_layers_;
 };
 
 } // namespace ptgn::impl

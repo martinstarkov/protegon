@@ -4,6 +4,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "SDL_timer.h"
 #include "audio/audio.h"
 #include "camera/camera.h"
 #include "collision/collision.h"
@@ -20,7 +21,6 @@
 #include "renderer/text.h"
 #include "renderer/texture.h"
 #include "scene/scene_manager.h"
-#include "SDL_timer.h"
 #include "ui/ui.h"
 #include "utility/debug.h"
 #include "utility/profiling.h"
@@ -125,7 +125,7 @@ Game::Game() :
 	gl_context_{ std::make_unique<GLContext>() },
 	event_{ std::make_unique<EventHandler>() },
 	input_{ std::make_unique<InputHandler>() },
-	draw_{ std::make_unique<Renderer>() },
+	renderer_{ std::make_unique<Renderer>() },
 	scene_{ std::make_unique<SceneManager>() },
 	camera_{ std::make_unique<SceneCamera>() },
 	physics_{ std::make_unique<Physics>() },
@@ -143,7 +143,7 @@ Game::Game() :
 	window{ *window_ },
 	event{ *event_ },
 	input{ *input_ },
-	draw{ *draw_ },
+	renderer{ *renderer_ },
 	scene{ *scene_ },
 	camera{ *camera_ },
 	physics{ *physics_ },
@@ -243,7 +243,8 @@ void Game::Init() {
 	camera.Init();
 
 	shader.Init();
-	draw.Init();
+
+	renderer.Init();
 	physics.Init();
 	light.Init();
 }
@@ -262,7 +263,7 @@ void Game::Shutdown() {
 	music.Reset();
 
 	physics.Shutdown();
-	draw.Shutdown();
+	renderer.Shutdown();
 	input.Shutdown();
 	event.Shutdown();
 	window.Shutdown();
@@ -338,7 +339,7 @@ void Game::Update() {
 
 	// PTGN_LOG("Loop #", counter);
 
-	game.draw.Clear();
+	game.renderer.Clear();
 
 	if (update_stack_.empty()) {
 		scene.Update();
@@ -352,7 +353,7 @@ void Game::Update() {
 	}
 
 	if (running_ && !game.scene.SceneChanged()) {
-		game.draw.Present();
+		game.renderer.Present();
 	}
 
 	++counter;

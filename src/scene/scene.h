@@ -6,7 +6,7 @@
 
 #include "camera/camera.h"
 #include "renderer/color.h"
-#include "renderer/render_texture.h"
+#include "renderer/frame_buffer.h"
 #include "utility/time.h"
 
 namespace ptgn {
@@ -118,12 +118,14 @@ public:
 
 	impl::CameraManager camera;
 
-	[[nodiscard]] RenderTexture GetRenderTarget() const;
+	[[nodiscard]] RenderTarget GetRenderTarget() const;
+
 private:
 	friend class impl::SceneManager;
 	friend class SceneTransition;
 
-	RenderTexture target_;
+	RenderTarget target_;
+	Color tint_{ color::White };
 
 	// If the actions is manually numbered, its order determines the execution order of scene
 	// functions.

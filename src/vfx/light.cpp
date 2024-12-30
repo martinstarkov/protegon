@@ -8,7 +8,6 @@
 #include "math/vector4.h"
 #include "renderer/color.h"
 #include "renderer/origin.h"
-#include "renderer/render_texture.h"
 #include "renderer/renderer.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
@@ -48,10 +47,8 @@ void Light::Draw(const Texture& texture) const {
 	auto shader{ game.light.GetShader() };
 	shader.Bind();
 	shader.SetUniform("u_LightPos", GetPosition());
-	shader.SetUniform("u_LightColor", GetShaderColor());
 	shader.SetUniform("u_LightIntensity", GetIntensity());
-	game.draw.Shader(shader, texture, {}, BlendMode::Add);
-	game.draw.Flush();
+	shader.Draw(texture, {}, M4_float{ 1.0f }, TextureInfo{ {}, {}, Flip::None, color_ });
 }
 
 void LightManager::Init() {
@@ -64,20 +61,18 @@ void LightManager::Init() {
 		}
 	);
 
-	target_ = RenderTexture{ true };
+	target_ = RenderTarget{ true };
 }
 
 void LightManager::Draw() {
-	auto target{ game.draw.GetTarget() };
-	game.draw.SetTarget(target_);
-	ForEachValue([&](const auto& light) { light.Draw(target_.GetTexture()); });
-	game.draw.SetTarget(RenderTexture{ game.window.GetSize() }, false);
-	if (blur_) {
-		game.draw.Shader(ScreenShader::GaussianBlur, target_.GetTexture());
-	} else {
-		game.draw.Shader(ScreenShader::Default, target_.GetTexture());
-	}
-	game.draw.SetTarget(target);
+	target_.WhileBound(
+		[&]() {
+			ForEachValue([&](const auto& light) { light.Draw(target_.GetTexture()); });
+			// TODO: Add blurring.
+			target_.DrawToScreen();
+		},
+		color::Transparent, BlendMode::Add
+	);
 }
 
 void LightManager::Reset() {

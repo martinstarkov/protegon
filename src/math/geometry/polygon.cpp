@@ -7,6 +7,7 @@
 
 #include "collision/raycast.h"
 #include "core/game.h"
+#include "core/window.h"
 #include "math/geometry/axis.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/intersection.h"
@@ -45,19 +46,35 @@ bool Triangle::Contains(const Triangle& internal) const {
 Rect::Rect(const V2_float& position, const V2_float& size, Origin origin, float rotation) :
 	position{ position }, size{ size }, origin{ origin }, rotation{ rotation } {}
 
-void Rect::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	game.draw.Rect(*this, color, line_width, { 0.5f, 0.5f }, layer_info);
+Rect Rect::Fullscreen() {
+	return Rect{ {}, game.window.GetSize(), Origin::TopLeft };
+}
+
+void Rect::Draw(
+	const Color& color, float line_width, const LayerInfo& layer_info,
+	const V2_float& rotation_center
+) const {
+	game.renderer.data_.AddRect(
+		GetVertices(rotation_center), color.Normalized(), line_width, layer_info.z_index,
+		layer_info.render_layer
+	);
 }
 
 void Rect::Offset(const V2_float& offset) {
 	position += offset;
 }
 
-std::array<Line, 4> Rect::GetWalls() const {
+std::array<Line, 4> Rect::GetEdges() const {
 	V2_int min{ Min() };
 	V2_int max{ Max() };
 	return { Line{ min, { max.x, min.y } }, Line{ { max.x, min.y }, max },
 			 Line{ max, { min.x, max.y } }, Line{ { min.x, max.y }, min } };
+}
+
+std::array<V2_float, 4> Rect::GetCorners() const {
+	V2_int min{ Min() };
+	V2_int max{ Max() };
+	return { min, { max.x, min.y }, max, { min.x, max.y } };
 }
 
 V2_float Rect::Half() const {
@@ -339,7 +356,10 @@ Polygon::Polygon(const Rect& rect) {
 Polygon::Polygon(const std::vector<V2_float>& vertices) : vertices{ vertices } {}
 
 void Polygon::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	game.draw.Polygon(vertices.data(), vertices.size(), color, line_width, layer_info);
+	game.renderer.data_.AddPolygon(
+		vertices.data(), vertices.size(), color.Normalized(), line_width, layer_info.z_index,
+		layer_info.render_layer
+	);
 }
 
 V2_float Polygon::Center() const {
@@ -542,7 +562,27 @@ Triangle::Triangle(const V2_float& a, const V2_float& b, const V2_float& c) :
 	a{ a }, b{ b }, c{ c } {}
 
 void Triangle::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	game.draw.Triangle(a, b, c, color, line_width, layer_info);
+	game.renderer.data_.AddTriangle(
+		a, b, c, color.Normalized(), line_width, layer_info.z_index, layer_info.render_layer
+	);
+}
+
+RoundedRect::RoundedRect(
+	const V2_float& position, float radius, const V2_float& size, Origin origin, float rotation
+) :
+	Rect{ position, size, origin, rotation } {
+	PTGN_ASSERT(radius >= 0.0f);
+	this->radius = radius;
+}
+
+void RoundedRect::Draw(
+	const Color& color, float line_width, const LayerInfo& layer_info,
+	const V2_float& rotation_center
+) const {
+	game.renderer.data_.AddRoundedRect(
+		position, size, radius, color.Normalized(), origin, line_width, rotation, rotation_center,
+		layer_info.z_index, layer_info.render_layer, game.renderer.fade_
+	);
 }
 
 } // namespace ptgn

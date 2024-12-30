@@ -19,10 +19,11 @@ constexpr inline const BufferLayout<glsl::vec3, glsl::vec4> color_vertex_layout;
 
 struct TextureVertex {
 	glsl::vec3 position;
+	glsl::vec4 color;
 	glsl::vec2 tex_coord;
 };
 
-constexpr inline const BufferLayout<glsl::vec3, glsl::vec2> texture_vertex_layout;
+constexpr inline const BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2> texture_vertex_layout;
 
 struct QuadVertex {
 	glsl::vec3 position;
@@ -58,12 +59,12 @@ public:
 
 	// Takes in normalized color.
 	ShapeVertices(
-		const std::array<V2_float, count>& positions, float z_index, const V4_float& color
+		const std::array<V2_float, count>& vertices, float z_index, const V4_float& color
 	) {
 		PTGN_ASSERT(color.x >= 0.0f && color.y >= 0.0f && color.z >= 0.0f && color.w >= 0.0f);
 		PTGN_ASSERT(color.x <= 1.0f && color.y <= 1.0f && color.z <= 1.0f && color.w <= 1.0f);
 		for (std::size_t i{ 0 }; i < vertices_.size(); i++) {
-			vertices_[i].position = { positions[i].x, positions[i].y, z_index };
+			vertices_[i].position = { vertices[i].x, vertices[i].y, z_index };
 			vertices_[i].color	  = { color.x, color.y, color.z, color.w };
 		}
 	}
@@ -85,7 +86,7 @@ struct QuadVertices :
 	using ShapeVertices::ShapeVertices;
 
 	QuadVertices(
-		const std::array<V2_float, count>& positions, float z_index, const V4_float& color,
+		const std::array<V2_float, count>& vertices, float z_index, const V4_float& color,
 		const std::array<V2_float, count>& tex_coords, float texture_index
 	);
 };
@@ -93,9 +94,11 @@ struct QuadVertices :
 struct TextureVertices :
 	public ShapeVertices<
 		TextureVertex, 4, PrimitiveMode::Triangles, decltype(texture_vertex_layout)> {
+	using ShapeVertices::ShapeVertices;
+
 	TextureVertices(
-		const std::array<V2_float, count>& positions, const std::array<V2_float, count>& tex_coords,
-		float z_index
+		const std::array<V2_float, count>& vertices, const std::array<V2_float, count>& tex_coords,
+		float z_index, const V4_float& color
 	);
 };
 
@@ -105,7 +108,7 @@ struct CircleVertices :
 	using ShapeVertices::ShapeVertices;
 
 	CircleVertices(
-		const std::array<V2_float, count>& positions, float z_index, const V4_float& color,
+		const std::array<V2_float, count>& vertices, float z_index, const V4_float& color,
 		float line_width, float fade
 	);
 };

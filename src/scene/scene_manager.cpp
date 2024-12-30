@@ -146,8 +146,13 @@ void SceneManager::Update() {
 		PTGN_ASSERT(Has(scene_key));
 		auto scene{ Get(scene_key) };
 		if (scene->actions_.empty()) {
-			game.draw.SetTarget(scene->target_, true, true);
-			scene->Update();
+			scene->target_.WhileBound([&]() {
+				scene->Update();
+				scene->target_.DrawToScreen(
+					{}, scene->camera.GetPrimary().GetViewProjection(),
+					TextureInfo{ {}, {}, Flip::None, scene->tint_ }
+				);
+			});
 		}
 	}
 	UpdateFlagged();
@@ -183,7 +188,7 @@ void SceneManager::UpdateFlagged() {
 					game.input.Reset();
 					// Each scene starts with a refreshed camera.
 					scene->camera.ResetPrimary();
-					game.draw.SetTarget(scene->target_);
+					// TODO: Add binding of scene target.
 					scene->Init();
 					SetSceneChanged(true);
 					break;

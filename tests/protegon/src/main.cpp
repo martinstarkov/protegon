@@ -1,12 +1,12 @@
 #define SDL_MAIN_HANDLED
 
 #include "../tests/test_ecs.h"
-#include "test_framebuffer.h"
 #include "test_animation.h"
 #include "test_camera.h"
 #include "test_collision.h"
 #include "test_events.h"
 #include "test_fluid.h"
+#include "test_framebuffer.h"
 #include "test_lighting.h"
 #include "test_math.h"
 #include "test_matrix4.h"
@@ -33,7 +33,7 @@ public:
 	}
 
 	void Init() final {
-		game.draw.SetClearColor(color::White);
+		game.renderer.SetClearColor(color::White);
 		V2_int window_size{ 800, 800 };
 		game.window.SetSize(window_size);
 
@@ -79,6 +79,6 @@ public:
 
 int main() {
 	game.Start<Tests>();
-	//TestFrameBuffer();
+	// TestFrameBuffer();
 	return 0;
 }

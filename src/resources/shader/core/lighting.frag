@@ -4,12 +4,12 @@ R"(
 
 layout (location = 0) out vec4 o_Color;
 
-layout (location = 0) in vec2 v_TexCoord;
+layout (location = 0) in vec4 v_Color;
+layout (location = 1) in vec2 v_TexCoord;
 
 uniform sampler2D u_Texture;
 uniform vec2 u_Resolution;
 uniform vec2 u_LightPos;
-uniform vec3 u_LightColor;
 uniform vec3 u_AmbientColor;
 uniform float u_LightIntensity;
 uniform float u_AmbientIntensity;
@@ -20,19 +20,19 @@ void main() {
 	pixel.y = u_Resolution.y - pixel.y;
 	vec2 diff = u_LightPos - pixel;
 	float distance = length(diff);
-    vec4 color = vec4(u_LightColor.x, u_LightColor.y, u_LightColor.z, 1.0 / distance * u_LightIntensity);
-	o_Color = color;
+    vec4 color = vec4(1.0, 1.0, 1.0, 1.0 / distance * u_LightIntensity);
+	o_Color = color * v_Color;
 
 	/*
 	float distance = length(u_LightPos - vec2(gl_FragCoord.x, u_Resolution.y - gl_FragCoord.y));
 	float attenuation = 1.0 / distance;
 	vec4 falloff = vec4(attenuation, attenuation, attenuation, pow(attenuation, 3));
-	vec3 light = clamp(u_LightColor * u_LightIntensity * falloff, 0.0, 1.0);
+	vec3 light = clamp(v_Color * u_LightIntensity * falloff, 0.0, 1.0);
 
 	vec4 pixel = texture(u_Texture, v_TexCoord);
 	vec3 ambient = clamp(pixel.rgb * u_AmbientColor * u_AmbientIntensity, 0.0, 1.0); // TODO: Add shadows: + texture(u_OcclusionMask, v_TexCoord).rgb;
 
-	o_Color = vec4(pixel.rgb * (ambient + light), 1.0);
+	o_Color = vec4(pixel.rgb * (ambient + light), 1.0) * v_Color;
 	*/
 }
 
@@ -45,7 +45,6 @@ uniform float intensity;
 uniform float opacity;
 uniform vec2 angleRange;
 uniform vec4 normalVisibility;
-uniform vec3 lightTint;
 uniform sampler2D normals;
 uniform sampler2D colors;
 
@@ -80,12 +79,12 @@ void main() {
 
     float normalA = normal.a * step(positionSS.y, normalVisibility.x);
 
-    gl_FragColor.rgb = finalColor * lightTint;
+    gl_FragColor.rgb = finalColor * v_Color;
     gl_FragColor.a = finalA;
 
     gl_FragColor.rgba += mix(
-        vec4(lightTint * finalA * normalVisibility.w, 0.0),
-        vec4(lightTint * originalA * normalVisibility.w, originalA),
+        vec4(v_Color * finalA * normalVisibility.w, 0.0),
+        vec4(v_Color * originalA * normalVisibility.w, originalA),
         opacity
     );
 }

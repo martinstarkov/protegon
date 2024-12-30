@@ -9,6 +9,7 @@
 #include "renderer/color.h"
 #include "renderer/flip.h"
 #include "renderer/font.h"
+#include "renderer/frame_buffer.h"
 #include "renderer/layer_info.h"
 #include "renderer/shader.h"
 #include "renderer/text.h"
@@ -19,14 +20,27 @@ namespace ptgn {
 class Scene;
 class Texture;
 class Text;
-class RenderTexture;
 class VertexArray;
+class Shader;
+struct Line;
+struct Capsule;
+struct Ellipse;
+struct Rect;
+struct Polygon;
+struct Arc;
+struct RoundedRect;
+struct Axis;
+struct Circle;
+struct Triangle;
 
 namespace impl {
 
 class CameraManager;
 class Game;
 struct RenderLayer;
+class TextureBatchData;
+struct RenderData;
+struct Point;
 
 class Renderer {
 public:
@@ -49,147 +63,71 @@ public:
 	// camera, the model view projection matrix will be an identity matrix.
 	void Flush(std::size_t render_layer);
 
-	void VertexArray(const VertexArray& vertex_array) const;
-
-	// @param destination_size Default: {}, which corresponds to the unscaled size of the text.
-	// @param font Default: {}, which corresponds to the default font (use game.font.SetDefault(...)
-	// to change.
-	void Text(
-		const std::string_view& text_content, const Color& text_color,
-		const ptgn::Rect& destination, const FontOrKey& font = {}, TextInfo text_info = {},
-		LayerInfo layer_info = {}
-	);
-
-	// Setting destination.size {} corresponds to the unscaled size of the text.
-	void Text(const ptgn::Text& text, ptgn::Rect destination = {}, LayerInfo layer_info = {});
-
-	// @param texture Setting texture to {} will use the entire current rendering target.
-	void Shader(
-		ScreenShader screen_shader, const ptgn::Texture& texture = {},
-		BlendMode blend_mode = BlendMode::Blend, LayerInfo layer_info = {}
-	);
-
-	// Default size results in fullscreen shader.
-	// @param texture Setting texture to {} will use the entire current rendering target.
-	void Shader(
-		const ptgn::Shader& shader, const ptgn::Texture& texture = {}, ptgn::Rect destination = {},
-		BlendMode blend_mode = BlendMode::Blend, Flip flip = Flip::None,
-		const V2_float& rotation_center = { 0.5f, 0.5f }, LayerInfo layer_info = {}
-	);
-
-	// If destination.size is {} it will be fullscreen.
-	void Texture(
-		const Texture& texture, ptgn::Rect destination = {}, TextureInfo texture_info = {},
-		LayerInfo layer_info = {}
-	);
-
-	void Point(
-		const V2_float& position, const Color& color, float radius = 1.0f, LayerInfo layer_info = {}
-	);
-
-	void Points(
-		const V2_float* points, std::size_t point_count, const Color& color, float radius = 1.0f,
-		LayerInfo layer_info = {}
-	);
-
-	void Line(
-		const V2_float& p0, const V2_float& p1, const Color& color, float line_width = 1.0f,
-		LayerInfo layer_info = {}
-	);
-
-	// Draw an axis line (magnitude of window) along the given direction vector.
-	void Axis(
-		const V2_float& point, const V2_float& direction, const Color& color,
-		float line_width = 1.0f, LayerInfo layer_info = {}
-	);
-
-	void Triangle(
-		const V2_float& vertex1, const V2_float& vertex2, const V2_float& vertex3,
-		const Color& color, float line_width = -1.0f, LayerInfo layer_info = {}
-	);
-
-	void Rect(
-		const ptgn::Rect& rect, const Color& color, float line_width = -1.0f,
-		const V2_float& rotation_center = { 0.5f, 0.5f }, LayerInfo layer_info = {}
-	);
-
-	void Polygon(
-		const V2_float* vertices, std::size_t vertex_count, const Color& color,
-		float line_width = -1.0f, LayerInfo layer_info = {}
-	);
-
-	void Circle(
-		const V2_float& position, float radius, const Color& color, float line_width = -1.0f,
-		LayerInfo layer_info = {}
-	);
-
-	void RoundedRect(
-		const ptgn::Rect& rect, float radius, const Color& color, float line_width = -1.0f,
-		const V2_float& rotation_center = { 0.5f, 0.5f }, LayerInfo layer_info = {}
-	);
-
-	void Ellipse(
-		const V2_float& position, const V2_float& radius, const Color& color,
-		float line_width = -1.0f, LayerInfo layer_info = {}
-	);
-
-	// Angles in radians, counter-clockwise from the right.
-	void Arc(
-		const V2_float& position, float arc_radius, float start_angle, float end_angle,
-		bool clockwise, const Color& color, float line_width = -1.0f, LayerInfo layer_info = {}
-	);
-
-	void Capsule(
-		const V2_float& p0, const V2_float& p1, float radius, const Color& color,
-		float line_width = -1.0f, LayerInfo layer_info = {}
-	);
-
-	// @return Pixel at a specific coordinate on the current render target.
-	[[nodiscard]] Color GetPixel(const V2_int& coordinate) const;
-
-	// Loop through each pixel on the current render target.
-	void ForEachPixel(const std::function<void(V2_int, Color)>& func) const;
-
-	// Calling with default argument {} will reset render target to window.
-	// Keep in mind that calling this function will draw the previously set render target to the
-	// screen. This can lead to shaders being drawn twice.
-	void SetTarget(
-		const ptgn::RenderTexture& render_target = {}, bool draw_previously_bound_target = true,
-		bool force_draw = false
-	);
-	[[nodiscard]] ptgn::RenderTexture GetTarget() const;
-
 	void SetBlendMode(BlendMode blend_mode);
 	[[nodiscard]] BlendMode GetBlendMode() const;
 
-	// Sets the clear color of the currently bound render target. 
-	// Hence, prefer to call this in the Init function of a scene rather than the constructor as this guarantees that the scene's render target is bound.
+	// Sets the clear color of the currently bound render target.
+	// Hence, prefer to call this in the Init function of a scene rather than the constructor as
+	// this guarantees that the scene's render target is bound.
 	void SetClearColor(const Color& color);
 	[[nodiscard]] Color GetClearColor() const;
 
-	void FlushImpl(std::size_t render_layer, const M4_float& shader_view_projection);
-	void FlushImpl(const M4_float& shader_view_projection);
+	// TODO: Move to private and make Batch<> class friend.
+	[[nodiscard]] std::size_t GetBatchCapacity() const;
 
+	// Sets render target back to the screen.
+	void ResetRenderTarget();
+
+	// TODO: Move to private and make Batch<> class friend.
+	IndexBuffer quad_ib_;
+	IndexBuffer triangle_ib_;
+	IndexBuffer line_ib_;
+	IndexBuffer point_ib_;
+	IndexBuffer shader_ib_; // One set of quad indices.
 private:
 	friend class CameraManager;
 	friend class Game;
-	friend class RenderTexture;
+	friend class impl::TextureBatchData;
+	friend struct impl::RenderData;
+	friend class FrameBuffer;
 	friend class Scene;
-
-	constexpr static const float default_fade_{ 0.005f };
-
-	void UpdateLayer(std::size_t layer_number, RenderLayer& layer, CameraManager& camera_manager)
-		const;
+	friend class Shader;
+	// TODO: Think of a better way to do this.
+	friend class Text;
+	friend class Texture;
+	friend struct Line;
+	friend struct Capsule;
+	friend struct Triangle;
+	friend struct Ellipse;
+	friend struct Rect;
+	friend struct Polygon;
+	friend struct Arc;
+	friend struct RoundedRect;
+	friend struct Axis;
+	friend struct Circle;
+	friend struct impl::Point;
 
 	void Init();
 	void Shutdown();
 	void Reset();
 
-	RendererData data_;
-
+	Color clear_color_{ color::Transparent };
 	BlendMode blend_mode_{ BlendMode::Blend };
-	ptgn::RenderTexture default_target_;
-	ptgn::RenderTexture current_target_;
+
+	ptgn::Shader quad_shader_;
+	ptgn::Shader circle_shader_;
+	ptgn::Shader color_shader_;
+
+	// Fade used with circle shader.
+	const float fade_{ 0.005f };
+	std::size_t batch_capacity_{ 0 };
+	std::uint32_t max_texture_slots_{ 0 };
+	Texture white_texture_;
+
+	RenderData data_;
+
+	FrameBuffer screen_;
+	FrameBuffer bound_;
 };
 
 } // namespace impl

@@ -111,9 +111,6 @@ void main()
     if (v_TexIndex == 31.0f) {
         texColor *= texture(u_Texture[31], v_TexCoord);
     }
-    
-	if (texColor.a == 0.0)
-		discard;
 
 	o_Color = texColor;
 }

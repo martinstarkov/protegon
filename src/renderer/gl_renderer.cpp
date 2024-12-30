@@ -56,6 +56,10 @@ void GLRenderer::SetBlendMode(BlendMode mode /* = BlendMode::Blend*/) {
 			// TODO: Check that this works correctly.
 			GLCall(gl::glBlendFunc(GL_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
 			break;
+		case BlendMode::Stencil:
+			GLCall(gl::BlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD));
+			GLCall(gl::BlendFuncSeparate(GL_ONE, GL_ONE, GL_ZERO, GL_ONE));
+			break;
 		default: PTGN_ERROR("Failed to identify blend mode");
 	}
 }
@@ -151,7 +155,7 @@ void GLRenderer::ClearColor(const Color& color) {
 
 void GLRenderer::SetViewport(const V2_int& position, const V2_int& size) {
 	GLCall(gl::glViewport(position.x, position.y, size.x, size.y));
-	//game.window.Center();
+	// game.window.Center();
 #ifdef PTGN_DEBUG
 	++game.stats.viewport_changes;
 #endif

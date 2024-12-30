@@ -16,7 +16,9 @@
 namespace ptgn {
 
 void Line::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	game.draw.Line(a, b, color, line_width, layer_info);
+	game.renderer.data_.AddLine(
+		a, b, color.Normalized(), line_width, layer_info.z_index, layer_info.render_layer
+	);
 }
 
 V2_float Line::Direction() const {
@@ -429,7 +431,10 @@ ptgn::Raycast Line::Raycast(const Capsule& capsule) const {
 }
 
 void Capsule::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	game.draw.Capsule(line.a, line.b, radius, color, line_width, layer_info);
+	game.renderer.data_.AddCapsule(
+		line.a, line.b, radius, color.Normalized(), line_width, layer_info.z_index,
+		layer_info.render_layer, game.renderer.fade_
+	);
 }
 
 bool Capsule::Overlaps(const V2_float& point) const {

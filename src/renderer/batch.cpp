@@ -22,7 +22,6 @@
 #include "renderer/gl_helper.h"
 #include "renderer/gl_renderer.h"
 #include "renderer/origin.h"
-#include "renderer/render_texture.h"
 #include "renderer/renderer.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
@@ -41,69 +40,21 @@ template class BatchData<TriangleVertices, 3>;
 template class BatchData<LineVertices, 2>;
 template class BatchData<PointVertices, 1>;
 
-static constexpr std::size_t batch_capacity{ 2000 };
-
-Batch::Batch(std::size_t max_texture_slots) : quad_{ max_texture_slots } {}
-
-bool ShaderBatchData::IsAvailable() const {
-	return data_.size() != batch_capacity;
-}
-
-ShaderVertex& ShaderBatchData::Get() {
-	PTGN_ASSERT(data_.size() + 1 <= batch_capacity);
-	return data_.emplace_back();
-}
-
-void ShaderBatchData::Flush(const M4_float& view_projection) {
-	PTGN_ASSERT(!IsFlushed());
-
-	V2_float window_size{ game.window.GetSize() };
-	const BlendMode og_blend_mode{ game.draw.GetBlendMode() };
-	BlendMode current_blend_mode{ og_blend_mode };
-	bool changed_blend{ false };
-
-	for (const auto& s : data_) {
-		s.shader.Bind();
-		s.shader.SetUniform("u_ViewProjection", view_projection);
-		s.shader.SetUniform("u_Texture", 1);
-		s.shader.SetUniform("u_Resolution", window_size);
-		s.texture.Bind(1);
-		if (s.blend_mode != current_blend_mode) {
-			changed_blend = true;
-			GLRenderer::SetBlendMode(s.blend_mode);
-			current_blend_mode = s.blend_mode;
-		}
-		GLRenderer::DrawElements(s.vertex_array, s.vertex_array.GetIndexBuffer().GetCount());
-	}
-	if (changed_blend) {
-		GLRenderer::SetBlendMode(og_blend_mode);
-	}
-	data_.clear();
-}
-
-void ShaderBatchData::Clear() {
-	data_.clear();
-}
-
-bool ShaderBatchData::IsFlushed() const {
-	return data_.empty();
-}
-
 template <typename TVertices, std::size_t IndexCount>
 bool BatchData<TVertices, IndexCount>::IsAvailable() const {
-	return data_.size() != batch_capacity;
+	return data_.size() != game.renderer.GetBatchCapacity();
 }
 
 template <typename TVertices, std::size_t IndexCount>
 TVertices& BatchData<TVertices, IndexCount>::Get() {
-	PTGN_ASSERT(data_.size() + 1 <= batch_capacity);
+	PTGN_ASSERT(data_.size() + 1 <= game.renderer.GetBatchCapacity());
 	return data_.emplace_back();
 }
 
 template <typename TVertices, std::size_t IndexCount>
-void BatchData<TVertices, IndexCount>::Flush(const RendererData& renderer) {
+void BatchData<TVertices, IndexCount>::Flush() {
 	PTGN_ASSERT(!IsFlushed());
-	bool bound = PrepareBuffer(renderer);
+	bool bound{ PrepareBuffer() };
 	if (!bound) {
 		array_.Bind();
 	}
@@ -126,24 +77,28 @@ bool BatchData<TVertices, IndexCount>::SetupBuffer(const IndexBuffer& index_buff
 		return false;
 	}
 
-	data_.reserve(batch_capacity);
+	auto capacity{ game.renderer.GetBatchCapacity() };
+
+	PTGN_ASSERT(capacity >= 1);
+
+	data_.reserve(capacity);
 	array_ = { TVertices::mode, VertexBuffer(data_, BufferUsage::DynamicDraw, true),
 			   TVertices::layout, index_buffer };
 	return true;
 }
 
 template <typename TVertices, std::size_t IndexCount>
-bool BatchData<TVertices, IndexCount>::PrepareBuffer(const RendererData& renderer) {
+bool BatchData<TVertices, IndexCount>::PrepareBuffer() {
 	if constexpr (std::is_same_v<TVertices, QuadVertices>) {
-		return SetupBuffer(renderer.quad_ib_);
+		return SetupBuffer(game.renderer.quad_ib_);
 	} else if constexpr (std::is_same_v<TVertices, CircleVertices>) {
-		return SetupBuffer(renderer.quad_ib_);
+		return SetupBuffer(game.renderer.quad_ib_);
 	} else if constexpr (std::is_same_v<TVertices, TriangleVertices>) {
-		return SetupBuffer(renderer.triangle_ib_);
+		return SetupBuffer(game.renderer.triangle_ib_);
 	} else if constexpr (std::is_same_v<TVertices, LineVertices>) {
-		return SetupBuffer(renderer.line_ib_);
+		return SetupBuffer(game.renderer.line_ib_);
 	} else if constexpr (std::is_same_v<TVertices, PointVertices>) {
-		return SetupBuffer(renderer.point_ib_);
+		return SetupBuffer(game.renderer.point_ib_);
 	} else {
 		PTGN_ERROR("Failed to recognize batch buffer type");
 	}
@@ -154,9 +109,9 @@ bool BatchData<TVertices, IndexCount>::IsFlushed() const {
 	return data_.empty();
 }
 
-TextureBatchData::TextureBatchData(std::size_t max_texture_slots) {
+TextureBatchData::TextureBatchData() {
 	// First texture slot is reserved for the empty white texture.
-	textures_.reserve(max_texture_slots - 1);
+	textures_.reserve(game.renderer.max_texture_slots_ - 1);
 }
 
 void TextureBatchData::BindTextures() {
@@ -206,22 +161,20 @@ bool Batch::IsFlushed(BatchType type) const {
 		case BatchType::Line:	  return line_.IsFlushed();
 		case BatchType::Circle:	  return circle_.IsFlushed();
 		case BatchType::Point:	  return point_.IsFlushed();
-		case BatchType::Shader:	  return shader_.IsFlushed();
 		default:				  PTGN_ERROR("Failed to recognize batch type when checking IsFlushed");
 	}
 }
 
-void Batch::Flush(const RendererData& renderer, BatchType type, const M4_float& view_projection) {
+void Batch::Flush(BatchType type) {
 	switch (type) {
 		case BatchType::Quad:
 			quad_.BindTextures();
-			quad_.Flush(renderer);
+			quad_.Flush();
 			break;
-		case BatchType::Triangle: triangle_.Flush(renderer); break;
-		case BatchType::Line:	  line_.Flush(renderer); break;
-		case BatchType::Circle:	  circle_.Flush(renderer); break;
-		case BatchType::Point:	  point_.Flush(renderer); break;
-		case BatchType::Shader:	  shader_.Flush(view_projection); break;
+		case BatchType::Triangle: triangle_.Flush(); break;
+		case BatchType::Line:	  line_.Flush(); break;
+		case BatchType::Circle:	  circle_.Flush(); break;
+		case BatchType::Point:	  point_.Flush(); break;
 		default:				  PTGN_ERROR("Failed to recognize batch type when flushing");
 	}
 }
@@ -233,7 +186,6 @@ bool Batch::IsAvailable(BatchType type) const {
 		case BatchType::Line:	  return line_.IsAvailable();
 		case BatchType::Circle:	  return circle_.IsAvailable();
 		case BatchType::Point:	  return point_.IsAvailable();
-		case BatchType::Shader:	  return shader_.IsAvailable();
 		default:				  PTGN_ERROR("Failed to identify batch type when checking availability");
 	}
 }
@@ -244,80 +196,23 @@ void Batch::Clear() {
 	triangle_.Clear();
 	line_.Clear();
 	point_.Clear();
-	shader_.Clear();
 }
 
-void RendererData::Init() {
-	auto get_indices = [](std::size_t max_indices, const auto& generator) {
-		std::vector<std::uint32_t> indices;
-		indices.resize(max_indices);
-		std::generate(indices.begin(), indices.end(), generator);
-		return indices;
-	};
-
-	constexpr std::array<std::uint32_t, 6> quad_index_pattern{ 0, 1, 2, 2, 3, 0 };
-
-	auto quad_generator = [&quad_index_pattern, offset = 0, pattern_index = 0]() mutable {
-		auto index = offset + quad_index_pattern[pattern_index];
-		pattern_index++;
-		if (pattern_index % quad_index_pattern.size() == 0) {
-			offset		  += 4;
-			pattern_index  = 0;
-		}
-		return index;
-	};
-
-	auto iota = [i = 0]() mutable {
-		return i++;
-	};
-
-	quad_ib_	 = { get_indices(batch_capacity * 6, quad_generator) };
-	triangle_ib_ = { get_indices(batch_capacity * 3, iota) };
-	line_ib_	 = { get_indices(batch_capacity * 2, iota) };
-	point_ib_	 = { get_indices(batch_capacity * 1, iota) };
-	shader_ib_	 = { std::array<std::uint32_t, 6>{ 0, 1, 2, 2, 3, 0 } };
-
-	// First texture slot is occupied by white texture
-	white_texture_ = ptgn::Texture({ color::White }, { 1, 1 });
-
-	max_texture_slots_ = GLRenderer::GetMaxTextureSlots();
-
-	SetupShaders();
-}
-
-void RendererData::SetupShaders() {
-	quad_shader_   = game.shader.Get(PresetShader::Quad);
-	circle_shader_ = game.shader.Get(PresetShader::Circle);
-	color_shader_  = game.shader.Get(PresetShader::Color);
-
-	PTGN_ASSERT(quad_shader_.IsValid());
-	PTGN_ASSERT(circle_shader_.IsValid());
-	PTGN_ASSERT(color_shader_.IsValid());
-
-	std::vector<std::int32_t> samplers(max_texture_slots_);
-	std::iota(samplers.begin(), samplers.end(), 0);
-
-	quad_shader_.Bind();
-	quad_shader_.SetUniform("u_Texture", samplers.data(), samplers.size());
-}
-
-bool RendererData::FlushLayer(RenderLayer& layer, const M4_float& shader_view_projection) {
+void RenderData::FlushLayer(RenderLayer& layer) {
 	if (layer.batch_map.empty()) {
-		return false;
+		return;
 	}
 
 	ptgn::Shader bound_shader;
 
-	bool default_vp{ shader_view_projection.IsZero() };
-
-	if (layer.new_view_projection && default_vp) {
-		circle_shader_.Bind();
-		circle_shader_.SetUniform("u_ViewProjection", layer.view_projection);
-		color_shader_.Bind();
-		color_shader_.SetUniform("u_ViewProjection", layer.view_projection);
-		quad_shader_.Bind();
-		quad_shader_.SetUniform("u_ViewProjection", layer.view_projection);
-		bound_shader			  = quad_shader_;
+	if (layer.new_view_projection) {
+		game.renderer.circle_shader_.Bind();
+		game.renderer.circle_shader_.SetUniform("u_ViewProjection", layer.view_projection);
+		game.renderer.color_shader_.Bind();
+		game.renderer.color_shader_.SetUniform("u_ViewProjection", layer.view_projection);
+		game.renderer.quad_shader_.Bind();
+		game.renderer.quad_shader_.SetUniform("u_ViewProjection", layer.view_projection);
+		bound_shader			  = game.renderer.quad_shader_;
 		layer.new_view_projection = false;
 	}
 
@@ -344,9 +239,7 @@ bool RendererData::FlushLayer(RenderLayer& layer, const M4_float& shader_view_pr
 
 	// Flush batches in order of z_index.
 	for (auto& [z_index, batches] : layer.batch_map) {
-		FlushBatches(
-			batches, default_vp ? layer.view_projection : shader_view_projection, bound_shader
-		);
+		FlushBatches(batches, bound_shader);
 	}
 
 	// TODO: Re-enable when opaque batching is figured out
@@ -371,13 +264,11 @@ bool RendererData::FlushLayer(RenderLayer& layer, const M4_float& shader_view_pr
 	//}
 
 	layer.batch_map.clear();
-
-	return true;
 }
 
-void RendererData::FlushType(
+void RenderData::FlushType(
 	std::vector<Batch>& batches, const ptgn::Shader& shader, BatchType type,
-	const M4_float& view_projection, ptgn::Shader& bound_shader
+	ptgn::Shader& bound_shader
 ) {
 	for (auto& batch : batches) {
 		if (batch.IsFlushed(type)) {
@@ -387,22 +278,19 @@ void RendererData::FlushType(
 			shader.Bind();
 			bound_shader = shader;
 		}
-		batch.Flush(*this, type, view_projection);
+		batch.Flush(type);
 	}
 };
 
-void RendererData::FlushBatches(
-	std::vector<Batch>& batches, const M4_float& view_projection, ptgn::Shader& bound_shader
-) {
-	FlushType(batches, quad_shader_, BatchType::Quad, view_projection, bound_shader);
-	FlushType(batches, circle_shader_, BatchType::Circle, view_projection, bound_shader);
-	FlushType(batches, color_shader_, BatchType::Triangle, view_projection, bound_shader);
-	FlushType(batches, color_shader_, BatchType::Line, view_projection, bound_shader);
-	FlushType(batches, color_shader_, BatchType::Point, view_projection, bound_shader);
-	FlushType(batches, {}, BatchType::Shader, view_projection, bound_shader);
+void RenderData::FlushBatches(std::vector<Batch>& batches, ptgn::Shader& bound_shader) {
+	FlushType(batches, game.renderer.quad_shader_, BatchType::Quad, bound_shader);
+	FlushType(batches, game.renderer.circle_shader_, BatchType::Circle, bound_shader);
+	FlushType(batches, game.renderer.color_shader_, BatchType::Triangle, bound_shader);
+	FlushType(batches, game.renderer.color_shader_, BatchType::Line, bound_shader);
+	FlushType(batches, game.renderer.color_shader_, BatchType::Point, bound_shader);
 }
 
-std::array<V2_float, 4> RendererData::GetTextureCoordinates(
+std::array<V2_float, 4> RenderData::GetTextureCoordinates(
 	const V2_float& source_position, V2_float source_size, const V2_float& texture_size, Flip flip,
 	bool offset_texels
 ) {
@@ -442,7 +330,7 @@ std::array<V2_float, 4> RendererData::GetTextureCoordinates(
 	return texture_coordinates;
 }
 
-RenderLayer& RendererData::GetRenderLayer(std::size_t render_layer) {
+RenderLayer& RenderData::GetRenderLayer(std::size_t render_layer) {
 	if (auto it = render_layers_.find(render_layer); it != render_layers_.end()) {
 		return it->second;
 	}
@@ -450,23 +338,11 @@ RenderLayer& RendererData::GetRenderLayer(std::size_t render_layer) {
 	return new_it->second;
 }
 
-void RendererData::AddShader(
-	const ptgn::Shader& shader, const std::array<V2_float, 4>& vertices,
-	const ptgn::Texture& texture, BlendMode blend_mode, const std::array<V2_float, 4>& tex_coords,
-	float z_index, std::size_t render_layer
-) {
-	// TODO: Consider if the shader draw is counted as opaque or transparent.
-	auto& batch_group = GetBatchGroup(GetRenderLayer(render_layer).batch_map, 1.0f, z_index);
-	VertexArray vertex_array{ TextureVertices(vertices, tex_coords, z_index), shader_ib_ };
-	GetBatch(BatchType::Shader, batch_group).shader_.Get() =
-		ShaderVertex(vertex_array, shader, texture, blend_mode);
-}
-
-void RendererData::AddQuad(
+void RenderData::AddPrimitiveQuad(
 	const std::array<V2_float, 4>& vertices, float z_index, const V4_float& color,
 	const std::array<V2_float, 4>& tex_coords, const ptgn::Texture& t, std::size_t render_layer
 ) {
-	if (t == white_texture_) {
+	if (t == game.renderer.white_texture_) {
 		auto& batch_group = GetBatchGroup(GetRenderLayer(render_layer).batch_map, color.w, z_index);
 		GetBatch(BatchType::Quad, batch_group).quad_.Get() =
 			QuadVertices(vertices, z_index, color, tex_coords, 0.0f);
@@ -481,7 +357,7 @@ void RendererData::AddQuad(
 		QuadVertices(vertices, z_index, color, tex_coords, static_cast<float>(texture_index));
 }
 
-void RendererData::AddCircle(
+void RenderData::AddPrimitiveCircle(
 	const std::array<V2_float, 4>& vertices, float z_index, const V4_float& color, float line_width,
 	std::size_t render_layer, float fade
 ) {
@@ -490,7 +366,7 @@ void RendererData::AddCircle(
 		CircleVertices(vertices, z_index, color, line_width, fade);
 }
 
-void RendererData::AddTriangle(
+void RenderData::AddPrimitiveTriangle(
 	const V2_float& a, const V2_float& b, const V2_float& c, float z_index, const V4_float& color,
 	std::size_t render_layer
 ) {
@@ -499,7 +375,7 @@ void RendererData::AddTriangle(
 		TriangleVertices({ a, b, c }, z_index, color);
 }
 
-void RendererData::AddLine(
+void RenderData::AddPrimitiveLine(
 	const V2_float& p0, const V2_float& p1, float z_index, const V4_float& color,
 	std::size_t render_layer
 ) {
@@ -507,7 +383,7 @@ void RendererData::AddLine(
 	GetBatch(BatchType::Line, batch_group).line_.Get() = LineVertices({ p0, p1 }, z_index, color);
 }
 
-void RendererData::AddPoint(
+void RenderData::AddPrimitivePoint(
 	const V2_float& position, float z_index, const V4_float& color, std::size_t render_layer
 ) {
 	auto& batch_group = GetBatchGroup(GetRenderLayer(render_layer).batch_map, color.w, z_index);
@@ -515,7 +391,7 @@ void RendererData::AddPoint(
 		PointVertices({ position }, z_index, color);
 }
 
-std::vector<Batch>& RendererData::GetBatchGroup(BatchMap& batch_map, float alpha, float z_index) {
+std::vector<Batch>& RenderData::GetBatchGroup(BatchMap& batch_map, float alpha, float z_index) {
 	// TODO: Add opaque batches back once you figure out how to do it using depth testing.
 	/*
 	if (NearlyEqual(alpha, 1.0f)) { // opaque object
@@ -531,29 +407,31 @@ std::vector<Batch>& RendererData::GetBatchGroup(BatchMap& batch_map, float alpha
 		return it->second;
 	}
 	std::vector<Batch> new_batch_group;
-	new_batch_group.emplace_back(max_texture_slots_);
+	new_batch_group.emplace_back();
 	auto new_it = batch_map.emplace(z_index_key, std::move(new_batch_group)).first;
 	PTGN_ASSERT(!new_it->second.empty());
-	PTGN_ASSERT(new_it->second.at(0).quad_.GetTextureSlotCapacity() == max_texture_slots_ - 1);
+	PTGN_ASSERT(
+		new_it->second.at(0).quad_.GetTextureSlotCapacity() == game.renderer.max_texture_slots_ - 1
+	);
 	return new_it->second;
 }
 
-Batch& RendererData::GetBatch(BatchType type, std::vector<Batch>& batch_group) {
+Batch& RenderData::GetBatch(BatchType type, std::vector<Batch>& batch_group) {
 	PTGN_ASSERT(!batch_group.empty());
 	if (auto& latest_batch = batch_group.back(); latest_batch.IsAvailable(type)) {
 		return latest_batch;
 	}
-	return batch_group.emplace_back(max_texture_slots_);
+	return batch_group.emplace_back();
 }
 
-std::pair<Batch&, std::size_t> RendererData::GetTextureBatch(
+std::pair<Batch&, std::size_t> RenderData::GetTextureBatch(
 
 	std::vector<Batch>& batch_group, const ptgn::Texture& t
 ) {
 	PTGN_ASSERT(!batch_group.empty());
 	PTGN_ASSERT(t.IsValid());
 	for (std::size_t i{ 0 }; i < batch_group.size(); i++) {
-		auto& batch = batch_group[i];
+		auto& batch{ batch_group[i] };
 		if (!batch.quad_.IsAvailable()) {
 			continue;
 		}
@@ -562,14 +440,14 @@ std::pair<Batch&, std::size_t> RendererData::GetTextureBatch(
 			return { batch, texture_index };
 		}
 	}
-	auto& new_batch{ batch_group.emplace_back(max_texture_slots_) };
+	auto& new_batch{ batch_group.emplace_back() };
 	auto [texture_index, has_available_index] = new_batch.quad_.GetTextureIndex(t);
 	PTGN_ASSERT(has_available_index);
 	PTGN_ASSERT(texture_index == 1);
 	return { new_batch, texture_index };
 }
 
-void RendererData::FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip) {
+void RenderData::FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip) {
 	const auto flip_x = [&]() {
 		std::swap(texture_coords[0].x, texture_coords[1].x);
 		std::swap(texture_coords[2].x, texture_coords[3].x);
@@ -590,26 +468,16 @@ void RendererData::FlipTextureCoordinates(std::array<V2_float, 4>& texture_coord
 	}
 }
 
-void RendererData::Shader(
-	const ptgn::Shader& shader, const std::array<V2_float, 4>& vertices,
-	const ptgn::Texture& texture, BlendMode blend_mode, const std::array<V2_float, 4>& tex_coords,
-	float z_index, std::size_t render_layer
-) {
-	PTGN_ASSERT(shader.IsValid(), "Cannot render invalid shader");
-	PTGN_ASSERT(texture.IsValid(), "Cannot render shader with invalid texture");
-	AddShader(shader, vertices, texture, blend_mode, tex_coords, z_index, render_layer);
-}
-
-void RendererData::Texture(
+void RenderData::AddTexture(
 	const std::array<V2_float, 4>& vertices, const ptgn::Texture& t,
 	const std::array<V2_float, 4>& tex_coords, const V4_float& tint_color, float z,
 	std::size_t render_layer
 ) {
 	PTGN_ASSERT(t.IsValid(), "Cannot draw uninitialized or destroyed texture");
-	AddQuad(vertices, z, tint_color, tex_coords, t, render_layer);
+	AddPrimitiveQuad(vertices, z, tint_color, tex_coords, t, render_layer);
 }
 
-void RendererData::Ellipse(
+void RenderData::AddEllipse(
 	const V2_float& p, const V2_float& r, const V4_float& col, float lw, float z,
 	std::size_t render_layer, float fade
 ) {
@@ -622,10 +490,10 @@ void RendererData::Ellipse(
 	// TODO: Check that dividing by std::max(radius.x, radius.y) does not cause any unexpected bugs.
 	lw = NearlyEqual(lw, -1.0f) ? 1.0f : fade + lw / std::min(r.x, r.y);
 
-	AddCircle(rect.GetVertices({ 0.5f, 0.5f }), z, col, lw, render_layer, fade);
+	AddPrimitiveCircle(rect.GetVertices({ 0.5f, 0.5f }), z, col, lw, render_layer, fade);
 }
 
-void RendererData::Line(
+void RenderData::AddLine(
 	const V2_float& p0, const V2_float& p1, const V4_float& col, float lw, float z,
 	std::size_t render_layer
 ) {
@@ -635,43 +503,43 @@ void RendererData::Line(
 		V2_float d{ p1 - p0 };
 		// TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
 		ptgn::Rect rect{ p0 + d * 0.5f, { d.Magnitude(), lw }, Origin::Center, d.Angle() };
-		RendererData::Rect(rect.GetVertices({ 0.5f, 0.5f }), col, -1.0f, z, render_layer);
+		AddRect(rect.GetVertices({ 0.5f, 0.5f }), col, -1.0f, z, render_layer);
 		return;
 	}
 
-	AddLine(p0, p1, z, col, render_layer);
+	AddPrimitiveLine(p0, p1, z, col, render_layer);
 }
 
-void RendererData::Point(
+void RenderData::AddPoint(
 	const V2_float& p, const V4_float& col, float r, float z, std::size_t render_layer, float fade
 ) {
 	if (r < 1.0f || NearlyEqual(r, 1.0f)) {
-		AddPoint(p, z, col, render_layer);
+		AddPrimitivePoint(p, z, col, render_layer);
 	} else {
-		RendererData::Ellipse(p, { r, r }, col, -1.0f, z, render_layer, fade);
+		AddEllipse(p, { r, r }, col, -1.0f, z, render_layer, fade);
 	}
 }
 
-void RendererData::Triangle(
+void RenderData::AddTriangle(
 	const V2_float& a, const V2_float& b, const V2_float& c, const V4_float& col, float lw, float z,
 	std::size_t render_layer
 ) {
 	if (lw == -1.0f) {
-		AddTriangle(a, b, c, z, col, render_layer);
+		AddPrimitiveTriangle(a, b, c, z, col, render_layer);
 	} else {
 		PTGN_ASSERT(lw >= 0.0f, "Cannot draw negative thickness triangle");
 		std::array<V2_float, 3> vertices{ a, b, c };
-		RendererData::Polygon(vertices.data(), vertices.size(), col, lw, z, render_layer);
+		AddPolygon(vertices.data(), vertices.size(), col, lw, z, render_layer);
 	}
 }
 
-void RendererData::Rect(
+void RenderData::AddRect(
 	const std::array<V2_float, 4>& vertices, const V4_float& col, float lw, float z,
 	std::size_t render_layer
 ) {
 	if (lw == -1.0f) {
-		RendererData::Texture(
-			vertices, white_texture_,
+		AddTexture(
+			vertices, game.renderer.white_texture_,
 			{
 				V2_float{ 0.0f, 0.0f },
 				V2_float{ 1.0f, 0.0f },
@@ -682,14 +550,12 @@ void RendererData::Rect(
 		);
 	} else {
 		for (std::size_t i{ 0 }; i < vertices.size(); i++) {
-			RendererData::Line(
-				vertices[i], vertices[(i + 1) % vertices.size()], col, lw, z, render_layer
-			);
+			AddLine(vertices[i], vertices[(i + 1) % vertices.size()], col, lw, z, render_layer);
 		}
 	}
 }
 
-void RendererData::RoundedRect(
+void RenderData::AddRoundedRect(
 	const V2_float& p, const V2_float& s, float rad, const V4_float& col, Origin o, float lw,
 	float rotation_radians, const V2_float& rc, float z, std::size_t render_layer, float fade
 ) {
@@ -721,19 +587,19 @@ void RendererData::RoundedRect(
 
 	auto inner_vertices = inner_rect.GetVertices(rc);
 
-	RendererData::Arc(
+	AddArc(
 		inner_vertices[0], rad, rot - pi<float>, rot - half_pi<float>, false, col, lw, z,
 		render_layer, fade
 	);
-	RendererData::Arc(
+	AddArc(
 		inner_vertices[1], rad, rot - half_pi<float>, rot + 0.0f, false, col, lw, z, render_layer,
 		fade
 	);
-	RendererData::Arc(
+	AddArc(
 		inner_vertices[2], rad, rot + 0.0f, rot + half_pi<float>, false, col, lw, z, render_layer,
 		fade
 	);
-	RendererData::Arc(
+	AddArc(
 		inner_vertices[3], rad, rot + half_pi<float>, rot + pi<float>, false, col, lw, z,
 		render_layer, fade
 	);
@@ -741,25 +607,17 @@ void RendererData::RoundedRect(
 	float line_thickness{ lw };
 
 	if (filled) {
-		RendererData::Rect(inner_vertices, col, lw, z, render_layer);
+		AddRect(inner_vertices, col, lw, z, render_layer);
 		line_thickness = rad;
 	}
 
-	RendererData::Line(
-		inner_vertices[0] + t, inner_vertices[1] + t, col, line_thickness, z, render_layer
-	);
-	RendererData::Line(
-		inner_vertices[1] + r, inner_vertices[2] + r, col, line_thickness, z, render_layer
-	);
-	RendererData::Line(
-		inner_vertices[2] + b, inner_vertices[3] + b, col, line_thickness, z, render_layer
-	);
-	RendererData::Line(
-		inner_vertices[3] + l, inner_vertices[0] + l, col, line_thickness, z, render_layer
-	);
+	AddLine(inner_vertices[0] + t, inner_vertices[1] + t, col, line_thickness, z, render_layer);
+	AddLine(inner_vertices[1] + r, inner_vertices[2] + r, col, line_thickness, z, render_layer);
+	AddLine(inner_vertices[2] + b, inner_vertices[3] + b, col, line_thickness, z, render_layer);
+	AddLine(inner_vertices[3] + l, inner_vertices[0] + l, col, line_thickness, z, render_layer);
 }
 
-void RendererData::Arc(
+void RenderData::AddArc(
 	const V2_float& p, float arc_radius, float start_angle_radians, float end_angle_radians,
 	bool clockwise, const V4_float& col, float lw, float z, std::size_t render_layer, float fade
 ) {
@@ -770,7 +628,7 @@ void RendererData::Arc(
 
 	// Edge case where arc is a point.
 	if (NearlyEqual(arc_radius, 0.0f)) {
-		RendererData::Point(p, col, 1.0f, z, render_layer, fade);
+		AddPoint(p, col, 1.0f, z, render_layer, fade);
 		return;
 	}
 
@@ -781,7 +639,7 @@ void RendererData::Arc(
 	// Edge case where start and end angles match (considered a full rotation).
 	if (float range{ start_angle - end_angle };
 		NearlyEqual(range, 0.0f) || NearlyEqual(range, two_pi<float>)) {
-		RendererData::Ellipse(p, { arc_radius, arc_radius }, col, lw, z, render_layer, fade);
+		AddEllipse(p, { arc_radius, arc_radius }, col, lw, z, render_layer, fade);
 	}
 
 	if (start_angle > end_angle) {
@@ -818,20 +676,20 @@ void RendererData::Arc(
 
 		if (filled) {
 			for (std::size_t i{ 0 }; i < v.size() - 1; i++) {
-				RendererData::Triangle(p, v[i], v[i + 1], col, lw, z, render_layer);
+				AddTriangle(p, v[i], v[i + 1], col, lw, z, render_layer);
 			}
 		} else {
 			PTGN_ASSERT(lw >= 0.0f, "Must provide valid line width when drawing hollow arc");
 			for (std::size_t i{ 0 }; i < v.size() - 1; i++) {
-				RendererData::Line(v[i], v[i + 1], col, lw, z, render_layer);
+				AddLine(v[i], v[i + 1], col, lw, z, render_layer);
 			}
 		}
 	} else {
-		RendererData::Point(p, col, 1.0f, z, render_layer, fade);
+		AddPoint(p, col, 1.0f, z, render_layer, fade);
 	}
 }
 
-void RendererData::Capsule(
+void RenderData::AddCapsule(
 	const V2_float& p0, const V2_float& p1, float r, const V4_float& col, float lw, float z,
 	std::size_t render_layer, float fade
 ) {
@@ -843,7 +701,7 @@ void RendererData::Capsule(
 
 	// Note that dir2 is an int.
 	if (NearlyEqual(dir2, 0.0f)) {
-		RendererData::Ellipse(p0, { r, r }, col, lw, z, render_layer, fade);
+		AddEllipse(p0, { r, r }, col, lw, z, render_layer, fade);
 		return;
 	} else {
 		V2_float tmp = dir.Skewed() / std::sqrt(dir2) * r;
@@ -855,7 +713,7 @@ void RendererData::Capsule(
 
 	if (lw == -1.0f) {
 		// Draw central line.
-		RendererData::Line(p0, p1, col, r * 2.0f, z, render_layer);
+		AddLine(p0, p1, col, r * 2.0f, z, render_layer);
 
 		// How many radians into the line the arc protrudes.
 		constexpr float delta{ DegToRad(0.5f) };
@@ -863,20 +721,42 @@ void RendererData::Capsule(
 		end_angle	+= delta;
 	} else {
 		// Draw edge lines.
-		RendererData::Line(p0 + tangent_r, p1 + tangent_r, col, lw, z, render_layer);
-		RendererData::Line(p0 - tangent_r, p1 - tangent_r, col, lw, z, render_layer);
+		AddLine(p0 + tangent_r, p1 + tangent_r, col, lw, z, render_layer);
+		AddLine(p0 - tangent_r, p1 - tangent_r, col, lw, z, render_layer);
 	}
 
 	// Draw edge arcs.
-	RendererData::Arc(
-		p0, r, start_angle, end_angle + pi<float>, false, col, lw, z, render_layer, fade
-	);
-	RendererData::Arc(
-		p1, r, start_angle + pi<float>, end_angle, false, col, lw, z, render_layer, fade
-	);
+	AddArc(p0, r, start_angle, end_angle + pi<float>, false, col, lw, z, render_layer, fade);
+	AddArc(p1, r, start_angle + pi<float>, end_angle, false, col, lw, z, render_layer, fade);
 }
 
-void RendererData::Polygon(
+void RenderData::SetViewProjection(const M4_float& view_projection) {
+	for (auto& [idx, layer] : render_layers_) {
+		layer.view_projection	  = view_projection;
+		layer.new_view_projection = true;
+	}
+}
+
+void RenderData::FlushLayers() {
+	auto& cm{ game.scene.GetTopActive().camera };
+	for (auto& [number, layer] : render_layers_) {
+		layer.Update(number, cm);
+		FlushLayer(layer);
+	}
+}
+
+void RenderData::FlushLayer(std::size_t render_layer) {
+	auto it = render_layers_.find(render_layer);
+	PTGN_ASSERT(
+		it != render_layers_.end(),
+		"Cannot flush render layer which has not been used/generated by the renderer"
+	);
+	auto& layer{ it->second };
+	layer.Update(render_layer, game.scene.GetTopActive().camera);
+	FlushLayer(layer);
+}
+
+void RenderData::AddPolygon(
 	const V2_float* vertices, std::size_t vertex_count, const V4_float& col, float lw, float z,
 	std::size_t render_layer
 ) {
@@ -885,15 +765,27 @@ void RendererData::Polygon(
 		auto triangles = Triangulate(vertices, vertex_count);
 
 		for (const auto& t : triangles) {
-			RendererData::Triangle(t.a, t.b, t.c, col, lw, z, render_layer);
+			AddTriangle(t.a, t.b, t.c, col, lw, z, render_layer);
 		}
 	} else {
 		for (std::size_t i{ 0 }; i < vertex_count; i++) {
-			RendererData::Line(
-				vertices[i], vertices[(i + 1) % vertex_count], col, lw, z, render_layer
-			);
+			AddLine(vertices[i], vertices[(i + 1) % vertex_count], col, lw, z, render_layer);
 		}
 	}
+}
+
+void RenderLayer::Update(std::size_t layer_number, CameraManager& camera_manager) {
+	if (auto it = camera_manager.primary_cameras_.find(layer_number);
+		it != camera_manager.primary_cameras_.end()) {
+		view_projection = it->second.GetViewProjection();
+	} else {
+		// If no camera specified, use window camera.
+		view_projection = game.camera.GetWindow().GetViewProjection();
+	}
+	// TODO: Figure out how to check if view projection has been updated.
+	// I tried comparing with previous view projection but that seems to cause strange issues
+	// with the camera not following a position. Perhaps due to floating point issues?
+	new_view_projection = true;
 }
 
 } // namespace ptgn::impl

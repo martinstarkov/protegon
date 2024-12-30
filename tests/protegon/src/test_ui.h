@@ -215,13 +215,10 @@ public:
 	}
 
 	void DrawStateLabels(const Button& b) {
-		game.draw.Text(
-			Str(b.GetState()), color::Green, { b.GetRect().Center() - V2_float{ 0.0f, 50.0f } }
-		);
-		game.draw.Text(
-			Str(b.GetInternalState()), color::Orange,
-			{ b.GetRect().Center() + V2_float{ 0.0f, 50.0f } }
-		);
+		Text{ Str(b.GetState()), color::Green }.Draw({ b.GetRect().Center() -
+													   V2_float{ 0.0f, 50.0f } });
+		Text{ Str(b.GetInternalState()), color::Orange }.Draw({ b.GetRect().Center() +
+																V2_float{ 0.0f, 50.0f } });
 	}
 
 	void Update() override {

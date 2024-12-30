@@ -7,6 +7,7 @@
 #include "math/geometry/axis.h"
 #include "math/geometry/intersection.h"
 #include "math/vector2.h"
+#include "renderer/color.h"
 #include "renderer/layer_info.h"
 #include "renderer/origin.h"
 
@@ -42,7 +43,7 @@ struct Triangle {
 	// @return True if internal triangle is entirely contained by the triangle.
 	[[nodiscard]] bool Contains(const Triangle& internal) const;
 
-	void Draw(const Color& color, float line_width = 1.0f, const LayerInfo& layer_info = {}) const;
+	void Draw(const Color& color, float line_width = -1.0f, const LayerInfo& layer_info = {}) const;
 };
 
 struct Rect {
@@ -59,14 +60,32 @@ struct Rect {
 		float rotation = 0.0f
 	);
 
-	void Draw(const Color& color, float line_width = 1.0f, const LayerInfo& layer_info = {}) const;
+	[[nodiscard]] static Rect Fullscreen();
+
+	[[nodiscard]] bool operator==(const Rect& o) const {
+		return position == o.position && size == o.size && origin == o.origin &&
+			   rotation == o.rotation;
+	}
+
+	[[nodiscard]] bool operator!=(const Rect& o) const {
+		return !(*this == o);
+	}
+
+	void Draw(
+		const Color& color, float line_width = -1.0f, const LayerInfo& layer_info = {},
+		const V2_float& rotation_center = { 0.5f, 0.5f }
+	) const;
 
 	// position += offset
 	void Offset(const V2_float& offset);
 
 	// @return Each of the line segments which make up the rectangle. Currently only works for
-	// unrotated rectangles. Order is clockwise.
-	[[nodiscard]] std::array<Line, 4> GetWalls() const;
+	// unrotated rectangles. Order is clockwise starting from top edge.
+	[[nodiscard]] std::array<Line, 4> GetEdges() const;
+
+	// @return Each of the corners which make up the rectangle. Currently only works for
+	// unrotated rectangles. Order is clockwise starting from top left point..
+	[[nodiscard]] std::array<V2_float, 4> GetCorners() const;
 
 	// @return Half the size of the rectangle.
 	[[nodiscard]] V2_float Half() const;
@@ -112,6 +131,22 @@ private:
 	);
 };
 
+struct RoundedRect : public Rect {
+	float radius{ 0.0f };
+
+	RoundedRect() = default;
+
+	explicit RoundedRect(
+		const V2_float& position, float radius = 0.0f, const V2_float& size = {},
+		Origin origin = Origin::Center, float rotation = 0.0f
+	);
+
+	void Draw(
+		const Color& color, float line_width = -1.0f, const LayerInfo& layer_info = {},
+		const V2_float& rotation_center = { 0.5f, 0.5f }
+	) const;
+};
+
 struct Polygon {
 	std::vector<V2_float> vertices;
 
@@ -122,7 +157,7 @@ struct Polygon {
 
 	explicit Polygon(const std::vector<V2_float>& vertices);
 
-	void Draw(const Color& color, float line_width = 1.0f, const LayerInfo& layer_info = {}) const;
+	void Draw(const Color& color, float line_width = -1.0f, const LayerInfo& layer_info = {}) const;
 
 	// @return Centroid of the polygon.
 	[[nodiscard]] V2_float Center() const;
