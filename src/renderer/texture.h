@@ -133,6 +133,10 @@ public:
 		TextureFilter magnifying = default_minifying_filter, bool mipmaps = true
 	);
 
+	[[nodiscard]] Color GetPixel(const V2_int& coordinate) const;
+
+	void ForEachPixel(const std::function<void(V2_int, Color)>& func) const;
+
 	Texture(const std::vector<Color>& pixels, const V2_int& size);
 
 	// If destination == {}, fullscreen texture will be drawn.

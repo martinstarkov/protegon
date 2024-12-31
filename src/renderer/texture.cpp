@@ -127,6 +127,59 @@ Texture::Texture(
 	POPSTATE();
 }
 
+Color Texture::GetPixel(const V2_int& coordinate) const {
+	PTGN_ASSERT(IsValid(), "Cannot retrieve pixel of invalid texture");
+	V2_int size{ GetSize() };
+	PTGN_ASSERT(
+		coordinate.x >= 0 && coordinate.x < size.x,
+		"Cannot get pixel out of range of frame buffer texture"
+	);
+	PTGN_ASSERT(
+		coordinate.y >= 0 && coordinate.y < size.y,
+		"Cannot get pixel out of range of frame buffer texture"
+	);
+	auto formats{ impl::GetGLFormats(GetFormat()) };
+	PTGN_ASSERT(
+		formats.components_ >= 3,
+		"Cannot retrieve pixel data of texture with less than 3 RGB components"
+	);
+	std::vector<std::uint8_t> v(formats.components_ * 1 * 1);
+	int y{ size.y - 1 - coordinate.y };
+	PTGN_ASSERT(y >= 0);
+	GLCall(gl::glReadPixels(
+		coordinate.x, y, 1, 1, formats.format_, static_cast<gl::GLenum>(impl::GLType::UnsignedByte),
+		(void*)v.data()
+	));
+	return Color{ v[0], v[1], v[2],
+				  formats.components_ == 4 ? v[3] : static_cast<std::uint8_t>(255) };
+}
+
+void Texture::ForEachPixel(const std::function<void(V2_int, Color)>& func) const {
+	PTGN_ASSERT(IsValid(), "Cannot retrieve pixels of invalid texture");
+	V2_int size{ GetSize() };
+	auto formats{ impl::GetGLFormats(GetFormat()) };
+	std::vector<std::uint8_t> v(formats.components_ * size.x * size.y);
+	PTGN_ASSERT(
+		formats.components_ >= 3,
+		"Cannot retrieve pixel data of texture with less than 3 RGB components"
+	);
+	GLCall(gl::glReadPixels(
+		0, 0, size.x, size.y, formats.format_, static_cast<gl::GLenum>(impl::GLType::UnsignedByte),
+		(void*)v.data()
+	));
+	for (int j{ 0 }; j < size.y; j++) {
+		// Ensure left-to-right and top-to-bottom iteration.
+		int row{ (size.y - 1 - j) * size.x * formats.components_ };
+		for (int i{ 0 }; i < size.x; i++) {
+			int idx{ row + i * formats.components_ };
+			PTGN_ASSERT(static_cast<std::size_t>(idx) < v.size());
+			Color color{ v[idx], v[idx + 1], v[idx + 2],
+						 formats.components_ == 4 ? v[idx + 3] : static_cast<std::uint8_t>(255) };
+			std::invoke(func, V2_int{ i, j }, color);
+		}
+	}
+}
+
 Texture::Texture(const std::vector<Color>& pixels, const V2_int& size) :
 	Texture{ std::invoke([&]() {
 				 PTGN_ASSERT(

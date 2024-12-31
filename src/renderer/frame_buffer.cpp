@@ -310,62 +310,20 @@ void FrameBuffer::DrawToScreen(
 Color FrameBuffer::GetPixel(const V2_int& coordinate) const {
 	PTGN_ASSERT(IsValid(), "Cannot retrieve pixel of invalid frame buffer");
 	auto& texture{ Get().texture_ };
-	PTGN_ASSERT(
-		texture.IsValid(), "Cannot retrieve pixel of frame buffer without an attached texture"
-	);
-	V2_int size{ texture.GetSize() };
-	PTGN_ASSERT(
-		coordinate.x >= 0 && coordinate.x < size.x,
-		"Cannot get pixel out of range of frame buffer texture"
-	);
-	PTGN_ASSERT(
-		coordinate.y >= 0 && coordinate.y < size.y,
-		"Cannot get pixel out of range of frame buffer texture"
-	);
-	auto formats{ impl::GetGLFormats(texture.GetFormat()) };
-	PTGN_ASSERT(formats.components_ >= 3);
-	std::vector<std::uint8_t> v(formats.components_ * 1 * 1);
 	PUSHSTATE_FB();
 	Bind();
-	int y{ size.y - 1 - coordinate.y };
-	PTGN_ASSERT(y >= 0);
-	GLCall(gl::glReadPixels(
-		coordinate.x, y, 1, 1, formats.format_, static_cast<gl::GLenum>(impl::GLType::UnsignedByte),
-		(void*)v.data()
-	));
+	auto color{ texture.GetPixel(coordinate) };
 	POPSTATE_FB();
-	return Color{ v[0], v[1], v[2],
-				  formats.components_ == 4 ? v[3] : static_cast<std::uint8_t>(255) };
+	return color;
 }
 
 void FrameBuffer::ForEachPixel(const std::function<void(V2_int, Color)>& func) const {
 	PTGN_ASSERT(IsValid(), "Cannot retrieve pixels of invalid frame buffer");
 	auto& texture{ Get().texture_ };
-	PTGN_ASSERT(
-		texture.IsValid(), "Cannot retrieve pixels of frame buffer without an attached texture"
-	);
-	V2_int size{ texture.GetSize() };
-	auto formats{ impl::GetGLFormats(texture.GetFormat()) };
-	std::vector<std::uint8_t> v(formats.components_ * size.x * size.y);
-	PTGN_ASSERT(formats.components_ >= 3);
 	PUSHSTATE_FB();
 	Bind();
-	GLCall(gl::glReadPixels(
-		0, 0, size.x, size.y, formats.format_, static_cast<gl::GLenum>(impl::GLType::UnsignedByte),
-		(void*)v.data()
-	));
+	texture.ForEachPixel(func);
 	POPSTATE_FB();
-	for (int j{ 0 }; j < size.y; j++) {
-		// Ensure left-to-right and top-to-bottom iteration.
-		int row{ (size.y - 1 - j) * size.x * formats.components_ };
-		for (int i{ 0 }; i < size.x; i++) {
-			int idx{ row + i * formats.components_ };
-			PTGN_ASSERT(static_cast<std::size_t>(idx) < v.size());
-			Color color{ v[idx], v[idx + 1], v[idx + 2],
-						 formats.components_ == 4 ? v[idx + 3] : static_cast<std::uint8_t>(255) };
-			std::invoke(func, V2_int{ i, j }, color);
-		}
-	}
 }
 
 std::int32_t FrameBuffer::GetBoundId() {
