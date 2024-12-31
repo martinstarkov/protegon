@@ -7,6 +7,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "components/generic.h"
 #include "components/transform.h"
 #include "core/game.h"
 #include "core/manager.h"
@@ -29,28 +30,26 @@
 
 namespace ptgn {
 
-struct SpriteTint : public Color {
-	using Color::Color;
-	using Color::operator=;
-
-	SpriteTint(const Color& c) : Color{ c } {}
+struct SpriteTint : public ColorComponent {
+	using ColorComponent::ColorComponent;
 };
 
-struct DrawColor : public Color {
-	using Color::Color;
-	using Color::operator=;
-
-	DrawColor(const Color& c) : Color{ c } {}
+struct DrawColor : public ColorComponent {
+	using ColorComponent::ColorComponent;
 };
 
-using DrawLineWidth = float;
+struct DrawLineWidth : public FloatComponent {
+	using FloatComponent::FloatComponent;
+};
 
-using SpriteFlip = Flip;
+struct SpriteFlip : public FlipComponent {
+	using FlipComponent::FlipComponent;
+};
 
 inline void DrawRect(ecs::Entity entity, const Rect& rect) {
 	rect.Draw(
 		entity.Has<DrawColor>() ? entity.Get<DrawColor>() : color::Black,
-		entity.Has<DrawLineWidth>() ? entity.Get<DrawLineWidth>() : 1.0f,
+		entity.Has<DrawLineWidth>() ? entity.Get<DrawLineWidth>() : DrawLineWidth{ 1.0f },
 		entity.Has<LayerInfo>() ? entity.Get<LayerInfo>() : LayerInfo{}
 	);
 }
@@ -65,7 +64,7 @@ inline void DrawPoint(ecs::Entity entity, const V2_float& point, float radius = 
 inline void DrawCircle(ecs::Entity entity, const Circle& circle) {
 	circle.Draw(
 		entity.Has<DrawColor>() ? entity.Get<DrawColor>() : color::Black,
-		entity.Has<DrawLineWidth>() ? entity.Get<DrawLineWidth>() : 1.0f,
+		entity.Has<DrawLineWidth>() ? entity.Get<DrawLineWidth>() : DrawLineWidth{ 1.0f },
 		entity.Has<LayerInfo>() ? entity.Get<LayerInfo>() : LayerInfo{}
 	);
 }
@@ -73,7 +72,7 @@ inline void DrawCircle(ecs::Entity entity, const Circle& circle) {
 inline void DrawLine(ecs::Entity entity, const Line& line) {
 	line.Draw(
 		entity.Has<DrawColor>() ? entity.Get<DrawColor>() : color::Black,
-		entity.Has<DrawLineWidth>() ? entity.Get<DrawLineWidth>() : 1.0f,
+		entity.Has<DrawLineWidth>() ? entity.Get<DrawLineWidth>() : DrawLineWidth{ 1.0f },
 		entity.Has<LayerInfo>() ? entity.Get<LayerInfo>() : LayerInfo{}
 	);
 }
@@ -175,7 +174,7 @@ inline void DrawTexture(
 		f = Flip::Vertical;
 	}
 	TextureInfo info{ source.position, source.size,
-					  entity.Has<SpriteFlip>() ? entity.Get<SpriteFlip>() : f,
+					  entity.Has<SpriteFlip>() ? entity.Get<SpriteFlip>() : SpriteFlip{ f },
 					  entity.Has<SpriteTint>() ? entity.Get<SpriteTint>() : color::White,
 					  V2_float{ 0.5f, 0.5f } };
 	texture.Draw(dest, info, entity.Has<LayerInfo>() ? entity.Get<LayerInfo>() : LayerInfo{});

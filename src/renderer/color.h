@@ -39,6 +39,8 @@ struct Color {
 
 	constexpr Color(Type r, Type g, Type b, Type a) : r{ r }, g{ g }, b{ b }, a{ a } {}
 
+	constexpr Color(const Color& color) : r{ color.r }, g{ color.g }, b{ color.b }, a{ color.a } {}
+
 	// @return Color values normalized to 0.0f -> 1.0f range.
 	[[nodiscard]] Vector4<float> Normalized() const;
 
