@@ -6,7 +6,7 @@
 
 #include "SDL_timer.h"
 #include "audio/audio.h"
-#include "camera/camera.h"
+#include "scene/camera.h"
 #include "collision/collision.h"
 #include "core/gl_context.h"
 #include "core/manager.h"

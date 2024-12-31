@@ -5,7 +5,7 @@
 #include <string_view>
 #include <variant>
 
-#include "camera/camera.h"
+#include "scene/camera.h"
 #include "core/window.h"
 #include "frame_buffer.h"
 #include "math/geometry/polygon.h"

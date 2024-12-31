@@ -3,7 +3,7 @@
 #include <bitset>
 #include <utility>
 
-#include "camera/camera.h"
+#include "scene/camera.h"
 #include "core/game.h"
 #include "core/window.h"
 #include "event/event_handler.h"

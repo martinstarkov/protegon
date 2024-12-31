@@ -4,7 +4,7 @@
 #include <memory>
 #include <set>
 
-#include "camera/camera.h"
+#include "scene/camera.h"
 #include "renderer/color.h"
 #include "renderer/frame_buffer.h"
 #include "utility/time.h"

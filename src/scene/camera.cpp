@@ -1,4 +1,4 @@
-#include "camera/camera.h"
+#include "scene/camera.h"
 
 #include <algorithm>
 #include <functional>

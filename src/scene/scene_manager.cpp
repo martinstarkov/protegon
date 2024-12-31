@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-#include "camera/camera.h"
+#include "scene/camera.h"
 #include "core/game.h"
 #include "core/manager.h"
 #include "event/input_handler.h"

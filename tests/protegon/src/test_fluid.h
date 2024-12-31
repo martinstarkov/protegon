@@ -3,7 +3,7 @@
 #include <new>
 #include <vector>
 
-#include "camera/camera.h"
+#include "scene/camera.h"
 #include "common.h"
 #include "core/game.h"
 #include "event/input_handler.h"

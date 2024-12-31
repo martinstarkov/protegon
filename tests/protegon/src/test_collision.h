@@ -2,7 +2,7 @@
 #include <new>
 #include <vector>
 
-#include "camera/camera.h"
+#include "scene/camera.h"
 #include "collision/collider.h"
 #include "collision/collision.h"
 #include "collision/raycast.h"

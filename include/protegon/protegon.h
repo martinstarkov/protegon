@@ -6,7 +6,7 @@
 using json = nlohmann::json;
 
 #include "audio/audio.h"
-#include "camera/camera.h"
+#include "scene/camera.h"
 #include "collision/collider.h"
 #include "collision/collision.h"
 #include "components/lifetime.h"
