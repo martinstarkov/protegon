@@ -42,8 +42,8 @@ V2_int Surface::GetSize(Font font, const std::string& content) {
 	return size;
 }
 
-Surface::Surface(const std::shared_ptr<SDL_Surface>& raw_surface, ImageFormat format) {
-	PTGN_ASSERT(format != ImageFormat::Unknown, "Cannot create surface with unknown image format");
+Surface::Surface(const std::shared_ptr<SDL_Surface>& raw_surface, TextureFormat format) {
+	PTGN_ASSERT(format != TextureFormat::Unknown, "Cannot create surface with unknown texture format");
 	Create();
 	auto& s{ Get() };
 	s.format_ = format;
@@ -94,7 +94,7 @@ Surface::Surface(const std::shared_ptr<SDL_Surface>& raw_surface, ImageFormat fo
 					s.data_[index] = { 255, 255, 255, pixel[0] };
 					break;
 				}
-				default: PTGN_ERROR("Unsupported image format"); break;
+				default: PTGN_ERROR("Unsupported texture format"); break;
 			}
 		}
 	}
@@ -175,7 +175,7 @@ const std::vector<Color>& Surface::GetData() const {
 	return Get().data_;
 }
 
-ImageFormat Surface::GetImageFormat() const {
+TextureFormat Surface::GetImageFormat() const {
 	return Get().format_;
 }
 

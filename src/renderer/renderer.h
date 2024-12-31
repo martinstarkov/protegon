@@ -85,11 +85,13 @@ public:
 	IndexBuffer point_ib_;
 	IndexBuffer shader_ib_; // One set of quad indices.
 private:
+	// Sets bound_frame_buffer_
+	friend class FrameBuffer;
+
 	friend class CameraManager;
 	friend class Game;
 	friend class impl::TextureBatchData;
 	friend struct impl::RenderData;
-	friend class FrameBuffer;
 	friend class Scene;
 	friend class Shader;
 	// TODO: Think of a better way to do this.
@@ -126,8 +128,9 @@ private:
 
 	RenderData data_;
 
-	FrameBuffer screen_;
-	FrameBuffer bound_;
+	RenderTarget screen_target_;
+
+	FrameBuffer bound_frame_buffer_;
 };
 
 } // namespace impl
