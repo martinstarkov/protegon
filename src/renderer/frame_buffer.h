@@ -3,12 +3,8 @@
 #include <cstdint>
 #include <functional>
 
-#include "math/geometry/polygon.h"
-#include "math/matrix4.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
-#include "renderer/flip.h"
-#include "renderer/layer_info.h"
 #include "renderer/surface.h"
 #include "renderer/texture.h"
 #include "utility/handle.h"
@@ -34,8 +30,10 @@ public:
 	RenderBuffer()			 = default;
 	~RenderBuffer() override = default;
 
+	// @param size Desired size of the render buffer.
 	explicit RenderBuffer(const V2_int& size);
 
+	// @return Id of the currently bound render buffer.
 	[[nodiscard]] static std::int32_t GetBoundId();
 
 private:
@@ -49,11 +47,8 @@ namespace impl {
 
 struct FrameBufferInstance {
 	FrameBufferInstance();
-	FrameBufferInstance(bool resize_with_window);
-	FrameBufferInstance(const V2_float& size);
 	~FrameBufferInstance();
 
-	void CreateBlank(const V2_float& size);
 	void AttachTexture(const Texture& texture);
 	void AttachRenderBuffer(const RenderBuffer& render_buffer);
 
@@ -74,64 +69,32 @@ public:
 	FrameBuffer()			= default;
 	~FrameBuffer() override = default;
 
-	// @param continuously_window_sized If true, subscribe to window resize events, else set to
-	// current window size.
-	explicit FrameBuffer(bool continuously_window_sized);
-
-	explicit FrameBuffer(const V2_float& size);
-
 	explicit FrameBuffer(const Texture& texture);
 
 	explicit FrameBuffer(const RenderBuffer& render_buffer);
 
-	FrameBuffer(const Texture& texture, const RenderBuffer& render_buffer);
-
-	void WhileBound(
-		const std::function<void()>& draw_callback, const Color& clear_color = color::Transparent,
-		BlendMode blend_mode = BlendMode::Blend
-	);
-
-	void ClearToColor(const Color& clear_color);
-
 	void AttachTexture(const Texture& texture);
 	void AttachRenderBuffer(const RenderBuffer& render_buffer);
 
-	[[nodiscard]] V2_int GetSize() const;
-
+	// @return The texture attached to the frame buffer.
 	[[nodiscard]] Texture GetTexture() const;
+	// @return The render buffer attached to the frame buffer.
 	[[nodiscard]] RenderBuffer GetRenderBuffer() const;
 
+	// @return True if the frame buffer attachment / creation was successful, false otherwise.
 	[[nodiscard]] bool IsComplete() const;
-
+	// @return True if the frame buffer is currently bound to the context, false otherwise.
 	[[nodiscard]] bool IsBound() const;
 
 	void Bind() const;
+
+	// Bind 0 as the current frame buffer, used for rendering things to the screen.
+	// Necessary for Mac OS as per: https://wiki.libsdl.org/SDL3/SDL_GL_SwapWindow
 	static void Unbind();
 
-	// @param destination == {} results in fullscreen shader.
-	void Draw(
-		const Rect& destination = {}, const M4_float& view_projection = M4_float{ 1.0f },
-		const TextureInfo& texture_info = {}
-	) const;
-
-	// Draws and unbinds the frame buffer.
-	// @param destination == {} results in fullscreen shader.
-	void DrawToScreen(
-		const Rect& destination = {}, const M4_float& view_projection = M4_float{ 1.0f },
-		const TextureInfo& texture_info = {}
-	) const;
-
-	[[nodiscard]] Color GetPixel(const V2_int& coordinate) const;
-
-	void ForEachPixel(const std::function<void(V2_int, Color)>& func) const;
-
+private:
+	// @return Id of the currently bound frame buffer.
 	[[nodiscard]] static std::int32_t GetBoundId();
-
-	// Bind a specific frame buffer by id.
-	// Note: Will not update the renderer bound frame buffer.
-	static void Bind(std::uint32_t id);
 };
-
-using RenderTarget = FrameBuffer;
 
 } // namespace ptgn
