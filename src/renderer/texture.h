@@ -16,9 +16,32 @@
 
 namespace ptgn {
 
+// Information relating to the source pixels, flip, tinting and rotation center of the texture.
 struct TextureInfo {
 	TextureInfo() = default;
 
+	/*
+	@param flip Mirror the texture along an axis.
+	*/
+	explicit TextureInfo(Flip flip) : flip{ flip } {}
+
+	/*
+	@param tint Color to tint the texture. Allows to change the transparency of a texture.
+	(color::White corresponds to no tint effect).
+	*/
+	explicit TextureInfo(const Color& tint) : tint{ tint } {}
+
+	/*
+	@param source_position Top left pixel to start drawing texture from within the texture.
+	@param source_size Number of pixels of the texture to draw ({} which corresponds to the
+	remaining texture size to the bottom right of source_position). source.origin Relative  to
+	destination_position the direction from which the texture is.
+	@param flip Mirror the texture along an axis.
+	@param tint Color to tint the texture. Allows to change the transparency of a texture.
+	(color::White corresponds to no tint effect).
+	@param rotation_center Fraction of the source_size around which the texture is rotated ({ 0.5f,
+	0.5f } corresponds to the center of the texture).
+	*/
 	TextureInfo(
 		const V2_float& source_position, const V2_float& source_size, Flip flip = Flip::None,
 		const Color& tint = color::White, const V2_float& rotation_center = { 0.5f, 0.5f }
@@ -29,24 +52,10 @@ struct TextureInfo {
 		tint{ tint },
 		rotation_center{ rotation_center } {}
 
-	/*
-	source_position Top left pixel to start drawing texture from within the texture (defaults to {
-	0, 0}).
-	*/
 	V2_float source_position;
-	/*
-	source.size Number of pixels of the texture to draw (defaults to {} which corresponds to the
-	remaining texture size to the bottom right of source_position). source.origin Relative  to
-	destination_position the direction from which the texture is.
-	*/
 	V2_float source_size;
-	// Mirror the texture along an axis (default to Flip::None).
 	Flip flip{ Flip::None };
-	// Color to tint the texture. Allows to change the transparency of a texture. (default:
-	// color::White corresponds to no tint effect ).
 	Color tint{ color::White };
-	// Fraction of the source_size around which the texture is rotated (defaults to{ 0.5f, 0.5f }
-	// which corresponds to the center of the texture).
 	V2_float rotation_center{ 0.5f, 0.5f };
 };
 
@@ -57,7 +66,7 @@ enum class TextureWrapping {
 	MirroredRepeat = 0x8370	 // GL_MIRRORED_REPEAT
 };
 
-enum class TextureFilter {
+enum class TextureScaling {
 	Nearest				 = 0x2600, // GL_NEAREST
 	Linear				 = 0x2601, // GL_LINEAR
 	NearestMipmapNearest = 0x2700, // GL_NEAREST_MIPMAP_NEAREST
@@ -67,11 +76,6 @@ enum class TextureFilter {
 };
 
 namespace impl {
-
-class Renderer;
-class RendererData;
-class TextureBatchData;
-struct FrameBufferInstance;
 
 enum class InternalGLFormat {
 	RGB8  = 0x8051, // GL_RGB8
@@ -85,8 +89,8 @@ enum class TextureParameter {
 	WrapS		= 0x2802, // GL_TEXTURE_WRAP_S
 	WrapT		= 0x2803, // GL_TEXTURE_WRAP_T
 	WrapR		= 0x8072, // GL_TEXTURE_WRAP_R
-	MagFilter	= 0x2800, // GL_TEXTURE_MAG_FILTER
-	MinFilter	= 0x2801, // GL_TEXTURE_MIN_FILTER
+	MagScaling	= 0x2800, // GL_TEXTURE_MAG_FILTER
+	MinScaling	= 0x2801, // GL_TEXTURE_MIN_FILTER
 };
 
 struct GLFormats {
@@ -95,89 +99,183 @@ struct GLFormats {
 	int components_{ 0 };
 };
 
-[[nodiscard]] GLFormats GetGLFormats(ImageFormat format);
+[[nodiscard]] GLFormats GetGLFormats(TextureFormat format);
 
 struct TextureInstance {
-	TextureInstance();
+	TextureInstance(
+		const void* pixel_data, const V2_int& size, TextureFormat format, TextureWrapping wrapping,
+		TextureScaling minifying, TextureScaling magnifying, bool mipmaps, bool resize_with_window
+	);
 	~TextureInstance();
+
+	void CreateTexture(
+		const void* pixel_data, const V2_int& size, TextureFormat format, TextureWrapping wrapping,
+		TextureScaling minifying, TextureScaling magnifying, bool mipmaps
+	);
+
+	void SetData(const void* pixel_data, const V2_int& size, TextureFormat format);
+
+	void SetWrappingX(TextureWrapping x) const;
+	void SetWrappingY(TextureWrapping y) const;
+	void SetWrappingZ(TextureWrapping z) const;
+
+	void SetScalingMinifying(TextureScaling minifying) const;
+	void SetScalingMagnifying(TextureScaling magnifying) const;
+
+	void Bind() const;
 
 	std::uint32_t id_{ 0 };
 	V2_int size_;
-	ImageFormat format_{ ImageFormat::RGBA8888 };
+	TextureFormat format_{ TextureFormat::RGBA8888 };
 };
 
 } // namespace impl
 
 class Texture : public Handle<impl::TextureInstance> {
 public:
-	Texture()			= default;
-	~Texture() override = default;
+	// Default values for texture format, scaling, and wrapping.
 
-private:
-	constexpr const static TextureFilter default_minifying_filter{ TextureFilter::Nearest };
-	constexpr const static TextureFilter default_magnifying_filter{ TextureFilter::Nearest };
+	constexpr const static TextureFormat default_format{ TextureFormat::RGBA8888 };
+	constexpr const static TextureScaling default_minifying_scaling{ TextureScaling::Nearest };
+	constexpr const static TextureScaling default_magnifying_scaling{ TextureScaling::Nearest };
 	constexpr const static TextureWrapping default_wrapping{ TextureWrapping::ClampEdge };
 
-public:
-	constexpr const static ImageFormat default_format{ ImageFormat::RGBA8888 };
+	Texture() = default;
 
-public:
-	Texture(const path& image_path, ImageFormat format = default_format);
+	~Texture() override = default;
 
-	explicit Texture(const Surface& surface);
+	// @param image_path Path to the texture relative to the working directory.
+	// @param format Specifies the format of the pixel data.
+	Texture(const path& image_path, TextureFormat format = default_format);
 
-	Texture(
-		const void* pixel_data, const V2_int& size, ImageFormat format,
-		TextureWrapping wrapping = default_wrapping,
-		TextureFilter minifying	 = default_minifying_filter,
-		TextureFilter magnifying = default_minifying_filter, bool mipmaps = true
-	);
-
-	[[nodiscard]] Color GetPixel(const V2_int& coordinate) const;
-
-	void ForEachPixel(const std::function<void(V2_int, Color)>& func) const;
-
+	// @param pixels One dimensionalized array of pixels containing the texture data.
+	// @param size Size of the texture. Area must match length of pixels array.
 	Texture(const std::vector<Color>& pixels, const V2_int& size);
 
-	// If destination == {}, fullscreen texture will be drawn.
-	// If destination != {} and destination.size == {}, texture size is used.
+	// @param coordinate Pixel coordinate from [0, size).
+	// @return Color value of the given pixel.
+	// Note: Only RGB/RGBA format textures supported.
+	[[nodiscard]] Color GetPixel(const V2_int& coordinate) const;
+
+	// @param callback Function to be called for each pixel.
+	// Note: Only RGB/RGBA format textures supported.
+	void ForEachPixel(const std::function<void(V2_int, Color)>& callback) const;
+
+	// @param destination Destination to draw the texture to. If destination == {}, fullscreen
+	// texture will be drawn, else if destination.size == {}, unscaled texture size is used.
+	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
+	// center of the texture.
+	// @param layer_info Information relating to the z index and render target of the texture.
+	// Defaults to currently active scene.
 	void Draw(
 		const Rect& destination = {}, const TextureInfo& texture_info = {},
 		const LayerInfo& layer_info = {}
 	) const;
 
-	void SetWrapping(TextureWrapping s) const;
-	void SetWrapping(TextureWrapping s, TextureWrapping t) const;
-	void SetWrapping(TextureWrapping s, TextureWrapping t, TextureWrapping r) const;
+	// @param wrapping Texture wrapping in the x direction for when texture X coordinates are
+	// outside [0, 1].
+	void SetWrappingX(TextureWrapping x) const;
 
-	void SetFilters(TextureFilter minifying, TextureFilter magnifying) const;
+	// @param wrapping Texture wrapping in the y direction for when texture Y coordinates are
+	// outside [0, 1].
+	void SetWrappingY(TextureWrapping y) const;
 
-	// Sets the "out of bounds" texture color when using TextureWrapping::ClampBorder
+	// @param wrapping Texture wrapping in the z direction for when texture Z coordinates are
+	// outside [0, 1].
+	void SetWrappingZ(TextureWrapping z) const;
+
+	// @param minifying Scaling when the texture is displayed smaller than its original size.
+	void SetScalingMinifying(TextureScaling minifying) const;
+
+	// @param magnifying Scaling when the texture is displayed larger than its original size.
+	void SetScalingMagnifying(TextureScaling magnifying) const;
+
+	// @param color Texture color when using TextureWrapping::ClampBorder and texture coordinates
+	// are outside [0, 1].
 	void SetClampBorderColor(const Color& color) const;
 
+	// Automatically generate mipmaps for the texture.
 	void GenerateMipmaps() const;
 
-	void SetSubData(const void* pixel_data, ImageFormat format);
-	void SetSubData(const std::vector<Color>& pixels);
+	// Set a subimage of the texture.
+	// @param pixels One dimensionalized array of pixels containing the texture data.
+	// @param format Specifies the format of the pixel data.
+	// @param offset Specifies a texel offset within the texture array (relative to bottom left
+	// corner).
+	// @param size Specifies the size of the texture subimage (relative to the offset).
+	// @param mimap_level Specifies the level-of-detail number. Level 0 is the base image level.
+	// Level n is the nth mipmap reduction image.
+	void SetSubData(
+		const std::vector<Color>& pixels, TextureFormat format, const V2_int& offset,
+		const V2_int& size, int mipmap_level = 0
+	);
 
+	// @return Size of the texture.
 	[[nodiscard]] V2_int GetSize() const;
-	[[nodiscard]] ImageFormat GetFormat() const;
 
+	// @return Pixel format of the texture.
+	[[nodiscard]] TextureFormat GetFormat() const;
+
+	// Bind the texture to the currently active texture slot. This function does not change the
+	// active texture slot.
 	void Bind() const;
-	void Bind(std::uint32_t slot) const;
+
+	// Set the specified texture slot to active and bind the texture to that slot.
+	void Bind(std::uint32_t slot = 0) const;
+
+	// Set the specified texture slot to active and bind the texture of that slot to 0.
 	static void Unbind(std::uint32_t slot = 0);
+
+	// Set the specified texture slot to active.
 	static void SetActiveSlot(std::uint32_t slot);
 
 private:
-	friend class impl::TextureBatchData;
-	friend class impl::RendererData;
-	friend struct impl::FrameBufferInstance;
-	friend class Renderer;
+	// @param resize_with_window If true, sets the texture to resize continously to the
+	// window size. Used for drawing to render targets.
+	explicit Texture(bool resize_with_window);
 
-	[[nodiscard]] static std::int32_t GetBoundId();
+	// @param size Manually set the size of an empty texture.
+	explicit Texture(const V2_float& size);
+
+	// @param surface Construct texture from a surface. Used internally when creating text.
+	explicit Texture(const impl::Surface& surface);
+
+	// @param pixel_data Pointer to pixel data array of the texture.
+	// @param size Size of the texture.
+	// @param format Specifies the format of the pixel data.
+	// @param wrapping Wrapping behavior along all axes for when texture coordinates are outside [0,
+	// 1]. For axis specific wrapping use SetWrappingX/Y/Z.
+	// @param minifying Scaling when the texture is displayed smaller than its original size.
+	// @param magnifying Scaling when the texture is displayed larger than its original size.
+	// @param mipmaps Whether or not to automatically generate mipmaps for the texture.
+	// @param resize_with_window If true, sets the texture to resize continously to the
+	// window size. Used for drawing to render targets.
+	Texture(
+		const void* pixel_data, const V2_int& size, TextureFormat format = default_format,
+		TextureWrapping wrapping  = default_wrapping,
+		TextureScaling minifying  = default_minifying_scaling,
+		TextureScaling magnifying = default_minifying_scaling, bool mipmaps = true,
+		bool resize_with_window = false
+	);
+
+	// Set a subimage of the texture.
+	// @param pixel_data Specifies a pointer to the image data in memory.
+	// @param format Specifies the format of the pixel data.
+	// @param offset Specifies a texel offset within the texture array (relative to bottom left
+	// corner).
+	// @param size Specifies the size of the texture subimage (relative to the offset).
+	// @param mimap_level Specifies the level-of-detail number. Level 0 is the base image level.
+	// Level n is the nth mipmap reduction image.
+	void SetSubData(
+		const void* pixel_data, TextureFormat format, const V2_int& offset, const V2_int& size,
+		int mipmap_level = 0
+	);
+
+	// @return The id of the currently active texture slot.
 	[[nodiscard]] static std::int32_t GetActiveSlot();
 
-	void SetDataImpl(const void* pixel_data, const V2_int& size, ImageFormat format);
+	// @return The id of the texture bound to the currently active texture slot.
+	[[nodiscard]] static std::int32_t GetBoundId();
 };
 
 namespace impl {
