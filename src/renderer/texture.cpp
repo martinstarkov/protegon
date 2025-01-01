@@ -27,12 +27,23 @@ namespace ptgn {
 
 namespace impl {
 
+#define PUSHSTATE()           \
+	std::int32_t restore_id { \
+		Texture::GetBoundId() \
+	}
+#define POPSTATE() GLCall(gl::glBindTexture(GL_TEXTURE_2D, restore_id))
+
 TextureInstance::TextureInstance(
-	const void* pixel_data, const V2_int& size, TextureFormat format, TextureWrapping wrapping,
-	TextureScaling minifying, TextureScaling magnifying, bool mipmaps, bool resize_with_window
+	const void* pixel_data, const V2_int& size, TextureFormat format, TextureWrapping wrapping_x,
+	TextureWrapping wrapping_y, TextureScaling minifying, TextureScaling magnifying, bool mipmaps,
+	bool resize_with_window
 ) {
 	GLCall(gl::glGenTextures(1, &id_));
 	PTGN_ASSERT(id_ != 0, "Failed to generate texture using OpenGL context");
+
+	PUSHSTATE();
+
+	Bind();
 
 	if (resize_with_window) {
 		PTGN_ASSERT(
@@ -41,7 +52,13 @@ TextureInstance::TextureInstance(
 		);
 		game.event.window.Subscribe(
 			WindowEvent::Resized, this, std::function([this](const WindowResizedEvent&) {
-
+				PUSHSTATE();
+				Bind();
+				CreateTexture(
+					nullptr, game.window.GetSize(), format_, wrapping_x_, wrapping_y_, minifying_,
+					magnifying_, mipmaps_
+				);
+				POPSTATE();
 			})
 		);
 	}
@@ -58,6 +75,65 @@ void TextureInstance::CreateTexture(
 	TextureScaling minifying, TextureScaling magnifying, bool mipmaps
 ) {
 	SetData(pixel_data, size, format);
+
+	GLCall(gl::glTexParameteri(
+		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapS),
+		static_cast<int>(wrapping)
+	));
+	GLCall(gl::glTexParameteri(
+		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapT),
+		static_cast<int>(wrapping)
+	));
+	GLCall(gl::glTexParameteri(
+		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::MinScaling),
+		static_cast<int>(minifying)
+	));
+	GLCall(gl::glTexParameteri(
+		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::MagScaling),
+		static_cast<int>(magnifying)
+	));
+
+	// Minifying TextureScaling must contain the word Mipmap, otherwise mipmaps are ignored.
+	mipmaps = mipmaps && (minifying == TextureScaling::NearestMipmapNearest ||
+						  minifying == TextureScaling::LinearMipmapNearest ||
+						  minifying == TextureScaling::NearestMipmapLinear ||
+						  minifying == TextureScaling::LinearMipmapLinear);
+
+	if (mipmaps) {
+		GLCall(gl::GenerateMipmap(GL_TEXTURE_2D));
+	}
+}
+
+void TextureInstance::SetWrappingX(TextureWrapping x) {
+	PTGN_ASSERT(IsBound(), "Cannot set wrapping of texture unless it is first bound");
+	GLCall(gl::glTexParameteri(
+		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapS), static_cast<int>(x)
+	));
+	wrapping_x_ = x;
+}
+
+void TextureInstance::SetWrappingY(TextureWrapping y) {
+	PTGN_ASSERT(IsBound(), "Cannot set wrapping of texture unless it is first bound");
+	GLCall(gl::glTexParameteri(
+		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapT), static_cast<int>(y)
+	));
+	wrapping_y_ = y;
+}
+
+void TextureInstance::SetWrappingZ(TextureWrapping z) {
+	PTGN_ASSERT(IsBound(), "Cannot set wrapping of texture unless it is first bound");
+	GLCall(gl::glTexParameteri(
+		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapR), static_cast<int>(z)
+	));
+	wrapping_z_ = z;
+}
+
+void TextureInstance::Bind() const {
+	GLCall(gl::glBindTexture(GL_TEXTURE_2D, id_));
+}
+
+bool TextureInstance::IsBound() const {
+	return Texture::GetBoundId() == static_cast<std::int32_t>(id_);
 }
 
 void TextureInstance::SetData(const void* pixel_data, const V2_int& size, TextureFormat format) {
@@ -108,68 +184,54 @@ GLFormats GetGLFormats(TextureFormat format) {
 
 } // namespace impl
 
-Texture::Texture(const path& image_path, TextureFormat format) :
-	Texture{
-		std::invoke([&]() {
-			PTGN_ASSERT(
-				format != TextureFormat::Unknown,
-				"Cannot create texture with unknown texture format"
-			);
-			PTGN_ASSERT(
-				FileExists(image_path),
-				"Cannot create texture from file path which does not exist: ", image_path.string()
-			);
-			return Surface{ image_path };
-		}),
-	} {}
+Texture::Texture(
+	const void* pixel_data, const V2_int& size, TextureFormat format, TextureWrapping wrapping_x,
+	TextureWrapping wrapping_y, TextureScaling minifying, TextureScaling magnifying, bool mipmaps,
+	bool resize_with_window
+) {
+	Create(
+		pixel_data, size, format, wrapping_x, wrapping_y, minifying, magnifying, mipmaps,
+		resize_with_window
+	);
+}
+
+Texture::Texture(const path& image_path) :
+	Texture{ std::invoke([&]() {
+		PTGN_ASSERT(
+			FileExists(image_path),
+			"Cannot create texture from file path which does not exist: ", image_path.string()
+		);
+		Surface s{ image_path };
+		PTGN_ASSERT(
+			s.GetImageFormat() != TextureFormat::Unknown,
+			"Cannot create texture with unknown texture format"
+		);
+		return s;
+	}) } {}
 
 Texture::Texture(const Surface& surface) : Texture{ surface.GetData(), surface.GetSize() } {}
 
-Texture::Texture(bool resize_with_window) {}
+Texture::Texture(bool resize_with_window) :
+	Texture{ nullptr,
+			 game.window.GetSize(),
+			 default_format,
+			 default_wrapping,
+			 default_wrapping,
+			 default_minifying_scaling,
+			 default_magnifying_scaling,
+			 false,
+			 resize_with_window } {}
 
 Texture::Texture(const V2_float& size) :
-	Texture{ nullptr, size, TextureFormat::RGBA8888, TextureWrapping::ClampEdge,
-			 TextureScaling::Nearest } {
-	Texture {
-		nullptr, size, TextureFormat::RGBA8888, , TextureScaling::Nearest, false
-	}
-}
-
-Texture::Texture(
-	const void* pixel_data, const V2_int& size, TextureFormat format, TextureWrapping wrapping,
-	TextureScaling minifying, TextureScaling magnifying, bool mipmaps
-) {
-	Create();
-
-	Bind();
-
-	SetDataImpl(pixel_data, size, format);
-
-	GLCall(gl::glTexParameteri(
-		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapS),
-		static_cast<int>(wrapping)
-	));
-	GLCall(gl::glTexParameteri(
-		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapT),
-		static_cast<int>(wrapping)
-	));
-	GLCall(gl::glTexParameteri(
-		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::MinScaling),
-		static_cast<int>(minifying)
-	));
-	GLCall(gl::glTexParameteri(
-		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::MagScaling),
-		static_cast<int>(magnifying)
-	));
-
-	mipmaps = mipmaps &&
-			  ((minifying != TextureScaling::Linear && minifying != TextureScaling::Nearest) ||
-			   (magnifying != TextureScaling::Linear && magnifying != TextureScaling::Nearest));
-
-	if (mipmaps) {
-		GLCall(gl::GenerateMipmap(GL_TEXTURE_2D));
-	}
-}
+	Texture{ nullptr,
+			 size,
+			 default_format,
+			 default_wrapping,
+			 default_wrapping,
+			 default_minifying_scaling,
+			 default_magnifying_scaling,
+			 false,
+			 false } {}
 
 Color Texture::GetPixel(const V2_int& coordinate) const {
 	PTGN_ASSERT(IsValid(), "Cannot retrieve pixel of invalid texture");
@@ -232,7 +294,7 @@ Texture::Texture(const std::vector<Color>& pixels, const V2_int& size) :
 				 );
 				 return (void*)pixels.data();
 			 }),
-			 size, TextureFormat::RGBA8888 } {}
+			 size } {}
 
 void Texture::Draw(
 	const Rect& destination, const TextureInfo& texture_info, const LayerInfo& layer_info
@@ -257,7 +319,8 @@ void Texture::Draw(
 }
 
 void Texture::Bind() const {
-	GLCall(gl::glBindTexture(GL_TEXTURE_2D, Get().id_));
+	PTGN_ASSERT(IsValid()."Cannot bind invalid or uninitialized texture");
+	Get().Bind();
 #ifdef PTGN_DEBUG
 	++game.stats.texture_binds;
 #endif
@@ -286,6 +349,25 @@ std::int32_t Texture::GetBoundId() {
 	GLCall(gl::glGetIntegerv(static_cast<gl::GLenum>(impl::GLBinding::Texture2D), &id));
 	PTGN_ASSERT(id >= 0);
 	return id;
+}
+
+bool Texture::IsBound() const {
+	return IsValid() && Get().IsBound();
+}
+
+void Texture::SetSubData(
+	const void* pixel_data, TextureFormat format, const V2_int& offset, const V2_int& size,
+	int mipmap_level
+) {
+	PTGN_ASSERT(IsValid(), "Cannot set sub data of invalid or uninitialized texture");
+
+	PUSHSTATE();
+
+	auto& i{ Get() };
+	i.Bind();
+	i.SetSubData(pixel_data, format, offset, size, mipmap_level);
+
+	POPSTATE();
 }
 
 std::int32_t Texture::GetActiveSlot() {
@@ -360,17 +442,9 @@ void Texture::SetWrapping(TextureWrapping s, TextureWrapping t, TextureWrapping 
 
 	Bind();
 
-	GLCall(gl::glTexParameteri(
-		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapS), static_cast<int>(s)
-	));
-	GLCall(gl::glTexParameteri(
-		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapT), static_cast<int>(t)
-	));
-	GLCall(gl::glTexParameteri(
-		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapR), static_cast<int>(r)
-	));
+	...
 
-	POPSTATE();
+		POPSTATE();
 }
 
 void Texture::SetScaling(TextureScaling minifying, TextureScaling magnifying) const {

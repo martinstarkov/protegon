@@ -103,14 +103,17 @@ struct GLFormats {
 
 struct TextureInstance {
 	TextureInstance(
-		const void* pixel_data, const V2_int& size, TextureFormat format, TextureWrapping wrapping,
-		TextureScaling minifying, TextureScaling magnifying, bool mipmaps, bool resize_with_window
+		const void* pixel_data, const V2_int& size, TextureFormat format,
+		TextureWrapping wrapping_x, TextureWrapping wrapping_y, TextureScaling minifying,
+		TextureScaling magnifying, bool mipmaps, bool resize_with_window
 	);
 	~TextureInstance();
 
+	// Minifying TextureScaling must contain the word Mipmap, otherwise mipmaps are ignored.
 	void CreateTexture(
-		const void* pixel_data, const V2_int& size, TextureFormat format, TextureWrapping wrapping,
-		TextureScaling minifying, TextureScaling magnifying, bool mipmaps
+		const void* pixel_data, const V2_int& size, TextureFormat format,
+		TextureWrapping wrapping_x, TextureWrapping wrapping_y, TextureScaling minifying,
+		TextureScaling magnifying, bool mipmaps
 	);
 
 	void SetData(const void* pixel_data, const V2_int& size, TextureFormat format);
@@ -124,9 +127,24 @@ struct TextureInstance {
 
 	void Bind() const;
 
+	bool IsBound() const;
+
 	std::uint32_t id_{ 0 };
 	V2_int size_;
 	TextureFormat format_{ TextureFormat::RGBA8888 };
+
+	// OpenGL Equivalent Coordinate: S
+	TextureWrapping wrapping_x_{ TextureWrapping::ClampEdge };
+
+	// OpenGL Equivalent Coordinate: T
+	TextureWrapping wrapping_y_{ TextureWrapping::ClampEdge };
+
+	// OpenGL Equivalent Coordinate: R
+	TextureWrapping wrapping_z_{ TextureWrapping::ClampEdge };
+
+	TextureScaling minifying_{ TextureScaling::Nearest };
+	TextureScaling magnifying_{ TextureScaling::Nearest };
+	bool mipmaps_{ false };
 };
 
 } // namespace impl
@@ -145,8 +163,7 @@ public:
 	~Texture() override = default;
 
 	// @param image_path Path to the texture relative to the working directory.
-	// @param format Specifies the format of the pixel data.
-	Texture(const path& image_path, TextureFormat format = default_format);
+	Texture(const path& image_path);
 
 	// @param pixels One dimensionalized array of pixels containing the texture data.
 	// @param size Size of the texture. Area must match length of pixels array.
@@ -173,15 +190,15 @@ public:
 	) const;
 
 	// @param wrapping Texture wrapping in the x direction for when texture X coordinates are
-	// outside [0, 1].
+	// outside [0, 1]. OpenGL Equivalent Coordinate: S.
 	void SetWrappingX(TextureWrapping x) const;
 
 	// @param wrapping Texture wrapping in the y direction for when texture Y coordinates are
-	// outside [0, 1].
+	// outside [0, 1]. OpenGL Equivalent Coordinate: T.
 	void SetWrappingY(TextureWrapping y) const;
 
 	// @param wrapping Texture wrapping in the z direction for when texture Z coordinates are
-	// outside [0, 1].
+	// outside [0, 1]. OpenGL Equivalent Coordinate: R.
 	void SetWrappingZ(TextureWrapping z) const;
 
 	// @param minifying Scaling when the texture is displayed smaller than its original size.
@@ -199,15 +216,14 @@ public:
 
 	// Set a subimage of the texture.
 	// @param pixels One dimensionalized array of pixels containing the texture data.
-	// @param format Specifies the format of the pixel data.
 	// @param offset Specifies a texel offset within the texture array (relative to bottom left
 	// corner).
 	// @param size Specifies the size of the texture subimage (relative to the offset).
 	// @param mimap_level Specifies the level-of-detail number. Level 0 is the base image level.
 	// Level n is the nth mipmap reduction image.
 	void SetSubData(
-		const std::vector<Color>& pixels, TextureFormat format, const V2_int& offset,
-		const V2_int& size, int mipmap_level = 0
+		const std::vector<Color>& pixels, const V2_int& offset, const V2_int& size,
+		int mipmap_level = 0
 	);
 
 	// @return Size of the texture.
@@ -230,6 +246,7 @@ public:
 	static void SetActiveSlot(std::uint32_t slot);
 
 private:
+	friend struct impl::TextureInstance;
 	// @param resize_with_window If true, sets the texture to resize continously to the
 	// window size. Used for drawing to render targets.
 	explicit Texture(bool resize_with_window);
@@ -238,23 +255,25 @@ private:
 	explicit Texture(const V2_float& size);
 
 	// @param surface Construct texture from a surface. Used internally when creating text.
-	explicit Texture(const impl::Surface& surface);
+	explicit Texture(const Surface& surface);
 
 	// @param pixel_data Pointer to pixel data array of the texture.
 	// @param size Size of the texture.
 	// @param format Specifies the format of the pixel data.
-	// @param wrapping Wrapping behavior along all axes for when texture coordinates are outside [0,
-	// 1]. For axis specific wrapping use SetWrappingX/Y/Z.
+	// @param wrapping_x Wrapping along X axis for when texture coordinates are outside [0, 1].
+	// @param wrapping_y Wrapping along Y axis for when texture coordinates are outside [0, 1].
 	// @param minifying Scaling when the texture is displayed smaller than its original size.
 	// @param magnifying Scaling when the texture is displayed larger than its original size.
-	// @param mipmaps Whether or not to automatically generate mipmaps for the texture.
+	// @param mipmaps Whether or not to generate mipmaps for the texture. Note: Minifying
+	// TextureScaling must contain the word Mipmap, otherwise mipmaps are ignored.
 	// @param resize_with_window If true, sets the texture to resize continously to the
 	// window size. Used for drawing to render targets.
 	Texture(
 		const void* pixel_data, const V2_int& size, TextureFormat format = default_format,
-		TextureWrapping wrapping  = default_wrapping,
-		TextureScaling minifying  = default_minifying_scaling,
-		TextureScaling magnifying = default_minifying_scaling, bool mipmaps = true,
+		TextureWrapping wrapping_x = default_wrapping,
+		TextureWrapping wrapping_y = default_wrapping,
+		TextureScaling minifying   = default_minifying_scaling,
+		TextureScaling magnifying = default_minifying_scaling, bool mipmaps = false,
 		bool resize_with_window = false
 	);
 
@@ -276,6 +295,9 @@ private:
 
 	// @return The id of the texture bound to the currently active texture slot.
 	[[nodiscard]] static std::int32_t GetBoundId();
+
+	// @return True if the texture is bound to the currently active texture slot.
+	[[nodiscard]] bool IsBound() const;
 };
 
 namespace impl {
