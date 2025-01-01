@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <variant>
 #include <vector>
 
@@ -116,18 +117,26 @@ struct TextureInstance {
 		TextureScaling magnifying, bool mipmaps
 	);
 
-	void SetData(const void* pixel_data, const V2_int& size, TextureFormat format);
+	// @param mimap_level Specifies the level-of-detail number. Level 0 is the base image level.
+	// Level n is the nth mipmap reduction image.
+	void SetData(
+		const void* pixel_data, const V2_int& size, TextureFormat format, int mipmap_level
+	);
 
-	void SetWrappingX(TextureWrapping x) const;
-	void SetWrappingY(TextureWrapping y) const;
-	void SetWrappingZ(TextureWrapping z) const;
+	void SetWrappingX(TextureWrapping x);
+	void SetWrappingY(TextureWrapping y);
+	void SetWrappingZ(TextureWrapping z);
 
-	void SetScalingMinifying(TextureScaling minifying) const;
-	void SetScalingMagnifying(TextureScaling magnifying) const;
+	void SetScalingMinifying(TextureScaling minifying);
+	void SetScalingMagnifying(TextureScaling magnifying);
+
+	void GenerateMipmaps();
 
 	void Bind() const;
 
-	bool IsBound() const;
+	[[nodiscard]] bool IsBound() const;
+
+	[[nodiscard]] static bool ValidMinifyingForMipmaps(TextureScaling minifying);
 
 	std::uint32_t id_{ 0 };
 	V2_int size_;
@@ -169,11 +178,17 @@ public:
 	// @param size Size of the texture. Area must match length of pixels array.
 	Texture(const std::vector<Color>& pixels, const V2_int& size);
 
+	// WARNING: This is a very slow operation, and should not be used frequently. If reading pixels
+	// from a regular texture, prefer to create a Surface{ path } and read pixels from that instead.
+	// This function is primarily for debugging render targets.
 	// @param coordinate Pixel coordinate from [0, size).
 	// @return Color value of the given pixel.
 	// Note: Only RGB/RGBA format textures supported.
 	[[nodiscard]] Color GetPixel(const V2_int& coordinate) const;
 
+	// WARNING: This is a very slow operation, and should not be used frequently. If reading pixels
+	// from a regular texture, prefer to create a Surface{ path } and read pixels from that instead.
+	// This function is primarily for debugging render targets.
 	// @param callback Function to be called for each pixel.
 	// Note: Only RGB/RGBA format textures supported.
 	void ForEachPixel(const std::function<void(V2_int, Color)>& callback) const;
@@ -191,28 +206,28 @@ public:
 
 	// @param wrapping Texture wrapping in the x direction for when texture X coordinates are
 	// outside [0, 1]. OpenGL Equivalent Coordinate: S.
-	void SetWrappingX(TextureWrapping x) const;
+	void SetWrappingX(TextureWrapping x);
 
 	// @param wrapping Texture wrapping in the y direction for when texture Y coordinates are
 	// outside [0, 1]. OpenGL Equivalent Coordinate: T.
-	void SetWrappingY(TextureWrapping y) const;
+	void SetWrappingY(TextureWrapping y);
 
 	// @param wrapping Texture wrapping in the z direction for when texture Z coordinates are
 	// outside [0, 1]. OpenGL Equivalent Coordinate: R.
-	void SetWrappingZ(TextureWrapping z) const;
+	void SetWrappingZ(TextureWrapping z);
 
 	// @param minifying Scaling when the texture is displayed smaller than its original size.
-	void SetScalingMinifying(TextureScaling minifying) const;
+	void SetScalingMinifying(TextureScaling minifying);
 
 	// @param magnifying Scaling when the texture is displayed larger than its original size.
-	void SetScalingMagnifying(TextureScaling magnifying) const;
+	void SetScalingMagnifying(TextureScaling magnifying);
 
 	// @param color Texture color when using TextureWrapping::ClampBorder and texture coordinates
 	// are outside [0, 1].
 	void SetClampBorderColor(const Color& color) const;
 
 	// Automatically generate mipmaps for the texture.
-	void GenerateMipmaps() const;
+	void GenerateMipmaps();
 
 	// Set a subimage of the texture.
 	// @param pixels One dimensionalized array of pixels containing the texture data.
@@ -232,12 +247,15 @@ public:
 	// @return Pixel format of the texture.
 	[[nodiscard]] TextureFormat GetFormat() const;
 
+private:
+	friend struct impl::TextureInstance;
+
 	// Bind the texture to the currently active texture slot. This function does not change the
 	// active texture slot.
 	void Bind() const;
 
 	// Set the specified texture slot to active and bind the texture to that slot.
-	void Bind(std::uint32_t slot = 0) const;
+	void Bind(std::uint32_t slot) const;
 
 	// Set the specified texture slot to active and bind the texture of that slot to 0.
 	static void Unbind(std::uint32_t slot = 0);
@@ -245,8 +263,6 @@ public:
 	// Set the specified texture slot to active.
 	static void SetActiveSlot(std::uint32_t slot);
 
-private:
-	friend struct impl::TextureInstance;
 	// @param resize_with_window If true, sets the texture to resize continously to the
 	// window size. Used for drawing to render targets.
 	explicit Texture(bool resize_with_window);

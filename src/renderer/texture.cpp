@@ -3,19 +3,23 @@
 #include <array>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <type_traits>
 #include <vector>
 
 #include "core/game.h"
 #include "core/window.h"
 #include "event/event_handler.h"
+#include "event/events.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
+#include "renderer/batch.h"
 #include "renderer/color.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
+#include "renderer/layer_info.h"
 #include "renderer/renderer.h"
 #include "renderer/surface.h"
 #include "utility/debug.h"
@@ -31,6 +35,7 @@ namespace impl {
 	std::int32_t restore_id { \
 		Texture::GetBoundId() \
 	}
+
 #define POPSTATE() GLCall(gl::glBindTexture(GL_TEXTURE_2D, restore_id))
 
 TextureInstance::TextureInstance(
@@ -45,6 +50,8 @@ TextureInstance::TextureInstance(
 
 	Bind();
 
+	CreateTexture(pixel_data, size, format, wrapping_x, wrapping_y, minifying, magnifying, mipmaps);
+
 	if (resize_with_window) {
 		PTGN_ASSERT(
 			pixel_data == nullptr,
@@ -53,15 +60,20 @@ TextureInstance::TextureInstance(
 		game.event.window.Subscribe(
 			WindowEvent::Resized, this, std::function([this](const WindowResizedEvent&) {
 				PUSHSTATE();
+
 				Bind();
+
 				CreateTexture(
 					nullptr, game.window.GetSize(), format_, wrapping_x_, wrapping_y_, minifying_,
 					magnifying_, mipmaps_
 				);
+
 				POPSTATE();
 			})
 		);
 	}
+
+	POPSTATE();
 }
 
 TextureInstance::~TextureInstance() {
@@ -71,36 +83,21 @@ TextureInstance::~TextureInstance() {
 }
 
 void TextureInstance::CreateTexture(
-	const void* pixel_data, const V2_int& size, TextureFormat format, TextureWrapping wrapping,
-	TextureScaling minifying, TextureScaling magnifying, bool mipmaps
+	const void* pixel_data, const V2_int& size, TextureFormat format, TextureWrapping wrapping_x,
+	TextureWrapping wrapping_y, TextureScaling minifying, TextureScaling magnifying, bool mipmaps
 ) {
-	SetData(pixel_data, size, format);
+	SetData(pixel_data, size, format, 0);
 
-	GLCall(gl::glTexParameteri(
-		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapS),
-		static_cast<int>(wrapping)
-	));
-	GLCall(gl::glTexParameteri(
-		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapT),
-		static_cast<int>(wrapping)
-	));
-	GLCall(gl::glTexParameteri(
-		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::MinScaling),
-		static_cast<int>(minifying)
-	));
-	GLCall(gl::glTexParameteri(
-		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::MagScaling),
-		static_cast<int>(magnifying)
-	));
+	SetWrappingX(wrapping_x);
+	SetWrappingY(wrapping_y);
 
-	// Minifying TextureScaling must contain the word Mipmap, otherwise mipmaps are ignored.
-	mipmaps = mipmaps && (minifying == TextureScaling::NearestMipmapNearest ||
-						  minifying == TextureScaling::LinearMipmapNearest ||
-						  minifying == TextureScaling::NearestMipmapLinear ||
-						  minifying == TextureScaling::LinearMipmapLinear);
+	SetScalingMinifying(minifying);
+	SetScalingMagnifying(magnifying);
 
 	if (mipmaps) {
-		GLCall(gl::GenerateMipmap(GL_TEXTURE_2D));
+		GenerateMipmaps();
+	} else {
+		mipmaps_ = false;
 	}
 }
 
@@ -128,6 +125,34 @@ void TextureInstance::SetWrappingZ(TextureWrapping z) {
 	wrapping_z_ = z;
 }
 
+void TextureInstance::SetScalingMagnifying(TextureScaling magnifying) {
+	PTGN_ASSERT(IsBound(), "Cannot set magnifying scaling of texture unless it is first bound");
+	GLCall(gl::glTexParameteri(
+		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::MagScaling),
+		static_cast<int>(magnifying)
+	));
+	magnifying_ = magnifying;
+}
+
+void TextureInstance::SetScalingMinifying(TextureScaling minifying) {
+	PTGN_ASSERT(IsBound(), "Cannot set minifying scaling of texture unless it is first bound");
+	GLCall(gl::glTexParameteri(
+		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::MinScaling),
+		static_cast<int>(minifying)
+	));
+	minifying_ = minifying;
+}
+
+void TextureInstance::GenerateMipmaps() {
+	PTGN_ASSERT(
+		ValidMinifyingForMipmaps(minifying_),
+		"Set texture minifying scaling to mipmap type before generating mipmaps"
+	);
+	PTGN_ASSERT(IsBound(), "Cannot generate mipmaps for texture unless it is first bound");
+	GLCall(gl::GenerateMipmap(GL_TEXTURE_2D));
+	mipmaps_ = true;
+}
+
 void TextureInstance::Bind() const {
 	GLCall(gl::glBindTexture(GL_TEXTURE_2D, id_));
 }
@@ -136,20 +161,29 @@ bool TextureInstance::IsBound() const {
 	return Texture::GetBoundId() == static_cast<std::int32_t>(id_);
 }
 
-void TextureInstance::SetData(const void* pixel_data, const V2_int& size, TextureFormat format) {
+bool TextureInstance::ValidMinifyingForMipmaps(TextureScaling minifying) {
+	return minifying == TextureScaling::LinearMipmapLinear ||
+		   minifying == TextureScaling::LinearMipmapNearest ||
+		   minifying == TextureScaling::NearestMipmapLinear ||
+		   minifying == TextureScaling::NearestMipmapNearest;
+}
+
+void TextureInstance::SetData(
+	const void* pixel_data, const V2_int& size, TextureFormat format, int mipmap_level
+) {
 	PTGN_ASSERT(
-		format != TextureFormat::Unknown, "Cannot set data of texture with unknown texture format"
+		format != TextureFormat::Unknown, "Cannot set data for texture with unknown texture format"
 	);
 
-	PTGN_ASSERT(GetBoundId() == static_cast<std::int32_t>(t.id_));
+	PTGN_ASSERT(IsBound(), "Cannot set data for texture unless it is first bound");
 
-	t.size_	  = size;
-	t.format_ = format;
+	size_	= size;
+	format_ = format;
 
-	auto formats = impl::GetGLFormats(format);
+	auto formats{ impl::GetGLFormats(format) };
 
 	GLCall(gl::glTexImage2D(
-		GL_TEXTURE_2D, 0, static_cast<gl::GLint>(formats.internal_), t.size_.x, t.size_.y, 0,
+		GL_TEXTURE_2D, mipmap_level, static_cast<gl::GLint>(formats.internal_), size_.x, size_.y, 0,
 		formats.format_, static_cast<gl::GLenum>(impl::GLType::UnsignedByte), pixel_data
 	));
 }
@@ -203,7 +237,7 @@ Texture::Texture(const path& image_path) :
 		);
 		Surface s{ image_path };
 		PTGN_ASSERT(
-			s.GetImageFormat() != TextureFormat::Unknown,
+			s.GetFormat() != TextureFormat::Unknown,
 			"Cannot create texture with unknown texture format"
 		);
 		return s;
@@ -264,11 +298,13 @@ void Texture::ForEachPixel(const std::function<void(V2_int, Color)>& func) const
 	PTGN_ASSERT(IsValid(), "Cannot retrieve pixels of invalid texture");
 	V2_int size{ GetSize() };
 	auto formats{ impl::GetGLFormats(GetFormat()) };
-	std::vector<std::uint8_t> v(formats.components_ * size.x * size.y);
+
 	PTGN_ASSERT(
 		formats.components_ >= 3,
 		"Cannot retrieve pixel data of texture with less than 3 RGB components"
 	);
+
+	std::vector<std::uint8_t> v(formats.components_ * size.x * size.y);
 	GLCall(gl::glReadPixels(
 		0, 0, size.x, size.y, formats.format_, static_cast<gl::GLenum>(impl::GLType::UnsignedByte),
 		(void*)v.data()
@@ -319,7 +355,7 @@ void Texture::Draw(
 }
 
 void Texture::Bind() const {
-	PTGN_ASSERT(IsValid()."Cannot bind invalid or uninitialized texture");
+	PTGN_ASSERT(IsValid(), "Cannot bind invalid or uninitialized texture");
 	Get().Bind();
 #ifdef PTGN_DEBUG
 	++game.stats.texture_binds;
@@ -360,12 +396,19 @@ void Texture::SetSubData(
 	int mipmap_level
 ) {
 	PTGN_ASSERT(IsValid(), "Cannot set sub data of invalid or uninitialized texture");
+	PTGN_ASSERT(pixel_data != nullptr);
 
 	PUSHSTATE();
 
+	auto formats{ impl::GetGLFormats(format) };
+
 	auto& i{ Get() };
 	i.Bind();
-	i.SetSubData(pixel_data, format, offset, size, mipmap_level);
+
+	GLCall(gl::glTexSubImage2D(
+		GL_TEXTURE_2D, mipmap_level, offset.x, offset.y, size.x, size.y, formats.format_,
+		static_cast<gl::GLenum>(impl::GLType::UnsignedByte), pixel_data
+	));
 
 	POPSTATE();
 }
@@ -377,94 +420,90 @@ std::int32_t Texture::GetActiveSlot() {
 	return id;
 }
 
-void Texture::SetSubData(const void* pixel_data, TextureFormat format) {
-	PTGN_ASSERT(pixel_data != nullptr);
-	const auto& t{ Get() };
-
-	PUSHSTATE();
-
-	auto formats = impl::GetGLFormats(format);
-
-	Bind();
-
-	GLCall(gl::glTexSubImage2D(
-		GL_TEXTURE_2D, 0, 0, 0, t.size_.x, t.size_.y, formats.format_,
-		static_cast<gl::GLenum>(impl::GLType::UnsignedByte), pixel_data
-	));
-
-	POPSTATE();
-}
-
-void Texture::SetSubData(const std::vector<Color>& pixels) {
+void Texture::SetSubData(
+	const std::vector<Color>& pixels, const V2_int& offset, const V2_int& size, int mipmap_level
+) {
+	PTGN_ASSERT(IsValid(), "Cannot set sub data of invalid or uninitialized texture");
 	PTGN_ASSERT(
 		pixels.size() == GetSize().x * GetSize().y, "Provided pixel array must match texture size"
 	);
-	SetSubData((void*)pixels.data(), TextureFormat::RGBA8888);
+
+	SetSubData((void*)pixels.data(), TextureFormat::RGBA8888, offset, size, mipmap_level);
 }
 
 V2_int Texture::GetSize() const {
+	PTGN_ASSERT(IsValid(), "Cannot size format of invalid or uninitialized texture");
 	return Get().size_;
 }
 
 TextureFormat Texture::GetFormat() const {
+	PTGN_ASSERT(IsValid(), "Cannot get format of invalid or uninitialized texture");
 	return Get().format_;
 }
 
-void Texture::SetWrapping(TextureWrapping s) const {
+void Texture::SetWrappingX(TextureWrapping x) {
+	PTGN_ASSERT(IsValid(), "Cannot set wrapping of invalid or uninitialized texture");
+
 	PUSHSTATE();
 
-	Bind();
-
-	GLCall(gl::glTexParameteri(
-		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapS), static_cast<int>(s)
-	));
+	auto& i{ Get() };
+	i.Bind();
+	i.SetWrappingX(x);
 
 	POPSTATE();
 }
 
-void Texture::SetWrapping(TextureWrapping s, TextureWrapping t) const {
+void Texture::SetWrappingY(TextureWrapping y) {
+	PTGN_ASSERT(IsValid(), "Cannot set wrapping of invalid or uninitialized texture");
+
 	PUSHSTATE();
 
-	Bind();
-
-	GLCall(gl::glTexParameteri(
-		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapS), static_cast<int>(s)
-	));
-	GLCall(gl::glTexParameteri(
-		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::WrapT), static_cast<int>(t)
-	));
+	auto& i{ Get() };
+	i.Bind();
+	i.SetWrappingY(y);
 
 	POPSTATE();
 }
 
-void Texture::SetWrapping(TextureWrapping s, TextureWrapping t, TextureWrapping r) const {
+void Texture::SetWrappingZ(TextureWrapping z) {
+	PTGN_ASSERT(IsValid(), "Cannot set wrapping of invalid or uninitialized texture");
+
 	PUSHSTATE();
 
-	Bind();
+	auto& i{ Get() };
+	i.Bind();
+	i.SetWrappingZ(z);
 
-	...
-
-		POPSTATE();
+	POPSTATE();
 }
 
-void Texture::SetScaling(TextureScaling minifying, TextureScaling magnifying) const {
+void Texture::SetScalingMagnifying(TextureScaling magnifying) {
+	PTGN_ASSERT(IsValid(), "Cannot set scaling of invalid or uninitialized texture");
+
 	PUSHSTATE();
 
-	Bind();
+	auto& i{ Get() };
+	i.Bind();
+	i.SetScalingMagnifying(magnifying);
 
-	GLCall(gl::glTexParameteri(
-		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::MinScaling),
-		static_cast<int>(minifying)
-	));
-	GLCall(gl::glTexParameteri(
-		GL_TEXTURE_2D, static_cast<gl::GLenum>(impl::TextureParameter::MagScaling),
-		static_cast<int>(magnifying)
-	));
+	POPSTATE();
+}
+
+void Texture::SetScalingMinifying(TextureScaling minifying) {
+	PTGN_ASSERT(IsValid(), "Cannot set scaling of invalid or uninitialized texture");
+
+	PUSHSTATE();
+
+	auto& i{ Get() };
+	i.Bind();
+	i.SetScalingMinifying(minifying);
 
 	POPSTATE();
 }
 
 void Texture::SetClampBorderColor(const Color& color) const {
+	PTGN_ASSERT(IsValid(), "Cannot set clamp border color of invalid or uninitialized texture");
+
 	PUSHSTATE();
 
 	Bind();
@@ -480,12 +519,14 @@ void Texture::SetClampBorderColor(const Color& color) const {
 	POPSTATE();
 }
 
-void Texture::GenerateMipmaps() const {
+void Texture::GenerateMipmaps() {
+	PTGN_ASSERT(IsValid(), "Cannot generate mipmaps for invalid or uninitialized texture");
+
 	PUSHSTATE();
 
-	Bind();
-
-	GLCall(gl::GenerateMipmap(GL_TEXTURE_2D));
+	auto& i{ Get() };
+	i.Bind();
+	i.GenerateMipmaps();
 
 	POPSTATE();
 }
