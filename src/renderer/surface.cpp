@@ -9,16 +9,15 @@
 #include <type_traits>
 #include <vector>
 
-#include "SDL_error.h"
-#include "SDL_image.h"
-#include "SDL_pixels.h"
-#include "SDL_surface.h"
-#include "SDL_ttf.h"
 #include "core/game.h"
 #include "core/sdl_instance.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/font.h"
+#include "SDL_image.h"
+#include "SDL_pixels.h"
+#include "SDL_surface.h"
+#include "SDL_ttf.h"
 #include "utility/debug.h"
 #include "utility/file.h"
 #include "utility/handle.h"
@@ -34,25 +33,42 @@ void SDL_SurfaceDeleter::operator()(SDL_Surface* surface) const {
 	}
 }
 
+TextureFormat GetFormatFromSDL(std::uint32_t sdl_format) {
+	switch (sdl_format) {
+		case SDL_PIXELFORMAT_RGBA8888: return TextureFormat::RGBA8888;
+		case SDL_PIXELFORMAT_RGB888:   return TextureFormat::RGB888;
+		case SDL_PIXELFORMAT_BGRA8888: return TextureFormat::BGRA8888;
+		case SDL_PIXELFORMAT_BGR888:   return TextureFormat::BGR888;
+		case SDL_PIXELFORMAT_UNKNOWN:  return TextureFormat::Unknown;
+		default:					   PTGN_ERROR("Unrecognized sdl format");
+	}
+}
+
 } // namespace impl
 
 V2_int Surface::GetSize(Font font, const std::string& content) {
+	PTGN_ASSERT(font.IsValid(), "Cannot get size of uninitialized or invalid font");
 	V2_int size;
 	TTF_SizeUTF8(&font.Get(), content.c_str(), &size.x, &size.y);
 	return size;
 }
 
-Surface::Surface(const std::shared_ptr<SDL_Surface>& raw_surface, TextureFormat format) {
-	PTGN_ASSERT(format != TextureFormat::Unknown, "Cannot create surface with unknown texture format");
+Surface::Surface(const std::shared_ptr<SDL_Surface>& surface) {
 	Create();
-	auto& s{ Get() };
-	s.format_ = format;
 
-	std::shared_ptr<SDL_Surface> surface = {
+	auto& s{ Get() };
+
+	s.format_ = impl::GetFormatFromSDL(surface->format->format);
+	PTGN_ASSERT(
+		s.format_ != TextureFormat::Unknown, "Cannot create surface with unknown texture format"
+	);
+
+	// Convert format.
+	/*std::shared_ptr<SDL_Surface> surface = {
 		SDL_ConvertSurfaceFormat(raw_surface.get(), static_cast<std::uint32_t>(s.format_), 0),
 		impl::SDL_SurfaceDeleter{}
 	};
-	PTGN_ASSERT(surface != nullptr, SDL_GetError());
+	PTGN_ASSERT(surface != nullptr, SDL_GetError());*/
 
 	int lock = SDL_LockSurface(surface.get());
 	PTGN_ASSERT(lock == 0, "Failed to lock surface when copying pixels");
@@ -120,6 +136,10 @@ Surface::Surface(
 	const std::string& content, const Color& shading_color, std::uint32_t wrap_after_pixels
 ) :
 	Surface{ std::invoke([&]() {
+		PTGN_ASSERT(
+			font.IsValid(), "Cannot create a surface with an invalid or uninitialized font"
+		);
+
 		auto f = &font.Get();
 
 		TTF_SetFontStyle(f, static_cast<int>(style));
@@ -161,6 +181,7 @@ Surface::Surface(
 	}) } {}
 
 void Surface::FlipVertically() {
+	PTGN_ASSERT(IsValid(), "Cannot vertically flip an invalid or uninitialized surface");
 	auto& s{ Get() };
 	// TODO: Check that this works as intended (i.e. middle row in odd height images is skipped).
 	for (int row = 0; row < s.size_.y / 2; ++row) {
@@ -172,18 +193,22 @@ void Surface::FlipVertically() {
 }
 
 const std::vector<Color>& Surface::GetData() const {
+	PTGN_ASSERT(IsValid(), "Cannot get pixel data of an invalid or uninitialized surface");
 	return Get().data_;
 }
 
-TextureFormat Surface::GetImageFormat() const {
+TextureFormat Surface::GetFormat() const {
+	PTGN_ASSERT(IsValid(), "Cannot get format of an invalid or uninitialized surface");
 	return Get().format_;
 }
 
 V2_int Surface::GetSize() const {
+	PTGN_ASSERT(IsValid(), "Cannot get size of an invalid or uninitialized surface");
 	return Get().size_;
 }
 
 Color Surface::GetPixel(const V2_int& coordinate) const {
+	PTGN_ASSERT(IsValid(), "Cannot get pixel of an invalid or uninitialized surface");
 	auto& s{ Get() };
 	int index{ coordinate.y * s.size_.x + coordinate.x };
 	PTGN_ASSERT(coordinate.x >= 0, "Coordinate outside of range of grid");
@@ -193,6 +218,7 @@ Color Surface::GetPixel(const V2_int& coordinate) const {
 }
 
 void Surface::ForEachPixel(const std::function<void(const V2_int&, const Color&)>& function) {
+	PTGN_ASSERT(IsValid(), "Cannot loop each pixel of an invalid or uninitialized surface");
 	auto& s{ Get() };
 	for (int j = 0; j < s.size_.y; j++) {
 		int idx_row = static_cast<std::size_t>(j) * s.size_.x;
