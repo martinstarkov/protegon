@@ -40,6 +40,8 @@ struct SurfaceInstance {
 	V2_int size_;
 };
 
+} // namespace impl
+
 class Surface : public Handle<impl::SurfaceInstance> {
 public:
 	Surface() = default;
@@ -68,7 +70,5 @@ private:
 		const std::shared_ptr<SDL_Surface>& surface, TextureFormat format = TextureFormat::RGBA8888
 	);
 };
-
-} // namespace impl
 
 } // namespace ptgn
