@@ -129,19 +129,23 @@ VertexArray::VertexArray(
 	VertexArray{ PrimitiveMode::Triangles, VertexBuffer{ texture_vertices.Get() },
 				 impl::TextureVertices::layout, index_buffer } {}
 
-void VertexArray::Draw() const {
+void VertexArray::Draw(std::size_t index_count, bool bind_vertex_array) const {
 	PTGN_ASSERT(IsValid(), "Cannot submit invalid vertex array for rendering");
 	PTGN_ASSERT(
 		HasVertexBuffer(), "Cannot submit vertex array without a set vertex buffer for rendering"
 	);
+	if (index_count != 0) {
+		PTGN_ASSERT(HasIndexBuffer(), "Cannot specify index without for a vertex array with no attached index buffer");
+		GLRenderer::DrawElements(*this, index_count, bind_vertex_array);
+	}
 	if (HasIndexBuffer()) {
 		auto count{ GetIndexBuffer().GetCount() };
 		PTGN_ASSERT(count > 0, "Cannot draw vertex array with 0 indices");
-		GLRenderer::DrawElements(*this, count);
+		GLRenderer::DrawElements(*this, count, bind_vertex_array);
 	} else {
 		auto count{ GetVertexBuffer().GetCount() };
 		PTGN_ASSERT(count > 0, "Cannot draw vertex array with 0 vertices");
-		GLRenderer::DrawArrays(*this, count);
+		GLRenderer::DrawArrays(*this, count, bind_vertex_array);
 	}
 }
 

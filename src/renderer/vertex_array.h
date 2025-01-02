@@ -60,7 +60,12 @@ public:
 	VertexArray(const Rect& rect, const Color& color);
 	VertexArray(const impl::TextureVertices& texture_vertices, const IndexBuffer& index_buffer);
 
-	void Draw() const;
+	// @param index_count The number of indices within the vertex array to draw.
+	// If set to 0, will use either the total size of the bound index buffer, 
+	// or if no index buffer is bound will use the total vertex count.
+	// @param bind_vertex_array Whether or not to bind the vertex array for the draw call.
+	// Setting this to false can reduce vertex array bind calls if it is already bound.
+	void Draw(std::size_t index_count = 0, bool bind_vertex_array = true) const;
 
 	void SetPrimitiveMode(PrimitiveMode mode);
 	void SetVertexBuffer(const VertexBuffer& vertex_buffer);
