@@ -6,7 +6,7 @@
 
 #include "scene/camera.h"
 #include "renderer/color.h"
-#include "renderer/frame_buffer.h"
+#include "renderer/render_target.h"
 #include "utility/time.h"
 
 namespace ptgn {
