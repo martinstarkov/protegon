@@ -1,29 +1,52 @@
 #pragma once
 
-#include "math/geometry/polygon.h"
 #include "math/vector2.h"
-#include "renderer/batch.h"
+#include "renderer/render_data.h"
 #include "renderer/color.h"
 #include "renderer/frame_buffer.h"
-#include "renderer/layer_info.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
+#include "utility/handle.h"
 
 namespace ptgn {
 
+struct LayerInfo;
+struct Rect;
+
+namespace impl {
+
+struct RenderTargetInstance {
+	CameraManager camera_;
+	RenderData render_data_;
+	BlendMode blend_mode_;
+	Color clear_color_;
+	FrameBuffer frame_buffer_;
+	Texture texture_;
+};
+
+} // namespace impl
+
 // Constructing a RenderTarget object requires the engine to be initialized.
-class RenderTarget {
+class RenderTarget : public Handle<impl::RenderTargetInstance> {
 public:
+	~RenderTarget() = default;
+
 	// Continuously window sized.
 	RenderTarget(
 		const Color& clear_color = color::Transparent, BlendMode blend_mode = BlendMode::Blend
 	);
+
 	RenderTarget(
 		const V2_float& size, const Color& clear_color = color::Transparent,
 		BlendMode blend_mode = BlendMode::Blend
 	);
 
-	void Draw(const Rect& destination = {}, ..., const LayerInfo& layer_info = {});
+	// TODO: Add screen shaders as options.
+
+	// Uses default render target.
+	void Draw(const Rect& destination);
+
+	void Draw(const Rect& destination, const LayerInfo& layer_info);
 
 	// Set color to which render target is cleared.
 	void SetClearColor();
@@ -43,13 +66,6 @@ public:
 
 private:
 	void Bind();
-
-	impl::CameraManager camera_;
-	impl::Batch batch_;
-	BlendMode blend_mode_;
-	Color clear_color_;
-	FrameBuffer frame_buffer_;
-	Texture texture_;
 };
 
 } // namespace ptgn
