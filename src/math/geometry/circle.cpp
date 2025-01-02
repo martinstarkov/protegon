@@ -15,10 +15,15 @@
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/origin.h"
+#include "renderer/layer_info.h"
 #include "renderer/renderer.h"
 #include "utility/debug.h"
 
 namespace ptgn {
+
+void Circle::Draw(const Color& color, float line_width) const {
+	Draw(color, line_width, {});
+}
 
 void Circle::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
 	game.renderer.data_.AddEllipse(
@@ -260,12 +265,20 @@ ptgn::Raycast Circle::Raycast(const V2_float& ray, const Rect& rect) const {
 	return c;
 }
 
+void Arc::Draw(bool clockwise, const Color& color, float line_width) const {
+	Draw(clockwise, color, line_width, {});
+}
+
 void Arc::Draw(bool clockwise, const Color& color, float line_width, const LayerInfo& layer_info)
 	const {
 	game.renderer.data_.AddArc(
 		center, radius, start_angle, end_angle, clockwise, color.Normalized(), line_width,
 		layer_info.z_index, layer_info.render_layer, game.renderer.fade_
 	);
+}
+
+void Ellipse::Draw(const Color& color, float line_width) const {
+	Draw(color, line_width, {});
 }
 
 void Ellipse::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {

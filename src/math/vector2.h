@@ -7,7 +7,7 @@
 
 #include "math/math.h"
 #include "math/rng.h"
-#include "renderer/layer_info.h"
+#include "renderer/color.h"
 #include "utility/debug.h"
 #include "utility/type_traits.h"
 
@@ -26,6 +26,10 @@ struct Circle;
 namespace impl {
 
 struct Point {
+	static void Draw(
+		float x, float y, const Color& color, float radius
+	);
+
 	static void Draw(
 		float x, float y, const Color& color, float radius, const LayerInfo& layer_info
 	);
@@ -60,7 +64,12 @@ struct Vector2 {
 	explicit constexpr Vector2(const Vector2<U>& o) :
 		x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
 
-	void Draw(const Color& color, float radius = 1.0f, const LayerInfo& layer_info = {}) const {
+	// Uses default render target.
+	void Draw(const Color& color, float radius = 1.0f) const {
+		impl::Point::Draw(static_cast<float>(x), static_cast<float>(y), color, radius);
+	}
+
+	void Draw(const Color& color, float radius, const LayerInfo& layer_info) const {
 		impl::Point::Draw(static_cast<float>(x), static_cast<float>(y), color, radius, layer_info);
 	}
 

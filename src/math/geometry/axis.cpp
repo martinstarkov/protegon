@@ -4,8 +4,13 @@
 #include "core/window.h"
 #include "renderer/color.h"
 #include "renderer/renderer.h"
+#include "renderer/layer_info.h"
 
 namespace ptgn {
+
+void Axis::Draw(const Color& color, float line_width) const {
+	Draw(color, line_width, {});
+}
 
 void Axis::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
 	V2_float ws{ game.window.GetSize() };

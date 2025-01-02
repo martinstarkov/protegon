@@ -12,8 +12,13 @@
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/renderer.h"
+#include "renderer/layer_info.h"
 
 namespace ptgn {
+
+void Line::Draw(const Color& color, float line_width) const {
+	Draw(color, line_width);
+}
 
 void Line::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
 	game.renderer.data_.AddLine(
@@ -428,6 +433,10 @@ ptgn::Raycast Line::Raycast(const Capsule& capsule) const {
 	c = col_min;
 
 	return c;
+}
+
+void Capsule::Draw(const Color& color, float line_width) const {
+	Draw(color, line_width, {});
 }
 
 void Capsule::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {

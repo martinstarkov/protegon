@@ -12,6 +12,10 @@ namespace ptgn {
 
 namespace impl {
 
+void Point::Draw(float x, float y, const Color& color, float radius) {
+	Draw(x, y, color, radius, {});
+}
+
 void Point::Draw(float x, float y, const Color& color, float radius, const LayerInfo& layer_info) {
 	game.renderer.data_.AddPoint(
 		{ x, y }, color.Normalized(), radius, layer_info.z_index, layer_info.render_layer,

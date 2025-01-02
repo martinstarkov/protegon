@@ -7,11 +7,11 @@
 #include "math/geometry/axis.h"
 #include "math/geometry/intersection.h"
 #include "math/vector2.h"
-#include "renderer/layer_info.h"
 #include "renderer/origin.h"
 
 namespace ptgn {
 
+struct LayerInfo;
 struct Color;
 struct Line;
 struct Circle;
@@ -42,7 +42,10 @@ struct Triangle {
 	// @return True if internal triangle is entirely contained by the triangle.
 	[[nodiscard]] bool Contains(const Triangle& internal) const;
 
-	void Draw(const Color& color, float line_width = -1.0f, const LayerInfo& layer_info = {}) const;
+	// Uses default render target.
+	void Draw(const Color& color, float line_width = -1.0f) const;
+
+	void Draw(const Color& color, float line_width, const LayerInfo& layer_info) const;
 };
 
 struct Rect {
@@ -60,6 +63,14 @@ struct Rect {
 	);
 
 	[[nodiscard]] static Rect Fullscreen();
+	
+	// Uses default render target.
+	void Draw(const Color& color, float line_width = -1.0f) const;
+
+	void Draw(
+		const Color& color, float line_width, const LayerInfo& layer_info,
+		const V2_float& rotation_center
+	) const;
 
 	[[nodiscard]] bool operator==(const Rect& o) const {
 		return position == o.position && size == o.size && origin == o.origin &&
@@ -69,11 +80,6 @@ struct Rect {
 	[[nodiscard]] bool operator!=(const Rect& o) const {
 		return !(*this == o);
 	}
-
-	void Draw(
-		const Color& color, float line_width = -1.0f, const LayerInfo& layer_info = {},
-		const V2_float& rotation_center = { 0.5f, 0.5f }
-	) const;
 
 	// position += offset
 	void Offset(const V2_float& offset);
@@ -140,9 +146,12 @@ struct RoundedRect : public Rect {
 		Origin origin = Origin::Center, float rotation = 0.0f
 	);
 
+	// Uses default render target.
+	void Draw(const Color& color, float line_width = -1.0f) const;
+
 	void Draw(
-		const Color& color, float line_width = -1.0f, const LayerInfo& layer_info = {},
-		const V2_float& rotation_center = { 0.5f, 0.5f }
+		const Color& color, float line_width, const LayerInfo& layer_info,
+		const V2_float& rotation_center
 	) const;
 };
 
@@ -156,7 +165,12 @@ struct Polygon {
 
 	explicit Polygon(const std::vector<V2_float>& vertices);
 
-	void Draw(const Color& color, float line_width = -1.0f, const LayerInfo& layer_info = {}) const;
+	// Uses default render target.
+	void Draw(const Color& color, float line_width = -1.0f) const;
+
+	void Draw(
+		const Color& color, float line_width, const LayerInfo& layer_info
+	) const;
 
 	// @return Centroid of the polygon.
 	[[nodiscard]] V2_float Center() const;

@@ -18,9 +18,23 @@
 #include "renderer/color.h"
 #include "renderer/origin.h"
 #include "renderer/renderer.h"
+#include "renderer/layer_info.h"
 #include "utility/debug.h"
 
 namespace ptgn {
+
+Triangle::Triangle(const V2_float& a, const V2_float& b, const V2_float& c) :
+	a{ a }, b{ b }, c{ c } {}
+
+void Triangle::Draw(const Color& color, float line_width) const {
+	Draw(color, line_width);
+}
+
+void Triangle::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
+	game.renderer.data_.AddTriangle(
+		a, b, c, color.Normalized(), line_width, layer_info.z_index, layer_info.render_layer
+	);
+}
 
 bool Triangle::Overlaps(const V2_float& point) const {
 	// Using barycentric coordinates method.
@@ -48,6 +62,12 @@ Rect::Rect(const V2_float& position, const V2_float& size, Origin origin, float 
 
 Rect Rect::Fullscreen() {
 	return Rect{ {}, game.window.GetSize(), Origin::TopLeft };
+}
+
+void Rect::Draw(
+	const Color& color, float line_width
+) const {
+	Draw(color, line_width, {}, { 0.5f, 0.5f });
 }
 
 void Rect::Draw(
@@ -332,6 +352,30 @@ ptgn::Raycast Rect::Raycast(const V2_float& ray, const Rect& rect) const {
 	return raycast;
 }
 
+RoundedRect::RoundedRect(
+	const V2_float& position, float radius, const V2_float& size, Origin origin, float rotation
+) :
+	Rect{ position, size, origin, rotation } {
+	PTGN_ASSERT(radius >= 0.0f);
+	this->radius = radius;
+}
+
+void RoundedRect::Draw(
+	const Color& color, float line_width
+) const {
+	Draw(color, line_width, {}, { 0.5f, 0.5f });
+}
+
+void RoundedRect::Draw(
+	const Color& color, float line_width, const LayerInfo& layer_info,
+	const V2_float& rotation_center
+) const {
+	game.renderer.data_.AddRoundedRect(
+		position, size, radius, color.Normalized(), origin, line_width, rotation, rotation_center,
+		layer_info.z_index, layer_info.render_layer, game.renderer.fade_
+	);
+}
+
 Polygon::Polygon(const Rect& rect) {
 	float c_a{ std::cos(rect.rotation) };
 	float s_a{ std::sin(rect.rotation) };
@@ -354,6 +398,10 @@ Polygon::Polygon(const Rect& rect) {
 }
 
 Polygon::Polygon(const std::vector<V2_float>& vertices) : vertices{ vertices } {}
+
+void Polygon::Draw(const Color& color, float line_width) const {
+	Draw(color, line_width, {});
+}
 
 void Polygon::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
 	game.renderer.data_.AddPolygon(
@@ -556,33 +604,6 @@ Intersection Polygon::Intersects(const Polygon& polygon) const {
 	game.draw.Line(axis.midpoint, axis.midpoint - c.normal * c.depth, color::Cyan, 3.0f);
 	game.draw.Line(axis.midpoint, axis.midpoint + c.normal * c.depth, color::Cyan, 3.0f);
 	*/
-}
-
-Triangle::Triangle(const V2_float& a, const V2_float& b, const V2_float& c) :
-	a{ a }, b{ b }, c{ c } {}
-
-void Triangle::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	game.renderer.data_.AddTriangle(
-		a, b, c, color.Normalized(), line_width, layer_info.z_index, layer_info.render_layer
-	);
-}
-
-RoundedRect::RoundedRect(
-	const V2_float& position, float radius, const V2_float& size, Origin origin, float rotation
-) :
-	Rect{ position, size, origin, rotation } {
-	PTGN_ASSERT(radius >= 0.0f);
-	this->radius = radius;
-}
-
-void RoundedRect::Draw(
-	const Color& color, float line_width, const LayerInfo& layer_info,
-	const V2_float& rotation_center
-) const {
-	game.renderer.data_.AddRoundedRect(
-		position, size, radius, color.Normalized(), origin, line_width, rotation, rotation_center,
-		layer_info.z_index, layer_info.render_layer, game.renderer.fade_
-	);
 }
 
 } // namespace ptgn

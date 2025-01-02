@@ -3,10 +3,10 @@
 #include "collision/raycast.h"
 #include "math/geometry/intersection.h"
 #include "math/vector2.h"
-#include "renderer/layer_info.h"
 
 namespace ptgn {
 
+struct LayerInfo;
 struct Color;
 struct Rect;
 struct Line;
@@ -16,7 +16,10 @@ struct Circle {
 	V2_float center;
 	float radius{ 0.0f };
 
-	void Draw(const Color& color, float line_width = -1.0f, const LayerInfo& layer_info = {}) const;
+	// Uses default render target.
+	void Draw(const Color& color, float line_width = -1.0f) const;
+
+	void Draw(const Color& color, float line_width, const LayerInfo& layer_info) const;
 
 	// center += offset
 	void Offset(const V2_float& offset);
@@ -49,9 +52,14 @@ struct Arc {
 	// Radians counter-clockwise from the right.
 	float end_angle{ 0.0f };
 
+	// Uses default render target.
 	void Draw(
-		bool clockwise, const Color& color, float line_width = -1.0f,
-		const LayerInfo& layer_info = {}
+		bool clockwise, const Color& color, float line_width = -1.0f
+	) const;
+
+	void Draw(
+		bool clockwise, const Color& color, float line_width,
+		const LayerInfo& layer_info
 	) const;
 };
 
@@ -59,7 +67,10 @@ struct Ellipse {
 	V2_float center;
 	V2_float radius;
 
-	void Draw(const Color& color, float line_width = -1.0f, const LayerInfo& layer_info = {}) const;
+	// Uses default render target.
+	void Draw(const Color& color, float line_width = -1.0f) const;
+
+	void Draw(const Color& color, float line_width, const LayerInfo& layer_info) const;
 };
 
 } // namespace ptgn
