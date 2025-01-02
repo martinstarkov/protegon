@@ -10,6 +10,7 @@ namespace ptgn {
 // Defaults to currently active scene.
 struct LayerInfo {
 	LayerInfo() = default;
+	LayerInfo(void*) {}
 
 	explicit LayerInfo(const RenderTarget& render_target) : render_target{ render_target } {}
 
@@ -19,7 +20,7 @@ struct LayerInfo {
 	// @param render_target The render target which is used for rendering. Default value of {}
 	// refers to the currently active scene.
 	LayerInfo(std::int32_t render_layer, const RenderTarget& render_target = {}) :
-		z_index{ z_index }, render_target{ render_target } {}
+		render_layer{ render_layer }, render_target{ render_target } {}
 
 	std::int32_t render_layer{ 0 };
 	RenderTarget render_target;
