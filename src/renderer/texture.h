@@ -78,6 +78,9 @@ enum class TextureScaling {
 
 namespace impl {
 
+class Batch;
+class RenderData;
+
 enum class InternalGLFormat {
 	RGB8  = 0x8051, // GL_RGB8
 	RGBA8 = 0x8058, // GL_RGBA8
@@ -249,6 +252,8 @@ public:
 
 private:
 	friend struct impl::TextureInstance;
+	friend class impl::Batch;
+	friend class impl::RenderData;
 
 	// Bind the texture to the currently active texture slot. This function does not change the
 	// active texture slot.

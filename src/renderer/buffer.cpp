@@ -38,6 +38,7 @@ void Buffer<BT>::SetDataImpl(const void* data, std::uint32_t size, BufferUsage u
 	GLCall(gl::BufferData(static_cast<gl::GLenum>(BT), size, data, static_cast<gl::GLenum>(usage)));
 }
 
+// TODO: Add offset.
 template <BufferType BT>
 void Buffer<BT>::SetSubData(const void* data, std::uint32_t size, bool unbind_vertex_array) {
 	PTGN_ASSERT(size != 0, "Must provide more than one element when setting buffer subdata");

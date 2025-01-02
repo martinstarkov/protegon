@@ -7,7 +7,6 @@
 #include "math/geometry/axis.h"
 #include "math/geometry/intersection.h"
 #include "math/vector2.h"
-#include "renderer/color.h"
 #include "renderer/layer_info.h"
 #include "renderer/origin.h"
 
