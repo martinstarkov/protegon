@@ -2,20 +2,13 @@
 
 #include <functional>
 
-#include "math/geometry/polygon.h"
-#include "math/matrix4.h"
-#include "math/vector2.h"
-#include "renderer/batch.h"
+#include "renderer/buffer.h"
 #include "renderer/color.h"
-#include "renderer/flip.h"
-#include "renderer/font.h"
-#include "renderer/frame_buffer.h"
-#include "renderer/layer_info.h"
-#include "renderer/shader.h"
-#include "renderer/text.h"
-#include "renderer/texture.h"
+#include "renderer/render_target.h"
 
 namespace ptgn {
+
+class FrameBuffer;
 
 class Scene;
 class Texture;
@@ -34,6 +27,8 @@ struct Circle;
 struct Triangle;
 
 namespace impl {
+
+class Batch;
 
 class CameraManager;
 class Game;
@@ -87,6 +82,7 @@ public:
 private:
 	// Sets bound_frame_buffer_
 	friend class FrameBuffer;
+	friend class impl::Batch;
 
 	friend class CameraManager;
 	friend class Game;
