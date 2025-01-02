@@ -339,12 +339,17 @@ template <typename T>
 
 template <typename T>
 [[nodiscard]] inline Vector2<T> Ceil(const Vector2<T>& vector) {
-	return { std::ceil(vector.x), std::ceil(vector.y) };
+	return { FastCeil(vector.x), FastCeil(vector.y) };
 }
 
 template <typename T>
 [[nodiscard]] inline Vector2<T> Floor(const Vector2<T>& vector) {
-	return { std::floor(vector.x), std::floor(vector.y) };
+	return { FastFloor(vector.x), FastFloor(vector.y) };
+}
+
+template <typename T>
+[[nodiscard]] inline Vector2<T> Abs(const Vector2<T>& vector) {
+	return { FastAbs(vector.x), FastAbs(vector.y) };
 }
 
 template <typename T>
