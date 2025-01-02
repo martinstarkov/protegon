@@ -17,14 +17,6 @@ struct ColorVertex {
 
 constexpr inline const BufferLayout<glsl::vec3, glsl::vec4> color_vertex_layout;
 
-struct TextureVertex {
-	glsl::vec3 position;
-	glsl::vec4 color;
-	glsl::vec2 tex_coord;
-};
-
-constexpr inline const BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2> texture_vertex_layout;
-
 struct QuadVertex {
 	glsl::vec3 position;
 	glsl::vec4 color;
