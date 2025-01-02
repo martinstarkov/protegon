@@ -333,6 +333,12 @@ Texture::Texture(const std::vector<Color>& pixels, const V2_int& size) :
 			 size } {}
 
 void Texture::Draw(
+	const Rect& destination, const TextureInfo& texture_info
+) const {
+	Draw(destination, texture_info, {});
+}
+
+void Texture::Draw(
 	const Rect& destination, const TextureInfo& texture_info, const LayerInfo& layer_info
 ) const {
 	PTGN_ASSERT(IsValid(), "Cannot draw uninitialized or destroyed texture");

@@ -10,12 +10,13 @@
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/flip.h"
-#include "renderer/layer_info.h"
 #include "renderer/surface.h"
 #include "utility/file.h"
 #include "utility/handle.h"
 
 namespace ptgn {
+
+struct LayerInfo;
 
 // Information relating to the source pixels, flip, tinting and rotation center of the texture.
 struct TextureInfo {
@@ -200,11 +201,19 @@ public:
 	// texture will be drawn, else if destination.size == {}, unscaled texture size is used.
 	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
 	// center of the texture.
-	// @param layer_info Information relating to the z index and render target of the texture.
-	// Defaults to currently active scene.
+	// Uses default render target.
 	void Draw(
-		const Rect& destination = {}, const TextureInfo& texture_info = {},
-		const LayerInfo& layer_info = {}
+		const Rect& destination = {}, const TextureInfo& texture_info = {}
+	) const;
+
+	// @param destination Destination to draw the texture to. If destination == {}, fullscreen
+	// texture will be drawn, else if destination.size == {}, unscaled texture size is used.
+	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
+	// center of the texture.
+	// @param layer_info Information relating to the z index and render target of the texture.
+	void Draw(
+		const Rect& destination, const TextureInfo& texture_info,
+		const LayerInfo& layer_info
 	) const;
 
 	// @param wrapping Texture wrapping in the x direction for when texture X coordinates are
