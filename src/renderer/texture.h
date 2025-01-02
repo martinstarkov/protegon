@@ -78,7 +78,7 @@ enum class TextureScaling {
 
 namespace impl {
 
-class Batch;
+struct Batch;
 class RenderData;
 
 enum class InternalGLFormat {
@@ -252,7 +252,7 @@ public:
 
 private:
 	friend struct impl::TextureInstance;
-	friend class impl::Batch;
+	friend struct impl::Batch;
 	friend class impl::RenderData;
 
 	// Bind the texture to the currently active texture slot. This function does not change the

@@ -11,6 +11,7 @@
 
 namespace ptgn {
 
+// Constructing a RenderTarget object requires the engine to be initialized.
 class RenderTarget {
 public:
 	// Continuously window sized.

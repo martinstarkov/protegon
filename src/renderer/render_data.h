@@ -1,20 +1,30 @@
 #pragma once
 
 #include <array>
+#include <cmath>
+#include <cstdint>
 #include <map>
+#include <tuple>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "core/game.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
+#include "math/math.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
+#include "math/vector4.h"
 #include "renderer/buffer.h"
+#include "renderer/gl_helper.h"
+#include "renderer/origin.h"
 #include "renderer/renderer.h"
 #include "renderer/texture.h"
 #include "renderer/vertex_array.h"
+#include "renderer/vertices.h"
+#include "utility/debug.h"
 #include "utility/triangulation.h"
 #include "utility/utility.h"
 
@@ -107,6 +117,7 @@ struct Batch {
 	};
 };
 
+// Constructing a RenderData object requires the engine to be initialized.
 class RenderData {
 public:
 	RenderData() {
