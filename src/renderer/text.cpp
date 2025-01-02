@@ -9,6 +9,7 @@
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/font.h"
+#include "renderer/layer_info.h"
 #include "renderer/renderer.h"
 #include "renderer/surface.h"
 #include "renderer/texture.h"
@@ -59,6 +60,10 @@ Text::Text(
 	t.shading_color_	 = shading_color;
 	t.wrap_after_pixels_ = wrap_after_pixels;
 	t.texture_			 = RecreateTexture();
+}
+
+void Text::Draw(const Rect& destination) const {
+	Draw(destination, {});
 }
 
 void Text::Draw(const Rect& destination, const LayerInfo& layer_info) const {

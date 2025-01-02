@@ -7,12 +7,12 @@
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/font.h"
-#include "renderer/layer_info.h"
 #include "renderer/texture.h"
 #include "utility/handle.h"
 
 namespace ptgn {
 
+struct LayerInfo;
 struct Rect;
 
 struct TextInfo {
@@ -71,7 +71,11 @@ public:
 	);
 
 	// Setting destination.size == {} corresponds to the unscaled size of the text.
-	void Draw(const Rect& destination, const LayerInfo& layer_info = {}) const;
+	// Uses default render target.
+	void Draw(const Rect& destination) const;
+
+	// Setting destination.size == {} corresponds to the unscaled size of the text.
+	void Draw(const Rect& destination, const LayerInfo& layer_info) const;
 
 	Text& SetFont(const FontOrKey& font);
 	Text& SetContent(const std::string_view& content);
