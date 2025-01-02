@@ -93,25 +93,22 @@ void GLRenderer::DisableDepthTesting() {
 }
 
 void GLRenderer::DrawElements(
-	const VertexArray& va, std::size_t index_count, bool bind_vertex_array
+	const VertexArray& vao, std::size_t index_count, bool bind_vertex_array
 ) {
-	PTGN_ASSERT(va.IsValid(), "Cannot draw uninitialized or destroyed vertex array");
+	PTGN_ASSERT(vao.IsValid(), "Cannot draw uninitialized or destroyed vertex array");
 	PTGN_ASSERT(
-		va.HasVertexBuffer(),
+		vao.HasVertexBuffer(),
 		"Cannot draw vertex array with uninitialized or destroyed vertex buffer"
 	);
 	PTGN_ASSERT(
-		va.HasIndexBuffer(), "Cannot draw vertex array with uninitialized or destroyed index buffer"
+		vao.HasIndexBuffer(), "Cannot draw vertex array with uninitialized or destroyed index buffer"
 	);
 	if (bind_vertex_array) {
-		va.Bind();
+		vao.Bind();
 	}
-	PTGN_ASSERT(
-		VertexArray::GetBoundId() == static_cast<std::int32_t>(va.Get().id_),
-		"Failed to bind vertex array id"
-	);
+	PTGN_ASSERT(vao.IsBound(), "Cannot glDrawElements unless the VertexArray is bound");
 	GLCall(gl::glDrawElements(
-		static_cast<gl::GLenum>(va.GetPrimitiveMode()), static_cast<std::uint32_t>(index_count),
+		static_cast<gl::GLenum>(vao.GetPrimitiveMode()), static_cast<std::uint32_t>(index_count),
 		static_cast<gl::GLenum>(impl::GetType<std::uint32_t>()), nullptr
 	));
 #ifdef PTGN_DEBUG
@@ -120,18 +117,19 @@ void GLRenderer::DrawElements(
 }
 
 void GLRenderer::DrawArrays(
-	const VertexArray& va, std::size_t vertex_count, bool bind_vertex_array
+	const VertexArray& vao, std::size_t vertex_count, bool bind_vertex_array
 ) {
-	PTGN_ASSERT(va.IsValid(), "Cannot draw uninitialized or destroyed vertex array");
+	PTGN_ASSERT(vao.IsValid(), "Cannot draw uninitialized or destroyed vertex array");
 	PTGN_ASSERT(
-		va.HasVertexBuffer(),
+		vao.HasVertexBuffer(),
 		"Cannot draw vertex array with uninitialized or destroyed vertex buffer"
 	);
 	if (bind_vertex_array) {
-		va.Bind();
+		vao.Bind();
 	}
+	PTGN_ASSERT(vao.IsBound(), "Cannot glDrawArrays unless the VertexArray is bound");
 	GLCall(gl::glDrawArrays(
-		static_cast<gl::GLenum>(va.GetPrimitiveMode()), 0, static_cast<std::uint32_t>(vertex_count)
+		static_cast<gl::GLenum>(vao.GetPrimitiveMode()), 0, static_cast<std::uint32_t>(vertex_count)
 	));
 #ifdef PTGN_DEBUG
 	++game.stats.draw_calls;
