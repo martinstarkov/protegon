@@ -3,7 +3,6 @@
 #include <bitset>
 #include <utility>
 
-#include "scene/camera.h"
 #include "core/game.h"
 #include "core/window.h"
 #include "event/event_handler.h"
@@ -12,7 +11,10 @@
 #include "event/mouse.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
+#include "renderer/layer_info.h"
 #include "renderer/origin.h"
+#include "renderer/render_target.h"
+#include "scene/camera.h"
 #include "SDL_events.h"
 #include "SDL_keyboard.h"
 #include "SDL_mouse.h"
@@ -184,23 +186,25 @@ V2_float InputHandler::GetMouseDifferenceWindow() const {
 	return mouse_pos_ - prev_mouse_pos_;
 }
 
-V2_float InputHandler::GetMouseDifference(std::size_t render_layer) const {
-	return ScaledToRenderLayer(GetMouseDifferenceWindow(), render_layer);
+V2_float InputHandler::GetMouseDifference(const RenderTarget& render_target) const {
+	return ScaledToRenderLayer(GetMouseDifferenceWindow(), render_target);
 }
 
-V2_float InputHandler::GetMousePosition(std::size_t render_layer) const {
-	return ScaledToRenderLayer(GetMousePositionWindow(), render_layer);
+V2_float InputHandler::GetMousePosition(const RenderTarget& render_target) const {
+	return ScaledToRenderLayer(GetMousePositionWindow(), render_target);
 }
 
-V2_float InputHandler::GetMousePositionPrevious(std::size_t render_layer) const {
-	return ScaledToRenderLayer(GetMousePositionPreviousWindow(), render_layer);
+V2_float InputHandler::GetMousePositionPrevious(const RenderTarget& render_target) const {
+	return ScaledToRenderLayer(GetMousePositionPreviousWindow(), render_target);
 }
 
-V2_float InputHandler::ScaledToRenderLayer(const V2_float& position, std::size_t render_layer)
-	const {
+V2_float InputHandler::ScaledToRenderLayer(
+	const V2_float& position, const RenderTarget& render_target
+) const {
 	V2_float w{ game.window.GetSize() };
 	PTGN_ASSERT(w.x != 0 && w.y != 0, "Cannot scale position relative to a dimensionless window");
-	V2_float p{ (game.camera.GetPrimary(render_layer).GetSize() * position) / w };
+	RenderTarget t{ render_target.IsValid() ? render_target : LayerInfo{}.GetActiveTarget() };
+	V2_float p{ t.GetCamera().GetPrimary().GetSize() * position / w };
 	return p;
 }
 

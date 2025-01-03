@@ -16,9 +16,9 @@
 #include "math/utility.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
-#include "renderer/origin.h"
-#include "renderer/renderer.h"
 #include "renderer/layer_info.h"
+#include "renderer/origin.h"
+#include "renderer/render_target.h"
 #include "utility/debug.h"
 
 namespace ptgn {
@@ -27,13 +27,11 @@ Triangle::Triangle(const V2_float& a, const V2_float& b, const V2_float& c) :
 	a{ a }, b{ b }, c{ c } {}
 
 void Triangle::Draw(const Color& color, float line_width) const {
-	Draw(color, line_width);
+	Draw(color, line_width, {});
 }
 
 void Triangle::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	game.renderer.data_.AddTriangle(
-		a, b, c, color.Normalized(), line_width, layer_info.z_index, layer_info.render_layer
-	);
+	layer_info.GetActiveTarget().AddTriangle(*this, color, line_width, layer_info.GetRenderLayer());
 }
 
 bool Triangle::Overlaps(const V2_float& point) const {
@@ -64,9 +62,7 @@ Rect Rect::Fullscreen() {
 	return Rect{ {}, game.window.GetSize(), Origin::TopLeft };
 }
 
-void Rect::Draw(
-	const Color& color, float line_width
-) const {
+void Rect::Draw(const Color& color, float line_width) const {
 	Draw(color, line_width, {}, { 0.5f, 0.5f });
 }
 
@@ -74,9 +70,8 @@ void Rect::Draw(
 	const Color& color, float line_width, const LayerInfo& layer_info,
 	const V2_float& rotation_center
 ) const {
-	game.renderer.data_.AddRect(
-		GetVertices(rotation_center), color.Normalized(), line_width, layer_info.z_index,
-		layer_info.render_layer
+	layer_info.GetActiveTarget().AddRect(
+		*this, color, line_width, layer_info.GetRenderLayer(), rotation_center
 	);
 }
 
@@ -360,9 +355,7 @@ RoundedRect::RoundedRect(
 	this->radius = radius;
 }
 
-void RoundedRect::Draw(
-	const Color& color, float line_width
-) const {
+void RoundedRect::Draw(const Color& color, float line_width) const {
 	Draw(color, line_width, {}, { 0.5f, 0.5f });
 }
 
@@ -370,9 +363,8 @@ void RoundedRect::Draw(
 	const Color& color, float line_width, const LayerInfo& layer_info,
 	const V2_float& rotation_center
 ) const {
-	game.renderer.data_.AddRoundedRect(
-		position, size, radius, color.Normalized(), origin, line_width, rotation, rotation_center,
-		layer_info.z_index, layer_info.render_layer, game.renderer.fade_
+	layer_info.GetActiveTarget().AddRoundedRect(
+		*this, color, line_width, impl::fade_, layer_info.GetRenderLayer(), rotation_center
 	);
 }
 
@@ -404,10 +396,7 @@ void Polygon::Draw(const Color& color, float line_width) const {
 }
 
 void Polygon::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	game.renderer.data_.AddPolygon(
-		vertices.data(), vertices.size(), color.Normalized(), line_width, layer_info.z_index,
-		layer_info.render_layer
-	);
+	layer_info.GetActiveTarget().AddPolygon(*this, color, line_width, layer_info.GetRenderLayer());
 }
 
 V2_float Polygon::Center() const {

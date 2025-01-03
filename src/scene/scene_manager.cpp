@@ -6,11 +6,12 @@
 #include <utility>
 #include <vector>
 
-#include "scene/camera.h"
 #include "core/game.h"
 #include "core/manager.h"
 #include "event/input_handler.h"
+#include "renderer/layer_info.h"
 #include "renderer/renderer.h"
+#include "scene/camera.h"
 #include "scene/scene.h"
 #include "utility/debug.h"
 #include "utility/utility.h"
@@ -146,14 +147,16 @@ void SceneManager::Update() {
 		PTGN_ASSERT(Has(scene_key));
 		auto scene{ Get(scene_key) };
 		if (scene->actions_.empty()) {
-			scene->target_.WhileBound([&]() {
-				scene->Update();
-				scene->target_.DrawToScreen(
-					{}, scene->camera.GetPrimary().GetViewProjection(),
-					TextureInfo{ {}, {}, Flip::None, scene->tint_ }
-				);
-			});
+			currently_updating_ = scene;
+			scene->Update();
+			scene->target_.Flush();
 		}
+	}
+	currently_updating_ = nullptr;
+	for (auto scene_key : active_scenes_) {
+		PTGN_ASSERT(Has(scene_key));
+		auto scene{ Get(scene_key) };
+		scene->target_.Draw({});
 	}
 	UpdateFlagged();
 }
@@ -169,15 +172,17 @@ bool SceneManager::SceneChanged() const {
 void SceneManager::UpdateFlagged() {
 	SetSceneChanged(false);
 	auto& map{ GetMap() };
-	for (auto it = map.begin(); it != map.end();) {
+	for (auto it{ map.begin() }; it != map.end();) {
 		// Intentional reference counter increment to maintain scene during scene function calls.
 
 		auto [key, scene] = *it;
 
 		bool unload{ false };
 
+		game.scene.currently_updating_ = scene;
+
 		while (!scene->actions_.empty()) {
-			auto action = scene->actions_.begin();
+			auto action{ scene->actions_.begin() };
 			switch (*action) {
 				case Scene::Action::Preload:
 					game.input.Reset();
@@ -187,8 +192,7 @@ void SceneManager::UpdateFlagged() {
 					// Input is reset to ensure no previously pressed keys are considered held.
 					game.input.Reset();
 					// Each scene starts with a refreshed camera.
-					scene->camera.ResetPrimary();
-					// TODO: Add binding of scene target.
+					scene->target_.GetCamera().ResetPrimary();
 					scene->Init();
 					SetSceneChanged(true);
 					break;
@@ -210,6 +214,8 @@ void SceneManager::UpdateFlagged() {
 			}
 			scene->actions_.erase(action);
 		}
+
+		game.scene.currently_updating_ = nullptr;
 
 		if (unload) {
 			it = map.erase(it);

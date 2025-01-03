@@ -1,6 +1,6 @@
 #pragma once
 
-#include <map>
+#include <iosfwd>
 
 #include "core/manager.h"
 #include "math/geometry/polygon.h"
@@ -17,13 +17,6 @@ namespace ptgn {
 class Game;
 class OrthographicCamera;
 class Renderer;
-
-V2_float WorldToScreen(const V2_float& position, std::size_t render_layer = 0);
-V2_float ScaleToScreen(const V2_float& size, std::size_t render_layer = 0);
-float ScaleToScreen(float size, std::size_t render_layer = 0);
-V2_float ScreenToWorld(const V2_float& position, std::size_t render_layer = 0);
-V2_float ScaleToWorld(const V2_float& size, std::size_t render_layer = 0);
-float ScaleToWorld(float size, std::size_t render_layer = 0);
 
 namespace impl {
 
@@ -160,16 +153,16 @@ class CameraManager : public MapManager<OrthographicCamera> {
 public:
 	using MapManager::MapManager;
 
+	CameraManager();
+
 	template <typename TKey>
-	void SetPrimary(const TKey& key, std::size_t render_layer = 0) {
-		SetPrimaryImpl(GetInternalKey(key), render_layer);
+	void SetPrimary(const TKey& key) {
+		SetPrimaryImpl(GetInternalKey(key));
 	}
 
-	void SetPrimary(const OrthographicCamera& camera, std::size_t render_layer = 0);
+	void SetPrimary(const OrthographicCamera& camera);
 
-	// If primary camera does not exist for the given layer, it will add a primary camera centered
-	// on the given layer.
-	[[nodiscard]] OrthographicCamera GetPrimary(std::size_t render_layer = 0);
+	[[nodiscard]] OrthographicCamera GetPrimary() const;
 
 	void Reset();
 
@@ -184,10 +177,9 @@ private:
 	friend class Renderer;
 	friend struct impl::RenderLayer;
 
-	void SetPrimaryImpl(const InternalKey& key, std::size_t render_layer);
+	void SetPrimaryImpl(const InternalKey& key);
 
-	// Key: render_layer, Value: camera.
-	std::map<std::size_t, OrthographicCamera> primary_cameras_;
+	OrthographicCamera primary_camera_;
 };
 
 // This class provides quick access to the current top active scene.
@@ -226,12 +218,12 @@ public:
 	static void Clear();
 
 	template <typename TKey>
-	static void SetPrimary(const TKey& key, std::size_t render_layer = 0) {
-		SetPrimaryImpl(CameraManager::GetInternalKey(key), render_layer);
+	static void SetPrimary(const TKey& key) {
+		SetPrimaryImpl(CameraManager::GetInternalKey(key));
 	}
 
-	static void SetPrimary(const OrthographicCamera& camera, std::size_t render_layer = 0);
-	[[nodiscard]] OrthographicCamera GetPrimary(std::size_t render_layer = 0);
+	static void SetPrimary(const OrthographicCamera& camera);
+	[[nodiscard]] OrthographicCamera GetPrimary();
 
 	static void Reset();
 	static void ResetPrimary();
@@ -248,7 +240,7 @@ private:
 	[[nodiscard]] static bool HasImpl(const InternalKey& key);
 	[[nodiscard]] static Item& GetImpl(const InternalKey& key);
 
-	static void SetPrimaryImpl(const InternalKey& key, std::size_t render_layer);
+	static void SetPrimaryImpl(const InternalKey& key);
 
 	void Init();
 

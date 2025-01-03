@@ -4,26 +4,23 @@
 #include <utility>
 
 #include "collision/raycast.h"
-#include "core/game.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/polygon.h"
 #include "math/math.h"
 #include "math/utility.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
-#include "renderer/renderer.h"
 #include "renderer/layer_info.h"
+#include "renderer/render_target.h"
 
 namespace ptgn {
 
 void Line::Draw(const Color& color, float line_width) const {
-	Draw(color, line_width);
+	Draw(color, line_width, {});
 }
 
 void Line::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	game.renderer.data_.AddLine(
-		a, b, color.Normalized(), line_width, layer_info.z_index, layer_info.render_layer
-	);
+	layer_info.GetActiveTarget().AddLine(*this, color, line_width, layer_info.GetRenderLayer());
 }
 
 V2_float Line::Direction() const {
@@ -440,9 +437,8 @@ void Capsule::Draw(const Color& color, float line_width) const {
 }
 
 void Capsule::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	game.renderer.data_.AddCapsule(
-		line.a, line.b, radius, color.Normalized(), line_width, layer_info.z_index,
-		layer_info.render_layer, game.renderer.fade_
+	layer_info.GetActiveTarget().AddCapsule(
+		*this, color, line_width, impl::fade_, layer_info.GetRenderLayer()
 	);
 }
 

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstdint>
 #include <memory>
 #include <type_traits>
 #include <vector>
@@ -13,10 +12,13 @@
 namespace ptgn {
 
 class SceneTransition;
+struct LayerInfo;
 
 namespace impl {
 
+class SceneCamera;
 class Game;
+class Renderer;
 
 inline constexpr std::size_t start_scene_key{ 0 };
 
@@ -33,7 +35,10 @@ public:
 		static_assert(
 			std::is_convertible_v<T*, Scene*>, "Loaded scene type must inherit from ptgn::Scene"
 		);
-		PTGN_ASSERT(!active_scenes_.empty(), "Cannot load scene into scene manager in the constructor of the initial scene. Use the Init() function instead");
+		PTGN_ASSERT(
+			!active_scenes_.empty(), "Cannot load scene into scene manager in the constructor of "
+									 "the initial scene. Use the Init() function instead"
+		);
 		auto k{ GetInternalKey(scene_key) };
 		PTGN_ASSERT(
 			k != impl::start_scene_key,
@@ -92,7 +97,10 @@ public:
 
 private:
 	friend class ptgn::SceneTransition;
-	friend class Game;
+	friend class impl::SceneCamera;
+	friend class impl::Game;
+	friend class impl::Renderer;
+	friend struct LayerInfo;
 
 	void SetSceneChanged(bool changed);
 	[[nodiscard]] bool SceneChanged() const;
@@ -109,8 +117,6 @@ private:
 	);
 	// Switches the places of the two scenes in the scene array vector.
 	void SwitchActiveScenesImpl(const InternalKey& scene1, const InternalKey& scene2);
-
-	friend class Game;
 
 	template <typename TStartScene, typename... TArgs>
 	void Init(const InternalKey& scene_key, TArgs&&... constructor_args) {
@@ -138,8 +144,9 @@ private:
 
 	[[nodiscard]] bool HasActiveSceneImpl(const InternalKey& scene_key) const;
 
-private:
 	bool scene_changed_{ false };
+
+	std::shared_ptr<Scene> currently_updating_{ nullptr };
 
 	std::vector<InternalKey> active_scenes_;
 };

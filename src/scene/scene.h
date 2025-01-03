@@ -4,7 +4,6 @@
 #include <memory>
 #include <set>
 
-#include "scene/camera.h"
 #include "renderer/color.h"
 #include "renderer/render_target.h"
 #include "utility/time.h"
@@ -89,7 +88,7 @@ private:
 
 class Scene {
 public:
-	Scene();
+	Scene()			 = default;
 	virtual ~Scene() = default;
 
 	// Called when the scene is initially loaded.
@@ -116,15 +115,13 @@ public:
 		/* user implementation */
 	}
 
-	impl::CameraManager camera;
-
 	[[nodiscard]] RenderTarget GetRenderTarget() const;
 
 private:
 	friend class impl::SceneManager;
 	friend class SceneTransition;
 
-	RenderTarget target_;
+	RenderTarget target_{ color::Transparent, BlendMode::Blend };
 	Color tint_{ color::White };
 
 	// If the actions is manually numbered, its order determines the execution order of scene

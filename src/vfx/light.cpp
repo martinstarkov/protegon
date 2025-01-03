@@ -45,13 +45,16 @@ V3_float Light::GetShaderColor() const {
 
 void Light::Draw(const Texture& texture) const {
 	auto shader{ game.light.GetShader() };
+	// TOOD: Reduce shader binds when using light manager.
 	shader.Bind();
 	shader.SetUniform("u_LightPos", GetPosition());
 	shader.SetUniform("u_LightIntensity", GetIntensity());
+	// TOOD: Fix this to use layer info.
 	shader.Draw(texture, {}, M4_float{ 1.0f }, TextureInfo{ {}, {}, Flip::None, color_ });
 }
 
 void LightManager::Init() {
+	target_		  = RenderTarget{ color::Transparent, BlendMode::Add };
 	light_shader_ = Shader(
 		ShaderSource{
 #include PTGN_SHADER_PATH(screen_default.vert)
@@ -60,19 +63,11 @@ void LightManager::Init() {
 #include PTGN_SHADER_PATH(lighting.frag)
 		}
 	);
-
-	target_ = RenderTarget{ true };
 }
 
 void LightManager::Draw() {
-	target_.WhileBound(
-		[&]() {
-			ForEachValue([&](const auto& light) { light.Draw(target_.GetTexture()); });
-			// TODO: Add blurring.
-			target_.DrawToScreen();
-		},
-		color::Transparent, BlendMode::Add
-	);
+	// TODO: Fix
+	ForEachValue([&](const auto& light) { /*light.Draw(target_.GetTexture());*/ });
 }
 
 void LightManager::Reset() {

@@ -7,7 +7,7 @@
 
 #include "core/game.h"
 #include "math/vector2.h"
-#include "renderer/frame_buffer.h"
+#include "renderer/texture.h"
 #include "scene/scene_manager.h"
 #include "utility/debug.h"
 #include "utility/log.h"
@@ -64,7 +64,7 @@ void SceneTransition::Start(
 	std::function<void()> start;
 	std::function<void()> stop;
 
-	V2_float s{ target.GetSize() };
+	V2_float s{ target.GetTexture().GetSize() };
 	// Camera starting position.
 	V2_float c{ camera.GetPosition() };
 	const V2_float og_c{ c };
@@ -208,10 +208,6 @@ void SceneTransition::Start(
 		}
 	});
 	game.tween.Add(tween).Start();
-}
-
-Scene::Scene() {
-	target_ = RenderTarget{ true };
 }
 
 RenderTarget Scene::GetRenderTarget() const {

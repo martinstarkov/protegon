@@ -5,6 +5,7 @@
 #include "math/vector3.h"
 #include "renderer/color.h"
 #include "renderer/frame_buffer.h"
+#include "renderer/render_target.h"
 #include "renderer/shader.h"
 
 namespace ptgn {

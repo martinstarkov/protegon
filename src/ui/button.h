@@ -151,7 +151,7 @@ public:
 	ButtonCallback on_disable_;
 	ButtonCallback on_toggle_;
 
-	std::size_t render_layer_{ 0 };
+	std::int32_t render_layer_{ 0 };
 
 	// -1 for solid button.
 	float line_thickness_{ -1.0f };
@@ -278,7 +278,8 @@ public:
 			resource = ButtonCallback(value);
 		} else {
 			static_assert(
-				std::is_same_v<S, T> || std::is_convertible_v<S, T> || std::is_constructible_v<S, T>,
+				std::is_same_v<S, T> || std::is_convertible_v<S, T> ||
+					std::is_constructible_v<S, T>,
 				"Cannot set button value to type which does not match type of property"
 			);
 			resource = value;

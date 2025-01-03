@@ -12,6 +12,13 @@ struct Rect;
 struct Line;
 struct Capsule;
 
+namespace impl {
+
+// Fade used with circle shader.
+constexpr static float fade_{ 0.005f };
+
+} // namespace impl
+
 struct Circle {
 	V2_float center;
 	float radius{ 0.0f };
@@ -53,14 +60,10 @@ struct Arc {
 	float end_angle{ 0.0f };
 
 	// Uses default render target.
-	void Draw(
-		bool clockwise, const Color& color, float line_width = -1.0f
-	) const;
+	void Draw(bool clockwise, const Color& color, float line_width = -1.0f) const;
 
-	void Draw(
-		bool clockwise, const Color& color, float line_width,
-		const LayerInfo& layer_info
-	) const;
+	void Draw(bool clockwise, const Color& color, float line_width, const LayerInfo& layer_info)
+		const;
 };
 
 struct Ellipse {

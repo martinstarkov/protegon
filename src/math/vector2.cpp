@@ -1,12 +1,11 @@
 #include "math/vector2.h"
 
-#include "core/game.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
 #include "renderer/color.h"
 #include "renderer/layer_info.h"
-#include "renderer/renderer.h"
+#include "renderer/render_target.h"
 
 namespace ptgn {
 
@@ -17,9 +16,8 @@ void Point::Draw(float x, float y, const Color& color, float radius) {
 }
 
 void Point::Draw(float x, float y, const Color& color, float radius, const LayerInfo& layer_info) {
-	game.renderer.data_.AddPoint(
-		{ x, y }, color.Normalized(), radius, layer_info.z_index, layer_info.render_layer,
-		game.renderer.fade_
+	layer_info.GetActiveTarget().AddPoint(
+		{ x, y }, color, radius, impl::fade_, layer_info.GetRenderLayer()
 	);
 }
 

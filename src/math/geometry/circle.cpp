@@ -14,8 +14,8 @@
 #include "math/utility.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
-#include "renderer/origin.h"
 #include "renderer/layer_info.h"
+#include "renderer/origin.h"
 #include "renderer/renderer.h"
 #include "utility/debug.h"
 
@@ -26,9 +26,8 @@ void Circle::Draw(const Color& color, float line_width) const {
 }
 
 void Circle::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	game.renderer.data_.AddEllipse(
-		center, { radius, radius }, color.Normalized(), line_width, layer_info.z_index,
-		layer_info.render_layer, game.renderer.fade_
+	layer_info.GetActiveTarget().AddCircle(
+		*this, color, line_width, impl::fade_, layer_info.GetRenderLayer()
 	);
 }
 
@@ -271,9 +270,8 @@ void Arc::Draw(bool clockwise, const Color& color, float line_width) const {
 
 void Arc::Draw(bool clockwise, const Color& color, float line_width, const LayerInfo& layer_info)
 	const {
-	game.renderer.data_.AddArc(
-		center, radius, start_angle, end_angle, clockwise, color.Normalized(), line_width,
-		layer_info.z_index, layer_info.render_layer, game.renderer.fade_
+	layer_info.GetActiveTarget().AddArc(
+		*this, clockwise, color, line_width, impl::fade_, layer_info.GetRenderLayer()
 	);
 }
 
@@ -282,9 +280,8 @@ void Ellipse::Draw(const Color& color, float line_width) const {
 }
 
 void Ellipse::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	game.renderer.data_.AddEllipse(
-		center, radius, color.Normalized(), line_width, layer_info.z_index, layer_info.render_layer,
-		game.renderer.fade_
+	layer_info.GetActiveTarget().AddEllipse(
+		*this, color, line_width, impl::fade_, layer_info.GetRenderLayer()
 	);
 }
 

@@ -6,6 +6,7 @@
 #include "event/key.h"
 #include "event/mouse.h"
 #include "math/vector2.h"
+#include "renderer/render_target.h"
 #include "utility/time.h"
 #include "utility/timer.h"
 
@@ -77,15 +78,15 @@ public:
 	[[nodiscard]] V2_float GetMouseDifferenceWindow() const;
 
 	// @return Mouse position scaled relative to the camera size of the specified render layer.
-	[[nodiscard]] V2_float GetMousePosition(std::size_t render_layer = 0) const;
+	[[nodiscard]] V2_float GetMousePosition(const RenderTarget& render_target = {}) const;
 
 	// @return Mouse position during the previous frame scaled relative to the camera size of the
 	// specified render layer.
-	[[nodiscard]] V2_float GetMousePositionPrevious(std::size_t render_layer = 0) const;
+	[[nodiscard]] V2_float GetMousePositionPrevious(const RenderTarget& render_target = {}) const;
 
 	// @return Mouse position difference between the current and previous frames scaled relative to
 	// the camera size of the specified render layer.
-	[[nodiscard]] V2_float GetMouseDifference(std::size_t render_layer = 0) const;
+	[[nodiscard]] V2_float GetMouseDifference(const RenderTarget& render_target = {}) const;
 
 	// @return In desktop mode: mouse position relative to the screen (display). In browser: same as
 	// GetMousePosition().
@@ -106,8 +107,9 @@ public:
 	[[nodiscard]] bool KeyUp(Key key);
 
 private:
-	[[nodiscard]] V2_float ScaledToRenderLayer(const V2_float& position, std::size_t render_layer)
-		const;
+	[[nodiscard]] V2_float ScaledToRenderLayer(
+		const V2_float& position, const RenderTarget& render_target = {}
+	) const;
 
 	friend class SceneManager;
 	friend class Game;
