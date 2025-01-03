@@ -107,7 +107,6 @@ void CheckForTestSwitch(const std::vector<std::shared_ptr<Test>>& tests, int& cu
 	PTGN_ASSERT(test_switch_keys.size() == 2);
 	int test_count{ static_cast<int>(tests.size()) };
 	auto shutdown = [&]() {
-		game.camera.ResetPrimary();
 		tests[current_test]->Shutdown();
 		tests[current_test]->Deinit();
 		game.window.SetTitle("");

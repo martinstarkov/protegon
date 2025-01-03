@@ -2,7 +2,6 @@
 #include <new>
 #include <vector>
 
-#include "scene/camera.h"
 #include "collision/collider.h"
 #include "collision/collision.h"
 #include "collision/raycast.h"
@@ -25,6 +24,8 @@
 #include "renderer/color.h"
 #include "renderer/origin.h"
 #include "renderer/renderer.h"
+#include "renderer/text.h"
+#include "scene/camera.h"
 #include "utility/debug.h"
 #include "utility/log.h"
 
@@ -368,7 +369,7 @@ public:
 		}
 	}
 
-	void DrawGrid() {
+	void DrawGrid() const {
 		V2_float tile_size{ 1, 1 };
 		for (int i = 0; i < size.x; i++) {
 			for (int j = 0; j < size.y; j++) {

@@ -80,7 +80,6 @@ public:
 	void Shutdown() final {
 		game.scene.RemoveActive("scene1");
 		game.scene.RemoveActive("scene2");
-		game.renderer.ResetRenderTarget();
 	}
 
 	void Init() final {

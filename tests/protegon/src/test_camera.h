@@ -79,7 +79,7 @@ struct TestCameraControls : public Test {
 	const float zoom_speed{ 0.4f };
 
 	void Init() override {
-		auto camera2{ game.camera.GetPrimary(2) };
+		auto camera2{ game.camera.GetPrimary() };
 		camera2.SetPosition({ 0, 0 });
 	}
 
@@ -139,12 +139,8 @@ struct TestCameraControls : public Test {
 
 	void Draw() override {
 		texture.Draw({ center, texture.GetSize() });
-		LayerInfo l1;
-		l1.render_layer = 1;
-		ui_texture.Draw({ { 0, 0 }, ui_texture.GetSize(), Origin::TopLeft }, {}, l1);
-		LayerInfo l2;
-		l2.render_layer = 2;
-		ui_texture.Draw({ { 0, 0 }, 3 * ui_texture.GetSize(), Origin::Center }, {}, l2);
+		ui_texture.Draw({ { 0, 0 }, ui_texture.GetSize(), Origin::TopLeft }, {}, { 1 });
+		ui_texture.Draw({ { 0, 0 }, 3 * ui_texture.GetSize(), Origin::Center }, {}, { 2 });
 	}
 };
 
