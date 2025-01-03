@@ -16,7 +16,7 @@ void Point::Draw(float x, float y, const Color& color, float radius) {
 }
 
 void Point::Draw(float x, float y, const Color& color, float radius, const LayerInfo& layer_info) {
-	layer_info.GetActiveTarget().AddPoint(
+	layer_info.GetRenderTarget().AddPoint(
 		{ x, y }, color, radius, impl::fade_, layer_info.GetRenderLayer()
 	);
 }

@@ -20,7 +20,7 @@ void Line::Draw(const Color& color, float line_width) const {
 }
 
 void Line::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	layer_info.GetActiveTarget().AddLine(*this, color, line_width, layer_info.GetRenderLayer());
+	layer_info.GetRenderTarget().AddLine(*this, color, line_width, layer_info.GetRenderLayer());
 }
 
 V2_float Line::Direction() const {
@@ -437,7 +437,7 @@ void Capsule::Draw(const Color& color, float line_width) const {
 }
 
 void Capsule::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	layer_info.GetActiveTarget().AddCapsule(
+	layer_info.GetRenderTarget().AddCapsule(
 		*this, color, line_width, impl::fade_, layer_info.GetRenderLayer()
 	);
 }

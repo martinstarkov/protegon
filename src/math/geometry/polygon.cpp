@@ -31,7 +31,7 @@ void Triangle::Draw(const Color& color, float line_width) const {
 }
 
 void Triangle::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	layer_info.GetActiveTarget().AddTriangle(*this, color, line_width, layer_info.GetRenderLayer());
+	layer_info.GetRenderTarget().AddTriangle(*this, color, line_width, layer_info.GetRenderLayer());
 }
 
 bool Triangle::Overlaps(const V2_float& point) const {
@@ -70,7 +70,7 @@ void Rect::Draw(
 	const Color& color, float line_width, const LayerInfo& layer_info,
 	const V2_float& rotation_center
 ) const {
-	layer_info.GetActiveTarget().AddRect(
+	layer_info.GetRenderTarget().AddRect(
 		*this, color, line_width, layer_info.GetRenderLayer(), rotation_center
 	);
 }
@@ -363,7 +363,7 @@ void RoundedRect::Draw(
 	const Color& color, float line_width, const LayerInfo& layer_info,
 	const V2_float& rotation_center
 ) const {
-	layer_info.GetActiveTarget().AddRoundedRect(
+	layer_info.GetRenderTarget().AddRoundedRect(
 		*this, color, line_width, impl::fade_, layer_info.GetRenderLayer(), rotation_center
 	);
 }
@@ -396,7 +396,7 @@ void Polygon::Draw(const Color& color, float line_width) const {
 }
 
 void Polygon::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	layer_info.GetActiveTarget().AddPolygon(*this, color, line_width, layer_info.GetRenderLayer());
+	layer_info.GetRenderTarget().AddPolygon(*this, color, line_width, layer_info.GetRenderLayer());
 }
 
 V2_float Polygon::Center() const {

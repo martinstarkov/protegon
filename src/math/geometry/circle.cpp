@@ -26,7 +26,7 @@ void Circle::Draw(const Color& color, float line_width) const {
 }
 
 void Circle::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	layer_info.GetActiveTarget().AddCircle(
+	layer_info.GetRenderTarget().AddCircle(
 		*this, color, line_width, impl::fade_, layer_info.GetRenderLayer()
 	);
 }
@@ -270,7 +270,7 @@ void Arc::Draw(bool clockwise, const Color& color, float line_width) const {
 
 void Arc::Draw(bool clockwise, const Color& color, float line_width, const LayerInfo& layer_info)
 	const {
-	layer_info.GetActiveTarget().AddArc(
+	layer_info.GetRenderTarget().AddArc(
 		*this, clockwise, color, line_width, impl::fade_, layer_info.GetRenderLayer()
 	);
 }
@@ -280,7 +280,7 @@ void Ellipse::Draw(const Color& color, float line_width) const {
 }
 
 void Ellipse::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	layer_info.GetActiveTarget().AddEllipse(
+	layer_info.GetRenderTarget().AddEllipse(
 		*this, color, line_width, impl::fade_, layer_info.GetRenderLayer()
 	);
 }

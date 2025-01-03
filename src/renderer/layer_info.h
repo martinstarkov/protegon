@@ -6,14 +6,14 @@
 
 namespace ptgn {
 
-// Information relating to the z index and render target of the texture.
-// Defaults to currently active scene.
+// Information relating to the render layer and render target of the drawn object.
+// Default constructed LayerInfo will automatically use the currently active scene.
 struct LayerInfo {
 	LayerInfo() = default;
 
 	LayerInfo(void*) {}
 
-	explicit LayerInfo(const RenderTarget& render_target);
+	LayerInfo(const RenderTarget& render_target);
 
 	// @param render_layer The render layer on which the object is drawn.
 	// Higher values are closer to the camera, leading to objects being rendered on top of others.

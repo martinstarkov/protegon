@@ -222,7 +222,7 @@ public:
 	// texture will be drawn, else if destination.size == {}, unscaled texture size is used.
 	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
 	// center of the texture.
-	// @param layer_info Information relating to the z index and render target of the texture.
+	// @param layer_info Information relating to the render layer and render target of the texture.
 	void Draw(const Rect& destination, const TextureInfo& texture_info, const LayerInfo& layer_info)
 		const;
 

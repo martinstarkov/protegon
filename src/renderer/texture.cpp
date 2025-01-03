@@ -409,7 +409,7 @@ void Texture::Draw(
 		dest.size = GetSize();
 	}
 
-	layer_info.GetActiveTarget().AddTexture(*this, dest, texture_info, layer_info.GetRenderLayer());
+	layer_info.GetRenderTarget().AddTexture(*this, dest, texture_info, layer_info.GetRenderLayer());
 }
 
 void Texture::Bind() const {

@@ -26,9 +26,7 @@ struct Circle;
 namespace impl {
 
 struct Point {
-	static void Draw(
-		float x, float y, const Color& color, float radius
-	);
+	static void Draw(float x, float y, const Color& color, float radius);
 
 	static void Draw(
 		float x, float y, const Color& color, float radius, const LayerInfo& layer_info
