@@ -110,11 +110,8 @@ void InputHandler::Update() {
 				break;
 			}
 			case SDL_QUIT: {
-				if (game.LoopFunctionCount() == 0) {
-					game.Stop();
-				} else {
-					game.event.window.Post(WindowEvent::Quit, WindowQuitEvent{});
-				}
+				game.Stop();
+				game.event.window.Post(WindowEvent::Quit, WindowQuitEvent{});
 				break;
 			}
 			case SDL_WINDOWEVENT: {
