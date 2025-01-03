@@ -115,7 +115,7 @@ public:
 	/*
 	 * @return True if the manager has no loaded items, false otherwise.
 	 */
-	[[nodiscard]] bool Empty() const {
+	[[nodiscard]] bool IsEmpty() const {
 		return map_.empty();
 	}
 
@@ -247,7 +247,7 @@ public:
 	/*
 	 * @return True if the manager has no loaded items, false otherwise.
 	 */
-	[[nodiscard]] bool Empty() const {
+	[[nodiscard]] bool IsEmpty() const {
 		return vector_.empty();
 	}
 

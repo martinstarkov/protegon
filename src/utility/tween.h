@@ -292,8 +292,8 @@ public:
 		return MapManager::Size() + VectorManager::Size();
 	}
 
-	[[nodiscard]] bool Empty() const {
-		return MapManager::Empty() && VectorManager::Empty();
+	[[nodiscard]] bool IsEmpty() const {
+		return MapManager::IsEmpty() && VectorManager::IsEmpty();
 	}
 
 	void Update();
