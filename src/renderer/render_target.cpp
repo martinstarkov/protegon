@@ -2,6 +2,9 @@
 
 #include <cstdint>
 
+#include "core/game.h"
+#include "core/window.h"
+#include "event/input_handler.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
@@ -273,46 +276,68 @@ void RenderTarget::AddPolygon(
 	i.render_data_.AddPolygon(polygon, color.Normalized(), line_width, render_layer);
 }
 
-V2_float WorldToScreen(const V2_float& position, const RenderTarget& render_target) {
-	auto primary{ render_target.GetCamera().GetPrimary() };
+V2_float RenderTarget::ScaleToWindow(const V2_float& position) const {
+	V2_float window_size{ game.window.GetSize() };
+	PTGN_ASSERT(
+		window_size.x != 0 && window_size.y != 0,
+		"Cannot scale position relative to a dimensionless window"
+	);
+	V2_float scaled_position{ GetCamera().GetPrimary().GetSize() * position / window_size };
+	return scaled_position;
+}
+
+V2_float RenderTarget::WorldToScreen(const V2_float& position) const {
+	auto primary{ GetCamera().GetPrimary() };
 	float scale{ primary.GetZoom() };
 	PTGN_ASSERT(scale != 0.0f);
 	return (position - primary.GetPosition()) * scale + primary.GetSize() / 2.0f;
 }
 
-V2_float ScreenToWorld(const V2_float& position, const RenderTarget& render_target) {
-	auto primary{ render_target.GetCamera().GetPrimary() };
+V2_float RenderTarget::ScreenToWorld(const V2_float& position) const {
+	auto primary{ GetCamera().GetPrimary() };
 	float scale{ primary.GetZoom() };
 	PTGN_ASSERT(scale != 0.0f);
 	return (position - primary.GetSize() * 0.5f) / scale + primary.GetPosition();
 }
 
-V2_float ScaleToWorld(const V2_float& size, const RenderTarget& render_target) {
-	auto primary{ render_target.GetCamera().GetPrimary() };
+V2_float RenderTarget::ScaleToWorld(const V2_float& size) const {
+	auto primary{ GetCamera().GetPrimary() };
 	float scale{ primary.GetZoom() };
 	PTGN_ASSERT(scale != 0.0f);
 	return size / scale;
 }
 
-float ScaleToWorld(float size, const RenderTarget& render_target) {
-	auto primary{ render_target.GetCamera().GetPrimary() };
+float RenderTarget::ScaleToWorld(float size) const {
+	auto primary{ GetCamera().GetPrimary() };
 	float scale{ primary.GetZoom() };
 	PTGN_ASSERT(scale != 0.0f);
 	return size / scale;
 }
 
-V2_float ScaleToScreen(const V2_float& size, const RenderTarget& render_target) {
-	auto primary{ render_target.GetCamera().GetPrimary() };
+V2_float RenderTarget::ScaleToScreen(const V2_float& size) const {
+	auto primary{ GetCamera().GetPrimary() };
 	float scale{ primary.GetZoom() };
 	PTGN_ASSERT(scale != 0.0f);
 	return size * scale;
 }
 
-float ScaleToScreen(float size, const RenderTarget& render_target) {
-	auto primary{ render_target.GetCamera().GetPrimary() };
+float RenderTarget::ScaleToScreen(float size) const {
+	auto primary{ GetCamera().GetPrimary() };
 	float scale{ primary.GetZoom() };
 	PTGN_ASSERT(scale != 0.0f);
 	return size * scale;
+}
+
+V2_float RenderTarget::GetMousePosition() const {
+	return ScaleToWindow(game.input.GetMousePositionWindow());
+}
+
+V2_float RenderTarget::GetMousePositionPrevious() const {
+	return ScaleToWindow(game.input.GetMousePositionPreviousWindow());
+}
+
+V2_float RenderTarget::GetMouseDifference() const {
+	return ScaleToWindow(game.input.GetMouseDifferenceWindow());
 }
 
 } // namespace ptgn

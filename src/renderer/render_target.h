@@ -76,11 +76,13 @@ public:
 
 	// Set color to which render target is cleared.
 	void SetClearColor(const Color& clear_color);
+
 	// @return The currently set clear color for the render target.
 	[[nodiscard]] Color GetClearColor() const;
 
 	// Flushes the render target's batch onto its frame buffer.
 	void SetBlendMode(BlendMode blend_mode);
+
 	// @return The currently set blend mode for the render target.
 	[[nodiscard]] BlendMode GetBlendMode() const;
 
@@ -97,7 +99,52 @@ public:
 	[[nodiscard]] impl::CameraManager& GetCamera();
 	[[nodiscard]] const impl::CameraManager& GetCamera() const;
 
+	// Converts a coordinate from being relative to the world to being relative to the render
+	// target's primary camera.
+	// @param position The position to be converted to screen space.
+	[[nodiscard]] V2_float WorldToScreen(const V2_float& position) const;
+
+	// Converts a coordinate from being relative to render target's primary camera to being relative
+	// to the world.
+	// @param position The position to be converted to world space.
+	[[nodiscard]] V2_float ScreenToWorld(const V2_float& position) const;
+
+	// Scales a size from being relative to the world to being relative to the render
+	// target's primary camera.
+	// @param size The size to be scaled to screen space.
+	[[nodiscard]] V2_float ScaleToScreen(const V2_float& size) const;
+
+	// Scales a size from being relative to the world to being relative to the render
+	// target's primary camera.
+	// @param size The size to be scaled to screen space.
+	[[nodiscard]] float ScaleToScreen(float size) const;
+
+	// Scales a size from being relative to the render target's primary camera to being relative to
+	// world space.
+	// @param size The size to be scaled to world space.
+	[[nodiscard]] V2_float ScaleToWorld(const V2_float& size) const;
+
+	// Scales a size from being relative to the render target's primary camera to being relative to
+	// world space.
+	// @param size The size to be scaled to world space.
+	[[nodiscard]] float ScaleToWorld(float size) const;
+
+	// @return Mouse position scaled relative to the primary camera size of the render target.
+	[[nodiscard]] V2_float GetMousePosition() const;
+
+	// @return Mouse position during the previous frame scaled relative to the primary camera size
+	// of the render target.
+	[[nodiscard]] V2_float GetMousePositionPrevious() const;
+
+	// @return Mouse position difference between the current and previous frames scaled relative to
+	// the primary camera size of the render target.
+	[[nodiscard]] V2_float GetMouseDifference() const;
+
 private:
+	// @return Mouse relative to the window and the render target's primary camera size (zoom
+	// included).
+	[[nodiscard]] V2_float ScaleToWindow(const V2_float& position) const;
+
 	friend class impl::Renderer;
 	friend class impl::SceneManager;
 	friend class impl::SceneCamera;
@@ -168,12 +215,5 @@ private:
 		const Polygon& polygon, const Color& color, float line_width, std::int32_t render_layer
 	);
 };
-
-V2_float WorldToScreen(const V2_float& position, const RenderTarget& render_target = {});
-V2_float ScaleToScreen(const V2_float& size, const RenderTarget& render_target = {});
-float ScaleToScreen(float size, const RenderTarget& render_target = {});
-V2_float ScreenToWorld(const V2_float& position, const RenderTarget& render_target = {});
-V2_float ScaleToWorld(const V2_float& size, const RenderTarget& render_target = {});
-float ScaleToWorld(float size, const RenderTarget& render_target = {});
 
 } // namespace ptgn
