@@ -136,6 +136,7 @@ private:
 
 	std::unique_ptr<Profiler> profiler_;
 
+	// TODO: Get rid of this.
 	std::vector<UpdateFunction> update_stack_;
 
 	bool running_{ false };

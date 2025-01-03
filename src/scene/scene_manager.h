@@ -89,11 +89,16 @@ public:
 	void ClearActive();
 	void UnloadAll();
 
+	// @return A vector of currently active scenes.
 	[[nodiscard]] std::vector<std::shared_ptr<Scene>> GetActive();
 
+	// @return Scene which was most recently added as an active scene.
 	[[nodiscard]] Scene& GetTopActive();
 
 	void Update();
+
+	// @return Scene which is currently being updated, initialized, or shutdown.
+	[[nodiscard]] Scene& GetCurrent();
 
 private:
 	friend class ptgn::SceneTransition;
@@ -146,7 +151,7 @@ private:
 
 	bool scene_changed_{ false };
 
-	std::shared_ptr<Scene> currently_updating_{ nullptr };
+	std::shared_ptr<Scene> current_scene_{ nullptr };
 
 	std::vector<InternalKey> active_scenes_;
 };

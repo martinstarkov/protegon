@@ -1,6 +1,6 @@
 #include "scene/scene_manager.h"
 
-#include <algorithm>
+#include <cstdint>
 #include <list>
 #include <memory>
 #include <utility>
@@ -10,6 +10,7 @@
 #include "core/manager.h"
 #include "event/input_handler.h"
 #include "renderer/layer_info.h"
+#include "renderer/render_target.h"
 #include "renderer/renderer.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
@@ -147,18 +148,25 @@ void SceneManager::Update() {
 		PTGN_ASSERT(Has(scene_key));
 		auto scene{ Get(scene_key) };
 		if (scene->actions_.empty()) {
-			currently_updating_ = scene;
+			current_scene_ = scene;
 			scene->Update();
 			scene->target_.Flush();
 		}
 	}
-	currently_updating_ = nullptr;
+	current_scene_ = nullptr;
+	std::int32_t layer{ 0 };
 	for (auto scene_key : active_scenes_) {
 		PTGN_ASSERT(Has(scene_key));
 		auto scene{ Get(scene_key) };
-		scene->target_.Draw({});
+		scene->target_.Draw(Rect::Fullscreen(), LayerInfo{ layer, game.renderer.screen_target_ });
+		layer++;
 	}
 	UpdateFlagged();
+}
+
+Scene& SceneManager::GetCurrent() {
+	PTGN_ASSERT(current_scene_ != nullptr, "No currently active scene has been set");
+	return *current_scene_;
 }
 
 void SceneManager::SetSceneChanged(bool changed) {
@@ -179,9 +187,8 @@ void SceneManager::UpdateFlagged() {
 
 		bool unload{ false };
 
-		game.scene.currently_updating_ = scene;
-
 		while (!scene->actions_.empty()) {
+			current_scene_ = scene;
 			auto action{ scene->actions_.begin() };
 			switch (*action) {
 				case Scene::Action::Preload:
@@ -215,7 +222,7 @@ void SceneManager::UpdateFlagged() {
 			scene->actions_.erase(action);
 		}
 
-		game.scene.currently_updating_ = nullptr;
+		current_scene_ = nullptr;
 
 		if (unload) {
 			it = map.erase(it);

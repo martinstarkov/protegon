@@ -4,9 +4,7 @@
 #include <type_traits>
 #include <vector>
 
-#include "SDL_timer.h"
 #include "audio/audio.h"
-#include "scene/camera.h"
 #include "collision/collision.h"
 #include "core/gl_context.h"
 #include "core/manager.h"
@@ -20,7 +18,9 @@
 #include "renderer/shader.h"
 #include "renderer/text.h"
 #include "renderer/texture.h"
+#include "scene/camera.h"
 #include "scene/scene_manager.h"
+#include "SDL_timer.h"
 #include "ui/ui.h"
 #include "utility/debug.h"
 #include "utility/profiling.h"
@@ -339,7 +339,7 @@ void Game::Update() {
 
 	// PTGN_LOG("Loop #", counter);
 
-	game.renderer.Clear();
+	game.renderer.ClearScreen();
 
 	if (update_stack_.empty()) {
 		scene.Update();

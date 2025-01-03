@@ -24,10 +24,6 @@ namespace ptgn::impl {
 
 void Renderer::Init() {
 	GLRenderer::EnableLineSmoothing();
-	FrameBuffer::Unbind();
-	GLRenderer::ClearColor(color::Transparent);
-	GLRenderer::SetBlendMode(BlendMode::Blend);
-	GLRenderer::Clear();
 
 	batch_capacity_ = 2000;
 
@@ -80,6 +76,8 @@ void Renderer::Init() {
 	quad_shader_.SetUniform("u_Texture", samplers.data(), samplers.size());
 
 	screen_target_ = RenderTarget{ color::Transparent, BlendMode::Blend };
+
+	ClearScreen();
 }
 
 void Renderer::Reset() {
@@ -93,10 +91,11 @@ void Renderer::Reset() {
 	point_ib_	 = {};
 	shader_ib_	 = {};
 
-	// Fade used with circle shader.
 	batch_capacity_	   = 0;
 	max_texture_slots_ = 0;
 	white_texture_	   = {};
+
+	screen_target_ = {};
 }
 
 void Renderer::Shutdown() {
@@ -104,34 +103,44 @@ void Renderer::Shutdown() {
 }
 
 BlendMode Renderer::GetBlendMode() const {
-	return LayerInfo{}.GetActiveTarget().GetBlendMode();
+	return game.scene.GetCurrent().GetTarget().GetBlendMode();
 }
 
 void Renderer::SetBlendMode(BlendMode blend_mode) {
-	LayerInfo{}.GetActiveTarget().SetBlendMode(blend_mode);
+	game.scene.GetCurrent().GetTarget().SetBlendMode(blend_mode);
 }
 
 Color Renderer::GetClearColor() const {
-	return LayerInfo{}.GetActiveTarget().GetClearColor();
+	return game.scene.GetCurrent().GetTarget().GetClearColor();
 }
 
 void Renderer::SetClearColor(const Color& clear_color) {
-	LayerInfo{}.GetActiveTarget().SetClearColor(clear_color);
+	game.scene.GetCurrent().GetTarget().SetClearColor(clear_color);
+}
+
+void Renderer::ClearScreen() const {
+	FrameBuffer::Unbind();
+	GLRenderer::ClearColor(color::Transparent);
+	GLRenderer::SetBlendMode(BlendMode::Blend);
+	GLRenderer::Clear();
+
+	screen_target_.Clear();
 }
 
 void Renderer::Clear() const {
-	LayerInfo{}.GetActiveTarget().Clear();
+	game.scene.GetCurrent().GetTarget().Clear();
 }
 
 void Renderer::Flush() {
-	LayerInfo{}.GetActiveTarget().Flush();
+	game.scene.GetCurrent().GetTarget().Flush();
 }
 
 void Renderer::Present() {
 	screen_target_.Flush();
 
 	FrameBuffer::Unbind();
-	screen_target_.DrawToBoundFrameBuffer(Rect::Fullscreen());
+	screen_target_.GetTexture().Draw(Rect::Fullscreen(), {}, { 0, screen_target_ });
+	screen_target_.Flush();
 
 	game.window.SwapBuffers();
 

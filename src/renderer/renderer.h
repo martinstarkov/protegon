@@ -57,6 +57,7 @@ private:
 	friend class GLRenderer;
 	friend class RenderTarget;
 
+	void ClearScreen() const;
 	void Init();
 	void Shutdown();
 	void Reset();
@@ -81,6 +82,7 @@ private:
 
 	FrameBuffer bound_frame_buffer_;
 	RenderTarget screen_target_;
+	Shader screen_shader_;
 };
 
 } // namespace impl

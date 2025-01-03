@@ -15,7 +15,7 @@
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/buffer.h"
-#include "renderer/gl_helper.h"
+#include "renderer/gl_types.h"
 #include "renderer/origin.h"
 #include "renderer/renderer.h"
 #include "renderer/texture.h"

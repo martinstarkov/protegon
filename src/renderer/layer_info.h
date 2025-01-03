@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "renderer/render_target.h"
 
 namespace ptgn {
@@ -24,7 +26,7 @@ struct LayerInfo {
 
 	[[nodiscard]] bool operator!=(const LayerInfo& o) const;
 
-	[[nodiscard]] RenderTarget GetActiveTarget() const;
+	[[nodiscard]] RenderTarget GetRenderTarget() const;
 
 	[[nodiscard]] std::int32_t GetRenderLayer() const;
 
