@@ -58,7 +58,7 @@ private:
 	friend class RenderTarget;
 
 	void ClearScreen() const;
-	void Init();
+	void Init(const Color& background_color);
 	void Shutdown();
 	void Reset();
 
