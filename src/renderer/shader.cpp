@@ -162,7 +162,7 @@ void Shader::Bind() const {
 }
 
 void Shader::Draw(
-	const Texture& texture, const Rect& destination, const M4_float& view_projection,
+	const Texture& texture, const Rect& destination, const Matrix4& view_projection,
 	const TextureInfo& texture_info
 ) const {
 	// TODO: Fix.
@@ -241,7 +241,7 @@ void Shader::SetUniform(const std::string& name, const Vector4<float>& v) const 
 	}
 }
 
-void Shader::SetUniform(const std::string& name, const Matrix4<float>& m) const {
+void Shader::SetUniform(const std::string& name, const Matrix4& m) const {
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
 		GLCall(gl::UniformMatrix4fv(location, 1, GL_FALSE, m.Data()));

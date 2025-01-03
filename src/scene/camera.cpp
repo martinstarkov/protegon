@@ -41,9 +41,9 @@ void Camera::Reset() {
 	bounding_box = {};
 	flip		 = Flip::None;
 
-	view			= M4_float{ 1.0f };
-	projection		= M4_float{ 1.0f };
-	view_projection = M4_float{ 1.0f };
+	view			= Matrix4{ 1.0f };
+	projection		= Matrix4{ 1.0f };
+	view_projection = Matrix4{ 1.0f };
 
 	recalculate_view	   = false;
 	recalculate_projection = false;
@@ -155,7 +155,7 @@ void OrthographicCamera::UnsubscribeFromWindowResize() const {
 	game.event.window.Unsubscribe(&Get());
 }
 
-const M4_float& OrthographicCamera::GetView() const {
+const Matrix4& OrthographicCamera::GetView() const {
 	const auto& o{ Get() };
 	if (o.recalculate_view) {
 		RecalculateView();
@@ -163,7 +163,7 @@ const M4_float& OrthographicCamera::GetView() const {
 	return o.view;
 }
 
-const M4_float& OrthographicCamera::GetProjection() const {
+const Matrix4& OrthographicCamera::GetProjection() const {
 	const auto& o{ Get() };
 	if (o.recalculate_projection) {
 		RecalculateProjection();
@@ -171,7 +171,7 @@ const M4_float& OrthographicCamera::GetProjection() const {
 	return o.projection;
 }
 
-const M4_float& OrthographicCamera::GetViewProjection() const {
+const Matrix4& OrthographicCamera::GetViewProjection() const {
 	auto& o{ Get() };
 	bool updated_matrix{ o.recalculate_view || o.recalculate_projection };
 	if (o.recalculate_view) {
@@ -354,7 +354,7 @@ void OrthographicCamera::RecalculateView() const {
 	V3_float position{ -o.position.x, -o.position.y, o.position.z };
 
 	Quaternion orientation = GetQuaternion();
-	o.view				   = M4_float::Translate(orientation.ToMatrix4(), position);
+	o.view				   = Matrix4::Translate(orientation.ToMatrix4(), position);
 }
 
 void OrthographicCamera::RecalculateProjection() const {
@@ -372,7 +372,7 @@ void OrthographicCamera::RecalculateProjection() const {
 			break;
 		default: PTGN_ERROR("Unrecognized flip state");
 	}
-	o.projection = M4_float::Orthographic(
+	o.projection = Matrix4::Orthographic(
 		flip.x * -extents.x, flip.x * extents.x, flip.y * extents.y, flip.y * -extents.y,
 		-std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()
 	);
@@ -427,8 +427,6 @@ void CameraController::UnsubscribeFromMouseEvents() {
 }
 */
 
-namespace impl {
-
 CameraManager::CameraManager() {
 	ResetPrimary();
 }
@@ -459,49 +457,33 @@ const OrthographicCamera& CameraManager::GetWindow() {
 	return game.camera.GetWindow();
 }
 
+namespace impl {
+
 CameraManager::Item& SceneCamera::LoadImpl(const InternalKey& key, Item&& item) {
 	if (!item.IsValid()) {
 		item.SetSizeToWindow();
 	}
-	PTGN_ASSERT(
-		game.scene.currently_updating_ != nullptr, "No active scene to retrieve camera from"
-	);
-	return game.scene.currently_updating_->GetRenderTarget().GetCamera().Load(key, std::move(item));
+	return game.scene.GetCurrent().GetRenderTarget().GetCamera().Load(key, std::move(item));
 }
 
 void SceneCamera::UnloadImpl(const InternalKey& key) {
-	PTGN_ASSERT(
-		game.scene.currently_updating_ != nullptr, "No active scene to retrieve camera from"
-	);
-	game.scene.currently_updating_->GetRenderTarget().GetCamera().Unload(key);
+	game.scene.GetCurrent().GetRenderTarget().GetCamera().Unload(key);
 }
 
 bool SceneCamera::HasImpl(const InternalKey& key) {
-	PTGN_ASSERT(
-		game.scene.currently_updating_ != nullptr, "No active scene to retrieve camera from"
-	);
-	return game.scene.currently_updating_->GetRenderTarget().GetCamera().Has(key);
+	return game.scene.GetCurrent().GetRenderTarget().GetCamera().Has(key);
 }
 
 CameraManager::Item& SceneCamera::GetImpl(const InternalKey& key) {
-	PTGN_ASSERT(
-		game.scene.currently_updating_ != nullptr, "No active scene to retrieve camera from"
-	);
-	return game.scene.currently_updating_->GetRenderTarget().GetCamera().Get(key);
+	return game.scene.GetCurrent().GetRenderTarget().GetCamera().Get(key);
 }
 
 void SceneCamera::Clear() {
-	PTGN_ASSERT(
-		game.scene.currently_updating_ != nullptr, "No active scene to retrieve camera from"
-	);
-	game.scene.currently_updating_->GetRenderTarget().GetCamera().Clear();
+	game.scene.GetCurrent().GetRenderTarget().GetCamera().Clear();
 }
 
 void SceneCamera::SetPrimaryImpl(const InternalKey& key) {
-	PTGN_ASSERT(
-		game.scene.currently_updating_ != nullptr, "No active scene to retrieve camera from"
-	);
-	game.scene.currently_updating_->GetRenderTarget().GetCamera().SetPrimary(key);
+	game.scene.GetCurrent().GetRenderTarget().GetCamera().SetPrimary(key);
 }
 
 void SceneCamera::Init() {
@@ -513,31 +495,19 @@ const OrthographicCamera& SceneCamera::GetWindow() const {
 }
 
 void SceneCamera::SetPrimary(const OrthographicCamera& camera) {
-	PTGN_ASSERT(
-		game.scene.currently_updating_ != nullptr, "No active scene to retrieve camera from"
-	);
-	game.scene.currently_updating_->GetRenderTarget().GetCamera().SetPrimary(camera);
+	game.scene.GetCurrent().GetRenderTarget().GetCamera().SetPrimary(camera);
 }
 
 OrthographicCamera SceneCamera::GetPrimary() {
-	PTGN_ASSERT(
-		game.scene.currently_updating_ != nullptr, "No active scene to retrieve camera from"
-	);
-	return game.scene.currently_updating_->GetRenderTarget().GetCamera().GetPrimary();
+	return game.scene.GetCurrent().GetRenderTarget().GetCamera().GetPrimary();
 }
 
 void SceneCamera::Reset() {
-	PTGN_ASSERT(
-		game.scene.currently_updating_ != nullptr, "No active scene to retrieve camera from"
-	);
-	game.scene.currently_updating_->GetRenderTarget().GetCamera().Reset();
+	game.scene.GetCurrent().GetRenderTarget().GetCamera().Reset();
 }
 
 void SceneCamera::ResetPrimary() {
-	PTGN_ASSERT(
-		game.scene.currently_updating_ != nullptr, "No active scene to retrieve camera from"
-	);
-	game.scene.currently_updating_->GetRenderTarget().GetCamera().ResetPrimary();
+	game.scene.GetCurrent().GetRenderTarget().GetCamera().ResetPrimary();
 }
 
 } // namespace impl

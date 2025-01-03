@@ -65,7 +65,7 @@ public:
 	// Assumes view_projection_ is updated externally.
 	void Flush();
 
-	void SetViewProjection(const M4_float& view_projection);
+	void SetViewProjection(const Matrix4& view_projection);
 
 	// TOOD: Probably best to move these all into the geometry classes to avoid code duplication.
 
@@ -306,7 +306,7 @@ private:
 	std::size_t batch_capacity_{ 0 };
 
 	bool refresh_view_projection_{ true };
-	M4_float view_projection_{ 1.0f };
+	Matrix4 view_projection_{ 1.0f };
 	// Key: Render Layer, Value: Vector of transparent batches for each render layer.
 	std::map<std::int32_t, std::vector<Batch>> transparent_layers_;
 	// TODO: Readd opaque batches using depth testing.

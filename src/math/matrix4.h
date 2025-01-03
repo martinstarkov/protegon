@@ -1,12 +1,15 @@
 #pragma once
 
 #include <array>
+#include <cmath>
 #include <iomanip>
 #include <ios>
 #include <iosfwd>
+#include <limits>
 #include <ostream>
 #include <type_traits>
 
+#include "math/math.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
@@ -17,7 +20,6 @@ namespace ptgn {
 
 class Quaternion;
 
-template <typename T, tt::arithmetic<T> = true>
 struct Matrix4 {
 public:
 	constexpr static V2_int size{ 4, 4 };
@@ -26,27 +28,27 @@ public:
 private:
 	friend class Quaternion;
 
-	std::array<T, length> m_{};
+	std::array<float, length> m_{};
 
 public:
 	constexpr Matrix4() = default;
 	~Matrix4()			= default;
 
-	constexpr Matrix4(T x, T y, T z, T w) {
+	constexpr Matrix4(float x, float y, float z, float w) {
 		m_[0]  = x;
 		m_[5]  = y;
 		m_[10] = z;
 		m_[15] = w;
 	}
 
-	explicit constexpr Matrix4(const std::array<T, length>& m) : m_{ m } {}
+	explicit constexpr Matrix4(const std::array<float, length>& m) : m_{ m } {}
 
 	template <typename... Ts>
 	explicit constexpr Matrix4(Ts... args) : m_{ args... } {}
 
 	constexpr Matrix4(
-		const Vector4<T>& row0, const Vector4<T>& row1, const Vector4<T>& row2,
-		const Vector4<T>& row3
+		const Vector4<float>& row0, const Vector4<float>& row1, const Vector4<float>& row2,
+		const Vector4<float>& row3
 	) {
 		m_[0]  = row0.x;
 		m_[1]  = row1.x;
@@ -66,39 +68,39 @@ public:
 		m_[15] = row3.w;
 	}
 
-	explicit constexpr Matrix4(T diag) {
-		for (std::size_t x = 0; x < size.x; x++) {
+	explicit constexpr Matrix4(float diag) {
+		for (std::size_t x{ 0 }; x < size.x; x++) {
 			m_[x + x * size.x] = diag;
 		}
 	}
 
-	[[nodiscard]] constexpr T& operator()(std::size_t x, std::size_t y) {
+	[[nodiscard]] constexpr float& operator()(std::size_t x, std::size_t y) {
 		PTGN_ASSERT(x < size.x);
 		PTGN_ASSERT(y < size.y);
 		return m_[x + y * size.x];
 	}
 
-	[[nodiscard]] constexpr const T& operator()(std::size_t x, std::size_t y) const {
+	[[nodiscard]] constexpr const float& operator()(std::size_t x, std::size_t y) const {
 		PTGN_ASSERT(x < size.x);
 		PTGN_ASSERT(y < size.y);
 		return m_[x + y * size.x];
 	}
 
-	[[nodiscard]] constexpr T& operator[](std::size_t col_major_index) {
+	[[nodiscard]] constexpr float& operator[](std::size_t col_major_index) {
 		PTGN_ASSERT(col_major_index < length);
 		return m_[col_major_index];
 	}
 
-	[[nodiscard]] constexpr const T& operator[](std::size_t col_major_index) const {
+	[[nodiscard]] constexpr const float& operator[](std::size_t col_major_index) const {
 		PTGN_ASSERT(col_major_index < length);
 		return m_[col_major_index];
 	}
 
-	[[nodiscard]] constexpr T* Data() noexcept {
+	[[nodiscard]] constexpr float* Data() noexcept {
 		return m_.data();
 	}
 
-	[[nodiscard]] constexpr const T* Data() const noexcept {
+	[[nodiscard]] constexpr const float* Data() const noexcept {
 		return m_.data();
 	}
 
@@ -119,14 +121,14 @@ public:
 	}
 
 	[[nodiscard]] static Matrix4 LookAt(
-		const Vector3<T>& position, const Vector3<T>& target, const Vector3<T>& up
+		const Vector3<float>& position, const Vector3<float>& target, const Vector3<float>& up
 	) {
-		static_assert(std::is_floating_point_v<T>, "Function requires floating point type");
-		Vector3<T> dir	 = (target - position).Normalized();
-		Vector3<T> right = (dir.Cross(up)).Normalized();
-		Vector3<T> up_n	 = right.Cross(dir);
+		static_assert(std::is_floating_point_v<float>, "Function requires floating point type");
+		Vector3<float> dir	 = (target - position).Normalized();
+		Vector3<float> right = (dir.Cross(up)).Normalized();
+		Vector3<float> up_n	 = right.Cross(dir);
 
-		Matrix4<T> result{ T{ 1 } };
+		Matrix4 result{ 1.0f };
 		result[0]  = right.x;
 		result[1]  = up_n.x;
 		result[2]  = -dir.x;
@@ -144,32 +146,32 @@ public:
 	}
 
 	[[nodiscard]] static Matrix4 Identity() {
-		return Matrix4{ T{ 1 } };
+		return Matrix4{ 1.0f };
 	}
 
-	// Example usage: M4_float proj = M4_float::Orthographic(-1.0f, 1.0f, -1.0f, 1.0f);
+	// Example usage: Matrix4 proj = Matrix4::Orthographic(-1.0f, 1.0f, -1.0f, 1.0f);
 	[[nodiscard]] static Matrix4 Orthographic(
-		T left, T right, T bottom, T top, T near = T{ -1 }, T far = T{ 1 }
+		float left, float right, float bottom, float top, float near = -1.0f, float far = 1.0f
 	) {
-		Matrix4<T> o;
+		Matrix4 o;
 
 		PTGN_ASSERT(right != left, "Orthographic matrix division by zero");
 		PTGN_ASSERT(bottom != top, "Orthographic matrix division by zero");
 		PTGN_ASSERT(far != near, "Orthographic matrix division by zero");
 
-		T plane_dist{ far - near };
+		float plane_dist{ far - near };
 
-		o[0]  = T{ 2 } / (right - left);
-		o[5]  = T{ 2 } / (top - bottom);
-		o[10] = -T{ 2 } / plane_dist; // -1 by default
+		o[0]  = 2.0f / (right - left);
+		o[5]  = 2.0f / (top - bottom);
+		o[10] = -2.0f / plane_dist; // -1 by default
 		o[12] = -(right + left) / (right - left);
 		o[13] = -(top + bottom) / (top - bottom);
-		T plane_sum{ far + near };
+		float plane_sum{ far + near };
 		if (std::isnan(plane_sum)) {
 			plane_sum = 0.0f;
 		}
 		o[14] = -plane_sum / plane_dist; // 0 by default
-		o[15] = T{ 1 };
+		o[15] = 1.0f;
 
 		PTGN_ASSERT(
 			std::invoke([&]() -> bool {
@@ -190,82 +192,76 @@ public:
 	// https://github.com/g-truc/glm/blob/33b4a621a697a305bc3a7610d290677b96beb181/glm/detail/func_matrix.inl#L388
 
 	[[nodiscard]] Matrix4 Inverse() const {
-		T Coef00 = m_[10] * m_[15] - m_[14] * m_[11];
-		T Coef02 = m_[6] * m_[15] - m_[14] * m_[7];
-		T Coef03 = m_[6] * m_[11] - m_[10] * m_[7];
+		float Coef00{ m_[10] * m_[15] - m_[14] * m_[11] };
+		float Coef02{ m_[6] * m_[15] - m_[14] * m_[7] };
+		float Coef03{ m_[6] * m_[11] - m_[10] * m_[7] };
+		float Coef04{ m_[9] * m_[15] - m_[13] * m_[11] };
+		float Coef06{ m_[5] * m_[15] - m_[13] * m_[7] };
+		float Coef07{ m_[5] * m_[11] - m_[9] * m_[7] };
+		float Coef08{ m_[9] * m_[14] - m_[13] * m_[10] };
+		float Coef10{ m_[5] * m_[14] - m_[13] * m_[6] };
+		float Coef11{ m_[5] * m_[10] - m_[9] * m_[6] };
+		float Coef12{ m_[8] * m_[15] - m_[12] * m_[11] };
+		float Coef14{ m_[4] * m_[15] - m_[12] * m_[7] };
+		float Coef15{ m_[4] * m_[11] - m_[8] * m_[7] };
+		float Coef16{ m_[8] * m_[14] - m_[12] * m_[10] };
+		float Coef18{ m_[4] * m_[14] - m_[12] * m_[6] };
+		float Coef19{ m_[4] * m_[10] - m_[8] * m_[6] };
+		float Coef20{ m_[8] * m_[13] - m_[12] * m_[9] };
+		float Coef22{ m_[4] * m_[13] - m_[12] * m_[5] };
+		float Coef23{ m_[4] * m_[9] - m_[8] * m_[5] };
 
-		T Coef04 = m_[9] * m_[15] - m_[13] * m_[11];
-		T Coef06 = m_[5] * m_[15] - m_[13] * m_[7];
-		T Coef07 = m_[5] * m_[11] - m_[9] * m_[7];
+		Vector4<float> Fac0(Coef00, Coef00, Coef02, Coef03);
+		Vector4<float> Fac1(Coef04, Coef04, Coef06, Coef07);
+		Vector4<float> Fac2(Coef08, Coef08, Coef10, Coef11);
+		Vector4<float> Fac3(Coef12, Coef12, Coef14, Coef15);
+		Vector4<float> Fac4(Coef16, Coef16, Coef18, Coef19);
+		Vector4<float> Fac5(Coef20, Coef20, Coef22, Coef23);
+		Vector4<float> Vec0(m_[4], m_[0], m_[0], m_[0]);
+		Vector4<float> Vec1(m_[5], m_[1], m_[1], m_[1]);
+		Vector4<float> Vec2(m_[6], m_[2], m_[2], m_[2]);
+		Vector4<float> Vec3(m_[7], m_[3], m_[3], m_[3]);
+		Vector4<float> Inv0(Vec1 * Fac0 - Vec2 * Fac1 + Vec3 * Fac2);
+		Vector4<float> Inv1(Vec0 * Fac0 - Vec2 * Fac3 + Vec3 * Fac4);
+		Vector4<float> Inv2(Vec0 * Fac1 - Vec1 * Fac3 + Vec3 * Fac5);
+		Vector4<float> Inv3(Vec0 * Fac2 - Vec1 * Fac4 + Vec2 * Fac5);
+		Vector4<float> SignA(+1, -1, +1, -1);
+		Vector4<float> SignB(-1, +1, -1, +1);
+		Matrix4 Inverse(Inv0 * SignA, Inv1 * SignB, Inv2 * SignA, Inv3 * SignB);
+		Vector4<float> Row0(Inverse[0], Inverse[4], Inverse[8], Inverse[12]);
+		Vector4<float> Dot0(m_[0] * Row0);
+		float Dot1 = (Dot0.x + Dot0.y) + (Dot0.z + Dot0.w);
 
-		T Coef08 = m_[9] * m_[14] - m_[13] * m_[10];
-		T Coef10 = m_[5] * m_[14] - m_[13] * m_[6];
-		T Coef11 = m_[5] * m_[10] - m_[9] * m_[6];
+		float OneOverDeterminant{ 1.0f / Dot1 };
 
-		T Coef12 = m_[8] * m_[15] - m_[12] * m_[11];
-		T Coef14 = m_[4] * m_[15] - m_[12] * m_[7];
-		T Coef15 = m_[4] * m_[11] - m_[8] * m_[7];
+		Matrix4 result{ Inverse * OneOverDeterminant };
 
-		T Coef16 = m_[8] * m_[14] - m_[12] * m_[10];
-		T Coef18 = m_[4] * m_[14] - m_[12] * m_[6];
-		T Coef19 = m_[4] * m_[10] - m_[8] * m_[6];
-
-		T Coef20 = m_[8] * m_[13] - m_[12] * m_[9];
-		T Coef22 = m_[4] * m_[13] - m_[12] * m_[5];
-		T Coef23 = m_[4] * m_[9] - m_[8] * m_[5];
-
-		Vector4<T> Fac0(Coef00, Coef00, Coef02, Coef03);
-		Vector4<T> Fac1(Coef04, Coef04, Coef06, Coef07);
-		Vector4<T> Fac2(Coef08, Coef08, Coef10, Coef11);
-		Vector4<T> Fac3(Coef12, Coef12, Coef14, Coef15);
-		Vector4<T> Fac4(Coef16, Coef16, Coef18, Coef19);
-		Vector4<T> Fac5(Coef20, Coef20, Coef22, Coef23);
-
-		Vector4<T> Vec0(m_[4], m_[0], m_[0], m_[0]);
-		Vector4<T> Vec1(m_[5], m_[1], m_[1], m_[1]);
-		Vector4<T> Vec2(m_[6], m_[2], m_[2], m_[2]);
-		Vector4<T> Vec3(m_[7], m_[3], m_[3], m_[3]);
-
-		Vector4<T> Inv0(Vec1 * Fac0 - Vec2 * Fac1 + Vec3 * Fac2);
-		Vector4<T> Inv1(Vec0 * Fac0 - Vec2 * Fac3 + Vec3 * Fac4);
-		Vector4<T> Inv2(Vec0 * Fac1 - Vec1 * Fac3 + Vec3 * Fac5);
-		Vector4<T> Inv3(Vec0 * Fac2 - Vec1 * Fac4 + Vec2 * Fac5);
-
-		Vector4<T> SignA(+1, -1, +1, -1);
-		Vector4<T> SignB(-1, +1, -1, +1);
-		Matrix4<T> Inverse(Inv0 * SignA, Inv1 * SignB, Inv2 * SignA, Inv3 * SignB);
-
-		Vector4<T> Row0(Inverse[0], Inverse[4], Inverse[8], Inverse[12]);
-
-		Vector4<T> Dot0(m_[0] * Row0);
-		T Dot1 = (Dot0.x + Dot0.y) + (Dot0.z + Dot0.w);
-
-		T OneOverDeterminant = T{ 1 } / Dot1;
-
-		return Inverse * OneOverDeterminant;
+		return result;
 	}
 
 	// Field of view angle fov_x in radians.
-	// Example usage: M4_float proj = M4_float::Perspective(DegToRad(45.0f),
+	// Example usage: Matrix4 proj = Matrix4::Perspective(DegToRad(45.0f),
 	// (float)game.window.GetSize().x / (float)game.window.GetSize().y, 0.1f, 100.0f);
-	[[nodiscard]] static Matrix4 Perspective(T fov_x_radians, T aspect_ratio, T front, T back) {
-		static_assert(std::is_floating_point_v<T>, "Function requires floating point type");
-		T tangent = std::tan(fov_x_radians / T{ 2 }); // tangent of half fovX
-		T right	  = front * tangent;				  // half width of near plane
-		T top	  = right / aspect_ratio;			  // half height of near plane
+	[[nodiscard]] static Matrix4 Perspective(
+		float fov_x_radians, float aspect_ratio, float front, float back
+	) {
+		static_assert(std::is_floating_point_v<float>, "Function requires floating point type");
+		float tangent = std::tan(fov_x_radians / 2.0f); // tangent of half fovX
+		float right	  = front * tangent;				// half width of near plane
+		float top	  = right / aspect_ratio;			// half height of near plane
 
-		Matrix4<T> p;
+		Matrix4 p;
 		p[0]  = front / right;
 		p[5]  = front / top;
 		p[10] = -(back + front) / (back - front);
-		p[11] = T{ -1 };
-		p[14] = -(T{ 2 } * back * front) / (back - front);
-		p[15] = T{ 0 };
+		p[11] = -1.0f;
+		p[14] = -(2.0f * back * front) / (back - front);
+		p[15] = 0.0f;
 		return p;
 	}
 
-	[[nodiscard]] static Matrix4 Translate(const Matrix4& m, const Vector3<T>& axes) {
-		Matrix4<T> result{ m };
+	[[nodiscard]] static Matrix4 Translate(const Matrix4& m, const Vector3<float>& axes) {
+		Matrix4 result{ m };
 		for (std::size_t i{ 0 }; i < result.size.x; i++) {
 			result[i + 12] = m[i] * axes.x + m[i + 4] * axes.y + m[i + 8] * axes.z + m[i + 12];
 		}
@@ -274,26 +270,26 @@ public:
 
 	// Angle in radians.
 	[[nodiscard]] static Matrix4 Rotate(
-		const Matrix4& matrix, T angle_radians, const Vector3<T>& axes
+		const Matrix4& matrix, float angle_radians, const Vector3<float>& axes
 	) {
-		static_assert(std::is_floating_point_v<T>, "Function requires floating point type");
-		const T a = angle_radians;
-		const T c = std::cos(a);
-		const T s = std::sin(a);
+		static_assert(std::is_floating_point_v<float>, "Function requires floating point type");
+		const float a = angle_radians;
+		const float c = std::cos(a);
+		const float s = std::sin(a);
 
-		T magnitude{ axes.Dot(axes) };
+		float magnitude{ axes.Dot(axes) };
 
-		Vector3<T> axis;
+		Vector3<float> axis;
 
-		if (!NearlyEqual(magnitude, T{ 0 })) {
+		if (!NearlyEqual(magnitude, 0.0f)) {
 			axis = axes.Normalized();
 		}
 
-		T d = T{ 1 } - c;
+		float d = 1.0f - c;
 
-		Vector3<T> temp{ d * axis.x, d * axis.y, d * axis.z };
+		Vector3<float> temp{ d * axis.x, d * axis.y, d * axis.z };
 
-		Matrix4<T> rotate;
+		Matrix4 rotate;
 
 		rotate[0] = c + temp.x * axis.x;
 		rotate[1] = temp.y * axis.x - s * axis.z;
@@ -307,7 +303,7 @@ public:
 		rotate[9]  = temp.y * axis.z + s * axis.x;
 		rotate[10] = c + temp.z * axis.z;
 
-		Matrix4<T> result;
+		Matrix4 result;
 
 		for (std::size_t i{ 0 }; i < result.size.x; i++) {
 			result[i + 0] =
@@ -321,8 +317,8 @@ public:
 		return result;
 	}
 
-	[[nodiscard]] static Matrix4 Scale(const Matrix4& m, const Vector3<T>& axes) {
-		Matrix4<T> result;
+	[[nodiscard]] static Matrix4 Scale(const Matrix4& m, const Vector3<float>& axes) {
+		Matrix4 result;
 		for (std::size_t i{ 0 }; i < result.size.x; i++) {
 			result[i + 0]  = m[i + 0] * axes.x;
 			result[i + 4]  = m[i + 4] * axes.y;
@@ -334,7 +330,7 @@ public:
 
 	[[nodiscard]] bool IsZero() const {
 		for (std::size_t i{ 0 }; i < length; i++) {
-			if (!NearlyEqual(m_[i], T{ 0 })) {
+			if (!NearlyEqual(m_[i], 0.0f)) {
 				return false;
 			}
 		}
@@ -349,30 +345,86 @@ public:
 		}
 		return true;
 	}
+
+	[[nodiscard]] inline bool operator==(const Matrix4& o) const {
+		for (std::size_t i{ 0 }; i < length; i++) {
+			if (!NearlyEqual(m_[i], o.m_[i])) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	[[nodiscard]] inline bool operator!=(const Matrix4& o) const {
+		return !operator==(o);
+	}
+
+	[[nodiscard]] inline Matrix4 operator+(const Matrix4& rhs) {
+		Matrix4 result;
+		for (std::size_t i{ 0 }; i < result.length; i++) {
+			result[i] = m_[i] + rhs[i];
+		}
+		return result;
+	}
+
+	[[nodiscard]] inline Matrix4 operator-(const Matrix4& rhs) {
+		Matrix4 result;
+		for (std::size_t i{ 0 }; i < result.length; i++) {
+			result[i] = m_[i] - rhs[i];
+		}
+		return result;
+	}
+
+	[[nodiscard]] inline Matrix4 operator*(const Matrix4& rhs) {
+		Matrix4 res;
+
+		for (std::size_t col = 0; col < rhs.size.y; ++col) {
+			std::size_t res_stride{ col * res.size.x };
+			std::size_t B_stride{ col * rhs.size.x };
+			for (std::size_t row = 0; row < size.x; ++row) {
+				std::size_t res_index{ row + res_stride };
+				for (std::size_t i{ 0 }; i < rhs.size.x; ++i) {
+					res[res_index] += m_[row + i * size.x] * rhs[i + B_stride];
+				}
+			}
+		}
+		return res;
+	}
+
+	template <typename U, tt::arithmetic<U> = true>
+	[[nodiscard]] inline Vector4<float> operator*(const Vector4<U>& rhs) {
+		Vector4<float> res;
+
+		for (std::size_t row = 0; row < size.x; ++row) {
+			for (std::size_t i{ 0 }; i < 4; ++i) {
+				res[row] += m_[row + i * size.x] * rhs[i];
+			}
+		}
+		return res;
+	}
+
+	template <typename U, tt::arithmetic<U> = true>
+	[[nodiscard]] inline Matrix4 operator*(U rhs) {
+		Matrix4 res;
+
+		for (std::size_t i{ 0 }; i < res.length; ++i) {
+			res[i] = m_[i] * rhs;
+		}
+		return res;
+	}
+
+	template <typename U, tt::arithmetic<U> = true>
+	[[nodiscard]] inline Matrix4 operator/(U rhs) {
+		Matrix4 res;
+
+		for (std::size_t i{ 0 }; i < res.length; ++i) {
+			res[i] = m_[i] / static_cast<float>(rhs);
+		}
+		return res;
+	}
 };
 
-using M4_int	= Matrix4<int>;
-using M4_uint	= Matrix4<unsigned int>;
-using M4_float	= Matrix4<float>;
-using M4_double = Matrix4<double>;
-
-template <typename V>
-[[nodiscard]] inline bool operator==(const Matrix4<V>& lhs, const Matrix4<V>& rhs) {
-	for (std::size_t i{ 0 }; i < lhs.length; i++) {
-		if (!NearlyEqual(lhs[i], rhs[i])) {
-			return false;
-		}
-	}
-	return true;
-}
-
-template <typename V>
-[[nodiscard]] inline bool operator!=(const Matrix4<V>& lhs, const Matrix4<V>& rhs) {
-	return !operator==(lhs, rhs);
-}
-
-template <typename V, ptgn::tt::stream_writable<std::ostream, V> = true>
-inline std::ostream& operator<<(std::ostream& os, const ptgn::Matrix4<V>& m) {
+inline std::ostream& operator<<(std::ostream& os, const ptgn::Matrix4& m) {
 	os << "\n";
 	os << std::fixed << std::right << std::setprecision(static_cast<std::streamsize>(3))
 	   << std::setfill(' ') << "[";
@@ -398,82 +450,9 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::Matrix4<V>& m) {
 	return os;
 }
 
-template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
-[[nodiscard]] inline Matrix4<S> operator+(const Matrix4<V>& lhs, const Matrix4<U>& rhs) {
-	Matrix4<S> result;
-	for (std::size_t i{ 0 }; i < result.length; i++) {
-		result[i] = lhs[i] + rhs[i];
-	}
-	return result;
-}
-
-template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
-[[nodiscard]] inline Matrix4<S> operator-(const Matrix4<V>& lhs, const Matrix4<U>& rhs) {
-	Matrix4<S> result;
-	for (std::size_t i{ 0 }; i < result.length; i++) {
-		result[i] = lhs[i] - rhs[i];
-	}
-	return result;
-}
-
-template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
-[[nodiscard]] inline Matrix4<S> operator*(const Matrix4<V>& A, const Matrix4<U>& B) {
-	Matrix4<S> res;
-
-	for (std::size_t col = 0; col < B.size.y; ++col) {
-		std::size_t res_stride{ col * res.size.x };
-		std::size_t B_stride{ col * B.size.x };
-		for (std::size_t row = 0; row < A.size.x; ++row) {
-			std::size_t res_index{ row + res_stride };
-			for (std::size_t i{ 0 }; i < B.size.x; ++i) {
-				res[res_index] += A[row + i * A.size.x] * B[i + B_stride];
-			}
-		}
-	}
-	return res;
-}
-
-template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
-[[nodiscard]] inline Vector4<S> operator*(const Matrix4<V>& A, const Vector4<U>& B) {
-	Vector4<S> res;
-
-	for (std::size_t row = 0; row < A.size.x; ++row) {
-		for (std::size_t i{ 0 }; i < 4; ++i) {
-			res[row] += A[row + i * A.size.x] * B[i];
-		}
-	}
-	return res;
-}
-
-template <
-	typename V, typename U, tt::arithmetic<U> = true,
-	typename S = typename std::common_type_t<V, U>>
-[[nodiscard]] inline Matrix4<S> operator*(const Matrix4<V>& A, U B) {
-	Matrix4<S> res;
-
-	for (std::size_t i{ 0 }; i < A.length; ++i) {
-		res[i] = A[i] * B;
-	}
-	return res;
-}
-
-template <
-	typename V, typename U, tt::arithmetic<U> = true,
-	typename S = typename std::common_type_t<V, U>>
-[[nodiscard]] inline Matrix4<S> operator*(U A, const Matrix4<V>& B) {
+template <typename U, tt::arithmetic<U> = true>
+[[nodiscard]] inline Matrix4 operator*(U A, const Matrix4& B) {
 	return B * A;
-}
-
-template <
-	typename V, typename U, tt::arithmetic<U> = true,
-	typename S = typename std::common_type_t<V, U>>
-[[nodiscard]] inline Matrix4<S> operator/(const Matrix4<V>& A, U B) {
-	Matrix4<S> res;
-
-	for (std::size_t i{ 0 }; i < res.length; ++i) {
-		res[i] = static_cast<S>(A[i]) / static_cast<S>(B);
-	}
-	return res;
 }
 
 } // namespace ptgn

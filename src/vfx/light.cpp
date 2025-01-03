@@ -50,7 +50,7 @@ void Light::Draw(const Texture& texture) const {
 	shader.SetUniform("u_LightPos", GetPosition());
 	shader.SetUniform("u_LightIntensity", GetIntensity());
 	// TOOD: Fix this to use layer info.
-	shader.Draw(texture, {}, M4_float{ 1.0f }, TextureInfo{ {}, {}, Flip::None, color_ });
+	shader.Draw(texture, {}, Matrix4{ 1.0f }, TextureInfo{ {}, {}, Flip::None, color_ });
 }
 
 void LightManager::Init() {

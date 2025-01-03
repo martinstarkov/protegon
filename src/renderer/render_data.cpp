@@ -142,7 +142,7 @@ void RenderData::Flush() {
 	transparent_layers_.clear();
 }
 
-void RenderData::SetViewProjection(const M4_float& view_projection) {
+void RenderData::SetViewProjection(const Matrix4& view_projection) {
 	view_projection_		 = view_projection;
 	refresh_view_projection_ = true;
 }

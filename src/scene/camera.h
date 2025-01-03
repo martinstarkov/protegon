@@ -20,6 +20,11 @@ class Renderer;
 
 namespace impl {
 
+class Game;
+class Renderer;
+class SceneCamera;
+struct RenderLayer;
+
 struct Camera {
 	V3_float position;
 	V2_float size;
@@ -36,9 +41,9 @@ struct Camera {
 
 	// Mutable used because view projection is recalculated only upon retrieval to reduce matrix
 	// multiplications.
-	mutable M4_float view{ 1.0f };
-	mutable M4_float projection{ 1.0f };
-	mutable M4_float view_projection{ 1.0f };
+	mutable Matrix4 view{ 1.0f };
+	mutable Matrix4 projection{ 1.0f };
+	mutable Matrix4 view_projection{ 1.0f };
 	mutable bool recalculate_view{ false };
 	mutable bool recalculate_projection{ false };
 
@@ -118,7 +123,7 @@ public:
 
 	void PrintInfo() const;
 
-	[[nodiscard]] const M4_float& GetViewProjection() const;
+	[[nodiscard]] const Matrix4& GetViewProjection() const;
 
 protected:
 	void RefreshBounds();
@@ -126,8 +131,8 @@ protected:
 	void SetPositionImpl(const V3_float& new_position);
 	void SetSizeImpl(const V2_float& size);
 
-	[[nodiscard]] const M4_float& GetView() const;
-	[[nodiscard]] const M4_float& GetProjection() const;
+	[[nodiscard]] const Matrix4& GetView() const;
+	[[nodiscard]] const Matrix4& GetProjection() const;
 
 	void RecalculateView() const;
 	void RecalculateProjection() const;
@@ -141,13 +146,6 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::OrthographicCamera
 	os << "[size: " << c.GetSize() << ", position: " << c.GetPosition() << "]";
 	return os;
 }
-
-namespace impl {
-
-class Game;
-class Renderer;
-class SceneCamera;
-struct RenderLayer;
 
 class CameraManager : public MapManager<OrthographicCamera> {
 public:
@@ -172,15 +170,17 @@ public:
 	[[nodiscard]] static const OrthographicCamera& GetWindow();
 
 private:
-	friend class SceneCamera;
-	friend class Game;
-	friend class Renderer;
+	friend class impl::SceneCamera;
+	friend class impl::Game;
+	friend class impl::Renderer;
 	friend struct impl::RenderLayer;
 
 	void SetPrimaryImpl(const InternalKey& key);
 
 	OrthographicCamera primary_camera_;
 };
+
+namespace impl {
 
 // This class provides quick access to the current top active scene.
 // i.e. using this is class equivalent to game.scene.GetTopActive().camera
@@ -268,19 +268,19 @@ struct PerspectiveCamera {
 	V3_float angle;
 
 	// returns the view matrix calculated using Euler Angles and the LookAt Matrix
-	M4_float GetViewMatrix() const {
-		return M4_float::LookAt(position, position + front, up);
+	Matrix4 GetViewMatrix() const {
+		return Matrix4::LookAt(position, position + front, up);
 	}
 
-	M4_float GetProjectionMatrix() const {
+	Matrix4 GetProjectionMatrix() const {
 		return projection;
 	}
 
-	void SetProjectionMatrix(const M4_float& p) {
+	void SetProjectionMatrix(const Matrix4& p) {
 		projection = p;
 	}
 
-	M4_float projection{ 1.0f };
+	Matrix4 projection{ 1.0f };
 
 	// Set later:
 
