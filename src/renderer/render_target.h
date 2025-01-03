@@ -43,12 +43,16 @@ struct RenderTargetInstance {
 	void SetClearColor(const Color& clear_color);
 	void SetBlendMode(BlendMode blend_mode);
 
-	CameraManager camera_;
-	RenderData render_data_;
-	BlendMode blend_mode_;
-	Color clear_color_;
-	FrameBuffer frame_buffer_;
 	Texture texture_;
+
+	FrameBuffer frame_buffer_;
+
+	BlendMode blend_mode_{ BlendMode::Blend };
+	Color clear_color_{ color::Transparent };
+
+	CameraManager camera_;
+
+	RenderData render_data_;
 };
 
 } // namespace impl
@@ -59,9 +63,15 @@ public:
 	RenderTarget()	= default;
 	~RenderTarget() = default;
 
-	// Continuously window sized.
+	// Create a render target that is continuously sized to the window.
+	// @param clear_color The background color of the render target.
+	// @param blend_mode The blend mode of the render target (i.e. how objects are drawn to it).
 	RenderTarget(const Color& clear_color, BlendMode blend_mode = BlendMode::Blend);
 
+	// Create a render target with a custom size.
+	// @param size The size of the render target.
+	// @param clear_color The background color of the render target.
+	// @param blend_mode The blend mode of the render target (i.e. how objects are drawn to it).
 	RenderTarget(
 		const V2_float& size, const Color& clear_color = color::Transparent,
 		BlendMode blend_mode = BlendMode::Blend
@@ -69,18 +79,32 @@ public:
 
 	// TODO: Add screen shaders as options.
 
-	// Uses default render target.
-	void Draw(const Rect& destination);
+	// @param destination The rectangle destination to which the render target is drawn. Default
+	// value of {} corresponds to fullscreen.
+	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
+	// center of the texture associated with this render target.
+	// Uses the default render target, which is the currently active scene.
+	void Draw(const Rect& destination = {}, const TextureInfo& texture_info = {});
 
-	void Draw(const Rect& destination, const LayerInfo& layer_info);
+	// @param destination The rectangle destination to which the render target is drawn. {}
+	// corresponds to fullscreen.
+	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
+	// center of the texture associated with this render target.
+	// @param layer_info Information relating to the render layer and render target of the texture.
+	void Draw(
+		const Rect& destination, const TextureInfo& texture_info, const LayerInfo& layer_info
+	);
 
-	// Set color to which render target is cleared.
+	// @param clear_color The color to which the render target will be cleared.
+	// Note: The change in clear color is only seen after a render target is cleared. This can
+	// happen either manually by calling Clear() or automatically after drawing the render target
+	// using Draw().
 	void SetClearColor(const Color& clear_color);
 
 	// @return The currently set clear color for the render target.
 	[[nodiscard]] Color GetClearColor() const;
 
-	// Flushes the render target's batch onto its frame buffer.
+	// @param blend_mode The blend mode of the render target (i.e. how objects are drawn to it).
 	void SetBlendMode(BlendMode blend_mode);
 
 	// @return The currently set blend mode for the render target.
@@ -96,8 +120,8 @@ public:
 	[[nodiscard]] Texture GetTexture() const;
 
 	// @return CameraManager associated with the render target.
-	[[nodiscard]] impl::CameraManager& GetCamera();
-	[[nodiscard]] const impl::CameraManager& GetCamera() const;
+	[[nodiscard]] CameraManager& GetCamera();
+	[[nodiscard]] const CameraManager& GetCamera() const;
 
 	// Converts a coordinate from being relative to the world to being relative to the render
 	// target's primary camera.
@@ -141,10 +165,6 @@ public:
 	[[nodiscard]] V2_float GetMouseDifference() const;
 
 private:
-	// @return Mouse relative to the window and the render target's primary camera size (zoom
-	// included).
-	[[nodiscard]] V2_float ScaleToWindow(const V2_float& position) const;
-
 	friend class impl::Renderer;
 	friend class impl::SceneManager;
 	friend class impl::SceneCamera;
@@ -161,7 +181,25 @@ private:
 	friend struct Capsule;
 	friend struct Polygon;
 
-	void DrawToBoundFrameBuffer(const Rect& destination);
+	// @return Mouse relative to the window and the render target's primary camera size (zoom
+	// included).
+	[[nodiscard]] V2_float ScaleToWindow(const V2_float& position) const;
+
+	// @param render_target The render target to retrieve the render layer for.
+	// @return The render target corresponding to the correct rendering layer.
+	// If (*this) render target is valid, it is the current rendering layer.
+	// Otherwise, the currently active scene is the current rendering layer.
+	// If no scene is currently active, an assert will be triggered.
+	[[nodiscard]] static RenderTarget GetCorrectRenderLayer(const RenderTarget& render_target);
+
+	// Draws this render target to another render target.
+	// @param destination The destination rectangle to draw this target at.
+	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
+	// center of the texture associated with this render target.
+	// @param destination_target The target onto which this target is drawn.
+	void DrawToTarget(
+		const Rect& destination, const TextureInfo& texture_info, RenderTarget destination_target
+	) const;
 
 	void Bind();
 

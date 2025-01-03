@@ -14,6 +14,7 @@
 #include "renderer/render_data.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
+#include "scene/scene_manager.h"
 #include "utility/debug.h"
 
 namespace ptgn {
@@ -21,21 +22,36 @@ namespace ptgn {
 namespace impl {
 
 RenderTargetInstance::RenderTargetInstance(const Color& clear_color, BlendMode blend_mode) :
-	frame_buffer_{ Texture{ Texture::WindowTexture{} }, false } {
+	texture_{ Texture::WindowTexture{} },
+	frame_buffer_{ texture_,
+				   false /* do not rebind previous frame buffer because it will be cleared */ },
+	blend_mode_{ blend_mode },
+	clear_color_{ clear_color } {
 	PTGN_ASSERT(frame_buffer_.IsValid(), "Failed to create valid frame buffer for render target");
-	SetBlendMode(blend_mode);
-	SetClearColor(clear_color);
-	Clear();
+	PTGN_ASSERT(
+		frame_buffer_.IsBound(), "Failed to bind frame buffer when initializing render target"
+	);
+	GLRenderer::SetBlendMode(blend_mode);
+	GLRenderer::ClearColor(clear_color_);
+	GLRenderer::Clear();
 }
 
 RenderTargetInstance::RenderTargetInstance(
 	const V2_float& size, const Color& clear_color, BlendMode blend_mode
 ) :
-	frame_buffer_{ Texture{ size }, false } {
+	texture_{ size },
+	frame_buffer_{
+		texture_, false /* do not rebind previous frame buffer because it will be cleared */
+	},
+	blend_mode_{ blend_mode },
+	clear_color_{ clear_color } {
 	PTGN_ASSERT(frame_buffer_.IsValid(), "Failed to create valid frame buffer for render target");
-	SetBlendMode(blend_mode);
-	SetClearColor(clear_color);
-	Clear();
+	PTGN_ASSERT(
+		frame_buffer_.IsBound(), "Failed to bind frame buffer when initializing render target"
+	);
+	GLRenderer::SetBlendMode(blend_mode);
+	GLRenderer::ClearColor(clear_color_);
+	GLRenderer::Clear();
 }
 
 void RenderTargetInstance::Bind() const {
@@ -132,31 +148,48 @@ Texture RenderTarget::GetTexture() const {
 	return Get().texture_;
 }
 
-void RenderTarget::Draw(const Rect& destination) {
-	Draw(destination, {});
+void RenderTarget::Draw(const Rect& destination, const TextureInfo& texture_info) {
+	Draw(destination, texture_info, {});
 }
 
-void RenderTarget::Draw(const Rect& destination, const LayerInfo& layer_info) {
-	RenderTarget destination_target{ layer_info.GetActiveTarget() };
-	Flush();
-	destination_target.Bind();
-	DrawToBoundFrameBuffer(destination);
-	Bind();
-	Clear();
+void RenderTarget::Draw(
+	const Rect& destination, const TextureInfo& texture_info, const LayerInfo& layer_info
+) {
+	PTGN_ASSERT(IsValid(), "Cannot draw an invalid or uninitialized render target");
+	auto& i{ Get() };
+	i.Bind();
+	i.Flush();
+	DrawToTarget(destination, texture_info, layer_info.GetRenderTarget());
 }
 
-impl::CameraManager& RenderTarget::GetCamera() {
+CameraManager& RenderTarget::GetCamera() {
 	PTGN_ASSERT(IsValid(), "Cannot get camera of invalid or uninitialized render target");
 	return Get().camera_;
 }
 
-const impl::CameraManager& RenderTarget::GetCamera() const {
+const CameraManager& RenderTarget::GetCamera() const {
 	PTGN_ASSERT(IsValid(), "Cannot get camera of invalid or uninitialized render target");
 	return Get().camera_;
 }
 
-void RenderTarget::DrawToBoundFrameBuffer(const Rect& destination) {
-	// TODO: Use shader and such to draw the texture, set view projection uniform, etc.
+RenderTarget RenderTarget::GetCorrectRenderLayer(const RenderTarget& render_target) {
+	if (render_target.IsValid()) {
+		return render_target;
+	}
+	RenderTarget scene_target{ game.scene.GetCurrent().GetRenderTarget() };
+	PTGN_ASSERT(scene_target.IsValid(), "Scene render target is invalid or uninitialized");
+	return scene_target;
+}
+
+void RenderTarget::DrawToTarget(
+	const Rect& destination, const TextureInfo& texture_info, RenderTarget destination_target
+) const {
+	auto destination_layer{ GetCorrectRenderLayer(destination_target) };
+	auto& i{ destination_layer.Get() };
+	i.Bind();
+	i.Flush();
+	GetTexture().Draw(destination, texture_info, LayerInfo{ destination_layer });
+	i.Flush();
 }
 
 void RenderTarget::Bind() {
@@ -168,8 +201,7 @@ void RenderTarget::AddTexture(
 	const Texture& texture, const Rect& destination, const TextureInfo& texture_info,
 	std::int32_t render_layer
 ) {
-	PTGN_ASSERT(IsValid(), "Cannot add texture to invalid or uninitialized render target");
-	auto& i{ Get() };
+	auto& i{ GetCorrectRenderLayer(*this).Get() };
 
 	auto vertices{ destination.GetVertices(texture_info.rotation_center) };
 
@@ -189,8 +221,7 @@ void RenderTarget::AddEllipse(
 	const Ellipse& ellipse, const Color& color, float line_width, float fade,
 	std::int32_t render_layer
 ) {
-	PTGN_ASSERT(IsValid(), "Cannot add ellipse to invalid or uninitialized render target");
-	auto& i{ Get() };
+	auto& i{ GetCorrectRenderLayer(*this).Get() };
 	i.render_data_.AddEllipse(ellipse, color.Normalized(), line_width, fade, render_layer);
 }
 
@@ -198,32 +229,28 @@ void RenderTarget::AddCircle(
 	const Circle& circle, const Color& color, float line_width, float fade,
 	std::int32_t render_layer
 ) {
-	PTGN_ASSERT(IsValid(), "Cannot add circle to invalid or uninitialized render target");
-	auto& i{ Get() };
+	auto& i{ GetCorrectRenderLayer(*this).Get() };
 	i.render_data_.AddCircle(circle, color.Normalized(), line_width, fade, render_layer);
 }
 
 void RenderTarget::AddLine(
 	const Line& line, const Color& color, float line_width, std::int32_t render_layer
 ) {
-	PTGN_ASSERT(IsValid(), "Cannot add line to invalid or uninitialized render target");
-	auto& i{ Get() };
+	auto& i{ GetCorrectRenderLayer(*this).Get() };
 	i.render_data_.AddLine(line, color.Normalized(), line_width, render_layer);
 }
 
 void RenderTarget::AddPoint(
 	const V2_float& point, const Color& color, float radius, float fade, std::int32_t render_layer
 ) {
-	PTGN_ASSERT(IsValid(), "Cannot add point to invalid or uninitialized render target");
-	auto& i{ Get() };
+	auto& i{ GetCorrectRenderLayer(*this).Get() };
 	i.render_data_.AddPoint(point, color.Normalized(), radius, fade, render_layer);
 }
 
 void RenderTarget::AddTriangle(
 	const Triangle& triangle, const Color& color, float line_width, std::int32_t render_layer
 ) {
-	PTGN_ASSERT(IsValid(), "Cannot add triangle to invalid or uninitialized render target");
-	auto& i{ Get() };
+	auto& i{ GetCorrectRenderLayer(*this).Get() };
 	i.render_data_.AddTriangle(triangle, color.Normalized(), line_width, render_layer);
 }
 
@@ -231,8 +258,7 @@ void RenderTarget::AddRect(
 	const Rect& rect, const Color& color, float line_width, std::int32_t render_layer,
 	const V2_float& rotation_center
 ) {
-	PTGN_ASSERT(IsValid(), "Cannot add rect to invalid or uninitialized render target");
-	auto& i{ Get() };
+	auto& i{ GetCorrectRenderLayer(*this).Get() };
 
 	auto vertices{ rect.GetVertices(rotation_center) };
 
@@ -243,8 +269,7 @@ void RenderTarget::AddRoundedRect(
 	const RoundedRect& rrect, const Color& color, float line_width, float fade,
 	std::int32_t render_layer, const V2_float& rotation_center
 ) {
-	PTGN_ASSERT(IsValid(), "Cannot add rounded rect to invalid or uninitialized render target");
-	auto& i{ Get() };
+	auto& i{ GetCorrectRenderLayer(*this).Get() };
 	i.render_data_.AddRoundedRect(
 		rrect, color.Normalized(), line_width, rotation_center, fade, render_layer
 	);
@@ -254,8 +279,7 @@ void RenderTarget::AddArc(
 	const Arc& arc, bool clockwise, const Color& color, float line_width, float fade,
 	std::int32_t render_layer
 ) {
-	PTGN_ASSERT(IsValid(), "Cannot add arc to invalid or uninitialized render target");
-	auto& i{ Get() };
+	auto& i{ GetCorrectRenderLayer(*this).Get() };
 	i.render_data_.AddArc(arc, clockwise, color.Normalized(), line_width, fade, render_layer);
 }
 
@@ -263,16 +287,14 @@ void RenderTarget::AddCapsule(
 	const Capsule& capsule, const Color& color, float line_width, float fade,
 	std::int32_t render_layer
 ) {
-	PTGN_ASSERT(IsValid(), "Cannot add capsule to invalid or uninitialized render target");
-	auto& i{ Get() };
+	auto& i{ GetCorrectRenderLayer(*this).Get() };
 	i.render_data_.AddCapsule(capsule, color.Normalized(), line_width, fade, render_layer);
 }
 
 void RenderTarget::AddPolygon(
 	const Polygon& polygon, const Color& color, float line_width, std::int32_t render_layer
 ) {
-	PTGN_ASSERT(IsValid(), "Cannot add polygon to invalid or uninitialized render target");
-	auto& i{ Get() };
+	auto& i{ GetCorrectRenderLayer(*this).Get() };
 	i.render_data_.AddPolygon(polygon, color.Normalized(), line_width, render_layer);
 }
 
