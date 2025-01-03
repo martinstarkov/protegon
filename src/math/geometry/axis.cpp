@@ -2,8 +2,8 @@
 
 #include "core/game.h"
 #include "core/window.h"
+#include "math/geometry/line.h"
 #include "renderer/color.h"
-#include "renderer/renderer.h"
 #include "renderer/layer_info.h"
 
 namespace ptgn {
@@ -19,9 +19,8 @@ void Axis::Draw(const Color& color, float line_width, const LayerInfo& layer_inf
 	V2_float p0{ midpoint + direction * mag };
 	V2_float p1{ midpoint - direction * mag };
 
-	game.renderer.data_.AddLine(
-		p0, p1, color.Normalized(), line_width, layer_info.z_index, layer_info.render_layer
-	);
+	Line l{ p0, p1 };
+	l.Draw(color, line_width, layer_info);
 }
 
 } // namespace ptgn

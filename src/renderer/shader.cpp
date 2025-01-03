@@ -12,13 +12,11 @@
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
-#include "renderer/batch.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
 #include "renderer/renderer.h"
 #include "renderer/texture.h"
-#include "renderer/vertices.h"
 #include "utility/debug.h"
 #include "utility/file.h"
 #include "utility/handle.h"
@@ -167,36 +165,37 @@ void Shader::Draw(
 	const Texture& texture, const Rect& destination, const M4_float& view_projection,
 	const TextureInfo& texture_info
 ) const {
-	PTGN_ASSERT(texture.IsValid(), "Cannot draw shader with invalid texture");
+	// TODO: Fix.
+	// PTGN_ASSERT(texture.IsValid(), "Cannot draw shader with invalid texture");
 
-	Rect dest{ destination };
+	// Rect dest{ destination };
 
-	if (dest.IsZero()) {
-		dest = Rect::Fullscreen();
-	} else if (dest.size.IsZero()) {
-		dest.size = texture.GetSize();
-	}
+	// if (dest.IsZero()) {
+	//	dest = Rect::Fullscreen();
+	// } else if (dest.size.IsZero()) {
+	//	dest.size = texture.GetSize();
+	// }
 
-	auto tex_coords{ impl::RenderData::GetTextureCoordinates(
-		texture_info.source_position, texture_info.source_size, dest.size, texture_info.flip
-	) };
+	// auto tex_coords{ impl::RenderData::GetTextureCoordinates(
+	//	texture_info.source_position, texture_info.source_size, dest.size, texture_info.flip
+	//) };
 
-	// Since this engine uses top left as origin, shaders must all be flipped vertically.
-	impl::RenderData::FlipTextureCoordinates(tex_coords, Flip::Vertical);
+	//// Since this engine uses top left as origin, shaders must all be flipped vertically.
+	// impl::RenderData::FlipTextureCoordinates(tex_coords, Flip::Vertical);
 
-	Bind();
-	SetUniform("u_ViewProjection", view_projection);
-	SetUniform("u_Texture", 1);
-	SetUniform("u_Resolution", V2_float{ game.window.GetSize() });
-	texture.Bind(1);
+	// Bind();
+	// SetUniform("u_ViewProjection", view_projection);
+	// SetUniform("u_Texture", 1);
+	// SetUniform("u_Resolution", V2_float{ game.window.GetSize() });
+	// texture.Bind(1);
 
-	VertexArray vertex_array{ impl::TextureVertices(
-								  dest.GetVertices(texture_info.rotation_center), tex_coords, 0.0f,
-								  texture_info.tint.Normalized()
-							  ),
-							  game.renderer.shader_ib_ };
+	// VertexArray vertex_array{ impl::TextureVertices(
+	//							  dest.GetVertices(texture_info.rotation_center), tex_coords, 0.0f,
+	//							  texture_info.tint.Normalized()
+	//						  ),
+	//						  game.renderer.shader_ib_ };
 
-	vertex_array.Draw();
+	// vertex_array.Draw();
 }
 
 std::int32_t Shader::GetUniformLocation(const std::string& name) const {

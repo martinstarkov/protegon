@@ -10,7 +10,6 @@
 #include "renderer/color.h"
 #include "renderer/font.h"
 #include "renderer/layer_info.h"
-#include "renderer/renderer.h"
 #include "renderer/surface.h"
 #include "renderer/texture.h"
 #include "utility/debug.h"

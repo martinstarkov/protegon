@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <vector>
 
-#include "renderer/gl_helper.h"
+#include "renderer/gl_types.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
 

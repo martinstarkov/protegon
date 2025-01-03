@@ -1,7 +1,6 @@
 #pragma once
 
 #include <array>
-#include <cmath>
 #include <cstdint>
 #include <map>
 #include <tuple>
@@ -9,12 +8,12 @@
 #include <utility>
 #include <vector>
 
-#include "renderer/vertices.h"
-#include "renderer/texture.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
+#include "renderer/texture.h"
 #include "renderer/vertex_array.h"
+#include "renderer/vertices.h"
 #include "utility/utility.h"
 
 namespace ptgn {
@@ -26,6 +25,7 @@ struct RoundedRect;
 struct Triangle;
 struct Line;
 struct Ellipse;
+struct Circle;
 
 namespace impl {
 
@@ -67,6 +67,8 @@ public:
 
 	void SetViewProjection(const M4_float& view_projection);
 
+	// TOOD: Probably best to move these all into the geometry classes to avoid code duplication.
+
 	void AddTexture(
 		const std::array<V2_float, 4>& vertices, const Texture& texture,
 		const std::array<V2_float, 4>& tex_coords, const V4_float& tint_color,
@@ -75,6 +77,11 @@ public:
 
 	void AddEllipse(
 		const Ellipse& ellipse, const V4_float& color, float line_width, float fade,
+		std::int32_t render_layer
+	);
+
+	void AddCircle(
+		const Circle& circle, const V4_float& color, float line_width, float fade,
 		std::int32_t render_layer
 	);
 
@@ -140,7 +147,9 @@ private:
 		const std::array<V2_float, 1>& positions, std::int32_t render_layer, const V4_float& color
 	);
 
-	[[nodiscard]] std::vector<Batch>& GetLayerBatches(std::int32_t render_layer, [[maybe_unused]] float alpha);
+	[[nodiscard]] std::vector<Batch>& GetLayerBatches(
+		std::int32_t render_layer, [[maybe_unused]] float alpha
+	);
 
 	// @return True if texture is the 1x1 white texture used for solid quads, false otherwise.
 	[[nodiscard]] static bool IsBlank(const Texture& texture);
@@ -162,28 +171,35 @@ private:
 
 		std::vector<std::array<VertexType, VertexCount>>* data{ nullptr };
 
-		if (is_quad && !IsBlank(texture)) {
-			PTGN_ASSERT(texture.IsValid());
+		if constexpr (is_quad) {
+			if (!IsBlank(texture)) {
+				PTGN_ASSERT(texture.IsValid());
 
-			for (auto& batch : batches) {
-				if (batch.quads_.size() == batch_capacity_) {
-					continue;
+				for (auto& batch : batches) {
+					if (batch.quads_.size() == batch_capacity_) {
+						continue;
+					}
+					if (auto index{ batch.GetAvailableTextureIndex(texture) }; index != 0.0f) {
+						data		  = &batch.quads_;
+						texture_index = index;
+						break;
+					}
 				}
-				if (auto index{ batch.GetAvailableTextureIndex(texture) }; index != 0.0f) {
-					data		  = &batch.quads_;
-					texture_index = index;
-					break;
+				// An available/existing texture index was not found, therefore add a new batch.
+				if (texture_index == 0.0f) {
+					texture_index = 1.0f;
+					data		  = &batches.emplace_back(texture).quads_;
 				}
-			}
-			// An available/existing texture index was not found, therefore add a new batch.
-			if (texture_index == 0.0f) {
-				texture_index = 1.0f;
-				data		  = &batches.emplace_back(texture).quads_;
+			} else {
+				data = GetBufferInfo<T>(batches.back()).first;
+				if (data->size() == batch_capacity_) {
+					data = GetBufferInfo<T>(batches.emplace_back()).first;
+				}
 			}
 		} else {
-			data = std::get<0>(GetBufferInfo<T>(batches.back()));
+			data = GetBufferInfo<T>(batches.back()).first;
 			if (data->size() == batch_capacity_) {
-				data = std::get<0>(GetBufferInfo<T>(batches.emplace_back()));
+				data = GetBufferInfo<T>(batches.emplace_back()).first;
 			}
 		}
 
@@ -202,7 +218,7 @@ private:
 		PTGN_ASSERT(color.x >= 0.0f && color.y >= 0.0f && color.z >= 0.0f && color.w >= 0.0f);
 		PTGN_ASSERT(color.x <= 1.0f && color.y <= 1.0f && color.z <= 1.0f && color.w <= 1.0f);
 
-		auto& [data, texture_index] =
+		auto [data, texture_index] =
 			GetAvailableBatch<T, VertexType, VertexCount>(texture, render_layer, color.w);
 
 		// Used for circle vertices.
@@ -226,7 +242,7 @@ private:
 			}
 		}
 
-		data->emplace_back(vertices);
+		data.emplace_back(vertices);
 	}
 
 	// @return Batch info related to the specific type: std::tuple{ vector of data, shape index
@@ -234,15 +250,15 @@ private:
 	template <BatchType T>
 	static auto GetBufferInfo(Batch& batch) {
 		if constexpr (T == BatchType::Quad) {
-			return std::make_tuple(batch.quads_, 6);
+			return std::make_pair(&batch.quads_, 6);
 		} else if constexpr (T == BatchType::Triangle) {
-			return std::make_tuple(batch.triangles_, 3);
+			return std::make_pair(&batch.triangles_, 3);
 		} else if constexpr (T == BatchType::Line) {
-			return std::make_tuple(batch.lines_, 2);
+			return std::make_pair(&batch.lines_, 2);
 		} else if constexpr (T == BatchType::Circle) {
-			return std::make_tuple(batch.circles_, 6);
+			return std::make_pair(&batch.circles_, 6);
 		} else if constexpr (T == BatchType::Point) {
-			return std::make_tuple(batch.points_, 1);
+			return std::make_pair(&batch.points_, 1);
 		}
 	}
 
@@ -263,26 +279,27 @@ private:
 
 	// @param callback Called before drawing VAO, used for binding textures in case of quads.
 	template <BatchType T>
-	void FlushType(const std::vector<Batch>& batches) {
+	void FlushType(std::vector<Batch>& batches) {
 		auto vao{ GetVertexArray<T>() };
 		vao.Bind();
 		for (auto& batch : batches) {
 			auto [data, index_count] = GetBufferInfo<T>(batch);
-			if (data.empty()) {
+			PTGN_ASSERT(data != nullptr);
+			if (data->empty()) {
 				continue;
 			}
 			if constexpr (T == BatchType::Quad) {
 				batch.BindTextures();
 			}
 			vao.GetVertexBuffer().SetSubData(
-				data.data(), static_cast<std::uint32_t>(SizeofVector(data)), false
+				data->data(), static_cast<std::uint32_t>(SizeofVector(*data)), false
 			);
-			vao.Draw(data.size() * index_count, false);
-			// data.clear(); // Not needed since transparent_layers_ is cleared every frame.
+			vao.Draw(data->size() * index_count, false);
+			// data->clear(); // Not needed since transparent_layers_ is cleared every frame.
 		}
 	}
 
-	void FlushBatches(const std::vector<Batch>& batches);
+	void FlushBatches(std::vector<Batch>& batches);
 
 	// Maximum number of primitive types before a second batch is generated.
 	// The higher the number, the less draw calls but more RAM is used.

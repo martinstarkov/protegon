@@ -1,17 +1,29 @@
 #include "renderer/render_data.h"
 
-#include "renderer/vertices.h"
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <utility>
+#include <vector>
+
+#include "core/game.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/line.h"
+#include "math/geometry/polygon.h"
+#include "math/math.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
-#include "renderer/vertex_array.h"
-#include "utility/utility.h"
-#include "core/game.h"
+#include "renderer/buffer.h"
+#include "renderer/gl_helper.h"
+#include "renderer/origin.h"
 #include "renderer/renderer.h"
 #include "renderer/texture.h"
-#include "math/geometry/polygon.h"
-#include "math/geometry/line.h"
-#include "math/geometry/circle.h"
+#include "renderer/vertex_array.h"
+#include "renderer/vertices.h"
+#include "utility/debug.h"
+#include "utility/triangulation.h"
+#include "utility/utility.h"
 
 namespace ptgn {
 
@@ -52,25 +64,25 @@ float Batch::GetAvailableTextureIndex(const Texture& texture) {
 RenderData::RenderData() : batch_capacity_{ game.renderer.batch_capacity_ } {
 	PTGN_ASSERT(batch_capacity_ >= 1);
 	quad_vao_	  = VertexArray{ PrimitiveMode::Triangles,
-						VertexBuffer{ (std::array<QuadVertex, 4>*)nullptr,
-								batch_capacity_, BufferUsage::StreamDraw },
-						quad_vertex_layout, game.renderer.quad_ib_ };
+							 VertexBuffer{ (std::array<QuadVertex, 4>*)nullptr, batch_capacity_,
+										   BufferUsage::StreamDraw },
+							 quad_vertex_layout, game.renderer.quad_ib_ };
 	circle_vao_	  = VertexArray{ PrimitiveMode::Triangles,
-						VertexBuffer{ (std::array<CircleVertex, 4>*)nullptr,
-									batch_capacity_, BufferUsage::StreamDraw },
-						circle_vertex_layout, game.renderer.quad_ib_ };
+								 VertexBuffer{ (std::array<CircleVertex, 4>*)nullptr, batch_capacity_,
+											   BufferUsage::StreamDraw },
+								 circle_vertex_layout, game.renderer.quad_ib_ };
 	triangle_vao_ = VertexArray{ PrimitiveMode::Triangles,
-						VertexBuffer{ (std::array<ColorVertex, 3>*)nullptr,
-									batch_capacity_, BufferUsage::StreamDraw },
-						color_vertex_layout, game.renderer.triangle_ib_ };
+								 VertexBuffer{ (std::array<ColorVertex, 3>*)nullptr,
+											   batch_capacity_, BufferUsage::StreamDraw },
+								 color_vertex_layout, game.renderer.triangle_ib_ };
 	line_vao_	  = VertexArray{ PrimitiveMode::Lines,
-						VertexBuffer{ (std::array<ColorVertex, 2>*)nullptr,
-								batch_capacity_, BufferUsage::StreamDraw },
-						color_vertex_layout, game.renderer.line_ib_ };
+							 VertexBuffer{ (std::array<ColorVertex, 2>*)nullptr, batch_capacity_,
+										   BufferUsage::StreamDraw },
+							 color_vertex_layout, game.renderer.line_ib_ };
 	point_vao_	  = VertexArray{ PrimitiveMode::Points,
-						VertexBuffer{ (std::array<ColorVertex, 1>*)nullptr,
-									batch_capacity_, BufferUsage::StreamDraw },
-						color_vertex_layout, game.renderer.point_ib_ };
+								 VertexBuffer{ (std::array<ColorVertex, 1>*)nullptr, batch_capacity_,
+											   BufferUsage::StreamDraw },
+								 color_vertex_layout, game.renderer.point_ib_ };
 }
 
 // Assumes view_projection_ is updated externally.
@@ -115,7 +127,7 @@ void RenderData::Flush() {
 	// reset");
 
 	// Flush transparent layers in order of render layer.
-	for (const auto& [render_layer, batches] : transparent_layers_) {
+	for (auto& [render_layer, batches] : transparent_layers_) {
 		FlushBatches(batches);
 	}
 
@@ -137,8 +149,7 @@ void RenderData::SetViewProjection(const M4_float& view_projection) {
 
 void RenderData::AddTexture(
 	const std::array<V2_float, 4>& vertices, const Texture& texture,
-	const std::array<V2_float, 4>& tex_coords, const V4_float& tint_color,
-	std::int32_t render_layer
+	const std::array<V2_float, 4>& tex_coords, const V4_float& tint_color, std::int32_t render_layer
 ) {
 	PTGN_ASSERT(texture.IsValid(), "Cannot draw uninitialized or destroyed texture");
 	AddPrimitiveQuad(vertices, render_layer, tint_color, tex_coords, texture);
@@ -157,9 +168,19 @@ void RenderData::AddEllipse(
 	// TODO: Check that dividing by std::max(radius.x, radius.y) does not cause any unexpected
 	// bugs.
 	line_width = NearlyEqual(line_width, -1.0f)
-					? 1.0f
-					: fade + line_width / std::min(ellipse.radius.x, ellipse.radius.y);
+				   ? 1.0f
+				   : fade + line_width / std::min(ellipse.radius.x, ellipse.radius.y);
 
+	AddPrimitiveCircle(
+		rect.GetVertices(V2_float{ 0.5f, 0.5f }), render_layer, color, line_width, fade
+	);
+}
+
+void RenderData::AddCircle(
+	const Circle& circle, const V4_float& color, float line_width, float fade,
+	std::int32_t render_layer
+) {
+	Rect rect{ circle.center, V2_float{ circle.radius } * 2.0f, Origin::Center, 0.0f };
 	AddPrimitiveCircle(
 		rect.GetVertices(V2_float{ 0.5f, 0.5f }), render_layer, color, line_width, fade
 	);
@@ -178,7 +199,7 @@ void RenderData::AddLine(
 	V2_float dir{ line.Direction() };
 	// TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
 	Rect rect{ line.a + dir * 0.5f, V2_float{ dir.Magnitude(), line_width }, Origin::Center,
-				dir.Angle() };
+			   dir.Angle() };
 	AddRect(rect.GetVertices(V2_float{ 0.5f, 0.5f }), color, -1.0f, render_layer);
 }
 
@@ -246,8 +267,8 @@ void RenderData::AddRoundedRect(
 	V2_float offset{ GetOffsetFromCenter(rrect.size, rrect.origin) };
 
 	// TODO: Consider adding this as a GetRect() function for RoundedRect.
-	Rect inner_rect{ rrect.position - offset, rrect.size - rrect.radius * 2.0f, Origin::Center,
-						rrect.rotation };
+	Rect inner_rect{ rrect.position - offset, rrect.size - V2_float{ rrect.radius } * 2.0f,
+					 Origin::Center, rrect.rotation };
 
 	bool filled{ line_width == -1.0f };
 
@@ -266,22 +287,20 @@ void RenderData::AddRoundedRect(
 
 	AddArc(
 		{ inner_vertices[0], rrect.radius, rrect.rotation - pi<float>,
-			rrect.rotation - half_pi<float> },
+		  rrect.rotation - half_pi<float> },
 		false, color, line_width, fade, render_layer
 	);
 	AddArc(
-		{ inner_vertices[1], rrect.radius, rrect.rotation - half_pi<float>,
-			rrect.rotation + 0.0f },
+		{ inner_vertices[1], rrect.radius, rrect.rotation - half_pi<float>, rrect.rotation + 0.0f },
 		false, color, line_width, fade, render_layer
 	);
 	AddArc(
-		{ inner_vertices[2], rrect.radius, rrect.rotation + 0.0f,
-			rrect.rotation + half_pi<float> },
+		{ inner_vertices[2], rrect.radius, rrect.rotation + 0.0f, rrect.rotation + half_pi<float> },
 		false, color, line_width, fade, render_layer
 	);
 	AddArc(
 		{ inner_vertices[3], rrect.radius, rrect.rotation + half_pi<float>,
-			rrect.rotation + pi<float> },
+		  rrect.rotation + pi<float> },
 		false, color, line_width, fade, render_layer
 	);
 
@@ -292,18 +311,10 @@ void RenderData::AddRoundedRect(
 		line_thickness = rrect.radius;
 	}
 
-	AddLine(
-		{ inner_vertices[0] + t, inner_vertices[1] + t }, color, line_thickness, render_layer
-	);
-	AddLine(
-		{ inner_vertices[1] + r, inner_vertices[2] + r }, color, line_thickness, render_layer
-	);
-	AddLine(
-		{ inner_vertices[2] + b, inner_vertices[3] + b }, color, line_thickness, render_layer
-	);
-	AddLine(
-		{ inner_vertices[3] + l, inner_vertices[0] + l }, color, line_thickness, render_layer
-	);
+	AddLine({ inner_vertices[0] + t, inner_vertices[1] + t }, color, line_thickness, render_layer);
+	AddLine({ inner_vertices[1] + r, inner_vertices[2] + r }, color, line_thickness, render_layer);
+	AddLine({ inner_vertices[2] + b, inner_vertices[3] + b }, color, line_thickness, render_layer);
+	AddLine({ inner_vertices[3] + l, inner_vertices[0] + l }, color, line_thickness, render_layer);
 }
 
 void RenderData::AddArc(
@@ -363,7 +374,7 @@ void RenderData::AddArc(
 			}
 
 			v[i] = { arc.center.x + arc.radius * std::cos(angle_radians),
-						arc.center.y + arc.radius * std::sin(angle_radians) };
+					 arc.center.y + arc.radius * std::sin(angle_radians) };
 		}
 
 		if (filled) {
@@ -451,8 +462,8 @@ void RenderData::AddPolygon(
 	} else {
 		for (std::size_t i{ 0 }; i < polygon.vertices.size(); i++) {
 			AddLine(
-				{ polygon.vertices[i], polygon.vertices[(i + 1) % polygon.vertices.size()] },
-				color, line_width, render_layer
+				{ polygon.vertices[i], polygon.vertices[(i + 1) % polygon.vertices.size()] }, color,
+				line_width, render_layer
 			);
 		}
 	}
@@ -498,7 +509,9 @@ bool RenderData::IsBlank(const Texture& texture) {
 	return texture == game.renderer.white_texture_;
 }
 
-std::vector<Batch>& RenderData::GetLayerBatches(std::int32_t render_layer, [[maybe_unused]] float alpha) {
+std::vector<Batch>& RenderData::GetLayerBatches(
+	std::int32_t render_layer, [[maybe_unused]] float alpha
+) {
 	// TODO: Add opaque batches back once you figure out how to do it using depth testing.
 	/*
 	// Transparent object.
@@ -516,7 +529,7 @@ std::vector<Batch>& RenderData::GetLayerBatches(std::int32_t render_layer, [[may
 	return transparent_layers_.emplace(render_layer, std::vector<Batch>(1)).first->second;
 }
 
-void RenderData::FlushBatches(const std::vector<Batch>& batches) {
+void RenderData::FlushBatches(std::vector<Batch>& batches) {
 	game.renderer.quad_shader_.Bind();
 
 	FlushType<BatchType::Quad>(batches);

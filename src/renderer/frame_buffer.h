@@ -1,11 +1,8 @@
 #pragma once
 
 #include <cstdint>
-#include <functional>
 
 #include "math/vector2.h"
-#include "renderer/color.h"
-#include "renderer/surface.h"
 #include "renderer/texture.h"
 #include "utility/handle.h"
 
@@ -69,9 +66,11 @@ public:
 	FrameBuffer()			= default;
 	~FrameBuffer() override = default;
 
-	explicit FrameBuffer(const Texture& texture);
+	explicit FrameBuffer(const Texture& texture, bool rebind_previous_frame_buffer = true);
 
-	explicit FrameBuffer(const RenderBuffer& render_buffer);
+	explicit FrameBuffer(
+		const RenderBuffer& render_buffer, bool rebind_previous_frame_buffer = true
+	);
 
 	void AttachTexture(const Texture& texture);
 	void AttachRenderBuffer(const RenderBuffer& render_buffer);
@@ -93,6 +92,8 @@ public:
 	static void Unbind();
 
 private:
+	friend struct impl::FrameBufferInstance;
+
 	// @return Id of the currently bound frame buffer.
 	[[nodiscard]] static std::int32_t GetBoundId();
 };

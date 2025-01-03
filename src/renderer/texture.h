@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <functional>
 #include <variant>
@@ -16,6 +17,8 @@
 
 namespace ptgn {
 
+class Text;
+class RenderTarget;
 struct LayerInfo;
 
 // Information relating to the source pixels, flip, tinting and rotation center of the texture.
@@ -59,6 +62,15 @@ struct TextureInfo {
 	Flip flip{ Flip::None };
 	Color tint{ color::White };
 	V2_float rotation_center{ 0.5f, 0.5f };
+
+private:
+	friend class RenderTarget;
+
+	[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(
+		const V2_float& texture_size, bool offset_texels = false
+	) const;
+
+	static void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip);
 };
 
 enum class TextureWrapping {
@@ -81,6 +93,8 @@ namespace impl {
 
 struct Batch;
 class RenderData;
+struct FrameBufferInstance;
+struct RenderTargetInstance;
 
 enum class InternalGLFormat {
 	RGB8  = 0x8051, // GL_RGB8
@@ -202,19 +216,15 @@ public:
 	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
 	// center of the texture.
 	// Uses default render target.
-	void Draw(
-		const Rect& destination = {}, const TextureInfo& texture_info = {}
-	) const;
+	void Draw(const Rect& destination = {}, const TextureInfo& texture_info = {}) const;
 
 	// @param destination Destination to draw the texture to. If destination == {}, fullscreen
 	// texture will be drawn, else if destination.size == {}, unscaled texture size is used.
 	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
 	// center of the texture.
 	// @param layer_info Information relating to the z index and render target of the texture.
-	void Draw(
-		const Rect& destination, const TextureInfo& texture_info,
-		const LayerInfo& layer_info
-	) const;
+	void Draw(const Rect& destination, const TextureInfo& texture_info, const LayerInfo& layer_info)
+		const;
 
 	// @param wrapping Texture wrapping in the x direction for when texture X coordinates are
 	// outside [0, 1]. OpenGL Equivalent Coordinate: S.
@@ -260,9 +270,14 @@ public:
 	[[nodiscard]] TextureFormat GetFormat() const;
 
 private:
+	friend class Text;
+	friend struct impl::FrameBufferInstance;
 	friend struct impl::TextureInstance;
 	friend struct impl::Batch;
 	friend class impl::RenderData;
+	friend struct impl::RenderTargetInstance;
+
+	struct WindowTexture {};
 
 	// Bind the texture to the currently active texture slot. This function does not change the
 	// active texture slot.
@@ -277,9 +292,8 @@ private:
 	// Set the specified texture slot to active.
 	static void SetActiveSlot(std::uint32_t slot);
 
-	// @param resize_with_window If true, sets the texture to resize continously to the
-	// window size. Used for drawing to render targets.
-	explicit Texture(bool resize_with_window);
+	// Creates a window sized texture. Used for drawing to render targets.
+	explicit Texture(const WindowTexture& window_texture);
 
 	// @param size Manually set the size of an empty texture.
 	explicit Texture(const V2_float& size);

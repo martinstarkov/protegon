@@ -1,7 +1,7 @@
 #pragma once
 
 #include "renderer/buffer_layout.h"
-#include "renderer/gl_helper.h"
+#include "renderer/gl_types.h"
 
 namespace ptgn {
 

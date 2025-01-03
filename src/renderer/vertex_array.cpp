@@ -4,20 +4,14 @@
 #include <cstdint>
 
 #include "core/game.h"
-#include "math/geometry/polygon.h"
-#include "math/vector2.h"
-#include "renderer/batch.h"
 #include "renderer/buffer.h"
 #include "renderer/buffer_layout.h"
-#include "renderer/color.h"
-#include "renderer/flip.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
-#include "renderer/renderer.h"
-#include "renderer/vertices.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
+#include "utility/stats.h"
 
 namespace ptgn {
 
@@ -116,26 +110,16 @@ void VertexArray::SetBufferElement(
 	}
 }
 
-VertexArray::VertexArray(const Rect& rect, const Color& color) :
-	VertexArray{ PrimitiveMode::Triangles,
-				 VertexBuffer{
-					 impl::ColorQuadVertices(rect.GetVertices(), 0.0f, color.Normalized()).Get() },
-				 impl::ColorQuadVertices::layout,
-				 IndexBuffer{ std::array<std::uint32_t, 6>{ 0, 1, 2, 2, 3, 0 } } } {}
-
-VertexArray::VertexArray(
-	const impl::TextureVertices& texture_vertices, const IndexBuffer& index_buffer
-) :
-	VertexArray{ PrimitiveMode::Triangles, VertexBuffer{ texture_vertices.Get() },
-				 impl::TextureVertices::layout, index_buffer } {}
-
 void VertexArray::Draw(std::size_t index_count, bool bind_vertex_array) const {
 	PTGN_ASSERT(IsValid(), "Cannot submit invalid vertex array for rendering");
 	PTGN_ASSERT(
 		HasVertexBuffer(), "Cannot submit vertex array without a set vertex buffer for rendering"
 	);
 	if (index_count != 0) {
-		PTGN_ASSERT(HasIndexBuffer(), "Cannot specify index without for a vertex array with no attached index buffer");
+		PTGN_ASSERT(
+			HasIndexBuffer(),
+			"Cannot specify index without for a vertex array with no attached index buffer"
+		);
 		GLRenderer::DrawElements(*this, index_count, bind_vertex_array);
 	}
 	if (HasIndexBuffer()) {
@@ -163,15 +147,22 @@ bool VertexArray::HasIndexBuffer() const {
 }
 
 VertexBuffer VertexArray::GetVertexBuffer() const {
+	PTGN_ASSERT(IsValid(), "Cannot get vertex buffer of invalid or uninitialized vertex array");
 	return Get().vertex_buffer_;
 }
 
 IndexBuffer VertexArray::GetIndexBuffer() const {
+	PTGN_ASSERT(IsValid(), "Cannot get index buffer of invalid or uninitialized vertex array");
 	return Get().index_buffer_;
 }
 
 PrimitiveMode VertexArray::GetPrimitiveMode() const {
+	PTGN_ASSERT(IsValid(), "Cannot get primitive mode of invalid or uninitialized vertex array");
 	return Get().mode_;
+}
+
+bool VertexArray::IsBound() const {
+	return IsValid() && VertexArray::GetBoundId() == static_cast<std::int32_t>(Get().id_);
 }
 
 } // namespace ptgn

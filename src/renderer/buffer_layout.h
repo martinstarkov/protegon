@@ -5,7 +5,7 @@
 #include <utility>
 #include <vector>
 
-#include "renderer/gl_helper.h"
+#include "renderer/gl_types.h"
 
 namespace ptgn {
 

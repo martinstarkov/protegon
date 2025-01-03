@@ -32,7 +32,7 @@ class GLRenderer {
 public:
 	static void EnableDepthWriting();
 	static void DisableDepthWriting();
-	static void SetBlendMode(BlendMode mode = BlendMode::Blend);
+	static void SetBlendMode(BlendMode mode);
 	static void EnableLineSmoothing();
 	static void DisableLineSmoothing();
 	static void SetPolygonMode(PolygonMode mode);

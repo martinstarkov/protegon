@@ -3,12 +3,12 @@
 #include <cstdint>
 
 #include "core/game.h"
-#include "core/window.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/color.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
+#include "renderer/renderer.h"
 #include "renderer/vertex_array.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
@@ -101,7 +101,8 @@ void GLRenderer::DrawElements(
 		"Cannot draw vertex array with uninitialized or destroyed vertex buffer"
 	);
 	PTGN_ASSERT(
-		vao.HasIndexBuffer(), "Cannot draw vertex array with uninitialized or destroyed index buffer"
+		vao.HasIndexBuffer(),
+		"Cannot draw vertex array with uninitialized or destroyed index buffer"
 	);
 	if (bind_vertex_array) {
 		vao.Bind();

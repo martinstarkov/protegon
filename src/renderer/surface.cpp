@@ -14,6 +14,7 @@
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/font.h"
+#include "SDL_error.h"
 #include "SDL_image.h"
 #include "SDL_pixels.h"
 #include "SDL_surface.h"
@@ -35,12 +36,41 @@ void SDL_SurfaceDeleter::operator()(SDL_Surface* surface) const {
 
 TextureFormat GetFormatFromSDL(std::uint32_t sdl_format) {
 	switch (sdl_format) {
-		case SDL_PIXELFORMAT_RGBA8888: return TextureFormat::RGBA8888;
-		case SDL_PIXELFORMAT_RGB888:   return TextureFormat::RGB888;
-		case SDL_PIXELFORMAT_BGRA8888: return TextureFormat::BGRA8888;
-		case SDL_PIXELFORMAT_BGR888:   return TextureFormat::BGR888;
-		case SDL_PIXELFORMAT_UNKNOWN:  return TextureFormat::Unknown;
-		default:					   PTGN_ERROR("Unrecognized sdl format");
+		case SDL_PIXELFORMAT_RGBA32:
+		case SDL_PIXELFORMAT_RGBA8888:	  return TextureFormat::RGBA8888;
+		case SDL_PIXELFORMAT_RGB24:
+		case SDL_PIXELFORMAT_RGB888:	  return TextureFormat::RGB888;
+		case SDL_PIXELFORMAT_BGRA32:
+		case SDL_PIXELFORMAT_BGRA8888:	  return TextureFormat::BGRA8888;
+		case SDL_PIXELFORMAT_BGR24:
+		case SDL_PIXELFORMAT_BGR888:	  return TextureFormat::BGR888;
+		case SDL_PIXELFORMAT_INDEX8:
+		case SDL_PIXELFORMAT_UNKNOWN:	  return TextureFormat::Unknown;
+		case SDL_PIXELFORMAT_INDEX1LSB:	  PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_INDEX1MSB:	  PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_INDEX2LSB:	  PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_INDEX2MSB:	  PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_INDEX4LSB:	  PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_INDEX4MSB:	  PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_RGB332:	  PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_RGB444:	  PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_BGR444:	  PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_RGB555:	  PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_BGR555:	  PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_ARGB4444:	  PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_RGBA4444:	  PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_ABGR4444:	  PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_BGRA4444:	  PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_ARGB1555:	  PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_RGBA5551:	  PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_ABGR1555:	  PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_BGRA5551:	  PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_RGB565:	  PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_BGR565:	  PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_RGBX8888:	  PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_BGRX8888:	  PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_ARGB2101010: PTGN_ERROR("Unsupported sdl format");
+		default:						  PTGN_ERROR("Unrecognized sdl format");
 	}
 }
 
@@ -53,22 +83,26 @@ V2_int Surface::GetSize(Font font, const std::string& content) {
 	return size;
 }
 
-Surface::Surface(const std::shared_ptr<SDL_Surface>& surface) {
+Surface::Surface(std::shared_ptr<SDL_Surface> surface) {
 	Create();
 
 	auto& s{ Get() };
 
 	s.format_ = impl::GetFormatFromSDL(surface->format->format);
+
+	if (s.format_ == TextureFormat::Unknown) {
+		// Convert format.
+		s.format_ = TextureFormat::RGBA8888;
+		surface	  = {
+			  SDL_ConvertSurfaceFormat(surface.get(), static_cast<std::uint32_t>(s.format_), 0),
+			  impl::SDL_SurfaceDeleter{}
+		};
+		PTGN_ASSERT(surface != nullptr, SDL_GetError());
+	}
+
 	PTGN_ASSERT(
 		s.format_ != TextureFormat::Unknown, "Cannot create surface with unknown texture format"
 	);
-
-	// Convert format.
-	/*std::shared_ptr<SDL_Surface> surface = {
-		SDL_ConvertSurfaceFormat(raw_surface.get(), static_cast<std::uint32_t>(s.format_), 0),
-		impl::SDL_SurfaceDeleter{}
-	};
-	PTGN_ASSERT(surface != nullptr, SDL_GetError());*/
 
 	int lock = SDL_LockSurface(surface.get());
 	PTGN_ASSERT(lock == 0, "Failed to lock surface when copying pixels");
@@ -184,7 +218,7 @@ void Surface::FlipVertically() {
 	PTGN_ASSERT(IsValid(), "Cannot vertically flip an invalid or uninitialized surface");
 	auto& s{ Get() };
 	// TODO: Check that this works as intended (i.e. middle row in odd height images is skipped).
-	for (int row = 0; row < s.size_.y / 2; ++row) {
+	for (int row{ 0 }; row < s.size_.y / 2; ++row) {
 		std::swap_ranges(
 			s.data_.begin() + row * s.size_.x, s.data_.begin() + (row + 1) * s.size_.x,
 			s.data_.begin() + (s.size_.y - row - 1) * s.size_.x
@@ -220,11 +254,11 @@ Color Surface::GetPixel(const V2_int& coordinate) const {
 void Surface::ForEachPixel(const std::function<void(const V2_int&, const Color&)>& function) {
 	PTGN_ASSERT(IsValid(), "Cannot loop each pixel of an invalid or uninitialized surface");
 	auto& s{ Get() };
-	for (int j = 0; j < s.size_.y; j++) {
-		int idx_row = static_cast<std::size_t>(j) * s.size_.x;
-		for (int i = 0; i < s.size_.x; i++) {
+	for (int j{ 0 }; j < s.size_.y; j++) {
+		int idx_row{ j * s.size_.x };
+		for (int i{ 0 }; i < s.size_.x; i++) {
 			V2_int coordinate{ i, j };
-			int index = idx_row + i;
+			int index{ idx_row + i };
 			PTGN_ASSERT(index < static_cast<int>(s.data_.size()));
 			std::invoke(function, coordinate, s.data_[index]);
 		}

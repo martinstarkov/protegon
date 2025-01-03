@@ -89,7 +89,7 @@ private:
 
 	// Convert SDL surface to ptgn::Surface. Loops through all pixels based on format and sets data
 	// array.
-	Surface(const std::shared_ptr<SDL_Surface>& surface);
+	Surface(std::shared_ptr<SDL_Surface> surface);
 };
 
 } // namespace ptgn

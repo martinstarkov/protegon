@@ -1,40 +1,35 @@
 #include "renderer/renderer.h"
 
-#include <functional>
+#include <algorithm>
+#include <array>
+#include <cstdint>
 #include <numeric>
-#include <string_view>
-#include <variant>
+#include <vector>
 
-#include "scene/camera.h"
+#include "core/game.h"
 #include "core/window.h"
-#include "frame_buffer.h"
 #include "math/geometry/polygon.h"
-#include "math/matrix4.h"
-#include "math/vector2.h"
-#include "renderer/batch.h"
 #include "renderer/color.h"
-#include "renderer/flip.h"
-#include "renderer/font.h"
 #include "renderer/frame_buffer.h"
 #include "renderer/gl_renderer.h"
-#include "renderer/origin.h"
+#include "renderer/layer_info.h"
+#include "renderer/render_target.h"
 #include "renderer/shader.h"
-#include "renderer/text.h"
 #include "renderer/texture.h"
-#include "renderer/vertex_array.h"
 #include "utility/debug.h"
-#include "utility/log.h"
+#include "utility/handle.h"
+#include "utility/stats.h"
 
 namespace ptgn::impl {
 
 void Renderer::Init() {
 	GLRenderer::EnableLineSmoothing();
-	GLRenderer::SetBlendMode(blend_mode_);
+	FrameBuffer::Unbind();
+	GLRenderer::ClearColor(color::Transparent);
+	GLRenderer::SetBlendMode(BlendMode::Blend);
+	GLRenderer::Clear();
 
 	batch_capacity_ = 2000;
-	screen_			= FrameBuffer{ true };
-	screen_.Bind();
-	screen_.ClearToColor(clear_color_);
 
 	auto get_indices = [](std::size_t max_indices, const auto& generator) {
 		std::vector<std::uint32_t> indices;
@@ -83,13 +78,11 @@ void Renderer::Init() {
 
 	quad_shader_.Bind();
 	quad_shader_.SetUniform("u_Texture", samplers.data(), samplers.size());
+
+	screen_target_ = RenderTarget{ color::Transparent, BlendMode::Blend };
 }
 
 void Renderer::Reset() {
-	data_		 = {};
-	clear_color_ = color::Transparent;
-	blend_mode_	 = BlendMode::Blend;
-
 	quad_shader_   = {};
 	circle_shader_ = {};
 	color_shader_  = {};
@@ -111,49 +104,34 @@ void Renderer::Shutdown() {
 }
 
 BlendMode Renderer::GetBlendMode() const {
-	return blend_mode_;
+	return LayerInfo{}.GetActiveTarget().GetBlendMode();
 }
 
 void Renderer::SetBlendMode(BlendMode blend_mode) {
-	if (blend_mode_ == blend_mode) {
-		return;
-	}
-	blend_mode_ = blend_mode;
-	GLRenderer::SetBlendMode(blend_mode_);
+	LayerInfo{}.GetActiveTarget().SetBlendMode(blend_mode);
 }
 
 Color Renderer::GetClearColor() const {
-	return clear_color_;
+	return LayerInfo{}.GetActiveTarget().GetClearColor();
 }
 
-std::size_t Renderer::GetBatchCapacity() const {
-	return batch_capacity_;
+void Renderer::SetClearColor(const Color& clear_color) {
+	LayerInfo{}.GetActiveTarget().SetClearColor(clear_color);
 }
 
-void Renderer::ResetRenderTarget() {
-	screen_.Bind();
+void Renderer::Clear() const {
+	LayerInfo{}.GetActiveTarget().Clear();
 }
 
-void Renderer::SetClearColor(const Color& color) {
-	if (clear_color_ == color) {
-		return;
-	}
-	clear_color_ = color;
-	GLRenderer::ClearColor(clear_color_);
-}
-
-void Renderer::Clear() {
-	GLRenderer::Clear();
+void Renderer::Flush() {
+	LayerInfo{}.GetActiveTarget().Flush();
 }
 
 void Renderer::Present() {
-	game.renderer.Flush();
-	if (bound_.IsValid()) {
-		bound_.DrawToScreen();
-	}
+	screen_target_.Flush();
 
 	FrameBuffer::Unbind();
-	screen_.Draw({}, {}, {});
+	screen_target_.DrawToBoundFrameBuffer(Rect::Fullscreen());
 
 	game.window.SwapBuffers();
 
@@ -162,16 +140,6 @@ void Renderer::Present() {
 #ifdef PTGN_DEBUG
 	game.stats.ResetRendererRelated();
 #endif
-}
-
-void Renderer::Flush(std::size_t render_layer) {
-	white_texture_.Bind(0);
-	data_.FlushLayer(render_layer);
-}
-
-void Renderer::Flush() {
-	white_texture_.Bind(0);
-	data_.FlushLayers();
 }
 
 } // namespace ptgn::impl

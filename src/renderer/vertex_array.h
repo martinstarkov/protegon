@@ -2,11 +2,9 @@
 
 #include <cstdint>
 
-#include "math/vector2.h"
 #include "renderer/buffer.h"
 #include "renderer/buffer_layout.h"
-#include "renderer/flip.h"
-#include "renderer/gl_helper.h"
+#include "renderer/gl_types.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
 
@@ -57,11 +55,8 @@ public:
 		SetBufferLayoutImpl(layout);
 	}
 
-	VertexArray(const Rect& rect, const Color& color);
-	VertexArray(const impl::TextureVertices& texture_vertices, const IndexBuffer& index_buffer);
-
 	// @param index_count The number of indices within the vertex array to draw.
-	// If set to 0, will use either the total size of the bound index buffer, 
+	// If set to 0, will use either the total size of the bound index buffer,
 	// or if no index buffer is bound will use the total vertex count.
 	// @param bind_vertex_array Whether or not to bind the vertex array for the draw call.
 	// Setting this to false can reduce vertex array bind calls if it is already bound.
@@ -96,6 +91,9 @@ public:
 	[[nodiscard]] IndexBuffer GetIndexBuffer() const;
 
 	[[nodiscard]] PrimitiveMode GetPrimitiveMode() const;
+
+	// @return True if the vertex array is currently bound, false otherwise.
+	[[nodiscard]] bool IsBound() const;
 
 	// TODO: Move to private.
 	void Bind() const;

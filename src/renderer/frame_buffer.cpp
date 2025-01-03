@@ -1,15 +1,9 @@
 #include "renderer/frame_buffer.h"
 
 #include <cstdint>
-#include <functional>
-#include <type_traits>
-#include <vector>
 
 #include "core/game.h"
-#include "core/window.h"
-#include "event/event_handler.h"
 #include "math/vector2.h"
-#include "renderer/color.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
@@ -17,6 +11,7 @@
 #include "renderer/texture.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
+#include "utility/stats.h"
 
 namespace ptgn {
 
@@ -43,13 +38,6 @@ FrameBufferInstance::~FrameBufferInstance() {
 	GLCall(gl::DeleteFramebuffers(1, &id_));
 }
 
-void FrameBufferInstance::CreateBlank(const V2_float& size) {
-	Bind();
-	AttachTexture(Texture{ nullptr, size, TextureFormat::RGBA8888, TextureWrapping::ClampEdge,
-						   TextureScaling::Nearest, TextureScaling::Nearest, false });
-	AttachRenderBuffer(RenderBuffer{ size });
-}
-
 void FrameBufferInstance::AttachTexture(const Texture& texture) {
 	PTGN_ASSERT(texture.IsValid(), "Cannot attach invalid texture to frame buffer");
 	PTGN_ASSERT(IsBound(), "Cannot attach texture until frame buffer is bound");
@@ -57,7 +45,7 @@ void FrameBufferInstance::AttachTexture(const Texture& texture) {
 	GLCall(gl::FramebufferTexture2D(
 		GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture.Get().id_, 0
 	));
-	PTGN_ASSERT(IsComplete());
+	PTGN_ASSERT(IsComplete(), "Failed to attach texture to frame buffer");
 }
 
 void FrameBufferInstance::AttachRenderBuffer(const RenderBuffer& render_buffer) {
@@ -67,11 +55,11 @@ void FrameBufferInstance::AttachRenderBuffer(const RenderBuffer& render_buffer) 
 	GLCall(gl::FramebufferRenderbuffer(
 		GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, render_buffer.Get().id_
 	));
-	PTGN_ASSERT(IsComplete());
+	PTGN_ASSERT(IsComplete(), "Failed to attach render buffer to frame buffer");
 }
 
 void FrameBufferInstance::Bind() const {
-	FrameBuffer::Bind(id_);
+	GLCall(gl::BindFramebuffer(GL_FRAMEBUFFER, id_));
 #ifdef PTGN_DEBUG
 	++game.stats.frame_buffer_binds;
 #endif
@@ -129,25 +117,39 @@ std::int32_t RenderBuffer::GetBoundId() {
 	return id;
 }
 
-FrameBuffer::FrameBuffer(const Texture& texture) {
+FrameBuffer::FrameBuffer(const Texture& texture, bool rebind_previous_frame_buffer) {
+	auto create = [&]() {
+		Create();
+		Bind();
+		Get().AttachTexture(texture);
+		PTGN_ASSERT(IsComplete(), "Failed to complete frame buffer");
+	};
+
+	if (!rebind_previous_frame_buffer) {
+		std::invoke(create);
+		return;
+	}
+
 	PUSHSTATE_FB();
-
-	Create();
-	Bind();
-	Get().AttachTexture(texture);
-	PTGN_ASSERT(IsComplete(), "Failed to complete frame buffer");
-
+	std::invoke(create);
 	POPSTATE_FB();
 }
 
-FrameBuffer::FrameBuffer(const RenderBuffer& render_buffer) {
+FrameBuffer::FrameBuffer(const RenderBuffer& render_buffer, bool rebind_previous_frame_buffer) {
+	auto create = [&]() {
+		Create();
+		Bind();
+		Get().AttachRenderBuffer(render_buffer);
+		PTGN_ASSERT(IsComplete(), "Failed to complete frame buffer");
+	};
+
+	if (!rebind_previous_frame_buffer) {
+		std::invoke(create);
+		return;
+	}
+
 	PUSHSTATE_FB();
-
-	Create();
-	Bind();
-	Get().AttachRenderBuffer(render_buffer);
-	PTGN_ASSERT(IsComplete(), "Failed to complete frame buffer");
-
+	std::invoke(create);
 	POPSTATE_FB();
 }
 
@@ -195,8 +197,10 @@ bool FrameBuffer::IsBound() const {
 
 void FrameBuffer::Bind() const {
 	PTGN_ASSERT(IsValid(), "Cannot bind invalid frame buffer");
-	Get().Bind();
-	game.renderer.bound_frame_buffer_ = *this;
+	if (*this != game.renderer.bound_frame_buffer_) {
+		Get().Bind();
+		game.renderer.bound_frame_buffer_ = *this;
+	}
 }
 
 void FrameBuffer::Unbind() {

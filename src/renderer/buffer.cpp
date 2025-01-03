@@ -57,7 +57,7 @@ void Buffer<BT>::SetSubData(const void* data, std::uint32_t size, bool unbind_ve
 
 template <BufferType BT>
 std::uint32_t Buffer<BT>::GetCount() const {
-	PTGN_ASSERT(IsValid(), "Cannot get count of invalid buffer");
+	PTGN_ASSERT(IsValid(), "Cannot get count of invalid or uninitialized buffer");
 	return Get().count_;
 }
 
