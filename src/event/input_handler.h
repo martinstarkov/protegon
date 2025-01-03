@@ -6,7 +6,6 @@
 #include "event/key.h"
 #include "event/mouse.h"
 #include "math/vector2.h"
-#include "renderer/render_target.h"
 #include "utility/time.h"
 #include "utility/timer.h"
 
@@ -26,7 +25,104 @@ public:
 	InputHandler& operator=(const InputHandler&) = delete;
 	InputHandler& operator=(InputHandler&&)		 = default;
 
+	// TODO: Add KeyHeld().
+
+	// @param button The mouse button to check.
+	// @return The amount of time that the mouse button has been held down.
+	[[nodiscard]] milliseconds GetMouseHeldTime(Mouse button);
+
+	/*
+	 * @tparam Duration The unit of time measurement.
+	 * @param button The mouse button to check.
+	 * @param time The duration of time for which the mouse should be held.
+	 * @return True if the mouse button has been held for the given amount of time.
+	 */
+	template <typename Duration = milliseconds, tt::duration<Duration> = true>
+	[[nodiscard]] inline bool MouseHeld(Mouse button, Duration time = milliseconds{ 50 }) {
+		const auto held_time{ GetMouseHeldTime(button) };
+		return held_time > time;
+	}
+
+	// @return True if mouse position is within window bounds, false otherwise.
+	[[nodiscard]] bool MouseWithinWindow() const;
+
+	// While the mouse is in relative mode, the cursor is hidden, the mouse position is constrained
+	// to the window, and there will be continuous relative mouse motion events triggered even if
+	// the mouse is at the edge of the window.
+	// @param Whether or not mouse relative mode should be turned on or not.
+	void SetRelativeMouseMode(bool on) const;
+
+	// @return Mouse position relative to the top left of the window.
+	[[nodiscard]] V2_float GetMousePositionWindow() const;
+
+	// @return Mouse position during the previous frame relative to the top left of the window.
+	[[nodiscard]] V2_float GetMousePositionPreviousWindow() const;
+
+	// @return Mouse position difference between the current and previous frames relative to the top
+	// left of the window.
+	[[nodiscard]] V2_float GetMouseDifferenceWindow() const;
+
+	// @return Mouse position scaled relative to the camera size of the currently active scene's
+	// render target.
+	[[nodiscard]] V2_float GetMousePosition() const;
+
+	// @return Mouse position during the previous frame scaled relative to the camera size of the
+	// currently active scene's render target.
+	[[nodiscard]] V2_float GetMousePositionPrevious() const;
+
+	// @return Mouse position difference between the current and previous frames scaled relative to
+	// the camera size of the currently active scene's render target.
+	[[nodiscard]] V2_float GetMouseDifference() const;
+
+	// @return In desktop mode: mouse position relative to the screen (display). In browser: same as
+	// GetMousePosition().
+	[[nodiscard]] V2_float GetMousePositionGlobal() const;
+
+	// @return The amount scrolled by the mouse vertically in the current frame,
+	// positive upward, negative downward. Zero if no scroll occurred.
+	[[nodiscard]] int GetMouseScroll() const;
+
+	// @param button The mouse button to check.
+	// @return True if the mouse button is pressed (true every frame that the button is down).
+	[[nodiscard]] bool MousePressed(Mouse button) const;
+
+	// @param button The mouse button to check.
+	// @return True if the mouse button is released (true every frame that the button is up).
+	[[nodiscard]] bool MouseReleased(Mouse button) const;
+
+	// @param button The mouse button to check.
+	// @return True the first frame that the mouse button is pressed (false every frame after that).
+	[[nodiscard]] bool MouseDown(Mouse button) const;
+
+	// @param button The mouse button to check.
+	// @return True the first frame that the mouse button is released (false every frame after
+	// that).
+	[[nodiscard]] bool MouseUp(Mouse button) const;
+
+	// @param button The key to check.
+	// @return True if the key is pressed (true every frame that the key is down).
+	[[nodiscard]] bool KeyPressed(Key key) const;
+
+	// @param button The key to check.
+	// @return True if the key is released (true every frame that the key is up).
+	[[nodiscard]] bool KeyReleased(Key key) const;
+
+	// @param button The key to check.
+	// @return True the first frame that the key is pressed (false every frame after that).
+	[[nodiscard]] bool KeyDown(Key key);
+
+	// @param button The key to check.
+	// @return True the first frame that the key is released (false every frame after that).
+	[[nodiscard]] bool KeyUp(Key key);
+
 private:
+	friend class SceneManager;
+	friend class Game;
+
+	// Updates the user inputs and posts any triggered input events. Run internally when using game
+	// scenes.
+	void Update();
+
 	// Updates previous mouse states for mouse up and down check.
 	void UpdateMouseState(Mouse button);
 
@@ -45,74 +141,6 @@ private:
 
 	void Init();
 	void Shutdown();
-
-public:
-	// Updates the user inputs and posts any triggered events.
-	void Update();
-
-	[[nodiscard]] milliseconds GetMouseHeldTime(Mouse button);
-
-	/*
-	 * @tparam Duration The unit of time measurement.
-	 * @return True if the mouse button has been held for the given amount of time.
-	 */
-	template <typename Duration = milliseconds, tt::duration<Duration> = true>
-	[[nodiscard]] inline bool MouseHeld(Mouse button, Duration time = milliseconds{ 50 }) {
-		const auto held_time{ GetMouseHeldTime(button) };
-		return held_time > time;
-	}
-
-	// @return True if mouse position is within window bounds, false otherwise.
-	bool MouseWithinWindow() const;
-
-	void SetRelativeMouseMode(bool on) const;
-
-	// @return Mouse position relative to the top left of the window.
-	[[nodiscard]] V2_float GetMousePositionWindow() const;
-
-	// @return Mouse position during the previous frame relative to the top left of the window.
-	[[nodiscard]] V2_float GetMousePositionPreviousWindow() const;
-
-	// @return Mouse position difference between the current and previous frames relative to the top
-	// left of the window.
-	[[nodiscard]] V2_float GetMouseDifferenceWindow() const;
-
-	// @return Mouse position scaled relative to the camera size of the specified render layer.
-	[[nodiscard]] V2_float GetMousePosition(const RenderTarget& render_target = {}) const;
-
-	// @return Mouse position during the previous frame scaled relative to the camera size of the
-	// specified render layer.
-	[[nodiscard]] V2_float GetMousePositionPrevious(const RenderTarget& render_target = {}) const;
-
-	// @return Mouse position difference between the current and previous frames scaled relative to
-	// the camera size of the specified render layer.
-	[[nodiscard]] V2_float GetMouseDifference(const RenderTarget& render_target = {}) const;
-
-	// @return In desktop mode: mouse position relative to the screen (display). In browser: same as
-	// GetMousePosition().
-	[[nodiscard]] V2_float GetMousePositionGlobal() const;
-
-	// @return The amount scrolled by the mouse vertically in the current frame,
-	// positive upward, negative downward. Zero if no scroll occurred.
-	[[nodiscard]] int GetMouseScroll() const;
-
-	[[nodiscard]] bool MousePressed(Mouse button) const;
-	[[nodiscard]] bool MouseReleased(Mouse button) const;
-	[[nodiscard]] bool MouseDown(Mouse button) const;
-	[[nodiscard]] bool MouseUp(Mouse button) const;
-
-	[[nodiscard]] bool KeyPressed(Key key) const;
-	[[nodiscard]] bool KeyReleased(Key key) const;
-	[[nodiscard]] bool KeyDown(Key key);
-	[[nodiscard]] bool KeyUp(Key key);
-
-private:
-	[[nodiscard]] V2_float ScaledToRenderLayer(
-		const V2_float& position, const RenderTarget& render_target = {}
-	) const;
-
-	friend class SceneManager;
-	friend class Game;
 
 	void Reset();
 
