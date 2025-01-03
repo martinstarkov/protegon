@@ -113,7 +113,7 @@ void SceneManager::SwitchActiveScenesImpl(const InternalKey& scene1, const Inter
 	SwapVectorElements(active_scenes_, scene1, scene2);
 }
 
-std::vector<std::shared_ptr<Scene>> SceneManager::GetActive() {
+std::vector<std::shared_ptr<Scene>> SceneManager::GetActiveScenes() {
 	std::vector<std::shared_ptr<Scene>> active{};
 	for (auto scene_key : active_scenes_) {
 		PTGN_ASSERT(Has(scene_key));

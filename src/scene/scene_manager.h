@@ -90,7 +90,7 @@ public:
 	void UnloadAll();
 
 	// @return A vector of currently active scenes.
-	[[nodiscard]] std::vector<std::shared_ptr<Scene>> GetActive();
+	[[nodiscard]] std::vector<std::shared_ptr<Scene>> GetActiveScenes();
 
 	// @return Scene which was most recently added as an active scene.
 	[[nodiscard]] Scene& GetTopActive();
