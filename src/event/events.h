@@ -4,7 +4,6 @@
 #include "event/key.h"
 #include "event/mouse.h"
 #include "math/vector2.h"
-#include "renderer/render_target.h"
 
 namespace ptgn {
 
@@ -42,13 +41,13 @@ enum class MouseEvent {
 namespace impl {
 
 struct MouseEventBase {
-	// @return Current mouse position relative to the given render layer.
-	[[nodiscard]] V2_float GetCurrent(const RenderTarget& render_target = {}) const;
-	// @return Previous mouse position relative to the given render layer.
-	[[nodiscard]] V2_float GetPrevious(const RenderTarget& render_target = {}) const;
+	// @return Current mouse position relative to the currently active scene.
+	[[nodiscard]] V2_float GetCurrent() const;
+	// @return Previous mouse position relative to the currently active scene.
+	[[nodiscard]] V2_float GetPrevious() const;
 	// @return Get mouse position difference between current and previous frame relative to the
-	// given render layer.
-	[[nodiscard]] V2_float GetDifference(const RenderTarget& render_target = {}) const;
+	// currently active scene.
+	[[nodiscard]] V2_float GetDifference() const;
 };
 
 } // namespace impl
