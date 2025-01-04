@@ -108,7 +108,7 @@ namespace debug {
 // instead.
 template <typename... TArgs, tt::stream_writable<std::ostream, TArgs...> = true>
 inline void Print(TArgs&&... items) {
-	ptgn::impl::PrintImpl(std::cerr, -1, false, std::forward<TArgs>(items)...);
+	ptgn::impl::PrintImpl(std::cout, -1, false, std::forward<TArgs>(items)...);
 }
 
 // Print desired items to the console and add a newline. If no newline is
@@ -116,18 +116,18 @@ inline void Print(TArgs&&... items) {
 template <typename... TArgs, tt::stream_writable<std::ostream, TArgs...> = true>
 inline void PrintLine(TArgs&&... items) {
 	Print(std::forward<TArgs>(items)...);
-	std::cerr << "\n";
+	std::cout << "\n";
 }
 
 inline void PrintLine() {
-	std::cerr << "\n";
+	std::cout << "\n";
 }
 
 // Print desired items to the console. If a newline is desired, use PrintLine()
 // instead.
 template <typename... TArgs, tt::stream_writable<std::ostream, TArgs...> = true>
 inline void PrintPrecise(int precision, bool scientific, TArgs&&... items) {
-	ptgn::impl::PrintImpl(std::cerr, precision, scientific, std::forward<TArgs>(items)...);
+	ptgn::impl::PrintImpl(std::cout, precision, scientific, std::forward<TArgs>(items)...);
 }
 
 // Print desired items to the console and add a newline. If no newline is
@@ -135,11 +135,11 @@ inline void PrintPrecise(int precision, bool scientific, TArgs&&... items) {
 template <typename... TArgs, tt::stream_writable<std::ostream, TArgs...> = true>
 inline void PrintPreciseLine(int precision, bool scientific, TArgs&&... items) {
 	PrintPrecise(precision, scientific, std::forward<TArgs>(items)...);
-	std::cerr << "\n";
+	std::cout << "\n";
 }
 
 inline void PrintPreciseLine() {
-	std::cerr << "\n";
+	std::cout << "\n";
 }
 
 } // namespace debug

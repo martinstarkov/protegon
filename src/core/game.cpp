@@ -113,7 +113,7 @@ static void InitApplePath() {
 	CFURLRef resources_url = CFBundleCopyResourcesDirectoryURL(main_bundle);
 	char path[PATH_MAX];
 	if (!CFURLGetFileSystemRepresentation(resources_url, TRUE, (UInt8*)path,
-	PATH_MAX)) { std::cerr << "Couldn't get file system representation! " <<
+	PATH_MAX)) { std::cout << "Couldn't get file system representation! " <<
 	std::endl;
 	}
 	CFRelease(resources_url);
