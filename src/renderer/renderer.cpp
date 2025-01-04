@@ -16,13 +16,14 @@
 #include "renderer/render_target.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
+#include "scene/scene_manager.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
 #include "utility/stats.h"
 
 namespace ptgn::impl {
 
-void Renderer::Init() {
+void Renderer::Init(const Color& background_color) {
 	GLRenderer::EnableLineSmoothing();
 
 	batch_capacity_ = 2000;
@@ -75,7 +76,7 @@ void Renderer::Init() {
 	quad_shader_.Bind();
 	quad_shader_.SetUniform("u_Texture", samplers.data(), samplers.size());
 
-	screen_target_ = RenderTarget{ color::Transparent, BlendMode::Blend };
+	screen_target_ = RenderTarget{ background_color, BlendMode::Blend };
 
 	ClearScreen();
 }
@@ -103,19 +104,19 @@ void Renderer::Shutdown() {
 }
 
 BlendMode Renderer::GetBlendMode() const {
-	return game.scene.GetCurrent().GetTarget().GetBlendMode();
+	return game.scene.GetCurrent().GetRenderTarget().GetBlendMode();
 }
 
 void Renderer::SetBlendMode(BlendMode blend_mode) {
-	game.scene.GetCurrent().GetTarget().SetBlendMode(blend_mode);
+	game.scene.GetCurrent().GetRenderTarget().SetBlendMode(blend_mode);
 }
 
 Color Renderer::GetClearColor() const {
-	return game.scene.GetCurrent().GetTarget().GetClearColor();
+	return game.scene.GetCurrent().GetRenderTarget().GetClearColor();
 }
 
 void Renderer::SetClearColor(const Color& clear_color) {
-	game.scene.GetCurrent().GetTarget().SetClearColor(clear_color);
+	game.scene.GetCurrent().GetRenderTarget().SetClearColor(clear_color);
 }
 
 void Renderer::ClearScreen() const {
@@ -128,11 +129,11 @@ void Renderer::ClearScreen() const {
 }
 
 void Renderer::Clear() const {
-	game.scene.GetCurrent().GetTarget().Clear();
+	game.scene.GetCurrent().GetRenderTarget().Clear();
 }
 
 void Renderer::Flush() {
-	game.scene.GetCurrent().GetTarget().Flush();
+	game.scene.GetCurrent().GetRenderTarget().Flush();
 }
 
 void Renderer::Present() {
@@ -140,7 +141,8 @@ void Renderer::Present() {
 
 	FrameBuffer::Unbind();
 	screen_target_.GetTexture().Draw(Rect::Fullscreen(), {}, { 0, screen_target_ });
-	screen_target_.Flush();
+	// Do not bind screen target.
+	screen_target_.Get().Flush();
 
 	game.window.SwapBuffers();
 
