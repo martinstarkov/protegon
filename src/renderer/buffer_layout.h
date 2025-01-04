@@ -1,9 +1,9 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <type_traits>
 #include <utility>
-#include <vector>
 
 #include "renderer/gl_types.h"
 

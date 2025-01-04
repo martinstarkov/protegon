@@ -12,7 +12,7 @@
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/origin.h"
-#include "renderer/render_target.h"
+#include "scene/scene_manager.h"
 #include "SDL_events.h"
 #include "SDL_keyboard.h"
 #include "SDL_mouse.h"
