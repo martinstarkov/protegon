@@ -132,11 +132,11 @@ void MusicManager::Unmute(int optional_new_volume) const {
 }
 
 bool MusicManager::IsPlaying() const {
-	return Mix_PlayingMusic();
+	return static_cast<bool>(Mix_PlayingMusic());
 }
 
 bool MusicManager::IsPaused() const {
-	return Mix_PausedMusic();
+	return static_cast<bool>(Mix_PausedMusic());
 }
 
 bool MusicManager::IsFading() const {
@@ -167,7 +167,7 @@ void SoundManager::FadeOut(int channel, milliseconds time) const {
 }
 
 bool SoundManager::IsPlaying(int channel) const {
-	return Mix_Playing(channel);
+	return static_cast<bool>(Mix_Playing(channel));
 }
 
 void SoundManager::Reset() {
