@@ -9,22 +9,29 @@
 namespace ptgn {
 
 // Monotonic clock to prevent time variations if system time is changed.
-// With modifications to: https://gist.github.com/mcleary/b0bf4fa88830ff7c882d
 class Timer {
 public:
 	Timer() = default;
-	explicit Timer(bool start);
-	~Timer() = default;
 
-	// Acts as a reset.
+	// @param start Whether to start the timer immediately upon construction or not.
+	explicit Timer(bool start);
+
+	// Starts the timer. Can also be used to restart the timer.
 	void Start();
 
 	void Stop();
+
+	// Toggles the pause state of the timer.
 	void Toggle();
+
 	void Pause();
+
 	void Unpause();
 
+	// @return True if the timer is currently paused, false otherwise.
 	[[nodiscard]] bool IsPaused() const;
+
+	// @return True if the timer is currently running, false otherwise.
 	[[nodiscard]] bool IsRunning() const;
 
 	/*
@@ -37,12 +44,22 @@ public:
 		return std::chrono::duration_cast<Duration>(end_time - start_time_);
 	}
 
+	/*
+	 * @tparam Duration The unit of time. Default: milliseconds.
+	 * @param compared_to The time to check that the timer has completed.
+	 * @return True the timer has elapsed compared_to time and false if not.
+	 */
 	template <typename Duration = milliseconds, tt::duration<Duration> = true>
 	[[nodiscard]] bool Completed(Duration compared_to) const {
 		return ElapsedPercentage(compared_to) >= 1.0f;
 	}
 
-	// @return Elapsed percentage of compared_to time duration. Returns 1.0f if compared_to is 0.
+	/*
+	 * @tparam Duration The unit of time. Default: milliseconds.
+	 * @param compared_to The time relative to which the elapsed time is returned.
+	 * @return Elapsed percentage of compared_to time duration clamped between 0.0 and 1.0. Returns
+	 * 1 if compared_to is 0.
+	 */
 	template <
 		typename Duration = milliseconds, typename T = float, tt::duration<Duration> = true,
 		std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
