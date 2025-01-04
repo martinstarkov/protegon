@@ -121,6 +121,7 @@ void VertexArray::Draw(std::size_t index_count, bool bind_vertex_array) const {
 			"Cannot specify index without for a vertex array with no attached index buffer"
 		);
 		GLRenderer::DrawElements(*this, index_count, bind_vertex_array);
+		return;
 	}
 	if (HasIndexBuffer()) {
 		auto count{ GetIndexBuffer().GetCount() };
