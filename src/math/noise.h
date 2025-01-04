@@ -49,8 +49,8 @@ protected:
 
 		PTGN_ASSERT(hash < static_cast<std::int32_t>(gradients.size()) && (hash | 1) < static_cast<std::int32_t>(gradients.size()));
 
-		float xg = gradients[hash];
-		float yg = gradients[hash | 1];
+		float xg = gradients[static_cast<std::size_t>(hash)];
+		float yg = gradients[static_cast<std::size_t>(hash) | 1];
 
 		return xd * xg + yd * yg;
 	}

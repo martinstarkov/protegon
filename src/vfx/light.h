@@ -25,8 +25,8 @@ public:
 	Light(const V2_float& position, const Color& color, float intensity = 10.0f) :
 		position_{ position }, color_{ color }, intensity_{ intensity } {}
 
-	// Will flush the renderer.
-	void Draw(const Texture& texture) const;
+	// TODO: Fix.
+	//void Draw(const Texture& texture) const;
 
 	void SetPosition(const V2_float& position);
 	[[nodiscard]] V2_float GetPosition() const;
@@ -52,7 +52,6 @@ class LightManager : public MapManager<Light> {
 public:
 	using MapManager::MapManager;
 
-	// Will flush the renderer.
 	void Draw();
 
 	void Reset();

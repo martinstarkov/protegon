@@ -74,9 +74,9 @@ std::deque<V2_int> AStarGrid::FindWaypoints(const V2_int& start, const V2_int& e
 }
 
 int AStarGrid::FindWaypointIndex(const std::deque<V2_int>& waypoints, const V2_int& position) {
-	for (int i = 0; i < waypoints.size(); ++i) {
+	for (std::size_t i{ 0 }; i < waypoints.size(); ++i) {
 		if (position == waypoints[i]) {
-			return i;
+			return static_cast<int>(i);
 		}
 	}
 	return -1;

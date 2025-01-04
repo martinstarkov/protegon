@@ -78,7 +78,7 @@ private:
 	// The higher the number, the less draw calls but more RAM is used.
 	std::size_t batch_capacity_{ 0 };
 
-	std::uint32_t max_texture_slots_{ 0 };
+	std::int32_t max_texture_slots_{ 0 };
 	Texture white_texture_;
 
 	FrameBuffer bound_frame_buffer_;

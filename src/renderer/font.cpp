@@ -86,7 +86,7 @@ Font::Font(const path& font_path, std::int32_t point_size, std::int32_t index) {
 Font::Font(const impl::FontBinary& font, std::int32_t point_size) {
 	PTGN_ASSERT(point_size > 0, "Cannot load font with point size <= 0");
 	PTGN_ASSERT(font.buffer != nullptr, "Cannot create font from invalid font binary");
-	SDL_RWops* rw = SDL_RWFromMem((void*)font.buffer, font.length);
+	SDL_RWops* rw = SDL_RWFromMem(static_cast<void*>(font.buffer), static_cast<std::int32_t>(font.length));
 	PTGN_ASSERT(rw != nullptr, SDL_GetError());
 	Create({ TTF_OpenFontRW(rw, 1, point_size), impl::TTF_FontDeleter{} });
 	PTGN_ASSERT(IsValid(), TTF_GetError());

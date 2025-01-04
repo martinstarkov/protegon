@@ -250,15 +250,15 @@ private:
 	template <BatchType T>
 	static auto GetBufferInfo(Batch& batch) {
 		if constexpr (T == BatchType::Quad) {
-			return std::make_pair(&batch.quads_, 6);
+			return std::make_pair(&batch.quads_, static_cast<std::size_t>(6));
 		} else if constexpr (T == BatchType::Triangle) {
-			return std::make_pair(&batch.triangles_, 3);
+			return std::make_pair(&batch.triangles_, static_cast<std::size_t>(3));
 		} else if constexpr (T == BatchType::Line) {
-			return std::make_pair(&batch.lines_, 2);
+			return std::make_pair(&batch.lines_, static_cast<std::size_t>(2));
 		} else if constexpr (T == BatchType::Circle) {
-			return std::make_pair(&batch.circles_, 6);
+			return std::make_pair(&batch.circles_, static_cast<std::size_t>(6));
 		} else if constexpr (T == BatchType::Point) {
-			return std::make_pair(&batch.points_, 1);
+			return std::make_pair(&batch.points_, static_cast<std::size_t>(1));
 		}
 	}
 

@@ -35,7 +35,7 @@ std::int32_t VertexArray::GetBoundId() {
 	return id;
 }
 
-bool VertexArray::WithinMaxAttributes(std::size_t attribute_count) {
+bool VertexArray::WithinMaxAttributes(std::int32_t attribute_count) {
 	std::int32_t max_attributes{ 0 };
 	GLCall(gl::glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max_attributes));
 	return attribute_count < max_attributes;
@@ -100,12 +100,12 @@ void VertexArray::SetBufferElement(
 	if (element.is_integer) {
 		GLCall(gl::VertexAttribIPointer(
 			i, element.count, static_cast<gl::GLenum>(element.type), stride,
-			(const void*)element.offset
+			reinterpret_cast<const void*>(element.offset)
 		));
 	} else {
 		GLCall(gl::VertexAttribPointer(
 			i, element.count, static_cast<gl::GLenum>(element.type),
-			element.normalized ? GL_TRUE : GL_FALSE, stride, (const void*)element.offset
+			element.normalized ? GL_TRUE : GL_FALSE, stride, reinterpret_cast<const void*>(element.offset)
 		));
 	}
 }

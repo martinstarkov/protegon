@@ -478,7 +478,7 @@ void TweenManager::Update() {
 			tween.Step(dt);
 		}
 
-		if (!is_valid || tween.IsCompleted() && tween.DestroyOnCompletion()) {
+		if (!is_valid || (tween.IsCompleted() && tween.DestroyOnCompletion())) {
 			it = v.erase(it);
 		} else {
 			++it;
@@ -495,7 +495,7 @@ void TweenManager::Update() {
 			tween.Step(dt);
 		}
 
-		if (!is_valid || tween.IsCompleted() && tween.DestroyOnCompletion()) {
+		if (!is_valid || (tween.IsCompleted() && tween.DestroyOnCompletion())) {
 			it = m.erase(it);
 		} else {
 			++it;

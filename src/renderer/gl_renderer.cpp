@@ -109,7 +109,7 @@ void GLRenderer::DrawElements(
 	}
 	PTGN_ASSERT(vao.IsBound(), "Cannot glDrawElements unless the VertexArray is bound");
 	GLCall(gl::glDrawElements(
-		static_cast<gl::GLenum>(vao.GetPrimitiveMode()), static_cast<std::uint32_t>(index_count),
+		static_cast<gl::GLenum>(vao.GetPrimitiveMode()), static_cast<std::int32_t>(index_count),
 		static_cast<gl::GLenum>(impl::GetType<std::uint32_t>()), nullptr
 	));
 #ifdef PTGN_DEBUG
@@ -130,7 +130,7 @@ void GLRenderer::DrawArrays(
 	}
 	PTGN_ASSERT(vao.IsBound(), "Cannot glDrawArrays unless the VertexArray is bound");
 	GLCall(gl::glDrawArrays(
-		static_cast<gl::GLenum>(vao.GetPrimitiveMode()), 0, static_cast<std::uint32_t>(vertex_count)
+		static_cast<gl::GLenum>(vao.GetPrimitiveMode()), 0, static_cast<std::int32_t>(vertex_count)
 	));
 #ifdef PTGN_DEBUG
 	++game.stats.draw_calls;

@@ -87,7 +87,7 @@ std::uint32_t Shader::CompileShader(std::uint32_t type, const std::string& sourc
 		std::int32_t length{ 0 };
 		GLCall(gl::GetShaderiv(id, GL_INFO_LOG_LENGTH, &length));
 		std::string log;
-		log.resize(length);
+		log.resize(static_cast<std::size_t>(length));
 		GLCall(gl::GetShaderInfoLog(id, length, &length, &log[0]));
 
 		GLCall(gl::DeleteShader(id));
@@ -128,7 +128,7 @@ void Shader::CompileProgram(const std::string& vertex_source, const std::string&
 			std::int32_t length{ 0 };
 			GLCall(gl::GetProgramiv(s.id_, GL_INFO_LOG_LENGTH, &length));
 			std::string log;
-			log.resize(length);
+			log.resize(static_cast<std::size_t>(length));
 			GLCall(gl::GetProgramInfoLog(s.id_, length, &length, &log[0]));
 
 			GLCall(gl::DeleteProgram(s.id_));
@@ -161,11 +161,11 @@ void Shader::Bind() const {
 #endif
 }
 
-void Shader::Draw(
-	const Texture& texture, const Rect& destination, const Matrix4& view_projection,
-	const TextureInfo& texture_info
-) const {
 	// TODO: Fix.
+// void Shader::Draw(
+// 	const Texture& texture, const Rect& destination, const Matrix4& view_projection,
+// 	const TextureInfo& texture_info
+// ) const {
 	// PTGN_ASSERT(texture.IsValid(), "Cannot draw shader with invalid texture");
 
 	// Rect dest{ destination };
@@ -196,7 +196,7 @@ void Shader::Draw(
 	//						  game.renderer.shader_ib_ };
 
 	// vertex_array.Draw();
-}
+//}
 
 std::int32_t Shader::GetUniformLocation(const std::string& name) const {
 	PTGN_ASSERT(IsValid(), "Cannot get uniform location of invalid shader");
@@ -252,14 +252,14 @@ void Shader::SetUniform(const std::string& name, const std::int32_t* data, std::
 	const {
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
-		GLCall(gl::Uniform1iv(location, static_cast<std::uint32_t>(count), data));
+		GLCall(gl::Uniform1iv(location, static_cast<std::int32_t>(count), data));
 	}
 }
 
 void Shader::SetUniform(const std::string& name, const float* data, std::size_t count) const {
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
-		GLCall(gl::Uniform1fv(location, static_cast<std::uint32_t>(count), data));
+		GLCall(gl::Uniform1fv(location, static_cast<std::int32_t>(count), data));
 	}
 }
 

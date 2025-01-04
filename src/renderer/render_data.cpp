@@ -34,9 +34,9 @@ Batch::Batch(const Texture& texture) {
 }
 
 void Batch::BindTextures() const {
-	for (std::int32_t i{ 0 }; i < static_cast<std::int32_t>(textures_.size()); i++) {
+	for (std::uint32_t i{ 0 }; i < static_cast<std::uint32_t>(textures_.size()); i++) {
 		// Save first texture slot for empty white texture.
-		std::int32_t slot{ i + 1 };
+		std::uint32_t slot{ i + 1 };
 		textures_[i].Bind(slot);
 	}
 }
@@ -45,13 +45,13 @@ float Batch::GetAvailableTextureIndex(const Texture& texture) {
 	PTGN_ASSERT(!RenderData::IsBlank(texture));
 	PTGN_ASSERT(texture.IsValid());
 	// Texture exists in batch, therefore do not add it again.
-	for (std::int32_t i{ 0 }; i < static_cast<std::int32_t>(textures_.size()); i++) {
+	for (std::size_t i{ 0 }; i < textures_.size(); i++) {
 		if (textures_[i] == texture) {
 			// i + 1 because first texture index is white texture.
 			return static_cast<float>(i + 1);
 		}
 	}
-	if (static_cast<std::uint32_t>(textures_.size()) == game.renderer.max_texture_slots_ - 1) {
+	if (static_cast<std::int32_t>(textures_.size()) == game.renderer.max_texture_slots_ - 1) {
 		// Texture does not exist in batch and batch is full.
 		return 0.0f;
 	}
@@ -64,23 +64,23 @@ float Batch::GetAvailableTextureIndex(const Texture& texture) {
 RenderData::RenderData() : batch_capacity_{ game.renderer.batch_capacity_ } {
 	PTGN_ASSERT(batch_capacity_ >= 1);
 	quad_vao_	  = VertexArray{ PrimitiveMode::Triangles,
-							 VertexBuffer{ (std::array<QuadVertex, 4>*)nullptr, batch_capacity_,
+							 VertexBuffer{ static_cast<std::array<QuadVertex, 4>*>(nullptr), batch_capacity_,
 										   BufferUsage::StreamDraw },
 							 quad_vertex_layout, game.renderer.quad_ib_ };
 	circle_vao_	  = VertexArray{ PrimitiveMode::Triangles,
-								 VertexBuffer{ (std::array<CircleVertex, 4>*)nullptr, batch_capacity_,
+								 VertexBuffer{ static_cast<std::array<CircleVertex, 4>*>(nullptr), batch_capacity_,
 											   BufferUsage::StreamDraw },
 								 circle_vertex_layout, game.renderer.quad_ib_ };
 	triangle_vao_ = VertexArray{ PrimitiveMode::Triangles,
-								 VertexBuffer{ (std::array<ColorVertex, 3>*)nullptr,
+								 VertexBuffer{ static_cast<std::array<ColorVertex, 3>*>(nullptr),
 											   batch_capacity_, BufferUsage::StreamDraw },
 								 color_vertex_layout, game.renderer.triangle_ib_ };
 	line_vao_	  = VertexArray{ PrimitiveMode::Lines,
-							 VertexBuffer{ (std::array<ColorVertex, 2>*)nullptr, batch_capacity_,
+							 VertexBuffer{ static_cast<std::array<ColorVertex, 2>*>(nullptr), batch_capacity_,
 										   BufferUsage::StreamDraw },
 							 color_vertex_layout, game.renderer.line_ib_ };
 	point_vao_	  = VertexArray{ PrimitiveMode::Points,
-								 VertexBuffer{ (std::array<ColorVertex, 1>*)nullptr, batch_capacity_,
+								 VertexBuffer{ static_cast<std::array<ColorVertex, 1>*>(nullptr), batch_capacity_,
 											   BufferUsage::StreamDraw },
 								 color_vertex_layout, game.renderer.point_ib_ };
 }

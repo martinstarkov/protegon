@@ -43,15 +43,16 @@ V3_float Light::GetShaderColor() const {
 	return { n.x, n.y, n.z };
 }
 
-void Light::Draw(const Texture& texture) const {
-	auto shader{ game.light.GetShader() };
+// TODO: Fix.
+//void Light::Draw(const Texture& texture) const {
+	//auto shader{ game.light.GetShader() };
 	// TOOD: Reduce shader binds when using light manager.
-	shader.Bind();
-	shader.SetUniform("u_LightPos", GetPosition());
-	shader.SetUniform("u_LightIntensity", GetIntensity());
+	//shader.Bind();
+	//shader.SetUniform("u_LightPos", GetPosition());
+	//shader.SetUniform("u_LightIntensity", GetIntensity());
 	// TOOD: Fix this to use layer info.
-	shader.Draw(texture, {}, Matrix4{ 1.0f }, TextureInfo{ {}, {}, Flip::None, color_ });
-}
+	//shader.Draw(texture, {}, Matrix4{ 1.0f }, TextureInfo{ {}, {}, Flip::None, color_ });
+//}
 
 void LightManager::Init() {
 	target_		  = RenderTarget{ color::Transparent, BlendMode::Add };
@@ -67,7 +68,7 @@ void LightManager::Init() {
 
 void LightManager::Draw() {
 	// TODO: Fix
-	ForEachValue([&](const auto& light) { /*light.Draw(target_.GetTexture());*/ });
+	//ForEachValue([&](const auto& light) { /*light.Draw(target_.GetTexture());*/ });
 }
 
 void LightManager::Reset() {

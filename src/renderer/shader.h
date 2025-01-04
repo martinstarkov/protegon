@@ -96,12 +96,13 @@ public:
 
 	void Bind() const;
 
+	// TODO: Fix.
 	// @param destination == {} results in fullscreen shader.
 	// If destination != {} and destination.size == {}, texture size is used.
-	void Draw(
-		const Texture& texture, const Rect& destination = {},
-		const Matrix4& view_projection = Matrix4{ 1.0f }, const TextureInfo& texture_info = {}
-	) const;
+	// void Draw(
+	// 	const Texture& texture, const Rect& destination = {},
+	// 	const Matrix4& view_projection = Matrix4{ 1.0f }, const TextureInfo& texture_info = {}
+	// ) const;
 
 private:
 	friend class impl::RendererData;

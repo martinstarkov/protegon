@@ -37,7 +37,7 @@ void Renderer::Init(const Color& background_color) {
 
 	constexpr std::array<std::uint32_t, 6> quad_index_pattern{ 0, 1, 2, 2, 3, 0 };
 
-	auto quad_generator = [&quad_index_pattern, offset = 0, pattern_index = 0]() mutable {
+	auto quad_generator = [&quad_index_pattern, offset = static_cast<std::uint32_t>(0), pattern_index = static_cast<std::size_t>(0)]() mutable {
 		auto index = offset + quad_index_pattern[pattern_index];
 		pattern_index++;
 		if (pattern_index % quad_index_pattern.size() == 0) {
@@ -70,7 +70,7 @@ void Renderer::Init(const Color& background_color) {
 	PTGN_ASSERT(circle_shader_.IsValid());
 	PTGN_ASSERT(color_shader_.IsValid());
 
-	std::vector<std::int32_t> samplers(max_texture_slots_);
+	std::vector<std::int32_t> samplers(static_cast<std::size_t>(max_texture_slots_));
 	std::iota(samplers.begin(), samplers.end(), 0);
 
 	quad_shader_.Bind();

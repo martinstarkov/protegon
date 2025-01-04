@@ -96,7 +96,7 @@ namespace impl {
 		Texture::GetBoundId() \
 	}
 
-#define POPSTATE() GLCall(gl::glBindTexture(GL_TEXTURE_2D, restore_id))
+#define POPSTATE() GLCall(gl::glBindTexture(GL_TEXTURE_2D, static_cast<std::uint32_t>(restore_id)))
 
 TextureInstance::TextureInstance(
 	const void* pixel_data, const V2_int& size, TextureFormat format, TextureWrapping wrapping_x,
@@ -303,9 +303,19 @@ Texture::Texture(const path& image_path) :
 		return s;
 	}) } {}
 
+Texture::Texture(const std::vector<Color>& pixels, const V2_int& size) :
+	Texture{ std::invoke([&]() {
+				 PTGN_ASSERT(
+					 pixels.size() == static_cast<std::size_t>(size.x * size.y),
+					 "Provided pixel array must match texture size"
+				 );
+				 return static_cast<const void*>(pixels.data());
+			 }),
+			 size } {}
+
 Texture::Texture(const Surface& surface) : Texture{ surface.GetData(), surface.GetSize() } {}
 
-Texture::Texture(const WindowTexture& window_texture) :
+Texture::Texture([[maybe_unused]] const WindowTexture& window_texture) :
 	Texture{ nullptr,
 			 game.window.GetSize(),
 			 default_format,
@@ -343,12 +353,12 @@ Color Texture::GetPixel(const V2_int& coordinate) const {
 		formats.components_ >= 3,
 		"Cannot retrieve pixel data of texture with less than 3 RGB components"
 	);
-	std::vector<std::uint8_t> v(formats.components_ * 1 * 1);
+	std::vector<std::uint8_t> v(static_cast<std::size_t>(formats.components_ * 1 * 1));
 	int y{ size.y - 1 - coordinate.y };
 	PTGN_ASSERT(y >= 0);
 	GLCall(gl::glReadPixels(
 		coordinate.x, y, 1, 1, formats.format_, static_cast<gl::GLenum>(impl::GLType::UnsignedByte),
-		(void*)v.data()
+		static_cast<void*>(v.data())
 	));
 	return Color{ v[0], v[1], v[2],
 				  formats.components_ == 4 ? v[3] : static_cast<std::uint8_t>(255) };
@@ -364,10 +374,10 @@ void Texture::ForEachPixel(const std::function<void(V2_int, Color)>& func) const
 		"Cannot retrieve pixel data of texture with less than 3 RGB components"
 	);
 
-	std::vector<std::uint8_t> v(formats.components_ * size.x * size.y);
+	std::vector<std::uint8_t> v(static_cast<std::size_t>(formats.components_ * size.x * size.y));
 	GLCall(gl::glReadPixels(
 		0, 0, size.x, size.y, formats.format_, static_cast<gl::GLenum>(impl::GLType::UnsignedByte),
-		(void*)v.data()
+		static_cast<void*>(v.data())
 	));
 	for (int j{ 0 }; j < size.y; j++) {
 		// Ensure left-to-right and top-to-bottom iteration.
@@ -375,22 +385,12 @@ void Texture::ForEachPixel(const std::function<void(V2_int, Color)>& func) const
 		for (int i{ 0 }; i < size.x; i++) {
 			int idx{ row + i * formats.components_ };
 			PTGN_ASSERT(static_cast<std::size_t>(idx) < v.size());
-			Color color{ v[idx], v[idx + 1], v[idx + 2],
-						 formats.components_ == 4 ? v[idx + 3] : static_cast<std::uint8_t>(255) };
+			Color color{ v[static_cast<std::size_t>(idx)], v[static_cast<std::size_t>(idx + 1)], v[static_cast<std::size_t>(idx + 2)],
+						 formats.components_ == 4 ? v[static_cast<std::size_t>(idx + 3)] : static_cast<std::uint8_t>(255) };
 			std::invoke(func, V2_int{ i, j }, color);
 		}
 	}
 }
-
-Texture::Texture(const std::vector<Color>& pixels, const V2_int& size) :
-	Texture{ std::invoke([&]() {
-				 PTGN_ASSERT(
-					 pixels.size() == size.x * size.y,
-					 "Provided pixel array must match texture size"
-				 );
-				 return (void*)pixels.data();
-			 }),
-			 size } {}
 
 void Texture::Draw(const Rect& destination, const TextureInfo& texture_info) const {
 	Draw(destination, texture_info, {});
@@ -483,10 +483,10 @@ void Texture::SetSubData(
 ) {
 	PTGN_ASSERT(IsValid(), "Cannot set sub data of invalid or uninitialized texture");
 	PTGN_ASSERT(
-		pixels.size() == GetSize().x * GetSize().y, "Provided pixel array must match texture size"
+		pixels.size() == static_cast<std::size_t>(GetSize().x * GetSize().y), "Provided pixel array must match texture size"
 	);
 
-	SetSubData((void*)pixels.data(), TextureFormat::RGBA8888, offset, size, mipmap_level);
+	SetSubData(static_cast<const void*>(pixels.data()), TextureFormat::RGBA8888, offset, size, mipmap_level);
 }
 
 V2_int Texture::GetSize() const {

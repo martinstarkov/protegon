@@ -32,11 +32,11 @@ public:
 
 	void Update() override {
 		std::vector<int> cells_without;
-		cells_without.resize(outer_grid.GetLength(), -1);
+		cells_without.resize(static_cast<std::size_t>(outer_grid.GetLength()), -1);
 		outer_grid.ForEachIndex([&](int index) {
 			int value = outer_grid.Get(index);
 			if (value != 1) {
-				cells_without[index] = value;
+				cells_without[static_cast<std::size_t>(index)] = value;
 			}
 		});
 		inner_grid = Grid<int>{ outer_grid.GetSize(), cells_without };
@@ -80,7 +80,7 @@ public:
 	}
 };
 
-int main(int c, char** v) {
+int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("paint: left click to draw; right click to erase; B to flip color", { 720, 720 });
 	game.scene.LoadActive<Paint>("paint");
 	return 0;

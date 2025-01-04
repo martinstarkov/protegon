@@ -34,7 +34,7 @@ public:
 	Buffer(const T* data, std::size_t count, BufferUsage usage = BufferUsage::StaticDraw) {
 		PTGN_ASSERT(count > 0, "Cannot create buffer with count 0");
 		Create(static_cast<std::uint32_t>(count));
-		SetDataImpl((void*)data, static_cast<std::uint32_t>(count * sizeof(T)), usage);
+		SetDataImpl(reinterpret_cast<const void*>(data), static_cast<std::uint32_t>(count * sizeof(T)), usage);
 	}
 
 	template <typename T>

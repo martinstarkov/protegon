@@ -19,13 +19,13 @@ namespace ptgn {
 	std::int32_t restore_id {      \
 		RenderBuffer::GetBoundId() \
 	}
-#define POPSTATE_RB() GLCall(gl::BindRenderbuffer(GL_RENDERBUFFER, restore_id))
+#define POPSTATE_RB() GLCall(gl::BindRenderbuffer(GL_RENDERBUFFER, static_cast<std::uint32_t>(restore_id)))
 
 #define PUSHSTATE_FB()            \
 	std::int32_t restore_id {     \
 		FrameBuffer::GetBoundId() \
 	}
-#define POPSTATE_FB() GLCall(gl::BindFramebuffer(GL_FRAMEBUFFER, restore_id))
+#define POPSTATE_FB() GLCall(gl::BindFramebuffer(GL_FRAMEBUFFER, static_cast<std::uint32_t>(restore_id)))
 
 namespace impl {
 

@@ -105,7 +105,7 @@ private:
 	friend class RendererData;
 
 	[[nodiscard]] static std::int32_t GetBoundId();
-	[[nodiscard]] static bool WithinMaxAttributes(std::size_t attribute_count);
+	[[nodiscard]] static bool WithinMaxAttributes(std::int32_t attribute_count);
 
 	void SetVertexBufferImpl(const VertexBuffer& vertex_buffer);
 	void SetIndexBufferImpl(const IndexBuffer& index_buffer);
@@ -122,7 +122,7 @@ private:
 		);
 
 		const auto& elements = layout.GetElements();
-		PTGN_ASSERT(WithinMaxAttributes(elements.size()), "Too many vertex attributes");
+		PTGN_ASSERT(WithinMaxAttributes(static_cast<std::int32_t>(elements.size())), "Too many vertex attributes");
 
 		auto stride{ layout.GetStride() };
 		PTGN_ASSERT(stride > 0, "Failed to calculate buffer layout stride");

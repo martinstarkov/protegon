@@ -111,13 +111,13 @@ Surface::Surface(std::shared_ptr<SDL_Surface> surface) {
 
 	int total_pixels = s.size_.x * s.size_.y;
 
-	s.data_.resize(total_pixels, color::Transparent);
+	s.data_.resize(static_cast<std::size_t>(total_pixels), color::Transparent);
 
 	bool r_mask{ surface->format->Rmask == 0x000000ff };
 
 	for (int y = 0; y < s.size_.y; ++y) {
 		const std::uint8_t* row = static_cast<std::uint8_t*>(surface->pixels) + y * surface->pitch;
-		int idx_row				= static_cast<std::size_t>(y) * s.size_.x;
+		int idx_row				= y * s.size_.x;
 		for (int x = 0; x < s.size_.x; ++x) {
 			const std::uint8_t* pixel = row + x * surface->format->BytesPerPixel;
 			int index				  = idx_row + x;
@@ -126,22 +126,22 @@ Surface::Surface(std::shared_ptr<SDL_Surface> surface) {
 			switch (surface->format->BytesPerPixel) {
 				case 4: {
 					if (r_mask) {
-						s.data_[index] = { pixel[1], pixel[2], pixel[3], pixel[0] };
+						s.data_[static_cast<std::size_t>(index)] = { pixel[1], pixel[2], pixel[3], pixel[0] };
 					} else {
-						s.data_[index] = { pixel[3], pixel[2], pixel[1], pixel[0] };
+						s.data_[static_cast<std::size_t>(index)] = { pixel[3], pixel[2], pixel[1], pixel[0] };
 					}
 					break;
 				}
 				case 3: {
 					if (r_mask) {
-						s.data_[index] = { pixel[0], pixel[1], pixel[2], 255 };
+						s.data_[static_cast<std::size_t>(index)] = { pixel[0], pixel[1], pixel[2], 255 };
 					} else {
-						s.data_[index] = { pixel[2], pixel[1], pixel[0], 255 };
+						s.data_[static_cast<std::size_t>(index)] = { pixel[2], pixel[1], pixel[0], 255 };
 					}
 					break;
 				}
 				case 1: {
-					s.data_[index] = { 255, 255, 255, pixel[0] };
+					s.data_[static_cast<std::size_t>(index)] = { 255, 255, 255, pixel[0] };
 					break;
 				}
 				default: PTGN_ERROR("Unsupported texture format"); break;
@@ -248,7 +248,7 @@ Color Surface::GetPixel(const V2_int& coordinate) const {
 	PTGN_ASSERT(coordinate.x >= 0, "Coordinate outside of range of grid");
 	PTGN_ASSERT(coordinate.y >= 0, "Coordinate outside of range of grid");
 	PTGN_ASSERT(index < static_cast<int>(s.data_.size()), "Coordinate outside of range of grid");
-	return s.data_[index];
+	return s.data_[static_cast<std::size_t>(index)];
 }
 
 void Surface::ForEachPixel(const std::function<void(const V2_int&, const Color&)>& function) {
@@ -260,7 +260,7 @@ void Surface::ForEachPixel(const std::function<void(const V2_int&, const Color&)
 			V2_int coordinate{ i, j };
 			int index{ idx_row + i };
 			PTGN_ASSERT(index < static_cast<int>(s.data_.size()));
-			std::invoke(function, coordinate, s.data_[index]);
+			std::invoke(function, coordinate, s.data_[static_cast<std::size_t>(index)]);
 		}
 	}
 }
