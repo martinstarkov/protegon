@@ -69,6 +69,8 @@ typedef void(GL_APIENTRYP PFNGLVERTEXATTRIBIPOINTERPROC)(
 #define Uniform3i				glUniform3i
 #define Uniform4i				glUniform4i
 #define UniformMatrix4fv		glUniformMatrix4fv
+#define BlendEquationSeparate   glBlendEquationSeparate
+#define BlendFuncSeparate       glBlendFuncSeparate
 
 #else
 

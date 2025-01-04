@@ -88,7 +88,6 @@ public:
 	}
 
 	void Update() final {
-		game.scene.Update();
 	}
 };
 

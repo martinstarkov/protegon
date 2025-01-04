@@ -14,6 +14,7 @@ namespace ptgn {
 struct LayerInfo;
 class GLRenderer;
 class RenderTarget;
+class FrameBuffer;
 
 namespace impl {
 
@@ -48,14 +49,14 @@ public:
 
 private:
 	// Sets bound_frame_buffer_
-	friend class FrameBuffer;
+	friend class ptgn::FrameBuffer;
 	friend class RenderData;
 	friend struct Batch;
 	friend class Game;
 	friend class SceneManager;
 	friend struct LayerInfo;
 	friend class GLRenderer;
-	friend class RenderTarget;
+	friend class ptgn::RenderTarget;
 
 	void ClearScreen() const;
 	void Init(const Color& background_color);

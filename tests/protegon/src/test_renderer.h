@@ -1269,7 +1269,7 @@ void TestShaders() {
 
 	// PTGN_ASSERT(shader3.Get().location_cache_.empty());
 
-	shader3.SetUniform("u_ViewProjection", M4_float{ 1.0f });
+	shader3.SetUniform("u_ViewProjection", Matrix4{ 1.0f });
 
 	// PTGN_ASSERT(shader3.Get().location_cache_.size() == 1);
 
@@ -1280,7 +1280,7 @@ void TestShaders() {
 
 	// PTGN_ASSERT(shader4.Get().location_cache_.empty());
 
-	shader4.SetUniform("u_ViewProjection", M4_float{ 1.0f });
+	shader4.SetUniform("u_ViewProjection", Matrix4{ 1.0f });
 
 	// PTGN_ASSERT(shader4.Get().location_cache_.size() == 1);
 #endif
