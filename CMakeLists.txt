@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 project(protegon)
 
 option(PROTEGON_TESTS "Build protegon tests" ON)
+option(protegon_WARNINGS_AS_ERRORS "Treat compiler warnings as errors." OFF)
 
 if (WIN32)
   option(DOWNLOAD_SDL "Download prebuilt windows SDL libraries" ON)
