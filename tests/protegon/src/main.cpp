@@ -28,10 +28,6 @@ class Tests : public Scene {
 public:
 	Tests() = default;
 
-	void Preload() final {
-		PTGN_INFO("Preloaded test scene");
-	}
-
 	void Init() final {
 		game.renderer.SetClearColor(color::White);
 		V2_int window_size{ 800, 800 };
@@ -78,7 +74,8 @@ public:
 };
 
 int main() {
-	game.Start<Tests>();
+	game.Init();
+	game.scene.LoadActive<Tests>("test_scene");
 	// TestFrameBuffer();
 	return 0;
 }
