@@ -160,6 +160,8 @@ void RenderTarget::Draw(
 	i.Bind();
 	i.Flush();
 	DrawToTarget(destination, texture_info, layer_info.GetRenderTarget());
+	i.Bind();
+	i.Clear();
 }
 
 CameraManager& RenderTarget::GetCamera() {
@@ -206,9 +208,6 @@ void RenderTarget::AddTexture(
 	auto vertices{ destination.GetVertices(texture_info.rotation_center) };
 
 	auto tex_coords{ texture_info.GetTextureCoordinates(destination.size) };
-
-	// Since this engine uses top left as origin, shaders must all be flipped vertically.
-	TextureInfo::FlipTextureCoordinates(tex_coords, Flip::Vertical);
 
 	TextureInfo::FlipTextureCoordinates(tex_coords, texture_info.flip);
 
