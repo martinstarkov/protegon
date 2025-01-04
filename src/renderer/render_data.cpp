@@ -143,6 +143,9 @@ void RenderData::Flush() {
 }
 
 void RenderData::SetViewProjection(const Matrix4& view_projection) {
+	if (view_projection_ == view_projection) {
+		return;
+	}
 	view_projection_		 = view_projection;
 	refresh_view_projection_ = true;
 }
