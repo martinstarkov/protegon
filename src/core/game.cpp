@@ -1,8 +1,9 @@
 #include "core/game.h"
 
 #include <chrono>
+#include <memory>
+#include <string>
 #include <type_traits>
-#include <vector>
 
 #include "audio/audio.h"
 #include "collision/collision.h"
@@ -12,7 +13,9 @@
 #include "core/window.h"
 #include "event/event_handler.h"
 #include "event/input_handler.h"
+#include "math/vector2.h"
 #include "physics/physics.h"
+#include "renderer/color.h"
 #include "renderer/font.h"
 #include "renderer/renderer.h"
 #include "renderer/shader.h"
@@ -48,7 +51,6 @@ EM_JS(int, get_screen_height, (), { return screen.height; });
 #include "CoreFoundation/CoreFoundation.h"
 
 #endif
-#include <memory>
 
 namespace ptgn {
 
@@ -80,6 +82,7 @@ void EmscriptenLoop() {
 	game.Update();
 
 	if (!game.running_) {
+		game.Shutdown();
 		emscripten_cancel_main_loop();
 	}
 }
@@ -173,46 +176,8 @@ float Game::time() const {
 	return static_cast<float>(SDL_GetTicks64());
 }
 
-void Game::PushFrontLoopFunction(const UpdateFunction& loop_function) {
-	// Important to clear previous info from input cache (e.g. first time key presses).
-	// Otherwise they might trigger again in the next input.Update().
-	input.Reset();
-
-	update_stack_.emplace(update_stack_.begin(), loop_function);
-}
-
-void Game::PushBackLoopFunction(const UpdateFunction& loop_function) {
-	// Important to clear previous info from input cache (e.g. first time key presses).
-	// Otherwise they might trigger again in the next input.Update().
-	input.Reset();
-
-	update_stack_.emplace_back(loop_function);
-}
-
-void Game::PopBackLoopFunction() {
-	if (update_stack_.empty()) {
-		return;
-	}
-
-	input.Reset();
-
-	update_stack_.pop_back();
-}
-
-void Game::PopFrontLoopFunction() {
-	if (update_stack_.empty()) {
-		return;
-	}
-
-	input.Reset();
-
-	update_stack_.erase(update_stack_.begin());
-}
-
 void Game::Stop() {
-	Shutdown();
-	update_stack_ = {};
-	running_	  = false;
+	running_ = false;
 }
 
 bool Game::IsRunning() const {
@@ -226,7 +191,7 @@ bool Game::IsRunning() const {
 	return running_;
 }
 
-void Game::Init() {
+void Game::Init(const std::string& title, const V2_int& resolution, const Color& background_color) {
 #if defined(PTGN_PLATFORM_MACOS) && !defined(__EMSCRIPTEN__)
 	impl::InitApplePath();
 #endif
@@ -244,9 +209,12 @@ void Game::Init() {
 
 	shader.Init();
 
-	renderer.Init();
+	renderer.Init(background_color);
 	physics.Init();
 	light.Init();
+
+	game.window.SetTitle(title);
+	game.window.SetSize(resolution);
 }
 
 void Game::Shutdown() {
@@ -299,11 +267,11 @@ void Game::MainLoop() {
 	while (running_) {
 		Update();
 	}
+	Shutdown();
 #endif
 }
 
 void Game::Update() {
-	static std::size_t counter{ 0 };
 	static auto start{ std::chrono::system_clock::now() };
 	static auto end{ std::chrono::system_clock::now() };
 	// Calculate time elapsed during previous frame.
@@ -326,37 +294,14 @@ void Game::Update() {
 	start = end;
 
 	input.Update();
-
-	if (!running_) {
-		return;
-	}
-
 	tween.Update();
-
-	if (!running_) {
-		return;
+	renderer.ClearScreen();
+	scene.Update();
+	if (profiler.IsEnabled()) {
+		profiler.PrintAll();
 	}
+	renderer.Present();
 
-	// PTGN_LOG("Loop #", counter);
-
-	game.renderer.ClearScreen();
-
-	if (update_stack_.empty()) {
-		scene.Update();
-	} else {
-		game.scene.SetSceneChanged(false);
-		std::invoke(update_stack_.back());
-	}
-
-	if (running_ && game.profiler.IsEnabled()) {
-		game.profiler.PrintAll();
-	}
-
-	if (running_ && !game.scene.SceneChanged()) {
-		game.renderer.Present();
-	}
-
-	++counter;
 	end = std::chrono::system_clock::now();
 }
 
