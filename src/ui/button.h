@@ -1,9 +1,13 @@
 #pragma once
 
+#include <cstdint>
 #include <functional>
+#include <string>
+#include <string_view>
 #include <type_traits>
 #include <unordered_map>
 
+#include "core/manager.h"
 #include "event/event.h"
 #include "event/events.h"
 #include "math/geometry/polygon.h"
@@ -13,6 +17,7 @@
 #include "renderer/text.h"
 #include "renderer/texture.h"
 #include "utility/handle.h"
+#include "utility/log.h"
 #include "utility/type_traits.h"
 
 namespace ptgn {
@@ -296,7 +301,12 @@ private:
 
 class ToggleButtonGroup : public MapManager<Button, std::string_view, std::string, false> {
 public:
-	using MapManager::MapManager;
+	ToggleButtonGroup()										   = default;
+	virtual ~ToggleButtonGroup()							   = default;
+	ToggleButtonGroup(ToggleButtonGroup&&) noexcept			   = default;
+	ToggleButtonGroup& operator=(ToggleButtonGroup&&) noexcept = default;
+	ToggleButtonGroup(const ToggleButtonGroup&)				   = delete;
+	ToggleButtonGroup& operator=(const ToggleButtonGroup&)	   = delete;
 
 	template <typename TKey, typename... TArgs, tt::constructible<Button, TArgs...> = true>
 	Button& Load(const TKey& key, TArgs&&... constructor_args) {

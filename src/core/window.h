@@ -41,18 +41,23 @@ struct WindowDeleter {
 
 struct WindowInstance {
 	WindowInstance();
+	WindowInstance(WindowInstance&&) noexcept			 = default;
+	WindowInstance& operator=(WindowInstance&&) noexcept = default;
+	WindowInstance(const WindowInstance&)				 = delete;
+	WindowInstance& operator=(const WindowInstance&)	 = delete;
+	~WindowInstance()									 = default;
 	std::unique_ptr<SDL_Window, WindowDeleter> window_;
 	operator SDL_Window*() const;
 };
 
 class Window : public Handle<WindowInstance> {
 public:
-	Window()						 = default;
-	~Window() override				 = default;
-	Window(const Window&)			 = delete;
-	Window(Window&&)				 = default;
-	Window& operator=(const Window&) = delete;
-	Window& operator=(Window&&)		 = default;
+	Window()							 = default;
+	Window(Window&&) noexcept			 = default;
+	Window& operator=(Window&&) noexcept = default;
+	Window(const Window&)				 = delete;
+	Window& operator=(const Window&)	 = delete;
+	~Window() override					 = default;
 
 	void SetMinimumSize(const V2_int& minimum_size) const;
 	[[nodiscard]] V2_int GetMinimumSize() const;
@@ -86,6 +91,7 @@ public:
 	[[nodiscard]] bool GetSetting(WindowSetting setting) const;
 
 	void SwapBuffers() const;
+
 private:
 	friend class Game;
 	friend class GLContext;

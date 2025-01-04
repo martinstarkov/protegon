@@ -112,7 +112,12 @@ namespace impl {
 
 class TextManager : public MapManager<Text> {
 public:
-	using MapManager::MapManager;
+	TextManager()								   = default;
+	~TextManager() override						   = default;
+	TextManager(TextManager&&) noexcept			   = default;
+	TextManager& operator=(TextManager&&) noexcept = default;
+	TextManager(const TextManager&)				   = delete;
+	TextManager& operator=(const TextManager&)	   = delete;
 };
 
 } // namespace impl

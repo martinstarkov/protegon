@@ -26,12 +26,18 @@ class SceneCamera;
 struct RenderLayer;
 
 struct Camera {
+	Camera()							 = default;
+	Camera(const Camera&)				 = default;
+	Camera& operator=(const Camera&)	 = default;
+	Camera(Camera&&) noexcept			 = default;
+	Camera& operator=(Camera&&) noexcept = default;
+	~Camera();
+
 	V3_float position;
 	V2_float size;
 	float zoom{ 1.0f };
 	V3_float orientation;
 
-	~Camera();
 	void Reset();
 
 	// If rectangle IsZero(), no position bounds are enforced.
@@ -55,9 +61,6 @@ struct Camera {
 
 class OrthographicCamera : public Handle<impl::Camera> {
 public:
-	OrthographicCamera()		   = default;
-	~OrthographicCamera() override = default;
-
 	// Set the camera to be the size of the window and centered on the window.
 	void SetToWindow(bool continuously = true);
 	void CenterOnArea(const V2_float& size);
@@ -149,9 +152,12 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::OrthographicCamera
 
 class CameraManager : public MapManager<OrthographicCamera> {
 public:
-	using MapManager::MapManager;
-
 	CameraManager();
+	~CameraManager() override						   = default;
+	CameraManager(CameraManager&&) noexcept			   = default;
+	CameraManager& operator=(CameraManager&&) noexcept = default;
+	CameraManager(const CameraManager&)				   = delete;
+	CameraManager& operator=(const CameraManager&)	   = delete;
 
 	template <typename TKey>
 	void SetPrimary(const TKey& key) {

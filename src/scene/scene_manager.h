@@ -22,7 +22,12 @@ class Renderer;
 
 class SceneManager : public MapManager<std::shared_ptr<Scene>> {
 public:
-	using MapManager::MapManager;
+	SceneManager()									 = default;
+	~SceneManager() override						 = default;
+	SceneManager(SceneManager&&) noexcept			 = default;
+	SceneManager& operator=(SceneManager&&) noexcept = default;
+	SceneManager(const SceneManager&)				 = delete;
+	SceneManager& operator=(const SceneManager&)	 = delete;
 
 	// Load a scene into the scene manager.
 	// Note: Loading a scene means it will be constructed but not initialized.

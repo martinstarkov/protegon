@@ -6,14 +6,14 @@
 
 namespace ptgn {
 
+// Since a handle is a wrapper around a smart pointer, copying a handle does not result in a new
+// instance of the object.
 template <typename T>
 class Handle {
 public:
 	Handle() = default;
 
 	Handle(const std::shared_ptr<T>& copy) : instance_{ copy } {}
-
-	virtual ~Handle() = default;
 
 	bool IsValid() const {
 		return instance_ != nullptr;

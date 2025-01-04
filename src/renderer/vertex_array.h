@@ -22,6 +22,10 @@ class RendererData;
 
 struct VertexArrayInstance {
 	VertexArrayInstance();
+	VertexArrayInstance(const VertexArrayInstance&)				   = default;
+	VertexArrayInstance& operator=(const VertexArrayInstance&)	   = default;
+	VertexArrayInstance(VertexArrayInstance&&) noexcept			   = default;
+	VertexArrayInstance& operator=(VertexArrayInstance&&) noexcept = default;
 	~VertexArrayInstance();
 
 	PrimitiveMode mode_{ PrimitiveMode::Triangles };
@@ -34,8 +38,7 @@ struct VertexArrayInstance {
 
 class VertexArray : public Handle<impl::VertexArrayInstance> {
 public:
-	VertexArray()			= default;
-	~VertexArray() override = default;
+	VertexArray() = default;
 
 	template <typename... Ts>
 	VertexArray(
@@ -122,7 +125,10 @@ private:
 		);
 
 		const auto& elements = layout.GetElements();
-		PTGN_ASSERT(WithinMaxAttributes(static_cast<std::int32_t>(elements.size())), "Too many vertex attributes");
+		PTGN_ASSERT(
+			WithinMaxAttributes(static_cast<std::int32_t>(elements.size())),
+			"Too many vertex attributes"
+		);
 
 		auto stride{ layout.GetStride() };
 		PTGN_ASSERT(stride > 0, "Failed to calculate buffer layout stride");

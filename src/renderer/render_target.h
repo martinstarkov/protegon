@@ -34,8 +34,11 @@ struct RenderTargetInstance {
 	RenderTargetInstance() = default;
 	RenderTargetInstance(const Color& clear_color, BlendMode blend_mode);
 	RenderTargetInstance(const V2_float& size, const Color& clear_color, BlendMode blend_mode);
-
-	~RenderTargetInstance() = default;
+	RenderTargetInstance(RenderTargetInstance&&)				 = default;
+	RenderTargetInstance& operator=(RenderTargetInstance&&)		 = default;
+	RenderTargetInstance(const RenderTargetInstance&)			 = delete;
+	RenderTargetInstance& operator=(const RenderTargetInstance&) = delete;
+	~RenderTargetInstance()										 = default;
 
 	void Flush();
 	void Bind() const;
@@ -60,9 +63,7 @@ struct RenderTargetInstance {
 // Constructing a RenderTarget object requires the engine to be initialized.
 class RenderTarget : public Handle<impl::RenderTargetInstance> {
 public:
-	RenderTarget()	= default;
-	~RenderTarget() = default;
-
+	RenderTarget() = default;
 	// Create a render target that is continuously sized to the window.
 	// @param clear_color The background color of the render target.
 	// @param blend_mode The blend mode of the render target (i.e. how objects are drawn to it).

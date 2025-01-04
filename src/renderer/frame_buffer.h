@@ -16,6 +16,10 @@ struct FrameBufferInstance;
 
 struct RenderBufferInstance {
 	RenderBufferInstance();
+	RenderBufferInstance(const RenderBufferInstance&)			 = default;
+	RenderBufferInstance& operator=(const RenderBufferInstance&) = default;
+	RenderBufferInstance(RenderBufferInstance&&)				 = default;
+	RenderBufferInstance& operator=(RenderBufferInstance&&)		 = default;
 	~RenderBufferInstance();
 	std::uint32_t id_{ 0 };
 };
@@ -24,8 +28,12 @@ struct RenderBufferInstance {
 
 class RenderBuffer : public Handle<impl::RenderBufferInstance> {
 public:
-	RenderBuffer()			 = default;
-	~RenderBuffer() override = default;
+	RenderBuffer()								 = default;
+	RenderBuffer(const RenderBuffer&)			 = default;
+	RenderBuffer& operator=(const RenderBuffer&) = default;
+	RenderBuffer(RenderBuffer&&)				 = default;
+	RenderBuffer& operator=(RenderBuffer&&)		 = default;
+	~RenderBuffer() override					 = default;
 
 	// @param size Desired size of the render buffer.
 	explicit RenderBuffer(const V2_int& size);
@@ -44,6 +52,10 @@ namespace impl {
 
 struct FrameBufferInstance {
 	FrameBufferInstance();
+	FrameBufferInstance(const FrameBufferInstance&)			   = default;
+	FrameBufferInstance& operator=(const FrameBufferInstance&) = default;
+	FrameBufferInstance(FrameBufferInstance&&)				   = default;
+	FrameBufferInstance& operator=(FrameBufferInstance&&)	   = default;
 	~FrameBufferInstance();
 
 	void AttachTexture(const Texture& texture);
@@ -63,8 +75,7 @@ struct FrameBufferInstance {
 
 class FrameBuffer : public Handle<impl::FrameBufferInstance> {
 public:
-	FrameBuffer()			= default;
-	~FrameBuffer() override = default;
+	FrameBuffer() = default;
 
 	explicit FrameBuffer(const Texture& texture, bool rebind_previous_frame_buffer = true);
 

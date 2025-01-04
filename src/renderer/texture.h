@@ -121,11 +121,16 @@ struct GLFormats {
 [[nodiscard]] GLFormats GetGLFormats(TextureFormat format);
 
 struct TextureInstance {
+	TextureInstance() = default;
 	TextureInstance(
 		const void* pixel_data, const V2_int& size, TextureFormat format,
 		TextureWrapping wrapping_x, TextureWrapping wrapping_y, TextureScaling minifying,
 		TextureScaling magnifying, bool mipmaps, bool resize_with_window
 	);
+	TextureInstance(const TextureInstance&)				   = default;
+	TextureInstance& operator=(const TextureInstance&)	   = default;
+	TextureInstance(TextureInstance&&) noexcept			   = default;
+	TextureInstance& operator=(TextureInstance&&) noexcept = default;
 	~TextureInstance();
 
 	// Minifying TextureScaling must contain the word Mipmap, otherwise mipmaps are ignored.
@@ -186,8 +191,6 @@ public:
 	constexpr const static TextureWrapping default_wrapping{ TextureWrapping::ClampEdge };
 
 	Texture() = default;
-
-	~Texture() override = default;
 
 	// @param image_path Path to the texture relative to the working directory.
 	Texture(const path& image_path);
@@ -348,7 +351,12 @@ namespace impl {
 
 class TextureManager : public MapManager<Texture> {
 public:
-	using MapManager::MapManager;
+	TextureManager()									 = default;
+	~TextureManager() override							 = default;
+	TextureManager(TextureManager&&) noexcept			 = default;
+	TextureManager& operator=(TextureManager&&) noexcept = default;
+	TextureManager(const TextureManager&)				 = delete;
+	TextureManager& operator=(const TextureManager&)	 = delete;
 };
 
 } // namespace impl

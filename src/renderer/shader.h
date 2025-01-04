@@ -41,6 +41,10 @@ class TextureBatchData;
 
 struct ShaderInstance {
 	ShaderInstance();
+	ShaderInstance(const ShaderInstance&)			 = default;
+	ShaderInstance& operator=(const ShaderInstance&) = default;
+	ShaderInstance(ShaderInstance&&)				 = default;
+	ShaderInstance& operator=(ShaderInstance&&)		 = default;
 	~ShaderInstance();
 	// Location cache should not prevent const calls.
 	mutable std::unordered_map<std::string, std::int32_t> location_cache_;
@@ -52,8 +56,6 @@ struct ShaderInstance {
 // Wrapper for distinguishing between Shader from path construction and Shader
 // from source construction.
 struct ShaderSource {
-	ShaderSource() = default;
-
 	// Explicit prevents conflict with Shader path construction.
 	explicit ShaderSource(const std::string& source) : source_{ source } {}
 
@@ -63,11 +65,7 @@ struct ShaderSource {
 
 class Shader : public Handle<impl::ShaderInstance> {
 public:
-	using Handle::Handle;
-
-	Shader()		   = default;
-	~Shader() override = default;
-
+	Shader() = default;
 	Shader(const ShaderSource& vertex_shader, const ShaderSource& fragment_shader);
 	Shader(const path& vertex_shader_path, const path& fragment_shader_path);
 
@@ -138,7 +136,12 @@ namespace impl {
 
 class ShaderManager : public MapManager<Shader> {
 public:
-	using MapManager::MapManager;
+	ShaderManager()									   = default;
+	~ShaderManager()								   = default;
+	ShaderManager(ShaderManager&&) noexcept			   = default;
+	ShaderManager& operator=(ShaderManager&&) noexcept = default;
+	ShaderManager(const ShaderManager&)				   = delete;
+	ShaderManager& operator=(const ShaderManager&)	   = delete;
 
 	Shader Get(ScreenShader screen_shader) const;
 

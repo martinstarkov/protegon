@@ -64,9 +64,14 @@ namespace impl {
 
 class FontManager : public MapManager<Font> {
 public:
-	using FontOrKey = std::variant<Font, Key, InternalKey>;
+	FontManager()								   = default;
+	~FontManager() override						   = default;
+	FontManager(FontManager&&) noexcept			   = default;
+	FontManager& operator=(FontManager&&) noexcept = default;
+	FontManager(const FontManager&)				   = delete;
+	FontManager& operator=(const FontManager&)	   = delete;
 
-	using MapManager::MapManager;
+	using FontOrKey = std::variant<Font, Key, InternalKey>;
 
 	void SetDefault(const FontOrKey& font);
 	[[nodiscard]] Font GetDefault() const;

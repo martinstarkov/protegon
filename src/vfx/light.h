@@ -26,7 +26,7 @@ public:
 		position_{ position }, color_{ color }, intensity_{ intensity } {}
 
 	// TODO: Fix.
-	//void Draw(const Texture& texture) const;
+	// void Draw(const Texture& texture) const;
 
 	void SetPosition(const V2_float& position);
 	[[nodiscard]] V2_float GetPosition() const;
@@ -50,7 +50,12 @@ private:
 
 class LightManager : public MapManager<Light> {
 public:
-	using MapManager::MapManager;
+	LightManager()									 = default;
+	~LightManager() override						 = default;
+	LightManager(LightManager&&) noexcept			 = default;
+	LightManager& operator=(LightManager&&) noexcept = default;
+	LightManager(const LightManager&)				 = delete;
+	LightManager& operator=(const LightManager&)	 = delete;
 
 	void Draw();
 

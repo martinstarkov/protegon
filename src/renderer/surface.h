@@ -37,8 +37,6 @@ struct SDL_SurfaceDeleter {
 };
 
 struct SurfaceInstance {
-	SurfaceInstance()  = default;
-	~SurfaceInstance() = default;
 	TextureFormat format_{ TextureFormat::Unknown };
 	std::vector<Color> data_;
 	V2_int size_;
@@ -48,8 +46,7 @@ struct SurfaceInstance {
 
 class Surface : public Handle<impl::SurfaceInstance> {
 public:
-	Surface()			= default;
-	~Surface() override = default;
+	Surface() = default;
 
 	// @param image_path Path to the image relative to the working directory.
 	explicit Surface(const path& image_path);

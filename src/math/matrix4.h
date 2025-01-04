@@ -18,7 +18,7 @@ class Quaternion;
 
 struct Matrix4 {
 public:
-	constexpr static V2_int size{ 4, 4 };
+	constexpr static V2_size size{ 4, 4 };
 	constexpr static std::size_t length{ size.x * size.y };
 
 private:
@@ -27,8 +27,12 @@ private:
 	std::array<float, length> m_{};
 
 public:
-	constexpr Matrix4() = default;
-	~Matrix4()			= default;
+	constexpr Matrix4()							 = default;
+	constexpr Matrix4(const Matrix4&)			 = default;
+	constexpr Matrix4& operator=(const Matrix4&) = default;
+	constexpr Matrix4(Matrix4&&)				 = default;
+	constexpr Matrix4& operator=(Matrix4&&)		 = default;
+	~Matrix4()									 = default;
 
 	constexpr Matrix4(float x, float y, float z, float w) {
 		m_[0]  = x;
@@ -166,8 +170,8 @@ public:
 	[[nodiscard]] inline Vector4<float> operator*(const Vector4<U>& rhs) {
 		Vector4<float> res;
 
-		for (std::size_t row = 0; row < size.x; ++row) {
-			for (std::size_t i{ 0 }; i < 4; ++i) {
+		for (std::size_t row{ 0 }; row < size.x; ++row) {
+			for (std::size_t i{ 0 }; i < size.y; ++i) {
 				res[row] += m_[row + i * size.x] * rhs[i];
 			}
 		}

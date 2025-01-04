@@ -15,7 +15,11 @@ class VertexArray;
 namespace impl {
 
 struct BufferInstance {
-	BufferInstance() = default;
+	BufferInstance()								 = default;
+	BufferInstance(const BufferInstance&)			 = default;
+	BufferInstance& operator=(const BufferInstance&) = default;
+	BufferInstance(BufferInstance&&)				 = default;
+	BufferInstance& operator=(BufferInstance&&)		 = default;
 	BufferInstance(std::uint32_t count);
 	~BufferInstance();
 	std::uint32_t id_{ 0 };
@@ -27,14 +31,16 @@ struct BufferInstance {
 template <BufferType BT>
 class Buffer : public Handle<impl::BufferInstance> {
 public:
-	Buffer()		   = default;
-	~Buffer() override = default;
+	Buffer() = default;
 
 	template <typename T>
 	Buffer(const T* data, std::size_t count, BufferUsage usage = BufferUsage::StaticDraw) {
 		PTGN_ASSERT(count > 0, "Cannot create buffer with count 0");
 		Create(static_cast<std::uint32_t>(count));
-		SetDataImpl(reinterpret_cast<const void*>(data), static_cast<std::uint32_t>(count * sizeof(T)), usage);
+		SetDataImpl(
+			reinterpret_cast<const void*>(data), static_cast<std::uint32_t>(count * sizeof(T)),
+			usage
+		);
 	}
 
 	template <typename T>
