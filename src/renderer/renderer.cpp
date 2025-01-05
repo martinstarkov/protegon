@@ -19,12 +19,12 @@
 #include "scene/scene_manager.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
-#include "utility/stats.h"
 
 namespace ptgn::impl {
 
 void Renderer::Init(const Color& background_color) {
 	GLRenderer::EnableLineSmoothing();
+	GLRenderer::DisableDepthTesting();
 
 	batch_capacity_ = 2000;
 
@@ -137,7 +137,6 @@ void Renderer::SetClearColor(const Color& clear_color) {
 void Renderer::ClearScreen() const {
 	FrameBuffer::Unbind();
 	GLRenderer::ClearColor(color::Transparent);
-	GLRenderer::SetBlendMode(BlendMode::Blend);
 	GLRenderer::Clear();
 
 	screen_target_.Clear();
@@ -163,7 +162,9 @@ void Renderer::Present() {
 	screen_target_.Flush();
 
 	FrameBuffer::Unbind();
-	screen_target_.GetTexture().Draw(Rect::Fullscreen(), {}, { 0, screen_target_ });
+	screen_target_.GetTexture().Draw(
+		Rect::Fullscreen(), Flip::Vertical, LayerInfo{ 0, screen_target_ }
+	);
 	// Do not bind screen target.
 	screen_target_.Get().Flush();
 

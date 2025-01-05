@@ -402,16 +402,9 @@ void Texture::Draw(
 	const Rect& destination, const TextureInfo& texture_info, const LayerInfo& layer_info
 ) const {
 	PTGN_ASSERT(IsValid(), "Cannot draw uninitialized or destroyed texture");
-
-	Rect dest{ destination };
-
-	if (dest.IsZero()) {
-		dest = Rect::Fullscreen();
-	} else if (dest.size.IsZero()) {
-		dest.size = GetSize();
-	}
-
-	layer_info.GetRenderTarget().AddTexture(*this, dest, texture_info, layer_info.GetRenderLayer());
+	layer_info.GetRenderTarget().AddTexture(
+		*this, destination, texture_info, layer_info.GetRenderLayer()
+	);
 }
 
 void Texture::Bind() const {

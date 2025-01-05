@@ -63,6 +63,7 @@ void RenderTargetInstance::Bind() const {
 void RenderTargetInstance::Clear() const {
 	PTGN_ASSERT(frame_buffer_.IsValid(), "Cannot clear invalid or uninitialized frame buffer");
 	PTGN_ASSERT(frame_buffer_.IsBound(), "Frame buffer must be bound before clearing");
+	GLRenderer::ClearColor(clear_color_);
 	GLRenderer::Clear();
 }
 
@@ -213,9 +214,17 @@ void RenderTarget::AddTexture(
 ) {
 	auto& i{ GetCorrectRenderLayer(*this).Get() };
 
-	auto vertices{ destination.GetVertices(texture_info.rotation_center) };
+	Rect dest{ destination };
 
-	auto tex_coords{ texture_info.GetTextureCoordinates(destination.size) };
+	if (dest.IsZero()) {
+		dest = Rect::Fullscreen();
+	} else if (dest.size.IsZero()) {
+		dest.size = texture.GetSize();
+	}
+
+	auto vertices{ dest.GetVertices(texture_info.rotation_center) };
+
+	auto tex_coords{ texture_info.GetTextureCoordinates(texture.GetSize()) };
 
 	TextureInfo::FlipTextureCoordinates(tex_coords, texture_info.flip);
 
