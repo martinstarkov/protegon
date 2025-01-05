@@ -32,7 +32,6 @@ RenderTargetInstance::RenderTargetInstance(const Color& clear_color, BlendMode b
 	PTGN_ASSERT(
 		frame_buffer_.IsBound(), "Failed to bind frame buffer when initializing render target"
 	);
-	GLRenderer::SetBlendMode(blend_mode);
 	GLRenderer::ClearColor(clear_color_);
 	GLRenderer::Clear();
 }
@@ -50,7 +49,6 @@ RenderTargetInstance::RenderTargetInstance(
 	PTGN_ASSERT(
 		frame_buffer_.IsBound(), "Failed to bind frame buffer when initializing render target"
 	);
-	GLRenderer::SetBlendMode(blend_mode);
 	GLRenderer::ClearColor(clear_color_);
 	GLRenderer::Clear();
 }
@@ -76,7 +74,6 @@ void RenderTargetInstance::SetClearColor(const Color& clear_color) {
 		return;
 	}
 	clear_color_ = clear_color;
-	GLRenderer::ClearColor(clear_color_);
 }
 
 void RenderTargetInstance::SetBlendMode(BlendMode blend_mode) {
@@ -88,10 +85,11 @@ void RenderTargetInstance::SetBlendMode(BlendMode blend_mode) {
 		return;
 	}
 	blend_mode_ = blend_mode;
-	GLRenderer::SetBlendMode(blend_mode_);
 }
 
 void RenderTargetInstance::Flush() {
+	GLRenderer::SetBlendMode(blend_mode_);
+
 	render_data_.SetViewProjection(camera_.GetPrimary().GetViewProjection());
 
 	render_data_.Flush();

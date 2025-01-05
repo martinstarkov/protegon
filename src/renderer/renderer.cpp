@@ -23,8 +23,7 @@
 namespace ptgn::impl {
 
 void Renderer::Init(const Color& background_color) {
-	GLRenderer::EnableLineSmoothing();
-	GLRenderer::DisableDepthTesting();
+	// GLRenderer::EnableLineSmoothing();
 
 	batch_capacity_ = 2000;
 
@@ -163,7 +162,7 @@ void Renderer::Present() {
 
 	FrameBuffer::Unbind();
 	screen_target_.GetTexture().Draw(
-		Rect::Fullscreen(), Flip::Vertical, LayerInfo{ 0, screen_target_ }
+		Rect::Fullscreen(), TextureInfo{}, LayerInfo{ 0, screen_target_ }
 	);
 	// Do not bind screen target.
 	screen_target_.Get().Flush();

@@ -37,6 +37,10 @@ void GLRenderer::SetPolygonMode(PolygonMode mode) {
 }
 
 void GLRenderer::SetBlendMode(BlendMode mode /* = BlendMode::Blend*/) {
+	if (mode == game.renderer.bound_blend_mode_) {
+		return;
+	}
+	game.renderer.bound_blend_mode_ = mode;
 #ifdef PTGN_DEBUG
 	++game.stats.blend_mode_changes;
 #endif
@@ -149,6 +153,10 @@ std::int32_t GLRenderer::GetMaxTextureSlots() {
 }
 
 void GLRenderer::ClearColor(const Color& color) {
+	if (color == game.renderer.bound_clear_color_) {
+		return;
+	}
+	game.renderer.bound_clear_color_ = color;
 	auto c{ color.Normalized() };
 	GLCall(gl::glClearColor(c[0], c[1], c[2], c[3]));
 #ifdef PTGN_DEBUG

@@ -83,7 +83,11 @@ private:
 	std::int32_t max_texture_slots_{ 0 };
 	Texture white_texture_;
 
+	// Renderer keeps track of what is bound.
+	Color bound_clear_color_{ color::Transparent };
+	BlendMode bound_blend_mode_{ BlendMode::None };
 	FrameBuffer bound_frame_buffer_;
+
 	RenderTarget screen_target_;
 	Shader screen_shader_;
 };
