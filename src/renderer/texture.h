@@ -28,13 +28,13 @@ struct TextureInfo {
 	/*
 	@param flip Mirror the texture along an axis.
 	*/
-	explicit TextureInfo(Flip flip) : flip{ flip } {}
+	TextureInfo(Flip flip) : flip{ flip } {}
 
 	/*
 	@param tint Color to tint the texture. Allows to change the transparency of a texture.
 	(color::White corresponds to no tint effect).
 	*/
-	explicit TextureInfo(const Color& tint) : tint{ tint } {}
+	TextureInfo(const Color& tint) : tint{ tint } {}
 
 	/*
 	@param source_position Top left pixel to start drawing texture from within the texture.
