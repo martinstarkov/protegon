@@ -20,6 +20,7 @@ void GLRenderer::EnableLineSmoothing() {
 #ifndef __EMSCRIPTEN__
 	GLCall(gl::glEnable(GL_BLEND));
 	GLCall(gl::glEnable(GL_LINE_SMOOTH));
+	// GLCall(gl::glLineWidth(1.0f));
 #endif
 }
 
