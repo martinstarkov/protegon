@@ -87,8 +87,8 @@ std::array<Line, 4> Rect::GetEdges() const {
 }
 
 std::array<V2_float, 4> Rect::GetCorners() const {
-	V2_int min{ Min() };
-	V2_int max{ Max() };
+	V2_float min{ Min() };
+	V2_float max{ Max() };
 	return { min, { max.x, min.y }, max, { min.x, max.y } };
 }
 
