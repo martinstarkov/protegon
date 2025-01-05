@@ -47,14 +47,14 @@ bool TriangulateSnip(
 	const V2_float* contour, int u, int v, int w, int n, const std::vector<int>& V
 ) {
 	PTGN_ASSERT(contour != nullptr);
-	float Ax = contour[V[u]].x;
-	float Ay = contour[V[u]].y;
+	float Ax = contour[static_cast<std::size_t>(V[static_cast<std::size_t>(u)])].x;
+	float Ay = contour[static_cast<std::size_t>(V[static_cast<std::size_t>(u)])].y;
 
-	float Bx = contour[V[v]].x;
-	float By = contour[V[v]].y;
+	float Bx = contour[static_cast<std::size_t>(V[static_cast<std::size_t>(v)])].x;
+	float By = contour[static_cast<std::size_t>(V[static_cast<std::size_t>(v)])].y;
 
-	float Cx = contour[V[w]].x;
-	float Cy = contour[V[w]].y;
+	float Cx = contour[static_cast<std::size_t>(V[static_cast<std::size_t>(w)])].x;
+	float Cy = contour[static_cast<std::size_t>(V[static_cast<std::size_t>(w)])].y;
 
 	if (float res = (Bx - Ax) * (Cy - Ay) - (By - Ay) * (Cx - Ax); NearlyEqual(res, 0.0f)) {
 		return false;
@@ -64,8 +64,8 @@ bool TriangulateSnip(
 		if ((p == u) || (p == v) || (p == w)) {
 			continue;
 		}
-		float Px = contour[V[p]].x;
-		float Py = contour[V[p]].y;
+		float Px = contour[static_cast<std::size_t>(V[static_cast<std::size_t>(p)])].x;
+		float Py = contour[static_cast<std::size_t>(V[static_cast<std::size_t>(p)])].y;
 		if (TriangulateInsideTriangle(Ax, Ay, Bx, By, Cx, Cy, Px, Py)) {
 			return false;
 		}
@@ -85,17 +85,17 @@ std::vector<Triangle> Triangulate(const V2_float* contour, std::size_t count) {
 		return result;
 	}
 
-	std::vector<int> V(n);
+	std::vector<int> V(static_cast<std::size_t>(n));
 
 	/* we want a counter-clockwise polygon in V */
 
 	if (0.0f < TriangulateArea(contour, count)) {
 		for (int v = 0; v < n; v++) {
-			V[v] = v;
+			V[static_cast<std::size_t>(v)] = v;
 		}
 	} else {
 		for (int v = 0; v < n; v++) {
-			V[v] = (n - 1) - v;
+			V[static_cast<std::size_t>(v)] = (n - 1) - v;
 		}
 	}
 
@@ -127,11 +127,11 @@ std::vector<Triangle> Triangulate(const V2_float* contour, std::size_t count) {
 
 		if (TriangulateSnip(contour, u, v, w, nv, V)) {
 			/* true names of the vertices */
-			int a = V[u];
-			int b = V[v];
-			int c = V[w];
+			int a = V[static_cast<std::size_t>(u)];
+			int b = V[static_cast<std::size_t>(v)];
+			int c = V[static_cast<std::size_t>(w)];
 
-			result.emplace_back(contour[a], contour[b], contour[c]);
+			result.emplace_back(contour[static_cast<std::size_t>(a)], contour[static_cast<std::size_t>(b)], contour[static_cast<std::size_t>(c)]);
 
 			m++;
 
@@ -140,7 +140,7 @@ std::vector<Triangle> Triangulate(const V2_float* contour, std::size_t count) {
 				int s = t - 1;
 				PTGN_ASSERT(s < static_cast<int>(V.size()));
 				PTGN_ASSERT(t < static_cast<int>(V.size()));
-				V[s] = V[t];
+				V[static_cast<std::size_t>(s)] = V[static_cast<std::size_t>(t)];
 			}
 			nv--;
 

@@ -4,7 +4,8 @@ R"(
 
 layout (location = 0) out vec4 o_Color;
 
-layout (location = 0) in vec2 v_TexCoord;
+layout (location = 0) in vec4 v_Color;
+layout (location = 1) in vec2 v_TexCoord;
 
 uniform sampler2D u_Texture;
 uniform vec2 u_Resolution;
@@ -32,6 +33,6 @@ void main()
     for (int i = 0; i < 9; i++) {
         color += vec3(texture(u_Texture, v_TexCoord.st + offsets[i])) * kernel[i];
 	}
-	o_Color = vec4(color, 1.0f);
+	o_Color = vec4(color, 1.0f) * v_Color;
 }
 )"

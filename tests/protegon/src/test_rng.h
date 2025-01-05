@@ -239,7 +239,7 @@ struct TestNoise : public Test {
 			}
 		}
 
-		game.draw.Rect({ {}, { 30.0f, 30.0f }, Origin::TopLeft }, color::Red);
+		Rect{ {}, { 30.0f, 30.0f }, Origin::TopLeft }.Draw(color::Red);
 	}
 };
 

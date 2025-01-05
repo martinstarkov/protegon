@@ -2,9 +2,14 @@ cmake_minimum_required(VERSION 3.20)
 
 project(tests)
 
+set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
+
+file(GLOB_RECURSE PROTEGON_TEST_FILES CONFIGURE_DEPENDS LIST_DIRECTORIES false 
+    "${SRC_DIR}/*.h" "${SRC_DIR}/*.cpp")
+
 add_executable(${PROJECT_NAME} ${PROTEGON_TEST_FILES})
 
-target_include_directories(${PROJECT_NAME} PRIVATE "${PROTEGON_ROOT_DIR}/src")
+target_include_directories(${PROJECT_NAME} PRIVATE ${SRC_DIR})
 
 add_protegon_to(${PROJECT_NAME})
 

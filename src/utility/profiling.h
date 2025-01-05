@@ -6,9 +6,9 @@
 #include <type_traits>
 
 #include "core/manager.h"
+#include "utility/debug.h"
 #include "utility/log.h"
 #include "utility/timer.h"
-#include "utility/debug.h"
 
 namespace ptgn::impl {
 
@@ -17,8 +17,12 @@ class Game;
 class ProfileInstance {
 public:
 	ProfileInstance() = default;
-	~ProfileInstance();
 	ProfileInstance(std::string_view function_name, std::string_view custom_name);
+	ProfileInstance(ProfileInstance&&) noexcept			   = default;
+	ProfileInstance& operator=(ProfileInstance&&) noexcept = default;
+	ProfileInstance(const ProfileInstance&)				   = default;
+	ProfileInstance& operator=(const ProfileInstance&)	   = default;
+	~ProfileInstance();
 
 private:
 	std::string name_;
@@ -26,7 +30,12 @@ private:
 
 class Profiler : protected MapManager<Timer, std::string, std::string, false> {
 public:
-	using MapManager::MapManager;
+	Profiler()								 = default;
+	~Profiler() override					 = default;
+	Profiler(Profiler&&) noexcept			 = default;
+	Profiler& operator=(Profiler&&) noexcept = default;
+	Profiler(const Profiler&)				 = delete;
+	Profiler& operator=(const Profiler&)	 = delete;
 
 	void Enable() {
 		enabled_ = true;

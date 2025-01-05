@@ -7,12 +7,12 @@
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/font.h"
-#include "renderer/layer_info.h"
 #include "renderer/texture.h"
 #include "utility/handle.h"
 
 namespace ptgn {
 
+struct LayerInfo;
 struct Rect;
 
 struct TextInfo {
@@ -70,7 +70,12 @@ public:
 		const Color& shading_color = color::White, std::uint32_t wrap_after_pixels = 0
 	);
 
-	void Draw(const Rect& destination, const LayerInfo& layer_info = {}) const;
+	// Setting destination.size == {} corresponds to the unscaled size of the text.
+	// Uses default render target.
+	void Draw(const Rect& destination) const;
+
+	// Setting destination.size == {} corresponds to the unscaled size of the text.
+	void Draw(const Rect& destination, const LayerInfo& layer_info) const;
 
 	Text& SetFont(const FontOrKey& font);
 	Text& SetContent(const std::string_view& content);
@@ -107,7 +112,12 @@ namespace impl {
 
 class TextManager : public MapManager<Text> {
 public:
-	using MapManager::MapManager;
+	TextManager()								   = default;
+	~TextManager() override						   = default;
+	TextManager(TextManager&&) noexcept			   = default;
+	TextManager& operator=(TextManager&&) noexcept = default;
+	TextManager(const TextManager&)				   = delete;
+	TextManager& operator=(const TextManager&)	   = delete;
 };
 
 } // namespace impl

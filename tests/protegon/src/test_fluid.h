@@ -3,7 +3,7 @@
 #include <new>
 #include <vector>
 
-#include "camera/camera.h"
+#include "scene/camera.h"
 #include "common.h"
 #include "core/game.h"
 #include "event/input_handler.h"
@@ -60,104 +60,94 @@ public:
 	}
 
 	// Get clamped index based off of coordinates.
-	static std::size_t IX(std::size_t x, std::size_t y, const V2_int& size) {
+	static std::size_t IX(int xcoord, int ycoord, const V2_int& size) {
 		// Clamp coordinates.
-		if (x < 0) {
-			x = 0;
-		}
-		if (x > size.x - 1) {
-			x = size.x - 1;
-		}
-		if (y < 0) {
-			y = 0;
-		}
-		if (y > size.y - 1) {
-			y = size.y - 1;
-		}
+		xcoord = std::clamp(xcoord, 0, size.x - 1);
+		ycoord = std::clamp(ycoord, 0, size.y - 1);
 
-		return (y * size.x) + x;
+		return ycoord * size.x + xcoord;
 	}
 
 	// Add density to the density field.
-	void AddDensity(std::size_t x, std::size_t y, float amount, int radius = 0) {
+	void AddDensity(int xcoord, int ycoord, float amount, int radius = 0) {
 		if (radius > 0) {
 			for (int i{ -radius }; i <= radius; ++i) {
 				for (int j{ -radius }; j <= radius; ++j) {
 					if (i * i + j * j <= radius * radius) {
-						auto index{ IX(x + i, y + j, size) };
+						auto index{ IX(xcoord + i, ycoord + j, size) };
 						this->density[index] += amount;
 					}
 				}
 			}
 		} else {
-			auto index{ IX(x, y, size) };
+			auto index{ IX(xcoord, ycoord, size) };
 			this->density[index] += amount;
 		}
 	}
 
 	// Add velocity to the velocity field.
-	void AddVelocity(std::size_t x, std::size_t y, float px, float py) {
-		auto index{ IX(x, y, size) };
-		this->x[index] += px;
-		this->y[index] += py;
+	void AddVelocity(int xcoord, int ycoord, float pxs, float pys) {
+		auto index{ IX(xcoord, ycoord, size) };
+		this->x[index] += pxs;
+		this->y[index] += pys;
 	}
 
 	// Fluid specific operations
 
 	// Set boundaries to opposite of adjacent layer.
-	void SetBnd(int b, std::vector<float>& x, const V2_int& N) {
-		for (std::size_t i{ 1 }; i < N.x - 1; ++i) {
+	void SetBnd(int b, std::vector<float>& xs, const V2_int& N) {
+		for (int i{ 1 }; i < N.x - 1; ++i) {
 			auto top{ IX(i, 1, N) };
 			auto bottom{ IX(i, N.y - 2, N) };
-			x[IX(i, 0, N)]		 = b == 2 ? -x[top] : x[top];
-			x[IX(i, N.y - 1, N)] = b == 2 ? -x[bottom] : x[bottom];
+			xs[IX(i, 0, N)]		  = b == 2 ? -xs[top] : xs[top];
+			xs[IX(i, N.y - 1, N)] = b == 2 ? -xs[bottom] : xs[bottom];
 		}
 
-		for (std::size_t j{ 1 }; j < N.y - 1; ++j) {
+		for (int j{ 1 }; j < N.y - 1; ++j) {
 			auto left{ IX(1, j, N) };
 			auto right{ IX(N.x - 2, j, N) };
-			x[IX(0, j, N)]		 = b == 1 ? -x[left] : x[left];
-			x[IX(N.x - 1, j, N)] = b == 1 ? -x[right] : x[right];
+			xs[IX(0, j, N)]		  = b == 1 ? -xs[left] : xs[left];
+			xs[IX(N.x - 1, j, N)] = b == 1 ? -xs[right] : xs[right];
 		}
 
 		// Set corner boundaries
-		x[IX(0, 0, N)] = 0.33f * (x[IX(1, 0, N)] + x[IX(0, 1, N)] + x[IX(0, 0, N)]);
-		x[IX(0, N.y - 1, N)] =
-			0.33f * (x[IX(1, N.y - 1, N)] + x[IX(0, N.y - 2, N)] + x[IX(0, N.y - 1, N)]);
-		x[IX(N.x - 1, 0, N)] =
-			0.33f * (x[IX(N.x - 2, 0, N)] + x[IX(N.x - 1, 1, N)] + x[IX(N.x - 1, 0, N)]);
-		x[IX(N.x - 1, N.y - 1, N)] =
-			0.33f *
-			(x[IX(N.x - 2, N.y - 1, N)] + x[IX(N.x - 1, N.y - 2, N)] + x[IX(N.x - 1, N.y - 1, N)]);
+		xs[IX(0, 0, N)] = 0.33f * (xs[IX(1, 0, N)] + xs[IX(0, 1, N)] + xs[IX(0, 0, N)]);
+		xs[IX(0, N.y - 1, N)] =
+			0.33f * (xs[IX(1, N.y - 1, N)] + xs[IX(0, N.y - 2, N)] + xs[IX(0, N.y - 1, N)]);
+		xs[IX(N.x - 1, 0, N)] =
+			0.33f * (xs[IX(N.x - 2, 0, N)] + xs[IX(N.x - 1, 1, N)] + xs[IX(N.x - 1, 0, N)]);
+		xs[IX(N.x - 1, N.y - 1, N)] =
+			0.33f * (xs[IX(N.x - 2, N.y - 1, N)] + xs[IX(N.x - 1, N.y - 2, N)] +
+					 xs[IX(N.x - 1, N.y - 1, N)]);
 	}
 
 	// Solve linear differential equation of density / velocity.
 	void LinSolve(
-		int b, std::vector<float>& x, std::vector<float>& x0, float a, float c,
+		int b, std::vector<float>& xs, std::vector<float>& x0, float a, float c,
 		std::size_t iterations, const V2_int& N
 	) {
 		float c_reciprocal{ 1.0f / c };
 		for (std::size_t iteration{ 0 }; iteration < iterations; ++iteration) {
-			for (std::size_t j{ 1 }; j < N.y - 1; ++j) {
-				for (std::size_t i{ 1 }; i < N.x - 1; ++i) {
+			for (int j{ 1 }; j < N.y - 1; ++j) {
+				for (int i{ 1 }; i < N.x - 1; ++i) {
 					auto index{ IX(i, j, N) };
-					x[index] = (x0[index] +
-								a * (x[IX(i + 1, j, N)] + x[IX(i - 1, j, N)] + x[IX(i, j + 1, N)] +
-									 x[IX(i, j - 1, N)] + x[index] + x[index])) *
-							   c_reciprocal;
+					xs[index] = (x0[index] + a * (xs[IX(i + 1, j, N)] + xs[IX(i - 1, j, N)] +
+												  xs[IX(i, j + 1, N)] + xs[IX(i, j - 1, N)] +
+												  xs[index] + xs[index])) *
+								c_reciprocal;
 				}
 			}
-			SetBnd(b, x, N);
+			SetBnd(b, xs, N);
 		}
 	}
 
 	// Diffuse density / velocity outward at each step.
 	void Diffuse(
-		int b, std::vector<float>& x, std::vector<float>& x0, float diff, float dt,
+		int b, std::vector<float>& xs, std::vector<float>& x0, float diffusion, float delta_time,
 		std::size_t iterations, const V2_int& N
 	) {
-		float a{ dt * diff * (N.x - 2) * (N.y - 2) };
-		LinSolve(b, x, x0, a, 1 + 6 * a, iterations, N);
+		float a{ delta_time * diffusion * (N.x - 2) * (N.y - 2) };
+		LinSolve(b, xs, x0, a, 1 + 6 * a, iterations, N);
 	}
 
 	// Converse 'mass' of density / velocity fields.
@@ -165,8 +155,8 @@ public:
 		std::vector<float>& vx, std::vector<float>& vy, std::vector<float>& p,
 		std::vector<float>& div, std::size_t iterations, const V2_int& N
 	) {
-		for (std::size_t j{ 1 }; j < N.y - 1; ++j) {
-			for (std::size_t i{ 1 }; i < N.x - 1; ++i) {
+		for (int j{ 1 }; j < N.y - 1; ++j) {
+			for (int i{ 1 }; i < N.x - 1; ++i) {
 				auto index{ IX(i, j, N) };
 				div[index] = -0.5f * ((vx[IX(i + 1, j, N)] - vx[IX(i - 1, j, N)]) / N.x +
 									  (vy[IX(i, j + 1, N)] - vy[IX(i, j - 1, N)]) / N.y);
@@ -179,8 +169,8 @@ public:
 
 		LinSolve(0, p, div, 1, 6, iterations, N);
 
-		for (std::size_t j{ 1 }; j < N.y - 1; ++j) {
-			for (std::size_t i{ 1 }; i < N.x - 1; ++i) {
+		for (int j{ 1 }; j < N.y - 1; ++j) {
+			for (int i{ 1 }; i < N.x - 1; ++i) {
 				auto index{ IX(i, j, N) };
 				vx[index] -= 0.5f * (p[IX(i + 1, j, N)] - p[IX(i - 1, j, N)]) * N.x;
 				vy[index] -= 0.5f * (p[IX(i, j + 1, N)] - p[IX(i, j - 1, N)]) * N.y;
@@ -194,25 +184,25 @@ public:
 	// Move density / velocity within the field to the next step.
 	void Advect(
 		int b, std::vector<float>& d, std::vector<float>& d0, std::vector<float>& u,
-		std::vector<float>& v, float dt, const V2_int& N
+		std::vector<float>& v, float delta_time, const V2_int& N
 	) {
-		float dt0x{ dt * N.x };
-		float dt0y{ dt * N.y };
-		for (std::size_t i{ 1 }; i < N.x - 1; ++i) {
-			for (std::size_t j{ 1 }; j < N.y - 1; ++j) {
+		float dt0x{ delta_time * N.x };
+		float dt0y{ delta_time * N.y };
+		for (int i{ 1 }; i < N.x - 1; ++i) {
+			for (int j{ 1 }; j < N.y - 1; ++j) {
 				auto index{ IX(i, j, N) };
 
-				float x{ i - dt0x * u[index] };
-				float y{ j - dt0y * v[index] };
-				x		= Clamp(x, 0.5f, N.x + 0.5f);
-				auto i0 = (int)x;
+				float xs{ i - dt0x * u[index] };
+				float ys{ j - dt0y * v[index] };
+				xs		= std::clamp(xs, 0.5f, N.x + 0.5f);
+				auto i0 = (int)xs;
 				auto i1 = i0 + 1;
-				y		= Clamp(y, 0.5f, N.y + 0.5f);
-				auto j0 = (int)y;
+				ys		= std::clamp(ys, 0.5f, N.y + 0.5f);
+				auto j0 = (int)ys;
 				auto j1 = j0 + 1;
-				float s1{ x - i0 };
+				float s1{ xs - i0 };
 				float s0{ 1 - s1 };
-				float t1{ y - j0 };
+				float t1{ ys - j0 };
 				float t0{ 1 - t1 };
 				d[index] = s0 * (t0 * d0[IX(i0, j0, N)] + t1 * d0[IX(i0, j1, N)]) +
 						   s1 * (t0 * d0[IX(i1, j0, N)] + t1 * d0[IX(i1, j1, N)]);
@@ -283,13 +273,10 @@ public:
 		if (game.input.MousePressed(Mouse::Left)) {
 			// Add dye.
 			auto mouse_position{ game.input.GetMousePosition() };
-			fluid.AddDensity(
-				mouse_position.x / scale.x, mouse_position.y / scale.y, 1000, 10 / scale.x
-			);
+			V2_int pos{ mouse_position / scale };
+			fluid.AddDensity(pos.x, pos.y, 1000, static_cast<int>(10.0f / scale.x));
 			// Add gravity vector.
-			fluid.AddVelocity(
-				mouse_position.x / scale.x, mouse_position.y / scale.y, gravity.x, gravity.y
-			);
+			fluid.AddVelocity(pos.x, pos.y, gravity.x, gravity.y);
 		}
 
 		// Fade overall dye levels slowly over time.

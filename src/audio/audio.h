@@ -45,7 +45,12 @@ namespace impl {
 
 class MusicManager : public MapManager<Music> {
 public:
-	using MapManager::MapManager;
+	MusicManager()									 = default;
+	virtual ~MusicManager()							 = default;
+	MusicManager(MusicManager&&) noexcept			 = default;
+	MusicManager& operator=(MusicManager&&) noexcept = default;
+	MusicManager(const MusicManager&)				 = delete;
+	MusicManager& operator=(const MusicManager&)	 = delete;
 
 	void Pause() const;
 	void Resume() const;
@@ -70,7 +75,12 @@ public:
 
 class SoundManager : public MapManager<Sound> {
 public:
-	using MapManager::MapManager;
+	SoundManager()									 = default;
+	virtual ~SoundManager()							 = default;
+	SoundManager(SoundManager&&) noexcept			 = default;
+	SoundManager& operator=(SoundManager&&) noexcept = default;
+	SoundManager(const SoundManager&)				 = delete;
+	SoundManager& operator=(const SoundManager&)	 = delete;
 
 	// if, channel = -1, all channels are stopped.
 	void Stop(int channel) const;

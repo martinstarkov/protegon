@@ -20,11 +20,11 @@ struct TestMouseLight : public Test {
 
 	void Shutdown() override {
 		game.light.Reset();
-		game.draw.SetClearColor(color::White);
+		game.renderer.SetClearColor(color::White);
 	}
 
 	void Init() override {
-		game.draw.SetClearColor(color::Transparent);
+		game.renderer.SetClearColor(color::Transparent);
 
 		game.light.Reset();
 		game.light.Load(0, Light{ V2_float{ 0, 0 }, color::Cyan, 30.0f });
@@ -39,8 +39,8 @@ struct TestMouseLight : public Test {
 	}
 
 	void Draw() override {
-		game.draw.Rect({ { 100, 100 }, { 100, 100 }, Origin::TopLeft }, color::Red);
-		game.draw.Texture(test, { game.window.GetSize() / 2, test.GetSize() });
+		Rect{ { 100, 100 }, { 100, 100 }, Origin::TopLeft }.Draw(color::Red);
+		test.Draw({ game.window.GetSize() / 2, test.GetSize() });
 
 		game.light.Draw();
 	}
@@ -53,14 +53,13 @@ struct TestRotatingLights : public Test {
 
 	void Shutdown() override {
 		game.light.Reset();
-		game.draw.SetClearColor(color::White);
+		game.renderer.SetClearColor(color::White);
 	}
 
 	std::unordered_map<LightManager::InternalKey, float> radii;
 
 	void Init() override {
-		game.draw.SetTarget();
-		game.draw.SetClearColor(color::Transparent);
+		game.renderer.SetClearColor(color::Transparent);
 
 		game.light.Reset();
 		game.light.Load(0, Light{ V2_float{ 0, 0 }, color::White });
@@ -99,8 +98,8 @@ struct TestRotatingLights : public Test {
 	}
 
 	void Draw() override {
-		game.draw.Rect({ { 100, 100 }, { 100, 100 }, Origin::TopLeft }, color::Blue);
-		game.draw.Texture(test, { game.window.GetSize() / 2, test.GetSize() });
+		Rect{ { 100, 100 }, { 100, 100 }, Origin::TopLeft }.Draw(color::Blue);
+		test.Draw({ game.window.GetSize() / 2, test.GetSize() });
 
 		game.light.Draw();
 	}

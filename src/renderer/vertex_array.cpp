@@ -4,19 +4,14 @@
 #include <cstdint>
 
 #include "core/game.h"
-#include "math/geometry/polygon.h"
-#include "math/vector2.h"
-#include "renderer/batch.h"
 #include "renderer/buffer.h"
 #include "renderer/buffer_layout.h"
-#include "renderer/color.h"
-#include "renderer/flip.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
-#include "renderer/renderer.h"
-#include "renderer/vertices.h"
+#include "renderer/gl_renderer.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
+#include "utility/stats.h"
 
 namespace ptgn {
 
@@ -40,7 +35,7 @@ std::int32_t VertexArray::GetBoundId() {
 	return id;
 }
 
-bool VertexArray::WithinMaxAttributes(std::size_t attribute_count) {
+bool VertexArray::WithinMaxAttributes(std::int32_t attribute_count) {
 	std::int32_t max_attributes{ 0 };
 	GLCall(gl::glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max_attributes));
 	return attribute_count < max_attributes;
@@ -105,31 +100,40 @@ void VertexArray::SetBufferElement(
 	if (element.is_integer) {
 		GLCall(gl::VertexAttribIPointer(
 			i, element.count, static_cast<gl::GLenum>(element.type), stride,
-			(const void*)element.offset
+			reinterpret_cast<const void*>(element.offset)
 		));
 	} else {
 		GLCall(gl::VertexAttribPointer(
 			i, element.count, static_cast<gl::GLenum>(element.type),
-			element.normalized ? GL_TRUE : GL_FALSE, stride, (const void*)element.offset
+			element.normalized ? static_cast<gl::GLboolean>(GL_TRUE)
+							   : static_cast<gl::GLboolean>(GL_FALSE),
+			stride, reinterpret_cast<const void*>(element.offset)
 		));
 	}
 }
 
-VertexArray::VertexArray(const Rect& rect, const Color& color) :
-	VertexArray{ PrimitiveMode::Triangles,
-				 VertexBuffer{
-					 impl::ColorQuadVertices(rect.GetVertices(), 0.0f, color.Normalized()).Get() },
-				 impl::ColorQuadVertices::layout,
-				 IndexBuffer{ std::array<std::uint32_t, 6>{ 0, 1, 2, 2, 3, 0 } } } {}
-
-VertexArray::VertexArray(
-	const impl::TextureVertices& texture_vertices, const IndexBuffer& index_buffer
-) :
-	VertexArray{ PrimitiveMode::Triangles, VertexBuffer{ texture_vertices.Get() },
-				 impl::TextureVertices::layout, index_buffer } {}
-
-void VertexArray::Draw() const {
-	game.draw.VertexArray(*this);
+void VertexArray::Draw(std::size_t index_count, bool bind_vertex_array) const {
+	PTGN_ASSERT(IsValid(), "Cannot submit invalid vertex array for rendering");
+	PTGN_ASSERT(
+		HasVertexBuffer(), "Cannot submit vertex array without a set vertex buffer for rendering"
+	);
+	if (index_count != 0) {
+		PTGN_ASSERT(
+			HasIndexBuffer(),
+			"Cannot specify index without for a vertex array with no attached index buffer"
+		);
+		GLRenderer::DrawElements(*this, index_count, bind_vertex_array);
+		return;
+	}
+	if (HasIndexBuffer()) {
+		auto count{ GetIndexBuffer().GetCount() };
+		PTGN_ASSERT(count > 0, "Cannot draw vertex array with 0 indices");
+		GLRenderer::DrawElements(*this, count, bind_vertex_array);
+	} else {
+		auto count{ GetVertexBuffer().GetCount() };
+		PTGN_ASSERT(count > 0, "Cannot draw vertex array with 0 vertices");
+		GLRenderer::DrawArrays(*this, count, bind_vertex_array);
+	}
 }
 
 void VertexArray::SetPrimitiveMode(PrimitiveMode mode) {
@@ -146,15 +150,22 @@ bool VertexArray::HasIndexBuffer() const {
 }
 
 VertexBuffer VertexArray::GetVertexBuffer() const {
+	PTGN_ASSERT(IsValid(), "Cannot get vertex buffer of invalid or uninitialized vertex array");
 	return Get().vertex_buffer_;
 }
 
 IndexBuffer VertexArray::GetIndexBuffer() const {
+	PTGN_ASSERT(IsValid(), "Cannot get index buffer of invalid or uninitialized vertex array");
 	return Get().index_buffer_;
 }
 
 PrimitiveMode VertexArray::GetPrimitiveMode() const {
+	PTGN_ASSERT(IsValid(), "Cannot get primitive mode of invalid or uninitialized vertex array");
 	return Get().mode_;
+}
+
+bool VertexArray::IsBound() const {
+	return IsValid() && VertexArray::GetBoundId() == static_cast<std::int32_t>(Get().id_);
 }
 
 } // namespace ptgn

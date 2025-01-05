@@ -19,56 +19,60 @@ typedef void(GL_APIENTRYP PFNGLVERTEXATTRIBIPOINTERPROC)(
 
 #ifdef PTGN_PLATFORM_MACOS
 
+#define GL_SILENCE_DEPRECATION
+
 #include <OpenGL/gl3.h>
 #include <OpenGL/gl3ext.h>
 
-#define GenBuffers glGenBuffers
-#define DeleteBuffers glDeleteBuffers
-#define GetBufferParameteriv glGetBufferParameteriv
-#define BufferData glBufferData
-#define BufferSubData glBufferSubData
-#define BindBuffer glBindBuffer
-#define GenFramebuffers glGenFramebuffers
-#define RenderbufferStorage glRenderbufferStorage
-#define BindRenderbuffer glBindRenderbuffer
-#define GenRenderbuffers glGenRenderbuffers
-#define DeleteRenderbuffers glDeleteRenderbuffers
-#define BindFramebuffer glBindFramebuffer
-#define FramebufferTexture2D glFramebufferTexture2D
+#define GenBuffers				glGenBuffers
+#define DeleteBuffers			glDeleteBuffers
+#define GetBufferParameteriv	glGetBufferParameteriv
+#define BufferData				glBufferData
+#define BufferSubData			glBufferSubData
+#define BindBuffer				glBindBuffer
+#define GenFramebuffers			glGenFramebuffers
+#define RenderbufferStorage		glRenderbufferStorage
+#define BindRenderbuffer		glBindRenderbuffer
+#define GenRenderbuffers		glGenRenderbuffers
+#define DeleteRenderbuffers		glDeleteRenderbuffers
+#define BindFramebuffer			glBindFramebuffer
+#define FramebufferTexture2D	glFramebufferTexture2D
 #define FramebufferRenderbuffer glFramebufferRenderbuffer
-#define CheckFramebufferStatus glCheckFramebufferStatus
-#define DeleteFramebuffers glDeleteFramebuffers
-#define ActiveTexture glActiveTexture
-#define GenerateMipmap glGenerateMipmap
-#define GenVertexArrays glGenVertexArrays
-#define DeleteVertexArrays glDeleteVertexArrays
-#define BindVertexArray glBindVertexArray
+#define CheckFramebufferStatus	glCheckFramebufferStatus
+#define DeleteFramebuffers		glDeleteFramebuffers
+#define ActiveTexture			glActiveTexture
+#define GenerateMipmap			glGenerateMipmap
+#define GenVertexArrays			glGenVertexArrays
+#define DeleteVertexArrays		glDeleteVertexArrays
+#define BindVertexArray			glBindVertexArray
 #define EnableVertexAttribArray glEnableVertexAttribArray
-#define VertexAttribIPointer glVertexAttribIPointer
-#define VertexAttribPointer glVertexAttribPointer
-#define CreateProgram glCreateProgram
-#define DeleteProgram glDeleteProgram
-#define ValidateProgram glValidateProgram
-#define UseProgram glUseProgram
-#define LinkProgram glLinkProgram
-#define CreateShader glCreateShader
-#define DeleteShader glDeleteShader
-#define GetShaderiv glGetShaderiv
-#define GetProgramiv glGetProgramiv
-#define GetShaderInfoLog glGetShaderInfoLog
-#define GetProgramInfoLog glGetProgramInfoLog
-#define AttachShader glAttachShader
-#define Uniform1f glUniform1f
-#define Uniform2f glUniform2f
-#define Uniform3f glUniform3f
-#define Uniform4f glUniform4f
-#define Uniform1iv glUniform1iv
-#define Uniform1fv glUniform1fv
-#define Uniform1i glUniform1i
-#define Uniform2i glUniform2i
-#define Uniform3i glUniform3i
-#define Uniform4i glUniform4i
-#define UniformMatrix4fv glUniformMatrix4fv
+#define VertexAttribIPointer	glVertexAttribIPointer
+#define VertexAttribPointer		glVertexAttribPointer
+#define CreateProgram			glCreateProgram
+#define DeleteProgram			glDeleteProgram
+#define ValidateProgram			glValidateProgram
+#define UseProgram				glUseProgram
+#define LinkProgram				glLinkProgram
+#define CreateShader			glCreateShader
+#define DeleteShader			glDeleteShader
+#define GetShaderiv				glGetShaderiv
+#define GetProgramiv			glGetProgramiv
+#define GetShaderInfoLog		glGetShaderInfoLog
+#define GetProgramInfoLog		glGetProgramInfoLog
+#define AttachShader			glAttachShader
+#define Uniform1f				glUniform1f
+#define Uniform2f				glUniform2f
+#define Uniform3f				glUniform3f
+#define Uniform4f				glUniform4f
+#define Uniform1iv				glUniform1iv
+#define Uniform1fv				glUniform1fv
+#define Uniform1i				glUniform1i
+#define Uniform2i				glUniform2i
+#define Uniform3i				glUniform3i
+#define Uniform4i				glUniform4i
+#define UniformMatrix4fv		glUniformMatrix4fv
+#define BlendEquationSeparate   glBlendEquationSeparate
+#define BlendFuncSeparate       glBlendFuncSeparate
 
 #else
 
@@ -130,6 +134,7 @@ typedef void(GL_APIENTRYP PFNGLVERTEXATTRIBIPOINTERPROC)(
 	GLE(ShaderSource, SHADERSOURCE)                         \
 	GLE(UseProgram, USEPROGRAM)                             \
 	GLE(BlendEquationSeparate, BLENDEQUATIONSEPARATE)       \
+	GLE(BlendFuncSeparate, BLENDFUNCSEPARATE)               \
 	GLE(StencilOpSeparate, STENCILOPSEPARATE)               \
 	GLE(StencilFuncSeparate, STENCILFUNCSEPARATE)           \
 	GLE(StencilMaskSeparate, STENCILMASKSEPARATE)           \

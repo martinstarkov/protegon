@@ -7,7 +7,7 @@
 
 #include "math/math.h"
 #include "math/rng.h"
-#include "renderer/layer_info.h"
+#include "renderer/color.h"
 #include "utility/debug.h"
 #include "utility/type_traits.h"
 
@@ -25,7 +25,13 @@ struct Circle;
 
 namespace impl {
 
-void DrawPoint(float x, float y, const Color& color, float radius, const LayerInfo& layer_info);
+struct Point {
+	static void Draw(float x, float y, const Color& color, float radius);
+
+	static void Draw(
+		float x, float y, const Color& color, float radius, const LayerInfo& layer_info
+	);
+};
 
 } // namespace impl
 
@@ -56,8 +62,13 @@ struct Vector2 {
 	explicit constexpr Vector2(const Vector2<U>& o) :
 		x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
 
-	void Draw(const Color& color, float radius = 1.0f, const LayerInfo& layer_info = {}) const {
-		impl::DrawPoint(static_cast<float>(x), static_cast<float>(y), color, radius, layer_info);
+	// Uses default render target.
+	void Draw(const Color& color, float radius = 1.0f) const {
+		impl::Point::Draw(static_cast<float>(x), static_cast<float>(y), color, radius);
+	}
+
+	void Draw(const Color& color, float radius, const LayerInfo& layer_info) const {
+		impl::Point::Draw(static_cast<float>(x), static_cast<float>(y), color, radius, layer_info);
 	}
 
 	// Access vector elements by index, 0 for x, 1 for y.
@@ -242,6 +253,7 @@ struct Vector2 {
 
 using V2_int	= Vector2<int>;
 using V2_uint	= Vector2<unsigned int>;
+using V2_size	= Vector2<std::size_t>;
 using V2_float	= Vector2<float>;
 using V2_double = Vector2<double>;
 
@@ -335,12 +347,17 @@ template <typename T>
 
 template <typename T>
 [[nodiscard]] inline Vector2<T> Ceil(const Vector2<T>& vector) {
-	return { std::ceil(vector.x), std::ceil(vector.y) };
+	return { FastCeil(vector.x), FastCeil(vector.y) };
 }
 
 template <typename T>
 [[nodiscard]] inline Vector2<T> Floor(const Vector2<T>& vector) {
-	return { std::floor(vector.x), std::floor(vector.y) };
+	return { FastFloor(vector.x), FastFloor(vector.y) };
+}
+
+template <typename T>
+[[nodiscard]] inline Vector2<T> Abs(const Vector2<T>& vector) {
+	return { FastAbs(vector.x), FastAbs(vector.y) };
 }
 
 template <typename T>

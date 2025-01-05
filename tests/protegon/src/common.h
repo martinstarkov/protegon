@@ -33,7 +33,7 @@ struct Test {
 		ws	   = game.window.GetSize();
 		center = game.window.GetCenter();
 		game.window.Center();
-		game.draw.SetClearColor(color::White);
+		game.renderer.SetClearColor(color::White);
 	}
 
 	virtual void Init() {
@@ -62,7 +62,6 @@ struct Test {
 					game.window.SetTitle("");
 					game.window.Center();
 					game.event.window.Unsubscribe(this);
-					game.PopBackLoopFunction();
 					Deinit();
 				})
 			);
@@ -107,7 +106,6 @@ void CheckForTestSwitch(const std::vector<std::shared_ptr<Test>>& tests, int& cu
 	PTGN_ASSERT(test_switch_keys.size() == 2);
 	int test_count{ static_cast<int>(tests.size()) };
 	auto shutdown = [&]() {
-		game.camera.ResetPrimary();
 		tests[current_test]->Shutdown();
 		tests[current_test]->Deinit();
 		game.window.SetTitle("");
@@ -127,27 +125,12 @@ void CheckForTestSwitch(const std::vector<std::shared_ptr<Test>>& tests, int& cu
 	}
 	if (game.input.KeyDown(test_category_switch_key)) {
 		shutdown();
-		game.PopBackLoopFunction();
 	}
 }
 
 void AddTests(const std::vector<std::shared_ptr<Test>>& tests) {
 	// Lambda capture will keep this alive as long as is necessary.
 	auto test_idx = std::make_shared<int>(0);
-
-	game.PushFrontLoopFunction([tests, test_idx]() {
-		PTGN_ASSERT(*test_idx < tests.size());
-
-		auto& current_test = tests[*test_idx];
-
-		if (game.window.GetTitle().empty()) {
-			game.window.SetTitle(test_instructions + std::string(": ") + std::to_string(*test_idx));
-		}
-
-		current_test->Run();
-
-		CheckForTestSwitch(tests, *test_idx);
-	});
 }
 
 } // namespace ptgn

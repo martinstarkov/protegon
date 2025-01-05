@@ -14,14 +14,21 @@
 #include "math/utility.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
+#include "renderer/layer_info.h"
 #include "renderer/origin.h"
 #include "renderer/renderer.h"
 #include "utility/debug.h"
 
 namespace ptgn {
 
+void Circle::Draw(const Color& color, float line_width) const {
+	Draw(color, line_width, {});
+}
+
 void Circle::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	game.draw.Circle(center, radius, color, line_width, layer_info);
+	layer_info.GetRenderTarget().AddCircle(
+		*this, color, line_width, impl::fade_, layer_info.GetRenderLayer()
+	);
 }
 
 void Circle::Offset(const V2_float& offset) {
@@ -257,13 +264,25 @@ ptgn::Raycast Circle::Raycast(const V2_float& ray, const Rect& rect) const {
 	return c;
 }
 
+void Arc::Draw(bool clockwise, const Color& color, float line_width) const {
+	Draw(clockwise, color, line_width, {});
+}
+
 void Arc::Draw(bool clockwise, const Color& color, float line_width, const LayerInfo& layer_info)
 	const {
-	game.draw.Arc(center, radius, start_angle, end_angle, clockwise, color, line_width, layer_info);
+	layer_info.GetRenderTarget().AddArc(
+		*this, clockwise, color, line_width, impl::fade_, layer_info.GetRenderLayer()
+	);
+}
+
+void Ellipse::Draw(const Color& color, float line_width) const {
+	Draw(color, line_width, {});
 }
 
 void Ellipse::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	game.draw.Ellipse(center, radius, color, line_width, layer_info);
+	layer_info.GetRenderTarget().AddEllipse(
+		*this, color, line_width, impl::fade_, layer_info.GetRenderLayer()
+	);
 }
 
 } // namespace ptgn

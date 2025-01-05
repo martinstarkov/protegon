@@ -54,7 +54,7 @@ public:
 	Texture test{ "resources/sprites/bg2.png" };
 
 	void Update() final {
-		game.draw.Texture(test);
+		test.Draw();
 		TransitionScene("scene2", "scene1");
 	}
 };
@@ -65,7 +65,7 @@ public:
 	Texture test{ "resources/sprites/bg1.png" };
 
 	void Update() final {
-		game.draw.Texture(test);
+		test.Draw();
 		TransitionScene("scene1", "scene2");
 	}
 };
@@ -80,7 +80,6 @@ public:
 	void Shutdown() final {
 		game.scene.RemoveActive("scene1");
 		game.scene.RemoveActive("scene2");
-		game.draw.SetTarget();
 	}
 
 	void Init() final {
@@ -89,7 +88,6 @@ public:
 	}
 
 	void Update() final {
-		game.scene.Update();
 	}
 };
 

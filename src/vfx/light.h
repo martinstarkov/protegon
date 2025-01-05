@@ -4,7 +4,8 @@
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "renderer/color.h"
-#include "renderer/render_texture.h"
+#include "renderer/frame_buffer.h"
+#include "renderer/render_target.h"
 #include "renderer/shader.h"
 
 namespace ptgn {
@@ -24,8 +25,8 @@ public:
 	Light(const V2_float& position, const Color& color, float intensity = 10.0f) :
 		position_{ position }, color_{ color }, intensity_{ intensity } {}
 
-	// Will flush the renderer.
-	void Draw(const Texture& texture) const;
+	// TODO: Fix.
+	// void Draw(const Texture& texture) const;
 
 	void SetPosition(const V2_float& position);
 	[[nodiscard]] V2_float GetPosition() const;
@@ -49,9 +50,13 @@ private:
 
 class LightManager : public MapManager<Light> {
 public:
-	using MapManager::MapManager;
+	LightManager()									 = default;
+	~LightManager() override						 = default;
+	LightManager(LightManager&&) noexcept			 = default;
+	LightManager& operator=(LightManager&&) noexcept = default;
+	LightManager(const LightManager&)				 = delete;
+	LightManager& operator=(const LightManager&)	 = delete;
 
-	// Will flush the renderer.
 	void Draw();
 
 	void Reset();
@@ -65,11 +70,9 @@ private:
 
 	void Init();
 
-	void UpdateTarget();
-
 	[[nodiscard]] Shader GetShader() const;
 
-	RenderTexture target_;
+	RenderTarget target_;
 	Shader light_shader_;
 	bool blur_{ false };
 };

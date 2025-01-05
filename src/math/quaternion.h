@@ -112,8 +112,8 @@ public:
 		return std::asin(std::clamp(-2.0f * (x * z - w * y), -1.0f, 1.0f));
 	}
 
-	[[nodiscard]] M4_float ToMatrix4() const {
-		M4_float result;
+	[[nodiscard]] Matrix4 ToMatrix4() const {
+		Matrix4 result;
 		float qxx{ x * x };
 		float qyy{ y * y };
 		float qzz{ z * z };

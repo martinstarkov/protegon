@@ -92,8 +92,8 @@ struct Sprite {
 		}
 		source.origin = origin;
 
-		PTGN_ASSERT(texture.GetSize().x > 0.0f, "Texture must have width > 0");
-		PTGN_ASSERT(texture.GetSize().y > 0.0f, "Texture must have height > 0");
+		PTGN_ASSERT(texture.GetSize().x > 0, "Texture must have width > 0");
+		PTGN_ASSERT(texture.GetSize().y > 0, "Texture must have height > 0");
 
 		PTGN_ASSERT(
 			source.position.x < texture.GetSize().x,
@@ -293,7 +293,7 @@ struct Animation : public impl::SpriteSheet {
 	}
 
 	Rect GetSource() const {
-		return { sprite_positions[GetCurrentFrame()], sprite_size, origin };
+		return Rect{ sprite_positions[GetCurrentFrame()], sprite_size, origin };
 	}
 
 private:
@@ -313,6 +313,12 @@ private:
 struct AnimationMap : public ActiveMapManager<Animation> {
 public:
 	using ActiveMapManager::ActiveMapManager;
+	AnimationMap()									 = delete;
+	~AnimationMap() override						 = default;
+	AnimationMap(AnimationMap&&) noexcept			 = default;
+	AnimationMap& operator=(AnimationMap&&) noexcept = default;
+	AnimationMap(const AnimationMap&)				 = delete;
+	AnimationMap& operator=(const AnimationMap&)	 = delete;
 
 	// If the provided key is a not currently active, this function pauses the previously active
 	// animation.

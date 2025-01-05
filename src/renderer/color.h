@@ -24,6 +24,8 @@ enum class BlendMode {
 												 dstA = dstA */
 	Multiply = 0x00000008, /*    color multiply: dstRGB = (srcRGB * dstRGB) +
 							  (dstRGB * (1 - srcA)) dstA = dstA */
+	Stencil = 0x00000016   /*   dstRGB = dstRGB
+								dstA   = srcA */
 };
 
 struct Color {

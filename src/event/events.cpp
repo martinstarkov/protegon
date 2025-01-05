@@ -8,16 +8,16 @@ namespace ptgn {
 
 namespace impl {
 
-V2_float MouseEventBase::GetCurrent(std::size_t render_layer) const {
-	return game.input.GetMousePosition(render_layer);
+V2_float MouseEventBase::GetCurrent() const {
+	return game.input.GetMousePosition();
 }
 
-V2_float MouseEventBase::GetPrevious(std::size_t render_layer) const {
-	return game.input.GetMousePositionPrevious(render_layer);
+V2_float MouseEventBase::GetPrevious() const {
+	return game.input.GetMousePositionPrevious();
 }
 
-V2_float MouseEventBase::GetDifference(std::size_t render_layer) const {
-	return game.input.GetMouseDifference(render_layer);
+V2_float MouseEventBase::GetDifference() const {
+	return game.input.GetMouseDifference();
 }
 
 } // namespace impl

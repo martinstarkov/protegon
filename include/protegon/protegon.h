@@ -6,7 +6,6 @@
 using json = nlohmann::json;
 
 #include "audio/audio.h"
-#include "camera/camera.h"
 #include "collision/collider.h"
 #include "collision/collision.h"
 #include "components/generic.h"
@@ -44,12 +43,14 @@ using json = nlohmann::json;
 #include "renderer/text.h"
 #include "renderer/texture.h"
 #include "renderer/vertex_array.h"
+#include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 #include "tile/a_star.h"
 #include "tile/grid.h"
 #include "tile/layer.h"
 #include "ui/button.h"
+#include "ui/plot.h"
 #include "ui/ui.h"
 #include "utility/file.h"
 #include "utility/log.h"

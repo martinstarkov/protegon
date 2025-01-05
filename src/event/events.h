@@ -41,13 +41,13 @@ enum class MouseEvent {
 namespace impl {
 
 struct MouseEventBase {
-	// @return Current mouse position relative to the given render layer.
-	[[nodiscard]] V2_float GetCurrent(std::size_t render_layer = 0) const;
-	// @return Previous mouse position relative to the given render layer.
-	[[nodiscard]] V2_float GetPrevious(std::size_t render_layer = 0) const;
+	// @return Current mouse position relative to the currently active scene.
+	[[nodiscard]] V2_float GetCurrent() const;
+	// @return Previous mouse position relative to the currently active scene.
+	[[nodiscard]] V2_float GetPrevious() const;
 	// @return Get mouse position difference between current and previous frame relative to the
-	// given render layer.
-	[[nodiscard]] V2_float GetDifference(std::size_t render_layer = 0) const;
+	// currently active scene.
+	[[nodiscard]] V2_float GetDifference() const;
 };
 
 } // namespace impl
@@ -56,15 +56,13 @@ struct MouseMoveEvent : public Event, public impl::MouseEventBase {
 	MouseMoveEvent() = default;
 };
 
-class MouseDownEvent : public Event, public impl::MouseEventBase {
-public:
+struct MouseDownEvent : public Event, public impl::MouseEventBase {
 	explicit MouseDownEvent(Mouse mouse) : mouse{ mouse } {}
 
 	Mouse mouse;
 };
 
-class MouseUpEvent : public Event, public impl::MouseEventBase {
-public:
+struct MouseUpEvent : public Event, public impl::MouseEventBase {
 	explicit MouseUpEvent(Mouse mouse) : mouse{ mouse } {}
 
 	Mouse mouse;
@@ -87,40 +85,27 @@ enum class WindowEvent {
 	Maximized
 };
 
-class WindowQuitEvent : public Event {
-public:
-	WindowQuitEvent() = default;
-};
+struct WindowQuitEvent : public Event {};
 
-class WindowDragEvent : public Event {
-public:
-	WindowDragEvent() = default;
-};
+struct WindowDragEvent : public Event {};
 
-class WindowMovedEvent : public Event {
-public:
-	WindowMovedEvent() = default;
-};
+struct WindowMovedEvent : public Event {};
 
-class WindowResizedEvent : public Event {
-public:
+struct WindowResizedEvent : public Event {
 	explicit WindowResizedEvent(const V2_int& size) : size{ size } {}
 
 	V2_int size;
 };
 
-class WindowResizingEvent : public WindowResizedEvent {
-public:
+struct WindowResizingEvent : public WindowResizedEvent {
 	using WindowResizedEvent::WindowResizedEvent;
 };
 
-class WindowMaximizedEvent : public WindowResizedEvent {
-public:
+struct WindowMaximizedEvent : public WindowResizedEvent {
 	using WindowResizedEvent::WindowResizedEvent;
 };
 
-class WindowMinimizedEvent : public WindowResizedEvent {
-public:
+struct WindowMinimizedEvent : public WindowResizedEvent {
 	using WindowResizedEvent::WindowResizedEvent;
 };
 

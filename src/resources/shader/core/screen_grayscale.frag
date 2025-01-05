@@ -4,7 +4,8 @@ R"(
 
 layout (location = 0) out vec4 o_Color;
 
-layout (location = 0) in vec2 v_TexCoord;
+layout (location = 0) in vec4 v_Color;
+layout (location = 1) in vec2 v_TexCoord;
 
 uniform sampler2D u_Texture;
 
@@ -19,6 +20,6 @@ void main()
 
 	o_Color = texture(u_Texture, v_TexCoord);
     float average = 0.2126f * o_Color.r + 0.7152f * o_Color.g + 0.0722f * o_Color.b;
-    o_Color = vec4(average, average, average, 1.0f);
+    o_Color = vec4(average, average, average, 1.0f) * v_Color;
 }
 )"

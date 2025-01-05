@@ -1,12 +1,12 @@
 #define SDL_MAIN_HANDLED
 
 #include "../tests/test_ecs.h"
-#include "test_framebuffer.h"
 #include "test_animation.h"
 #include "test_camera.h"
 #include "test_collision.h"
 #include "test_events.h"
 #include "test_fluid.h"
+#include "test_framebuffer.h"
 #include "test_lighting.h"
 #include "test_math.h"
 #include "test_matrix4.h"
@@ -28,12 +28,8 @@ class Tests : public Scene {
 public:
 	Tests() = default;
 
-	void Preload() final {
-		PTGN_INFO("Preloaded test scene");
-	}
-
 	void Init() final {
-		game.draw.SetClearColor(color::White);
+		game.renderer.SetClearColor(color::White);
 		V2_int window_size{ 800, 800 };
 		game.window.SetSize(window_size);
 
@@ -78,7 +74,8 @@ public:
 };
 
 int main() {
-	game.Start<Tests>();
-	//TestFrameBuffer();
+	game.Init();
+	game.scene.LoadActive<Tests>("test_scene");
+	// TestFrameBuffer();
 	return 0;
 }

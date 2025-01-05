@@ -3,12 +3,12 @@
 #include <cstdint>
 
 #include "core/game.h"
-#include "core/window.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/color.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
+#include "renderer/renderer.h"
 #include "renderer/vertex_array.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
@@ -56,6 +56,13 @@ void GLRenderer::SetBlendMode(BlendMode mode /* = BlendMode::Blend*/) {
 			// TODO: Check that this works correctly.
 			GLCall(gl::glBlendFunc(GL_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
 			break;
+		case BlendMode::Stencil:
+			GLCall(gl::BlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD));
+			GLCall(gl::BlendFuncSeparate(GL_ONE, GL_ONE, GL_ZERO, GL_ONE));
+			break;
+		case BlendMode::None:
+			PTGN_ERROR("BlendMode::None should be dealt with before enabling blending");
+			[[fallthrough]];
 		default: PTGN_ERROR("Failed to identify blend mode");
 	}
 }
@@ -89,25 +96,23 @@ void GLRenderer::DisableDepthTesting() {
 }
 
 void GLRenderer::DrawElements(
-	const VertexArray& va, std::size_t index_count, bool bind_vertex_array
+	const VertexArray& vao, std::size_t index_count, bool bind_vertex_array
 ) {
-	PTGN_ASSERT(va.IsValid(), "Cannot draw uninitialized or destroyed vertex array");
+	PTGN_ASSERT(vao.IsValid(), "Cannot draw uninitialized or destroyed vertex array");
 	PTGN_ASSERT(
-		va.HasVertexBuffer(),
+		vao.HasVertexBuffer(),
 		"Cannot draw vertex array with uninitialized or destroyed vertex buffer"
 	);
 	PTGN_ASSERT(
-		va.HasIndexBuffer(), "Cannot draw vertex array with uninitialized or destroyed index buffer"
+		vao.HasIndexBuffer(),
+		"Cannot draw vertex array with uninitialized or destroyed index buffer"
 	);
 	if (bind_vertex_array) {
-		va.Bind();
+		vao.Bind();
 	}
-	PTGN_ASSERT(
-		VertexArray::GetBoundId() == static_cast<std::int32_t>(va.Get().id_),
-		"Failed to bind vertex array id"
-	);
+	PTGN_ASSERT(vao.IsBound(), "Cannot glDrawElements unless the VertexArray is bound");
 	GLCall(gl::glDrawElements(
-		static_cast<gl::GLenum>(va.GetPrimitiveMode()), static_cast<std::uint32_t>(index_count),
+		static_cast<gl::GLenum>(vao.GetPrimitiveMode()), static_cast<std::int32_t>(index_count),
 		static_cast<gl::GLenum>(impl::GetType<std::uint32_t>()), nullptr
 	));
 #ifdef PTGN_DEBUG
@@ -116,18 +121,19 @@ void GLRenderer::DrawElements(
 }
 
 void GLRenderer::DrawArrays(
-	const VertexArray& va, std::size_t vertex_count, bool bind_vertex_array
+	const VertexArray& vao, std::size_t vertex_count, bool bind_vertex_array
 ) {
-	PTGN_ASSERT(va.IsValid(), "Cannot draw uninitialized or destroyed vertex array");
+	PTGN_ASSERT(vao.IsValid(), "Cannot draw uninitialized or destroyed vertex array");
 	PTGN_ASSERT(
-		va.HasVertexBuffer(),
+		vao.HasVertexBuffer(),
 		"Cannot draw vertex array with uninitialized or destroyed vertex buffer"
 	);
 	if (bind_vertex_array) {
-		va.Bind();
+		vao.Bind();
 	}
+	PTGN_ASSERT(vao.IsBound(), "Cannot glDrawArrays unless the VertexArray is bound");
 	GLCall(gl::glDrawArrays(
-		static_cast<gl::GLenum>(va.GetPrimitiveMode()), 0, static_cast<std::uint32_t>(vertex_count)
+		static_cast<gl::GLenum>(vao.GetPrimitiveMode()), 0, static_cast<std::int32_t>(vertex_count)
 	));
 #ifdef PTGN_DEBUG
 	++game.stats.draw_calls;
@@ -151,7 +157,7 @@ void GLRenderer::ClearColor(const Color& color) {
 
 void GLRenderer::SetViewport(const V2_int& position, const V2_int& size) {
 	GLCall(gl::glViewport(position.x, position.y, size.x, size.y));
-	//game.window.Center();
+	// game.window.Center();
 #ifdef PTGN_DEBUG
 	++game.stats.viewport_changes;
 #endif

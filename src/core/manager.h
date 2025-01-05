@@ -115,7 +115,7 @@ public:
 	/*
 	 * @return True if the manager has no loaded items, false otherwise.
 	 */
-	[[nodiscard]] bool Empty() const {
+	[[nodiscard]] bool IsEmpty() const {
 		return map_.empty();
 	}
 
@@ -247,7 +247,7 @@ public:
 	/*
 	 * @return True if the manager has no loaded items, false otherwise.
 	 */
-	[[nodiscard]] bool Empty() const {
+	[[nodiscard]] bool IsEmpty() const {
 		return vector_.empty();
 	}
 
@@ -281,6 +281,13 @@ public:
 	using InternalKey =
 		typename MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::InternalKey;
 	using MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::MapManager;
+
+	ActiveMapManager()										 = delete;
+	virtual ~ActiveMapManager() override					 = default;
+	ActiveMapManager(ActiveMapManager&&) noexcept			 = default;
+	ActiveMapManager& operator=(ActiveMapManager&&) noexcept = default;
+	ActiveMapManager(const ActiveMapManager&)				 = delete;
+	ActiveMapManager& operator=(const ActiveMapManager&)	 = delete;
 
 	ActiveMapManager(const Key& active_key, const Item& active_item) {
 		MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::Load(

@@ -4,9 +4,8 @@
 #include <memory>
 #include <set>
 
-#include "camera/camera.h"
 #include "renderer/color.h"
-#include "renderer/render_texture.h"
+#include "renderer/render_target.h"
 #include "utility/time.h"
 
 namespace ptgn {
@@ -89,19 +88,15 @@ private:
 
 class Scene {
 public:
-	Scene();
+	Scene()			 = default;
 	virtual ~Scene() = default;
-
-	// Called when the scene is initially loaded.
-	virtual void Preload() {
-		/* user implementation */
-	}
 
 	// Called when the scene is added to active scenes.
 	virtual void Init() {
 		/* user implementation */
 	}
 
+	// Called once per frame for each active scene.
 	virtual void Update() {
 		/* user implementation */
 	}
@@ -116,29 +111,26 @@ public:
 		/* user implementation */
 	}
 
-	impl::CameraManager camera;
+	[[nodiscard]] RenderTarget GetRenderTarget() const;
 
-	[[nodiscard]] RenderTexture GetRenderTarget() const;
 private:
 	friend class impl::SceneManager;
 	friend class SceneTransition;
 
-	RenderTexture target_;
+	RenderTarget target_{ color::Transparent, BlendMode::Blend };
+	Color tint_{ color::White };
 
 	// If the actions is manually numbered, its order determines the execution order of scene
 	// functions.
 	enum class Action {
-		Preload	 = 0,
-		Init	 = 1,
-		Shutdown = 2,
-		Unload	 = 3
+		Init	 = 0,
+		Shutdown = 1,
+		Unload	 = 2
 	};
 
 	void Add(Action new_action);
 
-	// Each scene must be preloaded initially.
-
-	std::set<Action> actions_{ Action::Preload };
+	std::set<Action> actions_{ Action::Init };
 };
 
 } // namespace ptgn

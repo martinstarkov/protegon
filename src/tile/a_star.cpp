@@ -74,9 +74,9 @@ std::deque<V2_int> AStarGrid::FindWaypoints(const V2_int& start, const V2_int& e
 }
 
 int AStarGrid::FindWaypointIndex(const std::deque<V2_int>& waypoints, const V2_int& position) {
-	for (int i = 0; i < waypoints.size(); ++i) {
+	for (std::size_t i{ 0 }; i < waypoints.size(); ++i) {
 		if (position == waypoints[i]) {
-			return i;
+			return static_cast<int>(i);
 		}
 	}
 	return -1;
@@ -88,7 +88,7 @@ void AStarGrid::DisplayWaypoints(
 	for (std::size_t i = 0; i + 1 < waypoints.size(); ++i) {
 		Line path{ waypoints[i] * tile_size + tile_size / 2.0f,
 				   waypoints[i + 1] * tile_size + tile_size / 2.0f };
-		game.draw.Line(path.a, path.b, color);
+		path.Draw(color);
 	}
 }
 

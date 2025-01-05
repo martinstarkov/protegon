@@ -6,10 +6,13 @@
 #include <unordered_map>
 
 #include "core/manager.h"
+#include "math/geometry/polygon.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
+#include "renderer/flip.h"
+#include "renderer/texture.h"
 #include "utility/debug.h"
 #include "utility/file.h"
 #include "utility/handle.h"
@@ -38,6 +41,10 @@ class TextureBatchData;
 
 struct ShaderInstance {
 	ShaderInstance();
+	ShaderInstance(const ShaderInstance&)			 = default;
+	ShaderInstance& operator=(const ShaderInstance&) = default;
+	ShaderInstance(ShaderInstance&&)				 = default;
+	ShaderInstance& operator=(ShaderInstance&&)		 = default;
 	~ShaderInstance();
 	// Location cache should not prevent const calls.
 	mutable std::unordered_map<std::string, std::int32_t> location_cache_;
@@ -51,7 +58,7 @@ struct ShaderInstance {
 struct ShaderSource {
 	ShaderSource() = default;
 
-	// Explicit prevents conflict with Shader path construction.
+	// Explicit construction prevents conflict with Shader path construction.
 	explicit ShaderSource(const std::string& source) : source_{ source } {}
 
 	~ShaderSource() = default;
@@ -60,11 +67,7 @@ struct ShaderSource {
 
 class Shader : public Handle<impl::ShaderInstance> {
 public:
-	using Handle::Handle;
-
-	Shader()		   = default;
-	~Shader() override = default;
-
+	Shader() = default;
 	Shader(const ShaderSource& vertex_shader, const ShaderSource& fragment_shader);
 	Shader(const path& vertex_shader_path, const path& fragment_shader_path);
 
@@ -73,7 +76,7 @@ public:
 	void SetUniform(const std::string& name, const Vector2<float>& v) const;
 	void SetUniform(const std::string& name, const Vector3<float>& v) const;
 	void SetUniform(const std::string& name, const Vector4<float>& v) const;
-	void SetUniform(const std::string& name, const Matrix4<float>& m) const;
+	void SetUniform(const std::string& name, const Matrix4& m) const;
 	void SetUniform(const std::string& name, float v0) const;
 	void SetUniform(const std::string& name, float v0, float v1) const;
 	void SetUniform(const std::string& name, float v0, float v1, float v2) const;
@@ -93,6 +96,14 @@ public:
 
 	void Bind() const;
 
+	// TODO: Fix.
+	// @param destination == {} results in fullscreen shader.
+	// If destination != {} and destination.size == {}, texture size is used.
+	// void Draw(
+	// 	const Texture& texture, const Rect& destination = {},
+	// 	const Matrix4& view_projection = Matrix4{ 1.0f }, const TextureInfo& texture_info = {}
+	// ) const;
+
 private:
 	friend class impl::RendererData;
 
@@ -106,9 +117,9 @@ private:
 	[[nodiscard]] static std::uint32_t CompileShader(std::uint32_t type, const std::string& source);
 };
 
+// Note: Texture tint is applied after shader effect.
 enum class ScreenShader {
 	Default,
-	Opacity,
 	Blur,
 	GaussianBlur,
 	EdgeDetection,
@@ -127,7 +138,12 @@ namespace impl {
 
 class ShaderManager : public MapManager<Shader> {
 public:
-	using MapManager::MapManager;
+	ShaderManager()									   = default;
+	~ShaderManager()								   = default;
+	ShaderManager(ShaderManager&&) noexcept			   = default;
+	ShaderManager& operator=(ShaderManager&&) noexcept = default;
+	ShaderManager(const ShaderManager&)				   = delete;
+	ShaderManager& operator=(const ShaderManager&)	   = delete;
 
 	Shader Get(ScreenShader screen_shader) const;
 
@@ -148,13 +164,6 @@ private:
 					 },
 					 ShaderSource{
 #include PTGN_SHADER_PATH(screen_default.frag)
-					 } };
-
-		opacity_ = { ShaderSource{
-#include PTGN_SHADER_PATH(screen_default.vert)
-					 },
-					 ShaderSource{
-#include PTGN_SHADER_PATH(screen_opacity.frag)
 					 } };
 
 		blur_ = { ShaderSource{
@@ -202,7 +211,6 @@ private:
 
 	// Screen shaders.
 	Shader default_;
-	Shader opacity_;
 	Shader blur_;
 	Shader gaussian_blur_;
 	Shader grayscale_;

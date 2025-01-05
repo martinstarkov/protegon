@@ -1,16 +1,18 @@
 #include "scene/scene_manager.h"
 
-#include <algorithm>
+#include <cstdint>
 #include <list>
 #include <memory>
 #include <utility>
 #include <vector>
 
-#include "camera/camera.h"
 #include "core/game.h"
 #include "core/manager.h"
 #include "event/input_handler.h"
+#include "renderer/layer_info.h"
+#include "renderer/render_target.h"
 #include "renderer/renderer.h"
+#include "scene/camera.h"
 #include "scene/scene.h"
 #include "utility/debug.h"
 #include "utility/utility.h"
@@ -25,10 +27,7 @@ void SceneManager::UnloadImpl(const InternalKey& scene_key) {
 }
 
 void SceneManager::InitScene(const InternalKey& scene_key) {
-	PTGN_ASSERT(
-		Has(scene_key) || scene_key == impl::start_scene_key,
-		"Cannot init scene unless it has been loaded first"
-	);
+	PTGN_ASSERT(Has(scene_key), "Cannot initialize a scene unless it has been loaded first");
 	auto scene = Get(scene_key);
 	scene->Add(Scene::Action::Init);
 }
@@ -37,14 +36,16 @@ void SceneManager::AddActiveImpl(const InternalKey& scene_key) {
 	if (HasActiveSceneImpl(scene_key)) {
 		return;
 	}
-	PTGN_ASSERT(
-		Has(scene_key) || scene_key == impl::start_scene_key,
-		"Cannot add scene to active unless it has been loaded first"
-	);
+	PTGN_ASSERT(Has(scene_key), "Cannot add scene to active unless it has been loaded first");
+
+	bool first_scene{ active_scenes_.empty() };
+
 	active_scenes_.emplace_back(scene_key);
-	// Start scene is initialized manually in the game.
-	if (scene_key != impl::start_scene_key) {
-		InitScene(scene_key);
+	InitScene(scene_key);
+
+	if (first_scene) {
+		// First active scene, aka the starting scene. Enter the game loop.
+		game.MainLoop();
 	}
 }
 
@@ -56,7 +57,7 @@ void SceneManager::ClearActive() {
 	PTGN_ASSERT(active_scenes_.empty());
 }
 
-void SceneManager::UnloadAll() {
+void SceneManager::UnloadAllScenes() {
 	auto& map{ GetMap() };
 	for (auto it = map.begin(); it != map.end(); ++it) {
 		it->second->Add(Scene::Action::Unload);
@@ -111,7 +112,7 @@ void SceneManager::SwitchActiveScenesImpl(const InternalKey& scene1, const Inter
 	SwapVectorElements(active_scenes_, scene1, scene2);
 }
 
-std::vector<std::shared_ptr<Scene>> SceneManager::GetActive() {
+std::vector<std::shared_ptr<Scene>> SceneManager::GetActiveScenes() {
 	std::vector<std::shared_ptr<Scene>> active{};
 	for (auto scene_key : active_scenes_) {
 		PTGN_ASSERT(Has(scene_key));
@@ -130,8 +131,7 @@ Scene& SceneManager::GetTopActive() {
 }
 
 void SceneManager::Reset() {
-	ClearActive();
-	UnloadAll();
+	UnloadAllScenes();
 	UpdateFlagged();
 	active_scenes_ = {};
 	MapManager::Reset();
@@ -146,51 +146,51 @@ void SceneManager::Update() {
 		PTGN_ASSERT(Has(scene_key));
 		auto scene{ Get(scene_key) };
 		if (scene->actions_.empty()) {
-			game.draw.SetTarget(scene->target_, true, true);
+			current_scene_ = scene;
 			scene->Update();
+			scene->target_.Flush();
 		}
+	}
+	current_scene_ = nullptr;
+	std::int32_t layer{ 0 };
+	for (auto scene_key : active_scenes_) {
+		PTGN_ASSERT(Has(scene_key));
+		auto scene{ Get(scene_key) };
+		scene->target_.Draw(
+			Rect::Fullscreen(), TextureInfo{ scene->tint_ },
+			LayerInfo{ layer, game.renderer.screen_target_ }
+		);
+		layer++;
 	}
 	UpdateFlagged();
 }
 
-void SceneManager::SetSceneChanged(bool changed) {
-	scene_changed_ = changed;
-}
-
-bool SceneManager::SceneChanged() const {
-	return scene_changed_;
+Scene& SceneManager::GetCurrent() {
+	PTGN_ASSERT(current_scene_ != nullptr, "No currently active scene has been set");
+	return *current_scene_;
 }
 
 void SceneManager::UpdateFlagged() {
-	SetSceneChanged(false);
 	auto& map{ GetMap() };
-	for (auto it = map.begin(); it != map.end();) {
+	for (auto it{ map.begin() }; it != map.end();) {
 		// Intentional reference counter increment to maintain scene during scene function calls.
-
 		auto [key, scene] = *it;
 
 		bool unload{ false };
 
 		while (!scene->actions_.empty()) {
-			auto action = scene->actions_.begin();
+			current_scene_ = scene;
+			auto action{ scene->actions_.begin() };
 			switch (*action) {
-				case Scene::Action::Preload:
-					game.input.Reset();
-					scene->Preload();
-					break;
 				case Scene::Action::Init:
 					// Input is reset to ensure no previously pressed keys are considered held.
 					game.input.Reset();
 					// Each scene starts with a refreshed camera.
-					scene->camera.ResetPrimary();
-					game.draw.SetTarget(scene->target_);
+					// This may not be desired and can be commented out if necessary.
+					scene->target_.GetCamera().ResetPrimary();
 					scene->Init();
-					SetSceneChanged(true);
 					break;
-				case Scene::Action::Shutdown:
-					scene->Shutdown();
-					SetSceneChanged(true);
-					break;
+				case Scene::Action::Shutdown: scene->Shutdown(); break;
 				case Scene::Action::Unload:
 					if (HasActiveSceneImpl(key)) {
 						RemoveActiveImpl(key);
@@ -199,12 +199,13 @@ void SceneManager::UpdateFlagged() {
 					} else {
 						scene->Unload();
 						unload = true;
-						SetSceneChanged(true);
 					}
 					break;
 			}
 			scene->actions_.erase(action);
 		}
+
+		current_scene_ = nullptr;
 
 		if (unload) {
 			it = map.erase(it);

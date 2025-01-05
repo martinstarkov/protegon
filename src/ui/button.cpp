@@ -14,6 +14,7 @@
 #include "math/math.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
+#include "renderer/layer_info.h"
 #include "renderer/renderer.h"
 #include "renderer/text.h"
 #include "utility/handle.h"
@@ -135,8 +136,8 @@ void ButtonInstance::RecheckState() {
 	// Simulate a mouse move event to refresh button state.
 	MouseMoveEvent e{};
 	MouseMotionUpdate(
-		e.GetCurrent(render_layer_),
-		V2_int{ std::numeric_limits<int>::max(), std::numeric_limits<int>::max() }, e
+		e.GetCurrent(), V2_int{ std::numeric_limits<int>::max(), std::numeric_limits<int>::max() },
+		e
 	);
 }
 
@@ -167,12 +168,12 @@ void ButtonInstance::OnMouseEvent(MouseEvent type, const Event& event) {
 	switch (type) {
 		case MouseEvent::Move: {
 			const auto& e{ static_cast<const MouseMoveEvent&>(event) };
-			MouseMotionUpdate(e.GetCurrent(render_layer_), e.GetPrevious(render_layer_), e);
+			MouseMotionUpdate(e.GetCurrent(), e.GetPrevious(), e);
 			break;
 		}
 		case MouseEvent::Down: {
 			if (const auto& e{ static_cast<const MouseDownEvent&>(event) };
-				InsideRect(e.GetCurrent(render_layer_))) {
+				InsideRect(e.GetCurrent())) {
 				OnMouseDown(e);
 			} else {
 				OnMouseDownOutside(e);
@@ -181,13 +182,15 @@ void ButtonInstance::OnMouseEvent(MouseEvent type, const Event& event) {
 		}
 		case MouseEvent::Up: {
 			if (const auto& e{ static_cast<const MouseUpEvent&>(event) };
-				InsideRect(e.GetCurrent(render_layer_))) {
+				InsideRect(e.GetCurrent())) {
 				OnMouseUp(e);
 			} else {
 				OnMouseUpOutside(e);
 			}
 			break;
 		}
+		case MouseEvent::Scroll:
+			[[fallthrough]]; // TODO: Consider adding button where scrolling does something.
 		default: break;
 	}
 }
@@ -322,9 +325,9 @@ void Button::Draw() const {
 	if (auto texture{ GetFinalResource(c, d, i.textures_) }; texture.IsValid()) {
 		TextureInfo info;
 		info.tint = GetFinalResource(c, d, i.texture_tint_colors_, color::White);
-		game.draw.Texture(texture, i.rect_, info, { 0.0f, i.render_layer_ });
+		texture.Draw(i.rect_, info, { i.render_layer_ });
 	} else if (auto bg{ GetFinalResource(c, d, i.bg_colors_) }; bg != Color{}) {
-		i.rect_.Draw(bg, i.line_thickness_, { 0.0f, i.render_layer_ });
+		i.rect_.Draw(bg, i.line_thickness_, { i.render_layer_ });
 	}
 
 	if (auto text{ GetFinalResource(c, d, i.texts_) }; text.IsValid()) {
@@ -341,14 +344,14 @@ void Button::Draw() const {
 		}
 		text.Draw(
 			{ i.rect_.Center(), text_size, i.text_alignment_, i.rect_.rotation },
-			{ 0.0f, i.render_layer_ }
+			{ i.render_layer_ }
 		);
 		text.SetColor(og_text_color);
 	}
 	if (i.bordered_) {
 		if (auto border_color{ GetFinalResource(c, d, i.border_colors_) };
 			border_color != Color{}) {
-			i.rect_.Draw(border_color, i.border_thickness_, { 0.0f, i.render_layer_ });
+			i.rect_.Draw(border_color, i.border_thickness_, { i.render_layer_ });
 		}
 	}
 }

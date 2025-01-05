@@ -58,7 +58,7 @@ public:
 
 	// Custom range seeded distribution.
 	// Range: [min, max] (inclusive).
-	RNG(std::uint32_t seed, T min, T max) : generator_{ seed }, min_{ min }, max_{ max } {
+	RNG(std::uint32_t seed, T min, T max) : min_{ min }, max_{ max }, generator_{ seed } {
 		SetupDistribution();
 	}
 

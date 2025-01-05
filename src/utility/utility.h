@@ -32,6 +32,12 @@ std::vector<ReturnType> GetElements(const Map& map) {
 
 } // namespace impl
 
+// @return How many bits the contents of the vector take up.
+template <typename T>
+static std::size_t SizeofVector(const std::vector<T>& vector) {
+	return sizeof(T) * vector.size();
+}
+
 template <typename T>
 static std::vector<T> ToVector(const std::unordered_set<T>& set) {
 	std::vector<T> v;

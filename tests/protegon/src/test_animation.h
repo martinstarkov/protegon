@@ -4,7 +4,6 @@
 #include "common.h"
 #include "components/sprite.h"
 #include "components/transform.h"
-#include "core/game.h"
 #include "ecs/ecs.h"
 #include "math/vector2.h"
 #include "renderer/origin.h"
@@ -18,7 +17,7 @@ class SpriteTest : public EntityTest {
 
 	void Init() final {
 		entity.Add<Transform>(center, 0.0f, scale);
-        [[maybe_unused]] const auto& s = entity.Add<Sprite>(
+		[[maybe_unused]] const auto& s = entity.Add<Sprite>(
 			texture, V2_float{ 0, 0 }, Origin::CenterBottom, V2_float{ 16, 32 }, V2_float{ 0, 0 }
 		);
 	}
@@ -36,10 +35,10 @@ class AnimationTest : public EntityTest {
 
 	void Init() final {
 		entity.Add<Transform>(center, 0.0f, scale);
-        
-        auto& a = entity.Add<Animation>(
-                                        texture, 4, V2_float{ 16, 32 }, milliseconds{ 500 }, V2_float{ 0, 0 }, V2_float{ 0, 32 },
-			Origin::CenterBottom, 0
+
+		auto& a = entity.Add<Animation>(
+			texture, 4, V2_float{ 16, 32 }, milliseconds{ 500 }, V2_float{ 0, 0 },
+			V2_float{ 0, 32 }, Origin::CenterBottom, 0
 		);
 		a.Start();
 	}

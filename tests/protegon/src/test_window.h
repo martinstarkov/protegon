@@ -44,7 +44,7 @@ class WindowSettingTest : public Test {
 	const V2_float og_window_size{ 800, 450 };
 
 	void Init() override {
-		game.draw.SetClearColor(color::White);
+		game.renderer.SetClearColor(color::White);
 		game.window.SetSize(og_window_size);
 
 		texts.clear();
@@ -135,9 +135,9 @@ class WindowSettingTest : public Test {
 	};
 
 	void Draw() final {
-		game.draw.Rect({ {}, game.window.GetSize(), Origin::TopLeft }, { 0, 0, 255, 10 });
-		game.draw.Rect({ {}, og_window_size, Origin::TopLeft }, { 255, 0, 0, 40 });
-		game.draw.Rect({ {}, og_window_size, Origin::TopLeft }, { 0, 255, 0, 40 }, 10.0f);
+		Rect{ {}, game.window.GetSize(), Origin::TopLeft }.Draw({ 0, 0, 255, 10 });
+		Rect{ {}, og_window_size, Origin::TopLeft }.Draw({ 255, 0, 0, 40 });
+		Rect{ {}, og_window_size, Origin::TopLeft }.Draw({ 0, 255, 0, 40 }, 10.0f);
 
 		Color color_0 = color::Green;
 		Color color_1 = color::Blue;
@@ -147,10 +147,10 @@ class WindowSettingTest : public Test {
 		Rect rect_1{ V2_int{ 0, game.window.GetSize().y }, V2_float{ 30.0f, 30.0f },
 					 Origin::BottomLeft };
 
-		if (rect_0.Overlaps(game.input.GetMousePosition(0))) {
+		if (rect_0.Overlaps(game.input.GetMousePosition())) {
 			color_0 = color::Red;
 		}
-		if (rect_1.Overlaps(game.input.GetMousePosition(1))) {
+		if (rect_1.Overlaps(game.input.GetMousePosition())) {
 			color_1 = color::Red;
 		}
 
@@ -185,11 +185,11 @@ class WindowSettingTest : public Test {
 			t.Draw({ { text_offset.x, text_offset.y - offset.y }, {}, Origin::BottomLeft });
 			offset += t.GetSize();
 		}
-		rect_0.Draw(color_0, -1.0f, { 0.0f, 0 });
-		rect_1.Draw(color_1, -1.0f, { 0.0f, 1 });
+		rect_0.Draw(color_0, -1.0f, { 0 });
+		rect_1.Draw(color_1, -1.0f, { 1 });
 
-		game.draw.Point(game.input.GetMousePosition(0), { 128, 128, 0, 128 }, 4.0f, { 0.0f, 0 });
-		game.draw.Point(game.input.GetMousePosition(1), { 128, 0, 128, 128 }, 4.0f, { 0.0f, 1 });
+		game.input.GetMousePosition().Draw({ 128, 128, 0, 128 }, 4.0f, { 0 });
+		game.input.GetMousePosition().Draw({ 128, 0, 128, 128 }, 4.0f, { 1 });
 	}
 };
 

@@ -4,12 +4,15 @@ R"(
 
 layout (location = 0) out vec4 o_Color;
 
-layout (location = 0) in vec2 v_TexCoord;
+layout (location = 0) in vec4 v_Color;
+layout (location = 1) in vec2 v_TexCoord;
 
 uniform sampler2D u_Texture;
 
 void main()
 {
-	o_Color = texture(u_Texture, v_TexCoord);
+	vec4 texColor = v_Color;
+	texColor *= texture(u_Texture, v_TexCoord);
+	o_Color = texColor;
 }
 )"

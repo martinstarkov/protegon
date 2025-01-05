@@ -8,7 +8,6 @@
 #include "math/vector4.h"
 #include "renderer/color.h"
 #include "renderer/origin.h"
-#include "renderer/render_texture.h"
 #include "renderer/renderer.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
@@ -44,17 +43,19 @@ V3_float Light::GetShaderColor() const {
 	return { n.x, n.y, n.z };
 }
 
-void Light::Draw(const Texture& texture) const {
-	auto shader{ game.light.GetShader() };
-	shader.Bind();
-	shader.SetUniform("u_LightPos", GetPosition());
-	shader.SetUniform("u_LightColor", GetShaderColor());
-	shader.SetUniform("u_LightIntensity", GetIntensity());
-	game.draw.Shader(shader, texture, {}, BlendMode::Add);
-	game.draw.Flush();
-}
+// TODO: Fix.
+//void Light::Draw(const Texture& texture) const {
+	//auto shader{ game.light.GetShader() };
+	// TOOD: Reduce shader binds when using light manager.
+	//shader.Bind();
+	//shader.SetUniform("u_LightPos", GetPosition());
+	//shader.SetUniform("u_LightIntensity", GetIntensity());
+	// TOOD: Fix this to use layer info.
+	//shader.Draw(texture, {}, Matrix4{ 1.0f }, TextureInfo{ {}, {}, Flip::None, color_ });
+//}
 
 void LightManager::Init() {
+	target_		  = RenderTarget{ color::Transparent, BlendMode::Add };
 	light_shader_ = Shader(
 		ShaderSource{
 #include PTGN_SHADER_PATH(screen_default.vert)
@@ -63,21 +64,11 @@ void LightManager::Init() {
 #include PTGN_SHADER_PATH(lighting.frag)
 		}
 	);
-
-	target_ = RenderTexture{ true };
 }
 
 void LightManager::Draw() {
-	auto target{ game.draw.GetTarget() };
-	game.draw.SetTarget(target_);
-	ForEachValue([&](const auto& light) { light.Draw(target_.GetTexture()); });
-	game.draw.SetTarget(RenderTexture{ game.window.GetSize() }, false);
-	if (blur_) {
-		game.draw.Shader(ScreenShader::GaussianBlur, target_.GetTexture());
-	} else {
-		game.draw.Shader(ScreenShader::Default, target_.GetTexture());
-	}
-	game.draw.SetTarget(target);
+	// TODO: Fix
+	//ForEachValue([&](const auto& light) { /*light.Draw(target_.GetTexture());*/ });
 }
 
 void LightManager::Reset() {

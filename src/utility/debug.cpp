@@ -62,20 +62,20 @@ void* operator new[](std::size_t size) {
 	throw std::bad_alloc{};
 }
 
-void operator delete(void* memory) {
+void operator delete(void* memory) noexcept {
 	std::free(memory);
 }
 
-void operator delete(void* memory, std::size_t size) {
+void operator delete(void* memory, std::size_t size) noexcept {
 	ptgn::debug::impl::Deallocation(size);
 	std::free(memory);
 }
 
-void operator delete[](void* memory) {
+void operator delete[](void* memory) noexcept {
 	std::free(memory);
 }
 
-void operator delete[](void* memory, std::size_t size) {
+void operator delete[](void* memory, std::size_t size) noexcept {
 	ptgn::debug::impl::Deallocation(size);
 	std::free(memory);
 }

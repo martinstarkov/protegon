@@ -6,11 +6,11 @@
 #include <string_view>
 #include <vector>
 
-#include "SDL_error.h"
-#include "SDL_video.h"
 #include "core/game.h"
 #include "core/window.h"
 #include "renderer/gl_loader.h"
+#include "SDL_error.h"
+#include "SDL_video.h"
 #include "utility/debug.h"
 #include "utility/file.h"
 #include "utility/log.h"
@@ -31,16 +31,15 @@ inline std::ostream& operator<<(std::ostream& os, const GLVersion& v) {
 
 // Must be called after SDL and window have been initialized.
 void GLContext::LoadGLFunctions() {
-    
 #ifndef PTGN_PLATFORM_MACOS
-    
+
 #define GLE(name, caps_name) \
 	gl::name = (gl::PFNGL##caps_name##PROC)SDL_GL_GetProcAddress(PTGN_STRINGIFY_MACRO(gl##name));
 	GL_LIST_1
 #undef GLE
 
 #endif
-    
+
 #ifdef __EMSCRIPTEN__
 
 #define GLE(name, caps_name) \
@@ -53,7 +52,7 @@ void GLContext::LoadGLFunctions() {
 #undef GLE
 
 #else
-    
+
 #ifndef PTGN_PLATFORM_MACOS
 
 #define GLE(name, caps_name) \
@@ -61,15 +60,15 @@ void GLContext::LoadGLFunctions() {
 	GL_LIST_2
 	GL_LIST_3
 #undef GLE
-    
-#endif
 
 #endif
 
-// PTGN_LOG("OpenGL Build: ", GLCall(gl::glGetString(GL_VERSION)));
-    
+#endif
+
+	// PTGN_LOG("OpenGL Build: ", GLCall(gl::glGetString(GL_VERSION)));
+
 #ifndef PTGN_PLATFORM_MACOS
-    
+
 // For debugging which commands were not initialized.
 #define GLE(name, caps_name) \
 	PTGN_ASSERT(gl::name, "Failed to load ", PTGN_STRINGIFY_MACRO(gl::name));
@@ -83,7 +82,7 @@ void GLContext::LoadGLFunctions() {
 	bool gl_init = GL_LIST_1 GL_LIST_2 GL_LIST_3 true;
 #undef GLE
 	PTGN_ASSERT(gl_init, "Failed to load OpenGL functions");
-    PTGN_INFO("Loaded all OpenGL functions");
+	PTGN_INFO("Loaded all OpenGL functions");
 #endif
 }
 
@@ -144,7 +143,6 @@ std::vector<GLError> GLContext::GetErrors() {
 }
 
 std::string_view GLContext::GetErrorString(GLError error) {
-	PTGN_ASSERT(error != GLError::None, "Cannot retrieve error string for none type error");
 	switch (error) {
 		case GLError::InvalidEnum:		return "Invalid Enum";
 		case GLError::InvalidValue:		return "Invalid Value";
@@ -152,7 +150,10 @@ std::string_view GLContext::GetErrorString(GLError error) {
 		case GLError::StackOverflow:	return "Stack Overflow";
 		case GLError::StackUnderflow:	return "Stack Underflow";
 		case GLError::OutOfMemory:		return "Out of Memory";
-		default:						PTGN_ERROR("Failed to recognize GL error code");
+		case GLError::None:
+			PTGN_ERROR("Cannot retrieve error string for none type error");
+			[[fallthrough]];
+		default: PTGN_ERROR("Failed to recognize GL error code");
 	}
 }
 

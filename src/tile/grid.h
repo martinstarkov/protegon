@@ -20,12 +20,12 @@ public:
 
 	explicit Grid(const Vector2<int>& size, const std::vector<T>& cells) :
 		size{ size }, length{ size.x * size.y }, cells{ cells } {
-		PTGN_ASSERT(length == cells.size(), "Failed to construct grid");
+		PTGN_ASSERT(static_cast<std::size_t>(length) == cells.size(), "Failed to construct grid");
 	}
 
 	explicit Grid(const Vector2<int>& size) :
-		size{ size }, length{ size.x * size.y }, cells(length, T{}) {
-		PTGN_ASSERT(length == cells.size(), "Failed to construct grid");
+		size{ size }, length{ size.x * size.y }, cells(static_cast<std::size_t>(length), T{}) {
+		PTGN_ASSERT(static_cast<std::size_t>(length) == cells.size(), "Failed to construct grid");
 	}
 
 	void ForEachCoordinate(const std::function<void(V2_int)>& function) const {
@@ -49,7 +49,13 @@ public:
 	}
 
 	[[nodiscard]] bool Has(const V2_int& coordinate) const {
-		return Has(OneDimensionalize(coordinate));
+		if (coordinate.x < 0 || coordinate.y < 0) {
+			return false;
+		}
+		if (coordinate.x >= size.x || coordinate.y >= size.y) {
+			return false;
+		}
+		return true;
 	}
 
 	T& Set(const V2_int& coordinate, T&& object) {
@@ -66,17 +72,17 @@ public:
 
 	[[nodiscard]] const T& Get(int index) const {
 		PTGN_ASSERT(Has(index), "Cannot get grid element which is outside the grid");
-		return cells[index];
+		return cells[static_cast<std::size_t>(index)];
 	}
 
 	[[nodiscard]] T& Get(int index) {
 		PTGN_ASSERT(Has(index), "Cannot get grid element which is outside the grid");
-		return cells[index];
+		return cells[static_cast<std::size_t>(index)];
 	}
 
 	T& Set(int index, T&& object) {
 		PTGN_ASSERT(Has(index), "Cannot set grid element which is outside the grid");
-		auto& value = cells[index];
+		auto& value = cells[static_cast<std::size_t>(index)];
 		value		= std::move(object);
 		return value;
 	}
@@ -97,8 +103,12 @@ public:
 		return length;
 	}
 
+	// @return -1 if coordinate is invalid, otherwise: coordinate.x + coordinate.y * size.x.
 	[[nodiscard]] int OneDimensionalize(const V2_int& coordinate) const {
 		if (coordinate.x < 0 || coordinate.y < 0) {
+			return -1;
+		}
+		if (coordinate.x >= size.x || coordinate.y >= size.y) {
 			return -1;
 		}
 		return coordinate.x + coordinate.y * size.x;
@@ -110,8 +120,8 @@ public:
 	}
 
 protected:
-	int length{ 0 };
 	V2_int size;
+	int length{ 0 };
 	std::vector<T> cells;
 };
 

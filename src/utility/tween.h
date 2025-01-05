@@ -260,7 +260,12 @@ namespace impl {
 
 class TweenManager : public MapManager<Tween>, public VectorManager<Tween> {
 public:
-	using MapManager::MapManager;
+	TweenManager()									 = default;
+	~TweenManager() override						 = default;
+	TweenManager(TweenManager&&) noexcept			 = default;
+	TweenManager& operator=(TweenManager&&) noexcept = default;
+	TweenManager(const TweenManager&)				 = delete;
+	TweenManager& operator=(const TweenManager&)	 = delete;
 
 	template <typename TKey, typename... TArgs, tt::constructible<Tween, TArgs...> = true>
 	Tween& Load(const TKey& key, TArgs&&... constructor_args) {
@@ -292,8 +297,8 @@ public:
 		return MapManager::Size() + VectorManager::Size();
 	}
 
-	[[nodiscard]] bool Empty() const {
-		return MapManager::Empty() && VectorManager::Empty();
+	[[nodiscard]] bool IsEmpty() const {
+		return MapManager::IsEmpty() && VectorManager::IsEmpty();
 	}
 
 	void Update();

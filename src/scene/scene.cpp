@@ -7,7 +7,7 @@
 
 #include "core/game.h"
 #include "math/vector2.h"
-#include "renderer/render_texture.h"
+#include "renderer/texture.h"
 #include "scene/scene_manager.h"
 #include "utility/debug.h"
 #include "utility/log.h"
@@ -53,22 +53,19 @@ SceneTransition& SceneTransition::SetFadeThroughColor(const Color& color) {
 void SceneTransition::Start(
 	bool transition_in, std::size_t key, std::size_t other_key, const std::shared_ptr<Scene>& scene
 ) const {
-	PTGN_ASSERT(type_ != TransitionType::None);
-
 	Tween tween{ duration_ };
 	auto target{ scene->target_ };
-	auto camera{ target.GetCamera() };
-	auto clear_color{ target.GetClearColor() };
+	OrthographicCamera camera;
+	camera.SetToWindow();
 
 	std::function<void(float)> update;
 	std::function<void()> start;
 	std::function<void()> stop;
 
-	V2_float s{ target.GetSize() };
+	V2_float s{ target.GetTexture().GetSize() };
 	// Camera starting position.
 	V2_float c{ camera.GetPosition() };
 	const V2_float og_c{ c };
-	const std::uint8_t og_opacity{ target.GetOpacity() };
 
 	const auto push = [&](const V2_float& dir) {
 		if (transition_in) {
@@ -108,17 +105,17 @@ void SceneTransition::Start(
 	const auto fade = [&]() {
 		if (transition_in) {
 			start = [=]() mutable {
-				target.SetOpacity(0);
+				scene->tint_.a = 0;
 			};
 			update = [=](float f) mutable {
-				target.SetOpacity(static_cast<std::uint8_t>(255.0f * f));
+				scene->tint_.a = static_cast<std::uint8_t>(255.0f * f);
 			};
 		} else {
 			start = [=]() mutable {
-				target.SetOpacity(255);
+				scene->tint_.a = 255;
 			};
 			update = [=](float f) mutable {
-				target.SetOpacity(static_cast<std::uint8_t>(255.0f * (1.0f - f)));
+				scene->tint_.a = static_cast<std::uint8_t>(255.0f * (1.0f - f));
 			};
 		}
 	};
@@ -128,28 +125,28 @@ void SceneTransition::Start(
 		// TODO: Fix fade through color setting not working.
 		if (transition_in) {
 			start = [=]() mutable {
-				target.SetOpacity(0);
+				scene->tint_.a = 0;
 			};
 			update = [=](float f) mutable {
-				target.SetClearColor(fade_color);
+				scene->tint_ = fade_color;
 				if (f >= 1.0f - start_frac) {
 					float p{ (f - (1.0f - start_frac)) / start_frac };
-					target.SetOpacity(static_cast<std::uint8_t>(255.0f * p));
+					scene->tint_.a = static_cast<std::uint8_t>(255.0f * p);
 				} else {
-					target.SetOpacity(0);
+					scene->tint_.a = 0;
 				}
 			};
 		} else {
 			start = [=]() mutable {
-				target.SetOpacity(255);
+				scene->tint_.a = 255;
 			};
 			update = [=](float f) mutable {
-				target.SetClearColor(fade_color);
+				scene->tint_ = fade_color;
 				if (f <= start_frac) {
 					float p{ 1.0f - f / start_frac };
-					target.SetOpacity(static_cast<std::uint8_t>(255.0f * p));
+					scene->tint_.a = static_cast<std::uint8_t>(255.0f * p);
 				} else {
-					target.SetOpacity(0);
+					scene->tint_.a = 0;
 				}
 			};
 		}
@@ -181,9 +178,10 @@ void SceneTransition::Start(
 		case TransitionType::CoverUp:		   cover({ 0, -1 }); break;
 		case TransitionType::CoverLeft:		   cover({ -1, 0 }); break;
 		case TransitionType::CoverRight:	   cover({ 1, 0 }); break;
+		case TransitionType::None:			   [[fallthrough]];
 		default:							   PTGN_ERROR("Invalid transition type");
 	}
-    tween.OnStart([=]([[maybe_unused]] float f) {
+	tween.OnStart([=]([[maybe_unused]] float f) {
 		// Important that this add active happens before start is invoked as in the case of the
 		// uncover transition, start will change the order of the active scenes to ensure that the
 		// new active scenes is not rendered on top of the covering scenes.
@@ -204,8 +202,6 @@ void SceneTransition::Start(
 	});
 	tween.OnDestroy([=]() mutable {
 		camera.SetPosition(og_c);
-		target.SetClearColor(clear_color);
-		target.SetOpacity(og_opacity);
 		if (stop != nullptr) {
 			std::invoke(stop);
 		}
@@ -213,11 +209,7 @@ void SceneTransition::Start(
 	game.tween.Add(tween).Start();
 }
 
-Scene::Scene() {
-	target_ = RenderTexture{ true, color::Transparent, BlendMode::Blend };
-}
-
-RenderTexture Scene::GetRenderTarget() const {
+RenderTarget Scene::GetRenderTarget() const {
 	return target_;
 }
 

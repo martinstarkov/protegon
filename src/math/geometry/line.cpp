@@ -4,19 +4,23 @@
 #include <utility>
 
 #include "collision/raycast.h"
-#include "core/game.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/polygon.h"
 #include "math/math.h"
 #include "math/utility.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
-#include "renderer/renderer.h"
+#include "renderer/layer_info.h"
+#include "renderer/render_target.h"
 
 namespace ptgn {
 
+void Line::Draw(const Color& color, float line_width) const {
+	Draw(color, line_width, {});
+}
+
 void Line::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	game.draw.Line(a, b, color, line_width, layer_info);
+	layer_info.GetRenderTarget().AddLine(*this, color, line_width, layer_info.GetRenderLayer());
 }
 
 V2_float Line::Direction() const {
@@ -428,8 +432,14 @@ ptgn::Raycast Line::Raycast(const Capsule& capsule) const {
 	return c;
 }
 
+void Capsule::Draw(const Color& color, float line_width) const {
+	Draw(color, line_width, {});
+}
+
 void Capsule::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	game.draw.Capsule(line.a, line.b, radius, color, line_width, layer_info);
+	layer_info.GetRenderTarget().AddCapsule(
+		*this, color, line_width, impl::fade_, layer_info.GetRenderLayer()
+	);
 }
 
 bool Capsule::Overlaps(const V2_float& point) const {

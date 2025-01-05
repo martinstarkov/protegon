@@ -1,6 +1,6 @@
 #pragma once
 
-#include <map>
+#include <iosfwd>
 
 #include "core/manager.h"
 #include "math/geometry/polygon.h"
@@ -18,22 +18,26 @@ class Game;
 class OrthographicCamera;
 class Renderer;
 
-V2_float WorldToScreen(const V2_float& position, std::size_t render_layer = 0);
-V2_float ScaleToScreen(const V2_float& size, std::size_t render_layer = 0);
-float ScaleToScreen(float size, std::size_t render_layer = 0);
-V2_float ScreenToWorld(const V2_float& position, std::size_t render_layer = 0);
-V2_float ScaleToWorld(const V2_float& size, std::size_t render_layer = 0);
-float ScaleToWorld(float size, std::size_t render_layer = 0);
-
 namespace impl {
 
+class Game;
+class Renderer;
+class SceneCamera;
+struct RenderLayer;
+
 struct Camera {
+	Camera()							 = default;
+	Camera(const Camera&)				 = default;
+	Camera& operator=(const Camera&)	 = default;
+	Camera(Camera&&) noexcept			 = default;
+	Camera& operator=(Camera&&) noexcept = default;
+	~Camera();
+
 	V3_float position;
 	V2_float size;
 	float zoom{ 1.0f };
 	V3_float orientation;
 
-	~Camera();
 	void Reset();
 
 	// If rectangle IsZero(), no position bounds are enforced.
@@ -43,9 +47,9 @@ struct Camera {
 
 	// Mutable used because view projection is recalculated only upon retrieval to reduce matrix
 	// multiplications.
-	mutable M4_float view{ 1.0f };
-	mutable M4_float projection{ 1.0f };
-	mutable M4_float view_projection{ 1.0f };
+	mutable Matrix4 view{ 1.0f };
+	mutable Matrix4 projection{ 1.0f };
+	mutable Matrix4 view_projection{ 1.0f };
 	mutable bool recalculate_view{ false };
 	mutable bool recalculate_projection{ false };
 
@@ -57,9 +61,6 @@ struct Camera {
 
 class OrthographicCamera : public Handle<impl::Camera> {
 public:
-	OrthographicCamera()		   = default;
-	~OrthographicCamera() override = default;
-
 	// Set the camera to be the size of the window and centered on the window.
 	void SetToWindow(bool continuously = true);
 	void CenterOnArea(const V2_float& size);
@@ -125,7 +126,7 @@ public:
 
 	void PrintInfo() const;
 
-	[[nodiscard]] const M4_float& GetViewProjection() const;
+	[[nodiscard]] const Matrix4& GetViewProjection() const;
 
 protected:
 	void RefreshBounds();
@@ -133,8 +134,8 @@ protected:
 	void SetPositionImpl(const V3_float& new_position);
 	void SetSizeImpl(const V2_float& size);
 
-	[[nodiscard]] const M4_float& GetView() const;
-	[[nodiscard]] const M4_float& GetProjection() const;
+	[[nodiscard]] const Matrix4& GetView() const;
+	[[nodiscard]] const Matrix4& GetProjection() const;
 
 	void RecalculateView() const;
 	void RecalculateProjection() const;
@@ -149,26 +150,23 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::OrthographicCamera
 	return os;
 }
 
-namespace impl {
-
-class Game;
-class Renderer;
-class SceneCamera;
-
 class CameraManager : public MapManager<OrthographicCamera> {
 public:
-	using MapManager::MapManager;
+	CameraManager();
+	~CameraManager() override						   = default;
+	CameraManager(CameraManager&&) noexcept			   = default;
+	CameraManager& operator=(CameraManager&&) noexcept = default;
+	CameraManager(const CameraManager&)				   = delete;
+	CameraManager& operator=(const CameraManager&)	   = delete;
 
 	template <typename TKey>
-	void SetPrimary(const TKey& key, std::size_t render_layer = 0) {
-		SetPrimaryImpl(GetInternalKey(key), render_layer);
+	void SetPrimary(const TKey& key) {
+		SetPrimaryImpl(GetInternalKey(key));
 	}
 
-	void SetPrimary(const OrthographicCamera& camera, std::size_t render_layer = 0);
+	void SetPrimary(const OrthographicCamera& camera);
 
-	// If primary camera does not exist for the given layer, it will add a primary camera centered
-	// on the given layer.
-	[[nodiscard]] OrthographicCamera GetPrimary(std::size_t render_layer = 0);
+	[[nodiscard]] OrthographicCamera GetPrimary() const;
 
 	void Reset();
 
@@ -178,15 +176,17 @@ public:
 	[[nodiscard]] static const OrthographicCamera& GetWindow();
 
 private:
-	friend class SceneCamera;
-	friend class Game;
-	friend class Renderer;
+	friend class impl::SceneCamera;
+	friend class impl::Game;
+	friend class impl::Renderer;
+	friend struct impl::RenderLayer;
 
-	void SetPrimaryImpl(const InternalKey& key, std::size_t render_layer);
+	void SetPrimaryImpl(const InternalKey& key);
 
-	// Key: render_layer, Value: camera.
-	std::map<std::size_t, OrthographicCamera> primary_cameras_;
+	OrthographicCamera primary_camera_;
 };
+
+namespace impl {
 
 // This class provides quick access to the current top active scene.
 // i.e. using this is class equivalent to game.scene.GetTopActive().camera
@@ -224,12 +224,12 @@ public:
 	static void Clear();
 
 	template <typename TKey>
-	static void SetPrimary(const TKey& key, std::size_t render_layer = 0) {
-		SetPrimaryImpl(CameraManager::GetInternalKey(key), render_layer);
+	static void SetPrimary(const TKey& key) {
+		SetPrimaryImpl(CameraManager::GetInternalKey(key));
 	}
 
-	static void SetPrimary(const OrthographicCamera& camera, std::size_t render_layer = 0);
-	[[nodiscard]] OrthographicCamera GetPrimary(std::size_t render_layer = 0);
+	static void SetPrimary(const OrthographicCamera& camera);
+	[[nodiscard]] OrthographicCamera GetPrimary();
 
 	static void Reset();
 	static void ResetPrimary();
@@ -246,7 +246,7 @@ private:
 	[[nodiscard]] static bool HasImpl(const InternalKey& key);
 	[[nodiscard]] static Item& GetImpl(const InternalKey& key);
 
-	static void SetPrimaryImpl(const InternalKey& key, std::size_t render_layer);
+	static void SetPrimaryImpl(const InternalKey& key);
 
 	void Init();
 
@@ -274,19 +274,19 @@ struct PerspectiveCamera {
 	V3_float angle;
 
 	// returns the view matrix calculated using Euler Angles and the LookAt Matrix
-	M4_float GetViewMatrix() const {
-		return M4_float::LookAt(position, position + front, up);
+	Matrix4 GetViewMatrix() const {
+		return Matrix4::LookAt(position, position + front, up);
 	}
 
-	M4_float GetProjectionMatrix() const {
+	Matrix4 GetProjectionMatrix() const {
 		return projection;
 	}
 
-	void SetProjectionMatrix(const M4_float& p) {
+	void SetProjectionMatrix(const Matrix4& p) {
 		projection = p;
 	}
 
-	M4_float projection{ 1.0f };
+	Matrix4 projection{ 1.0f };
 
 	// Set later:
 

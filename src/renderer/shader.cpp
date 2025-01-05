@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "core/game.h"
+#include "core/window.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
@@ -14,6 +15,8 @@
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
+#include "renderer/renderer.h"
+#include "renderer/texture.h"
 #include "utility/debug.h"
 #include "utility/file.h"
 #include "utility/handle.h"
@@ -70,10 +73,10 @@ std::uint32_t Shader::CompileShader(std::uint32_t type, const std::string& sourc
 
 #ifdef PTGN_PLATFORM_MACOS
 	GLCall(gl::glShaderSource(id, 1, &src, nullptr));
-    GLCall(gl::glCompileShader(id));
+	GLCall(gl::glCompileShader(id));
 #else
-    GLCall(gl::ShaderSource(id, 1, &src, nullptr));
-    GLCall(gl::CompileShader(id));
+	GLCall(gl::ShaderSource(id, 1, &src, nullptr));
+	GLCall(gl::CompileShader(id));
 #endif
 
 	// Check for shader compilation errors.
@@ -84,7 +87,7 @@ std::uint32_t Shader::CompileShader(std::uint32_t type, const std::string& sourc
 		std::int32_t length{ 0 };
 		GLCall(gl::GetShaderiv(id, GL_INFO_LOG_LENGTH, &length));
 		std::string log;
-		log.resize(length);
+		log.resize(static_cast<std::size_t>(length));
 		GLCall(gl::GetShaderInfoLog(id, length, &length, &log[0]));
 
 		GLCall(gl::DeleteShader(id));
@@ -125,7 +128,7 @@ void Shader::CompileProgram(const std::string& vertex_source, const std::string&
 			std::int32_t length{ 0 };
 			GLCall(gl::GetProgramiv(s.id_, GL_INFO_LOG_LENGTH, &length));
 			std::string log;
-			log.resize(length);
+			log.resize(static_cast<std::size_t>(length));
 			GLCall(gl::GetProgramInfoLog(s.id_, length, &length, &log[0]));
 
 			GLCall(gl::DeleteProgram(s.id_));
@@ -158,6 +161,43 @@ void Shader::Bind() const {
 #endif
 }
 
+	// TODO: Fix.
+// void Shader::Draw(
+// 	const Texture& texture, const Rect& destination, const Matrix4& view_projection,
+// 	const TextureInfo& texture_info
+// ) const {
+	// PTGN_ASSERT(texture.IsValid(), "Cannot draw shader with invalid texture");
+
+	// Rect dest{ destination };
+
+	// if (dest.IsZero()) {
+	//	dest = Rect::Fullscreen();
+	// } else if (dest.size.IsZero()) {
+	//	dest.size = texture.GetSize();
+	// }
+
+	// auto tex_coords{ impl::RenderData::GetTextureCoordinates(
+	//	texture_info.source_position, texture_info.source_size, dest.size, texture_info.flip
+	//) };
+
+	//// Since this engine uses top left as origin, shaders must all be flipped vertically.
+	// impl::RenderData::FlipTextureCoordinates(tex_coords, Flip::Vertical);
+
+	// Bind();
+	// SetUniform("u_ViewProjection", view_projection);
+	// SetUniform("u_Texture", 1);
+	// SetUniform("u_Resolution", V2_float{ game.window.GetSize() });
+	// texture.Bind(1);
+
+	// VertexArray vertex_array{ impl::TextureVertices(
+	//							  dest.GetVertices(texture_info.rotation_center), tex_coords, 0.0f,
+	//							  texture_info.tint.Normalized()
+	//						  ),
+	//						  game.renderer.shader_ib_ };
+
+	// vertex_array.Draw();
+//}
+
 std::int32_t Shader::GetUniformLocation(const std::string& name) const {
 	PTGN_ASSERT(IsValid(), "Cannot get uniform location of invalid shader");
 	auto& s{ Get() };
@@ -173,9 +213,9 @@ std::int32_t Shader::GetUniformLocation(const std::string& name) const {
 #ifdef PTGN_PLATFORM_MACOS
 	std::int32_t location = GLCallReturn(gl::glGetUniformLocation(s.id_, name.c_str()));
 #else
-    std::int32_t location = GLCallReturn(gl::GetUniformLocation(s.id_, name.c_str()));
+	std::int32_t location = GLCallReturn(gl::GetUniformLocation(s.id_, name.c_str()));
 #endif
-    
+
 	location_cache.emplace(name, location);
 	return location;
 }
@@ -201,7 +241,7 @@ void Shader::SetUniform(const std::string& name, const Vector4<float>& v) const 
 	}
 }
 
-void Shader::SetUniform(const std::string& name, const Matrix4<float>& m) const {
+void Shader::SetUniform(const std::string& name, const Matrix4& m) const {
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
 		GLCall(gl::UniformMatrix4fv(location, 1, GL_FALSE, m.Data()));
@@ -212,14 +252,14 @@ void Shader::SetUniform(const std::string& name, const std::int32_t* data, std::
 	const {
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
-		GLCall(gl::Uniform1iv(location, static_cast<std::uint32_t>(count), data));
+		GLCall(gl::Uniform1iv(location, static_cast<std::int32_t>(count), data));
 	}
 }
 
 void Shader::SetUniform(const std::string& name, const float* data, std::size_t count) const {
 	std::int32_t location = GetUniformLocation(name);
 	if (location != -1) {
-		GLCall(gl::Uniform1fv(location, static_cast<std::uint32_t>(count), data));
+		GLCall(gl::Uniform1fv(location, static_cast<std::int32_t>(count), data));
 	}
 }
 
@@ -319,7 +359,6 @@ namespace impl {
 Shader ShaderManager::Get(ScreenShader screen_shader) const {
 	switch (screen_shader) {
 		case ScreenShader::Default:		  return default_;
-		case ScreenShader::Opacity:		  return opacity_;
 		case ScreenShader::Blur:		  return blur_;
 		case ScreenShader::GaussianBlur:  return gaussian_blur_;
 		case ScreenShader::EdgeDetection: return edge_detection_;

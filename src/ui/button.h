@@ -1,9 +1,13 @@
 #pragma once
 
+#include <cstdint>
 #include <functional>
+#include <string>
+#include <string_view>
 #include <type_traits>
 #include <unordered_map>
 
+#include "core/manager.h"
 #include "event/event.h"
 #include "event/events.h"
 #include "math/geometry/polygon.h"
@@ -13,6 +17,7 @@
 #include "renderer/text.h"
 #include "renderer/texture.h"
 #include "utility/handle.h"
+#include "utility/log.h"
 #include "utility/type_traits.h"
 
 namespace ptgn {
@@ -151,7 +156,7 @@ public:
 	ButtonCallback on_disable_;
 	ButtonCallback on_toggle_;
 
-	std::size_t render_layer_{ 0 };
+	std::int32_t render_layer_{ 0 };
 
 	// -1 for solid button.
 	float line_thickness_{ -1.0f };
@@ -230,7 +235,6 @@ class Button : public Handle<impl::ButtonInstance> {
 public:
 	Button();
 	explicit Button(const Rect& rect);
-	~Button() override = default;
 
 	void Draw() const;
 
@@ -278,7 +282,8 @@ public:
 			resource = ButtonCallback(value);
 		} else {
 			static_assert(
-				std::is_same_v<S, T> || std::is_convertible_v<S, T> || std::is_constructible_v<S, T>,
+				std::is_same_v<S, T> || std::is_convertible_v<S, T> ||
+					std::is_constructible_v<S, T>,
 				"Cannot set button value to type which does not match type of property"
 			);
 			resource = value;
@@ -295,7 +300,12 @@ private:
 
 class ToggleButtonGroup : public MapManager<Button, std::string_view, std::string, false> {
 public:
-	using MapManager::MapManager;
+	ToggleButtonGroup()										   = default;
+	virtual ~ToggleButtonGroup()							   = default;
+	ToggleButtonGroup(ToggleButtonGroup&&) noexcept			   = default;
+	ToggleButtonGroup& operator=(ToggleButtonGroup&&) noexcept = default;
+	ToggleButtonGroup(const ToggleButtonGroup&)				   = delete;
+	ToggleButtonGroup& operator=(const ToggleButtonGroup&)	   = delete;
 
 	template <typename TKey, typename... TArgs, tt::constructible<Button, TArgs...> = true>
 	Button& Load(const TKey& key, TArgs&&... constructor_args) {

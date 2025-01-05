@@ -1,10 +1,10 @@
 #pragma once
 
-#include <functional>
 #include <memory>
-#include <vector>
+#include <string>
 
-#include "scene/scene_manager.h"
+#include "math/vector2.h"
+#include "renderer/color.h"
 #include "utility/stats.h"
 
 namespace ptgn {
@@ -60,41 +60,28 @@ private:
 public:
 	// @return Previous frame time in milliseconds
 	[[nodiscard]] float dt() const;
-	// @return Milliseconds since the game was started.
-	// Note: Technically this is the time since the SDL2 library was initialized, which is done when
-	// starting the game.
+
+	// @return Milliseconds since Init() was called.
 	[[nodiscard]] float time() const;
 
-public:
-	using UpdateFunction = std::function<void()>;
+	// Entry point for the game / application.
+	// Note: Window will not appear until an active scene has been loaded into the scene manager:
+	// game.scene.LoadActive<MyScene>("scene_name");
+	// @param title The title of the window. Can be changed later using
+	// game.window.SetTitle("title");
+	// @param resolution Starting resolution of the window. Can be changed later using
+	// game.window.SetSize({ 1920, 1080 });
+	// @param background_color Starting background color of the window. Can be changed later using
+	// game.renderer.SetClearColor(color::Black);
+	void Init(
+		const std::string& title = "Default Title", const V2_int& resolution = { 800, 800 },
+		const Color& background_color = color::White
+	);
 
-	void PushBackLoopFunction(const UpdateFunction& loop_function);
-	void PushFrontLoopFunction(const UpdateFunction& loop_function);
-	void PopBackLoopFunction();
-	void PopFrontLoopFunction();
-
-	[[nodiscard]] std::size_t LoopFunctionCount() const {
-		return update_stack_.size();
-	}
-
-	void Init();
-
-	// Optional: pass in constructor arguments for the start scene.
-	template <typename TStartScene, typename... TArgs>
-	void Start(TArgs&&... constructor_args) {
-		Init();
-
-		scene.Init<TStartScene>(start_scene_key, std::forward<TArgs>(constructor_args)...);
-
-		MainLoop();
-
-		Stop();
-	}
-
-	// TODO: Make this flag game for shutdown on next loop (exit) instead of immediately shutting
-	// down.
+	// Stops the game from running.
 	void Stop();
 
+	// @return True if the game is running, false if it has been stopped.
 	[[nodiscard]] bool IsRunning() const;
 
 private:
@@ -104,6 +91,7 @@ private:
 	friend struct SDL_SurfaceDeleter;
 	friend struct TTF_FontDeleter;
 	friend class GLContext;
+	friend class SceneManager;
 #ifdef __EMSCRIPTEN__
 	friend void EmscriptenLoop();
 #endif
@@ -118,7 +106,7 @@ private:
 
 	std::unique_ptr<EventHandler> event_;
 	std::unique_ptr<InputHandler> input_;
-	std::unique_ptr<Renderer> draw_;
+	std::unique_ptr<Renderer> renderer_;
 	std::unique_ptr<SceneManager> scene_;
 	std::unique_ptr<SceneCamera> camera_;
 	std::unique_ptr<Physics> physics_;
@@ -136,18 +124,19 @@ private:
 
 	std::unique_ptr<Profiler> profiler_;
 
-	std::vector<UpdateFunction> update_stack_;
-
 	bool running_{ false };
 	float dt_{ 0.0f };
 
 public:
+	// Note: It is important that these are defined below the private unique ptrs so their
+	// constructor are called later.
+
 	// Core Subsystems
 
 	Window& window;
 	EventHandler& event;
 	InputHandler& input;
-	Renderer& draw;
+	Renderer& renderer;
 	SceneManager& scene;
 	SceneCamera& camera;
 	Physics& physics;
