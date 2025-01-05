@@ -64,24 +64,24 @@ float Batch::GetAvailableTextureIndex(const Texture& texture) {
 RenderData::RenderData() : batch_capacity_{ game.renderer.batch_capacity_ } {
 	PTGN_ASSERT(batch_capacity_ >= 1);
 	quad_vao_	  = VertexArray{ PrimitiveMode::Triangles,
-							 VertexBuffer{ static_cast<std::array<QuadVertex, 4>*>(nullptr), batch_capacity_,
-										   BufferUsage::StreamDraw },
+							 VertexBuffer{ static_cast<std::array<QuadVertex, 4>*>(nullptr),
+										   batch_capacity_, BufferUsage::StreamDraw },
 							 quad_vertex_layout, game.renderer.quad_ib_ };
 	circle_vao_	  = VertexArray{ PrimitiveMode::Triangles,
-								 VertexBuffer{ static_cast<std::array<CircleVertex, 4>*>(nullptr), batch_capacity_,
-											   BufferUsage::StreamDraw },
+								 VertexBuffer{ static_cast<std::array<CircleVertex, 4>*>(nullptr),
+											   batch_capacity_, BufferUsage::StreamDraw },
 								 circle_vertex_layout, game.renderer.quad_ib_ };
 	triangle_vao_ = VertexArray{ PrimitiveMode::Triangles,
 								 VertexBuffer{ static_cast<std::array<ColorVertex, 3>*>(nullptr),
 											   batch_capacity_, BufferUsage::StreamDraw },
 								 color_vertex_layout, game.renderer.triangle_ib_ };
 	line_vao_	  = VertexArray{ PrimitiveMode::Lines,
-							 VertexBuffer{ static_cast<std::array<ColorVertex, 2>*>(nullptr), batch_capacity_,
-										   BufferUsage::StreamDraw },
+							 VertexBuffer{ static_cast<std::array<ColorVertex, 2>*>(nullptr),
+										   batch_capacity_, BufferUsage::StreamDraw },
 							 color_vertex_layout, game.renderer.line_ib_ };
 	point_vao_	  = VertexArray{ PrimitiveMode::Points,
-								 VertexBuffer{ static_cast<std::array<ColorVertex, 1>*>(nullptr), batch_capacity_,
-											   BufferUsage::StreamDraw },
+								 VertexBuffer{ static_cast<std::array<ColorVertex, 1>*>(nullptr),
+											   batch_capacity_, BufferUsage::StreamDraw },
 								 color_vertex_layout, game.renderer.point_ib_ };
 }
 
@@ -183,10 +183,7 @@ void RenderData::AddCircle(
 	const Circle& circle, const V4_float& color, float line_width, float fade,
 	std::int32_t render_layer
 ) {
-	Rect rect{ circle.center, V2_float{ circle.radius } * 2.0f, Origin::Center, 0.0f };
-	AddPrimitiveCircle(
-		rect.GetVertices(V2_float{ 0.5f, 0.5f }), render_layer, color, line_width, fade
-	);
+	AddEllipse({ circle.center, V2_float{ circle.radius } }, color, line_width, fade, render_layer);
 }
 
 void RenderData::AddLine(

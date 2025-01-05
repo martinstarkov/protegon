@@ -149,7 +149,7 @@ std::int32_t GLRenderer::GetMaxTextureSlots() {
 }
 
 void GLRenderer::ClearColor(const Color& color) {
-	auto c = color.Normalized();
+	auto c{ color.Normalized() };
 	GLCall(gl::glClearColor(c[0], c[1], c[2], c[3]));
 #ifdef PTGN_DEBUG
 	++game.stats.clear_colors;
