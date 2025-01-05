@@ -145,6 +145,9 @@ public:
 	// active scene.
 	[[nodiscard]] Scene& GetCurrent();
 
+	// @return Whether or not the scene manager is currently updating a scene.
+	[[nodiscard]] bool HasCurrent() const;
+
 private:
 	friend class ptgn::SceneTransition;
 	friend class impl::SceneCamera;

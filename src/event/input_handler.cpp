@@ -182,15 +182,24 @@ V2_float InputHandler::GetMouseDifferenceWindow() const {
 }
 
 V2_float InputHandler::GetMouseDifference() const {
-	return game.scene.GetCurrent().GetRenderTarget().GetMouseDifference();
+	if (game.scene.HasCurrent()) {
+		return game.scene.GetCurrent().GetRenderTarget().GetMouseDifference();
+	}
+	return GetMouseDifferenceWindow();
 }
 
 V2_float InputHandler::GetMousePosition() const {
-	return game.scene.GetCurrent().GetRenderTarget().GetMousePosition();
+	if (game.scene.HasCurrent()) {
+		return game.scene.GetCurrent().GetRenderTarget().GetMousePosition();
+	}
+	return GetMousePositionWindow();
 }
 
 V2_float InputHandler::GetMousePositionPrevious() const {
-	return game.scene.GetCurrent().GetRenderTarget().GetMousePositionPrevious();
+	if (game.scene.HasCurrent()) {
+		return game.scene.GetCurrent().GetRenderTarget().GetMousePositionPrevious();
+	}
+	return GetMousePositionPreviousWindow();
 }
 
 int InputHandler::GetMouseScroll() const {

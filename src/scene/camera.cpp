@@ -19,6 +19,7 @@
 #include "renderer/flip.h"
 #include "renderer/origin.h"
 #include "renderer/render_target.h"
+#include "renderer/renderer.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 #include "utility/debug.h"
@@ -463,27 +464,48 @@ CameraManager::Item& SceneCamera::LoadImpl(const InternalKey& key, Item&& item) 
 	if (!item.IsValid()) {
 		item.SetSizeToWindow();
 	}
-	return game.scene.GetCurrent().GetRenderTarget().GetCamera().Load(key, std::move(item));
+	if (game.scene.HasCurrent()) {
+		return game.scene.GetCurrent().GetRenderTarget().GetCamera().Load(key, std::move(item));
+	}
+	return game.renderer.screen_target_.GetCamera().Load(key, std::move(item));
 }
 
 void SceneCamera::UnloadImpl(const InternalKey& key) {
-	game.scene.GetCurrent().GetRenderTarget().GetCamera().Unload(key);
+	if (game.scene.HasCurrent()) {
+		game.scene.GetCurrent().GetRenderTarget().GetCamera().Unload(key);
+	} else {
+		game.renderer.screen_target_.GetCamera().Unload(key);
+	}
 }
 
 bool SceneCamera::HasImpl(const InternalKey& key) {
-	return game.scene.GetCurrent().GetRenderTarget().GetCamera().Has(key);
+	if (game.scene.HasCurrent()) {
+		return game.scene.GetCurrent().GetRenderTarget().GetCamera().Has(key);
+	}
+	return game.renderer.screen_target_.GetCamera().Has(key);
 }
 
 CameraManager::Item& SceneCamera::GetImpl(const InternalKey& key) {
-	return game.scene.GetCurrent().GetRenderTarget().GetCamera().Get(key);
+	if (game.scene.HasCurrent()) {
+		return game.scene.GetCurrent().GetRenderTarget().GetCamera().Get(key);
+	}
+	return game.renderer.screen_target_.GetCamera().Get(key);
 }
 
 void SceneCamera::Clear() {
-	game.scene.GetCurrent().GetRenderTarget().GetCamera().Clear();
+	if (game.scene.HasCurrent()) {
+		game.scene.GetCurrent().GetRenderTarget().GetCamera().Clear();
+	} else {
+		game.renderer.screen_target_.GetCamera().Clear();
+	}
 }
 
 void SceneCamera::SetPrimaryImpl(const InternalKey& key) {
-	game.scene.GetCurrent().GetRenderTarget().GetCamera().SetPrimary(key);
+	if (game.scene.HasCurrent()) {
+		game.scene.GetCurrent().GetRenderTarget().GetCamera().SetPrimary(key);
+	} else {
+		game.renderer.screen_target_.GetCamera().SetPrimary(key);
+	}
 }
 
 void SceneCamera::Init() {
@@ -495,19 +517,34 @@ const OrthographicCamera& SceneCamera::GetWindow() const {
 }
 
 void SceneCamera::SetPrimary(const OrthographicCamera& camera) {
-	game.scene.GetCurrent().GetRenderTarget().GetCamera().SetPrimary(camera);
+	if (game.scene.HasCurrent()) {
+		game.scene.GetCurrent().GetRenderTarget().GetCamera().SetPrimary(camera);
+	} else {
+		game.renderer.screen_target_.GetCamera().SetPrimary(camera);
+	}
 }
 
 OrthographicCamera SceneCamera::GetPrimary() {
-	return game.scene.GetCurrent().GetRenderTarget().GetCamera().GetPrimary();
+	if (game.scene.HasCurrent()) {
+		return game.scene.GetCurrent().GetRenderTarget().GetCamera().GetPrimary();
+	}
+	return game.renderer.screen_target_.GetCamera().GetPrimary();
 }
 
 void SceneCamera::Reset() {
-	game.scene.GetCurrent().GetRenderTarget().GetCamera().Reset();
+	if (game.scene.HasCurrent()) {
+		game.scene.GetCurrent().GetRenderTarget().GetCamera().Reset();
+	} else {
+		game.renderer.screen_target_.GetCamera().Reset();
+	}
 }
 
 void SceneCamera::ResetPrimary() {
-	game.scene.GetCurrent().GetRenderTarget().GetCamera().ResetPrimary();
+	if (game.scene.HasCurrent()) {
+		game.scene.GetCurrent().GetRenderTarget().GetCamera().ResetPrimary();
+	} else {
+		game.renderer.screen_target_.GetCamera().ResetPrimary();
+	}
 }
 
 } // namespace impl

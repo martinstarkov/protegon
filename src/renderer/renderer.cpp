@@ -37,7 +37,8 @@ void Renderer::Init(const Color& background_color) {
 
 	constexpr std::array<std::uint32_t, 6> quad_index_pattern{ 0, 1, 2, 2, 3, 0 };
 
-	auto quad_generator = [&quad_index_pattern, offset = static_cast<std::uint32_t>(0), pattern_index = static_cast<std::size_t>(0)]() mutable {
+	auto quad_generator = [&quad_index_pattern, offset = static_cast<std::uint32_t>(0),
+						   pattern_index = static_cast<std::size_t>(0)]() mutable {
 		auto index = offset + quad_index_pattern[pattern_index];
 		pattern_index++;
 		if (pattern_index % quad_index_pattern.size() == 0) {
@@ -104,19 +105,33 @@ void Renderer::Shutdown() {
 }
 
 BlendMode Renderer::GetBlendMode() const {
-	return game.scene.GetCurrent().GetRenderTarget().GetBlendMode();
+	if (game.scene.HasCurrent()) {
+		return game.scene.GetCurrent().GetRenderTarget().GetBlendMode();
+	}
+	return screen_target_.GetBlendMode();
 }
 
 void Renderer::SetBlendMode(BlendMode blend_mode) {
-	game.scene.GetCurrent().GetRenderTarget().SetBlendMode(blend_mode);
+	if (game.scene.HasCurrent()) {
+		game.scene.GetCurrent().GetRenderTarget().SetBlendMode(blend_mode);
+	} else {
+		screen_target_.SetBlendMode(blend_mode);
+	}
 }
 
 Color Renderer::GetClearColor() const {
-	return game.scene.GetCurrent().GetRenderTarget().GetClearColor();
+	if (game.scene.HasCurrent()) {
+		return game.scene.GetCurrent().GetRenderTarget().GetClearColor();
+	}
+	return screen_target_.GetClearColor();
 }
 
 void Renderer::SetClearColor(const Color& clear_color) {
-	game.scene.GetCurrent().GetRenderTarget().SetClearColor(clear_color);
+	if (game.scene.HasCurrent()) {
+		game.scene.GetCurrent().GetRenderTarget().SetClearColor(clear_color);
+	} else {
+		screen_target_.SetClearColor(clear_color);
+	}
 }
 
 void Renderer::ClearScreen() const {
@@ -129,11 +144,19 @@ void Renderer::ClearScreen() const {
 }
 
 void Renderer::Clear() const {
-	game.scene.GetCurrent().GetRenderTarget().Clear();
+	if (game.scene.HasCurrent()) {
+		game.scene.GetCurrent().GetRenderTarget().Clear();
+	} else {
+		screen_target_.Clear();
+	}
 }
 
 void Renderer::Flush() {
-	game.scene.GetCurrent().GetRenderTarget().Flush();
+	if (game.scene.HasCurrent()) {
+		game.scene.GetCurrent().GetRenderTarget().Flush();
+	} else {
+		screen_target_.Flush();
+	}
 }
 
 void Renderer::Present() {

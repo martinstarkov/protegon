@@ -166,8 +166,12 @@ void SceneManager::Update() {
 }
 
 Scene& SceneManager::GetCurrent() {
-	PTGN_ASSERT(current_scene_ != nullptr, "No currently active scene has been set");
+	PTGN_ASSERT(HasCurrent(), "No currently active scene has been set");
 	return *current_scene_;
+}
+
+bool SceneManager::HasCurrent() const {
+	return current_scene_ != nullptr;
 }
 
 void SceneManager::UpdateFlagged() {

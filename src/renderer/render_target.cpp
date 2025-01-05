@@ -12,6 +12,7 @@
 #include "renderer/gl_renderer.h"
 #include "renderer/layer_info.h"
 #include "renderer/render_data.h"
+#include "renderer/renderer.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
 #include "scene/scene_manager.h"
@@ -178,9 +179,16 @@ RenderTarget RenderTarget::GetCorrectRenderLayer(const RenderTarget& render_targ
 	if (render_target.IsValid()) {
 		return render_target;
 	}
-	RenderTarget scene_target{ game.scene.GetCurrent().GetRenderTarget() };
-	PTGN_ASSERT(scene_target.IsValid(), "Scene render target is invalid or uninitialized");
-	return scene_target;
+	if (game.scene.HasCurrent()) {
+		RenderTarget scene_target{ game.scene.GetCurrent().GetRenderTarget() };
+		PTGN_ASSERT(scene_target.IsValid(), "Scene render target is invalid or uninitialized");
+		return scene_target;
+	}
+	PTGN_ASSERT(
+		game.renderer.screen_target_.IsValid(),
+		"Renderer must be initialized before drawing render targets"
+	);
+	return game.renderer.screen_target_;
 }
 
 void RenderTarget::DrawToTarget(

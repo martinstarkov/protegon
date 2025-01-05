@@ -20,6 +20,7 @@ namespace impl {
 
 class Game;
 class SceneManager;
+class SceneCamera;
 struct Batch;
 class RenderData;
 
@@ -57,6 +58,7 @@ private:
 	friend struct LayerInfo;
 	friend class GLRenderer;
 	friend class ptgn::RenderTarget;
+	friend class SceneCamera;
 
 	void ClearScreen() const;
 	void Init(const Color& background_color);
