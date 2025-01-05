@@ -56,15 +56,13 @@ struct MouseMoveEvent : public Event, public impl::MouseEventBase {
 	MouseMoveEvent() = default;
 };
 
-class MouseDownEvent : public Event, public impl::MouseEventBase {
-public:
+struct MouseDownEvent : public Event, public impl::MouseEventBase {
 	explicit MouseDownEvent(Mouse mouse) : mouse{ mouse } {}
 
 	Mouse mouse;
 };
 
-class MouseUpEvent : public Event, public impl::MouseEventBase {
-public:
+struct MouseUpEvent : public Event, public impl::MouseEventBase {
 	explicit MouseUpEvent(Mouse mouse) : mouse{ mouse } {}
 
 	Mouse mouse;
@@ -87,40 +85,27 @@ enum class WindowEvent {
 	Maximized
 };
 
-class WindowQuitEvent : public Event {
-public:
-	WindowQuitEvent() = default;
-};
+struct WindowQuitEvent : public Event {};
 
-class WindowDragEvent : public Event {
-public:
-	WindowDragEvent() = default;
-};
+struct WindowDragEvent : public Event {};
 
-class WindowMovedEvent : public Event {
-public:
-	WindowMovedEvent() = default;
-};
+struct WindowMovedEvent : public Event {};
 
-class WindowResizedEvent : public Event {
-public:
+struct WindowResizedEvent : public Event {
 	explicit WindowResizedEvent(const V2_int& size) : size{ size } {}
 
 	V2_int size;
 };
 
-class WindowResizingEvent : public WindowResizedEvent {
-public:
+struct WindowResizingEvent : public WindowResizedEvent {
 	using WindowResizedEvent::WindowResizedEvent;
 };
 
-class WindowMaximizedEvent : public WindowResizedEvent {
-public:
+struct WindowMaximizedEvent : public WindowResizedEvent {
 	using WindowResizedEvent::WindowResizedEvent;
 };
 
-class WindowMinimizedEvent : public WindowResizedEvent {
-public:
+struct WindowMinimizedEvent : public WindowResizedEvent {
 	using WindowResizedEvent::WindowResizedEvent;
 };
 
