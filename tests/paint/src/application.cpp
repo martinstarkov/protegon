@@ -2,30 +2,15 @@
 
 using namespace ptgn;
 
-constexpr V2_int tile_size{ 20, 20 };
-
-class MouseScene : public Scene {
-public:
-	void Init() override {}
-
-	void Update() override {
-		V2_int mouse_pos  = game.input.GetMousePosition();
-		V2_int mouse_tile = mouse_pos / tile_size;
-		Rect mouse_box{ mouse_tile * tile_size, tile_size, Origin::TopLeft };
-		Text{ ToString(mouse_tile), color::Red }.Draw(Rect{ mouse_box.Center(), {}, Origin::Center }
-		);
-	}
-};
-
 class Paint : public Scene {
 public:
 	Grid<int> outer_grid{ { 36, 36 } };
 	Grid<int> inner_grid{ { 36, 36 } };
 	Grid<int> grid{ { 36, 36 } };
+	V2_int tile_size{ 20, 20 };
 
 	void Init() override {
 		outer_grid.Fill(0);
-		game.scene.LoadActive<MouseScene>("mouse");
 	}
 
 	bool toggle = true;
@@ -77,6 +62,8 @@ public:
 		if (grid.Has(mouse_tile)) {
 			mouse_box.Draw(color::Yellow);
 		}
+		Text{ ToString(mouse_tile), color::Red }.Draw(Rect{ mouse_box.Center(), {}, Origin::Center }
+		);
 	}
 };
 
