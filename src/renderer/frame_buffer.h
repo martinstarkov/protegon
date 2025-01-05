@@ -28,12 +28,7 @@ struct RenderBufferInstance {
 
 class RenderBuffer : public Handle<impl::RenderBufferInstance> {
 public:
-	RenderBuffer()								 = default;
-	RenderBuffer(const RenderBuffer&)			 = default;
-	RenderBuffer& operator=(const RenderBuffer&) = default;
-	RenderBuffer(RenderBuffer&&)				 = default;
-	RenderBuffer& operator=(RenderBuffer&&)		 = default;
-	~RenderBuffer() override					 = default;
+	RenderBuffer() = default;
 
 	// @param size Desired size of the render buffer.
 	explicit RenderBuffer(const V2_int& size);

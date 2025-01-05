@@ -57,7 +57,7 @@ public:
 	Window& operator=(Window&&) noexcept = default;
 	Window(const Window&)				 = delete;
 	Window& operator=(const Window&)	 = delete;
-	~Window() override					 = default;
+	~Window()							 = default;
 
 	void SetMinimumSize(const V2_int& minimum_size) const;
 	[[nodiscard]] V2_int GetMinimumSize() const;

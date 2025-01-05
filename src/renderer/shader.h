@@ -56,7 +56,9 @@ struct ShaderInstance {
 // Wrapper for distinguishing between Shader from path construction and Shader
 // from source construction.
 struct ShaderSource {
-	// Explicit prevents conflict with Shader path construction.
+	ShaderSource() = default;
+
+	// Explicit construction prevents conflict with Shader path construction.
 	explicit ShaderSource(const std::string& source) : source_{ source } {}
 
 	~ShaderSource() = default;

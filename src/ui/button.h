@@ -235,7 +235,6 @@ class Button : public Handle<impl::ButtonInstance> {
 public:
 	Button();
 	explicit Button(const Rect& rect);
-	~Button() override = default;
 
 	void Draw() const;
 
