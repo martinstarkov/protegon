@@ -54,7 +54,7 @@ void SceneManager::ClearActive() {
 		Get(*it)->Add(Scene::Action::Shutdown);
 		it = active_scenes_.erase(it);
 	}
-	PTGN_ASSERT(active_scenes_.empty());
+	PTGN_ASSERT(active_scenes_.empty(), "Failed to clear active scenes");
 }
 
 void SceneManager::UnloadAllScenes() {
@@ -115,7 +115,10 @@ void SceneManager::SwitchActiveScenesImpl(const InternalKey& scene1, const Inter
 std::vector<std::shared_ptr<Scene>> SceneManager::GetActiveScenes() {
 	std::vector<std::shared_ptr<Scene>> active{};
 	for (auto scene_key : active_scenes_) {
-		PTGN_ASSERT(Has(scene_key));
+		PTGN_ASSERT(
+			Has(scene_key),
+			"Attempting to retrieve active scene which is not loaded in the scene manager"
+		);
 		active.emplace_back(Get(scene_key));
 	}
 
@@ -124,9 +127,12 @@ std::vector<std::shared_ptr<Scene>> SceneManager::GetActiveScenes() {
 
 Scene& SceneManager::GetTopActive() {
 	PTGN_ASSERT(!active_scenes_.empty(), "Cannot get top active scene, there are no active scenes");
-	auto scene_key = active_scenes_.back();
-	PTGN_ASSERT(Has(scene_key));
-	auto scene = Get(scene_key);
+	auto scene_key{ active_scenes_.back() };
+	PTGN_ASSERT(
+		Has(scene_key),
+		"Cannot retrieve top active scene which has not been loaded into the scene manager"
+	);
+	auto scene{ Get(scene_key) };
 	return *scene;
 }
 
@@ -143,7 +149,10 @@ void SceneManager::Shutdown() {
 
 void SceneManager::Update() {
 	for (auto scene_key : active_scenes_) {
-		PTGN_ASSERT(Has(scene_key));
+		PTGN_ASSERT(
+			Has(scene_key),
+			"Attempting to update an active scene which has not been loaded into the scene manager"
+		);
 		auto scene{ Get(scene_key) };
 		if (scene->actions_.empty()) {
 			current_scene_ = scene;
@@ -154,7 +163,10 @@ void SceneManager::Update() {
 	current_scene_ = nullptr;
 	std::int32_t layer{ 0 };
 	for (auto scene_key : active_scenes_) {
-		PTGN_ASSERT(Has(scene_key));
+		PTGN_ASSERT(
+			Has(scene_key),
+			"Attempting to draw an active scene which has not been loaded into the scene manager"
+		);
 		auto scene{ Get(scene_key) };
 		scene->target_.Draw(
 			Rect::Fullscreen(), TextureInfo{ scene->tint_ },
@@ -198,7 +210,7 @@ void SceneManager::UpdateFlagged() {
 				case Scene::Action::Unload:
 					if (HasActiveSceneImpl(key)) {
 						RemoveActiveImpl(key);
-						PTGN_ASSERT(!HasActiveSceneImpl(key));
+						PTGN_ASSERT(!HasActiveSceneImpl(key), "Failed to remove active scene");
 						continue;
 					} else {
 						scene->Unload();
