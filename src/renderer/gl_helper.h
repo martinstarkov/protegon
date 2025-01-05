@@ -19,7 +19,7 @@ namespace impl {
 		++game.stats.gl_calls;                                        \
 		ptgn::impl::GLContext::ClearErrors();                         \
 		x;                                                            \
-		auto errors = ptgn::impl::GLContext::GetErrors();             \
+		auto errors{ ptgn::impl::GLContext::GetErrors() };            \
 		if (!errors.empty()) {                                        \
 			ptgn::impl::GLContext::PrintErrors(                       \
 				fn, std::filesystem::path(__FILE__), __LINE__, errors \

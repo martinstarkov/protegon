@@ -105,7 +105,9 @@ void VertexArray::SetBufferElement(
 	} else {
 		GLCall(gl::VertexAttribPointer(
 			i, element.count, static_cast<gl::GLenum>(element.type),
-			element.normalized ? GL_TRUE : GL_FALSE, stride, reinterpret_cast<const void*>(element.offset)
+			element.normalized ? static_cast<gl::GLboolean>(GL_TRUE)
+							   : static_cast<gl::GLboolean>(GL_FALSE),
+			stride, reinterpret_cast<const void*>(element.offset)
 		));
 	}
 }

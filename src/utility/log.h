@@ -17,8 +17,8 @@
 namespace ptgn::impl {
 
 template <typename... T>
-constexpr size_t NumberOfArgs(T... a) {
-	return sizeof...(a);
+constexpr size_t NumberOfArgs(T...) {
+	return sizeof...(T);
 }
 
 template <typename... T>
@@ -29,7 +29,7 @@ static bool BoolAnd(T... a) {
 } // namespace ptgn::impl
 
 #define PTGN_NUMBER_OF_ARGS(...) ptgn::impl::NumberOfArgs(__VA_ARGS__)
-#define PTGN_BOOL_AND(...) ptgn::impl::BoolAnd(__VA_ARGS__)
+#define PTGN_BOOL_AND(...)		 ptgn::impl::BoolAnd(__VA_ARGS__)
 
 namespace ptgn {
 
