@@ -2,7 +2,9 @@
 
 #include <vector>
 
+#include "components/generic.h"
 #include "ecs/ecs.h"
+#include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "utility/debug.h"
 #include "utility/type_traits.h"

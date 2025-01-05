@@ -1,10 +1,16 @@
 #include "ui/plot.h"
 
 #include <algorithm>
+#include <array>
 #include <utility>
 
+#include "collision/raycast.h"
 #include "ecs/ecs.h"
+#include "math/geometry/line.h"
+#include "math/geometry/polygon.h"
 #include "math/vector2.h"
+#include "renderer/color.h"
+#include "renderer/origin.h"
 #include "utility/debug.h"
 
 namespace ptgn {
@@ -65,9 +71,9 @@ void Plot::Init(const DataPoints& data, const V2_float& min, const V2_float& max
 
 	// Default plot properties:
 	AddProperty(BackgroundColor{ color::White });
-	AddProperty(DataPointColor{ color::Red });
-	AddProperty(DataPointRadius{ 1.0f });
-	AddProperty(LineColor{ color::Grey });
+	// AddProperty(DataPointColor{ color::Red });
+	// AddProperty(DataPointRadius{ 1.0f });
+	AddProperty(LineColor{ color::Gray });
 	AddProperty(LineWidth{ 1.0f });
 }
 
@@ -162,7 +168,7 @@ void Plot::DrawPoints(const Rect& dest) const {
 		V2_float end{ get_local_pixel(frac_next) };
 
 		Rect boundary{ {}, dest.size, Origin::TopLeft };
-		auto edges{ boundary.GetWalls() };
+		auto edges{ boundary.GetEdges() };
 
 		V2_float p1{ get_intersection_point(edges, start, end) };
 
