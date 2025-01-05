@@ -10,10 +10,6 @@ struct ColorComponent : public Color {
 	using Color::operator=;
 
 	ColorComponent(const Color& c) : Color{ c } {}
-
-	operator Color() const {
-		return Color{ r, g, b, a };
-	}
 };
 
 struct FloatComponent {

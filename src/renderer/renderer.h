@@ -11,6 +11,7 @@
 
 namespace ptgn {
 
+class GLRenderer;
 struct LayerInfo;
 class GLRenderer;
 class RenderTarget;
@@ -59,6 +60,7 @@ private:
 	friend class GLRenderer;
 	friend class ptgn::RenderTarget;
 	friend class SceneCamera;
+	friend class ptgn::GLRenderer;
 
 	void ClearScreen() const;
 	void Init(const Color& background_color);
