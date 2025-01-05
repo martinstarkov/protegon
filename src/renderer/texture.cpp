@@ -270,10 +270,10 @@ GLFormats GetGLFormats(TextureFormat format) {
 		case TextureFormat::BGR888: {
 			return { InternalGLFormat::RGB8, GL_BGR, 3 };
 		}
+		case TextureFormat::Unknown: [[fallthrough]];
 #endif
-		default: break;
+		default: PTGN_ERROR("Could not determine OpenGL formats for given TextureFormat");
 	}
-	PTGN_ERROR("Could not determine OpenGL formats for given TextureFormat");
 }
 
 } // namespace impl
@@ -385,8 +385,10 @@ void Texture::ForEachPixel(const std::function<void(V2_int, Color)>& func) const
 		for (int i{ 0 }; i < size.x; i++) {
 			int idx{ row + i * formats.components_ };
 			PTGN_ASSERT(static_cast<std::size_t>(idx) < v.size());
-			Color color{ v[static_cast<std::size_t>(idx)], v[static_cast<std::size_t>(idx + 1)], v[static_cast<std::size_t>(idx + 2)],
-						 formats.components_ == 4 ? v[static_cast<std::size_t>(idx + 3)] : static_cast<std::uint8_t>(255) };
+			Color color{ v[static_cast<std::size_t>(idx)], v[static_cast<std::size_t>(idx + 1)],
+						 v[static_cast<std::size_t>(idx + 2)],
+						 formats.components_ == 4 ? v[static_cast<std::size_t>(idx + 3)]
+												  : static_cast<std::uint8_t>(255) };
 			std::invoke(func, V2_int{ i, j }, color);
 		}
 	}
@@ -483,10 +485,13 @@ void Texture::SetSubData(
 ) {
 	PTGN_ASSERT(IsValid(), "Cannot set sub data of invalid or uninitialized texture");
 	PTGN_ASSERT(
-		pixels.size() == static_cast<std::size_t>(GetSize().x * GetSize().y), "Provided pixel array must match texture size"
+		pixels.size() == static_cast<std::size_t>(GetSize().x * GetSize().y),
+		"Provided pixel array must match texture size"
 	);
 
-	SetSubData(static_cast<const void*>(pixels.data()), TextureFormat::RGBA8888, offset, size, mipmap_level);
+	SetSubData(
+		static_cast<const void*>(pixels.data()), TextureFormat::RGBA8888, offset, size, mipmap_level
+	);
 }
 
 V2_int Texture::GetSize() const {

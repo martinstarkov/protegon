@@ -36,40 +36,40 @@ void SDL_SurfaceDeleter::operator()(SDL_Surface* surface) const {
 
 TextureFormat GetFormatFromSDL(std::uint32_t sdl_format) {
 	switch (sdl_format) {
-		case SDL_PIXELFORMAT_RGBA32:
+		case SDL_PIXELFORMAT_RGBA32:	  [[fallthrough]];
 		case SDL_PIXELFORMAT_RGBA8888:	  return TextureFormat::RGBA8888;
-		case SDL_PIXELFORMAT_RGB24:
+		case SDL_PIXELFORMAT_RGB24:		  [[fallthrough]];
 		case SDL_PIXELFORMAT_RGB888:	  return TextureFormat::RGB888;
-		case SDL_PIXELFORMAT_BGRA32:
+		case SDL_PIXELFORMAT_BGRA32:	  [[fallthrough]];
 		case SDL_PIXELFORMAT_BGRA8888:	  return TextureFormat::BGRA8888;
-		case SDL_PIXELFORMAT_BGR24:
+		case SDL_PIXELFORMAT_BGR24:		  [[fallthrough]];
 		case SDL_PIXELFORMAT_BGR888:	  return TextureFormat::BGR888;
-		case SDL_PIXELFORMAT_INDEX8:
+		case SDL_PIXELFORMAT_INDEX8:	  [[fallthrough]];
 		case SDL_PIXELFORMAT_UNKNOWN:	  return TextureFormat::Unknown;
-		case SDL_PIXELFORMAT_INDEX1LSB:	  PTGN_ERROR("Unsupported sdl format");
-		case SDL_PIXELFORMAT_INDEX1MSB:	  PTGN_ERROR("Unsupported sdl format");
-		case SDL_PIXELFORMAT_INDEX2LSB:	  PTGN_ERROR("Unsupported sdl format");
-		case SDL_PIXELFORMAT_INDEX2MSB:	  PTGN_ERROR("Unsupported sdl format");
-		case SDL_PIXELFORMAT_INDEX4LSB:	  PTGN_ERROR("Unsupported sdl format");
-		case SDL_PIXELFORMAT_INDEX4MSB:	  PTGN_ERROR("Unsupported sdl format");
-		case SDL_PIXELFORMAT_RGB332:	  PTGN_ERROR("Unsupported sdl format");
-		case SDL_PIXELFORMAT_RGB444:	  PTGN_ERROR("Unsupported sdl format");
-		case SDL_PIXELFORMAT_BGR444:	  PTGN_ERROR("Unsupported sdl format");
-		case SDL_PIXELFORMAT_RGB555:	  PTGN_ERROR("Unsupported sdl format");
-		case SDL_PIXELFORMAT_BGR555:	  PTGN_ERROR("Unsupported sdl format");
-		case SDL_PIXELFORMAT_ARGB4444:	  PTGN_ERROR("Unsupported sdl format");
-		case SDL_PIXELFORMAT_RGBA4444:	  PTGN_ERROR("Unsupported sdl format");
-		case SDL_PIXELFORMAT_ABGR4444:	  PTGN_ERROR("Unsupported sdl format");
-		case SDL_PIXELFORMAT_BGRA4444:	  PTGN_ERROR("Unsupported sdl format");
-		case SDL_PIXELFORMAT_ARGB1555:	  PTGN_ERROR("Unsupported sdl format");
-		case SDL_PIXELFORMAT_RGBA5551:	  PTGN_ERROR("Unsupported sdl format");
-		case SDL_PIXELFORMAT_ABGR1555:	  PTGN_ERROR("Unsupported sdl format");
-		case SDL_PIXELFORMAT_BGRA5551:	  PTGN_ERROR("Unsupported sdl format");
-		case SDL_PIXELFORMAT_RGB565:	  PTGN_ERROR("Unsupported sdl format");
-		case SDL_PIXELFORMAT_BGR565:	  PTGN_ERROR("Unsupported sdl format");
-		case SDL_PIXELFORMAT_RGBX8888:	  PTGN_ERROR("Unsupported sdl format");
-		case SDL_PIXELFORMAT_BGRX8888:	  PTGN_ERROR("Unsupported sdl format");
-		case SDL_PIXELFORMAT_ARGB2101010: PTGN_ERROR("Unsupported sdl format");
+		case SDL_PIXELFORMAT_INDEX1LSB:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_INDEX1MSB:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_INDEX2LSB:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_INDEX2MSB:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_INDEX4LSB:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_INDEX4MSB:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_RGB332:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_RGB444:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_BGR444:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_RGB555:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_BGR555:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_ARGB4444:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_RGBA4444:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_ABGR4444:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_BGRA4444:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_ARGB1555:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_RGBA5551:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_ABGR1555:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_BGRA5551:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_RGB565:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_BGR565:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_RGBX8888:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_BGRX8888:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_ARGB2101010: PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
 		default:						  PTGN_ERROR("Unrecognized sdl format");
 	}
 }
@@ -126,17 +126,21 @@ Surface::Surface(std::shared_ptr<SDL_Surface> surface) {
 			switch (surface->format->BytesPerPixel) {
 				case 4: {
 					if (r_mask) {
-						s.data_[static_cast<std::size_t>(index)] = { pixel[1], pixel[2], pixel[3], pixel[0] };
+						s.data_[static_cast<std::size_t>(index)] = { pixel[1], pixel[2], pixel[3],
+																	 pixel[0] };
 					} else {
-						s.data_[static_cast<std::size_t>(index)] = { pixel[3], pixel[2], pixel[1], pixel[0] };
+						s.data_[static_cast<std::size_t>(index)] = { pixel[3], pixel[2], pixel[1],
+																	 pixel[0] };
 					}
 					break;
 				}
 				case 3: {
 					if (r_mask) {
-						s.data_[static_cast<std::size_t>(index)] = { pixel[0], pixel[1], pixel[2], 255 };
+						s.data_[static_cast<std::size_t>(index)] = { pixel[0], pixel[1], pixel[2],
+																	 255 };
 					} else {
-						s.data_[static_cast<std::size_t>(index)] = { pixel[2], pixel[1], pixel[0], 255 };
+						s.data_[static_cast<std::size_t>(index)] = { pixel[2], pixel[1], pixel[0],
+																	 255 };
 					}
 					break;
 				}

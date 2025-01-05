@@ -53,8 +53,6 @@ SceneTransition& SceneTransition::SetFadeThroughColor(const Color& color) {
 void SceneTransition::Start(
 	bool transition_in, std::size_t key, std::size_t other_key, const std::shared_ptr<Scene>& scene
 ) const {
-	PTGN_ASSERT(type_ != TransitionType::None);
-
 	Tween tween{ duration_ };
 	auto target{ scene->target_ };
 	OrthographicCamera camera;
@@ -180,6 +178,7 @@ void SceneTransition::Start(
 		case TransitionType::CoverUp:		   cover({ 0, -1 }); break;
 		case TransitionType::CoverLeft:		   cover({ -1, 0 }); break;
 		case TransitionType::CoverRight:	   cover({ 1, 0 }); break;
+		case TransitionType::None:			   [[fallthrough]];
 		default:							   PTGN_ERROR("Invalid transition type");
 	}
 	tween.OnStart([=]([[maybe_unused]] float f) {

@@ -189,6 +189,8 @@ void ButtonInstance::OnMouseEvent(MouseEvent type, const Event& event) {
 			}
 			break;
 		}
+		case MouseEvent::Scroll:
+			[[fallthrough]]; // TODO: Consider adding button where scrolling does something.
 		default: break;
 	}
 }

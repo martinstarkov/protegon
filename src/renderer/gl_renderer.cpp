@@ -60,6 +60,9 @@ void GLRenderer::SetBlendMode(BlendMode mode /* = BlendMode::Blend*/) {
 			GLCall(gl::BlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD));
 			GLCall(gl::BlendFuncSeparate(GL_ONE, GL_ONE, GL_ZERO, GL_ONE));
 			break;
+		case BlendMode::None:
+			PTGN_ERROR("BlendMode::None should be dealt with before enabling blending");
+			[[fallthrough]];
 		default: PTGN_ERROR("Failed to identify blend mode");
 	}
 }
