@@ -253,6 +253,7 @@ struct Vector2 {
 
 using V2_int	= Vector2<int>;
 using V2_uint	= Vector2<unsigned int>;
+using V2_size	= Vector2<std::size_t>;
 using V2_float	= Vector2<float>;
 using V2_double = Vector2<double>;
 
