@@ -204,35 +204,35 @@ void Plot::DrawLegend(const Rect& dest) {
 			);
 			if (legend.toggleable_data) {
 				button.Enable();
-				button.Set<ButtonProperty::Visibility>(true);
-				button.Set<ButtonProperty::LayerInfo>(LayerInfo{ legend_layer + 1, canvas });
-				if (!button.Get<ButtonProperty::Toggleable>()) {
-					button.Set<ButtonProperty::Toggleable>(true);
+				button.template Set<ButtonProperty::Visibility>(true);
+				button.template Set<ButtonProperty::LayerInfo>(LayerInfo{ legend_layer + 1, canvas });
+				if (!button.template Get<ButtonProperty::Toggleable>()) {
+					button.template Set<ButtonProperty::Toggleable>(true);
 				}
 				if (legend.button_texture_default.IsValid() &&
-					!button.Get<ButtonProperty::Texture>(ButtonState::Default).IsValid()) {
-					button.Set<ButtonProperty::Texture>(
+					!button.template Get<ButtonProperty::Texture>(ButtonState::Default).IsValid()) {
+					button.template Set<ButtonProperty::Texture>(
 						legend.button_texture_default, ButtonState::Default
 					);
 				}
 				if (legend.button_texture_hover.IsValid() &&
-					!button.Get<ButtonProperty::Texture>(ButtonState::Hover).IsValid()) {
-					button.Set<ButtonProperty::Texture>(
+					!button.template Get<ButtonProperty::Texture>(ButtonState::Hover).IsValid()) {
+					button.template Set<ButtonProperty::Texture>(
 						legend.button_texture_hover, ButtonState::Hover
 					);
-					button.Set<ButtonProperty::Texture>(
+					button.template Set<ButtonProperty::Texture>(
 						legend.button_texture_hover, ButtonState::Hover, true
 					);
 				}
 				if (legend.button_texture_toggled.IsValid() &&
-					!button.Get<ButtonProperty::Texture>(ButtonState::Default, true).IsValid()) {
-					button.Set<ButtonProperty::Texture>(
+					!button.template Get<ButtonProperty::Texture>(ButtonState::Default, true).IsValid()) {
+					button.template Set<ButtonProperty::Texture>(
 						legend.button_texture_toggled, ButtonState::Default, true
 					);
 				}
 			} else {
 				button.Disable();
-				button.Set<ButtonProperty::Visibility>(false);
+				button.template Set<ButtonProperty::Visibility>(false);
 			}
 			text_size	   = text.GetSize();
 			legend_size.x  = std::max(text_size.x, legend_size.x);
@@ -277,9 +277,9 @@ void Plot::DrawLegend(const Rect& dest) {
 			text_offset.y += size.y;
 		}
 	} else {
-		ForEachKeyValue([&](auto& name, auto& series) {
+		ForEachKeyValue([&]([[maybe_unused]] auto& name, auto& series) {
 			series.GetButton().Disable();
-			series.GetButton().Set<ButtonProperty::Visibility>(false);
+			series.GetButton().template Set<ButtonProperty::Visibility>(false);
 		});
 	}
 }
@@ -308,6 +308,7 @@ void Plot::DrawPoints(const Rect& dest) {
 		);
 	};
 
+	/*
 	auto get_intersection_point = [&](const std::array<Line, 4>& edges, const V2_float& start,
 									  const V2_float& end) {
 		Line l{ start, end };
@@ -321,6 +322,7 @@ void Plot::DrawPoints(const Rect& dest) {
 		V2_float point{ l.a + l.Direction() * ray.t };
 		return point;
 	};
+	*/
 
 	auto draw_line = [&](ecs::Entity entity, const V2_float& frac_current,
 						 const V2_float& frac_next) {
