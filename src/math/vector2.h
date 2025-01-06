@@ -321,6 +321,7 @@ template <
 	return { lhs.x / rhs, lhs.y / rhs };
 }
 
+// Clamp both components of a vector between min and max (component specific).
 template <typename T>
 [[nodiscard]] inline Vector2<T> Clamp(
 	const Vector2<T>& vector, const Vector2<T>& min, const Vector2<T>& max
@@ -328,6 +329,7 @@ template <typename T>
 	return { std::clamp(vector.x, min.x, max.x), std::clamp(vector.y, min.y, max.y) };
 }
 
+// Clamp both components of a vector between min and max.
 template <typename T>
 [[nodiscard]] inline Vector2<T> Clamp(const Vector2<T>& vector, T min, T max) {
 	Vector2<T> dir{ vector.Normalized() };
@@ -340,34 +342,47 @@ template <typename T>
 	return Clamp(vector, min_v, max_v);
 }
 
+// Round both components of a vector.
 template <typename T>
 [[nodiscard]] inline Vector2<T> Round(const Vector2<T>& vector) {
 	return { std::round(vector.x), std::round(vector.y) };
 }
 
+// Ceil both components of a vector.
 template <typename T>
 [[nodiscard]] inline Vector2<T> Ceil(const Vector2<T>& vector) {
 	return { FastCeil(vector.x), FastCeil(vector.y) };
 }
 
+// Floor both components of a vector.
 template <typename T>
 [[nodiscard]] inline Vector2<T> Floor(const Vector2<T>& vector) {
 	return { FastFloor(vector.x), FastFloor(vector.y) };
 }
 
+// Absolute value for both components of a vector.
 template <typename T>
 [[nodiscard]] inline Vector2<T> Abs(const Vector2<T>& vector) {
 	return { FastAbs(vector.x), FastAbs(vector.y) };
 }
 
+// Swap both components of vectors a and b.
+template <typename T>
+inline void Swap(Vector2<T>& a, Vector2<T>& b) {
+	std::swap(a.x, b.x);
+	std::swap(a.y, b.y);
+}
+
+// Linearly interpolate both components of a vector.
 template <typename T>
 [[nodiscard]] inline Vector2<T> Lerp(const Vector2<T>& lhs, const Vector2<T>& rhs, T t) {
 	return Vector2<T>{ Lerp(lhs.x, rhs.x, t), Lerp(lhs.y, rhs.y, t) };
 }
 
+// @return The midpoint between vectors a and b.
 template <typename T>
-[[nodiscard]] inline Vector2<T> Midpoint(const Vector2<T>& lhs, const Vector2<T>& rhs) {
-	return Vector2<T>{ (lhs + rhs) / 2.0f };
+[[nodiscard]] inline Vector2<T> Midpoint(const Vector2<T>& a, const Vector2<T>& b) {
+	return Vector2<T>{ (a + b) / 2.0f };
 }
 
 } // namespace ptgn
