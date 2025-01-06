@@ -305,7 +305,6 @@ private:
 	// The higher the number, the less draw calls but more RAM is used.
 	std::size_t batch_capacity_{ 0 };
 
-	bool refresh_view_projection_{ true };
 	Matrix4 view_projection_{ 1.0f };
 	// Key: Render Layer, Value: Vector of transparent batches for each render layer.
 	std::map<std::int32_t, std::vector<Batch>> transparent_layers_;

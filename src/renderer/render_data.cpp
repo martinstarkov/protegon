@@ -97,15 +97,13 @@ void RenderData::Flush() {
 		return;
 	}
 
-	if (refresh_view_projection_) {
-		game.renderer.circle_shader_.Bind();
-		game.renderer.circle_shader_.SetUniform("u_ViewProjection", view_projection_);
-		game.renderer.color_shader_.Bind();
-		game.renderer.color_shader_.SetUniform("u_ViewProjection", view_projection_);
-		game.renderer.quad_shader_.Bind();
-		game.renderer.quad_shader_.SetUniform("u_ViewProjection", view_projection_);
-		refresh_view_projection_ = false;
-	}
+	// TODO: Figure out if there is a way to cache when a view projection has been updated.
+	game.renderer.circle_shader_.Bind();
+	game.renderer.circle_shader_.SetUniform("u_ViewProjection", view_projection_);
+	game.renderer.color_shader_.Bind();
+	game.renderer.color_shader_.SetUniform("u_ViewProjection", view_projection_);
+	game.renderer.quad_shader_.Bind();
+	game.renderer.quad_shader_.SetUniform("u_ViewProjection", view_projection_);
 
 	// TODO: Add opaque batches back once you figure out how to do it using depth testing.
 	// auto was_depth_testing{ GLRenderer::IsDepthTestingEnabled() };
@@ -146,8 +144,7 @@ void RenderData::SetViewProjection(const Matrix4& view_projection) {
 	if (view_projection_ == view_projection) {
 		return;
 	}
-	view_projection_		 = view_projection;
-	refresh_view_projection_ = true;
+	view_projection_ = view_projection;
 }
 
 void RenderData::AddTexture(
