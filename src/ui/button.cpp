@@ -338,7 +338,19 @@ void Button::Draw() const {
 		info.tint = GetFinalResource(c, d, i.texture_tint_colors_, color::White);
 		texture.Draw(i.rect_, info, i.layer_info_);
 	} else if (auto bg{ GetFinalResource(c, d, i.bg_colors_) }; bg != Color{}) {
-		i.rect_.Draw(bg, i.line_thickness_, i.layer_info_);
+		if (i.radius_ > 0.0f) {
+			RoundedRect r{ i.rect_.position, i.radius_, i.rect_.size, i.rect_.origin,
+						   i.rect_.rotation };
+			r.Draw(
+				bg, i.line_thickness_,
+				{ i.layer_info_.GetRenderLayer(), i.layer_info_.GetRenderTarget() }
+			);
+		} else {
+			i.rect_.Draw(
+				bg, i.line_thickness_,
+				{ i.layer_info_.GetRenderLayer(), i.layer_info_.GetRenderTarget() }
+			);
+		}
 	}
 
 	if (auto text{ GetFinalResource(c, d, i.texts_) }; text.IsValid()) {
@@ -354,14 +366,27 @@ void Button::Draw() const {
 			text.SetColor(text_color);
 		}
 		text.Draw(
-			{ i.rect_.Center(), text_size, i.text_alignment_, i.rect_.rotation }, i.layer_info_
+			{ i.rect_.Center(), text_size, i.text_alignment_, i.rect_.rotation },
+			{ i.layer_info_.GetRenderLayer() + 1, i.layer_info_.GetRenderTarget() }
 		);
 		text.SetColor(og_text_color);
 	}
 	if (i.bordered_) {
 		if (auto border_color{ GetFinalResource(c, d, i.border_colors_) };
 			border_color != Color{}) {
-			i.rect_.Draw(border_color, i.border_thickness_, i.layer_info_);
+			if (i.radius_ > 0.0f) {
+				RoundedRect r{ i.rect_.position, i.radius_, i.rect_.size, i.rect_.origin,
+							   i.rect_.rotation };
+				r.Draw(
+					border_color, i.border_thickness_,
+					{ i.layer_info_.GetRenderLayer() + 2, i.layer_info_.GetRenderTarget() }
+				);
+			} else {
+				i.rect_.Draw(
+					border_color, i.border_thickness_,
+					{ i.layer_info_.GetRenderLayer() + 2, i.layer_info_.GetRenderTarget() }
+				);
+			}
 		}
 	}
 }

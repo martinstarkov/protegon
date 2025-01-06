@@ -22,6 +22,7 @@ struct RoundedRect;
 struct Arc;
 struct Capsule;
 struct Polygon;
+class Button;
 
 namespace impl {
 
@@ -186,6 +187,7 @@ private:
 	friend struct Arc;
 	friend struct Capsule;
 	friend struct Polygon;
+	friend class Button;
 	friend class impl::ButtonInstance;
 
 	// @return Mouse relative to the window and the render target's primary camera size (zoom

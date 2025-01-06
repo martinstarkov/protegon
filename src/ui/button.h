@@ -42,11 +42,12 @@ enum class ButtonProperty : std::size_t {
 	BorderColor,	  // Type: Color
 	TextAlignment,	  // Type: TextAlignment (same as Origin relative to button rect position)
 	TextSize,		  // Type: V2_float (default: unscaled text size)
-	LayerInfo,		  // Type: LayerInfo
+	LayerInfo,		  // Type: LayerInfo (button text is drawn on this layer + 1 and border on + 2).
 	Visibility,		  // Type: bool
 	Toggleable,		  // Type: bool
 	Bordered,		  // Type: bool
 	Toggled,		  // Type: bool
+	Radius,			  // Type: float (above 0 value turns the button from a Rect to a RoundedRect).
 	LineThickness,	  // Type: float
 	BorderThickness,  // Type: float
 	OnHoverStart,	  // Type: ButtonCallback
@@ -165,6 +166,8 @@ public:
 
 	LayerInfo layer_info_;
 
+	// Button edge radius (above 0.0f turns button to RoundedRect instead of Rect).
+	float radius_{ 0.0f };
 	// -1 for solid button.
 	float line_thickness_{ -1.0f };
 	float border_thickness_{ 1.0f };
@@ -204,6 +207,8 @@ public:
 			return text_alignment_;
 		} else if constexpr (T == ButtonProperty::TextSize) {
 			return text_size_;
+		} else if constexpr (T == ButtonProperty::Radius) {
+			return radius_;
 		} else if constexpr (T == ButtonProperty::Visibility) {
 			return visibility_;
 		} else if constexpr (T == ButtonProperty::LayerInfo) {
