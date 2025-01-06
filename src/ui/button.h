@@ -13,6 +13,7 @@
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
+#include "renderer/layer_info.h"
 #include "renderer/origin.h"
 #include "renderer/text.h"
 #include "renderer/texture.h"
@@ -34,14 +35,14 @@ using ButtonCallback = std::function<void()>;
 
 enum class ButtonProperty : std::size_t {
 	Texture,		  // Type: Texture
+	Text,			  // Type: Text
 	BackgroundColor,  // Type: Color
 	TextureTintColor, // Type: Color
-	Text,			  // Type: Text
 	TextColor,		  // Type: Color (takes priority over Text colors)
 	BorderColor,	  // Type: Color
 	TextAlignment,	  // Type: TextAlignment (same as Origin relative to button rect position)
 	TextSize,		  // Type: V2_float (default: unscaled text size)
-	RenderLayer,	  // Type: std::size_t
+	LayerInfo,		  // Type: LayerInfo
 	Visibility,		  // Type: bool
 	Toggleable,		  // Type: bool
 	Bordered,		  // Type: bool
@@ -144,6 +145,12 @@ public:
 	// button state.
 	void RecheckState();
 
+	// @return Current mouse position relative to the button's render target.
+	[[nodiscard]] V2_float GetMousePosition() const;
+
+	// @return Previous mouse position relative to the button's render target.
+	[[nodiscard]] V2_float GetMousePositionPrevious() const;
+
 	bool enabled_{ true };
 	Rect rect_;
 	InternalButtonState button_state_{ InternalButtonState::IdleUp };
@@ -156,7 +163,7 @@ public:
 	ButtonCallback on_disable_;
 	ButtonCallback on_toggle_;
 
-	std::int32_t render_layer_{ 0 };
+	LayerInfo layer_info_;
 
 	// -1 for solid button.
 	float line_thickness_{ -1.0f };
@@ -199,6 +206,8 @@ public:
 			return text_size_;
 		} else if constexpr (T == ButtonProperty::Visibility) {
 			return visibility_;
+		} else if constexpr (T == ButtonProperty::LayerInfo) {
+			return layer_info_;
 		} else if constexpr (T == ButtonProperty::Toggleable) {
 			return toggleable_;
 		} else if constexpr (T == ButtonProperty::Bordered) {
@@ -209,8 +218,6 @@ public:
 			return line_thickness_;
 		} else if constexpr (T == ButtonProperty::BorderThickness) {
 			return border_thickness_;
-		} else if constexpr (T == ButtonProperty::RenderLayer) {
-			return render_layer_;
 		} else if constexpr (T == ButtonProperty::OnActivate) {
 			return on_activate_;
 		} else if constexpr (T == ButtonProperty::OnDisable) {

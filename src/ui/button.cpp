@@ -15,8 +15,10 @@
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/layer_info.h"
+#include "renderer/render_target.h"
 #include "renderer/renderer.h"
 #include "renderer/text.h"
+#include "renderer/texture.h"
 #include "utility/handle.h"
 
 namespace ptgn {
@@ -136,9 +138,22 @@ void ButtonInstance::RecheckState() {
 	// Simulate a mouse move event to refresh button state.
 	MouseMoveEvent e{};
 	MouseMotionUpdate(
-		e.GetCurrent(), V2_int{ std::numeric_limits<int>::max(), std::numeric_limits<int>::max() },
-		e
+		GetMousePosition(),
+		V2_int{ std::numeric_limits<int>::max(), std::numeric_limits<int>::max() }, e
 	);
+}
+
+V2_float ButtonInstance::GetMousePosition() const {
+	auto pos{
+		RenderTarget::GetCorrectRenderLayer(layer_info_.GetRenderTarget()).GetMousePosition()
+	};
+	PTGN_LOG(pos);
+	return pos;
+}
+
+V2_float ButtonInstance::GetMousePositionPrevious() const {
+	return RenderTarget::GetCorrectRenderLayer(layer_info_.GetRenderTarget())
+		.GetMousePositionPrevious();
 }
 
 bool ButtonInstance::InsideRect(const V2_int& position) const {
@@ -168,12 +183,12 @@ void ButtonInstance::OnMouseEvent(MouseEvent type, const Event& event) {
 	switch (type) {
 		case MouseEvent::Move: {
 			const auto& e{ static_cast<const MouseMoveEvent&>(event) };
-			MouseMotionUpdate(e.GetCurrent(), e.GetPrevious(), e);
+			MouseMotionUpdate(GetMousePosition(), GetMousePositionPrevious(), e);
 			break;
 		}
 		case MouseEvent::Down: {
 			if (const auto& e{ static_cast<const MouseDownEvent&>(event) };
-				InsideRect(e.GetCurrent())) {
+				InsideRect(GetMousePosition())) {
 				OnMouseDown(e);
 			} else {
 				OnMouseDownOutside(e);
@@ -182,7 +197,7 @@ void ButtonInstance::OnMouseEvent(MouseEvent type, const Event& event) {
 		}
 		case MouseEvent::Up: {
 			if (const auto& e{ static_cast<const MouseUpEvent&>(event) };
-				InsideRect(e.GetCurrent())) {
+				InsideRect(GetMousePosition())) {
 				OnMouseUp(e);
 			} else {
 				OnMouseUpOutside(e);
@@ -325,9 +340,9 @@ void Button::Draw() const {
 	if (auto texture{ GetFinalResource(c, d, i.textures_) }; texture.IsValid()) {
 		TextureInfo info;
 		info.tint = GetFinalResource(c, d, i.texture_tint_colors_, color::White);
-		texture.Draw(i.rect_, info, { i.render_layer_ });
+		texture.Draw(i.rect_, info, i.layer_info_);
 	} else if (auto bg{ GetFinalResource(c, d, i.bg_colors_) }; bg != Color{}) {
-		i.rect_.Draw(bg, i.line_thickness_, { i.render_layer_ });
+		i.rect_.Draw(bg, i.line_thickness_, i.layer_info_);
 	}
 
 	if (auto text{ GetFinalResource(c, d, i.texts_) }; text.IsValid()) {
@@ -343,15 +358,14 @@ void Button::Draw() const {
 			text.SetColor(text_color);
 		}
 		text.Draw(
-			{ i.rect_.Center(), text_size, i.text_alignment_, i.rect_.rotation },
-			{ i.render_layer_ }
+			{ i.rect_.Center(), text_size, i.text_alignment_, i.rect_.rotation }, i.layer_info_
 		);
 		text.SetColor(og_text_color);
 	}
 	if (i.bordered_) {
 		if (auto border_color{ GetFinalResource(c, d, i.border_colors_) };
 			border_color != Color{}) {
-			i.rect_.Draw(border_color, i.border_thickness_, { i.render_layer_ });
+			i.rect_.Draw(border_color, i.border_thickness_, i.layer_info_);
 		}
 	}
 }
