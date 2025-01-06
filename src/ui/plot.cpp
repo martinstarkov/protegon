@@ -78,7 +78,9 @@ void Plot::Init(const V2_float& min, const V2_float& max) {
 	SetAxisLimits(min, max);
 
 	// Default plot properties:
-	AddProperty(BackgroundColor{ color::Gold });
+	AddProperty(VerticalAxis{});
+	AddProperty(HorizontalAxis{});
+	AddProperty(BackgroundColor{ color::White });
 }
 
 void Plot::SetAxisLimits(const V2_float& min, const V2_float& max) {
@@ -112,6 +114,12 @@ void Plot::Draw(const Rect& destination) {
 	canvas.SetRect(dest);
 
 	canvas.Draw();
+
+	auto edges{ dest.GetEdges() };
+
+	DrawBorder(edges);
+
+	DrawAxes(edges);
 }
 
 void Plot::FollowXData() {
@@ -144,6 +152,35 @@ void Plot::DrawPlotArea() {
 	DrawPoints(r);
 
 	DrawLegend(r);
+}
+
+void Plot::DrawBorder(const std::array<Line, 4>& edges) {
+	if (!entity_.Has<PlotBorder>()) {
+		return;
+	}
+
+	const auto& border{ entity_.Get<PlotBorder>() };
+
+	for (const auto& edge : edges) {
+		edge.Draw(border.color, border.thickness);
+	}
+}
+
+void Plot::DrawAxes(const std::array<Line, 4>& edges) {
+	bool has_vertical{ entity_.Has<VerticalAxis>() };
+	bool has_horizontal{ entity_.Has<HorizontalAxis>() };
+
+	if (!has_vertical && !has_horizontal) {
+		return;
+	}
+
+	if (has_horizontal) {
+		DrawAxis<HorizontalAxis>(edges, 0);
+	}
+
+	if (has_vertical) {
+		DrawAxis<VerticalAxis>(edges, 1);
+	}
 }
 
 void Plot::DrawLegend(const Rect& dest) {
