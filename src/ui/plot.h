@@ -28,7 +28,7 @@ namespace ptgn {
 struct DataPoints {
 	std::vector<V2_float> points;
 
-	// @return Minimum values along both axes.
+	// @return Maximum values along both axes.
 	[[nodiscard]] V2_float GetMax() const;
 
 	// @return Minimum values along both axes.
@@ -37,12 +37,16 @@ struct DataPoints {
 	// Sorts point vector by ascending x values (smallest to largest).
 	void SortAscendingByX();
 
+	// @return Maximum value along the x axis.
 	[[nodiscard]] float GetMaxX() const;
 
+	// @return Maximum value along the y axis.
 	[[nodiscard]] float GetMaxY() const;
 
+	// @return Minimum value along the x axis.
 	[[nodiscard]] float GetMinX() const;
 
+	// @return Minimum value along the y axis.
 	[[nodiscard]] float GetMinY() const;
 };
 
@@ -138,11 +142,12 @@ struct Axis {
 	Color division_color{ color::Black };
 
 	// How many pixels between the end of the division line and the beginning of the number.
-	float division_text_offset{ 4.0f };
+	float division_text_offset{ 5.0f };
 
 	// Color of the division number.
 	Color division_text_color{ color::Black };
 
+	// Size of division numbers.
 	std::int32_t division_text_point_size{ 25 };
 
 	// Number of decimal places of precision for the axis division numbers.
@@ -165,12 +170,16 @@ struct PlotBorder {
 };
 
 struct PlotLegend {
+	// Color of legend data series labels.
 	Color text_color{ color::White };
 
+	// Size of legend data series labels.
 	std::int32_t text_point_size{ 20 };
 
+	// Placement of legend within the plot area.
 	Origin origin{ Origin::TopRight };
 
+	// Background color of the legend.
 	Color background_color{ color::Gray };
 
 	// Render legend on top of data series.
@@ -179,6 +188,7 @@ struct PlotLegend {
 	// Adds tick boxes next to legend names to toggle data series.
 	bool toggleable_data{ true };
 
+	// Textures for the legend tick boxes. Only used if toggleable_data == true.
 	Texture button_texture_default;
 	Texture button_texture_hover;
 	Texture button_texture_toggled;
@@ -192,8 +202,10 @@ public:
 
 	void SetAxisLimits(const V2_float& min, const V2_float& max);
 
+	// @return Maximum axis values that are displayed on the plot.
 	[[nodiscard]] V2_float GetAxisMax() const;
 
+	// @return Minimum axis values that are displayed on the plot.
 	[[nodiscard]] V2_float GetAxisMin() const;
 
 	// @param destination Destination rectangle where to draw the plot. Default of {} results in
@@ -204,6 +216,9 @@ public:
 	// time series.
 	void FollowXData();
 
+	// @tparam T Type of the property to be added.  Valid property types are listed in the static
+	// assert of this function.
+	// @param property Configured property of the plot.
 	template <typename T>
 	void AddProperty(const T& property) {
 		PTGN_ASSERT(
@@ -230,8 +245,10 @@ private:
 	// @param destination Destination rectangle where to draw the plot area.
 	void DrawPlotArea();
 
+	// @param dest Plot area rectangle (for internal calculations).
 	void DrawPoints(const Rect& dest);
 
+	// @param dest Plot area rectangle (for internal calculations).
 	void DrawLegend(const Rect& dest);
 
 	// @param edges Edges of the plot area rectangle.
@@ -266,6 +283,7 @@ private:
 
 		V2_float division_dir{ axis_dir.Skewed() };
 
+		// Skewing is biased toward the right so this flips the skew for the non swapped edges.
 		if (!swap_dir) {
 			division_dir *= -1.0f;
 		}
@@ -276,27 +294,40 @@ private:
 		// By how many pixels each division is separated.
 		float division_offset{ FastAbs(axis_length[component_index]) / axis.divisions };
 
+		// By how many values each division number is separated.
 		float division_number_offset{ axis_extents_[component_index] / axis.divisions };
 
 		PTGN_ASSERT(division_number_offset > 0.0f);
 
 		for (std::size_t i{ 0 }; i <= axis.divisions; i++) {
+			// Offset of each division along the axis with respect to the start of the axis.
 			V2_float offset{ axis_dir * i * division_offset };
-			Line division{ edge.a + offset, edge.a + offset + division_length };
-			division.Draw(axis.division_color, axis.division_thickness);
+
+			Line division_line{ edge.a + offset, edge.a + offset + division_length };
+			division_line.Draw(axis.division_color, axis.division_thickness);
+
+			// Find number at the division line.
 			float division_number{ min_axis_[component_index] + i * division_number_offset };
+
 			Text division_text{
 				ToString(division_number, axis.division_number_precision), axis.division_text_color,
 				Font{ font::LiberationSansRegular, axis.division_text_point_size }
 			};
+
 			V2_float text_size{ division_text.GetSize() };
-			V2_float text_pos{ division.b + division_length +
-							   division_dir * (axis.division_text_offset +
-											   text_size[1 - component_index] / 2.0f) };
+
+			// Offset in the direction of the division line by the text offset and half the text
+			// size along the opposite direction. This ensures equal spacing of text from division
+			// lines along both axes.
+			float text_center_offset{ axis.division_text_offset +
+									  text_size[1 - component_index] / 2.0f };
+
+			V2_float text_pos{ division_line.b + division_dir * text_center_offset };
 			division_text.Draw(Rect{ text_pos, text_size, Origin::Center });
 		}
 	}
 
+	// Canvas size here reflects the unscaled resolution of the canvas.
 	RenderTarget canvas{ { 500, 500 }, color::Transparent, BlendMode::Blend };
 
 	V2_float min_axis_;		// min axis values
