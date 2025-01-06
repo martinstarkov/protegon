@@ -144,11 +144,7 @@ void ButtonInstance::RecheckState() {
 }
 
 V2_float ButtonInstance::GetMousePosition() const {
-	auto pos{
-		RenderTarget::GetCorrectRenderLayer(layer_info_.GetRenderTarget()).GetMousePosition()
-	};
-	PTGN_LOG(pos);
-	return pos;
+	return RenderTarget::GetCorrectRenderLayer(layer_info_.GetRenderTarget()).GetMousePosition();
 }
 
 V2_float ButtonInstance::GetMousePositionPrevious() const {
