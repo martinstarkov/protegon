@@ -149,10 +149,9 @@ void SceneManager::Shutdown() {
 
 void SceneManager::Update() {
 	for (auto scene_key : active_scenes_) {
-		PTGN_ASSERT(
-			Has(scene_key),
-			"Attempting to update an active scene which has not been loaded into the scene manager"
-		);
+		if (!Has(scene_key)) {
+			continue;
+		}
 		auto scene{ Get(scene_key) };
 		if (scene->actions_.empty()) {
 			current_scene_ = scene;
@@ -169,8 +168,7 @@ void SceneManager::Update() {
 		);
 		auto scene{ Get(scene_key) };
 		scene->target_.Draw(
-			Rect::Fullscreen(), TextureInfo{ scene->tint_ },
-			LayerInfo{ layer, game.renderer.screen_target_ }
+			TextureInfo{ scene->tint_ }, LayerInfo{ layer, game.renderer.screen_target_ }
 		);
 		layer++;
 	}
