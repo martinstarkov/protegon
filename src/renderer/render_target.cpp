@@ -49,6 +49,9 @@ RenderTargetInstance::RenderTargetInstance(
 	PTGN_ASSERT(
 		frame_buffer_.IsBound(), "Failed to bind frame buffer when initializing render target"
 	);
+	OrthographicCamera camera;
+	camera.CenterOnArea(size);
+	camera_.SetPrimary(camera);
 	GLRenderer::ClearColor(clear_color_);
 	GLRenderer::Clear();
 }
@@ -105,6 +108,22 @@ RenderTarget::RenderTarget(const V2_float& size, const Color& clear_color, Blend
 	Create(size, clear_color, blend_mode);
 }
 
+void RenderTarget::SetRect(const Rect& target_destination) {
+	PTGN_ASSERT(IsValid(), "Cannot set rectangle of invalid or uninitialized render target");
+	auto& i{ Get() };
+	i.destination_ = target_destination;
+}
+
+Rect RenderTarget::GetRect() const {
+	PTGN_ASSERT(IsValid(), "Cannot get rectangle of invalid or uninitialized render target");
+	auto& i{ Get() };
+	Rect dest{ i.destination_ };
+	if (dest.IsZero()) {
+		dest = Rect::Fullscreen();
+	}
+	return dest;
+}
+
 void RenderTarget::SetClearColor(const Color& clear_color) {
 	PTGN_ASSERT(IsValid(), "Cannot set clear color of invalid or uninitialized render target");
 	auto& i{ Get() };
@@ -148,18 +167,16 @@ Texture RenderTarget::GetTexture() const {
 	return Get().texture_;
 }
 
-void RenderTarget::Draw(const Rect& destination, const TextureInfo& texture_info) {
-	Draw(destination, texture_info, {});
+void RenderTarget::Draw(const TextureInfo& texture_info) {
+	Draw(texture_info, {});
 }
 
-void RenderTarget::Draw(
-	const Rect& destination, const TextureInfo& texture_info, const LayerInfo& layer_info
-) {
+void RenderTarget::Draw(const TextureInfo& texture_info, const LayerInfo& layer_info) {
 	PTGN_ASSERT(IsValid(), "Cannot draw an invalid or uninitialized render target");
 	auto& i{ Get() };
 	i.Bind();
 	i.Flush();
-	DrawToTarget(destination, texture_info, layer_info.GetRenderTarget());
+	DrawToTarget(i.destination_, texture_info, layer_info.GetRenderTarget());
 	i.Bind();
 	i.Clear();
 }
@@ -197,7 +214,15 @@ void RenderTarget::DrawToTarget(
 	auto& i{ destination_layer.Get() };
 	i.Bind();
 	i.Flush();
-	GetTexture().Draw(destination, texture_info, LayerInfo{ destination_layer });
+	TextureInfo info{ texture_info };
+	if (info.flip == Flip::Vertical) {
+		info.flip = Flip::None;
+	} else if (info.flip == Flip::Both) {
+		info.flip = Flip::Horizontal;
+	} else if (info.flip == Flip::None) {
+		info.flip = Flip::Vertical;
+	}
+	GetTexture().Draw(destination, info, LayerInfo{ destination_layer });
 	i.Flush();
 }
 
@@ -313,13 +338,14 @@ void RenderTarget::AddPolygon(
 }
 
 V2_float RenderTarget::ScaleToWindow(const V2_float& position) const {
-	V2_float window_size{ game.window.GetSize() };
+	PTGN_ASSERT(IsValid(), "Cannot retrieve render target scaling");
+	/*V2_float window_size{ game.window.GetSize() };
 	PTGN_ASSERT(
 		window_size.x != 0 && window_size.y != 0,
 		"Cannot scale position relative to a dimensionless window"
 	);
-	V2_float scaled_position{ GetCamera().GetPrimary().GetSize() * position / window_size };
-	return scaled_position;
+	V2_float scaled_position{ GetCamera().GetPrimary().GetSize() * position / window_size };*/
+	return ScreenToWorld(position) - Get().destination_.Min();
 }
 
 V2_float RenderTarget::WorldToScreen(const V2_float& position) const {

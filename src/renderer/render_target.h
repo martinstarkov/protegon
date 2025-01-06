@@ -25,6 +25,7 @@ struct Polygon;
 
 namespace impl {
 
+class ButtonInstance;
 struct Point;
 class Renderer;
 class SceneManager;
@@ -56,6 +57,9 @@ struct RenderTargetInstance {
 	CameraManager camera_;
 
 	RenderData render_data_;
+
+	// Default value of {} corresponds to fullscreen.
+	Rect destination_;
 };
 
 } // namespace impl
@@ -78,23 +82,24 @@ public:
 		BlendMode blend_mode = BlendMode::Blend
 	);
 
+	// @param target_destination Set the destination rectangle to which the render target is drawn.
+	// Default value of {} corresponds to fullscreen.
+	void SetRect(const Rect& target_destination);
+
+	// @return The destination rectangle to which the render target is drawn.
+	[[nodiscard]] Rect GetRect() const;
+
 	// TODO: Add screen shaders as options.
 
-	// @param destination The rectangle destination to which the render target is drawn. Default
-	// value of {} corresponds to fullscreen.
 	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
 	// center of the texture associated with this render target.
 	// Uses the default render target, which is the currently active scene.
-	void Draw(const Rect& destination = {}, const TextureInfo& texture_info = {});
+	void Draw(const TextureInfo& texture_info = {});
 
-	// @param destination The rectangle destination to which the render target is drawn. {}
-	// corresponds to fullscreen.
 	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
 	// center of the texture associated with this render target.
 	// @param layer_info Information relating to the render layer and render target of the texture.
-	void Draw(
-		const Rect& destination, const TextureInfo& texture_info, const LayerInfo& layer_info
-	);
+	void Draw(const TextureInfo& texture_info, const LayerInfo& layer_info);
 
 	// @param clear_color The color to which the render target will be cleared.
 	// Note: The change in clear color is only seen after a render target is cleared. This can
@@ -181,6 +186,7 @@ private:
 	friend struct Arc;
 	friend struct Capsule;
 	friend struct Polygon;
+	friend class impl::ButtonInstance;
 
 	// @return Mouse relative to the window and the render target's primary camera size (zoom
 	// included).

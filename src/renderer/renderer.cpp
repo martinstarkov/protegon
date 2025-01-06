@@ -162,7 +162,7 @@ void Renderer::Present() {
 
 	FrameBuffer::Unbind();
 	screen_target_.GetTexture().Draw(
-		Rect::Fullscreen(), TextureInfo{}, LayerInfo{ 0, screen_target_ }
+		Rect::Fullscreen(), TextureInfo{ Flip::Vertical }, LayerInfo{ 0, screen_target_ }
 	);
 	// Do not bind screen target.
 	screen_target_.Get().Flush();
