@@ -30,7 +30,7 @@ public:
 	}
 
 	void Show() {
-		ForEachValue([](Button& b) { b.Set<ButtonProperty::Toggled>(false); });
+		//ForEachValue([](Button& b) { b.Set<ButtonProperty::Toggled>(false); });
 	}
 
 	void Hide() {}
