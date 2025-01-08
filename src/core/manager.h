@@ -197,14 +197,6 @@ class VectorManager {
 public:
 	using Item = ItemType;
 
-public:
-	VectorManager()									   = default;
-	virtual ~VectorManager()						   = default;
-	VectorManager(VectorManager&&) noexcept			   = default;
-	VectorManager& operator=(VectorManager&&) noexcept = default;
-	VectorManager(const VectorManager&)				   = delete;
-	VectorManager& operator=(const VectorManager&)	   = delete;
-
 	// If item exists in manager, it is returned, otherwise a copy of the item is added.
 	Item& Add(const Item& item) {
 		for (auto& i : vector_) {
@@ -228,6 +220,41 @@ public:
 	template <typename TKey>
 	[[nodiscard]] bool Contains(const Item& item) const {
 		return std::find(vector_.begin(), vector_.end(), item) != vector_.end();
+	}
+
+	template <typename TFunc>
+	void ForEachValue(const TFunc& func) {
+		for (auto& value : vector_) {
+			std::invoke(func, value);
+		}
+	}
+
+	template <typename TFunc>
+	void ForEachValue(const TFunc& func) const {
+		for (const auto& value : vector_) {
+			std::invoke(func, value);
+		}
+	}
+
+	template <typename TFunc>
+	void ForEachIndex(const TFunc& func) const {
+		for (std::size_t i{ 0 }; i < vector_.size(); ++i) {
+			std::invoke(func, i);
+		}
+	}
+
+	template <typename TFunc>
+	void ForEachIndexValue(const TFunc& func) {
+		for (std::size_t i{ 0 }; i < vector_.size(); ++i) {
+			std::invoke(func, i, vector_[i]);
+		}
+	}
+	
+	template <typename TFunc>
+	void ForEachIndexValue(const TFunc& func) const {
+		for (std::size_t i{ 0 }; i < vector_.size(); ++i) {
+			std::invoke(func, i, vector_[i]);
+		}
 	}
 
 	/*
