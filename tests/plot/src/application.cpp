@@ -1,122 +1,106 @@
+#pragma once
+
 #include "protegon/protegon.h"
 
 using namespace ptgn;
 
-struct DummySensor {
-	[[nodiscard]] float GetValue() const {
-		if (game.input.KeyPressed(Key::K_1)) {
-			return 1.0f;
-		} else if (game.input.KeyPressed(Key::K_2)) {
-			return 2.0f;
-		} else if (game.input.KeyPressed(Key::K_3)) {
-			return 3.0f;
-		} else if (game.input.KeyPressed(Key::K_4)) {
-			return 4.0f;
-		} else if (game.input.KeyPressed(Key::K_5)) {
-			return 5.0f;
-		} else if (game.input.KeyPressed(Key::K_6)) {
-			return 6.0f;
-		} else if (game.input.KeyPressed(Key::K_7)) {
-			return 7.0f;
-		} else if (game.input.KeyPressed(Key::K_8)) {
-			return 8.0f;
-		} else if (game.input.KeyPressed(Key::K_9)) {
-			return 9.0f;
-		} else if (game.input.KeyPressed(Key::K_0)) {
-			return 0.0f;
-		}
-		// No key pressed.
-		return 5.0f;
-	}
-};
-
-enum class AxisExpansionType {
-	IntervalShift,
-	XDataMinMax,
-	ContinuousShift,
-	None
-};
-
-class PlotExample : public Scene {
+class Sensor {
 public:
-	DummySensor sensor;
+	Sensor() = default;
+
+	// @param samping_rate How often the sensor samples its function.
+	Sensor(milliseconds samping_rate) : samping_rate_{ samping_rate } {
+		sampling.Start();
+	}
+
+	[[nodiscard]] bool HasNewValue() {
+		return sampling.Completed(samping_rate_) || !sampling.IsRunning();
+	}
+
+	[[nodiscard]] float GetValue() {
+		sampling.Start();
+		return amplitude_rng() * std::sin(sine_frequency * game.time());
+	}
+
+	float sine_frequency{ 0.0005f };
+
+private:
+	RNG<float> amplitude_rng{ 0.0f, 250.0f };
+
+	milliseconds samping_rate_{ 250 };
+	Timer sampling;
+};
+
+class PlotScene : public Scene {
 	Plot plot;
 
-	Timer sampling;
+	Sensor temperature{ milliseconds{ 50 } };
+	Sensor acceleration{ milliseconds{ 100 } };
+
 	Timer clock;
 
 	using x_axis_unit = duration<float, seconds::period>;
 	x_axis_unit x_axis_length{ 10.0f };
 
-	milliseconds samping_rate{ 250 };
+	void Init() {
+		game.renderer.SetClearColor(color::White);
+		plot.Init({ 0, -250 }, { 10, 250 });
 
-	AxisExpansionType axis_type{ AxisExpansionType::ContinuousShift };
+		plot.Load("temperature");
+		plot.Load("acceleration");
 
-	PlotExample() {
-		game.window.SetTitle("Plot");
-		game.window.SetSize({ 800, 800 });
-	}
+		plot.AddProperty<FollowHorizontalData>(FollowHorizontalData{});
+		plot.AddProperty<VerticalAutoscaling>(VerticalAutoscaling{});
+		plot.AddProperty<BackgroundColor>(BackgroundColor{ color::Gray });
 
-	void Init() override {
-		plot.Init({}, { 0, 0 }, { x_axis_length.count(), 10.0f });
+		plot.Get("temperature").GetProperty<LineColor>()  = color::Red;
+		plot.Get("acceleration").GetProperty<LineColor>() = color::Blue;
+
+		PlotLegend legend;
+		legend.background_color		  = color::LightGray;
+		// legend.origin				  = Origin::CenterBottom;
+
+		plot.AddProperty<PlotLegend>(legend);
+
+		HorizontalAxis haxis;
+		// Only whole numbers on the horizontal axis.
+		haxis.division_number_precision = 0;
+		haxis.divisions					= 10;
+		// haxis.regular_align				= false;
+
+		VerticalAxis vaxis;
+		// vaxis.regular_align = false;
+
+		plot.AddProperty<HorizontalAxis>(haxis);
+		plot.AddProperty<VerticalAxis>(vaxis);
+
+		plot.Get("temperature").data.points.emplace_back(0.0f, temperature.GetValue());
+		plot.Get("acceleration").data.points.emplace_back(0.0f, acceleration.GetValue());
 
 		clock.Start();
-		sampling.Start();
-		RecordSample();
 	}
 
-	void RecordSample() {
-		float sampling_time{ clock.Elapsed<x_axis_unit>().count() };
-		float sensor_value{ sensor.GetValue() };
-		plot.AddDataPoint({ sampling_time, sensor_value });
-		PTGN_LOG("Sensor value: ", sensor_value);
-	}
-
-	void Update() override {
-		if (sampling.Completed(samping_rate)) {
-			RecordSample();
-		}
-
-		switch (axis_type) {
-			case AxisExpansionType::IntervalShift: {
-				V2_float min{ plot.GetAxisMin() };
-				V2_float max{ plot.GetAxisMax() };
-				auto& points{ plot.GetData().points };
-				if (!points.empty() && points.back().x > max.x) {
-					plot.SetAxisLimits(
-						{ min.x + x_axis_length.count(), min.y },
-						{ max.x + x_axis_length.count(), max.y }
-					);
-				}
-				break;
-			}
-			case AxisExpansionType::XDataMinMax: {
-				plot.SetAxisLimits(
-					plot.GetAxisMin(), { plot.GetData().GetMaxX(), plot.GetAxisMax().y }
+	void Update() {
+		if (temperature.HasNewValue()) {
+			plot.Get("temperature")
+				.data.points.emplace_back(
+					clock.Elapsed<x_axis_unit>().count(), temperature.GetValue()
 				);
-				break;
-			}
-			case AxisExpansionType::ContinuousShift: {
-				auto& points{ plot.GetData().points };
-				if (!points.empty()) {
-					auto final_point{ points.back() };
-					plot.SetAxisLimits(
-						{ final_point.x - x_axis_length.count(), plot.GetAxisMin().y },
-						{ final_point.x, plot.GetAxisMax().y }
-					);
-				}
-				break;
-			}
-			case AxisExpansionType::None: break;
-			default:					  break;
 		}
 
-		plot.Draw();
+		if (acceleration.HasNewValue()) {
+			plot.Get("acceleration")
+				.data.points.emplace_back(
+					clock.Elapsed<x_axis_unit>().count(), acceleration.GetValue()
+				);
+		}
+
+		plot.Draw({ game.window.GetCenter(), { 500, 500 }, Origin::Center });
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("Plot Example", { 720, 720 });
-	game.scene.LoadActive<PlotExample>("plot");
+	game.Init("Plot Scene", { 800, 800 });
+	game.scene.LoadActive<PlotScene>("plot");
 	return 0;
 }

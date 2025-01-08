@@ -9,6 +9,8 @@
 #include <vector>
 
 #include "collision/raycast.h"
+#include "core/game.h"
+#include "event/input_handler.h"
 #include "ecs/ecs.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
@@ -109,11 +111,33 @@ void Plot::Draw(const Rect& destination) {
 		dest = Rect::Fullscreen();
 	}
 
+	auto scroll{ game.input.GetMouseScroll() };
+
+	if (scroll != 0 && destination.Overlaps(game.input.GetMousePosition())) {
+		moving_plot_ = true;
+		PTGN_LOG("Scrolled inside plot: ", scroll);
+		if (scroll > 0) {
+			SetAxisLimits(min_axis_ - axis_extents_ * 0.01f, max_axis_ + axis_extents_ * 0.01f);
+		} else if (scroll < 0) {
+			SetAxisLimits(min_axis_ + axis_extents_ * 0.01f, max_axis_ - axis_extents_ * 0.01f);
+		}
+	}
+
+	if (!entity_.Has<FollowHorizontalData>() || moving_plot_) {
+		following_data_ = false;
+	} else {
+		following_data_ = true;
+	}
+
+	if (following_data_) {
+		FollowXData();
+	}
+	
 	DrawPlotArea();
 
-	canvas.SetRect(dest);
+	canvas_.SetRect(dest);
 
-	canvas.Draw();
+	canvas_.Draw();
 
 	auto edges{ dest.GetEdges() };
 
@@ -139,7 +163,7 @@ void Plot::FollowXData() {
 }
 
 Rect Plot::GetCanvasRect() const {
-	return Rect{ {}, canvas.GetTexture().GetSize(), Origin::TopLeft };
+	return Rect{ {}, canvas_.GetTexture().GetSize(), Origin::TopLeft };
 }
 
 void Plot::DrawPlotArea() {
@@ -147,7 +171,7 @@ void Plot::DrawPlotArea() {
 
 	Rect r{ GetCanvasRect() };
 
-	r.Draw(entity_.Get<BackgroundColor>(), -1.0f, canvas);
+	r.Draw(entity_.Get<BackgroundColor>(), -1.0f, canvas_);
 
 	DrawPoints(r);
 
@@ -187,8 +211,6 @@ void Plot::DrawLegend(const Rect& dest) {
 	if (entity_.Has<PlotLegend>() && !IsEmpty()) {
 		const auto& legend{ entity_.Get<PlotLegend>() };
 
-		if (legend.toggleable_data) {}
-
 		std::vector<std::pair<Text, Button>> texts_buttons;
 		texts_buttons.reserve(Size());
 
@@ -205,7 +227,7 @@ void Plot::DrawLegend(const Rect& dest) {
 			if (legend.toggleable_data) {
 				button.Enable();
 				button.template Set<ButtonProperty::Visibility>(true);
-				button.template Set<ButtonProperty::LayerInfo>(LayerInfo{ legend_layer + 1, canvas });
+				button.template Set<ButtonProperty::LayerInfo>(LayerInfo{ legend_layer + 1, canvas_ });
 				if (!button.template Get<ButtonProperty::Toggleable>()) {
 					button.template Set<ButtonProperty::Toggleable>(true);
 				}
@@ -213,6 +235,10 @@ void Plot::DrawLegend(const Rect& dest) {
 					!button.template Get<ButtonProperty::Texture>(ButtonState::Default).IsValid()) {
 					button.template Set<ButtonProperty::Texture>(
 						legend.button_texture_default, ButtonState::Default
+					);
+				} else {
+					button.template Set<ButtonProperty::BackgroundColor>(
+						color::DarkGreen, ButtonState::Default
 					);
 				}
 				if (legend.button_texture_hover.IsValid() &&
@@ -223,11 +249,22 @@ void Plot::DrawLegend(const Rect& dest) {
 					button.template Set<ButtonProperty::Texture>(
 						legend.button_texture_hover, ButtonState::Hover, true
 					);
+				} else {
+					button.template Set<ButtonProperty::BackgroundColor>(
+						color::DarkGray, ButtonState::Hover
+					);
+					button.template Set<ButtonProperty::BackgroundColor>(
+						color::DarkGray, ButtonState::Hover, true
+					);
 				}
 				if (legend.button_texture_toggled.IsValid() &&
 					!button.template Get<ButtonProperty::Texture>(ButtonState::Default, true).IsValid()) {
 					button.template Set<ButtonProperty::Texture>(
 						legend.button_texture_toggled, ButtonState::Default, true
+					);
+				} else {
+					button.template Set<ButtonProperty::BackgroundColor>(
+						color::Red, ButtonState::Default, true
 					);
 				}
 			} else {
@@ -251,7 +288,7 @@ void Plot::DrawLegend(const Rect& dest) {
 
 		Rect legend_rect{ dest.Center() + GetOffsetFromCenter(dest.size, legend.origin),
 						  legend_size, legend.origin };
-		legend_rect.Draw(legend.background_color, -1.0f, { legend_layer, canvas });
+		legend_rect.Draw(legend.background_color, -1.0f, { legend_layer, canvas_ });
 
 		V2_float text_offset;
 		V2_float button_offset;
@@ -273,7 +310,7 @@ void Plot::DrawLegend(const Rect& dest) {
 				button_offset.y += size.y;
 			}
 
-			text.Draw(text_rect, { legend_layer + 1, canvas });
+			text.Draw(text_rect, { legend_layer + 1, canvas_ });
 			text_offset.y += size.y;
 		}
 	} else {
@@ -285,6 +322,9 @@ void Plot::DrawLegend(const Rect& dest) {
 }
 
 void Plot::DrawPoints(const Rect& dest) {
+	PTGN_ASSERT(axis_extents_.x != 0.0f);
+	PTGN_ASSERT(axis_extents_.y != 0.0f);
+
 	auto get_frac = [&](const std::vector<V2_float>& points, std::size_t index) {
 		V2_float frac{ (points[index] - min_axis_) / axis_extents_ };
 		frac.y = 1.0f - frac.y;
@@ -304,7 +344,7 @@ void Plot::DrawPoints(const Rect& dest) {
 		}
 		V2_float dest_pixel{ dest.position + get_local_pixel(frac) };
 		dest_pixel.Draw(
-			entity.Get<DataPointColor>(), entity.Get<DataPointRadius>(), { 200, canvas }
+			entity.Get<DataPointColor>(), entity.Get<DataPointRadius>(), { 200, canvas_ }
 		);
 	};
 
@@ -332,7 +372,7 @@ void Plot::DrawPoints(const Rect& dest) {
 		V2_float start{ get_local_pixel(frac_current) };
 		V2_float end{ get_local_pixel(frac_next) };
 
-		/*Rect boundary{ {}, dest.size, Origin::TopLeft };
+		Rect boundary{ {}, dest.size, Origin::TopLeft };
 		auto edges{ boundary.GetEdges() };
 
 		V2_float p1{ get_intersection_point(edges, start, end) };
@@ -345,11 +385,11 @@ void Plot::DrawPoints(const Rect& dest) {
 				l.a = p2;
 				l.b = p1;
 			}
-		}*/
+		}
 
-		Line l{ start, end };
+		//Line l{ start, end };
 
-		l.Draw(entity.Get<LineColor>(), entity.Get<LineWidth>(), { 100, canvas });
+		l.Draw(entity.Get<LineColor>(), entity.Get<LineWidth>(), { 100, canvas_ });
 	};
 
 	// Note: Data must be sorted for this loop to draw lines correctly.
@@ -357,6 +397,11 @@ void Plot::DrawPoints(const Rect& dest) {
 	auto& data_series{ GetMap() };
 
 	bool has_legend{ entity_.Has<PlotLegend>() };
+
+	bool autoscaling{ entity_.Has<VerticalAutoscaling>() && !moving_plot_ };
+
+	float y_min{ std::numeric_limits<float>::infinity() };
+	float y_max{ -std::numeric_limits<float>::infinity() };
 
 	for (const auto& [name, series] : data_series) {
 		// Do not display data sets which are disabled in the legend.
@@ -375,13 +420,34 @@ void Plot::DrawPoints(const Rect& dest) {
 				break;
 			}
 			V2_float frac_current{ get_frac(series.data.points, i) };
+			if (autoscaling) {
+				y_min = std::min(point.y, y_min);
+				y_max = std::max(point.y, y_max);
+			}
 			if (i + 1 < series.data.points.size()) {
-				const auto& next_point{ series.data.points[i] };
+				const auto& next_point{ series.data.points[i + 1] };
 				PTGN_ASSERT(next_point.x >= point.x);
 				draw_line(series.entity_, frac_current, get_frac(series.data.points, i + 1));
 			}
 			draw_marker(series.entity_, frac_current);
 		}
+	}
+	if (!autoscaling) {
+		return;
+	}
+	// Autoscale vertical axis.
+	bool changed_y{ false };
+	if (y_min != std::numeric_limits<float>::infinity()) {
+		min_axis_.y = y_min;
+		changed_y = true;
+	}
+	if (y_max != -std::numeric_limits<float>::infinity()) {
+		max_axis_.y = y_max;
+		changed_y = true;
+	}
+	if (changed_y) {
+		axis_extents_.y = max_axis_.y - min_axis_.y;
+		PTGN_ASSERT(axis_extents_.y > 0.0f);
 	}
 }
 

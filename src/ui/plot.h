@@ -194,6 +194,12 @@ struct PlotLegend {
 	Texture button_texture_toggled;
 };
 
+// If added to the plot, the horizontal axis will follow the latest data point.
+struct FollowHorizontalData {};
+
+// If added to the plot, the vertical axis will scale automatically to the data visible in the graph.
+struct VerticalAutoscaling {};
+
 class Plot : public MapManager<DataSeries, std::string_view, std::string, false> {
 public:
 	// @param min Minimum axis values.
@@ -212,10 +218,6 @@ public:
 	// fullscreen.
 	void Draw(const Rect& destination = {});
 
-	// Update the limits of the graph such that it follows the most recent X data point out of all
-	// time series.
-	void FollowXData();
-
 	// @tparam T Type of the property to be added.  Valid property types are listed in the static
 	// assert of this function.
 	// @param property Configured property of the plot.
@@ -226,7 +228,7 @@ public:
 		);
 		static_assert(
 			tt::is_any_of_v<
-				T, BackgroundColor, PlotLegend, PlotBorder, VerticalAxis, HorizontalAxis>,
+				T, BackgroundColor, PlotLegend, PlotBorder, VerticalAxis, HorizontalAxis, FollowHorizontalData, VerticalAutoscaling>,
 			"Invalid type for plot property"
 		);
 		entity_.Add<T>(property);
@@ -238,6 +240,10 @@ private:
 		Above,
 		Below
 	};
+
+	// Update the limits of the graph such that it follows the most recent X data point out of all
+	// time series.
+	void FollowXData();
 
 	// @return Rect that is the size of the plot render target.
 	Rect GetCanvasRect() const;
@@ -327,8 +333,11 @@ private:
 		}
 	}
 
+	bool following_data_{ false };
+	bool moving_plot_{ false };
+
 	// Canvas size here reflects the unscaled resolution of the canvas.
-	RenderTarget canvas{ { 500, 500 }, color::Transparent, BlendMode::Blend };
+	RenderTarget canvas_{ { 500, 500 }, color::Transparent, BlendMode::Blend };
 
 	V2_float min_axis_;		// min axis values
 	V2_float max_axis_;		// max axis values
