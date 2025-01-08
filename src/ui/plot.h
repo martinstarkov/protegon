@@ -118,6 +118,16 @@ private:
 
 namespace impl {
 
+struct AxisExtents
+{
+	V2_float min;
+	V2_float max;
+
+	[[nodiscard]] V2_float GetLength() {
+		return max - min;
+	}
+};
+
 struct Axis {
 	// Color of the axis line.
 	Color line_color{ color::Black };
@@ -206,7 +216,18 @@ public:
 	// @param max Maximum axis values.
 	void Init(const V2_float& min, const V2_float& max);
 
-	void SetAxisLimits(const V2_float& min, const V2_float& max);
+	void SetMinX(float min_x);
+	void SetMinY(float min_y);
+	void SetMaxX(float max_x);
+	void SetMaxY(float max_y);
+
+	[[nodiscard]] float GetMinX() const;
+	[[nodiscard]] float GetMinY() const;
+	[[nodiscard]] float GetMaxX() const;
+	[[nodiscard]] float GetMaxY() const;
+
+	// Resets a plot after it has been moved.
+	void Reset();
 
 	// @return Maximum axis values that are displayed on the plot.
 	[[nodiscard]] V2_float GetAxisMax() const;
@@ -282,10 +303,10 @@ private:
 			std::swap(edge.a[component_index], edge.b[component_index]);
 		}
 
-		V2_float axis_length{ edge.Direction() };
+		V2_float edge_length{ edge.Direction() };
 
 		// Direction of the chosen axis from the origin.
-		V2_float axis_dir{ axis_length.Normalized() };
+		V2_float axis_dir{ edge_length.Normalized() };
 
 		V2_float division_dir{ axis_dir.Skewed() };
 
@@ -298,10 +319,12 @@ private:
 		V2_float division_length{ division_dir * axis.division_length };
 
 		// By how many pixels each division is separated.
-		float division_offset{ FastAbs(axis_length[component_index]) / axis.divisions };
+		float division_offset{ FastAbs(edge_length[component_index]) / axis.divisions };
+
+		V2_float axis_length{ current_axis_.GetLength() };
 
 		// By how many values each division number is separated.
-		float division_number_offset{ axis_extents_[component_index] / axis.divisions };
+		float division_number_offset{ axis_length[component_index] / axis.divisions };
 
 		PTGN_ASSERT(division_number_offset > 0.0f);
 
@@ -313,7 +336,7 @@ private:
 			division_line.Draw(axis.division_color, axis.division_thickness);
 
 			// Find number at the division line.
-			float division_number{ min_axis_[component_index] + i * division_number_offset };
+			float division_number{ current_axis_.min[component_index] + i * division_number_offset };
 
 			Text division_text{
 				ToString(division_number, axis.division_number_precision), axis.division_text_color,
@@ -333,15 +356,17 @@ private:
 		}
 	}
 
-	bool following_data_{ false };
+	V2_float GetAxisLength() {
+		return current_axis_.max - current_axis_.min;
+	}
+
 	bool moving_plot_{ false };
 
 	// Canvas size here reflects the unscaled resolution of the canvas.
 	RenderTarget canvas_{ { 500, 500 }, color::Transparent, BlendMode::Blend };
 
-	V2_float min_axis_;		// min axis values
-	V2_float max_axis_;		// max axis values
-	V2_float axis_extents_; // max_axis_ - min_axis_
+	impl::AxisExtents current_axis_;
+	impl::AxisExtents set_axis_;
 
 	ecs::Entity entity_;
 	ecs::Manager manager_;

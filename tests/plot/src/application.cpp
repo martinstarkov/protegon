@@ -1,5 +1,3 @@
-#pragma once
-
 #include "protegon/protegon.h"
 
 using namespace ptgn;
@@ -64,11 +62,12 @@ class PlotScene : public Scene {
 
 		HorizontalAxis haxis;
 		// Only whole numbers on the horizontal axis.
-		haxis.division_number_precision = 0;
-		haxis.divisions					= 10;
+		haxis.division_number_precision = 3;
+		//haxis.divisions					= 10;
 		// haxis.regular_align				= false;
 
 		VerticalAxis vaxis;
+		vaxis.division_number_precision = 3;
 		// vaxis.regular_align = false;
 
 		plot.AddProperty<HorizontalAxis>(haxis);
@@ -93,6 +92,10 @@ class PlotScene : public Scene {
 				.data.points.emplace_back(
 					clock.Elapsed<x_axis_unit>().count(), acceleration.GetValue()
 				);
+		}
+
+		if (game.input.KeyDown(Key::R)) {
+			plot.Reset();
 		}
 
 		plot.Draw({ game.window.GetCenter(), { 500, 500 }, Origin::Center });
