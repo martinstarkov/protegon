@@ -323,7 +323,7 @@ Button::Button(const Rect& rect) {
 	SetRect(rect);
 }
 
-void Button::Draw() const {
+void Button::Draw() {
 	auto& i{ Handle::Get() };
 	if (!i.visibility_) {
 		return;
@@ -388,6 +388,9 @@ void Button::Draw() const {
 				);
 			}
 		}
+	}
+	if (i.dropdown_.IsValid()) {
+		i.dropdown_.Draw(i.rect_, i.layer_info_);
 	}
 }
 
@@ -462,8 +465,8 @@ ButtonState Button::GetState() const {
 	}
 }
 
-void ToggleButtonGroup::Draw() const {
-	ForEachValue([](const Button& button) { button.Draw(); });
+void ToggleButtonGroup::Draw() {
+	ForEachValue([](Button& button) { button.Draw(); });
 }
 
 } // namespace ptgn

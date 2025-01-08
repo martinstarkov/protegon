@@ -9,6 +9,8 @@
 #include <vector>
 
 #include "collision/raycast.h"
+#include "core/game.h"
+#include "event/input_handler.h"
 #include "ecs/ecs.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
@@ -22,6 +24,7 @@
 #include "resources/fonts.h"
 #include "ui/button.h"
 #include "utility/debug.h"
+#include "plot.h"
 
 namespace ptgn {
 
@@ -75,7 +78,8 @@ void Plot::Init(const V2_float& min, const V2_float& max) {
 	entity_ = manager_.CreateEntity();
 	manager_.Refresh();
 
-	SetAxisLimits(min, max);
+	set_axis_.min = min;
+	set_axis_.max = max;
 
 	// Default plot properties:
 	AddProperty(VerticalAxis{});
@@ -83,21 +87,40 @@ void Plot::Init(const V2_float& min, const V2_float& max) {
 	AddProperty(BackgroundColor{ color::White });
 }
 
-void Plot::SetAxisLimits(const V2_float& min, const V2_float& max) {
-	PTGN_ASSERT(min.x < max.x);
-	PTGN_ASSERT(min.y < max.y);
-	// TODO: Move to entity components.
-	min_axis_	  = min;
-	max_axis_	  = max;
-	axis_extents_ = max - min;
+void Plot::SetMinX(float min_x) {
+	set_axis_.min.x = min_x;
 }
 
-V2_float Plot::GetAxisMax() const {
-	return max_axis_;
+void Plot::SetMinY(float min_y) {
+	set_axis_.min.y = min_y;
 }
 
-V2_float Plot::GetAxisMin() const {
-	return min_axis_;
+void Plot::SetMaxX(float max_x) {
+	set_axis_.max.x = max_x;
+}
+
+void Plot::SetMaxY(float max_y) {
+	set_axis_.max.y = max_y;
+}
+
+float Plot::GetMinX() const {
+	return set_axis_.min.x;
+}
+
+float Plot::GetMinY() const {
+	return set_axis_.min.y;
+}
+
+float Plot::GetMaxX() const {
+	return set_axis_.max.x;
+}
+
+float Plot::GetMaxY() const {
+	return set_axis_.max.y;
+}
+
+void Plot::Reset() {
+	moving_plot_ = false;
 }
 
 void Plot::Draw(const Rect& destination) {
@@ -109,11 +132,69 @@ void Plot::Draw(const Rect& destination) {
 		dest = Rect::Fullscreen();
 	}
 
+	// TODO: Add offset movement.
+	// Store starting offset when clicked.
+	// Check how many plot sizes have been moved and add appropriately to the limits.
+	// When mouse is released stop shifting limits and reset offset.
+
+	auto scroll{ game.input.GetMouseScroll() };
+
+	V2_float mouse_pos{ game.input.GetMousePosition() };
+	Rect canvas_rect{ canvas_.GetRect() };
+
+	bool mouse_on_plot{ canvas_rect.Overlaps(mouse_pos) };
+	
+	if (game.input.MouseDown(Mouse::Left) && mouse_on_plot) {
+		offset_ = mouse_pos;
+		move_axis_ = current_axis_;
+		moving_plot_ = true;
+	} else if (game.input.MouseUp(Mouse::Left)) {
+		offset_ = V2_float::Infinity();
+	}
+
+	if (scroll != 0 && mouse_on_plot) {
+		// To zoom into where mouse is located, we scale zoom amount for each axis
+		// by the fraction of axis remaining on either side of the mouse position.
+		V2_float mouse_frac{ (mouse_pos - canvas_rect.Min()) / canvas_rect.size };
+		PTGN_ASSERT(mouse_frac.x >= 0.0f && mouse_frac.x <= 1.0f);
+		PTGN_ASSERT(mouse_frac.y >= 0.0f && mouse_frac.y <= 1.0f);
+		moving_plot_ = true;
+		PTGN_LOG("Scrolled inside plot: ", scroll);
+		int dir{ Sign(scroll) };
+		V2_float axis_length{ current_axis_.GetLength() };
+		float zoom_amount{ 0.1f };
+		// Y axis scaling is upside down because mouse pos is taken from top left of window.
+		current_axis_.min.x -= dir * axis_length.x * zoom_amount * mouse_frac.x;
+		current_axis_.min.y -= dir * axis_length.y * zoom_amount * (1.0f - mouse_frac.y);
+		current_axis_.max.x += dir * axis_length.x * zoom_amount * (1.0f - mouse_frac.x);
+		current_axis_.max.y += dir * axis_length.y * zoom_amount * mouse_frac.y;
+	}
+
+	if (moving_plot_ && offset_ != V2_float::Infinity()) {
+		V2_float distance{ offset_.x - mouse_pos.x, mouse_pos.y - offset_.y };
+		V2_float moved_frac{ distance / canvas_rect.size };
+		V2_float axis_length{ current_axis_.GetLength() };
+		V2_float moved_amount{ moved_frac * axis_length };
+		current_axis_.min = move_axis_.min + moved_amount;
+		current_axis_.max = move_axis_.max + moved_amount;
+	}
+
+	if (!moving_plot_) {
+		current_axis_ = set_axis_;
+	}
+
+	PTGN_ASSERT(current_axis_.min.x < current_axis_.max.x);
+	PTGN_ASSERT(current_axis_.min.y < current_axis_.max.y);
+
+	if (entity_.Has<FollowHorizontalData>() && !moving_plot_) {
+		FollowXData();
+	}
+	
 	DrawPlotArea();
 
-	canvas.SetRect(dest);
+	canvas_.SetRect(dest);
 
-	canvas.Draw();
+	canvas_.Draw();
 
 	auto edges{ dest.GetEdges() };
 
@@ -133,13 +214,17 @@ void Plot::FollowXData() {
 		latest_x = std::max(latest_x, series.data.points.back().x);
 	});
 
-	if (latest_x != -std::numeric_limits<float>::infinity()) {
-		SetAxisLimits({ latest_x - axis_extents_.x, min_axis_.y }, { latest_x, max_axis_.y });
+	if (latest_x == -std::numeric_limits<float>::infinity()) {
+		return;
 	}
+
+	V2_float axis_length{ set_axis_.GetLength() };
+	set_axis_.min.x = latest_x - axis_length.x;
+	set_axis_.max.x = latest_x;
 }
 
 Rect Plot::GetCanvasRect() const {
-	return Rect{ {}, canvas.GetTexture().GetSize(), Origin::TopLeft };
+	return Rect{ {}, canvas_.GetTexture().GetSize(), Origin::TopLeft };
 }
 
 void Plot::DrawPlotArea() {
@@ -147,7 +232,7 @@ void Plot::DrawPlotArea() {
 
 	Rect r{ GetCanvasRect() };
 
-	r.Draw(entity_.Get<BackgroundColor>(), -1.0f, canvas);
+	r.Draw(entity_.Get<BackgroundColor>(), -1.0f, canvas_);
 
 	DrawPoints(r);
 
@@ -184,109 +269,127 @@ void Plot::DrawAxes(const std::array<Line, 4>& edges) {
 }
 
 void Plot::DrawLegend(const Rect& dest) {
-	if (entity_.Has<PlotLegend>() && !IsEmpty()) {
-		const auto& legend{ entity_.Get<PlotLegend>() };
-
-		if (legend.toggleable_data) {}
-
-		std::vector<std::pair<Text, Button>> texts_buttons;
-		texts_buttons.reserve(Size());
-
-		V2_float legend_size;
-		V2_float text_size;
-		std::int32_t legend_layer{ legend.draw_over_data ? 380 : 80 };
-
-		ForEachKeyValue([&](auto& name, auto& series) {
-			auto& [text, button] = texts_buttons.emplace_back(
-				Text{ name, legend.text_color,
-					  Font{ font::LiberationSansRegular, legend.text_point_size } },
-				series.GetButton()
-			);
-			if (legend.toggleable_data) {
-				button.Enable();
-				button.template Set<ButtonProperty::Visibility>(true);
-				button.template Set<ButtonProperty::LayerInfo>(LayerInfo{ legend_layer + 1, canvas });
-				if (!button.template Get<ButtonProperty::Toggleable>()) {
-					button.template Set<ButtonProperty::Toggleable>(true);
-				}
-				if (legend.button_texture_default.IsValid() &&
-					!button.template Get<ButtonProperty::Texture>(ButtonState::Default).IsValid()) {
-					button.template Set<ButtonProperty::Texture>(
-						legend.button_texture_default, ButtonState::Default
-					);
-				}
-				if (legend.button_texture_hover.IsValid() &&
-					!button.template Get<ButtonProperty::Texture>(ButtonState::Hover).IsValid()) {
-					button.template Set<ButtonProperty::Texture>(
-						legend.button_texture_hover, ButtonState::Hover
-					);
-					button.template Set<ButtonProperty::Texture>(
-						legend.button_texture_hover, ButtonState::Hover, true
-					);
-				}
-				if (legend.button_texture_toggled.IsValid() &&
-					!button.template Get<ButtonProperty::Texture>(ButtonState::Default, true).IsValid()) {
-					button.template Set<ButtonProperty::Texture>(
-						legend.button_texture_toggled, ButtonState::Default, true
-					);
-				}
-			} else {
-				button.Disable();
-				button.template Set<ButtonProperty::Visibility>(false);
-			}
-			text_size	   = text.GetSize();
-			legend_size.x  = std::max(text_size.x, legend_size.x);
-			legend_size.y += text_size.y;
-		});
-
-		if (legend.toggleable_data) {
-			legend_size.x += text_size.y;
-		}
-
-		PTGN_ASSERT(legend_size.x > 0.0f, "Invalid legend width");
-
-		PTGN_ASSERT(
-			legend_size.y > 0.0f, "Legend text point size must be such that the legend has a height"
-		);
-
-		Rect legend_rect{ dest.Center() + GetOffsetFromCenter(dest.size, legend.origin),
-						  legend_size, legend.origin };
-		legend_rect.Draw(legend.background_color, -1.0f, { legend_layer, canvas });
-
-		V2_float text_offset;
-		V2_float button_offset;
-
-		if (legend.toggleable_data) {
-			// Offset text to make room for buttons.
-			text_offset = { text_size.y, 0.0f };
-		}
-
-		for (auto& [text, button] : texts_buttons) {
-			V2_float size{ text.GetSize() };
-			Rect text_rect{ legend_rect.Min() + text_offset, size, Origin::TopLeft };
-
-			if (legend.toggleable_data) {
-				button.SetRect(Rect{ legend_rect.Min() + button_offset,
-									 { text_size.y, text_size.y },
-									 Origin::TopLeft });
-				button.Draw();
-				button_offset.y += size.y;
-			}
-
-			text.Draw(text_rect, { legend_layer + 1, canvas });
-			text_offset.y += size.y;
-		}
-	} else {
+	if (!entity_.Has<PlotLegend>() || IsEmpty()) {
 		ForEachKeyValue([&]([[maybe_unused]] auto& name, auto& series) {
 			series.GetButton().Disable();
 			series.GetButton().template Set<ButtonProperty::Visibility>(false);
 		});
+		return;
+	}
+	const auto& legend{ entity_.Get<PlotLegend>() };
+
+	std::vector<std::pair<Text, Button>> texts_buttons;
+	texts_buttons.reserve(Size());
+
+	V2_float legend_size;
+	V2_float text_size;
+	std::int32_t legend_layer{ legend.draw_over_data ? 380 : 80 };
+
+	ForEachKeyValue([&](auto& name, auto& series) {
+		auto& [text, button] = texts_buttons.emplace_back(
+			Text{ name, legend.text_color,
+					Font{ font::LiberationSansRegular, legend.text_point_size } },
+			series.GetButton()
+		);
+		if (legend.toggleable_data) {
+			button.Enable();
+			button.template Set<ButtonProperty::Visibility>(true);
+			button.template Set<ButtonProperty::LayerInfo>(LayerInfo{ legend_layer + 1, canvas_ });
+			if (!button.template Get<ButtonProperty::Toggleable>()) {
+				button.template Set<ButtonProperty::Toggleable>(true);
+			}
+			if (legend.button_texture_default.IsValid() &&
+				!button.template Get<ButtonProperty::Texture>(ButtonState::Default).IsValid()) {
+				button.template Set<ButtonProperty::Texture>(
+					legend.button_texture_default, ButtonState::Default
+				);
+			} else {
+				button.template Set<ButtonProperty::BackgroundColor>(
+					color::DarkGreen, ButtonState::Default
+				);
+			}
+			if (legend.button_texture_hover.IsValid() &&
+				!button.template Get<ButtonProperty::Texture>(ButtonState::Hover).IsValid()) {
+				button.template Set<ButtonProperty::Texture>(
+					legend.button_texture_hover, ButtonState::Hover
+				);
+				button.template Set<ButtonProperty::Texture>(
+					legend.button_texture_hover, ButtonState::Hover, true
+				);
+			} else {
+				button.template Set<ButtonProperty::BackgroundColor>(
+					color::DarkGray, ButtonState::Hover
+				);
+				button.template Set<ButtonProperty::BackgroundColor>(
+					color::DarkGray, ButtonState::Hover, true
+				);
+			}
+			if (legend.button_texture_toggled.IsValid() &&
+				!button.template Get<ButtonProperty::Texture>(ButtonState::Default, true).IsValid()) {
+				button.template Set<ButtonProperty::Texture>(
+					legend.button_texture_toggled, ButtonState::Default, true
+				);
+			} else {
+				button.template Set<ButtonProperty::BackgroundColor>(
+					color::Red, ButtonState::Default, true
+				);
+			}
+		} else {
+			button.Disable();
+			button.template Set<ButtonProperty::Visibility>(false);
+		}
+		text_size	   = text.GetSize();
+		legend_size.x  = std::max(text_size.x, legend_size.x);
+		legend_size.y += text_size.y;
+	});
+
+	if (legend.toggleable_data) {
+		legend_size.x += text_size.y;
+	}
+
+	PTGN_ASSERT(legend_size.x > 0.0f, "Invalid legend width");
+
+	PTGN_ASSERT(
+		legend_size.y > 0.0f, "Legend text point size must be such that the legend has a height"
+	);
+
+	Rect legend_rect{ dest.Center() + GetOffsetFromCenter(dest.size, legend.origin),
+						legend_size, legend.origin };
+	legend_rect.Draw(legend.background_color, -1.0f, { legend_layer, canvas_ });
+
+	V2_float text_offset;
+	V2_float button_offset;
+
+	if (legend.toggleable_data) {
+		// Offset text to make room for buttons.
+		text_offset = { text_size.y, 0.0f };
+	}
+
+	for (auto& [text, button] : texts_buttons) {
+		V2_float size{ text.GetSize() };
+		Rect text_rect{ legend_rect.Min() + text_offset, size, Origin::TopLeft };
+
+		if (legend.toggleable_data) {
+			button.SetRect(Rect{ legend_rect.Min() + button_offset,
+									{ text_size.y, text_size.y },
+									Origin::TopLeft });
+			button.Draw();
+			button_offset.y += size.y;
+		}
+
+		text.Draw(text_rect, { legend_layer + 1, canvas_ });
+		text_offset.y += size.y;
 	}
 }
 
 void Plot::DrawPoints(const Rect& dest) {
+	V2_float axis_length{ current_axis_.GetLength() };
+
+	PTGN_ASSERT(axis_length.x != 0.0f);
+	PTGN_ASSERT(axis_length.y != 0.0f);
+
 	auto get_frac = [&](const std::vector<V2_float>& points, std::size_t index) {
-		V2_float frac{ (points[index] - min_axis_) / axis_extents_ };
+		V2_float frac{ (points[index] - current_axis_.min) / axis_length };
 		frac.y = 1.0f - frac.y;
 		return frac;
 	};
@@ -304,52 +407,17 @@ void Plot::DrawPoints(const Rect& dest) {
 		}
 		V2_float dest_pixel{ dest.position + get_local_pixel(frac) };
 		dest_pixel.Draw(
-			entity.Get<DataPointColor>(), entity.Get<DataPointRadius>(), { 200, canvas }
+			entity.Get<DataPointColor>(), entity.Get<DataPointRadius>(), { 200, canvas_ }
 		);
 	};
-
-	/*
-	auto get_intersection_point = [&](const std::array<Line, 4>& edges, const V2_float& start,
-									  const V2_float& end) {
-		Line l{ start, end };
-		Raycast ray;
-		for (const auto& edge : edges) {
-			auto raycast = l.Raycast(edge);
-			if (raycast.Occurred() && raycast.t < ray.t) {
-				ray = raycast;
-			}
-		}
-		V2_float point{ l.a + l.Direction() * ray.t };
-		return point;
-	};
-	*/
 
 	auto draw_line = [&](ecs::Entity entity, const V2_float& frac_current,
 						 const V2_float& frac_next) {
 		if (!entity.Has<LineColor>() || !entity.Has<LineWidth>()) {
 			return;
 		}
-		V2_float start{ get_local_pixel(frac_current) };
-		V2_float end{ get_local_pixel(frac_next) };
-
-		/*Rect boundary{ {}, dest.size, Origin::TopLeft };
-		auto edges{ boundary.GetEdges() };
-
-		V2_float p1{ get_intersection_point(edges, start, end) };
-
-		Line l{ start, p1 };
-
-		if (p1 != end) {
-			V2_float p2{ get_intersection_point(edges, end, start) };
-			if (p2 != p1) {
-				l.a = p2;
-				l.b = p1;
-			}
-		}*/
-
-		Line l{ start, end };
-
-		l.Draw(entity.Get<LineColor>(), entity.Get<LineWidth>(), { 100, canvas });
+		Line l{ get_local_pixel(frac_current), get_local_pixel(frac_next) };
+		l.Draw(entity.Get<LineColor>(), entity.Get<LineWidth>(), { 100, canvas_ });
 	};
 
 	// Note: Data must be sorted for this loop to draw lines correctly.
@@ -358,6 +426,11 @@ void Plot::DrawPoints(const Rect& dest) {
 
 	bool has_legend{ entity_.Has<PlotLegend>() };
 
+	bool autoscaling{ entity_.Has<VerticalAutoscaling>() && !moving_plot_ };
+
+	float y_min{ std::numeric_limits<float>::infinity() };
+	float y_max{ -std::numeric_limits<float>::infinity() };
+
 	for (const auto& [name, series] : data_series) {
 		// Do not display data sets which are disabled in the legend.
 		if (has_legend && series.button_.Get<ButtonProperty::Toggled>()) {
@@ -365,24 +438,43 @@ void Plot::DrawPoints(const Rect& dest) {
 		}
 		for (std::size_t i = 0; i < series.data.points.size(); ++i) {
 			const auto& point{ series.data.points[i] };
-			if (point.x < min_axis_.x) {
-				// data point has been passed on the x axis.
-				continue;
+			bool final_point{ i + 1 == series.data.points.size() };
+			if (!final_point) {
+				const auto& next_point{ series.data.points[i + 1] };
+				if (next_point.x < current_axis_.min.x) {
+					// data point has been passed on the x axis.
+					continue;
+				}
 			}
-			if (point.x > max_axis_.x) {
+			if (point.x > current_axis_.max.x) {
 				// data point is passed the x axis. Given that data_.points is sorted, this means
 				// graphing can stop.
 				break;
 			}
 			V2_float frac_current{ get_frac(series.data.points, i) };
-			if (i + 1 < series.data.points.size()) {
-				const auto& next_point{ series.data.points[i] };
+			if (autoscaling) {
+				y_min = std::min(point.y, y_min);
+				y_max = std::max(point.y, y_max);
+			}
+			if (!final_point) {
+				const auto& next_point{ series.data.points[i + 1] };
 				PTGN_ASSERT(next_point.x >= point.x);
 				draw_line(series.entity_, frac_current, get_frac(series.data.points, i + 1));
 			}
 			draw_marker(series.entity_, frac_current);
 		}
 	}
+	if (!autoscaling) {
+		return;
+	}
+	// Autoscale vertical axis.
+	if (y_min != std::numeric_limits<float>::infinity()) {
+		set_axis_.min.y = y_min;
+	}
+	if (y_max != -std::numeric_limits<float>::infinity()) {
+		set_axis_.max.y = y_max;
+	}
+	PTGN_ASSERT(set_axis_.GetLength().x > 0.0f && set_axis_.GetLength().y > 0.0f);
 }
 
 } // namespace ptgn

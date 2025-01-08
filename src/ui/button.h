@@ -19,10 +19,12 @@
 #include "renderer/texture.h"
 #include "utility/handle.h"
 #include "utility/log.h"
+#include "ui/dropdown.h"
 #include "utility/type_traits.h"
 
 namespace ptgn {
 
+class Dropdown;
 class ToggleButtonGroup;
 
 enum class ButtonState : std::uint8_t {
@@ -43,6 +45,7 @@ enum class ButtonProperty : std::size_t {
 	TextAlignment,	  // Type: TextAlignment (same as Origin relative to button rect position)
 	TextSize,		  // Type: V2_float (default: unscaled text size)
 	LayerInfo,		  // Type: LayerInfo (button text is drawn on this layer + 1 and border on + 2).
+	Dropdown, 		  // Type: Dropdown (specify dropdown elements)
 	Visibility,		  // Type: bool
 	Toggleable,		  // Type: bool
 	Bordered,		  // Type: bool
@@ -172,6 +175,8 @@ public:
 	float line_thickness_{ -1.0f };
 	float border_thickness_{ 1.0f };
 
+	Dropdown dropdown_;
+
 	// If either axis of the text size is zero, it is stretched to fit the entire size of the
 	// button rectangle (along that axis).
 	V2_float text_size_;
@@ -211,6 +216,8 @@ public:
 			return radius_;
 		} else if constexpr (T == ButtonProperty::Visibility) {
 			return visibility_;
+		} else if constexpr (T == ButtonProperty::Dropdown) {
+			return dropdown_;
 		} else if constexpr (T == ButtonProperty::LayerInfo) {
 			return layer_info_;
 		} else if constexpr (T == ButtonProperty::Toggleable) {
@@ -248,7 +255,7 @@ public:
 	Button();
 	explicit Button(const Rect& rect);
 
-	void Draw() const;
+	void Draw();
 
 	// These functions cause button to stop responding to events.
 	[[nodiscard]] bool IsEnabled() const;
@@ -306,6 +313,7 @@ public:
 
 private:
 	friend class ToggleButtonGroup;
+	friend class Dropdown;
 
 	void SetInternalOnActivate(const ButtonCallback& internal_on_activate);
 };
@@ -331,7 +339,7 @@ public:
 		return button;
 	}
 
-	void Draw() const;
+	void Draw();
 };
 
 } // namespace ptgn

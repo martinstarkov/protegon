@@ -118,6 +118,16 @@ private:
 
 namespace impl {
 
+struct AxisExtents
+{
+	V2_float min;
+	V2_float max;
+
+	[[nodiscard]] V2_float GetLength() {
+		return max - min;
+	}
+};
+
 struct Axis {
 	// Color of the axis line.
 	Color line_color{ color::Black };
@@ -194,13 +204,30 @@ struct PlotLegend {
 	Texture button_texture_toggled;
 };
 
+// If added to the plot, the horizontal axis will follow the latest data point.
+struct FollowHorizontalData {};
+
+// If added to the plot, the vertical axis will scale automatically to the data visible in the graph.
+struct VerticalAutoscaling {};
+
 class Plot : public MapManager<DataSeries, std::string_view, std::string, false> {
 public:
 	// @param min Minimum axis values.
 	// @param max Maximum axis values.
 	void Init(const V2_float& min, const V2_float& max);
 
-	void SetAxisLimits(const V2_float& min, const V2_float& max);
+	void SetMinX(float min_x);
+	void SetMinY(float min_y);
+	void SetMaxX(float max_x);
+	void SetMaxY(float max_y);
+
+	[[nodiscard]] float GetMinX() const;
+	[[nodiscard]] float GetMinY() const;
+	[[nodiscard]] float GetMaxX() const;
+	[[nodiscard]] float GetMaxY() const;
+
+	// Resets a plot after it has been moved.
+	void Reset();
 
 	// @return Maximum axis values that are displayed on the plot.
 	[[nodiscard]] V2_float GetAxisMax() const;
@@ -212,10 +239,6 @@ public:
 	// fullscreen.
 	void Draw(const Rect& destination = {});
 
-	// Update the limits of the graph such that it follows the most recent X data point out of all
-	// time series.
-	void FollowXData();
-
 	// @tparam T Type of the property to be added.  Valid property types are listed in the static
 	// assert of this function.
 	// @param property Configured property of the plot.
@@ -226,7 +249,7 @@ public:
 		);
 		static_assert(
 			tt::is_any_of_v<
-				T, BackgroundColor, PlotLegend, PlotBorder, VerticalAxis, HorizontalAxis>,
+				T, BackgroundColor, PlotLegend, PlotBorder, VerticalAxis, HorizontalAxis, FollowHorizontalData, VerticalAutoscaling>,
 			"Invalid type for plot property"
 		);
 		entity_.Add<T>(property);
@@ -238,6 +261,10 @@ private:
 		Above,
 		Below
 	};
+
+	// Update the limits of the graph such that it follows the most recent X data point out of all
+	// time series.
+	void FollowXData();
 
 	// @return Rect that is the size of the plot render target.
 	Rect GetCanvasRect() const;
@@ -276,10 +303,10 @@ private:
 			std::swap(edge.a[component_index], edge.b[component_index]);
 		}
 
-		V2_float axis_length{ edge.Direction() };
+		V2_float edge_length{ edge.Direction() };
 
 		// Direction of the chosen axis from the origin.
-		V2_float axis_dir{ axis_length.Normalized() };
+		V2_float axis_dir{ edge_length.Normalized() };
 
 		V2_float division_dir{ axis_dir.Skewed() };
 
@@ -292,10 +319,12 @@ private:
 		V2_float division_length{ division_dir * axis.division_length };
 
 		// By how many pixels each division is separated.
-		float division_offset{ FastAbs(axis_length[component_index]) / axis.divisions };
+		float division_offset{ FastAbs(edge_length[component_index]) / axis.divisions };
+
+		V2_float axis_length{ current_axis_.GetLength() };
 
 		// By how many values each division number is separated.
-		float division_number_offset{ axis_extents_[component_index] / axis.divisions };
+		float division_number_offset{ axis_length[component_index] / axis.divisions };
 
 		PTGN_ASSERT(division_number_offset > 0.0f);
 
@@ -307,7 +336,7 @@ private:
 			division_line.Draw(axis.division_color, axis.division_thickness);
 
 			// Find number at the division line.
-			float division_number{ min_axis_[component_index] + i * division_number_offset };
+			float division_number{ current_axis_.min[component_index] + i * division_number_offset };
 
 			Text division_text{
 				ToString(division_number, axis.division_number_precision), axis.division_text_color,
@@ -327,12 +356,22 @@ private:
 		}
 	}
 
-	// Canvas size here reflects the unscaled resolution of the canvas.
-	RenderTarget canvas{ { 500, 500 }, color::Transparent, BlendMode::Blend };
+	V2_float GetAxisLength() {
+		return current_axis_.max - current_axis_.min;
+	}
 
-	V2_float min_axis_;		// min axis values
-	V2_float max_axis_;		// max axis values
-	V2_float axis_extents_; // max_axis_ - min_axis_
+	bool moving_plot_{ false };
+	V2_float offset_{ V2_float::Infinity() };
+
+	// Canvas size here reflects the unscaled resolution of the canvas.
+	RenderTarget canvas_{ { 500, 500 }, color::Transparent, BlendMode::Blend };
+
+	// Axis when plot starts getting dragged so that dragging is proportional to the fraction of axes moved.
+	impl::AxisExtents move_axis_;
+	// Allows for dragging and zooming of plot.
+	impl::AxisExtents current_axis_;
+	// Allows for resetting plot back to initial axis.
+	impl::AxisExtents set_axis_;
 
 	ecs::Entity entity_;
 	ecs::Manager manager_;
