@@ -184,6 +184,10 @@ struct Vector2 {
 		return { T{ 0 }, T{ -1 } };
 	}
 
+	[[nodiscard]] static Vector2 Infinity() {
+		return { std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity() };
+	}
+
 	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
 	[[nodiscard]] constexpr S Magnitude() const {
 		return std::sqrt(static_cast<S>(MagnitudeSquared()));

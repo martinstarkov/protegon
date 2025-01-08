@@ -132,14 +132,30 @@ void Plot::Draw(const Rect& destination) {
 		dest = Rect::Fullscreen();
 	}
 
+	// TODO: Add offset movement.
+	// Store starting offset when clicked.
+	// Check how many plot sizes have been moved and add appropriately to the limits.
+	// When mouse is released stop shifting limits and reset offset.
+
 	auto scroll{ game.input.GetMouseScroll() };
 
 	V2_float mouse_pos{ game.input.GetMousePosition() };
+	Rect canvas_rect{ canvas_.GetRect() };
 
-	if (scroll != 0 && dest.Overlaps(mouse_pos)) {
+	bool mouse_on_plot{ canvas_rect.Overlaps(mouse_pos) };
+	
+	if (game.input.MouseDown(Mouse::Left) && mouse_on_plot) {
+		offset_ = mouse_pos;
+		move_axis_ = current_axis_;
+		moving_plot_ = true;
+	} else if (game.input.MouseUp(Mouse::Left)) {
+		offset_ = V2_float::Infinity();
+	}
+
+	if (scroll != 0 && mouse_on_plot) {
 		// To zoom into where mouse is located, we scale zoom amount for each axis
 		// by the fraction of axis remaining on either side of the mouse position.
-		V2_float mouse_frac = (mouse_pos - dest.Min()) / dest.size;
+		V2_float mouse_frac{ (mouse_pos - canvas_rect.Min()) / canvas_rect.size };
 		PTGN_ASSERT(mouse_frac.x >= 0.0f && mouse_frac.x <= 1.0f);
 		PTGN_ASSERT(mouse_frac.y >= 0.0f && mouse_frac.y <= 1.0f);
 		moving_plot_ = true;
@@ -152,6 +168,15 @@ void Plot::Draw(const Rect& destination) {
 		current_axis_.min.y -= dir * axis_length.y * zoom_amount * (1.0f - mouse_frac.y);
 		current_axis_.max.x += dir * axis_length.x * zoom_amount * (1.0f - mouse_frac.x);
 		current_axis_.max.y += dir * axis_length.y * zoom_amount * mouse_frac.y;
+	}
+
+	if (moving_plot_ && offset_ != V2_float::Infinity()) {
+		V2_float distance{ offset_.x - mouse_pos.x, mouse_pos.y - offset_.y };
+		V2_float moved_frac{ distance / canvas_rect.size };
+		V2_float axis_length{ current_axis_.GetLength() };
+		V2_float moved_amount{ moved_frac * axis_length };
+		current_axis_.min = move_axis_.min + moved_amount;
+		current_axis_.max = move_axis_.max + moved_amount;
 	}
 
 	if (!moving_plot_) {

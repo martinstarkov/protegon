@@ -361,11 +361,16 @@ private:
 	}
 
 	bool moving_plot_{ false };
+	V2_float offset_{ V2_float::Infinity() };
 
 	// Canvas size here reflects the unscaled resolution of the canvas.
 	RenderTarget canvas_{ { 500, 500 }, color::Transparent, BlendMode::Blend };
 
+	// Axis when plot starts getting dragged so that dragging is proportional to the fraction of axes moved.
+	impl::AxisExtents move_axis_;
+	// Allows for dragging and zooming of plot.
 	impl::AxisExtents current_axis_;
+	// Allows for resetting plot back to initial axis.
 	impl::AxisExtents set_axis_;
 
 	ecs::Entity entity_;
