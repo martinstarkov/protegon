@@ -50,6 +50,7 @@ using json = nlohmann::json;
 #include "tile/grid.h"
 #include "tile/layer.h"
 #include "ui/button.h"
+#include "ui/dropdown.h"
 #include "ui/plot.h"
 #include "ui/ui.h"
 #include "utility/file.h"

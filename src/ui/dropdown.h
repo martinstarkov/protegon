@@ -5,40 +5,48 @@
 
 #include "core/manager.h"
 #include "renderer/text.h"
-#include "ui/button.h"
 #include "utility/type_traits.h"
 
 namespace ptgn {
 
-class Dropdown : public MapManager<Text, std::string_view, std::string, false> {
+class Button;
+struct LayerInfo;
+
+namespace impl {
+
+struct DropdownInstance {
+	std::vector<Button> buttons_;
+
+	// Dropdown is visible.
+	bool visible_{ false };
+
+	// Default value of {} results in,each button having the size of the parent button.
+	V2_float button_size_;
+	// Which direction the dropdown drops relative to the parent button.
+	Origin direction_{ Origin::CenterBottom };
+};
+
+} // namespace impl
+
+class Dropdown : public Handle<impl::DropdownInstance> {
 public:
-	Dropdown()								 = default;
-	virtual ~Dropdown()						 = default;
-	Dropdown(Dropdown&&) noexcept			 = default;
-	Dropdown& operator=(Dropdown&&) noexcept = default;
-	Dropdown(const Dropdown&)				 = delete;
-	Dropdown& operator=(const Dropdown&)	 = delete;
+	// Note: Dropdown button layer info is overriden internally after the Dropdown class is added to the parent button.
+	Button& Add(const Button& button);
 
-	template <typename TKey, typename... TArgs, tt::constructible<Text, TArgs...> = true>
-	Text& Load(const TKey& key, TArgs&&... constructor_args) {
-		auto k{ GetInternalKey(key) };
-		Text& text{ MapManager::Load(key, Text{ std::forward<TArgs>(constructor_args)... }) };
-		Button button;
-		// button.Set<ButtonProperty::
-		buttons_.Load(key, button);
-		return text;
-	}
+	// Set the size that each dropdown button will be.
+	// If not specified, each button will have the size of the parent button.
+	void SetButtonSize(const V2_float& button_size);
+	
+	// Set which direction the dropdown drops relative to the parent button.
+	void SetDropdownDirection(Origin dropdown_direction);
 
-	void Show() {
-		//ForEachValue([](Button& b) { b.Set<ButtonProperty::Toggled>(false); });
-	}
-
-	void Hide() {}
-
-	void Draw() const;
-
+	void Toggle();
+	void Show();
+	void Hide();
 private:
-	MapManager<Button, std::string_view, std::string, false> buttons_;
+	friend class Button;
+
+	void Draw(const Rect& parent_button_rect, const LayerInfo& layer_info);
 };
 
 } // namespace ptgn
