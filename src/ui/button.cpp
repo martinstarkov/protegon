@@ -131,6 +131,21 @@ void ButtonInstance::Disable() {
 	}
 }
 
+void ButtonInstance::Show() {
+	visibility_ = true;
+	RecheckState();
+	if (on_show_) {
+		std::invoke(on_show_);
+	}
+}
+
+void ButtonInstance::Hide() {
+	visibility_ = false;
+	if (on_hide_) {
+		std::invoke(on_hide_);
+	}
+}
+
 void ButtonInstance::RecheckState() {
 	if (!enabled_) {
 		return;
@@ -407,6 +422,19 @@ Button& Button::SetEnabled(bool enabled) {
 	return *this;
 }
 
+bool Button::IsVisible() const {
+	return Handle::Get().visibility_;
+}
+
+Button& Button::SetVisibility(bool enabled) {
+	auto& i{ Handle::Get() };
+	if (enabled == i.visibility_) {
+		return *this;
+	}
+	enabled ? i.Show() : i.Hide();
+	return *this;
+}
+
 Button& Button::Activate() {
 	Handle::Get().Activate();
 	return *this;
@@ -435,8 +463,18 @@ Button& Button::Enable() {
 	return SetEnabled(true);
 }
 
+Button& Button::Show() {
+	return SetVisibility(true);
+}
+
+Button& Button::Hide() {
+	return SetVisibility(false);
+}
+
 Rect Button::GetRect() const {
-	return Handle::Get().rect_;
+	PTGN_ASSERT(IsValid(), "Cannot get rectangle of invalid or uninitialized button");
+	auto& i{ Handle::Get() };
+	return i.rect_;
 }
 
 Button& Button::SetRect(const Rect& new_rectangle) {

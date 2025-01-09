@@ -58,7 +58,9 @@ enum class ButtonProperty : std::size_t {
 	OnActivate,		  // Type: ButtonCallback
 	OnDisable,		  // Type: ButtonCallback
 	OnEnable,		  // Type: ButtonCallback
-	OnToggle,		  // Type: ButtonCallback
+	OnShow,		  	  // Type: ButtonCallback
+	OnHide,		 	  // Type: ButtonCallback
+	OnToggle		  // Type: ButtonCallback
 };
 
 using TextAlignment = Origin;
@@ -127,9 +129,14 @@ public:
 	void Activate();
 	void StartHover();
 	void StopHover();
+
+	// Toggles the toggle state of a button.
 	void Toggle();
+
 	void Enable();
 	void Disable();
+	void Show();
+	void Hide();
 
 	[[nodiscard]] bool InsideRect(const V2_int& position) const;
 
@@ -165,6 +172,8 @@ public:
 	ButtonCallback on_hover_stop_;
 	ButtonCallback on_enable_;
 	ButtonCallback on_disable_;
+	ButtonCallback on_show_;
+	ButtonCallback on_hide_;
 	ButtonCallback on_toggle_;
 
 	LayerInfo layer_info_;
@@ -236,6 +245,10 @@ public:
 			return on_disable_;
 		} else if constexpr (T == ButtonProperty::OnEnable) {
 			return on_enable_;
+		} else if constexpr (T == ButtonProperty::OnShow) {
+			return on_show_;
+		} else if constexpr (T == ButtonProperty::OnHide) {
+			return on_hide_;
 		} else if constexpr (T == ButtonProperty::OnHoverStart) {
 			return on_hover_start_;
 		} else if constexpr (T == ButtonProperty::OnHoverStop) {
@@ -257,17 +270,28 @@ public:
 
 	void Draw();
 
-	// These functions cause button to stop responding to events.
 	[[nodiscard]] bool IsEnabled() const;
+
+	// Disabling a button causes it to stop responding to events.
 	Button& SetEnabled(bool enabled);
+
+	[[nodiscard]] bool IsVisible() const;
+
+	// Hiding a button causes it to disappear while still responding to events.
+	Button& SetVisibility(bool enabled);
 
 	// These allow for manually triggering button callback events.
 	Button& Activate();
 	Button& StartHover();
 	Button& StopHover();
+
+	// Toggles the toggle state of a toggleable button (what a mouthful).
 	Button& Toggle();
+
 	Button& Disable();
 	Button& Enable();
+	Button& Show();
+	Button& Hide();
 
 	[[nodiscard]] Rect GetRect() const;
 	Button& SetRect(const Rect& new_rect);
