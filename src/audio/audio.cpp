@@ -49,8 +49,8 @@ void Music::Play(int loops) {
 	Mix_PlayMusic(&Get(), loops);
 }
 
-void Music::FadeIn(int loops, milliseconds time) {
-	const auto time_int = std::chrono::duration_cast<duration<int, milliseconds::period>>(time);
+void Music::FadeIn(milliseconds fade_time, int loops) {
+	auto time_int = std::chrono::duration_cast<duration<int, milliseconds::period>>(fade_time);
 	Mix_FadeInMusic(&Get(), loops, time_int.count());
 }
 
@@ -67,8 +67,8 @@ void Sound::Play(int channel, int loops) {
 	Mix_PlayChannel(channel, &Get(), loops);
 }
 
-void Sound::FadeIn(int channel, int loops, milliseconds time) {
-	const auto time_int = std::chrono::duration_cast<duration<int, std::milli>>(time);
+void Sound::FadeIn(milliseconds fade_time, int channel, int loops) {
+	auto time_int{ std::chrono::duration_cast<duration<int, std::milli>>(fade_time) };
 	Mix_FadeInChannel(channel, &Get(), loops, time_int.count());
 }
 

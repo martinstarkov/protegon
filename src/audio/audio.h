@@ -14,30 +14,41 @@ namespace ptgn {
 class Music : public Handle<Mix_Music> {
 public:
 	Music() = default;
+
+	// @param music_path The file path to the music.
 	explicit Music(const path& music_path);
 
-	// -1 for infinite loops.
-	void Play(int loops);
-	// -1 for infinite loops.
-	void FadeIn(int loops, milliseconds time);
+	// @param loops The number of loops to play the music for, -1 for infinite looping.
+	void Play(int loops = -1);
+
+	// @param fade_time How long to fade the music in for.
+	// @param loops The number of loops to play the music for, -1 for infinite looping.
+	void FadeIn(milliseconds fade_time, int loops = -1);
 };
 
 class Sound : public Handle<Mix_Chunk> {
 public:
 	Sound() = default;
+
+	// @param sound_path The file path to the sound.
 	explicit Sound(const path& sound_path);
 
 	// TODO: Potentially store the channel to enable commands like IsPlaying(). Although this might
 	// be problematic if multiple sounds play on the same channel.
 
-	// @param channel The channel on which to play the sound on.
-	// @param loops Number of times to loop sound (-1 for infinite looping).
-	void Play(int channel, int loops = 0);
-	// @param loops Number of times to loop sound (-1 for infinite looping).
-	// @param time Time over which to fade the sound in.
-	void FadeIn(int channel, int loops, milliseconds time);
-	// volume 0 to 128.
+	// @param channel The channel on which to play the sound on, -1 to play on the first free channel.
+	// @param loops Number of times to loop sound, -1 for infinite looping.
+	void Play(int channel = -1, int loops = 0);
+
+	// @param fade_time Time over which to fade the sound in.
+	// @param channel The channel on which to play the sound on, -1 to play on the first free channel.
+	// @param loops Number of times to loop sound, -1 for infinite looping.
+	void FadeIn(milliseconds fade_time, int channel = -1, int loops = 0);
+
+	// Set volume of the sound. Volume range: [0, 128].
 	void SetVolume(int volume);
+
+	// @return Volume of the sound. Volume range: [0, 128].
 	[[nodiscard]] int GetVolume();
 };
 
