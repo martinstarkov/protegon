@@ -13,6 +13,7 @@
 #include "utility/file.h"
 #include "utility/handle.h"
 #include "utility/time.h"
+#include "audio.h"
 
 namespace ptgn {
 
@@ -50,7 +51,7 @@ void Music::Play(int loops) {
 }
 
 void Music::FadeIn(milliseconds fade_time, int loops) {
-	auto time_int = std::chrono::duration_cast<duration<int, milliseconds::period>>(fade_time);
+	auto time_int{ std::chrono::duration_cast<duration<int, milliseconds::period>>(fade_time) };
 	Mix_FadeInMusic(&Get(), loops, time_int.count());
 }
 
@@ -73,11 +74,28 @@ void Sound::FadeIn(milliseconds fade_time, int channel, int loops) {
 }
 
 void Sound::SetVolume(int volume) {
+	PTGN_ASSERT(volume >= 0 && volume <= max_volume, "Cannot set sound volume outside of valid range");
 	Mix_VolumeChunk(&Get(), volume);
 }
 
-int Sound::GetVolume() {
-	return Mix_VolumeChunk(&Get(), -1);
+int Sound::GetVolume() const {
+	return Mix_VolumeChunk(const_cast<Mix_Chunk*>(&Get()), -1);
+}
+
+void Sound::Mute() {
+	SetVolume(0);
+}
+
+void Sound::Unmute(int new_volume) {
+	SetVolume(new_volume);
+}
+
+void Sound::ToggleMute(int new_volume) {
+	if (GetVolume() != 0) {
+		Mute();
+	} else {
+		Unmute(new_volume);
+	}
 }
 
 namespace impl {
@@ -87,7 +105,7 @@ void MusicManager::Stop() const {
 }
 
 void MusicManager::FadeOut(milliseconds time) const {
-	auto time_int = std::chrono::duration_cast<duration<int, std::milli>>(time);
+	auto time_int{ std::chrono::duration_cast<duration<int, std::milli>>(time) };
 	Mix_FadeOutMusic(time_int.count());
 }
 
@@ -99,11 +117,19 @@ void MusicManager::Resume() const {
 	Mix_ResumeMusic();
 }
 
-void MusicManager::Toggle(int optional_new_volume) const {
+void MusicManager::ToggleMute(int new_volume) const {
 	if (GetVolume() != 0) {
 		Mute();
 	} else {
-		Unmute(optional_new_volume);
+		Unmute(new_volume);
+	}
+}
+
+void MusicManager::TogglePause() const {
+	if (IsPaused()) {
+		Resume();
+	} else {
+		Pause();
 	}
 }
 
@@ -111,24 +137,17 @@ int MusicManager::GetVolume() const {
 	return Mix_VolumeMusic(-1);
 }
 
-void MusicManager::SetVolume(int new_volume) const {
-	Mix_VolumeMusic(new_volume);
+void MusicManager::SetVolume(int volume) const {
+	PTGN_ASSERT(volume >= 0 && volume <= max_volume, "Cannot set music volume outside of valid range");
+	Mix_VolumeMusic(volume);
 }
 
 void MusicManager::Mute() const {
 	SetVolume(0);
 }
 
-void MusicManager::Unmute(int optional_new_volume) const {
-	if (optional_new_volume == -1) {
-		SetVolume(MIX_MAX_VOLUME);
-		return;
-	}
-	PTGN_ASSERT(optional_new_volume >= 0, "Cannot unmute to volume below 0");
-	PTGN_ASSERT(
-		optional_new_volume <= MIX_MAX_VOLUME, "Cannot unmute to volume above max volume (128)"
-	);
-	SetVolume(optional_new_volume);
+void MusicManager::Unmute(int new_volume) const {
+	SetVolume(new_volume);
 }
 
 bool MusicManager::IsPlaying() const {
@@ -161,13 +180,47 @@ void SoundManager::Resume(int channel) const {
 	Mix_Resume(channel);
 }
 
-void SoundManager::FadeOut(int channel, milliseconds time) const {
-	const auto time_int = std::chrono::duration_cast<duration<int, std::milli>>(time);
+void SoundManager::Pause(int channel) const {
+	Mix_Pause(channel);
+}
+
+void SoundManager::TogglePause(int channel) const {
+	if (IsPaused(channel)) {
+		Resume(channel);
+	} else {
+		Pause(channel);
+	}
+}
+
+void SoundManager::FadeOut(milliseconds fade_time, int channel) const {
+	auto time_int{ std::chrono::duration_cast<duration<int, std::milli>>(fade_time) };
 	Mix_FadeOutChannel(channel, time_int.count());
+}
+
+void SoundManager::SetVolume(int channel, int volume) {
+	PTGN_ASSERT(volume >= 0 && volume <= max_volume, "Cannot set sound channel volume outside of valid range");
+	Mix_Volume(channel, volume);
+}
+
+int SoundManager::GetVolume(int channel) const {
+	return Mix_Volume(channel, -1);
 }
 
 bool SoundManager::IsPlaying(int channel) const {
 	return static_cast<bool>(Mix_Playing(channel));
+}
+
+bool SoundManager::IsPaused(int channel) const {
+	return static_cast<bool>(Mix_Paused(channel));
+}
+
+bool SoundManager::IsFading(int channel) const {
+	switch (Mix_FadingChannel(channel)) {
+		case MIX_NO_FADING:	 return false;
+		case MIX_FADING_OUT: return true;
+		case MIX_FADING_IN:	 return true;
+		default:			 return false;
+	}
 }
 
 void SoundManager::Reset() {
