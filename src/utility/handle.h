@@ -26,12 +26,6 @@ public:
 	friend bool operator!=(const Handle& a, const Handle& b) {
 		return !(a == b);
 	}
-
-	/*std::shared_ptr<T> Copy() const {
-		PTGN_ASSERT(IsValid(), "Cannot copy invalid handle");
-		return std::make_shared<T>(*instance_);
-	}*/
-
 protected:
 	const T& Get() const {
 		PTGN_ASSERT(IsValid(), "Uninitialized instance");
