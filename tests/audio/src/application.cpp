@@ -6,7 +6,6 @@ constexpr V2_int resolution{ 800, 800 };
 
 class AudioExample : public Scene {
 public:
-	// @return Button and size of text.
 	Button CreateButton(std::string_view content, const ButtonCallback& on_activate, const Color& bg_color = color::Silver) {
 		Button b;
 		b.Set<ButtonProperty::BackgroundColor>(bg_color);

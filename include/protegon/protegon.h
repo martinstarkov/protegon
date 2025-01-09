@@ -10,6 +10,7 @@ using json = nlohmann::json;
 #include "math/collision.h"
 #include "components/generic.h"
 #include "components/lifetime.h"
+#include "components/camera_shake.h"
 #include "components/sprite.h"
 #include "components/transform.h"
 #include "core/game.h"
