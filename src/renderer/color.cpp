@@ -12,14 +12,14 @@ Vector4<float> Color::Normalized() const {
 
 Color Color::RandomOpaque() {
 	RNG<int> rng{ 0, 255 };
-	return { static_cast<Color::Type>(rng()), static_cast<Color::Type>(rng()),
-			 static_cast<Color::Type>(rng()), 255 };
+	return { static_cast<std::uint8_t>(rng()), static_cast<std::uint8_t>(rng()),
+			 static_cast<std::uint8_t>(rng()), 255 };
 }
 
 Color Color::RandomTransparent() {
 	RNG<int> rng{ 0, 255 };
-	return { static_cast<Color::Type>(rng()), static_cast<Color::Type>(rng()),
-			 static_cast<Color::Type>(rng()), static_cast<Color::Type>(rng()) };
+	return { static_cast<std::uint8_t>(rng()), static_cast<std::uint8_t>(rng()),
+			 static_cast<std::uint8_t>(rng()), static_cast<std::uint8_t>(rng()) };
 }
 
 } // namespace ptgn

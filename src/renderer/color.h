@@ -29,19 +29,15 @@ enum class BlendMode {
 };
 
 struct Color {
-	using Type = std::uint8_t;
-
-	Type r{ 0 };
-	Type g{ 0 };
-	Type b{ 0 };
-	Type a{ 0 };
+	std::uint8_t r{ 0 };
+	std::uint8_t g{ 0 };
+	std::uint8_t b{ 0 };
+	std::uint8_t a{ 0 };
 
 	// Default color is black.
 	constexpr Color() = default;
 
-	constexpr Color(Type r, Type g, Type b, Type a) : r{ r }, g{ g }, b{ b }, a{ a } {}
-
-	constexpr Color(const Color& color) : r{ color.r }, g{ color.g }, b{ color.b }, a{ color.a } {}
+	constexpr Color(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a) : r{ r }, g{ g }, b{ b }, a{ a } {}
 
 	// @return Color values normalized to 0.0f -> 1.0f range.
 	[[nodiscard]] Vector4<float> Normalized() const;
@@ -60,18 +56,18 @@ struct Color {
 
 template <typename U, tt::floating_point<U> = true>
 [[nodiscard]] inline Color Lerp(const Color& lhs, const Color& rhs, U t) {
-	return Color{ static_cast<Color::Type>(Lerp(lhs.r, rhs.r, t)),
-				  static_cast<Color::Type>(Lerp(lhs.g, rhs.g, t)),
-				  static_cast<Color::Type>(Lerp(lhs.b, rhs.b, t)),
-				  static_cast<Color::Type>(Lerp(lhs.a, rhs.a, t)) };
+	return Color{ static_cast<std::uint8_t>(Lerp(lhs.r, rhs.r, t)),
+				  static_cast<std::uint8_t>(Lerp(lhs.g, rhs.g, t)),
+				  static_cast<std::uint8_t>(Lerp(lhs.b, rhs.b, t)),
+				  static_cast<std::uint8_t>(Lerp(lhs.a, rhs.a, t)) };
 }
 
 template <typename U, tt::floating_point<U> = true>
 [[nodiscard]] inline Color Lerp(const Color& lhs, const Color& rhs, U t_r, U t_g, U t_b, U t_a) {
-	return Color{ static_cast<Color::Type>(Lerp(lhs.r, rhs.r, t_r)),
-				  static_cast<Color::Type>(Lerp(lhs.g, rhs.g, t_g)),
-				  static_cast<Color::Type>(Lerp(lhs.b, rhs.b, t_b)),
-				  static_cast<Color::Type>(Lerp(lhs.a, rhs.a, t_a)) };
+	return Color{ static_cast<std::uint8_t>(Lerp(lhs.r, rhs.r, t_r)),
+				  static_cast<std::uint8_t>(Lerp(lhs.g, rhs.g, t_g)),
+				  static_cast<std::uint8_t>(Lerp(lhs.b, rhs.b, t_b)),
+				  static_cast<std::uint8_t>(Lerp(lhs.a, rhs.a, t_a)) };
 }
 
 namespace color {
