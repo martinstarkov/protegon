@@ -64,7 +64,7 @@ public:
 	// @param font Default: {}, which corresponds to the default font (use game.font.SetDefault(...)
 	// to change.
 	Text(
-		const std::string_view& content, const Color& text_color, const FontOrKey& font = {},
+		const std::string_view& content, const Color& text_color = color::Black, const FontOrKey& font = {},
 		FontStyle font_style	   = FontStyle::Normal,
 		FontRenderMode render_mode = FontRenderMode::Solid,
 		const Color& shading_color = color::White, std::uint32_t wrap_after_pixels = 0
