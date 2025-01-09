@@ -106,7 +106,7 @@ struct TestViewportExtentsAndOrigin : public DrawTest {
 struct TestPoint : public DrawTest {
 	const float point_radius{ 3.0f };
 
-	void Init() {
+	void Init() override {
 		DrawTest::Init();
 	}
 
