@@ -8,7 +8,7 @@
 #include <utility>
 #include <vector>
 
-#include "collision/raycast.h"
+#include "math/raycast.h"
 #include "core/game.h"
 #include "event/input_handler.h"
 #include "ecs/ecs.h"

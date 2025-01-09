@@ -6,8 +6,8 @@
 using json = nlohmann::json;
 
 #include "audio/audio.h"
-#include "collision/collider.h"
-#include "collision/collision.h"
+#include "math/collider.h"
+#include "math/collision.h"
 #include "components/generic.h"
 #include "components/lifetime.h"
 #include "components/sprite.h"

@@ -2,9 +2,9 @@
 #include <new>
 #include <vector>
 
-#include "collision/collider.h"
-#include "collision/collision.h"
-#include "collision/raycast.h"
+#include "math/collider.h"
+#include "math/collision.h"
+#include "math/raycast.h"
 #include "common.h"
 #include "components/sprite.h"
 #include "components/transform.h"

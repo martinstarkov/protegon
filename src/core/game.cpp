@@ -6,7 +6,7 @@
 #include <type_traits>
 
 #include "audio/audio.h"
-#include "collision/collision.h"
+#include "math/collision.h"
 #include "core/gl_context.h"
 #include "core/manager.h"
 #include "core/sdl_instance.h"

@@ -4,8 +4,8 @@
 #include <unordered_set>
 #include <vector>
 
-#include "collision/collider.h"
-#include "collision/raycast.h"
+#include "math/collider.h"
+#include "math/raycast.h"
 #include "components/transform.h"
 #include "core/game.h"
 #include "ecs/ecs.h"

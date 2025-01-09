@@ -1,6 +1,6 @@
 #pragma once
 
-#include "collision/raycast.h"
+#include "math/raycast.h"
 #include "math/vector2.h"
 
 namespace ptgn {

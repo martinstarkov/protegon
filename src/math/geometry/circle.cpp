@@ -5,7 +5,7 @@
 #include <limits>
 #include <utility>
 
-#include "collision/raycast.h"
+#include "math/raycast.h"
 #include "core/game.h"
 #include "math/geometry/intersection.h"
 #include "math/geometry/line.h"

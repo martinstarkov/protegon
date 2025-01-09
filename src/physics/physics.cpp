@@ -1,6 +1,6 @@
 #include "physics/physics.h"
 
-#include "collision/collision.h"
+#include "math/collision.h"
 #include "components/transform.h"
 #include "core/game.h"
 #include "ecs/ecs.h"

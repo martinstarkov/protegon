@@ -4,7 +4,7 @@
 #include <cmath>
 #include <utility>
 
-#include "collision/collider.h"
+#include "math/collider.h"
 #include "components/transform.h"
 #include "core/game.h"
 #include "ecs/ecs.h"

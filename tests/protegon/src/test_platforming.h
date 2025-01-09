@@ -1,7 +1,7 @@
 #include <memory>
 #include <vector>
 
-#include "collision/collider.h"
+#include "math/collider.h"
 #include "common.h"
 #include "components/sprite.h"
 #include "components/transform.h"

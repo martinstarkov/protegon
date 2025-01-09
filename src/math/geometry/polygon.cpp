@@ -5,7 +5,7 @@
 #include <limits>
 #include <vector>
 
-#include "collision/raycast.h"
+#include "math/raycast.h"
 #include "core/game.h"
 #include "core/window.h"
 #include "math/geometry/axis.h"

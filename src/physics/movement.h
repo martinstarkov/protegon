@@ -1,6 +1,6 @@
 #pragma once
 
-#include "collision/collider.h"
+#include "math/collider.h"
 #include "components/transform.h"
 #include "event/key.h"
 #include "math/vector2.h"
