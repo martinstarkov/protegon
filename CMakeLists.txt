@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(protegon)
 
-option(PROTEGON_TESTS "Build protegon tests" ON)
+option(PROTEGON_DEMOS "Build protegon demos" ON)
 option(protegon_WARNINGS_AS_ERRORS "Treat compiler warnings as errors." OFF)
 
 if (WIN32)
@@ -16,6 +16,6 @@ set(PROTEGON_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}" CACHE BOOL "")
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/SetupProtegon.cmake")
 
-if(PROTEGON_TESTS)
-  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/tests")
+if(PROTEGON_DEMOS)
+  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/demos")
 endif()
