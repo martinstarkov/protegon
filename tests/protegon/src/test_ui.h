@@ -246,38 +246,6 @@ public:
 	}
 };
 
-class ButtonGroupTest : public ButtonTest {
-	ToggleButtonGroup g;
-
-	void Shutdown() override {
-		g.Clear();
-	}
-
-	void Init() override {
-		g.Clear();
-
-		size   = V2_float{ 200, 130 };
-		y_step = 180;
-
-		g.Load("1", CreateTexturedToggleButton("1", V2_float{ x1, y + y_step * 0 }, size, []() {
-				   PTGN_LOG("1");
-			   }));
-		g.Load("2", CreateTexturedToggleButton("2", V2_float{ x1, y + y_step * 1 }, size, []() {
-				   PTGN_LOG("2");
-			   }));
-		g.Load("3", CreateTexturedToggleButton("3", V2_float{ x1, y + y_step * 2 }, size, []() {
-				   PTGN_LOG("3");
-			   }));
-		g.Load("4", CreateTexturedToggleButton("4", V2_float{ x1, y + y_step * 3 }, size, []() {
-				   PTGN_LOG("4");
-			   }));
-	}
-
-	void Update() override {
-		auto& m = game.event.mouse;
-		g.Draw();
-	}
-};
 
 void TestUI() {
 	std::vector<std::shared_ptr<Test>> tests;
