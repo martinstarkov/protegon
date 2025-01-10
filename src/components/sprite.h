@@ -80,7 +80,7 @@ inline void DrawLine(ecs::Entity entity, const Line& line) {
 struct Sprite {
 	// sprite_size = {} results in full texture size being used.
 	Sprite(
-		const Texture& texture, V2_float draw_offset = {}, Origin origin = Origin::Center,
+		const Texture& texture, const V2_float& draw_offset = {}, Origin origin = Origin::Center,
 		const V2_float& sprite_size = {}, const V2_float& start_pixel = {}
 	) :
 		texture{ texture }, draw_offset{ draw_offset } {
