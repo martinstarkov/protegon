@@ -1,18 +1,8 @@
-#include <cstdint>
-#include <memory>
-#include <new>
-#include <vector>
+#include "protegon/protegon.h"
 
-#include "scene/camera.h"
-#include "common.h"
-#include "core/game.h"
-#include "event/input_handler.h"
-#include "event/key.h"
-#include "event/mouse.h"
-#include "math/geometry/polygon.h"
-#include "math/vector2.h"
-#include "renderer/color.h"
-#include "renderer/origin.h"
+using namespace ptgn;
+
+constexpr V2_int resolution{ 1280, 720 };
 
 class FluidContainer {
 public:
@@ -231,10 +221,9 @@ private:
 	}
 };
 
-class FluidTest : public Test {
+class FluidExample : public Scene {
 public:
 	const V2_float scale{ 6, 6 };
-	const V2_float resolution{ 1280, 720 };
 	FluidContainer fluid{ resolution / scale, 0.1f, 0.0001f,
 						  0.000001f }; // Dt, Diffusion, Viscosity
 
@@ -242,19 +231,12 @@ public:
 
 	float gravity_increment{ 1.0f };   // Increment by which gravity increases / decreases
 
-	void Shutdown() override {
-		game.window.SetSize({ 800, 800 });
-	}
-
-	void Init() override {
-		game.window.SetSize(resolution);
-	}
-
 	void Update() override {
 		// Reset the screen.
 		if (game.input.KeyDown(Key::SPACE)) {
 			fluid.Reset();
 		}
+
 		// Reset gravity.
 		if (game.input.KeyDown(Key::R)) {
 			gravity = {};
@@ -284,10 +266,13 @@ public:
 
 		// Update fluid.
 		fluid.Update();
+
+		Draw();
 	}
 
-	void Draw() override {
+	void Draw() {
 		static bool density_graph{ false };
+
 		if (game.input.KeyDown(Key::D)) {
 			density_graph = !density_graph;
 		}
@@ -317,10 +302,8 @@ public:
 	}
 };
 
-void TestFluid() {
-	std::vector<std::shared_ptr<Test>> tests;
-
-	tests.emplace_back(new FluidTest());
-
-	AddTests(tests);
+int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+	game.Init("Fluid: Click (add), Arrow keys (shift vector field), R (reset vector field), Space (reset fluid)", resolution);
+	game.scene.LoadActive<FluidExample>("fluid");
+	return 0;
 }
