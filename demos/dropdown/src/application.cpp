@@ -29,17 +29,11 @@ public:
 		dropdown.Set<ButtonProperty::BorderColor>(color::Black);
 		dropdown.Set<ButtonProperty::BorderThickness>(3.0f);
 		Dropdown d;
-		d.Add(CreateButton("First", [](){
-			PTGN_LOG("Pressed first");
-		}));
-		d.Add(CreateButton("Second", [](){
-			PTGN_LOG("Pressed second");
-		}));
-		d.Add(CreateButton("Third", [](){
-			PTGN_LOG("Pressed third");
-		}));
+		d.Add(CreateButton("First", []() { PTGN_LOG("Pressed first"); }));
+		d.Add(CreateButton("Second", []() { PTGN_LOG("Pressed second"); }));
+		d.Add(CreateButton("Third", []() { PTGN_LOG("Pressed third"); }));
 		d.SetButtonSize({ 200, 50 });
-		d.SetDropdownDirection(Origin::CenterTop);
+		d.SetDropdownDirection(Origin::CenterBottom);
 		dropdown.Set<ButtonProperty::Dropdown>(d);
 		dropdown.Set<ButtonProperty::OnActivate>([=]() mutable {
 			PTGN_LOG("Toggling dropdown");
