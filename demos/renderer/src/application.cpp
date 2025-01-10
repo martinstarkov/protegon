@@ -58,6 +58,8 @@ void TestBatchTextureSDL(std::size_t batch_size, const std::vector<path>& textur
 	SDL_DestroyRenderer(r);
 }*/
 
+constexpr V2_int resolution{ 800, 800 };
+
 V2_float ws;
 V2_float center;
 
@@ -68,7 +70,9 @@ struct DrawTest {
 
 	const float line_width{ 1.0f };
 
-	virtual void Init() {}
+	virtual void Init() {
+		game.window.SetSize(resolution);
+	}
 
 	virtual void Update() {}
 
@@ -541,17 +545,17 @@ struct TestRenderTargets : public DrawTest {
 	void Update() override {}
 
 	void Draw() override {
-		TextureInfo i;
+		// TODO: Fix
+		/*TextureInfo i;
 
 		const auto draw_texture = [&](RenderTarget& rt, const V2_float& pos, ScreenShader ss) {
-			// TODO: Fix
-			/*rt.WhileBound(
+			rt.WhileBound(
 				[&]() {
 					test.Draw({ pos, s, Origin::TopLeft }, i);
 					rt.DrawToScreen();
 				},
 				color::Transparent, BlendMode::Add
-			);*/
+			);
 		};
 
 		draw_texture(render_texture1, { 0, 0 }, ScreenShader::Default);
@@ -561,6 +565,7 @@ struct TestRenderTargets : public DrawTest {
 		draw_texture(render_texture5, { s.x, s.y }, ScreenShader::EdgeDetection);
 		draw_texture(render_texture6, { s.x * 2, s.y }, ScreenShader::Sharpen);
 		draw_texture(render_texture7, { 0, s.y * 2 }, ScreenShader::InverseColor);
+		*/
 	}
 };
 
@@ -972,7 +977,7 @@ void TestVertexBuffers() {
 	v4.push_back({ { 3.0f, 4.0f, 5.0f } });
 
 	VertexBuffer b4{ v4 };
-	const BufferLayout layout4{ BufferLayout<glsl::vec3>{} };
+	[[maybe_unused]] const BufferLayout layout4{ BufferLayout<glsl::vec3>{} };
 
 	std::vector<TestVertex1> v5;
 	v5.push_back({ { 6.0f, 7.0f, 8.0f } });
@@ -1298,8 +1303,8 @@ void TestTextures() {
 	// t1.SetSubData(pixels0);
 
 	std::vector<Color> pixels1;
-	for (size_t i = 0; i < t2.GetSize().x; i++) {
-		for (size_t j = 0; j < t2.GetSize().y; j++) {
+	for (int i = 0; i < t2.GetSize().x; i++) {
+		for (int j = 0; j < t2.GetSize().y; j++) {
 			pixels1.push_back(Color::RandomOpaque());
 		}
 	}
@@ -1415,7 +1420,8 @@ public:
 
 		GetTextures(textures30, textures60);
 
-		tests.emplace_back(new TestRenderTargets());
+		// TODO: Fix.
+		//tests.emplace_back(new TestRenderTargets());
 		tests.emplace_back(new TestPoint());
 		tests.emplace_back(new TestLineThin());
 		tests.emplace_back(new TestLineThick(test_line_width));
@@ -1470,19 +1476,19 @@ public:
 		if (game.input.KeyDown(Key::LEFT)) {
 			current_test--;
 			current_test = Mod(current_test, static_cast<int>(tests.size()));
-			tests[current_test]->Init();
+			tests[static_cast<std::size_t>(current_test)]->Init();
 		} else if (game.input.KeyDown(Key::RIGHT)) {
 			current_test++;
 			current_test = Mod(current_test, static_cast<int>(tests.size()));
-			tests[current_test]->Init();
+			tests[static_cast<std::size_t>(current_test)]->Init();
 		}
-		tests[current_test]->Update();
-		tests[current_test]->Draw();
+		tests[static_cast<std::size_t>(current_test)]->Update();
+		tests[static_cast<std::size_t>(current_test)]->Draw();
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("Renderer:  Arrow keys to flip between tests", { 800, 800 });
+	game.Init("Renderer:  Arrow keys to flip between tests", resolution);
 	game.scene.LoadActive<RendererTest>("renderer");
 	return 0;
 }
