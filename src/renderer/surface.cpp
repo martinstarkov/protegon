@@ -114,6 +114,7 @@ Surface::Surface(std::shared_ptr<SDL_Surface> surface) {
 	s.data_.resize(static_cast<std::size_t>(total_pixels), color::Transparent);
 
 	bool r_mask{ surface->format->Rmask == 0x000000ff };
+	bool b_mask{ surface->format->Bmask == 0x000000ff };
 
 	for (int y = 0; y < s.size_.y; ++y) {
 		const std::uint8_t* row = static_cast<std::uint8_t*>(surface->pixels) + y * surface->pitch;
@@ -128,6 +129,9 @@ Surface::Surface(std::shared_ptr<SDL_Surface> surface) {
 					if (r_mask) {
 						s.data_[static_cast<std::size_t>(index)] = { pixel[0], pixel[1], pixel[2],
 																	 pixel[3] };
+					}  else if (b_mask) {
+						s.data_[static_cast<std::size_t>(index)] = { pixel[2], pixel[1], pixel[0],
+																	 pixel[3] };
 					} else {
 						s.data_[static_cast<std::size_t>(index)] = { pixel[3], pixel[2], pixel[1],
 																	 pixel[0] };
@@ -138,9 +142,11 @@ Surface::Surface(std::shared_ptr<SDL_Surface> surface) {
 					if (r_mask) {
 						s.data_[static_cast<std::size_t>(index)] = { pixel[0], pixel[1], pixel[2],
 																	 255 };
-					} else {
+					} else if (b_mask) {
 						s.data_[static_cast<std::size_t>(index)] = { pixel[2], pixel[1], pixel[0],
 																	 255 };
+					} else {
+						PTGN_ERROR("Failed to identify mask for fully opaque pixel format");
 					}
 					break;
 				}
