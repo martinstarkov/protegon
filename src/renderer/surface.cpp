@@ -129,8 +129,8 @@ Surface::Surface(std::shared_ptr<SDL_Surface> surface) {
 						s.data_[static_cast<std::size_t>(index)] = { pixel[0], pixel[1], pixel[2],
 																	 pixel[3] };
 					} else {
-						s.data_[static_cast<std::size_t>(index)] = { pixel[3], pixel[2], pixel[1],
-																	 pixel[0] };
+						s.data_[static_cast<std::size_t>(index)] = { pixel[2], pixel[1], pixel[0],
+																	 pixel[3] };
 					}
 					break;
 				}
