@@ -1,22 +1,12 @@
-#include <memory>
-#include <vector>
+#include "protegon/protegon.h"
 
-#include "math/collider.h"
-#include "common.h"
-#include "components/sprite.h"
-#include "components/transform.h"
-#include "core/game.h"
-#include "ecs/ecs.h"
-#include "math/geometry/polygon.h"
-#include "math/vector2.h"
-#include "physics/movement.h"
-#include "physics/rigid_body.h"
-#include "renderer/color.h"
-#include "renderer/origin.h"
+using namespace ptgn;
+
+constexpr V2_int resolution{ 960, 540 };
 
 constexpr CollisionCategory ground_category{ 1 };
 
-class PlatformingTest : public Test {
+class PlatformingExample : public Scene {
 	ecs::Manager manager;
 
 	ecs::Entity CreatePlatform(const Rect& r) {
@@ -31,7 +21,7 @@ class PlatformingTest : public Test {
 	ecs::Entity CreatePlayer() {
 		ecs::Entity entity = manager.CreateEntity();
 
-		entity.Add<Transform>(ws / 2.0f + V2_float{ 100, 100 });
+		entity.Add<Transform>(resolution / 2.0f + V2_float{ 100, 100 });
 		auto& rb		 = entity.Add<RigidBody>();
 		rb.gravity		 = 1.0f;
 		auto& m			 = entity.Add<PlatformerMovement>();
@@ -52,8 +42,8 @@ class PlatformingTest : public Test {
 
 	void Init() override {
 		manager.Clear();
-		game.window.SetSize({ 960, 540 });
-		ws = game.window.GetSize();
+
+		V2_float ws{ resolution };
 
 		CreatePlayer();
 		CreatePlatform({ { 0, ws.y - 10 }, { ws.x, 10 }, Origin::TopLeft });
@@ -69,20 +59,15 @@ class PlatformingTest : public Test {
 
 	void Update() override {
 		game.physics.Update(manager);
-		Draw();
-	}
-
-	void Draw() override {
+		
 		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
 			DrawRect(e, b.GetAbsoluteRect());
 		}
 	}
 };
 
-void TestPlatforming() {
-	std::vector<std::shared_ptr<Test>> tests;
-
-	tests.emplace_back(new PlatformingTest());
-
-	AddTests(tests);
+int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+	game.Init("PlatformingExample", resolution);
+	game.scene.LoadActive<PlatformingExample>("platforming");
+	return 0;
 }
