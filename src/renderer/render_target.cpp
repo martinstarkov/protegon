@@ -339,13 +339,14 @@ void RenderTarget::AddPolygon(
 
 V2_float RenderTarget::ScaleToWindow(const V2_float& position) const {
 	PTGN_ASSERT(IsValid(), "Cannot retrieve render target scaling");
-	/*V2_float window_size{ game.window.GetSize() };
+	V2_float window_size{ game.window.GetSize() };
 	PTGN_ASSERT(
 		window_size.x != 0 && window_size.y != 0,
 		"Cannot scale position relative to a dimensionless window"
 	);
-	V2_float scaled_position{ GetCamera().GetPrimary().GetSize() * position / window_size };*/
-	return ScreenToWorld(position) - Get().destination_.Min();
+	V2_float pos{ ScreenToWorld(position) - Get().destination_.Min() };
+	V2_float scaled_position{ GetCamera().GetPrimary().GetSize() * pos / window_size };
+	return scaled_position;
 }
 
 V2_float RenderTarget::WorldToScreen(const V2_float& position) const {
