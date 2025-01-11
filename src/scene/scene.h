@@ -47,12 +47,17 @@ public:
 	bool operator!=(const SceneTransition& o) const;
 
 	SceneTransition& SetType(TransitionType type);
-	SceneTransition& SetDuration(milliseconds duration);
-	SceneTransition& SetFadeThroughColor(const Color& color);
 
-	// Value from 0 to 0.5f which determines what fraction of the duration is spent in color screen
-	// when using TransitionType::FadeThroughColor. Does not apply to other transitions.
-	SceneTransition& SetColorFadeFraction(float color_fade_fraction);
+	// For TransitionType::FadeThroughColor, this is the time outside of the fade color 
+	// i.e. total transition duration = duration + color duration
+	SceneTransition& SetDuration(milliseconds duration);
+
+	// Only applies when using TransitionType::FadeThroughColor.
+	SceneTransition& SetFadeColor(const Color& color);
+
+	// The amount of time spent purely in in the fade color.
+	// Only applies when using TransitionType::FadeThroughColor.
+	SceneTransition& SetFadeColorDuration(milliseconds duration);
 
 	// Custom transition callbacks.
 
@@ -78,11 +83,14 @@ private:
 		const std::shared_ptr<Scene>& scene
 	) const;
 
-	Color fade_through_color_{ color::Black };
-	// Value from 0 to 0.5f which determines what fraction of the duration is spent in color screen
-	// when using TransitionType::FadeThroughColor. Does not apply to other transitions.
-	float color_start_fraction_{ 0.3f };
+	Color fade_color_{ color::Black };
+
+	// The amount of time spent purely in fade color.
+	// Only applies when using TransitionType::FadeThroughColor.
+	milliseconds color_duration_{ 500 };
+
 	TransitionType type_{ TransitionType::None };
+ 
 	milliseconds duration_{ 1000 };
 };
 

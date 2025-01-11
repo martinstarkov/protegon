@@ -13,6 +13,7 @@
 #include "utility/log.h"
 #include "utility/time.h"
 #include "utility/tween.h"
+#include "renderer/layer_info.h"
 
 namespace ptgn {
 
@@ -33,10 +34,8 @@ SceneTransition& SceneTransition::SetDuration(milliseconds duration) {
 	return *this;
 }
 
-SceneTransition& SceneTransition::SetColorFadeFraction(float color_fade_fraction) {
-	PTGN_ASSERT(color_fade_fraction >= 0.0f, "Invalid color fade fraction");
-	PTGN_ASSERT(color_fade_fraction <= 0.5f, "Invalid color fade fraction");
-	color_start_fraction_ = color_fade_fraction;
+SceneTransition& SceneTransition::SetFadeColorDuration(milliseconds duration) {
+	color_duration_ = duration;
 	return *this;
 }
 
@@ -45,18 +44,23 @@ SceneTransition& SceneTransition::SetType(TransitionType type) {
 	return *this;
 }
 
-SceneTransition& SceneTransition::SetFadeThroughColor(const Color& color) {
-	fade_through_color_ = color;
+SceneTransition& SceneTransition::SetFadeColor(const Color& color) {
+	fade_color_ = color;
 	return *this;
 }
 
 void SceneTransition::Start(
 	bool transition_in, std::size_t key, std::size_t other_key, const std::shared_ptr<Scene>& scene
 ) const {
-	Tween tween{ duration_ };
-	auto target{ scene->target_ };
-	OrthographicCamera camera;
-	camera.SetToWindow();
+	Tween tween;
+	if (type_ == TransitionType::FadeThroughColor) {
+		tween = Tween{ duration_ + color_duration_ };
+	} else {
+		tween = Tween{ duration_ };
+	}
+	
+	RenderTarget target{ scene->target_ };
+	OrthographicCamera camera{ target.GetCamera().GetPrimary() };
 
 	std::function<void(float)> update;
 	std::function<void()> start;
@@ -103,51 +107,80 @@ void SceneTransition::Start(
 	};
 
 	const auto fade = [&]() {
+		float start_alpha{ static_cast<float>(scene->tint_.a) };
 		if (transition_in) {
 			start = [=]() mutable {
 				scene->tint_.a = 0;
 			};
 			update = [=](float f) mutable {
-				scene->tint_.a = static_cast<std::uint8_t>(255.0f * f);
+				scene->tint_.a = static_cast<std::uint8_t>(start_alpha * f);
+			};
+			stop = [=]() mutable {
+				scene->tint_.a = static_cast<std::uint8_t>(start_alpha);
 			};
 		} else {
 			start = [=]() mutable {
-				scene->tint_.a = 255;
+				scene->tint_.a = static_cast<std::uint8_t>(start_alpha);
 			};
 			update = [=](float f) mutable {
-				scene->tint_.a = static_cast<std::uint8_t>(255.0f * (1.0f - f));
+				scene->tint_.a = static_cast<std::uint8_t>(start_alpha * (1.0f - f));
+			};
+			stop = [=]() mutable {
+				scene->tint_.a = static_cast<std::uint8_t>(start_alpha);
 			};
 		}
 	};
 	const auto fade_through_color = [&]() {
-		float start_frac{ color_start_fraction_ };
-		Color fade_color{ fade_through_color_ };
+		float transition_duration{ std::chrono::duration_cast<duration<float, milliseconds::period>>(duration_).count() };
+		float color_duration{ std::chrono::duration_cast<duration<float, milliseconds::period>>(color_duration_).count() };
+		float total_duration{ transition_duration + color_duration };
+		float fade_duration{ transition_duration / 2.0f };
+		float start_color_frac{ fade_duration / total_duration };
+		float stop_color_frac{ (fade_duration + color_duration) / total_duration };
+		PTGN_ASSERT(start_color_frac != 1.0f, "Invalid fade through color start duration");
+		PTGN_ASSERT(stop_color_frac != 1.0f, "Invalid fade through color stop duration");
+		PTGN_LOG("start_color_frac: ", start_color_frac);
+		PTGN_LOG("stop_color_frac: ", stop_color_frac);
+		float start_alpha{ static_cast<float>(scene->tint_.a) };
+		Color fade_color{ fade_color_ };
 		// TODO: Fix fade through color setting not working.
 		if (transition_in) {
 			start = [=]() mutable {
 				scene->tint_.a = 0;
 			};
 			update = [=](float f) mutable {
-				scene->tint_ = fade_color;
-				if (f >= 1.0f - start_frac) {
-					float p{ (f - (1.0f - start_frac)) / start_frac };
-					scene->tint_.a = static_cast<std::uint8_t>(255.0f * p);
-				} else {
-					scene->tint_.a = 0;
+				Color c{ fade_color };
+
+				if (f <= start_color_frac) {
+					return;
+				} else if (f >= stop_color_frac) {
+					scene->tint_.a = static_cast<std::uint8_t>(start_alpha);
+					float renormalized{ ((1.0f - f) / (1.0f - stop_color_frac)) };
+					c.a = static_cast<std::uint8_t>(255.0f * renormalized);
 				}
+
+				Rect::Fullscreen().Draw(c, -1.0f, { std::numeric_limits<std::int32_t>::infinity() });
+			};
+			stop = [=]() mutable {
+				scene->tint_.a = static_cast<std::uint8_t>(start_alpha);
 			};
 		} else {
 			start = [=]() mutable {
-				scene->tint_.a = 255;
+				scene->tint_.a = static_cast<std::uint8_t>(start_alpha);
 			};
 			update = [=](float f) mutable {
-				scene->tint_ = fade_color;
-				if (f <= start_frac) {
-					float p{ 1.0f - f / start_frac };
-					scene->tint_.a = static_cast<std::uint8_t>(255.0f * p);
+				if (f <= start_color_frac) {
+					float renormalized{ 1.0f - f / start_color_frac };
+					//scene->tint_.a = static_cast<std::uint8_t>(start_alpha * renormalized);
+					Color c{ fade_color };
+					c.a = static_cast<std::uint8_t>(255.0f * (1.0f - renormalized));
+					Rect::Fullscreen().Draw(c, -1.0f, { std::numeric_limits<std::int32_t>::infinity() });
 				} else {
 					scene->tint_.a = 0;
 				}
+			};
+			stop = [=]() mutable {
+				scene->tint_.a = static_cast<std::uint8_t>(start_alpha);
 			};
 		}
 	};

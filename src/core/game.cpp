@@ -293,10 +293,11 @@ void Game::Update() {
 
 	start = end;
 
-	input.Update();
-	tween.Update();
 	renderer.ClearScreen();
+
+	input.Update();
 	scene.Update();
+	tween.Update();
 	if (profiler.IsEnabled()) {
 		profiler.PrintAll();
 	}

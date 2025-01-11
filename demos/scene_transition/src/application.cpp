@@ -34,7 +34,8 @@ static void TransitionScene(
 		game.scene.TransitionActive(from, to, { TransitionType::Fade, milliseconds{ 1000 } });
 	} else if (game.input.KeyDown(Key::E)) {
 		SceneTransition t{ TransitionType::FadeThroughColor, milliseconds{ 1000 } };
-		t.SetFadeThroughColor(color::Black);
+		t.SetFadeColor(color::Black);
+		t.SetFadeColorDuration(milliseconds{ 500 });
 		game.scene.TransitionActive(from, to, t);
 	}
 }
@@ -42,7 +43,7 @@ static void TransitionScene(
 class Scene2 : public Scene {
 public:
 	Scene2() = default;
-	Texture test{ "resources/sprites/bg2.png" };
+	Texture test{ "resources/bg2.png" };
 
 	void Update() final {
 		test.Draw();
@@ -53,7 +54,7 @@ public:
 class Scene1 : public Scene {
 public:
 	Scene1() = default;
-	Texture test{ "resources/sprites/bg1.png" };
+	Texture test{ "resources/bg1.png" };
 
 	void Update() final {
 		test.Draw();
@@ -68,18 +69,17 @@ public:
 		game.scene.Load<Scene2>("scene2");
 	}
 
-	void Shutdown() final {
-		game.scene.RemoveActive("scene1");
-		game.scene.RemoveActive("scene2");
-	}
-
-	void Init() final {
+	void Init() override {
 		game.window.SetSize({ 800, 800 });
 		game.scene.AddActive("scene1");
 	}
 
-	void Update() final {
+	void Shutdown() override {
+		game.scene.RemoveActive("scene1");
+		game.scene.RemoveActive("scene2");
 	}
+
+	void Update() override {}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
