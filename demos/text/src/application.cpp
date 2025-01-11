@@ -1,43 +1,27 @@
-#pragma once
+#include "protegon/protegon.h"
 
-#include <memory>
-#include <new>
-#include <string>
-#include <string_view>
-#include <vector>
+using namespace ptgn;
 
-#include "common.h"
-#include "core/game.h"
-#include "core/manager.h"
-#include "event/input_handler.h"
-#include "event/key.h"
-#include "math/vector2.h"
-#include "renderer/color.h"
-#include "renderer/font.h"
-#include "renderer/origin.h"
-#include "renderer/text.h"
-#include "utility/debug.h"
+constexpr V2_int resolution{ 800, 800 };
 
-struct TestTextStyles : public Test {
+struct TextExample : public Scene {
 	float ysize	  = 40.0f;
 	float yoffset = 4.0f;
 
 	std::string_view font_key = "different_font";
 	std::string content		  = "The quick brown fox jumps over the lazy dog";
 
-	Font font{ "resources/fonts/Arial.ttf", static_cast<int>(ysize) };
+	Font font{ "resources/Arial.ttf", static_cast<int>(ysize) };
 
 	V2_int text_size;
 	std::vector<Text> texts;
 
 	Text toggle_text; // Visibility toggle text.
 
-	void Shutdown() override {
-		game.font.Unload(font_key);
-		PTGN_ASSERT(!game.font.Has(font_key));
-	}
+	V2_float ws;
 
 	void Init() override {
+		ws = game.window.GetSize();
 		texts.clear();
 
 		// PTGN_ASSERT(font.IsValid());
@@ -83,6 +67,11 @@ struct TestTextStyles : public Test {
 		);
 	}
 
+	void Shutdown() override {
+		game.font.Unload(font_key);
+		PTGN_ASSERT(!game.font.Has(font_key));
+	}
+
 	void Update() override {
 		float ystride{ ysize + yoffset };
 
@@ -100,10 +89,8 @@ struct TestTextStyles : public Test {
 	}
 };
 
-void TestText() {
-	std::vector<std::shared_ptr<Test>> tests;
-
-	tests.emplace_back(new TestTextStyles());
-
-	AddTests(tests);
+int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+	game.Init("TextExample: T (toggle visibility)", resolution);
+	game.scene.LoadActive<TextExample>("text_example");
+	return 0;
 }
