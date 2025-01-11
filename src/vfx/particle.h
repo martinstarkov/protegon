@@ -53,7 +53,9 @@ struct ParticleInfo {
 	float speed{ 10.0f };
 	float starting_angle{ DegToRad(0.0f) };
 
+	// -1.0f means shape is solid. Only applies if texture_enabled == false.
 	float line_thickness{ -1.0f };
+
 	ParticleShape particle_shape{ ParticleShape::Circle };
 
 	Color start_color{ color::Red };
@@ -70,7 +72,6 @@ struct ParticleInfo {
 	float speed_variance{ 5.0f };
 	float angle_variance{ DegToRad(5.0f) };
 	V2_float position_variance{ 5.0f };
-	// -1.0f means solid. Only applies if texture_enabled == false.
 	V2_float gravity;
 
 	// TODO: Implement.
@@ -131,14 +132,17 @@ public:
 		}
 	}
 
+	// Starts emitting particles.
 	void Start() {
 		emission_.Start();
 	}
 
+	// Stops emitting particles.
 	void Stop() {
 		emission_.Stop();
 	}
 
+	// Toggle particle emission.
 	void Toggle() {
 		emission_.Toggle();
 	}
