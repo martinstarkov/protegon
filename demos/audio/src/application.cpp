@@ -18,8 +18,6 @@ public:
 		return b;
 	}
 
-	std::vector<Button> buttons;
-
 	Music music1{ "resources/music1.ogg" };
 	Music music2{ "resources/music2.ogg" };
 	Sound sound1{ "resources/sound1.ogg" };
@@ -27,8 +25,6 @@ public:
 
 	int channel1{ 1 };
 	int channel2{ 2 };
-
-	V2_float volume_pos;
 
 	int starting_volume{ 30 };
 

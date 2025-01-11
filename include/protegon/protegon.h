@@ -60,3 +60,5 @@ using json = nlohmann::json;
 #include "utility/timer.h"
 #include "utility/tween.h"
 #include "utility/utility.h"
+#include "vfx/light.h"
+#include "vfx/particle.h"
