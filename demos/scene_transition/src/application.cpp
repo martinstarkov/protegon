@@ -31,11 +31,11 @@ static void TransitionScene(
 	} else if (game.input.KeyDown(Key::RIGHT)) {
 		game.scene.TransitionActive(from, to, { TransitionType::PushRight, duration });
 	} else if (game.input.KeyDown(Key::Q)) {
-		game.scene.TransitionActive(from, to, { TransitionType::Fade, milliseconds{ 1000 } });
+		game.scene.TransitionActive(from, to, { TransitionType::Fade, milliseconds{ 4000 } });
 	} else if (game.input.KeyDown(Key::E)) {
-		SceneTransition t{ TransitionType::FadeThroughColor, milliseconds{ 1000 } };
+		SceneTransition t{ TransitionType::FadeThroughColor, milliseconds{ 3000 } };
 		t.SetFadeColor(color::Black);
-		t.SetFadeColorDuration(milliseconds{ 500 });
+		t.SetFadeColorDuration(milliseconds{ 1000 });
 		game.scene.TransitionActive(from, to, t);
 	}
 }
