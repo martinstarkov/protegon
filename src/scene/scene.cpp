@@ -3,17 +3,23 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <memory>
+#include <type_traits>
 
 #include "core/game.h"
+#include "math/geometry/polygon.h"
 #include "math/vector2.h"
+#include "renderer/color.h"
+#include "renderer/layer_info.h"
+#include "renderer/render_target.h"
 #include "renderer/texture.h"
+#include "scene/camera.h"
 #include "scene/scene_manager.h"
 #include "utility/debug.h"
 #include "utility/log.h"
 #include "utility/time.h"
 #include "utility/tween.h"
-#include "renderer/layer_info.h"
 
 namespace ptgn {
 
@@ -58,7 +64,7 @@ void SceneTransition::Start(
 	} else {
 		tween = Tween{ duration_ };
 	}
-	
+
 	RenderTarget target{ scene->target_ };
 	OrthographicCamera camera{ target.GetCamera().GetPrimary() };
 
@@ -131,19 +137,21 @@ void SceneTransition::Start(
 		}
 	};
 	const auto fade_through_color = [&]() {
-		float transition_duration{ std::chrono::duration_cast<duration<float, milliseconds::period>>(duration_).count() };
-		float color_duration{ std::chrono::duration_cast<duration<float, milliseconds::period>>(color_duration_).count() };
+		float transition_duration{
+			std::chrono::duration_cast<duration<float, milliseconds::period>>(duration_).count()
+		};
+		float color_duration{
+			std::chrono::duration_cast<duration<float, milliseconds::period>>(color_duration_)
+				.count()
+		};
 		float total_duration{ transition_duration + color_duration };
 		float fade_duration{ transition_duration / 2.0f };
 		float start_color_frac{ fade_duration / total_duration };
 		float stop_color_frac{ (fade_duration + color_duration) / total_duration };
 		PTGN_ASSERT(start_color_frac != 1.0f, "Invalid fade through color start duration");
 		PTGN_ASSERT(stop_color_frac != 1.0f, "Invalid fade through color stop duration");
-		PTGN_LOG("start_color_frac: ", start_color_frac);
-		PTGN_LOG("stop_color_frac: ", stop_color_frac);
 		float start_alpha{ static_cast<float>(scene->tint_.a) };
 		Color fade_color{ fade_color_ };
-		// TODO: Fix fade through color setting not working.
 		if (transition_in) {
 			start = [=]() mutable {
 				scene->tint_.a = 0;
@@ -159,7 +167,9 @@ void SceneTransition::Start(
 					c.a = static_cast<std::uint8_t>(255.0f * renormalized);
 				}
 
-				Rect::Fullscreen().Draw(c, -1.0f, { std::numeric_limits<std::int32_t>::infinity() });
+				Rect::Fullscreen().Draw(
+					c, -1.0f, { std::numeric_limits<std::int32_t>::infinity() }
+				);
 			};
 			stop = [=]() mutable {
 				scene->tint_.a = static_cast<std::uint8_t>(start_alpha);
@@ -171,10 +181,11 @@ void SceneTransition::Start(
 			update = [=](float f) mutable {
 				if (f <= start_color_frac) {
 					float renormalized{ 1.0f - f / start_color_frac };
-					//scene->tint_.a = static_cast<std::uint8_t>(start_alpha * renormalized);
 					Color c{ fade_color };
 					c.a = static_cast<std::uint8_t>(255.0f * (1.0f - renormalized));
-					Rect::Fullscreen().Draw(c, -1.0f, { std::numeric_limits<std::int32_t>::infinity() });
+					Rect::Fullscreen().Draw(
+						c, -1.0f, { std::numeric_limits<std::int32_t>::infinity() }
+					);
 				} else {
 					scene->tint_.a = 0;
 				}
