@@ -7,6 +7,8 @@ constexpr V2_int resolution{ 800, 800 };
 class EventExampleScene : public Scene {
 public:
 	void Init() override {
+		game.window.SetSetting(WindowSetting::Resizable);
+
 		auto event_observer = &game.event;
 
 		PTGN_ASSERT(!game.event.window.IsSubscribed(event_observer));
