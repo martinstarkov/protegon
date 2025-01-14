@@ -1,28 +1,12 @@
-#pragma once
+#include "protegon/protegon.h"
 
-#include <functional>
+using namespace ptgn;
 
-#include "common.h"
-#include "core/game.h"
-#include "core/window.h"
-#include "event/event.h"
-#include "event/event_handler.h"
-#include "event/events.h"
-#include "utility/debug.h"
-#include "utility/log.h"
+constexpr V2_int resolution{ 800, 800 };
 
-struct TestGameEvents : public Test {
-	void Shutdown() override {
-		game.event.UnsubscribeAll(&game.event);
-		game.window.SetSetting(WindowSetting::FixedSize);
-		game.window.SetSize({ 800, 800 });
-	}
-
+class EventExampleScene : public Scene {
+public:
 	void Init() override {
-		game.window.SetTitle("'ESC' (++category), Event Tests");
-
-		game.window.SetSetting(WindowSetting::Resizable);
-
 		auto event_observer = &game.event;
 
 		PTGN_ASSERT(!game.event.window.IsSubscribed(event_observer));
@@ -101,12 +85,16 @@ struct TestGameEvents : public Test {
 			})
 		);
 	}
+
+	void Shutdown() override {
+		game.event.UnsubscribeAll(&game.event);
+	}
+
+	void Update() override {}
 };
 
-void TestEvents() {
-	std::vector<std::shared_ptr<Test>> tests;
-
-	tests.emplace_back(new TestGameEvents());
-
-	AddTests(tests);
+int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+	game.Init("EventExampleScene", resolution);
+	game.scene.LoadActive<EventExampleScene>("event_example");
+	return 0;
 }
