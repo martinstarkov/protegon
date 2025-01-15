@@ -85,6 +85,8 @@ public:
 	// If continuously is true, camera will subscribe to window resize event.
 	void CenterOnWindow(bool continuously = false);
 
+	// Camera bounds only apply along aligned axes. In other words: rotated cameras can see outside
+	// the bounding box.
 	void SetBounds(const Rect& bounding_box);
 
 	// If continuously is true, camera will subscribe to window resize event.
