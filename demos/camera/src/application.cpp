@@ -4,7 +4,7 @@ using namespace ptgn;
 
 constexpr V2_int resolution{ 800, 800 };
 
-class TemplateScene : public Scene {
+class CameraExampleScene : public Scene {
 public:
 	Texture texture{ "resources/test1.jpg" };
 	Texture ui_texture{ "resources/ui.jpg" };
@@ -84,14 +84,12 @@ public:
 		ui_texture.Draw({ { 0, 0 }, ui_texture.GetSize(), Origin::TopLeft }, {}, { 1 });
 		ui_texture.Draw({ { 0, 0 }, 3 * ui_texture.GetSize(), Origin::Center }, {}, { 2 });
 
-		auto camera{ game.camera.GetPrimary() };
-		const auto& bounds{ camera.GetBounds() };
-		bounds.Draw(color::Red, 3.0f);
+		game.camera.GetPrimary().GetBounds().Draw(color::Red, 3.0f);
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("TemplateTitle", resolution);
-	game.scene.LoadActive<TemplateScene>("template_scene");
+	game.Init("CameraExampleScene", resolution);
+	game.scene.LoadActive<CameraExampleScene>("camera_example_scene");
 	return 0;
 }
