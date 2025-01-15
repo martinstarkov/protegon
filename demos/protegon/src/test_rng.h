@@ -9,16 +9,7 @@
 #include <vector>
 
 #include "common.h"
-#include "core/game.h"
-#include "core/window.h"
-#include "event/input_handler.h"
-#include "event/key.h"
-#include "math/noise.h"
 #include "math/rng.h"
-#include "math/vector2.h"
-#include "renderer/color.h"
-#include "renderer/origin.h"
-#include "renderer/renderer.h"
 #include "utility/debug.h"
 #include "utility/log.h"
 
@@ -240,8 +231,6 @@ void TestRNG() {
 		PTGN_ASSERT(value <= 255);
 	}
 	*/
-
-	TestNoise();
 
 	PTGN_INFO("All RNG tests passed!");
 }
