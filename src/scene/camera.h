@@ -235,6 +235,7 @@ public:
 
 	static void Reset();
 	static void ResetPrimary();
+	static void SetToWindow();
 
 	[[nodiscard]] const OrthographicCamera& GetWindow() const;
 

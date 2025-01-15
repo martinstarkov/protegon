@@ -16,24 +16,29 @@ public:
 	void Init() override {
 		Rect bounds{ {}, resolution, Origin::TopLeft };
 
-		auto camera{ game.camera.Load("cam1") };
-		auto camera2{ game.camera.Load("cam2") };
+		auto& camera{ game.camera.Load("cam1") };
+		auto& camera2{ game.camera.Load("cam2") };
 		camera.SetPosition({ 0, 0 });
 		camera.SetBounds(bounds);
 		camera2.SetPosition({ 200, 200 });
+		camera2.SetZoom(2.0f);
 		camera2.SetBounds(bounds);
-		game.camera.SetPrimary("cam1");
+		chosen_cam = "cam1";
 	}
+
+	std::string_view chosen_cam;
 
 	void Update() override {
 		V2_float center{ game.window.GetCenter() };
 		float dt{ game.dt() };
 
 		if (game.input.KeyDown(Key::K_1)) {
-			game.camera.SetPrimary("cam1");
+			chosen_cam = "cam1";
 		} else if (game.input.KeyDown(Key::K_2)) {
-			game.camera.SetPrimary("cam2");
+			chosen_cam = "cam2";
 		}
+
+		game.camera.SetPrimary(chosen_cam);
 
 		auto camera{ game.camera.GetPrimary() };
 
@@ -88,10 +93,16 @@ public:
 		// camera.PrintInfo();
 
 		texture.Draw({ center, texture.GetSize() });
-		ui_texture.Draw({ { 0, 0 }, ui_texture.GetSize(), Origin::TopLeft }, {}, { 1 });
-		ui_texture.Draw({ { 0, 0 }, 3 * ui_texture.GetSize(), Origin::Center }, {}, { 2 });
 
 		game.camera.GetPrimary().GetBounds().Draw(color::Red, 3.0f);
+
+		game.renderer.Flush();
+
+		game.camera.SetToWindow();
+
+		RenderTarget ui{ color::Transparent };
+		ui_texture.Draw({ { 0, 0 }, ui_texture.GetSize(), Origin::TopLeft }, {}, ui);
+		ui.Draw();
 	}
 };
 

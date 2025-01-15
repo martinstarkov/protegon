@@ -547,6 +547,16 @@ void SceneCamera::ResetPrimary() {
 	}
 }
 
+void SceneCamera::SetToWindow() {
+	if (!game.scene.HasCurrent()) { // already using the screen target camera.
+		return;
+	}
+
+	game.scene.GetCurrent().GetRenderTarget().GetCamera().SetPrimary(
+		game.renderer.screen_target_.GetCamera().GetPrimary()
+	);
+}
+
 } // namespace impl
 
 } // namespace ptgn
