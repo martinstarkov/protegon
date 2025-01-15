@@ -23,53 +23,6 @@
 #include "renderer/texture.h"
 #include "scene/camera.h"
 
-struct TestCameraSwitching : public Test {
-	OrthographicCamera camera0;
-	OrthographicCamera camera1;
-	OrthographicCamera camera2;
-	OrthographicCamera camera3;
-	OrthographicCamera camera4;
-
-	int camera{ 0 };
-
-	const int cameras{ 5 };
-
-	void Init() override {
-		camera = 0;
-
-		camera0 = game.camera.Load("0");
-		camera1 = game.camera.Load("1");
-		camera2 = game.camera.Load("2");
-		camera3 = game.camera.Load("3");
-		camera4 = game.camera.Load("4");
-
-		camera0.SetPosition(V2_float{ 0, 0 });
-		camera1.SetPosition(V2_float{ ws.x, 0 });
-		camera2.SetPosition(ws);
-		camera3.SetPosition(V2_float{ 0, ws.y });
-		camera4.SetPosition(center);
-
-		game.camera.SetPrimary(std::to_string(camera));
-	}
-
-	void Update() override {
-		if (game.input.KeyDown(Key::E)) {
-			camera++;
-			camera = Mod(camera, cameras);
-			game.camera.SetPrimary(std::to_string(camera));
-		}
-		if (game.input.KeyDown(Key::Q)) {
-			camera--;
-			camera = Mod(camera, cameras);
-			game.camera.SetPrimary(std::to_string(camera));
-		}
-	}
-
-	void Draw() override {
-		Rect{ center, ws * 0.5f }.Draw(color::DarkGreen);
-	}
-};
-
 struct TestParallax : public Test {
 	V2_float bg_pos;
 	V2_float planet_b_pos;

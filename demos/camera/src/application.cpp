@@ -14,19 +14,26 @@ public:
 	const float zoom_speed{ 0.4f };
 
 	void Init() override {
-		auto camera2{ game.camera.GetPrimary() };
-		camera2.SetPosition({ 0, 0 });
-
-		auto camera{ game.camera.GetPrimary() };
-
 		Rect bounds{ {}, resolution, Origin::TopLeft };
 
+		auto camera{ game.camera.Load("cam1") };
+		auto camera2{ game.camera.Load("cam2") };
+		camera.SetPosition({ 0, 0 });
 		camera.SetBounds(bounds);
+		camera2.SetPosition({ 200, 200 });
+		camera2.SetBounds(bounds);
+		game.camera.SetPrimary("cam1");
 	}
 
 	void Update() override {
 		V2_float center{ game.window.GetCenter() };
 		float dt{ game.dt() };
+
+		if (game.input.KeyDown(Key::K_1)) {
+			game.camera.SetPrimary("cam1");
+		} else if (game.input.KeyDown(Key::K_2)) {
+			game.camera.SetPrimary("cam2");
+		}
 
 		auto camera{ game.camera.GetPrimary() };
 
@@ -89,7 +96,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("CameraExampleScene", resolution);
+	game.Init("Camera: WASD move, Q/E zoom, R reset, 1/2 swap cameras", resolution);
 	game.scene.LoadActive<CameraExampleScene>("camera_example_scene");
 	return 0;
 }
