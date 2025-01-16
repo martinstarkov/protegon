@@ -65,7 +65,8 @@ public:
 	// Assumes view_projection_ is updated externally.
 	void Flush();
 
-	void SetViewProjection(const Matrix4& view_projection);
+	// @return True if the view projection changed, false otherwise.
+	bool SetViewProjection(const Matrix4& view_projection);
 
 	void AddPrimitiveQuad(
 		const std::array<V2_float, 4>& positions, std::int32_t render_layer, const V4_float& color,

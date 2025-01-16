@@ -140,11 +140,12 @@ void RenderData::Flush() {
 	transparent_layers_.clear();
 }
 
-void RenderData::SetViewProjection(const Matrix4& view_projection) {
+bool RenderData::SetViewProjection(const Matrix4& view_projection) {
 	if (view_projection_ == view_projection) {
-		return;
+		return false;
 	}
 	view_projection_ = view_projection;
+	return true;
 }
 
 void RenderData::AddPrimitiveQuad(

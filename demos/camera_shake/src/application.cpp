@@ -9,21 +9,11 @@ public:
 	CameraShake& GetShake();
 
 	void Init() override {
-		grid.Set({ 0, 0 }, CreateButton("Reset Shake", [&](){
-			GetShake().Reset();
-		}));
-		grid.Set({ 0, 1 }, CreateButton("Induce 0.10 Shake", [&](){
-			GetShake().Induce(0.1f);
-		}));
-		grid.Set({ 0, 2 }, CreateButton("Induce 0.25 Shake", [&](){
-			GetShake().Induce(0.25f);
-		}));
-		grid.Set({ 0, 3 }, CreateButton("Induce 0.75 Shake", [&](){
-			GetShake().Induce(0.5f);
-		}));
-		grid.Set({ 0, 4 }, CreateButton("Induce 1.00 Shake", [&](){
-			GetShake().Induce(1.0f);
-		}));
+		grid.Set({ 0, 0 }, CreateButton("Reset Shake", [&]() { GetShake().Reset(); }));
+		grid.Set({ 0, 1 }, CreateButton("Induce 0.10 Shake", [&]() { GetShake().Induce(0.1f); }));
+		grid.Set({ 0, 2 }, CreateButton("Induce 0.25 Shake", [&]() { GetShake().Induce(0.25f); }));
+		grid.Set({ 0, 3 }, CreateButton("Induce 0.75 Shake", [&]() { GetShake().Induce(0.5f); }));
+		grid.Set({ 0, 4 }, CreateButton("Induce 1.00 Shake", [&]() { GetShake().Induce(1.0f); }));
 
 		V2_float screen_offset{ 10, 30 };
 		V2_float offset{ 6, 6 };
@@ -37,9 +27,7 @@ public:
 	void Update() override {
 		Text{ "WASD to move", color::Black }.Draw({ { 0, 0 }, {}, Origin::TopLeft });
 
-		grid.ForEachElement([](Button& b) {
-			b.Draw();
-		});
+		grid.ForEachElement([](Button& b) { b.Draw(); });
 	}
 
 	Button CreateButton(std::string_view content, const ButtonCallback& on_activate) {

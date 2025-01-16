@@ -1,9 +1,8 @@
 #include "renderer/render_target.h"
 
-#include <cstdint>
-
 #include "core/game.h"
-#include "core/window.h"
+#include "event/event_handler.h"
+#include "event/events.h"
 #include "event/input_handler.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
@@ -91,7 +90,12 @@ void RenderTargetInstance::SetBlendMode(BlendMode blend_mode) {
 void RenderTargetInstance::Flush() {
 	GLRenderer::SetBlendMode(blend_mode_);
 
-	render_data_.SetViewProjection(camera_.GetPrimary().GetViewProjection());
+	bool new_view_projection{ render_data_.SetViewProjection(camera_.GetPrimary().GetViewProjection(
+	)) };
+
+	if (new_view_projection) {
+		game.event.mouse.Post(MouseEvent::Move, MouseMoveEvent{});
+	}
 
 	render_data_.Flush();
 }
