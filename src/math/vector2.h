@@ -207,7 +207,7 @@ struct Vector2 {
 	}
 
 	// @return Random unit vector in a heading within the given range of angles (radians).
-	template <typename S, tt::floating_point<S> = true>
+	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
 	[[nodiscard]] static Vector2 RandomHeading(
 		S min_angle_radians = S{ 0 }, S max_angle_radians = S{ two_pi<S> }
 	) {
