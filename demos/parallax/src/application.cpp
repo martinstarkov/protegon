@@ -20,6 +20,7 @@ public:
 	V2_float size;
 
 	V2_float star_cam;
+	V2_float background_cam;
 	V2_float foreground_cam;
 
 	float scale{ 3.0f };
@@ -35,11 +36,17 @@ public:
 		size			= game.window.GetSize() * scale;
 		background_size = background.GetSize();
 		bg_aspect_ratio = background_size.x / background_size.y;
+
+		ResetPositions();
+	}
+
+	void ResetPositions() {
+		background_cam = {};
+		star_cam	   = {};
+		foreground_cam = {};
 	}
 
 	void Update() override {
-		auto camera{ game.camera.GetPrimary() };
-
 		float speed = 200.5f * game.dt();
 
 		V2_float velocity;
@@ -56,16 +63,19 @@ public:
 		if (game.input.KeyPressed(Key::D)) {
 			velocity.x = +speed;
 		}
-		camera.Translate(velocity);
 
 		if (game.input.KeyDown(Key::R)) {
-			camera.SetPosition(game.window.GetCenter());
+			ResetPositions();
 		}
 
+		background_cam += velocity / 10.0f;
 		star_cam	   += velocity / 6.0f;
 		foreground_cam += velocity / 2.0f;
 
-		background.Draw({ bg_pos, { size.x * bg_aspect_ratio, size.y } });
+		RenderTarget background_target{ color::Transparent };
+		background.Draw({ bg_pos, { size.x * bg_aspect_ratio, size.y } }, {}, background_target);
+		background_target.GetCamera().GetPrimary().Translate(background_cam);
+		background_target.Draw();
 
 		RenderTarget star_target{ color::Transparent };
 		stars.Draw({ stars_pos, { size.x * bg_aspect_ratio, size.y } }, {}, star_target);
