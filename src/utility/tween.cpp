@@ -87,7 +87,7 @@ Tween::Tween(milliseconds duration) {
 }
 
 Tween& Tween::During(milliseconds duration) {
-	PTGN_ASSERT(duration > nanoseconds{ 250 });
+	PTGN_ASSERT(duration >= nanoseconds{ 0 }, "Tween duration cannot be negative");
 	Create();
 	Get().tweens_points_.emplace_back(duration);
 	return *this;
@@ -194,7 +194,7 @@ Tween& Tween::Complete() {
 }
 
 Tween& Tween::SetDuration(milliseconds duration, std::size_t tween_point_index) {
-	PTGN_ASSERT(duration > nanoseconds{ 250 });
+	PTGN_ASSERT(duration >= nanoseconds{ 0 }, "Tween duration cannot be negative");
 	auto& t{ Get() };
 	PTGN_ASSERT(
 		tween_point_index < t.tweens_points_.size(),
