@@ -1,8 +1,12 @@
 #pragma once
 
-#include "math/raycast.h"
+#include <cstdint>
+#include <vector>
+
 #include "math/geometry/intersection.h"
+#include "math/raycast.h"
 #include "math/vector2.h"
+#include "math/vector4.h"
 
 namespace ptgn {
 
@@ -11,8 +15,11 @@ struct Color;
 struct Rect;
 struct Line;
 struct Capsule;
+struct RoundedRect;
 
 namespace impl {
+
+class RenderData;
 
 // Fade used with circle shader.
 constexpr static float fade_{ 0.005f };
@@ -48,6 +55,13 @@ struct Circle {
 	[[nodiscard]] ptgn::Raycast Raycast(const V2_float& ray, const Rect& rect) const;
 
 private:
+	void DrawSolid(const V4_float& color, std::int32_t render_layer, impl::RenderData& render_data)
+		const;
+
+	void DrawThick(
+		float line_width, const V4_float& color, std::int32_t render_layer,
+		impl::RenderData& render_data
+	) const;
 };
 
 struct Arc {
@@ -64,6 +78,31 @@ struct Arc {
 
 	void Draw(bool clockwise, const Color& color, float line_width, const LayerInfo& layer_info)
 		const;
+
+private:
+	friend struct RoundedRect;
+	friend struct Capsule;
+
+	// @param clockwise Whether the vertices are in clockwise direction (true), or counter-clockwise
+	// (false).
+	// @param sa start_angle clamped between 0 and 2 pi.
+	// @param ea end_angle clamped between 0 and 2 pi.
+	void DrawSolid(
+		bool clockwise, float sa, float ea, const V4_float& color, std::int32_t render_layer,
+		impl::RenderData& render_data
+	) const;
+
+	void DrawThick(
+		float line_width, bool clockwise, float sa, float ea, const V4_float& color,
+		std::int32_t render_layer, impl::RenderData& render_data
+	) const;
+
+	// @param clockwise Whether the vertices are in clockwise direction (true), or counter-clockwise
+	// (false).
+	// @param sa start_angle clamped between 0 and 2 pi.
+	// @param ea end_angle clamped between 0 and 2 pi.
+	// @return The vertices which make up the arc.
+	[[nodiscard]] std::vector<V2_float> GetVertices(bool clockwise, float sa, float ea) const;
 };
 
 struct Ellipse {
@@ -74,6 +113,17 @@ struct Ellipse {
 	void Draw(const Color& color, float line_width = -1.0f) const;
 
 	void Draw(const Color& color, float line_width, const LayerInfo& layer_info) const;
+
+private:
+	friend struct Circle;
+
+	void DrawSolid(const V4_float& color, std::int32_t render_layer, impl::RenderData& render_data)
+		const;
+
+	void DrawThick(
+		float line_width, const V4_float& color, std::int32_t render_layer,
+		impl::RenderData& render_data
+	) const;
 };
 
 } // namespace ptgn

@@ -12,10 +12,8 @@
 #include "renderer/gl_renderer.h"
 #include "renderer/layer_info.h"
 #include "renderer/render_data.h"
-#include "renderer/renderer.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
-#include "scene/scene_manager.h"
 #include "utility/debug.h"
 
 namespace ptgn {
@@ -176,7 +174,7 @@ void RenderTarget::Draw(const TextureInfo& texture_info, const LayerInfo& layer_
 	auto& i{ Get() };
 	i.Bind();
 	i.Flush();
-	DrawToTarget(i.destination_, texture_info, layer_info.GetRenderTarget());
+	DrawToTarget(i.destination_, texture_info, layer_info);
 	i.Bind();
 	i.Clear();
 }
@@ -191,27 +189,11 @@ const CameraManager& RenderTarget::GetCamera() const {
 	return Get().camera_;
 }
 
-RenderTarget RenderTarget::GetCorrectRenderLayer(const RenderTarget& render_target) {
-	if (render_target.IsValid()) {
-		return render_target;
-	}
-	if (game.scene.HasCurrent()) {
-		RenderTarget scene_target{ game.scene.GetCurrent().GetRenderTarget() };
-		PTGN_ASSERT(scene_target.IsValid(), "Scene render target is invalid or uninitialized");
-		return scene_target;
-	}
-	PTGN_ASSERT(
-		game.renderer.screen_target_.IsValid(),
-		"Renderer must be initialized before drawing render targets"
-	);
-	return game.renderer.screen_target_;
-}
-
 void RenderTarget::DrawToTarget(
-	const Rect& destination, const TextureInfo& texture_info, RenderTarget destination_target
+	const Rect& destination, const TextureInfo& texture_info, const LayerInfo& layer_info
 ) const {
-	auto destination_layer{ GetCorrectRenderLayer(destination_target) };
-	auto& i{ destination_layer.Get() };
+	auto destination_target{ layer_info.GetRenderTarget() };
+	auto& i{ destination_target.Get() };
 	i.Bind();
 	i.Flush();
 	TextureInfo info{ texture_info };
@@ -222,119 +204,14 @@ void RenderTarget::DrawToTarget(
 	} else if (info.flip == Flip::None) {
 		info.flip = Flip::Vertical;
 	}
-	GetTexture().Draw(destination, info, LayerInfo{ destination_layer });
+	// TODO: Change this to use a shader draw directly.
+	GetTexture().Draw(destination, info, LayerInfo{ destination_target });
 	i.Flush();
 }
 
 void RenderTarget::Bind() {
 	PTGN_ASSERT(IsValid(), "Cannot bind invalid or uninitialized render target");
 	Get().Bind();
-}
-
-void RenderTarget::AddTexture(
-	const Texture& texture, const Rect& destination, const TextureInfo& texture_info,
-	std::int32_t render_layer
-) {
-	auto& i{ GetCorrectRenderLayer(*this).Get() };
-
-	Rect dest{ destination };
-
-	if (dest.IsZero()) {
-		dest = Rect::Fullscreen();
-	} else if (dest.size.IsZero()) {
-		dest.size = texture.GetSize();
-	}
-
-	auto vertices{ dest.GetVertices(texture_info.rotation_center) };
-
-	auto tex_coords{ texture_info.GetTextureCoordinates(texture.GetSize()) };
-
-	TextureInfo::FlipTextureCoordinates(tex_coords, texture_info.flip);
-
-	i.render_data_.AddTexture(
-		vertices, texture, tex_coords, texture_info.tint.Normalized(), render_layer
-	);
-}
-
-void RenderTarget::AddEllipse(
-	const Ellipse& ellipse, const Color& color, float line_width, float fade,
-	std::int32_t render_layer
-) {
-	auto& i{ GetCorrectRenderLayer(*this).Get() };
-	i.render_data_.AddEllipse(ellipse, color.Normalized(), line_width, fade, render_layer);
-}
-
-void RenderTarget::AddCircle(
-	const Circle& circle, const Color& color, float line_width, float fade,
-	std::int32_t render_layer
-) {
-	auto& i{ GetCorrectRenderLayer(*this).Get() };
-	i.render_data_.AddCircle(circle, color.Normalized(), line_width, fade, render_layer);
-}
-
-void RenderTarget::AddLine(
-	const Line& line, const Color& color, float line_width, std::int32_t render_layer
-) {
-	auto& i{ GetCorrectRenderLayer(*this).Get() };
-	i.render_data_.AddLine(line, color.Normalized(), line_width, render_layer);
-}
-
-void RenderTarget::AddPoint(
-	const V2_float& point, const Color& color, float radius, float fade, std::int32_t render_layer
-) {
-	auto& i{ GetCorrectRenderLayer(*this).Get() };
-	i.render_data_.AddPoint(point, color.Normalized(), radius, fade, render_layer);
-}
-
-void RenderTarget::AddTriangle(
-	const Triangle& triangle, const Color& color, float line_width, std::int32_t render_layer
-) {
-	auto& i{ GetCorrectRenderLayer(*this).Get() };
-	i.render_data_.AddTriangle(triangle, color.Normalized(), line_width, render_layer);
-}
-
-void RenderTarget::AddRect(
-	const Rect& rect, const Color& color, float line_width, std::int32_t render_layer,
-	const V2_float& rotation_center
-) {
-	auto& i{ GetCorrectRenderLayer(*this).Get() };
-
-	auto vertices{ rect.GetVertices(rotation_center) };
-
-	i.render_data_.AddRect(vertices, color.Normalized(), line_width, render_layer);
-}
-
-void RenderTarget::AddRoundedRect(
-	const RoundedRect& rrect, const Color& color, float line_width, float fade,
-	std::int32_t render_layer, const V2_float& rotation_center
-) {
-	auto& i{ GetCorrectRenderLayer(*this).Get() };
-	i.render_data_.AddRoundedRect(
-		rrect, color.Normalized(), line_width, rotation_center, fade, render_layer
-	);
-}
-
-void RenderTarget::AddArc(
-	const Arc& arc, bool clockwise, const Color& color, float line_width, float fade,
-	std::int32_t render_layer
-) {
-	auto& i{ GetCorrectRenderLayer(*this).Get() };
-	i.render_data_.AddArc(arc, clockwise, color.Normalized(), line_width, fade, render_layer);
-}
-
-void RenderTarget::AddCapsule(
-	const Capsule& capsule, const Color& color, float line_width, float fade,
-	std::int32_t render_layer
-) {
-	auto& i{ GetCorrectRenderLayer(*this).Get() };
-	i.render_data_.AddCapsule(capsule, color.Normalized(), line_width, fade, render_layer);
-}
-
-void RenderTarget::AddPolygon(
-	const Polygon& polygon, const Color& color, float line_width, std::int32_t render_layer
-) {
-	auto& i{ GetCorrectRenderLayer(*this).Get() };
-	i.render_data_.AddPolygon(polygon, color.Normalized(), line_width, render_layer);
 }
 
 V2_float RenderTarget::ScaleToWindow(const V2_float& position) const {
@@ -401,6 +278,20 @@ V2_float RenderTarget::GetMousePositionPrevious() const {
 
 V2_float RenderTarget::GetMouseDifference() const {
 	return ScaleToWindow(game.input.GetMouseDifferenceWindow());
+}
+
+impl::RenderData& RenderTarget::GetRenderData() {
+	PTGN_ASSERT(
+		IsValid(), "Cannot retrieve render data for an invalid or uninitialized render target"
+	);
+	return Get().render_data_;
+}
+
+const impl::RenderData& RenderTarget::GetRenderData() const {
+	PTGN_ASSERT(
+		IsValid(), "Cannot retrieve render data for an invalid or uninitialized render target"
+	);
+	return Get().render_data_;
 }
 
 } // namespace ptgn

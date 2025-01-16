@@ -1,12 +1,14 @@
 #pragma once
 
 #include <cmath>
+#include <cstdint>
 #include <iosfwd>
 #include <ostream>
 #include <type_traits>
 
 #include "math/math.h"
 #include "math/rng.h"
+#include "math/vector4.h"
 #include "renderer/color.h"
 #include "utility/debug.h"
 #include "utility/type_traits.h"
@@ -25,11 +27,22 @@ struct Circle;
 
 namespace impl {
 
+class RenderData;
+
 struct Point {
 	static void Draw(float x, float y, const Color& color, float radius);
 
 	static void Draw(
 		float x, float y, const Color& color, float radius, const LayerInfo& layer_info
+	);
+
+	static void Draw(
+		float x, float y, const V4_float& color, std::int32_t render_layer, RenderData& render_data
+	);
+
+	static void Draw(
+		float x, float y, float radius, const V4_float& color, std::int32_t render_layer,
+		RenderData& render_data
 	);
 };
 

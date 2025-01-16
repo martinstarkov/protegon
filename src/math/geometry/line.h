@@ -1,7 +1,11 @@
 #pragma once
 
+#include <array>
+#include <cstdint>
+
 #include "math/raycast.h"
 #include "math/vector2.h"
+#include "math/vector4.h"
 
 namespace ptgn {
 
@@ -10,6 +14,13 @@ struct Color;
 struct Circle;
 struct Rect;
 struct Capsule;
+struct RoundedRect;
+
+namespace impl {
+
+class RenderData;
+
+} // namespace impl
 
 struct Line {
 	V2_float a;
@@ -43,6 +54,23 @@ struct Line {
 	[[nodiscard]] ptgn::Raycast Raycast(const Circle& circle) const;
 	[[nodiscard]] ptgn::Raycast Raycast(const Rect& rect) const;
 	[[nodiscard]] ptgn::Raycast Raycast(const Capsule& capsule) const;
+
+	// @param line_width The width of the line to create a quad for.
+	// @return Return the vertices required to draw a solid rotated quad to mimic a line with the
+	// given width.
+	[[nodiscard]] std::array<V2_float, 4> GetQuadVertices(float line_width) const;
+
+private:
+	friend struct Capsule;
+	friend struct RoundedRect;
+
+	void DrawSolid(const V4_float& color, std::int32_t render_layer, impl::RenderData& render_data)
+		const;
+
+	void DrawThick(
+		float line_width, const V4_float& color, std::int32_t render_layer,
+		impl::RenderData& render_data
+	) const;
 };
 
 struct Capsule {

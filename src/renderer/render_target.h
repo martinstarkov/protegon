@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+#include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/frame_buffer.h"
@@ -13,24 +14,10 @@
 namespace ptgn {
 
 struct LayerInfo;
-struct Rect;
-struct Circle;
-struct Ellipse;
-struct Line;
-struct Triangle;
-struct RoundedRect;
-struct Arc;
-struct Capsule;
-struct Polygon;
-class Button;
 
 namespace impl {
 
-class ButtonInstance;
-struct Point;
 class Renderer;
-class SceneManager;
-class SceneCamera;
 
 struct RenderTargetInstance {
 	RenderTargetInstance() = default;
@@ -171,96 +158,27 @@ public:
 	// the primary camera size of the render target.
 	[[nodiscard]] V2_float GetMouseDifference() const;
 
+	// @return Render data for the render target.
+	[[nodiscard]] impl::RenderData& GetRenderData();
+	[[nodiscard]] const impl::RenderData& GetRenderData() const;
+
 private:
 	friend class impl::Renderer;
-	friend class impl::SceneManager;
-	friend class impl::SceneCamera;
-	friend struct LayerInfo;
-	friend class Texture;
-	friend struct Ellipse;
-	friend struct Line;
-	friend struct impl::Point;
-	friend struct Triangle;
-	friend struct Rect;
-	friend struct Circle;
-	friend struct RoundedRect;
-	friend struct Arc;
-	friend struct Capsule;
-	friend struct Polygon;
-	friend class Button;
-	friend class impl::ButtonInstance;
 
 	// @return Mouse relative to the window and the render target's primary camera size (zoom
 	// included).
 	[[nodiscard]] V2_float ScaleToWindow(const V2_float& position) const;
 
-	// @param render_target The render target to retrieve the render layer for.
-	// @return The render target corresponding to the correct rendering layer.
-	// If (*this) render target is valid, it is the current rendering layer.
-	// Otherwise, the currently active scene is the current rendering layer.
-	// If no scene is currently active, an assert will be triggered.
-	[[nodiscard]] static RenderTarget GetCorrectRenderLayer(const RenderTarget& render_target);
-
 	// Draws this render target to another render target.
 	// @param destination The destination rectangle to draw this target at.
 	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
 	// center of the texture associated with this render target.
-	// @param destination_target The target onto which this target is drawn.
+	// @param layer_info The target layer onto which this target is drawn.
 	void DrawToTarget(
-		const Rect& destination, const TextureInfo& texture_info, RenderTarget destination_target
+		const Rect& destination, const TextureInfo& texture_info, const LayerInfo& layer_info
 	) const;
 
 	void Bind();
-
-	void AddTexture(
-		const Texture& texture, const Rect& destination, const TextureInfo& texture_info,
-		std::int32_t render_layer
-	);
-
-	void AddEllipse(
-		const Ellipse& ellipse, const Color& color, float line_width, float fade,
-		std::int32_t render_layer
-	);
-
-	void AddCircle(
-		const Circle& circle, const Color& color, float line_width, float fade,
-		std::int32_t render_layer
-	);
-
-	void AddLine(const Line& line, const Color& color, float line_width, std::int32_t render_layer);
-
-	void AddPoint(
-		const V2_float& point, const Color& color, float radius, float fade,
-		std::int32_t render_layer
-	);
-
-	void AddTriangle(
-		const Triangle& triangle, const Color& color, float line_width, std::int32_t render_layer
-	);
-
-	void AddRect(
-		const Rect& rect, const Color& color, float line_width, std::int32_t render_layer,
-		const V2_float& rotation_center
-	);
-
-	void AddRoundedRect(
-		const RoundedRect& rrect, const Color& color, float line_width, float fade,
-		std::int32_t render_layer, const V2_float& rotation_center
-	);
-
-	void AddArc(
-		const Arc& arc, bool clockwise, const Color& color, float line_width, float fade,
-		std::int32_t render_layer
-	);
-
-	void AddCapsule(
-		const Capsule& capsule, const Color& color, float line_width, float fade,
-		std::int32_t render_layer
-	);
-
-	void AddPolygon(
-		const Polygon& polygon, const Color& color, float line_width, std::int32_t render_layer
-	);
 };
 
 } // namespace ptgn

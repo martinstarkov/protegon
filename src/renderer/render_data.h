@@ -67,64 +67,6 @@ public:
 
 	void SetViewProjection(const Matrix4& view_projection);
 
-	// TOOD: Probably best to move these all into the geometry classes to avoid code duplication.
-
-	void AddTexture(
-		const std::array<V2_float, 4>& vertices, const Texture& texture,
-		const std::array<V2_float, 4>& tex_coords, const V4_float& tint_color,
-		std::int32_t render_layer
-	);
-
-	void AddEllipse(
-		const Ellipse& ellipse, const V4_float& color, float line_width, float fade,
-		std::int32_t render_layer
-	);
-
-	void AddCircle(
-		const Circle& circle, const V4_float& color, float line_width, float fade,
-		std::int32_t render_layer
-	);
-
-	void AddLine(
-		const Line& line, const V4_float& color, float line_width, std::int32_t render_layer
-	);
-
-	void AddPoint(
-		const V2_float& point, const V4_float& color, float radius, float fade,
-		std::int32_t render_layer
-	);
-
-	void AddTriangle(
-		const Triangle& triangle, const V4_float& color, float line_width, std::int32_t render_layer
-	);
-
-	void AddRect(
-		const std::array<V2_float, 4>& vertices, const V4_float& color, float line_width,
-		std::int32_t render_layer
-	);
-
-	void AddRoundedRect(
-		const RoundedRect& rrect, const V4_float& color, float line_width,
-		const V2_float& rotation_center, float fade, std::int32_t render_layer
-	);
-
-	void AddArc(
-		const Arc& arc, bool clockwise, const V4_float& color, float line_width, float fade,
-		std::int32_t render_layer
-	);
-
-	void AddCapsule(
-		const Capsule& capsule, const V4_float& color, float line_width, float fade,
-		std::int32_t render_layer
-	);
-
-	void AddPolygon(
-		const Polygon& polygon, const V4_float& color, float line_width, std::int32_t render_layer
-	);
-
-private:
-	friend struct Batch;
-
 	void AddPrimitiveQuad(
 		const std::array<V2_float, 4>& positions, std::int32_t render_layer, const V4_float& color,
 		const std::array<V2_float, 4>& tex_coords, const Texture& texture
@@ -146,6 +88,9 @@ private:
 	void AddPrimitivePoint(
 		const std::array<V2_float, 1>& positions, std::int32_t render_layer, const V4_float& color
 	);
+
+private:
+	friend struct Batch;
 
 	[[nodiscard]] std::vector<Batch>& GetLayerBatches(
 		std::int32_t render_layer, [[maybe_unused]] float alpha
