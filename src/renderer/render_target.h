@@ -167,7 +167,7 @@ private:
 
 	// @return Mouse relative to the window and the render target's primary camera size (zoom
 	// included).
-	[[nodiscard]] V2_float ScaleToWindow(const V2_float& position) const;
+	[[nodiscard]] V2_float ScaleToTarget(const V2_float& position) const;
 
 	// Draws this render target to another render target.
 	// @param destination The destination rectangle to draw this target at.

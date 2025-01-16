@@ -214,16 +214,20 @@ void RenderTarget::Bind() {
 	Get().Bind();
 }
 
-V2_float RenderTarget::ScaleToWindow(const V2_float& position) const {
+V2_float RenderTarget::ScaleToTarget(const V2_float& position) const {
 	PTGN_ASSERT(IsValid(), "Cannot retrieve render target scaling");
-	V2_float window_size{ game.window.GetSize() };
-	PTGN_ASSERT(
-		window_size.x != 0 && window_size.y != 0,
-		"Cannot scale position relative to a dimensionless window"
-	);
-	V2_float pos{ ScreenToWorld(position) - Get().destination_.Min() };
-	V2_float scaled_position{ GetCamera().GetPrimary().GetSize() * pos / window_size };
-	return scaled_position;
+	auto& i{ Get() };
+	Rect dest{ i.destination_ };
+	if (dest.IsZero()) {
+		dest = Rect::Fullscreen();
+	}
+	auto primary{ GetCamera().GetPrimary() };
+	float scale{ primary.GetZoom() };
+	PTGN_ASSERT(scale != 0.0f);
+	V2_float screen_pos{ ScreenToWorld(position) };
+	V2_float target_scale{ dest.size / i.texture_.GetSize() };
+	V2_float target_pos{ (screen_pos - dest.Min()) / target_scale };
+	return target_pos;
 }
 
 V2_float RenderTarget::WorldToScreen(const V2_float& position) const {
@@ -269,15 +273,15 @@ float RenderTarget::ScaleToScreen(float size) const {
 }
 
 V2_float RenderTarget::GetMousePosition() const {
-	return ScaleToWindow(game.input.GetMousePositionWindow());
+	return ScaleToTarget(game.input.GetMousePositionWindow());
 }
 
 V2_float RenderTarget::GetMousePositionPrevious() const {
-	return ScaleToWindow(game.input.GetMousePositionPreviousWindow());
+	return ScaleToTarget(game.input.GetMousePositionPreviousWindow());
 }
 
 V2_float RenderTarget::GetMouseDifference() const {
-	return ScaleToWindow(game.input.GetMouseDifferenceWindow());
+	return ScaleToTarget(game.input.GetMouseDifferenceWindow());
 }
 
 impl::RenderData& RenderTarget::GetRenderData() {
