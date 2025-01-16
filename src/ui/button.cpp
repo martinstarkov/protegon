@@ -9,6 +9,7 @@
 #include "event/event.h"
 #include "event/event_handler.h"
 #include "event/events.h"
+#include "event/input_handler.h"
 #include "event/mouse.h"
 #include "math/geometry/polygon.h"
 #include "math/math.h"
@@ -159,11 +160,17 @@ void ButtonInstance::RecheckState() {
 }
 
 V2_float ButtonInstance::GetMousePosition() const {
-	return layer_info_.GetRenderTarget().GetMousePosition();
+	if (auto r{ layer_info_.GetRenderTarget() }; r.IsValid()) {
+		return r.GetMousePosition();
+	}
+	return game.input.GetMousePositionWindow();
 }
 
 V2_float ButtonInstance::GetMousePositionPrevious() const {
-	return layer_info_.GetRenderTarget().GetMousePositionPrevious();
+	if (auto r{ layer_info_.GetRenderTarget() }; r.IsValid()) {
+		return r.GetMousePositionPrevious();
+	}
+	return game.input.GetMousePositionPreviousWindow();
 }
 
 bool ButtonInstance::InsideRect(const V2_int& position) const {
