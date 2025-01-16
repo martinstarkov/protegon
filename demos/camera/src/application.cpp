@@ -40,6 +40,8 @@ public:
 
 		game.camera.SetPrimary(chosen_cam);
 
+		game.input.GetMousePosition().Draw(color::Red, 8.0f);
+
 		auto camera{ game.camera.GetPrimary() };
 
 		if (game.input.KeyPressed(Key::W)) {
@@ -102,6 +104,7 @@ public:
 
 		RenderTarget ui{ color::Transparent };
 		ui_texture.Draw({ { 0, 0 }, ui_texture.GetSize(), Origin::TopLeft }, {}, ui);
+		ui.GetMousePosition().Draw(color::Blue, 4.0f, ui);
 		ui.Draw();
 	}
 };
