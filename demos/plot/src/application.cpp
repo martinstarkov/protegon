@@ -40,7 +40,7 @@ class PlotScene : public Scene {
 	using x_axis_unit = duration<float, seconds::period>;
 	x_axis_unit x_axis_length{ 10.0f };
 
-	void Init() {
+	void Init() override {
 		game.renderer.SetClearColor(color::White);
 		plot.Init({ 0, -250 }, { 10, 250 });
 
@@ -55,7 +55,7 @@ class PlotScene : public Scene {
 		plot.Get("acceleration").GetProperty<LineColor>() = color::Blue;
 
 		PlotLegend legend;
-		legend.background_color		  = color::LightGray;
+		legend.background_color = color::LightGray;
 		// legend.origin				  = Origin::CenterBottom;
 
 		plot.AddProperty<PlotLegend>(legend);
@@ -63,8 +63,8 @@ class PlotScene : public Scene {
 		HorizontalAxis haxis;
 		// Only whole numbers on the horizontal axis.
 		haxis.division_number_precision = 3;
-		//haxis.divisions					= 10;
-		// haxis.regular_align				= false;
+		// haxis.divisions					= 10;
+		//  haxis.regular_align				= false;
 
 		VerticalAxis vaxis;
 		vaxis.division_number_precision = 3;
@@ -79,7 +79,7 @@ class PlotScene : public Scene {
 		clock.Start();
 	}
 
-	void Update() {
+	void Update() override {
 		if (temperature.HasNewValue()) {
 			plot.Get("temperature")
 				.data.points.emplace_back(
