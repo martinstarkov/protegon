@@ -17,6 +17,7 @@
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/origin.h"
+#include "renderer/render_target.h"
 #include "renderer/renderer.h"
 #include "scene/scene_manager.h"
 #include "utility/debug.h"
