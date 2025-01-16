@@ -265,9 +265,10 @@ void Plot::DrawAxes(const std::array<Line, 4>& edges) {
 void Plot::DrawLegend(const Rect& dest) {
 	if (!entity_.Has<PlotLegend>() || IsEmpty()) {
 		legend_rect_ = Rect{};
-		ForEachKeyValue([&]([[maybe_unused]] auto& name, auto& series) {
-			series.GetButton().Disable();
-			series.GetButton().template Set<ButtonProperty::Visibility>(false);
+		ForEachKeyValue([&]([[maybe_unused]] auto& name, DataSeries& series) {
+			Button& button{ series.GetButton() };
+			button.Disable();
+			button.Set<ButtonProperty::Visibility>(false);
 		});
 		return;
 	}
@@ -279,60 +280,52 @@ void Plot::DrawLegend(const Rect& dest) {
 	V2_float legend_size;
 	std::int32_t legend_layer{ legend.draw_over_data ? 380 : 80 };
 
-	ForEachKeyValue([&](auto& name, auto& series) {
-		auto& [text, button] = texts_buttons.emplace_back(
-			Text{ name, legend.text_color,
-				  Font{ font::LiberationSansRegular, legend.text_point_size } },
-			series.GetButton()
-		);
+	ForEachKeyValue([&](auto& name, DataSeries& series) {
+		Text text{ name, legend.text_color,
+				   Font{ font::LiberationSansRegular, legend.text_point_size } };
+		Button& button{ series.GetButton() };
 		if (legend.toggleable_data) {
 			button.Enable();
-			button.template Set<ButtonProperty::Visibility>(true);
-			button.template Set<ButtonProperty::LayerInfo>(LayerInfo{ legend_layer + 1, canvas_ });
-			if (!button.template Get<ButtonProperty::Toggleable>()) {
-				button.template Set<ButtonProperty::Toggleable>(true);
+			button.Set<ButtonProperty::Visibility>(true);
+			button.Set<ButtonProperty::LayerInfo>(LayerInfo{ legend_layer + 1, canvas_ });
+			if (!button.Get<ButtonProperty::Toggleable>()) {
+				button.Set<ButtonProperty::Toggleable>(true);
 			}
 			if (legend.button_texture_default.IsValid() &&
-				!button.template Get<ButtonProperty::Texture>(ButtonState::Default).IsValid()) {
-				button.template Set<ButtonProperty::Texture>(
+				!button.Get<ButtonProperty::Texture>(ButtonState::Default).IsValid()) {
+				button.Set<ButtonProperty::Texture>(
 					legend.button_texture_default, ButtonState::Default
 				);
 			} else {
-				button.template Set<ButtonProperty::BackgroundColor>(
-					color::DarkGreen, ButtonState::Default
-				);
+				button.Set<ButtonProperty::BackgroundColor>(color::DarkGreen, ButtonState::Default);
 			}
 			if (legend.button_texture_hover.IsValid() &&
-				!button.template Get<ButtonProperty::Texture>(ButtonState::Hover).IsValid()) {
-				button.template Set<ButtonProperty::Texture>(
+				!button.Get<ButtonProperty::Texture>(ButtonState::Hover).IsValid()) {
+				button.Set<ButtonProperty::Texture>(
 					legend.button_texture_hover, ButtonState::Hover
 				);
-				button.template Set<ButtonProperty::Texture>(
+				button.Set<ButtonProperty::Texture>(
 					legend.button_texture_hover, ButtonState::Hover, true
 				);
 			} else {
-				button.template Set<ButtonProperty::BackgroundColor>(
-					color::DarkGray, ButtonState::Hover
-				);
-				button.template Set<ButtonProperty::BackgroundColor>(
+				button.Set<ButtonProperty::BackgroundColor>(color::DarkGray, ButtonState::Hover);
+				button.Set<ButtonProperty::BackgroundColor>(
 					color::DarkGray, ButtonState::Hover, true
 				);
 			}
 			if (legend.button_texture_toggled.IsValid() &&
-				!button.template Get<ButtonProperty::Texture>(ButtonState::Default, true)
-					 .IsValid()) {
-				button.template Set<ButtonProperty::Texture>(
+				!button.Get<ButtonProperty::Texture>(ButtonState::Default, true).IsValid()) {
+				button.Set<ButtonProperty::Texture>(
 					legend.button_texture_toggled, ButtonState::Default, true
 				);
 			} else {
-				button.template Set<ButtonProperty::BackgroundColor>(
-					color::Red, ButtonState::Default, true
-				);
+				button.Set<ButtonProperty::BackgroundColor>(color::Red, ButtonState::Default, true);
 			}
 		} else {
 			button.Disable();
-			button.template Set<ButtonProperty::Visibility>(false);
+			button.Set<ButtonProperty::Visibility>(false);
 		}
+		texts_buttons.emplace_back(text, button);
 		V2_float text_size{ text.GetSize() };
 		legend_size.x  = std::max(text_size.x, legend_size.x);
 		legend_size.y += text_size.y;
@@ -366,7 +359,7 @@ void Plot::DrawLegend(const Rect& dest) {
 
 	V2_float legend_min{ legend_rect_.Min() };
 
-	for (auto& [text, button] : texts_buttons) {
+	for (auto [text, button] : texts_buttons) {
 		V2_float size{ text.GetSize() };
 
 		Rect text_rect{ legend_min + text_offset, size, Origin::TopLeft };
@@ -422,7 +415,7 @@ void Plot::DrawPoints(const Rect& dest) {
 
 	// Note: Data must be sorted for this loop to draw lines correctly.
 
-	auto& data_series{ GetMap() };
+	const auto& data_series{ GetMap() };
 
 	bool has_legend{ entity_.Has<PlotLegend>() };
 
@@ -433,8 +426,14 @@ void Plot::DrawPoints(const Rect& dest) {
 
 	for (const auto& [name, series] : data_series) {
 		// Do not display data sets which are disabled in the legend.
-		if (has_legend && series.button_.Get<ButtonProperty::Toggled>()) {
-			continue;
+		if (has_legend) {
+			const Button& button{ series.GetButton() };
+			if (button.IsValid()) {
+				bool toggled{ button.Get<ButtonProperty::Toggled>() };
+				if (toggled) {
+					continue;
+				}
+			}
 		}
 		for (std::size_t i = 0; i < series.data.points.size(); ++i) {
 			const auto& point{ series.data.points[i] };

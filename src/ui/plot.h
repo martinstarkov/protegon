@@ -105,6 +105,10 @@ struct DataSeries {
 
 	DataPoints data;
 
+	[[nodiscard]] const Button& GetButton() const {
+		return button_;
+	}
+
 	[[nodiscard]] Button& GetButton() {
 		return button_;
 	}
@@ -122,7 +126,7 @@ struct AxisExtents {
 	V2_float min;
 	V2_float max;
 
-	[[nodiscard]] V2_float GetLength() {
+	[[nodiscard]] V2_float GetLength() const {
 		return max - min;
 	}
 };
