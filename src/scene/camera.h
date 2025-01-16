@@ -33,9 +33,13 @@ struct Camera {
 	Camera& operator=(Camera&&) noexcept = default;
 	~Camera();
 
+	// Top left position of camera.
 	V3_float position;
+
 	V2_float size;
+
 	float zoom{ 1.0f };
+
 	V3_float orientation;
 
 	void Reset();
@@ -67,17 +71,26 @@ public:
 
 	// Origin at the top left.
 	[[nodiscard]] Rect GetRect() const;
+
 	[[nodiscard]] V2_float GetTopLeftPosition() const;
+
 	[[nodiscard]] V2_float GetSize() const;
+
 	[[nodiscard]] float GetZoom() const;
+
 	// Use Min() and Max() of rectangle to find top left and bottom right bounds of camera.
 	[[nodiscard]] Rect GetBounds() const;
+
 	[[nodiscard]] V2_float GetPosition() const;
+
 	[[nodiscard]] V3_float GetPosition3D() const;
+
 	// (yaw, pitch, roll) (radians).
 	[[nodiscard]] V3_float GetOrientation() const;
+
 	// Orientation as a quaternion.
 	[[nodiscard]] Quaternion GetQuaternion() const;
+
 	[[nodiscard]] Flip GetFlip() const;
 
 	void SetFlip(Flip flip);
@@ -91,38 +104,50 @@ public:
 
 	// If continuously is true, camera will subscribe to window resize event.
 	void SetSizeToWindow(bool continuously = false);
+
 	void SetSize(const V2_float& size);
 
 	// Set point which is at the center of the camera view.
 	void SetPosition(const V3_float& new_position);
+
 	void Translate(const V3_float& position_change);
+
 	// Set point which is at the center of the camera view.
 	void SetPosition(const V2_float& new_position);
+
 	void Translate(const V2_float& position_change);
 
 	void SetZoom(float new_zoom);
+
 	void Zoom(float zoom_change_amount);
 
 	// (yaw, pitch, roll) in radians.
 	void SetRotation(const V3_float& new_angle_radians);
+
 	// (yaw, pitch, roll) in radians.
 	void Rotate(const V3_float& angle_change_radians);
 
 	// Yaw in radians.
 	void SetRotation(float yaw_radians);
+
 	// Yaw in radians.
 	void Rotate(float yaw_change_radians);
 
 	// Angle in radians.
 	void SetYaw(float angle_radians);
+
 	// Angle in radians.
 	void Yaw(float angle_change_radians);
+
 	// Angle in radians.
 	void SetPitch(float angle_radians);
+
 	// Angle in radians.
 	void Pitch(float angle_change_radians);
+
 	// Angle in radians.
 	void SetRoll(float angle_radians);
+
 	// Angle in radians.
 	void Roll(float angle_change_radians);
 
