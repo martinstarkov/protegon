@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <functional>
 #include <string>
-#include <string_view>
 #include <type_traits>
 #include <unordered_map>
 
@@ -17,9 +16,9 @@
 #include "renderer/origin.h"
 #include "renderer/text.h"
 #include "renderer/texture.h"
+#include "ui/dropdown.h"
 #include "utility/handle.h"
 #include "utility/log.h"
-#include "ui/dropdown.h"
 #include "utility/type_traits.h"
 
 namespace ptgn {
@@ -45,7 +44,7 @@ enum class ButtonProperty : std::size_t {
 	TextAlignment,	  // Type: TextAlignment (same as Origin relative to button rect position)
 	TextSize,		  // Type: V2_float (default: unscaled text size)
 	LayerInfo,		  // Type: LayerInfo (button text is drawn on this layer + 1 and border on + 2).
-	Dropdown, 		  // Type: Dropdown (specify dropdown elements)
+	Dropdown,		  // Type: Dropdown (specify dropdown elements)
 	Visibility,		  // Type: bool
 	Toggleable,		  // Type: bool
 	Bordered,		  // Type: bool
@@ -58,8 +57,8 @@ enum class ButtonProperty : std::size_t {
 	OnActivate,		  // Type: ButtonCallback
 	OnDisable,		  // Type: ButtonCallback
 	OnEnable,		  // Type: ButtonCallback
-	OnShow,		  	  // Type: ButtonCallback
-	OnHide,		 	  // Type: ButtonCallback
+	OnShow,			  // Type: ButtonCallback
+	OnHide,			  // Type: ButtonCallback
 	OnToggle		  // Type: ButtonCallback
 };
 
@@ -265,16 +264,18 @@ public:
 
 class Button : public Handle<impl::ButtonInstance> {
 public:
-	Button();
+	Button() = default;
 	explicit Button(const Rect& rect);
 
 	void Draw();
 
+	// @return True if the button is responding to events, false otherwise.
 	[[nodiscard]] bool IsEnabled() const;
 
 	// Disabling a button causes it to stop responding to events.
 	Button& SetEnabled(bool enabled);
 
+	// @return True if the button is visible when drawn, false otherwise.
 	[[nodiscard]] bool IsVisible() const;
 
 	// Hiding a button causes it to disappear while still responding to events.
@@ -303,12 +304,16 @@ public:
 	[[nodiscard]] auto Get(
 		ButtonState state = ButtonState::Default, bool toggled = false, bool disabled = false
 	) const {
+		PTGN_ASSERT(IsValid(), "Cannot get button property of invalid or uninitialized button");
 		const auto& resource{ const_cast<Button&>(*this).Handle::Get().GetResource<Property>() };
 		return impl::GetResource(state, toggled, disabled, resource);
 	}
 
 	template <ButtonProperty Property>
 	[[nodiscard]] auto GetCurrent() const {
+		PTGN_ASSERT(
+			IsValid(), "Cannot get current button property of invalid or uninitialized button"
+		);
 		auto& i{ Handle::Get() };
 		return Get<Property>(GetState(), i.toggled_, !i.enabled_);
 	}
@@ -318,6 +323,7 @@ public:
 		const T& value, ButtonState state = ButtonState::Default, bool toggled = false,
 		bool disabled = false
 	) {
+		Create();
 		auto& i{ Handle::Get() };
 		auto& resource{ impl::GetResource(state, toggled, disabled, i.GetResource<Property>()) };
 		using S = std::remove_reference_t<decltype(resource)>;
@@ -345,7 +351,7 @@ private:
 class ToggleButtonGroup : public MapManager<Button, std::string_view, std::string, false> {
 public:
 	ToggleButtonGroup()										   = default;
-	virtual ~ToggleButtonGroup()							   = default;
+	virtual ~ToggleButtonGroup() override					   = default;
 	ToggleButtonGroup(ToggleButtonGroup&&) noexcept			   = default;
 	ToggleButtonGroup& operator=(ToggleButtonGroup&&) noexcept = default;
 	ToggleButtonGroup(const ToggleButtonGroup&)				   = delete;

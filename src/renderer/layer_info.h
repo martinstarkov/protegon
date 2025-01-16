@@ -9,9 +9,7 @@ namespace ptgn {
 // Information relating to the render layer and render target of the drawn object.
 // Default constructed LayerInfo will automatically use the currently active scene.
 struct LayerInfo {
-	LayerInfo() = default;
-
-	LayerInfo(void*) {}
+	LayerInfo();
 
 	LayerInfo(const RenderTarget& render_target);
 
@@ -26,10 +24,9 @@ struct LayerInfo {
 
 	[[nodiscard]] bool operator!=(const LayerInfo& o) const;
 
-	// @return The render target corresponding to the correct rendering layer.
-	// If (*this) render target is valid, it is the current rendering layer.
-	// Otherwise, the currently active scene is the current rendering layer.
-	// If no scene is currently active, an assert will be triggered.
+	// @return True if the layer info contains a valid custom render target.
+	[[nodiscard]] bool HasCustomRenderTarget() const;
+
 	[[nodiscard]] RenderTarget GetRenderTarget() const;
 
 	[[nodiscard]] std::int32_t GetRenderLayer() const;

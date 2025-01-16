@@ -328,17 +328,16 @@ void ButtonInstance::OnMouseUpOutside(const MouseUpEvent& e) {
 
 } // namespace impl
 
-Button::Button() {
-	Create();
-}
-
 Button::Button(const Rect& rect) {
 	Create();
 	SetRect(rect);
 }
 
 void Button::Draw() {
+	PTGN_ASSERT(IsValid(), "Cannot draw invalid or uninitialized button");
+
 	auto& i{ Handle::Get() };
+
 	if (!i.visibility_) {
 		return;
 	}
@@ -409,10 +408,11 @@ void Button::Draw() {
 }
 
 bool Button::IsEnabled() const {
-	return Handle::Get().enabled_;
+	return IsValid() && Handle::Get().enabled_;
 }
 
 Button& Button::SetEnabled(bool enabled) {
+	Create();
 	auto& i{ Handle::Get() };
 	if (enabled == i.enabled_) {
 		return *this;
@@ -422,10 +422,11 @@ Button& Button::SetEnabled(bool enabled) {
 }
 
 bool Button::IsVisible() const {
-	return Handle::Get().visibility_;
+	return IsValid() && Handle::Get().visibility_;
 }
 
 Button& Button::SetVisibility(bool enabled) {
+	Create();
 	auto& i{ Handle::Get() };
 	if (enabled == i.visibility_) {
 		return *this;
@@ -435,21 +436,25 @@ Button& Button::SetVisibility(bool enabled) {
 }
 
 Button& Button::Activate() {
+	Create();
 	Handle::Get().Activate();
 	return *this;
 }
 
 Button& Button::StartHover() {
+	Create();
 	Handle::Get().StartHover();
 	return *this;
 }
 
 Button& Button::StopHover() {
+	Create();
 	Handle::Get().StopHover();
 	return *this;
 }
 
 Button& Button::Toggle() {
+	Create();
 	Handle::Get().Toggle();
 	return *this;
 }
@@ -477,6 +482,7 @@ Rect Button::GetRect() const {
 }
 
 Button& Button::SetRect(const Rect& new_rectangle) {
+	Create();
 	auto& i{ Handle::Get() };
 	i.rect_ = new_rectangle;
 	i.RecheckState();
@@ -484,14 +490,17 @@ Button& Button::SetRect(const Rect& new_rectangle) {
 }
 
 impl::InternalButtonState Button::GetInternalState() const {
+	PTGN_ASSERT(IsValid(), "Cannot get internal state of invalid or uninitialized button");
 	return Handle::Get().button_state_;
 }
 
 void Button::SetInternalOnActivate(const ButtonCallback& internal_on_activate) {
+	Create();
 	Handle::Get().internal_on_activate_ = internal_on_activate;
 }
 
 ButtonState Button::GetState() const {
+	PTGN_ASSERT(IsValid(), "Cannot get state of invalid or uninitialized button");
 	auto& i{ Handle::Get() };
 	if (i.button_state_ == impl::InternalButtonState::Hover) {
 		return ButtonState::Hover;
