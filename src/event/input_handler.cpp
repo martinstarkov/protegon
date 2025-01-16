@@ -27,24 +27,31 @@
 
 namespace ptgn::impl {
 
-void InputHandler::Reset() {
+void InputHandler::ResetKeyStates() {
 	key_states_.reset();
 	first_time_down_.reset();
 	first_time_up_.reset();
+}
 
-	// Mouse states.
-	left_mouse_		= MouseState::Released;
-	right_mouse_	= MouseState::Released;
-	middle_mouse_	= MouseState::Released;
-	mouse_pos_		= {};
-	prev_mouse_pos_ = {};
-	mouse_scroll_	= {};
-
-	// Mouse button held for timers.
-
+void InputHandler::ResetMouseStates() {
+	left_mouse_			= MouseState::Released;
+	right_mouse_		= MouseState::Released;
+	middle_mouse_		= MouseState::Released;
 	left_mouse_timer_	= {};
 	right_mouse_timer_	= {};
 	middle_mouse_timer_ = {};
+}
+
+void InputHandler::ResetMousePositions() {
+	mouse_pos_		= {};
+	prev_mouse_pos_ = {};
+	mouse_scroll_	= {};
+}
+
+void InputHandler::Reset() {
+	ResetKeyStates();
+	ResetMouseStates();
+	ResetMousePositions();
 }
 
 void InputHandler::Update() {

@@ -143,6 +143,9 @@ private:
 	void Shutdown();
 
 	void Reset();
+	void ResetKeyStates();
+	void ResetMouseStates();
+	void ResetMousePositions();
 
 	// Number of keys stored in the SDL key states array. For creating previous
 	// key states array.
