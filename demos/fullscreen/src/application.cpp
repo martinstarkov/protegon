@@ -122,8 +122,7 @@ class FullscreenExample : public Scene {
 		Color color_0 = color::Green;
 		Color color_1 = color::Blue;
 
-		Rect rect_0{ V2_float{ resolution.x, 0.0f }, V2_float{ 30.0f, 30.0f },
-					 Origin::TopRight };
+		Rect rect_0{ V2_float{ resolution.x, 0.0f }, V2_float{ 30.0f, 30.0f }, Origin::TopRight };
 		Rect rect_1{ V2_int{ 0, game.window.GetSize().y }, V2_float{ 30.0f, 30.0f },
 					 Origin::BottomLeft };
 
@@ -171,8 +170,9 @@ class FullscreenExample : public Scene {
 		rect_0.Draw(color_0, -1.0f);
 		rect_1.Draw(color_1, -1.0f, rt);
 
-		game.input.GetMousePosition().Draw({ 128, 128, 0, 128 }, 4.0f);
-		game.input.GetMousePosition().Draw({ 128, 0, 128, 128 }, 4.0f, rt);
+		game.input.GetMousePosition().Draw(color::Red, 4.0f);
+		rt.GetMousePosition().Draw(color::Green, 4.0f);
+		rt.GetMousePosition().Draw(color::Blue, 4.0f, rt);
 
 		rt.Draw();
 	}
