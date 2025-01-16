@@ -192,25 +192,16 @@ V2_float InputHandler::GetMouseDifferenceWindow() const {
 
 V2_float InputHandler::GetMouseDifference() const {
 	RenderTarget r{ game.renderer.GetCurrentRenderTarget() };
-	if (r == game.renderer.screen_target_) {
-		return GetMouseDifferenceWindow();
-	}
 	return r.GetMouseDifference();
 }
 
 V2_float InputHandler::GetMousePosition() const {
 	RenderTarget r{ game.renderer.GetCurrentRenderTarget() };
-	if (r == game.renderer.screen_target_) {
-		return GetMousePositionWindow();
-	}
 	return r.GetMousePosition();
 }
 
 V2_float InputHandler::GetMousePositionPrevious() const {
 	RenderTarget r{ game.renderer.GetCurrentRenderTarget() };
-	if (r == game.renderer.screen_target_) {
-		return GetMousePositionPreviousWindow();
-	}
 	return r.GetMousePositionPrevious();
 }
 
