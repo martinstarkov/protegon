@@ -5,14 +5,15 @@
 #include <string>
 #include <type_traits>
 
+#include "SDL_timer.h"
 #include "audio/audio.h"
-#include "math/collision.h"
 #include "core/gl_context.h"
 #include "core/manager.h"
 #include "core/sdl_instance.h"
 #include "core/window.h"
 #include "event/event_handler.h"
 #include "event/input_handler.h"
+#include "math/collision.h"
 #include "math/vector2.h"
 #include "physics/physics.h"
 #include "renderer/color.h"
@@ -23,7 +24,6 @@
 #include "renderer/texture.h"
 #include "scene/camera.h"
 #include "scene/scene_manager.h"
-#include "SDL_timer.h"
 #include "ui/ui.h"
 #include "utility/debug.h"
 #include "utility/profiling.h"
