@@ -18,6 +18,7 @@ namespace ptgn::impl {
 	const V2_float* contour, int u, int v, int w, int n, const std::vector<int>& V
 );
 
+// @return A vector of triangles which make up the polygon contour.
 [[nodiscard]] std::vector<Triangle> Triangulate(const V2_float* contour, std::size_t count);
 
 } // namespace ptgn::impl

@@ -26,6 +26,10 @@ struct LayerInfo {
 
 	[[nodiscard]] bool operator!=(const LayerInfo& o) const;
 
+	// @return The render target corresponding to the correct rendering layer.
+	// If (*this) render target is valid, it is the current rendering layer.
+	// Otherwise, the currently active scene is the current rendering layer.
+	// If no scene is currently active, an assert will be triggered.
 	[[nodiscard]] RenderTarget GetRenderTarget() const;
 
 	[[nodiscard]] std::int32_t GetRenderLayer() const;

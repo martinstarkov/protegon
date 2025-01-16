@@ -37,10 +37,11 @@ struct Color {
 	// Default color is black.
 	constexpr Color() = default;
 
-	constexpr Color(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a) : r{ r }, g{ g }, b{ b }, a{ a } {}
+	constexpr Color(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a) :
+		r{ r }, g{ g }, b{ b }, a{ a } {}
 
 	// @return Color values normalized to 0.0f -> 1.0f range.
-	[[nodiscard]] Vector4<float> Normalized() const;
+	[[nodiscard]] V4_float Normalized() const;
 
 	[[nodiscard]] static Color RandomOpaque();
 	[[nodiscard]] static Color RandomTransparent();
