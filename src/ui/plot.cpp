@@ -130,25 +130,24 @@ void Plot::Draw(const Rect& destination) {
 		dest = Rect::Fullscreen();
 	}
 
-	// TODO: Add offset movement.
-	// Store starting offset when clicked.
-	// Check how many plot sizes have been moved and add appropriately to the limits.
-	// When mouse is released stop shifting limits and reset offset.
-
-	auto scroll{ game.input.GetMouseScroll() };
+	canvas_.SetRect(dest);
 
 	V2_float mouse_pos{ game.input.GetMousePosition() };
 	Rect canvas_rect{ canvas_.GetRect() };
-
 	bool mouse_on_plot{ canvas_rect.Overlaps(mouse_pos) };
 
-	if (game.input.MouseDown(Mouse::Left) && mouse_on_plot) {
+	V2_float canvas_mouse{ canvas_.GetMousePosition() };
+	bool mouse_on_legend{ legend_rect_ != Rect{} && legend_rect_.Overlaps(canvas_mouse) };
+
+	if (game.input.MouseDown(Mouse::Left) && mouse_on_plot && !mouse_on_legend) {
 		offset_		 = mouse_pos;
 		move_axis_	 = current_axis_;
 		moving_plot_ = true;
 	} else if (game.input.MouseUp(Mouse::Left)) {
 		offset_ = V2_float::Infinity();
 	}
+
+	auto scroll{ game.input.GetMouseScroll() };
 
 	if (scroll != 0 && mouse_on_plot) {
 		// To zoom into where mouse is located, we scale zoom amount for each axis
@@ -157,7 +156,7 @@ void Plot::Draw(const Rect& destination) {
 		PTGN_ASSERT(mouse_frac.x >= 0.0f && mouse_frac.x <= 1.0f);
 		PTGN_ASSERT(mouse_frac.y >= 0.0f && mouse_frac.y <= 1.0f);
 		moving_plot_ = true;
-		int dir{ Sign(scroll) };
+		auto dir{ static_cast<float>(Sign(scroll)) };
 		V2_float axis_length{ current_axis_.GetLength() };
 		float zoom_amount{ 0.1f };
 		// Y axis scaling is upside down because mouse pos is taken from top left of window.
@@ -188,8 +187,6 @@ void Plot::Draw(const Rect& destination) {
 	}
 
 	DrawPlotArea();
-
-	canvas_.SetRect(dest);
 
 	canvas_.Draw();
 
@@ -267,6 +264,7 @@ void Plot::DrawAxes(const std::array<Line, 4>& edges) {
 
 void Plot::DrawLegend(const Rect& dest) {
 	if (!entity_.Has<PlotLegend>() || IsEmpty()) {
+		legend_rect_ = Rect{};
 		ForEachKeyValue([&]([[maybe_unused]] auto& name, auto& series) {
 			series.GetButton().Disable();
 			series.GetButton().template Set<ButtonProperty::Visibility>(false);
@@ -279,7 +277,6 @@ void Plot::DrawLegend(const Rect& dest) {
 	texts_buttons.reserve(Size());
 
 	V2_float legend_size;
-	V2_float text_size;
 	std::int32_t legend_layer{ legend.draw_over_data ? 380 : 80 };
 
 	ForEachKeyValue([&](auto& name, auto& series) {
@@ -336,13 +333,17 @@ void Plot::DrawLegend(const Rect& dest) {
 			button.Disable();
 			button.template Set<ButtonProperty::Visibility>(false);
 		}
-		text_size	   = text.GetSize();
+		V2_float text_size{ text.GetSize() };
 		legend_size.x  = std::max(text_size.x, legend_size.x);
 		legend_size.y += text_size.y;
 	});
 
+	PTGN_ASSERT(!texts_buttons.empty());
+
+	auto text_height{ static_cast<float>(texts_buttons.front().first.GetSize().y) };
+
 	if (legend.toggleable_data) {
-		legend_size.x += text_size.y;
+		legend_size.x += text_height;
 	}
 
 	PTGN_ASSERT(legend_size.x > 0.0f, "Invalid legend width");
@@ -351,25 +352,27 @@ void Plot::DrawLegend(const Rect& dest) {
 		legend_size.y > 0.0f, "Legend text point size must be such that the legend has a height"
 	);
 
-	Rect legend_rect{ dest.Center() + GetOffsetFromCenter(dest.size, legend.origin), legend_size,
-					  legend.origin };
-	legend_rect.Draw(legend.background_color, -1.0f, { legend_layer, canvas_ });
+	legend_rect_ = Rect{ dest.Center() + GetOffsetFromCenter(dest.size, legend.origin), legend_size,
+						 legend.origin };
+	legend_rect_.Draw(legend.background_color, -1.0f, { legend_layer, canvas_ });
 
 	V2_float text_offset;
 	V2_float button_offset;
 
 	if (legend.toggleable_data) {
 		// Offset text to make room for buttons.
-		text_offset = { text_size.y, 0.0f };
+		text_offset = { text_height, 0.0f };
 	}
+
+	V2_float legend_min{ legend_rect_.Min() };
 
 	for (auto& [text, button] : texts_buttons) {
 		V2_float size{ text.GetSize() };
-		Rect text_rect{ legend_rect.Min() + text_offset, size, Origin::TopLeft };
+
+		Rect text_rect{ legend_min + text_offset, size, Origin::TopLeft };
 
 		if (legend.toggleable_data) {
-			button.SetRect(Rect{
-				legend_rect.Min() + button_offset, { text_size.y, text_size.y }, Origin::TopLeft });
+			button.SetRect(Rect{ legend_min + button_offset, { size.y, size.y }, Origin::TopLeft });
 			button.Draw();
 			button_offset.y += size.y;
 		}

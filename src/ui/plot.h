@@ -118,8 +118,7 @@ private:
 
 namespace impl {
 
-struct AxisExtents
-{
+struct AxisExtents {
 	V2_float min;
 	V2_float max;
 
@@ -207,7 +206,8 @@ struct PlotLegend {
 // If added to the plot, the horizontal axis will follow the latest data point.
 struct FollowHorizontalData {};
 
-// If added to the plot, the vertical axis will scale automatically to the data visible in the graph.
+// If added to the plot, the vertical axis will scale automatically to the data visible in the
+// graph.
 struct VerticalAutoscaling {};
 
 class Plot : public MapManager<DataSeries, std::string_view, std::string, false> {
@@ -249,7 +249,8 @@ public:
 		);
 		static_assert(
 			tt::is_any_of_v<
-				T, BackgroundColor, PlotLegend, PlotBorder, VerticalAxis, HorizontalAxis, FollowHorizontalData, VerticalAutoscaling>,
+				T, BackgroundColor, PlotLegend, PlotBorder, VerticalAxis, HorizontalAxis,
+				FollowHorizontalData, VerticalAutoscaling>,
 			"Invalid type for plot property"
 		);
 		entity_.Add<T>(property);
@@ -336,7 +337,8 @@ private:
 			division_line.Draw(axis.division_color, axis.division_thickness);
 
 			// Find number at the division line.
-			float division_number{ current_axis_.min[component_index] + i * division_number_offset };
+			float division_number{ current_axis_.min[component_index] +
+								   i * division_number_offset };
 
 			Text division_text{
 				ToString(division_number, axis.division_number_precision), axis.division_text_color,
@@ -366,7 +368,10 @@ private:
 	// Canvas size here reflects the unscaled resolution of the canvas.
 	RenderTarget canvas_{ { 500, 500 }, color::Transparent, BlendMode::Blend };
 
-	// Axis when plot starts getting dragged so that dragging is proportional to the fraction of axes moved.
+	Rect legend_rect_;
+
+	// Axis when plot starts getting dragged so that dragging is proportional to the fraction of
+	// axes moved.
 	impl::AxisExtents move_axis_;
 	// Allows for dragging and zooming of plot.
 	impl::AxisExtents current_axis_;
