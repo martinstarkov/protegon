@@ -221,21 +221,11 @@ void RenderTarget::Bind() {
 
 V2_float RenderTarget::ScaleToTarget(const V2_float& position) const {
 	PTGN_ASSERT(IsValid(), "Cannot retrieve render target scaling");
-	V2_float window_size{ game.window.GetSize() };
-	PTGN_ASSERT(
-		window_size.x != 0 && window_size.y != 0,
-		"Cannot scale position relative to a dimensionless window"
-	);
 	auto& i{ Get() };
-	Rect dest{ i.destination_ };
-	if (dest.IsZero()) {
-		dest = Rect::Fullscreen();
-	}
+	Rect dest{ GetRect() };
 	V2_float screen_pos{ ScreenToWorld(position) };
-	V2_float target_scale{ dest.size / i.texture_.GetSize() };
-	V2_float target_pos{ (screen_pos - dest.Min()) / target_scale };
-	V2_float scale_factor{ GetCamera().GetPrimary().GetSize() / window_size };
-	V2_float scaled_pos{ target_pos * scale_factor };
+	V2_float scaled_pos{ (screen_pos - dest.Min()) * GetCamera().GetPrimary().GetSize() /
+						 dest.size };
 	return scaled_pos;
 }
 
