@@ -2,6 +2,8 @@
 
 using namespace ptgn;
 
+constexpr V2_int resolution{ 800, 800 };
+
 class Sensor {
 public:
 	Sensor() = default;
@@ -41,7 +43,6 @@ class PlotScene : public Scene {
 	x_axis_unit x_axis_length{ 10.0f };
 
 	void Init() override {
-		game.renderer.SetClearColor(color::White);
 		plot.Init({ 0, -250 }, { 10, 250 });
 
 		plot.Load("temperature");
@@ -103,7 +104,7 @@ class PlotScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("Plot Scene", { 800, 800 });
+	game.Init("Plot Scene", resolution);
 	game.scene.LoadActive<PlotScene>("plot");
 	return 0;
 }
