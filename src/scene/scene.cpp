@@ -58,6 +58,17 @@ SceneTransition& SceneTransition::SetFadeColor(const Color& color) {
 void SceneTransition::Start(
 	bool transition_in, std::size_t key, std::size_t other_key, const std::shared_ptr<Scene>& scene
 ) const {
+	if (type_ == TransitionType::None) {
+		if (transition_in) {
+			game.scene.AddActiveImpl(
+				key, game.scene.active_scenes_.empty() && game.scene.Size() == 1
+			);
+		} else {
+			game.scene.RemoveActiveImpl(key);
+		}
+		return;
+	}
+
 	Tween tween;
 	if (type_ == TransitionType::FadeThroughColor) {
 		tween = Tween{ duration_ + color_duration_ };
@@ -230,7 +241,9 @@ void SceneTransition::Start(
 		// uncover transition, start will change the order of the active scenes to ensure that the
 		// new active scenes is not rendered on top of the covering scenes.
 		if (transition_in) {
-			game.scene.AddActiveImpl(key);
+			game.scene.AddActiveImpl(
+				key, game.scene.active_scenes_.empty() && game.scene.Size() == 1
+			);
 		}
 		if (start != nullptr) {
 			std::invoke(start);

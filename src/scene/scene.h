@@ -90,9 +90,9 @@ private:
 	// Only applies when using TransitionType::FadeThroughColor.
 	milliseconds color_duration_{ 500 };
 
-	TransitionType type_{ TransitionType::None };
+	TransitionType type_{ TransitionType::Fade };
 
-	milliseconds duration_{ 1000 };
+	milliseconds duration_{ 0 };
 };
 
 class Scene {
@@ -141,7 +141,7 @@ private:
 
 	void Add(Action new_action);
 
-	std::set<Action> actions_{ Action::Init };
+	std::set<Action> actions_;
 };
 
 } // namespace ptgn
