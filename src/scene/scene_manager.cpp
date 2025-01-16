@@ -91,9 +91,9 @@ void SceneManager::TransitionActiveImpl(
 		HasActiveSceneImpl(from_scene_key),
 		"Cannot transition from a scene which is not currently active"
 	);
-	PTGN_ASSERT(
-		!HasActiveSceneImpl(to_scene_key), "Cannot transition to a scene which is already active"
-	);
+	if (HasActiveSceneImpl(to_scene_key)) {
+		return;
+	}
 
 	transition.Start(false, from_scene_key, to_scene_key, Get(from_scene_key));
 	transition.Start(true, to_scene_key, from_scene_key, Get(to_scene_key));
@@ -211,9 +211,6 @@ void SceneManager::UpdateFlagged() {
 					// Input is reset to ensure no previously pressed keys are considered held.
 					game.input.ResetKeyStates();
 					game.input.ResetMouseStates();
-					// Each scene starts with a refreshed camera.
-					// This may not be desired and can be commented out if necessary.
-					scene->target_.GetCamera().ResetPrimary();
 					scene->Init();
 					break;
 				case Scene::Action::Shutdown: scene->Shutdown(); break;

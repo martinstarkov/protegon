@@ -60,9 +60,7 @@ void SceneTransition::Start(
 ) const {
 	if (type_ == TransitionType::None) {
 		if (transition_in) {
-			game.scene.AddActiveImpl(
-				key, game.scene.active_scenes_.empty() && game.scene.Size() == 1
-			);
+			game.scene.AddActiveImpl(key, game.scene.active_scenes_.empty());
 		} else {
 			game.scene.RemoveActiveImpl(key);
 		}
@@ -241,9 +239,7 @@ void SceneTransition::Start(
 		// uncover transition, start will change the order of the active scenes to ensure that the
 		// new active scenes is not rendered on top of the covering scenes.
 		if (transition_in) {
-			game.scene.AddActiveImpl(
-				key, game.scene.active_scenes_.empty() && game.scene.Size() == 1
-			);
+			game.scene.AddActiveImpl(key, game.scene.active_scenes_.empty());
 		}
 		if (start != nullptr) {
 			std::invoke(start);

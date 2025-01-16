@@ -98,7 +98,7 @@ public:
 	// @param scene_key The unique identifier for the scene to be made active.
 	template <typename TKey>
 	void AddActive(const TKey& scene_key) {
-		AddActiveImpl(GetInternalKey(scene_key), active_scenes_.empty() && MapManager::Size() == 1);
+		AddActiveImpl(GetInternalKey(scene_key), active_scenes_.empty());
 	}
 
 	// Removes an active scene from the scene manager.
