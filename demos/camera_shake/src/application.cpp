@@ -33,6 +33,8 @@ public:
 	Button CreateButton(std::string_view content, const ButtonCallback& on_activate) {
 		Button b;
 		b.Set<ButtonProperty::BackgroundColor>(color::Gold);
+		b.Set<ButtonProperty::BackgroundColor>(color::Gray, ButtonState::Hover);
+		b.Set<ButtonProperty::BackgroundColor>(color::DarkGray, ButtonState::Pressed);
 		b.Set<ButtonProperty::Bordered>(true);
 		b.Set<ButtonProperty::BorderColor>(color::LightGray);
 		b.Set<ButtonProperty::BorderThickness>(3.0f);
