@@ -2,6 +2,8 @@
 
 using namespace ptgn;
 
+constexpr V2_int resolution{ 800, 800 };
+
 static void TransitionScene(
 	std::string_view from, std::string_view to, milliseconds duration = milliseconds{ 250 }
 ) {
@@ -13,8 +15,7 @@ static void TransitionScene(
 		game.scene.TransitionActive(from, to, { TransitionType::CoverLeft, duration });
 	} else if (game.input.KeyDown(Key::A)) {
 		game.scene.TransitionActive(from, to, { TransitionType::CoverRight, duration });
-	}
-	if (game.input.KeyDown(Key::T)) {
+	} else if (game.input.KeyDown(Key::T)) {
 		game.scene.TransitionActive(from, to, { TransitionType::UncoverDown, duration });
 	} else if (game.input.KeyDown(Key::G)) {
 		game.scene.TransitionActive(from, to, { TransitionType::UncoverUp, duration });
@@ -70,7 +71,6 @@ public:
 	}
 
 	void Init() override {
-		game.window.SetSize({ 800, 800 });
 		game.scene.AddActive("scene1");
 	}
 
@@ -83,7 +83,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("SceneTransitionExample", { 800, 800 });
+	game.Init("SceneTransitionExample", resolution);
 	game.scene.LoadActive<SceneTransitionExample>("scene_transition_example");
 	return 0;
 }
