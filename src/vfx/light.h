@@ -10,6 +10,8 @@
 
 namespace ptgn {
 
+class RenderTarget;
+
 namespace impl {
 
 class Game;
@@ -25,8 +27,10 @@ public:
 	Light(const V2_float& position, const Color& color, float intensity = 10.0f) :
 		position_{ position }, color_{ color }, intensity_{ intensity } {}
 
-	// TODO: Fix.
-	// void Draw(const Texture& texture) const;
+	// Uses default render target.
+	void Draw() const;
+
+	void Draw(const RenderTarget& render_target) const;
 
 	void SetPosition(const V2_float& position);
 	[[nodiscard]] V2_float GetPosition() const;
@@ -57,7 +61,10 @@ public:
 	LightManager(const LightManager&)				 = delete;
 	LightManager& operator=(const LightManager&)	 = delete;
 
+	// Uses default render target.
 	void Draw();
+
+	void Draw(const LayerInfo& layer_info);
 
 	void Reset();
 

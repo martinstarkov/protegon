@@ -2,15 +2,12 @@
 
 #include "core/game.h"
 #include "core/manager.h"
-#include "core/window.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
 #include "renderer/color.h"
-#include "renderer/origin.h"
-#include "renderer/renderer.h"
+#include "renderer/render_target.h"
 #include "renderer/shader.h"
-#include "renderer/texture.h"
 
 namespace ptgn {
 
@@ -43,16 +40,19 @@ V3_float Light::GetShaderColor() const {
 	return { n.x, n.y, n.z };
 }
 
-// TODO: Fix.
-//void Light::Draw(const Texture& texture) const {
-	//auto shader{ game.light.GetShader() };
-	// TOOD: Reduce shader binds when using light manager.
-	//shader.Bind();
-	//shader.SetUniform("u_LightPos", GetPosition());
-	//shader.SetUniform("u_LightIntensity", GetIntensity());
-	// TOOD: Fix this to use layer info.
-	//shader.Draw(texture, {}, Matrix4{ 1.0f }, TextureInfo{ {}, {}, Flip::None, color_ });
-//}
+void Light::Draw() const {
+	Draw({});
+}
+
+void Light::Draw(const RenderTarget& render_target) const {
+	auto shader{ game.light.GetShader() };
+	// TODO: Reduce shader binds when using light manager.
+	shader.Bind();
+	shader.SetUniform("u_LightPos", GetPosition());
+	shader.SetUniform("u_LightIntensity", GetIntensity());
+	// TODO: Fix this to use layer info.
+	// shader.Draw(texture, {}, Matrix4{ 1.0f }, TextureInfo{ {}, {}, Flip::None, color_ });
+}
 
 void LightManager::Init() {
 	target_		  = RenderTarget{ color::Transparent, BlendMode::Add };
@@ -67,8 +67,7 @@ void LightManager::Init() {
 }
 
 void LightManager::Draw() {
-	// TODO: Fix
-	//ForEachValue([&](const auto& light) { /*light.Draw(target_.GetTexture());*/ });
+	ForEachValue([&](const Light& light) { light.Draw(target_); });
 }
 
 void LightManager::Reset() {
