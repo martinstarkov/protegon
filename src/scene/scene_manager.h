@@ -50,7 +50,7 @@ public:
 		);
 		auto k{ GetInternalKey(scene_key) };
 		auto scene{ std::make_shared<TScene>(std::forward<TArgs>(constructor_args)...) };
-		PTGN_ASSERT(!scene->actions_.empty());
+		PTGN_ASSERT(scene->actions_.empty(), "Scene must be initialized with no actions");
 		return std::static_pointer_cast<TScene>(
 			MapManager<std::shared_ptr<Scene>>::Load(k, std::move(scene))
 		);
@@ -98,7 +98,7 @@ public:
 	// @param scene_key The unique identifier for the scene to be made active.
 	template <typename TKey>
 	void AddActive(const TKey& scene_key) {
-		AddActiveImpl(GetInternalKey(scene_key));
+		AddActiveImpl(GetInternalKey(scene_key), active_scenes_.empty() && MapManager::Size() == 1);
 	}
 
 	// Removes an active scene from the scene manager.
@@ -169,7 +169,7 @@ private:
 
 	void UnloadImpl(const InternalKey& scene_key);
 
-	void AddActiveImpl(const InternalKey& scene_key);
+	void AddActiveImpl(const InternalKey& scene_key, bool first_scene);
 	void RemoveActiveImpl(const InternalKey& scene_key);
 	void TransitionActiveImpl(
 		const InternalKey& from_scene_key, const InternalKey& to_scene_key,

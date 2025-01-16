@@ -8,10 +8,13 @@
 
 #include "core/game.h"
 #include "core/manager.h"
+#include "event/event_handler.h"
+#include "event/events.h"
 #include "event/input_handler.h"
 #include "renderer/layer_info.h"
 #include "renderer/render_target.h"
 #include "renderer/renderer.h"
+#include "renderer/texture.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "utility/debug.h"
@@ -32,13 +35,11 @@ void SceneManager::InitScene(const InternalKey& scene_key) {
 	scene->Add(Scene::Action::Init);
 }
 
-void SceneManager::AddActiveImpl(const InternalKey& scene_key) {
+void SceneManager::AddActiveImpl(const InternalKey& scene_key, bool first_scene) {
 	if (HasActiveSceneImpl(scene_key)) {
 		return;
 	}
 	PTGN_ASSERT(Has(scene_key), "Cannot add scene to active unless it has been loaded first");
-
-	bool first_scene{ active_scenes_.empty() };
 
 	active_scenes_.emplace_back(scene_key);
 	InitScene(scene_key);
@@ -86,15 +87,13 @@ void SceneManager::TransitionActiveImpl(
 	const InternalKey& from_scene_key, const InternalKey& to_scene_key,
 	const SceneTransition& transition
 ) {
-	if (transition == SceneTransition{}) {
-		RemoveActiveImpl(from_scene_key);
-		AddActiveImpl(to_scene_key);
-		return;
-	}
-
-	if (HasActiveSceneImpl(to_scene_key)) {
-		return;
-	}
+	PTGN_ASSERT(
+		HasActiveSceneImpl(from_scene_key),
+		"Cannot transition from a scene which is not currently active"
+	);
+	PTGN_ASSERT(
+		!HasActiveSceneImpl(to_scene_key), "Cannot transition to a scene which is already active"
+	);
 
 	transition.Start(false, from_scene_key, to_scene_key, Get(from_scene_key));
 	transition.Start(true, to_scene_key, from_scene_key, Get(to_scene_key));
@@ -172,7 +171,6 @@ void SceneManager::Update() {
 		);
 		layer++;
 	}
-	UpdateFlagged();
 }
 
 Scene& SceneManager::GetCurrent() {
@@ -211,7 +209,8 @@ void SceneManager::UpdateFlagged() {
 			switch (*action) {
 				case Scene::Action::Init:
 					// Input is reset to ensure no previously pressed keys are considered held.
-					game.input.Reset();
+					game.input.ResetKeyStates();
+					game.input.ResetMouseStates();
 					// Each scene starts with a refreshed camera.
 					// This may not be desired and can be commented out if necessary.
 					scene->target_.GetCamera().ResetPrimary();

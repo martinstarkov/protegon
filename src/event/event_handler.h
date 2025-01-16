@@ -65,17 +65,33 @@ public:
 	void Post(T type, const TEvent& event) const {
 		// This ensures that if a posted function modified observers, it does
 		// not invalidate the iterators.
-		auto observers		   = observers_;
 		auto general_observers = general_observers_;
 		for (const auto& [key, callback] : general_observers) {
-			std::invoke(callback, type, event);
+			if (general_observers_.empty()) {
+				break;
+			}
+			if (general_observers_.find(key) == general_observers_.end()) {
+				continue;
+			}
+			if (callback != nullptr) {
+				std::invoke(callback, type, event);
+			}
 		}
+		auto observers = observers_;
 		for (const auto& [key, callbacks] : observers) {
 			auto it = callbacks.find(type);
 			if (it == std::end(callbacks)) {
 				continue;
 			}
-			std::invoke(it->second, event);
+			if (observers_.empty()) {
+				break;
+			}
+			if (observers_.find(key) == observers_.end()) {
+				continue;
+			}
+			if (it->second != nullptr) {
+				std::invoke(it->second, event);
+			}
 		}
 	};
 

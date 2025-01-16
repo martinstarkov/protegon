@@ -298,10 +298,12 @@ void Game::Update() {
 	input.Update();
 	scene.Update();
 	tween.Update();
+	renderer.Present();
+	scene.UpdateFlagged();
+
 	if (profiler.IsEnabled()) {
 		profiler.PrintAll();
 	}
-	renderer.Present();
 
 	end = std::chrono::system_clock::now();
 }
