@@ -9,6 +9,7 @@
 #include "core/manager.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
+#include "math/vector4.h"
 #include "renderer/color.h"
 #include "renderer/flip.h"
 #include "renderer/surface.h"
@@ -18,8 +19,16 @@
 namespace ptgn {
 
 class Text;
-class RenderTarget;
+class Texture;
 struct LayerInfo;
+struct Rect;
+struct Line;
+
+namespace impl {
+
+class RenderData;
+
+} // namespace impl
 
 // Information relating to the source pixels, flip, tinting and rotation center of the texture.
 struct TextureInfo {
@@ -64,7 +73,23 @@ struct TextureInfo {
 	V2_float rotation_center{ 0.5f, 0.5f };
 
 private:
-	friend class RenderTarget;
+	friend class Texture;
+	friend struct Rect;
+	friend struct Line;
+
+	friend void impl::DrawVertices(
+		const V2_float* vertices, std::size_t vertex_count, float line_width, const V4_float& color,
+		std::int32_t render_layer, impl::RenderData& render_data, std::size_t vertex_modulo
+	);
+
+	[[nodiscard]] static constexpr std::array<V2_float, 4> GetDefaultTextureCoordinates() {
+		return {
+			V2_float{ 0.0f, 0.0f },
+			V2_float{ 1.0f, 0.0f },
+			V2_float{ 1.0f, 1.0f },
+			V2_float{ 0.0f, 1.0f },
+		};
+	}
 
 	[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(
 		const V2_float& texture_size, bool offset_texels = false

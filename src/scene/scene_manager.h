@@ -13,6 +13,7 @@ namespace ptgn {
 
 class SceneTransition;
 struct LayerInfo;
+class CameraManager;
 
 namespace impl {
 
@@ -144,6 +145,12 @@ public:
 	// Do not call this function when a scene is not currently active, such as before loading an
 	// active scene.
 	[[nodiscard]] Scene& GetCurrent();
+	[[nodiscard]] const Scene& GetCurrent() const;
+
+	// @return Camera manager for the the scene which is currently in the process of being updated,
+	// initialized, or shutdown (i.e. inside of the scene's Init(), Update(), Shutdown() functions)
+	[[nodiscard]] CameraManager& GetCurrentCamera();
+	[[nodiscard]] const CameraManager& GetCurrentCamera() const;
 
 	// @return Whether or not the scene manager is currently updating a scene.
 	[[nodiscard]] bool HasCurrent() const;

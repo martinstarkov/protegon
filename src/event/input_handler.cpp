@@ -3,6 +3,11 @@
 #include <bitset>
 #include <utility>
 
+#include "SDL_events.h"
+#include "SDL_keyboard.h"
+#include "SDL_mouse.h"
+#include "SDL_stdinc.h"
+#include "SDL_video.h"
 #include "core/game.h"
 #include "core/window.h"
 #include "event/event_handler.h"
@@ -12,12 +17,8 @@
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/origin.h"
+#include "renderer/renderer.h"
 #include "scene/scene_manager.h"
-#include "SDL_events.h"
-#include "SDL_keyboard.h"
-#include "SDL_mouse.h"
-#include "SDL_stdinc.h"
-#include "SDL_video.h"
 #include "utility/debug.h"
 #include "utility/log.h"
 #include "utility/time.h"
@@ -182,24 +183,27 @@ V2_float InputHandler::GetMouseDifferenceWindow() const {
 }
 
 V2_float InputHandler::GetMouseDifference() const {
-	if (game.scene.HasCurrent()) {
-		return game.scene.GetCurrent().GetRenderTarget().GetMouseDifference();
+	RenderTarget r{ game.renderer.GetCurrentRenderTarget() };
+	if (r == game.renderer.screen_target_) {
+		return GetMouseDifferenceWindow();
 	}
-	return GetMouseDifferenceWindow();
+	return r.GetMouseDifference();
 }
 
 V2_float InputHandler::GetMousePosition() const {
-	if (game.scene.HasCurrent()) {
-		return game.scene.GetCurrent().GetRenderTarget().GetMousePosition();
+	RenderTarget r{ game.renderer.GetCurrentRenderTarget() };
+	if (r == game.renderer.screen_target_) {
+		return GetMousePositionWindow();
 	}
-	return GetMousePositionWindow();
+	return r.GetMousePosition();
 }
 
 V2_float InputHandler::GetMousePositionPrevious() const {
-	if (game.scene.HasCurrent()) {
-		return game.scene.GetCurrent().GetRenderTarget().GetMousePositionPrevious();
+	RenderTarget r{ game.renderer.GetCurrentRenderTarget() };
+	if (r == game.renderer.screen_target_) {
+		return GetMousePositionPreviousWindow();
 	}
-	return GetMousePositionPreviousWindow();
+	return r.GetMousePositionPrevious();
 }
 
 int InputHandler::GetMouseScroll() const {

@@ -402,8 +402,23 @@ void Texture::Draw(
 	const Rect& destination, const TextureInfo& texture_info, const LayerInfo& layer_info
 ) const {
 	PTGN_ASSERT(IsValid(), "Cannot draw uninitialized or destroyed texture");
-	layer_info.GetRenderTarget().AddTexture(
-		*this, destination, texture_info, layer_info.GetRenderLayer()
+
+	Rect dest{ destination };
+
+	if (dest.IsZero()) {
+		dest = Rect::Fullscreen();
+	} else if (dest.size.IsZero()) {
+		dest.size = GetSize();
+	}
+
+	auto vertices{ dest.GetVertices(texture_info.rotation_center) };
+
+	auto tex_coords{ texture_info.GetTextureCoordinates(GetSize()) };
+
+	TextureInfo::FlipTextureCoordinates(tex_coords, texture_info.flip);
+
+	layer_info.GetRenderTarget().GetRenderData().AddPrimitiveQuad(
+		vertices, layer_info.GetRenderLayer(), texture_info.tint.Normalized(), tex_coords, *this
 	);
 }
 

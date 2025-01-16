@@ -10,6 +10,7 @@
 #include "core/window.h"
 #include "math/geometry/polygon.h"
 #include "renderer/color.h"
+#include "renderer/flip.h"
 #include "renderer/frame_buffer.h"
 #include "renderer/gl_renderer.h"
 #include "renderer/layer_info.h"
@@ -104,33 +105,33 @@ void Renderer::Shutdown() {
 }
 
 BlendMode Renderer::GetBlendMode() const {
-	if (game.scene.HasCurrent()) {
-		return game.scene.GetCurrent().GetRenderTarget().GetBlendMode();
-	}
-	return screen_target_.GetBlendMode();
+	return GetCurrentRenderTarget().GetBlendMode();
 }
 
 void Renderer::SetBlendMode(BlendMode blend_mode) {
-	if (game.scene.HasCurrent()) {
-		game.scene.GetCurrent().GetRenderTarget().SetBlendMode(blend_mode);
-	} else {
-		screen_target_.SetBlendMode(blend_mode);
-	}
+	GetCurrentRenderTarget().SetBlendMode(blend_mode);
 }
 
 Color Renderer::GetClearColor() const {
+	return GetCurrentRenderTarget().GetClearColor();
+}
+
+RenderTarget Renderer::GetCurrentRenderTarget() const {
+	RenderTarget t;
+
 	if (game.scene.HasCurrent()) {
-		return game.scene.GetCurrent().GetRenderTarget().GetClearColor();
+		t = game.scene.GetCurrent().GetRenderTarget();
+	} else {
+		t = screen_target_;
 	}
-	return screen_target_.GetClearColor();
+
+	PTGN_ASSERT(t.IsValid(), "Failed to find a current and valid render target");
+
+	return t;
 }
 
 void Renderer::SetClearColor(const Color& clear_color) {
-	if (game.scene.HasCurrent()) {
-		game.scene.GetCurrent().GetRenderTarget().SetClearColor(clear_color);
-	} else {
-		screen_target_.SetClearColor(clear_color);
-	}
+	GetCurrentRenderTarget().SetClearColor(clear_color);
 }
 
 void Renderer::ClearScreen() const {
@@ -142,19 +143,11 @@ void Renderer::ClearScreen() const {
 }
 
 void Renderer::Clear() const {
-	if (game.scene.HasCurrent()) {
-		game.scene.GetCurrent().GetRenderTarget().Clear();
-	} else {
-		screen_target_.Clear();
-	}
+	GetCurrentRenderTarget().Clear();
 }
 
 void Renderer::Flush() {
-	if (game.scene.HasCurrent()) {
-		game.scene.GetCurrent().GetRenderTarget().Flush();
-	} else {
-		screen_target_.Flush();
-	}
+	GetCurrentRenderTarget().Flush();
 }
 
 void Renderer::Present() {

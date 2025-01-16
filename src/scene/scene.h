@@ -6,6 +6,7 @@
 
 #include "renderer/color.h"
 #include "renderer/render_target.h"
+#include "scene/camera.h"
 #include "utility/time.h"
 
 namespace ptgn {
@@ -48,7 +49,7 @@ public:
 
 	SceneTransition& SetType(TransitionType type);
 
-	// For TransitionType::FadeThroughColor, this is the time outside of the fade color 
+	// For TransitionType::FadeThroughColor, this is the time outside of the fade color
 	// i.e. total transition duration = duration + color duration
 	SceneTransition& SetDuration(milliseconds duration);
 
@@ -90,7 +91,7 @@ private:
 	milliseconds color_duration_{ 500 };
 
 	TransitionType type_{ TransitionType::None };
- 
+
 	milliseconds duration_{ 1000 };
 };
 
@@ -120,6 +121,8 @@ public:
 	}
 
 	[[nodiscard]] RenderTarget GetRenderTarget() const;
+	[[nodiscard]] const CameraManager& GetCamera() const;
+	[[nodiscard]] CameraManager& GetCamera();
 
 private:
 	friend class impl::SceneManager;

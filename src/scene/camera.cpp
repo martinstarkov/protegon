@@ -464,48 +464,27 @@ CameraManager::Item& SceneCamera::LoadImpl(const InternalKey& key, Item&& item) 
 	if (!item.IsValid()) {
 		item.SetSizeToWindow();
 	}
-	if (game.scene.HasCurrent()) {
-		return game.scene.GetCurrent().GetRenderTarget().GetCamera().Load(key, std::move(item));
-	}
-	return game.renderer.screen_target_.GetCamera().Load(key, std::move(item));
+	return game.scene.GetCurrentCamera().Load(key, std::move(item));
 }
 
 void SceneCamera::UnloadImpl(const InternalKey& key) {
-	if (game.scene.HasCurrent()) {
-		game.scene.GetCurrent().GetRenderTarget().GetCamera().Unload(key);
-	} else {
-		game.renderer.screen_target_.GetCamera().Unload(key);
-	}
+	game.scene.GetCurrentCamera().Unload(key);
 }
 
 bool SceneCamera::HasImpl(const InternalKey& key) {
-	if (game.scene.HasCurrent()) {
-		return game.scene.GetCurrent().GetRenderTarget().GetCamera().Has(key);
-	}
-	return game.renderer.screen_target_.GetCamera().Has(key);
+	return game.scene.GetCurrentCamera().Has(key);
 }
 
 CameraManager::Item& SceneCamera::GetImpl(const InternalKey& key) {
-	if (game.scene.HasCurrent()) {
-		return game.scene.GetCurrent().GetRenderTarget().GetCamera().Get(key);
-	}
-	return game.renderer.screen_target_.GetCamera().Get(key);
+	return game.scene.GetCurrentCamera().Get(key);
 }
 
 void SceneCamera::Clear() {
-	if (game.scene.HasCurrent()) {
-		game.scene.GetCurrent().GetRenderTarget().GetCamera().Clear();
-	} else {
-		game.renderer.screen_target_.GetCamera().Clear();
-	}
+	game.scene.GetCurrentCamera().Clear();
 }
 
 void SceneCamera::SetPrimaryImpl(const InternalKey& key) {
-	if (game.scene.HasCurrent()) {
-		game.scene.GetCurrent().GetRenderTarget().GetCamera().SetPrimary(key);
-	} else {
-		game.renderer.screen_target_.GetCamera().SetPrimary(key);
-	}
+	game.scene.GetCurrentCamera().SetPrimary(key);
 }
 
 void SceneCamera::Init() {
@@ -517,34 +496,19 @@ const OrthographicCamera& SceneCamera::GetWindow() const {
 }
 
 void SceneCamera::SetPrimary(const OrthographicCamera& camera) {
-	if (game.scene.HasCurrent()) {
-		game.scene.GetCurrent().GetRenderTarget().GetCamera().SetPrimary(camera);
-	} else {
-		game.renderer.screen_target_.GetCamera().SetPrimary(camera);
-	}
+	game.scene.GetCurrentCamera().SetPrimary(camera);
 }
 
 OrthographicCamera SceneCamera::GetPrimary() {
-	if (game.scene.HasCurrent()) {
-		return game.scene.GetCurrent().GetRenderTarget().GetCamera().GetPrimary();
-	}
-	return game.renderer.screen_target_.GetCamera().GetPrimary();
+	return game.scene.GetCurrentCamera().GetPrimary();
 }
 
 void SceneCamera::Reset() {
-	if (game.scene.HasCurrent()) {
-		game.scene.GetCurrent().GetRenderTarget().GetCamera().Reset();
-	} else {
-		game.renderer.screen_target_.GetCamera().Reset();
-	}
+	game.scene.GetCurrentCamera().Reset();
 }
 
 void SceneCamera::ResetPrimary() {
-	if (game.scene.HasCurrent()) {
-		game.scene.GetCurrent().GetRenderTarget().GetCamera().ResetPrimary();
-	} else {
-		game.renderer.screen_target_.GetCamera().ResetPrimary();
-	}
+	game.scene.GetCurrentCamera().ResetPrimary();
 }
 
 void SceneCamera::SetToWindow() {
@@ -552,9 +516,7 @@ void SceneCamera::SetToWindow() {
 		return;
 	}
 
-	game.scene.GetCurrent().GetRenderTarget().GetCamera().SetPrimary(
-		game.renderer.screen_target_.GetCamera().GetPrimary()
-	);
+	game.scene.GetCurrentCamera().SetPrimary(game.renderer.screen_target_.GetCamera().GetPrimary());
 }
 
 } // namespace impl

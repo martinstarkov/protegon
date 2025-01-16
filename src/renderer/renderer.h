@@ -24,6 +24,7 @@ class SceneManager;
 class SceneCamera;
 struct Batch;
 class RenderData;
+class InputHandler;
 
 class Renderer {
 public:
@@ -49,6 +50,11 @@ public:
 	void SetClearColor(const Color& clear_color);
 	[[nodiscard]] Color GetClearColor() const;
 
+	// @return Render target for the the scene which is currently in the process of being updated,
+	// initialized, or shutdown (i.e. inside of the scene's Init(), Update(), Shutdown() functions).
+	// If outside of those functions, returns the screen target.
+	[[nodiscard]] RenderTarget GetCurrentRenderTarget() const;
+
 private:
 	// Sets bound_frame_buffer_
 	friend class ptgn::FrameBuffer;
@@ -61,6 +67,7 @@ private:
 	friend class ptgn::RenderTarget;
 	friend class SceneCamera;
 	friend class ptgn::GLRenderer;
+	friend class impl::InputHandler;
 
 	void ClearScreen() const;
 	void Init(const Color& background_color);

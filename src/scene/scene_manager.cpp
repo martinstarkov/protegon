@@ -180,6 +180,19 @@ Scene& SceneManager::GetCurrent() {
 	return *current_scene_;
 }
 
+const Scene& SceneManager::GetCurrent() const {
+	PTGN_ASSERT(HasCurrent(), "No currently active scene has been set");
+	return *current_scene_;
+}
+
+CameraManager& SceneManager::GetCurrentCamera() {
+	return game.renderer.GetCurrentRenderTarget().GetCamera();
+}
+
+const CameraManager& SceneManager::GetCurrentCamera() const {
+	return game.renderer.GetCurrentRenderTarget().GetCamera();
+}
+
 bool SceneManager::HasCurrent() const {
 	return current_scene_ != nullptr;
 }

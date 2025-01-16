@@ -257,6 +257,16 @@ RenderTarget Scene::GetRenderTarget() const {
 	return target_;
 }
 
+const CameraManager& Scene::GetCamera() const {
+	PTGN_ASSERT(target_.IsValid(), "Cannot retrieve camera of scene with invalid render target");
+	return target_.GetCamera();
+}
+
+CameraManager& Scene::GetCamera() {
+	PTGN_ASSERT(target_.IsValid(), "Cannot retrieve camera of scene with invalid render target");
+	return target_.GetCamera();
+}
+
 void Scene::Add(Action new_status) {
 	actions_.insert(new_status);
 }

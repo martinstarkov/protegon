@@ -159,12 +159,11 @@ void ButtonInstance::RecheckState() {
 }
 
 V2_float ButtonInstance::GetMousePosition() const {
-	return RenderTarget::GetCorrectRenderLayer(layer_info_.GetRenderTarget()).GetMousePosition();
+	return layer_info_.GetRenderTarget().GetMousePosition();
 }
 
 V2_float ButtonInstance::GetMousePositionPrevious() const {
-	return RenderTarget::GetCorrectRenderLayer(layer_info_.GetRenderTarget())
-		.GetMousePositionPrevious();
+	return layer_info_.GetRenderTarget().GetMousePositionPrevious();
 }
 
 bool ButtonInstance::InsideRect(const V2_int& position) const {

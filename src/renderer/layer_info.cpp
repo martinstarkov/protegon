@@ -2,7 +2,10 @@
 
 #include <cstdint>
 
+#include "core/game.h"
 #include "renderer/render_target.h"
+#include "renderer/renderer.h"
+#include "scene/scene_manager.h"
 
 namespace ptgn {
 
@@ -20,7 +23,19 @@ bool LayerInfo::operator!=(const LayerInfo& o) const {
 }
 
 RenderTarget LayerInfo::GetRenderTarget() const {
-	return render_target_;
+	if (render_target_.IsValid()) {
+		return render_target_;
+	}
+	if (game.scene.HasCurrent()) {
+		RenderTarget scene_target{ game.scene.GetCurrent().GetRenderTarget() };
+		PTGN_ASSERT(scene_target.IsValid(), "Scene render target is invalid or uninitialized");
+		return scene_target;
+	}
+	PTGN_ASSERT(
+		game.renderer.screen_target_.IsValid(),
+		"Renderer must be initialized before drawing render targets"
+	);
+	return game.renderer.screen_target_;
 }
 
 std::int32_t LayerInfo::GetRenderLayer() const {
