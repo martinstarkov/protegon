@@ -1,89 +1,24 @@
 #include "renderer/render_data.h"
 
 #include <array>
-#include <cmath>
 #include <cstdint>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
 #include "core/game.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/line.h"
-#include "math/geometry/polygon.h"
-#include "math/math.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
-#include "renderer/buffer.h"
-#include "renderer/gl_types.h"
-#include "renderer/origin.h"
+#include "renderer/batch.h"
 #include "renderer/renderer.h"
+#include "renderer/shader.h"
 #include "renderer/texture.h"
-#include "renderer/vertex_array.h"
 #include "renderer/vertices.h"
 #include "utility/debug.h"
-#include "utility/triangulation.h"
 #include "utility/utility.h"
 
-namespace ptgn {
-
-namespace impl {
-
-Batch::Batch(const Texture& texture) {
-	textures_.emplace_back(texture);
-}
-
-void Batch::BindTextures() const {
-	for (std::uint32_t i{ 0 }; i < static_cast<std::uint32_t>(textures_.size()); i++) {
-		// Save first texture slot for empty white texture.
-		std::uint32_t slot{ i + 1 };
-		textures_[i].Bind(slot);
-	}
-}
-
-float Batch::GetAvailableTextureIndex(const Texture& texture) {
-	PTGN_ASSERT(!RenderData::IsBlank(texture));
-	PTGN_ASSERT(texture.IsValid());
-	// Texture exists in batch, therefore do not add it again.
-	for (std::size_t i{ 0 }; i < textures_.size(); i++) {
-		if (textures_[i] == texture) {
-			// i + 1 because first texture index is white texture.
-			return static_cast<float>(i + 1);
-		}
-	}
-	if (static_cast<std::int32_t>(textures_.size()) == game.renderer.max_texture_slots_ - 1) {
-		// Texture does not exist in batch and batch is full.
-		return 0.0f;
-	}
-	// Texture does not exist in batch but can be added.
-	textures_.emplace_back(texture);
-	// i + 1 is implicit here because size is taken after emplacing.
-	return static_cast<float>(textures_.size());
-}
-
-RenderData::RenderData() : batch_capacity_{ game.renderer.batch_capacity_ } {
-	PTGN_ASSERT(batch_capacity_ >= 1);
-	quad_vao_	  = VertexArray{ PrimitiveMode::Triangles,
-							 VertexBuffer{ static_cast<std::array<QuadVertex, 4>*>(nullptr),
-										   batch_capacity_, BufferUsage::StreamDraw },
-							 quad_vertex_layout, game.renderer.quad_ib_ };
-	circle_vao_	  = VertexArray{ PrimitiveMode::Triangles,
-								 VertexBuffer{ static_cast<std::array<CircleVertex, 4>*>(nullptr),
-											   batch_capacity_, BufferUsage::StreamDraw },
-								 circle_vertex_layout, game.renderer.quad_ib_ };
-	triangle_vao_ = VertexArray{ PrimitiveMode::Triangles,
-								 VertexBuffer{ static_cast<std::array<ColorVertex, 3>*>(nullptr),
-											   batch_capacity_, BufferUsage::StreamDraw },
-								 color_vertex_layout, game.renderer.triangle_ib_ };
-	line_vao_	  = VertexArray{ PrimitiveMode::Lines,
-							 VertexBuffer{ static_cast<std::array<ColorVertex, 2>*>(nullptr),
-										   batch_capacity_, BufferUsage::StreamDraw },
-							 color_vertex_layout, game.renderer.line_ib_ };
-	point_vao_	  = VertexArray{ PrimitiveMode::Points,
-								 VertexBuffer{ static_cast<std::array<ColorVertex, 1>*>(nullptr),
-											   batch_capacity_, BufferUsage::StreamDraw },
-								 color_vertex_layout, game.renderer.point_ib_ };
-}
+namespace ptgn::impl {
 
 // Assumes view_projection_ is updated externally.
 void RenderData::Flush() {
@@ -148,6 +83,10 @@ bool RenderData::SetViewProjection(const Matrix4& view_projection) {
 	return true;
 }
 
+const Matrix4& RenderData::GetViewProjection() const {
+	return view_projection_;
+}
+
 void RenderData::AddPrimitiveQuad(
 	const std::array<V2_float, 4>& positions, std::int32_t render_layer, const V4_float& color,
 	const std::array<V2_float, 4>& tex_coords, const Texture& texture
@@ -209,11 +148,34 @@ std::vector<Batch>& RenderData::GetLayerBatches(
 	return transparent_layers_.emplace(render_layer, std::vector<Batch>(1)).first->second;
 }
 
+template <BatchType T>
+void RenderData::FlushType(std::vector<Batch>& batches) const {
+	auto vao{ game.renderer.GetVertexArray<T>() };
+	vao.Bind();
+	for (auto& batch : batches) {
+		auto [data, index_count] = GetBufferInfo<T>(batch);
+		PTGN_ASSERT(data != nullptr);
+		if (data->empty()) {
+			continue;
+		}
+		if constexpr (T == BatchType::Quad) {
+			batch.BindTextures();
+		}
+		vao.GetVertexBuffer().SetSubData(
+			data->data(), static_cast<std::uint32_t>(Sizeof(*data)), false
+		);
+		vao.Draw(data->size() * index_count, false);
+		// data->clear(); // Not needed since transparent_layers_ is cleared every frame.
+	}
+}
+
+template void RenderData::FlushType<BatchType::Circle>(std::vector<Batch>& batches) const;
+template void RenderData::FlushType<BatchType::Quad>(std::vector<Batch>& batches) const;
+template void RenderData::FlushType<BatchType::Triangle>(std::vector<Batch>& batches) const;
+template void RenderData::FlushType<BatchType::Line>(std::vector<Batch>& batches) const;
+template void RenderData::FlushType<BatchType::Point>(std::vector<Batch>& batches) const;
+
 void RenderData::FlushBatches(std::vector<Batch>& batches) {
-	game.renderer.quad_shader_.Bind();
-
-	FlushType<BatchType::Quad>(batches);
-
 	game.renderer.circle_shader_.Bind();
 
 	FlushType<BatchType::Circle>(batches);
@@ -224,8 +186,124 @@ void RenderData::FlushBatches(std::vector<Batch>& batches) {
 	FlushType<BatchType::Triangle>(batches);
 	FlushType<BatchType::Line>(batches);
 	FlushType<BatchType::Point>(batches);
+
+	game.renderer.quad_shader_.Bind();
+
+	FlushType<BatchType::Quad>(batches);
 }
 
-} // namespace impl
+template <BatchType T, typename VertexType, std::size_t VertexCount>
+void RenderData::AddPrimitive(
+	const std::array<V2_float, VertexCount>& positions, std::int32_t render_layer,
+	const V4_float& color, const std::array<V2_float, 4>& tex_coords, const Texture& texture,
+	float line_width, float fade
+) {
+	PTGN_ASSERT(color.x >= 0.0f && color.y >= 0.0f && color.z >= 0.0f && color.w >= 0.0f);
+	PTGN_ASSERT(color.x <= 1.0f && color.y <= 1.0f && color.z <= 1.0f && color.w <= 1.0f);
+	PTGN_ASSERT(fade >= 0.0f);
 
-} // namespace ptgn
+	// @return pair.first is the vector to which the primitive can be added, pair.second is the
+	// texture index.
+	auto get_available_batch = [&](float alpha) {
+		float texture_index{ 0.0f };
+
+		constexpr bool is_quad{ std::is_same_v<VertexType, QuadVertex> };
+
+		// Textures are currently always considered part of the transparent batches.
+		// TODO: Check texture format (e.g. RGB888) to separate it into the opaque batches.
+		auto& batches{ GetLayerBatches(render_layer, is_quad ? 0.0f : alpha) };
+		PTGN_ASSERT(!batches.empty());
+
+		std::vector<std::array<VertexType, VertexCount>>* data{ nullptr };
+
+		if constexpr (is_quad) {
+			if (IsBlank(texture)) {
+				data = GetBufferInfo<T>(batches.back()).first;
+				if (data->size() == game.renderer.batch_capacity_) {
+					data = GetBufferInfo<T>(batches.emplace_back()).first;
+				}
+			} else {
+				PTGN_ASSERT(texture.IsValid());
+
+				for (auto& batch : batches) {
+					if (batch.quads_.size() == game.renderer.batch_capacity_) {
+						continue;
+					}
+					if (auto index{ batch.GetAvailableTextureIndex(texture) }; index != 0.0f) {
+						data		  = &batch.quads_;
+						texture_index = index;
+						break;
+					}
+				}
+				// An available/existing texture index was not found, therefore add a new
+				// batch.
+				if (texture_index == 0.0f) {
+					texture_index = 1.0f;
+					data		  = &batches.emplace_back(texture).quads_;
+				}
+			}
+		} else {
+			data = GetBufferInfo<T>(batches.back()).first;
+			if (data->size() == game.renderer.batch_capacity_) {
+				data = GetBufferInfo<T>(batches.emplace_back()).first;
+			}
+		}
+
+		PTGN_ASSERT(data != nullptr);
+		PTGN_ASSERT(data->size() + 1 <= game.renderer.batch_capacity_);
+
+		return std::pair<std::vector<std::array<VertexType, VertexCount>>&, float>{ *data,
+																					texture_index };
+	};
+
+	auto [data, texture_index] = get_available_batch(color.w);
+
+	// Used for circle vertices.
+	constexpr std::array<V2_float, 4> local{ V2_float{ -1.0f, -1.0f }, V2_float{ 1.0f, -1.0f },
+											 V2_float{ 1.0f, 1.0f }, V2_float{ -1.0f, 1.0f } };
+
+	std::array<VertexType, VertexCount> vertices;
+
+	for (std::size_t i{ 0 }; i < VertexCount; i++) {
+		vertices[i].position = { positions[i].x, positions[i].y, static_cast<float>(render_layer) };
+		vertices[i].color	 = { color.x, color.y, color.z, color.w };
+		if constexpr (std::is_same_v<VertexType, QuadVertex>) {
+			vertices[i].tex_coord = { tex_coords[i].x, tex_coords[i].y };
+			vertices[i].tex_index = { texture_index };
+		} else if constexpr (std::is_same_v<VertexType, CircleVertex>) {
+			// local z coordinate provided for memory alignment.
+			vertices[i].local_position = { local[i].x, local[i].y, 0.0f };
+			vertices[i].line_width	   = { line_width };
+			vertices[i].fade		   = { fade };
+		}
+	}
+
+	data.emplace_back(vertices);
+}
+
+template void RenderData::AddPrimitive<BatchType::Quad, QuadVertex, 4>(
+	const std::array<V2_float, 4>& positions, std::int32_t render_layer, const V4_float& color,
+	const std::array<V2_float, 4>& tex_coords, const Texture& texture, float line_width, float fade
+);
+
+template void RenderData::AddPrimitive<BatchType::Circle, CircleVertex, 4>(
+	const std::array<V2_float, 4>& positions, std::int32_t render_layer, const V4_float& color,
+	const std::array<V2_float, 4>& tex_coords, const Texture& texture, float line_width, float fade
+);
+
+template void RenderData::AddPrimitive<BatchType::Triangle, ColorVertex, 3>(
+	const std::array<V2_float, 3>& positions, std::int32_t render_layer, const V4_float& color,
+	const std::array<V2_float, 4>& tex_coords, const Texture& texture, float line_width, float fade
+);
+
+template void RenderData::AddPrimitive<BatchType::Line, ColorVertex, 2>(
+	const std::array<V2_float, 2>& positions, std::int32_t render_layer, const V4_float& color,
+	const std::array<V2_float, 4>& tex_coords, const Texture& texture, float line_width, float fade
+);
+
+template void RenderData::AddPrimitive<BatchType::Point, ColorVertex, 1>(
+	const std::array<V2_float, 1>& positions, std::int32_t render_layer, const V4_float& color,
+	const std::array<V2_float, 4>& tex_coords, const Texture& texture, float line_width, float fade
+);
+
+} // namespace ptgn::impl
