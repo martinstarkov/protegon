@@ -9,12 +9,14 @@
 #include <utility>
 
 #include "core/game.h"
+#include "core/window.h"
 #include "math/geometry/polygon.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
 #include "renderer/batch.h"
+#include "renderer/flip.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
@@ -192,18 +194,28 @@ void Shader::Draw(
 		dest.size = texture.GetSize();
 	}
 
-	auto positions{ dest.GetVertices(texture_info.rotation_center) };
+	// Shaders coordinates are in bottom right instead of top left.
+	TextureInfo info{ texture_info };
+	if (info.flip == Flip::Vertical) {
+		info.flip = Flip::None;
+	} else if (info.flip == Flip::Both) {
+		info.flip = Flip::Horizontal;
+	} else if (info.flip == Flip::None) {
+		info.flip = Flip::Vertical;
+	}
 
-	auto tex_coords{ texture_info.GetTextureCoordinates(texture.GetSize()) };
+	auto positions{ dest.GetVertices(info.rotation_center) };
 
-	TextureInfo::FlipTextureCoordinates(tex_coords, texture_info.flip);
+	auto tex_coords{ info.GetTextureCoordinates(texture.GetSize()) };
+
+	TextureInfo::FlipTextureCoordinates(tex_coords, info.flip);
 
 	constexpr std::size_t index_count{ 6 };
 
 	std::array<QuadVertex, 4> vertices{};
 
 	auto render_layer{ layer_info.GetRenderLayer() };
-	V4_float color{ texture_info.tint.Normalized() };
+	V4_float color{ info.tint.Normalized() };
 
 	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
 		vertices[i].position = { positions[i].x, positions[i].y, static_cast<float>(render_layer) };
@@ -214,6 +226,8 @@ void Shader::Draw(
 
 	Bind();
 	SetUniform("u_ViewProjection", view_projection);
+	SetUniform("u_Resolution", V2_float{ game.window.GetSize() });
+	SetUniform("u_Texture", 0);
 
 	auto vao{ game.renderer.GetVertexArray<impl::BatchType::Quad>() };
 	vao.Bind();

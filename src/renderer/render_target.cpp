@@ -7,7 +7,6 @@
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
-#include "renderer/flip.h"
 #include "renderer/gl_renderer.h"
 #include "renderer/layer_info.h"
 #include "renderer/render_data.h"
@@ -188,22 +187,15 @@ void RenderTarget::Draw(
 	dest_target.Bind();
 	dest_target.Flush();
 
-	TextureInfo info{ texture_info };
-	if (info.flip == Flip::Vertical) {
-		info.flip = Flip::None;
-	} else if (info.flip == Flip::Both) {
-		info.flip = Flip::Horizontal;
-	} else if (info.flip == Flip::None) {
-		info.flip = Flip::Vertical;
-	}
-
 	Shader used_shader{ shader };
 	if (!used_shader.IsValid()) {
 		used_shader = game.shader.Get(ScreenShader::Default);
 	}
 
+	GLRenderer::SetBlendMode(target.blend_mode_);
+
 	used_shader.Draw(
-		GetTexture(), target.destination_, GetRenderData().GetViewProjection(), info,
+		GetTexture(), target.destination_, GetRenderData().GetViewProjection(), texture_info,
 		LayerInfo{ destination_target }
 	);
 
