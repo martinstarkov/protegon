@@ -25,6 +25,7 @@ namespace ptgn::impl {
 
 void Renderer::Init(const Color& background_color) {
 	// GLRenderer::EnableLineSmoothing();
+	GLRenderer::SetBlendMode(BlendMode::Blend);
 
 	batch_capacity_ = 2000;
 
@@ -59,7 +60,7 @@ void Renderer::Init(const Color& background_color) {
 	shader_ib_	 = { std::array<std::uint32_t, 6>{ 0, 1, 2, 2, 3, 0 } };
 
 	// First texture slot is occupied by white texture
-	white_texture_ = ptgn::Texture({ color::White }, { 1, 1 });
+	white_texture_ = Texture({ color::White }, { 1, 1 });
 
 	max_texture_slots_ = GLRenderer::GetMaxTextureSlots();
 
