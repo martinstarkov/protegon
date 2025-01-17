@@ -1,26 +1,32 @@
 #include "renderer/shader.h"
 
+#include <array>
 #include <cstdint>
 #include <filesystem>
 #include <list>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "core/game.h"
-#include "core/window.h"
+#include "math/geometry/polygon.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
+#include "renderer/batch.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
+#include "renderer/layer_info.h"
 #include "renderer/renderer.h"
 #include "renderer/texture.h"
+#include "renderer/vertices.h"
 #include "utility/debug.h"
 #include "utility/file.h"
 #include "utility/handle.h"
 #include "utility/log.h"
+#include "utility/utility.h"
 
 namespace ptgn {
 
@@ -155,48 +161,70 @@ void Shader::CompileProgram(const std::string& vertex_source, const std::string&
 }
 
 void Shader::Bind() const {
+	if (game.renderer.bound_shader_ == *this) {
+		return;
+	}
 	GLCall(gl::UseProgram(Get().id_));
+	game.renderer.bound_shader_ = *this;
 #ifdef PTGN_DEBUG
 	++game.stats.shader_binds;
 #endif
 }
 
-	// TODO: Fix.
-// void Shader::Draw(
-// 	const Texture& texture, const Rect& destination, const Matrix4& view_projection,
-// 	const TextureInfo& texture_info
-// ) const {
-	// PTGN_ASSERT(texture.IsValid(), "Cannot draw shader with invalid texture");
+void Shader::Draw(
+	const Texture& texture, const Rect& destination, const Matrix4& view_projection,
+	const TextureInfo& texture_info
+) const {
+	Draw(texture, destination, view_projection, texture_info, {});
+}
 
-	// Rect dest{ destination };
+void Shader::Draw(
+	const Texture& texture, const Rect& destination, const Matrix4& view_projection,
+	const TextureInfo& texture_info, const LayerInfo& layer_info
+) const {
+	PTGN_ASSERT(texture.IsValid(), "Cannot draw uninitialized or destroyed texture");
 
-	// if (dest.IsZero()) {
-	//	dest = Rect::Fullscreen();
-	// } else if (dest.size.IsZero()) {
-	//	dest.size = texture.GetSize();
-	// }
+	Rect dest{ destination };
 
-	// auto tex_coords{ impl::RenderData::GetTextureCoordinates(
-	//	texture_info.source_position, texture_info.source_size, dest.size, texture_info.flip
-	//) };
+	if (dest.IsZero()) {
+		dest = Rect::Fullscreen();
+	} else if (dest.size.IsZero()) {
+		dest.size = texture.GetSize();
+	}
 
-	//// Since this engine uses top left as origin, shaders must all be flipped vertically.
-	// impl::RenderData::FlipTextureCoordinates(tex_coords, Flip::Vertical);
+	auto positions{ dest.GetVertices(texture_info.rotation_center) };
 
-	// Bind();
-	// SetUniform("u_ViewProjection", view_projection);
-	// SetUniform("u_Texture", 1);
-	// SetUniform("u_Resolution", V2_float{ game.window.GetSize() });
-	// texture.Bind(1);
+	auto tex_coords{ texture_info.GetTextureCoordinates(texture.GetSize()) };
 
-	// VertexArray vertex_array{ impl::TextureVertices(
-	//							  dest.GetVertices(texture_info.rotation_center), tex_coords, 0.0f,
-	//							  texture_info.tint.Normalized()
-	//						  ),
-	//						  game.renderer.shader_ib_ };
+	TextureInfo::FlipTextureCoordinates(tex_coords, texture_info.flip);
 
-	// vertex_array.Draw();
-//}
+	constexpr std::size_t index_count{ 6 };
+
+	std::array<QuadVertex, 4> vertices{};
+
+	auto render_layer{ layer_info.GetRenderLayer() };
+	V4_float color{ texture_info.tint.Normalized() };
+
+	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
+		vertices[i].position = { positions[i].x, positions[i].y, static_cast<float>(render_layer) };
+		vertices[i].color	 = { color.x, color.y, color.z, color.w };
+		vertices[i].tex_coord = { tex_coords[i].x, tex_coords[i].y };
+		vertices[i].tex_index = { 0.0f };
+	}
+
+	Bind();
+	SetUniform("u_ViewProjection", view_projection);
+
+	auto vao{ game.renderer.GetVertexArray<impl::BatchType::Quad>() };
+	vao.Bind();
+
+	texture.Bind(0);
+
+	vao.GetVertexBuffer().SetSubData(
+		vertices.data(), static_cast<std::uint32_t>(Sizeof(vertices)), false
+	);
+	vao.Draw(index_count, false);
+}
 
 std::int32_t Shader::GetUniformLocation(const std::string& name) const {
 	PTGN_ASSERT(IsValid(), "Cannot get uniform location of invalid shader");

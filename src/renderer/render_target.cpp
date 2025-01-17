@@ -1,7 +1,6 @@
 #include "renderer/render_target.h"
 
 #include "core/game.h"
-#include "core/window.h"
 #include "event/event_handler.h"
 #include "event/events.h"
 #include "event/input_handler.h"
@@ -12,6 +11,7 @@
 #include "renderer/gl_renderer.h"
 #include "renderer/layer_info.h"
 #include "renderer/render_data.h"
+#include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
 #include "utility/debug.h"
@@ -91,10 +91,10 @@ void RenderTargetInstance::SetBlendMode(BlendMode blend_mode) {
 void RenderTargetInstance::Flush() {
 	GLRenderer::SetBlendMode(blend_mode_);
 
-	bool new_view_projection{ render_data_.SetViewProjection(camera_.GetPrimary().GetViewProjection(
-	)) };
-
-	if (new_view_projection) {
+	if (bool new_view_projection{
+			render_data_.SetViewProjection(camera_.GetPrimary().GetViewProjection()) };
+		new_view_projection) {
+		// Post mouse event when camera moves.
 		game.event.mouse.Post(MouseEvent::Move, MouseMoveEvent{});
 	}
 
@@ -170,18 +170,45 @@ Texture RenderTarget::GetTexture() const {
 	return Get().texture_;
 }
 
-void RenderTarget::Draw(const TextureInfo& texture_info) {
-	Draw(texture_info, {});
+void RenderTarget::Draw(const TextureInfo& texture_info, const Shader& shader) {
+	Draw(texture_info, {}, shader);
 }
 
-void RenderTarget::Draw(const TextureInfo& texture_info, const LayerInfo& layer_info) {
+void RenderTarget::Draw(
+	const TextureInfo& texture_info, const LayerInfo& layer_info, const Shader& shader
+) {
 	PTGN_ASSERT(IsValid(), "Cannot draw an invalid or uninitialized render target");
-	auto& i{ Get() };
-	i.Bind();
-	i.Flush();
-	DrawToTarget(i.destination_, texture_info, layer_info);
-	i.Bind();
-	i.Clear();
+	auto& target{ Get() };
+	target.Bind();
+	target.Flush();
+
+	auto destination_target{ layer_info.GetRenderTarget() };
+	auto& dest_target{ destination_target.Get() };
+
+	dest_target.Bind();
+	dest_target.Flush();
+
+	TextureInfo info{ texture_info };
+	if (info.flip == Flip::Vertical) {
+		info.flip = Flip::None;
+	} else if (info.flip == Flip::Both) {
+		info.flip = Flip::Horizontal;
+	} else if (info.flip == Flip::None) {
+		info.flip = Flip::Vertical;
+	}
+
+	Shader used_shader{ shader };
+	if (!used_shader.IsValid()) {
+		used_shader = game.shader.Get(ScreenShader::Default);
+	}
+
+	used_shader.Draw(
+		GetTexture(), target.destination_, GetRenderData().GetViewProjection(), info,
+		LayerInfo{ destination_target }
+	);
+
+	target.Bind();
+	target.Clear();
 }
 
 CameraManager& RenderTarget::GetCamera() {
@@ -192,26 +219,6 @@ CameraManager& RenderTarget::GetCamera() {
 const CameraManager& RenderTarget::GetCamera() const {
 	PTGN_ASSERT(IsValid(), "Cannot get camera of invalid or uninitialized render target");
 	return Get().camera_;
-}
-
-void RenderTarget::DrawToTarget(
-	const Rect& destination, const TextureInfo& texture_info, const LayerInfo& layer_info
-) const {
-	auto destination_target{ layer_info.GetRenderTarget() };
-	auto& i{ destination_target.Get() };
-	i.Bind();
-	i.Flush();
-	TextureInfo info{ texture_info };
-	if (info.flip == Flip::Vertical) {
-		info.flip = Flip::None;
-	} else if (info.flip == Flip::Both) {
-		info.flip = Flip::Horizontal;
-	} else if (info.flip == Flip::None) {
-		info.flip = Flip::Vertical;
-	}
-	// TODO: Change this to use a shader draw directly.
-	GetTexture().Draw(destination, info, LayerInfo{ destination_target });
-	i.Flush();
 }
 
 void RenderTarget::Bind() {

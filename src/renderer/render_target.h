@@ -7,6 +7,7 @@
 #include "renderer/color.h"
 #include "renderer/frame_buffer.h"
 #include "renderer/render_data.h"
+#include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
 #include "utility/handle.h"
@@ -16,8 +17,6 @@ namespace ptgn {
 struct LayerInfo;
 
 namespace impl {
-
-class Renderer;
 
 struct RenderTargetInstance {
 	RenderTargetInstance() = default;
@@ -81,13 +80,19 @@ public:
 
 	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
 	// center of the texture associated with this render target.
-	// Uses the default render target, which is the currently active scene.
-	void Draw(const TextureInfo& texture_info = {});
+	// @param shader Specify a custom shader when drawing the render targe to the screen. If {},
+	// uses the default screen shader. Uses the default render target, which is the currently active
+	// scene.
+	void Draw(const TextureInfo& texture_info = {}, const Shader& shader = {});
 
 	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
 	// center of the texture associated with this render target.
 	// @param layer_info Information relating to the render layer and render target of the texture.
-	void Draw(const TextureInfo& texture_info, const LayerInfo& layer_info);
+	// @param shader Specify a custom shader when drawing the render targe to the screen. If {},
+	// uses the default screen shader.
+	void Draw(
+		const TextureInfo& texture_info, const LayerInfo& layer_info, const Shader& shader = {}
+	);
 
 	// @param clear_color The color to which the render target will be cleared.
 	// Note: The change in clear color is only seen after a render target is cleared. This can
@@ -168,15 +173,6 @@ private:
 	// @return Mouse relative to the window and the render target's primary camera size (zoom
 	// included).
 	[[nodiscard]] V2_float ScaleToTarget(const V2_float& position) const;
-
-	// Draws this render target to another render target.
-	// @param destination The destination rectangle to draw this target at.
-	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
-	// center of the texture associated with this render target.
-	// @param layer_info The target layer onto which this target is drawn.
-	void DrawToTarget(
-		const Rect& destination, const TextureInfo& texture_info, const LayerInfo& layer_info
-	) const;
 
 	void Bind();
 };

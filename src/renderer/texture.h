@@ -18,6 +18,7 @@
 
 namespace ptgn {
 
+class Shader;
 class Text;
 class Texture;
 struct LayerInfo;
@@ -76,6 +77,7 @@ private:
 	friend class Texture;
 	friend struct Rect;
 	friend struct Line;
+	friend class Shader;
 
 	friend void impl::DrawVertices(
 		const V2_float* vertices, std::size_t vertex_count, float line_width, const V4_float& color,
@@ -298,6 +300,7 @@ public:
 	[[nodiscard]] TextureFormat GetFormat() const;
 
 private:
+	friend class Shader;
 	friend class Text;
 	friend struct impl::FrameBufferInstance;
 	friend struct impl::TextureInstance;

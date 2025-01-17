@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <string>
-#include <string_view>
 #include <unordered_map>
 
 #include "core/manager.h"
@@ -11,7 +10,6 @@
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
-#include "renderer/flip.h"
 #include "renderer/texture.h"
 #include "utility/debug.h"
 #include "utility/file.h"
@@ -29,6 +27,7 @@
 
 namespace ptgn {
 
+struct LayerInfo;
 class Shader;
 
 namespace impl {
@@ -96,13 +95,29 @@ public:
 
 	void Bind() const;
 
-	// TODO: Fix.
-	// @param destination == {} results in fullscreen shader.
-	// If destination != {} and destination.size == {}, texture size is used.
-	// void Draw(
-	// 	const Texture& texture, const Rect& destination = {},
-	// 	const Matrix4& view_projection = Matrix4{ 1.0f }, const TextureInfo& texture_info = {}
-	// ) const;
+	// @param texture The texture to bind to the shader.
+	// @param destination Destination to draw the texture to. If destination == {}, fullscreen
+	// texture will be drawn, else if destination.size == {}, unscaled texture size is used.
+	// @param view_projection The view projection matrix to pass the shader.
+	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
+	// center of the texture.
+	// Uses the default render target.
+	void Draw(
+		const Texture& texture, const Rect& destination = {},
+		const Matrix4& view_projection = Matrix4{ 1.0f }, const TextureInfo& texture_info = {}
+	) const;
+
+	// @param texture The texture to bind to the shader.
+	// @param destination Destination to draw the texture to. If destination == {}, fullscreen
+	// texture will be drawn, else if destination.size == {}, unscaled texture size is used.
+	// @param view_projection The view projection matrix to pass the shader.
+	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
+	// center of the texture.
+	// @param layer_info Information relating to the render layer and render target of the texture.
+	void Draw(
+		const Texture& texture, const Rect& destination, const Matrix4& view_projection,
+		const TextureInfo& texture_info, const LayerInfo& layer_info
+	) const;
 
 private:
 	friend class impl::RendererData;
@@ -139,7 +154,7 @@ namespace impl {
 class ShaderManager : public MapManager<Shader> {
 public:
 	ShaderManager()									   = default;
-	~ShaderManager()								   = default;
+	~ShaderManager() override						   = default;
 	ShaderManager(ShaderManager&&) noexcept			   = default;
 	ShaderManager& operator=(ShaderManager&&) noexcept = default;
 	ShaderManager(const ShaderManager&)				   = delete;
@@ -156,6 +171,7 @@ private:
 
 	void Init();
 
+	// Note: Defined in header to ensure that changing a shader will recompile the necessary files.
 	void InitScreenShaders() {
 		// TODO: Add these shaders for emscripten OpenGL ES3.
 

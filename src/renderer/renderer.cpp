@@ -79,6 +79,27 @@ void Renderer::Init(const Color& background_color) {
 
 	screen_target_ = RenderTarget{ background_color, BlendMode::Blend };
 
+	quad_vao_	  = VertexArray{ PrimitiveMode::Triangles,
+							 VertexBuffer{ static_cast<std::array<QuadVertex, 4>*>(nullptr),
+										   batch_capacity_, BufferUsage::StreamDraw },
+							 quad_vertex_layout, game.renderer.quad_ib_ };
+	circle_vao_	  = VertexArray{ PrimitiveMode::Triangles,
+								 VertexBuffer{ static_cast<std::array<CircleVertex, 4>*>(nullptr),
+											   batch_capacity_, BufferUsage::StreamDraw },
+								 circle_vertex_layout, game.renderer.quad_ib_ };
+	triangle_vao_ = VertexArray{ PrimitiveMode::Triangles,
+								 VertexBuffer{ static_cast<std::array<ColorVertex, 3>*>(nullptr),
+											   batch_capacity_, BufferUsage::StreamDraw },
+								 color_vertex_layout, game.renderer.triangle_ib_ };
+	line_vao_	  = VertexArray{ PrimitiveMode::Lines,
+							 VertexBuffer{ static_cast<std::array<ColorVertex, 2>*>(nullptr),
+										   batch_capacity_, BufferUsage::StreamDraw },
+							 color_vertex_layout, game.renderer.line_ib_ };
+	point_vao_	  = VertexArray{ PrimitiveMode::Points,
+								 VertexBuffer{ static_cast<std::array<ColorVertex, 1>*>(nullptr),
+											   batch_capacity_, BufferUsage::StreamDraw },
+								 color_vertex_layout, game.renderer.point_ib_ };
+
 	ClearScreen();
 }
 

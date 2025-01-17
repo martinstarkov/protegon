@@ -2,20 +2,20 @@
 
 #include <cstdint>
 
+#include "render_data.h"
+#include "renderer/batch.h"
 #include "renderer/buffer.h"
 #include "renderer/color.h"
 #include "renderer/frame_buffer.h"
 #include "renderer/render_target.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
+#include "renderer/vertex_array.h"
 
 namespace ptgn {
 
 class GLRenderer;
 struct LayerInfo;
-class GLRenderer;
-class RenderTarget;
-class FrameBuffer;
 
 namespace impl {
 
@@ -66,13 +66,35 @@ private:
 	friend class GLRenderer;
 	friend class ptgn::RenderTarget;
 	friend class SceneCamera;
+	friend class Shader;
 	friend class ptgn::GLRenderer;
 	friend class impl::InputHandler;
+
+	template <BatchType T>
+	const VertexArray& GetVertexArray() const {
+		if constexpr (T == BatchType::Quad) {
+			return quad_vao_;
+		} else if constexpr (T == BatchType::Triangle) {
+			return triangle_vao_;
+		} else if constexpr (T == BatchType::Line) {
+			return line_vao_;
+		} else if constexpr (T == BatchType::Circle) {
+			return circle_vao_;
+		} else if constexpr (T == BatchType::Point) {
+			return point_vao_;
+		}
+	}
 
 	void ClearScreen() const;
 	void Init(const Color& background_color);
 	void Shutdown();
 	void Reset();
+
+	VertexArray quad_vao_;
+	VertexArray circle_vao_;
+	VertexArray triangle_vao_;
+	VertexArray line_vao_;
+	VertexArray point_vao_;
 
 	// TODO: Move to private and make Batch<> class friend.
 	IndexBuffer quad_ib_;
@@ -96,9 +118,9 @@ private:
 	Color bound_clear_color_{ color::Transparent };
 	BlendMode bound_blend_mode_{ BlendMode::None };
 	FrameBuffer bound_frame_buffer_;
+	Shader bound_shader_;
 
 	RenderTarget screen_target_;
-	Shader screen_shader_;
 };
 
 } // namespace impl
