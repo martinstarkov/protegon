@@ -19,13 +19,15 @@ namespace ptgn {
 	std::int32_t restore_id {      \
 		RenderBuffer::GetBoundId() \
 	}
-#define POPSTATE_RB() GLCall(gl::BindRenderbuffer(GL_RENDERBUFFER, static_cast<std::uint32_t>(restore_id)))
+#define POPSTATE_RB() \
+	GLCall(gl::BindRenderbuffer(GL_RENDERBUFFER, static_cast<std::uint32_t>(restore_id)))
 
 #define PUSHSTATE_FB()            \
 	std::int32_t restore_id {     \
 		FrameBuffer::GetBoundId() \
 	}
-#define POPSTATE_FB() GLCall(gl::BindFramebuffer(GL_FRAMEBUFFER, static_cast<std::uint32_t>(restore_id)))
+#define POPSTATE_FB() \
+	GLCall(gl::BindFramebuffer(GL_FRAMEBUFFER, static_cast<std::uint32_t>(restore_id)))
 
 namespace impl {
 
@@ -197,10 +199,11 @@ bool FrameBuffer::IsBound() const {
 
 void FrameBuffer::Bind() const {
 	PTGN_ASSERT(IsValid(), "Cannot bind invalid frame buffer");
-	if (*this != game.renderer.bound_frame_buffer_) {
-		Get().Bind();
-		game.renderer.bound_frame_buffer_ = *this;
+	if (game.renderer.bound_frame_buffer_ == *this) {
+		return;
 	}
+	Get().Bind();
+	game.renderer.bound_frame_buffer_ = *this;
 }
 
 void FrameBuffer::Unbind() {
