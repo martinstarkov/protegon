@@ -6,7 +6,7 @@ constexpr V2_int resolution{ 800, 800 };
 
 class LightExampleScene : public Scene {
 public:
-	Texture test{ "resources/sprites/test1.jpg" };
+	Texture test{ "resources/test1.jpg" };
 
 	const float speed{ 300.0f };
 
@@ -55,6 +55,8 @@ public:
 		Rect{ { 100, 100 }, { 100, 100 }, Origin::TopLeft }.Draw(color::Blue);
 		test.Draw({ game.window.GetSize() / 2, test.GetSize() });
 
+		game.renderer.Flush();
+
 		game.light.Draw();
 
 		mouse_light.Draw();
@@ -62,7 +64,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("LightExampleScene", resolution);
+	game.Init("LightExampleScene", resolution, color::Transparent);
 	game.scene.LoadActive<LightExampleScene>("light_example_scene");
 	return 0;
 }
