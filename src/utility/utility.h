@@ -34,8 +34,14 @@ std::vector<ReturnType> GetElements(const Map& map) {
 
 // @return How many bits the contents of the vector take up.
 template <typename T>
-static std::size_t SizeofVector(const std::vector<T>& vector) {
+static std::size_t Sizeof(const std::vector<T>& vector) {
 	return sizeof(T) * vector.size();
+}
+
+// @return How many bits the contents of the array take up.
+template <typename T, std::size_t I>
+static constexpr std::size_t Sizeof(const std::array<T, I>& array) {
+	return sizeof(T) * array.size();
 }
 
 template <typename T>
