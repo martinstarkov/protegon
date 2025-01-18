@@ -294,6 +294,7 @@ void Game::Update() {
 	input.Update();
 	scene.Update();
 	tween.Update();
+	light.Draw();
 	renderer.Present();
 
 #ifdef PTGN_DEBUG

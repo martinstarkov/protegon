@@ -8,6 +8,7 @@
 #include "renderer/color.h"
 #include "renderer/layer_info.h"
 #include "renderer/render_target.h"
+#include "renderer/renderer.h"
 #include "renderer/shader.h"
 
 namespace ptgn {
@@ -42,12 +43,8 @@ V3_float Light::GetShaderColor() const {
 }
 
 void Light::Draw() const {
-	Draw({});
-}
-
-void Light::Draw(const RenderTarget& render_target) const {
 	// Get valid render target.
-	RenderTarget dest_target{ LayerInfo{ render_target }.GetRenderTarget() };
+	RenderTarget dest_target{ game.light.target_ };
 	auto shader{ game.light.GetShader() };
 	shader.Bind();
 	shader.SetUniform("u_LightPos", GetPosition());
@@ -71,8 +68,11 @@ void LightManager::Init() {
 }
 
 void LightManager::Draw() {
-	ForEachValue([&](const Light& light) { light.Draw(target_); });
+	ForEachValue([&](const Light& light) { light.Draw(); });
+	auto blend_mode{ game.renderer.GetBlendMode() };
+	game.renderer.SetBlendMode(BlendMode::AddPremultiplied);
 	target_.Draw();
+	game.renderer.SetBlendMode(blend_mode);
 }
 
 void LightManager::Reset() {

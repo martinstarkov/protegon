@@ -57,14 +57,12 @@ public:
 
 		game.renderer.Flush();
 
-		game.light.Draw();
-
 		mouse_light.Draw();
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("LightExampleScene", resolution, color::Transparent);
+	game.Init("LightExampleScene", resolution, color::Black);
 	game.scene.LoadActive<LightExampleScene>("light_example_scene");
 	return 0;
 }
