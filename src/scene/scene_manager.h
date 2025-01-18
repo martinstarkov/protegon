@@ -165,6 +165,9 @@ private:
 	// Updates all the active scenes.
 	void Update();
 
+	// Flushes all the active scenes onto the renderer's internal screen render target.
+	void DrawActiveScenes();
+
 	void InitScene(const InternalKey& scene_key);
 
 	void UnloadImpl(const InternalKey& scene_key);

@@ -155,11 +155,15 @@ void SceneManager::Update() {
 		if (scene->actions_.empty()) {
 			current_scene_ = scene;
 			scene->Update();
-			scene->target_.Flush();
+			// CONSIDER: Do we need to flush scenes immediately or can we wait?
+			// scene->target_.Flush();
 		}
 	}
 	current_scene_ = nullptr;
-	std::int32_t layer{ 0 };
+	DrawActiveScenes();
+}
+
+void SceneManager::DrawActiveScenes() {
 	for (auto scene_key : active_scenes_) {
 		PTGN_ASSERT(
 			Has(scene_key),
@@ -167,9 +171,8 @@ void SceneManager::Update() {
 		);
 		auto scene{ Get(scene_key) };
 		scene->target_.Draw(
-			TextureInfo{ scene->tint_ }, LayerInfo{ layer, game.renderer.screen_target_ }
+			TextureInfo{ scene->tint_ }, LayerInfo{ 0, game.renderer.screen_target_ }
 		);
-		layer++;
 	}
 }
 
