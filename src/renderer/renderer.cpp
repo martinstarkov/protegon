@@ -9,14 +9,18 @@
 #include "core/game.h"
 #include "core/window.h"
 #include "math/geometry/polygon.h"
+#include "renderer/buffer.h"
 #include "renderer/color.h"
 #include "renderer/flip.h"
 #include "renderer/frame_buffer.h"
 #include "renderer/gl_renderer.h"
+#include "renderer/gl_types.h"
 #include "renderer/layer_info.h"
 #include "renderer/render_target.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
+#include "renderer/vertex_array.h"
+#include "renderer/vertices.h"
 #include "scene/scene_manager.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
@@ -24,8 +28,11 @@
 namespace ptgn::impl {
 
 void Renderer::Init(const Color& background_color) {
+	FrameBuffer::Unbind();
+	GLRenderer::ClearColor(color::Transparent);
+	GLRenderer::Clear();
+	GLRenderer::SetBlendMode(BlendMode::None);
 	// GLRenderer::EnableLineSmoothing();
-	GLRenderer::SetBlendMode(BlendMode::Blend);
 
 	batch_capacity_ = 2000;
 
@@ -64,9 +71,9 @@ void Renderer::Init(const Color& background_color) {
 
 	max_texture_slots_ = GLRenderer::GetMaxTextureSlots();
 
-	quad_shader_   = game.shader.Get(PresetShader::Quad);
-	circle_shader_ = game.shader.Get(PresetShader::Circle);
-	color_shader_  = game.shader.Get(PresetShader::Color);
+	quad_shader_   = game.shader.Get(ShapeShader::Quad);
+	circle_shader_ = game.shader.Get(ShapeShader::Circle);
+	color_shader_  = game.shader.Get(ShapeShader::Color);
 
 	PTGN_ASSERT(quad_shader_.IsValid());
 	PTGN_ASSERT(circle_shader_.IsValid());
@@ -78,7 +85,7 @@ void Renderer::Init(const Color& background_color) {
 	quad_shader_.Bind();
 	quad_shader_.SetUniform("u_Texture", samplers.data(), samplers.size());
 
-	screen_target_ = RenderTarget{ background_color, BlendMode::Blend };
+	screen_target_ = RenderTarget{ background_color, BlendMode::BlendPremultiplied };
 
 	quad_vao_	  = VertexArray{ PrimitiveMode::Triangles,
 							 VertexBuffer{ static_cast<std::array<QuadVertex, 4>*>(nullptr),
@@ -158,7 +165,6 @@ void Renderer::SetClearColor(const Color& clear_color) {
 
 void Renderer::ClearScreen() const {
 	FrameBuffer::Unbind();
-	GLRenderer::ClearColor(color::Transparent);
 	GLRenderer::Clear();
 
 	screen_target_.Clear();
@@ -173,14 +179,7 @@ void Renderer::Flush() {
 }
 
 void Renderer::Present() {
-	screen_target_.Flush();
-
-	FrameBuffer::Unbind();
-	screen_target_.GetTexture().Draw(
-		Rect::Fullscreen(), TextureInfo{ Flip::Vertical }, LayerInfo{ 0, screen_target_ }
-	);
-	// Do not bind screen target.
-	screen_target_.Get().Flush();
+	screen_target_.Draw();
 
 	game.window.SwapBuffers();
 

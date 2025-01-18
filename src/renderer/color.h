@@ -6,6 +6,7 @@
 
 #include "math/math.h"
 #include "math/vector4.h"
+#include "utility/log.h"
 #include "utility/type_traits.h"
 
 struct SDL_Color;
@@ -13,19 +14,17 @@ struct SDL_Color;
 namespace ptgn {
 
 enum class BlendMode {
-	// Source: https://wiki.libsdl.org/SDL2/SDL_BlendMode
-
-	None  = 0x00000000,	   /*       no blending: dstRGBA = srcRGBA */
-	Blend = 0x00000001,	   /*    alpha blending: dstRGB = (srcRGB * srcA) + (dstRGB
-							* (1 - srcA)) dstA = srcA + (dstA * (1-srcA)) */
-	Add = 0x00000002,	   /* additive blending: dstRGB = (srcRGB * srcA) + dstRGB
-													  dstA = dstA */
-	Modulate = 0x00000004, /*    color modulate: dstRGB = srcRGB * dstRGB
-												 dstA = dstA */
-	Multiply = 0x00000008, /*    color multiply: dstRGB = (srcRGB * dstRGB) +
-							  (dstRGB * (1 - srcA)) dstA = dstA */
-	Stencil = 0x00000016   /*   dstRGB = dstRGB
-								dstA   = srcA */
+	None,  /**< no blending: dstRGBA = srcRGBA */
+	Blend, /**< alpha blending: dstRGB = (srcRGB * srcA) + (dstRGB * (1-srcA)), dstA = srcA + (dstA
+			  * (1-srcA)) */
+	BlendPremultiplied, /**< pre-multiplied alpha blending: dstRGBA = srcRGBA + (dstRGBA * (1-srcA))
+						 */
+	Add,				/**< additive blending: dstRGB = (srcRGB * srcA) + dstRGB, dstA = dstA */
+	AddPremultiplied,	/**< pre-multiplied additive blending: dstRGB = srcRGB + dstRGB, dstA = dstA
+						 */
+	Modulate,			/**< color modulate: dstRGB = srcRGB * dstRGB, dstA = dstA */
+	Multiply, /**< color multiply: dstRGB = (srcRGB * dstRGB) + (dstRGB * (1-srcA)), dstA = dstA */
+	Stencil	  /**< TOOD: Add explanation */
 };
 
 struct Color {
@@ -108,6 +107,19 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::Color& color) {
 	os << static_cast<int>(color.b) << ", ";
 	os << static_cast<int>(color.a);
 	os << "]";
+	return os;
+}
+
+inline std::ostream& operator<<(std::ostream& os, ptgn::BlendMode blend_mode) {
+	switch (blend_mode) {
+		case BlendMode::Blend:	  os << "Blend"; break;
+		case BlendMode::Add:	  os << "Add"; break;
+		case BlendMode::Modulate: os << "Modulate"; break;
+		case BlendMode::Multiply: os << "Multiply"; break;
+		case BlendMode::Stencil:  os << "Stencil"; break;
+		case BlendMode::None:	  os << "None"; break;
+		default:				  PTGN_ERROR("Failed to identify blend mode");
+	}
 	return os;
 }
 

@@ -111,12 +111,10 @@ private:
 	// The higher the number, the less draw calls but more RAM is used.
 	std::size_t batch_capacity_{ 0 };
 
-	std::int32_t max_texture_slots_{ 0 };
+	std::uint32_t max_texture_slots_{ 0 };
 	Texture white_texture_;
 
 	// Renderer keeps track of what is bound.
-	Color bound_clear_color_{ color::Transparent };
-	BlendMode bound_blend_mode_{ BlendMode::None };
 	FrameBuffer bound_frame_buffer_;
 	Shader bound_shader_;
 

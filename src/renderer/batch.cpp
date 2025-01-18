@@ -34,7 +34,7 @@ float Batch::GetAvailableTextureIndex(const Texture& texture) {
 			return static_cast<float>(i + 1);
 		}
 	}
-	if (static_cast<std::int32_t>(textures_.size()) == game.renderer.max_texture_slots_ - 1) {
+	if (static_cast<std::uint32_t>(textures_.size()) == game.renderer.max_texture_slots_ - 1) {
 		// Texture does not exist in batch and batch is full.
 		return 0.0f;
 	}

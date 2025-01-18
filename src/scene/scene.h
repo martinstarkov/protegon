@@ -97,7 +97,7 @@ private:
 
 class Scene {
 public:
-	Scene()			 = default;
+	Scene();
 	virtual ~Scene() = default;
 
 	// Called when the scene is added to active scenes.
@@ -128,8 +128,8 @@ private:
 	friend class impl::SceneManager;
 	friend class SceneTransition;
 
-	RenderTarget target_{ color::Transparent, BlendMode::Blend };
-	Color tint_{ color::White };
+	RenderTarget target_;
+	Color tint_;
 
 	// If the actions is manually numbered, its order determines the execution order of scene
 	// functions.

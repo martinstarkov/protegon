@@ -262,6 +262,9 @@ void SceneTransition::Start(
 	game.tween.Add(tween).Start();
 }
 
+Scene::Scene() :
+	target_{ color::Transparent, BlendMode::BlendPremultiplied }, tint_{ color::White } {}
+
 RenderTarget Scene::GetRenderTarget() const {
 	return target_;
 }

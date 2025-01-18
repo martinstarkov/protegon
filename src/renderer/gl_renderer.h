@@ -32,22 +32,41 @@ class GLRenderer {
 public:
 	static void EnableDepthWriting();
 	static void DisableDepthWriting();
+
+	// Sets the blend mode for the currently bound frame buffer.
 	static void SetBlendMode(BlendMode mode);
+
 	static void EnableLineSmoothing();
 	static void DisableLineSmoothing();
+
 	static void SetPolygonMode(PolygonMode mode);
+
 	static void EnableDepthTesting();
 	static void DisableDepthTesting();
+
+	// Sets the viewport dimensions.
 	static void SetViewport(const V2_int& position, const V2_int& size);
+
+	// Clears the currently bound frame buffer's color and depth buffers.
 	static void Clear();
+
+	// Sets the clear color for all color buffers.
 	static void ClearColor(const Color& color);
+
+	// Clears the currently bound frame buffer's color buffer to the specified color.
+	static void ClearToColor(const Color& color);
+
 	static void DrawElements(
 		const VertexArray& va, std::size_t index_count, bool bind_vertex_array = true
 	);
 	static void DrawArrays(
 		const VertexArray& va, std::size_t vertex_count, bool bind_vertex_array = true
 	);
-	[[nodiscard]] static std::int32_t GetMaxTextureSlots();
+
+	// @return The maximum number of texture slots available on the current hardware.
+	[[nodiscard]] static std::uint32_t GetMaxTextureSlots();
+
+	// @return True if depth testing is enabled, false otherwise.
 	[[nodiscard]] static bool IsDepthTestingEnabled();
 };
 

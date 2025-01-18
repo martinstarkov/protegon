@@ -1,5 +1,7 @@
 #include "renderer/render_target.h"
 
+#include <cstdint>
+
 #include "core/game.h"
 #include "event/event_handler.h"
 #include "event/events.h"
@@ -7,9 +9,12 @@
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
+#include "renderer/gl_helper.h"
+#include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
 #include "renderer/layer_info.h"
 #include "renderer/render_data.h"
+#include "renderer/renderer.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
@@ -29,8 +34,8 @@ RenderTargetInstance::RenderTargetInstance(const Color& clear_color, BlendMode b
 	PTGN_ASSERT(
 		frame_buffer_.IsBound(), "Failed to bind frame buffer when initializing render target"
 	);
-	GLRenderer::ClearColor(clear_color_);
-	GLRenderer::Clear();
+	GLRenderer::SetBlendMode(blend_mode_);
+	GLRenderer::ClearToColor(clear_color_);
 }
 
 RenderTargetInstance::RenderTargetInstance(
@@ -49,8 +54,8 @@ RenderTargetInstance::RenderTargetInstance(
 	OrthographicCamera camera;
 	camera.CenterOnArea(size);
 	camera_.SetPrimary(camera);
-	GLRenderer::ClearColor(clear_color_);
-	GLRenderer::Clear();
+	GLRenderer::SetBlendMode(blend_mode_);
+	GLRenderer::ClearToColor(clear_color_);
 }
 
 void RenderTargetInstance::Bind() const {
@@ -61,8 +66,7 @@ void RenderTargetInstance::Bind() const {
 void RenderTargetInstance::Clear() const {
 	PTGN_ASSERT(frame_buffer_.IsValid(), "Cannot clear invalid or uninitialized frame buffer");
 	PTGN_ASSERT(frame_buffer_.IsBound(), "Frame buffer must be bound before clearing");
-	GLRenderer::ClearColor(clear_color_);
-	GLRenderer::Clear();
+	GLRenderer::ClearToColor(clear_color_);
 }
 
 void RenderTargetInstance::SetClearColor(const Color& clear_color) {
@@ -70,9 +74,7 @@ void RenderTargetInstance::SetClearColor(const Color& clear_color) {
 		frame_buffer_.IsValid(), "Cannot set clear color of invalid or uninitialized frame buffer"
 	);
 	PTGN_ASSERT(frame_buffer_.IsBound(), "Frame buffer must be bound before setting clear color");
-	if (clear_color_ == clear_color) {
-		return;
-	}
+	PTGN_ASSERT(clear_color_ != clear_color);
 	clear_color_ = clear_color;
 }
 
@@ -81,13 +83,20 @@ void RenderTargetInstance::SetBlendMode(BlendMode blend_mode) {
 		frame_buffer_.IsValid(), "Cannot set blend mode of invalid or uninitialized frame buffer"
 	);
 	PTGN_ASSERT(frame_buffer_.IsBound(), "Frame buffer must be bound before setting blend mode");
-	if (blend_mode_ == blend_mode) {
-		return;
-	}
+	PTGN_ASSERT(blend_mode_ != blend_mode);
 	blend_mode_ = blend_mode;
+	GLRenderer::SetBlendMode(blend_mode_);
 }
 
 void RenderTargetInstance::Flush() {
+	PTGN_ASSERT(
+		frame_buffer_.IsValid(),
+		"Cannot flush render target with invalid or uninitialized frame buffer"
+	);
+	PTGN_ASSERT(
+		frame_buffer_.IsBound(),
+		"Frame buffer must be bound before flushing the render target batches"
+	);
 	GLRenderer::SetBlendMode(blend_mode_);
 
 	if (bool new_view_projection{
@@ -103,6 +112,7 @@ void RenderTargetInstance::Flush() {
 } // namespace impl
 
 RenderTarget::RenderTarget(const Color& clear_color, BlendMode blend_mode) {
+	PTGN_ASSERT(game.IsRunning(), "Cannot create render target before game is running");
 	Create(clear_color, blend_mode);
 }
 
@@ -129,6 +139,9 @@ Rect RenderTarget::GetRect() const {
 void RenderTarget::SetClearColor(const Color& clear_color) {
 	PTGN_ASSERT(IsValid(), "Cannot set clear color of invalid or uninitialized render target");
 	auto& i{ Get() };
+	if (i.clear_color_ == clear_color) {
+		return;
+	}
 	i.Bind();
 	i.SetClearColor(clear_color);
 }
@@ -141,6 +154,9 @@ Color RenderTarget::GetClearColor() const {
 void RenderTarget::SetBlendMode(BlendMode blend_mode) {
 	PTGN_ASSERT(IsValid(), "Cannot set blend mode of invalid or uninitialized render target");
 	auto& i{ Get() };
+	if (i.blend_mode_ == blend_mode) {
+		return;
+	}
 	i.Bind();
 	i.SetBlendMode(blend_mode);
 }
@@ -169,6 +185,66 @@ Texture RenderTarget::GetTexture() const {
 	return Get().texture_;
 }
 
+Color RenderTarget::GetPixel(const V2_int& coordinate) const {
+	PTGN_ASSERT(IsValid(), "Cannot retrieve pixel of invalid render target");
+	auto texture{ GetTexture() };
+	V2_int size{ texture.GetSize() };
+	PTGN_ASSERT(
+		coordinate.x >= 0 && coordinate.x < size.x,
+		"Cannot get pixel out of range of frame buffer texture"
+	);
+	PTGN_ASSERT(
+		coordinate.y >= 0 && coordinate.y < size.y,
+		"Cannot get pixel out of range of frame buffer texture"
+	);
+	auto formats{ impl::GetGLFormats(texture.GetFormat()) };
+	PTGN_ASSERT(
+		formats.components_ >= 3,
+		"Cannot retrieve pixel data of render target texture with less than 3 RGB components"
+	);
+	std::vector<std::uint8_t> v(static_cast<std::size_t>(formats.components_ * 1 * 1));
+	int y{ size.y - 1 - coordinate.y };
+	PTGN_ASSERT(y >= 0);
+	Bind();
+	GLCall(gl::glReadPixels(
+		coordinate.x, y, 1, 1, formats.format_, static_cast<gl::GLenum>(impl::GLType::UnsignedByte),
+		static_cast<void*>(v.data())
+	));
+	return Color{ v[0], v[1], v[2],
+				  formats.components_ == 4 ? v[3] : static_cast<std::uint8_t>(255) };
+}
+
+void RenderTarget::ForEachPixel(const std::function<void(V2_int, Color)>& func) const {
+	PTGN_ASSERT(IsValid(), "Cannot retrieve pixels of invalid render target");
+	auto texture{ GetTexture() };
+	V2_int size{ texture.GetSize() };
+	auto formats{ impl::GetGLFormats(texture.GetFormat()) };
+	PTGN_ASSERT(
+		formats.components_ >= 3,
+		"Cannot retrieve pixel data of render target texture with less than 3 RGB components"
+	);
+
+	std::vector<std::uint8_t> v(static_cast<std::size_t>(formats.components_ * size.x * size.y));
+	Bind();
+	GLCall(gl::glReadPixels(
+		0, 0, size.x, size.y, formats.format_, static_cast<gl::GLenum>(impl::GLType::UnsignedByte),
+		static_cast<void*>(v.data())
+	));
+	for (int j{ 0 }; j < size.y; j++) {
+		// Ensure left-to-right and top-to-bottom iteration.
+		int row{ (size.y - 1 - j) * size.x * formats.components_ };
+		for (int i{ 0 }; i < size.x; i++) {
+			int idx{ row + i * formats.components_ };
+			PTGN_ASSERT(static_cast<std::size_t>(idx) < v.size());
+			Color color{ v[static_cast<std::size_t>(idx)], v[static_cast<std::size_t>(idx + 1)],
+						 v[static_cast<std::size_t>(idx + 2)],
+						 formats.components_ == 4 ? v[static_cast<std::size_t>(idx + 3)]
+												  : static_cast<std::uint8_t>(255) };
+			std::invoke(func, V2_int{ i, j }, color);
+		}
+	}
+}
+
 void RenderTarget::Draw(const TextureInfo& texture_info, const Shader& shader) {
 	Draw(texture_info, {}, shader);
 }
@@ -176,31 +252,30 @@ void RenderTarget::Draw(const TextureInfo& texture_info, const Shader& shader) {
 void RenderTarget::Draw(
 	const TextureInfo& texture_info, const LayerInfo& layer_info, const Shader& shader
 ) {
-	PTGN_ASSERT(IsValid(), "Cannot draw an invalid or uninitialized render target");
-	auto& target{ Get() };
-	target.Bind();
-	target.Flush();
-
-	auto destination_target{ layer_info.GetRenderTarget() };
-	auto& dest_target{ destination_target.Get() };
-
-	dest_target.Bind();
-	dest_target.Flush();
+	Flush();
 
 	Shader used_shader{ shader };
 	if (!used_shader.IsValid()) {
 		used_shader = game.shader.Get(ScreenShader::Default);
 	}
 
-	GLRenderer::SetBlendMode(target.blend_mode_);
+	LayerInfo layer{ layer_info };
+
+	bool screen_target{ *this == game.renderer.screen_target_ };
+
+	if (screen_target) {
+		layer = LayerInfo{ LayerInfo::ScreenLayer{} };
+	}
 
 	used_shader.Draw(
-		GetTexture(), target.destination_, GetRenderData().GetViewProjection(), texture_info,
-		LayerInfo{ destination_target }
+		GetTexture(), Get().destination_, GetRenderData().GetViewProjection(), texture_info, layer
 	);
 
-	target.Bind();
-	target.Clear();
+	// Screen target is not cleared after drawing as it needs to be unbound for SDL2 to swap it to
+	// the window buffer.
+	if (!screen_target) {
+		Clear();
+	}
 }
 
 CameraManager& RenderTarget::GetCamera() {
@@ -213,7 +288,7 @@ const CameraManager& RenderTarget::GetCamera() const {
 	return Get().camera_;
 }
 
-void RenderTarget::Bind() {
+void RenderTarget::Bind() const {
 	PTGN_ASSERT(IsValid(), "Cannot bind invalid or uninitialized render target");
 	Get().Bind();
 }
