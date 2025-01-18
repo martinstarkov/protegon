@@ -107,7 +107,7 @@ private:
 	friend class GLRenderer;
 	friend class RendererData;
 
-	[[nodiscard]] static std::int32_t GetBoundId();
+	[[nodiscard]] static std::uint32_t GetBoundId();
 	[[nodiscard]] static bool WithinMaxAttributes(std::int32_t attribute_count);
 
 	void SetVertexBufferImpl(const VertexBuffer& vertex_buffer);
@@ -137,6 +137,9 @@ private:
 			SetBufferElement(i, elements[i], stride);
 		}
 	}
+
+	// Bind specific id as current vertex array.
+	static void Bind(std::uint32_t id);
 
 	static void Unbind();
 };

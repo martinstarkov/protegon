@@ -17,10 +17,12 @@
 #include "math/vector4.h"
 #include "renderer/batch.h"
 #include "renderer/flip.h"
+#include "renderer/frame_buffer.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
 #include "renderer/layer_info.h"
+#include "renderer/render_target.h"
 #include "renderer/renderer.h"
 #include "renderer/texture.h"
 #include "renderer/vertices.h"
@@ -49,10 +51,16 @@ std::string_view GetShaderTypeName(std::uint32_t type) {
 ShaderInstance::ShaderInstance() {
 	id_ = GLCallReturn(gl::CreateProgram());
 	PTGN_ASSERT(id_ != 0, "Failed to create shader program using OpenGL context");
+#ifdef GL_ANNOUNCE_SHADER_CALLS
+	PTGN_LOG("GL: Created shader program with id ", id_);
+#endif
 }
 
 ShaderInstance::~ShaderInstance() {
 	GLCall(gl::DeleteProgram(id_));
+#ifdef GL_ANNOUNCE_SHADER_CALLS
+	PTGN_LOG("GL: Deleted shader program with id ", id_);
+#endif
 }
 
 } // namespace impl
@@ -162,11 +170,18 @@ void Shader::CompileProgram(const std::string& vertex_source, const std::string&
 	}
 }
 
+void Shader::Bind(std::int32_t id) {
+#ifdef GL_ANNOUNCE_SHADER_CALLS
+	PTGN_LOG("GL: Bound shader program with id ", id);
+#endif
+	GLCall(gl::UseProgram(id));
+}
+
 void Shader::Bind() const {
 	if (game.renderer.bound_shader_ == *this) {
 		return;
 	}
-	GLCall(gl::UseProgram(Get().id_));
+	Bind(Get().id_);
 	game.renderer.bound_shader_ = *this;
 #ifdef PTGN_DEBUG
 	++game.stats.shader_binds;
@@ -224,6 +239,16 @@ void Shader::Draw(
 		vertices[i].tex_index = { 0.0f };
 	}
 
+	if (layer_info.render_target_.IsValid()) {
+		RenderTarget rt{ layer_info.GetRenderTarget() };
+		// Note: Flush also binds the render target which is important for the drawing that follows.
+		rt.Flush();
+	} else {
+		// When screen_target_ is drawn to the default frame buffer, screen does not need to be
+		// flushed as it is not a RenderTarget.
+		FrameBuffer::Unbind();
+	}
+
 	Bind();
 	SetUniform("u_ViewProjection", view_projection);
 	SetUniform("u_Resolution", V2_float{ game.window.GetSize() });
@@ -240,13 +265,14 @@ void Shader::Draw(
 	vao.Draw(index_count, false);
 }
 
+bool Shader::IsBound() const {
+	return IsValid() && GetBoundId() == Get().id_;
+}
+
 std::int32_t Shader::GetUniformLocation(const std::string& name) const {
 	PTGN_ASSERT(IsValid(), "Cannot get uniform location of invalid shader");
 	auto& s{ Get() };
-	PTGN_ASSERT(
-		GetBoundId() == static_cast<std::int32_t>(s.id_),
-		"Cannot get uniform location of shader which is not currently bound"
-	);
+	PTGN_ASSERT(IsBound(), "Cannot get uniform location of shader which is not currently bound");
 	auto& location_cache{ s.location_cache_ };
 	if (auto it = location_cache.find(name); it != location_cache.end()) {
 		return it->second;
@@ -263,28 +289,28 @@ std::int32_t Shader::GetUniformLocation(const std::string& name) const {
 }
 
 void Shader::SetUniform(const std::string& name, const Vector2<float>& v) const {
-	std::int32_t location = GetUniformLocation(name);
+	std::int32_t location{ GetUniformLocation(name) };
 	if (location != -1) {
 		GLCall(gl::Uniform2f(location, v.x, v.y));
 	}
 }
 
 void Shader::SetUniform(const std::string& name, const Vector3<float>& v) const {
-	std::int32_t location = GetUniformLocation(name);
+	std::int32_t location{ GetUniformLocation(name) };
 	if (location != -1) {
 		GLCall(gl::Uniform3f(location, v.x, v.y, v.z));
 	}
 }
 
 void Shader::SetUniform(const std::string& name, const Vector4<float>& v) const {
-	std::int32_t location = GetUniformLocation(name);
+	std::int32_t location{ GetUniformLocation(name) };
 	if (location != -1) {
 		GLCall(gl::Uniform4f(location, v.x, v.y, v.z, v.w));
 	}
 }
 
 void Shader::SetUniform(const std::string& name, const Matrix4& m) const {
-	std::int32_t location = GetUniformLocation(name);
+	std::int32_t location{ GetUniformLocation(name) };
 	if (location != -1) {
 		GLCall(gl::UniformMatrix4fv(location, 1, GL_FALSE, m.Data()));
 	}
@@ -292,77 +318,77 @@ void Shader::SetUniform(const std::string& name, const Matrix4& m) const {
 
 void Shader::SetUniform(const std::string& name, const std::int32_t* data, std::size_t count)
 	const {
-	std::int32_t location = GetUniformLocation(name);
+	std::int32_t location{ GetUniformLocation(name) };
 	if (location != -1) {
 		GLCall(gl::Uniform1iv(location, static_cast<std::int32_t>(count), data));
 	}
 }
 
 void Shader::SetUniform(const std::string& name, const float* data, std::size_t count) const {
-	std::int32_t location = GetUniformLocation(name);
+	std::int32_t location{ GetUniformLocation(name) };
 	if (location != -1) {
 		GLCall(gl::Uniform1fv(location, static_cast<std::int32_t>(count), data));
 	}
 }
 
 void Shader::SetUniform(const std::string& name, const Vector2<std::int32_t>& v) const {
-	std::int32_t location = GetUniformLocation(name);
+	std::int32_t location{ GetUniformLocation(name) };
 	if (location != -1) {
 		GLCall(gl::Uniform2i(location, v.x, v.y));
 	}
 }
 
 void Shader::SetUniform(const std::string& name, const Vector3<std::int32_t>& v) const {
-	std::int32_t location = GetUniformLocation(name);
+	std::int32_t location{ GetUniformLocation(name) };
 	if (location != -1) {
 		GLCall(gl::Uniform3i(location, v.x, v.y, v.z));
 	}
 }
 
 void Shader::SetUniform(const std::string& name, const Vector4<std::int32_t>& v) const {
-	std::int32_t location = GetUniformLocation(name);
+	std::int32_t location{ GetUniformLocation(name) };
 	if (location != -1) {
 		GLCall(gl::Uniform4i(location, v.x, v.y, v.z, v.w));
 	}
 }
 
 void Shader::SetUniform(const std::string& name, float v0) const {
-	std::int32_t location = GetUniformLocation(name);
+	std::int32_t location{ GetUniformLocation(name) };
 	if (location != -1) {
 		GLCall(gl::Uniform1f(location, v0));
 	}
 }
 
 void Shader::SetUniform(const std::string& name, float v0, float v1) const {
-	std::int32_t location = GetUniformLocation(name);
+	std::int32_t location{ GetUniformLocation(name) };
 	if (location != -1) {
 		GLCall(gl::Uniform2f(location, v0, v1));
 	}
 }
 
 void Shader::SetUniform(const std::string& name, float v0, float v1, float v2) const {
-	std::int32_t location = GetUniformLocation(name);
+	std::int32_t location{ GetUniformLocation(name) };
 	if (location != -1) {
 		GLCall(gl::Uniform3f(location, v0, v1, v2));
 	}
 }
 
 void Shader::SetUniform(const std::string& name, float v0, float v1, float v2, float v3) const {
-	std::int32_t location = GetUniformLocation(name);
+	std::int32_t location{ GetUniformLocation(name) };
 	if (location != -1) {
 		GLCall(gl::Uniform4f(location, v0, v1, v2, v3));
 	}
 }
 
 void Shader::SetUniform(const std::string& name, std::int32_t v0) const {
-	std::int32_t location = GetUniformLocation(name);
+	std::int32_t location{ GetUniformLocation(name) };
 	if (location != -1) {
 		GLCall(gl::Uniform1i(location, v0));
 	}
 }
 
 void Shader::SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1) const {
-	std::int32_t location = GetUniformLocation(name);
+	std::int32_t location{ GetUniformLocation(name) };
 	if (location != -1) {
 		GLCall(gl::Uniform2i(location, v0, v1));
 	}
@@ -370,7 +396,7 @@ void Shader::SetUniform(const std::string& name, std::int32_t v0, std::int32_t v
 
 void Shader::SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2)
 	const {
-	std::int32_t location = GetUniformLocation(name);
+	std::int32_t location{ GetUniformLocation(name) };
 	if (location != -1) {
 		GLCall(gl::Uniform3i(location, v0, v1, v2));
 	}
@@ -379,7 +405,7 @@ void Shader::SetUniform(const std::string& name, std::int32_t v0, std::int32_t v
 void Shader::SetUniform(
 	const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2, std::int32_t v3
 ) const {
-	std::int32_t location = GetUniformLocation(name);
+	std::int32_t location{ GetUniformLocation(name) };
 	if (location != -1) {
 		GLCall(gl::Uniform4i(location, v0, v1, v2, v3));
 	}
@@ -389,11 +415,11 @@ void Shader::SetUniform(const std::string& name, bool value) const {
 	SetUniform(name, static_cast<std::int32_t>(value));
 }
 
-std::int32_t Shader::GetBoundId() {
+std::uint32_t Shader::GetBoundId() {
 	std::int32_t id{ -1 };
 	GLCall(gl::glGetIntegerv(GL_CURRENT_PROGRAM, &id));
-	PTGN_ASSERT(id >= 0);
-	return id;
+	PTGN_ASSERT(id >= 0, "Failed to retrieve bound shader id");
+	return static_cast<std::uint32_t>(id);
 }
 
 namespace impl {
@@ -411,17 +437,17 @@ Shader ShaderManager::Get(ScreenShader screen_shader) const {
 	}
 }
 
-Shader ShaderManager::Get(PresetShader shader) const {
+Shader ShaderManager::Get(ShapeShader shader) const {
 	switch (shader) {
-		case PresetShader::Quad:   return quad_;
-		case PresetShader::Circle: return circle_;
-		case PresetShader::Color:  return color_;
-		default:				   PTGN_ERROR("Cannot retrieve unrecognized preset shader");
+		case ShapeShader::Quad:	  return quad_;
+		case ShapeShader::Circle: return circle_;
+		case ShapeShader::Color:  return color_;
+		default:				  PTGN_ERROR("Cannot retrieve unrecognized preset shader");
 	}
 }
 
 void ShaderManager::Init() {
-	std::int32_t max_texture_slots{ GLRenderer::GetMaxTextureSlots() };
+	std::uint32_t max_texture_slots{ GLRenderer::GetMaxTextureSlots() };
 
 	PTGN_ASSERT(max_texture_slots > 0, "Max texture slots must be set before initializing shaders");
 

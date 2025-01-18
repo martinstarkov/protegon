@@ -226,21 +226,6 @@ public:
 	// @param size Size of the texture. Area must match length of pixels array.
 	Texture(const std::vector<Color>& pixels, const V2_int& size);
 
-	// WARNING: This is a very slow operation, and should not be used frequently. If reading pixels
-	// from a regular texture, prefer to create a Surface{ path } and read pixels from that instead.
-	// This function is primarily for debugging render targets.
-	// @param coordinate Pixel coordinate from [0, size).
-	// @return Color value of the given pixel.
-	// Note: Only RGB/RGBA format textures supported.
-	[[nodiscard]] Color GetPixel(const V2_int& coordinate) const;
-
-	// WARNING: This is a very slow operation, and should not be used frequently. If reading pixels
-	// from a regular texture, prefer to create a Surface{ path } and read pixels from that instead.
-	// This function is primarily for debugging render targets.
-	// @param callback Function to be called for each pixel.
-	// Note: Only RGB/RGBA format textures supported.
-	void ForEachPixel(const std::function<void(V2_int, Color)>& callback) const;
-
 	// @param destination Destination to draw the texture to. If destination == {}, fullscreen
 	// texture will be drawn, else if destination.size == {}, unscaled texture size is used.
 	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
@@ -320,6 +305,8 @@ private:
 	// Set the specified texture slot to active and bind the texture of that slot to 0.
 	static void Unbind(std::uint32_t slot = 0);
 
+	static void BindId(std::uint32_t id);
+
 	// Set the specified texture slot to active.
 	static void SetActiveSlot(std::uint32_t slot);
 
@@ -366,10 +353,10 @@ private:
 	);
 
 	// @return The id of the currently active texture slot.
-	[[nodiscard]] static std::int32_t GetActiveSlot();
+	[[nodiscard]] static std::uint32_t GetActiveSlot();
 
 	// @return The id of the texture bound to the currently active texture slot.
-	[[nodiscard]] static std::int32_t GetBoundId();
+	[[nodiscard]] static std::uint32_t GetBoundId();
 
 	// @return True if the texture is bound to the currently active texture slot.
 	[[nodiscard]] bool IsBound() const;

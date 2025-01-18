@@ -70,6 +70,9 @@ public:
 	Shader(const ShaderSource& vertex_shader, const ShaderSource& fragment_shader);
 	Shader(const path& vertex_shader_path, const path& fragment_shader_path);
 
+	// Sets the uniform value for the specified uniform name. If the uniform does not exist in the
+	// shader, nothing happens.
+	// Note: Make sure to bind the shader before setting uniforms.
 	void SetUniform(const std::string& name, const std::int32_t* data, std::size_t count) const;
 	void SetUniform(const std::string& name, const float* data, std::size_t count) const;
 	void SetUniform(const std::string& name, const Vector2<float>& v) const;
@@ -84,14 +87,15 @@ public:
 	void SetUniform(const std::string& name, const Vector3<std::int32_t>& v) const;
 	void SetUniform(const std::string& name, const Vector4<std::int32_t>& v) const;
 	void SetUniform(const std::string& name, std::int32_t v0) const;
-	// Behaves identically to SetUniform(name, std::int32_t).
-	void SetUniform(const std::string& name, bool value) const;
 	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1) const;
 	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2)
 		const;
 	void SetUniform(
 		const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2, std::int32_t v3
 	) const;
+
+	// Behaves identically to SetUniform(name, std::int32_t).
+	void SetUniform(const std::string& name, bool value) const;
 
 	void Bind() const;
 
@@ -122,17 +126,25 @@ public:
 private:
 	friend class impl::RendererData;
 
-	[[nodiscard]] static std::int32_t GetBoundId();
+	// Bind a specific id as the current shader.
+	static void Bind(std::int32_t id);
 
+	// @return True if the shader is currently bound, false otherwise.
+	[[nodiscard]] bool IsBound() const;
+
+	// @return The id of the currently bound shader.
+	[[nodiscard]] static std::uint32_t GetBoundId();
+
+	// @return The location of the specified shader uniform.
 	[[nodiscard]] std::int32_t GetUniformLocation(const std::string& name) const;
 
 	void CompileProgram(const std::string& vertex_shader, const std::string& fragment_shader);
 
-	// Returns shader id.
+	// @return The compiled shader id.
 	[[nodiscard]] static std::uint32_t CompileShader(std::uint32_t type, const std::string& source);
 };
 
-// Note: Texture tint is applied after shader effect.
+// Note: If applicable, TextureInfo tint is applied after shader effect.
 enum class ScreenShader {
 	Default,
 	Blur,
@@ -143,7 +155,7 @@ enum class ScreenShader {
 	Sharpen,
 };
 
-enum class PresetShader {
+enum class ShapeShader {
 	Quad,
 	Circle,
 	Color
@@ -162,7 +174,7 @@ public:
 
 	Shader Get(ScreenShader screen_shader) const;
 
-	Shader Get(PresetShader shader) const;
+	Shader Get(ShapeShader shader) const;
 
 private:
 	friend class Game;

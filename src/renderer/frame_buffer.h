@@ -34,10 +34,13 @@ public:
 	explicit RenderBuffer(const V2_int& size);
 
 	// @return Id of the currently bound render buffer.
-	[[nodiscard]] static std::int32_t GetBoundId();
+	[[nodiscard]] static std::uint32_t GetBoundId();
 
 private:
 	friend struct impl::FrameBufferInstance;
+
+	// Bind a specific id as the current render buffer.
+	static void Bind(std::uint32_t id);
 
 	void Bind() const;
 	static void Unbind();
@@ -101,7 +104,10 @@ private:
 	friend struct impl::FrameBufferInstance;
 
 	// @return Id of the currently bound frame buffer.
-	[[nodiscard]] static std::int32_t GetBoundId();
+	[[nodiscard]] static std::uint32_t GetBoundId();
+
+	// Bind a specific id as the current frame buffer.
+	static void Bind(std::uint32_t id);
 };
 
 } // namespace ptgn

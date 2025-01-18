@@ -11,6 +11,7 @@
 #include "renderer/gl_renderer.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
+#include "utility/log.h"
 #include "utility/stats.h"
 
 namespace ptgn {
@@ -20,19 +21,25 @@ namespace impl {
 VertexArrayInstance::VertexArrayInstance() {
 	GLCall(gl::GenVertexArrays(1, &id_));
 	PTGN_ASSERT(id_ != 0, "Failed to generate vertex array using OpenGL context");
+#ifdef GL_ANNOUNCE_VERTEX_ARRAY_CALLS
+	PTGN_LOG("GL: Generated vertex array with id ", id_);
+#endif
 }
 
 VertexArrayInstance::~VertexArrayInstance() {
 	GLCall(gl::DeleteVertexArrays(1, &id_));
+#ifdef GL_ANNOUNCE_VERTEX_ARRAY_CALLS
+	PTGN_LOG("GL: Deleted vertex array with id ", id_);
+#endif
 }
 
 } // namespace impl
 
-std::int32_t VertexArray::GetBoundId() {
+std::uint32_t VertexArray::GetBoundId() {
 	std::int32_t id{ -1 };
 	GLCall(gl::glGetIntegerv(static_cast<gl::GLenum>(impl::GLBinding::VertexArray), &id));
-	PTGN_ASSERT(id >= 0);
-	return id;
+	PTGN_ASSERT(id >= 0, "Failed to retrieve bound vertex array id");
+	return static_cast<std::uint32_t>(id);
 }
 
 bool VertexArray::WithinMaxAttributes(std::int32_t attribute_count) {
@@ -42,15 +49,23 @@ bool VertexArray::WithinMaxAttributes(std::int32_t attribute_count) {
 }
 
 void VertexArray::Bind() const {
-	GLCall(gl::BindVertexArray(Get().id_));
+	PTGN_ASSERT(IsValid(), "Cannot bind invalid or uninitialized vertex array");
+	Bind(Get().id_);
 #ifdef PTGN_DEBUG
 	++game.stats.vertex_array_binds;
 #endif
 }
 
+void VertexArray::Bind(std::uint32_t id) {
+	GLCall(gl::BindVertexArray(id));
+#ifdef GL_ANNOUNCE_VERTEX_ARRAY_CALLS
+	PTGN_LOG("GL: Bound vertex array with id ", id);
+#endif
+}
+
 void VertexArray::Unbind() {
 #ifndef PTGN_PLATFORM_MACOS
-	GLCall(gl::BindVertexArray(0));
+	Bind(0);
 #ifdef PTGN_DEBUG
 	++game.stats.vertex_array_unbinds;
 #endif
@@ -75,7 +90,7 @@ void VertexArray::SetIndexBuffer(const IndexBuffer& index_buffer) {
 
 void VertexArray::SetVertexBufferImpl(const VertexBuffer& vertex_buffer) {
 	auto& v{ Get() };
-	PTGN_ASSERT(GetBoundId() == static_cast<std::int32_t>(v.id_));
+	PTGN_ASSERT(IsBound());
 	PTGN_ASSERT(
 		vertex_buffer.IsValid(), "Cannot set vertex buffer which is uninitialized or destroyed"
 	);
@@ -85,7 +100,7 @@ void VertexArray::SetVertexBufferImpl(const VertexBuffer& vertex_buffer) {
 
 void VertexArray::SetIndexBufferImpl(const IndexBuffer& index_buffer) {
 	auto& v{ Get() };
-	PTGN_ASSERT(GetBoundId() == static_cast<std::int32_t>(v.id_));
+	PTGN_ASSERT(IsBound());
 	PTGN_ASSERT(
 		index_buffer.IsValid(), "Cannot set index buffer which is uninitialized or destroyed"
 	);
@@ -165,7 +180,7 @@ PrimitiveMode VertexArray::GetPrimitiveMode() const {
 }
 
 bool VertexArray::IsBound() const {
-	return IsValid() && VertexArray::GetBoundId() == static_cast<std::int32_t>(Get().id_);
+	return IsValid() && GetBoundId() == Get().id_;
 }
 
 } // namespace ptgn
