@@ -10,6 +10,7 @@
 namespace ptgn {
 
 class LightManager;
+class RenderTarget;
 
 namespace impl {
 
@@ -84,6 +85,9 @@ public:
 	// @return True if the game is running, false if it has been stopped.
 	[[nodiscard]] bool IsRunning() const;
 
+	// @return True if the game subsystems have been initialized, false otherwise.
+	[[nodiscard]] bool IsInitialized() const;
+
 private:
 	friend struct WindowDeleter;
 	friend struct MixMusicDeleter;
@@ -92,6 +96,7 @@ private:
 	friend struct TTF_FontDeleter;
 	friend class GLContext;
 	friend class SceneManager;
+	friend class RenderTarget;
 #ifdef __EMSCRIPTEN__
 	friend void EmscriptenLoop();
 #endif

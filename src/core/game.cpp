@@ -3,7 +3,6 @@
 #include <chrono>
 #include <memory>
 #include <string>
-#include <type_traits>
 
 #include "SDL_timer.h"
 #include "audio/audio.h"
@@ -180,14 +179,11 @@ void Game::Stop() {
 	running_ = false;
 }
 
+bool Game::IsInitialized() const {
+	return gl_context_->IsInitialized() && sdl_instance_->IsInitialized();
+}
+
 bool Game::IsRunning() const {
-	// Ensure that if game is running, SDL is initialized.
-	PTGN_ASSERT(std::invoke([&]() {
-		if (running_) {
-			return sdl_instance_->IsInitialized();
-		}
-		return true;
-	}));
 	return running_;
 }
 
@@ -299,6 +295,16 @@ void Game::Update() {
 	scene.Update();
 	tween.Update();
 	renderer.Present();
+
+#ifdef PTGN_DEBUG
+	// Uncomment to examine the color of the pixel at the mouse position that is drawn to the
+	// screen.
+	/*PTGN_LOG(
+		"Screen Color at Mouse: ",
+		renderer.screen_target_.GetPixel(game.input.GetMousePositionWindow())
+	);*/
+#endif
+
 	scene.UpdateFlagged();
 
 	if (profiler.IsEnabled()) {
