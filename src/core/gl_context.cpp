@@ -6,11 +6,12 @@
 #include <string_view>
 #include <vector>
 
-#include "core/game.h"
-#include "core/window.h"
-#include "renderer/gl_loader.h"
 #include "SDL_error.h"
 #include "SDL_video.h"
+#include "core/game.h"
+#include "core/sdl_instance.h"
+#include "core/window.h"
+#include "renderer/gl_loader.h"
 #include "utility/debug.h"
 #include "utility/file.h"
 #include "utility/log.h"
@@ -123,7 +124,8 @@ void GLContext::Shutdown() {
 }
 
 void GLContext::ClearErrors() {
-	while (game.gl_context_->IsInitialized() && game.IsRunning() &&
+	while (game.running_ && game.gl_context_->IsInitialized() &&
+		   game.sdl_instance_->IsInitialized() &&
 		   gl::glGetError() != static_cast<gl::GLenum>(GLError::None)
 	) { /* glGetError clears the error queue */
 	}
@@ -131,9 +133,10 @@ void GLContext::ClearErrors() {
 
 std::vector<GLError> GLContext::GetErrors() {
 	std::vector<GLError> errors;
-	while (game.gl_context_->IsInitialized() && game.IsRunning()) {
-		gl::GLenum error = gl::glGetError();
-		auto e			 = static_cast<GLError>(error);
+	while (game.running_ && game.gl_context_->IsInitialized() && game.sdl_instance_->IsInitialized()
+	) {
+		gl::GLenum error{ gl::glGetError() };
+		auto e{ static_cast<GLError>(error) };
 		if (e == GLError::None) {
 			break;
 		}

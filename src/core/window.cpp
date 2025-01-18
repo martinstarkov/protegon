@@ -93,6 +93,7 @@ void Window::SwapBuffers() const {
 }
 
 V2_int Window::GetSize() const {
+	PTGN_ASSERT(IsValid(), "Cannot get size of uninitialized or destroyed window");
 	V2_int size;
 	SDL_GetWindowSizeInPixels(Get(), &size.x, &size.y);
 	return size;
@@ -191,7 +192,7 @@ void Window::SetSetting(WindowSetting setting) const {
 }
 
 bool Window::GetSetting(WindowSetting setting) const {
-    std::uint32_t flags = SDL_GetWindowFlags(Get());
+	std::uint32_t flags = SDL_GetWindowFlags(Get());
 	switch (setting) {
 		case WindowSetting::Shown:	return flags & SDL_WINDOW_SHOWN;
 		case WindowSetting::Hidden: return !(flags & SDL_WINDOW_SHOWN);
