@@ -6,6 +6,8 @@
 
 namespace ptgn {
 
+class Shader;
+
 // Information relating to the render layer and render target of the drawn object.
 // Default constructed LayerInfo will automatically use the currently active scene.
 struct LayerInfo {
@@ -32,6 +34,15 @@ struct LayerInfo {
 	[[nodiscard]] std::int32_t GetRenderLayer() const;
 
 private:
+	friend class RenderTarget;
+	friend class Shader;
+
+	struct ScreenLayer {};
+
+	// A way for the screen target to let Shader::Draw() know not to bind it before drawing. Done
+	// via render_target_ being invalid (unconstructed).
+	explicit LayerInfo(const ScreenLayer&);
+
 	std::int32_t render_layer_{ 0 };
 	RenderTarget render_target_;
 };

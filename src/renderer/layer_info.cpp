@@ -55,4 +55,6 @@ std::int32_t LayerInfo::GetRenderLayer() const {
 	return render_layer_;
 }
 
+LayerInfo::LayerInfo(const ScreenLayer&) {}
+
 } // namespace ptgn
