@@ -76,7 +76,22 @@ public:
 	// @return The destination rectangle to which the render target is drawn.
 	[[nodiscard]] Rect GetRect() const;
 
-	// TODO: Add screen shaders as options.
+	// WARNING: This is a very slow operation, and should not be used frequently. If reading pixels
+	// from a regular texture, prefer to create a Surface{ path } and read pixels from that instead.
+	// This function is primarily for debugging render targets.
+	// @param coordinate Pixel coordinate from [0, size).
+	// @return Color value of the given pixel.
+	// Note: Only RGB/RGBA format textures supported.
+	// Note: This will bind the render target's frame buffer.
+	[[nodiscard]] Color GetPixel(const V2_int& coordinate) const;
+
+	// WARNING: This is a very slow operation, and should not be used frequently. If reading pixels
+	// from a regular texture, prefer to create a Surface{ path } and read pixels from that instead.
+	// This function is primarily for debugging render targets.
+	// @param callback Function to be called for each pixel.
+	// Note: Only RGB/RGBA format textures supported.
+	// Note: This will bind the render target's frame buffer.
+	void ForEachPixel(const std::function<void(V2_int, Color)>& callback) const;
 
 	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
 	// center of the texture associated with this render target.
@@ -174,7 +189,7 @@ private:
 	// included).
 	[[nodiscard]] V2_float ScaleToTarget(const V2_float& position) const;
 
-	void Bind();
+	void Bind() const;
 };
 
 } // namespace ptgn
