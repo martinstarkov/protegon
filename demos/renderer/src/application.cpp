@@ -484,35 +484,6 @@ struct TestArcFilled : public TestArc {
 	explicit TestArcFilled(float radius) : TestArc{ radius, -1.0f } {}
 };
 
-struct TestTransparency : public DrawTest {
-	V2_float p1;
-	V2_float p2;
-	V2_float p3;
-	V2_float p4;
-
-	V2_float s; // size
-
-	void Init() override {
-		DrawTest::Init();
-
-		float corner_distance{ 0.05f };
-
-		p1 = { center - V2_float{ ws.x * corner_distance, 0.0f } };
-		p2 = { center + V2_float{ ws.x * corner_distance, 0.0f } };
-		p3 = { center + V2_float{ 0.0f, ws.x * corner_distance } };
-		p4 = { center - V2_float{ 0.0f, ws.x * corner_distance } };
-
-		s = { ws * 0.4f };
-	}
-
-	void Draw() override {
-		Rect{ p1, s }.Draw(Color{ 255, 0, 0, 128 });
-		Rect{ p2, s }.Draw(Color{ 0, 0, 255, 128 });
-		Rect{ p3, s }.Draw(Color{ 0, 255, 255, 128 });
-		Rect{ p4, s }.Draw(Color{ 255, 255, 0, 128 });
-	}
-};
-
 struct TestRenderTargets : public DrawTest {
 	RenderTarget render_texture1;
 	RenderTarget render_texture2;
@@ -1219,7 +1190,7 @@ void TestShaders() {
 
 	// TODO: Fix.
 	/*
-	std::int32_t max_texture_slots{ GLRenderer::GetMaxTextureSlots() };
+	std::uint32_t max_texture_slots{ GLRenderer::GetMaxTextureSlots() };
 
 	ShaderSource quad_frag;
 
@@ -1421,7 +1392,7 @@ public:
 		GetTextures(textures30, textures60);
 
 		// TODO: Fix.
-		//tests.emplace_back(new TestRenderTargets());
+		// tests.emplace_back(new TestRenderTargets());
 		tests.emplace_back(new TestPoint());
 		tests.emplace_back(new TestLineThin());
 		tests.emplace_back(new TestLineThick(test_line_width));
@@ -1451,7 +1422,6 @@ public:
 		tests.emplace_back(new TestArcFilled(arc_radius));
 
 		tests.emplace_back(new TestViewportExtentsAndOrigin());
-		tests.emplace_back(new TestTransparency());
 		tests.emplace_back(new TestTexture(jpg_texture_path));
 		tests.emplace_back(new TestTexture(png_texture_path));
 		// TODO: Work out BMP issue on Mac OS.
