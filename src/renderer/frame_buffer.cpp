@@ -52,12 +52,12 @@ void FrameBufferInstance::AttachRenderBuffer(const RenderBuffer& render_buffer) 
 	PTGN_ASSERT(IsComplete(), "Failed to attach render buffer to frame buffer");
 }
 
-void FrameBufferInstance::Bind() const {
+void FrameBufferInstance::Bind(bool reset_viewport) const {
 	FrameBuffer::Bind(id_);
 #ifdef PTGN_DEBUG
 	++game.stats.frame_buffer_binds;
 #endif
-	if (texture_.IsValid()) {
+	if (reset_viewport && texture_.IsValid()) {
 		GLRenderer::SetViewport({}, texture_.GetSize());
 	}
 }
@@ -214,7 +214,8 @@ void FrameBuffer::Bind() const {
 	if (game.renderer.bound_frame_buffer_ == *this) {
 		return;
 	}
-	Get().Bind();
+	// Binds frame buffer and resets its viewport.
+	Get().Bind(true);
 	game.renderer.bound_frame_buffer_ = *this;
 }
 

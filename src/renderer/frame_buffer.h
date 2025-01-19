@@ -59,7 +59,9 @@ struct FrameBufferInstance {
 	void AttachTexture(const Texture& texture);
 	void AttachRenderBuffer(const RenderBuffer& render_buffer);
 
-	void Bind() const;
+	// @param reset_viewport Whether or not to reset gl viewport to frame buffer attached texture
+	// size. Does nothing if no valid texture is attached.
+	void Bind(bool reset_viewport) const;
 
 	[[nodiscard]] bool IsBound() const;
 	[[nodiscard]] bool IsComplete() const;
