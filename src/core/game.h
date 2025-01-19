@@ -70,12 +70,12 @@ public:
 	// game.scene.LoadActive<MyScene>("scene_name");
 	// @param title The title of the window. Can be changed later using
 	// game.window.SetTitle("title");
-	// @param resolution Starting resolution of the window. Can be changed later using
+	// @param window_size Starting size of the window. Can be changed later using
 	// game.window.SetSize({ 1920, 1080 });
 	// @param background_color Starting background color of the window. Can be changed later using
 	// game.renderer.SetClearColor(color::Black);
 	void Init(
-		const std::string& title = "Default Title", const V2_int& resolution = { 800, 800 },
+		const std::string& title = "Default Title", const V2_int& window_size = { 800, 800 },
 		const Color& background_color = color::White
 	);
 

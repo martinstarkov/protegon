@@ -187,7 +187,7 @@ bool Game::IsRunning() const {
 	return running_;
 }
 
-void Game::Init(const std::string& title, const V2_int& resolution, const Color& background_color) {
+void Game::Init(const std::string& title, const V2_int& window_size, const Color& background_color) {
 #if defined(PTGN_PLATFORM_MACOS) && !defined(__EMSCRIPTEN__)
 	impl::InitApplePath();
 #endif
@@ -210,7 +210,7 @@ void Game::Init(const std::string& title, const V2_int& resolution, const Color&
 	light.Init();
 
 	game.window.SetTitle(title);
-	game.window.SetSize(resolution);
+	game.window.SetSize(window_size);
 }
 
 void Game::Shutdown() {
