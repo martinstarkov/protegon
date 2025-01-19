@@ -5,15 +5,16 @@ using namespace ptgn;
 constexpr V2_int resolution{ 800, 800 };
 
 V2_float ws;
-V2_float center;
 
 struct CollisionTest {
 	virtual ~CollisionTest() = default;
 
 	CollisionTest() {}
 
-	virtual void Init() {
-		game.window.SetSize(resolution);
+	virtual void Init() {}
+
+	virtual void Shutdown() {
+		game.camera.ResetPrimary();
 	}
 
 	virtual void Update() {}
@@ -46,6 +47,8 @@ public:
 		intersect_circle = manager.CreateEntity();
 		sweep_circle	 = manager.CreateEntity();
 		overlap_circle	 = manager.CreateEntity();
+
+		manager.Refresh();
 
 		intersect.Add<Transform>(V2_float{ 100, 100 });
 		overlap.Add<Transform>(V2_float{ 200, 200 });
@@ -205,6 +208,7 @@ public:
 		auto obstacle = manager.CreateEntity();
 		obstacle.Add<Transform>(pos);
 		obstacle.Add<BoxCollider>(obstacle, size, origin);
+		manager.Refresh();
 	}
 
 	void Update() override {
@@ -366,7 +370,7 @@ public:
 		for (int i = 0; i < size.x; i++) {
 			for (int j = 0; j < size.y; j++) {
 				Rect r{ V2_int{ i, j } * tile_size, tile_size, Origin::TopLeft };
-				r.Draw(color::Black);
+				r.Draw(color::Black, 1.0f);
 			}
 		}
 	}
@@ -633,9 +637,7 @@ public:
 
 	float rot_speed{ 1.0f };
 
-	void Init() override {
-		game.window.SetTitle("'ESC' (++category), 't' (++shape), 'g' (++mode), 'r' (reset pos)");
-	}
+	void Init() override {}
 
 	void Update() override {
 		auto mouse = game.input.GetMousePosition();
@@ -863,6 +865,7 @@ public:
 				l.Draw(color::Gray);
 				c = circle2.Raycast(vel, aabb1);
 				if (c.Occurred()) {
+					Lerp(circle2.center, circle2.center + vel, c.t).Draw(color::Black, 3.0f);
 					Circle swept{ circle2.center + vel * c.t, circle2.radius };
 					Line normal{ swept.center, swept.center + 50 * c.normal };
 					normal.Draw(color::Orange);
@@ -1548,9 +1551,7 @@ struct DynamicRectCollisionTest : public CollisionTest {
 	using Id = std::size_t;
 
 	explicit DynamicRectCollisionTest(float speed) : speed{ speed } {
-		game.window.SetSize({ 800, 800 });
-		ws	   = game.window.GetSize();
-		center = game.window.GetCenter();
+		ws = game.window.GetSize();
 	}
 
 	void CreateDynamicEntity(
@@ -1639,22 +1640,31 @@ struct DynamicRectCollisionTest : public CollisionTest {
 
 struct HeadOnDynamicRectTest1 : public DynamicRectCollisionTest {
 	HeadOnDynamicRectTest1(float speed) : DynamicRectCollisionTest{ speed } {
-		CreateDynamicEntity({ 0, center.y }, { 40.0f, 40.0f }, Origin::CenterLeft, { 1.0f, 0.0f });
 		CreateDynamicEntity(
-			{ ws.x, center.y }, { 40.0f, 40.0f }, Origin::CenterRight, { -1.0f, 0.0f }
+			{ 0, game.window.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterLeft, { 1.0f, 0.0f }
+		);
+		CreateDynamicEntity(
+			{ ws.x, game.window.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterRight,
+			{ -1.0f, 0.0f }
 		);
 	}
 };
 
 struct HeadOnDynamicRectTest2 : public DynamicRectCollisionTest {
 	HeadOnDynamicRectTest2(float speed) : DynamicRectCollisionTest{ speed } {
-		CreateDynamicEntity({ center.x, 0 }, { 40.0f, 40.0f }, Origin::CenterTop, { 0, 1.0f });
 		CreateDynamicEntity(
-			{ center.x, ws.y }, { 40.0f, 40.0f }, Origin::CenterBottom, { 0, -1.0f }
+			{ game.window.GetCenter().x, 0 }, { 40.0f, 40.0f }, Origin::CenterTop, { 0, 1.0f }
 		);
-		CreateDynamicEntity({ 0, center.y }, { 40.0f, 40.0f }, Origin::CenterLeft, { 1.0f, 0.0f });
 		CreateDynamicEntity(
-			{ ws.x, center.y }, { 40.0f, 40.0f }, Origin::CenterRight, { -1.0f, 0.0f }
+			{ game.window.GetCenter().x, ws.y }, { 40.0f, 40.0f }, Origin::CenterBottom,
+			{ 0, -1.0f }
+		);
+		CreateDynamicEntity(
+			{ 0, game.window.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterLeft, { 1.0f, 0.0f }
+		);
+		CreateDynamicEntity(
+			{ ws.x, game.window.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterRight,
+			{ -1.0f, 0.0f }
 		);
 	}
 };
@@ -1720,8 +1730,7 @@ public:
 	std::vector<std::shared_ptr<CollisionTest>> tests;
 
 	void Init() override {
-		ws	   = game.window.GetSize();
-		center = game.window.GetCenter();
+		ws = game.window.GetSize();
 
 		tests.emplace_back(new CollisionCallbackTest());
 		tests.emplace_back(new RectangleSweepTest());
@@ -1748,16 +1757,19 @@ public:
 		tests.emplace_back(new SweepCornerTest3(velocity));
 		tests.emplace_back(new SweepCornerTest2(velocity));
 		tests.emplace_back(new SweepCornerTest1(velocity));
+
+		tests[static_cast<std::size_t>(current_test)]->Init();
 	}
 
 	void Update() override {
-		ws	   = game.window.GetSize();
-		center = game.window.GetCenter();
+		ws = game.window.GetSize();
 		if (game.input.KeyDown(Key::LEFT)) {
+			tests[static_cast<std::size_t>(current_test)]->Shutdown();
 			current_test--;
 			current_test = Mod(current_test, static_cast<int>(tests.size()));
 			tests[static_cast<std::size_t>(current_test)]->Init();
 		} else if (game.input.KeyDown(Key::RIGHT)) {
+			tests[static_cast<std::size_t>(current_test)]->Shutdown();
 			current_test++;
 			current_test = Mod(current_test, static_cast<int>(tests.size()));
 			tests[static_cast<std::size_t>(current_test)]->Init();
