@@ -112,7 +112,6 @@ void RenderTargetInstance::Flush() {
 } // namespace impl
 
 RenderTarget::RenderTarget(const Color& clear_color, BlendMode blend_mode) {
-	PTGN_ASSERT(game.IsRunning(), "Cannot create render target before game is running");
 	Create(clear_color, blend_mode);
 }
 
