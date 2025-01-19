@@ -17,6 +17,17 @@ namespace ptgn {
 class GLRenderer;
 struct LayerInfo;
 
+enum class ResolutionMode {
+	Disabled,  /**< There is no scaling in effect */
+	Stretch,   /**< The rendered content is stretched to the output resolution */
+	Letterbox, /**< The rendered content is fit to the largest dimension and the other dimension is
+				  letterboxed with black bars */
+	Overscan,  /**< The rendered content is fit to the smallest dimension and the other dimension
+				  extends beyond the output bounds */
+	IntegerScale, /**< The rendered content is scaled up by integer multiples to fit the output
+					 resolution */
+};
+
 namespace impl {
 
 class Game;
@@ -40,6 +51,22 @@ public:
 	void Present();
 
 	void Flush();
+
+	// @param resolution The resolution size to which the renderer will be displayed.
+	// Note: If no resolution mode is set, setting the resolution will default it to
+	// ResolutionMode::Stretch.
+	void SetResolution(const V2_int& resolution);
+
+	// @param mode The mode in which to fit the resolution to the window. If
+	// ResolutionMode::Disabled, the resolution is ignored.
+	void SetResolutionMode(ResolutionMode mode);
+
+	// @return The resolution size of the renderer. If resolution has not been set, returns window
+	// size.
+	[[nodiscard]] V2_int GetResolution() const;
+
+	// @return The resolution scaling mode.
+	[[nodiscard]] ResolutionMode GetResolutionMode() const;
 
 	void SetBlendMode(BlendMode blend_mode);
 	[[nodiscard]] BlendMode GetBlendMode() const;
@@ -117,6 +144,10 @@ private:
 	// Renderer keeps track of what is bound.
 	FrameBuffer bound_frame_buffer_;
 	Shader bound_shader_;
+
+	// Default value results in fullscreen.
+	V2_int resolution_;
+	ResolutionMode scaling_mode_{ ResolutionMode::Disabled };
 
 	RenderTarget screen_target_;
 };

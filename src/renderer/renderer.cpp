@@ -133,6 +133,25 @@ void Renderer::Shutdown() {
 	Reset();
 }
 
+void Renderer::SetResolution(const V2_int& resolution) {
+	resolution_ = resolution;
+}
+
+void Renderer::SetResolutionMode(ResolutionMode scaling_mode) {
+	scaling_mode_ = scaling_mode;
+}
+
+V2_int Renderer::GetResolution() const {
+	if (resolution_.IsZero()) {
+		return game.window.GetSize();
+	}
+	return resolution_;
+}
+
+ResolutionMode Renderer::GetResolutionMode() const {
+	return scaling_mode_;
+}
+
 BlendMode Renderer::GetBlendMode() const {
 	return GetCurrentRenderTarget().GetBlendMode();
 }
@@ -179,7 +198,45 @@ void Renderer::Flush() {
 }
 
 void Renderer::Present() {
-	screen_target_.Draw();
+	auto camera{ screen_target_.GetCamera().GetPrimary() };
+	Rect dest{ Rect::Fullscreen() };
+	auto center_on_resolution = [&]() {
+		camera.CenterOnArea(resolution_.IsZero() ? game.window.GetSize() : resolution_);
+	};
+	std::function<void()> post_flush;
+	switch (scaling_mode_) {
+		case ResolutionMode::Disabled:
+			camera.SetToWindow();
+			// Uses fullscreen.
+			// resolution_ = {};
+			break;
+		case ResolutionMode::Stretch:
+			std::invoke(center_on_resolution);
+			//   resolution_ = {};
+			//   resolution_.origin = Origin::TopLeft;
+			//   resolution_.size = resolution;
+			break;
+		case ResolutionMode::Letterbox: {
+			// Size of the blackbars on one side.
+			V2_float letterbox_size{ 160, 0 };
+			V2_float size{ resolution_.IsZero() ? game.window.GetSize() : resolution_ };
+			std::invoke(center_on_resolution);
+			// camera.SetSize(size + letterbox_size);
+			//  camera.SetPosition(size / 2.0f);
+			post_flush = [&]() {
+				GLRenderer::SetViewport(
+					letterbox_size, game.window.GetSize() - 2.0f * letterbox_size
+				);
+			};
+			break;
+		}
+		case ResolutionMode::Overscan:	   break;
+		case ResolutionMode::IntegerScale: break;
+		default:						   PTGN_ERROR("Unrecognized resolution mode");
+	}
+	screen_target_.GetCamera().SetPrimary(camera);
+	screen_target_.SetRect(dest);
+	screen_target_.DrawToScreen(post_flush);
 
 	game.window.SwapBuffers();
 
