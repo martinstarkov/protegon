@@ -3,10 +3,12 @@
 #include <cstdint>
 
 #include "core/game.h"
+#include "core/window.h"
 #include "event/event_handler.h"
 #include "event/events.h"
 #include "event/input_handler.h"
 #include "math/geometry/polygon.h"
+#include "math/matrix4.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/gl_helper.h"
@@ -244,6 +246,23 @@ void RenderTarget::ForEachPixel(const std::function<void(V2_int, Color)>& func) 
 	}
 }
 
+void RenderTarget::DrawToScreen(const std::function<void()>& post_flush) {
+	Flush();
+
+	if (post_flush != nullptr) {
+		std::invoke(post_flush);
+	}
+
+	Matrix4 view_projection{ CameraManager::GetWindow().GetViewProjection() };
+	LayerInfo layer_info{ LayerInfo::ScreenLayer{} };
+
+	game.shader.Get(ScreenShader::Default)
+		.Draw(GetTexture(), Get().destination_, view_projection, {}, layer_info);
+
+	// Screen target is not cleared after drawing as it needs to be unbound for SDL2 to swap it to
+	// the window buffer.
+}
+
 void RenderTarget::Draw(const TextureInfo& texture_info, const Shader& shader) {
 	Draw(texture_info, {}, shader);
 }
@@ -258,26 +277,13 @@ void RenderTarget::Draw(
 		used_shader = game.shader.Get(ScreenShader::Default);
 	}
 
-	LayerInfo layer{ layer_info };
+	Matrix4 view_projection{
+		layer_info.GetRenderTarget().GetCamera().GetPrimary().GetViewProjection()
+	};
 
-	bool screen_target{ *this == game.renderer.screen_target_ };
+	used_shader.Draw(GetTexture(), Get().destination_, view_projection, texture_info, layer_info);
 
-	Matrix4 view_projection;
-
-	if (screen_target) {
-		layer			= LayerInfo{ LayerInfo::ScreenLayer{} };
-		view_projection = GetRenderData().GetViewProjection();
-	} else {
-		view_projection = layer_info.GetRenderTarget().GetCamera().GetPrimary().GetViewProjection();
-	}
-
-	used_shader.Draw(GetTexture(), Get().destination_, view_projection, texture_info, layer);
-
-	// Screen target is not cleared after drawing as it needs to be unbound for SDL2 to swap it to
-	// the window buffer.
-	if (!screen_target) {
-		Clear();
-	}
+	Clear();
 }
 
 CameraManager& RenderTarget::GetCamera() {

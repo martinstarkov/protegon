@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "math/geometry/polygon.h"
+#include "math/matrix4.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/frame_buffer.h"
@@ -29,7 +30,9 @@ struct RenderTargetInstance {
 	~RenderTargetInstance()										 = default;
 
 	void Flush();
+
 	void Bind() const;
+
 	void Clear() const;
 	void SetClearColor(const Color& clear_color);
 	void SetBlendMode(BlendMode blend_mode);
@@ -184,6 +187,10 @@ public:
 
 private:
 	friend class impl::Renderer;
+
+	// @param post_flush Potential callback after screen target is flushed. For instance, for
+	// setting custom viewport for letterboxing.
+	void DrawToScreen(const std::function<void()>& post_flush = nullptr);
 
 	// @return Mouse relative to the window and the render target's primary camera size (zoom
 	// included).
