@@ -244,9 +244,9 @@ ptgn::Raycast Circle::Raycast(const V2_float& ray, const Rect& rect) const {
 	e.size	   = rect.size + V2_float{ radius * 2.0f, radius * 2.0f };
 	e.origin   = Origin::TopLeft;
 
-	if (!seg.Overlaps(e)) {
+	/*if (!seg.Overlaps(e)) {
 		return c;
-	}
+	}*/
 
 	V2_float b_min{ rect.Min() };
 	V2_float b_max{ rect.Max() };

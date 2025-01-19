@@ -271,7 +271,7 @@ ptgn::Raycast Line::Raycast(const Circle& circle) const {
 
 	float mag2{ impact.Dot(impact) };
 
-	if (NearlyEqual(mag2, 0.0f) || NearlyEqual(mag2, circle.radius * circle.radius)) {
+	if (NearlyEqual(mag2, 0.0f) /* || NearlyEqual(mag2, circle.radius * circle.radius)*/) {
 		c = {};
 		return c;
 	}
