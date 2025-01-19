@@ -263,13 +263,16 @@ void RenderTarget::Draw(
 
 	bool screen_target{ *this == game.renderer.screen_target_ };
 
+	Matrix4 view_projection;
+
 	if (screen_target) {
-		layer = LayerInfo{ LayerInfo::ScreenLayer{} };
+		layer			= LayerInfo{ LayerInfo::ScreenLayer{} };
+		view_projection = GetRenderData().GetViewProjection();
+	} else {
+		view_projection = layer_info.GetRenderTarget().GetCamera().GetPrimary().GetViewProjection();
 	}
 
-	used_shader.Draw(
-		GetTexture(), Get().destination_, GetRenderData().GetViewProjection(), texture_info, layer
-	);
+	used_shader.Draw(GetTexture(), Get().destination_, view_projection, texture_info, layer);
 
 	// Screen target is not cleared after drawing as it needs to be unbound for SDL2 to swap it to
 	// the window buffer.
