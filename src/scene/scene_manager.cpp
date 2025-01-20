@@ -24,121 +24,48 @@ namespace ptgn::impl {
 
 void SceneManager::UnloadImpl(const InternalKey& scene_key) {
 	if (Has(scene_key)) {
-		auto scene = Get(scene_key);
+		Get(scene_key)->Add(Scene::Action::Unload);
+	}
+}
+
+void SceneManager::EnterImpl(
+	const InternalKey& scene_key, const SceneTransition& scene_transition
+) {
+	PTGN_ASSERT(Has(scene_key), "Cannot set scene as active unless it has been loaded first");
+	if (active_scene_ == nullptr && !game.IsRunning()) {
+		active_scene_ = Get(scene_key);
+		active_scene_->Init();
+		// First active scene, aka the starting scene. Enter the game loop.
+		game.MainLoop();
+	} else {
+		Get(scene_key)->Add(Scene::Action::Enter);
+	}
+	// TODO: Fix:
+	// scene_transition.Start(false, from_scene_key, to_scene_key, Get(from_scene_key));
+	// scene_transition.Start(true, to_scene_key, from_scene_key, Get(to_scene_key));
+}
+
+void SceneManager::UnloadAll() {
+	auto& map{ GetMap() };
+	for (auto& [key, scene] : map) {
 		scene->Add(Scene::Action::Unload);
 	}
 }
 
-void SceneManager::InitScene(const InternalKey& scene_key) {
-	PTGN_ASSERT(Has(scene_key), "Cannot initialize a scene unless it has been loaded first");
-	auto scene = Get(scene_key);
-	scene->Add(Scene::Action::Init);
+Scene& SceneManager::GetActive() {
+	PTGN_ASSERT(active_scene_ != nullptr, "There is no currently active scene");
+	return *active_scene_;
 }
 
-void SceneManager::AddActiveImpl(const InternalKey& scene_key, bool first_scene) {
-	if (HasActiveSceneImpl(scene_key)) {
-		return;
-	}
-	PTGN_ASSERT(Has(scene_key), "Cannot add scene to active unless it has been loaded first");
-
-	active_scenes_.emplace_back(scene_key);
-	InitScene(scene_key);
-
-	if (first_scene) {
-		// First active scene, aka the starting scene. Enter the game loop.
-		game.MainLoop();
-	}
-}
-
-void SceneManager::ClearActive() {
-	for (auto it = active_scenes_.begin(); it != active_scenes_.end();) {
-		Get(*it)->Add(Scene::Action::Shutdown);
-		it = active_scenes_.erase(it);
-	}
-	PTGN_ASSERT(active_scenes_.empty(), "Failed to clear active scenes");
-}
-
-void SceneManager::UnloadAllScenes() {
-	auto& map{ GetMap() };
-	for (auto it = map.begin(); it != map.end(); ++it) {
-		it->second->Add(Scene::Action::Unload);
-	}
-}
-
-void SceneManager::RemoveActiveImpl(const InternalKey& scene_key) {
-	if (!HasActiveSceneImpl(scene_key)) {
-		return;
-	}
-	PTGN_ASSERT(
-		Has(scene_key), "Cannot remove active scene if it has not been loaded into "
-						"the scene manager"
-	);
-	for (auto it = active_scenes_.begin(); it != active_scenes_.end();) {
-		if (*it == scene_key) {
-			Get(scene_key)->Add(Scene::Action::Shutdown);
-			it = active_scenes_.erase(it);
-		} else {
-			++it;
-		}
-	}
-}
-
-void SceneManager::TransitionActiveImpl(
-	const InternalKey& from_scene_key, const InternalKey& to_scene_key,
-	const SceneTransition& transition
-) {
-	PTGN_ASSERT(
-		HasActiveSceneImpl(from_scene_key),
-		"Cannot transition from a scene which is not currently active"
-	);
-	if (HasActiveSceneImpl(to_scene_key)) {
-		return;
-	}
-
-	transition.Start(false, from_scene_key, to_scene_key, Get(from_scene_key));
-	transition.Start(true, to_scene_key, from_scene_key, Get(to_scene_key));
-}
-
-void SceneManager::SwitchActiveScenesImpl(const InternalKey& scene1, const InternalKey& scene2) {
-	PTGN_ASSERT(
-		HasActiveSceneImpl(scene1),
-		"Cannot switch scene which does not exist in the active scene vector"
-	);
-	PTGN_ASSERT(
-		HasActiveSceneImpl(scene2),
-		"Cannot switch scene which does not exist in the active scene vector"
-	);
-	SwapVectorElements(active_scenes_, scene1, scene2);
-}
-
-std::vector<std::shared_ptr<Scene>> SceneManager::GetActiveScenes() {
-	std::vector<std::shared_ptr<Scene>> active{};
-	for (auto scene_key : active_scenes_) {
-		PTGN_ASSERT(
-			Has(scene_key),
-			"Attempting to retrieve active scene which is not loaded in the scene manager"
-		);
-		active.emplace_back(Get(scene_key));
-	}
-
-	return active;
-}
-
-Scene& SceneManager::GetTopActive() {
-	PTGN_ASSERT(!active_scenes_.empty(), "Cannot get top active scene, there are no active scenes");
-	auto scene_key{ active_scenes_.back() };
-	PTGN_ASSERT(
-		Has(scene_key),
-		"Cannot retrieve top active scene which has not been loaded into the scene manager"
-	);
-	auto scene{ Get(scene_key) };
-	return *scene;
+const Scene& SceneManager::GetActive() const {
+	PTGN_ASSERT(active_scene_ != nullptr, "There is no currently active scene");
+	return *active_scene_;
 }
 
 void SceneManager::Reset() {
-	UnloadAllScenes();
-	UpdateFlagged();
-	active_scenes_ = {};
+	UnloadAll();
+	UpdateFlags();
+	active_scene_ = nullptr;
 	MapManager::Reset();
 }
 
@@ -155,25 +82,12 @@ void SceneManager::Update() {
 		if (scene->actions_.empty()) {
 			current_scene_ = scene;
 			scene->Update();
-			// CONSIDER: Do we need to flush scenes immediately or can we wait?
-			// scene->target_.Flush();
+			scene->target_.Draw(
+				TextureInfo{ scene->tint_ }, LayerInfo{ 0, game.renderer.screen_target_ }
+			);
 		}
 	}
 	current_scene_ = nullptr;
-	DrawActiveScenes();
-}
-
-void SceneManager::DrawActiveScenes() {
-	for (auto scene_key : active_scenes_) {
-		PTGN_ASSERT(
-			Has(scene_key),
-			"Attempting to draw an active scene which has not been loaded into the scene manager"
-		);
-		auto scene{ Get(scene_key) };
-		scene->target_.Draw(
-			TextureInfo{ scene->tint_ }, LayerInfo{ 0, game.renderer.screen_target_ }
-		);
-	}
 }
 
 Scene& SceneManager::GetCurrent() {
@@ -239,10 +153,6 @@ void SceneManager::UpdateFlagged() {
 			++it;
 		}
 	}
-}
-
-bool SceneManager::HasActiveSceneImpl(const InternalKey& key) const {
-	return VectorContains(active_scenes_, key);
 }
 
 } // namespace ptgn::impl

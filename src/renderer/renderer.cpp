@@ -135,6 +135,10 @@ void Renderer::Shutdown() {
 
 void Renderer::SetResolution(const V2_int& resolution) {
 	resolution_ = resolution;
+	// User expects setting resolution to take effect immediately.
+	if (scaling_mode_ == ResolutionMode::Disabled) {
+		scaling_mode_ = ResolutionMode::Stretch;
+	}
 }
 
 void Renderer::SetResolutionMode(ResolutionMode scaling_mode) {
@@ -198,6 +202,8 @@ void Renderer::Flush() {
 }
 
 void Renderer::Present() {
+	// TODO: Move this to happen only when setting resolution. This would allow for example only one
+	// render target to be drawn as resolution.
 	auto camera{ screen_target_.GetCamera().GetPrimary() };
 	Rect dest{ Rect::Fullscreen() };
 	auto center_on_resolution = [&]() {

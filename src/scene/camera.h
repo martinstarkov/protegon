@@ -69,6 +69,10 @@ public:
 	void SetToWindow(bool continuously = true);
 	void CenterOnArea(const V2_float& size);
 
+	// Converts a coordinate from being relative to the window to being relative to this camera.
+	// @param coordinate The coordinate to be converted to camera space.
+	[[nodiscard]] V2_float ScreenToCamera(const V2_float& coordinate) const;
+
 	// Origin at the top left.
 	[[nodiscard]] Rect GetRect() const;
 

@@ -3,12 +3,10 @@
 #include <cstdint>
 
 #include "core/game.h"
-#include "core/window.h"
 #include "event/event_handler.h"
 #include "event/events.h"
 #include "event/input_handler.h"
 #include "math/geometry/polygon.h"
-#include "math/matrix4.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/gl_helper.h"
@@ -16,7 +14,6 @@
 #include "renderer/gl_renderer.h"
 #include "renderer/layer_info.h"
 #include "renderer/render_data.h"
-#include "renderer/renderer.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
@@ -253,11 +250,11 @@ void RenderTarget::DrawToScreen(const std::function<void()>& post_flush) {
 		std::invoke(post_flush);
 	}
 
-	Matrix4 view_projection{ CameraManager::GetWindow().GetViewProjection() };
-	LayerInfo layer_info{ LayerInfo::ScreenLayer{} };
-
 	game.shader.Get(ScreenShader::Default)
-		.Draw(GetTexture(), Get().destination_, view_projection, {}, layer_info);
+		.Draw(
+			GetTexture(), Get().destination_, CameraManager::GetWindow().GetViewProjection(), {},
+			LayerInfo{ LayerInfo::ScreenLayer{} }
+		);
 
 	// Screen target is not cleared after drawing as it needs to be unbound for SDL2 to swap it to
 	// the window buffer.
@@ -272,16 +269,11 @@ void RenderTarget::Draw(
 ) {
 	Flush();
 
-	Shader used_shader{ shader };
-	if (!used_shader.IsValid()) {
-		used_shader = game.shader.Get(ScreenShader::Default);
-	}
-
-	Matrix4 view_projection{
-		layer_info.GetRenderTarget().GetCamera().GetPrimary().GetViewProjection()
-	};
-
-	used_shader.Draw(GetTexture(), Get().destination_, view_projection, texture_info, layer_info);
+	Shader{ shader.IsValid() ? shader : game.shader.Get(ScreenShader::Default) }.Draw(
+		GetTexture(), Get().destination_,
+		layer_info.GetRenderTarget().GetCamera().GetPrimary().GetViewProjection(), texture_info,
+		layer_info
+	);
 
 	Clear();
 }
@@ -301,68 +293,23 @@ void RenderTarget::Bind() const {
 	Get().Bind();
 }
 
-V2_float RenderTarget::ScaleToTarget(const V2_float& position) const {
+V2_float RenderTarget::ScreenToTarget(const V2_float& position) const {
 	PTGN_ASSERT(IsValid(), "Cannot retrieve render target scaling");
-	auto& i{ Get() };
 	Rect dest{ GetRect() };
-	V2_float screen_pos{ ScreenToWorld(position) };
-	V2_float scaled_pos{ (screen_pos - dest.Min()) * GetCamera().GetPrimary().GetSize() /
-						 dest.size };
-	return scaled_pos;
-}
-
-V2_float RenderTarget::WorldToScreen(const V2_float& position) const {
-	auto primary{ GetCamera().GetPrimary() };
-	float scale{ primary.GetZoom() };
-	PTGN_ASSERT(scale != 0.0f);
-	return (position - primary.GetPosition()) * scale + primary.GetSize() / 2.0f;
-}
-
-V2_float RenderTarget::ScreenToWorld(const V2_float& position) const {
-	auto primary{ GetCamera().GetPrimary() };
-	float scale{ primary.GetZoom() };
-	PTGN_ASSERT(scale != 0.0f);
-	return (position - primary.GetSize() * 0.5f) / scale + primary.GetPosition();
-}
-
-V2_float RenderTarget::ScaleToWorld(const V2_float& size) const {
-	auto primary{ GetCamera().GetPrimary() };
-	float scale{ primary.GetZoom() };
-	PTGN_ASSERT(scale != 0.0f);
-	return size / scale;
-}
-
-float RenderTarget::ScaleToWorld(float size) const {
-	auto primary{ GetCamera().GetPrimary() };
-	float scale{ primary.GetZoom() };
-	PTGN_ASSERT(scale != 0.0f);
-	return size / scale;
-}
-
-V2_float RenderTarget::ScaleToScreen(const V2_float& size) const {
-	auto primary{ GetCamera().GetPrimary() };
-	float scale{ primary.GetZoom() };
-	PTGN_ASSERT(scale != 0.0f);
-	return size * scale;
-}
-
-float RenderTarget::ScaleToScreen(float size) const {
-	auto primary{ GetCamera().GetPrimary() };
-	float scale{ primary.GetZoom() };
-	PTGN_ASSERT(scale != 0.0f);
-	return size * scale;
+	auto p{ GetCamera().GetPrimary() };
+	return (p.ScreenToCamera(position) - dest.Min()) * p.GetSize() / dest.size;
 }
 
 V2_float RenderTarget::GetMousePosition() const {
-	return ScaleToTarget(game.input.GetMousePositionWindow());
+	return ScreenToTarget(game.input.GetMousePositionWindow());
 }
 
 V2_float RenderTarget::GetMousePositionPrevious() const {
-	return ScaleToTarget(game.input.GetMousePositionPreviousWindow());
+	return ScreenToTarget(game.input.GetMousePositionPreviousWindow());
 }
 
 V2_float RenderTarget::GetMouseDifference() const {
-	return ScaleToTarget(game.input.GetMouseDifferenceWindow());
+	return ScreenToTarget(game.input.GetMouseDifferenceWindow());
 }
 
 impl::RenderData& RenderTarget::GetRenderData() {

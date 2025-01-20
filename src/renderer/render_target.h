@@ -140,35 +140,10 @@ public:
 	[[nodiscard]] CameraManager& GetCamera();
 	[[nodiscard]] const CameraManager& GetCamera() const;
 
-	// Converts a coordinate from being relative to the world to being relative to the render
+	// Converts a coordinate from being relative to the screen to being relative to the render
 	// target's primary camera.
-	// @param position The position to be converted to screen space.
-	[[nodiscard]] V2_float WorldToScreen(const V2_float& position) const;
-
-	// Converts a coordinate from being relative to render target's primary camera to being relative
-	// to the world.
-	// @param position The position to be converted to world space.
-	[[nodiscard]] V2_float ScreenToWorld(const V2_float& position) const;
-
-	// Scales a size from being relative to the world to being relative to the render
-	// target's primary camera.
-	// @param size The size to be scaled to screen space.
-	[[nodiscard]] V2_float ScaleToScreen(const V2_float& size) const;
-
-	// Scales a size from being relative to the world to being relative to the render
-	// target's primary camera.
-	// @param size The size to be scaled to screen space.
-	[[nodiscard]] float ScaleToScreen(float size) const;
-
-	// Scales a size from being relative to the render target's primary camera to being relative to
-	// world space.
-	// @param size The size to be scaled to world space.
-	[[nodiscard]] V2_float ScaleToWorld(const V2_float& size) const;
-
-	// Scales a size from being relative to the render target's primary camera to being relative to
-	// world space.
-	// @param size The size to be scaled to world space.
-	[[nodiscard]] float ScaleToWorld(float size) const;
+	// @param coordinate The coordinate to be converted to target relative space.
+	[[nodiscard]] V2_float ScreenToTarget(const V2_float& coordinate) const;
 
 	// @return Mouse position scaled relative to the primary camera size of the render target.
 	[[nodiscard]] V2_float GetMousePosition() const;
@@ -191,10 +166,6 @@ private:
 	// @param post_flush Potential callback after screen target is flushed. For instance, for
 	// setting custom viewport for letterboxing.
 	void DrawToScreen(const std::function<void()>& post_flush = nullptr);
-
-	// @return Mouse relative to the window and the render target's primary camera size (zoom
-	// included).
-	[[nodiscard]] V2_float ScaleToTarget(const V2_float& position) const;
 
 	void Bind() const;
 };

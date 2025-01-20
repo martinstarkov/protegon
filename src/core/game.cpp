@@ -4,7 +4,6 @@
 #include <memory>
 #include <string>
 
-#include "SDL_timer.h"
 #include "audio/audio.h"
 #include "core/gl_context.h"
 #include "core/manager.h"
@@ -23,6 +22,7 @@
 #include "renderer/texture.h"
 #include "scene/camera.h"
 #include "scene/scene_manager.h"
+#include "SDL_timer.h"
 #include "ui/ui.h"
 #include "utility/debug.h"
 #include "utility/profiling.h"
@@ -187,11 +187,12 @@ bool Game::IsRunning() const {
 	return running_;
 }
 
-void Game::Init(const std::string& title, const V2_int& window_size, const Color& background_color) {
+void Game::Init(
+	const std::string& title, const V2_int& window_size, const Color& background_color
+) {
 #if defined(PTGN_PLATFORM_MACOS) && !defined(__EMSCRIPTEN__)
 	impl::InitApplePath();
 #endif
-	running_ = true;
 	if (!sdl_instance_->IsInitialized()) {
 		sdl_instance_->Init();
 	}
@@ -255,6 +256,7 @@ void Game::MainLoop() {
 	// loop starts. Comment this if you wish the window to appear hidden for an
 	// indefinite period of time.
 	window.SetSetting(WindowSetting::Shown);
+	running_ = true;
 #ifdef __EMSCRIPTEN__
 	EmscriptenInit();
 	emscripten_set_main_loop(EmscriptenLoop, 0, 1);
@@ -306,7 +308,7 @@ void Game::Update() {
 	);*/
 #endif
 
-	scene.UpdateFlagged();
+	scene.UpdateFlags();
 
 	if (profiler.IsEnabled()) {
 		profiler.PrintAll();

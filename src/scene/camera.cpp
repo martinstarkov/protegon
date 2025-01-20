@@ -83,6 +83,10 @@ void OrthographicCamera::CenterOnArea(const V2_float& size) {
 	SetPosition(size / 2.0f);
 }
 
+V2_float OrthographicCamera::ScreenToCamera(const V2_float& coordinate) const {
+	return (coordinate - GetSize() * 0.5f) / GetZoom() + GetPosition();
+}
+
 Rect OrthographicCamera::GetRect() const {
 	return Rect{ GetTopLeftPosition(), GetSize(), Origin::TopLeft };
 }

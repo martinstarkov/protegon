@@ -5,8 +5,6 @@
 #include <set>
 
 #include "renderer/color.h"
-#include "renderer/render_target.h"
-#include "scene/camera.h"
 #include "utility/time.h"
 
 namespace ptgn {
@@ -100,43 +98,31 @@ public:
 	Scene();
 	virtual ~Scene() = default;
 
-	// Called when the scene is added to active scenes.
-	virtual void Init() {
+	// Called when the scene is set as active.
+	virtual void Enter() {
 		/* user implementation */
 	}
 
-	// Called once per frame for each active scene.
+	// Called once per frame when this scene is active.
 	virtual void Update() {
 		/* user implementation */
 	}
 
-	// Called when the scene is removed from active scenes.
-	virtual void Shutdown() {
+	// Called when the scene is no longer active.
+	virtual void Exit() {
 		/* user implementation */
 	}
-
-	// Called when the scene is unloaded.
-	virtual void Unload() {
-		/* user implementation */
-	}
-
-	[[nodiscard]] RenderTarget GetRenderTarget() const;
-	[[nodiscard]] const CameraManager& GetCamera() const;
-	[[nodiscard]] CameraManager& GetCamera();
 
 private:
 	friend class impl::SceneManager;
 	friend class SceneTransition;
 
-	RenderTarget target_;
-	Color tint_;
-
 	// If the actions is manually numbered, its order determines the execution order of scene
 	// functions.
 	enum class Action {
-		Init	 = 0,
-		Shutdown = 1,
-		Unload	 = 2
+		Enter  = 0,
+		Exit   = 1,
+		Unload = 2
 	};
 
 	void Add(Action new_action);
