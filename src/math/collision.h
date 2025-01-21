@@ -4,14 +4,14 @@
 #include <unordered_set>
 #include <vector>
 
-#include "math/collider.h"
-#include "math/raycast.h"
 #include "components/transform.h"
 #include "core/game.h"
 #include "ecs/ecs.h"
+#include "math/collider.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/intersection.h"
 #include "math/geometry/polygon.h"
+#include "math/raycast.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
 #include "renderer/color.h"
@@ -20,6 +20,7 @@
 namespace ptgn::impl {
 
 class Game;
+class Physics;
 
 class CollisionHandler {
 public:
@@ -29,8 +30,6 @@ public:
 	CollisionHandler(CollisionHandler&&)				 = default;
 	CollisionHandler& operator=(const CollisionHandler&) = delete;
 	CollisionHandler& operator=(CollisionHandler&&)		 = default;
-
-	void Update(ecs::Manager& manager) const;
 
 	template <typename T>
 	static void Overlap(
@@ -199,6 +198,9 @@ public:
 
 private:
 	friend class Game;
+	friend class Physics;
+
+	void Update(ecs::Manager& manager) const;
 
 	static void DrawVelocity(const V2_float& start, const V2_float& vel, const Color& color);
 

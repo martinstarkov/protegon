@@ -3,9 +3,7 @@
 #include "ecs/ecs.h"
 #include "math/vector2.h"
 
-namespace ptgn {
-
-namespace impl {
+namespace ptgn::impl {
 
 class Game;
 
@@ -17,18 +15,10 @@ public:
 	// @return Frame time in milliseconds
 	[[nodiscard]] float dt() const;
 
-	void Update(ecs::Manager& manager) const;
-
 private:
 	friend class Game;
 
-	void Init() {
-		/* Add stuff here in the future? */
-	}
-
-	void Shutdown() {
-		/* Add stuff here in the future? */
-	}
+	void Update(ecs::Manager& manager) const;
 
 	V2_float gravity_{ 0.0f, 30.0f * 60.0f };
 };
@@ -143,6 +133,4 @@ computeVelocity : function(body, delta) {
 //     velocity = velocity.Normalized() * max_velocity;
 // }
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

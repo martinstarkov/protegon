@@ -2,42 +2,40 @@
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 800, 800 };
+constexpr V2_int window_size{ 800, 800 };
 
-static void TransitionScene(
-	std::string_view from, std::string_view to, milliseconds duration = milliseconds{ 250 }
-) {
+static void EnterScene(std::string_view key, milliseconds duration = milliseconds{ 250 }) {
 	if (game.input.KeyDown(Key::W)) {
-		game.scene.TransitionActive(from, to, { TransitionType::CoverDown, duration });
+		game.scene.Enter(key, { TransitionType::CoverDown, duration });
 	} else if (game.input.KeyDown(Key::S)) {
-		game.scene.TransitionActive(from, to, { TransitionType::CoverUp, duration });
+		game.scene.Enter(key, { TransitionType::CoverUp, duration });
 	} else if (game.input.KeyDown(Key::D)) {
-		game.scene.TransitionActive(from, to, { TransitionType::CoverLeft, duration });
+		game.scene.Enter(key, { TransitionType::CoverLeft, duration });
 	} else if (game.input.KeyDown(Key::A)) {
-		game.scene.TransitionActive(from, to, { TransitionType::CoverRight, duration });
+		game.scene.Enter(key, { TransitionType::CoverRight, duration });
 	} else if (game.input.KeyDown(Key::T)) {
-		game.scene.TransitionActive(from, to, { TransitionType::UncoverDown, duration });
+		game.scene.Enter(key, { TransitionType::UncoverDown, duration });
 	} else if (game.input.KeyDown(Key::G)) {
-		game.scene.TransitionActive(from, to, { TransitionType::UncoverUp, duration });
+		game.scene.Enter(key, { TransitionType::UncoverUp, duration });
 	} else if (game.input.KeyDown(Key::F)) {
-		game.scene.TransitionActive(from, to, { TransitionType::UncoverLeft, duration });
+		game.scene.Enter(key, { TransitionType::UncoverLeft, duration });
 	} else if (game.input.KeyDown(Key::H)) {
-		game.scene.TransitionActive(from, to, { TransitionType::UncoverRight, duration });
+		game.scene.Enter(key, { TransitionType::UncoverRight, duration });
 	} else if (game.input.KeyDown(Key::DOWN)) {
-		game.scene.TransitionActive(from, to, { TransitionType::PushDown, duration });
+		game.scene.Enter(key, { TransitionType::PushDown, duration });
 	} else if (game.input.KeyDown(Key::UP)) {
-		game.scene.TransitionActive(from, to, { TransitionType::PushUp, duration });
+		game.scene.Enter(key, { TransitionType::PushUp, duration });
 	} else if (game.input.KeyDown(Key::LEFT)) {
-		game.scene.TransitionActive(from, to, { TransitionType::PushLeft, duration });
+		game.scene.Enter(key, { TransitionType::PushLeft, duration });
 	} else if (game.input.KeyDown(Key::RIGHT)) {
-		game.scene.TransitionActive(from, to, { TransitionType::PushRight, duration });
+		game.scene.Enter(key, { TransitionType::PushRight, duration });
 	} else if (game.input.KeyDown(Key::Q)) {
-		game.scene.TransitionActive(from, to, { TransitionType::Fade, milliseconds{ 4000 } });
+		game.scene.Enter(key, { TransitionType::Fade, milliseconds{ 4000 } });
 	} else if (game.input.KeyDown(Key::E)) {
 		SceneTransition t{ TransitionType::FadeThroughColor, milliseconds{ 3000 } };
 		t.SetFadeColor(color::Black);
 		t.SetFadeColorDuration(milliseconds{ 1000 });
-		game.scene.TransitionActive(from, to, t);
+		game.scene.Enter(key, t);
 	}
 }
 
@@ -48,7 +46,7 @@ public:
 
 	void Update() final {
 		test.Draw();
-		TransitionScene("scene2", "scene1");
+		EnterScene("scene1");
 	}
 };
 
@@ -59,7 +57,7 @@ public:
 
 	void Update() final {
 		test.Draw();
-		TransitionScene("scene1", "scene2");
+		EnterScene("scene2");
 	}
 };
 
@@ -70,20 +68,15 @@ public:
 		game.scene.Load<Scene2>("scene2");
 	}
 
-	void Init() override {
-		game.scene.AddActive("scene1");
-	}
-
-	void Shutdown() override {
-		game.scene.RemoveActive("scene1");
-		game.scene.RemoveActive("scene2");
+	void Enter() override {
+		game.scene.Enter("scene1");
 	}
 
 	void Update() override {}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("SceneTransitionExample", resolution);
-	game.scene.LoadActive<SceneTransitionExample>("scene_transition_example");
+	game.Init("SceneTransitionExample", window_size);
+	game.scene.Enter<SceneTransitionExample>("scene_transition_example");
 	return 0;
 }

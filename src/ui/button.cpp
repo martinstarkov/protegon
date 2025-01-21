@@ -15,11 +15,10 @@
 #include "math/math.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
-#include "renderer/layer_info.h"
-#include "renderer/render_target.h"
 #include "renderer/renderer.h"
 #include "renderer/text.h"
 #include "renderer/texture.h"
+#include "utility/debug.h"
 #include "utility/handle.h"
 
 namespace ptgn {
@@ -58,6 +57,7 @@ ButtonResourceState GetButtonResourceState(ButtonState button_state, bool toggle
 
 ButtonInstance::ButtonInstance() {
 	game.event.mouse.Subscribe(this, [this](MouseEvent t, const Event& e) { OnMouseEvent(t, e); });
+	render_target_ = game.renderer.GetRenderTarget();
 }
 
 ButtonInstance::~ButtonInstance() {
@@ -160,17 +160,11 @@ void ButtonInstance::RecheckState() {
 }
 
 V2_float ButtonInstance::GetMousePosition() const {
-	if (auto r{ layer_info_.GetRenderTarget() }; r.IsValid()) {
-		return r.GetMousePosition();
-	}
-	return game.input.GetMousePositionWindow();
+	return game.input.GetMousePosition(render_target_);
 }
 
 V2_float ButtonInstance::GetMousePositionPrevious() const {
-	if (auto r{ layer_info_.GetRenderTarget() }; r.IsValid()) {
-		return r.GetMousePositionPrevious();
-	}
-	return game.input.GetMousePositionPreviousWindow();
+	return game.input.GetMousePositionPrevious(render_target_);
 }
 
 bool ButtonInstance::InsideRect(const V2_int& position) const {
@@ -344,6 +338,7 @@ void Button::Draw() {
 	PTGN_ASSERT(IsValid(), "Cannot draw invalid or uninitialized button");
 
 	auto& i{ Handle::Get() };
+	i.render_target_ = game.renderer.GetRenderTarget();
 
 	if (!i.visibility_) {
 		return;
@@ -356,20 +351,14 @@ void Button::Draw() {
 	if (auto texture{ GetFinalResource(c, d, i.textures_) }; texture.IsValid()) {
 		TextureInfo info;
 		info.tint = GetFinalResource(c, d, i.texture_tint_colors_, color::White);
-		texture.Draw(i.rect_, info, i.layer_info_);
+		texture.Draw(i.rect_, info, i.render_layer_);
 	} else if (auto bg{ GetFinalResource(c, d, i.bg_colors_) }; bg != Color{}) {
 		if (i.radius_ > 0.0f) {
 			RoundedRect r{ i.rect_.position, i.radius_, i.rect_.size, i.rect_.origin,
 						   i.rect_.rotation };
-			r.Draw(
-				bg, i.line_thickness_,
-				{ i.layer_info_.GetRenderLayer(), i.layer_info_.GetRenderTarget() }
-			);
+			r.Draw(bg, i.line_thickness_, i.render_layer_);
 		} else {
-			i.rect_.Draw(
-				bg, i.line_thickness_,
-				{ i.layer_info_.GetRenderLayer(), i.layer_info_.GetRenderTarget() }
-			);
+			i.rect_.Draw(bg, i.line_thickness_, i.render_layer_);
 		}
 	}
 
@@ -387,7 +376,7 @@ void Button::Draw() {
 		}
 		text.Draw(
 			{ i.rect_.Center(), text_size, i.text_alignment_, i.rect_.rotation },
-			{ i.layer_info_.GetRenderLayer() + 1, i.layer_info_.GetRenderTarget() }
+			i.render_layer_ + 1
 		);
 		text.SetColor(og_text_color);
 	}
@@ -397,20 +386,14 @@ void Button::Draw() {
 			if (i.radius_ > 0.0f) {
 				RoundedRect r{ i.rect_.position, i.radius_, i.rect_.size, i.rect_.origin,
 							   i.rect_.rotation };
-				r.Draw(
-					border_color, i.border_thickness_,
-					{ i.layer_info_.GetRenderLayer() + 2, i.layer_info_.GetRenderTarget() }
-				);
+				r.Draw(border_color, i.border_thickness_, i.render_layer_ + 2);
 			} else {
-				i.rect_.Draw(
-					border_color, i.border_thickness_,
-					{ i.layer_info_.GetRenderLayer() + 2, i.layer_info_.GetRenderTarget() }
-				);
+				i.rect_.Draw(border_color, i.border_thickness_, i.render_layer_ + 2);
 			}
 		}
 	}
 	if (i.dropdown_.IsValid()) {
-		i.dropdown_.Draw(i.rect_, i.layer_info_);
+		i.dropdown_.Draw(i.rect_, i.render_layer_);
 	}
 }
 

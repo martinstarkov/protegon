@@ -2,11 +2,11 @@
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 800, 800 };
+constexpr V2_int window_size{ 800, 800 };
 
 class EventExampleScene : public Scene {
 public:
-	void Init() override {
+	void Enter() override {
 		game.window.SetSetting(WindowSetting::Resizable);
 
 		auto event_observer = &game.event;
@@ -88,7 +88,7 @@ public:
 		);
 	}
 
-	void Shutdown() override {
+	void Exit() override {
 		game.event.UnsubscribeAll(&game.event);
 	}
 
@@ -96,7 +96,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("EventExampleScene", resolution);
-	game.scene.LoadActive<EventExampleScene>("event_example");
+	game.Init("EventExampleScene", window_size);
+	game.scene.Enter<EventExampleScene>("event_example");
 	return 0;
 }

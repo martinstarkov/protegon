@@ -2,7 +2,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 1280, 720 };
+constexpr V2_int window_size{ 1280, 720 };
 
 class FluidContainer {
 public:
@@ -224,7 +224,7 @@ private:
 class FluidExample : public Scene {
 public:
 	const V2_float scale{ 6, 6 };
-	FluidContainer fluid{ resolution / scale, 0.1f, 0.0001f,
+	FluidContainer fluid{ window_size / scale, 0.1f, 0.0001f,
 						  0.000001f }; // Dt, Diffusion, Viscosity
 
 	V2_float gravity;				   // Initial gravity
@@ -303,7 +303,11 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("Fluid: Click (add), Arrow keys (shift vector field), R (reset vector field), Space (reset fluid)", resolution);
-	game.scene.LoadActive<FluidExample>("fluid");
+	game.Init(
+		"Fluid: Click (add), Arrow keys (shift vector field), R (reset vector field), Space (reset "
+		"fluid)",
+		window_size
+	);
+	game.scene.Enter<FluidExample>("fluid");
 	return 0;
 }

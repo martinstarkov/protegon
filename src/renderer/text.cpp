@@ -9,7 +9,6 @@
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/font.h"
-#include "renderer/layer_info.h"
 #include "renderer/surface.h"
 #include "renderer/texture.h"
 #include "utility/debug.h"
@@ -61,11 +60,7 @@ Text::Text(
 	t.texture_			 = RecreateTexture();
 }
 
-void Text::Draw(const Rect& destination) const {
-	Draw(destination, {});
-}
-
-void Text::Draw(const Rect& destination, const LayerInfo& layer_info) const {
+void Text::Draw(const Rect& destination, std::int32_t render_layer) const {
 	if (!IsValid()) {
 		return;
 	}
@@ -88,7 +83,7 @@ void Text::Draw(const Rect& destination, const LayerInfo& layer_info) const {
 		dest.size = GetSize();
 	}
 
-	texture.Draw(dest, {}, layer_info);
+	texture.Draw(dest, {}, render_layer);
 }
 
 Text& Text::SetFont(const FontOrKey& font) {

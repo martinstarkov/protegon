@@ -2,7 +2,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 800, 800 };
+constexpr V2_int window_size{ 800, 800 };
 
 class AudioExample : public Scene {
 public:
@@ -41,7 +41,7 @@ public:
 	Color sound1_color{ color::Gold };
 	Color sound2_color{ color::LightPink };
 
-	void Init() override {
+	void Enter() override {
 		game.music.Load("music", "resources/music1.ogg");
 		game.sound.Load("sound", "resources/sound1.ogg");
 
@@ -288,14 +288,14 @@ public:
 		);
 
 		V2_int offset{ 6, 6 };
-		V2_int size{ (resolution - offset * (grid.GetSize() + V2_int{ 1, 1 })) / grid.GetSize() };
+		V2_int size{ (window_size - offset * (grid.GetSize() + V2_int{ 1, 1 })) / grid.GetSize() };
 
 		grid.ForEach([&](auto coord, Button& b) {
 			b.SetRect({ coord * size + (coord + V2_int{ 1, 1 }) * offset, size, Origin::TopLeft });
 		});
 	}
 
-	void Shutdown() override {
+	void Exit() override {
 		game.music.Reset();
 		game.sound.Reset();
 	}
@@ -331,7 +331,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("AudioExample", resolution);
-	game.scene.LoadActive<AudioExample>("audio");
+	game.Init("AudioExample", window_size);
+	game.scene.Enter<AudioExample>("audio");
 	return 0;
 }

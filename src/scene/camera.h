@@ -9,74 +9,51 @@
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "renderer/flip.h"
-#include "utility/handle.h"
-#include "utility/type_traits.h"
+#include "renderer/origin.h"
 
 namespace ptgn {
 
-class Game;
-class OrthographicCamera;
-class Renderer;
+struct WindowResizedEvent;
 
 namespace impl {
 
 class Game;
-class Renderer;
-class SceneCamera;
-struct RenderLayer;
-
-struct Camera {
-	Camera()							 = default;
-	Camera(const Camera&)				 = default;
-	Camera& operator=(const Camera&)	 = default;
-	Camera(Camera&&) noexcept			 = default;
-	Camera& operator=(Camera&&) noexcept = default;
-	~Camera();
-
-	// Top left position of camera.
-	V3_float position;
-
-	V2_float size;
-
-	float zoom{ 1.0f };
-
-	V3_float orientation;
-
-	void Reset();
-
-	// If rectangle IsZero(), no position bounds are enforced.
-	Rect bounding_box;
-
-	Flip flip{ Flip::None };
-
-	// Mutable used because view projection is recalculated only upon retrieval to reduce matrix
-	// multiplications.
-	mutable Matrix4 view{ 1.0f };
-	mutable Matrix4 projection{ 1.0f };
-	mutable Matrix4 view_projection{ 1.0f };
-	mutable bool recalculate_view{ false };
-	mutable bool recalculate_projection{ false };
-
-	bool center_to_window{ true };
-	bool resize_to_window{ true };
-};
+class CameraManager;
 
 } // namespace impl
 
-class OrthographicCamera : public Handle<impl::Camera> {
+class Camera {
 public:
+	// Default constructed camera will be continuously window sized.
+	Camera();
+	Camera(const Camera& copy);
+	Camera& operator=(const Camera& copy) noexcept;
+	Camera(Camera&& move) noexcept;
+	Camera& operator=(Camera&& move) noexcept;
+	~Camera();
+
+	// If continuously is true, camera will subscribe to window resize event.
 	// Set the camera to be the size of the window and centered on the window.
 	void SetToWindow(bool continuously = true);
+
+	// If continuously is true, camera will subscribe to window resize event.
+	// Set the camera to be centered on the window.
+	void CenterOnWindow(bool continuously = false);
+
+	// If continuously is true, camera will subscribe to window resize event.
+	// Set the camera to be the size of the window.
+	void SetSizeToWindow(bool continuously = false);
+
+	// Set the camera to be centered on area of the given size. Effectively the same as changing the
+	// size and position of the camera.
 	void CenterOnArea(const V2_float& size);
 
-	// Converts a coordinate from being relative to the window to being relative to this camera.
-	// @param coordinate The coordinate to be converted to camera space.
-	[[nodiscard]] V2_float ScreenToCamera(const V2_float& coordinate) const;
+	// Transforms a window relative pixel coordinate to being relative to this camera.
+	// @param screen_coordinate The coordinate to be transformed.
+	[[nodiscard]] V2_float ScreenToCamera(const V2_float& screen_coordinate) const;
 
 	// Origin at the top left.
 	[[nodiscard]] Rect GetRect() const;
-
-	[[nodiscard]] V2_float GetTopLeftPosition() const;
 
 	[[nodiscard]] V2_float GetSize() const;
 
@@ -85,9 +62,9 @@ public:
 	// Use Min() and Max() of rectangle to find top left and bottom right bounds of camera.
 	[[nodiscard]] Rect GetBounds() const;
 
-	[[nodiscard]] V2_float GetPosition() const;
-
-	[[nodiscard]] V3_float GetPosition3D() const;
+	// @param origin What point on the camera the position represents.
+	// @return The position of the camera.
+	[[nodiscard]] V2_float GetPosition(Origin origin = Origin::Center) const;
 
 	// (yaw, pitch, roll) (radians).
 	[[nodiscard]] V3_float GetOrientation() const;
@@ -99,22 +76,11 @@ public:
 
 	void SetFlip(Flip flip);
 
-	// If continuously is true, camera will subscribe to window resize event.
-	void CenterOnWindow(bool continuously = false);
-
 	// Camera bounds only apply along aligned axes. In other words: rotated cameras can see outside
 	// the bounding box.
 	void SetBounds(const Rect& bounding_box);
 
-	// If continuously is true, camera will subscribe to window resize event.
-	void SetSizeToWindow(bool continuously = false);
-
 	void SetSize(const V2_float& size);
-
-	// Set point which is at the center of the camera view.
-	void SetPosition(const V3_float& new_position);
-
-	void Translate(const V3_float& position_change);
 
 	// Set point which is at the center of the camera view.
 	void SetPosition(const V2_float& new_position);
@@ -159,31 +125,68 @@ public:
 
 	[[nodiscard]] const Matrix4& GetViewProjection() const;
 
+	operator Matrix4() const;
+
 protected:
-	void RefreshBounds();
-
-	void SetPositionImpl(const V3_float& new_position);
-	void SetSizeImpl(const V2_float& size);
-
 	[[nodiscard]] const Matrix4& GetView() const;
 	[[nodiscard]] const Matrix4& GetProjection() const;
+
+	void RefreshBounds();
+
+	void SetPosition(const V3_float& new_position);
+
+	void SubscribeToEvents();
+	void OnWindowResize(const WindowResizedEvent& e);
 
 	void RecalculateView() const;
 	void RecalculateProjection() const;
 	void RecalculateViewProjection() const;
 
-	void SubscribeToWindowResize();
-	void UnsubscribeFromWindowResize() const;
+	void Reset();
+
+	// Top left position of camera.
+	V3_float position;
+
+	V2_float size;
+
+	float zoom{ 1.0f };
+
+	V3_float orientation;
+
+	// If rectangle IsZero(), no position bounds are enforced.
+	Rect bounding_box;
+
+	Flip flip{ Flip::None };
+
+	// Mutable used because view projection is recalculated only upon retrieval to reduce matrix
+	// multiplications.
+	mutable Matrix4 view{ 1.0f };
+	mutable Matrix4 projection{ 1.0f };
+	mutable Matrix4 view_projection{ 1.0f };
+	mutable bool recalculate_view{ false };
+	mutable bool recalculate_projection{ false };
+
+	bool center_to_window{ true };
+	bool resize_to_window{ true };
+
+private:
+	friend class impl::CameraManager;
+
+	struct UninitializedCamera {};
+
+	explicit Camera(const UninitializedCamera&) {}
 };
 
-inline std::ostream& operator<<(std::ostream& os, const ptgn::OrthographicCamera& c) {
-	os << "[size: " << c.GetSize() << ", position: " << c.GetPosition() << "]";
+inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {
+	os << "[center position: " << c.GetPosition() << ", size: " << c.GetSize() << "]";
 	return os;
 }
 
-class CameraManager : public MapManager<OrthographicCamera> {
+namespace impl {
+
+class CameraManager : public MapManager<Camera> {
 public:
-	CameraManager();
+	CameraManager()									   = default;
 	~CameraManager() override						   = default;
 	CameraManager(CameraManager&&) noexcept			   = default;
 	CameraManager& operator=(CameraManager&&) noexcept = default;
@@ -195,94 +198,23 @@ public:
 		SetPrimaryImpl(GetInternalKey(key));
 	}
 
-	void SetPrimary(const OrthographicCamera& camera);
+	void SetPrimary(const Camera& camera);
 
-	[[nodiscard]] OrthographicCamera GetPrimary() const;
+	[[nodiscard]] const Camera& GetPrimary() const;
 
 	void Reset();
-
-	// Resets all render layer primary cameras.
-	void ResetPrimary();
-
-	[[nodiscard]] static const OrthographicCamera& GetWindow();
-
-private:
-	friend class impl::SceneCamera;
-	friend class impl::Game;
-	friend class impl::Renderer;
-	friend struct impl::RenderLayer;
-
-	void SetPrimaryImpl(const InternalKey& key);
-
-	OrthographicCamera primary_camera_;
-};
-
-namespace impl {
-
-// This class provides quick access to the current top active scene.
-// i.e. using this is class equivalent to game.scene.GetTopActive().camera
-class SceneCamera {
-public:
-	SceneCamera()							   = default;
-	~SceneCamera()							   = default;
-	SceneCamera(const SceneCamera&)			   = delete;
-	SceneCamera(SceneCamera&&)				   = default;
-	SceneCamera& operator=(const SceneCamera&) = delete;
-	SceneCamera& operator=(SceneCamera&&)	   = default;
-
-	using Item = CameraManager::Item;
-
-	template <typename TKey, typename... TArgs, tt::constructible<Item, TArgs...> = true>
-	static Item& Load(const TKey& key, TArgs&&... constructor_args) {
-		return LoadImpl(CameraManager::GetInternalKey(key), std::move(Item(constructor_args...)));
-	}
-
-	template <typename TKey>
-	static void Unload(const TKey& key) {
-		UnloadImpl(CameraManager::GetInternalKey(key));
-	}
-
-	template <typename TKey>
-	[[nodiscard]] static bool Has(const TKey& key) {
-		return HasImpl(CameraManager::GetInternalKey(key));
-	}
-
-	template <typename TKey>
-	[[nodiscard]] static Item& Get(const TKey& key) {
-		return GetImpl(CameraManager::GetInternalKey(key));
-	}
-
-	static void Clear();
-
-	template <typename TKey>
-	static void SetPrimary(const TKey& key) {
-		SetPrimaryImpl(CameraManager::GetInternalKey(key));
-	}
-
-	static void SetPrimary(const OrthographicCamera& camera);
-	[[nodiscard]] OrthographicCamera GetPrimary();
-
-	static void Reset();
-	static void ResetPrimary();
-	static void SetToWindow();
-
-	[[nodiscard]] const OrthographicCamera& GetWindow() const;
 
 private:
 	friend class Game;
 
-	using InternalKey = CameraManager::InternalKey;
-
-	static Item& LoadImpl(const InternalKey& key, Item&& item);
-	static void UnloadImpl(const InternalKey& key);
-	[[nodiscard]] static bool HasImpl(const InternalKey& key);
-	[[nodiscard]] static Item& GetImpl(const InternalKey& key);
-
-	static void SetPrimaryImpl(const InternalKey& key);
-
 	void Init();
 
-	OrthographicCamera window_camera_;
+	// Informs the renderer's current target that the primary camera has changed.
+	void CameraChanged() const;
+
+	void SetPrimaryImpl(const InternalKey& key);
+
+	Camera primary_camera_{ Camera::UninitializedCamera{} };
 };
 
 } // namespace impl
@@ -435,5 +367,14 @@ vertical
 	void OnMouseMoveEvent(const MouseMoveEvent& e);
 };
 */
+
+// Transforms a window relative pixel coordinate to being relative to the specified viewport and
+// primary game camera.
+// @param viewport The viewport relative to which the screen coordinate is transformed.
+// @param camera The camera relative to which the screen coordinate is transformed.
+// @param screen_coordinate The coordinate to be transformed.
+[[nodiscard]] V2_float ScreenToViewport(
+	const Rect& viewport, const Camera& camera, const V2_float& screen_coordinate
+);
 
 } // namespace ptgn

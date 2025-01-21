@@ -124,7 +124,7 @@ public:
 	float y{ 50 };
 	float y_step{ 130 };
 
-	void Init() override {
+	void Enter() override {
 		button			= CreateColorButton("Color", V2_float{ x1, y }, size, []() {
 			 PTGN_LOG("Clicked regular button");
 		 });
@@ -222,6 +222,6 @@ public:
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("ButtonExample");
-	game.scene.LoadActive<ButtonExample>("button_example");
+	game.scene.Enter<ButtonExample>("button_example");
 	return 0;
 }

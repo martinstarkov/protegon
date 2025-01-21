@@ -8,7 +8,7 @@ constexpr V2_int resolution{ 320, 240 }; // 4, 3
 class ResolutionExampleScene : public Scene {
 	Texture background{ "resources/test1.jpg" };
 
-	void Init() override {
+	void Enter() override {
 		game.renderer.SetResolution(resolution);
 		game.renderer.SetResolutionMode(ResolutionMode::Disabled);
 	}
@@ -24,7 +24,7 @@ class ResolutionExampleScene : public Scene {
 			game.renderer.SetResolutionMode(ResolutionMode::Letterbox);
 		}
 
-		background.Draw({ { 0, 0 }, resolution, Origin::TopLeft });
+		background.Draw({ { 0, 0 }, window_size, Origin::TopLeft });
 
 		Rect{ { -30, -30 }, { resolution.x + 60, 30 }, Origin::TopLeft }.Draw(color::Red);
 		Rect{ { resolution.x, 0 }, { 30, resolution.y }, Origin::TopLeft }.Draw(color::Blue);
@@ -36,6 +36,6 @@ class ResolutionExampleScene : public Scene {
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("ResolutionExample", window_size);
-	game.scene.LoadActive<ResolutionExampleScene>("resolution_example_scene");
+	game.scene.Enter<ResolutionExampleScene>("resolution_example_scene");
 	return 0;
 }

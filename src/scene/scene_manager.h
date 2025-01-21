@@ -6,12 +6,10 @@
 #include "core/manager.h"
 #include "scene/scene.h"
 #include "utility/debug.h"
-#include "utility/type_traits.h"
 
 namespace ptgn {
 
 class SceneTransition;
-struct LayerInfo;
 class CameraManager;
 
 namespace impl {
@@ -84,18 +82,18 @@ public:
 	TScene& Enter(
 		const TKey& scene_key, const SceneTransition& transition = {}, TArgs&&... constructor_args
 	) {
-		auto& scene{ Load<TScene>(scene_key, std::forward<TArgs>(constructor_args)...)) };
-		Enter(scene_key);
+		auto& scene{ Load<TScene>(scene_key, std::forward<TArgs>(constructor_args)...) };
+		EnterImpl(GetInternalKey(scene_key), transition);
 		return scene;
 	}
 
-	// Enter a scene. The currently active scene is updated every frame of the main game loop.
+	// Enter a scene. The current scene is updated every frame of the main game loop.
 	// @param scene_key A unique identifier for the loaded scene.
 	// @param transition Optional: An optional class allowing for custom scene transitions (e.g.
 	// fading or power point slides).
 	template <typename TKey>
 	void Enter(const TKey& scene_key, const SceneTransition& transition = {}) {
-		EnterImpl(GetInternalKey(scene_key, transition));
+		EnterImpl(GetInternalKey(scene_key), transition);
 	}
 
 	// Retrieve a scene from the scene manager. If the scene does not exist in the scene manager an
@@ -117,8 +115,8 @@ public:
 		return std::static_pointer_cast<TScene>(MapManager<std::shared_ptr<Scene>>::Get(scene_key));
 	}
 
-	// Unload a scene from the scene manager. If the scene is currently active, another active scene
-	// must be set during the update call, otherwise the engine stops.
+	// Unload a scene from the scene manager. If the unloaded scene is current, another scene must
+	// be entered during the update call, otherwise the game loop will be exited.
 	// @param scene_key The unique identifier for the scene.
 	template <typename TKey>
 	void Unload(const TKey& scene_key) {
@@ -128,18 +126,22 @@ public:
 	// Unloads all scenes from the scene manager.
 	void UnloadAll();
 
-	// @return The scene which is currently set as active.
+	// @return The scene which is current.
 	[[nodiscard]] Scene& GetCurrent();
 	[[nodiscard]] const Scene& GetCurrent() const;
+
+	// @return True if a scene has been entered, false otherwise.
+	[[nodiscard]] bool HasCurrent() const;
 
 private:
 	friend class ptgn::SceneTransition;
 	friend class impl::SceneCamera;
 	friend class impl::Game;
 	friend class impl::Renderer;
-	friend struct LayerInfo;
 
-	// Updates and flushes the currently active scene.
+	void EnterScene(const std::shared_ptr<Scene>& scene);
+
+	// Updates and flushes the current scene.
 	void Update();
 
 	void UnloadImpl(const InternalKey& scene_key);
@@ -149,9 +151,12 @@ private:
 	void Reset();
 	void Shutdown();
 
-	void UpdateFlags();
+	// Calls the enter / exit / unload of the current scene after the current frame has
+	// completed. This prevents unloading the scene or entering a new scene while the old one is
+	// still being updated.
+	void HandleSceneEvents();
 
-	std::shared_ptr<Scene> active_scene_{ nullptr };
+	std::shared_ptr<Scene> current_scene_{ nullptr };
 };
 
 } // namespace impl

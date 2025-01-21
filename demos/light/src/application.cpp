@@ -2,7 +2,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 800, 800 };
+constexpr V2_int window_size{ 800, 800 };
 
 class LightExampleScene : public Scene {
 public:
@@ -14,7 +14,7 @@ public:
 
 	Light mouse_light{ V2_float{ 0, 0 }, color::Cyan, 30.0f };
 
-	void Init() override {
+	void Enter() override {
 		game.light.Reset();
 		game.light.Load(0, Light{ V2_float{ 0, 0 }, color::White });
 		game.light.Load(1, Light{ V2_float{ 0, 0 }, color::Green });
@@ -55,14 +55,12 @@ public:
 		Rect{ { 100, 100 }, { 100, 100 }, Origin::TopLeft }.Draw(color::Blue);
 		test.Draw({ game.window.GetSize() / 2, test.GetSize() });
 
-		game.renderer.Flush();
-
 		mouse_light.Draw();
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("LightExampleScene", resolution, color::Black);
-	game.scene.LoadActive<LightExampleScene>("light_example_scene");
+	game.Init("LightExampleScene", window_size, color::Black);
+	game.scene.Enter<LightExampleScene>("light_example_scene");
 	return 0;
 }

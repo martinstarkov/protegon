@@ -11,21 +11,24 @@
 #include "core/game.h"
 #include "core/window.h"
 #include "event/event_handler.h"
-#include "event/events.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
+#include "renderer/batch.h"
 #include "renderer/color.h"
 #include "renderer/flip.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
-#include "renderer/layer_info.h"
+#include "renderer/renderer.h"
+#include "renderer/shader.h"
 #include "renderer/surface.h"
+#include "scene/camera.h"
 #include "utility/debug.h"
 #include "utility/file.h"
 #include "utility/handle.h"
 #include "utility/log.h"
+#include "utility/utility.h"
 
 namespace ptgn {
 
@@ -336,31 +339,24 @@ Texture::Texture(const V2_float& size) :
 			 false,
 			 false } {}
 
-void Texture::Draw(const Rect& destination, const TextureInfo& texture_info) const {
-	Draw(destination, texture_info, {});
-}
-
-void Texture::Draw(
-	const Rect& destination, const TextureInfo& texture_info, const LayerInfo& layer_info
-) const {
+void Texture::Draw(Rect destination, const TextureInfo& texture_info, std::int32_t render_layer)
+	const {
 	PTGN_ASSERT(IsValid(), "Cannot draw uninitialized or destroyed texture");
 
-	Rect dest{ destination };
-
-	if (dest.IsZero()) {
-		dest = Rect::Fullscreen();
-	} else if (dest.size.IsZero()) {
-		dest.size = GetSize();
+	if (destination.IsZero()) {
+		destination = Rect::Fullscreen();
+	} else if (destination.size.IsZero()) {
+		destination.size = GetSize();
 	}
 
-	auto vertices{ dest.GetVertices(texture_info.rotation_center) };
+	auto vertices{ destination.GetVertices(texture_info.rotation_center) };
 
 	auto tex_coords{ texture_info.GetTextureCoordinates(GetSize()) };
 
 	TextureInfo::FlipTextureCoordinates(tex_coords, texture_info.flip);
 
-	layer_info.GetRenderTarget().GetRenderData().AddPrimitiveQuad(
-		vertices, layer_info.GetRenderLayer(), texture_info.tint.Normalized(), tex_coords, *this
+	game.renderer.GetRenderData().AddPrimitiveQuad(
+		vertices, render_layer, texture_info.tint.Normalized(), tex_coords, *this
 	);
 }
 
@@ -462,6 +458,70 @@ V2_int Texture::GetSize() const {
 TextureFormat Texture::GetFormat() const {
 	PTGN_ASSERT(IsValid(), "Cannot get format of invalid or uninitialized texture");
 	return Get().format_;
+}
+
+void Texture::Draw(Rect destination, TextureInfo texture_info, Shader shader, const Camera& camera)
+	const {
+	PTGN_ASSERT(IsValid(), "Cannot draw uninitialized or destroyed texture");
+
+	if (*this == game.renderer.screen_target_.GetTexture()) {
+		FrameBuffer::Unbind();
+	} else {
+		game.renderer.Flush();
+	}
+
+	if (shader == Shader{}) {
+		shader = game.shader.Get(ScreenShader::Default);
+	}
+
+	if (destination.IsZero()) {
+		destination = Rect::Fullscreen();
+	} else if (destination.size.IsZero()) {
+		destination.size = GetSize();
+	}
+
+	// Shaders coordinates are in bottom right instead of top left.
+	if (texture_info.flip == Flip::Vertical) {
+		texture_info.flip = Flip::None;
+	} else if (texture_info.flip == Flip::Both) {
+		texture_info.flip = Flip::Horizontal;
+	} else if (texture_info.flip == Flip::None) {
+		texture_info.flip = Flip::Vertical;
+	}
+
+	auto positions{ destination.GetVertices(texture_info.rotation_center) };
+
+	auto tex_coords{ texture_info.GetTextureCoordinates(GetSize()) };
+
+	TextureInfo::FlipTextureCoordinates(tex_coords, texture_info.flip);
+
+	constexpr std::size_t index_count{ 6 };
+
+	std::array<QuadVertex, 4> vertices{};
+
+	V4_float color{ texture_info.tint.Normalized() };
+
+	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
+		vertices[i].position  = { positions[i].x, positions[i].y, 0.0f };
+		vertices[i].color	  = { color.x, color.y, color.z, color.w };
+		vertices[i].tex_coord = { tex_coords[i].x, tex_coords[i].y };
+		vertices[i].tex_index = { 0.0f };
+	}
+
+	shader.Bind();
+	shader.SetUniform("u_ViewProjection", camera);
+	shader.SetUniform("u_Resolution", V2_float{ game.window.GetSize() });
+	shader.SetUniform("u_Texture", 0);
+
+	auto vao{ game.renderer.GetVertexArray<impl::BatchType::Quad>() };
+	vao.Bind();
+
+	Bind(0);
+
+	vao.GetVertexBuffer().SetSubData(
+		vertices.data(), static_cast<std::uint32_t>(Sizeof(vertices)), false
+	);
+	vao.Draw(index_count, false);
 }
 
 void Texture::SetWrappingX(TextureWrapping x) {

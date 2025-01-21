@@ -19,6 +19,7 @@
 #include "renderer/origin.h"
 #include "renderer/render_target.h"
 #include "renderer/renderer.h"
+#include "scene/camera.h"
 #include "scene/scene_manager.h"
 #include "utility/debug.h"
 #include "utility/log.h"
@@ -190,19 +191,41 @@ V2_float InputHandler::GetMouseDifferenceWindow() const {
 	return mouse_pos_ - prev_mouse_pos_;
 }
 
-V2_float InputHandler::GetMouseDifference() const {
-	RenderTarget r{ game.renderer.GetCurrentRenderTarget() };
-	return r.GetMouseDifference();
+V2_float InputHandler::GetMouseDifference(RenderTarget render_target) const {
+	if (!render_target.IsValid()) {
+		render_target = game.renderer.GetRenderTarget();
+	}
+	if (render_target.IsValid()) {
+		return ScreenToViewport(
+			render_target.GetViewport(), render_target.GetCamera(), GetMouseDifferenceWindow()
+		);
+	}
+	return ScreenToViewport(
+		game.renderer.GetViewport(), game.camera.GetPrimary(), GetMouseDifferenceWindow()
+	);
 }
 
-V2_float InputHandler::GetMousePosition() const {
-	RenderTarget r{ game.renderer.GetCurrentRenderTarget() };
-	return r.GetMousePosition();
+V2_float InputHandler::GetMousePosition(RenderTarget render_target) const {
+	if (!render_target.IsValid()) {
+		render_target = game.renderer.GetRenderTarget();
+	}
+	return ScreenToViewport(
+		render_target.GetViewport(), render_target.GetCamera(), GetMousePositionWindow()
+	);
 }
 
-V2_float InputHandler::GetMousePositionPrevious() const {
-	RenderTarget r{ game.renderer.GetCurrentRenderTarget() };
-	return r.GetMousePositionPrevious();
+V2_float InputHandler::GetMousePositionPrevious(RenderTarget render_target) const {
+	if (!render_target.IsValid()) {
+		render_target = game.renderer.GetRenderTarget();
+	}
+	if (render_target.IsValid()) {
+		return ScreenToViewport(
+			render_target.GetViewport(), render_target.GetCamera(), GetMousePositionPreviousWindow()
+		);
+	}
+	return ScreenToViewport(
+		game.renderer.GetViewport(), game.camera.GetPrimary(), GetMousePositionPreviousWindow()
+	);
 }
 
 int InputHandler::GetMouseScroll() const {

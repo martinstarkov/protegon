@@ -2,7 +2,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 800, 800 };
+constexpr V2_int window_size{ 800, 800 };
 
 struct TextExample : public Scene {
 	float ysize	  = 40.0f;
@@ -20,7 +20,7 @@ struct TextExample : public Scene {
 
 	V2_float ws;
 
-	void Init() override {
+	void Enter() override {
 		ws = game.window.GetSize();
 		texts.clear();
 
@@ -67,7 +67,7 @@ struct TextExample : public Scene {
 		);
 	}
 
-	void Shutdown() override {
+	void Exit() override {
 		game.font.Unload(font_key);
 		PTGN_ASSERT(!game.font.Has(font_key));
 	}
@@ -90,7 +90,7 @@ struct TextExample : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("TextExample: T (toggle visibility)", resolution);
-	game.scene.LoadActive<TextExample>("text_example");
+	game.Init("TextExample: T (toggle visibility)", window_size);
+	game.scene.Enter<TextExample>("text_example");
 	return 0;
 }

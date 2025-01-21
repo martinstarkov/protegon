@@ -4,6 +4,7 @@
 #include <memory>
 #include <set>
 
+#include "ecs/ecs.h"
 #include "renderer/color.h"
 #include "utility/time.h"
 
@@ -113,16 +114,15 @@ public:
 		/* user implementation */
 	}
 
+	ecs::Manager manager;
+
 private:
 	friend class impl::SceneManager;
 	friend class SceneTransition;
 
-	// If the actions is manually numbered, its order determines the execution order of scene
-	// functions.
 	enum class Action {
 		Enter  = 0,
-		Exit   = 1,
-		Unload = 2
+		Unload = 1
 	};
 
 	void Add(Action new_action);

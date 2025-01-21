@@ -4,7 +4,6 @@
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "renderer/color.h"
-#include "renderer/frame_buffer.h"
 #include "renderer/render_target.h"
 #include "renderer/shader.h"
 
@@ -41,6 +40,8 @@ public:
 private:
 	friend class LightManager;
 
+	void DrawImpl() const;
+
 	// @return color_ normalized and without alpha value.
 	[[nodiscard]] V3_float GetShaderColor() const;
 
@@ -67,10 +68,7 @@ private:
 	friend class Light;
 	friend class impl::Game;
 
-	// Uses default render target.
-	void Draw();
-
-	void Draw(const LayerInfo& layer_info);
+	void Draw() const;
 
 	void Init();
 

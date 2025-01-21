@@ -57,7 +57,7 @@ class ToggleButtonGroupExample : public Scene {
 		return b;
 	}
 
-	void Init() override {
+	void Enter() override {
 		g.Clear();
 
 		size   = V2_float{ 200, 130 };
@@ -85,6 +85,6 @@ class ToggleButtonGroupExample : public Scene {
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("ToggleButtonGroupExample");
-	game.scene.LoadActive<ToggleButtonGroupExample>("toggle_button_group_example");
+	game.scene.Enter<ToggleButtonGroupExample>("toggle_button_group_example");
 	return 0;
 }

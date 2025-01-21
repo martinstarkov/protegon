@@ -13,7 +13,6 @@
 
 namespace ptgn {
 
-struct LayerInfo;
 struct Color;
 struct Line;
 struct Circle;
@@ -24,14 +23,12 @@ struct RoundedRect;
 
 namespace impl {
 
-class RenderData;
-
 // @param vertex_modulo The modulo applied to the i + 1th vertex. If 0, use the value of
 // vertex_count. Non-zero value used by Arc, which draws vertices.size() - 1 vertices, but requires
 // modulo to be vertices.size().
 void DrawVertices(
 	const V2_float* vertices, std::size_t vertex_count, float line_width, const V4_float& color,
-	std::int32_t render_layer, RenderData& render_data, std::size_t vertex_modulo = 0
+	std::int32_t render_layer, std::size_t vertex_modulo = 0
 );
 
 } // namespace impl
@@ -60,21 +57,15 @@ struct Triangle {
 	// @return True if internal triangle is entirely contained by the triangle.
 	[[nodiscard]] bool Contains(const Triangle& internal) const;
 
-	// Uses default render target.
-	void Draw(const Color& color, float line_width = -1.0f) const;
-
-	void Draw(const Color& color, float line_width, const LayerInfo& layer_info) const;
+	// @param line_width -1 for a solid fille triangle.
+	void Draw(const Color& color, float line_width = -1.0f, std::int32_t render_layer = 0) const;
 
 private:
 	friend struct Polygon;
 
-	void DrawSolid(const V4_float& color, std::int32_t render_layer, impl::RenderData& render_data)
-		const;
+	void DrawSolid(const V4_float& color, std::int32_t render_layer) const;
 
-	void DrawThick(
-		float line_width, const V4_float& color, std::int32_t render_layer,
-		impl::RenderData& render_data
-	) const;
+	void DrawThick(float line_width, const V4_float& color, std::int32_t render_layer) const;
 };
 
 struct Rect {
@@ -94,11 +85,9 @@ struct Rect {
 
 	[[nodiscard]] static Rect Fullscreen();
 
-	// Uses default render target.
-	virtual void Draw(const Color& color, float line_width = -1.0f) const;
-
+	// @param line_width -1 for a solid filled rectangle.
 	virtual void Draw(
-		const Color& color, float line_width, const LayerInfo& layer_info,
+		const Color& color, float line_width = -1.0f, std::int32_t render_layer = 0,
 		const V2_float& rotation_center = { 0.5f, 0.5f }
 	) const;
 
@@ -168,13 +157,12 @@ private:
 	);
 
 	static void DrawSolid(
-		const V4_float& color, const std::array<V2_float, 4>& vertices, std::int32_t render_layer,
-		impl::RenderData& render_data
+		const V4_float& color, const std::array<V2_float, 4>& vertices, std::int32_t render_layer
 	);
 
 	static void DrawThick(
 		float line_width, const V4_float& color, const std::array<V2_float, 4>& vertices,
-		std::int32_t render_layer, impl::RenderData& render_data
+		std::int32_t render_layer
 	);
 };
 
@@ -200,11 +188,9 @@ struct RoundedRect : public Rect {
 	// no radius.
 	[[nodiscard]] Rect GetOuterRect() const;
 
-	// Uses default render target.
-	void Draw(const Color& color, float line_width = -1.0f) const override;
-
+	// @param line_width -1 for a solid filled rounded rectangle.
 	void Draw(
-		const Color& color, float line_width, const LayerInfo& layer_info,
+		const Color& color, float line_width = -1.0f, std::int32_t render_layer = 0,
 		const V2_float& rotation_center = { 0.5f, 0.5f }
 	) const override;
 };
@@ -219,10 +205,8 @@ struct Polygon {
 
 	explicit Polygon(const std::vector<V2_float>& vertices);
 
-	// Uses default render target.
-	void Draw(const Color& color, float line_width = -1.0f) const;
-
-	void Draw(const Color& color, float line_width, const LayerInfo& layer_info) const;
+	// @param line_width -1 for a solid filled polygon.
+	void Draw(const Color& color, float line_width = -1.0f, std::int32_t render_layer = 0) const;
 
 	// @return Centroid of the polygon.
 	[[nodiscard]] V2_float Center() const;
@@ -252,13 +236,9 @@ struct Polygon {
 	[[nodiscard]] Intersection Intersects(const Polygon& polygon) const;
 
 private:
-	void DrawSolid(const V4_float& color, std::int32_t render_layer, impl::RenderData& render_data)
-		const;
+	void DrawSolid(const V4_float& color, std::int32_t render_layer) const;
 
-	void DrawThick(
-		float line_width, const V4_float& color, std::int32_t render_layer,
-		impl::RenderData& render_data
-	) const;
+	void DrawThick(float line_width, const V4_float& color, std::int32_t render_layer) const;
 
 	[[nodiscard]] bool GetMinimumOverlap(const Polygon& polygon, float& depth, Axis& axis) const;
 

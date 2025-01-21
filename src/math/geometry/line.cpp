@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <utility>
 
+#include "core/game.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/polygon.h"
 #include "math/math.h"
@@ -13,48 +14,36 @@
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/color.h"
-#include "renderer/layer_info.h"
 #include "renderer/origin.h"
 #include "renderer/render_data.h"
-#include "renderer/render_target.h"
+#include "renderer/renderer.h"
 #include "renderer/texture.h"
 #include "utility/debug.h"
 
 namespace ptgn {
 
-void Line::Draw(const Color& color, float line_width) const {
-	Draw(color, line_width, {});
+void Line::DrawSolid(const V4_float& color, std::int32_t render_layer) const {
+	game.renderer.GetRenderData().AddPrimitiveLine({ a, b }, render_layer, color);
 }
 
-void Line::DrawSolid(
-	const V4_float& color, std::int32_t render_layer, impl::RenderData& render_data
-) const {
-	render_data.AddPrimitiveLine({ a, b }, render_layer, color);
-}
-
-void Line::DrawThick(
-	float line_width, const V4_float& color, std::int32_t render_layer,
-	impl::RenderData& render_data
-) const {
-	render_data.AddPrimitiveQuad(
+void Line::DrawThick(float line_width, const V4_float& color, std::int32_t render_layer) const {
+	game.renderer.GetRenderData().AddPrimitiveQuad(
 		GetQuadVertices(line_width), render_layer, color,
 		TextureInfo::GetDefaultTextureCoordinates(), {}
 	);
 }
 
-void Line::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
+void Line::Draw(const Color& color, float line_width, std::int32_t render_layer) const {
 	PTGN_ASSERT(line_width > 0.0f, "Cannot draw negative line width");
 
-	auto render_layer{ layer_info.GetRenderLayer() };
-	auto& render_data{ layer_info.GetRenderTarget().GetRenderData() };
 	auto norm_color{ color.Normalized() };
 
 	if (line_width <= 1.0f) {
-		DrawSolid(norm_color, render_layer, render_data);
+		DrawSolid(norm_color, render_layer);
 		return;
 	}
 
-	DrawThick(line_width, norm_color, render_layer, render_data);
+	DrawThick(line_width, norm_color, render_layer);
 }
 
 V2_float Line::Direction() const {
@@ -271,6 +260,9 @@ ptgn::Raycast Line::Raycast(const Circle& circle) const {
 
 	float mag2{ impact.Dot(impact) };
 
+	// TODO: Sometimes when mag2 is nearly equal to circle.radius^2 a swept circle sliding along the
+	// top of a rectangle will stick to the line vertices. However adding the NearlyEqual check for
+	// this condition leads to bugs with raycasting a line through a circle.
 	if (NearlyEqual(mag2, 0.0f) /* || NearlyEqual(mag2, circle.radius * circle.radius)*/) {
 		c = {};
 		return c;
@@ -474,18 +466,14 @@ std::array<V2_float, 4> Line::GetQuadVertices(float line_width) const {
 	return rect.GetVertices(V2_float{ 0.5f, 0.5f });
 }
 
-void Capsule::Draw(const Color& color, float line_width) const {
-	Draw(color, line_width, {});
-}
-
-void Capsule::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
+void Capsule::Draw(const Color& color, float line_width, std::int32_t render_layer) const {
 	V2_float dir{ line.Direction() };
 	float dir2{ dir.Dot(dir) };
 
 	// Edge case where capsule has no length, i.e. it is a circle.
 	if (NearlyEqual(dir2, 0.0f)) {
 		Circle c{ line.a, radius };
-		c.Draw(color, line_width, layer_info);
+		c.Draw(color, line_width, render_layer);
 		return;
 	}
 
@@ -493,15 +481,13 @@ void Capsule::Draw(const Color& color, float line_width, const LayerInfo& layer_
 	float start_angle{ angle };
 	float end_angle{ angle };
 
-	auto render_layer{ layer_info.GetRenderLayer() };
-	auto& render_data{ layer_info.GetRenderTarget().GetRenderData() };
 	auto norm_color{ color.Normalized() };
 
 	Arc a1{ line.a, radius, start_angle, end_angle + pi<float> };
 	Arc a2{ line.b, radius, start_angle + pi<float>, end_angle };
 
 	if (line_width == -1.0f) {
-		line.DrawThick(radius * 2.0f, norm_color, render_layer, render_data);
+		line.DrawThick(radius * 2.0f, norm_color, render_layer);
 
 		// How many radians into the line the arc protrudes.
 		constexpr float delta{ DegToRad(0.5f) };
@@ -512,11 +498,11 @@ void Capsule::Draw(const Color& color, float line_width, const LayerInfo& layer_
 
 		a1.DrawSolid(
 			false, ClampAngle2Pi(a1.start_angle), ClampAngle2Pi(a1.end_angle), norm_color,
-			render_layer, render_data
+			render_layer
 		);
 		a2.DrawSolid(
 			false, ClampAngle2Pi(a2.start_angle), ClampAngle2Pi(a2.end_angle), norm_color,
-			render_layer, render_data
+			render_layer
 		);
 		return;
 	}
@@ -526,16 +512,16 @@ void Capsule::Draw(const Color& color, float line_width, const LayerInfo& layer_
 	Line l1{ line.a + tangent_r, line.b + tangent_r };
 	Line l2{ line.a - tangent_r, line.b - tangent_r };
 
-	l1.DrawThick(line_width, norm_color, render_layer, render_data);
-	l2.DrawThick(line_width, norm_color, render_layer, render_data);
+	l1.DrawThick(line_width, norm_color, render_layer);
+	l2.DrawThick(line_width, norm_color, render_layer);
 
 	a1.DrawThick(
 		line_width, false, ClampAngle2Pi(a1.start_angle), ClampAngle2Pi(a1.end_angle), norm_color,
-		render_layer, render_data
+		render_layer
 	);
 	a2.DrawThick(
 		line_width, false, ClampAngle2Pi(a2.start_angle), ClampAngle2Pi(a2.end_angle), norm_color,
-		render_layer, render_data
+		render_layer
 	);
 }
 

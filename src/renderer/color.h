@@ -16,7 +16,7 @@ namespace ptgn {
 enum class BlendMode {
 	None,  /**< no blending: dstRGBA = srcRGBA */
 	Blend, /**< alpha blending: dstRGB = (srcRGB * srcA) + (dstRGB * (1-srcA)), dstA = srcA + (dstA
-			  * (1-srcA)) */
+			* (1-srcA)) */
 	BlendPremultiplied, /**< pre-multiplied alpha blending: dstRGBA = srcRGBA + (dstRGBA * (1-srcA))
 						 */
 	Add,				/**< additive blending: dstRGB = (srcRGB * srcA) + dstRGB, dstA = dstA */
@@ -112,13 +112,15 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::Color& color) {
 
 inline std::ostream& operator<<(std::ostream& os, ptgn::BlendMode blend_mode) {
 	switch (blend_mode) {
-		case BlendMode::Blend:	  os << "Blend"; break;
-		case BlendMode::Add:	  os << "Add"; break;
-		case BlendMode::Modulate: os << "Modulate"; break;
-		case BlendMode::Multiply: os << "Multiply"; break;
-		case BlendMode::Stencil:  os << "Stencil"; break;
-		case BlendMode::None:	  os << "None"; break;
-		default:				  PTGN_ERROR("Failed to identify blend mode");
+		case BlendMode::Blend:				os << "Blend"; break;
+		case BlendMode::BlendPremultiplied: os << "BlendPremultiplied"; break;
+		case BlendMode::Add:				os << "Add"; break;
+		case BlendMode::AddPremultiplied:	os << "AddPremultiplied"; break;
+		case BlendMode::Modulate:			os << "Modulate"; break;
+		case BlendMode::Multiply:			os << "Multiply"; break;
+		case BlendMode::Stencil:			os << "Stencil"; break;
+		case BlendMode::None:				os << "None"; break;
+		default:							PTGN_ERROR("Failed to identify blend mode");
 	}
 	return os;
 }

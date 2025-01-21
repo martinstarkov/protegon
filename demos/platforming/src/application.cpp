@@ -2,7 +2,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 960, 540 };
+constexpr V2_int window_size{ 960, 540 };
 
 constexpr CollisionCategory ground_category{ 1 };
 
@@ -21,7 +21,7 @@ class PlatformingExample : public Scene {
 	ecs::Entity CreatePlayer() {
 		ecs::Entity entity = manager.CreateEntity();
 
-		entity.Add<Transform>(resolution / 2.0f + V2_float{ 100, 100 });
+		entity.Add<Transform>(window_size / 2.0f + V2_float{ 100, 100 });
 		auto& rb		 = entity.Add<RigidBody>();
 		rb.gravity		 = 1.0f;
 		auto& m			 = entity.Add<PlatformerMovement>();
@@ -40,10 +40,10 @@ class PlatformingExample : public Scene {
 		return entity;
 	}
 
-	void Init() override {
+	void Enter() override {
 		manager.Clear();
 
-		V2_float ws{ resolution };
+		V2_float ws{ window_size };
 
 		CreatePlayer();
 		CreatePlatform({ { 0, ws.y - 10 }, { ws.x, 10 }, Origin::TopLeft });
@@ -53,13 +53,11 @@ class PlatformingExample : public Scene {
 		manager.Refresh();
 	}
 
-	void Shutdown() override {
+	void Exit() override {
 		manager.Clear();
 	}
 
 	void Update() override {
-		game.physics.Update(manager);
-		
 		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
 			DrawRect(e, b.GetAbsoluteRect());
 		}
@@ -67,7 +65,7 @@ class PlatformingExample : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("PlatformingExample", resolution);
-	game.scene.LoadActive<PlatformingExample>("platforming");
+	game.Init("PlatformingExample", window_size);
+	game.scene.Enter<PlatformingExample>("platforming");
 	return 0;
 }

@@ -1,25 +1,11 @@
 #include "scene/scene.h"
 
 #include <chrono>
-#include <cstdint>
-#include <functional>
-#include <limits>
 #include <memory>
-#include <type_traits>
 
-#include "core/game.h"
-#include "math/geometry/polygon.h"
-#include "math/vector2.h"
 #include "renderer/color.h"
-#include "renderer/layer_info.h"
-#include "renderer/render_target.h"
-#include "renderer/texture.h"
-#include "scene/camera.h"
-#include "scene/scene_manager.h"
 #include "utility/debug.h"
-#include "utility/log.h"
 #include "utility/time.h"
-#include "utility/tween.h"
 
 namespace ptgn {
 
@@ -58,6 +44,8 @@ SceneTransition& SceneTransition::SetFadeColor(const Color& color) {
 void SceneTransition::Start(
 	bool transition_in, std::size_t key, std::size_t other_key, const std::shared_ptr<Scene>& scene
 ) const {
+	// TODO: Fix.
+	/*
 	if (type_ == TransitionType::None) {
 		if (transition_in) {
 			game.scene.AddActiveImpl(key, game.scene.active_scenes_.empty());
@@ -75,7 +63,7 @@ void SceneTransition::Start(
 	}
 
 	RenderTarget target{ scene->target_ };
-	OrthographicCamera camera{ target.GetCamera().GetPrimary() };
+	Camera camera{ target.GetCamera().GetPrimary() };
 
 	std::function<void(float)> update;
 	std::function<void()> start;
@@ -260,24 +248,10 @@ void SceneTransition::Start(
 		}
 	});
 	game.tween.Add(tween).Start();
+	*/
 }
 
-Scene::Scene() :
-	target_{ color::Transparent, BlendMode::BlendPremultiplied }, tint_{ color::White } {}
-
-RenderTarget Scene::GetRenderTarget() const {
-	return target_;
-}
-
-const CameraManager& Scene::GetCamera() const {
-	PTGN_ASSERT(target_.IsValid(), "Cannot retrieve camera of scene with invalid render target");
-	return target_.GetCamera();
-}
-
-CameraManager& Scene::GetCamera() {
-	PTGN_ASSERT(target_.IsValid(), "Cannot retrieve camera of scene with invalid render target");
-	return target_.GetCamera();
-}
+Scene::Scene() {}
 
 void Scene::Add(Action new_status) {
 	actions_.insert(new_status);

@@ -1,36 +1,24 @@
 #include "renderer/shader.h"
 
-#include <array>
 #include <cstdint>
 #include <filesystem>
 #include <list>
 #include <string>
-#include <string_view>
 #include <utility>
 
 #include "core/game.h"
-#include "core/window.h"
-#include "math/geometry/polygon.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
-#include "renderer/batch.h"
-#include "renderer/flip.h"
-#include "renderer/frame_buffer.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
-#include "renderer/layer_info.h"
-#include "renderer/render_target.h"
 #include "renderer/renderer.h"
-#include "renderer/texture.h"
-#include "renderer/vertices.h"
 #include "utility/debug.h"
 #include "utility/file.h"
 #include "utility/handle.h"
 #include "utility/log.h"
-#include "utility/utility.h"
 
 namespace ptgn {
 
@@ -186,83 +174,6 @@ void Shader::Bind() const {
 #ifdef PTGN_DEBUG
 	++game.stats.shader_binds;
 #endif
-}
-
-void Shader::Draw(
-	const Texture& texture, const Rect& destination, const Matrix4& view_projection,
-	const TextureInfo& texture_info
-) const {
-	Draw(texture, destination, view_projection, texture_info, {});
-}
-
-void Shader::Draw(
-	const Texture& texture, const Rect& destination, const Matrix4& view_projection,
-	const TextureInfo& texture_info, const LayerInfo& layer_info
-) const {
-	PTGN_ASSERT(texture.IsValid(), "Cannot draw uninitialized or destroyed texture");
-
-	Rect dest{ destination };
-
-	if (dest.IsZero()) {
-		dest = Rect::Fullscreen();
-	} else if (dest.size.IsZero()) {
-		dest.size = texture.GetSize();
-	}
-
-	// Shaders coordinates are in bottom right instead of top left.
-	TextureInfo info{ texture_info };
-	if (info.flip == Flip::Vertical) {
-		info.flip = Flip::None;
-	} else if (info.flip == Flip::Both) {
-		info.flip = Flip::Horizontal;
-	} else if (info.flip == Flip::None) {
-		info.flip = Flip::Vertical;
-	}
-
-	auto positions{ dest.GetVertices(info.rotation_center) };
-
-	auto tex_coords{ info.GetTextureCoordinates(texture.GetSize()) };
-
-	TextureInfo::FlipTextureCoordinates(tex_coords, info.flip);
-
-	constexpr std::size_t index_count{ 6 };
-
-	std::array<QuadVertex, 4> vertices{};
-
-	auto render_layer{ layer_info.GetRenderLayer() };
-	V4_float color{ info.tint.Normalized() };
-
-	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
-		vertices[i].position = { positions[i].x, positions[i].y, static_cast<float>(render_layer) };
-		vertices[i].color	 = { color.x, color.y, color.z, color.w };
-		vertices[i].tex_coord = { tex_coords[i].x, tex_coords[i].y };
-		vertices[i].tex_index = { 0.0f };
-	}
-
-	if (layer_info.render_target_.IsValid()) {
-		RenderTarget rt{ layer_info.GetRenderTarget() };
-		// Note: Flush also binds the render target which is important for the drawing that follows.
-		rt.Flush();
-	} else {
-		// When screen_target_ is drawn to the default frame buffer, screen does not need to be
-		// flushed as it is not a RenderTarget.
-		FrameBuffer::Unbind();
-	}
-
-	Bind();
-	SetUniform("u_ViewProjection", view_projection);
-	SetUniform("u_Resolution", V2_float{ game.window.GetSize() });
-	SetUniform("u_Texture", 0);
-
-	auto vao{ game.renderer.GetVertexArray<impl::BatchType::Quad>() };
-	vao.Bind();
-
-	texture.Bind(0);
-
-	vao.GetVertexBuffer().SetSubData(
-		vertices.data(), static_cast<std::uint32_t>(Sizeof(vertices)), false
-	);
-	vao.Draw(index_count, false);
 }
 
 bool Shader::IsBound() const {

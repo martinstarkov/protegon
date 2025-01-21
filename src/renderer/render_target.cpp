@@ -1,19 +1,20 @@
 #include "renderer/render_target.h"
 
 #include <cstdint>
+#include <functional>
+#include <type_traits>
+#include <vector>
 
 #include "core/game.h"
-#include "event/event_handler.h"
-#include "event/events.h"
-#include "event/input_handler.h"
+#include "core/window.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
-#include "renderer/layer_info.h"
-#include "renderer/render_data.h"
+#include "renderer/gl_types.h"
+#include "renderer/renderer.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
@@ -23,37 +24,30 @@ namespace ptgn {
 
 namespace impl {
 
-RenderTargetInstance::RenderTargetInstance(const Color& clear_color, BlendMode blend_mode) :
+RenderTargetInstance::RenderTargetInstance(const Color& clear_color) :
 	texture_{ Texture::WindowTexture{} },
 	frame_buffer_{ texture_,
 				   false /* do not rebind previous frame buffer because it will be cleared */ },
-	blend_mode_{ blend_mode },
 	clear_color_{ clear_color } {
 	PTGN_ASSERT(frame_buffer_.IsValid(), "Failed to create valid frame buffer for render target");
 	PTGN_ASSERT(
 		frame_buffer_.IsBound(), "Failed to bind frame buffer when initializing render target"
 	);
-	GLRenderer::SetBlendMode(blend_mode_);
 	GLRenderer::ClearToColor(clear_color_);
 }
 
-RenderTargetInstance::RenderTargetInstance(
-	const V2_float& size, const Color& clear_color, BlendMode blend_mode
-) :
+RenderTargetInstance::RenderTargetInstance(const V2_float& size, const Color& clear_color) :
 	texture_{ size },
 	frame_buffer_{
 		texture_, false /* do not rebind previous frame buffer because it will be cleared */
 	},
-	blend_mode_{ blend_mode },
 	clear_color_{ clear_color } {
+	// TODO: Consider if this is correct or not.
+	camera_.CenterOnArea(size);
 	PTGN_ASSERT(frame_buffer_.IsValid(), "Failed to create valid frame buffer for render target");
 	PTGN_ASSERT(
 		frame_buffer_.IsBound(), "Failed to bind frame buffer when initializing render target"
 	);
-	OrthographicCamera camera;
-	camera.CenterOnArea(size);
-	camera_.SetPrimary(camera);
-	GLRenderer::SetBlendMode(blend_mode_);
 	GLRenderer::ClearToColor(clear_color_);
 }
 
@@ -62,130 +56,45 @@ void RenderTargetInstance::Bind() const {
 	frame_buffer_.Bind();
 }
 
-void RenderTargetInstance::Clear() const {
-	PTGN_ASSERT(frame_buffer_.IsValid(), "Cannot clear invalid or uninitialized frame buffer");
-	PTGN_ASSERT(frame_buffer_.IsBound(), "Frame buffer must be bound before clearing");
-	GLRenderer::ClearToColor(clear_color_);
-}
-
-void RenderTargetInstance::SetClearColor(const Color& clear_color) {
-	PTGN_ASSERT(
-		frame_buffer_.IsValid(), "Cannot set clear color of invalid or uninitialized frame buffer"
-	);
-	PTGN_ASSERT(frame_buffer_.IsBound(), "Frame buffer must be bound before setting clear color");
-	PTGN_ASSERT(clear_color_ != clear_color);
-	clear_color_ = clear_color;
-}
-
-void RenderTargetInstance::SetBlendMode(BlendMode blend_mode) {
-	PTGN_ASSERT(
-		frame_buffer_.IsValid(), "Cannot set blend mode of invalid or uninitialized frame buffer"
-	);
-	PTGN_ASSERT(frame_buffer_.IsBound(), "Frame buffer must be bound before setting blend mode");
-	PTGN_ASSERT(blend_mode_ != blend_mode);
-	blend_mode_ = blend_mode;
-	GLRenderer::SetBlendMode(blend_mode_);
-}
-
-void RenderTargetInstance::Flush() {
-	PTGN_ASSERT(
-		frame_buffer_.IsValid(),
-		"Cannot flush render target with invalid or uninitialized frame buffer"
-	);
-	PTGN_ASSERT(
-		frame_buffer_.IsBound(),
-		"Frame buffer must be bound before flushing the render target batches"
-	);
-	GLRenderer::SetBlendMode(blend_mode_);
-
-	if (bool new_view_projection{
-			render_data_.SetViewProjection(camera_.GetPrimary().GetViewProjection()) };
-		new_view_projection) {
-		// Post mouse event when camera moves.
-		game.event.mouse.Post(MouseEvent::Move, MouseMoveEvent{});
-	}
-
-	render_data_.Flush();
-}
-
 } // namespace impl
 
-RenderTarget::RenderTarget(const Color& clear_color, BlendMode blend_mode) {
-	Create(clear_color, blend_mode);
+RenderTarget::RenderTarget(const Color& clear_color) {
+	Create(clear_color);
 }
 
-RenderTarget::RenderTarget(const V2_float& size, const Color& clear_color, BlendMode blend_mode) {
-	Create(size, clear_color, blend_mode);
+RenderTarget::RenderTarget(const V2_float& size, const Color& clear_color) {
+	Create(size, clear_color);
 }
 
-void RenderTarget::SetRect(const Rect& target_destination) {
-	PTGN_ASSERT(IsValid(), "Cannot set rectangle of invalid or uninitialized render target");
-	auto& i{ Get() };
-	i.destination_ = target_destination;
-}
-
-Rect RenderTarget::GetRect() const {
-	PTGN_ASSERT(IsValid(), "Cannot get rectangle of invalid or uninitialized render target");
-	auto& i{ Get() };
-	Rect dest{ i.destination_ };
-	if (dest.IsZero()) {
-		dest = Rect::Fullscreen();
+void RenderTarget::SetViewport(Rect viewport) {
+	PTGN_ASSERT(IsValid(), "Cannot set viewport of invalid or uninitialized render target");
+	if (viewport.IsZero()) {
+		viewport = Rect{ {}, game.window.GetSize(), Origin::TopLeft };
+	} else if (viewport.size.IsZero()) {
+		viewport = Rect{ viewport.position, Get().texture_.GetSize(), viewport.origin };
 	}
-	return dest;
+	Get().viewport_ = viewport;
 }
 
-void RenderTarget::SetClearColor(const Color& clear_color) {
-	PTGN_ASSERT(IsValid(), "Cannot set clear color of invalid or uninitialized render target");
+Rect RenderTarget::GetViewport() const {
+	PTGN_ASSERT(IsValid(), "Cannot get viewport of invalid or uninitialized render target");
 	auto& i{ Get() };
-	if (i.clear_color_ == clear_color) {
-		return;
+	if (i.viewport_.IsZero()) {
+		return { {}, game.window.GetSize(), Origin::TopLeft };
+	} else if (i.viewport_.size.IsZero()) {
+		return { i.viewport_.position, i.texture_.GetSize(), i.viewport_.origin };
 	}
-	i.Bind();
-	i.SetClearColor(clear_color);
+	return i.viewport_;
 }
 
-Color RenderTarget::GetClearColor() const {
-	PTGN_ASSERT(IsValid(), "Cannot get clear color of invalid or uninitialized render target");
-	return Get().clear_color_;
-}
-
-void RenderTarget::SetBlendMode(BlendMode blend_mode) {
-	PTGN_ASSERT(IsValid(), "Cannot set blend mode of invalid or uninitialized render target");
-	auto& i{ Get() };
-	if (i.blend_mode_ == blend_mode) {
-		return;
-	}
-	i.Bind();
-	i.SetBlendMode(blend_mode);
-}
-
-BlendMode RenderTarget::GetBlendMode() const {
-	PTGN_ASSERT(IsValid(), "Cannot get blend mode of invalid or uninitialized render target");
-	return Get().blend_mode_;
-}
-
-void RenderTarget::Flush() {
-	PTGN_ASSERT(IsValid(), "Cannot flush invalid or uninitialized render target");
-	auto& i{ Get() };
-	i.Bind();
-	i.Flush();
-}
-
-void RenderTarget::Clear() const {
-	PTGN_ASSERT(IsValid(), "Cannot clear invalid or uninitialized render target");
-	auto& i{ Get() };
-	i.Bind();
-	i.Clear();
-}
-
-Texture RenderTarget::GetTexture() const {
+const Texture& RenderTarget::GetTexture() const {
 	PTGN_ASSERT(IsValid(), "Cannot get texture of invalid or uninitialized render target");
 	return Get().texture_;
 }
 
 Color RenderTarget::GetPixel(const V2_int& coordinate) const {
 	PTGN_ASSERT(IsValid(), "Cannot retrieve pixel of invalid render target");
-	auto texture{ GetTexture() };
+	const auto& texture{ GetTexture() };
 	V2_int size{ texture.GetSize() };
 	PTGN_ASSERT(
 		coordinate.x >= 0 && coordinate.x < size.x,
@@ -214,7 +123,7 @@ Color RenderTarget::GetPixel(const V2_int& coordinate) const {
 
 void RenderTarget::ForEachPixel(const std::function<void(V2_int, Color)>& func) const {
 	PTGN_ASSERT(IsValid(), "Cannot retrieve pixels of invalid render target");
-	auto texture{ GetTexture() };
+	const auto& texture{ GetTexture() };
 	V2_int size{ texture.GetSize() };
 	auto formats{ impl::GetGLFormats(texture.GetFormat()) };
 	PTGN_ASSERT(
@@ -243,87 +152,62 @@ void RenderTarget::ForEachPixel(const std::function<void(V2_int, Color)>& func) 
 	}
 }
 
-void RenderTarget::DrawToScreen(const std::function<void()>& post_flush) {
-	Flush();
-
-	if (post_flush != nullptr) {
-		std::invoke(post_flush);
-	}
-
-	game.shader.Get(ScreenShader::Default)
-		.Draw(
-			GetTexture(), Get().destination_, CameraManager::GetWindow().GetViewProjection(), {},
-			LayerInfo{ LayerInfo::ScreenLayer{} }
-		);
-
-	// Screen target is not cleared after drawing as it needs to be unbound for SDL2 to swap it to
-	// the window buffer.
+V2_float RenderTarget::ScreenToTarget(const V2_float& screen_coordinate) const {
+	PTGN_ASSERT(
+		IsValid(), "Cannot get coordinate relative to invalid or uninitialized render target"
+	);
+	auto& i{ Get() };
+	return ScreenToViewport(i.viewport_, i.camera_, screen_coordinate);
 }
 
-void RenderTarget::Draw(const TextureInfo& texture_info, const Shader& shader) {
-	Draw(texture_info, {}, shader);
+void RenderTarget::SetCamera(const Camera& camera) {
+	PTGN_ASSERT(IsValid(), "Cannot set camera of invalid or uninitialized render target");
+	auto& i{ Get() };
+	i.camera_ = camera;
 }
 
-void RenderTarget::Draw(
-	const TextureInfo& texture_info, const LayerInfo& layer_info, const Shader& shader
-) {
-	Flush();
+const Camera& RenderTarget::GetCamera() const {
+	PTGN_ASSERT(IsValid(), "Cannot get camera of invalid or uninitialized render target");
+	return Get().camera_;
+}
 
-	Shader{ shader.IsValid() ? shader : game.shader.Get(ScreenShader::Default) }.Draw(
-		GetTexture(), Get().destination_,
-		layer_info.GetRenderTarget().GetCamera().GetPrimary().GetViewProjection(), texture_info,
-		layer_info
+void RenderTarget::Draw(const TextureInfo& texture_info, Shader shader) const {
+	PTGN_ASSERT(IsValid(), "Cannot draw invalid or uninitialized render target");
+	PTGN_ASSERT(
+		game.renderer.GetRenderTarget() != *this ||
+			game.renderer.GetRenderTarget() == game.renderer.screen_target_,
+		"Cannot draw a render target to itself"
 	);
 
-	Clear();
+	const auto& i{ Get() };
+
+	if (i.viewport_.IsZero()) {
+		GLRenderer::SetViewport({}, game.window.GetSize());
+	} else if (i.viewport_.size.IsZero()) {
+		Rect r{ i.viewport_.position, i.texture_.GetSize(), i.viewport_.origin };
+		GLRenderer::SetViewport(r.Min(), r.size);
+	}
+
+	GetTexture().Draw(i.viewport_, texture_info, shader, i.camera_);
+
+	Bind();
+	// Render target is cleared after drawing.
+	GLRenderer::ClearToColor(GetClearColor());
 }
 
-CameraManager& RenderTarget::GetCamera() {
-	PTGN_ASSERT(IsValid(), "Cannot get camera of invalid or uninitialized render target");
-	return Get().camera_;
+Color RenderTarget::GetClearColor() const {
+	PTGN_ASSERT(IsValid(), "Cannot get clear color of invalid or uninitialized render target");
+	return Get().clear_color_;
 }
 
-const CameraManager& RenderTarget::GetCamera() const {
-	PTGN_ASSERT(IsValid(), "Cannot get camera of invalid or uninitialized render target");
-	return Get().camera_;
+void RenderTarget::SetClearColor(const Color& clear_color) {
+	PTGN_ASSERT(IsValid(), "Cannot set clear color of invalid or uninitialized render target");
+	Get().clear_color_ = clear_color;
 }
 
 void RenderTarget::Bind() const {
 	PTGN_ASSERT(IsValid(), "Cannot bind invalid or uninitialized render target");
 	Get().Bind();
-}
-
-V2_float RenderTarget::ScreenToTarget(const V2_float& position) const {
-	PTGN_ASSERT(IsValid(), "Cannot retrieve render target scaling");
-	Rect dest{ GetRect() };
-	auto p{ GetCamera().GetPrimary() };
-	return (p.ScreenToCamera(position) - dest.Min()) * p.GetSize() / dest.size;
-}
-
-V2_float RenderTarget::GetMousePosition() const {
-	return ScreenToTarget(game.input.GetMousePositionWindow());
-}
-
-V2_float RenderTarget::GetMousePositionPrevious() const {
-	return ScreenToTarget(game.input.GetMousePositionPreviousWindow());
-}
-
-V2_float RenderTarget::GetMouseDifference() const {
-	return ScreenToTarget(game.input.GetMouseDifferenceWindow());
-}
-
-impl::RenderData& RenderTarget::GetRenderData() {
-	PTGN_ASSERT(
-		IsValid(), "Cannot retrieve render data for an invalid or uninitialized render target"
-	);
-	return Get().render_data_;
-}
-
-const impl::RenderData& RenderTarget::GetRenderData() const {
-	PTGN_ASSERT(
-		IsValid(), "Cannot retrieve render data for an invalid or uninitialized render target"
-	);
-	return Get().render_data_;
 }
 
 } // namespace ptgn

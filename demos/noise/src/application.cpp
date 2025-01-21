@@ -2,7 +2,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 800, 800 };
+constexpr V2_int window_size{ 800, 800 };
 
 class NoiseExampleScene : public Scene {
 public:
@@ -22,7 +22,7 @@ public:
 
 	V2_int ws;
 
-	void Init() override {
+	void Enter() override {
 		PTGN_ASSERT(type == 0 || type == 1 || type == 2 || type == 3);
 
 		ws		   = game.window.GetSize();
@@ -227,7 +227,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("NoiseExample: Arrow keys to swap noise type", resolution);
-	game.scene.LoadActive<NoiseExampleScene>("noise_example");
+	game.Init("NoiseExample: Arrow keys to swap noise type", window_size);
+	game.scene.Enter<NoiseExampleScene>("noise_example");
 	return 0;
 }

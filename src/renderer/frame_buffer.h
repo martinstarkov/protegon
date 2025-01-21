@@ -9,9 +9,12 @@
 namespace ptgn {
 
 class FrameBuffer;
+class RenderTarget;
+class Shader;
 
 namespace impl {
 
+class Renderer;
 struct FrameBufferInstance;
 
 struct RenderBufferInstance {
@@ -21,6 +24,7 @@ struct RenderBufferInstance {
 	RenderBufferInstance(RenderBufferInstance&&)				 = default;
 	RenderBufferInstance& operator=(RenderBufferInstance&&)		 = default;
 	~RenderBufferInstance();
+
 	std::uint32_t id_{ 0 };
 };
 
@@ -58,10 +62,6 @@ struct FrameBufferInstance {
 
 	void AttachTexture(const Texture& texture);
 	void AttachRenderBuffer(const RenderBuffer& render_buffer);
-
-	// @param reset_viewport Whether or not to reset gl viewport to frame buffer attached texture
-	// size. Does nothing if no valid texture is attached.
-	void Bind(bool reset_viewport) const;
 
 	[[nodiscard]] bool IsBound() const;
 	[[nodiscard]] bool IsComplete() const;
@@ -104,6 +104,9 @@ public:
 
 private:
 	friend struct impl::FrameBufferInstance;
+	friend class impl::Renderer;
+	friend class Shader;
+	friend class RenderTarget;
 
 	// @return Id of the currently bound frame buffer.
 	[[nodiscard]] static std::uint32_t GetBoundId();

@@ -2,7 +2,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 800, 800 };
+constexpr V2_int window_size{ 800, 800 };
 
 class PathfindingExample : public Scene {
 	V2_int tile_size{ 20, 20 };
@@ -15,7 +15,7 @@ class PathfindingExample : public Scene {
 	std::deque<V2_int> global_waypoints;
 	std::deque<V2_int> local_waypoints;
 
-	void Init() override {
+	void Enter() override {
 		// tile_size = game.window.GetSize() / grid.GetSize();
 		start = { 1, grid.GetSize().y / 2 };
 		pos	  = start;
@@ -123,7 +123,7 @@ class PathfindingExample : public Scene {
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("Pathfinding: 'ESC' (++category), 'left/right' (place/remove), 'ctrl+left/right' "
-							 "(start/end), 'V' (visited) ", resolution);
-	game.scene.LoadActive<PathfindingExample>("pathfinding");
+							 "(start/end), 'V' (visited) ", window_size);
+	game.scene.Enter<PathfindingExample>("pathfinding");
 	return 0;
 }

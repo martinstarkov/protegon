@@ -60,16 +60,16 @@ struct DataPointColor : public ColorComponent {
 	using ColorComponent::ColorComponent;
 };
 
-struct DataPointRadius : public FloatComponent {
-	using FloatComponent::FloatComponent;
+struct DataPointRadius : public ArithmeticComponent<float> {
+	using ArithmeticComponent::ArithmeticComponent;
 };
 
 struct LineColor : public ColorComponent {
 	using ColorComponent::ColorComponent;
 };
 
-struct LineWidth : public FloatComponent {
-	using FloatComponent::FloatComponent;
+struct LineWidth : public ArithmeticComponent<float> {
+	using ArithmeticComponent::ArithmeticComponent;
 };
 
 class Plot;
@@ -241,7 +241,7 @@ public:
 
 	// @param destination Destination rectangle where to draw the plot. Default of {} results in
 	// fullscreen.
-	void Draw(const Rect& destination = {});
+	void Draw(Rect destination = {});
 
 	// @tparam T Type of the property to be added.  Valid property types are listed in the static
 	// assert of this function.
@@ -270,9 +270,6 @@ private:
 	// Update the limits of the graph such that it follows the most recent X data point out of all
 	// time series.
 	void FollowXData();
-
-	// @return Rect that is the size of the plot render target.
-	Rect GetCanvasRect() const;
 
 	// @param destination Destination rectangle where to draw the plot area.
 	void DrawPlotArea();
@@ -370,7 +367,7 @@ private:
 	V2_float offset_{ V2_float::Infinity() };
 
 	// Canvas size here reflects the unscaled resolution of the canvas.
-	RenderTarget canvas_{ { 500, 500 }, color::Transparent, BlendMode::Blend };
+	RenderTarget canvas_{ { 500, 500 }, color::Transparent };
 
 	Rect legend_rect_;
 

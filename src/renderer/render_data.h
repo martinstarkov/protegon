@@ -55,6 +55,8 @@ public:
 private:
 	friend struct Batch;
 
+	[[nodiscard]] bool IsFlushEmpty() const;
+
 	[[nodiscard]] std::vector<Batch>& GetLayerBatches(
 		std::int32_t render_layer, [[maybe_unused]] float alpha
 	);

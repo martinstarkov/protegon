@@ -12,7 +12,7 @@ public:
 	ecs::Entity entity1;
 	ecs::Entity entity2;
 
-	void Init() override {
+	void Enter() override {
 		entity1 = manager.CreateEntity();
 		entity2 = manager.CreateEntity();
 
@@ -40,6 +40,6 @@ public:
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("AnimationExample");
-	game.scene.LoadActive<AnimationExample>("animation_example");
+	game.scene.Enter<AnimationExample>("animation_example");
 	return 0;
 }

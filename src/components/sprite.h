@@ -1,10 +1,9 @@
 #pragma once
 
 #include <chrono>
+#include <cstdint>
 #include <functional>
 #include <memory>
-#include <string>
-#include <type_traits>
 #include <vector>
 
 #include "components/generic.h"
@@ -19,9 +18,7 @@
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/flip.h"
-#include "renderer/layer_info.h"
 #include "renderer/origin.h"
-#include "renderer/renderer.h"
 #include "renderer/texture.h"
 #include "utility/debug.h"
 #include "utility/time.h"
@@ -29,6 +26,10 @@
 #include "utility/utility.h"
 
 namespace ptgn {
+
+struct RenderLayer : public ArithmeticComponent<std::int32_t> {
+	using ArithmeticComponent::ArithmeticComponent;
+};
 
 struct SpriteTint : public ColorComponent {
 	using ColorComponent::ColorComponent;
@@ -38,8 +39,8 @@ struct DrawColor : public ColorComponent {
 	using ColorComponent::ColorComponent;
 };
 
-struct DrawLineWidth : public FloatComponent {
-	using FloatComponent::FloatComponent;
+struct DrawLineWidth : public ArithmeticComponent<float> {
+	using ArithmeticComponent::ArithmeticComponent;
 };
 
 struct SpriteFlip : public FlipComponent {
@@ -50,14 +51,14 @@ inline void DrawRect(ecs::Entity entity, const Rect& rect) {
 	rect.Draw(
 		entity.Has<DrawColor>() ? entity.Get<DrawColor>() : color::Black,
 		entity.Has<DrawLineWidth>() ? entity.Get<DrawLineWidth>() : DrawLineWidth{ 1.0f },
-		entity.Has<LayerInfo>() ? entity.Get<LayerInfo>() : LayerInfo{}
+		entity.Has<RenderLayer>() ? entity.Get<RenderLayer>() : RenderLayer{ 0 }
 	);
 }
 
 inline void DrawPoint(ecs::Entity entity, const V2_float& point, float radius = 1.0f) {
 	point.Draw(
 		entity.Has<DrawColor>() ? entity.Get<DrawColor>() : color::Black, radius,
-		entity.Has<LayerInfo>() ? entity.Get<LayerInfo>() : LayerInfo{}
+		entity.Has<RenderLayer>() ? entity.Get<RenderLayer>() : RenderLayer{ 0 }
 	);
 }
 
@@ -65,7 +66,7 @@ inline void DrawCircle(ecs::Entity entity, const Circle& circle) {
 	circle.Draw(
 		entity.Has<DrawColor>() ? entity.Get<DrawColor>() : color::Black,
 		entity.Has<DrawLineWidth>() ? entity.Get<DrawLineWidth>() : DrawLineWidth{ 1.0f },
-		entity.Has<LayerInfo>() ? entity.Get<LayerInfo>() : LayerInfo{}
+		entity.Has<RenderLayer>() ? entity.Get<RenderLayer>() : RenderLayer{ 0 }
 	);
 }
 
@@ -73,7 +74,7 @@ inline void DrawLine(ecs::Entity entity, const Line& line) {
 	line.Draw(
 		entity.Has<DrawColor>() ? entity.Get<DrawColor>() : color::Black,
 		entity.Has<DrawLineWidth>() ? entity.Get<DrawLineWidth>() : DrawLineWidth{ 1.0f },
-		entity.Has<LayerInfo>() ? entity.Get<LayerInfo>() : LayerInfo{}
+		entity.Has<RenderLayer>() ? entity.Get<RenderLayer>() : RenderLayer{ 0 }
 	);
 }
 
@@ -177,12 +178,15 @@ inline void DrawTexture(
 					  entity.Has<SpriteFlip>() ? entity.Get<SpriteFlip>() : SpriteFlip{ f },
 					  entity.Has<SpriteTint>() ? entity.Get<SpriteTint>() : color::White,
 					  V2_float{ 0.5f, 0.5f } };
-	texture.Draw(dest, info, entity.Has<LayerInfo>() ? entity.Get<LayerInfo>() : LayerInfo{});
+	texture.Draw(
+		dest, info, entity.Has<RenderLayer>() ? entity.Get<RenderLayer>() : RenderLayer{ 0 }
+	);
 }
 
 } // namespace impl
 
-// TODO: Maybe just inherit from tween as well.
+// TODO: Maybe just inherit Animation from Tween as well as SpriteSheet.
+//
 // Represents an animated row of sprites within a texture.
 struct Animation : public impl::SpriteSheet {
 	Animation() = default;

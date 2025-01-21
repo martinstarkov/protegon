@@ -2,33 +2,14 @@
 
 using namespace ptgn;
 
-class CameraShakeButtons : public Scene {
+class CameraShakeExample : public Scene {
 public:
+	ecs::Manager manager;
+	ecs::Entity player;
+
 	Grid<Button> grid{ { 1, 5 } };
 
-	CameraShake& GetShake();
-
-	void Init() override {
-		grid.Set({ 0, 0 }, CreateButton("Reset Shake", [&]() { GetShake().Reset(); }));
-		grid.Set({ 0, 1 }, CreateButton("Induce 0.10 Shake", [&]() { GetShake().Induce(0.1f); }));
-		grid.Set({ 0, 2 }, CreateButton("Induce 0.25 Shake", [&]() { GetShake().Induce(0.25f); }));
-		grid.Set({ 0, 3 }, CreateButton("Induce 0.75 Shake", [&]() { GetShake().Induce(0.5f); }));
-		grid.Set({ 0, 4 }, CreateButton("Induce 1.00 Shake", [&]() { GetShake().Induce(1.0f); }));
-
-		V2_float screen_offset{ 10, 30 };
-		V2_float offset{ 6, 6 };
-		V2_float size{ 200, 50 };
-
-		grid.ForEach([&](auto coord, Button& b) {
-			b.SetRect({ screen_offset + (offset + size) * coord, size, Origin::TopLeft });
-		});
-	}
-
-	void Update() override {
-		Text{ "WASD to move", color::Black }.Draw({ { 0, 0 }, {}, Origin::TopLeft });
-
-		grid.ForEachElement([](Button& b) { b.Draw(); });
-	}
+	float speed{ 50.0f };
 
 	Button CreateButton(std::string_view content, const ButtonCallback& on_activate) {
 		Button b;
@@ -43,16 +24,8 @@ public:
 		b.Set<ButtonProperty::OnActivate>(on_activate);
 		return b;
 	}
-};
 
-class CameraShakeExample : public Scene {
-public:
-	ecs::Manager manager;
-	ecs::Entity player;
-
-	float speed{ 50.0f };
-
-	void Init() override {
+	void Enter() override {
 		manager.Reset();
 
 		player = manager.CreateEntity();
@@ -62,7 +35,19 @@ public:
 
 		manager.Refresh();
 
-		game.scene.LoadActive<CameraShakeButtons>("camera_shake_buttons");
+		grid.Set({ 0, 0 }, CreateButton("Reset Shake", [&]() { GetShake().Reset(); }));
+		grid.Set({ 0, 1 }, CreateButton("Induce 0.10 Shake", [&]() { GetShake().Induce(0.1f); }));
+		grid.Set({ 0, 2 }, CreateButton("Induce 0.25 Shake", [&]() { GetShake().Induce(0.25f); }));
+		grid.Set({ 0, 3 }, CreateButton("Induce 0.75 Shake", [&]() { GetShake().Induce(0.5f); }));
+		grid.Set({ 0, 4 }, CreateButton("Induce 1.00 Shake", [&]() { GetShake().Induce(1.0f); }));
+
+		V2_float screen_offset{ 10, 30 };
+		V2_float offset{ 6, 6 };
+		V2_float size{ 200, 50 };
+
+		grid.ForEach([&](auto coord, Button& b) {
+			b.SetRect({ screen_offset + (offset + size) * coord, size, Origin::TopLeft });
+		});
 	}
 
 	void Update() override {
@@ -99,16 +84,26 @@ public:
 			player, { player.Get<Transform>().position, V2_float{ 30.0f, 30.0f }, Origin::Center }
 		);
 		Rect{ { 0, 0 }, { 50.0f, 50.0f }, Origin::TopLeft }.Draw(color::Orange);
+
+		RenderTarget ui{ color::Transparent };
+		game.renderer.SetTemporaryRenderTarget(ui, [&]() {
+			game.camera.SetToWindow();
+
+			Text{ "WASD to move", color::Black }.Draw({ { 0, 0 }, {}, Origin::TopLeft });
+
+			grid.ForEachElement([](Button& b) { b.Draw(); });
+		});
+		ui.Draw();
+	}
+
+	CameraShake& GetShake() {
+		PTGN_ASSERT(player.Has<CameraShake>());
+		return player.Get<CameraShake>();
 	}
 };
 
-CameraShake& CameraShakeButtons::GetShake() {
-	PTGN_ASSERT(game.scene.Has("camera_shake"), "Failed to find camera shake main scene");
-	return game.scene.Get<CameraShakeExample>("camera_shake")->player.Get<CameraShake>();
-}
-
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("CameraShake");
-	game.scene.LoadActive<CameraShakeExample>("camera_shake");
+	game.scene.Enter<CameraShakeExample>("camera_shake");
 	return 0;
 }

@@ -2,7 +2,7 @@
 
 using namespace ptgn;
 
-const V2_float resolution{ 800, 450 };
+const V2_float window_size{ 800, 450 };
 
 class FullscreenExample : public Scene {
 	std::vector<Text> texts;
@@ -25,7 +25,7 @@ class FullscreenExample : public Scene {
 
 	const V2_float text_offset{ 30.0f, 450.0f - 30.0f };
 
-	void Init() override {
+	void Enter() override {
 		texts.clear();
 
 		camera_size_text	 = texts.emplace_back("", color::Black);
@@ -40,19 +40,19 @@ class FullscreenExample : public Scene {
 		window_visible		 = texts.emplace_back("", color::Black);
 	}
 
-	void Shutdown() override {
+	void Exit() override {
 		game.window.SetSetting(WindowSetting::Windowed);
 		game.window.SetSetting(WindowSetting::Bordered);
 		game.window.SetSetting(WindowSetting::FixedSize);
 		game.window.SetSetting(WindowSetting::Shown);
-		game.window.SetSize(resolution);
+		game.window.SetSize(window_size);
 	}
 
 	void Update() final {
 		auto p = game.camera.GetPrimary();
 		if (game.input.KeyDown(Key::Z)) {
-			V2_float scale = game.window.GetSize() / resolution;
-			p.CenterOnArea(resolution);
+			V2_float scale = game.window.GetSize() / window_size;
+			p.CenterOnArea(window_size);
 		}
 		if (game.input.KeyDown(Key::X)) {
 			p.SetToWindow();
@@ -116,13 +116,13 @@ class FullscreenExample : public Scene {
 
 	void Draw() {
 		Rect{ {}, game.window.GetSize(), Origin::TopLeft }.Draw({ 0, 0, 255, 10 });
-		Rect{ {}, resolution, Origin::TopLeft }.Draw({ 255, 0, 0, 40 });
-		Rect{ {}, resolution, Origin::TopLeft }.Draw({ 0, 255, 0, 40 }, 10.0f);
+		Rect{ {}, window_size, Origin::TopLeft }.Draw({ 255, 0, 0, 40 });
+		Rect{ {}, window_size, Origin::TopLeft }.Draw({ 0, 255, 0, 40 }, 10.0f);
 
 		Color color_0 = color::Green;
 		Color color_1 = color::Blue;
 
-		Rect rect_0{ V2_float{ resolution.x, 0.0f }, V2_float{ 30.0f, 30.0f }, Origin::TopRight };
+		Rect rect_0{ V2_float{ window_size.x, 0.0f }, V2_float{ 30.0f, 30.0f }, Origin::TopRight };
 		Rect rect_1{ V2_int{ 0, game.window.GetSize().y }, V2_float{ 30.0f, 30.0f },
 					 Origin::BottomLeft };
 
@@ -168,18 +168,24 @@ class FullscreenExample : public Scene {
 		RenderTarget rt{ color::Transparent };
 
 		rect_0.Draw(color_0, -1.0f);
-		rect_1.Draw(color_1, -1.0f, rt);
 
-		game.input.GetMousePosition().Draw(color::Red, 4.0f);
-		rt.GetMousePosition().Draw(color::Green, 4.0f);
-		rt.GetMousePosition().Draw(color::Blue, 4.0f, rt);
+		V2_float mouse_pos{ game.input.GetMousePosition() };
+		PTGN_LOG("Mouse Pos: ", mouse_pos);
+
+		mouse_pos.Draw(color::Red, 6.0f);
+
+		game.renderer.SetTemporaryRenderTarget(rt, [&]() {
+			// Mouse position relative to the camera of this render target.
+			game.input.GetMousePosition().Draw(color::Blue, 3.0f);
+			rect_1.Draw(color_1, -1.0f);
+		});
 
 		rt.Draw();
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("FullscreenExample", resolution);
-	game.scene.LoadActive<FullscreenExample>("fullscreen");
+	game.Init("FullscreenExample", window_size);
+	game.scene.Enter<FullscreenExample>("fullscreen");
 	return 0;
 }

@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 
+#include "SDL_timer.h"
 #include "audio/audio.h"
 #include "core/gl_context.h"
 #include "core/manager.h"
@@ -22,7 +23,6 @@
 #include "renderer/texture.h"
 #include "scene/camera.h"
 #include "scene/scene_manager.h"
-#include "SDL_timer.h"
 #include "ui/ui.h"
 #include "utility/debug.h"
 #include "utility/profiling.h"
@@ -50,6 +50,7 @@ EM_JS(int, get_screen_height, (), { return screen.height; });
 #include "CoreFoundation/CoreFoundation.h"
 
 #endif
+#include "renderer/frame_buffer.h"
 
 namespace ptgn {
 
@@ -124,41 +125,41 @@ static void InitApplePath() {
 Game::Game() :
 	sdl_instance_{ std::make_unique<SDLInstance>() },
 	window_{ std::make_unique<Window>() },
+	window{ *window_ },
 	gl_context_{ std::make_unique<GLContext>() },
 	event_{ std::make_unique<EventHandler>() },
-	input_{ std::make_unique<InputHandler>() },
-	renderer_{ std::make_unique<Renderer>() },
-	scene_{ std::make_unique<SceneManager>() },
-	camera_{ std::make_unique<SceneCamera>() },
-	physics_{ std::make_unique<Physics>() },
-	collision_{ std::make_unique<CollisionHandler>() },
-	ui_{ std::make_unique<UserInterface>() },
-	tween_{ std::make_unique<TweenManager>() },
-	music_{ std::make_unique<MusicManager>() },
-	sound_{ std::make_unique<SoundManager>() },
-	font_{ std::make_unique<FontManager>() },
-	text_{ std::make_unique<TextManager>() },
-	texture_{ std::make_unique<TextureManager>() },
-	shader_{ std::make_unique<ShaderManager>() },
-	light_{ std::make_unique<LightManager>() },
-	profiler_{ std::make_unique<Profiler>() },
-	window{ *window_ },
 	event{ *event_ },
+	input_{ std::make_unique<InputHandler>() },
 	input{ *input_ },
+	renderer_{ std::make_unique<Renderer>() },
 	renderer{ *renderer_ },
+	scene_{ std::make_unique<SceneManager>() },
 	scene{ *scene_ },
-	camera{ *camera_ },
+	physics_{ std::make_unique<Physics>() },
 	physics{ *physics_ },
+	collision_{ std::make_unique<CollisionHandler>() },
 	collision{ *collision_ },
+	ui_{ std::make_unique<UserInterface>() },
 	ui{ *ui_ },
+	camera_{ std::make_unique<CameraManager>() },
+	camera{ *camera_ },
+	tween_{ std::make_unique<TweenManager>() },
 	tween{ *tween_ },
+	music_{ std::make_unique<MusicManager>() },
 	music{ *music_ },
+	sound_{ std::make_unique<SoundManager>() },
 	sound{ *sound_ },
+	font_{ std::make_unique<FontManager>() },
 	font{ *font_ },
+	text_{ std::make_unique<TextManager>() },
 	text{ *text_ },
+	texture_{ std::make_unique<TextureManager>() },
 	texture{ *texture_ },
+	shader_{ std::make_unique<ShaderManager>() },
 	shader{ *shader_ },
+	light_{ std::make_unique<LightManager>() },
 	light{ *light_ },
+	profiler_{ std::make_unique<Profiler>() },
 	profiler{ *profiler_ } {}
 
 Game::~Game() {
@@ -207,7 +208,6 @@ void Game::Init(
 	shader.Init();
 
 	renderer.Init(background_color);
-	physics.Init();
 	light.Init();
 
 	game.window.SetTitle(title);
@@ -227,7 +227,6 @@ void Game::Shutdown() {
 	sound.Reset();
 	music.Reset();
 
-	physics.Shutdown();
 	renderer.Shutdown();
 	input.Shutdown();
 	event.Shutdown();
@@ -295,6 +294,9 @@ void Game::Update() {
 
 	input.Update();
 	scene.Update();
+	if (scene.HasCurrent()) {
+		physics.Update(scene.GetCurrent().manager);
+	}
 	tween.Update();
 	light.Draw();
 	renderer.Present();
@@ -308,7 +310,7 @@ void Game::Update() {
 	);*/
 #endif
 
-	scene.UpdateFlags();
+	scene.HandleSceneEvents();
 
 	if (profiler.IsEnabled()) {
 		profiler.PrintAll();

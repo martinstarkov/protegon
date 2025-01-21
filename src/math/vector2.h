@@ -19,7 +19,6 @@
 namespace ptgn {
 
 struct Color;
-struct LayerInfo;
 struct Rect;
 struct Line;
 struct Capsule;
@@ -27,22 +26,13 @@ struct Circle;
 
 namespace impl {
 
-class RenderData;
-
 struct Point {
-	static void Draw(float x, float y, const Color& color, float radius);
+	static void Draw(float x, float y, const Color& color, float radius, std::int32_t render_layer);
+
+	static void Draw(float x, float y, const V4_float& color, std::int32_t render_layer);
 
 	static void Draw(
-		float x, float y, const Color& color, float radius, const LayerInfo& layer_info
-	);
-
-	static void Draw(
-		float x, float y, const V4_float& color, std::int32_t render_layer, RenderData& render_data
-	);
-
-	static void Draw(
-		float x, float y, float radius, const V4_float& color, std::int32_t render_layer,
-		RenderData& render_data
+		float x, float y, float radius, const V4_float& color, std::int32_t render_layer
 	);
 };
 
@@ -75,13 +65,10 @@ struct Vector2 {
 	explicit constexpr Vector2(const Vector2<U>& o) :
 		x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
 
-	// Uses default render target.
-	void Draw(const Color& color, float radius = 1.0f) const {
-		impl::Point::Draw(static_cast<float>(x), static_cast<float>(y), color, radius);
-	}
-
-	void Draw(const Color& color, float radius, const LayerInfo& layer_info) const {
-		impl::Point::Draw(static_cast<float>(x), static_cast<float>(y), color, radius, layer_info);
+	void Draw(const Color& color, float radius = 1.0f, std::int32_t render_layer = 0) const {
+		impl::Point::Draw(
+			static_cast<float>(x), static_cast<float>(y), color, radius, render_layer
+		);
 	}
 
 	// Access vector elements by index, 0 for x, 1 for y.

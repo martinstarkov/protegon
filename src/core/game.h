@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 
+#include "ecs/ecs.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "utility/stats.h"
@@ -21,7 +22,7 @@ class EventHandler;
 class InputHandler;
 class Renderer;
 class SceneManager;
-class SceneCamera;
+class CameraManager;
 class Physics;
 class CollisionHandler;
 class UserInterface;
@@ -67,7 +68,7 @@ public:
 
 	// Entry point for the game / application.
 	// Note: Window will not appear until an active scene has been loaded into the scene manager:
-	// game.scene.LoadActive<MyScene>("scene_name");
+	// game.scene.Enter<MyScene>("scene_name");
 	// @param title The title of the window. Can be changed later using
 	// game.window.SetTitle("title");
 	// @param window_size Starting size of the window. Can be changed later using
@@ -105,63 +106,122 @@ private:
 	void Update();
 	void Shutdown();
 
+	// Note: To order of these is important for correct construction.
+
 	std::unique_ptr<SDLInstance> sdl_instance_;
 	std::unique_ptr<Window> window_;
-	std::unique_ptr<GLContext> gl_context_;
 
+public:
+	Window& window;
+
+private:
+	std::unique_ptr<GLContext> gl_context_;
 	std::unique_ptr<EventHandler> event_;
+
+public:
+	EventHandler& event;
+
+private:
 	std::unique_ptr<InputHandler> input_;
+
+public:
+	InputHandler& input;
+
+private:
 	std::unique_ptr<Renderer> renderer_;
+
+public:
+	Renderer& renderer;
+
+private:
 	std::unique_ptr<SceneManager> scene_;
-	std::unique_ptr<SceneCamera> camera_;
+
+public:
+	SceneManager& scene;
+
+private:
 	std::unique_ptr<Physics> physics_;
+
+public:
+	Physics& physics;
+
+private:
 	std::unique_ptr<CollisionHandler> collision_;
+
+public:
+	CollisionHandler& collision;
+
+private:
 	std::unique_ptr<UserInterface> ui_;
 
+public:
+	UserInterface& ui;
+
+private:
+	std::unique_ptr<CameraManager> camera_;
+
+public:
+	CameraManager& camera;
+
+private:
 	std::unique_ptr<TweenManager> tween_;
+
+public:
+	TweenManager& tween;
+
+private:
 	std::unique_ptr<MusicManager> music_;
+
+public:
+	MusicManager& music;
+
+private:
 	std::unique_ptr<SoundManager> sound_;
+
+public:
+	SoundManager& sound;
+
+private:
 	std::unique_ptr<FontManager> font_;
+
+public:
+	FontManager& font;
+
+private:
 	std::unique_ptr<TextManager> text_;
+
+public:
+	TextManager& text;
+
+private:
 	std::unique_ptr<TextureManager> texture_;
+
+public:
+	TextureManager& texture;
+
+private:
 	std::unique_ptr<ShaderManager> shader_;
+
+public:
+	ShaderManager& shader;
+
+private:
 	std::unique_ptr<LightManager> light_;
 
+public:
+	LightManager& light;
+
+private:
 	std::unique_ptr<Profiler> profiler_;
 
+public:
+	Profiler& profiler;
+
+private:
 	bool running_{ false };
 	float dt_{ 0.0f };
 
 public:
-	// Note: It is important that these are defined below the private unique ptrs so their
-	// constructor are called later.
-
-	// Core Subsystems
-
-	Window& window;
-	EventHandler& event;
-	InputHandler& input;
-	Renderer& renderer;
-	SceneManager& scene;
-	SceneCamera& camera;
-	Physics& physics;
-	CollisionHandler& collision;
-	UserInterface& ui;
-
-	// Resources
-
-	TweenManager& tween;
-	MusicManager& music;
-	SoundManager& sound;
-	FontManager& font;
-	TextManager& text;
-	TextureManager& texture;
-	ShaderManager& shader;
-	LightManager& light;
-
-	// Debug
-
-	Profiler& profiler;
 #ifdef PTGN_DEBUG
 	Stats stats;
 #endif

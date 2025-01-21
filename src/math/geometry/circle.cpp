@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include "core/game.h"
 #include "math/geometry/intersection.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
@@ -16,41 +17,30 @@
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/color.h"
-#include "renderer/layer_info.h"
 #include "renderer/origin.h"
 #include "renderer/render_data.h"
+#include "renderer/renderer.h"
 #include "utility/debug.h"
 
 namespace ptgn {
 
-void Circle::Draw(const Color& color, float line_width) const {
-	Draw(color, line_width, {});
+void Circle::DrawSolid(const V4_float& color, std::int32_t render_layer) const {
+	Ellipse{ center, { radius, radius } }.DrawSolid(color, render_layer);
 }
 
-void Circle::DrawSolid(
-	const V4_float& color, std::int32_t render_layer, impl::RenderData& render_data
-) const {
-	Ellipse{ center, { radius, radius } }.DrawSolid(color, render_layer, render_data);
+void Circle::DrawThick(float line_width, const V4_float& color, std::int32_t render_layer) const {
+	Ellipse{ center, { radius, radius } }.DrawThick(line_width, color, render_layer);
 }
 
-void Circle::DrawThick(
-	float line_width, const V4_float& color, std::int32_t render_layer,
-	impl::RenderData& render_data
-) const {
-	Ellipse{ center, { radius, radius } }.DrawThick(line_width, color, render_layer, render_data);
-}
-
-void Circle::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
+void Circle::Draw(const Color& color, float line_width, std::int32_t render_layer) const {
 	auto norm_color{ color.Normalized() };
-	auto render_layer{ layer_info.GetRenderLayer() };
-	auto& render_data{ layer_info.GetRenderTarget().GetRenderData() };
 
 	if (line_width == -1.0f) {
-		DrawSolid(norm_color, render_layer, render_data);
+		DrawSolid(norm_color, render_layer);
 		return;
 	}
 
-	DrawThick(line_width, norm_color, render_layer, render_data);
+	DrawThick(line_width, norm_color, render_layer);
 }
 
 void Circle::Offset(const V2_float& offset) {
@@ -286,20 +276,13 @@ ptgn::Raycast Circle::Raycast(const V2_float& ray, const Rect& rect) const {
 	return c;
 }
 
-void Arc::Draw(bool clockwise, const Color& color, float line_width) const {
-	Draw(clockwise, color, line_width, {});
-}
-
-void Arc::Draw(bool clockwise, const Color& color, float line_width, const LayerInfo& layer_info)
+void Arc::Draw(bool clockwise, const Color& color, float line_width, std::int32_t render_layer)
 	const {
 	PTGN_ASSERT(radius >= 0.0f, "Cannot draw filled arc with negative radius");
 
 	// Edge case where arc is a point.
 	if (NearlyEqual(radius, 0.0f)) {
-		impl::Point::Draw(
-			center.x, center.y, color.Normalized(), layer_info.GetRenderLayer(),
-			layer_info.GetRenderTarget().GetRenderData()
-		);
+		impl::Point::Draw(center.x, center.y, color.Normalized(), render_layer);
 		return;
 	}
 
@@ -312,30 +295,27 @@ void Arc::Draw(bool clockwise, const Color& color, float line_width, const Layer
 	// Edge case where start and end angles match (considered a full rotation).
 	if (float range{ sa - ea }; NearlyEqual(range, 0.0f) || NearlyEqual(range, two_pi<float>)) {
 		Circle c{ center, radius };
-		c.Draw(color, line_width, layer_info);
+		c.Draw(color, line_width, render_layer);
 		return;
 	}
 
 	auto norm_color{ color.Normalized() };
-	auto render_layer{ layer_info.GetRenderLayer() };
-	auto& render_data{ layer_info.GetRenderTarget().GetRenderData() };
 
 	if (line_width == -1.0f) {
-		DrawSolid(clockwise, sa, ea, norm_color, render_layer, render_data);
+		DrawSolid(clockwise, sa, ea, norm_color, render_layer);
 		return;
 	}
 
-	DrawThick(line_width, clockwise, sa, ea, norm_color, render_layer, render_data);
+	DrawThick(line_width, clockwise, sa, ea, norm_color, render_layer);
 }
 
 void Arc::DrawSolid(
-	bool clockwise, float sa, float ea, const V4_float& color, std::int32_t render_layer,
-	impl::RenderData& render_data
+	bool clockwise, float sa, float ea, const V4_float& color, std::int32_t render_layer
 ) const {
 	auto vertices{ GetVertices(clockwise, sa, ea) };
 	std::size_t vertex_count{ vertices.size() - 1 };
 	for (std::size_t i{ 0 }; i < vertex_count; i++) {
-		render_data.AddPrimitiveTriangle(
+		game.renderer.GetRenderData().AddPrimitiveTriangle(
 			{ center, vertices[i], vertices[i + 1] }, render_layer, color
 		);
 	}
@@ -343,12 +323,11 @@ void Arc::DrawSolid(
 
 void Arc::DrawThick(
 	float line_width, bool clockwise, float sa, float ea, const V4_float& color,
-	std::int32_t render_layer, impl::RenderData& render_data
+	std::int32_t render_layer
 ) const {
 	auto vertices{ GetVertices(clockwise, sa, ea) };
 	impl::DrawVertices(
-		vertices.data(), vertices.size() - 1, line_width, color, render_layer, render_data,
-		vertices.size()
+		vertices.data(), vertices.size() - 1, line_width, color, render_layer, vertices.size()
 	);
 }
 
@@ -391,22 +370,15 @@ std::vector<V2_float> Arc::GetVertices(bool clockwise, float sa, float ea) const
 	return vertices;
 }
 
-void Ellipse::Draw(const Color& color, float line_width) const {
-	Draw(color, line_width, {});
-}
-
-void Ellipse::DrawSolid(
-	const V4_float& color, std::int32_t render_layer, impl::RenderData& render_data
-) const {
+void Ellipse::DrawSolid(const V4_float& color, std::int32_t render_layer) const {
 	Rect rect{ center, radius * 2.0f, Origin::Center, 0.0f };
 	auto vertices{ rect.GetVertices(V2_float{ 0.5f, 0.5f }) };
-	render_data.AddPrimitiveCircle(vertices, render_layer, color, 1.0f, impl::fade_);
+	game.renderer.GetRenderData().AddPrimitiveCircle(
+		vertices, render_layer, color, 1.0f, impl::fade_
+	);
 }
 
-void Ellipse::DrawThick(
-	float line_width, const V4_float& color, std::int32_t render_layer,
-	impl::RenderData& render_data
-) const {
+void Ellipse::DrawThick(float line_width, const V4_float& color, std::int32_t render_layer) const {
 	PTGN_ASSERT(line_width > 0.0f, "Cannot draw ellipse with negative line width");
 
 	// Internally line width for a filled ellipse is 1.0f and a completely hollow one is 0.0f,
@@ -417,20 +389,20 @@ void Ellipse::DrawThick(
 
 	Rect rect{ center, radius * 2.0f, Origin::Center, 0.0f };
 	auto vertices{ rect.GetVertices(V2_float{ 0.5f, 0.5f }) };
-	render_data.AddPrimitiveCircle(vertices, render_layer, color, line_width, impl::fade_);
+	game.renderer.GetRenderData().AddPrimitiveCircle(
+		vertices, render_layer, color, line_width, impl::fade_
+	);
 }
 
-void Ellipse::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
+void Ellipse::Draw(const Color& color, float line_width, std::int32_t render_layer) const {
 	auto norm_color{ color.Normalized() };
-	auto render_layer{ layer_info.GetRenderLayer() };
-	auto& render_data{ layer_info.GetRenderTarget().GetRenderData() };
 
 	if (line_width == -1.0f) {
-		DrawSolid(norm_color, render_layer, render_data);
+		DrawSolid(norm_color, render_layer);
 		return;
 	}
 
-	DrawThick(line_width, norm_color, render_layer, render_data);
+	DrawThick(line_width, norm_color, render_layer);
 }
 
 } // namespace ptgn

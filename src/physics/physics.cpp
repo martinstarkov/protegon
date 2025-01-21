@@ -1,15 +1,14 @@
 #include "physics/physics.h"
 
-#include "math/collision.h"
 #include "components/transform.h"
 #include "core/game.h"
 #include "ecs/ecs.h"
+#include "math/collision.h"
 #include "physics/movement.h"
 #include "physics/rigid_body.h"
+#include "scene/scene_manager.h"
 
-namespace ptgn {
-
-namespace impl {
+namespace ptgn::impl {
 
 V2_float Physics::GetGravity() const {
 	return gravity_;
@@ -42,6 +41,4 @@ void Physics::Update(ecs::Manager& manager) const {
 	}
 }
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

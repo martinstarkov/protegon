@@ -9,7 +9,7 @@ public:
 	Grid<int> grid{ { 36, 36 } };
 	V2_int tile_size{ 20, 20 };
 
-	void Init() override {
+	void Enter() override {
 		outer_grid.Fill(0);
 	}
 
@@ -69,6 +69,6 @@ public:
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("paint: left click to draw; right click to erase; B to flip color", { 720, 720 });
-	game.scene.LoadActive<Paint>("paint");
+	game.scene.Enter<Paint>("paint");
 	return 0;
 }

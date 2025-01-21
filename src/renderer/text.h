@@ -12,7 +12,6 @@
 
 namespace ptgn {
 
-struct LayerInfo;
 struct Rect;
 
 struct TextInfo {
@@ -64,18 +63,14 @@ public:
 	// @param font Default: {}, which corresponds to the default font (use game.font.SetDefault(...)
 	// to change.
 	Text(
-		const std::string_view& content, const Color& text_color = color::Black, const FontOrKey& font = {},
-		FontStyle font_style	   = FontStyle::Normal,
+		const std::string_view& content, const Color& text_color = color::Black,
+		const FontOrKey& font = {}, FontStyle font_style = FontStyle::Normal,
 		FontRenderMode render_mode = FontRenderMode::Solid,
 		const Color& shading_color = color::White, std::uint32_t wrap_after_pixels = 0
 	);
 
 	// Setting destination.size == {} corresponds to the unscaled size of the text.
-	// Uses default render target.
-	void Draw(const Rect& destination) const;
-
-	// Setting destination.size == {} corresponds to the unscaled size of the text.
-	void Draw(const Rect& destination, const LayerInfo& layer_info) const;
+	void Draw(const Rect& destination, std::int32_t render_layer = 0) const;
 
 	Text& SetFont(const FontOrKey& font);
 	Text& SetContent(const std::string_view& content);

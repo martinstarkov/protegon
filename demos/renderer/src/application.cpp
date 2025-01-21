@@ -58,7 +58,7 @@ void TestBatchTextureSDL(std::size_t batch_size, const std::vector<path>& textur
 	SDL_DestroyRenderer(r);
 }*/
 
-constexpr V2_int resolution{ 800, 800 };
+constexpr V2_int window_size{ 800, 800 };
 
 V2_float ws;
 V2_float center;
@@ -70,8 +70,8 @@ struct DrawTest {
 
 	const float line_width{ 1.0f };
 
-	virtual void Init() {
-		game.window.SetSize(resolution);
+	virtual void Enter() {
+		game.window.SetSize(window_size);
 	}
 
 	virtual void Update() {}
@@ -89,8 +89,8 @@ struct TestViewportExtentsAndOrigin : public DrawTest {
 
 	V2_float s; // rectangle size.
 
-	void Init() override {
-		DrawTest::Init();
+	void Enter() override {
+		DrawTest::Enter();
 		top_left	 = V2_float{ 0, 0 };
 		top_right	 = V2_float{ ws.x, 0 };
 		bottom_right = V2_float{ ws.x, ws.y };
@@ -110,8 +110,8 @@ struct TestViewportExtentsAndOrigin : public DrawTest {
 struct TestPoint : public DrawTest {
 	const float point_radius{ 3.0f };
 
-	void Init() override {
-		DrawTest::Init();
+	void Enter() override {
+		DrawTest::Enter();
 	}
 
 	void Draw() override {
@@ -139,8 +139,8 @@ struct TestLine : public DrawTest {
 	V2_float p6;
 	V2_float p7;
 
-	void Init() override {
-		DrawTest::Init();
+	void Enter() override {
+		DrawTest::Enter();
 		p0 = { center.x - 200, center.y - 200 };
 		p1 = { center.x + 200, center.y + 200 };
 		p2 = { center.x - 200, center.y + 200 };
@@ -177,8 +177,8 @@ struct TestTriangle : public DrawTest {
 	V2_float p4;
 	V2_float p5;
 
-	void Init() override {
-		DrawTest::Init();
+	void Enter() override {
+		DrawTest::Enter();
 		p0 = { center.x - 200, center.y };
 		p1 = { center.x + 200, center.y };
 		p2 = { center.x, center.y - 200 };
@@ -227,8 +227,8 @@ struct TestRectangle : public DrawTest {
 		this->rounding_radius = rounding_radius;
 	}
 
-	void Init() override {
-		DrawTest::Init();
+	void Enter() override {
+		DrawTest::Enter();
 		p0 = center;
 		p1 = center + V2_float{ 100.0f, 100.0f };
 		p2 = center + V2_float{ 100.0f, -100.0f };
@@ -307,8 +307,8 @@ struct TestPolygon : public DrawTest {
 
 	const float relative_to{ 35.0f };
 
-	void Init() override {
-		DrawTest::Init();
+	void Enter() override {
+		DrawTest::Enter();
 		vertices = {
 			V2_float{ 17, 3 },	V2_float{ 20, 13 }, V2_float{ 31, 13 }, V2_float{ 23, 19 },
 			V2_float{ 26, 30 }, V2_float{ 17, 24 }, V2_float{ 8, 30 },	V2_float{ 11, 19 },
@@ -353,8 +353,8 @@ struct TestEllipse : public DrawTest {
 		this->radius = radius;
 	}
 
-	void Init() override {
-		DrawTest::Init();
+	void Enter() override {
+		DrawTest::Enter();
 		p0 = center;
 		p1 = center + V2_float{ 200.0f, 200.0f };
 		p2 = center + V2_float{ 200.0f, -200.0f };
@@ -443,8 +443,8 @@ struct TestArc : public DrawTest {
 		this->radius = radius;
 	}
 
-	void Init() override {
-		DrawTest::Init();
+	void Enter() override {
+		DrawTest::Enter();
 		bottom_right = center + V2_float{ 200.0f, 200.0f };
 		top_right	 = center + V2_float{ 200.0f, -200.0f };
 		top_left	 = center + V2_float{ -200.0f, -200.0f };
@@ -497,8 +497,8 @@ struct TestRenderTargets : public DrawTest {
 
 	V2_float s;
 
-	void Init() override {
-		DrawTest::Init();
+	void Enter() override {
+		DrawTest::Enter();
 		s = test.GetSize();
 		game.window.SetSize(s * 3);
 		ws				= game.window.GetSize();
@@ -555,8 +555,8 @@ struct TestTexture : public DrawTest {
 
 	explicit TestTexture(const Texture& texture) : texture{ texture } {}
 
-	void Init() override {
-		DrawTest::Init();
+	void Enter() override {
+		DrawTest::Enter();
 
 		size = ws / 5.0f;
 
@@ -700,8 +700,8 @@ struct TestBatch : public DrawTest {
 		}
 	}
 
-	void Init() override {
-		DrawTest::Init();
+	void Enter() override {
+		DrawTest::Enter();
 
 		rng_x = { 0.0f, ws.x };
 		rng_y = { 0.0f, ws.y };
@@ -1140,7 +1140,7 @@ void TestVertexArrays() {
 	vao2.Draw();
 	vao3.Draw();
 
-	game.renderer.Present();
+	// game.renderer.Present();
 }
 
 void TestShaders() {
@@ -1376,7 +1376,7 @@ public:
 
 	std::vector<std::shared_ptr<DrawTest>> tests;
 
-	void Init() override {
+	void Enter() override {
 		ws	   = game.window.GetSize();
 		center = game.window.GetCenter();
 		PTGN_INFO("Starting renderer object tests...");
@@ -1446,11 +1446,11 @@ public:
 		if (game.input.KeyDown(Key::LEFT)) {
 			current_test--;
 			current_test = Mod(current_test, static_cast<int>(tests.size()));
-			tests[static_cast<std::size_t>(current_test)]->Init();
+			tests[static_cast<std::size_t>(current_test)]->Enter();
 		} else if (game.input.KeyDown(Key::RIGHT)) {
 			current_test++;
 			current_test = Mod(current_test, static_cast<int>(tests.size()));
-			tests[static_cast<std::size_t>(current_test)]->Init();
+			tests[static_cast<std::size_t>(current_test)]->Enter();
 		}
 		tests[static_cast<std::size_t>(current_test)]->Update();
 		tests[static_cast<std::size_t>(current_test)]->Draw();
@@ -1458,7 +1458,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("Renderer:  Arrow keys to flip between tests", resolution);
-	game.scene.LoadActive<RendererTest>("renderer");
+	game.Init("Renderer:  Arrow keys to flip between tests", window_size);
+	game.scene.Enter<RendererTest>("renderer");
 	return 0;
 }

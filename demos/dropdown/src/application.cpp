@@ -19,7 +19,7 @@ public:
 		return button;
 	}
 
-	void Init() override {
+	void Enter() override {
 		dropdown.SetRect({ { 300, 300 }, { 200, 100 }, Origin::TopLeft });
 		dropdown.Set<ButtonProperty::BackgroundColor>(color::Gray);
 		dropdown.Set<ButtonProperty::BackgroundColor>(color::LightGray, ButtonState::Hover);
@@ -48,6 +48,6 @@ public:
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("Dropdown Example", { 800, 800 });
-	game.scene.LoadActive<DropdownExample>("dropdown");
+	game.scene.Enter<DropdownExample>("dropdown");
 	return 0;
 }

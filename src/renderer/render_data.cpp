@@ -20,17 +20,21 @@
 
 namespace ptgn::impl {
 
+bool RenderData::IsFlushEmpty() const {
+	return transparent_layers_.empty();
+}
+
 // Assumes view_projection_ is updated externally.
 void RenderData::Flush() {
 	PTGN_ASSERT(game.renderer.quad_shader_.IsValid());
 	PTGN_ASSERT(game.renderer.circle_shader_.IsValid());
 	PTGN_ASSERT(game.renderer.color_shader_.IsValid());
 
-	game.renderer.white_texture_.Bind(0);
-
-	if (transparent_layers_.empty()) {
+	if (IsFlushEmpty()) {
 		return;
 	}
+
+	game.renderer.white_texture_.Bind(0);
 
 	// TODO: Figure out if there is a way to cache when a view projection has been updated.
 	game.renderer.circle_shader_.Bind();

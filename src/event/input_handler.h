@@ -6,6 +6,7 @@
 #include "event/key.h"
 #include "event/mouse.h"
 #include "math/vector2.h"
+#include "renderer/render_target.h"
 #include "utility/time.h"
 #include "utility/timer.h"
 
@@ -62,17 +63,19 @@ public:
 	// left of the window.
 	[[nodiscard]] V2_float GetMouseDifferenceWindow() const;
 
-	// @return Mouse position scaled relative to the camera size of the currently active scene's
-	// render target.
-	[[nodiscard]] V2_float GetMousePosition() const;
+	// @param render_target If {}, uses the renderer's current render target.
+	// @return Mouse position transformed relative to the specified render target.
+	[[nodiscard]] V2_float GetMousePosition(RenderTarget render_target = {}) const;
 
-	// @return Mouse position during the previous frame scaled relative to the camera size of the
-	// currently active scene's render target.
-	[[nodiscard]] V2_float GetMousePositionPrevious() const;
+	// @param render_target If {}, uses the renderer's current render target.
+	// @return Mouse position during the previous frame transformed relative to the specified render
+	// target.
+	[[nodiscard]] V2_float GetMousePositionPrevious(RenderTarget render_target = {}) const;
 
-	// @return Mouse position difference between the current and previous frames scaled relative to
-	// the camera size of the currently active scene's render target.
-	[[nodiscard]] V2_float GetMouseDifference() const;
+	// @param render_target If {}, uses the renderer's current render target.
+	// @return Mouse position difference between the current and previous frames transformed
+	// relative to the specified render target.
+	[[nodiscard]] V2_float GetMouseDifference(RenderTarget render_target = {}) const;
 
 	// @return In desktop mode: mouse position relative to the screen (display). In browser: same as
 	// GetMousePosition().

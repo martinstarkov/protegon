@@ -9,7 +9,7 @@
 #include "renderer/color.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
-#include "renderer/renderer.h"
+#include "renderer/gl_types.h"
 #include "renderer/vertex_array.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
@@ -210,7 +210,6 @@ void GLRenderer::SetViewport(const V2_int& position, const V2_int& size) {
 	PTGN_LOG("GL: Set viewport [position: ", position, ", size: ", size, "]");
 #endif
 	GLCall(gl::glViewport(position.x, position.y, size.x, size.y));
-	// game.window.Center();
 #ifdef PTGN_DEBUG
 	++game.stats.viewport_changes;
 #endif

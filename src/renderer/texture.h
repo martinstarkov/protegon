@@ -12,7 +12,9 @@
 #include "math/vector4.h"
 #include "renderer/color.h"
 #include "renderer/flip.h"
+#include "renderer/shader.h"
 #include "renderer/surface.h"
+#include "scene/camera.h"
 #include "utility/file.h"
 #include "utility/handle.h"
 
@@ -21,15 +23,8 @@ namespace ptgn {
 class Shader;
 class Text;
 class Texture;
-struct LayerInfo;
 struct Rect;
 struct Line;
-
-namespace impl {
-
-class RenderData;
-
-} // namespace impl
 
 // Information relating to the source pixels, flip, tinting and rotation center of the texture.
 struct TextureInfo {
@@ -81,7 +76,7 @@ private:
 
 	friend void impl::DrawVertices(
 		const V2_float* vertices, std::size_t vertex_count, float line_width, const V4_float& color,
-		std::int32_t render_layer, impl::RenderData& render_data, std::size_t vertex_modulo
+		std::int32_t render_layer, std::size_t vertex_modulo
 	);
 
 	[[nodiscard]] static constexpr std::array<V2_float, 4> GetDefaultTextureCoordinates() {
@@ -230,15 +225,17 @@ public:
 	// texture will be drawn, else if destination.size == {}, unscaled texture size is used.
 	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
 	// center of the texture.
-	// Uses default render target.
-	void Draw(const Rect& destination = {}, const TextureInfo& texture_info = {}) const;
+	// @param render_layer The render layer on which to draw the texture.
+	void Draw(
+		Rect destination = {}, const TextureInfo& texture_info = {}, std::int32_t render_layer = 0
+	) const;
 
 	// @param destination Destination to draw the texture to. If destination == {}, fullscreen
 	// texture will be drawn, else if destination.size == {}, unscaled texture size is used.
 	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
 	// center of the texture.
-	// @param layer_info Information relating to the render layer and render target of the texture.
-	void Draw(const Rect& destination, const TextureInfo& texture_info, const LayerInfo& layer_info)
+	// @param shader The shader to render the texture with.
+	void Draw(Rect destination, TextureInfo texture_info, Shader shader, const Camera& camera)
 		const;
 
 	// @param wrapping Texture wrapping in the x direction for when texture X coordinates are

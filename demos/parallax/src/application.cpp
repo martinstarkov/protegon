@@ -2,7 +2,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 800, 800 };
+constexpr V2_int window_size{ 800, 800 };
 
 class ParallaxExampleScene : public Scene {
 public:
@@ -27,7 +27,7 @@ public:
 	V2_float background_size;
 	float bg_aspect_ratio{ 0.0f };
 
-	void Init() override {
+	void Enter() override {
 		bg_pos		 = game.window.GetCenter();
 		planet_b_pos = game.window.GetCenter() - V2_float{ 200, 200 };
 		planet_s_pos = game.window.GetCenter() + V2_float{ 200, 200 };
@@ -73,25 +73,30 @@ public:
 		foreground_cam += velocity / 2.0f;
 
 		RenderTarget background_target{ color::Transparent };
-		background.Draw({ bg_pos, { size.x * bg_aspect_ratio, size.y } }, {}, background_target);
-		background_target.GetCamera().GetPrimary().Translate(background_cam);
-		background_target.Draw();
+		game.renderer.SetTemporaryRenderTarget(background_target, [&]() {
+			background.Draw({ bg_pos, { size.x * bg_aspect_ratio, size.y } });
+			background_target.GetCamera().Translate(background_cam);
+		});
 
 		RenderTarget star_target{ color::Transparent };
-		stars.Draw({ stars_pos, { size.x * bg_aspect_ratio, size.y } }, {}, star_target);
-		star_target.GetCamera().GetPrimary().Translate(star_cam);
+		game.renderer.SetTemporaryRenderTarget(star_target, [&]() {
+			stars.Draw({ stars_pos, { size.x * bg_aspect_ratio, size.y } });
+			star_target.GetCamera().Translate(star_cam);
+		});
 		star_target.Draw();
 
 		RenderTarget foreground{ color::Transparent };
-		planet_b.Draw({ planet_b_pos, planet_b.GetSize() * scale }, {}, foreground);
-		planet_s.Draw({ planet_s_pos, planet_s.GetSize() * scale }, {}, foreground);
-		foreground.GetCamera().GetPrimary().Translate(foreground_cam);
+		game.renderer.SetTemporaryRenderTarget(foreground, [&]() {
+			planet_b.Draw({ planet_b_pos, planet_b.GetSize() * scale });
+			planet_s.Draw({ planet_s_pos, planet_s.GetSize() * scale });
+			foreground.GetCamera().Translate(foreground_cam);
+		});
 		foreground.Draw();
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ParallaxExampleScene", resolution);
-	game.scene.LoadActive<ParallaxExampleScene>("parallax_example");
+	game.Init("ParallaxExampleScene", window_size);
+	game.scene.Enter<ParallaxExampleScene>("parallax_example");
 	return 0;
 }

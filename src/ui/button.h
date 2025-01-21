@@ -12,8 +12,8 @@
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
-#include "renderer/layer_info.h"
 #include "renderer/origin.h"
+#include "renderer/render_target.h"
 #include "renderer/text.h"
 #include "renderer/texture.h"
 #include "ui/dropdown.h"
@@ -43,7 +43,7 @@ enum class ButtonProperty : std::size_t {
 	BorderColor,	  // Type: Color
 	TextAlignment,	  // Type: TextAlignment (same as Origin relative to button rect position)
 	TextSize,		  // Type: V2_float (default: unscaled text size)
-	LayerInfo,		  // Type: LayerInfo (button text is drawn on this layer + 1 and border on + 2).
+	RenderLayer,	  // Type: int (button text is drawn on this layer + 1 and border on + 2).
 	Dropdown,		  // Type: Dropdown (specify dropdown elements)
 	Visibility,		  // Type: bool
 	Toggleable,		  // Type: bool
@@ -161,6 +161,12 @@ public:
 	// @return Previous mouse position relative to the button's render target.
 	[[nodiscard]] V2_float GetMousePositionPrevious() const;
 
+	// The render target on which the button is drawn.
+	// Default value is the screen target. This is set when a button is drawn.
+	RenderTarget render_target_;
+
+	std::int32_t render_layer_{ 0 };
+
 	bool enabled_{ true };
 	Rect rect_;
 	InternalButtonState button_state_{ InternalButtonState::IdleUp };
@@ -174,8 +180,6 @@ public:
 	ButtonCallback on_show_;
 	ButtonCallback on_hide_;
 	ButtonCallback on_toggle_;
-
-	LayerInfo layer_info_;
 
 	// Button edge radius (above 0.0f turns button to RoundedRect instead of Rect).
 	float radius_{ 0.0f };
@@ -226,8 +230,8 @@ public:
 			return visibility_;
 		} else if constexpr (T == ButtonProperty::Dropdown) {
 			return dropdown_;
-		} else if constexpr (T == ButtonProperty::LayerInfo) {
-			return layer_info_;
+		} else if constexpr (T == ButtonProperty::RenderLayer) {
+			return render_layer_;
 		} else if constexpr (T == ButtonProperty::Toggleable) {
 			return toggleable_;
 		} else if constexpr (T == ButtonProperty::Bordered) {

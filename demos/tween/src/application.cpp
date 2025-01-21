@@ -2,7 +2,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 800, 800 };
+constexpr V2_int window_size{ 800, 800 };
 
 class TweenExampleScene : public Scene {
 public:
@@ -20,7 +20,7 @@ public:
 	// Tween, Color, Position
 	std::vector<std::tuple<Tween, Color, V2_float>> tweens;
 
-	void Init() override {
+	void Enter() override {
 		tweens.clear();
 
 		Tween config0{
@@ -268,7 +268,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("TweenExample", resolution);
-	game.scene.LoadActive<TweenExampleScene>("tween_example");
+	game.Init("TweenExample", window_size);
+	game.scene.Enter<TweenExampleScene>("tween_example");
 	return 0;
 }

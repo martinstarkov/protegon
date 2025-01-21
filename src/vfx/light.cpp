@@ -6,10 +6,10 @@
 #include "math/vector3.h"
 #include "math/vector4.h"
 #include "renderer/color.h"
-#include "renderer/layer_info.h"
 #include "renderer/render_target.h"
 #include "renderer/renderer.h"
 #include "renderer/shader.h"
+#include "renderer/texture.h"
 
 namespace ptgn {
 
@@ -42,21 +42,27 @@ V3_float Light::GetShaderColor() const {
 	return { n.x, n.y, n.z };
 }
 
-void Light::Draw() const {
+void Light::DrawImpl() const {
 	// Get valid render target.
 	RenderTarget dest_target{ game.light.target_ };
 	auto shader{ game.light.GetShader() };
 	shader.Bind();
 	shader.SetUniform("u_LightPos", GetPosition());
 	shader.SetUniform("u_LightIntensity", GetIntensity());
-	shader.Draw(
-		dest_target.GetTexture(), {}, dest_target.GetCamera().GetPrimary().GetViewProjection(),
-		TextureInfo{ color_ }, dest_target
+	dest_target.GetTexture().Draw(
+		dest_target.GetViewport(), TextureInfo{ color_ }, shader, dest_target.GetCamera()
 	);
 }
 
+void Light::Draw() const {
+	game.renderer.SetTemporaryRenderTarget(game.light.target_, [&]() {
+		game.renderer.SetBlendMode(BlendMode::Blend);
+		DrawImpl();
+	});
+}
+
 void LightManager::Init() {
-	target_		  = RenderTarget{ color::Transparent, BlendMode::Blend };
+	target_		  = RenderTarget{ color::Transparent };
 	light_shader_ = Shader(
 		ShaderSource{
 #include PTGN_SHADER_PATH(screen_default.vert)
@@ -67,12 +73,15 @@ void LightManager::Init() {
 	);
 }
 
-void LightManager::Draw() {
-	ForEachValue([&](const Light& light) { light.Draw(); });
-	auto blend_mode{ game.renderer.GetBlendMode() };
-	game.renderer.SetBlendMode(BlendMode::AddPremultiplied);
-	target_.Draw();
-	game.renderer.SetBlendMode(blend_mode);
+void LightManager::Draw() const {
+	if (IsEmpty()) {
+		return;
+	}
+	game.renderer.SetTemporaryRenderTarget(target_, [&]() {
+		game.renderer.SetBlendMode(BlendMode::Blend);
+		ForEachValue([&](const Light& light) { light.DrawImpl(); });
+	});
+	game.renderer.SetTemporaryBlendMode(BlendMode::AddPremultiplied, [&]() { target_.Draw(); });
 }
 
 void LightManager::Reset() {

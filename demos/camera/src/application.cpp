@@ -2,7 +2,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 800, 800 };
+constexpr V2_int window_size{ 800, 800 };
 
 class CameraExampleScene : public Scene {
 public:
@@ -13,8 +13,8 @@ public:
 	const float rotation_speed = 1.0f;
 	const float zoom_speed{ 0.4f };
 
-	void Init() override {
-		Rect bounds{ {}, resolution, Origin::TopLeft };
+	void Enter() override {
+		Rect bounds{ {}, window_size, Origin::TopLeft };
 
 		auto& camera{ game.camera.Load("cam1") };
 		auto& camera2{ game.camera.Load("cam2") };
@@ -38,11 +38,9 @@ public:
 			chosen_cam = "cam2";
 		}
 
-		game.camera.SetPrimary(chosen_cam);
-
 		game.input.GetMousePosition().Draw(color::Red, 8.0f);
 
-		auto camera{ game.camera.GetPrimary() };
+		auto& camera{ game.camera.Get(chosen_cam) };
 
 		if (game.input.KeyPressed(Key::W)) {
 			camera.Translate({ 0, -pan_speed * dt });
@@ -89,28 +87,30 @@ public:
 		}
 
 		if (game.input.KeyDown(Key::R)) {
-			camera.SetPosition({ center.x, center.y, 0.0f });
+			camera.SetPosition(center);
+			camera.SetZoom(1.0f);
 		}
 
-		// camera.PrintInfo();
+		game.camera.SetPrimary(chosen_cam);
 
 		texture.Draw({ center, texture.GetSize() });
 
-		game.camera.GetPrimary().GetBounds().Draw(color::Red, 3.0f);
+		camera.GetBounds().Draw(color::Red, 3.0f);
 
 		game.renderer.Flush();
 
-		game.camera.SetToWindow();
-
 		RenderTarget ui{ color::Transparent };
-		ui_texture.Draw({ { 0, 0 }, ui_texture.GetSize(), Origin::TopLeft }, {}, ui);
-		ui.GetMousePosition().Draw(color::Blue, 4.0f, ui);
+		game.renderer.SetTemporaryRenderTarget(ui, [&]() {
+			game.camera.SetPrimary({});
+			ui_texture.Draw({ { 0, 0 }, ui_texture.GetSize(), Origin::TopLeft }, {});
+			game.input.GetMousePosition().Draw(color::Blue, 4.0f);
+		});
 		ui.Draw();
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("Camera: WASD move, Q/E zoom, R reset, 1/2 swap cameras", resolution);
-	game.scene.LoadActive<CameraExampleScene>("camera_example_scene");
+	game.Init("Camera: WASD move, Q/E zoom, R reset, 1/2 swap cameras", window_size);
+	game.scene.Enter<CameraExampleScene>("camera_example_scene");
 	return 0;
 }

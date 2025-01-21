@@ -2,6 +2,7 @@
 
 #include "renderer/color.h"
 #include "renderer/flip.h"
+#include "utility/type_traits.h"
 
 namespace ptgn {
 
@@ -12,20 +13,23 @@ struct ColorComponent : public Color {
 	ColorComponent(const Color& c) : Color{ c } {}
 };
 
-struct FloatComponent {
-	FloatComponent() = default;
-	FloatComponent(float value) : value_{ value } {}
+template <typename T, tt::enable<std::is_arithmetic_v<T>> = true>
+struct ArithmeticComponent {
+	ArithmeticComponent() = default;
 
-	operator float() const {
+	ArithmeticComponent(T value) : value_{ value } {}
+
+	operator T() const {
 		return value_;
 	}
 
 private:
-	float value_{ 0.0f };
+	T value_{ 0 };
 };
 
 struct FlipComponent {
 	FlipComponent() = default;
+
 	FlipComponent(Flip flip) : flip_{ flip } {}
 
 	operator Flip() const {
@@ -35,6 +39,5 @@ struct FlipComponent {
 private:
 	Flip flip_{ Flip::None };
 };
-
 
 } // namespace ptgn

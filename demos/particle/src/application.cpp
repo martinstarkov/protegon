@@ -2,7 +2,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 800, 800 };
+constexpr V2_int window_size{ 800, 800 };
 
 class ParticleExample : public Scene {
 public:
@@ -24,7 +24,7 @@ public:
 
 	const int number_of_shapes{ 2 };
 
-	void Init() override {
+	void Enter() override {
 		p.info.total_particles	  = 1000;
 		p.info.particle_shape	  = ParticleShape::Circle;
 		p.info.start_color 		  = color::Red;
@@ -58,7 +58,7 @@ public:
 		});
 	}
 
-	void Shutdown() override {
+	void Exit() override {
 		p.Reset();
 	}
 
@@ -75,7 +75,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ParticleExample", resolution);
-	game.scene.LoadActive<ParticleExample>("particle_example");
+	game.Init("ParticleExample", window_size);
+	game.scene.Enter<ParticleExample>("particle_example");
 	return 0;
 }
