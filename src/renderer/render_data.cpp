@@ -20,29 +20,37 @@
 
 namespace ptgn::impl {
 
-bool RenderData::IsFlushEmpty() const {
-	return transparent_layers_.empty();
-}
-
 // Assumes view_projection_ is updated externally.
 void RenderData::Flush() {
 	PTGN_ASSERT(game.renderer.quad_shader_.IsValid());
 	PTGN_ASSERT(game.renderer.circle_shader_.IsValid());
 	PTGN_ASSERT(game.renderer.color_shader_.IsValid());
 
-	if (IsFlushEmpty()) {
+	if (transparent_layers_.empty() /* TODO: && opaque_layers_.empty() */) {
 		return;
 	}
 
 	game.renderer.white_texture_.Bind(0);
 
-	// TODO: Figure out if there is a way to cache when a view projection has been updated.
-	game.renderer.circle_shader_.Bind();
-	game.renderer.circle_shader_.SetUniform("u_ViewProjection", view_projection_);
-	game.renderer.color_shader_.Bind();
-	game.renderer.color_shader_.SetUniform("u_ViewProjection", view_projection_);
-	game.renderer.quad_shader_.Bind();
-	game.renderer.quad_shader_.SetUniform("u_ViewProjection", view_projection_);
+	// TODO: Figure out if there is a way to cache when a view projection has been updated. The
+	// problem is that these shaders can be used elsewhere in the engine which means that the
+	// u_ViewProjection could be set elsewhere. Perhaps the solution is to cache a refresh flag for
+	// each uniform within a shader somehow.
+	if (update_circle_shader_) {
+		game.renderer.circle_shader_.Bind();
+		game.renderer.circle_shader_.SetUniform("u_ViewProjection", view_projection_);
+		update_circle_shader_ = false;
+	}
+	if (update_color_shader_) {
+		game.renderer.color_shader_.Bind();
+		game.renderer.color_shader_.SetUniform("u_ViewProjection", view_projection_);
+		update_color_shader_ = false;
+	}
+	if (update_quad_shader_) {
+		game.renderer.quad_shader_.Bind();
+		game.renderer.quad_shader_.SetUniform("u_ViewProjection", view_projection_);
+		update_quad_shader_ = true;
+	}
 
 	// TODO: Add opaque batches back once you figure out how to do it using depth testing.
 	// auto was_depth_testing{ GLRenderer::IsDepthTestingEnabled() };
@@ -99,6 +107,7 @@ void RenderData::AddPrimitiveQuad(
 		positions, render_layer, color, tex_coords,
 		texture.IsValid() ? texture : game.renderer.white_texture_, 0.0f, 0.0f
 	);
+	update_quad_shader_ = true;
 }
 
 void RenderData::AddPrimitiveCircle(
@@ -108,24 +117,28 @@ void RenderData::AddPrimitiveCircle(
 	AddPrimitive<BatchType::Circle, CircleVertex>(
 		positions, render_layer, color, {}, {}, line_width, fade
 	);
+	update_circle_shader_ = true;
 }
 
 void RenderData::AddPrimitiveTriangle(
 	const std::array<V2_float, 3>& positions, std::int32_t render_layer, const V4_float& color
 ) {
 	AddPrimitive<BatchType::Triangle, ColorVertex>(positions, render_layer, color);
+	update_color_shader_ = true;
 }
 
 void RenderData::AddPrimitiveLine(
 	const std::array<V2_float, 2>& positions, std::int32_t render_layer, const V4_float& color
 ) {
 	AddPrimitive<BatchType::Line, ColorVertex>(positions, render_layer, color);
+	update_color_shader_ = true;
 }
 
 void RenderData::AddPrimitivePoint(
 	const std::array<V2_float, 1>& positions, std::int32_t render_layer, const V4_float& color
 ) {
 	AddPrimitive<BatchType::Point, ColorVertex>(positions, render_layer, color);
+	update_color_shader_ = true;
 }
 
 bool RenderData::IsBlank(const Texture& texture) {
@@ -153,15 +166,32 @@ std::vector<Batch>& RenderData::GetLayerBatches(
 }
 
 template <BatchType T>
+Shader RenderData::GetShader() {
+	// Triangles, lines, and points all share the same color shader.
+	if constexpr (T == BatchType::Triangle || T == BatchType::Line || T == BatchType::Point) {
+		return game.renderer.color_shader_;
+	} else if constexpr (T == BatchType::Quad) {
+		return game.renderer.quad_shader_;
+	} else if constexpr (T == BatchType::Circle) {
+		return game.renderer.circle_shader_;
+	}
+}
+
+template <BatchType T>
 void RenderData::FlushType(std::vector<Batch>& batches) const {
 	auto vao{ game.renderer.GetVertexArray<T>() };
-	vao.Bind();
 	for (auto& batch : batches) {
 		auto [data, index_count] = GetBufferInfo<T>(batch);
 		PTGN_ASSERT(data != nullptr);
+		// Batch is empty for this specific type.
 		if (data->empty()) {
 			continue;
 		}
+		auto shader{ GetShader<T>() };
+		// Renderer keeps track of bound shader and bound vertex array and ensures that they are not
+		// rebound repeatedly for each batch.
+		vao.Bind();
+		shader.Bind();
 		if constexpr (T == BatchType::Quad) {
 			batch.BindTextures();
 		}
@@ -178,21 +208,19 @@ template void RenderData::FlushType<BatchType::Quad>(std::vector<Batch>& batches
 template void RenderData::FlushType<BatchType::Triangle>(std::vector<Batch>& batches) const;
 template void RenderData::FlushType<BatchType::Line>(std::vector<Batch>& batches) const;
 template void RenderData::FlushType<BatchType::Point>(std::vector<Batch>& batches) const;
+template Shader RenderData::GetShader<BatchType::Circle>();
+template Shader RenderData::GetShader<BatchType::Quad>();
+template Shader RenderData::GetShader<BatchType::Triangle>();
+template Shader RenderData::GetShader<BatchType::Line>();
+template Shader RenderData::GetShader<BatchType::Point>();
 
 void RenderData::FlushBatches(std::vector<Batch>& batches) {
-	game.renderer.circle_shader_.Bind();
+	PTGN_ASSERT(!batches.empty(), "Attempting to flush an empty batch");
 
 	FlushType<BatchType::Circle>(batches);
-
-	// Triangles, points, and lines all use color shader so only one bind is necessary.
-	game.renderer.color_shader_.Bind();
-
 	FlushType<BatchType::Triangle>(batches);
 	FlushType<BatchType::Line>(batches);
 	FlushType<BatchType::Point>(batches);
-
-	game.renderer.quad_shader_.Bind();
-
 	FlushType<BatchType::Quad>(batches);
 }
 

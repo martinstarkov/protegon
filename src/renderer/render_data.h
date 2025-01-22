@@ -55,8 +55,6 @@ public:
 private:
 	friend struct Batch;
 
-	[[nodiscard]] bool IsFlushEmpty() const;
-
 	[[nodiscard]] std::vector<Batch>& GetLayerBatches(
 		std::int32_t render_layer, [[maybe_unused]] float alpha
 	);
@@ -88,11 +86,21 @@ private:
 		}
 	}
 
+	// @return Shader for the specific batch type.
+	template <BatchType T>
+	static Shader GetShader();
+
 	// @param callback Called before drawing VAO, used for binding textures in case of quads.
 	template <BatchType T>
 	void FlushType(std::vector<Batch>& batches) const;
 
 	void FlushBatches(std::vector<Batch>& batches);
+
+	// Set to true whenether a primitive using this shader is added.
+	// Set to false after flushing the render data.
+	bool update_circle_shader_{ false };
+	bool update_color_shader_{ false };
+	bool update_quad_shader_{ false };
 
 	Matrix4 view_projection_{ 1.0f };
 	// Key: Render Layer, Value: Vector of transparent batches for each render layer.
