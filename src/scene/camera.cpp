@@ -397,13 +397,16 @@ void CameraManager::Init() {
 	SetPrimary({});
 }
 
-void CameraManager::SetPrimary(const Camera& camera) {
-	primary_camera_ = camera;
-	CameraChanged();
+void CameraManager::SetPrimary(const Camera& camera) const {
+	game.renderer.GetRenderTarget().Get().SetCamera(camera);
+}
+
+Camera& CameraManager::GetPrimary() {
+	return game.renderer.GetRenderTarget().Get().GetCamera();
 }
 
 const Camera& CameraManager::GetPrimary() const {
-	return primary_camera_;
+	return game.renderer.GetRenderTarget().Get().GetCamera();
 }
 
 void CameraManager::SetPrimaryImpl(const InternalKey& key) {
@@ -414,12 +417,6 @@ void CameraManager::SetPrimaryImpl(const InternalKey& key) {
 void CameraManager::Reset() {
 	MapManager::Reset();
 	SetPrimary({});
-}
-
-void CameraManager::CameraChanged() const {
-	if (auto current_target{ game.renderer.GetRenderTarget() }; current_target.IsValid()) {
-		current_target.SetCamera(primary_camera_);
-	}
 }
 
 } // namespace impl
