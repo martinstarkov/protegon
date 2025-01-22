@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <string_view>
 #include <type_traits>
 #include <unordered_map>
@@ -208,7 +209,8 @@ public:
 	}
 
 	/*
-	 * @param item Item to be unloaded.
+	 * @param item Removes all vector elements equal to the item. If item does not exist nothing
+	 * happens.
 	 */
 	void Remove(const Item& item) {
 		vector_.erase(std::remove(vector_.begin(), vector_.end(), item), vector_.end());
@@ -249,7 +251,7 @@ public:
 			std::invoke(func, i, vector_[i]);
 		}
 	}
-	
+
 	template <typename TFunc>
 	void ForEachIndexValue(const TFunc& func) const {
 		for (std::size_t i{ 0 }; i < vector_.size(); ++i) {
@@ -258,7 +260,8 @@ public:
 	}
 
 	/*
-	 * Clears the manager.
+	 * Clears the vector manager. This does not result in 0 capacity. Use Reset() instead if memory
+	 * should be reset.
 	 */
 	void Clear() {
 		vector_.clear();
@@ -278,6 +281,13 @@ public:
 		return vector_.empty();
 	}
 
+	// @param size How many vector elements to allocate memory for.
+	// Preallocate memory for a given number of elements in the vector manager.
+	void Reserve(std::size_t size) {
+		vector_.reserve(size);
+	}
+
+	// Reset the vector manager. This results in 0 capacity.
 	void Reset() {
 		vector_ = {};
 	}
@@ -310,7 +320,7 @@ public:
 	using MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::MapManager;
 
 	ActiveMapManager()										 = delete;
-	virtual ~ActiveMapManager() override					 = default;
+	~ActiveMapManager() override							 = default;
 	ActiveMapManager(ActiveMapManager&&) noexcept			 = default;
 	ActiveMapManager& operator=(ActiveMapManager&&) noexcept = default;
 	ActiveMapManager(const ActiveMapManager&)				 = delete;
@@ -348,6 +358,69 @@ public:
 
 protected:
 	InternalKey active_key_{ 0 };
+};
+
+// Inherits and combines both MapManager and VectorManager. Allows for mixing named and unnamed
+// items.
+template <
+	typename ItemType, typename ExternalKeyType = std::string_view,
+	typename InternalKeyType = std::size_t, bool use_hash = true>
+class VectorAndMapManager :
+	public VectorManager<ItemType>,
+	public MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash> {
+public:
+	using Key  = typename MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::Key;
+	using Item = typename MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::Item;
+	using InternalKey =
+		typename MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::InternalKey;
+	using MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::MapManager;
+
+	VectorAndMapManager()										   = default;
+	~VectorAndMapManager() override								   = default;
+	VectorAndMapManager(VectorAndMapManager&&) noexcept			   = default;
+	VectorAndMapManager& operator=(VectorAndMapManager&&) noexcept = default;
+	VectorAndMapManager(const VectorAndMapManager&)				   = delete;
+	VectorAndMapManager& operator=(const VectorAndMapManager&)	   = delete;
+
+	void Clear() {
+		MapManager<ItemType>::Clear();
+		VectorManager<ItemType>::Clear();
+	}
+
+	void Reset() {
+		MapManager<ItemType>::Reset();
+		VectorManager<ItemType>::Reset();
+	}
+
+	[[nodiscard]] std::size_t Size() const {
+		return MapManager<ItemType>::Size() + VectorManager<ItemType>::Size();
+	}
+
+	[[nodiscard]] bool IsEmpty() const {
+		return MapManager<ItemType>::IsEmpty() && VectorManager<ItemType>::IsEmpty();
+	}
+
+	template <typename TFunc, bool VectorManagerFirst = true>
+	void ForEachValue(const TFunc& func) {
+		if constexpr (VectorManagerFirst) {
+			VectorManager<ItemType>::ForEachValue(func);
+			MapManager<ItemType>::ForEachValue(func);
+		} else {
+			MapManager<ItemType>::ForEachValue(func);
+			VectorManager<ItemType>::ForEachValue(func);
+		}
+	}
+
+	template <typename TFunc, bool VectorManagerFirst = true>
+	void ForEachValue(const TFunc& func) const {
+		if constexpr (VectorManagerFirst) {
+			VectorManager<ItemType>::ForEachValue(func);
+			MapManager<ItemType>::ForEachValue(func);
+		} else {
+			MapManager<ItemType>::ForEachValue(func);
+			VectorManager<ItemType>::ForEachValue(func);
+		}
+	}
 };
 
 } // namespace ptgn
