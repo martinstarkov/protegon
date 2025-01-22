@@ -19,14 +19,22 @@ class Game;
 
 class LightManager;
 
+// Lights must be added to the LightManager to be drawn to the screen.
 class Light {
 public:
 	Light() = default;
 
-	Light(const V2_float& position, const Color& color, float intensity = 10.0f) :
-		position_{ position }, color_{ color }, intensity_{ intensity } {}
+	Light(const V2_float& position, const Color& color) : position_{ position }, color_{ color } {
+		ambient_color_ = color;
+	}
 
-	void Draw() const;
+	Light(const V2_float& position, const Color& color, float intensity) :
+		position_{ position }, color_{ color }, intensity_{ intensity } {
+		ambient_color_ = color;
+	}
+
+	bool operator==(const Light& o) const;
+	bool operator!=(const Light& o) const;
 
 	void SetPosition(const V2_float& position);
 	[[nodiscard]] V2_float GetPosition() const;
@@ -37,10 +45,17 @@ public:
 	void SetIntensity(float intensity);
 	[[nodiscard]] float GetIntensity() const;
 
+	// TODO: Move to private.
+	// TODO: Clean up and create getters and setters.
+	// TODO: Add increment functions.
+	V3_float attenuation_{ 0.0f, 0.0f, 0.0f };
+	float radius_{ 50.0f };
+	float compression_{ 2.0f };
+	float ambient_intensity_{ 0.0f };
+	Color ambient_color_{ color::Red };
+
 private:
 	friend class LightManager;
-
-	void DrawImpl() const;
 
 	// @return color_ normalized and without alpha value.
 	[[nodiscard]] V3_float GetShaderColor() const;
@@ -50,7 +65,8 @@ private:
 	float intensity_{ 10.0f };
 };
 
-class LightManager : public MapManager<Light> {
+// TODO: Move back to using MapManager.
+class LightManager : public VectorAndMapManager<Light> {
 public:
 	LightManager()									 = default;
 	~LightManager() override						 = default;
@@ -59,23 +75,29 @@ public:
 	LightManager(const LightManager&)				 = delete;
 	LightManager& operator=(const LightManager&)	 = delete;
 
+	// Draws all the lights in the light manager to the current render target.
+	// Note: If any lights exist in the light manager, this function will flush the renderer.
+	void Draw() const;
+
+	// Resets the light manager.
 	void Reset();
 
 	void SetBlur(bool blur);
+
 	[[nodiscard]] bool GetBlur() const;
 
 private:
 	friend class Light;
 	friend class impl::Game;
 
-	void Draw() const;
-
 	void Init();
 
 	[[nodiscard]] Shader GetShader() const;
 
 	RenderTarget target_;
+
 	Shader light_shader_;
+
 	bool blur_{ false };
 };
 

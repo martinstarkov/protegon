@@ -42,27 +42,16 @@ V3_float Light::GetShaderColor() const {
 	return { n.x, n.y, n.z };
 }
 
-void Light::DrawImpl() const {
-	// Get valid render target.
-	RenderTarget dest_target{ game.light.target_ };
-	auto shader{ game.light.GetShader() };
-	shader.Bind();
-	shader.SetUniform("u_LightPos", GetPosition());
-	shader.SetUniform("u_LightIntensity", GetIntensity());
-	dest_target.GetTexture().Draw(
-		dest_target.GetViewport(), TextureInfo{ color_ }, shader, dest_target.GetCamera()
-	);
+bool Light::operator==(const Light& o) const {
+	return color_ == o.color_ && intensity_ == o.intensity_ && position_ == o.position_;
 }
 
-void Light::Draw() const {
-	game.renderer.SetTemporaryRenderTarget(game.light.target_, [&]() {
-		game.renderer.SetBlendMode(BlendMode::Blend);
-		DrawImpl();
-	});
+bool Light::operator!=(const Light& o) const {
+	return !(*this == o);
 }
 
 void LightManager::Init() {
-	target_		  = RenderTarget{ color::Transparent };
+	target_		  = RenderTarget{ color::Transparent, BlendMode::Blend };
 	light_shader_ = Shader(
 		ShaderSource{
 #include PTGN_SHADER_PATH(screen_default.vert)
@@ -77,15 +66,40 @@ void LightManager::Draw() const {
 	if (IsEmpty()) {
 		return;
 	}
-	game.renderer.SetTemporaryRenderTarget(target_, [&]() {
-		game.renderer.SetBlendMode(BlendMode::Blend);
-		ForEachValue([&](const Light& light) { light.DrawImpl(); });
+	// TODO: Put these in light.Draw function.
+	auto old_target{ game.renderer.GetRenderTarget() };
+	auto old_blend_mode{ game.renderer.GetBlendMode() };
+	game.renderer.SetBlendMode(BlendMode::AddPremultiplied);
+
+	// Draw each light to the target.
+	ForEachValue([&](const Light& light) {
+		// TODO: Make a light.DrawImpl function and put this there.
+		game.renderer.SetRenderTarget(target_);
+		light_shader_.Bind();
+		light_shader_.SetUniform("u_LightPos", light.GetPosition());
+		light_shader_.SetUniform("u_LightIntensity", light.GetIntensity());
+		light_shader_.SetUniform("u_LightAttenuation", light.attenuation_);
+		light_shader_.SetUniform("u_LightRadius", light.radius_);
+		light_shader_.SetUniform("u_Compression", light.compression_);
+		light_shader_.SetUniform("u_Falloff", light.compression_);
+		V4_float n{ light.ambient_color_.Normalized() };
+		V3_float c{ n.x, n.y, n.z };
+		light_shader_.SetUniform("u_AmbientColor", c);
+		light_shader_.SetUniform("u_AmbientIntensity", light.ambient_intensity_);
+		target_.Draw(TextureInfo{ light.GetColor() }, light_shader_, false);
+
+		// Draw lights to the bound target.
+		game.renderer.SetRenderTarget(old_target);
+		// TODO: Add optional blurring with blur shader.
+		target_.Draw();
 	});
-	game.renderer.SetTemporaryBlendMode(BlendMode::AddPremultiplied, [&]() { target_.Draw(); });
+
+	// TODO: Put this in light.Draw function.
+	game.renderer.SetBlendMode(old_blend_mode);
 }
 
 void LightManager::Reset() {
-	MapManager::Reset();
+	VectorAndMapManager<Light>::Reset();
 	blur_ = false;
 }
 
