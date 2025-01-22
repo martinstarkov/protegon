@@ -17,6 +17,7 @@
 #include "renderer/batch.h"
 #include "renderer/color.h"
 #include "renderer/flip.h"
+#include "renderer/frame_buffer.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
@@ -29,6 +30,8 @@
 #include "utility/handle.h"
 #include "utility/log.h"
 #include "utility/utility.h"
+
+// TODO: Move all functions to TextureInstance.
 
 namespace ptgn {
 
@@ -216,7 +219,52 @@ void TextureInstance::GenerateMipmaps() {
 }
 
 void TextureInstance::Bind() const {
-	Texture::BindId(id_);
+	BindId(id_);
+#ifdef PTGN_DEBUG
+	++game.stats.texture_binds;
+#endif
+}
+
+void TextureInstance::Unbind(std::uint32_t slot) {
+	SetActiveSlot(slot);
+	BindId(0);
+}
+
+void TextureInstance::BindId(std::uint32_t id) {
+#ifdef GL_ANNOUNCE_TEXTURE_CALLS
+	PTGN_LOG("GL: Bound texture with id ", id);
+#endif
+	GLCall(gl::glBindTexture(GL_TEXTURE_2D, id));
+}
+
+void TextureInstance::Bind(std::uint32_t slot) const {
+	SetActiveSlot(slot);
+	Bind();
+}
+
+void TextureInstance::SetActiveSlot(std::uint32_t slot) {
+	PTGN_ASSERT(
+		slot < GLRenderer::GetMaxTextureSlots(),
+		"Attempting to bind a slot outside of OpenGL texture slot maximum"
+	);
+#ifdef GL_ANNOUNCE_TEXTURE_CALLS
+	PTGN_LOG("GL: Set active texture slot to ", slot);
+#endif
+	GLCall(gl::ActiveTexture(GL_TEXTURE0 + slot));
+}
+
+std::uint32_t TextureInstance::GetBoundId() {
+	std::int32_t id{ -1 };
+	GLCall(gl::glGetIntegerv(static_cast<gl::GLenum>(impl::GLBinding::Texture2D), &id));
+	PTGN_ASSERT(id >= 0, "Failed to retrieve bound texture id");
+	return static_cast<std::uint32_t>(id);
+}
+
+std::uint32_t TextureInstance::GetActiveSlot() {
+	std::int32_t id{ -1 };
+	GLCall(gl::glGetIntegerv(GL_ACTIVE_TEXTURE, &id));
+	PTGN_ASSERT(id >= 0, "Failed to retrieve the currently active texture slot");
+	return static_cast<std::uint32_t>(id);
 }
 
 bool TextureInstance::IsBound() const {
@@ -276,6 +324,81 @@ GLFormats GetGLFormats(TextureFormat format) {
 #endif
 		default: PTGN_ERROR("Could not determine OpenGL formats for given TextureFormat");
 	}
+}
+
+void TextureInstance::SetSubData(
+	const void* pixel_data, TextureFormat format, const V2_int& offset, const V2_int& size,
+	int mipmap_level
+) {
+	PTGN_ASSERT(pixel_data != nullptr);
+
+	std::uint32_t restore_id{ Texture::GetBoundId() };
+
+	auto formats{ impl::GetGLFormats(format) };
+
+	Bind();
+
+	GLCall(gl::glTexSubImage2D(
+		GL_TEXTURE_2D, mipmap_level, offset.x, offset.y, size.x, size.y, formats.format_,
+		static_cast<gl::GLenum>(impl::GLType::UnsignedByte), pixel_data
+	));
+
+	Texture::BindId(restore_id);
+}
+
+void TextureInstance::DrawToBoundFrameBuffer(
+	Rect destination, TextureInfo texture_info, const Shader& shader
+) const {
+	PTGN_ASSERT(shader.IsValid(), "Cannot draw texture with uninitialized or destroyed shader");
+
+	if (destination.IsZero()) {
+		// TODO: Change this to take into account the screen target viewport.
+		destination = Rect::Fullscreen();
+	} else if (destination.size.IsZero()) {
+		destination.size = size_;
+	}
+
+	// Shaders coordinates are in bottom right instead of top left.
+	if (texture_info.flip == Flip::Vertical) {
+		texture_info.flip = Flip::None;
+	} else if (texture_info.flip == Flip::Both) {
+		texture_info.flip = Flip::Horizontal;
+	} else if (texture_info.flip == Flip::None) {
+		texture_info.flip = Flip::Vertical;
+	}
+
+	auto positions{ destination.GetVertices(texture_info.rotation_center) };
+
+	auto tex_coords{ texture_info.GetTextureCoordinates(size_) };
+
+	TextureInfo::FlipTextureCoordinates(tex_coords, texture_info.flip);
+
+	constexpr std::size_t index_count{ 6 };
+
+	std::array<QuadVertex, 4> vertices{};
+
+	V4_float color{ texture_info.tint.Normalized() };
+
+	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
+		vertices[i].position  = { positions[i].x, positions[i].y, 0.0f };
+		vertices[i].color	  = { color.x, color.y, color.z, color.w };
+		vertices[i].tex_coord = { tex_coords[i].x, tex_coords[i].y };
+		vertices[i].tex_index = { 0.0f };
+	}
+
+	shader.Bind();
+	shader.SetUniform("u_Resolution", V2_float{ game.window.GetSize() });
+	shader.SetUniform("u_Texture", 0);
+
+	auto vao{ game.renderer.GetVertexArray<impl::BatchType::Quad>() };
+	vao.Bind();
+
+	Bind(0);
+
+	vao.GetVertexBuffer().SetSubData(
+		vertices.data(), static_cast<std::uint32_t>(Sizeof(vertices)), false
+	);
+	vao.Draw(index_count, false);
 }
 
 } // namespace impl
@@ -344,6 +467,7 @@ void Texture::Draw(Rect destination, const TextureInfo& texture_info, std::int32
 	PTGN_ASSERT(IsValid(), "Cannot draw uninitialized or destroyed texture");
 
 	if (destination.IsZero()) {
+		// TODO: Change this to take into account window resolution.
 		destination = Rect::Fullscreen();
 	} else if (destination.size.IsZero()) {
 		destination.size = GetSize();
@@ -361,46 +485,31 @@ void Texture::Draw(Rect destination, const TextureInfo& texture_info, std::int32
 }
 
 void Texture::Bind() const {
-	PTGN_ASSERT(IsValid(), "Cannot bind invalid or uninitialized texture");
 	Get().Bind();
-#ifdef PTGN_DEBUG
-	++game.stats.texture_binds;
-#endif
-}
-
-void Texture::Unbind(std::uint32_t slot) {
-	SetActiveSlot(slot);
-	BindId(0);
-}
-
-void Texture::BindId(std::uint32_t id) {
-#ifdef GL_ANNOUNCE_TEXTURE_CALLS
-	PTGN_LOG("GL: Bound texture with id ", id);
-#endif
-	GLCall(gl::glBindTexture(GL_TEXTURE_2D, id));
 }
 
 void Texture::Bind(std::uint32_t slot) const {
-	SetActiveSlot(slot);
-	Bind();
+	Get().Bind(slot);
 }
 
-void Texture::SetActiveSlot(std::uint32_t slot) {
-	PTGN_ASSERT(
-		slot < GLRenderer::GetMaxTextureSlots(),
-		"Attempting to bind a slot outside of OpenGL texture slot maximum"
-	);
-#ifdef GL_ANNOUNCE_TEXTURE_CALLS
-	PTGN_LOG("GL: Set active texture slot to ", slot);
-#endif
-	GLCall(gl::ActiveTexture(GL_TEXTURE0 + slot));
+void Texture::BindId(std::uint32_t id) {
+	impl::TextureInstance::BindId(id);
+}
+
+void Texture::Unbind(std::uint32_t slot) {
+	impl::TextureInstance::Unbind(slot);
 }
 
 std::uint32_t Texture::GetBoundId() {
-	std::int32_t id{ -1 };
-	GLCall(gl::glGetIntegerv(static_cast<gl::GLenum>(impl::GLBinding::Texture2D), &id));
-	PTGN_ASSERT(id >= 0, "Failed to retrieve bound texture id");
-	return static_cast<std::uint32_t>(id);
+	return impl::TextureInstance::GetBoundId();
+}
+
+void Texture::SetActiveSlot(std::uint32_t slot) {
+	impl::TextureInstance::SetActiveSlot(slot);
+}
+
+std::uint32_t Texture::GetActiveSlot() {
+	return impl::TextureInstance::GetActiveSlot();
 }
 
 bool Texture::IsBound() const {
@@ -411,35 +520,12 @@ void Texture::SetSubData(
 	const void* pixel_data, TextureFormat format, const V2_int& offset, const V2_int& size,
 	int mipmap_level
 ) {
-	PTGN_ASSERT(IsValid(), "Cannot set sub data of invalid or uninitialized texture");
-	PTGN_ASSERT(pixel_data != nullptr);
-
-	std::uint32_t restore_id{ Texture::GetBoundId() };
-
-	auto formats{ impl::GetGLFormats(format) };
-
-	auto& i{ Get() };
-	i.Bind();
-
-	GLCall(gl::glTexSubImage2D(
-		GL_TEXTURE_2D, mipmap_level, offset.x, offset.y, size.x, size.y, formats.format_,
-		static_cast<gl::GLenum>(impl::GLType::UnsignedByte), pixel_data
-	));
-
-	Texture::BindId(restore_id);
-}
-
-std::uint32_t Texture::GetActiveSlot() {
-	std::int32_t id{ -1 };
-	GLCall(gl::glGetIntegerv(GL_ACTIVE_TEXTURE, &id));
-	PTGN_ASSERT(id >= 0, "Failed to retrieve the currently active texture slot");
-	return static_cast<std::uint32_t>(id);
+	Get().SetSubData(pixel_data, format, offset, size, mipmap_level);
 }
 
 void Texture::SetSubData(
 	const std::vector<Color>& pixels, const V2_int& offset, const V2_int& size, int mipmap_level
 ) {
-	PTGN_ASSERT(IsValid(), "Cannot set sub data of invalid or uninitialized texture");
 	PTGN_ASSERT(
 		pixels.size() == static_cast<std::size_t>(GetSize().x * GetSize().y),
 		"Provided pixel array must match texture size"
@@ -451,77 +537,26 @@ void Texture::SetSubData(
 }
 
 V2_int Texture::GetSize() const {
-	PTGN_ASSERT(IsValid(), "Cannot size format of invalid or uninitialized texture");
 	return Get().size_;
 }
 
 TextureFormat Texture::GetFormat() const {
-	PTGN_ASSERT(IsValid(), "Cannot get format of invalid or uninitialized texture");
 	return Get().format_;
 }
 
-void Texture::Draw(Rect destination, TextureInfo texture_info, Shader shader, const Camera& camera)
+void Texture::Draw(const Rect& destination, const TextureInfo& texture_info, const Shader& shader)
 	const {
-	PTGN_ASSERT(IsValid(), "Cannot draw uninitialized or destroyed texture");
+	game.renderer.Flush();
 
-	if (*this == game.renderer.screen_target_.GetTexture()) {
-		FrameBuffer::Unbind();
-	} else {
-		game.renderer.Flush();
-	}
+	PTGN_ASSERT(shader.IsValid(), "Cannot draw texture with uninitialized or destroyed shader");
 
-	if (shader == Shader{}) {
-		shader = game.shader.Get(ScreenShader::Default);
-	}
+	DrawToBoundFrameBuffer(destination, texture_info, shader);
+}
 
-	if (destination.IsZero()) {
-		destination = Rect::Fullscreen();
-	} else if (destination.size.IsZero()) {
-		destination.size = GetSize();
-	}
-
-	// Shaders coordinates are in bottom right instead of top left.
-	if (texture_info.flip == Flip::Vertical) {
-		texture_info.flip = Flip::None;
-	} else if (texture_info.flip == Flip::Both) {
-		texture_info.flip = Flip::Horizontal;
-	} else if (texture_info.flip == Flip::None) {
-		texture_info.flip = Flip::Vertical;
-	}
-
-	auto positions{ destination.GetVertices(texture_info.rotation_center) };
-
-	auto tex_coords{ texture_info.GetTextureCoordinates(GetSize()) };
-
-	TextureInfo::FlipTextureCoordinates(tex_coords, texture_info.flip);
-
-	constexpr std::size_t index_count{ 6 };
-
-	std::array<QuadVertex, 4> vertices{};
-
-	V4_float color{ texture_info.tint.Normalized() };
-
-	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
-		vertices[i].position  = { positions[i].x, positions[i].y, 0.0f };
-		vertices[i].color	  = { color.x, color.y, color.z, color.w };
-		vertices[i].tex_coord = { tex_coords[i].x, tex_coords[i].y };
-		vertices[i].tex_index = { 0.0f };
-	}
-
-	shader.Bind();
-	shader.SetUniform("u_ViewProjection", camera);
-	shader.SetUniform("u_Resolution", V2_float{ game.window.GetSize() });
-	shader.SetUniform("u_Texture", 0);
-
-	auto vao{ game.renderer.GetVertexArray<impl::BatchType::Quad>() };
-	vao.Bind();
-
-	Bind(0);
-
-	vao.GetVertexBuffer().SetSubData(
-		vertices.data(), static_cast<std::uint32_t>(Sizeof(vertices)), false
-	);
-	vao.Draw(index_count, false);
+void Texture::DrawToBoundFrameBuffer(
+	const Rect& destination, const TextureInfo& texture_info, const Shader& shader
+) const {
+	Get().DrawToBoundFrameBuffer(destination, texture_info, shader);
 }
 
 void Texture::SetWrappingX(TextureWrapping x) {

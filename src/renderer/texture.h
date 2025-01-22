@@ -12,9 +12,7 @@
 #include "math/vector4.h"
 #include "renderer/color.h"
 #include "renderer/flip.h"
-#include "renderer/shader.h"
 #include "renderer/surface.h"
-#include "scene/camera.h"
 #include "utility/file.h"
 #include "utility/handle.h"
 
@@ -23,8 +21,15 @@ namespace ptgn {
 class Shader;
 class Text;
 class Texture;
+class RenderTarget;
 struct Rect;
 struct Line;
+
+namespace impl {
+
+struct TextureInstance;
+
+} // namespace impl
 
 // Information relating to the source pixels, flip, tinting and rotation center of the texture.
 struct TextureInfo {
@@ -73,6 +78,7 @@ private:
 	friend struct Rect;
 	friend struct Line;
 	friend class Shader;
+	friend struct impl::TextureInstance;
 
 	friend void impl::DrawVertices(
 		const V2_float* vertices, std::size_t vertex_count, float line_width, const V4_float& color,
@@ -168,6 +174,14 @@ struct TextureInstance {
 		const void* pixel_data, const V2_int& size, TextureFormat format, int mipmap_level
 	);
 
+	void SetSubData(
+		const void* pixel_data, TextureFormat format, const V2_int& offset, const V2_int& size,
+		int mipmap_level
+	);
+
+	void DrawToBoundFrameBuffer(Rect destination, TextureInfo texture_info, const Shader& shader)
+		const;
+
 	void SetWrappingX(TextureWrapping x);
 	void SetWrappingY(TextureWrapping y);
 	void SetWrappingZ(TextureWrapping z);
@@ -177,9 +191,15 @@ struct TextureInstance {
 
 	void GenerateMipmaps();
 
+	void Bind(std::uint32_t slot) const;
+	static void Unbind(std::uint32_t slot);
 	void Bind() const;
-
 	[[nodiscard]] bool IsBound() const;
+
+	static void BindId(std::uint32_t id);
+	[[nodiscard]] static std::uint32_t GetBoundId();
+	static void SetActiveSlot(std::uint32_t slot);
+	[[nodiscard]] static std::uint32_t GetActiveSlot();
 
 	[[nodiscard]] static bool ValidMinifyingForMipmaps(TextureScaling minifying);
 
@@ -230,13 +250,16 @@ public:
 		Rect destination = {}, const TextureInfo& texture_info = {}, std::int32_t render_layer = 0
 	) const;
 
+	// Draws the texture to the renderer's current render target with a custom shader. Note: This
+	// function will flush the renderer.
 	// @param destination Destination to draw the texture to. If destination == {}, fullscreen
 	// texture will be drawn, else if destination.size == {}, unscaled texture size is used.
 	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
 	// center of the texture.
 	// @param shader The shader to render the texture with.
-	void Draw(Rect destination, TextureInfo texture_info, Shader shader, const Camera& camera)
-		const;
+	// Note: If using PresetShader or ScreenShader, don't forget to call
+	// shader.Bind("u_ViewProjection", camera.GetViewProjection());
+	void Draw(const Rect& destination, const TextureInfo& texture_info, const Shader& shader) const;
 
 	// @param wrapping Texture wrapping in the x direction for when texture X coordinates are
 	// outside [0, 1]. OpenGL Equivalent Coordinate: S.
@@ -289,8 +312,14 @@ private:
 	friend struct impl::Batch;
 	friend class impl::RenderData;
 	friend struct impl::RenderTargetInstance;
+	friend class RenderTarget;
 
 	struct WindowTexture {};
+
+	// Draws the texture to the currently bound frame buffer.
+	void DrawToBoundFrameBuffer(
+		const Rect& destination, const TextureInfo& texture_info, const Shader& shader
+	) const;
 
 	// Bind the texture to the currently active texture slot. This function does not change the
 	// active texture slot.
@@ -349,10 +378,10 @@ private:
 		int mipmap_level = 0
 	);
 
-	// @return The id of the currently active texture slot.
+	// @return Id of the currently active texture slot.
 	[[nodiscard]] static std::uint32_t GetActiveSlot();
 
-	// @return The id of the texture bound to the currently active texture slot.
+	// @return Id of the texture bound to the currently active texture slot.
 	[[nodiscard]] static std::uint32_t GetBoundId();
 
 	// @return True if the texture is bound to the currently active texture slot.
