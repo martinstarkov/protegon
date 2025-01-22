@@ -203,11 +203,10 @@ void Game::Init(
 	event.Init();
 	input.Init();
 
-	camera.Init();
-
 	shader.Init();
 
 	renderer.Init(background_color);
+	camera.Init();
 	light.Init();
 
 	game.window.SetTitle(title);
@@ -298,8 +297,8 @@ void Game::Update() {
 		physics.Update(scene.GetCurrent().manager);
 	}
 	tween.Update();
-	light.Draw();
-	renderer.Present();
+
+	renderer.PresentScreen();
 
 #ifdef PTGN_DEBUG
 	// Uncomment to examine the color of the pixel at the mouse position that is drawn to the

@@ -101,6 +101,8 @@ private:
 	friend class impl::RendererData;
 
 	// Bind a specific id as the current shader.
+	// Note: Calling this outside of the Shader class may mess with the renderer as it keeps track
+	// of the currently bound shader.
 	static void Bind(std::int32_t id);
 
 	// @return True if the shader is currently bound, false otherwise.

@@ -241,7 +241,7 @@ public:
 
 	// @param destination Destination rectangle where to draw the plot. Default of {} results in
 	// fullscreen.
-	void Draw(Rect destination = {});
+	void Draw(const Rect& destination = {});
 
 	// @tparam T Type of the property to be added.  Valid property types are listed in the static
 	// assert of this function.

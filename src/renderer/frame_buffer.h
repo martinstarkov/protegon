@@ -10,12 +10,14 @@ namespace ptgn {
 
 class FrameBuffer;
 class RenderTarget;
+class Texture;
 class Shader;
 
 namespace impl {
 
 class Renderer;
 struct FrameBufferInstance;
+struct RenderTargetInstance;
 
 struct RenderBufferInstance {
 	RenderBufferInstance();
@@ -93,8 +95,12 @@ public:
 
 	// @return True if the frame buffer attachment / creation was successful, false otherwise.
 	[[nodiscard]] bool IsComplete() const;
+
 	// @return True if the frame buffer is currently bound to the context, false otherwise.
 	[[nodiscard]] bool IsBound() const;
+
+	// @return True if the current bound frame buffer id is 0, false otherwise.
+	[[nodiscard]] static bool IsUnbound();
 
 	void Bind() const;
 
@@ -104,14 +110,18 @@ public:
 
 private:
 	friend struct impl::FrameBufferInstance;
+	friend struct impl::RenderTargetInstance;
 	friend class impl::Renderer;
 	friend class Shader;
 	friend class RenderTarget;
+	friend class Texture;
 
 	// @return Id of the currently bound frame buffer.
 	[[nodiscard]] static std::uint32_t GetBoundId();
 
 	// Bind a specific id as the current frame buffer.
+	// Note: Calling this outside of the FrameBuffer class may mess with the renderer as it keeps
+	// track of the currently bound frame buffer.
 	static void Bind(std::uint32_t id);
 };
 

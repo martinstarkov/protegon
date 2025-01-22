@@ -33,6 +33,7 @@ template <BufferType BT>
 void Buffer<BT>::SetDataImpl(const void* data, std::uint32_t size, BufferUsage usage) {
 	PTGN_ASSERT(size != 0, "Must provide more than one element when creating buffer");
 	// PTGN_ASSERT(data != nullptr);
+	// Ensure that this buffer does not get bound to any currently bound vertex array.
 	VertexArray::Unbind();
 	Bind();
 	GLCall(gl::BufferData(static_cast<gl::GLenum>(BT), size, data, static_cast<gl::GLenum>(usage)));
@@ -44,6 +45,7 @@ void Buffer<BT>::SetSubData(const void* data, std::uint32_t size, bool unbind_ve
 	PTGN_ASSERT(size != 0, "Must provide more than one element when setting buffer subdata");
 	PTGN_ASSERT(data != nullptr);
 	if (unbind_vertex_array) {
+		// Ensure that this buffer does not get bound to any currently bound vertex array.
 		VertexArray::Unbind();
 	}
 	Bind();

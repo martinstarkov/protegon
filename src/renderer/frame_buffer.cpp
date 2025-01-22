@@ -202,6 +202,10 @@ void FrameBuffer::Bind(std::uint32_t id) {
 #endif
 }
 
+bool FrameBuffer::IsUnbound() {
+	return GetBoundId() == 0;
+}
+
 void FrameBuffer::Bind() const {
 	PTGN_ASSERT(IsValid(), "Cannot bind invalid frame buffer");
 	if (game.renderer.bound_frame_buffer_ == *this) {

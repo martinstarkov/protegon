@@ -188,10 +188,4 @@ private:
 	ecs::Manager manager_;
 };
 
-namespace impl {
-
-// TODO: Add particle manager_.
-
-} // namespace impl
-
 } // namespace ptgn

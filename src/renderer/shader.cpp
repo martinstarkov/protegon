@@ -166,6 +166,7 @@ void Shader::Bind(std::int32_t id) {
 }
 
 void Shader::Bind() const {
+	PTGN_ASSERT(IsValid(), "Cannot bind an invalid shader");
 	if (game.renderer.bound_shader_ == *this) {
 		return;
 	}
