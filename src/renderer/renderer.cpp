@@ -3,9 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
-#include <functional>
 #include <numeric>
-#include <type_traits>
 #include <vector>
 
 #include "core/game.h"
@@ -25,7 +23,6 @@
 #include "renderer/texture.h"
 #include "renderer/vertex_array.h"
 #include "renderer/vertices.h"
-#include "scene/camera.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
 
@@ -33,10 +30,8 @@ namespace ptgn::impl {
 
 void Renderer::Init(const Color& window_background_color) {
 	ClearScreen();
-	GLRenderer::SetBlendMode(blend_mode_);
 	// GLRenderer::EnableLineSmoothing();
-
-	screen_target_ = RenderTarget{ window_background_color };
+	screen_target_ = RenderTarget{ window_background_color, BlendMode::Blend };
 	active_target_ = screen_target_;
 
 	batch_capacity_ = 2000;
@@ -132,19 +127,90 @@ void Renderer::Reset() {
 	batch_capacity_	   = 0;
 	max_texture_slots_ = 0;
 	white_texture_	   = {};
-	resolution_		   = {};
-	scaling_mode_	   = ResolutionMode::Disabled;
 	render_data_	   = {};
-	bound_shader_	   = {};
-	blend_mode_		   = BlendMode::BlendPremultiplied;
-	active_target_	   = {};
-	screen_target_	   = {};
 
-	FrameBuffer::Unbind();
+	resolution_	  = {};
+	scaling_mode_ = ResolutionMode::Disabled;
+
+	active_target_ = {};
+	screen_target_ = {};
+
+	bound_shader_			 = {};
+	bound_vertex_array_		 = {};
+	bound_blend_mode_		 = BlendMode::None;
+	bound_viewport_position_ = {};
+	bound_viewport_size_	 = {};
+
+	FrameBuffer::Unbind(); // Will set bound_frame_buffer_ to {}.
 }
 
 void Renderer::Shutdown() {
 	Reset();
+}
+
+void Renderer::SetRenderTarget(const RenderTarget& target) {
+	if (active_target_ == target) {
+		return;
+	}
+	Flush();
+	active_target_ = target.IsValid() ? target : screen_target_;
+}
+
+RenderTarget Renderer::GetRenderTarget() const {
+	return active_target_;
+}
+
+void Renderer::Clear() const {
+	active_target_.Get().Clear();
+}
+
+void Renderer::Flush() {
+	active_target_.Get().Bind();
+
+	GLRenderer::SetBlendMode(active_target_.Get().GetBlendMode());
+	GLRenderer::SetViewport(
+		active_target_.Get().viewport_.Min(), active_target_.Get().viewport_.size
+	);
+
+	if (render_data_.SetViewProjection(active_target_.Get().GetCamera())) {
+		// Post mouse event when camera projection changes.
+		game.event.mouse.Post(MouseEvent::Move, MouseMoveEvent{});
+	}
+
+	render_data_.Flush();
+
+	PTGN_ASSERT(
+		active_target_.Get().frame_buffer_.IsBound(),
+		"Flushing the renderer must leave the current render target bound"
+	);
+}
+
+BlendMode Renderer::GetBlendMode() const {
+	return active_target_.Get().GetBlendMode();
+}
+
+void Renderer::SetBlendMode(BlendMode blend_mode) {
+	if (active_target_.Get().GetBlendMode() == blend_mode) {
+		return;
+	}
+	Flush();
+	active_target_.Get().SetBlendMode(blend_mode);
+}
+
+Color Renderer::GetClearColor() const {
+	return active_target_.Get().GetClearColor();
+}
+
+void Renderer::SetClearColor(const Color& clear_color) {
+	active_target_.Get().SetClearColor(clear_color);
+}
+
+void Renderer::SetViewport(const Rect& viewport) {
+	active_target_.Get().SetViewport(viewport);
+}
+
+Rect Renderer::GetViewport() const {
+	return active_target_.Get().GetViewport();
 }
 
 void Renderer::SetResolution(const V2_int& resolution) {
@@ -170,116 +236,21 @@ ResolutionMode Renderer::GetResolutionMode() const {
 	return scaling_mode_;
 }
 
-BlendMode Renderer::GetBlendMode() const {
-	return blend_mode_;
-}
-
-void Renderer::SetBlendMode(BlendMode blend_mode) {
-	if (blend_mode_ == blend_mode) {
-		return;
-	}
-	Flush();
-	blend_mode_ = blend_mode;
-	GLRenderer::SetBlendMode(blend_mode_);
-}
-
-Color Renderer::GetClearColor() const {
-	return active_target_.GetClearColor();
-}
-
-void Renderer::SetClearColor(const Color& clear_color) {
-	active_target_.SetClearColor(clear_color);
-}
-
-void Renderer::SetRenderTarget(const RenderTarget& target) {
-	if (active_target_ == target) {
-		return;
-	}
-	Flush();
-	if (target.IsValid()) {
-		active_target_ = target;
-	} else {
-		active_target_ = screen_target_;
-	}
-	active_target_.SetCamera(game.camera.GetPrimary());
-}
-
-RenderTarget Renderer::GetRenderTarget() const {
-	return active_target_;
-}
-
 impl::RenderData& Renderer::GetRenderData() {
 	return render_data_;
 }
 
-void Renderer::ClearScreen() const {
-	FrameBuffer::Unbind();
-	GLRenderer::ClearColor(color::Transparent);
-	GLRenderer::Clear();
-}
-
-void Renderer::SetTemporaryRenderTarget(
-	const RenderTarget& render_target, const std::function<void()>& callback
-) {
-	PTGN_ASSERT(callback != nullptr, "Invalid callback given when setting temporary render target");
-	const auto& previous_camera{ game.camera.GetPrimary() };
-	auto previous_render_target{ GetRenderTarget() };
-	auto previous_blend_mode{ GetBlendMode() };
-	SetRenderTarget(render_target);
-	std::invoke(callback);
-	SetBlendMode(previous_blend_mode);
-	SetRenderTarget(previous_render_target);
-	game.camera.SetPrimary(previous_camera);
-}
-
-void Renderer::SetTemporaryBlendMode(BlendMode blend_mode, const std::function<void()>& callback) {
-	PTGN_ASSERT(callback != nullptr, "Invalid callback given when setting temporary blend mode");
-	auto previous_blend_mode{ GetBlendMode() };
-	SetBlendMode(blend_mode);
-	std::invoke(callback);
-	SetBlendMode(previous_blend_mode);
-}
-
-void Renderer::Clear() const {
-	active_target_.Bind();
-	GLRenderer::ClearToColor(active_target_.GetClearColor());
-}
-
-void Renderer::Flush() {
-	active_target_.Bind();
-
-	if (render_data_.SetViewProjection(active_target_.GetCamera())) {
-		// Post mouse event when camera projection changes.
-		game.event.mouse.Post(MouseEvent::Move, MouseMoveEvent{});
-	}
-
-	render_data_.Flush();
-}
-
-void Renderer::SetViewport(const Rect& viewport) {
-	active_target_.SetViewport(viewport);
-}
-
-Rect Renderer::GetViewport() const {
-	return active_target_.GetViewport();
-}
-
-void Renderer::Present() {
+void Renderer::PresentScreen() {
 	Flush();
 
-	auto previous_render_target{ GetRenderTarget() };
-
-	SetRenderTarget({});
-
-	PTGN_ASSERT(active_target_ == screen_target_);
-
-	screen_target_.Draw();
-
-	FrameBuffer::Unbind();
+	screen_target_.Get().DrawToScreen();
 
 	game.window.SwapBuffers();
 
-	SetRenderTarget(previous_render_target);
+	// Screen target is cleared after drawing it to the screen.
+	// TODO: Replace these with the Clear() function once that is added.
+	screen_target_.Get().Bind();
+	screen_target_.Get().Clear();
 
 	/*
 	// TODO: Move this to happen only when setting resolution. This would allow for example only one
@@ -323,6 +294,12 @@ void Renderer::Present() {
 #ifdef PTGN_DEBUG
 	game.stats.ResetRendererRelated();
 #endif
+}
+
+void Renderer::ClearScreen() const {
+	FrameBuffer::Unbind();
+	GLRenderer::SetClearColor(color::Transparent);
+	GLRenderer::Clear();
 }
 
 } // namespace ptgn::impl

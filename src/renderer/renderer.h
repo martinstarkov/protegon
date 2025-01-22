@@ -17,6 +17,7 @@
 namespace ptgn {
 
 class GLRenderer;
+class VertexArray;
 
 // How the renderer resolution is scaled to the window size.
 enum class ResolutionMode {
@@ -36,6 +37,8 @@ class Game;
 class SceneManager;
 class SceneCamera;
 struct Batch;
+struct RenderTargetInstance;
+struct TextureInstance;
 class RenderData;
 class InputHandler;
 
@@ -48,27 +51,44 @@ public:
 	Renderer& operator=(const Renderer&) = delete;
 	Renderer& operator=(Renderer&&)		 = default;
 
-	// Temporarily changes the current render target to the one specified until the callback
-	// finishes executing, then sets the current render target and blend mode back to what they were
-	// before this function was called.
-	void SetTemporaryRenderTarget(
-		const RenderTarget& render_target, const std::function<void()>& callback
-	);
+	// Sets the current render target. Every subsequent object draw call will be drawn to this
+	// render target. In order to see the render target on the screen, first call
+	// SetRenderTarget({}) to set the screen target followed by target.Draw() to draw the target to
+	// the screen.
+	// @param target The desired render target to be set. If {}, the screen target will be set.
+	// Note if provided target is not the currently set render target, this function will flush the
+	// renderer.
+	void SetRenderTarget(const RenderTarget& target = {});
 
-	// Temporarily changes the blend mode to the specified until the callback finishes
-	// executing, then sets the blend mode back to what they were before
-	// this function was called.
-	void SetTemporaryBlendMode(BlendMode blend_mode, const std::function<void()>& callback);
+	// @return The current render target.
+	[[nodiscard]] RenderTarget GetRenderTarget() const;
 
-	// Clear the currently set render target.
+	// Clear the current render target.
 	void Clear() const;
 
-	// Flush the render queue onto the currently set render target.
+	// Flush the render queue onto the current render target.
 	void Flush();
 
-	// @param viewport Where to draw the current render target. Default value of {} results in
-	// fullscreen viewport.
-	void SetViewport(const Rect& viewport = {});
+	// @param The blend mode to set for the current render target.
+	// Note: If this blend mode is different from the blend mode of the currently set render target,
+	// this function will flush the renderer.
+	void SetBlendMode(BlendMode blend_mode);
+
+	// @return The blend mode of the current render target.
+	[[nodiscard]] BlendMode GetBlendMode() const;
+
+	// Sets the clear color of the current render target.
+	// Note: The newly set clear color will only be applied upon clearing the render target. This
+	// happens after calling Draw() on the render target, or for the screen target at the end of the
+	// current frame.
+	void SetClearColor(const Color& clear_color);
+
+	// @return The clear color of the current render target.
+	[[nodiscard]] Color GetClearColor() const;
+
+	// Sets the viewport for the current render target.
+	// @param viewport Where to draw the current render target.
+	void SetViewport(const Rect& viewport);
 
 	// @return Viewport of the current render target.
 	[[nodiscard]] Rect GetViewport() const;
@@ -91,39 +111,33 @@ public:
 	// @return The resolution scaling mode.
 	[[nodiscard]] ResolutionMode GetResolutionMode() const;
 
-	// @param The blend mode to set for the current render queue.
-	void SetBlendMode(BlendMode blend_mode);
-
-	// @return The blend mode which is currently set.
-	[[nodiscard]] BlendMode GetBlendMode() const;
-
-	// Sets the clear color of the currently set render target.
-	void SetClearColor(const Color& clear_color);
-
-	// @return The clear color of the currently set render target.
-	[[nodiscard]] Color GetClearColor() const;
-
-	// Sets the renderer render target.
-	// @param target The desired render target to be set. If {}, renderer will draw directly to the
-	// screen target.
-	void SetRenderTarget(const RenderTarget& target = {});
-
-	// @return The currently set render target. Will return {} if the screen target is currently
-	// set.
-	[[nodiscard]] RenderTarget GetRenderTarget() const;
-
-	// @return The render data associated with the current renderer queue.
+	// @return The render data associated with the current render queue.
 	[[nodiscard]] impl::RenderData& GetRenderData();
 
 private:
-	// Sets bound_frame_buffer_
 	friend class FrameBuffer;
 	friend class RenderTarget;
 	friend class RenderData;
+	friend struct RenderTargetInstance;
+	friend struct TextureInstance;
 	friend struct Batch;
+	friend class GLRenderer;
 	friend class Game;
 	friend class Texture;
 	friend class Shader;
+	friend class VertexArray;
+
+	// Present the screen target to the window.
+	void PresentScreen();
+
+	// Clears the window buffer.
+	void ClearScreen() const;
+
+	void Init(const Color& window_background_color);
+	void Shutdown();
+	void Reset();
+
+	// TODO: Consider moving everything from here to render_data_ into the RenderData class.
 
 	template <BatchType T>
 	const VertexArray& GetVertexArray() const {
@@ -139,16 +153,6 @@ private:
 			return point_vao_;
 		}
 	}
-
-	// Present the screen target to the window.
-	void Present();
-
-	// Clear the screen target.
-	void ClearScreen() const;
-
-	void Init(const Color& window_background_color);
-	void Shutdown();
-	void Reset();
 
 	VertexArray quad_vao_;
 	VertexArray circle_vao_;
@@ -171,17 +175,18 @@ private:
 	// The higher the number, the less draw calls but more RAM is used.
 	std::size_t batch_capacity_{ 0 };
 
-	RenderData render_data_;
-
 	std::uint32_t max_texture_slots_{ 0 };
 	Texture white_texture_;
+
+	RenderData render_data_;
 
 	// Renderer keeps track of what is bound.
 	FrameBuffer bound_frame_buffer_;
 	Shader bound_shader_;
-
-	// Currently set blend mode.
-	BlendMode blend_mode_{ BlendMode::BlendPremultiplied };
+	VertexArray bound_vertex_array_;
+	BlendMode bound_blend_mode_{ BlendMode::None };
+	V2_int bound_viewport_position_;
+	V2_int bound_viewport_size_;
 
 	// Default value results in fullscreen.
 	V2_int resolution_;
