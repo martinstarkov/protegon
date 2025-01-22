@@ -17,7 +17,6 @@
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/font.h"
-#include "renderer/layer_info.h"
 #include "renderer/origin.h"
 #include "renderer/text.h"
 #include "resources/fonts.h"
@@ -122,6 +121,8 @@ void Plot::Reset() {
 }
 
 void Plot::Draw(const Rect& destination) {
+	// TODO: Fix.
+	/*
 	PTGN_ASSERT(entity_ != ecs::null, "Cannot draw plot before it has been initialized");
 
 	Rect dest{ destination };
@@ -195,6 +196,7 @@ void Plot::Draw(const Rect& destination) {
 	DrawBorder(edges);
 
 	DrawAxes(edges);
+	*/
 }
 
 void Plot::FollowXData() {
@@ -217,20 +219,19 @@ void Plot::FollowXData() {
 	set_axis_.max.x = latest_x;
 }
 
-Rect Plot::GetCanvasRect() const {
-	return Rect{ {}, canvas_.GetTexture().GetSize(), Origin::TopLeft };
-}
-
 void Plot::DrawPlotArea() {
 	PTGN_ASSERT((entity_.Has<BackgroundColor>()));
 
-	Rect r{ GetCanvasRect() };
+	// TODO: Fix.
+	/*
+	Rect r{ ... };
 
 	r.Draw(entity_.Get<BackgroundColor>(), -1.0f, canvas_);
 
 	DrawPoints(r);
 
 	DrawLegend(r);
+	*/
 }
 
 void Plot::DrawBorder(const std::array<Line, 4>& edges) {
@@ -287,7 +288,7 @@ void Plot::DrawLegend(const Rect& dest) {
 		if (legend.toggleable_data) {
 			button.Enable();
 			button.Set<ButtonProperty::Visibility>(true);
-			button.Set<ButtonProperty::LayerInfo>(LayerInfo{ legend_layer + 1, canvas_ });
+			button.Set<ButtonProperty::RenderLayer>(legend_layer + 1);
 			if (!button.Get<ButtonProperty::Toggleable>()) {
 				button.Set<ButtonProperty::Toggleable>(true);
 			}
@@ -347,7 +348,7 @@ void Plot::DrawLegend(const Rect& dest) {
 
 	legend_rect_ = Rect{ dest.Center() + GetOffsetFromCenter(dest.size, legend.origin), legend_size,
 						 legend.origin };
-	legend_rect_.Draw(legend.background_color, -1.0f, { legend_layer, canvas_ });
+	legend_rect_.Draw(legend.background_color, -1.0f, legend_layer);
 
 	V2_float text_offset;
 	V2_float button_offset;
@@ -370,7 +371,7 @@ void Plot::DrawLegend(const Rect& dest) {
 			button_offset.y += size.y;
 		}
 
-		text.Draw(text_rect, { legend_layer + 1, canvas_ });
+		text.Draw(text_rect, legend_layer + 1);
 		text_offset.y += size.y;
 	}
 }
@@ -399,9 +400,7 @@ void Plot::DrawPoints(const Rect& dest) {
 			return;
 		}
 		V2_float dest_pixel{ dest.position + get_local_pixel(frac) };
-		dest_pixel.Draw(
-			entity.Get<DataPointColor>(), entity.Get<DataPointRadius>(), { 200, canvas_ }
-		);
+		dest_pixel.Draw(entity.Get<DataPointColor>(), entity.Get<DataPointRadius>(), 200);
 	};
 
 	auto draw_line = [&](ecs::Entity entity, const V2_float& frac_current,
@@ -410,7 +409,7 @@ void Plot::DrawPoints(const Rect& dest) {
 			return;
 		}
 		Line l{ get_local_pixel(frac_current), get_local_pixel(frac_next) };
-		l.Draw(entity.Get<LineColor>(), entity.Get<LineWidth>(), { 100, canvas_ });
+		l.Draw(entity.Get<LineColor>(), entity.Get<LineWidth>(), 100);
 	};
 
 	// Note: Data must be sorted for this loop to draw lines correctly.
