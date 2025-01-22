@@ -104,7 +104,7 @@ public:
 			thresholding = !thresholding;
 		}
 
-		auto camera{ game.camera.GetPrimary() };
+		auto& camera{ game.camera.GetPrimary() };
 
 		const float pan_speed{ 200.0f };
 
@@ -158,7 +158,7 @@ public:
 	}
 
 	void Draw() {
-		auto cam = game.camera.GetPrimary();
+		const auto& cam = game.camera.GetPrimary();
 
 		auto rect = cam.GetRect();
 

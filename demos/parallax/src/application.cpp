@@ -72,26 +72,19 @@ public:
 		star_cam	   += velocity / 6.0f;
 		foreground_cam += velocity / 2.0f;
 
-		RenderTarget background_target{ color::Transparent };
-		game.renderer.SetTemporaryRenderTarget(background_target, [&]() {
-			background.Draw({ bg_pos, { size.x * bg_aspect_ratio, size.y } });
-			background_target.GetCamera().Translate(background_cam);
-		});
-
-		RenderTarget star_target{ color::Transparent };
-		game.renderer.SetTemporaryRenderTarget(star_target, [&]() {
-			stars.Draw({ stars_pos, { size.x * bg_aspect_ratio, size.y } });
-			star_target.GetCamera().Translate(star_cam);
-		});
-		star_target.Draw();
-
-		RenderTarget foreground{ color::Transparent };
-		game.renderer.SetTemporaryRenderTarget(foreground, [&]() {
-			planet_b.Draw({ planet_b_pos, planet_b.GetSize() * scale });
-			planet_s.Draw({ planet_s_pos, planet_s.GetSize() * scale });
-			foreground.GetCamera().Translate(foreground_cam);
-		});
-		foreground.Draw();
+		background.Draw({ bg_pos, { size.x * bg_aspect_ratio, size.y } });
+		game.camera.GetPrimary().Translate(background_cam);
+		game.renderer.Flush();
+		game.camera.SetPrimary({});
+		stars.Draw({ stars_pos, { size.x * bg_aspect_ratio, size.y } });
+		game.camera.GetPrimary().Translate(star_cam);
+		game.renderer.Flush();
+		game.camera.SetPrimary({});
+		planet_b.Draw({ planet_b_pos, planet_b.GetSize() * scale });
+		planet_s.Draw({ planet_s_pos, planet_s.GetSize() * scale });
+		game.camera.GetPrimary().Translate(foreground_cam);
+		game.renderer.Flush();
+		game.camera.SetPrimary({});
 	}
 };
 

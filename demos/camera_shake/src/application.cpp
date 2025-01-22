@@ -74,6 +74,7 @@ public:
 		auto cam = game.camera.GetPrimary();
 		cam.SetPosition(p + cam_shake.local_position);
 		cam.SetRotation(cam_shake.local_rotation);
+		game.camera.SetPrimary(cam);
 
 		Draw();
 	}
@@ -86,13 +87,15 @@ public:
 		Rect{ { 0, 0 }, { 50.0f, 50.0f }, Origin::TopLeft }.Draw(color::Orange);
 
 		RenderTarget ui{ color::Transparent };
-		game.renderer.SetTemporaryRenderTarget(ui, [&]() {
-			game.camera.SetToWindow();
 
-			Text{ "WASD to move", color::Black }.Draw({ { 0, 0 }, {}, Origin::TopLeft });
+		game.renderer.SetRenderTarget(ui);
 
-			grid.ForEachElement([](Button& b) { b.Draw(); });
-		});
+		Text{ "WASD to move", color::Black }.Draw({ { 0, 0 }, {}, Origin::TopLeft });
+
+		grid.ForEachElement([](Button& b) { b.Draw(); });
+
+		game.renderer.SetRenderTarget({});
+
 		ui.Draw();
 	}
 

@@ -81,9 +81,6 @@ class PathfindingExample : public Scene {
 			path_exists = idx != -1;
 		}
 
-		AStarGrid::DisplayWaypoints(local_waypoints, tile_size, color::Purple);
-		AStarGrid::DisplayWaypoints(global_waypoints, tile_size, color::Green);
-
 		if (path_exists) { // global or local path exists
 			current_waypoint += game.dt() * vel;
 			assert(idx >= 0);
@@ -118,12 +115,20 @@ class PathfindingExample : public Scene {
 			enemy = { pos * tile_size, tile_size, Origin::TopLeft };
 		}
 		enemy.Draw(color::Purple, -1.0f);
+
+		game.renderer.Flush();
+
+		AStarGrid::DisplayWaypoints(local_waypoints, tile_size, color::Purple);
+		AStarGrid::DisplayWaypoints(global_waypoints, tile_size, color::Green);
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("Pathfinding: 'ESC' (++category), 'left/right' (place/remove), 'ctrl+left/right' "
-							 "(start/end), 'V' (visited) ", window_size);
+	game.Init(
+		"Pathfinding: 'ESC' (++category), 'left/right' (place/remove), 'ctrl+left/right' "
+		"(start/end), 'V' (visited) ",
+		window_size
+	);
 	game.scene.Enter<PathfindingExample>("pathfinding");
 	return 0;
 }

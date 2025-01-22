@@ -7,8 +7,6 @@ constexpr V2_int window_size{ 960, 540 };
 constexpr CollisionCategory ground_category{ 1 };
 
 class PlatformingExample : public Scene {
-	ecs::Manager manager;
-
 	ecs::Entity CreatePlatform(const Rect& r) {
 		ecs::Entity entity = manager.CreateEntity();
 		entity.Add<Transform>(r.position, r.rotation);

@@ -523,7 +523,7 @@ struct TestRenderTargets : public DrawTest {
 			rt.WhileBound(
 				[&]() {
 					test.Draw({ pos, s, Origin::TopLeft }, i);
-					rt.DrawToScreen();
+					rt.Draw();
 				},
 				color::Transparent, BlendMode::Add
 			);

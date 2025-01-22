@@ -32,7 +32,7 @@ static void EnterScene(std::string_view key, milliseconds duration = millisecond
 	} else if (game.input.KeyDown(Key::Q)) {
 		game.scene.Enter(key, { TransitionType::Fade, milliseconds{ 4000 } });
 	} else if (game.input.KeyDown(Key::E)) {
-		SceneTransition t{ TransitionType::FadeThroughColor, milliseconds{ 3000 } };
+		SceneTransition t{ TransitionType::FadeThroughColor, milliseconds{ 1000 } };
 		t.SetFadeColor(color::Black);
 		t.SetFadeColorDuration(milliseconds{ 1000 });
 		game.scene.Enter(key, t);
@@ -46,8 +46,41 @@ public:
 
 	void Update() final {
 		test.Draw();
-		EnterScene("scene1");
+		EnterScene("text2");
 	}
+};
+
+class TextScene : public Scene {
+public:
+	std::string_view transition_to;
+	std::string_view content;
+	Color text_color;
+	Color bg_color;
+
+	TextScene(
+		std::string_view transition_to, std::string_view content, const Color& text_color,
+		const Color& bg_color = color::Black
+	) :
+		transition_to{ transition_to },
+		content{ content },
+		text_color{ text_color },
+		bg_color{ bg_color } {}
+
+	void Update() final {
+		EnterScene(transition_to);
+		Rect::Fullscreen().Draw(bg_color);
+		Text{ content, text_color }.Draw({ game.window.GetCenter(), {}, Origin::Center });
+	}
+};
+
+class Text2 : public TextScene {
+public:
+	Text2() : TextScene{ "scene1", "Good Bye!", color::Red } {}
+};
+
+class Text1 : public TextScene {
+public:
+	Text1() : TextScene{ "scene2", "Welcome!", color::Blue } {}
 };
 
 class Scene1 : public Scene {
@@ -57,7 +90,7 @@ public:
 
 	void Update() final {
 		test.Draw();
-		EnterScene("scene2");
+		EnterScene("text1");
 	}
 };
 
@@ -66,6 +99,8 @@ public:
 	SceneTransitionExample() {
 		game.scene.Load<Scene1>("scene1");
 		game.scene.Load<Scene2>("scene2");
+		game.scene.Load<Text1>("text1");
+		game.scene.Load<Text2>("text2");
 	}
 
 	void Enter() override {
@@ -77,6 +112,10 @@ public:
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("SceneTransitionExample", window_size);
-	game.scene.Enter<SceneTransitionExample>("scene_transition_example");
+	game.scene.Enter<SceneTransitionExample>(
+		"scene_transition_example",
+		SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 500 } }
+			.SetFadeColorDuration(milliseconds{ 500 })
+	);
 	return 0;
 }

@@ -49,9 +49,8 @@ class FullscreenExample : public Scene {
 	}
 
 	void Update() final {
-		auto p = game.camera.GetPrimary();
+		auto& p = game.camera.GetPrimary();
 		if (game.input.KeyDown(Key::Z)) {
-			V2_float scale = game.window.GetSize() / window_size;
 			p.CenterOnArea(window_size);
 		}
 		if (game.input.KeyDown(Key::X)) {
@@ -129,9 +128,6 @@ class FullscreenExample : public Scene {
 		if (rect_0.Overlaps(game.input.GetMousePosition())) {
 			color_0 = color::Red;
 		}
-		if (rect_1.Overlaps(game.input.GetMousePosition())) {
-			color_1 = color::Red;
-		}
 
 		camera_pos_text.SetContent(
 			"Camera Position: " + ToString(game.camera.GetPrimary().GetPosition())
@@ -170,15 +166,21 @@ class FullscreenExample : public Scene {
 		rect_0.Draw(color_0, -1.0f);
 
 		V2_float mouse_pos{ game.input.GetMousePosition() };
-		PTGN_LOG("Mouse Pos: ", mouse_pos);
+		// PTGN_LOG("Mouse Pos: ", mouse_pos);
 
 		mouse_pos.Draw(color::Red, 6.0f);
 
-		game.renderer.SetTemporaryRenderTarget(rt, [&]() {
-			// Mouse position relative to the camera of this render target.
-			game.input.GetMousePosition().Draw(color::Blue, 3.0f);
-			rect_1.Draw(color_1, -1.0f);
-		});
+		game.renderer.SetRenderTarget(rt);
+
+		if (rect_1.Overlaps(game.input.GetMousePosition())) {
+			color_1 = color::Red;
+		}
+
+		// Mouse position relative to the camera of this render target.
+		game.input.GetMousePosition().Draw(color::Blue, 3.0f);
+		rect_1.Draw(color_1, -1.0f);
+
+		game.renderer.SetRenderTarget({});
 
 		rt.Draw();
 	}

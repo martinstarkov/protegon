@@ -97,14 +97,15 @@ public:
 
 		camera.GetBounds().Draw(color::Red, 3.0f);
 
-		game.renderer.Flush();
-
 		RenderTarget ui{ color::Transparent };
-		game.renderer.SetTemporaryRenderTarget(ui, [&]() {
-			game.camera.SetPrimary({});
-			ui_texture.Draw({ { 0, 0 }, ui_texture.GetSize(), Origin::TopLeft }, {});
-			game.input.GetMousePosition().Draw(color::Blue, 4.0f);
-		});
+
+		game.renderer.SetRenderTarget(ui);
+
+		ui_texture.Draw({ { 0, 0 }, ui_texture.GetSize(), Origin::TopLeft }, {});
+		game.input.GetMousePosition().Draw(color::Blue, 4.0f);
+
+		game.renderer.SetRenderTarget({});
+
 		ui.Draw();
 	}
 };

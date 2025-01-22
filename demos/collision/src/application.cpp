@@ -9,12 +9,16 @@ V2_float ws;
 struct CollisionTest {
 	virtual ~CollisionTest() = default;
 
-	CollisionTest() {}
+	ecs::Manager manager;
+
+	CollisionTest() {
+		manager = game.scene.GetCurrent().manager;
+	}
 
 	virtual void Enter() {}
 
 	virtual void Exit() {
-		game.camera.ResetPrimary();
+		game.camera.SetPrimary({});
 	}
 
 	virtual void Update() {}
@@ -37,11 +41,7 @@ public:
 	int move_entity{ 5 };
 	V2_float speed{ 300.0f };
 
-	ecs::Manager manager;
-
 	void Enter() override {
-		manager = game.scene.GetCurrent().manager;
-
 		manager.Clear();
 
 		intersect		 = manager.CreateEntity();
@@ -273,13 +273,11 @@ public:
 
 class EntityCollisionTest : public CollisionTest {
 public:
-	ecs::Manager manager;
 	ecs::Entity entity;
 
 	V2_float speed{ 300.0f };
 
 	void Enter() override {
-		manager = game.scene.GetCurrent().manager;
 		manager.Clear();
 		entity = manager.CreateEntity();
 		entity.Add<Transform>(V2_float{ 400, 100 });
@@ -319,6 +317,7 @@ public:
 class SweepEntityCollisionTest : public EntityCollisionTest {
 public:
 	void Enter() override {
+		manager.Clear();
 		EntityCollisionTest::Enter();
 		entity.Get<BoxCollider>().continuous = true;
 	}
@@ -1241,8 +1240,6 @@ struct RectRectDynamicTest : public CollisionTest {
 };
 
 struct SweepTest : public CollisionTest {
-	ecs::Manager manager;
-
 	ecs::Entity player;
 	V2_float player_start_pos;
 	V2_float player_velocity;
@@ -1299,8 +1296,6 @@ struct SweepTest : public CollisionTest {
 	}
 
 	void Enter() override {
-		manager = game.scene.GetCurrent().manager;
-
 		PTGN_ASSERT(player.Has<Transform>());
 		auto& t	   = player.Get<Transform>();
 		t.position = player_start_pos;
@@ -1427,7 +1422,7 @@ struct SweepTest : public CollisionTest {
 
 struct RectCollisionTest : public SweepTest {
 	void Enter() override {
-		SweepTest::Enter();
+		manager.Clear();
 		AddPlayer({ 100000.0f, 100000.0f }, { 30.0f, 30.0f }, { 45.0f, 84.5f });
 		AddCollisionObject({ 150.0f, 50.0f }, { 20.0f, 20.0f });
 		AddCollisionObject({ 150.0f, 150.0f }, { 75.0f, 20.0f });
@@ -1444,12 +1439,13 @@ struct RectCollisionTest : public SweepTest {
 		AddCollisionObject({ 50.0f, 50.0f }, { 20.0f, 20.0f });
 		AddCollisionObject({ 200.0f, 10.0f }, { 20.0f, 20.0f });
 		game.camera.GetPrimary().CenterOnArea({ 256, 240 });
+		SweepTest::Enter();
 	}
 };
 
 struct RectCollisionTest1 : public SweepTest {
 	void Enter() override {
-		SweepTest::Enter();
+		manager.Clear();
 		AddPlayer(
 			{ 100000.0f, 100000.0f }, { 30.0f, 30.0f }, { 45.0f, 84.5f }, { 50, 50 },
 			{ 100000.0f, 100000.0f }
@@ -1459,12 +1455,13 @@ struct RectCollisionTest1 : public SweepTest {
 		AddCollisionObject({ 150.0f, 100.0f }, { 10.0f, 1.0f });
 		AddCollisionObject({ 200.0f, 100.0f }, { 20.0f, 60.0f });
 		game.camera.GetPrimary().CenterOnArea({ 256, 240 });
+		SweepTest::Enter();
 	}
 };
 
 struct RectCollisionTest2 : public SweepTest {
 	void Enter() override {
-		SweepTest::Enter();
+		manager.Clear();
 		AddPlayer(
 			{ 100000.0f, 100000.0f }, { 30.0f, 30.0f }, { 25.0f, 30.0f }, { 50, 50 },
 			{ -100000.0f, 100000.0f }
@@ -1472,24 +1469,26 @@ struct RectCollisionTest2 : public SweepTest {
 		AddCollisionObject({ 20.0f, 90.0f }, { 20.0f, 90.0f });
 		AddCollisionObject({ 50.0f, 50.0f }, { 20.0f, 20.0f });
 		game.camera.GetPrimary().CenterOnArea({ 256, 240 });
+		SweepTest::Enter();
 	}
 };
 
 struct RectCollisionTest3 : public SweepTest {
 	void Enter() override {
-		SweepTest::Enter();
+		manager.Clear();
 		AddPlayer(
 			{ 100000.0f, 100000.0f }, { 30.0f, 30.0f }, { 175.0f, 75.0f }, { 50, 50 },
 			{ -100000.0f, 100000.0f }
 		);
 		AddCollisionObject({ 150.0f, 100.0f }, { 10.0f, 1.0f });
 		game.camera.GetPrimary().CenterOnArea({ 256, 240 });
+		SweepTest::Enter();
 	}
 };
 
 struct RectCollisionTest4 : public SweepTest {
 	void Enter() override {
-		SweepTest::Enter();
+		manager.Clear();
 		AddPlayer(
 			{ 100000.0f, 100000.0f }, { 30.0f, 30.0f }, { 97.5000000f, 74.9999924f }, { 50, 50 },
 			{ 100000.0f, -100000.0f }
@@ -1497,24 +1496,24 @@ struct RectCollisionTest4 : public SweepTest {
 		AddCollisionObject({ 150.0f, 50.0f }, { 20.0f, 20.0f });
 		AddCollisionObject({ 110.0f, 50.0f }, { 20.0f, 20.0f });
 		game.camera.GetPrimary().CenterOnArea({ 256, 240 });
+		SweepTest::Enter();
 	}
 };
 
 struct CircleRectCollisionTest1 : public SweepTest {
 	void Enter() override {
-		SweepTest::Enter();
+		manager.Clear();
 		AddPlayer(
 			{ 10000.0f, 10000.0f }, { 30.0f, 30.0f }, { 563.608337f, 623.264038f },
 			{ 50.0f, 50.0f }, { 0.00000000f, 10000.0f }, Origin::Center, true
 		);
 		AddCollisionObject(V2_float{ 50, 650 }, V2_float{ 500, 10 }, {}, Origin::TopLeft);
 		game.camera.GetPrimary().CenterOnArea({ 800, 800 });
+		SweepTest::Enter();
 	}
 };
 
 struct DynamicRectCollisionTest : public CollisionTest {
-	ecs::Manager manager;
-
 	float speed{ 0.0f };
 
 	struct DynamicData {
@@ -1546,9 +1545,8 @@ struct DynamicRectCollisionTest : public CollisionTest {
 	using NextVel = V2_float;
 
 	void Enter() override {
-		manager = game.scene.GetCurrent().manager;
-
 		manager.Clear();
+
 		for (std::size_t i = 0; i < entity_data.size(); ++i) {
 			ecs::Entity entity = manager.CreateEntity();
 			const auto& data   = entity_data[i];
@@ -1655,11 +1653,12 @@ struct SweepCornerTest1 : public SweepTest {
 	SweepCornerTest1(const V2_float& player_vel) : player_vel{ player_vel } {}
 
 	void Enter() override {
-		SweepTest::Enter();
+		manager.Clear();
 		AddPlayer(player_vel);
 		AddCollisionObject({ 300, 300 });
 		AddCollisionObject({ 250, 300 });
 		AddCollisionObject({ 300, 250 });
+		SweepTest::Enter();
 	}
 };
 
@@ -1669,11 +1668,12 @@ struct SweepCornerTest2 : public SweepTest {
 	SweepCornerTest2(const V2_float& player_vel) : player_vel{ player_vel } {}
 
 	void Enter() override {
-		SweepTest::Enter();
+		manager.Clear();
 		AddPlayer(player_vel);
 		AddCollisionObject({ 300 - 10, 300 });
 		AddCollisionObject({ 250 - 10, 300 });
 		AddCollisionObject({ 300 - 10, 250 });
+		SweepTest::Enter();
 	}
 };
 
@@ -1683,11 +1683,12 @@ struct SweepCornerTest3 : public SweepTest {
 	SweepCornerTest3(const V2_float& player_vel) : player_vel{ player_vel } {}
 
 	void Enter() override {
-		SweepTest::Enter();
+		manager.Clear();
 		AddPlayer(player_vel);
 		AddCollisionObject({ 250, 300 });
 		AddCollisionObject({ 200, 300 });
 		AddCollisionObject({ 250, 250 });
+		SweepTest::Enter();
 	}
 };
 
@@ -1697,7 +1698,7 @@ struct SweepTunnelTest1 : public SweepTest {
 	SweepTunnelTest1(const V2_float& player_vel) : player_vel{ player_vel } {}
 
 	void Enter() override {
-		SweepTest::Enter();
+		manager.Clear();
 		AddPlayer(player_vel);
 		AddCollisionObject({ 300, 300 });
 		AddCollisionObject({ 200, 300 });
@@ -1707,6 +1708,7 @@ struct SweepTunnelTest1 : public SweepTest {
 		AddCollisionObject({ 250, 400 });
 		AddCollisionObject({ 200, 400 });
 		AddCollisionObject({ 300, 400 });
+		SweepTest::Enter();
 	}
 };
 
@@ -1716,7 +1718,7 @@ struct SweepTunnelTest2 : public SweepTest {
 	SweepTunnelTest2(const V2_float& player_vel) : player_vel{ player_vel } {}
 
 	void Enter() override {
-		SweepTest::Enter();
+		manager.Clear();
 		AddPlayer(player_vel);
 		AddCollisionObject({ 300, 300 });
 		AddCollisionObject({ 300, 200 });
@@ -1727,6 +1729,7 @@ struct SweepTunnelTest2 : public SweepTest {
 		AddCollisionObject({ 400, 200 });
 		AddCollisionObject({ 400, 250 });
 		AddCollisionObject({ 400, 300 });
+		SweepTest::Enter();
 	}
 };
 
