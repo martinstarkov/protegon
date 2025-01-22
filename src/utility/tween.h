@@ -15,6 +15,7 @@
 #include "utility/debug.h"
 #include "utility/handle.h"
 #include "utility/time.h"
+#include "utility/type_traits.h"
 
 namespace ptgn {
 
@@ -258,7 +259,7 @@ private:
 
 namespace impl {
 
-class TweenManager : public MapManager<Tween>, public VectorManager<Tween> {
+class TweenManager : public VectorAndMapManager<Tween> {
 public:
 	TweenManager()									 = default;
 	~TweenManager() override						 = default;
@@ -281,24 +282,6 @@ public:
 		// By default tweens loaded into tween manager are unloaded upon completion.
 		tween.KeepAlive(false);
 		return VectorManager::Add(tween);
-	}
-
-	void Clear() {
-		MapManager::Clear();
-		VectorManager::Clear();
-	}
-
-	void Reset() {
-		MapManager::Reset();
-		VectorManager::Reset();
-	}
-
-	[[nodiscard]] std::size_t Size() const {
-		return MapManager::Size() + VectorManager::Size();
-	}
-
-	[[nodiscard]] bool IsEmpty() const {
-		return MapManager::IsEmpty() && VectorManager::IsEmpty();
 	}
 
 	void Update();
