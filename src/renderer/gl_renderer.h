@@ -47,11 +47,17 @@ public:
 	// Sets the viewport dimensions.
 	static void SetViewport(const V2_int& position, const V2_int& size);
 
+	// @return The size of the viewport.
+	[[nodiscard]] static V2_int GetViewportSize();
+
+	// @return The top left position of the viewport.
+	[[nodiscard]] static V2_int GetViewportPosition();
+
 	// Clears the currently bound frame buffer's color and depth buffers.
 	static void Clear();
 
 	// Sets the clear color for all color buffers.
-	static void ClearColor(const Color& color);
+	static void SetClearColor(const Color& color);
 
 	// Clears the currently bound frame buffer's color buffer to the specified color.
 	static void ClearToColor(const Color& color);

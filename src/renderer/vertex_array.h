@@ -107,7 +107,9 @@ private:
 	friend class GLRenderer;
 	friend class RendererData;
 
+	// @return Id of the currently bound vertex array.
 	[[nodiscard]] static std::uint32_t GetBoundId();
+
 	[[nodiscard]] static bool WithinMaxAttributes(std::int32_t attribute_count);
 
 	void SetVertexBufferImpl(const VertexBuffer& vertex_buffer);
@@ -139,6 +141,8 @@ private:
 	}
 
 	// Bind specific id as current vertex array.
+	// Note: Calling this outside of the VertexArray class may mess with the renderer as it keeps
+	// track of the currently bound vertex array.
 	static void Bind(std::uint32_t id);
 
 	static void Unbind();

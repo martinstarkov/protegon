@@ -10,6 +10,7 @@
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "renderer/gl_types.h"
+#include "renderer/renderer.h"
 #include "renderer/vertex_array.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
@@ -43,7 +44,11 @@ void GLRenderer::SetPolygonMode(PolygonMode mode) {
 #endif
 }
 
-void GLRenderer::SetBlendMode(BlendMode mode /* = BlendMode::Blend*/) {
+void GLRenderer::SetBlendMode(BlendMode mode) {
+	if (game.renderer.bound_blend_mode_ == mode) {
+		return;
+	}
+	game.renderer.bound_blend_mode_ = mode;
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Changed blend mode to ", mode);
 #endif
@@ -194,7 +199,7 @@ std::uint32_t GLRenderer::GetMaxTextureSlots() {
 	return static_cast<std::uint32_t>(max_texture_slots);
 }
 
-void GLRenderer::ClearColor(const Color& color) {
+void GLRenderer::SetClearColor(const Color& color) {
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Changed clear color to ", color);
 #endif
@@ -206,6 +211,12 @@ void GLRenderer::ClearColor(const Color& color) {
 }
 
 void GLRenderer::SetViewport(const V2_int& position, const V2_int& size) {
+	if (game.renderer.bound_viewport_position_ == position &&
+		game.renderer.bound_viewport_size_ == size) {
+		return;
+	}
+	game.renderer.bound_viewport_position_ = position;
+	game.renderer.bound_viewport_size_	   = size;
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Set viewport [position: ", position, ", size: ", size, "]");
 #endif
@@ -213,6 +224,18 @@ void GLRenderer::SetViewport(const V2_int& position, const V2_int& size) {
 #ifdef PTGN_DEBUG
 	++game.stats.viewport_changes;
 #endif
+}
+
+V2_int GLRenderer::GetViewportSize() {
+	std::array<std::int32_t, 4> values{};
+	GLCall(gl::glGetIntegerv(GL_VIEWPORT, values.data()));
+	return { values[2], values[3] };
+}
+
+V2_int GLRenderer::GetViewportPosition() {
+	std::array<std::int32_t, 4> values{};
+	GLCall(gl::glGetIntegerv(GL_VIEWPORT, values.data()));
+	return { values[0], values[1] };
 }
 
 void GLRenderer::Clear() {
