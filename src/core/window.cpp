@@ -11,6 +11,7 @@
 #include "core/game.h"
 #include "core/sdl_instance.h"
 #include "math/vector2.h"
+#include "renderer/frame_buffer.h"
 #include "renderer/gl_renderer.h"
 #include "utility/debug.h"
 #include "utility/log.h"
@@ -58,6 +59,7 @@ void WindowDeleter::operator()(SDL_Window* window) const {
 }
 
 WindowInstance::WindowInstance() {
+	// Windows start zero-sized.
 	window_.reset(SDL_CreateWindow(
 		"", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 0, 0,
 		SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE
@@ -89,6 +91,24 @@ int Window::MakeGLContextCurrent(void* context) {
 }
 
 void Window::SwapBuffers() const {
+	PTGN_ASSERT(
+		FrameBuffer::IsUnbound(),
+		"Frame buffer must be unbound (id=0) before swapping SDL2 buffer to the screen"
+	);
+	PTGN_ASSERT(
+		std::invoke([]() {
+			auto viewport_size{ GLRenderer::GetViewportSize() };
+			if (viewport_size.IsZero()) {
+				return false;
+			}
+			if (viewport_size.x == 1 && viewport_size.y == 1) {
+				return false;
+			}
+			return true;
+		}),
+		"Attempting to swap buffers to a 0 to 1 sized viewport"
+	);
+
 	SDL_GL_SwapWindow(Get());
 }
 
