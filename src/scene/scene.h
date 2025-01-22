@@ -74,14 +74,7 @@ public:
 private:
 	friend class impl::SceneManager;
 
-	// @param transition_in If true, transition in, otherwise transition out.
-	// @param key The id of the scene which is transitioning.
-	// @param key The id of the other scene which is being transitioned (used for swapping scene
-	// order when using the uncover transition).
-	void Start(
-		bool transition_in, std::size_t key, std::size_t other_key,
-		const std::shared_ptr<Scene>& scene
-	) const;
+	void Start(const std::shared_ptr<Scene>& scene) const;
 
 	Color fade_color_{ color::Black };
 
@@ -89,7 +82,7 @@ private:
 	// Only applies when using TransitionType::FadeThroughColor.
 	milliseconds color_duration_{ 500 };
 
-	TransitionType type_{ TransitionType::Fade };
+	TransitionType type_{ TransitionType::None };
 
 	milliseconds duration_{ 0 };
 };
@@ -121,11 +114,15 @@ private:
 	friend class SceneTransition;
 
 	enum class Action {
-		Enter  = 0,
-		Unload = 1
+		Enter,
+		Unload
 	};
 
 	void Add(Action new_action);
+	void Remove(Action action);
+
+	// @return True if the scene has uncompleted actions, false otherwise.
+	[[nodiscard]] bool HasActions() const;
 
 	std::set<Action> actions_;
 };

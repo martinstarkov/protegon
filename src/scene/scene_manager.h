@@ -157,6 +157,10 @@ private:
 	void HandleSceneEvents();
 
 	std::shared_ptr<Scene> current_scene_{ nullptr };
+
+	// Set to true when a scene is currently transitioning. Prevents repeated triggering of scene
+	// transitions.
+	bool transitioning_{ false };
 };
 
 } // namespace impl

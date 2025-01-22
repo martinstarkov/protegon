@@ -23,10 +23,10 @@ void SceneManager::EnterImpl(const InternalKey& scene_key, const SceneTransition
 		"Cannot enter a scene which has not first been loaded into the scene manager"
 	);
 	bool first_scene{ current_scene_ == nullptr };
-	Get(scene_key)->Add(Scene::Action::Enter);
+	auto scene{ Get(scene_key) };
 
-	// TODO: Fix scene transitions:
-	// transition.Start(false, from_scene_key, to_scene_key, Get(from_scene_key));
+	// TODO: Queue the transition to avoid overlap.
+	transition.Start(scene);
 	// transition.Start(true, to_scene_key, from_scene_key, Get(to_scene_key));
 
 	if (first_scene && !game.IsRunning()) {
@@ -60,6 +60,7 @@ void SceneManager::Reset() {
 	UnloadAll();
 	HandleSceneEvents();
 	current_scene_ = nullptr;
+	transitioning_ = false;
 	MapManager::Reset();
 }
 
@@ -78,7 +79,10 @@ void SceneManager::EnterScene(const std::shared_ptr<Scene>& scene) {
 }
 
 void SceneManager::Update() {
-	if (current_scene_ == nullptr || !current_scene_->actions_.empty()) {
+	if (current_scene_ == nullptr) {
+		return;
+	}
+	if (current_scene_->HasActions()) {
 		return;
 	}
 	current_scene_->Update();
@@ -92,7 +96,7 @@ void SceneManager::HandleSceneEvents() {
 
 		bool unload{ false };
 
-		while (!scene->actions_.empty()) {
+		while (scene->HasActions()) {
 			auto action{ scene->actions_.begin() };
 			switch (*action) {
 				case Scene::Action::Enter:
@@ -108,7 +112,7 @@ void SceneManager::HandleSceneEvents() {
 					break;
 				default: PTGN_ERROR("Unrecognized scene action");
 			}
-			scene->actions_.erase(action);
+			scene->Remove(*action);
 		}
 
 		if (unload) {

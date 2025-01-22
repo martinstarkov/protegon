@@ -3,9 +3,13 @@
 #include <chrono>
 #include <memory>
 
+#include "core/game.h"
+#include "math/geometry/polygon.h"
 #include "renderer/color.h"
+#include "scene/scene_manager.h"
 #include "utility/debug.h"
 #include "utility/time.h"
+#include "utility/tween.h"
 
 namespace ptgn {
 
@@ -41,39 +45,51 @@ SceneTransition& SceneTransition::SetFadeColor(const Color& color) {
 	return *this;
 }
 
-void SceneTransition::Start(
-	bool transition_in, std::size_t key, std::size_t other_key, const std::shared_ptr<Scene>& scene
-) const {
-	// TODO: Fix.
-	/*
-	if (type_ == TransitionType::None) {
-		if (transition_in) {
-			game.scene.AddActiveImpl(key, game.scene.active_scenes_.empty());
-		} else {
-			game.scene.RemoveActiveImpl(key);
-		}
+void SceneTransition::Start(const std::shared_ptr<Scene>& scene) const {
+	if (game.scene.transitioning_) {
 		return;
 	}
 
-	Tween tween;
-	if (type_ == TransitionType::FadeThroughColor) {
-		tween = Tween{ duration_ + color_duration_ };
-	} else {
-		tween = Tween{ duration_ };
+	if (type_ == TransitionType::None) {
+		scene->Add(Scene::Action::Enter);
+		return;
 	}
 
-	RenderTarget target{ scene->target_ };
-	Camera camera{ target.GetCamera().GetPrimary() };
+	game.scene.transitioning_ = true;
+
+	Tween tween;
+
+	// TODO: Remove temporary:
+	PTGN_ASSERT(
+		type_ == TransitionType::FadeThroughColor, "Other scene transitions currently not supported"
+	);
 
 	std::function<void(float)> update;
 	std::function<void()> start;
 	std::function<void()> stop;
 
-	V2_float s{ target.GetTexture().GetSize() };
-	// Camera starting position.
-	V2_float c{ camera.GetPosition() };
-	const V2_float og_c{ c };
-
+	const auto fade_through_color = [&]() {
+		milliseconds fade_half_duration{ duration_ / 2 };
+		Color fade_color{ fade_color_ };
+		auto fade = [=](float f) {
+			Color c{ fade_color };
+			c.a = static_cast<std::uint8_t>(255.0f * f);
+			Rect::Fullscreen().Draw(c, -1.0f, { std::numeric_limits<std::int32_t>::infinity() });
+		};
+		tween.During(fade_half_duration)
+			.OnUpdate(fade)
+			.During(color_duration_)
+			.OnStart([=]() mutable { scene->Add(Scene::Action::Enter); })
+			.OnUpdate([=]() {
+				Rect::Fullscreen().Draw(
+					fade_color, -1.0f, { std::numeric_limits<std::int32_t>::infinity() }
+				);
+			})
+			.During(fade_half_duration)
+			.Reverse()
+			.OnUpdate(fade);
+	};
+	/*
 	const auto push = [&](const V2_float& dir) {
 		if (transition_in) {
 			c	  -= s * dir;
@@ -108,7 +124,6 @@ void SceneTransition::Start(
 			camera.SetPosition(c + s * f * dir);
 		};
 	};
-
 	const auto fade = [&]() {
 		float start_alpha{ static_cast<float>(scene->tint_.a) };
 		if (transition_in) {
@@ -132,85 +147,19 @@ void SceneTransition::Start(
 				scene->tint_.a = static_cast<std::uint8_t>(start_alpha);
 			};
 		}
-	};
-	const auto fade_through_color = [&]() {
-		float transition_duration{
-			std::chrono::duration_cast<duration<float, milliseconds::period>>(duration_).count()
-		};
-		float color_duration{
-			std::chrono::duration_cast<duration<float, milliseconds::period>>(color_duration_)
-				.count()
-		};
-		float total_duration{ transition_duration + color_duration };
-		float fade_duration{ transition_duration / 2.0f };
-		float start_color_frac{ fade_duration / total_duration };
-		float stop_color_frac{ (fade_duration + color_duration) / total_duration };
-		PTGN_ASSERT(start_color_frac != 1.0f, "Invalid fade through color start duration");
-		PTGN_ASSERT(stop_color_frac != 1.0f, "Invalid fade through color stop duration");
-		float start_alpha{ static_cast<float>(scene->tint_.a) };
-		Color fade_color{ fade_color_ };
-		if (transition_in) {
-			start = [=]() mutable {
-				scene->tint_.a = 0;
-			};
-			update = [=](float f) mutable {
-				Color c{ fade_color };
-
-				if (f <= start_color_frac) {
-					return;
-				} else if (f >= stop_color_frac) {
-					scene->tint_.a = static_cast<std::uint8_t>(start_alpha);
-					float renormalized{ ((1.0f - f) / (1.0f - stop_color_frac)) };
-					c.a = static_cast<std::uint8_t>(255.0f * renormalized);
-				}
-
-				Rect::Fullscreen().Draw(
-					c, -1.0f, { std::numeric_limits<std::int32_t>::infinity() }
-				);
-			};
-			stop = [=]() mutable {
-				scene->tint_.a = static_cast<std::uint8_t>(start_alpha);
-			};
-		} else {
-			start = [=]() mutable {
-				scene->tint_.a = static_cast<std::uint8_t>(start_alpha);
-			};
-			update = [=](float f) mutable {
-				if (f <= start_color_frac) {
-					float renormalized{ 1.0f - f / start_color_frac };
-					Color c{ fade_color };
-					c.a = static_cast<std::uint8_t>(255.0f * (1.0f - renormalized));
-					Rect::Fullscreen().Draw(
-						c, -1.0f, { std::numeric_limits<std::int32_t>::infinity() }
-					);
-				} else {
-					scene->tint_.a = 0;
-				}
-			};
-			stop = [=]() mutable {
-				scene->tint_.a = static_cast<std::uint8_t>(start_alpha);
-			};
-		}
-	};
+	};*/
 
 	switch (type_) {
 		case TransitionType::Custom:
-			if (transition_in) {
-				start  = start_in;
-				update = update_in;
-				stop   = stop_in;
-			} else {
-				start  = start_out;
-				update = update_out;
-				stop   = stop_out;
-			}
+			// TODO: Implement.
 			break;
+		case TransitionType::FadeThroughColor: std::invoke(fade_through_color); break;
+		/*
 		case TransitionType::UncoverDown:	   uncover({ 0, 1 }); break;
 		case TransitionType::UncoverUp:		   uncover({ 0, -1 }); break;
 		case TransitionType::UncoverLeft:	   uncover({ -1, 0 }); break;
 		case TransitionType::UncoverRight:	   uncover({ 1, 0 }); break;
 		case TransitionType::Fade:			   fade(); break;
-		case TransitionType::FadeThroughColor: fade_through_color(); break;
 		case TransitionType::PushDown:		   push({ 0, 1 }); break;
 		case TransitionType::PushUp:		   push({ 0, -1 }); break;
 		case TransitionType::PushLeft:		   push({ -1, 0 }); break;
@@ -219,42 +168,26 @@ void SceneTransition::Start(
 		case TransitionType::CoverUp:		   cover({ 0, -1 }); break;
 		case TransitionType::CoverLeft:		   cover({ -1, 0 }); break;
 		case TransitionType::CoverRight:	   cover({ 1, 0 }); break;
+		*/
 		case TransitionType::None:			   [[fallthrough]];
 		default:							   PTGN_ERROR("Invalid transition type");
 	}
-	tween.OnStart([=]([[maybe_unused]] float f) {
-		// Important that this add active happens before start is invoked as in the case of the
-		// uncover transition, start will change the order of the active scenes to ensure that the
-		// new active scenes is not rendered on top of the covering scenes.
-		if (transition_in) {
-			game.scene.AddActiveImpl(key, game.scene.active_scenes_.empty());
-		}
-		if (start != nullptr) {
-			std::invoke(start);
-		}
-	});
-	if (!transition_in) {
-		tween.OnComplete([=]() { game.scene.RemoveActiveImpl(key); });
-	}
-	tween.OnUpdate([=](float f) {
-		if (update != nullptr) {
-			std::invoke(update, f);
-		}
-	});
-	tween.OnDestroy([=]() mutable {
-		camera.SetPosition(og_c);
-		if (stop != nullptr) {
-			std::invoke(stop);
-		}
-	});
+	tween.During(milliseconds{ 0 }).OnComplete([&]() { game.scene.transitioning_ = false; });
 	game.tween.Add(tween).Start();
-	*/
 }
 
 Scene::Scene() {}
 
-void Scene::Add(Action new_status) {
-	actions_.insert(new_status);
+void Scene::Add(Action new_action) {
+	actions_.insert(new_action);
+}
+
+void Scene::Remove(Action action) {
+	actions_.erase(action);
+}
+
+bool Scene::HasActions() const {
+	return !actions_.empty();
 }
 
 } // namespace ptgn
