@@ -74,7 +74,7 @@ bool SceneManager::HasCurrent() const {
 void SceneManager::Reset() {
 	UnloadAll();
 	HandleSceneEvents();
-	current_scene_	  = nullptr;
+	PTGN_ASSERT(current_scene_ == nullptr, "Failed to exit and unload current scene");
 	transition_queue_ = {};
 	MapManager::Reset();
 }
@@ -129,6 +129,10 @@ void SceneManager::HandleSceneEvents() {
 				default: PTGN_ERROR("Unrecognized scene action");
 			}
 			scene->Remove(*action);
+		}
+
+		if (unload && scene == current_scene_) {
+			current_scene_ = nullptr;
 		}
 
 		if (unload) {
