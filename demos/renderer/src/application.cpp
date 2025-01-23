@@ -594,7 +594,7 @@ struct TestTexture : public DrawTest {
 		texture.Draw({ { 400, 400 }, size, Origin::Center, -rotation }, { {}, {}, Flip::None });
 		texture.Draw(
 			{ { 600, 400 }, size, Origin::Center, rotation },
-			{ {}, {}, Flip::None, color::Red, { 1.0f, 1.0f } }, { 0 }
+			{ {}, {}, Flip::None, color::Red, { 1.0f, 1.0f } }, 0
 		);
 		texture.Draw(
 			{ { 200, 600 }, size, Origin::Center, rotation },
@@ -613,7 +613,7 @@ struct TestTexture : public DrawTest {
 				color::White,
 				cr,
 			},
-			{ 200 }
+			200
 		);
 		texture.Draw(
 			{ { 600, 600 }, size * 0.4f, Origin::Center },
@@ -624,7 +624,7 @@ struct TestTexture : public DrawTest {
 				color::White,
 				cr,
 			},
-			{ 100 }
+			100
 		);
 		texture.Draw(
 			{ { 600, 600 }, size * 0.6f, Origin::Center },
@@ -635,7 +635,7 @@ struct TestTexture : public DrawTest {
 				color::White,
 				cr,
 			},
-			{ 0 }
+			0
 		);
 		texture.Draw(
 			{ { 600, 600 }, size * 0.8f, Origin::Center },
@@ -646,7 +646,7 @@ struct TestTexture : public DrawTest {
 				color::White,
 				cr,
 			},
-			{ -100 }
+			-100
 		);
 		texture.Draw(
 			{ { 600, 600 }, size, Origin::Center },
@@ -657,7 +657,7 @@ struct TestTexture : public DrawTest {
 				color::White,
 				cr,
 			},
-			{ -200 }
+			-200
 		);
 	}
 };
