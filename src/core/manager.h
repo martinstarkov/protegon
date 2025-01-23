@@ -196,10 +196,10 @@ private:
 template <typename ItemType>
 class VectorManager {
 public:
-	using Item = ItemType;
+	using VItem = ItemType;
 
 	// If item exists in manager, it is returned, otherwise a copy of the item is added.
-	Item& Add(const Item& item) {
+	VItem& Add(const VItem& item) {
 		for (auto& i : vector_) {
 			if (i == item) {
 				return i;
@@ -212,7 +212,7 @@ public:
 	 * @param item Removes all vector elements equal to the item. If item does not exist nothing
 	 * happens.
 	 */
-	void Remove(const Item& item) {
+	void Remove(const VItem& item) {
 		vector_.erase(std::remove(vector_.begin(), vector_.end(), item), vector_.end());
 	}
 
@@ -220,7 +220,7 @@ public:
 	 * @return True if manager contains the item, false otherwise.
 	 */
 	template <typename TKey>
-	[[nodiscard]] bool Contains(const Item& item) const {
+	[[nodiscard]] bool Contains(const VItem& item) const {
 		return std::find(vector_.begin(), vector_.end(), item) != vector_.end();
 	}
 
@@ -293,7 +293,7 @@ public:
 	}
 
 protected:
-	using Vector = std::vector<Item>;
+	using Vector = std::vector<VItem>;
 
 	[[nodiscard]] Vector& GetVector() {
 		return vector_;

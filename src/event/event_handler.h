@@ -65,7 +65,7 @@ public:
 	void Post(T type, const TEvent& event) const {
 		// This ensures that if a posted function modified observers, it does
 		// not invalidate the iterators.
-		auto general_observers = general_observers_;
+		auto general_observers{ general_observers_ };
 		for (const auto& [key, callback] : general_observers) {
 			if (general_observers_.empty()) {
 				break;
@@ -77,7 +77,7 @@ public:
 				std::invoke(callback, type, event);
 			}
 		}
-		auto observers = observers_;
+		auto observers{ observers_ };
 		for (const auto& [key, callbacks] : observers) {
 			auto it = callbacks.find(type);
 			if (it == std::end(callbacks)) {
@@ -111,13 +111,13 @@ public:
 		// Cannot use map.clear() because the destructors of observer objects may themselves call
 		// unsubscribe which causes a deallocation exception to be thrown.
 		while (!observers_.empty()) {
-			auto it = observers_.begin();
+			auto it{ observers_.begin() };
 			// Unsubscribe can invalidate the iterator if the callback function stores a shared ptr
 			// the destructor of which calls Unsubscribe().
 			Unsubscribe(it->first);
 		}
 		while (!general_observers_.empty()) {
-			auto it = general_observers_.begin();
+			auto it{ general_observers_.begin() };
 			Unsubscribe(it->first);
 		}
 		PTGN_ASSERT(observers_.empty());
