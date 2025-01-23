@@ -6,15 +6,18 @@
 #include <functional>
 #include <list>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
 
 #include "core/game.h"
+#include "core/manager.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
 #include "utility/log.h"
 #include "utility/time.h"
+#include "utility/utility.h"
 
 namespace ptgn {
 
@@ -112,12 +115,9 @@ float Tween::GetProgress() const {
 
 Tween& Tween::KeepAlive(bool keep_alive) {
 	Create();
-	Get().destroy_on_complete_ = !keep_alive;
+	auto& i{ Get() };
+	i.destroy_on_complete_ = !keep_alive;
 	return *this;
-}
-
-bool Tween::DestroyOnCompletion() const {
-	return Get().destroy_on_complete_;
 }
 
 bool Tween::IsCompleted() const {
@@ -281,7 +281,7 @@ void Tween::PointCompleted() {
 	} else {
 		t.progress_ = 1.0f;
 		t.started_	= false;
-		if (t.destroy_on_complete_) {
+		if (!t.manager_tween_ && t.destroy_on_complete_) {
 			Destroy();
 		}
 	}
@@ -442,7 +442,7 @@ float Tween::AccumulateProgress(float new_progress) {
 	for (std::size_t i{ 0 }; i < loops; i++) {
 		t.progress_ = 1.0f;
 		UpdateImpl(true);
-		if (IsCompleted() || !IsValid()) {
+		if (!IsValid() || IsCompleted()) {
 			return 1.0f;
 		}
 	}
@@ -456,6 +456,13 @@ float Tween::AccumulateProgress(float new_progress) {
 
 namespace impl {
 
+void TweenManager::Remove(const Tween& item) {
+	if (!MapContains(GetMap(), item)) {
+		item.Get().manager_tween_ = false;
+	}
+	VectorManager::Remove(item);
+}
+
 void TweenManager::Update() {
 	// TODO: Figure out how to do timestep accumulation outside of tweens, using
 	// StepImpl(dt, false) and some added logic outside of this loop. This is important
@@ -466,40 +473,52 @@ void TweenManager::Update() {
 	// Current callback behavior:
 	// 1. Tween1Repeat#1 2. Tween1Repeat#2 3. Tween2Repeat#1 4. Tween2Repeat#2.
 
-	float dt = game.dt();
+	float dt{ game.dt() };
 
-	auto& v{ GetVector() };
-
-	for (auto it = v.begin(); it != v.end();) {
-		auto& tween = *it;
-		bool is_valid{ tween.IsValid() };
-
-		if (is_valid) {
+	auto step_tween = [&](Tween& tween) {
+		if (tween.IsValid()) {
 			tween.Step(dt);
 		}
+	};
 
-		if (!is_valid || (tween.IsCompleted() && tween.DestroyOnCompletion())) {
-			it = v.erase(it);
+	auto delete_finished_tweens = [&](auto& container, Tween& tween, auto& it) {
+		if (!tween.IsValid()) {
+			it = container.erase(it);
+		} else if (tween.Get().destroy_on_complete_ && tween.IsCompleted()) {
+			PTGN_ASSERT(tween.Get().manager_tween_, "Tween manager flag was wrongly set to false");
+			it = container.erase(it);
 		} else {
 			++it;
 		}
+	};
+
+	// Copying here so if a new tween is added during a tween update it wont mess with the container
+	// iterators.
+	std::vector<Tween> v{ GetVector() };
+
+	for (auto& tween : v) {
+		step_tween(tween);
 	}
 
-	auto& m{ GetMap() };
+	// Same as above.
+	std::unordered_map<InternalKey, Tween> m{ GetMap() };
 
-	for (auto it = m.begin(); it != m.end();) {
-		auto& [internal_key, tween] = *it;
-		bool is_valid{ tween.IsValid() };
+	for (auto& [k, tween] : m) {
+		step_tween(tween);
+	}
 
-		if (is_valid) {
-			tween.Step(dt);
-		}
+	// Refresh in case there was changed during the steps.
+	v = GetVector();
 
-		if (!is_valid || (tween.IsCompleted() && tween.DestroyOnCompletion())) {
-			it = m.erase(it);
-		} else {
-			++it;
-		}
+	for (auto it{ v.begin() }; it != v.end();) {
+		delete_finished_tweens(v, *it, it);
+	}
+
+	// Same as above.
+	m = GetMap();
+
+	for (auto it{ m.begin() }; it != m.end();) {
+		delete_finished_tweens(m, it->second, it);
 	}
 }
 

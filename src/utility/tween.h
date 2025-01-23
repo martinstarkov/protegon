@@ -49,6 +49,8 @@ using TweenDestroyCallback = std::function<void()>;
 
 namespace impl {
 
+class TweenManager;
+
 using TweenEaseFunction = std::function<float(float, float, float)>;
 
 const static std::unordered_map<TweenEase, TweenEaseFunction> tween_ease_functions_{
@@ -141,6 +143,11 @@ struct TweenPoint {
 };
 
 struct TweenInstance {
+	TweenInstance()								   = default;
+	TweenInstance(const TweenInstance&)			   = default;
+	TweenInstance(TweenInstance&&)				   = default;
+	TweenInstance& operator=(const TweenInstance&) = default;
+	TweenInstance& operator=(TweenInstance&&)	   = default;
 	~TweenInstance();
 
 	// Value between [0.0f, 1.0f] indicating how much of the total duration the tween has passed in
@@ -148,6 +155,11 @@ struct TweenInstance {
 	// or yoyoing.
 	float progress_{ 0.0f };
 
+	// Internally tracked variable of whether or not the tween is currently in the tween manager.
+	mutable bool manager_tween_{ false };
+
+	// Whether to invalidate the tween handle upon completion. If true AND manager_tween_ is true,
+	// the tween is unloaded from the tween manager upon creation.
 	bool destroy_on_complete_{ false };
 
 	std::size_t index_{ 0 };
@@ -198,8 +210,8 @@ public:
 	[[nodiscard]] float GetProgress() const;
 	[[nodiscard]] std::int64_t GetRepeats() const;
 
-	Tween& KeepAlive(bool keep_alive = true);
-	bool DestroyOnCompletion() const;
+	// @param keep_alive If true, do not reset tween upon completion.
+	Tween& KeepAlive(bool keep_alive);
 
 	// @return True if the tween is started and not paused.
 	[[nodiscard]] bool IsRunning() const;
@@ -219,11 +231,15 @@ public:
 	float Seek(float new_progress);
 	float Seek(milliseconds time);
 
+	// Resets and starts the tween. Will restart paused tweens.
 	Tween& Start();
+
 	Tween& Pause();
 	Tween& Resume();
+
 	// Will trigger OnStop callback if tween was started or completed.
 	Tween& Reset();
+
 	Tween& Stop();
 	Tween& Complete();
 	Tween& Forward();
@@ -246,6 +262,8 @@ public:
 	Tween& SetDuration(milliseconds duration, std::size_t tween_point_index = 0);
 
 private:
+	friend class impl::TweenManager;
+
 	[[nodiscard]] float SeekImpl(float new_progress);
 	[[nodiscard]] float StepImpl(float dt, bool accumulate_progress);
 	[[nodiscard]] float AccumulateProgress(float new_progress);
@@ -273,6 +291,7 @@ public:
 		Tween tween{ std::forward<TArgs>(constructor_args)... };
 		// By default tweens loaded into tween manager are unloaded upon completion.
 		tween.KeepAlive(false);
+		tween.Get().manager_tween_ = true;
 		return MapManager::Load(key, std::move(tween));
 	}
 
@@ -281,8 +300,24 @@ public:
 		Tween tween{ std::forward<TArgs>(constructor_args)... };
 		// By default tweens loaded into tween manager are unloaded upon completion.
 		tween.KeepAlive(false);
+		tween.Get().manager_tween_ = true;
 		return VectorManager::Add(tween);
 	}
+
+	template <typename TKey>
+	void Unload(const TKey& key) {
+		auto& map{ GetMap() };
+		auto it{ map.find(GetInternalKey(key)) };
+		if (it == map.end()) {
+			return;
+		}
+		if (!VectorManager::Contains(it->second)) {
+			it->second.Get().manager_tween_ = false;
+		}
+		map.erase(it);
+	}
+
+	void Remove(const Tween& item);
 
 	void Update();
 };

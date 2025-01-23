@@ -23,6 +23,9 @@ public:
 	void Enter() override {
 		tweens.clear();
 
+		Tween config00{
+			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Black, V2_float{}))
+		};
 		Tween config0{
 			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Red, V2_float{}))
 		};
@@ -137,8 +140,14 @@ public:
 			color::DarkRed, V2_float{}
 		)) };
 
-		config0.Pause();
-		config0.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
+		// Destroyed upon completion.
+		config00.KeepAlive(false);
+		config00.OnComplete([]() { PTGN_LOG("Completed tween 00"); });
+		config00.OnDestroy([]() { PTGN_LOG("Destroyed tween 00"); });
+
+		// Paused after starting.
+		config0.OnPause([](float v) { PTGN_LOG("Paused tween0"); });
+		config0.OnResume([](float v) { PTGN_ERROR("tween0 should remain paused"); });
 
 		config1.OnStart([](float v) { PTGN_LOG("Starting tween1 with value ", v); });
 		config1.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
@@ -211,6 +220,8 @@ public:
 			}
 			t.Start();
 		}
+
+		config0.Pause();
 	}
 
 	void Update() override {
