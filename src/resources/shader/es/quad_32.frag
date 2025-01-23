@@ -7,51 +7,113 @@ in vec4 v_Color;
 in vec2 v_TexCoord;
 in float v_TexIndex;
 
-uniform sampler2D u_Textures[32];
+uniform sampler2D u_Texture[32];
 
 void main()
 {
 	vec4 texColor = v_Color;
 
-	// Why? https://stackoverflow.com/a/74729081
-	switch(int(v_TexIndex))
-	{
-		case  0: texColor *= texture(u_Textures[ 0], v_TexCoord); break;
-		case  1: texColor *= texture(u_Textures[ 1], v_TexCoord); break;
-		case  2: texColor *= texture(u_Textures[ 2], v_TexCoord); break;
-		case  3: texColor *= texture(u_Textures[ 3], v_TexCoord); break;
-		case  4: texColor *= texture(u_Textures[ 4], v_TexCoord); break;
-		case  5: texColor *= texture(u_Textures[ 5], v_TexCoord); break;
-		case  6: texColor *= texture(u_Textures[ 6], v_TexCoord); break;
-		case  7: texColor *= texture(u_Textures[ 7], v_TexCoord); break;
-		case  8: texColor *= texture(u_Textures[ 8], v_TexCoord); break;
-		case  9: texColor *= texture(u_Textures[ 9], v_TexCoord); break;
-		case 10: texColor *= texture(u_Textures[10], v_TexCoord); break;
-		case 11: texColor *= texture(u_Textures[11], v_TexCoord); break;
-		case 12: texColor *= texture(u_Textures[12], v_TexCoord); break;
-		case 13: texColor *= texture(u_Textures[13], v_TexCoord); break;
-		case 14: texColor *= texture(u_Textures[14], v_TexCoord); break;
-		case 15: texColor *= texture(u_Textures[15], v_TexCoord); break;
-		case 16: texColor *= texture(u_Textures[16], v_TexCoord); break;
-		case 17: texColor *= texture(u_Textures[17], v_TexCoord); break;
-		case 18: texColor *= texture(u_Textures[18], v_TexCoord); break;
-		case 19: texColor *= texture(u_Textures[19], v_TexCoord); break;
-		case 20: texColor *= texture(u_Textures[20], v_TexCoord); break;
-		case 21: texColor *= texture(u_Textures[21], v_TexCoord); break;
-		case 22: texColor *= texture(u_Textures[22], v_TexCoord); break;
-		case 23: texColor *= texture(u_Textures[23], v_TexCoord); break;
-		case 24: texColor *= texture(u_Textures[24], v_TexCoord); break;
-		case 25: texColor *= texture(u_Textures[25], v_TexCoord); break;
-		case 26: texColor *= texture(u_Textures[26], v_TexCoord); break;
-		case 27: texColor *= texture(u_Textures[27], v_TexCoord); break;
-		case 28: texColor *= texture(u_Textures[28], v_TexCoord); break;
-		case 29: texColor *= texture(u_Textures[29], v_TexCoord); break;
-		case 30: texColor *= texture(u_Textures[30], v_TexCoord); break;
-		case 31: texColor *= texture(u_Textures[31], v_TexCoord); break;
-	}
-
-	if (texColor.a == 0.0)
-		discard;
+    // Why? https://stackoverflow.com/a/74729081
+    if (v_TexIndex == 0.0f) {
+        texColor *= texture(u_Texture[0], v_TexCoord);
+    }
+    if (v_TexIndex == 1.0f) {
+        texColor *= texture(u_Texture[1], v_TexCoord);
+    }
+    if (v_TexIndex == 2.0f) {
+        texColor *= texture(u_Texture[2], v_TexCoord);
+    }
+    if (v_TexIndex == 3.0f) {
+        texColor *= texture(u_Texture[3], v_TexCoord);
+    }
+    if (v_TexIndex == 4.0f) {
+        texColor *= texture(u_Texture[4], v_TexCoord);
+    }
+    if (v_TexIndex == 5.0f) {
+        texColor *= texture(u_Texture[5], v_TexCoord);
+    }
+    if (v_TexIndex == 6.0f) {
+        texColor *= texture(u_Texture[6], v_TexCoord);
+    }
+    if (v_TexIndex == 7.0f) {
+        texColor *= texture(u_Texture[7], v_TexCoord);
+    }
+    if (v_TexIndex == 8.0f) {
+        texColor *= texture(u_Texture[8], v_TexCoord);
+    }
+    if (v_TexIndex == 9.0f) {
+        texColor *= texture(u_Texture[9], v_TexCoord);
+    }
+    if (v_TexIndex == 10.0f) {
+        texColor *= texture(u_Texture[10], v_TexCoord);
+    }
+    if (v_TexIndex == 11.0f) {
+        texColor *= texture(u_Texture[11], v_TexCoord);
+    }
+    if (v_TexIndex == 12.0f) {
+        texColor *= texture(u_Texture[12], v_TexCoord);
+    }
+    if (v_TexIndex == 13.0f) {
+        texColor *= texture(u_Texture[13], v_TexCoord);
+    }
+    if (v_TexIndex == 14.0f) {
+        texColor *= texture(u_Texture[14], v_TexCoord);
+    }
+    if (v_TexIndex == 15.0f) {
+        texColor *= texture(u_Texture[15], v_TexCoord);
+    }
+    if (v_TexIndex == 16.0f) {
+        texColor *= texture(u_Texture[16], v_TexCoord);
+    }
+    if (v_TexIndex == 17.0f) {
+        texColor *= texture(u_Texture[17], v_TexCoord);
+    }
+    if (v_TexIndex == 18.0f) {
+        texColor *= texture(u_Texture[18], v_TexCoord);
+    }
+    if (v_TexIndex == 19.0f) {
+        texColor *= texture(u_Texture[19], v_TexCoord);
+    }
+    if (v_TexIndex == 20.0f) {
+        texColor *= texture(u_Texture[20], v_TexCoord);
+    }
+    if (v_TexIndex == 21.0f) {
+        texColor *= texture(u_Texture[21], v_TexCoord);
+    }
+    if (v_TexIndex == 22.0f) {
+        texColor *= texture(u_Texture[22], v_TexCoord);
+    }
+    if (v_TexIndex == 23.0f) {
+        texColor *= texture(u_Texture[23], v_TexCoord);
+    }
+    if (v_TexIndex == 24.0f) {
+        texColor *= texture(u_Texture[24], v_TexCoord);
+    }
+    if (v_TexIndex == 25.0f) {
+        texColor *= texture(u_Texture[25], v_TexCoord);
+    }
+    if (v_TexIndex == 26.0f) {
+        texColor *= texture(u_Texture[26], v_TexCoord);
+    }
+    if (v_TexIndex == 27.0f) {
+        texColor *= texture(u_Texture[27], v_TexCoord);
+    }
+    if (v_TexIndex == 28.0f) {
+        texColor *= texture(u_Texture[28], v_TexCoord);
+    }
+    if (v_TexIndex == 29.0f) {
+        texColor *= texture(u_Texture[29], v_TexCoord);
+    }
+    if (v_TexIndex == 30.0f) {
+        texColor *= texture(u_Texture[30], v_TexCoord);
+    }
+    if (v_TexIndex == 31.0f) {
+        texColor *= texture(u_Texture[31], v_TexCoord);
+    }
+    
+    if (texColor.a == 0.0) {
+        discard;
+    }
 
 	o_Color = texColor;
 }
