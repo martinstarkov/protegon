@@ -11,9 +11,9 @@ uniform sampler2D u_Texture;
 uniform vec2 u_Resolution;
 
 float kernel[9] = float[](
-    1.0 / 16, 2.0 / 16, 1.0 / 16,
-    2.0 / 16, 4.0 / 16, 2.0 / 16,
-    1.0 / 16, 2.0 / 16, 1.0 / 16  
+    1.0f / 16.0f, 2.0f / 16.0f, 1.0f / 16.0f,
+    2.0f / 16.0f, 4.0f / 16.0f, 2.0f / 16.0f,
+    1.0f / 16.0f, 2.0f / 16.0f, 1.0f / 16.0f  
 );
 
 void main()

@@ -12,9 +12,9 @@ uniform vec2 u_Resolution;
 
 float kernel[9] = float[]
 (
-    -1, -1, -1,
-    -1,  9, -1,
-    -1, -1, -1
+    -1.0f, -1.0f, -1.0f,
+    -1.0f,  9.0f, -1.0f,
+    -1.0f, -1.0f, -1.0f
 );
 
 void main()
