@@ -1,5 +1,6 @@
 #pragma once
 
+#include <deque>
 #include <memory>
 #include <type_traits>
 
@@ -93,6 +94,10 @@ public:
 	// fading or power point slides).
 	template <typename TKey>
 	void Enter(const TKey& scene_key, const SceneTransition& transition = {}) {
+		PTGN_ASSERT(
+			Has(scene_key),
+			"Cannot enter a scene which has not been loaded into the scene manager first"
+		);
 		EnterImpl(GetInternalKey(scene_key), transition);
 	}
 
@@ -158,9 +163,17 @@ private:
 
 	std::shared_ptr<Scene> current_scene_{ nullptr };
 
-	// Set to true when a scene is currently transitioning. Prevents repeated triggering of scene
-	// transitions.
-	bool transitioning_{ false };
+	struct Transition {
+		Transition() = default;
+
+		Transition(const SceneTransition& transition, const std::shared_ptr<Scene>& scene) :
+			transition{ transition }, scene{ scene } {}
+
+		SceneTransition transition;
+		std::shared_ptr<Scene> scene;
+	};
+
+	std::deque<Transition> transition_queue_;
 };
 
 } // namespace impl

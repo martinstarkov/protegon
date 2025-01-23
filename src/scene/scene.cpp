@@ -46,16 +46,30 @@ SceneTransition& SceneTransition::SetFadeColor(const Color& color) {
 }
 
 void SceneTransition::Start(const std::shared_ptr<Scene>& scene) const {
-	if (game.scene.transitioning_) {
-		return;
-	}
-
 	if (type_ == TransitionType::None) {
 		scene->Add(Scene::Action::Enter);
+		if (!game.scene.transition_queue_.empty()) {
+			game.scene.transition_queue_.pop_front();
+		}
 		return;
 	}
 
-	game.scene.transitioning_ = true;
+	auto start_next_scene = []() {
+		if (!game.scene.transition_queue_.empty()) {
+			game.scene.transition_queue_.pop_front();
+		}
+		if (!game.scene.transition_queue_.empty()) {
+			auto& front{ game.scene.transition_queue_.front() };
+			front.transition.Start(front.scene);
+		}
+	};
+
+	// While it may sound good, transitioning a scene to itself can cause many repeated scene
+	// transitions and other bugs.
+	if (scene == game.scene.current_scene_) {
+		std::invoke(start_next_scene);
+		return;
+	}
 
 	Tween tween;
 
@@ -76,18 +90,27 @@ void SceneTransition::Start(const std::shared_ptr<Scene>& scene) const {
 			c.a = static_cast<std::uint8_t>(255.0f * f);
 			Rect::Fullscreen().Draw(c, -1.0f, { std::numeric_limits<std::int32_t>::infinity() });
 		};
-		tween.During(fade_half_duration)
-			.OnUpdate(fade)
-			.During(color_duration_)
-			.OnStart([=]() mutable { scene->Add(Scene::Action::Enter); })
-			.OnUpdate([=]() {
-				Rect::Fullscreen().Draw(
-					fade_color, -1.0f, { std::numeric_limits<std::int32_t>::infinity() }
-				);
-			})
-			.During(fade_half_duration)
-			.Reverse()
-			.OnUpdate(fade);
+		if (game.scene.HasCurrent()) {
+			tween.During(fade_half_duration)
+				.OnUpdate(fade)
+				.During(color_duration_)
+				.OnUpdate([=]() {
+					Rect::Fullscreen().Draw(
+						fade_color, -1.0f, { std::numeric_limits<std::int32_t>::infinity() }
+					);
+				})
+				.During(fade_half_duration)
+				.OnStart([=]() mutable { scene->Add(Scene::Action::Enter); })
+				.Reverse()
+				.OnUpdate(fade);
+		} else {
+			// If transitioning into the starting scene, skip the entire solid color part of the
+			// fade.
+			tween.During(duration_)
+				.OnStart([=]() mutable { scene->Add(Scene::Action::Enter); })
+				.Reverse()
+				.OnUpdate(fade);
+		}
 	};
 	/*
 	const auto push = [&](const V2_float& dir) {
@@ -172,7 +195,7 @@ void SceneTransition::Start(const std::shared_ptr<Scene>& scene) const {
 		case TransitionType::None:			   [[fallthrough]];
 		default:							   PTGN_ERROR("Invalid transition type");
 	}
-	tween.During(milliseconds{ 0 }).OnComplete([&]() { game.scene.transitioning_ = false; });
+	tween.During(milliseconds{ 0 }).OnComplete([&]() { std::invoke(start_next_scene); });
 	game.tween.Add(tween).Start();
 }
 

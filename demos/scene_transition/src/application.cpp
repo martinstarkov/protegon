@@ -39,6 +39,37 @@ static void EnterScene(std::string_view key, milliseconds duration = millisecond
 	}
 }
 
+class TextScene : public Scene {
+public:
+	std::string_view transition_to;
+	std::string_view content;
+	Color text_color;
+	Color bg_color{ color::Black };
+
+	void Enter() override {
+		game.scene.Enter(
+			transition_to, SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 1000 } }
+							   .SetFadeColorDuration(milliseconds{ 1000 })
+		);
+	}
+
+	void Update() override {
+		Rect::Fullscreen().Draw(bg_color);
+		Text{ content, text_color }.Draw({ game.window.GetCenter(), {}, Origin::Center });
+	}
+};
+
+static void EnterTextScene(
+	std::string_view text_scene_key, std::string_view content, const Color& color,
+	std::string_view after_scene_key
+) {
+	auto scene{ game.scene.Get<TextScene>(text_scene_key) };
+	scene->text_color	 = color;
+	scene->content		 = content;
+	scene->transition_to = after_scene_key;
+	EnterScene(text_scene_key);
+}
+
 class Scene2 : public Scene {
 public:
 	Scene2() = default;
@@ -46,41 +77,8 @@ public:
 
 	void Update() final {
 		test.Draw();
-		EnterScene("text2");
+		EnterTextScene("text_scene", "Good bye!", color::Red, "scene1");
 	}
-};
-
-class TextScene : public Scene {
-public:
-	std::string_view transition_to;
-	std::string_view content;
-	Color text_color;
-	Color bg_color;
-
-	TextScene(
-		std::string_view transition_to, std::string_view content, const Color& text_color,
-		const Color& bg_color = color::Black
-	) :
-		transition_to{ transition_to },
-		content{ content },
-		text_color{ text_color },
-		bg_color{ bg_color } {}
-
-	void Update() final {
-		EnterScene(transition_to);
-		Rect::Fullscreen().Draw(bg_color);
-		Text{ content, text_color }.Draw({ game.window.GetCenter(), {}, Origin::Center });
-	}
-};
-
-class Text2 : public TextScene {
-public:
-	Text2() : TextScene{ "scene1", "Good Bye!", color::Red } {}
-};
-
-class Text1 : public TextScene {
-public:
-	Text1() : TextScene{ "scene2", "Welcome!", color::Blue } {}
 };
 
 class Scene1 : public Scene {
@@ -90,7 +88,7 @@ public:
 
 	void Update() final {
 		test.Draw();
-		EnterScene("text1");
+		EnterTextScene("text_scene", "Welcome!", color::Blue, "scene2");
 	}
 };
 
@@ -99,8 +97,7 @@ public:
 	SceneTransitionExample() {
 		game.scene.Load<Scene1>("scene1");
 		game.scene.Load<Scene2>("scene2");
-		game.scene.Load<Text1>("text1");
-		game.scene.Load<Text2>("text2");
+		game.scene.Load<TextScene>("text_scene");
 	}
 
 	void Enter() override {
@@ -111,11 +108,10 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("SceneTransitionExample", window_size);
+	game.Init("SceneTransitionExample: Press E to fade through black", window_size);
 	game.scene.Enter<SceneTransitionExample>(
 		"scene_transition_example",
-		SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 500 } }
-			.SetFadeColorDuration(milliseconds{ 500 })
+		SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 5000 } }
 	);
 	return 0;
 }

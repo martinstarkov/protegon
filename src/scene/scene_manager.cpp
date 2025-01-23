@@ -1,5 +1,6 @@
 #include "scene/scene_manager.h"
 
+#include <deque>
 #include <list>
 #include <memory>
 
@@ -25,9 +26,23 @@ void SceneManager::EnterImpl(const InternalKey& scene_key, const SceneTransition
 	bool first_scene{ current_scene_ == nullptr };
 	auto scene{ Get(scene_key) };
 
-	// TODO: Queue the transition to avoid overlap.
-	transition.Start(scene);
-	// transition.Start(true, to_scene_key, from_scene_key, Get(to_scene_key));
+	// Cannot transition to self.
+	if (scene == current_scene_) {
+		return;
+	}
+
+	if (transition.type_ == TransitionType::None) {
+		scene->Add(Scene::Action::Enter);
+	} else {
+		bool empty_queue{ transition_queue_.empty() };
+		// Cannot queue two transitions in a row to the same scene.
+		if (empty_queue || transition_queue_.front().scene != scene) {
+			transition_queue_.emplace_back(transition, scene);
+		}
+		if (empty_queue) {
+			transition.Start(scene);
+		}
+	}
 
 	if (first_scene && !game.IsRunning()) {
 		// First scene, aka the starting scene. Enter the game loop.
@@ -59,8 +74,8 @@ bool SceneManager::HasCurrent() const {
 void SceneManager::Reset() {
 	UnloadAll();
 	HandleSceneEvents();
-	current_scene_ = nullptr;
-	transitioning_ = false;
+	current_scene_	  = nullptr;
+	transition_queue_ = {};
 	MapManager::Reset();
 }
 
@@ -91,7 +106,8 @@ void SceneManager::Update() {
 void SceneManager::HandleSceneEvents() {
 	auto& map{ GetMap() };
 	for (auto it{ map.begin() }; it != map.end();) {
-		// Intentional reference counter increment to maintain scene during scene function calls.
+		// Intentional reference counter increment to maintain scene during scene function
+		// calls.
 		auto [key, scene] = *it;
 
 		bool unload{ false };
