@@ -1,8 +1,8 @@
 #pragma once
 
-#include "math/collider.h"
 #include "components/transform.h"
 #include "event/key.h"
+#include "math/collider.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
 #include "utility/time.h"
@@ -19,11 +19,46 @@ void MoveImpl(
 	bool cancel_velocity_if_unpressed
 );
 
+[[nodiscard]] float MoveTowards(float current, float target, float max_delta);
+
 } // namespace impl
 
 void MoveWASD(V2_float& vel, const V2_float& amount, bool cancel_velocity_if_unpressed = true);
 
 void MoveArrowKeys(V2_float& vel, const V2_float& amount, bool cancel_velocity_if_unpressed = true);
+
+struct TopDownMovement {
+	// Parameters:
+
+	// Maximum movement speed.
+	float max_speed{ 4.0f * 60.0f };
+	// How fast to reach max speed.
+	float max_acceleration{ 20.0f * 60.0f };
+	// How fast to stop after letting go.
+	float max_deceleration{ 20.0f * 60.0f };
+	// How fast to stop when changing direction.
+	float max_turn_speed{ 60.0f * 60.0f };
+
+	float friction;
+
+	// If false, velocity will be immediately set to desired velocity. Otherwise integration is
+	// used.
+	bool use_acceleration{ true };
+
+	// If true, flips the player transform scale vertically upon moving up.
+	bool flip_vertically{ true };
+
+	Key up_key{ Key::W };
+	Key left_key{ Key::A };
+	Key down_key{ Key::S };
+	Key right_key{ Key::D };
+
+	void Update(Transform& transform, RigidBody& rb) const;
+
+private:
+	void RunWithAcceleration(const V2_float& desired_velocity, const V2_float& dir, RigidBody& rb)
+		const;
+};
 
 struct PlatformerMovement {
 	// Whether or not the player is currently on the ground. Determines their acceleration (air or
@@ -56,11 +91,9 @@ struct PlatformerMovement {
 	Key left_key{ Key::A };
 	Key right_key{ Key::D };
 
-	void Update(Transform& transform, RigidBody& rb);
+	void Update(Transform& transform, RigidBody& rb) const;
 
 private:
-	[[nodiscard]] static float MoveTowards(float current, float target, float maxDelta);
-
 	void RunWithAcceleration(const V2_float& desired_velocity, float dir_x, RigidBody& rb) const;
 };
 

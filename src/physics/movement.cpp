@@ -2,14 +2,15 @@
 
 #include <algorithm>
 #include <cmath>
+#include <type_traits>
 #include <utility>
 
-#include "math/collider.h"
 #include "components/transform.h"
 #include "core/game.h"
 #include "ecs/ecs.h"
 #include "event/input_handler.h"
 #include "event/key.h"
+#include "math/collider.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "physics/physics.h"
@@ -46,6 +47,13 @@ void MoveImpl(
 	}
 }
 
+float MoveTowards(float current, float target, float maxDelta) {
+	if (FastAbs(target - current) <= maxDelta) {
+		return target;
+	}
+	return current + Sign(target - current) * maxDelta;
+}
+
 } // namespace impl
 
 void MoveWASD(V2_float& vel, const V2_float& amount, bool cancel_velocity_if_unpressed) {
@@ -58,7 +66,104 @@ void MoveArrowKeys(V2_float& vel, const V2_float& amount, bool cancel_velocity_i
 	);
 }
 
-void PlatformerMovement::Update(Transform& transform, RigidBody& rb) {
+void TopDownMovement::Update(Transform& transform, RigidBody& rb) const {
+	bool up{ game.input.KeyPressed(up_key) };
+	bool down{ game.input.KeyPressed(down_key) };
+	bool left{ game.input.KeyPressed(left_key) };
+	bool right{ game.input.KeyPressed(right_key) };
+
+	V2_float dir;
+
+	if (left && !right) {
+		dir.x = -1.0f;
+	}
+
+	if (right && !left) {
+		dir.x = 1.0f;
+	}
+
+	if (up && !down) {
+		dir.y = -1.0f;
+	}
+
+	if (down && !up) {
+		dir.y = 1.0f;
+	}
+
+	// Used to flip the character's sprite when she changes direction
+	// Also tells us that we are currently pressing a direction button
+	if (dir.x != 0.0f) {
+		transform.scale.x = FastAbs(transform.scale.x) * Sign(dir.x);
+	}
+	if (flip_vertically && dir.y != 0.0f) {
+		transform.scale.y = FastAbs(transform.scale.y) * Sign(dir.y);
+	}
+
+	// Calculate's the character's desired velocity - which is the direction you are facing,
+	// multiplied by the character's maximum speed
+	float speed{ std::max(max_speed - friction, 0.0f) };
+
+	V2_float desired_velocity{ dir * speed };
+
+	// Ensure diagonal movement is not faster than axis aligned movement.
+	if (desired_velocity.MagnitudeSquared() > max_speed * max_speed) {
+		desired_velocity = desired_velocity.Normalized() * max_speed;
+	}
+
+	// Calculate movement, depending on whether "Instant Movement" has been checked
+	if (use_acceleration) {
+		RunWithAcceleration(desired_velocity, dir, rb);
+	} else {
+		rb.velocity = desired_velocity;
+	}
+}
+
+void TopDownMovement::RunWithAcceleration(
+	const V2_float& desired_velocity, const V2_float& dir, RigidBody& rb
+) const {
+	// In the future one could include a state machine based choice here.
+	float acceleration{ max_acceleration };
+	float deceleration{ max_deceleration };
+	float turn_speed{ max_turn_speed };
+
+	float dt{ game.physics.dt() };
+
+	auto set_velocity = [&](bool pressing_key, std::size_t i) {
+		float max_speed_change{ 0.0f };
+
+		if (pressing_key) {
+			// If the sign (i.e. positive or negative) of our input direction doesn't match our
+			// movement, it means we're turning around and so should use the turn speed stat.
+			if (!NearlyEqual(Sign(dir[i]), Sign(rb.velocity[i]))) {
+				max_speed_change = turn_speed * dt;
+			} else {
+				// If they match, it means we're simply running along and so should use the
+				// acceleration stat
+				max_speed_change = acceleration * dt;
+			}
+		} else {
+			// And if we're not pressing a direction at all, use the deceleration stat
+			max_speed_change = deceleration * dt;
+		}
+
+		// Move our velocity towards the desired velocity, at the rate of the number calculated
+		// above
+		rb.velocity[i] = impl::MoveTowards(rb.velocity[i], desired_velocity[i], max_speed_change);
+	};
+
+	bool up{ game.input.KeyPressed(up_key) };
+	bool down{ game.input.KeyPressed(down_key) };
+	bool left{ game.input.KeyPressed(left_key) };
+	bool right{ game.input.KeyPressed(right_key) };
+
+	bool pressing_horizontal_key{ (left && !right) || (!left && right) };
+	bool pressing_vertical_key{ (up && !down) || (!up && down) };
+
+	std::invoke(set_velocity, pressing_horizontal_key, 0);
+	std::invoke(set_velocity, pressing_vertical_key, 1);
+}
+
+void PlatformerMovement::Update(Transform& transform, RigidBody& rb) const {
 	bool left{ game.input.KeyPressed(left_key) };
 	bool right{ game.input.KeyPressed(right_key) };
 
@@ -92,13 +197,6 @@ void PlatformerMovement::Update(Transform& transform, RigidBody& rb) {
 			RunWithAcceleration(desired_velocity, dir_x, rb);
 		}
 	}
-}
-
-float PlatformerMovement::MoveTowards(float current, float target, float maxDelta) {
-	if (FastAbs(target - current) <= maxDelta) {
-		return target;
-	}
-	return current + Sign(target - current) * maxDelta;
 }
 
 void PlatformerMovement::RunWithAcceleration(
@@ -136,14 +234,15 @@ void PlatformerMovement::RunWithAcceleration(
 
 	// Move our velocity towards the desired velocity, at the rate of the number calculated
 	// above
-	rb.velocity.x = MoveTowards(rb.velocity.x, desired_velocity.x, max_speed_change);
+	rb.velocity.x = impl::MoveTowards(rb.velocity.x, desired_velocity.x, max_speed_change);
 }
 
 void PlatformerJump::Ground(Collision c, CollisionCategory ground_category) {
 	PTGN_ASSERT((c.entity2.HasAny<BoxCollider, CircleCollider>()));
-	if ((c.entity2.Has<BoxCollider>() && c.entity2.Get<BoxCollider>().IsCategory(ground_category)) ||
+	if ((c.entity2.Has<BoxCollider>() && c.entity2.Get<BoxCollider>().IsCategory(ground_category)
+		) ||
 		(c.entity2.Has<CircleCollider>() &&
-			c.entity2.Get<CircleCollider>().IsCategory(ground_category))) {
+		 c.entity2.Get<CircleCollider>().IsCategory(ground_category))) {
 		if (c.entity1.Has<PlatformerMovement>() && c.normal == V2_float{ 0.0f, -1.0f }) {
 			c.entity1.Get<PlatformerMovement>().grounded = true;
 		}

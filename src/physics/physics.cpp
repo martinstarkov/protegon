@@ -24,6 +24,9 @@ float Physics::dt() const {
 }
 
 void Physics::Update(ecs::Manager& manager) const {
+	for (auto [e, t, rb, m] : manager.EntitiesWith<Transform, RigidBody, TopDownMovement>()) {
+		m.Update(t, rb);
+	}
 	for (auto [e, t, rb, m, j] :
 		 manager.EntitiesWith<Transform, RigidBody, PlatformerMovement, PlatformerJump>()) {
 		m.Update(t, rb);
