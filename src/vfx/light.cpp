@@ -76,11 +76,10 @@ void LightManager::Draw() const {
 		// TODO: Make a light.DrawImpl function and put this there.
 		game.renderer.SetRenderTarget(target_);
 		light_shader_.Bind();
-		light_shader_.SetUniform("u_LightPos", light.GetPosition());
+		light_shader_.SetUniform("u_LightPosition", light.GetPosition());
 		light_shader_.SetUniform("u_LightIntensity", light.GetIntensity());
 		light_shader_.SetUniform("u_LightAttenuation", light.attenuation_);
 		light_shader_.SetUniform("u_LightRadius", light.radius_);
-		light_shader_.SetUniform("u_Compression", light.compression_);
 		light_shader_.SetUniform("u_Falloff", light.compression_);
 		V4_float n{ light.ambient_color_.Normalized() };
 		V3_float c{ n.x, n.y, n.z };
