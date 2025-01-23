@@ -21,18 +21,6 @@ struct Rect;
 struct Polygon;
 struct RoundedRect;
 
-namespace impl {
-
-// @param vertex_modulo The modulo applied to the i + 1th vertex. If 0, use the value of
-// vertex_count. Non-zero value used by Arc, which draws vertices.size() - 1 vertices, but requires
-// modulo to be vertices.size().
-void DrawVertices(
-	const V2_float* vertices, std::size_t vertex_count, float line_width, const V4_float& color,
-	std::int32_t render_layer, std::size_t vertex_modulo = 0
-);
-
-} // namespace impl
-
 struct Triangle {
 	Triangle() = default;
 	Triangle(const V2_float& a, const V2_float& b, const V2_float& c);
@@ -244,5 +232,31 @@ private:
 
 	[[nodiscard]] bool HasOverlapAxis(const Polygon& polygon) const;
 };
+
+namespace impl {
+
+// @param vertex_modulo The modulo applied to the i + 1th vertex. If 0, use the value of
+// vertex_count. Non-zero value used by Arc, which draws vertices.size() - 1 vertices, but requires
+// modulo to be vertices.size().
+void DrawVertices(
+	const V2_float* vertices, std::size_t vertex_count, float line_width, const V4_float& color,
+	std::int32_t render_layer, std::size_t vertex_modulo = 0
+);
+
+[[nodiscard]] float TriangulateArea(const V2_float* contour, std::size_t count);
+
+// InsideTriangle decides if a point P is Inside of the triangle defined by A, B, C.
+[[nodiscard]] bool TriangulateInsideTriangle(
+	float Ax, float Ay, float Bx, float By, float Cx, float Cy, float Px, float Py
+);
+
+[[nodiscard]] bool TriangulateSnip(
+	const V2_float* contour, int u, int v, int w, int n, const std::vector<int>& V
+);
+
+// @return A vector of triangles which make up the polygon contour.
+[[nodiscard]] std::vector<Triangle> Triangulate(const V2_float* contour, std::size_t count);
+
+} // namespace impl
 
 } // namespace ptgn
