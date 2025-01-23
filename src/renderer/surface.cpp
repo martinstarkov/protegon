@@ -9,16 +9,16 @@
 #include <type_traits>
 #include <vector>
 
-#include "core/game.h"
-#include "core/sdl_instance.h"
-#include "math/vector2.h"
-#include "renderer/color.h"
-#include "renderer/font.h"
 #include "SDL_error.h"
 #include "SDL_image.h"
 #include "SDL_pixels.h"
 #include "SDL_surface.h"
 #include "SDL_ttf.h"
+#include "core/game.h"
+#include "core/sdl_instance.h"
+#include "math/vector2.h"
+#include "renderer/color.h"
+#include "renderer/font.h"
 #include "utility/debug.h"
 #include "utility/file.h"
 #include "utility/handle.h"
@@ -36,20 +36,22 @@ void SDL_SurfaceDeleter::operator()(SDL_Surface* surface) const {
 
 TextureFormat GetFormatFromSDL(std::uint32_t sdl_format) {
 	switch (sdl_format) {
-		case SDL_PIXELFORMAT_RGBA32:	  [[fallthrough]];
-		case SDL_PIXELFORMAT_RGBA8888:	  return TextureFormat::RGBA8888;
-		case SDL_PIXELFORMAT_RGB24:		  [[fallthrough]];
-		case SDL_PIXELFORMAT_RGB888:	  return TextureFormat::RGB888;
-		case SDL_PIXELFORMAT_BGRA32:	  [[fallthrough]];
-		case SDL_PIXELFORMAT_BGRA8888:	  return TextureFormat::BGRA8888;
-		case SDL_PIXELFORMAT_BGR24:		  [[fallthrough]];
-		case SDL_PIXELFORMAT_BGR888:	  return TextureFormat::BGR888;
-		case SDL_PIXELFORMAT_INDEX8:	  [[fallthrough]];
-		case SDL_PIXELFORMAT_UNKNOWN:	  return TextureFormat::Unknown;
-		case SDL_PIXELFORMAT_INDEX1LSB:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
-		case SDL_PIXELFORMAT_INDEX1MSB:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
-		case SDL_PIXELFORMAT_INDEX2LSB:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
-		case SDL_PIXELFORMAT_INDEX2MSB:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_RGBA32:	[[fallthrough]];
+		case SDL_PIXELFORMAT_RGBA8888:	return TextureFormat::RGBA8888;
+		case SDL_PIXELFORMAT_RGB24:		[[fallthrough]];
+		case SDL_PIXELFORMAT_RGB888:	return TextureFormat::RGB888;
+		case SDL_PIXELFORMAT_BGRA32:	[[fallthrough]];
+		case SDL_PIXELFORMAT_BGRA8888:	return TextureFormat::BGRA8888;
+		case SDL_PIXELFORMAT_BGR24:		[[fallthrough]];
+		case SDL_PIXELFORMAT_BGR888:	return TextureFormat::BGR888;
+		case SDL_PIXELFORMAT_INDEX8:	[[fallthrough]];
+		case SDL_PIXELFORMAT_UNKNOWN:	return TextureFormat::Unknown;
+		case SDL_PIXELFORMAT_INDEX1LSB: PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_INDEX1MSB: PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+#ifndef __EMSCRIPTEN__
+		case SDL_PIXELFORMAT_INDEX2LSB: PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+		case SDL_PIXELFORMAT_INDEX2MSB: PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
+#endif
 		case SDL_PIXELFORMAT_INDEX4LSB:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
 		case SDL_PIXELFORMAT_INDEX4MSB:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
 		case SDL_PIXELFORMAT_RGB332:	  PTGN_ERROR("Unsupported sdl format"); [[fallthrough]];
@@ -129,7 +131,7 @@ Surface::Surface(std::shared_ptr<SDL_Surface> surface) {
 					if (r_mask) {
 						s.data_[static_cast<std::size_t>(index)] = { pixel[0], pixel[1], pixel[2],
 																	 pixel[3] };
-					}  else if (b_mask) {
+					} else if (b_mask) {
 						s.data_[static_cast<std::size_t>(index)] = { pixel[2], pixel[1], pixel[0],
 																	 pixel[3] };
 					} else {

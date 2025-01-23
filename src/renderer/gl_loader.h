@@ -15,6 +15,18 @@ typedef void(GL_APIENTRYP PFNGLVERTEXATTRIBIPOINTERPROC)(
 	GLuint index, GLint size, GLenum type, GLsizei stride, const void* pointer
 );
 
+typedef void(GL_APIENTRYP PFNGLCLEARBUFFERFVPROC)(
+	GLenum buffer, GLint drawBuffer, const GLfloat* value
+);
+
+typedef void(GL_APIENTRYP PFNGLCLEARBUFFERUIVPROC)(
+	GLenum buffer, GLint drawBuffer, const GLuint* value
+);
+
+#ifndef GL_DEPTH_STENCIL_ATTACHMENT
+#define GL_DEPTH_STENCIL_ATTACHMENT 0x821A
+#endif
+
 #else
 
 #ifdef PTGN_PLATFORM_MACOS
@@ -87,16 +99,19 @@ typedef void(GL_APIENTRYP PFNGLVERTEXATTRIBIPOINTERPROC)(
 
 #ifndef PTGN_PLATFORM_MACOS
 
+// Adds ##EXTPROC at the end (emscripten only).
 #define GL_LIST_3                   \
 	GLE(TexStorage2D, TEXSTORAGE2D) \
 	/* end */
 
+// Adds ##OESPROC at the end (emscripten only).
 #define GL_LIST_2                               \
 	GLE(BindVertexArray, BINDVERTEXARRAY)       \
 	GLE(GenVertexArrays, GENVERTEXARRAYS)       \
 	GLE(DeleteVertexArrays, DELETEVERTEXARRAYS) \
 	/* end */
 
+// Adds ##PROC at the end.
 #define GL_LIST_1                                           \
 	GLE(AttachShader, ATTACHSHADER)                         \
 	GLE(BindBuffer, BINDBUFFER)                             \

@@ -86,7 +86,11 @@ RenderBuffer::RenderBuffer(const V2_int& size) {
 
 	Create();
 	Bind();
+#ifdef __EMSCRIPTEN__
+	GLCall(gl::RenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8_OES, size.x, size.y));
+#else
 	GLCall(gl::RenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, size.x, size.y));
+#endif
 
 	RenderBuffer::Bind(restore_id);
 }

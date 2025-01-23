@@ -254,7 +254,12 @@ void GLRenderer::ClearToColor(const Color& color) {
 #endif
 	V4_float nc{ color.Normalized() };
 	std::array<float, 4> color_array{ nc.x, nc.y, nc.z, nc.w };
+
+#ifdef __EMSCRIPTEN__
+	GLCall(gl::ClearBufferfv(GL_COLOR_EXT, 0, color_array.data()));
+#else
 	GLCall(gl::ClearBufferfv(GL_COLOR, 0, color_array.data()));
+#endif
 	/*
 	// TODO: Check image format of bound texture and potentially use glClearBufferuiv instead of
 	ClearBufferfv. std::array<std::uint32_t, 4> color_array{ color.r, color.g, color.b, color.a };

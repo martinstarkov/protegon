@@ -88,7 +88,7 @@ void SceneTransition::Start(const std::shared_ptr<Scene>& scene) const {
 		auto fade = [=](float f) {
 			Color c{ fade_color };
 			c.a = static_cast<std::uint8_t>(255.0f * f);
-			Rect::Fullscreen().Draw(c, -1.0f, { std::numeric_limits<std::int32_t>::infinity() });
+			Rect::Fullscreen().Draw(c, -1.0f, std::numeric_limits<std::int32_t>::infinity());
 		};
 		if (game.scene.HasCurrent()) {
 			tween.During(fade_half_duration)
@@ -96,7 +96,7 @@ void SceneTransition::Start(const std::shared_ptr<Scene>& scene) const {
 				.During(color_duration_)
 				.OnUpdate([=]() {
 					Rect::Fullscreen().Draw(
-						fade_color, -1.0f, { std::numeric_limits<std::int32_t>::infinity() }
+						fade_color, -1.0f, std::numeric_limits<std::int32_t>::infinity()
 					);
 				})
 				.During(fade_half_duration)

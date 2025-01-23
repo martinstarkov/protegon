@@ -18,6 +18,7 @@ namespace ptgn {
 
 class GLRenderer;
 class VertexArray;
+class Shader;
 
 // How the renderer resolution is scaled to the window size.
 enum class ResolutionMode {
@@ -115,17 +116,17 @@ public:
 	[[nodiscard]] impl::RenderData& GetRenderData();
 
 private:
-	friend class FrameBuffer;
-	friend class RenderTarget;
+	friend class ptgn::FrameBuffer;
+	friend class ptgn::RenderTarget;
+	friend class ptgn::Texture;
+	friend class ptgn::Shader;
+	friend class ptgn::VertexArray;
+	friend class ptgn::GLRenderer;
+	friend class Game;
 	friend class RenderData;
 	friend struct RenderTargetInstance;
 	friend struct TextureInstance;
 	friend struct Batch;
-	friend class GLRenderer;
-	friend class Game;
-	friend class Texture;
-	friend class Shader;
-	friend class VertexArray;
 
 	// Present the screen target to the window.
 	void PresentScreen();
