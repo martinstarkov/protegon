@@ -128,17 +128,17 @@ Rect Collider::GetAbsolute(Rect relative_rect) const {
 	Transform transform{ parent.Get<Transform>() };
 
 	// If parent has an animation, use coordinate relative to top left.
-	if (parent.Has<Animation>()) {
-		const Animation& anim = parent.Get<Animation>();
-		Rect r{ anim.GetSource() };
-		r.position		   = transform.position;
-		transform.position = r.Min();
-	} else if (parent.Has<Sprite>()) { // Prioritize animations over sprites.
-		const Sprite& sprite = parent.Get<Sprite>();
-		Rect source{ sprite.GetSource() };
-		source.position	   = transform.position;
-		transform.position = source.Min();
-	}
+	// if (parent.Has<Animation>()) {
+	//	const Animation& anim = parent.Get<Animation>();
+	//	Rect r{ anim.GetSource() };
+	//	r.position		   = transform.position;
+	//	transform.position = r.Min();
+	//} else if (parent.Has<Sprite>()) { // Prioritize animations over sprites.
+	//	const Sprite& sprite = parent.Get<Sprite>();
+	//	Rect source{ sprite.GetSource() };
+	//	source.position	   = transform.position;
+	//	transform.position = source.Min();
+	//}
 
 	relative_rect.position += transform.position;
 	relative_rect.rotation += transform.rotation;
@@ -193,6 +193,12 @@ ecs::Entity BoxColliderGroup::AddBox(
 	names.emplace(name, entity);
 	group.Refresh();
 	return entity;
+}
+
+BoxCollider& BoxColliderGroup::GetBox(const Name& name) {
+	auto e = Get(name);
+	PTGN_ASSERT(e.Has<BoxCollider>());
+	return e.Get<BoxCollider>();
 }
 
 const BoxCollider& BoxColliderGroup::GetBox(const Name& name) const {

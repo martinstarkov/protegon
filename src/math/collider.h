@@ -207,6 +207,7 @@ struct BoxColliderGroup {
 	);
 
 	[[nodiscard]] const BoxCollider& GetBox(const Name& name) const;
+	[[nodiscard]] BoxCollider& GetBox(const Name& name);
 
 	// @return All child colliders (parent not included).
 	[[nodiscard]] std::vector<ecs::Entity> GetAll() const;
