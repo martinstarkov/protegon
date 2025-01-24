@@ -396,6 +396,14 @@ Tween& Tween::Start() {
 	return *this;
 }
 
+Tween& Tween::StartIfNotRunning() {
+	if (IsRunning()) {
+		return *this;
+	}
+	Start();
+	return *this;
+}
+
 Tween& Tween::Stop() {
 	if (auto& t{ Get() }; t.started_) {
 		if (!t.tweens_points_.empty()) {

@@ -234,6 +234,9 @@ public:
 	// Resets and starts the tween. Will restart paused tweens.
 	Tween& Start();
 
+	// Starts the tween only if it is not already running.
+	Tween& StartIfNotRunning();
+
 	Tween& Pause();
 	Tween& Resume();
 
