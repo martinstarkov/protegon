@@ -263,6 +263,7 @@ public:
 
 private:
 	friend class impl::TweenManager;
+	friend struct Animation;
 
 	[[nodiscard]] float SeekImpl(float new_progress);
 	[[nodiscard]] float StepImpl(float dt, bool accumulate_progress);

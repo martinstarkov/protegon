@@ -273,6 +273,9 @@ void Tween::ActivateCallback(const TweenCallback& callback) {
 
 void Tween::PointCompleted() {
 	auto& t{ Get() };
+	if (t.tweens_points_.empty()) {
+		return;
+	}
 	ActivateCallback(t.GetCurrentTweenPoint().on_complete_);
 	if (t.index_ < t.tweens_points_.size() - 1) {
 		t.index_++;
@@ -351,7 +354,9 @@ float Tween::UpdateImpl(bool suppress_update) {
 Tween& Tween::Pause() {
 	if (auto& t{ Get() }; !t.paused_) {
 		t.paused_ = true;
-		ActivateCallback(t.GetCurrentTweenPoint().on_pause_);
+		if (!t.tweens_points_.empty()) {
+			ActivateCallback(t.GetCurrentTweenPoint().on_pause_);
+		}
 	}
 	return *this;
 }
@@ -359,7 +364,9 @@ Tween& Tween::Pause() {
 Tween& Tween::Resume() {
 	if (auto& t{ Get() }; t.paused_) {
 		t.paused_ = false;
-		ActivateCallback(t.GetCurrentTweenPoint().on_resume_);
+		if (!t.tweens_points_.empty()) {
+			ActivateCallback(t.GetCurrentTweenPoint().on_resume_);
+		}
 	}
 	return *this;
 }
@@ -383,13 +390,17 @@ Tween& Tween::Start() {
 	Reset();
 	auto& t{ Get() };
 	t.started_ = true;
-	ActivateCallback(t.GetCurrentTweenPoint().on_start_);
+	if (!t.tweens_points_.empty()) {
+		ActivateCallback(t.GetCurrentTweenPoint().on_start_);
+	}
 	return *this;
 }
 
 Tween& Tween::Stop() {
 	if (auto& t{ Get() }; t.started_) {
-		ActivateCallback(t.GetCurrentTweenPoint().on_stop_);
+		if (!t.tweens_points_.empty()) {
+			ActivateCallback(t.GetCurrentTweenPoint().on_stop_);
+		}
 		t.started_ = false;
 	}
 	return *this;
@@ -457,7 +468,10 @@ float Tween::AccumulateProgress(float new_progress) {
 namespace impl {
 
 void TweenManager::Remove(const Tween& item) {
-	if (!MapContains(GetMap(), item)) {
+	if (!VectorManager::Contains(item)) {
+		return;
+	}
+	if (item.IsValid() && !MapContains(GetMap(), item)) {
 		item.Get().manager_tween_ = false;
 	}
 	VectorManager::Remove(item);
