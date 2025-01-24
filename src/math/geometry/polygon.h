@@ -111,6 +111,9 @@ struct Rect {
 	// @return Top left position of the unrotated rectangle.
 	[[nodiscard]] V2_float Min() const;
 
+	// @return Position of the unrotated rectangle relative to the given origin.
+	[[nodiscard]] V2_float GetPosition(Origin relative_to) const;
+
 	// @param rotation_center {0, 0} is top left, { 0.5, 0.5 } is center, { 1, 1 } is bottom right.
 	[[nodiscard]] std::array<V2_float, 4> GetVertices(
 		const V2_float& rotation_center = { 0.5f, 0.5f }

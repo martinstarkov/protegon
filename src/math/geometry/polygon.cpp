@@ -310,19 +310,20 @@ V2_float Rect::Half() const {
 	return size * 0.5f;
 }
 
-// @return Center position of rectangle.
 V2_float Rect::Center() const {
 	return position - GetOffsetFromCenter(size, origin);
 }
 
-// @return Bottom right position of rectangle.
 V2_float Rect::Max() const {
 	return Center() + Half();
 }
 
-// @return Top left position of rectangle.
 V2_float Rect::Min() const {
 	return Center() - Half();
+}
+
+V2_float Rect::GetPosition(Origin relative_to) const {
+	return Center() + GetOffsetFromCenter(size, relative_to);
 }
 
 void Rect::OffsetVertices(
