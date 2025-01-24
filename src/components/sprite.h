@@ -105,11 +105,11 @@ struct Sprite {
 			"Source position Y must be within texture height"
 		);
 		PTGN_ASSERT(
-			source.position.x + source.size.x < texture.GetSize().x,
+			source.position.x + source.size.x <= texture.GetSize().x,
 			"Source width must be within texture width"
 		);
 		PTGN_ASSERT(
-			source.position.y + source.size.y < texture.GetSize().y,
+			source.position.y + source.size.y <= texture.GetSize().y,
 			"Source height must be within texture height"
 		);
 	}
