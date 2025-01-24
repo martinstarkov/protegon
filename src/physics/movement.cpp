@@ -66,28 +66,36 @@ void MoveArrowKeys(V2_float& vel, const V2_float& amount, bool cancel_velocity_i
 	);
 }
 
-void TopDownMovement::Update(Transform& transform, RigidBody& rb) const {
-	bool up{ game.input.KeyPressed(up_key) };
-	bool down{ game.input.KeyPressed(down_key) };
-	bool left{ game.input.KeyPressed(left_key) };
-	bool right{ game.input.KeyPressed(right_key) };
+void TopDownMovement::Update(Transform& transform, RigidBody& rb) {
+	if (keys_enabled) {
+		if (game.input.KeyPressed(up_key)) {
+			up_input = true;
+		}
+		if (game.input.KeyPressed(down_key)) {
+			down_input = true;
+		}
+		if (game.input.KeyPressed(left_key)) {
+			left_input = true;
+		}
+		if (game.input.KeyPressed(right_key)) {
+			right_input = true;
+		}
+	}
 
-	V2_float dir;
-
-	if (left && !right) {
+	if (left_input && !right_input) {
 		dir.x = -1.0f;
-	}
-
-	if (right && !left) {
+	} else if (right_input && !left_input) {
 		dir.x = 1.0f;
+	} else {
+		dir.x = 0.0f;
 	}
 
-	if (up && !down) {
+	if (up_input && !down_input) {
 		dir.y = -1.0f;
-	}
-
-	if (down && !up) {
+	} else if (down_input && !up_input) {
 		dir.y = 1.0f;
+	} else {
+		dir.y = 0.0f;
 	}
 
 	// Used to flip the character's sprite when she changes direction
@@ -112,15 +120,154 @@ void TopDownMovement::Update(Transform& transform, RigidBody& rb) const {
 
 	// Calculate movement, depending on whether "Instant Movement" has been checked
 	if (use_acceleration) {
-		RunWithAcceleration(desired_velocity, dir, rb);
+		RunWithAcceleration(desired_velocity, rb);
 	} else {
 		rb.velocity = desired_velocity;
 	}
+
+	InvokeCallbacks();
+
+	// Cancel inputs for next frame.
+	Move(MoveDirection::None);
+
+	prev_dir = dir;
 }
 
-void TopDownMovement::RunWithAcceleration(
-	const V2_float& desired_velocity, const V2_float& dir, RigidBody& rb
-) const {
+MoveDirection TopDownMovement::GetDirectionState(const V2_float& d) {
+	// The reason these are nearly equals is because d can be dir - prev_dir.
+	if (NearlyEqual(d.x, 0.0f) && NearlyEqual(d.y, 0.0f)) {
+		return MoveDirection::None;
+	} else if (NearlyEqual(d.x, -1.0f) && NearlyEqual(d.y, 0.0f)) {
+		return MoveDirection::Left;
+	} else if (NearlyEqual(d.x, 1.0f) && NearlyEqual(d.y, 0.0f)) {
+		return MoveDirection::Right;
+	} else if (NearlyEqual(d.x, 0.0f) && NearlyEqual(d.y, 1.0f)) {
+		return MoveDirection::Down;
+	} else if (NearlyEqual(d.x, 0.0f) && NearlyEqual(d.y, -1.0f)) {
+		return MoveDirection::Up;
+	} else if (NearlyEqual(d.x, 1.0f) && NearlyEqual(d.y, 1.0f)) {
+		return MoveDirection::DownRight;
+	} else if (NearlyEqual(d.x, -1.0f) && NearlyEqual(d.y, 1.0f)) {
+		return MoveDirection::DownLeft;
+	} else if (NearlyEqual(d.x, 1.0f) && NearlyEqual(d.y, -1.0f)) {
+		return MoveDirection::UpRight;
+	} else if (NearlyEqual(d.x, -1.0f) && NearlyEqual(d.y, -1.0f)) {
+		return MoveDirection::UpLeft;
+	} else {
+		PTGN_ERROR("Invalid direction parameter");
+	}
+}
+
+void TopDownMovement::InvokeCallbacks() {
+	auto callbacks = [](bool was_moving, bool is_moving, const auto& start_func,
+						const auto& continue_func, const auto& stop_func) {
+		if (!was_moving && is_moving && start_func) {
+			std::invoke(start_func);
+		}
+		if (is_moving && continue_func) {
+			std::invoke(continue_func);
+		}
+		if (was_moving && !is_moving && stop_func) {
+			std::invoke(stop_func);
+		}
+	};
+
+	if (dir != prev_dir && on_direction_change) {
+		// Clamp because turning from left to right can cause a difference in direction of 2.0f,
+		// which we see as the same as 1.0f.
+		V2_float diff{ Clamp(dir - prev_dir, V2_float{ -1.0f }, V2_float{ 1.0f }) };
+		std::invoke(on_direction_change, GetDirectionState(diff));
+	}
+
+	// TODO: Instead of using WasMoving, IsMoving, switch to providing an index and comparison with
+	// -1 or 1 or 0.
+
+	std::invoke(
+		callbacks, !WasMoving(MoveDirection::None), !IsMoving(MoveDirection::None), on_move_start,
+		on_move, on_move_stop
+	);
+	std::invoke(
+		callbacks, WasMoving(MoveDirection::Up), IsMoving(MoveDirection::Up), on_move_up_start,
+		on_move_up, on_move_up_stop
+	);
+	std::invoke(
+		callbacks, WasMoving(MoveDirection::Down), IsMoving(MoveDirection::Down),
+		on_move_down_start, on_move_down, on_move_down_stop
+	);
+	std::invoke(
+		callbacks, WasMoving(MoveDirection::Left), IsMoving(MoveDirection::Left),
+		on_move_left_start, on_move_left, on_move_left_stop
+	);
+	std::invoke(
+		callbacks, WasMoving(MoveDirection::Right), IsMoving(MoveDirection::Right),
+		on_move_right_start, on_move_right, on_move_right_stop
+	);
+}
+
+bool TopDownMovement::GetMovingState(const V2_float& d, MoveDirection direction) {
+	switch (direction) {
+		case MoveDirection::None:	   return d.x == 0.0f && d.y == 0.0f;
+		case MoveDirection::Left:	   return d.x == -1.0f;
+		case MoveDirection::Right:	   return d.x == 1.0f;
+		case MoveDirection::Up:		   return d.y == -1.0f;
+		case MoveDirection::Down:	   return d.y == 1.0f;
+		case MoveDirection::UpLeft:	   return d.x == -1.0f && d.y == -1.0f;
+		case MoveDirection::UpRight:   return d.x == 1.0f && d.y == -1.0f;
+		case MoveDirection::DownLeft:  return d.x == -1.0f && d.y == 1.0f;
+		case MoveDirection::DownRight: return d.x == 1.0f && d.y == 1.0f;
+		default:					   PTGN_ERROR("Unrecognized movement direction");
+	}
+}
+
+bool TopDownMovement::IsMoving(MoveDirection direction) const {
+	return GetMovingState(dir, direction);
+}
+
+bool TopDownMovement::WasMoving(MoveDirection direction) const {
+	return GetMovingState(prev_dir, direction);
+}
+
+MoveDirection TopDownMovement::GetDirection() const {
+	return GetDirectionState(dir);
+}
+
+MoveDirection TopDownMovement::GetPreviousDirection() const {
+	return GetDirectionState(prev_dir);
+}
+
+void TopDownMovement::Move(MoveDirection direction) {
+	switch (direction) {
+		case MoveDirection::None:
+			left_input	= false;
+			right_input = false;
+			down_input	= false;
+			up_input	= false;
+			break;
+		case MoveDirection::Left:  left_input = true; break;
+		case MoveDirection::Right: right_input = true; break;
+		case MoveDirection::Up:	   up_input = true; break;
+		case MoveDirection::Down:  down_input = true; break;
+		case MoveDirection::UpLeft:
+			up_input   = true;
+			left_input = true;
+			break;
+		case MoveDirection::UpRight:
+			up_input	= true;
+			right_input = true;
+			break;
+		case MoveDirection::DownLeft:
+			down_input = true;
+			left_input = true;
+			break;
+		case MoveDirection::DownRight:
+			down_input	= true;
+			right_input = true;
+			break;
+		default: PTGN_ERROR("Unrecognized movement direction");
+	}
+}
+
+void TopDownMovement::RunWithAcceleration(const V2_float& desired_velocity, RigidBody& rb) const {
 	// In the future one could include a state machine based choice here.
 	float acceleration{ max_acceleration };
 	float deceleration{ max_deceleration };
@@ -128,10 +275,10 @@ void TopDownMovement::RunWithAcceleration(
 
 	float dt{ game.physics.dt() };
 
-	auto set_velocity = [&](bool pressing_key, std::size_t i) {
+	auto set_velocity = [&](std::size_t i) {
 		float max_speed_change{ 0.0f };
 
-		if (pressing_key) {
+		if (dir[i] != 0.0f) {
 			// If the sign (i.e. positive or negative) of our input direction doesn't match our
 			// movement, it means we're turning around and so should use the turn speed stat.
 			if (!NearlyEqual(Sign(dir[i]), Sign(rb.velocity[i]))) {
@@ -151,16 +298,8 @@ void TopDownMovement::RunWithAcceleration(
 		rb.velocity[i] = impl::MoveTowards(rb.velocity[i], desired_velocity[i], max_speed_change);
 	};
 
-	bool up{ game.input.KeyPressed(up_key) };
-	bool down{ game.input.KeyPressed(down_key) };
-	bool left{ game.input.KeyPressed(left_key) };
-	bool right{ game.input.KeyPressed(right_key) };
-
-	bool pressing_horizontal_key{ (left && !right) || (!left && right) };
-	bool pressing_vertical_key{ (up && !down) || (!up && down) };
-
-	std::invoke(set_velocity, pressing_horizontal_key, 0);
-	std::invoke(set_velocity, pressing_vertical_key, 1);
+	std::invoke(set_velocity, 0);
+	std::invoke(set_velocity, 1);
 }
 
 void PlatformerMovement::Update(Transform& transform, RigidBody& rb) const {

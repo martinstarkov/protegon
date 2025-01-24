@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 #include "components/transform.h"
 #include "event/key.h"
 #include "math/collider.h"
@@ -11,6 +13,35 @@
 // TODO: Move functions to cpp file.
 
 namespace ptgn {
+
+enum class MoveDirection {
+	Up,
+	Right,
+	Down,
+	Left,
+	UpLeft,
+	UpRight,
+	DownRight,
+	DownLeft,
+	None
+};
+
+inline std::ostream& operator<<(std::ostream& os, MoveDirection direction) {
+	switch (direction) {
+		case MoveDirection::UpLeft:	   os << "Up Left"; break;
+		case MoveDirection::Up:		   os << "Up"; break;
+		case MoveDirection::UpRight:   os << "Up Right"; break;
+		case MoveDirection::Left:	   os << "Left"; break;
+		case MoveDirection::None:	   os << "None"; break;
+		case MoveDirection::Right:	   os << "Right"; break;
+		case MoveDirection::DownLeft:  os << "Down Left"; break;
+		case MoveDirection::Down:	   os << "Down"; break;
+		case MoveDirection::DownRight: os << "Down Right"; break;
+		default:					   PTGN_ERROR("Invalid movement direction");
+	}
+
+	return os;
+}
 
 namespace impl {
 
@@ -46,18 +77,80 @@ struct TopDownMovement {
 	bool use_acceleration{ true };
 
 	// If true, flips the player transform scale vertically upon moving up.
-	bool flip_vertically{ true };
+	bool flip_vertically{ false };
+
+	// Whether or not the movement keys cause movement.
+	bool keys_enabled{ true };
 
 	Key up_key{ Key::W };
 	Key left_key{ Key::A };
 	Key down_key{ Key::S };
 	Key right_key{ Key::D };
 
-	void Update(Transform& transform, RigidBody& rb) const;
+	// Callbacks.
+
+	// Called every frame that the player is moving.
+	std::function<void()> on_move;
+	// Called on the first frame of player movement.
+	std::function<void()> on_move_start;
+	// Called on the first frame of player stopping their movement.
+	std::function<void()> on_move_stop;
+	// Called when the movement direction changes. Passed parameter is the difference in direction.
+	// If not moving, this is simply the new direction. If moving already, this is the newly added
+	// component of movement. To get the current direction instead, simply use GetDirection().
+	std::function<void(MoveDirection direction_difference)> on_direction_change;
+
+	std::function<void()> on_move_up;
+	std::function<void()> on_move_down;
+	std::function<void()> on_move_left;
+	std::function<void()> on_move_right;
+
+	std::function<void()> on_move_up_start;
+	std::function<void()> on_move_down_start;
+	std::function<void()> on_move_left_start;
+	std::function<void()> on_move_right_start;
+
+	std::function<void()> on_move_up_stop;
+	std::function<void()> on_move_down_stop;
+	std::function<void()> on_move_left_stop;
+	std::function<void()> on_move_right_stop;
+
+	void Update(Transform& transform, RigidBody& rb);
+
+	// Invoke a movement command in a specific direction the same as a key input would. If move
+	// direction is none, movement inputs will be set to false.
+	void Move(MoveDirection direction);
+
+	// @return True if the player is moving in the specified direction.
+	[[nodiscard]] bool IsMoving(MoveDirection direction) const;
+
+	// @return True if the player was moving in the specified direction.
+	[[nodiscard]] bool WasMoving(MoveDirection direction) const;
+
+	// @return The current direction of movement.
+	[[nodiscard]] MoveDirection GetDirection() const;
+
+	// @return The previous direction of movement.
+	[[nodiscard]] MoveDirection GetPreviousDirection() const;
 
 private:
-	void RunWithAcceleration(const V2_float& desired_velocity, const V2_float& dir, RigidBody& rb)
-		const;
+	void RunWithAcceleration(const V2_float& desired_velocity, RigidBody& rb) const;
+
+	[[nodiscard]] static bool GetMovingState(const V2_float& d, MoveDirection direction);
+
+	[[nodiscard]] static MoveDirection GetDirectionState(const V2_float& d);
+
+	void InvokeCallbacks();
+
+	// Whether or not an input of this type has been given in this frame.
+	// Useful for moving a player without having to press keys.
+	bool up_input{ false };
+	bool down_input{ false };
+	bool left_input{ false };
+	bool right_input{ false };
+	// Keep track of movement starting and stopping.
+	V2_float dir;
+	V2_float prev_dir;
 };
 
 struct PlatformerMovement {
