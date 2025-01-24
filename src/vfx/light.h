@@ -49,6 +49,7 @@ public:
 	// TODO: Clean up and create getters and setters.
 	// TODO: Add increment functions.
 	V3_float attenuation_{ 0.0f, 0.0f, 0.0f };
+	// TODO: Assert radius isnt 0.
 	float radius_{ 50.0f };
 	float compression_{ 2.0f };
 	float ambient_intensity_{ 0.0f };
