@@ -6,6 +6,7 @@
 #include "ecs/ecs.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
+#include "scene/scene_manager.h"
 #include "utility/stats.h"
 
 namespace ptgn {
@@ -79,6 +80,15 @@ public:
 		const std::string& title = "Default Title", const V2_int& window_size = { 800, 800 },
 		const Color& background_color = color::White
 	);
+
+	template <typename TScene, typename TKey, typename... TArgs>
+	void Start(
+		const TKey& scene_key, const SceneTransition& transition = {}, TArgs&&... constructor_args
+	) {
+		scene.EnterStartScene<TScene>(
+			scene_key, transition, std::forward<TArgs>(constructor_args)...
+		);
+	}
 
 	// Stops the game from running.
 	void Stop();
