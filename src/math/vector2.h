@@ -333,7 +333,8 @@ template <typename T>
 	return { std::clamp(vector.x, min.x, max.x), std::clamp(vector.y, min.y, max.y) };
 }
 
-// Clamp both components of a vector between min and max.
+// Clamp the magnitude of the vector between min and max. This means that a (1, 1) vector clamped
+// between -1 and 1 will be (0.7, 0.7)
 template <typename T>
 [[nodiscard]] inline Vector2<T> Clamp(const Vector2<T>& vector, T min, T max) {
 	Vector2<T> dir{ vector.Normalized() };
