@@ -7,8 +7,7 @@
 #include "utility/file.h"
 #include "utility/handle.h"
 
-struct _TTF_Font;
-using TTF_Font = _TTF_Font;
+struct TTF_Font;
 
 namespace ptgn {
 

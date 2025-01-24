@@ -14,27 +14,6 @@ namespace ptgn {
 
 struct Rect;
 
-struct TextInfo {
-	TextInfo(
-		FontStyle font_style	   = FontStyle::Normal,
-		FontRenderMode render_mode = FontRenderMode::Solid,
-		const Color& shading_color = color::White, std::uint32_t wrap_after_pixels = 0,
-		bool visible = true
-	) :
-		font_style{ font_style },
-		render_mode{ render_mode },
-		shading_color{ shading_color },
-		wrap_after_pixels{ wrap_after_pixels },
-		visible{ visible } {}
-
-	FontStyle font_style{ FontStyle::Normal };
-	FontRenderMode render_mode{ FontRenderMode::Solid };
-	Color shading_color{ color::White };
-	// 0 indicates only wrapping on newline characters.
-	std::uint32_t wrap_after_pixels{ 0 };
-	bool visible{ true };
-};
-
 namespace impl {
 
 struct TextInstance {
@@ -50,6 +29,11 @@ struct TextInstance {
 	Color shading_color_{ color::White };
 	// 0 indicates only wrapping on newline characters.
 	std::uint32_t wrap_after_pixels_{ 0 };
+	// Set the spacing between lines of text. Infinity will use the current font line skip.
+	std::int32_t line_skip_{ std::numeric_limits<std::int32_t>::infinity() };
+	// Set the point size of text. Infinity will use the current point size of the font.
+	std::int32_t point_size_{ std::numeric_limits<std::int32_t>::infinity() };
+	TextWrapAlignment wrap_alignment_{ TextWrapAlignment::Center };
 	bool visible_{ true };
 };
 
@@ -64,9 +48,7 @@ public:
 	// to change.
 	Text(
 		const std::string_view& content, const Color& text_color = color::Black,
-		const FontOrKey& font = {}, FontStyle font_style = FontStyle::Normal,
-		FontRenderMode render_mode = FontRenderMode::Solid,
-		const Color& shading_color = color::White, std::uint32_t wrap_after_pixels = 0
+		const FontOrKey& font = {}
 	);
 
 	// Setting destination.size == {} corresponds to the unscaled size of the text.
@@ -81,6 +63,11 @@ public:
 	// text wrapped to multiple lines on line endings and on word boundaries if it extends beyond
 	// this pixel value. Setting pixels = 0 (default) will wrap only after newlines.
 	Text& SetWrapAfter(std::uint32_t pixels);
+	// Set the spacing between lines of text.
+	Text& SetLineSkip(std::int32_t pixels);
+	// Set point size of text.
+	Text& SetSize(std::int32_t point_size);
+	Text& SetWrapAlignment(TextWrapAlignment wrap_alignment);
 	Text& SetVisibility(bool visibility);
 	Text& ToggleVisibility();
 

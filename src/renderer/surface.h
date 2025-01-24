@@ -18,6 +18,12 @@ namespace ptgn {
 
 class Text;
 
+enum class TextWrapAlignment {
+	Left   = 0, // TTF_WRAPPED_ALIGN_LEFT
+	Center = 1, // TTF_WRAPPED_ALIGN_CENTER
+	Right  = 2	// TTF_WRAPPED_ALIGN_RIGHT
+};
+
 // Format of pixels for a texture or surface.
 // e.g. RGBA8888 means 8 bits per color channel (32 bits total).
 enum class TextureFormat {
@@ -76,7 +82,8 @@ private:
 	// Create text surface from font information.
 	Surface(
 		Font& font, FontStyle style, const Color& text_color, FontRenderMode mode,
-		const std::string& content, const Color& shading_color, std::uint32_t wrap_after_pixels
+		const std::string& content, std::int32_t ptsize, const Color& shading_color,
+		std::uint32_t wrap_after_pixels, TextWrapAlignment wrap_alignment, std::int32_t line_skip
 	);
 
 	// @param font Font used for the surface.

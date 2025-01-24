@@ -26,17 +26,14 @@ Texture Text::RecreateTexture() {
 		return {}; // Skip creating texture for empty text.
 	}
 
-	Surface surface{ t.font_,	 t.font_style_,	   t.text_color_,		t.render_mode_,
-					 t.content_, t.shading_color_, t.wrap_after_pixels_ };
+	Surface surface{ t.font_,			t.font_style_, t.text_color_,	 t.render_mode_,
+					 t.content_,		t.point_size_, t.shading_color_, t.wrap_after_pixels_,
+					 t.wrap_alignment_, t.line_skip_ };
 
 	return Texture(surface);
 }
 
-Text::Text(
-	const std::string_view& content, const Color& text_color, const FontOrKey& font,
-	FontStyle font_style, FontRenderMode render_mode, const Color& shading_color,
-	std::uint32_t wrap_after_pixels
-) {
+Text::Text(const std::string_view& content, const Color& text_color, const FontOrKey& font) {
 	Create();
 	auto& t{ Get() };
 
@@ -50,14 +47,10 @@ Text::Text(
 
 	PTGN_ASSERT(f.IsValid(), "Cannot create text with invalid font");
 
-	t.font_				 = f;
-	t.content_			 = content;
-	t.text_color_		 = text_color;
-	t.font_style_		 = font_style;
-	t.render_mode_		 = render_mode;
-	t.shading_color_	 = shading_color;
-	t.wrap_after_pixels_ = wrap_after_pixels;
-	t.texture_			 = RecreateTexture();
+	t.font_		  = f;
+	t.content_	  = content;
+	t.text_color_ = text_color;
+	t.texture_	  = RecreateTexture();
 }
 
 void Text::Draw(const Rect& destination, std::int32_t render_layer) const {
@@ -128,6 +121,39 @@ Text& Text::SetWrapAfter(std::uint32_t wrap_after_pixels) {
 	}
 	t.wrap_after_pixels_ = wrap_after_pixels;
 	t.texture_			 = RecreateTexture();
+	return *this;
+}
+
+Text& Text::SetLineSkip(std::int32_t line_skip) {
+	Create();
+	auto& t{ Get() };
+	if (line_skip == t.line_skip_) {
+		return *this;
+	}
+	t.line_skip_ = line_skip;
+	t.texture_	 = RecreateTexture();
+	return *this;
+}
+
+Text& Text::SetSize(std::int32_t point_size) {
+	Create();
+	auto& t{ Get() };
+	if (point_size == t.point_size_) {
+		return *this;
+	}
+	t.point_size_ = point_size;
+	t.texture_	  = RecreateTexture();
+	return *this;
+}
+
+Text& Text::SetWrapAlignment(TextWrapAlignment wrap_alignment) {
+	Create();
+	auto& t{ Get() };
+	if (wrap_alignment == t.wrap_alignment_) {
+		return *this;
+	}
+	t.wrap_alignment_ = wrap_alignment;
+	t.texture_		  = RecreateTexture();
 	return *this;
 }
 
@@ -220,7 +246,7 @@ const Texture& Text::GetTexture() const {
 }
 
 V2_int Text::GetSize() const {
-	return GetSize(GetFont(), std::string(GetContent()));
+	return Get().texture_.GetSize();
 }
 
 V2_int Text::GetSize(const FontOrKey& font, const std::string& content) {

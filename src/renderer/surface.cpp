@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -179,7 +180,8 @@ Surface::Surface(const path& image_path) :
 
 Surface::Surface(
 	Font& font, FontStyle style, const Color& text_color, FontRenderMode mode,
-	const std::string& content, const Color& shading_color, std::uint32_t wrap_after_pixels
+	const std::string& content, std::int32_t ptsize, const Color& shading_color,
+	std::uint32_t wrap_after_pixels, TextWrapAlignment wrap_alignment, std::int32_t line_skip
 ) :
 	Surface{ std::invoke([&]() {
 		PTGN_ASSERT(
@@ -189,6 +191,13 @@ Surface::Surface(
 		auto f = &font.Get();
 
 		TTF_SetFontStyle(f, static_cast<int>(style));
+		TTF_SetFontWrappedAlign(f, static_cast<int>(wrap_alignment));
+		if (line_skip != std::numeric_limits<std::int32_t>::infinity()) {
+			TTF_SetFontLineSkip(f, line_skip);
+		}
+		if (ptsize != std::numeric_limits<std::int32_t>::infinity()) {
+			TTF_SetFontSize(f, ptsize);
+		}
 
 		std::shared_ptr<SDL_Surface> surface;
 
