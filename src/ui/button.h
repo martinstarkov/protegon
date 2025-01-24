@@ -21,6 +21,15 @@
 #include "utility/log.h"
 #include "utility/type_traits.h"
 
+// TODO: Ditch this whole ButtonProperty idea in favor of a simpler struct based entity composition
+// system. For example, to add a border to a button you would call button.Add<Border>(line_width,
+// color); Or to add a background color: button.Add<BackgroundColor>(); And these classes would add
+// components to the parent button entity. For example adding BackgroundColor would add a
+// DefaultColor, HoverColor, PressedColor. If the button has a Toggleable component already, adding
+// BackgroundColor would also add ToggledHoverColor, etc. Adding a Toggleable component would check
+// if there is a BackgroundColor and add ToggledHoverColor, etc if there is. This way a button can
+// dynamically have many variables that are added and removed based on each component.
+
 namespace ptgn {
 
 class Dropdown;
@@ -42,24 +51,26 @@ enum class ButtonProperty : std::size_t {
 	TextColor,		  // Type: Color (takes priority over Text colors)
 	BorderColor,	  // Type: Color
 	TextAlignment,	  // Type: TextAlignment (same as Origin relative to button rect position)
-	TextSize,		  // Type: V2_float (default: unscaled text size)
-	RenderLayer,	  // Type: int (button text is drawn on this layer + 1 and border on + 2).
-	Dropdown,		  // Type: Dropdown (specify dropdown elements)
-	Visibility,		  // Type: bool
-	Toggleable,		  // Type: bool
-	Bordered,		  // Type: bool
-	Toggled,		  // Type: bool
-	Radius,			  // Type: float (above 0 value turns the button from a Rect to a RoundedRect).
-	LineThickness,	  // Type: float
-	BorderThickness,  // Type: float
-	OnHoverStart,	  // Type: ButtonCallback
-	OnHoverStop,	  // Type: ButtonCallback
-	OnActivate,		  // Type: ButtonCallback
-	OnDisable,		  // Type: ButtonCallback
-	OnEnable,		  // Type: ButtonCallback
-	OnShow,			  // Type: ButtonCallback
-	OnHide,			  // Type: ButtonCallback
-	OnToggle		  // Type: ButtonCallback
+	TextSize, // Type: V2_float (default: unscaled text size). If either axis of the text size is
+			  // zero, it is stretched to fit the entire size of the button rectangle (along that
+			  // axis).
+	RenderLayer,	 // Type: int (button text is drawn on this layer + 1 and border on + 2).
+	Dropdown,		 // Type: Dropdown (specify dropdown elements)
+	Visibility,		 // Type: bool
+	Toggleable,		 // Type: bool
+	Bordered,		 // Type: bool
+	Toggled,		 // Type: bool
+	Radius,			 // Type: float (above 0 value turns the button from a Rect to a RoundedRect).
+	LineThickness,	 // Type: float
+	BorderThickness, // Type: float
+	OnHoverStart,	 // Type: ButtonCallback
+	OnHoverStop,	 // Type: ButtonCallback
+	OnActivate,		 // Type: ButtonCallback
+	OnDisable,		 // Type: ButtonCallback
+	OnEnable,		 // Type: ButtonCallback
+	OnShow,			 // Type: ButtonCallback
+	OnHide,			 // Type: ButtonCallback
+	OnToggle		 // Type: ButtonCallback
 };
 
 using TextAlignment = Origin;
