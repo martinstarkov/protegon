@@ -64,7 +64,13 @@ struct RenderTargetInstance {
 	void Bind() const;
 	void Clear() const;
 
-	[[nodiscard]] V2_float ScreenToTarget(const V2_float& screen_coordinate) const;
+	[[nodiscard]] V2_float TransformToTarget(const V2_float& screen_relative_coordinate) const;
+
+	[[nodiscard]] V2_float TransformToScreen(const V2_float& target_relative_coordinate) const;
+
+	[[nodiscard]] V2_float ScaleToTarget(const V2_float& screen_relative_size) const;
+
+	[[nodiscard]] V2_float ScaleToScreen(const V2_float& target_relative_size) const;
 
 	[[nodiscard]] Color GetPixel(const V2_int& coordinate) const;
 
@@ -116,15 +122,36 @@ public:
 
 	// Transforms a window relative pixel coordinate to being relative to the target viewport and
 	// primary game camera.
-	// @param screen_coordinate The coordinate to be transformed.
-	[[nodiscard]] V2_float ScreenToTarget(const V2_float& screen_coordinate) const;
+	// @param screen_relative_coordinate The coordinate to be transformed.
+	[[nodiscard]] V2_float TransformToTarget(const V2_float& screen_relative_coordinate) const;
+
+	// Transforms a target relative pixel coordinate to being relative to the screen.
+	// @param target_relative_coordinate The coordinate to be transformed.
+	[[nodiscard]] V2_float TransformToScreen(const V2_float& target_relative_coordinate) const;
+
+	// Scales a window relative pixel size to being relative to the target viewport and
+	// primary game camera.
+	// @param screen_relative_size The size to be scaled.
+	[[nodiscard]] V2_float ScaleToTarget(const V2_float& screen_relative_size) const;
+
+	// Scales a target relative pixel size to being relative to the screen.
+	// @param target_relative_size The size to be scaled.
+	[[nodiscard]] V2_float ScaleToScreen(const V2_float& target_relative_size) const;
 
 	// @return The clear color of the render target.
 	[[nodiscard]] Color GetClearColor() const;
 
-	// @clear_color The clear color to set for the render target. This only takes effect after the
-	// render target is cleared.
+	// @param clear_color The clear color to set for the render target. This only takes effect after
+	// the render target is cleared.
 	void SetClearColor(const Color& clear_color);
+
+	// @return The camera of the render target.
+	[[nodiscard]] const Camera& GetCamera() const;
+	[[nodiscard]] Camera& GetCamera();
+
+	// @param camera The camera to set for the render target. This takes effect for all objects in
+	// the current render queue so flushing the render queue beforehand may be advisable.
+	void SetCamera(const Camera& camera);
 
 	// @return Texture attaached to the render target.
 	[[nodiscard]] const Texture& GetTexture() const;

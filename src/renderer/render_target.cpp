@@ -162,8 +162,20 @@ const Texture& RenderTargetInstance::GetTexture() const {
 	return texture_;
 }
 
-V2_float RenderTargetInstance::ScreenToTarget(const V2_float& screen_coordinate) const {
-	return ScreenToViewport(viewport_, camera_, screen_coordinate);
+V2_float RenderTargetInstance::TransformToTarget(const V2_float& screen_relative_coordinate) const {
+	return ptgn::TransformToViewport(viewport_, camera_, screen_relative_coordinate);
+}
+
+V2_float RenderTargetInstance::TransformToScreen(const V2_float& target_relative_coordinate) const {
+	return ptgn::TransformToScreen(viewport_, camera_, target_relative_coordinate);
+}
+
+V2_float RenderTargetInstance::ScaleToTarget(const V2_float& screen_relative_size) const {
+	return ptgn::ScaleToViewport(viewport_, camera_, screen_relative_size);
+}
+
+V2_float RenderTargetInstance::ScaleToScreen(const V2_float& target_relative_size) const {
+	return ptgn::ScaleToScreen(viewport_, camera_, target_relative_size);
 }
 
 Color RenderTargetInstance::GetPixel(const V2_int& coordinate) const {
@@ -232,6 +244,22 @@ RenderTarget::RenderTarget(const V2_float& size, const Color& clear_color, Blend
 	Create(size, clear_color, blend_mode);
 }
 
+V2_float RenderTarget::TransformToTarget(const V2_float& screen_relative_coordinate) const {
+	return Get().TransformToTarget(screen_relative_coordinate);
+}
+
+V2_float RenderTarget::TransformToScreen(const V2_float& target_relative_coordinate) const {
+	return Get().TransformToScreen(target_relative_coordinate);
+}
+
+V2_float RenderTarget::ScaleToTarget(const V2_float& screen_relative_size) const {
+	return Get().ScaleToTarget(screen_relative_size);
+}
+
+V2_float RenderTarget::ScaleToScreen(const V2_float& target_relative_size) const {
+	return Get().ScaleToScreen(target_relative_size);
+}
+
 void RenderTarget::Clear() const {
 	auto& i{ Get() };
 	i.Bind();
@@ -246,6 +274,18 @@ void RenderTarget::SetClearColor(const Color& clear_color) {
 	Get().SetClearColor(clear_color);
 }
 
+const Camera& RenderTarget::GetCamera() const {
+	return Get().GetCamera();
+}
+
+Camera& RenderTarget::GetCamera() {
+	return Get().GetCamera();
+}
+
+void RenderTarget::SetCamera(const Camera& camera) {
+	return Get().SetCamera(camera);
+}
+
 void RenderTarget::Draw(
 	const TextureInfo& texture_info, const Shader& shader, bool clear_after_draw
 ) const {
@@ -255,10 +295,6 @@ void RenderTarget::Draw(
 		"and draw to it"
 	);*/
 	Get().Draw(texture_info, shader, clear_after_draw);
-}
-
-V2_float RenderTarget::ScreenToTarget(const V2_float& screen_coordinate) const {
-	return Get().ScreenToTarget(screen_coordinate);
 }
 
 const Texture& RenderTarget::GetTexture() const {

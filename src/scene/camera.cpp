@@ -209,6 +209,25 @@ void Camera::CenterOnArea(const V2_float& new_size) {
 	SetPosition(new_size / 2.0f);
 }
 
+V2_float Camera::TransformToCamera(const V2_float& screen_relative_coordinate) const {
+	float zoom{ GetZoom() };
+	PTGN_ASSERT(zoom != 0.0f);
+	return (screen_relative_coordinate - size * 0.5f) / zoom + GetPosition();
+}
+
+V2_float Camera::TransformToScreen(const V2_float& camera_relative_coordinate) const {
+	return (camera_relative_coordinate - GetPosition()) * zoom + size * 0.5f;
+}
+
+V2_float Camera::ScaleToCamera(const V2_float& screen_relative_size) const {
+	return screen_relative_size * zoom;
+}
+
+V2_float Camera::ScaleToScreen(const V2_float& camera_relative_size) const {
+	PTGN_ASSERT(zoom != 0.0f);
+	return camera_relative_size / zoom;
+}
+
 void Camera::CenterOnWindow(bool continuously) {
 	if (continuously) {
 		center_to_window = true;
@@ -218,12 +237,8 @@ void Camera::CenterOnWindow(bool continuously) {
 	}
 }
 
-V2_float Camera::ScreenToCamera(const V2_float& screen_coordinate) const {
-	return (screen_coordinate - GetSize() * 0.5f) / GetZoom() + GetPosition();
-}
-
 Rect Camera::GetRect() const {
-	return Rect{ GetPosition(Origin::TopLeft), GetSize(), Origin::TopLeft };
+	return Rect{ GetPosition(Origin::Center), GetSize() / zoom, Origin::Center };
 }
 
 V2_float Camera::GetSize() const {
@@ -455,11 +470,37 @@ void CameraController::UnsubscribeFromMouseEvents() {
 }
 */
 
-V2_float ScreenToViewport(
-	const Rect& viewport, const Camera& camera, const V2_float& screen_coordinate
+V2_float TransformToViewport(
+	const Rect& viewport, const Camera& camera, const V2_float& screen_relative_coordinate
 ) {
-	return (camera.ScreenToCamera(screen_coordinate) - viewport.Min()) * camera.GetSize() /
-		   viewport.size;
+	PTGN_ASSERT(viewport.size.x != 0.0f && viewport.size.y != 0.0f);
+	return (camera.TransformToCamera(screen_relative_coordinate) - viewport.Min()) *
+		   camera.GetSize() / viewport.size;
+}
+
+V2_float TransformToScreen(
+	const Rect& viewport, const Camera& camera, const V2_float& viewport_relative_coordinate
+) {
+	V2_float cam_size{ camera.GetSize() };
+	PTGN_ASSERT(cam_size.x != 0.0f && cam_size.y != 0.0f);
+	return camera.TransformToScreen(
+		viewport_relative_coordinate * viewport.size / cam_size + viewport.Min()
+	);
+}
+
+V2_float ScaleToViewport(
+	const Rect& viewport, const Camera& camera, const V2_float& screen_relative_size
+) {
+	PTGN_ASSERT(viewport.size.x != 0.0f && viewport.size.y != 0.0f);
+	return (camera.ScaleToCamera(screen_relative_size)) * camera.GetSize() / viewport.size;
+}
+
+V2_float ScaleToScreen(
+	const Rect& viewport, const Camera& camera, const V2_float& viewport_relative_size
+) {
+	V2_float cam_size{ camera.GetSize() };
+	PTGN_ASSERT(cam_size.x != 0.0f && cam_size.y != 0.0f);
+	return camera.ScaleToScreen(viewport_relative_size) * viewport.size / cam_size;
 }
 
 } // namespace ptgn

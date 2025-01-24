@@ -48,9 +48,21 @@ public:
 	// size and position of the camera.
 	void CenterOnArea(const V2_float& size);
 
-	// Transforms a window relative pixel coordinate to being relative to this camera.
-	// @param screen_coordinate The coordinate to be transformed.
-	[[nodiscard]] V2_float ScreenToCamera(const V2_float& screen_coordinate) const;
+	// Transforms a window relative pixel coordinate to being relative to the camera.
+	// @param screen_relative_coordinate The coordinate to be transformed.
+	[[nodiscard]] V2_float TransformToCamera(const V2_float& screen_relative_coordinate) const;
+
+	// Transforms a camera relative pixel coordinate to being relative to the screen.
+	// @param camera_relative_coordinate The coordinate to be transformed.
+	[[nodiscard]] V2_float TransformToScreen(const V2_float& camera_relative_coordinate) const;
+
+	// Scales a window relative pixel size to being relative to the camera.
+	// @param screen_relative_size The size to be scaled.
+	[[nodiscard]] V2_float ScaleToCamera(const V2_float& screen_relative_size) const;
+
+	// Scales a camera relative pixel size to being relative to the screen.
+	// @param camera_relative_size The size to be scaled.
+	[[nodiscard]] V2_float ScaleToScreen(const V2_float& camera_relative_size) const;
 
 	// Origin at the top left.
 	[[nodiscard]] Rect GetRect() const;
@@ -368,9 +380,34 @@ vertical
 // primary game camera.
 // @param viewport The viewport relative to which the screen coordinate is transformed.
 // @param camera The camera relative to which the screen coordinate is transformed.
-// @param screen_coordinate The coordinate to be transformed.
-[[nodiscard]] V2_float ScreenToViewport(
-	const Rect& viewport, const Camera& camera, const V2_float& screen_coordinate
+// @param screen_relative_coordinate The coordinate to be transformed.
+[[nodiscard]] V2_float TransformToViewport(
+	const Rect& viewport, const Camera& camera, const V2_float& screen_relative_coordinate
+);
+
+// Transforms a viewport relative pixel coordinate to being relative to the window.
+// @param viewport The viewport relative to which the viewport coordinate is transformed.
+// @param camera The camera relative to which the viewport coordinate is transformed.
+// @param viewport_coordinate The coordinate to be transformed.
+[[nodiscard]] V2_float TransformToScreen(
+	const Rect& viewport, const Camera& camera, const V2_float& viewport_relative_coordinate
+);
+
+// Scales a window relative pixel size to being relative to the specified viewport and
+// primary game camera.
+// @param viewport The viewport relative to which the pixel size is scaled.
+// @param camera The camera relative to which the pixel size is scaled.
+// @param screen_relative_size The coordinate to be scaled.
+[[nodiscard]] V2_float ScaleToViewport(
+	const Rect& viewport, const Camera& camera, const V2_float& screen_relative_size
+);
+
+// Scales a viewport relative pixel size to being relative to the window.
+// @param viewport The viewport relative to which the pixel size is scaled.
+// @param camera The camera relative to which the pixel size is scaled.
+// @param viewport_relative_size The coordinate to be scaled.
+[[nodiscard]] V2_float ScaleToScreen(
+	const Rect& viewport, const Camera& camera, const V2_float& viewport_relative_size
 );
 
 } // namespace ptgn

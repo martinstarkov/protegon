@@ -195,7 +195,7 @@ V2_float InputHandler::GetMouseDifference(RenderTarget render_target) const {
 	if (!render_target.IsValid()) {
 		render_target = game.renderer.GetRenderTarget();
 	}
-	return ScreenToViewport(
+	return TransformToViewport(
 		render_target.Get().GetViewport(), render_target.Get().GetCamera(),
 		GetMouseDifferenceWindow()
 	);
@@ -205,7 +205,7 @@ V2_float InputHandler::GetMousePosition(RenderTarget render_target) const {
 	if (!render_target.IsValid()) {
 		render_target = game.renderer.GetRenderTarget();
 	}
-	return ScreenToViewport(
+	return TransformToViewport(
 		render_target.Get().GetViewport(), render_target.Get().GetCamera(), GetMousePositionWindow()
 	);
 }
@@ -214,7 +214,7 @@ V2_float InputHandler::GetMousePositionPrevious(RenderTarget render_target) cons
 	if (!render_target.IsValid()) {
 		render_target = game.renderer.GetRenderTarget();
 	}
-	return ScreenToViewport(
+	return TransformToViewport(
 		render_target.Get().GetViewport(), render_target.Get().GetCamera(),
 		GetMousePositionPreviousWindow()
 	);
