@@ -3,9 +3,11 @@
 #include <deque>
 #include <memory>
 #include <type_traits>
+#include <utility>
 
 #include "core/manager.h"
 #include "scene/scene.h"
+#include "scene/scene_transition.h"
 #include "utility/debug.h"
 
 namespace ptgn {
@@ -83,6 +85,10 @@ public:
 	TScene& Enter(
 		const TKey& scene_key, const SceneTransition& transition = {}, TArgs&&... constructor_args
 	) {
+		PTGN_ASSERT(
+			current_scene_.second != nullptr,
+			"Cannot enter the first scene. Use game.Start<>() instead"
+		);
 		auto& scene{ Load<TScene>(scene_key, std::forward<TArgs>(constructor_args)...) };
 		EnterImpl(GetInternalKey(scene_key), transition);
 		return scene;
@@ -144,7 +150,17 @@ private:
 	friend class impl::Game;
 	friend class impl::Renderer;
 
-	void EnterScene(const std::shared_ptr<Scene>& scene);
+	template <typename TScene, typename TKey, typename... TArgs>
+	void EnterStartScene(
+		const TKey& scene_key, const SceneTransition& transition = {}, TArgs&&... constructor_args
+	) {
+		// Ensures there are no shared pointer instances of the start scene. This would prevent the
+		// start scene from being unloaded when transitioning to a new scene.
+		Load<TScene>(scene_key, std::forward<TArgs>(constructor_args)...);
+		EnterImpl(GetInternalKey(scene_key), transition);
+	}
+
+	void EnterScene(InternalKey scene_key, const std::shared_ptr<Scene>& scene);
 
 	// Updates and flushes the current scene.
 	void Update();
@@ -161,16 +177,16 @@ private:
 	// still being updated.
 	void HandleSceneEvents();
 
-	std::shared_ptr<Scene> current_scene_{ nullptr };
+	std::pair<InternalKey, std::shared_ptr<Scene>> current_scene_;
 
 	struct Transition {
 		Transition() = default;
 
-		Transition(const SceneTransition& transition, const std::shared_ptr<Scene>& scene) :
-			transition{ transition }, scene{ scene } {}
+		Transition(const SceneTransition& transition, InternalKey scene_key) :
+			transition{ transition }, key{ scene_key } {}
 
 		SceneTransition transition;
-		std::shared_ptr<Scene> scene;
+		InternalKey key;
 	};
 
 	std::deque<Transition> transition_queue_;

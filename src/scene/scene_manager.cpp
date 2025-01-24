@@ -23,24 +23,26 @@ void SceneManager::EnterImpl(const InternalKey& scene_key, const SceneTransition
 		Has(scene_key),
 		"Cannot enter a scene which has not first been loaded into the scene manager"
 	);
-	bool first_scene{ current_scene_ == nullptr };
-	auto scene{ Get(scene_key) };
-
+	bool first_scene{ current_scene_.second == nullptr };
 	// Cannot transition to self.
-	if (scene == current_scene_) {
+	if (Get(scene_key) == current_scene_.second) {
 		return;
 	}
 
 	if (transition.type_ == TransitionType::None) {
-		scene->Add(Scene::Action::Enter);
+		Get(scene_key)->Add(Scene::Action::Enter);
+		if (!transition.keep_loaded_ && current_scene_.second != nullptr) {
+			current_scene_.second->Add(Scene::Action::Unload);
+		}
 	} else {
 		bool empty_queue{ transition_queue_.empty() };
 		// Cannot queue two transitions in a row to the same scene.
-		if (empty_queue || transition_queue_.front().scene != scene) {
-			transition_queue_.emplace_back(transition, scene);
+		if (empty_queue || transition_queue_.front().key != scene_key) {
+			transition_queue_.emplace_back(transition, scene_key);
 		}
 		if (empty_queue) {
-			transition.Start(scene);
+			bool from_valid_scene{ current_scene_.second != nullptr };
+			transition.Start(from_valid_scene, current_scene_.first, scene_key);
 		}
 	}
 
@@ -59,22 +61,22 @@ void SceneManager::UnloadAll() {
 
 Scene& SceneManager::GetCurrent() {
 	PTGN_ASSERT(HasCurrent(), "There is no current scene");
-	return *current_scene_;
+	return *current_scene_.second;
 }
 
 const Scene& SceneManager::GetCurrent() const {
 	PTGN_ASSERT(HasCurrent(), "There is no current scene");
-	return *current_scene_;
+	return *current_scene_.second;
 }
 
 bool SceneManager::HasCurrent() const {
-	return current_scene_ != nullptr;
+	return current_scene_.second != nullptr;
 }
 
 void SceneManager::Reset() {
 	UnloadAll();
 	HandleSceneEvents();
-	PTGN_ASSERT(current_scene_ == nullptr, "Failed to exit and unload current scene");
+	PTGN_ASSERT(current_scene_.second == nullptr, "Failed to exit and unload current scene");
 	transition_queue_ = {};
 	MapManager::Reset();
 }
@@ -83,24 +85,25 @@ void SceneManager::Shutdown() {
 	Reset();
 }
 
-void SceneManager::EnterScene(const std::shared_ptr<Scene>& scene) {
+void SceneManager::EnterScene(InternalKey scene_key, const std::shared_ptr<Scene>& scene) {
 	game.input.ResetKeyStates();
 	game.input.ResetMouseStates();
 	if (HasCurrent()) {
-		current_scene_->Exit();
+		current_scene_.second->Exit();
 	}
-	current_scene_ = scene;
-	current_scene_->Enter();
+	current_scene_.first  = scene_key;
+	current_scene_.second = scene;
+	current_scene_.second->Enter();
 }
 
 void SceneManager::Update() {
-	if (current_scene_ == nullptr) {
+	if (current_scene_.second == nullptr) {
 		return;
 	}
-	if (current_scene_->HasActions()) {
+	if (current_scene_.second->HasActions()) {
 		return;
 	}
-	current_scene_->Update();
+	current_scene_.second->Update();
 }
 
 void SceneManager::HandleSceneEvents() {
@@ -118,11 +121,11 @@ void SceneManager::HandleSceneEvents() {
 				case Scene::Action::Enter:
 					// Input is reset to ensure no previously pressed keys are considered held
 					// between scenes.
-					EnterScene(scene);
+					EnterScene(key, scene);
 					break;
 				case Scene::Action::Unload:
-					if (current_scene_ == scene) {
-						current_scene_->Exit();
+					if (current_scene_.second == scene) {
+						current_scene_.second->Exit();
 					}
 					unload = true;
 					break;
@@ -131,8 +134,8 @@ void SceneManager::HandleSceneEvents() {
 			scene->Remove(*action);
 		}
 
-		if (unload && scene == current_scene_) {
-			current_scene_ = nullptr;
+		if (unload && scene == current_scene_.second) {
+			current_scene_.second = nullptr;
 		}
 
 		if (unload) {
