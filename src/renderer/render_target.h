@@ -119,6 +119,13 @@ public:
 	// @param screen_coordinate The coordinate to be transformed.
 	[[nodiscard]] V2_float ScreenToTarget(const V2_float& screen_coordinate) const;
 
+	// @return The clear color of the render target.
+	[[nodiscard]] Color GetClearColor() const;
+
+	// @clear_color The clear color to set for the render target. This only takes effect after the
+	// render target is cleared.
+	void SetClearColor(const Color& clear_color);
+
 	// @return Texture attaached to the render target.
 	[[nodiscard]] const Texture& GetTexture() const;
 

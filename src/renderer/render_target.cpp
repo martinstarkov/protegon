@@ -238,6 +238,14 @@ void RenderTarget::Clear() const {
 	i.Clear();
 }
 
+Color RenderTarget::GetClearColor() const {
+	return Get().GetClearColor();
+}
+
+void RenderTarget::SetClearColor(const Color& clear_color) {
+	Get().SetClearColor(clear_color);
+}
+
 void RenderTarget::Draw(
 	const TextureInfo& texture_info, const Shader& shader, bool clear_after_draw
 ) const {
