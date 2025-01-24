@@ -219,7 +219,6 @@ public:
 	/*
 	 * @return True if manager contains the item, false otherwise.
 	 */
-	template <typename TKey>
 	[[nodiscard]] bool Contains(const VItem& item) const {
 		return std::find(vector_.begin(), vector_.end(), item) != vector_.end();
 	}
