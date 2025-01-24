@@ -196,6 +196,14 @@ struct Animation : public impl::SpriteSheet {
 	Animation(const Animation&)			   = default;
 	Animation& operator=(const Animation&) = default;
 
+	bool operator==(const Animation& o) const {
+		return tween == o.tween;
+	}
+
+	bool operator!=(const Animation& o) const {
+		return !(*this == o);
+	}
+
 	// TODO: Make animation info struct.
 	// @param frame_size Size of an individual animation frame (single sprite).
 	// @param origin Relative to what the draw offset is
@@ -213,6 +221,7 @@ struct Animation : public impl::SpriteSheet {
 			start_frame < GetCount(), "Start frame must be within sprite sheet frame count"
 		);
 		frame = std::make_shared<std::size_t>(start_frame);
+		tween.Create();
 	}
 
 	~Animation() {
@@ -253,6 +262,14 @@ struct Animation : public impl::SpriteSheet {
 
 	[[nodiscard]] bool IsPaused() const {
 		return tween.IsPaused();
+	}
+
+	// Start the animation if it is not running. If running, do nothing.
+	void StartIfNotRunning() {
+		if (IsRunning()) {
+			return;
+		}
+		Start();
 	}
 
 	void Start() {
@@ -325,14 +342,15 @@ public:
 	AnimationMap& operator=(const AnimationMap&)	 = delete;
 
 	// If the provided key is a not currently active, this function pauses the previously active
-	// animation.
-	void SetActive(const ActiveMapManager::Key& key) {
-		// Key already active, do nothing.
+	// animation. If the key is already active, does nothing.
+	// @return True if active value changed, false otherwise.
+	bool SetActive(const ActiveMapManager::Key& key) {
 		if (auto internal_key{ GetInternalKey(key) }; internal_key == active_key_) {
-			return;
+			return false;
 		}
 		GetActive().Pause();
 		ActiveMapManager::SetActive(key);
+		return true;
 	}
 
 	void Draw(ecs::Entity entity) const;
