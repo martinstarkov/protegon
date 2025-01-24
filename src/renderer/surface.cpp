@@ -193,7 +193,10 @@ Surface::Surface(
 		TTF_SetFontStyle(f, static_cast<int>(style));
 		TTF_SetFontWrappedAlign(f, static_cast<int>(wrap_alignment));
 		if (line_skip != std::numeric_limits<std::int32_t>::infinity()) {
+		// TODO: Re-enable this for Emscripten once it is supported (SDL_ttf 2.24.0).
+#ifndef __EMSCRIPTEN__
 			TTF_SetFontLineSkip(f, line_skip);
+#endif
 		}
 		if (ptsize != std::numeric_limits<std::int32_t>::infinity()) {
 			TTF_SetFontSize(f, ptsize);
@@ -233,7 +236,8 @@ Surface::Surface(
 		PTGN_ASSERT(surface != nullptr, "Failed to create surface for given font information");
 
 		return surface;
-	}) } {}
+	}) } {
+}
 
 void Surface::FlipVertically() {
 	PTGN_ASSERT(IsValid(), "Cannot vertically flip an invalid or uninitialized surface");
