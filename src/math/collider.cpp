@@ -125,7 +125,7 @@ Rect Collider::GetAbsolute(Rect relative_rect) const {
 	PTGN_ASSERT(parent.IsAlive());
 	PTGN_ASSERT(parent.Has<Transform>());
 
-	Transform transform{ parent.Get<Transform>() };
+	const Transform& transform{ parent.Get<Transform>() };
 
 	// If parent has an animation, use coordinate relative to top left.
 	// if (parent.Has<Animation>()) {
