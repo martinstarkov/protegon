@@ -210,7 +210,6 @@ void Camera::CenterOnArea(const V2_float& new_size) {
 }
 
 V2_float Camera::TransformToCamera(const V2_float& screen_relative_coordinate) const {
-	float zoom{ GetZoom() };
 	PTGN_ASSERT(zoom != 0.0f);
 	return (screen_relative_coordinate - size * 0.5f) / zoom + GetPosition();
 }
