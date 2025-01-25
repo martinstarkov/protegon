@@ -191,19 +191,6 @@ inline void DrawTexture(
 struct Animation : public impl::SpriteSheet {
 	Animation() = default;
 
-	Animation(Animation&&)				   = default;
-	Animation& operator=(Animation&&)	   = default;
-	Animation(const Animation&)			   = default;
-	Animation& operator=(const Animation&) = default;
-
-	bool operator==(const Animation& o) const {
-		return tween == o.tween;
-	}
-
-	bool operator!=(const Animation& o) const {
-		return !(*this == o);
-	}
-
 	// TODO: Make animation info struct.
 	// @param frame_size Size of an individual animation frame (single sprite).
 	// @param origin Relative to what the draw offset is
@@ -220,12 +207,45 @@ struct Animation : public impl::SpriteSheet {
 		PTGN_ASSERT(
 			start_frame < GetCount(), "Start frame must be within sprite sheet frame count"
 		);
-		frame = std::make_shared<std::size_t>(start_frame);
-		tween.Create();
+
+		current_frame = std::make_shared<std::size_t>(start_frame);
+
+		milliseconds frame_duration{ duration / GetCount() };
+
+		tween.During(frame_duration)
+			.Repeat(-1)
+			.OnStart([=]() { Invoke(on_start); })
+			.OnRepeat([=]() {
+				Invoke(on_repeat);
+				++(*current_frame);
+				*current_frame = Mod(*current_frame, GetCount());
+			})
+			.OnReset([=]() { *current_frame = start_frame; })
+			.OnUpdate([=](float t) { Invoke(on_update, t); });
+
+		game.tween.Add(tween).KeepAlive(true);
 	}
+
+	Animation& operator=(Animation&&)	   = default;
+	Animation(Animation&&)				   = default;
+	Animation& operator=(const Animation&) = delete;
+	Animation(const Animation&)			   = delete;
 
 	~Animation() {
 		game.tween.Remove(tween);
+		tween.Destroy();
+		on_start	  = nullptr;
+		on_repeat	  = nullptr;
+		on_update	  = nullptr;
+		current_frame = nullptr;
+	}
+
+	bool operator==(const Animation& o) const {
+		return tween == o.tween;
+	}
+
+	bool operator!=(const Animation& o) const {
+		return !(*this == o);
 	}
 
 	void Pause() {
@@ -273,23 +293,7 @@ struct Animation : public impl::SpriteSheet {
 	}
 
 	void Start() {
-		std::size_t start{ this->start_frame };
-		std::size_t frame_count{ GetCount() };
-		milliseconds frame_duration{ duration / frame_count };
-		tween = game.tween.Add(frame_duration)
-					.Repeat(-1)
-					.OnStart([=]() { Invoke(on_start); })
-					.OnRepeat([=]() {
-						Invoke(on_repeat);
-						auto& f{ *frame };
-						f = Mod(++f, frame_count);
-					})
-					.OnReset([=]() {
-						auto& f{ *frame };
-						f = start;
-					})
-					.OnUpdate([=](float t) { Invoke(on_update, t); })
-					.Start();
+		tween.Start();
 	}
 
 	void Toggle() {
@@ -307,13 +311,15 @@ struct Animation : public impl::SpriteSheet {
 	std::function<void(float)> on_update;
 
 	[[nodiscard]] std::size_t GetCurrentFrame() const {
-		PTGN_ASSERT(frame != nullptr, "Cannot retrieve current frame of uninitialized animation");
-		std::size_t f{ *frame };
-		PTGN_ASSERT(f < GetCount(), "Frame outside of animation sprite count");
-		return f;
+		PTGN_ASSERT(
+			current_frame != nullptr,
+			"Cannot get current frame before animation has been constructed"
+		);
+		PTGN_ASSERT(*current_frame < GetCount(), "Frame outside of animation sprite count");
+		return *current_frame;
 	}
 
-	Rect GetSource() const {
+	[[nodiscard]] Rect GetSource() const {
 		return Rect{ sprite_positions[GetCurrentFrame()], sprite_size, origin };
 	}
 
@@ -326,9 +332,8 @@ private:
 
 	milliseconds duration{ 0 };		 // Duration of the entire animation.
 
+	std::shared_ptr<std::size_t> current_frame;
 	std::size_t start_frame{ 0 };
-
-	std::shared_ptr<std::size_t> frame;
 };
 
 struct AnimationMap : public ActiveMapManager<Animation> {
