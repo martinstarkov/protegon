@@ -25,10 +25,7 @@ namespace impl {
 
 template <typename T, typename... TArgs>
 inline void InvokeCallback(const TweenCallback& callback, TArgs&&... args) {
-	auto& f = std::get<T>(callback);
-	if (f) {
-		std::invoke(f, std::forward<TArgs>(args)...);
-	}
+	Invoke(std::get<T>(callback), std::forward<TArgs>(args)...);
 }
 
 TweenInstance::~TweenInstance() {
@@ -396,6 +393,19 @@ Tween& Tween::Start() {
 	return *this;
 }
 
+Tween& Tween::IncrementTweenPoint() {
+	if (!IsRunning()) {
+		return *this;
+	}
+	auto& t{ Get() };
+	// Cannot increment final tween point any further.
+	if (t.index_ >= t.tweens_points_.size() - 1) {
+		return *this;
+	}
+	PointCompleted();
+	return *this;
+}
+
 Tween& Tween::StartIfNotRunning() {
 	if (IsRunning()) {
 		return *this;
@@ -522,12 +532,16 @@ void TweenManager::Update() {
 		step_tween(tween);
 	}
 
+	SetVector(v);
+
 	// Same as above.
 	std::unordered_map<InternalKey, Tween> m{ GetMap() };
 
 	for (auto& [k, tween] : m) {
 		step_tween(tween);
 	}
+
+	SetMap(m);
 
 	// Refresh in case there was changed during the steps.
 	v = GetVector();
@@ -536,12 +550,16 @@ void TweenManager::Update() {
 		delete_finished_tweens(v, *it, it);
 	}
 
+	SetVector(v);
+
 	// Same as above.
 	m = GetMap();
 
 	for (auto it{ m.begin() }; it != m.end();) {
 		delete_finished_tweens(m, it->second, it);
 	}
+
+	SetMap(m);
 }
 
 } // namespace impl

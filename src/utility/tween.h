@@ -237,6 +237,10 @@ public:
 	// Starts the tween only if it is not already running.
 	Tween& StartIfNotRunning();
 
+	// If there are future tween points, will simulate a tween point completion. If already at the
+	// final tween point or the tween is not running, does nothing.
+	Tween& IncrementTweenPoint();
+
 	Tween& Pause();
 	Tween& Resume();
 
