@@ -278,13 +278,13 @@ void Game::Update() {
 	dt_ = elapsed;
 
 	// TODO: Consider fixed FPS vs dynamic: https://gafferongames.com/post/fix_your_timestep/.
-	constexpr const float fps{ 60.0f };
-	dt_ = 1.0f / fps;
+	/*constexpr const float fps{ 60.0f };
+	dt_ = 1.0f / fps;*/
 
-	if (elapsed < dt_) {
+	/*if (elapsed < dt_) {
 		impl::SDLInstance::Delay(std::chrono::duration_cast<milliseconds>(duration<float>{
 			dt_ - elapsed }));
-	} // TODO: Add accumulator for when elapsed > dt (such as in Debug mode).
+	}*/ // TODO: Add accumulator for when elapsed > dt (such as in Debug mode).
 	// PTGN_LOG("Dt: ", dt_);
 
 	start = end;

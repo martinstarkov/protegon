@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <iosfwd>
 #include <ostream>
+#include <thread>
 
 #include "SDL.h"
 #include "SDL_error.h"
@@ -14,9 +15,9 @@
 #include "SDL_ttf.h"
 #include "SDL_version.h"
 #include "SDL_video.h"
-#include "utility/log.h"
 #include "renderer/gl_renderer.h"
 #include "utility/debug.h"
+#include "utility/log.h"
 #include "utility/time.h"
 
 inline std::ostream& operator<<(std::ostream& os, const SDL_version& v) {
@@ -80,8 +81,10 @@ void SDLInstance::Shutdown() {
 }
 
 void SDLInstance::Delay(milliseconds time) {
-	SDL_Delay(std::chrono::duration_cast<duration<std::uint32_t, milliseconds::period>>(time).count(
-	));
+	std::this_thread::sleep_for(time);
+	/*SDL_Delay(std::chrono::duration_cast<duration<std::uint32_t,
+	milliseconds::period>>(time).count(
+	));*/
 }
 
 void SDLInstance::InitSDL() {
@@ -100,8 +103,8 @@ void SDLInstance::InitSDL() {
 	SDL_version linked;
 	SDL_GetVersion(&linked);
 	PTGN_INFO("Initialized SDL2 version: ", linked);
-    
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, PTGN_OPENGL_CONTEXT_PROFILE);
+
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, PTGN_OPENGL_CONTEXT_PROFILE);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, PTGN_OPENGL_MAJOR_VERSION);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, PTGN_OPENGL_MINOR_VERSION);
 
