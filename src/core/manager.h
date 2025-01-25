@@ -50,9 +50,8 @@ public:
 			"Manager item must be constructible from provided constructor arguments"
 		);
 		auto k{ GetInternalKey(key) };
-		auto& item = map_[k];
-		item	   = std::move(Item{ std::forward<TArgs>(constructor_args)... });
-		return item;
+		auto [it, inserted] = map_.try_emplace(k, std::forward<TArgs>(constructor_args)...);
+		return it->second;
 	}
 
 	/*
@@ -181,6 +180,10 @@ protected:
 
 	using Map = std::unordered_map<InternalKey, Item>;
 
+	void SetMap(const Map& m) {
+		map_ = m;
+	}
+
 	[[nodiscard]] Map& GetMap() {
 		return map_;
 	}
@@ -294,6 +297,10 @@ public:
 protected:
 	using Vector = std::vector<VItem>;
 
+	void SetVector(const Vector& v) {
+		vector_ = v;
+	}
+
 	[[nodiscard]] Vector& GetVector() {
 		return vector_;
 	}
@@ -325,9 +332,10 @@ public:
 	ActiveMapManager(const ActiveMapManager&)				 = delete;
 	ActiveMapManager& operator=(const ActiveMapManager&)	 = delete;
 
-	ActiveMapManager(const Key& active_key, const Item& active_item) {
+	template <typename... TArgs>
+	ActiveMapManager(const Key& active_key, TArgs&&... constructor_args) {
 		MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::Load(
-			active_key, active_item
+			active_key, std::forward<TArgs>(constructor_args)...
 		);
 		SetActive(active_key);
 	}
