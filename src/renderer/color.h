@@ -39,6 +39,20 @@ struct Color {
 	constexpr Color(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a) :
 		r{ r }, g{ g }, b{ b }, a{ a } {}
 
+	// @param alpha [0.0f, 1.0f] value of transparency to set for the color.
+	[[nodiscard]] constexpr Color SetAlpha(float alpha) const {
+		Color c{ *this };
+		c.a = static_cast<std::uint8_t>(255.0f * alpha);
+		return c;
+	}
+
+	// @param alpha [0, 255] value of transparency to set for the color.
+	[[nodiscard]] constexpr Color SetAlpha(std::uint8_t alpha) const {
+		Color c{ *this };
+		c.a = alpha;
+		return c;
+	}
+
 	// @return Color values normalized to 0.0f -> 1.0f range.
 	[[nodiscard]] V4_float Normalized() const;
 

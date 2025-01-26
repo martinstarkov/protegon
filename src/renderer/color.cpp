@@ -1,5 +1,7 @@
 #include "renderer/color.h"
 
+#include <cstdint>
+
 #include "math/rng.h"
 #include "math/vector4.h"
 
