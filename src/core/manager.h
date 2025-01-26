@@ -1,14 +1,10 @@
 #pragma once
 
-#include <algorithm>
-#include <string_view>
 #include <type_traits>
 #include <unordered_map>
-#include <vector>
 
 #include "math/hash.h"
 #include "utility/debug.h"
-#include "utility/type_traits.h"
 
 namespace ptgn {
 
@@ -29,6 +25,7 @@ public:
 		"When not using hash function, manager template argument list must provide key which is "
 		"convertible to internal key"
 	);
+
 	// TODO: Add check that provided keys are hashable.
 	// static_assert(use_hash ? tt::is_hashable<Key, InternalKey> : true);
 
@@ -40,6 +37,7 @@ public:
 	MapManager& operator=(const MapManager&)	 = delete;
 
 	/*
+	 * If key already exists, does nothing.
 	 * @param key Unique id of the item to be loaded.
 	 * @return Reference to the loaded item.
 	 */
@@ -49,57 +47,54 @@ public:
 			std::is_constructible_v<Item, TArgs...>,
 			"Manager item must be constructible from provided constructor arguments"
 		);
-		auto k{ GetInternalKey(key) };
-		auto [it, inserted] = map_.try_emplace(k, std::forward<TArgs>(constructor_args)...);
+		auto [it, inserted] =
+			map_.try_emplace(GetInternalKey(key), std::forward<TArgs>(constructor_args)...);
 		return it->second;
 	}
 
 	/*
+	 * Unload an item from the manager.
 	 * @param key Id of the item to be unloaded.
 	 */
 	template <typename TKey>
 	void Unload(const TKey& key) {
-		auto k{ GetInternalKey(key) };
-		map_.erase(k);
+		map_.erase(GetInternalKey(key));
 	}
 
 	/*
+	 * Check if the manager has a specified item.
 	 * @param key Id of the item to be checked for.
 	 * @return True if manager contains key, false otherwise.
 	 */
 	template <typename TKey>
 	[[nodiscard]] bool Has(const TKey& key) const {
-		auto k{ GetInternalKey(key) };
-		auto it{ map_.find(k) };
-		return it != std::end(map_);
+		return map_.find(GetInternalKey(key)) != std::end(map_);
 	}
 
 	/*
-	 * @param key Id of the item to be retrieved.
-	 * @return Reference to the desired item.
-	 */
-	template <typename TKey>
-	[[nodiscard]] Item& Get(const TKey& key) {
-		auto k{ GetInternalKey(key) };
-		auto it{ map_.find(k) };
-		PTGN_ASSERT(it != std::end(map_), "Entry does not exist in manager");
-		return it->second;
-	}
-
-	/*
+	 * Retrieve a specified item from the manager.
 	 * @param key Id of the item to be retrieved.
 	 * @return Const reference to the desired item.
 	 */
 	template <typename TKey>
 	[[nodiscard]] const Item& Get(const TKey& key) const {
-		auto k{ GetInternalKey(key) };
-		auto it{ map_.find(k) };
+		auto it{ map_.find(GetInternalKey(key)) };
 		PTGN_ASSERT(it != std::end(map_), "Entry does not exist in manager");
 		return it->second;
 	}
 
 	/*
-	 * Clears the manager.
+	 * Retrieve a specified item from the manager.
+	 * @param key Id of the item to be retrieved.
+	 * @return Reference to the desired item.
+	 */
+	template <typename TKey>
+	[[nodiscard]] Item& Get(const TKey& key) {
+		return const_cast<Item&>(std::as_const(*this).Get(key));
+	}
+
+	/*
+	 * Clears all manager items. Maintains the capacity of the manager.
 	 */
 	void Clear() {
 		map_.clear();
@@ -119,10 +114,14 @@ public:
 		return map_.empty();
 	}
 
+	/*
+	 * Resets the manager entirely, including capacity.
+	 */
 	void Reset() {
 		map_ = {};
 	}
 
+	// Cycles through each value in the manager.
 	template <typename TFunc>
 	void ForEachValue(const TFunc& func) {
 		for (auto& [key, value] : map_) {
@@ -130,6 +129,7 @@ public:
 		}
 	}
 
+	// Cycles through each value in the manager.
 	template <typename TFunc>
 	void ForEachValue(const TFunc& func) const {
 		for (const auto& [key, value] : map_) {
@@ -137,6 +137,7 @@ public:
 		}
 	}
 
+	// Cycles through each key in the manager.
 	template <typename TFunc>
 	void ForEachKey(const TFunc& func) {
 		for (auto& [key, value] : map_) {
@@ -144,6 +145,7 @@ public:
 		}
 	}
 
+	// Cycles through each key in the manager.
 	template <typename TFunc>
 	void ForEachKey(const TFunc& func) const {
 		for (const auto& [key, value] : map_) {
@@ -151,6 +153,7 @@ public:
 		}
 	}
 
+	// Cycles through each key and value pair in the manager.
 	template <typename TFunc>
 	void ForEachKeyValue(const TFunc& func) {
 		for (auto& [key, value] : map_) {
@@ -158,6 +161,7 @@ public:
 		}
 	}
 
+	// Cycles through each key and value pair in the manager.
 	template <typename TFunc>
 	void ForEachKeyValue(const TFunc& func) const {
 		for (const auto& [key, value] : map_) {
@@ -166,6 +170,7 @@ public:
 	}
 
 protected:
+	// @return The key used internally by the manager when storing items (hashed or not).
 	template <typename TKey>
 	[[nodiscard]] static InternalKey GetInternalKey(const TKey& key) {
 		InternalKey k;
@@ -196,135 +201,18 @@ private:
 	Map map_;
 };
 
-template <typename ItemType>
-class VectorManager {
-public:
-	using VItem = ItemType;
-
-	// If item exists in manager, it is returned, otherwise a copy of the item is added.
-	VItem& Add(const VItem& item) {
-		for (auto& i : vector_) {
-			if (i == item) {
-				return i;
-			}
-		}
-		return vector_.emplace_back(item);
-	}
-
-	/*
-	 * @param item Removes all vector elements equal to the item. If item does not exist nothing
-	 * happens.
-	 */
-	void Remove(const VItem& item) {
-		vector_.erase(std::remove(vector_.begin(), vector_.end(), item), vector_.end());
-	}
-
-	/*
-	 * @return True if manager contains the item, false otherwise.
-	 */
-	[[nodiscard]] bool Contains(const VItem& item) const {
-		return std::find(vector_.begin(), vector_.end(), item) != vector_.end();
-	}
-
-	template <typename TFunc>
-	void ForEachValue(const TFunc& func) {
-		for (auto& value : vector_) {
-			std::invoke(func, value);
-		}
-	}
-
-	template <typename TFunc>
-	void ForEachValue(const TFunc& func) const {
-		for (const auto& value : vector_) {
-			std::invoke(func, value);
-		}
-	}
-
-	template <typename TFunc>
-	void ForEachIndex(const TFunc& func) const {
-		for (std::size_t i{ 0 }; i < vector_.size(); ++i) {
-			std::invoke(func, i);
-		}
-	}
-
-	template <typename TFunc>
-	void ForEachIndexValue(const TFunc& func) {
-		for (std::size_t i{ 0 }; i < vector_.size(); ++i) {
-			std::invoke(func, i, vector_[i]);
-		}
-	}
-
-	template <typename TFunc>
-	void ForEachIndexValue(const TFunc& func) const {
-		for (std::size_t i{ 0 }; i < vector_.size(); ++i) {
-			std::invoke(func, i, vector_[i]);
-		}
-	}
-
-	/*
-	 * Clears the vector manager. This does not result in 0 capacity. Use Reset() instead if memory
-	 * should be reset.
-	 */
-	void Clear() {
-		vector_.clear();
-	}
-
-	/*
-	 * @return Number of items in the manager.
-	 */
-	[[nodiscard]] std::size_t Size() const {
-		return vector_.size();
-	}
-
-	/*
-	 * @return True if the manager has no loaded items, false otherwise.
-	 */
-	[[nodiscard]] bool IsEmpty() const {
-		return vector_.empty();
-	}
-
-	// @param size How many vector elements to allocate memory for.
-	// Preallocate memory for a given number of elements in the vector manager.
-	void Reserve(std::size_t size) {
-		vector_.reserve(size);
-	}
-
-	// Reset the vector manager. This results in 0 capacity.
-	void Reset() {
-		vector_ = {};
-	}
-
-protected:
-	using Vector = std::vector<VItem>;
-
-	void SetVector(const Vector& v) {
-		vector_ = v;
-	}
-
-	[[nodiscard]] Vector& GetVector() {
-		return vector_;
-	}
-
-	[[nodiscard]] const Vector& GetVector() const {
-		return vector_;
-	}
-
-private:
-	Vector vector_;
-};
-
-// Same as MapManager but has some functions for tracking an active item.
+// Same as MapManager but has some additional functions for tracking an active item.
 template <
 	typename ItemType, typename ExternalKeyType = std::string_view,
 	typename InternalKeyType = std::size_t, bool use_hash = true>
 class ActiveMapManager : public MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash> {
 public:
-	using Key  = typename MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::Key;
-	using Item = typename MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::Item;
-	using InternalKey =
-		typename MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::InternalKey;
-	using MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::MapManager;
+	using Key		  = typename MapManager<ItemType>::Key;
+	using Item		  = typename MapManager<ItemType>::Item;
+	using InternalKey = typename MapManager<ItemType>::InternalKey;
+	using MapManager<ItemType>::MapManager;
 
+	// Requires providing an initial active item.
 	ActiveMapManager()										 = delete;
 	~ActiveMapManager() override							 = default;
 	ActiveMapManager(ActiveMapManager&&) noexcept			 = default;
@@ -332,102 +220,130 @@ public:
 	ActiveMapManager(const ActiveMapManager&)				 = delete;
 	ActiveMapManager& operator=(const ActiveMapManager&)	 = delete;
 
+	// Load the initial active item into the manager.
 	template <typename... TArgs>
 	ActiveMapManager(const Key& active_key, TArgs&&... constructor_args) {
-		MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::Load(
-			active_key, std::forward<TArgs>(constructor_args)...
-		);
+		MapManager<ItemType>::Load(active_key, std::forward<TArgs>(constructor_args)...);
 		SetActive(active_key);
 	}
 
+	// @return The current active manager item.
 	const Item& GetActive() const {
-		PTGN_ASSERT(
-			(MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::Has(active_key_))
-		);
-		return MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::Get(active_key_);
+		PTGN_ASSERT(MapManager<ItemType>::Has(active_key_), "Active element has not been set");
+		return MapManager<ItemType>::Get(active_key_);
 	}
 
+	// @return The current active manager item.
 	Item& GetActive() {
-		PTGN_ASSERT(
-			(MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::Has(active_key_))
-		);
-		return MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::Get(active_key_);
+		return const_cast<Item&>(std::as_const(*this).GetActive());
 	}
 
+	/*
+	 * Set the current active manager item.
+	 * @param key The key of the item to be set as active. It must be loaded in the manager
+	 * beforehand.
+	 */
 	void SetActive(const Key& key) {
 		PTGN_ASSERT(
-			(MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::Has(key)),
+			(MapManager<ItemType>::Has(key)),
 			"Key must be loaded into the manager before setting it as active"
 		);
-		active_key_ =
-			MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::GetInternalKey(key);
+		active_key_ = MapManager<ItemType>::GetInternalKey(key);
 	}
 
 protected:
 	InternalKey active_key_{ 0 };
 };
 
-// Inherits and combines both MapManager and VectorManager. Allows for mixing named and unnamed
-// items.
 template <
 	typename ItemType, typename ExternalKeyType = std::string_view,
 	typename InternalKeyType = std::size_t, bool use_hash = true>
-class VectorAndMapManager :
-	public VectorManager<ItemType>,
+class MapManagerWithNameless :
 	public MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash> {
 public:
-	using Key  = typename MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::Key;
-	using Item = typename MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::Item;
-	using InternalKey =
-		typename MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::InternalKey;
-	using MapManager<ItemType, ExternalKeyType, InternalKeyType, use_hash>::MapManager;
+	using Key		  = typename MapManager<ItemType>::Key;
+	using Item		  = typename MapManager<ItemType>::Item;
+	using InternalKey = typename MapManager<ItemType>::InternalKey;
+	using MapManager<ItemType>::MapManager;
 
-	VectorAndMapManager()										   = default;
-	~VectorAndMapManager() override								   = default;
-	VectorAndMapManager(VectorAndMapManager&&) noexcept			   = default;
-	VectorAndMapManager& operator=(VectorAndMapManager&&) noexcept = default;
-	VectorAndMapManager(const VectorAndMapManager&)				   = delete;
-	VectorAndMapManager& operator=(const VectorAndMapManager&)	   = delete;
+	MapManagerWithNameless()											 = default;
+	~MapManagerWithNameless() override									 = default;
+	MapManagerWithNameless(MapManagerWithNameless&&) noexcept			 = default;
+	MapManagerWithNameless& operator=(MapManagerWithNameless&&) noexcept = default;
+	MapManagerWithNameless(const MapManagerWithNameless&)				 = delete;
+	MapManagerWithNameless& operator=(const MapManagerWithNameless&)	 = delete;
 
+	/*
+	 * Load a nameless item into the manager. If the item already exists in the nameless list (based
+	 * on equals comparison), nothing happens.
+	 * @return Reference to the loaded nameless item.
+	 */
+	template <typename... TArgs, tt::constructible<Item, TArgs...> = true>
+	[[nodiscard]] Item& Load(TArgs&&... constructor_args) {
+		return nameless_.emplace_back(std::forward<TArgs>(constructor_args)...);
+	}
+
+	/*
+	 * Clears the manager (including nameless items).
+	 */
 	void Clear() {
+		nameless_.clear();
 		MapManager<ItemType>::Clear();
-		VectorManager<ItemType>::Clear();
 	}
 
-	void Reset() {
-		MapManager<ItemType>::Reset();
-		VectorManager<ItemType>::Reset();
-	}
-
+	/*
+	 * @return Number of items in the manager (including nameless items).
+	 */
 	[[nodiscard]] std::size_t Size() const {
-		return MapManager<ItemType>::Size() + VectorManager<ItemType>::Size();
+		return MapManager<ItemType>::Size() + nameless_.size();
 	}
 
+	/*
+	 * @return True if the manager has no items (including no nameless items), false otherwise.
+	 */
 	[[nodiscard]] bool IsEmpty() const {
-		return MapManager<ItemType>::IsEmpty() && VectorManager<ItemType>::IsEmpty();
+		return MapManager<ItemType>::IsEmpty() && nameless_.empty();
 	}
 
-	template <typename TFunc, bool VectorManagerFirst = true>
+	// Reset the manager containers (including nameless items).
+	void Reset() {
+		nameless_ = {};
+		MapManager<ItemType>::Reset();
+	}
+
+	// Cycles through all the nameless manager items, followed by all those with a key.
+	template <typename TFunc>
 	void ForEachValue(const TFunc& func) {
-		if constexpr (VectorManagerFirst) {
-			VectorManager<ItemType>::ForEachValue(func);
-			MapManager<ItemType>::ForEachValue(func);
-		} else {
-			MapManager<ItemType>::ForEachValue(func);
-			VectorManager<ItemType>::ForEachValue(func);
+		for (auto& value : nameless_) {
+			std::invoke(func, value);
 		}
+		MapManager<ItemType>::ForEachValue(func);
 	}
 
-	template <typename TFunc, bool VectorManagerFirst = true>
+	// Cycles through all the nameless manager items, followed by all those with a key.
+	template <typename TFunc>
 	void ForEachValue(const TFunc& func) const {
-		if constexpr (VectorManagerFirst) {
-			VectorManager<ItemType>::ForEachValue(func);
-			MapManager<ItemType>::ForEachValue(func);
-		} else {
-			MapManager<ItemType>::ForEachValue(func);
-			VectorManager<ItemType>::ForEachValue(func);
+		for (const auto& value : nameless_) {
+			std::invoke(func, value);
 		}
+		MapManager<ItemType>::ForEachValue(func);
 	}
+
+protected:
+	void SetNamelessContainer(const std::vector<Item>& nameless_container) {
+		nameless_ = nameless_container;
+	}
+
+	[[nodiscard]] std::vector<Item>& GetNamelessContainer() {
+		return nameless_;
+	}
+
+	[[nodiscard]] const std::vector<Item>& GetNamelessContainer() const {
+		return nameless_;
+	}
+
+private:
+	std::vector<Item> nameless_;
 };
 
 } // namespace ptgn
