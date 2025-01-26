@@ -66,8 +66,7 @@ private:
 	float intensity_{ 10.0f };
 };
 
-// TODO: Move back to using MapManager.
-class LightManager : public VectorAndMapManager<Light> {
+class LightManager : public MapManager<Light> {
 public:
 	LightManager()									 = default;
 	~LightManager() override						 = default;

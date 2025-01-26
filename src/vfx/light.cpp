@@ -98,7 +98,7 @@ void LightManager::Draw() const {
 }
 
 void LightManager::Reset() {
-	VectorAndMapManager<Light>::Reset();
+	MapManager<Light>::Reset();
 	blur_ = false;
 }
 
