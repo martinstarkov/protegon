@@ -60,6 +60,9 @@ void Text::Draw(const Rect& destination, std::int32_t render_layer) const {
 	if (!GetVisibility()) {
 		return;
 	}
+	if (GetColor().a == 0) {
+		return;
+	}
 	if (GetContent().empty()) {
 		return;
 	}
