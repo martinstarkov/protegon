@@ -24,6 +24,7 @@ class InputHandler;
 class Renderer;
 class SceneManager;
 class CameraManager;
+class JsonManager;
 class Physics;
 class CollisionHandler;
 class UserInterface;
@@ -190,6 +191,12 @@ private:
 
 public:
 	SoundManager& sound;
+
+private:
+	std::unique_ptr<JsonManager> json_;
+
+public:
+	JsonManager& json;
 
 private:
 	std::unique_ptr<FontManager> font_;

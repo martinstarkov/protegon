@@ -23,6 +23,7 @@
 #include "renderer/texture.h"
 #include "scene/camera.h"
 #include "scene/scene_manager.h"
+#include "serialization/json_manager.h"
 #include "ui/ui.h"
 #include "utility/debug.h"
 #include "utility/profiling.h"
@@ -149,6 +150,8 @@ Game::Game() :
 	music{ *music_ },
 	sound_{ std::make_unique<SoundManager>() },
 	sound{ *sound_ },
+	json_{ std::make_unique<JsonManager>() },
+	json{ *json_ },
 	font_{ std::make_unique<FontManager>() },
 	font{ *font_ },
 	text_{ std::make_unique<TextManager>() },
@@ -225,6 +228,7 @@ void Game::Shutdown() {
 	font.Reset();
 	sound.Reset();
 	music.Reset();
+	json.Reset();
 
 	renderer.Shutdown();
 	input.Shutdown();
