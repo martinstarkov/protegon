@@ -17,7 +17,6 @@ public:
 	using Key		  = ExternalKeyType;
 	using InternalKey = InternalKeyType;
 
-public:
 	static_assert(
 		!use_hash
 			? (std::is_convertible_v<Key, InternalKey> || std::is_constructible_v<InternalKey, Key>)
