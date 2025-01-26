@@ -45,10 +45,9 @@ using TweenCallback = std::variant<
 	std::function<void(Tween&, float)>, std::function<void(Tween&)>, std::function<void(float)>,
 	std::function<void()>>;
 
-using TweenDestroyCallback = std::function<void()>;
-
 namespace impl {
 
+class Game;
 class TweenManager;
 
 using TweenEaseFunction = std::function<float(float, float, float)>;
@@ -116,6 +115,11 @@ const static std::unordered_map<TweenEase, TweenEaseFunction> tween_ease_functio
 struct TweenPoint {
 	explicit TweenPoint(milliseconds duration) : duration_{ duration } {}
 
+	void SetReversed(bool reversed) {
+		start_reversed_		= reversed;
+		currently_reversed_ = start_reversed_;
+	}
+
 	milliseconds duration_{ 0 };
 
 	TweenEaseFunction easing_func_{
@@ -126,11 +130,12 @@ struct TweenPoint {
 
 	std::int64_t total_repeats_{
 		0
-	};						 // total number of repetitions of the tween (-1 for infinite tween).
+	};					 // total number of repetitions of the tween (-1 for infinite tween).
 
-	bool yoyo_{ false };	 // go back and fourth between values (requires repeat != 0) (both
-							 // directions take duration time).
-	bool reversed_{ false }; // start reversed.
+	bool yoyo_{ false }; // go back and fourth between values (requires repeat != 0) (both
+						 // directions take duration time).
+	bool currently_reversed_{ false };
+	bool start_reversed_{ false };
 
 	TweenCallback on_complete_;
 	TweenCallback on_repeat_;
@@ -155,17 +160,9 @@ struct TweenInstance {
 	// or yoyoing.
 	float progress_{ 0.0f };
 
-	// Internally tracked variable of whether or not the tween is currently in the tween manager.
-	mutable bool manager_tween_{ false };
-
-	// Whether to invalidate the tween handle upon completion. If true AND manager_tween_ is true,
-	// the tween is unloaded from the tween manager upon creation.
-	bool destroy_on_complete_{ false };
-
 	std::size_t index_{ 0 };
 	std::vector<TweenPoint> tweens_points_;
 
-	TweenDestroyCallback on_destroy_;
 	TweenCallback on_reset_;
 
 	bool paused_{ false };
@@ -186,7 +183,6 @@ struct TweenInstance {
 class Tween : public Handle<impl::TweenInstance> {
 public:
 	Tween() = default;
-	explicit Tween(milliseconds duration);
 
 	Tween& During(milliseconds duration);
 	Tween& Ease(TweenEase ease);
@@ -204,20 +200,24 @@ public:
 	Tween& OnResume(const TweenCallback& callback);
 	Tween& OnRepeat(const TweenCallback& callback);
 	Tween& OnYoyo(const TweenCallback& callback);
-	Tween& OnDestroy(const TweenDestroyCallback& callback);
 	Tween& OnReset(const TweenCallback& callback);
 
+	// @return Current progress of the tween [0.0f, 1.0f].
 	[[nodiscard]] float GetProgress() const;
-	[[nodiscard]] std::int64_t GetRepeats() const;
 
-	// @param keep_alive If true, do not reset tween upon completion.
-	Tween& KeepAlive(bool keep_alive);
+	// @return Current number of repeats of the current tween point.
+	[[nodiscard]] std::int64_t GetRepeats() const;
 
 	// @return True if the tween is started and not paused.
 	[[nodiscard]] bool IsRunning() const;
 
+	// @return True if the tween has completed all of its tween points.
 	[[nodiscard]] bool IsCompleted() const;
+
+	// @return True if the tween has been started or is currently paused.
 	[[nodiscard]] bool IsStarted() const;
+
+	// @return True if the tween is currently paused.
 	[[nodiscard]] bool IsPaused() const;
 
 	// TODO: Implement and test.
@@ -227,8 +227,13 @@ public:
 	//}
 
 	// dt in seconds.
+	// @return New progress of the tween after stepping.
 	float Step(float dt);
+
+	// @return New progress of the tween after seeking.
 	float Seek(float new_progress);
+
+	// @return New progress of the tween after seeking.
 	float Seek(milliseconds time);
 
 	// Resets and starts the tween. Will restart paused tweens.
@@ -237,24 +242,27 @@ public:
 	// Starts the tween only if it is not already running.
 	Tween& StartIfNotRunning();
 
-	// If there are future tween points, will simulate a tween point completion. If already at the
-	// final tween point or the tween is not running, does nothing.
+	// If there are future tween points, will simulate a tween point completion. If the tween has
+	// completed or is in the middle of the final tween point, this function does nothing.
 	Tween& IncrementTweenPoint();
 
+	// Pause the tween.
 	Tween& Pause();
+
+	// Resume the tween.
 	Tween& Resume();
 
 	// Will trigger OnStop callback if tween was started or completed.
 	Tween& Reset();
 
+	// Stops the tween.
 	Tween& Stop();
-	Tween& Complete();
-	Tween& Forward();
-	Tween& Backward();
 
 	// Clears previously assigned tween points.
 	Tween& Clear();
 
+	// @param tween_point_index Which tween point to query to duration of.
+	// @return The duration of the specified tween point.
 	template <typename Duration = milliseconds>
 	[[nodiscard]] Duration GetDuration(std::size_t tween_point_index = 0) const {
 		const auto& t{ Get() };
@@ -266,26 +274,31 @@ public:
 		return std::chrono::duration_cast<Duration>(t.tweens_points_[tween_point_index].duration_);
 	}
 
+	// @param duration Duration to set for the tween.
+	// @param tween_point_index Which tween point to set the duration of.
 	Tween& SetDuration(milliseconds duration, std::size_t tween_point_index = 0);
 
 private:
 	friend class impl::TweenManager;
-	friend struct Animation;
 
+	// @return New progress of the tween after seeking.
 	[[nodiscard]] float SeekImpl(float new_progress);
+	// @return New progress of the tween after stepping.
 	[[nodiscard]] float StepImpl(float dt, bool accumulate_progress);
+	// @return New progress of the tween after accumulating.
 	[[nodiscard]] float AccumulateProgress(float new_progress);
 
 	void ActivateCallback(const TweenCallback& callback);
 	void PointCompleted();
 	void HandleCallbacks(bool suppress_update);
 
+	// @return New progress of the tween after updating.
 	float UpdateImpl(bool suppress_update = false);
 };
 
 namespace impl {
 
-class TweenManager : public VectorAndMapManager<Tween> {
+class TweenManager : public MapManagerWithNameless<Tween> {
 public:
 	TweenManager()									 = default;
 	~TweenManager() override						 = default;
@@ -294,38 +307,37 @@ public:
 	TweenManager(const TweenManager&)				 = delete;
 	TweenManager& operator=(const TweenManager&)	 = delete;
 
-	template <typename TKey, typename... TArgs, tt::constructible<Tween, TArgs...> = true>
-	Tween& Load(const TKey& key, TArgs&&... constructor_args) {
-		Tween tween{ std::forward<TArgs>(constructor_args)... };
-		// By default tweens loaded into tween manager are unloaded upon completion.
-		tween.KeepAlive(false);
-		tween.Get().manager_tween_ = true;
-		return MapManager::Load(key, std::move(tween));
-	}
-
-	template <typename... TArgs, tt::constructible<Tween, TArgs...> = true>
-	Tween& Add(TArgs&&... constructor_args) {
-		Tween tween{ std::forward<TArgs>(constructor_args)... };
-		// By default tweens loaded into tween manager are unloaded upon completion.
-		tween.KeepAlive(false);
-		tween.Get().manager_tween_ = true;
-		return VectorManager::Add(tween);
-	}
-
+	/*
+	 * Load a uniquely identifiable tween into the manager.
+	 * If the tween key already exists, does nothing.
+	 * @param key Unique id of the item to be loaded.
+	 * @return Reference to the loaded item.
+	 */
 	template <typename TKey>
-	void Unload(const TKey& key) {
-		auto& map{ GetMap() };
-		auto it{ map.find(GetInternalKey(key)) };
-		if (it == map.end()) {
-			return;
-		}
-		if (!VectorManager::Contains(it->second)) {
-			it->second.Get().manager_tween_ = false;
-		}
-		map.erase(it);
+	Item& Load(const TKey& key) {
+		Tween t;
+		t.Create();
+		return MapManagerWithNameless<Tween>::Load(key, std::move(t));
 	}
 
-	void Remove(const Tween& item);
+	/*
+	 * Tweens without a key will be unloaded once the following two conditions are met:
+	 * 1. The tween is completed.
+	 * 2. The returned tween handle reaches a reference count of 1, i.e. it only exists in the tween
+	 * manager. If the nameless tween already exists in the nameless list (based on equals
+	 * comparison), this function does nothing.
+	 * @return Reference handle to the loaded nameless tween.
+	 */
+	[[nodiscard]] Tween& Load() {
+		Tween t;
+		t.Create();
+		return MapManagerWithNameless<Tween>::Load(std::move(t));
+	}
+
+private:
+	using InternalKey = typename MapManagerWithNameless<Tween>::InternalKey;
+
+	friend class Game;
 
 	void Update();
 };

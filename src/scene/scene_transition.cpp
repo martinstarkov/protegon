@@ -90,7 +90,7 @@ void SceneTransition::Start(
 		return;
 	}
 
-	Tween tween;
+	Tween tween{ game.tween.Load() };
 
 	// TODO: Remove temporary:
 	PTGN_ASSERT(
@@ -219,7 +219,7 @@ void SceneTransition::Start(
 		default:							   PTGN_ERROR("Invalid transition type");
 	}
 	tween.During(milliseconds{ 0 }).OnComplete([&]() { std::invoke(start_next_scene); });
-	game.tween.Add(tween).Start();
+	tween.Start();
 }
 
 } // namespace ptgn

@@ -196,14 +196,16 @@ struct Animation : public impl::SpriteSheet {
 	// @param origin Relative to what the draw offset is
 	Animation(
 		const Texture& texture, std::size_t frame_count, const V2_float& frame_size,
-		milliseconds duration, const V2_float& start_pixel = {}, const V2_float& draw_offset = {},
-		Origin origin = Origin::Center, std::size_t start_frame = 0
+		milliseconds animation_duration, const V2_float& start_pixel = {},
+		const V2_float& texture_draw_offset = {}, Origin animation_origin = Origin::Center,
+		std::size_t starting_frame = 0
 	) :
 		impl::SpriteSheet{ texture, frame_count, frame_size, start_pixel } {
-		this->duration	  = duration;
-		this->draw_offset = draw_offset;
-		this->origin	  = origin;
-		this->start_frame = start_frame;
+		duration	= animation_duration;
+		draw_offset = texture_draw_offset;
+		origin		= animation_origin;
+		start_frame = starting_frame;
+
 		PTGN_ASSERT(
 			start_frame < GetCount(), "Start frame must be within sprite sheet frame count"
 		);
@@ -212,32 +214,17 @@ struct Animation : public impl::SpriteSheet {
 
 		milliseconds frame_duration{ duration / GetCount() };
 
-		tween.During(frame_duration)
-			.Repeat(-1)
-			.OnStart([=]() { Invoke(on_start); })
-			.OnRepeat([=]() {
-				Invoke(on_repeat);
-				++(*current_frame);
-				*current_frame = Mod(*current_frame, GetCount());
-			})
-			.OnReset([=]() { *current_frame = start_frame; })
-			.OnUpdate([=](float t) { Invoke(on_update, t); });
-
-		game.tween.Add(tween).KeepAlive(true);
-	}
-
-	Animation& operator=(Animation&&)	   = default;
-	Animation(Animation&&)				   = default;
-	Animation& operator=(const Animation&) = delete;
-	Animation(const Animation&)			   = delete;
-
-	~Animation() {
-		game.tween.Remove(tween);
-		tween.Destroy();
-		on_start	  = nullptr;
-		on_repeat	  = nullptr;
-		on_update	  = nullptr;
-		current_frame = nullptr;
+		tween = game.tween.Load()
+					.During(frame_duration)
+					.Repeat(-1)
+					.OnStart([=]() { Invoke(on_start); })
+					.OnRepeat([=]() {
+						Invoke(on_repeat);
+						++(*current_frame);
+						*current_frame = Mod(*current_frame, GetCount());
+					})
+					.OnReset([=]() { *current_frame = start_frame; })
+					.OnUpdate([=](float t) { Invoke(on_update, t); });
 	}
 
 	bool operator==(const Animation& o) const {

@@ -6,13 +6,11 @@
 #include <functional>
 #include <list>
 #include <type_traits>
-#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
 
 #include "core/game.h"
-#include "core/manager.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
 #include "utility/log.h"
@@ -28,11 +26,7 @@ inline void InvokeCallback(const TweenCallback& callback, TArgs&&... args) {
 	Invoke(std::get<T>(callback), std::forward<TArgs>(args)...);
 }
 
-TweenInstance::~TweenInstance() {
-	if (on_destroy_) {
-		std::invoke(on_destroy_);
-	}
-}
+TweenInstance::~TweenInstance() {}
 
 bool TweenInstance::IsCompleted() const {
 	return !tweens_points_.empty() && progress_ >= 1.0f &&
@@ -53,7 +47,7 @@ float TweenInstance::GetNewProgress(duration<float> time) const {
 float TweenInstance::GetProgress() const {
 	auto& current{ GetCurrentTweenPoint() };
 
-	float progress = current.reversed_ ? 1.0f - progress_ : progress_;
+	float progress = current.currently_reversed_ ? 1.0f - progress_ : progress_;
 
 	PTGN_ASSERT(progress >= 0.0f && progress <= 1.0f, "Progress updating failed");
 
@@ -82,10 +76,6 @@ TweenPoint& TweenInstance::GetLastTweenPoint() {
 
 } // namespace impl
 
-Tween::Tween(milliseconds duration) {
-	During(duration);
-}
-
 Tween& Tween::During(milliseconds duration) {
 	PTGN_ASSERT(duration >= nanoseconds{ 0 }, "Tween duration cannot be negative");
 	Create();
@@ -108,13 +98,6 @@ float Tween::Seek(milliseconds time) {
 float Tween::GetProgress() const {
 	auto& t{ Get() };
 	return t.GetProgress();
-}
-
-Tween& Tween::KeepAlive(bool keep_alive) {
-	Create();
-	auto& i{ Get() };
-	i.destroy_on_complete_ = !keep_alive;
-	return *this;
 }
 
 bool Tween::IsCompleted() const {
@@ -160,7 +143,11 @@ Tween& Tween::Ease(TweenEase ease) {
 }
 
 Tween& Tween::Reverse(bool reversed) {
-	Get().GetLastTweenPoint().reversed_ = reversed;
+	if (IsStarted()) {
+		Get().GetLastTweenPoint().currently_reversed_ = reversed;
+	} else {
+		Get().GetLastTweenPoint().SetReversed(reversed);
+	}
 	return *this;
 }
 
@@ -169,24 +156,9 @@ Tween& Tween::Yoyo(bool yoyo) {
 	return *this;
 }
 
-Tween& Tween::Forward() {
-	Reverse(false);
-	return *this;
-}
-
-Tween& Tween::Backward() {
-	Reverse(true);
-	return *this;
-}
-
 Tween& Tween::Clear() {
 	Reset();
 	Get().tweens_points_.clear();
-	return *this;
-}
-
-Tween& Tween::Complete() {
-	Seek(Get().GetCurrentTweenPoint().reversed_ ? 0.0f : 1.0f);
 	return *this;
 }
 
@@ -244,11 +216,6 @@ Tween& Tween::OnYoyo(const TweenCallback& callback) {
 	return *this;
 }
 
-Tween& Tween::OnDestroy(const TweenDestroyCallback& callback) {
-	Get().on_destroy_ = callback;
-	return *this;
-}
-
 Tween& Tween::OnReset(const TweenCallback& callback) {
 	Get().on_reset_ = callback;
 	return *this;
@@ -276,14 +243,12 @@ void Tween::PointCompleted() {
 	ActivateCallback(t.GetCurrentTweenPoint().on_complete_);
 	if (t.index_ < t.tweens_points_.size() - 1) {
 		t.index_++;
-		t.progress_ = 0.0f;
+		t.progress_									 = 0.0f;
+		t.GetCurrentTweenPoint().currently_reversed_ = t.GetCurrentTweenPoint().start_reversed_;
 		ActivateCallback(t.GetCurrentTweenPoint().on_start_);
 	} else {
 		t.progress_ = 1.0f;
 		t.started_	= false;
-		if (!t.manager_tween_ && t.destroy_on_complete_) {
-			Destroy();
-		}
 	}
 }
 
@@ -318,7 +283,7 @@ void Tween::HandleCallbacks(bool suppress_update) {
 
 	// Reverse yoyoing tweens.
 	if (current.yoyo_) {
-		current.reversed_ = !current.reversed_;
+		current.currently_reversed_ = !current.currently_reversed_;
 		ActivateCallback(current.on_yoyo_);
 	}
 
@@ -341,7 +306,7 @@ float Tween::UpdateImpl(bool suppress_update) {
 	HandleCallbacks(suppress_update);
 
 	// After completion and destruction.
-	if (!IsValid()) {
+	if (!IsValid() || (!t.started_ && t.progress_ == 1.0f)) {
 		return 1.0f;
 	}
 
@@ -378,7 +343,8 @@ Tween& Tween::Reset() {
 	t.started_	= false;
 	t.paused_	= false;
 	for (auto& point : t.tweens_points_) {
-		point.current_repeat_ = 0;
+		point.current_repeat_	  = 0;
+		point.currently_reversed_ = point.start_reversed_;
 	}
 	return *this;
 }
@@ -394,12 +360,11 @@ Tween& Tween::Start() {
 }
 
 Tween& Tween::IncrementTweenPoint() {
-	if (!IsRunning()) {
+	if (IsCompleted()) {
 		return *this;
 	}
-	auto& t{ Get() };
 	// Cannot increment final tween point any further.
-	if (t.index_ >= t.tweens_points_.size() - 1) {
+	if (const auto& t{ Get() }; t.index_ >= t.tweens_points_.size() - 1) {
 		return *this;
 	}
 	PointCompleted();
@@ -485,16 +450,6 @@ float Tween::AccumulateProgress(float new_progress) {
 
 namespace impl {
 
-void TweenManager::Remove(const Tween& item) {
-	if (!VectorManager::Contains(item)) {
-		return;
-	}
-	if (item.IsValid() && !MapContains(GetMap(), item)) {
-		item.Get().manager_tween_ = false;
-	}
-	VectorManager::Remove(item);
-}
-
 void TweenManager::Update() {
 	// TODO: Figure out how to do timestep accumulation outside of tweens, using
 	// StepImpl(dt, false) and some added logic outside of this loop. This is important
@@ -507,59 +462,45 @@ void TweenManager::Update() {
 
 	float dt{ game.dt() };
 
-	auto step_tween = [&](Tween& tween) {
+	auto step = [dt](auto& tween) {
 		if (tween.IsValid()) {
 			tween.Step(dt);
 		}
 	};
 
-	auto delete_finished_tweens = [&](auto& container, Tween& tween, auto& it) {
-		if (!tween.IsValid()) {
-			it = container.erase(it);
-		} else if (tween.Get().destroy_on_complete_ && tween.IsCompleted()) {
-			PTGN_ASSERT(tween.Get().manager_tween_, "Tween manager flag was wrongly set to false");
-			it = container.erase(it);
+	// Copying container to avoid iterator invalidation, e.g. in case a tween callback adds another
+	// tween.
+	auto nameless_tweens{ GetNamelessContainer() };
+
+	for (auto& tween : nameless_tweens) {
+		step(tween);
+	}
+
+	// Copying container to avoid iterator invalidation, e.g. in case a tween callback adds another
+	// tween.
+	auto named_tweens{ GetMap() };
+
+	for (auto& [key, tween] : named_tweens) {
+		step(tween);
+	}
+
+	// Must be cleared because these containers have incremented the tween reference counters.
+	nameless_tweens = {};
+	named_tweens	= {};
+
+	auto& v{ GetNamelessContainer() };
+
+	for (auto it{ v.begin() }; it != v.end();) {
+		// Erase all tween which have been destroyed, or have completed (or are unstarted) and their
+		// handles only have one strong reference, meaning they only exist as nameless tweens in the
+		// tween manager.
+		if (!it->IsValid() ||
+			it->GetPtr().use_count() <= 1 && (it->IsCompleted() || !it->IsStarted())) {
+			it = v.erase(it);
 		} else {
 			++it;
 		}
-	};
-
-	// Copying here so if a new tween is added during a tween update it wont mess with the container
-	// iterators.
-	std::vector<Tween> v{ GetVector() };
-
-	for (auto& tween : v) {
-		step_tween(tween);
 	}
-
-	SetVector(v);
-
-	// Same as above.
-	std::unordered_map<InternalKey, Tween> m{ GetMap() };
-
-	for (auto& [k, tween] : m) {
-		step_tween(tween);
-	}
-
-	SetMap(m);
-
-	// Refresh in case there was changed during the steps.
-	v = GetVector();
-
-	for (auto it{ v.begin() }; it != v.end();) {
-		delete_finished_tweens(v, *it, it);
-	}
-
-	SetVector(v);
-
-	// Same as above.
-	m = GetMap();
-
-	for (auto it{ m.begin() }; it != m.end();) {
-		delete_finished_tweens(m, it->second, it);
-	}
-
-	SetMap(m);
 }
 
 } // namespace impl
