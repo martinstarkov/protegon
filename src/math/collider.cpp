@@ -171,7 +171,7 @@ BoxColliderGroup::BoxColliderGroup(ecs::Entity parent, const ecs::Manager& group
 // @param origin Origin of the box collider relative to its local position.
 // @param enabled Enable/disable collider by default.
 ecs::Entity BoxColliderGroup::AddBox(
-	const Name& name, const V2_float& position, float rotation, const V2_float& size, Origin origin,
+	const Name& name, const V2_float& offset, float rotation, const V2_float& size, Origin origin,
 	bool enabled, CollisionCategory category, const CollidesWithCategories& categories,
 	const CollisionCallback& on_collision_start, const CollisionCallback& on_collision,
 	const CollisionCallback& on_collision_stop,
@@ -180,7 +180,7 @@ ecs::Entity BoxColliderGroup::AddBox(
 ) {
 	auto entity{ group.CreateEntity() };
 	auto& box{ entity.Add<BoxCollider>(parent, size, origin, rotation) };
-	box.offset	= position;
+	box.offset	= offset;
 	box.enabled = enabled;
 	box.SetCollisionCategory(category);
 	box.SetCollidesWith(categories);
