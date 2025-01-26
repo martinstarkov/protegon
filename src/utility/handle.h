@@ -28,6 +28,10 @@ public:
 	}
 
 protected:
+	void Set(const std::shared_ptr<T>& other) {
+		instance_ = other;
+	}
+
 	const T& Get() const {
 		PTGN_ASSERT(IsValid(), "Uninitialized instance");
 		return *instance_;
@@ -52,6 +56,10 @@ protected:
 
 	void Destroy() {
 		instance_ = nullptr;
+	}
+
+	[[nodiscard]] const std::shared_ptr<T>& GetPtr() const {
+		return instance_;
 	}
 
 private:
