@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <iosfwd>
@@ -10,6 +11,7 @@
 #include "math/rng.h"
 #include "math/vector4.h"
 #include "renderer/color.h"
+#include "serialization/fwd.h"
 #include "utility/debug.h"
 #include "utility/type_traits.h"
 
@@ -64,6 +66,12 @@ struct Vector2 {
 	template <typename U, tt::narrowing<U, T> = true>
 	explicit constexpr Vector2(const Vector2<U>& o) :
 		x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
+
+	template <typename U>
+	explicit constexpr Vector2(const std::array<U, 2>& o) :
+		x{ static_cast<T>(o[0]) }, y{ static_cast<T>(o[1]) } {}
+
+	explicit Vector2(const json& j);
 
 	void Draw(const Color& color, float radius = 1.0f, std::int32_t render_layer = 0) const {
 		impl::Point::Draw(

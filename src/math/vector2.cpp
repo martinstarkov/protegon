@@ -11,6 +11,7 @@
 #include "renderer/origin.h"
 #include "renderer/render_data.h"
 #include "renderer/renderer.h"
+#include "serialization/json.h"
 #include "utility/debug.h"
 
 namespace ptgn {
@@ -44,6 +45,17 @@ void Point::Draw(float x, float y, const Color& color, float radius, std::int32_
 }
 
 } // namespace impl
+
+template <typename T>
+Vector2<T>::Vector2(const json& j) {
+	PTGN_ASSERT(j.is_array(), "Cannot create Vector2 from json object which is not an array");
+	PTGN_ASSERT(
+		j.size() == 2,
+		"Cannot create Vector2 from json array object which is not exactly 2 elements"
+	);
+	j[0].get_to(x);
+	j[1].get_to(y);
+}
 
 template <typename T>
 bool Vector2<T>::IsZero() const {
