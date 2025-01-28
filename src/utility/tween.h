@@ -317,7 +317,7 @@ public:
 	Item& Load(const TKey& key) {
 		Tween t;
 		t.Create();
-		return MapManagerWithNameless<Tween>::Load(key, std::move(t));
+		return MapManager<Tween>::Load(key, std::move(t));
 	}
 
 	/*
