@@ -71,6 +71,7 @@ typedef void(GL_APIENTRYP PFNGLCLEARBUFFERUIVPROC)(
 #define DeleteShader			glDeleteShader
 #define GetShaderiv				glGetShaderiv
 #define GetProgramiv			glGetProgramiv
+#define GetUniformLocation      glGetUniformLocation
 #define GetShaderInfoLog		glGetShaderInfoLog
 #define GetProgramInfoLog		glGetProgramInfoLog
 #define AttachShader			glAttachShader

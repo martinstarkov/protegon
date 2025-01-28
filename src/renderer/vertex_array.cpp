@@ -50,34 +50,27 @@ bool VertexArray::WithinMaxAttributes(std::int32_t attribute_count) {
 }
 
 void VertexArray::Bind() const {
-	if (game.renderer.bound_vertex_array_ == *this) {
-		return;
-	}
 	PTGN_ASSERT(IsValid(), "Cannot bind invalid or uninitialized vertex array");
 	Bind(Get().id_);
-	game.renderer.bound_vertex_array_ = *this;
-#ifdef PTGN_DEBUG
-	++game.stats.vertex_array_binds;
-#endif
 }
 
 void VertexArray::Bind(std::uint32_t id) {
+	if (game.renderer.bound_vertex_array_id_ == id) {
+		return;
+	}
+	game.renderer.bound_vertex_array_id_ = id;
 	GLCall(gl::BindVertexArray(id));
+#ifdef PTGN_DEBUG
+	++game.stats.vertex_array_binds;
+#endif
 #ifdef GL_ANNOUNCE_VERTEX_ARRAY_CALLS
 	PTGN_LOG("GL: Bound vertex array with id ", id);
 #endif
 }
 
 void VertexArray::Unbind() {
-	if (game.renderer.bound_vertex_array_ == VertexArray{}) {
-		return;
-	}
-	game.renderer.bound_vertex_array_ = {};
 #ifndef PTGN_PLATFORM_MACOS
 	Bind(0);
-#ifdef PTGN_DEBUG
-	++game.stats.vertex_array_unbinds;
-#endif
 #endif
 }
 

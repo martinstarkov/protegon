@@ -32,116 +32,27 @@ void Renderer::Init(const Color& window_background_color) {
 	ClearScreen();
 	// GLRenderer::EnableLineSmoothing();
 	screen_target_ = RenderTarget{ window_background_color, BlendMode::Blend };
-	active_target_ = screen_target_;
+	current_target_ = screen_target_;
 
-	batch_capacity_ = 2000;
-
-	auto get_indices = [](std::size_t max_indices, const auto& generator) {
-		std::vector<std::uint32_t> indices;
-		indices.resize(max_indices);
-		std::generate(indices.begin(), indices.end(), generator);
-		return indices;
-	};
-
-	constexpr std::array<std::uint32_t, 6> quad_index_pattern{ 0, 1, 2, 2, 3, 0 };
-
-	auto quad_generator = [&quad_index_pattern, offset = static_cast<std::uint32_t>(0),
-						   pattern_index = static_cast<std::size_t>(0)]() mutable {
-		auto index = offset + quad_index_pattern[pattern_index];
-		pattern_index++;
-		if (pattern_index % quad_index_pattern.size() == 0) {
-			offset		  += 4;
-			pattern_index  = 0;
-		}
-		return index;
-	};
-
-	auto iota = [i = 0]() mutable {
-		return i++;
-	};
-
-	quad_ib_	 = { get_indices(batch_capacity_ * 6, quad_generator) };
-	triangle_ib_ = { get_indices(batch_capacity_ * 3, iota) };
-	line_ib_	 = { get_indices(batch_capacity_ * 2, iota) };
-	point_ib_	 = { get_indices(batch_capacity_ * 1, iota) };
-	shader_ib_	 = { std::array<std::uint32_t, 6>{ 0, 1, 2, 2, 3, 0 } };
-
-	// First texture slot is occupied by white texture
-	white_texture_ = Texture({ color::White }, { 1, 1 });
-
-	max_texture_slots_ = GLRenderer::GetMaxTextureSlots();
-
-	quad_shader_   = game.shader.Get(ShapeShader::Quad);
-	circle_shader_ = game.shader.Get(ShapeShader::Circle);
-	color_shader_  = game.shader.Get(ShapeShader::Color);
-
-	PTGN_ASSERT(quad_shader_.IsValid());
-	PTGN_ASSERT(circle_shader_.IsValid());
-	PTGN_ASSERT(color_shader_.IsValid());
-
-	std::vector<std::int32_t> samplers(static_cast<std::size_t>(max_texture_slots_));
-	std::iota(samplers.begin(), samplers.end(), 0);
-
-	quad_shader_.Bind();
-	quad_shader_.SetUniform("u_Texture", samplers.data(), samplers.size());
-
-	quad_vao_	  = VertexArray{ PrimitiveMode::Triangles,
-							 VertexBuffer{ static_cast<std::array<QuadVertex, 4>*>(nullptr),
-										   batch_capacity_, BufferUsage::StreamDraw },
-							 quad_vertex_layout, quad_ib_ };
-	circle_vao_	  = VertexArray{ PrimitiveMode::Triangles,
-								 VertexBuffer{ static_cast<std::array<CircleVertex, 4>*>(nullptr),
-											   batch_capacity_, BufferUsage::StreamDraw },
-								 circle_vertex_layout, quad_ib_ };
-	triangle_vao_ = VertexArray{ PrimitiveMode::Triangles,
-								 VertexBuffer{ static_cast<std::array<ColorVertex, 3>*>(nullptr),
-											   batch_capacity_, BufferUsage::StreamDraw },
-								 color_vertex_layout, triangle_ib_ };
-	line_vao_	  = VertexArray{ PrimitiveMode::Lines,
-							 VertexBuffer{ static_cast<std::array<ColorVertex, 2>*>(nullptr),
-										   batch_capacity_, BufferUsage::StreamDraw },
-							 color_vertex_layout, line_ib_ };
-	point_vao_	  = VertexArray{ PrimitiveMode::Points,
-								 VertexBuffer{ static_cast<std::array<ColorVertex, 1>*>(nullptr),
-											   batch_capacity_, BufferUsage::StreamDraw },
-								 color_vertex_layout, point_ib_ };
+	render_data_.Init();
 }
 
 void Renderer::Reset() {
-	quad_vao_	  = {};
-	circle_vao_	  = {};
-	triangle_vao_ = {};
-	line_vao_	  = {};
-	point_vao_	  = {};
-
-	quad_shader_   = {};
-	circle_shader_ = {};
-	color_shader_  = {};
-
-	quad_ib_	 = {};
-	triangle_ib_ = {};
-	line_ib_	 = {};
-	point_ib_	 = {};
-	shader_ib_	 = {};
-
-	batch_capacity_	   = 0;
-	max_texture_slots_ = 0;
-	white_texture_	   = {};
-	render_data_	   = {};
+	render_data_.Reset();
 
 	resolution_	  = {};
 	scaling_mode_ = ResolutionMode::Disabled;
 
-	active_target_ = {};
+	current_target_ = {};
 	screen_target_ = {};
 
-	bound_shader_			 = {};
-	bound_vertex_array_		 = {};
+	bound_shader_id_			 = 0;
+	bound_vertex_array_id_		 = 0;
 	bound_blend_mode_		 = BlendMode::None;
 	bound_viewport_position_ = {};
 	bound_viewport_size_	 = {};
 
-	FrameBuffer::Unbind(); // Will set bound_frame_buffer_ to {}.
+	FrameBuffer::Unbind(); // Will set bound_frame_buffer_id_ to 0.
 }
 
 void Renderer::Shutdown() {
@@ -149,30 +60,30 @@ void Renderer::Shutdown() {
 }
 
 void Renderer::SetRenderTarget(const RenderTarget& target) {
-	if (active_target_ == target) {
+	if (current_target_ == target) {
 		return;
 	}
 	Flush();
-	active_target_ = target.IsValid() ? target : screen_target_;
+	current_target_ = target.IsValid() ? target : screen_target_;
 }
 
 RenderTarget Renderer::GetRenderTarget() const {
-	return active_target_;
+	return current_target_;
 }
 
 void Renderer::Clear() const {
-	active_target_.Get().Clear();
+	current_target_.Get().Clear();
 }
 
 void Renderer::Flush() {
-	active_target_.Get().Bind();
+	current_target_.Get().Bind();
 
-	GLRenderer::SetBlendMode(active_target_.Get().GetBlendMode());
+	GLRenderer::SetBlendMode(current_target_.Get().GetBlendMode());
 	GLRenderer::SetViewport(
-		active_target_.Get().viewport_.Min(), active_target_.Get().viewport_.size
+		current_target_.Get().viewport_.Min(), current_target_.Get().viewport_.size
 	);
 
-	if (render_data_.SetViewProjection(active_target_.Get().GetCamera())) {
+	if (render_data_.SetViewProjection(current_target_.Get().GetCamera())) {
 		// Post mouse event when camera projection changes.
 		game.event.mouse.Post(MouseEvent::Move, MouseMoveEvent{});
 	}
@@ -180,37 +91,37 @@ void Renderer::Flush() {
 	render_data_.Flush();
 
 	PTGN_ASSERT(
-		active_target_.Get().frame_buffer_.IsBound(),
+		current_target_.Get().frame_buffer_.IsBound(),
 		"Flushing the renderer must leave the current render target bound"
 	);
 }
 
 BlendMode Renderer::GetBlendMode() const {
-	return active_target_.Get().GetBlendMode();
+	return current_target_.Get().GetBlendMode();
 }
 
 void Renderer::SetBlendMode(BlendMode blend_mode) {
-	if (active_target_.Get().GetBlendMode() == blend_mode) {
+	if (current_target_.Get().GetBlendMode() == blend_mode) {
 		return;
 	}
 	Flush();
-	active_target_.Get().SetBlendMode(blend_mode);
+	current_target_.Get().SetBlendMode(blend_mode);
 }
 
 Color Renderer::GetClearColor() const {
-	return active_target_.Get().GetClearColor();
+	return current_target_.Get().GetClearColor();
 }
 
 void Renderer::SetClearColor(const Color& clear_color) {
-	active_target_.Get().SetClearColor(clear_color);
+	current_target_.Get().SetClearColor(clear_color);
 }
 
 void Renderer::SetViewport(const Rect& viewport) {
-	active_target_.Get().SetViewport(viewport);
+	current_target_.Get().SetViewport(viewport);
 }
 
 Rect Renderer::GetViewport() const {
-	return active_target_.Get().GetViewport();
+	return current_target_.Get().GetViewport();
 }
 
 void Renderer::SetResolution(const V2_int& resolution) {

@@ -28,6 +28,7 @@ struct Batch {
 	std::vector<std::array<ColorVertex, 2>> lines_;
 	std::vector<std::array<ColorVertex, 1>> points_;
 
+	// Bind all the textures in the batch.
 	void BindTextures() const;
 
 	// Add a texture to the batch and returns its texture index.

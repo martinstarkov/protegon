@@ -20,35 +20,131 @@
 
 namespace ptgn::impl {
 
+void RenderData::Init() {
+	batch_capacity_ = 2000;
+
+	auto get_indices = [](std::size_t max_indices, const auto& generator) {
+		std::vector<std::uint32_t> indices;
+		indices.resize(max_indices);
+		std::generate(indices.begin(), indices.end(), generator);
+		return indices;
+	};
+
+	constexpr std::array<std::uint32_t, 6> quad_index_pattern{ 0, 1, 2, 2, 3, 0 };
+
+	auto quad_generator = [&quad_index_pattern, offset = static_cast<std::uint32_t>(0),
+						   pattern_index = static_cast<std::size_t>(0)]() mutable {
+		auto index = offset + quad_index_pattern[pattern_index];
+		pattern_index++;
+		if (pattern_index % quad_index_pattern.size() == 0) {
+			offset		  += 4;
+			pattern_index  = 0;
+		}
+		return index;
+	};
+
+	auto iota = [i = 0]() mutable {
+		return i++;
+	};
+
+	quad_ib_	 = { get_indices(batch_capacity_ * 6, quad_generator) };
+	triangle_ib_ = { get_indices(batch_capacity_ * 3, iota) };
+	line_ib_	 = { get_indices(batch_capacity_ * 2, iota) };
+	point_ib_	 = { get_indices(batch_capacity_ * 1, iota) };
+	shader_ib_	 = { std::array<std::uint32_t, 6>{ 0, 1, 2, 2, 3, 0 } };
+
+	// First texture slot is occupied by white texture
+	white_texture_ = Texture({ color::White }, { 1, 1 });
+
+	max_texture_slots_ = GLRenderer::GetMaxTextureSlots();
+
+	quad_shader_   = game.shader.quad_;
+	circle_shader_ = game.shader.circle_;
+	color_shader_  = game.shader.color_;
+
+	PTGN_ASSERT(quad_shader_.IsValid());
+	PTGN_ASSERT(circle_shader_.IsValid());
+	PTGN_ASSERT(color_shader_.IsValid());
+
+	std::vector<std::int32_t> samplers(static_cast<std::size_t>(max_texture_slots_));
+	std::iota(samplers.begin(), samplers.end(), 0);
+
+	quad_shader_.Bind();
+	quad_shader_.SetUniform("u_Texture", samplers.data(), samplers.size());
+
+	quad_vao_	  = VertexArray{ PrimitiveMode::Triangles,
+							 VertexBuffer{ static_cast<std::array<QuadVertex, 4>*>(nullptr),
+										   batch_capacity_, BufferUsage::StreamDraw },
+							 quad_vertex_layout, quad_ib_ };
+	circle_vao_	  = VertexArray{ PrimitiveMode::Triangles,
+								 VertexBuffer{ static_cast<std::array<CircleVertex, 4>*>(nullptr),
+											   batch_capacity_, BufferUsage::StreamDraw },
+								 circle_vertex_layout, quad_ib_ };
+	triangle_vao_ = VertexArray{ PrimitiveMode::Triangles,
+								 VertexBuffer{ static_cast<std::array<ColorVertex, 3>*>(nullptr),
+											   batch_capacity_, BufferUsage::StreamDraw },
+								 color_vertex_layout, triangle_ib_ };
+	line_vao_	  = VertexArray{ PrimitiveMode::Lines,
+							 VertexBuffer{ static_cast<std::array<ColorVertex, 2>*>(nullptr),
+										   batch_capacity_, BufferUsage::StreamDraw },
+							 color_vertex_layout, line_ib_ };
+	point_vao_	  = VertexArray{ PrimitiveMode::Points,
+								 VertexBuffer{ static_cast<std::array<ColorVertex, 1>*>(nullptr),
+											   batch_capacity_, BufferUsage::StreamDraw },
+								 color_vertex_layout, point_ib_ };
+}
+
+void RenderData::Reset() {
+	quad_vao_	  = {};
+	circle_vao_	  = {};
+	triangle_vao_ = {};
+	line_vao_	  = {};
+	point_vao_	  = {};
+
+	quad_shader_   = {};
+	circle_shader_ = {};
+	color_shader_  = {};
+
+	quad_ib_	 = {};
+	triangle_ib_ = {};
+	line_ib_	 = {};
+	point_ib_	 = {};
+	shader_ib_	 = {};
+
+	batch_capacity_	   = 0;
+	max_texture_slots_ = 0;
+	white_texture_	   = {};
+}
+
 // Assumes view_projection_ is updated externally.
 void RenderData::Flush() {
-	PTGN_ASSERT(game.renderer.quad_shader_.IsValid());
-	PTGN_ASSERT(game.renderer.circle_shader_.IsValid());
-	PTGN_ASSERT(game.renderer.color_shader_.IsValid());
+	PTGN_ASSERT(quad_shader_.IsValid());
+	PTGN_ASSERT(circle_shader_.IsValid());
+	PTGN_ASSERT(color_shader_.IsValid());
 
 	if (transparent_layers_.empty() /* TODO: && opaque_layers_.empty() */) {
 		return;
 	}
 
-	game.renderer.white_texture_.Bind(0);
+	white_texture_.Bind(0);
 
 	// TODO: Figure out if there is a way to cache when a view projection has been updated. The
 	// problem is that these shaders can be used elsewhere in the engine which means that the
 	// u_ViewProjection could be set elsewhere. Perhaps the solution is to cache a refresh flag for
 	// each uniform within a shader somehow.
 	if (update_circle_shader_) {
-		game.renderer.circle_shader_.Bind();
-		game.renderer.circle_shader_.SetUniform("u_ViewProjection", view_projection_);
+		circle_shader_.Bind();
+		circle_shader_.SetUniform("u_ViewProjection", view_projection_);
 		update_circle_shader_ = false;
 	}
 	if (update_color_shader_) {
-		game.renderer.color_shader_.Bind();
-		game.renderer.color_shader_.SetUniform("u_ViewProjection", view_projection_);
+		color_shader_.Bind();
+		color_shader_.SetUniform("u_ViewProjection", view_projection_);
 		update_color_shader_ = false;
 	}
 	if (update_quad_shader_) {
-		game.renderer.quad_shader_.Bind();
-		game.renderer.quad_shader_.SetUniform("u_ViewProjection", view_projection_);
+		quad_shader_.Bind();
+		quad_shader_.SetUniform("u_ViewProjection", view_projection_);
 		update_quad_shader_ = true;
 	}
 
@@ -105,7 +201,7 @@ void RenderData::AddPrimitiveQuad(
 ) {
 	AddPrimitive<BatchType::Quad, QuadVertex>(
 		positions, render_layer, color, tex_coords,
-		texture.IsValid() ? texture : game.renderer.white_texture_, 0.0f, 0.0f
+		texture.IsValid() ? texture : white_texture_, 0.0f, 0.0f
 	);
 	update_quad_shader_ = true;
 }
@@ -142,7 +238,7 @@ void RenderData::AddPrimitivePoint(
 }
 
 bool RenderData::IsBlank(const Texture& texture) {
-	return texture == game.renderer.white_texture_;
+	return texture == white_texture_;
 }
 
 std::vector<Batch>& RenderData::GetLayerBatches(
@@ -169,17 +265,17 @@ template <BatchType T>
 Shader RenderData::GetShader() {
 	// Triangles, lines, and points all share the same color shader.
 	if constexpr (T == BatchType::Triangle || T == BatchType::Line || T == BatchType::Point) {
-		return game.renderer.color_shader_;
+		return color_shader_;
 	} else if constexpr (T == BatchType::Quad) {
-		return game.renderer.quad_shader_;
+		return quad_shader_;
 	} else if constexpr (T == BatchType::Circle) {
-		return game.renderer.circle_shader_;
+		return circle_shader_;
 	}
 }
 
 template <BatchType T>
 void RenderData::FlushType(std::vector<Batch>& batches) const {
-	auto vao{ game.renderer.GetVertexArray<T>() };
+	auto vao{ GetVertexArray<T>() };
 	for (auto& batch : batches) {
 		auto [data, index_count] = GetBufferInfo<T>(batch);
 		PTGN_ASSERT(data != nullptr);
@@ -251,14 +347,14 @@ void RenderData::AddPrimitive(
 		if constexpr (is_quad) {
 			if (IsBlank(texture)) {
 				data = GetBufferInfo<T>(batches.back()).first;
-				if (data->size() == game.renderer.batch_capacity_) {
+				if (data->size() == batch_capacity_) {
 					data = GetBufferInfo<T>(batches.emplace_back()).first;
 				}
 			} else {
 				PTGN_ASSERT(texture.IsValid());
 
 				for (auto& batch : batches) {
-					if (batch.quads_.size() == game.renderer.batch_capacity_) {
+					if (batch.quads_.size() == batch_capacity_) {
 						continue;
 					}
 					if (auto index{ batch.GetAvailableTextureIndex(texture) }; index != 0.0f) {
@@ -276,13 +372,13 @@ void RenderData::AddPrimitive(
 			}
 		} else {
 			data = GetBufferInfo<T>(batches.back()).first;
-			if (data->size() == game.renderer.batch_capacity_) {
+			if (data->size() == batch_capacity_) {
 				data = GetBufferInfo<T>(batches.emplace_back()).first;
 			}
 		}
 
 		PTGN_ASSERT(data != nullptr);
-		PTGN_ASSERT(data->size() + 1 <= game.renderer.batch_capacity_);
+		PTGN_ASSERT(data->size() + 1 <= batch_capacity_);
 
 		return std::pair<std::vector<std::array<VertexType, VertexCount>>&, float>{ *data,
 																					texture_index };

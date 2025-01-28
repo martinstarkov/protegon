@@ -117,11 +117,12 @@ public:
 
 private:
 	friend class ptgn::FrameBuffer;
-	friend class ptgn::RenderTarget;
-	friend class ptgn::Texture;
 	friend class ptgn::Shader;
 	friend class ptgn::VertexArray;
 	friend class ptgn::GLRenderer;
+	
+	friend class ptgn::RenderTarget;
+	friend class ptgn::Texture;
 	friend class Game;
 	friend class RenderData;
 	friend struct RenderTargetInstance;
@@ -138,53 +139,12 @@ private:
 	void Shutdown();
 	void Reset();
 
-	// TODO: Consider moving everything from here to render_data_ into the RenderData class.
-
-	template <BatchType T>
-	const VertexArray& GetVertexArray() const {
-		if constexpr (T == BatchType::Quad) {
-			return quad_vao_;
-		} else if constexpr (T == BatchType::Triangle) {
-			return triangle_vao_;
-		} else if constexpr (T == BatchType::Line) {
-			return line_vao_;
-		} else if constexpr (T == BatchType::Circle) {
-			return circle_vao_;
-		} else if constexpr (T == BatchType::Point) {
-			return point_vao_;
-		}
-	}
-
-	VertexArray quad_vao_;
-	VertexArray circle_vao_;
-	VertexArray triangle_vao_;
-	VertexArray line_vao_;
-	VertexArray point_vao_;
-
-	// TODO: Move to private and make Batch<> class friend.
-	IndexBuffer quad_ib_;
-	IndexBuffer triangle_ib_;
-	IndexBuffer line_ib_;
-	IndexBuffer point_ib_;
-	IndexBuffer shader_ib_; // One set of quad indices.
-
-	Shader quad_shader_;
-	Shader circle_shader_;
-	Shader color_shader_;
-
-	// Maximum number of primitive types before a second batch is generated.
-	// The higher the number, the less draw calls but more RAM is used.
-	std::size_t batch_capacity_{ 0 };
-
-	std::uint32_t max_texture_slots_{ 0 };
-	Texture white_texture_;
-
 	RenderData render_data_;
 
 	// Renderer keeps track of what is bound.
-	FrameBuffer bound_frame_buffer_;
-	Shader bound_shader_;
-	VertexArray bound_vertex_array_;
+	std::uint32_t bound_frame_buffer_id_{ 0 };
+	std::uint32_t bound_shader_id_{ 0 };
+	std::uint32_t bound_vertex_array_id_{ 0 };
 	BlendMode bound_blend_mode_{ BlendMode::None };
 	V2_int bound_viewport_position_;
 	V2_int bound_viewport_size_;
@@ -193,7 +153,7 @@ private:
 	V2_int resolution_;
 	ResolutionMode scaling_mode_{ ResolutionMode::Disabled };
 
-	RenderTarget active_target_;
+	RenderTarget current_target_;
 	RenderTarget screen_target_;
 };
 
