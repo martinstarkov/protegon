@@ -41,30 +41,32 @@ struct TextExample : public Scene {
 		// Actual size needed to render font without stretching.
 		text_size = Text::GetSize(font, content);
 		texts.emplace_back(content, color::Pink, font);
-		texts.emplace_back(content, color::Pink, font, FontStyle::Bold);
-		texts.emplace_back(content, color::Black, font, FontStyle::Italic);
-		texts.emplace_back(content, color::Black, font, FontStyle::Strikethrough);
-		texts.emplace_back(content, color::Black, font, FontStyle::Underline);
-		texts.emplace_back(
-			content, color::Black, font,
-			FontStyle::Bold & FontStyle::Italic & FontStyle::Strikethrough & FontStyle::Underline
-		);
-		texts.emplace_back(
-			content, color::Black, font, FontStyle::Normal, FontRenderMode::Shaded, color::Gold
-		);
+		texts.emplace_back(content, color::Pink, font).SetFontStyle(FontStyle::Bold);
+		texts.emplace_back(content, color::Black, font).SetFontStyle(FontStyle::Italic);
+		texts.emplace_back(content, color::Black, font).SetFontStyle(FontStyle::Strikethrough);
+		texts.emplace_back(content, color::Black, font).SetFontStyle(FontStyle::Underline);
+		texts.emplace_back(content, color::Black, font)
+			.SetFontStyle(
+				FontStyle::Bold & FontStyle::Italic & FontStyle::Strikethrough &
+				FontStyle::Underline
+			);
+		texts.emplace_back(content, color::Black, font)
+			.SetFontRenderMode(FontRenderMode::Shaded)
+			.SetShadingColor(color::Gold);
 		// Visually this should be bright blue but isnt due to alpha blending (i.e.
 		// this works as intended).
-		texts.emplace_back(
-			content, Color{ 0, 0, 255, 50 }, font, FontStyle::Normal, FontRenderMode::Blended
-		);
+		texts.emplace_back(content, Color{ 0, 0, 255, 50 }, font)
+			.SetFontRenderMode(FontRenderMode::Blended);
 
 		toggle_text =
 			texts.emplace_back("Press T to toggle my visibility!", color::Black, font_key);
-		texts.emplace_back(
-			content + "!", color::Red, font_key,
-			FontStyle::Bold & FontStyle::Italic & FontStyle::Strikethrough & FontStyle::Underline,
-			FontRenderMode::Shaded, color::Cyan
-		);
+		texts.emplace_back(content + "!", color::Red, font_key)
+			.SetFontStyle(
+				FontStyle::Bold & FontStyle::Italic & FontStyle::Strikethrough &
+				FontStyle::Underline
+			)
+			.SetFontRenderMode(FontRenderMode::Shaded)
+			.SetShadingColor(color::Cyan);
 	}
 
 	void Exit() override {
@@ -90,7 +92,7 @@ struct TextExample : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("TextExample: T (toggle visibility)", window_size);
-	game.scene.Enter<TextExample>("text_example");
+	game.Init("TextExample: T (toggle visibility)", window_size, color::Pink);
+	game.Start<TextExample>("text_example");
 	return 0;
 }
