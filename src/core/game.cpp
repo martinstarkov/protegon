@@ -301,6 +301,7 @@ void Game::Update() {
 		physics.Update(scene.GetCurrent().manager);
 	}
 	tween.Update();
+	light.Draw();
 
 	renderer.PresentScreen();
 
