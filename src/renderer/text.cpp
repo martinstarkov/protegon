@@ -196,7 +196,7 @@ Text& Text::SetFontRenderMode(FontRenderMode render_mode) {
 Text& Text::SetShadingColor(const Color& shading_color) {
 	Create();
 	auto& t{ Get() };
-	if (shading_color == t.shading_color_) {
+	if (shading_color == t.shading_color_ && t.render_mode_ == FontRenderMode::Shaded) {
 		return *this;
 	}
 	t.render_mode_	 = FontRenderMode::Shaded;

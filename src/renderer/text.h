@@ -26,6 +26,7 @@ struct TextInstance {
 	Color text_color_{ color::Black };
 	FontStyle font_style_{ FontStyle::Normal };
 	FontRenderMode render_mode_{ FontRenderMode::Solid };
+	// Background color.
 	Color shading_color_{ color::White };
 	// 0 indicates only wrapping on newline characters.
 	std::uint32_t wrap_after_pixels_{ 0 };
