@@ -165,11 +165,6 @@ Rect BoxCollider::GetAbsoluteRect() const {
 BoxColliderGroup::BoxColliderGroup(ecs::Entity parent, const ecs::Manager& group) :
 	parent{ parent }, group{ group } {}
 
-// @param offset Relative position of the box collider.
-// @param rotation Relative rotation of the box collider.
-// @param size Relative size of the box collider.
-// @param origin Origin of the box collider relative to its local position.
-// @param enabled Enable/disable collider by default.
 ecs::Entity BoxColliderGroup::AddBox(
 	const Name& name, const V2_float& offset, float rotation, const V2_float& size, Origin origin,
 	bool enabled, CollisionCategory category, const CollidesWithCategories& categories,

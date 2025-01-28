@@ -285,6 +285,10 @@ private:
 	) {
 		collider.ResetCollisions();
 
+		if (!collider.enabled) {
+			return;
+		}
+
 		ecs::Entity e{ collider.GetParent(entity) };
 
 		Intersect(e, collider, boxes, circles);
