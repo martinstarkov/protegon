@@ -211,6 +211,7 @@ struct Animation : public impl::SpriteSheet {
 		);
 
 		current_frame = std::make_shared<std::size_t>(start_frame);
+		repeat		  = std::make_shared<std::size_t>(0);
 
 		milliseconds frame_duration{ duration / GetCount() };
 
@@ -220,6 +221,7 @@ struct Animation : public impl::SpriteSheet {
 					.OnStart([=]() { Invoke(on_start); })
 					.OnRepeat([=]() {
 						Invoke(on_repeat);
+						++(*repeat);
 						++(*current_frame);
 						*current_frame = Mod(*current_frame, GetCount());
 					})
@@ -306,6 +308,11 @@ struct Animation : public impl::SpriteSheet {
 		return *current_frame;
 	}
 
+	[[nodiscard]] std::size_t GetRepeat() const {
+		PTGN_ASSERT(repeat != nullptr, "Cannot get repeat before animation has been constructed");
+		return *repeat;
+	}
+
 	[[nodiscard]] Rect GetSource() const {
 		return Rect{ sprite_positions[GetCurrentFrame()], sprite_size, origin };
 	}
@@ -319,6 +326,7 @@ private:
 
 	milliseconds duration{ 0 };		 // Duration of the entire animation.
 
+	std::shared_ptr<std::size_t> repeat;
 	std::shared_ptr<std::size_t> current_frame;
 	std::size_t start_frame{ 0 };
 };
