@@ -1,32 +1,23 @@
 #pragma once
 
-#include <array>
 #include <vector>
 
+#include "renderer/color.h"
+#include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "renderer/vertices.h"
 
 namespace ptgn::impl {
 
-enum class BatchType {
-	Quad,
-	Circle,
-	Triangle,
-	Line,
-	Point
-};
-
 struct Batch {
 	Batch() = default;
 
-	Batch(const Texture& texture);
+	explicit Batch(const Texture& texture);
 
-	std::vector<Texture> textures_;
-	std::vector<std::array<QuadVertex, 4>> quads_;
-	std::vector<std::array<CircleVertex, 4>> circles_;
-	std::vector<std::array<ColorVertex, 3>> triangles_;
-	std::vector<std::array<ColorVertex, 2>> lines_;
-	std::vector<std::array<ColorVertex, 1>> points_;
+	BlendMode blend_mode{ BlendMode::Blend };
+	Shader shader;
+	std::vector<Texture> textures;
+	std::vector<QuadVertex> vertices;
 
 	// Bind all the textures in the batch.
 	void BindTextures() const;

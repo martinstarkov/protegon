@@ -11,6 +11,8 @@
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/batch.h"
+#include "renderer/color.h"
+#include "renderer/gl_renderer.h"
 #include "renderer/renderer.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
@@ -23,18 +25,20 @@ namespace ptgn::impl {
 void RenderData::Init() {
 	batch_capacity_ = 2000;
 
+	using IndexType = std::uint32_t;
+
 	auto get_indices = [](std::size_t max_indices, const auto& generator) {
-		std::vector<std::uint32_t> indices;
+		std::vector<IndexType> indices;
 		indices.resize(max_indices);
 		std::generate(indices.begin(), indices.end(), generator);
 		return indices;
 	};
 
-	constexpr std::array<std::uint32_t, 6> quad_index_pattern{ 0, 1, 2, 2, 3, 0 };
+	constexpr std::array<IndexType, 6> quad_index_pattern{ 0, 1, 2, 2, 3, 0 };
 
-	auto quad_generator = [&quad_index_pattern, offset = static_cast<std::uint32_t>(0),
+	auto quad_generator = [&quad_index_pattern, offset = static_cast<IndexType>(0),
 						   pattern_index = static_cast<std::size_t>(0)]() mutable {
-		auto index = offset + quad_index_pattern[pattern_index];
+		auto index{ offset + quad_index_pattern[pattern_index] };
 		pattern_index++;
 		if (pattern_index % quad_index_pattern.size() == 0) {
 			offset		  += 4;
@@ -47,11 +51,17 @@ void RenderData::Init() {
 		return i++;
 	};
 
-	quad_ib_	 = { get_indices(batch_capacity_ * 6, quad_generator) };
-	triangle_ib_ = { get_indices(batch_capacity_ * 3, iota) };
-	line_ib_	 = { get_indices(batch_capacity_ * 2, iota) };
-	point_ib_	 = { get_indices(batch_capacity_ * 1, iota) };
-	shader_ib_	 = { std::array<std::uint32_t, 6>{ 0, 1, 2, 2, 3, 0 } };
+	auto quad_indices{ get_indices(batch_capacity_ * 6, quad_generator) };
+	auto triangle_indices{ get_indices(batch_capacity_ * 3, iota) };
+	auto line_indices{ get_indices(batch_capacity_ * 2, iota) };
+	auto point_indices{ get_indices(batch_capacity_ * 1, iota) };
+
+	std::uint32_t index_size{ sizeof(IndexType) };
+
+	quad_ib_	 = { quad_indices.data(), quad_indices.size(), index_size };
+	triangle_ib_ = { triangle_indices.data(), triangle_indices.size(), index_size };
+	line_ib_	 = { line_indices.data(), line_indices.size(), index_size };
+	point_ib_	 = { point_indices.data(), point_indices.size(), index_size };
 
 	// First texture slot is occupied by white texture
 	white_texture_ = Texture({ color::White }, { 1, 1 });
@@ -200,8 +210,8 @@ void RenderData::AddPrimitiveQuad(
 	const std::array<V2_float, 4>& tex_coords, const Texture& texture
 ) {
 	AddPrimitive<BatchType::Quad, QuadVertex>(
-		positions, render_layer, color, tex_coords,
-		texture.IsValid() ? texture : white_texture_, 0.0f, 0.0f
+		positions, render_layer, color, tex_coords, texture.IsValid() ? texture : white_texture_,
+		0.0f, 0.0f
 	);
 	update_quad_shader_ = true;
 }
@@ -292,7 +302,7 @@ void RenderData::FlushType(std::vector<Batch>& batches) const {
 			batch.BindTextures();
 		}
 		vao.GetVertexBuffer().SetSubData(
-			data->data(), static_cast<std::uint32_t>(Sizeof(*data)), false
+			data->data(), 0, ..., static_cast<std::uint32_t>(Sizeof(*data)), false
 		);
 		vao.Draw(data->size() * index_count, false);
 		// data->clear(); // Not needed since transparent_layers_ is cleared every frame.

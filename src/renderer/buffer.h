@@ -1,83 +1,42 @@
 #pragma once
 
-#include <array>
 #include <cstdint>
-#include <vector>
 
 #include "renderer/gl_types.h"
-#include "utility/debug.h"
-#include "utility/handle.h"
 
-namespace ptgn {
-
-class VertexArray;
-
-namespace impl {
-
-struct BufferInstance {
-	BufferInstance()								 = default;
-	BufferInstance(const BufferInstance&)			 = default;
-	BufferInstance& operator=(const BufferInstance&) = default;
-	BufferInstance(BufferInstance&&)				 = default;
-	BufferInstance& operator=(BufferInstance&&)		 = default;
-	BufferInstance(std::uint32_t count);
-	~BufferInstance();
-	std::uint32_t id_{ 0 };
-	std::uint32_t count_{ 0 }; // max number of items in the buffer.
-};
-
-} // namespace impl
+namespace ptgn::impl {
 
 template <BufferType BT>
-class Buffer : public Handle<impl::BufferInstance> {
-public:
+struct Buffer {
 	Buffer() = default;
 
-	template <typename T>
-	Buffer(const T* data, std::size_t count, BufferUsage usage = BufferUsage::StaticDraw) {
-		PTGN_ASSERT(count > 0, "Cannot create buffer with count 0");
-		Create(static_cast<std::uint32_t>(count));
-		SetDataImpl(
-			reinterpret_cast<const void*>(data), static_cast<std::uint32_t>(count * sizeof(T)),
-			usage
-		);
-	}
-
-	template <typename T>
+	// @param data Pointer to the buffer data.
+	// @param element_count Number of buffer elements to allocate.
+	// @param element_size Size of a single buffer element in bytes.
 	Buffer(
-		const std::vector<T>& data, BufferUsage usage = BufferUsage::StaticDraw,
-		bool use_capacity = false
-	) :
-		Buffer{ data.data(), use_capacity ? data.capacity() : data.size(), usage } {}
+		const void* data, std::uint32_t element_count, std::uint32_t element_size, BufferUsage usage
+	);
 
-	template <typename T, std::size_t I>
-	Buffer(const std::array<T, I>& data, BufferUsage usage = BufferUsage::StaticDraw) :
-		Buffer{ data.data(), data.size(), usage } {
-		static_assert(I > 0, "Must provide at least one buffer element");
-	}
+	Buffer(const Buffer&)				 = delete;
+	Buffer& operator=(const Buffer&)	 = delete;
+	Buffer(Buffer&&) noexcept			 = default;
+	Buffer& operator=(Buffer&&) noexcept = default;
+	~Buffer();
 
-	void SetSubData(const void* data, std::uint32_t size, bool unbind_vertex_array = true);
+	// @param data Pointer to the new buffer data.
+	// @param byte_offset Specifies the offset into the buffer object's data store where data
+	// replacement will begin, measured in bytes.
+	// @param element_count Number of buffer elements to allocate.
+	// @param element_size Size of a single buffer element in bytes.
+	// @param unbind_vertex_array If true (default), unbinds the current vertex array before setting
+	// new data. This ensures that no vertex array is accidentally modified.
+	void SetSubData(
+		const void* data, std::int32_t byte_offset, std::uint32_t element_count,
+		std::uint32_t element_size, bool unbind_vertex_array
+	);
 
-	template <typename T>
-	void SetSubData(const std::vector<T>& data, bool unbind_vertex_array = true) {
-		PTGN_ASSERT(!data.empty(), "Must provide at least one buffer element");
-		SetSubData(
-			data.data(), static_cast<std::uint32_t>(data.size() * sizeof(T)), unbind_vertex_array
-		);
-	}
-
-	template <typename T, std::size_t I>
-	void SetSubData(const std::array<T, I>& data, bool unbind_vertex_array = true) {
-		static_assert(I > 0, "Must provide at least one buffer element");
-		SetSubData(
-			data.data(), static_cast<std::uint32_t>(data.size() * sizeof(T)), unbind_vertex_array
-		);
-	}
-
-	[[nodiscard]] std::uint32_t GetCount() const;
-
-protected:
-	friend class VertexArray;
+	// @return Number of elements in the buffer.
+	[[nodiscard]] std::uint32_t GetElementCount() const;
 
 	[[nodiscard]] static std::int32_t GetBoundId();
 	[[nodiscard]] static std::int32_t GetBoundSize();
@@ -85,11 +44,12 @@ protected:
 
 	void Bind() const;
 
-	void SetDataImpl(const void* data, std::uint32_t size, BufferUsage usage);
+	std::uint32_t id_{ 0 };
+	std::uint32_t count_{ 0 }; // Max number of elements in the buffer.
 };
 
 using VertexBuffer	= Buffer<BufferType::Vertex>;
 using IndexBuffer	= Buffer<BufferType::Index>;
 using UniformBuffer = Buffer<BufferType::Uniform>;
 
-} // namespace ptgn
+} // namespace ptgn::impl

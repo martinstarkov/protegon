@@ -3,14 +3,7 @@
 #include "renderer/buffer_layout.h"
 #include "renderer/gl_types.h"
 
-namespace ptgn {
-
-struct ColorVertex {
-	glsl::vec3 position;
-	glsl::vec4 color;
-};
-
-constexpr inline const BufferLayout<glsl::vec3, glsl::vec4> color_vertex_layout;
+namespace ptgn::impl {
 
 struct QuadVertex {
 	glsl::vec3 position;
@@ -22,15 +15,4 @@ struct QuadVertex {
 constexpr inline const BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_>
 	quad_vertex_layout;
 
-struct CircleVertex {
-	glsl::vec3 position;
-	glsl::vec4 color;
-	glsl::vec3 local_position;
-	glsl::float_ line_width;
-	glsl::float_ fade;
-};
-
-constexpr inline const BufferLayout<glsl::vec3, glsl::vec4, glsl::vec3, glsl::float_, glsl::float_>
-	circle_vertex_layout;
-
-} // namespace ptgn
+} // namespace ptgn::impl

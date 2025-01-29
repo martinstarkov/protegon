@@ -5,7 +5,7 @@
 
 #include "utility/type_traits.h"
 
-namespace ptgn {
+namespace ptgn::impl {
 
 // Vertex Types
 
@@ -65,8 +65,6 @@ enum class BufferType {
 	Index	= 0x8893, // GL_ELEMENT_ARRAY_BUFFER
 	Uniform = 0x8A11, // GL_UNIFORM_BUFFER
 };
-
-namespace impl {
 
 enum class GLBinding {
 	VertexArray		= 0x85B5, // GL_VERTEX_ARRAY_BINDING
@@ -136,6 +134,4 @@ template <typename T>
 	}
 }
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

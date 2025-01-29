@@ -1,11 +1,11 @@
 #pragma once
 
 #include <cstdint>
-#include <variant>
+#include <memory>
 
 #include "core/manager.h"
+#include "resources/fonts.h"
 #include "utility/file.h"
-#include "utility/handle.h"
 
 #ifdef __EMSCRIPTEN__
 struct _TTF_Font;
@@ -16,8 +16,11 @@ struct TTF_Font;
 
 namespace ptgn {
 
-class Text;
-class Surface;
+class Font {
+public:
+private:
+	ecs::Entity entity_;
+};
 
 enum class FontStyle : int {
 	Normal		  = 0, // TTF_STYLE_NORMAL
@@ -25,35 +28,6 @@ enum class FontStyle : int {
 	Italic		  = 2, // TTF_STYLE_ITALIC
 	Underline	  = 4, // TTF_STYLE_UNDERLINE
 	Strikethrough = 8  // TTF_STYLE_STRIKETHROUGH
-};
-
-enum class FontRenderMode : int {
-	Solid	= 0,
-	Shaded	= 1,
-	Blended = 2
-};
-
-namespace impl {
-
-class Renderer;
-class Game;
-class FontManager;
-struct FontBinary;
-
-} // namespace impl
-
-class Font : public Handle<TTF_Font> {
-public:
-	Font() = default;
-	Font(const path& font_path, std::int32_t point_size = 20, std::int32_t index = 0);
-
-	explicit Font(const impl::FontBinary& binary, std::int32_t point_size = 20);
-
-	[[nodiscard]] std::int32_t GetHeight() const;
-
-private:
-	friend class Surface;
-	friend class impl::FontManager;
 };
 
 [[nodiscard]] inline FontStyle operator&(FontStyle a, FontStyle b) {
@@ -64,9 +38,29 @@ private:
 	return static_cast<FontStyle>(static_cast<int>(a) | static_cast<int>(b));
 }
 
+enum class FontRenderMode : int {
+	Solid	= 0,
+	Shaded	= 1,
+	Blended = 2
+};
+
 namespace impl {
 
-class FontManager : public MapManager<Font> {
+class Game;
+
+class FontInstance {
+public:
+	FontInstance() = default;
+	FontInstance(const path& font_path, std::int32_t point_size = 20, std::int32_t index = 0);
+
+	explicit FontInstance(const FontBinary& binary, std::int32_t point_size = 20);
+
+	[[nodiscard]] std::int32_t GetHeight() const;
+
+	std::shared_ptr<TTF_Font> font_;
+};
+
+class FontManager : public MapManager<FontInstance> {
 public:
 	FontManager()								   = default;
 	~FontManager() override						   = default;
@@ -75,25 +69,18 @@ public:
 	FontManager(const FontManager&)				   = delete;
 	FontManager& operator=(const FontManager&)	   = delete;
 
-	using FontOrKey = std::variant<Font, Key, InternalKey>;
-
-	void SetDefault(const FontOrKey& font);
-	[[nodiscard]] Font GetDefault() const;
+	// TODO: Re-implement.
+	// void SetDefault(const Font& font);
+	//[[nodiscard]] Font GetDefault() const;
 
 private:
 	friend class Game;
-	friend class ptgn::Text;
-	friend class Renderer;
 
 	void Init();
 
-	[[nodiscard]] Font GetFontOrKey(const FontOrKey& font) const;
-
-	Font default_font_;
+	// Font default_font_;
 };
 
 } // namespace impl
-
-using FontOrKey = impl::FontManager::FontOrKey;
 
 } // namespace ptgn
