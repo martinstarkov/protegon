@@ -2,8 +2,9 @@
 
 #include <cstdint>
 #include <memory>
+#include <string_view>
+#include <unordered_map>
 
-#include "core/manager.h"
 #include "resources/fonts.h"
 #include "utility/file.h"
 
@@ -16,10 +17,10 @@ struct TTF_Font;
 
 namespace ptgn {
 
-class Font {
-public:
-private:
-	ecs::Entity entity_;
+enum class FontRenderMode : int {
+	Solid	= 0,
+	Shaded	= 1,
+	Blended = 2
 };
 
 enum class FontStyle : int {
@@ -38,47 +39,51 @@ enum class FontStyle : int {
 	return static_cast<FontStyle>(static_cast<int>(a) | static_cast<int>(b));
 }
 
-enum class FontRenderMode : int {
-	Solid	= 0,
-	Shaded	= 1,
-	Blended = 2
-};
-
 namespace impl {
 
 class Game;
 
-class FontInstance {
-public:
-	FontInstance() = default;
-	FontInstance(const path& font_path, std::int32_t point_size = 20, std::int32_t index = 0);
-
-	explicit FontInstance(const FontBinary& binary, std::int32_t point_size = 20);
-
-	[[nodiscard]] std::int32_t GetHeight() const;
-
-	std::shared_ptr<TTF_Font> font_;
+struct TTF_FontDeleter {
+	void operator()(TTF_Font* font) const;
 };
 
-class FontManager : public MapManager<FontInstance> {
+class FontManager {
 public:
-	FontManager()								   = default;
-	~FontManager() override						   = default;
-	FontManager(FontManager&&) noexcept			   = default;
-	FontManager& operator=(FontManager&&) noexcept = default;
-	FontManager(const FontManager&)				   = delete;
-	FontManager& operator=(const FontManager&)	   = delete;
+	void Load(
+		std::string_view key, const path& filepath, std::int32_t size = 20, std::int32_t index = 0
+	);
 
-	// TODO: Re-implement.
-	// void SetDefault(const Font& font);
-	//[[nodiscard]] Font GetDefault() const;
+	void Load(
+		std::string_view key, const FontBinary& binary, std::int32_t size = 20,
+		std::int32_t index = 0
+	);
+
+	void Unload(std::string_view key);
+
+	void SetDefault(std::string_view key);
 
 private:
 	friend class Game;
 
+	using Font = std::unique_ptr<TTF_Font, TTF_FontDeleter>;
+
 	void Init();
 
-	// Font default_font_;
+	[[nodiscard]] bool Has(std::size_t key) const;
+
+	[[nodiscard]] static Font LoadFromBinary(
+		const FontBinary& binary, std::int32_t size, std::int32_t index
+	);
+
+	[[nodiscard]] static Font LoadFromFile(
+		const path& filepath, std::int32_t size, std::int32_t index
+	);
+
+	[[nodiscard]] TTF_Font* Get(std::size_t key) const;
+
+	std::unordered_map<std::size_t, Font> fonts_;
+
+	std::size_t default_key_;
 };
 
 } // namespace impl

@@ -38,8 +38,8 @@ class ShaderManager;
 class Profiler;
 
 struct WindowDeleter;
-struct MixMusicDeleter;
-struct MixChunkDeleter;
+struct Mix_MusicDeleter;
+struct Mix_ChunkDeleter;
 struct SDL_SurfaceDeleter;
 struct TTF_FontDeleter;
 
@@ -102,8 +102,8 @@ public:
 
 private:
 	friend struct WindowDeleter;
-	friend struct MixMusicDeleter;
-	friend struct MixChunkDeleter;
+	friend struct Mix_MusicDeleter;
+	friend struct Mix_ChunkDeleter;
 	friend struct SDL_SurfaceDeleter;
 	friend struct TTF_FontDeleter;
 	friend class GLContext;

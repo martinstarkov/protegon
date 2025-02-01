@@ -1,68 +1,84 @@
 #include "renderer/font.h"
 
 #include <cstdint>
-#include <filesystem>
-#include <string>
-#include <variant>
+#include <string_view>
+#include <utility>
 
 #include "SDL_error.h"
 #include "SDL_rwops.h"
 #include "SDL_ttf.h"
 #include "core/game.h"
-#include "core/manager.h"
 #include "core/sdl_instance.h"
+#include "math/hash.h"
 #include "resources/fonts.h"
 #include "utility/debug.h"
 #include "utility/file.h"
-#include "utility/handle.h"
 
 namespace ptgn::impl {
 
-struct TTF_FontDeleter {
-	void operator()(TTF_Font* font) const {
-		if (game.sdl_instance_->SDLTTFIsInitialized()) {
-			TTF_CloseFont(font);
-		}
+void TTF_FontDeleter::operator()(TTF_Font* font) const {
+	if (game.sdl_instance_->SDLTTFIsInitialized()) {
+		TTF_CloseFont(font);
 	}
-};
+}
 
 void FontManager::Init() {
-	FontInstance initial_font{ font::LiberationSansRegular, 20 };
-	// default_font_ = initial_font;
+	Load("", LiberationSansRegular, 20);
+	SetDefault("");
 }
 
-// void FontManager::SetDefault(const FontOrKey& font) {
-//	default_font_ = font;
-// }
+void FontManager::SetDefault(std::string_view key) {
+	PTGN_ASSERT(Has(Hash(key)), "Font key must be loaded before setting it as default");
+	default_key_ = Hash(key);
+}
 
-// Font FontManager::GetDefault() const {
-//	return default_font_;
-// }
+TTF_Font* FontManager::Get(std::size_t key) const {
+	PTGN_ASSERT(Has(key), "Cannot get font key which is not loaded");
+	return fonts_.find(key)->second.get();
+}
 
-FontInstance::FontInstance(const path& font_path, std::int32_t point_size, std::int32_t index) {
-	PTGN_ASSERT(point_size > 0, "Cannot load font with point size <= 0");
-	PTGN_ASSERT(index >= 0, "Cannot load font with negative index");
+bool FontManager::Has(std::size_t key) const {
+	return fonts_.find(key) != fonts_.end();
+}
+
+FontManager::Font FontManager::LoadFromFile(
+	const path& filepath, std::int32_t size, std::int32_t index
+) {
 	PTGN_ASSERT(
-		FileExists(font_path),
-		"Cannot create font from a nonexistent font path: ", font_path.string()
+		FileExists(filepath), "Cannot load font with nonexistent path: ", filepath.string()
 	);
-	font_ = { TTF_OpenFontIndex(font_path.string().c_str(), point_size, index),
-			  impl::TTF_FontDeleter{} };
-	PTGN_ASSERT(font_ != nullptr, TTF_GetError());
+	Font ptr{ TTF_OpenFontIndex(filepath.string().c_str(), size, index) };
+	PTGN_ASSERT(ptr != nullptr, TTF_GetError());
+	return ptr;
 }
 
-FontInstance::FontInstance(const impl::FontBinary& font, std::int32_t point_size) {
-	PTGN_ASSERT(point_size > 0, "Cannot load font with point size <= 0");
-	PTGN_ASSERT(font.buffer != nullptr, "Cannot create font from invalid font binary");
-	SDL_RWops* rw =
-		SDL_RWFromMem(static_cast<void*>(font.buffer), static_cast<std::int32_t>(font.length));
+FontManager::Font FontManager::LoadFromBinary(
+	const FontBinary& binary, std::int32_t size, std::int32_t index
+) {
+	PTGN_ASSERT(binary.buffer != nullptr, "Cannot load font from invalid binary");
+	SDL_RWops* rw{
+		SDL_RWFromMem(static_cast<void*>(binary.buffer), static_cast<std::int32_t>(binary.length))
+	};
 	PTGN_ASSERT(rw != nullptr, SDL_GetError());
-	font_ = { TTF_OpenFontRW(rw, 1, point_size), impl::TTF_FontDeleter{} };
-	PTGN_ASSERT(font_ != nullptr, TTF_GetError());
+	Font ptr{ TTF_OpenFontIndexRW(rw, 1, size, index) };
+	PTGN_ASSERT(ptr != nullptr, TTF_GetError());
+	return ptr;
 }
 
-std::int32_t FontInstance::GetHeight() const {
-	return TTF_FontHeight(font_.get());
+void FontManager::Load(
+	std::string_view key, const path& filepath, std::int32_t size, std::int32_t index
+) {
+	fonts_.try_emplace(Hash(key), LoadFromFile(filepath, size, index));
+}
+
+void FontManager::Load(
+	std::string_view key, const FontBinary& binary, std::int32_t size, std::int32_t index
+) {
+	fonts_.try_emplace(Hash(key), LoadFromBinary(binary, size, index));
+}
+
+void FontManager::Unload(std::string_view key) {
+	fonts_.erase(Hash(key));
 }
 
 } // namespace ptgn::impl

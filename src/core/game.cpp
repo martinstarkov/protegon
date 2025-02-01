@@ -219,15 +219,14 @@ void Game::Init(
 void Game::Shutdown() {
 	scene.Shutdown();
 
+	sound.Stop(-1);
+	music.Stop();
 	// TODO: Simply reset all the unique pointers instead of doing this.
 	profiler.Reset();
 	shader.Reset();
 	texture.Reset();
 	text.Reset();
 	tween.Reset();
-	font.Reset();
-	sound.Reset();
-	music.Reset();
 	json.Reset();
 
 	renderer.Shutdown();

@@ -12,7 +12,82 @@
 
 namespace ptgn {
 
-struct Rect;
+enum class TextWrapAlignment {
+	Left   = 0, // TTF_WRAPPED_ALIGN_LEFT
+	Center = 1, // TTF_WRAPPED_ALIGN_CENTER
+	Right  = 2	// TTF_WRAPPED_ALIGN_RIGHT
+};
+
+/*
+// TODO: Fix.
+SDL_Surface* GetSurface
+	Font& font, FontStyle style, const Color& text_color, FontRenderMode mode,
+	const std::string& content, std::int32_t ptsize, const Color& shading_color,
+	std::uint32_t wrap_after_pixels, TextWrapAlignment wrap_alignment, std::int32_t line_skip
+) :
+	Surface{ std::invoke([&]() {
+		PTGN_ASSERT(
+			font.IsValid(), "Cannot create a surface with an invalid or uninitialized font"
+		);
+
+		auto f = &font.Get();
+
+		TTF_SetFontStyle(f, static_cast<int>(style));
+		TTF_SetFontWrappedAlign(f, static_cast<int>(wrap_alignment));
+		if (line_skip != std::numeric_limits<std::int32_t>::infinity()) {
+		// TODO: Re-enable this for Emscripten once it is supported (SDL_ttf 2.24.0).
+#ifndef __EMSCRIPTEN__
+			TTF_SetFontLineSkip(f, line_skip);
+#endif
+		}
+		if (ptsize != std::numeric_limits<std::int32_t>::infinity()) {
+			TTF_SetFontSize(f, ptsize);
+		}
+
+		std::shared_ptr<SDL_Surface> surface;
+
+		SDL_Color tc{ text_color.r, text_color.g, text_color.b, text_color.a };
+
+		switch (mode) {
+			case FontRenderMode::Solid:
+				surface = std::shared_ptr<SDL_Surface>{
+					TTF_RenderUTF8_Solid_Wrapped(f, content.c_str(), tc, wrap_after_pixels),
+					impl::SDL_SurfaceDeleter{}
+				};
+				break;
+			case FontRenderMode::Shaded: {
+				SDL_Color sc{ shading_color.r, shading_color.g, shading_color.b, shading_color.a };
+				surface = std::shared_ptr<SDL_Surface>{
+					TTF_RenderUTF8_Shaded_Wrapped(f, content.c_str(), tc, sc, wrap_after_pixels),
+					impl::SDL_SurfaceDeleter{}
+				};
+				break;
+			}
+			case FontRenderMode::Blended:
+				surface = std::shared_ptr<SDL_Surface>{
+					TTF_RenderUTF8_Blended_Wrapped(f, content.c_str(), tc, wrap_after_pixels),
+					impl::SDL_SurfaceDeleter{}
+				};
+				break;
+			default:
+				PTGN_ERROR(
+					"Unrecognized render mode given when creating surface from font information"
+				);
+		}
+
+		PTGN_ASSERT(surface != nullptr, "Failed to create surface for given font information");
+
+		return surface;
+	}) } {
+}
+*/
+
+V2_int GetSize(Font font, const std::string& content) {
+	PTGN_ASSERT(font.IsValid(), "Cannot get size of uninitialized or invalid font");
+	V2_int size;
+	TTF_SizeUTF8(&font.Get(), content.c_str(), &size.x, &size.y);
+	return size;
+}
 
 namespace impl {
 
