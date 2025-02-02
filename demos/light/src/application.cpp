@@ -158,19 +158,13 @@ public:
 		test.Draw({ game.window.GetSize() / 2, test.GetSize() });
 
 		// TODO: Get rid of this.
-		game.light.Add(mouse_light);
-
-		game.light.Draw();
-
-		// TODO: Get rid of this.
 		// Instead of this remove/add, you can use a named light with game.light.Load() or save a
 		// reference from an initial game.light.Add() and modify that directly.
-		game.light.Remove(mouse_light);
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("LightExampleScene", window_size, color::Black);
-	game.scene.Enter<LightExampleScene>("light_example_scene");
+	game.Start<LightExampleScene>("light_example_scene");
 	return 0;
 }

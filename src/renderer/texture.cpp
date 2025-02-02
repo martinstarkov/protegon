@@ -390,7 +390,7 @@ void TextureInstance::DrawToBoundFrameBuffer(
 	shader.SetUniform("u_Resolution", V2_float{ game.window.GetSize() });
 	shader.SetUniform("u_Texture", 0);
 
-	auto vao{ game.renderer.GetVertexArray<impl::BatchType::Quad>() };
+	auto vao{ game.renderer.GetRenderData().GetVertexArray<impl::BatchType::Quad>() };
 	vao.Bind();
 
 	Bind(0);

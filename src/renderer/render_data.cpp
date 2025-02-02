@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <numeric>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -11,6 +12,7 @@
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/batch.h"
+#include "renderer/gl_renderer.h"
 #include "renderer/renderer.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
@@ -200,8 +202,8 @@ void RenderData::AddPrimitiveQuad(
 	const std::array<V2_float, 4>& tex_coords, const Texture& texture
 ) {
 	AddPrimitive<BatchType::Quad, QuadVertex>(
-		positions, render_layer, color, tex_coords,
-		texture.IsValid() ? texture : white_texture_, 0.0f, 0.0f
+		positions, render_layer, color, tex_coords, texture.IsValid() ? texture : white_texture_,
+		0.0f, 0.0f
 	);
 	update_quad_shader_ = true;
 }
@@ -262,7 +264,7 @@ std::vector<Batch>& RenderData::GetLayerBatches(
 }
 
 template <BatchType T>
-Shader RenderData::GetShader() {
+Shader RenderData::GetShader() const {
 	// Triangles, lines, and points all share the same color shader.
 	if constexpr (T == BatchType::Triangle || T == BatchType::Line || T == BatchType::Point) {
 		return color_shader_;
@@ -304,11 +306,12 @@ template void RenderData::FlushType<BatchType::Quad>(std::vector<Batch>& batches
 template void RenderData::FlushType<BatchType::Triangle>(std::vector<Batch>& batches) const;
 template void RenderData::FlushType<BatchType::Line>(std::vector<Batch>& batches) const;
 template void RenderData::FlushType<BatchType::Point>(std::vector<Batch>& batches) const;
-template Shader RenderData::GetShader<BatchType::Circle>();
-template Shader RenderData::GetShader<BatchType::Quad>();
-template Shader RenderData::GetShader<BatchType::Triangle>();
-template Shader RenderData::GetShader<BatchType::Line>();
-template Shader RenderData::GetShader<BatchType::Point>();
+
+template Shader RenderData::GetShader<BatchType::Circle>() const;
+template Shader RenderData::GetShader<BatchType::Quad>() const;
+template Shader RenderData::GetShader<BatchType::Triangle>() const;
+template Shader RenderData::GetShader<BatchType::Line>() const;
+template Shader RenderData::GetShader<BatchType::Point>() const;
 
 void RenderData::FlushBatches(std::vector<Batch>& batches) {
 	PTGN_ASSERT(!batches.empty(), "Attempting to flush an empty batch");

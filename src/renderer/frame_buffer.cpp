@@ -212,22 +212,19 @@ bool FrameBuffer::IsUnbound() {
 
 void FrameBuffer::Bind() const {
 	PTGN_ASSERT(IsValid(), "Cannot bind invalid frame buffer");
-	if (game.renderer.bound_frame_buffer_ == *this) {
+	if (game.renderer.bound_frame_buffer_id_ == Get().id_) {
 		return;
 	}
 	Bind(Get().id_);
-	game.renderer.bound_frame_buffer_ = *this;
+	game.renderer.bound_frame_buffer_id_ = Get().id_;
 }
 
 void FrameBuffer::Unbind() {
-	if (game.renderer.bound_frame_buffer_ == FrameBuffer{}) {
+	if (game.renderer.bound_frame_buffer_id_ == 0) {
 		return;
 	}
 	Bind(0);
-	game.renderer.bound_frame_buffer_ = {};
-#ifdef PTGN_DEBUG
-	++game.stats.frame_buffer_unbinds;
-#endif
+	game.renderer.bound_frame_buffer_id_ = 0;
 }
 
 std::uint32_t FrameBuffer::GetBoundId() {

@@ -25,7 +25,7 @@ void Batch::BindTextures() const {
 }
 
 float Batch::GetAvailableTextureIndex(const Texture& texture) {
-	PTGN_ASSERT(!RenderData::IsBlank(texture));
+	PTGN_ASSERT(!game.renderer.GetRenderData().IsBlank(texture));
 	PTGN_ASSERT(texture.IsValid());
 	// Texture exists in batch, therefore do not add it again.
 	for (std::size_t i{ 0 }; i < textures_.size(); i++) {
@@ -34,7 +34,8 @@ float Batch::GetAvailableTextureIndex(const Texture& texture) {
 			return static_cast<float>(i + 1);
 		}
 	}
-	if (static_cast<std::uint32_t>(textures_.size()) == game.renderer.max_texture_slots_ - 1) {
+	if (static_cast<std::uint32_t>(textures_.size()) ==
+		game.renderer.GetRenderData().max_texture_slots_ - 1) {
 		// Texture does not exist in batch and batch is full.
 		return 0.0f;
 	}

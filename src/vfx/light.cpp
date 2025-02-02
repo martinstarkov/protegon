@@ -74,7 +74,7 @@ void LightManager::Draw() const {
 	// Draw each light to the target.
 	ForEachValue([&](const Light& light) {
 		// TODO: Make a light.DrawImpl function and put this there.
-		game.renderer.SetRenderTarget(target_);
+		// game.renderer.SetRenderTarget(target_);
 		light_shader_.Bind();
 		light_shader_.SetUniform("u_LightPosition", light.GetPosition());
 		light_shader_.SetUniform("u_LightIntensity", light.GetIntensity());
@@ -85,12 +85,12 @@ void LightManager::Draw() const {
 		V3_float c{ n.x, n.y, n.z };
 		light_shader_.SetUniform("u_AmbientColor", c);
 		light_shader_.SetUniform("u_AmbientIntensity", light.ambient_intensity_);
-		target_.Draw(TextureInfo{ light.GetColor() }, light_shader_, false);
+		old_target.Draw(TextureInfo{ light.GetColor() }, light_shader_, false);
 
 		// Draw lights to the bound target.
-		game.renderer.SetRenderTarget(old_target);
-		// TODO: Add optional blurring with blur shader.
-		target_.Draw();
+		// game.renderer.SetRenderTarget(old_target);
+		//// TODO: Add optional blurring with blur shader.
+		// target_.Draw();
 	});
 
 	// TODO: Put this in light.Draw function.

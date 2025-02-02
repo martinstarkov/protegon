@@ -10,13 +10,17 @@
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/batch.h"
+#include "renderer/shader.h"
 #include "renderer/texture.h"
+#include "renderer/vertex_array.h"
 
 namespace ptgn {
 
 class Shader;
 
 namespace impl {
+
+class Game;
 
 // Constructing a RenderData object requires the engine to be initialized.
 class RenderData {
@@ -52,15 +56,15 @@ public:
 		const std::array<V2_float, 1>& positions, std::int32_t render_layer, const V4_float& color
 	);
 
-private:
 	friend struct Batch;
+	friend class Game;
 
 	[[nodiscard]] std::vector<Batch>& GetLayerBatches(
 		std::int32_t render_layer, [[maybe_unused]] float alpha
 	);
 
 	// @return True if texture is the 1x1 white texture used for solid quads, false otherwise.
-	[[nodiscard]] static bool IsBlank(const Texture& texture);
+	[[nodiscard]] bool IsBlank(const Texture& texture);
 
 	template <BatchType T, typename VertexType, std::size_t VertexCount>
 	void AddPrimitive(
@@ -88,7 +92,7 @@ private:
 
 	// @return Shader for the specific batch type.
 	template <BatchType T>
-	static Shader GetShader();
+	Shader GetShader() const;
 
 	// @param callback Called before drawing VAO, used for binding textures in case of quads.
 	template <BatchType T>

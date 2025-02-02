@@ -51,11 +51,15 @@ ShaderInstance::~ShaderInstance() {
 #endif
 }
 
-ShaderInstance::ShaderInstance(const ShaderSource& vertex_shader, const ShaderSource& fragment_shader) : ShaderInstance{} {
+ShaderInstance::ShaderInstance(
+	const ShaderSource& vertex_shader, const ShaderSource& fragment_shader
+) :
+	ShaderInstance{} {
 	CompileProgram(vertex_shader.source_, fragment_shader.source_);
 }
 
-ShaderInstance::ShaderInstance(const path& vertex_shader_path, const path& fragment_shader_path) : ShaderInstance{} {
+ShaderInstance::ShaderInstance(const path& vertex_shader_path, const path& fragment_shader_path) :
+	ShaderInstance{} {
 	PTGN_ASSERT(
 		FileExists(vertex_shader_path),
 		"Cannot create shader from nonexistent vertex shader path: ", vertex_shader_path.string()
@@ -102,7 +106,9 @@ std::uint32_t ShaderInstance::CompileShader(std::uint32_t type, const std::strin
 	return id;
 }
 
-void ShaderInstance::CompileProgram(const std::string& vertex_source, const std::string& fragment_source) {
+void ShaderInstance::CompileProgram(
+	const std::string& vertex_source, const std::string& fragment_source
+) {
 	location_cache_.clear();
 
 	std::uint32_t vertex{ CompileShader(GL_VERTEX_SHADER, vertex_source) };
@@ -147,7 +153,7 @@ void ShaderInstance::CompileProgram(const std::string& vertex_source, const std:
 	}
 }
 
-void ShaderInstance::Bind(std::int32_t id) {
+void ShaderInstance::Bind(std::uint32_t id) {
 	if (game.renderer.bound_shader_id_ == id) {
 		return;
 	}
@@ -209,15 +215,17 @@ void ShaderInstance::SetUniform(const std::string& name, const Matrix4& m) const
 	}
 }
 
-void ShaderInstance::SetUniform(const std::string& name, const std::int32_t* data, std::int32_t count)
-	const {
+void ShaderInstance::SetUniform(
+	const std::string& name, const std::int32_t* data, std::int32_t count
+) const {
 	std::int32_t location{ GetUniformLocation(name) };
 	if (location != -1) {
 		GLCall(gl::Uniform1iv(location, count, data));
 	}
 }
 
-void ShaderInstance::SetUniform(const std::string& name, const float* data, std::int32_t count) const {
+void ShaderInstance::SetUniform(const std::string& name, const float* data, std::int32_t count)
+	const {
 	std::int32_t location{ GetUniformLocation(name) };
 	if (location != -1) {
 		GLCall(gl::Uniform1fv(location, count, data));
@@ -266,7 +274,8 @@ void ShaderInstance::SetUniform(const std::string& name, float v0, float v1, flo
 	}
 }
 
-void ShaderInstance::SetUniform(const std::string& name, float v0, float v1, float v2, float v3) const {
+void ShaderInstance::SetUniform(const std::string& name, float v0, float v1, float v2, float v3)
+	const {
 	std::int32_t location{ GetUniformLocation(name) };
 	if (location != -1) {
 		GLCall(gl::Uniform4f(location, v0, v1, v2, v3));
@@ -287,8 +296,9 @@ void ShaderInstance::SetUniform(const std::string& name, std::int32_t v0, std::i
 	}
 }
 
-void ShaderInstance::SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2)
-	const {
+void ShaderInstance::SetUniform(
+	const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2
+) const {
 	std::int32_t location{ GetUniformLocation(name) };
 	if (location != -1) {
 		GLCall(gl::Uniform3i(location, v0, v1, v2));
@@ -317,22 +327,22 @@ std::uint32_t ShaderInstance::GetBoundId() {
 
 Shader ShaderManager::Get(ScreenShader screen_shader) const {
 	switch (screen_shader) {
-		case ScreenShaderInstance::Default:		  return default_;
-		case ScreenShaderInstance::Blur:		  return blur_;
-		case ScreenShaderInstance::GaussianBlur:  return gaussian_blur_;
-		case ScreenShaderInstance::EdgeDetection: return edge_detection_;
-		case ScreenShaderInstance::InverseColor:  return inverse_color_;
-		case ScreenShaderInstance::Grayscale:	  return grayscale_;
-		case ScreenShaderInstance::Sharpen:		  return sharpen_;
+		case ScreenShader::Default:		  return default_;
+		case ScreenShader::Blur:		  return blur_;
+		case ScreenShader::GaussianBlur:  return gaussian_blur_;
+		case ScreenShader::EdgeDetection: return edge_detection_;
+		case ScreenShader::InverseColor:  return inverse_color_;
+		case ScreenShader::Grayscale:	  return grayscale_;
+		case ScreenShader::Sharpen:		  return sharpen_;
 		default:						  PTGN_ERROR("Cannot retrieve unrecognized screen shader");
 	}
 }
 
 Shader ShaderManager::Get(ShapeShader shader) const {
 	switch (shader) {
-		case ShapeShaderInstance::Quad:	  return quad_;
-		case ShapeShaderInstance::Circle: return circle_;
-		case ShapeShaderInstance::Color:  return color_;
+		case ShapeShader::Quad:	  return quad_;
+		case ShapeShader::Circle: return circle_;
+		case ShapeShader::Color:  return color_;
 		default:				  PTGN_ERROR("Cannot retrieve unrecognized preset shader");
 	}
 }
@@ -398,60 +408,78 @@ void Shader::Bind() const {
 	Get().Bind();
 }
 
-void Shader::SetUniform(const std::string& name, const std::int32_t* data, std::size_t count) const {
+void Shader::SetUniform(const std::string& name, const std::int32_t* data, std::int32_t count)
+	const {
 	Get().SetUniform(name, data, count);
 }
-void Shader::SetUniform(const std::string& name, const float* data, std::size_t count) const {
+
+void Shader::SetUniform(const std::string& name, const float* data, std::int32_t count) const {
 	Get().SetUniform(name, data, count);
 }
+
 void Shader::SetUniform(const std::string& name, const Vector2<float>& v) const {
 	Get().SetUniform(name, v);
 }
+
 void Shader::SetUniform(const std::string& name, const Vector3<float>& v) const {
 	Get().SetUniform(name, v);
 }
+
 void Shader::SetUniform(const std::string& name, const Vector4<float>& v) const {
 	Get().SetUniform(name, v);
 }
+
 void Shader::SetUniform(const std::string& name, const Matrix4& m) const {
 	Get().SetUniform(name, m);
 }
+
 void Shader::SetUniform(const std::string& name, float v0) const {
 	Get().SetUniform(name, v0);
 }
+
 void Shader::SetUniform(const std::string& name, float v0, float v1) const {
 	Get().SetUniform(name, v0, v1);
 }
+
 void Shader::SetUniform(const std::string& name, float v0, float v1, float v2) const {
 	Get().SetUniform(name, v0, v1, v2);
 }
+
 void Shader::SetUniform(const std::string& name, float v0, float v1, float v2, float v3) const {
 	Get().SetUniform(name, v0, v1, v2, v3);
 }
+
 void Shader::SetUniform(const std::string& name, const Vector2<std::int32_t>& v) const {
 	Get().SetUniform(name, v);
 }
+
 void Shader::SetUniform(const std::string& name, const Vector3<std::int32_t>& v) const {
 	Get().SetUniform(name, v);
 }
+
 void Shader::SetUniform(const std::string& name, const Vector4<std::int32_t>& v) const {
 	Get().SetUniform(name, v);
 }
+
 void Shader::SetUniform(const std::string& name, std::int32_t v0) const {
 	Get().SetUniform(name, v0);
 }
+
 void Shader::SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1) const {
 	Get().SetUniform(name, v0, v1);
 }
+
 void Shader::SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2)
 	const {
 	Get().SetUniform(name, v0, v1, v2);
 }
+
 void Shader::SetUniform(
 	const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2, std::int32_t v3
 ) const {
 	Get().SetUniform(name, v0, v1, v2, v3);
 }
+
 void Shader::SetUniform(const std::string& name, bool value) const {
 	Get().SetUniform(name, value);
 }

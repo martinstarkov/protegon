@@ -28,6 +28,19 @@ namespace ptgn {
 
 class Shader;
 
+// Wrapper for distinguishing between Shader from path construction and Shader
+// from source construction.
+struct ShaderSource {
+	ShaderSource() = default;
+
+	// Explicit construction prevents conflict with Shader path construction.
+	explicit ShaderSource(const std::string& source) : source_{ source } {}
+
+	~ShaderSource() = default;
+
+	std::string source_;
+};
+
 namespace impl {
 
 class Game;
@@ -45,8 +58,8 @@ struct ShaderInstance {
 	ShaderInstance& operator=(ShaderInstance&&)		 = default;
 	~ShaderInstance();
 
-	void SetUniform(const std::string& name, const std::int32_t* data, std::size_t count) const;
-	void SetUniform(const std::string& name, const float* data, std::size_t count) const;
+	void SetUniform(const std::string& name, const std::int32_t* data, std::int32_t count) const;
+	void SetUniform(const std::string& name, const float* data, std::int32_t count) const;
 	void SetUniform(const std::string& name, const Vector2<float>& v) const;
 	void SetUniform(const std::string& name, const Vector3<float>& v) const;
 	void SetUniform(const std::string& name, const Vector4<float>& v) const;
@@ -70,7 +83,7 @@ struct ShaderInstance {
 
 	void Bind() const;
 
-	static void Bind(std::int32_t id);
+	static void Bind(std::uint32_t id);
 
 	[[nodiscard]] bool IsBound() const;
 
@@ -89,19 +102,6 @@ struct ShaderInstance {
 
 } // namespace impl
 
-// Wrapper for distinguishing between Shader from path construction and Shader
-// from source construction.
-struct ShaderSource {
-	ShaderSource() = default;
-
-	// Explicit construction prevents conflict with Shader path construction.
-	explicit ShaderSource(const std::string& source) : source_{ source } {}
-
-	~ShaderSource() = default;
-
-	std::string source_;
-};
-
 class Shader : public Handle<impl::ShaderInstance> {
 public:
 	Shader() = default;
@@ -114,8 +114,8 @@ public:
 	// Sets the uniform value for the specified uniform name. If the uniform does not exist in the
 	// shader, nothing happens.
 	// Note: Make sure to bind the shader before setting uniforms.
-	void SetUniform(const std::string& name, const std::int32_t* data, std::size_t count) const;
-	void SetUniform(const std::string& name, const float* data, std::size_t count) const;
+	void SetUniform(const std::string& name, const std::int32_t* data, std::int32_t count) const;
+	void SetUniform(const std::string& name, const float* data, std::int32_t count) const;
 	void SetUniform(const std::string& name, const Vector2<float>& v) const;
 	void SetUniform(const std::string& name, const Vector3<float>& v) const;
 	void SetUniform(const std::string& name, const Vector4<float>& v) const;

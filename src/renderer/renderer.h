@@ -118,9 +118,10 @@ public:
 private:
 	friend class ptgn::FrameBuffer;
 	friend class ptgn::Shader;
+	friend struct impl::ShaderInstance;
 	friend class ptgn::VertexArray;
 	friend class ptgn::GLRenderer;
-	
+
 	friend class ptgn::RenderTarget;
 	friend class ptgn::Texture;
 	friend class Game;
