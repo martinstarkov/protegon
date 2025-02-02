@@ -27,102 +27,79 @@
 
 namespace ptgn {
 
-struct RenderLayer : public ArithmeticComponent<std::int32_t> {
+struct Depth : public ArithmeticComponent<std::int32_t> {
 	using ArithmeticComponent::ArithmeticComponent;
 };
 
-struct SpriteTint : public ColorComponent {
-	using ColorComponent::ColorComponent;
-};
-
-struct DrawColor : public ColorComponent {
-	using ColorComponent::ColorComponent;
-};
-
-struct DrawLineWidth : public ArithmeticComponent<float> {
+struct Visible : public ArithmeticComponent<bool> {
 	using ArithmeticComponent::ArithmeticComponent;
 };
 
-struct SpriteFlip : public FlipComponent {
-	using FlipComponent::FlipComponent;
+struct Alpha : public ArithmeticComponent<std::uint8_t> {
+	using ArithmeticComponent::ArithmeticComponent;
 };
 
-inline void DrawRect(ecs::Entity entity, const Rect& rect) {
-	rect.Draw(
-		entity.Has<DrawColor>() ? entity.Get<DrawColor>() : color::Black,
-		entity.Has<DrawLineWidth>() ? entity.Get<DrawLineWidth>() : DrawLineWidth{ 1.0f },
-		entity.Has<RenderLayer>() ? entity.Get<RenderLayer>() : RenderLayer{ 0 }
-	);
-}
+struct Tint : public ColorComponent {
+	using ColorComponent::ColorComponent;
+};
 
-inline void DrawPoint(ecs::Entity entity, const V2_float& point, float radius = 1.0f) {
-	point.Draw(
-		entity.Has<DrawColor>() ? entity.Get<DrawColor>() : color::Black, radius,
-		entity.Has<RenderLayer>() ? entity.Get<RenderLayer>() : RenderLayer{ 0 }
-	);
-}
+struct LineWidth : public ArithmeticComponent<float> {
+	using ArithmeticComponent::ArithmeticComponent;
+};
 
-inline void DrawCircle(ecs::Entity entity, const Circle& circle) {
-	circle.Draw(
-		entity.Has<DrawColor>() ? entity.Get<DrawColor>() : color::Black,
-		entity.Has<DrawLineWidth>() ? entity.Get<DrawLineWidth>() : DrawLineWidth{ 1.0f },
-		entity.Has<RenderLayer>() ? entity.Get<RenderLayer>() : RenderLayer{ 0 }
-	);
-}
+struct Radius : public ArithmeticComponent<float> {
+	using ArithmeticComponent::ArithmeticComponent;
+};
 
-inline void DrawLine(ecs::Entity entity, const Line& line) {
-	line.Draw(
-		entity.Has<DrawColor>() ? entity.Get<DrawColor>() : color::Black,
-		entity.Has<DrawLineWidth>() ? entity.Get<DrawLineWidth>() : DrawLineWidth{ 1.0f },
-		entity.Has<RenderLayer>() ? entity.Get<RenderLayer>() : RenderLayer{ 0 }
-	);
-}
+struct Size : public Vector2Component<float> {
+	using Vector2Component::Vector2Component;
+};
 
 struct Sprite {
 	// sprite_size = {} results in full texture size being used.
 	Sprite(
-		const Texture& texture, const V2_float& draw_offset = {}, Origin origin = Origin::Center,
-		const V2_float& sprite_size = {}, const V2_float& start_pixel = {}
+		std::string_view texture_key, const V2_float& draw_offset = {},
+		Origin origin = Origin::Center, const V2_float& sprite_size = {},
+		const V2_float& start_pixel = {}
 	) :
-		texture{ texture }, draw_offset{ draw_offset } {
+		texture_key{ Hash(texture_key) }, draw_offset{ draw_offset } {
+		V2_int texture_size{ game.texture.GetSize(texture_key) };
+
+		PTGN_ASSERT(texture_size.x > 0, "Texture must have width > 0");
+		PTGN_ASSERT(texture_size.y > 0, "Texture must have height > 0");
+
 		source.position = start_pixel;
+
 		if (sprite_size.IsZero()) {
-			source.size = texture.GetSize();
+			source.size = texture_size;
 		} else {
 			source.size = sprite_size;
 		}
 		source.origin = origin;
 
-		PTGN_ASSERT(texture.GetSize().x > 0, "Texture must have width > 0");
-		PTGN_ASSERT(texture.GetSize().y > 0, "Texture must have height > 0");
-
 		PTGN_ASSERT(
-			source.position.x < texture.GetSize().x,
-			"Source position X must be within texture width"
+			source.position.x < texture_size.x, "Source position X must be within texture width"
 		);
 		PTGN_ASSERT(
-			source.position.y < texture.GetSize().y,
-			"Source position Y must be within texture height"
+			source.position.y < texture_size.y, "Source position Y must be within texture height"
 		);
 		PTGN_ASSERT(
-			source.position.x + source.size.x <= texture.GetSize().x,
+			source.position.x + source.size.x <= texture_size.x,
 			"Source width must be within texture width"
 		);
 		PTGN_ASSERT(
-			source.position.y + source.size.y <= texture.GetSize().y,
+			source.position.y + source.size.y <= texture_size.y,
 			"Source height must be within texture height"
 		);
 	}
-
-	void Draw(ecs::Entity entity) const;
-
-	Texture texture;
 
 	Rect GetSource() const {
 		return source;
 	}
 
 private:
+	std::size_t texture_key;
+
 	Rect source;
 	V2_float draw_offset; // Offset of sprite relative to entity transform.
 };
@@ -135,14 +112,17 @@ struct SpriteSheet {
 
 	// Frames go from left to right.
 	SpriteSheet(
-		const Texture& texture, std::size_t frame_count, const V2_float& frame_size,
+		std::string_view texture_key, std::size_t frame_count, const V2_float& frame_size,
 		const V2_float& start_pixel = {}
 	) :
-		texture{ texture }, sprite_size{ frame_size } {
+		texture_key{ Hash(texture_key) }, sprite_size{ frame_size } {
 		sprite_positions.reserve(frame_count);
 		for (std::size_t i = 0; i < frame_count; i++) {
 			float x = start_pixel.x + frame_size.x * static_cast<float>(i);
-			PTGN_ASSERT(x < texture.GetSize().x, "Source position X must be within texture width");
+			PTGN_ASSERT(
+				x < game.texture.GetSize(texture_key).x,
+				"Source position X must be within texture width"
+			);
 			sprite_positions.emplace_back(x, start_pixel.y);
 		}
 	}
@@ -151,37 +131,10 @@ struct SpriteSheet {
 		return sprite_positions.size();
 	}
 
-	Texture texture;
+	std::size_t texture_key;
 	std::vector<V2_float> sprite_positions; // Top left corners of sprites.
 	V2_float sprite_size;					// Size of an individual sprite.
 };
-
-inline void DrawTexture(
-	ecs::Entity entity, const Texture& texture, const V2_float& draw_offset, const Rect& source
-) {
-	PTGN_ASSERT(entity.Has<Transform>(), "Cannot draw entity with no transform component");
-	const auto& t{ entity.Get<Transform>() };
-	// Absolute value needed because scale can be negative for flipping.
-	V2_float scaled_size{ source.size * V2_float{ FastAbs(t.scale.x), FastAbs(t.scale.y) } };
-	Rect dest{ t.position + draw_offset, scaled_size, source.origin, t.rotation };
-	Flip f{ Flip::None };
-	bool flip_x{ t.scale.x < 0.0f };
-	bool flip_y{ t.scale.y < 0.0f };
-	if (flip_x && flip_y) {
-		f = Flip::Both;
-	} else if (flip_x) {
-		f = Flip::Horizontal;
-	} else if (flip_y) {
-		f = Flip::Vertical;
-	}
-	TextureInfo info{ source.position, source.size,
-					  entity.Has<SpriteFlip>() ? entity.Get<SpriteFlip>() : SpriteFlip{ f },
-					  entity.Has<SpriteTint>() ? entity.Get<SpriteTint>() : color::White,
-					  V2_float{ 0.5f, 0.5f } };
-	texture.Draw(
-		dest, info, entity.Has<RenderLayer>() ? entity.Get<RenderLayer>() : RenderLayer{ 0 }
-	);
-}
 
 } // namespace impl
 

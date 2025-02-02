@@ -231,6 +231,11 @@ private:
 					 } };
 	}
 
+	Shader default_screen_shader;
+	Shader quad_shader;
+	Shader circle_shader;
+	Shader light_shader;
+
 	// Screen shaders.
 	Shader default_;
 	Shader blur_;

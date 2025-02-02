@@ -46,9 +46,12 @@ struct Line {
 	[[nodiscard]] ptgn::Raycast Raycast(const Capsule& capsule) const;
 
 	// @param line_width The width of the line to create a quad for.
+	// @param additional_rotation Optional rotation (in radians) to add to the line.
 	// @return Return the vertices required to draw a solid rotated quad to mimic a line with the
 	// given width.
-	[[nodiscard]] std::array<V2_float, 4> GetQuadVertices(float line_width) const;
+	[[nodiscard]] std::array<V2_float, 4> GetQuadVertices(
+		float line_width, float additional_rotation = 0.0f
+	) const;
 
 private:
 	friend struct Capsule;

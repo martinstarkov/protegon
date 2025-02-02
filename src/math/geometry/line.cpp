@@ -458,8 +458,10 @@ ptgn::Raycast Line::Raycast(const Capsule& capsule) const {
 	return c;
 }
 
-std::array<V2_float, 4> Line::GetQuadVertices(float line_width) const {
+std::array<V2_float, 4> Line::GetQuadVertices(float line_width, float additional_rotation = 0.0f)
+	const {
 	V2_float dir{ Direction() };
+	dir = dir.Rotated(additional_rotation);
 	// TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
 	Rect rect{ a + dir * 0.5f, V2_float{ dir.Magnitude(), line_width }, Origin::Center,
 			   dir.Angle() };

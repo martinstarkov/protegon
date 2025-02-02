@@ -1,7 +1,7 @@
 #pragma once
 
+#include "math/vector2.h"
 #include "renderer/color.h"
-#include "renderer/flip.h"
 #include "utility/type_traits.h"
 
 namespace ptgn {
@@ -27,17 +27,18 @@ private:
 	T value_{ 0 };
 };
 
-struct FlipComponent {
-	FlipComponent() = default;
+template <typename T, tt::enable<std::is_arithmetic_v<T>> = true>
+struct Vector2Component {
+	Vector2Component() = default;
 
-	FlipComponent(Flip flip) : flip_{ flip } {}
+	Vector2Component(const Vector2<T>& value) : value_{ value } {}
 
-	operator Flip() const {
-		return flip_;
+	operator Vector2<T>() const {
+		return value_;
 	}
 
 private:
-	Flip flip_{ Flip::None };
+	Vector2<T> value_{ 0 };
 };
 
 } // namespace ptgn
