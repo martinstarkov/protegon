@@ -11,7 +11,7 @@
 #include "core/sdl_instance.h"
 #include "math/hash.h"
 #include "resources/fonts.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/file.h"
 
 namespace ptgn::impl {
