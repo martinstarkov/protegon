@@ -344,7 +344,7 @@ void RenderData::AddToBatch(
 					   transform.position + local_vertices[(i + 1) % vertex_modulo] };
 			auto vertices{ line.GetQuadVertices(line_width, transform.rotation) };
 			batch.AddTexturedQuad(
-				vertices, Batch::GetDefaultTextureCoordinates(), 0.0f, color, depth
+				vertices, GetDefaultTextureCoordinates(), 0.0f, color, depth
 			);
 		}
 	};
@@ -391,7 +391,7 @@ void RenderData::AddToBatch(
 
 		if (line_width == -1.0f) {
 			batch.AddTexturedQuad(
-				std::invoke(get_quad_positions), Batch::GetDefaultTextureCoordinates(), 0.0f, color,
+				std::invoke(get_quad_positions), GetDefaultTextureCoordinates(), 0.0f, color,
 				depth
 			);
 		} else {
@@ -420,7 +420,7 @@ void RenderData::AddToBatch(
 		std::invoke(add_lines, std::vector<V2_float>{ line.a, line.b });
 	} else if (e.HasAny<Circle, Ellipse>()) {
 		batch.AddEllipse(
-			std::invoke(get_ellipse_positions), Batch::GetDefaultTextureCoordinates(), line_width,
+			std::invoke(get_ellipse_positions), GetDefaultTextureCoordinates(), line_width,
 			e.Get<Radius>(), color, depth
 		);
 	} else if (e.Has<Triangle>()) {
@@ -436,14 +436,14 @@ void RenderData::AddToBatch(
 		PTGN_ASSERT(line_width == -1.0f);
 		if (e.Has<Radius>()) {
 			batch.AddEllipse(
-				std::invoke(get_ellipse_positions), Batch::GetDefaultTextureCoordinates(), 0.0f,
+				std::invoke(get_ellipse_positions), GetDefaultTextureCoordinates(), 0.0f,
 				e.Get<Radius>(), color, depth
 			);
 		} else {
 			// TODO: Check that this works.
 			batch.AddTexturedQuad(
 				{ transform.position, transform.position, transform.position, transform.position },
-				Batch::GetDefaultTextureCoordinates(), 0.0f, color, depth
+				GetDefaultTextureCoordinates(), 0.0f, color, depth
 			);
 		}
 	} else if (e.Has<Arc>()) {

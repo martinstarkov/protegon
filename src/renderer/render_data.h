@@ -86,15 +86,6 @@ struct Batch {
 
 	IndexType index_offset{ 0 };
 
-	[[nodiscard]] static constexpr std::array<V2_float, 4> GetDefaultTextureCoordinates() {
-		return {
-			V2_float{ 0.0f, 0.0f },
-			V2_float{ 1.0f, 0.0f },
-			V2_float{ 1.0f, 1.0f },
-			V2_float{ 0.0f, 1.0f },
-		};
-	}
-
 	// return -1 if no available texture index
 	float GetTextureIndex(
 		std::uint32_t white_texture_id, std::size_t max_texture_slots, std::uint32_t texture_id
