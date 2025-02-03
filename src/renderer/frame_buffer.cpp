@@ -32,12 +32,12 @@ FrameBufferInstance::~FrameBufferInstance() {
 #endif
 }
 
-void FrameBufferInstance::AttachTexture(const Texture& texture) {
-	PTGN_ASSERT(texture.IsValid(), "Cannot attach invalid texture to frame buffer");
+void FrameBufferInstance::AttachTexture(TextureManager::Texture texture) {
+	PTGN_ASSERT(texture != nullptr, "Cannot attach invalid texture to frame buffer");
 	PTGN_ASSERT(IsBound(), "Cannot attach texture until frame buffer is bound");
-	texture_ = texture;
+	texture_ = std::move(texture);
 	GLCall(gl::FramebufferTexture2D(
-		GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture.Get().id_, 0
+		GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture_->id, 0
 	));
 	PTGN_ASSERT(IsComplete(), "Failed to attach texture to frame buffer");
 }
@@ -118,11 +118,11 @@ std::uint32_t RenderBuffer::GetBoundId() {
 	return static_cast<std::uint32_t>(id);
 }
 
-FrameBuffer::FrameBuffer(const Texture& texture, bool rebind_previous_frame_buffer) {
+FrameBuffer::FrameBuffer(impl::TextureManager::Texture texture, bool rebind_previous_frame_buffer) {
 	auto create = [&]() {
 		Create();
 		Bind();
-		Get().AttachTexture(texture);
+		Get().AttachTexture(std::move(texture));
 		PTGN_ASSERT(IsComplete(), "Failed to complete frame buffer");
 	};
 
@@ -154,11 +154,11 @@ FrameBuffer::FrameBuffer(const RenderBuffer& render_buffer, bool rebind_previous
 	FrameBuffer::Bind(restore_id);
 }
 
-void FrameBuffer::AttachTexture(const Texture& texture) {
+void FrameBuffer::AttachTexture(impl::TextureManager::Texture texture) {
 	auto restore_id{ FrameBuffer::GetBoundId() };
 
 	Bind();
-	Get().AttachTexture(texture);
+	Get().AttachTexture(std::move(texture));
 
 	FrameBuffer::Bind(restore_id);
 }
@@ -172,10 +172,10 @@ void FrameBuffer::AttachRenderBuffer(const RenderBuffer& render_buffer) {
 	FrameBuffer::Bind(restore_id);
 }
 
-Texture FrameBuffer::GetTexture() const {
+const impl::TextureManager::Texture& FrameBuffer::GetTexture() const {
 	PTGN_ASSERT(IsValid(), "Cannot get texture attached to uninitialized frame buffer");
 	auto& i{ Get() };
-	PTGN_ASSERT(i.texture_.IsValid(), "Cannot get frame buffer texture which has not been set");
+	PTGN_ASSERT(i.texture_ != nullptr, "Cannot get frame buffer texture which has not been set");
 	return i.texture_;
 }
 
@@ -212,22 +212,19 @@ bool FrameBuffer::IsUnbound() {
 
 void FrameBuffer::Bind() const {
 	PTGN_ASSERT(IsValid(), "Cannot bind invalid frame buffer");
-	if (game.renderer.bound_frame_buffer_ == *this) {
+	if (game.renderer.bound_frame_buffer_id_ == Get().id_) {
 		return;
 	}
 	Bind(Get().id_);
-	game.renderer.bound_frame_buffer_ = *this;
+	game.renderer.bound_frame_buffer_id_ = Get().id_;
 }
 
 void FrameBuffer::Unbind() {
-	if (game.renderer.bound_frame_buffer_ == FrameBuffer{}) {
+	if (game.renderer.bound_frame_buffer_id_ == 0) {
 		return;
 	}
 	Bind(0);
-	game.renderer.bound_frame_buffer_ = {};
-#ifdef PTGN_DEBUG
-	++game.stats.frame_buffer_unbinds;
-#endif
+	game.renderer.bound_frame_buffer_id_ = 0;
 }
 
 std::uint32_t FrameBuffer::GetBoundId() {

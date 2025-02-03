@@ -62,14 +62,14 @@ struct FrameBufferInstance {
 	FrameBufferInstance& operator=(FrameBufferInstance&&)	   = default;
 	~FrameBufferInstance();
 
-	void AttachTexture(const Texture& texture);
+	void AttachTexture(TextureManager::Texture texture);
 	void AttachRenderBuffer(const RenderBuffer& render_buffer);
 
 	[[nodiscard]] bool IsBound() const;
 	[[nodiscard]] bool IsComplete() const;
 
 	std::uint32_t id_{ 0 };
-	Texture texture_;
+	TextureManager::Texture texture_;
 	RenderBuffer render_buffer_;
 };
 
@@ -79,17 +79,19 @@ class FrameBuffer : public Handle<impl::FrameBufferInstance> {
 public:
 	FrameBuffer() = default;
 
-	explicit FrameBuffer(const Texture& texture, bool rebind_previous_frame_buffer = true);
+	explicit FrameBuffer(
+		impl::TextureManager::Texture texture, bool rebind_previous_frame_buffer = true
+	);
 
 	explicit FrameBuffer(
 		const RenderBuffer& render_buffer, bool rebind_previous_frame_buffer = true
 	);
 
-	void AttachTexture(const Texture& texture);
+	void AttachTexture(impl::TextureManager::Texture texture);
 	void AttachRenderBuffer(const RenderBuffer& render_buffer);
 
 	// @return The texture attached to the frame buffer.
-	[[nodiscard]] Texture GetTexture() const;
+	[[nodiscard]] const impl::TextureManager::Texture& GetTexture() const;
 	// @return The render buffer attached to the frame buffer.
 	[[nodiscard]] RenderBuffer GetRenderBuffer() const;
 
