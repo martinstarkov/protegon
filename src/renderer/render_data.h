@@ -3,152 +3,137 @@
 #include <array>
 #include <cstdint>
 #include <map>
-#include <utility>
+#include <type_traits>
 #include <vector>
 
-#include "math/matrix4.h"
+#include "components/sprite.h"
+#include "components/transform.h"
+#include "ecs/ecs.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/line.h"
+#include "math/geometry/polygon.h"
+#include "math/math.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
-#include "renderer/batch.h"
+#include "renderer/color.h"
+#include "renderer/flip.h"
+#include "renderer/origin.h"
+#include "renderer/shader.h"
 #include "renderer/texture.h"
+#include "renderer/vertex_array.h"
+#include "renderer/vertices.h"
+#include "ui/plot.h"
+#include "utility/debug.h"
+#include "utility/log.h"
+#include "utility/utility.h"
 
 namespace ptgn {
 
-class Shader;
+// TODO: Figure out what to do with this.
+struct Point {};
 
 namespace impl {
 
-// Constructing a RenderData object requires the engine to be initialized.
+// TODO: Replace with include.
+struct PointLight {};
+
+// TODO: Fix text.
+struct Text {};
+
+struct Batch {
+	using IndexType = std::uint32_t;
+
+	// Batch capacity based on quads because they are the most common shape.
+	constexpr static inline std::uint32_t quad_batch_capacity{ 2000 };
+
+	constexpr static inline std::uint32_t quad_vertex_count{ 4 };
+	constexpr static inline std::uint32_t quad_index_count{ 6 };
+	constexpr static inline std::uint32_t triangle_vertex_count{ 3 };
+	constexpr static inline std::uint32_t triangle_index_count{ triangle_vertex_count };
+
+	constexpr static inline std::uint32_t vertex_batch_capacity{ quad_batch_capacity *
+																 quad_vertex_count };
+	constexpr static inline std::uint32_t index_batch_capacity{ quad_index_count *
+																vertex_batch_capacity };
+
+	Batch(const Shader& shader, const BlendMode& blend_mode);
+
+	Shader shader;
+	BlendMode blend_mode;
+	std::vector<std::uint32_t> texture_ids;
+	std::vector<Vertex> vertices;
+	std::vector<IndexType> indices;
+
+	void AddTexturedQuad(
+		const std::array<V2_float, quad_vertex_count>& positions,
+		const std::array<V2_float, quad_vertex_count>& tex_coords, float texture_index,
+		const V4_float& color, const Depth& depth
+	);
+
+	void AddQuad(
+		const std::array<V2_float, quad_vertex_count>& positions, const V4_float& color,
+		const Depth& depth
+	);
+
+	void AddTriangle(
+		const std::array<V2_float, triangle_vertex_count>& positions, const V4_float& color,
+		const Depth& depth
+	);
+
+	IndexType index_offset{ 0 };
+
+	// return -1 if no available texture index
+	float GetTextureIndex(
+		std::uint32_t white_texture_id, std::size_t max_texture_slots, std::uint32_t texture_id
+	);
+
+	// True if batch has room for these.
+	bool CanAccept(ecs::Entity e) const;
+
+	void BindTextures() const;
+};
+
+struct Batches {
+	std::vector<Batch> vector;
+	ecs::Entity prev_light;
+};
+
 class RenderData {
 public:
-	// Assumes view_projection_ is updated externally.
-	void Flush();
-
-	// @return True if the view projection changed, false otherwise.
-	bool SetViewProjection(const Matrix4& view_projection);
-
-	// @return The current view projection matrix for the render data.
-	[[nodiscard]] const Matrix4& GetViewProjection() const;
-
-	void AddPrimitiveQuad(
-		const std::array<V2_float, 4>& positions, std::int32_t render_layer, const V4_float& color,
-		const std::array<V2_float, 4>& tex_coords, const Texture& texture
+	void AddToBatch(
+		Batch& batch, ecs::Entity e, Transform transform, const Depth& depth,
+		const TextureManager::Texture& texture
 	);
 
-	void AddPrimitiveCircle(
-		const std::array<V2_float, 4>& positions, std::int32_t render_layer, const V4_float& color,
-		float line_width, float fade
+	void AddTexture(
+		ecs::Entity e, const Transform& transform, const Depth& depth, const BlendMode& blend_mode,
+		const TextureManager::Texture& texture, const Shader& shader
 	);
 
-	void AddPrimitiveTriangle(
-		const std::array<V2_float, 3>& positions, std::int32_t render_layer, const V4_float& color
-	);
+	void DrawLight(ecs::Entity e);
 
-	void AddPrimitiveLine(
-		const std::array<V2_float, 2>& positions, std::int32_t render_layer, const V4_float& color
-	);
+	void FlushBatches();
 
-	void AddPrimitivePoint(
-		const std::array<V2_float, 1>& positions, std::int32_t render_layer, const V4_float& color
-	);
+	void PopulateBatches(ecs::Manager& manager);
 
-private:
-	friend struct Batch;
-
-	[[nodiscard]] std::vector<Batch>& GetLayerBatches(
-		std::int32_t render_layer, [[maybe_unused]] float alpha
-	);
-
-	// @return True if texture is the 1x1 white texture used for solid quads, false otherwise.
-	[[nodiscard]] static bool IsBlank(const Texture& texture);
-
-	template <BatchType T, typename VertexType, std::size_t VertexCount>
-	void AddPrimitive(
-		const std::array<V2_float, VertexCount>& positions, std::int32_t render_layer,
-		const V4_float& color, const std::array<V2_float, 4>& tex_coords = {},
-		const Texture& texture = {}, float line_width = 0.0f, float fade = 0.0f
-	);
-
-	// @return Batch info related to the specific type: std::tuple{ vector of data, shape index
-	// count }.
-	template <BatchType T>
-	static auto GetBufferInfo(Batch& batch) {
-		if constexpr (T == BatchType::Quad) {
-			return std::make_pair(&batch.quads_, static_cast<std::size_t>(6));
-		} else if constexpr (T == BatchType::Triangle) {
-			return std::make_pair(&batch.triangles_, static_cast<std::size_t>(3));
-		} else if constexpr (T == BatchType::Line) {
-			return std::make_pair(&batch.lines_, static_cast<std::size_t>(2));
-		} else if constexpr (T == BatchType::Circle) {
-			return std::make_pair(&batch.circles_, static_cast<std::size_t>(6));
-		} else if constexpr (T == BatchType::Point) {
-			return std::make_pair(&batch.points_, static_cast<std::size_t>(1));
-		}
-	}
-
-	// @return Shader for the specific batch type.
-	template <BatchType T>
-	static Shader GetShader();
-
-	// @param callback Called before drawing VAO, used for binding textures in case of quads.
-	template <BatchType T>
-	void FlushType(std::vector<Batch>& batches) const;
-
-	void FlushBatches(std::vector<Batch>& batches);
-
-	void Reset();
 	void Init();
 
-	template <BatchType T>
-	const VertexArray& GetVertexArray() const {
-		if constexpr (T == BatchType::Quad) {
-			return quad_vao_;
-		} else if constexpr (T == BatchType::Triangle) {
-			return triangle_vao_;
-		} else if constexpr (T == BatchType::Line) {
-			return line_vao_;
-		} else if constexpr (T == BatchType::Circle) {
-			return circle_vao_;
-		} else if constexpr (T == BatchType::Point) {
-			return point_vao_;
-		}
-	}
+	void Render(ecs::Manager& manager);
 
-	VertexArray quad_vao_;
-	VertexArray circle_vao_;
-	VertexArray triangle_vao_;
-	VertexArray line_vao_;
-	VertexArray point_vao_;
+	std::size_t max_texture_slots{ 0 };
 
-	// TODO: Move to private and make Batch<> class friend.
-	IndexBuffer quad_ib_;
-	IndexBuffer triangle_ib_;
-	IndexBuffer line_ib_;
-	IndexBuffer point_ib_;
-	IndexBuffer shader_ib_; // One set of quad indices.
+	TextureManager::Texture white_texture;
 
-	Shader quad_shader_;
-	Shader circle_shader_;
-	Shader color_shader_;
+	// TODO: Fix.
+	// RenderTarget lights;
 
-	// Maximum number of primitive types before a second batch is generated.
-	// The higher the number, the less draw calls but more RAM is used.
-	std::size_t batch_capacity_{ 0 };
+	BlendMode default_blend_mode{ BlendMode::Blend };
+	BlendMode light_blend_mode{ BlendMode::Add };
 
-	std::uint32_t max_texture_slots_{ 0 };
-	Texture white_texture_;
+	// VertexArray window_vao;
+	std::unique_ptr<VertexArray> triangle_vao;
 
-	// Set to true whenether a primitive using this shader is added.
-	// Set to false after flushing the render data.
-	bool update_circle_shader_{ false };
-	bool update_color_shader_{ false };
-	bool update_quad_shader_{ false };
-
-	Matrix4 view_projection_{ 1.0f };
-	// Key: Render Layer, Value: Vector of transparent batches for each render layer.
-	std::map<std::int32_t, std::vector<Batch>> transparent_layers_;
-	// TODO: Readd opaque batches using depth testing.
-	// std::vector<Batch> opaque_batches_;
+	std::map<Depth, Batches> batch_map;
 };
 
 } // namespace impl
