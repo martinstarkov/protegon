@@ -31,23 +31,23 @@ namespace ptgn::impl {
 void Renderer::Init(const Color& window_background_color) {
 	ClearScreen();
 	// GLRenderer::EnableLineSmoothing();
-	screen_target_ = RenderTarget{ window_background_color, BlendMode::Blend };
-	current_target_ = screen_target_;
+	// TODO: Fix.
+	/*screen_target_ = RenderTarget{ window_background_color, BlendMode::Blend };
+	current_target_ = screen_target_;*/
 
 	render_data_.Init();
 }
 
 void Renderer::Reset() {
-	render_data_.Reset();
-
 	resolution_	  = {};
 	scaling_mode_ = ResolutionMode::Disabled;
 
-	current_target_ = {};
-	screen_target_ = {};
+	// TODO: Fix.
+	/*current_target_ = {};
+	screen_target_	= {};*/
 
-	bound_shader_id_			 = 0;
-	bound_vertex_array_id_		 = 0;
+	bound_shader_id_		 = 0;
+	bound_vertex_array_id_	 = 0;
 	bound_blend_mode_		 = BlendMode::None;
 	bound_viewport_position_ = {};
 	bound_viewport_size_	 = {};
@@ -59,6 +59,8 @@ void Renderer::Shutdown() {
 	Reset();
 }
 
+// TODO: Fix.
+/*
 void Renderer::SetRenderTarget(const RenderTarget& target) {
 	if (current_target_ == target) {
 		return;
@@ -150,18 +152,35 @@ ResolutionMode Renderer::GetResolutionMode() const {
 impl::RenderData& Renderer::GetRenderData() {
 	return render_data_;
 }
+*/
 
 void Renderer::PresentScreen() {
-	Flush();
+	if (game.scene.current_scene_.second != nullptr) {
+		render_data_.Render(game.scene.current_scene_.second->manager);
+		if (std::invoke([]() {
+				auto viewport_size{ GLRenderer::GetViewportSize() };
+				if (viewport_size.IsZero()) {
+					return false;
+				}
+				if (viewport_size.x == 1 && viewport_size.y == 1) {
+					return false;
+				}
+				return true;
+			})) {
+			game.window.SwapBuffers();
+		} else {
+			PTGN_WARN("Rendering to 0 to 1 sized viewport");
+		}
+	}
+	// TODO: Fix.
+	// Flush();
+	// screen_target_.Get().DrawToScreen();
 
-	screen_target_.Get().DrawToScreen();
-
-	game.window.SwapBuffers();
-
+	// TODO: Fix.
 	// Screen target is cleared after drawing it to the screen.
 	// TODO: Replace these with the Clear() function once that is added.
-	screen_target_.Get().Bind();
-	screen_target_.Get().Clear();
+	/*screen_target_.Get().Bind();
+	screen_target_.Get().Clear();*/
 
 	/*
 	// TODO: Move this to happen only when setting resolution. This would allow for example only one

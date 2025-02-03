@@ -16,9 +16,8 @@
 
 namespace ptgn {
 
-class GLRenderer;
-class VertexArray;
 class Shader;
+class FrameBuffer;
 
 // How the renderer resolution is scaled to the window size.
 enum class ResolutionMode {
@@ -34,12 +33,15 @@ enum class ResolutionMode {
 
 namespace impl {
 
+class VertexArray;
 class Game;
 class SceneManager;
 class SceneCamera;
 struct Batch;
+class GLRenderer;
 struct RenderTargetInstance;
 struct TextureInstance;
+struct ShaderInstance;
 class RenderData;
 class InputHandler;
 
@@ -59,10 +61,11 @@ public:
 	// @param target The desired render target to be set. If {}, the screen target will be set.
 	// Note if provided target is not the currently set render target, this function will flush the
 	// renderer.
-	void SetRenderTarget(const RenderTarget& target = {});
+	// TODO: Fix.
+	// void SetRenderTarget(const RenderTarget& target = {});
 
 	// @return The current render target.
-	[[nodiscard]] RenderTarget GetRenderTarget() const;
+	//[[nodiscard]] RenderTarget GetRenderTarget() const;
 
 	// Clear the current render target.
 	void Clear() const;
@@ -116,16 +119,16 @@ public:
 	[[nodiscard]] impl::RenderData& GetRenderData();
 
 private:
-	friend class ptgn::FrameBuffer;
 	friend class ptgn::Shader;
-	friend class ptgn::VertexArray;
-	friend class ptgn::GLRenderer;
-	
+	friend class VertexArray;
+	friend class ptgn::FrameBuffer;
+
 	friend class ptgn::RenderTarget;
-	friend class ptgn::Texture;
+	friend class GLRenderer;
 	friend class Game;
 	friend class RenderData;
 	friend struct RenderTargetInstance;
+	friend struct ShaderInstance;
 	friend struct TextureInstance;
 	friend struct Batch;
 
@@ -153,8 +156,9 @@ private:
 	V2_int resolution_;
 	ResolutionMode scaling_mode_{ ResolutionMode::Disabled };
 
-	RenderTarget current_target_;
-	RenderTarget screen_target_;
+	// TODO: Fix.
+	/*RenderTarget current_target_;
+	RenderTarget screen_target_;*/
 };
 
 } // namespace impl
