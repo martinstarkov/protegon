@@ -22,6 +22,8 @@ constexpr auto PTGN_OPENGL_MINOR_VERSION = 3;
 
 namespace ptgn {
 
+namespace impl {
+
 enum class PolygonMode {
 	Point = 0x1B00, // GL_POINT
 	Line  = 0x1B01, // GL_LINE
@@ -75,5 +77,7 @@ public:
 	// @return True if depth testing is enabled, false otherwise.
 	[[nodiscard]] static bool IsDepthTestingEnabled();
 };
+
+} // namespace impl
 
 } // namespace ptgn

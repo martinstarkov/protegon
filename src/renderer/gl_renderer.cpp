@@ -16,7 +16,7 @@
 #include "utility/handle.h"
 #include "utility/log.h"
 
-namespace ptgn {
+namespace ptgn::impl {
 
 void GLRenderer::EnableLineSmoothing() {
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
@@ -147,7 +147,6 @@ void GLRenderer::DrawElements(
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Draw elements");
 #endif
-	PTGN_ASSERT(vao.IsValid(), "Cannot draw uninitialized or destroyed vertex array");
 	PTGN_ASSERT(
 		vao.HasVertexBuffer(),
 		"Cannot draw vertex array with uninitialized or destroyed vertex buffer"
@@ -175,7 +174,6 @@ void GLRenderer::DrawArrays(
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Draw arrays");
 #endif
-	PTGN_ASSERT(vao.IsValid(), "Cannot draw uninitialized or destroyed vertex array");
 	PTGN_ASSERT(
 		vao.HasVertexBuffer(),
 		"Cannot draw vertex array with uninitialized or destroyed vertex buffer"
@@ -270,4 +268,4 @@ void GLRenderer::ClearToColor(const Color& color) {
 #endif
 }
 
-} // namespace ptgn
+} // namespace ptgn::impl
