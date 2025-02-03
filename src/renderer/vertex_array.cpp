@@ -52,11 +52,16 @@ void VertexArray::Bind() const {
 }
 
 void VertexArray::Bind(std::uint32_t id) {
-	if (game.renderer.bound_vertex_array_id_ == id) {
+	if (game.renderer.bound_.vertex_array_id == id) {
 		return;
 	}
-	game.renderer.bound_vertex_array_id_ = id;
+#ifdef PTGN_PLATFORM_MACOS
+	if (!id) {
+		return;
+	}
+#endif
 	GLCall(gl::BindVertexArray(id));
+	game.renderer.bound_.vertex_array_id = id;
 #ifdef PTGN_DEBUG
 	++game.stats.vertex_array_binds;
 #endif
@@ -66,9 +71,7 @@ void VertexArray::Bind(std::uint32_t id) {
 }
 
 void VertexArray::Unbind() {
-#ifndef PTGN_PLATFORM_MACOS
 	Bind(0);
-#endif
 }
 
 void VertexArray::SetVertexBuffer(std::unique_ptr<VertexBuffer> new_vertex_buffer) {
@@ -108,14 +111,14 @@ void VertexArray::SetBufferElement(
 			i, element.count, static_cast<gl::GLenum>(element.type), stride,
 			reinterpret_cast<const void*>(element.offset)
 		));
-	} else {
-		GLCall(gl::VertexAttribPointer(
-			i, element.count, static_cast<gl::GLenum>(element.type),
-			element.normalized ? static_cast<gl::GLboolean>(GL_TRUE)
-							   : static_cast<gl::GLboolean>(GL_FALSE),
-			stride, reinterpret_cast<const void*>(element.offset)
-		));
+		return;
 	}
+	GLCall(gl::VertexAttribPointer(
+		i, element.count, static_cast<gl::GLenum>(element.type),
+		element.normalized ? static_cast<gl::GLboolean>(GL_TRUE)
+						   : static_cast<gl::GLboolean>(GL_FALSE),
+		stride, reinterpret_cast<const void*>(element.offset)
+	));
 }
 
 void VertexArray::SetPrimitiveMode(PrimitiveMode new_mode) {

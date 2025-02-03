@@ -14,14 +14,15 @@ public:
 	// @param data Pointer to the buffer data.
 	// @param element_count Number of buffer elements to allocate.
 	// @param element_size Size of a single buffer element in bytes.
+	// @param usage Hint for how often the buffer will be accessed.
 	Buffer(
 		const void* data, std::uint32_t element_count, std::uint32_t element_size, BufferUsage usage
 	);
 
-	Buffer(const Buffer&)				 = delete;
-	Buffer& operator=(const Buffer&)	 = delete;
-	Buffer(Buffer&&) noexcept			 = default;
-	Buffer& operator=(Buffer&&) noexcept = default;
+	Buffer(Buffer&& other) noexcept;
+	Buffer& operator=(Buffer&& other) noexcept;
+	Buffer(const Buffer&)			 = delete;
+	Buffer& operator=(const Buffer&) = delete;
 	~Buffer();
 
 	// @param data Pointer to the new buffer data.
@@ -45,8 +46,14 @@ public:
 
 	void Bind() const;
 
+private:
+	void GenerateBuffer();
+	void DeleteBuffer() noexcept;
+
 	std::uint32_t id_{ 0 };
-	std::uint32_t count_{ 0 }; // Max number of elements in the buffer.
+
+	// Max number of elements in the buffer.
+	std::uint32_t count_{ 0 };
 };
 
 using VertexBuffer	= Buffer<BufferType::Vertex>;

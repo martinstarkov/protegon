@@ -12,11 +12,11 @@
 #include "math/vector4.h"
 #include "utility/debug.h"
 #include "utility/file.h"
-#include "utility/handle.h"
 
 // clang-format off
 #define PTGN_SHADER_STRINGIFY_MACRO(x) PTGN_STRINGIFY_MACRO(x)
 
+// These allow for shaders to differ for Emscripten as it uses OpenGL ES 3.0.
 #ifdef __EMSCRIPTEN__
 #define PTGN_SHADER_PATH(file) PTGN_SHADER_STRINGIFY_MACRO(PTGN_EXPAND_MACRO(resources/shader/es/)PTGN_EXPAND_MACRO(file))
 #else
@@ -24,9 +24,7 @@
 #endif
 // clang-format on
 
-namespace ptgn {
-
-class Shader;
+namespace ptgn::impl {
 
 // Wrapper for distinguishing between Shader from path construction and Shader
 // from source construction.
@@ -41,75 +39,17 @@ struct ShaderSource {
 	std::string source_;
 };
 
-namespace impl {
+[[nodiscard]] std::string_view GetShaderName(std::uint32_t shader_type);
 
-class Game;
-class RenderData;
-
-[[nodiscard]] std::string_view GetShaderTypeName(std::uint32_t type);
-
-struct ShaderInstance {
-	ShaderInstance();
-	ShaderInstance(const ShaderSource& vertex_shader, const ShaderSource& fragment_shader);
-	ShaderInstance(const path& vertex_shader_path, const path& fragment_shader_path);
-	ShaderInstance(const ShaderInstance&)			 = default;
-	ShaderInstance& operator=(const ShaderInstance&) = default;
-	ShaderInstance(ShaderInstance&&)				 = default;
-	ShaderInstance& operator=(ShaderInstance&&)		 = default;
-	~ShaderInstance();
-
-	void SetUniform(const std::string& name, const std::int32_t* data, std::int32_t count) const;
-	void SetUniform(const std::string& name, const float* data, std::int32_t count) const;
-	void SetUniform(const std::string& name, const Vector2<float>& v) const;
-	void SetUniform(const std::string& name, const Vector3<float>& v) const;
-	void SetUniform(const std::string& name, const Vector4<float>& v) const;
-	void SetUniform(const std::string& name, const Matrix4& m) const;
-	void SetUniform(const std::string& name, float v0) const;
-	void SetUniform(const std::string& name, float v0, float v1) const;
-	void SetUniform(const std::string& name, float v0, float v1, float v2) const;
-	void SetUniform(const std::string& name, float v0, float v1, float v2, float v3) const;
-	void SetUniform(const std::string& name, const Vector2<std::int32_t>& v) const;
-	void SetUniform(const std::string& name, const Vector3<std::int32_t>& v) const;
-	void SetUniform(const std::string& name, const Vector4<std::int32_t>& v) const;
-	void SetUniform(const std::string& name, std::int32_t v0) const;
-	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1) const;
-	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2)
-		const;
-	void SetUniform(
-		const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2, std::int32_t v3
-	) const;
-
-	void SetUniform(const std::string& name, bool value) const;
-
-	void Bind() const;
-
-	static void Bind(std::uint32_t id);
-
-	[[nodiscard]] bool IsBound() const;
-
-	[[nodiscard]] static std::uint32_t GetBoundId();
-
-	[[nodiscard]] std::int32_t GetUniformLocation(const std::string& name) const;
-
-	void CompileProgram(const std::string& vertex_shader, const std::string& fragment_shader);
-
-	[[nodiscard]] static std::uint32_t CompileShader(std::uint32_t type, const std::string& source);
-
-	// Location cache should not prevent const calls.
-	mutable std::unordered_map<std::string, std::int32_t> location_cache_;
-	std::uint32_t id_{ 0 };
-};
-
-} // namespace impl
-
-class Shader : public Handle<impl::ShaderInstance> {
-public:
+struct Shader {
 	Shader() = default;
 	Shader(const ShaderSource& vertex_shader, const ShaderSource& fragment_shader);
 	Shader(const path& vertex_shader_path, const path& fragment_shader_path);
-
-	// Bind the shader before setting uniforms.
-	void Bind() const;
+	Shader(const Shader&)			 = delete;
+	Shader& operator=(const Shader&) = delete;
+	Shader(Shader&& other) noexcept;
+	Shader& operator=(Shader&& other) noexcept;
+	~Shader();
 
 	// Sets the uniform value for the specified uniform name. If the uniform does not exist in the
 	// shader, nothing happens.
@@ -137,6 +77,30 @@ public:
 
 	// Behaves identically to SetUniform(name, std::int32_t).
 	void SetUniform(const std::string& name, bool value) const;
+
+	// Bind the shader before setting uniforms.
+	void Bind() const;
+
+	static void Bind(std::uint32_t id);
+
+	[[nodiscard]] bool IsBound() const;
+
+	[[nodiscard]] static std::uint32_t GetBoundId();
+
+	[[nodiscard]] std::int32_t GetUniformLocation(const std::string& name) const;
+
+	void CompileProgram(const std::string& vertex_shader, const std::string& fragment_shader);
+
+	[[nodiscard]] static std::uint32_t CompileShader(std::uint32_t type, const std::string& source);
+
+private:
+	void CreateProgram();
+	void DeleteProgram() noexcept;
+
+	std::uint32_t id_{ 0 };
+
+	// Location cache should not prevent const calls.
+	mutable std::unordered_map<std::string, std::int32_t> location_cache_;
 };
 
 // Note: If applicable, TextureInfo tint is applied after shader effect.
@@ -155,8 +119,6 @@ enum class ShapeShader {
 	Circle,
 	Color
 };
-
-namespace impl {
 
 class ShaderManager : public MapManager<Shader> {
 public:
@@ -252,6 +214,4 @@ private:
 	Shader color_;
 };
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

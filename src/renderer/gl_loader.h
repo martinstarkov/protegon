@@ -36,6 +36,8 @@ typedef void(GL_APIENTRYP PFNGLCLEARBUFFERUIVPROC)(
 #include <OpenGL/gl3.h>
 #include <OpenGL/gl3ext.h>
 
+#define CompileShader			glCompileShader
+#define ShaderSource			glShaderSource
 #define ClearBufferfv			glClearBufferfv
 #define ClearBufferuiv			glClearBufferuiv
 #define GenBuffers				glGenBuffers
@@ -71,7 +73,7 @@ typedef void(GL_APIENTRYP PFNGLCLEARBUFFERUIVPROC)(
 #define DeleteShader			glDeleteShader
 #define GetShaderiv				glGetShaderiv
 #define GetProgramiv			glGetProgramiv
-#define GetUniformLocation      glGetUniformLocation
+#define GetUniformLocation		glGetUniformLocation
 #define GetShaderInfoLog		glGetShaderInfoLog
 #define GetProgramInfoLog		glGetProgramInfoLog
 #define AttachShader			glAttachShader

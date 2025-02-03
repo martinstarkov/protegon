@@ -16,9 +16,6 @@
 
 namespace ptgn {
 
-class Shader;
-class FrameBuffer;
-
 // How the renderer resolution is scaled to the window size.
 enum class ResolutionMode {
 	Disabled,  /**< There is no scaling in effect */
@@ -33,6 +30,8 @@ enum class ResolutionMode {
 
 namespace impl {
 
+class Shader;
+class FrameBuffer;
 class VertexArray;
 class Game;
 class SceneManager;
@@ -119,11 +118,10 @@ public:
 	[[nodiscard]] impl::RenderData& GetRenderData();
 
 private:
-	friend class ptgn::Shader;
+	friend class Shader;
 	friend class VertexArray;
-	friend class ptgn::FrameBuffer;
-
-	friend class ptgn::RenderTarget;
+	friend class FrameBuffer;
+	friend class RenderTarget;
 	friend class GLRenderer;
 	friend class Game;
 	friend class RenderData;
@@ -144,13 +142,18 @@ private:
 
 	RenderData render_data_;
 
+	struct BoundStates {
+		std::uint32_t frame_buffer_id{ 0 };
+		std::uint32_t shader_id{ 0 };
+		std::uint32_t vertex_array_id{ 0 };
+		BlendMode blend_mode{ BlendMode::None };
+		V2_int viewport_position;
+		V2_int viewport_size;
+	};
+
+	BoundStates bound_;
+
 	// Renderer keeps track of what is bound.
-	std::uint32_t bound_frame_buffer_id_{ 0 };
-	std::uint32_t bound_shader_id_{ 0 };
-	std::uint32_t bound_vertex_array_id_{ 0 };
-	BlendMode bound_blend_mode_{ BlendMode::None };
-	V2_int bound_viewport_position_;
-	V2_int bound_viewport_size_;
 
 	// Default value results in fullscreen.
 	V2_int resolution_;

@@ -6,28 +6,15 @@
 #include "renderer/gl_loader.h"
 #include "renderer/vertex_array.h"
 #include "utility/debug.h"
+#include "utility/stats.h"
 
 namespace ptgn::impl {
-
-template <BufferType BT>
-Buffer<BT>::~Buffer() {
-	GLCall(gl::DeleteBuffers(1, &id_));
-#ifdef GL_ANNOUNCE_BUFFER_CALLS
-	PTGN_LOG("GL: Deleted buffer with id ", id_);
-#endif
-}
 
 template <BufferType BT>
 Buffer<BT>::Buffer(
 	const void* data, std::uint32_t element_count, std::uint32_t element_size, BufferUsage usage
 ) {
-	GLCall(gl::GenBuffers(1, &id_));
-
-	PTGN_ASSERT(id_ != 0, "Failed to generate buffer using OpenGL context");
-
-#ifdef GL_ANNOUNCE_BUFFER_CALLS
-	PTGN_LOG("GL: Generated buffer with id ", id_);
-#endif
+	GenerateBuffer();
 
 	PTGN_ASSERT(element_count > 0, "Number of buffer elements must be greater than 0");
 	PTGN_ASSERT(element_size > 0, "Byte size of a buffer element must be greater than 0");
@@ -41,6 +28,25 @@ Buffer<BT>::Buffer(
 	Bind();
 
 	GLCall(gl::BufferData(static_cast<gl::GLenum>(BT), size, data, static_cast<gl::GLenum>(usage)));
+}
+
+template <BufferType BT>
+Buffer<BT>::~Buffer() {
+	DeleteBuffer();
+}
+
+template <BufferType BT>
+Buffer<BT>::Buffer(Buffer&& other) noexcept :
+	id_{ std::exchange(other.id_, 0) }, count_{ std::exchange(other.count_, 0) } {}
+
+template <BufferType BT>
+Buffer<BT>& Buffer<BT>::operator=(Buffer&& other) noexcept {
+	if (this != &other) {
+		DeleteBuffer();
+		id_	   = std::exchange(other.id_, 0);
+		count_ = std::exchange(other.count_, 0);
+	}
+	return *this;
 }
 
 template <BufferType BT>
@@ -103,6 +109,26 @@ void Buffer<BT>::Bind() const {
 #endif
 #ifdef GL_ANNOUNCE_BUFFER_CALLS
 	PTGN_LOG("GL: Bound buffer with id ", id_);
+#endif
+}
+
+template <BufferType BT>
+void Buffer<BT>::GenerateBuffer() {
+	GLCall(gl::GenBuffers(1, &id_));
+	PTGN_ASSERT(id_ != 0, "Failed to generate buffer using OpenGL context");
+#ifdef GL_ANNOUNCE_BUFFER_CALLS
+	PTGN_LOG("GL: Generated buffer with id ", id_);
+#endif
+}
+
+template <BufferType BT>
+void Buffer<BT>::DeleteBuffer() noexcept {
+	if (!id_) {
+		return;
+	}
+	GLCall(gl::DeleteBuffers(1, &id_));
+#ifdef GL_ANNOUNCE_BUFFER_CALLS
+	PTGN_LOG("GL: Deleted buffer with id ", id_);
 #endif
 }
 
