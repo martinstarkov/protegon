@@ -41,7 +41,7 @@ struct ShaderSource {
 
 [[nodiscard]] std::string_view GetShaderName(std::uint32_t shader_type);
 
-struct Shader {
+class Shader {
 	Shader() = default;
 	Shader(const ShaderSource& vertex_shader, const ShaderSource& fragment_shader);
 	Shader(const path& vertex_shader_path, const path& fragment_shader_path);
@@ -125,6 +125,7 @@ enum class ShapeShader {
 	Color
 };
 
+// TODO: Fix this.
 class ShaderManager : public MapManager<Shader> {
 public:
 	ShaderManager()									   = default;
