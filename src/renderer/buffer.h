@@ -7,7 +7,8 @@
 namespace ptgn::impl {
 
 template <BufferType BT>
-struct Buffer {
+class Buffer {
+public:
 	Buffer() = default;
 
 	// @param data Pointer to the buffer data.
@@ -38,8 +39,8 @@ struct Buffer {
 	// @return Number of elements in the buffer.
 	[[nodiscard]] std::uint32_t GetElementCount() const;
 
-	[[nodiscard]] static std::int32_t GetBoundId();
-	[[nodiscard]] static std::int32_t GetBoundSize();
+	[[nodiscard]] static std::uint32_t GetBoundId();
+	[[nodiscard]] static std::uint32_t GetBoundSize();
 	[[nodiscard]] static BufferUsage GetBoundUsage();
 
 	void Bind() const;
