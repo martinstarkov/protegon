@@ -103,19 +103,29 @@ BufferUsage Buffer<BT>::GetBoundUsage() {
 
 template <BufferType BT>
 void Buffer<BT>::Bind() const {
-	GLCall(gl::BindBuffer(static_cast<gl::GLenum>(BT), id_));
+	Bind(id_);
+}
+
+template <BufferType BT>
+bool Buffer<BT>::IsBound() const {
+	return GetBoundId() == id_;
+}
+
+template <BufferType BT>
+void Buffer<BT>::Bind(std::uint32_t id) const {
+	GLCall(gl::BindBuffer(static_cast<gl::GLenum>(BT), id));
 #ifdef PTGN_DEBUG
 	++game.stats.buffer_binds;
 #endif
 #ifdef GL_ANNOUNCE_BUFFER_CALLS
-	PTGN_LOG("GL: Bound buffer with id ", id_);
+	PTGN_LOG("GL: Bound buffer with id ", id);
 #endif
 }
 
 template <BufferType BT>
 void Buffer<BT>::GenerateBuffer() {
 	GLCall(gl::GenBuffers(1, &id_));
-	PTGN_ASSERT(id_ != 0, "Failed to generate buffer using OpenGL context");
+	PTGN_ASSERT(IsValid(), "Failed to generate buffer using OpenGL context");
 #ifdef GL_ANNOUNCE_BUFFER_CALLS
 	PTGN_LOG("GL: Generated buffer with id ", id_);
 #endif
@@ -123,13 +133,18 @@ void Buffer<BT>::GenerateBuffer() {
 
 template <BufferType BT>
 void Buffer<BT>::DeleteBuffer() noexcept {
-	if (!id_) {
+	if (!IsValid()) {
 		return;
 	}
 	GLCall(gl::DeleteBuffers(1, &id_));
 #ifdef GL_ANNOUNCE_BUFFER_CALLS
 	PTGN_LOG("GL: Deleted buffer with id ", id_);
 #endif
+}
+
+template <BufferType BT>
+bool Buffer<BT>::IsValid() const {
+	return id_;
 }
 
 template class Buffer<BufferType::Vertex>;

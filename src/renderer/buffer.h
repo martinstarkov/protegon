@@ -45,6 +45,14 @@ public:
 	[[nodiscard]] static BufferUsage GetBoundUsage();
 
 	void Bind() const;
+	
+	[[nodiscard]] bool IsBound() const;
+	
+	// Bind a buffer id as the current buffer.
+	static void Bind(std::uint32_t id);
+
+	// @return True if id != 0.
+	[[nodiscard]] bool IsValid() const;
 
 private:
 	void GenerateBuffer();

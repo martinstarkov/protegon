@@ -72,14 +72,14 @@ Shader::~Shader() {
 
 void Shader::CreateProgram() {
 	id_ = GLCallReturn(gl::CreateProgram());
-	PTGN_ASSERT(id_ != 0, "Failed to create shader program using OpenGL context");
+	PTGN_ASSERT(IsValid(), "Failed to create shader program using OpenGL context");
 #ifdef GL_ANNOUNCE_SHADER_CALLS
 	PTGN_LOG("GL: Created shader program with id ", id_);
 #endif
 }
 
 void Shader::DeleteProgram() noexcept {
-	if (!id_) {
+	if (!IsValid()) {
 		return;
 	}
 	GLCall(gl::DeleteProgram(id_));
@@ -328,6 +328,10 @@ std::uint32_t Shader::GetBoundId() {
 	GLCall(gl::glGetIntegerv(GL_CURRENT_PROGRAM, &id));
 	PTGN_ASSERT(id >= 0, "Failed to retrieve bound shader id");
 	return static_cast<std::uint32_t>(id);
+}
+
+bool Shader::IsValid() const {
+	return id_;
 }
 
 Shader ShaderManager::Get(ScreenShader screen_shader) const {

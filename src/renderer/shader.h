@@ -81,21 +81,26 @@ struct Shader {
 	// Bind the shader before setting uniforms.
 	void Bind() const;
 
+	// Bind a shader id as the current shader.
 	static void Bind(std::uint32_t id);
 
+	// @return True if the shader is currently bound.
 	[[nodiscard]] bool IsBound() const;
 
+	// @return The id of the currently bound shader.
 	[[nodiscard]] static std::uint32_t GetBoundId();
+
+	// @return True if id != 0.
+	[[nodiscard]] bool IsValid() const;
+private:
+	void CreateProgram();
+	void DeleteProgram() noexcept;
 
 	[[nodiscard]] std::int32_t GetUniformLocation(const std::string& name) const;
 
 	void CompileProgram(const std::string& vertex_shader, const std::string& fragment_shader);
 
 	[[nodiscard]] static std::uint32_t CompileShader(std::uint32_t type, const std::string& source);
-
-private:
-	void CreateProgram();
-	void DeleteProgram() noexcept;
 
 	std::uint32_t id_{ 0 };
 
