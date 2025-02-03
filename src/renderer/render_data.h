@@ -3,29 +3,19 @@
 #include <array>
 #include <cstdint>
 #include <map>
-#include <type_traits>
 #include <vector>
 
 #include "components/sprite.h"
 #include "components/transform.h"
 #include "ecs/ecs.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/line.h"
-#include "math/geometry/polygon.h"
-#include "math/math.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
+#include "renderer/buffer_layout.h"
 #include "renderer/color.h"
-#include "renderer/flip.h"
-#include "renderer/origin.h"
+#include "renderer/gl_types.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "renderer/vertex_array.h"
-#include "renderer/vertices.h"
-#include "ui/plot.h"
-#include "utility/debug.h"
-#include "utility/log.h"
-#include "utility/utility.h"
 
 namespace ptgn {
 
@@ -39,6 +29,19 @@ struct PointLight {};
 
 // TODO: Fix text.
 struct Text {};
+
+struct Vertex {
+	glsl::vec3 position;
+	glsl::vec4 color;
+	glsl::vec2 tex_coord;
+	// For textures this is from 1 to max_texture_slots.
+	// For solid triangles/quads this is 0 (white 1x1 texture).
+	// For circles this stores the thickness: 0 is hollow, 1 is solid.
+	glsl::float_ tex_index;
+};
+
+constexpr inline const BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_>
+	quad_vertex_layout;
 
 struct Batch {
 	using IndexType = std::uint32_t;

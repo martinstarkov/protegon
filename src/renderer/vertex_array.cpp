@@ -118,29 +118,6 @@ void VertexArray::SetBufferElement(
 	}
 }
 
-void VertexArray::Draw(std::size_t index_count, bool bind_vertex_array) const {
-	PTGN_ASSERT(
-		HasVertexBuffer(), "Cannot submit vertex array without a set vertex buffer for rendering"
-	);
-	if (index_count != 0) {
-		PTGN_ASSERT(
-			HasIndexBuffer(),
-			"Cannot specify index without for a vertex array with no attached index buffer"
-		);
-		GLRenderer::DrawElements(*this, index_count, bind_vertex_array);
-		return;
-	}
-	if (HasIndexBuffer()) {
-		auto count{ index_buffer->GetElementCount() };
-		PTGN_ASSERT(count > 0, "Cannot draw vertex array with 0 indices");
-		GLRenderer::DrawElements(*this, count, bind_vertex_array);
-	} else {
-		auto count{ vertex_buffer->GetElementCount() };
-		PTGN_ASSERT(count > 0, "Cannot draw vertex array with 0 vertices");
-		GLRenderer::DrawArrays(*this, count, bind_vertex_array);
-	}
-}
-
 void VertexArray::SetPrimitiveMode(PrimitiveMode new_mode) {
 	mode = new_mode;
 }

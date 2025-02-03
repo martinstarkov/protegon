@@ -1,9 +1,11 @@
 #include "renderer/render_data.h"
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <numeric>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "components/sprite.h"
@@ -15,17 +17,21 @@
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
+#include "math/vector4.h"
 #include "renderer/buffer.h"
 #include "renderer/color.h"
+#include "renderer/flip.h"
 #include "renderer/frame_buffer.h"
 #include "renderer/gl_renderer.h"
 #include "renderer/gl_types.h"
-#include "renderer/renderer.h"
+#include "renderer/origin.h"
+#include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "renderer/vertex_array.h"
-#include "renderer/vertices.h"
 #include "scene/camera.h"
 #include "utility/debug.h"
+#include "utility/log.h"
+#include "utility/utility.h"
 
 namespace ptgn::impl {
 
@@ -621,7 +627,7 @@ void RenderData::FlushBatches() {
 				batch.indices.data(), 0, static_cast<std::uint32_t>(batch.indices.size()),
 				sizeof(Batch::IndexType), false
 			);
-			triangle_vao->Draw(batch.indices.size(), false);
+			GLRenderer::DrawElements(*triangle_vao, batch.indices.size(), false);
 		}
 	}
 
