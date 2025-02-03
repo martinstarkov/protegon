@@ -65,17 +65,17 @@ public:
 
 	// @param render_target If {}, uses the renderer's current render target.
 	// @return Mouse position transformed relative to the specified render target.
-	[[nodiscard]] V2_float GetMousePosition(RenderTarget render_target = {}) const;
+	[[nodiscard]] V2_float GetMousePosition() const;
 
 	// @param render_target If {}, uses the renderer's current render target.
 	// @return Mouse position during the previous frame transformed relative to the specified render
 	// target.
-	[[nodiscard]] V2_float GetMousePositionPrevious(RenderTarget render_target = {}) const;
+	[[nodiscard]] V2_float GetMousePositionPrevious() const;
 
 	// @param render_target If {}, uses the renderer's current render target.
 	// @return Mouse position difference between the current and previous frames transformed
 	// relative to the specified render target.
-	[[nodiscard]] V2_float GetMouseDifference(RenderTarget render_target = {}) const;
+	[[nodiscard]] V2_float GetMouseDifference() const;
 
 	// @return In desktop mode: mouse position relative to the screen (display). In browser: same as
 	// GetMousePosition().

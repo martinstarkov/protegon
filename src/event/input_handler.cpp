@@ -191,33 +191,38 @@ V2_float InputHandler::GetMouseDifferenceWindow() const {
 	return mouse_pos_ - prev_mouse_pos_;
 }
 
-V2_float InputHandler::GetMouseDifference(RenderTarget render_target) const {
-	if (!render_target.IsValid()) {
+V2_float InputHandler::GetMouseDifference() const {
+	/*if (!render_target.IsValid()) {
 		render_target = game.renderer.GetRenderTarget();
 	}
 	return TransformToViewport(
 		render_target.Get().GetViewport(), render_target.Get().GetCamera(),
 		GetMouseDifferenceWindow()
-	);
+	);*/
+	return GetMouseDifferenceWindow();
 }
 
-V2_float InputHandler::GetMousePosition(RenderTarget render_target) const {
-	if (!render_target.IsValid()) {
+V2_float InputHandler::GetMousePosition() const {
+	// TODO: Fix.
+	/*if (!render_target.IsValid()) {
 		render_target = game.renderer.GetRenderTarget();
 	}
 	return TransformToViewport(
 		render_target.Get().GetViewport(), render_target.Get().GetCamera(), GetMousePositionWindow()
-	);
+	);*/
+	return GetMousePositionWindow();
 }
 
-V2_float InputHandler::GetMousePositionPrevious(RenderTarget render_target) const {
-	if (!render_target.IsValid()) {
+V2_float InputHandler::GetMousePositionPrevious() const {
+	// TODO: Fix
+	/*if (!render_target.IsValid()) {
 		render_target = game.renderer.GetRenderTarget();
 	}
 	return TransformToViewport(
 		render_target.Get().GetViewport(), render_target.Get().GetCamera(),
 		GetMousePositionPreviousWindow()
-	);
+	);*/
+	return GetMousePositionPreviousWindow();
 }
 
 int InputHandler::GetMouseScroll() const {
