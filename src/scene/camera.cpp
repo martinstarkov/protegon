@@ -408,29 +408,12 @@ void Camera::PrintInfo() const {
 namespace impl {
 
 void CameraManager::Init() {
-	SetPrimary({});
-}
-
-void CameraManager::SetPrimary(const Camera& camera) const {
-	game.renderer.GetRenderTarget().Get().SetCamera(camera);
-}
-
-Camera& CameraManager::GetPrimary() {
-	return game.renderer.GetRenderTarget().Get().GetCamera();
-}
-
-const Camera& CameraManager::GetPrimary() const {
-	return game.renderer.GetRenderTarget().Get().GetCamera();
-}
-
-void CameraManager::SetPrimaryImpl(const InternalKey& key) {
-	PTGN_ASSERT(Has(key), "Cannot set camera which has not been loaded as the primary camera");
-	SetPrimary(Get(key));
+	primary = {};
 }
 
 void CameraManager::Reset() {
 	MapManager::Reset();
-	SetPrimary({});
+	primary = {};
 }
 
 } // namespace impl

@@ -182,6 +182,8 @@ protected:
 	bool resize_to_window{ true };
 
 private:
+	friend class impl::CameraManager;
+
 	// Allows constructing a camera which does not subscribe to window rezize events by default.
 	struct UninitializedCamera {};
 
@@ -204,25 +206,15 @@ public:
 	CameraManager(const CameraManager&)				   = delete;
 	CameraManager& operator=(const CameraManager&)	   = delete;
 
-	template <typename TKey, tt::not_same<TKey, Camera> = true>
-	void SetPrimary(const TKey& key) {
-		SetPrimaryImpl(GetInternalKey(key));
-	}
-
-	void SetPrimary(const Camera& camera) const;
-
-	[[nodiscard]] const Camera& GetPrimary() const;
-	[[nodiscard]] Camera& GetPrimary();
-
 	// Resets the camera manager. Does nothing to the primary camera.
 	void Reset();
+
+	Camera primary{ Camera::UninitializedCamera{} };
 
 private:
 	friend class Game;
 
 	void Init();
-
-	void SetPrimaryImpl(const InternalKey& key);
 };
 
 } // namespace impl
