@@ -19,22 +19,20 @@ namespace ptgn {
 
 namespace impl {
 
-VertexArrayInstance::VertexArrayInstance() {
-	GLCall(gl::GenVertexArrays(1, &id_));
-	PTGN_ASSERT(id_ != 0, "Failed to generate vertex array using OpenGL context");
+VertexArray::VertexArray() {
+	GLCall(gl::GenVertexArrays(1, &id));
+	PTGN_ASSERT(id != 0, "Failed to generate vertex array using OpenGL context");
 #ifdef GL_ANNOUNCE_VERTEX_ARRAY_CALLS
-	PTGN_LOG("GL: Generated vertex array with id ", id_);
+	PTGN_LOG("GL: Generated vertex array with id ", id);
 #endif
 }
 
-VertexArrayInstance::~VertexArrayInstance() {
-	GLCall(gl::DeleteVertexArrays(1, &id_));
+VertexArray::~VertexArray() {
+	GLCall(gl::DeleteVertexArrays(1, &id));
 #ifdef GL_ANNOUNCE_VERTEX_ARRAY_CALLS
-	PTGN_LOG("GL: Deleted vertex array with id ", id_);
+	PTGN_LOG("GL: Deleted vertex array with id ", id);
 #endif
 }
-
-} // namespace impl
 
 std::uint32_t VertexArray::GetBoundId() {
 	std::int32_t id{ -1 };
@@ -50,8 +48,7 @@ bool VertexArray::WithinMaxAttributes(std::int32_t attribute_count) {
 }
 
 void VertexArray::Bind() const {
-	PTGN_ASSERT(IsValid(), "Cannot bind invalid or uninitialized vertex array");
-	Bind(Get().id_);
+	Bind(id);
 }
 
 void VertexArray::Bind(std::uint32_t id) {
@@ -74,40 +71,32 @@ void VertexArray::Unbind() {
 #endif
 }
 
-void VertexArray::SetVertexBuffer(const VertexBuffer& vertex_buffer) {
-	Create();
-
+void VertexArray::SetVertexBuffer(std::unique_ptr<VertexBuffer> new_vertex_buffer) {
 	Bind();
-
-	SetVertexBufferImpl(vertex_buffer);
+	SetVertexBufferImpl(std::move(new_vertex_buffer));
 }
 
-void VertexArray::SetIndexBuffer(const IndexBuffer& index_buffer) {
-	Create();
-
+void VertexArray::SetIndexBuffer(std::unique_ptr<IndexBuffer> new_index_buffer) {
 	Bind();
-
-	SetIndexBufferImpl(index_buffer);
+	SetIndexBufferImpl(std::move(new_index_buffer));
 }
 
-void VertexArray::SetVertexBufferImpl(const VertexBuffer& vertex_buffer) {
-	auto& v{ Get() };
+void VertexArray::SetVertexBufferImpl(std::unique_ptr<VertexBuffer> new_vertex_buffer) {
 	PTGN_ASSERT(IsBound());
 	PTGN_ASSERT(
-		vertex_buffer.IsValid(), "Cannot set vertex buffer which is uninitialized or destroyed"
+		new_vertex_buffer != nullptr, "Cannot set vertex buffer which is uninitialized or destroyed"
 	);
-	vertex_buffer.Bind();
-	v.vertex_buffer_ = vertex_buffer;
+	new_vertex_buffer->Bind();
+	vertex_buffer = std::move(new_vertex_buffer);
 }
 
-void VertexArray::SetIndexBufferImpl(const IndexBuffer& index_buffer) {
-	auto& v{ Get() };
+void VertexArray::SetIndexBufferImpl(std::unique_ptr<IndexBuffer> new_index_buffer) {
 	PTGN_ASSERT(IsBound());
 	PTGN_ASSERT(
-		index_buffer.IsValid(), "Cannot set index buffer which is uninitialized or destroyed"
+		new_index_buffer != nullptr, "Cannot set index buffer which is uninitialized or destroyed"
 	);
-	index_buffer.Bind();
-	v.index_buffer_ = index_buffer;
+	new_index_buffer->Bind();
+	this->index_buffer = std::move(new_index_buffer);
 }
 
 void VertexArray::SetBufferElement(
@@ -130,7 +119,6 @@ void VertexArray::SetBufferElement(
 }
 
 void VertexArray::Draw(std::size_t index_count, bool bind_vertex_array) const {
-	PTGN_ASSERT(IsValid(), "Cannot submit invalid vertex array for rendering");
 	PTGN_ASSERT(
 		HasVertexBuffer(), "Cannot submit vertex array without a set vertex buffer for rendering"
 	);
@@ -143,46 +131,44 @@ void VertexArray::Draw(std::size_t index_count, bool bind_vertex_array) const {
 		return;
 	}
 	if (HasIndexBuffer()) {
-		auto count{ GetIndexBuffer().GetCount() };
+		auto count{ index_buffer->GetElementCount() };
 		PTGN_ASSERT(count > 0, "Cannot draw vertex array with 0 indices");
 		GLRenderer::DrawElements(*this, count, bind_vertex_array);
 	} else {
-		auto count{ GetVertexBuffer().GetCount() };
+		auto count{ vertex_buffer->GetElementCount() };
 		PTGN_ASSERT(count > 0, "Cannot draw vertex array with 0 vertices");
 		GLRenderer::DrawArrays(*this, count, bind_vertex_array);
 	}
 }
 
-void VertexArray::SetPrimitiveMode(PrimitiveMode mode) {
-	Create();
-	Get().mode_ = mode;
+void VertexArray::SetPrimitiveMode(PrimitiveMode new_mode) {
+	mode = new_mode;
 }
 
 bool VertexArray::HasVertexBuffer() const {
-	return IsValid() && Get().vertex_buffer_.IsValid();
+	return vertex_buffer != nullptr;
 }
 
 bool VertexArray::HasIndexBuffer() const {
-	return IsValid() && Get().index_buffer_.IsValid();
+	return index_buffer != nullptr;
 }
 
-VertexBuffer VertexArray::GetVertexBuffer() const {
-	PTGN_ASSERT(IsValid(), "Cannot get vertex buffer of invalid or uninitialized vertex array");
-	return Get().vertex_buffer_;
+std::unique_ptr<VertexBuffer>& VertexArray::GetVertexBuffer() {
+	return vertex_buffer;
 }
 
-IndexBuffer VertexArray::GetIndexBuffer() const {
-	PTGN_ASSERT(IsValid(), "Cannot get index buffer of invalid or uninitialized vertex array");
-	return Get().index_buffer_;
+std::unique_ptr<IndexBuffer>& VertexArray::GetIndexBuffer() {
+	return index_buffer;
 }
 
 PrimitiveMode VertexArray::GetPrimitiveMode() const {
-	PTGN_ASSERT(IsValid(), "Cannot get primitive mode of invalid or uninitialized vertex array");
-	return Get().mode_;
+	return mode;
 }
 
 bool VertexArray::IsBound() const {
-	return IsValid() && GetBoundId() == Get().id_;
+	return GetBoundId() == id;
 }
+
+} // namespace impl
 
 } // namespace ptgn

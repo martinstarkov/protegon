@@ -1,60 +1,40 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 
 #include "renderer/buffer.h"
 #include "renderer/buffer_layout.h"
 #include "renderer/gl_types.h"
 #include "utility/debug.h"
-#include "utility/handle.h"
+
+// TODO: Get rid of impl functions.
 
 namespace ptgn {
 
 struct Color;
 struct Rect;
 
-class GLRenderer;
-
 namespace impl {
 
-struct TextureVertices;
-class RendererData;
+class GLRenderer;
 
-struct VertexArrayInstance {
-	VertexArrayInstance();
-	VertexArrayInstance(const VertexArrayInstance&)				   = default;
-	VertexArrayInstance& operator=(const VertexArrayInstance&)	   = default;
-	VertexArrayInstance(VertexArrayInstance&&) noexcept			   = default;
-	VertexArrayInstance& operator=(VertexArrayInstance&&) noexcept = default;
-	~VertexArrayInstance();
-
-	PrimitiveMode mode_{ PrimitiveMode::Triangles };
-	VertexBuffer vertex_buffer_;
-	IndexBuffer index_buffer_;
-	std::uint32_t id_{ 0 };
-};
-
-} // namespace impl
-
-class VertexArray : public Handle<impl::VertexArrayInstance> {
+class VertexArray {
 public:
-	VertexArray() = default;
+	VertexArray();
+	~VertexArray();
 
 	template <typename... Ts>
 	VertexArray(
-		PrimitiveMode mode, const VertexBuffer& vertex_buffer, const BufferLayout<Ts...>& layout,
-		const IndexBuffer& index_buffer
-	) {
-		Create();
-
-		SetPrimitiveMode(mode);
+		PrimitiveMode new_mode, std::unique_ptr<VertexBuffer> new_vertex_buffer,
+		const BufferLayout<Ts...>& layout, std::unique_ptr<IndexBuffer> new_index_buffer
+	) :
+		VertexArray{} {
+		SetPrimitiveMode(new_mode);
 
 		Bind();
-
-		SetVertexBufferImpl(vertex_buffer);
-
-		SetIndexBufferImpl(index_buffer);
-
+		SetVertexBufferImpl(std::move(new_vertex_buffer));
+		SetIndexBufferImpl(std::move(new_index_buffer));
 		SetBufferLayoutImpl(layout);
 	}
 
@@ -66,8 +46,8 @@ public:
 	void Draw(std::size_t index_count = 0, bool bind_vertex_array = true) const;
 
 	void SetPrimitiveMode(PrimitiveMode mode);
-	void SetVertexBuffer(const VertexBuffer& vertex_buffer);
-	void SetIndexBuffer(const IndexBuffer& index_buffer);
+	void SetVertexBuffer(std::unique_ptr<VertexBuffer> new_vertex_buffer);
+	void SetIndexBuffer(std::unique_ptr<IndexBuffer> new_index_buffer);
 
 	template <typename... Ts>
 	void SetLayout(const BufferLayout<Ts...>& layout) {
@@ -76,8 +56,6 @@ public:
 			"Provided vertex type should only contain ptgn::glsl:: types"
 		);
 		static_assert(sizeof...(Ts) > 0, "Must provide layout types as template arguments");
-
-		Create();
 
 		Bind();
 
@@ -90,8 +68,8 @@ public:
 
 	// Note, returning by copy is okay since they are handles.
 
-	[[nodiscard]] VertexBuffer GetVertexBuffer() const;
-	[[nodiscard]] IndexBuffer GetIndexBuffer() const;
+	[[nodiscard]] std::unique_ptr<VertexBuffer>& GetVertexBuffer();
+	[[nodiscard]] std::unique_ptr<IndexBuffer>& GetIndexBuffer();
 
 	[[nodiscard]] PrimitiveMode GetPrimitiveMode() const;
 
@@ -112,8 +90,8 @@ private:
 
 	[[nodiscard]] static bool WithinMaxAttributes(std::int32_t attribute_count);
 
-	void SetVertexBufferImpl(const VertexBuffer& vertex_buffer);
-	void SetIndexBufferImpl(const IndexBuffer& index_buffer);
+	void SetVertexBufferImpl(std::unique_ptr<VertexBuffer> new_vertex_buffer);
+	void SetIndexBufferImpl(std::unique_ptr<IndexBuffer> new_index_buffer);
 
 	void SetBufferElement(
 		std::uint32_t index, const impl::BufferElement& element, std::int32_t stride
@@ -126,7 +104,7 @@ private:
 			"Cannot add a vertex buffer with an empty (unset) layout to a vertex array"
 		);
 
-		const auto& elements = layout.GetElements();
+		const auto& elements{ layout.GetElements() };
 		PTGN_ASSERT(
 			WithinMaxAttributes(static_cast<std::int32_t>(elements.size())),
 			"Too many vertex attributes"
@@ -146,6 +124,13 @@ private:
 	static void Bind(std::uint32_t id);
 
 	static void Unbind();
+
+	PrimitiveMode mode{ PrimitiveMode::Triangles };
+	std::unique_ptr<VertexBuffer> vertex_buffer;
+	std::unique_ptr<IndexBuffer> index_buffer;
+	std::uint32_t id{ 0 };
 };
+
+} // namespace impl
 
 } // namespace ptgn
