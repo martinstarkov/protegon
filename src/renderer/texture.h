@@ -17,6 +17,9 @@ struct SDL_Surface;
 
 namespace ptgn {
 
+class FrameBuffer;
+struct Color;
+
 // Format of pixels for a texture or surface.
 // e.g. RGBA8888 means 8 bits per color channel (32 bits total).
 enum class TextureFormat {
@@ -44,6 +47,10 @@ enum class TextureScaling {
 };
 
 namespace impl {
+
+struct Batch;
+class RenderData;
+struct FrameBufferInstance;
 
 struct Surface {
 	Surface() = default;
@@ -127,7 +134,10 @@ public:
 	[[nodiscard]] V2_int GetSize(std::string_view key) const;
 
 private:
-	[[nodiscard]] bool Has(std::size_t key) const;
+	friend struct Batch;
+	friend class RenderData;
+	friend struct FrameBufferInstance;
+	friend class ptgn::FrameBuffer;
 
 	struct TextureInstance {
 		TextureInstance();
@@ -146,6 +156,12 @@ private:
 		std::uint32_t id{ 0 };
 		V2_int size;
 	};
+
+	using Texture = std::unique_ptr<TextureInstance>;
+
+	[[nodiscard]] const Texture& Get(std::size_t key) const;
+
+	[[nodiscard]] bool Has(std::size_t key) const;
 
 	static void SetParameterI(TextureParameter parameter, std::int32_t value);
 
@@ -187,6 +203,8 @@ private:
 
 	// Information relating to the source pixels, flip, tinting and rotation center of the texture.
 	struct TextureInfo {
+		TextureInfo() = default;
+
 		/*
 		@param source_position Top left pixel to start drawing texture from within the texture.
 		@param source_size Number of pixels of the texture to draw ({} which corresponds to the
@@ -200,7 +218,8 @@ private:
 		*/
 		TextureInfo(
 			const V2_float& source_position, const V2_float& source_size, Flip flip = Flip::None,
-			const Color& tint = color::White, const V2_float& rotation_center = { 0.5f, 0.5f }
+			const Color& tint			= color::White,
+			const V2_float& rotation_center = { 0.5f, 0.5f }
 		) :
 			source_position{ source_position },
 			source_size{ source_size },
@@ -252,8 +271,6 @@ private:
 	// Ensure that the texture scaling of the currently bound texture is valid for generating
 	// mipmaps.
 	[[nodiscard]] static bool ValidMinifyingForMipmaps(TextureScaling minifying);
-
-	using Texture = std::unique_ptr<TextureInstance>;
 
 	std::unordered_map<std::size_t, Texture> textures_;
 };

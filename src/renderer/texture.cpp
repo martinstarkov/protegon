@@ -359,12 +359,12 @@ TextureManager::TextureInstance::~TextureInstance() {
 }
 
 void TextureManager::TextureInstance::Setup(
-	const void* data, TextureFormat format, const V2_int& size, int mipmap_level,
+	const void* data, TextureFormat format, const V2_int& texture_size, int mipmap_level,
 	TextureWrapping wrapping_x, TextureWrapping wrapping_y, TextureScaling minifying,
 	TextureScaling magnifying, bool mipmaps
 ) {
 	TextureManager::Bind(id);
-	TextureManager::SetData(data, format, size, mipmap_level);
+	TextureManager::SetData(data, format, texture_size, mipmap_level);
 	TextureManager::SetParameterI(TextureParameter::WrapS, static_cast<int>(wrapping_x));
 	TextureManager::SetParameterI(TextureParameter::WrapT, static_cast<int>(wrapping_y));
 	TextureManager::SetParameterI(TextureParameter::MinifyingScaling, static_cast<int>(minifying));
@@ -374,16 +374,18 @@ void TextureManager::TextureInstance::Setup(
 	if (mipmaps) {
 		TextureManager::GenerateMipmaps();
 	}
-	this->size = size;
+	size = texture_size;
 }
 
 void TextureManager::Load(std::string_view key, const path& filepath) {
-	auto [it, inserted] = textures_.try_emplace(Hash(key));
+	auto [it, inserted] =
+		textures_.try_emplace(Hash(key), std::move(std::make_unique<TextureInstance>()));
+	PTGN_ASSERT(it->second != nullptr);
 	if (inserted) {
 		Surface s{ LoadFromFile(filepath) };
 		it->second->Setup(
 			static_cast<const void*>(s.data.data()), s.format, s.size, 0, default_wrapping,
-			default_wrapping, default_minifying_scaling, default_magnifying_scaling, true
+			default_wrapping, default_minifying_scaling, default_magnifying_scaling, false
 		);
 	}
 }
@@ -395,6 +397,11 @@ void TextureManager::Unload(std::string_view key) {
 V2_int TextureManager::GetSize(std::string_view key) const {
 	PTGN_ASSERT(Has(Hash(key)), "Cannot get size of texture which has not been loaded");
 	return textures_.find(Hash(key))->second->size;
+}
+
+const TextureManager::Texture& TextureManager::Get(std::size_t key) const {
+	PTGN_ASSERT(Has(key), "Cannot get texture which has not been loaded");
+	return textures_.find(key)->second;
 }
 
 bool TextureManager::Has(std::size_t key) const {
