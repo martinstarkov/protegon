@@ -119,7 +119,8 @@ public:
 	template <typename T>
 	static void Sweep(
 		ecs::Entity entity, T& collider, const ecs::EntitiesWith<BoxCollider>& boxes,
-		const ecs::EntitiesWith<CircleCollider>& circles, bool debug_draw = false
+		const ecs::EntitiesWith<CircleCollider>&
+			circles /* TODO: Fix or get rid of: , bool debug_draw = false */
 	) {
 		if (!collider.continuous || collider.overlap_only || !entity.Has<RigidBody, Transform>()) {
 			return;
@@ -137,15 +138,17 @@ public:
 		auto collisions{ GetSortedCollisions(entity, collider, boxes, circles, {}, velocity) };
 
 		if (collisions.empty()) { // no collisions occured.
-			if (debug_draw) {
+			// TODO: Fix or get rid of.
+			/*if (debug_draw) {
 				DrawVelocity(transform.position, velocity, color::Gray);
-			}
+			}*/
 			return;
 		}
 
 		const auto& earliest{ collisions.front().c };
 
-		if (debug_draw) {
+		// TODO: Fix or get rid of.
+		/*if (debug_draw) {
 			DrawVelocity(transform.position, velocity * earliest.t, color::Blue);
 			if constexpr (std::is_same_v<T, BoxCollider>) {
 				Rect rect{ transform.position + velocity * earliest.t, collider.size,
@@ -155,7 +158,7 @@ public:
 				Circle circle{ transform.position + velocity * earliest.t, collider.radius };
 				circle.Draw(color::Purple);
 			}
-		}
+		}*/
 
 		AddEarliestCollisions(entity, collisions, collider.collisions);
 
@@ -174,11 +177,12 @@ public:
 		PTGN_ASSERT(game.dt() > 0.0f);
 
 		if (collisions2.empty()) {
-			if (debug_draw) {
+			// TODO: Fix or get rid of.
+			/*if (debug_draw) {
 				DrawVelocity(
 					transform.position + velocity * earliest.t, new_velocity, color::Orange
 				);
-			}
+			}*/
 
 			rigid_body.AddImpulse(new_velocity / game.dt());
 			return;
@@ -186,11 +190,12 @@ public:
 
 		const auto& earliest2{ collisions2.front().c };
 
-		if (debug_draw) {
+		// TODO: Fix or get rid of.
+		/*if (debug_draw) {
 			DrawVelocity(
 				transform.position + velocity * earliest.t, new_velocity * earliest2.t, color::Green
 			);
-		}
+		}*/
 
 		AddEarliestCollisions(entity, collisions2, collider.collisions);
 		rigid_body.AddImpulse(new_velocity / game.dt() * earliest2.t);
@@ -202,7 +207,8 @@ private:
 
 	void Update(ecs::Manager& manager) const;
 
-	static void DrawVelocity(const V2_float& start, const V2_float& vel, const Color& color);
+	// TODO: Fix or get rid of.
+	/*static void DrawVelocity(const V2_float& start, const V2_float& vel, const Color& color);*/
 
 	struct SweepCollision {
 		SweepCollision() = default;
