@@ -35,7 +35,6 @@
 #include "renderer/font.h"
 #include "renderer/renderer.h"
 #include "renderer/shader.h"
-#include "renderer/surface.h"
 #include "renderer/text.h"
 #include "renderer/texture.h"
 #include "renderer/vertex_array.h"
