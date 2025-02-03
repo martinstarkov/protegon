@@ -1,5 +1,7 @@
 #pragma once
 
+#include <type_traits>
+
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "utility/type_traits.h"
@@ -23,8 +25,8 @@ struct ArithmeticComponent {
 		return value_;
 	}
 
-private:
-	T value_{ 0 };
+protected:
+	T value_{};
 };
 
 template <typename T, tt::enable<std::is_arithmetic_v<T>> = true>

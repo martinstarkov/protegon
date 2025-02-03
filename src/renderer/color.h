@@ -114,7 +114,7 @@ inline constexpr Color Silver{ 192, 192, 192, 255 };
 
 } // namespace color
 
-inline std::ostream& operator<<(std::ostream& os, const ptgn::Color& color) {
+inline std::ostream& operator<<(std::ostream& os, const Color& color) {
 	os << "[";
 	os << static_cast<int>(color.r) << ", ";
 	os << static_cast<int>(color.g) << ", ";
