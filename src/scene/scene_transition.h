@@ -38,28 +38,28 @@ enum class TransitionType {
 class SceneTransition {
 public:
 	SceneTransition() = default;
-	SceneTransition(TransitionType type, milliseconds duration);
+	/*SceneTransition(TransitionType type, milliseconds duration);
 
 	bool operator==(const SceneTransition& o) const;
-	bool operator!=(const SceneTransition& o) const;
+	bool operator!=(const SceneTransition& o) const;*/
 
 	// By default the scene you are exiting will also be unloaded. Calling this function will make
 	// it so the scene FROM which you are transitioning will stay loaded in the scene manager even
 	// after exiting it.
-	void KeepLoadedOnComplete();
+	// void KeepLoadedOnComplete();
 
-	SceneTransition& SetType(TransitionType type);
+	// SceneTransition& SetType(TransitionType type);
 
-	// For TransitionType::FadeThroughColor, this is the time outside of the fade color
-	// i.e. total transition duration = duration + color duration
-	SceneTransition& SetDuration(milliseconds duration);
+	//// For TransitionType::FadeThroughColor, this is the time outside of the fade color
+	//// i.e. total transition duration = duration + color duration
+	// SceneTransition& SetDuration(milliseconds duration);
 
-	// Only applies when using TransitionType::FadeThroughColor.
-	SceneTransition& SetFadeColor(const Color& color);
+	//// Only applies when using TransitionType::FadeThroughColor.
+	// SceneTransition& SetFadeColor(const Color& color);
 
-	// The amount of time spent purely in in the fade color.
-	// Only applies when using TransitionType::FadeThroughColor.
-	SceneTransition& SetFadeColorDuration(milliseconds duration);
+	//// The amount of time spent purely in in the fade color.
+	//// Only applies when using TransitionType::FadeThroughColor.
+	// SceneTransition& SetFadeColorDuration(milliseconds duration);
 
 	// TODO: Implement custom transition callbacks.
 
@@ -77,7 +77,8 @@ private:
 	friend class impl::SceneManager;
 
 	// @param from_valid_scene True if starting from a current active scene that is not a nullptr.
-	void Start(bool from_valid_scene, std::size_t from_scene_key, std::size_t to_scene_key) const;
+	// void Start(bool from_valid_scene, std::size_t from_scene_key, std::size_t to_scene_key)
+	// const;
 
 	Color fade_color_{ color::Black };
 

@@ -154,14 +154,14 @@ Game::Game() :
 	json{ *json_ },
 	font_{ std::make_unique<FontManager>() },
 	font{ *font_ },
-	text_{ std::make_unique<TextManager>() },
-	text{ *text_ },
+	/*text_{ std::make_unique<TextManager>() },
+	text{ *text_ },*/
 	texture_{ std::make_unique<TextureManager>() },
 	texture{ *texture_ },
 	shader_{ std::make_unique<ShaderManager>() },
 	shader{ *shader_ },
-	light_{ std::make_unique<LightManager>() },
-	light{ *light_ },
+	/*light_{ std::make_unique<LightManager>() },
+	light{ *light_ },*/
 	profiler_{ std::make_unique<Profiler>() },
 	profiler{ *profiler_ } {}
 
@@ -210,7 +210,7 @@ void Game::Init(
 
 	renderer.Init(background_color);
 	camera.Init();
-	light.Init();
+	// light.Init();
 
 	game.window.SetTitle(title);
 	game.window.SetSize(window_size);
@@ -224,10 +224,7 @@ void Game::Shutdown() {
 	// TODO: Simply reset all the unique pointers instead of doing this.
 	profiler.Reset();
 	shader.Reset();
-	texture.Reset();
-	text.Reset();
 	tween.Reset();
-	json.Reset();
 
 	renderer.Shutdown();
 	input.Shutdown();
@@ -300,7 +297,7 @@ void Game::Update() {
 		physics.Update(scene.GetCurrent().manager);
 	}
 	tween.Update();
-	light.Draw();
+	// light.Draw();
 
 	renderer.PresentScreen();
 

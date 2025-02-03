@@ -42,7 +42,8 @@ void SceneManager::EnterImpl(const InternalKey& scene_key, const SceneTransition
 		}
 		if (empty_queue) {
 			bool from_valid_scene{ current_scene_.second != nullptr };
-			transition.Start(from_valid_scene, current_scene_.first, scene_key);
+			// TODO: Fix.
+			/*transition.Start(from_valid_scene, current_scene_.first, scene_key);*/
 		}
 	}
 

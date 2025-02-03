@@ -205,10 +205,10 @@ public:
 	FontManager& font;
 
 private:
-	std::unique_ptr<TextManager> text_;
+	// std::unique_ptr<TextManager> text_;
 
 public:
-	TextManager& text;
+	// TextManager& text;
 
 private:
 	std::unique_ptr<TextureManager> texture_;
@@ -223,10 +223,10 @@ public:
 	ShaderManager& shader;
 
 private:
-	std::unique_ptr<LightManager> light_;
+	// std::unique_ptr<LightManager> light_;
 
 public:
-	LightManager& light;
+	// LightManager& light;
 
 private:
 	std::unique_ptr<Profiler> profiler_;

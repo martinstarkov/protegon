@@ -39,7 +39,8 @@ struct Particle {
 struct ParticleInfo {
 	ParticleInfo() = default;
 
-	Texture texture;
+	// TODO: Fix.
+	// Texture texture;
 	bool texture_enabled{ false };
 	bool tint_texture{ true };
 
@@ -98,6 +99,8 @@ public:
 
 	void Draw() {
 		// TOOD: Add blend mode
+		// TODO: Fix drawing.
+		/*
 		if (info.texture_enabled) {
 			TextureInfo i;
 			PTGN_ASSERT(info.texture.IsValid());
@@ -116,20 +119,22 @@ public:
 		switch (info.particle_shape) {
 			case ParticleShape::Circle: {
 				for (const auto& [e, p] : manager_.EntitiesWith<Particle>()) {
-					Circle{ p.position, p.radius }.Draw(p.color, info.line_thickness);
+					// TODO: Fix drawing.
+					//Circle{ p.position, p.radius }.Draw(p.color, info.line_thickness);
 				}
 				break;
 			}
 			case ParticleShape::Square: {
 				for (const auto& [e, p] : manager_.EntitiesWith<Particle>()) {
 					// TODO: Add rect rotation.
-					Rect{ p.position, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center }.Draw(
-						p.color, info.line_thickness
-					);
+					// TODO: Fix drawing.
+					//Rect{ p.position, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center
+		}.Draw(p.color, info.line_thickness);
 				}
 				break;
 			}
-		}
+			}
+		*/
 	}
 
 	// Starts emitting particles.
