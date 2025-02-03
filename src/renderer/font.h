@@ -60,7 +60,8 @@ public:
 
 	void Unload(std::string_view key);
 
-	void SetDefault(std::string_view key);
+	// Empty string corresponds to the engine default font.
+	void SetDefault(std::string_view key = "");
 
 private:
 	friend class Game;
