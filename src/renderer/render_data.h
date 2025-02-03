@@ -106,12 +106,12 @@ class RenderData {
 public:
 	void AddToBatch(
 		Batch& batch, ecs::Entity e, Transform transform, const Depth& depth,
-		const TextureManager::Texture& texture
+		const Texture& texture
 	);
 
 	void AddTexture(
 		ecs::Entity e, const Transform& transform, const Depth& depth, const BlendMode& blend_mode,
-		const TextureManager::Texture& texture, const Shader& shader
+		const Texture& texture, const Shader& shader
 	);
 
 	void DrawLight(ecs::Entity e);
@@ -126,7 +126,7 @@ public:
 
 	std::size_t max_texture_slots{ 0 };
 
-	TextureManager::Texture white_texture;
+	Texture white_texture;
 
 	// TODO: Fix.
 	// RenderTarget lights;

@@ -184,15 +184,15 @@ void Batch::BindTextures() const {
 	for (std::uint32_t i{ 0 }; i < static_cast<std::uint32_t>(texture_ids.size()); i++) {
 		// Save first texture slot for empty white texture.
 		std::uint32_t slot{ i + 1 };
-		TextureManager::Bind(texture_ids[i], slot);
+		Texture::Bind(texture_ids[i], slot);
 	}
 }
 
 void RenderData::AddTexture(
 	ecs::Entity e, const Transform& transform, const Depth& depth, const BlendMode& blend_mode,
-	const TextureManager::Texture& texture, const Shader& shader
+	const Texture& texture, const Shader& shader
 ) {
-	PTGN_ASSERT(texture != nullptr);
+	PTGN_ASSERT(texture.IsValid());
 
 	auto& batches{ batch_map[depth].vector };
 
@@ -209,7 +209,7 @@ void RenderData::AddTexture(
 	auto& batch{ batches.back() };
 
 	if ((batch.shader != shader || batch.blend_mode != blend_mode) ||
-		batch.GetTextureIndex(white_texture->id, max_texture_slots, texture->id) == -1.0f ||
+		batch.GetTextureIndex(white_texture.GetId(), max_texture_slots, texture.GetId()) == -1.0f ||
 		!batch.CanAccept(e)) {
 		std::invoke(add_new_batch);
 		return;
@@ -220,9 +220,9 @@ void RenderData::AddTexture(
 
 void RenderData::AddToBatch(
 	Batch& batch, ecs::Entity e, Transform transform, const Depth& depth,
-	const TextureManager::Texture& texture
+	const Texture& texture
 ) {
-	PTGN_ASSERT(texture != nullptr);
+	PTGN_ASSERT(texture.IsValid());
 
 	V4_float color{ (e.Has<Tint>() ? Color{ e.Get<Tint>() } : color::White).Normalized() };
 	V2_float offset{ e.Has<Offset>() ? V2_float{ e.Get<Offset>() } : V2_float{} };
@@ -243,7 +243,7 @@ void RenderData::AddToBatch(
 			// TODO: Change this to take into account window resolution.
 			dest = Rect::Fullscreen();
 		} else if (dest.size.IsZero()) {
-			dest.size = texture->size * Abs(transform.scale);
+			dest.size = texture.GetSize() * Abs(transform.scale);
 		}
 
 		return dest.GetVertices(
@@ -253,7 +253,7 @@ void RenderData::AddToBatch(
 	};
 
 	auto get_tex_coords = [&](const V2_float& source_position, const V2_float& source_size) {
-		auto tex_coords{ GetTextureCoordinates(source_position, source_size, texture->size) };
+		auto tex_coords{ GetTextureCoordinates(source_position, source_size, texture.GetSize()) };
 
 		bool flip_x{ transform.scale.x < 0.0f };
 		bool flip_y{ transform.scale.y < 0.0f };
@@ -275,7 +275,7 @@ void RenderData::AddToBatch(
 
 	auto add_sprite = [&](const Rect& source) {
 		auto texture_index{
-			batch.GetTextureIndex(white_texture->id, max_texture_slots, texture->id)
+			batch.GetTextureIndex(white_texture.GetId(), max_texture_slots, texture.GetId())
 		};
 		PTGN_ASSERT(texture_index != -1.0f);
 
@@ -508,14 +508,8 @@ void RenderData::Init() {
 		PrimitiveMode::Triangles, std::move(quad_vb), quad_vertex_layout, std::move(quad_ib)
 	);
 
-	white_texture = std::make_unique<TextureManager::TextureInstance>();
-	PTGN_ASSERT(white_texture != nullptr);
-	PTGN_ASSERT(white_texture->id != -1);
-	white_texture->Setup(
-		static_cast<const void*>(&color::White), TextureFormat::RGBA8888, { 1, 1 }, 0,
-		game.texture.default_wrapping, game.texture.default_wrapping,
-		game.texture.default_minifying_scaling, game.texture.default_magnifying_scaling, false
-	);
+	white_texture = std::move(Texture(static_cast<const void*>(&color::White), TextureFormat::RGBA8888, { 1, 1 }));
+	PTGN_ASSERT(white_texture.IsValid());
 }
 
 void RenderData::PopulateBatches(ecs::Manager& manager) {
@@ -603,8 +597,8 @@ void RenderData::Render(ecs::Manager& manager) {
 
 void RenderData::FlushBatches() {
 	PTGN_ASSERT(triangle_vao != nullptr);
-	PTGN_ASSERT(white_texture != nullptr);
-	TextureManager::Bind(white_texture->id);
+	PTGN_ASSERT(white_texture.IsValid());
+	white_texture.Bind();
 	// Assume depth map sorted.
 	for (auto& [depth, batches] : batch_map) {
 		for (auto& batch : batches.vector) {
