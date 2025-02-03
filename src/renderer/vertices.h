@@ -5,7 +5,7 @@
 
 namespace ptgn::impl {
 
-struct QuadVertex {
+struct Vertex {
 	glsl::vec3 position;
 	glsl::vec4 color;
 	glsl::vec2 tex_coord;
