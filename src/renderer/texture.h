@@ -17,9 +17,6 @@ struct SDL_Surface;
 
 namespace ptgn {
 
-class FrameBuffer;
-struct Color;
-
 // Format of pixels for a texture or surface.
 // e.g. RGBA8888 means 8 bits per color channel (32 bits total).
 enum class TextureFormat {
@@ -48,9 +45,7 @@ enum class TextureScaling {
 
 namespace impl {
 
-struct Batch;
 class RenderData;
-struct FrameBufferInstance;
 
 struct Surface {
 	Surface() = default;
@@ -124,6 +119,95 @@ struct GLFormats {
 
 [[nodiscard]] GLFormats GetGLFormats(TextureFormat format);
 
+class Texture {
+public:
+	Texture() = default;
+	Texture(const void* data, const V2_int& size, TextureFormat format = TextureFormat::RGBA8888, int mipmap_level = 0,
+		TextureWrapping wrapping_x = TextureWrapping::ClampEdge, TextureWrapping wrapping_y = TextureWrapping::ClampEdge, TextureScaling minifying = TextureScaling::Nearest,
+		TextureScaling magnifying = TextureScaling::Nearest, bool mipmaps = false);
+	Texture(const Texture&)				   = delete;
+	Texture& operator=(const Texture&)	   = delete;
+	Texture(Texture&& other) noexcept;
+	Texture& operator=(Texture&& other) noexcept;
+	~Texture();
+	
+	// @return Size of the texture.
+	[[nodiscard]] V2_int GetSize() const;
+
+	// Set a sub pixel data of the currently bound texture.
+	// @param pixel_data Specifies a pointer to the image data in memory.
+	// @param size Specifies the size of the texture subimage (relative to the offset).
+	// @param format Specifies the format of the pixel data.
+	// @param mimap_level Specifies the level-of-detail number. Level 0 is the base image level.
+	// Level n is the nth mipmap reduction image.
+	// @param offset Specifies a texel offset within the texture array (relative to bottom left
+	// corner).
+	void SetSubData(
+		const void* pixel_data, const V2_int& size, TextureFormat format, int mipmap_level,
+		const V2_int& offset
+	);
+
+	// Set the specified texture slot to active and bind the texture id to that slot.
+	static void Bind(std::uint32_t id, std::uint32_t slot);
+
+	// Set the specified texture slot to active and bind the texture to that slot.
+	void Bind(std::uint32_t slot) const;
+
+	// Set the specified texture slot to active and bind the texture of that slot to 0.
+	static void Unbind(std::uint32_t slot);
+
+	// @return Id of the texture bound to the currently active texture slot.
+	[[nodiscard]] static std::uint32_t GetBoundId();
+
+	// @return True if the texture is currently bound, false otherwise.
+	[[nodiscard]] bool IsBound() const;
+
+	// Set the specified texture slot to active.
+	static void SetActiveSlot(std::uint32_t slot);
+
+	// @return Id of the currently active texture slot.
+	[[nodiscard]] static std::uint32_t GetActiveSlot();
+
+	// @return Id of the texture object.
+	[[nodiscard]] std::uint32_t GetId() const;
+	
+	// @return True if id != 0.
+	[[nodiscard]] bool IsValid() const;
+private:
+	void GenerateTexture();
+	void DeleteTexture() noexcept;
+
+	void SetParameterI(TextureParameter parameter, std::int32_t value);
+
+	// @return The uncasted integer value corresponding to the given parameter for the currently
+	// bound texture.
+	[[nodiscard]] std::int32_t GetParameterI(TextureParameter parameter);
+
+	[[nodiscard]] std::int32_t GetLevelParameterI(
+		TextureLevelParameter parameter, std::int32_t level
+	);
+
+	// Set the pixel data of the currently bound texture.
+	// @param pixel_data Specifies a pointer to the image data in memory.
+	// @param size Specifies the size of the texture.
+	// @param format Specifies the format of the pixel data.
+	// @param mimap_level Specifies the level-of-detail number. Level 0 is the base image level.
+	// Level n is the nth mipmap reduction image.
+	void SetData(
+		const void* pixel_data, const V2_int& size, TextureFormat format, int mipmap_level
+	);
+
+	// Ensure that the texture scaling of the currently bound texture is valid for generating
+	// mipmaps.
+	[[nodiscard]] static bool ValidMinifyingForMipmaps(TextureScaling minifying);
+	
+	// Automatically generate mipmaps for the currently bound texture.
+	void GenerateMipmaps();
+
+	std::uint32_t id_{ 0 };
+	V2_int size_;
+};
+
 class TextureManager {
 public:
 	void Load(std::string_view key, const path& filepath);
@@ -134,112 +218,13 @@ public:
 	[[nodiscard]] V2_int GetSize(std::string_view key) const;
 
 private:
-	friend struct Batch;
 	friend class RenderData;
-	friend struct FrameBufferInstance;
-	friend class ptgn::FrameBuffer;
-
-	struct TextureInstance {
-		TextureInstance();
-		TextureInstance(const TextureInstance&)				   = delete;
-		TextureInstance& operator=(const TextureInstance&)	   = delete;
-		TextureInstance(TextureInstance&&) noexcept			   = default;
-		TextureInstance& operator=(TextureInstance&&) noexcept = default;
-		~TextureInstance();
-
-		void Setup(
-			const void* data, TextureFormat format, const V2_int& size, int mipmap_level,
-			TextureWrapping wrapping_x, TextureWrapping wrapping_y, TextureScaling minifying,
-			TextureScaling magnifying, bool mipmaps
-		);
-
-		std::uint32_t id{ 0 };
-		V2_int size;
-	};
-
-	using Texture = std::unique_ptr<TextureInstance>;
 
 	[[nodiscard]] const Texture& Get(std::size_t key) const;
 
 	[[nodiscard]] bool Has(std::size_t key) const;
 
-	static void SetParameterI(TextureParameter parameter, std::int32_t value);
-
-	// @return The uncasted integer value corresponding to the given parameter for the currently
-	// bound texture.
-	[[nodiscard]] static std::int32_t GetParameterI(TextureParameter parameter);
-
-	[[nodiscard]] static std::int32_t GetLevelParameterI(
-		TextureLevelParameter parameter, std::int32_t level
-	);
-
-	// Automatically generate mipmaps for the currently bound texture.
-	static void GenerateMipmaps();
-
-	// Set the pixel data of the currently bound texture.
-	// @param pixel_data Specifies a pointer to the image data in memory.
-	// @param format Specifies the format of the pixel data.
-	// @param size Specifies the size of the texture.
-	// @param mimap_level Specifies the level-of-detail number. Level 0 is the base image level.
-	// Level n is the nth mipmap reduction image.
-	static void SetData(
-		const void* pixel_data, TextureFormat format, const V2_int& size, int mipmap_level
-	);
-
-	// Set a sub pixel data of the currently bound texture.
-	// @param pixel_data Specifies a pointer to the image data in memory.
-	// @param format Specifies the format of the pixel data.
-	// @param size Specifies the size of the texture subimage (relative to the offset).
-	// @param mimap_level Specifies the level-of-detail number. Level 0 is the base image level.
-	// Level n is the nth mipmap reduction image.
-	// @param offset Specifies a texel offset within the texture array (relative to bottom left
-	// corner).
-	static void SetSubData(
-		const void* pixel_data, TextureFormat format, const V2_int& size, int mipmap_level,
-		const V2_int& offset
-	);
-
 	[[nodiscard]] static Surface LoadFromFile(const path& filepath);
-
-	// Information relating to the source pixels, flip, tinting and rotation center of the texture.
-	struct TextureInfo {
-		TextureInfo() = default;
-
-		/*
-		@param source_position Top left pixel to start drawing texture from within the texture.
-		@param source_size Number of pixels of the texture to draw ({} which corresponds to the
-		remaining texture size to the bottom right of source_position). source.origin Relative  to
-		destination_position the direction from which the texture is.
-		@param flip Mirror the texture along an axis.
-		@param tint Color to tint the texture. Allows to change the transparency of a texture.
-		(color::White corresponds to no tint effect).
-		@param rotation_center Fraction of the source_size around which the texture is rotated ({
-		0.5f, 0.5f } corresponds to the center of the texture).
-		*/
-		TextureInfo(
-			const V2_float& source_position, const V2_float& source_size, Flip flip = Flip::None,
-			const Color& tint			= color::White,
-			const V2_float& rotation_center = { 0.5f, 0.5f }
-		) :
-			source_position{ source_position },
-			source_size{ source_size },
-			flip{ flip },
-			tint{ tint },
-			rotation_center{ rotation_center } {}
-
-		V2_float source_position;
-		V2_float source_size;
-		Flip flip{ Flip::None };
-		Color tint{ color::White };
-		V2_float rotation_center{ 0.5f, 0.5f };
-	};
-
-	// Default values for texture format, scaling, and wrapping.
-
-	constexpr const static TextureFormat default_format{ TextureFormat::RGBA8888 };
-	constexpr const static TextureScaling default_minifying_scaling{ TextureScaling::Nearest };
-	constexpr const static TextureScaling default_magnifying_scaling{ TextureScaling::Nearest };
-	constexpr const static TextureWrapping default_wrapping{ TextureWrapping::ClampEdge };
 
 	// TODO: Fix.
 	// Draws the texture to the currently bound frame buffer.
@@ -247,30 +232,6 @@ private:
 		std::string_view key, const Rect& destination, const TextureInfo& texture_info,
 		const Shader& shader
 	) const;*/
-
-	// Bind the texture to the currently active texture slot. This function does not change the
-	// active texture slot.
-
-	static void Bind(std::uint32_t id);
-
-	// Set the specified texture slot to active and bind the texture to that slot.
-	static void Bind(std::uint32_t id, std::uint32_t slot);
-
-	// Set the specified texture slot to active and bind the texture of that slot to 0.
-	static void Unbind(std::uint32_t slot);
-
-	// @return Id of the texture bound to the currently active texture slot.
-	[[nodiscard]] static std::uint32_t GetBoundId();
-
-	// Set the specified texture slot to active.
-	static void SetActiveSlot(std::uint32_t slot);
-
-	// @return Id of the currently active texture slot.
-	[[nodiscard]] static std::uint32_t GetActiveSlot();
-
-	// Ensure that the texture scaling of the currently bound texture is valid for generating
-	// mipmaps.
-	[[nodiscard]] static bool ValidMinifyingForMipmaps(TextureScaling minifying);
 
 	std::unordered_map<std::size_t, Texture> textures_;
 };
