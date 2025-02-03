@@ -44,16 +44,6 @@ struct Triangle {
 
 	// @return True if internal triangle is entirely contained by the triangle.
 	[[nodiscard]] bool Contains(const Triangle& internal) const;
-
-	// @param line_width -1 for a solid fille triangle.
-	void Draw(const Color& color, float line_width = -1.0f, std::int32_t render_layer = 0) const;
-
-private:
-	friend struct Polygon;
-
-	void DrawSolid(const V4_float& color, std::int32_t render_layer) const;
-
-	void DrawThick(float line_width, const V4_float& color, std::int32_t render_layer) const;
 };
 
 struct Rect {
@@ -72,12 +62,6 @@ struct Rect {
 	);
 
 	[[nodiscard]] static Rect Fullscreen();
-
-	// @param line_width -1 for a solid filled rectangle.
-	virtual void Draw(
-		const Color& color, float line_width = -1.0f, std::int32_t render_layer = 0,
-		const V2_float& rotation_center = { 0.5f, 0.5f }
-	) const;
 
 	[[nodiscard]] bool operator==(const Rect& o) const {
 		return position == o.position && size == o.size && origin == o.origin &&
@@ -146,15 +130,6 @@ private:
 		std::array<V2_float, 4>& vertices, const V2_float& position, const V2_float& size,
 		float rotation_radians, const V2_float& rotation_center
 	);
-
-	static void DrawSolid(
-		const V4_float& color, const std::array<V2_float, 4>& vertices, std::int32_t render_layer
-	);
-
-	static void DrawThick(
-		float line_width, const V4_float& color, const std::array<V2_float, 4>& vertices,
-		std::int32_t render_layer
-	);
 };
 
 struct RoundedRect : public Rect {
@@ -178,12 +153,6 @@ struct RoundedRect : public Rect {
 	// @return The outer rectangle which contains the entirely of the rounded rectangle as if it had
 	// no radius.
 	[[nodiscard]] Rect GetOuterRect() const;
-
-	// @param line_width -1 for a solid filled rounded rectangle.
-	void Draw(
-		const Color& color, float line_width = -1.0f, std::int32_t render_layer = 0,
-		const V2_float& rotation_center = { 0.5f, 0.5f }
-	) const override;
 };
 
 struct Polygon {
@@ -195,9 +164,6 @@ struct Polygon {
 	explicit Polygon(const Rect& rect);
 
 	explicit Polygon(const std::vector<V2_float>& vertices);
-
-	// @param line_width -1 for a solid filled polygon.
-	void Draw(const Color& color, float line_width = -1.0f, std::int32_t render_layer = 0) const;
 
 	// @return Centroid of the polygon.
 	[[nodiscard]] V2_float Center() const;
@@ -227,24 +193,12 @@ struct Polygon {
 	[[nodiscard]] Intersection Intersects(const Polygon& polygon) const;
 
 private:
-	void DrawSolid(const V4_float& color, std::int32_t render_layer) const;
-
-	void DrawThick(float line_width, const V4_float& color, std::int32_t render_layer) const;
-
 	[[nodiscard]] bool GetMinimumOverlap(const Polygon& polygon, float& depth, Axis& axis) const;
 
 	[[nodiscard]] bool HasOverlapAxis(const Polygon& polygon) const;
 };
 
 namespace impl {
-
-// @param vertex_modulo The modulo applied to the i + 1th vertex. If 0, use the value of
-// vertex_count. Non-zero value used by Arc, which draws vertices.size() - 1 vertices, but requires
-// modulo to be vertices.size().
-void DrawVertices(
-	const V2_float* vertices, std::size_t vertex_count, float line_width, const V4_float& color,
-	std::int32_t render_layer, std::size_t vertex_modulo = 0
-);
 
 [[nodiscard]] float TriangulateArea(const V2_float* contour, std::size_t count);
 

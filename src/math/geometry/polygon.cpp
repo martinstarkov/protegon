@@ -2,7 +2,6 @@
 
 #include <array>
 #include <cmath>
-#include <cstdint>
 #include <limits>
 #include <vector>
 
@@ -16,48 +15,12 @@
 #include "math/raycast.h"
 #include "math/utility.h"
 #include "math/vector2.h"
-#include "math/vector4.h"
-#include "renderer/color.h"
 #include "renderer/origin.h"
-#include "renderer/render_data.h"
-#include "renderer/renderer.h"
-#include "renderer/texture.h"
 #include "utility/debug.h"
 
 namespace ptgn {
 
 namespace impl {
-
-void DrawVertices(
-	const V2_float* vertices, std::size_t vertex_count, float line_width, const V4_float& color,
-	std::int32_t render_layer, std::size_t vertex_modulo
-) {
-	PTGN_ASSERT(line_width > 0.0f, "Cannot draw shape with negative line width");
-
-	if (vertex_modulo == 0) {
-		vertex_modulo = vertex_count;
-	}
-
-	auto& render_data{ game.renderer.GetRenderData() };
-
-	if (line_width <= 1.0f) {
-		for (std::size_t i{ 0 }; i < vertex_count; i++) {
-			render_data.AddPrimitiveLine(
-				{ vertices[i], vertices[(i + 1) % vertex_modulo] }, render_layer, color
-			);
-		}
-		return;
-	}
-
-	constexpr auto tex_coords{ TextureInfo::GetDefaultTextureCoordinates() };
-
-	for (std::size_t i{ 0 }; i < vertex_count; i++) {
-		render_data.AddPrimitiveQuad(
-			Line{ vertices[i], vertices[(i + 1) % vertex_modulo] }.GetQuadVertices(line_width),
-			render_layer, color, tex_coords, {}
-		);
-	}
-}
 
 float TriangulateArea(const V2_float* contour, std::size_t count) {
 	PTGN_ASSERT(contour != nullptr);
@@ -211,26 +174,6 @@ std::vector<Triangle> Triangulate(const V2_float* contour, std::size_t count) {
 Triangle::Triangle(const V2_float& a, const V2_float& b, const V2_float& c) :
 	a{ a }, b{ b }, c{ c } {}
 
-void Triangle::DrawSolid(const V4_float& color, std::int32_t render_layer) const {
-	game.renderer.GetRenderData().AddPrimitiveTriangle({ a, b, c }, render_layer, color);
-}
-
-void Triangle::DrawThick(float line_width, const V4_float& color, std::int32_t render_layer) const {
-	std::array<V2_float, 3> vertices{ a, b, c };
-	impl::DrawVertices(vertices.data(), vertices.size(), line_width, color, render_layer);
-}
-
-void Triangle::Draw(const Color& color, float line_width, std::int32_t render_layer) const {
-	auto norm_color{ color.Normalized() };
-
-	if (line_width == -1.0f) {
-		DrawSolid(norm_color, render_layer);
-		return;
-	}
-
-	DrawThick(line_width, norm_color, render_layer);
-}
-
 bool Triangle::Overlaps(const V2_float& point) const {
 	// Using barycentric coordinates method.
 	float A{ 0.5f * (-b.y * c.x + a.y * (-b.x + c.x) + a.x * (b.y - c.y) + b.x * c.y) };
@@ -257,36 +200,6 @@ Rect::Rect(const V2_float& position, const V2_float& size, Origin origin, float 
 
 Rect Rect::Fullscreen() {
 	return Rect{ {}, game.window.GetSize(), Origin::TopLeft };
-}
-
-void Rect::DrawSolid(
-	const V4_float& color, const std::array<V2_float, 4>& vertices, std::int32_t render_layer
-) {
-	game.renderer.GetRenderData().AddPrimitiveQuad(
-		vertices, render_layer, color, TextureInfo::GetDefaultTextureCoordinates(), {}
-	);
-}
-
-void Rect::DrawThick(
-	float line_width, const V4_float& color, const std::array<V2_float, 4>& vertices,
-	std::int32_t render_layer
-) {
-	impl::DrawVertices(vertices.data(), vertices.size(), line_width, color, render_layer);
-}
-
-void Rect::Draw(
-	const Color& color, float line_width, std::int32_t render_layer, const V2_float& rotation_center
-) const {
-	auto norm_color{ color.Normalized() };
-
-	auto vertices{ GetVertices(rotation_center) };
-
-	if (line_width == -1.0f) {
-		DrawSolid(norm_color, vertices, render_layer);
-		return;
-	}
-
-	DrawThick(line_width, norm_color, vertices, render_layer);
 }
 
 void Rect::Offset(const V2_float& offset) {
@@ -329,7 +242,7 @@ V2_float Rect::GetPosition(Origin relative_to) const {
 void Rect::OffsetVertices(
 	std::array<V2_float, 4>& vertices, const V2_float& size, Origin draw_origin
 ) {
-	auto draw_offset = GetOffsetFromCenter(size, draw_origin);
+	auto draw_offset{ GetOffsetFromCenter(size, draw_origin) };
 
 	// Offset each vertex by based on draw origin.
 	if (!draw_offset.IsZero()) {
@@ -580,6 +493,7 @@ Rect RoundedRect::GetOuterRect() const {
 			 Origin::Center, rotation };
 }
 
+/*
 void RoundedRect::Draw(
 	const Color& color, float line_width, std::int32_t render_layer, const V2_float& rotation_center
 ) const {
@@ -672,6 +586,7 @@ void RoundedRect::Draw(
 		Rect::DrawSolid(norm_color, vertices, render_layer);
 	}
 }
+*/
 
 Polygon::Polygon(const Rect& rect) {
 	float c_a{ std::cos(rect.rotation) };
@@ -695,28 +610,6 @@ Polygon::Polygon(const Rect& rect) {
 }
 
 Polygon::Polygon(const std::vector<V2_float>& vertices) : vertices{ vertices } {}
-
-void Polygon::DrawSolid(const V4_float& color, std::int32_t render_layer) const {
-	auto triangles{ Triangulate() };
-	for (const auto& t : triangles) {
-		t.DrawSolid(color, render_layer);
-	}
-}
-
-void Polygon::DrawThick(float line_width, const V4_float& color, std::int32_t render_layer) const {
-	impl::DrawVertices(vertices.data(), vertices.size(), line_width, color, render_layer);
-}
-
-void Polygon::Draw(const Color& color, float line_width, std::int32_t render_layer) const {
-	auto norm_color{ color.Normalized() };
-
-	if (line_width == -1.0f) {
-		DrawSolid(norm_color, render_layer);
-		return;
-	}
-
-	DrawThick(line_width, norm_color, render_layer);
-}
 
 V2_float Polygon::Center() const {
 	// Source: https://stackoverflow.com/a/63901131

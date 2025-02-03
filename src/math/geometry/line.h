@@ -27,8 +27,6 @@ struct Line {
 		return !(*this == o);
 	}
 
-	void Draw(const Color& color, float line_width = 1.0f, std::int32_t render_layer = 0) const;
-
 	[[nodiscard]] V2_float Direction() const;
 	[[nodiscard]] V2_float Midpoint() const;
 
@@ -52,14 +50,6 @@ struct Line {
 	[[nodiscard]] std::array<V2_float, 4> GetQuadVertices(
 		float line_width, float additional_rotation = 0.0f
 	) const;
-
-private:
-	friend struct Capsule;
-	friend struct RoundedRect;
-
-	void DrawSolid(const V4_float& color, std::int32_t render_layer) const;
-
-	void DrawThick(float line_width, const V4_float& color, std::int32_t render_layer) const;
 };
 
 struct Capsule {
@@ -71,9 +61,6 @@ struct Capsule {
 	Capsule(const Line& line, float radius) : line{ line }, radius{ radius } {}
 
 	Capsule(const V2_float& a, const V2_float& b, float radius) : line{ a, b }, radius{ radius } {}
-
-	// @param line_width -1 for a solid filled capsule.
-	void Draw(const Color& color, float line_width = -1.0f, std::int32_t render_layer = 0) const;
 
 	[[nodiscard]] bool Overlaps(const V2_float& point) const;
 	[[nodiscard]] bool Overlaps(const Line& line) const;

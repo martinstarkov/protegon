@@ -2,15 +2,12 @@
 
 #include <array>
 #include <cmath>
-#include <cstdint>
 #include <iosfwd>
 #include <ostream>
 #include <type_traits>
 
 #include "math/math.h"
 #include "math/rng.h"
-#include "math/vector4.h"
-#include "renderer/color.h"
 #include "serialization/fwd.h"
 #include "utility/debug.h"
 #include "utility/type_traits.h"
@@ -25,20 +22,6 @@ struct Rect;
 struct Line;
 struct Capsule;
 struct Circle;
-
-namespace impl {
-
-struct Point {
-	static void Draw(float x, float y, const Color& color, float radius, std::int32_t render_layer);
-
-	static void Draw(float x, float y, const V4_float& color, std::int32_t render_layer);
-
-	static void Draw(
-		float x, float y, float radius, const V4_float& color, std::int32_t render_layer
-	);
-};
-
-} // namespace impl
 
 template <typename T>
 struct Vector2 {
@@ -72,12 +55,6 @@ struct Vector2 {
 		x{ static_cast<T>(o[0]) }, y{ static_cast<T>(o[1]) } {}
 
 	explicit Vector2(const json& j);
-
-	void Draw(const Color& color, float radius = 1.0f, std::int32_t render_layer = 0) const {
-		impl::Point::Draw(
-			static_cast<float>(x), static_cast<float>(y), color, radius, render_layer
-		);
-	}
 
 	// Access vector elements by index, 0 for x, 1 for y.
 	[[nodiscard]] constexpr T& operator[](std::size_t idx) {

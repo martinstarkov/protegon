@@ -23,9 +23,12 @@
 #include "utility/debug.h"
 #include "utility/time.h"
 #include "utility/tween.h"
+#include "utility/type_traits.h"
 #include "utility/utility.h"
 
 namespace ptgn {
+
+// TODO: Move some components of these elsewhere.
 
 struct Depth : public ArithmeticComponent<std::int32_t> {
 	using ArithmeticComponent::ArithmeticComponent;
@@ -33,36 +36,55 @@ struct Depth : public ArithmeticComponent<std::int32_t> {
 
 struct Visible : public ArithmeticComponent<bool> {
 	using ArithmeticComponent::ArithmeticComponent;
+
+	Visible() : ArithmeticComponent{ true } {}
 };
 
 struct Alpha : public ArithmeticComponent<std::uint8_t> {
 	using ArithmeticComponent::ArithmeticComponent;
+
+	Alpha() : ArithmeticComponent{ 255 } {}
 };
 
 struct Tint : public ColorComponent {
 	using ColorComponent::ColorComponent;
+
+	Tint() : ColorComponent{ color::White } {}
 };
 
 struct LineWidth : public ArithmeticComponent<float> {
 	using ArithmeticComponent::ArithmeticComponent;
+
+	LineWidth() : ArithmeticComponent{ 1.0f } {}
 };
 
-struct Radius : public ArithmeticComponent<float> {
-	using ArithmeticComponent::ArithmeticComponent;
+struct Radius : public Vector2Component<float> {
+	using Vector2Component::Vector2Component;
+
+	Radius() : Vector2Component{ V2_float{ 1.0f, 1.0f } } {}
 };
 
 struct Size : public Vector2Component<float> {
 	using Vector2Component::Vector2Component;
 };
 
+struct Offset : public Vector2Component<float> {
+	using Vector2Component::Vector2Component;
+};
+
+struct RotationCenter : public Vector2Component<float> {
+	using Vector2Component::Vector2Component;
+
+	RotationCenter() : Vector2Component{ V2_float{ 0.5f, 0.5f } } {}
+};
+
 struct Sprite {
 	// sprite_size = {} results in full texture size being used.
 	Sprite(
-		std::string_view texture_key, const V2_float& draw_offset = {},
-		Origin origin = Origin::Center, const V2_float& sprite_size = {},
+		std::string_view texture_key, const V2_float& sprite_size = {},
 		const V2_float& start_pixel = {}
 	) :
-		texture_key{ Hash(texture_key) }, draw_offset{ draw_offset } {
+		texture_key{ Hash(texture_key) } {
 		V2_int texture_size{ game.texture.GetSize(texture_key) };
 
 		PTGN_ASSERT(texture_size.x > 0, "Texture must have width > 0");
@@ -75,7 +97,7 @@ struct Sprite {
 		} else {
 			source.size = sprite_size;
 		}
-		source.origin = origin;
+		source.origin = Origin::Center;
 
 		PTGN_ASSERT(
 			source.position.x < texture_size.x, "Source position X must be within texture width"
@@ -97,11 +119,8 @@ struct Sprite {
 		return source;
 	}
 
-private:
 	std::size_t texture_key;
-
 	Rect source;
-	V2_float draw_offset; // Offset of sprite relative to entity transform.
 };
 
 namespace impl {
@@ -146,17 +165,13 @@ struct Animation : public impl::SpriteSheet {
 
 	// TODO: Make animation info struct.
 	// @param frame_size Size of an individual animation frame (single sprite).
-	// @param origin Relative to what the draw offset is
 	Animation(
-		const Texture& texture, std::size_t frame_count, const V2_float& frame_size,
+		std::string_view texture_key, std::size_t frame_count, const V2_float& frame_size,
 		milliseconds animation_duration, const V2_float& start_pixel = {},
-		const V2_float& texture_draw_offset = {}, Origin animation_origin = Origin::Center,
 		std::size_t starting_frame = 0
 	) :
-		impl::SpriteSheet{ texture, frame_count, frame_size, start_pixel } {
+		impl::SpriteSheet{ texture_key, frame_count, frame_size, start_pixel } {
 		duration	= animation_duration;
-		draw_offset = texture_draw_offset;
-		origin		= animation_origin;
 		start_frame = starting_frame;
 
 		PTGN_ASSERT(
@@ -246,8 +261,6 @@ struct Animation : public impl::SpriteSheet {
 		}
 	}
 
-	void Draw(ecs::Entity entity) const;
-
 	std::function<void()> on_start;
 	std::function<void()> on_repeat;
 	std::function<void(float)> on_update;
@@ -267,17 +280,12 @@ struct Animation : public impl::SpriteSheet {
 	}
 
 	[[nodiscard]] Rect GetSource() const {
-		return Rect{ sprite_positions[GetCurrentFrame()], sprite_size, origin };
+		return Rect{ sprite_positions[GetCurrentFrame()], sprite_size, Origin::Center };
 	}
 
-private:
 	Tween tween;
 
-	Origin origin{ Origin::Center }; // Which origin of the sprite the draw offset is relative to.
-
-	V2_float draw_offset;			 // Offset of sprite relative to entity transform.
-
-	milliseconds duration{ 0 };		 // Duration of the entire animation.
+	milliseconds duration{ 0 }; // Duration of the entire animation.
 
 	std::shared_ptr<std::size_t> repeat;
 	std::shared_ptr<std::size_t> current_frame;
@@ -305,20 +313,6 @@ public:
 		ActiveMapManager::SetActive(key);
 		return true;
 	}
-
-	void Draw(ecs::Entity entity) const;
 };
-
-inline void Sprite::Draw(ecs::Entity entity) const {
-	impl::DrawTexture(entity, texture, draw_offset, source);
-}
-
-inline void Animation::Draw(ecs::Entity entity) const {
-	impl::DrawTexture(entity, texture, draw_offset, GetSource());
-}
-
-inline void AnimationMap::Draw(ecs::Entity entity) const {
-	GetActive().Draw(entity);
-}
 
 } // namespace ptgn
