@@ -6,6 +6,15 @@ constexpr V2_int window_size{ 800, 800 };
 
 struct BasicRectangleScene : public Scene {
 	void Enter() override {
+		auto c0 = manager.CreateEntity();
+		c0.Add<Circle>();
+		c0.Add<Transform>(game.window.GetCenter() + V2_float{ 200, 170 });
+		c0.Add<LineWidth>(20.0f);
+		c0.Add<Radius>(V2_float{ 90 });
+		c0.Add<Tint>(color::Lime);
+		c0.Add<Visible>();
+		c0.Add<Depth>(1);
+
 		auto r = manager.CreateEntity();
 		r.Add<Rect>();
 		r.Add<Transform>(game.window.GetCenter() + V2_float{ 200, 200 });
@@ -23,8 +32,8 @@ struct BasicRectangleScene : public Scene {
 		auto c = manager.CreateEntity();
 		c.Add<Circle>();
 		c.Add<Transform>(game.window.GetCenter() + V2_float{ 200, 200 });
-		c.Add<Radius>(V2_float{ 40 });
-		c.Add<Tint>(color::Green);
+		c.Add<Radius>(V2_float{ 60 });
+		c.Add<Tint>(color::LightGray);
 		c.Add<Visible>();
 
 		auto t2 = manager.CreateEntity();
@@ -57,11 +66,19 @@ struct BasicRectangleScene : public Scene {
 
 		auto c2 = manager.CreateEntity();
 		c2.Add<Circle>();
-		c2.Add<Transform>(game.window.GetCenter() - V2_float{ 200, 200 });
-		c2.Add<LineWidth>(-1.0f);
+		c2.Add<Transform>(game.window.GetCenter() + V2_float{ -200, -200 });
+		c2.Add<LineWidth>(1.0f);
 		c2.Add<Radius>(V2_float{ 50 });
-		c2.Add<Tint>(color::DarkGreen);
+		c2.Add<Tint>(color::Purple);
 		c2.Add<Visible>();
+
+		auto c3 = manager.CreateEntity();
+		c3.Add<Circle>();
+		c3.Add<Transform>(game.window.GetCenter() + V2_float{ -220, 0 });
+		c3.Add<LineWidth>(10.0f);
+		c3.Add<Radius>(V2_float{ 80 });
+		c3.Add<Tint>(color::Orange);
+		c3.Add<Visible>();
 
 		manager.Refresh();
 	}

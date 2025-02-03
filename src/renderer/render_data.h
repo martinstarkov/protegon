@@ -70,9 +70,10 @@ struct Batch {
 		const V4_float& color, const Depth& depth
 	);
 
-	void AddQuad(
-		const std::array<V2_float, quad_vertex_count>& positions, const V4_float& color,
-		const Depth& depth
+	void AddEllipse(
+		const std::array<V2_float, quad_vertex_count>& positions,
+		const std::array<V2_float, quad_vertex_count>& tex_coords, float line_width,
+		const V2_float& radius, const V4_float& color, const Depth& depth
 	);
 
 	void AddTriangle(
@@ -81,6 +82,15 @@ struct Batch {
 	);
 
 	IndexType index_offset{ 0 };
+
+	[[nodiscard]] static constexpr std::array<V2_float, 4> GetDefaultTextureCoordinates() {
+		return {
+			V2_float{ 0.0f, 0.0f },
+			V2_float{ 1.0f, 0.0f },
+			V2_float{ 1.0f, 1.0f },
+			V2_float{ 0.0f, 1.0f },
+		};
+	}
 
 	// return -1 if no available texture index
 	float GetTextureIndex(

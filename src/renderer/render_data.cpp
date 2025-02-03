@@ -56,18 +56,22 @@ void Batch::AddTexturedQuad(
 	PTGN_ASSERT(indices.size() <= index_batch_capacity);
 }
 
-void Batch::AddQuad(
-	const std::array<V2_float, quad_vertex_count>& positions, const V4_float& color,
-	const Depth& depth
+void Batch::AddEllipse(
+	const std::array<V2_float, quad_vertex_count>& positions,
+	const std::array<V2_float, quad_vertex_count>& tex_coords, float line_width,
+	const V2_float& radius, const V4_float& color, const Depth& depth
 ) {
-	constexpr std::array<V2_float, quad_vertex_count> tex_coords{
-		V2_float{ 0.0f, 0.0f },
-		V2_float{ 1.0f, 0.0f },
-		V2_float{ 1.0f, 1.0f },
-		V2_float{ 0.0f, 1.0f },
-	};
-
-	AddTexturedQuad(positions, tex_coords, 0.0f, color, depth);
+	if (line_width == -1.0f) {
+		line_width = 1.0f;
+	} else {
+		PTGN_ASSERT(line_width > 0.0f, "Cannot draw ellipse with negative line width");
+		// Internally line width for a filled ellipse is 1.0f and a completely hollow one is 0.0f,
+		// but in the API the line width is expected in pixels.
+		// TODO: Check that dividing by std::max(radius.x, radius.y) does not cause any unexpected
+		// bugs.
+		line_width = 0.005f + line_width / std::min(radius.x, radius.y);
+	}
+	AddTexturedQuad(positions, tex_coords, line_width, color, depth);
 }
 
 void Batch::AddTriangle(
@@ -333,7 +337,9 @@ void RenderData::AddToBatch(
 			Line line{ transform.position + local_vertices[i],
 					   transform.position + local_vertices[(i + 1) % vertex_modulo] };
 			auto vertices{ line.GetQuadVertices(line_width, transform.rotation) };
-			batch.AddQuad(vertices, color, depth);
+			batch.AddTexturedQuad(
+				vertices, Batch::GetDefaultTextureCoordinates(), 0.0f, color, depth
+			);
 		}
 	};
 
@@ -378,7 +384,10 @@ void RenderData::AddToBatch(
 		};
 
 		if (line_width == -1.0f) {
-			batch.AddQuad(std::invoke(get_quad_positions), color, depth);
+			batch.AddTexturedQuad(
+				std::invoke(get_quad_positions), Batch::GetDefaultTextureCoordinates(), 0.0f, color,
+				depth
+			);
 		} else {
 			Rect dest{ std::invoke(get_local_rect) };
 			auto local_positions{ dest.GetVertices(
@@ -404,11 +413,10 @@ void RenderData::AddToBatch(
 		const auto& line{ e.Get<Line>() };
 		std::invoke(add_lines, std::vector<V2_float>{ line.a, line.b });
 	} else if (e.HasAny<Circle, Ellipse>()) {
-		if (line_width == -1.0f) {
-			batch.AddQuad(std::invoke(get_ellipse_positions), color, depth);
-		} else {
-			// TODO: Figure out non-solid circles / ellipses.
-		}
+		batch.AddEllipse(
+			std::invoke(get_ellipse_positions), Batch::GetDefaultTextureCoordinates(), line_width,
+			e.Get<Radius>(), color, depth
+		);
 	} else if (e.Has<Triangle>()) {
 		const auto& triangle{ e.Get<Triangle>() };
 		if (line_width == -1.0f) {
@@ -421,12 +429,15 @@ void RenderData::AddToBatch(
 		PTGN_ASSERT(!e.Has<LineWidth>(), "Points cannot have a line width");
 		PTGN_ASSERT(line_width == -1.0f);
 		if (e.Has<Radius>()) {
-			batch.AddQuad(std::invoke(get_ellipse_positions), color, depth);
+			batch.AddEllipse(
+				std::invoke(get_ellipse_positions), Batch::GetDefaultTextureCoordinates(), 0.0f,
+				e.Get<Radius>(), color, depth
+			);
 		} else {
 			// TODO: Check that this works.
-			batch.AddQuad(
+			batch.AddTexturedQuad(
 				{ transform.position, transform.position, transform.position, transform.position },
-				color, depth
+				Batch::GetDefaultTextureCoordinates(), 0.0f, color, depth
 			);
 		}
 	} else if (e.Has<Arc>()) {

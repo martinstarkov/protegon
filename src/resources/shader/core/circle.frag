@@ -12,7 +12,7 @@ void main()
 {
     float fade = 0.005f;
     // 1.0f for filled, 0.0f for hollow.
-    float thickness = 1.0f;
+    float thickness = v_TexIndex;
     // Calculate distance and fill circle with white
     vec2 local_pos = v_TexCoord * vec2(2.0f) - vec2(1.0f);
     float distance = 1.0f - length(local_pos);
