@@ -42,6 +42,7 @@ struct ShaderSource {
 [[nodiscard]] std::string_view GetShaderName(std::uint32_t shader_type);
 
 class Shader {
+public:
 	Shader() = default;
 	Shader(const ShaderSource& vertex_shader, const ShaderSource& fragment_shader);
 	Shader(const path& vertex_shader_path, const path& fragment_shader_path);
@@ -92,6 +93,7 @@ class Shader {
 
 	// @return True if id != 0.
 	[[nodiscard]] bool IsValid() const;
+
 private:
 	void CreateProgram();
 	void DeleteProgram() noexcept;

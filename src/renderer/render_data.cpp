@@ -18,6 +18,7 @@
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
+#include "renderer/blend_mode.h"
 #include "renderer/buffer.h"
 #include "renderer/color.h"
 #include "renderer/flip.h"
@@ -219,8 +220,7 @@ void RenderData::AddTexture(
 }
 
 void RenderData::AddToBatch(
-	Batch& batch, ecs::Entity e, Transform transform, const Depth& depth,
-	const Texture& texture
+	Batch& batch, ecs::Entity e, Transform transform, const Depth& depth, const Texture& texture
 ) {
 	PTGN_ASSERT(texture.IsValid());
 
@@ -343,9 +343,7 @@ void RenderData::AddToBatch(
 			Line line{ transform.position + local_vertices[i],
 					   transform.position + local_vertices[(i + 1) % vertex_modulo] };
 			auto vertices{ line.GetQuadVertices(line_width, transform.rotation) };
-			batch.AddTexturedQuad(
-				vertices, GetDefaultTextureCoordinates(), 0.0f, color, depth
-			);
+			batch.AddTexturedQuad(vertices, GetDefaultTextureCoordinates(), 0.0f, color, depth);
 		}
 	};
 
@@ -391,8 +389,7 @@ void RenderData::AddToBatch(
 
 		if (line_width == -1.0f) {
 			batch.AddTexturedQuad(
-				std::invoke(get_quad_positions), GetDefaultTextureCoordinates(), 0.0f, color,
-				depth
+				std::invoke(get_quad_positions), GetDefaultTextureCoordinates(), 0.0f, color, depth
 			);
 		} else {
 			Rect dest{ std::invoke(get_local_rect) };
@@ -508,7 +505,9 @@ void RenderData::Init() {
 		PrimitiveMode::Triangles, std::move(quad_vb), quad_vertex_layout, std::move(quad_ib)
 	);
 
-	white_texture = std::move(Texture(static_cast<const void*>(&color::White), TextureFormat::RGBA8888, { 1, 1 }));
+	white_texture = std::move(
+		Texture(static_cast<const void*>(&color::White), TextureFormat::RGBA8888, { 1, 1 })
+	);
 	PTGN_ASSERT(white_texture.IsValid());
 }
 

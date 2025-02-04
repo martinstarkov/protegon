@@ -91,6 +91,9 @@ enum class InternalGLFormat {
 	RGB8  = 0x8051, // GL_RGB8
 	RGBA8 = 0x8058, // GL_RGBA8
 };
+enum class InternalGLDepthFormat {
+	DEPTH24_STENCIL8 = 0x88F0 // GL_DEPTH24_STENCIL8 AND GL_DEPTH24_STENCIL8_OES
+};
 
 enum class TextureTarget {
 	Texture2D = 0x0DE1 // GL_TEXTURE_2D
@@ -122,15 +125,19 @@ struct GLFormats {
 class Texture {
 public:
 	Texture() = default;
-	Texture(const void* data, const V2_int& size, TextureFormat format = TextureFormat::RGBA8888, int mipmap_level = 0,
-		TextureWrapping wrapping_x = TextureWrapping::ClampEdge, TextureWrapping wrapping_y = TextureWrapping::ClampEdge, TextureScaling minifying = TextureScaling::Nearest,
-		TextureScaling magnifying = TextureScaling::Nearest, bool mipmaps = false);
-	Texture(const Texture&)				   = delete;
-	Texture& operator=(const Texture&)	   = delete;
+	Texture(
+		const void* data, const V2_int& size, TextureFormat format = TextureFormat::RGBA8888,
+		int mipmap_level = 0, TextureWrapping wrapping_x = TextureWrapping::ClampEdge,
+		TextureWrapping wrapping_y = TextureWrapping::ClampEdge,
+		TextureScaling minifying   = TextureScaling::Nearest,
+		TextureScaling magnifying = TextureScaling::Nearest, bool mipmaps = false
+	);
+	Texture(const Texture&)			   = delete;
+	Texture& operator=(const Texture&) = delete;
 	Texture(Texture&& other) noexcept;
 	Texture& operator=(Texture&& other) noexcept;
 	~Texture();
-	
+
 	// @return Size of the texture.
 	[[nodiscard]] V2_int GetSize() const;
 
@@ -170,9 +177,10 @@ public:
 
 	// @return Id of the texture object.
 	[[nodiscard]] std::uint32_t GetId() const;
-	
+
 	// @return True if id != 0.
 	[[nodiscard]] bool IsValid() const;
+
 private:
 	void GenerateTexture();
 	void DeleteTexture() noexcept;
@@ -200,7 +208,7 @@ private:
 	// Ensure that the texture scaling of the currently bound texture is valid for generating
 	// mipmaps.
 	[[nodiscard]] static bool ValidMinifyingForMipmaps(TextureScaling minifying);
-	
+
 	// Automatically generate mipmaps for the currently bound texture.
 	void GenerateMipmaps();
 
