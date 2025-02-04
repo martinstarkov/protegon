@@ -11,7 +11,7 @@ struct BasicRectangleScene : public Scene {
 		c0.Add<Transform>(game.window.GetCenter() + V2_float{ 200, 170 });
 		c0.Add<LineWidth>(20.0f);
 		c0.Add<Radius>(V2_float{ 90 });
-		c0.Add<Tint>(color::Lime);
+		c0.Add<Tint>(color::BrightGreen);
 		c0.Add<Visible>();
 		c0.Add<Depth>(1);
 

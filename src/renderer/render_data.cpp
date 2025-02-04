@@ -2,7 +2,6 @@
 
 #include <array>
 #include <cstdint>
-#include <memory>
 #include <numeric>
 #include <type_traits>
 #include <utility>
@@ -30,7 +29,7 @@
 #include "renderer/texture.h"
 #include "renderer/vertex_array.h"
 #include "scene/camera.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/log.h"
 #include "utility/utility.h"
 
@@ -469,15 +468,6 @@ void RenderData::DrawLight(ecs::Entity e) {
 }
 
 void RenderData::Init() {
-	auto quad_ib{ std::make_unique<IndexBuffer>(
-		nullptr, Batch::index_batch_capacity, static_cast<std::uint32_t>(sizeof(Batch::IndexType)),
-		BufferUsage::DynamicDraw
-	) };
-	auto quad_vb{ std::make_unique<VertexBuffer>(
-		nullptr, Batch::vertex_batch_capacity, static_cast<std::uint32_t>(sizeof(Vertex)),
-		BufferUsage::DynamicDraw
-	) };
-
 	/*
 	std::array<Batch::IndexType, Batch::quad_index_count> window_indices{ 0, 1, 2, 2, 3, 0
 	}; IndexBuffer window_ib{ window_indices.data(), Batch::quad_index_count,
@@ -488,27 +478,32 @@ void RenderData::Init() {
 
 	max_texture_slots = GLRenderer::GetMaxTextureSlots();
 
-	PTGN_ASSERT(game.shader.quad_shader.IsValid());
-	PTGN_ASSERT(game.shader.light_shader.IsValid());
-	PTGN_ASSERT(game.shader.circle_shader.IsValid());
-	PTGN_ASSERT(game.shader.default_screen_shader.IsValid());
+	const auto& quad_shader{ game.shader.Get<ShapeShader::Quad>() };
+
+	PTGN_ASSERT(quad_shader.IsValid());
+	PTGN_ASSERT(game.shader.Get<ShapeShader::Circle>().IsValid());
+	PTGN_ASSERT(game.shader.Get<ScreenShader::Default>().IsValid());
+	PTGN_ASSERT(game.shader.Get<OtherShader::Light>().IsValid());
 
 	std::vector<std::int32_t> samplers(max_texture_slots);
 	std::iota(samplers.begin(), samplers.end(), 0);
 
-	game.shader.quad_shader.Bind();
-	game.shader.quad_shader.SetUniform(
+	quad_shader.Bind();
+	quad_shader.SetUniform(
 		"u_Texture", samplers.data(), static_cast<std::int32_t>(samplers.size())
 	);
 
-	triangle_vao = std::make_unique<VertexArray>(
+	IndexBuffer quad_ib{ nullptr, Batch::index_batch_capacity,
+						 static_cast<std::uint32_t>(sizeof(Batch::IndexType)),
+						 BufferUsage::DynamicDraw };
+	VertexBuffer quad_vb{ nullptr, Batch::vertex_batch_capacity,
+						  static_cast<std::uint32_t>(sizeof(Vertex)), BufferUsage::DynamicDraw };
+
+	triangle_vao = VertexArray(
 		PrimitiveMode::Triangles, std::move(quad_vb), quad_vertex_layout, std::move(quad_ib)
 	);
 
-	white_texture = std::move(
-		Texture(static_cast<const void*>(&color::White), TextureFormat::RGBA8888, { 1, 1 })
-	);
-	PTGN_ASSERT(white_texture.IsValid());
+	white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
 }
 
 void RenderData::PopulateBatches(ecs::Manager& manager) {
@@ -520,8 +515,8 @@ void RenderData::PopulateBatches(ecs::Manager& manager) {
 			// AddTexture(
 			//	prev_light, prev_light.Get<Transform>(), light_depth,
 			//	/* BlendMode::Add, global */ light_blend_mode,
-			//	/* global */ lights.GetTexture(),
-			//	/* global */ game.shader.default_screen_shader
+			//	lights.GetTexture(),
+			//	game.shader.default_screen_shader
 			//);
 		}
 		prev_light = ecs::null;
@@ -533,7 +528,7 @@ void RenderData::PopulateBatches(ecs::Manager& manager) {
 		}
 		Depth depth{ e.Has<Depth>() ? e.Get<Depth>() : Depth{ 0 } };
 		BlendMode blend_mode{ e.Has<BlendMode>() ? e.Get<BlendMode>()
-												 : BlendMode{ /* global */ default_blend_mode } };
+												 : BlendMode{ default_blend_mode } };
 
 		auto [it, inserted] = batch_map.try_emplace(depth);
 
@@ -550,37 +545,36 @@ void RenderData::PopulateBatches(ecs::Manager& manager) {
 			DrawLight(e);
 			batches.prev_light = e;
 		} else if (e.HasAny<Circle, Ellipse>()) {
-			flush_lights(batches.prev_light);
+			std::invoke(flush_lights, batches.prev_light);
 			AddTexture(
-				e, transform, depth, blend_mode, /* global */ white_texture,
-				/* global */ game.shader.circle_shader
+				e, transform, depth, blend_mode, white_texture,
+				game.shader.Get<ShapeShader::Circle>()
 			);
 		} else if (e.Has<Sprite>()) {
-			flush_lights(batches.prev_light);
+			std::invoke(flush_lights, batches.prev_light);
 			AddTexture(
 				e, transform, depth, blend_mode, game.texture.Get(e.Get<Sprite>().texture_key),
-				/* global */ game.shader.quad_shader
+				game.shader.Get<ShapeShader::Quad>()
 			);
 		} else if (e.Has<Animation>()) {
-			flush_lights(batches.prev_light);
+			std::invoke(flush_lights, batches.prev_light);
 			AddTexture(
 				e, transform, depth, blend_mode, game.texture.Get(e.Get<Animation>().texture_key),
-				/* global */ game.shader.quad_shader
+				game.shader.Get<ShapeShader::Quad>()
 			);
 		} else if (e.Has<Text>()) {
-			flush_lights(batches.prev_light);
+			std::invoke(flush_lights, batches.prev_light);
 			// TODO: Fix text:
 			// AddTexture(
 			//	e, transform, depth, blend_mode, e.Get<Text>().GetTexture(),
-			//	/* global */ game.shader.quad_shader
+			//	game.shader.Get<ShapeShader::Quad>()
 			//);
 		} else {
 			PTGN_ASSERT((e.HasAny<Polygon, Arc, Rect, Triangle, Line, Point, RoundedRect, Capsule>()
 			));
-			flush_lights(batches.prev_light);
+			std::invoke(flush_lights, batches.prev_light);
 			AddTexture(
-				e, transform, depth, blend_mode, /* global */ white_texture,
-				/* global */ game.shader.quad_shader
+				e, transform, depth, blend_mode, white_texture, game.shader.Get<ShapeShader::Quad>()
 			);
 		}
 	}
@@ -595,8 +589,6 @@ void RenderData::Render(ecs::Manager& manager) {
 }
 
 void RenderData::FlushBatches() {
-	PTGN_ASSERT(triangle_vao != nullptr);
-	PTGN_ASSERT(white_texture.IsValid());
 	white_texture.Bind();
 	// Assume depth map sorted.
 	for (auto& [depth, batches] : batch_map) {
@@ -611,16 +603,16 @@ void RenderData::FlushBatches() {
 			// TODO: Fix scene camera.
 			batch.shader.SetUniform("u_ViewProjection", game.camera.primary);
 			batch.BindTextures();
-			triangle_vao->Bind();
-			triangle_vao->GetVertexBuffer()->SetSubData(
+			triangle_vao.Bind();
+			triangle_vao.GetVertexBuffer().SetSubData(
 				batch.vertices.data(), 0, static_cast<std::uint32_t>(batch.vertices.size()),
 				sizeof(Vertex), false
 			);
-			triangle_vao->GetIndexBuffer()->SetSubData(
+			triangle_vao.GetIndexBuffer().SetSubData(
 				batch.indices.data(), 0, static_cast<std::uint32_t>(batch.indices.size()),
 				sizeof(Batch::IndexType), false
 			);
-			GLRenderer::DrawElements(*triangle_vao, batch.indices.size(), false);
+			GLRenderer::DrawElements(triangle_vao, batch.indices.size(), false);
 		}
 	}
 

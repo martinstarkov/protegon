@@ -10,8 +10,8 @@
 #include "ecs/ecs.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
+#include "renderer/blend_mode.h"
 #include "renderer/buffer_layout.h"
-#include "renderer/color.h"
 #include "renderer/gl_types.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
@@ -61,7 +61,7 @@ struct Batch {
 
 	Batch(const Shader& shader, const BlendMode& blend_mode);
 
-	Shader shader;
+	const Shader& shader;
 	BlendMode blend_mode;
 	std::vector<std::uint32_t> texture_ids;
 	std::vector<Vertex> vertices;
@@ -105,8 +105,7 @@ struct Batches {
 class RenderData {
 public:
 	void AddToBatch(
-		Batch& batch, ecs::Entity e, Transform transform, const Depth& depth,
-		const Texture& texture
+		Batch& batch, ecs::Entity e, Transform transform, const Depth& depth, const Texture& texture
 	);
 
 	void AddTexture(
@@ -135,7 +134,7 @@ public:
 	BlendMode light_blend_mode{ BlendMode::Add };
 
 	// VertexArray window_vao;
-	std::unique_ptr<VertexArray> triangle_vao;
+	VertexArray triangle_vao;
 
 	std::map<Depth, Batches> batch_map;
 };
