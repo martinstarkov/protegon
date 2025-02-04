@@ -1,6 +1,7 @@
 #include "renderer/frame_buffer.h"
 
 #include <cstdint>
+#include <utility>
 
 #include "core/game.h"
 #include "math/vector2.h"
@@ -9,102 +10,63 @@
 #include "renderer/gl_renderer.h"
 #include "renderer/renderer.h"
 #include "renderer/texture.h"
+#include "utility/assert.h"
 #include "utility/debug.h"
 #include "utility/handle.h"
 #include "utility/stats.h"
 
-namespace ptgn {
+namespace ptgn::impl {
 
-namespace impl {
-
-FrameBufferInstance::FrameBufferInstance() {
-	GLCall(gl::GenFramebuffers(1, &id_));
-	PTGN_ASSERT(id_ != 0, "Failed to generate frame buffer using OpenGL context");
-#ifdef GL_ANNOUNCE_FRAME_BUFFER_CALLS
-	PTGN_LOG("GL: Generated frame buffer with id ", id_);
-#endif
-}
-
-FrameBufferInstance::~FrameBufferInstance() {
-	GLCall(gl::DeleteFramebuffers(1, &id_));
-#ifdef GL_ANNOUNCE_FRAME_BUFFER_CALLS
-	PTGN_LOG("GL: Deleted frame buffer with id ", id_);
-#endif
-}
-
-void FrameBufferInstance::AttachTexture(TextureManager::Texture texture) {
-	PTGN_ASSERT(texture != nullptr, "Cannot attach invalid texture to frame buffer");
-	PTGN_ASSERT(IsBound(), "Cannot attach texture until frame buffer is bound");
-	texture_ = std::move(texture);
-	GLCall(gl::FramebufferTexture2D(
-		GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture_->id, 0
+RenderBuffer::RenderBuffer(const V2_int& size) {
+	GenerateRenderBuffer();
+	Bind();
+	GLCall(gl::RenderbufferStorage(
+		GL_RENDERBUFFER, static_cast<gl::GLenum>(InternalGLDepthFormat::DEPTH24_STENCIL8), size.x,
+		size.y
 	));
-	PTGN_ASSERT(IsComplete(), "Failed to attach texture to frame buffer");
 }
 
-void FrameBufferInstance::AttachRenderBuffer(const RenderBuffer& render_buffer) {
-	PTGN_ASSERT(render_buffer.IsValid(), "Cannot attach invalid render buffer to frame buffer");
-	PTGN_ASSERT(IsBound(), "Cannot attach render buffer until frame buffer is bound");
-	render_buffer_ = render_buffer;
-	GLCall(gl::FramebufferRenderbuffer(
-		GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, render_buffer.Get().id_
-	));
-	PTGN_ASSERT(IsComplete(), "Failed to attach render buffer to frame buffer");
+RenderBuffer::RenderBuffer(RenderBuffer&& other) noexcept : id_{ std::exchange(other.id_, 0) } {}
+
+RenderBuffer& RenderBuffer::operator=(RenderBuffer&& other) noexcept {
+	if (this != &other) {
+		DeleteRenderBuffer();
+		id_ = std::exchange(other.id_, 0);
+	}
+	return *this;
 }
 
-bool FrameBufferInstance::IsBound() const {
-	return FrameBuffer::GetBoundId() == id_;
+RenderBuffer::~RenderBuffer() {
+	DeleteRenderBuffer();
 }
 
-bool FrameBufferInstance::IsComplete() const {
-	PTGN_ASSERT(IsBound(), "Cannot check status of frame buffer until it is bound");
-	auto status{ GLCallReturn(gl::CheckFramebufferStatus(GL_FRAMEBUFFER)) };
-	return status == GL_FRAMEBUFFER_COMPLETE;
-	// TODO: Consider adding a way to query frame buffer status.
-	// PTGN_ERROR("Incomplete FrameBuffer: ", status);
-}
-
-RenderBufferInstance::RenderBufferInstance() {
+void RenderBuffer::GenerateRenderBuffer() {
 	GLCall(gl::GenRenderbuffers(1, &id_));
-	PTGN_ASSERT(id_ != 0, "Failed to generate render buffer using OpenGL context");
+	PTGN_ASSERT(IsValid(), "Failed to generate render buffer using OpenGL context");
 #ifdef GL_ANNOUNCE_RENDER_BUFFER_CALLS
 	PTGN_LOG("GL: Generated render buffer with id ", id_);
 #endif
 }
 
-RenderBufferInstance::~RenderBufferInstance() {
+void RenderBuffer::DeleteRenderBuffer() noexcept {
+	if (!IsValid()) {
+		return;
+	}
 	GLCall(gl::DeleteRenderbuffers(1, &id_));
 #ifdef GL_ANNOUNCE_RENDER_BUFFER_CALLS
 	PTGN_LOG("GL: Deleted render buffer with id ", id_);
 #endif
 }
 
-} // namespace impl
-
-RenderBuffer::RenderBuffer(const V2_int& size) {
-	auto restore_id{ RenderBuffer::GetBoundId() };
-
-	Create();
-	Bind();
-#ifdef __EMSCRIPTEN__
-	GLCall(gl::RenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8_OES, size.x, size.y));
-#else
-	GLCall(gl::RenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, size.x, size.y));
-#endif
-
-	RenderBuffer::Bind(restore_id);
-}
-
 void RenderBuffer::Bind(std::uint32_t id) {
+	GLCall(gl::BindRenderbuffer(GL_RENDERBUFFER, id));
 #ifdef GL_ANNOUNCE_RENDER_BUFFER_CALLS
 	PTGN_LOG("GL: Bound render buffer with id ", id);
 #endif
-	GLCall(gl::BindRenderbuffer(GL_RENDERBUFFER, id));
 }
 
 void RenderBuffer::Bind() const {
-	PTGN_ASSERT(IsValid(), "Cannot bind invalid render buffer");
-	Bind(Get().id_);
+	Bind(id_);
 }
 
 void RenderBuffer::Unbind() {
@@ -118,91 +80,114 @@ std::uint32_t RenderBuffer::GetBoundId() {
 	return static_cast<std::uint32_t>(id);
 }
 
-FrameBuffer::FrameBuffer(impl::TextureManager::Texture texture, bool rebind_previous_frame_buffer) {
-	auto create = [&]() {
-		Create();
-		Bind();
-		Get().AttachTexture(std::move(texture));
-		PTGN_ASSERT(IsComplete(), "Failed to complete frame buffer");
-	};
+std::uint32_t RenderBuffer::GetId() const {
+	return id_;
+}
 
-	if (!rebind_previous_frame_buffer) {
-		std::invoke(create);
+bool RenderBuffer::IsValid() const {
+	return id_;
+}
+
+FrameBuffer::FrameBuffer(Texture&& texture) {
+	GenerateFrameBuffer();
+	Bind();
+	AttachTexture(std::move(texture));
+}
+
+FrameBuffer::FrameBuffer(RenderBuffer&& render_buffer) {
+	GenerateFrameBuffer();
+	Bind();
+	AttachRenderBuffer(std::move(render_buffer));
+}
+
+FrameBuffer::FrameBuffer(FrameBuffer&& other) noexcept :
+	id_{ std::exchange(other.id_, 0) },
+	texture_{ std::exchange(other.texture_, {}) },
+	render_buffer_{ std::exchange(other.render_buffer_, {}) } {}
+
+FrameBuffer& FrameBuffer::operator=(FrameBuffer&& other) noexcept {
+	if (this != &other) {
+		DeleteFrameBuffer();
+		id_			   = std::exchange(other.id_, 0);
+		texture_	   = std::exchange(other.texture_, {});
+		render_buffer_ = std::exchange(other.render_buffer_, {});
+	}
+	return *this;
+}
+
+FrameBuffer::~FrameBuffer() {
+	DeleteFrameBuffer();
+}
+
+void FrameBuffer::GenerateFrameBuffer() {
+	GLCall(gl::GenFramebuffers(1, &id_));
+	PTGN_ASSERT(IsValid(), "Failed to generate frame buffer using OpenGL context");
+#ifdef GL_ANNOUNCE_FRAME_BUFFER_CALLS
+	PTGN_LOG("GL: Generated frame buffer with id ", id_);
+#endif
+}
+
+void FrameBuffer::DeleteFrameBuffer() noexcept {
+	if (!IsValid()) {
 		return;
 	}
-
-	auto restore_id{ FrameBuffer::GetBoundId() };
-	std::invoke(create);
-	FrameBuffer::Bind(restore_id);
+	GLCall(gl::DeleteFramebuffers(1, &id_));
+#ifdef GL_ANNOUNCE_FRAME_BUFFER_CALLS
+	PTGN_LOG("GL: Deleted frame buffer with id ", id_);
+#endif
 }
 
-FrameBuffer::FrameBuffer(const RenderBuffer& render_buffer, bool rebind_previous_frame_buffer) {
-	auto create = [&]() {
-		Create();
-		Bind();
-		Get().AttachRenderBuffer(render_buffer);
-		PTGN_ASSERT(IsComplete(), "Failed to complete frame buffer");
-	};
-
-	if (!rebind_previous_frame_buffer) {
-		std::invoke(create);
-		return;
-	}
-
-	auto restore_id{ FrameBuffer::GetBoundId() };
-	std::invoke(create);
-	FrameBuffer::Bind(restore_id);
+void FrameBuffer::AttachTexture(Texture&& texture) {
+	PTGN_ASSERT(texture.IsValid(), "Cannot attach invalid texture to frame buffer");
+	PTGN_ASSERT(IsBound(), "Cannot attach texture until frame buffer is bound");
+	texture_ = std::move(texture);
+	GLCall(gl::FramebufferTexture2D(
+		GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture_.GetId(), 0
+	));
+	PTGN_ASSERT(IsComplete(), "Failed to attach texture to frame buffer");
 }
 
-void FrameBuffer::AttachTexture(impl::TextureManager::Texture texture) {
-	auto restore_id{ FrameBuffer::GetBoundId() };
-
-	Bind();
-	Get().AttachTexture(std::move(texture));
-
-	FrameBuffer::Bind(restore_id);
-}
-
-void FrameBuffer::AttachRenderBuffer(const RenderBuffer& render_buffer) {
-	auto restore_id{ FrameBuffer::GetBoundId() };
-
-	Bind();
-	Get().AttachRenderBuffer(render_buffer);
-
-	FrameBuffer::Bind(restore_id);
-}
-
-const impl::TextureManager::Texture& FrameBuffer::GetTexture() const {
-	PTGN_ASSERT(IsValid(), "Cannot get texture attached to uninitialized frame buffer");
-	auto& i{ Get() };
-	PTGN_ASSERT(i.texture_ != nullptr, "Cannot get frame buffer texture which has not been set");
-	return i.texture_;
-}
-
-RenderBuffer FrameBuffer::GetRenderBuffer() const {
-	PTGN_ASSERT(IsValid(), "Cannot get render buffer attached to uninitialized frame buffer");
-	auto& i{ Get() };
-	PTGN_ASSERT(
-		i.render_buffer_.IsValid(), "Cannot get frame buffer render buffer which has not been set"
-	);
-	return i.render_buffer_;
-}
-
-bool FrameBuffer::IsComplete() const {
-	return IsValid() && Get().IsComplete();
+void FrameBuffer::AttachRenderBuffer(RenderBuffer&& render_buffer) {
+	PTGN_ASSERT(render_buffer.IsValid(), "Cannot attach invalid render buffer to frame buffer");
+	PTGN_ASSERT(IsBound(), "Cannot attach render buffer until frame buffer is bound");
+	render_buffer_ = std::move(render_buffer);
+	GLCall(gl::FramebufferRenderbuffer(
+		GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, render_buffer_.GetId()
+	));
+	PTGN_ASSERT(IsComplete(), "Failed to attach render buffer to frame buffer");
 }
 
 bool FrameBuffer::IsBound() const {
-	return IsValid() && Get().IsBound();
+	return GetBoundId() == id_;
+}
+
+bool FrameBuffer::IsComplete() const {
+	PTGN_ASSERT(IsBound(), "Cannot check status of frame buffer until it is bound");
+	auto status{ GLCallReturn(gl::CheckFramebufferStatus(GL_FRAMEBUFFER)) };
+	return status == GL_FRAMEBUFFER_COMPLETE;
+	// TODO: Consider adding a way to query frame buffer status.
+	// PTGN_ERROR("Incomplete FrameBuffer: ", status);
+}
+
+const Texture& FrameBuffer::GetTexture() const {
+	return texture_;
+}
+
+const RenderBuffer& FrameBuffer::GetRenderBuffer() const {
+	return render_buffer_;
 }
 
 void FrameBuffer::Bind(std::uint32_t id) {
-#ifdef GL_ANNOUNCE_FRAME_BUFFER_CALLS
-	PTGN_LOG("GL: Bound frame buffer with id ", id);
-#endif
+	if (game.renderer.bound_.frame_buffer_id == id) {
+		return;
+	}
 	GLCall(gl::BindFramebuffer(GL_FRAMEBUFFER, id));
+	game.renderer.bound_.frame_buffer_id = id;
 #ifdef PTGN_DEBUG
 	++game.stats.frame_buffer_binds;
+#endif
+#ifdef GL_ANNOUNCE_FRAME_BUFFER_CALLS
+	PTGN_LOG("GL: Bound frame buffer with id ", id);
 #endif
 }
 
@@ -210,21 +195,16 @@ bool FrameBuffer::IsUnbound() {
 	return GetBoundId() == 0;
 }
 
+bool FrameBuffer::IsValid() const {
+	return id_;
+}
+
 void FrameBuffer::Bind() const {
-	PTGN_ASSERT(IsValid(), "Cannot bind invalid frame buffer");
-	if (game.renderer.bound_frame_buffer_id_ == Get().id_) {
-		return;
-	}
-	Bind(Get().id_);
-	game.renderer.bound_frame_buffer_id_ = Get().id_;
+	Bind(id_);
 }
 
 void FrameBuffer::Unbind() {
-	if (game.renderer.bound_frame_buffer_id_ == 0) {
-		return;
-	}
 	Bind(0);
-	game.renderer.bound_frame_buffer_id_ = 0;
 }
 
 std::uint32_t FrameBuffer::GetBoundId() {
@@ -234,4 +214,4 @@ std::uint32_t FrameBuffer::GetBoundId() {
 	return static_cast<std::uint32_t>(id);
 }
 
-} // namespace ptgn
+} // namespace ptgn::impl
