@@ -12,6 +12,7 @@
 #include "math/vector4.h"
 #include "renderer/blend_mode.h"
 #include "renderer/buffer_layout.h"
+#include "renderer/frame_buffer.h"
 #include "renderer/gl_types.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
@@ -104,6 +105,12 @@ struct Batches {
 
 class RenderData {
 public:
+	void Init();
+
+	void Render(const FrameBuffer& frame_buffer, ecs::Manager& manager);
+	void Render(const FrameBuffer& frame_buffer, ecs::Entity e, bool check_visibility);
+
+private:
 	void AddToBatch(
 		Batch& batch, ecs::Entity e, Transform transform, const Depth& depth, const Texture& texture
 	);
@@ -115,13 +122,9 @@ public:
 
 	void DrawLight(ecs::Entity e);
 
-	void FlushBatches();
-
-	void PopulateBatches(ecs::Manager& manager);
-
-	void Init();
-
-	void Render(ecs::Manager& manager);
+	void SetupRender(const FrameBuffer& frame_buffer) const;
+	void PopulateBatches(ecs::Entity entity, bool check_visibility);
+	void FlushBatches(const FrameBuffer& frame_buffer);
 
 	std::size_t max_texture_slots{ 0 };
 

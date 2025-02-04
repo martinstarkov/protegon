@@ -4,6 +4,7 @@
 #include <array>
 #include <cstdint>
 #include <numeric>
+#include <type_traits>
 #include <vector>
 
 #include "core/game.h"
@@ -144,14 +145,15 @@ ResolutionMode Renderer::GetResolutionMode() const {
 	return scaling_mode_;
 }
 
-impl::RenderData& Renderer::GetRenderData() {
+*/
+
+RenderData& Renderer::GetRenderData() {
 	return render_data_;
 }
-*/
 
 void Renderer::PresentScreen() {
 	if (game.scene.current_scene_.second != nullptr) {
-		render_data_.Render(game.scene.current_scene_.second->manager);
+		render_data_.Render({}, game.scene.current_scene_.second->manager);
 		if (std::invoke([]() {
 				auto viewport_size{ GLRenderer::GetViewportSize() };
 				if (viewport_size.IsZero()) {

@@ -25,6 +25,7 @@
 #include "renderer/gl_renderer.h"
 #include "renderer/gl_types.h"
 #include "renderer/origin.h"
+#include "renderer/render_target.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "renderer/vertex_array.h"
@@ -133,7 +134,7 @@ bool Batch::CanAccept(ecs::Entity e) const {
 	std::size_t vertex_count{ 0 };
 	std::size_t index_count{ 0 };
 
-	if (e.HasAny<Sprite, Animation, Text, Rect, Line, Circle, Ellipse, Point>()) {
+	if (e.HasAny<Sprite, Animation, Text, RenderTarget, Rect, Line, Circle, Ellipse, Point>()) {
 		// Lines are rotated quads.
 		// Points are either circles or quads.
 		vertex_count = quad_vertex_count;
@@ -251,7 +252,8 @@ void RenderData::AddToBatch(
 		);
 	};
 
-	auto get_tex_coords = [&](const V2_float& source_position, const V2_float& source_size) {
+	auto get_tex_coords = [&](const V2_float& source_position, const V2_float& source_size,
+							  bool flip_vertical) {
 		auto tex_coords{ GetTextureCoordinates(source_position, source_size, texture.GetSize()) };
 
 		bool flip_x{ transform.scale.x < 0.0f };
@@ -269,31 +271,38 @@ void RenderData::AddToBatch(
 			FlipTextureCoordinates(tex_coords, e.Get<Flip>());
 		}
 
+		if (flip_vertical) {
+			FlipTextureCoordinates(tex_coords, Flip::Vertical);
+		}
+
 		return tex_coords;
 	};
 
-	auto add_sprite = [&](const Rect& source) {
+	auto add_sprite = [&](const Rect& source, bool flip_vertical) {
 		auto texture_index{
 			batch.GetTextureIndex(white_texture.GetId(), max_texture_slots, texture.GetId())
 		};
 		PTGN_ASSERT(texture_index != -1.0f);
 
-		auto tex_coords{ std::invoke(get_tex_coords, source.position, source.size) };
+		auto tex_coords{ std::invoke(get_tex_coords, source.position, source.size, flip_vertical) };
 		auto positions{ std::invoke(get_positions, source.size, source.origin) };
 
 		batch.AddTexturedQuad(positions, tex_coords, texture_index, color, depth);
 	};
 
 	if (e.Has<Sprite>()) {
-		auto& sprite{ e.Get<Sprite>() };
-		std::invoke(add_sprite, sprite.source);
+		const auto& sprite{ e.Get<Sprite>() };
+		std::invoke(add_sprite, sprite.source, false);
 		return;
 	} else if (e.Has<Animation>()) {
-		auto& anim{ e.Get<Animation>() };
-		std::invoke(add_sprite, anim.GetSource());
+		const auto& anim{ e.Get<Animation>() };
+		std::invoke(add_sprite, anim.GetSource(), false);
 		return;
 	} else if (e.Has<Text>()) {
-		std::invoke(add_sprite, Rect{ {}, {}, Origin::Center });
+		std::invoke(add_sprite, Rect{ {}, {}, Origin::Center }, false);
+		return;
+	} else if (e.Has<RenderTarget>()) {
+		std::invoke(add_sprite, Rect{ {}, {}, Origin::Center }, true);
 		return;
 	}
 
@@ -506,7 +515,26 @@ void RenderData::Init() {
 	white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
 }
 
-void RenderData::PopulateBatches(ecs::Manager& manager) {
+void RenderData::PopulateBatches(ecs::Entity e, bool check_visibility) {
+	PTGN_ASSERT(
+		(e.Has<Transform, Visible>()), "Cannot render entity without transform or visible component"
+	);
+
+	const auto& transform{ e.Get<Transform>() };
+	const auto& visible{ e.Get<Visible>() };
+
+	if (check_visibility && !visible) {
+		return;
+	}
+
+	Depth depth{ e.Has<Depth>() ? e.Get<Depth>() : Depth{ 0 } };
+	BlendMode blend_mode{ e.Has<BlendMode>() ? e.Get<BlendMode>()
+											 : BlendMode{ default_blend_mode } };
+
+	auto [it, inserted] = batch_map.try_emplace(depth);
+
+	auto& batches{ it->second };
+
 	auto flush_lights = [](auto& prev_light) {
 		if (prev_light != ecs::null) {
 			Depth light_depth{ prev_light.Has<Depth>() ? prev_light.Get<Depth>() : Depth{ 0 } };
@@ -522,73 +550,75 @@ void RenderData::PopulateBatches(ecs::Manager& manager) {
 		prev_light = ecs::null;
 	};
 
-	for (auto [e, transform, visible] : manager.EntitiesWith<Transform, Visible>()) {
-		if (!visible) {
-			continue;
-		}
-		Depth depth{ e.Has<Depth>() ? e.Get<Depth>() : Depth{ 0 } };
-		BlendMode blend_mode{ e.Has<BlendMode>() ? e.Get<BlendMode>()
-												 : BlendMode{ default_blend_mode } };
-
-		auto [it, inserted] = batch_map.try_emplace(depth);
-
-		auto& batches{ it->second };
-
-		if (e.Has<PointLight>()) {
-			if (batches.prev_light == ecs::null) {
-				// TODO: Fix.
-				// lights.Clear();
-			} else {
-				// TODO: Fix.
-				// PTGN_ASSERT(game.shader.light_shader.IsBound());
-			}
-			DrawLight(e);
-			batches.prev_light = e;
-		} else if (e.HasAny<Circle, Ellipse>()) {
-			std::invoke(flush_lights, batches.prev_light);
-			AddTexture(
-				e, transform, depth, blend_mode, white_texture,
-				game.shader.Get<ShapeShader::Circle>()
-			);
-		} else if (e.Has<Sprite>()) {
-			std::invoke(flush_lights, batches.prev_light);
-			AddTexture(
-				e, transform, depth, blend_mode, game.texture.Get(e.Get<Sprite>().texture_key),
-				game.shader.Get<ShapeShader::Quad>()
-			);
-		} else if (e.Has<Animation>()) {
-			std::invoke(flush_lights, batches.prev_light);
-			AddTexture(
-				e, transform, depth, blend_mode, game.texture.Get(e.Get<Animation>().texture_key),
-				game.shader.Get<ShapeShader::Quad>()
-			);
-		} else if (e.Has<Text>()) {
-			std::invoke(flush_lights, batches.prev_light);
-			// TODO: Fix text:
-			// AddTexture(
-			//	e, transform, depth, blend_mode, e.Get<Text>().GetTexture(),
-			//	game.shader.Get<ShapeShader::Quad>()
-			//);
+	if (e.Has<PointLight>()) {
+		if (batches.prev_light == ecs::null) {
+			// TODO: Fix.
+			// lights.Clear();
 		} else {
-			PTGN_ASSERT((e.HasAny<Polygon, Arc, Rect, Triangle, Line, Point, RoundedRect, Capsule>()
-			));
-			std::invoke(flush_lights, batches.prev_light);
-			AddTexture(
-				e, transform, depth, blend_mode, white_texture, game.shader.Get<ShapeShader::Quad>()
-			);
+			// TODO: Fix.
+			// PTGN_ASSERT(game.shader.light_shader.IsBound());
 		}
+		DrawLight(e);
+		batches.prev_light = e;
+	} else if (e.HasAny<Circle, Ellipse>()) {
+		std::invoke(flush_lights, batches.prev_light);
+		AddTexture(
+			e, transform, depth, blend_mode, white_texture, game.shader.Get<ShapeShader::Circle>()
+		);
+	} else if (e.Has<Sprite>()) {
+		std::invoke(flush_lights, batches.prev_light);
+		AddTexture(
+			e, transform, depth, blend_mode, game.texture.Get(e.Get<Sprite>().texture_key),
+			game.shader.Get<ShapeShader::Quad>()
+		);
+	} else if (e.Has<Animation>()) {
+		std::invoke(flush_lights, batches.prev_light);
+		AddTexture(
+			e, transform, depth, blend_mode, game.texture.Get(e.Get<Animation>().texture_key),
+			game.shader.Get<ShapeShader::Quad>()
+		);
+	} else if (e.Has<Text>()) {
+		std::invoke(flush_lights, batches.prev_light);
+		// TODO: Fix text:
+		// AddTexture(
+		//	e, transform, depth, blend_mode, e.Get<Text>().GetTexture(),
+		//	game.shader.Get<ShapeShader::Quad>()
+		//);
+	} else if (e.Has<RenderTarget>()) {
+		std::invoke(flush_lights, batches.prev_light);
+		AddTexture(
+			e, transform, depth, blend_mode, e.Get<RenderTarget>().GetTexture(),
+			game.shader.Get<ShapeShader::Quad>()
+		);
+	} else {
+		PTGN_ASSERT((e.HasAny<Polygon, Arc, Rect, Triangle, Line, Point, RoundedRect, Capsule>()));
+		std::invoke(flush_lights, batches.prev_light);
+		AddTexture(
+			e, transform, depth, blend_mode, white_texture, game.shader.Get<ShapeShader::Quad>()
+		);
 	}
 }
 
-void RenderData::Render(ecs::Manager& manager) {
-	FrameBuffer::Unbind();
+void RenderData::SetupRender(const FrameBuffer& frame_buffer) const {
+	frame_buffer.Bind();
 	GLRenderer::SetViewport({}, game.window.GetSize());
-
-	PopulateBatches(manager);
-	FlushBatches();
 }
 
-void RenderData::FlushBatches() {
+void RenderData::Render(const FrameBuffer& frame_buffer, ecs::Manager& manager) {
+	SetupRender(frame_buffer);
+	for (auto [e, t, v] : manager.EntitiesWith<Transform, Visible>()) {
+		PopulateBatches(e, true);
+	}
+	FlushBatches(frame_buffer);
+}
+
+void RenderData::Render(const FrameBuffer& frame_buffer, ecs::Entity e, bool check_visibility) {
+	SetupRender(frame_buffer);
+	PopulateBatches(e, check_visibility);
+	FlushBatches(frame_buffer);
+}
+
+void RenderData::FlushBatches(const FrameBuffer& frame_buffer) {
 	white_texture.Bind();
 	// Assume depth map sorted.
 	for (auto& [depth, batches] : batch_map) {
@@ -597,7 +627,7 @@ void RenderData::FlushBatches() {
 			if (batch.vertices.empty() || batch.indices.empty()) {
 				continue;
 			}
-			FrameBuffer::Unbind();
+			frame_buffer.Bind();
 			GLRenderer::SetBlendMode(batch.blend_mode);
 			batch.shader.Bind();
 			// TODO: Fix scene camera.

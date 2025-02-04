@@ -1,18 +1,12 @@
 #pragma once
 
 #include <cstdint>
-#include <functional>
 
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/blend_mode.h"
-#include "renderer/buffer.h"
 #include "renderer/color.h"
 #include "renderer/render_data.h"
-#include "renderer/render_target.h"
-#include "renderer/shader.h"
-#include "renderer/texture.h"
-#include "renderer/vertex_array.h"
 
 namespace ptgn {
 
@@ -41,7 +35,6 @@ class GLRenderer;
 struct RenderTargetInstance;
 struct TextureInstance;
 struct ShaderInstance;
-class RenderData;
 class InputHandler;
 
 class Renderer {
@@ -115,7 +108,7 @@ public:
 	[[nodiscard]] ResolutionMode GetResolutionMode() const;
 
 	// @return The render data associated with the current render queue.
-	[[nodiscard]] impl::RenderData& GetRenderData();
+	[[nodiscard]] RenderData& GetRenderData();
 
 private:
 	friend class Shader;
@@ -124,7 +117,6 @@ private:
 	friend class RenderTarget;
 	friend class GLRenderer;
 	friend class Game;
-	friend class RenderData;
 	friend struct RenderTargetInstance;
 	friend struct ShaderInstance;
 	friend struct TextureInstance;

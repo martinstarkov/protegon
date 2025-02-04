@@ -5,7 +5,15 @@ using namespace ptgn;
 constexpr V2_int window_size{ 800, 800 };
 
 struct BasicRectangleScene : public Scene {
+	ecs::Entity rt;
+	ecs::Entity s1;
+
 	void Enter() override {
+		rt = manager.CreateEntity();
+		rt.Add<RenderTarget>(window_size);
+		rt.Add<Transform>(game.window.GetCenter());
+		rt.Add<Visible>();
+
 		auto c0 = manager.CreateEntity();
 		c0.Add<Circle>();
 		c0.Add<Transform>(game.window.GetCenter() + V2_float{ 200, 170 });
@@ -44,7 +52,8 @@ struct BasicRectangleScene : public Scene {
 		t2.Add<Visible>();
 
 		game.texture.Load("test", "resources/test.png");
-		auto s1 = manager.CreateEntity();
+
+		s1 = manager.CreateEntity();
 		s1.Add<Transform>(
 			game.window.GetCenter() + V2_float{ 120, -120 }
 			/*, half_pi<float> / 2.0f, V2_float{ 1.0f }*/
@@ -53,7 +62,7 @@ struct BasicRectangleScene : public Scene {
 		// s1.Add<Size>(V2_float{ 800, 800 });
 		// s1.Add<Offset>(V2_float{ 0, 0 });
 		// s1.Add<Tint>(color::White);
-		s1.Add<Visible>();
+		s1.Add<Visible>(false);
 
 		auto r2 = manager.CreateEntity();
 		r2.Add<Rect>();
@@ -79,8 +88,18 @@ struct BasicRectangleScene : public Scene {
 		c3.Add<Radius>(V2_float{ 80 });
 		c3.Add<Tint>(color::Orange);
 		c3.Add<Visible>();
+		// rt.Add<Origin>(Origin::Center);
+		// rt.Add<Tint>(color::Red);
 
 		manager.Refresh();
+	}
+
+	void Update() override {
+		auto& r{ rt.Get<RenderTarget>() };
+		r.Bind();
+		r.Clear();
+
+		r.Draw(s1);
 	}
 };
 

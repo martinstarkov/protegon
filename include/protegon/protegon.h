@@ -33,6 +33,7 @@
 #include "renderer/buffer.h"
 #include "renderer/color.h"
 #include "renderer/font.h"
+#include "renderer/render_target.h"
 #include "renderer/renderer.h"
 #include "renderer/shader.h"
 #include "renderer/text.h"
