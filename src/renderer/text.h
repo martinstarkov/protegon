@@ -87,7 +87,7 @@
 //	V2_int size;
 //	TTF_SizeUTF8(&font.Get(), content.c_str(), &size.x, &size.y);
 //	return size;
-// }
+//}
 //
 // namespace impl {
 //
@@ -111,9 +111,9 @@
 //	std::int32_t point_size_{ std::numeric_limits<std::int32_t>::infinity() };
 //	TextWrapAlignment wrap_alignment_{ TextWrapAlignment::Center };
 //	bool visible_{ true };
-// };
+//};
 //
-// } // namespace impl
+//} // namespace impl
 //
 // class Text : public Handle<impl::TextInstance> {
 // public:
@@ -164,7 +164,7 @@
 //
 // private:
 //	[[nodiscard]] Texture RecreateTexture();
-// };
+//};
 //
 // namespace impl {
 //
@@ -176,8 +176,8 @@
 //	TextManager& operator=(TextManager&&) noexcept = default;
 //	TextManager(const TextManager&)				   = delete;
 //	TextManager& operator=(const TextManager&)	   = delete;
-// };
+//};
 //
-// } // namespace impl
+//} // namespace impl
 //
-// } // namespace ptgn
+//} // namespace ptgn

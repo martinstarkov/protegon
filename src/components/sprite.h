@@ -28,6 +28,9 @@
 
 namespace ptgn {
 
+// TODO: Consider moving everything to this.
+namespace component {} // namespace component
+
 // TODO: Move some components of these elsewhere.
 
 struct Depth : public ArithmeticComponent<std::int32_t> {
