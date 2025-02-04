@@ -1,4 +1,15 @@
-#include "protegon/protegon.h"
+#include "components/sprite.h"
+#include "components/transform.h"
+#include "core/game.h"
+#include "core/window.h"
+#include "ecs/ecs.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/polygon.h"
+#include "math/vector2.h"
+#include "renderer/color.h"
+#include "renderer/origin.h"
+#include "renderer/render_target.h"
+#include "scene/scene.h"
 
 using namespace ptgn;
 
