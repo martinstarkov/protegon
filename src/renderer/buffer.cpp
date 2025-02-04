@@ -5,7 +5,7 @@
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "renderer/vertex_array.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/stats.h"
 
 namespace ptgn::impl {
@@ -33,6 +33,16 @@ Buffer<BT>::Buffer(
 template <BufferType BT>
 Buffer<BT>::~Buffer() {
 	DeleteBuffer();
+}
+
+template <BufferType BT>
+bool Buffer<BT>::operator==(const Buffer& other) const {
+	return id_ == other.id_;
+}
+
+template <BufferType BT>
+bool Buffer<BT>::operator!=(const Buffer& other) const {
+	return !(*this == other);
 }
 
 template <BufferType BT>
@@ -112,7 +122,7 @@ bool Buffer<BT>::IsBound() const {
 }
 
 template <BufferType BT>
-void Buffer<BT>::Bind(std::uint32_t id) const {
+void Buffer<BT>::Bind(std::uint32_t id) {
 	GLCall(gl::BindBuffer(static_cast<gl::GLenum>(BT), id));
 #ifdef PTGN_DEBUG
 	++game.stats.buffer_binds;

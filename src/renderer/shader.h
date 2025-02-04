@@ -3,15 +3,16 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
 
-#include "core/manager.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/file.h"
+#include "utility/log.h"
 
 // clang-format off
 #define PTGN_SHADER_STRINGIFY_MACRO(x) PTGN_STRINGIFY_MACRO(x)
@@ -51,6 +52,9 @@ public:
 	Shader(Shader&& other) noexcept;
 	Shader& operator=(Shader&& other) noexcept;
 	~Shader();
+
+	bool operator==(const Shader& other) const;
+	bool operator!=(const Shader& other) const;
 
 	// Sets the uniform value for the specified uniform name. If the uniform does not exist in the
 	// shader, nothing happens.
@@ -123,34 +127,74 @@ enum class ScreenShader {
 
 enum class ShapeShader {
 	Quad,
-	Circle,
-	Color
+	Circle
 };
 
-// TODO: Fix this.
-class ShaderManager : public MapManager<Shader> {
+enum class OtherShader {
+	Light
+};
+
+class ShaderManager {
 public:
-	ShaderManager()									   = default;
-	~ShaderManager() override						   = default;
-	ShaderManager(ShaderManager&&) noexcept			   = default;
-	ShaderManager& operator=(ShaderManager&&) noexcept = default;
-	ShaderManager(const ShaderManager&)				   = delete;
-	ShaderManager& operator=(const ShaderManager&)	   = delete;
-
-	Shader Get(ScreenShader screen_shader) const;
-
-	Shader Get(ShapeShader shader) const;
+	template <auto S>
+	[[nodiscard]] const Shader& Get() const {
+		using ShaderType = decltype(S);
+		if constexpr (std::is_same_v<ShaderType, ShapeShader>) {
+			if constexpr (S == ShapeShader::Quad) {
+				return quad_;
+			} else if constexpr (S == ShapeShader::Circle) {
+				return circle_;
+			} else {
+				PTGN_ERROR("Cannot retrieve unrecognized circle shader");
+			}
+		} else if constexpr (std::is_same_v<ShaderType, OtherShader>) {
+			if constexpr (S == OtherShader::Light) {
+				return light_;
+			} else {
+				PTGN_ERROR("Cannot retrieve unrecognized other shader");
+			}
+		} else if constexpr (std::is_same_v<ShaderType, ScreenShader>) {
+			if constexpr (S == ScreenShader::Default) {
+				return default_;
+			} else if constexpr (S == ScreenShader::Blur) {
+				return blur_;
+			} else if constexpr (S == ScreenShader::GaussianBlur) {
+				return gaussian_blur_;
+			} else if constexpr (S == ScreenShader::EdgeDetection) {
+				return edge_detection_;
+			} else if constexpr (S == ScreenShader::InverseColor) {
+				return inverse_color_;
+			} else if constexpr (S == ScreenShader::Grayscale) {
+				return grayscale_;
+			} else if constexpr (S == ScreenShader::Sharpen) {
+				return sharpen_;
+			} else {
+				PTGN_ERROR("Cannot retrieve unrecognized screen shader");
+			}
+		} else {
+			PTGN_ERROR("Cannot retrieve unrecognized shader type");
+		}
+	}
 
 private:
 	friend class Game;
-	friend class RenderData;
 
 	void Init();
 
 	// Note: Defined in header to ensure that changing a shader will recompile the necessary files.
-	void InitScreenShaders() {
-		// TODO: Add these shaders for emscripten OpenGL ES3.
 
+	void InitShapeShaders() {
+		// Quad is initialized in cpp because it depends on texture slots.
+
+		circle_ = { ShaderSource{
+#include PTGN_SHADER_PATH(quad.vert)
+					},
+					ShaderSource{
+#include PTGN_SHADER_PATH(circle.frag)
+					} };
+	}
+
+	void InitScreenShaders() {
 		default_ = { ShaderSource{
 #include PTGN_SHADER_PATH(screen_default.vert)
 					 },
@@ -201,11 +245,16 @@ private:
 					 } };
 	}
 
-	// TODO: Make these hidden and remove duplicates.
-	Shader default_screen_shader;
-	Shader quad_shader;
-	Shader circle_shader;
-	Shader light_shader;
+	void InitOtherShaders() {
+		light_ = Shader(
+			ShaderSource{
+#include PTGN_SHADER_PATH(screen_default.vert)
+			},
+			ShaderSource{
+#include PTGN_SHADER_PATH(lighting.frag)
+			}
+		);
+	}
 
 	// Screen shaders.
 	Shader default_;
@@ -216,10 +265,12 @@ private:
 	Shader edge_detection_;
 	Shader sharpen_;
 
-	// Preset shaders.
+	// Color shaders.
 	Shader quad_;
 	Shader circle_;
-	Shader color_;
+
+	// Other shaders.
+	Shader light_;
 };
 
 } // namespace ptgn::impl

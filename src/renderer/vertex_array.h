@@ -6,7 +6,7 @@
 #include "renderer/buffer.h"
 #include "renderer/buffer_layout.h"
 #include "renderer/gl_types.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 
 namespace ptgn::impl {
 
@@ -27,11 +27,14 @@ public:
 		SetVertexBufferLayout(vertex_buffer_layout);
 	}
 
-	VertexArray(const VertexArray&) = delete;
+	VertexArray(const VertexArray&)			   = delete;
 	VertexArray& operator=(const VertexArray&) = delete;
 	VertexArray(VertexArray&& other) noexcept;
 	VertexArray& operator=(VertexArray&& other) noexcept;
 	~VertexArray();
+
+	bool operator==(const VertexArray& other) const;
+	bool operator!=(const VertexArray& other) const;
 
 	void SetPrimitiveMode(PrimitiveMode mode);
 	void SetVertexBuffer(VertexBuffer&& new_vertex_buffer);
@@ -92,13 +95,13 @@ public:
 
 	// @return True if id != 0.
 	[[nodiscard]] bool IsValid() const;
+
 private:
 	void GenerateVertexArray();
 	void DeleteVertexArray() noexcept;
 
-	void SetBufferElement(
-		std::uint32_t index, const BufferElement& element, std::int32_t stride
-	) const;
+	void SetBufferElement(std::uint32_t index, const BufferElement& element, std::int32_t stride)
+		const;
 
 	std::uint32_t id_{ 0 };
 	PrimitiveMode mode_{ PrimitiveMode::Triangles };

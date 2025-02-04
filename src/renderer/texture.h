@@ -138,6 +138,9 @@ public:
 	Texture& operator=(Texture&& other) noexcept;
 	~Texture();
 
+	bool operator==(const Texture& other) const;
+	bool operator!=(const Texture& other) const;
+
 	// @return Size of the texture.
 	[[nodiscard]] V2_int GetSize() const;
 
@@ -157,8 +160,13 @@ public:
 	// Set the specified texture slot to active and bind the texture id to that slot.
 	static void Bind(std::uint32_t id, std::uint32_t slot);
 
+	static void BindId(std::uint32_t id);
+
 	// Set the specified texture slot to active and bind the texture to that slot.
 	void Bind(std::uint32_t slot) const;
+
+	// Bind the texture to the currently active texture slot.
+	void Bind() const;
 
 	// Set the specified texture slot to active and bind the texture of that slot to 0.
 	static void Unbind(std::uint32_t slot);
@@ -185,15 +193,15 @@ private:
 	void GenerateTexture();
 	void DeleteTexture() noexcept;
 
-	void SetParameterI(TextureParameter parameter, std::int32_t value);
+	void SetParameterI(TextureParameter parameter, std::int32_t value) const;
 
 	// @return The uncasted integer value corresponding to the given parameter for the currently
 	// bound texture.
-	[[nodiscard]] std::int32_t GetParameterI(TextureParameter parameter);
+	[[nodiscard]] std::int32_t GetParameterI(TextureParameter parameter) const;
 
 	[[nodiscard]] std::int32_t GetLevelParameterI(
 		TextureLevelParameter parameter, std::int32_t level
-	);
+	) const;
 
 	// Set the pixel data of the currently bound texture.
 	// @param pixel_data Specifies a pointer to the image data in memory.
@@ -210,7 +218,7 @@ private:
 	[[nodiscard]] static bool ValidMinifyingForMipmaps(TextureScaling minifying);
 
 	// Automatically generate mipmaps for the currently bound texture.
-	void GenerateMipmaps();
+	void GenerateMipmaps() const;
 
 	std::uint32_t id_{ 0 };
 	V2_int size_;

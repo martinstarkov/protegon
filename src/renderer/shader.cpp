@@ -15,9 +15,8 @@
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
 #include "renderer/renderer.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/file.h"
-#include "utility/handle.h"
 #include "utility/log.h"
 
 namespace ptgn::impl {
@@ -55,19 +54,27 @@ Shader::Shader(const path& vertex_shader_path, const path& fragment_shader_path)
 
 Shader::Shader(Shader&& other) noexcept :
 	id_{ std::exchange(other.id_, 0) },
-	location_cache_{ std::exchange(other.location_cache_, 0) } {}
+	location_cache_{ std::exchange(other.location_cache_, {}) } {}
 
 Shader& Shader::operator=(Shader&& other) noexcept {
 	if (this != &other) {
 		DeleteProgram();
 		id_				= std::exchange(other.id_, 0);
-		location_cache_ = std::exchange(other.location_cache_, 0);
+		location_cache_ = std::exchange(other.location_cache_, {});
 	}
 	return *this;
 }
 
 Shader::~Shader() {
 	DeleteProgram();
+}
+
+bool Shader::operator==(const Shader& other) const {
+	return id_ == other.id_;
+}
+
+bool Shader::operator!=(const Shader& other) const {
+	return !(*this == other);
 }
 
 void Shader::CreateProgram() {
@@ -109,9 +116,7 @@ std::uint32_t Shader::CompileShader(std::uint32_t type, const std::string& sourc
 
 		GLCall(gl::DeleteShader(id));
 
-		PTGN_ERROR(
-			"Failed to compile ", impl::GetShaderName(type), " shader: \n", source, "\n", log
-		);
+		PTGN_ERROR("Failed to compile ", GetShaderName(type), " shader: \n", source, "\n", log);
 	}
 
 	return id;
@@ -334,30 +339,6 @@ bool Shader::IsValid() const {
 	return id_;
 }
 
-Shader ShaderManager::Get(ScreenShader screen_shader) const {
-	// TODO: Make constexpr
-	switch (screen_shader) {
-		case ScreenShader::Default:		  return default_;
-		case ScreenShader::Blur:		  return blur_;
-		case ScreenShader::GaussianBlur:  return gaussian_blur_;
-		case ScreenShader::EdgeDetection: return edge_detection_;
-		case ScreenShader::InverseColor:  return inverse_color_;
-		case ScreenShader::Grayscale:	  return grayscale_;
-		case ScreenShader::Sharpen:		  return sharpen_;
-		default:						  PTGN_ERROR("Cannot retrieve unrecognized screen shader");
-	}
-}
-
-Shader ShaderManager::Get(ShapeShader shader) const {
-	// TODO: Make constexpr
-	switch (shader) {
-		case ShapeShader::Quad:	  return quad_;
-		case ShapeShader::Circle: return circle_;
-		case ShapeShader::Color:  return color_;
-		default:				  PTGN_ERROR("Cannot retrieve unrecognized preset shader");
-	}
-}
-
 void ShaderManager::Init() {
 	std::uint32_t max_texture_slots{ GLRenderer::GetMaxTextureSlots() };
 
@@ -388,34 +369,9 @@ void ShaderManager::Init() {
 			  },
 			  quad_frag };
 
-	circle_ = { ShaderSource{
-#include PTGN_SHADER_PATH(circle.vert)
-				},
-				ShaderSource{
-#include PTGN_SHADER_PATH(circle.frag)
-				} };
-
-	color_ = { ShaderSource{
-#include PTGN_SHADER_PATH(color.vert)
-			   },
-			   ShaderSource{
-#include PTGN_SHADER_PATH(color.frag)
-			   } };
-
+	InitShapeShaders();
 	InitScreenShaders();
-
-	light_shader = Shader(
-		ShaderSource{
-#include PTGN_SHADER_PATH(screen_default.vert)
-		},
-		ShaderSource{
-#include PTGN_SHADER_PATH(lighting.frag)
-		}
-	);
-
-	default_screen_shader = default_;
-	quad_shader			  = quad_;
-	circle_shader		  = circle_;
+	InitOtherShaders();
 }
 
 } // namespace ptgn::impl

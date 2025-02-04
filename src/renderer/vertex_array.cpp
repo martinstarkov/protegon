@@ -9,27 +9,38 @@
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "renderer/renderer.h"
-#include "utility/debug.h"
-#include "utility/log.h"
+#include "utility/assert.h"
 #include "utility/stats.h"
 
 namespace ptgn::impl {
 
-VertexArray::VertexArray(VertexArray&& other) noexcept : id_{ std::exchange(other.id_, 0) }, mode_{ other.mode_ }, vertex_buffer_{ std::exchange(other.vertex_buffer_, {}) }, index_buffer_{ std::exchange(other.index_buffer_, {}) } {}
+VertexArray::VertexArray(VertexArray&& other) noexcept :
+	id_{ std::exchange(other.id_, 0) },
+	mode_{ other.mode_ },
+	vertex_buffer_{ std::exchange(other.vertex_buffer_, {}) },
+	index_buffer_{ std::exchange(other.index_buffer_, {}) } {}
 
 VertexArray& VertexArray::operator=(VertexArray&& other) noexcept {
 	if (this != &other) {
 		DeleteVertexArray();
-		id_	   = std::exchange(other.id_, 0);
-		mode_	   = other.mode_;
+		id_			   = std::exchange(other.id_, 0);
+		mode_		   = other.mode_;
 		vertex_buffer_ = std::exchange(other.vertex_buffer_, {});
-		index_buffer_ = std::exchange(other.index_buffer_, {});
+		index_buffer_  = std::exchange(other.index_buffer_, {});
 	}
 	return *this;
 }
 
 VertexArray::~VertexArray() {
 	DeleteVertexArray();
+}
+
+bool VertexArray::operator==(const VertexArray& other) const {
+	return id_ == other.id_;
+}
+
+bool VertexArray::operator!=(const VertexArray& other) const {
+	return !(*this == other);
 }
 
 void VertexArray::GenerateVertexArray() {
@@ -98,18 +109,14 @@ void VertexArray::SetPrimitiveMode(PrimitiveMode mode) {
 
 void VertexArray::SetVertexBuffer(VertexBuffer&& vertex_buffer) {
 	PTGN_ASSERT(IsBound(), "Vertex array must be bound before setting vertex buffer");
-	PTGN_ASSERT(
-		vertex_buffer.IsValid(), "Cannot set vertex buffer which is uninitialized"
-	);
+	PTGN_ASSERT(vertex_buffer.IsValid(), "Cannot set vertex buffer which is uninitialized");
 	vertex_buffer_ = std::move(vertex_buffer);
 	vertex_buffer_.Bind();
 }
 
 void VertexArray::SetIndexBuffer(IndexBuffer&& index_buffer) {
 	PTGN_ASSERT(IsBound(), "Vertex array must be bound before setting index buffer");
-	PTGN_ASSERT(
-		index_buffer.IsValid(), "Cannot set index buffer which is uninitialized"
-	);
+	PTGN_ASSERT(index_buffer.IsValid(), "Cannot set index buffer which is uninitialized");
 	index_buffer_ = std::move(index_buffer);
 	index_buffer_.Bind();
 }
@@ -158,7 +165,7 @@ IndexBuffer& VertexArray::GetIndexBuffer() {
 }
 
 PrimitiveMode VertexArray::GetPrimitiveMode() const {
-	return mode;
+	return mode_;
 }
 
 bool VertexArray::IsBound() const {

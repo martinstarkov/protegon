@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "SDL_error.h"
 #include "SDL_image.h"
 #include "SDL_pixels.h"
 #include "SDL_surface.h"
@@ -22,7 +23,6 @@
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
 #include "renderer/gl_types.h"
-#include "utility/debug.h"
 #include "utility/assert.h"
 #include "utility/file.h"
 #include "utility/log.h"
@@ -174,20 +174,19 @@ Texture::Texture(
 	SetParameterI(TextureParameter::WrapS, static_cast<int>(wrapping_x));
 	SetParameterI(TextureParameter::WrapT, static_cast<int>(wrapping_y));
 	SetParameterI(TextureParameter::MinifyingScaling, static_cast<int>(minifying));
-	SetParameterI(
-		TextureParameter::MagnifyingScaling, static_cast<int>(magnifying)
-	);
+	SetParameterI(TextureParameter::MagnifyingScaling, static_cast<int>(magnifying));
 	if (mipmaps) {
 		GenerateMipmaps();
 	}
 }
 
-Texture::Texture(Texture&& other) noexcept : id_{ std::exchange(other.id_, 0)}, size_{ std::exchange(other.size_, {})} {}
+Texture::Texture(Texture&& other) noexcept :
+	id_{ std::exchange(other.id_, 0) }, size_{ std::exchange(other.size_, {}) } {}
 
 Texture& Texture::operator=(Texture&& other) noexcept {
 	if (this != &other) {
 		DeleteTexture();
-		id_				= std::exchange(other.id_, 0);
+		id_	  = std::exchange(other.id_, 0);
 		size_ = std::exchange(other.size_, {});
 	}
 	return *this;
@@ -195,6 +194,14 @@ Texture& Texture::operator=(Texture&& other) noexcept {
 
 Texture::~Texture() {
 	DeleteTexture();
+}
+
+bool Texture::operator==(const Texture& other) const {
+	return id_ == other.id_;
+}
+
+bool Texture::operator!=(const Texture& other) const {
+	return !(*this == other);
 }
 
 void Texture::GenerateTexture() {
@@ -219,7 +226,7 @@ V2_int Texture::GetSize() const {
 	return size_;
 }
 
-void Texture::SetParameterI(TextureParameter parameter, std::int32_t value) {
+void Texture::SetParameterI(TextureParameter parameter, std::int32_t value) const {
 	PTGN_ASSERT(IsBound(), "Texture must be bound prior to setting its parameters");
 	PTGN_ASSERT(value != -1, "Cannot set texture parameter value to -1");
 	GLCall(gl::glTexParameteri(
@@ -227,7 +234,7 @@ void Texture::SetParameterI(TextureParameter parameter, std::int32_t value) {
 	));
 }
 
-std::int32_t Texture::GetParameterI(TextureParameter parameter) {
+std::int32_t Texture::GetParameterI(TextureParameter parameter) const {
 	PTGN_ASSERT(IsBound(), "Texture must be bound prior to getting its parameters");
 	std::int32_t value{ -1 };
 	GLCall(gl::glGetTexParameteriv(
@@ -238,9 +245,8 @@ std::int32_t Texture::GetParameterI(TextureParameter parameter) {
 	return value;
 }
 
-std::int32_t Texture::GetLevelParameterI(
-	TextureLevelParameter parameter, std::int32_t level
-) {
+std::int32_t Texture::GetLevelParameterI(TextureLevelParameter parameter, std::int32_t level)
+	const {
 	PTGN_ASSERT(IsBound(), "Texture must be bound prior to getting its level parameters");
 	std::int32_t value{ -1 };
 	GLCall(gl::glGetTexLevelParameteriv(
@@ -251,7 +257,7 @@ std::int32_t Texture::GetLevelParameterI(
 	return value;
 }
 
-void Texture::GenerateMipmaps() {
+void Texture::GenerateMipmaps() const {
 	PTGN_ASSERT(IsBound(), "Texture must be bound prior to generating mipmaps for it");
 	PTGN_ASSERT(
 		ValidMinifyingForMipmaps(
@@ -264,10 +270,10 @@ void Texture::GenerateMipmaps() {
 
 void Texture::Unbind(std::uint32_t slot) {
 	SetActiveSlot(slot);
-	Bind(0);
+	BindId(0);
 }
 
-void Texture::Bind(std::uint32_t id) {
+void Texture::BindId(std::uint32_t id) {
 	GLCall(gl::glBindTexture(static_cast<gl::GLenum>(TextureTarget::Texture2D), id));
 #ifdef PTGN_DEBUG
 	++game.stats.texture_binds;
@@ -279,11 +285,15 @@ void Texture::Bind(std::uint32_t id) {
 
 void Texture::Bind(std::uint32_t id, std::uint32_t slot) {
 	SetActiveSlot(slot);
-	Bind(id);
+	BindId(id);
 }
 
 void Texture::Bind(std::uint32_t slot) const {
 	Bind(id_, slot);
+}
+
+void Texture::Bind() const {
+	BindId(id_);
 }
 
 void Texture::SetActiveSlot(std::uint32_t slot) {
@@ -373,7 +383,7 @@ void TextureManager::Load(std::string_view key, const path& filepath) {
 	auto [it, inserted] = textures_.try_emplace(Hash(key));
 	if (inserted) {
 		Surface s{ LoadFromFile(filepath) };
-		it->second = std::move(Texture(static_cast<const void*>(s.data.data()), s.format, s.size));
+		it->second = Texture(static_cast<const void*>(s.data.data()), s.size, s.format);
 	}
 }
 

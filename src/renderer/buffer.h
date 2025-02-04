@@ -25,6 +25,9 @@ public:
 	Buffer& operator=(const Buffer&) = delete;
 	~Buffer();
 
+	bool operator==(const Buffer& other) const;
+	bool operator!=(const Buffer& other) const;
+
 	// @param data Pointer to the new buffer data.
 	// @param byte_offset Specifies the offset into the buffer object's data store where data
 	// replacement will begin, measured in bytes.
@@ -45,9 +48,9 @@ public:
 	[[nodiscard]] static BufferUsage GetBoundUsage();
 
 	void Bind() const;
-	
+
 	[[nodiscard]] bool IsBound() const;
-	
+
 	// Bind a buffer id as the current buffer.
 	static void Bind(std::uint32_t id);
 
