@@ -223,6 +223,10 @@ void Texture::DeleteTexture() noexcept {
 	id_ = 0;
 }
 
+TextureFormat Texture::GetFormat() const {
+	return static_cast<TextureFormat>(GetLevelParameterI(TextureLevelParameter::InternalFormat, 0));
+}
+
 V2_int Texture::GetSize() const {
 	return size_;
 }

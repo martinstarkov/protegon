@@ -189,6 +189,8 @@ public:
 	// @return True if id != 0.
 	[[nodiscard]] bool IsValid() const;
 
+	[[nodiscard]] TextureFormat GetFormat() const;
+
 private:
 	void GenerateTexture();
 	void DeleteTexture() noexcept;
