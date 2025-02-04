@@ -220,6 +220,7 @@ void Texture::DeleteTexture() noexcept {
 #ifdef GL_ANNOUNCE_TEXTURE_CALLS
 	PTGN_LOG("GL: Deleted texture with id ", id_);
 #endif
+	id_ = 0;
 }
 
 V2_int Texture::GetSize() const {

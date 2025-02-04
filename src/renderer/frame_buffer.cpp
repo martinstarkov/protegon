@@ -11,7 +11,6 @@
 #include "renderer/renderer.h"
 #include "renderer/texture.h"
 #include "utility/assert.h"
-#include "utility/assert.h"
 #include "utility/handle.h"
 #include "utility/stats.h"
 
@@ -56,6 +55,7 @@ void RenderBuffer::DeleteRenderBuffer() noexcept {
 #ifdef GL_ANNOUNCE_RENDER_BUFFER_CALLS
 	PTGN_LOG("GL: Deleted render buffer with id ", id_);
 #endif
+	id_ = 0;
 }
 
 void RenderBuffer::Bind(std::uint32_t id) {
@@ -135,6 +135,7 @@ void FrameBuffer::DeleteFrameBuffer() noexcept {
 #ifdef GL_ANNOUNCE_FRAME_BUFFER_CALLS
 	PTGN_LOG("GL: Deleted frame buffer with id ", id_);
 #endif
+	id_ = 0;
 }
 
 void FrameBuffer::AttachTexture(Texture&& texture) {

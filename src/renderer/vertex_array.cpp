@@ -59,6 +59,7 @@ void VertexArray::DeleteVertexArray() noexcept {
 #ifdef GL_ANNOUNCE_VERTEX_ARRAY_CALLS
 	PTGN_LOG("GL: Deleted vertex array with id ", id_);
 #endif
+	id_ = 0;
 }
 
 std::uint32_t VertexArray::GetBoundId() {

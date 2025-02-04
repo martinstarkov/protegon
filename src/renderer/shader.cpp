@@ -93,6 +93,7 @@ void Shader::DeleteProgram() noexcept {
 #ifdef GL_ANNOUNCE_SHADER_CALLS
 	PTGN_LOG("GL: Deleted shader program with id ", id_);
 #endif
+	id_ = 0;
 }
 
 std::uint32_t Shader::CompileShader(std::uint32_t type, const std::string& source) {

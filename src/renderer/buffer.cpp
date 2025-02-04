@@ -150,6 +150,7 @@ void Buffer<BT>::DeleteBuffer() noexcept {
 #ifdef GL_ANNOUNCE_BUFFER_CALLS
 	PTGN_LOG("GL: Deleted buffer with id ", id_);
 #endif
+	id_ = 0;
 }
 
 template <BufferType BT>
