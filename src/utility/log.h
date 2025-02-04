@@ -29,7 +29,7 @@ constexpr size_t NumberOfArgs(T...) {
 
 // @param precision -1 for default precision.
 template <typename... TArgs>
-inline void PrintImpl(std::ostream& ostream, int precision, bool scientific, TArgs&&... items) {
+inline void Print(std::ostream& ostream, int precision, bool scientific, TArgs&&... items) {
 	// TODO: Figure out how to add this since PTGN_ASSERT requires print.
 	// PTGN_ASSERT(precision == -1 || precision >= 0, "Invalid print precision");
 	using ptgn::operator<<;
@@ -52,60 +52,20 @@ inline void PrintImpl(std::ostream& ostream, int precision, bool scientific, TAr
 	std::cout.copyfmt(state);
 }
 
-// Print desired items to the console. If a newline is desired, use PrintLine()
-// instead.
-template <typename... TArgs>
-inline void Print(TArgs&&... items) {
-	PrintImpl(std::cout, -1, false, std::forward<TArgs>(items)...);
-}
-
-// Print desired items to the console and add a newline. If no newline is
-// desired, use Print() instead.
-template <typename... TArgs>
-inline void PrintLine(TArgs&&... items) {
-	Print(std::forward<TArgs>(items)...);
-	std::cout << "\n";
-}
-
-inline void PrintLine() {
-	std::cout << "\n";
-}
-
-// Print desired items to the console. If a newline is desired, use PrintLine()
-// instead.
-template <typename... TArgs>
-inline void PrintPrecise(int precision, bool scientific, TArgs&&... items) {
-	PrintImpl(std::cout, precision, scientific, std::forward<TArgs>(items)...);
-}
-
-// Print desired items to the console and add a newline. If no newline is
-// desired, use Print() instead.
-template <typename... TArgs>
-inline void PrintPreciseLine(int precision, bool scientific, TArgs&&... items) {
-	PrintImpl(std::cout, precision, scientific, std::forward<TArgs>(items)...);
-	std::cout << "\n";
-}
-
-inline void PrintPreciseLine(
-	[[maybe_unused]] int precision = -1, [[maybe_unused]] bool scientific = false
-) {
-	std::cout << "\n";
-}
-
 } // namespace impl
 
 // Print desired items to the console. If a newline is desired, use PrintLine()
 // instead.
 template <typename... TArgs, tt::stream_writable<std::ostream, TArgs...> = true>
 inline void Print(TArgs&&... items) {
-	ptgn::impl::PrintImpl(std::cout, -1, false, std::forward<TArgs>(items)...);
+	impl::Print(std::cout, -1, false, std::forward<TArgs>(items)...);
 }
 
 // Print desired items to the console and add a newline. If no newline is
 // desired, use Print() instead.
 template <typename... TArgs, tt::stream_writable<std::ostream, TArgs...> = true>
 inline void PrintLine(TArgs&&... items) {
-	Print(std::forward<TArgs>(items)...);
+	ptgn::Print(std::forward<TArgs>(items)...);
 	std::cout << "\n";
 }
 
@@ -117,14 +77,14 @@ inline void PrintLine() {
 // instead.
 template <typename... TArgs, tt::stream_writable<std::ostream, TArgs...> = true>
 inline void PrintPrecise(int precision, bool scientific, TArgs&&... items) {
-	ptgn::impl::PrintImpl(std::cout, precision, scientific, std::forward<TArgs>(items)...);
+	impl::Print(std::cout, precision, scientific, std::forward<TArgs>(items)...);
 }
 
 // Print desired items to the console and add a newline. If no newline is
 // desired, use Print() instead.
 template <typename... TArgs, tt::stream_writable<std::ostream, TArgs...> = true>
 inline void PrintPreciseLine(int precision, bool scientific, TArgs&&... items) {
-	PrintPrecise(precision, scientific, std::forward<TArgs>(items)...);
+	ptgn::PrintPrecise(precision, scientific, std::forward<TArgs>(items)...);
 	std::cout << "\n";
 }
 
