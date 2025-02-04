@@ -16,7 +16,7 @@
 #include "math/utility.h"
 #include "math/vector2.h"
 #include "renderer/origin.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 
 namespace ptgn {
 
@@ -219,19 +219,19 @@ std::array<V2_float, 4> Rect::GetCorners() const {
 	return { min, { max.x, min.y }, max, { min.x, max.y } };
 }
 
-V2_float Rect::Half() const {
+V2_float Rect::Half() const noexcept {
 	return size * 0.5f;
 }
 
-V2_float Rect::Center() const {
+V2_float Rect::Center() const noexcept {
 	return position - GetOffsetFromCenter(size, origin);
 }
 
-V2_float Rect::Max() const {
+V2_float Rect::Max() const noexcept {
 	return Center() + Half();
 }
 
-V2_float Rect::Min() const {
+V2_float Rect::Min() const noexcept {
 	return Center() - Half();
 }
 
@@ -300,7 +300,7 @@ std::array<V2_float, 4> Rect::GetVertices(const V2_float& rotation_center) const
 	return vertices;
 }
 
-bool Rect::IsZero() const {
+bool Rect::IsZero() const noexcept {
 	return position.IsZero() && size.IsZero();
 }
 

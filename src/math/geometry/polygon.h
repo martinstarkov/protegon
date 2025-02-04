@@ -84,16 +84,16 @@ struct Rect {
 	[[nodiscard]] std::array<V2_float, 4> GetCorners() const;
 
 	// @return Half the size of the rectangle.
-	[[nodiscard]] V2_float Half() const;
+	[[nodiscard]] V2_float Half() const noexcept;
 
 	// @return Center position of rectangle.
-	[[nodiscard]] V2_float Center() const;
+	[[nodiscard]] V2_float Center() const noexcept;
 
 	// @return Bottom right position of the unrotated rectangle.
-	[[nodiscard]] V2_float Max() const;
+	[[nodiscard]] V2_float Max() const noexcept;
 
 	// @return Top left position of the unrotated rectangle.
-	[[nodiscard]] V2_float Min() const;
+	[[nodiscard]] V2_float Min() const noexcept;
 
 	// @return Position of the unrotated rectangle relative to the given origin.
 	[[nodiscard]] V2_float GetPosition(Origin relative_to) const;
@@ -103,7 +103,7 @@ struct Rect {
 		const V2_float& rotation_center = { 0.5f, 0.5f }
 	) const;
 
-	[[nodiscard]] bool IsZero() const;
+	[[nodiscard]] bool IsZero() const noexcept;
 
 	[[nodiscard]] bool Overlaps(const V2_float& point) const;
 	[[nodiscard]] bool Overlaps(const Line& line) const;

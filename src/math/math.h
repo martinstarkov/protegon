@@ -142,7 +142,9 @@ template <typename T>
 template <typename T>
 [[nodiscard]] T FastFloor(T value) {
 	if constexpr (std::is_floating_point_v<T>) {
-		return static_cast<T>(static_cast<std::int64_t>(value) - (value < static_cast<std::int64_t>(value)));
+		return static_cast<T>(
+			static_cast<std::int64_t>(value) - (value < static_cast<std::int64_t>(value))
+		);
 	} else {
 		return value;
 	}
@@ -152,7 +154,9 @@ template <typename T>
 template <typename T>
 [[nodiscard]] T FastCeil(T value) {
 	if constexpr (std::is_floating_point_v<T>) {
-		return static_cast<T>(static_cast<std::int64_t>(value) + (value > static_cast<std::int64_t>(value)));
+		return static_cast<T>(
+			static_cast<std::int64_t>(value) + (value > static_cast<std::int64_t>(value))
+		);
 	} else {
 		return value;
 	}
@@ -160,7 +164,7 @@ template <typename T>
 
 // No NaN/inf checking.
 template <typename T>
-[[nodiscard]] T FastAbs(T value) {
+[[nodiscard]] T FastAbs(T value) noexcept {
 	return value >= 0 ? value : -value;
 }
 
@@ -180,7 +184,7 @@ template <typename T>
 // relative tolerance test fails when x and y become small.
 template <typename T>
 [[nodiscard]] bool
-NearlyEqual(T a, T b, T abs_tol = T{ 10 } * epsilon<T>, T rel_tol = T{ 10 } * epsilon<T>) {
+NearlyEqual(T a, T b, T abs_tol = T{ 10 } * epsilon<T>, T rel_tol = T{ 10 } * epsilon<T>) noexcept {
 	if constexpr (std::is_floating_point_v<T>) {
 		// TODO: Fix this.
 		bool a_inf{ std::isinf(a) };
