@@ -55,7 +55,7 @@ RenderTarget::~RenderTarget() {
 
 void RenderTarget::Draw(ecs::Entity e) const {
 	PTGN_ASSERT(frame_buffer_.IsBound(), "Cannot draw to render target unless it is first bound");
-	game.renderer.GetRenderData().Render(frame_buffer_, e, false);
+	game.renderer.GetRenderData().Render(frame_buffer_, camera, e, false);
 }
 
 void RenderTarget::Bind() const {

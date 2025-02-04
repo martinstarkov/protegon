@@ -599,26 +599,31 @@ void RenderData::PopulateBatches(ecs::Entity e, bool check_visibility) {
 	}
 }
 
-void RenderData::SetupRender(const FrameBuffer& frame_buffer) const {
+void RenderData::SetupRender(const FrameBuffer& frame_buffer, const Camera& camera) const {
 	frame_buffer.Bind();
-	GLRenderer::SetViewport({}, game.window.GetSize());
+	auto rect{ camera.GetRect() };
+	GLRenderer::SetViewport(rect.Min(), rect.size);
 }
 
-void RenderData::Render(const FrameBuffer& frame_buffer, ecs::Manager& manager) {
-	SetupRender(frame_buffer);
+void RenderData::Render(
+	const FrameBuffer& frame_buffer, const Camera& camera, ecs::Manager& manager
+) {
+	SetupRender(frame_buffer, camera);
 	for (auto [e, t, v] : manager.EntitiesWith<Transform, Visible>()) {
 		PopulateBatches(e, true);
 	}
-	FlushBatches(frame_buffer);
+	FlushBatches(frame_buffer, camera);
 }
 
-void RenderData::Render(const FrameBuffer& frame_buffer, ecs::Entity e, bool check_visibility) {
-	SetupRender(frame_buffer);
+void RenderData::Render(
+	const FrameBuffer& frame_buffer, const Camera& camera, ecs::Entity e, bool check_visibility
+) {
+	SetupRender(frame_buffer, camera);
 	PopulateBatches(e, check_visibility);
-	FlushBatches(frame_buffer);
+	FlushBatches(frame_buffer, camera);
 }
 
-void RenderData::FlushBatches(const FrameBuffer& frame_buffer) {
+void RenderData::FlushBatches(const FrameBuffer& frame_buffer, const Camera& camera) {
 	white_texture.Bind();
 	// Assume depth map sorted.
 	for (auto& [depth, batches] : batch_map) {
@@ -631,7 +636,7 @@ void RenderData::FlushBatches(const FrameBuffer& frame_buffer) {
 			GLRenderer::SetBlendMode(batch.blend_mode);
 			batch.shader.Bind();
 			// TODO: Fix scene camera.
-			batch.shader.SetUniform("u_ViewProjection", game.camera.primary);
+			batch.shader.SetUniform("u_ViewProjection", camera);
 			batch.BindTextures();
 			triangle_vao.Bind();
 			triangle_vao.GetVertexBuffer().SetSubData(

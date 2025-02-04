@@ -17,6 +17,7 @@
 #include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "renderer/vertex_array.h"
+#include "scene/camera.h"
 
 namespace ptgn {
 
@@ -107,8 +108,10 @@ class RenderData {
 public:
 	void Init();
 
-	void Render(const FrameBuffer& frame_buffer, ecs::Manager& manager);
-	void Render(const FrameBuffer& frame_buffer, ecs::Entity e, bool check_visibility);
+	void Render(const FrameBuffer& frame_buffer, const Camera& camera, ecs::Manager& manager);
+	void Render(
+		const FrameBuffer& frame_buffer, const Camera& camera, ecs::Entity e, bool check_visibility
+	);
 
 private:
 	void AddToBatch(
@@ -122,9 +125,9 @@ private:
 
 	void DrawLight(ecs::Entity e);
 
-	void SetupRender(const FrameBuffer& frame_buffer) const;
+	void SetupRender(const FrameBuffer& frame_buffer, const Camera& camera) const;
 	void PopulateBatches(ecs::Entity entity, bool check_visibility);
-	void FlushBatches(const FrameBuffer& frame_buffer);
+	void FlushBatches(const FrameBuffer& frame_buffer, const Camera& camera);
 
 	std::size_t max_texture_slots{ 0 };
 

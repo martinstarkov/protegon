@@ -5,12 +5,15 @@
 #include "renderer/color.h"
 #include "renderer/frame_buffer.h"
 #include "renderer/texture.h"
+#include "scene/camera.h"
 
 namespace ptgn {
 
 // Each render target is initialized with a window camera.
 class RenderTarget {
 public:
+	Camera camera;
+
 	// A default render target will result in the screen being used as the render target.
 	RenderTarget() = default;
 
