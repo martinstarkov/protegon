@@ -12,53 +12,47 @@
 #include "renderer/gl_types.h"
 #include "renderer/renderer.h"
 #include "renderer/vertex_array.h"
-#include "utility/debug.h"
-#include "utility/handle.h"
+#include "utility/assert.h"
 #include "utility/log.h"
 
 namespace ptgn::impl {
 
-void GLRenderer::EnableLineSmoothing() {
-#ifdef GL_ANNOUNCE_RENDERER_CALLS
-	PTGN_LOG("GL: Enabled line smoothing");
-#endif
 #ifndef __EMSCRIPTEN__
+
+void GLRenderer::EnableLineSmoothing() {
 	GLCall(gl::glEnable(GL_BLEND));
 	GLCall(gl::glEnable(GL_LINE_SMOOTH));
 	// GLCall(gl::glLineWidth(1.0f));
+#ifdef GL_ANNOUNCE_RENDERER_CALLS
+	PTGN_LOG("GL: Enabled line smoothing");
 #endif
 }
 
 void GLRenderer::DisableLineSmoothing() {
+	GLCall(gl::glDisable(GL_LINE_SMOOTH));
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Disabled line smoothing");
-#endif
-#ifndef __EMSCRIPTEN__
-	GLCall(gl::glDisable(GL_LINE_SMOOTH));
 #endif
 }
 
 void GLRenderer::SetPolygonMode(PolygonMode mode) {
-#ifndef __EMSCRIPTEN__
 	GLCall(gl::glPolygonMode(GL_FRONT_AND_BACK, static_cast<gl::GLenum>(mode)));
+#ifdef GL_ANNOUNCE_RENDERER_CALLS
+	PTGN_LOG("GL: Set polygon mode");
 #endif
 }
 
+#endif
+
 void GLRenderer::SetBlendMode(BlendMode mode) {
-	if (game.renderer.bound_blend_mode_ == mode) {
+	if (game.renderer.bound_.blend_mode == mode) {
 		return;
 	}
-	game.renderer.bound_blend_mode_ = mode;
-#ifdef GL_ANNOUNCE_RENDERER_CALLS
-	PTGN_LOG("GL: Changed blend mode to ", mode);
-#endif
-#ifdef PTGN_DEBUG
-	++game.stats.blend_mode_changes;
-#endif
 	/*
 	if (mode == BlendMode::None) {
 		// GLCall(gl::glDisable(GL_BLEND));
 		// GLCall(gl::glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE));
+		// TODO: If re-enabling, put the print before this.
 		return;
 	}
 	*/
@@ -99,20 +93,27 @@ void GLRenderer::SetBlendMode(BlendMode mode) {
 			break;*/
 		default: PTGN_ERROR("Failed to identify blend mode");
 	}
+	game.renderer.bound_.blend_mode = mode;
+#ifdef PTGN_DEBUG
+	++game.stats.blend_mode_changes;
+#endif
+#ifdef GL_ANNOUNCE_RENDERER_CALLS
+	PTGN_LOG("GL: Changed blend mode to ", mode);
+#endif
 }
 
 void GLRenderer::EnableDepthWriting() {
+	GLCall(gl::glDepthMask(GL_TRUE));
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Enabled depth writing");
 #endif
-	GLCall(gl::glDepthMask(GL_TRUE));
 }
 
 void GLRenderer::DisableDepthWriting() {
+	GLCall(gl::glDepthMask(GL_FALSE));
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Disabled depth writing");
 #endif
-	GLCall(gl::glDepthMask(GL_FALSE));
 }
 
 bool GLRenderer::IsDepthTestingEnabled() {
@@ -122,31 +123,24 @@ bool GLRenderer::IsDepthTestingEnabled() {
 }
 
 void GLRenderer::EnableDepthTesting() {
+	GLCall(gl::glClearDepth(1.0)); /* Enables Clearing Of The Depth Buffer */
+	GLCall(gl::glEnable(GL_DEPTH_TEST));
+	GLCall(gl::glDepthFunc(GL_LESS));
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Enabled depth testing");
 #endif
-#ifdef __EMSCRIPTEN__
-	GLCall(gl::glClearDepthf(1.0));
-#else
-	GLCall(gl::glClearDepth(1.0)); /* Enables Clearing Of The Depth Buffer */
-#endif
-	GLCall(gl::glEnable(GL_DEPTH_TEST));
-	GLCall(gl::glDepthFunc(GL_LESS));
 }
 
 void GLRenderer::DisableDepthTesting() {
+	GLCall(gl::glDisable(GL_DEPTH_TEST));
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Disabled depth testing");
 #endif
-	GLCall(gl::glDisable(GL_DEPTH_TEST));
 }
 
 void GLRenderer::DrawElements(
 	const VertexArray& vao, std::size_t index_count, bool bind_vertex_array
 ) {
-#ifdef GL_ANNOUNCE_RENDERER_CALLS
-	PTGN_LOG("GL: Draw elements");
-#endif
 	PTGN_ASSERT(
 		vao.HasVertexBuffer(),
 		"Cannot draw vertex array with uninitialized or destroyed vertex buffer"
@@ -166,14 +160,14 @@ void GLRenderer::DrawElements(
 #ifdef PTGN_DEBUG
 	++game.stats.draw_calls;
 #endif
+#ifdef GL_ANNOUNCE_RENDERER_CALLS
+	PTGN_LOG("GL: Draw elements");
+#endif
 }
 
 void GLRenderer::DrawArrays(
 	const VertexArray& vao, std::size_t vertex_count, bool bind_vertex_array
 ) {
-#ifdef GL_ANNOUNCE_RENDERER_CALLS
-	PTGN_LOG("GL: Draw arrays");
-#endif
 	PTGN_ASSERT(
 		vao.HasVertexBuffer(),
 		"Cannot draw vertex array with uninitialized or destroyed vertex buffer"
@@ -188,6 +182,9 @@ void GLRenderer::DrawArrays(
 #ifdef PTGN_DEBUG
 	++game.stats.draw_calls;
 #endif
+#ifdef GL_ANNOUNCE_RENDERER_CALLS
+	PTGN_LOG("GL: Draw arrays");
+#endif
 }
 
 std::uint32_t GLRenderer::GetMaxTextureSlots() {
@@ -198,29 +195,29 @@ std::uint32_t GLRenderer::GetMaxTextureSlots() {
 }
 
 void GLRenderer::SetClearColor(const Color& color) {
-#ifdef GL_ANNOUNCE_RENDERER_CALLS
-	PTGN_LOG("GL: Changed clear color to ", color);
-#endif
 	auto c{ color.Normalized() };
 	GLCall(gl::glClearColor(c[0], c[1], c[2], c[3]));
 #ifdef PTGN_DEBUG
 	++game.stats.clear_colors;
 #endif
+#ifdef GL_ANNOUNCE_RENDERER_CALLS
+	PTGN_LOG("GL: Changed clear color to ", color);
+#endif
 }
 
 void GLRenderer::SetViewport(const V2_int& position, const V2_int& size) {
-	if (game.renderer.bound_viewport_position_ == position &&
-		game.renderer.bound_viewport_size_ == size) {
+	if (game.renderer.bound_.viewport_position == position &&
+		game.renderer.bound_.viewport_size == size) {
 		return;
 	}
-	game.renderer.bound_viewport_position_ = position;
-	game.renderer.bound_viewport_size_	   = size;
-#ifdef GL_ANNOUNCE_RENDERER_CALLS
-	PTGN_LOG("GL: Set viewport [position: ", position, ", size: ", size, "]");
-#endif
 	GLCall(gl::glViewport(position.x, position.y, size.x, size.y));
+	game.renderer.bound_.viewport_position = position;
+	game.renderer.bound_.viewport_size	   = size;
 #ifdef PTGN_DEBUG
 	++game.stats.viewport_changes;
+#endif
+#ifdef GL_ANNOUNCE_RENDERER_CALLS
+	PTGN_LOG("GL: Set viewport [position: ", position, ", size: ", size, "]");
 #endif
 }
 
@@ -237,34 +234,32 @@ V2_int GLRenderer::GetViewportPosition() {
 }
 
 void GLRenderer::Clear() {
-#ifdef GL_ANNOUNCE_RENDERER_CALLS
-	PTGN_LOG("GL: Cleared color and depth buffers");
-#endif
 	GLCall(gl::glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 #ifdef PTGN_DEBUG
 	++game.stats.clears;
 #endif
+#ifdef GL_ANNOUNCE_RENDERER_CALLS
+	PTGN_LOG("GL: Cleared color and depth buffers");
+#endif
 }
 
 void GLRenderer::ClearToColor(const Color& color) {
-#ifdef GL_ANNOUNCE_RENDERER_CALLS
-	PTGN_LOG("GL: Cleared to color ", color);
-#endif
 	V4_float nc{ color.Normalized() };
 	std::array<float, 4> color_array{ nc.x, nc.y, nc.z, nc.w };
 
-#ifdef __EMSCRIPTEN__
-	GLCall(gl::ClearBufferfv(GL_COLOR_EXT, 0, color_array.data()));
-#else
-	GLCall(gl::ClearBufferfv(GL_COLOR, 0, color_array.data()));
-#endif
+	GLCall(gl::ClearBufferfv(static_cast<gl::GLenum>(BufferCategory::Color), 0, color_array.data())
+	);
 	/*
 	// TODO: Check image format of bound texture and potentially use glClearBufferuiv instead of
 	ClearBufferfv. std::array<std::uint32_t, 4> color_array{ color.r, color.g, color.b, color.a };
-	GLCall(gl::ClearBufferuiv(GL_COLOR, 0, color_array.data()));
+	GLCall(gl::ClearBufferuiv(static_cast<gl::GLenum>(BufferCategory::Color), 0,
+	color_array.data()));
 	*/
 #ifdef PTGN_DEBUG
 	++game.stats.clears;
+#endif
+#ifdef GL_ANNOUNCE_RENDERER_CALLS
+	PTGN_LOG("GL: Cleared to color ", color);
 #endif
 }
 

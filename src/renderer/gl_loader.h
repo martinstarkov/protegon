@@ -27,6 +27,8 @@ typedef void(GL_APIENTRYP PFNGLCLEARBUFFERUIVPROC)(
 #define GL_DEPTH_STENCIL_ATTACHMENT 0x821A
 #endif
 
+#define glClearDepth glClearDepthf
+
 #else
 
 #ifdef PTGN_PLATFORM_MACOS

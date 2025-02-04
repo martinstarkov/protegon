@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "math/vector2.h"
+#include "renderer/blend_mode.h"
 #include "renderer/color.h"
 #include "renderer/vertex_array.h"
 
@@ -20,9 +21,7 @@ constexpr auto PTGN_OPENGL_MINOR_VERSION = 3;
 
 #endif
 
-namespace ptgn {
-
-namespace impl {
+namespace ptgn::impl {
 
 enum class PolygonMode {
 	Point = 0x1B00, // GL_POINT
@@ -38,10 +37,11 @@ public:
 	// Sets the blend mode for the currently bound frame buffer.
 	static void SetBlendMode(BlendMode mode);
 
+#ifndef __EMSCRIPTEN__
 	static void EnableLineSmoothing();
 	static void DisableLineSmoothing();
-
 	static void SetPolygonMode(PolygonMode mode);
+#endif
 
 	static void EnableDepthTesting();
 	static void DisableDepthTesting();
@@ -78,6 +78,4 @@ public:
 	[[nodiscard]] static bool IsDepthTestingEnabled();
 };
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

@@ -66,6 +66,12 @@ enum class BufferType {
 	Uniform = 0x8A11, // GL_UNIFORM_BUFFER
 };
 
+enum class BufferCategory {
+	Color	= 0x1800, // GL_COLOR
+	Depth	= 0x1801, // GL_DEPTH
+	Stencil = 0x1802, // GL_STENCIL
+};
+
 enum class GLBinding {
 	VertexArray		= 0x85B5, // GL_VERTEX_ARRAY_BINDING
 	VertexBuffer	= 0x8894, // GL_ARRAY_BUFFER_BINDING
