@@ -22,7 +22,7 @@
 #include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "renderer/vertex_array.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/handle.h"
 
 namespace ptgn::impl {
@@ -45,11 +45,7 @@ void Renderer::Reset() {
 	/*current_target_ = {};
 	screen_target_	= {};*/
 
-	bound_shader_id_		 = 0;
-	bound_vertex_array_id_	 = 0;
-	bound_blend_mode_		 = BlendMode::None;
-	bound_viewport_position_ = {};
-	bound_viewport_size_	 = {};
+	bound_ = {};
 
 	FrameBuffer::Unbind(); // Will set bound_frame_buffer_id_ to 0.
 }
