@@ -77,6 +77,7 @@ std::uint32_t VertexArray::GetMaxAttributes() {
 }
 
 void VertexArray::Bind() const {
+	PTGN_ASSERT(IsValid(), "Cannot bind destroyed or uninitialized vertex array");
 	Bind(id_);
 }
 

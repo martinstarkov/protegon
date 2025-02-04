@@ -183,6 +183,7 @@ void Shader::Bind(std::uint32_t id) {
 }
 
 void Shader::Bind() const {
+	PTGN_ASSERT(IsValid(), "Cannot bind destroyed or uninitialized shader");
 	Bind(id_);
 }
 

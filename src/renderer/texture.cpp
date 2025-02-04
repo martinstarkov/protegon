@@ -294,6 +294,7 @@ void Texture::Bind(std::uint32_t slot) const {
 }
 
 void Texture::Bind() const {
+	PTGN_ASSERT(IsValid(), "Cannot bind destroyed or uninitialized texture");
 	BindId(id_);
 }
 

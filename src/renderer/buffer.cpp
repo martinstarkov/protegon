@@ -113,6 +113,7 @@ BufferUsage Buffer<BT>::GetBoundUsage() {
 
 template <BufferType BT>
 void Buffer<BT>::Bind() const {
+	PTGN_ASSERT(IsValid(), "Cannot bind destroyed or uninitialized buffer");
 	Bind(id_);
 }
 

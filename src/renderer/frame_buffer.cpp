@@ -66,6 +66,7 @@ void RenderBuffer::Bind(std::uint32_t id) {
 }
 
 void RenderBuffer::Bind() const {
+	PTGN_ASSERT(IsValid(), "Cannot bind destroyed or uninitialized render buffer");
 	Bind(id_);
 }
 
@@ -201,6 +202,7 @@ bool FrameBuffer::IsValid() const {
 }
 
 void FrameBuffer::Bind() const {
+	PTGN_ASSERT(IsValid(), "Cannot bind destroyed or uninitialized frame buffer");
 	Bind(id_);
 }
 
