@@ -13,7 +13,7 @@
 #include "math/math.h"
 #include "math/vector2.h"
 #include "renderer/origin.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/utility.h"
 
 namespace ptgn {

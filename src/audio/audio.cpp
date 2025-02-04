@@ -7,7 +7,7 @@
 #include "core/game.h"
 #include "core/sdl_instance.h"
 #include "math/hash.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 
 namespace ptgn::impl {
 

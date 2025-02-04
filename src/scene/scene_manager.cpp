@@ -8,7 +8,7 @@
 #include "core/manager.h"
 #include "event/input_handler.h"
 #include "scene/scene.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 
 namespace ptgn::impl {
 

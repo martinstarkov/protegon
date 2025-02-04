@@ -18,7 +18,7 @@
 // #include "renderer/renderer.h"
 // #include "renderer/text.h"
 // #include "renderer/texture.h"
-// #include "utility/debug.h"
+// #include "utility/assert.h"
 // #include "utility/handle.h"
 //
 // namespace ptgn {

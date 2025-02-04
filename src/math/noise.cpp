@@ -3,7 +3,7 @@
 #include <cstdint>
 
 #include "math/math.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/log.h"
 
 namespace ptgn {

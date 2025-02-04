@@ -9,7 +9,7 @@
 #include "math/math.h"
 #include "math/rng.h"
 #include "serialization/fwd.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/type_traits.h"
 
 // TODO: Add xyz() and xyzw() functions.
@@ -232,7 +232,7 @@ struct Vector2 {
 		return std::atan2(static_cast<S>(y), static_cast<S>(x));
 	}
 
-	[[nodiscard]] bool IsZero() const;
+	[[nodiscard]] bool IsZero() const noexcept;
 
 	[[nodiscard]] bool Overlaps(const Line& line) const;
 	[[nodiscard]] bool Overlaps(const Circle& circle) const;

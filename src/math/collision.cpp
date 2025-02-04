@@ -14,7 +14,7 @@
 #include "physics/rigid_body.h"
 #include "renderer/color.h"
 #include "scene/scene_manager.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/log.h"
 
 namespace ptgn::impl {

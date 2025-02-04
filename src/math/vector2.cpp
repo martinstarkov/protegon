@@ -4,7 +4,7 @@
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
 #include "serialization/json.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 
 namespace ptgn {
 
@@ -20,7 +20,7 @@ Vector2<T>::Vector2(const json& j) {
 }
 
 template <typename T>
-bool Vector2<T>::IsZero() const {
+bool Vector2<T>::IsZero() const noexcept {
 	return NearlyEqual(x, T{ 0 }) && NearlyEqual(y, T{ 0 });
 }
 

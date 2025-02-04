@@ -20,7 +20,7 @@
 // #include "renderer/texture.h"
 // #include "resources/fonts.h"
 // #include "ui/button.h"
-// #include "utility/debug.h"
+// #include "utility/assert.h"
 // #include "utility/type_traits.h"
 //
 // namespace ptgn {

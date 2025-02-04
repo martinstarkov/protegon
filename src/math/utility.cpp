@@ -10,7 +10,7 @@
 #include "math/geometry/polygon.h"
 #include "math/math.h"
 #include "math/vector2.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 
 namespace ptgn {
 

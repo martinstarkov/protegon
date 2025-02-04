@@ -12,7 +12,7 @@
 #include "renderer/gl_loader.h"
 #include "SDL_error.h"
 #include "SDL_video.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/file.h"
 #include "utility/log.h"
 

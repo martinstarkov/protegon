@@ -11,7 +11,7 @@
 #include "renderer/color.h"
 #include "renderer/renderer.h"
 #include "tile/grid.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 
 namespace ptgn {
 

@@ -12,7 +12,7 @@
 
 #include "core/manager.h"
 #include "math/math.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/handle.h"
 #include "utility/time.h"
 #include "utility/type_traits.h"

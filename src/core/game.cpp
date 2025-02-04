@@ -25,7 +25,7 @@
 #include "scene/scene_manager.h"
 #include "serialization/json_manager.h"
 #include "ui/ui.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/profiling.h"
 #include "utility/time.h"
 #include "utility/tween.h"
@@ -223,7 +223,6 @@ void Game::Shutdown() {
 	music.Stop();
 	// TODO: Simply reset all the unique pointers instead of doing this.
 	profiler.Reset();
-	shader.Reset();
 	tween.Reset();
 
 	renderer.Shutdown();

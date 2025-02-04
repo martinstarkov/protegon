@@ -14,7 +14,7 @@
 #include "math/utility.h"
 #include "math/vector2.h"
 #include "renderer/origin.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 
 namespace ptgn {
 

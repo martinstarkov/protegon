@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "core/game.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/handle.h"
 #include "utility/log.h"
 #include "utility/time.h"

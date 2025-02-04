@@ -22,7 +22,7 @@
 // #include "renderer/shader.h"
 // #include "renderer/texture.h"
 // #include "scene/camera.h"
-// #include "utility/debug.h"
+// #include "utility/assert.h"
 //
 // namespace ptgn {
 //

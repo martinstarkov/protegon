@@ -20,7 +20,7 @@
 #include "renderer/flip.h"
 #include "renderer/origin.h"
 #include "renderer/texture.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/time.h"
 #include "utility/tween.h"
 #include "utility/type_traits.h"

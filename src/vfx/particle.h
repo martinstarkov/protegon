@@ -1,19 +1,14 @@
 #pragma once
 
 #include <cmath>
-#include <cstdint>
 #include <utility>
 
 #include "ecs/ecs.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/polygon.h"
 #include "math/math.h"
 #include "math/rng.h"
 #include "math/vector2.h"
+#include "renderer/blend_mode.h"
 #include "renderer/color.h"
-#include "renderer/origin.h"
-#include "renderer/texture.h"
-#include "utility/debug.h"
 #include "utility/time.h"
 #include "utility/timer.h"
 

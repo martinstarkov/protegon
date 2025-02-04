@@ -15,7 +15,7 @@
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
 #include "renderer/color.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 
 namespace ptgn::impl {
 

@@ -16,7 +16,7 @@
 #include "SDL_version.h"
 #include "SDL_video.h"
 #include "renderer/gl_renderer.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/log.h"
 #include "utility/time.h"
 

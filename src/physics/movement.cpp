@@ -15,7 +15,7 @@
 #include "math/vector2.h"
 #include "physics/physics.h"
 #include "rigid_body.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/timer.h"
 
 namespace ptgn {

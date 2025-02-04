@@ -7,7 +7,7 @@
 // #include "renderer/render_target.h"
 // #include "scene/scene.h"
 // #include "scene/scene_manager.h"
-// #include "utility/debug.h"
+// #include "utility/assert.h"
 // #include "utility/time.h"
 // #include "utility/tween.h"
 //

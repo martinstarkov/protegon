@@ -5,7 +5,7 @@
 
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
-#include "renderer/batch.h"
+#include "renderer/blend_mode.h"
 #include "renderer/buffer.h"
 #include "renderer/color.h"
 #include "renderer/render_data.h"

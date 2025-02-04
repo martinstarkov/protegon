@@ -1,4 +1,4 @@
-#include "utility/debug.h"
+#include "utility/assert.h"
 
 #include <cstdint>
 #include <cstdlib>

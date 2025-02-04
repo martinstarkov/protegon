@@ -9,7 +9,7 @@
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/type_traits.h"
 
 namespace ptgn {

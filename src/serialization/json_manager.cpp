@@ -4,7 +4,7 @@
 #include <string_view>
 
 #include "math/hash.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 
 namespace ptgn::impl {
 

@@ -6,7 +6,7 @@
 #include "core/game.h"
 #include "core/gl_context.h"
 #include "renderer/gl_types.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 
 #ifdef PTGN_DEBUG
 // Uncomment for debugging purposes
