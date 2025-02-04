@@ -1,16 +1,22 @@
 #include "renderer/frame_buffer.h"
 
 #include <cstdint>
+#include <functional>
+#include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "core/game.h"
 #include "math/vector2.h"
+#include "renderer/color.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
+#include "renderer/gl_types.h"
 #include "renderer/renderer.h"
 #include "renderer/texture.h"
 #include "utility/assert.h"
+#include "utility/debug.h"
 #include "utility/handle.h"
 #include "utility/stats.h"
 
@@ -202,7 +208,6 @@ bool FrameBuffer::IsValid() const {
 }
 
 void FrameBuffer::Bind() const {
-	PTGN_ASSERT(IsValid(), "Cannot bind destroyed or uninitialized frame buffer");
 	Bind(id_);
 }
 
@@ -215,6 +220,63 @@ std::uint32_t FrameBuffer::GetBoundId() {
 	GLCall(gl::glGetIntegerv(static_cast<gl::GLenum>(impl::GLBinding::FrameBufferDraw), &id));
 	PTGN_ASSERT(id >= 0, "Failed to retrieve bound frame buffer id");
 	return static_cast<std::uint32_t>(id);
+}
+
+Color FrameBuffer::GetPixel(const V2_int& coordinate) const {
+	V2_int size{ texture_.GetSize() };
+	PTGN_ASSERT(
+		coordinate.x >= 0 && coordinate.x < size.x,
+		"Cannot get pixel out of range of frame buffer texture"
+	);
+	PTGN_ASSERT(
+		coordinate.y >= 0 && coordinate.y < size.y,
+		"Cannot get pixel out of range of frame buffer texture"
+	);
+	auto formats{ impl::GetGLFormats(texture_.GetFormat()) };
+	PTGN_ASSERT(
+		formats.color_components >= 3,
+		"Cannot retrieve pixel data of render target texture with less than 3 RGB components"
+	);
+	std::vector<std::uint8_t> v(static_cast<std::size_t>(formats.color_components * 1 * 1));
+	int y{ size.y - 1 - coordinate.y };
+	PTGN_ASSERT(y >= 0);
+	Bind();
+	GLCall(gl::glReadPixels(
+		coordinate.x, y, 1, 1, formats.input_format,
+		static_cast<gl::GLenum>(impl::GLType::UnsignedByte), static_cast<void*>(v.data())
+	));
+	return Color{ v[0], v[1], v[2],
+				  formats.color_components == 4 ? v[3] : static_cast<std::uint8_t>(255) };
+}
+
+void FrameBuffer::ForEachPixel(const std::function<void(V2_int, Color)>& func) const {
+	V2_int size{ texture_.GetSize() };
+	auto formats{ impl::GetGLFormats(texture_.GetFormat()) };
+	PTGN_ASSERT(
+		formats.color_components >= 3,
+		"Cannot retrieve pixel data of render target texture with less than 3 RGB components"
+	);
+
+	std::vector<std::uint8_t> v(static_cast<std::size_t>(formats.color_components * size.x * size.y)
+	);
+	Bind();
+	GLCall(gl::glReadPixels(
+		0, 0, size.x, size.y, formats.input_format,
+		static_cast<gl::GLenum>(impl::GLType::UnsignedByte), static_cast<void*>(v.data())
+	));
+	for (int j{ 0 }; j < size.y; j++) {
+		// Ensure left-to-right and top-to-bottom iteration.
+		int row{ (size.y - 1 - j) * size.x * formats.color_components };
+		for (int i{ 0 }; i < size.x; i++) {
+			int idx{ row + i * formats.color_components };
+			PTGN_ASSERT(static_cast<std::size_t>(idx) < v.size());
+			Color color{ v[static_cast<std::size_t>(idx)], v[static_cast<std::size_t>(idx + 1)],
+						 v[static_cast<std::size_t>(idx + 2)],
+						 formats.color_components == 4 ? v[static_cast<std::size_t>(idx + 3)]
+													   : static_cast<std::uint8_t>(255) };
+			std::invoke(func, V2_int{ i, j }, color);
+		}
+	}
 }
 
 } // namespace ptgn::impl

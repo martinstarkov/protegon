@@ -1,8 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 
 #include "math/vector2.h"
+#include "renderer/color.h"
 #include "renderer/texture.h"
 
 namespace ptgn::impl {
@@ -92,6 +94,17 @@ public:
 
 	// @return True if id != 0.
 	[[nodiscard]] bool IsValid() const;
+
+	// WARNING: This function is slow and should be primarily used for debugging frame buffers.
+	// @param coordinate Pixel coordinate from [0, size).
+	// @return Color value of the given pixel.
+	// Note: Only RGB/RGBA format textures supported.
+	[[nodiscard]] Color GetPixel(const V2_int& coordinate) const;
+
+	// WARNING: This function is slow and should be primarily used for debugging frame buffers.
+	// @param callback Function to be called for each pixel.
+	// Note: Only RGB/RGBA format textures supported.
+	void ForEachPixel(const std::function<void(V2_int, Color)>& callback) const;
 
 private:
 	void GenerateFrameBuffer();
