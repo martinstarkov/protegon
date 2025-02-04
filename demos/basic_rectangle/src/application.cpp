@@ -20,11 +20,6 @@ struct BasicRectangleScene : public Scene {
 	ecs::Entity s1;
 
 	void Enter() override {
-		rt = manager.CreateEntity();
-		rt.Add<RenderTarget>(window_size);
-		rt.Add<Transform>(game.window.GetCenter());
-		rt.Add<Visible>();
-
 		auto c0 = manager.CreateEntity();
 		c0.Add<Circle>();
 		c0.Add<Transform>(game.window.GetCenter() + V2_float{ 200, 170 });
@@ -65,14 +60,20 @@ struct BasicRectangleScene : public Scene {
 		game.texture.Load("test", "resources/test.png");
 
 		s1 = manager.CreateEntity();
-		s1.Add<Transform>(game.window.GetCenter()
-						  /*, half_pi<float> / 2.0f, V2_float{ 1.0f }*/
+		s1.Add<Transform>(
+			game.window.GetCenter() - V2_float{ 0, 50 }
+			/*, half_pi<float> / 2.0f, V2_float{ 1.0f }*/
 		);
 		s1.Add<Sprite>("test");
 		// s1.Add<Size>(V2_float{ 800, 800 });
 		// s1.Add<Offset>(V2_float{ 0, 0 });
 		// s1.Add<Tint>(color::White);
 		s1.Add<Visible>(false);
+
+		rt = manager.CreateEntity();
+		rt.Add<RenderTarget>(window_size);
+		rt.Add<Transform>(game.window.GetCenter());
+		rt.Add<Visible>();
 
 		auto r2 = manager.CreateEntity();
 		r2.Add<Rect>();

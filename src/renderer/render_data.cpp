@@ -520,12 +520,11 @@ void RenderData::PopulateBatches(ecs::Entity e, bool check_visibility) {
 		(e.Has<Transform, Visible>()), "Cannot render entity without transform or visible component"
 	);
 
-	const auto& transform{ e.Get<Transform>() };
-	const auto& visible{ e.Get<Visible>() };
-
-	if (check_visibility && !visible) {
+	if (check_visibility && !e.Get<Visible>()) {
 		return;
 	}
+
+	const auto& transform{ e.Get<Transform>() };
 
 	Depth depth{ e.Has<Depth>() ? e.Get<Depth>() : Depth{ 0 } };
 	BlendMode blend_mode{ e.Has<BlendMode>() ? e.Get<BlendMode>()
