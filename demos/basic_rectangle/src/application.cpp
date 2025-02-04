@@ -54,9 +54,8 @@ struct BasicRectangleScene : public Scene {
 		game.texture.Load("test", "resources/test.png");
 
 		s1 = manager.CreateEntity();
-		s1.Add<Transform>(
-			game.window.GetCenter() + V2_float{ 120, -120 }
-			/*, half_pi<float> / 2.0f, V2_float{ 1.0f }*/
+		s1.Add<Transform>(game.window.GetCenter()
+						  /*, half_pi<float> / 2.0f, V2_float{ 1.0f }*/
 		);
 		s1.Add<Sprite>("test");
 		// s1.Add<Size>(V2_float{ 800, 800 });
@@ -95,7 +94,7 @@ struct BasicRectangleScene : public Scene {
 	}
 
 	void Update() override {
-		auto& r{ rt.Get<RenderTarget>() };
+		const auto& r{ rt.Get<RenderTarget>() };
 		r.Bind();
 		r.Clear();
 
