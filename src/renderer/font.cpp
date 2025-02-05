@@ -1,6 +1,7 @@
 #include "renderer/font.h"
 
 #include <cstdint>
+#include <string>
 #include <string_view>
 #include <utility>
 
@@ -10,6 +11,7 @@
 #include "core/game.h"
 #include "core/sdl_instance.h"
 #include "math/hash.h"
+#include "math/vector2.h"
 #include "resources/fonts.h"
 #include "utility/assert.h"
 #include "utility/file.h"
@@ -27,6 +29,13 @@ void FontManager::Init() {
 	SetDefault("");
 }
 
+V2_int FontManager::GetSize(std::size_t key, const std::string& content) const {
+	PTGN_ASSERT(Has(key), "Cannot get size of font which has not been loaded");
+	V2_int size;
+	TTF_SizeUTF8(Get(key), content.c_str(), &size.x, &size.y);
+	return size;
+}
+
 void FontManager::SetDefault(std::string_view key) {
 	PTGN_ASSERT(Has(Hash(key)), "Font key must be loaded before setting it as default");
 	default_key_ = Hash(key);
@@ -35,6 +44,10 @@ void FontManager::SetDefault(std::string_view key) {
 TTF_Font* FontManager::Get(std::size_t key) const {
 	PTGN_ASSERT(Has(key), "Cannot get font key which is not loaded");
 	return fonts_.find(key)->second.get();
+}
+
+std::int32_t FontManager::GetHeight(std::size_t key) const {
+	return TTF_FontHeight(Get(key));
 }
 
 bool FontManager::Has(std::size_t key) const {

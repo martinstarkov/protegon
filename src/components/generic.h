@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string_view>
 #include <type_traits>
 
 #include "math/vector2.h"
@@ -41,6 +42,27 @@ struct Vector2Component {
 
 private:
 	Vector2<T> value_{ 0 };
+};
+
+struct StringViewComponent {
+	StringViewComponent() = default;
+
+	StringViewComponent(std::string_view value) : value_{ value } {}
+
+	bool operator==(const StringViewComponent& other) const {
+		return value_ == other.value_;
+	}
+
+	bool operator!=(const StringViewComponent& other) const {
+		return !(*this == other);
+	}
+
+	operator std::string_view() const {
+		return value_;
+	}
+
+private:
+	std::string_view value_{};
 };
 
 } // namespace ptgn

@@ -2,9 +2,11 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <string_view>
 #include <unordered_map>
 
+#include "math/vector2.h"
 #include "resources/fonts.h"
 #include "utility/file.h"
 
@@ -16,6 +18,8 @@ struct TTF_Font;
 #endif
 
 namespace ptgn {
+
+class Text;
 
 enum class FontRenderMode : int {
 	Solid	= 0,
@@ -65,10 +69,16 @@ public:
 
 private:
 	friend class Game;
+	friend class Text;
 
 	using Font = std::unique_ptr<TTF_Font, TTF_FontDeleter>;
 
 	void Init();
+
+	[[nodiscard]] V2_int GetSize(std::size_t key, const std::string& content) const;
+
+	// @return Total height of the font in pixels.
+	[[nodiscard]] std::int32_t GetHeight(std::size_t key) const;
 
 	[[nodiscard]] bool Has(std::size_t key) const;
 

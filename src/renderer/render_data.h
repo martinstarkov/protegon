@@ -29,9 +29,6 @@ namespace impl {
 // TODO: Replace with include.
 struct PointLight {};
 
-// TODO: Fix text.
-struct Text {};
-
 struct Vertex {
 	glsl::vec3 position;
 	glsl::vec4 color;

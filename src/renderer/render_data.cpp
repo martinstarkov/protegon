@@ -27,6 +27,7 @@
 #include "renderer/origin.h"
 #include "renderer/render_target.h"
 #include "renderer/shader.h"
+#include "renderer/text.h"
 #include "renderer/texture.h"
 #include "renderer/vertex_array.h"
 #include "scene/camera.h"
@@ -549,6 +550,50 @@ void RenderData::PopulateBatches(ecs::Entity e, bool check_visibility) {
 		prev_light = ecs::null;
 	};
 
+	if ((e.HasAny<Polygon, Arc, Rect, Triangle, Line, Point, RoundedRect, Capsule>())) {
+		std::invoke(flush_lights, batches.prev_light);
+		AddTexture(
+			e, transform, depth, blend_mode, white_texture, game.shader.Get<ShapeShader::Quad>()
+		);
+	}
+	if (e.HasAny<Circle, Ellipse>()) {
+		std::invoke(flush_lights, batches.prev_light);
+		AddTexture(
+			e, transform, depth, blend_mode, white_texture, game.shader.Get<ShapeShader::Circle>()
+		);
+	}
+	if (e.Has<Sprite>()) {
+		std::invoke(flush_lights, batches.prev_light);
+		AddTexture(
+			e, transform, depth, blend_mode, game.texture.Get(e.Get<Sprite>().texture_key),
+			game.shader.Get<ShapeShader::Quad>()
+		);
+	}
+	if (e.Has<Animation>()) {
+		std::invoke(flush_lights, batches.prev_light);
+		AddTexture(
+			e, transform, depth, blend_mode, game.texture.Get(e.Get<Animation>().texture_key),
+			game.shader.Get<ShapeShader::Quad>()
+		);
+	}
+	if (e.Has<Text>()) {
+		std::invoke(flush_lights, batches.prev_light);
+		const auto& text{ e.Get<Text>() };
+		const auto& texture{ text.GetTexture() };
+		// Skip invalid, fully transparent, and empty text.
+		if (texture.IsValid() && text.GetColor().a != 0 && !text.GetContent().empty()) {
+			AddTexture(
+				e, transform, depth, blend_mode, texture, game.shader.Get<ShapeShader::Quad>()
+			);
+		}
+	}
+	if (e.Has<RenderTarget>()) {
+		std::invoke(flush_lights, batches.prev_light);
+		AddTexture(
+			e, transform, depth, blend_mode, e.Get<RenderTarget>().GetTexture(),
+			game.shader.Get<ShapeShader::Quad>()
+		);
+	}
 	if (e.Has<PointLight>()) {
 		if (batches.prev_light == ecs::null) {
 			// TODO: Fix.
@@ -559,42 +604,6 @@ void RenderData::PopulateBatches(ecs::Entity e, bool check_visibility) {
 		}
 		DrawLight(e);
 		batches.prev_light = e;
-	} else if (e.HasAny<Circle, Ellipse>()) {
-		std::invoke(flush_lights, batches.prev_light);
-		AddTexture(
-			e, transform, depth, blend_mode, white_texture, game.shader.Get<ShapeShader::Circle>()
-		);
-	} else if (e.Has<Sprite>()) {
-		std::invoke(flush_lights, batches.prev_light);
-		AddTexture(
-			e, transform, depth, blend_mode, game.texture.Get(e.Get<Sprite>().texture_key),
-			game.shader.Get<ShapeShader::Quad>()
-		);
-	} else if (e.Has<Animation>()) {
-		std::invoke(flush_lights, batches.prev_light);
-		AddTexture(
-			e, transform, depth, blend_mode, game.texture.Get(e.Get<Animation>().texture_key),
-			game.shader.Get<ShapeShader::Quad>()
-		);
-	} else if (e.Has<Text>()) {
-		std::invoke(flush_lights, batches.prev_light);
-		// TODO: Fix text:
-		// AddTexture(
-		//	e, transform, depth, blend_mode, e.Get<Text>().GetTexture(),
-		//	game.shader.Get<ShapeShader::Quad>()
-		//);
-	} else if (e.Has<RenderTarget>()) {
-		std::invoke(flush_lights, batches.prev_light);
-		AddTexture(
-			e, transform, depth, blend_mode, e.Get<RenderTarget>().GetTexture(),
-			game.shader.Get<ShapeShader::Quad>()
-		);
-	} else {
-		PTGN_ASSERT((e.HasAny<Polygon, Arc, Rect, Triangle, Line, Point, RoundedRect, Capsule>()));
-		std::invoke(flush_lights, batches.prev_light);
-		AddTexture(
-			e, transform, depth, blend_mode, white_texture, game.shader.Get<ShapeShader::Quad>()
-		);
 	}
 }
 

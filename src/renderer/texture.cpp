@@ -163,6 +163,9 @@ void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip) 
 	}
 }
 
+Texture::Texture(const Surface& surface) :
+	Texture{ static_cast<const void*>(surface.data.data()), surface.size, surface.format } {}
+
 Texture::Texture(
 	const void* data, const V2_int& size, TextureFormat format, int mipmap_level,
 	TextureWrapping wrapping_x, TextureWrapping wrapping_y, TextureScaling minifying,
@@ -388,8 +391,7 @@ void Texture::SetSubData(
 void TextureManager::Load(std::string_view key, const path& filepath) {
 	auto [it, inserted] = textures_.try_emplace(Hash(key));
 	if (inserted) {
-		Surface s{ LoadFromFile(filepath) };
-		it->second = Texture(static_cast<const void*>(s.data.data()), s.size, s.format);
+		it->second = Texture(LoadFromFile(filepath));
 	}
 }
 

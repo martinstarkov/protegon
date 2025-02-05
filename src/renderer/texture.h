@@ -3,7 +3,6 @@
 #include <array>
 #include <cstdint>
 #include <functional>
-#include <memory>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
@@ -49,6 +48,7 @@ class RenderData;
 
 struct Surface {
 	Surface() = default;
+	// Note: This does not free the surface.
 	explicit Surface(SDL_Surface* sdl_surface);
 
 	// Mirrors the surface vertically.
@@ -125,6 +125,9 @@ struct GLFormats {
 class Texture {
 public:
 	Texture() = default;
+
+	explicit Texture(const Surface& surface);
+
 	Texture(
 		const void* data, const V2_int& size, TextureFormat format = TextureFormat::RGBA8888,
 		int mipmap_level = 0, TextureWrapping wrapping_x = TextureWrapping::ClampEdge,

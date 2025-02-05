@@ -1,183 +1,154 @@
-// #pragma once
-//
-// #include <cstdint>
-// #include <string>
-//
-// #include "core/manager.h"
-// #include "math/vector2.h"
-// #include "renderer/color.h"
-// #include "renderer/font.h"
-// #include "renderer/texture.h"
-// #include "utility/handle.h"
-//
-// namespace ptgn {
-//
-// enum class TextWrapAlignment {
-//	Left   = 0, // TTF_WRAPPED_ALIGN_LEFT
-//	Center = 1, // TTF_WRAPPED_ALIGN_CENTER
-//	Right  = 2	// TTF_WRAPPED_ALIGN_RIGHT
-// };
-//
-///*
-//// TODO: Fix.
-// SDL_Surface* GetSurface
-//	Font& font, FontStyle style, const Color& text_color, FontRenderMode mode,
-//	const std::string& content, std::int32_t ptsize, const Color& shading_color,
-//	std::uint32_t wrap_after_pixels, TextWrapAlignment wrap_alignment, std::int32_t line_skip
-//) :
-//	Surface{ std::invoke([&]() {
-//		PTGN_ASSERT(
-//			font.IsValid(), "Cannot create a surface with an invalid or uninitialized font"
-//		);
-//
-//		auto f = &font.Get();
-//
-//		TTF_SetFontStyle(f, static_cast<int>(style));
-//		TTF_SetFontWrappedAlign(f, static_cast<int>(wrap_alignment));
-//		if (line_skip != std::numeric_limits<std::int32_t>::infinity()) {
-//		// TODO: Re-enable this for Emscripten once it is supported (SDL_ttf 2.24.0).
-// #ifndef __EMSCRIPTEN__
-//			TTF_SetFontLineSkip(f, line_skip);
-// #endif
-//		}
-//		if (ptsize != std::numeric_limits<std::int32_t>::infinity()) {
-//			TTF_SetFontSize(f, ptsize);
-//		}
-//
-//		std::shared_ptr<SDL_Surface> surface;
-//
-//		SDL_Color tc{ text_color.r, text_color.g, text_color.b, text_color.a };
-//
-//		switch (mode) {
-//			case FontRenderMode::Solid:
-//				surface = std::shared_ptr<SDL_Surface>{
-//					TTF_RenderUTF8_Solid_Wrapped(f, content.c_str(), tc, wrap_after_pixels),
-//					impl::SDL_SurfaceDeleter{}
-//				};
-//				break;
-//			case FontRenderMode::Shaded: {
-//				SDL_Color sc{ shading_color.r, shading_color.g, shading_color.b, shading_color.a };
-//				surface = std::shared_ptr<SDL_Surface>{
-//					TTF_RenderUTF8_Shaded_Wrapped(f, content.c_str(), tc, sc, wrap_after_pixels),
-//					impl::SDL_SurfaceDeleter{}
-//				};
-//				break;
-//			}
-//			case FontRenderMode::Blended:
-//				surface = std::shared_ptr<SDL_Surface>{
-//					TTF_RenderUTF8_Blended_Wrapped(f, content.c_str(), tc, wrap_after_pixels),
-//					impl::SDL_SurfaceDeleter{}
-//				};
-//				break;
-//			default:
-//				PTGN_ERROR(
-//					"Unrecognized render mode given when creating surface from font information"
-//				);
-//		}
-//
-//		PTGN_ASSERT(surface != nullptr, "Failed to create surface for given font information");
-//
-//		return surface;
-//	}) } {
-// }
-//*/
-//
-// V2_int GetSize(Font font, const std::string& content) {
-//	PTGN_ASSERT(font.IsValid(), "Cannot get size of uninitialized or invalid font");
-//	V2_int size;
-//	TTF_SizeUTF8(&font.Get(), content.c_str(), &size.x, &size.y);
-//	return size;
-//}
-//
-// namespace impl {
-//
-// struct TextInstance {
-//	TextInstance()	= default;
-//	~TextInstance() = default;
-//
-//	Texture texture_;
-//	Font font_;
-//	std::string content_;
-//	Color text_color_{ color::Black };
-//	FontStyle font_style_{ FontStyle::Normal };
-//	FontRenderMode render_mode_{ FontRenderMode::Solid };
-//	// Background color.
-//	Color shading_color_{ color::White };
-//	// 0 indicates only wrapping on newline characters.
-//	std::uint32_t wrap_after_pixels_{ 0 };
-//	// Set the spacing between lines of text. Infinity will use the current font line skip.
-//	std::int32_t line_skip_{ std::numeric_limits<std::int32_t>::infinity() };
-//	// Set the point size of text. Infinity will use the current point size of the font.
-//	std::int32_t point_size_{ std::numeric_limits<std::int32_t>::infinity() };
-//	TextWrapAlignment wrap_alignment_{ TextWrapAlignment::Center };
-//	bool visible_{ true };
-//};
-//
-//} // namespace impl
-//
-// class Text : public Handle<impl::TextInstance> {
-// public:
-//	Text() = default;
-//	// To create text with multiple FontStyles, simply use &&, e.g.
-//	// FontStyle::Italic && FontStyle::Bold
-//	// @param font Default: {}, which corresponds to the default font (use game.font.SetDefault(...)
-//	// to change.
-//	Text(
-//		const std::string_view& content, const Color& text_color = color::Black,
-//		const FontOrKey& font = {}
-//	);
-//
-//	// Setting destination.size == {} corresponds to the unscaled size of the text.
-//	void Draw(const Rect& destination, std::int32_t render_layer = 0) const;
-//
-//	Text& SetFont(const FontOrKey& font);
-//	Text& SetContent(const std::string_view& content);
-//	Text& SetColor(const Color& text_color);
-//	Text& SetFontStyle(FontStyle font_style);
-//	Text& SetFontRenderMode(FontRenderMode render_mode);
-//	Text& SetShadingColor(const Color& shading_color);
-//	// text wrapped to multiple lines on line endings and on word boundaries if it extends beyond
-//	// this pixel value. Setting pixels = 0 (default) will wrap only after newlines.
-//	Text& SetWrapAfter(std::uint32_t pixels);
-//	// Set the spacing between lines of text.
-//	Text& SetLineSkip(std::int32_t pixels);
-//	// Set point size of text.
-//	Text& SetSize(std::int32_t point_size);
-//	Text& SetWrapAlignment(TextWrapAlignment wrap_alignment);
-//	Text& SetVisibility(bool visibility);
-//	Text& ToggleVisibility();
-//
-//	// TODO: Add https://wiki.libsdl.org/SDL2_ttf/TTF_SetFontWrappedAlign to set wrap alignment.
-//
-//	[[nodiscard]] const Font& GetFont() const;
-//	[[nodiscard]] std::string_view GetContent() const;
-//	[[nodiscard]] const Color& GetColor() const;
-//	[[nodiscard]] FontStyle GetFontStyle() const;
-//	[[nodiscard]] FontRenderMode GetFontRenderMode() const;
-//	[[nodiscard]] const Color& GetShadingColor() const;
-//	[[nodiscard]] const Texture& GetTexture() const;
-//	[[nodiscard]] bool GetVisibility() const;
-//
-//	[[nodiscard]] V2_int GetSize() const;
-//
-//	[[nodiscard]] static V2_int GetSize(const FontOrKey& font, const std::string& content);
-//
-// private:
-//	[[nodiscard]] Texture RecreateTexture();
-//};
-//
-// namespace impl {
-//
-// class TextManager : public MapManager<Text> {
-// public:
-//	TextManager()								   = default;
-//	~TextManager() override						   = default;
-//	TextManager(TextManager&&) noexcept			   = default;
-//	TextManager& operator=(TextManager&&) noexcept = default;
-//	TextManager(const TextManager&)				   = delete;
-//	TextManager& operator=(const TextManager&)	   = delete;
-//};
-//
-//} // namespace impl
-//
-//} // namespace ptgn
+#pragma once
+
+#include <cstdint>
+#include <limits>
+#include <string>
+#include <string_view>
+
+#include "components/generic.h"
+#include "ecs/ecs.h"
+#include "math/hash.h"
+#include "math/vector2.h"
+#include "renderer/color.h"
+#include "renderer/font.h"
+#include "renderer/texture.h"
+#include "utility/type_traits.h"
+
+namespace ptgn {
+
+enum class TextWrapAlignment {
+	Left   = 0, // TTF_WRAPPED_ALIGN_LEFT
+	Center = 1, // TTF_WRAPPED_ALIGN_CENTER
+	Right  = 2	// TTF_WRAPPED_ALIGN_RIGHT
+};
+
+struct TextContent : public StringViewComponent {
+	using StringViewComponent::StringViewComponent;
+};
+
+struct FontKey : public ArithmeticComponent<std::size_t> {
+	using ArithmeticComponent::ArithmeticComponent;
+
+	FontKey() : ArithmeticComponent{ Hash("") } {}
+};
+
+struct FontSize : public ArithmeticComponent<std::int32_t> {
+	using ArithmeticComponent::ArithmeticComponent;
+
+	FontSize() : ArithmeticComponent{ std::numeric_limits<std::int32_t>::infinity() } {}
+};
+
+struct TextLineSkip : public ArithmeticComponent<std::int32_t> {
+	using ArithmeticComponent::ArithmeticComponent;
+
+	TextLineSkip() : ArithmeticComponent{ std::numeric_limits<std::int32_t>::infinity() } {}
+};
+
+struct TextWrapAfter : public ArithmeticComponent<std::uint32_t> {
+	using ArithmeticComponent::ArithmeticComponent;
+};
+
+struct TextColor : public ColorComponent {
+	using ColorComponent::ColorComponent;
+
+	TextColor() : ColorComponent{ color::Black } {}
+};
+
+struct TextShadingColor : public ColorComponent {
+	using ColorComponent::ColorComponent;
+
+	TextShadingColor() : ColorComponent{ color::White } {}
+};
+
+class Text {
+public:
+	Text() = default;
+
+	// @param font_key Default: "" corresponds to the default engine font (use
+	// game.font.SetDefault(...) to change.
+	Text(
+		std::string_view content, const Color& text_color = color::Black,
+		std::string_view font_key = ""
+	);
+	Text(const Text&)				 = delete;
+	Text& operator=(const Text&)	 = delete;
+	Text(Text&&) noexcept			 = default;
+	Text& operator=(Text&&) noexcept = default;
+	~Text();
+
+	// @param font_key Default: "" corresponds to the default engine font (use
+	// game.font.SetDefault(...) to change.
+	Text& SetFont(std::string_view font_key = "");
+	Text& SetContent(std::string_view content);
+	Text& SetColor(const Color& color);
+
+	// To create text with multiple FontStyles, simply use &&, e.g.
+	// FontStyle::Italic && FontStyle::Bold
+	Text& SetFontStyle(FontStyle font_style);
+	// Set the point size of text. Infinity will use the current point size of the font.
+	Text& SetFontSize(std::int32_t pixels);
+
+	Text& SetFontRenderMode(FontRenderMode render_mode);
+
+	// Sets the background shading color for the text.
+	// Also sets the font render mode to FontRenderMode::Shaded.
+	Text& SetShadingColor(const Color& shading_color);
+
+	// text wrapped to multiple lines on line endings and on word boundaries if it extends beyond
+	// this pixel value. Setting pixels = 0 (default) will wrap only after newlines.
+	Text& SetWrapAfter(std::uint32_t pixels);
+	// Set the spacing between lines of text. Infinity will use the current font line skip.
+	Text& SetLineSkip(std::int32_t pixels);
+
+	Text& SetWrapAlignment(TextWrapAlignment wrap_alignment);
+
+	[[nodiscard]] std::size_t GetFontKey() const;
+	[[nodiscard]] std::string_view GetContent() const;
+	[[nodiscard]] Color GetColor() const;
+	[[nodiscard]] FontStyle GetFontStyle() const;
+	[[nodiscard]] FontRenderMode GetFontRenderMode() const;
+	[[nodiscard]] Color GetShadingColor() const;
+	[[nodiscard]] const impl::Texture& GetTexture() const;
+
+	[[nodiscard]] std::int32_t GetFontSize() const;
+
+	// @return The unscaled size of the text texture given the current content and font.
+	[[nodiscard]] V2_int GetSize() const;
+
+private:
+	template <typename T>
+	Text& SetParameter(const T& value) {
+		static_assert(tt::is_any_of_v<
+					  T, FontKey, TextContent, TextColor, FontStyle, FontRenderMode, FontSize,
+					  TextLineSkip, TextShadingColor, TextWrapAfter, TextWrapAlignment>);
+		if (!entity_.Has<T>()) {
+			entity_.Add<T>(value);
+			RecreateTexture();
+			return *this;
+		}
+		auto& t{ entity_.Get<T>() };
+		if (t == value) {
+			return *this;
+		}
+		t = value;
+		RecreateTexture();
+		return *this;
+	}
+
+	template <typename T>
+	[[nodiscard]] const T& GetParameter(const T& default_value) const {
+		static_assert(tt::is_any_of_v<
+					  T, FontKey, TextContent, TextColor, FontStyle, FontRenderMode, FontSize,
+					  TextLineSkip, TextShadingColor, TextWrapAfter, TextWrapAlignment>);
+		if (!entity_.Has<T>()) {
+			return default_value;
+		}
+		return entity_.Get<T>();
+	}
+
+	void RecreateTexture();
+
+	ecs::Entity entity_;
+};
+
+} // namespace ptgn

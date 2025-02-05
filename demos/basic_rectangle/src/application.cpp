@@ -9,6 +9,7 @@
 #include "renderer/color.h"
 #include "renderer/origin.h"
 #include "renderer/render_target.h"
+#include "renderer/text.h"
 #include "scene/scene.h"
 
 using namespace ptgn;
@@ -101,6 +102,13 @@ struct BasicRectangleScene : public Scene {
 		c3.Add<Visible>();
 		// rt.Add<Origin>(Origin::Center);
 		// rt.Add<Tint>(color::Red);
+
+		game.font.Load("test_font", "resources/test_font.ttf");
+
+		auto text1 = manager.CreateEntity();
+		text1.Add<Text>("Hello world!", color::Black, "test_font");
+		text1.Add<Transform>(game.window.GetCenter());
+		text1.Add<Visible>();
 
 		manager.Refresh();
 	}
