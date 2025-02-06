@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "core/manager.h"
+#include "ecs/ecs.h"
 #include "math/math.h"
 #include "utility/assert.h"
 #include "utility/handle.h"
@@ -124,17 +125,20 @@ struct TweenPoint {
 
 	TweenEaseFunction easing_func_{
 		tween_ease_functions_.find(TweenEase::Linear)->second
-	};								   // easing function between tween start and end value.
+	}; // easing function between tween start and end value.
 
-	std::int64_t current_repeat_{ 0 }; // current number of repetitions of the tween.
+	// current number of repetitions of the tween.
+	std::int64_t current_repeat_{ 0 };
 
-	std::int64_t total_repeats_{
-		0
-	};					 // total number of repetitions of the tween (-1 for infinite tween).
+	// total number of repetitions of the tween (-1 for infinite tween).
+	std::int64_t total_repeats_{ 0 };
 
-	bool yoyo_{ false }; // go back and fourth between values (requires repeat != 0) (both
-						 // directions take duration time).
+	// go back and fourth between values (requires repeat != 0) (both
+	// directions take duration time).
+	bool yoyo_{ false };
+
 	bool currently_reversed_{ false };
+
 	bool start_reversed_{ false };
 
 	TweenCallback on_complete_;
@@ -246,6 +250,9 @@ public:
 	// completed or is in the middle of the final tween point, this function does nothing.
 	Tween& IncrementTweenPoint();
 
+	// Toggles the tween between started and stopped.
+	Tween& Toggle();
+
 	// Pause the tween.
 	Tween& Pause();
 
@@ -298,27 +305,28 @@ private:
 
 namespace impl {
 
-class TweenManager : public MapManagerWithNameless<Tween> {
+class TweenManager /*: public MapManagerWithNameless<Tween>*/ {
 public:
-	TweenManager()									 = default;
+	/*TweenManager()									 = default;
 	~TweenManager() override						 = default;
 	TweenManager(TweenManager&&) noexcept			 = default;
 	TweenManager& operator=(TweenManager&&) noexcept = default;
 	TweenManager(const TweenManager&)				 = delete;
-	TweenManager& operator=(const TweenManager&)	 = delete;
+	TweenManager& operator=(const TweenManager&)	 = delete;*/
 
+	// TODO: Decide what to do with all of this.
 	/*
 	 * Load a uniquely identifiable tween into the manager.
 	 * If the tween key already exists, does nothing.
 	 * @param key Unique id of the item to be loaded.
 	 * @return Reference to the loaded item.
 	 */
-	template <typename TKey>
+	/*template <typename TKey>
 	Item& Load(const TKey& key) {
 		Tween t;
 		t.Create();
 		return MapManager<Tween>::Load(key, std::move(t));
-	}
+	}*/
 
 	/*
 	 * Tweens without a key will be unloaded once the following two conditions are met:
@@ -328,18 +336,18 @@ public:
 	 * comparison), this function does nothing.
 	 * @return Reference handle to the loaded nameless tween.
 	 */
-	[[nodiscard]] Tween& Load() {
+	/*[[nodiscard]] Tween& Load() {
 		Tween t;
 		t.Create();
 		return MapManagerWithNameless<Tween>::Load(std::move(t));
-	}
+	}*/
 
 private:
-	using InternalKey = typename MapManagerWithNameless<Tween>::InternalKey;
+	// using InternalKey = typename MapManagerWithNameless<Tween>::InternalKey;
 
 	friend class Game;
 
-	void Update();
+	void Update(ecs::Manager& manager);
 };
 
 } // namespace impl
