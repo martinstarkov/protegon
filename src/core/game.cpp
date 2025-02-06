@@ -223,7 +223,6 @@ void Game::Shutdown() {
 	music.Stop();
 	// TODO: Simply reset all the unique pointers instead of doing this.
 	profiler.Reset();
-	tween.Reset();
 
 	renderer.Shutdown();
 	input.Shutdown();
@@ -294,8 +293,8 @@ void Game::Update() {
 	scene.Update();
 	if (scene.HasCurrent()) {
 		physics.Update(scene.GetCurrent().manager);
+		tween.Update(scene.GetCurrent().manager);
 	}
-	tween.Update();
 	// light.Draw();
 
 	renderer.PresentScreen();

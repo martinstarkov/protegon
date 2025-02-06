@@ -3,7 +3,6 @@
 #include <memory>
 #include <string>
 
-#include "ecs/ecs.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "scene/scene_manager.h"
