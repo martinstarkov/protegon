@@ -5,7 +5,7 @@
 #include <map>
 #include <vector>
 
-#include "components/sprite.h"
+#include "components/draw.h"
 #include "components/transform.h"
 #include "ecs/ecs.h"
 #include "math/vector2.h"

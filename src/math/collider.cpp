@@ -5,7 +5,7 @@
 #include <utility>
 #include <vector>
 
-#include "components/sprite.h"
+#include "components/draw.h"
 #include "components/transform.h"
 #include "ecs/ecs.h"
 #include "math/geometry/circle.h"

@@ -4,7 +4,6 @@
 #include "core/window.h"
 #include "ecs/ecs.h"
 #include "math/vector2.h"
-#include "renderer/origin.h"
 #include "renderer/texture.h"
 #include "scene/scene.h"
 #include "utility/time.h"
@@ -20,15 +19,15 @@ public:
 
 		ecs::Entity s1 = manager.CreateEntity();
 		s1.Add<Transform>(
-			game.window.GetCenter() - V2_float{ 0, 50 }
+			game.window.GetCenter() - V2_float{ 0, 50 }, 0.0f, scale
 			/*, half_pi<float> / 2.0f, V2_float{ 1.0f }*/
 		);
-		auto& a = s1.Add<Animation>("test", 4, V2_float{ 16, 32 }, milliseconds{ 500 });
+		auto& a = s1.Add<Animation>(s1, "test", 4, V2_float{ 16, 32 }, milliseconds{ 500 });
 		a.Start();
 		// s1.Add<Size>(V2_float{ 800, 800 });
 		// s1.Add<Offset>(V2_float{ 0, 0 });
 		// s1.Add<Tint>(color::White);
-		s1.Add<Visible>(false);
+		s1.Add<Visible>();
 
 		manager.Refresh();
 	}
