@@ -70,10 +70,10 @@ public:
 		std::string_view content, const Color& text_color = color::Black,
 		std::string_view font_key = ""
 	);
-	Text(const Text&)				 = delete;
-	Text& operator=(const Text&)	 = delete;
-	Text(Text&&) noexcept			 = default;
-	Text& operator=(Text&&) noexcept = default;
+	Text(const Text&)			 = delete;
+	Text& operator=(const Text&) = delete;
+	Text(Text&& other) noexcept;
+	Text& operator=(Text&& other) noexcept;
 	~Text();
 
 	// @param font_key Default: "" corresponds to the default engine font (use

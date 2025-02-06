@@ -4,11 +4,13 @@
 #include <limits>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "SDL_pixels.h"
 #include "SDL_surface.h"
 #include "SDL_ttf.h"
 #include "core/game.h"
+#include "ecs/ecs.h"
 #include "math/hash.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
@@ -31,6 +33,15 @@ Text::Text(std::string_view content, const Color& text_color, std::string_view f
 		entity_.Add<FontKey>(hashed_key);
 	}
 	RecreateTexture();
+}
+
+Text::Text(Text&& other) noexcept : entity_{ std::exchange(other.entity_, {}) } {}
+
+Text& Text::operator=(Text&& other) noexcept {
+	if (this != &other) {
+		entity_ = std::exchange(other.entity_, {});
+	}
+	return *this;
 }
 
 Text::~Text() {
