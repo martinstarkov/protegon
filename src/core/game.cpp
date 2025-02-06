@@ -291,6 +291,7 @@ void Game::Update() {
 
 	input.Update();
 	scene.Update();
+	// TODO: Move this all into the scene itself.
 	if (scene.HasCurrent()) {
 		physics.Update(scene.GetCurrent().manager);
 		tween.Update(scene.GetCurrent().manager);
@@ -309,6 +310,10 @@ void Game::Update() {
 #endif
 
 	scene.HandleSceneEvents();
+
+	if (scene.HasCurrent()) {
+		scene.GetCurrent().manager.Refresh();
+	}
 
 	if (profiler.IsEnabled()) {
 		profiler.PrintAll();

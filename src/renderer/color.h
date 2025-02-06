@@ -25,14 +25,16 @@ struct Color {
 		r{ r }, g{ g }, b{ b }, a{ a } {}
 
 	// @param alpha [0.0f, 1.0f] value of transparency to set for the color.
-	[[nodiscard]] constexpr Color SetAlpha(float alpha) const {
+	// @return A copy of the color with the alpha value changed.
+	[[nodiscard]] constexpr Color WithAlpha(float alpha) const {
 		Color c{ *this };
 		c.a = static_cast<std::uint8_t>(255.0f * alpha);
 		return c;
 	}
 
 	// @param alpha [0, 255] value of transparency to set for the color.
-	[[nodiscard]] constexpr Color SetAlpha(std::uint8_t alpha) const {
+	// @return A copy of the color with the alpha value changed.
+	[[nodiscard]] constexpr Color WithAlpha(std::uint8_t alpha) const {
 		Color c{ *this };
 		c.a = alpha;
 		return c;

@@ -470,16 +470,10 @@ void TweenManager::Update(ecs::Manager& manager) {
 	// Current callback behavior:
 	// 1. Tween1Repeat#1 2. Tween1Repeat#2 3. Tween2Repeat#1 4. Tween2Repeat#2.
 
-	float dt{ game.dt() };
-
-	auto step = [dt](auto& tween) {
-		if (tween.IsValid()) {
-			tween.Step(dt);
-		}
-	};
-
 	for (auto [e, tween] : manager.EntitiesWith<Tween>()) {
-		std::invoke(step, tween);
+		if (tween.IsValid()) {
+			tween.Step(game.dt());
+		}
 	}
 
 	// Copying container to avoid iterator invalidation, e.g. in case a tween callback adds another

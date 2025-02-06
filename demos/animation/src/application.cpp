@@ -7,8 +7,30 @@
 #include "renderer/texture.h"
 #include "scene/scene.h"
 #include "utility/time.h"
+#include "utility/tween.h"
 
 using namespace ptgn;
+
+void FadeIn(ecs::Entity e, milliseconds duration) {
+	PTGN_ASSERT(game.scene.HasCurrent());
+	auto fade_entity{ game.scene.GetCurrent().manager.CreateEntity() };
+	fade_entity.Add<Tween>()
+		.During(duration)
+		.OnStart([=]() mutable {
+			if (!e.Has<Tint>()) {
+				e.Add<Tint>();
+			}
+		})
+		.OnUpdate([=](float f) mutable {
+			PTGN_ASSERT(
+				e.Has<Tint>(), "Removed tint component from an entity which is currently fading"
+			);
+			auto& tint{ e.Get<Tint>() };
+			tint = tint.WithAlpha(f);
+		})
+		.OnComplete([=]() mutable { fade_entity.Destroy(); })
+		.Start();
+}
 
 class AnimationExample : public Scene {
 public:
@@ -18,16 +40,12 @@ public:
 		game.texture.Load("test", "resources/animation.png");
 
 		ecs::Entity s1 = manager.CreateEntity();
-		s1.Add<Transform>(
-			game.window.GetCenter() - V2_float{ 0, 50 }, 0.0f, scale
-			/*, half_pi<float> / 2.0f, V2_float{ 1.0f }*/
-		);
+		s1.Add<Transform>(game.window.GetCenter(), 0.0f, scale);
 		auto& a = s1.Add<Animation>(s1, "test", 4, V2_float{ 16, 32 }, milliseconds{ 500 });
 		a.Start();
-		// s1.Add<Size>(V2_float{ 800, 800 });
-		// s1.Add<Offset>(V2_float{ 0, 0 });
-		// s1.Add<Tint>(color::White);
 		s1.Add<Visible>();
+
+		FadeIn(s1, milliseconds{ 5000 });
 
 		manager.Refresh();
 	}

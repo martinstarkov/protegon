@@ -562,17 +562,20 @@ void RenderData::PopulateBatches(ecs::Entity e, bool check_visibility) {
 			e, transform, depth, blend_mode, white_texture, game.shader.Get<ShapeShader::Circle>()
 		);
 	}
+	// TODO: Consolidate these into one texture key component.
 	if (e.Has<Sprite>()) {
 		std::invoke(flush_lights, batches.prev_light);
+		auto texture_key{ e.Get<Sprite>().texture_key };
 		AddTexture(
-			e, transform, depth, blend_mode, game.texture.Get(e.Get<Sprite>().texture_key),
+			e, transform, depth, blend_mode, game.texture.Get(texture_key),
 			game.shader.Get<ShapeShader::Quad>()
 		);
 	}
 	if (e.Has<Animation>()) {
 		std::invoke(flush_lights, batches.prev_light);
+		auto texture_key{ e.Get<Animation>().texture_key };
 		AddTexture(
-			e, transform, depth, blend_mode, game.texture.Get(e.Get<Animation>().texture_key),
+			e, transform, depth, blend_mode, game.texture.Get(texture_key),
 			game.shader.Get<ShapeShader::Quad>()
 		);
 	}
