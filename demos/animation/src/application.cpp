@@ -1,45 +1,41 @@
-#include "protegon/protegon.h"
+#include "components/draw.h"
+#include "components/transform.h"
+#include "core/game.h"
+#include "core/window.h"
+#include "ecs/ecs.h"
+#include "math/vector2.h"
+#include "renderer/origin.h"
+#include "renderer/texture.h"
+#include "scene/scene.h"
+#include "utility/time.h"
 
 using namespace ptgn;
 
 class AnimationExample : public Scene {
 public:
-	Texture texture{ "resources/animation.png" };
-
 	V2_float scale{ 5.0f };
 
-	ecs::Manager manager;
-	ecs::Entity entity1;
-	ecs::Entity entity2;
-
 	void Enter() override {
-		entity1 = manager.CreateEntity();
-		entity2 = manager.CreateEntity();
+		game.texture.Load("test", "resources/animation.png");
 
-		entity1.Add<Transform>(game.window.GetCenter(), 0.0f, scale);
-		entity1.Add<Sprite>(
-			texture, V2_float{}, Origin::CenterBottom, V2_float{ 16, 32 }
+		ecs::Entity s1 = manager.CreateEntity();
+		s1.Add<Transform>(
+			game.window.GetCenter() - V2_float{ 0, 50 }
+			/*, half_pi<float> / 2.0f, V2_float{ 1.0f }*/
 		);
-
-		entity2.Add<Transform>(game.window.GetCenter() + V2_float{ 100, 0 }, 0.0f, scale);
-
-		auto& a = entity2.Add<Animation>(
-			texture, 4, V2_float{ 16, 32 }, milliseconds{ 500 }, V2_float{},
-			V2_float{}, Origin::CenterBottom
-		);
+		auto& a = s1.Add<Animation>("test", 4, V2_float{ 16, 32 }, milliseconds{ 500 });
 		a.Start();
+		// s1.Add<Size>(V2_float{ 800, 800 });
+		// s1.Add<Offset>(V2_float{ 0, 0 });
+		// s1.Add<Tint>(color::White);
+		s1.Add<Visible>(false);
 
 		manager.Refresh();
-	}
-
-	void Update() override {
-		entity1.Get<Sprite>().Draw(entity1);
-		entity2.Get<Animation>().Draw(entity2);
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("AnimationExample");
-	game.scene.Enter<AnimationExample>("animation_example");
+	game.Start<AnimationExample>("animation_example");
 	return 0;
 }
