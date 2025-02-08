@@ -25,7 +25,7 @@
 #include "scene/scene_manager.h"
 #include "serialization/json_manager.h"
 #include "ui/ui.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/profiling.h"
 #include "utility/time.h"
 #include "utility/tween.h"
@@ -154,14 +154,14 @@ Game::Game() :
 	json{ *json_ },
 	font_{ std::make_unique<FontManager>() },
 	font{ *font_ },
-	text_{ std::make_unique<TextManager>() },
-	text{ *text_ },
+	/*text_{ std::make_unique<TextManager>() },
+	text{ *text_ },*/
 	texture_{ std::make_unique<TextureManager>() },
 	texture{ *texture_ },
 	shader_{ std::make_unique<ShaderManager>() },
 	shader{ *shader_ },
-	light_{ std::make_unique<LightManager>() },
-	light{ *light_ },
+	/*light_{ std::make_unique<LightManager>() },
+	light{ *light_ },*/
 	profiler_{ std::make_unique<Profiler>() },
 	profiler{ *profiler_ } {}
 
@@ -210,7 +210,7 @@ void Game::Init(
 
 	renderer.Init(background_color);
 	camera.Init();
-	light.Init();
+	// light.Init();
 
 	game.window.SetTitle(title);
 	game.window.SetSize(window_size);
@@ -219,16 +219,10 @@ void Game::Init(
 void Game::Shutdown() {
 	scene.Shutdown();
 
+	sound.Stop(-1);
+	music.Stop();
 	// TODO: Simply reset all the unique pointers instead of doing this.
 	profiler.Reset();
-	shader.Reset();
-	texture.Reset();
-	text.Reset();
-	tween.Reset();
-	font.Reset();
-	sound.Reset();
-	music.Reset();
-	json.Reset();
 
 	renderer.Shutdown();
 	input.Shutdown();
@@ -297,11 +291,12 @@ void Game::Update() {
 
 	input.Update();
 	scene.Update();
+	// TODO: Move this all into the scene itself.
 	if (scene.HasCurrent()) {
 		physics.Update(scene.GetCurrent().manager);
+		tween.Update(scene.GetCurrent().manager);
 	}
-	tween.Update();
-	light.Draw();
+	// light.Draw();
 
 	renderer.PresentScreen();
 
@@ -315,6 +310,10 @@ void Game::Update() {
 #endif
 
 	scene.HandleSceneEvents();
+
+	if (scene.HasCurrent()) {
+		scene.GetCurrent().manager.Refresh();
+	}
 
 	if (profiler.IsEnabled()) {
 		profiler.PrintAll();

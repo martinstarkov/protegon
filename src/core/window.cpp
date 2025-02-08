@@ -13,7 +13,7 @@
 #include "math/vector2.h"
 #include "renderer/frame_buffer.h"
 #include "renderer/gl_renderer.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/log.h"
 
 #ifdef __EMSCRIPTEN__

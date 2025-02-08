@@ -71,10 +71,10 @@ public:
 			p.x += speed * dt;
 		}
 
-		auto cam = game.camera.GetPrimary();
+		auto& cam = game.camera.primary;
 		cam.SetPosition(p + cam_shake.local_position);
 		cam.SetRotation(cam_shake.local_rotation);
-		game.camera.SetPrimary(cam);
+		game.camera.primary = cam;
 
 		Draw();
 	}

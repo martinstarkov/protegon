@@ -6,13 +6,13 @@
 #include <string_view>
 #include <vector>
 
-#include "SDL_error.h"
-#include "SDL_video.h"
 #include "core/game.h"
 #include "core/sdl_instance.h"
 #include "core/window.h"
 #include "renderer/gl_loader.h"
-#include "utility/debug.h"
+#include "SDL_error.h"
+#include "SDL_video.h"
+#include "utility/assert.h"
 #include "utility/file.h"
 #include "utility/log.h"
 
@@ -165,7 +165,7 @@ void GLContext::PrintErrors(
 	const std::vector<GLError>& errors
 ) {
 	for (auto error : errors) {
-		ptgn::debug::Print(
+		ptgn::Print(
 			"OpenGL Error: ", filepath.filename().string(), ":", line, ": ", function_name, ": ",
 			GetErrorString(error)
 		);

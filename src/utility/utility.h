@@ -49,7 +49,7 @@ static std::vector<T> ToVector(const std::unordered_set<T>& set) {
 	std::vector<T> v;
 	v.reserve(set.size());
 	for (const auto& element : set) {
-		v.push_back(element);
+		v.emplace_back(element);
 	}
 	return v;
 }
@@ -58,8 +58,8 @@ template <typename Type, std::size_t Size>
 static std::vector<Type> ToVector(const std::array<Type, Size>& array) {
 	std::vector<Type> v;
 	v.reserve(Size);
-	for (std::size_t i{ 0 }; i < Size; ++i) {
-		v.push_back(array[Size - 1 - i]);
+	for (const auto& a : array) {
+		v.emplace_back(a);
 	}
 	return v;
 }

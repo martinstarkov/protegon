@@ -7,11 +7,7 @@
 
 #include "renderer/gl_types.h"
 
-namespace ptgn {
-
-class VertexArray;
-
-namespace impl {
+namespace ptgn::impl {
 
 struct BufferElement {
 	constexpr BufferElement(
@@ -30,17 +26,14 @@ struct BufferElement {
 	bool normalized{ false };
 };
 
-} // namespace impl
-
 template <typename... Ts>
-class BufferLayout {
+struct BufferLayout {
 	static_assert(
 		(impl::is_vertex_data_type<Ts> && ...),
 		"Provided vertex type should only contain ptgn::glsl:: types"
 	);
 	static_assert(sizeof...(Ts) > 0, "Must provide layout types as template arguments");
 
-public:
 	constexpr BufferLayout() {
 		CalculateOffsets();
 	}
@@ -52,9 +45,6 @@ public:
 	[[nodiscard]] constexpr bool IsEmpty() const {
 		return elements_.empty();
 	}
-
-private:
-	friend class VertexArray;
 
 	template <typename T>
 	[[nodiscard]] constexpr static bool IsInteger() {
@@ -84,11 +74,10 @@ private:
 		stride_ = static_cast<std::int32_t>(offset);
 	}
 
-public:
 	[[nodiscard]] constexpr const std::array<impl::BufferElement, sizeof...(Ts)>& GetElements(
 	) const {
 		return elements_;
 	}
 };
 
-} // namespace ptgn
+} // namespace ptgn::impl

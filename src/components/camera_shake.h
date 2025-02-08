@@ -11,6 +11,8 @@
 #include "math/rng.h"
 #include "math/vector2.h"
 
+// TODO: Move to camera class?
+
 namespace ptgn {
 
 // Based on: https://roystan.net/articles/camera-shake/
@@ -75,6 +77,7 @@ struct CameraShake {
 
 	// Amount of trauma per second that is recovered.
 	float recovery_speed{ 0.5f };
+
 private:
 	// Value between 0 and 1 defining the current amount
 	// of stress this transform is enduring.

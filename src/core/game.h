@@ -3,7 +3,6 @@
 #include <memory>
 #include <string>
 
-#include "ecs/ecs.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "scene/scene_manager.h"
@@ -38,8 +37,8 @@ class ShaderManager;
 class Profiler;
 
 struct WindowDeleter;
-struct MixMusicDeleter;
-struct MixChunkDeleter;
+struct Mix_MusicDeleter;
+struct Mix_ChunkDeleter;
 struct SDL_SurfaceDeleter;
 struct TTF_FontDeleter;
 
@@ -102,8 +101,8 @@ public:
 
 private:
 	friend struct WindowDeleter;
-	friend struct MixMusicDeleter;
-	friend struct MixChunkDeleter;
+	friend struct Mix_MusicDeleter;
+	friend struct Mix_ChunkDeleter;
 	friend struct SDL_SurfaceDeleter;
 	friend struct TTF_FontDeleter;
 	friend class GLContext;
@@ -205,10 +204,10 @@ public:
 	FontManager& font;
 
 private:
-	std::unique_ptr<TextManager> text_;
+	// std::unique_ptr<TextManager> text_;
 
 public:
-	TextManager& text;
+	// TextManager& text;
 
 private:
 	std::unique_ptr<TextureManager> texture_;
@@ -223,10 +222,10 @@ public:
 	ShaderManager& shader;
 
 private:
-	std::unique_ptr<LightManager> light_;
+	// std::unique_ptr<LightManager> light_;
 
 public:
-	LightManager& light;
+	// LightManager& light;
 
 private:
 	std::unique_ptr<Profiler> profiler_;

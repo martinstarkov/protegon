@@ -9,6 +9,7 @@
 
 namespace ptgn {
 
+// TODO: Get rid of this.
 void Axis::Draw(const Color& color, float line_width, std::int32_t render_layer) const {
 	V2_float ws{ game.window.GetSize() };
 	float mag{ ws.MagnitudeSquared() };
@@ -17,7 +18,8 @@ void Axis::Draw(const Color& color, float line_width, std::int32_t render_layer)
 	V2_float p1{ midpoint - direction * mag };
 
 	Line l{ p0, p1 };
-	l.Draw(color, line_width, render_layer);
+	// TODO: Fix.
+	// l.Draw(color, line_width, render_layer);
 }
 
 } // namespace ptgn

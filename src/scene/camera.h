@@ -26,10 +26,10 @@ class Camera {
 public:
 	// Default constructed camera will be continuously window sized.
 	Camera();
-	Camera(const Camera& copy);
-	Camera& operator=(const Camera& copy) noexcept;
-	Camera(Camera&& move) noexcept;
-	Camera& operator=(Camera&& move) noexcept;
+	Camera(const Camera& other);
+	Camera& operator=(const Camera& other);
+	Camera(Camera&& other) noexcept;
+	Camera& operator=(Camera&& other) noexcept;
 	~Camera();
 
 	// If continuously is true, camera will subscribe to window resize event.
@@ -143,12 +143,12 @@ protected:
 	[[nodiscard]] const Matrix4& GetView() const;
 	[[nodiscard]] const Matrix4& GetProjection() const;
 
-	void RefreshBounds();
+	void RefreshBounds() noexcept;
 
 	void SetPosition(const V3_float& new_position);
 
-	void SubscribeToEvents();
-	void OnWindowResize(const WindowResizedEvent& e);
+	void SubscribeToEvents() noexcept;
+	void OnWindowResize(const WindowResizedEvent& e) noexcept;
 
 	void RecalculateView() const;
 	void RecalculateProjection() const;
@@ -156,32 +156,38 @@ protected:
 
 	void Reset();
 
-	// Top left position of camera.
-	V3_float position;
+	struct Info {
+		// Top left position of camera.
+		V3_float position;
 
-	V2_float size;
+		V2_float size;
 
-	float zoom{ 1.0f };
+		float zoom{ 1.0f };
 
-	V3_float orientation;
+		V3_float orientation;
 
-	// If rectangle IsZero(), no position bounds are enforced.
-	Rect bounding_box;
+		// If rectangle IsZero(), no position bounds are enforced.
+		Rect bounding_box;
 
-	Flip flip{ Flip::None };
+		Flip flip{ Flip::None };
 
-	// Mutable used because view projection is recalculated only upon retrieval to reduce matrix
-	// multiplications.
-	mutable Matrix4 view{ 1.0f };
-	mutable Matrix4 projection{ 1.0f };
-	mutable Matrix4 view_projection{ 1.0f };
-	mutable bool recalculate_view{ false };
-	mutable bool recalculate_projection{ false };
+		// Mutable used because view projection is recalculated only upon retrieval to reduce matrix
+		// multiplications.
+		mutable Matrix4 view{ 1.0f };
+		mutable Matrix4 projection{ 1.0f };
+		mutable Matrix4 view_projection{ 1.0f };
+		mutable bool recalculate_view{ false };
+		mutable bool recalculate_projection{ false };
 
-	bool center_to_window{ true };
-	bool resize_to_window{ true };
+		bool center_to_window{ true };
+		bool resize_to_window{ true };
+	};
+
+	Info info;
 
 private:
+	friend class impl::CameraManager;
+
 	// Allows constructing a camera which does not subscribe to window rezize events by default.
 	struct UninitializedCamera {};
 
@@ -204,25 +210,15 @@ public:
 	CameraManager(const CameraManager&)				   = delete;
 	CameraManager& operator=(const CameraManager&)	   = delete;
 
-	template <typename TKey, tt::not_same<TKey, Camera> = true>
-	void SetPrimary(const TKey& key) {
-		SetPrimaryImpl(GetInternalKey(key));
-	}
-
-	void SetPrimary(const Camera& camera) const;
-
-	[[nodiscard]] const Camera& GetPrimary() const;
-	[[nodiscard]] Camera& GetPrimary();
-
 	// Resets the camera manager. Does nothing to the primary camera.
 	void Reset();
+
+	Camera primary{ Camera::UninitializedCamera{} };
 
 private:
 	friend class Game;
 
 	void Init();
-
-	void SetPrimaryImpl(const InternalKey& key);
 };
 
 } // namespace impl

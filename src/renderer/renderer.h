@@ -1,24 +1,14 @@
 #pragma once
 
 #include <cstdint>
-#include <functional>
 
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
-#include "renderer/batch.h"
-#include "renderer/buffer.h"
+#include "renderer/blend_mode.h"
 #include "renderer/color.h"
 #include "renderer/render_data.h"
-#include "renderer/render_target.h"
-#include "renderer/shader.h"
-#include "renderer/texture.h"
-#include "renderer/vertex_array.h"
 
 namespace ptgn {
-
-class GLRenderer;
-class VertexArray;
-class Shader;
 
 // How the renderer resolution is scaled to the window size.
 enum class ResolutionMode {
@@ -34,13 +24,17 @@ enum class ResolutionMode {
 
 namespace impl {
 
+class Shader;
+class FrameBuffer;
+class VertexArray;
 class Game;
 class SceneManager;
 class SceneCamera;
 struct Batch;
+class GLRenderer;
 struct RenderTargetInstance;
 struct TextureInstance;
-class RenderData;
+struct ShaderInstance;
 class InputHandler;
 
 class Renderer {
@@ -59,10 +53,11 @@ public:
 	// @param target The desired render target to be set. If {}, the screen target will be set.
 	// Note if provided target is not the currently set render target, this function will flush the
 	// renderer.
-	void SetRenderTarget(const RenderTarget& target = {});
+	// TODO: Fix.
+	// void SetRenderTarget(const RenderTarget& target = {});
 
 	// @return The current render target.
-	[[nodiscard]] RenderTarget GetRenderTarget() const;
+	//[[nodiscard]] RenderTarget GetRenderTarget() const;
 
 	// Clear the current render target.
 	void Clear() const;
@@ -113,20 +108,17 @@ public:
 	[[nodiscard]] ResolutionMode GetResolutionMode() const;
 
 	// @return The render data associated with the current render queue.
-	[[nodiscard]] impl::RenderData& GetRenderData();
+	[[nodiscard]] RenderData& GetRenderData();
 
 private:
-	friend class ptgn::FrameBuffer;
-	friend class ptgn::Shader;
-	friend struct impl::ShaderInstance;
-	friend class ptgn::VertexArray;
-	friend class ptgn::GLRenderer;
-
-	friend class ptgn::RenderTarget;
-	friend class ptgn::Texture;
+	friend class Shader;
+	friend class VertexArray;
+	friend class FrameBuffer;
+	friend class RenderTarget;
+	friend class GLRenderer;
 	friend class Game;
-	friend class RenderData;
 	friend struct RenderTargetInstance;
+	friend struct ShaderInstance;
 	friend struct TextureInstance;
 	friend struct Batch;
 
@@ -142,20 +134,26 @@ private:
 
 	RenderData render_data_;
 
+	struct BoundStates {
+		std::uint32_t frame_buffer_id{ 0 };
+		std::uint32_t shader_id{ 0 };
+		std::uint32_t vertex_array_id{ 0 };
+		BlendMode blend_mode{ BlendMode::None };
+		V2_int viewport_position;
+		V2_int viewport_size;
+	};
+
+	BoundStates bound_;
+
 	// Renderer keeps track of what is bound.
-	std::uint32_t bound_frame_buffer_id_{ 0 };
-	std::uint32_t bound_shader_id_{ 0 };
-	std::uint32_t bound_vertex_array_id_{ 0 };
-	BlendMode bound_blend_mode_{ BlendMode::None };
-	V2_int bound_viewport_position_;
-	V2_int bound_viewport_size_;
 
 	// Default value results in fullscreen.
 	V2_int resolution_;
 	ResolutionMode scaling_mode_{ ResolutionMode::Disabled };
 
-	RenderTarget current_target_;
-	RenderTarget screen_target_;
+	// TODO: Fix.
+	/*RenderTarget current_target_;
+	RenderTarget screen_target_;*/
 };
 
 } // namespace impl

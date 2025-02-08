@@ -16,19 +16,9 @@ struct Line;
 struct Capsule;
 struct RoundedRect;
 
-namespace impl {
-
-// Fade used with circle shader.
-constexpr static float fade_{ 0.005f };
-
-} // namespace impl
-
 struct Circle {
 	V2_float center;
 	float radius{ 0.0f };
-
-	// @param line_width -1 for a solid filled circle.
-	void Draw(const Color& color, float line_width = -1.0f, std::int32_t render_layer = 0) const;
 
 	// center += offset
 	void Offset(const V2_float& offset);
@@ -48,11 +38,6 @@ struct Circle {
 	[[nodiscard]] ptgn::Raycast Raycast(const V2_float& ray, const Circle& circle) const;
 	[[nodiscard]] ptgn::Raycast Raycast(const V2_float& ray, const Capsule& capsule) const;
 	[[nodiscard]] ptgn::Raycast Raycast(const V2_float& ray, const Rect& rect) const;
-
-private:
-	void DrawSolid(const V4_float& color, std::int32_t render_layer) const;
-
-	void DrawThick(float line_width, const V4_float& color, std::int32_t render_layer) const;
 };
 
 struct Arc {
@@ -64,28 +49,9 @@ struct Arc {
 	// Radians counter-clockwise from the right.
 	float end_angle{ 0.0f };
 
-	// @param clockwise Whether to draw the arc in the clockwise or counter-clockwise direction.
-	// @param line_width -1 for a solid filled arc.
-	void Draw(
-		bool clockwise, const Color& color, float line_width = -1.0f, std::int32_t render_layer = 0
-	) const;
-
 private:
 	friend struct RoundedRect;
 	friend struct Capsule;
-
-	// @param clockwise Whether the vertices are in clockwise direction (true), or counter-clockwise
-	// (false).
-	// @param sa start_angle clamped between 0 and 2 pi.
-	// @param ea end_angle clamped between 0 and 2 pi.
-	void DrawSolid(
-		bool clockwise, float sa, float ea, const V4_float& color, std::int32_t render_layer
-	) const;
-
-	void DrawThick(
-		float line_width, bool clockwise, float sa, float ea, const V4_float& color,
-		std::int32_t render_layer
-	) const;
 
 	// @param clockwise Whether the vertices are in clockwise direction (true), or counter-clockwise
 	// (false).
@@ -98,16 +64,6 @@ private:
 struct Ellipse {
 	V2_float center;
 	V2_float radius;
-
-	// @param line_width -1 for a solid filled ellipse.
-	void Draw(const Color& color, float line_width = -1.0f, std::int32_t render_layer = 0) const;
-
-private:
-	friend struct Circle;
-
-	void DrawSolid(const V4_float& color, std::int32_t render_layer) const;
-
-	void DrawThick(float line_width, const V4_float& color, std::int32_t render_layer) const;
 };
 
 } // namespace ptgn

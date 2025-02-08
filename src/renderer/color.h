@@ -6,26 +6,11 @@
 
 #include "math/math.h"
 #include "math/vector4.h"
-#include "utility/log.h"
 #include "utility/type_traits.h"
 
 struct SDL_Color;
 
 namespace ptgn {
-
-enum class BlendMode {
-	None,  /**< no blending: dstRGBA = srcRGBA */
-	Blend, /**< alpha blending: dstRGB = (srcRGB * srcA) + (dstRGB * (1-srcA)), dstA = srcA + (dstA
-			* (1-srcA)) */
-	BlendPremultiplied, /**< pre-multiplied alpha blending: dstRGBA = srcRGBA + (dstRGBA * (1-srcA))
-						 */
-	Add,				/**< additive blending: dstRGB = (srcRGB * srcA) + dstRGB, dstA = dstA */
-	AddPremultiplied,	/**< pre-multiplied additive blending: dstRGB = srcRGB + dstRGB, dstA = dstA
-						 */
-	Modulate,			/**< color modulate: dstRGB = srcRGB * dstRGB, dstA = dstA */
-	Multiply, /**< color multiply: dstRGB = (srcRGB * dstRGB) + (dstRGB * (1-srcA)), dstA = dstA */
-	Stencil	  /**< TOOD: Add explanation */
-};
 
 struct Color {
 	std::uint8_t r{ 0 };
@@ -40,14 +25,16 @@ struct Color {
 		r{ r }, g{ g }, b{ b }, a{ a } {}
 
 	// @param alpha [0.0f, 1.0f] value of transparency to set for the color.
-	[[nodiscard]] constexpr Color SetAlpha(float alpha) const {
+	// @return A copy of the color with the alpha value changed.
+	[[nodiscard]] constexpr Color WithAlpha(float alpha) const {
 		Color c{ *this };
 		c.a = static_cast<std::uint8_t>(255.0f * alpha);
 		return c;
 	}
 
 	// @param alpha [0, 255] value of transparency to set for the color.
-	[[nodiscard]] constexpr Color SetAlpha(std::uint8_t alpha) const {
+	// @return A copy of the color with the alpha value changed.
+	[[nodiscard]] constexpr Color WithAlpha(std::uint8_t alpha) const {
 		Color c{ *this };
 		c.a = alpha;
 		return c;
@@ -89,53 +76,88 @@ namespace color {
 inline constexpr Color Transparent{ 0, 0, 0, 0 };
 inline constexpr Color Black{ 0, 0, 0, 255 };
 inline constexpr Color White{ 255, 255, 255, 255 };
+
+// Reds
 inline constexpr Color Red{ 255, 0, 0, 255 };
+inline constexpr Color LightRed{ 255, 128, 128, 255 };
 inline constexpr Color DarkRed{ 128, 0, 0, 255 };
-inline constexpr Color Brown{ 128, 64, 32, 255 };
-inline constexpr Color DarkBrown{ 64, 32, 16, 255 };
+inline constexpr Color BrightRed{ 255, 69, 0, 255 };
+inline constexpr Color DeepRed{ 178, 34, 34, 255 };
+
+// Browns
+inline constexpr Color Brown{ 165, 42, 42, 255 };
+inline constexpr Color LightBrown{ 210, 180, 140, 255 };
+inline constexpr Color DarkBrown{ 101, 67, 33, 255 };
+
+// Oranges
 inline constexpr Color Orange{ 255, 165, 0, 255 };
+inline constexpr Color LightOrange{ 255, 215, 128, 255 };
+inline constexpr Color DarkOrange{ 204, 102, 0, 255 };
+
+// Yellows
 inline constexpr Color Yellow{ 255, 255, 0, 255 };
+inline constexpr Color LightYellow{ 255, 255, 128, 255 };
+inline constexpr Color DarkYellow{ 204, 204, 0, 255 };
+inline constexpr Color BrightYellow{ 255, 255, 102, 255 };
 inline constexpr Color Gold{ 255, 215, 0, 255 };
-inline constexpr Color Green{ 0, 128, 0, 255 };
-inline constexpr Color Lime{ 0, 255, 0, 255 };
+inline constexpr Color LightGold{ 255, 235, 153, 255 };
+inline constexpr Color DarkGold{ 184, 134, 11, 255 };
+
+// Greens
+inline constexpr Color Green{ 0, 255, 0, 255 };
+inline constexpr Color LightGreen{ 144, 238, 144, 255 };
 inline constexpr Color DarkGreen{ 0, 100, 0, 255 };
+inline constexpr Color BrightGreen{ 0, 255, 102, 255 };
+inline constexpr Color LimeGreen{ 191, 255, 0, 255 };
+
+// Blues
 inline constexpr Color Blue{ 0, 0, 255, 255 };
+inline constexpr Color LightBlue{ 173, 216, 230, 255 };
 inline constexpr Color DarkBlue{ 0, 0, 128, 255 };
+inline constexpr Color SkyBlue{ 135, 206, 235, 255 };
+inline constexpr Color DeepBlue{ 0, 70, 128, 255 };
+
+// Cyans/Teals
 inline constexpr Color Cyan{ 0, 255, 255, 255 };
+inline constexpr Color LightCyan{ 224, 255, 255, 255 };
+inline constexpr Color DarkCyan{ 0, 139, 139, 255 };
 inline constexpr Color Teal{ 0, 128, 128, 255 };
+inline constexpr Color LightTeal{ 128, 255, 212, 255 };
+inline constexpr Color DarkTeal{ 0, 80, 80, 255 };
+
+// Magentas/Purples
 inline constexpr Color Magenta{ 255, 0, 255, 255 };
+inline constexpr Color LightMagenta{ 255, 105, 180, 255 };
+inline constexpr Color DarkMagenta{ 139, 0, 139, 255 };
 inline constexpr Color Purple{ 128, 0, 128, 255 };
+inline constexpr Color LightPurple{ 178, 102, 255, 255 };
+inline constexpr Color DarkPurple{ 75, 0, 130, 255 };
+
+// Pinks
 inline constexpr Color Pink{ 255, 192, 203, 255 };
-inline constexpr Color LightPink{ 255, 128, 255, 255 };
+inline constexpr Color LightPink{ 255, 182, 193, 255 };
+inline constexpr Color DarkPink{ 197, 137, 123, 255 };
+inline constexpr Color BrightPink{ 255, 0, 127, 255 };
+
+// Grays
 inline constexpr Color Gray{ 128, 128, 128, 255 };
+inline constexpr Color LightGray{ 192, 192, 192, 255 };
 inline constexpr Color DarkGray{ 64, 64, 64, 255 };
-inline constexpr Color LightGray{ 83, 83, 83, 255 };
-inline constexpr Color Silver{ 192, 192, 192, 255 };
+
+// Other/Neutrals (These are generally easy to guess)
+inline constexpr Color Beige{ 245, 245, 220, 255 };
+inline constexpr Color IvoryWhite{ 255, 240, 240, 255 };
+inline constexpr Color KhakiTan{ 240, 230, 140, 255 };
 
 } // namespace color
 
-inline std::ostream& operator<<(std::ostream& os, const ptgn::Color& color) {
+inline std::ostream& operator<<(std::ostream& os, const Color& color) {
 	os << "[";
 	os << static_cast<int>(color.r) << ", ";
 	os << static_cast<int>(color.g) << ", ";
 	os << static_cast<int>(color.b) << ", ";
 	os << static_cast<int>(color.a);
 	os << "]";
-	return os;
-}
-
-inline std::ostream& operator<<(std::ostream& os, ptgn::BlendMode blend_mode) {
-	switch (blend_mode) {
-		case BlendMode::Blend:				os << "Blend"; break;
-		case BlendMode::BlendPremultiplied: os << "BlendPremultiplied"; break;
-		case BlendMode::Add:				os << "Add"; break;
-		case BlendMode::AddPremultiplied:	os << "AddPremultiplied"; break;
-		case BlendMode::Modulate:			os << "Modulate"; break;
-		case BlendMode::Multiply:			os << "Multiply"; break;
-		case BlendMode::Stencil:			os << "Stencil"; break;
-		case BlendMode::None:				os << "None"; break;
-		default:							PTGN_ERROR("Failed to identify blend mode");
-	}
 	return os;
 }
 

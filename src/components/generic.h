@@ -1,7 +1,10 @@
 #pragma once
 
+#include <string_view>
+#include <type_traits>
+
+#include "math/vector2.h"
 #include "renderer/color.h"
-#include "renderer/flip.h"
 #include "utility/type_traits.h"
 
 namespace ptgn {
@@ -23,21 +26,43 @@ struct ArithmeticComponent {
 		return value_;
 	}
 
-private:
-	T value_{ 0 };
+protected:
+	T value_{};
 };
 
-struct FlipComponent {
-	FlipComponent() = default;
+template <typename T, tt::enable<std::is_arithmetic_v<T>> = true>
+struct Vector2Component {
+	Vector2Component() = default;
 
-	FlipComponent(Flip flip) : flip_{ flip } {}
+	Vector2Component(const Vector2<T>& value) : value_{ value } {}
 
-	operator Flip() const {
-		return flip_;
+	operator Vector2<T>() const {
+		return value_;
 	}
 
 private:
-	Flip flip_{ Flip::None };
+	Vector2<T> value_{ 0 };
+};
+
+struct StringViewComponent {
+	StringViewComponent() = default;
+
+	StringViewComponent(std::string_view value) : value_{ value } {}
+
+	bool operator==(const StringViewComponent& other) const {
+		return value_ == other.value_;
+	}
+
+	bool operator!=(const StringViewComponent& other) const {
+		return !(*this == other);
+	}
+
+	operator std::string_view() const {
+		return value_;
+	}
+
+private:
+	std::string_view value_{};
 };
 
 } // namespace ptgn

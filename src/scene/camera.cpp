@@ -4,6 +4,7 @@
 #include <functional>
 #include <limits>
 #include <type_traits>
+#include <utility>
 
 #include "core/game.h"
 #include "core/manager.h"
@@ -18,63 +19,47 @@
 #include "math/vector3.h"
 #include "renderer/flip.h"
 #include "renderer/origin.h"
-#include "renderer/renderer.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/log.h"
 
 namespace ptgn {
 
 Camera::Camera() {
-	center_to_window = true;
-	resize_to_window = true;
+	info.center_to_window = true;
+	info.resize_to_window = true;
 	SubscribeToEvents();
 }
 
-Camera::Camera(const Camera& copy) {
-	*this = copy;
+Camera::Camera(const Camera& other) {
+	*this = other;
 }
 
-Camera& Camera::operator=(const Camera& copy) noexcept {
-	this->position				 = copy.position;
-	this->size					 = copy.size;
-	this->zoom					 = copy.zoom;
-	this->orientation			 = copy.orientation;
-	this->bounding_box			 = copy.bounding_box;
-	this->flip					 = copy.flip;
-	this->view					 = copy.view;
-	this->projection			 = copy.projection;
-	this->view_projection		 = copy.view_projection;
-	this->recalculate_view		 = copy.recalculate_view;
-	this->recalculate_projection = copy.recalculate_projection;
-	this->center_to_window		 = copy.center_to_window;
-	this->resize_to_window		 = copy.resize_to_window;
-	if (game.event.window.IsSubscribed(&copy)) {
+Camera& Camera::operator=(const Camera& other) {
+	info = other.info;
+	if (game.event.window.IsSubscribed(&other) && !game.event.window.IsSubscribed(this)) {
 		SubscribeToEvents();
 	}
 	return *this;
 }
 
-Camera::Camera(Camera&& move) noexcept {
-	*this = move;
+Camera::Camera(Camera&& other) noexcept : info{ other.info } {
+	if (game.event.window.IsSubscribed(&other)) {
+		SubscribeToEvents();
+		game.event.window.Unsubscribe(&other);
+	}
 }
 
-Camera& Camera::operator=(Camera&& move) noexcept {
-	this->position				 = std::move(move.position);
-	this->size					 = std::move(move.size);
-	this->zoom					 = move.zoom;
-	this->orientation			 = std::move(move.orientation);
-	this->bounding_box			 = std::move(move.bounding_box);
-	this->flip					 = move.flip;
-	this->view					 = std::move(move.view);
-	this->projection			 = std::move(move.projection);
-	this->view_projection		 = std::move(move.view_projection);
-	this->recalculate_view		 = move.recalculate_view;
-	this->recalculate_projection = move.recalculate_projection;
-	this->center_to_window		 = move.center_to_window;
-	this->resize_to_window		 = move.resize_to_window;
-	if (game.event.window.IsSubscribed(&move)) {
-		SubscribeToEvents();
-		game.event.window.Unsubscribe(&move);
+Camera& Camera::operator=(Camera&& other) noexcept {
+	if (this != &other) {
+		info = std::exchange(other.info, {});
+		if (game.event.window.IsSubscribed(&other)) {
+			if (!game.event.window.IsSubscribed(this)) {
+				SubscribeToEvents();
+			}
+			game.event.window.Unsubscribe(&other);
+		} else {
+			game.event.window.Unsubscribe(this);
+		}
 	}
 	return *this;
 }
@@ -83,7 +68,7 @@ Camera::~Camera() {
 	game.event.window.Unsubscribe(this);
 }
 
-void Camera::SubscribeToEvents() {
+void Camera::SubscribeToEvents() noexcept {
 	std::function<void(const WindowResizedEvent& e)> f = [this](const WindowResizedEvent& e) {
 		OnWindowResize(e);
 	};
@@ -91,20 +76,20 @@ void Camera::SubscribeToEvents() {
 	std::invoke(f, WindowResizedEvent{ game.window.GetSize() });
 }
 
-void Camera::OnWindowResize(const WindowResizedEvent& e) {
+void Camera::OnWindowResize(const WindowResizedEvent& e) noexcept {
 	if (!game.event.window.IsSubscribed(this)) {
 		return;
 	}
-	if (resize_to_window) {
-		size				   = e.size;
-		recalculate_projection = true;
+	if (info.resize_to_window) {
+		info.size					= e.size;
+		info.recalculate_projection = true;
 	}
-	if (center_to_window) {
-		position.x		 = static_cast<float>(e.size.x) / 2.0f;
-		position.y		 = static_cast<float>(e.size.y) / 2.0f;
-		recalculate_view = true;
+	if (info.center_to_window) {
+		info.position.x		  = static_cast<float>(e.size.x) / 2.0f;
+		info.position.y		  = static_cast<float>(e.size.y) / 2.0f;
+		info.recalculate_view = true;
 	}
-	if (resize_to_window || center_to_window) {
+	if (info.resize_to_window || info.center_to_window) {
 		RefreshBounds();
 	}
 }
@@ -113,86 +98,72 @@ Camera::operator Matrix4() const {
 	return GetViewProjection();
 }
 
-void Camera::RefreshBounds() {
-	if (bounding_box.IsZero()) {
+void Camera::RefreshBounds() noexcept {
+	if (info.bounding_box.IsZero()) {
 		return;
 	}
-	V2_float min{ bounding_box.Min() };
-	V2_float max{ bounding_box.Max() };
+	V2_float min{ info.bounding_box.Min() };
+	V2_float max{ info.bounding_box.Max() };
 	PTGN_ASSERT(min.x < max.x && min.y < max.y, "Bounding box min must be below maximum");
-	V2_float center{ bounding_box.Center() };
+	V2_float center{ info.bounding_box.Center() };
 	// Draw bounding box center.
 	// game.draw.Point(center, color::Red, 5.0f);
 	// Draw bounding box.
-	// game.draw.RectHollow(bounding_box, color::Red);
+	// game.draw.RectHollow(info.bounding_box, color::Red);
 
-	// TODO: Incoporate yaw, i.e. orientation.x into the bounds using sin and cos.
-	V2_float zoom_size{ size / zoom };
-	V2_float half{ zoom_size * 0.5f };
-	if (zoom_size.x > bounding_box.size.x) {
-		position.x = center.x;
+	// TODO: Incoporate yaw, i.e. info.orientation.x into the bounds using sin and cos.
+	V2_float size{ info.size / info.zoom };
+	V2_float half{ info.size * 0.5f };
+	if (info.size.x > info.bounding_box.size.x) {
+		info.position.x = center.x;
 	} else {
-		position.x = std::clamp(position.x, min.x + half.x, max.x - half.x);
+		info.position.x = std::clamp(info.position.x, min.x + half.x, max.x - half.x);
 	}
-	if (zoom_size.y > bounding_box.size.y) {
-		position.y = center.y;
+	if (info.size.y > info.bounding_box.size.y) {
+		info.position.y = center.y;
 	} else {
-		position.y = std::clamp(position.y, min.y + half.y, max.y - half.y);
+		info.position.y = std::clamp(info.position.y, min.y + half.y, max.y - half.y);
 	}
-	recalculate_view = true;
+	info.recalculate_view = true;
 }
 
 void Camera::SetZoom(float new_zoom) {
-	zoom = new_zoom;
-	zoom = std::clamp(new_zoom, epsilon<float>, std::numeric_limits<float>::max());
-	recalculate_projection = true;
+	info.zoom = new_zoom;
+	info.zoom = std::clamp(info.zoom, epsilon<float>, std::numeric_limits<float>::max());
+	info.recalculate_projection = true;
 	RefreshBounds();
 }
 
 void Camera::SetSize(const V2_float& new_size) {
-	resize_to_window	   = false;
-	size				   = new_size;
-	recalculate_projection = true;
+	info.resize_to_window		= false;
+	info.size					= new_size;
+	info.recalculate_projection = true;
 	RefreshBounds();
 }
 
 void Camera::SetPosition(const V3_float& new_position) {
-	center_to_window = false;
-	position		 = new_position;
-	recalculate_view = true;
+	info.center_to_window = false;
+	info.position		  = new_position;
+	info.recalculate_view = true;
 	RefreshBounds();
 }
 
 void Camera::SetBounds(const Rect& new_bounding_box) {
-	bounding_box = new_bounding_box;
-	// Reset position to ensure it is within the new bounds.
+	info.bounding_box = new_bounding_box;
+	// Reset info.position to ensure it is within the new bounds.
 	RefreshBounds();
 }
 
 void Camera::Reset() {
-	position	 = {};
-	size		 = {};
-	zoom		 = 1.0f;
-	orientation	 = {};
-	bounding_box = {};
-	flip		 = Flip::None;
-
-	view			= Matrix4{ 1.0f };
-	projection		= Matrix4{ 1.0f };
-	view_projection = Matrix4{ 1.0f };
-
-	recalculate_view	   = false;
-	recalculate_projection = false;
-	center_to_window	   = true;
-	resize_to_window	   = true;
+	info = {};
 }
 
 Rect Camera::GetBounds() const {
-	return bounding_box;
+	return info.bounding_box;
 }
 
 V2_float Camera::GetPosition(Origin origin) const {
-	return V2_float{ position.x, position.y } + GetOffsetFromCenter(size, origin);
+	return V2_float{ info.position.x, info.position.y } + GetOffsetFromCenter(info.size, origin);
 }
 
 void Camera::SetToWindow(bool continuously) {
@@ -210,26 +181,26 @@ void Camera::CenterOnArea(const V2_float& new_size) {
 }
 
 V2_float Camera::TransformToCamera(const V2_float& screen_relative_coordinate) const {
-	PTGN_ASSERT(zoom != 0.0f);
-	return (screen_relative_coordinate - size * 0.5f) / zoom + GetPosition();
+	PTGN_ASSERT(info.zoom != 0.0f);
+	return (screen_relative_coordinate - info.size * 0.5f) / info.zoom + GetPosition();
 }
 
 V2_float Camera::TransformToScreen(const V2_float& camera_relative_coordinate) const {
-	return (camera_relative_coordinate - GetPosition()) * zoom + size * 0.5f;
+	return (camera_relative_coordinate - GetPosition()) * info.zoom + info.size * 0.5f;
 }
 
 V2_float Camera::ScaleToCamera(const V2_float& screen_relative_size) const {
-	return screen_relative_size * zoom;
+	return screen_relative_size * info.zoom;
 }
 
 V2_float Camera::ScaleToScreen(const V2_float& camera_relative_size) const {
-	PTGN_ASSERT(zoom != 0.0f);
-	return camera_relative_size / zoom;
+	PTGN_ASSERT(info.zoom != 0.0f);
+	return camera_relative_size / info.zoom;
 }
 
 void Camera::CenterOnWindow(bool continuously) {
 	if (continuously) {
-		center_to_window = true;
+		info.center_to_window = true;
 		SubscribeToEvents();
 	} else {
 		SetPosition(game.window.GetCenter());
@@ -237,84 +208,84 @@ void Camera::CenterOnWindow(bool continuously) {
 }
 
 Rect Camera::GetRect() const {
-	return Rect{ GetPosition(Origin::Center), GetSize() / zoom, Origin::Center };
+	return Rect{ GetPosition(Origin::Center), GetSize() / info.zoom, Origin::Center };
 }
 
 V2_float Camera::GetSize() const {
-	return size;
+	return info.size;
 }
 
 float Camera::GetZoom() const {
-	return zoom;
+	return info.zoom;
 }
 
 V3_float Camera::GetOrientation() const {
-	return orientation;
+	return info.orientation;
 }
 
 Quaternion Camera::GetQuaternion() const {
-	return Quaternion::FromEuler(orientation);
+	return Quaternion::FromEuler(info.orientation);
 }
 
 Flip Camera::GetFlip() const {
-	return flip;
+	return info.flip;
 }
 
 void Camera::SetFlip(Flip new_flip) {
-	flip = new_flip;
+	info.flip = new_flip;
 }
 
 const Matrix4& Camera::GetView() const {
-	if (recalculate_view) {
+	if (info.recalculate_view) {
 		RecalculateView();
 	}
-	return view;
+	return info.view;
 }
 
 const Matrix4& Camera::GetProjection() const {
-	if (recalculate_projection) {
+	if (info.recalculate_projection) {
 		RecalculateProjection();
 	}
-	return projection;
+	return info.projection;
 }
 
 const Matrix4& Camera::GetViewProjection() const {
-	bool updated_matrix{ recalculate_view || recalculate_projection };
-	if (recalculate_view) {
+	bool updated_matrix{ info.recalculate_view || info.recalculate_projection };
+	if (info.recalculate_view) {
 		RecalculateView();
-		recalculate_view = false;
+		info.recalculate_view = false;
 	}
-	if (recalculate_projection) {
+	if (info.recalculate_projection) {
 		RecalculateProjection();
-		recalculate_projection = false;
+		info.recalculate_projection = false;
 	}
 	if (updated_matrix) {
 		RecalculateViewProjection();
 	}
-	return view_projection;
+	return info.view_projection;
 }
 
 void Camera::SetPosition(const V2_float& new_position) {
-	SetPosition({ new_position.x, new_position.y, position.z });
+	SetPosition({ new_position.x, new_position.y, info.position.z });
 }
 
 void Camera::Translate(const V2_float& position_change) {
 	SetPosition(
-		position + V3_float{ position_change.x, position_change.y, 0.0f } * GetQuaternion()
+		info.position + V3_float{ position_change.x, position_change.y, 0.0f } * GetQuaternion()
 	);
 }
 
 void Camera::Zoom(float zoom_change) {
-	SetZoom(zoom + zoom_change);
+	SetZoom(info.zoom + zoom_change);
 }
 
 void Camera::SetRotation(const V3_float& new_angle_radians) {
-	orientation		 = new_angle_radians;
-	recalculate_view = true;
+	info.orientation	  = new_angle_radians;
+	info.recalculate_view = true;
 }
 
 void Camera::Rotate(const V3_float& angle_change_radians) {
-	SetRotation(orientation + angle_change_radians);
+	SetRotation(info.orientation + angle_change_radians);
 }
 
 void Camera::SetRotation(float yaw_radians) {
@@ -326,15 +297,15 @@ void Camera::Rotate(float yaw_change_radians) {
 }
 
 void Camera::SetYaw(float angle_radians) {
-	orientation.x = angle_radians;
+	info.orientation.x = angle_radians;
 }
 
 void Camera::SetPitch(float angle_radians) {
-	orientation.y = angle_radians;
+	info.orientation.y = angle_radians;
 }
 
 void Camera::SetRoll(float angle_radians) {
-	orientation.z = angle_radians;
+	info.orientation.z = angle_radians;
 }
 
 void Camera::Yaw(float angle_change) {
@@ -351,7 +322,7 @@ void Camera::Roll(float angle_change) {
 
 void Camera::SetSizeToWindow(bool continuously) {
 	if (continuously) {
-		resize_to_window = true;
+		info.resize_to_window = true;
 		SubscribeToEvents();
 	} else {
 		SetSize(game.window.GetSize());
@@ -359,21 +330,21 @@ void Camera::SetSizeToWindow(bool continuously) {
 }
 
 void Camera::RecalculateViewProjection() const {
-	view_projection = projection * view;
+	info.view_projection = info.projection * info.view;
 }
 
 void Camera::RecalculateView() const {
-	V3_float mirror_position{ -position.x, -position.y, position.z };
+	V3_float mirror_position{ -info.position.x, -info.position.y, info.position.z };
 
 	Quaternion quat_orientation{ GetQuaternion() };
-	view = Matrix4::Translate(quat_orientation.ToMatrix4(), mirror_position);
+	info.view = Matrix4::Translate(quat_orientation.ToMatrix4(), mirror_position);
 }
 
 void Camera::RecalculateProjection() const {
-	PTGN_ASSERT(zoom > 0.0f);
-	V2_float extents{ size / 2.0f / zoom };
+	PTGN_ASSERT(info.zoom > 0.0f);
+	V2_float extents{ info.size / 2.0f / info.zoom };
 	V2_float flip_dir{ 1.0f, 1.0f };
-	switch (flip) {
+	switch (info.flip) {
 		case Flip::None:	   break;
 		case Flip::Vertical:   flip_dir.y = -1.0f; break;
 		case Flip::Horizontal: flip_dir.x = -1.0f; break;
@@ -381,9 +352,9 @@ void Camera::RecalculateProjection() const {
 			flip_dir.x = -1.0f;
 			flip_dir.y = -1.0f;
 			break;
-		default: PTGN_ERROR("Unrecognized flip state");
+		default: PTGN_ERROR("Unrecognized info.flip state");
 	}
-	projection = Matrix4::Orthographic(
+	info.projection = Matrix4::Orthographic(
 		flip_dir.x * -extents.x, flip_dir.x * extents.x, flip_dir.y * extents.y,
 		flip_dir.y * -extents.y, -std::numeric_limits<float>::infinity(),
 		std::numeric_limits<float>::infinity()
@@ -394,8 +365,8 @@ void Camera::PrintInfo() const {
 	auto bounds{ GetBounds() };
 	auto orient{ GetOrientation() };
 	Print(
-		"Position: ", GetPosition(), ", Size: ", GetSize(), ", Zoom: ", GetZoom(),
-		", Orientation (yaw/pitch/roll) (deg): (", RadToDeg(orient.x), ", ", RadToDeg(orient.y),
+		"position: ", GetPosition(), ", size: ", GetSize(), ", zoom: ", GetZoom(),
+		", orientation (yaw/pitch/roll) (deg): (", RadToDeg(orient.x), ", ", RadToDeg(orient.y),
 		", ", RadToDeg(orient.z), "), Bounds: "
 	);
 	if (bounds.IsZero()) {
@@ -408,29 +379,12 @@ void Camera::PrintInfo() const {
 namespace impl {
 
 void CameraManager::Init() {
-	SetPrimary({});
-}
-
-void CameraManager::SetPrimary(const Camera& camera) const {
-	game.renderer.GetRenderTarget().Get().SetCamera(camera);
-}
-
-Camera& CameraManager::GetPrimary() {
-	return game.renderer.GetRenderTarget().Get().GetCamera();
-}
-
-const Camera& CameraManager::GetPrimary() const {
-	return game.renderer.GetRenderTarget().Get().GetCamera();
-}
-
-void CameraManager::SetPrimaryImpl(const InternalKey& key) {
-	PTGN_ASSERT(Has(key), "Cannot set camera which has not been loaded as the primary camera");
-	SetPrimary(Get(key));
+	primary = {};
 }
 
 void CameraManager::Reset() {
 	MapManager::Reset();
-	SetPrimary({});
+	primary = {};
 }
 
 } // namespace impl
@@ -446,11 +400,11 @@ void CameraController::OnMouseMoveEvent([[maybe_unused]] const MouseMoveEvent& e
 		if (!first_mouse) {
 			V2_float offset = mouse.GetDifference();
 
-			V2_float size = game.window.GetSize();
+			V2_float info.size = game.window.GetSize();
 
-			V2_float scaled_offset = offset / size;
+			V2_float scaled_offset = offset / info.size;
 
-			// OpenGL y-axis is flipped compared to SDL mouse position.
+			// OpenGL y-axis is info.flipped compared to SDL mouse info.position.
 			Rotate(scaled_offset.x, -scaled_offset.y, 0.0f);
 		} else {
 			first_mouse = false;

@@ -2,49 +2,17 @@
 
 #include <array>
 #include <cmath>
-#include <cstdint>
 #include <utility>
 
-#include "core/game.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/polygon.h"
 #include "math/math.h"
 #include "math/raycast.h"
 #include "math/utility.h"
 #include "math/vector2.h"
-#include "math/vector4.h"
-#include "renderer/color.h"
 #include "renderer/origin.h"
-#include "renderer/render_data.h"
-#include "renderer/renderer.h"
-#include "renderer/texture.h"
-#include "utility/debug.h"
 
 namespace ptgn {
-
-void Line::DrawSolid(const V4_float& color, std::int32_t render_layer) const {
-	game.renderer.GetRenderData().AddPrimitiveLine({ a, b }, render_layer, color);
-}
-
-void Line::DrawThick(float line_width, const V4_float& color, std::int32_t render_layer) const {
-	game.renderer.GetRenderData().AddPrimitiveQuad(
-		GetQuadVertices(line_width), render_layer, color,
-		TextureInfo::GetDefaultTextureCoordinates(), {}
-	);
-}
-
-void Line::Draw(const Color& color, float line_width, std::int32_t render_layer) const {
-	PTGN_ASSERT(line_width > 0.0f, "Cannot draw negative line width");
-
-	auto norm_color{ color.Normalized() };
-
-	if (line_width <= 1.0f) {
-		DrawSolid(norm_color, render_layer);
-		return;
-	}
-
-	DrawThick(line_width, norm_color, render_layer);
-}
 
 V2_float Line::Direction() const {
 	return b - a;
@@ -458,14 +426,17 @@ ptgn::Raycast Line::Raycast(const Capsule& capsule) const {
 	return c;
 }
 
-std::array<V2_float, 4> Line::GetQuadVertices(float line_width) const {
+std::array<V2_float, 4> Line::GetQuadVertices(float line_width, float additional_rotation) const {
 	V2_float dir{ Direction() };
-	// TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
+	// dir = dir.Rotated(additional_rotation);
+	//  TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
 	Rect rect{ a + dir * 0.5f, V2_float{ dir.Magnitude(), line_width }, Origin::Center,
 			   dir.Angle() };
-	return rect.GetVertices(V2_float{ 0.5f, 0.5f });
+	auto vertices{ rect.GetVertices(V2_float{ 0.5f, 0.5f }) };
+	return vertices;
 }
 
+/*
 void Capsule::Draw(const Color& color, float line_width, std::int32_t render_layer) const {
 	V2_float dir{ line.Direction() };
 	float dir2{ dir.Dot(dir) };
@@ -524,6 +495,7 @@ void Capsule::Draw(const Color& color, float line_width, std::int32_t render_lay
 		render_layer
 	);
 }
+*/
 
 bool Capsule::Overlaps(const V2_float& point) const {
 	// Source:

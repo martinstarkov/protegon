@@ -1,104 +1,66 @@
 #include "audio/audio.h"
 
 #include <chrono>
-#include <filesystem>
 #include <ratio>
-#include <string>
 
-#include "core/game.h"
-#include "core/manager.h"
-#include "core/sdl_instance.h"
 #include "SDL_mixer.h"
-#include "utility/debug.h"
-#include "utility/file.h"
-#include "utility/handle.h"
-#include "utility/time.h"
-#include "audio.h"
+#include "core/game.h"
+#include "core/sdl_instance.h"
+#include "math/hash.h"
+#include "utility/assert.h"
 
-namespace ptgn {
+namespace ptgn::impl {
 
-namespace impl {
-
-struct MixMusicDeleter {
-	void operator()(Mix_Music* music) const {
-		if (game.sdl_instance_->SDLMixerIsInitialized()) {
-			Mix_FreeMusic(music);
-		}
+void Mix_MusicDeleter::operator()(Mix_Music* music) const {
+	if (game.sdl_instance_->SDLMixerIsInitialized()) {
+		Mix_FreeMusic(music);
 	}
-};
+}
 
-struct MixChunkDeleter {
-	void operator()(Mix_Chunk* sound) const {
-		if (game.sdl_instance_->SDLMixerIsInitialized()) {
-			Mix_FreeChunk(sound);
-		}
+void Mix_ChunkDeleter::operator()(Mix_Chunk* sound) const {
+	if (game.sdl_instance_->SDLMixerIsInitialized()) {
+		Mix_FreeChunk(sound);
 	}
-};
+}
 
-} // namespace impl
-
-Music::Music(const path& music_path) {
+MusicManager::Music MusicManager::LoadFromFile(const path& filepath) {
 	PTGN_ASSERT(
-		FileExists(music_path),
-		"Cannot create music from a nonexistent music path: ", music_path.string()
+		FileExists(filepath), "Cannot create music from a nonexistent filepath: ", filepath.string()
 	);
-	Create({ Mix_LoadMUS(music_path.string().c_str()), impl::MixMusicDeleter{} });
-	PTGN_ASSERT(IsValid(), Mix_GetError());
+	Music ptr{ Mix_LoadMUS(filepath.string().c_str()) };
+	PTGN_ASSERT(ptr != nullptr, Mix_GetError());
+	return ptr;
 }
 
-void Music::Play(int loops) {
-	Mix_PlayMusic(&Get(), loops);
+void MusicManager::Load(std::string_view key, const path& filepath) {
+	music_.try_emplace(Hash(key), LoadFromFile(filepath));
 }
 
-void Music::FadeIn(milliseconds fade_time, int loops) {
+void MusicManager::Unload(std::string_view key) {
+	music_.erase(Hash(key));
+}
+
+void MusicManager::Play(std::string_view key, int loops) {
+	PTGN_ASSERT(Has(Hash(key)), "Cannot play music which has not been loaded in the music manager");
+	Mix_PlayMusic(Get(Hash(key)), loops);
+}
+
+void MusicManager::FadeIn(std::string_view key, milliseconds fade_time, int loops) {
+	PTGN_ASSERT(
+		Has(Hash(key)), "Cannot fade in music which has not been loaded in the music manager"
+	);
 	auto time_int{ std::chrono::duration_cast<duration<int, milliseconds::period>>(fade_time) };
-	Mix_FadeInMusic(&Get(), loops, time_int.count());
+	Mix_FadeInMusic(Get(Hash(key)), loops, time_int.count());
 }
 
-Sound::Sound(const path& sound_path) {
-	PTGN_ASSERT(
-		FileExists(sound_path),
-		"Cannot create sound from a nonexistent sound path: ", sound_path.string()
-	);
-	Create({ Mix_LoadWAV(sound_path.string().c_str()), impl::MixChunkDeleter{} });
-	PTGN_ASSERT(IsValid(), Mix_GetError());
+Mix_Music* MusicManager::Get(std::size_t key) const {
+	PTGN_ASSERT(Has(key), "Cannot get music key which is not loaded");
+	return music_.find(key)->second.get();
 }
 
-void Sound::Play(int channel, int loops) {
-	Mix_PlayChannel(channel, &Get(), loops);
+bool MusicManager::Has(std::size_t key) const {
+	return music_.find(key) != music_.end();
 }
-
-void Sound::FadeIn(milliseconds fade_time, int channel, int loops) {
-	auto time_int{ std::chrono::duration_cast<duration<int, std::milli>>(fade_time) };
-	Mix_FadeInChannel(channel, &Get(), loops, time_int.count());
-}
-
-void Sound::SetVolume(int volume) {
-	PTGN_ASSERT(volume >= 0 && volume <= max_volume, "Cannot set sound volume outside of valid range");
-	Mix_VolumeChunk(&Get(), volume);
-}
-
-int Sound::GetVolume() const {
-	return Mix_VolumeChunk(const_cast<Mix_Chunk*>(&Get()), -1);
-}
-
-void Sound::Mute() {
-	SetVolume(0);
-}
-
-void Sound::Unmute(int new_volume) {
-	SetVolume(new_volume);
-}
-
-void Sound::ToggleMute(int new_volume) {
-	if (GetVolume() != 0) {
-		Mute();
-	} else {
-		Unmute(new_volume);
-	}
-}
-
-namespace impl {
 
 void MusicManager::Stop() const {
 	Mix_HaltMusic();
@@ -117,11 +79,11 @@ void MusicManager::Resume() const {
 	Mix_ResumeMusic();
 }
 
-void MusicManager::ToggleMute(int new_volume) const {
+void MusicManager::ToggleVolume(int new_volume) const {
 	if (GetVolume() != 0) {
-		Mute();
+		SetVolume(0);
 	} else {
-		Unmute(new_volume);
+		SetVolume(new_volume);
 	}
 }
 
@@ -138,16 +100,10 @@ int MusicManager::GetVolume() const {
 }
 
 void MusicManager::SetVolume(int volume) const {
-	PTGN_ASSERT(volume >= 0 && volume <= max_volume, "Cannot set music volume outside of valid range");
+	PTGN_ASSERT(
+		volume >= 0 && volume <= max_volume, "Cannot set music volume outside of valid range"
+	);
 	Mix_VolumeMusic(volume);
-}
-
-void MusicManager::Mute() const {
-	SetVolume(0);
-}
-
-void MusicManager::Unmute(int new_volume) const {
-	SetVolume(new_volume);
 }
 
 bool MusicManager::IsPlaying() const {
@@ -167,9 +123,64 @@ bool MusicManager::IsFading() const {
 	}
 }
 
-void MusicManager::Reset() {
-	Stop();
-	MapManager::Reset();
+SoundManager::Sound SoundManager::LoadFromFile(const path& filepath) {
+	PTGN_ASSERT(
+		FileExists(filepath),
+		"Cannot create sound from a nonexistent sound path: ", filepath.string()
+	);
+	Sound ptr{ Mix_LoadWAV(filepath.string().c_str()) };
+	PTGN_ASSERT(ptr != nullptr, Mix_GetError());
+	return ptr;
+}
+
+void SoundManager::Load(std::string_view key, const path& filepath) {
+	sounds_.try_emplace(Hash(key), LoadFromFile(filepath));
+}
+
+void SoundManager::Unload(std::string_view key) {
+	sounds_.erase(Hash(key));
+}
+
+void SoundManager::Play(std::string_view key, int channel, int loops) {
+	PTGN_ASSERT(Has(Hash(key)), "Cannot play sound which has not been loaded in the music manager");
+	Mix_PlayChannel(channel, Get(Hash(key)), loops);
+}
+
+void SoundManager::FadeIn(std::string_view key, milliseconds fade_time, int channel, int loops) {
+	PTGN_ASSERT(
+		Has(Hash(key)), "Cannot fade in sound which has not been loaded in the music manager"
+	);
+	auto time_int{ std::chrono::duration_cast<duration<int, std::milli>>(fade_time) };
+	Mix_FadeInChannel(channel, Get(Hash(key)), loops, time_int.count());
+}
+
+void SoundManager::SetVolume(std::string_view key, int volume) {
+	PTGN_ASSERT(
+		Has(Hash(key)), "Cannot set volume of sound which has not been loaded in the music manager"
+	);
+	PTGN_ASSERT(
+		volume >= 0 && volume <= max_volume, "Cannot set sound volume outside of valid range"
+	);
+	Mix_VolumeChunk(Get(Hash(key)), volume);
+}
+
+int SoundManager::GetVolume(std::string_view key) const {
+	PTGN_ASSERT(
+		Has(Hash(key)), "Cannot get volume of sound which has not been loaded in the music manager"
+	);
+	return Mix_VolumeChunk(const_cast<Mix_Chunk*>(Get(Hash(key))), -1);
+}
+
+void SoundManager::ToggleVolume(std::string_view key, int new_volume) {
+	PTGN_ASSERT(
+		Has(Hash(key)),
+		"Cannot toggle volume of sound which has not been loaded in the music manager"
+	);
+	if (GetVolume(key) != 0) {
+		SetVolume(key, 0);
+	} else {
+		SetVolume(key, new_volume);
+	}
 }
 
 void SoundManager::Stop(int channel) const {
@@ -198,7 +209,10 @@ void SoundManager::FadeOut(milliseconds fade_time, int channel) const {
 }
 
 void SoundManager::SetVolume(int channel, int volume) {
-	PTGN_ASSERT(volume >= 0 && volume <= max_volume, "Cannot set sound channel volume outside of valid range");
+	PTGN_ASSERT(
+		volume >= 0 && volume <= max_volume,
+		"Cannot set sound channel volume outside of valid range"
+	);
 	Mix_Volume(channel, volume);
 }
 
@@ -223,11 +237,13 @@ bool SoundManager::IsFading(int channel) const {
 	}
 }
 
-void SoundManager::Reset() {
-	Stop(-1);
-	MapManager::Reset();
+Mix_Chunk* SoundManager::Get(std::size_t key) const {
+	PTGN_ASSERT(Has(key), "Cannot get sound key which is not loaded");
+	return sounds_.find(key)->second.get();
 }
 
-} // namespace impl
+bool SoundManager::Has(std::size_t key) const {
+	return sounds_.find(key) != sounds_.end();
+}
 
-} // namespace ptgn
+} // namespace ptgn::impl

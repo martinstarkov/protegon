@@ -2,12 +2,10 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdint>
 #include <limits>
 #include <utility>
 #include <vector>
 
-#include "core/game.h"
 #include "math/geometry/intersection.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
@@ -15,33 +13,10 @@
 #include "math/raycast.h"
 #include "math/utility.h"
 #include "math/vector2.h"
-#include "math/vector4.h"
-#include "renderer/color.h"
 #include "renderer/origin.h"
-#include "renderer/render_data.h"
-#include "renderer/renderer.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 
 namespace ptgn {
-
-void Circle::DrawSolid(const V4_float& color, std::int32_t render_layer) const {
-	Ellipse{ center, { radius, radius } }.DrawSolid(color, render_layer);
-}
-
-void Circle::DrawThick(float line_width, const V4_float& color, std::int32_t render_layer) const {
-	Ellipse{ center, { radius, radius } }.DrawThick(line_width, color, render_layer);
-}
-
-void Circle::Draw(const Color& color, float line_width, std::int32_t render_layer) const {
-	auto norm_color{ color.Normalized() };
-
-	if (line_width == -1.0f) {
-		DrawSolid(norm_color, render_layer);
-		return;
-	}
-
-	DrawThick(line_width, norm_color, render_layer);
-}
 
 void Circle::Offset(const V2_float& offset) {
 	center += offset;
@@ -276,6 +251,7 @@ ptgn::Raycast Circle::Raycast(const V2_float& ray, const Rect& rect) const {
 	return c;
 }
 
+/*
 void Arc::Draw(bool clockwise, const Color& color, float line_width, std::int32_t render_layer)
 	const {
 	PTGN_ASSERT(radius >= 0.0f, "Cannot draw filled arc with negative radius");
@@ -330,6 +306,7 @@ void Arc::DrawThick(
 		vertices.data(), vertices.size() - 1, line_width, color, render_layer, vertices.size()
 	);
 }
+*/
 
 std::vector<V2_float> Arc::GetVertices(bool clockwise, float sa, float ea) const {
 	if (sa > ea) {
@@ -368,41 +345,6 @@ std::vector<V2_float> Arc::GetVertices(bool clockwise, float sa, float ea) const
 	}
 
 	return vertices;
-}
-
-void Ellipse::DrawSolid(const V4_float& color, std::int32_t render_layer) const {
-	Rect rect{ center, radius * 2.0f, Origin::Center, 0.0f };
-	auto vertices{ rect.GetVertices(V2_float{ 0.5f, 0.5f }) };
-	game.renderer.GetRenderData().AddPrimitiveCircle(
-		vertices, render_layer, color, 1.0f, impl::fade_
-	);
-}
-
-void Ellipse::DrawThick(float line_width, const V4_float& color, std::int32_t render_layer) const {
-	PTGN_ASSERT(line_width > 0.0f, "Cannot draw ellipse with negative line width");
-
-	// Internally line width for a filled ellipse is 1.0f and a completely hollow one is 0.0f,
-	// but in the API the line width is expected in pixels.
-	// TODO: Check that dividing by std::max(radius.x, radius.y) does not cause any unexpected
-	// bugs.
-	line_width = impl::fade_ + line_width / std::min(radius.x, radius.y);
-
-	Rect rect{ center, radius * 2.0f, Origin::Center, 0.0f };
-	auto vertices{ rect.GetVertices(V2_float{ 0.5f, 0.5f }) };
-	game.renderer.GetRenderData().AddPrimitiveCircle(
-		vertices, render_layer, color, line_width, impl::fade_
-	);
-}
-
-void Ellipse::Draw(const Color& color, float line_width, std::int32_t render_layer) const {
-	auto norm_color{ color.Normalized() };
-
-	if (line_width == -1.0f) {
-		DrawSolid(norm_color, render_layer);
-		return;
-	}
-
-	DrawThick(line_width, norm_color, render_layer);
 }
 
 } // namespace ptgn

@@ -14,7 +14,7 @@
 #include "physics/rigid_body.h"
 #include "renderer/color.h"
 #include "scene/scene_manager.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/log.h"
 
 namespace ptgn::impl {
@@ -116,11 +116,12 @@ void CollisionHandler::Update(ecs::Manager& manager) const {
 	}
 }
 
-void CollisionHandler::DrawVelocity(
-	const V2_float& start, const V2_float& vel, const Color& color
-) {
-	Line l{ start, start + vel };
-	l.Draw(color);
-}
+// TODO: Fix or get rid of.
+// void CollisionHandler::DrawVelocity(
+//	const V2_float& start, const V2_float& vel, const Color& color
+//) {
+//	Line l{ start, start + vel };
+//	//l.Draw(color);
+//}
 
 } // namespace ptgn::impl

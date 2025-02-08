@@ -6,21 +6,20 @@
 #include "core/game.h"
 #include "core/gl_context.h"
 #include "renderer/gl_types.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 
 #ifdef PTGN_DEBUG
 // Uncomment for debugging purposes
 // #define GL_ANNOUNCE_RENDERER_CALLS
 // #define GL_ANNOUNCE_VERTEX_ARRAY_CALLS
 // #define GL_ANNOUNCE_FRAME_BUFFER_CALLS
+// #define GL_ANNOUNCE_BUFFER_CALLS
 // #define GL_ANNOUNCE_RENDER_BUFFER_CALLS
 // #define GL_ANNOUNCE_SHADER_CALLS
 // #define GL_ANNOUNCE_TEXTURE_CALLS
 #endif
 
-namespace ptgn {
-
-namespace impl {
+namespace ptgn::impl {
 
 #ifdef PTGN_DEBUG
 
@@ -34,20 +33,20 @@ namespace impl {
 			ptgn::impl::GLContext::PrintErrors(                       \
 				fn, std::filesystem::path(__FILE__), __LINE__, errors \
 			);                                                        \
-			PTGN_EXCEPTION("OpenGL Error");                           \
+			PTGN_ERROR("OpenGL Error");                               \
 		}                                                             \
 	})
 #define GLCallReturn(x)                                               \
 	std::invoke([&, fn = PTGN_FUNCTION_NAME()]() {                    \
 		++game.stats.gl_calls;                                        \
 		ptgn::impl::GLContext::ClearErrors();                         \
-		auto value	= x;                                              \
-		auto errors = ptgn::impl::GLContext::GetErrors();             \
+		auto value{ x };                                              \
+		auto errors{ ptgn::impl::GLContext::GetErrors() };            \
 		if (!errors.empty()) {                                        \
 			ptgn::impl::GLContext::PrintErrors(                       \
 				fn, std::filesystem::path(__FILE__), __LINE__, errors \
 			);                                                        \
-			PTGN_EXCEPTION("OpenGL Error");                           \
+			PTGN_ERROR("OpenGL Error");                               \
 		}                                                             \
 		return value;                                                 \
 	})
@@ -59,6 +58,4 @@ namespace impl {
 
 #endif
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

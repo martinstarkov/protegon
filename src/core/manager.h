@@ -4,7 +4,7 @@
 #include <unordered_map>
 
 #include "math/hash.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 
 namespace ptgn {
 

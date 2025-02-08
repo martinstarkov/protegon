@@ -3,7 +3,7 @@
 #include <chrono>
 #include <type_traits>
 
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/time.h"
 
 namespace ptgn {

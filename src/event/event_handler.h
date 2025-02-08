@@ -7,7 +7,7 @@
 
 #include "event/event.h"
 #include "event/events.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 
 namespace ptgn {
 
@@ -35,7 +35,7 @@ public:
 
 	// Specific event observation.
 	template <typename TEvent, typename S>
-	void Subscribe(T type, const S* ptr, const TEventCallback<TEvent>& func) {
+	void Subscribe(T type, const S* ptr, const TEventCallback<TEvent>& func) noexcept {
 		PTGN_ASSERT(ptr != nullptr);
 		auto key{ GetKey(ptr) };
 		using TEventType = std::decay_t<TEvent>;
@@ -54,7 +54,7 @@ public:
 	}
 
 	template <typename S>
-	void Unsubscribe(const S* ptr) {
+	void Unsubscribe(const S* ptr) noexcept {
 		if (ptr == nullptr) {
 			return;
 		}
@@ -96,7 +96,7 @@ public:
 	};
 
 	template <typename S>
-	[[nodiscard]] bool IsSubscribed(const S* ptr) const {
+	[[nodiscard]] bool IsSubscribed(const S* ptr) const noexcept {
 		if (ptr == nullptr) {
 			return false;
 		}
@@ -126,11 +126,11 @@ public:
 
 private:
 	template <typename S>
-	[[nodiscard]] static Key GetKey(const S* ptr) {
+	[[nodiscard]] static Key GetKey(const S* ptr) noexcept {
 		return std::hash<const void*>()(ptr);
 	}
 
-	void Unsubscribe(std::size_t key) {
+	void Unsubscribe(std::size_t key) noexcept {
 		if (auto it{ observers_.find(key) }; it != observers_.end()) {
 			observers_.erase(it);
 		}
