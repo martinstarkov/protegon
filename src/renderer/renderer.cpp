@@ -152,23 +152,7 @@ RenderData& Renderer::GetRenderData() {
 }
 
 void Renderer::PresentScreen() {
-	if (game.scene.current_scene_.second != nullptr) {
-		render_data_.Render({}, game.camera.primary, game.scene.current_scene_.second->manager);
-		if (std::invoke([]() {
-				auto viewport_size{ GLRenderer::GetViewportSize() };
-				if (viewport_size.IsZero()) {
-					return false;
-				}
-				if (viewport_size.x == 1 && viewport_size.y == 1) {
-					return false;
-				}
-				return true;
-			})) {
-			game.window.SwapBuffers();
-		} else {
-			PTGN_WARN("Rendering to 0 to 1 sized viewport");
-		}
-	}
+	if (game.scene.current_scene_.second != nullptr) {}
 	// TODO: Fix.
 	// Flush();
 	// screen_target_.Get().DrawToScreen();

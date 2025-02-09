@@ -98,13 +98,39 @@ void SceneManager::EnterScene(InternalKey scene_key, const std::shared_ptr<Scene
 }
 
 void SceneManager::Update() {
-	if (current_scene_.second == nullptr) {
-		return;
+	for (const auto&) {
+		input.Update();
+		scene.Update();
+		// TODO: Move this all into the scene itself.
+		if (scene.HasCurrent()) {
+			physics.Update(scene.GetCurrent().manager);
+			tween.Update(scene.GetCurrent().manager);
+		}
+		// light.Draw();
+
+		if (current_scene_.second == nullptr) {
+			return;
+		}
+		if (current_scene_.second->HasActions()) {
+			return;
+		}
+		current_scene_.second->Update();
+		render_data_.Render({}, game.camera.primary, game.scene.current_scene_.second->manager);
+		if (std::invoke([]() {
+				auto viewport_size{ GLRenderer::GetViewportSize() };
+				if (viewport_size.IsZero()) {
+					return false;
+				}
+				if (viewport_size.x == 1 && viewport_size.y == 1) {
+					return false;
+				}
+				return true;
+			})) {
+			game.window.SwapBuffers();
+		} else {
+			PTGN_WARN("Rendering to 0 to 1 sized viewport");
+		}
 	}
-	if (current_scene_.second->HasActions()) {
-		return;
-	}
-	current_scene_.second->Update();
 }
 
 void SceneManager::HandleSceneEvents() {

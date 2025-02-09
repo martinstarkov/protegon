@@ -35,15 +35,26 @@ public:
 		/* user implementation */
 	}
 
+	InputHandler input;
+	Physics physics;
+	CollisionHandler collision;
+	UserInterface ui;
+	CameraManager camera;
+	TweenManager tween;
 	ecs::Manager manager;
 
 private:
 	friend class impl::SceneManager;
 	friend class SceneTransition;
 
+	void PreUpdate();
+	void PostUpdate();
+
+	// Numbering determines the execution order of scene actions.
 	enum class Action {
-		Enter,
-		Unload
+		Init	 = 0,
+		Shutdown = 1,
+		Unload	 = 2
 	};
 
 	void Add(Action new_action);
@@ -52,7 +63,7 @@ private:
 	// @return True if the scene has uncompleted actions, false otherwise.
 	[[nodiscard]] bool HasActions() const;
 
-	std::set<Action> actions_;
+	std::set<Action> actions_{};
 };
 
 } // namespace ptgn

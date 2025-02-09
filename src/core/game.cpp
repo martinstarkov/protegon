@@ -4,7 +4,6 @@
 #include <memory>
 #include <string>
 
-#include "SDL_timer.h"
 #include "audio/audio.h"
 #include "core/gl_context.h"
 #include "core/manager.h"
@@ -23,6 +22,7 @@
 #include "renderer/texture.h"
 #include "scene/camera.h"
 #include "scene/scene_manager.h"
+#include "SDL_timer.h"
 #include "serialization/json_manager.h"
 #include "ui/ui.h"
 #include "utility/assert.h"
@@ -289,14 +289,7 @@ void Game::Update() {
 
 	renderer.ClearScreen();
 
-	input.Update();
 	scene.Update();
-	// TODO: Move this all into the scene itself.
-	if (scene.HasCurrent()) {
-		physics.Update(scene.GetCurrent().manager);
-		tween.Update(scene.GetCurrent().manager);
-	}
-	// light.Draw();
 
 	renderer.PresentScreen();
 

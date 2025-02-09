@@ -150,35 +150,6 @@ public:
 	SceneManager& scene;
 
 private:
-	std::unique_ptr<Physics> physics_;
-
-public:
-	Physics& physics;
-
-private:
-	std::unique_ptr<CollisionHandler> collision_;
-
-public:
-	CollisionHandler& collision;
-
-private:
-	std::unique_ptr<UserInterface> ui_;
-
-public:
-	UserInterface& ui;
-
-private:
-	std::unique_ptr<CameraManager> camera_;
-
-public:
-	CameraManager& camera;
-
-private:
-	std::unique_ptr<TweenManager> tween_;
-
-public:
-	TweenManager& tween;
-
 private:
 	std::unique_ptr<MusicManager> music_;
 

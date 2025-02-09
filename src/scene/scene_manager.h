@@ -41,7 +41,7 @@ Retrieve a scene casted to that pointer:
 game.scene.Get<StartupScene>("startup").DoStuff();
 
 */
-class SceneManager : public MapManager<std::shared_ptr<Scene>> {
+class SceneManager {
 public:
 	SceneManager()									 = default;
 	~SceneManager() override						 = default;
