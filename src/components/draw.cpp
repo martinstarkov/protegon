@@ -7,12 +7,27 @@
 #include "ecs/ecs.h"
 #include "math/math.h"
 #include "math/vector2.h"
+#include "transform.h"
 #include "utility/assert.h"
 #include "utility/time.h"
 #include "utility/tween.h"
 #include "utility/utility.h"
 
 namespace ptgn {
+
+ecs::Entity CreateSprite(
+	ecs::Manager& manager, std::string_view texture_key, const V2_float& position
+) {
+	PTGN_ASSERT(
+		game.texture.Has(texture_key),
+		"Cannot create sprite with texture key that has not been loaded in the texture manager"
+	);
+	auto sprite = manager.CreateEntity();
+	sprite.Add<Transform>(position);
+	sprite.Add<Sprite>(texture_key);
+	sprite.Add<Visible>();
+	return sprite;
+}
 
 Animation::Animation(
 	ecs::Entity parent, std::string_view texture_key, std::size_t frame_count,
@@ -32,7 +47,7 @@ Animation::Animation(
 	milliseconds frame_duration{ duration / GetCount() };
 
 	entity_.Destroy();
-	entity_ = game.scene.GetCurrent().manager.CreateEntity();
+	entity_ = parent.GetManager().CreateEntity();
 
 	entity_.Add<Tween>()
 		.During(frame_duration)

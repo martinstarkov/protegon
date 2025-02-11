@@ -20,6 +20,10 @@
 
 namespace ptgn {
 
+ecs::Entity CreateSprite(
+	ecs::Manager& manager, std::string_view texture_key, const V2_float& position
+);
+
 // TODO: Consider moving everything to this.
 namespace component {} // namespace component
 
