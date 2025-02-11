@@ -21,9 +21,11 @@
 
 namespace ptgn {
 
-Text::Text(std::string_view content, const Color& text_color, std::string_view font_key) {
+Text::Text(
+	ecs::Entity parent, std::string_view content, const Color& text_color, std::string_view font_key
+) {
 	entity_.Destroy();
-	entity_ = game.scene.GetCurrent().manager.CreateEntity();
+	entity_ = parent.GetManager().CreateEntity();
 	entity_.Add<TextContent>(content);
 	if (text_color != TextColor{}) {
 		entity_.Add<TextColor>(text_color);
@@ -211,8 +213,6 @@ void Text::RecreateTexture() {
 	PTGN_ASSERT(surface != nullptr, "Failed to create surface for given font information");
 
 	texture = impl::Texture(impl::Surface{ surface });
-
-	SDL_FreeSurface(surface);
 }
 
 } // namespace ptgn

@@ -67,7 +67,7 @@ public:
 	// @param font_key Default: "" corresponds to the default engine font (use
 	// game.font.SetDefault(...) to change.
 	Text(
-		std::string_view content, const Color& text_color = color::Black,
+		ecs::Entity parent, std::string_view content, const Color& text_color = color::Black,
 		std::string_view font_key = ""
 	);
 	Text(const Text&)			 = delete;
