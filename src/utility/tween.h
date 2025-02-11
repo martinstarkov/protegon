@@ -10,13 +10,10 @@
 #include <variant>
 #include <vector>
 
-#include "core/manager.h"
-#include "ecs/ecs.h"
 #include "math/math.h"
 #include "utility/assert.h"
 #include "utility/handle.h"
 #include "utility/time.h"
-#include "utility/type_traits.h"
 
 namespace ptgn {
 
@@ -49,7 +46,6 @@ using TweenCallback = std::variant<
 namespace impl {
 
 class Game;
-class TweenManager;
 
 using TweenEaseFunction = std::function<float(float, float, float)>;
 
@@ -286,8 +282,6 @@ public:
 	Tween& SetDuration(milliseconds duration, std::size_t tween_point_index = 0);
 
 private:
-	friend class impl::TweenManager;
-
 	// @return New progress of the tween after seeking.
 	[[nodiscard]] float SeekImpl(float new_progress);
 	// @return New progress of the tween after stepping.
@@ -302,54 +296,5 @@ private:
 	// @return New progress of the tween after updating.
 	float UpdateImpl(bool suppress_update = false);
 };
-
-namespace impl {
-
-class TweenManager /*: public MapManagerWithNameless<Tween>*/ {
-public:
-	/*TweenManager()									 = default;
-	~TweenManager() override						 = default;
-	TweenManager(TweenManager&&) noexcept			 = default;
-	TweenManager& operator=(TweenManager&&) noexcept = default;
-	TweenManager(const TweenManager&)				 = delete;
-	TweenManager& operator=(const TweenManager&)	 = delete;*/
-
-	// TODO: Decide what to do with all of this.
-	/*
-	 * Load a uniquely identifiable tween into the manager.
-	 * If the tween key already exists, does nothing.
-	 * @param key Unique id of the item to be loaded.
-	 * @return Reference to the loaded item.
-	 */
-	/*template <typename TKey>
-	Item& Load(const TKey& key) {
-		Tween t;
-		t.Create();
-		return MapManager<Tween>::Load(key, std::move(t));
-	}*/
-
-	/*
-	 * Tweens without a key will be unloaded once the following two conditions are met:
-	 * 1. The tween is completed.
-	 * 2. The returned tween handle reaches a reference count of 1, i.e. it only exists in the tween
-	 * manager. If the nameless tween already exists in the nameless list (based on equals
-	 * comparison), this function does nothing.
-	 * @return Reference handle to the loaded nameless tween.
-	 */
-	/*[[nodiscard]] Tween& Load() {
-		Tween t;
-		t.Create();
-		return MapManagerWithNameless<Tween>::Load(std::move(t));
-	}*/
-
-private:
-	// using InternalKey = typename MapManagerWithNameless<Tween>::InternalKey;
-
-	friend class Game;
-
-	void Update(ecs::Manager& manager);
-};
-
-} // namespace impl
 
 } // namespace ptgn

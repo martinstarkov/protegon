@@ -10,8 +10,6 @@
 #include <variant>
 #include <vector>
 
-#include "core/game.h"
-#include "ecs/ecs.h"
 #include "utility/assert.h"
 #include "utility/handle.h"
 #include "utility/log.h"
@@ -457,62 +455,5 @@ float Tween::AccumulateProgress(float new_progress) {
 
 	return new_progress;
 }
-
-namespace impl {
-
-void TweenManager::Update(ecs::Manager& manager) {
-	// TODO: Figure out how to do timestep accumulation outside of tweens, using
-	// StepImpl(dt, false) and some added logic outside of this loop. This is important
-	// because currently tween internal timestep accumulation causes all callbacks to be
-	// triggered sequentially for each tween before moving onto the next tween. Desired
-	// callback behavior:
-	// 1. Tween1Repeat#1 2. Tween2Repeat#1 3. Tween1Repeat#2 4. Tween2Repeat#2.
-	// Current callback behavior:
-	// 1. Tween1Repeat#1 2. Tween1Repeat#2 3. Tween2Repeat#1 4. Tween2Repeat#2.
-
-	for (auto [e, tween] : manager.EntitiesWith<Tween>()) {
-		if (tween.IsValid()) {
-			tween.Step(game.dt());
-		}
-	}
-
-	// Copying container to avoid iterator invalidation, e.g. in case a tween callback adds another
-	// tween.
-	// auto nameless_tweens{ GetNamelessContainer() };
-
-	/*for (auto& tween : nameless_tweens) {
-		step(tween);
-	}*/
-
-	// Copying container to avoid iterator invalidation, e.g. in case a tween callback adds another
-	// tween.
-	// auto named_tweens{ GetMap() };
-
-	/*for (auto& [key, tween] : named_tweens) {
-		step(tween);
-	}*/
-
-	// Must be cleared because these containers have incremented the tween reference counters.
-	/*nameless_tweens = {};
-	named_tweens	= {};
-
-	auto& v{ GetNamelessContainer() };*/
-
-	/*
-	for (auto it{ v.begin() }; it != v.end();) {
-		// Erase all tween which have been destroyed, or have completed (or are unstarted) and their
-		// handles only have one strong reference, meaning they only exist as nameless tweens in the
-		// tween manager.
-		if (!it->IsValid() ||
-			it->GetPtr().use_count() <= 1 && (it->IsCompleted() || !it->IsStarted())) {
-			it = v.erase(it);
-		} else {
-			++it;
-		}
-	}
-	*/
-}
-
-} // namespace impl
 
 } // namespace ptgn
