@@ -426,11 +426,12 @@ bool TextureManager::Has(std::size_t key) const {
 
 Texture TextureManager::LoadFromFile(const path& filepath) {
 	Surface s{ filepath };
-	Color ctl{ s.GetPixel({ 0, 0 }) };
+	// For debugging: Print corners of the texture.
+	/*Color ctl{ s.GetPixel({ 0, 0 }) };
 	Color ctr{ s.GetPixel({ s.size.x - 1, 0 }) };
 	Color cbr{ s.GetPixel({ s.size.x - 1, s.size.y - 1 }) };
 	Color cbl{ s.GetPixel({ 0, s.size.y - 1 }) };
-	PTGN_LOG("File: ", filepath, " | tl: ", ctl, " | tr: ", ctr, " | br: ", cbr, " | bl: ", cbl);
+	PTGN_LOG("File: ", filepath, " | tl: ", ctl, " | tr: ", ctr, " | br: ", cbr, " | bl: ", cbl);*/
 	return Texture{ s };
 }
 
