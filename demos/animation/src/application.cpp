@@ -6,14 +6,14 @@
 #include "math/vector2.h"
 #include "renderer/texture.h"
 #include "scene/scene.h"
+#include "scene/scene_manager.h"
 #include "utility/time.h"
 #include "utility/tween.h"
 
 using namespace ptgn;
 
 void FadeIn(ecs::Entity e, milliseconds duration) {
-	PTGN_ASSERT(game.scene.HasCurrent());
-	auto fade_entity{ game.scene.GetCurrent().manager.CreateEntity() };
+	auto fade_entity{ e.GetManager().CreateEntity() };
 	fade_entity.Add<Tween>()
 		.During(duration)
 		.OnStart([=]() mutable {
@@ -53,6 +53,6 @@ public:
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("AnimationExample");
-	game.Start<AnimationExample>("animation_example");
+	game.scene.Enter<AnimationExample>("animation_example");
 	return 0;
 }
