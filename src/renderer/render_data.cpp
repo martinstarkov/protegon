@@ -440,18 +440,11 @@ void RenderData::AddToBatch(
 	} else if (e.Has<Point>()) {
 		PTGN_ASSERT(!e.Has<LineWidth>(), "Points cannot have a line width");
 		PTGN_ASSERT(line_width == -1.0f);
-		if (e.Has<Radius>()) {
-			batch.AddEllipse(
-				std::invoke(get_ellipse_positions), GetDefaultTextureCoordinates(), 0.0f,
-				e.Get<Radius>(), color, depth
-			);
-		} else {
-			// TODO: Check that this works.
-			batch.AddTexturedQuad(
-				{ transform.position, transform.position, transform.position, transform.position },
-				GetDefaultTextureCoordinates(), 0.0f, color, depth
-			);
-		}
+		// TODO: Check that this works.
+		batch.AddTexturedQuad(
+			{ transform.position, transform.position, transform.position, transform.position },
+			GetDefaultTextureCoordinates(), 0.0f, color, depth
+		);
 	} else if (e.Has<Arc>()) {
 		// TODO: Implement.
 		PTGN_ERROR("Arc drawing not implemented yet");
@@ -612,7 +605,7 @@ void RenderData::PopulateBatches(ecs::Entity e, bool check_visibility) {
 
 void RenderData::SetupRender(const FrameBuffer& frame_buffer, const Camera& camera) const {
 	frame_buffer.Bind();
-	auto rect{ camera.GetRect() };
+	auto rect{ camera.GetViewport() };
 	GLRenderer::SetViewport(rect.Min(), rect.size);
 }
 
