@@ -165,6 +165,6 @@ public:
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("LightExampleScene", window_size, color::Black);
-	game.Start<LightExampleScene>("light_example_scene");
+	game.scene.Enter<LightExampleScene>("light_example_scene");
 	return 0;
 }

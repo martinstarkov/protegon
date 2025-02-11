@@ -6,13 +6,16 @@
 #include "event/key.h"
 #include "event/mouse.h"
 #include "math/vector2.h"
-#include "renderer/render_target.h"
 #include "utility/time.h"
 #include "utility/timer.h"
 
 union SDL_Event;
 
-namespace ptgn::impl {
+namespace ptgn {
+
+class Scene;
+
+namespace impl {
 
 class Game;
 class SceneManager;
@@ -119,6 +122,7 @@ public:
 	[[nodiscard]] bool KeyUp(Key key);
 
 private:
+	friend class Scene;
 	friend class SceneManager;
 	friend class Game;
 
@@ -174,4 +178,6 @@ private:
 	Timer middle_mouse_timer_;
 };
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn

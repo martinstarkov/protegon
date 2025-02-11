@@ -12,13 +12,13 @@ struct CollisionTest {
 	ecs::Manager manager;
 
 	CollisionTest() {
-		manager = game.scene.GetCurrent().manager;
+		manager = game.scene.Get("collision_example_scene").manager;
 	}
 
 	virtual void Enter() {}
 
 	virtual void Exit() {
-		game.camera.SetPrimary({});
+		game.scene.Get("collision_example_scene").camera.primary = {};
 	}
 
 	virtual void Update() {}
@@ -241,7 +241,7 @@ public:
 
 		PTGN_ASSERT(vel != nullptr);
 
-		MoveWASD(*vel, speed * game.physics.dt());
+		MoveWASD(*vel, speed * game.scene.Get("collision_example_scene").physics.dt());
 	}
 
 	void Draw() override {
@@ -296,7 +296,10 @@ public:
 	}
 
 	void Update() override {
-		MoveWASD(entity.Get<RigidBody>().velocity, speed * game.physics.dt());
+		MoveWASD(
+			entity.Get<RigidBody>().velocity,
+			speed * game.scene.Get("collision_example_scene").physics.dt()
+		);
 
 		if (game.input.KeyDown(Key::R)) {
 			Enter();

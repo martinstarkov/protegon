@@ -93,6 +93,6 @@ struct TextExample : public Scene {
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("TextExample: T (toggle visibility)", window_size, color::Pink);
-	game.Start<TextExample>("text_example");
+	game.scene.Enter<TextExample>("text_example");
 	return 0;
 }
