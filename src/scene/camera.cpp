@@ -35,23 +35,25 @@ Camera::Camera(const Camera& other) {
 }
 
 Camera& Camera::operator=(const Camera& other) {
-	info = other.info;
 	if (game.event.window.IsSubscribed(&other) && !game.event.window.IsSubscribed(this)) {
 		SubscribeToEvents();
 	}
+	// Important to do this after subscribing as it resizes the camera.
+	info = other.info;
 	return *this;
 }
 
-Camera::Camera(Camera&& other) noexcept : info{ other.info } {
+Camera::Camera(Camera&& other) noexcept {
 	if (game.event.window.IsSubscribed(&other)) {
 		SubscribeToEvents();
 		game.event.window.Unsubscribe(&other);
 	}
+	// Important to do this after subscribing as it resizes the camera.
+	info = std::exchange(other.info, {});
 }
 
 Camera& Camera::operator=(Camera&& other) noexcept {
 	if (this != &other) {
-		info = std::exchange(other.info, {});
 		if (game.event.window.IsSubscribed(&other)) {
 			if (!game.event.window.IsSubscribed(this)) {
 				SubscribeToEvents();
@@ -60,6 +62,8 @@ Camera& Camera::operator=(Camera&& other) noexcept {
 		} else {
 			game.event.window.Unsubscribe(this);
 		}
+		// Important to do this after subscribing as it resizes the camera.
+		info = std::exchange(other.info, {});
 	}
 	return *this;
 }
@@ -77,6 +81,8 @@ void Camera::SubscribeToEvents() noexcept {
 }
 
 void Camera::OnWindowResize(const WindowResizedEvent& e) noexcept {
+	// TODO: Potentially allow this to be modified in the future.
+	info.viewport = Rect::Fullscreen();
 	if (!game.event.window.IsSubscribed(this)) {
 		return;
 	}
@@ -92,6 +98,10 @@ void Camera::OnWindowResize(const WindowResizedEvent& e) noexcept {
 	if (info.resize_to_window || info.center_to_window) {
 		RefreshBounds();
 	}
+}
+
+[[nodiscard]] Rect Camera::GetViewport() const {
+	return info.viewport;
 }
 
 Camera::operator Matrix4() const {
@@ -113,13 +123,13 @@ void Camera::RefreshBounds() noexcept {
 
 	// TODO: Incoporate yaw, i.e. info.orientation.x into the bounds using sin and cos.
 	V2_float size{ info.size / info.zoom };
-	V2_float half{ info.size * 0.5f };
-	if (info.size.x > info.bounding_box.size.x) {
+	V2_float half{ size * 0.5f };
+	if (size.x > info.bounding_box.size.x) {
 		info.position.x = center.x;
 	} else {
 		info.position.x = std::clamp(info.position.x, min.x + half.x, max.x - half.x);
 	}
-	if (info.size.y > info.bounding_box.size.y) {
+	if (size.y > info.bounding_box.size.y) {
 		info.position.y = center.y;
 	} else {
 		info.position.y = std::clamp(info.position.y, min.y + half.y, max.y - half.y);

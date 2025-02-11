@@ -32,6 +32,8 @@ public:
 	Camera& operator=(Camera&& other) noexcept;
 	~Camera();
 
+	[[nodiscard]] Rect GetViewport() const;
+
 	// If continuously is true, camera will subscribe to window resize event.
 	// Set the camera to be the size of the window and centered on the window.
 	void SetToWindow(bool continuously = true);
@@ -147,6 +149,7 @@ protected:
 
 	void SetPosition(const V3_float& new_position);
 
+	// Will resize the camera.
 	void SubscribeToEvents() noexcept;
 	void OnWindowResize(const WindowResizedEvent& e) noexcept;
 
@@ -157,6 +160,8 @@ protected:
 	void Reset();
 
 	struct Info {
+		Rect viewport;
+
 		// Top left position of camera.
 		V3_float position;
 
@@ -213,7 +218,7 @@ public:
 	// Resets the camera manager. Does nothing to the primary camera.
 	void Reset();
 
-	Camera primary{ Camera::UninitializedCamera{} };
+	Camera primary;
 
 private:
 	friend class Game;
