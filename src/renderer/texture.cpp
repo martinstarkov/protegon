@@ -16,6 +16,7 @@
 #include "SDL_pixels.h"
 #include "SDL_surface.h"
 #include "core/game.h"
+#include "math/hash.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/flip.h"
@@ -32,15 +33,15 @@ namespace ptgn::impl {
 
 TextureFormat GetFormatFromSDL(std::uint32_t sdl_format) {
 	switch (sdl_format) {
-		case SDL_PIXELFORMAT_RGBA32:   [[fallthrough]];
 		case SDL_PIXELFORMAT_RGBA8888: return TextureFormat::RGBA8888;
+		case SDL_PIXELFORMAT_ABGR8888: return TextureFormat::ABGR8888;
 		case SDL_PIXELFORMAT_RGB24:	   [[fallthrough]];
 		case SDL_PIXELFORMAT_RGB888:   return TextureFormat::RGB888;
-		case SDL_PIXELFORMAT_BGRA32:   [[fallthrough]];
+		case SDL_PIXELFORMAT_ARGB8888: return TextureFormat::ARGB8888;
 		case SDL_PIXELFORMAT_BGRA8888: return TextureFormat::BGRA8888;
 		case SDL_PIXELFORMAT_BGR24:	   [[fallthrough]];
 		case SDL_PIXELFORMAT_BGR888:   return TextureFormat::BGR888;
-		case SDL_PIXELFORMAT_INDEX8:   [[fallthrough]];
+		case SDL_PIXELFORMAT_INDEX8:   return TextureFormat::A8;
 		case SDL_PIXELFORMAT_UNKNOWN:  return TextureFormat::Unknown;
 		/*
 		case SDL_PIXELFORMAT_INDEX1LSB: [[fallthrough]];
@@ -78,11 +79,12 @@ GLFormats GetGLFormats(TextureFormat format) {
 	// Possible internal format options:
 	// GL_R#size, GL_RG#size, GL_RGB#size, GL_RGBA#size
 	switch (format) {
+		case TextureFormat::ABGR8888: [[fallthrough]];
 		case TextureFormat::RGBA8888: {
-			return { InternalGLFormat::RGBA8, GL_RGBA, 4 };
+			return { InternalGLFormat::RGBA8, InputGLFormat::RGBA, 4 };
 		}
 		case TextureFormat::RGB888: {
-			return { InternalGLFormat::RGB8, GL_RGB, 3 };
+			return { InternalGLFormat::RGB8, InputGLFormat::RGB, 3 };
 		}
 #ifdef __EMSCRIPTEN__
 		case TextureFormat::BGRA8888:
@@ -90,15 +92,19 @@ GLFormats GetGLFormats(TextureFormat format) {
 			PTGN_ERROR("OpenGL ES3.0 does not support BGR(A) texture formats in glTexImage2D");
 		}
 #else
+		case TextureFormat::ARGB8888: [[fallthrough]];
 		case TextureFormat::BGRA8888: {
-			return { InternalGLFormat::RGBA8, GL_BGRA, 4 };
+			return { InternalGLFormat::RGBA8, InputGLFormat::BGRA, 4 };
 		}
 		case TextureFormat::BGR888: {
-			return { InternalGLFormat::RGB8, GL_BGR, 3 };
+			return { InternalGLFormat::RGB8, InputGLFormat::BGR, 3 };
 		}
-		case TextureFormat::Unknown: [[fallthrough]];
+		case TextureFormat::A8: {
+			return { InternalGLFormat::R8, InputGLFormat::SingleChannel, 1 };
+		}
 #endif
-		default: PTGN_ERROR("Could not determine OpenGL formats for given TextureFormat");
+		default:
+			PTGN_ERROR("Could not determine compatible OpenGL formats for given TextureFormat");
 	}
 }
 
@@ -365,7 +371,8 @@ void Texture::SetData(
 	GLCall(gl::glTexImage2D(
 		static_cast<gl::GLenum>(TextureTarget::Texture2D), mipmap_level,
 		static_cast<gl::GLint>(formats.internal_format), size.x, size.y, border,
-		formats.input_format, static_cast<gl::GLenum>(GLType::UnsignedByte), pixel_data
+		static_cast<gl::GLenum>(formats.input_format),
+		static_cast<gl::GLenum>(GLType::UnsignedByte), pixel_data
 	));
 
 	size_ = size;
@@ -383,15 +390,15 @@ void Texture::SetSubData(
 
 	GLCall(gl::glTexSubImage2D(
 		static_cast<gl::GLenum>(TextureTarget::Texture2D), mipmap_level, offset.x, offset.y, size.x,
-		size.y, formats.input_format, static_cast<gl::GLenum>(impl::GLType::UnsignedByte),
-		pixel_data
+		size.y, static_cast<gl::GLenum>(formats.input_format),
+		static_cast<gl::GLenum>(impl::GLType::UnsignedByte), pixel_data
 	));
 }
 
 void TextureManager::Load(std::string_view key, const path& filepath) {
 	auto [it, inserted] = textures_.try_emplace(Hash(key));
 	if (inserted) {
-		it->second = Texture(LoadFromFile(filepath));
+		it->second = LoadFromFile(filepath);
 	}
 }
 
@@ -400,8 +407,12 @@ void TextureManager::Unload(std::string_view key) {
 }
 
 V2_int TextureManager::GetSize(std::string_view key) const {
-	PTGN_ASSERT(Has(Hash(key)), "Cannot get size of texture which has not been loaded");
+	PTGN_ASSERT(Has(key), "Cannot get size of texture which has not been loaded");
 	return textures_.find(Hash(key))->second.GetSize();
+}
+
+bool TextureManager::Has(std::string_view key) const {
+	return Has(Hash(key));
 }
 
 const Texture& TextureManager::Get(std::size_t key) const {
@@ -413,20 +424,41 @@ bool TextureManager::Has(std::size_t key) const {
 	return textures_.find(key) != textures_.end();
 }
 
-Surface TextureManager::LoadFromFile(const path& filepath) {
-	PTGN_ASSERT(
-		FileExists(filepath),
-		"Cannot create texture from a nonexistent filepath: ", filepath.string()
-	);
+Texture TextureManager::LoadFromFile(const path& filepath) {
+	Surface s{ filepath };
+	Color ctl{ s.GetPixel({ 0, 0 }) };
+	Color ctr{ s.GetPixel({ s.size.x - 1, 0 }) };
+	Color cbr{ s.GetPixel({ s.size.x - 1, s.size.y - 1 }) };
+	Color cbl{ s.GetPixel({ 0, s.size.y - 1 }) };
+	PTGN_LOG("File: ", filepath, " | tl: ", ctl, " | tr: ", ctr, " | br: ", cbr, " | bl: ", cbl);
+	return Texture{ s };
+}
 
-	SDL_Surface* sdl_surface{ IMG_Load(filepath.string().c_str()) };
-	PTGN_ASSERT(sdl_surface != nullptr, IMG_GetError());
+Color Surface::GetPixel(const V2_int& coordinate) const {
+	PTGN_ASSERT(coordinate.x >= 0, "X Coordinate outside of range of grid");
+	PTGN_ASSERT(coordinate.y >= 0, "Y Coordinate outside of range of grid");
+	PTGN_ASSERT(coordinate.x < size.x, "X Coordinate outside of range of grid");
+	PTGN_ASSERT(coordinate.y < size.y, "Y Coordinate outside of range of grid");
+	auto index{ (static_cast<std::size_t>(coordinate.y) * size.x + coordinate.x) *
+				bytes_per_pixel };
+	return GetPixel(index);
+}
 
-	Surface surface{ sdl_surface };
-
-	SDL_FreeSurface(sdl_surface);
-
-	return surface;
+Color Surface::GetPixel(std::size_t index) const {
+	PTGN_ASSERT(!data.empty(), "Cannot get pixel of an empty surface");
+	PTGN_ASSERT(index < data.size(), "Coordinate outside of range of grid");
+	if (bytes_per_pixel == 4) {
+		PTGN_ASSERT(index + 3 < data.size(), "Coordinate outside of range of grid");
+		return { data[index + 0], data[index + 1], data[index + 2], data[index + 3] };
+	} else if (bytes_per_pixel == 3) {
+		PTGN_ASSERT(index + 2 < data.size(), "Coordinate outside of range of grid");
+		return { data[index + 0], data[index + 1], data[index + 2], 255 };
+	} else if (bytes_per_pixel == 1) {
+		PTGN_ASSERT(index < data.size(), "Coordinate outside of range of grid");
+		return { 255, 255, 255, data[index] };
+	} else {
+		PTGN_ERROR("Unsupported texture format");
+	}
 }
 
 Surface::Surface(SDL_Surface* sdl_surface) {
@@ -434,71 +466,41 @@ Surface::Surface(SDL_Surface* sdl_surface) {
 
 	SDL_Surface* surface{ sdl_surface };
 
-	format = GetFormatFromSDL(surface->format->format);
+	format			= GetFormatFromSDL(surface->format->format);
+	bytes_per_pixel = surface->format->BytesPerPixel;
+
+	auto convert_to_format = [&](TextureFormat f) {
+		format			= f;
+		surface			= SDL_ConvertSurfaceFormat(surface, static_cast<std::uint32_t>(format), 0);
+		bytes_per_pixel = surface->format->BytesPerPixel;
+		PTGN_ASSERT(surface != nullptr, SDL_GetError());
+	};
 
 	if (format == TextureFormat::Unknown) {
-		// Convert format.
-		format	= TextureFormat::RGBA8888;
-		surface = SDL_ConvertSurfaceFormat(surface, static_cast<std::uint32_t>(format), 0);
-		PTGN_ASSERT(surface != nullptr, SDL_GetError());
+		// Convert format to RGBA8888.
+		std::invoke(convert_to_format, TextureFormat::RGBA8888);
+	} else if (format == TextureFormat::A8) {
+		std::invoke(convert_to_format, TextureFormat::ABGR8888);
 	}
-
-	PTGN_ASSERT(
-		format != TextureFormat::Unknown, "Cannot create surface with unknown texture format"
-	);
 
 	int lock{ SDL_LockSurface(surface) };
 	PTGN_ASSERT(lock == 0, "Failed to lock surface when copying pixels");
 
 	size = { surface->w, surface->h };
 
-	std::size_t total_pixels{ static_cast<std::size_t>(size.x) * size.y };
+	std::size_t total_pixels{ static_cast<std::size_t>(size.x) * size.y * bytes_per_pixel };
 
-	data.resize(total_pixels, color::Transparent);
+	data.reserve(total_pixels);
 
-	bool r_mask{ surface->format->Rmask == 0x000000ff };
-	bool b_mask{ surface->format->Bmask == 0x000000ff };
-
-	auto get_color = [&](const std::uint8_t* pixel) {
-		switch (surface->format->BytesPerPixel) {
-			case 4: {
-				if (r_mask) {
-					return Color{ pixel[0], pixel[1], pixel[2], pixel[3] };
-				} else if (b_mask) {
-					return Color{ pixel[2], pixel[1], pixel[0], pixel[3] };
-				} else {
-					return Color{ pixel[3], pixel[2], pixel[1], pixel[0] };
-				}
+	for (int y = 0; y < size.y; ++y) {
+		auto row = static_cast<std::uint8_t*>(surface->pixels) + y * surface->pitch;
+		for (int x = 0; x < size.x; ++x) {
+			auto pixel = row + x * bytes_per_pixel;
+			for (int b = 0; b < bytes_per_pixel; ++b) {
+				data.push_back(pixel[b]);
 			}
-			case 3: {
-				if (r_mask) {
-					return Color{ pixel[0], pixel[1], pixel[2], 255 };
-				} else if (b_mask) {
-					return Color{ pixel[2], pixel[1], pixel[0], 255 };
-				} else {
-					PTGN_ERROR("Failed to identify mask for fully opaque pixel format");
-				}
-			}
-			case 1: {
-				return Color{ 255, 255, 255, pixel[0] };
-				break;
-			}
-			default: PTGN_ERROR("Unsupported texture format"); break;
-		}
-	};
-
-	for (int y{ 0 }; y < size.y; ++y) {
-		const std::uint8_t* row{ static_cast<std::uint8_t*>(surface->pixels) + y * surface->pitch };
-		auto idx_row{ static_cast<std::size_t>(y) * size.x };
-		for (int x{ 0 }; x < size.x; ++x) {
-			const std::uint8_t* pixel{ row + x * surface->format->BytesPerPixel };
-			auto index{ idx_row + x };
-			PTGN_ASSERT(index < data.size());
-			data[index] = std::invoke(get_color, pixel);
 		}
 	}
-
-	PTGN_ASSERT(data.size() == total_pixels);
 
 	SDL_UnlockSurface(surface);
 
@@ -506,7 +508,21 @@ Surface::Surface(SDL_Surface* sdl_surface) {
 		// Surface was converted so new surface must be freed.
 		SDL_FreeSurface(surface);
 	}
+
+	SDL_FreeSurface(sdl_surface);
 }
+
+Surface::Surface(const path& filepath) :
+	Surface{ std::invoke([&]() {
+		PTGN_ASSERT(
+			FileExists(filepath),
+			"Cannot create texture from a nonexistent filepath: ", filepath.string()
+		);
+		// Freed by Surface constructor.
+		SDL_Surface* sdl_surface{ IMG_Load(filepath.string().c_str()) };
+		PTGN_ASSERT(sdl_surface != nullptr, IMG_GetError());
+		return sdl_surface;
+	}) } {}
 
 void Surface::FlipVertically() {
 	PTGN_ASSERT(!data.empty(), "Cannot vertically flip an empty surface");
@@ -519,24 +535,15 @@ void Surface::FlipVertically() {
 	}
 }
 
-Color Surface::GetPixel(const V2_int& coordinate) const {
-	PTGN_ASSERT(!data.empty(), "Cannot get pixel of an empty surface");
-	auto index{ static_cast<std::size_t>(coordinate.y) * size.x + coordinate.x };
-	PTGN_ASSERT(coordinate.x >= 0, "Coordinate outside of range of grid");
-	PTGN_ASSERT(coordinate.y >= 0, "Coordinate outside of range of grid");
-	PTGN_ASSERT(index < data.size(), "Coordinate outside of range of grid");
-	return data[index];
-}
-
 void Surface::ForEachPixel(const std::function<void(const V2_int&, const Color&)>& function) const {
 	PTGN_ASSERT(!data.empty(), "Cannot loop through each pixel of an empty surface");
+	PTGN_ASSERT(function != nullptr, "Invalid loop function");
 	for (int j{ 0 }; j < size.y; j++) {
 		auto idx_row{ static_cast<std::size_t>(j) * size.x };
 		for (int i{ 0 }; i < size.x; i++) {
 			V2_int coordinate{ i, j };
 			auto index{ idx_row + i };
-			PTGN_ASSERT(index < data.size());
-			std::invoke(function, coordinate, data[index]);
+			std::invoke(function, coordinate, GetPixel(index));
 		}
 	}
 }

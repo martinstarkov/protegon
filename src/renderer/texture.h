@@ -18,12 +18,15 @@ namespace ptgn {
 
 // Format of pixels for a texture or surface.
 // e.g. RGBA8888 means 8 bits per color channel (32 bits total).
-enum class TextureFormat {
+enum class TextureFormat : std::uint32_t {
 	Unknown	 = 0,		  // SDL_PIXELFORMAT_UNKNOWN
 	RGB888	 = 370546692, // SDL_PIXELFORMAT_RGB888
 	RGBA8888 = 373694468, // SDL_PIXELFORMAT_RGBA8888
 	BGRA8888 = 377888772, // SDL_PIXELFORMAT_BGRA8888
 	BGR888	 = 374740996, // SDL_PIXELFORMAT_BGR888
+	ABGR8888 = 376840196, // SDL_PIXELFORMAT_ABGR8888
+	ARGB8888 = 372645892, // SDL_PIXELFORMAT_ARGB8888
+	A8		 = 318769153, // SDL_PIXELFORMAT_INDEX8 // Only alpha values.
 };
 
 enum class TextureWrapping {
@@ -48,8 +51,10 @@ class RenderData;
 
 struct Surface {
 	Surface() = default;
-	// Note: This does not free the surface.
+	// IMPORTANT: This function will free the surface.
 	explicit Surface(SDL_Surface* sdl_surface);
+
+	explicit Surface(const path& filepath);
 
 	// Mirrors the surface vertically.
 	void FlipVertically();
@@ -63,10 +68,15 @@ struct Surface {
 
 	TextureFormat format{ TextureFormat::Unknown };
 
-	// The row major one dimensionalized array of pixels that makes up the surface.
-	std::vector<Color> data;
+	std::size_t bytes_per_pixel{ 0 };
+	// The row major one dimensionalized array of pixel values that makes up the surface.
+	std::vector<std::uint8_t> data;
 
 	V2_int size;
+
+private:
+	// @param index One dimensionalized index into the data array.
+	[[nodiscard]] Color GetPixel(std::size_t index) const;
 };
 
 [[nodiscard]] TextureFormat GetFormatFromSDL(std::uint32_t sdl_format);
@@ -88,9 +98,19 @@ struct Surface {
 void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip);
 
 enum class InternalGLFormat {
+	R8	  = 0x8229, // GL_R8
 	RGB8  = 0x8051, // GL_RGB8
 	RGBA8 = 0x8058, // GL_RGBA8
 };
+
+enum class InputGLFormat {
+	SingleChannel = 0x1903, // GL_RED
+	RGB			  = 0x1907, // GL_RGB
+	RGBA		  = 0x1908, // GL_RGBA
+	BGR			  = 0x80E0, // GL_BGR
+	BGRA		  = 0x80E1, // GL_BGRA
+};
+
 enum class InternalGLDepthFormat {
 	DEPTH24_STENCIL8 = 0x88F0 // GL_DEPTH24_STENCIL8 AND GL_DEPTH24_STENCIL8_OES
 };
@@ -115,9 +135,12 @@ enum class TextureParameter {
 };
 
 struct GLFormats {
+	// Storage format of the OpenGL texture.
 	InternalGLFormat internal_format{ InternalGLFormat::RGBA8 };
-	std::uint32_t input_format{ 0 };
-	int color_components{ 0 };
+	// Input format of the pixel data to the texture.
+	InputGLFormat input_format{ InputGLFormat::RGBA };
+	// Number of color components that make up the texture pixel (e.g. RGB has 3).
+	int color_components{ 4 };
 };
 
 [[nodiscard]] GLFormats GetGLFormats(TextureFormat format);
@@ -231,12 +254,16 @@ private:
 
 class TextureManager {
 public:
+	// If key exists in the texture manager, does nothing.
 	void Load(std::string_view key, const path& filepath);
 
 	void Unload(std::string_view key);
 
 	// @return Size of the texture.
 	[[nodiscard]] V2_int GetSize(std::string_view key) const;
+
+	// @return True if the texture key is loaded.
+	[[nodiscard]] bool Has(std::string_view key) const;
 
 private:
 	friend class RenderData;
@@ -245,7 +272,7 @@ private:
 
 	[[nodiscard]] bool Has(std::size_t key) const;
 
-	[[nodiscard]] static Surface LoadFromFile(const path& filepath);
+	[[nodiscard]] static Texture LoadFromFile(const path& filepath);
 
 	// TODO: Fix.
 	// Draws the texture to the currently bound frame buffer.
