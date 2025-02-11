@@ -3,7 +3,11 @@
 #include "ecs/ecs.h"
 #include "math/vector2.h"
 
-namespace ptgn::impl {
+namespace ptgn {
+
+class Scene;
+
+namespace impl {
 
 class Game;
 
@@ -12,13 +16,15 @@ public:
 	[[nodiscard]] V2_float GetGravity() const;
 	void SetGravity(const V2_float& gravity);
 
-	// @return Frame time in milliseconds
+	// @return Physics time step in seconds.
 	[[nodiscard]] float dt() const;
 
 private:
 	friend class Game;
+	friend class ptgn::Scene;
 
-	void Update(ecs::Manager& manager) const;
+	void PreCollisionUpdate(ecs::Manager& manager) const;
+	void PostCollisionUpdate(ecs::Manager& manager) const;
 
 	V2_float gravity_{ 0.0f, 30.0f * 60.0f };
 };
@@ -133,4 +139,6 @@ computeVelocity : function(body, delta) {
 //     velocity = velocity.Normalized() * max_velocity;
 // }
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn

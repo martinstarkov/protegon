@@ -13,7 +13,6 @@
 #include "math/collider.h"
 #include "math/math.h"
 #include "math/vector2.h"
-#include "physics/physics.h"
 #include "rigid_body.h"
 #include "utility/assert.h"
 #include "utility/timer.h"
@@ -66,7 +65,7 @@ void MoveArrowKeys(V2_float& vel, const V2_float& amount, bool cancel_velocity_i
 	);
 }
 
-void TopDownMovement::Update(Transform& transform, RigidBody& rb) {
+void TopDownMovement::Update(Transform& transform, RigidBody& rb, float dt) {
 	if (keys_enabled) {
 		if (game.input.KeyPressed(up_key)) {
 			up_input = true;
@@ -120,7 +119,7 @@ void TopDownMovement::Update(Transform& transform, RigidBody& rb) {
 
 	// Calculate movement, depending on whether "Instant Movement" has been checked
 	if (use_acceleration) {
-		RunWithAcceleration(desired_velocity, rb);
+		RunWithAcceleration(desired_velocity, rb, dt);
 	} else {
 		rb.velocity = desired_velocity;
 	}
@@ -267,13 +266,12 @@ void TopDownMovement::Move(MoveDirection direction) {
 	}
 }
 
-void TopDownMovement::RunWithAcceleration(const V2_float& desired_velocity, RigidBody& rb) const {
+void TopDownMovement::RunWithAcceleration(const V2_float& desired_velocity, RigidBody& rb, float dt)
+	const {
 	// In the future one could include a state machine based choice here.
 	float acceleration{ max_acceleration };
 	float deceleration{ max_deceleration };
 	float turn_speed{ max_turn_speed };
-
-	float dt{ game.physics.dt() };
 
 	auto set_velocity = [&](std::size_t i) {
 		float max_speed_change{ 0.0f };
@@ -302,7 +300,7 @@ void TopDownMovement::RunWithAcceleration(const V2_float& desired_velocity, Rigi
 	std::invoke(set_velocity, 1);
 }
 
-void PlatformerMovement::Update(Transform& transform, RigidBody& rb) const {
+void PlatformerMovement::Update(Transform& transform, RigidBody& rb, float dt) const {
 	bool left{ game.input.KeyPressed(left_key) };
 	bool right{ game.input.KeyPressed(right_key) };
 
@@ -328,18 +326,18 @@ void PlatformerMovement::Update(Transform& transform, RigidBody& rb) const {
 
 	// Calculate movement, depending on whether "Instant Movement" has been checked
 	if (use_acceleration) {
-		RunWithAcceleration(desired_velocity, dir_x, rb);
+		RunWithAcceleration(desired_velocity, dir_x, rb, dt);
 	} else {
 		if (grounded) {
 			rb.velocity.x = desired_velocity.x;
 		} else {
-			RunWithAcceleration(desired_velocity, dir_x, rb);
+			RunWithAcceleration(desired_velocity, dir_x, rb, dt);
 		}
 	}
 }
 
 void PlatformerMovement::RunWithAcceleration(
-	const V2_float& desired_velocity, float dir_x, RigidBody& rb
+	const V2_float& desired_velocity, float dir_x, RigidBody& rb, float dt
 ) const {
 	// Set our acceleration, deceleration, and turn speed stats, based on whether we're on the
 	// ground on in the air
@@ -351,8 +349,6 @@ void PlatformerMovement::RunWithAcceleration(
 	bool left{ game.input.KeyPressed(left_key) };
 	bool right{ game.input.KeyPressed(right_key) };
 	bool pressing_key{ (left && !right) || (!left && right) };
-
-	float dt{ game.physics.dt() };
 
 	float max_speed_change{ 0.0f };
 
@@ -388,7 +384,7 @@ void PlatformerJump::Ground(Collision c, CollisionCategory ground_category) {
 	}
 }
 
-void PlatformerJump::Update(RigidBody& rb, bool grounded) {
+void PlatformerJump::Update(RigidBody& rb, bool grounded, const V2_float& gravity) {
 	bool pressed_jump{ game.input.KeyDown(jump_key) };
 
 	if (grounded) {
@@ -404,7 +400,7 @@ void PlatformerJump::Update(RigidBody& rb, bool grounded) {
 	bool jump_buffered{ jump_buffer_.IsRunning() && !jump_buffer_.Completed(jump_buffer_time) };
 	bool in_coyote{ coyote_timer_.IsRunning() && !coyote_timer_.Completed(coyote_time) };
 
-	CalculateGravity(rb, grounded);
+	CalculateGravity(rb, grounded, gravity);
 
 	// Situations where pressing jump triggers a jump:
 	// 1. On ground.
@@ -413,11 +409,11 @@ void PlatformerJump::Update(RigidBody& rb, bool grounded) {
 
 	if ((pressed_jump && grounded) || (grounded && jump_buffered) ||
 		(pressed_jump && in_coyote && !grounded)) {
-		Jump(rb);
+		Jump(rb, gravity);
 	}
 }
 
-void PlatformerJump::Jump(RigidBody& rb) {
+void PlatformerJump::Jump(RigidBody& rb, const V2_float& gravity) {
 	jumping_ = true;
 
 	jump_buffer_.Stop();
@@ -427,7 +423,7 @@ void PlatformerJump::Jump(RigidBody& rb) {
 	// canJumpAgain = (maxAirJumps == 1 && canJumpAgain == false);
 
 	// Determine the power of the jump, based on our gravity and stats
-	float jump_speed{ std::sqrt(2.0f * game.physics.GetGravity().y * rb.gravity * jump_height) };
+	float jump_speed{ std::sqrt(2.0f * gravity.y * rb.gravity * jump_height) };
 
 	// If Kit is moving up or down when she jumps (such as when doing a double jump), change
 	// the jump_speed; This will ensure the jump is the exact same strength, no matter your
@@ -446,7 +442,7 @@ void PlatformerJump::Jump(RigidBody& rb) {
 	// }
 }
 
-void PlatformerJump::CalculateGravity(RigidBody& rb, bool grounded) const {
+void PlatformerJump::CalculateGravity(RigidBody& rb, bool grounded, const V2_float& gravity) const {
 	float gravity_multiplier{ 0.0f };
 
 	if (grounded) {
@@ -470,8 +466,8 @@ void PlatformerJump::CalculateGravity(RigidBody& rb, bool grounded) const {
 		rb.velocity.y = std::clamp(rb.velocity.y, 0.0f, terminal_velocity);
 	}
 	// TODO: Incorporate rb gravity.
-	rb.gravity = gravity_multiplier * 2 * jump_height /
-				 (time_to_jump_apex * time_to_jump_apex * game.physics.GetGravity().y);
+	rb.gravity =
+		gravity_multiplier * 2 * jump_height / (time_to_jump_apex * time_to_jump_apex * gravity.y);
 }
 
 } // namespace ptgn

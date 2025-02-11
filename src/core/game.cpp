@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 
+#include "SDL_timer.h"
 #include "audio/audio.h"
 #include "core/gl_context.h"
 #include "core/manager.h"
@@ -11,25 +12,17 @@
 #include "core/window.h"
 #include "event/event_handler.h"
 #include "event/input_handler.h"
-#include "math/collision.h"
 #include "math/vector2.h"
-#include "physics/physics.h"
 #include "renderer/color.h"
 #include "renderer/font.h"
 #include "renderer/renderer.h"
 #include "renderer/shader.h"
-#include "renderer/text.h"
 #include "renderer/texture.h"
-#include "scene/camera.h"
 #include "scene/scene_manager.h"
-#include "SDL_timer.h"
 #include "serialization/json_manager.h"
-#include "ui/ui.h"
-#include "utility/assert.h"
+#include "utility/debug.h"
 #include "utility/profiling.h"
 #include "utility/time.h"
-#include "utility/tween.h"
-#include "vfx/light.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -51,7 +44,6 @@ EM_JS(int, get_screen_height, (), { return screen.height; });
 #include "CoreFoundation/CoreFoundation.h"
 
 #endif
-#include "renderer/frame_buffer.h"
 
 namespace ptgn {
 
@@ -136,16 +128,6 @@ Game::Game() :
 	renderer{ *renderer_ },
 	scene_{ std::make_unique<SceneManager>() },
 	scene{ *scene_ },
-	physics_{ std::make_unique<Physics>() },
-	physics{ *physics_ },
-	collision_{ std::make_unique<CollisionHandler>() },
-	collision{ *collision_ },
-	ui_{ std::make_unique<UserInterface>() },
-	ui{ *ui_ },
-	camera_{ std::make_unique<CameraManager>() },
-	camera{ *camera_ },
-	tween_{ std::make_unique<TweenManager>() },
-	tween{ *tween_ },
 	music_{ std::make_unique<MusicManager>() },
 	music{ *music_ },
 	sound_{ std::make_unique<SoundManager>() },
@@ -154,8 +136,6 @@ Game::Game() :
 	json{ *json_ },
 	font_{ std::make_unique<FontManager>() },
 	font{ *font_ },
-	/*text_{ std::make_unique<TextManager>() },
-	text{ *text_ },*/
 	texture_{ std::make_unique<TextureManager>() },
 	texture{ *texture_ },
 	shader_{ std::make_unique<ShaderManager>() },
@@ -209,7 +189,6 @@ void Game::Init(
 	shader.Init();
 
 	renderer.Init(background_color);
-	camera.Init();
 	// light.Init();
 
 	game.window.SetTitle(title);
@@ -232,12 +211,12 @@ void Game::Shutdown() {
 	// Keep SDL2 instance and OpenGL context alive to ensure SDL2 objects such as TTF_Font are
 	// consistent across game instances. For instance: If the user does the following:
 	//
-	// game.Start<StartScene>();
+	// game.scene.Enter<StartScene>();
 	// // Inside StartScene:
 	// static Font test_font;
 	// Text test_text{ test_font };
 	// // After window quit start again:
-	// game.Start<StartScene>();
+	// game.scene.Enter<StartScene>();
 	// static Font test_font; // handle already created in the previous SDL initialization.
 	// Text test_text{ test_font }; // if SDL has been shutdown, this would not work due to
 	// inconsistent SDL versions.
@@ -268,8 +247,8 @@ void Game::MainLoop() {
 void Game::Update() {
 	static auto start{ std::chrono::system_clock::now() };
 	static auto end{ std::chrono::system_clock::now() };
-	// Calculate time elapsed during previous frame.
-	duration<float> elapsed_time{ end - start };
+	// Calculate time elapsed during previous frame. Unit: seconds.
+	duration<float, seconds::period> elapsed_time{ end - start };
 
 	float elapsed{ elapsed_time.count() };
 
@@ -289,6 +268,7 @@ void Game::Update() {
 
 	renderer.ClearScreen();
 
+	input.Update();
 	scene.Update();
 
 	renderer.PresentScreen();
@@ -303,10 +283,6 @@ void Game::Update() {
 #endif
 
 	scene.HandleSceneEvents();
-
-	if (scene.HasCurrent()) {
-		scene.GetCurrent().manager.Refresh();
-	}
 
 	if (profiler.IsEnabled()) {
 		profiler.PrintAll();

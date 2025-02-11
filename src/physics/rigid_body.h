@@ -14,12 +14,14 @@ struct RigidBody {
 	bool immovable{ false };
 
 	// vel += accel * dt
-	void AddAcceleration(const V2_float& acceleration);
+	// @param dt Unit: seconds.
+	void AddAcceleration(const V2_float& acceleration, float dt);
 
 	// vel += impulse
 	void AddImpulse(const V2_float& impulse);
 
-	void Update();
+	// @param dt Unit: seconds.
+	void Update(const V2_float& physics_gravity, float dt);
 };
 
 } // namespace ptgn

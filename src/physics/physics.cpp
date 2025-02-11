@@ -3,10 +3,9 @@
 #include "components/transform.h"
 #include "core/game.h"
 #include "ecs/ecs.h"
-#include "math/collision.h"
+#include "math/vector2.h"
 #include "physics/movement.h"
 #include "physics/rigid_body.h"
-#include "scene/scene_manager.h"
 
 namespace ptgn::impl {
 
@@ -23,24 +22,28 @@ float Physics::dt() const {
 	return game.dt();
 }
 
-void Physics::Update(ecs::Manager& manager) const {
+void Physics::PreCollisionUpdate(ecs::Manager& manager) const {
+	float dt{ Physics::dt() };
 	for (auto [e, t, rb, m] : manager.EntitiesWith<Transform, RigidBody, TopDownMovement>()) {
-		m.Update(t, rb);
+		m.Update(t, rb, dt);
 	}
 	for (auto [e, t, rb, m, j] :
 		 manager.EntitiesWith<Transform, RigidBody, PlatformerMovement, PlatformerJump>()) {
-		m.Update(t, rb);
-		j.Update(rb, m.grounded);
+		m.Update(t, rb, dt);
+		j.Update(rb, m.grounded, gravity_);
 	}
 	for (auto [e, rb] : manager.EntitiesWith<RigidBody>()) {
-		rb.Update();
+		rb.Update(gravity_, dt);
 	}
 	for (auto [e, m] : manager.EntitiesWith<PlatformerMovement>()) {
 		m.grounded = false;
 	}
-	game.collision.Update(manager);
+}
+
+void Physics::PostCollisionUpdate(ecs::Manager& manager) const {
+	float dt{ Physics::dt() };
 	for (auto [e, t, rb] : manager.EntitiesWith<Transform, RigidBody>()) {
-		t.position += rb.velocity * game.physics.dt();
+		t.position += rb.velocity * dt;
 	}
 }
 

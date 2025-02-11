@@ -5,7 +5,6 @@
 
 #include "math/vector2.h"
 #include "renderer/color.h"
-#include "scene/scene_manager.h"
 #include "utility/stats.h"
 
 namespace ptgn {
@@ -24,14 +23,9 @@ class Renderer;
 class SceneManager;
 class CameraManager;
 class JsonManager;
-class Physics;
-class CollisionHandler;
-class UserInterface;
-class TweenManager;
 class MusicManager;
 class SoundManager;
 class FontManager;
-class TextManager;
 class TextureManager;
 class ShaderManager;
 class Profiler;
@@ -61,7 +55,7 @@ private:
 	Game& operator=(Game&&)		 = delete;
 
 public:
-	// @return Previous frame time in milliseconds
+	// @return Previous frame time in seconds.
 	[[nodiscard]] float dt() const;
 
 	// @return Milliseconds since Init() was called.
@@ -80,15 +74,6 @@ public:
 		const std::string& title = "Default Title", const V2_int& window_size = { 800, 800 },
 		const Color& background_color = color::White
 	);
-
-	template <typename TScene, typename TKey, typename... TArgs>
-	void Start(
-		const TKey& scene_key, const SceneTransition& transition = {}, TArgs&&... constructor_args
-	) {
-		scene.EnterStartScene<TScene>(
-			scene_key, transition, std::forward<TArgs>(constructor_args)...
-		);
-	}
 
 	// Stops the game from running.
 	void Stop();
@@ -175,12 +160,6 @@ public:
 	FontManager& font;
 
 private:
-	// std::unique_ptr<TextManager> text_;
-
-public:
-	// TextManager& text;
-
-private:
 	std::unique_ptr<TextureManager> texture_;
 
 public:
@@ -206,6 +185,7 @@ public:
 
 private:
 	bool running_{ false };
+	// Frame time in seconds.
 	float dt_{ 0.0f };
 
 public:

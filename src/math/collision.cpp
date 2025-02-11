@@ -103,7 +103,7 @@ V2_float CollisionHandler::GetRemainingVelocity(
 	PTGN_ERROR("Failed to identify DynamicCollisionResponse type");
 }
 
-void CollisionHandler::Update(ecs::Manager& manager) const {
+void CollisionHandler::Update(ecs::Manager& manager) {
 	auto boxes{ manager.EntitiesWith<BoxCollider>() };
 	auto circles{ manager.EntitiesWith<CircleCollider>() };
 

@@ -1,12 +1,14 @@
 #pragma once
 
 #include <functional>
+#include <iosfwd>
 
 #include "components/transform.h"
 #include "event/key.h"
 #include "math/collider.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
+#include "utility/log.h"
 #include "utility/time.h"
 #include "utility/timer.h"
 
@@ -115,7 +117,8 @@ struct TopDownMovement {
 	std::function<void()> on_move_left_stop;
 	std::function<void()> on_move_right_stop;
 
-	void Update(Transform& transform, RigidBody& rb);
+	// @param dt Unit: seconds.
+	void Update(Transform& transform, RigidBody& rb, float dt);
 
 	// Invoke a movement command in a specific direction the same as a key input would. If move
 	// direction is none, movement inputs will be set to false.
@@ -134,7 +137,8 @@ struct TopDownMovement {
 	[[nodiscard]] MoveDirection GetPreviousDirection() const;
 
 private:
-	void RunWithAcceleration(const V2_float& desired_velocity, RigidBody& rb) const;
+	// @param dt Unit: seconds.
+	void RunWithAcceleration(const V2_float& desired_velocity, RigidBody& rb, float dt) const;
 
 	[[nodiscard]] static bool GetMovingState(const V2_float& d, MoveDirection direction);
 
@@ -184,15 +188,18 @@ struct PlatformerMovement {
 	Key left_key{ Key::A };
 	Key right_key{ Key::D };
 
-	void Update(Transform& transform, RigidBody& rb) const;
+	// @param dt Unit: seconds.
+	void Update(Transform& transform, RigidBody& rb, float dt) const;
 
 private:
-	void RunWithAcceleration(const V2_float& desired_velocity, float dir_x, RigidBody& rb) const;
+	// @param dt Unit: seconds.
+	void RunWithAcceleration(const V2_float& desired_velocity, float dir_x, RigidBody& rb, float dt)
+		const;
 };
 
 struct PlatformerJump {
 public:
-	void Update(RigidBody& rb, bool grounded);
+	void Update(RigidBody& rb, bool grounded, const V2_float& gravity);
 
 	Key jump_key{ Key::W };
 	Key down_key{ Key::S };
@@ -228,8 +235,8 @@ private:
 	Timer jump_buffer_;
 	Timer coyote_timer_;
 
-	void Jump(RigidBody& rb);
-	void CalculateGravity(RigidBody& rb, bool grounded) const;
+	void Jump(RigidBody& rb, const V2_float& gravity);
+	void CalculateGravity(RigidBody& rb, bool grounded, const V2_float& gravity) const;
 };
 
 } // namespace ptgn

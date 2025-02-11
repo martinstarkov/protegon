@@ -17,7 +17,11 @@
 #include "renderer/color.h"
 #include "utility/assert.h"
 
-namespace ptgn::impl {
+namespace ptgn {
+
+class Scene;
+
+namespace impl {
 
 class Game;
 class Physics;
@@ -204,8 +208,9 @@ public:
 private:
 	friend class Game;
 	friend class Physics;
+	friend class ptgn::Scene;
 
-	void Update(ecs::Manager& manager) const;
+	static void Update(ecs::Manager& manager);
 
 	// TODO: Fix or get rid of.
 	/*static void DrawVelocity(const V2_float& start, const V2_float& vel, const Color& color);*/
@@ -331,4 +336,6 @@ private:
 	constexpr static float slop{ 0.0005f };
 };
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn
