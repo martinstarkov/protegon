@@ -11,13 +11,11 @@
 #include "renderer/color.h"
 #include "renderer/gl_helper.h"
 #include "renderer/gl_loader.h"
-#include "renderer/gl_renderer.h"
 #include "renderer/gl_types.h"
 #include "renderer/renderer.h"
 #include "renderer/texture.h"
 #include "utility/assert.h"
 #include "utility/debug.h"
-#include "utility/handle.h"
 #include "utility/stats.h"
 
 namespace ptgn::impl {
@@ -235,14 +233,14 @@ Color FrameBuffer::GetPixel(const V2_int& coordinate) const {
 	auto formats{ impl::GetGLFormats(texture_.GetFormat()) };
 	PTGN_ASSERT(
 		formats.color_components >= 3,
-		"Cannot retrieve pixel data of render target texture with less than 3 RGB components"
+		"Textures with less than 3 pixel components cannot currently be queried"
 	);
 	std::vector<std::uint8_t> v(static_cast<std::size_t>(formats.color_components * 1 * 1));
 	int y{ size.y - 1 - coordinate.y };
 	PTGN_ASSERT(y >= 0);
 	Bind();
 	GLCall(gl::glReadPixels(
-		coordinate.x, y, 1, 1, formats.input_format,
+		coordinate.x, y, 1, 1, static_cast<gl::GLenum>(formats.input_format),
 		static_cast<gl::GLenum>(impl::GLType::UnsignedByte), static_cast<void*>(v.data())
 	));
 	return Color{ v[0], v[1], v[2],
@@ -254,14 +252,14 @@ void FrameBuffer::ForEachPixel(const std::function<void(V2_int, Color)>& func) c
 	auto formats{ impl::GetGLFormats(texture_.GetFormat()) };
 	PTGN_ASSERT(
 		formats.color_components >= 3,
-		"Cannot retrieve pixel data of render target texture with less than 3 RGB components"
+		"Textures with less than 3 pixel components cannot currently be queried"
 	);
 
 	std::vector<std::uint8_t> v(static_cast<std::size_t>(formats.color_components * size.x * size.y)
 	);
 	Bind();
 	GLCall(gl::glReadPixels(
-		0, 0, size.x, size.y, formats.input_format,
+		0, 0, size.x, size.y, static_cast<gl::GLenum>(formats.input_format),
 		static_cast<gl::GLenum>(impl::GLType::UnsignedByte), static_cast<void*>(v.data())
 	));
 	for (int j{ 0 }; j < size.y; j++) {
