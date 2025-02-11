@@ -1,34 +1,22 @@
 #include "renderer/renderer.h"
 
-#include <algorithm>
-#include <array>
-#include <cstdint>
-#include <numeric>
 #include <type_traits>
-#include <vector>
 
 #include "core/game.h"
 #include "core/window.h"
-#include "event/event_handler.h"
-#include "event/events.h"
-#include "math/geometry/polygon.h"
 #include "math/vector2.h"
-#include "renderer/buffer.h"
 #include "renderer/color.h"
 #include "renderer/frame_buffer.h"
 #include "renderer/gl_renderer.h"
-#include "renderer/gl_types.h"
 #include "renderer/render_data.h"
-#include "renderer/render_target.h"
-#include "renderer/shader.h"
-#include "renderer/texture.h"
-#include "renderer/vertex_array.h"
-#include "utility/assert.h"
-#include "utility/handle.h"
+#include "utility/debug.h"
+#include "utility/log.h"
+#include "utility/stats.h"
 
 namespace ptgn::impl {
 
 void Renderer::Init(const Color& window_background_color) {
+	background_color_ = window_background_color;
 	ClearScreen();
 	// GLRenderer::EnableLineSmoothing();
 	// TODO: Fix.
@@ -152,7 +140,20 @@ RenderData& Renderer::GetRenderData() {
 }
 
 void Renderer::PresentScreen() {
-	if (game.scene.current_scene_.second != nullptr) {}
+	if (std::invoke([]() {
+			auto viewport_size{ GLRenderer::GetViewportSize() };
+			if (viewport_size.IsZero()) {
+				return false;
+			}
+			if (viewport_size.x == 1 && viewport_size.y == 1) {
+				return false;
+			}
+			return true;
+		})) {
+		game.window.SwapBuffers();
+	} else {
+		PTGN_WARN("Rendering to 0 to 1 sized viewport");
+	}
 	// TODO: Fix.
 	// Flush();
 	// screen_target_.Get().DrawToScreen();
@@ -209,7 +210,7 @@ void Renderer::PresentScreen() {
 
 void Renderer::ClearScreen() const {
 	FrameBuffer::Unbind();
-	GLRenderer::SetClearColor(color::Transparent);
+	GLRenderer::SetClearColor(background_color_);
 	GLRenderer::Clear();
 }
 

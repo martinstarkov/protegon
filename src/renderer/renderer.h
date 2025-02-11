@@ -147,6 +147,7 @@ private:
 
 	// Renderer keeps track of what is bound.
 
+	Color background_color_{ color::Transparent };
 	// Default value results in fullscreen.
 	V2_int resolution_;
 	ResolutionMode scaling_mode_{ ResolutionMode::Disabled };
