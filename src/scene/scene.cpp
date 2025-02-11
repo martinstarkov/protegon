@@ -1,20 +1,45 @@
 #include "scene/scene.h"
 
+#include "core/game.h"
+#include "ecs/ecs.h"
+#include "event/input_handler.h"
+#include "math/collision.h"
+#include "renderer/renderer.h"
+#include "utility/tween.h"
+
 namespace ptgn {
-void Scene::PreUpdate() {}
 
-void Scene::PostUpdate() {}
-
-void Scene::Add(Action new_action) {
-	actions_.insert(new_action);
+void Scene::Add(Action new_status) {
+	actions_.insert(new_status);
 }
 
-void Scene::Remove(Action action) {
-	actions_.erase(action);
+void Scene::InternalEnter() {
+	active_ = true;
+	// Input is reset to ensure no previously pressed keys are considered held.
+	game.input.ResetKeyStates();
+	game.input.ResetMouseStates();
+	Enter();
+	manager.Refresh();
 }
 
-bool Scene::HasActions() const {
-	return !actions_.empty();
+void Scene::InternalExit() {
+	Exit();
+	manager.Refresh();
+	active_ = false;
+}
+
+void Scene::InternalUpdate() {
+	// input.Update();
+	Update();
+	for (auto [e, tween] : manager.EntitiesWith<Tween>()) {
+		if (tween.IsValid()) {
+			tween.Step(game.dt());
+		}
+	}
+	physics.PreCollisionUpdate(manager);
+	impl::CollisionHandler::Update(manager);
+	physics.PostCollisionUpdate(manager);
+	game.renderer.GetRenderData().Render({}, camera.primary, manager);
 }
 
 } // namespace ptgn

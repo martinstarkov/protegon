@@ -3,6 +3,8 @@
 #include <set>
 
 #include "ecs/ecs.h"
+#include "physics/physics.h"
+#include "scene/camera.h"
 
 namespace ptgn {
 
@@ -20,50 +22,49 @@ public:
 	Scene()			 = default;
 	virtual ~Scene() = default;
 
-	// Called when the scene is set as active.
+	// Called when the scene is added to active scenes.
 	virtual void Enter() {
 		/* user implementation */
 	}
 
-	// Called once per frame when this scene is active.
+	// Called once per frame for each active scene.
 	virtual void Update() {
 		/* user implementation */
 	}
 
-	// Called when the scene is no longer active.
+	// Called when the scene is removed from active scenes.
 	virtual void Exit() {
 		/* user implementation */
 	}
 
-	InputHandler input;
-	Physics physics;
-	CollisionHandler collision;
-	UserInterface ui;
-	CameraManager camera;
-	TweenManager tween;
 	ecs::Manager manager;
+	// SceneInput input;
+	impl::Physics physics;
+	impl::CameraManager camera;
 
 private:
 	friend class impl::SceneManager;
 	friend class SceneTransition;
 
-	void PreUpdate();
-	void PostUpdate();
+	void InternalEnter();
+	void InternalUpdate();
+	void InternalExit();
 
-	// Numbering determines the execution order of scene actions.
+	std::size_t key_;
+
+	bool active_{ false };
+
+	// If the actions is manually numbered, its order determines the execution order of scene
+	// functions.
 	enum class Action {
-		Init	 = 0,
-		Shutdown = 1,
-		Unload	 = 2
+		Enter  = 0,
+		Exit   = 1,
+		Unload = 2
 	};
 
+	std::set<Action> actions_;
+
 	void Add(Action new_action);
-	void Remove(Action action);
-
-	// @return True if the scene has uncompleted actions, false otherwise.
-	[[nodiscard]] bool HasActions() const;
-
-	std::set<Action> actions_{};
 };
 
 } // namespace ptgn
