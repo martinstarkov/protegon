@@ -9,6 +9,7 @@ in vec2 v_TexCoord;
 uniform sampler2D u_Texture;
 uniform vec2 u_Resolution;
 uniform vec2 u_LightPosition;
+uniform vec4 u_Color;
 uniform float u_LightIntensity;
 uniform float u_LightRadius;
 uniform float u_Falloff;
@@ -55,12 +56,11 @@ void main() {
 
     float attenuation = attenuate_cusp(distance, u_LightRadius, u_LightIntensity, u_Falloff);
 
+    // Various alternative light attenuation functions:
     // float attenuation = attenuate_no_cusp(distance, u_LightRadius, u_LightIntensity, u_Falloff);
-
     // float attenuation = 1.0 / (u_LightAttenuation.x + u_LightAttenuation.y * distance + u_LightAttenuation.z * distance * distance);
-    
-    //float attenuation = clamp(1.0 - distance * distance / (u_LightRadius * u_LightRadius), 0.0, 1.0);
+    // float attenuation = clamp(1.0 - distance * distance / (u_LightRadius * u_LightRadius), 0.0, 1.0);
 
-    o_Color = attenuation * v_Color + u_AmbientIntensity * vec4(u_AmbientColor.x, u_AmbientColor.y, u_AmbientColor.z, 1.0);
+    o_Color = (attenuation * u_Color + u_AmbientIntensity * vec4(u_AmbientColor.x, u_AmbientColor.y, u_AmbientColor.z, 1.0)) * v_Color;
 }
 )"
