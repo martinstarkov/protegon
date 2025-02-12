@@ -25,6 +25,7 @@ void Scene::InternalEnter() {
 void Scene::InternalExit() {
 	Exit();
 	manager.Refresh();
+	manager.Reset();
 	active_ = false;
 }
 
@@ -38,6 +39,7 @@ void Scene::InternalUpdate() {
 	impl::CollisionHandler::Update(manager);
 	physics.PostCollisionUpdate(manager);
 	game.renderer.GetRenderData().Render({}, camera.primary, manager);
+	manager.Refresh();
 }
 
 } // namespace ptgn
