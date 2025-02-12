@@ -12,7 +12,7 @@
 
 using namespace ptgn;
 
-void FadeIn(ecs::Entity e, milliseconds duration) {
+ecs::Entity FadeIn(ecs::Entity e, milliseconds duration) {
 	auto fade_entity{ e.GetManager().CreateEntity() };
 	fade_entity.Add<Tween>()
 		.During(duration)
@@ -30,6 +30,7 @@ void FadeIn(ecs::Entity e, milliseconds duration) {
 		})
 		.OnComplete([=]() mutable { fade_entity.Destroy(); })
 		.Start();
+	return fade_entity;
 }
 
 class AnimationExample : public Scene {
@@ -39,15 +40,11 @@ public:
 	void Enter() override {
 		game.texture.Load("test", "resources/animation.png");
 
-		ecs::Entity s1 = manager.CreateEntity();
+		auto s1{ CreateAnimation(manager, "test", 4, V2_float{ 16, 32 }, milliseconds{ 500 }) };
 		s1.Add<Transform>(game.window.GetCenter(), 0.0f, scale);
-		auto& a = s1.Add<Animation>(s1, "test", 4, V2_float{ 16, 32 }, milliseconds{ 500 });
-		a.Start();
-		s1.Add<Visible>();
+		s1.Get<Tween>().Start();
 
 		FadeIn(s1, milliseconds{ 5000 });
-
-		manager.Refresh();
 	}
 };
 
