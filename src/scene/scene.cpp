@@ -32,9 +32,7 @@ void Scene::InternalUpdate() {
 	// input.Update();
 	Update();
 	for (auto [e, tween] : manager.EntitiesWith<Tween>()) {
-		if (tween.IsValid()) {
-			tween.Step(game.dt());
-		}
+		tween.Step(game.dt());
 	}
 	physics.PreCollisionUpdate(manager);
 	impl::CollisionHandler::Update(manager);

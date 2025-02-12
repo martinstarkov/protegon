@@ -1,6 +1,5 @@
 #pragma once
 
-#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <functional>
@@ -11,8 +10,6 @@
 #include <vector>
 
 #include "math/math.h"
-#include "utility/assert.h"
-#include "utility/handle.h"
 #include "utility/time.h"
 
 namespace ptgn {
@@ -110,12 +107,9 @@ const static std::unordered_map<TweenEase, TweenEaseFunction> tween_ease_functio
 };
 
 struct TweenPoint {
-	explicit TweenPoint(milliseconds duration) : duration_{ duration } {}
+	explicit TweenPoint(milliseconds duration);
 
-	void SetReversed(bool reversed) {
-		start_reversed_		= reversed;
-		currently_reversed_ = start_reversed_;
-	}
+	void SetReversed(bool reversed);
 
 	milliseconds duration_{ 0 };
 
@@ -147,43 +141,10 @@ struct TweenPoint {
 	TweenCallback on_resume_;
 };
 
-struct TweenInstance {
-	TweenInstance()								   = default;
-	TweenInstance(const TweenInstance&)			   = default;
-	TweenInstance(TweenInstance&&)				   = default;
-	TweenInstance& operator=(const TweenInstance&) = default;
-	TweenInstance& operator=(TweenInstance&&)	   = default;
-	~TweenInstance();
-
-	// Value between [0.0f, 1.0f] indicating how much of the total duration the tween has passed in
-	// the current repetition. Note: This value remains 0.0f to 1.0f even when the tween is reversed
-	// or yoyoing.
-	float progress_{ 0.0f };
-
-	std::size_t index_{ 0 };
-	std::vector<TweenPoint> tweens_points_;
-
-	TweenCallback on_reset_;
-
-	bool paused_{ false };
-	bool started_{ false };
-
-	[[nodiscard]] bool IsCompleted() const;
-
-	[[nodiscard]] float GetNewProgress(duration<float> time) const;
-	[[nodiscard]] float GetProgress() const;
-
-	[[nodiscard]] TweenPoint& GetCurrentTweenPoint();
-	[[nodiscard]] const TweenPoint& GetCurrentTweenPoint() const;
-	[[nodiscard]] TweenPoint& GetLastTweenPoint();
-};
-
 } // namespace impl
 
-class Tween : public Handle<impl::TweenInstance> {
+class Tween {
 public:
-	Tween() = default;
-
 	Tween& During(milliseconds duration);
 	Tween& Ease(TweenEase ease);
 
@@ -266,16 +227,7 @@ public:
 
 	// @param tween_point_index Which tween point to query to duration of.
 	// @return The duration of the specified tween point.
-	template <typename Duration = milliseconds>
-	[[nodiscard]] Duration GetDuration(std::size_t tween_point_index = 0) const {
-		const auto& t{ Get() };
-		PTGN_ASSERT(
-			tween_point_index < t.tweens_points_.size(),
-			"Specified tween point index is out of range. Ensure tween points has been added "
-			"beforehand"
-		);
-		return std::chrono::duration_cast<Duration>(t.tweens_points_[tween_point_index].duration_);
-	}
+	[[nodiscard]] milliseconds GetDuration(std::size_t tween_point_index = 0) const;
 
 	// @param duration Duration to set for the tween.
 	// @param tween_point_index Which tween point to set the duration of.
@@ -284,8 +236,10 @@ public:
 private:
 	// @return New progress of the tween after seeking.
 	[[nodiscard]] float SeekImpl(float new_progress);
+
 	// @return New progress of the tween after stepping.
 	[[nodiscard]] float StepImpl(float dt, bool accumulate_progress);
+
 	// @return New progress of the tween after accumulating.
 	[[nodiscard]] float AccumulateProgress(float new_progress);
 
@@ -295,6 +249,25 @@ private:
 
 	// @return New progress of the tween after updating.
 	float UpdateImpl(bool suppress_update = false);
+
+	[[nodiscard]] float GetNewProgress(duration<float> time) const;
+
+	[[nodiscard]] impl::TweenPoint& GetCurrentTweenPoint();
+	[[nodiscard]] const impl::TweenPoint& GetCurrentTweenPoint() const;
+	[[nodiscard]] impl::TweenPoint& GetLastTweenPoint();
+
+	// Value between [0.0f, 1.0f] indicating how much of the total duration the tween has passed in
+	// the current repetition. Note: This value remains 0.0f to 1.0f even when the tween is reversed
+	// or yoyoing.
+	float progress_{ 0.0f };
+
+	std::size_t index_{ 0 };
+	std::vector<impl::TweenPoint> tweens_points_;
+
+	TweenCallback on_reset_;
+
+	bool paused_{ false };
+	bool started_{ false };
 };
 
 } // namespace ptgn
