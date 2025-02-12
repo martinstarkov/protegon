@@ -179,6 +179,10 @@ const Texture& FrameBuffer::GetTexture() const {
 	return texture_;
 }
 
+Texture& FrameBuffer::GetTexture() {
+	return texture_;
+}
+
 const RenderBuffer& FrameBuffer::GetRenderBuffer() const {
 	return render_buffer_;
 }

@@ -12,7 +12,7 @@ namespace ptgn {
 // Each render target is initialized with a window camera.
 class RenderTarget {
 public:
-	Camera camera;
+	Camera camera{ Camera::UninitializedCamera{} };
 
 	// A default render target will result in the screen being used as the render target.
 	RenderTarget() = default;
@@ -24,11 +24,10 @@ public:
 
 	~RenderTarget();
 
+	// TODO: Implement window resizing.
 	// Create a render target that is continuously sized to the window.
 	// @param clear_color The background color of the render target.
-	/*explicit RenderTarget(
-		const Color& clear_color
-	);*/
+	// explicit RenderTarget(const Color& clear_color);
 
 	// Create a render target with a custom size.
 	// @param size The size of the render target.
@@ -48,6 +47,7 @@ public:
 
 	// @return Texture attached to the render target.
 	[[nodiscard]] const impl::Texture& GetTexture() const;
+	[[nodiscard]] impl::Texture& GetTexture();
 
 	// @return Frame buffer of the render target.
 	[[nodiscard]] const impl::FrameBuffer& GetFrameBuffer() const;

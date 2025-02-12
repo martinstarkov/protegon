@@ -10,38 +10,44 @@
 #include "renderer/gl_renderer.h"
 #include "renderer/renderer.h"
 #include "renderer/texture.h"
+#include "scene/camera.h"
 #include "utility/assert.h"
 
 namespace ptgn {
 
-// TODO: Add window subscribe stuff here.
-// RenderTarget::RenderTarget(const Color& clear_color, BlendMode blend_mode) :
-//	texture_{ Texture::WindowTexture{} },
-//	frame_buffer_{ texture_,
-//				   false /* do not rebind previous frame buffer because it will be cleared */ },
-//	blend_mode_{ blend_mode },
-//	clear_color_{ clear_color } {
-//	SubscribeToEvents();
-//	PTGN_ASSERT(V2_int{ camera_.GetSize() } == texture_.GetSize());
-//	PTGN_ASSERT(V2_int{ viewport_.size } == game.window.GetSize());
-//	PTGN_ASSERT(frame_buffer_.IsValid(), "Failed to create valid frame buffer for render target");
-//	Clear();
-//}
+/*
+RenderTarget::RenderTarget(const Color& clear_color) :
+	texture_{ Texture::WindowTexture{} },
+	frame_buffer_{ texture_,
+				   false },
+	blend_mode_{ blend_mode },
+	clear_color_{ clear_color } {
+	SubscribeToEvents();
+	PTGN_ASSERT(V2_int{ camera_.GetSize() } == texture_.GetSize());
+	PTGN_ASSERT(V2_int{ viewport_.size } == game.window.GetSize());
+	PTGN_ASSERT(frame_buffer_.IsValid(), "Failed to create valid frame buffer for render target");
+	Clear();
+}
+*/
 
 RenderTarget::RenderTarget(const V2_float& size, const Color& clear_color) :
-	frame_buffer_{ impl::Texture(nullptr, size) }, clear_color_{ clear_color } {
+	camera{}, frame_buffer_{ impl::Texture(nullptr, size) }, clear_color_{ clear_color } {
 	PTGN_ASSERT(frame_buffer_.IsValid(), "Failed to create valid frame buffer for render target");
 	PTGN_ASSERT(frame_buffer_.IsBound(), "Failed to bind frame buffer for render target");
 	Clear();
 }
 
 RenderTarget::RenderTarget(RenderTarget&& other) noexcept :
+	camera{ std::exchange(other.camera, Camera{ Camera::UninitializedCamera{} }) },
 	frame_buffer_{ std::exchange(other.frame_buffer_, {}) },
-	clear_color_{ std::exchange(other.clear_color_, {}) } {}
+	clear_color_{ std::exchange(other.clear_color_, {}) } {
+	// TODO: Add window subscribe stuff here.
+}
 
 RenderTarget& RenderTarget::operator=(RenderTarget&& other) noexcept {
 	if (this != &other) {
 		// TODO: Add window subscribe stuff here.
+		camera		  = std::exchange(other.camera, Camera{ Camera::UninitializedCamera{} });
 		frame_buffer_ = std::exchange(other.frame_buffer_, {});
 		clear_color_  = std::exchange(other.clear_color_, {});
 	}
@@ -127,6 +133,10 @@ void RenderTarget::SetClearColor(const Color& clear_color) {
 }
 
 const impl::Texture& RenderTarget::GetTexture() const {
+	return frame_buffer_.GetTexture();
+}
+
+impl::Texture& RenderTarget::GetTexture() {
 	return frame_buffer_.GetTexture();
 }
 

@@ -65,6 +65,7 @@ public:
 
 	// @return The texture attached to the frame buffer.
 	[[nodiscard]] const Texture& GetTexture() const;
+	[[nodiscard]] Texture& GetTexture();
 
 	// @return The render buffer attached to the frame buffer.
 	[[nodiscard]] const RenderBuffer& GetRenderBuffer() const;
