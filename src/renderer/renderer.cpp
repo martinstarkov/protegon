@@ -9,6 +9,8 @@
 #include "renderer/frame_buffer.h"
 #include "renderer/gl_renderer.h"
 #include "renderer/render_data.h"
+#include "scene/scene_manager.h"
+#include "utility/assert.h"
 #include "utility/debug.h"
 #include "utility/log.h"
 #include "utility/stats.h"
@@ -140,7 +142,12 @@ RenderData& Renderer::GetRenderData() {
 }
 
 void Renderer::PresentScreen() {
-	if (std::invoke([]() {
+	PTGN_ASSERT(
+		std::invoke([]() {
+			// No active scenes added yet so viewport cannot be set.
+			if (game.scene.GetActiveSceneCount() == 0) {
+				return true;
+			}
 			auto viewport_size{ GLRenderer::GetViewportSize() };
 			if (viewport_size.IsZero()) {
 				return false;
@@ -149,11 +156,16 @@ void Renderer::PresentScreen() {
 				return false;
 			}
 			return true;
-		})) {
-		game.window.SwapBuffers();
-	} else {
-		PTGN_WARN("Rendering to 0 to 1 sized viewport");
-	}
+		}),
+		"Attempting to render to 0 or 1 sized viewport"
+	);
+	PTGN_ASSERT(
+		FrameBuffer::IsUnbound(),
+		"Frame buffer must be unbound (id=0) before swapping SDL2 buffer to the screen"
+	);
+
+	game.window.SwapBuffers();
+
 	// TODO: Fix.
 	// Flush();
 	// screen_target_.Get().DrawToScreen();
