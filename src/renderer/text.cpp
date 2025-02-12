@@ -22,10 +22,11 @@
 namespace ptgn {
 
 Text::Text(
-	ecs::Entity parent, std::string_view content, const Color& text_color, std::string_view font_key
+	ecs::Manager& manager, std::string_view content, const Color& text_color,
+	std::string_view font_key
 ) {
 	entity_.Destroy();
-	entity_ = parent.GetManager().CreateEntity();
+	entity_ = manager.CreateEntity();
 	entity_.Add<TextContent>(content);
 	if (text_color != TextColor{}) {
 		entity_.Add<TextColor>(text_color);
