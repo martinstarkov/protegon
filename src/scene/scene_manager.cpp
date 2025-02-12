@@ -33,8 +33,6 @@ void SceneManager::EnterImpl(std::size_t scene_key) {
 
 	bool first_scene{ GetActiveSceneCount() == 0 };
 
-	sc.scene->active_ = true;
-
 	EnterScene(scene_key);
 
 	if (first_scene) {
