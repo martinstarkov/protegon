@@ -79,25 +79,7 @@ private:
 	[[nodiscard]] Color GetPixel(std::size_t index) const;
 };
 
-[[nodiscard]] TextureFormat GetFormatFromSDL(std::uint32_t sdl_format);
-
-[[nodiscard]] static constexpr std::array<V2_float, 4> GetDefaultTextureCoordinates() {
-	return {
-		V2_float{ 0.0f, 0.0f },
-		V2_float{ 1.0f, 0.0f },
-		V2_float{ 1.0f, 1.0f },
-		V2_float{ 0.0f, 1.0f },
-	};
-}
-
-[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(
-	const V2_float& source_position, const V2_float& source_size, const V2_float& texture_size,
-	bool offset_texels = false
-);
-
-void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip);
-
-enum class InternalGLFormat {
+enum class InternalGLFormat : std::int32_t {
 	R8	  = 0x8229, // GL_R8
 	RGB8  = 0x8051, // GL_RGB8
 	RGBA8 = 0x8058, // GL_RGBA8
@@ -142,6 +124,26 @@ struct GLFormats {
 	// Number of color components that make up the texture pixel (e.g. RGB has 3).
 	int color_components{ 4 };
 };
+
+[[nodiscard]] TextureFormat GetFormatFromOpenGL(InternalGLFormat opengl_internal_format);
+
+[[nodiscard]] TextureFormat GetFormatFromSDL(std::uint32_t sdl_format);
+
+[[nodiscard]] static constexpr std::array<V2_float, 4> GetDefaultTextureCoordinates() {
+	return {
+		V2_float{ 0.0f, 0.0f },
+		V2_float{ 1.0f, 0.0f },
+		V2_float{ 1.0f, 1.0f },
+		V2_float{ 0.0f, 1.0f },
+	};
+}
+
+[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(
+	const V2_float& source_position, const V2_float& source_size, const V2_float& texture_size,
+	bool offset_texels = false
+);
+
+void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip);
 
 [[nodiscard]] GLFormats GetGLFormats(TextureFormat format);
 
@@ -216,6 +218,8 @@ public:
 	[[nodiscard]] bool IsValid() const;
 
 	[[nodiscard]] TextureFormat GetFormat() const;
+
+	void Resize(const V2_int& new_size);
 
 private:
 	void GenerateTexture();

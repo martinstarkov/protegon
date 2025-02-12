@@ -31,6 +31,15 @@
 
 namespace ptgn::impl {
 
+TextureFormat GetFormatFromOpenGL(InternalGLFormat opengl_internal_format) {
+	switch (opengl_internal_format) {
+		case InternalGLFormat::RGBA8: return TextureFormat::RGBA8888;
+		case InternalGLFormat::RGB8:  return TextureFormat::RGB888;
+		case InternalGLFormat::R8:	  return TextureFormat::A8;
+		default:					  PTGN_ERROR("Unsupported or unrecognized OpenGL format");
+	}
+}
+
 TextureFormat GetFormatFromSDL(std::uint32_t sdl_format) {
 	switch (sdl_format) {
 		case SDL_PIXELFORMAT_RGBA8888: return TextureFormat::RGBA8888;
@@ -233,7 +242,9 @@ void Texture::DeleteTexture() noexcept {
 }
 
 TextureFormat Texture::GetFormat() const {
-	return static_cast<TextureFormat>(GetLevelParameterI(TextureLevelParameter::InternalFormat, 0));
+	return GetFormatFromOpenGL(
+		static_cast<InternalGLFormat>(GetLevelParameterI(TextureLevelParameter::InternalFormat, 0))
+	);
 }
 
 V2_int Texture::GetSize() const {
@@ -353,6 +364,11 @@ bool Texture::ValidMinifyingForMipmaps(TextureScaling minifying) {
 		   minifying == TextureScaling::LinearMipmapNearest ||
 		   minifying == TextureScaling::NearestMipmapLinear ||
 		   minifying == TextureScaling::NearestMipmapNearest;
+}
+
+void Texture::Resize(const V2_int& new_size) {
+	Bind();
+	SetData(nullptr, new_size, GetFormat(), 0);
 }
 
 void Texture::SetData(
