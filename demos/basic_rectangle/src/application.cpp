@@ -1,3 +1,6 @@
+#include <string_view>
+#include <type_traits>
+
 #include "components/draw.h"
 #include "components/transform.h"
 #include "core/game.h"
@@ -74,6 +77,7 @@ struct BasicRectangleScene : public Scene {
 			.SetAmbientIntensity(0.2f)
 			.SetAmbientColor(color::Blue);
 		point_light0.Add<Transform>(light0_pos);
+		point_light0.Add<Depth>(1);
 		point_light0.Add<Visible>();
 
 		game.texture.Load("test1", "resources/test1.jpg");
@@ -85,16 +89,27 @@ struct BasicRectangleScene : public Scene {
 		game.texture.Load("test05", "resources/test05.png");
 		game.texture.Load("test06", "resources/test06.png");
 
-		CreateSprite(manager, "test1", { 0, 0 }).Add<Origin>(Origin::TopLeft);
-		CreateSprite(manager, "test2", { ws.x, 0 }).Add<Origin>(Origin::TopRight);
+		auto s1 = CreateSprite(manager, "test1");
+		s1.Add<Transform>(V2_float{ 0, 0 });
+		s1.Add<Origin>(Origin::TopLeft);
+		auto s2 = CreateSprite(manager, "test2");
+		s2.Add<Transform>(V2_float{ ws.x, 0 });
+		s2.Add<Origin>(Origin::TopRight);
 
 		V2_float size{ 100, 100 };
-		CreateSprite(manager, "test01", { size.x * 1, center.y }).Add<Size>(size);
-		CreateSprite(manager, "test02", { size.x * 2, center.y }).Add<Size>(size);
-		CreateSprite(manager, "test03", { size.x * 3, center.y }).Add<Size>(size);
-		CreateSprite(manager, "test04", { size.x * 4, center.y }).Add<Size>(size);
-		CreateSprite(manager, "test05", { size.x * 5, center.y }).Add<Size>(size);
-		CreateSprite(manager, "test06", { size.x * 6, center.y }).Add<Size>(size);
+
+		auto create_sprite_obj = [&](std::string_view texture_key, int offset) {
+			auto s = CreateSprite(manager, texture_key);
+			s.Add<Transform>(V2_float{ size.x * static_cast<float>(offset), center.y });
+			s.Add<Size>(size);
+		};
+
+		std::invoke(create_sprite_obj, "test01", 1);
+		std::invoke(create_sprite_obj, "test02", 2);
+		std::invoke(create_sprite_obj, "test03", 3);
+		std::invoke(create_sprite_obj, "test04", 4);
+		std::invoke(create_sprite_obj, "test05", 5);
+		std::invoke(create_sprite_obj, "test06", 6);
 
 		rt = manager.CreateEntity();
 		rt.Add<RenderTarget>(window_size);
@@ -131,7 +146,7 @@ struct BasicRectangleScene : public Scene {
 		game.font.Load("test_font", "resources/test_font.ttf");
 
 		auto text1 = manager.CreateEntity();
-		text1.Add<Text>(text1, "Hello world!", color::Black, "test_font");
+		text1.Add<Text>(manager, "Hello world!", color::Black, "test_font");
 		text1.Add<Transform>(center - V2_float{ 0, 130 });
 		text1.Add<Visible>();
 

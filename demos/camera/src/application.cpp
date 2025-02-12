@@ -9,7 +9,6 @@
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/origin.h"
-#include "renderer/render_data.h"
 #include "renderer/render_target.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
@@ -25,7 +24,9 @@ public:
 	void Enter() override {
 		game.texture.Load("ui_texture", "resources/ui.jpg");
 
-		CreateSprite(manager, "ui_texture", { 0, 0 }).Add<Origin>(Origin::TopLeft);
+		auto ui = CreateSprite(manager, "texture");
+		ui.Add<Transform>();
+		ui.Add<Origin>(Origin::TopLeft);
 	}
 };
 
@@ -53,10 +54,8 @@ public:
 		camera2.SetBounds(bounds);
 		cam = &camera1;
 
-		auto texture = manager.CreateEntity();
+		auto texture = CreateSprite(manager, "texture");
 		texture.Add<Transform>(game.window.GetCenter());
-		texture.Add<Sprite>("texture");
-		texture.Add<Visible>();
 
 		auto b = manager.CreateEntity();
 		b.Add<Rect>();
@@ -71,7 +70,8 @@ public:
 
 		game.texture.Load("ui_texture", "resources/ui.jpg");
 
-		ui = CreateSprite(manager, "ui_texture", { window_size.x, 0 });
+		ui = CreateSprite(manager, "ui_texture");
+		ui.Add<Transform>(V2_float{ window_size.x, 0 });
 		ui.Add<Origin>(Origin::TopRight);
 		ui.Get<Visible>() = false;
 
@@ -141,7 +141,7 @@ public:
 			cam->SetPosition(center);
 			cam->SetZoom(1.0f);
 		}
-		PTGN_LOG(*cam);
+
 		camera.primary = *cam;
 
 		const auto& r{ rt.Get<RenderTarget>() };
