@@ -1,13 +1,14 @@
 #include "components/draw.h"
 
 #include <string_view>
-#include <utility>
+#include <type_traits>
 
 #include "core/game.h"
 #include "ecs/ecs.h"
+#include "math/hash.h"
 #include "math/math.h"
 #include "math/vector2.h"
-#include "transform.h"
+#include "renderer/texture.h"
 #include "utility/assert.h"
 #include "utility/time.h"
 #include "utility/tween.h"
@@ -15,90 +16,141 @@
 
 namespace ptgn {
 
-ecs::Entity CreateSprite(
-	ecs::Manager& manager, std::string_view texture_key, const V2_float& position
-) {
+ecs::Entity CreateSprite(ecs::Manager& manager, std::string_view texture_key) {
 	PTGN_ASSERT(
-		game.texture.Has(texture_key),
-		"Cannot create sprite with texture key that has not been loaded in the texture manager"
+		game.texture.Has(texture_key), "Sprite texture key must be loaded in the texture manager"
 	);
-	auto sprite = manager.CreateEntity();
-	sprite.Add<Transform>(position);
-	sprite.Add<Sprite>(texture_key);
-	sprite.Add<Visible>();
-	return sprite;
+
+	auto entity{ manager.CreateEntity() };
+
+	entity.Add<TextureKey>(Hash(texture_key));
+	entity.Add<Visible>();
+
+	return entity;
 }
 
-Animation::Animation(
-	ecs::Entity parent, std::string_view texture_key, std::size_t frame_count,
+ecs::Entity CreateAnimation(
+	ecs::Manager& manager, std::string_view texture_key, std::size_t frame_count,
 	const V2_float& frame_size, milliseconds animation_duration, const V2_float& start_pixel,
-	std::size_t starting_frame
-) :
-	impl::SpriteSheet{ texture_key, frame_count, frame_size, start_pixel } {
-	duration	= animation_duration;
-	start_frame = starting_frame;
-	parent_		= parent;
+	std::size_t start_frame
+) {
+	PTGN_ASSERT(start_frame < frame_count, "Start frame must be within animation frame count");
 
-	current_frame = start_frame;
-	repeat		  = 0;
+	PTGN_ASSERT(
+		game.texture.Has(texture_key), "Animation texture key must be loaded in the texture manager"
+	);
 
-	PTGN_ASSERT(start_frame < GetCount(), "Start frame must be within sprite sheet frame count");
+	auto entity{ manager.CreateEntity() };
 
-	milliseconds frame_duration{ duration / GetCount() };
+	entity.Add<TextureKey>(Hash(texture_key));
+	entity.Add<Visible>();
+	entity.Add<TextureCrop>();
+	entity.Add<impl::AnimationInfo>(frame_count, frame_size, start_pixel, start_frame);
 
-	entity_.Destroy();
-	entity_ = parent.GetManager().CreateEntity();
+	milliseconds frame_duration{ animation_duration / frame_count };
 
-	entity_.Add<Tween>()
+	auto update_crop = [](TextureCrop& crop, const impl::AnimationInfo& anim) {
+		crop.SetPosition(anim.GetCurrentFramePosition());
+		crop.SetSize(anim.GetFrameSize());
+	};
+
+	// TODO: Consider breaking this up into individual tween points using a for loop.
+	entity.Add<Tween>()
 		.During(frame_duration)
 		.Repeat(-1)
-		.OnStart([=]() {
-			auto& anim{ parent_.Get<Animation>() };
-			Invoke(anim.on_start);
+		.OnStart([=]() mutable {
+			auto [anim, crop] = entity.Get<impl::AnimationInfo, TextureCrop>();
+			anim.ResetToStartFrame();
+			std::invoke(update_crop, crop, anim);
+			if (entity.Has<callback::AnimationStart>()) {
+				Invoke(entity.Get<callback::AnimationStart>());
+			}
 		})
-		.OnRepeat([=]() {
-			auto& anim{ parent_.Get<Animation>() };
-			Invoke(anim.on_repeat);
-			++anim.repeat;
-			++anim.current_frame;
-			anim.current_frame = Mod(anim.current_frame, GetCount());
+		.OnRepeat([=]() mutable {
+			auto [anim, crop] = entity.Get<impl::AnimationInfo, TextureCrop>();
+			anim.IncrementFrame();
+			std::invoke(update_crop, crop, anim);
+			if (entity.Has<callback::AnimationRepeat>() &&
+				anim.GetFrameRepeats() % anim.GetFrameCount() == 0) {
+				Invoke(entity.Get<callback::AnimationRepeat>());
+			}
 		})
-		.OnReset([=]() {
-			auto& anim{ parent_.Get<Animation>() };
-			anim.current_frame = anim.start_frame;
-		})
-		.OnUpdate([=](float t) {
-			auto& anim{ parent_.Get<Animation>() };
-			Invoke(anim.on_update, t);
+		.OnReset([=]() mutable {
+			auto [anim, crop] = entity.Get<impl::AnimationInfo, TextureCrop>();
+			anim.ResetToStartFrame();
+			std::invoke(update_crop, crop, anim);
 		});
+
+	return entity;
 }
 
-Animation::Animation(Animation&& other) noexcept :
-	on_start{ std::exchange(other.on_start, {}) },
-	on_repeat{ std::exchange(other.on_repeat, {}) },
-	on_update{ std::exchange(other.on_update, {}) },
-	duration{ std::exchange(other.duration, milliseconds{ 0 }) },
-	repeat{ std::exchange(other.repeat, 0) },
-	current_frame{ std::exchange(other.current_frame, 0) },
-	start_frame{ std::exchange(other.start_frame, 0) },
-	entity_{ std::exchange(other.entity_, {}) } {}
-
-Animation& Animation::operator=(Animation&& other) noexcept {
-	if (this != &other) {
-		on_start	  = std::exchange(other.on_start, {});
-		on_repeat	  = std::exchange(other.on_repeat, {});
-		on_update	  = std::exchange(other.on_update, {});
-		duration	  = std::exchange(other.duration, milliseconds{ 0 });
-		repeat		  = std::exchange(other.repeat, 0);
-		current_frame = std::exchange(other.current_frame, 0);
-		start_frame	  = std::exchange(other.start_frame, 0);
-		entity_		  = std::exchange(other.entity_, {});
-	}
-	return *this;
+void TextureCrop::SetSize(const V2_float& size) {
+	size_ = size;
 }
 
-Animation::~Animation() {
-	entity_.Destroy();
+V2_float TextureCrop::GetSize() const {
+	return size_;
 }
+
+void TextureCrop::SetPosition(const V2_float& position) {
+	position_ = position;
+}
+
+V2_float TextureCrop::GetPosition() const {
+	return position_;
+}
+
+namespace impl {
+
+AnimationInfo::AnimationInfo(
+	std::size_t frame_count, const V2_float& frame_size, const V2_float& start_pixel,
+	std::size_t start_frame
+) :
+	frame_count_{ frame_count },
+	frame_size_{ frame_size },
+	start_pixel_{ start_pixel },
+	start_frame_{ start_frame } {}
+
+std::size_t AnimationInfo::GetSequenceRepeats() const {
+	return frame_repeats_ / frame_count_;
+}
+
+std::size_t AnimationInfo::GetFrameRepeats() const {
+	return frame_repeats_;
+}
+
+std::size_t AnimationInfo::GetFrameCount() const {
+	return frame_count_;
+}
+
+void AnimationInfo::SetCurrentFrame(std::size_t new_frame) {
+	current_frame_ = Mod(new_frame, frame_count_);
+}
+
+void AnimationInfo::IncrementFrame() {
+	SetCurrentFrame(++current_frame_);
+}
+
+void AnimationInfo::ResetToStartFrame() {
+	current_frame_ = start_frame_;
+}
+
+std::size_t AnimationInfo::GetCurrentFrame() const {
+	return current_frame_;
+}
+
+V2_float AnimationInfo::GetCurrentFramePosition() const {
+	return { start_pixel_.x + frame_size_.x * current_frame_, start_pixel_.y };
+}
+
+V2_float AnimationInfo::GetFrameSize() const {
+	return frame_size_;
+}
+
+std::size_t AnimationInfo::GetStartFrame() const {
+	return start_frame_;
+}
+
+} // namespace impl
 
 } // namespace ptgn

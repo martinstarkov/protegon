@@ -150,7 +150,7 @@ bool Batch::HasRoomForShape(ecs::Entity e) const {
 	std::size_t vertex_count{ 0 };
 	std::size_t index_count{ 0 };
 
-	if (e.HasAny<Sprite, Animation, Text, RenderTarget, Rect, Line, Circle, Ellipse, Point>()) {
+	if (e.HasAny<TextureKey, Text, RenderTarget, Rect, Line, Circle, Ellipse, Point>()) {
 		// Lines are rotated quads.
 		// Points are either circles or quads.
 		vertex_count = quad_vertex_count;
@@ -304,19 +304,23 @@ void RenderData::AddToBatch(
 		batch.AddTexturedQuad(positions, tex_coords, texture_index, color, depth);
 	};
 
-	if (e.Has<Sprite>()) {
-		const auto& sprite{ e.Get<Sprite>() };
-		std::invoke(add_sprite, sprite.source, false);
-		return;
-	} else if (e.Has<Animation>()) {
-		const auto& anim{ e.Get<Animation>() };
-		std::invoke(add_sprite, anim.GetSource(), false);
-		return;
-	} else if (e.Has<Text>()) {
-		std::invoke(add_sprite, Rect{ {}, {}, Origin::Center }, false);
+	Rect source;
+	source.origin = Origin::Center;
+
+	if (e.Has<TextureCrop>()) {
+		const auto& crop{ e.Get<TextureCrop>() };
+		source.position = crop.GetPosition();
+		source.size		= crop.GetSize();
+	}
+
+	if (e.HasAny<TextureKey, Text>()) {
+		if (source.size.IsZero()) {
+			source.size = texture.GetSize();
+		}
+		std::invoke(add_sprite, source, false);
 		return;
 	} else if (e.Has<RenderTarget>()) {
-		std::invoke(add_sprite, Rect{ {}, {}, Origin::Center }, true);
+		std::invoke(add_sprite, source, true);
 		return;
 	}
 
@@ -543,17 +547,9 @@ void RenderData::PopulateBatches(ecs::Entity e, bool check_visibility, const Cam
 		);
 	}
 	// TODO: Consolidate these into one texture key component.
-	if (e.Has<Sprite>()) {
-		auto texture_key{ e.Get<Sprite>().texture_key };
+	if (e.Has<TextureKey>()) {
 		AddTexture(
-			e, transform, depth, blend_mode, game.texture.Get(texture_key),
-			game.shader.Get<ShapeShader::Quad>(), camera
-		);
-	}
-	if (e.Has<Animation>()) {
-		auto texture_key{ e.Get<Animation>().texture_key };
-		AddTexture(
-			e, transform, depth, blend_mode, game.texture.Get(texture_key),
+			e, transform, depth, blend_mode, game.texture.Get(e.Get<TextureKey>()),
 			game.shader.Get<ShapeShader::Quad>(), camera
 		);
 	}

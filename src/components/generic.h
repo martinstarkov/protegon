@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <string_view>
 #include <type_traits>
 
@@ -63,6 +64,32 @@ struct StringViewComponent {
 
 private:
 	std::string_view value_{};
+};
+
+template <typename TReturn, typename... TArgs>
+struct CallbackComponent {
+	CallbackComponent() = default;
+
+	CallbackComponent(const std::function<TReturn(TArgs...)>& callback) : callback_{ callback } {}
+
+	TReturn operator()(TArgs&&... args) const {
+		return std::invoke(callback_, std::forward<TArgs>(args)...);
+	}
+
+	bool operator==(std::nullptr_t) const {
+		return callback_ == nullptr;
+	}
+
+	bool operator!=(std::nullptr_t) const {
+		return callback_ != nullptr;
+	}
+
+	operator std::function<TReturn(TArgs...)>() const {
+		return callback_;
+	}
+
+private:
+	std::function<TReturn(TArgs...)> callback_{ 0 };
 };
 
 } // namespace ptgn
