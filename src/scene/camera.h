@@ -141,6 +141,11 @@ public:
 
 	operator Matrix4() const;
 
+	struct UninitializedCamera {};
+
+	// Allows constructing a camera which does not subscribe to window rezize events by default.
+	explicit Camera(const UninitializedCamera&) {}
+
 protected:
 	[[nodiscard]] const Matrix4& GetView() const;
 	[[nodiscard]] const Matrix4& GetProjection() const;
@@ -189,14 +194,6 @@ protected:
 	};
 
 	Info info;
-
-private:
-	friend class impl::CameraManager;
-
-	// Allows constructing a camera which does not subscribe to window rezize events by default.
-	struct UninitializedCamera {};
-
-	explicit Camera(const UninitializedCamera&) {}
 };
 
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {
