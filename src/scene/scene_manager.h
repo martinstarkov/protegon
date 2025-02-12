@@ -15,6 +15,7 @@ class SceneTransition;
 namespace impl {
 
 class Game;
+class Renderer;
 
 struct SceneComponent {
 	std::unique_ptr<Scene> scene;
@@ -141,6 +142,7 @@ public:
 private:
 	friend class ptgn::SceneTransition;
 	friend class Game;
+	friend class Renderer;
 
 	[[nodiscard]] static std::size_t GetInternalKey(std::string_view key);
 
