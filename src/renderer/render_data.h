@@ -12,8 +12,10 @@
 #include "math/vector4.h"
 #include "renderer/blend_mode.h"
 #include "renderer/buffer_layout.h"
+#include "renderer/color.h"
 #include "renderer/frame_buffer.h"
 #include "renderer/gl_types.h"
+#include "renderer/render_target.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "renderer/vertex_array.h"
@@ -25,9 +27,6 @@ namespace ptgn {
 struct Point {};
 
 namespace impl {
-
-// TODO: Replace with include.
-struct PointLight {};
 
 struct Vertex {
 	glsl::vec3 position;
@@ -65,6 +64,7 @@ struct Batch {
 	std::vector<std::uint32_t> texture_ids;
 	std::vector<Vertex> vertices;
 	std::vector<IndexType> indices;
+	std::vector<ecs::Entity> lights;
 
 	void AddTexturedQuad(
 		const std::array<V2_float, quad_vertex_count>& positions,
@@ -87,18 +87,26 @@ struct Batch {
 
 	// return -1 if no available texture index
 	float GetTextureIndex(
-		std::uint32_t white_texture_id, std::size_t max_texture_slots, std::uint32_t texture_id
+		std::uint32_t texture_id, std::uint32_t white_texture_id, std::size_t max_texture_slots
 	);
 
-	// True if batch has room for these.
-	bool CanAccept(ecs::Entity e) const;
+	// @return True if the batch uses the specified shader and blend mode.
+	bool Uses(const Shader& other_shader, BlendMode other_blend_mode) const;
+
+	// @return True if the batch has room for the texture (or the texture id already exists in the
+	// batch).
+	bool HasRoomForTexture(
+		const Texture& texture, const Texture& white_texture, std::size_t max_texture_slots
+	);
+
+	// @return True if batch has room for these.
+	bool HasRoomForShape(ecs::Entity e) const;
 
 	void BindTextures() const;
 };
 
 struct Batches {
 	std::vector<Batch> vector;
-	ecs::Entity prev_light;
 };
 
 class RenderData {
@@ -112,31 +120,32 @@ public:
 
 private:
 	void AddToBatch(
-		Batch& batch, ecs::Entity e, Transform transform, const Depth& depth, const Texture& texture
+		Batch& batch, ecs::Entity e, Transform transform, const Depth& depth,
+		const Texture& texture, const Camera& camera
 	);
 
 	void AddTexture(
 		ecs::Entity e, const Transform& transform, const Depth& depth, const BlendMode& blend_mode,
-		const Texture& texture, const Shader& shader
+		const Texture& texture, const Shader& shader, const Camera& camera
 	);
 
-	void DrawLight(ecs::Entity e);
+	void SetVertexArrayToWindow(
+		const Camera& camera, const Color& color, const Depth& depth, float texture_index
+	);
 
 	void SetupRender(const FrameBuffer& frame_buffer, const Camera& camera) const;
-	void PopulateBatches(ecs::Entity entity, bool check_visibility);
+	void PopulateBatches(ecs::Entity entity, bool check_visibility, const Camera& camera);
 	void FlushBatches(const FrameBuffer& frame_buffer, const Camera& camera);
 
 	std::size_t max_texture_slots{ 0 };
 
 	Texture white_texture;
 
-	// TODO: Fix.
-	// RenderTarget lights;
+	RenderTarget lights;
 
 	BlendMode default_blend_mode{ BlendMode::Blend };
 	BlendMode light_blend_mode{ BlendMode::Add };
 
-	// VertexArray window_vao;
 	VertexArray triangle_vao;
 
 	std::map<Depth, Batches> batch_map;

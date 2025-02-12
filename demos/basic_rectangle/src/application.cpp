@@ -12,6 +12,7 @@
 #include "renderer/text.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
+#include "vfx/light.h"
 
 using namespace ptgn;
 
@@ -61,6 +62,19 @@ struct BasicRectangleScene : public Scene {
 		t2.Add<Transform>(center + V2_float{ 0, -180 });
 		t2.Add<Tint>(color::Blue);
 		t2.Add<Visible>();
+
+		V2_float light0_pos{ center + V2_float{ 100, 160 } };
+
+		auto point_light0 = manager.CreateEntity();
+		point_light0.Add<PointLight>()
+			.SetRadius(250.0f)
+			.SetIntensity(1.0f)
+			.SetFalloff(3.0f)
+			.SetColor(color::Pink)
+			.SetAmbientIntensity(0.2f)
+			.SetAmbientColor(color::Blue);
+		point_light0.Add<Transform>(light0_pos);
+		point_light0.Add<Visible>();
 
 		game.texture.Load("test1", "resources/test1.jpg");
 		game.texture.Load("test2", "resources/test2.png");
@@ -121,7 +135,30 @@ struct BasicRectangleScene : public Scene {
 		text1.Add<Transform>(center - V2_float{ 0, 130 });
 		text1.Add<Visible>();
 
-		manager.Refresh();
+		V2_float light1_pos{ center + V2_float{ 0, 160 } };
+		V2_float light2_pos{ center + V2_float{ 50, -160 } };
+
+		auto point_light1 = manager.CreateEntity();
+		point_light1.Add<PointLight>()
+			.SetRadius(200.0f)
+			.SetIntensity(1.0f)
+			.SetFalloff(3.0f)
+			.SetColor(color::Cyan)
+			.SetAmbientIntensity(0.2f)
+			.SetAmbientColor(color::Orange);
+		point_light1.Add<Transform>(light1_pos);
+		point_light1.Add<Visible>();
+
+		auto point_light2 = manager.CreateEntity();
+		point_light2.Add<PointLight>()
+			.SetRadius(200.0f)
+			.SetIntensity(1.0f)
+			.SetFalloff(3.0f)
+			.SetColor(color::Orange)
+			.SetAmbientIntensity(0.2f)
+			.SetAmbientColor(color::Red);
+		point_light2.Add<Transform>(light2_pos);
+		point_light2.Add<Visible>();
 	}
 
 	void Update() override {
@@ -134,7 +171,7 @@ struct BasicRectangleScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("BasicRectangleExample", window_size, color::White);
+	game.Init("BasicRectangleExample", window_size, color::Transparent);
 	game.scene.Enter<BasicRectangleScene>("basic_rectangle_example");
 	return 0;
 }
