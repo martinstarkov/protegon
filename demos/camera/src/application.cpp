@@ -10,6 +10,7 @@
 #include "renderer/color.h"
 #include "renderer/origin.h"
 #include "renderer/render_data.h"
+#include "renderer/render_target.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
@@ -18,6 +19,15 @@
 using namespace ptgn;
 
 constexpr V2_int window_size{ 800, 800 };
+
+class CameraUIScene : public Scene {
+public:
+	void Enter() override {
+		game.texture.Load("ui_texture", "resources/ui.jpg");
+
+		CreateSprite(manager, "ui_texture", { 0, 0 }).Add<Origin>(Origin::TopLeft);
+	}
+};
 
 class CameraExampleScene : public Scene {
 public:
@@ -28,17 +38,11 @@ public:
 	Camera camera1;
 	Camera camera2;
 
-	ecs::Entity mouse;
+	ecs::Entity rt;
+	ecs::Entity ui;
 
 	void Enter() override {
 		game.texture.Load("texture", "resources/test1.jpg");
-		game.texture.Load("ui_texture", "resources/ui.jpg");
-
-		mouse = manager.CreateEntity();
-		mouse.Add<Point>();
-		mouse.Add<Transform>();
-		mouse.Add<Tint>(color::Red);
-		mouse.Add<Visible>();
 
 		Rect bounds{ {}, window_size, Origin::TopLeft };
 
@@ -63,17 +67,18 @@ public:
 		b.Add<Tint>(color::Red);
 		b.Add<Visible>();
 
-		// TODO: Move to own scene.
-		/*RenderTarget ui{ color::Transparent };
+		game.scene.Enter<CameraUIScene>("ui_scene");
 
-		game.renderer.SetRenderTarget(ui);
+		game.texture.Load("ui_texture", "resources/ui.jpg");
 
-		ui_texture.Draw({ { 0, 0 }, ui_texture.GetSize(), Origin::TopLeft }, {});
-		game.input.GetMousePosition().Draw(color::Blue, 4.0f);
+		ui = CreateSprite(manager, "ui_texture", { window_size.x, 0 });
+		ui.Add<Origin>(Origin::TopRight);
+		ui.Get<Visible>() = false;
 
-		game.renderer.SetRenderTarget({});
-
-		ui.Draw();*/
+		rt = manager.CreateEntity();
+		rt.Add<RenderTarget>(window_size);
+		rt.Add<Transform>();
+		rt.Add<Visible>();
 	}
 
 	Camera* cam{ nullptr };
@@ -87,8 +92,6 @@ public:
 		} else if (game.input.KeyDown(Key::K_2)) {
 			cam = &camera2;
 		}
-
-		mouse.Get<Transform>() = game.input.GetMousePosition();
 
 		if (game.input.KeyPressed(Key::W)) {
 			cam->Translate({ 0, -pan_speed * dt });
@@ -140,6 +143,12 @@ public:
 		}
 		PTGN_LOG(*cam);
 		camera.primary = *cam;
+
+		const auto& r{ rt.Get<RenderTarget>() };
+		r.Bind();
+		r.Clear();
+
+		r.Draw(ui);
 	}
 };
 
