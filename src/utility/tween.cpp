@@ -34,8 +34,8 @@ inline void InvokeCallback(const TweenCallback& callback, TArgs&&... args) {
 }
 
 bool Tween::IsCompleted() const {
-	return !tweens_points_.empty() && progress_ >= 1.0f &&
-		   (index_ >= tweens_points_.size() - 1 || !started_);
+	return !tween_points_.empty() && progress_ >= 1.0f &&
+		   (index_ >= tween_points_.size() - 1 || !started_);
 }
 
 float Tween::GetNewProgress(duration<float> time) const {
@@ -50,6 +50,10 @@ float Tween::GetNewProgress(duration<float> time) const {
 }
 
 float Tween::GetProgress() const {
+	if (tween_points_.empty()) {
+		return progress_;
+	}
+
 	auto& current{ GetCurrentTweenPoint() };
 
 	float progress = current.currently_reversed_ ? 1.0f - progress_ : progress_;
@@ -60,12 +64,12 @@ float Tween::GetProgress() const {
 }
 
 const impl::TweenPoint& Tween::GetCurrentTweenPoint() const {
-	PTGN_ASSERT(!tweens_points_.empty());
-	PTGN_ASSERT(index_ <= tweens_points_.size());
-	if (index_ == tweens_points_.size()) {
-		return tweens_points_.back();
+	PTGN_ASSERT(!tween_points_.empty());
+	PTGN_ASSERT(index_ <= tween_points_.size());
+	if (index_ == tween_points_.size()) {
+		return tween_points_.back();
 	}
-	return tweens_points_[index_];
+	return tween_points_[index_];
 }
 
 impl::TweenPoint& Tween::GetCurrentTweenPoint() {
@@ -73,13 +77,13 @@ impl::TweenPoint& Tween::GetCurrentTweenPoint() {
 }
 
 impl::TweenPoint& Tween::GetLastTweenPoint() {
-	PTGN_ASSERT(!tweens_points_.empty(), "Tween must be given duration before setting properties");
-	return tweens_points_.back();
+	PTGN_ASSERT(!tween_points_.empty(), "Tween must be given duration before setting properties");
+	return tween_points_.back();
 }
 
 Tween& Tween::During(milliseconds duration) {
 	PTGN_ASSERT(duration >= nanoseconds{ 0 }, "Tween duration cannot be negative");
-	tweens_points_.emplace_back(duration);
+	tween_points_.emplace_back(duration);
 	return *this;
 }
 
@@ -88,10 +92,16 @@ float Tween::Step(float dt) {
 }
 
 float Tween::Seek(float new_progress) {
+	if (!started_ || paused_ || tween_points_.empty()) {
+		return GetProgress();
+	}
 	return SeekImpl(AccumulateProgress(new_progress));
 }
 
 float Tween::Seek(milliseconds time) {
+	if (!started_ || paused_ || tween_points_.empty()) {
+		return GetProgress();
+	}
 	return SeekImpl(AccumulateProgress(GetNewProgress(time)));
 }
 
@@ -145,28 +155,28 @@ Tween& Tween::Yoyo(bool yoyo) {
 
 Tween& Tween::Clear() {
 	Reset();
-	tweens_points_.clear();
+	tween_points_.clear();
 	return *this;
 }
 
 milliseconds Tween::GetDuration(std::size_t tween_point_index) const {
 	PTGN_ASSERT(
-		tween_point_index < tweens_points_.size(),
+		tween_point_index < tween_points_.size(),
 		"Specified tween point index is out of range. Ensure tween points has been added "
 		"beforehand"
 	);
-	return tweens_points_[tween_point_index].duration_;
+	return tween_points_[tween_point_index].duration_;
 }
 
 Tween& Tween::SetDuration(milliseconds duration, std::size_t tween_point_index) {
 	PTGN_ASSERT(duration >= nanoseconds{ 0 }, "Tween duration cannot be negative");
 
 	PTGN_ASSERT(
-		tween_point_index < tweens_points_.size(),
+		tween_point_index < tween_points_.size(),
 		"Specified tween point index is out of range. Ensure tween points has been added "
 		"beforehand"
 	);
-	tweens_points_[tween_point_index].duration_ = duration;
+	tween_points_[tween_point_index].duration_ = duration;
 	UpdateImpl();
 	return *this;
 }
@@ -231,15 +241,17 @@ void Tween::ActivateCallback(const TweenCallback& callback) {
 }
 
 void Tween::PointCompleted() {
-	if (tweens_points_.empty()) {
+	if (tween_points_.empty()) {
 		return;
 	}
 	ActivateCallback(GetCurrentTweenPoint().on_complete_);
-	if (index_ < tweens_points_.size() - 1) {
+	if (!tween_points_.empty() && index_ < tween_points_.size() - 1) {
 		index_++;
 		progress_								   = 0.0f;
 		GetCurrentTweenPoint().currently_reversed_ = GetCurrentTweenPoint().start_reversed_;
-		ActivateCallback(GetCurrentTweenPoint().on_start_);
+		if (started_) {
+			ActivateCallback(GetCurrentTweenPoint().on_start_);
+		}
 	} else {
 		progress_ = 1.0f;
 		started_  = false;
@@ -306,7 +318,7 @@ float Tween::UpdateImpl(bool suppress_update) {
 Tween& Tween::Pause() {
 	if (!paused_) {
 		paused_ = true;
-		if (!tweens_points_.empty()) {
+		if (!tween_points_.empty()) {
 			ActivateCallback(GetCurrentTweenPoint().on_pause_);
 		}
 	}
@@ -316,7 +328,7 @@ Tween& Tween::Pause() {
 Tween& Tween::Resume() {
 	if (paused_) {
 		paused_ = false;
-		if (!tweens_points_.empty()) {
+		if (!tween_points_.empty()) {
 			ActivateCallback(GetCurrentTweenPoint().on_resume_);
 		}
 	}
@@ -331,21 +343,29 @@ Tween& Tween::Reset() {
 	progress_ = 0.0f;
 	started_  = false;
 	paused_	  = false;
-	for (auto& point : tweens_points_) {
+	for (auto& point : tween_points_) {
 		point.current_repeat_	  = 0;
 		point.currently_reversed_ = point.start_reversed_;
 	}
 	return *this;
 }
 
-Tween& Tween::Start() {
-	Reset();
+Tween& Tween::Start(bool force) {
+	if (force) {
+		Reset();
 
-	started_ = true;
-	if (!tweens_points_.empty()) {
-		ActivateCallback(GetCurrentTweenPoint().on_start_);
+		started_ = true;
+		if (!tween_points_.empty()) {
+			ActivateCallback(GetCurrentTweenPoint().on_start_);
+		}
+		return *this;
+	} else {
+		if (IsRunning()) {
+			return *this;
+		}
+		Start();
+		return *this;
 	}
-	return *this;
 }
 
 Tween& Tween::IncrementTweenPoint() {
@@ -353,7 +373,7 @@ Tween& Tween::IncrementTweenPoint() {
 		return *this;
 	}
 	// Cannot increment final tween point any further.
-	if (index_ >= tweens_points_.size() - 1) {
+	if (index_ >= tween_points_.size() - 1) {
 		return *this;
 	}
 	PointCompleted();
@@ -369,17 +389,9 @@ Tween& Tween::Toggle() {
 	return *this;
 }
 
-Tween& Tween::StartIfNotRunning() {
-	if (IsRunning()) {
-		return *this;
-	}
-	Start();
-	return *this;
-}
-
 Tween& Tween::Stop() {
 	if (started_) {
-		if (!tweens_points_.empty()) {
+		if (!tween_points_.empty()) {
 			ActivateCallback(GetCurrentTweenPoint().on_stop_);
 		}
 		started_ = false;
@@ -388,6 +400,9 @@ Tween& Tween::Stop() {
 }
 
 float Tween::StepImpl(float dt, bool accumulate_progress) {
+	if (!started_ || paused_ || tween_points_.empty()) {
+		return GetProgress();
+	}
 	return SeekImpl(
 		accumulate_progress ? AccumulateProgress(GetNewProgress(duration<float>(dt)))
 							: GetNewProgress(duration<float>(dt))
@@ -397,7 +412,7 @@ float Tween::StepImpl(float dt, bool accumulate_progress) {
 float Tween::SeekImpl(float new_progress) {
 	PTGN_ASSERT(new_progress >= 0.0f && new_progress <= 1.0f, "Progress accumulator failed");
 
-	if (!started_ || paused_) {
+	if (!started_ || paused_ || tween_points_.empty()) {
 		return GetProgress();
 	}
 

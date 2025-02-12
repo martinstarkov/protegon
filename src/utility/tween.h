@@ -197,11 +197,10 @@ public:
 	// @return New progress of the tween after seeking.
 	float Seek(milliseconds time);
 
-	// Resets and starts the tween. Will restart paused tweens.
-	Tween& Start();
-
-	// Starts the tween only if it is not already running.
-	Tween& StartIfNotRunning();
+	// @param force If true, ignores the current state of the tween. If false, will only start if
+	// the tween is paused or not currently started. Resets and starts the tween. Will restart
+	// paused tweens.
+	Tween& Start(bool force = true);
 
 	// If there are future tween points, will simulate a tween point completion. If the tween has
 	// completed or is in the middle of the final tween point, this function does nothing.
@@ -262,7 +261,7 @@ private:
 	float progress_{ 0.0f };
 
 	std::size_t index_{ 0 };
-	std::vector<impl::TweenPoint> tweens_points_;
+	std::vector<impl::TweenPoint> tween_points_;
 
 	TweenCallback on_reset_;
 
