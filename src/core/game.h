@@ -21,7 +21,6 @@ class EventHandler;
 class InputHandler;
 class Renderer;
 class SceneManager;
-class CameraManager;
 class JsonManager;
 class MusicManager;
 class SoundManager;
