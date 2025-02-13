@@ -3,6 +3,7 @@
 #include <array>
 #include <cmath>
 #include <iosfwd>
+#include <limits>
 #include <ostream>
 #include <type_traits>
 
