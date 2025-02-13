@@ -351,19 +351,22 @@ Tween& Tween::Reset() {
 }
 
 Tween& Tween::Start(bool force) {
-	if (force) {
+	auto start = [&]() {
 		Reset();
 
 		started_ = true;
 		if (!tween_points_.empty()) {
 			ActivateCallback(GetCurrentTweenPoint().on_start_);
 		}
+	};
+	if (force) {
+		std::invoke(start);
 		return *this;
 	} else {
 		if (IsRunning()) {
 			return *this;
 		}
-		Start();
+		std::invoke(start);
 		return *this;
 	}
 }

@@ -221,7 +221,7 @@ public:
 	// Stops the tween.
 	Tween& Stop();
 
-	// Clears previously assigned tween points.
+	// Clears previously assigned tween points and resets the tween.
 	Tween& Clear();
 
 	// @param tween_point_index Which tween point to query to duration of.
