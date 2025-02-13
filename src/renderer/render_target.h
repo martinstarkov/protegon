@@ -9,11 +9,15 @@
 
 namespace ptgn {
 
+namespace impl {
+
+class RenderData;
+
+} // namespace impl
+
 // Each render target is initialized with a window camera.
 class RenderTarget {
 public:
-	Camera camera{ Camera::UninitializedCamera{} };
-
 	// A default render target will result in the screen being used as the render target.
 	RenderTarget() = default;
 
@@ -32,7 +36,9 @@ public:
 	// Create a render target with a custom size.
 	// @param size The size of the render target.
 	// @param clear_color The background color of the render target.
-	RenderTarget(const V2_float& size, const Color& clear_color = color::Transparent);
+	RenderTarget(
+		ecs::Manager& manager, const V2_float& size, const Color& clear_color = color::Transparent
+	);
 
 	// Draw an entity to the render target.
 	// The entity must have the Transform and Visible components.
@@ -67,7 +73,12 @@ public:
 		bool clear_after_draw = true
 	) const;*/
 
+	Camera camera;
+
 private:
+	friend class impl::RenderData;
+
+	RenderTarget(const V2_float& size, const Color& clear_color);
 	// TODO: Add window subscribe stuff here.
 	// Subscribes viewport to being resized to window size.
 	// Will also set the viewport to the current window size.

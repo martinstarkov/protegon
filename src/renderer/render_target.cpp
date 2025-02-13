@@ -30,15 +30,20 @@ RenderTarget::RenderTarget(const Color& clear_color) :
 }
 */
 
+RenderTarget::RenderTarget(ecs::Manager& manager, const V2_float& size, const Color& clear_color) :
+	RenderTarget{ size, clear_color } {
+	camera = CreateCamera(manager);
+}
+
 RenderTarget::RenderTarget(const V2_float& size, const Color& clear_color) :
-	camera{}, frame_buffer_{ impl::Texture(nullptr, size) }, clear_color_{ clear_color } {
+	frame_buffer_{ impl::Texture(nullptr, size) }, clear_color_{ clear_color } {
 	PTGN_ASSERT(frame_buffer_.IsValid(), "Failed to create valid frame buffer for render target");
 	PTGN_ASSERT(frame_buffer_.IsBound(), "Failed to bind frame buffer for render target");
 	Clear();
 }
 
 RenderTarget::RenderTarget(RenderTarget&& other) noexcept :
-	camera{ std::exchange(other.camera, Camera{ Camera::UninitializedCamera{} }) },
+	camera{ std::exchange(other.camera, {}) },
 	frame_buffer_{ std::exchange(other.frame_buffer_, {}) },
 	clear_color_{ std::exchange(other.clear_color_, {}) } {
 	// TODO: Add window subscribe stuff here.
@@ -47,7 +52,7 @@ RenderTarget::RenderTarget(RenderTarget&& other) noexcept :
 RenderTarget& RenderTarget::operator=(RenderTarget&& other) noexcept {
 	if (this != &other) {
 		// TODO: Add window subscribe stuff here.
-		camera		  = std::exchange(other.camera, Camera{ Camera::UninitializedCamera{} });
+		camera		  = std::exchange(other.camera, {});
 		frame_buffer_ = std::exchange(other.frame_buffer_, {});
 		clear_color_  = std::exchange(other.clear_color_, {});
 	}
@@ -61,6 +66,9 @@ RenderTarget::~RenderTarget() {
 
 void RenderTarget::Draw(ecs::Entity e) const {
 	PTGN_ASSERT(frame_buffer_.IsBound(), "Cannot draw to render target unless it is first bound");
+	PTGN_ASSERT(
+		camera != Camera{}, "Cannot draw to render target with invalid or uninitialized camera"
+	);
 	game.renderer.GetRenderData().Render(frame_buffer_, camera, e, false);
 }
 
@@ -102,7 +110,7 @@ void RenderTarget::DrawToScreen() const {
 	GLRenderer::SetViewport(viewport_.Min(), viewport_.size);
 	const Shader& shader{ game.shader.Get(ScreenShader::Default) };
 	shader.Bind();
-	shader.SetUniform("u_ViewProjection", Camera{});
+	shader.SetUniform("u_ViewProjection", ...);
 	texture_.DrawToBoundFrameBuffer(viewport_, {}, shader);
 }
 

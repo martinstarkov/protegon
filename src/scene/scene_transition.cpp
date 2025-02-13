@@ -42,7 +42,6 @@ void SceneTransition::Start(
 	/*
 	Tween tween{ duration_ };
 	auto target{ scene->target_ };
-	OrthographicCamera camera;
 	camera.SetToWindow();
 
 	std::function<void(float)> update;

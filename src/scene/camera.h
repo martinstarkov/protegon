@@ -3,6 +3,7 @@
 #include <iosfwd>
 
 #include "core/manager.h"
+#include "ecs/ecs.h"
 #include "math/geometry/polygon.h"
 #include "math/matrix4.h"
 #include "math/quaternion.h"
@@ -14,23 +15,77 @@
 namespace ptgn {
 
 struct WindowResizedEvent;
+class Scene;
 
 namespace impl {
 
-class Game;
 class CameraManager;
+
+struct CameraInfo {
+	CameraInfo();
+	CameraInfo(const CameraInfo& other);
+	CameraInfo& operator=(const CameraInfo& other);
+	CameraInfo(CameraInfo&& other) noexcept;
+	CameraInfo& operator=(CameraInfo&& other) noexcept;
+	~CameraInfo();
+
+	// Will resize the camera.
+	void SubscribeToEvents() noexcept;
+
+	void UnsubscribeFromEvents() noexcept;
+
+	void OnWindowResize(const WindowResizedEvent& e) noexcept;
+
+	void RefreshBounds() noexcept;
+
+	struct Data {
+		Rect viewport;
+
+		// Top left position of camera.
+		V3_float position;
+
+		V2_float size;
+
+		float zoom{ 1.0f };
+
+		V3_float orientation;
+
+		// If rectangle IsZero(), no position bounds are enforced.
+		Rect bounding_box;
+
+		Flip flip{ Flip::None };
+
+		// Mutable used because view projection is recalculated only upon retrieval to reduce matrix
+		// multiplications.
+		mutable Matrix4 view{ 1.0f };
+		mutable Matrix4 projection{ 1.0f };
+		mutable Matrix4 view_projection{ 1.0f };
+		mutable bool recalculate_view{ false };
+		mutable bool recalculate_projection{ false };
+
+		bool center_to_window{ true };
+		bool resize_to_window{ true };
+	};
+
+	Data data;
+};
 
 } // namespace impl
 
+ecs::Entity CreateCamera(ecs::Manager& manager);
+
 class Camera {
 public:
-	// Default constructed camera will be continuously window sized.
-	Camera();
+	Camera() = default;
+	Camera(ecs::Entity camera);
 	Camera(const Camera& other);
 	Camera& operator=(const Camera& other);
 	Camera(Camera&& other) noexcept;
 	Camera& operator=(Camera&& other) noexcept;
 	~Camera();
+
+	bool operator==(const Camera& other) const;
+	bool operator!=(const Camera& other) const;
 
 	[[nodiscard]] Rect GetViewport() const;
 
@@ -141,59 +196,19 @@ public:
 
 	operator Matrix4() const;
 
-	struct UninitializedCamera {};
-
-	// Allows constructing a camera which does not subscribe to window rezize events by default.
-	explicit Camera(const UninitializedCamera&) {}
-
 protected:
+	friend class impl::CameraManager;
+
 	[[nodiscard]] const Matrix4& GetView() const;
 	[[nodiscard]] const Matrix4& GetProjection() const;
 
-	void RefreshBounds() noexcept;
-
 	void SetPosition(const V3_float& new_position);
-
-	// Will resize the camera.
-	void SubscribeToEvents() noexcept;
-	void OnWindowResize(const WindowResizedEvent& e) noexcept;
 
 	void RecalculateView() const;
 	void RecalculateProjection() const;
 	void RecalculateViewProjection() const;
 
-	void Reset();
-
-	struct Info {
-		Rect viewport;
-
-		// Top left position of camera.
-		V3_float position;
-
-		V2_float size;
-
-		float zoom{ 1.0f };
-
-		V3_float orientation;
-
-		// If rectangle IsZero(), no position bounds are enforced.
-		Rect bounding_box;
-
-		Flip flip{ Flip::None };
-
-		// Mutable used because view projection is recalculated only upon retrieval to reduce matrix
-		// multiplications.
-		mutable Matrix4 view{ 1.0f };
-		mutable Matrix4 projection{ 1.0f };
-		mutable Matrix4 view_projection{ 1.0f };
-		mutable bool recalculate_view{ false };
-		mutable bool recalculate_projection{ false };
-
-		bool center_to_window{ true };
-		bool resize_to_window{ true };
-	};
-
-	Info info;
+	ecs::Entity entity_;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {
@@ -212,15 +227,16 @@ public:
 	CameraManager(const CameraManager&)				   = delete;
 	CameraManager& operator=(const CameraManager&)	   = delete;
 
-	// Resets the camera manager. Does nothing to the primary camera.
+	// Resets the camera manager and primary / window cameras.
 	void Reset();
 
 	Camera primary;
+	Camera window;
 
 private:
-	friend class Game;
+	friend class Scene;
 
-	void Init();
+	void Init(ecs::Manager& manager);
 };
 
 } // namespace impl

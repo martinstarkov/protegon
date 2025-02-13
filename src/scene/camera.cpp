@@ -9,6 +9,7 @@
 #include "core/game.h"
 #include "core/manager.h"
 #include "core/window.h"
+#include "ecs/ecs.h"
 #include "event/event_handler.h"
 #include "event/events.h"
 #include "math/geometry/polygon.h"
@@ -24,55 +25,57 @@
 
 namespace ptgn {
 
-Camera::Camera() {
-	info.center_to_window = true;
-	info.resize_to_window = true;
+namespace impl {
+
+CameraInfo::CameraInfo() {
+	data.center_to_window = true;
+	data.resize_to_window = true;
 	SubscribeToEvents();
 }
 
-Camera::Camera(const Camera& other) {
+CameraInfo::CameraInfo(const CameraInfo& other) {
 	*this = other;
 }
 
-Camera& Camera::operator=(const Camera& other) {
+CameraInfo& CameraInfo::operator=(const CameraInfo& other) {
 	if (game.event.window.IsSubscribed(&other) && !game.event.window.IsSubscribed(this)) {
 		SubscribeToEvents();
 	}
 	// Important to do this after subscribing as it resizes the camera.
-	info = other.info;
+	data = other.data;
 	return *this;
 }
 
-Camera::Camera(Camera&& other) noexcept {
+CameraInfo::CameraInfo(CameraInfo&& other) noexcept {
 	if (game.event.window.IsSubscribed(&other)) {
 		SubscribeToEvents();
-		game.event.window.Unsubscribe(&other);
+		other.UnsubscribeFromEvents();
 	}
 	// Important to do this after subscribing as it resizes the camera.
-	info = std::exchange(other.info, {});
+	data = std::exchange(other.data, {});
 }
 
-Camera& Camera::operator=(Camera&& other) noexcept {
+CameraInfo& CameraInfo::operator=(CameraInfo&& other) noexcept {
 	if (this != &other) {
 		if (game.event.window.IsSubscribed(&other)) {
 			if (!game.event.window.IsSubscribed(this)) {
 				SubscribeToEvents();
 			}
-			game.event.window.Unsubscribe(&other);
+			other.UnsubscribeFromEvents();
 		} else {
-			game.event.window.Unsubscribe(this);
+			UnsubscribeFromEvents();
 		}
 		// Important to do this after subscribing as it resizes the camera.
-		info = std::exchange(other.info, {});
+		data = std::exchange(other.data, {});
 	}
 	return *this;
 }
 
-Camera::~Camera() {
-	game.event.window.Unsubscribe(this);
+CameraInfo::~CameraInfo() {
+	UnsubscribeFromEvents();
 }
 
-void Camera::SubscribeToEvents() noexcept {
+void CameraInfo::SubscribeToEvents() noexcept {
 	std::function<void(const WindowResizedEvent& e)> f = [this](const WindowResizedEvent& e) {
 		OnWindowResize(e);
 	};
@@ -80,107 +83,155 @@ void Camera::SubscribeToEvents() noexcept {
 	std::invoke(f, WindowResizedEvent{ game.window.GetSize() });
 }
 
-void Camera::OnWindowResize(const WindowResizedEvent& e) noexcept {
+void CameraInfo::UnsubscribeFromEvents() noexcept {
+	game.event.window.Unsubscribe(this);
+}
+
+void CameraInfo::OnWindowResize(const WindowResizedEvent& e) noexcept {
 	// TODO: Potentially allow this to be modified in the future.
-	info.viewport = Rect::Fullscreen();
+	data.viewport = Rect::Fullscreen();
 	if (!game.event.window.IsSubscribed(this)) {
 		return;
 	}
-	if (info.resize_to_window) {
-		info.size					= e.size;
-		info.recalculate_projection = true;
+	if (data.resize_to_window) {
+		data.size					= e.size;
+		data.recalculate_projection = true;
 	}
-	if (info.center_to_window) {
-		info.position.x		  = static_cast<float>(e.size.x) / 2.0f;
-		info.position.y		  = static_cast<float>(e.size.y) / 2.0f;
-		info.recalculate_view = true;
+	if (data.center_to_window) {
+		data.position.x		  = static_cast<float>(e.size.x) / 2.0f;
+		data.position.y		  = static_cast<float>(e.size.y) / 2.0f;
+		data.recalculate_view = true;
 	}
-	if (info.resize_to_window || info.center_to_window) {
+	if (data.resize_to_window || data.center_to_window) {
 		RefreshBounds();
 	}
 }
 
+void CameraInfo::RefreshBounds() noexcept {
+	if (data.bounding_box.IsZero()) {
+		return;
+	}
+	V2_float min{ data.bounding_box.Min() };
+	V2_float max{ data.bounding_box.Max() };
+	PTGN_ASSERT(min.x < max.x && min.y < max.y, "Bounding box min must be below maximum");
+	V2_float center{ data.bounding_box.Center() };
+
+	// TODO: Incoporate yaw, i.e. data.orientation.x into the bounds using sin and cos.
+	V2_float real_size{ data.size / data.zoom };
+	V2_float half{ real_size * 0.5f };
+	if (real_size.x > data.bounding_box.size.x) {
+		data.position.x = center.x;
+	} else {
+		data.position.x = std::clamp(data.position.x, min.x + half.x, max.x - half.x);
+	}
+	if (real_size.y > data.bounding_box.size.y) {
+		data.position.y = center.y;
+	} else {
+		data.position.y = std::clamp(data.position.y, min.y + half.y, max.y - half.y);
+	}
+	data.recalculate_view = true;
+}
+
+} // namespace impl
+
+ecs::Entity CreateCamera(ecs::Manager& manager) {
+	auto entity{ manager.CreateEntity() };
+
+	entity.Add<impl::CameraInfo>();
+
+	return entity;
+}
+
+Camera::Camera(ecs::Entity entity) : entity_{ entity } {}
+
+Camera::Camera(const Camera& other) {
+	*this = other;
+}
+
+Camera& Camera::operator=(const Camera& other) {
+	if (other == Camera{}) {
+		entity_ = {};
+		return *this;
+	}
+	entity_ = other.entity_.Copy();
+	return *this;
+}
+
+Camera::Camera(Camera&& other) noexcept : entity_{ std::exchange(other.entity_, {}) } {}
+
+Camera& Camera::operator=(Camera&& other) noexcept {
+	if (this != &other) {
+		entity_ = std::exchange(other.entity_, {});
+	}
+	return *this;
+}
+
+Camera::~Camera() {
+	entity_.Destroy();
+}
+
+bool Camera::operator==(const Camera& other) const {
+	return entity_ == other.entity_;
+}
+
+bool Camera::operator!=(const Camera& other) const {
+	return !(*this == other);
+}
+
 [[nodiscard]] Rect Camera::GetViewport() const {
-	return info.viewport;
+	return entity_.Get<impl::CameraInfo>().data.viewport;
 }
 
 Camera::operator Matrix4() const {
 	return GetViewProjection();
 }
 
-void Camera::RefreshBounds() noexcept {
-	if (info.bounding_box.IsZero()) {
-		return;
-	}
-	V2_float min{ info.bounding_box.Min() };
-	V2_float max{ info.bounding_box.Max() };
-	PTGN_ASSERT(min.x < max.x && min.y < max.y, "Bounding box min must be below maximum");
-	V2_float center{ info.bounding_box.Center() };
-	// Draw bounding box center.
-	// game.draw.Point(center, color::Red, 5.0f);
-	// Draw bounding box.
-	// game.draw.RectHollow(info.bounding_box, color::Red);
-
-	// TODO: Incoporate yaw, i.e. info.orientation.x into the bounds using sin and cos.
-	V2_float size{ info.size / info.zoom };
-	V2_float half{ size * 0.5f };
-	if (size.x > info.bounding_box.size.x) {
-		info.position.x = center.x;
-	} else {
-		info.position.x = std::clamp(info.position.x, min.x + half.x, max.x - half.x);
-	}
-	if (size.y > info.bounding_box.size.y) {
-		info.position.y = center.y;
-	} else {
-		info.position.y = std::clamp(info.position.y, min.y + half.y, max.y - half.y);
-	}
-	info.recalculate_view = true;
-}
-
 void Camera::SetZoom(float new_zoom) {
-	info.zoom = new_zoom;
-	info.zoom = std::clamp(info.zoom, epsilon<float>, std::numeric_limits<float>::max());
-	info.recalculate_projection = true;
-	RefreshBounds();
+	auto& info{ entity_.Get<impl::CameraInfo>() };
+	info.data.zoom = new_zoom;
+	info.data.zoom = std::clamp(info.data.zoom, epsilon<float>, std::numeric_limits<float>::max());
+	info.data.recalculate_projection = true;
+	info.RefreshBounds();
 }
 
 void Camera::SetSize(const V2_float& new_size) {
-	info.resize_to_window		= false;
-	info.size					= new_size;
-	info.recalculate_projection = true;
-	RefreshBounds();
+	auto& info{ entity_.Get<impl::CameraInfo>() };
+	info.data.resize_to_window		 = false;
+	info.data.size					 = new_size;
+	info.data.recalculate_projection = true;
+	info.RefreshBounds();
 }
 
 void Camera::SetPosition(const V3_float& new_position) {
-	info.center_to_window = false;
-	info.position		  = new_position;
-	info.recalculate_view = true;
-	RefreshBounds();
+	auto& info{ entity_.Get<impl::CameraInfo>() };
+	info.data.center_to_window = false;
+	info.data.position		   = new_position;
+	info.data.recalculate_view = true;
+	info.RefreshBounds();
 }
 
 void Camera::SetBounds(const Rect& new_bounding_box) {
-	info.bounding_box = new_bounding_box;
+	auto& info{ entity_.Get<impl::CameraInfo>() };
+	info.data.bounding_box = new_bounding_box;
 	// Reset info.position to ensure it is within the new bounds.
-	RefreshBounds();
-}
-
-void Camera::Reset() {
-	info = {};
+	info.RefreshBounds();
 }
 
 Rect Camera::GetBounds() const {
-	return info.bounding_box;
+	return entity_.Get<impl::CameraInfo>().data.bounding_box;
 }
 
 V2_float Camera::GetPosition(Origin origin) const {
+	const auto& info{ entity_.Get<impl::CameraInfo>().data };
 	return V2_float{ info.position.x, info.position.y } + GetOffsetFromCenter(info.size, origin);
 }
 
 void Camera::SetToWindow(bool continuously) {
+	auto& info{ entity_.Get<impl::CameraInfo>() };
 	if (continuously) {
-		game.event.window.Unsubscribe(this);
+		info.UnsubscribeFromEvents();
 	}
-	Reset();
+	info.data = {};
 	CenterOnWindow(continuously);
 	SetSizeToWindow(continuously);
 }
@@ -191,61 +242,68 @@ void Camera::CenterOnArea(const V2_float& new_size) {
 }
 
 V2_float Camera::TransformToCamera(const V2_float& screen_relative_coordinate) const {
+	const auto& info{ entity_.Get<impl::CameraInfo>().data };
 	PTGN_ASSERT(info.zoom != 0.0f);
 	return (screen_relative_coordinate - info.size * 0.5f) / info.zoom + GetPosition();
 }
 
 V2_float Camera::TransformToScreen(const V2_float& camera_relative_coordinate) const {
+	const auto& info{ entity_.Get<impl::CameraInfo>().data };
 	return (camera_relative_coordinate - GetPosition()) * info.zoom + info.size * 0.5f;
 }
 
 V2_float Camera::ScaleToCamera(const V2_float& screen_relative_size) const {
+	const auto& info{ entity_.Get<impl::CameraInfo>().data };
 	return screen_relative_size * info.zoom;
 }
 
 V2_float Camera::ScaleToScreen(const V2_float& camera_relative_size) const {
+	const auto& info{ entity_.Get<impl::CameraInfo>().data };
 	PTGN_ASSERT(info.zoom != 0.0f);
 	return camera_relative_size / info.zoom;
 }
 
 void Camera::CenterOnWindow(bool continuously) {
+	auto& info{ entity_.Get<impl::CameraInfo>() };
 	if (continuously) {
-		info.center_to_window = true;
-		SubscribeToEvents();
+		info.data.center_to_window = true;
+		info.SubscribeToEvents();
 	} else {
 		SetPosition(game.window.GetCenter());
 	}
 }
 
 Rect Camera::GetRect() const {
+	const auto& info{ entity_.Get<impl::CameraInfo>().data };
 	return Rect{ GetPosition(Origin::Center), GetSize() / info.zoom, Origin::Center };
 }
 
 V2_float Camera::GetSize() const {
-	return info.size;
+	return entity_.Get<impl::CameraInfo>().data.size;
 }
 
 float Camera::GetZoom() const {
-	return info.zoom;
+	return entity_.Get<impl::CameraInfo>().data.zoom;
 }
 
 V3_float Camera::GetOrientation() const {
-	return info.orientation;
+	return entity_.Get<impl::CameraInfo>().data.orientation;
 }
 
 Quaternion Camera::GetQuaternion() const {
-	return Quaternion::FromEuler(info.orientation);
+	return Quaternion::FromEuler(entity_.Get<impl::CameraInfo>().data.orientation);
 }
 
 Flip Camera::GetFlip() const {
-	return info.flip;
+	return entity_.Get<impl::CameraInfo>().data.flip;
 }
 
 void Camera::SetFlip(Flip new_flip) {
-	info.flip = new_flip;
+	entity_.Get<impl::CameraInfo>().data.flip = new_flip;
 }
 
 const Matrix4& Camera::GetView() const {
+	const auto& info{ entity_.Get<impl::CameraInfo>().data };
 	if (info.recalculate_view) {
 		RecalculateView();
 	}
@@ -253,6 +311,7 @@ const Matrix4& Camera::GetView() const {
 }
 
 const Matrix4& Camera::GetProjection() const {
+	const auto& info{ entity_.Get<impl::CameraInfo>().data };
 	if (info.recalculate_projection) {
 		RecalculateProjection();
 	}
@@ -260,6 +319,7 @@ const Matrix4& Camera::GetProjection() const {
 }
 
 const Matrix4& Camera::GetViewProjection() const {
+	const auto& info{ entity_.Get<impl::CameraInfo>().data };
 	bool updated_matrix{ info.recalculate_view || info.recalculate_projection };
 	if (info.recalculate_view) {
 		RecalculateView();
@@ -276,25 +336,30 @@ const Matrix4& Camera::GetViewProjection() const {
 }
 
 void Camera::SetPosition(const V2_float& new_position) {
+	const auto& info{ entity_.Get<impl::CameraInfo>().data };
 	SetPosition({ new_position.x, new_position.y, info.position.z });
 }
 
 void Camera::Translate(const V2_float& position_change) {
+	const auto& info{ entity_.Get<impl::CameraInfo>().data };
 	SetPosition(
 		info.position + V3_float{ position_change.x, position_change.y, 0.0f } * GetQuaternion()
 	);
 }
 
 void Camera::Zoom(float zoom_change) {
+	const auto& info{ entity_.Get<impl::CameraInfo>().data };
 	SetZoom(info.zoom + zoom_change);
 }
 
 void Camera::SetRotation(const V3_float& new_angle_radians) {
+	auto& info{ entity_.Get<impl::CameraInfo>().data };
 	info.orientation	  = new_angle_radians;
 	info.recalculate_view = true;
 }
 
 void Camera::Rotate(const V3_float& angle_change_radians) {
+	auto& info{ entity_.Get<impl::CameraInfo>().data };
 	SetRotation(info.orientation + angle_change_radians);
 }
 
@@ -307,14 +372,17 @@ void Camera::Rotate(float yaw_change_radians) {
 }
 
 void Camera::SetYaw(float angle_radians) {
+	auto& info{ entity_.Get<impl::CameraInfo>().data };
 	info.orientation.x = angle_radians;
 }
 
 void Camera::SetPitch(float angle_radians) {
+	auto& info{ entity_.Get<impl::CameraInfo>().data };
 	info.orientation.y = angle_radians;
 }
 
 void Camera::SetRoll(float angle_radians) {
+	auto& info{ entity_.Get<impl::CameraInfo>().data };
 	info.orientation.z = angle_radians;
 }
 
@@ -331,19 +399,22 @@ void Camera::Roll(float angle_change) {
 }
 
 void Camera::SetSizeToWindow(bool continuously) {
+	auto& info{ entity_.Get<impl::CameraInfo>() };
 	if (continuously) {
-		info.resize_to_window = true;
-		SubscribeToEvents();
+		info.data.resize_to_window = true;
+		info.SubscribeToEvents();
 	} else {
 		SetSize(game.window.GetSize());
 	}
 }
 
 void Camera::RecalculateViewProjection() const {
+	auto& info{ entity_.Get<impl::CameraInfo>().data };
 	info.view_projection = info.projection * info.view;
 }
 
 void Camera::RecalculateView() const {
+	auto& info{ entity_.Get<impl::CameraInfo>().data };
 	V3_float mirror_position{ -info.position.x, -info.position.y, info.position.z };
 
 	Quaternion quat_orientation{ GetQuaternion() };
@@ -351,6 +422,7 @@ void Camera::RecalculateView() const {
 }
 
 void Camera::RecalculateProjection() const {
+	auto& info{ entity_.Get<impl::CameraInfo>().data };
 	PTGN_ASSERT(info.zoom > 0.0f);
 	V2_float extents{ info.size / 2.0f / info.zoom };
 	V2_float flip_dir{ 1.0f, 1.0f };
@@ -388,13 +460,15 @@ void Camera::PrintInfo() const {
 
 namespace impl {
 
-void CameraManager::Init() {
-	primary = {};
+void CameraManager::Init(ecs::Manager& manager) {
+	primary = CreateCamera(manager);
+	window	= CreateCamera(manager);
 }
 
 void CameraManager::Reset() {
 	MapManager::Reset();
-	primary = {};
+	primary = CreateCamera(primary.entity_.GetManager());
+	window	= CreateCamera(window.entity_.GetManager());
 }
 
 } // namespace impl

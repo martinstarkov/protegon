@@ -18,6 +18,7 @@ void Scene::InternalEnter() {
 	// Input is reset to ensure no previously pressed keys are considered held.
 	game.input.ResetKeyStates();
 	game.input.ResetMouseStates();
+	camera.Init(manager);
 	Enter();
 	manager.Refresh();
 }
