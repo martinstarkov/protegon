@@ -22,9 +22,9 @@ constexpr V2_int window_size{ 800, 800 };
 class CameraUIScene : public Scene {
 public:
 	void Enter() override {
-		game.texture.Load("ui_texture", "resources/ui.jpg");
+		game.texture.Load("ui_texture2", "resources/ui2.jpg");
 
-		auto ui = CreateSprite(manager, "texture");
+		auto ui = CreateSprite(manager, "ui_texture2");
 		ui.Add<Transform>();
 		ui.Add<Origin>(Origin::TopLeft);
 	}
@@ -36,11 +36,13 @@ public:
 	const float rotation_speed = 1.0f;
 	const float zoom_speed{ 0.4f };
 
-	Camera camera1;
-	Camera camera2;
+	Camera camera1{ CreateCamera(manager) };
+	Camera camera2{ CreateCamera(manager) };
 
 	ecs::Entity rt;
 	ecs::Entity ui;
+
+	Camera* cam{ nullptr };
 
 	void Enter() override {
 		game.texture.Load("texture", "resources/test1.jpg");
@@ -76,12 +78,10 @@ public:
 		ui.Get<Visible>() = false;
 
 		rt = manager.CreateEntity();
-		rt.Add<RenderTarget>(window_size);
+		rt.Add<RenderTarget>(manager, window_size);
 		rt.Add<Transform>();
 		rt.Add<Visible>();
 	}
-
-	Camera* cam{ nullptr };
 
 	void Update() override {
 		V2_float center{ game.window.GetCenter() };
@@ -142,6 +142,7 @@ public:
 			cam->SetZoom(1.0f);
 		}
 
+		PTGN_ASSERT(cam != nullptr);
 		camera.primary = *cam;
 
 		const auto& r{ rt.Get<RenderTarget>() };
