@@ -29,7 +29,6 @@ void SceneManager::EnterImpl(std::size_t scene_key) {
 	}
 	auto scene{ GetScene(scene_key) };
 	PTGN_ASSERT(scene != ecs::null, "Cannot enter scene unless it has been loaded first");
-	auto& sc{ scene.Get<SceneComponent>() };
 
 	bool first_scene{ GetActiveSceneCount() == 0 };
 
@@ -184,7 +183,8 @@ ecs::Entity SceneManager::GetActiveScene(std::size_t scene_key) const {
 
 ecs::Entity SceneManager::GetScene(std::size_t scene_key) const {
 	for (auto e : scenes_.Entities()) {
-		if (e.Get<SceneComponent>().scene->key_ == scene_key) {
+		const auto& sc{ e.Get<SceneComponent>() };
+		if (sc.scene->key_ == scene_key) {
 			return e;
 		}
 	}
