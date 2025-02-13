@@ -8,7 +8,7 @@
 #include "math/geometry/polygon.h"
 #include "renderer/texture.h"
 #include "math/vector2.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 
 namespace ptgn {
 

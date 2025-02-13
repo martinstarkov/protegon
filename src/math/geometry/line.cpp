@@ -1,27 +1,18 @@
 #include "math/geometry/line.h"
 
+#include <array>
 #include <cmath>
 #include <utility>
 
-#include "collision/raycast.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/polygon.h"
 #include "math/math.h"
+#include "math/raycast.h"
 #include "math/utility.h"
 #include "math/vector2.h"
-#include "renderer/color.h"
-#include "renderer/layer_info.h"
-#include "renderer/render_target.h"
+#include "renderer/origin.h"
 
 namespace ptgn {
-
-void Line::Draw(const Color& color, float line_width) const {
-	Draw(color, line_width, {});
-}
-
-void Line::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	layer_info.GetRenderTarget().AddLine(*this, color, line_width, layer_info.GetRenderLayer());
-}
 
 V2_float Line::Direction() const {
 	return b - a;
@@ -237,7 +228,10 @@ ptgn::Raycast Line::Raycast(const Circle& circle) const {
 
 	float mag2{ impact.Dot(impact) };
 
-	if (NearlyEqual(mag2, 0.0f) || NearlyEqual(mag2, circle.radius * circle.radius)) {
+	// TODO: Sometimes when mag2 is nearly equal to circle.radius^2 a swept circle sliding along the
+	// top of a rectangle will stick to the line vertices. However adding the NearlyEqual check for
+	// this condition leads to bugs with raycasting a line through a circle.
+	if (NearlyEqual(mag2, 0.0f) /* || NearlyEqual(mag2, circle.radius * circle.radius)*/) {
 		c = {};
 		return c;
 	}
@@ -432,15 +426,76 @@ ptgn::Raycast Line::Raycast(const Capsule& capsule) const {
 	return c;
 }
 
-void Capsule::Draw(const Color& color, float line_width) const {
-	Draw(color, line_width, {});
+std::array<V2_float, 4> Line::GetQuadVertices(float line_width, float additional_rotation) const {
+	V2_float dir{ Direction() };
+	// dir = dir.Rotated(additional_rotation);
+	//  TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
+	Rect rect{ a + dir * 0.5f, V2_float{ dir.Magnitude(), line_width }, Origin::Center,
+			   dir.Angle() };
+	auto vertices{ rect.GetVertices(V2_float{ 0.5f, 0.5f }) };
+	return vertices;
 }
 
-void Capsule::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	layer_info.GetRenderTarget().AddCapsule(
-		*this, color, line_width, impl::fade_, layer_info.GetRenderLayer()
+/*
+void Capsule::Draw(const Color& color, float line_width, std::int32_t render_layer) const {
+	V2_float dir{ line.Direction() };
+	float dir2{ dir.Dot(dir) };
+
+	// Edge case where capsule has no length, i.e. it is a circle.
+	if (NearlyEqual(dir2, 0.0f)) {
+		Circle c{ line.a, radius };
+		c.Draw(color, line_width, render_layer);
+		return;
+	}
+
+	float angle{ dir.Angle() + half_pi<float> };
+	float start_angle{ angle };
+	float end_angle{ angle };
+
+	auto norm_color{ color.Normalized() };
+
+	Arc a1{ line.a, radius, start_angle, end_angle + pi<float> };
+	Arc a2{ line.b, radius, start_angle + pi<float>, end_angle };
+
+	if (line_width == -1.0f) {
+		line.DrawThick(radius * 2.0f, norm_color, render_layer);
+
+		// How many radians into the line the arc protrudes.
+		constexpr float delta{ DegToRad(0.5f) };
+		a1.start_angle -= delta;
+		a1.end_angle   += delta;
+		a2.start_angle -= delta;
+		a2.end_angle   += delta;
+
+		a1.DrawSolid(
+			false, ClampAngle2Pi(a1.start_angle), ClampAngle2Pi(a1.end_angle), norm_color,
+			render_layer
+		);
+		a2.DrawSolid(
+			false, ClampAngle2Pi(a2.start_angle), ClampAngle2Pi(a2.end_angle), norm_color,
+			render_layer
+		);
+		return;
+	}
+
+	V2_float tangent_r{ Floor(dir.Skewed() / std::sqrt(dir2) * radius) };
+
+	Line l1{ line.a + tangent_r, line.b + tangent_r };
+	Line l2{ line.a - tangent_r, line.b - tangent_r };
+
+	l1.DrawThick(line_width, norm_color, render_layer);
+	l2.DrawThick(line_width, norm_color, render_layer);
+
+	a1.DrawThick(
+		line_width, false, ClampAngle2Pi(a1.start_angle), ClampAngle2Pi(a1.end_angle), norm_color,
+		render_layer
+	);
+	a2.DrawThick(
+		line_width, false, ClampAngle2Pi(a2.start_angle), ClampAngle2Pi(a2.end_angle), norm_color,
+		render_layer
 	);
 }
+*/
 
 bool Capsule::Overlaps(const V2_float& point) const {
 	// Source:

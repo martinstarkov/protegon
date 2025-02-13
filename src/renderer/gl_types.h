@@ -5,7 +5,7 @@
 
 #include "utility/type_traits.h"
 
-namespace ptgn {
+namespace ptgn::impl {
 
 // Vertex Types
 
@@ -66,7 +66,11 @@ enum class BufferType {
 	Uniform = 0x8A11, // GL_UNIFORM_BUFFER
 };
 
-namespace impl {
+enum class BufferCategory {
+	Color	= 0x1800, // GL_COLOR
+	Depth	= 0x1801, // GL_DEPTH
+	Stencil = 0x1802, // GL_STENCIL
+};
 
 enum class GLBinding {
 	VertexArray		= 0x85B5, // GL_VERTEX_ARRAY_BINDING
@@ -76,7 +80,8 @@ enum class GLBinding {
 	FrameBufferDraw = 0x8CA6, // GL_DRAW_FRAMEBUFFER_BINDING
 	FrameBufferRead = 0x8CAA, // GL_READ_FRAMEBUFFER_BINDING
 	RenderBuffer	= 0x8CA7, // GL_RENDERBUFFER_BINDING
-	Texture2D		= 0x8069  // GL_TEXTURE_BINDING_2D
+	Texture2D		= 0x8069, // GL_TEXTURE_BINDING_2D
+	ActiveTexture	= 0x84E0  // GL_ACTIVE_TEXTURE
 };
 
 template <BufferType T>
@@ -136,6 +141,4 @@ template <typename T>
 	}
 }
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

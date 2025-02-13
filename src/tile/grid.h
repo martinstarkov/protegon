@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "math/vector2.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/type_traits.h"
 
 namespace ptgn {
@@ -36,6 +36,24 @@ public:
 		}
 	}
 
+	void ForEach(const std::function<void(V2_int, const T&)>& function) const {
+		for (int i = 0; i < size.x; i++) {
+			for (int j = 0; j < size.y; j++) {
+				V2_int coordinate{ i, j };
+				std::invoke(function, coordinate, Get(coordinate));
+			}
+		}
+	}
+
+	void ForEach(const std::function<void(V2_int, T&)>& function) {
+		for (int i = 0; i < size.x; i++) {
+			for (int j = 0; j < size.y; j++) {
+				V2_int coordinate{ i, j };
+				std::invoke(function, coordinate, Get(coordinate));
+			}
+		}
+	}
+
 	void ForEachIndex(const std::function<void(int)>& function) const {
 		for (int i = 0; i < length; i++) {
 			std::invoke(function, i);
@@ -43,6 +61,12 @@ public:
 	}
 
 	void ForEachElement(const std::function<void(T&)>& function) {
+		for (auto& cell : cells) {
+			std::invoke(function, cell);
+		}
+	}
+
+	void ForEachElement(const std::function<void(const T&)>& function) const {
 		for (auto& cell : cells) {
 			std::invoke(function, cell);
 		}
@@ -112,6 +136,10 @@ public:
 			return -1;
 		}
 		return coordinate.x + coordinate.y * size.x;
+	}
+
+	[[nodiscard]] V2_int TwoDimensionalize(int index) const {
+		return V2_int{ index % size.x, index / size.x };
 	}
 
 	template <tt::copy_constructible<T> = true>

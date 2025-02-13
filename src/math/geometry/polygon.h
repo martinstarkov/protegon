@@ -1,22 +1,25 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <vector>
 
-#include "collision/raycast.h"
 #include "math/geometry/axis.h"
 #include "math/geometry/intersection.h"
+#include "math/raycast.h"
 #include "math/vector2.h"
+#include "math/vector4.h"
 #include "renderer/origin.h"
 
 namespace ptgn {
 
-struct LayerInfo;
 struct Color;
 struct Line;
 struct Circle;
 struct Capsule;
 struct Rect;
+struct Polygon;
+struct RoundedRect;
 
 struct Triangle {
 	Triangle() = default;
@@ -41,11 +44,6 @@ struct Triangle {
 
 	// @return True if internal triangle is entirely contained by the triangle.
 	[[nodiscard]] bool Contains(const Triangle& internal) const;
-
-	// Uses default render target.
-	void Draw(const Color& color, float line_width = -1.0f) const;
-
-	void Draw(const Color& color, float line_width, const LayerInfo& layer_info) const;
 };
 
 struct Rect {
@@ -55,7 +53,8 @@ struct Rect {
 	// Rotation in radians relative to the center of the rectangle.
 	float rotation{ 0.0f };
 
-	Rect() = default;
+	Rect()			= default;
+	virtual ~Rect() = default;
 
 	Rect(
 		const V2_float& position, const V2_float& size = {}, Origin origin = Origin::Center,
@@ -63,14 +62,6 @@ struct Rect {
 	);
 
 	[[nodiscard]] static Rect Fullscreen();
-
-	// Uses default render target.
-	void Draw(const Color& color, float line_width = -1.0f) const;
-
-	void Draw(
-		const Color& color, float line_width, const LayerInfo& layer_info,
-		const V2_float& rotation_center = { 0.5f, 0.5f }
-	) const;
 
 	[[nodiscard]] bool operator==(const Rect& o) const {
 		return position == o.position && size == o.size && origin == o.origin &&
@@ -93,23 +84,26 @@ struct Rect {
 	[[nodiscard]] std::array<V2_float, 4> GetCorners() const;
 
 	// @return Half the size of the rectangle.
-	[[nodiscard]] V2_float Half() const;
+	[[nodiscard]] V2_float Half() const noexcept;
 
 	// @return Center position of rectangle.
-	[[nodiscard]] V2_float Center() const;
+	[[nodiscard]] V2_float Center() const noexcept;
 
 	// @return Bottom right position of the unrotated rectangle.
-	[[nodiscard]] V2_float Max() const;
+	[[nodiscard]] V2_float Max() const noexcept;
 
 	// @return Top left position of the unrotated rectangle.
-	[[nodiscard]] V2_float Min() const;
+	[[nodiscard]] V2_float Min() const noexcept;
+
+	// @return Position of the unrotated rectangle relative to the given origin.
+	[[nodiscard]] V2_float GetPosition(Origin relative_to) const;
 
 	// @param rotation_center {0, 0} is top left, { 0.5, 0.5 } is center, { 1, 1 } is bottom right.
 	[[nodiscard]] std::array<V2_float, 4> GetVertices(
 		const V2_float& rotation_center = { 0.5f, 0.5f }
 	) const;
 
-	[[nodiscard]] bool IsZero() const;
+	[[nodiscard]] bool IsZero() const noexcept;
 
 	[[nodiscard]] bool Overlaps(const V2_float& point) const;
 	[[nodiscard]] bool Overlaps(const Line& line) const;
@@ -125,6 +119,8 @@ struct Rect {
 	[[nodiscard]] ptgn::Raycast Raycast(const V2_float& ray, const Rect& rect) const;
 
 private:
+	friend struct RoundedRect;
+
 	static void OffsetVertices(
 		std::array<V2_float, 4>& vertices, const V2_float& size, Origin draw_origin
 	);
@@ -146,13 +142,17 @@ struct RoundedRect : public Rect {
 		Origin origin = Origin::Center, float rotation = 0.0f
 	);
 
-	// Uses default render target.
-	void Draw(const Color& color, float line_width = -1.0f) const;
+	// @return The inner rectangle which consists of the the vertices connecting the corner arc
+	// start points, i.e. the asterisk * region in the following illustration.
+	//  /-------\
+	//  |*******|
+	//  |*******|
+	//  \-------/
+	[[nodiscard]] Rect GetInnerRect() const;
 
-	void Draw(
-		const Color& color, float line_width, const LayerInfo& layer_info,
-		const V2_float& rotation_center = { 0.5f, 0.5f }
-	) const;
+	// @return The outer rectangle which contains the entirely of the rounded rectangle as if it had
+	// no radius.
+	[[nodiscard]] Rect GetOuterRect() const;
 };
 
 struct Polygon {
@@ -165,18 +165,17 @@ struct Polygon {
 
 	explicit Polygon(const std::vector<V2_float>& vertices);
 
-	// Uses default render target.
-	void Draw(const Color& color, float line_width = -1.0f) const;
-
-	void Draw(const Color& color, float line_width, const LayerInfo& layer_info) const;
-
 	// @return Centroid of the polygon.
 	[[nodiscard]] V2_float Center() const;
 
 	// @return True if all the interior angles are less than 180 degrees.
 	[[nodiscard]] bool IsConvex() const;
+
 	// @return True if any of the interior angles are above 180 degrees.
 	[[nodiscard]] bool IsConcave() const;
+
+	// @return A vector of triangles which make up the polygon.
+	[[nodiscard]] std::vector<Triangle> Triangulate() const;
 
 	// Only works if both polygons are convex.
 	[[nodiscard]] bool Overlaps(const Polygon& polygon) const;
@@ -195,7 +194,26 @@ struct Polygon {
 
 private:
 	[[nodiscard]] bool GetMinimumOverlap(const Polygon& polygon, float& depth, Axis& axis) const;
+
 	[[nodiscard]] bool HasOverlapAxis(const Polygon& polygon) const;
 };
+
+namespace impl {
+
+[[nodiscard]] float TriangulateArea(const V2_float* contour, std::size_t count);
+
+// InsideTriangle decides if a point P is Inside of the triangle defined by A, B, C.
+[[nodiscard]] bool TriangulateInsideTriangle(
+	float Ax, float Ay, float Bx, float By, float Cx, float Cy, float Px, float Py
+);
+
+[[nodiscard]] bool TriangulateSnip(
+	const V2_float* contour, int u, int v, int w, int n, const std::vector<int>& V
+);
+
+// @return A vector of triangles which make up the polygon contour.
+[[nodiscard]] std::vector<Triangle> Triangulate(const V2_float* contour, std::size_t count);
+
+} // namespace impl
 
 } // namespace ptgn

@@ -1,27 +1,25 @@
 #pragma once
 
 #include <cstdint>
-#include <variant>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <unordered_map>
 
-#include "core/manager.h"
+#include "math/vector2.h"
+#include "resources/fonts.h"
 #include "utility/file.h"
-#include "utility/handle.h"
 
+#ifdef __EMSCRIPTEN__
 struct _TTF_Font;
 using TTF_Font = _TTF_Font;
+#else
+struct TTF_Font;
+#endif
 
 namespace ptgn {
 
 class Text;
-class Surface;
-
-enum class FontStyle : int {
-	Normal		  = 0, // TTF_STYLE_NORMAL
-	Bold		  = 1, // TTF_STYLE_BOLD
-	Italic		  = 2, // TTF_STYLE_ITALIC
-	Underline	  = 4, // TTF_STYLE_UNDERLINE
-	Strikethrough = 8  // TTF_STYLE_STRIKETHROUGH
-};
 
 enum class FontRenderMode : int {
 	Solid	= 0,
@@ -29,27 +27,12 @@ enum class FontRenderMode : int {
 	Blended = 2
 };
 
-namespace impl {
-
-class Renderer;
-class Game;
-class FontManager;
-struct FontBinary;
-
-} // namespace impl
-
-class Font : public Handle<TTF_Font> {
-public:
-	Font() = default;
-	Font(const path& font_path, std::int32_t point_size = 20, std::int32_t index = 0);
-
-	explicit Font(const impl::FontBinary& binary, std::int32_t point_size = 20);
-
-	[[nodiscard]] std::int32_t GetHeight() const;
-
-private:
-	friend class Surface;
-	friend class impl::FontManager;
+enum class FontStyle : int {
+	Normal		  = 0, // TTF_STYLE_NORMAL
+	Bold		  = 1, // TTF_STYLE_BOLD
+	Italic		  = 2, // TTF_STYLE_ITALIC
+	Underline	  = 4, // TTF_STYLE_UNDERLINE
+	Strikethrough = 8  // TTF_STYLE_STRIKETHROUGH
 };
 
 [[nodiscard]] inline FontStyle operator&(FontStyle a, FontStyle b) {
@@ -62,34 +45,58 @@ private:
 
 namespace impl {
 
-class FontManager : public MapManager<Font> {
+class Game;
+
+struct TTF_FontDeleter {
+	void operator()(TTF_Font* font) const;
+};
+
+class FontManager {
 public:
-	FontManager()								   = default;
-	~FontManager() override						   = default;
-	FontManager(FontManager&&) noexcept			   = default;
-	FontManager& operator=(FontManager&&) noexcept = default;
-	FontManager(const FontManager&)				   = delete;
-	FontManager& operator=(const FontManager&)	   = delete;
+	void Load(
+		std::string_view key, const path& filepath, std::int32_t size = 20, std::int32_t index = 0
+	);
 
-	using FontOrKey = std::variant<Font, Key, InternalKey>;
+	void Load(
+		std::string_view key, const FontBinary& binary, std::int32_t size = 20,
+		std::int32_t index = 0
+	);
 
-	void SetDefault(const FontOrKey& font);
-	[[nodiscard]] Font GetDefault() const;
+	void Unload(std::string_view key);
+
+	// Empty string corresponds to the engine default font.
+	void SetDefault(std::string_view key = "");
 
 private:
 	friend class Game;
-	friend class ptgn::Text;
-	friend class Renderer;
+	friend class Text;
+
+	using Font = std::unique_ptr<TTF_Font, TTF_FontDeleter>;
 
 	void Init();
 
-	[[nodiscard]] Font GetFontOrKey(const FontOrKey& font) const;
+	[[nodiscard]] V2_int GetSize(std::size_t key, const std::string& content) const;
 
-	Font default_font_;
+	// @return Total height of the font in pixels.
+	[[nodiscard]] std::int32_t GetHeight(std::size_t key) const;
+
+	[[nodiscard]] bool Has(std::size_t key) const;
+
+	[[nodiscard]] static Font LoadFromBinary(
+		const FontBinary& binary, std::int32_t size, std::int32_t index
+	);
+
+	[[nodiscard]] static Font LoadFromFile(
+		const path& filepath, std::int32_t size, std::int32_t index
+	);
+
+	[[nodiscard]] TTF_Font* Get(std::size_t key) const;
+
+	std::unordered_map<std::size_t, Font> fonts_;
+
+	std::size_t default_key_;
 };
 
 } // namespace impl
-
-using FontOrKey = impl::FontManager::FontOrKey;
 
 } // namespace ptgn

@@ -3,6 +3,11 @@
 #include <bitset>
 #include <utility>
 
+#include "SDL_events.h"
+#include "SDL_keyboard.h"
+#include "SDL_mouse.h"
+#include "SDL_stdinc.h"
+#include "SDL_video.h"
 #include "core/game.h"
 #include "core/window.h"
 #include "event/event_handler.h"
@@ -12,37 +17,42 @@
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/origin.h"
+#include "renderer/render_target.h"
+#include "renderer/renderer.h"
+#include "scene/camera.h"
 #include "scene/scene_manager.h"
-#include "SDL_events.h"
-#include "SDL_keyboard.h"
-#include "SDL_mouse.h"
-#include "SDL_stdinc.h"
-#include "SDL_video.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/log.h"
 #include "utility/time.h"
 #include "utility/timer.h"
 
 namespace ptgn::impl {
 
-void InputHandler::Reset() {
+void InputHandler::ResetKeyStates() {
 	key_states_.reset();
 	first_time_down_.reset();
 	first_time_up_.reset();
+}
 
-	// Mouse states.
-	left_mouse_		= MouseState::Released;
-	right_mouse_	= MouseState::Released;
-	middle_mouse_	= MouseState::Released;
-	mouse_pos_		= {};
-	prev_mouse_pos_ = {};
-	mouse_scroll_	= {};
-
-	// Mouse button held for timers.
-
+void InputHandler::ResetMouseStates() {
+	left_mouse_			= MouseState::Released;
+	right_mouse_		= MouseState::Released;
+	middle_mouse_		= MouseState::Released;
 	left_mouse_timer_	= {};
 	right_mouse_timer_	= {};
 	middle_mouse_timer_ = {};
+}
+
+void InputHandler::ResetMousePositions() {
+	mouse_pos_		= {};
+	prev_mouse_pos_ = {};
+	mouse_scroll_	= {};
+}
+
+void InputHandler::Reset() {
+	ResetKeyStates();
+	ResetMouseStates();
+	ResetMousePositions();
 }
 
 void InputHandler::Update() {
@@ -182,23 +192,36 @@ V2_float InputHandler::GetMouseDifferenceWindow() const {
 }
 
 V2_float InputHandler::GetMouseDifference() const {
-	if (game.scene.HasCurrent()) {
-		return game.scene.GetCurrent().GetRenderTarget().GetMouseDifference();
+	/*if (!render_target.IsValid()) {
+		render_target = game.renderer.GetRenderTarget();
 	}
+	return TransformToViewport(
+		render_target.Get().GetViewport(), render_target.Get().GetCamera(),
+		GetMouseDifferenceWindow()
+	);*/
 	return GetMouseDifferenceWindow();
 }
 
 V2_float InputHandler::GetMousePosition() const {
-	if (game.scene.HasCurrent()) {
-		return game.scene.GetCurrent().GetRenderTarget().GetMousePosition();
+	// TODO: Fix.
+	/*if (!render_target.IsValid()) {
+		render_target = game.renderer.GetRenderTarget();
 	}
+	return TransformToViewport(
+		render_target.Get().GetViewport(), render_target.Get().GetCamera(), GetMousePositionWindow()
+	);*/
 	return GetMousePositionWindow();
 }
 
 V2_float InputHandler::GetMousePositionPrevious() const {
-	if (game.scene.HasCurrent()) {
-		return game.scene.GetCurrent().GetRenderTarget().GetMousePositionPrevious();
+	// TODO: Fix
+	/*if (!render_target.IsValid()) {
+		render_target = game.renderer.GetRenderTarget();
 	}
+	return TransformToViewport(
+		render_target.Get().GetViewport(), render_target.Get().GetCamera(),
+		GetMousePositionPreviousWindow()
+	);*/
 	return GetMousePositionPreviousWindow();
 }
 

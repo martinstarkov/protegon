@@ -8,7 +8,7 @@
 #include "math/matrix4.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 
 namespace ptgn {
 

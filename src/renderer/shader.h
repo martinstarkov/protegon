@@ -3,23 +3,21 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
 
-#include "core/manager.h"
-#include "math/geometry/polygon.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
-#include "renderer/flip.h"
-#include "renderer/texture.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/file.h"
-#include "utility/handle.h"
+#include "utility/log.h"
 
 // clang-format off
 #define PTGN_SHADER_STRINGIFY_MACRO(x) PTGN_STRINGIFY_MACRO(x)
 
+// These allow for shaders to differ for Emscripten as it uses OpenGL ES 3.0.
 #ifdef __EMSCRIPTEN__
 #define PTGN_SHADER_PATH(file) PTGN_SHADER_STRINGIFY_MACRO(PTGN_EXPAND_MACRO(resources/shader/es/)PTGN_EXPAND_MACRO(file))
 #else
@@ -27,31 +25,7 @@
 #endif
 // clang-format on
 
-namespace ptgn {
-
-class Shader;
-
-namespace impl {
-
-class Game;
-class RendererData;
-class TextureBatchData;
-
-[[nodiscard]] std::string_view GetShaderTypeName(std::uint32_t type);
-
-struct ShaderInstance {
-	ShaderInstance();
-	ShaderInstance(const ShaderInstance&)			 = default;
-	ShaderInstance& operator=(const ShaderInstance&) = default;
-	ShaderInstance(ShaderInstance&&)				 = default;
-	ShaderInstance& operator=(ShaderInstance&&)		 = default;
-	~ShaderInstance();
-	// Location cache should not prevent const calls.
-	mutable std::unordered_map<std::string, std::int32_t> location_cache_;
-	std::uint32_t id_{ 0 };
-};
-
-} // namespace impl
+namespace ptgn::impl {
 
 // Wrapper for distinguishing between Shader from path construction and Shader
 // from source construction.
@@ -62,17 +36,31 @@ struct ShaderSource {
 	explicit ShaderSource(const std::string& source) : source_{ source } {}
 
 	~ShaderSource() = default;
+
 	std::string source_;
 };
 
-class Shader : public Handle<impl::ShaderInstance> {
+[[nodiscard]] std::string_view GetShaderName(std::uint32_t shader_type);
+
+class Shader {
 public:
 	Shader() = default;
 	Shader(const ShaderSource& vertex_shader, const ShaderSource& fragment_shader);
 	Shader(const path& vertex_shader_path, const path& fragment_shader_path);
+	Shader(const Shader&)			 = delete;
+	Shader& operator=(const Shader&) = delete;
+	Shader(Shader&& other) noexcept;
+	Shader& operator=(Shader&& other) noexcept;
+	~Shader();
 
-	void SetUniform(const std::string& name, const std::int32_t* data, std::size_t count) const;
-	void SetUniform(const std::string& name, const float* data, std::size_t count) const;
+	bool operator==(const Shader& other) const;
+	bool operator!=(const Shader& other) const;
+
+	// Sets the uniform value for the specified uniform name. If the uniform does not exist in the
+	// shader, nothing happens.
+	// Note: Make sure to bind the shader before setting uniforms.
+	void SetUniform(const std::string& name, const std::int32_t* data, std::int32_t count) const;
+	void SetUniform(const std::string& name, const float* data, std::int32_t count) const;
 	void SetUniform(const std::string& name, const Vector2<float>& v) const;
 	void SetUniform(const std::string& name, const Vector3<float>& v) const;
 	void SetUniform(const std::string& name, const Vector4<float>& v) const;
@@ -85,8 +73,6 @@ public:
 	void SetUniform(const std::string& name, const Vector3<std::int32_t>& v) const;
 	void SetUniform(const std::string& name, const Vector4<std::int32_t>& v) const;
 	void SetUniform(const std::string& name, std::int32_t v0) const;
-	// Behaves identically to SetUniform(name, std::int32_t).
-	void SetUniform(const std::string& name, bool value) const;
 	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1) const;
 	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2)
 		const;
@@ -94,30 +80,41 @@ public:
 		const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2, std::int32_t v3
 	) const;
 
+	// Behaves identically to SetUniform(name, std::int32_t).
+	void SetUniform(const std::string& name, bool value) const;
+
+	// Bind the shader before setting uniforms.
 	void Bind() const;
 
-	// TODO: Fix.
-	// @param destination == {} results in fullscreen shader.
-	// If destination != {} and destination.size == {}, texture size is used.
-	// void Draw(
-	// 	const Texture& texture, const Rect& destination = {},
-	// 	const Matrix4& view_projection = Matrix4{ 1.0f }, const TextureInfo& texture_info = {}
-	// ) const;
+	// Bind a shader id as the current shader.
+	static void Bind(std::uint32_t id);
+
+	// @return True if the shader is currently bound.
+	[[nodiscard]] bool IsBound() const;
+
+	// @return The id of the currently bound shader.
+	[[nodiscard]] static std::uint32_t GetBoundId();
+
+	// @return True if id != 0.
+	[[nodiscard]] bool IsValid() const;
 
 private:
-	friend class impl::RendererData;
-
-	[[nodiscard]] static std::int32_t GetBoundId();
+	void CreateProgram();
+	void DeleteProgram() noexcept;
 
 	[[nodiscard]] std::int32_t GetUniformLocation(const std::string& name) const;
 
 	void CompileProgram(const std::string& vertex_shader, const std::string& fragment_shader);
 
-	// Returns shader id.
 	[[nodiscard]] static std::uint32_t CompileShader(std::uint32_t type, const std::string& source);
+
+	std::uint32_t id_{ 0 };
+
+	// Location cache should not prevent const calls.
+	mutable std::unordered_map<std::string, std::int32_t> location_cache_;
 };
 
-// Note: Texture tint is applied after shader effect.
+// Note: If applicable, TextureInfo tint is applied after shader effect.
 enum class ScreenShader {
 	Default,
 	Blur,
@@ -128,37 +125,76 @@ enum class ScreenShader {
 	Sharpen,
 };
 
-enum class PresetShader {
+enum class ShapeShader {
 	Quad,
-	Circle,
-	Color
+	Circle
 };
 
-namespace impl {
+enum class OtherShader {
+	Light
+};
 
-class ShaderManager : public MapManager<Shader> {
+class ShaderManager {
 public:
-	ShaderManager()									   = default;
-	~ShaderManager()								   = default;
-	ShaderManager(ShaderManager&&) noexcept			   = default;
-	ShaderManager& operator=(ShaderManager&&) noexcept = default;
-	ShaderManager(const ShaderManager&)				   = delete;
-	ShaderManager& operator=(const ShaderManager&)	   = delete;
-
-	Shader Get(ScreenShader screen_shader) const;
-
-	Shader Get(PresetShader shader) const;
+	template <auto S>
+	[[nodiscard]] const Shader& Get() const {
+		using ShaderType = decltype(S);
+		if constexpr (std::is_same_v<ShaderType, ShapeShader>) {
+			if constexpr (S == ShapeShader::Quad) {
+				return quad_;
+			} else if constexpr (S == ShapeShader::Circle) {
+				return circle_;
+			} else {
+				PTGN_ERROR("Cannot retrieve unrecognized circle shader");
+			}
+		} else if constexpr (std::is_same_v<ShaderType, OtherShader>) {
+			if constexpr (S == OtherShader::Light) {
+				return light_;
+			} else {
+				PTGN_ERROR("Cannot retrieve unrecognized other shader");
+			}
+		} else if constexpr (std::is_same_v<ShaderType, ScreenShader>) {
+			if constexpr (S == ScreenShader::Default) {
+				return default_;
+			} else if constexpr (S == ScreenShader::Blur) {
+				return blur_;
+			} else if constexpr (S == ScreenShader::GaussianBlur) {
+				return gaussian_blur_;
+			} else if constexpr (S == ScreenShader::EdgeDetection) {
+				return edge_detection_;
+			} else if constexpr (S == ScreenShader::InverseColor) {
+				return inverse_color_;
+			} else if constexpr (S == ScreenShader::Grayscale) {
+				return grayscale_;
+			} else if constexpr (S == ScreenShader::Sharpen) {
+				return sharpen_;
+			} else {
+				PTGN_ERROR("Cannot retrieve unrecognized screen shader");
+			}
+		} else {
+			PTGN_ERROR("Cannot retrieve unrecognized shader type");
+		}
+	}
 
 private:
 	friend class Game;
-	friend class RendererData;
-	friend class TextureBatchData;
 
 	void Init();
 
-	void InitScreenShaders() {
-		// TODO: Add these shaders for emscripten OpenGL ES3.
+	// Note: Defined in header to ensure that changing a shader will recompile the necessary files.
 
+	void InitShapeShaders() {
+		// Quad is initialized in cpp because it depends on texture slots.
+
+		circle_ = { ShaderSource{
+#include PTGN_SHADER_PATH(quad.vert)
+					},
+					ShaderSource{
+#include PTGN_SHADER_PATH(circle.frag)
+					} };
+	}
+
+	void InitScreenShaders() {
 		default_ = { ShaderSource{
 #include PTGN_SHADER_PATH(screen_default.vert)
 					 },
@@ -209,6 +245,17 @@ private:
 					 } };
 	}
 
+	void InitOtherShaders() {
+		light_ = Shader(
+			ShaderSource{
+#include PTGN_SHADER_PATH(screen_default.vert)
+			},
+			ShaderSource{
+#include PTGN_SHADER_PATH(lighting.frag)
+			}
+		);
+	}
+
 	// Screen shaders.
 	Shader default_;
 	Shader blur_;
@@ -218,12 +265,12 @@ private:
 	Shader edge_detection_;
 	Shader sharpen_;
 
-	// Preset shaders.
+	// Color shaders.
 	Shader quad_;
 	Shader circle_;
-	Shader color_;
+
+	// Other shaders.
+	Shader light_;
 };
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

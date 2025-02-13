@@ -6,7 +6,7 @@
 #include <type_traits>
 
 #include "core/manager.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/log.h"
 #include "utility/timer.h"
 

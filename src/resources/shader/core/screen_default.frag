@@ -13,6 +13,9 @@ void main()
 {
 	vec4 texColor = v_Color;
 	texColor *= texture(u_Texture, v_TexCoord);
+    if (texColor.a == 0.0) {
+        discard;
+    }
 	o_Color = texColor;
 }
 )"

@@ -7,7 +7,7 @@
 
 #include "event/event.h"
 #include "event/events.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 
 namespace ptgn {
 
@@ -35,7 +35,7 @@ public:
 
 	// Specific event observation.
 	template <typename TEvent, typename S>
-	void Subscribe(T type, const S* ptr, const TEventCallback<TEvent>& func) {
+	void Subscribe(T type, const S* ptr, const TEventCallback<TEvent>& func) noexcept {
 		PTGN_ASSERT(ptr != nullptr);
 		auto key{ GetKey(ptr) };
 		using TEventType = std::decay_t<TEvent>;
@@ -54,7 +54,7 @@ public:
 	}
 
 	template <typename S>
-	void Unsubscribe(const S* ptr) {
+	void Unsubscribe(const S* ptr) noexcept {
 		if (ptr == nullptr) {
 			return;
 		}
@@ -65,22 +65,38 @@ public:
 	void Post(T type, const TEvent& event) const {
 		// This ensures that if a posted function modified observers, it does
 		// not invalidate the iterators.
-		auto observers		   = observers_;
-		auto general_observers = general_observers_;
+		auto general_observers{ general_observers_ };
 		for (const auto& [key, callback] : general_observers) {
-			std::invoke(callback, type, event);
+			if (general_observers_.empty()) {
+				break;
+			}
+			if (general_observers_.find(key) == general_observers_.end()) {
+				continue;
+			}
+			if (callback != nullptr) {
+				std::invoke(callback, type, event);
+			}
 		}
+		auto observers{ observers_ };
 		for (const auto& [key, callbacks] : observers) {
 			auto it = callbacks.find(type);
 			if (it == std::end(callbacks)) {
 				continue;
 			}
-			std::invoke(it->second, event);
+			if (observers_.empty()) {
+				break;
+			}
+			if (observers_.find(key) == observers_.end()) {
+				continue;
+			}
+			if (it->second != nullptr) {
+				std::invoke(it->second, event);
+			}
 		}
 	};
 
 	template <typename S>
-	[[nodiscard]] bool IsSubscribed(const S* ptr) const {
+	[[nodiscard]] bool IsSubscribed(const S* ptr) const noexcept {
 		if (ptr == nullptr) {
 			return false;
 		}
@@ -94,14 +110,14 @@ public:
 	void Reset() {
 		// Cannot use map.clear() because the destructors of observer objects may themselves call
 		// unsubscribe which causes a deallocation exception to be thrown.
-		for (; !observers_.empty();) {
-			auto it = observers_.begin();
+		while (!observers_.empty()) {
+			auto it{ observers_.begin() };
 			// Unsubscribe can invalidate the iterator if the callback function stores a shared ptr
 			// the destructor of which calls Unsubscribe().
 			Unsubscribe(it->first);
 		}
-		for (; !general_observers_.empty();) {
-			auto it = general_observers_.begin();
+		while (!general_observers_.empty()) {
+			auto it{ general_observers_.begin() };
 			Unsubscribe(it->first);
 		}
 		PTGN_ASSERT(observers_.empty());
@@ -110,11 +126,11 @@ public:
 
 private:
 	template <typename S>
-	[[nodiscard]] static Key GetKey(const S* ptr) {
+	[[nodiscard]] static Key GetKey(const S* ptr) noexcept {
 		return std::hash<const void*>()(ptr);
 	}
 
-	void Unsubscribe(std::size_t key) {
+	void Unsubscribe(std::size_t key) noexcept {
 		if (auto it{ observers_.find(key) }; it != observers_.end()) {
 			observers_.erase(it);
 		}

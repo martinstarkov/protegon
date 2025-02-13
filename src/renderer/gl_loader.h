@@ -15,6 +15,20 @@ typedef void(GL_APIENTRYP PFNGLVERTEXATTRIBIPOINTERPROC)(
 	GLuint index, GLint size, GLenum type, GLsizei stride, const void* pointer
 );
 
+typedef void(GL_APIENTRYP PFNGLCLEARBUFFERFVPROC)(
+	GLenum buffer, GLint drawBuffer, const GLfloat* value
+);
+
+typedef void(GL_APIENTRYP PFNGLCLEARBUFFERUIVPROC)(
+	GLenum buffer, GLint drawBuffer, const GLuint* value
+);
+
+#ifndef GL_DEPTH_STENCIL_ATTACHMENT
+#define GL_DEPTH_STENCIL_ATTACHMENT 0x821A
+#endif
+
+#define glClearDepth glClearDepthf
+
 #else
 
 #ifdef PTGN_PLATFORM_MACOS
@@ -24,6 +38,10 @@ typedef void(GL_APIENTRYP PFNGLVERTEXATTRIBIPOINTERPROC)(
 #include <OpenGL/gl3.h>
 #include <OpenGL/gl3ext.h>
 
+#define CompileShader			glCompileShader
+#define ShaderSource			glShaderSource
+#define ClearBufferfv			glClearBufferfv
+#define ClearBufferuiv			glClearBufferuiv
 #define GenBuffers				glGenBuffers
 #define DeleteBuffers			glDeleteBuffers
 #define GetBufferParameteriv	glGetBufferParameteriv
@@ -57,6 +75,7 @@ typedef void(GL_APIENTRYP PFNGLVERTEXATTRIBIPOINTERPROC)(
 #define DeleteShader			glDeleteShader
 #define GetShaderiv				glGetShaderiv
 #define GetProgramiv			glGetProgramiv
+#define GetUniformLocation		glGetUniformLocation
 #define GetShaderInfoLog		glGetShaderInfoLog
 #define GetProgramInfoLog		glGetProgramInfoLog
 #define AttachShader			glAttachShader
@@ -71,8 +90,8 @@ typedef void(GL_APIENTRYP PFNGLVERTEXATTRIBIPOINTERPROC)(
 #define Uniform3i				glUniform3i
 #define Uniform4i				glUniform4i
 #define UniformMatrix4fv		glUniformMatrix4fv
-#define BlendEquationSeparate   glBlendEquationSeparate
-#define BlendFuncSeparate       glBlendFuncSeparate
+#define BlendEquationSeparate	glBlendEquationSeparate
+#define BlendFuncSeparate		glBlendFuncSeparate
 
 #else
 
@@ -85,19 +104,24 @@ typedef void(GL_APIENTRYP PFNGLVERTEXATTRIBIPOINTERPROC)(
 
 #ifndef PTGN_PLATFORM_MACOS
 
+// Adds ##EXTPROC at the end (emscripten only).
 #define GL_LIST_3                   \
 	GLE(TexStorage2D, TEXSTORAGE2D) \
 	/* end */
 
+// Adds ##OESPROC at the end (emscripten only).
 #define GL_LIST_2                               \
 	GLE(BindVertexArray, BINDVERTEXARRAY)       \
 	GLE(GenVertexArrays, GENVERTEXARRAYS)       \
 	GLE(DeleteVertexArrays, DELETEVERTEXARRAYS) \
 	/* end */
 
+// Adds ##PROC at the end.
 #define GL_LIST_1                                           \
 	GLE(AttachShader, ATTACHSHADER)                         \
 	GLE(BindBuffer, BINDBUFFER)                             \
+	GLE(ClearBufferfv, CLEARBUFFERFV)                       \
+	GLE(ClearBufferuiv, CLEARBUFFERUIV)                     \
 	GLE(BindFramebuffer, BINDFRAMEBUFFER)                   \
 	GLE(GetBufferParameteriv, GETBUFFERPARAMETERIV)         \
 	GLE(VertexAttribPointer, VERTEXATTRIBPOINTER)           \

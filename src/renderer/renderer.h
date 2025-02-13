@@ -2,28 +2,40 @@
 
 #include <cstdint>
 
-#include "renderer/buffer.h"
+#include "math/geometry/polygon.h"
+#include "math/vector2.h"
+#include "renderer/blend_mode.h"
 #include "renderer/color.h"
-#include "renderer/frame_buffer.h"
-#include "renderer/render_target.h"
-#include "renderer/shader.h"
-#include "renderer/texture.h"
+#include "renderer/render_data.h"
 
 namespace ptgn {
 
-class GLRenderer;
-struct LayerInfo;
-class GLRenderer;
-class RenderTarget;
-class FrameBuffer;
+// How the renderer resolution is scaled to the window size.
+enum class ResolutionMode {
+	Disabled,  /**< There is no scaling in effect */
+	Stretch,   /**< The rendered content is stretched to the output resolution */
+	Letterbox, /**< The rendered content is fit to the largest dimension and the other dimension is
+				  letterboxed with black bars */
+	Overscan,  /**< The rendered content is fit to the smallest dimension and the other dimension
+				  extends beyond the output bounds */
+	IntegerScale, /**< The rendered content is scaled up by integer multiples to fit the output
+					 resolution */
+};
 
 namespace impl {
 
+class Shader;
+class FrameBuffer;
+class VertexArray;
 class Game;
 class SceneManager;
 class SceneCamera;
 struct Batch;
-class RenderData;
+class GLRenderer;
+struct RenderTargetInstance;
+struct TextureInstance;
+struct ShaderInstance;
+class InputHandler;
 
 class Renderer {
 public:
@@ -34,64 +46,115 @@ public:
 	Renderer& operator=(const Renderer&) = delete;
 	Renderer& operator=(Renderer&&)		 = default;
 
+	// Sets the current render target. Every subsequent object draw call will be drawn to this
+	// render target. In order to see the render target on the screen, first call
+	// SetRenderTarget({}) to set the screen target followed by target.Draw() to draw the target to
+	// the screen.
+	// @param target The desired render target to be set. If {}, the screen target will be set.
+	// Note if provided target is not the currently set render target, this function will flush the
+	// renderer.
+	// TODO: Fix.
+	// void SetRenderTarget(const RenderTarget& target = {});
+
+	// @return The current render target.
+	//[[nodiscard]] RenderTarget GetRenderTarget() const;
+
+	// Clear the current render target.
 	void Clear() const;
 
-	void Present();
-
+	// Flush the render queue onto the current render target.
 	void Flush();
 
+	// @param The blend mode to set for the current render target.
+	// Note: If this blend mode is different from the blend mode of the currently set render target,
+	// this function will flush the renderer.
 	void SetBlendMode(BlendMode blend_mode);
+
+	// @return The blend mode of the current render target.
 	[[nodiscard]] BlendMode GetBlendMode() const;
 
-	// Sets the clear color of the currently bound render target.
-	// Hence, prefer to call this in the Init function of a scene rather than the constructor as
-	// this guarantees that the scene's render target is bound.
+	// Sets the clear color of the current render target.
+	// Note: The newly set clear color will only be applied upon clearing the render target. This
+	// happens after calling Draw() on the render target, or for the screen target at the end of the
+	// current frame.
 	void SetClearColor(const Color& clear_color);
+
+	// @return The clear color of the current render target.
 	[[nodiscard]] Color GetClearColor() const;
 
-private:
-	// Sets bound_frame_buffer_
-	friend class ptgn::FrameBuffer;
-	friend class RenderData;
-	friend struct Batch;
-	friend class Game;
-	friend class SceneManager;
-	friend struct LayerInfo;
-	friend class GLRenderer;
-	friend class ptgn::RenderTarget;
-	friend class SceneCamera;
-	friend class ptgn::GLRenderer;
+	// Sets the viewport for the current render target.
+	// @param viewport Where to draw the current render target.
+	void SetViewport(const Rect& viewport);
 
+	// @return Viewport of the current render target.
+	[[nodiscard]] Rect GetViewport() const;
+
+	// @param resolution The resolution size to which the renderer will be displayed.
+	// Note: If no resolution mode is set, setting the resolution will default it to
+	// ResolutionMode::Stretch.
+	// Note: Setting this will override a set viewport.
+	void SetResolution(const V2_int& resolution);
+
+	// @param mode The mode in which to fit the resolution to the window. If
+	// ResolutionMode::Disabled, the resolution is ignored.
+	// Note: Setting this will override a set viewport.
+	void SetResolutionMode(ResolutionMode mode);
+
+	// @return The resolution size of the renderer. If resolution has not been set, returns window
+	// size.
+	[[nodiscard]] V2_int GetResolution() const;
+
+	// @return The resolution scaling mode.
+	[[nodiscard]] ResolutionMode GetResolutionMode() const;
+
+	// @return The render data associated with the current render queue.
+	[[nodiscard]] RenderData& GetRenderData();
+
+private:
+	friend class Shader;
+	friend class VertexArray;
+	friend class FrameBuffer;
+	friend class RenderTarget;
+	friend class GLRenderer;
+	friend class Game;
+	friend struct RenderTargetInstance;
+	friend struct ShaderInstance;
+	friend struct TextureInstance;
+	friend struct Batch;
+
+	// Present the screen target to the window.
+	void PresentScreen();
+
+	// Clears the window buffer.
 	void ClearScreen() const;
-	void Init(const Color& background_color);
+
+	void Init(const Color& window_background_color);
 	void Shutdown();
 	void Reset();
 
-	// TODO: Move to private and make Batch<> class friend.
-	IndexBuffer quad_ib_;
-	IndexBuffer triangle_ib_;
-	IndexBuffer line_ib_;
-	IndexBuffer point_ib_;
-	IndexBuffer shader_ib_; // One set of quad indices.
+	RenderData render_data_;
 
-	Shader quad_shader_;
-	Shader circle_shader_;
-	Shader color_shader_;
+	struct BoundStates {
+		std::uint32_t frame_buffer_id{ 0 };
+		std::uint32_t shader_id{ 0 };
+		std::uint32_t vertex_array_id{ 0 };
+		BlendMode blend_mode{ BlendMode::None };
+		V2_int viewport_position;
+		V2_int viewport_size;
+	};
 
-	// Maximum number of primitive types before a second batch is generated.
-	// The higher the number, the less draw calls but more RAM is used.
-	std::size_t batch_capacity_{ 0 };
-
-	std::int32_t max_texture_slots_{ 0 };
-	Texture white_texture_;
+	BoundStates bound_;
 
 	// Renderer keeps track of what is bound.
-	Color bound_clear_color_{ color::Transparent };
-	BlendMode bound_blend_mode_{ BlendMode::None };
-	FrameBuffer bound_frame_buffer_;
 
-	RenderTarget screen_target_;
-	Shader screen_shader_;
+	Color background_color_{ color::Transparent };
+	// Default value results in fullscreen.
+	V2_int resolution_;
+	ResolutionMode scaling_mode_{ ResolutionMode::Disabled };
+
+	// TODO: Fix.
+	/*RenderTarget current_target_;
+	RenderTarget screen_target_;*/
 };
 
 } // namespace impl

@@ -11,7 +11,11 @@
 
 union SDL_Event;
 
-namespace ptgn::impl {
+namespace ptgn {
+
+class Scene;
+
+namespace impl {
 
 class Game;
 class SceneManager;
@@ -62,16 +66,18 @@ public:
 	// left of the window.
 	[[nodiscard]] V2_float GetMouseDifferenceWindow() const;
 
-	// @return Mouse position scaled relative to the camera size of the currently active scene's
-	// render target.
+	// @param render_target If {}, uses the renderer's current render target.
+	// @return Mouse position transformed relative to the specified render target.
 	[[nodiscard]] V2_float GetMousePosition() const;
 
-	// @return Mouse position during the previous frame scaled relative to the camera size of the
-	// currently active scene's render target.
+	// @param render_target If {}, uses the renderer's current render target.
+	// @return Mouse position during the previous frame transformed relative to the specified render
+	// target.
 	[[nodiscard]] V2_float GetMousePositionPrevious() const;
 
-	// @return Mouse position difference between the current and previous frames scaled relative to
-	// the camera size of the currently active scene's render target.
+	// @param render_target If {}, uses the renderer's current render target.
+	// @return Mouse position difference between the current and previous frames transformed
+	// relative to the specified render target.
 	[[nodiscard]] V2_float GetMouseDifference() const;
 
 	// @return In desktop mode: mouse position relative to the screen (display). In browser: same as
@@ -116,6 +122,7 @@ public:
 	[[nodiscard]] bool KeyUp(Key key);
 
 private:
+	friend class Scene;
 	friend class SceneManager;
 	friend class Game;
 
@@ -143,6 +150,9 @@ private:
 	void Shutdown();
 
 	void Reset();
+	void ResetKeyStates();
+	void ResetMouseStates();
+	void ResetMousePositions();
 
 	// Number of keys stored in the SDL key states array. For creating previous
 	// key states array.
@@ -168,4 +178,6 @@ private:
 	Timer middle_mouse_timer_;
 };
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn

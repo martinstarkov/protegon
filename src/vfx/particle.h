@@ -1,19 +1,14 @@
 #pragma once
 
 #include <cmath>
-#include <cstdint>
 #include <utility>
 
 #include "ecs/ecs.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/polygon.h"
 #include "math/math.h"
 #include "math/rng.h"
 #include "math/vector2.h"
+#include "renderer/blend_mode.h"
 #include "renderer/color.h"
-#include "renderer/origin.h"
-#include "renderer/texture.h"
-#include "utility/debug.h"
 #include "utility/time.h"
 #include "utility/timer.h"
 
@@ -39,7 +34,8 @@ struct Particle {
 struct ParticleInfo {
 	ParticleInfo() = default;
 
-	Texture texture;
+	// TODO: Fix.
+	// Texture texture;
 	bool texture_enabled{ false };
 	bool tint_texture{ true };
 
@@ -53,7 +49,9 @@ struct ParticleInfo {
 	float speed{ 10.0f };
 	float starting_angle{ DegToRad(0.0f) };
 
+	// -1.0f means shape is solid. Only applies if texture_enabled == false.
 	float line_thickness{ -1.0f };
+
 	ParticleShape particle_shape{ ParticleShape::Circle };
 
 	Color start_color{ color::Red };
@@ -70,7 +68,6 @@ struct ParticleInfo {
 	float speed_variance{ 5.0f };
 	float angle_variance{ DegToRad(5.0f) };
 	V2_float position_variance{ 5.0f };
-	// -1.0f means solid. Only applies if texture_enabled == false.
 	V2_float gravity;
 
 	// TODO: Implement.
@@ -97,6 +94,8 @@ public:
 
 	void Draw() {
 		// TOOD: Add blend mode
+		// TODO: Fix drawing.
+		/*
 		if (info.texture_enabled) {
 			TextureInfo i;
 			PTGN_ASSERT(info.texture.IsValid());
@@ -115,30 +114,35 @@ public:
 		switch (info.particle_shape) {
 			case ParticleShape::Circle: {
 				for (const auto& [e, p] : manager_.EntitiesWith<Particle>()) {
-					Circle{ p.position, p.radius }.Draw(p.color, info.line_thickness);
+					// TODO: Fix drawing.
+					//Circle{ p.position, p.radius }.Draw(p.color, info.line_thickness);
 				}
 				break;
 			}
 			case ParticleShape::Square: {
 				for (const auto& [e, p] : manager_.EntitiesWith<Particle>()) {
 					// TODO: Add rect rotation.
-					Rect{ p.position, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center }.Draw(
-						p.color, info.line_thickness
-					);
+					// TODO: Fix drawing.
+					//Rect{ p.position, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center
+		}.Draw(p.color, info.line_thickness);
 				}
 				break;
 			}
-		}
+			}
+		*/
 	}
 
+	// Starts emitting particles.
 	void Start() {
 		emission_.Start();
 	}
 
+	// Stops emitting particles.
 	void Stop() {
 		emission_.Stop();
 	}
 
+	// Toggle particle emission.
 	void Toggle() {
 		emission_.Toggle();
 	}
@@ -183,11 +187,5 @@ private:
 	Gaussian<float> rng_{ -1.0f, 1.0f };
 	ecs::Manager manager_;
 };
-
-namespace impl {
-
-// TODO: Add particle manager_.
-
-} // namespace impl
 
 } // namespace ptgn

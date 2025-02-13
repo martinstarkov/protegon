@@ -1,7 +1,7 @@
 
-set(SDL2_VERSION       2.30.8)
-set(SDL2_IMAGE_VERSION  2.8.2)
-set(SDL2_TTF_VERSION   2.22.0)
+set(SDL2_VERSION       2.30.11)
+set(SDL2_IMAGE_VERSION  2.8.4)
+set(SDL2_TTF_VERSION   2.24.0)
 set(SDL2_MIXER_VERSION  2.8.0)
 
 function(download_and_extract url output_dir flags)

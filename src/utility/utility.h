@@ -34,8 +34,14 @@ std::vector<ReturnType> GetElements(const Map& map) {
 
 // @return How many bits the contents of the vector take up.
 template <typename T>
-static std::size_t SizeofVector(const std::vector<T>& vector) {
+static std::size_t Sizeof(const std::vector<T>& vector) {
 	return sizeof(T) * vector.size();
+}
+
+// @return How many bits the contents of the array take up.
+template <typename T, std::size_t I>
+static constexpr std::size_t Sizeof(const std::array<T, I>& array) {
+	return sizeof(T) * array.size();
 }
 
 template <typename T>
@@ -43,7 +49,7 @@ static std::vector<T> ToVector(const std::unordered_set<T>& set) {
 	std::vector<T> v;
 	v.reserve(set.size());
 	for (const auto& element : set) {
-		v.push_back(element);
+		v.emplace_back(element);
 	}
 	return v;
 }
@@ -52,8 +58,8 @@ template <typename Type, std::size_t Size>
 static std::vector<Type> ToVector(const std::array<Type, Size>& array) {
 	std::vector<Type> v;
 	v.reserve(Size);
-	for (std::size_t i{ 0 }; i < Size; ++i) {
-		v.push_back(array[Size - 1 - i]);
+	for (const auto& a : array) {
+		v.emplace_back(a);
 	}
 	return v;
 }
@@ -86,12 +92,22 @@ template <typename Key, typename Value, typename Compare, typename Alloc>
 }
 
 template <typename T>
-static bool VectorContains(const std::vector<T>& container, const T& value) {
+[[nodiscard]] static bool VectorContains(const std::vector<T>& container, const T& value) {
 	return std::find(container.begin(), container.end(), value) != container.end();
 }
 
+template <typename K, typename T>
+[[nodiscard]] static bool MapContains(const std::unordered_map<K, T>& container, const T& value) {
+	for (const auto& [k, v] : container) {
+		if (v == value) {
+			return true;
+		}
+	}
+	return false;
+}
+
 template <typename Type, std::size_t... sizes>
-static auto ConcatenateArrays(const std::array<Type, sizes>&... arrays) {
+[[nodiscard]] static auto ConcatenateArrays(const std::array<Type, sizes>&... arrays) {
 	std::array<Type, (sizes + ...)> result;
 	std::size_t index{ 0 };
 
@@ -101,7 +117,7 @@ static auto ConcatenateArrays(const std::array<Type, sizes>&... arrays) {
 }
 
 template <typename T, typename... TArgs>
-static auto ConcatenateVectors(
+[[nodiscard]] static auto ConcatenateVectors(
 	const std::vector<T>& v1, const std::vector<T>& v2, const TArgs&... vectors
 ) {
 	std::vector<T> result;
@@ -113,7 +129,7 @@ static auto ConcatenateVectors(
 }
 
 template <typename T>
-static auto ConcatenateVectors(const std::vector<T>& v1, const std::vector<T>& v2) {
+[[nodiscard]] static auto ConcatenateVectors(const std::vector<T>& v1, const std::vector<T>& v2) {
 	std::vector<T> result;
 	result.reserve(v1.size() + v2.size());
 	result.insert(result.end(), v1.begin(), v1.end());

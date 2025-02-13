@@ -11,6 +11,8 @@
 #include "math/rng.h"
 #include "math/vector2.h"
 
+// TODO: Move to camera class?
+
 namespace ptgn {
 
 // Based on: https://roystan.net/articles/camera-shake/
@@ -24,9 +26,11 @@ struct CameraShake {
 
 	// Current offset from transform position.
 	V2_float local_position;
+
 	// Current offset from transform rotation (in radians).
 	float local_rotation{ 0.0f };
 
+	// Needs to be called once a frame to update the translation and rotation of the camera shake.
 	void Update() {
 		// Taking trauma to an exponent allows the ability to smoothen
 		// out the transition from shaking to being static.
@@ -48,6 +52,7 @@ struct CameraShake {
 		trauma = std::clamp(trauma - recovery_speed * dt, 0.0f, 1.0f);
 	}
 
+	// Resets camera shake back to 0.
 	void Reset() {
 		trauma = 0.0f;
 	}
@@ -59,13 +64,17 @@ struct CameraShake {
 
 	// Maximum translation distance during shaking.
 	V2_float maximum_translation{ 30.0f, 30.0f };
+
 	// Maximum rotation (in radians) during shaking.
 	float maximum_rotation{ DegToRad(30.0f) };
+
 	// Frequency of the Perlin noise function. Higher values will result in faster shaking.
 	float frequency{ 10.0f };
+
 	// Trauma is taken to this power before shaking is applied. Higher values will result in a
 	// smoother falloff as trauma reduces.
 	float trauma_exponent{ 2.0f };
+
 	// Amount of trauma per second that is recovered.
 	float recovery_speed{ 0.5f };
 

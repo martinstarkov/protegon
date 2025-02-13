@@ -14,27 +14,27 @@ enum class Key {
 	K_8 = 37,				// Key 8 // SDL_SCANCODE_8
 	K_9 = 38,				// Key 9 // SDL_SCANCODE_9
 
-	ZERO  = 39,				// SDL_SCANCODE_0
-	ONE	  = 30,				// SDL_SCANCODE_1
-	TWO	  = 31,				// SDL_SCANCODE_2
-	THREE = 32,				// SDL_SCANCODE_3
-	FOUR  = 33,				// SDL_SCANCODE_4
-	FIVE  = 34,				// SDL_SCANCODE_5
-	SIX	  = 35,				// SDL_SCANCODE_6
-	SEVEN = 36,				// SDL_SCANCODE_7
-	EIGHT = 37,				// SDL_SCANCODE_8
-	NINE  = 38,				// SDL_SCANCODE_9
+	ZERO  = 39,				// Key 0 // SDL_SCANCODE_0
+	ONE	  = 30,				// Key 1 // SDL_SCANCODE_1
+	TWO	  = 31,				// Key 2 // SDL_SCANCODE_2
+	THREE = 32,				// Key 3 // SDL_SCANCODE_3
+	FOUR  = 33,				// Key 4 // SDL_SCANCODE_4
+	FIVE  = 34,				// Key 5 // SDL_SCANCODE_5
+	SIX	  = 35,				// Key 6 // SDL_SCANCODE_6
+	SEVEN = 36,				// Key 7 // SDL_SCANCODE_7
+	EIGHT = 37,				// Key 8 // SDL_SCANCODE_8
+	NINE  = 38,				// Key 9 // SDL_SCANCODE_9
 
-	KP_0 = 98,				// SDL_SCANCODE_KP_0
-	KP_1 = 89,				// SDL_SCANCODE_KP_1
-	KP_2 = 90,				// SDL_SCANCODE_KP_2
-	KP_3 = 91,				// SDL_SCANCODE_KP_3
-	KP_4 = 92,				// SDL_SCANCODE_KP_4
-	KP_5 = 93,				// SDL_SCANCODE_KP_5
-	KP_6 = 94,				// SDL_SCANCODE_KP_6
-	KP_7 = 95,				// SDL_SCANCODE_KP_7
-	KP_8 = 96,				// SDL_SCANCODE_KP_8
-	KP_9 = 97,				// SDL_SCANCODE_KP_9
+	KP_0 = 98,				// Numpad Key 0 SDL_SCANCODE_KP_0
+	KP_1 = 89,				// Numpad Key 1 SDL_SCANCODE_KP_1
+	KP_2 = 90,				// Numpad Key 2 SDL_SCANCODE_KP_2
+	KP_3 = 91,				// Numpad Key 3 SDL_SCANCODE_KP_3
+	KP_4 = 92,				// Numpad Key 4 SDL_SCANCODE_KP_4
+	KP_5 = 93,				// Numpad Key 5 SDL_SCANCODE_KP_5
+	KP_6 = 94,				// Numpad Key 6 SDL_SCANCODE_KP_6
+	KP_7 = 95,				// Numpad Key 7 SDL_SCANCODE_KP_7
+	KP_8 = 96,				// Numpad Key 8 SDL_SCANCODE_KP_8
+	KP_9 = 97,				// Numpad Key 9 SDL_SCANCODE_KP_9
 
 	KP_ZERO	 = 98,			// SDL_SCANCODE_KP_0
 	KP_ONE	 = 89,			// SDL_SCANCODE_KP_1

@@ -1,80 +1,55 @@
 #pragma once
 
-#include "core/manager.h"
-#include "math/vector2.h"
 #include "math/vector3.h"
 #include "renderer/color.h"
-#include "renderer/frame_buffer.h"
-#include "renderer/render_target.h"
-#include "renderer/shader.h"
 
 namespace ptgn {
 
-namespace impl {
-
-class Game;
-
-} // namespace impl
-
-class LightManager;
-
-class Light {
+// Lights must be added to the LightManager to be drawn to the screen.
+class PointLight {
 public:
-	Light() = default;
+	bool operator==(const PointLight& o) const;
+	bool operator!=(const PointLight& o) const;
 
-	Light(const V2_float& position, const Color& color, float intensity = 10.0f) :
-		position_{ position }, color_{ color }, intensity_{ intensity } {}
-
-	// TODO: Fix.
-	// void Draw(const Texture& texture) const;
-
-	void SetPosition(const V2_float& position);
-	[[nodiscard]] V2_float GetPosition() const;
-
-	void SetColor(const Color& color);
-	[[nodiscard]] Color GetColor() const;
-
-	void SetIntensity(float intensity);
+	PointLight& SetIntensity(float intensity);
 	[[nodiscard]] float GetIntensity() const;
 
-private:
-	friend class LightManager;
+	PointLight& SetColor(const Color& color);
+	[[nodiscard]] Color GetColor() const;
+
+	PointLight& SetAmbientIntensity(float ambient_intensity);
+	[[nodiscard]] float GetAmbientIntensity() const;
+
+	PointLight& SetAmbientColor(const Color& ambient_color);
+	[[nodiscard]] Color GetAmbientColor() const;
+
+	PointLight& SetRadius(float radius);
+	[[nodiscard]] float GetRadius() const;
+
+	PointLight& SetFalloff(float falloff);
+	[[nodiscard]] float GetFalloff() const;
 
 	// @return color_ normalized and without alpha value.
-	[[nodiscard]] V3_float GetShaderColor() const;
-
-	V2_float position_;
-	Color color_;
-	float intensity_{ 10.0f };
-};
-
-class LightManager : public MapManager<Light> {
-public:
-	LightManager()									 = default;
-	~LightManager() override						 = default;
-	LightManager(LightManager&&) noexcept			 = default;
-	LightManager& operator=(LightManager&&) noexcept = default;
-	LightManager(const LightManager&)				 = delete;
-	LightManager& operator=(const LightManager&)	 = delete;
-
-	void Draw();
-
-	void Reset();
-
-	void SetBlur(bool blur);
-	[[nodiscard]] bool GetBlur() const;
+	[[nodiscard]] static V3_float GetShaderColor(const Color& color);
 
 private:
-	friend class Light;
-	friend class impl::Game;
+	// Intensity of the light. Range: [0, 1].
+	float intensity_{ 1.0f };
 
-	void Init();
+	// Color of the light.
+	Color color_{ color::Cyan };
 
-	[[nodiscard]] Shader GetShader() const;
+	// Intensity of the ambient light. Range: [0, 1].
+	float ambient_intensity_{ 0.03f };
 
-	RenderTarget target_;
-	Shader light_shader_;
-	bool blur_{ false };
+	// Color of the ambient light.
+	Color ambient_color_{ color::Red };
+
+	// Higher -> Light reaches further out from the center.
+	float radius_{ 100.0f };
+
+	// Higher -> Less light reaches the outer radius.
+	float falloff_{ 2.0f };
 };
 
 } // namespace ptgn

@@ -1,16 +1,10 @@
 #pragma once
 
-#include <fstream>
-#include <nlohmann/json.hpp>
-
-using json = nlohmann::json;
-
 #include "audio/audio.h"
-#include "collision/collider.h"
-#include "collision/collision.h"
+#include "components/camera_shake.h"
 #include "components/generic.h"
 #include "components/lifetime.h"
-#include "components/sprite.h"
+#include "components/draw.h"
 #include "components/transform.h"
 #include "core/game.h"
 #include "core/window.h"
@@ -19,6 +13,8 @@ using json = nlohmann::json;
 #include "event/event_handler.h"
 #include "event/events.h"
 #include "event/input_handler.h"
+#include "math/collider.h"
+#include "math/collision.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
@@ -37,15 +33,16 @@ using json = nlohmann::json;
 #include "renderer/buffer.h"
 #include "renderer/color.h"
 #include "renderer/font.h"
+#include "renderer/render_target.h"
 #include "renderer/renderer.h"
 #include "renderer/shader.h"
-#include "renderer/surface.h"
 #include "renderer/text.h"
 #include "renderer/texture.h"
 #include "renderer/vertex_array.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
+#include "serialization/json_manager.h"
 #include "tile/a_star.h"
 #include "tile/grid.h"
 #include "tile/layer.h"
@@ -59,3 +56,5 @@ using json = nlohmann::json;
 #include "utility/timer.h"
 #include "utility/tween.h"
 #include "utility/utility.h"
+#include "vfx/light.h"
+#include "vfx/particle.h"

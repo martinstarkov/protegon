@@ -1,321 +1,67 @@
 #pragma once
 
-#include <array>
-#include <cstdint>
 #include <map>
-#include <tuple>
-#include <type_traits>
-#include <utility>
-#include <vector>
 
-#include "math/matrix4.h"
-#include "math/vector2.h"
-#include "math/vector4.h"
+#include "components/draw.h"
+#include "components/transform.h"
+#include "ecs/ecs.h"
+#include "renderer/batch.h"
+#include "renderer/blend_mode.h"
+#include "renderer/color.h"
+#include "renderer/frame_buffer.h"
+#include "renderer/render_target.h"
+#include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "renderer/vertex_array.h"
-#include "renderer/vertices.h"
-#include "utility/utility.h"
+#include "scene/camera.h"
 
 namespace ptgn {
 
-struct Polygon;
-struct Capsule;
-struct Arc;
-struct RoundedRect;
-struct Triangle;
-struct Line;
-struct Ellipse;
-struct Circle;
+// TODO: Figure out what to do with this.
+struct Point {};
 
 namespace impl {
 
-enum class BatchType {
-	Quad,
-	Circle,
-	Triangle,
-	Line,
-	Point
-};
-
-struct Batch {
-	Batch() = default;
-
-	Batch(const Texture& texture);
-
-	std::vector<Texture> textures_;
-	std::vector<std::array<QuadVertex, 4>> quads_;
-	std::vector<std::array<CircleVertex, 4>> circles_;
-	std::vector<std::array<ColorVertex, 3>> triangles_;
-	std::vector<std::array<ColorVertex, 2>> lines_;
-	std::vector<std::array<ColorVertex, 1>> points_;
-
-	void BindTextures() const;
-
-	// Add a texture to the batch and returns its texture index.
-	// @return The texture index to which the texture was added. If the batch texture slots are
-	// full, an index of 0.0f is returned.
-	[[nodiscard]] float GetAvailableTextureIndex(const Texture& texture);
-};
-
-// Constructing a RenderData object requires the engine to be initialized.
 class RenderData {
 public:
-	RenderData();
+	void Init();
 
-	// Assumes view_projection_ is updated externally.
-	void Flush();
-
-	void SetViewProjection(const Matrix4& view_projection);
-
-	// TOOD: Probably best to move these all into the geometry classes to avoid code duplication.
-
-	void AddTexture(
-		const std::array<V2_float, 4>& vertices, const Texture& texture,
-		const std::array<V2_float, 4>& tex_coords, const V4_float& tint_color,
-		std::int32_t render_layer
-	);
-
-	void AddEllipse(
-		const Ellipse& ellipse, const V4_float& color, float line_width, float fade,
-		std::int32_t render_layer
-	);
-
-	void AddCircle(
-		const Circle& circle, const V4_float& color, float line_width, float fade,
-		std::int32_t render_layer
-	);
-
-	void AddLine(
-		const Line& line, const V4_float& color, float line_width, std::int32_t render_layer
-	);
-
-	void AddPoint(
-		const V2_float& point, const V4_float& color, float radius, float fade,
-		std::int32_t render_layer
-	);
-
-	void AddTriangle(
-		const Triangle& triangle, const V4_float& color, float line_width, std::int32_t render_layer
-	);
-
-	void AddRect(
-		const std::array<V2_float, 4>& vertices, const V4_float& color, float line_width,
-		std::int32_t render_layer
-	);
-
-	void AddRoundedRect(
-		const RoundedRect& rrect, const V4_float& color, float line_width,
-		const V2_float& rotation_center, float fade, std::int32_t render_layer
-	);
-
-	void AddArc(
-		const Arc& arc, bool clockwise, const V4_float& color, float line_width, float fade,
-		std::int32_t render_layer
-	);
-
-	void AddCapsule(
-		const Capsule& capsule, const V4_float& color, float line_width, float fade,
-		std::int32_t render_layer
-	);
-
-	void AddPolygon(
-		const Polygon& polygon, const V4_float& color, float line_width, std::int32_t render_layer
+	void Render(const FrameBuffer& frame_buffer, const Camera& camera, ecs::Manager& manager);
+	void Render(
+		const FrameBuffer& frame_buffer, const Camera& camera, ecs::Entity e, bool check_visibility
 	);
 
 private:
-	friend struct Batch;
-
-	void AddPrimitiveQuad(
-		const std::array<V2_float, 4>& positions, std::int32_t render_layer, const V4_float& color,
-		const std::array<V2_float, 4>& tex_coords, const Texture& texture
+	void AddToBatch(
+		Batch& batch, ecs::Entity e, Transform transform, const Depth& depth,
+		const Texture& texture, const Camera& camera
 	);
 
-	void AddPrimitiveCircle(
-		const std::array<V2_float, 4>& positions, std::int32_t render_layer, const V4_float& color,
-		float line_width, float fade
+	void AddTexture(
+		ecs::Entity e, const Transform& transform, const Depth& depth, const BlendMode& blend_mode,
+		const Texture& texture, const Shader& shader, const Camera& camera
 	);
 
-	void AddPrimitiveTriangle(
-		const std::array<V2_float, 3>& positions, std::int32_t render_layer, const V4_float& color
+	void SetVertexArrayToWindow(
+		const Camera& camera, const Color& color, const Depth& depth, float texture_index
 	);
 
-	void AddPrimitiveLine(
-		const std::array<V2_float, 2>& positions, std::int32_t render_layer, const V4_float& color
-	);
+	void SetupRender(const FrameBuffer& frame_buffer, const Camera& camera) const;
+	void PopulateBatches(ecs::Entity entity, bool check_visibility, const Camera& camera);
+	void FlushBatches(const FrameBuffer& frame_buffer, const Camera& camera);
 
-	void AddPrimitivePoint(
-		const std::array<V2_float, 1>& positions, std::int32_t render_layer, const V4_float& color
-	);
+	std::size_t max_texture_slots{ 0 };
 
-	[[nodiscard]] std::vector<Batch>& GetLayerBatches(
-		std::int32_t render_layer, [[maybe_unused]] float alpha
-	);
+	Texture white_texture;
 
-	// @return True if texture is the 1x1 white texture used for solid quads, false otherwise.
-	[[nodiscard]] static bool IsBlank(const Texture& texture);
+	RenderTarget lights;
 
-	// @return pair.first is the vector to which the primitive can be added, pair.second is the
-	// texture index.
-	template <BatchType T, typename VertexType, std::size_t VertexCount>
-	std::pair<std::vector<std::array<VertexType, VertexCount>>&, float> GetAvailableBatch(
-		const Texture& texture, std::int32_t render_layer, float alpha
-	) {
-		float texture_index{ 0.0f };
+	BlendMode default_blend_mode{ BlendMode::Blend };
+	BlendMode light_blend_mode{ BlendMode::Add };
 
-		constexpr bool is_quad{ std::is_same_v<VertexType, QuadVertex> };
+	VertexArray triangle_vao;
 
-		// Textures are currently always considered part of the transparent batches.
-		// TODO: Check texture format (e.g. RGB888) to separate it into the opaque batches.
-		auto& batches{ GetLayerBatches(render_layer, is_quad ? 0.0f : alpha) };
-		PTGN_ASSERT(!batches.empty());
-
-		std::vector<std::array<VertexType, VertexCount>>* data{ nullptr };
-
-		if constexpr (is_quad) {
-			if (!IsBlank(texture)) {
-				PTGN_ASSERT(texture.IsValid());
-
-				for (auto& batch : batches) {
-					if (batch.quads_.size() == batch_capacity_) {
-						continue;
-					}
-					if (auto index{ batch.GetAvailableTextureIndex(texture) }; index != 0.0f) {
-						data		  = &batch.quads_;
-						texture_index = index;
-						break;
-					}
-				}
-				// An available/existing texture index was not found, therefore add a new batch.
-				if (texture_index == 0.0f) {
-					texture_index = 1.0f;
-					data		  = &batches.emplace_back(texture).quads_;
-				}
-			} else {
-				data = GetBufferInfo<T>(batches.back()).first;
-				if (data->size() == batch_capacity_) {
-					data = GetBufferInfo<T>(batches.emplace_back()).first;
-				}
-			}
-		} else {
-			data = GetBufferInfo<T>(batches.back()).first;
-			if (data->size() == batch_capacity_) {
-				data = GetBufferInfo<T>(batches.emplace_back()).first;
-			}
-		}
-
-		PTGN_ASSERT(data != nullptr);
-		PTGN_ASSERT(data->size() + 1 <= batch_capacity_);
-
-		return { *data, texture_index };
-	}
-
-	template <BatchType T, typename VertexType, std::size_t VertexCount>
-	void AddPrimitive(
-		const std::array<V2_float, VertexCount>& positions, std::int32_t render_layer,
-		const V4_float& color, const std::array<V2_float, 4>& tex_coords = {},
-		const Texture& texture = {}, float line_width = 0.0f, float fade = 0.0f
-	) {
-		PTGN_ASSERT(color.x >= 0.0f && color.y >= 0.0f && color.z >= 0.0f && color.w >= 0.0f);
-		PTGN_ASSERT(color.x <= 1.0f && color.y <= 1.0f && color.z <= 1.0f && color.w <= 1.0f);
-
-		auto [data, texture_index] =
-			GetAvailableBatch<T, VertexType, VertexCount>(texture, render_layer, color.w);
-
-		// Used for circle vertices.
-		constexpr std::array<V2_float, 4> local{ V2_float{ -1.0f, -1.0f }, V2_float{ 1.0f, -1.0f },
-												 V2_float{ 1.0f, 1.0f }, V2_float{ -1.0f, 1.0f } };
-
-		std::array<VertexType, VertexCount> vertices;
-
-		for (std::size_t i{ 0 }; i < VertexCount; i++) {
-			vertices[i].position = { positions[i].x, positions[i].y,
-									 static_cast<float>(render_layer) };
-			vertices[i].color	 = { color.x, color.y, color.z, color.w };
-			if constexpr (std::is_same_v<VertexType, QuadVertex>) {
-				vertices[i].tex_coord = { tex_coords[i].x, tex_coords[i].y };
-				vertices[i].tex_index = { texture_index };
-			} else if constexpr (std::is_same_v<VertexType, CircleVertex>) {
-				// local z coordinate provided for memory alignment.
-				vertices[i].local_position = { local[i].x, local[i].y, 0.0f };
-				vertices[i].line_width	   = { line_width };
-				vertices[i].fade		   = { fade };
-			}
-		}
-
-		data.emplace_back(vertices);
-	}
-
-	// @return Batch info related to the specific type: std::tuple{ vector of data, shape index
-	// count }.
-	template <BatchType T>
-	static auto GetBufferInfo(Batch& batch) {
-		if constexpr (T == BatchType::Quad) {
-			return std::make_pair(&batch.quads_, static_cast<std::size_t>(6));
-		} else if constexpr (T == BatchType::Triangle) {
-			return std::make_pair(&batch.triangles_, static_cast<std::size_t>(3));
-		} else if constexpr (T == BatchType::Line) {
-			return std::make_pair(&batch.lines_, static_cast<std::size_t>(2));
-		} else if constexpr (T == BatchType::Circle) {
-			return std::make_pair(&batch.circles_, static_cast<std::size_t>(6));
-		} else if constexpr (T == BatchType::Point) {
-			return std::make_pair(&batch.points_, static_cast<std::size_t>(1));
-		}
-	}
-
-	template <BatchType T>
-	const VertexArray& GetVertexArray() const {
-		if constexpr (T == BatchType::Quad) {
-			return quad_vao_;
-		} else if constexpr (T == BatchType::Triangle) {
-			return triangle_vao_;
-		} else if constexpr (T == BatchType::Line) {
-			return line_vao_;
-		} else if constexpr (T == BatchType::Circle) {
-			return circle_vao_;
-		} else if constexpr (T == BatchType::Point) {
-			return point_vao_;
-		}
-	}
-
-	// @param callback Called before drawing VAO, used for binding textures in case of quads.
-	template <BatchType T>
-	void FlushType(std::vector<Batch>& batches) {
-		auto vao{ GetVertexArray<T>() };
-		vao.Bind();
-		for (auto& batch : batches) {
-			auto [data, index_count] = GetBufferInfo<T>(batch);
-			PTGN_ASSERT(data != nullptr);
-			if (data->empty()) {
-				continue;
-			}
-			if constexpr (T == BatchType::Quad) {
-				batch.BindTextures();
-			}
-			vao.GetVertexBuffer().SetSubData(
-				data->data(), static_cast<std::uint32_t>(SizeofVector(*data)), false
-			);
-			vao.Draw(data->size() * index_count, false);
-			// data->clear(); // Not needed since transparent_layers_ is cleared every frame.
-		}
-	}
-
-	void FlushBatches(std::vector<Batch>& batches);
-
-	// Maximum number of primitive types before a second batch is generated.
-	// The higher the number, the less draw calls but more RAM is used.
-	std::size_t batch_capacity_{ 0 };
-
-	Matrix4 view_projection_{ 1.0f };
-	// Key: Render Layer, Value: Vector of transparent batches for each render layer.
-	std::map<std::int32_t, std::vector<Batch>> transparent_layers_;
-	// TODO: Readd opaque batches using depth testing.
-	// std::vector<Batch> opaque_batches_;
-
-	VertexArray quad_vao_;
-	VertexArray circle_vao_;
-	VertexArray triangle_vao_;
-	VertexArray line_vao_;
-	VertexArray point_vao_;
+	std::map<Depth, Batches> batch_map;
 };
 
 } // namespace impl

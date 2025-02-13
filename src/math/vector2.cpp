@@ -3,28 +3,24 @@
 #include "math/geometry/circle.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
-#include "renderer/color.h"
-#include "renderer/layer_info.h"
-#include "renderer/render_target.h"
+#include "serialization/json.h"
+#include "utility/assert.h"
 
 namespace ptgn {
 
-namespace impl {
-
-void Point::Draw(float x, float y, const Color& color, float radius) {
-	Draw(x, y, color, radius, {});
-}
-
-void Point::Draw(float x, float y, const Color& color, float radius, const LayerInfo& layer_info) {
-	layer_info.GetRenderTarget().AddPoint(
-		{ x, y }, color, radius, impl::fade_, layer_info.GetRenderLayer()
+template <typename T>
+Vector2<T>::Vector2(const json& j) {
+	PTGN_ASSERT(j.is_array(), "Cannot create Vector2 from json object which is not an array");
+	PTGN_ASSERT(
+		j.size() == 2,
+		"Cannot create Vector2 from json array object which is not exactly 2 elements"
 	);
+	j[0].get_to(x);
+	j[1].get_to(y);
 }
-
-} // namespace impl
 
 template <typename T>
-bool Vector2<T>::IsZero() const {
+bool Vector2<T>::IsZero() const noexcept {
 	return NearlyEqual(x, T{ 0 }) && NearlyEqual(y, T{ 0 });
 }
 

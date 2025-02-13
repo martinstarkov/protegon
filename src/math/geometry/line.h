@@ -1,15 +1,19 @@
 #pragma once
 
-#include "collision/raycast.h"
+#include <array>
+#include <cstdint>
+
+#include "math/raycast.h"
 #include "math/vector2.h"
+#include "math/vector4.h"
 
 namespace ptgn {
 
-struct LayerInfo;
 struct Color;
 struct Circle;
 struct Rect;
 struct Capsule;
+struct RoundedRect;
 
 struct Line {
 	V2_float a;
@@ -22,11 +26,6 @@ struct Line {
 	[[nodiscard]] bool operator!=(const Line& o) const {
 		return !(*this == o);
 	}
-
-	// Uses default render target.
-	void Draw(const Color& color, float line_width = 1.0f) const;
-
-	void Draw(const Color& color, float line_width, const LayerInfo& layer_info) const;
 
 	[[nodiscard]] V2_float Direction() const;
 	[[nodiscard]] V2_float Midpoint() const;
@@ -43,6 +42,14 @@ struct Line {
 	[[nodiscard]] ptgn::Raycast Raycast(const Circle& circle) const;
 	[[nodiscard]] ptgn::Raycast Raycast(const Rect& rect) const;
 	[[nodiscard]] ptgn::Raycast Raycast(const Capsule& capsule) const;
+
+	// @param line_width The width of the line to create a quad for.
+	// @param additional_rotation Optional rotation (in radians) to add to the line.
+	// @return Return the vertices required to draw a solid rotated quad to mimic a line with the
+	// given width.
+	[[nodiscard]] std::array<V2_float, 4> GetQuadVertices(
+		float line_width, float additional_rotation = 0.0f
+	) const;
 };
 
 struct Capsule {
@@ -54,11 +61,6 @@ struct Capsule {
 	Capsule(const Line& line, float radius) : line{ line }, radius{ radius } {}
 
 	Capsule(const V2_float& a, const V2_float& b, float radius) : line{ a, b }, radius{ radius } {}
-
-	// Uses default render target.
-	void Draw(const Color& color, float line_width = -1.0f) const;
-
-	void Draw(const Color& color, float line_width, const LayerInfo& layer_info) const;
 
 	[[nodiscard]] bool Overlaps(const V2_float& point) const;
 	[[nodiscard]] bool Overlaps(const Line& line) const;

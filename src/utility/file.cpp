@@ -8,7 +8,7 @@
 #include <sstream>
 #include <string>
 
-#include "utility/debug.h"
+#include "utility/assert.h"
 
 namespace ptgn {
 

@@ -5,6 +5,8 @@
 
 namespace ptgn {
 
+class Scene;
+
 namespace impl {
 
 class Game;
@@ -14,21 +16,15 @@ public:
 	[[nodiscard]] V2_float GetGravity() const;
 	void SetGravity(const V2_float& gravity);
 
-	// @return Frame time in milliseconds
+	// @return Physics time step in seconds.
 	[[nodiscard]] float dt() const;
-
-	void Update(ecs::Manager& manager) const;
 
 private:
 	friend class Game;
+	friend class ptgn::Scene;
 
-	void Init() {
-		/* Add stuff here in the future? */
-	}
-
-	void Shutdown() {
-		/* Add stuff here in the future? */
-	}
+	void PreCollisionUpdate(ecs::Manager& manager) const;
+	void PostCollisionUpdate(ecs::Manager& manager) const;
 
 	V2_float gravity_{ 0.0f, 30.0f * 60.0f };
 };

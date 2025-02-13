@@ -11,8 +11,7 @@
 #include "core/game.h"
 #include "core/sdl_instance.h"
 #include "math/vector2.h"
-#include "renderer/gl_renderer.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/log.h"
 
 #ifdef __EMSCRIPTEN__
@@ -58,6 +57,7 @@ void WindowDeleter::operator()(SDL_Window* window) const {
 }
 
 WindowInstance::WindowInstance() {
+	// Windows start zero-sized.
 	window_.reset(SDL_CreateWindow(
 		"", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 0, 0,
 		SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE
@@ -93,6 +93,7 @@ void Window::SwapBuffers() const {
 }
 
 V2_int Window::GetSize() const {
+	PTGN_ASSERT(IsValid(), "Cannot get size of uninitialized or destroyed window");
 	V2_int size;
 	SDL_GetWindowSizeInPixels(Get(), &size.x, &size.y);
 	return size;
@@ -191,7 +192,7 @@ void Window::SetSetting(WindowSetting setting) const {
 }
 
 bool Window::GetSetting(WindowSetting setting) const {
-    std::uint32_t flags = SDL_GetWindowFlags(Get());
+	std::uint32_t flags = SDL_GetWindowFlags(Get());
 	switch (setting) {
 		case WindowSetting::Shown:	return flags & SDL_WINDOW_SHOWN;
 		case WindowSetting::Hidden: return !(flags & SDL_WINDOW_SHOWN);

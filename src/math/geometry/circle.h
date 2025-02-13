@@ -1,32 +1,24 @@
 #pragma once
 
-#include "collision/raycast.h"
+#include <cstdint>
+#include <vector>
+
 #include "math/geometry/intersection.h"
+#include "math/raycast.h"
 #include "math/vector2.h"
+#include "math/vector4.h"
 
 namespace ptgn {
 
-struct LayerInfo;
 struct Color;
 struct Rect;
 struct Line;
 struct Capsule;
-
-namespace impl {
-
-// Fade used with circle shader.
-constexpr static float fade_{ 0.005f };
-
-} // namespace impl
+struct RoundedRect;
 
 struct Circle {
 	V2_float center;
 	float radius{ 0.0f };
-
-	// Uses default render target.
-	void Draw(const Color& color, float line_width = -1.0f) const;
-
-	void Draw(const Color& color, float line_width, const LayerInfo& layer_info) const;
 
 	// center += offset
 	void Offset(const V2_float& offset);
@@ -46,8 +38,6 @@ struct Circle {
 	[[nodiscard]] ptgn::Raycast Raycast(const V2_float& ray, const Circle& circle) const;
 	[[nodiscard]] ptgn::Raycast Raycast(const V2_float& ray, const Capsule& capsule) const;
 	[[nodiscard]] ptgn::Raycast Raycast(const V2_float& ray, const Rect& rect) const;
-
-private:
 };
 
 struct Arc {
@@ -59,21 +49,21 @@ struct Arc {
 	// Radians counter-clockwise from the right.
 	float end_angle{ 0.0f };
 
-	// Uses default render target.
-	void Draw(bool clockwise, const Color& color, float line_width = -1.0f) const;
+private:
+	friend struct RoundedRect;
+	friend struct Capsule;
 
-	void Draw(bool clockwise, const Color& color, float line_width, const LayerInfo& layer_info)
-		const;
+	// @param clockwise Whether the vertices are in clockwise direction (true), or counter-clockwise
+	// (false).
+	// @param sa start_angle clamped between 0 and 2 pi.
+	// @param ea end_angle clamped between 0 and 2 pi.
+	// @return The vertices which make up the arc.
+	[[nodiscard]] std::vector<V2_float> GetVertices(bool clockwise, float sa, float ea) const;
 };
 
 struct Ellipse {
 	V2_float center;
 	V2_float radius;
-
-	// Uses default render target.
-	void Draw(const Color& color, float line_width = -1.0f) const;
-
-	void Draw(const Color& color, float line_width, const LayerInfo& layer_info) const;
 };
 
 } // namespace ptgn

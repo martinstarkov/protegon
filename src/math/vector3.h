@@ -4,7 +4,7 @@
 #include <ostream>
 #include <type_traits>
 
-#include "utility/debug.h"
+#include "utility/assert.h"
 #include "utility/type_traits.h"
 
 namespace ptgn {

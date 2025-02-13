@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cmath>
 #include <iosfwd>
 #include <ostream>
@@ -7,8 +8,8 @@
 
 #include "math/math.h"
 #include "math/rng.h"
-#include "renderer/color.h"
-#include "utility/debug.h"
+#include "serialization/fwd.h"
+#include "utility/assert.h"
 #include "utility/type_traits.h"
 
 // TODO: Add xyz() and xyzw() functions.
@@ -17,23 +18,10 @@
 namespace ptgn {
 
 struct Color;
-struct LayerInfo;
 struct Rect;
 struct Line;
 struct Capsule;
 struct Circle;
-
-namespace impl {
-
-struct Point {
-	static void Draw(float x, float y, const Color& color, float radius);
-
-	static void Draw(
-		float x, float y, const Color& color, float radius, const LayerInfo& layer_info
-	);
-};
-
-} // namespace impl
 
 template <typename T>
 struct Vector2 {
@@ -62,14 +50,11 @@ struct Vector2 {
 	explicit constexpr Vector2(const Vector2<U>& o) :
 		x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
 
-	// Uses default render target.
-	void Draw(const Color& color, float radius = 1.0f) const {
-		impl::Point::Draw(static_cast<float>(x), static_cast<float>(y), color, radius);
-	}
+	template <typename U>
+	explicit constexpr Vector2(const std::array<U, 2>& o) :
+		x{ static_cast<T>(o[0]) }, y{ static_cast<T>(o[1]) } {}
 
-	void Draw(const Color& color, float radius, const LayerInfo& layer_info) const {
-		impl::Point::Draw(static_cast<float>(x), static_cast<float>(y), color, radius, layer_info);
-	}
+	explicit Vector2(const json& j);
 
 	// Access vector elements by index, 0 for x, 1 for y.
 	[[nodiscard]] constexpr T& operator[](std::size_t idx) {
@@ -194,7 +179,7 @@ struct Vector2 {
 	}
 
 	// @return Random unit vector in a heading within the given range of angles (radians).
-	template <typename S, tt::floating_point<S> = true>
+	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
 	[[nodiscard]] static Vector2 RandomHeading(
 		S min_angle_radians = S{ 0 }, S max_angle_radians = S{ two_pi<S> }
 	) {
@@ -247,7 +232,7 @@ struct Vector2 {
 		return std::atan2(static_cast<S>(y), static_cast<S>(x));
 	}
 
-	[[nodiscard]] bool IsZero() const;
+	[[nodiscard]] bool IsZero() const noexcept;
 
 	[[nodiscard]] bool Overlaps(const Line& line) const;
 	[[nodiscard]] bool Overlaps(const Circle& circle) const;
@@ -333,7 +318,8 @@ template <typename T>
 	return { std::clamp(vector.x, min.x, max.x), std::clamp(vector.y, min.y, max.y) };
 }
 
-// Clamp both components of a vector between min and max.
+// Clamp the magnitude of the vector between min and max. This means that a (1, 1) vector clamped
+// between -1 and 1 will be (0.7, 0.7)
 template <typename T>
 [[nodiscard]] inline Vector2<T> Clamp(const Vector2<T>& vector, T min, T max) {
 	Vector2<T> dir{ vector.Normalized() };

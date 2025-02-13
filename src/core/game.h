@@ -10,6 +10,7 @@
 namespace ptgn {
 
 class LightManager;
+class RenderTarget;
 
 namespace impl {
 
@@ -20,22 +21,17 @@ class EventHandler;
 class InputHandler;
 class Renderer;
 class SceneManager;
-class SceneCamera;
-class Physics;
-class CollisionHandler;
-class UserInterface;
-class TweenManager;
+class JsonManager;
 class MusicManager;
 class SoundManager;
 class FontManager;
-class TextManager;
 class TextureManager;
 class ShaderManager;
 class Profiler;
 
 struct WindowDeleter;
-struct MixMusicDeleter;
-struct MixChunkDeleter;
+struct Mix_MusicDeleter;
+struct Mix_ChunkDeleter;
 struct SDL_SurfaceDeleter;
 struct TTF_FontDeleter;
 
@@ -58,7 +54,7 @@ private:
 	Game& operator=(Game&&)		 = delete;
 
 public:
-	// @return Previous frame time in milliseconds
+	// @return Previous frame time in seconds.
 	[[nodiscard]] float dt() const;
 
 	// @return Milliseconds since Init() was called.
@@ -66,15 +62,15 @@ public:
 
 	// Entry point for the game / application.
 	// Note: Window will not appear until an active scene has been loaded into the scene manager:
-	// game.scene.LoadActive<MyScene>("scene_name");
+	// game.scene.Enter<MyScene>("scene_name");
 	// @param title The title of the window. Can be changed later using
 	// game.window.SetTitle("title");
-	// @param resolution Starting resolution of the window. Can be changed later using
+	// @param window_size Starting size of the window. Can be changed later using
 	// game.window.SetSize({ 1920, 1080 });
 	// @param background_color Starting background color of the window. Can be changed later using
 	// game.renderer.SetClearColor(color::Black);
 	void Init(
-		const std::string& title = "Default Title", const V2_int& resolution = { 800, 800 },
+		const std::string& title = "Default Title", const V2_int& window_size = { 800, 800 },
 		const Color& background_color = color::White
 	);
 
@@ -84,14 +80,18 @@ public:
 	// @return True if the game is running, false if it has been stopped.
 	[[nodiscard]] bool IsRunning() const;
 
+	// @return True if the game subsystems have been initialized, false otherwise.
+	[[nodiscard]] bool IsInitialized() const;
+
 private:
 	friend struct WindowDeleter;
-	friend struct MixMusicDeleter;
-	friend struct MixChunkDeleter;
+	friend struct Mix_MusicDeleter;
+	friend struct Mix_ChunkDeleter;
 	friend struct SDL_SurfaceDeleter;
 	friend struct TTF_FontDeleter;
 	friend class GLContext;
 	friend class SceneManager;
+	friend class RenderTarget;
 #ifdef __EMSCRIPTEN__
 	friend void EmscriptenLoop();
 #endif
@@ -100,63 +100,94 @@ private:
 	void Update();
 	void Shutdown();
 
+	// Note: To order of these is important for correct construction.
+
 	std::unique_ptr<SDLInstance> sdl_instance_;
 	std::unique_ptr<Window> window_;
+
+public:
+	Window& window;
+
+private:
 	std::unique_ptr<GLContext> gl_context_;
-
 	std::unique_ptr<EventHandler> event_;
+
+public:
+	EventHandler& event;
+
+private:
 	std::unique_ptr<InputHandler> input_;
+
+public:
+	InputHandler& input;
+
+private:
 	std::unique_ptr<Renderer> renderer_;
+
+public:
+	Renderer& renderer;
+
+private:
 	std::unique_ptr<SceneManager> scene_;
-	std::unique_ptr<SceneCamera> camera_;
-	std::unique_ptr<Physics> physics_;
-	std::unique_ptr<CollisionHandler> collision_;
-	std::unique_ptr<UserInterface> ui_;
 
-	std::unique_ptr<TweenManager> tween_;
+public:
+	SceneManager& scene;
+
+private:
+private:
 	std::unique_ptr<MusicManager> music_;
-	std::unique_ptr<SoundManager> sound_;
-	std::unique_ptr<FontManager> font_;
-	std::unique_ptr<TextManager> text_;
-	std::unique_ptr<TextureManager> texture_;
-	std::unique_ptr<ShaderManager> shader_;
-	std::unique_ptr<LightManager> light_;
 
+public:
+	MusicManager& music;
+
+private:
+	std::unique_ptr<SoundManager> sound_;
+
+public:
+	SoundManager& sound;
+
+private:
+	std::unique_ptr<JsonManager> json_;
+
+public:
+	JsonManager& json;
+
+private:
+	std::unique_ptr<FontManager> font_;
+
+public:
+	FontManager& font;
+
+private:
+	std::unique_ptr<TextureManager> texture_;
+
+public:
+	TextureManager& texture;
+
+private:
+	std::unique_ptr<ShaderManager> shader_;
+
+public:
+	ShaderManager& shader;
+
+private:
+	// std::unique_ptr<LightManager> light_;
+
+public:
+	// LightManager& light;
+
+private:
 	std::unique_ptr<Profiler> profiler_;
 
+public:
+	Profiler& profiler;
+
+private:
 	bool running_{ false };
+	// Frame time in seconds.
 	float dt_{ 0.0f };
 
 public:
-	// Note: It is important that these are defined below the private unique ptrs so their
-	// constructor are called later.
-
-	// Core Subsystems
-
-	Window& window;
-	EventHandler& event;
-	InputHandler& input;
-	Renderer& renderer;
-	SceneManager& scene;
-	SceneCamera& camera;
-	Physics& physics;
-	CollisionHandler& collision;
-	UserInterface& ui;
-
-	// Resources
-
-	TweenManager& tween;
-	MusicManager& music;
-	SoundManager& sound;
-	FontManager& font;
-	TextManager& text;
-	TextureManager& texture;
-	ShaderManager& shader;
-	LightManager& light;
-
-	// Debug
-
-	Profiler& profiler;
 #ifdef PTGN_DEBUG
 	Stats stats;
 #endif

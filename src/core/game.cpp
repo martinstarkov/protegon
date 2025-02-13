@@ -3,10 +3,9 @@
 #include <chrono>
 #include <memory>
 #include <string>
-#include <type_traits>
 
+#include "SDL_timer.h"
 #include "audio/audio.h"
-#include "collision/collision.h"
 #include "core/gl_context.h"
 #include "core/manager.h"
 #include "core/sdl_instance.h"
@@ -14,22 +13,16 @@
 #include "event/event_handler.h"
 #include "event/input_handler.h"
 #include "math/vector2.h"
-#include "physics/physics.h"
 #include "renderer/color.h"
 #include "renderer/font.h"
 #include "renderer/renderer.h"
 #include "renderer/shader.h"
-#include "renderer/text.h"
 #include "renderer/texture.h"
-#include "scene/camera.h"
 #include "scene/scene_manager.h"
-#include "SDL_timer.h"
-#include "ui/ui.h"
+#include "serialization/json_manager.h"
 #include "utility/debug.h"
 #include "utility/profiling.h"
 #include "utility/time.h"
-#include "utility/tween.h"
-#include "vfx/light.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -125,41 +118,31 @@ static void InitApplePath() {
 Game::Game() :
 	sdl_instance_{ std::make_unique<SDLInstance>() },
 	window_{ std::make_unique<Window>() },
+	window{ *window_ },
 	gl_context_{ std::make_unique<GLContext>() },
 	event_{ std::make_unique<EventHandler>() },
-	input_{ std::make_unique<InputHandler>() },
-	renderer_{ std::make_unique<Renderer>() },
-	scene_{ std::make_unique<SceneManager>() },
-	camera_{ std::make_unique<SceneCamera>() },
-	physics_{ std::make_unique<Physics>() },
-	collision_{ std::make_unique<CollisionHandler>() },
-	ui_{ std::make_unique<UserInterface>() },
-	tween_{ std::make_unique<TweenManager>() },
-	music_{ std::make_unique<MusicManager>() },
-	sound_{ std::make_unique<SoundManager>() },
-	font_{ std::make_unique<FontManager>() },
-	text_{ std::make_unique<TextManager>() },
-	texture_{ std::make_unique<TextureManager>() },
-	shader_{ std::make_unique<ShaderManager>() },
-	light_{ std::make_unique<LightManager>() },
-	profiler_{ std::make_unique<Profiler>() },
-	window{ *window_ },
 	event{ *event_ },
+	input_{ std::make_unique<InputHandler>() },
 	input{ *input_ },
+	renderer_{ std::make_unique<Renderer>() },
 	renderer{ *renderer_ },
+	scene_{ std::make_unique<SceneManager>() },
 	scene{ *scene_ },
-	camera{ *camera_ },
-	physics{ *physics_ },
-	collision{ *collision_ },
-	ui{ *ui_ },
-	tween{ *tween_ },
+	music_{ std::make_unique<MusicManager>() },
 	music{ *music_ },
+	sound_{ std::make_unique<SoundManager>() },
 	sound{ *sound_ },
+	json_{ std::make_unique<JsonManager>() },
+	json{ *json_ },
+	font_{ std::make_unique<FontManager>() },
 	font{ *font_ },
-	text{ *text_ },
+	texture_{ std::make_unique<TextureManager>() },
 	texture{ *texture_ },
+	shader_{ std::make_unique<ShaderManager>() },
 	shader{ *shader_ },
-	light{ *light_ },
+	/*light_{ std::make_unique<LightManager>() },
+	light{ *light_ },*/
+	profiler_{ std::make_unique<Profiler>() },
 	profiler{ *profiler_ } {}
 
 Game::~Game() {
@@ -180,22 +163,20 @@ void Game::Stop() {
 	running_ = false;
 }
 
+bool Game::IsInitialized() const {
+	return gl_context_->IsInitialized() && sdl_instance_->IsInitialized();
+}
+
 bool Game::IsRunning() const {
-	// Ensure that if game is running, SDL is initialized.
-	PTGN_ASSERT(std::invoke([&]() {
-		if (running_) {
-			return sdl_instance_->IsInitialized();
-		}
-		return true;
-	}));
 	return running_;
 }
 
-void Game::Init(const std::string& title, const V2_int& resolution, const Color& background_color) {
+void Game::Init(
+	const std::string& title, const V2_int& window_size, const Color& background_color
+) {
 #if defined(PTGN_PLATFORM_MACOS) && !defined(__EMSCRIPTEN__)
 	impl::InitApplePath();
 #endif
-	running_ = true;
 	if (!sdl_instance_->IsInitialized()) {
 		sdl_instance_->Init();
 	}
@@ -205,32 +186,23 @@ void Game::Init(const std::string& title, const V2_int& resolution, const Color&
 	event.Init();
 	input.Init();
 
-	camera.Init();
-
 	shader.Init();
 
 	renderer.Init(background_color);
-	physics.Init();
-	light.Init();
+	// light.Init();
 
 	game.window.SetTitle(title);
-	game.window.SetSize(resolution);
+	game.window.SetSize(window_size);
 }
 
 void Game::Shutdown() {
 	scene.Shutdown();
 
+	sound.Stop(-1);
+	music.Stop();
 	// TODO: Simply reset all the unique pointers instead of doing this.
 	profiler.Reset();
-	shader.Reset();
-	texture.Reset();
-	text.Reset();
-	tween.Reset();
-	font.Reset();
-	sound.Reset();
-	music.Reset();
 
-	physics.Shutdown();
 	renderer.Shutdown();
 	input.Shutdown();
 	event.Shutdown();
@@ -239,12 +211,12 @@ void Game::Shutdown() {
 	// Keep SDL2 instance and OpenGL context alive to ensure SDL2 objects such as TTF_Font are
 	// consistent across game instances. For instance: If the user does the following:
 	//
-	// game.Start<StartScene>();
+	// game.scene.Enter<StartScene>();
 	// // Inside StartScene:
 	// static Font test_font;
 	// Text test_text{ test_font };
 	// // After window quit start again:
-	// game.Start<StartScene>();
+	// game.scene.Enter<StartScene>();
 	// static Font test_font; // handle already created in the previous SDL initialization.
 	// Text test_text{ test_font }; // if SDL has been shutdown, this would not work due to
 	// inconsistent SDL versions.
@@ -259,6 +231,7 @@ void Game::MainLoop() {
 	// loop starts. Comment this if you wish the window to appear hidden for an
 	// indefinite period of time.
 	window.SetSetting(WindowSetting::Shown);
+	running_ = true;
 #ifdef __EMSCRIPTEN__
 	EmscriptenInit();
 	emscripten_set_main_loop(EmscriptenLoop, 0, 1);
@@ -274,33 +247,46 @@ void Game::MainLoop() {
 void Game::Update() {
 	static auto start{ std::chrono::system_clock::now() };
 	static auto end{ std::chrono::system_clock::now() };
-	// Calculate time elapsed during previous frame.
-	duration<float> elapsed_time{ end - start };
+	// Calculate time elapsed during previous frame. Unit: seconds.
+	duration<float, seconds::period> elapsed_time{ end - start };
 
 	float elapsed{ elapsed_time.count() };
 
 	dt_ = elapsed;
 
 	// TODO: Consider fixed FPS vs dynamic: https://gafferongames.com/post/fix_your_timestep/.
-	constexpr const float fps{ 60.0f };
-	dt_ = 1.0f / fps;
+	/*constexpr const float fps{ 60.0f };
+	dt_ = 1.0f / fps;*/
 
-	if (elapsed < dt_) {
+	/*if (elapsed < dt_) {
 		impl::SDLInstance::Delay(std::chrono::duration_cast<milliseconds>(duration<float>{
 			dt_ - elapsed }));
-	} // TODO: Add accumulator for when elapsed > dt (such as in Debug mode).
+	}*/ // TODO: Add accumulator for when elapsed > dt (such as in Debug mode).
 	// PTGN_LOG("Dt: ", dt_);
 
 	start = end;
 
-	input.Update();
-	tween.Update();
 	renderer.ClearScreen();
+
+	input.Update();
 	scene.Update();
+
+	renderer.PresentScreen();
+
+#ifdef PTGN_DEBUG
+	// Uncomment to examine the color of the pixel at the mouse position that is drawn to the
+	// screen.
+	/*PTGN_LOG(
+		"Screen Color at Mouse: ",
+		renderer.screen_target_.GetPixel(game.input.GetMousePositionWindow())
+	);*/
+#endif
+
+	scene.HandleSceneEvents();
+
 	if (profiler.IsEnabled()) {
 		profiler.PrintAll();
 	}
-	renderer.Present();
 
 	end = std::chrono::system_clock::now();
 }

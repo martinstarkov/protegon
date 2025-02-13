@@ -1,18 +1,16 @@
 #include "math/geometry/axis.h"
 
+#include <cstdint>
+
 #include "core/game.h"
 #include "core/window.h"
 #include "math/geometry/line.h"
 #include "renderer/color.h"
-#include "renderer/layer_info.h"
 
 namespace ptgn {
 
-void Axis::Draw(const Color& color, float line_width) const {
-	Draw(color, line_width, {});
-}
-
-void Axis::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
+// TODO: Get rid of this.
+void Axis::Draw(const Color& color, float line_width, std::int32_t render_layer) const {
 	V2_float ws{ game.window.GetSize() };
 	float mag{ ws.MagnitudeSquared() };
 	// Find line points on the window extents.
@@ -20,7 +18,8 @@ void Axis::Draw(const Color& color, float line_width, const LayerInfo& layer_inf
 	V2_float p1{ midpoint - direction * mag };
 
 	Line l{ p0, p1 };
-	l.Draw(color, line_width, layer_info);
+	// TODO: Fix.
+	// l.Draw(color, line_width, render_layer);
 }
 
 } // namespace ptgn

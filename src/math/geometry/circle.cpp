@@ -4,32 +4,19 @@
 #include <cmath>
 #include <limits>
 #include <utility>
+#include <vector>
 
-#include "collision/raycast.h"
-#include "core/game.h"
 #include "math/geometry/intersection.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
 #include "math/math.h"
+#include "math/raycast.h"
 #include "math/utility.h"
 #include "math/vector2.h"
-#include "renderer/color.h"
-#include "renderer/layer_info.h"
 #include "renderer/origin.h"
-#include "renderer/renderer.h"
-#include "utility/debug.h"
+#include "utility/assert.h"
 
 namespace ptgn {
-
-void Circle::Draw(const Color& color, float line_width) const {
-	Draw(color, line_width, {});
-}
-
-void Circle::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	layer_info.GetRenderTarget().AddCircle(
-		*this, color, line_width, impl::fade_, layer_info.GetRenderLayer()
-	);
-}
 
 void Circle::Offset(const V2_float& offset) {
 	center += offset;
@@ -222,9 +209,9 @@ ptgn::Raycast Circle::Raycast(const V2_float& ray, const Rect& rect) const {
 	e.size	   = rect.size + V2_float{ radius * 2.0f, radius * 2.0f };
 	e.origin   = Origin::TopLeft;
 
-	if (!seg.Overlaps(e)) {
+	/*if (!seg.Overlaps(e)) {
 		return c;
-	}
+	}*/
 
 	V2_float b_min{ rect.Min() };
 	V2_float b_max{ rect.Max() };
@@ -264,25 +251,100 @@ ptgn::Raycast Circle::Raycast(const V2_float& ray, const Rect& rect) const {
 	return c;
 }
 
-void Arc::Draw(bool clockwise, const Color& color, float line_width) const {
-	Draw(clockwise, color, line_width, {});
-}
-
-void Arc::Draw(bool clockwise, const Color& color, float line_width, const LayerInfo& layer_info)
+/*
+void Arc::Draw(bool clockwise, const Color& color, float line_width, std::int32_t render_layer)
 	const {
-	layer_info.GetRenderTarget().AddArc(
-		*this, clockwise, color, line_width, impl::fade_, layer_info.GetRenderLayer()
-	);
+	PTGN_ASSERT(radius >= 0.0f, "Cannot draw filled arc with negative radius");
+
+	// Edge case where arc is a point.
+	if (NearlyEqual(radius, 0.0f)) {
+		impl::Point::Draw(center.x, center.y, color.Normalized(), render_layer);
+		return;
+	}
+
+	// Clamped start angle.
+	float sa{ ClampAngle2Pi(start_angle) };
+
+	// Clamped end angle.
+	float ea{ ClampAngle2Pi(end_angle) };
+
+	// Edge case where start and end angles match (considered a full rotation).
+	if (float range{ sa - ea }; NearlyEqual(range, 0.0f) || NearlyEqual(range, two_pi<float>)) {
+		Circle c{ center, radius };
+		c.Draw(color, line_width, render_layer);
+		return;
+	}
+
+	auto norm_color{ color.Normalized() };
+
+	if (line_width == -1.0f) {
+		DrawSolid(clockwise, sa, ea, norm_color, render_layer);
+		return;
+	}
+
+	DrawThick(line_width, clockwise, sa, ea, norm_color, render_layer);
 }
 
-void Ellipse::Draw(const Color& color, float line_width) const {
-	Draw(color, line_width, {});
+void Arc::DrawSolid(
+	bool clockwise, float sa, float ea, const V4_float& color, std::int32_t render_layer
+) const {
+	auto vertices{ GetVertices(clockwise, sa, ea) };
+	std::size_t vertex_count{ vertices.size() - 1 };
+	for (std::size_t i{ 0 }; i < vertex_count; i++) {
+		game.renderer.GetRenderData().AddPrimitiveTriangle(
+			{ center, vertices[i], vertices[i + 1] }, render_layer, color
+		);
+	}
 }
 
-void Ellipse::Draw(const Color& color, float line_width, const LayerInfo& layer_info) const {
-	layer_info.GetRenderTarget().AddEllipse(
-		*this, color, line_width, impl::fade_, layer_info.GetRenderLayer()
+void Arc::DrawThick(
+	float line_width, bool clockwise, float sa, float ea, const V4_float& color,
+	std::int32_t render_layer
+) const {
+	auto vertices{ GetVertices(clockwise, sa, ea) };
+	impl::DrawVertices(
+		vertices.data(), vertices.size() - 1, line_width, color, render_layer, vertices.size()
 	);
+}
+*/
+
+std::vector<V2_float> Arc::GetVertices(bool clockwise, float sa, float ea) const {
+	if (sa > ea) {
+		ea += two_pi<float>;
+	}
+
+	float arc_angle{ ea - sa };
+
+	PTGN_ASSERT(arc_angle >= 0.0f);
+
+	// Resolution indicates the number of vertices the arc is made up of. Each consecutive vertex,
+	// alongside the center of the arc, makes up a triangle which is used to draw solid arcs.
+	std::size_t resolution{
+		std::max(static_cast<std::size_t>(360), static_cast<std::size_t>(30.0f * radius))
+	};
+
+	PTGN_ASSERT(
+		resolution > 1, "Arc must be made up of at least two vertices (forming one triangle with "
+						"the arc center point)"
+	);
+
+	float delta_angle{ arc_angle / static_cast<float>(resolution) };
+
+	std::vector<V2_float> vertices(resolution);
+
+	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
+		float angle{ start_angle };
+		float delta{ static_cast<float>(i) * delta_angle };
+		if (clockwise) {
+			angle -= delta;
+		} else {
+			angle += delta;
+		}
+
+		vertices[i] = center + radius * V2_float{ std::cos(angle), std::sin(angle) };
+	}
+
+	return vertices;
 }
 
 } // namespace ptgn

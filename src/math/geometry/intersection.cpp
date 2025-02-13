@@ -1,6 +1,6 @@
 #include "math/geometry/intersection.h"
 
-#include "utility/debug.h"
+#include "utility/assert.h"
 
 namespace ptgn {
 
