@@ -178,6 +178,35 @@ bool Camera::operator!=(const Camera& other) const {
 	return !(*this == other);
 }
 
+void Camera::PanTo(
+	const V2_float& target_position, milliseconds duration, TweenEase ease, bool force
+) {
+	V2_float start_center;
+	if (pan_effects_ == ecs::null) {
+		pan_effects_ = entity_.GetManager().CreateEntity();
+		pan_effects_.Add<Tween>();
+		pan_effects_.Add<impl::TargetPosition>(target_position);
+		start_center = GetPosition(Origin::Center);
+	} else {
+		auto& prev_target{ pan_effects_.Get<impl::TargetPosition>() };
+		if (!force) {
+			start_center = prev_target;
+		} else {
+			start_center = GetPosition(Origin::Center);
+		}
+		prev_target = target_position;
+	}
+	auto& tween{ pan_effects_.Get<Tween>() };
+	if (force || tween.IsCompleted()) {
+		tween.Clear();
+	}
+	V2_float dir{ target_position - start_center };
+	tween.During(duration).Ease(ease).OnUpdate([=](float f) mutable {
+		SetPosition(start_center + f * dir);
+	});
+	tween.Start(force);
+}
+
 [[nodiscard]] Rect Camera::GetViewport() const {
 	return entity_.Get<impl::CameraInfo>().data.viewport;
 }

@@ -49,11 +49,11 @@ public:
 
 		Rect bounds{ {}, window_size, Origin::TopLeft };
 
-		camera1.SetPosition({ 0, 0 });
-		camera1.SetBounds(bounds);
+		camera1.SetPosition(game.window.GetCenter());
 		camera2.SetPosition({ 200, 200 });
 		camera2.SetZoom(2.0f);
-		camera2.SetBounds(bounds);
+		// camera1.SetBounds(bounds);
+		// camera2.SetBounds(bounds);
 		cam = &camera1;
 
 		auto texture = CreateSprite(manager, "texture");
@@ -81,6 +81,12 @@ public:
 		rt.Add<RenderTarget>(manager, window_size);
 		rt.Add<Transform>();
 		rt.Add<Visible>();
+
+		PTGN_ASSERT(cam != nullptr);
+		cam->PanTo({ 0, 0 }, seconds{ 1 });
+		cam->PanTo({ 800, 0 }, seconds{ 1 });
+		cam->PanTo({ 800, 800 }, seconds{ 1 });
+		cam->PanTo({ 0, 800 }, seconds{ 1 });
 	}
 
 	void Update() override {
@@ -143,6 +149,14 @@ public:
 		}
 
 		PTGN_ASSERT(cam != nullptr);
+
+		if (game.input.MouseDown(Mouse::Left)) {
+			cam->PanTo(
+				cam->TransformToCamera(game.input.GetMousePosition()), seconds{ 4 },
+				TweenEase::InOutSine, false
+			);
+		}
+
 		camera.primary = *cam;
 
 		const auto& r{ rt.Get<RenderTarget>() };

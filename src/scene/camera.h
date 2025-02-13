@@ -2,6 +2,7 @@
 
 #include <iosfwd>
 
+#include "components/generic.h"
 #include "core/manager.h"
 #include "ecs/ecs.h"
 #include "math/geometry/polygon.h"
@@ -11,6 +12,8 @@
 #include "math/vector3.h"
 #include "renderer/flip.h"
 #include "renderer/origin.h"
+#include "utility/time.h"
+#include "utility/tween.h"
 
 namespace ptgn {
 
@@ -20,6 +23,10 @@ class Scene;
 namespace impl {
 
 class CameraManager;
+
+struct TargetPosition : Vector2Component<float> {
+	using Vector2Component::Vector2Component;
+};
 
 struct CameraInfo {
 	CameraInfo();
@@ -87,6 +94,16 @@ public:
 	bool operator==(const Camera& other) const;
 	bool operator!=(const Camera& other) const;
 
+	// @param target_position Position to pan to.
+	// @param duration Duration of pan.
+	// @param ease Easing function for pan.
+	// @param force If true, the pan is queued, if false the pan is executed immediately clearing
+	// any previously queued pans or target following.
+	void PanTo(
+		const V2_float& target_position, milliseconds duration, TweenEase ease = TweenEase::Linear,
+		bool force = false
+	);
+
 	[[nodiscard]] Rect GetViewport() const;
 
 	// If continuously is true, camera will subscribe to window resize event.
@@ -151,7 +168,7 @@ public:
 
 	void SetSize(const V2_float& size);
 
-	// Set point which is at the center of the camera view.
+	// Set the point which is at the center of the camera view.
 	void SetPosition(const V2_float& new_position);
 
 	void Translate(const V2_float& position_change);
@@ -202,12 +219,14 @@ protected:
 	[[nodiscard]] const Matrix4& GetView() const;
 	[[nodiscard]] const Matrix4& GetProjection() const;
 
+	// Set the point which is at the center of the camera view.
 	void SetPosition(const V3_float& new_position);
 
 	void RecalculateView() const;
 	void RecalculateProjection() const;
 	void RecalculateViewProjection() const;
 
+	ecs::Entity pan_effects_;
 	ecs::Entity entity_;
 };
 
