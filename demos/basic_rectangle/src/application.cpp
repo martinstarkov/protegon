@@ -112,7 +112,7 @@ struct BasicRectangleScene : public Scene {
 		std::invoke(create_sprite_obj, "test06", 6);
 
 		rt = manager.CreateEntity();
-		rt.Add<RenderTarget>(window_size);
+		rt.Add<RenderTarget>(manager, window_size);
 		rt.Add<Transform>(center);
 		rt.Add<Visible>();
 
