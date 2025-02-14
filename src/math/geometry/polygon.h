@@ -50,7 +50,8 @@ struct Rect {
 	V2_float position;
 	V2_float size;
 	Origin origin{ Origin::Center };
-	// Rotation in radians relative to the center of the rectangle.
+	// Rotation in radians relative to the rotation center of the rectangle.
+	// Positive clockwise.
 	float rotation{ 0.0f };
 
 	Rect()			= default;

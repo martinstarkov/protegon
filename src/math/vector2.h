@@ -207,26 +207,26 @@ struct Vector2 {
 		return dir.Normalized();
 	}
 
-	// @return New vector rotated counter-clockwise by the given angle.
+	// @return New vector rotated by the given angle.
 	// See https://en.wikipedia.org/wiki/Rotation_matrix for details.
-	// Angle in radians.
+	// Angle in radians. Positive angle rotates clockwise.
 	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
 	[[nodiscard]] Vector2<S> Rotated(S angle_radians) const {
 		auto c{ std::cos(angle_radians) };
 		auto s{ std::sin(angle_radians) };
-		return { x * c - y * s, x * s + y * c };
+		return { x * c + y * s, -x * s + y * c };
 	}
 
 	/*
 	 * @return Angle in radians between vector x and y components in radians.
-	 * Relative to the horizontal x-axis.
-	 * Range: [-3.14159, 3.14159).
-	 * (counter-clockwise positive).
-	 *             1.5708
+	 * Relative to the horizontal x-axis (1, 0).
+	 * Range: (-3.14159, 3.14159].
+	 * (clockwise positive).
+	 *           -1.5708
 	 *               |
 	 *    3.14159 ---o--- 0
 	 *               |
-	 *            -1.5708
+	 *            1.5708
 	 */
 	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
 	[[nodiscard]] S Angle() const {
