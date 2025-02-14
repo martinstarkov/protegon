@@ -5,6 +5,7 @@
 #include "ecs/ecs.h"
 #include "event/input_handler.h"
 #include "event/key.h"
+#include "math/geometry/circle.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
@@ -41,6 +42,7 @@ public:
 
 	ecs::Entity rt;
 	ecs::Entity ui;
+	ecs::Entity mouse;
 
 	Camera* cam{ nullptr };
 
@@ -82,9 +84,17 @@ public:
 		rt.Add<Transform>();
 		rt.Add<Visible>();
 
+		mouse = manager.CreateEntity();
+		mouse.Add<Transform>();
+		mouse.Add<Circle>();
+		mouse.Add<Radius>(20.0f);
+		mouse.Add<Tint>(color::Red);
+		mouse.Add<Visible>();
+
 		PTGN_ASSERT(cam != nullptr);
 		cam->PanTo({ 0, 0 }, seconds{ 1 });
 		cam->PanTo({ 800, 0 }, seconds{ 1 });
+		cam->StartFollow(mouse);
 		cam->PanTo({ 800, 800 }, seconds{ 1 });
 		cam->PanTo({ 0, 800 }, seconds{ 1 });
 	}
@@ -151,10 +161,13 @@ public:
 		PTGN_ASSERT(cam != nullptr);
 
 		if (game.input.MouseDown(Mouse::Left)) {
-			cam->PanTo(
+			mouse.Get<Transform>().position = cam->TransformToCamera(game.input.GetMousePosition());
+			/*cam->PanTo(
 				cam->TransformToCamera(game.input.GetMousePosition()), seconds{ 4 },
 				TweenEase::InOutSine, false
-			);
+			);*/
+		} else if (game.input.MouseDown(Mouse::Right)) {
+			cam->StopFollow();
 		}
 
 		camera.primary = *cam;

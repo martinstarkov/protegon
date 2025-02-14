@@ -6,6 +6,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "components/transform.h"
 #include "core/game.h"
 #include "core/manager.h"
 #include "core/window.h"
@@ -22,6 +23,7 @@
 #include "renderer/origin.h"
 #include "utility/assert.h"
 #include "utility/log.h"
+#include "utility/tween.h"
 
 namespace ptgn {
 
@@ -178,32 +180,91 @@ bool Camera::operator!=(const Camera& other) const {
 	return !(*this == other);
 }
 
-void Camera::PanTo(
-	const V2_float& target_position, milliseconds duration, TweenEase ease, bool force
-) {
-	V2_float start_center;
+void Camera::StopFollow(bool force) {
+	if (pan_effects_ == ecs::null || !pan_effects_.IsAlive() || !pan_effects_.Has<Tween>()) {
+		return;
+	}
+	auto& tween{ pan_effects_.Get<Tween>() };
+	if (force || tween.IsCompleted()) {
+		tween.Clear();
+	} else {
+		tween.IncrementTweenPoint();
+	}
+}
+
+void Camera::StartFollow(ecs::Entity target_entity, bool force) {
 	if (pan_effects_ == ecs::null) {
 		pan_effects_ = entity_.GetManager().CreateEntity();
+	}
+	if (!pan_effects_.Has<Tween>()) {
 		pan_effects_.Add<Tween>();
-		pan_effects_.Add<impl::TargetPosition>(target_position);
-		start_center = GetPosition(Origin::Center);
-	} else {
-		auto& prev_target{ pan_effects_.Get<impl::TargetPosition>() };
-		if (!force) {
-			start_center = prev_target;
-		} else {
-			start_center = GetPosition(Origin::Center);
-		}
-		prev_target = target_position;
 	}
 	auto& tween{ pan_effects_.Get<Tween>() };
 	if (force || tween.IsCompleted()) {
 		tween.Clear();
 	}
-	V2_float dir{ target_position - start_center };
-	tween.During(duration).Ease(ease).OnUpdate([=](float f) mutable {
-		SetPosition(start_center + f * dir);
-	});
+	auto GetLerp = []() {
+		return 0.1f;
+	};
+	auto update_pan = [=]() mutable {
+		// If a pan starts after this follow, its start position must be updated.
+		if (pan_effects_.Has<impl::CameraPanStart>()) {
+			auto& start = pan_effects_.Get<impl::CameraPanStart>();
+			start		= GetPosition(Origin::Center);
+		}
+	};
+	tween.During(milliseconds{ 0 })
+		.Repeat(-1)
+		.OnUpdate([=]() mutable {
+			if (target_entity == ecs::null || !target_entity.IsAlive() ||
+				!target_entity.Has<Transform>()) {
+				// If target is invalid or has no transform, move onto to the next item in the pan
+				// queue.
+				tween.IncrementTweenPoint();
+				return;
+			}
+			auto pos{ GetPosition(Origin::Center) };
+			auto target_pos{ target_entity.Get<Transform>().position /* TODO: Add offset here */ };
+			auto translation{ Lerp({}, target_pos - pos, GetLerp()) };
+			Translate(translation);
+		})
+		.OnComplete(update_pan)
+		.OnStop(update_pan)
+		.OnReset(update_pan);
+	tween.Start(force);
+}
+
+void Camera::PanTo(
+	const V2_float& target_position, milliseconds duration, TweenEase ease, bool force
+) {
+	if (pan_effects_ == ecs::null) {
+		pan_effects_ = entity_.GetManager().CreateEntity();
+	}
+	if (!pan_effects_.Has<Tween>()) {
+		pan_effects_.Add<Tween>();
+	}
+	if (!pan_effects_.Has<impl::CameraPanStart>()) {
+		auto& start = pan_effects_.Add<impl::CameraPanStart>();
+		start		= GetPosition(Origin::Center);
+	}
+	auto& tween{ pan_effects_.Get<Tween>() };
+	if (force || tween.IsCompleted()) {
+		tween.Clear();
+	}
+	auto update_pan = [=]() mutable {
+		auto& start = pan_effects_.Get<impl::CameraPanStart>();
+		start		= GetPosition(Origin::Center);
+	};
+	tween.During(duration)
+		.Ease(ease)
+		.OnUpdate([=](float f) mutable {
+			V2_float start{ pan_effects_.Get<impl::CameraPanStart>() };
+			V2_float dir{ target_position - start };
+			SetPosition(start + f * dir);
+		})
+		.OnComplete(update_pan)
+		.OnStop(update_pan)
+		.OnReset(update_pan);
 	tween.Start(force);
 }
 

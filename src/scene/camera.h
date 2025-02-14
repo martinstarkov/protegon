@@ -24,7 +24,7 @@ namespace impl {
 
 class CameraManager;
 
-struct TargetPosition : Vector2Component<float> {
+struct CameraPanStart : public Vector2Component<float> {
 	using Vector2Component::Vector2Component;
 };
 
@@ -97,12 +97,23 @@ public:
 	// @param target_position Position to pan to.
 	// @param duration Duration of pan.
 	// @param ease Easing function for pan.
-	// @param force If true, the pan is queued, if false the pan is executed immediately clearing
-	// any previously queued pans or target following.
+	// @param force If false, the pan is queued in the pan queue, if true the pan is executed
+	// immediately, clearing any previously queued pans or target following.
 	void PanTo(
 		const V2_float& target_position, milliseconds duration, TweenEase ease = TweenEase::Linear,
 		bool force = false
 	);
+
+	// Note: If the target entity is destroyed, set to null, or its transform component is removed
+	// the camera will stop following it.
+	// @param target The target entity for the camera to follow.
+	// @param force If false, the follow is queued in the pan queue, if true the follow is executed
+	// immediately, clearing any previously queued pans or target following.
+	void StartFollow(ecs::Entity target, bool force = false);
+
+	// Stop following the current target and moves onto to the next item in the pan queue.
+	// @param force If true, clears the pan queue.
+	void StopFollow(bool force = false);
 
 	[[nodiscard]] Rect GetViewport() const;
 
