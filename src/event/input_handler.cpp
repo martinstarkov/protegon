@@ -168,6 +168,11 @@ bool InputHandler::MouseWithinWindow() const {
 	return window.Overlaps(game.input.GetMousePositionGlobal());
 }
 
+bool InputHandler::MouseHeld(Mouse button, milliseconds time) {
+	const auto held_time{ GetMouseHeldTime(button) };
+	return held_time > time;
+}
+
 void InputHandler::SetRelativeMouseMode(bool on) const {
 	SDL_SetRelativeMouseMode(static_cast<SDL_bool>(on));
 }

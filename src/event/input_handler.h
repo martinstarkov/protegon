@@ -36,16 +36,11 @@ public:
 	[[nodiscard]] milliseconds GetMouseHeldTime(Mouse button);
 
 	/*
-	 * @tparam Duration The unit of time measurement.
 	 * @param button The mouse button to check.
 	 * @param time The duration of time for which the mouse should be held.
 	 * @return True if the mouse button has been held for the given amount of time.
 	 */
-	template <typename Duration = milliseconds, tt::duration<Duration> = true>
-	[[nodiscard]] inline bool MouseHeld(Mouse button, Duration time = milliseconds{ 50 }) {
-		const auto held_time{ GetMouseHeldTime(button) };
-		return held_time > time;
-	}
+	[[nodiscard]] bool MouseHeld(Mouse button, milliseconds time = milliseconds{ 50 });
 
 	// @return True if mouse position is within window bounds, false otherwise.
 	[[nodiscard]] bool MouseWithinWindow() const;
