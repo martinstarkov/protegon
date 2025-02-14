@@ -100,26 +100,34 @@ template <typename T, tt::integral<T> = true>
 	return (a % b + b) % b;
 }
 
-// Angle in degrees from 0 to 360.
+// Angle in degrees from [0, 360).
 template <typename T, tt::arithmetic<T> = true>
 [[nodiscard]] T ClampAngle360(T angle_degrees) {
-	while (angle_degrees < 0) {
-		angle_degrees += 360;
-	}
+	T clamped{ 0 };
+
 	if constexpr (std::is_floating_point_v<T>) {
-		return static_cast<T>(std::fmod(angle_degrees, 360));
+		clamped = std::fmod(angle_degrees, T{ 360 });
 	} else {
-		return Mod(angle_degrees, T{ 360 });
+		clamped = Mod(angle_degrees, T{ 360 });
 	}
+
+	if (clamped < 0) {
+		clamped += T{ 360 };
+	}
+
+	return clamped;
 }
 
-// Angle in radians from 0 to 2 pi.
+// @return Angle in radians in range [0, 2 pi).
 template <typename T, tt::floating_point<T> = true>
 [[nodiscard]] T ClampAngle2Pi(T angle_radians) {
-	while (angle_radians < 0) {
-		angle_radians += two_pi<T>;
+	T clamped{ std::fmod(angle_radians, two_pi<T>) };
+
+	if (clamped < 0.0) {
+		clamped += two_pi<T>;
 	}
-	return std::fmod(angle_radians, two_pi<T> + 0.00001f);
+
+	return clamped;
 }
 
 // Signum function.
