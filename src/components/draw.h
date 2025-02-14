@@ -38,12 +38,6 @@ struct Visible : public ArithmeticComponent<bool> {
 	Visible() : ArithmeticComponent{ true } {}
 };
 
-struct Alpha : public ArithmeticComponent<std::uint8_t> {
-	using ArithmeticComponent::ArithmeticComponent;
-
-	Alpha() : ArithmeticComponent{ 255 } {}
-};
-
 struct Tint : public ColorComponent {
 	using ColorComponent::ColorComponent;
 
