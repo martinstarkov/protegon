@@ -92,11 +92,21 @@ public:
 		mouse.Add<Visible>();
 
 		PTGN_ASSERT(cam != nullptr);
-		cam->PanTo({ 0, 0 }, seconds{ 1 });
-		cam->PanTo({ 800, 0 }, seconds{ 1 });
+		cam->PanTo({ 0, 0 }, seconds{ 3 });
+		cam->PanTo({ 800, 0 }, seconds{ 3 });
+		cam->PanTo({ 800, 800 }, seconds{ 3 });
+		cam->PanTo({ 0, 800 }, seconds{ 3 });
 		cam->StartFollow(mouse);
-		cam->PanTo({ 800, 800 }, seconds{ 1 });
-		cam->PanTo({ 0, 800 }, seconds{ 1 });
+
+		cam->ZoomTo(0.5f, seconds{ 3 });
+		cam->ZoomTo(2.0f, seconds{ 3 });
+		cam->ZoomTo(0.25f, seconds{ 3 });
+		cam->ZoomTo(1.0f, seconds{ 3 });
+
+		cam->RotateTo(DegToRad(90.0f), seconds{ 3 });
+		cam->RotateTo(DegToRad(0.0f), seconds{ 3 });
+		cam->RotateTo(DegToRad(-90.0f), seconds{ 3 });
+		cam->RotateTo(DegToRad(0.0f), seconds{ 3 });
 	}
 
 	void Update() override {

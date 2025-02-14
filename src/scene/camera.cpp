@@ -268,6 +268,73 @@ void Camera::PanTo(
 	tween.Start(force);
 }
 
+void Camera::ZoomTo(float target_zoom, milliseconds duration, TweenEase ease, bool force) {
+	PTGN_ASSERT(target_zoom > 0.0f, "Target zoom cannot be negative or zero");
+	if (zoom_effects_ == ecs::null) {
+		zoom_effects_ = entity_.GetManager().CreateEntity();
+	}
+	if (!zoom_effects_.Has<Tween>()) {
+		zoom_effects_.Add<Tween>();
+	}
+	if (!zoom_effects_.Has<impl::CameraZoomStart>()) {
+		auto& start = zoom_effects_.Add<impl::CameraZoomStart>();
+		start		= GetZoom();
+	}
+	auto& tween{ zoom_effects_.Get<Tween>() };
+	if (force || tween.IsCompleted()) {
+		tween.Clear();
+	}
+	auto update_zoom = [=]() mutable {
+		auto& start = zoom_effects_.Get<impl::CameraZoomStart>();
+		start		= GetZoom();
+	};
+	tween.During(duration)
+		.Ease(ease)
+		.OnUpdate([=](float f) mutable {
+			float start{ zoom_effects_.Get<impl::CameraZoomStart>() };
+			float dir{ target_zoom - start };
+			SetZoom(start + f * dir);
+		})
+		.OnComplete(update_zoom)
+		.OnStop(update_zoom)
+		.OnReset(update_zoom);
+	tween.Start(force);
+}
+
+void Camera::RotateTo(float target_angle, milliseconds duration, TweenEase ease, bool force) {
+	if (rotation_effects_ == ecs::null) {
+		rotation_effects_ = entity_.GetManager().CreateEntity();
+	}
+	if (!rotation_effects_.Has<Tween>()) {
+		rotation_effects_.Add<Tween>();
+	}
+	if (!rotation_effects_.Has<impl::CameraRotationStart>()) {
+		auto& start = rotation_effects_.Add<impl::CameraRotationStart>();
+		start		= GetRotation();
+	}
+	auto& tween{ rotation_effects_.Get<Tween>() };
+	if (force || tween.IsCompleted()) {
+		tween.Clear();
+	}
+	auto update_rotation = [=]() mutable {
+		auto& start = rotation_effects_.Get<impl::CameraRotationStart>();
+		start		= GetRotation();
+	};
+	tween.During(duration)
+		.Ease(ease)
+		.OnUpdate([=](float f) mutable {
+			float start{ rotation_effects_.Get<impl::CameraRotationStart>() };
+
+			float dir{ target_angle - start };
+
+			SetRotation(start + f * dir);
+		})
+		.OnComplete(update_rotation)
+		.OnStop(update_rotation)
+		.OnReset(update_rotation);
+	tween.Start(force);
+}
+
 [[nodiscard]] Rect Camera::GetViewport() const {
 	return entity_.Get<impl::CameraInfo>().data.viewport;
 }
@@ -277,6 +344,7 @@ Camera::operator Matrix4() const {
 }
 
 void Camera::SetZoom(float new_zoom) {
+	PTGN_ASSERT(new_zoom > 0.0f, "New zoom cannot be negative or zero");
 	auto& info{ entity_.Get<impl::CameraInfo>() };
 	info.data.zoom = new_zoom;
 	info.data.zoom = std::clamp(info.data.zoom, epsilon<float>, std::numeric_limits<float>::max());
@@ -380,6 +448,10 @@ V3_float Camera::GetOrientation() const {
 	return entity_.Get<impl::CameraInfo>().data.orientation;
 }
 
+float Camera::GetRotation() const {
+	return entity_.Get<impl::CameraInfo>().data.orientation.x;
+}
+
 Quaternion Camera::GetQuaternion() const {
 	return Quaternion::FromEuler(entity_.Get<impl::CameraInfo>().data.orientation);
 }
@@ -439,7 +511,9 @@ void Camera::Translate(const V2_float& position_change) {
 
 void Camera::Zoom(float zoom_change) {
 	const auto& info{ entity_.Get<impl::CameraInfo>().data };
-	SetZoom(info.zoom + zoom_change);
+	float new_zoom{ info.zoom + zoom_change };
+	PTGN_ASSERT(new_zoom > 0.0f, "Resulting zoom cannot be negative or zero");
+	SetZoom(new_zoom);
 }
 
 void Camera::SetRotation(const V3_float& new_angle_radians) {
@@ -453,12 +527,12 @@ void Camera::Rotate(const V3_float& angle_change_radians) {
 	SetRotation(info.orientation + angle_change_radians);
 }
 
-void Camera::SetRotation(float yaw_radians) {
-	SetYaw(yaw_radians);
+void Camera::SetRotation(float angle_radians) {
+	SetYaw(angle_radians);
 }
 
-void Camera::Rotate(float yaw_change_radians) {
-	Yaw(yaw_change_radians);
+void Camera::Rotate(float angle_change_radians) {
+	Yaw(angle_change_radians);
 }
 
 void Camera::SetYaw(float angle_radians) {

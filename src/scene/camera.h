@@ -28,6 +28,14 @@ struct CameraPanStart : public Vector2Component<float> {
 	using Vector2Component::Vector2Component;
 };
 
+struct CameraZoomStart : ArithmeticComponent<float> {
+	using ArithmeticComponent::ArithmeticComponent;
+};
+
+struct CameraRotationStart : ArithmeticComponent<float> {
+	using ArithmeticComponent::ArithmeticComponent;
+};
+
 struct CameraInfo {
 	CameraInfo();
 	CameraInfo(const CameraInfo& other);
@@ -104,6 +112,35 @@ public:
 		bool force = false
 	);
 
+	// @param target_zoom Zoom level to go to.
+	// @param duration Duration of zoom.
+	// @param ease Easing function for zoom.
+	// @param force If false, the zoom is queued in the zoom queue, if true the zoom is executed
+	// immediately, clearing any previously queued zooms.
+	void ZoomTo(
+		float target_zoom, milliseconds duration, TweenEase ease = TweenEase::Linear,
+		bool force = false
+	);
+
+	// @param target_angle Angle (in radians) to rotate to (refer to diagram below). If positive,
+	// rotation is clockwise, if negative rotation is counter-clockwise.
+	// @param duration Duration of rotation.
+	// @param ease Easing function for rotation.
+	// @param force If false, the rotation is queued in the rotation queue, if true the rotation is
+	// executed immediately, clearing any previously queued rotations.
+	/* Range: (-3.14159, 3.14159].
+	 * (clockwise positive).
+	 *            -1.5708
+	 *               |
+	 *    3.14159 ---o--- 0
+	 *               |
+	 *             1.5708
+	 */
+	void RotateTo(
+		float target_angle, milliseconds duration, TweenEase ease = TweenEase::Linear,
+		bool force = false
+	);
+
 	// Note: If the target entity is destroyed, set to null, or its transform component is removed
 	// the camera will stop following it.
 	// @param target The target entity for the camera to follow.
@@ -163,8 +200,11 @@ public:
 	// @return The position of the camera.
 	[[nodiscard]] V2_float GetPosition(Origin origin = Origin::Center) const;
 
-	// (yaw, pitch, roll) (radians).
+	// @return (yaw, pitch, roll) (radians).
 	[[nodiscard]] V3_float GetOrientation() const;
+
+	// @return Yaw (2D rotation) (radians).
+	[[nodiscard]] float GetRotation() const;
 
 	// Orientation as a quaternion.
 	[[nodiscard]] Quaternion GetQuaternion() const;
@@ -194,11 +234,27 @@ public:
 	// (yaw, pitch, roll) in radians.
 	void Rotate(const V3_float& angle_change_radians);
 
-	// Yaw in radians.
-	void SetRotation(float yaw_radians);
+	// Set 2D rotation angle in radians.
+	/* Range: (-3.14159, 3.14159].
+	 * (clockwise positive).
+	 *            -1.5708
+	 *               |
+	 *    3.14159 ---o--- 0
+	 *               |
+	 *             1.5708
+	 */
+	void SetRotation(float angle_radians);
 
-	// Yaw in radians.
-	void Rotate(float yaw_change_radians);
+	// Rotate camera in 2D (radians).
+	/* Range: (-3.14159, 3.14159].
+	 * (clockwise positive).
+	 *            -1.5708
+	 *               |
+	 *    3.14159 ---o--- 0
+	 *               |
+	 *             1.5708
+	 */
+	void Rotate(float angle_change_radians);
 
 	// Angle in radians.
 	void SetYaw(float angle_radians);
@@ -238,6 +294,8 @@ protected:
 	void RecalculateViewProjection() const;
 
 	ecs::Entity pan_effects_;
+	ecs::Entity rotation_effects_;
+	ecs::Entity zoom_effects_;
 	ecs::Entity entity_;
 };
 
