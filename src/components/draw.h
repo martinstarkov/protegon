@@ -60,6 +60,8 @@ struct Radius : public Vector2Component<float> {
 	using Vector2Component::Vector2Component;
 
 	Radius() : Vector2Component{ V2_float{ 1.0f, 1.0f } } {}
+
+	Radius(float radius) : Vector2Component{ V2_float{ radius } } {}
 };
 
 struct Size : public Vector2Component<float> {
