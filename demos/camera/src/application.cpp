@@ -19,6 +19,7 @@
 using namespace ptgn;
 
 constexpr V2_int window_size{ 800, 800 };
+constexpr V2_int deadzone_size{ 150, 150 };
 
 class CameraUIScene : public Scene {
 public:
@@ -28,6 +29,22 @@ public:
 		auto ui = CreateSprite(manager, "ui_texture2");
 		ui.Add<Transform>();
 		ui.Add<Origin>(Origin::TopLeft);
+
+		auto camera_center = manager.CreateEntity();
+		camera_center.Add<Circle>();
+		camera_center.Add<Transform>(game.window.GetCenter());
+		camera_center.Add<Radius>(3.0f);
+		camera_center.Add<Tint>(color::Black);
+		camera_center.Add<Visible>();
+
+		auto deadzone = manager.CreateEntity();
+		deadzone.Add<Rect>();
+		deadzone.Add<Transform>(game.window.GetCenter());
+		deadzone.Add<LineWidth>(2.0f);
+		deadzone.Add<Size>(deadzone_size);
+		deadzone.Add<Origin>(Origin::Center);
+		deadzone.Add<Tint>(color::DarkGreen);
+		deadzone.Add<Visible>();
 
 		camera.primary.FadeFrom(color::Black, seconds{ 3 });
 		camera.primary.FadeTo(color::Red, seconds{ 3 });
@@ -95,6 +112,9 @@ public:
 		camera.primary.PanTo({ 800, 800 }, seconds{ 3 });
 		camera.primary.PanTo({ 0, 800 }, seconds{ 3 });
 		camera.primary.StartFollow(mouse);
+		camera.primary.SetLerp(V2_float{ 0.05f });
+		// camera.primary.SetOffset(V2_float{ -75, -75 });
+		camera.primary.SetDeadzone(deadzone_size);
 
 		camera.primary.ZoomTo(0.5f, seconds{ 3 });
 		camera.primary.ZoomTo(2.0f, seconds{ 3 });

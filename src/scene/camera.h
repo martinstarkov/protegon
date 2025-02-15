@@ -37,6 +37,20 @@ struct CameraRotationStart : public ArithmeticComponent<float> {
 	using ArithmeticComponent::ArithmeticComponent;
 };
 
+struct CameraLerp : public Vector2Component<float> {
+	using Vector2Component::Vector2Component;
+
+	CameraLerp() : Vector2Component{ V2_float{ 1.0f, 1.0f } } {}
+};
+
+struct CameraDeadzone : public Vector2Component<float> {
+	using Vector2Component::Vector2Component;
+};
+
+struct CameraOffset : public Vector2Component<float> {
+	using Vector2Component::Vector2Component;
+};
+
 struct CameraInfo {
 	CameraInfo();
 	CameraInfo(const CameraInfo& other);
@@ -294,6 +308,27 @@ public:
 
 	// Angle in radians.
 	void Roll(float angle_change_radians);
+
+	// Only applies when camera is following a target.
+	// Range: [0, 1]. Determines how smoothly the camera tracks to the target's position. 1 for
+	// instant tracking, 0 to disable tracking.
+	void SetLerp(const V2_float& lerp = V2_float{ 1.0f });
+
+	[[nodiscard]] V2_float GetLerp() const;
+
+	// Only applies when camera is following a target.
+	// Deadzone is a rectangle centered on the target inside of which the camera does not track the
+	// target. If {}, deadzone is removed.
+	void SetDeadzone(const V2_float& size = {});
+
+	[[nodiscard]] V2_float GetDeadzone() const;
+
+	// Only applies when camera is following a target.
+	// Sets an offset such that the camera follows target.transform + offset.
+	// If {}, offset is removed.
+	void SetOffset(const V2_float& offset = {});
+
+	[[nodiscard]] V2_float GetOffset() const;
 
 	void PrintInfo() const;
 

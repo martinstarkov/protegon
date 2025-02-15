@@ -207,9 +207,6 @@ void Camera::StartFollow(ecs::Entity target_entity, bool force) {
 	if (force || tween.IsCompleted()) {
 		tween.Clear();
 	}
-	auto GetLerp = []() {
-		return 0.1f;
-	};
 	auto update_pan = [=]() mutable {
 		// If a pan starts after this follow, its start position must be updated.
 		if (pan_effects_.Has<impl::CameraPanStart>()) {
@@ -227,10 +224,37 @@ void Camera::StartFollow(ecs::Entity target_entity, bool force) {
 				tween.IncrementTweenPoint();
 				return;
 			}
+			V2_float offset{ pan_effects_.Has<impl::CameraOffset>()
+								 ? pan_effects_.Get<impl::CameraOffset>()
+								 : impl::CameraOffset{} };
+			auto target_pos{ target_entity.Get<Transform>().position + offset };
+			V2_float lerp{ pan_effects_.Has<impl::CameraLerp>()
+							   ? pan_effects_.Get<impl::CameraLerp>()
+							   : impl::CameraLerp{} };
+			V2_float deadzone_size{ pan_effects_.Has<impl::CameraDeadzone>()
+										? pan_effects_.Get<impl::CameraDeadzone>()
+										: impl::CameraDeadzone{} };
 			auto pos{ GetPosition(Origin::Center) };
-			auto target_pos{ target_entity.Get<Transform>().position /* TODO: Add offset here */ };
-			auto translation{ Lerp({}, target_pos - pos, std::invoke(GetLerp)) };
-			Translate(translation);
+			if (deadzone_size.IsZero()) {
+				SetPosition(Lerp(pos, target_pos, lerp));
+				return;
+			}
+
+			// TODO: Consider adding a custom deadzone origin in the future.
+			Rect deadzone{ target_pos, deadzone_size, Origin::Center };
+			V2_float min{ deadzone.Min() };
+			V2_float max{ deadzone.Max() };
+			if (pos.x < min.x) {
+				pos.x = Lerp(pos.x, pos.x - (min.x - target_pos.x), lerp.x);
+			} else if (pos.x > max.x) {
+				pos.x = Lerp(pos.x, pos.x + (target_pos.x - max.x), lerp.x);
+			}
+			if (pos.y < min.y) {
+				pos.y = Lerp(pos.y, pos.y - (min.y - target_pos.y), lerp.y);
+			} else if (pos.y > max.y) {
+				pos.y = Lerp(pos.y, pos.y + (target_pos.y - max.y), lerp.y);
+			}
+			SetPosition(pos);
 		})
 		.OnComplete(update_pan)
 		.OnStop(update_pan)
@@ -667,6 +691,60 @@ void Camera::RecalculateProjection() const {
 		flip_dir.y * -extents.y, -std::numeric_limits<float>::infinity(),
 		std::numeric_limits<float>::infinity()
 	);
+}
+
+void Camera::SetLerp(const V2_float& lerp) {
+	PTGN_ASSERT(lerp.x >= 0.0f && lerp.x <= 1.0f, "Lerp value outside of range 0 to 1");
+	PTGN_ASSERT(lerp.y >= 0.0f && lerp.y <= 1.0f, "Lerp value outside of range 0 to 1");
+	if (pan_effects_ == ecs::null) {
+		pan_effects_ = entity_.GetManager().CreateEntity();
+	}
+	pan_effects_.Add<impl::CameraLerp>(lerp);
+}
+
+V2_float Camera::GetLerp() const {
+	if (pan_effects_ == ecs::null || pan_effects_.Has<impl::CameraLerp>()) {
+		return impl::CameraLerp{};
+	}
+	return pan_effects_.Get<impl::CameraLerp>();
+}
+
+void Camera::SetDeadzone(const V2_float& size) {
+	PTGN_ASSERT(size.x >= 0.0f, "Deadzone width cannot be negative");
+	PTGN_ASSERT(size.y >= 0.0f, "Deadzone height cannot be negative");
+	if (pan_effects_ == ecs::null) {
+		pan_effects_ = entity_.GetManager().CreateEntity();
+	}
+	if (size.IsZero()) {
+		pan_effects_.Remove<impl::CameraDeadzone>();
+	} else {
+		pan_effects_.Add<impl::CameraDeadzone>(size);
+	}
+}
+
+V2_float Camera::GetDeadzone() const {
+	if (pan_effects_ == ecs::null || pan_effects_.Has<impl::CameraDeadzone>()) {
+		return impl::CameraDeadzone{};
+	}
+	return pan_effects_.Get<impl::CameraDeadzone>();
+}
+
+void Camera::SetOffset(const V2_float& offset) {
+	if (pan_effects_ == ecs::null) {
+		pan_effects_ = entity_.GetManager().CreateEntity();
+	}
+	if (offset.IsZero()) {
+		pan_effects_.Remove<impl::CameraOffset>();
+	} else {
+		pan_effects_.Add<impl::CameraOffset>(offset);
+	}
+}
+
+V2_float Camera::GetOffset() const {
+	if (pan_effects_ == ecs::null || pan_effects_.Has<impl::CameraOffset>()) {
+		return impl::CameraOffset{};
+	}
+	return pan_effects_.Get<impl::CameraOffset>();
 }
 
 void Camera::PrintInfo() const {
