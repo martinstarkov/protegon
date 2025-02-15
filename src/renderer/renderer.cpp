@@ -144,10 +144,6 @@ RenderData& Renderer::GetRenderData() {
 void Renderer::PresentScreen() {
 	PTGN_ASSERT(
 		std::invoke([]() {
-			// No active scenes added yet so viewport cannot be set.
-			if (game.scene.GetActiveSceneCount() == 0) {
-				return true;
-			}
 			auto viewport_size{ GLRenderer::GetViewportSize() };
 			if (viewport_size.IsZero()) {
 				return false;

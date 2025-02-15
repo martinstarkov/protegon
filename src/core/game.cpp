@@ -266,12 +266,18 @@ void Game::Update() {
 
 	start = end;
 
-	renderer.ClearScreen();
+	scene.HandleSceneEvents();
 
-	input.Update();
-	scene.Update();
+	if (game.scene.GetActiveSceneCount() != 0) {
+		renderer.ClearScreen();
 
-	renderer.PresentScreen();
+		// scene.ClearSceneTargets();
+
+		input.Update();
+		scene.Update();
+
+		renderer.PresentScreen();
+	}
 
 #ifdef PTGN_DEBUG
 	// Uncomment to examine the color of the pixel at the mouse position that is drawn to the
@@ -281,8 +287,6 @@ void Game::Update() {
 		renderer.screen_target_.GetPixel(game.input.GetMousePositionWindow())
 	);*/
 #endif
-
-	scene.HandleSceneEvents();
 
 	if (profiler.IsEnabled()) {
 		profiler.PrintAll();
