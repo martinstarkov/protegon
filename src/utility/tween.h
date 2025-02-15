@@ -145,6 +145,13 @@ struct TweenPoint {
 
 class Tween {
 public:
+	Tween()								 = default;
+	Tween(const Tween& other)			 = default;
+	Tween& operator=(const Tween& other) = default;
+	Tween(Tween&& other) noexcept;
+	Tween& operator=(Tween&& other) noexcept;
+	~Tween();
+
 	Tween& During(milliseconds duration);
 	Tween& Ease(TweenEase ease);
 

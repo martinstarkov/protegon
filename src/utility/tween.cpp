@@ -81,6 +81,35 @@ impl::TweenPoint& Tween::GetLastTweenPoint() {
 	return tween_points_.back();
 }
 
+Tween::Tween(Tween&& other) noexcept :
+	progress_{ std::exchange(other.progress_, 0.0f) },
+	index_{ std::exchange(other.index_, 0) },
+	tween_points_{ std::exchange(other.tween_points_, {}) },
+	on_reset_{ std::exchange(other.on_reset_, {}) },
+	paused_{ std::exchange(other.paused_, false) },
+	started_{ std::exchange(other.started_, false) } {}
+
+Tween& Tween::operator=(Tween&& other) noexcept {
+	if (this != &other) {
+		progress_	  = std::exchange(other.progress_, 0.0f);
+		index_		  = std::exchange(other.index_, 0);
+		tween_points_ = std::exchange(other.tween_points_, {});
+		on_reset_	  = std::exchange(other.on_reset_, {});
+		paused_		  = std::exchange(other.paused_, false);
+		started_	  = std::exchange(other.started_, false);
+	}
+	return *this;
+}
+
+Tween::~Tween() {
+	progress_	  = 0.0f;
+	index_		  = 0;
+	tween_points_ = {};
+	on_reset_	  = {};
+	paused_		  = false;
+	started_	  = false;
+}
+
 Tween& Tween::During(milliseconds duration) {
 	PTGN_ASSERT(duration >= nanoseconds{ 0 }, "Tween duration cannot be negative");
 	tween_points_.emplace_back(duration);
@@ -403,13 +432,11 @@ Tween& Tween::Stop() {
 }
 
 float Tween::StepImpl(float dt, bool accumulate_progress) {
-	if (!started_ || paused_ || tween_points_.empty()) {
+	if (!started_ || paused_ || tween_points_.empty() || IsCompleted()) {
 		return GetProgress();
 	}
-	return SeekImpl(
-		accumulate_progress ? AccumulateProgress(GetNewProgress(duration<float>(dt)))
-							: GetNewProgress(duration<float>(dt))
-	);
+	float new_progress{ GetNewProgress(duration<float>(dt)) };
+	return SeekImpl(accumulate_progress ? AccumulateProgress(new_progress) : new_progress);
 }
 
 float Tween::SeekImpl(float new_progress) {
