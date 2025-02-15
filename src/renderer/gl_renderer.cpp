@@ -243,9 +243,14 @@ void GLRenderer::Clear() {
 #endif
 }
 
-void GLRenderer::ClearToColor(const Color& color) {
-	V4_float nc{ color.Normalized() };
-	std::array<float, 4> color_array{ nc.x, nc.y, nc.z, nc.w };
+void GLRenderer::ClearToColor(const V4_float& normalized_color) {
+	PTGN_ASSERT(normalized_color.x >= 0.0f && normalized_color.x <= 1.0f);
+	PTGN_ASSERT(normalized_color.y >= 0.0f && normalized_color.y <= 1.0f);
+	PTGN_ASSERT(normalized_color.z >= 0.0f && normalized_color.z <= 1.0f);
+	PTGN_ASSERT(normalized_color.w >= 0.0f && normalized_color.w <= 1.0f);
+
+	std::array<float, 4> color_array{ normalized_color.x, normalized_color.y, normalized_color.z,
+									  normalized_color.w };
 
 	GLCall(gl::ClearBufferfv(static_cast<gl::GLenum>(BufferCategory::Color), 0, color_array.data())
 	);
@@ -261,6 +266,10 @@ void GLRenderer::ClearToColor(const Color& color) {
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Cleared to color ", color);
 #endif
+}
+
+void GLRenderer::ClearToColor(const Color& color) {
+	ClearToColor(color.Normalized());
 }
 
 } // namespace ptgn::impl
