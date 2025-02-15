@@ -238,6 +238,15 @@ template <
 	return { lhs.x / rhs, lhs.y / rhs, lhs.z / rhs, lhs.w / rhs };
 }
 
+// Clamp all components of the vector between min and max (component specific).
+template <typename T>
+[[nodiscard]] inline Vector4<T> Clamp(
+	const Vector4<T>& vector, const Vector4<T>& min, const Vector4<T>& max
+) {
+	return { std::clamp(vector.x, min.x, max.x), std::clamp(vector.y, min.y, max.y),
+			 std::clamp(vector.z, min.z, max.z), std::clamp(vector.w, min.w, max.w) };
+}
+
 } // namespace ptgn
 
 // Custom hashing function for Vector4 class.
