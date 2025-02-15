@@ -100,6 +100,14 @@ void RenderTarget::Clear() const {
 	impl::GLRenderer::ClearToColor(clear_color_);
 }
 
+void RenderTarget::SetTint(const Color& color) {
+	tint_color_ = color;
+}
+
+Color RenderTarget::GetTint() const {
+	return tint_color_;
+}
+
 /*
 void RenderTarget::DrawToScreen() const {
 	FrameBuffer::Unbind();
