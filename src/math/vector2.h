@@ -370,6 +370,14 @@ template <typename T>
 	return Vector2<T>{ Lerp(lhs.x, rhs.x, t), Lerp(lhs.y, rhs.y, t) };
 }
 
+// Linearly interpolate both components of a vector by their respective t values.
+template <typename T>
+[[nodiscard]] inline Vector2<T> Lerp(
+	const Vector2<T>& lhs, const Vector2<T>& rhs, const Vector2<T>& t
+) {
+	return Vector2<T>{ Lerp(lhs.x, rhs.x, t.x), Lerp(lhs.y, rhs.y, t.y) };
+}
+
 // @return The midpoint between vectors a and b.
 template <typename T>
 [[nodiscard]] inline Vector2<T> Midpoint(const Vector2<T>& a, const Vector2<T>& b) {
