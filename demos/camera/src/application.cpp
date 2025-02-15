@@ -90,7 +90,6 @@ public:
 		mouse.Add<Tint>(color::Red);
 		mouse.Add<Visible>();
 
-		/*
 		camera.primary.PanTo({ 0, 0 }, seconds{ 3 });
 		camera.primary.PanTo({ 800, 0 }, seconds{ 3 });
 		camera.primary.PanTo({ 800, 800 }, seconds{ 3 });
@@ -106,9 +105,6 @@ public:
 		camera.primary.RotateTo(DegToRad(0.0f), seconds{ 3 });
 		camera.primary.RotateTo(DegToRad(-90.0f), seconds{ 3 });
 		camera.primary.RotateTo(DegToRad(0.0f), seconds{ 3 });
-		*/
-
-		// camera.primary.FadeFrom(color::Black, seconds{ 8 });
 	}
 
 	void Update() override {
