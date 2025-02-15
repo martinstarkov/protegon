@@ -1,11 +1,13 @@
 #include "scene/camera.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <functional>
 #include <limits>
 #include <type_traits>
 #include <utility>
 
+#include "components/draw.h"
 #include "components/transform.h"
 #include "core/game.h"
 #include "core/manager.h"
@@ -19,10 +21,12 @@
 #include "math/quaternion.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
+#include "renderer/color.h"
 #include "renderer/flip.h"
 #include "renderer/origin.h"
 #include "utility/assert.h"
 #include "utility/log.h"
+#include "utility/time.h"
 #include "utility/tween.h"
 
 namespace ptgn {
@@ -146,30 +150,30 @@ ecs::Entity CreateCamera(ecs::Manager& manager) {
 
 Camera::Camera(ecs::Entity entity) : entity_{ entity } {}
 
-Camera::Camera(const Camera& other) {
-	*this = other;
-}
-
-Camera& Camera::operator=(const Camera& other) {
-	if (other == Camera{}) {
-		entity_ = {};
-		return *this;
-	}
-	entity_ = other.entity_.Copy();
-	return *this;
-}
-
-Camera::Camera(Camera&& other) noexcept : entity_{ std::exchange(other.entity_, {}) } {}
+Camera::Camera(Camera&& other) noexcept :
+	entity_{ std::exchange(other.entity_, {}) },
+	pan_effects_{ std::exchange(other.pan_effects_, {}) },
+	rotation_effects_{ std::exchange(other.rotation_effects_, {}) },
+	zoom_effects_{ std::exchange(other.zoom_effects_, {}) },
+	fade_effects_{ std::exchange(other.fade_effects_, {}) } {}
 
 Camera& Camera::operator=(Camera&& other) noexcept {
 	if (this != &other) {
-		entity_ = std::exchange(other.entity_, {});
+		entity_			  = std::exchange(other.entity_, {});
+		pan_effects_	  = std::exchange(other.pan_effects_, {});
+		rotation_effects_ = std::exchange(other.rotation_effects_, {});
+		zoom_effects_	  = std::exchange(other.zoom_effects_, {});
+		fade_effects_	  = std::exchange(other.fade_effects_, {});
 	}
 	return *this;
 }
 
 Camera::~Camera() {
 	entity_.Destroy();
+	pan_effects_.Destroy();
+	rotation_effects_.Destroy();
+	zoom_effects_.Destroy();
+	fade_effects_.Destroy();
 }
 
 bool Camera::operator==(const Camera& other) const {
@@ -209,8 +213,8 @@ void Camera::StartFollow(ecs::Entity target_entity, bool force) {
 	auto update_pan = [=]() mutable {
 		// If a pan starts after this follow, its start position must be updated.
 		if (pan_effects_.Has<impl::CameraPanStart>()) {
-			auto& start = pan_effects_.Get<impl::CameraPanStart>();
-			start		= GetPosition(Origin::Center);
+			auto& start{ pan_effects_.Get<impl::CameraPanStart>() };
+			start = GetPosition(Origin::Center);
 		}
 	};
 	tween.During(milliseconds{ 0 })
@@ -225,7 +229,7 @@ void Camera::StartFollow(ecs::Entity target_entity, bool force) {
 			}
 			auto pos{ GetPosition(Origin::Center) };
 			auto target_pos{ target_entity.Get<Transform>().position /* TODO: Add offset here */ };
-			auto translation{ Lerp({}, target_pos - pos, GetLerp()) };
+			auto translation{ Lerp({}, target_pos - pos, std::invoke(GetLerp)) };
 			Translate(translation);
 		})
 		.OnComplete(update_pan)
@@ -244,16 +248,16 @@ void Camera::PanTo(
 		pan_effects_.Add<Tween>();
 	}
 	if (!pan_effects_.Has<impl::CameraPanStart>()) {
-		auto& start = pan_effects_.Add<impl::CameraPanStart>();
-		start		= GetPosition(Origin::Center);
+		auto& start{ pan_effects_.Add<impl::CameraPanStart>() };
+		start = GetPosition(Origin::Center);
 	}
 	auto& tween{ pan_effects_.Get<Tween>() };
 	if (force || tween.IsCompleted()) {
 		tween.Clear();
 	}
 	auto update_pan = [=]() mutable {
-		auto& start = pan_effects_.Get<impl::CameraPanStart>();
-		start		= GetPosition(Origin::Center);
+		auto& start{ pan_effects_.Get<impl::CameraPanStart>() };
+		start = GetPosition(Origin::Center);
 	};
 	tween.During(duration)
 		.Ease(ease)
@@ -277,16 +281,16 @@ void Camera::ZoomTo(float target_zoom, milliseconds duration, TweenEase ease, bo
 		zoom_effects_.Add<Tween>();
 	}
 	if (!zoom_effects_.Has<impl::CameraZoomStart>()) {
-		auto& start = zoom_effects_.Add<impl::CameraZoomStart>();
-		start		= GetZoom();
+		auto& start{ zoom_effects_.Add<impl::CameraZoomStart>() };
+		start = GetZoom();
 	}
 	auto& tween{ zoom_effects_.Get<Tween>() };
 	if (force || tween.IsCompleted()) {
 		tween.Clear();
 	}
 	auto update_zoom = [=]() mutable {
-		auto& start = zoom_effects_.Get<impl::CameraZoomStart>();
-		start		= GetZoom();
+		auto& start{ zoom_effects_.Get<impl::CameraZoomStart>() };
+		start = GetZoom();
 	};
 	tween.During(duration)
 		.Ease(ease)
@@ -309,16 +313,16 @@ void Camera::RotateTo(float target_angle, milliseconds duration, TweenEase ease,
 		rotation_effects_.Add<Tween>();
 	}
 	if (!rotation_effects_.Has<impl::CameraRotationStart>()) {
-		auto& start = rotation_effects_.Add<impl::CameraRotationStart>();
-		start		= GetRotation();
+		auto& start{ rotation_effects_.Add<impl::CameraRotationStart>() };
+		start = GetRotation();
 	}
 	auto& tween{ rotation_effects_.Get<Tween>() };
 	if (force || tween.IsCompleted()) {
 		tween.Clear();
 	}
 	auto update_rotation = [=]() mutable {
-		auto& start = rotation_effects_.Get<impl::CameraRotationStart>();
-		start		= GetRotation();
+		auto& start{ rotation_effects_.Get<impl::CameraRotationStart>() };
+		start = GetRotation();
 	};
 	tween.During(duration)
 		.Ease(ease)
@@ -333,6 +337,63 @@ void Camera::RotateTo(float target_angle, milliseconds duration, TweenEase ease,
 		.OnStop(update_rotation)
 		.OnReset(update_rotation);
 	tween.Start(force);
+}
+
+void Camera::FadeFromTo(
+	const Color& start_color, const Color& end_color, milliseconds duration, TweenEase ease,
+	bool force
+) {
+	if (fade_effects_ == ecs::null) {
+		fade_effects_ = entity_.GetManager().CreateEntity();
+	}
+	if (!fade_effects_.Has<Tween>()) {
+		fade_effects_.Add<Tween>();
+	}
+	if (!fade_effects_.Has<Rect>()) {
+		fade_effects_.Add<Rect>();
+		fade_effects_.Add<Transform>();
+		fade_effects_.Add<Size>();
+		fade_effects_.Add<Origin>();
+		fade_effects_.Add<Tint>();
+		fade_effects_.Add<Visible>(false);
+		fade_effects_.Add<Depth>(std::numeric_limits<std::int32_t>::max());
+	}
+	auto& tween{ fade_effects_.Get<Tween>() };
+	if (force || tween.IsCompleted()) {
+		tween.Clear();
+	}
+	auto update_fade_rect = [=](float progress) mutable {
+		if (fade_effects_.Has<Tint>()) {
+			auto& fade{ fade_effects_.Get<Tint>() };
+			fade = Lerp(start_color, end_color, progress);
+		}
+	};
+	auto show = [=](float f) mutable {
+		auto& visible{ fade_effects_.Get<Visible>() };
+		visible = true;
+	};
+	auto hide = [=]() mutable {
+		auto& visible{ fade_effects_.Get<Visible>() };
+		visible = false;
+	};
+	tween.During(duration)
+		.Ease(ease)
+		.OnStart(show)
+		.OnUpdate([=](float f) mutable { std::invoke(update_fade_rect, f); })
+		.OnComplete(hide)
+		.OnStop(hide)
+		.OnReset(hide);
+	tween.Start(force);
+}
+
+void Camera::FadeTo(const Color& color, milliseconds duration, TweenEase ease, bool force) {
+	PTGN_ASSERT(color != color::Transparent, "Cannot fade to fully transparent color");
+	FadeFromTo(color::Transparent, color, duration, ease, force);
+}
+
+void Camera::FadeFrom(const Color& color, milliseconds duration, TweenEase ease, bool force) {
+	PTGN_ASSERT(color != color::Transparent, "Cannot fade from fully transparent color");
+	FadeFromTo(color, color::Transparent, duration, ease, force);
 }
 
 [[nodiscard]] Rect Camera::GetViewport() const {
@@ -433,7 +494,8 @@ void Camera::CenterOnWindow(bool continuously) {
 
 Rect Camera::GetRect() const {
 	const auto& info{ entity_.Get<impl::CameraInfo>().data };
-	return Rect{ GetPosition(Origin::Center), GetSize() / info.zoom, Origin::Center };
+	return Rect{ GetPosition(Origin::Center), GetSize() / info.zoom, Origin::Center,
+				 GetRotation() };
 }
 
 V2_float Camera::GetSize() const {
@@ -630,7 +692,6 @@ void CameraManager::Init(ecs::Manager& manager) {
 }
 
 void CameraManager::Reset() {
-	MapManager::Reset();
 	primary = CreateCamera(primary.entity_.GetManager());
 	window	= CreateCamera(window.entity_.GetManager());
 }

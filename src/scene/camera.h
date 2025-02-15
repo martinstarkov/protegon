@@ -10,6 +10,7 @@
 #include "math/quaternion.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
+#include "renderer/color.h"
 #include "renderer/flip.h"
 #include "renderer/origin.h"
 #include "utility/time.h"
@@ -28,11 +29,11 @@ struct CameraPanStart : public Vector2Component<float> {
 	using Vector2Component::Vector2Component;
 };
 
-struct CameraZoomStart : ArithmeticComponent<float> {
+struct CameraZoomStart : public ArithmeticComponent<float> {
 	using ArithmeticComponent::ArithmeticComponent;
 };
 
-struct CameraRotationStart : ArithmeticComponent<float> {
+struct CameraRotationStart : public ArithmeticComponent<float> {
 	using ArithmeticComponent::ArithmeticComponent;
 };
 
@@ -93,8 +94,8 @@ class Camera {
 public:
 	Camera() = default;
 	Camera(ecs::Entity camera);
-	Camera(const Camera& other);
-	Camera& operator=(const Camera& other);
+	Camera(const Camera&)			 = delete;
+	Camera& operator=(const Camera&) = delete;
 	Camera(Camera&& other) noexcept;
 	Camera& operator=(Camera&& other) noexcept;
 	~Camera();
@@ -151,6 +152,26 @@ public:
 	// Stop following the current target and moves onto to the next item in the pan queue.
 	// @param force If true, clears the pan queue.
 	void StopFollow(bool force = false);
+
+	// @param color Starting color.
+	// @param duration Duration of fade.
+	// @param ease Easing function for the fade.
+	// @param force If false, the fade is queued in the fade queue, if true the fade is executed
+	// immediately, clearing any previously queued fades.
+	void FadeFrom(
+		const Color& color, milliseconds duration, TweenEase ease = TweenEase::Linear,
+		bool force = false
+	);
+
+	// @param color End color.
+	// @param duration Duration of fade.
+	// @param ease Easing function for the fade.
+	// @param force If false, the fade is queued in the fade queue, if true the fade is executed
+	// immediately, clearing any previously queued fades.
+	void FadeTo(
+		const Color& color, milliseconds duration, TweenEase ease = TweenEase::Linear,
+		bool force = false
+	);
 
 	[[nodiscard]] Rect GetViewport() const;
 
@@ -283,6 +304,17 @@ public:
 protected:
 	friend class impl::CameraManager;
 
+	// @param start_color Starting color.
+	// @param end_color Ending color.
+	// @param duration Duration of fade.
+	// @param ease Easing function for the fade.
+	// @param force If false, the fade is queued in the fade queue, if true the fade is executed
+	// immediately, clearing any previously queued fades.
+	void FadeFromTo(
+		const Color& start_color, const Color& end_color, milliseconds duration, TweenEase ease,
+		bool force
+	);
+
 	[[nodiscard]] const Matrix4& GetView() const;
 	[[nodiscard]] const Matrix4& GetProjection() const;
 
@@ -296,6 +328,7 @@ protected:
 	ecs::Entity pan_effects_;
 	ecs::Entity rotation_effects_;
 	ecs::Entity zoom_effects_;
+	ecs::Entity fade_effects_;
 	ecs::Entity entity_;
 };
 
@@ -306,16 +339,10 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {
 
 namespace impl {
 
-class CameraManager : public MapManager<Camera> {
+class CameraManager {
 public:
-	CameraManager()									   = default;
-	~CameraManager() override						   = default;
-	CameraManager(CameraManager&&) noexcept			   = default;
-	CameraManager& operator=(CameraManager&&) noexcept = default;
-	CameraManager(const CameraManager&)				   = delete;
-	CameraManager& operator=(const CameraManager&)	   = delete;
-
-	// Resets the camera manager and primary / window cameras.
+	// Reset primary camera back to window and reset window camera in case it has been
+	// modified.
 	void Reset();
 
 	Camera primary;
