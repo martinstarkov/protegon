@@ -30,6 +30,7 @@ public:
 	void Render(
 		const FrameBuffer& frame_buffer, const Camera& camera, ecs::Entity e, bool check_visibility
 	);
+	void RenderToScreen(const RenderTarget& target, const Camera& camera);
 
 private:
 	void AddToBatch(

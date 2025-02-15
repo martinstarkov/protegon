@@ -109,7 +109,7 @@ void RenderData::AddToBatch(
 	Batch& batch, ecs::Entity e, Transform transform, const Depth& depth, const Texture& texture,
 	const Camera& camera
 ) {
-	V4_float color{ (e.Has<Tint>() ? Color{ e.Get<Tint>() } : color::White).Normalized() };
+	V4_float color{ (e.Has<Tint>() ? e.Get<Tint>() : Tint{}).Normalized() };
 	V2_float offset{ e.Has<Offset>() ? V2_float{ e.Get<Offset>() } : V2_float{} };
 	transform.position += offset;
 
@@ -258,15 +258,20 @@ void RenderData::AddToBatch(
 			PTGN_ASSERT(e.Has<Size>(), "Quads must have a size");
 
 			Rect dest;
-			PTGN_ASSERT(
-				transform.scale.x > 0.0f && transform.scale.y > 0.0f, "Scale must be above 0"
-			);
-			dest.size	  = V2_float{ e.Get<Size>() } * Abs(transform.scale);
-			dest.origin	  = e.Has<Origin>() ? e.Get<Origin>() : Origin::Center;
-			dest.rotation = transform.rotation;
-			if (dest.size.IsZero()) {
-				PTGN_ERROR("Invalid quad size");
+
+			V2_float size{ e.Get<Size>() };
+
+			if (size.IsZero()) {
+				return dest;
+			} else {
+				PTGN_ASSERT(
+					transform.scale.x > 0.0f && transform.scale.y > 0.0f, "Scale must be above 0"
+				);
+				dest.size	  = size * Abs(transform.scale);
+				dest.origin	  = e.Has<Origin>() ? e.Get<Origin>() : Origin::Center;
+				dest.rotation = transform.rotation;
 			}
+
 			return dest;
 		};
 
@@ -445,6 +450,19 @@ void RenderData::Render(
 	SetupRender(frame_buffer, camera);
 	PopulateBatches(e, check_visibility, camera);
 	FlushBatches(frame_buffer, camera);
+}
+
+void RenderData::RenderToScreen(const RenderTarget& target, const Camera& camera) {
+	FrameBuffer::Unbind();
+	GLRenderer::SetBlendMode(BlendMode::Blend);
+	const auto& quad_shader{ game.shader.Get<ShapeShader::Quad>() };
+	quad_shader.Bind();
+	quad_shader.SetUniform("u_ViewProjection", camera);
+	quad_shader.SetUniform("u_Texture", 1);
+	quad_shader.SetUniform("u_Resolution", V2_float{ game.window.GetSize() });
+	target.GetFrameBuffer().GetTexture().Bind(1);
+	SetVertexArrayToWindow(camera, target.GetTint(), Depth{ 0 }, 1.0f);
+	GLRenderer::DrawElements(triangle_vao, Batch::quad_index_count, false);
 }
 
 void RenderData::SetVertexArrayToWindow(
