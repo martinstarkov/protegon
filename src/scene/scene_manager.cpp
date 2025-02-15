@@ -1,6 +1,7 @@
 #include "scene/scene_manager.h"
 
 #include <memory>
+#include <string_view>
 
 #include "core/game.h"
 #include "ecs/ecs.h"
@@ -116,9 +117,19 @@ std::size_t SceneManager::GetInternalKey(std::string_view key) {
 	return Hash(key);
 }
 
+/*
+void SceneManager::ClearSceneTargets() {
+	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
+		if (sc.scene->active_) {
+			sc.scene->ClearTarget();
+		}
+	}
+}
+*/
+
 void SceneManager::Update() {
 	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
-		if (sc.scene->actions_.empty()) {
+		if (sc.scene->active_ && sc.scene->actions_.empty()) {
 			sc.scene->InternalUpdate();
 		}
 	}

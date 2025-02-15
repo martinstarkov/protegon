@@ -4,6 +4,7 @@
 
 #include "ecs/ecs.h"
 #include "physics/physics.h"
+#include "renderer/render_target.h"
 #include "scene/camera.h"
 
 namespace ptgn {
@@ -19,6 +20,8 @@ class SceneManager;
 
 class Scene {
 private:
+	// RenderTarget target_;
+
 	std::size_t key_{ 0 };
 
 	bool active_{ false };
@@ -61,6 +64,8 @@ private:
 	friend class impl::SceneManager;
 	friend class SceneTransition;
 
+	// void ClearTarget();
+	void InternalLoad();
 	void InternalEnter();
 	void InternalUpdate();
 	void InternalExit();
