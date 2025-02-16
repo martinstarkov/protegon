@@ -55,8 +55,6 @@ struct Vector2 {
 	explicit constexpr Vector2(const std::array<U, 2>& o) :
 		x{ static_cast<T>(o[0]) }, y{ static_cast<T>(o[1]) } {}
 
-	explicit Vector2(const json& j);
-
 	// Access vector elements by index, 0 for x, 1 for y.
 	[[nodiscard]] constexpr T& operator[](std::size_t idx) {
 		PTGN_ASSERT(idx >= 0 && idx < 2, "Vector2 subscript out of range");
@@ -214,7 +212,7 @@ struct Vector2 {
 	[[nodiscard]] Vector2<S> Rotated(S angle_radians) const {
 		auto c{ std::cos(angle_radians) };
 		auto s{ std::sin(angle_radians) };
-		return { x * c + y * s, -x * s + y * c };
+		return { x * c - y * s, x * s + y * c };
 	}
 
 	/*
@@ -231,6 +229,24 @@ struct Vector2 {
 	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
 	[[nodiscard]] S Angle() const {
 		return std::atan2(static_cast<S>(y), static_cast<S>(x));
+	}
+
+	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
+	[[nodiscard]] S Angle(const Vector2& target) const {
+		S mag1{ MagnitudeSquared() };
+		S mag2{ target.MagnitudeSquared() };
+
+		if (NearlyEqual(mag1, S{ 0 }) || NearlyEqual(mag2, S{ 0 })) {
+			return S{ 0 };
+		}
+
+		S cosine{ Dot(target) / std::sqrt(mag1 * mag2) };
+
+		// Clamp cosine to the range [-1, 1] to avoid domain errors for acos. This can very rarely
+		// happen due to floating point inaccuracies.
+		cosine = std::clamp(cosine, S{ -1 }, S{ 1 });
+
+		return std::acos(cosine);
 	}
 
 	[[nodiscard]] bool IsZero() const noexcept;
@@ -383,6 +399,12 @@ template <typename T>
 [[nodiscard]] inline Vector2<T> Midpoint(const Vector2<T>& a, const Vector2<T>& b) {
 	return Vector2<T>{ (a + b) / 2.0f };
 }
+
+template <typename T>
+void to_json(json& j, const Vector2<T>& v);
+
+template <typename T>
+void from_json(const json& j, Vector2<T>& v);
 
 } // namespace ptgn
 
