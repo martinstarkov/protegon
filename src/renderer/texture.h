@@ -16,6 +16,15 @@ struct SDL_Surface;
 
 namespace ptgn {
 
+// @param coordinate Pixel coordinate from [0, size).
+// @return Color value of the given pixel.
+[[nodiscard]] Color GetPixel(const path& texture_filepath, const V2_int& coordinate);
+
+// @param callback Function to be called for each pixel.
+void ForEachPixel(
+	const path& texture_filepath, const std::function<void(const V2_int&, const Color&)>& function
+);
+
 // Format of pixels for a texture or surface.
 // e.g. RGBA8888 means 8 bits per color channel (32 bits total).
 enum class TextureFormat : std::uint32_t {
@@ -258,6 +267,13 @@ private:
 
 class TextureManager {
 public:
+	// Load textures from a json file. Json format must be:
+	// {
+	//    "texture_key": "path/to/texture/file.extension",
+	//    ...
+	// }
+	void Load(const path& json_filepath);
+
 	// If key exists in the texture manager, does nothing.
 	void Load(std::string_view key, const path& filepath);
 
