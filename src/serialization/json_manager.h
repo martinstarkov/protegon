@@ -20,8 +20,6 @@ public:
 private:
 	[[nodiscard]] bool Has(std::size_t key) const;
 
-	[[nodiscard]] static json LoadFromFile(const path& filepath);
-
 	std::unordered_map<std::size_t, json> jsons_;
 };
 
