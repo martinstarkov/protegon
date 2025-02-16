@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <iosfwd>
+#include <ostream>
 
 namespace ptgn {
 
@@ -21,17 +22,17 @@ struct Stats {
 	std::int32_t gl_calls{ 0 };
 
 	void ResetRendererRelated() {
-		shader_binds		 = 0;
-		texture_binds		 = 0;
-		buffer_binds		 = 0;
-		vertex_array_binds	 = 0;
-		frame_buffer_binds	 = 0;
-		blend_mode_changes	 = 0;
-		viewport_changes	 = 0;
-		clears				 = 0;
-		clear_colors		 = 0;
-		draw_calls			 = 0;
-		gl_calls			 = 0;
+		shader_binds	   = 0;
+		texture_binds	   = 0;
+		buffer_binds	   = 0;
+		vertex_array_binds = 0;
+		frame_buffer_binds = 0;
+		blend_mode_changes = 0;
+		viewport_changes   = 0;
+		clears			   = 0;
+		clear_colors	   = 0;
+		draw_calls		   = 0;
+		gl_calls		   = 0;
 	}
 };
 
