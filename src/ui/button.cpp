@@ -494,9 +494,11 @@
 //	auto& i{ Handle::Get() };
 //	if (i.button_state_ == impl::InternalButtonState::Hover) {
 //		return ButtonState::Hover;
-//	} else if (i.button_state_ == impl::InternalButtonState::Pressed || i.button_state_ ==
-//impl::InternalButtonState::HeldOutside) { 		return ButtonState::Pressed; 	} else { 		return
-//ButtonState::Default;
+//	} else if (i.button_state_ == impl::InternalButtonState::Pressed ||
+//			   i.button_state_ == impl::InternalButtonState::HeldOutside) {
+//		return ButtonState::Pressed;
+//	} else {
+//		return ButtonState::Default;
 //	}
 // }
 //

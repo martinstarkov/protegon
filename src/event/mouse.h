@@ -1,4 +1,7 @@
 #pragma once
+#include <iosfwd>
+
+#include "utility/log.h"
 
 namespace ptgn {
 
@@ -15,5 +18,16 @@ enum class MouseState {
 	Released = 3,
 	Pressed	 = 4
 };
+
+inline std::ostream& operator<<(std::ostream& os, Mouse mouse) {
+	switch (mouse) {
+		case Mouse::Left:	os << "Left"; break;
+		case Mouse::Right:	os << "Right"; break;
+		case Mouse::Middle: os << "Middle"; break;
+		default:			PTGN_ERROR("Invalid mouse type");
+	}
+
+	return os;
+}
 
 } // namespace ptgn

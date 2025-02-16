@@ -7,6 +7,7 @@
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "utility/type_traits.h"
+#include "utility/utility.h"
 
 namespace ptgn {
 
@@ -73,7 +74,7 @@ struct CallbackComponent {
 	CallbackComponent(const std::function<TReturn(TArgs...)>& callback) : callback_{ callback } {}
 
 	TReturn operator()(TArgs&&... args) const {
-		return std::invoke(callback_, std::forward<TArgs>(args)...);
+		return Invoke(callback_, std::forward<TArgs>(args)...);
 	}
 
 	bool operator==(std::nullptr_t) const {
@@ -88,8 +89,8 @@ struct CallbackComponent {
 		return callback_;
 	}
 
-private:
-	std::function<TReturn(TArgs...)> callback_{ 0 };
+protected:
+	std::function<TReturn(TArgs...)> callback_{};
 };
 
 } // namespace ptgn

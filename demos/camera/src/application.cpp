@@ -1,4 +1,5 @@
 #include "components/draw.h"
+#include "components/input.h"
 #include "components/transform.h"
 #include "core/game.h"
 #include "core/window.h"
@@ -76,6 +77,27 @@ public:
 
 		auto texture = CreateSprite(manager, "texture");
 		texture.Add<Transform>(game.window.GetCenter());
+		texture.Add<Interactive>();
+		texture.Add<callback::KeyDown>([](auto key) {
+			if (key == Key::W) {
+				PTGN_LOG("Key down W");
+			}
+		});
+		texture.Add<callback::KeyPressed>([](auto key) {
+			if (key == Key::W) {
+				PTGN_LOG("Key pressed W");
+			}
+		});
+		texture.Add<callback::KeyUp>([](auto key) {
+			if (key == Key::W) {
+				PTGN_LOG("Key up W");
+			}
+		});
+		texture.Add<callback::MouseMove>([](auto mouse) { PTGN_LOG("Mouse move: ", mouse); });
+		texture.Add<callback::MouseDown>([](auto mouse) { PTGN_LOG("Mouse down: ", mouse); });
+		texture.Add<callback::MouseUp>([](auto mouse) { PTGN_LOG("Mouse up: ", mouse); });
+		texture.Add<callback::MousePressed>([](auto mouse) { PTGN_LOG("Mouse pressed: ", mouse); });
+		texture.Add<callback::MouseScroll>([](auto scroll) { PTGN_LOG("Mouse scroll: ", scroll); });
 
 		auto b = manager.CreateEntity();
 		b.Add<Rect>();

@@ -66,6 +66,7 @@ private:
 
 	// void ClearTarget();
 	void InternalLoad();
+	void InternalUnload();
 	void InternalEnter();
 	void InternalUpdate();
 	void InternalExit();

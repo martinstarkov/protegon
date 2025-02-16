@@ -1,6 +1,7 @@
 #include "event/input_handler.h"
 
 #include <bitset>
+#include <type_traits>
 #include <utility>
 
 #include "SDL_events.h"
@@ -74,11 +75,13 @@ void InputHandler::Update() {
 			case SDL_MOUSEBUTTONDOWN: {
 				auto [mouse_state, timer] =
 					GetMouseStateAndTimer(static_cast<Mouse>(e.button.button));
-				timer.Start();
-				mouse_state = MouseState::Down;
-				game.event.mouse.Post(
-					MouseEvent::Down, MouseDownEvent{ static_cast<Mouse>(e.button.button) }
-				);
+				if (mouse_state != MouseState::Pressed) {
+					mouse_state = MouseState::Down;
+					timer.Start();
+					game.event.mouse.Post(
+						MouseEvent::Down, MouseDownEvent{ static_cast<Mouse>(e.button.button) }
+					);
+				}
 				break;
 			}
 			case SDL_MOUSEBUTTONUP: {
@@ -160,6 +163,17 @@ void InputHandler::Update() {
 			default: break;
 		}
 	}
+
+	auto mouse_pressed_events = [&](Mouse mouse) {
+		auto [mouse_state, timer] = GetMouseStateAndTimer(mouse);
+		if (mouse_state == MouseState::Pressed) {
+			game.event.mouse.Post(MouseEvent::Pressed, MousePressedEvent{ mouse });
+		}
+	};
+
+	std::invoke(mouse_pressed_events, Mouse::Left);
+	std::invoke(mouse_pressed_events, Mouse::Right);
+	std::invoke(mouse_pressed_events, Mouse::Middle);
 }
 
 bool InputHandler::MouseWithinWindow() const {

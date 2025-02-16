@@ -35,6 +35,7 @@ enum class MouseEvent {
 	Move, /* fires repeatedly on mouse or trackpad movement */
 	Down,
 	Up,
+	Pressed,
 	Scroll /* fires repeatedly on mouse or trackpad scroll */
 };
 
@@ -64,6 +65,12 @@ struct MouseDownEvent : public Event, public impl::MouseEventBase {
 
 struct MouseUpEvent : public Event, public impl::MouseEventBase {
 	explicit MouseUpEvent(Mouse mouse) : mouse{ mouse } {}
+
+	Mouse mouse;
+};
+
+struct MousePressedEvent : public Event, public impl::MouseEventBase {
+	explicit MousePressedEvent(Mouse mouse) : mouse{ mouse } {}
 
 	Mouse mouse;
 };
