@@ -208,12 +208,6 @@ void Renderer::PresentScreen() {
 		default:						   PTGN_ERROR("Unrecognized resolution mode");
 	}
 	*/
-
-	// PTGN_LOG("Renderer Stats: \n", game.stats);
-	// PTGN_LOG("--------------------------------------");
-#ifdef PTGN_DEBUG
-	game.stats.ResetRendererRelated();
-#endif
 }
 
 void Renderer::ClearScreen() const {

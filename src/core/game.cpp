@@ -4,7 +4,6 @@
 #include <memory>
 #include <string>
 
-#include "SDL_timer.h"
 #include "audio/audio.h"
 #include "core/gl_context.h"
 #include "core/manager.h"
@@ -19,6 +18,7 @@
 #include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "scene/scene_manager.h"
+#include "SDL_timer.h"
 #include "serialization/json_manager.h"
 #include "utility/debug.h"
 #include "utility/profiling.h"
@@ -44,6 +44,7 @@ EM_JS(int, get_screen_height, (), { return screen.height; });
 #include "CoreFoundation/CoreFoundation.h"
 
 #endif
+#include "utility/log.h"
 
 namespace ptgn {
 
@@ -286,6 +287,10 @@ void Game::Update() {
 		"Screen Color at Mouse: ",
 		renderer.screen_target_.GetPixel(game.input.GetMousePositionWindow())
 	);*/
+	// TODO: Fix logging stats to ostream.
+	/*std::cout << "Renderer Stats: \n" << game.stats << std::endl;
+	PTGN_LOG("--------------------------------------");*/
+	game.stats.ResetRendererRelated();
 #endif
 
 	if (profiler.IsEnabled()) {
