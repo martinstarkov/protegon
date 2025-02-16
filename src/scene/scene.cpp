@@ -3,6 +3,7 @@
 #include <functional>
 
 #include "components/input.h"
+#include "components/lifetime.h"
 #include "core/game.h"
 #include "ecs/ecs.h"
 #include "event/event.h"
@@ -103,6 +104,7 @@ void Scene::InternalLoad() {
 					}
 					break;
 				}
+				// TODO: Get list of interactive entities under the pointer.
 				case MouseEvent::Down: {
 					Mouse mouse{ static_cast<const MouseDownEvent&>(event).mouse };
 					for (auto [e, interactive] : manager.EntitiesWith<Interactive>()) {
@@ -201,6 +203,13 @@ void Scene::InternalUpdate() {
 		// tween_update_count++;
 	}
 	// PTGN_LOG("Scene ", key_, " updated ", tween_update_count, " tweens this frame");
+	manager.Refresh();
+	// std::size_t lifetime_update_count{ 0 };
+	for (auto [e, lifetime] : manager.EntitiesWith<Lifetime>()) {
+		lifetime.Update(e);
+		// lifetime_update_count++;
+	}
+	// PTGN_LOG("Scene ", key_, " updated ", lifetime_update_count, " lifetimes this frame");
 	manager.Refresh();
 	physics.PreCollisionUpdate(manager);
 	impl::CollisionHandler::Update(manager);
