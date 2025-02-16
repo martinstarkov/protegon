@@ -5,6 +5,7 @@
 
 #include "components/generic.h"
 #include "ecs/ecs.h"
+#include "math/hash.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "utility/time.h"
@@ -74,6 +75,10 @@ struct RotationCenter : public Vector2Component<float> {
 
 struct TextureKey : public ArithmeticComponent<std::size_t> {
 	using ArithmeticComponent::ArithmeticComponent;
+
+	TextureKey(std::string_view key) : ArithmeticComponent{ Hash(key) } {}
+
+	TextureKey(const char* key) : ArithmeticComponent{ Hash(key) } {}
 };
 
 namespace callback {
