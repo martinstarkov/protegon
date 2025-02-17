@@ -236,7 +236,10 @@ void Camera::StartFollow(ecs::Entity target_entity, bool force) {
 										: impl::CameraDeadzone{} };
 			auto pos{ GetPosition(Origin::Center) };
 			if (deadzone_size.IsZero()) {
-				SetPosition(Lerp(pos, target_pos, lerp));
+				// TODO: Make this a damped or dt lerp functions.
+				V2_float lerp_dt{ 1.0f - std::pow(1.0f - lerp.x, game.dt()),
+								  1.0f - std::pow(1.0f - lerp.y, game.dt()) };
+				SetPosition(Lerp(pos, target_pos, lerp_dt));
 				return;
 			}
 
@@ -449,6 +452,8 @@ void Camera::SetPosition(const V3_float& new_position) {
 	auto& info{ entity_.Get<impl::CameraInfo>() };
 	info.data.center_to_window = false;
 	info.data.position		   = new_position;
+	/*info.data.position.x	   = std::round(info.data.position.x);
+	info.data.position.y	   = std::round(info.data.position.y);*/
 	info.data.recalculate_view = true;
 	info.RefreshBounds();
 }
