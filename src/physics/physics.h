@@ -26,7 +26,7 @@ private:
 	void PreCollisionUpdate(ecs::Manager& manager) const;
 	void PostCollisionUpdate(ecs::Manager& manager) const;
 
-	V2_float gravity_{ 0.0f, 30.0f * 60.0f };
+	V2_float gravity_{ 0.0f, 0.0f };
 };
 
 /**
