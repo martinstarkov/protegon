@@ -20,6 +20,9 @@ class TwoPi {};
 template <typename T, tt::floating_point<T> = true>
 class HalfPi {};
 
+template <typename T, tt::floating_point<T> = true>
+class SqrtTwo {};
+
 template <>
 class Pi<float> {
 public:
@@ -68,6 +71,22 @@ public:
 	}
 };
 
+template <>
+class SqrtTwo<float> {
+public:
+	static constexpr float value() {
+		return 1.414213563f;
+	}
+};
+
+template <>
+class SqrtTwo<double> {
+public:
+	static constexpr double value() {
+		return 1.4142135623730951;
+	}
+};
+
 } // namespace impl
 
 template <typename T = float, tt::floating_point<T> = true>
@@ -76,6 +95,8 @@ template <typename T = float, tt::floating_point<T> = true>
 inline constexpr T two_pi{ impl::TwoPi<T>::value() };
 template <typename T = float, tt::floating_point<T> = true>
 inline constexpr T half_pi{ impl::HalfPi<T>::value() };
+template <typename T = float, tt::floating_point<T> = true>
+inline constexpr T sqrt_two{ impl::SqrtTwo<T>::value() };
 template <typename T = float>
 inline constexpr T epsilon{ std::numeric_limits<T>::epsilon() };
 template <typename T = float>
