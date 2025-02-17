@@ -212,7 +212,9 @@ void Scene::InternalUpdate() {
 	// PTGN_LOG("Scene ", key_, " updated ", lifetime_update_count, " lifetimes this frame");
 	manager.Refresh();
 	physics.PreCollisionUpdate(manager);
+	manager.Refresh();
 	impl::CollisionHandler::Update(manager);
+	manager.Refresh();
 	physics.PostCollisionUpdate(manager);
 	manager.Refresh();
 	auto& render_data{ game.renderer.GetRenderData() };
