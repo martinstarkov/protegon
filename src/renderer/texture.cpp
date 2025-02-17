@@ -11,6 +11,10 @@
 #include <utility>
 #include <vector>
 
+#include "SDL_error.h"
+#include "SDL_image.h"
+#include "SDL_pixels.h"
+#include "SDL_surface.h"
 #include "core/game.h"
 #include "math/hash.h"
 #include "math/vector2.h"
@@ -20,10 +24,6 @@
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
 #include "renderer/gl_types.h"
-#include "SDL_error.h"
-#include "SDL_image.h"
-#include "SDL_pixels.h"
-#include "SDL_surface.h"
 #include "serialization/json.h"
 #include "utility/assert.h"
 #include "utility/file.h"
@@ -442,6 +442,11 @@ void TextureManager::Load(std::string_view key, const path& filepath) {
 
 void TextureManager::Unload(std::string_view key) {
 	textures_.erase(Hash(key));
+}
+
+V2_int TextureManager::GetSize(std::size_t key) const {
+	PTGN_ASSERT(Has(key), "Cannot get size of texture which has not been loaded");
+	return textures_.find(key)->second.GetSize();
 }
 
 V2_int TextureManager::GetSize(std::string_view key) const {

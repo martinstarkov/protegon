@@ -281,6 +281,7 @@ public:
 
 	// @return Size of the texture.
 	[[nodiscard]] V2_int GetSize(std::string_view key) const;
+	[[nodiscard]] V2_int GetSize(std::size_t key) const;
 
 	// @return True if the texture key is loaded.
 	[[nodiscard]] bool Has(std::string_view key) const;
