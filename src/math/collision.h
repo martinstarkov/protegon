@@ -102,7 +102,10 @@ public:
 			if (!c.Occurred()) {
 				return;
 			}
-			ProcessCallback(collider, entity, collider2.GetParent(e2), c.normal);
+			bool processed = ProcessCallback(collider, entity, collider2.GetParent(e2), c.normal);
+			if (!processed) {
+				return;
+			}
 			if (transform) {
 				transform->position += c.normal * (c.depth + slop);
 			}
@@ -239,12 +242,14 @@ private:
 	}
 
 	template <typename T>
-	static void ProcessCallback(
+	static bool ProcessCallback(
 		T& collider, ecs::Entity e1_parent, ecs::Entity e2_parent, const V2_float& normal
 	) {
 		if (collider.ProcessCallback(e1_parent, e2_parent)) {
 			collider.collisions.emplace(e1_parent, e2_parent, normal);
+			return true;
 		}
+		return false;
 	}
 
 	// @param offset Offset from the transform position of the entity. This enables doing a second
