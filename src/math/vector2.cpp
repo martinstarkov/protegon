@@ -17,7 +17,7 @@ void to_json(json& j, const Vector2<T>& v) {
 template <typename T>
 void from_json(const json& j, Vector2<T>& v) {
 	PTGN_ASSERT(j.is_array(), "Cannot create Vector2 from json object which is not an array");
-	PTGN_ASSERT(j.size() <= 2, "Cannot create Vector2 from json array with more than 2 elements")
+	PTGN_ASSERT(j.size() <= 2, "Cannot create Vector2 from json array with more than 2 elements");
 	if (j.size() == 2) {
 		j[0].get_to(v.x);
 		j[1].get_to(v.y);
