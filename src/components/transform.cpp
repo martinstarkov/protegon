@@ -1,10 +1,8 @@
 #include "components/transform.h"
 
-#include <nlohmann/json.hpp>
-
 #include "math/math.h"
 #include "math/vector2.h"
-#include "serialization/fwd.h"
+#include "serialization/json.h"
 
 namespace ptgn {
 
