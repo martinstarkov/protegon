@@ -22,6 +22,7 @@ namespace ptgn::impl {
 V2_float CollisionHandler::GetRelativeVelocity(const V2_float& vel, ecs::Entity e2) {
 	V2_float relative_velocity{ vel };
 	if (e2.Has<RigidBody>()) {
+		// TODO: Use physics.dt() here and elsewhere.
 		relative_velocity -= e2.Get<RigidBody>().velocity * game.dt();
 	}
 	return relative_velocity;
@@ -108,11 +109,11 @@ void CollisionHandler::Update(ecs::Manager& manager) {
 	auto circles{ manager.EntitiesWith<CircleCollider>() };
 
 	for (auto [e1, b1] : boxes) {
-		HandleCollisions(e1, b1, boxes, circles);
+		HandleCollisions<BoxCollider>(e1, boxes, circles);
 	}
 
 	for (auto [e1, c1] : circles) {
-		HandleCollisions(e1, c1, boxes, circles);
+		HandleCollisions<CircleCollider>(e1, boxes, circles);
 	}
 }
 

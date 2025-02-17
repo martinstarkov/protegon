@@ -99,7 +99,8 @@ struct Collider {
 	// Allow collider to collide with anything.
 	void ResetCollidesWith();
 
-	[[nodiscard]] bool ProcessCallback(ecs::Entity e1, ecs::Entity e2) const;
+	// May invalidate all existing component references.
+	[[nodiscard]] bool ProcessCallback(ecs::Entity e1, ecs::Entity e2);
 
 	[[nodiscard]] bool CanCollideWith(const Collider& c) const;
 

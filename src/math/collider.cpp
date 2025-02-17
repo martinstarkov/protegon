@@ -1,5 +1,6 @@
 #include "math/collider.h"
 
+#include <cmath>
 #include <functional>
 #include <type_traits>
 #include <utility>
@@ -61,7 +62,7 @@ void Collider::ResetCollidesWith() {
 	mask_ = {};
 }
 
-bool Collider::ProcessCallback(ecs::Entity e1, ecs::Entity e2) const {
+bool Collider::ProcessCallback(ecs::Entity e1, ecs::Entity e2) {
 	return before_collision == nullptr || std::invoke(before_collision, e1, e2);
 }
 
@@ -83,7 +84,7 @@ void Collider::RemoveCollidesWith(const CollisionCategory& category) {
 
 void Collider::SetCollidesWith(const CollidesWithCategories& categories) {
 	mask_.reserve(mask_.size() + categories.size());
-	for (const auto& category : categories) {
+	for (auto category : categories) {
 		AddCollidesWith(category);
 	}
 }
@@ -127,6 +128,9 @@ Rect Collider::GetAbsolute(Rect relative_rect) const {
 
 	const Transform& transform{ parent.Get<Transform>() };
 
+	PTGN_ASSERT(!std::isnan(transform.position.x));
+	PTGN_ASSERT(!std::isnan(transform.position.y));
+
 	// If parent has an animation, use coordinate relative to top left.
 	// if (parent.Has<Animation>()) {
 	//	const Animation& anim = parent.Get<Animation>();
@@ -143,7 +147,7 @@ Rect Collider::GetAbsolute(Rect relative_rect) const {
 	relative_rect.position += transform.position;
 	relative_rect.rotation += transform.rotation;
 	// Absolute value needed because scale can be negative for flipping.
-	V2_float scale{ FastAbs(transform.scale.x), FastAbs(transform.scale.y) };
+	V2_float scale{ Abs(transform.scale) };
 	relative_rect.position *= scale;
 	relative_rect.size	   *= scale;
 	return relative_rect;
@@ -222,8 +226,8 @@ Circle CircleCollider::GetRelativeCircle() const {
 }
 
 Circle CircleCollider::GetAbsoluteCircle() const {
-	auto rect{ Collider::GetAbsolute(Rect{
-		offset, { 2.0f * radius, 2.0f * radius }, Origin::Center, 0.0f }) };
+	auto rect{ Collider::GetAbsolute(Rect{ offset, 2.0f * V2_float{ radius }, Origin::Center, 0.0f }
+	) };
 	return Circle{ rect.Center(), radius };
 }
 
