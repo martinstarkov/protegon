@@ -420,14 +420,23 @@ bool Rect::Overlaps(const Rect& o_rect) const {
 }
 
 Intersection Rect::Intersects(const Rect& o_rect) const {
+	Intersection c;
 	if (rotation != 0.0f || o_rect.rotation != 0.0f) {
+		// Make "worst-case" bounding volumes around the rotated rectangles.
+		Rect a{ Center(), V2_float{ std::max(size.x, size.y) * sqrt_two<float> }, Origin::Center };
+		Rect b{ o_rect.Center(),
+				V2_float{ std::max(o_rect.size.x, o_rect.size.y) * sqrt_two<float> },
+				Origin::Center };
+		// If the bounding volumes do not overlap, the rectangles also wont overlap.
+		if (!a.Overlaps(b)) {
+			return c;
+		}
+
 		Polygon poly_a{ *this };
 		Polygon poly_b{ o_rect };
 
 		return poly_a.Intersects(poly_b);
 	}
-
-	Intersection c;
 
 	V2_float a_h{ Half() };
 	V2_float b_h{ o_rect.Half() };
