@@ -1,5 +1,6 @@
 #pragma once
 
+#include "components/draw.h"
 #include "components/generic.h"
 #include "event/key.h"
 #include "event/mouse.h"
@@ -7,9 +8,24 @@
 
 namespace ptgn {
 
-struct Interactive {};
+struct Interactive {
+	bool is_inside{ false };
+	bool was_inside{ false };
+};
 
-struct Draggable {};
+struct Draggable {
+	V2_float drag_start;
+	bool is_dragging{ false };
+	bool was_dragging{ false };
+};
+
+struct InteractiveRadius : public Radius {
+	using Radius::Radius;
+};
+
+struct InteractiveSize : public Size {
+	using Size::Size;
+};
 
 namespace callback {
 
@@ -41,7 +57,7 @@ struct MouseMove : public CallbackComponent<void, V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct MouseOut : public CallbackComponent<void> {
+struct MouseOut : public CallbackComponent<void, V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
@@ -80,13 +96,11 @@ struct Drag : public CallbackComponent<void, V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
-// Dropzone events.
-
-struct Drop : public CallbackComponent<void, V2_float> {
+struct DragEnter : public CallbackComponent<void> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct DragEnter : public CallbackComponent<void> {
+struct DragLeave : public CallbackComponent<void> {
 	using CallbackComponent::CallbackComponent;
 };
 
@@ -94,9 +108,15 @@ struct DragOver : public CallbackComponent<void, V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct DragLeave : public CallbackComponent<void> {
+struct DragOut : public CallbackComponent<void, V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
+
+// Dropzone events.
+
+// struct Drop : public CallbackComponent<void, V2_float> {
+//	using CallbackComponent::CallbackComponent;
+// };
 
 } // namespace callback
 

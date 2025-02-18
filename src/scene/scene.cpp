@@ -2,8 +2,10 @@
 
 #include <functional>
 
+#include "components/draw.h"
 #include "components/input.h"
 #include "components/lifetime.h"
+#include "components/transform.h"
 #include "core/game.h"
 #include "ecs/ecs.h"
 #include "event/event.h"
@@ -12,6 +14,10 @@
 #include "event/input_handler.h"
 #include "event/mouse.h"
 #include "math/collision.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/polygon.h"
+#include "math/vector2.h"
+#include "renderer/origin.h"
 #include "renderer/renderer.h"
 #include "scene/camera.h"
 #include "utility/tween.h"
@@ -80,8 +86,50 @@ void Scene::InternalLoad() {
 	);
 
 	auto PointerIsInside = [](const V2_float& pointer, ecs::Entity entity) {
-		// TODO: Implement checks depending on entity shape.
-		return true;
+		// TODO: Move this function elsewhere.
+		PTGN_ASSERT(entity.Has<Transform>());
+		const auto& transform{ entity.Get<Transform>() };
+		bool is_circle{ entity.Has<InteractiveRadius>() };
+		bool is_rect{ entity.Has<InteractiveSize>() };
+		PTGN_ASSERT(
+			!(is_rect && is_circle),
+			"Entity cannot have both an interactive radius and an interactive size"
+		);
+		if (is_rect) {
+			Rect r{ transform.position * Abs(transform.scale),
+					V2_float{ entity.Get<InteractiveSize>() } * Abs(transform.scale),
+					entity.Has<Origin>() ? entity.Get<Origin>() : Origin::Center,
+					transform.rotation };
+			return r.Overlaps(pointer);
+		} else if (is_circle) {
+			Circle c{ transform.position * Abs(transform.scale),
+					  (V2_float{ entity.Get<InteractiveRadius>() } * Abs(transform.scale)).x };
+			return c.Overlaps(pointer);
+		}
+		is_circle = entity.Has<Radius>();
+		is_rect	  = entity.Has<Size>();
+		// Prioritize circle interactable.
+		if (is_circle) {
+			Circle c{ transform.position * Abs(transform.scale),
+					  (V2_float{ entity.Get<Radius>() } * Abs(transform.scale)).x };
+			return c.Overlaps(pointer);
+		} else if (is_rect) {
+			Rect r{ transform.position * Abs(transform.scale),
+					V2_float{ entity.Get<Size>() } * Abs(transform.scale),
+					entity.Has<Origin>() ? entity.Get<Origin>() : Origin::Center,
+					transform.rotation };
+			return r.Overlaps(pointer);
+		}
+
+		if (entity.Has<TextureKey>()) {
+			Rect r{ transform.position * Abs(transform.scale),
+					game.texture.GetSize(entity.Get<TextureKey>()) * Abs(transform.scale),
+					entity.Has<Origin>() ? entity.Get<Origin>() : Origin::Center,
+					transform.rotation };
+			return r.Overlaps(pointer);
+		}
+
+		return false;
 	};
 
 	auto GetMousePos = [&]() {
@@ -91,59 +139,104 @@ void Scene::InternalLoad() {
 
 	game.event.mouse.Subscribe(
 		this, std::function([&](MouseEvent type, const Event& event) {
+			// TODO: Move this function elsewhere.
 			V2_float pos{ std::invoke(GetMousePos) };
+			for (auto [e, interactive] : manager.EntitiesWith<Interactive>()) {
+				interactive.is_inside = std::invoke(PointerIsInside, pos, e);
+			}
 			switch (type) {
-				// TODO: Add draggable events.
 				case MouseEvent::Move: {
 					for (auto [e, interactive] : manager.EntitiesWith<Interactive>()) {
 						if (e.Has<callback::MouseMove>()) {
 							V2_float p{ pos };
 							Invoke(e.Get<callback::MouseMove>(), std::move(p));
 						}
-						// TODO: Add other mouse move events.
+						bool entered{ interactive.is_inside && !interactive.was_inside };
+						bool exited{ !interactive.is_inside && interactive.was_inside };
+						if (e.Has<callback::MouseOver>() && entered) {
+							V2_float p{ pos };
+							Invoke(e.Get<callback::MouseOver>(), std::move(p));
+						}
+						if (e.Has<callback::MouseOut>() && exited) {
+							V2_float p{ pos };
+							Invoke(e.Get<callback::MouseOut>(), std::move(p));
+						}
+						if (e.Has<Draggable>() && e.Get<Draggable>().is_dragging) {
+							if (e.Has<callback::Drag>()) {
+								V2_float p{ pos };
+								Invoke(e.Get<callback::Drag>(), std::move(p));
+							}
+							if (interactive.is_inside) {
+								if (e.Has<callback::DragOver>()) {
+									V2_float p{ pos };
+									Invoke(e.Get<callback::DragOver>(), std::move(p));
+								}
+								if (!interactive.was_inside && e.Has<callback::DragEnter>()) {
+									Invoke(e.Get<callback::DragEnter>());
+								}
+							} else {
+								if (e.Has<callback::DragOut>()) {
+									V2_float p{ pos };
+									Invoke(e.Get<callback::DragOut>(), std::move(p));
+								}
+								if (interactive.was_inside && e.Has<callback::DragLeave>()) {
+									Invoke(e.Get<callback::DragLeave>());
+								}
+							}
+						}
 					}
 					break;
 				}
-				// TODO: Get list of interactive entities under the pointer.
 				case MouseEvent::Down: {
 					Mouse mouse{ static_cast<const MouseDownEvent&>(event).mouse };
 					for (auto [e, interactive] : manager.EntitiesWith<Interactive>()) {
-						bool down_listener{ e.Has<callback::MouseDown>() };
-						bool down_outside_listener{ e.Has<callback::MouseDownOutside>() };
-						if (!down_listener && !down_outside_listener) {
-							continue;
+						if (interactive.is_inside) {
+							if (e.Has<callback::MouseDown>()) {
+								auto p{ mouse };
+								Invoke(e.Get<callback::MouseDown>(), std::move(p));
+							}
+							if (e.Has<Draggable>()) {
+								if (auto& draggable{ e.Get<Draggable>() }; !draggable.is_dragging) {
+									draggable.is_dragging = true;
+									draggable.drag_start  = pos;
+									if (e.Has<callback::DragStart>()) {
+										auto p{ pos };
+										Invoke(e.Get<callback::DragStart>(), std::move(p));
+									}
+								}
+							}
+						} else {
+							if (e.Has<callback::MouseDownOutside>()) {
+								auto p{ mouse };
+								Invoke(e.Get<callback::MouseDownOutside>(), std::move(p));
+							}
 						}
-						bool inside{ std::invoke(PointerIsInside, pos, e) };
-						if (down_listener && inside) {
-							auto p{ mouse };
-							Invoke(e.Get<callback::MouseDown>(), std::move(p));
-						}
-						if (down_outside_listener && !inside) {
-							auto p{ mouse };
-							Invoke(e.Get<callback::MouseDownOutside>(), std::move(p));
-						}
-						// TODO: Add other mouse move events.
 					}
 					break;
 				}
 				case MouseEvent::Up: {
 					Mouse mouse{ static_cast<const MouseUpEvent&>(event).mouse };
 					for (auto [e, interactive] : manager.EntitiesWith<Interactive>()) {
-						bool up_listener{ e.Has<callback::MouseUp>() };
-						bool up_outside_listener{ e.Has<callback::MouseUpOutside>() };
-						if (!up_listener && !up_outside_listener) {
-							continue;
+						if (interactive.is_inside) {
+							if (e.Has<callback::MouseUp>()) {
+								auto p{ mouse };
+								Invoke(e.Get<callback::MouseUp>(), std::move(p));
+							}
+						} else {
+							if (e.Has<callback::MouseUpOutside>()) {
+								auto p{ mouse };
+								Invoke(e.Get<callback::MouseUpOutside>(), std::move(p));
+							}
 						}
-						bool inside{ std::invoke(PointerIsInside, pos, e) };
-						if (up_listener && inside) {
-							auto p{ mouse };
-							Invoke(e.Get<callback::MouseUp>(), std::move(p));
+						if (e.Has<Draggable>()) {
+							if (auto& draggable{ e.Get<Draggable>() }; !draggable.is_dragging) {
+								draggable.is_dragging = false;
+								if (e.Has<callback::DragStop>()) {
+									auto p{ pos };
+									Invoke(e.Get<callback::DragStop>(), std::move(p));
+								}
+							}
 						}
-						if (up_outside_listener && !inside) {
-							auto p{ mouse };
-							Invoke(e.Get<callback::MouseUpOutside>(), std::move(p));
-						}
-						// TODO: Add other mouse move events.
 					}
 					break;
 				}
@@ -151,7 +244,7 @@ void Scene::InternalLoad() {
 					Mouse mouse{ static_cast<const MousePressedEvent&>(event).mouse };
 					for (auto [e, interactive, callback] :
 						 manager.EntitiesWith<Interactive, callback::MousePressed>()) {
-						if (std::invoke(PointerIsInside, pos, e)) {
+						if (interactive.is_inside) {
 							auto p{ mouse };
 							Invoke(callback, std::move(p));
 						}
@@ -162,7 +255,7 @@ void Scene::InternalLoad() {
 					V2_int scroll{ static_cast<const MouseScrollEvent&>(event).scroll };
 					for (auto [e, interactive, callback] :
 						 manager.EntitiesWith<Interactive, callback::MouseScroll>()) {
-						if (std::invoke(PointerIsInside, pos, e)) {
+						if (interactive.is_inside) {
 							auto p{ scroll };
 							Invoke(callback, std::move(p));
 						}
@@ -170,6 +263,13 @@ void Scene::InternalLoad() {
 					break;
 				}
 				default: PTGN_ERROR("Unimplemented mouse event type");
+			}
+			for (auto [e, interactive] : manager.EntitiesWith<Interactive>()) {
+				interactive.was_inside = interactive.is_inside;
+				if (e.Has<Draggable>()) {
+					auto& draggable{ e.Get<Draggable>() };
+					draggable.is_dragging = draggable.was_dragging;
+				}
 			}
 		})
 	);
