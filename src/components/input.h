@@ -14,9 +14,14 @@ struct Interactive {
 };
 
 struct Draggable {
-	V2_float drag_start;
-	bool is_dragging{ false };
-	bool was_dragging{ false };
+	// Offset from the drag target center. Adding this value to the target position will maintain
+	// the relative position between the mouse and drag target.
+	V2_float offset;
+	// Mouse position where the drag started.
+	V2_float start;
+	// Drag target.
+	ecs::Entity target;
+	bool dragging{ false };
 };
 
 struct InteractiveRadius : public Radius {
