@@ -96,11 +96,11 @@ struct Drag : public CallbackComponent<void, V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct DragEnter : public CallbackComponent<void> {
+struct DragEnter : public CallbackComponent<void, V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct DragLeave : public CallbackComponent<void> {
+struct DragLeave : public CallbackComponent<void, V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 

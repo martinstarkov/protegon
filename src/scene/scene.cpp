@@ -172,7 +172,8 @@ void Scene::InternalLoad() {
 									Invoke(e.Get<callback::DragOver>(), std::move(p));
 								}
 								if (!interactive.was_inside && e.Has<callback::DragEnter>()) {
-									Invoke(e.Get<callback::DragEnter>());
+									V2_float p{ pos };
+									Invoke(e.Get<callback::DragEnter>(), std::move(p));
 								}
 							} else {
 								if (e.Has<callback::DragOut>()) {
@@ -180,7 +181,8 @@ void Scene::InternalLoad() {
 									Invoke(e.Get<callback::DragOut>(), std::move(p));
 								}
 								if (interactive.was_inside && e.Has<callback::DragLeave>()) {
-									Invoke(e.Get<callback::DragLeave>());
+									V2_float p{ pos };
+									Invoke(e.Get<callback::DragLeave>(), std::move(p));
 								}
 							}
 						}
@@ -229,7 +231,7 @@ void Scene::InternalLoad() {
 							}
 						}
 						if (e.Has<Draggable>()) {
-							if (auto& draggable{ e.Get<Draggable>() }; !draggable.is_dragging) {
+							if (auto& draggable{ e.Get<Draggable>() }; draggable.is_dragging) {
 								draggable.is_dragging = false;
 								if (e.Has<callback::DragStop>()) {
 									auto p{ pos };
@@ -268,7 +270,7 @@ void Scene::InternalLoad() {
 				interactive.was_inside = interactive.is_inside;
 				if (e.Has<Draggable>()) {
 					auto& draggable{ e.Get<Draggable>() };
-					draggable.is_dragging = draggable.was_dragging;
+					draggable.was_dragging = draggable.is_dragging;
 				}
 			}
 		})
