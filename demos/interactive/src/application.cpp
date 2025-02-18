@@ -158,7 +158,10 @@ struct InteractiveComponentScene : public Scene {
 		r3.Add<Origin>(Origin::Center);
 		r3.Add<Interactive>();
 		r3.Add<Draggable>();
-		r3.Add<callback::Drag>([](auto mouse) { PTGN_LOG("r3 Drag: ", mouse); });
+		r3.Add<callback::Drag>([=](auto mouse) mutable {
+			PTGN_LOG("r3 Drag: ", mouse);
+			r3.Get<Transform>().position = mouse + r3.Get<Draggable>().offset;
+		});
 		r3.Add<callback::DragEnter>([](auto mouse) { PTGN_LOG("r3 Drag enter: ", mouse); });
 		r3.Add<callback::DragLeave>([](auto mouse) { PTGN_LOG("r3 Drag leave: ", mouse); });
 		r3.Add<callback::DragOut>([](auto mouse) { PTGN_LOG("r3 Drag out: ", mouse); });
@@ -172,7 +175,10 @@ struct InteractiveComponentScene : public Scene {
 		c3.Add<InteractiveRadius>(V2_float{ game.texture.GetSize("drag_circle") / 2.0f });
 		c3.Add<Interactive>();
 		c3.Add<Draggable>();
-		c3.Add<callback::Drag>([](auto mouse) { PTGN_LOG("c3 Drag: ", mouse); });
+		c3.Add<callback::Drag>([=](auto mouse) mutable {
+			PTGN_LOG("c3 Drag: ", mouse);
+			c3.Get<Transform>().position = mouse + c3.Get<Draggable>().offset;
+		});
 		c3.Add<callback::DragEnter>([](auto mouse) { PTGN_LOG("c3 Drag enter: ", mouse); });
 		c3.Add<callback::DragLeave>([](auto mouse) { PTGN_LOG("c3 Drag leave: ", mouse); });
 		c3.Add<callback::DragOut>([](auto mouse) { PTGN_LOG("c3 Drag out: ", mouse); });
