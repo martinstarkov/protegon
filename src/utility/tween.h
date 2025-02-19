@@ -204,9 +204,9 @@ public:
 	// @return New progress of the tween after seeking.
 	float Seek(milliseconds time);
 
+	// Resets and starts the tween. Will restart paused tweens.
 	// @param force If true, ignores the current state of the tween. If false, will only start if
-	// the tween is paused or not currently started. Resets and starts the tween. Will restart
-	// paused tweens.
+	// the tween is paused or not currently started.
 	Tween& Start(bool force = true);
 
 	// If there are future tween points, will simulate a tween point completion. If the tween has

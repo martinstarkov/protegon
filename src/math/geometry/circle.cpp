@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "core/game.h"
 #include "math/geometry/intersection.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
@@ -15,6 +16,8 @@
 #include "math/vector2.h"
 #include "renderer/origin.h"
 #include "utility/assert.h"
+#include "utility/debug.h"
+#include "utility/stats.h"
 
 namespace ptgn {
 
@@ -27,11 +30,17 @@ V2_float Circle::Center() const {
 }
 
 bool Circle::Overlaps(const V2_float& point) const {
+#ifdef PTGN_DEBUG
+	game.stats.overlap_point_circle++;
+#endif
 	V2_float dist{ center - point };
 	return impl::WithinPerimeter(radius, dist.Dot(dist));
 }
 
 bool Circle::Overlaps(const Circle& circle) const {
+#ifdef PTGN_DEBUG
+	game.stats.overlap_circle_circle++;
+#endif
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 	// Page 88.
@@ -40,6 +49,9 @@ bool Circle::Overlaps(const Circle& circle) const {
 }
 
 bool Circle::Overlaps(const Rect& rect) const {
+#ifdef PTGN_DEBUG
+	game.stats.overlap_circle_rect++;
+#endif
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 	// Page 165-166.
@@ -47,6 +59,9 @@ bool Circle::Overlaps(const Rect& rect) const {
 }
 
 bool Circle::Overlaps(const Capsule& capsule) const {
+#ifdef PTGN_DEBUG
+	game.stats.overlap_circle_capsule++;
+#endif
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 	// Page 114.
@@ -57,6 +72,9 @@ bool Circle::Overlaps(const Capsule& capsule) const {
 }
 
 bool Circle::Overlaps(const Line& line) const {
+#ifdef PTGN_DEBUG
+	game.stats.overlap_line_circle++;
+#endif
 	// Source: https://www.baeldung.com/cs/circle-line-segment-collision-detection
 
 	// If the line is inside the circle entirely, exit early.
@@ -86,6 +104,9 @@ bool Circle::Overlaps(const Line& line) const {
 }
 
 Intersection Circle::Intersects(const Circle& circle) const {
+#ifdef PTGN_DEBUG
+	game.stats.overlap_circle_circle++;
+#endif
 	Intersection c;
 
 	V2_float d{ circle.center - center };
@@ -96,6 +117,9 @@ Intersection Circle::Intersects(const Circle& circle) const {
 	if (!impl::WithinPerimeter(r, dist2)) {
 		return c;
 	}
+#ifdef PTGN_DEBUG
+	game.stats.intersect_circle_circle++;
+#endif
 
 	if (dist2 > epsilon2<float>) {
 		float dist{ std::sqrt(dist2) };
@@ -114,6 +138,9 @@ Intersection Circle::Intersects(const Circle& circle) const {
 }
 
 Intersection Circle::Intersects(const Rect& rect) const {
+#ifdef PTGN_DEBUG
+	game.stats.intersect_circle_rect++;
+#endif
 	// Source:
 	// https://steamcdn-a.akamaihd.net/apps/valve/2015/DirkGregorius_Contacts.pdf
 	Intersection c;
@@ -178,6 +205,9 @@ ptgn::Raycast Circle::Raycast(const V2_float& ray, const Capsule& capsule) const
 }
 
 ptgn::Raycast Circle::Raycast(const V2_float& ray, const Rect& rect) const {
+#ifdef PTGN_DEBUG
+	game.stats.raycast_circle_rect++;
+#endif
 	// TODO: Fix corner collisions.
 	// TODO: Consider
 	// https://www.geometrictools.com/Documentation/IntersectionMovingCircleRectangle.pdf

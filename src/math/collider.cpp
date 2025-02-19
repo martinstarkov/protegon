@@ -35,15 +35,18 @@ bool Collider::CanCollideWith(const Collider& c) const {
 	if (!c.parent.IsAlive()) {
 		return false;
 	}
-	PTGN_ASSERT(parent != ecs::Entity{});
-	std::vector<ecs::Entity> excluded{ parent };
-	if (parent.Has<BoxColliderGroup>()) {
-		excluded = ConcatenateVectors(excluded, parent.Get<BoxColliderGroup>().GetAll());
-	}
-	if (VectorContains(excluded, c.parent)) {
+	if (!CanCollideWith(c.GetCollisionCategory())) {
 		return false;
 	}
-	return CanCollideWith(c.GetCollisionCategory());
+	PTGN_ASSERT(parent != ecs::Entity{});
+	if (parent.Has<BoxColliderGroup>()) {
+		std::vector<ecs::Entity> excluded;
+		excluded = ConcatenateVectors(excluded, parent.Get<BoxColliderGroup>().GetAll());
+		if (VectorContains(excluded, c.parent)) {
+			return false;
+		}
+	}
+	return true;
 }
 
 CollisionCategory Collider::GetCollisionCategory() const {

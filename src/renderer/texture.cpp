@@ -11,10 +11,6 @@
 #include <utility>
 #include <vector>
 
-#include "SDL_error.h"
-#include "SDL_image.h"
-#include "SDL_pixels.h"
-#include "SDL_surface.h"
 #include "core/game.h"
 #include "math/hash.h"
 #include "math/vector2.h"
@@ -24,6 +20,10 @@
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
 #include "renderer/gl_types.h"
+#include "SDL_error.h"
+#include "SDL_image.h"
+#include "SDL_pixels.h"
+#include "SDL_surface.h"
 #include "serialization/json.h"
 #include "utility/assert.h"
 #include "utility/file.h"
@@ -37,11 +37,12 @@ Color GetPixel(const path& texture_filepath, const V2_int& coordinate) {
 	return s.GetPixel(coordinate);
 }
 
-void ForEachPixel(
+V2_int ForEachPixel(
 	const path& texture_filepath, const std::function<void(const V2_int&, const Color&)>& function
 ) {
 	impl::Surface s{ texture_filepath };
-	return s.ForEachPixel(function);
+	s.ForEachPixel(function);
+	return s.size;
 }
 
 namespace impl {

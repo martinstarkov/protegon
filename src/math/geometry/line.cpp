@@ -4,6 +4,7 @@
 #include <cmath>
 #include <utility>
 
+#include "core/game.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/polygon.h"
 #include "math/math.h"
@@ -11,6 +12,8 @@
 #include "math/utility.h"
 #include "math/vector2.h"
 #include "renderer/origin.h"
+#include "utility/debug.h"
+#include "utility/stats.h"
 
 namespace ptgn {
 
@@ -44,6 +47,9 @@ bool Line::Contains(const Line& line) const {
 }
 
 bool Line::Overlaps(const V2_float& point) const {
+#ifdef PTGN_DEBUG
+	game.stats.overlap_point_line++;
+#endif
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 	// Page 130. (SqDistPointSegment == 0) but optimized.
@@ -68,6 +74,9 @@ bool Line::Overlaps(const V2_float& point) const {
 }
 
 bool Line::Overlaps(const Line& line) const {
+#ifdef PTGN_DEBUG
+	game.stats.overlap_line_line++;
+#endif
 	// Source:
 	// https://www.geeksforgeeks.org/check-if-two-given-line-segments-intersect/
 
@@ -129,6 +138,9 @@ bool Line::Overlaps(const Rect& rect) const {
 }
 
 bool Line::Overlaps(const Capsule& capsule) const {
+#ifdef PTGN_DEBUG
+	game.stats.overlap_line_capsule++;
+#endif
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 	// Page 114-115.
@@ -141,6 +153,9 @@ bool Line::Overlaps(const Capsule& capsule) const {
 }
 
 ptgn::Raycast Line::Raycast(const Line& line) const {
+#ifdef PTGN_DEBUG
+	game.stats.raycast_line_line++;
+#endif
 	// Source:
 	// https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect/565282#565282
 
@@ -190,6 +205,9 @@ ptgn::Raycast Line::Raycast(const Line& line) const {
 }
 
 ptgn::Raycast Line::Raycast(const Circle& circle) const {
+#ifdef PTGN_DEBUG
+	game.stats.raycast_line_circle++;
+#endif
 	// Source:
 	// https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm/1084899#1084899
 
@@ -242,6 +260,9 @@ ptgn::Raycast Line::Raycast(const Circle& circle) const {
 }
 
 ptgn::Raycast Line::Raycast(const Rect& rect) const {
+#ifdef PTGN_DEBUG
+	game.stats.raycast_line_rect++;
+#endif
 	ptgn::Raycast c;
 
 	bool start_in{ rect.Overlaps(a) };
@@ -376,6 +397,9 @@ ptgn::Raycast Line::Raycast(const Rect& rect) const {
 }
 
 ptgn::Raycast Line::Raycast(const Capsule& capsule) const {
+#ifdef PTGN_DEBUG
+	game.stats.raycast_line_capsule++;
+#endif
 	// Source: https://stackoverflow.com/a/52462458
 
 	ptgn::Raycast c;
@@ -498,6 +522,9 @@ void Capsule::Draw(const Color& color, float line_width, std::int32_t render_lay
 */
 
 bool Capsule::Overlaps(const V2_float& point) const {
+#ifdef PTGN_DEBUG
+	game.stats.overlap_point_capsule++;
+#endif
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 	// Page 114.
@@ -513,6 +540,9 @@ bool Capsule::Overlaps(const Circle& circle) const {
 }
 
 bool Capsule::Overlaps(const Rect& rect) const {
+#ifdef PTGN_DEBUG
+	game.stats.overlap_rect_capsule++;
+#endif
 	if (rect.Overlaps(line.a)) {
 		return true;
 	}
@@ -541,6 +571,9 @@ bool Capsule::Overlaps(const Rect& rect) const {
 }
 
 bool Capsule::Overlaps(const Capsule& capsule) const {
+#ifdef PTGN_DEBUG
+	game.stats.overlap_capsule_capsule++;
+#endif
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 	// Page 114-115.

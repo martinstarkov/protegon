@@ -380,24 +380,15 @@ Tween& Tween::Reset() {
 }
 
 Tween& Tween::Start(bool force) {
-	auto start = [&]() {
-		Reset();
-
-		started_ = true;
-		if (!tween_points_.empty()) {
-			ActivateCallback(GetCurrentTweenPoint().on_start_);
-		}
-	};
-	if (force) {
-		std::invoke(start);
-		return *this;
-	} else {
-		if (IsRunning()) {
-			return *this;
-		}
-		std::invoke(start);
+	if (!force && IsRunning()) {
 		return *this;
 	}
+	Reset();
+	started_ = true;
+	if (!tween_points_.empty()) {
+		ActivateCallback(GetCurrentTweenPoint().on_start_);
+	}
+	return *this;
 }
 
 Tween& Tween::IncrementTweenPoint() {

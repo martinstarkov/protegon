@@ -17,6 +17,8 @@
 #include "math/vector2.h"
 #include "renderer/origin.h"
 #include "utility/assert.h"
+#include "utility/debug.h"
+#include "utility/stats.h"
 
 namespace ptgn {
 
@@ -175,6 +177,9 @@ Triangle::Triangle(const V2_float& a, const V2_float& b, const V2_float& c) :
 	a{ a }, b{ b }, c{ c } {}
 
 bool Triangle::Overlaps(const V2_float& point) const {
+#ifdef PTGN_DEBUG
+	game.stats.overlap_point_triangle++;
+#endif
 	// Using barycentric coordinates method.
 	float A{ 0.5f * (-b.y * c.x + a.y * (-b.x + c.x) + a.x * (b.y - c.y) + b.x * c.y) };
 	float z{ 1.0f / (2.0f * A) };
@@ -185,6 +190,9 @@ bool Triangle::Overlaps(const V2_float& point) const {
 }
 
 bool Triangle::Overlaps(const Rect& rect) const {
+#ifdef PTGN_DEBUG
+	game.stats.overlap_triangle_rect++;
+#endif
 	V2_float min{ rect.Min() };
 	V2_float max{ rect.Max() };
 	return Polygon{ { a, b, c } }.Overlaps(Polygon{
@@ -305,6 +313,9 @@ bool Rect::IsZero() const noexcept {
 }
 
 bool Rect::Overlaps(const V2_float& point) const {
+#ifdef PTGN_DEBUG
+	game.stats.overlap_point_rect++;
+#endif
 	if (rotation != 0.0f) {
 		Polygon poly_a{ *this };
 		return poly_a.Overlaps(point);
@@ -333,6 +344,9 @@ bool Rect::Overlaps(const V2_float& point) const {
 }
 
 bool Rect::Overlaps(const Line& line) const {
+#ifdef PTGN_DEBUG
+	game.stats.overlap_line_rect++;
+#endif
 	// TODO: Add rotation check.
 
 	V2_float c{ Center() };
@@ -392,6 +406,9 @@ bool Rect::Overlaps(const Rect& o_rect) const {
 
 		return poly_a.Overlaps(poly_b);
 	}
+#ifdef PTGN_DEBUG
+	game.stats.overlap_rect_rect++;
+#endif
 
 	V2_float max{ Max() };
 	V2_float min{ Min() };
@@ -437,6 +454,9 @@ Intersection Rect::Intersects(const Rect& o_rect) const {
 
 		return poly_a.Intersects(poly_b);
 	}
+#ifdef PTGN_DEBUG
+	game.stats.intersect_rect_rect++;
+#endif
 
 	V2_float a_h{ Half() };
 	V2_float b_h{ o_rect.Half() };
@@ -477,6 +497,9 @@ ptgn::Raycast Rect::Raycast(const V2_float& ray, const Circle& circle) const {
 }
 
 ptgn::Raycast Rect::Raycast(const V2_float& ray, const Rect& rect) const {
+#ifdef PTGN_DEBUG
+	game.stats.raycast_rect_rect++;
+#endif
 	V2_float a_center{ Center() };
 	Line line{ a_center, a_center + ray };
 	Rect expanded{ rect.Min() - Half(), rect.size + size, Origin::TopLeft };
@@ -704,6 +727,9 @@ bool Polygon::HasOverlapAxis(const Polygon& polygon) const {
 }
 
 bool Polygon::Overlaps(const Polygon& polygon) const {
+#ifdef PTGN_DEBUG
+	game.stats.overlap_polygon_polygon++;
+#endif
 	PTGN_ASSERT(
 		IsConvex() && polygon.IsConvex(),
 		"PolygonPolygon overlap check only works if both polygons are convex"
@@ -712,6 +738,9 @@ bool Polygon::Overlaps(const Polygon& polygon) const {
 }
 
 bool Polygon::Overlaps(const V2_float& point) const {
+#ifdef PTGN_DEBUG
+	game.stats.overlap_point_polygon++;
+#endif
 	const auto& v{ vertices };
 	std::size_t count{ v.size() };
 	bool c{ false };
@@ -763,6 +792,9 @@ bool Polygon::GetMinimumOverlap(const Polygon& polygon, float& depth, Axis& axis
 };
 
 Intersection Polygon::Intersects(const Polygon& polygon) const {
+#ifdef PTGN_DEBUG
+	game.stats.intersect_polygon_polygon++;
+#endif
 	PTGN_ASSERT(
 		IsConvex() && polygon.IsConvex(),
 		"PolygonPolygon intersection check only works if both polygons are convex"
