@@ -154,11 +154,19 @@ void Scene::InternalLoad() {
 						}
 						bool entered{ interactive.is_inside && !interactive.was_inside };
 						bool exited{ !interactive.is_inside && interactive.was_inside };
-						if (e.Has<callback::MouseOver>() && entered) {
+						if (e.Has<callback::MouseEnter>() && entered) {
+							V2_float p{ pos };
+							Invoke(e.Get<callback::MouseEnter>(), std::move(p));
+						}
+						if (e.Has<callback::MouseLeave>() && exited) {
+							V2_float p{ pos };
+							Invoke(e.Get<callback::MouseLeave>(), std::move(p));
+						}
+						if (e.Has<callback::MouseOver>() && interactive.is_inside) {
 							V2_float p{ pos };
 							Invoke(e.Get<callback::MouseOver>(), std::move(p));
 						}
-						if (e.Has<callback::MouseOut>() && exited) {
+						if (e.Has<callback::MouseOut>() && !interactive.is_inside) {
 							V2_float p{ pos };
 							Invoke(e.Get<callback::MouseOut>(), std::move(p));
 						}

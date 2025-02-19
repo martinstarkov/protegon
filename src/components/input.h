@@ -62,6 +62,14 @@ struct MouseMove : public CallbackComponent<void, V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
+struct MouseEnter : public CallbackComponent<void, V2_float> {
+	using CallbackComponent::CallbackComponent;
+};
+
+struct MouseLeave : public CallbackComponent<void, V2_float> {
+	using CallbackComponent::CallbackComponent;
+};
+
 struct MouseOut : public CallbackComponent<void, V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
