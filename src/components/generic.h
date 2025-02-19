@@ -6,6 +6,7 @@
 
 #include "math/vector2.h"
 #include "renderer/color.h"
+#include "renderer/origin.h"
 #include "utility/type_traits.h"
 #include "utility/utility.h"
 
@@ -91,6 +92,19 @@ struct CallbackComponent {
 
 protected:
 	std::function<TReturn(TArgs...)> callback_{};
+};
+
+struct OriginComponent {
+	OriginComponent() = default;
+
+	OriginComponent(Origin origin) : origin_{ origin } {}
+
+	operator Origin() const {
+		return origin_;
+	}
+
+protected:
+	Origin origin_{ Origin::Center };
 };
 
 } // namespace ptgn
