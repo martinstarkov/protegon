@@ -150,9 +150,7 @@ Rect Collider::GetAbsolute(Rect relative_rect) const {
 	relative_rect.position += transform.position;
 	relative_rect.rotation += transform.rotation;
 	// Absolute value needed because scale can be negative for flipping.
-	V2_float scale{ Abs(transform.scale) };
-	relative_rect.position *= scale;
-	relative_rect.size	   *= scale;
+	relative_rect.size *= Abs(transform.scale);
 	return relative_rect;
 }
 

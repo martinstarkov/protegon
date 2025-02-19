@@ -201,7 +201,7 @@ void RenderData::AddToBatch(
 
 		Rect dest;
 		PTGN_ASSERT(transform.scale.x > 0.0f && transform.scale.y > 0.0f, "Scale must be above 0");
-		dest.size	  = V2_float{ e.Get<Radius>() } * Abs(transform.scale);
+		dest.size	  = 2.0f * V2_float{ e.Get<Radius>() } * Abs(transform.scale);
 		dest.origin	  = Origin::Center;
 		dest.rotation = transform.rotation;
 		if (dest.size.IsZero()) {

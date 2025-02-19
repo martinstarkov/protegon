@@ -1,5 +1,6 @@
 #pragma once
 
+#include "components/draw.h"
 #include "components/generic.h"
 #include "event/key.h"
 #include "event/mouse.h"
@@ -7,9 +8,29 @@
 
 namespace ptgn {
 
-struct Interactive {};
+struct Interactive {
+	bool is_inside{ false };
+	bool was_inside{ false };
+};
 
-struct Draggable {};
+struct Draggable {
+	// Offset from the drag target center. Adding this value to the target position will maintain
+	// the relative position between the mouse and drag target.
+	V2_float offset;
+	// Mouse position where the drag started.
+	V2_float start;
+	// Drag target.
+	ecs::Entity target;
+	bool dragging{ false };
+};
+
+struct InteractiveRadius : public Radius {
+	using Radius::Radius;
+};
+
+struct InteractiveSize : public Size {
+	using Size::Size;
+};
 
 namespace callback {
 
@@ -41,7 +62,7 @@ struct MouseMove : public CallbackComponent<void, V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct MouseOut : public CallbackComponent<void> {
+struct MouseOut : public CallbackComponent<void, V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
@@ -80,13 +101,11 @@ struct Drag : public CallbackComponent<void, V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
-// Dropzone events.
-
-struct Drop : public CallbackComponent<void, V2_float> {
+struct DragEnter : public CallbackComponent<void, V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct DragEnter : public CallbackComponent<void> {
+struct DragLeave : public CallbackComponent<void, V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
@@ -94,9 +113,15 @@ struct DragOver : public CallbackComponent<void, V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct DragLeave : public CallbackComponent<void> {
+struct DragOut : public CallbackComponent<void, V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
+
+// Dropzone events.
+
+// struct Drop : public CallbackComponent<void, V2_float> {
+//	using CallbackComponent::CallbackComponent;
+// };
 
 } // namespace callback
 
