@@ -22,7 +22,9 @@ struct Color;
 struct Rect;
 struct Line;
 struct Capsule;
+struct Triangle;
 struct Circle;
+struct Polygon;
 
 template <typename T>
 struct Vector2 {
@@ -253,8 +255,10 @@ struct Vector2 {
 
 	[[nodiscard]] bool Overlaps(const Line& line) const;
 	[[nodiscard]] bool Overlaps(const Circle& circle) const;
+	[[nodiscard]] bool Overlaps(const Triangle& triangle) const;
 	[[nodiscard]] bool Overlaps(const Rect& rect) const;
 	[[nodiscard]] bool Overlaps(const Capsule& capsule) const;
+	[[nodiscard]] bool Overlaps(const Polygon& polygon) const;
 };
 
 using V2_int	= Vector2<int>;

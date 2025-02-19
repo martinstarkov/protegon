@@ -50,8 +50,18 @@ bool Vector2<T>::Overlaps(const Rect& rect) const {
 }
 
 template <typename T>
+bool Vector2<T>::Overlaps(const Triangle& triangle) const {
+	return triangle.Overlaps(V2_float{ *this });
+}
+
+template <typename T>
 bool Vector2<T>::Overlaps(const Capsule& capsule) const {
 	return capsule.Overlaps(V2_float{ *this });
+}
+
+template <typename T>
+bool Vector2<T>::Overlaps(const Polygon& polygon) const {
+	return polygon.Overlaps(V2_float{ *this });
 }
 
 template struct Vector2<int>;
