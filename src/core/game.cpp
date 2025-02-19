@@ -45,6 +45,7 @@ EM_JS(int, get_screen_height, (), { return screen.height; });
 
 #endif
 #include "utility/log.h"
+#include "utility/stats.h"
 
 namespace ptgn {
 
@@ -287,15 +288,15 @@ void Game::Update() {
 		"Screen Color at Mouse: ",
 		renderer.screen_target_.GetPixel(game.input.GetMousePositionWindow())
 	);*/
-	// TODO: Fix logging stats to ostream.
-	/*std::cout << "Renderer Stats: \n" << game.stats << std::endl;
-	PTGN_LOG("--------------------------------------");*/
-	game.stats.ResetRendererRelated();
+	// game.stats.PrintCollisionOverlap();
+	// game.stats.PrintCollisionIntersect();
+	// game.stats.PrintCollisionRaycast();
+	// game.stats.PrintRenderer();
+	// PTGN_LOG("--------------------------------------");
+	game.stats.Reset();
 #endif
 
-	if (profiler.IsEnabled()) {
-		profiler.PrintAll();
-	}
+	//profiler.PrintAll();
 
 	end = std::chrono::system_clock::now();
 }
