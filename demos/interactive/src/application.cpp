@@ -42,7 +42,9 @@ struct InteractiveComponentScene : public Scene {
 			PTGN_LOG("c0 Mouse down outside: ", mouse);
 		});
 		c0.Add<callback::MouseMove>([](auto mouse) { /*PTGN_LOG("c0 Mouse move: ", mouse);*/ });
-		c0.Add<callback::MouseOut>([](auto mouse) { PTGN_LOG("c0 Mouse out: ", mouse); });
+		c0.Add<callback::MouseLeave>([](auto mouse) { PTGN_LOG("c0 Mouse leave: ", mouse); });
+		c0.Add<callback::MouseEnter>([](auto mouse) { PTGN_LOG("c0 Mouse enter: ", mouse); });
+		c0.Add<callback::MouseOut>([](auto mouse) { /*PTGN_LOG("c0 Mouse out: ", mouse);*/ });
 		c0.Add<callback::MouseOver>([](auto mouse) { PTGN_LOG("c0 Mouse over: ", mouse); });
 		c0.Add<callback::MousePressed>([](auto mouse) { PTGN_LOG("c0 Mouse pressed: ", mouse); });
 		c0.Add<callback::MouseScroll>([](auto mouse) { PTGN_LOG("c0 Mouse scroll: ", mouse); });
@@ -67,7 +69,9 @@ struct InteractiveComponentScene : public Scene {
 			PTGN_LOG("c1 Mouse down outside: ", mouse);
 		});
 		c1.Add<callback::MouseMove>([](auto mouse) { /*PTGN_LOG("c1 Mouse move: ", mouse);*/ });
-		c1.Add<callback::MouseOut>([](auto mouse) { PTGN_LOG("c1 Mouse out: ", mouse); });
+		c1.Add<callback::MouseLeave>([](auto mouse) { PTGN_LOG("c1 Mouse leave: ", mouse); });
+		c1.Add<callback::MouseEnter>([](auto mouse) { PTGN_LOG("c1 Mouse enter: ", mouse); });
+		c1.Add<callback::MouseOut>([](auto mouse) { /*PTGN_LOG("c1 Mouse out: ", mouse);*/ });
 		c1.Add<callback::MouseOver>([](auto mouse) { PTGN_LOG("c1 Mouse over: ", mouse); });
 		c1.Add<callback::MousePressed>([](auto mouse) { PTGN_LOG("c1 Mouse pressed: ", mouse); });
 		c1.Add<callback::MouseScroll>([](auto mouse) { PTGN_LOG("c1 Mouse scroll: ", mouse); });
@@ -92,7 +96,9 @@ struct InteractiveComponentScene : public Scene {
 			PTGN_LOG("r0 Mouse down outside: ", mouse);
 		});
 		r0.Add<callback::MouseMove>([](auto mouse) { /*PTGN_LOG("r0 Mouse move: ", mouse);*/ });
-		r0.Add<callback::MouseOut>([](auto mouse) { PTGN_LOG("r0 Mouse out: ", mouse); });
+		r0.Add<callback::MouseLeave>([](auto mouse) { PTGN_LOG("r0 Mouse leave: ", mouse); });
+		r0.Add<callback::MouseEnter>([](auto mouse) { PTGN_LOG("r0 Mouse enter: ", mouse); });
+		r0.Add<callback::MouseOut>([](auto mouse) { /*PTGN_LOG("r0 Mouse out: ", mouse);*/ });
 		r0.Add<callback::MouseOver>([](auto mouse) { PTGN_LOG("r0 Mouse over: ", mouse); });
 		r0.Add<callback::MousePressed>([](auto mouse) { PTGN_LOG("r0 Mouse pressed: ", mouse); });
 		r0.Add<callback::MouseScroll>([](auto mouse) { PTGN_LOG("r0 Mouse scroll: ", mouse); });
@@ -118,7 +124,9 @@ struct InteractiveComponentScene : public Scene {
 			PTGN_LOG("r1 Mouse down outside: ", mouse);
 		});
 		r1.Add<callback::MouseMove>([](auto mouse) { /*PTGN_LOG("r1 Mouse move: ", mouse);*/ });
-		r1.Add<callback::MouseOut>([](auto mouse) { PTGN_LOG("r1 Mouse out: ", mouse); });
+		r1.Add<callback::MouseLeave>([](auto mouse) { PTGN_LOG("r1 Mouse leave: ", mouse); });
+		r1.Add<callback::MouseEnter>([](auto mouse) { PTGN_LOG("r1 Mouse enter: ", mouse); });
+		r1.Add<callback::MouseOut>([](auto mouse) { /*PTGN_LOG("r1 Mouse out: ", mouse);*/ });
 		r1.Add<callback::MouseOver>([](auto mouse) { PTGN_LOG("r1 Mouse over: ", mouse); });
 		r1.Add<callback::MousePressed>([](auto mouse) { PTGN_LOG("r1 Mouse pressed: ", mouse); });
 		r1.Add<callback::MouseScroll>([](auto mouse) { PTGN_LOG("r1 Mouse scroll: ", mouse); });
@@ -141,7 +149,9 @@ struct InteractiveComponentScene : public Scene {
 			PTGN_LOG("r2 Mouse down outside: ", mouse);
 		});
 		r2.Add<callback::MouseMove>([](auto mouse) { /*PTGN_LOG("r2 Mouse move: ", mouse);*/ });
-		r2.Add<callback::MouseOut>([](auto mouse) { PTGN_LOG("r2 Mouse out: ", mouse); });
+		r2.Add<callback::MouseLeave>([](auto mouse) { PTGN_LOG("r2 Mouse leave: ", mouse); });
+		r2.Add<callback::MouseEnter>([](auto mouse) { PTGN_LOG("r2 Mouse enter: ", mouse); });
+		r2.Add<callback::MouseOut>([](auto mouse) { /*PTGN_LOG("r2 Mouse out: ", mouse);*/ });
 		r2.Add<callback::MouseOver>([](auto mouse) { PTGN_LOG("r2 Mouse over: ", mouse); });
 		r2.Add<callback::MousePressed>([](auto mouse) { PTGN_LOG("r2 Mouse pressed: ", mouse); });
 		r2.Add<callback::MouseScroll>([](auto mouse) { PTGN_LOG("r2 Mouse scroll: ", mouse); });
