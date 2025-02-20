@@ -57,6 +57,9 @@ void Scene::InternalLoad() {
 					Key key{ static_cast<const KeyDownEvent&>(event).key };
 					for (auto [e, interactive, callback] :
 						 manager.EntitiesWith<Interactive, callback::KeyDown>()) {
+						if (!interactive.enabled) {
+							continue;
+						}
 						auto p{ key };
 						Invoke(callback, std::move(p));
 					}
@@ -66,6 +69,9 @@ void Scene::InternalLoad() {
 					Key key{ static_cast<const KeyUpEvent&>(event).key };
 					for (auto [e, interactive, callback] :
 						 manager.EntitiesWith<Interactive, callback::KeyUp>()) {
+						if (!interactive.enabled) {
+							continue;
+						}
 						auto p{ key };
 						Invoke(callback, std::move(p));
 					}
@@ -75,6 +81,9 @@ void Scene::InternalLoad() {
 					Key key{ static_cast<const KeyPressedEvent&>(event).key };
 					for (auto [e, interactive, callback] :
 						 manager.EntitiesWith<Interactive, callback::KeyPressed>()) {
+						if (!interactive.enabled) {
+							continue;
+						}
 						auto p{ key };
 						Invoke(callback, std::move(p));
 					}
@@ -139,15 +148,25 @@ void Scene::InternalLoad() {
 	game.event.mouse.Subscribe(
 		this, std::function([&](MouseEvent type, const Event& event) {
 			// TODO: Move this function elsewhere.
+			// TODO: cache interactive entity list every frame to avoid repeated calls for each
+			// mouse and keyboard event type.
 			V2_float pos{ std::invoke(GetMousePos) };
 			for (auto [e, transform, interactive] :
 				 manager.EntitiesWith<Transform, Interactive>()) {
-				interactive.is_inside = std::invoke(PointerIsInside, pos, e);
+				if (!interactive.enabled) {
+					interactive.is_inside  = false;
+					interactive.was_inside = false;
+				} else {
+					interactive.is_inside = std::invoke(PointerIsInside, pos, e);
+				}
 			}
 			switch (type) {
 				case MouseEvent::Move: {
 					for (auto [e, transform, interactive] :
 						 manager.EntitiesWith<Transform, Interactive>()) {
+						if (!interactive.enabled) {
+							continue;
+						}
 						if (e.Has<callback::MouseMove>()) {
 							V2_float p{ pos };
 							Invoke(e.Get<callback::MouseMove>(), std::move(p));
@@ -202,6 +221,9 @@ void Scene::InternalLoad() {
 					Mouse mouse{ static_cast<const MouseDownEvent&>(event).mouse };
 					for (auto [e, transform, interactive] :
 						 manager.EntitiesWith<Transform, Interactive>()) {
+						if (!interactive.enabled) {
+							continue;
+						}
 						if (interactive.is_inside) {
 							if (e.Has<callback::MouseDown>()) {
 								auto p{ mouse };
@@ -233,6 +255,9 @@ void Scene::InternalLoad() {
 					Mouse mouse{ static_cast<const MouseUpEvent&>(event).mouse };
 					for (auto [e, transform, interactive] :
 						 manager.EntitiesWith<Transform, Interactive>()) {
+						if (!interactive.enabled) {
+							continue;
+						}
 						if (interactive.is_inside) {
 							if (e.Has<callback::MouseUp>()) {
 								auto p{ mouse };
@@ -262,6 +287,9 @@ void Scene::InternalLoad() {
 					Mouse mouse{ static_cast<const MousePressedEvent&>(event).mouse };
 					for (auto [e, interactive, callback] :
 						 manager.EntitiesWith<Interactive, callback::MousePressed>()) {
+						if (!interactive.enabled) {
+							continue;
+						}
 						if (interactive.is_inside) {
 							auto p{ mouse };
 							Invoke(callback, std::move(p));
@@ -273,6 +301,9 @@ void Scene::InternalLoad() {
 					V2_int scroll{ static_cast<const MouseScrollEvent&>(event).scroll };
 					for (auto [e, interactive, callback] :
 						 manager.EntitiesWith<Interactive, callback::MouseScroll>()) {
+						if (!interactive.enabled) {
+							continue;
+						}
 						if (interactive.is_inside) {
 							auto p{ scroll };
 							Invoke(callback, std::move(p));
@@ -284,6 +315,9 @@ void Scene::InternalLoad() {
 			}
 			for (auto [e, transform, interactive] :
 				 manager.EntitiesWith<Transform, Interactive>()) {
+				if (!interactive.enabled) {
+					continue;
+				}
 				interactive.was_inside = interactive.is_inside;
 			}
 		})

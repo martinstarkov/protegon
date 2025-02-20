@@ -9,6 +9,7 @@
 namespace ptgn {
 
 struct Interactive {
+	bool enabled{ true };
 	bool is_inside{ false };
 	bool was_inside{ false };
 };
