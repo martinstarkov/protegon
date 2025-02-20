@@ -3,15 +3,19 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 
 #include "components/draw.h"
 #include "components/input.h"
+#include "components/transform.h"
 #include "ecs/ecs.h"
 #include "event/mouse.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
+#include "renderer/origin.h"
 #include "renderer/texture.h"
+#include "utility/log.h"
 
 // #include <cstdint>
 // #include <limits>
@@ -380,9 +384,9 @@ Button::Button(ecs::Manager& manager) {
 	entity_.Destroy();
 	entity_ = manager.CreateEntity();
 	entity_.Add<Interactive>();
-	entity_.Add<impl::InternalButtonState>();
+	entity_.Add<impl::InternalButtonState>(impl::InternalButtonState::IdleUp);
 
-	entity_.Add<callback::MouseEnter>([=]() mutable {
+	entity_.Add<callback::MouseEnter>([=](auto mouse) mutable {
 		auto& state{ entity_.Get<impl::InternalButtonState>() };
 		if (state == impl::InternalButtonState::IdleUp) {
 			state = impl::InternalButtonState::Hover;
@@ -395,7 +399,7 @@ Button::Button(ecs::Manager& manager) {
 		}
 	});
 
-	entity_.Add<callback::MouseLeave>([=]() mutable {
+	entity_.Add<callback::MouseLeave>([=](auto mouse) mutable {
 		auto& state{ entity_.Get<impl::InternalButtonState>() };
 		if (state == impl::InternalButtonState::Hover) {
 			state = impl::InternalButtonState::IdleUp;
@@ -464,48 +468,99 @@ Button::~Button() {
 	entity_.Destroy();
 }
 
+ecs::Entity Button::GetEntity() {
+	return entity_;
+}
+
 bool Button::IsEnabled() const {
-	return false;
+	return entity_.Get<Interactive>().enabled;
 }
 
 Button& Button::SetEnabled(bool enabled) {
-	// TODO: insert return statement here
+	auto& interactive{ entity_.Get<Interactive>() };
+	auto was_enabled{ interactive.enabled };
+	interactive.enabled = enabled;
+	if (!was_enabled && enabled) {
+		if (entity_.Has<impl::ButtonEnable>()) {
+			if (const auto& callback{ entity_.Get<impl::ButtonEnable>() }; callback != nullptr) {
+				callback();
+			}
+		}
+	} else if (was_enabled && !enabled) {
+		if (entity_.Has<impl::ButtonDisable>()) {
+			if (const auto& callback{ entity_.Get<impl::ButtonDisable>() }; callback != nullptr) {
+				callback();
+			}
+		}
+	}
+	return *this;
 }
 
 Button& Button::Disable() {
-	// TODO: insert return statement here
+	SetEnabled(false);
+	return *this;
 }
 
 Button& Button::Enable() {
-	// TODO: insert return statement here
+	SetEnabled(true);
+	return *this;
 }
 
 bool Button::IsVisible() const {
-	return false;
+	return entity_.Get<Visible>();
 }
 
 Button& Button::SetVisible(bool visible) {
-	// TODO: insert return statement here
+	bool was_visible{ entity_.Get<Visible>() };
+	entity_.Add<Visible>(visible);
+	if (!was_visible && visible) {
+		if (entity_.Has<impl::ButtonShow>()) {
+			if (const auto& callback{ entity_.Get<impl::ButtonShow>() }; callback != nullptr) {
+				callback();
+			}
+		}
+	} else if (was_visible && !visible) {
+		if (entity_.Has<impl::ButtonHide>()) {
+			if (const auto& callback{ entity_.Get<impl::ButtonHide>() }; callback != nullptr) {
+				callback();
+			}
+		}
+	}
+	return *this;
 }
 
 Button& Button::Show() {
-	// TODO: insert return statement here
+	SetVisible(true);
+	return *this;
 }
 
 Button& Button::Hide() {
-	// TODO: insert return statement here
+	SetVisible(false);
+	return *this;
 }
 
 void Button::Activate() {
-	// TODO: insert return statement here
+	if (entity_.Has<impl::ButtonActivate>()) {
+		if (const auto& callback{ entity_.Get<impl::ButtonActivate>() }; callback != nullptr) {
+			callback();
+		}
+	}
 }
 
 void Button::StartHover() {
-	// TODO: insert return statement here
+	if (entity_.Has<impl::ButtonHoverStart>()) {
+		if (const auto& callback{ entity_.Get<impl::ButtonHoverStart>() }; callback != nullptr) {
+			callback();
+		}
+	}
 }
 
 void Button::StopHover() {
-	// TODO: insert return statement here
+	if (entity_.Has<impl::ButtonHoverStop>()) {
+		if (const auto& callback{ entity_.Get<impl::ButtonHoverStop>() }; callback != nullptr) {
+			callback();
+		}
+	}
 }
 
 ButtonState Button::GetState() const {
@@ -522,204 +577,311 @@ ButtonState Button::GetState() const {
 }
 
 Color Button::GetColor(ButtonState state) const {
-	return Color();
+	auto c{ entity_.Has<impl::ButtonColor>() ? entity_.Get<impl::ButtonColor>()
+											 : impl::ButtonColor{} };
+	switch (state) {
+		case ButtonState::Default: return c.default_;
+		case ButtonState::Hover:   return c.hover_;
+		case ButtonState::Pressed: return c.pressed_;
+		default:				   PTGN_ERROR("Invalid button state");
+	}
 }
 
 Button& Button::SetColor(const Color& color, ButtonState state) {
-	// TODO: insert return statement here
+	if (!entity_.Has<impl::ButtonColor>()) {
+		entity_.Add<impl::ButtonColor>(color);
+	} else {
+		auto& c{ entity_.Get<impl::ButtonColor>() };
+		switch (state) {
+			case ButtonState::Default: c.default_ = color; break;
+			case ButtonState::Hover:   c.hover_ = color; break;
+			case ButtonState::Pressed: c.pressed_ = color; break;
+			default:				   PTGN_ERROR("Invalid button state");
+		}
+	}
+	return *this;
 }
 
 Color Button::GetTextColor(ButtonState state) const {
+	// TODO: Fix.
 	return Color();
 }
 
 Button& Button::SetTextColor(const Color& color, ButtonState state) {
 	// TODO: insert return statement here
+	return *this;
 }
 
 const impl::Texture& Button::GetTexture(ButtonState state) const {
 	// TODO: insert return statement here
+	// TODO: Fix.
+	return {};
 }
 
 Button& Button::SetTexture(std::string_view texture_key, ButtonState state) {
 	// TODO: insert return statement here
+	return *this;
 }
 
 Color Button::GetTint(ButtonState state) const {
+	// TODO: Fix.
 	return Color();
 }
 
 Button& Button::SetTint(const Color& color, ButtonState state) {
 	// TODO: insert return statement here
+	return *this;
 }
 
 std::string Button::GetTextContent(ButtonState state) const {
+	// TODO: Fix.
 	return std::string();
 }
 
 Button& Button::SetTextContent(const std::string& content, ButtonState state) {
 	// TODO: insert return statement here
+	return *this;
 }
 
 bool Button::IsBordered() const {
+	// TODO: Fix.
 	return false;
 }
 
 Button& Button::SetBordered(bool bordered) {
 	// TODO: insert return statement here
+	return *this;
 }
 
 Color Button::GetBorderColor(ButtonState state) const {
+	// TODO: Fix.
 	return Color();
 }
 
 Button& Button::SetBorderColor(const Color& color, ButtonState state) {
 	// TODO: insert return statement here
+	return *this;
 }
 
 TextAlignment Button::GetTextAlignment() const {
+	// TODO: Fix.
 	return TextAlignment();
 }
 
 Button& Button::SetTextAlignment(const TextAlignment& alignment) {
 	// TODO: insert return statement here
+	return *this;
 }
 
 V2_float Button::GetTextSize() const {
+	// TODO: Fix.
 	return V2_float();
 }
 
 Button& Button::SetTextSize(const V2_float& size) {
 	// TODO: insert return statement here
+	return *this;
 }
 
 std::int32_t Button::GetFontSize() const {
+	// TODO: Fix.
 	return std::int32_t();
 }
 
 Button& Button::SetFontSize(std::int32_t font_size) {
 	// TODO: insert return statement here
+	return *this;
 }
 
 Depth Button::GetDepth() const {
+	// TODO: Fix.
 	return Depth();
 }
 
 Button& Button::SetDepth(const Depth& depth) {
 	// TODO: insert return statement here
+	return *this;
 }
 
 float Button::GetLineWidth() const {
+	// TODO: Fix.
 	return 0.0f;
 }
 
 Button& Button::SetLineWidth(float line_width) {
 	// TODO: insert return statement here
+	return *this;
 }
 
 float Button::GetBorderWidth() const {
+	// TODO: Fix.
 	return 0.0f;
 }
 
 Button& Button::SetBorderWidth(float line_width) {
 	// TODO: insert return statement here
+	return *this;
 }
 
 Button& Button::OnHoverStart(const ButtonCallback& callback) {
-	// TODO: insert return statement here
+	if (callback == nullptr) {
+		entity_.Remove<impl::ButtonHoverStart>();
+	} else {
+		entity_.Add<impl::ButtonHoverStart>(callback);
+	}
+	return *this;
 }
 
 Button& Button::OnHoverStop(const ButtonCallback& callback) {
-	// TODO: insert return statement here
+	if (callback == nullptr) {
+		entity_.Remove<impl::ButtonHoverStop>();
+	} else {
+		entity_.Add<impl::ButtonHoverStop>(callback);
+	}
+	return *this;
 }
 
 Button& Button::OnActivate(const ButtonCallback& callback) {
-	// TODO: insert return statement here
+	if (callback == nullptr) {
+		entity_.Remove<impl::ButtonActivate>();
+	} else {
+		entity_.Add<impl::ButtonActivate>(callback);
+	}
+	return *this;
 }
 
 Button& Button::OnDisable(const ButtonCallback& callback) {
-	// TODO: insert return statement here
+	if (callback == nullptr) {
+		entity_.Remove<impl::ButtonDisable>();
+	} else {
+		entity_.Add<impl::ButtonDisable>(callback);
+	}
+	return *this;
 }
 
 Button& Button::OnEnable(const ButtonCallback& callback) {
-	// TODO: insert return statement here
+	if (callback == nullptr) {
+		entity_.Remove<impl::ButtonEnable>();
+	} else {
+		entity_.Add<impl::ButtonEnable>(callback);
+	}
+	return *this;
 }
 
 Button& Button::OnShow(const ButtonCallback& callback) {
-	// TODO: insert return statement here
+	if (callback == nullptr) {
+		entity_.Remove<impl::ButtonShow>();
+	} else {
+		entity_.Add<impl::ButtonShow>(callback);
+	}
+	return *this;
 }
 
 Button& Button::OnHide(const ButtonCallback& callback) {
-	// TODO: insert return statement here
+	if (callback == nullptr) {
+		entity_.Remove<impl::ButtonHide>();
+	} else {
+		entity_.Add<impl::ButtonHide>(callback);
+	}
+	return *this;
 }
 
 impl::InternalButtonState Button::GetInternalState() const {
-	return impl::InternalButtonState();
+	return entity_.Get<impl::InternalButtonState>();
+}
+
+ToggleButton::ToggleButton(ecs::Manager& manager, bool toggled) : Button{ manager } {
+	entity_.Add<impl::ButtonToggled>(toggled);
 }
 
 void ToggleButton::Activate() {
 	Toggle();
-	// TODO: On activate.
+	Button::Activate();
 }
 
 bool ToggleButton::IsToggled() const {
+	// TODO: Fix.
 	return false;
 }
 
 ToggleButton& ToggleButton::Toggle() {
 	// TODO: insert return statement here
+	return *this;
 }
 
 Color ToggleButton::GetColorToggled(ButtonState state) const {
+	// TODO: Fix.
 	return Color();
 }
 
 ToggleButton& ToggleButton::SetColorToggled(const Color& color, ButtonState state) {
-	// TODO: insert return statement here
+	if (!entity_.Has<impl::ButtonColorToggled>()) {
+		entity_.Add<impl::ButtonColorToggled>(color);
+	} else {
+		auto& c{ entity_.Get<impl::ButtonColorToggled>() };
+		switch (state) {
+			case ButtonState::Default: c.default_ = color; break;
+			case ButtonState::Hover:   c.hover_ = color; break;
+			case ButtonState::Pressed: c.pressed_ = color; break;
+			default:				   PTGN_ERROR("Invalid button state");
+		}
+	}
+	return *this;
 }
 
 Color ToggleButton::GetTextColorToggled(ButtonState state) const {
+	// TODO: Fix.
 	return Color();
 }
 
 ToggleButton& ToggleButton::SetTextColorToggled(const Color& color, ButtonState state) {
 	// TODO: insert return statement here
+	return *this;
 }
 
 std::string ToggleButton::GetTextContentToggled(ButtonState state) const {
+	// TODO: Fix.
 	return std::string();
 }
 
 ToggleButton& ToggleButton::SetTextContentToggled(const std::string& content, ButtonState state) {
 	// TODO: insert return statement here
+	return *this;
 }
 
 Color ToggleButton::GetBorderColorToggled(ButtonState state) const {
+	// TODO: Fix.
 	return Color();
 }
 
 ToggleButton& ToggleButton::SetBorderColorToggled(const Color& color, ButtonState state) {
 	// TODO: insert return statement here
+	return *this;
 }
 
 ToggleButton& ToggleButton::OnToggle(const ButtonCallback& callback) {
 	// TODO: insert return statement here
+	return *this;
 }
 
 const impl::Texture& ToggleButton::GetTextureToggled(ButtonState state) const {
 	// TODO: insert return statement here
+	return {};
 }
 
 ToggleButton& ToggleButton::SetTextureToggled(std::string_view texture_key, ButtonState state) {
 	// TODO: insert return statement here
+	return *this;
 }
 
 Color ToggleButton::GetTintToggled(ButtonState state) const {
+	// TODO: Fix.
 	return Color();
 }
 
 ToggleButton& ToggleButton::SetTintToggled(const Color& color, ButtonState state) {
 	// TODO: insert return statement here
+	return *this;
 }
 
 } // namespace ptgn

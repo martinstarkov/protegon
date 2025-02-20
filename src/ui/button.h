@@ -63,6 +63,22 @@ struct TextAlignment : public OriginComponent {
 	using OriginComponent::OriginComponent;
 };
 
+struct ButtonToggled : public ArithmeticComponent<bool> {
+	using ArithmeticComponent::ArithmeticComponent;
+};
+
+struct ButtonColor {
+	ButtonColor() = default;
+
+	ButtonColor(const Color& color) : default_{ color }, hover_{ color }, pressed_{ color } {}
+
+	Color default_;
+	Color pressed_;
+	Color hover_;
+};
+
+struct ButtonColorToggled : public ButtonColor {};
+
 } // namespace impl
 
 enum class ButtonState : std::uint8_t {
@@ -83,6 +99,8 @@ struct Button {
 	Button(const Button&)			 = delete;
 	Button& operator=(const Button&) = delete;
 	virtual ~Button();
+
+	[[nodiscard]] ecs::Entity GetEntity();
 
 	// @return True if the button is responding to events, false otherwise.
 	[[nodiscard]] bool IsEnabled() const;
@@ -183,6 +201,14 @@ protected:
 };
 
 struct ToggleButton : public Button {
+	ToggleButton() = default;
+	ToggleButton(ecs::Manager& manager, bool toggled = false);
+	ToggleButton(ToggleButton&&) noexcept			 = default;
+	ToggleButton& operator=(ToggleButton&&) noexcept = default;
+	ToggleButton(const ToggleButton&)				 = delete;
+	ToggleButton& operator=(const ToggleButton&)	 = delete;
+	~ToggleButton() override						 = default;
+
 	void Activate() final;
 
 	[[nodiscard]] bool IsToggled() const;
@@ -207,10 +233,6 @@ struct ToggleButton : public Button {
 	[[nodiscard]] Color GetTintToggled(ButtonState state = ButtonState::Default) const;
 
 	ToggleButton& SetTintToggled(const Color& color, ButtonState state = ButtonState::Default);
-
-	[[nodiscard]] Color GetTextColorToggled(ButtonState state = ButtonState::Default) const;
-
-	ToggleButton& SetTextColorToggled(const Color& color, ButtonState state = ButtonState::Default);
 
 	[[nodiscard]] std::string GetTextContentToggled(ButtonState state = ButtonState::Default) const;
 
