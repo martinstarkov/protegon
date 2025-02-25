@@ -6,6 +6,7 @@
 #include <string_view>
 
 #include "components/generic.h"
+#include "core/game_object.h"
 #include "ecs/ecs.h"
 #include "math/hash.h"
 #include "math/vector2.h"
@@ -16,7 +17,7 @@
 
 namespace ptgn {
 
-enum class TextWrapAlignment {
+enum class TextJustify {
 	Left   = 0, // TTF_WRAPPED_ALIGN_LEFT
 	Center = 1, // TTF_WRAPPED_ALIGN_CENTER
 	Right  = 2	// TTF_WRAPPED_ALIGN_RIGHT
@@ -60,23 +61,17 @@ struct TextShadingColor : public ColorComponent {
 	TextShadingColor() : ColorComponent{ color::White } {}
 };
 
-class Text {
+class Text : public GameObject {
 public:
 	Text() = default;
 
-	// TODO: Get rid of this in favor of making text a game object.
+	Text(const ecs::Entity& e);
 	// @param font_key Default: "" corresponds to the default engine font (use
 	// game.font.SetDefault(...) to change.
 	Text(
-		ecs::Manager& manager, std::string_view content, const Color& text_color = color::Black,
+		const ecs::Entity& e, std::string_view content, const Color& text_color = color::Black,
 		std::string_view font_key = ""
 	);
-	Text(const Text&)			 = delete;
-	Text& operator=(const Text&) = delete;
-	// TODO: Get rid of this.
-	Text(Text&& other) noexcept;
-	Text& operator=(Text&& other) noexcept;
-	~Text();
 
 	// @param font_key Default: "" corresponds to the default engine font (use
 	// game.font.SetDefault(...) to change.
@@ -102,7 +97,7 @@ public:
 	// Set the spacing between lines of text. Infinity will use the current font line skip.
 	Text& SetLineSkip(std::int32_t pixels);
 
-	Text& SetWrapAlignment(TextWrapAlignment wrap_alignment);
+	Text& SetWrapAlignment(TextJustify wrap_alignment);
 
 	[[nodiscard]] std::size_t GetFontKey() const;
 	[[nodiscard]] std::string_view GetContent() const;
@@ -122,13 +117,13 @@ private:
 	Text& SetParameter(const T& value) {
 		static_assert(tt::is_any_of_v<
 					  T, FontKey, TextContent, TextColor, FontStyle, FontRenderMode, FontSize,
-					  TextLineSkip, TextShadingColor, TextWrapAfter, TextWrapAlignment>);
-		if (!entity_.Has<T>()) {
-			entity_.Add<T>(value);
+					  TextLineSkip, TextShadingColor, TextWrapAfter, TextJustify>);
+		if (!entity.Has<T>()) {
+			entity.Add<T>(value);
 			RecreateTexture();
 			return *this;
 		}
-		auto& t{ entity_.Get<T>() };
+		auto& t{ entity.Get<T>() };
 		if (t == value) {
 			return *this;
 		}
@@ -141,16 +136,14 @@ private:
 	[[nodiscard]] const T& GetParameter(const T& default_value) const {
 		static_assert(tt::is_any_of_v<
 					  T, FontKey, TextContent, TextColor, FontStyle, FontRenderMode, FontSize,
-					  TextLineSkip, TextShadingColor, TextWrapAfter, TextWrapAlignment>);
-		if (!entity_.Has<T>()) {
+					  TextLineSkip, TextShadingColor, TextWrapAfter, TextJustify>);
+		if (!entity.Has<T>()) {
 			return default_value;
 		}
-		return entity_.Get<T>();
+		return entity.Get<T>();
 	}
 
 	void RecreateTexture();
-
-	ecs::Entity entity_;
 };
 
 } // namespace ptgn
