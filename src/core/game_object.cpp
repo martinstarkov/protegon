@@ -50,7 +50,14 @@ V2_float GetScale(const ecs::Entity& e) {
 }
 
 Depth GetDepth(const ecs::Entity& e) {
-	return e.Has<Depth>() ? e.Get<Depth>() : Depth{};
+	Depth parent_depth{};
+	if (HasParent(e)) {
+		auto parent{ GetParent(e) };
+		if (parent.Has<Depth>()) {
+			parent_depth = parent.Get<Depth>();
+		}
+	}
+	return parent_depth + (e.Has<Depth>() ? e.Get<Depth>() : Depth{});
 }
 
 BlendMode GetBlendMode(const ecs::Entity& e) {
@@ -79,6 +86,10 @@ V2_float GetRotationCenter(const ecs::Entity& e) {
 
 std::array<V2_float, 4> GetTextureCoordinates(const ecs::Entity& e, bool flip_vertically) {
 	auto tex_coords{ impl::GetDefaultTextureCoordinates() };
+
+	if (!e.IsAlive()) {
+		return tex_coords;
+	}
 
 	V2_int texture_size;
 
