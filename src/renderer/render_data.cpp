@@ -36,6 +36,7 @@
 #include "renderer/texture.h"
 #include "renderer/vertex_array.h"
 #include "scene/camera.h"
+#include "ui/button.h"
 #include "utility/assert.h"
 #include "utility/log.h"
 #include "utility/utility.h"
@@ -298,10 +299,164 @@ V2_float RenderData::GetTextureSize(const ecs::Entity& o, const Texture& texture
 	return size;
 }
 
-void RenderData::AddToBatch(
-	const ecs::Entity& o, const std::array<V2_float, Batch::quad_vertex_count>& camera_vertices,
-	bool check_visibility
+void RenderData::AddEllipse(
+	const V2_float& center, const V2_float& radius, float line_width, const Depth& depth,
+	BlendMode blend_mode, const V4_float& color, float rotation, const V2_float& rotation_center
 ) {
+	PTGN_ASSERT(radius.x > 0.0f && radius.y > 0.0f, "Invalid ellipse radius");
+	V2_float diameter{ radius * 2.0f };
+	auto vertices{ impl::GetQuadVertices(center, rotation, diameter, rotation_center) };
+	if (line_width == -1.0f) {
+		AddFilledEllipse(vertices, depth, blend_mode, color);
+	} else {
+		AddHollowEllipse(vertices, line_width, V2_float{ radius }, depth, blend_mode, color);
+	}
+}
+
+void RenderData::AddPolygon(
+	const std::vector<V2_float>& vertices, float line_width, const Depth& depth,
+	BlendMode blend_mode, const V4_float& color
+) {
+	PTGN_ASSERT(vertices.size() >= 3, "Polygon must have at least 3 vertices");
+	if (line_width == -1.0f) {
+		auto triangles{ impl::Triangulate(vertices.data(), vertices.size()) };
+		for (const auto& triangle : triangles) {
+			AddFilledTriangle(triangle, depth, blend_mode, color);
+		}
+	} else {
+		AddLines(vertices, line_width, depth, blend_mode, color, true);
+	}
+}
+
+void RenderData::AddPoint(
+	const V2_float position, const Depth& depth, BlendMode blend_mode, const V4_float& color
+) {
+	// TODO: Check that this works.
+	AddFilledQuad({ position, position, position, position }, depth, blend_mode, color);
+}
+
+void RenderData::AddTriangle(
+	const std::array<V2_float, 3>& vertices, float line_width, const Depth& depth,
+	BlendMode blend_mode, const V4_float& color
+) {
+	if (line_width == -1.0f) {
+		AddFilledTriangle(vertices, depth, blend_mode, color);
+	} else {
+		AddLines(ToVector(vertices), line_width, depth, blend_mode, color, true);
+	}
+}
+
+void RenderData::AddQuad(
+	const V2_float& position, const V2_float& size, Origin origin, float line_width,
+	const Depth& depth, BlendMode blend_mode, const V4_float& color, float rotation,
+	const V2_float& rotation_center
+) {
+	std::array<V2_float, Batch::quad_vertex_count> vertices;
+	if (size.IsZero()) {
+		vertices = camera_vertices;
+	} else {
+		vertices = impl::GetQuadVertices(
+			position - GetOffsetFromCenter(size, origin), rotation, size, rotation_center
+		);
+	}
+	if (line_width == -1.0f) {
+		AddFilledQuad(vertices, depth, blend_mode, color);
+	} else {
+		AddLines(ToVector(vertices), line_width, depth, blend_mode, color, true);
+	}
+}
+
+void RenderData::AddTexture(
+	const ecs::Entity& e, const Texture& texture, const V2_float& position, const V2_float& size,
+	Origin origin, const Depth& depth, BlendMode blend_mode, const V4_float& tint, float rotation,
+	const V2_float& rotation_center, bool flip_vertically
+) {
+	AddTexturedQuad(
+		impl::GetQuadVertices(
+			position - GetOffsetFromCenter(size, origin), rotation, size, rotation_center
+		),
+		ptgn::GetTextureCoordinates(e, flip_vertically), texture, depth, blend_mode, tint
+	);
+}
+
+void RenderData::AddText(
+	const ecs::Entity& e, const Text& text, const V2_float& position, const V2_float& size,
+	Origin origin, const Depth& depth, BlendMode blend_mode, const V4_float& tint, float rotation,
+	const V2_float& rotation_center
+) {
+	const auto& texture{ text.GetTexture() };
+	if (texture.IsValid() && text.GetColor().a != 0 && !text.GetContent().empty()) {
+		AddTexture(
+			e, texture, position, size, origin, depth, blend_mode, tint, rotation, rotation_center,
+			false
+		);
+	}
+}
+
+void RenderData::AddRenderTarget(
+	const ecs::Entity& o, const RenderTarget& rt, const Depth& depth, BlendMode blend_mode,
+	const V4_float& tint
+) {
+	const auto& texture{ rt.GetTexture() };
+	// TODO: Add custom size.
+	AddTexturedQuad(
+		camera_vertices, ptgn::GetTextureCoordinates(o, true), texture, depth, blend_mode, tint
+	);
+}
+
+void RenderData::AddButton(
+	const Text& text, const Texture& texture, const V4_float& background_color,
+	float background_line_width, bool bordered, const V4_float& border_color,
+	float border_line_width, const V2_float& position, const V2_float& size, Origin origin,
+	const Depth& depth, BlendMode blend_mode, const V4_float& tint, float rotation,
+	const V2_float& rotation_center
+) {
+	if (texture != Texture{}) {
+		AddTexture(
+			{}, texture, position, size, origin, depth, blend_mode, tint, rotation, rotation_center
+		);
+	} else if (background_color != V4_float{}) {
+		// TODO: Add rounded buttons.
+		/*if (radius_ > 0.0f) {
+			RoundedRect r{ i.rect_.position, i.radius_, i.rect_.size, i.rect_.origin,
+							i.rect_.rotation };
+			r.Draw(bg, i.line_thickness_, i.render_layer_);
+		} else {*/
+		AddQuad(
+			position, size, origin, background_line_width, depth, blend_mode, background_color,
+			rotation, rotation_center
+		);
+	}
+
+	if (text != Text{}) {
+		V2_float text_size{ text.GetSize() };
+		if (NearlyEqual(text_size.x, 0.0f)) {
+			text_size.x = size.x;
+		}
+		if (NearlyEqual(text_size.y, 0.0f)) {
+			text_size.y = size.y;
+		}
+		AddText(
+			{}, text, GetPosition(text), text_size, GetOrigin(text), GetDepth(text),
+			text.GetBlendMode(), GetTint(text).Normalized(), GetRotation(text),
+			GetRotationCenter(text)
+		);
+	}
+	if (bordered && border_color != V4_float{}) {
+		// TODO: Readd rounded buttons.
+		/*if (i.radius_ > 0.0f) {
+			RoundedRect r{ i.rect_.position, i.radius_, i.rect_.size, i.rect_.origin,
+							i.rect_.rotation };
+			r.Draw(border_color, i.border_thickness_, i.render_layer_ + 2);
+		} else {*/
+		AddQuad(
+			position, size, origin, border_line_width, depth, blend_mode, border_color, rotation,
+			rotation_center
+		);
+	}
+}
+
+void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 	PTGN_ASSERT(
 		(o.Has<Transform, Visible>()), "Cannot render entity without transform or visible component"
 	);
@@ -317,79 +472,53 @@ void RenderData::AddToBatch(
 	V2_float rot_center{ GetRotationCenter(o) };
 	V4_float tint{ GetTint(o).Normalized() };
 
-	auto add_texture = [&](const Texture& texture, const V2_float& size, Origin origin,
-						   bool flip_vertically = false) {
-		AddTexturedQuad(
-			impl::GetQuadVertices(pos - GetOffsetFromCenter(size, origin), angle, size, rot_center),
-			ptgn::GetTextureCoordinates(o, flip_vertically), texture, depth, blend_mode, tint
-		);
-	};
-
 	if (o.Has<TextureKey>()) {
 		const auto& texture_key{ o.Get<TextureKey>() };
-		PTGN_ASSERT(game.texture.Has(texture_key), "Texture key is not loaded");
 		const auto& texture{ game.texture.Get(texture_key) };
-		std::invoke(add_texture, texture, GetTextureSize(o, texture), GetOrigin(o));
+		AddTexture(
+			o, texture, pos, GetTextureSize(o, texture), GetOrigin(o), depth, blend_mode, tint,
+			angle, rot_center, false
+		);
 		return;
 	} else if (o.Has<Text>()) {
 		const auto& text{ o.Get<Text>() };
-		const auto& texture{ text.GetTexture() };
-		if (texture.IsValid() && text.GetColor().a != 0 && !text.GetContent().empty()) {
-			std::invoke(add_texture, texture, GetTextureSize(o, texture), GetOrigin(o));
-		}
+		AddText(
+			o, text, pos, GetTextureSize(o, text.GetTexture()), GetOrigin(o), depth, blend_mode,
+			tint, angle, rot_center
+		);
 		return;
 	} else if (o.Has<RenderTarget>()) {
 		const auto& rt{ o.Get<RenderTarget>() };
-		const auto& texture{ rt.GetTexture() };
-		// TODO: Add custom size.
-		AddTexturedQuad(
-			camera_vertices, ptgn::GetTextureCoordinates(o, true), texture, depth, blend_mode, tint
-		);
+		AddRenderTarget(o, rt, depth, blend_mode, tint);
 		return;
 	} else if (o.Has<PointLight>()) {
 		AddPointLight(o, depth);
+		return;
+	} else if (o.Has<Button>()) {
+		const auto& b{ o.Get<Button>() };
+		// TODO: Replace with a choice of rect or circle.
+		const auto& rect{ b.entity.Get<Rect>() };
+		AddButton(
+			b.GetText(), {}, b.GetBackgroundColor().Normalized(), b.GetBackgroundLineWidth(),
+			b.IsBordered(), b.GetBorderColor().Normalized(), b.GetBorderWidth(), pos,
+			rect.GetSize(), rect.GetOrigin(), depth, blend_mode, b.GetTint().Normalized() * tint,
+			angle, rot_center
+		);
 		return;
 	}
 
 	auto line_width{ o.Has<LineWidth>() ? o.Get<LineWidth>() : LineWidth{ -1.0f } };
 
-	auto add_ellipse = [&](auto radius) {
-		V2_float diameter{ radius * 2.0f };
-		auto vertices{ impl::GetQuadVertices(pos, angle, diameter, rot_center) };
-		if (line_width == -1.0f) {
-			AddFilledEllipse(vertices, depth, blend_mode, tint);
-		} else {
-			AddHollowEllipse(vertices, line_width, V2_float{ radius }, depth, blend_mode, tint);
-		}
-	};
-
 	if (o.Has<Rect>()) {
 		const auto& rect{ o.Get<Rect>() };
-		std::array<V2_float, Batch::quad_vertex_count> vertices;
-		auto size{ rect.GetSize() };
-		if (size.IsZero()) {
-			vertices = camera_vertices;
-		} else {
-			vertices = impl::GetQuadVertices(
-				pos - GetOffsetFromCenter(size, rect.GetOrigin()), angle, size, rot_center
-			);
-		}
-		if (line_width == -1.0f) {
-			AddFilledQuad(vertices, depth, blend_mode, tint);
-		} else {
-			AddLines(ToVector(vertices), line_width, depth, blend_mode, tint, true);
-		}
+		AddQuad(
+			pos, rect.GetSize(), rect.GetOrigin(), line_width, depth, blend_mode, tint, angle,
+			rot_center
+		);
 		return;
 	} else if (o.Has<Polygon>()) {
 		const auto& polygon{ o.Get<Polygon>() };
-		if (line_width == -1.0f) {
-			auto triangles{ polygon.Triangulate() };
-			for (const auto& triangle : triangles) {
-				AddFilledTriangle(triangle, depth, blend_mode, tint);
-			}
-		} else {
-			AddLines(polygon.GetVertices(), line_width, depth, blend_mode, tint, true);
-		}
+		AddPolygon(polygon.GetVertices(), line_width, depth, blend_mode, tint);
 		return;
 	} else if (o.Has<Line>()) {
 		const auto& line{ o.Get<Line>() };
@@ -397,30 +526,24 @@ void RenderData::AddToBatch(
 		return;
 	} else if (o.Has<Circle>()) {
 		const auto& circle{ o.Get<Circle>() };
-		auto radius{ circle.GetRadius() };
-		PTGN_ASSERT(radius > 0.0f, "Invalid circle radius");
-		std::invoke(add_ellipse, radius);
+		AddEllipse(
+			pos, V2_float{ circle.GetRadius() }, line_width, depth, blend_mode, tint, angle,
+			rot_center
+		);
 		return;
 	} else if (o.Has<Ellipse>()) {
 		const auto& ellipse{ o.Get<Ellipse>() };
-		auto radius{ ellipse.GetRadius() };
-		PTGN_ASSERT(radius.x > 0.0f && radius.y > 0.0f, "Invalid ellipse radius");
-		std::invoke(add_ellipse, radius);
+		AddEllipse(
+			pos, ellipse.GetRadius(), line_width, depth, blend_mode, tint, angle, rot_center
+		);
 		return;
 	} else if (o.Has<Triangle>()) {
 		const auto& triangle{ o.Get<Triangle>() };
-		auto vertices{ triangle.GetVertices() };
-		if (line_width == -1.0f) {
-			AddFilledTriangle(vertices, depth, blend_mode, tint);
-		} else {
-			AddLines(ToVector(vertices), line_width, depth, blend_mode, tint, true);
-		}
+		AddTriangle(triangle.GetVertices(), line_width, depth, blend_mode, tint);
 		return;
 	} else if (o.Has<Point>()) {
 		PTGN_ASSERT(!o.Has<LineWidth>(), "Points cannot have a line width");
-		PTGN_ASSERT(line_width == -1.0f);
-		// TODO: Check that this works.
-		AddFilledQuad({ pos, pos, pos, pos }, depth, blend_mode, tint);
+		AddPoint(pos, depth, blend_mode, tint);
 		return;
 	} else if (o.Has<Arc>()) {
 		// TODO: Implement.
@@ -437,8 +560,9 @@ void RenderData::AddToBatch(
 	}
 }
 
-void RenderData::SetupRender(const FrameBuffer& frame_buffer, const Camera& camera) const {
+void RenderData::SetupRender(const FrameBuffer& frame_buffer, const Camera& camera) {
 	frame_buffer.Bind();
+	camera_vertices = camera.GetQuadVertices();
 	auto position{ camera.GetViewportPosition() };
 	auto size{ camera.GetViewportSize() };
 	GLRenderer::SetViewport(position, position + size);
@@ -448,9 +572,8 @@ void RenderData::Render(
 	const FrameBuffer& frame_buffer, const Camera& camera, ecs::Manager& manager
 ) {
 	SetupRender(frame_buffer, camera);
-	auto camera_vertices{ camera.GetQuadVertices() };
 	for (auto [e, t, v] : manager.EntitiesWith<Transform, Visible>()) {
-		AddToBatch(e, camera_vertices, true);
+		AddToBatch(e, true);
 	}
 	FlushBatches(frame_buffer, camera);
 }
@@ -460,8 +583,7 @@ void RenderData::Render(
 	bool check_visibility
 ) {
 	SetupRender(frame_buffer, camera);
-	auto camera_vertices{ camera.GetQuadVertices() };
-	AddToBatch(o, camera_vertices, check_visibility);
+	AddToBatch(o, check_visibility);
 	FlushBatches(frame_buffer, camera);
 }
 
@@ -517,7 +639,7 @@ void RenderData::FlushBatches(const FrameBuffer& frame_buffer, const Camera& cam
 					if (!e.Has<Visible>() || !e.Get<Visible>()) {
 						continue;
 					}
-					PTGN_ASSERT((e.Has<PointLight, Transform>()));
+					PTGN_ASSERT((e.Has<PointLight>()));
 					if (!lights_found) {
 						lights.Bind();
 						lights.Clear();
@@ -531,8 +653,8 @@ void RenderData::FlushBatches(const FrameBuffer& frame_buffer, const Camera& cam
 						lights_found = true;
 					}
 					const auto& light{ e.Get<PointLight>() };
-					const auto& transform{ e.Get<Transform>() };
-					batch.shader.SetUniform("u_LightPosition", transform.position);
+					auto position{ GetPosition(e) };
+					batch.shader.SetUniform("u_LightPosition", position);
 					batch.shader.SetUniform("u_LightIntensity", light.GetIntensity());
 					batch.shader.SetUniform("u_LightRadius", light.GetRadius());
 					batch.shader.SetUniform("u_Falloff", light.GetFalloff());

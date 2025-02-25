@@ -17,6 +17,7 @@
 #include "renderer/frame_buffer.h"
 #include "renderer/render_target.h"
 #include "renderer/shader.h"
+#include "renderer/text.h"
 #include "renderer/texture.h"
 #include "renderer/vertex_array.h"
 #include "scene/camera.h"
@@ -39,12 +40,6 @@ public:
 	);
 	void RenderToScreen(const RenderTarget& target, const Camera& camera);
 
-	void AddTexturedQuad(
-		const std::array<V2_float, Batch::quad_vertex_count>& vertices,
-		const std::array<V2_float, Batch::quad_vertex_count>& tex_coords, const Texture& texture,
-		const Depth& depth, BlendMode blend_mode, const V4_float& color
-	);
-
 	void AddLine(
 		const V2_float& line_start, const V2_float& line_end, float line_width, const Depth& depth,
 		BlendMode blend_mode, const V4_float& color
@@ -55,9 +50,69 @@ public:
 		BlendMode blend_mode, const V4_float& color, bool connect_last_to_first
 	);
 
+	void AddTexture(
+		const ecs::Entity& e, const Texture& texture, const V2_float& position,
+		const V2_float& size, Origin origin, const Depth& depth, BlendMode blend_mode,
+		const V4_float& color, float rotation, const V2_float& rotation_center,
+		bool flip_vertically = false
+	);
+
+	void AddTriangle(
+		const std::array<V2_float, 3>& vertices, float line_width, const Depth& depth,
+		BlendMode blend_mode, const V4_float& color
+	);
+
+	void AddQuad(
+		const V2_float& position, const V2_float& size, Origin origin, float line_width,
+		const Depth& depth, BlendMode blend_mode, const V4_float& color, float rotation,
+		const V2_float& rotation_center
+	);
+
+	void AddEllipse(
+		const V2_float& center, const V2_float& radius, float line_width, const Depth& depth,
+		BlendMode blend_mode, const V4_float& color, float rotation, const V2_float& rotation_center
+	);
+
+	void AddPolygon(
+		const std::vector<V2_float>& vertices, float line_width, const Depth& depth,
+		BlendMode blend_mode, const V4_float& color
+	);
+
+	void AddPoint(
+		const V2_float position, const Depth& depth, BlendMode blend_mode, const V4_float& color
+	);
+
+	void AddPointLight(const ecs::Entity& o, const Depth& depth);
+
+	void AddText(
+		const ecs::Entity& o, const Text& text, const V2_float& position, const V2_float& size,
+		Origin origin, const Depth& depth, BlendMode blend_mode, const V4_float& color,
+		float rotation, const V2_float& rotation_center
+	);
+
+	void AddRenderTarget(
+		const ecs::Entity& o, const RenderTarget& rt, const Depth& depth, BlendMode blend_mode,
+		const V4_float& tint
+	);
+
+	void AddButton(
+		const Text& text, const Texture& texture, const V4_float& background_color,
+		float background_line_width, bool bordered, const V4_float& border_color,
+		float border_line_width, const V2_float& position, const V2_float& size, Origin origin,
+		const Depth& depth, BlendMode blend_mode, const V4_float& tint, float rotation,
+		const V2_float& rotation_center
+	);
+
+private:
 	void AddFilledTriangle(
 		const std::array<V2_float, Batch::triangle_vertex_count>& vertices, const Depth& depth,
 		BlendMode blend_mode, const V4_float& color
+	);
+
+	void AddTexturedQuad(
+		const std::array<V2_float, Batch::quad_vertex_count>& vertices,
+		const std::array<V2_float, Batch::quad_vertex_count>& tex_coords, const Texture& texture,
+		const Depth& depth, BlendMode blend_mode, const V4_float& color
 	);
 
 	void AddFilledQuad(
@@ -75,9 +130,6 @@ public:
 		const V2_float& radius, const Depth& depth, BlendMode blend_mode, const V4_float& color
 	);
 
-	void AddPointLight(const ecs::Entity& o, const Depth& depth);
-
-private:
 	[[nodiscard]] V2_float GetTextureSize(const ecs::Entity& o, const Texture& texture);
 
 	[[nodiscard]] Batch& GetBatch(
@@ -87,17 +139,17 @@ private:
 
 	[[nodiscard]] float GetTextureIndex(Batch& batch, const Texture& texture);
 
-	void AddToBatch(
-		const ecs::Entity& object,
-		const std::array<V2_float, Batch::quad_vertex_count>& camera_vertices, bool check_visibility
-	);
+	void AddToBatch(const ecs::Entity& object, bool check_visibility);
 
 	void SetVertexArrayToWindow(
 		const Camera& camera, const Color& color, const Depth& depth, float texture_index
 	);
 
-	void SetupRender(const FrameBuffer& frame_buffer, const Camera& camera) const;
+	void SetupRender(const FrameBuffer& frame_buffer, const Camera& camera);
 	void FlushBatches(const FrameBuffer& frame_buffer, const Camera& camera);
+
+	// Set once before adding to batch.
+	std::array<V2_float, Batch::quad_vertex_count> camera_vertices;
 
 	constexpr static float min_line_width{ 1.0f };
 
