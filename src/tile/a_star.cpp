@@ -86,8 +86,8 @@ void AStarGrid::DisplayWaypoints(
 	const std::deque<V2_int>& waypoints, const V2_int& tile_size, const Color& color
 ) {
 	for (std::size_t i = 0; i + 1 < waypoints.size(); ++i) {
-		Line path{ waypoints[i] * tile_size + tile_size / 2.0f,
-				   waypoints[i + 1] * tile_size + tile_size / 2.0f };
+		// Line path{ waypoints[i] * tile_size + tile_size / 2.0f,
+		// waypoints[i + 1] * tile_size + tile_size / 2.0f };
 		// TODO: Fix draw.
 		// path.Draw(color);
 	}

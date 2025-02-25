@@ -1,12 +1,13 @@
 #pragma once
 
-#include <cstdint>
+#include <array>
 #include <vector>
 
-#include "math/geometry/intersection.h"
-#include "math/raycast.h"
+#include "core/game_object.h"
+#include "ecs/ecs.h"
+#include "math/collision/intersect.h"
+#include "math/collision/raycast.h"
 #include "math/vector2.h"
-#include "math/vector4.h"
 
 namespace ptgn {
 
@@ -16,14 +17,15 @@ struct Line;
 struct Capsule;
 struct RoundedRect;
 
-struct Circle {
-	V2_float center;
-	float radius{ 0.0f };
+struct Circle : public GameObject {
+	Circle() = default;
+	Circle(const ecs::Entity& e);
+	Circle(const ecs::Entity& e, float radius);
 
-	// center += offset
-	void Offset(const V2_float& offset);
+	Circle& SetRadius(float radius);
+	[[nodiscard]] float GetRadius() const;
 
-	[[nodiscard]] V2_float Center() const;
+	[[nodiscard]] V2_float GetCenter() const;
 
 	[[nodiscard]] bool Overlaps(const V2_float& point) const;
 	[[nodiscard]] bool Overlaps(const Line& line) const;
@@ -38,10 +40,15 @@ struct Circle {
 	[[nodiscard]] ptgn::Raycast Raycast(const V2_float& ray, const Circle& circle) const;
 	[[nodiscard]] ptgn::Raycast Raycast(const V2_float& ray, const Capsule& capsule) const;
 	[[nodiscard]] ptgn::Raycast Raycast(const V2_float& ray, const Rect& rect) const;
+
+private:
+	float radius_{ 0.0f };
 };
 
-struct Arc {
-	V2_float center;
+struct Arc : public GameObject {
+	Arc() = default;
+	Arc(const ecs::Entity& e);
+
 	float radius{ 0.0f };
 
 	// Radians counter-clockwise from the right.
@@ -61,9 +68,18 @@ private:
 	[[nodiscard]] std::vector<V2_float> GetVertices(bool clockwise, float sa, float ea) const;
 };
 
-struct Ellipse {
-	V2_float center;
-	V2_float radius;
+struct Ellipse : public GameObject {
+	Ellipse() = default;
+	Ellipse(const ecs::Entity& e);
+	Ellipse(const ecs::Entity& e, const V2_float& radius);
+
+	Ellipse& SetRadius(const V2_float& radius);
+	[[nodiscard]] V2_float GetRadius() const;
+
+	[[nodiscard]] V2_float GetCenter() const;
+
+private:
+	V2_float radius_;
 };
 
 } // namespace ptgn

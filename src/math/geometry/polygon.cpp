@@ -2,27 +2,104 @@
 
 #include <array>
 #include <cmath>
-#include <limits>
 #include <vector>
 
 #include "core/game.h"
+#include "core/game_object.h"
 #include "core/window.h"
-#include "math/geometry/axis.h"
+#include "ecs/ecs.h"
+#include "math/collision/intersect.h"
+#include "math/collision/overlap.h"
+#include "math/collision/raycast.h"
 #include "math/geometry/circle.h"
-#include "math/geometry/intersection.h"
 #include "math/geometry/line.h"
 #include "math/math.h"
-#include "math/raycast.h"
 #include "math/utility.h"
 #include "math/vector2.h"
 #include "renderer/origin.h"
 #include "utility/assert.h"
-#include "utility/debug.h"
-#include "utility/stats.h"
 
 namespace ptgn {
 
 namespace impl {
+
+std::array<V2_float, 4> GetQuadVertices(
+	const V2_float& rect_center, float rotation, const V2_float& rect_size,
+	const V2_float& rotation_center
+) {
+	PTGN_ASSERT(
+		rotation_center.x >= 0.0f && rotation_center.x <= 1.0f,
+		"Rotation center must be within 0.0f and 1.0f"
+	);
+	PTGN_ASSERT(
+		rotation_center.y >= 0.0f && rotation_center.y <= 1.0f,
+		"Rotation center must be within 0.0f and 1.0f"
+	);
+
+	V2_float rotation_point{ rect_center + rect_size * (rotation_center - V2_float{ 0.5f }) };
+
+	V2_float rot{ -rect_size * rotation_center };
+	V2_float s0{ rot };
+	V2_float s1{ rect_size.x + rot.x, rot.y };
+	V2_float s2{ rect_size + rot };
+	V2_float s3{ rot.x, rect_size.y + rot.y };
+
+	float c{ 1.0f };
+	float s{ 0.0f };
+
+	if (!NearlyEqual(rotation, 0.0f)) {
+		c = std::cos(rotation);
+		s = std::sin(rotation);
+	}
+
+	auto rotated = [&](const V2_float& coordinate) {
+		return rotation_point +
+			   V2_float{ c * coordinate.x - s * coordinate.y, s * coordinate.x + c * coordinate.y };
+	};
+
+	std::array<V2_float, 4> vertices{ rotated(s0), rotated(s1), rotated(s2), rotated(s3) };
+
+	return vertices;
+}
+
+std::array<V2_float, 4> GetQuadVertices(
+	const V2_float& rect_min, const V2_float& rect_max, float rotation,
+	const V2_float& rotation_center
+) {
+	V2_float center{ Midpoint(rect_min, rect_max) };
+	V2_float size{ rect_max - rect_min };
+
+	return GetQuadVertices(center, rotation, size, rotation_center);
+}
+
+V2_float GetPolygonCenter(const std::vector<V2_float>& polygon) {
+	// Source: https://stackoverflow.com/a/63901131
+	V2_float centroid;
+	float signed_area{ 0.0f };
+	V2_float v0{ 0.0f }; // Current verte
+	V2_float v1{ 0.0f }; // Next vertex
+	float a{ 0.0f };	 // Partial signed area
+
+	std::size_t lastdex	 = polygon.size() - 1;
+	const V2_float* prev = &(polygon[lastdex]);
+	const V2_float* next{ nullptr };
+
+	// For all vertices in a loop
+	for (const auto& vertex : polygon) {
+		next		 = &vertex;
+		v0			 = *prev;
+		v1			 = *next;
+		a			 = v0.Cross(v1);
+		signed_area += a;
+		centroid	+= (v0 + v1) * a;
+		prev		 = next;
+	}
+
+	signed_area *= 0.5f;
+	centroid	/= 6.0f * signed_area;
+
+	return centroid;
+}
 
 float TriangulateArea(const V2_float* contour, std::size_t count) {
 	PTGN_ASSERT(contour != nullptr);
@@ -36,6 +113,7 @@ float TriangulateArea(const V2_float* contour, std::size_t count) {
 	return A * 0.5f;
 }
 
+// TODO: Combine x and ys.
 bool TriangulateInsideTriangle(
 	float Ax, float Ay, float Bx, float By, float Cx, float Cy, float Px, float Py
 ) {
@@ -91,10 +169,10 @@ bool TriangulateSnip(
 }
 
 // From: https://www.flipcode.com/archives/Efficient_Polygon_Triangulation.shtml
-std::vector<Triangle> Triangulate(const V2_float* contour, std::size_t count) {
+std::vector<std::array<V2_float, 3>> Triangulate(const V2_float* contour, std::size_t count) {
 	PTGN_ASSERT(contour != nullptr);
 	/* allocate and initialize list of Vertices in polygon */
-	std::vector<Triangle> result;
+	std::vector<std::array<V2_float, 3>> result;
 
 	auto n = static_cast<int>(count);
 	if (n < 3) {
@@ -147,10 +225,9 @@ std::vector<Triangle> Triangulate(const V2_float* contour, std::size_t count) {
 			int b = V[static_cast<std::size_t>(v)];
 			int c = V[static_cast<std::size_t>(w)];
 
-			result.emplace_back(
-				contour[static_cast<std::size_t>(a)], contour[static_cast<std::size_t>(b)],
-				contour[static_cast<std::size_t>(c)]
-			);
+			result.emplace_back(std::array<V2_float, 3>{ contour[static_cast<std::size_t>(a)],
+														 contour[static_cast<std::size_t>(b)],
+														 contour[static_cast<std::size_t>(c)] });
 
 			m++;
 
@@ -173,340 +250,170 @@ std::vector<Triangle> Triangulate(const V2_float* contour, std::size_t count) {
 
 } // namespace impl
 
-Triangle::Triangle(const V2_float& a, const V2_float& b, const V2_float& c) :
-	a{ a }, b{ b }, c{ c } {}
+Triangle::Triangle(const ecs::Entity& e) : GameObject{ e } {}
+
+Triangle::Triangle(const ecs::Entity& e, const V2_float& a, const V2_float& b, const V2_float& c) :
+	GameObject{ e } {
+	SetLocalVertices(a, b, c);
+}
+
+Triangle& Triangle::SetLocalVertices(const V2_float& a, const V2_float& b, const V2_float& c) {
+	a_ = a;
+	b_ = b;
+	c_ = c;
+	return *this;
+}
+
+std::array<V2_float, 3> Triangle::GetVertices() const {
+	V2_float pos{ GetPosition() };
+	return { pos + a_, pos + b_, pos + c_ };
+}
+
+bool Triangle::operator==(const Triangle& o) const {
+	return a_ == o.a_ && b_ == o.b_ && c_ == o.c_;
+}
+
+bool Triangle::operator!=(const Triangle& o) const {
+	return !(*this == o);
+}
 
 bool Triangle::Overlaps(const V2_float& point) const {
-#ifdef PTGN_DEBUG
-	game.stats.overlap_point_triangle++;
-#endif
-	// Using barycentric coordinates method.
-	float A{ 0.5f * (-b.y * c.x + a.y * (-b.x + c.x) + a.x * (b.y - c.y) + b.x * c.y) };
-	float z{ 1.0f / (2.0f * A) };
-	float s{ z * (a.y * c.x - a.x * c.y + (c.y - a.y) * point.x + (a.x - c.x) * point.y) };
-	float t{ z * (a.x * b.y - a.y * b.x + (a.y - b.y) * point.x + (b.x - a.x) * point.y) };
-
-	return s >= 0.0f && t >= 0.0f && (s + t) <= 1.0f;
+	return point.Overlaps(*this);
 }
 
 bool Triangle::Overlaps(const Rect& rect) const {
-#ifdef PTGN_DEBUG
-	game.stats.overlap_triangle_rect++;
-#endif
-	V2_float min{ rect.Min() };
-	V2_float max{ rect.Max() };
-	return Polygon{ { a, b, c } }.Overlaps(Polygon{
-		{ min, { max.x, min.y }, max, { min.x, max.y } } });
+	auto [a, b, c]			  = GetVertices();
+	auto [rect_min, rect_max] = rect.GetExtents();
+	return OverlapTriangleRect(
+		a, b, c, rect_min, rect_max, rect.GetRotation(), rect.GetRotationCenter()
+	);
 }
 
 bool Triangle::Contains(const Triangle& internal) const {
-	return Overlaps(internal.a) && Overlaps(internal.b) && Overlaps(internal.c);
+	auto [a, b, c] = GetVertices();
+	auto [t, r, s] = internal.GetVertices();
+	return OverlapPointTriangle(t, a, b, c) && OverlapPointTriangle(r, a, b, c) &&
+		   OverlapPointTriangle(s, a, b, c);
 }
 
-Rect::Rect(const V2_float& position, const V2_float& size, Origin origin, float rotation) :
-	position{ position }, size{ size }, origin{ origin }, rotation{ rotation } {}
+Rect::Rect(const ecs::Entity& e) : GameObject{ e } {}
 
-Rect Rect::Fullscreen() {
-	return Rect{ {}, game.window.GetSize(), Origin::TopLeft };
+Rect::Rect(const ecs::Entity& e, const V2_float& size, Origin origin) : Rect{ e } {
+	SetSize(size);
+	SetOrigin(origin);
 }
 
-void Rect::Offset(const V2_float& offset) {
-	position += offset;
+std::array<V2_float, 2> Rect::GetExtents() const {
+	V2_float center{ GetCenter() };
+	V2_float half{ size_ / 2.0f };
+	return { center - half, center + half };
 }
 
-std::array<Line, 4> Rect::GetEdges() const {
-	V2_int min{ Min() };
-	V2_int max{ Max() };
-	return { Line{ min, { max.x, min.y } }, Line{ { max.x, min.y }, max },
-			 Line{ max, { min.x, max.y } }, Line{ { min.x, max.y }, min } };
+Rect& Rect::SetSize(const V2_float& size) {
+	size_ = size;
+	return *this;
 }
 
-std::array<V2_float, 4> Rect::GetCorners() const {
-	V2_float min{ Min() };
-	V2_float max{ Max() };
-	return { min, { max.x, min.y }, max, { min.x, max.y } };
+Rect& Rect::SetOrigin(Origin origin) {
+	origin_ = origin;
+	return *this;
+}
+
+V2_float Rect::GetSize() const {
+	return size_;
+}
+
+Origin Rect::GetOrigin() const {
+	return origin_;
 }
 
 V2_float Rect::Half() const noexcept {
-	return size * 0.5f;
+	return size_ * 0.5f;
 }
 
-V2_float Rect::Center() const noexcept {
-	return position - GetOffsetFromCenter(size, origin);
+V2_float Rect::GetCenter() const noexcept {
+	return GameObject::GetPosition() - GetOffsetFromCenter(size_, origin_);
 }
 
 V2_float Rect::Max() const noexcept {
-	return Center() + Half();
+	return GetCenter() + Half();
 }
 
 V2_float Rect::Min() const noexcept {
-	return Center() - Half();
+	return GetCenter() - Half();
 }
 
-V2_float Rect::GetPosition(Origin relative_to) const {
-	return Center() + GetOffsetFromCenter(size, relative_to);
+V2_float Rect::GetPositionRelativeTo(Origin relative_to) const {
+	return GetCenter() + GetOffsetFromCenter(size_, relative_to);
 }
 
-void Rect::OffsetVertices(
-	std::array<V2_float, 4>& vertices, const V2_float& size, Origin draw_origin
-) {
-	auto draw_offset{ GetOffsetFromCenter(size, draw_origin) };
-
-	// Offset each vertex by based on draw origin.
-	if (!draw_offset.IsZero()) {
-		for (auto& v : vertices) {
-			v -= draw_offset;
-		}
-	}
-}
-
-void Rect::RotateVertices(
-	std::array<V2_float, 4>& vertices, const V2_float& position, const V2_float& size,
-	float rotation_radians, const V2_float& rotation_center
-) {
-	PTGN_ASSERT(
-		rotation_center.x >= 0.0f && rotation_center.x <= 1.0f,
-		"Rotation center must be within 0.0f and 1.0f"
-	);
-	PTGN_ASSERT(
-		rotation_center.y >= 0.0f && rotation_center.y <= 1.0f,
-		"Rotation center must be within 0.0f and 1.0f"
-	);
-
-	V2_float half{ size * 0.5f };
-
-	V2_float rot{ -size * rotation_center };
-
-	V2_float s0{ rot };
-	V2_float s1{ size.x + rot.x, rot.y };
-	V2_float s2{ size + rot };
-	V2_float s3{ rot.x, size.y + rot.y };
-
-	float c{ 1.0f };
-	float s{ 0.0f };
-
-	if (!NearlyEqual(rotation_radians, 0.0f)) {
-		c = std::cos(rotation_radians);
-		s = std::sin(rotation_radians);
-	}
-
-	auto rotated = [&](const V2_float& coordinate) {
-		return position - rot - half +
-			   V2_float{ c * coordinate.x - s * coordinate.y, s * coordinate.x + c * coordinate.y };
-	};
-
-	vertices[0] = rotated(s0);
-	vertices[1] = rotated(s1);
-	vertices[2] = rotated(s2);
-	vertices[3] = rotated(s3);
-}
-
-std::array<V2_float, 4> Rect::GetVertices(const V2_float& rotation_center) const {
-	std::array<V2_float, 4> vertices;
-	RotateVertices(vertices, position, size, rotation, rotation_center);
-	OffsetVertices(vertices, size, origin);
-	return vertices;
+std::array<V2_float, 4> Rect::GetVertices() const {
+	return impl::GetQuadVertices(GetCenter(), GetRotation(), size_, GetRotationCenter());
 }
 
 bool Rect::IsZero() const noexcept {
-	return position.IsZero() && size.IsZero();
+	return size_.IsZero();
 }
 
 bool Rect::Overlaps(const V2_float& point) const {
-#ifdef PTGN_DEBUG
-	game.stats.overlap_point_rect++;
-#endif
-	if (rotation != 0.0f) {
-		Polygon poly_a{ *this };
-		return poly_a.Overlaps(point);
-	}
-
-	V2_float max{ Max() };
-	V2_float min{ Min() };
-
-	if (point.x < min.x || point.x > max.x) {
-		return false;
-	}
-
-	if (point.y < min.y || point.y > max.y) {
-		return false;
-	}
-
-	if (NearlyEqual(point.x, max.x) || NearlyEqual(point.x, min.x)) {
-		return false;
-	}
-
-	if (NearlyEqual(point.y, min.y) || NearlyEqual(point.y, max.y)) {
-		return false;
-	}
-
-	return true;
+	return point.Overlaps(*this);
 }
 
 bool Rect::Overlaps(const Line& line) const {
-#ifdef PTGN_DEBUG
-	game.stats.overlap_line_rect++;
-#endif
-	// TODO: Add rotation check.
-
-	V2_float c{ Center() };
-	V2_float e{ Half() };
-	V2_float m{ line.Midpoint() };
-	V2_float d{ line.b - m }; // Line halflength vector
-
-	m = m - c;				  // Translate box and segment to origin
-
-	// Try world coordinate axes as separating axes.
-	float adx{ FastAbs(d.x) };
-	if (FastAbs(m.x) >= e.x + adx) {
-		return false;
-	}
-	float ady{ FastAbs(d.y) };
-	if (FastAbs(m.y) >= e.y + ady) {
-		return false;
-	}
-	// Add in an epsilon term to counteract arithmetic errors when segment is
-	// (near) parallel to a coordinate axis.
-	adx += epsilon<float>;
-	ady += epsilon<float>;
-
-	// Try cross products of segment direction vector with coordinate axes.
-	float cross{ m.Cross(d) };
-	float dot{ e.Dot({ ady, adx }) };
-
-	if (FastAbs(cross) > dot) {
-		return false;
-	}
-	// No separating axis found; segment must be overlapping AABB.
-	return true;
-
-	// Alternative method:
-	// Source: https://en.wikipedia.org/wiki/Cohen%E2%80%93Sutherland_algorithm
-}
-
-bool Rect::Overlaps(const Triangle& triangle) const {
-	// TODO: Add rotation check.
-	return triangle.Overlaps(*this);
+	return line.Overlaps(*this);
 }
 
 bool Rect::Overlaps(const Circle& circle) const {
-	// TODO: Add rotation check.
 	return circle.Overlaps(*this);
 }
 
+bool Rect::Overlaps(const Triangle& triangle) const {
+	return triangle.Overlaps(*this);
+}
+
+bool Rect::Overlaps(const Rect& rect) const {
+	auto [a_min, a_max] = GetExtents();
+	auto [b_min, b_max] = rect.GetExtents();
+	return OverlapRectRect(
+		a_min, a_max, GetRotation(), GetRotationCenter(), b_min, b_max, rect.GetRotation(),
+		rect.GetRotationCenter()
+	);
+}
+
 bool Rect::Overlaps(const Capsule& capsule) const {
-	// TODO: Add rotation check.
-	return capsule.Overlaps(*this);
+	auto [rect_min, rect_max] = GetExtents();
+	return OverlapRectCapsule(
+		rect_min, rect_max, GetRotation(), GetRotationCenter(), capsule.GetStart(),
+		capsule.GetEnd(), capsule.GetRadius()
+	);
 }
 
-bool Rect::Overlaps(const Rect& o_rect) const {
-	if (rotation != 0.0f || o_rect.rotation != 0.0f) {
-		Polygon poly_a{ *this };
-		Polygon poly_b{ o_rect };
-
-		return poly_a.Overlaps(poly_b);
-	}
-#ifdef PTGN_DEBUG
-	game.stats.overlap_rect_rect++;
-#endif
-
-	V2_float max{ Max() };
-	V2_float min{ Min() };
-	V2_float o_max{ o_rect.Max() };
-	V2_float o_min{ o_rect.Min() };
-
-	if (max.x < o_min.x || min.x > o_max.x) {
-		return false;
-	}
-
-	if (max.y < o_min.y || min.y > o_max.y) {
-		return false;
-	}
-
-	// Optional: Ignore seam collisions:
-
-	if (NearlyEqual(min.x, o_max.x) || NearlyEqual(max.x, o_min.x)) {
-		return false;
-	}
-
-	if (NearlyEqual(max.y, o_min.y) || NearlyEqual(min.y, o_max.y)) {
-		return false;
-	}
-
-	return true;
-}
-
-Intersection Rect::Intersects(const Rect& o_rect) const {
-	Intersection c;
-	if (rotation != 0.0f || o_rect.rotation != 0.0f) {
-		// Make "worst-case" bounding volumes around the rotated rectangles.
-		Rect a{ Center(), V2_float{ std::max(size.x, size.y) * sqrt_two<float> }, Origin::Center };
-		Rect b{ o_rect.Center(),
-				V2_float{ std::max(o_rect.size.x, o_rect.size.y) * sqrt_two<float> },
-				Origin::Center };
-		// If the bounding volumes do not overlap, the rectangles also wont overlap.
-		if (!a.Overlaps(b)) {
-			return c;
-		}
-
-		Polygon poly_a{ *this };
-		Polygon poly_b{ o_rect };
-
-		return poly_a.Intersects(poly_b);
-	}
-#ifdef PTGN_DEBUG
-	game.stats.intersect_rect_rect++;
-#endif
-
-	V2_float a_h{ Half() };
-	V2_float b_h{ o_rect.Half() };
-	V2_float d{ o_rect.Center() - Center() };
-	V2_float pen{ a_h + b_h - V2_float{ FastAbs(d.x), FastAbs(d.y) } };
-
-	// Optional: To include seams in collision, simply remove the NearlyEqual calls from this if
-	// statement.
-	if (pen.x < 0 || pen.y < 0 || NearlyEqual(pen.x, 0.0f) || NearlyEqual(pen.y, 0.0f)) {
-		return c;
-	}
-
-	if (NearlyEqual(d.x, 0.0f) && NearlyEqual(d.y, 0.0f)) {
-		// Edge case where aabb centers are in the same location.
-		c.normal.y = -1.0f; // upward
-		c.depth	   = a_h.y + b_h.y;
-	} else if (pen.y < pen.x) {
-		c.normal.y = -Sign(d.y);
-		c.depth	   = FastAbs(pen.y);
-	} else {
-		c.normal.x = -Sign(d.x);
-		c.depth	   = FastAbs(pen.x);
-	}
-
-	PTGN_ASSERT(c.depth >= 0.0f);
-
-	return c;
+Intersection Rect::Intersects(const Rect& rect) const {
+	auto [a_min, a_max] = GetExtents();
+	auto [b_min, b_max] = rect.GetExtents();
+	return IntersectRectRect(
+		a_min, a_max, GetRotation(), GetRotationCenter(), b_min, b_max, rect.GetRotation(),
+		rect.GetRotationCenter()
+	);
 }
 
 Intersection Rect::Intersects(const Circle& circle) const {
-	Intersection c{ circle.Intersects(*this) };
-	c.normal *= -1.0f;
-	return c;
+	auto [rect_min, rect_max] = GetExtents();
+	return IntersectRectCircle(rect_min, rect_max, circle.GetCenter(), circle.GetRadius());
 }
 
 ptgn::Raycast Rect::Raycast(const V2_float& ray, const Circle& circle) const {
-	return circle.Raycast(-ray, *this);
+	auto [rect_min, rect_max] = GetExtents();
+	return RaycastRectCircle(rect_min, rect_max, ray, circle.GetCenter(), circle.GetRadius());
 }
 
 ptgn::Raycast Rect::Raycast(const V2_float& ray, const Rect& rect) const {
-#ifdef PTGN_DEBUG
-	game.stats.raycast_rect_rect++;
-#endif
-	V2_float a_center{ Center() };
-	Line line{ a_center, a_center + ray };
-	Rect expanded{ rect.Min() - Half(), rect.size + size, Origin::TopLeft };
-	auto raycast{ line.Raycast(expanded) };
-	return raycast;
+	auto [a_min, a_max] = GetExtents();
+	auto [b_min, b_max] = rect.GetExtents();
+	return RaycastRectRect(a_min, a_max, ray, b_min, b_max);
 }
 
+/*
 RoundedRect::RoundedRect(
 	const V2_float& position, float radius, const V2_float& size, Origin origin, float rotation
 ) :
@@ -523,7 +430,7 @@ Rect RoundedRect::GetInnerRect() const {
 Rect RoundedRect::GetOuterRect() const {
 	return { position - GetOffsetFromCenter(size, origin), size + V2_float{ radius } * 2.0f,
 			 Origin::Center, rotation };
-}
+}*/
 
 /*
 void RoundedRect::Draw(
@@ -620,236 +527,68 @@ void RoundedRect::Draw(
 }
 */
 
-Polygon::Polygon(const Rect& rect) {
-	float c_a{ std::cos(rect.rotation) };
-	float s_a{ std::sin(rect.rotation) };
+Polygon::Polygon(const ecs::Entity& e) : GameObject{ e } {}
 
-	const auto rotated = [c_a, s_a](const V2_float& v) {
-		return V2_float{ v.x * c_a - v.y * s_a, v.x * s_a + v.y * c_a };
-	};
-
-	vertices.resize(4);
-
-	V2_float center{ rect.Center() };
-
-	V2_float min{ rect.Min() - center };
-	V2_float max{ rect.Max() - center };
-
-	vertices[0] = rotated({ min.x, max.y }) + center;
-	vertices[1] = rotated(max) + center;
-	vertices[2] = rotated({ max.x, min.y }) + center;
-	vertices[3] = rotated(min) + center;
+Polygon::Polygon(const ecs::Entity& e, const std::vector<V2_float>& local_vertices) : Polygon{ e } {
+	SetLocalVertices(local_vertices);
 }
 
-Polygon::Polygon(const std::vector<V2_float>& vertices) : vertices{ vertices } {}
+Polygon& Polygon::SetLocalVertices(const std::vector<V2_float>& local_vertices) {
+	local_vertices_ = local_vertices;
+	return *this;
+}
 
-V2_float Polygon::Center() const {
-	// Source: https://stackoverflow.com/a/63901131
-	V2_float centroid;
-	float signed_area{ 0.0f };
-	V2_float v0{ 0.0f }; // Current verte
-	V2_float v1{ 0.0f }; // Next vertex
-	float a{ 0.0f };	 // Partial signed area
+const std::vector<V2_float>& Polygon::GetLocalVertices() const {
+	return local_vertices_;
+}
 
-	std::size_t lastdex	 = vertices.size() - 1;
-	const V2_float* prev = &(vertices[lastdex]);
-	const V2_float* next{ nullptr };
-
-	// For all vertices in a loop
-	for (const auto& vertex : vertices) {
-		next		 = &vertex;
-		v0			 = *prev;
-		v1			 = *next;
-		a			 = v0.Cross(v1);
-		signed_area += a;
-		centroid	+= (v0 + v1) * a;
-		prev		 = next;
+std::vector<V2_float> Polygon::GetVertices() const {
+	std::vector<V2_float> vertices{ local_vertices_ };
+	auto pos{ GetPosition() };
+	for (auto& v : vertices) {
+		v += pos;
 	}
+	return vertices;
+}
 
-	signed_area *= 0.5f;
-	centroid	/= 6.0f * signed_area;
-
-	return centroid;
+V2_float Polygon::GetCenter() const {
+	return GetPosition() + impl::GetPolygonCenter(local_vertices_);
 }
 
 bool Polygon::IsConvex() const {
-	PTGN_ASSERT(vertices.size() >= 3, "Line or point convexity check is redundant");
-
-	const auto get_cross = [](const V2_float& a, const V2_float& b, const V2_float& c) {
-		return (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
-	};
-
-	int sign{ static_cast<int>(Sign(get_cross(vertices[0], vertices[1], vertices[2]))) };
-
-	// For convex polygons, all sequential point triplet cross products must have the same sign (+
-	// or -). For convex polygon every triplet makes turn in the same side (or CW, or CCW depending
-	// on walk direction). For concave one some signs will differ (where inner angle exceeds 180
-	// degrees). Note that you don't need to calculate angle values. Source:
-	// https://stackoverflow.com/a/40739079
-
-	// Skip first point since that is the established reference.
-	for (std::size_t i = 1; i < vertices.size(); i++) {
-		V2_float a{ vertices[(i + 0)] };
-		V2_float b{ vertices[(i + 1) % vertices.size()] };
-		V2_float c{ vertices[(i + 2) % vertices.size()] };
-
-		int new_sign{ static_cast<int>(Sign(get_cross(a, b, c))) };
-
-		if (new_sign != sign) {
-			// Polygon is concave.
-			return false;
-		}
-	}
-
-	// Convex.
-	return true;
+	return impl::IsConvexPolygon(local_vertices_);
 }
 
 bool Polygon::IsConcave() const {
 	return !IsConvex();
 }
 
-std::vector<Triangle> Polygon::Triangulate() const {
+std::vector<std::array<V2_float, 3>> Polygon::Triangulate() const {
+	auto vertices{ GetVertices() };
 	return impl::Triangulate(vertices.data(), vertices.size());
 }
 
-bool Polygon::HasOverlapAxis(const Polygon& polygon) const {
-	const auto axes{ impl::GetAxes(*this, false) };
-	for (Axis a : axes) {
-		auto [min1, max1] = impl::GetProjectionMinMax(*this, a);
-		auto [min2, max2] = impl::GetProjectionMinMax(polygon, a);
-
-		if (!impl::IntervalsOverlap(min1, max1, min2, max2)) {
-			return false;
-		}
-	}
-	return true;
+bool Polygon::Overlaps(const V2_float& point) const {
+	return point.Overlaps(*this);
 }
 
 bool Polygon::Overlaps(const Polygon& polygon) const {
-#ifdef PTGN_DEBUG
-	game.stats.overlap_polygon_polygon++;
-#endif
-	PTGN_ASSERT(
-		IsConvex() && polygon.IsConvex(),
-		"PolygonPolygon overlap check only works if both polygons are convex"
-	);
-	return HasOverlapAxis(polygon) && polygon.HasOverlapAxis(*this);
-}
-
-bool Polygon::Overlaps(const V2_float& point) const {
-#ifdef PTGN_DEBUG
-	game.stats.overlap_point_polygon++;
-#endif
-	const auto& v{ vertices };
-	std::size_t count{ v.size() };
-	bool c{ false };
-	std::size_t i{ 0 };
-	std::size_t j{ count - 1 };
-	// Algorithm from: https://wrfranklin.org/Research/Short_Notes/pnpoly.html
-	for (; i < count; j = i++) {
-		bool a{ (v[i].y > point.y) != (v[j].y > point.y) };
-		bool b{ point.x < (v[j].x - v[i].x) * (point.y - v[i].y) / (v[j].y - v[i].y) + v[i].x };
-		if (a && b) {
-			c = !c;
-		}
-	}
-	return c;
+	return OverlapPolygonPolygon(GetVertices(), polygon.GetVertices());
 }
 
 bool Polygon::Contains(const Triangle& triangle) const {
-	return Overlaps(triangle.a) && Overlaps(triangle.b) && Overlaps(triangle.c);
+	auto [a, b, c] = triangle.GetVertices();
+	auto vertices{ GetVertices() };
+	return OverlapPointPolygon(a, vertices) && OverlapPointPolygon(b, vertices) &&
+		   OverlapPointPolygon(c, vertices);
+}
+
+Intersection Polygon::Intersects(const Polygon& polygon) const {
+	return IntersectPolygonPolygon(GetVertices(), polygon.GetVertices());
 }
 
 bool Polygon::Contains(const Polygon& internal) const {
-	for (const auto& p : internal.vertices) {
-		if (!Overlaps(p)) {
-			return false;
-		}
-	}
-	return true;
-}
-
-bool Polygon::GetMinimumOverlap(const Polygon& polygon, float& depth, Axis& axis) const {
-	const auto axes{ impl::GetAxes(*this, true) };
-	for (Axis a : axes) {
-		auto [min1, max1] = impl::GetProjectionMinMax(*this, a);
-		auto [min2, max2] = impl::GetProjectionMinMax(polygon, a);
-
-		if (!impl::IntervalsOverlap(min1, max1, min2, max2)) {
-			return false;
-		}
-		bool contained{ Contains(polygon) || polygon.Contains(*this) };
-
-		float o{ impl::GetIntervalOverlap(min1, max1, min2, max2, contained, axis.direction) };
-
-		if (o < depth) {
-			depth = o;
-			axis  = a;
-		}
-	}
-	return true;
-};
-
-Intersection Polygon::Intersects(const Polygon& polygon) const {
-#ifdef PTGN_DEBUG
-	game.stats.intersect_polygon_polygon++;
-#endif
-	PTGN_ASSERT(
-		IsConvex() && polygon.IsConvex(),
-		"PolygonPolygon intersection check only works if both polygons are convex"
-	);
-
-	Intersection c;
-
-	float depth{ std::numeric_limits<float>::infinity() };
-	Axis axis;
-
-	if (!GetMinimumOverlap(polygon, depth, axis) ||
-		!polygon.GetMinimumOverlap(*this, depth, axis)) {
-		return c;
-	}
-
-	PTGN_ASSERT(depth != std::numeric_limits<float>::infinity());
-	PTGN_ASSERT(depth >= 0.0f);
-
-	// Make sure the vector is pointing from polygon1 to polygon2.
-	if (V2_float dir{ Center() - polygon.Center() }; dir.Dot(axis.direction) < 0) {
-		axis.direction *= -1.0f;
-	}
-
-	c.normal = axis.direction;
-	c.depth	 = depth;
-
-	return c;
-
-	/*
-	// Useful debug drawing code:
-	// Draw all polygon points projected onto all the axes.
-	const auto draw_axes = [](const std::vector<Axis>& axes, const Polygon& p) {
-		for (const auto& a : axes) {
-			game.draw.Axis(a.midpoint, a.direction, color::Pink, 1.0f);
-			auto [min, max] = impl::GetProjectionMinMax(p, a);
-			V2_float p1{ a.midpoint + a.direction * min };
-			V2_float p2{ a.midpoint + a.direction * max };
-			game.draw.Point(p1, color::Purple, 5.0f);
-			game.draw.Point(p2, color::Orange, 5.0f);
-			V2_float to{ 0.0f, -17.0f };
-			game.draw.Text(std::to_string((int)min), p1 + to, color::Purple);
-			game.draw.Text(std::to_string((int)max), p2 + to, color::Orange);
-		}
-	};
-
-	draw_axes(impl::GetAxes(*this, true), *this);
-	draw_axes(impl::GetAxes(*this, true), polygon);
-	draw_axes(impl::GetAxes(polygon, true), *this);
-	draw_axes(impl::GetAxes(polygon, true), polygon);
-
-	// Draw overlap axis and overlap amounts on both sides.
-	game.draw.Axis(axis.midpoint, c.normal, color::Black, 2.0f);
-	game.draw.Line(axis.midpoint, axis.midpoint - c.normal * c.depth, color::Cyan, 3.0f);
-	game.draw.Line(axis.midpoint, axis.midpoint + c.normal * c.depth, color::Cyan, 3.0f);
-	*/
+	return impl::PolygonContainsPolygon(GetVertices(), internal.GetVertices());
 }
 
 } // namespace ptgn
