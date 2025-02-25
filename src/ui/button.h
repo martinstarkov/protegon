@@ -8,6 +8,7 @@
 
 #include "components/draw.h"
 #include "components/generic.h"
+#include "core/game_object.h"
 #include "ecs/ecs.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
@@ -31,22 +32,6 @@ struct ButtonHoverStop : public CallbackComponent<void> {
 };
 
 struct ButtonActivate : public CallbackComponent<void> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct ButtonDisable : public CallbackComponent<void> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct ButtonEnable : public CallbackComponent<void> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct ButtonShow : public CallbackComponent<void> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct ButtonHide : public CallbackComponent<void> {
 	using CallbackComponent::CallbackComponent;
 };
 
@@ -91,34 +76,14 @@ using ButtonCallback = std::function<void()>;
 
 using TextAlignment = Origin;
 
-struct Button {
+struct Button : public GameObject {
 	Button() = default;
-	Button(ecs::Manager& manager);
-	Button(Button&& other) noexcept;
-	Button& operator=(Button&& other) noexcept;
-	Button(const Button&)			 = delete;
-	Button& operator=(const Button&) = delete;
-	virtual ~Button();
-
-	[[nodiscard]] ecs::Entity GetEntity();
-
-	// @return True if the button is responding to events, false otherwise.
-	[[nodiscard]] bool IsEnabled() const;
-
-	// Disabling a button causes it to stop responding to events.
-	Button& SetEnabled(bool enabled);
-
-	Button& Disable();
-	Button& Enable();
-
-	// @return True if the button is visible when drawn, false otherwise.
-	[[nodiscard]] bool IsVisible() const;
-
-	// Hiding a button causes it to disappear while still responding to events.
-	Button& SetVisible(bool visible);
-
-	Button& Show();
-	Button& Hide();
+	Button(const ecs::Entity& e);
+	Button(const Button&)				 = default;
+	Button& operator=(const Button&)	 = default;
+	Button(Button&&) noexcept			 = default;
+	Button& operator=(Button&&) noexcept = default;
+	virtual ~Button()					 = default;
 
 	// These allow for manually triggering button callback events.
 	virtual void Activate();
@@ -189,25 +154,13 @@ struct Button {
 	Button& OnHoverStart(const ButtonCallback& callback);
 	Button& OnHoverStop(const ButtonCallback& callback);
 	Button& OnActivate(const ButtonCallback& callback);
-	Button& OnDisable(const ButtonCallback& callback);
-	Button& OnEnable(const ButtonCallback& callback);
-	Button& OnShow(const ButtonCallback& callback);
-	Button& OnHide(const ButtonCallback& callback);
 
 	[[nodiscard]] impl::InternalButtonState GetInternalState() const;
-
-protected:
-	ecs::Entity entity_;
 };
 
 struct ToggleButton : public Button {
 	ToggleButton() = default;
-	ToggleButton(ecs::Manager& manager, bool toggled = false);
-	ToggleButton(ToggleButton&&) noexcept			 = default;
-	ToggleButton& operator=(ToggleButton&&) noexcept = default;
-	ToggleButton(const ToggleButton&)				 = delete;
-	ToggleButton& operator=(const ToggleButton&)	 = delete;
-	~ToggleButton() override						 = default;
+	ToggleButton(const ecs::Entity& e, bool toggled = false);
 
 	void Activate() final;
 

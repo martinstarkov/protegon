@@ -1,19 +1,18 @@
 #include "ui/button.h"
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <string_view>
-#include <type_traits>
-#include <utility>
 
-#include "components/draw.h"
+#include "components/generic.h"
 #include "components/input.h"
 #include "components/transform.h"
+#include "core/game_object.h"
 #include "ecs/ecs.h"
 #include "event/mouse.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
-#include "renderer/origin.h"
 #include "renderer/texture.h"
 #include "utility/log.h"
 
@@ -380,72 +379,96 @@
 
 namespace ptgn {
 
-Button::Button(ecs::Manager& manager) {
-	entity_.Destroy();
-	entity_ = manager.CreateEntity();
-	entity_.Add<Interactive>();
-	entity_.Add<impl::InternalButtonState>(impl::InternalButtonState::IdleUp);
+Button::Button(const ecs::Entity& button_entity) : GameObject{ button_entity } {
+	entity.Add<Interactive>();
+	entity.Add<impl::InternalButtonState>(impl::InternalButtonState::IdleUp);
 
-	entity_.Add<callback::MouseEnter>([=](auto mouse) mutable {
-		auto& state{ entity_.Get<impl::InternalButtonState>() };
+	// Move to StartHover.
+	auto start_hover = [](const auto& entity) {
+		if (entity.Has<impl::ButtonHoverStart>()) {
+			if (const auto& callback{ entity.Get<impl::ButtonHoverStart>() }; callback != nullptr) {
+				callback();
+			}
+		}
+	};
+
+	// Move to SopHover.
+	auto stop_hover = [](const auto& entity) {
+		if (entity.Has<impl::ButtonHoverStop>()) {
+			if (const auto& callback{ entity.Get<impl::ButtonHoverStop>() }; callback != nullptr) {
+				callback();
+			}
+		}
+	};
+
+	auto activate = [](const auto& entity) {
+		if (entity.Has<impl::ButtonActivate>()) {
+			if (const auto& callback{ entity.Get<impl::ButtonActivate>() }; callback != nullptr) {
+				callback();
+			}
+		}
+	};
+
+	entity.Add<callback::MouseEnter>([start_hover, e = entity](auto mouse) mutable {
+		auto& state{ e.Get<impl::InternalButtonState>() };
 		if (state == impl::InternalButtonState::IdleUp) {
 			state = impl::InternalButtonState::Hover;
-			StartHover();
+			start_hover(e);
 		} else if (state == impl::InternalButtonState::IdleDown) {
 			state = impl::InternalButtonState::HoverPressed;
-			StartHover();
+			start_hover(e);
 		} else if (state == impl::InternalButtonState::HeldOutside) {
 			state = impl::InternalButtonState::Pressed;
 		}
 	});
 
-	entity_.Add<callback::MouseLeave>([=](auto mouse) mutable {
-		auto& state{ entity_.Get<impl::InternalButtonState>() };
+	entity.Add<callback::MouseLeave>([stop_hover, e = entity](auto mouse) mutable {
+		auto& state{ e.Get<impl::InternalButtonState>() };
 		if (state == impl::InternalButtonState::Hover) {
 			state = impl::InternalButtonState::IdleUp;
-			StopHover();
+			stop_hover(e);
 		} else if (state == impl::InternalButtonState::Pressed) {
 			state = impl::InternalButtonState::HeldOutside;
-			StopHover();
+			stop_hover(e);
 		} else if (state == impl::InternalButtonState::HoverPressed) {
 			state = impl::InternalButtonState::IdleDown;
-			StopHover();
+			stop_hover(e);
 		}
 	});
 
-	entity_.Add<callback::MouseDown>([=](auto mouse) mutable {
+	entity.Add<callback::MouseDown>([e = entity](auto mouse) mutable {
 		if (mouse == Mouse::Left) {
-			auto& state{ entity_.Get<impl::InternalButtonState>() };
+			auto& state{ e.Get<impl::InternalButtonState>() };
 			if (state == impl::InternalButtonState::Hover) {
 				state = impl::InternalButtonState::Pressed;
 			}
 		}
 	});
 
-	entity_.Add<callback::MouseDownOutside>([=](auto mouse) mutable {
+	entity.Add<callback::MouseDownOutside>([e = entity](auto mouse) mutable {
 		if (mouse == Mouse::Left) {
-			auto& state{ entity_.Get<impl::InternalButtonState>() };
+			auto& state{ e.Get<impl::InternalButtonState>() };
 			if (state == impl::InternalButtonState::IdleUp) {
 				state = impl::InternalButtonState::IdleDown;
 			}
 		}
 	});
 
-	entity_.Add<callback::MouseUp>([=](auto mouse) mutable {
+	entity.Add<callback::MouseUp>([activate, e = entity](auto mouse) mutable {
 		if (mouse == Mouse::Left) {
-			auto& state{ entity_.Get<impl::InternalButtonState>() };
+			auto& state{ e.Get<impl::InternalButtonState>() };
 			if (state == impl::InternalButtonState::Pressed) {
 				state = impl::InternalButtonState::Hover;
-				Activate();
+				activate(e);
 			} else if (state == impl::InternalButtonState::HoverPressed) {
 				state = impl::InternalButtonState::Hover;
 			}
 		}
 	});
 
-	entity_.Add<callback::MouseUpOutside>([=](auto mouse) mutable {
+	entity.Add<callback::MouseUpOutside>([e = entity](auto mouse) mutable {
 		if (mouse == Mouse::Left) {
-			auto& state{ entity_.Get<impl::InternalButtonState>() };
+			auto& state{ e.Get<impl::InternalButtonState>() };
 			if (state == impl::InternalButtonState::IdleDown) {
 				state = impl::InternalButtonState::IdleUp;
 			} else if (state == impl::InternalButtonState::HeldOutside) {
@@ -455,116 +478,32 @@ Button::Button(ecs::Manager& manager) {
 	});
 }
 
-Button::Button(Button&& other) noexcept : entity_{ std::exchange(other.entity_, {}) } {}
-
-Button& Button::operator=(Button&& other) noexcept {
-	if (this != &other) {
-		entity_ = std::exchange(other.entity_, {});
-	}
-	return *this;
-}
-
-Button::~Button() {
-	entity_.Destroy();
-}
-
-ecs::Entity Button::GetEntity() {
-	return entity_;
-}
-
-bool Button::IsEnabled() const {
-	return entity_.Get<Interactive>().enabled;
-}
-
-Button& Button::SetEnabled(bool enabled) {
-	auto& interactive{ entity_.Get<Interactive>() };
-	auto was_enabled{ interactive.enabled };
-	interactive.enabled = enabled;
-	if (!was_enabled && enabled) {
-		if (entity_.Has<impl::ButtonEnable>()) {
-			if (const auto& callback{ entity_.Get<impl::ButtonEnable>() }; callback != nullptr) {
-				callback();
-			}
-		}
-	} else if (was_enabled && !enabled) {
-		if (entity_.Has<impl::ButtonDisable>()) {
-			if (const auto& callback{ entity_.Get<impl::ButtonDisable>() }; callback != nullptr) {
-				callback();
-			}
-		}
-	}
-	return *this;
-}
-
-Button& Button::Disable() {
-	SetEnabled(false);
-	return *this;
-}
-
-Button& Button::Enable() {
-	SetEnabled(true);
-	return *this;
-}
-
-bool Button::IsVisible() const {
-	return entity_.Get<Visible>();
-}
-
-Button& Button::SetVisible(bool visible) {
-	bool was_visible{ entity_.Get<Visible>() };
-	entity_.Add<Visible>(visible);
-	if (!was_visible && visible) {
-		if (entity_.Has<impl::ButtonShow>()) {
-			if (const auto& callback{ entity_.Get<impl::ButtonShow>() }; callback != nullptr) {
-				callback();
-			}
-		}
-	} else if (was_visible && !visible) {
-		if (entity_.Has<impl::ButtonHide>()) {
-			if (const auto& callback{ entity_.Get<impl::ButtonHide>() }; callback != nullptr) {
-				callback();
-			}
-		}
-	}
-	return *this;
-}
-
-Button& Button::Show() {
-	SetVisible(true);
-	return *this;
-}
-
-Button& Button::Hide() {
-	SetVisible(false);
-	return *this;
-}
-
 void Button::Activate() {
-	if (entity_.Has<impl::ButtonActivate>()) {
-		if (const auto& callback{ entity_.Get<impl::ButtonActivate>() }; callback != nullptr) {
+	if (entity.Has<impl::ButtonActivate>()) {
+		if (const auto& callback{ entity.Get<impl::ButtonActivate>() }; callback != nullptr) {
 			callback();
 		}
 	}
 }
 
 void Button::StartHover() {
-	if (entity_.Has<impl::ButtonHoverStart>()) {
-		if (const auto& callback{ entity_.Get<impl::ButtonHoverStart>() }; callback != nullptr) {
+	if (entity.Has<impl::ButtonHoverStart>()) {
+		if (const auto& callback{ entity.Get<impl::ButtonHoverStart>() }; callback != nullptr) {
 			callback();
 		}
 	}
 }
 
 void Button::StopHover() {
-	if (entity_.Has<impl::ButtonHoverStop>()) {
-		if (const auto& callback{ entity_.Get<impl::ButtonHoverStop>() }; callback != nullptr) {
+	if (entity.Has<impl::ButtonHoverStop>()) {
+		if (const auto& callback{ entity.Get<impl::ButtonHoverStop>() }; callback != nullptr) {
 			callback();
 		}
 	}
 }
 
 ButtonState Button::GetState() const {
-	const auto& state{ entity_.Get<impl::InternalButtonState>() };
+	const auto& state{ entity.Get<impl::InternalButtonState>() };
 	if (state == impl::InternalButtonState::Hover ||
 		state == impl::InternalButtonState::HoverPressed) {
 		return ButtonState::Hover;
@@ -577,8 +516,8 @@ ButtonState Button::GetState() const {
 }
 
 Color Button::GetColor(ButtonState state) const {
-	auto c{ entity_.Has<impl::ButtonColor>() ? entity_.Get<impl::ButtonColor>()
-											 : impl::ButtonColor{} };
+	auto c{ entity.Has<impl::ButtonColor>() ? entity.Get<impl::ButtonColor>()
+											: impl::ButtonColor{} };
 	switch (state) {
 		case ButtonState::Default: return c.default_;
 		case ButtonState::Hover:   return c.hover_;
@@ -588,10 +527,10 @@ Color Button::GetColor(ButtonState state) const {
 }
 
 Button& Button::SetColor(const Color& color, ButtonState state) {
-	if (!entity_.Has<impl::ButtonColor>()) {
-		entity_.Add<impl::ButtonColor>(color);
+	if (!entity.Has<impl::ButtonColor>()) {
+		entity.Add<impl::ButtonColor>(color);
 	} else {
-		auto& c{ entity_.Get<impl::ButtonColor>() };
+		auto& c{ entity.Get<impl::ButtonColor>() };
 		switch (state) {
 			case ButtonState::Default: c.default_ = color; break;
 			case ButtonState::Hover:   c.hover_ = color; break;
@@ -725,73 +664,37 @@ Button& Button::SetBorderWidth(float line_width) {
 
 Button& Button::OnHoverStart(const ButtonCallback& callback) {
 	if (callback == nullptr) {
-		entity_.Remove<impl::ButtonHoverStart>();
+		entity.Remove<impl::ButtonHoverStart>();
 	} else {
-		entity_.Add<impl::ButtonHoverStart>(callback);
+		entity.Add<impl::ButtonHoverStart>(callback);
 	}
 	return *this;
 }
 
 Button& Button::OnHoverStop(const ButtonCallback& callback) {
 	if (callback == nullptr) {
-		entity_.Remove<impl::ButtonHoverStop>();
+		entity.Remove<impl::ButtonHoverStop>();
 	} else {
-		entity_.Add<impl::ButtonHoverStop>(callback);
+		entity.Add<impl::ButtonHoverStop>(callback);
 	}
 	return *this;
 }
 
 Button& Button::OnActivate(const ButtonCallback& callback) {
 	if (callback == nullptr) {
-		entity_.Remove<impl::ButtonActivate>();
+		entity.Remove<impl::ButtonActivate>();
 	} else {
-		entity_.Add<impl::ButtonActivate>(callback);
-	}
-	return *this;
-}
-
-Button& Button::OnDisable(const ButtonCallback& callback) {
-	if (callback == nullptr) {
-		entity_.Remove<impl::ButtonDisable>();
-	} else {
-		entity_.Add<impl::ButtonDisable>(callback);
-	}
-	return *this;
-}
-
-Button& Button::OnEnable(const ButtonCallback& callback) {
-	if (callback == nullptr) {
-		entity_.Remove<impl::ButtonEnable>();
-	} else {
-		entity_.Add<impl::ButtonEnable>(callback);
-	}
-	return *this;
-}
-
-Button& Button::OnShow(const ButtonCallback& callback) {
-	if (callback == nullptr) {
-		entity_.Remove<impl::ButtonShow>();
-	} else {
-		entity_.Add<impl::ButtonShow>(callback);
-	}
-	return *this;
-}
-
-Button& Button::OnHide(const ButtonCallback& callback) {
-	if (callback == nullptr) {
-		entity_.Remove<impl::ButtonHide>();
-	} else {
-		entity_.Add<impl::ButtonHide>(callback);
+		entity.Add<impl::ButtonActivate>(callback);
 	}
 	return *this;
 }
 
 impl::InternalButtonState Button::GetInternalState() const {
-	return entity_.Get<impl::InternalButtonState>();
+	return entity.Get<impl::InternalButtonState>();
 }
 
-ToggleButton::ToggleButton(ecs::Manager& manager, bool toggled) : Button{ manager } {
-	entity_.Add<impl::ButtonToggled>(toggled);
+ToggleButton::ToggleButton(const ecs::Entity& e, bool toggled) : Button{ e } {
+	entity.Add<impl::ButtonToggled>(toggled);
 }
 
 void ToggleButton::Activate() {
@@ -815,10 +718,10 @@ Color ToggleButton::GetColorToggled(ButtonState state) const {
 }
 
 ToggleButton& ToggleButton::SetColorToggled(const Color& color, ButtonState state) {
-	if (!entity_.Has<impl::ButtonColorToggled>()) {
-		entity_.Add<impl::ButtonColorToggled>(color);
+	if (!entity.Has<impl::ButtonColorToggled>()) {
+		entity.Add<impl::ButtonColorToggled>(color);
 	} else {
-		auto& c{ entity_.Get<impl::ButtonColorToggled>() };
+		auto& c{ entity.Get<impl::ButtonColorToggled>() };
 		switch (state) {
 			case ButtonState::Default: c.default_ = color; break;
 			case ButtonState::Hover:   c.hover_ = color; break;
