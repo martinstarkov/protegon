@@ -32,18 +32,16 @@ public:
 		ui.Add<Origin>(Origin::TopLeft);
 
 		auto camera_center = manager.CreateEntity();
-		camera_center.Add<Circle>();
+		camera_center.Add<Circle>(camera_center, 3.0f);
 		camera_center.Add<Transform>(game.window.GetCenter());
-		camera_center.Add<Radius>(3.0f);
 		camera_center.Add<Tint>(color::Black);
 		camera_center.Add<Visible>();
 
 		auto deadzone = manager.CreateEntity();
-		deadzone.Add<Rect>();
+		deadzone.Add<Rect>(deadzone, deadzone_size, Origin::Center);
 		deadzone.Add<Transform>(game.window.GetCenter());
 		deadzone.Add<LineWidth>(2.0f);
-		deadzone.Add<Size>(deadzone_size);
-		deadzone.Add<Origin>(Origin::Center);
+		deadzone.Add<Origin>();
 		deadzone.Add<Tint>(color::DarkGreen);
 		deadzone.Add<Visible>();
 
@@ -70,10 +68,8 @@ public:
 	void Enter() override {
 		game.texture.Load("texture", "resources/test1.jpg");
 
-		Rect bounds{ {}, window_size, Origin::TopLeft };
-
 		camera.primary.SetPosition(game.window.GetCenter());
-		// camera.primary.SetBounds(bounds);
+		// camera.primary.SetBounds({}, window_size);
 
 		auto texture = CreateSprite(manager, "texture");
 		texture.Add<Transform>(game.window.GetCenter());
@@ -100,11 +96,9 @@ public:
 		texture.Add<callback::MouseScroll>([](auto scroll) { PTGN_LOG("Mouse scroll: ", scroll); });
 
 		auto b = manager.CreateEntity();
-		b.Add<Rect>();
-		b.Add<Transform>(bounds.position);
+		b.Add<Rect>(b, window_size, Origin::TopLeft);
+		b.Add<Transform>(V2_float{});
 		b.Add<LineWidth>(3.0f);
-		b.Add<Size>(bounds.size);
-		b.Add<Origin>(bounds.origin);
 		b.Add<Tint>(color::Red);
 		b.Add<Visible>();
 
@@ -124,8 +118,7 @@ public:
 
 		mouse = manager.CreateEntity();
 		mouse.Add<Transform>();
-		mouse.Add<Circle>();
-		mouse.Add<Radius>(20.0f);
+		mouse.Add<Circle>(mouse, 20.0f);
 		mouse.Add<Tint>(color::Red);
 		mouse.Add<Visible>();
 

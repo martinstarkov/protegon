@@ -1,8 +1,10 @@
 #include <string_view>
 
 #include "components/draw.h"
+#include "components/input.h"
 #include "components/transform.h"
 #include "core/game.h"
+#include "core/game_object.h"
 #include "ecs/ecs.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
@@ -17,25 +19,24 @@
 using namespace ptgn;
 
 template <typename T>
-ecs::Entity CreateColorButton(
+Button CreateColorButton(
 	ecs::Manager& manager, std::string_view text_content, const V2_float& position,
 	const V2_float& size, const T& activate = nullptr, Origin origin = Origin::Center
 ) {
-	ecs::Entity e{ manager.CreateEntity() };
-	auto& b{ e.Add<Button>(manager) };
-	b.GetEntity().Add<Transform>(position);
-	b.GetEntity().Add<Size>(size);
-	b.GetEntity().Add<Origin>(origin);
+	Button b{ manager.CreateEntity() };
+	b.SetPosition(position);
+	b.Add<Rect>(size, origin);
 	b.SetColor(color::Pink);
 	b.SetColor(color::Red, ButtonState::Hover);
 	b.SetColor(color::DarkRed, ButtonState::Pressed);
+	auto& test = b.entity.Get<callback::MouseEnter>();
 	/*b.SetTextContent(text_content);
 	b.SetTextColor(color::White);
 	b.OnActivate(activate);
 	b.SetBordered(true);
 	b.SetBorderColor(color::Cyan);
 	b.SetBorderThickness(5.0f);*/
-	return e;
+	return b;
 }
 
 /*
@@ -267,18 +268,22 @@ public:
 	float y{ 50 };
 	float y_step{ 130 };
 
-	ecs::Entity b1;
+	Button b1;
 
 	void Enter() override {
 		b1 = CreateColorButton(
 			manager, "Color", V2_float{ x1, y }, size, []() { PTGN_LOG("Clicked regular button"); },
 			Origin::TopLeft
 		);
+		auto& test = b1.entity.Get<ptgn::callback::MouseEnter>();
+		b1.entity.GetManager().Refresh();
+		auto& test2 = b1.entity.Get<ptgn::callback::MouseEnter>();
 	}
 
 	void Update() override {
+		auto& test = b1.entity.Get<ptgn::callback::MouseEnter>();
 		static impl::InternalButtonState state{ impl::InternalButtonState::IdleUp };
-		if (auto s{ b1.Get<Button>().GetInternalState() }; state != s) {
+		if (auto s{ b1.GetInternalState() }; state != s) {
 			state = s;
 			std::cout << "Internal state: " << state << std::endl;
 		}
