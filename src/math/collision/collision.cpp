@@ -1,4 +1,4 @@
-#include "math/collision.h"
+#include "math/collision/collision.h"
 
 #include <algorithm>
 #include <unordered_set>
@@ -6,14 +6,11 @@
 
 #include "core/game.h"
 #include "ecs/ecs.h"
-#include "math/collider.h"
-#include "math/geometry/line.h"
+#include "math/collision/collider.h"
+#include "math/collision/raycast.h"
 #include "math/math.h"
-#include "math/raycast.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
-#include "renderer/color.h"
-#include "scene/scene_manager.h"
 #include "utility/assert.h"
 #include "utility/log.h"
 
@@ -116,13 +113,5 @@ void CollisionHandler::Update(ecs::Manager& manager) {
 		HandleCollisions<CircleCollider>(e1, boxes, circles);
 	}
 }
-
-// TODO: Fix or get rid of.
-// void CollisionHandler::DrawVelocity(
-//	const V2_float& start, const V2_float& vel, const Color& color
-//) {
-//	Line l{ start, start + vel };
-//	//l.Draw(color);
-//}
 
 } // namespace ptgn::impl
