@@ -64,13 +64,16 @@ class Text {
 public:
 	Text() = default;
 
+	// TODO: Get rid of this in favor of making text a game object.
 	// @param font_key Default: "" corresponds to the default engine font (use
 	// game.font.SetDefault(...) to change.
-	Text(ecs::Manager& manager, std::string_view content, const Color& text_color = color::Black,
+	Text(
+		ecs::Manager& manager, std::string_view content, const Color& text_color = color::Black,
 		std::string_view font_key = ""
 	);
 	Text(const Text&)			 = delete;
 	Text& operator=(const Text&) = delete;
+	// TODO: Get rid of this.
 	Text(Text&& other) noexcept;
 	Text& operator=(Text&& other) noexcept;
 	~Text();
