@@ -1,8 +1,10 @@
 #pragma once
 
+#include <array>
 #include <iosfwd>
 
 #include "components/generic.h"
+#include "core/game_object.h"
 #include "core/manager.h"
 #include "ecs/ecs.h"
 #include "math/geometry/polygon.h"
@@ -69,7 +71,8 @@ struct CameraInfo {
 	void RefreshBounds() noexcept;
 
 	struct Data {
-		Rect viewport;
+		V2_float viewport_position;
+		V2_float viewport_size;
 
 		// Top left position of camera.
 		V3_float position;
@@ -80,8 +83,10 @@ struct CameraInfo {
 
 		V3_float orientation;
 
-		// If rectangle IsZero(), no position bounds are enforced.
-		Rect bounding_box;
+		// Top left position.
+		V2_float bounding_box_position;
+		// If size is {}, no bounds are enforced.
+		V2_float bounding_box_size;
 
 		Flip flip{ Flip::None };
 
@@ -102,20 +107,10 @@ struct CameraInfo {
 
 } // namespace impl
 
-ecs::Entity CreateCamera(ecs::Manager& manager);
-
-class Camera {
+class Camera : public GameObject {
 public:
 	Camera() = default;
-	Camera(ecs::Entity camera);
-	Camera(const Camera&)			 = delete;
-	Camera& operator=(const Camera&) = delete;
-	Camera(Camera&& other) noexcept;
-	Camera& operator=(Camera&& other) noexcept;
-	~Camera();
-
-	bool operator==(const Camera& other) const;
-	bool operator!=(const Camera& other) const;
+	Camera(const ecs::Entity& e);
 
 	// @param target_position Position to pan to.
 	// @param duration Duration of pan.
@@ -187,7 +182,9 @@ public:
 		bool force = false
 	);
 
-	[[nodiscard]] Rect GetViewport() const;
+	// Top left position.
+	[[nodiscard]] V2_float GetViewportPosition() const;
+	[[nodiscard]] V2_float GetViewportSize() const;
 
 	// If continuously is true, camera will subscribe to window resize event.
 	// Set the camera to be the size of the window and centered on the window.
@@ -221,15 +218,15 @@ public:
 	// @param camera_relative_size The size to be scaled.
 	[[nodiscard]] V2_float ScaleToScreen(const V2_float& camera_relative_size) const;
 
-	// Origin at the top left.
-	[[nodiscard]] Rect GetRect() const;
+	// Vertices
+	[[nodiscard]] std::array<V2_float, 4> GetQuadVertices() const;
 
 	[[nodiscard]] V2_float GetSize() const;
 
 	[[nodiscard]] float GetZoom() const;
 
-	// Use Min() and Max() of rectangle to find top left and bottom right bounds of camera.
-	[[nodiscard]] Rect GetBounds() const;
+	[[nodiscard]] V2_float GetBoundsPosition() const;
+	[[nodiscard]] V2_float GetBoundsSize() const;
 
 	// @param origin What point on the camera the position represents.
 	// @return The position of the camera.
@@ -250,7 +247,8 @@ public:
 
 	// Camera bounds only apply along aligned axes. In other words: rotated cameras can see outside
 	// the bounding box.
-	void SetBounds(const Rect& bounding_box);
+	// @param position Top left position of the bounds.
+	void SetBounds(const V2_float& position, const V2_float& size);
 
 	void SetSize(const V2_float& size);
 
@@ -360,11 +358,10 @@ protected:
 	void RecalculateProjection() const;
 	void RecalculateViewProjection() const;
 
-	ecs::Entity pan_effects_;
-	ecs::Entity rotation_effects_;
-	ecs::Entity zoom_effects_;
-	ecs::Entity fade_effects_;
-	ecs::Entity entity_;
+	GameObject pan_effects_;
+	GameObject rotation_effects_;
+	GameObject zoom_effects_;
+	GameObject fade_effects_;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {
@@ -545,33 +542,33 @@ vertical
 // @param viewport The viewport relative to which the screen coordinate is transformed.
 // @param camera The camera relative to which the screen coordinate is transformed.
 // @param screen_relative_coordinate The coordinate to be transformed.
-[[nodiscard]] V2_float TransformToViewport(
-	const Rect& viewport, const Camera& camera, const V2_float& screen_relative_coordinate
-);
+//[[nodiscard]] V2_float TransformToViewport(
+//	const Rect& viewport, const Camera& camera, const V2_float& screen_relative_coordinate
+//);
 
 // Transforms a viewport relative pixel coordinate to being relative to the window.
 // @param viewport The viewport relative to which the viewport coordinate is transformed.
 // @param camera The camera relative to which the viewport coordinate is transformed.
 // @param viewport_coordinate The coordinate to be transformed.
-[[nodiscard]] V2_float TransformToScreen(
-	const Rect& viewport, const Camera& camera, const V2_float& viewport_relative_coordinate
-);
+//[[nodiscard]] V2_float TransformToScreen(
+//	const Rect& viewport, const Camera& camera, const V2_float& viewport_relative_coordinate
+//);
 
 // Scales a window relative pixel size to being relative to the specified viewport and
 // primary game camera.
 // @param viewport The viewport relative to which the pixel size is scaled.
 // @param camera The camera relative to which the pixel size is scaled.
 // @param screen_relative_size The coordinate to be scaled.
-[[nodiscard]] V2_float ScaleToViewport(
-	const Rect& viewport, const Camera& camera, const V2_float& screen_relative_size
-);
+//[[nodiscard]] V2_float ScaleToViewport(
+//	const Rect& viewport, const Camera& camera, const V2_float& screen_relative_size
+//);
 
 // Scales a viewport relative pixel size to being relative to the window.
 // @param viewport The viewport relative to which the pixel size is scaled.
 // @param camera The camera relative to which the pixel size is scaled.
 // @param viewport_relative_size The coordinate to be scaled.
-[[nodiscard]] V2_float ScaleToScreen(
-	const Rect& viewport, const Camera& camera, const V2_float& viewport_relative_size
-);
+//[[nodiscard]] V2_float ScaleToScreen(
+//	const Rect& viewport, const Camera& camera, const V2_float& viewport_relative_size
+//);
 
 } // namespace ptgn
