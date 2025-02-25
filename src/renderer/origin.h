@@ -9,14 +9,14 @@
 namespace ptgn {
 
 enum class Origin {
-	TopLeft,
-	CenterTop,
-	TopRight,
-	CenterLeft,
 	Center,
+	CenterTop,
+	CenterLeft,
 	CenterRight,
-	BottomLeft,
 	CenterBottom,
+	TopLeft,
+	TopRight,
+	BottomLeft,
 	BottomRight,
 };
 
