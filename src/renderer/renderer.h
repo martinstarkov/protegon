@@ -132,8 +132,6 @@ private:
 	void Shutdown();
 	void Reset();
 
-	RenderData render_data_;
-
 	struct BoundStates {
 		std::uint32_t frame_buffer_id{ 0 };
 		std::uint32_t shader_id{ 0 };
@@ -144,6 +142,8 @@ private:
 	};
 
 	BoundStates bound_;
+
+	RenderData render_data_;
 
 	// Renderer keeps track of what is bound.
 

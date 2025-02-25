@@ -142,6 +142,8 @@ RenderData& Renderer::GetRenderData() {
 }
 
 void Renderer::PresentScreen() {
+	FrameBuffer::Unbind();
+
 	PTGN_ASSERT(
 		std::invoke([]() {
 			auto viewport_size{ GLRenderer::GetViewportSize() };
@@ -155,6 +157,7 @@ void Renderer::PresentScreen() {
 		}),
 		"Attempting to render to 0 or 1 sized viewport"
 	);
+
 	PTGN_ASSERT(
 		FrameBuffer::IsUnbound(),
 		"Frame buffer must be unbound (id=0) before swapping SDL2 buffer to the screen"
