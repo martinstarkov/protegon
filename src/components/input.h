@@ -1,10 +1,10 @@
 #pragma once
 
-#include "components/draw.h"
 #include "components/generic.h"
+#include "ecs/ecs.h"
 #include "event/key.h"
 #include "event/mouse.h"
-#include "utility/utility.h"
+#include "math/vector2.h"
 
 namespace ptgn {
 
@@ -25,37 +25,37 @@ struct Draggable {
 	bool dragging{ false };
 };
 
-struct InteractiveRadius : public Radius {
-	using Radius::Radius;
+struct InteractiveRadius : public ArithmeticComponent<float> {
+	using ArithmeticComponent::ArithmeticComponent;
 };
 
-struct InteractiveSize : public Size {
-	using Size::Size;
+struct InteractiveSize : public Vector2Component<float> {
+	using Vector2Component::Vector2Component;
 };
 
 namespace callback {
 
 // Key events
 
-struct KeyDown : public CallbackComponent<void, ptgn::Key> {
+struct KeyDown : public CallbackComponent<void, Key> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct KeyPressed : public CallbackComponent<void, ptgn::Key> {
+struct KeyPressed : public CallbackComponent<void, Key> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct KeyUp : public CallbackComponent<void, ptgn::Key> {
+struct KeyUp : public CallbackComponent<void, Key> {
 	using CallbackComponent::CallbackComponent;
 };
 
 // Mouse events.
 
-struct MouseDown : public CallbackComponent<void, ptgn::Mouse> {
+struct MouseDown : public CallbackComponent<void, Mouse> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct MouseDownOutside : public CallbackComponent<void, ptgn::Mouse> {
+struct MouseDownOutside : public CallbackComponent<void, Mouse> {
 	using CallbackComponent::CallbackComponent;
 };
 
@@ -79,15 +79,15 @@ struct MouseOver : public CallbackComponent<void, V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct MouseUp : public CallbackComponent<void, ptgn::Mouse> {
+struct MouseUp : public CallbackComponent<void, Mouse> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct MouseUpOutside : public CallbackComponent<void, ptgn::Mouse> {
+struct MouseUpOutside : public CallbackComponent<void, Mouse> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct MousePressed : public CallbackComponent<void, ptgn::Mouse> {
+struct MousePressed : public CallbackComponent<void, Mouse> {
 	using CallbackComponent::CallbackComponent;
 };
 
