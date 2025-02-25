@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "components/draw.h"
+#include "components/transform.h"
 #include "ecs/ecs.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/line.h"
@@ -34,42 +35,49 @@ void Batch::AddTexturedQuad(
 ) {
 	for (std::size_t i{ 0 }; i < positions.size(); i++) {
 		Vertex v{};
+
 		v.position	= { positions[i].x, positions[i].y, static_cast<float>(depth) };
 		v.color		= { color.x, color.y, color.z, color.w };
 		v.tex_coord = { tex_coords[i].x, tex_coords[i].y };
 		v.tex_index = { texture_index };
+
 		vertices.push_back(v);
 	}
+
 	indices.push_back(index_offset + 0);
 	indices.push_back(index_offset + 1);
 	indices.push_back(index_offset + 2);
 	indices.push_back(index_offset + 2);
 	indices.push_back(index_offset + 3);
 	indices.push_back(index_offset + 0);
+
 	index_offset += quad_vertex_count;
+
 	PTGN_ASSERT(vertices.size() <= vertex_batch_capacity);
 	PTGN_ASSERT(indices.size() <= index_batch_capacity);
 }
 
-void Batch::AddEllipse(
-	const std::array<V2_float, quad_vertex_count>& positions,
-	const std::array<V2_float, quad_vertex_count>& tex_coords, float line_width,
-	const V2_float& radius, const V4_float& color, const Depth& depth
+void Batch::AddFilledEllipse(
+	const std::array<V2_float, quad_vertex_count>& positions, const V4_float& color,
+	const Depth& depth
 ) {
-	if (line_width == -1.0f) {
-		line_width = 1.0f;
-	} else {
-		PTGN_ASSERT(line_width > 0.0f, "Cannot draw ellipse with negative line width");
-		// Internally line width for a filled ellipse is 1.0f and a completely hollow one is 0.0f,
-		// but in the API the line width is expected in pixels.
-		// TODO: Check that dividing by std::max(radius.x, radius.y) does not cause any unexpected
-		// bugs.
-		line_width = 0.005f + line_width / std::min(radius.x, radius.y);
-	}
-	AddTexturedQuad(positions, tex_coords, line_width, color, depth);
+	AddTexturedQuad(positions, GetDefaultTextureCoordinates(), 1.0f, color, depth);
 }
 
-void Batch::AddTriangle(
+void Batch::AddHollowEllipse(
+	const std::array<V2_float, quad_vertex_count>& positions, float line_width,
+	const V2_float& radius, const V4_float& color, const Depth& depth
+) {
+	PTGN_ASSERT(line_width > 0.0f, "Cannot draw ellipse with negative line width");
+	// Internally line width for a filled ellipse is 1.0f and a completely hollow one is 0.0f, but
+	// in the API the line width is expected in pixels.
+	// TODO: Check that dividing by std::max(radius.x, radius.y) does not cause any unexpected bugs.
+	line_width = 0.005f + line_width / std::min(radius.x, radius.y);
+
+	AddTexturedQuad(positions, GetDefaultTextureCoordinates(), line_width, color, depth);
+}
+
+void Batch::AddFilledTriangle(
 	const std::array<V2_float, triangle_vertex_count>& positions, const V4_float& color,
 	const Depth& depth
 ) {
@@ -81,18 +89,30 @@ void Batch::AddTriangle(
 
 	for (std::size_t i{ 0 }; i < positions.size(); i++) {
 		Vertex v{};
+
 		v.position	= { positions[i].x, positions[i].y, static_cast<float>(depth) };
 		v.color		= { color.x, color.y, color.z, color.w };
 		v.tex_coord = { tex_coords[i].x, tex_coords[i].y };
 		v.tex_index = { 0.0f };
+
 		vertices.push_back(v);
 	}
+
 	indices.push_back(index_offset + 0);
 	indices.push_back(index_offset + 1);
 	indices.push_back(index_offset + 2);
+
 	index_offset += triangle_vertex_count;
+
 	PTGN_ASSERT(vertices.size() <= vertex_batch_capacity);
 	PTGN_ASSERT(indices.size() <= index_batch_capacity);
+}
+
+void Batch::AddFilledQuad(
+	const std::array<V2_float, quad_vertex_count>& positions, const V4_float& color,
+	const Depth& depth
+) {
+	AddTexturedQuad(positions, GetDefaultTextureCoordinates(), 0.0f, color, depth);
 }
 
 float Batch::GetTextureIndex(
@@ -129,57 +149,7 @@ bool Batch::HasRoomForTexture(
 		   GetTextureIndex(texture.GetId(), white_texture.GetId(), max_texture_slots) != -1.0f;
 }
 
-bool Batch::HasRoomForShape(ecs::Entity e) const {
-	std::size_t vertex_count{ 0 };
-	std::size_t index_count{ 0 };
-
-	if (e.HasAny<TextureKey, Text, RenderTarget, Rect, Line, Circle, Ellipse, Point>()) {
-		// Lines are rotated quads.
-		// Points are either circles or quads.
-		vertex_count = quad_vertex_count;
-		index_count	 = quad_index_count;
-	} else if (e.Has<Polygon>()) {
-		const auto& polygon{ e.Get<Polygon>() };
-		if (!e.Has<LineWidth>() || (e.Has<LineWidth>() && e.Get<LineWidth>() == -1.0f)) {
-			// TODO: Figure out a better way to determine how many solid triangles this polygon
-			// will have. I have not looked into the triangulation formula. It may just work
-			// like a triangle fan.
-			auto triangles{ polygon.Triangulate() };
-			vertex_count = triangles.size() * triangle_vertex_count;
-			index_count	 = triangles.size() * triangle_index_count;
-		} else {
-			// Hollow polygon.
-			// Every line is a rotated quad.
-			vertex_count = polygon.vertices.size() * quad_vertex_count;
-			index_count	 = polygon.vertices.size() * quad_index_count;
-		}
-	} else if (e.Has<Triangle>()) {
-		vertex_count = triangle_vertex_count;
-		index_count	 = triangle_index_count;
-
-	} else if (e.Has<Arc>()) {
-		// TODO: Implement.
-		// vertex_count = ?;
-		// index_count =  ?;
-		PTGN_ERROR("Arc drawing not implemented yet");
-	} else if (e.Has<RoundedRect>()) {
-		// TODO: Implement.
-		// vertex_count = ?;
-		// index_count =  ?;
-		PTGN_ERROR("Rounded rectangle drawing not implemented yet");
-	} else if (e.Has<Capsule>()) {
-		// TODO: Implement.
-		// vertex_count = ?;
-		// index_count =  ?;
-		PTGN_ERROR("Capsule drawing not implemented yet");
-	}
-
-	// Lights will not add vertices or indices.
-	if (!e.Has<PointLight>()) {
-		PTGN_ASSERT(vertex_count != 0);
-		PTGN_ASSERT(index_count != 0);
-	}
-
+bool Batch::HasRoomForShape(std::size_t vertex_count, std::size_t index_count) const {
 	return vertices.size() + vertex_count <= vertex_batch_capacity &&
 		   indices.size() + index_count <= index_batch_capacity;
 }

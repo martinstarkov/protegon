@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <vector>
 
-#include "components/draw.h"
+#include "components/transform.h"
 #include "ecs/ecs.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
@@ -60,13 +60,22 @@ struct Batch {
 		const V4_float& color, const Depth& depth
 	);
 
-	void AddEllipse(
-		const std::array<V2_float, quad_vertex_count>& positions,
-		const std::array<V2_float, quad_vertex_count>& tex_coords, float line_width,
+	void AddFilledQuad(
+		const std::array<V2_float, quad_vertex_count>& positions, const V4_float& color,
+		const Depth& depth
+	);
+
+	void AddFilledEllipse(
+		const std::array<V2_float, quad_vertex_count>& positions, const V4_float& color,
+		const Depth& depth
+	);
+
+	void AddHollowEllipse(
+		const std::array<V2_float, quad_vertex_count>& positions, float line_width,
 		const V2_float& radius, const V4_float& color, const Depth& depth
 	);
 
-	void AddTriangle(
+	void AddFilledTriangle(
 		const std::array<V2_float, triangle_vertex_count>& positions, const V4_float& color,
 		const Depth& depth
 	);
@@ -87,8 +96,8 @@ struct Batch {
 		const Texture& texture, const Texture& white_texture, std::size_t max_texture_slots
 	);
 
-	// @return True if batch has room for these.
-	bool HasRoomForShape(ecs::Entity e) const;
+	// @return True if batch has room for the number of vertices and indices.
+	bool HasRoomForShape(std::size_t vertex_count, std::size_t index_count) const;
 
 	void BindTextures() const;
 };
