@@ -19,24 +19,25 @@
 using namespace ptgn;
 
 template <typename T>
-Button CreateColorButton(
+GameObject CreateColorButton(
 	ecs::Manager& manager, std::string_view text_content, const V2_float& position,
 	const V2_float& size, const T& activate = nullptr, Origin origin = Origin::Center
 ) {
-	Button b{ manager.CreateEntity() };
-	b.SetPosition(position);
+	GameObject o{ manager.CreateEntity() };
+	o.SetVisible(true);
+	o.SetPosition(position);
+	auto& b = o.Add<Button>();
 	b.Add<Rect>(size, origin);
-	b.SetColor(color::Pink);
-	b.SetColor(color::Red, ButtonState::Hover);
-	b.SetColor(color::DarkRed, ButtonState::Pressed);
-	auto& test = b.entity.Get<callback::MouseEnter>();
+	b.SetBackgroundColor(color::Pink);
+	b.SetBackgroundColor(color::Red, ButtonState::Hover);
+	b.SetBackgroundColor(color::DarkRed, ButtonState::Pressed);
+	b.OnActivate(activate);
 	/*b.SetTextContent(text_content);
 	b.SetTextColor(color::White);
-	b.OnActivate(activate);
 	b.SetBordered(true);
 	b.SetBorderColor(color::Cyan);
 	b.SetBorderThickness(5.0f);*/
-	return b;
+	return o;
 }
 
 /*
@@ -268,22 +269,18 @@ public:
 	float y{ 50 };
 	float y_step{ 130 };
 
-	Button b1;
+	GameObject b1;
 
 	void Enter() override {
 		b1 = CreateColorButton(
 			manager, "Color", V2_float{ x1, y }, size, []() { PTGN_LOG("Clicked regular button"); },
 			Origin::TopLeft
 		);
-		auto& test = b1.entity.Get<ptgn::callback::MouseEnter>();
-		b1.entity.GetManager().Refresh();
-		auto& test2 = b1.entity.Get<ptgn::callback::MouseEnter>();
 	}
 
 	void Update() override {
-		auto& test = b1.entity.Get<ptgn::callback::MouseEnter>();
 		static impl::InternalButtonState state{ impl::InternalButtonState::IdleUp };
-		if (auto s{ b1.GetInternalState() }; state != s) {
+		if (auto s{ b1.entity.Get<Button>().GetInternalState() }; state != s) {
 			state = s;
 			std::cout << "Internal state: " << state << std::endl;
 		}

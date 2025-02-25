@@ -13,9 +13,17 @@
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/origin.h"
+#include "renderer/text.h"
 #include "renderer/texture.h"
 
 namespace ptgn {
+
+enum class ButtonState : std::uint8_t {
+	Default,
+	Hover,
+	Pressed,
+	Current
+};
 
 namespace impl {
 
@@ -55,8 +63,12 @@ struct ButtonToggled : public ArithmeticComponent<bool> {
 struct ButtonColor {
 	ButtonColor() = default;
 
-	ButtonColor(const Color& color) : default_{ color }, hover_{ color }, pressed_{ color } {}
+	ButtonColor(const Color& color) :
+		current_{ color }, default_{ color }, hover_{ color }, pressed_{ color } {}
 
+	void SetToState(ButtonState state);
+
+	Color current_;
 	Color default_;
 	Color pressed_;
 	Color hover_;
@@ -66,24 +78,11 @@ struct ButtonColorToggled : public ButtonColor {};
 
 } // namespace impl
 
-enum class ButtonState : std::uint8_t {
-	Default = 0,
-	Hover	= 1,
-	Pressed = 2
-};
-
 using ButtonCallback = std::function<void()>;
-
-using TextAlignment = Origin;
 
 struct Button : public GameObject {
 	Button() = default;
 	Button(const ecs::Entity& e);
-	Button(const Button&)				 = default;
-	Button& operator=(const Button&)	 = default;
-	Button(Button&&) noexcept			 = default;
-	Button& operator=(Button&&) noexcept = default;
-	virtual ~Button()					 = default;
 
 	// These allow for manually triggering button callback events.
 	virtual void Activate();
@@ -92,38 +91,39 @@ struct Button : public GameObject {
 
 	[[nodiscard]] ButtonState GetState() const;
 
-	[[nodiscard]] Color GetColor(ButtonState state = ButtonState::Default) const;
+	[[nodiscard]] Color GetBackgroundColor(ButtonState state = ButtonState::Current) const;
 
-	Button& SetColor(const Color& color, ButtonState state = ButtonState::Default);
+	Button& SetBackgroundColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] Color GetTextColor(ButtonState state = ButtonState::Default) const;
+	[[nodiscard]] Color GetTextColor(ButtonState state = ButtonState::Current) const;
 
 	Button& SetTextColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] const impl::Texture& GetTexture(ButtonState state = ButtonState::Default) const;
+	[[nodiscard]] ecs::Entity GetTexture(ButtonState state = ButtonState::Current) const;
 
 	Button& SetTexture(std::string_view texture_key, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] Color GetTint(ButtonState state = ButtonState::Default) const;
+	[[nodiscard]] Color GetTint(ButtonState state = ButtonState::Current) const;
 
 	Button& SetTint(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] std::string GetTextContent(ButtonState state = ButtonState::Default) const;
+	[[nodiscard]] std::string GetTextContent(ButtonState state = ButtonState::Current) const;
 
 	Button& SetTextContent(const std::string& content, ButtonState state = ButtonState::Default);
+
+	[[nodiscard]] ecs::Entity GetText(ButtonState state = ButtonState::Current) const;
 
 	[[nodiscard]] bool IsBordered() const;
 
 	Button& SetBordered(bool bordered);
 
-	[[nodiscard]] Color GetBorderColor(ButtonState state = ButtonState::Default) const;
+	[[nodiscard]] Color GetBorderColor(ButtonState state = ButtonState::Current) const;
 
 	Button& SetBorderColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] TextAlignment GetTextAlignment() const;
+	[[nodiscard]] TextJustify GetTextJustify() const;
 
-	// Same as Origin relative to button rect position.
-	Button& SetTextAlignment(const TextAlignment& alignment);
+	Button& SetTextJustify(const TextJustify& justify);
 
 	[[nodiscard]] V2_float GetTextSize() const;
 
@@ -139,11 +139,11 @@ struct Button : public GameObject {
 
 	Button& SetDepth(const Depth& depth);
 
-	[[nodiscard]] float GetLineWidth() const;
+	[[nodiscard]] float GetBackgroundLineWidth() const;
 
 	// If -1 (default), button background is a solid rectangle, otherwise uses the specified line
 	// width.
-	Button& SetLineWidth(float line_width);
+	Button& SetBackgroundLineWidth(float line_width);
 
 	[[nodiscard]] float GetBorderWidth() const;
 
@@ -168,11 +168,11 @@ struct ToggleButton : public Button {
 
 	ToggleButton& Toggle();
 
-	[[nodiscard]] Color GetColorToggled(ButtonState state = ButtonState::Default) const;
+	[[nodiscard]] Color GetColorToggled(ButtonState state = ButtonState::Current) const;
 
 	ToggleButton& SetColorToggled(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] Color GetTextColorToggled(ButtonState state = ButtonState::Default) const;
+	[[nodiscard]] Color GetTextColorToggled(ButtonState state = ButtonState::Current) const;
 
 	ToggleButton& SetTextColorToggled(const Color& color, ButtonState state = ButtonState::Default);
 
@@ -183,17 +183,17 @@ struct ToggleButton : public Button {
 		std::string_view texture_key, ButtonState state = ButtonState::Default
 	);
 
-	[[nodiscard]] Color GetTintToggled(ButtonState state = ButtonState::Default) const;
+	[[nodiscard]] Color GetTintToggled(ButtonState state = ButtonState::Current) const;
 
 	ToggleButton& SetTintToggled(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] std::string GetTextContentToggled(ButtonState state = ButtonState::Default) const;
+	[[nodiscard]] std::string GetTextContentToggled(ButtonState state = ButtonState::Current) const;
 
 	ToggleButton& SetTextContentToggled(
 		const std::string& content, ButtonState state = ButtonState::Default
 	);
 
-	[[nodiscard]] Color GetBorderColorToggled(ButtonState state = ButtonState::Default) const;
+	[[nodiscard]] Color GetBorderColorToggled(ButtonState state = ButtonState::Current) const;
 
 	ToggleButton& SetBorderColorToggled(
 		const Color& color, ButtonState state = ButtonState::Default

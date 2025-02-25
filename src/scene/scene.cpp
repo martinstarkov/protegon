@@ -8,6 +8,7 @@
 #include "components/lifetime.h"
 #include "components/transform.h"
 #include "core/game.h"
+#include "core/game_object.h"
 #include "ecs/ecs.h"
 #include "event/event.h"
 #include "event/event_handler.h"
@@ -160,8 +161,7 @@ void Scene::InternalLoad() {
 			// TODO: cache interactive entity list every frame to avoid repeated calls for each
 			// mouse and keyboard event type.
 			V2_float pos{ std::invoke(GetMousePos) };
-			for (auto [e, transform, interactive] :
-				 manager.EntitiesWith<Transform, Interactive>()) {
+			for (auto [e, interactive] : manager.EntitiesWith<Interactive>()) {
 				if (!interactive.enabled) {
 					interactive.is_inside  = false;
 					interactive.was_inside = false;
@@ -171,8 +171,7 @@ void Scene::InternalLoad() {
 			}
 			switch (type) {
 				case MouseEvent::Move: {
-					for (auto [e, transform, interactive] :
-						 manager.EntitiesWith<Transform, Interactive>()) {
+					for (auto [e, interactive] : manager.EntitiesWith<Interactive>()) {
 						if (!interactive.enabled) {
 							continue;
 						}
@@ -228,8 +227,7 @@ void Scene::InternalLoad() {
 				}
 				case MouseEvent::Down: {
 					Mouse mouse{ static_cast<const MouseDownEvent&>(event).mouse };
-					for (auto [e, transform, interactive] :
-						 manager.EntitiesWith<Transform, Interactive>()) {
+					for (auto [e, interactive] : manager.EntitiesWith<Interactive>()) {
 						if (!interactive.enabled) {
 							continue;
 						}
@@ -243,7 +241,7 @@ void Scene::InternalLoad() {
 									draggable.dragging = true;
 									// TODO: Add camera.
 									draggable.start	 = pos;
-									draggable.offset = transform.position - draggable.start;
+									draggable.offset = GetPosition(e) - draggable.start;
 									draggable.target = e;
 									if (e.Has<callback::DragStart>()) {
 										auto p{ pos };
@@ -262,8 +260,7 @@ void Scene::InternalLoad() {
 				}
 				case MouseEvent::Up: {
 					Mouse mouse{ static_cast<const MouseUpEvent&>(event).mouse };
-					for (auto [e, transform, interactive] :
-						 manager.EntitiesWith<Transform, Interactive>()) {
+					for (auto [e, interactive] : manager.EntitiesWith<Interactive>()) {
 						if (!interactive.enabled) {
 							continue;
 						}
@@ -322,8 +319,7 @@ void Scene::InternalLoad() {
 				}
 				default: PTGN_ERROR("Unimplemented mouse event type");
 			}
-			for (auto [e, transform, interactive] :
-				 manager.EntitiesWith<Transform, Interactive>()) {
+			for (auto [e, interactive] : manager.EntitiesWith<Interactive>()) {
 				if (!interactive.enabled) {
 					continue;
 				}
