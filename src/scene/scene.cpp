@@ -1,6 +1,7 @@
 #include "scene/scene.h"
 
 #include <functional>
+#include <type_traits>
 
 #include "components/draw.h"
 #include "components/input.h"
@@ -12,14 +13,18 @@
 #include "event/event_handler.h"
 #include "event/events.h"
 #include "event/input_handler.h"
+#include "event/key.h"
 #include "event/mouse.h"
-#include "math/collision.h"
+#include "math/collision/collision.h"
+#include "math/collision/overlap.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/origin.h"
 #include "renderer/renderer.h"
 #include "scene/camera.h"
+#include "utility/assert.h"
+#include "utility/log.h"
 #include "utility/tween.h"
 #include "utility/utility.h"
 
@@ -96,8 +101,6 @@ void Scene::InternalLoad() {
 
 	auto PointerIsInside = [](const V2_float& pointer, ecs::Entity entity) {
 		// TODO: Move this function elsewhere.
-		PTGN_ASSERT(entity.Has<Transform>());
-		const auto& transform{ entity.Get<Transform>() };
 		bool is_circle{ entity.Has<InteractiveRadius>() };
 		bool is_rect{ entity.Has<InteractiveSize>() };
 		PTGN_ASSERT(
@@ -105,36 +108,42 @@ void Scene::InternalLoad() {
 			"Entity cannot have both an interactive radius and an interactive size"
 		);
 		if (is_rect) {
-			Rect r{ transform.position,
-					V2_float{ entity.Get<InteractiveSize>() } * Abs(transform.scale),
-					entity.Has<Origin>() ? entity.Get<Origin>() : Origin::Center,
-					transform.rotation };
-			return r.Overlaps(pointer);
+			V2_float interactive_size{ entity.Get<InteractiveSize>() };
+			auto size{ interactive_size * GetScale(entity) };
+			auto half{ size / 2.0f };
+			auto center{ GetPosition(entity) - GetOffsetFromCenter(size, GetOrigin(entity)) };
+			return OverlapPointRect(
+				pointer, center - half, center + half, GetRotation(entity),
+				GetRotationCenter(entity)
+			);
 		} else if (is_circle) {
-			Circle c{ transform.position,
-					  (V2_float{ entity.Get<InteractiveRadius>() } * Abs(transform.scale)).x };
-			return c.Overlaps(pointer);
+			float interactive_radius{ entity.Get<InteractiveRadius>() };
+			auto radius{ interactive_radius * GetScale(entity).x };
+			return OverlapPointCircle(pointer, GetPosition(entity), radius);
 		}
-		is_circle = entity.Has<Radius>();
-		is_rect	  = entity.Has<Size>();
+		is_circle = entity.Has<Circle>();
+		is_rect	  = entity.Has<Rect>();
 		// Prioritize circle interactable.
 		if (is_circle) {
-			Circle c{ transform.position,
-					  (V2_float{ entity.Get<Radius>() } * Abs(transform.scale)).x };
-			return c.Overlaps(pointer);
+			const auto& c{ entity.Get<Circle>() };
+			return OverlapPointCircle(pointer, c.GetCenter(), c.GetRadius());
 		} else if (is_rect) {
-			Rect r{ transform.position, V2_float{ entity.Get<Size>() } * Abs(transform.scale),
-					entity.Has<Origin>() ? entity.Get<Origin>() : Origin::Center,
-					transform.rotation };
-			return r.Overlaps(pointer);
+			const auto& r{ entity.Get<Rect>() };
+			auto [rect_min, rect_max] = r.GetExtents();
+			return OverlapPointRect(
+				pointer, rect_min, rect_max, r.GetRotation(), r.GetRotationCenter()
+			);
 		}
 
 		if (entity.Has<TextureKey>()) {
-			Rect r{ transform.position,
-					game.texture.GetSize(entity.Get<TextureKey>()) * Abs(transform.scale),
-					entity.Has<Origin>() ? entity.Get<Origin>() : Origin::Center,
-					transform.rotation };
-			return r.Overlaps(pointer);
+			const auto& texture_key{ entity.Get<TextureKey>() };
+			auto size{ game.texture.GetSize(texture_key) * GetScale(entity) };
+			auto half{ size / 2.0f };
+			auto center{ GetPosition(entity) - GetOffsetFromCenter(size, GetOrigin(entity)) };
+			return OverlapPointRect(
+				pointer, center - half, center + half, GetRotation(entity),
+				GetRotationCenter(entity)
+			);
 		}
 
 		return false;

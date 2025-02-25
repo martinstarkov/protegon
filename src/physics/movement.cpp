@@ -10,11 +10,12 @@
 #include "ecs/ecs.h"
 #include "event/input_handler.h"
 #include "event/key.h"
-#include "math/collider.h"
+#include "math/collision/collider.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "rigid_body.h"
 #include "utility/assert.h"
+#include "utility/log.h"
 #include "utility/timer.h"
 
 namespace ptgn {

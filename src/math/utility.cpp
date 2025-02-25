@@ -7,14 +7,11 @@
 
 #include "geometry/axis.h"
 #include "math/geometry/line.h"
-#include "math/geometry/polygon.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "utility/assert.h"
 
-namespace ptgn {
-
-namespace impl {
+namespace ptgn::impl {
 
 bool WithinPerimeter(float radius, float dist2) {
 	float rad2{ radius * radius };
@@ -32,20 +29,21 @@ bool WithinPerimeter(float radius, float dist2) {
 }
 
 float ClosestPointLineLine(
-	const Line& line1, const Line& line2, float& s, float& t, V2_float& c1, V2_float& c2
+	const V2_float& lineA_start, const V2_float& lineA_end, const V2_float& lineB_start,
+	const V2_float& lineB_end, float& s, float& t, V2_float& c1, V2_float& c2
 ) {
-	V2_float d1 = line1.Direction(); // Direction vector of segment S1
-	V2_float d2 = line2.Direction(); // Direction vector of segment S2
-	V2_float r	= line1.a - line2.a;
-	float a		= d1.Dot(d1);		 // Squared length of segment S1, always nonnegative
-	float e		= d2.Dot(d2);		 // Squared length of segment S2, always nonnegative
-	float f		= d2.Dot(r);
+	V2_float d1{ lineA_end - lineA_start }; // Direction vector of segment S1
+	V2_float d2{ lineB_end - lineB_start }; // Direction vector of segment S2
+	V2_float r{ lineA_start - lineB_start };
+	float a = d1.Dot(d1);					// Squared length of segment S1, always nonnegative
+	float e = d2.Dot(d2);					// Squared length of segment S2, always nonnegative
+	float f = d2.Dot(r);
 	// Checke if one or both segments degenerate into points.
 	if (a <= epsilon<float> && e <= epsilon<float>) {
 		// Both segments degenerate into points
 		s = t = 0.0f;
-		c1	  = line1.a;
-		c2	  = line2.a;
+		c1	  = lineA_start;
+		c2	  = lineB_start;
 		return (c1 - c2).Dot(c1 - c2);
 	}
 	if (a <= epsilon<float>) {
@@ -86,19 +84,19 @@ float ClosestPointLineLine(
 			}
 		}
 	}
-	c1 = line1.a + d1 * s;
-	c2 = line2.a + d2 * t;
+	c1 = lineA_start + d1 * s;
+	c2 = lineB_start + d2 * t;
 	return (c1 - c2).Dot(c1 - c2);
 }
 
-float SquareDistancePointLine(const Line& line, const V2_float& c) {
+float SquareDistancePointLine(const V2_float& point, const V2_float& start, const V2_float& end) {
 	// Source:
 	// https://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 	// Page 130.
-	V2_float ab = line.b - line.a;
-	V2_float ac = c - line.a;
-	V2_float bc = c - line.b;
-	float e		= ac.Dot(ab);
+	V2_float ab{ end - start };
+	V2_float ac{ point - start };
+	V2_float bc{ point - end };
+	float e = ac.Dot(ab);
 	// Handle cases where c projects outside ab
 	if (e <= 0.0f) {
 		return ac.Dot(ac);
@@ -111,17 +109,17 @@ float SquareDistancePointLine(const Line& line, const V2_float& c) {
 	return ac.Dot(ac) - e * e / f;
 }
 
-float SquareDistancePointRect(const V2_float& a, const Rect& b) {
+float SquareDistancePointRect(
+	const V2_float& point, const V2_float& rect_min, const V2_float& rect_max
+) {
 	float dist2{ 0.0f };
-	V2_float max{ b.Max() };
-	V2_float min{ b.Min() };
 	for (std::size_t i{ 0 }; i < 2; ++i) {
-		const float v{ a[i] };
-		if (v < min[i]) {
-			dist2 += (min[i] - v) * (min[i] - v);
+		const float v{ point[i] };
+		if (v < rect_min[i]) {
+			dist2 += (rect_min[i] - v) * (rect_min[i] - v);
 		}
-		if (v > max[i]) {
-			dist2 += (v - max[i]) * (v - max[i]);
+		if (v > rect_max[i]) {
+			dist2 += (v - rect_max[i]) * (v - rect_max[i]);
 		}
 	}
 	return dist2;
@@ -131,7 +129,9 @@ float ParallelogramArea(const V2_float& a, const V2_float& b, const V2_float& c)
 	return (a - c).Cross(b - c);
 }
 
-std::vector<Axis> GetAxes(const Polygon& polygon, [[maybe_unused]] bool intersection_info) {
+std::vector<Axis> GetPolygonAxes(
+	const std::vector<V2_float>& vertices, [[maybe_unused]] bool intersection_info
+) {
 	std::vector<Axis> axes;
 
 	const auto parallel_axis_exists = [&axes](const Axis& o_axis) {
@@ -143,14 +143,14 @@ std::vector<Axis> GetAxes(const Polygon& polygon, [[maybe_unused]] bool intersec
 		return false;
 	};
 
-	axes.reserve(polygon.vertices.size());
+	axes.reserve(vertices.size());
 
-	for (std::size_t a{ 0 }; a < polygon.vertices.size(); a++) {
-		std::size_t b{ a + 1 == polygon.vertices.size() ? 0 : a + 1 };
+	for (std::size_t a{ 0 }; a < vertices.size(); a++) {
+		std::size_t b{ a + 1 == vertices.size() ? 0 : a + 1 };
 
 		Axis axis;
-		axis.midpoint  = Midpoint(polygon.vertices[a], polygon.vertices[b]);
-		axis.direction = polygon.vertices[a] - polygon.vertices[b];
+		axis.midpoint  = Midpoint(vertices[a], vertices[b]);
+		axis.direction = vertices[a] - vertices[b];
 
 		// Skip coinciding points with no axis.
 		if (axis.direction.IsZero()) {
@@ -172,8 +172,10 @@ std::vector<Axis> GetAxes(const Polygon& polygon, [[maybe_unused]] bool intersec
 	return axes;
 }
 
-std::pair<float, float> GetProjectionMinMax(const Polygon& polygon, const Axis& axis) {
-	PTGN_ASSERT(!polygon.vertices.empty());
+std::pair<float, float> GetPolygonProjectionMinMax(
+	const std::vector<V2_float>& vertices, const Axis& axis
+) {
+	PTGN_ASSERT(!vertices.empty());
 	PTGN_ASSERT(
 		std::invoke([&]() {
 			float mag2{ axis.direction.MagnitudeSquared() };
@@ -182,10 +184,10 @@ std::pair<float, float> GetProjectionMinMax(const Polygon& polygon, const Axis& 
 		"Projection axis must be normalized"
 	);
 
-	float min{ axis.direction.Dot(polygon.vertices.front()) };
+	float min{ axis.direction.Dot(vertices.front()) };
 	float max{ min };
-	for (std::size_t i{ 1 }; i < polygon.vertices.size(); i++) {
-		float p = polygon.vertices[i].Dot(axis.direction);
+	for (std::size_t i{ 1 }; i < vertices.size(); i++) {
+		float p = vertices[i].Dot(axis.direction);
 		if (p < min) {
 			min = p;
 		} else if (p > max) {
@@ -244,6 +246,37 @@ float GetIntervalOverlap(
 	return std::min(right_dist, left_dist);
 }
 
-} // namespace impl
+bool IsConvexPolygon(const std::vector<V2_float>& vertices) {
+	PTGN_ASSERT(vertices.size() >= 3, "Line or point convexity check is redundant");
 
-} // namespace ptgn
+	const auto get_cross = [](const V2_float& a, const V2_float& b, const V2_float& c) {
+		return (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+	};
+
+	int sign{ static_cast<int>(Sign(get_cross(vertices[0], vertices[1], vertices[2]))) };
+
+	// For convex polygons, all sequential point triplet cross products must have the same sign
+	// (+ or -). For convex polygon every triplet makes turn in the same side (or CW, or CCW
+	// depending on walk direction). For concave one some signs will differ (where inner angle
+	// exceeds 180 degrees). Note that you don't need to calculate angle values. Source:
+	// https://stackoverflow.com/a/40739079
+
+	// Skip first point since that is the established reference.
+	for (std::size_t i = 1; i < vertices.size(); i++) {
+		V2_float a{ vertices[(i + 0)] };
+		V2_float b{ vertices[(i + 1) % vertices.size()] };
+		V2_float c{ vertices[(i + 2) % vertices.size()] };
+
+		int new_sign{ static_cast<int>(Sign(get_cross(a, b, c))) };
+
+		if (new_sign != sign) {
+			// Polygon is concave.
+			return false;
+		}
+	}
+
+	// Convex.
+	return true;
+}
+
+} // namespace ptgn::impl

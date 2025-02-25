@@ -6,13 +6,7 @@
 #include "math/geometry/axis.h"
 #include "math/vector2.h"
 
-namespace ptgn {
-
-struct Rect;
-struct Polygon;
-struct Line;
-
-namespace impl {
+namespace ptgn::impl {
 
 [[nodiscard]] bool WithinPerimeter(float radius, float dist2);
 
@@ -23,25 +17,34 @@ namespace impl {
 // S2(t)=P2+t*(Q2-P2), returning s and t. Function result is squared
 // distance between between S1(s) and S2(t)
 float ClosestPointLineLine(
-	const Line& line1, const Line& line2, float& s, float& t, V2_float& c1, V2_float& c2
+	const V2_float& lineA_start, const V2_float& lineA_end, const V2_float& lineB_start,
+	const V2_float& lineB_end, float& s, float& t, V2_float& c1, V2_float& c2
 );
 
 // Source:
 // http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 // Page 79.
-[[nodiscard]] float SquareDistancePointLine(const Line& line, const V2_float& c);
+[[nodiscard]] float SquareDistancePointLine(
+	const V2_float& point, const V2_float& start, const V2_float& end
+);
 
 // Source:
 // http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 // Page 79.
-[[nodiscard]] float SquareDistancePointRect(const V2_float& a, const Rect& b);
+[[nodiscard]] float SquareDistancePointRect(
+	const V2_float& point, const V2_float& rect_min, const V2_float& rect_max
+);
 
 [[nodiscard]] float ParallelogramArea(const V2_float& a, const V2_float& b, const V2_float& c);
 
-[[nodiscard]] std::vector<Axis> GetAxes(const Polygon& polygon, bool intersection_info);
+[[nodiscard]] std::vector<Axis> GetPolygonAxes(
+	const std::vector<V2_float>& vertices, bool intersection_info
+);
 
 // @return { min, max } of all the polygon vertices projected onto the given axis.
-[[nodiscard]] std::pair<float, float> GetProjectionMinMax(const Polygon& polygon, const Axis& axis);
+[[nodiscard]] std::pair<float, float> GetPolygonProjectionMinMax(
+	const std::vector<V2_float>& vertices, const Axis& axis
+);
 
 [[nodiscard]] bool IntervalsOverlap(float min1, float max1, float min2, float max2);
 
@@ -51,6 +54,6 @@ float ClosestPointLineLine(
 	V2_float& out_axis_direction
 );
 
-} // namespace impl
+[[nodiscard]] bool IsConvexPolygon(const std::vector<V2_float>& vertices);
 
-} // namespace ptgn
+} // namespace ptgn::impl
