@@ -1,5 +1,6 @@
 #pragma once
 
+#include "components/generic.h"
 #include "math/vector2.h"
 #include "serialization/fwd.h"
 
@@ -21,5 +22,15 @@ struct Transform {
 void to_json(json& j, const Transform& t);
 
 void from_json(const json& j, Transform& t);
+
+struct RotationCenter : public Vector2Component<float> {
+	using Vector2Component::Vector2Component;
+
+	RotationCenter() : Vector2Component{ V2_float{ 0.5f, 0.5f } } {}
+};
+
+struct Depth : public ArithmeticComponent<std::int32_t> {
+	using ArithmeticComponent::ArithmeticComponent;
+};
 
 } // namespace ptgn
