@@ -23,10 +23,10 @@ GameObject CreateColorButton(
 	ecs::Manager& manager, std::string_view text_content, const V2_float& position,
 	const V2_float& size, const T& activate = nullptr, Origin origin = Origin::Center
 ) {
-	GameObject o{ manager.CreateEntity() };
+	GameObject o{ manager };
 	o.SetVisible(true);
 	o.SetPosition(position);
-	auto& b = o.Add<Button>();
+	auto& b{ o.Add<Button>() };
 	b.Add<Rect>(size, origin);
 	b.SetBackgroundColor(color::Pink);
 	b.SetBackgroundColor(color::Red, ButtonState::Hover);
@@ -280,7 +280,7 @@ public:
 
 	void Update() override {
 		static impl::InternalButtonState state{ impl::InternalButtonState::IdleUp };
-		if (auto s{ b1.entity.Get<Button>().GetInternalState() }; state != s) {
+		if (auto s{ b1.Get<Button>().GetInternalState() }; state != s) {
 			state = s;
 			std::cout << "Internal state: " << state << std::endl;
 		}

@@ -28,6 +28,8 @@ struct BasicRectangleScene : public Scene {
 	GameObject c0;
 	GameObject r;
 	GameObject r2;
+	GameObject p2;
+	GameObject p3;
 	GameObject c;
 	GameObject c2;
 	GameObject c3;
@@ -43,7 +45,7 @@ struct BasicRectangleScene : public Scene {
 		V2_float ws{ game.window.GetSize() };
 		V2_float center{ game.window.GetCenter() };
 
-		c0 = manager.CreateEntity();
+		c0 = GameObject{ manager };
 		c0.Add<Circle>(90.0f);
 		c0.Add<Transform>(center + V2_float{ 200, 170 });
 		c0.Add<LineWidth>(20.0f);
@@ -51,34 +53,55 @@ struct BasicRectangleScene : public Scene {
 		c0.Add<Visible>();
 		c0.Add<Depth>(1);
 
-		r = manager.CreateEntity();
+		r = GameObject{ manager };
 		r.Add<Rect>(V2_float{ 200, 100 }, Origin::Center);
 		r.Add<Transform>(center + V2_float{ 200, 200 });
 		r.Add<Tint>(color::Red);
 		r.Add<Visible>();
 
-		t1 = manager.CreateEntity();
+		t1 = GameObject{ manager };
 		t1.Add<Triangle>(V2_float{ -150, 0 }, V2_float{ 0, -180 }, V2_float{ 150, 0 });
 		t1.Add<Transform>(center + V2_float{ 0, 240 });
 		t1.Add<Tint>(color::Blue);
 		t1.Add<Visible>(false); // Drawn to render target.
 
-		c = manager.CreateEntity();
+		c = GameObject{ manager };
 		c.Add<Circle>(60.0f);
 		c.Add<Transform>(center + V2_float{ 200, 200 });
 		c.Add<Tint>(color::LightGray);
 		c.Add<Visible>();
 
-		t2 = manager.CreateEntity();
+		t2 = GameObject{ manager };
 		t2.Add<Triangle>(V2_float{ -150, 0 }, V2_float{ 0, -180 }, V2_float{ 150, 0 });
 		t2.Add<LineWidth>(10.0f);
 		t2.Add<Transform>(center + V2_float{ 0, -180 });
 		t2.Add<Tint>(color::Blue);
 		t2.Add<Visible>();
 
+		p2 = GameObject{ manager };
+		p2.Add<Polygon>(std::vector<V2_float>{
+			V2_float{ 17, 3 },
+			V2_float{ 20, 13 },
+			V2_float{ 31, 13 },
+			V2_float{ 23, 19 },
+			V2_float{ 26, 30 },
+			V2_float{ 17, 24 },
+			V2_float{ 8, 30 },
+			V2_float{ 11, 19 },
+			V2_float{ 3, 13 },
+			V2_float{ 14, 13 },
+		});
+		p2.Add<Transform>(center + V2_float{ -230, 250 }, 0.0f, V2_float{ 3.0f });
+		p2.Add<Tint>(color::Purple);
+		p2.Add<Visible>();
+
+		p3							 = p2.Copy();
+		p3.Get<Transform>().position = center + V2_float{ -320, 220 };
+		p3.Add<LineWidth>(3.0f);
+
 		V2_float light0_pos{ center + V2_float{ 100, 160 } };
 
-		point_light0 = manager.CreateEntity();
+		point_light0 = GameObject{ manager };
 		point_light0.Add<PointLight>()
 			.SetRadius(250.0f)
 			.SetIntensity(1.0f)
@@ -121,26 +144,26 @@ struct BasicRectangleScene : public Scene {
 		std::invoke(create_sprite_obj, "test05", 5);
 		std::invoke(create_sprite_obj, "test06", 6);
 
-		rt = manager.CreateEntity();
+		rt = GameObject{ manager };
 		rt.Add<RenderTarget>(manager, window_size);
 		rt.Add<Transform>(center);
 		rt.Add<Visible>();
 
-		r2 = manager.CreateEntity();
+		r2 = GameObject{ manager };
 		r2.Add<Rect>(V2_float{ 200, 200 });
 		r2.Add<Transform>(center + V2_float{ -100, 0 });
 		r2.Add<LineWidth>(10.0f);
 		r2.Add<Tint>(color::Pink);
 		r2.Add<Visible>();
 
-		c2 = manager.CreateEntity();
+		c2 = GameObject{ manager };
 		c2.Add<Circle>(50.0f);
 		c2.Add<Transform>(center + V2_float{ -200, -200 });
 		c2.Add<LineWidth>(1.0f);
 		c2.Add<Tint>(color::Purple);
 		c2.Add<Visible>();
 
-		c3 = manager.CreateEntity();
+		c3 = GameObject{ manager };
 		c3.Add<Circle>(80.0f);
 		c3.Add<Transform>(center + V2_float{ -220, -120 });
 		c3.Add<LineWidth>(10.0f);
@@ -151,7 +174,7 @@ struct BasicRectangleScene : public Scene {
 
 		game.font.Load("test_font", "resources/test_font.ttf");
 
-		text1 = manager.CreateEntity();
+		text1 = GameObject{ manager };
 		text1.Add<Text>(manager, "Hello world!", color::Black, "test_font");
 		text1.Add<Transform>(center - V2_float{ 0, 130 });
 		text1.Add<Visible>();
@@ -159,7 +182,7 @@ struct BasicRectangleScene : public Scene {
 		V2_float light1_pos{ center + V2_float{ 0, 160 } };
 		V2_float light2_pos{ center + V2_float{ 50, -160 } };
 
-		point_light1 = manager.CreateEntity();
+		point_light1 = GameObject{ manager };
 		point_light1.Add<PointLight>()
 			.SetRadius(200.0f)
 			.SetIntensity(1.0f)
@@ -170,7 +193,7 @@ struct BasicRectangleScene : public Scene {
 		point_light1.Add<Transform>(light1_pos);
 		point_light1.Add<Visible>();
 
-		point_light2 = manager.CreateEntity();
+		point_light2 = GameObject{ manager };
 		point_light2.Add<PointLight>()
 			.SetRadius(200.0f)
 			.SetIntensity(1.0f)
@@ -183,7 +206,7 @@ struct BasicRectangleScene : public Scene {
 	}
 
 	void Update() override {
-		const auto& render_target{ rt.entity.Get<RenderTarget>() };
+		const auto& render_target{ rt.Get<RenderTarget>() };
 		render_target.Bind();
 		render_target.Clear();
 

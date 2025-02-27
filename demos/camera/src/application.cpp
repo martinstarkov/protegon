@@ -32,13 +32,13 @@ public:
 		ui.Add<Origin>(Origin::TopLeft);
 
 		auto camera_center = manager.CreateEntity();
-		camera_center.Add<Circle>(camera_center, 3.0f);
+		camera_center.Add<Circle>(3.0f);
 		camera_center.Add<Transform>(game.window.GetCenter());
 		camera_center.Add<Tint>(color::Black);
 		camera_center.Add<Visible>();
 
 		auto deadzone = manager.CreateEntity();
-		deadzone.Add<Rect>(deadzone, deadzone_size, Origin::Center);
+		deadzone.Add<Rect>(deadzone_size, Origin::Center);
 		deadzone.Add<Transform>(game.window.GetCenter());
 		deadzone.Add<LineWidth>(2.0f);
 		deadzone.Add<Origin>();
@@ -96,7 +96,7 @@ public:
 		texture.Add<callback::MouseScroll>([](auto scroll) { PTGN_LOG("Mouse scroll: ", scroll); });
 
 		auto b = manager.CreateEntity();
-		b.Add<Rect>(b, window_size, Origin::TopLeft);
+		b.Add<Rect>(window_size, Origin::TopLeft);
 		b.Add<Transform>(V2_float{});
 		b.Add<LineWidth>(3.0f);
 		b.Add<Tint>(color::Red);
@@ -118,7 +118,7 @@ public:
 
 		mouse = manager.CreateEntity();
 		mouse.Add<Transform>();
-		mouse.Add<Circle>(mouse, 20.0f);
+		mouse.Add<Circle>(20.0f);
 		mouse.Add<Tint>(color::Red);
 		mouse.Add<Visible>();
 
@@ -127,7 +127,7 @@ public:
 		camera.primary.PanTo({ 800, 800 }, seconds{ 3 });
 		camera.primary.PanTo({ 0, 800 }, seconds{ 3 });
 		camera.primary.StartFollow(mouse);
-		camera.primary.SetLerp(V2_float{ 0.05f });
+		camera.primary.SetLerp(V2_float{ 0.5f });
 		// camera.primary.SetOffset(V2_float{ -75, -75 });
 		camera.primary.SetDeadzone(deadzone_size);
 
