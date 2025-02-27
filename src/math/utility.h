@@ -6,7 +6,9 @@
 #include "math/geometry/axis.h"
 #include "math/vector2.h"
 
-namespace ptgn::impl {
+namespace ptgn {
+
+namespace impl {
 
 [[nodiscard]] bool WithinPerimeter(float radius, float dist2);
 
@@ -38,12 +40,12 @@ float ClosestPointLineLine(
 [[nodiscard]] float ParallelogramArea(const V2_float& a, const V2_float& b, const V2_float& c);
 
 [[nodiscard]] std::vector<Axis> GetPolygonAxes(
-	const std::vector<V2_float>& vertices, bool intersection_info
+	const V2_float* vertices, std::size_t vertex_count, bool intersection_info
 );
 
 // @return { min, max } of all the polygon vertices projected onto the given axis.
 [[nodiscard]] std::pair<float, float> GetPolygonProjectionMinMax(
-	const std::vector<V2_float>& vertices, const Axis& axis
+	const V2_float* vertices, std::size_t vertex_count, const Axis& axis
 );
 
 [[nodiscard]] bool IntervalsOverlap(float min1, float max1, float min2, float max2);
@@ -54,6 +56,8 @@ float ClosestPointLineLine(
 	V2_float& out_axis_direction
 );
 
-[[nodiscard]] bool IsConvexPolygon(const std::vector<V2_float>& vertices);
+[[nodiscard]] bool IsConvexPolygon(const V2_float* vertices, std::size_t vertex_count);
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn

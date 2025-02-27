@@ -11,7 +11,9 @@
 #include "math/vector2.h"
 #include "utility/assert.h"
 
-namespace ptgn::impl {
+namespace ptgn {
+
+namespace impl {
 
 bool WithinPerimeter(float radius, float dist2) {
 	float rad2{ radius * radius };
@@ -130,7 +132,7 @@ float ParallelogramArea(const V2_float& a, const V2_float& b, const V2_float& c)
 }
 
 std::vector<Axis> GetPolygonAxes(
-	const std::vector<V2_float>& vertices, [[maybe_unused]] bool intersection_info
+	const V2_float* vertices, std::size_t vertex_count, [[maybe_unused]] bool intersection_info
 ) {
 	std::vector<Axis> axes;
 
@@ -143,10 +145,10 @@ std::vector<Axis> GetPolygonAxes(
 		return false;
 	};
 
-	axes.reserve(vertices.size());
+	axes.reserve(vertex_count);
 
-	for (std::size_t a{ 0 }; a < vertices.size(); a++) {
-		std::size_t b{ a + 1 == vertices.size() ? 0 : a + 1 };
+	for (std::size_t a{ 0 }; a < vertex_count; a++) {
+		std::size_t b{ a + 1 == vertex_count ? 0 : a + 1 };
 
 		Axis axis;
 		axis.midpoint  = Midpoint(vertices[a], vertices[b]);
@@ -173,9 +175,9 @@ std::vector<Axis> GetPolygonAxes(
 }
 
 std::pair<float, float> GetPolygonProjectionMinMax(
-	const std::vector<V2_float>& vertices, const Axis& axis
+	const V2_float* vertices, std::size_t vertex_count, const Axis& axis
 ) {
-	PTGN_ASSERT(!vertices.empty());
+	PTGN_ASSERT(vertex_count > 0);
 	PTGN_ASSERT(
 		std::invoke([&]() {
 			float mag2{ axis.direction.MagnitudeSquared() };
@@ -184,9 +186,9 @@ std::pair<float, float> GetPolygonProjectionMinMax(
 		"Projection axis must be normalized"
 	);
 
-	float min{ axis.direction.Dot(vertices.front()) };
+	float min{ axis.direction.Dot(vertices[0]) };
 	float max{ min };
-	for (std::size_t i{ 1 }; i < vertices.size(); i++) {
+	for (std::size_t i{ 1 }; i < vertex_count; i++) {
 		float p = vertices[i].Dot(axis.direction);
 		if (p < min) {
 			min = p;
@@ -246,8 +248,8 @@ float GetIntervalOverlap(
 	return std::min(right_dist, left_dist);
 }
 
-bool IsConvexPolygon(const std::vector<V2_float>& vertices) {
-	PTGN_ASSERT(vertices.size() >= 3, "Line or point convexity check is redundant");
+bool IsConvexPolygon(const V2_float* vertices, std::size_t vertex_count) {
+	PTGN_ASSERT(vertex_count >= 3, "Line or point convexity check is redundant");
 
 	const auto get_cross = [](const V2_float& a, const V2_float& b, const V2_float& c) {
 		return (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
@@ -262,10 +264,10 @@ bool IsConvexPolygon(const std::vector<V2_float>& vertices) {
 	// https://stackoverflow.com/a/40739079
 
 	// Skip first point since that is the established reference.
-	for (std::size_t i = 1; i < vertices.size(); i++) {
+	for (std::size_t i = 1; i < vertex_count; i++) {
 		V2_float a{ vertices[(i + 0)] };
-		V2_float b{ vertices[(i + 1) % vertices.size()] };
-		V2_float c{ vertices[(i + 2) % vertices.size()] };
+		V2_float b{ vertices[(i + 1) % vertex_count] };
+		V2_float c{ vertices[(i + 2) % vertex_count] };
 
 		int new_sign{ static_cast<int>(Sign(get_cross(a, b, c))) };
 
@@ -279,4 +281,6 @@ bool IsConvexPolygon(const std::vector<V2_float>& vertices) {
 	return true;
 }
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn
