@@ -1,9 +1,5 @@
 #include "math/vector2.h"
 
-#include "math/collision/overlap.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/line.h"
-#include "math/geometry/polygon.h"
 #include "serialization/fwd.h"
 #include "serialization/json.h"
 #include "utility/assert.h"
@@ -33,42 +29,6 @@ void from_json(const json& j, Vector2<T>& v) {
 template <typename T>
 bool Vector2<T>::IsZero() const noexcept {
 	return NearlyEqual(x, T{ 0 }) && NearlyEqual(y, T{ 0 });
-}
-
-template <typename T>
-bool Vector2<T>::Overlaps(const Line& line) const {
-	return OverlapPointLine(V2_float{ *this }, line.GetStart(), line.GetEnd());
-}
-
-template <typename T>
-bool Vector2<T>::Overlaps(const Circle& circle) const {
-	return OverlapPointCircle(V2_float{ *this }, circle.GetCenter(), circle.GetRadius());
-}
-
-template <typename T>
-bool Vector2<T>::Overlaps(const Rect& rect) const {
-	auto [rect_min, rect_max] = rect.GetExtents();
-	return OverlapPointRect(
-		V2_float{ *this }, rect_min, rect_max, rect.GetRotation(), rect.GetRotationCenter()
-	);
-}
-
-template <typename T>
-bool Vector2<T>::Overlaps(const Triangle& triangle) const {
-	auto [a, b, c] = triangle.GetVertices();
-	return OverlapPointTriangle(V2_float{ *this }, a, b, c);
-}
-
-template <typename T>
-bool Vector2<T>::Overlaps(const Capsule& capsule) const {
-	return OverlapPointCapsule(
-		V2_float{ *this }, capsule.GetStart(), capsule.GetEnd(), capsule.GetRadius()
-	);
-}
-
-template <typename T>
-bool Vector2<T>::Overlaps(const Polygon& polygon) const {
-	return OverlapPointPolygon(V2_float{ *this }, polygon.GetVertices());
 }
 
 template struct Vector2<int>;
