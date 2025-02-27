@@ -28,9 +28,8 @@ struct InteractiveComponentScene : public Scene {
 		V2_float center{ game.window.GetCenter() };
 
 		auto c0 = manager.CreateEntity();
-		c0.Add<Circle>();
+		c0.Add<Circle>(90.0f);
 		c0.Add<Transform>(center + V2_float{ 200, -200 });
-		c0.Add<Radius>(V2_float{ 90 });
 		c0.Add<Tint>(color::Green);
 		c0.Add<Visible>();
 		c0.Add<Interactive>();
@@ -54,10 +53,9 @@ struct InteractiveComponentScene : public Scene {
 		});
 
 		auto c1 = manager.CreateEntity();
-		c1.Add<Circle>();
+		c1.Add<Circle>(45.0f);
 		c1.Add<Transform>(center + V2_float{ 200, 200 });
-		c1.Add<Radius>(V2_float{ 45 });
-		c1.Add<InteractiveRadius>(V2_float{ 90 });
+		c1.Add<InteractiveRadius>(90.0f);
 		c1.Add<Tint>(color::LightGreen);
 		c1.Add<Visible>();
 		c1.Add<Interactive>();
@@ -81,10 +79,8 @@ struct InteractiveComponentScene : public Scene {
 		});
 
 		auto r0 = manager.CreateEntity();
-		r0.Add<Rect>();
+		r0.Add<Rect>(V2_float{ 200, 100 }, Origin::Center);
 		r0.Add<Transform>(center + V2_float{ -200, -200 });
-		r0.Add<Size>(V2_float{ 200, 100 });
-		r0.Add<Origin>(Origin::Center);
 		r0.Add<Tint>(color::Blue);
 		r0.Add<Visible>();
 		r0.Add<Interactive>();
@@ -108,11 +104,9 @@ struct InteractiveComponentScene : public Scene {
 		});
 
 		auto r1 = manager.CreateEntity();
-		r1.Add<Rect>();
+		V2_float r1size{ r1.Add<Rect>(V2_float{ 100, 50 }, Origin::Center).size };
 		r1.Add<Transform>(center + V2_float{ -200, 200 });
-		V2_float r1size{ r1.Add<Size>(V2_float{ 100, 50 }) };
 		r1.Add<InteractiveSize>(r1size * 2.0f);
-		r1.Add<Origin>(Origin::Center);
 		r1.Add<Tint>(color::LightBlue);
 		r1.Add<Visible>();
 		r1.Add<Interactive>();
@@ -182,7 +176,7 @@ struct InteractiveComponentScene : public Scene {
 		auto c3 = CreateSprite(manager, "drag_circle");
 		c3.Add<Transform>(center + V2_float{ 0, 0 });
 		c3.Add<Origin>(Origin::Center);
-		c3.Add<InteractiveRadius>(V2_float{ game.texture.GetSize("drag_circle") / 2.0f });
+		c3.Add<InteractiveRadius>(game.texture.GetSize("drag_circle").x * 0.5f);
 		c3.Add<Interactive>();
 		c3.Add<Draggable>();
 		c3.Add<callback::Drag>([=](auto mouse) mutable {
