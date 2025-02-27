@@ -126,17 +126,12 @@ private:
 
 struct BoxCollider : public Rect, public Collider {
 	BoxCollider() = delete;
-
-	BoxCollider(const ecs::Entity& e);
-
-	BoxCollider(const ecs::Entity& e, const V2_float& size, Origin origin = Origin::Center);
+	using Rect::Rect;
 };
 
 struct CircleCollider : public Circle, public Collider {
 	CircleCollider() = delete;
-
-	CircleCollider(const ecs::Entity& e);
-	CircleCollider(const ecs::Entity& e, float radius);
+	using Circle::Circle;
 };
 
 // struct PolygonCollider : public Collider {

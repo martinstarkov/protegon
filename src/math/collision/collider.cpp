@@ -92,13 +92,4 @@ void Collider::ResetCollisions() {
 	collisions.clear();
 }
 
-BoxCollider::BoxCollider(const ecs::Entity& e) : Rect{ e } {}
-
-BoxCollider::BoxCollider(const ecs::Entity& e, const V2_float& size, Origin origin) :
-	Rect{ e, size, origin } {}
-
-CircleCollider::CircleCollider(const ecs::Entity& e) : Circle{ e } {}
-
-CircleCollider::CircleCollider(const ecs::Entity& e, float radius) : Circle{ e, radius } {}
-
 } // namespace ptgn
