@@ -4,8 +4,6 @@
 
 namespace ptgn {
 
-struct Color;
-
 struct Axis {
 	V2_float direction;
 	V2_float midpoint;
