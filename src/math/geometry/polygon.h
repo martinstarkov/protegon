@@ -3,120 +3,58 @@
 #include <array>
 #include <vector>
 
-#include "core/game_object.h"
-#include "ecs/ecs.h"
-#include "math/collision/intersect.h"
-#include "math/collision/raycast.h"
+#include "components/transform.h"
 #include "math/vector2.h"
 #include "renderer/origin.h"
 
 namespace ptgn {
 
+struct Rect;
+
 namespace impl {
 
-// Rotation angle in radians.
-[[nodiscard]] std::array<V2_float, 4> GetQuadVertices(
-	const V2_float& rect_center, float rotation, const V2_float& rect_size,
-	const V2_float& rotation_center
-);
-
-// Rotation angle in radians.
-[[nodiscard]] std::array<V2_float, 4> GetQuadVertices(
-	const V2_float& rect_min, const V2_float& rect_max, float rotation,
-	const V2_float& rotation_center
-);
-
-[[nodiscard]] V2_float GetPolygonCenter(const std::vector<V2_float>& polygon);
+[[nodiscard]] std::array<V2_float, 4> GetVertices(const Transform& transform, Rect rect);
 
 } // namespace impl
 
-struct Color;
-struct Line;
-struct Circle;
-struct Capsule;
-struct Rect;
-struct Polygon;
+[[nodiscard]] V2_float GetPolygonCenter(const V2_float* vertices, std::size_t vertex_count);
 
-struct Triangle : public GameObject {
+struct Triangle {
 	Triangle() = default;
-	Triangle(const ecs::Entity& e);
-	Triangle(
-		const ecs::Entity& e, const V2_float& local_a, const V2_float& local_b,
-		const V2_float& local_c
-	);
+	Triangle(const V2_float& a, const V2_float& b, const V2_float& c);
+	explicit Triangle(const std::array<V2_float, 3>& vertices);
 
-	Triangle& SetLocalVertices(const V2_float& a, const V2_float& b, const V2_float& c);
+	friend bool operator==(const Triangle& a, const Triangle& b) {
+		return a.vertices == b.vertices;
+	}
 
-	[[nodiscard]] std::array<V2_float, 3> GetVertices() const;
+	friend bool operator!=(const Triangle& a, const Triangle& b) {
+		return !(a == b);
+	}
 
-	bool operator==(const Triangle& o) const;
-
-	bool operator!=(const Triangle& o) const;
-
-	// @return True if the point is inside the triangle.
-	[[nodiscard]] bool Overlaps(const V2_float& point) const;
-
-	[[nodiscard]] bool Overlaps(const Rect& rect) const;
-
-	// @return True if internal triangle is entirely contained by the triangle.
-	[[nodiscard]] bool Contains(const Triangle& internal) const;
-
-private:
-	// Local vertex coordinates of the triangle.
-	V2_float a_;
-	V2_float b_;
-	V2_float c_;
+	std::array<V2_float, 3> vertices;
 };
 
-struct Rect : public GameObject {
+struct Rect {
 	Rect() = default;
-	Rect(const ecs::Entity& e);
-	Rect(const ecs::Entity& e, const V2_float& size, Origin origin = Origin::Center);
+	Rect(const V2_float& size, Origin origin = Origin::Center);
 
-	// @return { min, max }
-	[[nodiscard]] std::array<V2_float, 2> GetExtents() const;
+	friend bool operator==(const Rect& a, const Rect& b) {
+		return a.size == b.size && a.origin == b.origin;
+	}
 
-	Rect& SetSize(const V2_float& size);
-	Rect& SetOrigin(Origin origin);
-
-	[[nodiscard]] V2_float GetSize() const;
-	[[nodiscard]] Origin GetOrigin() const;
+	friend bool operator!=(const Rect& a, const Rect& b) {
+		return !(a == b);
+	}
 
 	// @return Half the size of the rectangle.
-	[[nodiscard]] V2_float Half() const noexcept;
+	[[nodiscard]] V2_float Half() const;
 
-	// @return Center position of rectangle.
-	[[nodiscard]] V2_float GetCenter() const noexcept;
+	// @return How much needs to be added to the position to get the center of the rect.
+	[[nodiscard]] V2_float GetCenterOffset() const;
 
-	// @return Bottom right position of the unrotated rectangle.
-	[[nodiscard]] V2_float Max() const noexcept;
-
-	// @return Top left position of the unrotated rectangle.
-	[[nodiscard]] V2_float Min() const noexcept;
-
-	// @return Position of the unrotated rectangle relative to the given origin.
-	[[nodiscard]] V2_float GetPositionRelativeTo(Origin relative_to) const;
-
-	[[nodiscard]] std::array<V2_float, 4> GetVertices() const;
-
-	[[nodiscard]] bool IsZero() const noexcept;
-
-	[[nodiscard]] bool Overlaps(const V2_float& point) const;
-	[[nodiscard]] bool Overlaps(const Line& line) const;
-	[[nodiscard]] bool Overlaps(const Circle& circle) const;
-	[[nodiscard]] bool Overlaps(const Triangle& triangle) const;
-	[[nodiscard]] bool Overlaps(const Rect& rect) const;
-	[[nodiscard]] bool Overlaps(const Capsule& capsule) const;
-
-	[[nodiscard]] Intersection Intersects(const Rect& rect) const;
-	[[nodiscard]] Intersection Intersects(const Circle& circle) const;
-
-	[[nodiscard]] ptgn::Raycast Raycast(const V2_float& ray, const Circle& circle) const;
-	[[nodiscard]] ptgn::Raycast Raycast(const V2_float& ray, const Rect& rect) const;
-
-private:
-	V2_float size_;
-	Origin origin_{ Origin::Center };
+	V2_float size;
+	Origin origin{ Origin::Center };
 };
 
 /*
@@ -144,19 +82,17 @@ struct RoundedRect : public Rect {
 };
 */
 
-struct Polygon : public GameObject {
+struct Polygon {
 	Polygon() = default;
-	Polygon(const ecs::Entity& e);
-	Polygon(const ecs::Entity& e, const std::vector<V2_float>& local_vertices);
+	explicit Polygon(const std::vector<V2_float>& vertices);
 
-	Polygon& SetLocalVertices(const std::vector<V2_float>& local_vertices);
+	friend bool operator==(const Polygon& a, const Polygon& b) {
+		return a.vertices == b.vertices;
+	}
 
-	[[nodiscard]] const std::vector<V2_float>& GetLocalVertices() const;
-
-	[[nodiscard]] std::vector<V2_float> GetVertices() const;
-
-	// @return Centroid of the polygon.
-	[[nodiscard]] V2_float GetCenter() const;
+	friend bool operator!=(const Polygon& a, const Polygon& b) {
+		return !(a == b);
+	}
 
 	// @return True if all the interior angles are less than 180 degrees.
 	[[nodiscard]] bool IsConvex() const;
@@ -164,27 +100,7 @@ struct Polygon : public GameObject {
 	// @return True if any of the interior angles are above 180 degrees.
 	[[nodiscard]] bool IsConcave() const;
 
-	// @return A vector of triangles which make up the polygon.
-	[[nodiscard]] std::vector<std::array<V2_float, 3>> Triangulate() const;
-
-	// Works for both convex and concave polygons.
-	[[nodiscard]] bool Overlaps(const V2_float& point) const;
-
-	// Only works if both polygons are convex.
-	[[nodiscard]] bool Overlaps(const Polygon& polygon) const;
-
-	// @return True if internal polygon is entirely contained by this polygon.
-	[[nodiscard]] bool Contains(const Polygon& internal) const;
-
-	// @return True if triangle is entirely contained by the polygon.
-	[[nodiscard]] bool Contains(const Triangle& triangle) const;
-
-	// Only works if both polygons are convex.
-	[[nodiscard]] Intersection Intersects(const Polygon& polygon) const;
-
-private:
-	// Vertex positions relative to the polygon transform position.
-	std::vector<V2_float> local_vertices_;
+	std::vector<V2_float> vertices;
 };
 
 namespace impl {
@@ -200,11 +116,13 @@ namespace impl {
 	const V2_float* contour, int u, int v, int w, int n, const std::vector<int>& V
 );
 
+} // namespace impl
+
 // @return A vector of triangles which make up the polygon contour.
 [[nodiscard]] std::vector<std::array<V2_float, 3>> Triangulate(
-	const V2_float* contour, std::size_t count
+	const V2_float* vertices, std::size_t vertex_count
 );
 
-} // namespace impl
+[[nodiscard]] V2_float GetCenter(const Transform& transform, Rect rect);
 
 } // namespace ptgn

@@ -2,130 +2,22 @@
 
 #include <array>
 
-#include "core/game_object.h"
-#include "ecs/ecs.h"
-#include "math/collision/overlap.h"
-#include "math/collision/raycast.h"
-#include "math/geometry/circle.h"
+#include "components/transform.h"
 #include "math/geometry/polygon.h"
-#include "math/math.h"
-#include "math/utility.h"
 #include "math/vector2.h"
+#include "renderer/origin.h"
 
 namespace ptgn {
 
-Line::Line(const ecs::Entity& e) : GameObject{ e } {}
-
-Line::Line(const ecs::Entity& e, const V2_float& start, const V2_float& end) : Line{ e } {
-	SetVertices(start, end);
-}
-
-Line& Line::SetStart(const V2_float& start) {
-	SetPosition(start);
-	return *this;
-}
-
-Line& Line::SetEnd(const V2_float& end) {
-	end_ = end;
-	return *this;
-}
-
-Line& Line::SetVertices(const V2_float& start, const V2_float& end) {
-	SetStart(start);
-	SetEnd(end);
-	return *this;
-}
-
-std::array<V2_float, 2> Line::GetVertices() const {
-	return { GetStart(), end_ };
-}
-
-V2_float Line::GetStart() const {
-	return GetPosition();
-}
-
-V2_float Line::GetEnd() const {
-	return end_;
-}
-
-bool Line::Contains(const Line& line) const {
-	auto [start, end]			= GetVertices();
-	auto [line_start, line_end] = line.GetVertices();
-
-	if (auto d{ (end - start).Cross(line_end - line_start) }; !NearlyEqual(d, 0.0f)) {
-		return false;
-	}
-
-	float a1{ impl::ParallelogramArea(start, end, line_end) }; // Compute winding of abd (+ or -)
-	float a2{ impl::ParallelogramArea(start, end, line_start) };
-
-	if (bool collinear{ NearlyEqual(a1, 0.0f) || NearlyEqual(a2, 0.0f) }; !collinear) {
-		return false;
-	}
-
-	if (Overlaps(line_start) && Overlaps(line_end)) {
-		return true;
-	}
-
-	return false;
-}
-
-bool Line::Overlaps(const V2_float& point) const {
-	return point.Overlaps(*this);
-}
-
-bool Line::Overlaps(const Line& line) const {
-	return OverlapLineLine(GetStart(), GetEnd(), line.GetStart(), line.GetEnd());
-}
-
-bool Line::Overlaps(const Circle& circle) const {
-	return OverlapLineCircle(GetStart(), GetEnd(), circle.GetCenter(), circle.GetRadius());
-}
-
-bool Line::Overlaps(const Rect& rect) const {
-	auto [rect_min, rect_max] = rect.GetExtents();
-	return OverlapLineRect(GetStart(), GetEnd(), rect_min, rect_max);
-}
-
-bool Line::Overlaps(const Capsule& capsule) const {
-	return OverlapLineCapsule(
-		GetStart(), GetEnd(), capsule.GetStart(), capsule.GetEnd(), capsule.GetRadius()
-	);
-}
-
-ptgn::Raycast Line::Raycast(const Line& line) const {
-	return RaycastLineLine(GetStart(), GetEnd(), line.GetStart(), line.GetEnd());
-}
-
-ptgn::Raycast Line::Raycast(const Circle& circle) const {
-	return RaycastLineCircle(GetStart(), GetEnd(), circle.GetCenter(), circle.GetRadius());
-}
-
-ptgn::Raycast Line::Raycast(const Rect& rect) const {
-	auto [rect_min, rect_max] = rect.GetExtents();
-	return RaycastLineRect(GetStart(), GetEnd(), rect_min, rect_max);
-}
-
-ptgn::Raycast Line::Raycast(const Capsule& capsule) const {
-	return RaycastLineCapsule(
-		GetStart(), GetEnd(), capsule.GetStart(), capsule.GetEnd(), capsule.GetRadius()
-	);
-}
+Line::Line(const V2_float& start, const V2_float& end) : start{ start }, end{ end } {}
 
 std::array<V2_float, 4> Line::GetQuadVertices(float line_width) const {
-	auto [start, end] = GetVertices();
-	return GetQuadVertices(start, end, line_width);
-}
-
-std::array<V2_float, 4> Line::GetQuadVertices(
-	const V2_float& start, const V2_float& end, float line_width
-) {
-	V2_float dir{ end - start };
+	auto dir{ end - start };
 	//  TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
-	V2_float center{ start + dir * 0.5f };
+	auto center{ start + dir * 0.5f };
 	float rotation{ dir.Angle() };
 	V2_float size{ dir.Magnitude(), line_width };
-	return impl::GetQuadVertices(center, rotation, size, V2_float{ 0.5f, 0.5f });
+	return impl::GetVertices(Transform{ center, rotation }, { size, Origin::Center });
 }
 
 /*
@@ -189,71 +81,7 @@ void Capsule::Draw(const Color& color, float line_width, std::int32_t render_lay
 }
 */
 
-Capsule::Capsule(const ecs::Entity& e) : GameObject{ e } {}
-
-Capsule::Capsule(const ecs::Entity& e, const V2_float& start, const V2_float& end, float radius) :
-	Capsule{ e } {
-	SetVertices(start, end);
-	SetRadius(radius);
-}
-
-Capsule& Capsule::SetStart(const V2_float& start) {
-	SetPosition(start);
-	return *this;
-}
-
-Capsule& Capsule::SetEnd(const V2_float& end) {
-	end_ = end;
-	return *this;
-}
-
-Capsule& Capsule::SetRadius(float radius) {
-	radius_ = radius;
-	return *this;
-}
-
-Capsule& Capsule::SetVertices(const V2_float& start, const V2_float& end) {
-	SetStart(start);
-	SetEnd(end);
-	return *this;
-}
-
-std::array<V2_float, 2> Capsule::GetVertices() const {
-	return { GetStart(), end_ };
-}
-
-V2_float Capsule::GetStart() const {
-	return GetPosition();
-}
-
-V2_float Capsule::GetEnd() const {
-	return end_;
-}
-
-float Capsule::GetRadius() const {
-	return radius_;
-}
-
-bool Capsule::Overlaps(const V2_float& point) const {
-	return point.Overlaps(*this);
-}
-
-bool Capsule::Overlaps(const Line& line) const {
-	return line.Overlaps(*this);
-}
-
-bool Capsule::Overlaps(const Circle& circle) const {
-	return circle.Overlaps(*this);
-}
-
-bool Capsule::Overlaps(const Rect& rect) const {
-	return rect.Overlaps(*this);
-}
-
-bool Capsule::Overlaps(const Capsule& capsule) const {
-	return OverlapCapsuleCapsule(
-		GetStart(), GetEnd(), radius_, capsule.GetStart(), capsule.GetEnd(), capsule.GetRadius()
-	);
-}
+Capsule::Capsule(const V2_float& start, const V2_float& end, float radius) :
+	start{ start }, end{ end }, radius{ radius } {}
 
 } // namespace ptgn

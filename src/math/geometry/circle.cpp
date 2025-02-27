@@ -1,94 +1,17 @@
 #include "math/geometry/circle.h"
 
-#include <array>
 #include <cmath>
 #include <utility>
 #include <vector>
 
-#include "core/game_object.h"
-#include "ecs/ecs.h"
-#include "math/collision/intersect.h"
-#include "math/collision/overlap.h"
-#include "math/collision/raycast.h"
-#include "math/geometry/line.h"
-#include "math/geometry/polygon.h"
+#include "components/transform.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "utility/assert.h"
 
 namespace ptgn {
 
-Circle::Circle(const ecs::Entity& e) : GameObject{ e } {}
-
-Circle::Circle(const ecs::Entity& e, float radius) : Circle{ e } {
-	SetRadius(radius);
-}
-
-Circle& Circle::SetRadius(float radius) {
-	radius_ = radius;
-	return *this;
-}
-
-float Circle::GetRadius() const {
-	return radius_ * GetScale().x;
-}
-
-V2_float Circle::GetCenter() const {
-	return GetPosition();
-}
-
-bool Circle::Overlaps(const V2_float& point) const {
-	return point.Overlaps(*this);
-}
-
-bool Circle::Overlaps(const Line& line) const {
-	return line.Overlaps(*this);
-}
-
-bool Circle::Overlaps(const Circle& circle) const {
-	return OverlapCircleCircle(GetCenter(), GetRadius(), circle.GetCenter(), circle.GetRadius());
-}
-
-bool Circle::Overlaps(const Rect& rect) const {
-	auto [rect_min, rect_max] = rect.GetExtents();
-	return OverlapCircleRect(GetCenter(), GetRadius(), rect_min, rect_max);
-}
-
-bool Circle::Overlaps(const Capsule& capsule) const {
-	return OverlapCircleCapsule(
-		GetCenter(), GetRadius(), capsule.GetStart(), capsule.GetEnd(), capsule.GetRadius()
-	);
-}
-
-Intersection Circle::Intersects(const Circle& circle) const {
-	return IntersectCircleCircle(GetCenter(), GetRadius(), circle.GetCenter(), circle.GetRadius());
-}
-
-Intersection Circle::Intersects(const Rect& rect) const {
-	auto [rect_min, rect_max] = rect.GetExtents();
-	return IntersectCircleRect(GetCenter(), GetRadius(), rect_min, rect_max);
-}
-
-ptgn::Raycast Circle::Raycast(const V2_float& ray, const Line& line) const {
-	return RaycastCircleLine(GetCenter(), GetRadius(), ray, line.GetStart(), line.GetEnd());
-}
-
-ptgn::Raycast Circle::Raycast(const V2_float& ray, const Circle& circle) const {
-	return RaycastCircleCircle(
-		GetCenter(), GetRadius(), ray, circle.GetCenter(), circle.GetRadius()
-	);
-}
-
-ptgn::Raycast Circle::Raycast(const V2_float& ray, const Capsule& capsule) const {
-	return RaycastCircleCapsule(
-		GetCenter(), GetRadius(), ray, capsule.GetStart(), capsule.GetEnd(), capsule.GetRadius()
-	);
-}
-
-ptgn::Raycast Circle::Raycast(const V2_float& ray, const Rect& rect) const {
-	auto [rect_min, rect_max] = rect.GetExtents();
-	return RaycastCircleRect(GetCenter(), GetRadius(), ray, rect_min, rect_max);
-}
+Circle::Circle(float radius) : radius{ radius } {}
 
 /*
 void Arc::Draw(bool clockwise, const Color& color, float line_width, std::int32_t render_layer)
@@ -147,9 +70,8 @@ void Arc::DrawThick(
 }
 */
 
-Arc::Arc(const ecs::Entity& e) : GameObject{ e } {}
-
-std::vector<V2_float> Arc::GetVertices(bool clockwise, float sa, float ea) const {
+std::vector<V2_float> Arc::GetVertices(const V2_float& center, bool clockwise, float sa, float ea)
+	const {
 	if (sa > ea) {
 		ea += two_pi<float>;
 	}
@@ -173,8 +95,6 @@ std::vector<V2_float> Arc::GetVertices(bool clockwise, float sa, float ea) const
 
 	std::vector<V2_float> vertices(resolution);
 
-	V2_float center{ GetPosition() };
-
 	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
 		float angle{ start_angle };
 		float delta{ static_cast<float>(i) * delta_angle };
@@ -190,23 +110,10 @@ std::vector<V2_float> Arc::GetVertices(bool clockwise, float sa, float ea) const
 	return vertices;
 }
 
-Ellipse::Ellipse(const ecs::Entity& e) : GameObject{ e } {}
+Ellipse::Ellipse(const V2_float& radius) : radius{ radius } {}
 
-Ellipse::Ellipse(const ecs::Entity& e, const V2_float& radius) : Ellipse{ e } {
-	SetRadius(radius);
-}
-
-Ellipse& Ellipse::SetRadius(const V2_float& radius) {
-	radius_ = radius;
-	return *this;
-}
-
-V2_float Ellipse::GetRadius() const {
-	return radius_ * GetScale();
-}
-
-V2_float Ellipse::GetCenter() const {
-	return GetPosition();
+V2_float GetCenter(const Transform& transform, const Circle& circle) {
+	return transform.position;
 }
 
 } // namespace ptgn

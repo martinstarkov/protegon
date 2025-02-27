@@ -4,15 +4,7 @@
 #include <cmath>
 #include <vector>
 
-#include "core/game.h"
-#include "core/game_object.h"
-#include "core/window.h"
-#include "ecs/ecs.h"
-#include "math/collision/intersect.h"
-#include "math/collision/overlap.h"
-#include "math/collision/raycast.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/line.h"
+#include "components/transform.h"
 #include "math/math.h"
 #include "math/utility.h"
 #include "math/vector2.h"
@@ -23,82 +15,31 @@ namespace ptgn {
 
 namespace impl {
 
-std::array<V2_float, 4> GetQuadVertices(
-	const V2_float& rect_center, float rotation, const V2_float& rect_size,
-	const V2_float& rotation_center
-) {
-	PTGN_ASSERT(
-		rotation_center.x >= 0.0f && rotation_center.x <= 1.0f,
-		"Rotation center must be within 0.0f and 1.0f"
-	);
-	PTGN_ASSERT(
-		rotation_center.y >= 0.0f && rotation_center.y <= 1.0f,
-		"Rotation center must be within 0.0f and 1.0f"
-	);
+std::array<V2_float, 4> GetVertices(const Transform& transform, Rect rect) {
+	rect.size *= transform.scale;
 
-	V2_float rotation_point{ rect_center + rect_size * (rotation_center - V2_float{ 0.5f }) };
+	auto half{ rect.Half() };
 
-	V2_float rot{ -rect_size * rotation_center };
-	V2_float s0{ rot };
-	V2_float s1{ rect_size.x + rot.x, rot.y };
-	V2_float s2{ rect_size + rot };
-	V2_float s3{ rot.x, rect_size.y + rot.y };
+	V2_float top_left{ -half };
+	V2_float top_right{ half.x, -half.y };
+	V2_float bottom_right{ half };
+	V2_float bottom_left{ -half.x, half.y };
 
-	float c{ 1.0f };
-	float s{ 0.0f };
+	float cos{ 1.0f };
+	float sin{ 0.0f };
 
-	if (!NearlyEqual(rotation, 0.0f)) {
-		c = std::cos(rotation);
-		s = std::sin(rotation);
+	if (!NearlyEqual(transform.rotation, 0.0f)) {
+		cos = std::cos(transform.rotation);
+		sin = std::sin(transform.rotation);
 	}
 
-	auto rotated = [&](const V2_float& coordinate) {
-		return rotation_point +
-			   V2_float{ c * coordinate.x - s * coordinate.y, s * coordinate.x + c * coordinate.y };
+	auto center{ transform.position + rect.GetCenterOffset() };
+
+	auto rotated = [&](const V2_float& point) {
+		return center + V2_float{ cos * point.x - sin * point.y, sin * point.x + cos * point.y };
 	};
 
-	std::array<V2_float, 4> vertices{ rotated(s0), rotated(s1), rotated(s2), rotated(s3) };
-
-	return vertices;
-}
-
-std::array<V2_float, 4> GetQuadVertices(
-	const V2_float& rect_min, const V2_float& rect_max, float rotation,
-	const V2_float& rotation_center
-) {
-	V2_float center{ Midpoint(rect_min, rect_max) };
-	V2_float size{ rect_max - rect_min };
-
-	return GetQuadVertices(center, rotation, size, rotation_center);
-}
-
-V2_float GetPolygonCenter(const std::vector<V2_float>& polygon) {
-	// Source: https://stackoverflow.com/a/63901131
-	V2_float centroid;
-	float signed_area{ 0.0f };
-	V2_float v0{ 0.0f }; // Current verte
-	V2_float v1{ 0.0f }; // Next vertex
-	float a{ 0.0f };	 // Partial signed area
-
-	std::size_t lastdex	 = polygon.size() - 1;
-	const V2_float* prev = &(polygon[lastdex]);
-	const V2_float* next{ nullptr };
-
-	// For all vertices in a loop
-	for (const auto& vertex : polygon) {
-		next		 = &vertex;
-		v0			 = *prev;
-		v1			 = *next;
-		a			 = v0.Cross(v1);
-		signed_area += a;
-		centroid	+= (v0 + v1) * a;
-		prev		 = next;
-	}
-
-	signed_area *= 0.5f;
-	centroid	/= 6.0f * signed_area;
-
-	return centroid;
+	return { rotated(top_left), rotated(top_right), rotated(bottom_right), rotated(bottom_left) };
 }
 
 float TriangulateArea(const V2_float* contour, std::size_t count) {
@@ -168,8 +109,10 @@ bool TriangulateSnip(
 	return true;
 }
 
-// From: https://www.flipcode.com/archives/Efficient_Polygon_Triangulation.shtml
+} // namespace impl
+
 std::vector<std::array<V2_float, 3>> Triangulate(const V2_float* contour, std::size_t count) {
+	// From: https://www.flipcode.com/archives/Efficient_Polygon_Triangulation.shtml
 	PTGN_ASSERT(contour != nullptr);
 	/* allocate and initialize list of Vertices in polygon */
 	std::vector<std::array<V2_float, 3>> result;
@@ -183,7 +126,7 @@ std::vector<std::array<V2_float, 3>> Triangulate(const V2_float* contour, std::s
 
 	/* we want a counter-clockwise polygon in V */
 
-	if (0.0f < TriangulateArea(contour, count)) {
+	if (0.0f < impl::TriangulateArea(contour, count)) {
 		for (int v = 0; v < n; v++) {
 			V[static_cast<std::size_t>(v)] = v;
 		}
@@ -219,7 +162,7 @@ std::vector<std::array<V2_float, 3>> Triangulate(const V2_float* contour, std::s
 			w = 0; /* next     */
 		}
 
-		if (TriangulateSnip(contour, u, v, w, nv, V)) {
+		if (impl::TriangulateSnip(contour, u, v, w, nv, V)) {
 			/* true names of the vertices */
 			int a = V[static_cast<std::size_t>(u)];
 			int b = V[static_cast<std::size_t>(v)];
@@ -248,169 +191,53 @@ std::vector<std::array<V2_float, 3>> Triangulate(const V2_float* contour, std::s
 	return result;
 }
 
-} // namespace impl
-
-Triangle::Triangle(const ecs::Entity& e) : GameObject{ e } {}
-
-Triangle::Triangle(const ecs::Entity& e, const V2_float& a, const V2_float& b, const V2_float& c) :
-	GameObject{ e } {
-	SetLocalVertices(a, b, c);
+V2_float GetCenter(const Transform& transform, Rect rect) {
+	rect.size *= transform.scale;
+	return transform.position + rect.GetCenterOffset();
 }
 
-Triangle& Triangle::SetLocalVertices(const V2_float& a, const V2_float& b, const V2_float& c) {
-	a_ = a;
-	b_ = b;
-	c_ = c;
-	return *this;
+V2_float GetPolygonCenter(const V2_float* vertices, std::size_t vertex_count) {
+	// Source: https://stackoverflow.com/a/63901131
+	V2_float centroid;
+	float signed_area{ 0.0f };
+	V2_float v0{ 0.0f }; // Current verte
+	V2_float v1{ 0.0f }; // Next vertex
+	float a{ 0.0f };	 // Partial signed area
+
+	std::size_t lastdex	 = vertex_count - 1;
+	const V2_float* prev = &(vertices[lastdex]);
+	const V2_float* next{ nullptr };
+
+	// For all vertices in a loop
+	for (std::size_t i{ 0 }; i < vertex_count; i++) {
+		const auto& vertex{ vertices[i] };
+		next		 = &vertex;
+		v0			 = *prev;
+		v1			 = *next;
+		a			 = v0.Cross(v1);
+		signed_area += a;
+		centroid	+= (v0 + v1) * a;
+		prev		 = next;
+	}
+
+	signed_area *= 0.5f;
+	centroid	/= 6.0f * signed_area;
+
+	return centroid;
 }
 
-std::array<V2_float, 3> Triangle::GetVertices() const {
-	V2_float pos{ GetPosition() };
-	return { pos + a_, pos + b_, pos + c_ };
+Triangle::Triangle(const V2_float& a, const V2_float& b, const V2_float& c) : vertices{ a, b, c } {}
+
+Triangle::Triangle(const std::array<V2_float, 3>& vertices) : vertices{ vertices } {}
+
+Rect::Rect(const V2_float& size, Origin origin) : size{ size }, origin{ origin } {}
+
+V2_float Rect::Half() const {
+	return size * 0.5f;
 }
 
-bool Triangle::operator==(const Triangle& o) const {
-	return a_ == o.a_ && b_ == o.b_ && c_ == o.c_;
-}
-
-bool Triangle::operator!=(const Triangle& o) const {
-	return !(*this == o);
-}
-
-bool Triangle::Overlaps(const V2_float& point) const {
-	return point.Overlaps(*this);
-}
-
-bool Triangle::Overlaps(const Rect& rect) const {
-	auto [a, b, c]			  = GetVertices();
-	auto [rect_min, rect_max] = rect.GetExtents();
-	return OverlapTriangleRect(
-		a, b, c, rect_min, rect_max, rect.GetRotation(), rect.GetRotationCenter()
-	);
-}
-
-bool Triangle::Contains(const Triangle& internal) const {
-	auto [a, b, c] = GetVertices();
-	auto [t, r, s] = internal.GetVertices();
-	return OverlapPointTriangle(t, a, b, c) && OverlapPointTriangle(r, a, b, c) &&
-		   OverlapPointTriangle(s, a, b, c);
-}
-
-Rect::Rect(const ecs::Entity& e) : GameObject{ e } {}
-
-Rect::Rect(const ecs::Entity& e, const V2_float& size, Origin origin) : Rect{ e } {
-	SetSize(size);
-	SetOrigin(origin);
-}
-
-std::array<V2_float, 2> Rect::GetExtents() const {
-	V2_float center{ GetCenter() };
-	V2_float half{ size_ / 2.0f };
-	return { center - half, center + half };
-}
-
-Rect& Rect::SetSize(const V2_float& size) {
-	size_ = size;
-	return *this;
-}
-
-Rect& Rect::SetOrigin(Origin origin) {
-	origin_ = origin;
-	return *this;
-}
-
-V2_float Rect::GetSize() const {
-	return size_;
-}
-
-Origin Rect::GetOrigin() const {
-	return origin_;
-}
-
-V2_float Rect::Half() const noexcept {
-	return size_ * 0.5f;
-}
-
-V2_float Rect::GetCenter() const noexcept {
-	return GameObject::GetPosition() - GetOffsetFromCenter(size_, origin_);
-}
-
-V2_float Rect::Max() const noexcept {
-	return GetCenter() + Half();
-}
-
-V2_float Rect::Min() const noexcept {
-	return GetCenter() - Half();
-}
-
-V2_float Rect::GetPositionRelativeTo(Origin relative_to) const {
-	return GetCenter() + GetOffsetFromCenter(size_, relative_to);
-}
-
-std::array<V2_float, 4> Rect::GetVertices() const {
-	return impl::GetQuadVertices(GetCenter(), GetRotation(), size_, GetRotationCenter());
-}
-
-bool Rect::IsZero() const noexcept {
-	return size_.IsZero();
-}
-
-bool Rect::Overlaps(const V2_float& point) const {
-	return point.Overlaps(*this);
-}
-
-bool Rect::Overlaps(const Line& line) const {
-	return line.Overlaps(*this);
-}
-
-bool Rect::Overlaps(const Circle& circle) const {
-	return circle.Overlaps(*this);
-}
-
-bool Rect::Overlaps(const Triangle& triangle) const {
-	return triangle.Overlaps(*this);
-}
-
-bool Rect::Overlaps(const Rect& rect) const {
-	auto [a_min, a_max] = GetExtents();
-	auto [b_min, b_max] = rect.GetExtents();
-	return OverlapRectRect(
-		a_min, a_max, GetRotation(), GetRotationCenter(), b_min, b_max, rect.GetRotation(),
-		rect.GetRotationCenter()
-	);
-}
-
-bool Rect::Overlaps(const Capsule& capsule) const {
-	auto [rect_min, rect_max] = GetExtents();
-	return OverlapRectCapsule(
-		rect_min, rect_max, GetRotation(), GetRotationCenter(), capsule.GetStart(),
-		capsule.GetEnd(), capsule.GetRadius()
-	);
-}
-
-Intersection Rect::Intersects(const Rect& rect) const {
-	auto [a_min, a_max] = GetExtents();
-	auto [b_min, b_max] = rect.GetExtents();
-	return IntersectRectRect(
-		a_min, a_max, GetRotation(), GetRotationCenter(), b_min, b_max, rect.GetRotation(),
-		rect.GetRotationCenter()
-	);
-}
-
-Intersection Rect::Intersects(const Circle& circle) const {
-	auto [rect_min, rect_max] = GetExtents();
-	return IntersectRectCircle(rect_min, rect_max, circle.GetCenter(), circle.GetRadius());
-}
-
-ptgn::Raycast Rect::Raycast(const V2_float& ray, const Circle& circle) const {
-	auto [rect_min, rect_max] = GetExtents();
-	return RaycastRectCircle(rect_min, rect_max, ray, circle.GetCenter(), circle.GetRadius());
-}
-
-ptgn::Raycast Rect::Raycast(const V2_float& ray, const Rect& rect) const {
-	auto [a_min, a_max] = GetExtents();
-	auto [b_min, b_max] = rect.GetExtents();
-	return RaycastRectRect(a_min, a_max, ray, b_min, b_max);
+V2_float Rect::GetCenterOffset() const {
+	return GetOriginOffset(origin, size);
 }
 
 /*
@@ -527,68 +354,16 @@ void RoundedRect::Draw(
 }
 */
 
-Polygon::Polygon(const ecs::Entity& e) : GameObject{ e } {}
-
-Polygon::Polygon(const ecs::Entity& e, const std::vector<V2_float>& local_vertices) : Polygon{ e } {
-	SetLocalVertices(local_vertices);
-}
-
-Polygon& Polygon::SetLocalVertices(const std::vector<V2_float>& local_vertices) {
-	local_vertices_ = local_vertices;
-	return *this;
-}
-
-const std::vector<V2_float>& Polygon::GetLocalVertices() const {
-	return local_vertices_;
-}
-
-std::vector<V2_float> Polygon::GetVertices() const {
-	std::vector<V2_float> vertices{ local_vertices_ };
-	auto pos{ GetPosition() };
-	for (auto& v : vertices) {
-		v += pos;
-	}
-	return vertices;
-}
-
-V2_float Polygon::GetCenter() const {
-	return GetPosition() + impl::GetPolygonCenter(local_vertices_);
+Polygon::Polygon(const std::vector<V2_float>& vertices) : vertices{ vertices } {
+	PTGN_ASSERT(vertices.size() >= 3, "Cannot construct polygon from less than 3 vertices");
 }
 
 bool Polygon::IsConvex() const {
-	return impl::IsConvexPolygon(local_vertices_);
+	return impl::IsConvexPolygon(vertices.data(), vertices.size());
 }
 
 bool Polygon::IsConcave() const {
 	return !IsConvex();
-}
-
-std::vector<std::array<V2_float, 3>> Polygon::Triangulate() const {
-	auto vertices{ GetVertices() };
-	return impl::Triangulate(vertices.data(), vertices.size());
-}
-
-bool Polygon::Overlaps(const V2_float& point) const {
-	return point.Overlaps(*this);
-}
-
-bool Polygon::Overlaps(const Polygon& polygon) const {
-	return OverlapPolygonPolygon(GetVertices(), polygon.GetVertices());
-}
-
-bool Polygon::Contains(const Triangle& triangle) const {
-	auto [a, b, c] = triangle.GetVertices();
-	auto vertices{ GetVertices() };
-	return OverlapPointPolygon(a, vertices) && OverlapPointPolygon(b, vertices) &&
-		   OverlapPointPolygon(c, vertices);
-}
-
-Intersection Polygon::Intersects(const Polygon& polygon) const {
-	return IntersectPolygonPolygon(GetVertices(), polygon.GetVertices());
-}
-
-bool Polygon::Contains(const Polygon& internal) const {
-	return impl::PolygonContainsPolygon(GetVertices(), internal.GetVertices());
 }
 
 } // namespace ptgn
