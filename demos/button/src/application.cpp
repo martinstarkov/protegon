@@ -1,7 +1,46 @@
+#include <string_view>
+
+#include "components/draw.h"
+#include "components/input.h"
+#include "components/transform.h"
+#include "core/game.h"
+#include "core/game_object.h"
+#include "ecs/ecs.h"
+#include "math/geometry/polygon.h"
+#include "math/vector2.h"
 #include "protegon/protegon.h"
+#include "renderer/color.h"
+#include "renderer/origin.h"
+#include "renderer/text.h"
+#include "scene/scene.h"
+#include "ui/button.h"
+#include "utility/log.h"
 
 using namespace ptgn;
 
+template <typename T>
+GameObject CreateColorButton(
+	ecs::Manager& manager, std::string_view text_content, const V2_float& position,
+	const V2_float& size, const T& activate = nullptr, Origin origin = Origin::Center
+) {
+	GameObject o{ manager };
+	o.SetVisible(true);
+	o.SetPosition(position);
+	auto& b{ o.Add<Button>() };
+	b.Add<Rect>(size, origin);
+	b.SetBackgroundColor(color::Pink);
+	b.SetBackgroundColor(color::Red, ButtonState::Hover);
+	b.SetBackgroundColor(color::DarkRed, ButtonState::Pressed);
+	b.OnActivate(activate);
+	/*b.SetTextContent(text_content);
+	b.SetTextColor(color::White);
+	b.SetBordered(true);
+	b.SetBorderColor(color::Cyan);
+	b.SetBorderThickness(5.0f);*/
+	return o;
+}
+
+/*
 class ButtonExample : public Scene {
 public:
 	std::string Str(ButtonState s) const {
@@ -220,8 +259,36 @@ public:
 	}
 };
 
+*/
+
+class ButtonExampleScene : public Scene {
+public:
+	V2_float size{ 300, 200 /*200, 70*/ };
+	float x1{ 0 /*50*/ };
+	float x2{ 0 /*400*/ };
+	float y{ 50 };
+	float y_step{ 130 };
+
+	GameObject b1;
+
+	void Enter() override {
+		b1 = CreateColorButton(
+			manager, "Color", V2_float{ x1, y }, size, []() { PTGN_LOG("Clicked regular button"); },
+			Origin::TopLeft
+		);
+	}
+
+	void Update() override {
+		static impl::InternalButtonState state{ impl::InternalButtonState::IdleUp };
+		if (auto s{ b1.Get<Button>().GetInternalState() }; state != s) {
+			state = s;
+			std::cout << "Internal state: " << state << std::endl;
+		}
+	}
+};
+
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ButtonExample");
-	game.scene.Enter<ButtonExample>("button_example");
+	game.Init("Button Example", { 1280, 720 }, color::Transparent);
+	game.scene.Enter<ButtonExampleScene>("button_example_scene");
 	return 0;
 }

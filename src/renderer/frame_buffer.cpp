@@ -234,6 +234,7 @@ Color FrameBuffer::GetPixel(const V2_int& coordinate) const {
 		coordinate.y >= 0 && coordinate.y < size.y,
 		"Cannot get pixel out of range of frame buffer texture"
 	);
+	texture_.Bind();
 	auto formats{ impl::GetGLFormats(texture_.GetFormat()) };
 	PTGN_ASSERT(
 		formats.color_components >= 3,
@@ -253,6 +254,7 @@ Color FrameBuffer::GetPixel(const V2_int& coordinate) const {
 
 void FrameBuffer::ForEachPixel(const std::function<void(V2_int, Color)>& func) const {
 	V2_int size{ texture_.GetSize() };
+	texture_.Bind();
 	auto formats{ impl::GetGLFormats(texture_.GetFormat()) };
 	PTGN_ASSERT(
 		formats.color_components >= 3,

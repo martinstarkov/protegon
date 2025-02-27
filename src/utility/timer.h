@@ -17,7 +17,11 @@ public:
 	explicit Timer(bool start);
 
 	// Starts the timer. Can also be used to restart the timer.
-	void Start();
+	// @param force If false, only starts the timer if it is not already running.
+	void Start(bool force = true);
+
+	// Stops and resets the timer.
+	void Reset();
 
 	void Stop();
 

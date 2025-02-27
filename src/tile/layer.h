@@ -1,14 +1,14 @@
 #pragma once
 
-#include "ecs/ecs.h"
-#include "utility/file.h"
 #include "core/game.h"
-#include "tile/grid.h"
-#include "math/hash.h"
+#include "ecs/ecs.h"
 #include "math/geometry/polygon.h"
-#include "renderer/texture.h"
+#include "math/hash.h"
 #include "math/vector2.h"
+#include "renderer/texture.h"
+#include "tile/grid.h"
 #include "utility/assert.h"
+#include "utility/file.h"
 
 namespace ptgn {
 
@@ -31,7 +31,6 @@ public:
 	Tile(const Rect& rect) : rect{ rect } {}
 
 	Tile(std::size_t texture_key, const Rect& source) : source{ source } {
-		PTGN_ASSERT(game.texture.Has(texture_key));
 		texture = game.texture.Get(texture_key);
 	}
 

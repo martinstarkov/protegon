@@ -1,10 +1,10 @@
 #pragma once
 
-#include <cstdint>
 #include <string_view>
 
 #include "components/generic.h"
 #include "ecs/ecs.h"
+#include "math/hash.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "utility/time.h"
@@ -28,20 +28,20 @@ ecs::Entity CreateAnimation(
 	std::size_t start_frame = 0
 );
 
-struct Depth : public ArithmeticComponent<std::int32_t> {
-	using ArithmeticComponent::ArithmeticComponent;
-};
-
 struct Visible : public ArithmeticComponent<bool> {
 	using ArithmeticComponent::ArithmeticComponent;
 
 	Visible() : ArithmeticComponent{ true } {}
 };
 
-struct Alpha : public ArithmeticComponent<std::uint8_t> {
+struct Enabled : public ArithmeticComponent<bool> {
 	using ArithmeticComponent::ArithmeticComponent;
 
-	Alpha() : ArithmeticComponent{ 255 } {}
+	Enabled() : ArithmeticComponent{ true } {}
+};
+
+struct DisplaySize : public Vector2Component<float> {
+	using Vector2Component::Vector2Component;
 };
 
 struct Tint : public ColorComponent {
@@ -56,28 +56,12 @@ struct LineWidth : public ArithmeticComponent<float> {
 	LineWidth() : ArithmeticComponent{ 1.0f } {}
 };
 
-struct Radius : public Vector2Component<float> {
-	using Vector2Component::Vector2Component;
-
-	Radius() : Vector2Component{ V2_float{ 1.0f, 1.0f } } {}
-};
-
-struct Size : public Vector2Component<float> {
-	using Vector2Component::Vector2Component;
-};
-
-struct Offset : public Vector2Component<float> {
-	using Vector2Component::Vector2Component;
-};
-
-struct RotationCenter : public Vector2Component<float> {
-	using Vector2Component::Vector2Component;
-
-	RotationCenter() : Vector2Component{ V2_float{ 0.5f, 0.5f } } {}
-};
-
 struct TextureKey : public ArithmeticComponent<std::size_t> {
 	using ArithmeticComponent::ArithmeticComponent;
+
+	TextureKey(std::string_view key) : ArithmeticComponent{ Hash(key) } {}
+
+	TextureKey(const char* key) : ArithmeticComponent{ Hash(key) } {}
 };
 
 namespace callback {
@@ -93,11 +77,14 @@ struct AnimationStart : public CallbackComponent<void> {
 } // namespace callback
 
 struct TextureCrop {
+	void SetPosition(const V2_float& position);
 	void SetSize(const V2_float& size);
+
+	[[nodiscard]] V2_float GetPosition() const;
 	[[nodiscard]] V2_float GetSize() const;
 
-	void SetPosition(const V2_float& position);
-	[[nodiscard]] V2_float GetPosition() const;
+	bool operator==(const TextureCrop& other) const;
+	bool operator!=(const TextureCrop& other) const;
 
 private:
 	// Top left position (in pixels) within the texture from which the crop starts.

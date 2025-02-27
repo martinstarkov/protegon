@@ -5,7 +5,7 @@
 
 #include "components/transform.h"
 #include "event/key.h"
-#include "math/collider.h"
+#include "math/collision/collider.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
 #include "utility/log.h"

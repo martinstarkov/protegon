@@ -145,6 +145,13 @@ struct TweenPoint {
 
 class Tween {
 public:
+	Tween()								 = default;
+	Tween(const Tween& other)			 = default;
+	Tween& operator=(const Tween& other) = default;
+	Tween(Tween&& other) noexcept;
+	Tween& operator=(Tween&& other) noexcept;
+	~Tween();
+
 	Tween& During(milliseconds duration);
 	Tween& Ease(TweenEase ease);
 
@@ -197,9 +204,9 @@ public:
 	// @return New progress of the tween after seeking.
 	float Seek(milliseconds time);
 
+	// Resets and starts the tween. Will restart paused tweens.
 	// @param force If true, ignores the current state of the tween. If false, will only start if
-	// the tween is paused or not currently started. Resets and starts the tween. Will restart
-	// paused tweens.
+	// the tween is paused or not currently started.
 	Tween& Start(bool force = true);
 
 	// If there are future tween points, will simulate a tween point completion. If the tween has
@@ -221,7 +228,7 @@ public:
 	// Stops the tween.
 	Tween& Stop();
 
-	// Clears previously assigned tween points.
+	// Clears previously assigned tween points and resets the tween.
 	Tween& Clear();
 
 	// @param tween_point_index Which tween point to query to duration of.

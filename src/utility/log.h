@@ -11,7 +11,6 @@
 #include <type_traits>
 
 #include "utility/debug.h"
-#include "utility/stats.h"
 #include "utility/string.h"
 #include "utility/time.h"
 #include "utility/type_traits.h"

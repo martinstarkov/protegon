@@ -1,6 +1,8 @@
 #pragma once
 
+#include "components/generic.h"
 #include "math/vector2.h"
+#include "serialization/fwd.h"
 
 namespace ptgn {
 
@@ -12,9 +14,24 @@ struct Transform {
 	) :
 		position{ position }, rotation{ rotation }, scale{ scale } {}
 
+	[[nodiscard]] Transform RelativeTo(Transform parent) const {
+		parent.position += position;
+		parent.rotation += rotation;
+		parent.scale	*= scale;
+		return parent;
+	}
+
 	V2_float position;
 	float rotation{ 0.0f };
 	V2_float scale{ 1.0f, 1.0f };
+};
+
+void to_json(json& j, const Transform& t);
+
+void from_json(const json& j, Transform& t);
+
+struct Depth : public ArithmeticComponent<std::int32_t> {
+	using ArithmeticComponent::ArithmeticComponent;
 };
 
 } // namespace ptgn

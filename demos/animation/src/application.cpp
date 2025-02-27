@@ -1,6 +1,7 @@
 #include "components/draw.h"
 #include "components/transform.h"
 #include "core/game.h"
+#include "core/game_object.h"
 #include "core/window.h"
 #include "ecs/ecs.h"
 #include "event/input_handler.h"
@@ -56,16 +57,18 @@ public:
 
 	V2_float start_pos;
 
+	GameObject c0;
+	GameObject c1;
+
 	void AddPan(const V2_float& pos) {
 		V2_float start{ start_pos };
-		auto c0 = manager.CreateEntity();
-		c0.Add<Circle>();
+		c0 = manager.CreateEntity();
+		c0.Add<Circle>(10.0f);
 		c0.Add<Transform>(pos);
-		c0.Add<Radius>(V2_float{ 10 });
 		c0.Add<Tint>(color::Red);
 		c0.Add<Visible>();
 
-		auto c1 = manager.CreateEntity();
+		c1 = manager.CreateEntity();
 		c1.Add<Line>(start_pos, pos);
 		c1.Add<Transform>();
 		c1.Add<LineWidth>(3.0f);

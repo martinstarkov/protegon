@@ -20,6 +20,9 @@ class TwoPi {};
 template <typename T, tt::floating_point<T> = true>
 class HalfPi {};
 
+template <typename T, tt::floating_point<T> = true>
+class SqrtTwo {};
+
 template <>
 class Pi<float> {
 public:
@@ -68,6 +71,22 @@ public:
 	}
 };
 
+template <>
+class SqrtTwo<float> {
+public:
+	static constexpr float value() {
+		return 1.414213563f;
+	}
+};
+
+template <>
+class SqrtTwo<double> {
+public:
+	static constexpr double value() {
+		return 1.4142135623730951;
+	}
+};
+
 } // namespace impl
 
 template <typename T = float, tt::floating_point<T> = true>
@@ -76,6 +95,8 @@ template <typename T = float, tt::floating_point<T> = true>
 inline constexpr T two_pi{ impl::TwoPi<T>::value() };
 template <typename T = float, tt::floating_point<T> = true>
 inline constexpr T half_pi{ impl::HalfPi<T>::value() };
+template <typename T = float, tt::floating_point<T> = true>
+inline constexpr T sqrt_two{ impl::SqrtTwo<T>::value() };
 template <typename T = float>
 inline constexpr T epsilon{ std::numeric_limits<T>::epsilon() };
 template <typename T = float>
@@ -100,26 +121,34 @@ template <typename T, tt::integral<T> = true>
 	return (a % b + b) % b;
 }
 
-// Angle in degrees from 0 to 360.
+// Angle in degrees from [0, 360).
 template <typename T, tt::arithmetic<T> = true>
 [[nodiscard]] T ClampAngle360(T angle_degrees) {
-	while (angle_degrees < 0) {
-		angle_degrees += 360;
-	}
+	T clamped{ 0 };
+
 	if constexpr (std::is_floating_point_v<T>) {
-		return static_cast<T>(std::fmod(angle_degrees, 360));
+		clamped = std::fmod(angle_degrees, T{ 360 });
 	} else {
-		return Mod(angle_degrees, T{ 360 });
+		clamped = Mod(angle_degrees, T{ 360 });
 	}
+
+	if (clamped < 0) {
+		clamped += T{ 360 };
+	}
+
+	return clamped;
 }
 
-// Angle in radians from 0 to 2 pi.
+// @return Angle in radians in range [0, 2 pi).
 template <typename T, tt::floating_point<T> = true>
 [[nodiscard]] T ClampAngle2Pi(T angle_radians) {
-	while (angle_radians < 0) {
-		angle_radians += two_pi<T>;
+	T clamped{ std::fmod(angle_radians, two_pi<T>) };
+
+	if (clamped < 0.0) {
+		clamped += two_pi<T>;
 	}
-	return std::fmod(angle_radians, two_pi<T> + 0.00001f);
+
+	return clamped;
 }
 
 // Signum function.

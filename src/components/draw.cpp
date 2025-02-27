@@ -100,6 +100,14 @@ V2_float TextureCrop::GetPosition() const {
 	return position_;
 }
 
+bool TextureCrop::operator==(const TextureCrop& other) const {
+	return position_ == other.position_ && size_ == other.size_;
+}
+
+bool TextureCrop::operator!=(const TextureCrop& other) const {
+	return !(*this == other);
+}
+
 namespace impl {
 
 AnimationInfo::AnimationInfo(

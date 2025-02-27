@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "math/vector2.h"
+#include "math/vector4.h"
 #include "renderer/blend_mode.h"
 #include "renderer/color.h"
 #include "renderer/vertex_array.h"
@@ -63,6 +64,10 @@ public:
 
 	// Clears the currently bound frame buffer's color buffer to the specified color.
 	static void ClearToColor(const Color& color);
+
+	// Clears the currently bound frame buffer's color buffer to the specified color.
+	// @param normalized_color All values must be in range [0, 1].
+	static void ClearToColor(const V4_float& normalized_color);
 
 	static void DrawElements(
 		const VertexArray& va, std::size_t index_count, bool bind_vertex_array = true

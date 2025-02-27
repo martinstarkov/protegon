@@ -32,7 +32,7 @@ RenderTarget::RenderTarget(const Color& clear_color) :
 
 RenderTarget::RenderTarget(ecs::Manager& manager, const V2_float& size, const Color& clear_color) :
 	RenderTarget{ size, clear_color } {
-	camera = CreateCamera(manager);
+	camera = Camera{ manager };
 }
 
 RenderTarget::RenderTarget(const V2_float& size, const Color& clear_color) :
@@ -98,6 +98,14 @@ void RenderTarget::Clear() const {
 		frame_buffer_.IsBound(), "Render target frame buffer must be bound before clearing"
 	);
 	impl::GLRenderer::ClearToColor(clear_color_);
+}
+
+void RenderTarget::SetTint(const Color& color) {
+	tint_color_ = color;
+}
+
+Color RenderTarget::GetTint() const {
+	return tint_color_;
 }
 
 /*

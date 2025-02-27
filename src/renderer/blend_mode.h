@@ -8,9 +8,9 @@
 namespace ptgn {
 
 enum class BlendMode {
-	None,  /**< no blending: dstRGBA = srcRGBA */
 	Blend, /**< alpha blending: dstRGB = (srcRGB * srcA) + (dstRGB * (1-srcA)), dstA = srcA + (dstA
 			* (1-srcA)) */
+	None,  /**< no blending: dstRGBA = srcRGBA */
 	BlendPremultiplied, /**< pre-multiplied alpha blending: dstRGBA = srcRGBA + (dstRGBA * (1-srcA))
 						 */
 	Add,				/**< additive blending: dstRGB = (srcRGB * srcA) + dstRGB, dstA = dstA */

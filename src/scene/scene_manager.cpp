@@ -1,6 +1,7 @@
 #include "scene/scene_manager.h"
 
 #include <memory>
+#include <string_view>
 
 #include "core/game.h"
 #include "ecs/ecs.h"
@@ -29,7 +30,6 @@ void SceneManager::EnterImpl(std::size_t scene_key) {
 	}
 	auto scene{ GetScene(scene_key) };
 	PTGN_ASSERT(scene != ecs::null, "Cannot enter scene unless it has been loaded first");
-	auto& sc{ scene.Get<SceneComponent>() };
 
 	bool first_scene{ GetActiveSceneCount() == 0 };
 
@@ -117,9 +117,19 @@ std::size_t SceneManager::GetInternalKey(std::string_view key) {
 	return Hash(key);
 }
 
+/*
+void SceneManager::ClearSceneTargets() {
+	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
+		if (sc.scene->active_) {
+			sc.scene->ClearTarget();
+		}
+	}
+}
+*/
+
 void SceneManager::Update() {
 	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
-		if (sc.scene->actions_.empty()) {
+		if (sc.scene->active_ && sc.scene->actions_.empty()) {
 			sc.scene->InternalUpdate();
 		}
 	}
@@ -143,6 +153,7 @@ void SceneManager::HandleSceneEvents() {
 					if (scene.active_) {
 						scene.InternalExit();
 					}
+					scene.InternalUnload();
 					e.Destroy();
 					break;
 			}
@@ -184,7 +195,8 @@ ecs::Entity SceneManager::GetActiveScene(std::size_t scene_key) const {
 
 ecs::Entity SceneManager::GetScene(std::size_t scene_key) const {
 	for (auto e : scenes_.Entities()) {
-		if (e.Get<SceneComponent>().scene->key_ == scene_key) {
+		const auto& sc{ e.Get<SceneComponent>() };
+		if (sc.scene->key_ == scene_key) {
 			return e;
 		}
 	}

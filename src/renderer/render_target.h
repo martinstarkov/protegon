@@ -9,6 +9,8 @@
 
 namespace ptgn {
 
+class Scene;
+
 namespace impl {
 
 class RenderData;
@@ -75,8 +77,14 @@ public:
 
 	Camera camera;
 
+	// Setting tint to color::White will apply no tint to the render target texture.
+	void SetTint(const Color& color = color::White);
+
+	[[nodiscard]] Color GetTint() const;
+
 private:
 	friend class impl::RenderData;
+	friend class Scene;
 
 	RenderTarget(const V2_float& size, const Color& clear_color);
 	// TODO: Add window subscribe stuff here.
@@ -97,6 +105,7 @@ private:
 
 	impl::FrameBuffer frame_buffer_;
 	Color clear_color_{ color::Transparent };
+	Color tint_color_{ color::White };
 };
 
 } // namespace ptgn

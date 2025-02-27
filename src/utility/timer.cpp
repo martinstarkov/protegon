@@ -10,7 +10,18 @@ Timer::Timer(bool start) {
 	}
 }
 
-void Timer::Start() {
+void Timer::Reset() {
+	start_time_ = std::chrono::steady_clock::now();
+	stop_time_	= std::chrono::steady_clock::now();
+	pause_time_ = std::chrono::steady_clock::now();
+	running_	= false;
+	paused_		= false;
+}
+
+void Timer::Start(bool force) {
+	if (!force && IsRunning()) {
+		return;
+	}
 	start_time_ = std::chrono::steady_clock::now();
 	running_	= true;
 	paused_		= false;

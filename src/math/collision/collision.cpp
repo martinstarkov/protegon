@@ -1,4 +1,4 @@
-#include "math/collision.h"
+#include "math/collision/collision.h"
 
 #include <algorithm>
 #include <unordered_set>
@@ -6,14 +6,11 @@
 
 #include "core/game.h"
 #include "ecs/ecs.h"
-#include "math/collider.h"
-#include "math/geometry/line.h"
+#include "math/collision/collider.h"
+#include "math/collision/raycast.h"
 #include "math/math.h"
-#include "math/raycast.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
-#include "renderer/color.h"
-#include "scene/scene_manager.h"
 #include "utility/assert.h"
 #include "utility/log.h"
 
@@ -22,6 +19,7 @@ namespace ptgn::impl {
 V2_float CollisionHandler::GetRelativeVelocity(const V2_float& vel, ecs::Entity e2) {
 	V2_float relative_velocity{ vel };
 	if (e2.Has<RigidBody>()) {
+		// TODO: Use physics.dt() here and elsewhere.
 		relative_velocity -= e2.Get<RigidBody>().velocity * game.dt();
 	}
 	return relative_velocity;
@@ -32,11 +30,16 @@ void CollisionHandler::AddEarliestCollisions(
 	std::unordered_set<Collision>& entities
 ) {
 	PTGN_ASSERT(!sweep_collisions.empty());
+
 	const auto& first_collision{ sweep_collisions.front() };
+
 	PTGN_ASSERT(e != first_collision.e, "Self collision not possible");
+
 	entities.emplace(e, first_collision.e, first_collision.c.normal);
+
 	for (std::size_t i{ 1 }; i < sweep_collisions.size(); ++i) {
 		const auto& collision{ sweep_collisions[i] };
+
 		if (collision.c.t == first_collision.c.t) {
 			PTGN_ASSERT(e != collision.e, "Self collision not possible");
 			entities.emplace(e, collision.e, collision.c.normal);
@@ -75,13 +78,13 @@ void CollisionHandler::SortCollisions(std::vector<SweepCollision>& collisions) {
 }
 
 V2_float CollisionHandler::GetRemainingVelocity(
-	const V2_float& velocity, const Raycast& c, CollisionResponse response
+	const V2_float& velocity, const RaycastResult& c, CollisionResponse response
 ) {
 	float remaining_time{ 1.0f - c.t };
 
 	switch (response) {
 		case CollisionResponse::Slide: {
-			V2_float tangent{ -c.normal.Skewed() };
+			auto tangent{ -c.normal.Skewed() };
 			return velocity.Dot(tangent) * tangent * remaining_time;
 		}
 		case CollisionResponse::Push: {
@@ -89,7 +92,7 @@ V2_float CollisionHandler::GetRemainingVelocity(
 				   velocity.Magnitude();
 		}
 		case CollisionResponse::Bounce: {
-			V2_float new_velocity = velocity * remaining_time;
+			auto new_velocity{ velocity * remaining_time };
 			if (!NearlyEqual(FastAbs(c.normal.x), 0.0f)) {
 				new_velocity.x *= -1.0f;
 			}
@@ -108,20 +111,12 @@ void CollisionHandler::Update(ecs::Manager& manager) {
 	auto circles{ manager.EntitiesWith<CircleCollider>() };
 
 	for (auto [e1, b1] : boxes) {
-		HandleCollisions(e1, b1, boxes, circles);
+		HandleCollisions<BoxCollider>(e1, boxes, circles);
 	}
 
 	for (auto [e1, c1] : circles) {
-		HandleCollisions(e1, c1, boxes, circles);
+		HandleCollisions<CircleCollider>(e1, boxes, circles);
 	}
 }
-
-// TODO: Fix or get rid of.
-// void CollisionHandler::DrawVelocity(
-//	const V2_float& start, const V2_float& vel, const Color& color
-//) {
-//	Line l{ start, start + vel };
-//	//l.Draw(color);
-//}
 
 } // namespace ptgn::impl

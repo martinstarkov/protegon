@@ -4,7 +4,6 @@
 #include <memory>
 #include <string>
 
-#include "SDL_timer.h"
 #include "audio/audio.h"
 #include "core/gl_context.h"
 #include "core/manager.h"
@@ -19,6 +18,7 @@
 #include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "scene/scene_manager.h"
+#include "SDL_timer.h"
 #include "serialization/json_manager.h"
 #include "utility/debug.h"
 #include "utility/profiling.h"
@@ -44,6 +44,8 @@ EM_JS(int, get_screen_height, (), { return screen.height; });
 #include "CoreFoundation/CoreFoundation.h"
 
 #endif
+#include "utility/log.h"
+#include "utility/stats.h"
 
 namespace ptgn {
 
@@ -266,12 +268,18 @@ void Game::Update() {
 
 	start = end;
 
-	renderer.ClearScreen();
+	scene.HandleSceneEvents();
 
-	input.Update();
-	scene.Update();
+	if (game.scene.GetActiveSceneCount() != 0) {
+		renderer.ClearScreen();
 
-	renderer.PresentScreen();
+		// scene.ClearSceneTargets();
+
+		input.Update();
+		scene.Update();
+
+		renderer.PresentScreen();
+	}
 
 #ifdef PTGN_DEBUG
 	// Uncomment to examine the color of the pixel at the mouse position that is drawn to the
@@ -280,13 +288,15 @@ void Game::Update() {
 		"Screen Color at Mouse: ",
 		renderer.screen_target_.GetPixel(game.input.GetMousePositionWindow())
 	);*/
+	// game.stats.PrintCollisionOverlap();
+	// game.stats.PrintCollisionIntersect();
+	// game.stats.PrintCollisionRaycast();
+	// game.stats.PrintRenderer();
+	// PTGN_LOG("--------------------------------------");
+	game.stats.Reset();
 #endif
 
-	scene.HandleSceneEvents();
-
-	if (profiler.IsEnabled()) {
-		profiler.PrintAll();
-	}
+	//profiler.PrintAll();
 
 	end = std::chrono::system_clock::now();
 }

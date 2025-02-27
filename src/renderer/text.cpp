@@ -4,7 +4,6 @@
 #include <limits>
 #include <string>
 #include <string_view>
-#include <utility>
 
 #include "SDL_pixels.h"
 #include "SDL_surface.h"
@@ -24,31 +23,17 @@ namespace ptgn {
 Text::Text(
 	ecs::Manager& manager, std::string_view content, const Color& text_color,
 	std::string_view font_key
-) {
-	entity_.Destroy();
-	entity_ = manager.CreateEntity();
-	entity_.Add<TextContent>(content);
+) :
+	Text{ manager } {
+	Add<TextContent>(content);
 	if (text_color != TextColor{}) {
-		entity_.Add<TextColor>(text_color);
+		Add<TextColor>(text_color);
 	}
 	auto hashed_key{ Hash(font_key) };
 	if (hashed_key != FontKey{}) {
-		entity_.Add<FontKey>(hashed_key);
+		Add<FontKey>(hashed_key);
 	}
 	RecreateTexture();
-}
-
-Text::Text(Text&& other) noexcept : entity_{ std::exchange(other.entity_, {}) } {}
-
-Text& Text::operator=(Text&& other) noexcept {
-	if (this != &other) {
-		entity_ = std::exchange(other.entity_, {});
-	}
-	return *this;
-}
-
-Text::~Text() {
-	entity_.Destroy();
 }
 
 Text& Text::SetFont(std::string_view font_key) {
@@ -88,7 +73,7 @@ Text& Text::SetLineSkip(std::int32_t pixels) {
 	return SetParameter(TextLineSkip{ pixels });
 }
 
-Text& Text::SetWrapAlignment(TextWrapAlignment wrap_alignment) {
+Text& Text::SetWrapAlignment(TextJustify wrap_alignment) {
 	return SetParameter(wrap_alignment);
 }
 
@@ -117,10 +102,8 @@ Color Text::GetShadingColor() const {
 }
 
 const impl::Texture& Text::GetTexture() const {
-	PTGN_ASSERT(
-		entity_.Has<impl::Texture>(), "Cannot retrieve text texture before it has been set"
-	);
-	return entity_.Get<impl::Texture>();
+	PTGN_ASSERT(Has<impl::Texture>(), "Cannot retrieve text texture before it has been set");
+	return Get<impl::Texture>();
 }
 
 std::int32_t Text::GetFontSize() const {
@@ -146,8 +129,7 @@ V2_int Text::GetSize() const {
 }
 
 void Text::RecreateTexture() {
-	impl::Texture& texture{ entity_.Has<impl::Texture>() ? entity_.Get<impl::Texture>()
-														 : entity_.Add<impl::Texture>() };
+	impl::Texture& texture{ Has<impl::Texture>() ? Get<impl::Texture>() : Add<impl::Texture>() };
 
 	std::string content{ GetParameter(TextContent{}) };
 
@@ -170,7 +152,7 @@ void Text::RecreateTexture() {
 
 	TTF_SetFontStyle(font, static_cast<int>(GetParameter(FontStyle{})));
 
-	TTF_SetFontWrappedAlign(font, static_cast<int>(GetParameter(TextWrapAlignment{})));
+	TTF_SetFontWrappedAlign(font, static_cast<int>(GetParameter(TextJustify{})));
 
 #ifndef __EMSCRIPTEN__ // TODO: Re-enable this for Emscripten once it is supported (SDL_ttf 2.24.0).
 	if (TextLineSkip line_skip{ GetParameter(TextLineSkip{}) };

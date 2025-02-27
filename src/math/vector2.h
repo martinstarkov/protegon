@@ -3,6 +3,7 @@
 #include <array>
 #include <cmath>
 #include <iosfwd>
+#include <limits>
 #include <ostream>
 #include <type_traits>
 
@@ -16,12 +17,6 @@
 // TODO: Scrap support for int and stick to float/double. Do the same in all vectors and matrix4.
 
 namespace ptgn {
-
-struct Color;
-struct Rect;
-struct Line;
-struct Capsule;
-struct Circle;
 
 template <typename T>
 struct Vector2 {
@@ -53,8 +48,6 @@ struct Vector2 {
 	template <typename U>
 	explicit constexpr Vector2(const std::array<U, 2>& o) :
 		x{ static_cast<T>(o[0]) }, y{ static_cast<T>(o[1]) } {}
-
-	explicit Vector2(const json& j);
 
 	// Access vector elements by index, 0 for x, 1 for y.
 	[[nodiscard]] constexpr T& operator[](std::size_t idx) {
@@ -206,9 +199,9 @@ struct Vector2 {
 		return dir.Normalized();
 	}
 
-	// @return New vector rotated counter-clockwise by the given angle.
+	// @return New vector rotated by the given angle.
 	// See https://en.wikipedia.org/wiki/Rotation_matrix for details.
-	// Angle in radians.
+	// Angle in radians. Positive angle rotates clockwise.
 	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
 	[[nodiscard]] Vector2<S> Rotated(S angle_radians) const {
 		auto c{ std::cos(angle_radians) };
@@ -218,26 +211,39 @@ struct Vector2 {
 
 	/*
 	 * @return Angle in radians between vector x and y components in radians.
-	 * Relative to the horizontal x-axis.
-	 * Range: [-3.14159, 3.14159).
-	 * (counter-clockwise positive).
-	 *             1.5708
+	 * Relative to the horizontal x-axis (1, 0).
+	 * Range: (-3.14159, 3.14159].
+	 * (clockwise positive).
+	 *           -1.5708
 	 *               |
 	 *    3.14159 ---o--- 0
 	 *               |
-	 *            -1.5708
+	 *            1.5708
 	 */
 	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
 	[[nodiscard]] S Angle() const {
 		return std::atan2(static_cast<S>(y), static_cast<S>(x));
 	}
 
-	[[nodiscard]] bool IsZero() const noexcept;
+	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
+	[[nodiscard]] S Angle(const Vector2& target) const {
+		S mag1{ MagnitudeSquared() };
+		S mag2{ target.MagnitudeSquared() };
 
-	[[nodiscard]] bool Overlaps(const Line& line) const;
-	[[nodiscard]] bool Overlaps(const Circle& circle) const;
-	[[nodiscard]] bool Overlaps(const Rect& rect) const;
-	[[nodiscard]] bool Overlaps(const Capsule& capsule) const;
+		if (NearlyEqual(mag1, S{ 0 }) || NearlyEqual(mag2, S{ 0 })) {
+			return S{ 0 };
+		}
+
+		S cosine{ Dot(target) / std::sqrt(mag1 * mag2) };
+
+		// Clamp cosine to the range [-1, 1] to avoid domain errors for acos. This can very rarely
+		// happen due to floating point inaccuracies.
+		cosine = std::clamp(cosine, S{ -1 }, S{ 1 });
+
+		return std::acos(cosine);
+	}
+
+	[[nodiscard]] bool IsZero() const noexcept;
 };
 
 using V2_int	= Vector2<int>;
@@ -369,11 +375,25 @@ template <typename T>
 	return Vector2<T>{ Lerp(lhs.x, rhs.x, t), Lerp(lhs.y, rhs.y, t) };
 }
 
+// Linearly interpolate both components of a vector by their respective t values.
+template <typename T>
+[[nodiscard]] inline Vector2<T> Lerp(
+	const Vector2<T>& lhs, const Vector2<T>& rhs, const Vector2<T>& t
+) {
+	return Vector2<T>{ Lerp(lhs.x, rhs.x, t.x), Lerp(lhs.y, rhs.y, t.y) };
+}
+
 // @return The midpoint between vectors a and b.
 template <typename T>
 [[nodiscard]] inline Vector2<T> Midpoint(const Vector2<T>& a, const Vector2<T>& b) {
 	return Vector2<T>{ (a + b) / 2.0f };
 }
+
+template <typename T>
+void to_json(json& j, const Vector2<T>& v);
+
+template <typename T>
+void from_json(const json& j, Vector2<T>& v);
 
 } // namespace ptgn
 

@@ -1,6 +1,7 @@
 #include "event/input_handler.h"
 
 #include <bitset>
+#include <type_traits>
 #include <utility>
 
 #include "SDL_events.h"
@@ -14,6 +15,7 @@
 #include "event/events.h"
 #include "event/key.h"
 #include "event/mouse.h"
+#include "math/collision/overlap.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/origin.h"
@@ -74,11 +76,13 @@ void InputHandler::Update() {
 			case SDL_MOUSEBUTTONDOWN: {
 				auto [mouse_state, timer] =
 					GetMouseStateAndTimer(static_cast<Mouse>(e.button.button));
-				timer.Start();
-				mouse_state = MouseState::Down;
-				game.event.mouse.Post(
-					MouseEvent::Down, MouseDownEvent{ static_cast<Mouse>(e.button.button) }
-				);
+				if (mouse_state != MouseState::Pressed) {
+					mouse_state = MouseState::Down;
+					timer.Start();
+					game.event.mouse.Post(
+						MouseEvent::Down, MouseDownEvent{ static_cast<Mouse>(e.button.button) }
+					);
+				}
 				break;
 			}
 			case SDL_MOUSEBUTTONUP: {
@@ -160,12 +164,29 @@ void InputHandler::Update() {
 			default: break;
 		}
 	}
+
+	auto mouse_pressed_events = [&](Mouse mouse) {
+		auto [mouse_state, timer] = GetMouseStateAndTimer(mouse);
+		if (mouse_state == MouseState::Pressed) {
+			game.event.mouse.Post(MouseEvent::Pressed, MousePressedEvent{ mouse });
+		}
+	};
+
+	std::invoke(mouse_pressed_events, Mouse::Left);
+	std::invoke(mouse_pressed_events, Mouse::Right);
+	std::invoke(mouse_pressed_events, Mouse::Middle);
 }
 
 bool InputHandler::MouseWithinWindow() const {
-	Rect window{ game.window.GetPosition(), game.window.GetSize(), Origin::TopLeft };
+	V2_float pos{ game.window.GetPosition() };
+	V2_float size{ game.window.GetSize() };
+	auto half{ size * 0.5f };
+	return OverlapPointRect(game.input.GetMousePositionGlobal(), pos + half, size, 0.0f);
+}
 
-	return window.Overlaps(game.input.GetMousePositionGlobal());
+bool InputHandler::MouseHeld(Mouse button, milliseconds time) {
+	const auto held_time{ GetMouseHeldTime(button) };
+	return held_time > time;
 }
 
 void InputHandler::SetRelativeMouseMode(bool on) const {

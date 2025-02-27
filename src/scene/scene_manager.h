@@ -56,6 +56,7 @@ public:
 				   std::make_unique<TScene>(std::forward<TArgs>(constructor_args)...)
 			   );
 			sc->scene->key_ = key;
+			sc->scene->InternalLoad();
 			scenes_.Refresh();
 		} else { // Existing scene.
 			sc = &scene.Get<SceneComponent>();
@@ -148,6 +149,9 @@ private:
 
 	// Updates all the active scenes.
 	void Update();
+
+	// Clears the frame buffers of each scene.
+	// void ClearSceneTargets();
 
 	void EnterScene(std::size_t scene_key);
 

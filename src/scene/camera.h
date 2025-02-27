@@ -1,7 +1,10 @@
 #pragma once
 
+#include <array>
 #include <iosfwd>
 
+#include "components/generic.h"
+#include "core/game_object.h"
 #include "core/manager.h"
 #include "ecs/ecs.h"
 #include "math/geometry/polygon.h"
@@ -9,8 +12,11 @@
 #include "math/quaternion.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
+#include "renderer/color.h"
 #include "renderer/flip.h"
 #include "renderer/origin.h"
+#include "utility/time.h"
+#include "utility/tween.h"
 
 namespace ptgn {
 
@@ -20,6 +26,32 @@ class Scene;
 namespace impl {
 
 class CameraManager;
+
+struct CameraPanStart : public Vector2Component<float> {
+	using Vector2Component::Vector2Component;
+};
+
+struct CameraZoomStart : public ArithmeticComponent<float> {
+	using ArithmeticComponent::ArithmeticComponent;
+};
+
+struct CameraRotationStart : public ArithmeticComponent<float> {
+	using ArithmeticComponent::ArithmeticComponent;
+};
+
+struct CameraLerp : public Vector2Component<float> {
+	using Vector2Component::Vector2Component;
+
+	CameraLerp() : Vector2Component{ V2_float{ 1.0f, 1.0f } } {}
+};
+
+struct CameraDeadzone : public Vector2Component<float> {
+	using Vector2Component::Vector2Component;
+};
+
+struct CameraOffset : public Vector2Component<float> {
+	using Vector2Component::Vector2Component;
+};
 
 struct CameraInfo {
 	CameraInfo();
@@ -39,7 +71,8 @@ struct CameraInfo {
 	void RefreshBounds() noexcept;
 
 	struct Data {
-		Rect viewport;
+		V2_float viewport_position;
+		V2_float viewport_size;
 
 		// Top left position of camera.
 		V3_float position;
@@ -50,8 +83,10 @@ struct CameraInfo {
 
 		V3_float orientation;
 
-		// If rectangle IsZero(), no position bounds are enforced.
-		Rect bounding_box;
+		// Top left position.
+		V2_float bounding_box_position;
+		// If size is {}, no bounds are enforced.
+		V2_float bounding_box_size;
 
 		Flip flip{ Flip::None };
 
@@ -72,22 +107,86 @@ struct CameraInfo {
 
 } // namespace impl
 
-ecs::Entity CreateCamera(ecs::Manager& manager);
-
-class Camera {
+class Camera : public GameObject {
 public:
 	Camera() = default;
-	Camera(ecs::Entity camera);
-	Camera(const Camera& other);
-	Camera& operator=(const Camera& other);
-	Camera(Camera&& other) noexcept;
-	Camera& operator=(Camera&& other) noexcept;
-	~Camera();
+	Camera(ecs::Manager& manager);
 
-	bool operator==(const Camera& other) const;
-	bool operator!=(const Camera& other) const;
+	void Destroy();
 
-	[[nodiscard]] Rect GetViewport() const;
+	// @param target_position Position to pan to.
+	// @param duration Duration of pan.
+	// @param ease Easing function for pan.
+	// @param force If false, the pan is queued in the pan queue, if true the pan is executed
+	// immediately, clearing any previously queued pans or target following.
+	void PanTo(
+		const V2_float& target_position, milliseconds duration, TweenEase ease = TweenEase::Linear,
+		bool force = false
+	);
+
+	// @param target_zoom Zoom level to go to.
+	// @param duration Duration of zoom.
+	// @param ease Easing function for zoom.
+	// @param force If false, the zoom is queued in the zoom queue, if true the zoom is executed
+	// immediately, clearing any previously queued zooms.
+	void ZoomTo(
+		float target_zoom, milliseconds duration, TweenEase ease = TweenEase::Linear,
+		bool force = false
+	);
+
+	// @param target_angle Angle (in radians) to rotate to (refer to diagram below). If positive,
+	// rotation is clockwise, if negative rotation is counter-clockwise.
+	// @param duration Duration of rotation.
+	// @param ease Easing function for rotation.
+	// @param force If false, the rotation is queued in the rotation queue, if true the rotation is
+	// executed immediately, clearing any previously queued rotations.
+	/* Range: (-3.14159, 3.14159].
+	 * (clockwise positive).
+	 *            -1.5708
+	 *               |
+	 *    3.14159 ---o--- 0
+	 *               |
+	 *             1.5708
+	 */
+	void RotateTo(
+		float target_angle, milliseconds duration, TweenEase ease = TweenEase::Linear,
+		bool force = false
+	);
+
+	// Note: If the target entity is destroyed, set to null, or its transform component is removed
+	// the camera will stop following it.
+	// @param target The target entity for the camera to follow.
+	// @param force If false, the follow is queued in the pan queue, if true the follow is executed
+	// immediately, clearing any previously queued pans or target following.
+	void StartFollow(ecs::Entity target, bool force = false);
+
+	// Stop following the current target and moves onto to the next item in the pan queue.
+	// @param force If true, clears the pan queue.
+	void StopFollow(bool force = false);
+
+	// @param color Starting color.
+	// @param duration Duration of fade.
+	// @param ease Easing function for the fade.
+	// @param force If false, the fade is queued in the fade queue, if true the fade is executed
+	// immediately, clearing any previously queued fades.
+	void FadeFrom(
+		const Color& color, milliseconds duration, TweenEase ease = TweenEase::Linear,
+		bool force = false
+	);
+
+	// @param color End color.
+	// @param duration Duration of fade.
+	// @param ease Easing function for the fade.
+	// @param force If false, the fade is queued in the fade queue, if true the fade is executed
+	// immediately, clearing any previously queued fades.
+	void FadeTo(
+		const Color& color, milliseconds duration, TweenEase ease = TweenEase::Linear,
+		bool force = false
+	);
+
+	// Top left position.
+	[[nodiscard]] V2_float GetViewportPosition() const;
+	[[nodiscard]] V2_float GetViewportSize() const;
 
 	// If continuously is true, camera will subscribe to window resize event.
 	// Set the camera to be the size of the window and centered on the window.
@@ -121,22 +220,24 @@ public:
 	// @param camera_relative_size The size to be scaled.
 	[[nodiscard]] V2_float ScaleToScreen(const V2_float& camera_relative_size) const;
 
-	// Origin at the top left.
-	[[nodiscard]] Rect GetRect() const;
+	[[nodiscard]] std::array<V2_float, 4> GetVertices() const;
 
 	[[nodiscard]] V2_float GetSize() const;
 
 	[[nodiscard]] float GetZoom() const;
 
-	// Use Min() and Max() of rectangle to find top left and bottom right bounds of camera.
-	[[nodiscard]] Rect GetBounds() const;
+	[[nodiscard]] V2_float GetBoundsPosition() const;
+	[[nodiscard]] V2_float GetBoundsSize() const;
 
 	// @param origin What point on the camera the position represents.
 	// @return The position of the camera.
 	[[nodiscard]] V2_float GetPosition(Origin origin = Origin::Center) const;
 
-	// (yaw, pitch, roll) (radians).
+	// @return (yaw, pitch, roll) (radians).
 	[[nodiscard]] V3_float GetOrientation() const;
+
+	// @return Yaw (2D rotation) (radians).
+	[[nodiscard]] float GetRotation() const;
 
 	// Orientation as a quaternion.
 	[[nodiscard]] Quaternion GetQuaternion() const;
@@ -147,11 +248,12 @@ public:
 
 	// Camera bounds only apply along aligned axes. In other words: rotated cameras can see outside
 	// the bounding box.
-	void SetBounds(const Rect& bounding_box);
+	// @param position Top left position of the bounds.
+	void SetBounds(const V2_float& position, const V2_float& size);
 
 	void SetSize(const V2_float& size);
 
-	// Set point which is at the center of the camera view.
+	// Set the point which is at the center of the camera view.
 	void SetPosition(const V2_float& new_position);
 
 	void Translate(const V2_float& position_change);
@@ -166,11 +268,27 @@ public:
 	// (yaw, pitch, roll) in radians.
 	void Rotate(const V3_float& angle_change_radians);
 
-	// Yaw in radians.
-	void SetRotation(float yaw_radians);
+	// Set 2D rotation angle in radians.
+	/* Range: (-3.14159, 3.14159].
+	 * (clockwise positive).
+	 *            -1.5708
+	 *               |
+	 *    3.14159 ---o--- 0
+	 *               |
+	 *             1.5708
+	 */
+	void SetRotation(float angle_radians);
 
-	// Yaw in radians.
-	void Rotate(float yaw_change_radians);
+	// Rotate camera in 2D (radians).
+	/* Range: (-3.14159, 3.14159].
+	 * (clockwise positive).
+	 *            -1.5708
+	 *               |
+	 *    3.14159 ---o--- 0
+	 *               |
+	 *             1.5708
+	 */
+	void Rotate(float angle_change_radians);
 
 	// Angle in radians.
 	void SetYaw(float angle_radians);
@@ -190,6 +308,27 @@ public:
 	// Angle in radians.
 	void Roll(float angle_change_radians);
 
+	// Only applies when camera is following a target.
+	// Range: [0, 1]. Determines how smoothly the camera tracks to the target's position. 1 for
+	// instant tracking, 0 to disable tracking.
+	void SetLerp(const V2_float& lerp = V2_float{ 1.0f });
+
+	[[nodiscard]] V2_float GetLerp() const;
+
+	// Only applies when camera is following a target.
+	// Deadzone is a rectangle centered on the target inside of which the camera does not track the
+	// target. If {}, deadzone is removed.
+	void SetDeadzone(const V2_float& size = {});
+
+	[[nodiscard]] V2_float GetDeadzone() const;
+
+	// Only applies when camera is following a target.
+	// Sets an offset such that the camera follows target.transform + offset.
+	// If {}, offset is removed.
+	void SetOffset(const V2_float& offset = {});
+
+	[[nodiscard]] V2_float GetOffset() const;
+
 	void PrintInfo() const;
 
 	[[nodiscard]] const Matrix4& GetViewProjection() const;
@@ -199,16 +338,31 @@ public:
 protected:
 	friend class impl::CameraManager;
 
+	// @param start_color Starting color.
+	// @param end_color Ending color.
+	// @param duration Duration of fade.
+	// @param ease Easing function for the fade.
+	// @param force If false, the fade is queued in the fade queue, if true the fade is executed
+	// immediately, clearing any previously queued fades.
+	void FadeFromTo(
+		const Color& start_color, const Color& end_color, milliseconds duration, TweenEase ease,
+		bool force
+	);
+
 	[[nodiscard]] const Matrix4& GetView() const;
 	[[nodiscard]] const Matrix4& GetProjection() const;
 
+	// Set the point which is at the center of the camera view.
 	void SetPosition(const V3_float& new_position);
 
 	void RecalculateView() const;
 	void RecalculateProjection() const;
 	void RecalculateViewProjection() const;
 
-	ecs::Entity entity_;
+	GameObject pan_effects_;
+	GameObject rotation_effects_;
+	GameObject zoom_effects_;
+	GameObject fade_effects_;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {
@@ -218,16 +372,10 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {
 
 namespace impl {
 
-class CameraManager : public MapManager<Camera> {
+class CameraManager {
 public:
-	CameraManager()									   = default;
-	~CameraManager() override						   = default;
-	CameraManager(CameraManager&&) noexcept			   = default;
-	CameraManager& operator=(CameraManager&&) noexcept = default;
-	CameraManager(const CameraManager&)				   = delete;
-	CameraManager& operator=(const CameraManager&)	   = delete;
-
-	// Resets the camera manager and primary / window cameras.
+	// Reset primary camera back to window and reset window camera in case it has been
+	// modified.
 	void Reset();
 
 	Camera primary;
@@ -395,33 +543,33 @@ vertical
 // @param viewport The viewport relative to which the screen coordinate is transformed.
 // @param camera The camera relative to which the screen coordinate is transformed.
 // @param screen_relative_coordinate The coordinate to be transformed.
-[[nodiscard]] V2_float TransformToViewport(
-	const Rect& viewport, const Camera& camera, const V2_float& screen_relative_coordinate
-);
+//[[nodiscard]] V2_float TransformToViewport(
+//	const Rect& viewport, const Camera& camera, const V2_float& screen_relative_coordinate
+//);
 
 // Transforms a viewport relative pixel coordinate to being relative to the window.
 // @param viewport The viewport relative to which the viewport coordinate is transformed.
 // @param camera The camera relative to which the viewport coordinate is transformed.
 // @param viewport_coordinate The coordinate to be transformed.
-[[nodiscard]] V2_float TransformToScreen(
-	const Rect& viewport, const Camera& camera, const V2_float& viewport_relative_coordinate
-);
+//[[nodiscard]] V2_float TransformToScreen(
+//	const Rect& viewport, const Camera& camera, const V2_float& viewport_relative_coordinate
+//);
 
 // Scales a window relative pixel size to being relative to the specified viewport and
 // primary game camera.
 // @param viewport The viewport relative to which the pixel size is scaled.
 // @param camera The camera relative to which the pixel size is scaled.
 // @param screen_relative_size The coordinate to be scaled.
-[[nodiscard]] V2_float ScaleToViewport(
-	const Rect& viewport, const Camera& camera, const V2_float& screen_relative_size
-);
+//[[nodiscard]] V2_float ScaleToViewport(
+//	const Rect& viewport, const Camera& camera, const V2_float& screen_relative_size
+//);
 
 // Scales a viewport relative pixel size to being relative to the window.
 // @param viewport The viewport relative to which the pixel size is scaled.
 // @param camera The camera relative to which the pixel size is scaled.
 // @param viewport_relative_size The coordinate to be scaled.
-[[nodiscard]] V2_float ScaleToScreen(
-	const Rect& viewport, const Camera& camera, const V2_float& viewport_relative_size
-);
+//[[nodiscard]] V2_float ScaleToScreen(
+//	const Rect& viewport, const Camera& camera, const V2_float& viewport_relative_size
+//);
 
 } // namespace ptgn

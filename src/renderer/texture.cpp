@@ -11,10 +11,6 @@
 #include <utility>
 #include <vector>
 
-#include "SDL_error.h"
-#include "SDL_image.h"
-#include "SDL_pixels.h"
-#include "SDL_surface.h"
 #include "core/game.h"
 #include "math/hash.h"
 #include "math/vector2.h"
@@ -24,12 +20,32 @@
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
 #include "renderer/gl_types.h"
+#include "SDL_error.h"
+#include "SDL_image.h"
+#include "SDL_pixels.h"
+#include "SDL_surface.h"
+#include "serialization/json.h"
 #include "utility/assert.h"
 #include "utility/file.h"
 #include "utility/log.h"
 #include "utility/stats.h"
 
-namespace ptgn::impl {
+namespace ptgn {
+
+Color GetPixel(const path& texture_filepath, const V2_int& coordinate) {
+	impl::Surface s{ texture_filepath };
+	return s.GetPixel(coordinate);
+}
+
+V2_int ForEachPixel(
+	const path& texture_filepath, const std::function<void(const V2_int&, const Color&)>& function
+) {
+	impl::Surface s{ texture_filepath };
+	s.ForEachPixel(function);
+	return s.size;
+}
+
+namespace impl {
 
 TextureFormat GetFormatFromOpenGL(InternalGLFormat opengl_internal_format) {
 	switch (opengl_internal_format) {
@@ -411,6 +427,13 @@ void Texture::SetSubData(
 	));
 }
 
+void TextureManager::Load(const path& json_filepath) {
+	auto textures{ LoadJson(json_filepath) };
+	for (auto& [texture_key, texture_path] : textures.items()) {
+		Load(texture_key, texture_path);
+	}
+}
+
 void TextureManager::Load(std::string_view key, const path& filepath) {
 	auto [it, inserted] = textures_.try_emplace(Hash(key));
 	if (inserted) {
@@ -420,6 +443,11 @@ void TextureManager::Load(std::string_view key, const path& filepath) {
 
 void TextureManager::Unload(std::string_view key) {
 	textures_.erase(Hash(key));
+}
+
+V2_int TextureManager::GetSize(std::size_t key) const {
+	PTGN_ASSERT(Has(key), "Cannot get size of texture which has not been loaded");
+	return textures_.find(key)->second.GetSize();
 }
 
 V2_int TextureManager::GetSize(std::string_view key) const {
@@ -464,6 +492,7 @@ Color Surface::GetPixel(const V2_int& coordinate) const {
 Color Surface::GetPixel(std::size_t index) const {
 	PTGN_ASSERT(!data.empty(), "Cannot get pixel of an empty surface");
 	PTGN_ASSERT(index < data.size(), "Coordinate outside of range of grid");
+	index *= bytes_per_pixel;
 	if (bytes_per_pixel == 4) {
 		PTGN_ASSERT(index + 3 < data.size(), "Coordinate outside of range of grid");
 		return { data[index + 0], data[index + 1], data[index + 2], data[index + 3] };
@@ -586,4 +615,6 @@ void Texture::SetClampBorderColor(const Color& color) const {
 }
 */
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn

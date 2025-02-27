@@ -142,12 +142,10 @@ RenderData& Renderer::GetRenderData() {
 }
 
 void Renderer::PresentScreen() {
+	FrameBuffer::Unbind();
+
 	PTGN_ASSERT(
 		std::invoke([]() {
-			// No active scenes added yet so viewport cannot be set.
-			if (game.scene.GetActiveSceneCount() == 0) {
-				return true;
-			}
 			auto viewport_size{ GLRenderer::GetViewportSize() };
 			if (viewport_size.IsZero()) {
 				return false;
@@ -159,6 +157,7 @@ void Renderer::PresentScreen() {
 		}),
 		"Attempting to render to 0 or 1 sized viewport"
 	);
+
 	PTGN_ASSERT(
 		FrameBuffer::IsUnbound(),
 		"Frame buffer must be unbound (id=0) before swapping SDL2 buffer to the screen"
@@ -212,12 +211,6 @@ void Renderer::PresentScreen() {
 		default:						   PTGN_ERROR("Unrecognized resolution mode");
 	}
 	*/
-
-	// PTGN_LOG("Renderer Stats: \n", game.stats);
-	// PTGN_LOG("--------------------------------------");
-#ifdef PTGN_DEBUG
-	game.stats.ResetRendererRelated();
-#endif
 }
 
 void Renderer::ClearScreen() const {
