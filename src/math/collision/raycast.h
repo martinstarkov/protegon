@@ -1,69 +1,111 @@
 #pragma once
 
+#include "components/transform.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/line.h"
+#include "math/geometry/polygon.h"
 #include "math/vector2.h"
 
 namespace ptgn {
 
-struct Raycast {
+struct RaycastResult {
 	float t{ 1.0f }; // How far along the ray the impact occurred.
 	V2_float normal; // Normal of the impact (normalised).
 
 	[[nodiscard]] bool Occurred() const;
 };
 
-[[nodiscard]] Raycast RaycastLineLine(
+[[nodiscard]] RaycastResult Raycast(const Transform& a, Line A, const Transform& b, Line B);
+
+[[nodiscard]] RaycastResult Raycast(const Transform& a, Line A, const Transform& b, Circle B);
+
+[[nodiscard]] RaycastResult Raycast(const Transform& a, Line A, Transform b, Rect B);
+
+[[nodiscard]] RaycastResult Raycast(const Transform& a, Line A, const Transform& b, Capsule B);
+
+[[nodiscard]] RaycastResult Raycast(
+	const Transform& a, Circle A, const V2_float& ray, const Transform& b, Line B
+);
+
+[[nodiscard]] RaycastResult Raycast(
+	const Transform& a, Circle A, const V2_float& ray, const Transform& b, Circle B
+);
+
+[[nodiscard]] RaycastResult Raycast(
+	const Transform& a, Circle A, const V2_float& ray, Transform b, Rect B
+);
+
+[[nodiscard]] RaycastResult Raycast(
+	const Transform& a, Circle A, const V2_float& ray, const Transform& b, Capsule B
+);
+
+[[nodiscard]] RaycastResult Raycast(
+	Transform a, Rect A, const V2_float& ray, const Transform& b, Circle B
+);
+
+[[nodiscard]] RaycastResult Raycast(Transform a, Rect A, const V2_float& ray, Transform b, Rect B);
+
+[[nodiscard]] RaycastResult Raycast(
+	const Transform& a, Capsule A, const V2_float& ray, const Transform& b, Circle B
+);
+
+namespace impl {
+
+[[nodiscard]] RaycastResult RaycastLineLine(
 	const V2_float& lineA_start, const V2_float& lineA_end, const V2_float& lineB_start,
 	const V2_float& lineB_end
 );
 
-[[nodiscard]] Raycast RaycastLineCircle(
+[[nodiscard]] RaycastResult RaycastLineCircle(
 	const V2_float& line_start, const V2_float& line_end, const V2_float& circle_center,
 	float circle_radius
 );
 
-[[nodiscard]] Raycast RaycastLineRect(
-	const V2_float& line_start, const V2_float& line_end, const V2_float& rect_min,
-	const V2_float& rect_max
+[[nodiscard]] RaycastResult RaycastLineRect(
+	const V2_float& line_start, const V2_float& line_end, const V2_float& rect_center,
+	const V2_float& rect_size
 );
 
-[[nodiscard]] Raycast RaycastLineCapsule(
+[[nodiscard]] RaycastResult RaycastLineCapsule(
 	const V2_float& line_start, const V2_float& line_end, const V2_float& capsule_start,
 	const V2_float& capsule_end, float capsule_radius
 );
 
-[[nodiscard]] Raycast RaycastCircleLine(
+[[nodiscard]] RaycastResult RaycastCircleLine(
 	const V2_float& circle_center, float circle_radius, const V2_float& ray,
 	const V2_float& line_start, const V2_float& line_end
 );
 
-[[nodiscard]] Raycast RaycastCircleCircle(
+[[nodiscard]] RaycastResult RaycastCircleCircle(
 	const V2_float& circleA_center, float circleA_radius, const V2_float& ray,
 	const V2_float& circleB_center, float circleB_radius
 );
 
-[[nodiscard]] Raycast RaycastCircleRect(
+[[nodiscard]] RaycastResult RaycastCircleRect(
 	const V2_float& circle_center, float circle_radius, const V2_float& ray,
-	const V2_float& rect_min, const V2_float& rect_max
+	const V2_float& rect_center, const V2_float& rect_size
 );
 
-[[nodiscard]] Raycast RaycastCircleCapsule(
+[[nodiscard]] RaycastResult RaycastCircleCapsule(
 	const V2_float& circle_center, float circle_radius, const V2_float& ray,
 	const V2_float& capsule_start, const V2_float& capsule_end, float capsule_radius
 );
 
-[[nodiscard]] Raycast RaycastRectCircle(
-	const V2_float& rect_min, const V2_float& rect_max, const V2_float& ray,
+[[nodiscard]] RaycastResult RaycastRectCircle(
+	const V2_float& rect_center, const V2_float& rect_size, const V2_float& ray,
 	const V2_float& circle_center, float circle_radius
 );
 
-[[nodiscard]] Raycast RaycastRectRect(
-	const V2_float& rectA_min, const V2_float& rectA_max, const V2_float& ray,
-	const V2_float& rectB_min, const V2_float& rectB_max
+[[nodiscard]] RaycastResult RaycastRectRect(
+	const V2_float& rectA_center, const V2_float& rectA_size, const V2_float& ray,
+	const V2_float& rectB_center, const V2_float& rectB_size
 );
 
-[[nodiscard]] Raycast RaycastCapsuleCircle(
+[[nodiscard]] RaycastResult RaycastCapsuleCircle(
 	const V2_float& capsule_start, const V2_float& capsule_end, float capsule_radius,
 	const V2_float& ray, const V2_float& circle_center, float circle_radius
 );
+
+} // namespace impl
 
 } // namespace ptgn

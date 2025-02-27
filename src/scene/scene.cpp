@@ -111,40 +111,33 @@ void Scene::InternalLoad() {
 		if (is_rect) {
 			V2_float interactive_size{ entity.Get<InteractiveSize>() };
 			auto size{ interactive_size * GetScale(entity) };
-			auto half{ size / 2.0f };
-			auto center{ GetPosition(entity) - GetOffsetFromCenter(size, GetOrigin(entity)) };
-			return OverlapPointRect(
-				pointer, center - half, center + half, GetRotation(entity),
-				GetRotationCenter(entity)
-			);
+			auto center{ GetPosition(entity) + GetOriginOffset(GetOrigin(entity), size) };
+			return impl::OverlapPointRect(pointer, center, size, GetRotation(entity));
 		} else if (is_circle) {
 			float interactive_radius{ entity.Get<InteractiveRadius>() };
 			auto radius{ interactive_radius * GetScale(entity).x };
-			return OverlapPointCircle(pointer, GetPosition(entity), radius);
+			return impl::OverlapPointCircle(pointer, GetPosition(entity), radius);
 		}
 		is_circle = entity.Has<Circle>();
 		is_rect	  = entity.Has<Rect>();
 		// Prioritize circle interactable.
 		if (is_circle) {
 			const auto& c{ entity.Get<Circle>() };
-			return OverlapPointCircle(pointer, c.GetCenter(), c.GetRadius());
+			return impl::OverlapPointCircle(
+				pointer, GetPosition(entity), c.radius * GetScale(entity).x
+			);
 		} else if (is_rect) {
 			const auto& r{ entity.Get<Rect>() };
-			auto [rect_min, rect_max] = r.GetExtents();
-			return OverlapPointRect(
-				pointer, rect_min, rect_max, r.GetRotation(), r.GetRotationCenter()
-			);
+			auto size{ r.size * GetScale(entity) };
+			auto center{ GetPosition(entity) + GetOriginOffset(r.origin, r.size) };
+			return impl::OverlapPointRect(pointer, center, size, GetRotation(entity));
 		}
 
 		if (entity.Has<TextureKey>()) {
 			const auto& texture_key{ entity.Get<TextureKey>() };
 			auto size{ game.texture.GetSize(texture_key) * GetScale(entity) };
-			auto half{ size / 2.0f };
-			auto center{ GetPosition(entity) - GetOffsetFromCenter(size, GetOrigin(entity)) };
-			return OverlapPointRect(
-				pointer, center - half, center + half, GetRotation(entity),
-				GetRotationCenter(entity)
-			);
+			auto center{ GetPosition(entity) + GetOriginOffset(GetOrigin(entity), size) };
+			return impl::OverlapPointRect(pointer, center, size, GetRotation(entity));
 		}
 
 		return false;

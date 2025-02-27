@@ -180,9 +180,8 @@ void InputHandler::Update() {
 bool InputHandler::MouseWithinWindow() const {
 	V2_float pos{ game.window.GetPosition() };
 	V2_float size{ game.window.GetSize() };
-	return OverlapPointRect(
-		game.input.GetMousePositionGlobal(), pos, pos + size, 0.0f, { 0.5f, 0.5f }
-	);
+	auto half{ size * 0.5f };
+	return OverlapPointRect(game.input.GetMousePositionGlobal(), pos + half, size, 0.0f);
 }
 
 bool InputHandler::MouseHeld(Mouse button, milliseconds time) {

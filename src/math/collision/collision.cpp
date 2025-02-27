@@ -30,11 +30,16 @@ void CollisionHandler::AddEarliestCollisions(
 	std::unordered_set<Collision>& entities
 ) {
 	PTGN_ASSERT(!sweep_collisions.empty());
+
 	const auto& first_collision{ sweep_collisions.front() };
+
 	PTGN_ASSERT(e != first_collision.e, "Self collision not possible");
+
 	entities.emplace(e, first_collision.e, first_collision.c.normal);
+
 	for (std::size_t i{ 1 }; i < sweep_collisions.size(); ++i) {
 		const auto& collision{ sweep_collisions[i] };
+
 		if (collision.c.t == first_collision.c.t) {
 			PTGN_ASSERT(e != collision.e, "Self collision not possible");
 			entities.emplace(e, collision.e, collision.c.normal);
@@ -73,13 +78,13 @@ void CollisionHandler::SortCollisions(std::vector<SweepCollision>& collisions) {
 }
 
 V2_float CollisionHandler::GetRemainingVelocity(
-	const V2_float& velocity, const Raycast& c, CollisionResponse response
+	const V2_float& velocity, const RaycastResult& c, CollisionResponse response
 ) {
 	float remaining_time{ 1.0f - c.t };
 
 	switch (response) {
 		case CollisionResponse::Slide: {
-			V2_float tangent{ -c.normal.Skewed() };
+			auto tangent{ -c.normal.Skewed() };
 			return velocity.Dot(tangent) * tangent * remaining_time;
 		}
 		case CollisionResponse::Push: {
@@ -87,7 +92,7 @@ V2_float CollisionHandler::GetRemainingVelocity(
 				   velocity.Magnitude();
 		}
 		case CollisionResponse::Bounce: {
-			V2_float new_velocity = velocity * remaining_time;
+			auto new_velocity{ velocity * remaining_time };
 			if (!NearlyEqual(FastAbs(c.normal.x), 0.0f)) {
 				new_velocity.x *= -1.0f;
 			}

@@ -3,18 +3,19 @@
 #include <cmath>
 #include <limits>
 #include <utility>
-#include <vector>
 
+#include "components/transform.h"
 #include "core/game.h"
 #include "math/collision/overlap.h"
 #include "math/geometry/axis.h"
+#include "math/geometry/circle.h"
 #include "math/geometry/polygon.h"
 #include "math/math.h"
 #include "math/utility.h"
 #include "math/vector2.h"
+#include "renderer/origin.h"
 #include "utility/assert.h"
 #include "utility/debug.h"
-#include "utility/utility.h"
 
 namespace ptgn {
 
@@ -25,6 +26,8 @@ bool Intersection::Occurred() const {
 	);
 	return !normal.IsZero();
 }
+
+namespace impl {
 
 Intersection IntersectCircleCircle(
 	const V2_float& circleA_center, float circleA_radius, const V2_float& circleB_center,
@@ -65,8 +68,8 @@ Intersection IntersectCircleCircle(
 }
 
 Intersection IntersectCircleRect(
-	const V2_float& circle_center, float circle_radius, const V2_float& rect_min,
-	const V2_float& rect_max
+	const V2_float& circle_center, float circle_radius, const V2_float& rect_center,
+	const V2_float& rect_size
 ) {
 #ifdef PTGN_DEBUG
 	game.stats.intersect_circle_rect++;
@@ -75,10 +78,8 @@ Intersection IntersectCircleRect(
 	// https://steamcdn-a.akamaihd.net/apps/valve/2015/DirkGregorius_Contacts.pdf
 	Intersection c;
 
-	V2_float half{ (rect_max - rect_min) / 2.0f };
-	V2_float max{ rect_max };
-	V2_float min{ rect_min };
-	V2_float clamped{ Clamp(circle_center, min, max) };
+	V2_float half{ rect_size * 0.5f };
+	V2_float clamped{ Clamp(circle_center, rect_center - half, rect_center + half) };
 	V2_float ab{ circle_center - clamped };
 
 	float dist2{ ab.Dot(ab) };
@@ -101,7 +102,7 @@ Intersection IntersectCircleRect(
 	// Deep intersection (center of circle inside of AABB).
 
 	// Clamp circle's center to edge of AABB, then form the manifold.
-	V2_float mid{ Midpoint(rect_min, rect_max) };
+	V2_float mid{ rect_center };
 	V2_float d{ mid - circle_center };
 
 	if (V2_float overlap{ half - V2_float{ FastAbs(d.x), FastAbs(d.y) } }; overlap.x < overlap.y) {
@@ -117,35 +118,31 @@ Intersection IntersectCircleRect(
 	return c;
 }
 
-Intersection IntersectRectCircle(
-	const V2_float& rect_min, const V2_float& rect_max, const V2_float& circle_center,
-	float circle_radius
-) {
-	Intersection c{ IntersectCircleRect(circle_center, circle_radius, rect_min, rect_max) };
-	c.normal *= -1.0f;
-	return c;
-}
-
 Intersection IntersectRectRect(
-	const V2_float& rectA_min, const V2_float& rectA_max, float rotationA,
-	const V2_float& rotation_centerA, const V2_float& rectB_min, const V2_float& rectB_max,
-	float rotationB, const V2_float& rotation_centerB
+	const V2_float& rectA_center, const V2_float& rectA_size, float rectA_rotation,
+	const V2_float& rectB_center, const V2_float& rectB_size, float rectB_rotation
 ) {
 	Intersection c;
 
-	if (rotationA != 0.0f || rotationB != 0.0f) {
-		auto verticesA{ impl::GetQuadVertices(rectA_min, rectA_max, rotationA, rotation_centerA) };
-		auto verticesB{ impl::GetQuadVertices(rectB_min, rectB_max, rotationB, rotation_centerB) };
-		return IntersectPolygonPolygon(ToVector(verticesA), ToVector(verticesB));
+	if (rectA_rotation != 0.0f || rectB_rotation != 0.0f) {
+		auto rectA_polygon{
+			impl::GetVertices({ rectA_center, rectA_rotation }, { rectA_size, Origin::Center })
+		};
+		auto rectB_polygon{
+			impl::GetVertices({ rectB_center, rectB_rotation }, { rectB_size, Origin::Center })
+		};
+		return IntersectPolygonPolygon(
+			rectA_polygon.data(), rectA_polygon.size(), rectB_polygon.data(), rectB_polygon.size()
+		);
 	}
 
 #ifdef PTGN_DEBUG
 	game.stats.intersect_rect_rect++;
 #endif
 
-	V2_float a_h{ (rectA_max - rectA_min) * 0.5f };
-	V2_float b_h{ (rectB_max - rectB_min) * 0.5f };
-	V2_float d{ Midpoint(rectB_min, rectB_max) - Midpoint(rectA_min, rectA_max) };
+	V2_float a_h{ rectA_size * 0.5f };
+	V2_float b_h{ rectB_size * 0.5f };
+	V2_float d{ rectB_center - rectA_center };
 	V2_float pen{ a_h + b_h - V2_float{ FastAbs(d.x), FastAbs(d.y) } };
 
 	// Optional: To include seams in collision, simply remove the NearlyEqual calls from this if
@@ -172,13 +169,14 @@ Intersection IntersectRectRect(
 }
 
 Intersection IntersectPolygonPolygon(
-	const std::vector<V2_float>& pA, const std::vector<V2_float>& pB
+	const V2_float* pAv, std::size_t pA_vertex_count, const V2_float* pBv,
+	std::size_t pB_vertex_count
 ) {
 #ifdef PTGN_DEBUG
 	game.stats.intersect_polygon_polygon++;
 #endif
 	PTGN_ASSERT(
-		impl::IsConvexPolygon(pA) && impl::IsConvexPolygon(pB),
+		impl::IsConvexPolygon(pAv, pA_vertex_count) && impl::IsConvexPolygon(pBv, pB_vertex_count),
 		"PolygonPolygon intersection check only works if both polygons are convex"
 	);
 
@@ -187,8 +185,8 @@ Intersection IntersectPolygonPolygon(
 	float depth{ std::numeric_limits<float>::infinity() };
 	Axis axis;
 
-	if (!impl::GetPolygonMinimumOverlap(pA, pB, depth, axis) ||
-		!impl::GetPolygonMinimumOverlap(pB, pA, depth, axis)) {
+	if (!impl::GetPolygonMinimumOverlap(pAv, pA_vertex_count, pBv, pB_vertex_count, depth, axis) ||
+		!impl::GetPolygonMinimumOverlap(pBv, pB_vertex_count, pAv, pA_vertex_count, depth, axis)) {
 		return c;
 	}
 
@@ -196,7 +194,8 @@ Intersection IntersectPolygonPolygon(
 	PTGN_ASSERT(depth >= 0.0f);
 
 	// Make sure the vector is pointing from polygon1 to polygon2.
-	if (V2_float dir{ impl::GetPolygonCenter(pA) - impl::GetPolygonCenter(pB) };
+	if (V2_float dir{ GetPolygonCenter(pAv, pA_vertex_count) -
+					  GetPolygonCenter(pBv, pB_vertex_count) };
 		dir.Dot(axis.direction) < 0) {
 		axis.direction *= -1.0f;
 	}
@@ -233,6 +232,49 @@ Intersection IntersectPolygonPolygon(
 	game.draw.Line(axis.midpoint, axis.midpoint - c.normal * c.depth, color::Cyan, 3.0f);
 	game.draw.Line(axis.midpoint, axis.midpoint + c.normal * c.depth, color::Cyan, 3.0f);
 	*/
+}
+
+} // namespace impl
+
+Intersection Intersects(const Transform& a, Circle A, const Transform& b, Circle B) {
+	A.radius *= a.scale.x;
+	B.radius *= b.scale.x;
+	return impl::IntersectCircleCircle(a.position, A.radius, b.position, B.radius);
+}
+
+Intersection Intersects(const Transform& a, Circle A, Transform b, Rect B) {
+	A.radius   *= a.scale.x;
+	B.size	   *= b.scale;
+	b.position += B.GetCenterOffset();
+	return impl::IntersectCircleRect(a.position, A.radius, b.position, B.size);
+}
+
+Intersection Intersects(const Transform& a, const Rect& A, const Transform& b, const Circle& B) {
+	auto intersection{ Intersects(b, B, a, A) };
+	intersection.normal *= -1.0f;
+	return intersection;
+}
+
+Intersection Intersects(Transform a, Rect A, Transform b, Rect B) {
+	A.size	   *= a.scale;
+	a.position += A.GetCenterOffset();
+	B.size	   *= b.scale;
+	b.position += B.GetCenterOffset();
+	return impl::IntersectRectRect(b.position, B.size, a.rotation, b.position, B.size, b.rotation);
+}
+
+Intersection Intersects(const Transform& a, Polygon A, const Transform& b, Polygon B) {
+	for (auto& v : A.vertices) {
+		v *= a.scale;
+		v += a.position;
+	}
+	for (auto& v : B.vertices) {
+		v *= b.scale;
+		v += b.position;
+	}
+	return impl::IntersectPolygonPolygon(
+		A.vertices.data(), A.vertices.size(), B.vertices.data(), B.vertices.size()
+	);
 }
 
 } // namespace ptgn

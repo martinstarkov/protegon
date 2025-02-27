@@ -1,15 +1,18 @@
 #pragma once
 
-#include <type_traits>
 #include <unordered_set>
 #include <vector>
 
 #include "components/transform.h"
 #include "core/game.h"
+#include "core/game_object.h"
 #include "ecs/ecs.h"
 #include "math/collision/collider.h"
 #include "math/collision/intersect.h"
+#include "math/collision/overlap.h"
 #include "math/collision/raycast.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
 #include "utility/assert.h"
@@ -33,21 +36,23 @@ public:
 	CollisionHandler(const CollisionHandler&)				 = delete;
 
 	template <typename T, typename S>
-	[[nodiscard]] static bool CanCollide(const T& colliderA, const S& colliderB) {
-		if (!colliderA.IsEnabled()) {
+	[[nodiscard]] static bool CanCollide(
+		const GameObject e1, const T& colliderA, const GameObject e2, const S& colliderB
+	) {
+		if (!e1.IsEnabled()) {
 			return false;
 		}
-		if (!colliderB.IsEnabled()) {
+		if (!e2.IsEnabled()) {
 			return false;
 		}
 		// TODO: Check if the "oldest" parents are equal.
-		if (colliderA.GetParent() == colliderB.GetParent()) {
+		if (e1.GetParent() == e2.GetParent()) {
 			return false;
 		}
-		if (!colliderA.GetParent().IsAlive()) {
+		if (!e1.GetParent().IsAlive()) {
 			return false;
 		}
-		if (!colliderB.GetParent().IsAlive()) {
+		if (!e2.GetParent().IsAlive()) {
 			return false;
 		}
 		if (!colliderA.CanCollideWith(colliderB.GetCollisionCategory())) {
@@ -67,10 +72,10 @@ public:
 
 		const auto process_overlap = [&](const auto& collider2, ecs::Entity e2) {
 			const auto& collider{ entity.Get<T>() };
-			if (!CanCollide(collider, collider2)) {
+			if (!CanCollide(entity, collider, e2, collider2)) {
 				return;
 			}
-			if (collider.Overlaps(collider2)) {
+			if (Overlaps(GetTransform(entity), collider, GetTransform(e2), collider2)) {
 				// ProcessCallback may invalidate all component references.
 				ProcessCallback<T>(entity, e2, {});
 			}
@@ -102,15 +107,19 @@ public:
 
 		const auto process_intersection = [&](const auto& collider2, ecs::Entity e2) {
 			const auto& collider{ entity.Get<T>() };
-			if (collider2.overlap_only || !CanCollide(collider, collider2)) {
+			if (collider2.overlap_only || !CanCollide(entity, collider, e2, collider2)) {
 				return;
 			}
-			Intersection c{ collider.Intersects(collider2) };
-			if (!c.Occurred()) {
+
+			auto intersection{
+				Intersects(GetTransform(entity), collider, GetTransform(e2), collider2)
+			};
+
+			if (!intersection.Occurred()) {
 				return;
 			}
 			// ProcessCallback may invalidate all component references.
-			if (!ProcessCallback<T>(entity, e2, c.normal)) {
+			if (!ProcessCallback<T>(entity, e2, intersection.normal)) {
 				return;
 			}
 			auto& rb{ entity.Get<RigidBody>() };
@@ -118,10 +127,11 @@ public:
 				return;
 			}
 			if (entity.Has<Transform>()) {
-				entity.Get<Transform>().position += c.normal * (c.depth + slop);
+				entity.Get<Transform>().position +=
+					intersection.normal * (intersection.depth + slop);
 			}
 			rb.velocity = GetRemainingVelocity(
-				rb.velocity, Raycast{ 0.0f, c.normal }, entity.Get<T>().response
+				rb.velocity, { 0.0f, intersection.normal }, entity.Get<T>().response
 			);
 		};
 
@@ -215,6 +225,7 @@ public:
 		}*/
 
 		AddEarliestCollisions(entity, collisions2, entity.Get<T>().collisions);
+
 		entity.Get<RigidBody>().AddImpulse(new_velocity / game.dt() * earliest2.t);
 	}
 
@@ -228,12 +239,12 @@ private:
 	struct SweepCollision {
 		SweepCollision() = default;
 
-		SweepCollision(const Raycast& c, float dist2, ecs::Entity e) :
+		SweepCollision(const RaycastResult& c, float dist2, ecs::Entity e) :
 			e{ e }, c{ c }, dist2{ dist2 } {}
 
 		// Collision entity.
 		ecs::Entity e;
-		Raycast c;
+		RaycastResult c;
 		float dist2{ 0.0f };
 	};
 
@@ -255,22 +266,28 @@ private:
 	) {
 		auto& collider{ entity.Get<T>() };
 		const auto& collider2{ e2.Get<S>() };
-		if (collider2.overlap_only || !CanCollide(collider, collider2)) {
+		if (collider2.overlap_only || !CanCollide(entity, collider, e2, collider2)) {
 			return;
 		}
 		// TODO: Figure out a better way to do the second sweep without generating a new game
 		// object or changing the position of the existing one.
-		collider.SetPosition(collider.GetPosition() + offset);
-		Raycast c{ collider.Raycast(GetRelativeVelocity(vel, e2), collider2) };
+		auto transform1{ GetTransform(entity) };
+		auto transform2{ GetTransform(e2) };
+
+		auto offset_transform{ transform1 };
+		offset_transform.position += offset;
+
+		auto raycast{
+			Raycast(offset_transform, collider, GetRelativeVelocity(vel, e2), transform2, collider2)
+		};
+
 		// ProcessCallback may invalidate all component references.
-		if (c.Occurred() && entity.Get<T>().ProcessCallback(entity, e2)) {
-			V2_float center1{ entity.Get<T>().GetCenter() };
-			V2_float center2{ e2.Get<S>().GetCenter() };
-			float dist2{ (center1 - center2).MagnitudeSquared() };
-			collisions.emplace_back(c, dist2, e2);
+		if (raycast.Occurred() && entity.Get<T>().ProcessCallback(entity, e2)) {
+			auto center1{ GetCenter(transform1, collider) };
+			auto center2{ GetCenter(transform2, collider2) };
+			auto dist2{ (center1 - center2).MagnitudeSquared() };
+			collisions.emplace_back(raycast, dist2, e2);
 		}
-		collider = entity.Get<T>();
-		collider.SetPosition(collider.GetPosition() - offset);
 	};
 
 	// @param offset Offset from the transform position of the entity. This enables doing a second
@@ -307,7 +324,7 @@ private:
 
 		collider.ResetCollisions();
 
-		if (!collider.IsEnabled()) {
+		if (!IsEnabled(entity)) {
 			return;
 		}
 
@@ -339,7 +356,7 @@ private:
 	static void SortCollisions(std::vector<SweepCollision>& collisions);
 
 	[[nodiscard]] static V2_float GetRemainingVelocity(
-		const V2_float& velocity, const Raycast& c, CollisionResponse response
+		const V2_float& velocity, const RaycastResult& c, CollisionResponse response
 	);
 
 	[[nodiscard]] static V2_float GetRelativeVelocity(const V2_float& vel, ecs::Entity e2);
