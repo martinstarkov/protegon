@@ -1,7 +1,6 @@
 #pragma once
 
 #include <array>
-#include <type_traits>
 #include <unordered_set>
 
 #include "components/transform.h"
@@ -19,53 +18,12 @@ class RenderData;
 
 } // namespace impl
 
-[[nodiscard]] bool IsVisible(const ecs::Entity& e);
-[[nodiscard]] bool IsEnabled(const ecs::Entity& e);
-[[nodiscard]] V2_float GetLocalPosition(const ecs::Entity& e);
-[[nodiscard]] V2_float GetPosition(const ecs::Entity& e);
-[[nodiscard]] float GetLocalRotation(const ecs::Entity& e);
-[[nodiscard]] float GetRotation(const ecs::Entity& e);
-[[nodiscard]] V2_float GetLocalScale(const ecs::Entity& e);
-[[nodiscard]] V2_float GetScale(const ecs::Entity& e);
-[[nodiscard]] Depth GetDepth(const ecs::Entity& e);
-[[nodiscard]] BlendMode GetBlendMode(const ecs::Entity& e);
-[[nodiscard]] Origin GetOrigin(const ecs::Entity& e);
-[[nodiscard]] Color GetTint(const ecs::Entity& e);
-[[nodiscard]] ecs::Entity GetParent(const ecs::Entity& e);
-[[nodiscard]] bool HasParent(const ecs::Entity& e);
-[[nodiscard]] V2_float GetRotationCenter(const ecs::Entity& e);
-[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(
-	const ecs::Entity& e, bool flip_vertically
-);
-
-// A game object is a owning wrapper around an ecs::Entity.
-class GameObject {
+class GameObject : public ecs::Entity {
 public:
+	using ecs::Entity::Entity;
 	GameObject() = default;
 	GameObject(const ecs::Entity& e);
-	GameObject(const GameObject&)				 = default;
-	GameObject& operator=(const GameObject&)	 = default;
-	GameObject(GameObject&&) noexcept			 = default;
-	GameObject& operator=(GameObject&&) noexcept = default;
-	virtual ~GameObject();
-
-	bool operator==(const ecs::Entity& o) const;
-	bool operator!=(const ecs::Entity& o) const;
-
-	operator ecs::Entity() const;
-
-	template <typename T, typename... Ts>
-	T& Add(Ts&&... constructor_args) {
-		if constexpr (std::is_convertible_v<T*, GameObject*>) {
-			auto child{ entity.GetManager().CreateEntity() };
-			auto& component{ entity.Add<T>(child, std::forward<Ts>(constructor_args)...) };
-			AddChild(child);
-			component.SetParent(entity);
-			return component;
-		} else {
-			return entity.Add<T>(std::forward<Ts>(constructor_args)...);
-		}
-	}
+	explicit GameObject(ecs::Manager& manager);
 
 	// @return *this.
 	GameObject& SetVisible(bool visible);
@@ -88,13 +46,15 @@ public:
 	[[nodiscard]] bool IsVisible() const;
 	[[nodiscard]] bool IsEnabled() const;
 
-	[[nodiscard]] V2_float GetRotationCenter() const;
+	[[nodiscard]] Transform GetLocalTransform() const;
+	[[nodiscard]] Transform GetTransform() const;
 
 	[[nodiscard]] V2_float GetLocalPosition() const;
 	[[nodiscard]] V2_float GetPosition() const;
 
 	// @return Rotation of the object in radians relative to { 1, 0 }, clockwise positive.
 	[[nodiscard]] float GetLocalRotation() const;
+
 	// @return Rotation of the object in radians relative to its parent object and { 1, 0 },
 	// clockwise positive.
 	[[nodiscard]] float GetRotation() const;
@@ -115,30 +75,30 @@ public:
 	GameObject& SetScale(const V2_float& scale);
 
 	GameObject& SetDepth(const Depth& depth);
+
 	[[nodiscard]] Depth GetDepth() const;
 
 	GameObject& SetBlendMode(BlendMode blend_mode);
+
 	[[nodiscard]] BlendMode GetBlendMode() const;
 
 	// @return *this.
-	GameObject& AddChild(const ecs::Entity& o);
+	GameObject& AddChild(const GameObject& o);
 
 	// @return *this.
-	GameObject& RemoveChild(const ecs::Entity& o);
+	GameObject& RemoveChild(const GameObject& o);
 
 	// If object has no parent, returns *this.
-	[[nodiscard]] ecs::Entity GetParent() const;
+	[[nodiscard]] GameObject GetParent() const;
 
 	[[nodiscard]] bool HasParent() const;
-
-	ecs::Entity entity;
 
 protected:
 	friend class impl::RenderData;
 
 	[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(bool flip_vertically) const;
 
-	GameObject& SetParent(const ecs::Entity& o);
+	GameObject& SetParent(const GameObject& o);
 };
 
 struct Children {
@@ -152,5 +112,25 @@ struct Children {
 private:
 	std::unordered_set<ecs::Entity> children_;
 };
+
+[[nodiscard]] bool IsVisible(const GameObject& e);
+[[nodiscard]] bool IsEnabled(const GameObject& e);
+[[nodiscard]] Transform GetLocalTransform(const GameObject& e);
+[[nodiscard]] Transform GetTransform(const GameObject& e);
+[[nodiscard]] V2_float GetLocalPosition(const GameObject& e);
+[[nodiscard]] V2_float GetPosition(const GameObject& e);
+[[nodiscard]] float GetLocalRotation(const GameObject& e);
+[[nodiscard]] float GetRotation(const GameObject& e);
+[[nodiscard]] V2_float GetLocalScale(const GameObject& e);
+[[nodiscard]] V2_float GetScale(const GameObject& e);
+[[nodiscard]] Depth GetDepth(const GameObject& e);
+[[nodiscard]] BlendMode GetBlendMode(const GameObject& e);
+[[nodiscard]] Origin GetOrigin(const GameObject& e);
+[[nodiscard]] Color GetTint(const GameObject& e);
+[[nodiscard]] GameObject GetParent(const GameObject& e);
+[[nodiscard]] bool HasParent(const GameObject& e);
+[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(
+	const GameObject& e, bool flip_vertically
+);
 
 } // namespace ptgn

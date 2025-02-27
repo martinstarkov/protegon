@@ -12,7 +12,6 @@
 #include "ecs/ecs.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
-#include "renderer/origin.h"
 #include "renderer/text.h"
 #include "renderer/texture.h"
 
@@ -70,8 +69,8 @@ struct ButtonColor {
 
 	Color current_;
 	Color default_;
-	Color pressed_;
 	Color hover_;
+	Color pressed_;
 };
 
 struct ButtonColorToggled : public ButtonColor {};
@@ -82,7 +81,8 @@ using ButtonCallback = std::function<void()>;
 
 struct Button : public GameObject {
 	Button() = default;
-	Button(const ecs::Entity& e);
+	Button(ecs::Manager& manager);
+	virtual ~Button() = default;
 
 	// These allow for manually triggering button callback events.
 	virtual void Activate();
@@ -135,10 +135,6 @@ struct Button : public GameObject {
 
 	Button& SetFontSize(std::int32_t font_size);
 
-	[[nodiscard]] Depth GetDepth() const;
-
-	Button& SetDepth(const Depth& depth);
-
 	[[nodiscard]] float GetBackgroundLineWidth() const;
 
 	// If -1 (default), button background is a solid rectangle, otherwise uses the specified line
@@ -156,11 +152,14 @@ struct Button : public GameObject {
 	Button& OnActivate(const ButtonCallback& callback);
 
 	[[nodiscard]] impl::InternalButtonState GetInternalState() const;
+
+private:
+	void StateChange(impl::InternalButtonState new_state);
 };
 
 struct ToggleButton : public Button {
 	ToggleButton() = default;
-	ToggleButton(const ecs::Entity& e, bool toggled = false);
+	ToggleButton(ecs::Manager& manager, bool toggled = false);
 
 	void Activate() final;
 

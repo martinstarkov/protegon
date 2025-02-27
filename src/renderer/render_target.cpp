@@ -32,7 +32,7 @@ RenderTarget::RenderTarget(const Color& clear_color) :
 
 RenderTarget::RenderTarget(ecs::Manager& manager, const V2_float& size, const Color& clear_color) :
 	RenderTarget{ size, clear_color } {
-	camera = manager.CreateEntity();
+	camera = Camera{ manager };
 }
 
 RenderTarget::RenderTarget(const V2_float& size, const Color& clear_color) :

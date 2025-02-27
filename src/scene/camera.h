@@ -110,7 +110,9 @@ struct CameraInfo {
 class Camera : public GameObject {
 public:
 	Camera() = default;
-	Camera(const ecs::Entity& e);
+	Camera(ecs::Manager& manager);
+
+	void Destroy();
 
 	// @param target_position Position to pan to.
 	// @param duration Duration of pan.
@@ -218,8 +220,7 @@ public:
 	// @param camera_relative_size The size to be scaled.
 	[[nodiscard]] V2_float ScaleToScreen(const V2_float& camera_relative_size) const;
 
-	// Vertices
-	[[nodiscard]] std::array<V2_float, 4> GetQuadVertices() const;
+	[[nodiscard]] std::array<V2_float, 4> GetVertices() const;
 
 	[[nodiscard]] V2_float GetSize() const;
 

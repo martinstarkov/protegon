@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <functional>
 #include <limits>
@@ -141,16 +142,11 @@ void CameraInfo::RefreshBounds() noexcept {
 
 } // namespace impl
 
-Camera::Camera(const ecs::Entity& e) : GameObject{ e } {
-	entity.Add<impl::CameraInfo>();
-}
-
 void Camera::StopFollow(bool force) {
-	if (pan_effects_ == ecs::null || !pan_effects_.entity.IsAlive() ||
-		!pan_effects_.entity.Has<Tween>()) {
+	if (pan_effects_ == ecs::null || !pan_effects_.IsAlive() || !pan_effects_.Has<Tween>()) {
 		return;
 	}
-	auto& tween{ pan_effects_.entity.Get<Tween>() };
+	auto& tween{ pan_effects_.Get<Tween>() };
 	if (force || tween.IsCompleted()) {
 		tween.Clear();
 	} else {
@@ -160,81 +156,72 @@ void Camera::StopFollow(bool force) {
 
 void Camera::StartFollow(ecs::Entity target_entity, bool force) {
 	if (pan_effects_ == ecs::null) {
-		pan_effects_ = entity.GetManager().CreateEntity();
+		pan_effects_ = GameObject{ GetManager() };
 	}
-	if (!pan_effects_.entity.Has<Tween>()) {
-		pan_effects_.entity.Add<Tween>();
+	if (!pan_effects_.Has<Tween>()) {
+		pan_effects_.Add<Tween>();
 	}
-	auto& tween{ pan_effects_.entity.Get<Tween>() };
+	auto& tween{ pan_effects_.Get<Tween>() };
 	if (force || tween.IsCompleted()) {
 		tween.Clear();
 	}
-	auto update_pan = [e = entity, ep = pan_effects_.entity]() mutable {
+	auto update_pan = [*this]() mutable {
 		// If a pan starts after this follow, its start position must be updated.
-		if (ep.Has<impl::CameraPanStart>()) {
-			auto& start{ ep.Get<impl::CameraPanStart>() };
-			const auto& info{ e.Get<impl::CameraInfo>().data };
-			// TODO: Move to GetPosition while capturing entity by copy.
-			start = V2_float{ info.position.x, info.position.y } +
-					GetOffsetFromCenter(info.size, Origin::Center);
+		if (pan_effects_.Has<impl::CameraPanStart>()) {
+			auto& start{ pan_effects_.Get<impl::CameraPanStart>() };
+			start = GetPosition(Origin::Center);
 		}
 	};
 	tween.During(milliseconds{ 0 })
 		.Repeat(-1)
-		.OnUpdate([target_entity, e = entity, ep = pan_effects_.entity]() mutable {
+		.OnUpdate([target_entity, *this]() mutable {
 			if (target_entity == ecs::null || !target_entity.IsAlive() ||
 				!target_entity.Has<Transform>()) {
 				// If target is invalid or has no transform, move onto to the next item in the pan
 				// queue.
-				ep.Get<Tween>().IncrementTweenPoint();
+				pan_effects_.Get<Tween>().IncrementTweenPoint();
 				return;
 			}
-			V2_float offset{ ep.Has<impl::CameraOffset>() ? ep.Get<impl::CameraOffset>()
-														  : impl::CameraOffset{} };
-			auto target_pos{ target_entity.Get<Transform>().position + offset };
-			V2_float lerp{ ep.Has<impl::CameraLerp>() ? ep.Get<impl::CameraLerp>()
-													  : impl::CameraLerp{} };
-			V2_float deadzone_size{ ep.Has<impl::CameraDeadzone>() ? ep.Get<impl::CameraDeadzone>()
-																   : impl::CameraDeadzone{} };
-			auto& info{ e.Get<impl::CameraInfo>() };
-			auto pos{ V2_float{ info.data.position.x, info.data.position.y } +
-					  GetOffsetFromCenter(info.data.size, Origin::Center) };
+			V2_float offset{ pan_effects_.Has<impl::CameraOffset>()
+								 ? pan_effects_.Get<impl::CameraOffset>()
+								 : impl::CameraOffset{} };
+			auto target_pos{ ptgn::GetPosition(target_entity) + offset };
+			V2_float lerp{ pan_effects_.Has<impl::CameraLerp>()
+							   ? pan_effects_.Get<impl::CameraLerp>()
+							   : impl::CameraLerp{} };
+			V2_float deadzone_size{ pan_effects_.Has<impl::CameraDeadzone>()
+										? pan_effects_.Get<impl::CameraDeadzone>()
+										: impl::CameraDeadzone{} };
+			auto zoom{ GetZoom() };
+			PTGN_ASSERT(zoom != 0.0f, "Cannot have negative zoom");
+			deadzone_size /= zoom;
+			auto pos{ GetPosition(Origin::Center) };
+
+			V2_float lerp_dt{ 1.0f - std::pow(1.0f - lerp.x, game.dt()),
+							  1.0f - std::pow(1.0f - lerp.y, game.dt()) };
+
 			if (deadzone_size.IsZero()) {
 				// TODO: Make this a damped or dt lerp functions.
-				V2_float lerp_dt{ 1.0f - std::pow(1.0f - lerp.x, game.dt()),
-								  1.0f - std::pow(1.0f - lerp.y, game.dt()) };
 				auto new_pos{ Lerp(pos, target_pos, lerp_dt) };
-				// TODO: Move to SetPosition while capturing entity by copy.
-				info.data.center_to_window = false;
-				info.data.position		   = { new_pos.x, new_pos.y, info.data.position.z };
-				/*info.data.position.x	   = std::round(info.data.position.x);
-				info.data.position.y	   = std::round(info.data.position.y);*/
-				info.data.recalculate_view = true;
-				info.RefreshBounds();
+				SetPosition(new_pos);
 				return;
 			}
 
 			// TODO: Consider adding a custom deadzone origin in the future.
-			V2_float deadzone_half{ deadzone_size / 2 };
+			V2_float deadzone_half{ deadzone_size * 0.5f };
 			V2_float min{ target_pos - deadzone_half };
 			V2_float max{ target_pos + deadzone_half };
 			if (pos.x < min.x) {
-				pos.x = Lerp(pos.x, pos.x - (min.x - target_pos.x), lerp.x);
+				pos.x = Lerp(pos.x, pos.x - (min.x - target_pos.x), lerp_dt.x);
 			} else if (pos.x > max.x) {
-				pos.x = Lerp(pos.x, pos.x + (target_pos.x - max.x), lerp.x);
+				pos.x = Lerp(pos.x, pos.x + (target_pos.x - max.x), lerp_dt.x);
 			}
 			if (pos.y < min.y) {
-				pos.y = Lerp(pos.y, pos.y - (min.y - target_pos.y), lerp.y);
+				pos.y = Lerp(pos.y, pos.y - (min.y - target_pos.y), lerp_dt.y);
 			} else if (pos.y > max.y) {
-				pos.y = Lerp(pos.y, pos.y + (target_pos.y - max.y), lerp.y);
+				pos.y = Lerp(pos.y, pos.y + (target_pos.y - max.y), lerp_dt.y);
 			}
-			// TODO: Move to SetPosition while capturing entity by copy.
-			info.data.center_to_window = false;
-			info.data.position		   = { pos.x, pos.y, info.data.position.z };
-			/*info.data.position.x	   = std::round(info.data.position.x);
-			info.data.position.y	   = std::round(info.data.position.y);*/
-			info.data.recalculate_view = true;
-			info.RefreshBounds();
+			SetPosition(pos);
 		})
 		.OnComplete(update_pan)
 		.OnStop(update_pan)
@@ -242,44 +229,46 @@ void Camera::StartFollow(ecs::Entity target_entity, bool force) {
 	tween.Start(force);
 }
 
+Camera::Camera(ecs::Manager& manager) : GameObject{ manager } {
+	Add<impl::CameraInfo>();
+}
+
+void Camera::Destroy() {
+	pan_effects_.Destroy();
+	rotation_effects_.Destroy();
+	zoom_effects_.Destroy();
+	fade_effects_.Destroy();
+	ecs::Entity::Destroy();
+}
+
 void Camera::PanTo(
 	const V2_float& target_position, milliseconds duration, TweenEase ease, bool force
 ) {
 	if (pan_effects_ == ecs::null) {
-		pan_effects_ = entity.GetManager().CreateEntity();
+		pan_effects_ = GameObject{ GetManager() };
 	}
-	if (!pan_effects_.entity.Has<Tween>()) {
-		pan_effects_.entity.Add<Tween>();
+	if (!pan_effects_.Has<Tween>()) {
+		pan_effects_.Add<Tween>();
 	}
-	if (!pan_effects_.entity.Has<impl::CameraPanStart>()) {
-		auto& start{ pan_effects_.entity.Add<impl::CameraPanStart>() };
+	if (!pan_effects_.Has<impl::CameraPanStart>()) {
+		auto& start{ pan_effects_.Add<impl::CameraPanStart>() };
 		start = GetPosition(Origin::Center);
 	}
-	auto& tween{ pan_effects_.entity.Get<Tween>() };
+	auto& tween{ pan_effects_.Get<Tween>() };
 	if (force || tween.IsCompleted()) {
 		tween.Clear();
 	}
-	auto update_pan = [e = entity, ep = pan_effects_.entity]() mutable {
-		auto& start{ ep.Get<impl::CameraPanStart>() };
-		const auto& info{ e.Get<impl::CameraInfo>().data };
-		// TODO: Move to GetPosition while capturing entity by copy.
-		start = V2_float{ info.position.x, info.position.y } +
-				GetOffsetFromCenter(info.size, Origin::Center);
+	auto update_pan = [*this]() mutable {
+		auto& start{ pan_effects_.Get<impl::CameraPanStart>() };
+		start = GetPosition(Origin::Center);
 	};
 	tween.During(duration)
 		.Ease(ease)
-		.OnUpdate([target_position, e = entity, ep = pan_effects_.entity](float f) mutable {
-			V2_float start{ ep.Get<impl::CameraPanStart>() };
+		.OnUpdate([target_position, *this](float f) mutable {
+			V2_float start{ pan_effects_.Get<impl::CameraPanStart>() };
 			V2_float dir{ target_position - start };
 			auto new_pos{ start + f * dir };
-			// TODO: Move to SetPosition while capturing entity by copy.
-			auto& info{ e.Get<impl::CameraInfo>() };
-			info.data.center_to_window = false;
-			info.data.position		   = { new_pos.x, new_pos.y, info.data.position.z };
-			/*info.data.position.x	   = std::round(info.data.position.x);
-			info.data.position.y	   = std::round(info.data.position.y);*/
-			info.data.recalculate_view = true;
-			info.RefreshBounds();
+			SetPosition(new_pos);
 		})
 		.OnComplete(update_pan)
 		.OnStop(update_pan)
@@ -290,38 +279,30 @@ void Camera::PanTo(
 void Camera::ZoomTo(float target_zoom, milliseconds duration, TweenEase ease, bool force) {
 	PTGN_ASSERT(target_zoom > 0.0f, "Target zoom cannot be negative or zero");
 	if (zoom_effects_ == ecs::null) {
-		zoom_effects_ = entity.GetManager().CreateEntity();
+		zoom_effects_ = GameObject{ GetManager() };
 	}
-	if (!zoom_effects_.entity.Has<Tween>()) {
-		zoom_effects_.entity.Add<Tween>();
+	if (!zoom_effects_.Has<Tween>()) {
+		zoom_effects_.Add<Tween>();
 	}
-	if (!zoom_effects_.entity.Has<impl::CameraZoomStart>()) {
-		auto& start{ zoom_effects_.entity.Add<impl::CameraZoomStart>() };
+	if (!zoom_effects_.Has<impl::CameraZoomStart>()) {
+		auto& start{ zoom_effects_.Add<impl::CameraZoomStart>() };
 		start = GetZoom();
 	}
-	auto& tween{ zoom_effects_.entity.Get<Tween>() };
+	auto& tween{ zoom_effects_.Get<Tween>() };
 	if (force || tween.IsCompleted()) {
 		tween.Clear();
 	}
-	auto update_zoom = [e = entity, ez = zoom_effects_.entity]() mutable {
-		auto& start{ ez.Get<impl::CameraZoomStart>() };
-		// TODO: Move to GetZoom while capturing entity by copy.
-		start = e.Get<impl::CameraInfo>().data.zoom;
+	auto update_zoom = [*this]() mutable {
+		auto& start{ zoom_effects_.Get<impl::CameraZoomStart>() };
+		start = GetZoom();
 	};
 	tween.During(duration)
 		.Ease(ease)
-		.OnUpdate([target_zoom, e = entity, ez = zoom_effects_.entity](float f) mutable {
-			float start{ ez.Get<impl::CameraZoomStart>() };
+		.OnUpdate([target_zoom, *this](float f) mutable {
+			float start{ zoom_effects_.Get<impl::CameraZoomStart>() };
 			float dir{ target_zoom - start };
 			float new_zoom{ start + f * dir };
-			PTGN_ASSERT(new_zoom > 0.0f, "New zoom cannot be negative or zero");
-			// TODO: Move to SetZoom while capturing entity by copy.
-			auto& info{ e.Get<impl::CameraInfo>() };
-			info.data.zoom = new_zoom;
-			info.data.zoom =
-				std::clamp(info.data.zoom, epsilon<float>, std::numeric_limits<float>::max());
-			info.data.recalculate_projection = true;
-			info.RefreshBounds();
+			SetZoom(new_zoom);
 		})
 		.OnComplete(update_zoom)
 		.OnStop(update_zoom)
@@ -331,33 +312,31 @@ void Camera::ZoomTo(float target_zoom, milliseconds duration, TweenEase ease, bo
 
 void Camera::RotateTo(float target_angle, milliseconds duration, TweenEase ease, bool force) {
 	if (rotation_effects_ == ecs::null) {
-		rotation_effects_ = entity.GetManager().CreateEntity();
+		rotation_effects_ = GameObject{ GetManager() };
 	}
-	if (!rotation_effects_.entity.Has<Tween>()) {
-		rotation_effects_.entity.Add<Tween>();
+	if (!rotation_effects_.Has<Tween>()) {
+		rotation_effects_.Add<Tween>();
 	}
-	if (!rotation_effects_.entity.Has<impl::CameraRotationStart>()) {
-		auto& start{ rotation_effects_.entity.Add<impl::CameraRotationStart>() };
+	if (!rotation_effects_.Has<impl::CameraRotationStart>()) {
+		auto& start{ rotation_effects_.Add<impl::CameraRotationStart>() };
 		start = GetRotation();
 	}
-	auto& tween{ rotation_effects_.entity.Get<Tween>() };
+	auto& tween{ rotation_effects_.Get<Tween>() };
 	if (force || tween.IsCompleted()) {
 		tween.Clear();
 	}
-	auto update_rotation = [e = entity, er = rotation_effects_.entity]() mutable {
-		auto& start{ er.Get<impl::CameraRotationStart>() };
-		// TODO: Move to GetRotation while capturing entity by copy.
-		start = e.Get<impl::CameraInfo>().data.orientation.x;
+	auto update_rotation = [*this]() mutable {
+		auto& start{ rotation_effects_.Get<impl::CameraRotationStart>() };
+		start = GetRotation();
 	};
 	tween.During(duration)
 		.Ease(ease)
-		.OnUpdate([target_angle, e = entity, er = rotation_effects_.entity](float f) mutable {
-			float start{ er.Get<impl::CameraRotationStart>() };
+		.OnUpdate([target_angle, *this](float f) mutable {
+			float start{ rotation_effects_.Get<impl::CameraRotationStart>() };
 
 			float dir{ target_angle - start };
-
-			// TODO: Move to SetRotation while capturing entity by copy.
-			e.Get<impl::CameraInfo>().data.orientation.x = start + f * dir;
+			auto new_rotation{ start + f * dir };
+			SetRotation(new_rotation);
 		})
 		.OnComplete(update_rotation)
 		.OnStop(update_rotation)
@@ -370,35 +349,34 @@ void Camera::FadeFromTo(
 	bool force
 ) {
 	if (fade_effects_ == ecs::null) {
-		fade_effects_ = entity.GetManager().CreateEntity();
+		fade_effects_ = GameObject{ GetManager() };
 	}
-	if (!fade_effects_.entity.Has<Tween>()) {
-		fade_effects_.entity.Add<Tween>();
+	if (!fade_effects_.Has<Tween>()) {
+		fade_effects_.Add<Tween>();
 	}
-	if (!fade_effects_.entity.Has<Rect>()) {
-		fade_effects_.entity.Add<Transform>();
-		fade_effects_.entity.Add<Rect>();
-		fade_effects_.entity.Add<Tint>();
-		fade_effects_.entity.Add<Visible>(false);
-		fade_effects_.entity.Add<Depth>(std::numeric_limits<std::int32_t>::max());
+	if (!fade_effects_.Has<Rect>()) {
+		fade_effects_.Add<Transform>();
+		fade_effects_.Add<Rect>();
+		fade_effects_.Add<Tint>();
+		fade_effects_.Add<Visible>(false);
+		fade_effects_.Add<Depth>(std::numeric_limits<std::int32_t>::max());
 	}
-	auto& tween{ fade_effects_.entity.Get<Tween>() };
+	auto& tween{ fade_effects_.Get<Tween>() };
 	if (force || tween.IsCompleted()) {
 		tween.Clear();
 	}
-	auto update_fade_rect = [start_color, end_color,
-							 ef = fade_effects_.entity](float progress) mutable {
-		if (ef.Has<Tint>()) {
-			auto& fade{ ef.Get<Tint>() };
+	auto update_fade_rect = [start_color, end_color, *this](float progress) mutable {
+		if (fade_effects_.Has<Tint>()) {
+			auto& fade{ fade_effects_.Get<Tint>() };
 			fade = Lerp(start_color, end_color, progress);
 		}
 	};
-	auto show = [ef = fade_effects_.entity](float f) mutable {
-		auto& visible{ ef.Get<Visible>() };
+	auto show = [*this](float f) mutable {
+		auto& visible{ fade_effects_.Get<Visible>() };
 		visible = true;
 	};
-	auto hide = [ef = fade_effects_.entity]() mutable {
-		auto& visible{ ef.Get<Visible>() };
+	auto hide = [*this]() mutable {
+		auto& visible{ fade_effects_.Get<Visible>() };
 		visible = false;
 	};
 	tween.During(duration)
@@ -422,11 +400,11 @@ void Camera::FadeFrom(const Color& color, milliseconds duration, TweenEase ease,
 }
 
 V2_float Camera::GetViewportPosition() const {
-	return entity.Get<impl::CameraInfo>().data.viewport_position;
+	return Get<impl::CameraInfo>().data.viewport_position;
 }
 
 V2_float Camera::GetViewportSize() const {
-	return entity.Get<impl::CameraInfo>().data.viewport_size;
+	return Get<impl::CameraInfo>().data.viewport_size;
 }
 
 Camera::operator Matrix4() const {
@@ -435,7 +413,7 @@ Camera::operator Matrix4() const {
 
 void Camera::SetZoom(float new_zoom) {
 	PTGN_ASSERT(new_zoom > 0.0f, "New zoom cannot be negative or zero");
-	auto& info{ entity.Get<impl::CameraInfo>() };
+	auto& info{ Get<impl::CameraInfo>() };
 	info.data.zoom = new_zoom;
 	info.data.zoom = std::clamp(info.data.zoom, epsilon<float>, std::numeric_limits<float>::max());
 	info.data.recalculate_projection = true;
@@ -443,7 +421,7 @@ void Camera::SetZoom(float new_zoom) {
 }
 
 void Camera::SetSize(const V2_float& new_size) {
-	auto& info{ entity.Get<impl::CameraInfo>() };
+	auto& info{ Get<impl::CameraInfo>() };
 	info.data.resize_to_window		 = false;
 	info.data.size					 = new_size;
 	info.data.recalculate_projection = true;
@@ -451,7 +429,7 @@ void Camera::SetSize(const V2_float& new_size) {
 }
 
 void Camera::SetPosition(const V3_float& new_position) {
-	auto& info{ entity.Get<impl::CameraInfo>() };
+	auto& info{ Get<impl::CameraInfo>() };
 	info.data.center_to_window = false;
 	info.data.position		   = new_position;
 	/*info.data.position.x	   = std::round(info.data.position.x);
@@ -461,7 +439,7 @@ void Camera::SetPosition(const V3_float& new_position) {
 }
 
 void Camera::SetBounds(const V2_float& position, const V2_float& size) {
-	auto& info{ entity.Get<impl::CameraInfo>() };
+	auto& info{ Get<impl::CameraInfo>() };
 	info.data.bounding_box_position = position;
 	info.data.bounding_box_size		= size;
 	// Reset info.position to ensure it is within the new bounds.
@@ -469,20 +447,20 @@ void Camera::SetBounds(const V2_float& position, const V2_float& size) {
 }
 
 V2_float Camera::GetBoundsPosition() const {
-	return entity.Get<impl::CameraInfo>().data.bounding_box_position;
+	return Get<impl::CameraInfo>().data.bounding_box_position;
 }
 
 V2_float Camera::GetBoundsSize() const {
-	return entity.Get<impl::CameraInfo>().data.bounding_box_size;
+	return Get<impl::CameraInfo>().data.bounding_box_size;
 }
 
 V2_float Camera::GetPosition(Origin origin) const {
-	const auto& info{ entity.Get<impl::CameraInfo>().data };
-	return V2_float{ info.position.x, info.position.y } + GetOffsetFromCenter(info.size, origin);
+	const auto& info{ Get<impl::CameraInfo>().data };
+	return V2_float{ info.position.x, info.position.y } + GetOriginOffset(origin, info.size);
 }
 
 void Camera::SetToWindow(bool continuously) {
-	auto& info{ entity.Get<impl::CameraInfo>() };
+	auto& info{ Get<impl::CameraInfo>() };
 	if (continuously) {
 		info.UnsubscribeFromEvents();
 	}
@@ -498,30 +476,30 @@ void Camera::CenterOnArea(const V2_float& new_size) {
 
 V2_float Camera::TransformToCamera(const V2_float& screen_relative_coordinate) const {
 	// TODO: Take into account camera rotation.
-	const auto& info{ entity.Get<impl::CameraInfo>().data };
+	const auto& info{ Get<impl::CameraInfo>().data };
 	PTGN_ASSERT(info.zoom != 0.0f);
 	return (screen_relative_coordinate - info.size * 0.5f) / info.zoom + GetPosition();
 }
 
 V2_float Camera::TransformToScreen(const V2_float& camera_relative_coordinate) const {
 	// TODO: Take into account camera rotation.
-	const auto& info{ entity.Get<impl::CameraInfo>().data };
+	const auto& info{ Get<impl::CameraInfo>().data };
 	return (camera_relative_coordinate - GetPosition()) * info.zoom + info.size * 0.5f;
 }
 
 V2_float Camera::ScaleToCamera(const V2_float& screen_relative_size) const {
-	const auto& info{ entity.Get<impl::CameraInfo>().data };
+	const auto& info{ Get<impl::CameraInfo>().data };
 	return screen_relative_size * info.zoom;
 }
 
 V2_float Camera::ScaleToScreen(const V2_float& camera_relative_size) const {
-	const auto& info{ entity.Get<impl::CameraInfo>().data };
+	const auto& info{ Get<impl::CameraInfo>().data };
 	PTGN_ASSERT(info.zoom != 0.0f);
 	return camera_relative_size / info.zoom;
 }
 
 void Camera::CenterOnWindow(bool continuously) {
-	auto& info{ entity.Get<impl::CameraInfo>() };
+	auto& info{ Get<impl::CameraInfo>() };
 	if (continuously) {
 		info.data.center_to_window = true;
 		info.SubscribeToEvents();
@@ -530,43 +508,43 @@ void Camera::CenterOnWindow(bool continuously) {
 	}
 }
 
-std::array<V2_float, 4> Camera::GetQuadVertices() const {
-	const auto& info{ entity.Get<impl::CameraInfo>().data };
-	return impl::GetQuadVertices(
-		GetPosition(Origin::Center), GetRotation(), GetSize() / info.zoom, RotationCenter{}
+std::array<V2_float, 4> Camera::GetVertices() const {
+	const auto& info{ Get<impl::CameraInfo>().data };
+	return impl::GetVertices(
+		{ GetPosition(Origin::Center), GetRotation() }, { GetSize() / info.zoom, Origin::Center }
 	);
 }
 
 V2_float Camera::GetSize() const {
-	return entity.Get<impl::CameraInfo>().data.size;
+	return Get<impl::CameraInfo>().data.size;
 }
 
 float Camera::GetZoom() const {
-	return entity.Get<impl::CameraInfo>().data.zoom;
+	return Get<impl::CameraInfo>().data.zoom;
 }
 
 V3_float Camera::GetOrientation() const {
-	return entity.Get<impl::CameraInfo>().data.orientation;
+	return Get<impl::CameraInfo>().data.orientation;
 }
 
 float Camera::GetRotation() const {
-	return entity.Get<impl::CameraInfo>().data.orientation.x;
+	return Get<impl::CameraInfo>().data.orientation.x;
 }
 
 Quaternion Camera::GetQuaternion() const {
-	return Quaternion::FromEuler(entity.Get<impl::CameraInfo>().data.orientation);
+	return Quaternion::FromEuler(Get<impl::CameraInfo>().data.orientation);
 }
 
 Flip Camera::GetFlip() const {
-	return entity.Get<impl::CameraInfo>().data.flip;
+	return Get<impl::CameraInfo>().data.flip;
 }
 
 void Camera::SetFlip(Flip new_flip) {
-	entity.Get<impl::CameraInfo>().data.flip = new_flip;
+	Get<impl::CameraInfo>().data.flip = new_flip;
 }
 
 const Matrix4& Camera::GetView() const {
-	const auto& info{ entity.Get<impl::CameraInfo>().data };
+	const auto& info{ Get<impl::CameraInfo>().data };
 	if (info.recalculate_view) {
 		RecalculateView();
 	}
@@ -574,7 +552,7 @@ const Matrix4& Camera::GetView() const {
 }
 
 const Matrix4& Camera::GetProjection() const {
-	const auto& info{ entity.Get<impl::CameraInfo>().data };
+	const auto& info{ Get<impl::CameraInfo>().data };
 	if (info.recalculate_projection) {
 		RecalculateProjection();
 	}
@@ -582,7 +560,7 @@ const Matrix4& Camera::GetProjection() const {
 }
 
 const Matrix4& Camera::GetViewProjection() const {
-	const auto& info{ entity.Get<impl::CameraInfo>().data };
+	const auto& info{ Get<impl::CameraInfo>().data };
 	bool updated_matrix{ info.recalculate_view || info.recalculate_projection };
 	if (info.recalculate_view) {
 		RecalculateView();
@@ -599,32 +577,32 @@ const Matrix4& Camera::GetViewProjection() const {
 }
 
 void Camera::SetPosition(const V2_float& new_position) {
-	const auto& info{ entity.Get<impl::CameraInfo>().data };
+	const auto& info{ Get<impl::CameraInfo>().data };
 	SetPosition({ new_position.x, new_position.y, info.position.z });
 }
 
 void Camera::Translate(const V2_float& position_change) {
-	const auto& info{ entity.Get<impl::CameraInfo>().data };
+	const auto& info{ Get<impl::CameraInfo>().data };
 	SetPosition(
 		info.position + V3_float{ position_change.x, position_change.y, 0.0f } * GetQuaternion()
 	);
 }
 
 void Camera::Zoom(float zoom_change) {
-	const auto& info{ entity.Get<impl::CameraInfo>().data };
+	const auto& info{ Get<impl::CameraInfo>().data };
 	float new_zoom{ info.zoom + zoom_change };
 	PTGN_ASSERT(new_zoom > 0.0f, "Resulting zoom cannot be negative or zero");
 	SetZoom(new_zoom);
 }
 
 void Camera::SetRotation(const V3_float& new_angle_radians) {
-	auto& info{ entity.Get<impl::CameraInfo>().data };
+	auto& info{ Get<impl::CameraInfo>().data };
 	info.orientation	  = new_angle_radians;
 	info.recalculate_view = true;
 }
 
 void Camera::Rotate(const V3_float& angle_change_radians) {
-	auto& info{ entity.Get<impl::CameraInfo>().data };
+	auto& info{ Get<impl::CameraInfo>().data };
 	SetRotation(info.orientation + angle_change_radians);
 }
 
@@ -637,17 +615,17 @@ void Camera::Rotate(float angle_change_radians) {
 }
 
 void Camera::SetYaw(float angle_radians) {
-	auto& info{ entity.Get<impl::CameraInfo>().data };
+	auto& info{ Get<impl::CameraInfo>().data };
 	info.orientation.x = angle_radians;
 }
 
 void Camera::SetPitch(float angle_radians) {
-	auto& info{ entity.Get<impl::CameraInfo>().data };
+	auto& info{ Get<impl::CameraInfo>().data };
 	info.orientation.y = angle_radians;
 }
 
 void Camera::SetRoll(float angle_radians) {
-	auto& info{ entity.Get<impl::CameraInfo>().data };
+	auto& info{ Get<impl::CameraInfo>().data };
 	info.orientation.z = angle_radians;
 }
 
@@ -664,7 +642,7 @@ void Camera::Roll(float angle_change) {
 }
 
 void Camera::SetSizeToWindow(bool continuously) {
-	auto& info{ entity.Get<impl::CameraInfo>() };
+	auto& info{ Get<impl::CameraInfo>() };
 	if (continuously) {
 		info.data.resize_to_window = true;
 		info.SubscribeToEvents();
@@ -674,12 +652,12 @@ void Camera::SetSizeToWindow(bool continuously) {
 }
 
 void Camera::RecalculateViewProjection() const {
-	auto& info{ entity.Get<impl::CameraInfo>().data };
+	auto& info{ Get<impl::CameraInfo>().data };
 	info.view_projection = info.projection * info.view;
 }
 
 void Camera::RecalculateView() const {
-	auto& info{ entity.Get<impl::CameraInfo>().data };
+	auto& info{ Get<impl::CameraInfo>().data };
 	V3_float mirror_position{ -info.position.x, -info.position.y, info.position.z };
 
 	Quaternion quat_orientation{ GetQuaternion() };
@@ -687,7 +665,7 @@ void Camera::RecalculateView() const {
 }
 
 void Camera::RecalculateProjection() const {
-	auto& info{ entity.Get<impl::CameraInfo>().data };
+	auto& info{ Get<impl::CameraInfo>().data };
 	PTGN_ASSERT(info.zoom > 0.0f);
 	V2_float extents{ info.size / 2.0f / info.zoom };
 	V2_float flip_dir{ 1.0f, 1.0f };
@@ -712,54 +690,54 @@ void Camera::SetLerp(const V2_float& lerp) {
 	PTGN_ASSERT(lerp.x >= 0.0f && lerp.x <= 1.0f, "Lerp value outside of range 0 to 1");
 	PTGN_ASSERT(lerp.y >= 0.0f && lerp.y <= 1.0f, "Lerp value outside of range 0 to 1");
 	if (pan_effects_ == ecs::null) {
-		pan_effects_ = entity.GetManager().CreateEntity();
+		pan_effects_ = GameObject{ GetManager() };
 	}
-	pan_effects_.entity.Add<impl::CameraLerp>(lerp);
+	pan_effects_.Add<impl::CameraLerp>(lerp);
 }
 
 V2_float Camera::GetLerp() const {
-	if (pan_effects_ == ecs::null || pan_effects_.entity.Has<impl::CameraLerp>()) {
+	if (pan_effects_ == ecs::null || pan_effects_.Has<impl::CameraLerp>()) {
 		return impl::CameraLerp{};
 	}
-	return pan_effects_.entity.Get<impl::CameraLerp>();
+	return pan_effects_.Get<impl::CameraLerp>();
 }
 
 void Camera::SetDeadzone(const V2_float& size) {
 	PTGN_ASSERT(size.x >= 0.0f, "Deadzone width cannot be negative");
 	PTGN_ASSERT(size.y >= 0.0f, "Deadzone height cannot be negative");
 	if (pan_effects_ == ecs::null) {
-		pan_effects_ = entity.GetManager().CreateEntity();
+		pan_effects_ = GameObject{ GetManager() };
 	}
 	if (size.IsZero()) {
-		pan_effects_.entity.Remove<impl::CameraDeadzone>();
+		pan_effects_.Remove<impl::CameraDeadzone>();
 	} else {
-		pan_effects_.entity.Add<impl::CameraDeadzone>(size);
+		pan_effects_.Add<impl::CameraDeadzone>(size);
 	}
 }
 
 V2_float Camera::GetDeadzone() const {
-	if (pan_effects_ == ecs::null || pan_effects_.entity.Has<impl::CameraDeadzone>()) {
+	if (pan_effects_ == ecs::null || pan_effects_.Has<impl::CameraDeadzone>()) {
 		return impl::CameraDeadzone{};
 	}
-	return pan_effects_.entity.Get<impl::CameraDeadzone>();
+	return pan_effects_.Get<impl::CameraDeadzone>();
 }
 
 void Camera::SetOffset(const V2_float& offset) {
 	if (pan_effects_ == ecs::null) {
-		pan_effects_ = entity.GetManager().CreateEntity();
+		pan_effects_ = GameObject{ GetManager() };
 	}
 	if (offset.IsZero()) {
-		pan_effects_.entity.Remove<impl::CameraOffset>();
+		pan_effects_.Remove<impl::CameraOffset>();
 	} else {
-		pan_effects_.entity.Add<impl::CameraOffset>(offset);
+		pan_effects_.Add<impl::CameraOffset>(offset);
 	}
 }
 
 V2_float Camera::GetOffset() const {
-	if (pan_effects_ == ecs::null || pan_effects_.entity.Has<impl::CameraOffset>()) {
+	if (pan_effects_ == ecs::null || pan_effects_.Has<impl::CameraOffset>()) {
 		return impl::CameraOffset{};
 	}
-	return pan_effects_.entity.Get<impl::CameraOffset>();
+	return pan_effects_.Get<impl::CameraOffset>();
 }
 
 void Camera::PrintInfo() const {
@@ -781,14 +759,18 @@ void Camera::PrintInfo() const {
 namespace impl {
 
 void CameraManager::Init(ecs::Manager& manager) {
-	primary = manager.CreateEntity();
-	window	= manager.CreateEntity();
+	primary.Destroy();
+	window.Destroy();
+	primary = Camera{ manager };
+	window	= Camera{ manager };
 }
 
 void CameraManager::Reset() {
-	primary = primary.entity.GetManager().CreateEntity();
-	window	= window.entity.GetManager().CreateEntity();
-}
+	primary.Destroy();
+	window.Destroy();
+	primary = Camera{ primary.GetManager() };
+	window	= Camera{ window.GetManager() };
+};
 
 } // namespace impl
 

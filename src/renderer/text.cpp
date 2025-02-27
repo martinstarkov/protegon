@@ -4,7 +4,6 @@
 #include <limits>
 #include <string>
 #include <string_view>
-#include <utility>
 
 #include "SDL_pixels.h"
 #include "SDL_surface.h"
@@ -21,20 +20,18 @@
 
 namespace ptgn {
 
-Text::Text(const ecs::Entity& e) : GameObject{ e } {}
-
 Text::Text(
-	const ecs::Entity& e, std::string_view content, const Color& text_color,
+	ecs::Manager& manager, std::string_view content, const Color& text_color,
 	std::string_view font_key
 ) :
-	Text{ e } {
-	entity.Add<TextContent>(content);
+	Text{ manager } {
+	Add<TextContent>(content);
 	if (text_color != TextColor{}) {
-		entity.Add<TextColor>(text_color);
+		Add<TextColor>(text_color);
 	}
 	auto hashed_key{ Hash(font_key) };
 	if (hashed_key != FontKey{}) {
-		entity.Add<FontKey>(hashed_key);
+		Add<FontKey>(hashed_key);
 	}
 	RecreateTexture();
 }
@@ -105,8 +102,8 @@ Color Text::GetShadingColor() const {
 }
 
 const impl::Texture& Text::GetTexture() const {
-	PTGN_ASSERT(entity.Has<impl::Texture>(), "Cannot retrieve text texture before it has been set");
-	return entity.Get<impl::Texture>();
+	PTGN_ASSERT(Has<impl::Texture>(), "Cannot retrieve text texture before it has been set");
+	return Get<impl::Texture>();
 }
 
 std::int32_t Text::GetFontSize() const {
@@ -132,8 +129,7 @@ V2_int Text::GetSize() const {
 }
 
 void Text::RecreateTexture() {
-	impl::Texture& texture{ entity.Has<impl::Texture>() ? entity.Get<impl::Texture>()
-														: entity.Add<impl::Texture>() };
+	impl::Texture& texture{ Has<impl::Texture>() ? Get<impl::Texture>() : Add<impl::Texture>() };
 
 	std::string content{ GetParameter(TextContent{}) };
 

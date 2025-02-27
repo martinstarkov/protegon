@@ -65,11 +65,11 @@ class Text : public GameObject {
 public:
 	Text() = default;
 
-	Text(const ecs::Entity& e);
+	using GameObject::GameObject;
 	// @param font_key Default: "" corresponds to the default engine font (use
 	// game.font.SetDefault(...) to change.
 	Text(
-		const ecs::Entity& e, std::string_view content, const Color& text_color = color::Black,
+		ecs::Manager& manager, std::string_view content, const Color& text_color = color::Black,
 		std::string_view font_key = ""
 	);
 
@@ -118,12 +118,12 @@ private:
 		static_assert(tt::is_any_of_v<
 					  T, FontKey, TextContent, TextColor, FontStyle, FontRenderMode, FontSize,
 					  TextLineSkip, TextShadingColor, TextWrapAfter, TextJustify>);
-		if (!entity.Has<T>()) {
-			entity.Add<T>(value);
+		if (!Has<T>()) {
+			Add<T>(value);
 			RecreateTexture();
 			return *this;
 		}
-		auto& t{ entity.Get<T>() };
+		auto& t{ Get<T>() };
 		if (t == value) {
 			return *this;
 		}
@@ -137,10 +137,10 @@ private:
 		static_assert(tt::is_any_of_v<
 					  T, FontKey, TextContent, TextColor, FontStyle, FontRenderMode, FontSize,
 					  TextLineSkip, TextShadingColor, TextWrapAfter, TextJustify>);
-		if (!entity.Has<T>()) {
+		if (!Has<T>()) {
 			return default_value;
 		}
-		return entity.Get<T>();
+		return Get<T>();
 	}
 
 	void RecreateTexture();
