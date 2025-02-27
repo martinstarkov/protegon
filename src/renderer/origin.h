@@ -20,9 +20,8 @@ enum class Origin {
 	BottomRight,
 };
 
-// @return If draw_origin is Origin::TopLeft, returned offset will be 0, if draw_origin is
-// Origin::Center, returned offset will be size / 2, etc.
-[[nodiscard]] V2_float GetOffsetFromCenter(const V2_float& size, Origin draw_origin);
+// @return Vector to be added to a position to get the object center given an origin and size.
+[[nodiscard]] V2_float GetOriginOffset(Origin origin, const V2_float& size);
 
 inline std::ostream& operator<<(std::ostream& os, Origin origin) {
 	switch (origin) {
