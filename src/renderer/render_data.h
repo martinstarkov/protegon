@@ -2,10 +2,8 @@
 
 #include <array>
 #include <map>
-#include <utility>
 #include <vector>
 
-#include "components/draw.h"
 #include "components/transform.h"
 #include "core/game_object.h"
 #include "ecs/ecs.h"
@@ -15,6 +13,7 @@
 #include "renderer/blend_mode.h"
 #include "renderer/color.h"
 #include "renderer/frame_buffer.h"
+#include "renderer/origin.h"
 #include "renderer/render_target.h"
 #include "renderer/shader.h"
 #include "renderer/text.h"
@@ -35,7 +34,7 @@ public:
 
 	void Render(const FrameBuffer& frame_buffer, const Camera& camera, ecs::Manager& manager);
 	void Render(
-		const FrameBuffer& frame_buffer, const Camera& camera, const ecs::Entity& o,
+		const FrameBuffer& frame_buffer, const Camera& camera, const GameObject& o,
 		bool check_visibility
 	);
 	void RenderToScreen(const RenderTarget& target, const Camera& camera);
@@ -51,10 +50,9 @@ public:
 	);
 
 	void AddTexture(
-		const ecs::Entity& e, const Texture& texture, const V2_float& position,
-		const V2_float& size, Origin origin, const Depth& depth, BlendMode blend_mode,
-		const V4_float& color, float rotation, const V2_float& rotation_center,
-		bool flip_vertically = false
+		const GameObject& e, const Texture& texture, const V2_float& position, const V2_float& size,
+		Origin origin, const Depth& depth, BlendMode blend_mode, const V4_float& color,
+		float rotation, bool flip_vertically = false
 	);
 
 	void AddTriangle(
@@ -64,13 +62,12 @@ public:
 
 	void AddQuad(
 		const V2_float& position, const V2_float& size, Origin origin, float line_width,
-		const Depth& depth, BlendMode blend_mode, const V4_float& color, float rotation,
-		const V2_float& rotation_center
+		const Depth& depth, BlendMode blend_mode, const V4_float& color, float rotation
 	);
 
 	void AddEllipse(
 		const V2_float& center, const V2_float& radius, float line_width, const Depth& depth,
-		BlendMode blend_mode, const V4_float& color, float rotation, const V2_float& rotation_center
+		BlendMode blend_mode, const V4_float& color, float rotation
 	);
 
 	void AddPolygon(
@@ -82,16 +79,16 @@ public:
 		const V2_float position, const Depth& depth, BlendMode blend_mode, const V4_float& color
 	);
 
-	void AddPointLight(const ecs::Entity& o, const Depth& depth);
+	void AddPointLight(const GameObject& o, const Depth& depth);
 
 	void AddText(
-		const ecs::Entity& o, const Text& text, const V2_float& position, const V2_float& size,
+		const GameObject& o, const Text& text, const V2_float& position, const V2_float& size,
 		Origin origin, const Depth& depth, BlendMode blend_mode, const V4_float& color,
-		float rotation, const V2_float& rotation_center
+		float rotation
 	);
 
 	void AddRenderTarget(
-		const ecs::Entity& o, const RenderTarget& rt, const Depth& depth, BlendMode blend_mode,
+		const GameObject& o, const RenderTarget& rt, const Depth& depth, BlendMode blend_mode,
 		const V4_float& tint
 	);
 
@@ -99,8 +96,7 @@ public:
 		const Text& text, const Texture& texture, const V4_float& background_color,
 		float background_line_width, bool bordered, const V4_float& border_color,
 		float border_line_width, const V2_float& position, const V2_float& size, Origin origin,
-		const Depth& depth, BlendMode blend_mode, const V4_float& tint, float rotation,
-		const V2_float& rotation_center
+		const Depth& depth, BlendMode blend_mode, const V4_float& tint, float rotation
 	);
 
 private:
@@ -130,7 +126,7 @@ private:
 		const V2_float& radius, const Depth& depth, BlendMode blend_mode, const V4_float& color
 	);
 
-	[[nodiscard]] V2_float GetTextureSize(const ecs::Entity& o, const Texture& texture);
+	[[nodiscard]] V2_float GetTextureSize(const GameObject& o, const Texture& texture);
 
 	[[nodiscard]] Batch& GetBatch(
 		std::size_t vertex_count, std::size_t index_count, const Texture& texture,
@@ -139,7 +135,7 @@ private:
 
 	[[nodiscard]] float GetTextureIndex(Batch& batch, const Texture& texture);
 
-	void AddToBatch(const ecs::Entity& object, bool check_visibility);
+	void AddToBatch(const GameObject& object, bool check_visibility);
 
 	void SetVertexArrayToWindow(
 		const Camera& camera, const Color& color, const Depth& depth, float texture_index

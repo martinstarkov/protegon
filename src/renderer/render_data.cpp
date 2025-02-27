@@ -19,6 +19,7 @@
 #include "math/geometry/circle.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
+#include "math/math.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/batch.h"
@@ -84,7 +85,7 @@ void RenderData::Init() {
 }
 
 /*
-std::pair<std::size_t, std::size_t> RenderData::GetVertexIndexCount(const ecs::Entity& e) {
+std::pair<std::size_t, std::size_t> RenderData::GetVertexIndexCount(const GameObject& e) {
 	if (e.HasAny<TextureKey, Text, RenderTarget, Rect, Line, Circle, Ellipse, Point>()) {
 		// Lines are rotated quads.
 		// Points are either circles or quads.
@@ -167,7 +168,7 @@ void RenderData::AddLine(
 	BlendMode blend_mode, const V4_float& color
 ) {
 	PTGN_ASSERT(line_width >= min_line_width, "-1.0f is an invalid line width for lines");
-	auto vertices{ Line::GetQuadVertices(line_start, line_end, line_width) };
+	auto vertices{ Line{ line_start, line_end }.GetQuadVertices(line_width) };
 	auto& batch{ GetBatch(
 		Batch::quad_vertex_count, Batch::quad_index_count, white_texture,
 		game.shader.Get<ShapeShader::Quad>(), blend_mode, depth
@@ -259,7 +260,7 @@ void RenderData::AddTexturedQuad(
 	batch.AddTexturedQuad(vertices, tex_coords, texture_index, color, depth);
 }
 
-void RenderData::AddPointLight(const ecs::Entity& o, const Depth& depth) {
+void RenderData::AddPointLight(const GameObject& o, const Depth& depth) {
 	PTGN_ASSERT(o.Has<PointLight>());
 
 	auto [it, inserted] = batch_map.try_emplace(depth);
@@ -284,7 +285,7 @@ void RenderData::AddPointLight(const ecs::Entity& o, const Depth& depth) {
 	b->lights.emplace_back(o);
 }
 
-V2_float RenderData::GetTextureSize(const ecs::Entity& o, const Texture& texture) {
+V2_float RenderData::GetTextureSize(const GameObject& o, const Texture& texture) {
 	V2_float size;
 	if (o.Has<TextureCrop>()) {
 		size = o.Get<TextureCrop>().GetSize();
@@ -301,11 +302,11 @@ V2_float RenderData::GetTextureSize(const ecs::Entity& o, const Texture& texture
 
 void RenderData::AddEllipse(
 	const V2_float& center, const V2_float& radius, float line_width, const Depth& depth,
-	BlendMode blend_mode, const V4_float& color, float rotation, const V2_float& rotation_center
+	BlendMode blend_mode, const V4_float& color, float rotation
 ) {
 	PTGN_ASSERT(radius.x > 0.0f && radius.y > 0.0f, "Invalid ellipse radius");
 	V2_float diameter{ radius * 2.0f };
-	auto vertices{ impl::GetQuadVertices(center, rotation, diameter, rotation_center) };
+	auto vertices{ impl::GetVertices({ center, rotation }, { diameter, Origin::Center }) };
 	if (line_width == -1.0f) {
 		AddFilledEllipse(vertices, depth, blend_mode, color);
 	} else {
@@ -319,7 +320,7 @@ void RenderData::AddPolygon(
 ) {
 	PTGN_ASSERT(vertices.size() >= 3, "Polygon must have at least 3 vertices");
 	if (line_width == -1.0f) {
-		auto triangles{ impl::Triangulate(vertices.data(), vertices.size()) };
+		auto triangles{ Triangulate(vertices.data(), vertices.size()) };
 		for (const auto& triangle : triangles) {
 			AddFilledTriangle(triangle, depth, blend_mode, color);
 		}
@@ -348,15 +349,14 @@ void RenderData::AddTriangle(
 
 void RenderData::AddQuad(
 	const V2_float& position, const V2_float& size, Origin origin, float line_width,
-	const Depth& depth, BlendMode blend_mode, const V4_float& color, float rotation,
-	const V2_float& rotation_center
+	const Depth& depth, BlendMode blend_mode, const V4_float& color, float rotation
 ) {
 	std::array<V2_float, Batch::quad_vertex_count> vertices;
 	if (size.IsZero()) {
 		vertices = camera_vertices;
 	} else {
-		vertices = impl::GetQuadVertices(
-			position - GetOffsetFromCenter(size, origin), rotation, size, rotation_center
+		vertices = impl::GetVertices(
+			{ position + GetOriginOffset(origin, size), rotation }, { size, Origin::Center }
 		);
 	}
 	if (line_width == -1.0f) {
@@ -367,34 +367,30 @@ void RenderData::AddQuad(
 }
 
 void RenderData::AddTexture(
-	const ecs::Entity& e, const Texture& texture, const V2_float& position, const V2_float& size,
+	const GameObject& e, const Texture& texture, const V2_float& position, const V2_float& size,
 	Origin origin, const Depth& depth, BlendMode blend_mode, const V4_float& tint, float rotation,
-	const V2_float& rotation_center, bool flip_vertically
+	bool flip_vertically
 ) {
 	AddTexturedQuad(
-		impl::GetQuadVertices(
-			position - GetOffsetFromCenter(size, origin), rotation, size, rotation_center
+		impl::GetVertices(
+			{ position + GetOriginOffset(origin, size), rotation }, { size, Origin::Center }
 		),
 		ptgn::GetTextureCoordinates(e, flip_vertically), texture, depth, blend_mode, tint
 	);
 }
 
 void RenderData::AddText(
-	const ecs::Entity& e, const Text& text, const V2_float& position, const V2_float& size,
-	Origin origin, const Depth& depth, BlendMode blend_mode, const V4_float& tint, float rotation,
-	const V2_float& rotation_center
+	const GameObject& e, const Text& text, const V2_float& position, const V2_float& size,
+	Origin origin, const Depth& depth, BlendMode blend_mode, const V4_float& tint, float rotation
 ) {
 	const auto& texture{ text.GetTexture() };
 	if (texture.IsValid() && text.GetColor().a != 0 && !text.GetContent().empty()) {
-		AddTexture(
-			e, texture, position, size, origin, depth, blend_mode, tint, rotation, rotation_center,
-			false
-		);
+		AddTexture(e, texture, position, size, origin, depth, blend_mode, tint, rotation, false);
 	}
 }
 
 void RenderData::AddRenderTarget(
-	const ecs::Entity& o, const RenderTarget& rt, const Depth& depth, BlendMode blend_mode,
+	const GameObject& o, const RenderTarget& rt, const Depth& depth, BlendMode blend_mode,
 	const V4_float& tint
 ) {
 	const auto& texture{ rt.GetTexture() };
@@ -408,13 +404,10 @@ void RenderData::AddButton(
 	const Text& text, const Texture& texture, const V4_float& background_color,
 	float background_line_width, bool bordered, const V4_float& border_color,
 	float border_line_width, const V2_float& position, const V2_float& size, Origin origin,
-	const Depth& depth, BlendMode blend_mode, const V4_float& tint, float rotation,
-	const V2_float& rotation_center
+	const Depth& depth, BlendMode blend_mode, const V4_float& tint, float rotation
 ) {
 	if (texture != Texture{}) {
-		AddTexture(
-			{}, texture, position, size, origin, depth, blend_mode, tint, rotation, rotation_center
-		);
+		AddTexture({}, texture, position, size, origin, depth, blend_mode, tint, rotation);
 	} else if (background_color != V4_float{}) {
 		// TODO: Add rounded buttons.
 		/*if (radius_ > 0.0f) {
@@ -424,7 +417,7 @@ void RenderData::AddButton(
 		} else {*/
 		AddQuad(
 			position, size, origin, background_line_width, depth, blend_mode, background_color,
-			rotation, rotation_center
+			rotation
 		);
 	}
 
@@ -438,8 +431,7 @@ void RenderData::AddButton(
 		}
 		AddText(
 			{}, text, GetPosition(text), text_size, GetOrigin(text), GetDepth(text),
-			text.GetBlendMode(), GetTint(text).Normalized(), GetRotation(text),
-			GetRotationCenter(text)
+			text.GetBlendMode(), GetTint(text).Normalized(), GetRotation(text)
 		);
 	}
 	if (bordered && border_color != V4_float{}) {
@@ -450,13 +442,12 @@ void RenderData::AddButton(
 			r.Draw(border_color, i.border_thickness_, i.render_layer_ + 2);
 		} else {*/
 		AddQuad(
-			position, size, origin, border_line_width, depth, blend_mode, border_color, rotation,
-			rotation_center
+			position, size, origin, border_line_width, depth, blend_mode, border_color, rotation
 		);
 	}
 }
 
-void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
+void RenderData::AddToBatch(const GameObject& o, bool check_visibility) {
 	PTGN_ASSERT(
 		(o.Has<Transform, Visible>()), "Cannot render entity without transform or visible component"
 	);
@@ -469,7 +460,6 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 	BlendMode blend_mode{ GetBlendMode(o) };
 	V2_float pos{ GetPosition(o) };
 	float angle{ GetRotation(o) };
-	V2_float rot_center{ GetRotationCenter(o) };
 	V4_float tint{ GetTint(o).Normalized() };
 
 	if (o.Has<TextureKey>()) {
@@ -477,14 +467,14 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 		const auto& texture{ game.texture.Get(texture_key) };
 		AddTexture(
 			o, texture, pos, GetTextureSize(o, texture), GetOrigin(o), depth, blend_mode, tint,
-			angle, rot_center, false
+			angle, false
 		);
 		return;
 	} else if (o.Has<Text>()) {
 		const auto& text{ o.Get<Text>() };
 		AddText(
 			o, text, pos, GetTextureSize(o, text.GetTexture()), GetOrigin(o), depth, blend_mode,
-			tint, angle, rot_center
+			tint, angle
 		);
 		return;
 	} else if (o.Has<RenderTarget>()) {
@@ -497,12 +487,13 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 	} else if (o.Has<Button>()) {
 		const auto& b{ o.Get<Button>() };
 		// TODO: Replace with a choice of rect or circle.
-		const auto& rect{ b.entity.Get<Rect>() };
+		const auto& rect{ b.Get<Rect>() };
+		auto scale{ GetScale(o) };
 		AddButton(
 			b.GetText(), {}, b.GetBackgroundColor().Normalized(), b.GetBackgroundLineWidth(),
 			b.IsBordered(), b.GetBorderColor().Normalized(), b.GetBorderWidth(), pos,
-			rect.GetSize(), rect.GetOrigin(), depth, blend_mode, b.GetTint().Normalized() * tint,
-			angle, rot_center
+			rect.size * scale, rect.origin, depth, blend_mode, b.GetTint().Normalized() * tint,
+			angle
 		);
 		return;
 	}
@@ -511,35 +502,45 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 
 	if (o.Has<Rect>()) {
 		const auto& rect{ o.Get<Rect>() };
-		AddQuad(
-			pos, rect.GetSize(), rect.GetOrigin(), line_width, depth, blend_mode, tint, angle,
-			rot_center
-		);
+		auto scale{ GetScale(o) };
+		AddQuad(pos, rect.size * scale, rect.origin, line_width, depth, blend_mode, tint, angle);
 		return;
 	} else if (o.Has<Polygon>()) {
-		const auto& polygon{ o.Get<Polygon>() };
-		AddPolygon(polygon.GetVertices(), line_width, depth, blend_mode, tint);
+		Polygon polygon{ o.Get<Polygon>() };
+		auto scale{ GetScale(o) };
+		for (auto& v : polygon.vertices) {
+			v *= scale;
+			v += pos;
+		}
+		AddPolygon(polygon.vertices, line_width, depth, blend_mode, tint);
 		return;
 	} else if (o.Has<Line>()) {
 		const auto& line{ o.Get<Line>() };
-		AddLine(line.GetStart(), line.GetEnd(), line_width, depth, blend_mode, tint);
+		auto scale{ GetScale(o) };
+		AddLine(
+			line.start * scale + pos, line.end * scale + pos, line_width, depth, blend_mode, tint
+		);
 		return;
 	} else if (o.Has<Circle>()) {
 		const auto& circle{ o.Get<Circle>() };
+		auto scale{ GetScale(o) };
 		AddEllipse(
-			pos, V2_float{ circle.GetRadius() }, line_width, depth, blend_mode, tint, angle,
-			rot_center
+			pos, V2_float{ circle.radius } * scale, line_width, depth, blend_mode, tint, angle
 		);
 		return;
 	} else if (o.Has<Ellipse>()) {
 		const auto& ellipse{ o.Get<Ellipse>() };
-		AddEllipse(
-			pos, ellipse.GetRadius(), line_width, depth, blend_mode, tint, angle, rot_center
-		);
+		auto scale{ GetScale(o) };
+		AddEllipse(pos, ellipse.radius * scale, line_width, depth, blend_mode, tint, angle);
 		return;
 	} else if (o.Has<Triangle>()) {
-		const auto& triangle{ o.Get<Triangle>() };
-		AddTriangle(triangle.GetVertices(), line_width, depth, blend_mode, tint);
+		auto scale{ GetScale(o) };
+		Triangle triangle{ o.Get<Triangle>() };
+		for (auto& v : triangle.vertices) {
+			v *= scale;
+			v += pos;
+		}
+		AddTriangle(triangle.vertices, line_width, depth, blend_mode, tint);
 		return;
 	} else if (o.Has<Point>()) {
 		PTGN_ASSERT(!o.Has<LineWidth>(), "Points cannot have a line width");
@@ -562,7 +563,7 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 
 void RenderData::SetupRender(const FrameBuffer& frame_buffer, const Camera& camera) {
 	frame_buffer.Bind();
-	camera_vertices = camera.GetQuadVertices();
+	camera_vertices = camera.GetVertices();
 	auto position{ camera.GetViewportPosition() };
 	auto size{ camera.GetViewportSize() };
 	GLRenderer::SetViewport(position, position + size);
@@ -579,7 +580,7 @@ void RenderData::Render(
 }
 
 void RenderData::Render(
-	const FrameBuffer& frame_buffer, const Camera& camera, const ecs::Entity& o,
+	const FrameBuffer& frame_buffer, const Camera& camera, const GameObject& o,
 	bool check_visibility
 ) {
 	SetupRender(frame_buffer, camera);
@@ -604,7 +605,7 @@ void RenderData::SetVertexArrayToWindow(
 	const Camera& camera, const Color& color, const Depth& depth, float texture_index
 ) {
 	std::array<Batch::IndexType, Batch::quad_index_count> indices{ 0, 1, 2, 2, 3, 0 };
-	auto positions{ camera.GetQuadVertices() };
+	auto positions{ camera.GetVertices() };
 	auto tex_coords{ GetDefaultTextureCoordinates() };
 	FlipTextureCoordinates(tex_coords, Flip::Vertical);
 	auto c{ color.Normalized() };
