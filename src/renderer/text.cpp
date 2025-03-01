@@ -20,6 +20,7 @@
 #include "utility/log.h"
 
 namespace ptgn {
+
 Text::Text(ecs::Manager& manager) : GameObject{ manager } {
 	SetVisible(true);
 }
@@ -28,14 +29,19 @@ Text::Text(
 	ecs::Manager& manager, std::string_view content, const Color& text_color,
 	std::string_view font_key
 ) :
+	Text{ manager, TextContent{ content }, TextColor{ text_color }, FontKey{ font_key } } {}
+
+Text::Text(
+	ecs::Manager& manager, const TextContent& content, const TextColor& text_color,
+	const FontKey& font_key
+) :
 	Text{ manager } {
 	Add<TextContent>(content);
 	if (text_color != TextColor{}) {
 		Add<TextColor>(text_color);
 	}
-	auto hashed_key{ Hash(font_key) };
-	if (hashed_key != FontKey{}) {
-		Add<FontKey>(hashed_key);
+	if (font_key != FontKey{}) {
+		Add<FontKey>(font_key);
 	}
 	RecreateTexture();
 }

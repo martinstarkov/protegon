@@ -402,7 +402,7 @@ void RenderData::AddRenderTarget(
 }
 
 void RenderData::AddButton(
-	const Text& text, const Texture& texture, const V4_float& background_color,
+	const Text* text, const Texture& texture, const V4_float& background_color,
 	float background_line_width, bool bordered, const V4_float& border_color,
 	float border_line_width, const V2_float& position, const V2_float& size, Origin origin,
 	const Depth& depth, BlendMode blend_mode, const V4_float& tint, float rotation
@@ -422,8 +422,9 @@ void RenderData::AddButton(
 		);
 	}
 
-	if (text != Text{}) {
-		V2_float text_size{ text.GetSize() };
+	if (text != nullptr && *text != Text{}) {
+		// TODO: Add cehck for manually added text size.
+		V2_float text_size{ text->GetSize() };
 		if (NearlyEqual(text_size.x, 0.0f)) {
 			text_size.x = size.x;
 		}
@@ -431,8 +432,9 @@ void RenderData::AddButton(
 			text_size.y = size.y;
 		}
 		AddText(
-			{}, text, GetPosition(text), text_size, GetOrigin(text), GetDepth(text),
-			text.GetBlendMode(), GetTint(text).Normalized(), GetRotation(text)
+			{}, *text, GetPosition(*text) + GetOriginOffset(origin, size), text_size,
+			GetOrigin(*text), GetDepth(*text), GetBlendMode(*text), GetTint(*text).Normalized(),
+			GetRotation(*text)
 		);
 	}
 	if (bordered && border_color != V4_float{}) {
@@ -486,6 +488,7 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 		AddPointLight(o, depth);
 		return;
 	} else if (o.Has<impl::ButtonTag>()) {
+		auto state{ Button::GetState(o) };
 		// TODO: Replace with a choice of rect or circle.
 		Origin origin{ Origin::Center };
 		V2_float size{};
@@ -499,9 +502,15 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 		auto scale{ GetScale(o) };
 		size *= scale;
 		PTGN_ASSERT(!size.IsZero(), "Invalid size for button");
+		const Text* text{ nullptr };
+		if (o.Has<impl::ButtonText>()) {
+			const auto& button_text{ o.Get<impl::ButtonText>() };
+			text = &button_text.GetValid(state);
+		}
 		AddButton(
-			{} /* text */, {}, o.Get<impl::ButtonColor>().current_.Normalized(), -1.0f, false, {},
-			-1.0f, pos, size, origin, depth, blend_mode, /*b.GetTint().Normalized() * */ tint, angle
+			text, {}, o.Get<impl::ButtonColor>().current_.Normalized(), -1.0f, false, {}, -1.0f,
+			pos, size, origin, depth, blend_mode,
+			/*b.GetTint().Normalized() * */ tint, angle
 		);
 		return;
 	}

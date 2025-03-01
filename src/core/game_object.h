@@ -104,12 +104,12 @@ public:
 	GameObject& SetTint(const Color& color);
 	[[nodiscard]] Color GetTint() const;
 
+	GameObject& SetParent(const ecs::Entity& o);
+
 protected:
 	friend class impl::RenderData;
 
 	[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(bool flip_vertically) const;
-
-	GameObject& SetParent(const ecs::Entity& o);
 };
 
 struct Children {

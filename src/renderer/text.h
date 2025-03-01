@@ -31,6 +31,8 @@ struct FontKey : public ArithmeticComponent<std::size_t> {
 	using ArithmeticComponent::ArithmeticComponent;
 
 	FontKey() : ArithmeticComponent{ Hash("") } {}
+
+	FontKey(std::string_view key) : ArithmeticComponent{ Hash(key) } {}
 };
 
 struct FontSize : public ArithmeticComponent<std::int32_t> {
@@ -79,6 +81,11 @@ public:
 		std::string_view font_key = ""
 	);
 
+	Text(
+		ecs::Manager& manager, const TextContent& content, const TextColor& text_color = {},
+		const FontKey& font_key = {}
+	);
+
 	// @param font_key Default: "" corresponds to the default engine font (use
 	// game.font.SetDefault(...) to change.
 	Text& SetFont(std::string_view font_key = "");
@@ -118,15 +125,18 @@ public:
 	// @return The unscaled size of the text texture given the current content and font.
 	[[nodiscard]] V2_int GetSize() const;
 
-private:
+	void RecreateTexture();
+
 	template <typename T>
-	Text& SetParameter(const T& value) {
+	Text& SetParameter(const T& value, bool recreate_texture = true) {
 		static_assert(tt::is_any_of_v<
 					  T, FontKey, TextContent, TextColor, FontStyle, FontRenderMode, FontSize,
 					  TextLineSkip, TextShadingColor, TextWrapAfter, TextJustify>);
 		if (!Has<T>()) {
 			Add<T>(value);
-			RecreateTexture();
+			if (recreate_texture) {
+				RecreateTexture();
+			}
 			return *this;
 		}
 		auto& t{ Get<T>() };
@@ -134,7 +144,9 @@ private:
 			return *this;
 		}
 		t = value;
-		RecreateTexture();
+		if (recreate_texture) {
+			RecreateTexture();
+		}
 		return *this;
 	}
 
@@ -148,8 +160,6 @@ private:
 		}
 		return Get<T>();
 	}
-
-	void RecreateTexture();
 };
 
 } // namespace ptgn

@@ -4,6 +4,7 @@
 #include <functional>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "components/generic.h"
 #include "components/input.h"
@@ -16,6 +17,7 @@
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/origin.h"
+#include "renderer/text.h"
 #include "renderer/texture.h"
 #include "utility/log.h"
 
@@ -24,12 +26,84 @@ namespace ptgn {
 namespace impl {
 
 void ButtonColor::SetToState(ButtonState state) {
+	current_ = Get(state);
+}
+
+const Color& ButtonColor::Get(ButtonState state) const {
 	switch (state) {
-		case ButtonState::Default: current_ = default_; break;
-		case ButtonState::Hover:   current_ = hover_; break;
-		case ButtonState::Pressed: current_ = pressed_; break;
-		case ButtonState::Current: break;
-		default:				   PTGN_ERROR("Unrecognized button state");
+		case ButtonState::Current: return current_;
+		case ButtonState::Default: return default_;
+		case ButtonState::Hover:   return hover_;
+		case ButtonState::Pressed: return pressed_;
+		default:				   PTGN_ERROR("Invalid button state");
+	}
+}
+
+Color& ButtonColor::Get(ButtonState state) {
+	return const_cast<Color&>(std::as_const(*this).Get(state));
+}
+
+ButtonText::ButtonText(
+	const ecs::Entity& parent, ecs::Manager& manager, ButtonState state,
+	const TextContent& text_content, const TextColor& text_color, const FontKey& font_key
+) {
+	Set(parent, manager, ButtonState::Default, text_content, text_color, font_key);
+	if (state != ButtonState::Default) {
+		Set(parent, manager, state, text_content, text_color, font_key);
+	}
+}
+
+const Text& ButtonText::Get(ButtonState state) const {
+	switch (state) {
+		case ButtonState::Default: return default_;
+		case ButtonState::Hover:   return hover_;
+		case ButtonState::Pressed: return pressed_;
+		case ButtonState::Current: [[fallthrough]];
+		default:				   PTGN_ERROR("Invalid button state");
+	}
+}
+
+const Text& ButtonText::GetValid(ButtonState state) const {
+	auto* text{ &Get(state) };
+	if (*text == Text{}) {
+		text = &Get(ButtonState::Default);
+	}
+	return *text;
+}
+
+Text& ButtonText::GetValid(ButtonState state) {
+	return const_cast<Text&>(std::as_const(*this).GetValid(state));
+}
+
+Text& ButtonText::Get(ButtonState state) {
+	return const_cast<Text&>(std::as_const(*this).Get(state));
+}
+
+Color ButtonText::GetColor(ButtonState state) const {
+	return GetValid(state).GetColor();
+}
+
+std::string_view ButtonText::GetContent(ButtonState state) const {
+	return GetValid(state).GetContent();
+}
+
+void ButtonText::Set(
+	const ecs::Entity& parent, ecs::Manager& manager, ButtonState state,
+	const TextContent& text_content, const TextColor& text_color, const FontKey& font_key
+) {
+	PTGN_ASSERT(
+		state != ButtonState::Current,
+		"Cannot set button's current text as it is a non-owning pointer"
+	);
+	auto& text{ Get(state) };
+	if (text == Text{}) {
+		text = Text{ manager, text_content, text_color, font_key };
+		text.SetParent(parent);
+	} else {
+		text.SetParameter(TextColor{ text_color }, false);
+		text.SetParameter(TextContent{ text_content }, false);
+		text.SetParameter(FontKey{ font_key }, false);
+		text.RecreateTexture();
 	}
 }
 
@@ -155,14 +229,8 @@ ButtonState Button::GetState() const {
 }
 
 Color Button::GetBackgroundColor(ButtonState state) const {
-	auto c{ Has<impl::ButtonColor>() ? Get<impl::ButtonColor>() : impl::ButtonColor{} };
-	switch (state) {
-		case ButtonState::Current: return c.current_;
-		case ButtonState::Default: return c.default_;
-		case ButtonState::Hover:   return c.hover_;
-		case ButtonState::Pressed: return c.pressed_;
-		default:				   PTGN_ERROR("Invalid button state");
-	}
+	const auto c{ Has<impl::ButtonColor>() ? Get<impl::ButtonColor>() : impl::ButtonColor{} };
+	return c.Get(state);
 }
 
 Button& Button::SetBackgroundColor(const Color& color, ButtonState state) {
@@ -170,13 +238,7 @@ Button& Button::SetBackgroundColor(const Color& color, ButtonState state) {
 		Add<impl::ButtonColor>(color);
 	} else {
 		auto& c{ Get<impl::ButtonColor>() };
-		switch (state) {
-			case ButtonState::Default: c.default_ = color; break;
-			case ButtonState::Hover:   c.hover_ = color; break;
-			case ButtonState::Pressed: c.pressed_ = color; break;
-			case ButtonState::Current: c.current_ = color; break;
-			default:				   PTGN_ERROR("Invalid button state");
-		}
+		c.Get(state) = color;
 	}
 	return *this;
 }
@@ -184,17 +246,58 @@ Button& Button::SetBackgroundColor(const Color& color, ButtonState state) {
 Button& Button::SetText(
 	std::string_view content, const Color& text_color, std::string_view font_key, ButtonState state
 ) {
-	// TODO: Fix this.
+	if (!Has<impl::ButtonText>()) {
+		Add<impl::ButtonText>(
+			GetEntity(), GetManager(), state, TextContent{ content }, TextColor{ text_color },
+			FontKey{ font_key }
+		);
+	} else {
+		auto& c{ Get<impl::ButtonText>() };
+		c.Set(
+			GetEntity(), GetManager(), state, TextContent{ content }, TextColor{ text_color },
+			FontKey{ font_key }
+		);
+	}
 	return *this;
 }
 
+const Text& Button::GetText(ButtonState state) const {
+	return Get<impl::ButtonText>().Get(state);
+}
+
+Text& Button::GetText(ButtonState state) {
+	return const_cast<Text&>(std::as_const(*this).GetText(state));
+}
+
 Color Button::GetTextColor(ButtonState state) const {
-	// TODO: Fix.
-	return Color();
+	return Get<impl::ButtonText>().GetColor(state);
 }
 
 Button& Button::SetTextColor(const Color& color, ButtonState state) {
-	// TODO: insert return statement here
+	if (!Has<impl::ButtonText>()) {
+		Add<impl::ButtonText>(
+			GetEntity(), GetManager(), state, TextContent{}, TextColor{ color }, FontKey{}
+		);
+	} else {
+		auto& c{ Get<impl::ButtonText>() };
+		c.Get(state).SetColor(color);
+	}
+	return *this;
+}
+
+std::string_view Button::GetTextContent(ButtonState state) const {
+	return Get<impl::ButtonText>().GetContent(state);
+}
+
+Button& Button::SetTextContent(std::string_view content, ButtonState state) {
+	if (!Has<impl::ButtonText>()) {
+		Add<impl::ButtonText>(
+			GetEntity(), GetManager(), state, TextContent{ content }, TextColor{}, FontKey{}
+		);
+	} else {
+		auto& c{ Get<impl::ButtonText>() };
+		c.Get(state).SetContent(content);
+	}
 	return *this;
 }
 
@@ -217,21 +320,6 @@ Color Button::GetTint(ButtonState state) const {
 Button& Button::SetTint(const Color& color, ButtonState state) {
 	// TODO: insert return statement here
 	return *this;
-}
-
-std::string_view Button::GetTextContent(ButtonState state) const {
-	// TODO: Fix.
-	return std::string_view();
-}
-
-Button& Button::SetTextContent(std::string_view content, ButtonState state) {
-	// TODO: insert return statement here
-	return *this;
-}
-
-ecs::Entity Button::GetText(ButtonState state) const {
-	// TODO: Fix.
-	return {};
 }
 
 bool Button::IsBordered() const {
@@ -336,6 +424,7 @@ impl::InternalButtonState Button::GetInternalState() const {
 }
 
 ButtonState Button::GetState(const ecs::Entity& e) {
+	PTGN_ASSERT(e.Has<impl::InternalButtonState>());
 	const auto& state{ e.Get<impl::InternalButtonState>() };
 	if (state == impl::InternalButtonState::Hover ||
 		state == impl::InternalButtonState::HoverPressed) {
@@ -412,13 +501,7 @@ ToggleButton& ToggleButton::SetColorToggled(const Color& color, ButtonState stat
 		Add<impl::ButtonColorToggled>(color);
 	} else {
 		auto& c{ Get<impl::ButtonColorToggled>() };
-		switch (state) {
-			case ButtonState::Default: c.default_ = color; break;
-			case ButtonState::Hover:   c.hover_ = color; break;
-			case ButtonState::Pressed: c.pressed_ = color; break;
-			case ButtonState::Current: c.current_ = color; break;
-			default:				   PTGN_ERROR("Invalid button state");
-		}
+		c.Get(state) = color;
 	}
 	return *this;
 }

@@ -27,6 +27,8 @@ enum class ButtonState : std::uint8_t {
 
 namespace impl {
 
+class RenderData;
+
 struct ButtonTag {};
 
 struct ButtonToggle : public CallbackComponent<void> {
@@ -70,6 +72,9 @@ struct ButtonColor {
 
 	void SetToState(ButtonState state);
 
+	[[nodiscard]] const Color& Get(ButtonState state) const;
+	[[nodiscard]] Color& Get(ButtonState state);
+
 	Color current_;
 	Color default_;
 	Color hover_;
@@ -77,6 +82,28 @@ struct ButtonColor {
 };
 
 struct ButtonColorToggled : public ButtonColor {};
+
+struct ButtonText {
+	ButtonText(
+		const ecs::Entity& parent, ecs::Manager& manager, ButtonState state,
+		const TextContent& text_content, const TextColor& text_color, const FontKey& font_key
+	);
+
+	[[nodiscard]] Color GetColor(ButtonState state) const;
+	[[nodiscard]] std::string_view GetContent(ButtonState state) const;
+	[[nodiscard]] const Text& Get(ButtonState state) const;
+	[[nodiscard]] const Text& GetValid(ButtonState state) const;
+	[[nodiscard]] Text& GetValid(ButtonState state);
+	[[nodiscard]] Text& Get(ButtonState state);
+	void Set(
+		const ecs::Entity& parent, ecs::Manager& manager, ButtonState state,
+		const TextContent& text_content, const TextColor& text_color, const FontKey& font_key
+	);
+
+	Text default_;
+	Text hover_;
+	Text pressed_;
+};
 
 } // namespace impl
 
@@ -121,14 +148,13 @@ struct Button : public GameObject {
 
 	Button& SetTextContent(std::string_view content, ButtonState state = ButtonState::Default);
 
-	// TODO: Add GetText().
-
 	Button& SetText(
 		std::string_view content, const Color& text_color = color::Black,
 		std::string_view font_key = "", ButtonState state = ButtonState::Default
 	);
 
-	[[nodiscard]] ecs::Entity GetText(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] const Text& GetText(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] Text& GetText(ButtonState state = ButtonState::Current);
 
 	[[nodiscard]] bool IsBordered() const;
 
@@ -171,6 +197,8 @@ struct Button : public GameObject {
 	[[nodiscard]] impl::InternalButtonState GetInternalState() const;
 
 private:
+	friend class impl::RenderData;
+
 	void StateChange(impl::InternalButtonState new_state);
 
 	[[nodiscard]] static ButtonState GetState(const ecs::Entity& e);
