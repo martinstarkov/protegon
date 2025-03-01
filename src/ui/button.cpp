@@ -11,371 +11,13 @@
 #include "core/game_object.h"
 #include "ecs/ecs.h"
 #include "event/mouse.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
+#include "renderer/origin.h"
 #include "renderer/texture.h"
 #include "utility/log.h"
-
-// #include <cstdint>
-// #include <limits>
-// #include <type_traits>
-// #include <unordered_map>
-//
-// #include "core/game.h"
-// #include "event/event.h"
-// #include "event/event_handler.h"
-// #include "event/events.h"
-// #include "event/input_handler.h"
-// #include "event/mouse.h"
-// #include "math/geometry/polygon.h"
-// #include "math/math.h"
-// #include "math/vector2.h"
-// #include "renderer/color.h"
-// #include "renderer/renderer.h"
-// #include "renderer/text.h"
-// #include "renderer/texture.h"
-// #include "utility/assert.h"
-// #include "utility/handle.h"
-//
-// namespace ptgn {
-//
-// void ButtonInstance::Activate() {
-//	if (!enabled_) {
-//		return;
-//	}
-//	bool recheck{ false };
-//	if (internal_on_activate_ != nullptr) {
-//		std::invoke(internal_on_activate_);
-//		recheck = true;
-//	}
-//	if (on_activate_ != nullptr) {
-//		std::invoke(on_activate_);
-//		recheck = true;
-//	}
-//	if (recheck) {
-//		RecheckState();
-//	}
-// }
-//
-// void ButtonInstance::StartHover() {
-//	if (!enabled_) {
-//		return;
-//	}
-//	if (on_hover_start_ != nullptr) {
-//		std::invoke(on_hover_start_);
-//	}
-// }
-//
-// void ButtonInstance::StopHover() {
-//	if (!enabled_) {
-//		return;
-//	}
-//	if (on_hover_stop_ != nullptr) {
-//		std::invoke(on_hover_stop_);
-//	}
-// }
-//
-// void ButtonInstance::Toggle() {
-//	if (!enabled_) {
-//		return;
-//	}
-//	if (toggleable_) {
-//		toggled_ = !toggled_;
-//		if (on_toggle_ != nullptr) {
-//			std::invoke(on_toggle_);
-//		}
-//	}
-//	Activate();
-// }
-//
-// void ButtonInstance::Enable() {
-//	enabled_ = true;
-//	RecheckState();
-//	if (on_enable_) {
-//		std::invoke(on_enable_);
-//	}
-// }
-//
-// void ButtonInstance::Disable() {
-//	button_state_ = impl::InternalButtonState::IdleUp;
-//	if (on_hover_stop_ != nullptr) {
-//		StopHover();
-//	}
-//	enabled_ = false;
-//	if (on_disable_) {
-//		std::invoke(on_disable_);
-//	}
-// }
-//
-// void ButtonInstance::Show() {
-//	visibility_ = true;
-//	RecheckState();
-//	if (on_show_) {
-//		std::invoke(on_show_);
-//	}
-// }
-//
-// void ButtonInstance::Hide() {
-//	visibility_ = false;
-//	if (on_hide_) {
-//		std::invoke(on_hide_);
-//	}
-// }
-//
-// void ButtonInstance::RecheckState() {
-//	if (!enabled_) {
-//		return;
-//	}
-//	// Simulate a mouse move event to refresh button state.
-//	MouseMoveEvent e{};
-//	MouseMotionUpdate(
-//		GetMousePosition(),
-//		V2_int{ std::numeric_limits<int>::max(), std::numeric_limits<int>::max() }, e
-//	);
-// }
-//
-// V2_float ButtonInstance::GetMousePosition() const {
-//	return game.input.GetMousePosition(render_target_);
-// }
-//
-// V2_float ButtonInstance::GetMousePositionPrevious() const {
-//	return game.input.GetMousePositionPrevious(render_target_);
-// }
-//
-// bool ButtonInstance::InsideRect(const V2_int& position) const {
-//	return rect_.Overlaps(position);
-// }
-//
-// void ButtonInstance::MouseMotionUpdate(
-//	const V2_int& current, const V2_int& previous, const MouseMoveEvent& e
-//) {
-//	bool is_in{ InsideRect(current) };
-//	if (is_in) {
-//		OnMouseMove(e);
-//	} else {
-//		OnMouseMoveOutside(e);
-//	}
-//	if (bool was_in{ InsideRect(previous) }; !was_in && is_in) {
-//		OnMouseEnter(e);
-//	} else if (was_in && !is_in) {
-//		OnMouseLeave(e);
-//	}
-// }
-//
-// void ButtonInstance::OnMouseEvent(MouseEvent type, const Event& event) {
-//	if (!enabled_) {
-//		return;
-//	}
-//	switch (type) {
-//		case MouseEvent::Move: {
-//			const auto& e{ static_cast<const MouseMoveEvent&>(event) };
-//			MouseMotionUpdate(GetMousePosition(), GetMousePositionPrevious(), e);
-//			break;
-//		}
-//		case MouseEvent::Down: {
-//			if (const auto& e{ static_cast<const MouseDownEvent&>(event) };
-//				InsideRect(GetMousePosition())) {
-//				OnMouseDown(e);
-//			} else {
-//				OnMouseDownOutside(e);
-//			}
-//			break;
-//		}
-//		case MouseEvent::Up: {
-//			if (const auto& e{ static_cast<const MouseUpEvent&>(event) };
-//				InsideRect(GetMousePosition())) {
-//				OnMouseUp(e);
-//			} else {
-//				OnMouseUpOutside(e);
-//			}
-//			break;
-//		}
-//		case MouseEvent::Scroll:
-//			[[fallthrough]]; // TODO: Consider adding button where scrolling does something.
-//		default: break;
-//	}
-// }
-//
-// } // namespace impl
-//
-// Button::Button(const Rect& rect) {
-//	Create();
-//	SetRect(rect);
-// }
-//
-// void Button::Draw() {
-//	PTGN_ASSERT(IsValid(), "Cannot draw invalid or uninitialized button");
-//
-//	auto& i{ Handle::Get() };
-//	i.render_target_ = game.renderer.GetRenderTarget();
-//
-//	if (!i.visibility_) {
-//		return;
-//	}
-//	// Current button resource state.
-//	auto c{ impl::GetButtonResourceState(GetState(), i.toggled_, !i.enabled_) };
-//	// Default button resource state.
-//	auto d{ impl::ButtonResourceState::Default };
-//
-//	if (auto texture{ GetFinalResource(c, d, i.textures_) }; texture.IsValid()) {
-//		TextureInfo info;
-//		info.tint = GetFinalResource(c, d, i.texture_tint_colors_, color::White);
-//		texture.Draw(i.rect_, info, i.render_layer_);
-//	} else if (auto bg{ GetFinalResource(c, d, i.bg_colors_) }; bg != Color{}) {
-//		if (i.radius_ > 0.0f) {
-//			RoundedRect r{ i.rect_.position, i.radius_, i.rect_.size, i.rect_.origin,
-//						   i.rect_.rotation };
-//			r.Draw(bg, i.line_thickness_, i.render_layer_);
-//		} else {
-//			i.rect_.Draw(bg, i.line_thickness_, i.render_layer_);
-//		}
-//	}
-//
-//	if (auto text{ GetFinalResource(c, d, i.texts_) }; text.IsValid()) {
-//		V2_float text_size{ i.text_size_ };
-//		if (NearlyEqual(text_size.x, 0.0f)) {
-//			text_size.x = i.rect_.size.x;
-//		}
-//		if (NearlyEqual(text_size.y, 0.0f)) {
-//			text_size.y = i.rect_.size.y;
-//		}
-//		auto og_text_color{ text.GetColor() };
-//		if (auto text_color{ GetFinalResource(c, d, i.text_colors_) }; text_color != Color{}) {
-//			text.SetColor(text_color);
-//		}
-//		text.Draw(
-//			{ i.rect_.Center(), text_size, i.text_alignment_, i.rect_.rotation },
-//			i.render_layer_ + 1
-//		);
-//		text.SetColor(og_text_color);
-//	}
-//	if (i.bordered_) {
-//		if (auto border_color{ GetFinalResource(c, d, i.border_colors_) };
-//			border_color != Color{}) {
-//			if (i.radius_ > 0.0f) {
-//				RoundedRect r{ i.rect_.position, i.radius_, i.rect_.size, i.rect_.origin,
-//							   i.rect_.rotation };
-//				r.Draw(border_color, i.border_thickness_, i.render_layer_ + 2);
-//			} else {
-//				i.rect_.Draw(border_color, i.border_thickness_, i.render_layer_ + 2);
-//			}
-//		}
-//	}
-//	if (i.dropdown_.IsValid()) {
-//		i.dropdown_.Draw(i.rect_, i.render_layer_);
-//	}
-// }
-//
-// bool Button::IsEnabled() const {
-//	return IsValid() && Handle::Get().enabled_;
-// }
-//
-// Button& Button::SetEnabled(bool enabled) {
-//	Create();
-//	auto& i{ Handle::Get() };
-//	if (enabled == i.enabled_) {
-//		return *this;
-//	}
-//	enabled ? i.Enable() : i.Disable();
-//	return *this;
-// }
-//
-// bool Button::IsVisible() const {
-//	return IsValid() && Handle::Get().visibility_;
-// }
-//
-// Button& Button::SetVisibility(bool enabled) {
-//	Create();
-//	auto& i{ Handle::Get() };
-//	if (enabled == i.visibility_) {
-//		return *this;
-//	}
-//	enabled ? i.Show() : i.Hide();
-//	return *this;
-// }
-//
-// Button& Button::Activate() {
-//	Create();
-//	Handle::Get().Activate();
-//	return *this;
-// }
-//
-// Button& Button::StartHover() {
-//	Create();
-//	Handle::Get().StartHover();
-//	return *this;
-// }
-//
-// Button& Button::StopHover() {
-//	Create();
-//	Handle::Get().StopHover();
-//	return *this;
-// }
-//
-// Button& Button::Toggle() {
-//	Create();
-//	Handle::Get().Toggle();
-//	return *this;
-// }
-//
-// Button& Button::Disable() {
-//	return SetEnabled(false);
-// }
-//
-// Button& Button::Enable() {
-//	return SetEnabled(true);
-// }
-//
-// Button& Button::Show() {
-//	return SetVisibility(true);
-// }
-//
-// Button& Button::Hide() {
-//	return SetVisibility(false);
-// }
-//
-// Rect Button::GetRect() const {
-//	PTGN_ASSERT(IsValid(), "Cannot get rectangle of invalid or uninitialized button");
-//	auto& i{ Handle::Get() };
-//	return i.rect_;
-// }
-//
-// Button& Button::SetRect(const Rect& new_rectangle) {
-//	Create();
-//	auto& i{ Handle::Get() };
-//	i.rect_ = new_rectangle;
-//	i.RecheckState();
-//	return *this;
-// }
-//
-// impl::InternalButtonState Button::GetInternalState() const {
-//	PTGN_ASSERT(IsValid(), "Cannot get internal state of invalid or uninitialized button");
-//	return Handle::Get().button_state_;
-// }
-//
-// void Button::SetInternalOnActivate(const ButtonCallback& internal_on_activate) {
-//	Create();
-//	Handle::Get().internal_on_activate_ = internal_on_activate;
-// }
-//
-// ButtonState Button::GetState() const {
-//	PTGN_ASSERT(IsValid(), "Cannot get state of invalid or uninitialized button");
-//	auto& i{ Handle::Get() };
-//	if (i.button_state_ == impl::InternalButtonState::Hover) {
-//		return ButtonState::Hover;
-//	} else if (i.button_state_ == impl::InternalButtonState::Pressed ||
-//			   i.button_state_ == impl::InternalButtonState::HeldOutside) {
-//		return ButtonState::Pressed;
-//	} else {
-//		return ButtonState::Default;
-//	}
-// }
-//
-// void ToggleButtonGroup::Draw() {
-//	ForEachValue([](Button& button) { button.Draw(); });
-// }
-//
-// } // namespace ptgn
 
 namespace ptgn {
 
@@ -394,121 +36,122 @@ void ButtonColor::SetToState(ButtonState state) {
 } // namespace impl
 
 Button::Button(ecs::Manager& manager) : GameObject{ manager } {
+	SetVisible(true);
+	SetEnabled(true);
+
+	Add<impl::ButtonTag>();
 	Add<Interactive>();
 	Add<impl::InternalButtonState>(impl::InternalButtonState::IdleUp);
 
-	Add<callback::MouseEnter>([*this](auto mouse) mutable {
-		const auto& state{ Get<impl::InternalButtonState>() };
+	Add<callback::MouseEnter>([e = GetEntity()](auto mouse) mutable {
+		const auto& state{ e.Get<impl::InternalButtonState>() };
 		if (state == impl::InternalButtonState::IdleUp) {
-			StateChange(impl::InternalButtonState::Hover);
-			StartHover();
+			StateChange(e, impl::InternalButtonState::Hover);
+			StartHover(e);
 		} else if (state == impl::InternalButtonState::IdleDown) {
-			StateChange(impl::InternalButtonState::HoverPressed);
-			StartHover();
+			StateChange(e, impl::InternalButtonState::HoverPressed);
+			StartHover(e);
 		} else if (state == impl::InternalButtonState::HeldOutside) {
-			StateChange(impl::InternalButtonState::Pressed);
+			StateChange(e, impl::InternalButtonState::Pressed);
 		}
 	});
 
-	Add<callback::MouseLeave>([*this](auto mouse) mutable {
-		const auto& state{ Get<impl::InternalButtonState>() };
+	Add<callback::MouseLeave>([e = GetEntity()](auto mouse) mutable {
+		const auto& state{ e.Get<impl::InternalButtonState>() };
 		if (state == impl::InternalButtonState::Hover) {
-			StateChange(impl::InternalButtonState::IdleUp);
-			StopHover();
+			StateChange(e, impl::InternalButtonState::IdleUp);
+			StopHover(e);
 		} else if (state == impl::InternalButtonState::Pressed) {
-			StateChange(impl::InternalButtonState::HeldOutside);
-			StopHover();
+			StateChange(e, impl::InternalButtonState::HeldOutside);
+			StopHover(e);
 		} else if (state == impl::InternalButtonState::HoverPressed) {
-			StateChange(impl::InternalButtonState::IdleDown);
-			StopHover();
+			StateChange(e, impl::InternalButtonState::IdleDown);
+			StopHover(e);
 		}
 	});
 
-	Add<callback::MouseDown>([*this](auto mouse) mutable {
+	Add<callback::MouseDown>([e = GetEntity()](auto mouse) mutable {
 		if (mouse == Mouse::Left) {
-			const auto& state{ Get<impl::InternalButtonState>() };
+			const auto& state{ e.Get<impl::InternalButtonState>() };
 			if (state == impl::InternalButtonState::Hover) {
-				StateChange(impl::InternalButtonState::Pressed);
+				StateChange(e, impl::InternalButtonState::Pressed);
 			}
 		}
 	});
 
-	Add<callback::MouseDownOutside>([*this](auto mouse) mutable {
+	Add<callback::MouseDownOutside>([e = GetEntity()](auto mouse) mutable {
 		if (mouse == Mouse::Left) {
-			const auto& state{ Get<impl::InternalButtonState>() };
+			const auto& state{ e.Get<impl::InternalButtonState>() };
 			if (state == impl::InternalButtonState::IdleUp) {
-				StateChange(impl::InternalButtonState::IdleDown);
+				StateChange(e, impl::InternalButtonState::IdleDown);
 			}
 		}
 	});
 
-	Add<callback::MouseUp>([*this](auto mouse) mutable {
+	Add<callback::MouseUp>([e = GetEntity()](auto mouse) mutable {
 		if (mouse == Mouse::Left) {
-			const auto& state{ Get<impl::InternalButtonState>() };
+			const auto& state{ e.Get<impl::InternalButtonState>() };
 			if (state == impl::InternalButtonState::Pressed) {
-				StateChange(impl::InternalButtonState::Hover);
-				Activate();
+				StateChange(e, impl::InternalButtonState::Hover);
+				Activate(e);
 			} else if (state == impl::InternalButtonState::HoverPressed) {
-				StateChange(impl::InternalButtonState::Hover);
+				StateChange(e, impl::InternalButtonState::Hover);
 			}
 		}
 	});
 
-	Add<callback::MouseUpOutside>([*this](auto mouse) mutable {
+	Add<callback::MouseUpOutside>([e = GetEntity()](auto mouse) mutable {
 		if (mouse == Mouse::Left) {
-			const auto& state{ Get<impl::InternalButtonState>() };
+			const auto& state{ e.Get<impl::InternalButtonState>() };
 			if (state == impl::InternalButtonState::IdleDown) {
-				StateChange(impl::InternalButtonState::IdleUp);
+				StateChange(e, impl::InternalButtonState::IdleUp);
 			} else if (state == impl::InternalButtonState::HeldOutside) {
-				StateChange(impl::InternalButtonState::IdleUp);
+				StateChange(e, impl::InternalButtonState::IdleUp);
 			}
 		}
 	});
+}
+
+Button& Button::SetRect(const V2_float& size, Origin origin) {
+	Remove<Circle>();
+	if (Has<Rect>()) {
+		auto& rect{ Get<Rect>() };
+		rect.size	= size;
+		rect.origin = origin;
+	} else {
+		Add<Rect>(size, origin);
+	}
+	return *this;
+}
+
+Button& Button::SetCircle(float radius) {
+	Remove<Rect>();
+	if (Has<Circle>()) {
+		Get<Circle>().radius = radius;
+	} else {
+		Add<Circle>(radius);
+	}
+	return *this;
 }
 
 void Button::StateChange(impl::InternalButtonState new_state) {
-	Get<impl::InternalButtonState>() = new_state;
-	auto state{ GetState() };
-	if (Has<impl::ButtonColor>()) {
-		Get<impl::ButtonColor>().SetToState(state);
-	}
+	StateChange(GetEntity(), new_state);
 }
 
 void Button::Activate() {
-	if (Has<impl::ButtonActivate>()) {
-		if (const auto& callback{ Get<impl::ButtonActivate>() }; callback != nullptr) {
-			callback();
-		}
-	}
+	Activate(GetEntity());
 }
 
 void Button::StartHover() {
-	if (Has<impl::ButtonHoverStart>()) {
-		if (const auto& callback{ Get<impl::ButtonHoverStart>() }; callback != nullptr) {
-			callback();
-		}
-	}
+	StartHover(GetEntity());
 }
 
 void Button::StopHover() {
-	if (Has<impl::ButtonHoverStop>()) {
-		if (const auto& callback{ Get<impl::ButtonHoverStop>() }; callback != nullptr) {
-			callback();
-		}
-	}
+	StopHover(GetEntity());
 }
 
 ButtonState Button::GetState() const {
-	const auto& state{ Get<impl::InternalButtonState>() };
-	if (state == impl::InternalButtonState::Hover ||
-		state == impl::InternalButtonState::HoverPressed) {
-		return ButtonState::Hover;
-	} else if (state == impl::InternalButtonState::Pressed ||
-			   state == impl::InternalButtonState::HeldOutside) {
-		return ButtonState::Pressed;
-	} else {
-		return ButtonState::Default;
-	}
+	return GetState(GetEntity());
 }
 
 Color Button::GetBackgroundColor(ButtonState state) const {
@@ -683,6 +326,51 @@ Button& Button::OnActivate(const ButtonCallback& callback) {
 
 impl::InternalButtonState Button::GetInternalState() const {
 	return Get<impl::InternalButtonState>();
+}
+
+ButtonState Button::GetState(const ecs::Entity& e) {
+	const auto& state{ e.Get<impl::InternalButtonState>() };
+	if (state == impl::InternalButtonState::Hover ||
+		state == impl::InternalButtonState::HoverPressed) {
+		return ButtonState::Hover;
+	} else if (state == impl::InternalButtonState::Pressed ||
+			   state == impl::InternalButtonState::HeldOutside) {
+		return ButtonState::Pressed;
+	} else {
+		return ButtonState::Default;
+	}
+}
+
+void Button::StateChange(const ecs::Entity& e, impl::InternalButtonState new_state) {
+	e.Get<impl::InternalButtonState>() = new_state;
+	auto state{ GetState(e) };
+	if (e.Has<impl::ButtonColor>()) {
+		e.Get<impl::ButtonColor>().SetToState(state);
+	}
+}
+
+void Button::Activate(const ecs::Entity& e) {
+	if (e.Has<impl::ButtonActivate>()) {
+		if (const auto& callback{ e.Get<impl::ButtonActivate>() }; callback != nullptr) {
+			callback();
+		}
+	}
+}
+
+void Button::StartHover(const ecs::Entity& e) {
+	if (e.Has<impl::ButtonHoverStart>()) {
+		if (const auto& callback{ e.Get<impl::ButtonHoverStart>() }; callback != nullptr) {
+			callback();
+		}
+	}
+}
+
+void Button::StopHover(const ecs::Entity& e) {
+	if (e.Has<impl::ButtonHoverStop>()) {
+		if (const auto& callback{ e.Get<impl::ButtonHoverStop>() }; callback != nullptr) {
+			callback();
+		}
+	}
 }
 
 ToggleButton::ToggleButton(ecs::Manager& manager, bool toggled) : Button{ manager } {
