@@ -19,15 +19,14 @@
 using namespace ptgn;
 
 template <typename T>
-GameObject CreateColorButton(
+Button CreateColorButton(
 	ecs::Manager& manager, std::string_view text_content, const V2_float& position,
 	const V2_float& size, const T& activate = nullptr, Origin origin = Origin::Center
 ) {
-	GameObject o{ manager };
-	o.SetVisible(true);
-	o.SetPosition(position);
-	auto& b{ o.Add<Button>() };
-	b.Add<Rect>(size, origin);
+	Button b{ manager };
+	b.SetVisible(true);
+	b.SetPosition(position);
+	b.SetRect(size, origin);
 	b.SetBackgroundColor(color::Pink);
 	b.SetBackgroundColor(color::Red, ButtonState::Hover);
 	b.SetBackgroundColor(color::DarkRed, ButtonState::Pressed);
@@ -37,7 +36,7 @@ GameObject CreateColorButton(
 	b.SetBordered(true);
 	b.SetBorderColor(color::Cyan);
 	b.SetBorderThickness(5.0f);*/
-	return o;
+	return b;
 }
 
 /*
@@ -269,7 +268,7 @@ public:
 	float y{ 50 };
 	float y_step{ 130 };
 
-	GameObject b1;
+	Button b1;
 
 	void Enter() override {
 		b1 = CreateColorButton(
@@ -280,7 +279,7 @@ public:
 
 	void Update() override {
 		static impl::InternalButtonState state{ impl::InternalButtonState::IdleUp };
-		if (auto s{ b1.Get<Button>().GetInternalState() }; state != s) {
+		if (auto s{ b1.GetInternalState() }; state != s) {
 			state = s;
 			std::cout << "Internal state: " << state << std::endl;
 		}

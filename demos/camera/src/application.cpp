@@ -127,7 +127,7 @@ public:
 		camera.primary.PanTo({ 800, 800 }, seconds{ 3 });
 		camera.primary.PanTo({ 0, 800 }, seconds{ 3 });
 		camera.primary.StartFollow(mouse);
-		camera.primary.SetLerp(V2_float{ 0.5f });
+		camera.primary.SetLerp(V2_float{ 0.9f });
 		// camera.primary.SetOffset(V2_float{ -75, -75 });
 		camera.primary.SetDeadzone(deadzone_size);
 

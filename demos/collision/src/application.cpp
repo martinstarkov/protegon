@@ -1,4 +1,24 @@
-#include "protegon/protegon.h"
+#include <memory>
+#include <vector>
+
+#include "components/transform.h"
+#include "core/game.h"
+#include "core/window.h"
+#include "ecs/ecs.h"
+#include "event/input_handler.h"
+#include "event/key.h"
+#include "math/collision/collider.h"
+#include "math/math.h"
+#include "math/vector2.h"
+#include "physics/movement.h"
+#include "physics/physics.h"
+#include "physics/rigid_body.h"
+#include "renderer/origin.h"
+#include "scene/camera.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
+#include "utility/assert.h"
+#include "utility/log.h"
 
 using namespace ptgn;
 
@@ -17,9 +37,7 @@ struct CollisionTest {
 
 	virtual void Enter() {}
 
-	virtual void Exit() {
-		game.scene.Get("collision_example_scene").camera.primary = {};
-	}
+	virtual void Exit() {}
 
 	virtual void Update() {}
 
@@ -28,12 +46,12 @@ struct CollisionTest {
 
 class CollisionCallbackTest : public CollisionTest {
 public:
-	ecs::Entity intersect;
-	ecs::Entity overlap;
-	ecs::Entity sweep;
-	ecs::Entity intersect_circle;
-	ecs::Entity overlap_circle;
-	ecs::Entity sweep_circle;
+	GameObject intersect;
+	GameObject overlap;
+	GameObject sweep;
+	GameObject intersect_circle;
+	GameObject overlap_circle;
+	GameObject sweep_circle;
 
 	// Total number.
 	const int move_entities{ 6 };
@@ -42,16 +60,38 @@ public:
 	V2_float speed{ 300.0f };
 
 	void Enter() override {
-		manager.Clear();
+		intersect		 = GameObject{ manager };
+		sweep			 = GameObject{ manager };
+		overlap			 = GameObject{ manager };
+		intersect_circle = GameObject{ manager };
+		sweep_circle	 = GameObject{ manager };
+		overlap_circle	 = GameObject{ manager };
 
-		intersect		 = manager.CreateEntity();
-		sweep			 = manager.CreateEntity();
-		overlap			 = manager.CreateEntity();
-		intersect_circle = manager.CreateEntity();
-		sweep_circle	 = manager.CreateEntity();
-		overlap_circle	 = manager.CreateEntity();
+		intersect.SetVisible(true);
+		sweep.SetVisible(true);
+		overlap.SetVisible(true);
+		intersect_circle.SetVisible(true);
+		sweep_circle.SetVisible(true);
+		overlap_circle.SetVisible(true);
 
-		manager.Refresh();
+		intersect.SetTint(color::Purple);
+		intersect_circle.SetTint(color::Purple);
+		sweep.SetTint(color::Cyan);
+		sweep_circle.SetTint(color::Cyan);
+		overlap.SetTint(color::Black);
+		overlap_circle.SetTint(color::Black);
+		sweep.SetVisible(true);
+		overlap.SetVisible(true);
+		intersect_circle.SetVisible(true);
+		sweep_circle.SetVisible(true);
+		overlap_circle.SetVisible(true);
+
+		intersect.SetEnabled(true);
+		sweep.SetEnabled(true);
+		overlap.SetEnabled(true);
+		intersect_circle.SetEnabled(true);
+		sweep_circle.SetEnabled(true);
+		overlap_circle.SetEnabled(true);
 
 		intersect.Add<Transform>(V2_float{ 100, 100 });
 		overlap.Add<Transform>(V2_float{ 200, 200 });
@@ -67,12 +107,13 @@ public:
 		overlap_circle.Add<RigidBody>();
 		sweep_circle.Add<RigidBody>();
 
-		intersect.Add<BoxCollider>(intersect, V2_float{ 30, 30 });
-		overlap.Add<BoxCollider>(overlap, V2_float{ 30, 30 });
-		sweep.Add<BoxCollider>(sweep, V2_float{ 30, 30 });
-		intersect_circle.Add<CircleCollider>(intersect_circle, 30.0f);
-		overlap_circle.Add<CircleCollider>(overlap_circle, 30.0f);
-		sweep_circle.Add<CircleCollider>(sweep_circle, 30.0f);
+		// TODO: Fix memory leak?
+		intersect.Add<BoxCollider>(V2_float{ 30, 30 });
+		overlap.Add<BoxCollider>(V2_float{ 30, 30 });
+		sweep.Add<BoxCollider>(V2_float{ 30, 30 });
+		intersect_circle.Add<CircleCollider>(30.0f);
+		overlap_circle.Add<CircleCollider>(30.0f);
+		sweep_circle.Add<CircleCollider>(30.0f);
 
 		auto& b1{ intersect.Get<BoxCollider>() };
 		auto& b2{ overlap.Get<BoxCollider>() };
@@ -203,15 +244,12 @@ public:
 		CreateObstacle(V2_float{ 600, 200 }, V2_float{ 10, 500 }, Origin::TopLeft);
 		CreateObstacle(V2_float{ 50, 650 }, V2_float{ 500, 10 }, Origin::TopLeft);
 		CreateObstacle(V2_float{ 100, 70 }, V2_float{ 500, 10 }, Origin::TopLeft);
-
-		manager.Refresh();
 	}
 
 	void CreateObstacle(const V2_float& pos, const V2_float& size, Origin origin) {
 		auto obstacle = manager.CreateEntity();
 		obstacle.Add<Transform>(pos);
-		obstacle.Add<BoxCollider>(obstacle, size, origin);
-		manager.Refresh();
+		obstacle.Add<BoxCollider>(size, origin);
 	}
 
 	void Update() override {
@@ -224,27 +262,39 @@ public:
 		move_entity = Mod(move_entity, move_entities);
 
 		V2_float* vel{ nullptr };
+		V2_float* pos{ nullptr };
 
 		if (move_entity == 0) {
 			vel = &intersect.Get<RigidBody>().velocity;
+			pos = &intersect.Get<Transform>().position;
 		} else if (move_entity == 1) {
 			vel = &overlap.Get<RigidBody>().velocity;
+			pos = &overlap.Get<Transform>().position;
 		} else if (move_entity == 2) {
 			vel = &sweep.Get<RigidBody>().velocity;
+			pos = &sweep.Get<Transform>().position;
 		} else if (move_entity == 3) {
 			vel = &intersect_circle.Get<RigidBody>().velocity;
+			pos = &intersect_circle.Get<Transform>().position;
 		} else if (move_entity == 4) {
 			vel = &overlap_circle.Get<RigidBody>().velocity;
+			pos = &overlap_circle.Get<Transform>().position;
 		} else if (move_entity == 5) {
 			vel = &sweep_circle.Get<RigidBody>().velocity;
+			pos = &sweep_circle.Get<Transform>().position;
 		}
 
 		PTGN_ASSERT(vel != nullptr);
+		PTGN_ASSERT(pos != nullptr);
+
+		PTGN_LOG("Pos: ", *pos);
 
 		MoveWASD(*vel, speed * game.scene.Get("collision_example_scene").physics.dt());
 	}
 
 	void Draw() override {
+		// TODO: Fix debug drawing.
+		/*
 		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
 			Rect r{ b.GetAbsoluteRect() };
 			DrawRect(e, r);
@@ -268,9 +318,11 @@ public:
 				Text{ "Sweep", color::Black }.Draw(Rect{ circ.Center() });
 			}
 		}
+		*/
 	}
 };
 
+/*
 class EntityCollisionTest : public CollisionTest {
 public:
 	ecs::Entity entity;
@@ -278,21 +330,18 @@ public:
 	V2_float speed{ 300.0f };
 
 	void Enter() override {
-		manager.Clear();
 		entity = manager.CreateEntity();
 		entity.Add<Transform>(V2_float{ 400, 100 });
 		entity.Add<RigidBody>();
-		entity.Add<BoxCollider>(entity, V2_float{ 30, 30 });
+		entity.Add<BoxCollider>(V2_float{ 30, 30 });
 
 		CreateObstacle(V2_float{ 400, 400 }, V2_float{ 50, 50 }, Origin::Center);
-
-		manager.Refresh();
 	}
 
 	void CreateObstacle(const V2_float& pos, const V2_float& size, Origin origin) {
 		auto obstacle = manager.CreateEntity();
 		obstacle.Add<Transform>(pos);
-		obstacle.Add<BoxCollider>(obstacle, size, origin);
+		obstacle.Add<BoxCollider>(size, origin);
 	}
 
 	void Update() override {
@@ -307,6 +356,8 @@ public:
 	}
 
 	void Draw() override {
+		// TODO: Fix debug drawing.
+		/*
 		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
 			Rect r{ b.GetAbsoluteRect() };
 			DrawRect(e, r);
@@ -320,12 +371,13 @@ public:
 class SweepEntityCollisionTest : public EntityCollisionTest {
 public:
 	void Enter() override {
-		manager.Clear();
 		EntityCollisionTest::Enter();
 		entity.Get<BoxCollider>().continuous = true;
 	}
 };
+*/
 
+/*
 class ShapeCollisionTest : public CollisionTest {
 public:
 	V2_float p0{ 11, 16 };
@@ -355,7 +407,7 @@ public:
 	V2_int size{ 31, 31 };
 
 	void Enter() override {
-		game.camera.GetPrimary().CenterOnArea(size);
+		camera.GetPrimary().CenterOnArea(size);
 	}
 
 	void Update() override {
@@ -1280,7 +1332,7 @@ struct SweepTest : public CollisionTest {
 			auto& rb	= entity.Add<RigidBody>();
 			rb.velocity = v;
 		}
-		manager.Refresh();
+
 		return entity;
 	}
 
@@ -1315,7 +1367,7 @@ struct SweepTest : public CollisionTest {
 			circle.continuous	= true;
 		}
 
-		manager.Refresh();
+
 	}
 
 	void Update() override {
@@ -1411,7 +1463,7 @@ struct SweepTest : public CollisionTest {
 	}
 
 	void Draw() override {
-		/*
+
 		V2_int grid_size = game.window.GetSize() / size;
 
 		for (std::size_t i = 0; i < grid_size.x; i++) {
@@ -1419,13 +1471,14 @@ struct SweepTest : public CollisionTest {
 				V2_float pos{ i * size.x, j * size.y };
 				game.draw.Rect(pos, size, color::Black, Origin::Center, 1.0f);
 			}
-		}*/
-	}
-};
+		}
+}
+}
+;
 
 struct RectCollisionTest : public SweepTest {
 	void Enter() override {
-		manager.Clear();
+
 		AddPlayer({ 100000.0f, 100000.0f }, { 30.0f, 30.0f }, { 45.0f, 84.5f });
 		AddCollisionObject({ 150.0f, 50.0f }, { 20.0f, 20.0f });
 		AddCollisionObject({ 150.0f, 150.0f }, { 75.0f, 20.0f });
@@ -1448,7 +1501,7 @@ struct RectCollisionTest : public SweepTest {
 
 struct RectCollisionTest1 : public SweepTest {
 	void Enter() override {
-		manager.Clear();
+
 		AddPlayer(
 			{ 100000.0f, 100000.0f }, { 30.0f, 30.0f }, { 45.0f, 84.5f }, { 50, 50 },
 			{ 100000.0f, 100000.0f }
@@ -1464,7 +1517,7 @@ struct RectCollisionTest1 : public SweepTest {
 
 struct RectCollisionTest2 : public SweepTest {
 	void Enter() override {
-		manager.Clear();
+
 		AddPlayer(
 			{ 100000.0f, 100000.0f }, { 30.0f, 30.0f }, { 25.0f, 30.0f }, { 50, 50 },
 			{ -100000.0f, 100000.0f }
@@ -1478,7 +1531,7 @@ struct RectCollisionTest2 : public SweepTest {
 
 struct RectCollisionTest3 : public SweepTest {
 	void Enter() override {
-		manager.Clear();
+
 		AddPlayer(
 			{ 100000.0f, 100000.0f }, { 30.0f, 30.0f }, { 175.0f, 75.0f }, { 50, 50 },
 			{ -100000.0f, 100000.0f }
@@ -1491,7 +1544,7 @@ struct RectCollisionTest3 : public SweepTest {
 
 struct RectCollisionTest4 : public SweepTest {
 	void Enter() override {
-		manager.Clear();
+
 		AddPlayer(
 			{ 100000.0f, 100000.0f }, { 30.0f, 30.0f }, { 97.5000000f, 74.9999924f }, { 50, 50 },
 			{ 100000.0f, -100000.0f }
@@ -1505,7 +1558,7 @@ struct RectCollisionTest4 : public SweepTest {
 
 struct CircleRectCollisionTest1 : public SweepTest {
 	void Enter() override {
-		manager.Clear();
+
 		AddPlayer(
 			{ 10000.0f, 10000.0f }, { 30.0f, 30.0f }, { 563.608337f, 623.264038f },
 			{ 50.0f, 50.0f }, { 0.00000000f, 10000.0f }, Origin::Center, true
@@ -1548,7 +1601,7 @@ struct DynamicRectCollisionTest : public CollisionTest {
 	using NextVel = V2_float;
 
 	void Enter() override {
-		manager.Clear();
+
 
 		for (std::size_t i = 0; i < entity_data.size(); ++i) {
 			ecs::Entity entity = manager.CreateEntity();
@@ -1570,7 +1623,7 @@ struct DynamicRectCollisionTest : public CollisionTest {
 
 			entity.Add<Id>(i);
 		}
-		manager.Refresh();
+
 	}
 
 	void Update() override {
@@ -1656,7 +1709,7 @@ struct SweepCornerTest1 : public SweepTest {
 	SweepCornerTest1(const V2_float& player_vel) : player_vel{ player_vel } {}
 
 	void Enter() override {
-		manager.Clear();
+
 		AddPlayer(player_vel);
 		AddCollisionObject({ 300, 300 });
 		AddCollisionObject({ 250, 300 });
@@ -1671,7 +1724,7 @@ struct SweepCornerTest2 : public SweepTest {
 	SweepCornerTest2(const V2_float& player_vel) : player_vel{ player_vel } {}
 
 	void Enter() override {
-		manager.Clear();
+
 		AddPlayer(player_vel);
 		AddCollisionObject({ 300 - 10, 300 });
 		AddCollisionObject({ 250 - 10, 300 });
@@ -1686,7 +1739,7 @@ struct SweepCornerTest3 : public SweepTest {
 	SweepCornerTest3(const V2_float& player_vel) : player_vel{ player_vel } {}
 
 	void Enter() override {
-		manager.Clear();
+
 		AddPlayer(player_vel);
 		AddCollisionObject({ 250, 300 });
 		AddCollisionObject({ 200, 300 });
@@ -1701,7 +1754,7 @@ struct SweepTunnelTest1 : public SweepTest {
 	SweepTunnelTest1(const V2_float& player_vel) : player_vel{ player_vel } {}
 
 	void Enter() override {
-		manager.Clear();
+
 		AddPlayer(player_vel);
 		AddCollisionObject({ 300, 300 });
 		AddCollisionObject({ 200, 300 });
@@ -1721,7 +1774,7 @@ struct SweepTunnelTest2 : public SweepTest {
 	SweepTunnelTest2(const V2_float& player_vel) : player_vel{ player_vel } {}
 
 	void Enter() override {
-		manager.Clear();
+
 		AddPlayer(player_vel);
 		AddCollisionObject({ 300, 300 });
 		AddCollisionObject({ 300, 200 });
@@ -1735,6 +1788,7 @@ struct SweepTunnelTest2 : public SweepTest {
 		SweepTest::Enter();
 	}
 };
+*/
 
 class CollisionExampleScene : public Scene {
 public:
@@ -1748,10 +1802,12 @@ public:
 	void Enter() override {
 		ws = game.window.GetSize();
 
+		// TODO: Rework this whole test thing.
 		tests.emplace_back(new CollisionCallbackTest());
+		/*
+		tests.emplace_back(new SweepEntityCollisionTest());
 		tests.emplace_back(new RectangleSweepTest());
 		tests.emplace_back(new GeneralCollisionTest());
-		tests.emplace_back(new SweepEntityCollisionTest());
 		tests.emplace_back(new PointOverlapTest());
 		tests.emplace_back(new LineOverlapTest());
 		tests.emplace_back(new CircleOverlapTest());
@@ -1773,6 +1829,7 @@ public:
 		tests.emplace_back(new SweepCornerTest3(velocity));
 		tests.emplace_back(new SweepCornerTest2(velocity));
 		tests.emplace_back(new SweepCornerTest1(velocity));
+		*/
 
 		tests[static_cast<std::size_t>(current_test)]->Enter();
 	}
