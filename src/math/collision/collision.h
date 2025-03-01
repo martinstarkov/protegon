@@ -3,6 +3,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "components/draw.h"
 #include "components/transform.h"
 #include "core/game.h"
 #include "core/game_object.h"
@@ -37,22 +38,17 @@ public:
 
 	template <typename T, typename S>
 	[[nodiscard]] static bool CanCollide(
-		const GameObject e1, const T& colliderA, const GameObject e2, const S& colliderB
+		const ecs::Entity& e1, const T& colliderA, const ecs::Entity& e2, const S& colliderB
 	) {
-		if (!e1.IsEnabled()) {
-			return false;
-		}
-		if (!e2.IsEnabled()) {
-			return false;
-		}
+		PTGN_ASSERT(IsEnabled(e1) && IsEnabled(e2));
 		// TODO: Check if the "oldest" parents are equal.
-		if (e1.GetParent() == e2.GetParent()) {
+		if (GetParent(e1) == GetParent(e2)) {
 			return false;
 		}
-		if (!e1.GetParent().IsAlive()) {
+		if (!GetParent(e1).IsAlive()) {
 			return false;
 		}
-		if (!e2.GetParent().IsAlive()) {
+		if (!GetParent(e2).IsAlive()) {
 			return false;
 		}
 		if (!colliderA.CanCollideWith(colliderB.GetCollisionCategory())) {
@@ -63,8 +59,8 @@ public:
 
 	template <typename T>
 	static void Overlap(
-		ecs::Entity entity, const ecs::EntitiesWith<BoxCollider>& boxes,
-		const ecs::EntitiesWith<CircleCollider>& circles
+		ecs::Entity entity, const ecs::EntitiesWith<Enabled, BoxCollider>& boxes,
+		const ecs::EntitiesWith<Enabled, CircleCollider>& circles
 	) {
 		if (!entity.Get<T>().overlap_only) {
 			return;
@@ -81,19 +77,25 @@ public:
 			}
 		};
 
-		for (auto [e2, b2] : boxes) {
+		for (auto [e2, enabled, b2] : boxes) {
+			if (!enabled) {
+				continue;
+			}
 			process_overlap(b2, e2);
 		}
 
-		for (auto [e2, c2] : circles) {
+		for (auto [e2, enabled, c2] : circles) {
+			if (!enabled) {
+				continue;
+			}
 			process_overlap(c2, e2);
 		}
 	}
 
 	template <typename T>
 	static void Intersect(
-		ecs::Entity entity, const ecs::EntitiesWith<BoxCollider>& boxes,
-		const ecs::EntitiesWith<CircleCollider>& circles
+		ecs::Entity entity, const ecs::EntitiesWith<Enabled, BoxCollider>& boxes,
+		const ecs::EntitiesWith<Enabled, CircleCollider>& circles
 	) {
 		if (entity.Get<T>().overlap_only) {
 			return;
@@ -123,23 +125,31 @@ public:
 				return;
 			}
 			auto& rb{ entity.Get<RigidBody>() };
-			if (rb.immovable) {
+			if (IsImmovable(entity)) {
 				return;
 			}
-			if (entity.Has<Transform>()) {
+			/*if (entity.Has<Transform>()) {
 				entity.Get<Transform>().position +=
 					intersection.normal * (intersection.depth + slop);
-			}
-			rb.velocity = GetRemainingVelocity(
-				rb.velocity, { 0.0f, intersection.normal }, entity.Get<T>().response
-			);
+			}*/
+			auto& absolute_transform{ GetAbsoluteTransform(entity) };
+			absolute_transform.position += intersection.normal * (intersection.depth + slop);
+			rb.velocity					 = GetRemainingVelocity(
+				 rb.velocity, { 0.0f, intersection.normal }, entity.Get<T>().response
+			 );
 		};
 
-		for (auto [e2, b2] : boxes) {
+		for (auto [e2, enabled, b2] : boxes) {
+			if (!enabled) {
+				continue;
+			}
 			process_intersection(b2, e2);
 		}
 
-		for (auto [e2, c2] : circles) {
+		for (auto [e2, enabled, c2] : circles) {
+			if (!enabled) {
+				continue;
+			}
 			process_intersection(c2, e2);
 		}
 	}
@@ -147,12 +157,12 @@ public:
 	// Updates the velocity of the object to prevent it from colliding with the target objects.
 	template <typename T>
 	static void Sweep(
-		ecs::Entity entity, const ecs::EntitiesWith<BoxCollider>& boxes,
-		const ecs::EntitiesWith<CircleCollider>&
+		ecs::Entity entity, const ecs::EntitiesWith<Enabled, BoxCollider>& boxes,
+		const ecs::EntitiesWith<Enabled, CircleCollider>&
 			circles /* TODO: Fix or get rid of: , bool debug_draw = false */
 	) {
 		if (const auto& collider{ entity.Get<T>() };
-			!collider.continuous || collider.overlap_only || !entity.Has<RigidBody, Transform>()) {
+			!collider.continuous || collider.overlap_only || !entity.Has<RigidBody>()) {
 			return;
 		}
 
@@ -283,7 +293,7 @@ private:
 
 		// ProcessCallback may invalidate all component references.
 		if (raycast.Occurred() && entity.Get<T>().ProcessCallback(entity, e2)) {
-			auto center1{ GetCenter(transform1, collider) };
+			auto center1{ GetCenter(offset_transform, collider) };
 			auto center2{ GetCenter(transform2, collider2) };
 			auto dist2{ (center1 - center2).MagnitudeSquared() };
 			collisions.emplace_back(raycast, dist2, e2);
@@ -296,17 +306,23 @@ private:
 	// the remaining velocity.
 	template <typename T>
 	[[nodiscard]] static std::vector<SweepCollision> GetSortedCollisions(
-		ecs::Entity entity, const ecs::EntitiesWith<BoxCollider>& boxes,
-		const ecs::EntitiesWith<CircleCollider>& circles, const V2_float& offset,
+		ecs::Entity entity, const ecs::EntitiesWith<Enabled, BoxCollider>& boxes,
+		const ecs::EntitiesWith<Enabled, CircleCollider>& circles, const V2_float& offset,
 		const V2_float& vel
 	) {
 		std::vector<SweepCollision> collisions;
 
-		for (auto [e2, box2] : boxes) {
+		for (auto [e2, enabled, box2] : boxes) {
+			if (!enabled) {
+				continue;
+			}
 			ProcessRaycast<T, BoxCollider>(collisions, entity, e2, offset, vel);
 		}
 
-		for (auto [e2, circle2] : circles) {
+		for (auto [e2, enabled, circle2] : circles) {
+			if (!enabled) {
+				continue;
+			}
 			ProcessRaycast<T, CircleCollider>(collisions, entity, e2, offset, vel);
 		}
 
@@ -317,16 +333,14 @@ private:
 
 	template <typename T>
 	static void HandleCollisions(
-		ecs::Entity entity, const ecs::EntitiesWith<BoxCollider>& boxes,
-		const ecs::EntitiesWith<CircleCollider>& circles
+		ecs::Entity entity, const ecs::EntitiesWith<Enabled, BoxCollider>& boxes,
+		const ecs::EntitiesWith<Enabled, CircleCollider>& circles
 	) {
 		auto& collider{ entity.Get<T>() };
 
 		collider.ResetCollisions();
 
-		if (!IsEnabled(entity)) {
-			return;
-		}
+		PTGN_ASSERT(IsEnabled(entity));
 
 		Intersect<T>(entity, boxes, circles);
 		Sweep<T>(entity, boxes, circles);
