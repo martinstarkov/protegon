@@ -123,6 +123,10 @@ bool MusicManager::IsFading() const {
 	}
 }
 
+void MusicManager::Clear() {
+	music_.clear();
+}
+
 SoundManager::Sound SoundManager::LoadFromFile(const path& filepath) {
 	PTGN_ASSERT(
 		FileExists(filepath),
@@ -244,6 +248,10 @@ Mix_Chunk* SoundManager::Get(std::size_t key) const {
 
 bool SoundManager::Has(std::size_t key) const {
 	return sounds_.find(key) != sounds_.end();
+}
+
+void SoundManager::Clear() {
+	sounds_.clear();
 }
 
 } // namespace ptgn::impl

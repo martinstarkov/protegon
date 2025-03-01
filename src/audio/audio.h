@@ -72,6 +72,8 @@ public:
 	// @return True if the currently playing music is fading in OR out, false otherwise.
 	[[nodiscard]] bool IsFading() const;
 
+	void Clear();
+
 private:
 	using Music = std::unique_ptr<Mix_Music, Mix_MusicDeleter>;
 
@@ -149,6 +151,8 @@ public:
 
 	// @return True if the sound channel is fading in or out, -1 to check if any channel is playing.
 	[[nodiscard]] bool IsFading(int channel) const;
+
+	void Clear();
 
 private:
 	using Sound = std::unique_ptr<Mix_Chunk, Mix_ChunkDeleter>;
