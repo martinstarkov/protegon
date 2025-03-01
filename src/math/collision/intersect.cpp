@@ -260,7 +260,7 @@ Intersection Intersects(Transform a, Rect A, Transform b, Rect B) {
 	a.position += A.GetCenterOffset();
 	B.size	   *= b.scale;
 	b.position += B.GetCenterOffset();
-	return impl::IntersectRectRect(b.position, B.size, a.rotation, b.position, B.size, b.rotation);
+	return impl::IntersectRectRect(a.position, A.size, a.rotation, b.position, B.size, b.rotation);
 }
 
 Intersection Intersects(const Transform& a, Polygon A, const Transform& b, Polygon B) {
