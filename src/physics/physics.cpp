@@ -1,5 +1,6 @@
 #include "physics/physics.h"
 
+#include "components/draw.h"
 #include "components/transform.h"
 #include "core/game.h"
 #include "ecs/ecs.h"
@@ -24,25 +25,42 @@ float Physics::dt() const {
 
 void Physics::PreCollisionUpdate(ecs::Manager& manager) const {
 	float dt{ Physics::dt() };
-	for (auto [e, t, rb, m] : manager.EntitiesWith<Transform, RigidBody, TopDownMovement>()) {
+	for (auto [e, enabled, t, rb, m] :
+		 manager.EntitiesWith<Enabled, Transform, RigidBody, TopDownMovement>()) {
+		if (!enabled) {
+			continue;
+		}
 		m.Update(t, rb, dt);
 	}
-	for (auto [e, t, rb, m, j] :
-		 manager.EntitiesWith<Transform, RigidBody, PlatformerMovement, PlatformerJump>()) {
+	for (auto [e, enabled, t, rb, m, j] :
+		 manager.EntitiesWith<Enabled, Transform, RigidBody, PlatformerMovement, PlatformerJump>(
+		 )) {
+		if (!enabled) {
+			continue;
+		}
 		m.Update(t, rb, dt);
 		j.Update(rb, m.grounded, gravity_);
 	}
-	for (auto [e, rb] : manager.EntitiesWith<RigidBody>()) {
+	for (auto [e, enabled, rb] : manager.EntitiesWith<Enabled, RigidBody>()) {
+		if (!enabled) {
+			continue;
+		}
 		rb.Update(gravity_, dt);
 	}
-	for (auto [e, m] : manager.EntitiesWith<PlatformerMovement>()) {
+	for (auto [e, enabled, m] : manager.EntitiesWith<Enabled, PlatformerMovement>()) {
+		if (!enabled) {
+			continue;
+		}
 		m.grounded = false;
 	}
 }
 
 void Physics::PostCollisionUpdate(ecs::Manager& manager) const {
 	float dt{ Physics::dt() };
-	for (auto [e, t, rb] : manager.EntitiesWith<Transform, RigidBody>()) {
+	for (auto [e, enabled, t, rb] : manager.EntitiesWith<Enabled, Transform, RigidBody>()) {
+		if (!enabled) {
+			continue;
+		}
 		t.position += rb.velocity * dt;
 	}
 }

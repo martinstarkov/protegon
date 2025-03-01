@@ -97,7 +97,7 @@ RaycastResult RaycastLineCircle(
 		return c;
 	}
 
-	V2_float d{ line_start - line_end };
+	V2_float d{ -(line_end - line_start) };
 	V2_float f{ circle_center - line_start };
 
 	// bool (roots exist), float (root 1), float (root 2).
@@ -314,21 +314,19 @@ RaycastResult RaycastLineCapsule(
 	RaycastResult col_min{ c };
 
 	auto c1{ RaycastLineLine(line_start, line_end, line_start + ncu_dist, line_end + ncu_dist) };
+	auto c2{ RaycastLineLine(line_start, line_end, line_start - ncu_dist, line_end - ncu_dist) };
+	auto c3{ RaycastLineCircle(line_start, line_end, capsule_start, capsule_radius) };
+	auto c4{ RaycastLineCircle(line_start, line_end, capsule_end, capsule_radius) };
+
 	if (c1.Occurred() && c1.t < col_min.t) {
 		col_min = c1;
 	}
-
-	auto c2{ RaycastLineLine(line_start, line_end, line_start - ncu_dist, line_end - ncu_dist) };
 	if (c2.Occurred() && c2.t < col_min.t) {
 		col_min = c2;
 	}
-
-	auto c3{ RaycastLineCircle(line_start, line_end, capsule_start, capsule_radius) };
 	if (c3.Occurred() && c3.t < col_min.t) {
 		col_min = c3;
 	}
-
-	auto c4{ RaycastLineCircle(line_start, line_end, capsule_end, capsule_radius) };
 	if (c4.Occurred() && c4.t < col_min.t) {
 		col_min = c4;
 	}
