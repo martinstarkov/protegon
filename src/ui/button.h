@@ -117,9 +117,16 @@ struct Button : public GameObject {
 
 	Button& SetTint(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] std::string GetTextContent(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] std::string_view GetTextContent(ButtonState state = ButtonState::Current) const;
 
-	Button& SetTextContent(const std::string& content, ButtonState state = ButtonState::Default);
+	Button& SetTextContent(std::string_view content, ButtonState state = ButtonState::Default);
+
+	// TODO: Add GetText().
+
+	Button& SetText(
+		std::string_view content, const Color& text_color = color::Black,
+		std::string_view font_key = "", ButtonState state = ButtonState::Default
+	);
 
 	[[nodiscard]] ecs::Entity GetText(ButtonState state = ButtonState::Current) const;
 

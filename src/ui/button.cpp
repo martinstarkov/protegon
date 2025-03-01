@@ -181,6 +181,14 @@ Button& Button::SetBackgroundColor(const Color& color, ButtonState state) {
 	return *this;
 }
 
+Button& Button::SetText(
+	std::string_view content, const Color& text_color = color::Black,
+	std::string_view font_key = "", ButtonState state = ButtonState::Default
+) {
+	// TODO: Fix this.
+	return *this;
+}
+
 Color Button::GetTextColor(ButtonState state) const {
 	// TODO: Fix.
 	return Color();
@@ -212,12 +220,12 @@ Button& Button::SetTint(const Color& color, ButtonState state) {
 	return *this;
 }
 
-std::string Button::GetTextContent(ButtonState state) const {
+std::string_view Button::GetTextContent(ButtonState state) const {
 	// TODO: Fix.
-	return std::string();
+	return std::string_view();
 }
 
-Button& Button::SetTextContent(const std::string& content, ButtonState state) {
+Button& Button::SetTextContent(std::string_view content, ButtonState state) {
 	// TODO: insert return statement here
 	return *this;
 }

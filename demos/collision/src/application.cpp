@@ -3,6 +3,7 @@
 
 #include "components/transform.h"
 #include "core/game.h"
+#include "core/game_object.h"
 #include "core/window.h"
 #include "ecs/ecs.h"
 #include "event/input_handler.h"
@@ -14,7 +15,6 @@
 #include "physics/physics.h"
 #include "physics/rigid_body.h"
 #include "renderer/origin.h"
-#include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 #include "utility/assert.h"
