@@ -182,8 +182,7 @@ Button& Button::SetBackgroundColor(const Color& color, ButtonState state) {
 }
 
 Button& Button::SetText(
-	std::string_view content, const Color& text_color = color::Black,
-	std::string_view font_key = "", ButtonState state = ButtonState::Default
+	std::string_view content, const Color& text_color, std::string_view font_key, ButtonState state
 ) {
 	// TODO: Fix this.
 	return *this;
