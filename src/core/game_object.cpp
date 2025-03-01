@@ -1,12 +1,14 @@
 #include "core/game_object.h"
 
 #include <array>
+#include <type_traits>
 
 #include "components/draw.h"
 #include "components/transform.h"
 #include "core/game.h"
 #include "ecs/ecs.h"
 #include "math/vector2.h"
+#include "physics/rigid_body.h"
 #include "renderer/blend_mode.h"
 #include "renderer/color.h"
 #include "renderer/flip.h"
@@ -18,47 +20,71 @@
 
 namespace ptgn {
 
-bool IsVisible(const GameObject& e) {
+namespace impl {
+
+Transform* GetAbsoluteTransformImpl(const ecs::Entity& e) {
+	Transform* transform{ nullptr };
+	if (HasParent(e)) {
+		transform = impl::GetAbsoluteTransformImpl(GetParent(e));
+	}
+	if (transform == nullptr && e.Has<Transform>()) {
+		transform = &e.Get<Transform>();
+	}
+	return transform;
+}
+
+} // namespace impl
+
+Transform& GetAbsoluteTransform(const ecs::Entity& e) {
+	auto transform{ impl::GetAbsoluteTransformImpl(e) };
+	PTGN_ASSERT(
+		transform != nullptr, "Game object does not have an absolute, i.e. neither this entity nor "
+							  "any of its parents have a transform component"
+	);
+	return *transform;
+}
+
+bool IsVisible(const ecs::Entity& e) {
 	return e.Has<Visible>() ? e.Get<Visible>() : Visible{ false };
 }
 
-bool IsEnabled(const GameObject& e) {
+bool IsEnabled(const ecs::Entity& e) {
 	return e.Has<Enabled>() ? e.Get<Enabled>() : Enabled{ false };
 }
 
-Transform GetLocalTransform(const GameObject& e) {
+Transform GetLocalTransform(const ecs::Entity& e) {
 	return e.Has<Transform>() ? e.Get<Transform>() : Transform{};
 }
 
-Transform GetTransform(const GameObject& e) {
+Transform GetTransform(const ecs::Entity& e) {
 	return GetLocalTransform(e).RelativeTo(HasParent(e) ? GetTransform(GetParent(e)) : Transform{});
 }
 
-V2_float GetLocalPosition(const GameObject& e) {
+V2_float GetLocalPosition(const ecs::Entity& e) {
 	return e.Has<Transform>() ? e.Get<Transform>().position : V2_float{};
 }
 
-V2_float GetPosition(const GameObject& e) {
+V2_float GetPosition(const ecs::Entity& e) {
 	return GetLocalPosition(e) + (HasParent(e) ? GetPosition(GetParent(e)) : V2_float{});
 }
 
-float GetLocalRotation(const GameObject& e) {
+float GetLocalRotation(const ecs::Entity& e) {
 	return e.Has<Transform>() ? e.Get<Transform>().rotation : 0.0f;
 }
 
-float GetRotation(const GameObject& e) {
+float GetRotation(const ecs::Entity& e) {
 	return GetLocalRotation(e) + (HasParent(e) ? GetRotation(GetParent(e)) : 0.0f);
 }
 
-V2_float GetLocalScale(const GameObject& e) {
+V2_float GetLocalScale(const ecs::Entity& e) {
 	return e.Has<Transform>() ? e.Get<Transform>().scale : V2_float{ 1.0f, 1.0f };
 }
 
-V2_float GetScale(const GameObject& e) {
+V2_float GetScale(const ecs::Entity& e) {
 	return GetLocalScale(e) * (HasParent(e) ? GetScale(GetParent(e)) : V2_float{ 1.0f, 1.0f });
 }
 
-Depth GetDepth(const GameObject& e) {
+Depth GetDepth(const ecs::Entity& e) {
 	Depth parent_depth{};
 	if (HasParent(e)) {
 		auto parent{ GetParent(e) };
@@ -69,27 +95,32 @@ Depth GetDepth(const GameObject& e) {
 	return parent_depth + (e.Has<Depth>() ? e.Get<Depth>() : Depth{});
 }
 
-BlendMode GetBlendMode(const GameObject& e) {
+BlendMode GetBlendMode(const ecs::Entity& e) {
 	return e.Has<BlendMode>() ? e.Get<BlendMode>() : BlendMode::Blend;
 }
 
-Origin GetOrigin(const GameObject& e) {
+Origin GetOrigin(const ecs::Entity& e) {
 	return e.Has<Origin>() ? e.Get<Origin>() : Origin::Center;
 }
 
-Color GetTint(const GameObject& e) {
+Color GetTint(const ecs::Entity& e) {
 	return e.Has<Tint>() ? e.Get<Tint>() : Tint{};
 }
 
-GameObject GetParent(const GameObject& e) {
-	return HasParent(e) ? e.Get<GameObject>() : e;
+ecs::Entity GetParent(const ecs::Entity& e) {
+	return HasParent(e) ? e.Get<ecs::Entity>() : e;
 }
 
-bool HasParent(const GameObject& e) {
-	return e.Has<GameObject>();
+bool HasParent(const ecs::Entity& e) {
+	return e.Has<ecs::Entity>();
 }
 
-std::array<V2_float, 4> GetTextureCoordinates(const GameObject& e, bool flip_vertically) {
+bool IsImmovable(const ecs::Entity& e) {
+	return e.Has<RigidBody>() && e.Get<RigidBody>().immovable ||
+		   (HasParent(e) ? IsImmovable(GetParent(e)) : false);
+}
+
+std::array<V2_float, 4> GetTextureCoordinates(const ecs::Entity& e, bool flip_vertically) {
 	auto tex_coords{ impl::GetDefaultTextureCoordinates() };
 
 	if (!e.IsAlive()) {
@@ -142,9 +173,21 @@ std::array<V2_float, 4> GetTextureCoordinates(const GameObject& e, bool flip_ver
 	return tex_coords;
 }
 
-GameObject::GameObject(const ecs::Entity& e) : ecs::Entity{ e } {}
+GameObject::GameObject(ecs::Entity&& entity) : ecs::Entity{ std::move(entity) } {}
 
 GameObject::GameObject(ecs::Manager& manager) : ecs::Entity{ manager.CreateEntity() } {}
+
+GameObject::~GameObject() {
+	Destroy();
+}
+
+GameObject::operator ecs::Entity() const {
+	return *this;
+}
+
+ecs::Entity GameObject::GetEntity() const {
+	return *this;
+}
 
 GameObject& GameObject::SetVisible(bool visible) {
 	if (visible) {
@@ -228,12 +271,25 @@ BlendMode GameObject::GetBlendMode() const {
 	return ptgn::GetBlendMode(*this);
 }
 
-GameObject GameObject::GetParent() const {
+ecs::Entity GameObject::GetParent() const {
 	return ptgn::GetParent(*this);
 }
 
 bool GameObject::HasParent() const {
 	return ptgn::HasParent(*this);
+}
+
+GameObject& GameObject::SetTint(const Color& color) {
+	if (color != Tint{}) {
+		Add<Tint>(color);
+	} else {
+		Remove<Tint>();
+	}
+	return *this;
+}
+
+[[nodiscard]] Color GameObject::GetTint() const {
+	return ptgn::GetTint(*this);
 }
 
 std::array<V2_float, 4> GameObject::GetTextureCoordinates(bool flip_vertically) const {
@@ -285,7 +341,7 @@ GameObject& GameObject::SetBlendMode(BlendMode blend_mode) {
 	return *this;
 }
 
-GameObject& GameObject::AddChild(const GameObject& o) {
+GameObject& GameObject::AddChild(const ecs::Entity& o) {
 	if (Has<Children>()) {
 		Get<Children>().Add(o);
 	} else {
@@ -294,7 +350,7 @@ GameObject& GameObject::AddChild(const GameObject& o) {
 	return *this;
 }
 
-GameObject& GameObject::RemoveChild(const GameObject& o) {
+GameObject& GameObject::RemoveChild(const ecs::Entity& o) {
 	if (!Has<Children>()) {
 		return *this;
 	}
@@ -306,12 +362,13 @@ GameObject& GameObject::RemoveChild(const GameObject& o) {
 	return *this;
 }
 
-GameObject& GameObject::SetParent(const GameObject& o) {
+GameObject& GameObject::SetParent(const ecs::Entity& o) {
 	PTGN_ASSERT(*this != o, "Cannot add game object as its own parent");
+	PTGN_ASSERT(o != ecs::Entity{}, "Cannot add null game object as its own parent");
 	if (HasParent()) {
-		Get<GameObject>() = o;
+		Get<ecs::Entity>() = o;
 	} else {
-		Add<GameObject>(o);
+		Add<ecs::Entity>(o);
 	}
 	return *this;
 }

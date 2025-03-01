@@ -12,6 +12,7 @@
 #include "ecs/ecs.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
+#include "renderer/origin.h"
 #include "renderer/text.h"
 #include "renderer/texture.h"
 
@@ -25,6 +26,8 @@ enum class ButtonState : std::uint8_t {
 };
 
 namespace impl {
+
+struct ButtonTag {};
 
 struct ButtonToggle : public CallbackComponent<void> {
 	using CallbackComponent::CallbackComponent;
@@ -81,8 +84,15 @@ using ButtonCallback = std::function<void()>;
 
 struct Button : public GameObject {
 	Button() = default;
-	Button(ecs::Manager& manager);
-	virtual ~Button() = default;
+	explicit Button(ecs::Manager& manager);
+	Button(const Button&)				 = delete;
+	Button& operator=(const Button&)	 = delete;
+	Button(Button&&) noexcept			 = default;
+	Button& operator=(Button&&) noexcept = default;
+	virtual ~Button()					 = default;
+
+	Button& SetRect(const V2_float& size, Origin origin = Origin::Center);
+	Button& SetCircle(float radius);
 
 	// These allow for manually triggering button callback events.
 	virtual void Activate();
@@ -155,6 +165,13 @@ struct Button : public GameObject {
 
 private:
 	void StateChange(impl::InternalButtonState new_state);
+
+	[[nodiscard]] static ButtonState GetState(const ecs::Entity& e);
+
+	static void Activate(const ecs::Entity& e);
+	static void StartHover(const ecs::Entity& e);
+	static void StopHover(const ecs::Entity& e);
+	static void StateChange(const ecs::Entity& e, impl::InternalButtonState new_state);
 };
 
 struct ToggleButton : public Button {

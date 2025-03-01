@@ -14,7 +14,7 @@
 //
 // namespace impl {
 //
-// struct DropdownInstance : public GameObject {
+// struct DropdownInstance {
 //	std::vector<Button> buttons_;
 //
 //	// Dropdown is visible.
@@ -28,9 +28,8 @@
 //
 // } // namespace impl
 //
-// class Dropdown : public GameObject {
+// class Dropdown {
 // public:
-// Dropdown(const ecs::Entity& e);
 //	// Note: Dropdown button layer info is overriden internally after the Dropdown class is added to
 //	// the parent button.
 //	Button& Add(const Button& button);

@@ -5,9 +5,7 @@
 
 #include "components/generic.h"
 #include "core/game_object.h"
-#include "core/manager.h"
 #include "ecs/ecs.h"
-#include "math/geometry/polygon.h"
 #include "math/matrix4.h"
 #include "math/quaternion.h"
 #include "math/vector2.h"
@@ -61,6 +59,26 @@ struct CameraInfo {
 	CameraInfo& operator=(CameraInfo&& other) noexcept;
 	~CameraInfo();
 
+	[[nodiscard]] float GetZoom() const;
+	[[nodiscard]] V2_float GetSize() const;
+	[[nodiscard]] V2_float GetPosition() const;
+	// Gets only the yaw.
+	[[nodiscard]] float GetRotation() const;
+
+	void SetZoom(float new_zoom);
+
+	void SetSize(const V2_float& new_size);
+
+	// Sets yaw only.
+	void SetRotation(float yaw_angle_radians);
+
+	void SetRotation(const V3_float& new_angle_radians);
+
+	void SetPosition(const V2_float& new_position);
+	void SetPosition(const V3_float& new_position);
+
+	void SetBounds(const V2_float& position, const V2_float& size);
+
 	// Will resize the camera.
 	void SubscribeToEvents() noexcept;
 
@@ -110,9 +128,12 @@ struct CameraInfo {
 class Camera : public GameObject {
 public:
 	Camera() = default;
-	Camera(ecs::Manager& manager);
-
-	void Destroy();
+	explicit Camera(ecs::Manager& manager);
+	Camera(const Camera&)				 = delete;
+	Camera& operator=(const Camera&)	 = delete;
+	Camera(Camera&&) noexcept			 = default;
+	Camera& operator=(Camera&&) noexcept = default;
+	~Camera()							 = default;
 
 	// @param target_position Position to pan to.
 	// @param duration Duration of pan.

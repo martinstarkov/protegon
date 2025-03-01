@@ -63,9 +63,15 @@ struct TextShadingColor : public ColorComponent {
 
 class Text : public GameObject {
 public:
-	Text() = default;
+	Text()							 = default;
+	Text(const Text&)				 = delete;
+	Text& operator=(const Text&)	 = delete;
+	Text(Text&&) noexcept			 = default;
+	Text& operator=(Text&&) noexcept = default;
+	~Text()							 = default;
 
-	using GameObject::GameObject;
+	explicit Text(ecs::Manager& manager);
+
 	// @param font_key Default: "" corresponds to the default engine font (use
 	// game.font.SetDefault(...) to change.
 	Text(

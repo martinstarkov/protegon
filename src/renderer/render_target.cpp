@@ -64,7 +64,7 @@ RenderTarget::~RenderTarget() {
 	// UnsubscribeFromEvents();
 }
 
-void RenderTarget::Draw(ecs::Entity e) const {
+void RenderTarget::Draw(const ecs::Entity& e) const {
 	PTGN_ASSERT(frame_buffer_.IsBound(), "Cannot draw to render target unless it is first bound");
 	PTGN_ASSERT(
 		camera != Camera{}, "Cannot draw to render target with invalid or uninitialized camera"

@@ -9,6 +9,7 @@
 #include "SDL_surface.h"
 #include "SDL_ttf.h"
 #include "core/game.h"
+#include "core/game_object.h"
 #include "ecs/ecs.h"
 #include "math/hash.h"
 #include "math/vector2.h"
@@ -19,6 +20,9 @@
 #include "utility/log.h"
 
 namespace ptgn {
+Text::Text(ecs::Manager& manager) : GameObject{ manager } {
+	SetVisible(true);
+}
 
 Text::Text(
 	ecs::Manager& manager, std::string_view content, const Color& text_color,

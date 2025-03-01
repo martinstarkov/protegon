@@ -34,7 +34,7 @@ public:
 
 	void Render(const FrameBuffer& frame_buffer, const Camera& camera, ecs::Manager& manager);
 	void Render(
-		const FrameBuffer& frame_buffer, const Camera& camera, const GameObject& o,
+		const FrameBuffer& frame_buffer, const Camera& camera, const ecs::Entity& o,
 		bool check_visibility
 	);
 	void RenderToScreen(const RenderTarget& target, const Camera& camera);
@@ -50,9 +50,9 @@ public:
 	);
 
 	void AddTexture(
-		const GameObject& e, const Texture& texture, const V2_float& position, const V2_float& size,
-		Origin origin, const Depth& depth, BlendMode blend_mode, const V4_float& color,
-		float rotation, bool flip_vertically = false
+		const ecs::Entity& e, const Texture& texture, const V2_float& position,
+		const V2_float& size, Origin origin, const Depth& depth, BlendMode blend_mode,
+		const V4_float& color, float rotation, bool flip_vertically = false
 	);
 
 	void AddTriangle(
@@ -79,16 +79,16 @@ public:
 		const V2_float position, const Depth& depth, BlendMode blend_mode, const V4_float& color
 	);
 
-	void AddPointLight(const GameObject& o, const Depth& depth);
+	void AddPointLight(const ecs::Entity& o, const Depth& depth);
 
 	void AddText(
-		const GameObject& o, const Text& text, const V2_float& position, const V2_float& size,
+		const ecs::Entity& o, const Text& text, const V2_float& position, const V2_float& size,
 		Origin origin, const Depth& depth, BlendMode blend_mode, const V4_float& color,
 		float rotation
 	);
 
 	void AddRenderTarget(
-		const GameObject& o, const RenderTarget& rt, const Depth& depth, BlendMode blend_mode,
+		const ecs::Entity& o, const RenderTarget& rt, const Depth& depth, BlendMode blend_mode,
 		const V4_float& tint
 	);
 
@@ -126,7 +126,7 @@ private:
 		const V2_float& radius, const Depth& depth, BlendMode blend_mode, const V4_float& color
 	);
 
-	[[nodiscard]] V2_float GetTextureSize(const GameObject& o, const Texture& texture);
+	[[nodiscard]] V2_float GetTextureSize(const ecs::Entity& o, const Texture& texture);
 
 	[[nodiscard]] Batch& GetBatch(
 		std::size_t vertex_count, std::size_t index_count, const Texture& texture,
@@ -135,7 +135,7 @@ private:
 
 	[[nodiscard]] float GetTextureIndex(Batch& batch, const Texture& texture);
 
-	void AddToBatch(const GameObject& object, bool check_visibility);
+	void AddToBatch(const ecs::Entity& object, bool check_visibility);
 
 	void SetVertexArrayToWindow(
 		const Camera& camera, const Color& color, const Depth& depth, float texture_index

@@ -44,7 +44,7 @@ public:
 
 	// Draw an entity to the render target.
 	// The entity must have the Transform and Visible components.
-	void Draw(ecs::Entity entity) const;
+	void Draw(const ecs::Entity& entity) const;
 
 	// @return The clear color of the render target.
 	[[nodiscard]] Color GetClearColor() const;
