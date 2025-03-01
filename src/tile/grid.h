@@ -24,7 +24,7 @@ public:
 	}
 
 	explicit Grid(const Vector2<int>& size) :
-		size{ size }, length{ size.x * size.y }, cells(static_cast<std::size_t>(length), T{}) {
+		size{ size }, length{ size.x * size.y }, cells(static_cast<std::size_t>(length)) {
 		PTGN_ASSERT(static_cast<std::size_t>(length) == cells.size(), "Failed to construct grid");
 	}
 
@@ -142,8 +142,11 @@ public:
 		return V2_int{ index % size.x, index / size.x };
 	}
 
-	template <tt::copy_constructible<T> = true>
 	void Fill(const T& object) {
+		static_assert(
+			std::is_copy_constructible_v<T>,
+			"Cannot fill grid with type which is not copy constructible"
+		);
 		std::fill(cells.begin(), cells.end(), object);
 	}
 
