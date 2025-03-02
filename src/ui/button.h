@@ -91,15 +91,32 @@ struct ButtonColor {
 	Color pressed_;
 };
 
-struct ButtonTint : public ButtonColor {};
+struct ButtonColorToggled : public ButtonColor {};
+
+struct ButtonTint : public ButtonColor {
+	ButtonTint() : ButtonColor{ color::White } {}
+};
+
+struct ButtonTintToggled : public ButtonTint {};
 
 struct ButtonBorderColor : public ButtonColor {};
 
-struct ButtonColorToggled : public ButtonColor {};
+struct ButtonBorderColorToggled : public ButtonBorderColor {};
 
-struct ButtonTintToggled : public ButtonColor {};
+struct ButtonTexture {
+	ButtonTexture() = default;
 
-struct ButtonBorderColorToggled : public ButtonColor {};
+	ButtonTexture(const TextureKey& key) : default_{ key }, hover_{ key }, pressed_{ key } {}
+
+	[[nodiscard]] const TextureKey& Get(ButtonState state) const;
+	[[nodiscard]] TextureKey& Get(ButtonState state);
+
+	TextureKey default_;
+	TextureKey hover_;
+	TextureKey pressed_;
+};
+
+struct ButtonTextureToggled : public ButtonTexture {};
 
 struct ButtonText {
 	ButtonText(
@@ -122,6 +139,8 @@ struct ButtonText {
 	Text hover_;
 	Text pressed_;
 };
+
+struct ButtonTextToggled : public ButtonText {};
 
 } // namespace impl
 
@@ -154,9 +173,9 @@ struct Button : public GameObject {
 
 	Button& SetTextColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] ecs::Entity GetTexture(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] TextureKey GetTextureKey(ButtonState state = ButtonState::Current) const;
 
-	Button& SetTexture(std::string_view texture_key, ButtonState state = ButtonState::Default);
+	Button& SetTextureKey(std::string_view texture_key, ButtonState state = ButtonState::Default);
 
 	[[nodiscard]] Color GetTint(ButtonState state = ButtonState::Current) const;
 
@@ -247,12 +266,13 @@ struct ToggleButton : public Button {
 
 	[[nodiscard]] Color GetTextColorToggled(ButtonState state = ButtonState::Current) const;
 
+	// TODO: Add SetTextToggled(content, color, font, state);
+
 	ToggleButton& SetTextColorToggled(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] const impl::Texture& GetTextureToggled(ButtonState state = ButtonState::Default)
-		const;
+	[[nodiscard]] TextureKey GetTextureKeyToggled(ButtonState state = ButtonState::Default) const;
 
-	ToggleButton& SetTextureToggled(
+	ToggleButton& SetTextureKeyToggled(
 		std::string_view texture_key, ButtonState state = ButtonState::Default
 	);
 

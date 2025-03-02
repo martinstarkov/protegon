@@ -402,13 +402,13 @@ void RenderData::AddRenderTarget(
 }
 
 void RenderData::AddButton(
-	const Text* text, const Texture& texture, const V4_float& background_color,
+	const Text* text, const Texture* texture, const V4_float& background_color,
 	float background_line_width, const V4_float& border_color, float border_line_width,
 	const V2_float& position, const V2_float& size, Origin origin, const Depth& depth,
 	BlendMode blend_mode, const V4_float& tint, float rotation
 ) {
-	if (texture != Texture{}) {
-		AddTexture({}, texture, position, size, origin, depth, blend_mode, tint, rotation);
+	if (texture != nullptr && *texture != Texture{}) {
+		AddTexture({}, *texture, position, size, origin, depth, blend_mode, tint, rotation);
 	} else if (background_color != V4_float{}) {
 		// TODO: Add rounded buttons.
 		/*if (radius_ > 0.0f) {
@@ -465,29 +465,7 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 	float angle{ GetRotation(o) };
 	V4_float tint{ GetTint(o).Normalized() };
 
-	if (o.Has<TextureKey>()) {
-		const auto& texture_key{ o.Get<TextureKey>() };
-		const auto& texture{ game.texture.Get(texture_key) };
-		AddTexture(
-			o, texture, pos, GetTextureSize(o, texture), GetOrigin(o), depth, blend_mode, tint,
-			angle, false
-		);
-		return;
-	} else if (o.Has<Text>()) {
-		const auto& text{ o.Get<Text>() };
-		AddText(
-			o, text, pos, GetTextureSize(o, text.GetTexture()), GetOrigin(o), depth, blend_mode,
-			tint, angle
-		);
-		return;
-	} else if (o.Has<RenderTarget>()) {
-		const auto& rt{ o.Get<RenderTarget>() };
-		AddRenderTarget(o, rt, depth, blend_mode, tint);
-		return;
-	} else if (o.Has<PointLight>()) {
-		AddPointLight(o, depth);
-		return;
-	} else if (o.Has<impl::ButtonTag>()) {
+	if (o.Has<impl::ButtonTag>()) {
 		auto state{ Button::GetState(o) };
 		// TODO: Replace with a choice of rect or circle.
 		Origin origin{ Origin::Center };
@@ -499,9 +477,25 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 		} else if (o.Has<Circle>()) {
 			size = V2_float{ o.Get<Circle>().radius * 2.0f };
 		}
+
+		TextureKey button_texture_key;
+		if (o.Has<TextureKey>()) {
+			button_texture_key = o.Get<TextureKey>();
+		}
+		const Texture* button_texture{ nullptr };
+		if (game.texture.Has(button_texture_key)) {
+			button_texture = &game.texture.Get(button_texture_key);
+		}
+
+		if (button_texture != nullptr && size.IsZero()) {
+			size = button_texture->GetSize();
+		}
+
 		auto scale{ GetScale(o) };
+
 		size *= scale;
 		PTGN_ASSERT(!size.IsZero(), "Invalid size for button");
+		// TODO: Add toggle text check.
 		const Text* text{ nullptr };
 		if (o.Has<impl::ButtonText>()) {
 			const auto& button_text{ o.Get<impl::ButtonText>() };
@@ -523,7 +517,7 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 		} else if (o.Has<impl::ButtonBorderColor>()) {
 			border_color = o.Get<impl::ButtonBorderColor>().current_;
 		}
-		Color button_tint;
+		Color button_tint{ color::White };
 		if (o.Has<impl::ButtonToggled>() && o.Get<impl::ButtonToggled>() &&
 			o.Has<impl::ButtonTintToggled>()) {
 			button_tint = o.Get<impl::ButtonTintToggled>().current_;
@@ -539,10 +533,32 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 			border_width = o.Get<impl::ButtonBorderWidth>();
 		}
 		AddButton(
-			text, {}, button_color.Normalized(), background_line_width, border_color.Normalized(),
-			border_width, pos, size, origin, depth, blend_mode, button_tint.Normalized() * tint,
-			angle
+			text, button_texture, button_color.Normalized(), background_line_width,
+			border_color.Normalized(), border_width, pos, size, origin, depth, blend_mode,
+			button_tint.Normalized() * tint, angle
 		);
+		return;
+	} else if (o.Has<TextureKey>()) {
+		const auto& texture_key{ o.Get<TextureKey>() };
+		const auto& texture{ game.texture.Get(texture_key) };
+		AddTexture(
+			o, texture, pos, GetTextureSize(o, texture), GetOrigin(o), depth, blend_mode, tint,
+			angle, false
+		);
+		return;
+	} else if (o.Has<Text>()) {
+		const auto& text{ o.Get<Text>() };
+		AddText(
+			o, text, pos, GetTextureSize(o, text.GetTexture()), GetOrigin(o), depth, blend_mode,
+			tint, angle
+		);
+		return;
+	} else if (o.Has<RenderTarget>()) {
+		const auto& rt{ o.Get<RenderTarget>() };
+		AddRenderTarget(o, rt, depth, blend_mode, tint);
+		return;
+	} else if (o.Has<PointLight>()) {
+		AddPointLight(o, depth);
 		return;
 	}
 
