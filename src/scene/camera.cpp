@@ -497,13 +497,19 @@ V2_float Camera::TransformToCamera(const V2_float& screen_relative_coordinate) c
 	// TODO: Take into account camera rotation.
 	const auto& info{ Get<impl::CameraInfo>().data };
 	PTGN_ASSERT(info.zoom != 0.0f);
-	return (screen_relative_coordinate - info.size * 0.5f) / info.zoom + GetPosition();
+	PTGN_ASSERT(info.viewport_size.x != 0.0f && info.viewport_size.y != 0.0f);
+	return ((screen_relative_coordinate - info.size * 0.5f) / info.zoom +
+			GetPosition(Origin::Center) - info.viewport_position) *
+		   info.size / info.viewport_size;
 }
 
 V2_float Camera::TransformToScreen(const V2_float& camera_relative_coordinate) const {
 	// TODO: Take into account camera rotation.
 	const auto& info{ Get<impl::CameraInfo>().data };
-	return (camera_relative_coordinate - GetPosition()) * info.zoom + info.size * 0.5f;
+	PTGN_ASSERT(info.size.x != 0.0f && info.size.y != 0.0f);
+	V2_float coord{ camera_relative_coordinate * info.viewport_size / info.size +
+					info.viewport_position };
+	return (coord - GetPosition(Origin::Center)) * info.zoom + info.size * 0.5f;
 }
 
 V2_float Camera::ScaleToCamera(const V2_float& screen_relative_size) const {
@@ -775,9 +781,9 @@ void Camera::PrintInfo() const {
 	auto bounds_size{ GetBoundsSize() };
 	auto orient{ GetOrientation() };
 	Print(
-		"position: ", GetPosition(), ", size: ", GetSize(), ", zoom: ", GetZoom(),
-		", orientation (yaw/pitch/roll) (deg): (", RadToDeg(orient.x), ", ", RadToDeg(orient.y),
-		", ", RadToDeg(orient.z), "), Bounds: "
+		"center position: ", GetPosition(Origin::Center), ", size: ", GetSize(),
+		", zoom: ", GetZoom(), ", orientation (yaw/pitch/roll) (deg): (", RadToDeg(orient.x), ", ",
+		RadToDeg(orient.y), ", ", RadToDeg(orient.z), "), Bounds: "
 	);
 	if (bounds_size.IsZero()) {
 		PrintLine("none");

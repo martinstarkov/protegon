@@ -47,6 +47,15 @@ void Scene::InternalUnload() {
 	game.event.mouse.Unsubscribe(this);
 }
 
+V2_float Scene::GetMousePosition() const {
+	// TODO: Replace with local input.GetMousePosition().
+	auto mouse_pos{ game.input.GetMousePosition() };
+	if (camera.primary != ecs::Entity{} && camera.primary.Has<impl::CameraInfo>()) {
+		mouse_pos = camera.primary.TransformToCamera(mouse_pos);
+	}
+	return mouse_pos;
+}
+
 void Scene::InternalLoad() {
 	/*target_ = RenderTarget{ game.window.GetSize(), color::Transparent };
 
@@ -102,50 +111,56 @@ void Scene::InternalLoad() {
 
 	auto PointerIsInside = [](const V2_float& pointer, ecs::Entity entity) {
 		// TODO: Move this function elsewhere.
-		bool is_circle{ entity.Has<InteractiveRadius>() };
-		bool is_rect{ entity.Has<InteractiveSize>() };
+		bool is_circle{ entity.Has<InteractiveCircle>() };
+		bool is_rect{ entity.Has<InteractiveRect>() };
 		PTGN_ASSERT(
 			!(is_rect && is_circle),
 			"Entity cannot have both an interactive radius and an interactive size"
 		);
+		auto scale{ GetScale(entity) };
+		V2_float interactive_offset{ entity.Has<InteractiveOffset>()
+										 ? entity.Get<InteractiveOffset>()
+										 : InteractiveOffset{} };
+		interactive_offset *= scale;
+		auto pos{ GetPosition(entity) + interactive_offset };
+		auto origin{ GetOrigin(entity) };
 		if (is_rect) {
-			V2_float interactive_size{ entity.Get<InteractiveSize>() };
-			auto size{ interactive_size * GetScale(entity) };
-			auto center{ GetPosition(entity) + GetOriginOffset(GetOrigin(entity), size) };
-			return impl::OverlapPointRect(pointer, center, size, GetRotation(entity));
+			auto interactive{ entity.Get<InteractiveRect>() };
+			auto size{ interactive.size * scale };
+			origin = interactive.origin;
+			auto center{ pos + GetOriginOffset(origin, size) };
+			if (!size.IsZero()) {
+				return impl::OverlapPointRect(pointer, center, size, GetRotation(entity));
+			}
 		} else if (is_circle) {
-			float interactive_radius{ entity.Get<InteractiveRadius>() };
-			auto radius{ interactive_radius * GetScale(entity).x };
-			return impl::OverlapPointCircle(pointer, GetPosition(entity), radius);
+			auto interactive{ entity.Get<InteractiveCircle>() };
+			auto radius{ interactive.radius * scale.x };
+			return impl::OverlapPointCircle(pointer, pos, radius);
 		}
 		is_circle = entity.Has<Circle>();
 		is_rect	  = entity.Has<Rect>();
 		// Prioritize circle interactable.
 		if (is_circle) {
 			const auto& c{ entity.Get<Circle>() };
-			return impl::OverlapPointCircle(
-				pointer, GetPosition(entity), c.radius * GetScale(entity).x
-			);
+			return impl::OverlapPointCircle(pointer, pos, c.radius * scale.x);
 		} else if (is_rect) {
 			const auto& r{ entity.Get<Rect>() };
-			auto size{ r.size * GetScale(entity) };
-			auto center{ GetPosition(entity) + GetOriginOffset(r.origin, r.size) };
-			return impl::OverlapPointRect(pointer, center, size, GetRotation(entity));
+			auto size{ r.size * scale };
+			origin = r.origin;
+			auto center{ pos + GetOriginOffset(origin, r.size) };
+			if (!size.IsZero()) {
+				return impl::OverlapPointRect(pointer, center, size, GetRotation(entity));
+			}
 		}
 
 		if (entity.Has<TextureKey>()) {
 			const auto& texture_key{ entity.Get<TextureKey>() };
-			auto size{ game.texture.GetSize(texture_key) * GetScale(entity) };
-			auto center{ GetPosition(entity) + GetOriginOffset(GetOrigin(entity), size) };
+			auto size{ game.texture.GetSize(texture_key) * scale };
+			auto center{ pos + GetOriginOffset(origin, size) };
 			return impl::OverlapPointRect(pointer, center, size, GetRotation(entity));
 		}
 
 		return false;
-	};
-
-	auto GetMousePos = [&]() {
-		// TODO: Replace with local input.GetMousePosition().
-		return V2_float{ game.input.GetMousePosition() };
 	};
 
 	game.event.mouse.Subscribe(
@@ -153,7 +168,7 @@ void Scene::InternalLoad() {
 			// TODO: Move this function elsewhere.
 			// TODO: cache interactive entity list every frame to avoid repeated calls for each
 			// mouse and keyboard event type.
-			V2_float pos{ std::invoke(GetMousePos) };
+			V2_float pos{ GetMousePosition() };
 			for (auto [e, enabled, interactive] : manager.EntitiesWith<Enabled, Interactive>()) {
 				if (!enabled) {
 					interactive.is_inside  = false;

@@ -3,6 +3,7 @@
 #include <set>
 
 #include "ecs/ecs.h"
+#include "math/vector2.h"
 #include "physics/physics.h"
 #include "renderer/render_target.h"
 #include "scene/camera.h"
@@ -63,6 +64,8 @@ public:
 private:
 	friend class impl::SceneManager;
 	friend class SceneTransition;
+
+	[[nodiscard]] V2_float GetMousePosition() const;
 
 	// void ClearTarget();
 	void InternalLoad();
