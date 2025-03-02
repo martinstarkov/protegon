@@ -18,6 +18,8 @@
 
 namespace ptgn {
 
+struct ToggleButton;
+
 enum class ButtonState : std::uint8_t {
 	Default,
 	Hover,
@@ -47,6 +49,10 @@ struct ButtonActivate : public CallbackComponent<void> {
 	using CallbackComponent::CallbackComponent;
 };
 
+struct ButtonToggled : public ArithmeticComponent<bool> {
+	using ArithmeticComponent::ArithmeticComponent;
+};
+
 enum class InternalButtonState : std::size_t {
 	IdleUp		 = 0,
 	Hover		 = 1,
@@ -56,12 +62,16 @@ enum class InternalButtonState : std::size_t {
 	HoverPressed = 5
 };
 
-struct TextAlignment : public OriginComponent {
-	using OriginComponent::OriginComponent;
+struct ButtonBorderWidth : public ArithmeticComponent<float> {
+	using ArithmeticComponent::ArithmeticComponent;
+
+	ButtonBorderWidth() : ArithmeticComponent{ 1.0f } {}
 };
 
-struct ButtonToggled : public ArithmeticComponent<bool> {
+struct ButtonBackgroundWidth : public ArithmeticComponent<float> {
 	using ArithmeticComponent::ArithmeticComponent;
+
+	ButtonBackgroundWidth() : ArithmeticComponent{ -1.0f } {}
 };
 
 struct ButtonColor {
@@ -81,7 +91,15 @@ struct ButtonColor {
 	Color pressed_;
 };
 
+struct ButtonTint : public ButtonColor {};
+
+struct ButtonBorderColor : public ButtonColor {};
+
 struct ButtonColorToggled : public ButtonColor {};
+
+struct ButtonTintToggled : public ButtonColor {};
+
+struct ButtonBorderColorToggled : public ButtonColor {};
 
 struct ButtonText {
 	ButtonText(
@@ -156,10 +174,6 @@ struct Button : public GameObject {
 	[[nodiscard]] const Text& GetText(ButtonState state = ButtonState::Current) const;
 	[[nodiscard]] Text& GetText(ButtonState state = ButtonState::Current);
 
-	[[nodiscard]] bool IsBordered() const;
-
-	Button& SetBordered(bool bordered);
-
 	[[nodiscard]] Color GetBorderColor(ButtonState state = ButtonState::Current) const;
 
 	Button& SetBorderColor(const Color& color, ButtonState state = ButtonState::Default);
@@ -198,6 +212,14 @@ struct Button : public GameObject {
 
 private:
 	friend class impl::RenderData;
+	friend struct ToggleButton;
+
+	// Internal constructor so that toggle button can avoid setting up callbacks with nullptr
+	// internal_on_activate.
+	Button(ecs::Manager& manager, bool);
+
+	void Setup();
+	void SetupCallbacks(const std::function<void()>& internal_on_activate);
 
 	void StateChange(impl::InternalButtonState new_state);
 
@@ -251,6 +273,9 @@ struct ToggleButton : public Button {
 	);
 
 	ToggleButton& OnToggle(const ButtonCallback& callback);
+
+private:
+	static void Toggle(const ecs::Entity& e);
 };
 
 /*

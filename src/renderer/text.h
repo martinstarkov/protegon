@@ -23,8 +23,8 @@ enum class TextJustify {
 	Right  = 2	// TTF_WRAPPED_ALIGN_RIGHT
 };
 
-struct TextContent : public StringViewComponent {
-	using StringViewComponent::StringViewComponent;
+struct TextContent : public StringComponent {
+	using StringComponent::StringComponent;
 };
 
 struct FontKey : public ArithmeticComponent<std::size_t> {
@@ -139,7 +139,7 @@ public:
 			}
 			return *this;
 		}
-		auto& t{ Get<T>() };
+		T& t{ Get<T>() };
 		if (t == value) {
 			return *this;
 		}

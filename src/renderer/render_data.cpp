@@ -403,9 +403,9 @@ void RenderData::AddRenderTarget(
 
 void RenderData::AddButton(
 	const Text* text, const Texture& texture, const V4_float& background_color,
-	float background_line_width, bool bordered, const V4_float& border_color,
-	float border_line_width, const V2_float& position, const V2_float& size, Origin origin,
-	const Depth& depth, BlendMode blend_mode, const V4_float& tint, float rotation
+	float background_line_width, const V4_float& border_color, float border_line_width,
+	const V2_float& position, const V2_float& size, Origin origin, const Depth& depth,
+	BlendMode blend_mode, const V4_float& tint, float rotation
 ) {
 	if (texture != Texture{}) {
 		AddTexture({}, texture, position, size, origin, depth, blend_mode, tint, rotation);
@@ -437,7 +437,7 @@ void RenderData::AddButton(
 			GetRotation(*text)
 		);
 	}
-	if (bordered && border_color != V4_float{}) {
+	if (border_color != V4_float{} && border_line_width != 0.0f) {
 		// TODO: Readd rounded buttons.
 		/*if (i.radius_ > 0.0f) {
 			RoundedRect r{ i.rect_.position, i.radius_, i.rect_.size, i.rect_.origin,
@@ -507,10 +507,41 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 			const auto& button_text{ o.Get<impl::ButtonText>() };
 			text = &button_text.GetValid(state);
 		}
+		// TODO: Move this all to a separate function.
+		// TODO: Reduce repeated code.
+		Color button_color;
+		if (o.Has<impl::ButtonToggled>() && o.Get<impl::ButtonToggled>() &&
+			o.Has<impl::ButtonColorToggled>()) {
+			button_color = o.Get<impl::ButtonColorToggled>().current_;
+		} else if (o.Has<impl::ButtonColor>()) {
+			button_color = o.Get<impl::ButtonColor>().current_;
+		}
+		Color border_color;
+		if (o.Has<impl::ButtonToggled>() && o.Get<impl::ButtonToggled>() &&
+			o.Has<impl::ButtonBorderColorToggled>()) {
+			border_color = o.Get<impl::ButtonBorderColorToggled>().current_;
+		} else if (o.Has<impl::ButtonBorderColor>()) {
+			border_color = o.Get<impl::ButtonBorderColor>().current_;
+		}
+		Color button_tint;
+		if (o.Has<impl::ButtonToggled>() && o.Get<impl::ButtonToggled>() &&
+			o.Has<impl::ButtonTintToggled>()) {
+			button_tint = o.Get<impl::ButtonTintToggled>().current_;
+		} else if (o.Has<impl::ButtonTint>()) {
+			button_tint = o.Get<impl::ButtonTint>().current_;
+		}
+		ButtonBackgroundWidth background_line_width;
+		if (o.Has<impl::ButtonBackgroundWidth>()) {
+			background_line_width = o.Get<impl::ButtonBackgroundWidth>();
+		}
+		ButtonBorderWidth border_width;
+		if (o.Has<impl::ButtonBorderWidth>()) {
+			border_width = o.Get<impl::ButtonBorderWidth>();
+		}
 		AddButton(
-			text, {}, o.Get<impl::ButtonColor>().current_.Normalized(), -1.0f, false, {}, -1.0f,
-			pos, size, origin, depth, blend_mode,
-			/*b.GetTint().Normalized() * */ tint, angle
+			text, {}, button_color.Normalized(), background_line_width, border_color.Normalized(),
+			border_width, pos, size, origin, depth, blend_mode, button_tint.Normalized() * tint,
+			angle
 		);
 		return;
 	}

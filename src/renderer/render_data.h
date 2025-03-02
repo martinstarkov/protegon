@@ -94,9 +94,9 @@ public:
 
 	void AddButton(
 		const Text* text, const Texture& texture, const V4_float& background_color,
-		float background_line_width, bool bordered, const V4_float& border_color,
-		float border_line_width, const V2_float& position, const V2_float& size, Origin origin,
-		const Depth& depth, BlendMode blend_mode, const V4_float& tint, float rotation
+		float background_line_width, const V4_float& border_color, float border_line_width,
+		const V2_float& position, const V2_float& size, Origin origin, const Depth& depth,
+		BlendMode blend_mode, const V4_float& tint, float rotation
 	);
 
 private:

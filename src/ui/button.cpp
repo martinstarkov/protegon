@@ -3,12 +3,10 @@
 #include <cstdint>
 #include <functional>
 #include <string>
-#include <string_view>
 #include <utility>
 
 #include "components/generic.h"
 #include "components/input.h"
-#include "components/transform.h"
 #include "core/game_object.h"
 #include "ecs/ecs.h"
 #include "event/mouse.h"
@@ -109,14 +107,23 @@ void ButtonText::Set(
 
 } // namespace impl
 
-Button::Button(ecs::Manager& manager) : GameObject{ manager } {
+Button::Button(ecs::Manager& manager, bool) : GameObject{ manager } {}
+
+Button::Button(ecs::Manager& manager) : Button{ manager, true } {
+	Setup();
+	SetupCallbacks(nullptr);
+}
+
+void Button::Setup() {
 	SetVisible(true);
 	SetEnabled(true);
 
 	Add<impl::ButtonTag>();
 	Add<Interactive>();
 	Add<impl::InternalButtonState>(impl::InternalButtonState::IdleUp);
+}
 
+void Button::SetupCallbacks(const std::function<void()>& internal_on_activate) {
 	Add<callback::MouseEnter>([e = GetEntity()](auto mouse) mutable {
 		const auto& state{ e.Get<impl::InternalButtonState>() };
 		if (state == impl::InternalButtonState::IdleUp) {
@@ -162,11 +169,14 @@ Button::Button(ecs::Manager& manager) : GameObject{ manager } {
 		}
 	});
 
-	Add<callback::MouseUp>([e = GetEntity()](auto mouse) mutable {
+	Add<callback::MouseUp>([internal_on_activate, e = GetEntity()](auto mouse) mutable {
 		if (mouse == Mouse::Left) {
 			const auto& state{ e.Get<impl::InternalButtonState>() };
 			if (state == impl::InternalButtonState::Pressed) {
 				StateChange(e, impl::InternalButtonState::Hover);
+				if (internal_on_activate != nullptr) {
+					std::invoke(internal_on_activate);
+				}
 				Activate(e);
 			} else if (state == impl::InternalButtonState::HoverPressed) {
 				StateChange(e, impl::InternalButtonState::Hover);
@@ -234,7 +244,9 @@ Color Button::GetBackgroundColor(ButtonState state) const {
 }
 
 Button& Button::SetBackgroundColor(const Color& color, ButtonState state) {
-	if (!Has<impl::ButtonColor>()) {
+	if (color == Color{}) {
+		Remove<impl::ButtonColor>();
+	} else if (!Has<impl::ButtonColor>()) {
 		Add<impl::ButtonColor>(color);
 	} else {
 		auto& c{ Get<impl::ButtonColor>() };
@@ -313,32 +325,37 @@ Button& Button::SetTexture(std::string_view texture_key, ButtonState state) {
 }
 
 Color Button::GetTint(ButtonState state) const {
-	// TODO: Fix.
-	return Tint();
+	const auto c{ Has<impl::ButtonTint>() ? Get<impl::ButtonTint>() : impl::ButtonTint{} };
+	return c.Get(state);
 }
 
 Button& Button::SetTint(const Color& color, ButtonState state) {
-	// TODO: insert return statement here
-	return *this;
-}
-
-bool Button::IsBordered() const {
-	// TODO: Fix.
-	return false;
-}
-
-Button& Button::SetBordered(bool bordered) {
-	// TODO: insert return statement here
+	if (color == Color{}) {
+		Remove<impl::ButtonTint>();
+	} else if (!Has<impl::ButtonTint>()) {
+		Add<impl::ButtonTint>(color);
+	} else {
+		auto& c{ Get<impl::ButtonTint>() };
+		c.Get(state) = color;
+	}
 	return *this;
 }
 
 Color Button::GetBorderColor(ButtonState state) const {
-	// TODO: Fix.
-	return Color();
+	const auto c{ Has<impl::ButtonBorderColor>() ? Get<impl::ButtonBorderColor>()
+												 : impl::ButtonBorderColor{} };
+	return c.Get(state);
 }
 
 Button& Button::SetBorderColor(const Color& color, ButtonState state) {
-	// TODO: insert return statement here
+	if (color == Color{}) {
+		Remove<impl::ButtonBorderColor>();
+	} else if (!Has<impl::ButtonBorderColor>()) {
+		Add<impl::ButtonBorderColor>(color);
+	} else {
+		auto& c{ Get<impl::ButtonBorderColor>() };
+		c.Get(state) = color;
+	}
 	return *this;
 }
 
@@ -373,22 +390,32 @@ Button& Button::SetFontSize(std::int32_t font_size) {
 }
 
 float Button::GetBackgroundLineWidth() const {
-	// TODO: Fix.
-	return -1.0f;
+	return Has<impl::ButtonBackgroundWidth>() ? Get<impl::ButtonBackgroundWidth>()
+											  : impl::ButtonBackgroundWidth{};
 }
 
 Button& Button::SetBackgroundLineWidth(float line_width) {
-	// TODO: insert return statement here
+	PTGN_ASSERT(line_width >= 0.0f || line_width == -1.0f, "Invalid button background line width");
+	if (line_width != -1.0f && line_width < 1.0f) {
+		Remove<impl::ButtonBackgroundWidth>();
+	} else {
+		Add<impl::ButtonBackgroundWidth>(line_width);
+	}
 	return *this;
 }
 
 float Button::GetBorderWidth() const {
-	// TODO: Fix.
-	return 0.0f;
+	return Has<impl::ButtonBorderWidth>() ? Get<impl::ButtonBorderWidth>()
+										  : impl::ButtonBorderWidth{};
 }
 
 Button& Button::SetBorderWidth(float line_width) {
-	// TODO: insert return statement here
+	PTGN_ASSERT(line_width >= 1.0f || line_width == 0.0f, "Cannot set negative border width");
+	if (line_width == 0.0f) {
+		Remove<impl::ButtonBorderWidth>();
+	} else {
+		Add<impl::ButtonBorderWidth>(line_width);
+	}
 	return *this;
 }
 
@@ -443,6 +470,9 @@ void Button::StateChange(const ecs::Entity& e, impl::InternalButtonState new_sta
 	if (e.Has<impl::ButtonColor>()) {
 		e.Get<impl::ButtonColor>().SetToState(state);
 	}
+	if (e.Has<impl::ButtonBorderColor>()) {
+		e.Get<impl::ButtonBorderColor>().SetToState(state);
+	}
 }
 
 void Button::Activate(const ecs::Entity& e) {
@@ -469,11 +499,10 @@ void Button::StopHover(const ecs::Entity& e) {
 	}
 }
 
-ToggleButton::ToggleButton(ecs::Manager& manager, bool toggled) : Button{ manager } {
-	if (!IsAlive()) {
-		return;
-	}
+ToggleButton::ToggleButton(ecs::Manager& manager, bool toggled) : Button{ manager, true } {
+	Button::Setup();
 	Add<impl::ButtonToggled>(toggled);
+	Button::SetupCallbacks([e = GetEntity()]() { Toggle(e); });
 }
 
 void ToggleButton::Activate() {
@@ -482,18 +511,28 @@ void ToggleButton::Activate() {
 }
 
 bool ToggleButton::IsToggled() const {
-	// TODO: Fix.
-	return false;
+	return Get<impl::ButtonToggled>();
 }
 
 ToggleButton& ToggleButton::Toggle() {
-	// TODO: insert return statement here
+	Toggle(GetEntity());
 	return *this;
 }
 
+void ToggleButton::Toggle(const ecs::Entity& e) {
+	auto& toggled{ e.Get<impl::ButtonToggled>() };
+	toggled = !toggled;
+	if (e.Has<impl::ButtonToggle>()) {
+		if (const auto& callback{ e.Get<impl::ButtonToggle>() }; callback != nullptr) {
+			callback();
+		}
+	}
+}
+
 Color ToggleButton::GetColorToggled(ButtonState state) const {
-	// TODO: Fix.
-	return Color();
+	const auto c{ Has<impl::ButtonColorToggled>() ? Get<impl::ButtonColorToggled>()
+												  : impl::ButtonColorToggled{} };
+	return c.Get(state);
 }
 
 ToggleButton& ToggleButton::SetColorToggled(const Color& color, ButtonState state) {
@@ -527,17 +566,29 @@ ToggleButton& ToggleButton::SetTextContentToggled(const std::string& content, Bu
 }
 
 Color ToggleButton::GetBorderColorToggled(ButtonState state) const {
-	// TODO: Fix.
-	return Color();
+	const auto c{ Has<impl::ButtonBorderColorToggled>() ? Get<impl::ButtonBorderColorToggled>()
+														: impl::ButtonBorderColorToggled{} };
+	return c.Get(state);
 }
 
 ToggleButton& ToggleButton::SetBorderColorToggled(const Color& color, ButtonState state) {
-	// TODO: insert return statement here
+	if (color == Color{}) {
+		Remove<impl::ButtonBorderColorToggled>();
+	} else if (!Has<impl::ButtonBorderColorToggled>()) {
+		Add<impl::ButtonBorderColorToggled>(color);
+	} else {
+		auto& c{ Get<impl::ButtonBorderColorToggled>() };
+		c.Get(state) = color;
+	}
 	return *this;
 }
 
 ToggleButton& ToggleButton::OnToggle(const ButtonCallback& callback) {
-	// TODO: insert return statement here
+	if (callback == nullptr) {
+		Remove<impl::ButtonToggle>();
+	} else {
+		Add<impl::ButtonToggle>(callback);
+	}
 	return *this;
 }
 
@@ -552,12 +603,20 @@ ToggleButton& ToggleButton::SetTextureToggled(std::string_view texture_key, Butt
 }
 
 Color ToggleButton::GetTintToggled(ButtonState state) const {
-	// TODO: Fix.
-	return Color();
+	const auto c{ Has<impl::ButtonTintToggled>() ? Get<impl::ButtonTintToggled>()
+												 : impl::ButtonTintToggled{} };
+	return c.Get(state);
 }
 
 ToggleButton& ToggleButton::SetTintToggled(const Color& color, ButtonState state) {
-	// TODO: insert return statement here
+	if (color == Color{}) {
+		Remove<impl::ButtonTintToggled>();
+	} else if (!Has<impl::ButtonTintToggled>()) {
+		Add<impl::ButtonTintToggled>(color);
+	} else {
+		auto& c{ Get<impl::ButtonTintToggled>() };
+		c.Get(state) = color;
+	}
 	return *this;
 }
 

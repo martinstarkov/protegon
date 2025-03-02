@@ -27,7 +27,6 @@ Button CreateButton(
 	b.SetBackgroundColor(bg_color);
 	b.SetBackgroundColor(color::Gray, ButtonState::Hover);
 	b.SetBackgroundColor(color::DarkGray, ButtonState::Pressed);
-	b.SetBordered(true);
 	b.SetBorderColor(color::LightGray);
 	b.SetBorderWidth(3.0f);
 	b.SetText(content, color::Black);
@@ -307,7 +306,6 @@ public:
 	}
 
 	void Update() override {
-		/*
 		b1->SetTextContent(std::string("Music Volume: ") + std::to_string(game.music.GetVolume()));
 		b2->SetTextContent(
 			std::string("Music Is Playing: ") + (game.music.IsPlaying() ? "true" : "false")
@@ -342,7 +340,6 @@ public:
 		b12->SetTextContent(
 			std::string("Channel 2 Fading: ") + (game.sound.IsFading(channel2) ? "true" : "false")
 		);
-		*/
 	}
 };
 

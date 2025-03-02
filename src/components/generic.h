@@ -47,16 +47,16 @@ private:
 	Vector2<T> value_{ 0 };
 };
 
-struct StringViewComponent {
-	StringViewComponent() = default;
+struct StringComponent {
+	StringComponent() = default;
 
-	StringViewComponent(std::string_view value) : value_{ value } {}
+	StringComponent(std::string_view value) : value_{ value } {}
 
-	bool operator==(const StringViewComponent& other) const {
+	bool operator==(const StringComponent& other) const {
 		return value_ == other.value_;
 	}
 
-	bool operator!=(const StringViewComponent& other) const {
+	bool operator!=(const StringComponent& other) const {
 		return !(*this == other);
 	}
 
@@ -65,7 +65,7 @@ struct StringViewComponent {
 	}
 
 private:
-	std::string_view value_{};
+	std::string value_;
 };
 
 template <typename TReturn, typename... TArgs>
