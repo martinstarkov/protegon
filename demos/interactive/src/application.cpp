@@ -55,7 +55,7 @@ struct InteractiveComponentScene : public Scene {
 		auto c1 = manager.CreateEntity();
 		c1.Add<Circle>(45.0f);
 		c1.Add<Transform>(center + V2_float{ 200, 200 });
-		c1.Add<InteractiveRadius>(90.0f);
+		c1.Add<InteractiveCircle>(90.0f);
 		c1.Add<Tint>(color::LightGreen);
 		c1.Add<Visible>();
 		c1.Add<Interactive>();
@@ -106,7 +106,7 @@ struct InteractiveComponentScene : public Scene {
 		auto r1 = manager.CreateEntity();
 		V2_float r1size{ r1.Add<Rect>(V2_float{ 100, 50 }, Origin::Center).size };
 		r1.Add<Transform>(center + V2_float{ -200, 200 });
-		r1.Add<InteractiveSize>(r1size * 2.0f);
+		r1.Add<InteractiveRect>(r1size * 2.0f);
 		r1.Add<Tint>(color::LightBlue);
 		r1.Add<Visible>();
 		r1.Add<Interactive>();
@@ -176,7 +176,7 @@ struct InteractiveComponentScene : public Scene {
 		auto c3 = CreateSprite(manager, "drag_circle");
 		c3.Add<Transform>(center + V2_float{ 0, 0 });
 		c3.Add<Origin>(Origin::Center);
-		c3.Add<InteractiveRadius>(game.texture.GetSize("drag_circle").x * 0.5f);
+		c3.Add<InteractiveCircle>(game.texture.GetSize("drag_circle").x * 0.5f);
 		c3.Add<Interactive>();
 		c3.Add<Draggable>();
 		c3.Add<callback::Drag>([=](auto mouse) mutable {

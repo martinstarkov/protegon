@@ -4,6 +4,8 @@
 #include "ecs/ecs.h"
 #include "event/key.h"
 #include "event/mouse.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/polygon.h"
 #include "math/vector2.h"
 
 namespace ptgn {
@@ -24,11 +26,15 @@ struct Draggable {
 	bool dragging{ false };
 };
 
-struct InteractiveRadius : public ArithmeticComponent<float> {
-	using ArithmeticComponent::ArithmeticComponent;
+struct InteractiveCircle : public Circle {
+	using Circle::Circle;
 };
 
-struct InteractiveSize : public Vector2Component<float> {
+struct InteractiveRect : public Rect {
+	using Rect::Rect;
+};
+
+struct InteractiveOffset : public Vector2Component<float> {
 	using Vector2Component::Vector2Component;
 };
 
