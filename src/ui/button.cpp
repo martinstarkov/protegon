@@ -4,6 +4,7 @@
 #include <functional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "components/generic.h"
 #include "components/input.h"
@@ -207,6 +208,26 @@ void Button::SetupCallbacks(const std::function<void()>& internal_on_activate) {
 			}
 		}
 	});
+}
+
+Button& Button::AddInteractableRect(const V2_float& size, Origin origin, const V2_float& offset) {
+	if (Has<InteractiveRects>()) {
+		auto& interactives{ Get<InteractiveRects>() };
+		interactives.rects.push_back({ Rect{ size, origin }, offset });
+	} else {
+		Add<InteractiveRects>(size, origin, offset);
+	}
+	return *this;
+}
+
+Button& Button::AddInteractableCircle(float radius, const V2_float& offset) {
+	if (Has<InteractiveCircles>()) {
+		auto& interactives{ Get<InteractiveCircles>() };
+		interactives.circles.push_back({ Circle{ radius }, offset });
+	} else {
+		Add<InteractiveCircles>(radius, offset);
+	}
+	return *this;
 }
 
 Button& Button::SetRect(const V2_float& size, Origin origin) {

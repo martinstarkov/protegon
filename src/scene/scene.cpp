@@ -111,46 +111,66 @@ void Scene::InternalLoad() {
 
 	auto PointerIsInside = [](const V2_float& pointer, ecs::Entity entity) {
 		// TODO: Move this function elsewhere.
-		bool is_circle{ entity.Has<InteractiveCircle>() };
-		bool is_rect{ entity.Has<InteractiveRect>() };
+		bool is_circle{ entity.Has<InteractiveCircles>() };
+		bool is_rect{ entity.Has<InteractiveRects>() };
 		PTGN_ASSERT(
 			!(is_rect && is_circle),
 			"Entity cannot have both an interactive radius and an interactive size"
 		);
 		auto scale{ GetScale(entity) };
-		V2_float interactive_offset{ entity.Has<InteractiveOffset>()
-										 ? entity.Get<InteractiveOffset>()
-										 : InteractiveOffset{} };
-		interactive_offset *= scale;
-		auto pos{ GetPosition(entity) + interactive_offset };
+		auto pos{ GetPosition(entity) };
 		auto origin{ GetOrigin(entity) };
-		if (is_rect) {
-			auto interactive{ entity.Get<InteractiveRect>() };
-			auto size{ interactive.size * scale };
-			origin = interactive.origin;
-			auto center{ pos + GetOriginOffset(origin, size) };
-			if (!size.IsZero()) {
-				return impl::OverlapPointRect(pointer, center, size, GetRotation(entity));
+		if (is_rect || is_circle) {
+			std::size_t count{ 0 };
+			if (is_rect) {
+				auto rotation{ GetRotation(entity) };
+				const auto& interactives{ entity.Get<InteractiveRects>() };
+				count += interactives.rects.size();
+				for (const auto& interactive : interactives.rects) {
+					auto size{ interactive.rect.size * scale };
+					origin = interactive.rect.origin;
+					auto center{ pos + interactive.offset * scale + GetOriginOffset(origin, size) };
+					if (impl::OverlapPointRect(pointer, center, size, rotation)) {
+						return true;
+					}
+				}
 			}
-		} else if (is_circle) {
-			auto interactive{ entity.Get<InteractiveCircle>() };
-			auto radius{ interactive.radius * scale.x };
-			return impl::OverlapPointCircle(pointer, pos, radius);
+			if (is_circle) {
+				const auto& interactives{ entity.Get<InteractiveCircles>() };
+				count += interactives.circles.size();
+				for (const auto& interactive : interactives.circles) {
+					auto radius{ interactive.circle.radius * scale.x };
+					if (impl::OverlapPointCircle(
+							pointer, pos + interactive.offset * scale, radius
+						)) {
+						return true;
+					}
+				}
+			}
+			if (count) {
+				return false;
+			}
 		}
 		is_circle = entity.Has<Circle>();
 		is_rect	  = entity.Has<Rect>();
 		// Prioritize circle interactable.
-		if (is_circle) {
-			const auto& c{ entity.Get<Circle>() };
-			return impl::OverlapPointCircle(pointer, pos, c.radius * scale.x);
-		} else if (is_rect) {
-			const auto& r{ entity.Get<Rect>() };
-			auto size{ r.size * scale };
-			origin = r.origin;
-			auto center{ pos + GetOriginOffset(origin, r.size) };
-			if (!size.IsZero()) {
-				return impl::OverlapPointRect(pointer, center, size, GetRotation(entity));
+		if (is_circle || is_rect) {
+			if (is_circle) {
+				const auto& c{ entity.Get<Circle>() };
+				if (impl::OverlapPointCircle(pointer, pos, c.radius * scale.x)) {
+					return true;
+				}
 			}
+			if (is_rect) {
+				const auto& r{ entity.Get<Rect>() };
+				auto size{ r.size * scale };
+				origin = r.origin;
+				auto center{ pos + GetOriginOffset(origin, r.size) };
+				if (impl::OverlapPointRect(pointer, center, size, GetRotation(entity))) {
+					return true;
+				}
+			}
+			return false;
 		}
 
 		if (entity.Has<TextureKey>()) {

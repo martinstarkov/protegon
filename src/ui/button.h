@@ -155,6 +155,11 @@ struct Button : public GameObject {
 	Button& operator=(Button&&) noexcept = default;
 	virtual ~Button()					 = default;
 
+	Button& AddInteractableRect(
+		const V2_float& size, Origin origin = Origin::Center, const V2_float& offset = {}
+	);
+	Button& AddInteractableCircle(float radius, const V2_float& offset = {});
+
 	Button& SetRect(const V2_float& size, Origin origin = Origin::Center);
 	Button& SetCircle(float radius);
 

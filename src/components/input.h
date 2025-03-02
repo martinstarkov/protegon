@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include "components/generic.h"
 #include "ecs/ecs.h"
 #include "event/key.h"
@@ -7,6 +9,7 @@
 #include "math/geometry/circle.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
+#include "renderer/origin.h"
 
 namespace ptgn {
 
@@ -26,16 +29,32 @@ struct Draggable {
 	bool dragging{ false };
 };
 
-struct InteractiveCircle : public Circle {
-	using Circle::Circle;
+struct InteractiveCircles {
+	struct InteractiveCircle {
+		Circle circle;
+		V2_float offset;
+	};
+
+	InteractiveCircles() = default;
+
+	InteractiveCircles(float radius, const V2_float& offset) :
+		circles{ InteractiveCircle{ Circle{ radius }, offset } } {}
+
+	std::vector<InteractiveCircle> circles;
 };
 
-struct InteractiveRect : public Rect {
-	using Rect::Rect;
-};
+struct InteractiveRects {
+	struct InteractiveRect {
+		Rect rect;
+		V2_float offset;
+	};
 
-struct InteractiveOffset : public Vector2Component<float> {
-	using Vector2Component::Vector2Component;
+	InteractiveRects() = default;
+
+	InteractiveRects(const V2_float& size, Origin origin, const V2_float& offset) :
+		rects{ InteractiveRect{ Rect{ size, origin }, offset } } {}
+
+	std::vector<InteractiveRect> rects;
 };
 
 namespace callback {
