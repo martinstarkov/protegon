@@ -166,6 +166,9 @@ bool OverlapPointTriangle(
 }
 
 bool OverlapPointCircle(const V2_float& point, const V2_float& circle_center, float circle_radius) {
+	if (circle_radius <= 0.0f) {
+		return false;
+	}
 #ifdef PTGN_DEBUG
 	game.stats.overlap_point_circle++;
 #endif
@@ -177,6 +180,9 @@ bool OverlapPointRect(
 	const V2_float& point, const V2_float& rect_center, const V2_float& rect_size,
 	float rect_rotation
 ) {
+	if (rect_size.IsZero()) {
+		return false;
+	}
 #ifdef PTGN_DEBUG
 	game.stats.overlap_point_rect++;
 #endif
@@ -214,6 +220,9 @@ bool OverlapPointCapsule(
 	const V2_float& point, const V2_float& capsule_start, const V2_float& capsule_end,
 	float capsule_radius
 ) {
+	if (capsule_radius <= 0.0f) {
+		return false;
+	}
 #ifdef PTGN_DEBUG
 	game.stats.overlap_point_capsule++;
 #endif
@@ -312,6 +321,9 @@ bool OverlapLineCircle(
 	const V2_float& line_start, const V2_float& line_end, const V2_float& circle_center,
 	float circle_radius
 ) {
+	if (circle_radius <= 0.0f) {
+		return false;
+	}
 #ifdef PTGN_DEBUG
 	game.stats.overlap_line_circle++;
 #endif
@@ -361,6 +373,9 @@ bool OverlapLineRect(
 	const V2_float& line_start, const V2_float& line_end, const V2_float& rect_center,
 	const V2_float& rect_size
 ) {
+	if (rect_size.IsZero()) {
+		return false;
+	}
 #ifdef PTGN_DEBUG
 	game.stats.overlap_line_rect++;
 #endif
@@ -407,6 +422,9 @@ bool OverlapLineCapsule(
 	const V2_float& line_start, const V2_float& line_end, const V2_float& capsule_start,
 	const V2_float& capsule_end, float capsule_radius
 ) {
+	if (capsule_radius <= 0.0f) {
+		return false;
+	}
 #ifdef PTGN_DEBUG
 	game.stats.overlap_line_capsule++;
 #endif
@@ -463,6 +481,9 @@ bool OverlapCircleTriangle(
 	const V2_float& circle_center, float circle_radius, const V2_float& triangle_a,
 	const V2_float& triangle_b, const V2_float& triangle_c
 ) {
+	if (circle_radius <= 0.0f) {
+		return false;
+	}
 	return OverlapPointTriangle(circle_center, triangle_a, triangle_b, triangle_c) ||
 		   OverlapLineCircle(triangle_a, triangle_b, circle_center, circle_radius) ||
 		   OverlapLineCircle(triangle_b, triangle_c, circle_center, circle_radius) ||
@@ -473,6 +494,12 @@ bool OverlapCircleRect(
 	const V2_float& circle_center, float circle_radius, const V2_float& rect_center,
 	const V2_float& rect_size
 ) {
+	if (circle_radius <= 0.0f) {
+		return false;
+	}
+	if (rect_size.IsZero()) {
+		return false;
+	}
 #ifdef PTGN_DEBUG
 	game.stats.overlap_circle_rect++;
 #endif
@@ -493,6 +520,9 @@ bool OverlapCirclePolygon(
 	const V2_float& circle_center, float circle_radius, const V2_float* polygon_vertices,
 	std::size_t polygon_vertex_count
 ) {
+	if (circle_radius <= 0.0f) {
+		return false;
+	}
 	if (OverlapPointPolygon(circle_center, polygon_vertices, polygon_vertex_count)) {
 		return true;
 	}
@@ -515,6 +545,12 @@ bool OverlapCircleCapsule(
 	const V2_float& circle_center, float circle_radius, const V2_float& capsule_start,
 	const V2_float& capsule_end, float capsule_radius
 ) {
+	if (circle_radius <= 0.0f) {
+		return false;
+	}
+	if (capsule_radius <= 0.0f) {
+		return false;
+	}
 #ifdef PTGN_DEBUG
 	game.stats.overlap_circle_capsule++;
 #endif
@@ -542,6 +578,9 @@ bool OverlapTriangleRect(
 	const V2_float& triangle_a, const V2_float& triangle_b, const V2_float& triangle_c,
 	const V2_float& rect_center, const V2_float& rect_size, float rect_rotation
 ) {
+	if (rect_size.IsZero()) {
+		return false;
+	}
 #ifdef PTGN_DEBUG
 	game.stats.overlap_triangle_rect++;
 #endif
@@ -626,6 +665,12 @@ bool OverlapRectCapsule(
 	const V2_float& rect_center, const V2_float& rect_size, float rect_rotation,
 	const V2_float& capsule_start, const V2_float& capsule_end, float capsule_radius
 ) {
+	if (capsule_radius <= 0.0f) {
+		return false;
+	}
+	if (rect_size.IsZero()) {
+		return false;
+	}
 #ifdef PTGN_DEBUG
 	game.stats.overlap_rect_capsule++;
 #endif
@@ -694,6 +739,9 @@ bool OverlapRectPolygon(
 	const V2_float& rect_center, const V2_float& rect_size, float rect_rotation,
 	const V2_float* vertices, std::size_t vertex_count
 ) {
+	if (rect_size.IsZero()) {
+		return false;
+	}
 	auto rect_polygon{
 		impl::GetVertices({ rect_center, rect_rotation }, { rect_size, Origin::Center })
 	};
