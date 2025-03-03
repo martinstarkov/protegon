@@ -107,10 +107,12 @@ public:
 	// text wrapped to multiple lines on line endings and on word boundaries if it extends beyond
 	// this pixel value. Setting pixels = 0 (default) will wrap only after newlines.
 	Text& SetWrapAfter(std::uint32_t pixels);
+
 	// Set the spacing between lines of text. Infinity will use the current font line skip.
 	Text& SetLineSkip(std::int32_t pixels);
 
-	Text& SetWrapAlignment(TextJustify wrap_alignment);
+	// Determines how text is justified.
+	Text& SetTextJustify(TextJustify text_justify);
 
 	[[nodiscard]] std::size_t GetFontKey() const;
 	[[nodiscard]] std::string_view GetContent() const;
@@ -118,6 +120,7 @@ public:
 	[[nodiscard]] FontStyle GetFontStyle() const;
 	[[nodiscard]] FontRenderMode GetFontRenderMode() const;
 	[[nodiscard]] Color GetShadingColor() const;
+	[[nodiscard]] TextJustify GetTextJustify() const;
 	[[nodiscard]] const impl::Texture& GetTexture() const;
 
 	[[nodiscard]] std::int32_t GetFontSize() const;

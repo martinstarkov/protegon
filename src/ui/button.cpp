@@ -63,11 +63,14 @@ const Text& ButtonText::Get(ButtonState state) const {
 }
 
 const Text& ButtonText::GetValid(ButtonState state) const {
-	auto* text{ &Get(state) };
-	if (*text == Text{}) {
-		text = &Get(ButtonState::Default);
+	if (state == ButtonState::Current) {
+		return Get(ButtonState::Default);
 	}
-	return *text;
+	const Text& text{ Get(state) };
+	if (text == Text{}) {
+		return Get(ButtonState::Default);
+	}
+	return text;
 }
 
 Text& ButtonText::GetValid(ButtonState state) {
@@ -78,12 +81,20 @@ Text& ButtonText::Get(ButtonState state) {
 	return const_cast<Text&>(std::as_const(*this).Get(state));
 }
 
-Color ButtonText::GetColor(ButtonState state) const {
+Color ButtonText::GetTextColor(ButtonState state) const {
 	return GetValid(state).GetColor();
 }
 
-std::string_view ButtonText::GetContent(ButtonState state) const {
+std::string_view ButtonText::GetTextContent(ButtonState state) const {
 	return GetValid(state).GetContent();
+}
+
+std::int32_t ButtonText::GetFontSize(ButtonState state) const {
+	return GetValid(state).GetFontSize();
+}
+
+TextJustify ButtonText::GetTextJustify(ButtonState state) const {
+	return GetValid(state).GetTextJustify();
 }
 
 void ButtonText::Set(
@@ -314,7 +325,7 @@ Text& Button::GetText(ButtonState state) {
 }
 
 Color Button::GetTextColor(ButtonState state) const {
-	return Get<impl::ButtonText>().GetColor(state);
+	return Get<impl::ButtonText>().GetTextColor(state);
 }
 
 Button& Button::SetTextColor(const Color& color, ButtonState state) {
@@ -330,7 +341,7 @@ Button& Button::SetTextColor(const Color& color, ButtonState state) {
 }
 
 std::string_view Button::GetTextContent(ButtonState state) const {
-	return Get<impl::ButtonText>().GetContent(state);
+	return Get<impl::ButtonText>().GetTextContent(state);
 }
 
 Button& Button::SetTextContent(std::string_view content, ButtonState state) {
@@ -341,6 +352,56 @@ Button& Button::SetTextContent(std::string_view content, ButtonState state) {
 	} else {
 		auto& c{ Get<impl::ButtonText>() };
 		c.Get(state).SetContent(content);
+	}
+	return *this;
+}
+
+TextJustify Button::GetTextJustify(ButtonState state) const {
+	return Get<impl::ButtonText>().GetTextJustify(state);
+}
+
+Button& Button::SetTextJustify(const TextJustify& justify, ButtonState state) {
+	if (!Has<impl::ButtonText>()) {
+		auto& c{ Add<impl::ButtonText>(
+			GetEntity(), GetManager(), state, TextContent{}, TextColor{}, FontKey{}
+		) };
+		c.Get(state).SetTextJustify(justify);
+	} else {
+		auto& c{ Get<impl::ButtonText>() };
+		c.Get(state).SetTextJustify(justify);
+	}
+	return *this;
+}
+
+V2_float Button::GetTextFixedSize() const {
+	return Has<impl::ButtonTextFixedSize>() ? Get<impl::ButtonTextFixedSize>()
+											: impl::ButtonTextFixedSize{};
+}
+
+Button& Button::SetTextFixedSize(const V2_float& size) {
+	PTGN_ASSERT(size.x >= 0.0f && size.y >= 0.0f, "Invalid button text fixed size");
+	Add<impl::ButtonTextFixedSize>(size);
+	return *this;
+}
+
+Button& Button::ClearTextFixedSize() {
+	Remove<impl::ButtonTextFixedSize>();
+	return *this;
+}
+
+std::int32_t Button::GetFontSize(ButtonState state) const {
+	return Get<impl::ButtonText>().GetFontSize(state);
+}
+
+Button& Button::SetFontSize(std::int32_t font_size, ButtonState state) {
+	if (!Has<impl::ButtonText>()) {
+		auto& c{ Add<impl::ButtonText>(
+			GetEntity(), GetManager(), state, TextContent{}, TextColor{}, FontKey{}
+		) };
+		c.Get(state).SetFontSize(font_size);
+	} else {
+		auto& c{ Get<impl::ButtonText>() };
+		c.Get(state).SetFontSize(font_size);
 	}
 	return *this;
 }
@@ -406,36 +467,6 @@ Button& Button::SetBorderColor(const Color& color, ButtonState state) {
 		auto& c{ Get<impl::ButtonBorderColor>() };
 		c.Get(state) = color;
 	}
-	return *this;
-}
-
-TextJustify Button::GetTextJustify() const {
-	// TODO: Fix.
-	return TextJustify();
-}
-
-Button& Button::SetTextJustify(const TextJustify& justify) {
-	// TODO: insert return statement here
-	return *this;
-}
-
-V2_float Button::GetTextSize() const {
-	// TODO: Fix.
-	return V2_float();
-}
-
-Button& Button::SetTextSize(const V2_float& size) {
-	// TODO: insert return statement here
-	return *this;
-}
-
-std::int32_t Button::GetFontSize() const {
-	// TODO: Fix.
-	return std::int32_t();
-}
-
-Button& Button::SetFontSize(std::int32_t font_size) {
-	// TODO: insert return statement here
 	return *this;
 }
 
@@ -598,13 +629,13 @@ void ToggleButton::Toggle(const ecs::Entity& e) {
 	}
 }
 
-Color ToggleButton::GetColorToggled(ButtonState state) const {
+Color ToggleButton::GetBackgroundColorToggled(ButtonState state) const {
 	const auto c{ Has<impl::ButtonColorToggled>() ? Get<impl::ButtonColorToggled>()
 												  : impl::ButtonColorToggled{} };
 	return c.Get(state);
 }
 
-ToggleButton& ToggleButton::SetColorToggled(const Color& color, ButtonState state) {
+ToggleButton& ToggleButton::SetBackgroundColorToggled(const Color& color, ButtonState state) {
 	if (!Has<impl::ButtonColorToggled>()) {
 		Add<impl::ButtonColorToggled>(color);
 	} else {
@@ -615,23 +646,61 @@ ToggleButton& ToggleButton::SetColorToggled(const Color& color, ButtonState stat
 }
 
 Color ToggleButton::GetTextColorToggled(ButtonState state) const {
-	// TODO: Fix.
-	return Color();
+	return Get<impl::ButtonTextToggled>().GetTextColor(state);
 }
 
 ToggleButton& ToggleButton::SetTextColorToggled(const Color& color, ButtonState state) {
-	// TODO: insert return statement here
+	if (!Has<impl::ButtonTextToggled>()) {
+		Add<impl::ButtonTextToggled>(
+			GetEntity(), GetManager(), state, TextContent{}, TextColor{ color }, FontKey{}
+		);
+	} else {
+		auto& c{ Get<impl::ButtonTextToggled>() };
+		c.Get(state).SetColor(color);
+	}
 	return *this;
 }
 
-std::string ToggleButton::GetTextContentToggled(ButtonState state) const {
-	// TODO: Fix.
-	return std::string();
+std::string_view ToggleButton::GetTextContentToggled(ButtonState state) const {
+	return Get<impl::ButtonTextToggled>().GetTextContent(state);
 }
 
-ToggleButton& ToggleButton::SetTextContentToggled(const std::string& content, ButtonState state) {
-	// TODO: insert return statement here
+ToggleButton& ToggleButton::SetTextContentToggled(std::string_view content, ButtonState state) {
+	if (!Has<impl::ButtonTextToggled>()) {
+		Add<impl::ButtonTextToggled>(
+			GetEntity(), GetManager(), state, TextContent{ content }, TextColor{}, FontKey{}
+		);
+	} else {
+		auto& c{ Get<impl::ButtonTextToggled>() };
+		c.Get(state).SetContent(content);
+	}
 	return *this;
+}
+
+ToggleButton& ToggleButton::SetTextToggled(
+	std::string_view content, const Color& text_color, std::string_view font_key, ButtonState state
+) {
+	if (!Has<impl::ButtonTextToggled>()) {
+		Add<impl::ButtonTextToggled>(
+			GetEntity(), GetManager(), state, TextContent{ content }, TextColor{ text_color },
+			FontKey{ font_key }
+		);
+	} else {
+		auto& c{ Get<impl::ButtonTextToggled>() };
+		c.Set(
+			GetEntity(), GetManager(), state, TextContent{ content }, TextColor{ text_color },
+			FontKey{ font_key }
+		);
+	}
+	return *this;
+}
+
+const Text& ToggleButton::GetTextToggled(ButtonState state) const {
+	return Get<impl::ButtonText>().Get(state);
+}
+
+Text& ToggleButton::GetTextToggled(ButtonState state) {
+	return const_cast<Text&>(std::as_const(*this).GetTextToggled(state));
 }
 
 Color ToggleButton::GetBorderColorToggled(ButtonState state) const {

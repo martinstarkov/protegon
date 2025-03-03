@@ -15,6 +15,7 @@
 #include "renderer/origin.h"
 #include "renderer/text.h"
 #include "renderer/texture.h"
+#include "utility/log.h"
 
 namespace ptgn {
 
@@ -62,6 +63,10 @@ enum class InternalButtonState : std::size_t {
 	HoverPressed = 5
 };
 
+struct ButtonTextFixedSize : public Vector2Component<float> {
+	using Vector2Component::Vector2Component;
+};
+
 struct ButtonBorderWidth : public ArithmeticComponent<float> {
 	using ArithmeticComponent::ArithmeticComponent;
 
@@ -91,17 +96,27 @@ struct ButtonColor {
 	Color pressed_;
 };
 
-struct ButtonColorToggled : public ButtonColor {};
+struct ButtonColorToggled : public ButtonColor {
+	using ButtonColor::ButtonColor;
+};
 
 struct ButtonTint : public ButtonColor {
+	using ButtonColor::ButtonColor;
+
 	ButtonTint() : ButtonColor{ color::White } {}
 };
 
-struct ButtonTintToggled : public ButtonTint {};
+struct ButtonTintToggled : public ButtonTint {
+	using ButtonTint::ButtonTint;
+};
 
-struct ButtonBorderColor : public ButtonColor {};
+struct ButtonBorderColor : public ButtonColor {
+	using ButtonColor::ButtonColor;
+};
 
-struct ButtonBorderColorToggled : public ButtonBorderColor {};
+struct ButtonBorderColorToggled : public ButtonBorderColor {
+	using ButtonBorderColor::ButtonBorderColor;
+};
 
 struct ButtonTexture {
 	ButtonTexture() = default;
@@ -116,7 +131,9 @@ struct ButtonTexture {
 	TextureKey pressed_;
 };
 
-struct ButtonTextureToggled : public ButtonTexture {};
+struct ButtonTextureToggled : public ButtonTexture {
+	using ButtonTexture::ButtonTexture;
+};
 
 struct ButtonText {
 	ButtonText(
@@ -124,8 +141,10 @@ struct ButtonText {
 		const TextContent& text_content, const TextColor& text_color, const FontKey& font_key
 	);
 
-	[[nodiscard]] Color GetColor(ButtonState state) const;
-	[[nodiscard]] std::string_view GetContent(ButtonState state) const;
+	[[nodiscard]] Color GetTextColor(ButtonState state) const;
+	[[nodiscard]] std::string_view GetTextContent(ButtonState state) const;
+	[[nodiscard]] std::int32_t GetFontSize(ButtonState state) const;
+	[[nodiscard]] TextJustify GetTextJustify(ButtonState state) const;
 	[[nodiscard]] const Text& Get(ButtonState state) const;
 	[[nodiscard]] const Text& GetValid(ButtonState state) const;
 	[[nodiscard]] Text& GetValid(ButtonState state);
@@ -140,7 +159,9 @@ struct ButtonText {
 	Text pressed_;
 };
 
-struct ButtonTextToggled : public ButtonText {};
+struct ButtonTextToggled : public ButtonText {
+	using ButtonText::ButtonText;
+};
 
 } // namespace impl
 
@@ -174,10 +195,6 @@ struct Button : public GameObject {
 
 	Button& SetBackgroundColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] Color GetTextColor(ButtonState state = ButtonState::Current) const;
-
-	Button& SetTextColor(const Color& color, ButtonState state = ButtonState::Default);
-
 	[[nodiscard]] TextureKey GetTextureKey(ButtonState state = ButtonState::Current) const;
 
 	Button& SetTextureKey(std::string_view texture_key, ButtonState state = ButtonState::Default);
@@ -186,9 +203,31 @@ struct Button : public GameObject {
 
 	Button& SetTint(const Color& color, ButtonState state = ButtonState::Default);
 
+	[[nodiscard]] Color GetTextColor(ButtonState state = ButtonState::Current) const;
+
+	Button& SetTextColor(const Color& color, ButtonState state = ButtonState::Default);
+
 	[[nodiscard]] std::string_view GetTextContent(ButtonState state = ButtonState::Current) const;
 
 	Button& SetTextContent(std::string_view content, ButtonState state = ButtonState::Default);
+
+	[[nodiscard]] TextJustify GetTextJustify(ButtonState state = ButtonState::Current) const;
+
+	Button& SetTextJustify(const TextJustify& justify, ButtonState state = ButtonState::Default);
+
+	[[nodiscard]] V2_float GetTextFixedSize() const;
+
+	// (default: unscaled text size). If either axis of the text size
+	// is zero, it is stretched to fit the entire size of the button rectangle (along that axis).
+	Button& SetTextFixedSize(const V2_float& size);
+
+	// Make it so the button text no longer has a fixed size, this will cause the text to stretch
+	// based its the font size and wrap settings.
+	Button& ClearTextFixedSize();
+
+	[[nodiscard]] std::int32_t GetFontSize(ButtonState state = ButtonState::Current) const;
+
+	Button& SetFontSize(std::int32_t font_size, ButtonState state = ButtonState::Default);
 
 	Button& SetText(
 		std::string_view content, const Color& text_color = color::Black,
@@ -202,20 +241,6 @@ struct Button : public GameObject {
 
 	Button& SetBorderColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] TextJustify GetTextJustify() const;
-
-	Button& SetTextJustify(const TextJustify& justify);
-
-	[[nodiscard]] V2_float GetTextSize() const;
-
-	// (default: unscaled text size). If either axis of the text size
-	// is zero, it is stretched to fit the entire size of the button rectangle (along that axis).
-	Button& SetTextSize(const V2_float& size);
-
-	[[nodiscard]] std::int32_t GetFontSize() const;
-
-	Button& SetFontSize(std::int32_t font_size);
-
 	[[nodiscard]] float GetBackgroundLineWidth() const;
 
 	// If -1 (default), button background is a solid rectangle, otherwise uses the specified line
@@ -225,8 +250,6 @@ struct Button : public GameObject {
 	[[nodiscard]] float GetBorderWidth() const;
 
 	Button& SetBorderWidth(float line_width);
-
-	// TODO: Add SetRadius() to turn button into rounded rectangle.
 
 	Button& OnHoverStart(const ButtonCallback& callback);
 	Button& OnHoverStop(const ButtonCallback& callback);
@@ -265,15 +288,11 @@ struct ToggleButton : public Button {
 
 	ToggleButton& Toggle();
 
-	[[nodiscard]] Color GetColorToggled(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] Color GetBackgroundColorToggled(ButtonState state = ButtonState::Current) const;
 
-	ToggleButton& SetColorToggled(const Color& color, ButtonState state = ButtonState::Default);
-
-	[[nodiscard]] Color GetTextColorToggled(ButtonState state = ButtonState::Current) const;
-
-	// TODO: Add SetTextToggled(content, color, font, state);
-
-	ToggleButton& SetTextColorToggled(const Color& color, ButtonState state = ButtonState::Default);
+	ToggleButton& SetBackgroundColorToggled(
+		const Color& color, ButtonState state = ButtonState::Default
+	);
 
 	[[nodiscard]] TextureKey GetTextureKeyToggled(ButtonState state = ButtonState::Default) const;
 
@@ -285,11 +304,24 @@ struct ToggleButton : public Button {
 
 	ToggleButton& SetTintToggled(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] std::string GetTextContentToggled(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] Color GetTextColorToggled(ButtonState state = ButtonState::Current) const;
+
+	ToggleButton& SetTextColorToggled(const Color& color, ButtonState state = ButtonState::Default);
+
+	[[nodiscard]] std::string_view GetTextContentToggled(ButtonState state = ButtonState::Current)
+		const;
 
 	ToggleButton& SetTextContentToggled(
-		const std::string& content, ButtonState state = ButtonState::Default
+		std::string_view content, ButtonState state = ButtonState::Default
 	);
+
+	ToggleButton& SetTextToggled(
+		std::string_view content, const Color& text_color = color::Black,
+		std::string_view font_key = "", ButtonState state = ButtonState::Default
+	);
+
+	[[nodiscard]] const Text& GetTextToggled(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] Text& GetTextToggled(ButtonState state = ButtonState::Current);
 
 	[[nodiscard]] Color GetBorderColorToggled(ButtonState state = ButtonState::Current) const;
 

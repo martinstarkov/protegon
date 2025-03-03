@@ -83,8 +83,8 @@ Text& Text::SetLineSkip(std::int32_t pixels) {
 	return SetParameter(TextLineSkip{ pixels });
 }
 
-Text& Text::SetWrapAlignment(TextJustify wrap_alignment) {
-	return SetParameter(wrap_alignment);
+Text& Text::SetTextJustify(TextJustify text_justify) {
+	return SetParameter(text_justify);
 }
 
 std::size_t Text::GetFontKey() const {
@@ -109,6 +109,10 @@ FontRenderMode Text::GetFontRenderMode() const {
 
 Color Text::GetShadingColor() const {
 	return GetParameter(TextShadingColor{});
+}
+
+TextJustify Text::GetTextJustify() const {
+	return GetParameter(TextJustify{});
 }
 
 const impl::Texture& Text::GetTexture() const {
