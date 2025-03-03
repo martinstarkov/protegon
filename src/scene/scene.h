@@ -57,6 +57,8 @@ public:
 	}
 
 	ecs::Manager manager;
+	// TODO: Move to SceneInput.
+	bool top_only{ false };
 	// SceneInput input;
 	impl::Physics physics;
 	impl::CameraManager camera;

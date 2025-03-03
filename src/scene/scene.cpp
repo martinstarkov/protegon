@@ -189,13 +189,33 @@ void Scene::InternalLoad() {
 			// TODO: cache interactive entity list every frame to avoid repeated calls for each
 			// mouse and keyboard event type.
 			V2_float pos{ GetMousePosition() };
+			Depth top_depth;
+			ecs::Entity top_entity;
 			for (auto [e, enabled, interactive] : manager.EntitiesWith<Enabled, Interactive>()) {
 				if (!enabled) {
 					interactive.is_inside  = false;
 					interactive.was_inside = false;
 				} else {
-					interactive.is_inside = std::invoke(PointerIsInside, pos, e);
+					bool is_inside{ std::invoke(PointerIsInside, pos, e) };
+					if (top_only) {
+						if (is_inside) {
+							auto depth{ GetDepth(e) };
+							if (depth >= top_depth || top_entity == ecs::Entity{}) {
+								top_depth  = depth;
+								top_entity = e;
+							}
+						} else {
+							interactive.is_inside = false;
+						}
+					} else {
+						interactive.is_inside = is_inside;
+					}
 				}
+			}
+			if (top_only && top_entity != ecs::Entity{}) {
+				PTGN_ASSERT(top_entity.Has<Enabled>() && top_entity.Get<Enabled>());
+				PTGN_ASSERT(top_entity.Has<Interactive>());
+				top_entity.Get<Interactive>().is_inside = true;
 			}
 			switch (type) {
 				case MouseEvent::Move: {
@@ -355,6 +375,7 @@ void Scene::InternalLoad() {
 					continue;
 				}
 				interactive.was_inside = interactive.is_inside;
+				interactive.is_inside  = false;
 			}
 		})
 	);
