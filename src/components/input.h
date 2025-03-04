@@ -59,6 +59,22 @@ struct InteractiveRects {
 
 namespace callback {
 
+struct Show : public CallbackComponent<> {
+	using CallbackComponent::CallbackComponent;
+};
+
+struct Hide : public CallbackComponent<> {
+	using CallbackComponent::CallbackComponent;
+};
+
+struct Disable : public CallbackComponent<> {
+	using CallbackComponent::CallbackComponent;
+};
+
+struct Enable : public CallbackComponent<> {
+	using CallbackComponent::CallbackComponent;
+};
+
 // Key events
 
 struct KeyDown : public CallbackComponent<Key> {

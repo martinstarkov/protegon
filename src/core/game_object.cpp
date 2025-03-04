@@ -4,6 +4,7 @@
 #include <type_traits>
 
 #include "components/draw.h"
+#include "components/input.h"
 #include "components/transform.h"
 #include "core/game.h"
 #include "ecs/ecs.h"
@@ -17,6 +18,7 @@
 #include "renderer/text.h"
 #include "renderer/texture.h"
 #include "utility/assert.h"
+#include "utility/utility.h"
 
 namespace ptgn {
 
@@ -190,9 +192,16 @@ ecs::Entity GameObject::GetEntity() const {
 }
 
 GameObject& GameObject::SetVisible(bool visible) {
+	bool was_visible{ Has<Enabled>() && Get<Enabled>() };
 	if (visible) {
+		if (!was_visible) {
+			Invoke<callback::Show>(GetEntity());
+		}
 		Add<Visible>();
 	} else {
+		if (was_visible) {
+			Invoke<callback::Hide>(GetEntity());
+		}
 		Remove<Visible>();
 	}
 	return *this;
@@ -207,9 +216,16 @@ GameObject& GameObject::Hide() {
 }
 
 GameObject& GameObject::SetEnabled(bool enabled) {
+	bool was_enabled{ Has<Enabled>() && Get<Enabled>() };
 	if (enabled) {
+		if (!was_enabled) {
+			Invoke<callback::Enable>(GetEntity());
+		}
 		Add<Enabled>();
 	} else {
+		if (was_enabled) {
+			Invoke<callback::Disable>(GetEntity());
+		}
 		Remove<Enabled>();
 	}
 	return *this;
