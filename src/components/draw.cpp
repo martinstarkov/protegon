@@ -62,17 +62,14 @@ ecs::Entity CreateAnimation(
 			auto [anim, crop] = entity.Get<impl::AnimationInfo, TextureCrop>();
 			anim.ResetToStartFrame();
 			std::invoke(update_crop, crop, anim);
-			if (entity.Has<callback::AnimationStart>()) {
-				Invoke(entity.Get<callback::AnimationStart>());
-			}
+			Invoke<callback::AnimationStart>(entity);
 		})
 		.OnRepeat([=]() mutable {
 			auto [anim, crop] = entity.Get<impl::AnimationInfo, TextureCrop>();
 			anim.IncrementFrame();
 			std::invoke(update_crop, crop, anim);
-			if (entity.Has<callback::AnimationRepeat>() &&
-				anim.GetFrameRepeats() % anim.GetFrameCount() == 0) {
-				Invoke(entity.Get<callback::AnimationRepeat>());
+			if (anim.GetFrameRepeats() % anim.GetFrameCount() == 0) {
+				Invoke<callback::AnimationRepeat>(entity);
 			}
 		})
 		.OnReset([=]() mutable {

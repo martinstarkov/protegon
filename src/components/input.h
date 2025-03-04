@@ -61,98 +61,98 @@ namespace callback {
 
 // Key events
 
-struct KeyDown : public CallbackComponent<void, Key> {
+struct KeyDown : public CallbackComponent<Key> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct KeyPressed : public CallbackComponent<void, Key> {
+struct KeyPressed : public CallbackComponent<Key> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct KeyUp : public CallbackComponent<void, Key> {
+struct KeyUp : public CallbackComponent<Key> {
 	using CallbackComponent::CallbackComponent;
 };
 
 // Mouse events.
 
-struct MouseDown : public CallbackComponent<void, Mouse> {
+struct MouseDown : public CallbackComponent<Mouse> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct MouseDownOutside : public CallbackComponent<void, Mouse> {
+struct MouseDownOutside : public CallbackComponent<Mouse> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct MouseMove : public CallbackComponent<void, V2_float> {
+struct MouseMove : public CallbackComponent<V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct MouseEnter : public CallbackComponent<void, V2_float> {
+struct MouseEnter : public CallbackComponent<V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct MouseLeave : public CallbackComponent<void, V2_float> {
+struct MouseLeave : public CallbackComponent<V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct MouseOut : public CallbackComponent<void, V2_float> {
+struct MouseOut : public CallbackComponent<V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct MouseOver : public CallbackComponent<void, V2_float> {
+struct MouseOver : public CallbackComponent<V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct MouseUp : public CallbackComponent<void, Mouse> {
+struct MouseUp : public CallbackComponent<Mouse> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct MouseUpOutside : public CallbackComponent<void, Mouse> {
+struct MouseUpOutside : public CallbackComponent<Mouse> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct MousePressed : public CallbackComponent<void, Mouse> {
+struct MousePressed : public CallbackComponent<Mouse> {
 	using CallbackComponent::CallbackComponent;
 };
 
 // Scroll amount in each direction.
-struct MouseScroll : public CallbackComponent<void, V2_int> {
+struct MouseScroll : public CallbackComponent<V2_int> {
 	using CallbackComponent::CallbackComponent;
 };
 
 // Draggable events.
 
-struct DragStart : public CallbackComponent<void, V2_float> {
+struct DragStart : public CallbackComponent<V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct DragStop : public CallbackComponent<void, V2_float> {
+struct DragStop : public CallbackComponent<V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct Drag : public CallbackComponent<void, V2_float> {
+struct Drag : public CallbackComponent<V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct DragEnter : public CallbackComponent<void, V2_float> {
+struct DragEnter : public CallbackComponent<V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct DragLeave : public CallbackComponent<void, V2_float> {
+struct DragLeave : public CallbackComponent<V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct DragOver : public CallbackComponent<void, V2_float> {
+struct DragOver : public CallbackComponent<V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct DragOut : public CallbackComponent<void, V2_float> {
+struct DragOut : public CallbackComponent<V2_float> {
 	using CallbackComponent::CallbackComponent;
 };
 
 // Dropzone events.
 
-// struct Drop : public CallbackComponent<void, V2_float> {
+// struct Drop : public CallbackComponent<V2_float> {
 //	using CallbackComponent::CallbackComponent;
 // };
 

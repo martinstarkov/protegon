@@ -66,11 +66,11 @@ struct TextureKey : public ArithmeticComponent<std::size_t> {
 
 namespace callback {
 
-struct AnimationRepeat : public CallbackComponent<void> {
+struct AnimationRepeat : public CallbackComponent<> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct AnimationStart : public CallbackComponent<void> {
+struct AnimationStart : public CallbackComponent<> {
 	using CallbackComponent::CallbackComponent;
 };
 
