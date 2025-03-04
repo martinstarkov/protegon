@@ -501,9 +501,14 @@ void RenderData::AddButton(
 		if (NearlyEqual(text_size.y, 0.0f)) {
 			text_size.y = size.y;
 		}
+		text_size *= GetScale(*text);
 		AddText(
-			{}, *text, GetPosition(*text) + GetOriginOffset(origin, size), text_size,
-			GetOrigin(*text), GetDepth(*text), GetBlendMode(*text),
+			{}, *text,
+			GetPosition(*text) +
+				GetOriginOffset(
+					origin, size
+				) /* offset by button size so that text is initially centered on button center */,
+			text_size, GetOrigin(*text), GetDepth(*text), GetBlendMode(*text),
 			GetTint(*text).Normalized() * tint, GetRotation(*text)
 		);
 	}
