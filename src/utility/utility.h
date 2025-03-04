@@ -7,6 +7,9 @@
 #include <unordered_set>
 #include <vector>
 
+#include "ecs/ecs.h"
+#include "utility/type_traits.h"
+
 namespace ptgn {
 
 namespace impl {
@@ -64,10 +67,22 @@ static std::vector<Type> ToVector(const std::array<Type, Size>& array) {
 	return v;
 }
 
-template <typename T, typename... TArgs>
-static auto Invoke(const T& function, TArgs&&... args) {
-	if (function != nullptr) {
-		std::invoke(function, std::forward<TArgs>(args)...);
+template <typename Callable, typename... Args>
+static void Invoke(Callable&& callable, Args&&... args) {
+	if constexpr (std::is_pointer_v<std::decay_t<Callable>>) {
+		if (callable != nullptr) {
+			std::invoke(std::forward<Callable>(callable), std::forward<Args>(args)...);
+		}
+	} else {
+		std::invoke(std::forward<Callable>(callable), std::forward<Args>(args)...);
+	}
+}
+
+template <typename TCallback, typename... TArgs>
+static void Invoke(const ecs::Entity& e, TArgs&&... args) {
+	if (e.Has<TCallback>()) {
+		const auto& callback{ e.Get<TCallback>() };
+		Invoke(callback, std::forward<TArgs>(args)...);
 	}
 }
 

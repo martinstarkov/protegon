@@ -68,14 +68,14 @@ private:
 	std::string value_;
 };
 
-template <typename TReturn, typename... TArgs>
+template <typename... TArgs>
 struct CallbackComponent {
 	CallbackComponent() = default;
 
-	CallbackComponent(const std::function<TReturn(TArgs...)>& callback) : callback_{ callback } {}
+	CallbackComponent(const std::function<void(TArgs...)>& callback) : callback_{ callback } {}
 
-	TReturn operator()(TArgs&&... args) const {
-		return Invoke(callback_, std::forward<TArgs>(args)...);
+	void operator()(TArgs... args) const {
+		Invoke(callback_, args...);
 	}
 
 	bool operator==(std::nullptr_t) const {
@@ -86,12 +86,12 @@ struct CallbackComponent {
 		return callback_ != nullptr;
 	}
 
-	operator std::function<TReturn(TArgs...)>() const {
+	operator std::function<void(TArgs...)>() const {
 		return callback_;
 	}
 
 protected:
-	std::function<TReturn(TArgs...)> callback_{};
+	std::function<void(TArgs...)> callback_{};
 };
 
 struct OriginComponent {
