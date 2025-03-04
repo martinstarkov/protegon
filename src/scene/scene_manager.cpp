@@ -129,7 +129,7 @@ void SceneManager::ClearSceneTargets() {
 
 void SceneManager::Update() {
 	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
-		if (sc.scene->active_ && sc.scene->actions_.empty()) {
+		if (sc.scene->active_ /* && sc.scene->actions_.empty()*/) {
 			sc.scene->InternalUpdate();
 		}
 	}
