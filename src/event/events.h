@@ -39,43 +39,29 @@ enum class MouseEvent {
 	Scroll /* fires repeatedly on mouse or trackpad scroll */
 };
 
-namespace impl {
+namespace impl {} // namespace impl
 
-struct MouseEventBase {
-	// @return Current mouse position relative to the currently active scene.
-	[[nodiscard]] V2_float GetCurrent() const;
-	// @return Previous mouse position relative to the currently active scene.
-	[[nodiscard]] V2_float GetPrevious() const;
-	// @return Get mouse position difference between current and previous frame relative to the
-	// currently active scene.
-	[[nodiscard]] V2_float GetDifference() const;
-};
+struct MouseMoveEvent : public Event {};
 
-} // namespace impl
-
-struct MouseMoveEvent : public Event, public impl::MouseEventBase {
-	MouseMoveEvent() = default;
-};
-
-struct MouseDownEvent : public Event, public impl::MouseEventBase {
+struct MouseDownEvent : public Event {
 	explicit MouseDownEvent(Mouse mouse) : mouse{ mouse } {}
 
 	Mouse mouse;
 };
 
-struct MouseUpEvent : public Event, public impl::MouseEventBase {
+struct MouseUpEvent : public Event {
 	explicit MouseUpEvent(Mouse mouse) : mouse{ mouse } {}
 
 	Mouse mouse;
 };
 
-struct MousePressedEvent : public Event, public impl::MouseEventBase {
+struct MousePressedEvent : public Event {
 	explicit MousePressedEvent(Mouse mouse) : mouse{ mouse } {}
 
 	Mouse mouse;
 };
 
-struct MouseScrollEvent : public Event, public impl::MouseEventBase {
+struct MouseScrollEvent : public Event {
 	explicit MouseScrollEvent(const V2_int& scroll) : scroll{ scroll } {}
 
 	V2_int scroll;
