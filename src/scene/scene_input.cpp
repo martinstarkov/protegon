@@ -112,6 +112,11 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const ecs::Entity& ent
 }
 
 void SceneInput::Update() {
+	UpdatePrevious();
+	UpdateCurrent();
+}
+
+void SceneInput::UpdatePrevious() {
 	PTGN_ASSERT(scene_ != nullptr);
 	for (auto [e, enabled, interactive] : scene_->manager.EntitiesWith<Enabled, Interactive>()) {
 		if (!enabled) {
@@ -120,6 +125,10 @@ void SceneInput::Update() {
 		interactive.was_inside = interactive.is_inside;
 		interactive.is_inside  = false;
 	}
+}
+
+void SceneInput::UpdateCurrent() {
+	PTGN_ASSERT(scene_ != nullptr);
 	V2_float pos{ GetMousePosition() };
 	Depth top_depth;
 	ecs::Entity top_entity;
@@ -310,14 +319,25 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 	}
 }
 
+void SceneInput::ResetInteractives() {
+	for (auto [e, enabled, interactive] : scene_->manager.EntitiesWith<Enabled, Interactive>()) {
+		interactive.was_inside = false;
+		interactive.is_inside  = false;
+	}
+}
+
 void SceneInput::Init(Scene* scene) {
 	scene_ = scene;
 	// Input is reset to ensure no previously pressed keys are considered held.
 	game.input.ResetKeyStates();
 	game.input.ResetMouseStates();
 
-	// TODO: Cache interactive entity list every frame to avoid repeated calls for each mouse
-	// and keyboard event type.
+	ResetInteractives();
+	UpdateCurrent();
+	OnMouseEvent(MouseEvent::Move, MouseMoveEvent{});
+
+	// TODO: Cache interactive entity list every frame to avoid repeated calls for each
+	// mouse and keyboard event type.
 
 	game.event.key.Subscribe(
 		this, std::bind(&SceneInput::OnKeyEvent, this, std::placeholders::_1, std::placeholders::_2)
@@ -332,6 +352,7 @@ void SceneInput::Init(Scene* scene) {
 void SceneInput::Shutdown() {
 	game.event.key.Unsubscribe(this);
 	game.event.mouse.Unsubscribe(this);
+	ResetInteractives();
 }
 
 void SceneInput::SetTopOnly(bool top_only) {

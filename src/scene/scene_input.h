@@ -32,6 +32,10 @@ private:
 	friend class Scene;
 
 	void Update();
+	void UpdatePrevious();
+	void UpdateCurrent();
+
+	void ResetInteractives();
 
 	void OnMouseEvent(MouseEvent type, const Event& event);
 	void OnKeyEvent(KeyEvent type, const Event& event);
