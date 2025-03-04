@@ -68,13 +68,9 @@ static std::vector<Type> ToVector(const std::array<Type, Size>& array) {
 }
 
 template <typename Callable, typename... Args>
-static void Invoke(Callable&& callable, Args&&... args) {
-	if constexpr (std::is_pointer_v<std::decay_t<Callable>>) {
-		if (callable != nullptr) {
-			std::invoke(std::forward<Callable>(callable), std::forward<Args>(args)...);
-		}
-	} else {
-		std::invoke(std::forward<Callable>(callable), std::forward<Args>(args)...);
+static void Invoke(const Callable& callable, Args&&... args) {
+	if (callable != nullptr) {
+		std::invoke(callable, std::forward<Args>(args)...);
 	}
 }
 

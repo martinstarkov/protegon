@@ -165,9 +165,7 @@ void Button::SetupCallbacks(const std::function<void()>& internal_on_activate) {
 
 	Add<callback::MouseLeave>([e = GetEntity()](auto mouse) mutable {
 		const auto& state{ e.Get<impl::InternalButtonState>() };
-		if (state == impl::InternalButtonState::IdleUp) {
-			StopHover(e);
-		} else if (state == impl::InternalButtonState::Hover) {
+		if (state == impl::InternalButtonState::Hover) {
 			StateChange(e, impl::InternalButtonState::IdleUp);
 			StopHover(e);
 		} else if (state == impl::InternalButtonState::Pressed) {
@@ -175,13 +173,6 @@ void Button::SetupCallbacks(const std::function<void()>& internal_on_activate) {
 			StopHover(e);
 		} else if (state == impl::InternalButtonState::HoverPressed) {
 			StateChange(e, impl::InternalButtonState::IdleDown);
-			StopHover(e);
-		}
-	});
-
-	Add<callback::MouseOut>([e = GetEntity()](auto mouse) mutable {
-		const auto& state{ e.Get<impl::InternalButtonState>() };
-		if (state != impl::InternalButtonState::HeldOutside) {
 			StopHover(e);
 		}
 	});
