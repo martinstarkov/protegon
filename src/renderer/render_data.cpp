@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <functional>
 #include <numeric>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -419,6 +420,38 @@ void RenderData::AddButton(
 	const V4_float& tint, float rotation
 ) {
 	PTGN_ASSERT(o.Has<impl::ButtonTag>());
+
+	auto state{ Button::GetState(o) };
+
+	if (o.Has<impl::ButtonColor>()) {
+		o.Get<impl::ButtonColor>().SetToState(state);
+	}
+	if (o.Has<impl::ButtonColorToggled>()) {
+		o.Get<impl::ButtonColorToggled>().SetToState(state);
+	}
+	if (o.Has<impl::ButtonTint>()) {
+		o.Get<impl::ButtonTint>().SetToState(state);
+	}
+	if (o.Has<impl::ButtonTintToggled>()) {
+		o.Get<impl::ButtonTintToggled>().SetToState(state);
+	}
+	if (o.Has<impl::ButtonBorderColor>()) {
+		o.Get<impl::ButtonBorderColor>().SetToState(state);
+	}
+	if (o.Has<impl::ButtonBorderColorToggled>()) {
+		o.Get<impl::ButtonBorderColorToggled>().SetToState(state);
+	}
+	if (o.Has<TextureKey>()) {
+		auto& key{ o.Get<TextureKey>() };
+		if (!ptgn::IsEnabled(o) && o.Has<impl::ButtonDisabledTextureKey>()) {
+			key = o.Get<impl::ButtonDisabledTextureKey>();
+		} else if (o.Has<impl::ButtonToggled>() && o.Has<impl::ButtonTextureToggled>()) {
+			key = o.Get<impl::ButtonTextureToggled>().Get(state);
+		} else if (o.Has<impl::ButtonTexture>()) {
+			key = o.Get<impl::ButtonTexture>().Get(state);
+		}
+	}
+
 	// TODO: Move this all to a separate functions.
 	// TODO: Reduce repeated code.
 
@@ -451,7 +484,6 @@ void RenderData::AddButton(
 	size *= scale;
 	PTGN_ASSERT(!size.IsZero(), "Invalid size for button");
 
-	auto state{ Button::GetState(o) };
 	if (button_texture != nullptr && *button_texture != Texture{}) {
 		Color button_tint{ color::White };
 		if (o.Has<impl::ButtonToggled>() && o.Get<impl::ButtonToggled>() &&

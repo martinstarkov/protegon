@@ -165,7 +165,9 @@ void Button::SetupCallbacks(const std::function<void()>& internal_on_activate) {
 
 	Add<callback::MouseLeave>([e = GetEntity()](auto mouse) mutable {
 		const auto& state{ e.Get<impl::InternalButtonState>() };
-		if (state == impl::InternalButtonState::Hover) {
+		if (state == impl::InternalButtonState::IdleUp) {
+			StopHover(e);
+		} else if (state == impl::InternalButtonState::Hover) {
 			StateChange(e, impl::InternalButtonState::IdleUp);
 			StopHover(e);
 		} else if (state == impl::InternalButtonState::Pressed) {
@@ -173,6 +175,13 @@ void Button::SetupCallbacks(const std::function<void()>& internal_on_activate) {
 			StopHover(e);
 		} else if (state == impl::InternalButtonState::HoverPressed) {
 			StateChange(e, impl::InternalButtonState::IdleDown);
+			StopHover(e);
+		}
+	});
+
+	Add<callback::MouseOut>([e = GetEntity()](auto mouse) mutable {
+		const auto& state{ e.Get<impl::InternalButtonState>() };
+		if (state != impl::InternalButtonState::HeldOutside) {
 			StopHover(e);
 		}
 	});
@@ -439,6 +448,23 @@ Button& Button::SetTextureKey(std::string_view texture_key, ButtonState state) {
 	return *this;
 }
 
+Button& Button::SetDisabledTextureKey(std::string_view texture_key) {
+	if (texture_key == std::string_view{}) {
+		Remove<impl::ButtonDisabledTextureKey>();
+	} else {
+		Add<impl::ButtonDisabledTextureKey>(texture_key);
+	}
+	return *this;
+}
+
+TextureKey Button::GetDisabledTextureKey() const {
+	PTGN_ASSERT(
+		Has<impl::ButtonDisabledTextureKey>(),
+		"Cannot retrieve disabled texture key as it has not been set for the button"
+	);
+	return Get<impl::ButtonDisabledTextureKey>();
+}
+
 Color Button::GetTint(ButtonState state) const {
 	const auto c{ Has<impl::ButtonTint>() ? Get<impl::ButtonTint>() : impl::ButtonTint{} };
 	return c.Get(state);
@@ -548,32 +574,6 @@ ButtonState Button::GetState(const ecs::Entity& e) {
 
 void Button::StateChange(const ecs::Entity& e, impl::InternalButtonState new_state) {
 	e.Get<impl::InternalButtonState>() = new_state;
-	auto state{ GetState(e) };
-	if (e.Has<impl::ButtonColor>()) {
-		e.Get<impl::ButtonColor>().SetToState(state);
-	}
-	if (e.Has<impl::ButtonColorToggled>()) {
-		e.Get<impl::ButtonColorToggled>().SetToState(state);
-	}
-	if (e.Has<impl::ButtonTint>()) {
-		e.Get<impl::ButtonTint>().SetToState(state);
-	}
-	if (e.Has<impl::ButtonTintToggled>()) {
-		e.Get<impl::ButtonTintToggled>().SetToState(state);
-	}
-	if (e.Has<impl::ButtonBorderColor>()) {
-		e.Get<impl::ButtonBorderColor>().SetToState(state);
-	}
-	if (e.Has<impl::ButtonBorderColorToggled>()) {
-		e.Get<impl::ButtonBorderColorToggled>().SetToState(state);
-	}
-	if (e.Has<TextureKey>()) {
-		if (e.Has<impl::ButtonToggled>() && e.Has<impl::ButtonTextureToggled>()) {
-			e.Get<TextureKey>() = e.Get<impl::ButtonTextureToggled>().Get(state);
-		} else if (e.Has<impl::ButtonTexture>()) {
-			e.Get<TextureKey>() = e.Get<impl::ButtonTexture>().Get(state);
-		}
-	}
 }
 
 void Button::Activate(const ecs::Entity& e) {
