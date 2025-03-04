@@ -792,8 +792,6 @@ void Camera::PrintInfo() const {
 	}
 }
 
-namespace impl {
-
 void CameraManager::Init(ecs::Manager& manager) {
 	primary = Camera{ manager };
 	window	= Camera{ manager };
@@ -803,8 +801,6 @@ void CameraManager::Reset() {
 	primary = Camera{ primary.GetManager() };
 	window	= Camera{ window.GetManager() };
 };
-
-} // namespace impl
 
 /*
 // To move camera according to mouse drag (in 3D):

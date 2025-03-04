@@ -11,6 +11,8 @@ namespace impl {
 
 class Game;
 
+} // namespace impl
+
 class Physics {
 public:
 	[[nodiscard]] V2_float GetGravity() const;
@@ -20,7 +22,7 @@ public:
 	[[nodiscard]] float dt() const;
 
 private:
-	friend class Game;
+	friend class impl::Game;
 	friend class ptgn::Scene;
 
 	void PreCollisionUpdate(ecs::Manager& manager) const;
@@ -138,7 +140,5 @@ computeVelocity : function(body, delta) {
 // if (velocity.MagnitudeSquared() > max_velocity * max_velocity) {
 //     velocity = velocity.Normalized() * max_velocity;
 // }
-
-} // namespace impl
 
 } // namespace ptgn

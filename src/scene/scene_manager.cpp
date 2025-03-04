@@ -153,7 +153,6 @@ void SceneManager::HandleSceneEvents() {
 					if (scene.active_) {
 						scene.InternalExit();
 					}
-					scene.InternalUnload();
 					e.Destroy();
 					break;
 			}

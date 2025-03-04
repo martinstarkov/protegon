@@ -108,6 +108,7 @@ void ButtonText::Set(
 	auto& text{ Get(state) };
 	if (text == Text{}) {
 		text = Text{ manager, text_content, text_color, font_key };
+		text.SetVisible(false);
 		text.SetParent(parent);
 	} else {
 		text.SetParameter(TextColor{ text_color }, false);
@@ -317,7 +318,7 @@ Button& Button::SetText(
 }
 
 const Text& Button::GetText(ButtonState state) const {
-	return Get<impl::ButtonText>().Get(state);
+	return Get<impl::ButtonText>().GetValid(state);
 }
 
 Text& Button::GetText(ButtonState state) {
@@ -696,7 +697,7 @@ ToggleButton& ToggleButton::SetTextToggled(
 }
 
 const Text& ToggleButton::GetTextToggled(ButtonState state) const {
-	return Get<impl::ButtonText>().Get(state);
+	return Get<impl::ButtonTextToggled>().GetValid(state);
 }
 
 Text& ToggleButton::GetTextToggled(ButtonState state) {

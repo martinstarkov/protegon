@@ -16,13 +16,7 @@
 #include "event/key.h"
 #include "event/mouse.h"
 #include "math/collision/overlap.h"
-#include "math/geometry/polygon.h"
 #include "math/vector2.h"
-#include "renderer/origin.h"
-#include "renderer/render_target.h"
-#include "renderer/renderer.h"
-#include "scene/camera.h"
-#include "scene/scene_manager.h"
 #include "utility/assert.h"
 #include "utility/log.h"
 #include "utility/time.h"
@@ -200,50 +194,16 @@ V2_float InputHandler::GetMousePositionGlobal() const {
 	return position;
 }
 
-V2_float InputHandler::GetMousePositionWindow() const {
+V2_float InputHandler::GetMousePosition() const {
 	return mouse_pos_;
 }
 
-V2_float InputHandler::GetMousePositionPreviousWindow() const {
+V2_float InputHandler::GetMousePositionPrevious() const {
 	return prev_mouse_pos_;
 }
 
-V2_float InputHandler::GetMouseDifferenceWindow() const {
-	return mouse_pos_ - prev_mouse_pos_;
-}
-
 V2_float InputHandler::GetMouseDifference() const {
-	/*if (!render_target.IsValid()) {
-		render_target = game.renderer.GetRenderTarget();
-	}
-	return TransformToViewport(
-		render_target.Get().GetViewport(), render_target.Get().GetCamera(),
-		GetMouseDifferenceWindow()
-	);*/
-	return GetMouseDifferenceWindow();
-}
-
-V2_float InputHandler::GetMousePosition() const {
-	// TODO: Fix.
-	/*if (!render_target.IsValid()) {
-		render_target = game.renderer.GetRenderTarget();
-	}
-	return TransformToViewport(
-		render_target.Get().GetViewport(), render_target.Get().GetCamera(), GetMousePositionWindow()
-	);*/
-	return GetMousePositionWindow();
-}
-
-V2_float InputHandler::GetMousePositionPrevious() const {
-	// TODO: Fix
-	/*if (!render_target.IsValid()) {
-		render_target = game.renderer.GetRenderTarget();
-	}
-	return TransformToViewport(
-		render_target.Get().GetViewport(), render_target.Get().GetCamera(),
-		GetMousePositionPreviousWindow()
-	);*/
-	return GetMousePositionPreviousWindow();
+	return mouse_pos_ - prev_mouse_pos_;
 }
 
 int InputHandler::GetMouseScroll() const {

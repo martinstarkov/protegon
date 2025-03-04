@@ -3,10 +3,9 @@
 #include <set>
 
 #include "ecs/ecs.h"
-#include "math/vector2.h"
 #include "physics/physics.h"
-#include "renderer/render_target.h"
 #include "scene/camera.h"
+#include "scene/scene_input.h"
 
 namespace ptgn {
 
@@ -57,21 +56,15 @@ public:
 	}
 
 	ecs::Manager manager;
-	// TODO: Move to SceneInput.
-	bool top_only{ false };
-	// SceneInput input;
-	impl::Physics physics;
-	impl::CameraManager camera;
+	SceneInput input;
+	Physics physics;
+	CameraManager camera;
 
 private:
 	friend class impl::SceneManager;
 	friend class SceneTransition;
 
-	[[nodiscard]] V2_float GetMousePosition() const;
-
 	// void ClearTarget();
-	void InternalLoad();
-	void InternalUnload();
 	void InternalEnter();
 	void InternalUpdate();
 	void InternalExit();

@@ -20,10 +20,9 @@ namespace ptgn {
 
 struct WindowResizedEvent;
 class Scene;
+class CameraManager;
 
 namespace impl {
-
-class CameraManager;
 
 struct CameraPanStart : public Vector2Component<float> {
 	using Vector2Component::Vector2Component;
@@ -357,7 +356,7 @@ public:
 	operator Matrix4() const;
 
 protected:
-	friend class impl::CameraManager;
+	friend class CameraManager;
 
 	// @param start_color Starting color.
 	// @param end_color Ending color.
@@ -391,8 +390,6 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {
 	return os;
 }
 
-namespace impl {
-
 class CameraManager {
 public:
 	// Reset primary camera back to window and reset window camera in case it has been
@@ -407,8 +404,6 @@ private:
 
 	void Init(ecs::Manager& manager);
 };
-
-} // namespace impl
 
 /*
 class CameraController;

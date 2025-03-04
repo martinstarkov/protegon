@@ -8,7 +8,7 @@
 #include "physics/movement.h"
 #include "physics/rigid_body.h"
 
-namespace ptgn::impl {
+namespace ptgn {
 
 V2_float Physics::GetGravity() const {
 	return gravity_;
@@ -65,4 +65,4 @@ void Physics::PostCollisionUpdate(ecs::Manager& manager) const {
 	}
 }
 
-} // namespace ptgn::impl
+} // namespace ptgn

@@ -34,19 +34,19 @@ class RenderData;
 
 struct ButtonTag {};
 
-struct ButtonToggle : public CallbackComponent<void> {
+struct ButtonToggle : public CallbackComponent<> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct ButtonHoverStart : public CallbackComponent<void> {
+struct ButtonHoverStart : public CallbackComponent<> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct ButtonHoverStop : public CallbackComponent<void> {
+struct ButtonHoverStop : public CallbackComponent<> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct ButtonActivate : public CallbackComponent<void> {
+struct ButtonActivate : public CallbackComponent<> {
 	using CallbackComponent::CallbackComponent;
 };
 
@@ -181,8 +181,11 @@ struct Button : public GameObject {
 	);
 	Button& AddInteractableCircle(float radius, const V2_float& offset = {});
 
-	Button& SetRect(const V2_float& size, Origin origin = Origin::Center);
-	Button& SetCircle(float radius);
+	// @param size {} Results in texture sized button.
+	Button& SetRect(const V2_float& size = {}, Origin origin = Origin::Center);
+
+	// @param radius 0.0f results in texture sized button.
+	Button& SetCircle(float radius = 0.0f);
 
 	// These allow for manually triggering button callback events.
 	virtual void Activate();

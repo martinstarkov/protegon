@@ -56,7 +56,6 @@ public:
 				   std::make_unique<TScene>(std::forward<TArgs>(constructor_args)...)
 			   );
 			sc->scene->key_ = key;
-			sc->scene->InternalLoad();
 			scenes_.Refresh();
 		} else { // Existing scene.
 			sc = &scene.Get<SceneComponent>();
@@ -111,6 +110,16 @@ public:
 		const SceneTransition& transition = {}
 	) {
 		TransitionImpl(GetInternalKey(from_scene_key), GetInternalKey(to_scene_key), transition);
+	}
+
+	template <typename TScene, typename... TArgs>
+	TScene& Transition(
+		std::string_view from_scene_key, std::string_view to_scene_key,
+		const SceneTransition& transition, TArgs&&... constructor_args
+	) {
+		auto& scene{ Load<TScene>(to_scene_key, std::forward<TArgs>(constructor_args)...) };
+		TransitionImpl(GetInternalKey(from_scene_key), GetInternalKey(to_scene_key), transition);
+		return scene;
 	}
 
 	// Retrieve a scene from the scene manager. If the scene does not exist in the scene manager an

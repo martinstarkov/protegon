@@ -14,6 +14,7 @@ union SDL_Event;
 namespace ptgn {
 
 class Scene;
+class SceneInput;
 
 namespace impl {
 
@@ -52,27 +53,13 @@ public:
 	void SetRelativeMouseMode(bool on) const;
 
 	// @return Mouse position relative to the top left of the window.
-	[[nodiscard]] V2_float GetMousePositionWindow() const;
+	[[nodiscard]] V2_float GetMousePosition() const;
 
 	// @return Mouse position during the previous frame relative to the top left of the window.
-	[[nodiscard]] V2_float GetMousePositionPreviousWindow() const;
+	[[nodiscard]] V2_float GetMousePositionPrevious() const;
 
 	// @return Mouse position difference between the current and previous frames relative to the top
 	// left of the window.
-	[[nodiscard]] V2_float GetMouseDifferenceWindow() const;
-
-	// @param render_target If {}, uses the renderer's current render target.
-	// @return Mouse position transformed relative to the specified render target.
-	[[nodiscard]] V2_float GetMousePosition() const;
-
-	// @param render_target If {}, uses the renderer's current render target.
-	// @return Mouse position during the previous frame transformed relative to the specified render
-	// target.
-	[[nodiscard]] V2_float GetMousePositionPrevious() const;
-
-	// @param render_target If {}, uses the renderer's current render target.
-	// @return Mouse position difference between the current and previous frames transformed
-	// relative to the specified render target.
 	[[nodiscard]] V2_float GetMouseDifference() const;
 
 	// @return In desktop mode: mouse position relative to the screen (display). In browser: same as
@@ -120,6 +107,7 @@ private:
 	friend class Scene;
 	friend class SceneManager;
 	friend class Game;
+	friend class SceneInput;
 
 	// Updates the user inputs and posts any triggered input events. Run internally when using game
 	// scenes.
