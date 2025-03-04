@@ -36,6 +36,7 @@ Text::Text(
 	const FontKey& font_key
 ) :
 	Text{ manager } {
+	Add<impl::TextTag>();
 	Add<TextContent>(content);
 	if (text_color != TextColor{}) {
 		Add<TextColor>(text_color);

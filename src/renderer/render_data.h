@@ -82,9 +82,8 @@ public:
 	void AddPointLight(const ecs::Entity& o, const Depth& depth);
 
 	void AddText(
-		const ecs::Entity& o, const Text& text, const V2_float& position, const V2_float& size,
-		Origin origin, const Depth& depth, BlendMode blend_mode, const V4_float& color,
-		float rotation
+		const ecs::Entity& o, const V2_float& position, const V2_float& size, Origin origin,
+		const Depth& depth, BlendMode blend_mode, const V4_float& color, float rotation
 	);
 
 	void AddRenderTarget(

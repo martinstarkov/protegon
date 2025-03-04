@@ -381,11 +381,24 @@ void RenderData::AddTexture(
 }
 
 void RenderData::AddText(
-	const ecs::Entity& e, const Text& text, const V2_float& position, const V2_float& size,
-	Origin origin, const Depth& depth, BlendMode blend_mode, const V4_float& tint, float rotation
+	const ecs::Entity& e, const V2_float& position, const V2_float& size, Origin origin,
+	const Depth& depth, BlendMode blend_mode, const V4_float& tint, float rotation
 ) {
-	const auto& texture{ text.GetTexture() };
-	if (texture.IsValid() && text.GetColor().a != 0 && !text.GetContent().empty()) {
+	PTGN_ASSERT(e.Has<impl::TextTag>());
+	const auto& texture{ e.Get<impl::Texture>() };
+	auto text_can_draw = [](const ecs::Entity& e) {
+		if (e.Has<TextColor>() && e.Get<TextColor>().a == 0) {
+			return false;
+		}
+		if (!e.Has<TextContent>()) {
+			return false;
+		}
+		if (std::string_view{ e.Get<TextContent>() }.empty()) {
+			return false;
+		}
+		return true;
+	};
+	if (texture.IsValid() && std::invoke(text_can_draw, e)) {
 		AddTexture(e, texture, position, size, origin, depth, blend_mode, tint, rotation, false);
 	}
 }
@@ -405,6 +418,7 @@ void RenderData::AddButton(
 	const ecs::Entity& o, const V2_float& position, const Depth& depth, BlendMode blend_mode,
 	const V4_float& tint, float rotation
 ) {
+	PTGN_ASSERT(o.Has<impl::ButtonTag>());
 	// TODO: Move this all to a separate functions.
 	// TODO: Reduce repeated code.
 
@@ -503,7 +517,7 @@ void RenderData::AddButton(
 		}
 		text_size *= GetScale(*text);
 		AddText(
-			{}, *text,
+			text->GetEntity(),
 			GetPosition(*text) +
 				GetOriginOffset(
 					origin, size
@@ -566,10 +580,9 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 			angle, false
 		);
 		return;
-	} else if (o.Has<Text>()) {
-		const auto& text{ o.Get<Text>() };
+	} else if (o.Has<TextTag>()) {
 		AddText(
-			o, text, pos, GetTextureSize(o, text.GetTexture()), GetOrigin(o), depth, blend_mode,
+			o, pos, GetTextureSize(o, o.Get<impl::Texture>()), GetOrigin(o), depth, blend_mode,
 			tint, angle
 		);
 		return;
@@ -794,6 +807,10 @@ void RenderData::FlushBatches(const FrameBuffer& frame_buffer, const Camera& cam
 			);
 			GLRenderer::DrawElements(triangle_vao, batch.indices.size(), false);
 		}
+	}
+
+	if (batch_map.empty()) {
+		PTGN_WARN("Renderer empty screen");
 	}
 
 	batch_map.clear();

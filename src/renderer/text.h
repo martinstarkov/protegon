@@ -17,6 +17,12 @@
 
 namespace ptgn {
 
+namespace impl {
+
+struct TextTag {};
+
+} // namespace impl
+
 enum class TextJustify {
 	Left   = 0, // TTF_WRAPPED_ALIGN_LEFT
 	Center = 1, // TTF_WRAPPED_ALIGN_CENTER
