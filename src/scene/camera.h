@@ -87,6 +87,7 @@ struct CameraInfo {
 
 	void RefreshBounds() noexcept;
 
+	// TODO: Convert some of this to be components.
 	struct Data {
 		V2_float viewport_position;
 		V2_float viewport_size;

@@ -413,7 +413,7 @@ Tween& Camera::FadeFromTo(
 	if (!fade_effects_.Has<Rect>()) {
 		fade_effects_.Add<Transform>();
 		fade_effects_.Add<Rect>();
-		fade_effects_.Add<Tint>();
+		fade_effects_.Add<Tint>(start_color);
 		fade_effects_.Add<Visible>(false);
 		fade_effects_.Add<Depth>(std::numeric_limits<std::int32_t>::max());
 	}
