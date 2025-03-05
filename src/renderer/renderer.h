@@ -1,14 +1,54 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
+#include <vector>
 
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/blend_mode.h"
 #include "renderer/color.h"
+#include "renderer/origin.h"
 #include "renderer/render_data.h"
 
 namespace ptgn {
+
+void DrawDebugLine(
+	const V2_float& line_start, const V2_float& line_end, const Color& color,
+	float line_width = 1.0f
+);
+
+void DrawDebugTriangle(
+	const std::array<V2_float, 3>& vertices, const Color& color, float line_width = 1.0f
+);
+
+void DrawDebugRect(
+	const V2_float& position, const V2_float& size, const Color& color,
+	Origin origin = Origin::Center, float line_width = 1.0f, float rotation = 0.0f
+);
+
+void DrawDebugEllipse(
+	const V2_float& center, const V2_float& radius, const Color& color, float line_width = 1.0f,
+	float rotation = 0.0f
+);
+
+void DrawDebugCircle(
+	const V2_float& center, float radius, const Color& color, float line_width = 1.0f
+);
+
+void DrawDebugPolygon(
+	const std::vector<V2_float>& vertices, const Color& color, float line_width = 1.0f
+);
+
+void DrawDebugPoint(const V2_float position, const Color& color);
+
+// TODO: Fix.
+/*
+void DrawDebugText(
+	const ecs::Entity& o, const V2_float& position, const V2_float& size, const Color& color,
+	Origin origin = Origin::Center, float rotation = 0.0f
+);
+*/
 
 // How the renderer resolution is scaled to the window size.
 enum class ResolutionMode {
