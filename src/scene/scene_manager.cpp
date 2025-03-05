@@ -5,6 +5,7 @@
 
 #include "core/game.h"
 #include "ecs/ecs.h"
+#include "event/input_handler.h"
 #include "math/hash.h"
 #include "scene/scene.h"
 #include "scene/scene_transition.h"
@@ -129,8 +130,14 @@ void SceneManager::ClearSceneTargets() {
 
 void SceneManager::Update() {
 	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
-		if (sc.scene->active_ /* && sc.scene->actions_.empty()*/) {
-			sc.scene->InternalUpdate();
+		if (sc.scene->active_) {
+			sc.scene->PreUpdate();
+		}
+	}
+	game.input.Update();
+	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
+		if (sc.scene->active_) {
+			sc.scene->PostUpdate();
 		}
 	}
 }

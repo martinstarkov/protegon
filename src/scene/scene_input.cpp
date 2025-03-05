@@ -19,6 +19,7 @@
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/origin.h"
+#include "renderer/renderer.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
@@ -29,6 +30,8 @@
 namespace ptgn {
 
 bool SceneInput::PointerIsInside(const V2_float& pointer, const ecs::Entity& entity) {
+	constexpr bool draw_interactives{ true };
+
 	bool is_circle{ entity.Has<InteractiveCircles>() };
 	bool is_rect{ entity.Has<InteractiveRects>() };
 	PTGN_ASSERT(
@@ -38,6 +41,7 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const ecs::Entity& ent
 	auto scale{ GetScale(entity) };
 	auto pos{ GetPosition(entity) };
 	auto origin{ GetOrigin(entity) };
+	bool overlapping{ false };
 	if (is_rect || is_circle) {
 		std::size_t count{ 0 };
 		if (is_rect) {
@@ -48,8 +52,15 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const ecs::Entity& ent
 				auto size{ interactive.rect.size * scale };
 				origin = interactive.rect.origin;
 				auto center{ pos + interactive.offset * scale + GetOriginOffset(origin, size) };
+				if constexpr (draw_interactives) {
+					DrawDebugRect(center, size, color::Magenta, Origin::Center, 1.0f, rotation);
+				}
 				if (impl::OverlapPointRect(pointer, center, size, rotation)) {
-					return true;
+					if constexpr (draw_interactives) {
+						overlapping = true;
+					} else {
+						return true;
+					}
 				}
 			}
 		}
@@ -58,12 +69,25 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const ecs::Entity& ent
 			count += interactives.circles.size();
 			for (const auto& interactive : interactives.circles) {
 				auto radius{ interactive.circle.radius * scale.x };
-				if (impl::OverlapPointCircle(pointer, pos + interactive.offset * scale, radius)) {
-					return true;
+				auto center{ pos + interactive.offset * scale };
+				if constexpr (draw_interactives) {
+					DrawDebugCircle(center, radius, color::Magenta, 1.0f);
+				}
+				if (impl::OverlapPointCircle(pointer, center, radius)) {
+					if constexpr (draw_interactives) {
+						overlapping = true;
+					} else {
+						return true;
+					}
 				}
 			}
 		}
 		if (count) {
+			if constexpr (draw_interactives) {
+				if (overlapping) {
+					return true;
+				}
+			}
 			return false;
 		}
 	}
@@ -76,8 +100,12 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const ecs::Entity& ent
 			if (c.radius == 0.0f) {
 				zero_sized = true;
 			} else {
+				auto r{ c.radius * scale.x };
 				zero_sized = false;
-				if (impl ::OverlapPointCircle(pointer, pos, c.radius * scale.x)) {
+				if constexpr (draw_interactives) {
+					DrawDebugCircle(pos, r, color::Magenta, 1.0f);
+				}
+				if (impl ::OverlapPointCircle(pointer, pos, r)) {
 					return true;
 				}
 			}
@@ -91,7 +119,11 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const ecs::Entity& ent
 				auto size{ r.size * scale };
 				origin = r.origin;
 				auto center{ pos + GetOriginOffset(origin, r.size) };
-				if (impl::OverlapPointRect(pointer, center, size, GetRotation(entity))) {
+				auto rotation{ GetRotation(entity) };
+				if constexpr (draw_interactives) {
+					DrawDebugRect(center, size, color::Magenta, Origin::Center, 1.0f, rotation);
+				}
+				if (impl::OverlapPointRect(pointer, center, size, rotation)) {
 					return true;
 				}
 			}
@@ -105,15 +137,14 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const ecs::Entity& ent
 		const auto& texture_key{ entity.Get<TextureKey>() };
 		auto size{ game.texture.GetSize(texture_key) * scale };
 		auto center{ pos + GetOriginOffset(origin, size) };
-		return impl::OverlapPointRect(pointer, center, size, GetRotation(entity));
+		auto rotation{ GetRotation(entity) };
+		if constexpr (draw_interactives) {
+			DrawDebugRect(center, size, color::Magenta, Origin::Center, 1.0f, rotation);
+		}
+		return impl::OverlapPointRect(pointer, center, size, rotation);
 	}
 
 	return false;
-}
-
-void SceneInput::Update() {
-	UpdatePrevious();
-	UpdateCurrent();
 }
 
 void SceneInput::UpdatePrevious() {
@@ -123,7 +154,6 @@ void SceneInput::UpdatePrevious() {
 			continue;
 		}
 		interactive.was_inside = interactive.is_inside;
-		interactive.is_inside  = false;
 	}
 }
 
@@ -132,12 +162,16 @@ void SceneInput::UpdateCurrent() {
 	V2_float pos{ GetMousePosition() };
 	Depth top_depth;
 	ecs::Entity top_entity;
+	bool send_mouse_event{ false };
 	for (auto [e, enabled, interactive] : scene_->manager.EntitiesWith<Enabled, Interactive>()) {
 		if (!enabled) {
 			interactive.is_inside  = false;
 			interactive.was_inside = false;
 		} else {
 			bool is_inside{ PointerIsInside(pos, e) };
+			if (!interactive.was_inside && is_inside || interactive.was_inside && !is_inside) {
+				send_mouse_event = true;
+			}
 			if (top_only_) {
 				if (is_inside) {
 					auto depth{ GetDepth(e) };
@@ -156,7 +190,11 @@ void SceneInput::UpdateCurrent() {
 	if (top_only_ && top_entity != ecs::Entity{}) {
 		PTGN_ASSERT(top_entity.Has<Enabled>() && top_entity.Get<Enabled>());
 		PTGN_ASSERT(top_entity.Has<Interactive>());
-		top_entity.Get<Interactive>().is_inside = true;
+		auto& top_interactive{ top_entity.Get<Interactive>() };
+		top_interactive.is_inside = true;
+	}
+	if (send_mouse_event) {
+		OnMouseEvent(MouseEvent::Move, MouseMoveEvent{});
 	}
 }
 
@@ -181,8 +219,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 				}
 				if (interactive.is_inside) {
 					Invoke<callback::MouseOver>(e, pos);
-				}
-				if (!interactive.is_inside) {
+				} else {
 					Invoke<callback::MouseOut>(e, pos);
 				}
 				if (e.Has<Draggable>() && e.Get<Draggable>().dragging) {
@@ -331,6 +368,7 @@ void SceneInput::Init(Scene* scene) {
 	// Input is reset to ensure no previously pressed keys are considered held.
 	game.input.ResetKeyStates();
 	game.input.ResetMouseStates();
+	game.input.Update();
 
 	ResetInteractives();
 	UpdateCurrent();

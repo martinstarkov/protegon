@@ -1,21 +1,83 @@
 #include "renderer/renderer.h"
 
+#include <array>
+#include <cstdint>
+#include <limits>
 #include <type_traits>
+#include <vector>
 
+#include "components/transform.h"
 #include "core/game.h"
 #include "core/window.h"
 #include "math/vector2.h"
+#include "renderer/blend_mode.h"
 #include "renderer/color.h"
 #include "renderer/frame_buffer.h"
 #include "renderer/gl_renderer.h"
+#include "renderer/origin.h"
 #include "renderer/render_data.h"
-#include "scene/scene_manager.h"
 #include "utility/assert.h"
-#include "utility/debug.h"
-#include "utility/log.h"
-#include "utility/stats.h"
 
-namespace ptgn::impl {
+namespace ptgn {
+
+const Depth max_depth{ std::numeric_limits<std::int32_t>::max() };
+const BlendMode debug_blend_mode{ BlendMode::Blend };
+
+void DrawDebugLine(
+	const V2_float& line_start, const V2_float& line_end, const Color& color, float line_width
+) {
+	game.renderer.GetRenderData().AddLine(
+		line_start, line_end, line_width, max_depth, debug_blend_mode, color.Normalized(), true
+	);
+}
+
+void DrawDebugTriangle(
+	const std::array<V2_float, 3>& vertices, const Color& color, float line_width
+) {
+	game.renderer.GetRenderData().AddTriangle(
+		vertices, line_width, max_depth, debug_blend_mode, color.Normalized(), true
+	);
+}
+
+void DrawDebugRect(
+	const V2_float& position, const V2_float& size, const Color& color, Origin origin,
+	float line_width, float rotation
+) {
+	game.renderer.GetRenderData().AddQuad(
+		position, size, origin, line_width, max_depth, debug_blend_mode, color.Normalized(),
+		rotation, true
+	);
+}
+
+void DrawDebugEllipse(
+	const V2_float& center, const V2_float& radius, const Color& color, float line_width,
+	float rotation
+) {
+	game.renderer.GetRenderData().AddEllipse(
+		center, radius, line_width, max_depth, debug_blend_mode, color.Normalized(), rotation, true
+	);
+}
+
+void DrawDebugCircle(const V2_float& center, float radius, const Color& color, float line_width) {
+	game.renderer.GetRenderData().AddEllipse(
+		center, V2_float{ radius }, line_width, max_depth, debug_blend_mode, color.Normalized(),
+		0.0f, true
+	);
+}
+
+void DrawDebugPolygon(const std::vector<V2_float>& vertices, const Color& color, float line_width) {
+	game.renderer.GetRenderData().AddPolygon(
+		vertices, line_width, max_depth, debug_blend_mode, color.Normalized(), true
+	);
+}
+
+void DrawDebugPoint(const V2_float position, const Color& color) {
+	game.renderer.GetRenderData().AddPoint(
+		position, max_depth, debug_blend_mode, color.Normalized(), true
+	);
+}
+
+namespace impl {
 
 void Renderer::Init(const Color& window_background_color) {
 	background_color_ = window_background_color;
@@ -219,4 +281,6 @@ void Renderer::ClearScreen() const {
 	GLRenderer::Clear();
 }
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn

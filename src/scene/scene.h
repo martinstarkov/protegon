@@ -66,7 +66,8 @@ private:
 
 	// void ClearTarget();
 	void InternalEnter();
-	void InternalUpdate();
+	void PreUpdate();
+	void PostUpdate();
 	void InternalExit();
 
 	void Add(Action new_action);

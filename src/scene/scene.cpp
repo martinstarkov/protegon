@@ -53,9 +53,15 @@ void Scene::InternalExit() {
 	manager.Refresh();
 }
 
-void Scene::InternalUpdate() {
+void Scene::PreUpdate() {
 	manager.Refresh();
-	input.Update();
+	input.UpdatePrevious();
+	manager.Refresh();
+	input.UpdateCurrent();
+	manager.Refresh();
+}
+
+void Scene::PostUpdate() {
 	manager.Refresh();
 	Update();
 	manager.Refresh();

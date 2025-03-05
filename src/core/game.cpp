@@ -44,7 +44,6 @@ EM_JS(int, get_screen_height, (), { return screen.height; });
 #include "CoreFoundation/CoreFoundation.h"
 
 #endif
-#include "utility/log.h"
 #include "utility/stats.h"
 
 namespace ptgn {
@@ -275,7 +274,6 @@ void Game::Update() {
 
 		// scene.ClearSceneTargets();
 
-		input.Update();
 		scene.Update();
 
 		renderer.PresentScreen();

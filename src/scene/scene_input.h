@@ -31,7 +31,6 @@ public:
 private:
 	friend class Scene;
 
-	void Update();
 	void UpdatePrevious();
 	void UpdateCurrent();
 

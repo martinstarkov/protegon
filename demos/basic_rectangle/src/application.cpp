@@ -12,6 +12,7 @@
 #include "renderer/color.h"
 #include "renderer/origin.h"
 #include "renderer/render_target.h"
+#include "renderer/renderer.h"
 #include "renderer/text.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
@@ -203,6 +204,19 @@ struct BasicRectangleScene : public Scene {
 			.SetAmbientColor(color::Red);
 		point_light2.Add<Transform>(light2_pos);
 		point_light2.Add<Visible>();
+
+		V2_float pos{ 300, 300 };
+		DrawDebugCircle(pos + V2_float{ 100, 0 }, 30, color::Purple, 1.0f);
+		DrawDebugEllipse(
+			pos + V2_float{ -100, 0 }, V2_float{ 30, 15 }, color::Red, 1.0f, DegToRad(30.0f)
+		);
+		DrawDebugLine(pos, pos + V2_float{ 100, 100 }, color::Orange, 1.0f);
+		DrawDebugPoint(pos + V2_float{ 0, 10 }, color::Yellow);
+		DrawDebugRect(pos, { 40, 30 }, color::Cyan, Origin::Center, 1.0f, DegToRad(15.0f));
+		DrawDebugTriangle(
+			{ pos + V2_float{ -5, 0 }, pos + V2_float{ 0, -5 }, pos + V2_float{ 5, 0 } },
+			color::Pink, 1.0f
+		);
 	}
 
 	void Update() override {

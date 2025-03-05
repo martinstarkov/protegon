@@ -59,6 +59,8 @@ void InputHandler::Update() {
 	UpdateMouseState(Mouse::Middle);
 	mouse_scroll_ = {};
 	SDL_Event e;
+	SDL_PumpEvents();
+	SDL_GetMouseState(&mouse_pos_.x, &mouse_pos_.y);
 	while (SDL_PollEvent(&e)) {
 		switch (e.type) {
 			case SDL_MOUSEMOTION: {
