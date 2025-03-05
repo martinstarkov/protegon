@@ -6,6 +6,7 @@
 #include "core/game.h"
 #include "core/window.h"
 #include "ecs/ecs.h"
+#include "event/input_handler.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
@@ -17,6 +18,7 @@
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 #include "vfx/light.h"
+#include "vfx/tween_effects.h"
 
 using namespace ptgn;
 
@@ -35,7 +37,7 @@ struct BasicRectangleScene : public Scene {
 	GameObject c2;
 	GameObject c3;
 	GameObject t2;
-	GameObject text1;
+	Text text1;
 	GameObject point_light0;
 	GameObject point_light1;
 	GameObject point_light2;
@@ -175,10 +177,11 @@ struct BasicRectangleScene : public Scene {
 
 		game.font.Load("test_font", "resources/test_font.ttf");
 
-		text1 = GameObject{ manager };
-		text1.Add<Text>(manager, "Hello world!", color::Black, "test_font");
+		text1 = Text{ manager, "Hello world", color::Orange, "test_font" };
+		text1.SetFontSize(25);
 		text1.Add<Transform>(center - V2_float{ 0, 130 });
 		text1.Add<Visible>();
+		text1.Add<Depth>(30);
 
 		V2_float light1_pos{ center + V2_float{ 0, 160 } };
 		V2_float light2_pos{ center + V2_float{ 50, -160 } };
@@ -204,19 +207,6 @@ struct BasicRectangleScene : public Scene {
 			.SetAmbientColor(color::Red);
 		point_light2.Add<Transform>(light2_pos);
 		point_light2.Add<Visible>();
-
-		V2_float pos{ 300, 300 };
-		DrawDebugCircle(pos + V2_float{ 100, 0 }, 30, color::Purple, 1.0f);
-		DrawDebugEllipse(
-			pos + V2_float{ -100, 0 }, V2_float{ 30, 15 }, color::Red, 1.0f, DegToRad(30.0f)
-		);
-		DrawDebugLine(pos, pos + V2_float{ 100, 100 }, color::Orange, 1.0f);
-		DrawDebugPoint(pos + V2_float{ 0, 10 }, color::Yellow);
-		DrawDebugRect(pos, { 40, 30 }, color::Cyan, Origin::Center, 1.0f, DegToRad(15.0f));
-		DrawDebugTriangle(
-			{ pos + V2_float{ -5, 0 }, pos + V2_float{ 0, -5 }, pos + V2_float{ 5, 0 } },
-			color::Pink, 1.0f
-		);
 	}
 
 	void Update() override {
@@ -225,6 +215,30 @@ struct BasicRectangleScene : public Scene {
 		render_target.Clear();
 
 		render_target.Draw(t1);
+
+		if (game.input.KeyDown(Key::B)) {
+			Bounce(
+				point_light2, V2_float{ 0, -150 }, {}, milliseconds{ 1500 }, TweenEase::InOutSine,
+				-1, false
+			);
+		}
+		if (game.input.KeyDown(Key::S)) {
+			StopBounce(point_light2, false);
+		}
+		V2_float center{ game.window.GetCenter() };
+
+		V2_float pos{ center + V2_float{ 200, -100 } };
+		DrawDebugCircle(pos + V2_float{ 100, 0 }, 30, color::Purple, 1.0f);
+		DrawDebugEllipse(
+			pos + V2_float{ -100, 0 }, V2_float{ 30, 15 }, color::Red, 1.0f, DegToRad(30.0f)
+		);
+		DrawDebugLine(pos, pos + V2_float{ 100, 100 }, color::Orange, 1.0f);
+		DrawDebugPoint(pos + V2_float{ 0, 10 }, color::Yellow);
+		DrawDebugRect(pos, { 40, 30 }, color::Cyan, Origin::Center, 1.0f, DegToRad(15.0f));
+		DrawDebugTriangle(
+			{ pos + V2_float{ -15, 0 }, pos + V2_float{ 0, -15 }, pos + V2_float{ 15, 0 } },
+			color::Pink, 1.0f
+		);
 	}
 };
 
