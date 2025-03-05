@@ -28,4 +28,12 @@ void from_json(const json& j, Transform& t) {
 	}
 }
 
+namespace impl {
+
+V2_float Offsets::GetTotal() const {
+	return shake + bounce;
+}
+
+} // namespace impl
+
 } // namespace ptgn

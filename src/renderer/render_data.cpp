@@ -572,9 +572,8 @@ void RenderData::AddButton(
 		text_size *= GetScale(*text);
 		AddText(
 			text->GetEntity(),
-			GetPosition(*text) +
-				GetOriginOffset(
-					origin, size
+			GetPosition(*text) + GetOriginOffset(origin, size) +
+				GetOffset(*text
 				) /* offset by button size so that text is initially centered on button center */,
 			text_size, GetOrigin(*text), GetDepth(*text), GetBlendMode(*text),
 			GetTint(*text).Normalized() * tint, GetRotation(*text), false
@@ -620,7 +619,7 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 
 	const auto& depth{ GetDepth(o) };
 	BlendMode blend_mode{ GetBlendMode(o) };
-	V2_float pos{ GetPosition(o) };
+	V2_float pos{ GetPosition(o) + GetOffset(o) };
 	float angle{ GetRotation(o) };
 	V4_float tint{ GetTint(o).Normalized() };
 
@@ -822,7 +821,7 @@ void RenderData::FlushBatches(
 					lights_found = true;
 				}
 				const auto& light{ e.Get<PointLight>() };
-				auto position{ GetPosition(e) };
+				auto position{ GetPosition(e) + GetOffset(e) };
 				batch.shader.SetUniform("u_LightPosition", position);
 				batch.shader.SetUniform("u_LightIntensity", light.GetIntensity());
 				batch.shader.SetUniform("u_LightRadius", light.GetRadius());

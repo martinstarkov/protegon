@@ -70,6 +70,14 @@ V2_float GetPosition(const ecs::Entity& e) {
 	return GetLocalPosition(e) + (HasParent(e) ? GetPosition(GetParent(e)) : V2_float{});
 }
 
+V2_float GetLocalOffset(const ecs::Entity& e) {
+	return e.Has<impl::Offsets>() ? e.Get<impl::Offsets>().GetTotal() : V2_float{};
+}
+
+V2_float GetOffset(const ecs::Entity& e) {
+	return GetLocalOffset(e) + (HasParent(e) ? GetOffset(GetParent(e)) : V2_float{});
+}
+
 float GetLocalRotation(const ecs::Entity& e) {
 	return e.Has<Transform>() ? e.Get<Transform>().rotation : 0.0f;
 }

@@ -139,6 +139,8 @@ Transform* GetAbsoluteTransformImpl(const ecs::Entity& e);
 [[nodiscard]] Transform GetTransform(const ecs::Entity& e);
 [[nodiscard]] V2_float GetLocalPosition(const ecs::Entity& e);
 [[nodiscard]] V2_float GetPosition(const ecs::Entity& e);
+[[nodiscard]] V2_float GetLocalOffset(const ecs::Entity& e);
+[[nodiscard]] V2_float GetOffset(const ecs::Entity& e);
 [[nodiscard]] float GetLocalRotation(const ecs::Entity& e);
 [[nodiscard]] float GetRotation(const ecs::Entity& e);
 [[nodiscard]] V2_float GetLocalScale(const ecs::Entity& e);

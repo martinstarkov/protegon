@@ -34,4 +34,19 @@ struct Depth : public ArithmeticComponent<std::int32_t> {
 	using ArithmeticComponent::ArithmeticComponent;
 };
 
+namespace impl {
+
+// Various transform offsets which do not permanently change the transform of an entity, i.e. camera
+// shake, bounce.
+struct Offsets {
+	Offsets() = default;
+
+	[[nodiscard]] V2_float GetTotal() const;
+
+	V2_float shake;
+	V2_float bounce;
+};
+
+} // namespace impl
+
 } // namespace ptgn
