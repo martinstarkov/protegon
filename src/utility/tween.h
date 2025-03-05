@@ -152,6 +152,9 @@ public:
 	Tween& operator=(Tween&& other) noexcept;
 	~Tween();
 
+	// @param duration The time it takes to take progress from 0 to 1, or vice versa for reversed
+	// tweens. Yoyo tweens take twice the duration to complete a full
+	// yoyo cycle.
 	Tween& During(milliseconds duration);
 	Tween& Ease(TweenEase ease);
 

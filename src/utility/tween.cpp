@@ -395,8 +395,8 @@ Tween& Tween::IncrementTweenPoint() {
 	if (IsCompleted()) {
 		return *this;
 	}
-	// Cannot increment final tween point any further.
-	if (index_ >= tween_points_.size() - 1) {
+	// Cannot increment tween point any further.
+	if (index_ >= tween_points_.size()) {
 		return *this;
 	}
 	PointCompleted();
