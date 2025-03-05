@@ -139,7 +139,7 @@ public:
 	// @param ease Easing function for pan.
 	// @param force If false, the pan is queued in the pan queue, if true the pan is executed
 	// immediately, clearing any previously queued pans or target following.
-	void PanTo(
+	Tween& PanTo(
 		const V2_float& target_position, milliseconds duration, TweenEase ease = TweenEase::Linear,
 		bool force = false
 	);
@@ -149,7 +149,7 @@ public:
 	// @param ease Easing function for zoom.
 	// @param force If false, the zoom is queued in the zoom queue, if true the zoom is executed
 	// immediately, clearing any previously queued zooms.
-	void ZoomTo(
+	Tween& ZoomTo(
 		float target_zoom, milliseconds duration, TweenEase ease = TweenEase::Linear,
 		bool force = false
 	);
@@ -168,7 +168,7 @@ public:
 	 *               |
 	 *             1.5708
 	 */
-	void RotateTo(
+	Tween& RotateTo(
 		float target_angle, milliseconds duration, TweenEase ease = TweenEase::Linear,
 		bool force = false
 	);
@@ -189,7 +189,7 @@ public:
 	// @param ease Easing function for the fade.
 	// @param force If false, the fade is queued in the fade queue, if true the fade is executed
 	// immediately, clearing any previously queued fades.
-	void FadeFrom(
+	Tween& FadeFrom(
 		const Color& color, milliseconds duration, TweenEase ease = TweenEase::Linear,
 		bool force = false
 	);
@@ -199,10 +199,12 @@ public:
 	// @param ease Easing function for the fade.
 	// @param force If false, the fade is queued in the fade queue, if true the fade is executed
 	// immediately, clearing any previously queued fades.
-	void FadeTo(
+	Tween& FadeTo(
 		const Color& color, milliseconds duration, TweenEase ease = TweenEase::Linear,
 		bool force = false
 	);
+
+	Tween& SetColor(const Color& color, bool force = false);
 
 	// Top left position.
 	[[nodiscard]] V2_float GetViewportPosition() const;
@@ -231,14 +233,6 @@ public:
 	// Transforms a camera relative pixel coordinate to being relative to the screen.
 	// @param camera_relative_coordinate The coordinate to be transformed.
 	[[nodiscard]] V2_float TransformToScreen(const V2_float& camera_relative_coordinate) const;
-
-	// Scales a window relative pixel size to being relative to the camera.
-	// @param screen_relative_size The size to be scaled.
-	[[nodiscard]] V2_float ScaleToCamera(const V2_float& screen_relative_size) const;
-
-	// Scales a camera relative pixel size to being relative to the screen.
-	// @param camera_relative_size The size to be scaled.
-	[[nodiscard]] V2_float ScaleToScreen(const V2_float& camera_relative_size) const;
 
 	[[nodiscard]] std::array<V2_float, 4> GetVertices() const;
 
@@ -364,7 +358,7 @@ protected:
 	// @param ease Easing function for the fade.
 	// @param force If false, the fade is queued in the fade queue, if true the fade is executed
 	// immediately, clearing any previously queued fades.
-	void FadeFromTo(
+	Tween& FadeFromTo(
 		const Color& start_color, const Color& end_color, milliseconds duration, TweenEase ease,
 		bool force
 	);
@@ -553,39 +547,5 @@ vertical
 	void OnMouseMoveEvent(const MouseMoveEvent& e);
 };
 */
-
-// Transforms a window relative pixel coordinate to being relative to the specified viewport and
-// primary game camera.
-// @param viewport The viewport relative to which the screen coordinate is transformed.
-// @param camera The camera relative to which the screen coordinate is transformed.
-// @param screen_relative_coordinate The coordinate to be transformed.
-//[[nodiscard]] V2_float TransformToViewport(
-//	const Rect& viewport, const Camera& camera, const V2_float& screen_relative_coordinate
-//);
-
-// Transforms a viewport relative pixel coordinate to being relative to the window.
-// @param viewport The viewport relative to which the viewport coordinate is transformed.
-// @param camera The camera relative to which the viewport coordinate is transformed.
-// @param viewport_coordinate The coordinate to be transformed.
-//[[nodiscard]] V2_float TransformToScreen(
-//	const Rect& viewport, const Camera& camera, const V2_float& viewport_relative_coordinate
-//);
-
-// Scales a window relative pixel size to being relative to the specified viewport and
-// primary game camera.
-// @param viewport The viewport relative to which the pixel size is scaled.
-// @param camera The camera relative to which the pixel size is scaled.
-// @param screen_relative_size The coordinate to be scaled.
-//[[nodiscard]] V2_float ScaleToViewport(
-//	const Rect& viewport, const Camera& camera, const V2_float& screen_relative_size
-//);
-
-// Scales a viewport relative pixel size to being relative to the window.
-// @param viewport The viewport relative to which the pixel size is scaled.
-// @param camera The camera relative to which the pixel size is scaled.
-// @param viewport_relative_size The coordinate to be scaled.
-//[[nodiscard]] V2_float ScaleToScreen(
-//	const Rect& viewport, const Camera& camera, const V2_float& viewport_relative_size
-//);
 
 } // namespace ptgn

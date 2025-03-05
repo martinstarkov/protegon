@@ -292,7 +292,7 @@ Camera::Camera(ecs::Manager& manager) : GameObject{ manager } {
 	Add<impl::CameraInfo>();
 }
 
-void Camera::PanTo(
+Tween& Camera::PanTo(
 	const V2_float& target_position, milliseconds duration, TweenEase ease, bool force
 ) {
 	if (pan_effects_ == ecs::null) {
@@ -326,9 +326,10 @@ void Camera::PanTo(
 		.OnStop(update_pan)
 		.OnReset(update_pan);
 	tween.Start(force);
+	return pan_effects_.Get<Tween>();
 }
 
-void Camera::ZoomTo(float target_zoom, milliseconds duration, TweenEase ease, bool force) {
+Tween& Camera::ZoomTo(float target_zoom, milliseconds duration, TweenEase ease, bool force) {
 	PTGN_ASSERT(target_zoom > 0.0f, "Target zoom cannot be negative or zero");
 	if (zoom_effects_ == ecs::null) {
 		zoom_effects_ = GameObject{ GetManager() };
@@ -360,9 +361,10 @@ void Camera::ZoomTo(float target_zoom, milliseconds duration, TweenEase ease, bo
 		.OnStop(update_zoom)
 		.OnReset(update_zoom);
 	tween.Start(force);
+	return zoom_effects_.Get<Tween>();
 }
 
-void Camera::RotateTo(float target_angle, milliseconds duration, TweenEase ease, bool force) {
+Tween& Camera::RotateTo(float target_angle, milliseconds duration, TweenEase ease, bool force) {
 	if (rotation_effects_ == ecs::null) {
 		rotation_effects_ = GameObject{ GetManager() };
 	}
@@ -395,9 +397,10 @@ void Camera::RotateTo(float target_angle, milliseconds duration, TweenEase ease,
 		.OnStop(update_rotation)
 		.OnReset(update_rotation);
 	tween.Start(force);
+	return rotation_effects_.Get<Tween>();
 }
 
-void Camera::FadeFromTo(
+Tween& Camera::FadeFromTo(
 	const Color& start_color, const Color& end_color, milliseconds duration, TweenEase ease,
 	bool force
 ) {
@@ -441,16 +444,24 @@ void Camera::FadeFromTo(
 		.OnStop(hide)
 		.OnReset(hide);
 	tween.Start(force);
+	return fade_effects_.Get<Tween>();
 }
 
-void Camera::FadeTo(const Color& color, milliseconds duration, TweenEase ease, bool force) {
+Tween& Camera::SetColor(const Color& color, bool force) {
 	PTGN_ASSERT(color != color::Transparent, "Cannot fade to fully transparent color");
-	FadeFromTo(color::Transparent, color, duration, ease, force);
+	auto& tween{ FadeFromTo(color, color, milliseconds{ 0 }, TweenEase::Linear, force) };
+	tween.Repeat(-1);
+	return tween;
 }
 
-void Camera::FadeFrom(const Color& color, milliseconds duration, TweenEase ease, bool force) {
+Tween& Camera::FadeTo(const Color& color, milliseconds duration, TweenEase ease, bool force) {
+	PTGN_ASSERT(color != color::Transparent, "Cannot fade to fully transparent color");
+	return FadeFromTo(color::Transparent, color, duration, ease, force);
+}
+
+Tween& Camera::FadeFrom(const Color& color, milliseconds duration, TweenEase ease, bool force) {
 	PTGN_ASSERT(color != color::Transparent, "Cannot fade from fully transparent color");
-	FadeFromTo(color, color::Transparent, duration, ease, force);
+	return FadeFromTo(color, color::Transparent, duration, ease, force);
 }
 
 V2_float Camera::GetViewportPosition() const {
@@ -475,7 +486,8 @@ V2_float Camera::GetBoundsSize() const {
 
 V2_float Camera::GetPosition(Origin origin) const {
 	const auto& info{ Get<impl::CameraInfo>().data };
-	return V2_float{ info.position.x, info.position.y } + GetOriginOffset(origin, info.size);
+	return V2_float{ info.position.x, info.position.y } +
+		   GetOriginOffset(origin, info.size / info.zoom);
 }
 
 void Camera::SetToWindow(bool continuously) {
@@ -498,29 +510,37 @@ V2_float Camera::TransformToCamera(const V2_float& screen_relative_coordinate) c
 	const auto& info{ Get<impl::CameraInfo>().data };
 	PTGN_ASSERT(info.zoom != 0.0f);
 	PTGN_ASSERT(info.viewport_size.x != 0.0f && info.viewport_size.y != 0.0f);
-	return ((screen_relative_coordinate - info.size * 0.5f) / info.zoom +
-			GetPosition(Origin::Center) - info.viewport_position) *
-		   info.size / info.viewport_size;
+
+	// Normalize screen coordinates to [0, 1] range.
+	V2_float normalized{ (screen_relative_coordinate - info.viewport_position) /
+						 info.viewport_size };
+
+	// Scale normalized coordinates to camera size.
+	V2_float world{ normalized * info.size };
+
+	// Apply zoom.
+	world /= info.zoom;
+
+	// Translate to camera position.
+	world += GetPosition(Origin::BottomRight);
+
+	return world;
 }
 
 V2_float Camera::TransformToScreen(const V2_float& camera_relative_coordinate) const {
 	// TODO: Take into account camera rotation.
 	const auto& info{ Get<impl::CameraInfo>().data };
 	PTGN_ASSERT(info.size.x != 0.0f && info.size.y != 0.0f);
-	V2_float coord{ camera_relative_coordinate * info.viewport_size / info.size +
-					info.viewport_position };
-	return (coord - GetPosition(Origin::Center)) * info.zoom + info.size * 0.5f;
-}
 
-V2_float Camera::ScaleToCamera(const V2_float& screen_relative_size) const {
-	const auto& info{ Get<impl::CameraInfo>().data };
-	return screen_relative_size * info.zoom;
-}
+	V2_float relative{ camera_relative_coordinate - GetPosition(Origin::BottomRight) };
 
-V2_float Camera::ScaleToScreen(const V2_float& camera_relative_size) const {
-	const auto& info{ Get<impl::CameraInfo>().data };
-	PTGN_ASSERT(info.zoom != 0.0f);
-	return camera_relative_size / info.zoom;
+	relative *= info.zoom;
+
+	V2_float normalized{ relative / info.size };
+
+	V2_float screen{ normalized * info.viewport_size + info.viewport_position };
+
+	return screen;
 }
 
 void Camera::CenterOnWindow(bool continuously) {
@@ -703,6 +723,7 @@ void Camera::RecalculateView() const {
 void Camera::RecalculateProjection() const {
 	auto& info{ Get<impl::CameraInfo>().data };
 	PTGN_ASSERT(info.zoom > 0.0f);
+	// TODO: Potentially add two zoom components in the future.
 	V2_float extents{ info.size / 2.0f / info.zoom };
 	V2_float flip_dir{ 1.0f, 1.0f };
 	switch (info.flip) {
@@ -833,41 +854,6 @@ MouseMoveEvent& e) { OnMouseMoveEvent(e);
 
 void CameraController::UnsubscribeFromMouseEvents() {
 	game.event.mouse.Unsubscribe(this);
-}
-*/
-
-/*
-V2_float TransformToViewport(
-	const Rect& viewport, const Camera& camera, const V2_float& screen_relative_coordinate
-) {
-	PTGN_ASSERT(viewport.size.x != 0.0f && viewport.size.y != 0.0f);
-	return (camera.TransformToCamera(screen_relative_coordinate) - viewport.Min()) *
-		   camera.GetSize() / viewport.size;
-}
-
-V2_float TransformToScreen(
-	const Rect& viewport, const Camera& camera, const V2_float& viewport_relative_coordinate
-) {
-	V2_float cam_size{ camera.GetSize() };
-	PTGN_ASSERT(cam_size.x != 0.0f && cam_size.y != 0.0f);
-	return camera.TransformToScreen(
-		viewport_relative_coordinate * viewport.size / cam_size + viewport.Min()
-	);
-}
-
-V2_float ScaleToViewport(
-	const Rect& viewport, const Camera& camera, const V2_float& screen_relative_size
-) {
-	PTGN_ASSERT(viewport.size.x != 0.0f && viewport.size.y != 0.0f);
-	return (camera.ScaleToCamera(screen_relative_size)) * camera.GetSize() / viewport.size;
-}
-
-V2_float ScaleToScreen(
-	const Rect& viewport, const Camera& camera, const V2_float& viewport_relative_size
-) {
-	V2_float cam_size{ camera.GetSize() };
-	PTGN_ASSERT(cam_size.x != 0.0f && cam_size.y != 0.0f);
-	return camera.ScaleToScreen(viewport_relative_size) * viewport.size / cam_size;
 }
 */
 
