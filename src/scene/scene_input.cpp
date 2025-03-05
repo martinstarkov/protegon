@@ -154,6 +154,7 @@ void SceneInput::UpdatePrevious() {
 			continue;
 		}
 		interactive.was_inside = interactive.is_inside;
+		interactive.is_inside  = false;
 	}
 }
 
