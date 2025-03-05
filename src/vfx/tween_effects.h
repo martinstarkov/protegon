@@ -13,7 +13,7 @@ namespace ptgn {
 
 namespace impl {
 
-void DoEffect(
+[[nodiscard]] Tween& DoEffect(
 	const ecs::Entity& effect_entity, const TweenCallback& start, const TweenCallback& update,
 	milliseconds duration, TweenEase ease, bool force
 );
@@ -25,7 +25,7 @@ struct StartPosition : public Vector2Component<float> {
 struct PanEffect : public GameObject {
 	explicit PanEffect(ecs::Manager& manager);
 
-	void PanTo(
+	[[nodiscard]] Tween& PanTo(
 		ecs::Entity& entity, const V2_float& target_position, milliseconds duration, TweenEase ease,
 		bool force
 	);
@@ -39,7 +39,7 @@ struct RotateEffect : public GameObject {
 	explicit RotateEffect(ecs::Manager& manager);
 
 	// @param target_angle In radians.
-	void RotateTo(
+	[[nodiscard]] Tween& RotateTo(
 		ecs::Entity& entity, float target_angle, milliseconds duration, TweenEase ease, bool force
 	);
 };
@@ -51,7 +51,7 @@ struct StartScale : public Vector2Component<float> {
 struct ScaleEffect : public GameObject {
 	explicit ScaleEffect(ecs::Manager& manager);
 
-	void ScaleTo(
+	[[nodiscard]] Tween& ScaleTo(
 		ecs::Entity& entity, const V2_float& target_scale, milliseconds duration, TweenEase ease,
 		bool force
 	);
@@ -64,7 +64,7 @@ struct StartTint : public Tint {
 struct TintEffect : public GameObject {
 	explicit TintEffect(ecs::Manager& manager);
 
-	void TintTo(
+	[[nodiscard]] Tween& TintTo(
 		ecs::Entity& entity, const Color& target_tint, milliseconds duration, TweenEase ease,
 		bool force
 	);
@@ -72,32 +72,35 @@ struct TintEffect : public GameObject {
 
 } // namespace impl
 
-void PanTo(
+Tween& PanTo(
 	ecs::Entity& e, const V2_float& target_position, milliseconds duration,
 	TweenEase ease = TweenEase::Linear, bool force = true
 );
 
-void RotateTo(
+Tween& RotateTo(
 	ecs::Entity& e, float target_angle, milliseconds duration, TweenEase ease = TweenEase::Linear,
 	bool force = true
 );
 
-void ScaleTo(
+Tween& ScaleTo(
 	ecs::Entity& e, const V2_float& target_scale, milliseconds duration,
 	TweenEase ease = TweenEase::Linear, bool force = true
 );
 
-void TintTo(
+Tween& TintTo(
 	ecs::Entity& e, const Color& target_tint, milliseconds duration,
 	TweenEase ease = TweenEase::Linear, bool force = true
 );
 
-void FadeIn(
+Tween& FadeIn(
 	ecs::Entity& e, milliseconds duration, TweenEase ease = TweenEase::Linear, bool force = true
 );
 
-void FadeOut(
+Tween& FadeOut(
 	ecs::Entity& e, milliseconds duration, TweenEase ease = TweenEase::Linear, bool force = true
 );
+
+// Calls the callback after the given duration has elapsed.
+Tween& After(ecs::Manager& manager, milliseconds duration, const std::function<void()>& callback);
 
 } // namespace ptgn
