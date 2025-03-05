@@ -70,6 +70,15 @@ struct TintEffect : public GameObject {
 	);
 };
 
+struct BounceEffect : public GameObject {
+	explicit BounceEffect(ecs::Manager& manager);
+
+	[[nodiscard]] Tween& Bounce(
+		ecs::Entity& entity, const V2_float& bounce_amplitude, const V2_float& static_offset,
+		milliseconds duration, TweenEase ease, std::int64_t repeats, bool force
+	);
+};
+
 } // namespace impl
 
 Tween& PanTo(
@@ -102,5 +111,20 @@ Tween& FadeOut(
 
 // Calls the callback after the given duration has elapsed.
 Tween& After(ecs::Manager& manager, milliseconds duration, const std::function<void()>& callback);
+
+// Stops the current bounce tween and moves onto the next one in the queue.
+// @param force If true, clears the entire bounce queue.
+void StopBounce(ecs::Entity& e, bool force);
+
+// Bounce starts with upward motion unless reversed.
+// @param duration Duration of the upward motion.
+// @param repeats If -1, bounce continues until StopBounce is called.
+// @param static_offset A continuous offset from the entity position.
+Tween& Bounce(
+	ecs::Entity& e, const V2_float& bounce_amplitude, const V2_float& static_offset,
+	milliseconds duration, TweenEase ease, std::int64_t repeats, bool force
+);
+
+// TODO: Add shake effect.
 
 } // namespace ptgn

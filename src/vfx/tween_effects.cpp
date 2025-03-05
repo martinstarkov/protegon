@@ -1,5 +1,6 @@
 #include "vfx/tween_effects.h"
 
+#include <cstdint>
 #include <functional>
 #include <type_traits>
 
@@ -138,6 +139,35 @@ Tween& TintEffect::TintTo(
 	);
 }
 
+BounceEffect::BounceEffect(ecs::Manager& manager) : GameObject{ manager } {
+	Add<Tween>();
+}
+
+Tween& BounceEffect::Bounce(
+	ecs::Entity& entity, const V2_float& bounce_amplitude, const V2_float& static_offset,
+	milliseconds duration, TweenEase ease, std::int64_t repeats, bool force
+) {
+	auto& tween{ impl::DoEffect(
+		GetEntity(),
+		[entity]() mutable {
+			if (!entity.Has<Offsets>()) {
+				entity.Add<Offsets>();
+			}
+			entity.Get<Offsets>().bounce = {};
+		},
+		[bounce_amplitude, static_offset, entity](float progress) mutable {
+			if (entity.Has<Offsets>()) {
+				auto& offsets{ entity.Get<Offsets>() };
+				offsets.bounce = static_offset + bounce_amplitude * progress;
+			}
+		},
+		duration, ease, force
+	) };
+	tween.Yoyo();
+	tween.Repeat(repeats);
+	return tween;
+}
+
 } // namespace impl
 
 template <typename TEffect>
@@ -190,6 +220,27 @@ Tween& RotateTo(
 	ecs::Entity& e, float target_angle, milliseconds duration, TweenEase ease, bool force
 ) {
 	return AddEffect<impl::RotateEffect>(e).RotateTo(e, target_angle, duration, ease, force);
+}
+
+void StopBounce(ecs::Entity& e, bool force) {
+	if (!e.Has<impl::BounceEffect>()) {
+		return;
+	}
+	auto& effect{ e.Get<impl::BounceEffect>() };
+	auto& tween{ effect.Get<Tween>() };
+	tween.IncrementTweenPoint();
+	if (force || tween.IsCompleted()) {
+		tween.Clear();
+	}
+}
+
+Tween& Bounce(
+	ecs::Entity& e, const V2_float& bounce_amplitude, const V2_float& static_offset,
+	milliseconds duration, TweenEase ease, std::int64_t repeats, bool force
+) {
+	return AddEffect<impl::BounceEffect>(e).Bounce(
+		e, bounce_amplitude, static_offset, duration, ease, repeats, force
+	);
 }
 
 } // namespace ptgn
