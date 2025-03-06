@@ -218,6 +218,7 @@ void CameraInfo::SetBounds(const V2_float& position, const V2_float& size) {
 } // namespace impl
 
 void Camera::StopFollow(bool force) {
+	// TODO: Replace with tween effects function call?
 	if (pan_effects_ == ecs::null || !pan_effects_.IsAlive() || !pan_effects_.Has<Tween>()) {
 		return;
 	}
@@ -230,6 +231,7 @@ void Camera::StopFollow(bool force) {
 }
 
 void Camera::StartFollow(ecs::Entity target_entity, bool force) {
+	// TODO: Replace with tween effects function call?
 	if (pan_effects_ == ecs::null) {
 		pan_effects_ = GameObject{ GetManager() };
 	}
@@ -309,6 +311,8 @@ Camera::Camera(ecs::Manager& manager) : GameObject{ manager } {
 Tween& Camera::PanTo(
 	const V2_float& target_position, milliseconds duration, TweenEase ease, bool force
 ) {
+	// TODO: Replace with tween effects function call once camera game object uses transform
+	// component.
 	if (pan_effects_ == ecs::null) {
 		pan_effects_ = GameObject{ GetManager() };
 	}
@@ -344,6 +348,7 @@ Tween& Camera::PanTo(
 }
 
 Tween& Camera::ZoomTo(float target_zoom, milliseconds duration, TweenEase ease, bool force) {
+	// TODO: Replace with tween effects function call?
 	PTGN_ASSERT(target_zoom > 0.0f, "Target zoom cannot be negative or zero");
 	if (zoom_effects_ == ecs::null) {
 		zoom_effects_ = GameObject{ GetManager() };
@@ -379,6 +384,8 @@ Tween& Camera::ZoomTo(float target_zoom, milliseconds duration, TweenEase ease, 
 }
 
 Tween& Camera::RotateTo(float target_angle, milliseconds duration, TweenEase ease, bool force) {
+	// TODO: Replace with tween effects function call once camera game object uses transform
+	// component.
 	if (rotation_effects_ == ecs::null) {
 		rotation_effects_ = GameObject{ GetManager() };
 	}
@@ -439,6 +446,7 @@ Tween& Camera::FadeFromTo(
 	const Color& start_color, const Color& end_color, milliseconds duration, TweenEase ease,
 	bool force
 ) {
+	// TODO: Replace with tween effects function call.
 	if (fade_effects_ == ecs::null) {
 		fade_effects_ = GameObject{ GetManager() };
 	}
@@ -483,6 +491,7 @@ Tween& Camera::FadeFromTo(
 }
 
 Tween& Camera::SetColor(const Color& color, bool force) {
+	// TODO: Replace with tween effects function call?
 	PTGN_ASSERT(color != color::Transparent, "Cannot fade to fully transparent color");
 	auto& tween{ FadeFromTo(color, color, milliseconds{ 0 }, TweenEase::Linear, force) };
 	tween.Repeat(-1);
@@ -490,11 +499,13 @@ Tween& Camera::SetColor(const Color& color, bool force) {
 }
 
 Tween& Camera::FadeTo(const Color& color, milliseconds duration, TweenEase ease, bool force) {
+	// TODO: Replace with tween effects function call.
 	PTGN_ASSERT(color != color::Transparent, "Cannot fade to fully transparent color");
 	return FadeFromTo(color::Transparent, color, duration, ease, force);
 }
 
 Tween& Camera::FadeFrom(const Color& color, milliseconds duration, TweenEase ease, bool force) {
+	// TODO: Replace with tween effects function call.
 	PTGN_ASSERT(color != color::Transparent, "Cannot fade from fully transparent color");
 	return FadeFromTo(color, color::Transparent, duration, ease, force);
 }
