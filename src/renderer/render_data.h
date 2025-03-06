@@ -94,7 +94,7 @@ public:
 
 	void AddButton(
 		const ecs::Entity& o, const V2_float& position, const Depth& depth, BlendMode blend_mode,
-		const V4_float& tint, float rotation
+		const V4_float& tint, float rotation, const V2_float& scale
 	);
 
 private:
@@ -125,7 +125,9 @@ private:
 		bool debug
 	);
 
-	[[nodiscard]] V2_float GetTextureSize(const ecs::Entity& o, const Texture& texture);
+	[[nodiscard]] V2_float GetTextureSize(
+		const ecs::Entity& o, const Texture& texture, const V2_float& scale
+	);
 
 	[[nodiscard]] Batch& GetBatch(
 		std::size_t vertex_count, std::size_t index_count, const Texture& texture,

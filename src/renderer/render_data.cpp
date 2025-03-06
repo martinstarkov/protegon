@@ -300,7 +300,9 @@ void RenderData::AddPointLight(const ecs::Entity& o, const Depth& depth) {
 	b->lights.emplace_back(o);
 }
 
-V2_float RenderData::GetTextureSize(const ecs::Entity& o, const Texture& texture) {
+V2_float RenderData::GetTextureSize(
+	const ecs::Entity& o, const Texture& texture, const V2_float& scale
+) {
 	V2_float size;
 	if (o.Has<TextureCrop>()) {
 		size = o.Get<TextureCrop>().GetSize();
@@ -311,7 +313,7 @@ V2_float RenderData::GetTextureSize(const ecs::Entity& o, const Texture& texture
 	if (size.IsZero()) {
 		size = texture.GetSize();
 	}
-	size *= GetScale(o);
+	size *= scale;
 	return size;
 }
 
@@ -438,7 +440,7 @@ void RenderData::AddRenderTarget(
 
 void RenderData::AddButton(
 	const ecs::Entity& o, const V2_float& position, const Depth& depth, BlendMode blend_mode,
-	const V4_float& tint, float rotation
+	const V4_float& tint, float rotation, const V2_float& scale
 ) {
 	PTGN_ASSERT(o.Has<impl::ButtonTag>());
 
@@ -499,8 +501,6 @@ void RenderData::AddButton(
 	if (button_texture != nullptr && size.IsZero()) {
 		size = button_texture->GetSize();
 	}
-
-	auto scale{ GetScale(o) };
 
 	size *= scale;
 	PTGN_ASSERT(!size.IsZero(), "Invalid size for button");
@@ -569,14 +569,16 @@ void RenderData::AddButton(
 		if (NearlyEqual(text_size.y, 0.0f)) {
 			text_size.y = size.y;
 		}
-		text_size *= GetScale(*text);
+		auto offset_transform{ GetOffsetTransform(*text) };
+		auto text_scale{ GetScale(*text) * offset_transform.scale };
+		text_size *= text_scale;
+		// Offset by button size so that text is initially centered on button center.
+		auto text_pos{ GetPosition(*text) + GetOriginOffset(origin, size) +
+					   offset_transform.position };
+		auto text_rotation{ GetRotation(*text) + offset_transform.rotation };
 		AddText(
-			text->GetEntity(),
-			GetPosition(*text) + GetOriginOffset(origin, size) +
-				GetOffset(*text
-				) /* offset by button size so that text is initially centered on button center */,
-			text_size, GetOrigin(*text), GetDepth(*text), GetBlendMode(*text),
-			GetTint(*text).Normalized() * tint, GetRotation(*text), false
+			text->GetEntity(), text_pos, text_size, GetOrigin(*text), GetDepth(*text),
+			GetBlendMode(*text), GetTint(*text).Normalized() * tint, text_rotation, false
 		);
 	}
 
@@ -619,25 +621,27 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 
 	const auto& depth{ GetDepth(o) };
 	BlendMode blend_mode{ GetBlendMode(o) };
-	V2_float pos{ GetPosition(o) + GetOffset(o) };
-	float angle{ GetRotation(o) };
+	auto offset_transform{ GetOffsetTransform(o) };
+	V2_float pos{ GetPosition(o) + offset_transform.position };
+	auto scale{ GetScale(o) * offset_transform.scale };
+	float angle{ GetRotation(o) + offset_transform.rotation };
 	V4_float tint{ GetTint(o).Normalized() };
 
 	if (o.Has<impl::ButtonTag>()) {
-		AddButton(o, pos, depth, blend_mode, tint, angle);
+		AddButton(o, pos, depth, blend_mode, tint, angle, scale);
 		return;
 	} else if (o.Has<TextureKey>()) {
 		const auto& texture_key{ o.Get<TextureKey>() };
 		const auto& texture{ game.texture.Get(texture_key) };
 		AddTexture(
-			o, texture, pos, GetTextureSize(o, texture), GetOrigin(o), depth, blend_mode, tint,
-			angle, false, false
+			o, texture, pos, GetTextureSize(o, texture, scale), GetOrigin(o), depth, blend_mode,
+			tint, angle, false, false
 		);
 		return;
 	} else if (o.Has<TextTag>()) {
 		AddText(
-			o, pos, GetTextureSize(o, o.Get<impl::Texture>()), GetOrigin(o), depth, blend_mode,
-			tint, angle, false
+			o, pos, GetTextureSize(o, o.Get<impl::Texture>(), scale), GetOrigin(o), depth,
+			blend_mode, tint, angle, false
 		);
 		return;
 	} else if (o.Has<RenderTarget>()) {
@@ -652,14 +656,12 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 	auto line_width{ o.Has<LineWidth>() ? o.Get<LineWidth>() : LineWidth{ -1.0f } };
 
 	auto add_rect = [&](const auto& rect) {
-		auto scale{ GetScale(o) };
 		AddQuad(
 			pos, rect.size * scale, rect.origin, line_width, depth, blend_mode, tint, angle, false
 		);
 	};
 
 	auto add_circle = [&](const auto& circle) {
-		auto scale{ GetScale(o) };
 		AddEllipse(
 			pos, V2_float{ circle.radius } * scale, line_width, depth, blend_mode, tint, angle,
 			false
@@ -671,7 +673,6 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 		return;
 	} else if (o.Has<Polygon>()) {
 		Polygon polygon{ o.Get<Polygon>() };
-		auto scale{ GetScale(o) };
 		for (auto& v : polygon.vertices) {
 			v *= scale;
 			v += pos;
@@ -680,7 +681,6 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 		return;
 	} else if (o.Has<Line>()) {
 		const auto& line{ o.Get<Line>() };
-		auto scale{ GetScale(o) };
 		AddLine(
 			line.start * scale + pos, line.end * scale + pos, line_width, depth, blend_mode, tint,
 			false
@@ -691,11 +691,9 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 		return;
 	} else if (o.Has<Ellipse>()) {
 		const auto& ellipse{ o.Get<Ellipse>() };
-		auto scale{ GetScale(o) };
 		AddEllipse(pos, ellipse.radius * scale, line_width, depth, blend_mode, tint, angle, false);
 		return;
 	} else if (o.Has<Triangle>()) {
-		auto scale{ GetScale(o) };
 		Triangle triangle{ o.Get<Triangle>() };
 		for (auto& v : triangle.vertices) {
 			v *= scale;
@@ -821,10 +819,12 @@ void RenderData::FlushBatches(
 					lights_found = true;
 				}
 				const auto& light{ e.Get<PointLight>() };
-				auto position{ GetPosition(e) + GetOffset(e) };
+				auto offset_transform{ GetOffsetTransform(e) };
+				auto position{ GetPosition(e) + offset_transform.position };
+				float radius{ light.GetRadius() * GetScale(e).x * offset_transform.scale.x };
 				batch.shader.SetUniform("u_LightPosition", position);
 				batch.shader.SetUniform("u_LightIntensity", light.GetIntensity());
-				batch.shader.SetUniform("u_LightRadius", light.GetRadius());
+				batch.shader.SetUniform("u_LightRadius", radius);
 				batch.shader.SetUniform("u_Falloff", light.GetFalloff());
 				batch.shader.SetUniform("u_Color", light.GetColor().Normalized());
 				auto ac{ PointLight::GetShaderColor(light.GetAmbientColor()) };
