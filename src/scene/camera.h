@@ -106,6 +106,10 @@ struct CameraInfo {
 
 		float zoom{ 1.0f };
 
+		// If true, rounds camera position to pixel precision.
+		// TODO: Check that this works.
+		bool pixel_rounding{ false };
+
 		V3_float orientation;
 
 		// Top left position.
@@ -141,6 +145,9 @@ public:
 	Camera(Camera&&) noexcept			 = default;
 	Camera& operator=(Camera&&) noexcept = default;
 	~Camera()							 = default;
+
+	void SetPixelRounding(bool enabled);
+	[[nodiscard]] bool IsPixelRoundingEnabled() const;
 
 	// @param target_position Position to pan to.
 	// @param duration Duration of pan.

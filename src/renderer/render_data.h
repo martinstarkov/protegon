@@ -156,6 +156,8 @@ private:
 	// Set once before adding to batch.
 	std::array<V2_float, Batch::quad_vertex_count> camera_vertices;
 
+	bool pixel_rounding{ false };
+
 	constexpr static float min_line_width{ 1.0f };
 
 	std::size_t max_texture_slots{ 0 };

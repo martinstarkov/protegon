@@ -186,7 +186,7 @@ void RenderData::AddLine(
 		Batch::quad_vertex_count, Batch::quad_index_count, white_texture,
 		game.shader.Get<ShapeShader::Quad>(), blend_mode, depth, debug
 	) };
-	batch.AddFilledQuad(vertices, color, depth);
+	batch.AddFilledQuad(vertices, color, depth, pixel_rounding);
 }
 
 void RenderData::AddLines(
@@ -224,7 +224,7 @@ void RenderData::AddFilledTriangle(
 		Batch::triangle_vertex_count, Batch::triangle_index_count, white_texture,
 		game.shader.Get<ShapeShader::Quad>(), blend_mode, depth, debug
 	) };
-	batch.AddFilledTriangle(vertices, color, depth);
+	batch.AddFilledTriangle(vertices, color, depth, pixel_rounding);
 }
 
 void RenderData::AddFilledQuad(
@@ -235,7 +235,7 @@ void RenderData::AddFilledQuad(
 		Batch::quad_vertex_count, Batch::quad_index_count, white_texture,
 		game.shader.Get<ShapeShader::Quad>(), blend_mode, depth, debug
 	) };
-	batch.AddFilledQuad(vertices, color, depth);
+	batch.AddFilledQuad(vertices, color, depth, pixel_rounding);
 }
 
 void RenderData::AddFilledEllipse(
@@ -246,7 +246,7 @@ void RenderData::AddFilledEllipse(
 		Batch::quad_vertex_count, Batch::quad_index_count, white_texture,
 		game.shader.Get<ShapeShader::Circle>(), blend_mode, depth, debug
 	) };
-	batch.AddFilledEllipse(vertices, color, depth);
+	batch.AddFilledEllipse(vertices, color, depth, pixel_rounding);
 }
 
 void RenderData::AddHollowEllipse(
@@ -258,7 +258,7 @@ void RenderData::AddHollowEllipse(
 		Batch::quad_vertex_count, Batch::quad_index_count, white_texture,
 		game.shader.Get<ShapeShader::Circle>(), blend_mode, depth, debug
 	) };
-	batch.AddHollowEllipse(vertices, line_width, radius, color, depth);
+	batch.AddHollowEllipse(vertices, line_width, radius, color, depth, pixel_rounding);
 }
 
 void RenderData::AddTexturedQuad(
@@ -272,7 +272,7 @@ void RenderData::AddTexturedQuad(
 	) };
 	float texture_index{ GetTextureIndex(batch, texture) };
 	PTGN_ASSERT(texture_index > 0.0f, "Failed to find a valid texture index");
-	batch.AddTexturedQuad(vertices, tex_coords, texture_index, color, depth);
+	batch.AddTexturedQuad(vertices, tex_coords, texture_index, color, depth, pixel_rounding);
 }
 
 void RenderData::AddPointLight(const ecs::Entity& o, const Depth& depth) {
@@ -728,6 +728,7 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 
 void RenderData::SetupRender(const FrameBuffer& frame_buffer, const Camera& camera) {
 	frame_buffer.Bind();
+	pixel_rounding	= camera.IsPixelRoundingEnabled();
 	camera_vertices = camera.GetVertices();
 	auto position{ camera.GetViewportPosition() };
 	auto size{ camera.GetViewportSize() };

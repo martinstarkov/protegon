@@ -57,27 +57,27 @@ struct Batch {
 	void AddTexturedQuad(
 		const std::array<V2_float, quad_vertex_count>& positions,
 		const std::array<V2_float, quad_vertex_count>& tex_coords, float texture_index,
-		const V4_float& color, const Depth& depth
+		const V4_float& color, const Depth& depth, bool pixel_rounding
 	);
 
 	void AddFilledQuad(
 		const std::array<V2_float, quad_vertex_count>& positions, const V4_float& color,
-		const Depth& depth
+		const Depth& depth, bool pixel_rounding
 	);
 
 	void AddFilledEllipse(
 		const std::array<V2_float, quad_vertex_count>& positions, const V4_float& color,
-		const Depth& depth
+		const Depth& depth, bool pixel_rounding
 	);
 
 	void AddHollowEllipse(
 		const std::array<V2_float, quad_vertex_count>& positions, float line_width,
-		const V2_float& radius, const V4_float& color, const Depth& depth
+		const V2_float& radius, const V4_float& color, const Depth& depth, bool pixel_rounding
 	);
 
 	void AddFilledTriangle(
 		const std::array<V2_float, triangle_vertex_count>& positions, const V4_float& color,
-		const Depth& depth
+		const Depth& depth, bool pixel_rounding
 	);
 
 	IndexType index_offset{ 0 };

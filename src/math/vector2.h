@@ -338,12 +338,6 @@ template <typename T>
 	return Clamp(vector, min_v, max_v);
 }
 
-// Round both components of a vector.
-template <typename T>
-[[nodiscard]] inline Vector2<T> Round(const Vector2<T>& vector) {
-	return { std::round(vector.x), std::round(vector.y) };
-}
-
 // Ceil both components of a vector.
 template <typename T>
 [[nodiscard]] inline Vector2<T> Ceil(const Vector2<T>& vector) {
@@ -354,6 +348,12 @@ template <typename T>
 template <typename T>
 [[nodiscard]] inline Vector2<T> Floor(const Vector2<T>& vector) {
 	return { FastFloor(vector.x), FastFloor(vector.y) };
+}
+
+// Round both components of a vector.
+template <typename T>
+[[nodiscard]] inline Vector2<T> Round(const Vector2<T>& vector) {
+	return { FastRound(vector.x), FastRound(vector.y) };
 }
 
 // Absolute value for both components of a vector.

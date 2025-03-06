@@ -11,6 +11,7 @@
 #include "math/geometry/circle.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
+#include "math/math.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/blend_mode.h"
@@ -31,12 +32,18 @@ Batch::Batch(const Shader& shader, const BlendMode& blend_mode) :
 void Batch::AddTexturedQuad(
 	const std::array<V2_float, quad_vertex_count>& positions,
 	const std::array<V2_float, quad_vertex_count>& tex_coords, float texture_index,
-	const V4_float& color, const Depth& depth
+	const V4_float& color, const Depth& depth, bool pixel_rounding
 ) {
 	for (std::size_t i{ 0 }; i < positions.size(); i++) {
 		Vertex v{};
 
-		v.position	= { positions[i].x, positions[i].y, static_cast<float>(depth) };
+		if (pixel_rounding) {
+			v.position = { FastRound(positions[i].x), FastRound(positions[i].y),
+						   static_cast<float>(depth) };
+		} else {
+			v.position = { positions[i].x, positions[i].y, static_cast<float>(depth) };
+		}
+
 		v.color		= { color.x, color.y, color.z, color.w };
 		v.tex_coord = { tex_coords[i].x, tex_coords[i].y };
 		v.tex_index = { texture_index };
@@ -59,14 +66,14 @@ void Batch::AddTexturedQuad(
 
 void Batch::AddFilledEllipse(
 	const std::array<V2_float, quad_vertex_count>& positions, const V4_float& color,
-	const Depth& depth
+	const Depth& depth, bool pixel_rounding
 ) {
-	AddTexturedQuad(positions, GetDefaultTextureCoordinates(), 1.0f, color, depth);
+	AddTexturedQuad(positions, GetDefaultTextureCoordinates(), 1.0f, color, depth, pixel_rounding);
 }
 
 void Batch::AddHollowEllipse(
 	const std::array<V2_float, quad_vertex_count>& positions, float line_width,
-	const V2_float& radius, const V4_float& color, const Depth& depth
+	const V2_float& radius, const V4_float& color, const Depth& depth, bool pixel_rounding
 ) {
 	PTGN_ASSERT(line_width > 0.0f, "Cannot draw ellipse with negative line width");
 	// Internally line width for a filled ellipse is 1.0f and a completely hollow one is 0.0f, but
@@ -74,12 +81,14 @@ void Batch::AddHollowEllipse(
 	// TODO: Check that dividing by std::max(radius.x, radius.y) does not cause any unexpected bugs.
 	line_width = 0.005f + line_width / std::min(radius.x, radius.y);
 
-	AddTexturedQuad(positions, GetDefaultTextureCoordinates(), line_width, color, depth);
+	AddTexturedQuad(
+		positions, GetDefaultTextureCoordinates(), line_width, color, depth, pixel_rounding
+	);
 }
 
 void Batch::AddFilledTriangle(
 	const std::array<V2_float, triangle_vertex_count>& positions, const V4_float& color,
-	const Depth& depth
+	const Depth& depth, bool pixel_rounding
 ) {
 	constexpr std::array<V2_float, triangle_vertex_count> tex_coords{
 		V2_float{ 0.0f, 0.0f }, // lower-left corner
@@ -90,7 +99,13 @@ void Batch::AddFilledTriangle(
 	for (std::size_t i{ 0 }; i < positions.size(); i++) {
 		Vertex v{};
 
-		v.position	= { positions[i].x, positions[i].y, static_cast<float>(depth) };
+		if (pixel_rounding) {
+			v.position = { FastRound(positions[i].x), FastRound(positions[i].y),
+						   static_cast<float>(depth) };
+		} else {
+			v.position = { positions[i].x, positions[i].y, static_cast<float>(depth) };
+		}
+
 		v.color		= { color.x, color.y, color.z, color.w };
 		v.tex_coord = { tex_coords[i].x, tex_coords[i].y };
 		v.tex_index = { 0.0f };
@@ -110,9 +125,9 @@ void Batch::AddFilledTriangle(
 
 void Batch::AddFilledQuad(
 	const std::array<V2_float, quad_vertex_count>& positions, const V4_float& color,
-	const Depth& depth
+	const Depth& depth, bool pixel_rounding
 ) {
-	AddTexturedQuad(positions, GetDefaultTextureCoordinates(), 0.0f, color, depth);
+	AddTexturedQuad(positions, GetDefaultTextureCoordinates(), 0.0f, color, depth, pixel_rounding);
 }
 
 float Batch::GetTextureIndex(

@@ -181,6 +181,16 @@ template <typename T>
 
 // No NaN/inf checking.
 template <typename T>
+[[nodiscard]] T FastRound(T value) {
+	if constexpr (std::is_floating_point_v<T>) {
+		return FastFloor(value + 0.5f);
+	} else {
+		return value;
+	}
+}
+
+// No NaN/inf checking.
+template <typename T>
 [[nodiscard]] T FastCeil(T value) {
 	if constexpr (std::is_floating_point_v<T>) {
 		return static_cast<T>(

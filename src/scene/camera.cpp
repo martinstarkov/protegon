@@ -201,9 +201,6 @@ void CameraInfo::SetPosition(const V2_float& new_position) {
 void CameraInfo::SetPosition(const V3_float& new_position) {
 	data.center_to_window = false;
 	data.position		  = new_position;
-	// TODO: Add pixel rounding.
-	/*data.position.x	   = std::round(data.position.x);
-	data.position.y	   = std::round(data.position.y);*/
 	data.recalculate_view = true;
 	RefreshBounds();
 }
@@ -306,6 +303,21 @@ void Camera::StartFollow(ecs::Entity target_entity, bool force) {
 
 Camera::Camera(ecs::Manager& manager) : GameObject{ manager } {
 	Add<impl::CameraInfo>();
+}
+
+void Camera::SetPixelRounding(bool enabled) {
+	auto& info{ Get<impl::CameraInfo>() };
+	bool changed{ info.data.pixel_rounding != enabled };
+	if (changed) {
+		info.data.pixel_rounding		 = enabled;
+		info.data.recalculate_projection = true;
+		info.data.recalculate_view		 = true;
+	}
+}
+
+bool Camera::IsPixelRoundingEnabled() const {
+	const auto& info{ Get<impl::CameraInfo>() };
+	return info.data.pixel_rounding;
 }
 
 Tween& Camera::PanTo(
@@ -783,6 +795,10 @@ void Camera::RecalculateView(const Transform& offset_transform) const {
 		position.y = clamped.y;
 	}
 
+	if (info.pixel_rounding) {
+		position = FastRound(position);
+	}
+
 	V3_float mirror_position{ -position.x, -position.y, position.z };
 
 	Quaternion quat_orientation{ Quaternion::FromEuler(orientation) };
@@ -794,6 +810,9 @@ void Camera::RecalculateProjection() const {
 	PTGN_ASSERT(info.zoom > 0.0f);
 	// TODO: Potentially add two zoom components in the future.
 	V2_float extents{ info.size / 2.0f / info.zoom };
+	if (info.pixel_rounding) {
+		extents = FastRound(extents);
+	}
 	V2_float flip_dir{ 1.0f, 1.0f };
 	switch (info.flip) {
 		case Flip::None:	   break;
