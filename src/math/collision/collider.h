@@ -63,8 +63,8 @@ enum class CollisionResponse {
 };
 
 struct Collider {
-	// World bounds.
-	Rect bounds;
+	// TODO: Implement local physics world bounds.
+	// Rect bounds;
 
 	// Collisions from the current frame (updated after calling game.collision.Update()).
 	std::unordered_set<Collision> collisions;
