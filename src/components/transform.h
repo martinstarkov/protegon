@@ -9,9 +9,9 @@ namespace ptgn {
 struct Transform {
 	Transform() = default;
 
-	Transform(
-		const V2_float& position, float rotation = 0.0f, const V2_float& scale = { 1.0f, 1.0f }
-	) :
+	explicit Transform(const V2_float& position) : position{ position } {}
+
+	Transform(const V2_float& position, float rotation, const V2_float& scale = { 1.0f, 1.0f }) :
 		position{ position }, rotation{ rotation }, scale{ scale } {}
 
 	[[nodiscard]] Transform RelativeTo(Transform parent) const {
@@ -19,6 +19,14 @@ struct Transform {
 		parent.rotation += rotation;
 		parent.scale	*= scale;
 		return parent;
+	}
+
+	friend bool operator==(const Transform& a, const Transform& b) {
+		return a.position == b.position && a.rotation == b.rotation && a.scale == b.scale;
+	}
+
+	friend bool operator!=(const Transform& a, const Transform& b) {
+		return !(a == b);
 	}
 
 	V2_float position;
@@ -41,10 +49,10 @@ namespace impl {
 struct Offsets {
 	Offsets() = default;
 
-	[[nodiscard]] V2_float GetTotal() const;
+	[[nodiscard]] Transform GetTotal() const;
 
-	V2_float shake;
-	V2_float bounce;
+	Transform shake;
+	Transform bounce;
 };
 
 } // namespace impl
