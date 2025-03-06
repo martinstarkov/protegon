@@ -30,6 +30,7 @@
 #include "utility/log.h"
 #include "utility/time.h"
 #include "utility/tween.h"
+#include "vfx/tween_effects.h"
 
 namespace ptgn {
 
@@ -131,28 +132,41 @@ void CameraInfo::OnWindowResize(const WindowResizedEvent& e) noexcept {
 	}
 }
 
-void CameraInfo::RefreshBounds() noexcept {
-	if (data.bounding_box_size.IsZero()) {
-		return;
+V2_float CameraInfo::ClampToBounds(
+	V2_float position, const V2_float& bounding_box_position, const V2_float& bounding_box_size,
+	const V2_float& camera_size, float camera_zoom
+) {
+	if (bounding_box_size.IsZero()) {
+		return position;
 	}
-	V2_float min{ data.bounding_box_position };
-	V2_float max{ data.bounding_box_position + data.bounding_box_size };
+	V2_float min{ bounding_box_position };
+	V2_float max{ bounding_box_position + bounding_box_size };
 	PTGN_ASSERT(min.x < max.x && min.y < max.y, "Bounding box min must be below maximum");
 	V2_float center{ Midpoint(min, max) };
 
 	// TODO: Incoporate yaw, i.e. data.orientation.x into the bounds using sin and cos.
-	V2_float real_size{ data.size / data.zoom };
+	V2_float real_size{ camera_size / camera_zoom };
 	V2_float half{ real_size * 0.5f };
-	if (real_size.x > data.bounding_box_size.x) {
-		data.position.x = center.x;
+	if (real_size.x > bounding_box_size.x) {
+		position.x = center.x;
 	} else {
-		data.position.x = std::clamp(data.position.x, min.x + half.x, max.x - half.x);
+		position.x = std::clamp(position.x, min.x + half.x, max.x - half.x);
 	}
-	if (real_size.y > data.bounding_box_size.y) {
-		data.position.y = center.y;
+	if (real_size.y > bounding_box_size.y) {
+		position.y = center.y;
 	} else {
-		data.position.y = std::clamp(data.position.y, min.y + half.y, max.y - half.y);
+		position.y = std::clamp(position.y, min.y + half.y, max.y - half.y);
 	}
+	return position;
+}
+
+void CameraInfo::RefreshBounds() noexcept {
+	auto clamped{ ClampToBounds(
+		{ data.position.x, data.position.y }, data.bounding_box_position, data.bounding_box_size,
+		data.size, data.zoom
+	) };
+	data.position.x		  = clamped.x;
+	data.position.y		  = clamped.y;
 	data.recalculate_view = true;
 }
 
@@ -400,6 +414,27 @@ Tween& Camera::RotateTo(float target_angle, milliseconds duration, TweenEase eas
 	return rotation_effects_.Get<Tween>();
 }
 
+Tween& Camera::Shake(
+	float intensity, milliseconds duration, const ShakeConfig& config, bool force
+) {
+	return ptgn::Shake(*this, intensity, duration, config, force).OnComplete([e = GetEntity()]() {
+		e.Get<impl::CameraInfo>().data.recalculate_view = true;
+	});
+}
+
+Tween& Camera::Shake(float intensity, const ShakeConfig& config, bool force) {
+	return ptgn::Shake(*this, intensity, config, force).OnComplete([e = GetEntity()]() {
+		e.Get<impl::CameraInfo>().data.recalculate_view = true;
+	});
+}
+
+void Camera::StopShake(bool force) {
+	ptgn::StopShake(*this, force);
+	if (!Has<impl::ShakeEffect>()) {
+		Get<impl::CameraInfo>().data.recalculate_view = true;
+	}
+}
+
 Tween& Camera::FadeFromTo(
 	const Color& start_color, const Color& end_color, milliseconds duration, TweenEase ease,
 	bool force
@@ -590,7 +625,7 @@ void Camera::SetFlip(Flip new_flip) {
 const Matrix4& Camera::GetView() const {
 	const auto& info{ Get<impl::CameraInfo>().data };
 	if (info.recalculate_view) {
-		RecalculateView();
+		RecalculateView(GetOffsetTransform(*this));
 	}
 	return info.view;
 }
@@ -605,9 +640,12 @@ const Matrix4& Camera::GetProjection() const {
 
 const Matrix4& Camera::GetViewProjection() const {
 	const auto& info{ Get<impl::CameraInfo>().data };
-	bool updated_matrix{ info.recalculate_view || info.recalculate_projection };
-	if (info.recalculate_view) {
-		RecalculateView();
+	auto offset_transform{ GetOffsetTransform(*this) };
+	bool has_offset{ offset_transform != Transform{} };
+	bool update_view{ info.recalculate_view || has_offset };
+	bool updated_matrix{ update_view || info.recalculate_projection };
+	if (update_view) {
+		RecalculateView(offset_transform);
 		info.recalculate_view = false;
 	}
 	if (info.recalculate_projection) {
@@ -712,11 +750,31 @@ void Camera::SetPosition(const V3_float& new_position) {
 	Get<impl::CameraInfo>().SetPosition(new_position);
 }
 
-void Camera::RecalculateView() const {
+void Camera::RecalculateView(const Transform& offset_transform) const {
 	auto& info{ Get<impl::CameraInfo>().data };
-	V3_float mirror_position{ -info.position.x, -info.position.y, info.position.z };
 
-	Quaternion quat_orientation{ GetQuaternion() };
+	auto position{ info.position };
+	auto orientation{ info.orientation };
+
+	position.x	  += offset_transform.position.x;
+	position.y	  += offset_transform.position.y;
+	orientation.x += offset_transform.rotation;
+
+	if (!offset_transform.position.IsZero()) {
+		// Reclamp offset position to ensure camera shake does not move the camera out of
+		// bounds.
+		auto clamped{ impl::CameraInfo::ClampToBounds(
+			{ position.x, position.y }, info.bounding_box_position, info.bounding_box_size,
+			info.size, info.zoom
+		) };
+
+		position.x = clamped.x;
+		position.y = clamped.y;
+	}
+
+	V3_float mirror_position{ -position.x, -position.y, position.z };
+
+	Quaternion quat_orientation{ Quaternion::FromEuler(orientation) };
 	info.view = Matrix4::Translate(quat_orientation.ToMatrix4(), mirror_position);
 }
 

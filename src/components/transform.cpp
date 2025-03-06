@@ -30,8 +30,8 @@ void from_json(const json& j, Transform& t) {
 
 namespace impl {
 
-V2_float Offsets::GetTotal() const {
-	return shake + bounce;
+Transform Offsets::GetTotal() const {
+	return shake.RelativeTo(bounce);
 }
 
 } // namespace impl

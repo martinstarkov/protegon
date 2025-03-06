@@ -15,6 +15,7 @@
 #include "renderer/origin.h"
 #include "utility/time.h"
 #include "utility/tween.h"
+#include "vfx/tween_effects.h"
 
 namespace ptgn {
 
@@ -86,6 +87,12 @@ struct CameraInfo {
 	void OnWindowResize(const WindowResizedEvent& e) noexcept;
 
 	void RefreshBounds() noexcept;
+
+	// If bounding_box_size.IsZero(), returns position.
+	[[nodiscard]] static V2_float ClampToBounds(
+		V2_float position, const V2_float& bounding_box_position, const V2_float& bounding_box_size,
+		const V2_float& camera_size, float camera_zoom
+	);
 
 	// TODO: Convert some of this to be components.
 	struct Data {
@@ -173,6 +180,25 @@ public:
 		float target_angle, milliseconds duration, TweenEase ease = TweenEase::Linear,
 		bool force = false
 	);
+
+	// Execute a continuous shake effect on the camera.
+	// @param intensity Range: [0, 1] for how intensely the camera shakes, 1 being the most intense.
+	// @param duration Duration of the shake effect.
+	// @param config Shake specification (max translation, etc).
+	// @param force If false, the shake is queued in the shake queue, if true the shake is executed
+	// immediately, clearing any previously queued shake effects.
+	Tween& Shake(
+		float intensity, milliseconds duration, const ShakeConfig& config = {}, bool force = false
+	);
+
+	void StopShake(bool force = true);
+
+	// Execute a momentary shake effect on the camera.
+	// @param intensity Range: [0, 1] for how intensely the camera shakes, 1 being the most intense.
+	// @param config Shake specification (max translation, etc).
+	// @param force If false, the shake is queued in the shake queue, if true the shake is executed
+	// immediately, clearing any previously queued shake effects.
+	Tween& Shake(float intensity, const ShakeConfig& config = {}, bool force = false);
 
 	// Note: If the target entity is destroyed, set to null, or its transform component is removed
 	// the camera will stop following it.
@@ -370,7 +396,7 @@ protected:
 	// Set the point which is at the center of the camera view.
 	void SetPosition(const V3_float& new_position);
 
-	void RecalculateView() const;
+	void RecalculateView(const Transform& offset_transform) const;
 	void RecalculateProjection() const;
 	void RecalculateViewProjection() const;
 

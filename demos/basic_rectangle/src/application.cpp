@@ -222,8 +222,28 @@ struct BasicRectangleScene : public Scene {
 				-1, false
 			);
 		}
-		if (game.input.KeyDown(Key::S)) {
+		if (game.input.KeyDown(Key::N)) {
 			StopBounce(point_light2, false);
+		}
+		if (game.input.KeyDown(Key::S)) {
+			Shake(point_light0, 1.0f, {}, false);
+		}
+		if (game.input.KeyDown(Key::D)) {
+			ShakeConfig shake_config;
+			shake_config.maximum_translation = { 30, 30 };
+			Shake(point_light1, 1.0f, seconds{ 3 }, shake_config, false);
+		}
+		if (game.input.KeyDown(Key::F)) {
+			StopShake(point_light1, true);
+		}
+		if (game.input.KeyDown(Key::W)) {
+			camera.primary.Shake(1.0f, seconds{ 3 }, {}, false);
+		}
+		if (game.input.KeyDown(Key::E)) {
+			camera.primary.Shake(1.0f, {}, false);
+		}
+		if (game.input.KeyDown(Key::R)) {
+			camera.primary.StopShake(false);
 		}
 		V2_float center{ game.window.GetCenter() };
 

@@ -1,7 +1,10 @@
 #include "vfx/tween_effects.h"
 
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <type_traits>
 
 #include "components/draw.h"
@@ -9,6 +12,8 @@
 #include "core/game_object.h"
 #include "ecs/ecs.h"
 #include "math/math.h"
+#include "math/noise.h"
+#include "math/rng.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "utility/time.h"
@@ -37,12 +42,12 @@ Tween& DoEffect(
 	return effect_entity.Get<Tween>();
 }
 
-PanEffect::PanEffect(ecs::Manager& manager) : GameObject{ manager } {
+TranslateEffect::TranslateEffect(ecs::Manager& manager) : GameObject{ manager } {
 	Add<Tween>();
 	Add<StartPosition>();
 }
 
-Tween& PanEffect::PanTo(
+Tween& TranslateEffect::TranslateTo(
 	ecs::Entity& entity, const V2_float& target_position, milliseconds duration, TweenEase ease,
 	bool force
 ) {
@@ -158,7 +163,7 @@ Tween& BounceEffect::Bounce(
 		[bounce_amplitude, static_offset, entity](float progress) mutable {
 			if (entity.Has<Offsets>()) {
 				auto& offsets{ entity.Get<Offsets>() };
-				offsets.bounce = static_offset + bounce_amplitude * progress;
+				offsets.bounce.position = static_offset + bounce_amplitude * progress;
 			}
 		},
 		duration, ease, force
@@ -166,6 +171,118 @@ Tween& BounceEffect::Bounce(
 	tween.Yoyo();
 	tween.Repeat(repeats);
 	return tween;
+}
+
+ShakeEffect::ShakeEffect(const ShakeConfig& config) : config_{ config } {
+	using type = decltype(seed_);
+	RNG<type> rng_float{ std::numeric_limits<type>::min(), std::numeric_limits<type>::max() };
+	seed_ = rng_float();
+}
+
+void ShakeEffect::SetConfig(const ShakeConfig& config) {
+	config_ = config;
+}
+
+void ShakeEffect::Update(ecs::Entity& entity, float dt, float time) {
+	if (!entity.Has<impl::Offsets>()) {
+		return;
+	}
+
+	auto& offsets{ entity.Get<impl::Offsets>() };
+
+	if (trauma_ <= 0.0f) {
+		offsets.shake = {};
+		return;
+	}
+
+	// Shake algorithm based on: https://roystan.net/articles/camera-shake/
+
+	// Taking trauma to an exponent allows the ability to smoothen
+	// out the transition from shaking to being static.
+	float shake{ std::pow(trauma_, config_.trauma_exponent) };
+
+	offsets.shake.position =
+		V2_float{ config_.maximum_translation.x *
+					  (PerlinNoise::GetValue(time * config_.frequency, 0.0f, seed_ + 0) * 2 - 1),
+				  config_.maximum_translation.y *
+					  (PerlinNoise::GetValue(time * config_.frequency, 0.0f, seed_ + 1) * 2 - 1) } *
+		shake;
+
+	offsets.shake.rotation =
+		config_.maximum_rotation *
+		(PerlinNoise::GetValue(time * config_.frequency, 0.0f, seed_ + 3) * 2 - 1) * shake;
+
+	trauma_ = std::clamp(trauma_ - config_.recovery_speed * dt, 0.0f, 1.0f);
+}
+
+void ShakeEffect::Reset() {
+	trauma_ = 0.0f;
+}
+
+void ShakeEffect::AddIntensity(float intensity) {
+	trauma_ = std::clamp(trauma_ + intensity, 0.0f, 1.0f);
+}
+
+void ShakeEffect::SetIntensity(float intensity) {
+	trauma_ = std::clamp(intensity, 0.0f, 1.0f);
+}
+
+ContinuousShakeEffect::ContinuousShakeEffect(ecs::Manager& manager) : GameObject{ manager } {
+	Add<Tween>();
+}
+
+void ContinuousShakeEffect::Reset(ecs::Entity& entity) {
+	if (entity.Has<Offsets>()) {
+		entity.Get<Offsets>().shake = {};
+	}
+	entity.Remove<ShakeEffect>();
+}
+
+Tween& ContinuousShakeEffect::Shake(
+	ecs::Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config,
+	bool force
+) {
+	return impl::DoEffect(
+		GetEntity(),
+		[config, entity]() mutable {
+			if (!entity.Has<ShakeEffect>()) {
+				entity.Add<ShakeEffect>();
+			}
+			if (!entity.Has<Offsets>()) {
+				entity.Add<Offsets>();
+			}
+			auto& offsets{ entity.Get<Offsets>() };
+			offsets.shake = {};
+			auto& shake{ entity.Get<ShakeEffect>() };
+			shake.SetConfig(config);
+		},
+		[intensity, entity](float progress) mutable {
+			if (entity.Has<ShakeEffect>()) {
+				entity.Get<ShakeEffect>().SetIntensity(intensity);
+			}
+		},
+		duration, TweenEase::Linear, force
+	);
+}
+
+Tween& ContinuousShakeEffect::Shake(
+	ecs::Entity& entity, float intensity, const ShakeConfig& config, bool force
+) {
+	return impl::DoEffect(
+		GetEntity(),
+		[config, intensity, entity]() mutable {
+			if (!entity.Has<ShakeEffect>()) {
+				entity.Add<ShakeEffect>();
+			}
+			if (!entity.Has<Offsets>()) {
+				entity.Add<Offsets>();
+			}
+			auto& shake{ entity.Get<ShakeEffect>() };
+			shake.SetConfig(config);
+			shake.AddIntensity(intensity);
+		},
+		[]() {}, milliseconds{ 0 }, TweenEase::Linear, force
+	);
 }
 
 } // namespace impl
@@ -192,28 +309,19 @@ Tween& FadeOut(ecs::Entity& e, milliseconds duration, TweenEase ease, bool force
 	return TintTo(e, color::Transparent, duration, ease, force);
 }
 
-Tween& After(ecs::Manager& manager, milliseconds duration, const std::function<void()>& callback) {
-	auto entity{ manager.CreateEntity() };
-	return entity.Add<Tween>()
-		.During(duration)
-		.OnComplete([entity, callback]() mutable {
-			std::invoke(callback);
-			entity.Destroy();
-		})
-		.Start();
-}
-
 Tween& ScaleTo(
 	ecs::Entity& e, const V2_float& target_scale, milliseconds duration, TweenEase ease, bool force
 ) {
 	return AddEffect<impl::ScaleEffect>(e).ScaleTo(e, target_scale, duration, ease, force);
 }
 
-Tween& PanTo(
+Tween& TranslateTo(
 	ecs::Entity& e, const V2_float& target_position, milliseconds duration, TweenEase ease,
 	bool force
 ) {
-	return AddEffect<impl::PanEffect>(e).PanTo(e, target_position, duration, ease, force);
+	return AddEffect<impl::TranslateEffect>(e).TranslateTo(
+		e, target_position, duration, ease, force
+	);
 }
 
 Tween& RotateTo(
@@ -241,6 +349,67 @@ Tween& Bounce(
 	return AddEffect<impl::BounceEffect>(e).Bounce(
 		e, bounce_amplitude, static_offset, duration, ease, repeats, force
 	);
+}
+
+Tween& Shake(
+	ecs::Entity& e, float intensity, milliseconds duration, const ShakeConfig& config, bool force
+) {
+	return AddEffect<impl::ContinuousShakeEffect>(e).Shake(e, intensity, duration, config, force);
+}
+
+Tween& Shake(ecs::Entity& e, float intensity, const ShakeConfig& config, bool force) {
+	return AddEffect<impl::ContinuousShakeEffect>(e).Shake(e, intensity, config, force);
+}
+
+void StopShake(ecs::Entity& e, bool force) {
+	if (!e.Has<impl::ContinuousShakeEffect>()) {
+		return;
+	}
+	auto& effect{ e.Get<impl::ContinuousShakeEffect>() };
+	auto& tween{ effect.Get<Tween>() };
+	tween.IncrementTweenPoint();
+	if (force || tween.IsCompleted()) {
+		tween.Clear();
+		effect.Reset(e);
+	}
+}
+
+Tween& After(ecs::Manager& manager, milliseconds duration, const std::function<void()>& callback) {
+	auto entity{ manager.CreateEntity() };
+	return entity.Add<Tween>()
+		.During(duration)
+		.OnComplete([entity, callback]() mutable {
+			std::invoke(callback);
+			entity.Destroy();
+		})
+		.Start();
+}
+
+Tween& During(ecs::Manager& manager, milliseconds duration, const std::function<void()>& callback) {
+	auto entity{ manager.CreateEntity() };
+	return entity.Add<Tween>().During(duration).OnUpdate([callback]() { std::invoke(callback); }
+	).OnComplete([entity]() mutable {
+		 entity.Destroy();
+	 }).Start();
+}
+
+Tween& Every(
+	ecs::Manager& manager, milliseconds duration, std::int64_t repeats,
+	const std::function<void()>& callback, const std::function<bool()>& exit_condition_callback
+) {
+	auto entity{ manager.CreateEntity() };
+	return entity.Add<Tween>()
+		.During(duration)
+		.Repeat(repeats)
+		.OnUpdate([entity, exit_condition_callback]() mutable {
+			// If callback returns true, stop repetitions.
+			if (exit_condition_callback != nullptr && std::invoke(exit_condition_callback)) {
+				entity.Get<Tween>().IncrementTweenPoint();
+			}
+		})
+		.OnRepeat(callback)
+		.OnComplete([entity]() mutable { entity.Destroy(); })
+		.Start();
 }
 
 } // namespace ptgn

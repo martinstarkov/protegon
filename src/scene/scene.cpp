@@ -1,6 +1,7 @@
 #include "scene/scene.h"
 
 #include "components/lifetime.h"
+#include "components/transform.h"
 #include "core/game.h"
 #include "ecs/ecs.h"
 #include "event/input_handler.h"
@@ -8,6 +9,7 @@
 #include "renderer/renderer.h"
 #include "scene/camera.h"
 #include "utility/tween.h"
+#include "vfx/tween_effects.h"
 
 namespace ptgn {
 
@@ -69,6 +71,11 @@ void Scene::PostUpdate() {
 	for (auto [e, tween] : manager.EntitiesWith<Tween>()) {
 		tween.Step(game.dt());
 		// tween_update_count++;
+	}
+	float dt{ game.dt() };
+	float time{ game.time() };
+	for (auto [e, shake, offsets] : manager.EntitiesWith<impl::ShakeEffect, impl::Offsets>()) {
+		shake.Update(e, dt, time);
 	}
 	// PTGN_LOG("Scene ", key_, " updated ", tween_update_count, " tweens this frame");
 	manager.Refresh();
