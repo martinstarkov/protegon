@@ -5,7 +5,9 @@
 #include <string>
 #include <string_view>
 
+#include "SDL_blendmode.h"
 #include "SDL_pixels.h"
+#include "SDL_rect.h"
 #include "SDL_surface.h"
 #include "SDL_ttf.h"
 #include "core/game.h"
@@ -37,13 +39,9 @@ Text::Text(
 ) :
 	Text{ manager } {
 	Add<impl::TextTag>();
-	Add<TextContent>(content);
-	if (text_color != TextColor{}) {
-		Add<TextColor>(text_color);
-	}
-	if (font_key != FontKey{}) {
-		Add<FontKey>(font_key);
-	}
+	SetParameter(content, false);
+	SetParameter(text_color, false);
+	SetParameter(font_key, false);
 	RecreateTexture();
 }
 
@@ -67,12 +65,17 @@ Text& Text::SetFontSize(std::int32_t pixels) {
 	return SetParameter(FontSize{ pixels });
 }
 
+Text& Text::SetOutline(std::int32_t width, const Color& color) {
+	SetParameter(FontRenderMode::Blended, false);
+	return SetParameter(TextOutline{ width, color });
+}
+
 Text& Text::SetFontRenderMode(FontRenderMode render_mode) {
 	return SetParameter(render_mode);
 }
 
 Text& Text::SetShadingColor(const Color& shading_color) {
-	SetParameter(FontRenderMode::Shaded);
+	SetParameter(FontRenderMode::Shaded, false);
 	return SetParameter(TextShadingColor{ shading_color });
 }
 
@@ -186,6 +189,30 @@ void Text::RecreateTexture() {
 	FontRenderMode mode{ GetParameter(FontRenderMode{}) };
 	TextWrapAfter wrap_after{ GetParameter(TextWrapAfter{}) };
 
+	TextOutline outline{ GetParameter(TextOutline{}) };
+
+	PTGN_ASSERT(outline.width >= 0, "Cannot have negative font outline width");
+
+	SDL_Surface* outline_surface{ nullptr };
+
+	if (outline.width != 0 && outline.color != color::Transparent) {
+		PTGN_ASSERT(
+			mode == FontRenderMode::Blended,
+			"Font render mode must be set to blended when drawing text with outline"
+		);
+		TTF_SetFontOutline(font, outline.width);
+
+		SDL_Color outline_color{ outline.color.r, outline.color.g, outline.color.b,
+								 outline.color.a };
+
+		outline_surface =
+			TTF_RenderUTF8_Blended_Wrapped(font, content.c_str(), outline_color, wrap_after);
+
+		PTGN_ASSERT(outline_surface != nullptr, "Failed to create text outline");
+
+		TTF_SetFontOutline(font, 0);
+	}
+
 	SDL_Surface* surface{ nullptr };
 
 	switch (mode) {
@@ -209,6 +236,18 @@ void Text::RecreateTexture() {
 	}
 
 	PTGN_ASSERT(surface != nullptr, "Failed to create surface for given font information");
+
+	if (outline_surface) {
+		SDL_Rect rect{ outline.width, outline.width, surface->w, surface->h };
+
+		SDL_SetSurfaceBlendMode(surface, SDL_BLENDMODE_BLEND);
+		SDL_BlitSurface(surface, NULL, outline_surface, &rect);
+		SDL_FreeSurface(surface);
+
+		surface = outline_surface;
+	}
+
+	PTGN_ASSERT(surface != nullptr, "Failed to blit text surface to text outline surface");
 
 	texture = impl::Texture(impl::Surface{ surface });
 }

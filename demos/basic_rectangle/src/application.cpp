@@ -38,6 +38,7 @@ struct BasicRectangleScene : public Scene {
 	GameObject c3;
 	GameObject t2;
 	Text text1;
+	Text text2;
 	GameObject point_light0;
 	GameObject point_light1;
 	GameObject point_light2;
@@ -179,9 +180,13 @@ struct BasicRectangleScene : public Scene {
 
 		text1 = Text{ manager, "Hello world", color::Orange, "test_font" };
 		text1.SetFontSize(25);
-		text1.Add<Transform>(center - V2_float{ 0, 130 });
-		text1.Add<Visible>();
-		text1.Add<Depth>(30);
+		text1.SetPosition(center + V2_float{ 0, -130 });
+		text1.SetDepth(30);
+
+		text2 = Text{ manager, "Outlined Text", color::Red, "test_font" };
+		text2.SetFontSize(40);
+		text2.SetOutline(2, color::White);
+		text2.SetPosition(center + V2_float{ -150, 130 });
 
 		V2_float light1_pos{ center + V2_float{ 0, 160 } };
 		V2_float light2_pos{ center + V2_float{ 50, -160 } };

@@ -63,6 +63,19 @@ struct TextColor : public ColorComponent {
 	TextColor() : ColorComponent{ color::Black } {}
 };
 
+struct TextOutline {
+	std::int32_t width{ 0 };
+	Color color;
+
+	friend bool operator==(const TextOutline& a, const TextOutline& b) {
+		return a.width == b.width && a.color == b.color;
+	}
+
+	friend bool operator!=(const TextOutline& a, const TextOutline& b) {
+		return !(a == b);
+	}
+};
+
 struct TextShadingColor : public ColorComponent {
 	using ColorComponent::ColorComponent;
 
@@ -104,6 +117,10 @@ public:
 	// Set the point size of text. Infinity will use the current point size of the font.
 	Text& SetFontSize(std::int32_t pixels);
 
+	// Note: This function will implicitly set font render mode to Blended as it is required.
+	// @param width Setting width to 0 will remove the text outline.
+	Text& SetOutline(std::int32_t width, const Color& color);
+
 	Text& SetFontRenderMode(FontRenderMode render_mode);
 
 	// Sets the background shading color for the text.
@@ -140,7 +157,7 @@ public:
 	Text& SetParameter(const T& value, bool recreate_texture = true) {
 		static_assert(tt::is_any_of_v<
 					  T, FontKey, TextContent, TextColor, FontStyle, FontRenderMode, FontSize,
-					  TextLineSkip, TextShadingColor, TextWrapAfter, TextJustify>);
+					  TextLineSkip, TextShadingColor, TextWrapAfter, TextOutline, TextJustify>);
 		if (!Has<T>()) {
 			Add<T>(value);
 			if (recreate_texture) {
@@ -163,7 +180,7 @@ public:
 	[[nodiscard]] const T& GetParameter(const T& default_value) const {
 		static_assert(tt::is_any_of_v<
 					  T, FontKey, TextContent, TextColor, FontStyle, FontRenderMode, FontSize,
-					  TextLineSkip, TextShadingColor, TextWrapAfter, TextJustify>);
+					  TextLineSkip, TextShadingColor, TextWrapAfter, TextOutline, TextJustify>);
 		if (!Has<T>()) {
 			return default_value;
 		}
