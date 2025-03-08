@@ -24,7 +24,6 @@ Button CreateColorButton(
 	const V2_float& size, const T& activate = nullptr, Origin origin = Origin::Center
 ) {
 	Button b{ manager };
-	b.SetVisible(true);
 	b.SetPosition(position);
 	b.SetRect(size, origin);
 	b.SetBackgroundColor(color::Pink);
@@ -262,26 +261,38 @@ public:
 
 class ButtonExampleScene : public Scene {
 public:
-	V2_float size{ 300, 200 /*200, 70*/ };
+	V2_float size{ 200, 100 /*200, 70*/ };
 	float x1{ 0 /*50*/ };
 	float x2{ 0 /*400*/ };
 	float y{ 50 };
 	float y_step{ 130 };
 
 	Button b1;
+	ToggleButton b2;
 
 	void Enter() override {
 		b1 = CreateColorButton(
 			manager, "Color", V2_float{ x1, y }, size, []() { PTGN_LOG("Clicked regular button"); },
 			Origin::TopLeft
 		);
+
+		b2 = ToggleButton{ manager };
+		b2.SetPosition(V2_float{ x1, y + 1 * (size.y + y_step) });
+		b2.SetRect(size, Origin::TopLeft);
+		b2.SetBackgroundColor(color::LightRed);
+		b2.SetBackgroundColor(color::Red, ButtonState::Hover);
+		b2.SetBackgroundColor(color::DarkRed, ButtonState::Pressed);
+		b2.OnActivate([]() { PTGN_LOG("Toggled button"); });
+		b2.SetBackgroundColorToggled(color::LightBlue);
+		b2.SetBackgroundColorToggled(color::Blue, ButtonState::Hover);
+		b2.SetBackgroundColorToggled(color::DarkBlue, ButtonState::Pressed);
 	}
 
 	void Update() override {
 		static impl::InternalButtonState state{ impl::InternalButtonState::IdleUp };
 		if (auto s{ b1.GetInternalState() }; state != s) {
 			state = s;
-			std::cout << "Internal state: " << state << std::endl;
+			std::cout << "Button 1 internal state: " << state << std::endl;
 		}
 	}
 };

@@ -3,23 +3,24 @@
 #include <cstdint>
 #include <functional>
 #include <iosfwd>
-#include <string>
 #include <string_view>
 
 #include "components/draw.h"
 #include "components/generic.h"
 #include "core/game_object.h"
+#include "core/manager.h"
 #include "ecs/ecs.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/origin.h"
 #include "renderer/text.h"
-#include "renderer/texture.h"
 #include "utility/log.h"
+#include "utility/type_traits.h"
 
 namespace ptgn {
 
 struct ToggleButton;
+class ToggleButtonGroup;
 
 enum class ButtonState : std::uint8_t {
 	Default,
@@ -34,10 +35,6 @@ class RenderData;
 
 struct ButtonTag {};
 
-struct ButtonToggle : public CallbackComponent<> {
-	using CallbackComponent::CallbackComponent;
-};
-
 struct ButtonHoverStart : public CallbackComponent<> {
 	using CallbackComponent::CallbackComponent;
 };
@@ -47,6 +44,10 @@ struct ButtonHoverStop : public CallbackComponent<> {
 };
 
 struct ButtonActivate : public CallbackComponent<> {
+	using CallbackComponent::CallbackComponent;
+};
+
+struct InternalButtonActivate : public CallbackComponent<> {
 	using CallbackComponent::CallbackComponent;
 };
 
@@ -271,10 +272,13 @@ struct Button : public GameObject {
 private:
 	friend class impl::RenderData;
 	friend struct ToggleButton;
+	friend class ToggleButtonGroup;
 
 	// Internal constructor so that toggle button can avoid setting up callbacks with nullptr
 	// internal_on_activate.
 	Button(ecs::Manager& manager, bool);
+
+	Button& OnInternalActivate(const ButtonCallback& callback);
 
 	void Setup();
 	void SetupCallbacks(const std::function<void()>& internal_on_activate);
@@ -296,6 +300,8 @@ struct ToggleButton : public Button {
 	void Activate() final;
 
 	[[nodiscard]] bool IsToggled() const;
+
+	ToggleButton& SetToggled(bool toggled);
 
 	ToggleButton& Toggle();
 
@@ -340,14 +346,14 @@ struct ToggleButton : public Button {
 		const Color& color, ButtonState state = ButtonState::Default
 	);
 
-	ToggleButton& OnToggle(const ButtonCallback& callback);
-
 private:
-	static void Toggle(const ecs::Entity& e);
+	friend class ToggleButtonGroup;
+
+	static void SetToggled(ecs::Entity e, bool toggled);
+	static void Toggle(ecs::Entity e);
 };
 
-/*
-class ToggleButtonGroup : public MapManager<Button, std::string_view, std::string, false> {
+class ToggleButtonGroup : public MapManager<ToggleButton, std::string_view, std::string, false> {
 public:
 	ToggleButtonGroup()										   = default;
 	virtual ~ToggleButtonGroup() override					   = default;
@@ -356,19 +362,20 @@ public:
 	ToggleButtonGroup(const ToggleButtonGroup&)				   = delete;
 	ToggleButtonGroup& operator=(const ToggleButtonGroup&)	   = delete;
 
-	template <typename TKey, typename... TArgs, tt::constructible<Button, TArgs...> = true>
-	Button& Load(const TKey& key, TArgs&&... constructor_args) {
+	template <typename TKey, typename... TArgs, tt::constructible<ToggleButton, TArgs...> = true>
+	ToggleButton& Load(const TKey& key, TArgs&&... constructor_args) {
 		auto k{ GetInternalKey(key) };
-		Button& button{ MapManager::Load(key, Button{ std::forward<TArgs>(constructor_args)... }) };
+		ToggleButton& button{
+			MapManager::Load(key, ToggleButton{ std::forward<TArgs>(constructor_args)... })
+		};
 		// Toggle all other buttons when one is pressed.
-		button.SetInternalOnActivate([this, &button]() {
-			ForEachValue([](Button& b) { b.Set<ButtonProperty::Toggled>(false); });
-			button.Set<ButtonProperty::Toggled>(true);
+		button.OnInternalActivate([this, e = button.GetEntity()]() {
+			ForEachValue([](const ToggleButton& b) { ToggleButton::SetToggled(b, false); });
+			ToggleButton::SetToggled(e, true);
 		});
 		return button;
 	}
 };
-*/
 
 inline std::ostream& operator<<(std::ostream& os, ButtonState state) {
 	switch (state) {

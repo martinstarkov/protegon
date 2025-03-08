@@ -1,7 +1,6 @@
 #pragma once
 
 #include "audio/audio.h"
-#include "components/camera_shake.h"
 #include "components/draw.h"
 #include "components/generic.h"
 #include "components/lifetime.h"

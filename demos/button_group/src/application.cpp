@@ -1,85 +1,44 @@
-#include "protegon/protegon.h"
+#include "core/game.h"
+#include "math/vector2.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
+#include "ui/button.h"
+#include "utility/log.h"
 
 using namespace ptgn;
 
 class ToggleButtonGroupExample : public Scene {
 	ToggleButtonGroup g;
 
-	V2_float size{ 200, 70 };
+	V2_float size{ 200, 130 };
 	float x1{ 50 };
 	float x2{ 400 };
 	float y{ 50 };
 	float y_step{ 130 };
 
-	Texture t_default{ "resources/default.png" };
-	Texture t_hover{ "resources/hover.png" };
-	Texture t_pressed{ "resources/pressed.png" };
-	Texture t_default_disabled{ "resources/default_disabled.png" };
-	Texture t_toggled_default{ "resources/toggled_default.png" };
-	Texture t_toggled_hover{ "resources/toggled_hover.png" };
-	Texture t_toggled_pressed{ "resources/toggled_pressed.png" };
-	Texture t_toggled_default_disabled{ "resources/toggled_default_disabled.png" };
-
-	template <typename T>
-	Button CreateTexturedButton(
-		std::string_view text_content, const V2_float& pos, const V2_float& size,
-		const T& activate = nullptr, Origin origin = Origin::TopLeft
-	) {
-		Button b;
-		b.SetRect(Rect{ pos, size, origin });
-		b.Set<ButtonProperty::Texture>(t_default);
-		b.Set<ButtonProperty::Texture>(t_hover, ButtonState::Hover);
-		b.Set<ButtonProperty::Texture>(t_pressed, ButtonState::Pressed);
-		b.Set<ButtonProperty::Texture>(t_default_disabled, ButtonState::Default, false, true);
-
-		b.Set<ButtonProperty::Text>(Text{ text_content, color::White });
-		b.Set<ButtonProperty::OnActivate>(activate);
-		b.Set<ButtonProperty::Bordered>(true);
-		b.Set<ButtonProperty::BorderColor>(color::Cyan);
-		b.Set<ButtonProperty::BorderThickness>(5.0f);
-		return b;
-	}
-
-	template <typename T = ButtonCallback>
-	Button CreateTexturedToggleButton(
-		std::string_view text_content, const V2_float& pos, const V2_float& size,
-		const T& activate = nullptr, Origin origin = Origin::TopLeft
-	) {
-		Button b{ CreateTexturedButton(text_content, pos, size, activate, origin) };
-
-		b.Set<ButtonProperty::Toggleable>(true);
-		b.Set<ButtonProperty::Texture>(t_toggled_default, ButtonState::Default, true, false);
-		b.Set<ButtonProperty::Texture>(t_toggled_hover, ButtonState::Hover, true, false);
-		b.Set<ButtonProperty::Texture>(t_toggled_pressed, ButtonState::Pressed, true, false);
-		b.Set<ButtonProperty::Texture>(
-			t_toggled_default_disabled, ButtonState::Default, true, true
-		);
+	ToggleButton CreateToggleButton(const V2_float& position, const ButtonCallback& on_activate) {
+		ToggleButton b{ manager };
+		b.SetPosition(position);
+		b.SetRect(size, Origin::TopLeft);
+		b.SetBackgroundColor(color::LightRed);
+		b.SetBackgroundColor(color::Red, ButtonState::Hover);
+		b.SetBackgroundColor(color::DarkRed, ButtonState::Pressed);
+		b.SetBackgroundColorToggled(color::LightBlue);
+		b.SetBackgroundColorToggled(color::Blue, ButtonState::Hover);
+		b.SetBackgroundColorToggled(color::DarkBlue, ButtonState::Pressed);
+		b.OnActivate(on_activate);
 		return b;
 	}
 
 	void Enter() override {
 		g.Clear();
 
-		size   = V2_float{ 200, 130 };
 		y_step = 180;
 
-		g.Load("1", CreateTexturedToggleButton("1", V2_float{ x1, y + y_step * 0 }, size, []() {
-				   PTGN_LOG("1");
-			   }));
-		g.Load("2", CreateTexturedToggleButton("2", V2_float{ x1, y + y_step * 1 }, size, []() {
-				   PTGN_LOG("2");
-			   }));
-		g.Load("3", CreateTexturedToggleButton("3", V2_float{ x1, y + y_step * 2 }, size, []() {
-				   PTGN_LOG("3");
-			   }));
-		g.Load("4", CreateTexturedToggleButton("4", V2_float{ x1, y + y_step * 3 }, size, []() {
-				   PTGN_LOG("4");
-			   }));
-	}
-
-	void Update() override {
-		auto& m = game.event.mouse;
-		g.Draw();
+		g.Load("1", CreateToggleButton(V2_float{ x1, y + y_step * 0 }, []() { PTGN_LOG("1"); }));
+		g.Load("2", CreateToggleButton(V2_float{ x1, y + y_step * 1 }, []() { PTGN_LOG("2"); }));
+		g.Load("3", CreateToggleButton(V2_float{ x1, y + y_step * 2 }, []() { PTGN_LOG("3"); }));
+		g.Load("4", CreateToggleButton(V2_float{ x1, y + y_step * 3 }, []() { PTGN_LOG("4"); }));
 	}
 };
 

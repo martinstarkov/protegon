@@ -200,9 +200,7 @@ void Button::SetupCallbacks(const std::function<void()>& internal_on_activate) {
 			const auto& state{ e.Get<impl::InternalButtonState>() };
 			if (state == impl::InternalButtonState::Pressed) {
 				StateChange(e, impl::InternalButtonState::Hover);
-				if (internal_on_activate != nullptr) {
-					std::invoke(internal_on_activate);
-				}
+				Invoke(internal_on_activate);
 				Activate(e);
 			} else if (state == impl::InternalButtonState::HoverPressed) {
 				StateChange(e, impl::InternalButtonState::Hover);
@@ -545,6 +543,15 @@ Button& Button::OnActivate(const ButtonCallback& callback) {
 	return *this;
 }
 
+Button& Button::OnInternalActivate(const ButtonCallback& callback) {
+	if (callback == nullptr) {
+		Remove<impl::InternalButtonActivate>();
+	} else {
+		Add<impl::InternalButtonActivate>(callback);
+	}
+	return *this;
+}
+
 impl::InternalButtonState Button::GetInternalState() const {
 	return Get<impl::InternalButtonState>();
 }
@@ -568,9 +575,14 @@ void Button::StateChange(const ecs::Entity& e, impl::InternalButtonState new_sta
 }
 
 void Button::Activate(const ecs::Entity& e) {
+	if (e.Has<impl::InternalButtonActivate>()) {
+		if (const auto& callback{ e.Get<impl::InternalButtonActivate>() }; callback != nullptr) {
+			std::invoke(callback);
+		}
+	}
 	if (e.Has<impl::ButtonActivate>()) {
 		if (const auto& callback{ e.Get<impl::ButtonActivate>() }; callback != nullptr) {
-			callback();
+			std::invoke(callback);
 		}
 	}
 }
@@ -578,7 +590,7 @@ void Button::Activate(const ecs::Entity& e) {
 void Button::StartHover(const ecs::Entity& e) {
 	if (e.Has<impl::ButtonHoverStart>()) {
 		if (const auto& callback{ e.Get<impl::ButtonHoverStart>() }; callback != nullptr) {
-			callback();
+			std::invoke(callback);
 		}
 	}
 }
@@ -586,7 +598,7 @@ void Button::StartHover(const ecs::Entity& e) {
 void Button::StopHover(const ecs::Entity& e) {
 	if (e.Has<impl::ButtonHoverStop>()) {
 		if (const auto& callback{ e.Get<impl::ButtonHoverStop>() }; callback != nullptr) {
-			callback();
+			std::invoke(callback);
 		}
 	}
 }
@@ -606,19 +618,24 @@ bool ToggleButton::IsToggled() const {
 	return Get<impl::ButtonToggled>();
 }
 
+ToggleButton& ToggleButton::SetToggled(bool toggled) {
+	SetToggled(GetEntity(), toggled);
+	return *this;
+}
+
+void ToggleButton::SetToggled(ecs::Entity e, bool toggled) {
+	auto& t{ e.Get<impl::ButtonToggled>() };
+	t = toggled;
+}
+
 ToggleButton& ToggleButton::Toggle() {
 	Toggle(GetEntity());
 	return *this;
 }
 
-void ToggleButton::Toggle(const ecs::Entity& e) {
+void ToggleButton::Toggle(ecs::Entity e) {
 	auto& toggled{ e.Get<impl::ButtonToggled>() };
 	toggled = !toggled;
-	if (e.Has<impl::ButtonToggle>()) {
-		if (const auto& callback{ e.Get<impl::ButtonToggle>() }; callback != nullptr) {
-			callback();
-		}
-	}
 }
 
 Color ToggleButton::GetBackgroundColorToggled(ButtonState state) const {
@@ -707,15 +724,6 @@ ToggleButton& ToggleButton::SetBorderColorToggled(const Color& color, ButtonStat
 	} else {
 		auto& c{ Get<impl::ButtonBorderColorToggled>() };
 		c.Get(state) = color;
-	}
-	return *this;
-}
-
-ToggleButton& ToggleButton::OnToggle(const ButtonCallback& callback) {
-	if (callback == nullptr) {
-		Remove<impl::ButtonToggle>();
-	} else {
-		Add<impl::ButtonToggle>(callback);
 	}
 	return *this;
 }
