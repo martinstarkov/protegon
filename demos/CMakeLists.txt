@@ -1,4 +1,5 @@
 add_subdirectory(basic_rectangle)
+add_subdirectory(binary_serialization)
 add_subdirectory(paint)
 add_subdirectory(plot)
 add_subdirectory(renderer)

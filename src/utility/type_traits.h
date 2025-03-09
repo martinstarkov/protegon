@@ -1,7 +1,11 @@
 #pragma once
 
+#include <array>
+#include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace ptgn::tt {
 
@@ -83,37 +87,37 @@ struct pred_base<true> : std::true_type {};
 // Are the decayed versions of "T" and "O" the same basic type?
 // Gets around the fact that std::is_same will treat, say "bool" and "bool&" as
 // different types and using std::decay all over the place gets really verbose
-template <class T, class O>
+template <typename T, typename O>
 struct same_decayed :
 	pred_base<std::is_same_v<typename std::decay_t<T>, typename std::decay_t<O>>> {};
 
 // is_numeric, i.e. true for floats and integrals but not bool
-template <class T>
+template <typename T>
 struct is_numeric : pred_base<std::is_arithmetic_v<T> && !same_decayed<bool, T>::value> {};
 
 // both - less verbose way to determine if two types both meet a single
 // predicate
-template <class A, class B, template <typename> class PRED>
+template <typename A, typename B, template <typename> typename PRED>
 struct both : pred_base<PRED<A>::value && PRED<B>::value> {};
 
-template <class A, class B>
+template <typename A, typename B>
 struct both_numeric : both<A, B, is_numeric> {}; // Are both A and B numeric types
 
-template <class A, class B>
+template <typename A, typename B>
 struct both_floating :
 	both<A, B, std::is_floating_point> {}; // Are both A and B floating point types
 
-template <class A, class B>
+template <typename A, typename B>
 struct both_integral : both<A, B, std::is_integral> {}; // Are both A and B integral types
 
-template <class A, class B>
+template <typename A, typename B>
 struct both_signed : both<A, B, std::is_signed> {}; // Are both A and B signed types
 
-template <class A, class B>
+template <typename A, typename B>
 struct both_unsigned : both<A, B, std::is_unsigned> {}; // Are both A and B unsigned types
 
 // Returns true if both number types are signed or both are unsigned.
-template <class T, class F>
+template <typename T, typename F>
 struct same_signage : pred_base<(both_signed<T, F>::value) || (both_unsigned<T, F>::value)> {};
 
 // Source: https://stackoverflow.com/a/36272533
@@ -121,7 +125,7 @@ struct same_signage : pred_base<(both_signed<T, F>::value) || (both_unsigned<T, 
 // Floating dest: src must be integral or smaller/equal float-type
 // Integral dest: src must be integral and (smaller/equal+same signage) or
 // (smaller+different signage)
-template <class T, class F>
+template <typename T, typename F>
 struct is_safe_numeric_cast :
 	pred_base<
 		(both_numeric<T, F>::value && std::is_floating_point_v<T> && std::is_integral_v<F>) ||
@@ -147,44 +151,110 @@ struct is_safely_castable<T, U, std::void_t<decltype(static_cast<U>(std::declval
 	std::true_type {};
 
 template <typename T, typename U = void>
-struct is_mappish_impl : std::false_type {};
+struct is_map_like_impl : std::false_type {};
 
 template <typename T>
-struct is_mappish_impl<
+struct is_map_like_impl<
 	T, std::void_t<
 		   typename T::key_type, typename T::mapped_type,
 		   decltype(std::declval<T&>()[std::declval<const typename T::key_type&>()])>> :
 	std::true_type {};
 
 template <typename T>
-struct is_mappish : is_mappish_impl<T>::type {};
+struct is_map_like : is_map_like_impl<T>::type {};
+
+template <typename T>
+struct is_string_like : public std::false_type {};
+
+template <>
+struct is_string_like<std::string> : public std::true_type {};
+
+template <>
+struct is_string_like<std::string_view> : public std::true_type {};
+
+template <typename T>
+struct is_std_vector : public std::false_type {};
+
+template <typename T, typename Alloc>
+struct is_std_vector<std::vector<T, Alloc>> : public std::true_type {};
+
+template <typename T>
+struct is_std_array : public std::false_type {};
+
+template <typename T, std::size_t I>
+struct is_std_array<std::array<T, I>> : public std::true_type {};
+
+template <typename T, typename StreamWriterType, typename = void>
+struct has_static_serialize : std::false_type {};
+
+template <typename T, typename StreamWriterType>
+struct has_static_serialize<
+	T, StreamWriterType,
+	std::void_t<decltype(T::Serialize(std::declval<StreamWriterType*>(), std::declval<const T&>())
+	)>> : std::true_type {};
+
+template <typename T, typename StreamReaderType, typename = void>
+struct has_static_deserialize : std::false_type {};
+
+template <typename T, typename StreamReaderType>
+struct has_static_deserialize<
+	T, StreamReaderType,
+	std::void_t<decltype(T::Deserialize(std::declval<StreamReaderType*>(), std::declval<T&>()))>> :
+	std::true_type {};
 
 } // namespace impl
 
+template <typename T, typename StreamWriterType>
+inline constexpr bool is_serializable_v{ impl::has_static_serialize<T, StreamWriterType>::value };
+
+template <typename T, typename StreamReaderType>
+inline constexpr bool is_deserializable_v{
+	impl::has_static_deserialize<T, StreamReaderType>::value
+};
+
+template <typename T>
+inline constexpr bool is_std_array_or_vector_v{ impl::is_std_array<T>::value ||
+												impl::is_std_vector<T>::value };
+
+template <typename T>
+inline constexpr bool is_std_array_v{ impl::is_std_array<T>::value };
+
+template <typename T>
+inline constexpr bool is_std_vector_v{ impl::is_std_vector<T>::value };
+
 template <typename T, typename U>
 inline constexpr bool is_equals_comparable_v{ impl::is_equals_comparable<T, U>::value };
+
 template <typename T, typename U>
 inline constexpr bool is_not_equals_comparable_v{ impl::is_not_equals_comparable<T, U>::value };
+
 template <typename T, typename U>
 inline constexpr bool is_less_than_comparable_v{ impl::is_less_than_comparable<T, U>::value };
+
 template <typename T, typename U>
 inline constexpr bool is_less_than_or_equal_comparable_v{
 	impl::is_less_than_or_equal_comparable<T, U>::value
 };
+
 template <typename T, typename U>
 inline constexpr bool is_greater_than_comparable_v{ impl::is_greater_than_comparable<T, U>::value };
+
 template <typename T, typename U>
 inline constexpr bool is_greater_than_or_equal_comparable_v{
 	impl::is_greater_than_or_equal_comparable<T, U>::value
 };
+
 template <typename From, typename To>
-inline constexpr bool is_narrowing_v{ !impl::is_safe_numeric_cast<To, From>::value 
-									/* Or perhaps alternatively: std::is_convertible_v<From, To> &&
-                                      !std::is_same_v<From, To> &&
-                                      !std::is_constructible_v<To, From>*/ };
-									  
+inline constexpr bool is_narrowing_v{
+	!impl::is_safe_numeric_cast<To, From>::value
+	/* Or perhaps alternatively: std::is_convertible_v<From, To> &&
+	  !std::is_same_v<From, To> &&
+	  !std::is_constructible_v<To, From>*/
+};
+
 template <typename Stream, typename Type>
 inline constexpr bool is_stream_writable_v{ impl::is_stream_writable<Stream, Type>::value };
+
 template <typename From, typename To>
 inline constexpr bool is_safely_castable_v{ impl::is_safely_castable<From, To>::value };
 
@@ -197,59 +267,94 @@ inline constexpr bool is_not_any_of_v{ (!std::is_same_v<T, Ts> && ...) };
 template <typename T, typename... Ts>
 inline constexpr bool is_safely_castable_to_one_of_v{ (is_safely_castable_v<T, Ts> || ...) };
 
-template <class T>
-inline constexpr bool is_map_type_v{ impl::is_mappish<T>{} };
+template <typename T>
+inline constexpr bool is_string_like_v{ impl::is_string_like<T>::value };
+
+template <typename T>
+inline constexpr bool is_map_like_v{ impl::is_map_like<T>{} };
+
+// SFINAE helpers.
+
+template <bool Condition>
+using enable = std::enable_if_t<Condition, bool>;
+
+template <typename T, typename StreamWriterType>
+using serializable = enable<is_serializable_v<T, StreamWriterType>>;
+
+template <typename T, typename StreamReaderType>
+using deserializable = enable<is_deserializable_v<T, StreamReaderType>>;
+
+template <typename T>
+using string_like = enable<is_string_like_v<T>>;
+
+template <typename T>
+using map_like = enable<is_map_like_v<T>>;
 
 template <typename T, typename U>
-using equals_comparable = std::enable_if_t<is_equals_comparable_v<T, U>, bool>;
+using equals_comparable = enable<is_equals_comparable_v<T, U>>;
+
 template <typename T, typename U>
-using not_equals_comparable = std::enable_if_t<is_not_equals_comparable_v<T, U>, bool>;
+using not_equals_comparable = enable<is_not_equals_comparable_v<T, U>>;
+
 template <typename T, typename U>
-using less_than_comparable = std::enable_if_t<is_less_than_comparable_v<T, U>, bool>;
+using less_than_comparable = enable<is_less_than_comparable_v<T, U>>;
+
 template <typename T, typename U>
-using less_than_or_equal_comparable =
-	std::enable_if_t<is_less_than_or_equal_comparable_v<T, U>, bool>;
+using less_than_or_equal_comparable = enable<is_less_than_or_equal_comparable_v<T, U>>;
+
 template <typename T, typename U>
-using greater_than_comparable = std::enable_if_t<is_greater_than_comparable_v<T, U>, bool>;
+using greater_than_comparable = enable<is_greater_than_comparable_v<T, U>>;
+
 template <typename T, typename U>
-using greater_than_or_equal_comparable =
-	std::enable_if_t<is_greater_than_or_equal_comparable_v<T, U>, bool>;
+using greater_than_or_equal_comparable = enable<is_greater_than_or_equal_comparable_v<T, U>>;
+
 template <typename From, typename To>
-using convertible = std::enable_if_t<std::is_convertible_v<From, To>, bool>;
+using convertible = enable<std::is_convertible_v<From, To>>;
+
 template <typename T>
-using arithmetic = std::enable_if_t<std::is_arithmetic_v<T>, bool>;
+using arithmetic = enable<std::is_arithmetic_v<T>>;
+
 template <typename T>
-using integral = std::enable_if_t<std::is_integral_v<T>, bool>;
+using integral = enable<std::is_integral_v<T>>;
+
 template <typename T>
-using floating_point = std::enable_if_t<std::is_floating_point_v<T>, bool>;
+using floating_point = enable<std::is_floating_point_v<T>>;
+
 template <typename From, typename To>
-using narrowing = std::enable_if_t<is_narrowing_v<From, To>, bool>;
+using narrowing = enable<is_narrowing_v<From, To>>;
+
 template <typename From, typename To>
-using not_narrowing = std::enable_if_t<!is_narrowing_v<From, To>, bool>;
+using not_narrowing = enable<!is_narrowing_v<From, To>>;
+
 template <typename T>
-using copy_constructible = std::enable_if_t<std::is_copy_constructible_v<T>, bool>;
+using copy_constructible = enable<std::is_copy_constructible_v<T>>;
+
 template <typename From, typename To>
-using is_safely_castable = std::enable_if_t<is_safely_castable_v<From, To>, bool>;
+using is_safely_castable = enable<is_safely_castable_v<From, To>>;
+
 template <typename T, typename... TArgs>
-using constructible = std::enable_if_t<
-	std::is_constructible_v<T, TArgs...> || std::is_trivially_constructible_v<T, TArgs...>, bool>;
+using constructible =
+	enable<std::is_constructible_v<T, TArgs...> || std::is_trivially_constructible_v<T, TArgs...>>;
+
 template <typename Stream, typename... Types>
-using stream_writable =
-	std::enable_if_t<std::conjunction_v<impl::is_stream_writable<Stream, Types>...>, bool>;
+using stream_writable = enable<std::conjunction_v<impl::is_stream_writable<Stream, Types>...>>;
+
 template <typename Type, typename... Types>
-using type = std::enable_if_t<std::conjunction_v<std::is_same<Type, Types>...>, bool>;
+using type = enable<std::conjunction_v<std::is_same<Type, Types>...>>;
+
 template <typename TypeA, typename TypeB>
-using same = std::enable_if_t<std::is_same_v<TypeA, TypeB>, bool>;
+using same = enable<std::is_same_v<TypeA, TypeB>>;
+
 template <typename TypeA, typename TypeB>
-using not_same = std::enable_if_t<!std::is_same_v<TypeA, TypeB>, bool>;
+using not_same = enable<!std::is_same_v<TypeA, TypeB>>;
+
 template <typename ChildClass, typename ParentClass>
-using is_base_of = std::enable_if_t<std::is_base_of_v<ParentClass, ChildClass>, bool>;
+using is_base_of = enable<std::is_base_of_v<ParentClass, ChildClass>>;
+
 template <typename T, typename... Ts>
-using is_any_of = std::enable_if_t<is_any_of_v<T, Ts...>, bool>;
+using is_any_of = enable<is_any_of_v<T, Ts...>>;
+
 template <typename T, typename... Ts>
-using is_safely_castable_to_one_of =
-	std::enable_if_t<is_safely_castable_to_one_of_v<T, Ts...>, bool>;
-template <bool CONDITION>
-using enable = std::enable_if_t<CONDITION, bool>;
+using is_safely_castable_to_one_of = enable<is_safely_castable_to_one_of_v<T, Ts...>>;
 
 } // namespace ptgn::tt
