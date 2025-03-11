@@ -5,6 +5,7 @@
 #include <string_view>
 #include <type_traits>
 
+#include "ecs/ecs.h"
 #include "utility/assert.h"
 #include "utility/type_traits.h"
 
@@ -79,6 +80,16 @@ public:
 	template <typename T>
 	void ReadRaw(T& type) {
 		ReadData(reinterpret_cast<char*>(&type), sizeof(T));
+	}
+
+	template <typename... Ts>
+	void ReadEntity(ecs::Entity& o) {
+		static_assert(sizeof...(Ts) > 0, "Cannot deserialize entity without specified components");
+		static_assert(
+			(is_stream_deserializable_type_v<Ts> && ...),
+			"One or more of the ReadEntity component types is not deserializable"
+		);
+		(Read(o.Add<Ts>()), ...);
 	}
 };
 

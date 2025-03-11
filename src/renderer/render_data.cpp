@@ -884,9 +884,9 @@ void RenderData::Flush(const FrameBuffer& frame_buffer, const Camera& camera) {
 		FlushBatches(batches, frame_buffer, camera, window_size, depth);
 	}
 
-	if (batch_map.empty()) {
+	/*if (batch_map.empty()) {
 		PTGN_WARN("Renderer empty screen");
-	}
+	}*/
 
 	batch_map.clear();
 }

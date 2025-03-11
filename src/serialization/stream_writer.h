@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <type_traits>
 
+#include "ecs/ecs.h"
 #include "utility/type_traits.h"
 
 namespace ptgn {
@@ -76,6 +77,16 @@ public:
 	template <typename T>
 	void WriteRaw(const T& type) {
 		WriteData(reinterpret_cast<const char*>(&type), sizeof(T));
+	}
+
+	template <typename... Ts>
+	void WriteEntity(const ecs::Entity& o) {
+		static_assert(sizeof...(Ts) > 0, "Cannot serialize entity without specified components");
+		static_assert(
+			(is_stream_serializable_type_v<Ts> && ...),
+			"One or more of the WriteEntity component types is not serializable"
+		);
+		(Write(o.Get<Ts>()), ...);
 	}
 };
 

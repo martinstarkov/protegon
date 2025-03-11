@@ -33,10 +33,12 @@ public:
 	struct NonTrivial {
 		std::vector<int> v;
 
+		template <typename... Ts>
 		static void Serialize(StreamWriter* w, const NonTrivial& nt) {
 			w->Write(nt.v);
 		}
 
+		template <typename... Ts>
 		static void Deserialize(StreamReader* r, NonTrivial& nt) {
 			r->Read(nt.v);
 		}
