@@ -10,6 +10,8 @@
 #include <variant>
 #include <vector>
 
+#include "serialization/stream_reader.h"
+#include "serialization/stream_writer.h"
 #include "utility/assert.h"
 #include "utility/log.h"
 #include "utility/time.h"
@@ -19,11 +21,70 @@ namespace ptgn {
 
 namespace impl {
 
+TweenEaseFunction GetEaseFunction(TweenEase V) {
+	if (V == TweenEase::Linear) {
+		return [](float t, float a, float b) {
+			float c{ b - a };
+			return a + t * c;
+		};
+	} else if (V == TweenEase::InSine) {
+		return [](float t, float a, float b) {
+			float c{ b - a };
+			return -c * std::cos(t * half_pi<float>) + b;
+		};
+	} else if (V == TweenEase::OutSine) {
+		return [](float t, float a, float b) {
+			float c{ b - a };
+			return c * std::sin(t * half_pi<float>) + a;
+		};
+	} else if (V == TweenEase::InOutSine) {
+		return [](float t, float a, float b) {
+			float c{ b - a };
+			return -c / float{ 2 } * (std::cos(pi<float> * t) - float{ 1 }) + a;
+		};
+	} else {
+		PTGN_ERROR("Invalid or unimplemented tween ease function");
+	}
+	// TODO: Implement these.
+	// TweenEase::InQuad
+	// TweenEase::OutQuad
+	// TweenEase::InOutQuad
+	// TweenEase::InCubic
+	// TweenEase::OutCubic
+	// TweenEase::InOutCubic
+	// TweenEase::InExponential
+	// TweenEase::OutExponential
+	// TweenEase::InOutExponential
+	// TweenEase::InCircular
+	// TweenEase::OutCircular
+	// TweenEase::InOutCircular
+}
+
 TweenPoint::TweenPoint(milliseconds duration) : duration_{ duration } {}
 
 void TweenPoint::SetReversed(bool reversed) {
 	start_reversed_		= reversed;
 	currently_reversed_ = start_reversed_;
+}
+
+void TweenPoint::Serialize(ptgn::StreamWriter* w, const TweenPoint& tween_point) {
+	w->Write(tween_point.current_repeat_);
+	w->Write(tween_point.total_repeats_);
+	w->Write(tween_point.yoyo_);
+	w->Write(tween_point.currently_reversed_);
+	w->Write(tween_point.start_reversed_);
+	w->Write(tween_point.duration_);
+	w->Write(tween_point.easing_func_);
+}
+
+void TweenPoint::Deserialize(ptgn::StreamReader* r, TweenPoint& tween_point) {
+	r->Read(tween_point.current_repeat_);
+	r->Read(tween_point.total_repeats_);
+	r->Read(tween_point.yoyo_);
+	r->Read(tween_point.currently_reversed_);
+	r->Read(tween_point.start_reversed_);
+	r->Read(tween_point.duration_);
+	r->Read(tween_point.easing_func_);
 }
 
 } // namespace impl
@@ -60,7 +121,7 @@ float Tween::GetProgress() const {
 
 	PTGN_ASSERT(progress >= 0.0f && progress <= 1.0f, "Progress updating failed");
 
-	return std::invoke(current.easing_func_, progress, 0.0f, 1.0f);
+	return std::invoke(impl::GetEaseFunction(current.easing_func_), progress, 0.0f, 1.0f);
 }
 
 const impl::TweenPoint& Tween::GetCurrentTweenPoint() const {
@@ -162,9 +223,7 @@ Tween& Tween::Repeat(std::int64_t repeats) {
 }
 
 Tween& Tween::Ease(TweenEase ease) {
-	auto it = impl::tween_ease_functions_.find(ease);
-	PTGN_ASSERT(it != impl::tween_ease_functions_.end(), "Could not identify tween easing type");
-	GetLastTweenPoint().easing_func_ = it->second;
+	GetLastTweenPoint().easing_func_ = ease;
 	return *this;
 }
 
@@ -208,6 +267,22 @@ Tween& Tween::SetDuration(milliseconds duration, std::size_t tween_point_index) 
 	tween_points_[tween_point_index].duration_ = duration;
 	UpdateImpl();
 	return *this;
+}
+
+void Tween::Serialize(StreamWriter* w, const Tween& tween) {
+	w->Write(tween.progress_);
+	w->Write(tween.index_);
+	w->Write(tween.tween_points_);
+	w->Write(tween.paused_);
+	w->Write(tween.started_);
+}
+
+void Tween::Deserialize(StreamReader* w, Tween& tween) {
+	w->Read(tween.progress_);
+	w->Read(tween.index_);
+	w->Read(tween.tween_points_);
+	w->Read(tween.paused_);
+	w->Read(tween.started_);
 }
 
 Tween& Tween::OnUpdate(const TweenCallback& callback) {

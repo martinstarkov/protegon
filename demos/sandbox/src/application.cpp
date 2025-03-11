@@ -1,6 +1,7 @@
 
 #include "core/game.h"
 #include "core/game_object.h"
+#include "core/window.h"
 #include "ecs/ecs.h"
 #include "event/input_handler.h"
 #include "event/key.h"
@@ -67,11 +68,38 @@ public:
 		}
 	};
 
+	struct TargetPosition {
+		V2_float start;
+		V2_float stop;
+	};
+
 	ecs::Entity CreateSheep(ecs::Manager& m, const V2_float& position) {
 		auto e = manager.CreateEntity();
 		e.Add<Transform>(position);
 		e.Add<Visible>();
 		e.Add<TextureKey>("sheep");
+		e.Add<TargetPosition>();
+		V2_float ws{ game.window.GetSize() };
+		std::array<V2_float, 4> coordinates{
+			V2_float{},
+			V2_float{ ws.x, 0.0f },
+			ws,
+			V2_float{ 0.0f, ws.y },
+		};
+		e.Add<Tween>()
+			.During(milliseconds{ 4000 })
+			.Repeat(-1)
+			.OnRepeat([e, coordinates]() {
+				auto index = e.Get<Tween>().GetRepeats() % coordinates.size();
+				PTGN_ASSERT(index < coordinates.size());
+				e.Get<TargetPosition>().start = e.Get<Transform>().position;
+				e.Get<TargetPosition>().stop  = coordinates[index];
+			})
+			.OnUpdate([e](float f) {
+				e.Get<Transform>().position =
+					Lerp(e.Get<TargetPosition>().start, e.Get<TargetPosition>().stop, f);
+			})
+			.Start();
 		return e;
 	}
 
@@ -79,28 +107,19 @@ public:
 
 	void Exit() override {
 		FileStreamWriter w{ "resources/sheep.bin" };
-		w.WriteEntity<Transform, Visible, TextureKey>(sheep);
+		w.WriteEntity<Transform, Visible, TextureKey, TargetPosition, Tween>(sheep);
 	}
 
 	void Enter() override {
-		camera.primary.SetPosition({ 0, 0 });
+		camera.primary.SetPosition(game.window.GetCenter());
 
 		game.texture.Load("sheep", "resources/test.png");
 
+		sheep = CreateSheep(manager, V2_float{ 0, 0 });
 		if (FileExists("resources/sheep.bin")) {
-			sheep = manager.CreateEntity();
 			FileStreamReader r{ "resources/sheep.bin" };
-			r.ReadEntity<Transform, Visible, TextureKey>(sheep);
-		} else {
-			sheep = CreateSheep(manager, V2_float{ 0, 0 });
+			r.ReadEntity<Transform, Visible, TextureKey, TargetPosition, Tween>(sheep);
 		}
-	}
-
-	V2_float vel;
-
-	void Update() override {
-		MoveWASD(vel, { 100, 100 }, true);
-		sheep.Get<Transform>().position += vel * game.dt();
 	}
 };
 

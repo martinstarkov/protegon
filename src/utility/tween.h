@@ -14,24 +14,27 @@
 
 namespace ptgn {
 
+class StreamWriter;
+class StreamReader;
+
 enum class TweenEase {
 	Linear,
 	InSine,
 	OutSine,
 	InOutSine,
-	/*InQuad,
-	OutQuad,
-	InOutQuad,
-	InCubic,
-	OutCubic,
-	InOutCubic,
-	InExponential,
-	OutExponential,
-	InOutExponential,
-	InCircular,
-	OutCircular,
-	InOutCircular,*/
-	// TODO: Implement Custom ease
+	// InQuad,
+	// OutQuad,
+	// InOutQuad,
+	// InCubic,
+	// OutCubic,
+	// InOutCubic,
+	// InExponential,
+	// OutExponential,
+	// InOutExponential,
+	// InCircular,
+	// OutCircular,
+	// InOutCircular,
+	//  TODO: Add custom easing function support
 };
 
 class Tween;
@@ -46,76 +49,14 @@ class Game;
 
 using TweenEaseFunction = std::function<float(float, float, float)>;
 
-const static std::unordered_map<TweenEase, TweenEaseFunction> tween_ease_functions_{
-	{ TweenEase::Linear,
-	  [](float t, float a, float b) {
-		  float c{ b - a };
-		  return a + t * c;
-	  } },
-	{ TweenEase::InSine,
-	  [](float t, float a, float b) {
-		  float c{ b - a };
-		  return -c * std::cos(t * half_pi<float>) + b;
-	  } },
-	{ TweenEase::OutSine,
-	  [](float t, float a, float b) {
-		  float c{ b - a };
-		  return c * std::sin(t * half_pi<float>) + a;
-	  } },
-	{ TweenEase::InOutSine,
-	  [](float t, float a, float b) {
-		  float c{ b - a };
-		  return -c / float{ 2 } * (std::cos(pi<float> * t) - float{ 1 }) + a;
-	  } },
-	// TODO: Implement these.
-	//{ TweenEase::InQuad,
-	//  [](float t, float a, float b) {
-	//  } },
-	//{ TweenEase::OutQuad,
-	//  [](float t, float a, float b) {
-	//  } },
-	//{ TweenEase::InOutQuad,
-	//  [](float t, float a, float b) {
-	//  } },
-	//{ TweenEase::InCubic,
-	//  [](float t, float a, float b) {
-	//  } },
-	//{ TweenEase::OutCubic,
-	//  [](float t, float a, float b) {
-	//  } },
-	//{ TweenEase::InOutCubic,
-	//  [](float t, float a, float b) {
-	//  } },
-	//{ TweenEase::InExponential,
-	//  [](float t, float a, float b) {
-	//  } },
-	//{ TweenEase::OutExponential,
-	//  [](float t, float a, float b) {
-	//  } },
-	//{ TweenEase::InOutExponential,
-	//  [](float t, float a, float b) {
-	//  } },
-	//{ TweenEase::InCircular,
-	//  [](float t, float a, float b) {
-	//  } },
-	//{ TweenEase::OutCircular,
-	//  [](float t, float a, float b) {
-	//  } },
-	//{ TweenEase::InOutCircular,
-	//  [](float t, float a, float b) {
-	//  } },
-};
+[[nodiscard]] TweenEaseFunction GetEaseFunction(TweenEase V);
 
 struct TweenPoint {
+	TweenPoint() = default;
+
 	explicit TweenPoint(milliseconds duration);
 
 	void SetReversed(bool reversed);
-
-	milliseconds duration_{ 0 };
-
-	TweenEaseFunction easing_func_{
-		tween_ease_functions_.find(TweenEase::Linear)->second
-	}; // easing function between tween start and end value.
 
 	// current number of repetitions of the tween.
 	std::int64_t current_repeat_{ 0 };
@@ -131,6 +72,11 @@ struct TweenPoint {
 
 	bool start_reversed_{ false };
 
+	milliseconds duration_{ 0 };
+
+	// easing function between tween start and end value.
+	TweenEase easing_func_{ TweenEase::Linear };
+
 	TweenCallback on_complete_;
 	TweenCallback on_repeat_;
 	TweenCallback on_yoyo_;
@@ -139,6 +85,9 @@ struct TweenPoint {
 	TweenCallback on_update_;
 	TweenCallback on_pause_;
 	TweenCallback on_resume_;
+
+	static void Serialize(ptgn::StreamWriter* w, const TweenPoint& tween_point);
+	static void Deserialize(ptgn::StreamReader* r, TweenPoint& tween_point);
 };
 
 } // namespace impl
@@ -242,6 +191,9 @@ public:
 	// @param tween_point_index Which tween point to set the duration of.
 	Tween& SetDuration(milliseconds duration, std::size_t tween_point_index = 0);
 
+	static void Serialize(StreamWriter* w, const Tween& tween);
+	static void Deserialize(StreamReader* w, Tween& tween);
+
 private:
 	// @return New progress of the tween after seeking.
 	[[nodiscard]] float SeekImpl(float new_progress);
@@ -273,10 +225,10 @@ private:
 	std::size_t index_{ 0 };
 	std::vector<impl::TweenPoint> tween_points_;
 
-	TweenCallback on_reset_;
-
 	bool paused_{ false };
 	bool started_{ false };
+
+	TweenCallback on_reset_;
 };
 
 } // namespace ptgn

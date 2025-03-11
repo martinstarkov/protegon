@@ -38,7 +38,6 @@ public:
 		} else if constexpr (tt::is_map_like_v<T>) {
 			std::size_t size{ 0 };
 			ReadRaw(size);
-			PTGN_ASSERT(size > 0, "Failed to read raw map size");
 			for (std::size_t i{ 0 }; i < size; i++) {
 				typename T::key_type key;
 				Read(key);
@@ -47,14 +46,12 @@ public:
 		} else if constexpr (tt::is_std_array_v<T>) {
 			std::size_t size{ 0 };
 			ReadRaw(size);
-			PTGN_ASSERT(size > 0, "Failed to read raw array size");
 			for (std::size_t i{ 0 }; i < size; i++) {
 				Read(type[i]);
 			}
 		} else if constexpr (tt::is_std_vector_v<T>) {
 			std::size_t size{ 0 };
 			ReadRaw(size);
-			PTGN_ASSERT(size > 0, "Failed to read raw vector size");
 			type.resize(size);
 			for (std::size_t i{ 0 }; i < size; i++) {
 				Read(type[i]);
@@ -89,7 +86,7 @@ public:
 			(is_stream_deserializable_type_v<Ts> && ...),
 			"One or more of the ReadEntity component types is not deserializable"
 		);
-		(Read(o.Add<Ts>()), ...);
+		(Read(o.Has<Ts>() ? o.Get<Ts>() : o.Add<Ts>()), ...);
 	}
 };
 
