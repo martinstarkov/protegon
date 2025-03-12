@@ -29,16 +29,16 @@ public:
 	}
 
 	void ForEachCoordinate(const std::function<void(V2_int)>& function) const {
-		for (int i = 0; i < size.x; i++) {
-			for (int j = 0; j < size.y; j++) {
+		for (int i{ 0 }; i < size.x; i++) {
+			for (int j{ 0 }; j < size.y; j++) {
 				std::invoke(function, V2_int{ i, j });
 			}
 		}
 	}
 
 	void ForEach(const std::function<void(V2_int, const T&)>& function) const {
-		for (int i = 0; i < size.x; i++) {
-			for (int j = 0; j < size.y; j++) {
+		for (int i{ 0 }; i < size.x; i++) {
+			for (int j{ 0 }; j < size.y; j++) {
 				V2_int coordinate{ i, j };
 				std::invoke(function, coordinate, Get(coordinate));
 			}
@@ -46,8 +46,8 @@ public:
 	}
 
 	void ForEach(const std::function<void(V2_int, T&)>& function) {
-		for (int i = 0; i < size.x; i++) {
-			for (int j = 0; j < size.y; j++) {
+		for (int i{ 0 }; i < size.x; i++) {
+			for (int j{ 0 }; j < size.y; j++) {
 				V2_int coordinate{ i, j };
 				std::invoke(function, coordinate, Get(coordinate));
 			}
@@ -55,7 +55,7 @@ public:
 	}
 
 	void ForEachIndex(const std::function<void(int)>& function) const {
-		for (int i = 0; i < length; i++) {
+		for (int i{ 0 }; i < length; i++) {
 			std::invoke(function, i);
 		}
 	}
@@ -82,8 +82,8 @@ public:
 		return true;
 	}
 
-	T& Set(const V2_int& coordinate, T&& object) {
-		return Set(OneDimensionalize(coordinate), std::move(object));
+	[[nodiscard]] bool Has(int index) const {
+		return index >= 0 && index < length;
 	}
 
 	[[nodiscard]] const T& Get(const V2_int& coordinate) const {
@@ -100,8 +100,11 @@ public:
 	}
 
 	[[nodiscard]] T& Get(int index) {
-		PTGN_ASSERT(Has(index), "Cannot get grid element which is outside the grid");
-		return cells[static_cast<std::size_t>(index)];
+		return const_cast<T&>(std::as_const(*this).Get(index));
+	}
+
+	T& Set(const V2_int& coordinate, T&& object) {
+		return Set(OneDimensionalize(coordinate), std::move(object));
 	}
 
 	T& Set(int index, T&& object) {
@@ -109,10 +112,6 @@ public:
 		auto& value = cells[static_cast<std::size_t>(index)];
 		value		= std::move(object);
 		return value;
-	}
-
-	[[nodiscard]] bool Has(int index) const {
-		return index >= 0 && index < length;
 	}
 
 	void Clear() {
